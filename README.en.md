@@ -1,7 +1,14 @@
+<<<<<<< HEAD
 # OmniStream
 
 #### Description
 OmniStream operator acceleration is implemented using native code (C/C++) to optimize Flink SQL and DataStream operators.
+=======
+# Omnistream
+
+#### Description
+{**When you're done, you can delete the content in this README and update the file with details for others getting started with your repository**}
+>>>>>>> forOpen
 
 #### Software Architecture
 Software architecture description

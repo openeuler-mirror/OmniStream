@@ -1,0 +1,50 @@
+{
+    "jobId": {
+        "upperPart": 3539979452829069826,
+        "lowerPart": -3417318983790149099
+    },
+    "producedPartitions": [
+        {
+            "shuffleDescriptor": {
+                "resultPartitionID": {
+                    "partitionId": {
+                        "intermediateDataSetID": {
+                            "upperPart": 6677245297748239658,
+                            "lowerPart": 8158952122755421587
+                        },
+                        "partitionNum": 0
+                    },
+                    "producerId": {
+                        "executionAttemptId": {
+                            "upperPart": -9208541395953694100,
+                            "lowerPart": -8601305216628533670
+                        }
+                    }
+                },
+                "hasLocalResource": true,
+                "storesLocalResourcesOn": {
+                    "resourceId": "127.0.1.1:38539-62f389",
+                    "metadata": ""
+                },
+                "unknown": false
+            },
+            "maxParallelism": 128,
+            "notifyPartitionDataAvailable": true,
+            "resultId": {
+                "upperPart": 6677245297748239658,
+                "lowerPart": 8158952122755421587
+            },
+            "totalNumberOfPartitions": 1,
+            "partitionId": {
+                "intermediateDataSetID": {
+                    "upperPart": 6677245297748239658,
+                    "lowerPart": 8158952122755421587
+                },
+                "partitionNum": 0
+            },
+            "partitionType": 7,
+            "numberOfSubpartitions": 1
+        }
+    ],
+    "inputGates": []
+}

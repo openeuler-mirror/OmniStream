@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<configuration status="WARN" monitorInterval="30">
+    <properties>
+        <property name="LOG_PATTERN" value="%date{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n" />
+        <property name="FILE_PATH" value="log" />
+        <property name="FILE_NAME" value="unt" />
+    </properties>
+
+    <appenders>
+        <Console name="Console" target="SYSTEM_OUT">
+            <PatternLayout pattern="${LOG_PATTERN}" />
+        </Console>
+
+        <RollingRandomAccessFile name="File" fileName="log/unt.log" filePattern="log/unt-%{yyyy-MM-dd}_%i.log.gz">
+            <PatternLayout pattern="${LOG_PATTERN}" />
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="24" />
+                <SizeBasedTriggeringPolicy size="1024 MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="10"/>
+        </RollingRandomAccessFile>
+    </appenders>
+
+    <Loggers>
+        <Logger name="com.huawei.unt" level="info" additivity="false">
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="File" />
+        </Logger>
+
+        <Logger name="org.apache" level="warn"/>
+
+        <Root level="error">
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="File" />
+        </Root>
+    </Loggers>
+</configuration>

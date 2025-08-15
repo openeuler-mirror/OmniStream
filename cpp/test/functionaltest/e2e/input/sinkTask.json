@@ -1,0 +1,106 @@
+{
+    "taskName": "Sink: Collect table sink",
+    "numberOfSubtasks": 1,
+    "maxNumberOfSubtasks": 128,
+    "indexOfSubtask": 0,
+    "stateBackend": "HashMapStateBackend",
+    "rocksdbStorePaths": [],
+    "streamConfig": {
+        "outEdgesInOrder": [],
+        "stateBackend": "HashMapStateBackend",
+        "opNonChainedOutputs": [],
+        "opChainedOutputs": [],
+        "operatorDescription": {
+            "name": "Sink: Collect table sink",
+            "id": "org.apache.flink.streaming.api.operators.collect.CollectSinkOperator",
+            "description": "{\"inputTypes\":[\"BIGINT\"],\"outputTypes\":[\"BIGINT\"],\"originDescription\":null}",
+            "inputs": [
+                {
+                    "kind": "Row",
+                    "isNull": false,
+                    "precision": 0,
+                    "type": "[{\"kind\":\"logical\",\"isNull\":true,\"type\":\"BIGINT\"}]",
+                    "timestampKind": 0,
+                    "fieldName": ""
+                }
+            ],
+            "output": {
+                "kind": "basic",
+                "isNull": false,
+                "precision": 0,
+                "type": "Void",
+                "timestampKind": 0,
+                "fieldName": ""
+            },
+            "operatorId" : "EBCDEFGHI",
+            "vertexID": 2
+        },
+        "operatorFactoryName": "org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorFactory",
+        "inStreamEdges": [
+            {
+                "sourceId": 1,
+                "targetId": 2,
+                "typeNumber": 0,
+                "partitioner": {
+                    "partitionerName": "forward",
+                    "hashFields": []
+                },
+                "bufferTimeout": 100
+            }
+        ],
+        "numberOfNetworkInputs": 1,
+        "omniConf" : {
+            "omni.bindcore.strategy" : "0"
+        }
+    },
+    "chainedConfig": [
+        {
+            "outEdgesInOrder": [],
+            "stateBackend": "HashMapStateBackend",
+            "opNonChainedOutputs": [],
+            "opChainedOutputs": [],
+            "operatorDescription": {
+                "name": "Sink: Collect table sink",
+                "id": "org.apache.flink.streaming.api.operators.collect.CollectSinkOperator",
+                "description": "{\"inputTypes\":[\"BIGINT\"],\"outputTypes\":[\"BIGINT\"],\"originDescription\":null}",
+                "inputs": [
+                    {
+                        "kind": "Row",
+                        "isNull": false,
+                        "precision": 0,
+                        "type": "[{\"kind\":\"logical\",\"isNull\":true,\"type\":\"BIGINT\"}]",
+                        "timestampKind": 0,
+                        "fieldName": ""
+                    }
+                ],
+                "output": {
+                    "kind": "basic",
+                    "isNull": false,
+                    "precision": 0,
+                    "type": "Void",
+                    "timestampKind": 0,
+                    "fieldName": ""
+                },
+                "operatorId" : "FBCDEFGHI",
+                "vertexID": 2
+            },
+            "operatorFactoryName": "org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorFactory",
+            "inStreamEdges": [
+                {
+                    "sourceId": 1,
+                    "targetId": 2,
+                    "typeNumber": 0,
+                    "partitioner": {
+                        "partitionerName": "forward",
+                        "hashFields": []
+                    },
+                    "bufferTimeout": 100
+                }
+            ],
+            "numberOfNetworkInputs": 1,
+            "omniConf" : {
+                "omni.bindcore.strategy" : "0"
+            }
+        }
+    ]
+}

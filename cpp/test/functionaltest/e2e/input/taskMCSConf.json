@@ -1,0 +1,20 @@
+{
+    "resourceID": {
+        "resourceId": "127.0.1.1:38539-62f389",
+        "metadata": ""
+    },
+    "memorySize": 134217730,
+    "pageSize": 32768,
+    "requestSegmentsTimeoutMillis": 30000,
+    "numIoThreads": 192,
+    "externalAddress": "127.0.1.1",
+    "localCommunicationOnly": false,
+    "networkbuffersPerChannel": 2,
+    "partitionRequestMaxBackoff": 10000,
+    "partitionRequestInitialBackoff": 100,
+    "floatingNetworkbuffersPerGate": 8,
+    "numberofSegmentsGlobal": 4096,
+    "sortShuffleMinBuffers": 512,
+    "sortShuffleMinParallelism": 1,
+    "segmentSize": 32768
+}

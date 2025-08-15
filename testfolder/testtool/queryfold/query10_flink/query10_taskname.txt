@@ -1,0 +1,2 @@
+task Source: bid[1] -> Calc[2] -> Sink: Collect table sink
+
