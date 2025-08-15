@@ -1,0 +1,122 @@
+{
+    "taskName": "Source: cpp_e2e[1]",
+    "numberOfSubtasks": 1,
+    "maxNumberOfSubtasks": 128,
+    "indexOfSubtask": 0,
+    "stateBackend": "HashMapStateBackend",
+    "rocksdbStorePaths": [],
+    "streamConfig": {
+        "outEdgesInOrder": [
+            {
+                "sourceId": 1,
+                "targetId": 2,
+                "typeNumber": 0,
+                "partitioner": {
+                    "partitionerName": "forward",
+                    "hashFields": []
+                },
+                "bufferTimeout": 100
+            }
+        ],
+        "stateBackend": "HashMapStateBackend",
+        "opNonChainedOutputs": [
+            {
+                "sourceNodeId": 1,
+                "consumerParallelism": 1,
+                "consumerMaxParallelism": -1,
+                "bufferTimeout": 100,
+                "dataSetId": {
+                    "upperPart": 6677245297748239658,
+                    "lowerPart": 8158952122755421587
+                },
+                "isPersistentDataSet": false,
+                "partitioner": {
+                    "partitionerName": "forward",
+                    "hashFields": []
+                },
+                "partitionType": 7
+            }
+        ],
+        "opChainedOutputs": [],
+        "operatorDescription": {
+            "name": "Source: cpp_e2e[1]",
+            "id": "org.apache.flink.streaming.api.operators.SourceOperator",
+            "description": "{\n  \"format\" : \"csv\",\n  \"delimiter\" : null,\n  \"filePath\" : \"/repo/codehub/flink_example/csv/cpp_e2e.csv\",\n  \"fields\" : [ {\n    \"kind\" : \"logical\",\n    \"isNull\" : true,\n    \"precision\" : 3,\n    \"type\" : \"BIGINT\",\n    \"timestampKind\" : 0,\n    \"fieldName\" : \"col1\"\n  }, {\n    \"kind\" : \"logical\",\n    \"isNull\" : true,\n    \"precision\" : 3,\n    \"type\" : \"NUMBER\",\n    \"timestampKind\" : 0,\n    \"fieldName\" : \"col2\"\n  }, {\n    \"kind\" : \"logical\",\n    \"isNull\" : true,\n    \"precision\" : 3,\n    \"type\" : \"NUMBER\",\n    \"timestampKind\" : 0,\n    \"fieldName\" : \"col3\"\n  } ],\n  \"selectFields\" : [ 0 ],\n  \"csvSelectFieldToProjectFieldMapping\" : [ 0 ],\n  \"csvSelectFieldToCsvFieldMapping\" : [ 0 ]\n}",
+            "inputs": [],
+            "output": {
+                "kind": "Row",
+                "isNull": false,
+                "precision": 0,
+                "type": "[{\"kind\":\"logical\",\"isNull\":true,\"type\":\"BIGINT\"}]",
+                "timestampKind": 0,
+                "fieldName": ""
+            },
+            "operatorId" : "ABCDEFGHI",
+            "vertexID": 1
+        },
+        "operatorFactoryName": "org.apache.flink.streaming.api.operators.SourceOperatorFactory",
+        "inStreamEdges": [],
+        "numberOfNetworkInputs": 0,
+        "omniConf" : {
+            "omni.bindcore.strategy" : "0"
+        }
+    },
+    "chainedConfig": [
+        {
+            "outEdgesInOrder": [
+                {
+                    "sourceId": 1,
+                    "targetId": 2,
+                    "typeNumber": 0,
+                    "partitioner": {
+                        "partitionerName": "forward",
+                        "hashFields": []
+                    },
+                    "bufferTimeout": 100
+                }
+            ],
+            "stateBackend": "HashMapStateBackend",
+            "opNonChainedOutputs": [
+                {
+                    "sourceNodeId": 1,
+                    "consumerParallelism": 1,
+                    "consumerMaxParallelism": -1,
+                    "bufferTimeout": 100,
+                    "dataSetId": {
+                        "upperPart": 6677245297748239658,
+                        "lowerPart": 8158952122755421587
+                    },
+                    "isPersistentDataSet": false,
+                    "partitioner": {
+                        "partitionerName": "forward",
+                        "hashFields": []
+                    },
+                    "partitionType": 7
+                }
+            ],
+            "opChainedOutputs": [],
+            "operatorDescription": {
+                "name": "Source: cpp_e2e[1]",
+                "id": "org.apache.flink.streaming.api.operators.SourceOperator",
+                "description": "{\n  \"format\" : \"csv\",\n  \"delimiter\" : null,\n  \"filePath\" : \"/repo/codehub/flink_example/csv/cpp_e2e.csv\",\n  \"fields\" : [ {\n    \"kind\" : \"logical\",\n    \"isNull\" : true,\n    \"precision\" : 3,\n    \"type\" : \"BIGINT\",\n    \"timestampKind\" : 0,\n    \"fieldName\" : \"col1\"\n  }, {\n    \"kind\" : \"logical\",\n    \"isNull\" : true,\n    \"precision\" : 3,\n    \"type\" : \"NUMBER\",\n    \"timestampKind\" : 0,\n    \"fieldName\" : \"col2\"\n  }, {\n    \"kind\" : \"logical\",\n    \"isNull\" : true,\n    \"precision\" : 3,\n    \"type\" : \"NUMBER\",\n    \"timestampKind\" : 0,\n    \"fieldName\" : \"col3\"\n  } ],\n  \"selectFields\" : [ 0 ],\n  \"csvSelectFieldToProjectFieldMapping\" : [ 0 ],\n  \"csvSelectFieldToCsvFieldMapping\" : [ 0 ]\n}",
+                "inputs": [],
+                "output": {
+                    "kind": "Row",
+                    "isNull": false,
+                    "precision": 0,
+                    "type": "[{\"kind\":\"logical\",\"isNull\":true,\"type\":\"BIGINT\"}]",
+                    "timestampKind": 0,
+                    "fieldName": ""
+                },
+                "operatorId" : "DBCDEFGHI",
+                "vertexID": 1
+            },
+            "operatorFactoryName": "org.apache.flink.streaming.api.operators.SourceOperatorFactory",
+            "inStreamEdges": [],
+            "numberOfNetworkInputs": 0,
+            "omniConf" : {
+                "omni.bindcore.strategy" : "0"
+            }
+        }
+    ]
+}

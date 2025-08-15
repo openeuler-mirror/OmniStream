@@ -1,0 +1,2 @@
+task Source: person[1] -> WatermarkAssigner[2] -> LocalWindowAggregate[3]
+task Source: auction[7] -> WatermarkAssigner[8] -> LocalWindowAggregate[9]

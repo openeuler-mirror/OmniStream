@@ -1,0 +1,127 @@
+import os
+import time
+omni_home = os.environ.get("OMNISTREAM_HOME")
+
+flink_file = os.path.join(omni_home,"testtool/queryfold/query12_flink/query12_result_flink.txt")
+omni_file = os.path.join(omni_home,"testtool/queryfold/query12_OmniStream/flink_output.txt")
+
+
+task_name_file1 = os.path.join(omni_home,"testtool/queryfold/query12_flink/query12_taskname.txt")
+task_name_file2 = os.path.join(omni_home,"testtool/queryfold/query12_OmniStream/q12-taskname-OmniStream.txt")
+def find_taskexecutor_log():
+    flink_home = os.environ.get("FLINK_HOME")
+    log_dir = os.path.join(flink_home, "log")
+
+    candidates = []
+    for file in os.listdir(log_dir):
+        if ("flink-root-taskexecutor-" in file and
+                "-server-" in file and
+                file.endswith(".out")):
+            candidates.append(os.path.join(log_dir, file))
+
+    if not candidates:
+        raise FileNotFoundError("未找到匹配的 TaskExecutor 日志文件")
+
+    candidates.sort(key=os.path.getmtime, reverse=True)
+    return candidates[0]
+
+def check_log_for_setup_stram_task(log_file_path):
+    with open(log_file_path, 'r', encoding='utf-8') as f:
+        for line_number, line in enumerate(f, 1):
+            if '[INFO]' in line and 'setupStramTask:' in line:
+               return True
+    return False
+
+
+log_file = find_taskexecutor_log()
+print(check_log_for_setup_stram_task(log_file))
+if check_log_for_setup_stram_task(log_file)==False:
+    print("❌q12 failed, plan not triggered")
+    exit(1)
+def find_taskexecutor_log():
+    flink_home = os.environ.get("FLINK_HOME")
+    log_dir = os.path.join(flink_home, "log")
+
+    candidates = []
+    for file in os.listdir(log_dir):
+        if ("flink-root-taskexecutor-" in file and
+                "-server-" in file and
+                file.endswith(".out")):
+            candidates.append(os.path.join(log_dir, file))
+
+    if not candidates:
+        raise FileNotFoundError("未找到匹配的 TaskExecutor 日志文件")
+
+    candidates.sort(key=os.path.getmtime, reverse=True)
+    return candidates[0]
+
+def check_log_for_setup_stram_task(log_file_path):
+    with open(log_file_path, 'r', encoding='utf-8') as f:
+        for line_number, line in enumerate(f, 1):
+            return True
+    return False
+
+
+log_file = find_taskexecutor_log()
+if check_log_for_setup_stram_task(log_file)==False:
+    print("❌q0 failed, plan not triggered")
+    exit(1)
+def normalize_line(line):
+    line = line.strip().rstrip(',')
+
+    if line.startswith("+I,"):
+        line = line[3:]
+    if line.startswith("-I,"):
+        line = line[3:]
+    if line.startswith("+U,"):
+        line = line[3:]
+    if line.startswith("-U,"):
+        line = line[3:]
+    if line.startswith("+D,"):
+        line = line[3:]
+    if line.startswith("-D,"):
+        line = line[3:]
+
+    line = line.replace('"', '')
+
+    return line
+def read_and_normalize(path):
+    with open(path, "r") as f:
+        return sorted(normalize_line(l) for l in f if l.strip())
+
+if not os.path.exists(omni_file):
+    print("❌q12 failed, the txt files were not found")
+    exit()
+
+
+flink_lines = read_and_normalize(flink_file)
+omni_lines = read_and_normalize(omni_file)
+
+def extract_core_content(line):
+    if 'Source:' not in line:
+        return None
+    core = line.split('Source:', 1)[1]
+    return core.replace('"', '').replace(' ', '').replace(',', '').rstrip(',').strip()
+
+def compare_source_lines(file1, file2):
+    if not os.path.exists(file1) or not os.path.exists(file2):
+        return False
+    with open(file1, 'r', encoding='utf-8') as f1, open(file2, 'r', encoding='utf-8') as f2:
+        lines1 = [extract_core_content(line) for line in f1 if 'Source:' in line]
+        lines2 = [extract_core_content(line) for line in f2 if 'Source:' in line]
+
+    set1 = sorted(set(filter(None, lines1)))
+    set2 = sorted(set(filter(None, lines2)))
+
+
+    return set1 == set2
+
+
+
+# if compare_source_lines(task_name_file1,task_name_file2)==False:
+#     print("❌q12 failed, native tasks do not match")
+
+if flink_lines == omni_lines:
+    print("✅q12 success")
+else:
+    print("❌q12 failed, output results are wrong")
