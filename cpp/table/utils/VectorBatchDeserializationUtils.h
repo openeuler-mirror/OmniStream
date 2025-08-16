@@ -7,6 +7,7 @@
 #include "OmniOperatorJIT/core/src/vector/unsafe_vector.h"
 #include "OmniOperatorJIT/core/src/vector/vector.h"
 #include "OmniOperatorJIT/core/src/vector/vector_helper.h"
+#include "OmniOperatorJIT/core/src/vector/nulls_buffer.h"
 #include "table/vectorbatch/VectorBatch.h"
 #include <arm_sve.h>
 
@@ -198,9 +199,10 @@ public:
 
     static void deserializeNulls(BaseVector *baseVector, uint8_t *&buffer,
                                  int32_t size) {
-        bool *nullData = UnsafeBaseVector::GetNulls(baseVector);
+        auto nullData = UnsafeBaseVector::GetNulls(baseVector);
+        auto nullByteSize = omniruntime::vec::NullsBuffer::CalculateNbytes(rowCnt);
 
-        size_t len = sizeof(bool) * size;
+        size_t len = nullByteSize;
         size_t skip_num = 32;
         size_t num = len / skip_num;
         svbool_t pTrue = svptrue_b8();
@@ -213,7 +215,7 @@ public:
         }
         getResData(nullData, buffer, cur, len - cur);
 
-        buffer += sizeof(bool) * size;
+        buffer += nullByteSize;
     }
 
     static void deserializeInt64(Vector<int64_t> *vector64, uint8_t *&buffer) {
@@ -383,12 +385,13 @@ public:
         memcpy(&stringBodySize, buffer, sizeof(int32_t));
 
         buffer += sizeof(int32_t);
-        std::shared_ptr<AlignedBuffer<bool>> nullsBuffer =
-            std::make_shared<AlignedBuffer<bool>>(rowCnt);
+        auto nullByteSize = omniruntime::vec::NullsBuffer::CalculateNbytes(rowCnt);
+        std::shared_ptr<AlignedBuffer<uint8_t>> nullsBuffer =
+            std::make_shared<AlignedBuffer<uint8_t>>(nullByteSize);
         memcpy(nullsBuffer->GetBuffer(), buffer,
-                 sizeof(bool) * rowCnt);
+               nullByteSize);
 
-        buffer += sizeof(bool) * rowCnt;
+        buffer += nullByteSize;
 
         std::shared_ptr<LargeStringContainer<std::string_view>>
             stringContainer =
@@ -412,9 +415,10 @@ public:
         auto dictionary =
             std::make_shared<DictionaryContainer<std::string_view>>(
                 values, rowCnt, stringContainer, dictSize, dictOffset);
+        auto newNullsBuffer = new NullsBuffer(rowCnt, nullsBuffer);
         auto stringDictionaryVector =
             new Vector<DictionaryContainer<std::string_view>>(
-                rowCnt, dictionary, nullsBuffer, OMNI_CHAR);
+                rowCnt, dictionary, newNullsBuffer, false, OMNI_CHAR);
 
         return stringDictionaryVector;
     }

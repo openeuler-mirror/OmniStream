@@ -149,7 +149,7 @@ public:
         int32_t vectorHeaderSize =
             sizeof(int32_t) + sizeof(int8_t) + sizeof(int8_t);
 
-        int32_t nullByteSize = size * sizeof(bool);
+        auto nullByteSize = omniruntime::vec::NullsBuffer::CalculateNbytes(size);
         totalSize += nullByteSize + vectorHeaderSize;
         int32_t dataSize = 0;
 
@@ -234,9 +234,10 @@ public:
         DataTypeId dataType = baseVector->GetTypeId();
         int32_t rowCount = baseVector->GetSize();
         serializeVectorBatchHeader(baseVector, buffer, bufferSize);
-        bool *nullData = UnsafeBaseVector::GetNulls(baseVector);
+        auto nullData = UnsafeBaseVector::GetNulls(baseVector);
+        auto nullByteSize = omniruntime::vec::NullsBuffer::CalculateNbytes(rowCnt);
 
-        size_t len = sizeof(bool) * rowCount;
+        size_t len = nullByteSize;
         size_t skip_num = 32;
         size_t num = len / skip_num;
         svbool_t pTrue = svptrue_b8();
@@ -249,7 +250,7 @@ public:
         }
         getResData(buffer, nullData, cur, len - cur);
 
-        buffer += sizeof(bool) * rowCount;
+        buffer += nullByteSize;
 
         switch (dataType) {
             case OMNI_LONG:
@@ -317,9 +318,10 @@ public:
         buffer += sizeof(int32_t);
 
         // nullData
-        bool *nullData = UnsafeBaseVector::GetNulls(baseVector);
-        memcpy(buffer, nullData, sizeof(bool) * rowCount);
-        buffer += sizeof(bool) * rowCount;
+        auto nullData = UnsafeBaseVector::GetNulls(baseVector);
+        auto nullByteSize = omniruntime::vec::NullsBuffer::CalculateNbytes(rowCnt);
+        memcpy(buffer, nullData, nullByteSize);
+        buffer += nullByteSize;
 
         // offset array
         memcpy(buffer, offsetArr,
@@ -624,9 +626,10 @@ public:
             stringContainer)
     {
         // nullData
-        bool *nullData = UnsafeBaseVector::GetNulls(baseVector);
+        auto nullData = UnsafeBaseVector::GetNulls(baseVector);
+        auto nullByteSize = omniruntime::vec::NullsBuffer::CalculateNbytes(rowCnt);
 
-        size_t len = sizeof(bool) * valueSize;
+        size_t len = nullByteSize;
         size_t skip_num = 32;
         size_t num = len / skip_num;
         svbool_t pTrue = svptrue_b8();
@@ -638,7 +641,7 @@ public:
             cur += skip_num;
         }
         getResData(buffer, nullData, cur, len - cur);
-        buffer += sizeof(bool) * valueSize;
+        buffer += nullByteSize;
 
         // offset array
         memcpy(buffer, offsetArr,
