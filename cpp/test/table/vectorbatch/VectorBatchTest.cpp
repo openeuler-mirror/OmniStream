@@ -624,8 +624,8 @@ TEST(VectorBatchTest, StringDictionaryContainer)
 
 
     int32_t values[] = {2, 3, 4};
-    std::shared_ptr<AlignedBuffer<bool>> nullsBuffer = std::make_shared<AlignedBuffer<bool>>(valueSize);
-    bool *nulls = nullsBuffer->GetBuffer();
+    std::shared_ptr<AlignedBuffer<uint8_t>> nullsBuffer = std::make_shared<AlignedBuffer<uint8_t>>(valueSize);
+    auto nulls = nullsBuffer->GetBuffer();
     for (int i = 0; i < valueSize; i++)
     {
         nulls[i] = vec1->IsNull(values[i]);
@@ -634,9 +634,9 @@ TEST(VectorBatchTest, StringDictionaryContainer)
     std::shared_ptr<DictionaryContainer<std::string_view>> dictionary = std::make_shared<DictionaryContainer<std::string_view>>(values, valueSize,
                                                                                                                                 unsafe::UnsafeStringVector::GetContainer(vec1),
                                                                                                                                 vec1->GetSize(), vec1->GetOffset());
-
-    Vector<DictionaryContainer<std::string_view>> *stringDictionaryVec = new Vector<DictionaryContainer<std::string_view>>(valueSize, dictionary, nullsBuffer, OMNI_CHAR);
-    Vector<DictionaryContainer<std::string_view>> *stringDictionaryVec2 = new Vector<DictionaryContainer<std::string_view>>(valueSize, dictionary, nullsBuffer, OMNI_CHAR);
+    auto newNullsBuffer = new NullsBuffer(valueSize, nullsBuffer);
+    Vector<DictionaryContainer<std::string_view>> *stringDictionaryVec = new Vector<DictionaryContainer<std::string_view>>(valueSize, dictionary, newNullsBuffer, false, OMNI_CHAR);
+    Vector<DictionaryContainer<std::string_view>> *stringDictionaryVec2 = new Vector<DictionaryContainer<std::string_view>>(valueSize, dictionary, newNullsBuffer, false, OMNI_CHAR);
 
     vectorBatch.Append(stringDictionaryVec);
     // vectorBatch.Append(stringDictionaryVec2);
@@ -774,18 +774,18 @@ TEST(VectorBatchTest, StringDictionaryContainerAndOtherVector)
 
 
     int32_t values[] = {2, 3, 4};
-    std::shared_ptr<AlignedBuffer<bool>> nullsBuffer = std::make_shared<AlignedBuffer<bool>>(valueSize);
-    bool *nulls = nullsBuffer->GetBuffer();
+    std::shared_ptr<AlignedBuffer<uint8_t>> nullsBuffer = std::make_shared<AlignedBuffer<uint8_t>>(valueSize);
+    auto newNullsBuffer = new NullsBuffer(valueSize, nullsBuffer);
+    auto nulls = nullsBuffer->GetBuffer();
     for (int i = 0; i < valueSize; i++)
     {
         nulls[i] = vec1->IsNull(values[i]);
     }
 
-    std::shared_ptr<DictionaryContainer<std::string_view>> dictionary = std::make_shared<DictionaryContainer<std::string_view>>(values, valueSize,
-                                                                                                                                unsafe::UnsafeStringVector::GetContainer(vec1),
+    auto dictionary = std::make_shared<DictionaryContainer<std::string_view>>(values, valueSize, unsafe::UnsafeStringVector::GetContainer(vec1),
                                                                                                                                 vec1->GetSize(), vec1->GetOffset());
 
-    Vector<DictionaryContainer<std::string_view>> *stringDictionaryVec = new Vector<DictionaryContainer<std::string_view>>(valueSize, dictionary, nullsBuffer, OMNI_CHAR);
+    auto stringDictionaryVec = new Vector<DictionaryContainer<std::string_view>>(valueSize, dictionary, newNullsBuffer, false, OMNI_CHAR);
 
     vectorBatch.Append(stringDictionaryVec);
 

@@ -7,6 +7,8 @@
 #include <string>
 #include <cstring>
 #include <limits>
+#include <codecvt>
+#include <locale>
 
 static const int HIGH_BIT = 0x1 << 7;
 static const int HIGH_BIT14 = 0x1 << 14;
