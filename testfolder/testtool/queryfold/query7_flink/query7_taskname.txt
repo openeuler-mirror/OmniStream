@@ -1,2 +1,0 @@
-task Source: bid[1] -> WatermarkAssigner[2] -> Calc[3]
-task Source: bid[5] -> WatermarkAssigner[6] -> LocalWindowAggregate[7]

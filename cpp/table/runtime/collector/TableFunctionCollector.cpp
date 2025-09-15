@@ -1,7 +1,3 @@
-//
-// Created by xichen on 1/30/25.
-//
-
 #include "TableFunctionCollector.h"
 
 void TableFunctionCollector::reset() {

@@ -1,9 +1,6 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
-//
-// Created by xichen on 9/26/24.
-//
 
 #include <gtest/gtest.h>
 #include <nlohmann/json.hpp>

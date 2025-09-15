@@ -2,10 +2,6 @@
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
 
-//
-// Created by t00510106 on 2025/7/4.
-//
-
 #include "VectorBatchUtils.h"
 
 void VectorBatchUtils::AppendLongVectorForInt64(omnistream::VectorBatch *outputVB, std::vector<RowData *> collectedRows,

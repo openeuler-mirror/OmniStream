@@ -1,7 +1,3 @@
-//
-// Created by root on 9/5/24.
-//
-
 #include "BinaryRowDataSerializer.h"
 // #include "core/memory/MemorySegmentFactory.h"
 #include "../data/binary/BinarySegmentUtils.h"

@@ -1,6 +1,3 @@
-//
-// Created by xichen on 1/23/25.
-//
 #include "core/operators/StreamCalcBatch.h"
 #include <gtest/gtest.h>
 #include <nlohmann/json.hpp>

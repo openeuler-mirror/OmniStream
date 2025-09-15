@@ -104,7 +104,7 @@ public:
         svint64_t rawData = svld1_gather_index(pg2, src, offset1);
         svst1_s64(pg2, dst, rawData);
 
-        int jump = 4;
+        int jump = svcntd();
         auto pg3 = svwhilelt_b64(i + jump, size);
         svint64_t rawData2 = svld1_gather_index(pg3, src, offset2);
         svst1_s64(pg3, dst + jump, rawData2);
@@ -129,7 +129,7 @@ public:
                     offsets.data(), 0, offsets.size()));
             }
         }
-        int processElement = 8;
+        int processElement = svcntw();
         int size = offsets.size();
         for (size_t i = 0; i < offsets.size(); i += processElement) {
             int position = offsets[i];

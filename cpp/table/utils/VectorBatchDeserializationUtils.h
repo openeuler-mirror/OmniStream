@@ -33,7 +33,7 @@ public:
 
         int32_t batchSize;
         size_t len = sizeof(batchSize);
-        size_t skip_num = 32;
+        size_t skip_num = svcntb();
         size_t num = len / skip_num;
         svbool_t pTrue = svptrue_b8();
         size_t cur = 0;
@@ -181,7 +181,7 @@ public:
         size_t copySize = offsetArr[size] * sizeof(char);
 
         size_t len = copySize;
-        size_t skip_num = 32;
+        size_t skip_num = svcntb();
         size_t num = len / skip_num;
         svbool_t pTrue = svptrue_b8();
         size_t cur = 0;
@@ -200,10 +200,10 @@ public:
     static void deserializeNulls(BaseVector *baseVector, uint8_t *&buffer,
                                  int32_t size) {
         auto nullData = UnsafeBaseVector::GetNulls(baseVector);
-        auto nullByteSize = omniruntime::vec::NullsBuffer::CalculateNbytes(rowCnt);
+        auto nullByteSize = omniruntime::vec::NullsBuffer::CalculateNbytes(size);
 
         size_t len = nullByteSize;
-        size_t skip_num = 32;
+        size_t skip_num = svcntb();
         size_t num = len / skip_num;
         svbool_t pTrue = svptrue_b8();
         size_t cur = 0;
@@ -226,7 +226,7 @@ public:
         int64_t *data = UnsafeVector::GetRawValues(vector64);
 
         size_t len = sizeof(int64_t) * size;
-        size_t skip_num = 32;
+        size_t skip_num = svcntb();
         size_t num = len / skip_num;
         svbool_t pTrue = svptrue_b8();
         size_t cur = 0;
@@ -247,7 +247,7 @@ public:
         int32_t *data = UnsafeVector::GetRawValues(vector32);
 
         size_t len = sizeof(int32_t) * size;
-        size_t skip_num = 32;
+        size_t skip_num = svcntb();
         size_t num = len / skip_num;
         svbool_t pTrue = svptrue_b8();
         size_t cur = 0;
@@ -268,7 +268,7 @@ public:
         int16_t *data = UnsafeVector::GetRawValues(vector16);
 
         size_t len = sizeof(int16_t) * size;
-        size_t skip_num = 32;
+        size_t skip_num = svcntb();
         size_t num = len / skip_num;
         svbool_t pTrue = svptrue_b8();
         size_t cur = 0;
@@ -291,7 +291,7 @@ public:
         double *data = UnsafeVector::GetRawValues(vectorDouble);
 
         size_t len = sizeof(double) * size;
-        size_t skip_num = 32;
+        size_t skip_num = svcntb();
         size_t num = len / skip_num;
         svbool_t pTrue = svptrue_b8();
         size_t cur = 0;
@@ -313,7 +313,7 @@ public:
         bool *data = UnsafeVector::GetRawValues(vectorBool);
 
         size_t len = sizeof(bool) * size;
-        size_t skip_num = 32;
+        size_t skip_num = svcntb();
         size_t num = len / skip_num;
         svbool_t pTrue = svptrue_b8();
         size_t cur = 0;
@@ -336,7 +336,7 @@ public:
         Decimal128 *data = UnsafeVector::GetRawValues(vectorDecimal128);
 
         size_t len = sizeof(Decimal128) * size;
-        size_t skip_num = 32;
+        size_t skip_num = svcntb();
         size_t num = len / skip_num;
         svbool_t pTrue = svptrue_b8();
         size_t cur = 0;
@@ -358,7 +358,7 @@ public:
         int32_t *values = new int32_t[rowCnt];
 
         size_t len = sizeof(int32_t) * rowCnt;
-        size_t skip_num = 32;
+        size_t skip_num = svcntb();
         size_t num = len / skip_num;
         svbool_t pTrue = svptrue_b8();
         size_t cur = 0;
@@ -428,7 +428,7 @@ public:
         long timestamp;
 
         size_t len = sizeof(long);
-        size_t skip_num = 32;
+        size_t skip_num = svcntb();
         size_t num = len / skip_num;
         svbool_t pTrue = svptrue_b8();
         size_t cur = 0;

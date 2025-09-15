@@ -1,9 +1,6 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
-//
-// Created by c00572813 on 2025/4/17.
-//
 
 #ifndef OMNISTREAM_ROCKSDBMAPSTATE_H
 #define OMNISTREAM_ROCKSDBMAPSTATE_H

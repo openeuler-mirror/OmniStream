@@ -1,9 +1,6 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
-//
-// Created by s30031572 on 2024/12/26.
-//
 
 #ifndef OMNIFLINK_REDUCEFUNCTION_H
 #define OMNIFLINK_REDUCEFUNCTION_H

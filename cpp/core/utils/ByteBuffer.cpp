@@ -1,9 +1,6 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
-//
-// Created by root on 8/12/24.
-//
 
 #include <huawei_secure_c/include/securec.h>
 #include <cstring>
@@ -66,7 +63,7 @@ void ByteBuffer::putBytes(const void* src, int len)
 
     // Use memcpy for efficient bulk copy
 
-    size_t skip_num = 32;
+    size_t skip_num = svcntb();
     size_t num = len / skip_num;
     svbool_t pTrue = svptrue_b8();
     size_t cur = 0;

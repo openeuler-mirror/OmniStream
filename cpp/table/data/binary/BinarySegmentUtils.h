@@ -1,7 +1,3 @@
-//
-// Created by root on 9/12/24.
-//
-
 #ifndef FLINK_TNEL_BINARYSEGMENTUTILS_H
 #define FLINK_TNEL_BINARYSEGMENTUTILS_H
 

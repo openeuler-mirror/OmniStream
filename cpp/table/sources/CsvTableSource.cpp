@@ -1,7 +1,3 @@
-//
-// Created by xichen on 1/29/25.
-//
-
 #include "CsvTableSource.h"
 
 size_t CsvTableSource::countCsvRows()  {

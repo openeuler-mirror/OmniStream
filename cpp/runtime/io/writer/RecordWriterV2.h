@@ -1,7 +1,3 @@
-//
-// Created by root on 2/18/25.
-//
-
 #ifndef RECORDWRITERV2_H
 #define RECORDWRITERV2_H
 

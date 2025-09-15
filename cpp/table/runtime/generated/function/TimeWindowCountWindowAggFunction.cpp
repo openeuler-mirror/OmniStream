@@ -1,14 +1,6 @@
-//
-// Created by q00649235 on 2025/3/18.
-//
-
 #include "TimeWindowCountWindowAggFunction.h"
-
-
 #include "CountWindowAggFunction.h"
-
 #include "table/data/binary/BinaryRowData.h"
-
 
 void TimeWindowCountWindowAggFunction::open(StateDataViewStore* store) {
     this->store = store;

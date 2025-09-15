@@ -53,7 +53,7 @@ public:
         {
             void *pos = static_cast<void *>(offHeapBuffer + index);
             size_t len = length;
-            size_t skip_num = 32;
+            size_t skip_num = svcntb();
             size_t num = len / skip_num;
             svbool_t pTrue = svptrue_b8();
             size_t cur = 0;
@@ -83,7 +83,7 @@ public:
             void *dstPos = static_cast<void *>(dst + offset);
 
             size_t len = length;
-            size_t skip_num = 32;
+            size_t skip_num = svcntb();
             size_t num = len / skip_num;
             svbool_t pTrue = svptrue_b8();
             size_t cur = 0;
@@ -121,7 +121,7 @@ public:
         if (index >= 0 && index <= size - static_cast<int>(sizeof(long)))
         {
             size_t len = sizeof(long);
-            size_t skip_num = 32;
+            size_t skip_num = svcntb();
             size_t num = len / skip_num;
             svbool_t pTrue = svptrue_b8();
             size_t cur = 0;
@@ -152,7 +152,7 @@ public:
     {
         if (index >= 0 && index <= size - static_cast<int>(sizeof(bool))) {
             size_t len = sizeof(bool);
-            size_t skip_num = 32;
+            size_t skip_num = svcntb();
             size_t num = len / skip_num;
             svbool_t pTrue = svptrue_b8();
             size_t cur = 0;
@@ -186,7 +186,7 @@ public:
         if (index >= 0 && index <= size - static_cast<int>(sizeof(int)))
         {
             size_t len = sizeof(int);
-            size_t skip_num = 32;
+            size_t skip_num = svcntb();
             size_t num = len / skip_num;
             svbool_t pTrue = svptrue_b8();
             size_t cur = 0;
@@ -232,7 +232,7 @@ public:
     static inline void copy(uint8_t *source, int source_offset, uint8_t * dest, int dest_offset, int copy_len)
     {
         size_t len = copy_len;
-        size_t skip_num = 32;
+        size_t skip_num = svcntb();
         size_t num = len / skip_num;
         svbool_t pTrue = svptrue_b8();
         size_t cur = 0;

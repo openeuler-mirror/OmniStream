@@ -1,6 +1,3 @@
-//
-// Created by root on 3/5/25.
-//
 
 #ifndef RECORDWRITERBUILDERV2_H
 #define RECORDWRITERBUILDERV2_H

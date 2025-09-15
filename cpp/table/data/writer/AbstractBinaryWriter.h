@@ -1,7 +1,3 @@
-//
-// Created by root on 9/15/24.
-//
-
 #ifndef FLINK_TNEL_ABSTRACTBINARYWRITER_H
 #define FLINK_TNEL_ABSTRACTBINARYWRITER_H
 

@@ -1,6 +1,3 @@
-//
-// Created by c00572813 on 2025/4/14.
-//
 #include <gtest/gtest.h>
 #include "rocksdb/db.h"
 #include "rocksdb/options.h"

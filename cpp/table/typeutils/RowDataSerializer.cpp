@@ -1,7 +1,3 @@
-//
-// Created by root on 9/12/24.
-//
-
 #include "RowDataSerializer.h"
 #include "InternalSerializers.h"
 #include "BinaryRowDataSerializer.h"

@@ -1,7 +1,3 @@
-//
-// Created by root on 3/5/25.
-//
-
 #include "RecordWriterBuilderV2.h"
 
 #include "SimpleSelectorRecordWriterV2.h"

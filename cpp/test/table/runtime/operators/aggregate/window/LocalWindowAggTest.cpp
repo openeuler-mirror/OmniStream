@@ -1,6 +1,3 @@
-//
-// Created by c00572813 on 2025/2/18.
-//
 #include <gtest/gtest.h>
 #include <iostream>
 #include <nlohmann/json.hpp>

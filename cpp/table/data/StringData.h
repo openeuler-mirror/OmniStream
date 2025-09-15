@@ -1,7 +1,3 @@
-//
-// Created by root on 8/9/24.
-//
-
 #ifndef FLINK_TNEL_STRINGDATA_H
 #define FLINK_TNEL_STRINGDATA_H
 

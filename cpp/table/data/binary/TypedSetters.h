@@ -1,7 +1,3 @@
-//
-// Created by root on 9/17/24.
-//
-
 #ifndef FLINK_TNEL_TYPEDSETTERS_H
 #define FLINK_TNEL_TYPEDSETTERS_H
 

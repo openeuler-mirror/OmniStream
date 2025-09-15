@@ -1,1 +1,0 @@
-task Source: bid[1] -> WatermarkAssigner[2] -> Calc[3]

@@ -1,7 +1,3 @@
-//
-// Created by xichen on 1/21/25.
-//
-
 #include "VectorBatch.h"
 #include <fstream>
 #include "data/binary/BinaryRowData.h"

@@ -1,9 +1,6 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
-//
-// Created by arpit on 3/28/25.
-//
 
 #ifndef OMNISTREAM_KVCACHE_H
 #define OMNISTREAM_KVCACHE_H

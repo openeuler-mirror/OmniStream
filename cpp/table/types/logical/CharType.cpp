@@ -1,6 +1,3 @@
-//
-// Created by arpit on 10/22/24.
-//
 #include "CharType.h"
 #include "../../../core/include/common.h"
 

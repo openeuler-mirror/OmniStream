@@ -1,7 +1,3 @@
-//
-// Created by q00649235 on 2025/3/25.
-//
-
 #include <gtest/gtest.h>
 #include <basictypes/String.h>
 #include "streaming/api/operators/SourceOperator.h"

@@ -1,9 +1,6 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
-//
-// Created by xichen on 2025/7/19.
-//
 
 #ifndef FLINK_TNEL_ABSTRACTSTREAMINGJOINOPERATOR_H
 #define FLINK_TNEL_ABSTRACTSTREAMINGJOINOPERATOR_H
@@ -367,8 +364,8 @@ std::unique_ptr<std::vector<int64_t>> AbstractStreamingJoinOperator<K>::filterRe
     uint32_t* batchIDdst = new uint32_t[num];
     uint32_t* rowIDdst = new uint32_t[num];
 
-    int processNum = 8;
-    int half = 4;
+    int processNum = svcntw();
+    int half = svcntd();
     for (int i = 0; i < num; i+=processNum) {
         svbool_t pg = svwhilelt_b64(i, num);
         svbool_t pg2 = svwhilelt_b64(i + half, num);

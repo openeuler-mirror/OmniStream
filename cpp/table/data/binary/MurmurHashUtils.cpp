@@ -63,7 +63,7 @@ int MurmurHashUtils::hashUnsafeBytesByInt(const void* base, std::size_t offset, 
         int halfWord;
 
         size_t len = sizeof(int);
-        size_t skip_num = 32;
+        size_t skip_num = svcntb();
         size_t num = len / skip_num;
         svbool_t pTrue = svptrue_b8();
         size_t cur = 0;
@@ -87,7 +87,7 @@ int MurmurHashUtils::hashBytesByInt(const uint8_t* segment, int offset, int leng
         int halfWord;
 
         size_t len = sizeof(int);
-        size_t skip_num = 32;
+        size_t skip_num = svcntb();
         size_t num = len / skip_num;
         svbool_t pTrue = svptrue_b8();
         size_t cur = 0;

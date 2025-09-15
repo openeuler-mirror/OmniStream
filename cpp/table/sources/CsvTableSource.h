@@ -1,7 +1,3 @@
-//
-// Created by xichen on 1/29/25.
-//
-
 #ifndef FLINK_TNEL_CSVTABLESOURCE_H
 #define FLINK_TNEL_CSVTABLESOURCE_H
 

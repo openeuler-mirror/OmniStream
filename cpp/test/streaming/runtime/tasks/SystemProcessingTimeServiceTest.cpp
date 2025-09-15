@@ -1,7 +1,3 @@
-//
-// Created by q00649235 on 2025/4/2.
-//
-
 #include <gtest/gtest.h>
 #include "streaming/runtime/tasks/SystemProcessingTimeService.h"
 

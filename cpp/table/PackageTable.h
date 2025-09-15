@@ -1,7 +1,3 @@
-//
-// Created by root on 9/5/24.
-//
-
 #ifndef FLINK_TNEL_PACKAGETABLE_H
 #define FLINK_TNEL_PACKAGETABLE_H
 

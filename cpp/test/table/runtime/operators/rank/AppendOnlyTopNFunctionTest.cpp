@@ -1,6 +1,3 @@
-//
-// Created by xichen on 3/6/25.
-//
 #include <gtest/gtest.h>
 #include "table/runtime/operators/rank/AppendOnlyTopNFunction.h"
 #include "vectorbatch/VectorBatch.h"

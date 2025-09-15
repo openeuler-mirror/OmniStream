@@ -1,7 +1,3 @@
-//
-// Created by root on 9/21/24.
-//
-
 #ifndef FLINK_TNEL_TIMESTAMP_WITH_TIME_ZONE_H
 #define FLINK_TNEL_TIMESTAMP_WITH_TIME_ZONE_H
 

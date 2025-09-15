@@ -1,6 +1,3 @@
-//
-// Created by root on 2/6/25.
-//
 
 #include "core/operators/StreamExpand.h"
 #include <gtest/gtest.h>

@@ -2,10 +2,6 @@
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
 
-//
-// Created by t00510106 on 2025/2/17.
-//
-
 #include "AbstractWindowAggProcessor.h"
 #include "runtime/generated/function/CountWindowAggFunction.h"
 #include "runtime/generated/function/MinMaxWindowAggFunction.h"

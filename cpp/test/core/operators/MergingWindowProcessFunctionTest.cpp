@@ -1,7 +1,3 @@
-//
-// Created by q00649235 on 2025/3/18.
-//
-
 #include "table/runtime/operators/window/internal/MergingWindowProcessFunction.h"
 #include "table/runtime/operators/window/assigners/SessionWindowAssigner.h"
 #include "table/runtime/generated/function/TimeWindowCountWindowAggFunction.h"

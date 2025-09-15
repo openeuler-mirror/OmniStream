@@ -1,9 +1,7 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
-//
-// Created by root on 1/30/25.
-//
+
 #include <stdexcept>
 #include <taskmanager/OmniTask.h>
 #include "common.h"

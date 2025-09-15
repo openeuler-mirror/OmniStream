@@ -1,10 +1,7 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
-//
-// Created by root on 2/22/25.
-//
-// MailboxDefaultAction.h
+
 #ifndef MAILBOX_DEFAULT_ACTION_H
 #define MAILBOX_DEFAULT_ACTION_H
 

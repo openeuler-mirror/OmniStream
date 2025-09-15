@@ -1,7 +1,3 @@
-//
-// Created by root on 9/6/24.
-//
-
 #ifndef FLINK_TNEL_ROWTYPE_H
 #define FLINK_TNEL_ROWTYPE_H
 

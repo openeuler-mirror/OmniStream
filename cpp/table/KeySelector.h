@@ -1,7 +1,3 @@
-//
-// Created by xichen on 2/27/25.
-//
-
 #ifndef OMNISTREAM_KEYSELECTOR_H
 #define OMNISTREAM_KEYSELECTOR_H
 #include <vector>

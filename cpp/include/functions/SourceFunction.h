@@ -1,9 +1,6 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
-//
-// Created by root on 2/21/25.
-//
 
 #ifndef SOURCEFUNCTION_H
 #define SOURCEFUNCTION_H

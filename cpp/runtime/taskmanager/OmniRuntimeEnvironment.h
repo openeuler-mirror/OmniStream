@@ -1,9 +1,6 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
-//
-// Created by root on 1/30/25.
-//
 
 #ifndef OMNIRUNTIMEENVIRONMENT_V2_H
 #define OMNIRUNTIMEENVIRONMENT_V2_H

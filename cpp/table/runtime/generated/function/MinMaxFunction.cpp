@@ -1,7 +1,3 @@
-//
-// Created by f30029561 on 2025/2/12.
-//
-
 #include "MinMaxFunction.h"
 #include <stdexcept>
 #include <iostream>

@@ -1,6 +1,4 @@
-////
-//// Created by q00649235 on 2025/2/10.
-////
+
 //
 //// 测试队列的构造函数
 //TEST(FutureCompletingBlockingQueueTest, ConstructorTest) {

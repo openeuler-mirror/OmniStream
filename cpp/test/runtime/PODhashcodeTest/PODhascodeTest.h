@@ -1,6 +1,3 @@
-//
-// Created by root on 4/9/25.
-//
 
 #ifndef PODHASCODETEST_H
 #define PODHASCODETEST_H

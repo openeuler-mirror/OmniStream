@@ -1,7 +1,3 @@
-//
-// Created by hudsonsheng on 9/4/24.
-//
-
 #ifndef OMNIFLINK_BINARYSECTION_H
 #define OMNIFLINK_BINARYSECTION_H
 

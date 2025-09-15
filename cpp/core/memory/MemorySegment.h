@@ -1,7 +1,3 @@
-//
-// Created by root on 9/4/24.
-//
-
 #ifndef FLINK_TNEL_MEMORYSEGMENT_H
 #define FLINK_TNEL_MEMORYSEGMENT_H
 

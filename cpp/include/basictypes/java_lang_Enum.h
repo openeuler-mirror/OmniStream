@@ -1,9 +1,7 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
-//
-// Created by root on 5/21/25.
-//
+
 #ifndef OMNISTREAM_JAVA_LANG_ENUM_H
 #define OMNISTREAM_JAVA_LANG_ENUM_H
 #include "Object.h"

@@ -82,7 +82,7 @@ namespace omnistream
         int32_t elementNum;
 
         size_t len = sizeof(int32_t);
-        size_t skip_num = 32;
+        size_t skip_num = svcntb();
         size_t num = len / skip_num;
         svbool_t pTrue = svptrue_b8();
         size_t cur = 0;
