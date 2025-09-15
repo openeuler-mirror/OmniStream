@@ -1,9 +1,7 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
-//
-// Created by xichen on 1/22/25.
-//
+
 #include <regex>
 #include <string>
 #include "table/vectorbatch/temp_batch_function.h"

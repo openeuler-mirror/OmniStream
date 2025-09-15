@@ -1,9 +1,6 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
-//
-// Created by root on 9/4/24.
-//
 
 #include "MemorySegment.h"
 #include <huawei_secure_c/include/securec.h>
@@ -63,7 +60,7 @@ void MemorySegment::put(int index, const uint8_t* src, int offset, int length)
     if (index >= 0 && index <= size_ - length) {
         void* pos = static_cast<void*>(offHeapBuffer_ + index);
 
-        size_t skip_num = 32;
+        size_t skip_num = svcntb();
         size_t num = length / skip_num;
         svbool_t pTrue = svptrue_b8();
         size_t cur = 0;
@@ -92,7 +89,7 @@ int MemorySegment::getSize() const
 void MemorySegment::get(int index, uint8_t* dst, int offset, int length)
 {
     if (index >= 0 && index <= size_ - length) {
-        size_t skip_num = 32;
+        size_t skip_num = svcntb();
         size_t num = length / skip_num;
         svbool_t pTrue = svptrue_b8();
         size_t cur = 0;
@@ -130,7 +127,7 @@ long* MemorySegment::getLong(int index)
 void MemorySegment::putLong(int index, long value)
 {
     if (index >= 0 && static_cast<size_t>(index) <= size_ - sizeof(long)) {
-        size_t skip_num = 32;
+        size_t skip_num = svcntb();
         size_t num = sizeof(long) / skip_num;
         svbool_t pTrue = svptrue_b8();
         size_t cur = 0;
@@ -163,7 +160,7 @@ void MemorySegment::putInt(int index, int value)
 {
     if (index >= 0 && static_cast<size_t>(index) <= size_ - sizeof(int)) {
         size_t len = sizeof(int);
-        size_t skip_num = 32;
+        size_t skip_num = svcntb();
         size_t num = len / skip_num;
         svbool_t pTrue = svptrue_b8();
         size_t cur = 0;

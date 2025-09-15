@@ -1,7 +1,3 @@
-//
-// Created by root on 9/6/24.
-//
-
 #include "RowType.h"
 
 #include <utility>

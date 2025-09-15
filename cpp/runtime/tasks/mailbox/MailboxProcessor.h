@@ -1,12 +1,7 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
-//
-// Created by root on 2/23/25.
-//
 
-
-// MailboxProcessor.h
 #ifndef MAILBOX_PROCESSOR_H
 #define MAILBOX_PROCESSOR_H
 

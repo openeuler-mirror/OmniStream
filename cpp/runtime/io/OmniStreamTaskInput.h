@@ -1,7 +1,3 @@
-//
-// Created by root on 3/3/25.
-//
-
 #ifndef OMNISTREAM_OMNISTREAMTASKINPUT_H
 #define OMNISTREAM_OMNISTREAMTASKINPUT_H
 

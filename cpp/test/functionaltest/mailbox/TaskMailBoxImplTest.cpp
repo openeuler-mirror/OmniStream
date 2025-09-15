@@ -1,6 +1,3 @@
-//
-// Created by root on 3/20/25.
-//
 #include <gtest/gtest.h>
 #include <stdexcept>
 #include <atomic>

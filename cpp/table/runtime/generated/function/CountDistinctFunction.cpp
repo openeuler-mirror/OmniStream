@@ -1,7 +1,3 @@
-//
-// Created by f30029561 on 2025/2/13.
-//
-
 #include "CountDistinctFunction.h"
 #include "typeutils/InternalSerializers.h"
 #include "runtime/dataview/PerKeyStateDataViewStore.h"

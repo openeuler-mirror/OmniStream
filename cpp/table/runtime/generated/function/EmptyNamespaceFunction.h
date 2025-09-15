@@ -1,7 +1,3 @@
-//
-// Created by c00572813 on 2025/3/7.
-//
-
 #ifndef OMNISTREAM_EMPTYFUNCTION_H
 #define OMNISTREAM_EMPTYFUNCTION_H
 

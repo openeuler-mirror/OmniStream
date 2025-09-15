@@ -1,7 +1,3 @@
-//
-// Created by root on 3/10/25.
-//
-
 #ifndef SIMPLESELECTORRECORDWRITERV2_H
 #define SIMPLESELECTORRECORDWRITERV2_H
 

@@ -1,7 +1,3 @@
-//
-// Created by hudsonsheng on 9/4/24.
-//
-
 #include "BinarySection.h"
 #include "core/include/common.h"
 #include "core/task/StreamTask.h"

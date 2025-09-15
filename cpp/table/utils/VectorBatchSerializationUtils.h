@@ -45,7 +45,7 @@ public:
         // dataType--batchSize--vectorCount--rowCnt
 
         size_t len = sizeof(int8_t);
-        size_t skip_num = 32;
+        size_t skip_num = svcntb();
         size_t num = len / skip_num;
         svbool_t pTrue = svptrue_b8();
         size_t cur = 0;
@@ -103,7 +103,7 @@ public:
         RowKind *rowKinds = vectorBatch->getRowKinds();
 
         size_t len = sizeof(int64_t) * rowCnt;
-        size_t skip_num = 32;
+        size_t skip_num = svcntb();
         size_t num = len / skip_num;
         svbool_t pTrue = svptrue_b8();
         size_t cur = 0;
@@ -235,10 +235,10 @@ public:
         int32_t rowCount = baseVector->GetSize();
         serializeVectorBatchHeader(baseVector, buffer, bufferSize);
         auto nullData = UnsafeBaseVector::GetNulls(baseVector);
-        auto nullByteSize = omniruntime::vec::NullsBuffer::CalculateNbytes(rowCnt);
+        auto nullByteSize = omniruntime::vec::NullsBuffer::CalculateNbytes(rowCount);
 
         size_t len = nullByteSize;
-        size_t skip_num = 32;
+        size_t skip_num = svcntb();
         size_t num = len / skip_num;
         svbool_t pTrue = svptrue_b8();
         size_t cur = 0;
@@ -303,7 +303,7 @@ public:
         int32_t stringBodySize = offsetArr[charVector->GetSize()];
 
         size_t len = sizeof(int32_t);
-        size_t skip_num = 32;
+        size_t skip_num = svcntb();
         size_t num = len / skip_num;
         svbool_t pTrue = svptrue_b8();
         size_t cur = 0;
@@ -319,7 +319,7 @@ public:
 
         // nullData
         auto nullData = UnsafeBaseVector::GetNulls(baseVector);
-        auto nullByteSize = omniruntime::vec::NullsBuffer::CalculateNbytes(rowCnt);
+        auto nullByteSize = omniruntime::vec::NullsBuffer::CalculateNbytes(rowCount);
         memcpy(buffer, nullData, nullByteSize);
         buffer += nullByteSize;
 
@@ -344,7 +344,7 @@ public:
         int32_t size = sizeof(int64_t) * baseVector->GetSize();
 
         size_t len = size;
-        size_t skip_num = 32;
+        size_t skip_num = svcntb();
         size_t num = len / skip_num;
         svbool_t pTrue = svptrue_b8();
         size_t cur = 0;
@@ -366,7 +366,7 @@ public:
         int32_t size = sizeof(int32_t) * baseVector->GetSize();
 
         size_t len = size;
-        size_t skip_num = 32;
+        size_t skip_num = svcntb();
         size_t num = len / skip_num;
         svbool_t pTrue = svptrue_b8();
         size_t cur = 0;
@@ -388,7 +388,7 @@ public:
         int32_t size = sizeof(int16_t) * baseVector->GetSize();
 
         size_t len = size;
-        size_t skip_num = 32;
+        size_t skip_num = svcntb();
         size_t num = len / skip_num;
         svbool_t pTrue = svptrue_b8();
         size_t cur = 0;
@@ -410,7 +410,7 @@ public:
         int32_t size = sizeof(double) * baseVector->GetSize();
 
         size_t len = size;
-        size_t skip_num = 32;
+        size_t skip_num = svcntb();
         size_t num = len / skip_num;
         svbool_t pTrue = svptrue_b8();
         size_t cur = 0;
@@ -432,7 +432,7 @@ public:
         int32_t size = sizeof(bool) * baseVector->GetSize();
 
         size_t len = size;
-        size_t skip_num = 32;
+        size_t skip_num = svcntb();
         size_t num = len / skip_num;
         svbool_t pTrue = svptrue_b8();
         size_t cur = 0;
@@ -454,7 +454,7 @@ public:
         int32_t size = sizeof(Decimal128) * baseVector->GetSize();
 
         size_t len = size;
-        size_t skip_num = 32;
+        size_t skip_num = svcntb();
         size_t num = len / skip_num;
         svbool_t pTrue = svptrue_b8();
         size_t cur = 0;
@@ -530,7 +530,7 @@ public:
         int32_t vectorSize = calculateVectorSerializableSize(baseVector);
 
         size_t len = sizeof(int32_t);
-        size_t skip_num = 32;
+        size_t skip_num = svcntb();
         size_t num = len / skip_num;
         svbool_t pTrue = svptrue_b8();
         size_t cur = 0;
@@ -578,7 +578,7 @@ public:
             unsafe::UnsafeDictionaryContainer::GetIds(string_dictionary.get());
 
         size_t len = sizeof(int32_t) * valueSize;
-        size_t skip_num = 32;
+        size_t skip_num = svcntb();
         size_t num = len / skip_num;
         svbool_t pTrue = svptrue_b8();
         size_t cur = 0;
@@ -627,10 +627,10 @@ public:
     {
         // nullData
         auto nullData = UnsafeBaseVector::GetNulls(baseVector);
-        auto nullByteSize = omniruntime::vec::NullsBuffer::CalculateNbytes(rowCnt);
+        auto nullByteSize = omniruntime::vec::NullsBuffer::CalculateNbytes(rowCount);
 
         size_t len = nullByteSize;
-        size_t skip_num = 32;
+        size_t skip_num = svcntb();
         size_t num = len / skip_num;
         svbool_t pTrue = svptrue_b8();
         size_t cur = 0;
@@ -663,7 +663,7 @@ public:
         int dataType = static_cast<int>(StreamElementTag::TAG_WATERMARK);
         // dataType--timestamp
         size_t len = sizeof(int8_t);
-        size_t skip_num = 32;
+        size_t skip_num = svcntb();
         size_t num = len / skip_num;
         svbool_t pTrue = svptrue_b8();
         size_t cur = 0;
@@ -683,7 +683,7 @@ public:
     static void SerializElementNum(int32_t elementNumber, uint8_t* buffer)
     {
         size_t len = sizeof(int32_t);
-        size_t skip_num = 32;
+        size_t skip_num = svcntb();
         size_t num = len / skip_num;
         svbool_t pTrue = svptrue_b8();
         size_t cur = 0;

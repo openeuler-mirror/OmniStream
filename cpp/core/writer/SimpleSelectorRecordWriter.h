@@ -1,9 +1,6 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
-//
-// Created by root on 3/5/25.
-//
 
 #ifndef SIMPLESELECTORRECORDWRITER_H
 #define SIMPLESELECTORRECORDWRITER_H

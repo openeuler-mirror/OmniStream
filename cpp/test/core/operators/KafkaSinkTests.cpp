@@ -1,6 +1,3 @@
-//
-// Created by l30037350 on 2025/2/14.
-//
 #include <gtest/gtest.h>
 #include <nlohmann/json.hpp>
 #include "connector-kafka/sink/KafkaSink.h"

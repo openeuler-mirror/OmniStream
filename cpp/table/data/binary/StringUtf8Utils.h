@@ -1,7 +1,3 @@
-//
-// Created by root on 8/9/24.
-//
-
 #ifndef FLINK_TNEL_STRINGUTF8UTILS_H
 #define FLINK_TNEL_STRINGUTF8UTILS_H
 

@@ -1,9 +1,6 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
-//
-// Created by c00572813 on 2025/5/13.
-//
 
 #include "BinaryRowDataListSerializer.h"
 #include "core/io/DataInputDeserializer.h"

@@ -1,7 +1,3 @@
-//
-// Created by arpit on 10/22/24.
-//
-
 #ifndef FLINK_TNEL_CHARTYPE_H
 #define FLINK_TNEL_CHARTYPE_H
 

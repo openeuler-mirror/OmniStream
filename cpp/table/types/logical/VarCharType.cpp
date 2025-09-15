@@ -1,7 +1,3 @@
-//
-// Created by arpit on 10/22/24.
-//
-
 #include "VarCharType.h"
 #include "../../../core/include/common.h"
 

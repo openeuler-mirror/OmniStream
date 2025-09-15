@@ -1,7 +1,3 @@
-//
-// Created by xichen on 3/1/25.
-//
-
 #ifndef OMNISTREAM_TEMP_BATCH_FUNCTION_H
 #define OMNISTREAM_TEMP_BATCH_FUNCTION_H
 #include <ctime>

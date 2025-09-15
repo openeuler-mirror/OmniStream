@@ -1,7 +1,3 @@
-//
-// Created by f30029561 on 2025/2/12.
-//
-
 #ifndef FLINK_TNEL_SUMFUNCTION_H
 #define FLINK_TNEL_SUMFUNCTION_H
 

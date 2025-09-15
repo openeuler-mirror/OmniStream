@@ -1,6 +1,3 @@
-//
-// Created by root on 3/13/25.
-//
 
 #include "OutputFlusher.h"
 #include "RecordWriterV2.h"

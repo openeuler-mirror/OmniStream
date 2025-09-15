@@ -1,6 +1,3 @@
-//
-// Created by xichen on 2/3/25.
-//
 #include <emhash7.hpp>
 #include <gtest/gtest.h>
 #include <nlohmann/json.hpp>

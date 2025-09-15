@@ -1,9 +1,7 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
-//
-// Created by root on 3/10/25.
-//
+
 
 #ifndef EVENTBUFFER_H
 #define EVENTBUFFER_H

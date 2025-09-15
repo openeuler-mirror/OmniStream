@@ -1,11 +1,7 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
-//
-// Created by root on 2/24/25.
-//
 
-// MailboxController.h
 #ifndef MAILBOXCONTROLLER_H
 #define MAILBOXCONTROLLER_H
 

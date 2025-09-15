@@ -1,7 +1,3 @@
-//
-// Created by arpit on 9/3/24.
-//
-
 #ifndef OMNIFLINK_TYPE_UTIL_H
 #define OMNIFLINK_TYPE_UTIL_H
 

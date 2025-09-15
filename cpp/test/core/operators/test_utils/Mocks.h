@@ -1,7 +1,3 @@
-//
-// Created by root on 4/11/25.
-//
-
 #ifndef FLINK_TNEL_MOCKS_H
 #define FLINK_TNEL_MOCKS_H
 

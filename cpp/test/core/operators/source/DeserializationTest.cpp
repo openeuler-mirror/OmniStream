@@ -1,6 +1,3 @@
-////
-//// Created by q00649235 on 2025/2/13.
-////
 //
 ////#include "core/operators/source/reader/KafkaSource.h"
 ////#include "core/operators/source/deserialize/SimpleStringSchema.h"

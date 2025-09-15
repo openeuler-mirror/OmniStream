@@ -1,7 +1,3 @@
-//
-// Created by root on 3/10/25.
-//
-
 #include "SimpleSelectorRecordWriterV2.h"
 
 namespace omnistream {

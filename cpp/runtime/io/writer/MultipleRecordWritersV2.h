@@ -1,7 +1,3 @@
-//
-// Created by root on 3/25/25.
-//
-
 #ifndef MULTIPLERECORDWRITERSV2_H
 #define MULTIPLERECORDWRITERSV2_H
 #include "RecordWriterDelegateV2.h"

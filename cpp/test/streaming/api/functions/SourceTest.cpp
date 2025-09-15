@@ -1,6 +1,3 @@
-//
-// Created by xichen on 2/22/25.
-//
 #include <gtest/gtest.h>
 #include "datagen/nexmark/generator/NexmarkGenerator.h"
 #include "datagen/nexmark/NexmarkSourceFunction.h"

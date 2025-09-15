@@ -1,7 +1,3 @@
-//
-// Created by root on 9/21/24.
-//
-
 #include "TimestampWithoutTimeZoneType.h"
 #include "../../../core/include/common.h"
 

@@ -1,7 +1,3 @@
-//
-// Created by root on 9/5/24.
-//
-
 #ifndef FLINK_TNEL_BINARYROWDATASERIALIZER_H
 #define FLINK_TNEL_BINARYROWDATASERIALIZER_H
 

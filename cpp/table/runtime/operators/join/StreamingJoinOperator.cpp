@@ -1,9 +1,6 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
-//
-// Created by xichen on 9/27/24.
-//
 
 #include "StreamingJoinOperator.h"
 
@@ -207,8 +204,8 @@ omniruntime::vec::BaseVector *StreamingJoinOperator<K>::buildOtherSideColumn(omn
     uint32_t* batchIDdst = new uint32_t[num];
     uint32_t* rowIDdst = new uint32_t[num];
 
-    int processNum = 8;
-    int half = 4;
+    int processNum = svcntw();
+    int half = svcntd();
     for (int i = 0; i < num; i+=processNum) {
         svbool_t pg = svwhilelt_b64(i, num);
         svbool_t pg2 = svwhilelt_b64(i + half, num);
@@ -287,8 +284,8 @@ omniruntime::vec::BaseVector *StreamingJoinOperator<K>::buildOtherSideColumnVarc
     uint32_t* batchIDdst = new uint32_t[num];
     uint32_t* rowIDdst = new uint32_t[num];
 
-    int processNum = 8;
-    int half = 4;
+    int processNum = svcntw();
+    int half = svcntd();
     for (int i = 0; i < num; i+=processNum) {
         svbool_t pg = svwhilelt_b64(i, num);
         svbool_t pg2 = svwhilelt_b64(i + half, num);
@@ -485,7 +482,7 @@ void StreamingJoinOperator<K>::setRowKind_sve(int i, int size, uint8_t* dst, int
 
 template<typename K>
 void StreamingJoinOperator<K>::setTimestamp_raw(int start, int size, const int64_t* src, int64_t* dst, int rowIndex) {
-    int processElement = 32;
+    int processElement = svcntb();
     for (int i = 0; i < processElement && start + i < size; i++) {
         dst[i + rowIndex] = src[i + start];
     }
@@ -513,7 +510,7 @@ void StreamingJoinOperator<K>::setOutPutMetaData(omnistream::VectorBatch *input,
     }
 
     int size = this->deleteRecords.size();
-    int processElement = 32;
+    int processElement = svcntb();
     for (size_t i = 0; i < this->deleteRecords.size(); i++) {
         setRowKind_sve(i, size, reinterpret_cast<uint8_t*>(outputVB->getRowKinds()) + rowIndex, this->deleteKinds.data() + i);
         setTimestamp_raw(i, size, input->getTimestamps(), outputVB->getTimestamps(), rowIndex);

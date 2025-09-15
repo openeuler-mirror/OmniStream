@@ -1,9 +1,6 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
-//
-// Created by xichen on 3/5/25.
-//
 
 #ifndef OMNISTREAM_APPENDONLYTOPNFUNCTION_H
 #define OMNISTREAM_APPENDONLYTOPNFUNCTION_H

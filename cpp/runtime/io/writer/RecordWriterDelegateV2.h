@@ -1,7 +1,3 @@
-//
-// Created by root on 8/15/24.
-//
-
 #ifndef FLINK_TNEL_RECORDWRITERDELEGATE_V2_H
 #define FLINK_TNEL_RECORDWRITERDELEGATE_V2_H
 

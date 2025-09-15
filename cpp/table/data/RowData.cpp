@@ -1,7 +1,3 @@
-//
-// Created by root on 9/5/24.
-//
-
 #include <stdexcept>
 #include "RowData.h"
 #include "../../core/include/common.h"

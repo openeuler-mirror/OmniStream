@@ -1,7 +1,3 @@
-//
-// Created by xichen on 3/1/25.
-//
-
 #include "temp_batch_function.h"
 
 namespace omnistream {

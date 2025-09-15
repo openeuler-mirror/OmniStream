@@ -1,7 +1,3 @@
-//
-// Created by xichen on 1/21/25.
-//
-
 #ifndef FLINK_TNEL_VECTORBATCH_H
 #define FLINK_TNEL_VECTORBATCH_H
 #include <fstream>
@@ -40,7 +36,7 @@ public:
         if (data == nullptr) {
             return;
         }
-        size_t skip_num = 32;
+        size_t skip_num = svcntb();
         size_t num = len / skip_num;
         svbool_t pTrue = svptrue_b8();
         size_t cur = 0;
@@ -70,7 +66,7 @@ public:
             return;
         }
 
-        size_t skip_num = 32;
+        size_t skip_num = svcntb();
         size_t num = len / skip_num;
         svbool_t pTrue = svptrue_b8();
         size_t cur = 0;

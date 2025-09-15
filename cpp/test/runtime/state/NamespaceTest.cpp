@@ -1,6 +1,3 @@
-//
-// Created by xichen on 10/29/24.
-//
 #include <gtest/gtest.h>
 #include "runtime/state/VoidNamespace.h"
 

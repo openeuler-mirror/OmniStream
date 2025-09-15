@@ -4,7 +4,7 @@ add_library(tnel SHARED)
 
 # Include JNI header directories
 target_include_directories(tnel PUBLIC ${JNI_INCLUDE_DIRS}
-        "${CMAKE_CURRENT_SOURCE_DIR}/../../java/target/headers"
+        "${CMAKE_CURRENT_SOURCE_DIR}/headers"
         ${CMAKE_CURRENT_SOURCE_DIR}/../core/include
 )
 

@@ -1,7 +1,3 @@
-//
-// Created by hudsonsheng on 9/4/24.
-//
-
 #ifndef OMNIFLINK_LAZYBINARYFORMAT_H
 #define OMNIFLINK_LAZYBINARYFORMAT_H
 

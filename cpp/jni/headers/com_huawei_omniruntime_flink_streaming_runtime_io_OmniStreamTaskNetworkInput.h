@@ -1,0 +1,36 @@
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ */
+#ifndef _Included_com_huawei_omniruntime_flink_streaming_runtime_io_OmniStreamTaskNetworkInput
+#define _Included_com_huawei_omniruntime_flink_streaming_runtime_io_OmniStreamTaskNetworkInput
+
+#include <jni.h>
+/* Header for class com_huawei_omniruntime_flink_streaming_runtime_io_OmniStreamTaskNetworkInput */
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+#undef com_huawei_omniruntime_flink_streaming_runtime_io_OmniStreamTaskNetworkInput_RESULT_STATUS_MORE_AVAILABLE
+#define com_huawei_omniruntime_flink_streaming_runtime_io_OmniStreamTaskNetworkInput_RESULT_STATUS_MORE_AVAILABLE 0L
+#undef com_huawei_omniruntime_flink_streaming_runtime_io_OmniStreamTaskNetworkInput_MASK_DataInputStatus
+#define com_huawei_omniruntime_flink_streaming_runtime_io_OmniStreamTaskNetworkInput_MASK_DataInputStatus 255L
+#undef com_huawei_omniruntime_flink_streaming_runtime_io_OmniStreamTaskNetworkInput_MASK_BUFFER_CONSUMED
+#define com_huawei_omniruntime_flink_streaming_runtime_io_OmniStreamTaskNetworkInput_MASK_BUFFER_CONSUMED 65280L
+#undef com_huawei_omniruntime_flink_streaming_runtime_io_OmniStreamTaskNetworkInput_MASK_FULL_RECORD
+#define com_huawei_omniruntime_flink_streaming_runtime_io_OmniStreamTaskNetworkInput_MASK_FULL_RECORD 16711680L
+#undef com_huawei_omniruntime_flink_streaming_runtime_io_OmniStreamTaskNetworkInput_MASK_BREAK_BATCH_EMITTING
+#define com_huawei_omniruntime_flink_streaming_runtime_io_OmniStreamTaskNetworkInput_MASK_BREAK_BATCH_EMITTING (-16777216L)
+#undef com_huawei_omniruntime_flink_streaming_runtime_io_OmniStreamTaskNetworkInput_AT_LEAST_ONE_RECORD_CONSUMED
+#define com_huawei_omniruntime_flink_streaming_runtime_io_OmniStreamTaskNetworkInput_AT_LEAST_ONE_RECORD_CONSUMED 8L
+/*
+ * Class:     com_huawei_omniruntime_flink_streaming_runtime_io_OmniStreamTaskNetworkInput
+ * Method:    TNELProcessBuffer
+ * Signature: (JJJIIJ)Lcom/huawei/omniruntime/flink/streaming/runtime/io/TNELProcessState;
+ */
+JNIEXPORT jobject JNICALL Java_com_huawei_omniruntime_flink_streaming_runtime_io_OmniStreamTaskNetworkInput_TNELProcessBuffer
+  (JNIEnv *, jobject, jlong, jlong, jlong, jint, jint, jlong);
+
+#ifdef __cplusplus
+}
+#endif
+#endif

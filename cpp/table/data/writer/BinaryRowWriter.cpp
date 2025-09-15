@@ -1,7 +1,3 @@
-//
-// Created by root on 9/15/24.
-//
-
 #include "BinaryRowWriter.h"
 // #include "../binary/BinarySegmentUtils.h"
 // #include "../../../core/memory/MemorySegmentFactory.h"

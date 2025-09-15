@@ -1,7 +1,3 @@
-//
-// Created by f30029561 on 2025/2/11.
-//
-
 #include "AverageFunction.h"
 
 AverageFunction::AverageFunction(int aggIdx, std::string inputType, int accIndexSum, int accIndexCount0, int valueIndex,

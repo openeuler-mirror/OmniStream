@@ -1,7 +1,3 @@
-//
-// Created by xi on 8/28/24.
-//
-
 #ifndef CPP_GENERICROWDATA_H
 #define CPP_GENERICROWDATA_H
 

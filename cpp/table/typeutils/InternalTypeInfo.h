@@ -1,6 +1,3 @@
-//
-// Created by root on 9/11/24.
-//
 
 #ifndef FLINK_TNEL_INTERNALTYPEINFO_H
 #define FLINK_TNEL_INTERNALTYPEINFO_H

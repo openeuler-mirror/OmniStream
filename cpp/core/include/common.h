@@ -1,7 +1,3 @@
-//
-// Created by root on 8/18/24.
-//
-
 #ifndef FLINK_TNEL_COMMON_H
 #define FLINK_TNEL_COMMON_H
 

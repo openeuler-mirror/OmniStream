@@ -1,9 +1,6 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
-//
-// Created by xichen on 2/5/25.
-//
 
 #ifndef FLINK_TNEL_OUTPUTTAG_H
 #define FLINK_TNEL_OUTPUTTAG_H

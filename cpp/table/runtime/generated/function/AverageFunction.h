@@ -1,7 +1,3 @@
-//
-// Created by f30029561 on 2025/2/11.
-//
-
 #ifndef FLINK_TNEL_AVERAGEFUNCTION_H
 #define FLINK_TNEL_AVERAGEFUNCTION_H
 

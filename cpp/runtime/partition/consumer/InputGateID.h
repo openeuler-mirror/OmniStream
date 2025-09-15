@@ -5,10 +5,6 @@
 #include "executiongraph/common/IntermediateDataSetIDPOD.h"
 #include "executiongraph/descriptor/ExecutionAttemptIDPOD.h"
 
-//
-// Created by f30029561 on 2025/3/3.
-//
-
 #ifndef OMNISTREAM_INPUTGATEID_H
 #define OMNISTREAM_INPUTGATEID_H
 

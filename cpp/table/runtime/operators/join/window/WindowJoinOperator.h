@@ -497,8 +497,8 @@ inline void WindowJoinOperator<KeyType>::insertLeft(int colIdx, std::vector<Vect
     uint32_t* batchIDdst = new uint32_t[num];
     uint32_t* rowIDdst = new uint32_t[num];
 
-    int processNum = 8;
-    int half = 4;
+    int processNum = svcntw();
+    int half = svcntd();
     for (int i = 0; i < num; i+=processNum) {
         svbool_t pg = svwhilelt_b64(i, num);
         svbool_t pg2 = svwhilelt_b64(i + half, num);
@@ -562,8 +562,8 @@ void WindowJoinOperator<KeyType>::insertLeftVarchar(int colIdx, std::vector<Vect
         uint32_t* batchIDdst = new uint32_t[num];
         uint32_t* rowIDdst = new uint32_t[num];
 
-        int processNum = 8;
-        int half = 4;
+        int processNum = svcntw();
+        int half = svcntd();
         for (int i = 0; i < num; i+=processNum) {
             svbool_t pg = svwhilelt_b64(i, num);
             svbool_t pg2 = svwhilelt_b64(i + half, num);
@@ -601,8 +601,8 @@ inline void WindowJoinOperator<KeyType>::insertRight(int colIdx, std::vector<Vec
     uint32_t* batchIDdst = new uint32_t[num];
     uint32_t* rowIDdst = new uint32_t[num];
 
-    int processNum = 8;
-    int half = 4;
+    int processNum = svcntw();
+    int half = svcntd();
     for (int i = 0; i < num; i+=processNum) {
         svbool_t pg = svwhilelt_b64(i, num);
         svbool_t pg2 = svwhilelt_b64(i + half, num);
@@ -666,8 +666,8 @@ void WindowJoinOperator<KeyType>::insertRightVarchar(int colIdx, std::vector<Vec
         uint32_t* batchIDdst = new uint32_t[num];
         uint32_t* rowIDdst = new uint32_t[num];
 
-        int processNum = 8;
-        int half = 4;
+        int processNum = svcntw();
+        int half = svcntd();
         for (int i = 0; i < num; i+=processNum) {
             svbool_t pg = svwhilelt_b64(i, num);
             svbool_t pg2 = svwhilelt_b64(i + half, num);

@@ -1,11 +1,7 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
-//
-// Created by root on 2/12/25.
-//
 
-// IntermediateResultPartitionIDPOD.h
 #ifndef INTERMEDIATERESULT_PARTITIONID_POD_H
 #define INTERMEDIATERESULT_PARTITIONID_POD_H
 

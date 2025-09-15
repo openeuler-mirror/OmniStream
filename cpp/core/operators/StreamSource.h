@@ -1,7 +1,3 @@
-//
-// Created by Yuhe on 2025-02-25.
-//
-
 #ifndef OMNISTREAM_STREAMSOURCE_H
 #define OMNISTREAM_STREAMSOURCE_H
 

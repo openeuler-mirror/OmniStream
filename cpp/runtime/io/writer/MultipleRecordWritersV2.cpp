@@ -1,7 +1,3 @@
-//
-// Created by root on 3/25/25.
-//
-
 #include "MultipleRecordWritersV2.h"
 namespace omnistream {
 

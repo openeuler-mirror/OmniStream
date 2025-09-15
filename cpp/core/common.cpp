@@ -1,6 +1,3 @@
-//
-// Created by root on 8/20/24.
-//
 #include <iostream>
 #include <locale>
 #include <codecvt>

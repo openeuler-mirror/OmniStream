@@ -1,6 +1,3 @@
-//
-// Created by root on 9/5/24.
-//
 #include <iostream>
 #include "BinaryRowData.h"
 #include "core/memory/MemorySegmentUtils.h"

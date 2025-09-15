@@ -1,6 +1,3 @@
-//
-// Created by xichen on 11/4/24.
-//
 #include <gtest/gtest.h>
 #include "typeinfo/TypeInfoFactory.h"
 #include "table/types/logical/LogicalType.h"

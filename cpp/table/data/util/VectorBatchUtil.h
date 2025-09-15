@@ -25,8 +25,8 @@ public:
 
     static void deComboIDSVE(uint64_t* src, uint32_t* batchIDdst, uint32_t* rowIDdst, int num)
     {
-        int processNum = 8;
-        int half = 4;
+        int processNum = svcntw();
+        int half = svcntd();
         for (int i = 0; i < num; i+=processNum) {
             svbool_t pg = svwhilelt_b64(i, num);
             svbool_t pg2 = svwhilelt_b64(i + half, num);
@@ -43,7 +43,7 @@ public:
     }
 
     static void getComboId_sve(int batchId, int rowCount, int64_t* result) {
-        int processNum = 4;
+        int processNum = svcntd();
         svint64_t batchData = svlsl_n_s64_x(svptrue_b64(), svdup_n_s64(batchId), 32);
         for (int i = 0; i < rowCount; i+= processNum) {
             svbool_t pg = svwhilelt_b64(i, rowCount);

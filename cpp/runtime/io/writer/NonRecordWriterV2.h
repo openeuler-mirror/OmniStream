@@ -1,7 +1,3 @@
-//
-// Created by root on 3/26/25.
-//
-
 #ifndef NONRECORDWRITERV2_H
 #define NONRECORDWRITERV2_H
 

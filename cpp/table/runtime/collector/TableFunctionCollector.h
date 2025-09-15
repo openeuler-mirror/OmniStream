@@ -1,7 +1,3 @@
-//
-// Created by xichen on 1/30/25.
-//
-
 #ifndef FLINK_TNEL_TABLEFUNCTIONCOLLECTOR_H
 #define FLINK_TNEL_TABLEFUNCTIONCOLLECTOR_H
 
