@@ -31,12 +31,12 @@ export CPLUS_INCLUDE_PATH=$CPLUS_INCLUDE_PATH:"$LLVM_INSTALL_DIR/include"
 export LIBRARY_PATH=$LIBRARY_PATH:"$LLVM_INSTALL_DIR/lib"
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/llvm-15/lib
 
-## huawei secure  assume it is at /opt/huawei_secure_c
+## huawei secure  assume it is at /opt/libboundscheck
 
 export C_INCLUDE_PATH=$C_INCLUDE_PATH:/opt
 export CPLUS_INCLUDE_PATH=$CPLUS_INCLUDE_PATH:/opt
-export LIBRARY_PATH=$LIBRARY_PATH:/opt/huawei_secure_c/lib
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/huawei_secure_c/lib
+export LIBRARY_PATH=$LIBRARY_PATH:/opt/libboundscheck/lib
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/libboundscheck/lib
 
 ## published
 export OMNI_HOME=/repo/publish/omnihome

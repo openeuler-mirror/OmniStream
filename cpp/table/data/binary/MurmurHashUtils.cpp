@@ -1,5 +1,5 @@
 #include "MurmurHashUtils.h"
-#include <huawei_secure_c/include/securec.h>
+#include <libboundscheck/include/securec.h>
 
 int MurmurHashUtils::hashUnsafeBytesByWords(const void* base, std::size_t offset, int lengthInBytes) {
     return hashUnsafeBytesByWords(base, offset, lengthInBytes, DEFAULT_SEED);
