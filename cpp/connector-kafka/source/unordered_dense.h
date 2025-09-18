@@ -97,7 +97,7 @@
 #    include <type_traits>      // for enable_if_t, declval, conditional_t, ena...
 #    include <utility>          // for forward, exchange, pair, as_const, piece...
 #    include <vector>           // for vector
-#    include <huawei_secure_c/include/securec.h>
+#    include <libboundscheck/include/securec.h>
 #    include "common.h"
 #    if ANKERL_UNORDERED_DENSE_HAS_EXCEPTIONS() == 0
 # include <cstdlib> // for abort

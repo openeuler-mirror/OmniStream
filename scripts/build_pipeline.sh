@@ -46,9 +46,9 @@ function show_usage() {
 }
 
 function build_securec() {
-  local securec_src_dir="$dependency_root/huawei_secure_c"
+  local securec_src_dir="$dependency_root/libboundscheck"
 
-  echo "Start build open source code for huawei_secure_c"
+  echo "Start build open source code for libboundscheck"
   cd ${securec_src_dir}/src
   sudo make
 

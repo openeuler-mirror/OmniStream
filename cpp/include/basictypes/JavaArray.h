@@ -5,7 +5,7 @@
 #ifndef FLINK_TNEL_JAVAARRAY_H
 #define FLINK_TNEL_JAVAARRAY_H
 
-#include <huawei_secure_c/include/securec.h>
+#include <libboundscheck/include/securec.h>
 #include <stdexcept>
 #include <utility>
 #include <initializer_list>

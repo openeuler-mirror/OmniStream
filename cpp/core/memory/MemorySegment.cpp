@@ -3,7 +3,7 @@
  */
 
 #include "MemorySegment.h"
-#include <huawei_secure_c/include/securec.h>
+#include <libboundscheck/include/securec.h>
 #include <cstring>
 #include <stdexcept>
 

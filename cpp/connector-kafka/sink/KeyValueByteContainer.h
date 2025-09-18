@@ -9,7 +9,7 @@
 #include <memory>
 #include <stdexcept>
 #include <cstdint>
-#include <huawei_secure_c/include/securec.h>
+#include <libboundscheck/include/securec.h>
 
 class KeyValueByteContainer {
 public:

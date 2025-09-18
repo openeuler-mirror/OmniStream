@@ -1,6 +1,6 @@
 #ifndef MEMORYSEGMENTUTILS_H
 #define MEMORYSEGMENTUTILS_H
-#include <huawei_secure_c/include/securec.h>
+#include <libboundscheck/include/securec.h>
 #include <cstdint>
 #include <cstring>
 #include <stdexcept>

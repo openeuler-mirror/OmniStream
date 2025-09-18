@@ -4,7 +4,7 @@
 
 #ifndef FLINK_TNEL_DATAOUTPUTSERIALIZER_H
 #define FLINK_TNEL_DATAOUTPUTSERIALIZER_H
-#include <huawei_secure_c/include/securec.h>
+#include <libboundscheck/include/securec.h>
 #include <vector>
 #include <cstddef>
 #include <cstdint>

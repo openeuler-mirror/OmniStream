@@ -2,7 +2,7 @@
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
 
-#include <huawei_secure_c/include/securec.h>
+#include <libboundscheck/include/securec.h>
 #include <cstring>
 #include <stdexcept>
 #include "../include/common.h"
