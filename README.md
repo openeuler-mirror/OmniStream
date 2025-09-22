@@ -133,7 +133,7 @@ OmniStream算子加速采用Native Code（C/C++）实现Flink SQL和DataStream�
     make install -j$PARALLELISM
     ```
 
-    >![](public_sys-resources/icon-note.gif) **说明：** 
+    >**说明：** 
     >$PARALLELISM表示编译指定并行度
 
 ## 环境部署
