@@ -7,7 +7,7 @@ set -x
 script_dir=$(dirname "$(readlink -f "$0")")
 
 # Get the parent directory of the script directory
-project_root="$script_dir"
+project_root="$(dirname "$script_dir")"
 OMNI_HOME="$project_root"
 mkdir -p $OMNI_HOME/lib
 mkdir -p $OMNI_HOME/include
@@ -46,6 +46,7 @@ function show_usage() {
 }
 
 function build_securec() {
+    echo "test"
   local securec_src_dir="$dependency_root/libboundscheck"
 
   echo "Start build open source code for libboundscheck"
