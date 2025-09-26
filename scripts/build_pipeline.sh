@@ -16,7 +16,7 @@ dependency_root="$(realpath  "$project_root/3rdparty")"
 mkdir -p $dependency_root
 
 # todo: test
-export HOME=$script_dir/3rdparty
+export HOME=$project_root/3rdparty
 
 # Define the cpp_root and java_master_dir
 cpp_root="$project_root/cpp"
