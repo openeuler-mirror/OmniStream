@@ -4,26 +4,26 @@
 
 using namespace omniruntime::type;
 
-RowField::RowField(string name, LogicalType * type, string description) :
-    name_(std::move(name)), type_(type),description_(std::move(description)) {}
+omnistream::RowField::RowField(string name, LogicalType * type, string description)
+    : name_(std::move(name)), type_(type), description_(std::move(description)) {}
 
-RowField::RowField(const string& name, LogicalType* type): RowField(name, type, "")  {}
+omnistream::RowField::RowField(const string& name, LogicalType* type): omnistream::RowField(name, type, "")  {}
 
-LogicalType *RowField::getType() const {
+LogicalType *omnistream::RowField::GetType() const
+{
     return type_;
 }
 
 //////////////////Row Type
 
-RowType::RowType(bool isNull, const std::vector<RowField> &fields) :
-    LogicalType(DataTypeId::OMNI_CONTAINER, isNull),fields_(fields) {}
+omnistream::RowType::RowType(bool isNull, const std::vector<omnistream::RowField> &fields)
+    : LogicalType(DataTypeId::OMNI_CONTAINER, isNull), fields_(fields) {}
 
-std::vector<LogicalType *> RowType::getChildren() {
-    if (types.size() != fields_.size())
-    {
-        for (const auto &field : fields_)
-        {
-            LogicalType *type = field.getType();
+std::vector<LogicalType *> omnistream::RowType::getChildren()
+{
+    if (types.size() != fields_.size()) {
+        for (const auto &field : fields_) {
+            LogicalType *type = field.GetType();
             types.push_back(type);
         }
     }
@@ -31,9 +31,10 @@ std::vector<LogicalType *> RowType::getChildren() {
     return types;
 }
 
-RowType::RowType(bool isNull, const std::vector<std::string> &typeName) :
-        LogicalType(DataTypeId::OMNI_CONTAINER, isNull) {
-    for(auto name : typeName) {
+omnistream::RowType::RowType(bool isNull, const std::vector<std::string> &typeName)
+    : LogicalType(DataTypeId::OMNI_CONTAINER, isNull)
+{
+    for (auto name : typeName) {
         auto typeId = LogicalType::flinkTypeToOmniTypeId(name);
         switch (typeId) {
             case DataTypeId::OMNI_LONG:

@@ -688,9 +688,9 @@ TEST(RowTimeDeduplicateTest, UpdateBeforeKeepLastRowTimeTest)
     // initiate keyedState
     StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(
         new RuntimeEnvironment(new TaskInfoImpl("KeyedProcessOperatorTest", 2, 1, 0)));
-    std::vector<RowField> *typeInfo = new std::vector<RowField>(
-        {RowField("col0", BasicLogicalType::BIGINT), RowField("col1", BasicLogicalType::BIGINT)});
-    TypeSerializer *ser = new RowDataSerializer(new RowType(false, *typeInfo));
+    std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>(
+        {omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::BIGINT)});
+    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
 
     keyedOp->initializeState(initializer, ser);
     keyedOp->open();

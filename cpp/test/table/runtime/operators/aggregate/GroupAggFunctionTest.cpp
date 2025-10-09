@@ -137,8 +137,8 @@ TEST(GroupAggFunctionTest, OneKeyOneMaxAggBigIntTest){
     
     //initiate keyedState
     StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("KeyedProcessOperatorTest", 2, 1, 0)));
-    std::vector<RowField> *typeInfo = new std::vector<RowField>({RowField("col0", BasicLogicalType::BIGINT), RowField("col1", BasicLogicalType::BIGINT)});
-    TypeSerializer *ser = new RowDataSerializer(new RowType(false, *typeInfo));
+    std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::BIGINT)});
+    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
    
     keyedOp->initializeState(initializer, ser);
     
@@ -268,8 +268,8 @@ TEST(GroupAggFunctionTest, TwoKeysOneMaxAggBigInt){
     
     //initiate keyedState
     StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("KeyedProcessOperatorTest", 2, 1, 0)));
-    std::vector<RowField> *typeInfo = new std::vector<RowField>({RowField("col0", BasicLogicalType::BIGINT), RowField("col1", BasicLogicalType::BIGINT)});
-    TypeSerializer *ser = new RowDataSerializer(new RowType(false, *typeInfo));
+    std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::BIGINT)});
+    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
    
     keyedOp->initializeState(initializer, ser);
     
@@ -397,8 +397,8 @@ TEST(GroupAggFunctionTest, TwoKeyTwoAggMaxAndAvg){
     StreamOperatorFactory streamOperatorFactory;
     KeyedProcessOperator<RowData *, RowData*, RowData*> *keyedOp = dynamic_cast<KeyedProcessOperator<RowData *, RowData*, RowData*> *>(streamOperatorFactory.createOperatorAndCollector(opConfig, recordWriteOutput));
     StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("KeyedProcessOperatorTest", 2, 1, 0)));
-    std::vector<RowField> *typeInfo = new std::vector<RowField>({RowField("col0", BasicLogicalType::BIGINT), RowField("col1", BasicLogicalType::BIGINT)});
-    TypeSerializer *ser = new RowDataSerializer(new RowType(false, *typeInfo));
+    std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::BIGINT)});
+    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
    
     keyedOp->initializeState(initializer, ser);
     keyedOp->open();
@@ -510,8 +510,8 @@ TEST(GroupAggFunctionTest, OneKeyOneMaxAggCompactTimestampTest){
     
     //initiate keyedState
     StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("KeyedProcessOperatorTest", 2, 1, 0)));
-    std::vector<RowField> *typeInfo = new std::vector<RowField>({RowField("col0", BasicLogicalType::BIGINT), RowField("col1", BasicLogicalType::TIMESTAMP_WITHOUT_TIME_ZONE)});
-    TypeSerializer *ser = new RowDataSerializer(new RowType(false, *typeInfo));
+    std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::TIMESTAMP_WITHOUT_TIME_ZONE)});
+    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
    
     keyedOp->initializeState(initializer, ser);   
     keyedOp->open();
@@ -609,8 +609,8 @@ TEST(GroupAggFunctionTest, OneKeyOneAggCountTest){
     
     //initiate keyedState
     StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("KeyedProcessOperatorTest", 2, 1, 0)));
-    std::vector<RowField> *typeInfo = new std::vector<RowField>({RowField("col0", BasicLogicalType::BIGINT), RowField("col1", BasicLogicalType::BIGINT)});
-    TypeSerializer *ser = new RowDataSerializer(new RowType(false, *typeInfo));
+    std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::BIGINT)});
+    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
    
     keyedOp->initializeState(initializer, ser);
     
@@ -710,8 +710,8 @@ TEST(GroupAggFunctionTest, OneKeyOneAggCountAndAvgTest){
     
     //initiate keyedState
     StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("KeyedProcessOperatorTest", 2, 1, 0)));
-    std::vector<RowField> *typeInfo = new std::vector<RowField>({RowField("col0", BasicLogicalType::BIGINT), RowField("col1", BasicLogicalType::BIGINT), RowField("col3", BasicLogicalType::BIGINT)});
-    TypeSerializer *ser = new RowDataSerializer(new RowType(false, *typeInfo));
+    std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::BIGINT), omnistream::RowField("col3", BasicLogicalType::BIGINT)});
+    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
    
     keyedOp->initializeState(initializer, ser);
     
@@ -814,8 +814,8 @@ TEST(GroupAggFunctionTest, DISABLED_OneKeyOneMaxAggNonCompactTimestampTest){
     
     //initiate keyedState
     StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("KeyedProcessOperatorTest", 2, 1, 0)));
-    std::vector<RowField> *typeInfo = new std::vector<RowField>({RowField("col0", BasicLogicalType::BIGINT), RowField("col1", BasicLogicalType::TIMESTAMP_WITHOUT_TIME_ZONE)});
-    TypeSerializer *ser = new RowDataSerializer(new RowType(false, *typeInfo));
+    std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::TIMESTAMP_WITHOUT_TIME_ZONE)});
+    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
    
     keyedOp->initializeState(initializer, ser);
     
@@ -932,8 +932,8 @@ TEST(GroupAggFunctionTest, VectorBatch_Q17Agg)
     keyedOp->setup();
 
     StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("KeyedProcessOperatorTest", 2, 1, 0)));
-    std::vector<RowField> *typeInfo = new std::vector<RowField>({RowField("col0", BasicLogicalType::BIGINT), RowField("col1", BasicLogicalType::BIGINT)});
-    TypeSerializer *ser = new RowDataSerializer(new RowType(false, *typeInfo));
+    std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::BIGINT)});
+    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
     keyedOp->initializeState(initializer, ser);
     keyedOp->open();
 
@@ -941,7 +941,7 @@ TEST(GroupAggFunctionTest, VectorBatch_Q17Agg)
     // Batch
     /*
     (long) , (varchar)  (bool)      (bool)     (bool)    (long)
-    keyCol1, keyCol2 , valueCol1, valueCol2, valueCol3, valueCol4, RowType
+    keyCol1, keyCol2 , valueCol1, valueCol2, valueCol3, valueCol4, omnistream::RowType
     11      a           0           1           0           4       +I
     22      a           0           0           1           5       +I
     33      a           1           0           0           6       +I
@@ -984,7 +984,7 @@ TEST(GroupAggFunctionTest, VectorBatch_Q17Agg)
     // outputBatch
     /*
     (long) , (varchar)  (bool)      (bool)     (bool)    (long)
-    keyCol1, keyCol2 , valueCol1, valueCol2, valueCol3, valueCol4, valueCol5,valueCol6,valueCol7, valueCol8, RowType
+    keyCol1, keyCol2 , valueCol1, valueCol2, valueCol3, valueCol4, valueCol5,valueCol6,valueCol7, valueCol8, omnistream::RowType
     55          a        1           0           0       1           2        2         2           2           +I
     33          a        2           2           0       0           6        9         7           15          +I
     66          a        1           1           0       0           13       13        13          13          +I
@@ -1024,7 +1024,7 @@ TEST(GroupAggFunctionTest, VectorBatch_Q17Agg)
     // outputBatch
     /*
     (long) , (varchar)  (bool)      (bool)     (bool)    (long)
-    keyCol1, keyCol2 , valueCol1, valueCol2, valueCol3, valueCol4, valueCol5,valueCol6,valueCol7, valueCol8, RowType
+    keyCol1, keyCol2 , valueCol1, valueCol2, valueCol3, valueCol4, valueCol5,valueCol6,valueCol7, valueCol8, omnistream::RowType
       55        a          0          0         0           1           2       2          2        2           -U
       55        a          1          0         0           2           2       2          2        4           +U
       33        a          1          2         0           0           6       9          7        15          -U
@@ -1107,14 +1107,14 @@ TEST(GroupAggFunctionTest, VectorBatch_OneKeyMaxAggTest)
     StreamOperatorFactory streamOperatorFactory;
     KeyedProcessOperator<RowData *, RowData*, RowData*> *keyedOp = dynamic_cast<KeyedProcessOperator<RowData *, RowData*, RowData*> *>(streamOperatorFactory.createOperatorAndCollector(opConfig, output));
     StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("KeyedProcessOperatorTest", 2, 1, 0)));
-    std::vector<RowField> *typeInfo = new std::vector<RowField>({RowField("col0", BasicLogicalType::BIGINT), RowField("col1", BasicLogicalType::BIGINT)});
-    TypeSerializer *ser = new RowDataSerializer(new RowType(false, *typeInfo));
+    std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::BIGINT)});
+    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
     keyedOp->initializeState(initializer, ser);
     keyedOp->open();
 
     /* Input Batch
-    (long) , (long)   , (RowType)
-    keyCol, valueCol   , RowType
+    (long) , (long)   , (omnistream::RowType)
+    keyCol, valueCol   , omnistream::RowType
     1        , 5         , +I
     2        , 3         , +I
     3        , 8         , +I
@@ -1146,16 +1146,16 @@ TEST(GroupAggFunctionTest, VectorBatch_OneKeyMaxAggTest)
     delete record;
 
     /* Expect output
-    (long) , (long)   , (RowType)
-    keyCol, valueCol   , RowType
+    (long) , (long)   , (omnistream::RowType)
+    keyCol, valueCol   , omnistream::RowType
     3        , 8         , +I
     2        , 6         , +I
     1        , 5         , +I
     */
 
     /* Input Batch2
-    (long) , (long)   , (RowType)
-    keyCol, valueCol   , RowType
+    (long) , (long)   , (omnistream::RowType)
+    keyCol, valueCol   , omnistream::RowType
     1        , 7         , +I
     4        , 5         , +I
     2        , 12        , +I
@@ -1183,8 +1183,8 @@ TEST(GroupAggFunctionTest, VectorBatch_OneKeyMaxAggTest)
         std::cout << to_string(resultBatch2->getRowKind(i)) << std::endl;
     }
     /* Expect output2
-    (long) , (long)   , (RowType)
-    keyCol, valueCol   , RowType
+    (long) , (long)   , (omnistream::RowType)
+    keyCol, valueCol   , omnistream::RowType
     3        , 10         , +U
     2        , 12         , +U
     4        , 5          , +I
@@ -1227,14 +1227,14 @@ TEST(GroupAggFunctionTest, VectorBatch_OneKeyAvgAggTest)
     StreamOperatorFactory streamOperatorFactory;
     KeyedProcessOperator<RowData *, RowData*, RowData*> *keyedOp = dynamic_cast<KeyedProcessOperator<RowData *, RowData*, RowData*> *>(streamOperatorFactory.createOperatorAndCollector(opConfig, output));
     StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("KeyedProcessOperatorTest", 2, 1, 0)));
-    std::vector<RowField> *typeInfo = new std::vector<RowField>({RowField("col0", BasicLogicalType::BIGINT), RowField("col1", BasicLogicalType::BIGINT)});
-    TypeSerializer *ser = new RowDataSerializer(new RowType(false, *typeInfo));
+    std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::BIGINT)});
+    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
     keyedOp->initializeState(initializer, ser);
     keyedOp->open();
 
     /* Input Batch
-    (long) , (long)   , (RowType)
-    keyCol, valueCol   , RowType
+    (long) , (long)   , (omnistream::RowType)
+    keyCol, valueCol   , omnistream::RowType
     1        , 5         , +I
     2        , 3         , +I
     3        , 8         , +I
@@ -1264,8 +1264,8 @@ TEST(GroupAggFunctionTest, VectorBatch_OneKeyAvgAggTest)
     }
 
     /* Expect output
-    (long) , (long)   , (RowType)
-    keyCol, valueCol   , RowType
+    (long) , (long)   , (omnistream::RowType)
+    keyCol, valueCol   , omnistream::RowType
     3        , 6         , +I
     2        , 4         , +I
     1        , 5         , +I
@@ -1276,8 +1276,8 @@ TEST(GroupAggFunctionTest, VectorBatch_OneKeyAvgAggTest)
     auto record2 = new StreamRecord(vbatch2);
     keyedOp->processBatch(record2);
     /* Input Batch2
-    (long) , (long)   , (RowType)
-    keyCol, valueCol   , RowType
+    (long) , (long)   , (omnistream::RowType)
+    keyCol, valueCol   , omnistream::RowType
     1        , 7         , +I
     4        , 5         , +I
     2        , 12        , +I
@@ -1304,8 +1304,8 @@ TEST(GroupAggFunctionTest, VectorBatch_OneKeyAvgAggTest)
     delete record2;
 
     /* Expect output2
-    (long) , (long)   , (RowType)
-    keyCol, valueCol   , RowType
+    (long) , (long)   , (omnistream::RowType)
+    keyCol, valueCol   , omnistream::RowType
     3        , 7         , +u
     2        , 6         , +U
     4        , 5         , +I
@@ -1370,8 +1370,8 @@ TEST(GroupAggFunctionTest, VectorBatch_Q17Agg_Benchmark)
     keyedOp->setup();
 
     StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("KeyedProcessOperatorTest", 2, 1, 0)));
-    std::vector<RowField> *typeInfo = new std::vector<RowField>({RowField("col0", BasicLogicalType::BIGINT), RowField("col1", BasicLogicalType::BIGINT)});
-    TypeSerializer *ser = new RowDataSerializer(new RowType(false, *typeInfo));
+    std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::BIGINT)});
+    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
     keyedOp->initializeState(initializer, ser);
     keyedOp->open();
 

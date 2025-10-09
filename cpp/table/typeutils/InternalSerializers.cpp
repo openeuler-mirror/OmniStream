@@ -14,7 +14,7 @@ TypeSerializer *InternalSerializers::create(LogicalType* type) {
 TypeSerializer *InternalSerializers::createInternal(LogicalType* type) {
     switch (type->getTypeId()) {
         case DataTypeId::OMNI_CONTAINER:
-            return new RowDataSerializer(static_cast<RowType *>(type));
+            return new RowDataSerializer(static_cast<omnistream::RowType *>(type));
         case DataTypeId::OMNI_LONG:
             return LongSerializer::INSTANCE; // `LongSerializer` is currently dummy, we use `RowDataSerializer`'s `serialize` and `deserialize` for now
         case DataTypeId::OMNI_INT:

@@ -61,8 +61,9 @@ TEST(KeyedProcessOperatorTest, Open)
     KeyedProcessOperator<RowData *, RowData *, RowData *> keyedProcessOperator(groupAgg, new OutputTest(), config);
     keyedProcessOperator.setup();
     StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("KeyedProcessOperatorTest", 2, 1, 0)));
-    std::vector<RowField> *typeInfo = new std::vector<RowField>({RowField("col1", BasicLogicalType::BIGINT), RowField("col1", BasicLogicalType::BIGINT)});
-    TypeSerializer *ser = new RowDataSerializer(new RowType(false, *typeInfo));
+    std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col1", BasicLogicalType::BIGINT), 
+        omnistream::RowField("col1", BasicLogicalType::BIGINT)});
+    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
 
     ASSERT_NO_THROW(keyedProcessOperator.initializeState(initializer, ser));
 
@@ -88,8 +89,9 @@ TEST(KeyedProcessOperatorTest, ProcessElementWithMockedUserFunction)
     KeyedProcessOperator<RowData *, RowData *, RowData *> keyedProcessOperator(userFunction, new OutputTest(), config);
     keyedProcessOperator.setup();
     StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("KeyedProcessOperatorTest", 2, 1, 0)));
-    std::vector<RowField> *typeInfo = new std::vector<RowField>({RowField("col1", BasicLogicalType::BIGINT), RowField("col1", BasicLogicalType::BIGINT)});
-    TypeSerializer *ser = new RowDataSerializer(new RowType(false, *typeInfo));
+    std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col1", BasicLogicalType::BIGINT), 
+        omnistream::RowField("col1", BasicLogicalType::BIGINT)});
+    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
 
     keyedProcessOperator.initializeState(initializer, ser);
     keyedProcessOperator.open();
@@ -146,8 +148,9 @@ TEST(KeyedProcessOperatorTest, FastTop1FunctionTest)
     KeyedProcessOperator keyedProcessOperator(fastTop1Function, output, config);
     keyedProcessOperator.setup();
     StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("KeyedProcessOperatorTest", 2, 1, 0)));
-    std::vector<RowField> *typeInfo = new std::vector<RowField>({RowField("col1", BasicLogicalType::BIGINT), RowField("col2", BasicLogicalType::BIGINT),RowField("col3", BasicLogicalType::TIMESTAMP_WITHOUT_TIME_ZONE)});
-    TypeSerializer *ser = new RowDataSerializer(new RowType(false, *typeInfo));
+    std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col1", BasicLogicalType::BIGINT), 
+        omnistream::RowField("col2", BasicLogicalType::BIGINT), omnistream::RowField("col3", BasicLogicalType::TIMESTAMP_WITHOUT_TIME_ZONE)});
+    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
 
     keyedProcessOperator.initializeState(initializer, ser);
     keyedProcessOperator.open();
@@ -227,8 +230,9 @@ TEST(KeyedProcessOperatorTest, Appened)
     KeyedProcessOperator keyedProcessOperator(TopNFunction, output, config);
     keyedProcessOperator.setup();
     StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("KeyedProcessOperatorTest", 2, 1, 0)));
-    std::vector<RowField> *typeInfo = new std::vector<RowField>({RowField("col1", BasicLogicalType::BIGINT), RowField("col2", BasicLogicalType::BIGINT),RowField("col3", BasicLogicalType::BIGINT)});
-    TypeSerializer *ser = new RowDataSerializer(new RowType(false, *typeInfo));
+    std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col1", BasicLogicalType::BIGINT), 
+        omnistream::RowField("col2", BasicLogicalType::BIGINT), omnistream::RowField("col3", BasicLogicalType::BIGINT)});
+    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
 
     keyedProcessOperator.initializeState(initializer, ser);
     keyedProcessOperator.open();
@@ -311,8 +315,9 @@ TEST(KeyedProcessOperatorTest, DISABLED_Appened2)
     KeyedProcessOperator keyedProcessOperator(TopNFunction, output, config);
     keyedProcessOperator.setup();
     StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("KeyedProcessOperatorTest", 2, 1, 0)));
-    std::vector<RowField> *typeInfo = new std::vector<RowField>({RowField("col1", BasicLogicalType::BIGINT), RowField("col2", BasicLogicalType::BIGINT),RowField("col3", BasicLogicalType::BIGINT)});
-    TypeSerializer *ser = new RowDataSerializer(new RowType(false, *typeInfo));
+    std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col1", BasicLogicalType::BIGINT), 
+        omnistream::RowField("col2", BasicLogicalType::BIGINT), omnistream::RowField("col3", BasicLogicalType::BIGINT)});
+    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
 
     keyedProcessOperator.initializeState(initializer, ser);
     keyedProcessOperator.open();

@@ -16,7 +16,7 @@ class RowDataSerializer : public TypeSerializerSingleton  {
 public:
     //RowDataSerializer(std::vector<LogicalType*> * types, std::vector<TypeSerializer *> *fieldSerializers);
 
-    explicit RowDataSerializer(RowType *rowType);
+    explicit RowDataSerializer(omnistream::RowType *rowType);
     ~RowDataSerializer();
 
     void *deserialize(DataInputView &source) override;

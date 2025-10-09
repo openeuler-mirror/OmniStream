@@ -88,8 +88,8 @@ TEST(FastTop1FunctionTest, OpenInitialization) {
     auto *op = new KeyedProcessOperator(top1Function, new BatchOutputTest(), newRankConfig);
     op->setup();
     StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("KeyedProcessOperatorTest", 2, 1, 0)));
-    std::vector<RowField> typeInfo {RowField("col0", BasicLogicalType::BIGINT), RowField("col0", BasicLogicalType::BIGINT), RowField("col1", BasicLogicalType::BIGINT)};
-    TypeSerializer *ser = new RowDataSerializer(new RowType(false, typeInfo));
+    std::vector<omnistream::RowField> typeInfo {omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::BIGINT)};
+    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, typeInfo));
     op->initializeState(initializer, ser);
     EXPECT_NO_THROW(op->open());
 }
@@ -119,8 +119,8 @@ TEST(FastTop1FunctionTest, ProcessSingleBatch) {
     auto *op = new KeyedProcessOperator(top1Function, output, newRankConfig);
     op->setup();
     StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("KeyedProcessOperatorTest", 2, 1, 0)));
-    std::vector<RowField> *typeInfo = new std::vector<RowField>({RowField("col0", BasicLogicalType::BIGINT), RowField("col0", BasicLogicalType::BIGINT), RowField("col1", BasicLogicalType::BIGINT)});
-    TypeSerializer *ser = new RowDataSerializer(new RowType(false, *typeInfo));
+    std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::BIGINT)});
+    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
     op->initializeState(initializer, ser);
     EXPECT_NO_THROW(op->open());
 
@@ -172,8 +172,8 @@ TEST(FastTop1FunctionTest, ProcessMultipleBatches) {
     auto *op = new KeyedProcessOperator(top1Function, output, newRankConfig);
     op->setup();
     StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("KeyedProcessOperatorTest", 2, 1, 0)));
-    std::vector<RowField> *typeInfo = new std::vector<RowField>({RowField("col0", BasicLogicalType::BIGINT), RowField("col0", BasicLogicalType::BIGINT), RowField("col1", BasicLogicalType::BIGINT)});
-    TypeSerializer *ser = new RowDataSerializer(new RowType(false, *typeInfo));
+    std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::BIGINT)});
+    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
     op->initializeState(initializer, ser);
     EXPECT_NO_THROW(op->open());
 
@@ -343,8 +343,8 @@ TEST(FastTop1FunctionTest, OpenInitializationWithTwoPKeys) {
     auto *op = new KeyedProcessOperator(top1Function, new BatchOutputTest(), newRankConfig);
     op->setup();
     StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("KeyedProcessOperatorTest", 2, 1, 0)));
-    std::vector<RowField> typeInfo {RowField("col0", BasicLogicalType::BIGINT), RowField("col1", BasicLogicalType::BIGINT), RowField("col2", BasicLogicalType::BIGINT), RowField("col3", BasicLogicalType::BIGINT), RowField("col4", BasicLogicalType::BIGINT), RowField("col5", BasicLogicalType::BIGINT), RowField("col6", BasicLogicalType::BIGINT)};
-    TypeSerializer *ser = new RowDataSerializer(new RowType(false, typeInfo));
+    std::vector<omnistream::RowField> typeInfo {omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::BIGINT), omnistream::RowField("col2", BasicLogicalType::BIGINT), omnistream::RowField("col3", BasicLogicalType::BIGINT), omnistream::RowField("col4", BasicLogicalType::BIGINT), omnistream::RowField("col5", BasicLogicalType::BIGINT), omnistream::RowField("col6", BasicLogicalType::BIGINT)};
+    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, typeInfo));
     op->initializeState(initializer, ser);
     EXPECT_NO_THROW(op->open());
 }
@@ -373,8 +373,8 @@ TEST(FastTop1FunctionTest, ProcessSingleBatchWithTwoPKeys) {
     auto *op = new KeyedProcessOperator(top1Function, output, newRankConfig);
     op->setup();
     StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("KeyedProcessOperatorTest", 2, 1, 0)));
-    std::vector<RowField> *typeInfo = new std::vector<RowField>({RowField("col0", BasicLogicalType::BIGINT), RowField("col1", BasicLogicalType::BIGINT), RowField("col2", BasicLogicalType::BIGINT), RowField("col3", BasicLogicalType::BIGINT)});
-    TypeSerializer *ser = new RowDataSerializer(new RowType(false, *typeInfo));
+    std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::BIGINT), omnistream::RowField("col2", BasicLogicalType::BIGINT), omnistream::RowField("col3", BasicLogicalType::BIGINT)});
+    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
     op->initializeState(initializer, ser);
     EXPECT_NO_THROW(op->open());
 
@@ -429,8 +429,8 @@ TEST(FastTop1FunctionTest, ProcessMultipleBatchesWithTwoPKeys) {
     auto *op = new KeyedProcessOperator(top1Function, output, newRankConfig);
     op->setup();
     StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("KeyedProcessOperatorTest", 2, 1, 0)));
-    std::vector<RowField> *typeInfo = new std::vector<RowField>({RowField("col0", BasicLogicalType::BIGINT), RowField("col1", BasicLogicalType::BIGINT), RowField("col2", BasicLogicalType::BIGINT), RowField("col3", BasicLogicalType::BIGINT)});
-    TypeSerializer *ser = new RowDataSerializer(new RowType(false, *typeInfo));
+    std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::BIGINT), omnistream::RowField("col2", BasicLogicalType::BIGINT), omnistream::RowField("col3", BasicLogicalType::BIGINT)});
+    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
     op->initializeState(initializer, ser);
     EXPECT_NO_THROW(op->open());
 
