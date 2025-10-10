@@ -7,31 +7,32 @@
 
 using string = std::string;
 
-class RowField
-{
-public:
-    RowField(string name, LogicalType *type, string description);
+namespace omnistream {
 
-    RowField(const string &name, LogicalType *type);
+    class RowField {
+    public:
+        RowField(string name, LogicalType *type, string description);
 
-    [[nodiscard]] LogicalType *getType() const;
+        RowField(const string &name, LogicalType *type);
 
-private:
-    string name_;
-    LogicalType *type_;
-    string description_;
-};
+        [[nodiscard]] LogicalType *GetType() const;
 
-class RowType : public LogicalType
-{
-public:
-    RowType(bool isNull, const std::vector<RowField> &fields);
-    RowType(bool isNull, const std::vector<std::string> &typeName);
-    std::vector<LogicalType *> getChildren() override;
+    private:
+        string name_;
+        LogicalType *type_;
+        string description_;
+    };
 
-private:
-    std::vector<RowField> fields_;
-    std::vector<LogicalType *> types;
-};
+    class RowType : public LogicalType {
+    public:
+        RowType(bool isNull, const std::vector<RowField> &fields);
+        RowType(bool isNull, const std::vector<std::string> &typeName);
+        std::vector<LogicalType *> getChildren() override;
+
+    private:
+        std::vector<RowField> fields_;
+        std::vector<LogicalType *> types;
+    };
+}
 
 #endif // FLINK_TNEL_ROWTYPE_H

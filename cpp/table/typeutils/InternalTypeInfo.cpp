@@ -13,12 +13,12 @@ InternalTypeInfo::~InternalTypeInfo() = default;
 
 InternalTypeInfo *InternalTypeInfo::of(LogicalType *type) {
     auto serializer = InternalSerializers::create(type);
-    return  new InternalTypeInfo(type, serializer);
-
+    return new InternalTypeInfo(type, serializer);
 }
 
-InternalTypeInfo *InternalTypeInfo::ofRowType(RowType *type) {
-    return of ((LogicalType *)type);
+InternalTypeInfo *InternalTypeInfo::OfRowType(omnistream::RowType *type)
+{
+    return of (dynamic_cast<LogicalType*>(type));
 }
 
 std::string InternalTypeInfo::name() {

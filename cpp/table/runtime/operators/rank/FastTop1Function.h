@@ -51,7 +51,7 @@ private:
 template<typename KeyType>
 void FastTop1Function<KeyType>::open(const Configuration& context)
 {
-    auto rankRowTypeInfo = InternalTypeInfo::ofRowType(TypeInfoFactory::createRowType(this->inputRowType));
+    auto rankRowTypeInfo = InternalTypeInfo::OfRowType(TypeInfoFactory::createRowType(this->inputRowType));
     std::string name = "rank";
     ValueStateDescriptor* recordStateDesc = new ValueStateDescriptor(name, rankRowTypeInfo);
     recordStateDesc->SetStateSerializer(rankRowTypeInfo->getTypeSerializer());

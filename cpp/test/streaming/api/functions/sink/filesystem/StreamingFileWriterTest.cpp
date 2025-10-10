@@ -82,10 +82,10 @@ TEST(StreamingFileWriterTest, ProcessElement)
 {
     std::string pathDir = prepareTestDirectory();
 
-    std::vector<RowField> typeInfo{
-        RowField("col0", BasicLogicalType::BIGINT),
-        RowField("col1", BasicLogicalType::BIGINT)};
-    TypeSerializer *ser = new RowDataSerializer(new RowType(false, typeInfo));
+    std::vector<omnistream::RowField> typeInfo{
+        omnistream::RowField("col0", BasicLogicalType::BIGINT),
+        omnistream::RowField("col1", BasicLogicalType::BIGINT)};
+    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, typeInfo));
     auto *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("test", 1, 1, 0)));
 
     std::vector<std::string> partitionKeys = {"dt", "hm"};
@@ -157,10 +157,10 @@ TEST(StreamingFileWriterTest, RollingPolicyFileSize)
 {
     std::string pathDir = prepareTestDirectory();
 
-    std::vector<RowField> typeInfo{
-        RowField("col0", BasicLogicalType::BIGINT),
-        RowField("col1", BasicLogicalType::BIGINT)};
-    TypeSerializer *ser = new RowDataSerializer(new RowType(false, typeInfo));
+    std::vector<omnistream::RowField> typeInfo{
+        omnistream::RowField("col0", BasicLogicalType::BIGINT),
+        omnistream::RowField("col1", BasicLogicalType::BIGINT)};
+    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, typeInfo));
     auto *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("test", 1, 1, 0)));
 
     int fileSize = 100;
@@ -231,10 +231,10 @@ TEST(StreamingFileWriterTest, DISABLED_RollingPolicyTimeInterval)
 {
     std::string pathDir = prepareTestDirectory();
 
-    std::vector<RowField> typeInfo{
-        RowField("col0", BasicLogicalType::BIGINT),
-        RowField("col1", BasicLogicalType::BIGINT)};
-    TypeSerializer *ser = new RowDataSerializer(new RowType(false, typeInfo));
+    std::vector<omnistream::RowField> typeInfo{
+        omnistream::RowField("col0", BasicLogicalType::BIGINT),
+        omnistream::RowField("col1", BasicLogicalType::BIGINT)};
+    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, typeInfo));
     auto *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("test", 1, 1, 0)));
 
     int rollingTimeInterval = 10; // 10ms, should be short enought to produce at least 2 files.
@@ -307,10 +307,10 @@ TEST(StreamingFileWriterTest, Q10)
 {
     std::string pathDir = prepareTestDirectory();
     fileSinkDesc["path"] = pathDir;
-    std::vector<RowField> typeInfo{
-        RowField("col0", BasicLogicalType::BIGINT),
-        RowField("col1", BasicLogicalType::BIGINT)};
-    TypeSerializer *ser = new RowDataSerializer(new RowType(false, typeInfo));
+    std::vector<omnistream::RowField> typeInfo{
+        omnistream::RowField("col0", BasicLogicalType::BIGINT),
+        omnistream::RowField("col1", BasicLogicalType::BIGINT)};
+    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, typeInfo));
     auto *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("test", 1, 1, 0)));
 
     std::vector<std::string> partitionKeys = fileSinkDesc["partitionKeys"].get<std::vector<std::string>>();

@@ -32,7 +32,7 @@ public:
 
     static LogicalType* createLogicalType(const std::string type);
 
-    static RowType* createRowType(const std::vector<omniruntime::type::DataTypeId> *inputRowType);
+    static omnistream::RowType* createRowType(const std::vector<omniruntime::type::DataTypeId> *inputRowType);
 };
 
 

@@ -20,7 +20,7 @@ public:
 
     static InternalTypeInfo *of(LogicalType *type);
 
-    static InternalTypeInfo *ofRowType(RowType *type);
+    static InternalTypeInfo *OfRowType(omnistream::RowType *type);
 
     static InternalTypeInfo *INT_TYPE;
 

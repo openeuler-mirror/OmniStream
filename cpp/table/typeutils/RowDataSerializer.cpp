@@ -3,16 +3,16 @@
 #include "BinaryRowDataSerializer.h"
 #include "../../core/streamrecord/StreamRecord.h"
 
-
-
-RowDataSerializer::RowDataSerializer(RowType *rowType) :binarySerializer_(static_cast<int>(rowType->getChildren().size())), reuseRow_(nullptr), reuseWriter_(nullptr) {
-
+RowDataSerializer::RowDataSerializer(omnistream::RowType *rowType)
+    :binarySerializer_(static_cast<int>(rowType->getChildren().size())),
+    reuseRow_(nullptr), reuseWriter_(nullptr)
+{
     auto types = rowType->getChildren();
     types_ = types;
 
     for (size_t i = 0; i<types.size(); i++) {
-        LogicalType *  fieldType = types_[i];
-        TypeSerializer * serializer =  InternalSerializers::create(fieldType);
+        LogicalType *fieldType = types_[i];
+        TypeSerializer *serializer =  InternalSerializers::create(fieldType);
         fieldSerializers_.push_back(serializer);
         fieldGetters_.push_back(RowData::createFieldGetter(fieldType, i));
     }
