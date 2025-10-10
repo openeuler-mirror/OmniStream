@@ -96,7 +96,7 @@ TypeInformation *TypeInfoFactory::createInternalTypeInfo(const json &rowType)
         THROW_LOGIC_EXCEPTION("Row type is  not JSON Array:" + rowType.dump(2));
     }
 
-    std::vector<RowField> fields;
+    std::vector<omnistream::RowField> fields;
 
     // create RowType from json description
     // Iterate over each element of the array
@@ -144,16 +144,16 @@ TypeInformation *TypeInfoFactory::createInternalTypeInfo(const json &rowType)
                 THROW_LOGIC_EXCEPTION("Unknown logical type " + typeName);
         }
     }
-    RowType type(true, fields);
-    auto typeInfo = InternalTypeInfo::ofRowType(&type);
+    omnistream::RowType type(true, fields);
+    auto typeInfo = InternalTypeInfo::OfRowType(&type);
     LOG(">>>> Return createInternalTypeInfo")
     return typeInfo;
 }
 
-RowType *TypeInfoFactory::createRowType(const std::vector<omniruntime::type::DataTypeId> *inputRowType)
+omnistream::RowType *TypeInfoFactory::createRowType(const std::vector<omniruntime::type::DataTypeId> *inputRowType)
 {
     //    auto *typeInfo = new std::vector<RowField>();
-    std::vector<RowField> typeInfo;
+    std::vector<omnistream::RowField> typeInfo;
     for (size_t i = 0; i < inputRowType->size(); ++i) {
         std::string columnName = "col" + std::to_string(i);
         BasicLogicalType *columnType;
@@ -186,7 +186,7 @@ RowType *TypeInfoFactory::createRowType(const std::vector<omniruntime::type::Dat
         typeInfo.emplace_back(columnName, columnType);
     }
 
-    return new RowType(true, typeInfo);
+    return new omnistream::RowType(true, typeInfo);
 }
 
 TypeInformation *TypeInfoFactory::createBasicInternalTypeInfo(const char *name, const std::string config)
@@ -219,7 +219,7 @@ LogicalType *TypeInfoFactory::createLogicalType(const std::string type)
                 }
                 fieldTypes.push_back(fieldType);
             }
-            return new RowType(true, fieldTypes);
+            return new omnistream::RowType(true, fieldTypes);
         } catch (std::runtime_error &e) {
             THROW_LOGIC_EXCEPTION("Unknown logical type " + type);
         }

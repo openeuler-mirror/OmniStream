@@ -107,8 +107,8 @@ void GroupAggFunction::open(const Configuration& parameters)
 {
     LOG("GroupAggFunction open() running")
     // Init HeapValueState
-    RowType accRowType(true, this->accTypes);
-    auto accRowTypeInfo = InternalTypeInfo::ofRowType(&accRowType);
+    omnistream::RowType accRowType(true, this->accTypes);
+    auto accRowTypeInfo = InternalTypeInfo::OfRowType(&accRowType);
     std::string accStateName = "accState";
     ValueStateDescriptor *accDesc = new ValueStateDescriptor(accStateName, accRowTypeInfo);
     accDesc->SetStateSerializer(accRowTypeInfo->getTypeSerializer());

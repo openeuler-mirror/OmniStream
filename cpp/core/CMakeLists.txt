@@ -27,7 +27,7 @@ target_link_libraries(core PUBLIC
         basicfunctions
         thirdlibrary
         KHSEL_ops
-        securec
+        boundscheck
         connector-kafka
         ${ORT_VEC_SO}
         ${ORT_CODEGEN_SO}

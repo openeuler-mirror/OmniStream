@@ -24,7 +24,7 @@ TEST(CopyOnWriteStateMapTest, PutAndGetRowKey)
 {
     // Use two columns to construct a binaryRowData as key
     std::vector<std::string> fieldname = {"BIGINT", "BIGINT"};
-    RowType rowType(true, fieldname);
+    omnistream::RowType rowType(true, fieldname);
     RowDataSerializer* ser = new RowDataSerializer(&rowType);
     CopyOnWriteStateMap<RowData*, long, long> map(ser, 1);
 

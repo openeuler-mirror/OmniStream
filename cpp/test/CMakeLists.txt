@@ -26,7 +26,7 @@ target_include_directories(${TNEL_TEST_TARGET} PRIVATE
 target_link_directories(${TNEL_TEST_TARGET} PUBLIC "${OMNIRUNTIME_LIB_DIR}")
 target_link_libraries(${TNEL_TEST_TARGET} 
         PRIVATE 
-        securec
+        boundscheck
         core
         table
         runtime

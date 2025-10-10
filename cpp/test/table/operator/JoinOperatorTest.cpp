@@ -392,8 +392,8 @@ TEST(InnerJoinTest, SimpleInnerJoinLongKeyInsertDelete)
     // initiate keyedState
     StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("StreamingJoinOperatorTest", 1, 1, 0)));
     // This typeInfo is for Key Serializer.
-    std::vector<RowField> typeInfo{RowField("col0", BasicLogicalType::BIGINT)};
-    TypeSerializer *ser = new RowDataSerializer(new RowType(false, typeInfo));
+    std::vector<omnistream::RowField> typeInfo{omnistream::RowField("col0", BasicLogicalType::BIGINT)};
+    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, typeInfo));
 
     auto op = new StreamingJoinOperator<RowData*>(opConfig.getDescription(), outputTest);
     op->setup();
@@ -474,11 +474,11 @@ TEST(InnerJoinTest, SimpleJoinWithNonEquiCondition)
     BatchOutputTest *outputTest = new BatchOutputTest();
 
     StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("StreamingJoinOperatorTest", 1, 1, 0)));
-    std::vector<RowField> typeInfo{RowField("col0", BasicLogicalType::BIGINT),
-                                   RowField("col1", BasicLogicalType::BIGINT),
-                                   RowField("col2", BasicLogicalType::BIGINT),
-                                   RowField("col3", BasicLogicalType::BIGINT)};
-    TypeSerializer *ser = new RowDataSerializer(new RowType(false, typeInfo));
+    std::vector<omnistream::RowField> typeInfo{omnistream::RowField("col0", BasicLogicalType::BIGINT),
+                                   omnistream::RowField("col1", BasicLogicalType::BIGINT),
+                                   omnistream::RowField("col2", BasicLogicalType::BIGINT),
+                                   omnistream::RowField("col3", BasicLogicalType::BIGINT)};
+    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, typeInfo));
 
     auto op = new StreamingJoinOperator<RowData*>(opConfig.getDescription(), outputTest);
     op->setup();
@@ -545,11 +545,11 @@ TEST(InnerJoinTest, SimpleJoinWithNullKey)
     BatchOutputTest *outputTest = new BatchOutputTest();
 
     StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("StreamingJoinOperatorTest", 1, 1, 0)));
-    std::vector<RowField> typeInfo{RowField("col0", BasicLogicalType::BIGINT),
-                                   RowField("col1", BasicLogicalType::BIGINT),
-                                   RowField("col2", BasicLogicalType::BIGINT),
-                                   RowField("col3", BasicLogicalType::BIGINT)};
-    TypeSerializer *ser = new RowDataSerializer(new RowType(false, typeInfo));
+    std::vector<omnistream::RowField> typeInfo{omnistream::RowField("col0", BasicLogicalType::BIGINT),
+                                   omnistream::RowField("col1", BasicLogicalType::BIGINT),
+                                   omnistream::RowField("col2", BasicLogicalType::BIGINT),
+                                   omnistream::RowField("col3", BasicLogicalType::BIGINT)};
+    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, typeInfo));
 
     auto op = new StreamingJoinOperator<int64_t>(opConfig.getDescription(), outputTest);
     op->setup();
@@ -625,11 +625,11 @@ TEST(InnerJoinTest, InnerJoin)
     BatchOutputTest *outputTest = new BatchOutputTest();
 
     StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("StreamingJoinOperatorTest", 1, 1, 0)));
-    std::vector<RowField> typeInfo{RowField("col0", BasicLogicalType::BIGINT),
-                                   RowField("col1", BasicLogicalType::BIGINT),
-                                   RowField("col2", BasicLogicalType::BIGINT),
-                                   RowField("col3", BasicLogicalType::BIGINT)};
-    TypeSerializer *ser = new RowDataSerializer(new RowType(false, typeInfo));
+    std::vector<omnistream::RowField> typeInfo{omnistream::RowField("col0", BasicLogicalType::BIGINT),
+                                   omnistream::RowField("col1", BasicLogicalType::BIGINT),
+                                   omnistream::RowField("col2", BasicLogicalType::BIGINT),
+                                   omnistream::RowField("col3", BasicLogicalType::BIGINT)};
+    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, typeInfo));
 
     auto op = new StreamingJoinOperator<int64_t>(opConfig.getDescription(), outputTest);
     op->setup();
@@ -705,11 +705,11 @@ TEST(InnerJoinTest, InnerJoinAdvance)
     BatchOutputTest *outputTest = new BatchOutputTest();
 
     StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("StreamingJoinOperatorTest", 1, 1, 0)));
-    std::vector<RowField> typeInfo{RowField("col0", BasicLogicalType::BIGINT),
-                                   RowField("col1", BasicLogicalType::BIGINT),
-                                   RowField("col2", BasicLogicalType::BIGINT),
-                                   RowField("col3", BasicLogicalType::BIGINT)};
-    TypeSerializer *ser = new RowDataSerializer(new RowType(false, typeInfo));
+    std::vector<omnistream::RowField> typeInfo{omnistream::RowField("col0", BasicLogicalType::BIGINT),
+                                   omnistream::RowField("col1", BasicLogicalType::BIGINT),
+                                   omnistream::RowField("col2", BasicLogicalType::BIGINT),
+                                   omnistream::RowField("col3", BasicLogicalType::BIGINT)};
+    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, typeInfo));
 
     auto op = new StreamingJoinOperator<int64_t>(opConfig.getDescription(), outputTest);
     op->setup();
@@ -842,11 +842,11 @@ TEST(OuterJoinTest, LeftJoin)
     BatchOutputTest *outputTest = new BatchOutputTest();
 
     StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("StreamingJoinOperatorTest", 1, 1, 0)));
-    std::vector<RowField> typeInfo{RowField("col0", BasicLogicalType::BIGINT),
-                                   RowField("col1", BasicLogicalType::BIGINT),
-                                   RowField("col2", BasicLogicalType::BIGINT),
-                                   RowField("col3", BasicLogicalType::BIGINT)};
-    TypeSerializer *ser = new RowDataSerializer(new RowType(false, typeInfo));
+    std::vector<omnistream::RowField> typeInfo{omnistream::RowField("col0", BasicLogicalType::BIGINT),
+                                   omnistream::RowField("col1", BasicLogicalType::BIGINT),
+                                   omnistream::RowField("col2", BasicLogicalType::BIGINT),
+                                   omnistream::RowField("col3", BasicLogicalType::BIGINT)};
+    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, typeInfo));
 
     auto op = new StreamingJoinOperator<int64_t>(opConfig.getDescription(), outputTest);
     op->setup();
@@ -971,11 +971,11 @@ TEST(OuterJoinTest, DISABLED_RightJoin)
     BatchOutputTest *outputTest = new BatchOutputTest();
 
     StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("StreamingJoinOperatorTest", 1, 1, 0)));
-    std::vector<RowField> typeInfo{RowField("col0", BasicLogicalType::BIGINT),
-                                   RowField("col1", BasicLogicalType::BIGINT),
-                                   RowField("col2", BasicLogicalType::BIGINT),
-                                   RowField("col3", BasicLogicalType::BIGINT)};
-    TypeSerializer *ser = new RowDataSerializer(new RowType(false, typeInfo));
+    std::vector<omnistream::RowField> typeInfo{omnistream::RowField("col0", BasicLogicalType::BIGINT),
+                                   omnistream::RowField("col1", BasicLogicalType::BIGINT),
+                                   omnistream::RowField("col2", BasicLogicalType::BIGINT),
+                                   omnistream::RowField("col3", BasicLogicalType::BIGINT)};
+    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, typeInfo));
 
     auto op = new StreamingJoinOperator<int64_t>(opConfig.getDescription(), outputTest);
     op->setup();
@@ -1061,11 +1061,11 @@ TEST(OuterJoinTest, LeftJoinAdvance)
     BatchOutputTest *outputTest = new BatchOutputTest();
 
     StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("StreamingJoinOperatorTest", 1, 1, 0)));
-    std::vector<RowField> typeInfo{RowField("col0", BasicLogicalType::BIGINT),
-                                   RowField("col1", BasicLogicalType::BIGINT),
-                                   RowField("col2", BasicLogicalType::BIGINT),
-                                   RowField("col3", BasicLogicalType::BIGINT)};
-    TypeSerializer *ser = new RowDataSerializer(new RowType(false, typeInfo));
+    std::vector<omnistream::RowField> typeInfo{omnistream::RowField("col0", BasicLogicalType::BIGINT),
+                                   omnistream::RowField("col1", BasicLogicalType::BIGINT),
+                                   omnistream::RowField("col2", BasicLogicalType::BIGINT),
+                                   omnistream::RowField("col3", BasicLogicalType::BIGINT)};
+    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, typeInfo));
 
     auto op = new StreamingJoinOperator<int64_t>(opConfig.getDescription(), outputTest);
     op->setup();
@@ -1246,11 +1246,11 @@ TEST(OuterJoinTest, DISABLED_RightJoinAdvance)
     BatchOutputTest *outputTest = new BatchOutputTest();
 
     StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("StreamingJoinOperatorTest", 1, 1, 0)));
-    std::vector<RowField> typeInfo{RowField("col0", BasicLogicalType::BIGINT),
-                                   RowField("col1", BasicLogicalType::BIGINT),
-                                   RowField("col2", BasicLogicalType::BIGINT),
-                                   RowField("col3", BasicLogicalType::BIGINT)};
-    TypeSerializer *ser = new RowDataSerializer(new RowType(false, typeInfo));
+    std::vector<omnistream::RowField> typeInfo{omnistream::RowField("col0", BasicLogicalType::BIGINT),
+                                   omnistream::RowField("col1", BasicLogicalType::BIGINT),
+                                   omnistream::RowField("col2", BasicLogicalType::BIGINT),
+                                   omnistream::RowField("col3", BasicLogicalType::BIGINT)};
+    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, typeInfo));
 
     auto op = new StreamingJoinOperator<int64_t>(opConfig.getDescription(), outputTest);
     op->setup();
@@ -1388,8 +1388,8 @@ TEST(StreamingJoinTest, SimpleInnerJoinLongKeyInsertDeleteWithRokcsDB)
     std::vector<std::string> backendHomes = {"/tmp/rocksdb_ut/StreamingJoinTest/"};
     StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("StreamingJoinOperatorTest", 1, 1, 0, "rocksdb", backendHomes)));
     // This typeInfo is for Key Serializer.
-    std::vector<RowField> typeInfo{RowField("col0", BasicLogicalType::BIGINT)};
-    TypeSerializer *ser = new RowDataSerializer(new RowType(false, typeInfo));
+    std::vector<omnistream::RowField> typeInfo{omnistream::RowField("col0", BasicLogicalType::BIGINT)};
+    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, typeInfo));
 
     auto op = new StreamingJoinOperator<RowData*>(opConfig.getDescription(), outputTest);
     op->setDescription(opConfig.getDescription());

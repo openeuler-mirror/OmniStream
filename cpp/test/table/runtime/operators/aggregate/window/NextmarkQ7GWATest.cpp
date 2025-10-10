@@ -99,9 +99,9 @@ TEST(NEXTMARKTESTQ7, MAXTEST) {
             StreamOperatorFactory::createOperatorAndCollector(opConfig, output));
 
     StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("GlobalWindowAgg", 128, 1, 0)));
-    std::vector<RowField> typeInfo{RowField("col0", BasicLogicalType::BIGINT)};
+    std::vector<omnistream::RowField> typeInfo{omnistream::RowField("col0", BasicLogicalType::BIGINT)};
     slicingWindowOperator->setup();
-    TypeSerializer *ser = new RowDataSerializer(new RowType(false, typeInfo));
+    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, typeInfo));
     slicingWindowOperator->initializeState(initializer, ser);
 
     LOG("step1")

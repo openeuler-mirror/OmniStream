@@ -7,7 +7,7 @@ set -x
 script_dir=$(dirname "$(readlink -f "$0")")
 
 # Get the parent directory of the script directory
-project_root="$script_dir"
+project_root="$(dirname "$script_dir")"
 OMNI_HOME="$project_root"
 mkdir -p $OMNI_HOME/lib
 mkdir -p $OMNI_HOME/include
@@ -16,7 +16,7 @@ dependency_root="$(realpath  "$project_root/3rdparty")"
 mkdir -p $dependency_root
 
 # todo: test
-export HOME=$script_dir/3rdparty
+export HOME=$project_root/3rdparty
 
 # Define the cpp_root and java_master_dir
 cpp_root="$project_root/cpp"
@@ -46,6 +46,7 @@ function show_usage() {
 }
 
 function build_securec() {
+    echo "test"
   local securec_src_dir="$dependency_root/libboundscheck"
 
   echo "Start build open source code for libboundscheck"
@@ -339,13 +340,13 @@ if  [[ $# -gt 0 ]]; then
             ;;
         -c|--cpp)
             # Build C++ dependency
-            build_securec
-            build_json
+            # build_securec
+            # build_json
             # build_abseil
             # build_re2
 #            build_gflags
-            build_snappy
-            build_rocksdb
+            # build_snappy
+            # build_rocksdb
             build_rdkafka
             # build_jemalloc
             # Build C++ project (implement this function)
@@ -353,19 +354,19 @@ if  [[ $# -gt 0 ]]; then
 	          build_cpp $2 "OFF"
             ;;
         -j|--java)
-            build_java
+            # build_java
             ;;
         -u|--unit-test)
-            build_java
-            build_securec
-            build_json
+            # build_java
+            # build_securec
+            # build_json
             # build_abseil
             # build_re2
-            build_xxhash
-            build_google_test
+            # build_xxhash
+            # build_google_test
 #            build_gflags
-            build_snappy
-            build_rocksdb
+            # build_snappy
+            # build_rocksdb
             build_rdkafka
             # build_jemalloc
             build_cpp coverage "ON"
@@ -373,30 +374,30 @@ if  [[ $# -gt 0 ]]; then
             ;;
         -a|--all)
             # Build C++, Java, dependencies, no need to build googletest dependency
-            build_java
-            build_securec
-            build_json
+            # build_java
+            # build_securec
+            # build_json
             # build_abseil
             # build_re2
-            build_xxhash
+            # build_xxhash
 #            build_gflags
-            build_snappy
-            build_rocksdb
+            # build_snappy
+            # build_rocksdb
             build_rdkafka
             # build_jemalloc
             build_cpp $2 "OFF"
             ;;
         -g|--gccopt)
             # Build C++, Java, dependencies, no need to build googletest dependency
-            build_java
-            build_securec
-            build_json
+            # build_java
+            # build_securec
+            # build_json
             # build_abseil
             # build_re2
-            build_xxhash
+            # build_xxhash
 #            build_gflags
-            build_snappy
-            build_rocksdb
+            # build_snappy
+            # build_rocksdb
             build_rdkafka_gccopt
             # build_jemalloc
             build_cpp_gccopt $2 "OFF"
