@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #ifndef OMNISTREAM_RESULTPARTITIONTYPE_H
@@ -12,11 +19,11 @@ namespace omnistream {
 class ResultPartitionType {
 public:
     // Constants for bit masks
-    static const int PIPELINED_MASK = 0x01;
-    static const int BACK_PRESSURE_MASK = 0x02;
-    static const int BOUNDED_MASK = 0x04;
-    static const int PERSISTENT_MASK = 0x08;
-    static const int RECONNECTABLE_MASK = 0x10;
+    static const unsigned int PIPELINED_MASK = 0x01;
+    static const unsigned int BACK_PRESSURE_MASK = 0x02;
+    static const unsigned int BOUNDED_MASK = 0x04;
+    static const unsigned int PERSISTENT_MASK = 0x08;
+    static const unsigned int RECONNECTABLE_MASK = 0x10;
 
     static const int PIPELINED;
     static const int PIPELINED_BOUNDED;

@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #include "EventGenerator.h"
@@ -18,7 +25,6 @@ std::string_view StringsGenerator::nextExactString(SplittableRandom &random, siz
     if (!REUSABLE_EXTRA_STRING.empty() && length < REUSABLE_EXTRA_STRING.size() / 2) {
         int offset = random.nextInt(REUSABLE_EXTRA_STRING.size() - length);
         return std::string_view(REUSABLE_EXTRA_STRING.data() + offset, length);
-        // return REUSABLE_EXTRA_STRING.substr(offset, length);
     }
     StringsGenerator::fillWithRandomLower<false>(random, buffer, length);
     return std::string_view(buffer, length);

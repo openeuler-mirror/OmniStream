@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #ifndef OMNISTREAM_ROCKSDBLISTSTATE_H
@@ -7,14 +14,13 @@
 
 #include <vector>
 #include "core/typeutils/TypeSerializer.h"
-#include "core/api/ListState.h"
+#include "core/api/common/state/ListState.h"
 #include "runtime/state/VoidNamespace.h"
 #include "core/api/common/state/StateDescriptor.h"
 #include "table/data/binary/BinaryRowData.h"
-#include "vectorbatch/VectorBatch.h"
+#include "table/data/vectorbatch/VectorBatch.h"
 #include "runtime/state/internal/InternalListState.h"
 #include "RocksdbStateTable.h"
-#include "../../../core/typeutils/TypeSerializer.h"
 
 // The state is a list. In the InternalKvState, the state is stored as a pointer to a std::vector
 template<typename K, typename N, typename UV>
@@ -24,12 +30,10 @@ public:
                      TypeSerializer *valueSerializer,
                      TypeSerializer *namespaceSerializer);
 
-    ~RocksdbListState()
-    {
-        delete stateTable;
-    };
+    ~RocksdbListState() = default;
 
-    void createTable(ROCKSDB_NAMESPACE::DB* db, std::string cfName);
+    void createTable(ROCKSDB_NAMESPACE::DB* db, std::string cfName,
+        std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>> *kvStateInformation);
 
     [[nodiscard]] TypeSerializer *getNamespaceSerializer() const { return namespaceSerializer; };
 
@@ -61,7 +65,7 @@ public:
     static RocksdbListState<K, N, UV> *create(StateDescriptor *stateDesc,
                                               RocksdbStateTable<K, N, UV> *stateTable, TypeSerializer *keySerializer);
 
-    static RocksdbListState<K, N, UV>* update(StateDescriptor* stateDesc, RocksdbStateTable<K, N, UV> *stateTable,
+    static RocksdbListState<K, N, UV>* update(StateDescriptor *stateDesc, RocksdbStateTable<K, N, UV> *stateTable,
                                               RocksdbListState<K, N, UV>* existingState);
 
     void addVectorBatch(omnistream::VectorBatch *vectorBatch) override;
@@ -91,9 +95,10 @@ RocksdbListState<K, N, UV>::RocksdbListState(RocksdbStateTable<K, N, UV> *stateT
     : stateTable(stateTable), valueSerializer(valueSerializer), namespaceSerializer(namespaceSerializer) {}
 
 template<typename K, typename N, typename UV>
-void RocksdbListState<K, N, UV>::createTable(rocksdb::DB *db, std::string cfName)
+void RocksdbListState<K, N, UV>::createTable(rocksdb::DB *db, std::string cfName,
+    std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>> *kvStateInformation)
 {
-    stateTable->createTable(db, cfName);
+    stateTable->createTable(db, cfName, kvStateInformation);
 }
 
 template<typename K, typename N, typename UV>

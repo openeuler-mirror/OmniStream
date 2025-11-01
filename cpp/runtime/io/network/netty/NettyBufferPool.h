@@ -1,5 +1,5 @@
 /*
-* Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+* Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
  */
 #ifndef NETTY_BUFFER_POOL_H
 #define NETTY_BUFFER_POOL_H

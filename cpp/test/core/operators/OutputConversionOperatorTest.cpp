@@ -3,10 +3,10 @@
 #include <nlohmann/json.hpp>
 #include "OmniOperatorJIT/core/test/util/test_util.h"
 #include "test/core/operators/OutputTest.h"
-#include "operators/StreamOperatorFactory.h"
+#include "streaming/api/operators/StreamOperatorFactory.h"
 #include "table/runtime/operators/TableOperatorConstants.h"
 #include "runtime/executiongraph/operatorchain/OperatorPOD.h"
-#include "operators/sink/OutputConversionOperator.h"
+#include "streaming/api/operators/sink/OutputConversionOperator.h"
 
 using json = nlohmann::json;
 

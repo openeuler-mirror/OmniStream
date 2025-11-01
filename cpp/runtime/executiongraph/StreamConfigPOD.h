@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #ifndef STREAMCONFIGPOD_H
@@ -15,10 +22,8 @@
 
 #include "operatorchain/OperatorPOD.h"
 
-namespace omnistream
-{
-    class StreamConfigPOD
-    {
+namespace omnistream {
+    class StreamConfigPOD {
     public:
         StreamConfigPOD() = default;
 
@@ -69,8 +74,7 @@ namespace omnistream
 
         StreamConfigPOD& operator=(const StreamConfigPOD& other)
         {
-            if (this != &other)
-            {
+            if (this != &other) {
                 outEdgesInOrder = other.outEdgesInOrder;
                 opNonChainedOutputs = other.opNonChainedOutputs;
                 opChainedOutputs = other.opChainedOutputs;
@@ -85,8 +89,7 @@ namespace omnistream
 
         StreamConfigPOD& operator=(StreamConfigPOD&& other) noexcept
         {
-            if (this != &other)
-            {
+            if (this != &other) {
                 outEdgesInOrder = std::move(other.outEdgesInOrder);
                 opNonChainedOutputs = std::move(other.opNonChainedOutputs);
                 opChainedOutputs = std::move(other.opChainedOutputs);
@@ -102,10 +105,10 @@ namespace omnistream
         bool operator==(const StreamConfigPOD& other) const
         {
             bool result1 = outEdgesInOrder == other.outEdgesInOrder;
-            bool result2=opNonChainedOutputs == other.opNonChainedOutputs;
-            bool result3=opChainedOutputs == other.opChainedOutputs;
-            bool result5=operatorDescription == other.operatorDescription;
-            bool result4=operatorFactoryName == other.operatorFactoryName;
+            bool result2 = opNonChainedOutputs == other.opNonChainedOutputs;
+            bool result3 = opChainedOutputs == other.opChainedOutputs;
+            bool result5 = operatorDescription == other.operatorDescription;
+            bool result4 = operatorFactoryName == other.operatorFactoryName;
 
             return result1 && result2 && result3 && result4 && result5;
         }
@@ -117,9 +120,9 @@ namespace omnistream
             return outEdgesInOrder;
         }
 
-        void setOutEdgesInOrder(const std::vector<StreamEdgePOD>& outEdgesInOrder)
+        void setOutEdgesInOrder(const std::vector<StreamEdgePOD>& outEdgesInOrder_)
         {
-            this->outEdgesInOrder = outEdgesInOrder;
+            this->outEdgesInOrder = outEdgesInOrder_;
         }
 
         std::vector<NonChainedOutputPOD> getOpNonChainedOutputs() const
@@ -127,9 +130,9 @@ namespace omnistream
             return opNonChainedOutputs;
         }
 
-        void setOpNonChainedOutputs(const std::vector<NonChainedOutputPOD>& opNonChainedOutputs)
+        void setOpNonChainedOutputs(const std::vector<NonChainedOutputPOD>& opNonChainedOutputs_)
         {
-            this->opNonChainedOutputs = opNonChainedOutputs;
+            this->opNonChainedOutputs = opNonChainedOutputs_;
         }
 
         std::vector<StreamEdgePOD> getOpChainedOutputs() const
@@ -137,9 +140,9 @@ namespace omnistream
             return opChainedOutputs;
         }
 
-        void setOpChainedOutputs(const std::vector<StreamEdgePOD>& opChainedOutputs)
+        void setOpChainedOutputs(const std::vector<StreamEdgePOD>& opChainedOutputs_)
         {
-            this->opChainedOutputs = opChainedOutputs;
+            this->opChainedOutputs = opChainedOutputs_;
         }
 
         OperatorPOD getOperatorDescription() const
@@ -147,9 +150,9 @@ namespace omnistream
             return operatorDescription;
         }
 
-        void setOperatorDescription(const OperatorPOD& operatorDescription)
+        void setOperatorDescription(const OperatorPOD& operatorDescription_)
         {
-            this->operatorDescription = operatorDescription;
+            this->operatorDescription = operatorDescription_;
         }
 
         std::string getOperatorFactoryName() const
@@ -157,9 +160,9 @@ namespace omnistream
             return operatorFactoryName;
         }
 
-        void setOperatorFactoryName(const std::string& operatorFactoryName)
+        void setOperatorFactoryName(const std::string& operatorFactoryName_)
         {
-            this->operatorFactoryName = operatorFactoryName;
+            this->operatorFactoryName = operatorFactoryName_;
         }
 
         std::string getStateBackend() const
@@ -167,9 +170,9 @@ namespace omnistream
             return stateBackend;
         }
 
-        void setStateBackend(const std::string& stateBackend)
+        void setStateBackend(const std::string& stateBackend_)
         {
-            this->stateBackend = stateBackend;
+            this->stateBackend = stateBackend_;
         }
 
         std::vector<StreamEdgePOD> getInStreamEdges() const
@@ -177,9 +180,9 @@ namespace omnistream
             return inStreamEdges;
         }
 
-        void setInStreamEdges(const std::vector<StreamEdgePOD> &inStreamEdges)
+        void setInStreamEdges(const std::vector<StreamEdgePOD> &inStreamEdges_)
         {
-            this->inStreamEdges = inStreamEdges;
+            this->inStreamEdges = inStreamEdges_;
         }
 
         int getNumberOfNetworkInputs() const
@@ -187,9 +190,9 @@ namespace omnistream
             return numberOfNetworkInputs;
         }
 
-        void setNumberOfNetworkInputs(const int numberOfNetworkInputs)
+        void setNumberOfNetworkInputs(const int numberOfNetworkInputs_)
         {
-            this->numberOfNetworkInputs = numberOfNetworkInputs;
+            this->numberOfNetworkInputs = numberOfNetworkInputs_;
         }
 
         std::unordered_map<std::string, std::string> getOmniConf() const
@@ -243,7 +246,6 @@ namespace omnistream
 
             return result;
         }
-
 
         NLOHMANN_DEFINE_TYPE_INTRUSIVE(StreamConfigPOD,
             outEdgesInOrder,
@@ -302,14 +304,4 @@ namespace std {
 }
 
 
-#endif //STREAMCONFIGPOD_H
-
-// std::vector<StreamEdgePOD> outEdgesInOrder;
-// std::string stateBackend;
-//
-// std::vector<NonChainedOutputPOD> opNonChainedOutputs;
-// std::vector<StreamEdgePOD> opChainedOutputs;
-//
-// OperatorPOD operatorDescription;
-//
-// std::string operatorFactoryName;
+#endif

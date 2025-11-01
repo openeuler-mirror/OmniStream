@@ -3,13 +3,13 @@
 #include <nlohmann/json.hpp>
 #include <test/util/test_util.h>
 
-#include "runtime/taskmanager/RuntimeEnvironment.h"
+#include "runtime/taskmanager/OmniRuntimeEnvironment.h"
 #include "table/runtime/operators/window/AggregateWindowOperator.h"
 #include "runtime/operators/window/assigners/SessionWindowAssigner.h"
 #include "runtime/operators/window/TimeWindow.h"
 #include "core/graph/OperatorConfig.h"
 #include "test/core/operators/OutputTest.h"
-#include "operators/StreamOperatorFactory.h"
+#include "streaming/api/operators/StreamOperatorFactory.h"
 
 using json = nlohmann::json;
 
@@ -121,7 +121,11 @@ TEST(AggregateWindowOperatorTest, WindowStateTest)
     auto *output = new BatchOutputTest();
     auto *windowAggOperator = dynamic_cast<AggregateWindowOperator<RowData *, TimeWindow> *>(
         omnistream::StreamOperatorFactory::createOperatorAndCollector(opConfig, output));
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("AggregateWindowOperator", 128, 1, 0)));
+    auto env2 = new omnistream::RuntimeEnvironmentV2();
+    auto taskInfo = new TaskInformationPOD();
+    taskInfo->setStateBackend("HashMapStateBackend");
+    env2->setTaskConfiguration(*taskInfo);
+    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
     windowAggOperator->initializeState(initializer, new LongSerializer());
     windowAggOperator->open();
     // KeyRowData 10, TimeWindow(1742625620000, 1742625630000), Value 1
@@ -184,7 +188,11 @@ TEST(AggregateWindowOperatorTest, TimeWindowTest)
     auto *output = new BatchOutputTest();
     auto *windowAggOperator = dynamic_cast<AggregateWindowOperator<RowData *, TimeWindow> *>(
         omnistream::StreamOperatorFactory::createOperatorAndCollector(opConfig, output));
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("AggregateWindowOperator", 128, 1, 0)));
+    auto env2 = new omnistream::RuntimeEnvironmentV2();
+    auto taskInfo = new TaskInformationPOD();
+    taskInfo->setStateBackend("HashMapStateBackend");
+    env2->setTaskConfiguration(*taskInfo);
+    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
     windowAggOperator->initializeState(initializer, new LongSerializer());
     windowAggOperator->open();
 
@@ -226,7 +234,11 @@ TEST(AggregateWindowOperatorTest, JsonTest)
     auto *output = new BatchOutputTest();
     auto *windowAggOperator = dynamic_cast<AggregateWindowOperator<RowData *, TimeWindow> *>(
         omnistream::StreamOperatorFactory::createOperatorAndCollector(opConfig, output));
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("AggregateWindowOperator", 128, 1, 0)));
+    auto env2 = new omnistream::RuntimeEnvironmentV2();
+    auto taskInfo = new TaskInformationPOD();
+    taskInfo->setStateBackend("HashMapStateBackend");
+    env2->setTaskConfiguration(*taskInfo);
+    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
     windowAggOperator->initializeState(initializer, new LongSerializer());
     windowAggOperator->open();
     omnistream::VectorBatch *vBatch = Q12VectorBatchInput();

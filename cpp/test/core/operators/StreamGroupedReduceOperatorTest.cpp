@@ -1,9 +1,9 @@
 #include <gtest/gtest.h>
-#include "core/operators/StreamGroupedReduceOperator.h"
+#include "streaming/api/operators/StreamGroupedReduceOperator.h"
 #include "test_utils/Mocks.h"
 #include "basictypes/Tuple2.h"
 #include "basictypes/Long.h"
-#include "runtime/taskmanager/RuntimeEnvironment.h"
+#include "runtime/taskmanager/OmniRuntimeEnvironment.h"
 #include <memory>
 #include <string>
 
@@ -15,7 +15,8 @@ TEST(StreamGroupedReduceOperatorTest, Constructor_ValidPaths) {
     string soPath = "/tmp/libMockReduceFunction.so";
     nlohmann::json config;
     config["udf_so"] = "/tmp/libMockReduceFunction.so";
-    config["key_so"] = "/tmp/libMockKeyedBy.so";
+    config["key_so"][0] = "libMockKeyedBy.so";
+    config["hash_path"] = "/tmp/";
     config["udf_obj"] = "{}";
 
     omnistream::datastream::StreamGroupedReduceOperator<Object> reduceOp(&output);
@@ -28,7 +29,8 @@ TEST(StreamGroupedReduceOperatorTest, Constructor_ReduceFunctionNull) {
     string keyBySoName = "libMockKeyedBy.so";
     nlohmann::json config;
     config["udf_so"] = "invalid_reduce.so";
-    config["key_so"] = "libMockKeyedBy.so";
+    config["key_so"][0] = "libMockKeyedBy.so";
+    config["hash_path"] = "/tmp/";
     config["udf_obj"] = "{}";
     omnistream::datastream::StreamGroupedReduceOperator<Object> reduceOp(&output);
     EXPECT_THROW(reduceOp.loadUdf(config), std::out_of_range);
@@ -41,17 +43,18 @@ TEST(StreamGroupedReduceOperatorTest, ProcessElement_NewKey) {
     string keyBySoName = "/tmp/libMockKeyedBy.so";
     nlohmann::json config;
     config["udf_so"] = soPath;
-    config["key_so"] = keyBySoName;
+    config["key_so"][0] = "libMockKeyedBy.so";
+    config["hash_path"] = "/tmp/";
     config["udf_obj"] = "{}";
     omnistream::datastream::StreamGroupedReduceOperator<Object> reduceOp(&output, config);
 
-    StreamTaskStateInitializerImpl *initializer =
-            new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("test",
-                                                                                       1,
-                                                                                       1,
-                                                                                       0)));
+    auto env2 = new omnistream::RuntimeEnvironmentV2();
+    auto taskInfo = new TaskInformationPOD();
+    taskInfo->setStateBackend("HashMapStateBackend");
+    env2->setTaskConfiguration(*taskInfo);
+    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
     reduceOp.setup();
-    reduceOp.initializeState(initializer, new LongSerializer());
+    reduceOp.initializeState(initializer, new StringSerializer());
     reduceOp.open();
     // 创建一个 StreamRecord
     Object* key = new String("key1");
@@ -79,16 +82,18 @@ TEST(StreamGroupedReduceOperatorTest, ProcessElement_ExistingKey) {
     string keyBySoName = "/tmp/libMockKeyedBy.so";
     nlohmann::json config;
     config["udf_so"] = soPath;
-    config["key_so"] = keyBySoName;
+    config["key_so"][0] = "libMockKeyedBy.so";
+    config["hash_path"] = "/tmp/";
     config["udf_obj"] = "{}";
     omnistream::datastream::StreamGroupedReduceOperator<Object> reduceOp(&output, config);
+    auto env2 = new omnistream::RuntimeEnvironmentV2();
+    auto taskInfo = new TaskInformationPOD();
+    taskInfo->setStateBackend("HashMapStateBackend");
+    env2->setTaskConfiguration(*taskInfo);
     StreamTaskStateInitializerImpl *initializer =
-            new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("test1",
-                                                                                       1,
-                                                                                       1,
-                                                                                       0)));
+            new StreamTaskStateInitializerImpl(env2);
     reduceOp.setup();
-    reduceOp.initializeState(initializer, new LongSerializer());
+    reduceOp.initializeState(initializer, new StringSerializer());
     reduceOp.open();
     // 创建两个 StreamRecord
     Object* key1 = new String("key1");
@@ -127,7 +132,8 @@ TEST(StreamGroupedReduceOperatorTest, GetName) {
     string keyBySoName = "libMockKeyedBy.so";
     nlohmann::json config;
     config["udf_so"] = soPath;
-    config["key_so"] = keyBySoName;
+    config["key_so"][0] = "libMockKeyedBy.so";
+    config["hash_path"] = "/tmp/";
     config["udf_obj"] = "{}";
     omnistream::datastream::StreamGroupedReduceOperator<Object> reduceOp(&output, config);
 
@@ -141,14 +147,15 @@ TEST(StreamGroupedReduceOperatorTest, Open_NotImplemented) {
     string keyBySoName = "libMockKeyedBy.so";
     nlohmann::json config;
     config["udf_so"] = soPath;
-    config["key_so"] = keyBySoName;
+    config["key_so"][0] = "libMockKeyedBy.so";
+    config["hash_path"] = "/tmp/";
     config["udf_obj"] = "{}";
     omnistream::datastream::StreamGroupedReduceOperator<Object> reduceOp(&output, config);
-    StreamTaskStateInitializerImpl *initializer =
-            new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("test",
-                                                                                       1,
-                                                                                       1,
-                                                                                       0)));
+    auto env2 = new omnistream::RuntimeEnvironmentV2();
+    auto taskInfo = new TaskInformationPOD();
+    taskInfo->setStateBackend("HashMapStateBackend");
+    env2->setTaskConfiguration(*taskInfo);
+    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
     reduceOp.setup();
     reduceOp.initializeState(initializer, new LongSerializer());
     reduceOp.open();

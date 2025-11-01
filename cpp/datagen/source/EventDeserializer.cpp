@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #include "EventDeserializer.h"
@@ -92,7 +99,7 @@ void BatchEventDeserializer::setNullPerson()
 }
 void BatchEventDeserializer::convertAuction(std::unique_ptr<Event> event)
 {
-    static int offset = 1 + Event::PersonTypes.size();
+    static int offset = 1 + static_cast<int>(Event::PersonTypes.size());
     std::unique_ptr<Auction> ptr(dynamic_cast<Auction*>(event.get()));
     event.release();
     auto vectors = vb->GetVectors();
@@ -110,7 +117,7 @@ void BatchEventDeserializer::convertAuction(std::unique_ptr<Event> event)
 }
 void BatchEventDeserializer::setNullAuction()
 {
-    static int offset = 1 + Event::PersonTypes.size();
+    static int offset = 1 + static_cast<int>(Event::PersonTypes.size());
     auto vectors = vb->GetVectors();
     for (int i = 0; i < 10; i++) {
         vectors[offset + i]->SetNull(collectedCnt);
@@ -118,7 +125,7 @@ void BatchEventDeserializer::setNullAuction()
 }
 void BatchEventDeserializer::convertBid(std::unique_ptr<Event> event)
 {
-    static int offset = 1 + Event::PersonTypes.size() + Event::AuctionTypes.size();
+    static int offset = 1 + static_cast<int>(Event::PersonTypes.size()) + static_cast<int>(Event::AuctionTypes.size());
     //"BIGINT", "BIGINT", "BIGINT", "STRING", "STRING", "TIMESTAMP", "STRING"
     std::unique_ptr<Bid> ptr(dynamic_cast<Bid*>(event.get()));
     event.release();
@@ -133,9 +140,14 @@ void BatchEventDeserializer::convertBid(std::unique_ptr<Event> event)
 }
 void BatchEventDeserializer::setNullBid()
 {
-    static int offset = 1 + Event::PersonTypes.size() + Event::AuctionTypes.size();
+    static int offset = 1 + static_cast<int>(Event::PersonTypes.size()) + static_cast<int>(Event::AuctionTypes.size());
     auto vectors = vb->GetVectors();
     for (int i = 0; i < 7; i++) {
         vectors[offset + i]->SetNull(collectedCnt);
     }
+}
+
+BatchEventDeserializer::~BatchEventDeserializer()
+{
+    delete reUseRecord;
 }

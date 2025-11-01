@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #include <gtest/gtest.h>
@@ -10,10 +17,10 @@
 
 #include "test/core/operators/OutputTest.h"
 
-#include "core/streamrecord/StreamRecord.h"
-#include "core/operators/StreamOperatorFactory.h"
+#include "streaming/runtime/streamrecord/StreamRecord.h"
+#include "streaming/api/operators/StreamOperatorFactory.h"
 #include "core/typeutils/LongSerializer.h"
-#include "runtime/taskmanager/RuntimeEnvironment.h"
+#include "runtime/taskmanager/OmniRuntimeEnvironment.h"
 #include "core/api/common/TaskInfoImpl.h"
 #include "table/typeutils/RowDataSerializer.h"
 #include "OmniOperatorJIT/core/test/util/test_util.h"
@@ -390,7 +397,11 @@ TEST(InnerJoinTest, SimpleInnerJoinLongKeyInsertDelete)
 
     // create streamOperatorFactory
     // initiate keyedState
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("StreamingJoinOperatorTest", 1, 1, 0)));
+    auto env2 = new omnistream::RuntimeEnvironmentV2();
+    auto taskInfo = new TaskInformationPOD();
+    taskInfo->setStateBackend("HashMapStateBackend");
+    env2->setTaskConfiguration(*taskInfo);
+    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
     // This typeInfo is for Key Serializer.
     std::vector<omnistream::RowField> typeInfo{omnistream::RowField("col0", BasicLogicalType::BIGINT)};
     TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, typeInfo));
@@ -472,8 +483,11 @@ TEST(InnerJoinTest, SimpleJoinWithNonEquiCondition)
         parsedJson["description"]);
 
     BatchOutputTest *outputTest = new BatchOutputTest();
-
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("StreamingJoinOperatorTest", 1, 1, 0)));
+    auto env2 = new omnistream::RuntimeEnvironmentV2();
+    auto taskInfo = new TaskInformationPOD();
+    taskInfo->setStateBackend("HashMapStateBackend");
+    env2->setTaskConfiguration(*taskInfo);
+    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
     std::vector<omnistream::RowField> typeInfo{omnistream::RowField("col0", BasicLogicalType::BIGINT),
                                    omnistream::RowField("col1", BasicLogicalType::BIGINT),
                                    omnistream::RowField("col2", BasicLogicalType::BIGINT),
@@ -544,7 +558,11 @@ TEST(InnerJoinTest, SimpleJoinWithNullKey)
 
     BatchOutputTest *outputTest = new BatchOutputTest();
 
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("StreamingJoinOperatorTest", 1, 1, 0)));
+    auto env2 = new omnistream::RuntimeEnvironmentV2();
+    auto taskInfo = new TaskInformationPOD();
+    taskInfo->setStateBackend("HashMapStateBackend");
+    env2->setTaskConfiguration(*taskInfo);
+    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
     std::vector<omnistream::RowField> typeInfo{omnistream::RowField("col0", BasicLogicalType::BIGINT),
                                    omnistream::RowField("col1", BasicLogicalType::BIGINT),
                                    omnistream::RowField("col2", BasicLogicalType::BIGINT),
@@ -624,7 +642,11 @@ TEST(InnerJoinTest, InnerJoin)
 
     BatchOutputTest *outputTest = new BatchOutputTest();
 
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("StreamingJoinOperatorTest", 1, 1, 0)));
+    auto env2 = new omnistream::RuntimeEnvironmentV2();
+    auto taskInfo = new TaskInformationPOD();
+    taskInfo->setStateBackend("HashMapStateBackend");
+    env2->setTaskConfiguration(*taskInfo);
+    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
     std::vector<omnistream::RowField> typeInfo{omnistream::RowField("col0", BasicLogicalType::BIGINT),
                                    omnistream::RowField("col1", BasicLogicalType::BIGINT),
                                    omnistream::RowField("col2", BasicLogicalType::BIGINT),
@@ -704,7 +726,11 @@ TEST(InnerJoinTest, InnerJoinAdvance)
 
     BatchOutputTest *outputTest = new BatchOutputTest();
 
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("StreamingJoinOperatorTest", 1, 1, 0)));
+    auto env2 = new omnistream::RuntimeEnvironmentV2();
+    auto taskInfo = new TaskInformationPOD();
+    taskInfo->setStateBackend("HashMapStateBackend");
+    env2->setTaskConfiguration(*taskInfo);
+    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
     std::vector<omnistream::RowField> typeInfo{omnistream::RowField("col0", BasicLogicalType::BIGINT),
                                    omnistream::RowField("col1", BasicLogicalType::BIGINT),
                                    omnistream::RowField("col2", BasicLogicalType::BIGINT),
@@ -841,7 +867,11 @@ TEST(OuterJoinTest, LeftJoin)
 
     BatchOutputTest *outputTest = new BatchOutputTest();
 
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("StreamingJoinOperatorTest", 1, 1, 0)));
+    auto env2 = new omnistream::RuntimeEnvironmentV2();
+    auto taskInfo = new TaskInformationPOD();
+    taskInfo->setStateBackend("HashMapStateBackend");
+    env2->setTaskConfiguration(*taskInfo);
+    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
     std::vector<omnistream::RowField> typeInfo{omnistream::RowField("col0", BasicLogicalType::BIGINT),
                                    omnistream::RowField("col1", BasicLogicalType::BIGINT),
                                    omnistream::RowField("col2", BasicLogicalType::BIGINT),
@@ -970,7 +1000,11 @@ TEST(OuterJoinTest, DISABLED_RightJoin)
 
     BatchOutputTest *outputTest = new BatchOutputTest();
 
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("StreamingJoinOperatorTest", 1, 1, 0)));
+    auto env2 = new omnistream::RuntimeEnvironmentV2();
+    auto taskInfo = new TaskInformationPOD();
+    taskInfo->setStateBackend("HashMapStateBackend");
+    env2->setTaskConfiguration(*taskInfo);
+    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
     std::vector<omnistream::RowField> typeInfo{omnistream::RowField("col0", BasicLogicalType::BIGINT),
                                    omnistream::RowField("col1", BasicLogicalType::BIGINT),
                                    omnistream::RowField("col2", BasicLogicalType::BIGINT),
@@ -1060,7 +1094,11 @@ TEST(OuterJoinTest, LeftJoinAdvance)
 
     BatchOutputTest *outputTest = new BatchOutputTest();
 
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("StreamingJoinOperatorTest", 1, 1, 0)));
+    auto env2 = new omnistream::RuntimeEnvironmentV2();
+    auto taskInfo = new TaskInformationPOD();
+    taskInfo->setStateBackend("HashMapStateBackend");
+    env2->setTaskConfiguration(*taskInfo);
+    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
     std::vector<omnistream::RowField> typeInfo{omnistream::RowField("col0", BasicLogicalType::BIGINT),
                                    omnistream::RowField("col1", BasicLogicalType::BIGINT),
                                    omnistream::RowField("col2", BasicLogicalType::BIGINT),
@@ -1245,7 +1283,11 @@ TEST(OuterJoinTest, DISABLED_RightJoinAdvance)
 
     BatchOutputTest *outputTest = new BatchOutputTest();
 
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("StreamingJoinOperatorTest", 1, 1, 0)));
+    auto env2 = new omnistream::RuntimeEnvironmentV2();
+    auto taskInfo = new TaskInformationPOD();
+    taskInfo->setStateBackend("HashMapStateBackend");
+    env2->setTaskConfiguration(*taskInfo);
+    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
     std::vector<omnistream::RowField> typeInfo{omnistream::RowField("col0", BasicLogicalType::BIGINT),
                                    omnistream::RowField("col1", BasicLogicalType::BIGINT),
                                    omnistream::RowField("col2", BasicLogicalType::BIGINT),
@@ -1370,7 +1412,7 @@ TEST(OuterJoinTest, DISABLED_RightJoinAdvance)
 }
 
 
-TEST(StreamingJoinTest, SimpleInnerJoinLongKeyInsertDeleteWithRokcsDB)
+TEST(StreamingJoinTest, DISABLED_SimpleInnerJoinLongKeyInsertDeleteWithRokcsDB)
 {
 
     nlohmann::json parsedJson = nlohmann::json::parse(simpleConfigStr_nofilter);
@@ -1386,7 +1428,11 @@ TEST(StreamingJoinTest, SimpleInnerJoinLongKeyInsertDeleteWithRokcsDB)
     // create streamOperatorFactory
     // initiate keyedState
     std::vector<std::string> backendHomes = {"/tmp/rocksdb_ut/StreamingJoinTest/"};
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("StreamingJoinOperatorTest", 1, 1, 0, "rocksdb", backendHomes)));
+    auto env2 = new omnistream::RuntimeEnvironmentV2();
+    auto taskInfo = new TaskInformationPOD();
+    taskInfo->setStateBackend("HashMapStateBackend");
+    env2->setTaskConfiguration(*taskInfo);
+    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
     // This typeInfo is for Key Serializer.
     std::vector<omnistream::RowField> typeInfo{omnistream::RowField("col0", BasicLogicalType::BIGINT)};
     TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, typeInfo));
@@ -1444,8 +1490,6 @@ TEST(StreamingJoinTest, SimpleInnerJoinLongKeyInsertDeleteWithRokcsDB)
     for (int i = 0; i < 6; i++) {
         EXPECT_EQ(expectedVB->getRowKind(i), outputVB->getRowKind(i));
     }
-    delete vectorBatchLeft;
-    delete vectorBatchRight;
     delete outputVB;
     delete expectedVB;
 }

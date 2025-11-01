@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "core/streamrecord/StreamRecord.h"
+#include "streaming/runtime/streamrecord/StreamRecord.h"
 #include "table/data/binary/BinaryRowData.h"
 #include "table/runtime/operators/source/InputSplit.h"
 #include "table/runtime/operators/source/csv/CsvInputFormat.h"

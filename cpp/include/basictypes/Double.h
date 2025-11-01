@@ -1,10 +1,19 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 #ifndef MT_CHECK_DOUBLE_H
 #define MT_CHECK_DOUBLE_H
-
+#include <libboundscheck/include/securec.h>
+#include <typeinfo>
 #include "Object.h"
+#include "basictypes/Long.h"
 
 class Double : public Object {
 public:
@@ -13,8 +22,18 @@ public:
     ~Double();
 
     static Double *valueOf(double d);
-    double val;
+    static Long* doubleToLongBits(Double *value);
+    static Double* doubleToLongBits(Long *value);
+    static int64_t doubleToLongBits(double value);
+    static double doubleToLongBits(int64_t value);
+    void setValue(const std::string &basicString) override;
+    Object* clone() override;
+    int hashCode();
+    bool equals(Object *obj);
+    double doubleValue();
+
+    double value;
     double jsonValue();
 };
 
-#endif //MT_CHECK_DOUBLE_H
+#endif // MT_CHECK_DOUBLE_H

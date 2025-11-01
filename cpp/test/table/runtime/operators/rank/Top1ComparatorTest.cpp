@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 #include "table/runtime/operators/rank/Top1Comparator.h"
-#include "vectorbatch/VectorBatch.h"
+#include "table/data/vectorbatch/VectorBatch.h"
 
 // Mock implementation of getVectorBatch for creating a VectorBatch.
 omnistream::VectorBatch* getVectorBatch()

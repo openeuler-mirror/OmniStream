@@ -1,3 +1,14 @@
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
+
 #ifndef FLINK_TNEL_MINMAXFUNCTION_H
 #define FLINK_TNEL_MINMAXFUNCTION_H
 #include "../AggsHandleFunction.h"
@@ -9,23 +20,6 @@ enum FuncType {
     MIN_FUNC
 };
 class MinMaxFunction : public AggsHandleFunction {
-private:
-    FuncType aggOperator;
-    long aggValue;
-
-    std::string stringAggValue;
-    std::string stringAggValueLimit;
-    bool valueIsNull;
-    int aggIdx;
-    int accIndex;
-    int valueIndex;
-    long limit;
-    int filterIndex;
-    bool hasFilter;
-    omniruntime::type::DataTypeId typeId;
-
-    StateDataViewStore *store = nullptr;
-
 public:
     MinMaxFunction(int aggIdx, std::string inputType, int accIndex, int valueIndex, FuncType aggOperator, int filterIndex = -1)
         : aggOperator(aggOperator),
@@ -61,6 +55,22 @@ public:
     void cleanup() override {};
     void close() override {};
     bool equaliser(BinaryRowData *r1, BinaryRowData *r2) override;
+private:
+    FuncType aggOperator;
+    long aggValue;
+
+    std::string stringAggValue;
+    std::string stringAggValueLimit;
+    bool valueIsNull;
+    int aggIdx;
+    int accIndex;
+    int valueIndex;
+    long limit;
+    int filterIndex;
+    bool hasFilter;
+    omniruntime::type::DataTypeId typeId;
+
+    StateDataViewStore *store = nullptr;
 };
 
 

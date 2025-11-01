@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #include "ShuffleIOOwnerContextPOD.h"
@@ -22,9 +29,9 @@ namespace omnistream {
     }
 
 
-    void ShuffleIOOwnerContextPOD::setOwnerName(const std::string& ownerName)
+    void ShuffleIOOwnerContextPOD::setOwnerName(const std::string& ownerName_)
     {
-        this->ownerName = ownerName;
+        this->ownerName = ownerName_;
     }
 
     ExecutionAttemptIDPOD ShuffleIOOwnerContextPOD::getExecutionAttemptID() const
@@ -42,6 +49,13 @@ namespace omnistream {
         std::stringstream ss;
         ss << "ShuffleIOOwnerContextPOD{ownerName='" << ownerName << "', executionAttemptID=" << executionAttemptID.toString() << "}";
         return ss.str();
+    }
+
+    ShuffleIOOwnerContextPOD &ShuffleIOOwnerContextPOD::operator=(const ShuffleIOOwnerContextPOD &other)
+    {
+        ownerName = other.ownerName;
+        executionAttemptID = other.executionAttemptID;
+        return *this;
     }
 
 } // namespace omnistream

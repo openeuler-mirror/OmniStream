@@ -19,10 +19,20 @@ target_include_directories(runtime PRIVATE data types)
 #target_compile_options(runtime  PRIVATE -fPIC)
 set_property(TARGET runtime PROPERTY POSITION_INDEPENDENT_CODE ON)
 target_link_libraries(runtime PRIVATE core)
-target_link_libraries(runtime PRIVATE librocksdb.so)
+target_link_libraries(runtime PRIVATE rocksdb)
+target_link_libraries(runtime PUBLIC project_config)
+if (WITH_OMNISTATESTORE)
+    target_link_libraries(runtime PRIVATE libockdbjni-linux64.so)
+endif ()
 message(STATUS "${CMAKE_CXX_FLAGS}")
 
 if (JEMALLOC_LIB)
     target_link_libraries(runtime PRIVATE ${JEMALLOC_LIB})
 endif()
+install(
+        TARGETS runtime
+        LIBRARY DESTINATION lib
+        ARCHIVE DESTINATION lib
+        RUNTIME DESTINATION bin
+)
 

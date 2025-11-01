@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #ifndef DEDUPLICATE_RowTimeDeduplicateFunction_H
@@ -9,22 +16,23 @@
 #include <iostream>
 #include <fstream>
 #include <unordered_map>
+#include <set>
 
 #include <nlohmann/json.hpp>
 #include "table/data/util/RowDataUtil.h"
 #include "table/data/RowData.h"
 #include "table/types/logical/LogicalType.h"
-#include "table/data/utils/JoinedRowData.h"
+#include "table/data/JoinedRowData.h"
 #include "table/typeutils/InternalTypeInfo.h"
-#include "core/api/ValueState.h"
+#include "core/api/common/state/ValueState.h"
 #include "core/api/common/state/ValueStateDescriptor.h"
 #include "functions/OpenContext.h"
 #include "streaming/api/functions/KeyedProcessFunction.h"
 #include "functions/RuntimeContext.h"
-#include "core/operators/StreamingRuntimeContext.h"
-#include "core/operators/TimestampedCollector.h"
+#include "streaming/api/operators/StreamingRuntimeContext.h"
+#include "streaming/api/operators/TimestampedCollector.h"
 #include "table/data/util/VectorBatchUtil.h"
-#include "KeySelector.h"
+#include "table/runtime/keyselector/KeySelector.h"
 // using StateType = HeapValueState<RowData *, VoidNamespace, int64_t>;
 using StateType = ValueState<int64_t>;
 
@@ -55,6 +63,9 @@ public:
     void open(const Configuration &) override;
     static std::vector<std::int32_t> getKeyedTypes(const std::vector<int32_t> keyedIndex,
                                                    const std::vector<std::string> inputTypes);
+
+    void freeDelBatch();
+
     int getCurrentBatchId()
     {
         return recordStateVB->getVectorBatchesSize();
@@ -65,7 +76,7 @@ public:
         return res;
     }
 
-    void processElement(RowData &input, Context& ctx, TimestampedCollector& out) override
+    void processElement(omnistream::VectorBatch *input, Context* ctx, TimestampedCollector* out) override
     {
         NOT_IMPL_EXCEPTION
     }
@@ -99,6 +110,8 @@ private:
     std::vector<int32_t> keyedTypes;
 
     omnistream::VectorBatch *res = nullptr;
+    std::set<omnistream::VectorBatch *> delVb;
+    int backendType = 0; // 0-> men 1-> rocksdb
 };
 
 #endif

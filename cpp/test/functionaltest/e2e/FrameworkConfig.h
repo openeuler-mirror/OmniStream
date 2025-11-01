@@ -1,15 +1,15 @@
 #include <gtest/gtest.h>
 
-#include "runtime/partitioner/ForwardPartitionerV2.h"
-#include "runtime/partitioner/RebalancePartitionerV2.h"
-#include "runtime/partitioner/RescalePartitionerV2.h"
-#include "runtime/partitioner/StreamPartitionerV2.h"
+#include "streaming/runtime/partitioner/V2/ForwardPartitionerV2.h"
+#include "streaming/runtime/partitioner/V2/RebalancePartitionerV2.h"
+#include "streaming/runtime/partitioner/V2/RescalePartitionerV2.h"
+#include "streaming/runtime/partitioner/V2/StreamPartitionerV2.h"
 #include "core/writer/vectorBatchTestUtils.h"
 #include "nlohmann/json.hpp"
 #include "runtime/executiongraph/StreamPartitionerPOD.h"
 #include "runtime/taskexecutor/OmniTaskExecutor.h"
 #include "runtime/taskmanager/OmniTask.h"
-#include "runtime/tasks/OmniStreamTask.h"
+#include "streaming/runtime/tasks/omni/OmniStreamTask.h"
 
 class FrameworkTestConfig : public ::testing::Test {
 public:

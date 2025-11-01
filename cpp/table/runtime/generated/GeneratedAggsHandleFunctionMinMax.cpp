@@ -1,27 +1,32 @@
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
 #include "GeneratedAggsHandleFunctionMinMax.h"
 #include <stdexcept>
 #include <iostream>
 #include <common.h>
 #include "table/data/binary/BinaryRowData.h"
 
-void GeneratedAggsHandleFunctionMinMax::accumulate(RowData* accInput) {
+void GeneratedAggsHandleFunctionMinMax::accumulate(RowData* accInput)
+{
     bool isFieldNull = accInput->isNullAt(aggIdx);
     long fieldValue = isFieldNull ? limit : *accInput->getLong(aggIdx);
 
-    if (isFieldNull)
-    {
+    if (isFieldNull) {
         aggValue = valueIsNull ? limit : aggValue;
-    }
-    else
-    {
-        bool toUpdate  = !valueIsNull && (aggOperator == MAX ? fieldValue > aggValue : fieldValue < aggValue);
-        if (valueIsNull || toUpdate )
-        {
+    } else {
+        bool toUpdate = !valueIsNull && (aggOperator == MAX ? fieldValue > aggValue : fieldValue < aggValue);
+        if (valueIsNull || toUpdate) {
             aggValue = fieldValue;
             valueIsNull = false;
-        }
-        else
-        {
+        } else {
             valueIsNull = valueIsNull;
         }
     }
@@ -51,7 +56,8 @@ void GeneratedAggsHandleFunctionMinMax::accumulate(omnistream::VectorBatch* inpu
     }
 }
 
-void GeneratedAggsHandleFunctionMinMax::retract(RowData* retractInput) {
+void GeneratedAggsHandleFunctionMinMax::retract(RowData* retractInput)
+{
     throw std::runtime_error("This function does not require retract method, but retract was called.");
 }
 
@@ -60,25 +66,30 @@ void GeneratedAggsHandleFunctionMinMax::retract(omnistream::VectorBatch* input, 
     throw std::runtime_error("This function does not require retract method, but retract was called.");
 }
 
-void GeneratedAggsHandleFunctionMinMax::createAccumulators(BinaryRowData* accumulators) {
+void GeneratedAggsHandleFunctionMinMax::createAccumulators(BinaryRowData* accumulators)
+{
     throw std::runtime_error("This function does not require createAccumulators method, but createAccumulators was called.");
 }
 
-void GeneratedAggsHandleFunctionMinMax::merge(RowData* otherAcc) {
+void GeneratedAggsHandleFunctionMinMax::merge(RowData* otherAcc)
+{
     throw std::runtime_error("This function does not require merge method, but merge was called.");
 }
 
-void GeneratedAggsHandleFunctionMinMax::setAccumulators(RowData* _acc) {
+void GeneratedAggsHandleFunctionMinMax::setAccumulators(RowData* _acc)
+{
     valueIsNull = _acc->isNullAt(accIndex);
     aggValue = valueIsNull ? limit : *_acc->getLong(accIndex);
 }
 
-void GeneratedAggsHandleFunctionMinMax::resetAccumulators() {
+void GeneratedAggsHandleFunctionMinMax::resetAccumulators()
+{
     aggValue = aggOperator == MAX ? std::numeric_limits<long>::min() : std::numeric_limits<long>::max();
     valueIsNull = true;
 }
 
-void GeneratedAggsHandleFunctionMinMax::getAccumulators(BinaryRowData* accumulators) {
+void GeneratedAggsHandleFunctionMinMax::getAccumulators(BinaryRowData* accumulators)
+{
     if (valueIsNull) {
         accumulators->setNullAt(accIndex);
     } else {
@@ -86,7 +97,8 @@ void GeneratedAggsHandleFunctionMinMax::getAccumulators(BinaryRowData* accumulat
     }
 }
 
-void GeneratedAggsHandleFunctionMinMax::getValue(BinaryRowData* newAggValue) {
+void GeneratedAggsHandleFunctionMinMax::getValue(BinaryRowData* newAggValue)
+{
     if (valueIsNull) {
         newAggValue->setNullAt(valueIndex);
     } else {
@@ -94,10 +106,12 @@ void GeneratedAggsHandleFunctionMinMax::getValue(BinaryRowData* newAggValue) {
     }
 }
 
-void GeneratedAggsHandleFunctionMinMax::open(StateDataViewStore* store) {
+void GeneratedAggsHandleFunctionMinMax::open(StateDataViewStore* store)
+{
     this->store = store;
 }
 
-bool GeneratedAggsHandleFunctionMinMax::equaliser(BinaryRowData *r1, BinaryRowData *r2) {
+bool GeneratedAggsHandleFunctionMinMax::equaliser(BinaryRowData *r1, BinaryRowData *r2)
+{
     return !r1->isNullAt(valueIndex) && !r2->isNullAt(valueIndex) && *r1->getLong(valueIndex) == *r2->getLong(valueIndex);
 }

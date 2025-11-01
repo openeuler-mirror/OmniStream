@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #ifndef FLINK_TNEL_HEAPLISTSTATE_H
@@ -7,12 +14,12 @@
 
 #include <vector>
 #include "core/typeutils/TypeSerializer.h"
-#include "core/api/ListState.h"
+#include "core/api/common/state/ListState.h"
 #include "runtime/state/VoidNamespace.h"
 #include "StateTable.h"
 #include "core/api/common/state/StateDescriptor.h"
 #include "table/data/binary/BinaryRowData.h"
-#include "vectorbatch/VectorBatch.h"
+#include "table/data/vectorbatch/VectorBatch.h"
 #include "runtime/state/internal/InternalListState.h"
 
 // The state is a list. In the InternalKvState, the state is stored as a pointer to a std::vector
@@ -63,7 +70,8 @@ private:
 template<typename K, typename N, typename UV>
 HeapListState<K, N, UV>::HeapListState(StateTable<K, N, std::vector<UV>*> *stateTable,
                                        TypeSerializer *valueSerializer,
-                                       TypeSerializer *namespaceSerializer) {
+                                       TypeSerializer *namespaceSerializer)
+{
     this->valueSerializer = valueSerializer;
     this->namespaceSerializer = namespaceSerializer;
     this->stateTable = stateTable;
@@ -71,14 +79,11 @@ HeapListState<K, N, UV>::HeapListState(StateTable<K, N, std::vector<UV>*> *state
 
 template <typename K, typename N, typename UV>
 HeapListState<K, N, UV>::~HeapListState()
-{
-    stateTable->deleteMaps();
-    //delete namespaceSerializer;
-    //delete valueSerializer;
-}
+{}
 
 template<typename K, typename N, typename UV>
-void HeapListState<K, N, UV>::add(const UV &value) {
+void HeapListState<K, N, UV>::add(const UV &value)
+{
     std::vector<UV> *userList = stateTable->get(currentNamespace);
     if (userList == nullptr) {
         userList = new std::vector<UV>();
@@ -88,7 +93,8 @@ void HeapListState<K, N, UV>::add(const UV &value) {
 }
 
 template<typename K, typename N, typename UV>
-void HeapListState<K, N, UV>::addAll(const std::vector<UV> &values) {
+void HeapListState<K, N, UV>::addAll(const std::vector<UV> &values)
+{
     std::vector<UV> *userList = stateTable->get(currentNamespace);
     if (userList == nullptr) {
         userList = new std::vector<UV>(values);
@@ -99,7 +105,8 @@ void HeapListState<K, N, UV>::addAll(const std::vector<UV> &values) {
 }
 
 template<typename K, typename N, typename UV>
-void HeapListState<K, N, UV>::update(const std::vector<UV> &values) {
+void HeapListState<K, N, UV>::update(const std::vector<UV> &values)
+{
     std::vector<UV> *userList = stateTable->get(currentNamespace);
     if (userList == nullptr) {
         userList = new std::vector<UV>(values);
@@ -110,12 +117,14 @@ void HeapListState<K, N, UV>::update(const std::vector<UV> &values) {
 }
 
 template<typename K, typename N, typename UV>
-std::vector<UV>* HeapListState<K, N, UV>::get() {
+std::vector<UV>* HeapListState<K, N, UV>::get()
+{
     return stateTable->get(currentNamespace);
 }
 
 template<typename K, typename N, typename UV>
-void HeapListState<K, N, UV>::merge(const std::vector<UV> &other) {
+void HeapListState<K, N, UV>::merge(const std::vector<UV> &other)
+{
     std::vector<UV> *userList = stateTable->get(currentNamespace);
     if (userList == nullptr) {
         userList = new std::vector<UV>(other);
@@ -126,25 +135,29 @@ void HeapListState<K, N, UV>::merge(const std::vector<UV> &other) {
 }
 
 template<typename K, typename N, typename UV>
-void HeapListState<K, N, UV>::setCurrentNamespace(N nameSpace) {
+void HeapListState<K, N, UV>::setCurrentNamespace(N nameSpace)
+{
     currentNamespace = nameSpace;
 }
 
 template<typename K, typename N, typename UV>
-HeapListState<K, N, UV> *
-HeapListState<K, N, UV>::create(StateDescriptor *stateDesc, StateTable<K, N, std::vector<UV>*> *stateTable, TypeSerializer *keySerializer) {
+HeapListState<K, N, UV> *HeapListState<K, N, UV>::create(StateDescriptor *stateDesc,
+                                                         StateTable<K, N, std::vector<UV> *> *stateTable,
+                                                         TypeSerializer *keySerializer)
+{
     return new HeapListState<K, N, UV>(stateTable,
                                        stateTable->getStateSerializer(),
                                        stateTable->getNamespaceSerializer());
 }
 
 template<typename K, typename N, typename UV>
-HeapListState<K, N, UV> *
-HeapListState<K, N, UV>::update(StateDescriptor *stateDesc, StateTable<K, N, std::vector<UV>*> *stateTable,
-                                HeapListState<K, N, UV> *existingState) {
+HeapListState<K, N, UV> *HeapListState<K, N, UV>::update(StateDescriptor *stateDesc,
+                                                         StateTable<K, N, std::vector<UV> *> *stateTable,
+                                                         HeapListState<K, N, UV> *existingState)
+{
     existingState->setNamespaceSerializer(stateTable->getNamespaceSerializer());
     existingState->setValueSerializer(stateTable->getStateSerializer());
     return existingState;
 }
 
-#endif // FLINK_TNEL_HEAPLISTSTATE_H
+#endif

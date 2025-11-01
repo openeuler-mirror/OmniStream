@@ -1,13 +1,13 @@
 #include "table/runtime/operators/deduplicate/RowTimeDeduplicateFunction.h"
 #include <vector>
 #include <nlohmann/json.hpp>
-#include "core/streamrecord/StreamRecord.h"
+#include "streaming/runtime/streamrecord/StreamRecord.h"
 #include "functions/Collector.h"
-#include "core/operators/StreamOperatorFactory.h"
+#include "streaming/api/operators/StreamOperatorFactory.h"
 #include "core/typeutils/LongSerializer.h"
 #include <gtest/gtest.h>
 #include "table/data/binary/BinaryRowData.h"
-#include "runtime/taskmanager/RuntimeEnvironment.h"
+#include "runtime/taskmanager/OmniRuntimeEnvironment.h"
 #include "core/api/common/TaskInfoImpl.h"
 #include "table/typeutils/RowDataSerializer.h"
 #include "streaming/api/operators/KeyedProcessOperator.h"
@@ -15,7 +15,7 @@
 #include "../../../../core/operators/OutputTest.h"
 #include "table/data/util/VectorBatchUtil.h"
 #include <string.h>
-#include "table/RowKind.h"
+#include "table/data/RowKind.h"
 
 using namespace omnistream;
 
@@ -686,8 +686,11 @@ TEST(RowTimeDeduplicateTest, UpdateBeforeKeepLastRowTimeTest)
     // keyedOp->setup();
 
     // initiate keyedState
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(
-        new RuntimeEnvironment(new TaskInfoImpl("KeyedProcessOperatorTest", 2, 1, 0)));
+    auto env2 = new omnistream::RuntimeEnvironmentV2();
+    auto taskInfo = new TaskInformationPOD();
+    taskInfo->setStateBackend("HashMapStateBackend");
+    env2->setTaskConfiguration(*taskInfo);
+    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
     std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>(
         {omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::BIGINT)});
     TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));

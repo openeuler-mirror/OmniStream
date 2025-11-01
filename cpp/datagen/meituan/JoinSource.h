@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #ifndef JOINSOURCE_H
@@ -18,7 +25,7 @@
 #include "functions/AbstractRichFunction.h"
 #include "functions/SourceFunction.h"
 #include "functions/Configuration.h"
-#include "vectorbatch/VectorBatch.h"
+#include "table/data/vectorbatch/VectorBatch.h"
 
 class JoinSource : public SourceFunction<omnistream::VectorBatch>, public AbstractRichFunction {
 public:
@@ -37,7 +44,7 @@ public:
                long sleepTime = 3000);
 
     std::unordered_map<long, std::vector<OriginalRecord *>> &getRecordsToCollect();
-    void open(const Configuration &parameters);
+    void open(const Configuration &parameters) override;
     void run(SourceContext *ctx) override;
     void cancel() override;
     void generateRecordsForKey();

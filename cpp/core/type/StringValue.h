@@ -1,5 +1,5 @@
 /*
- * @Copyright: Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * @Copyright: Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
  * @Description: String value
  * */
 
@@ -58,4 +58,4 @@ private:
 };
 
 
-#endif //FLINK_TNEL_STRINGVALUE_H
+#endif

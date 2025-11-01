@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #include "PersonGenerator.h"
@@ -13,7 +20,7 @@ const std::vector<std::string> PersonGenerator::CREDIT_CARD_STRINGS = PersonGene
 long PersonGenerator::nextBase0PersonId(long eventId, SplittableRandom &random, const GeneratorConfig &config)
 {
     long numPeople = lastBase0PersonId(config, eventId) + 1;
-    long activePeople = std::min(numPeople, static_cast<long>( config.getNumActivePeople()));
+    long activePeople = std::min(numPeople, static_cast<long>(config.getNumActivePeople()));
     long n = random.nextLong(activePeople + PERSON_ID_LEAD);
     return numPeople - activePeople + n;
 }

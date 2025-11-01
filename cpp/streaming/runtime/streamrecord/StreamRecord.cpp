@@ -1,0 +1,74 @@
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
+
+#include <limits>
+#include "StreamRecord.h"
+
+
+StreamRecord::StreamRecord()
+    :StreamElement(StreamElementTag::TAG_REC_WITHOUT_TIMESTAMP), timestamp_(0),
+    hasTimestamp_(false) {
+}
+
+
+StreamRecord::StreamRecord(void *value)
+    :StreamElement(StreamElementTag::TAG_REC_WITHOUT_TIMESTAMP), timestamp_(0),
+    hasTimestamp_(false) {
+    setValue(value);
+}
+
+StreamRecord::StreamRecord(void *value, long timestamp)
+    : StreamElement(StreamElementTag::TAG_REC_WITH_TIMESTAMP), timestamp_(timestamp),
+    hasTimestamp_(true) {
+    setValue(value);
+}
+
+long StreamRecord::getTimestamp() const
+{
+    if (hasTimestamp_) {
+        return timestamp_;
+    } else {
+        return std::numeric_limits<int64_t>::min();
+    }
+}
+
+void StreamRecord::setTimestamp(long timestamp)
+{
+    timestamp_ = timestamp;
+    hasTimestamp_ = true;
+    setTag(StreamElementTag::TAG_REC_WITH_TIMESTAMP);
+}
+
+bool StreamRecord::hasTimestamp() const
+{
+    return hasTimestamp_;
+}
+
+StreamRecord* StreamRecord::replace(void* value, long timestamp)
+{
+    this->value_ = value;
+    this->timestamp_ = timestamp;
+    this->hasTimestamp_ = true;
+    setTag(StreamElementTag::TAG_REC_WITH_TIMESTAMP);
+    return this;
+}
+
+StreamRecord* StreamRecord::replace(void* value)
+{
+    this->value_ = value;
+    return this;
+}
+
+void StreamRecord::eraseTimestamp()
+{
+    hasTimestamp_ = false;
+    setTag(StreamElementTag::TAG_REC_WITHOUT_TIMESTAMP);
+}

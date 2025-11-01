@@ -1,10 +1,10 @@
-#include "core/operators/AbstractStreamOperator.h"
-#include "core/operators/StreamTaskStateInitializerImpl.h"
+#include "streaming/api/operators/AbstractStreamOperator.h"
+#include "streaming/api/operators/StreamTaskStateInitializerImpl.h"
 #include "runtime/state/VoidNamespace.h"
 #include "runtime/state/heap/StateTable.h"
 #include "core/typeutils/LongSerializer.h"
 #include "OutputTest.h"
-#include "runtime/taskmanager/RuntimeEnvironment.h"
+#include "runtime/taskmanager/OmniRuntimeEnvironment.h"
 #include "core/api/common/TaskInfoImpl.h"
 #include "runtime/state/VoidNamespace.h"
 #include "table/data/binary/BinaryRowData.h"
@@ -15,9 +15,13 @@ TEST(AbstractStreamOperatorTest, InitTest)
 {
     AbstractStreamOperator<int> *op = new AbstractStreamOperator<int>();
     op->setup();
+    auto env2 = new omnistream::RuntimeEnvironmentV2();
+    auto taskInfo = new TaskInformationPOD();
+    taskInfo->setStateBackend("HashMapStateBackend");
+    env2->setTaskConfiguration(*taskInfo);
     ASSERT_NO_THROW((op->setOutput(new OutputTest())));
     ASSERT_NO_THROW((op->open()));
-    ASSERT_NO_THROW((op->initializeState(new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("test", 2, 1, 0))), new IntSerializer())));
+    ASSERT_NO_THROW((op->initializeState(new StreamTaskStateInitializerImpl(env2), new IntSerializer())));
     ASSERT_NO_THROW((op->setCurrentKey(1)));
 }
 
@@ -26,7 +30,11 @@ TEST(AbstractStreamOperatorTest, setAndGetCurrentKey)
     AbstractStreamOperator<int> *op = new AbstractStreamOperator<int>();
     op->setup();
     op->open();
-    op->initializeState(new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("test", 2, 1, 0))), new IntSerializer());
+    auto env2 = new omnistream::RuntimeEnvironmentV2();
+    auto taskInfo = new TaskInformationPOD();
+    taskInfo->setStateBackend("HashMapStateBackend");
+    env2->setTaskConfiguration(*taskInfo);
+    op->initializeState(new StreamTaskStateInitializerImpl(env2), new IntSerializer());
 
     BinaryRowData *row = BinaryRowData::createBinaryRowDataWithMem(2);
     row->setInt(0,2L);
@@ -44,7 +52,11 @@ TEST(AbstractStreamOperatorTest, compositeKeys)
     AbstractStreamOperator<RowData*> *op = new AbstractStreamOperator<RowData*>();
     op->setup();
     op->open();
-    op->initializeState(new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("test", 2, 1, 0))), new IntSerializer());
+    auto env2 = new omnistream::RuntimeEnvironmentV2();
+    auto taskInfo = new TaskInformationPOD();
+    taskInfo->setStateBackend("HashMapStateBackend");
+    env2->setTaskConfiguration(*taskInfo);
+    op->initializeState(new StreamTaskStateInitializerImpl(env2), new IntSerializer());
 
     BinaryRowData *row = BinaryRowData::createBinaryRowDataWithMem(2);
     row->setInt(0,8);

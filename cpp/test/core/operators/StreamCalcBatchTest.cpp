@@ -1,4 +1,4 @@
-#include "core/operators/StreamCalcBatch.h"
+#include "streaming/api/operators/StreamCalcBatch.h"
 #include <gtest/gtest.h>
 #include <nlohmann/json.hpp>
 #include "OutputTest.h"
@@ -370,7 +370,9 @@ TEST(StreamCalcBatchTest, VectorbatchLower) {
     auto outputRecord = ProcessAndGetOutput(desc, vb);
 
     auto outcol1 = reinterpret_cast<omniruntime::vec::Vector<int64_t> *>(outputRecord->Get(1));
-    outputRecord->writeToFile("/tmp/streamcalc_output.txt");
+
+    std::string filename = "/tmp/streamcalc_output.txt";
+    outputRecord->writeToFile(filename);
 }
 
 TEST(StreamCalcBatchTest, CodegenSEARCH_LongAndVarchar) {
@@ -407,7 +409,8 @@ TEST(StreamCalcBatchTest, CodegenSEARCH_LongAndVarchar) {
 
     auto outputRecord = ProcessAndGetOutput(desc, vb);
     EXPECT_EQ(outputRecord->GetRowCount(), 1);
-    outputRecord->writeToFile("/tmp/streamcalc_output.txt");
+    std::string filename = "/tmp/streamcalc_output.txt";
+    outputRecord->writeToFile(filename);
 }
 
 TEST(StreamCalcBatchTest, DISABLED_HourFunctionTest) {
@@ -493,7 +496,8 @@ std::string desc = R"DELIM(
     vb_expected->Append(omniruntime::TestUtil::CreateVarcharVector(col_expected.data(), nrow));
 
     EXPECT_TRUE(omniruntime::TestUtil::VecBatchMatch(outputRecord, vb_expected));
-    outputRecord->writeToFile("/tmp/streamcalc_output.txt");
+    std::string filename = "/tmp/streamcalc_output.txt";
+    outputRecord->writeToFile(filename);
 }
 
 TEST(StreamCalcBatchTest, DISABLED_VectorbatchExpressionDateFormat) {
@@ -589,7 +593,8 @@ TEST(StreamCalcBatchTest, DISABLED_CASE_WHEN) {
     auto outputRecord = ProcessAndGetOutput(desc, vb);
 
     auto outcol1 = reinterpret_cast<omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>> *>(outputRecord->Get(0));
-    outputRecord->writeToFile("/tmp/flink_switch.txt");
+    std::string filename = "/tmp/flink_switch.txt";
+    outputRecord->writeToFile(filename);
     EXPECT_EQ(outputRecord->GetRowCount(), nrow);
     EXPECT_EQ(outputRecord->GetVectorCount(), 1);
     EXPECT_EQ(outcol1->GetValue(0), "dayTime");
@@ -648,7 +653,8 @@ TEST(StreamCalcBatchTest, DISABLED_COMPARE_CAST) {
     StreamRecord *record = new StreamRecord(vb);
     streamCalcBatchOp.processBatch(record);
     auto out = output->getAll()[0];
-    reinterpret_cast<omnistream::VectorBatch*>(out) -> writeToFile("/tmp/flink_compare_cast.txt");
+    std::string filename = "/tmp/flink_compare_cast.txt";
+    reinterpret_cast<omnistream::VectorBatch*>(out) -> writeToFile(filename);
 
 }
 

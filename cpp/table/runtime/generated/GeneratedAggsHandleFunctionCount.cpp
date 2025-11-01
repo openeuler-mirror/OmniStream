@@ -1,25 +1,32 @@
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
 #include "GeneratedAggsHandleFunctionCount.h"
 
-// RuntimeContext* GeneratedAggsHandleFunctionCount::getRuntimeContext() {
-//     return this->store->getRuntimeContext();
-// }
-
-bool GeneratedAggsHandleFunctionCount::equaliser(BinaryRowData *r1, BinaryRowData *r2) {
+bool GeneratedAggsHandleFunctionCount::equaliser(BinaryRowData *r1, BinaryRowData *r2)
+{
     return !r1->isNullAt(valueIndex) && !r2->isNullAt(valueIndex) && *r1->getLong(valueIndex) == *r2->getLong(valueIndex);
 }
 
-void GeneratedAggsHandleFunctionCount::open(StateDataViewStore* store) {
+void GeneratedAggsHandleFunctionCount::open(StateDataViewStore* store)
+{
     this->store = store;
 }
 
 
-void GeneratedAggsHandleFunctionCount::accumulate(RowData *accInput) {
-
+void GeneratedAggsHandleFunctionCount::accumulate(RowData *accInput)
+{
     bool isFieldNull = accInput->isNullAt(aggIdx);
-
     if (!isFieldNull) {
         if (!valueIsNull) {
-            aggCount++;;
+            aggCount++;
         } else {
             aggCount = 1L;
             valueIsNull = false;
@@ -47,7 +54,8 @@ void GeneratedAggsHandleFunctionCount::accumulate(omnistream::VectorBatch *input
     LOG("Accumulate. Count: " << aggCount << " countIsNull: " << valueIsNull);
 }
 
-void GeneratedAggsHandleFunctionCount::retract(RowData* retractInput) {
+void GeneratedAggsHandleFunctionCount::retract(RowData* retractInput)
+{
     throw std::runtime_error("This function does not require retract method, but the retract method is called.");
 }
 
@@ -56,26 +64,30 @@ void GeneratedAggsHandleFunctionCount::retract(omnistream::VectorBatch* input, c
     throw std::runtime_error("This function does not require retract method, but the retract method is called.");
 }
 
-void GeneratedAggsHandleFunctionCount::merge(RowData* otherAcc) {
+void GeneratedAggsHandleFunctionCount::merge(RowData* otherAcc)
+{
     throw std::runtime_error("This function does not require merge method, but the merge method is called.");
 }
 
 
-void GeneratedAggsHandleFunctionCount::setAccumulators(RowData* acc) {
+void GeneratedAggsHandleFunctionCount::setAccumulators(RowData* acc)
+{
     valueIsNull = acc->isNullAt(accIndex);
     aggCount = valueIsNull ? -1L : *acc->getLong(accIndex);
     LOG("Set Acc. Count:  " << aggCount << " countIsNull: " << valueIndex)
 }
 
 
-void GeneratedAggsHandleFunctionCount::resetAccumulators() {
-    aggCount = ((long) 0L);
+void GeneratedAggsHandleFunctionCount::resetAccumulators()
+{
+    aggCount = (static_cast<long>(0L));
     valueIsNull = false;
     LOG("Reset Acc. Count:  " << aggCount << " countIsNull: " << valueIsNull)
 }
 
 
-void GeneratedAggsHandleFunctionCount::getAccumulators(BinaryRowData* accumulators) {
+void GeneratedAggsHandleFunctionCount::getAccumulators(BinaryRowData* accumulators)
+{
     if (valueIsNull) {
         accumulators->setNullAt(accIndex);
     } else {
@@ -85,7 +97,8 @@ void GeneratedAggsHandleFunctionCount::getAccumulators(BinaryRowData* accumulato
 }
 
 
-void GeneratedAggsHandleFunctionCount::createAccumulators(BinaryRowData* accumulators) {
+void GeneratedAggsHandleFunctionCount::createAccumulators(BinaryRowData* accumulators)
+{
     if (false) {  // This condition is always false, but it's in the original code.
         accumulators->setNullAt(accIndex);
     } else {
@@ -95,7 +108,8 @@ void GeneratedAggsHandleFunctionCount::createAccumulators(BinaryRowData* accumul
 }
 
 
-void GeneratedAggsHandleFunctionCount::getValue(BinaryRowData* newAggValue) {
+void GeneratedAggsHandleFunctionCount::getValue(BinaryRowData* newAggValue)
+{
     if (valueIsNull) {
         newAggValue->setNullAt(valueIndex);
     } else {

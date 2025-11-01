@@ -1,0 +1,83 @@
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
+#include "CheckpointBarrier.h"
+
+#include <stdexcept>
+#include <sstream>
+
+// Constructor
+CheckpointBarrier::CheckpointBarrier(long id, long timestamp,
+                                     CheckpointOptions *checkpointOptions)
+    : id_(id), timestamp_(timestamp), checkpointOptions_(checkpointOptions)
+{
+    if (checkpointOptions == nullptr) {
+        throw std::invalid_argument("checkpointOptions must not be null");
+    }
+}
+
+CheckpointBarrier::~CheckpointBarrier()
+{
+}
+
+CheckpointOptions *CheckpointBarrier::GetCheckpointOptions() const
+{
+    return checkpointOptions_;
+}
+
+CheckpointBarrier *CheckpointBarrier::WithOptions(
+    CheckpointOptions *checkpointOptions)
+{
+    return this->checkpointOptions_ == checkpointOptions
+               ? this
+               : new CheckpointBarrier(id_, timestamp_, checkpointOptions);
+}
+
+bool CheckpointBarrier::operator==(const CheckpointBarrier &other) const
+{
+    return id_ == other.id_ && timestamp_ == other.timestamp_ &&
+           *checkpointOptions_ == *other.checkpointOptions_;
+}
+
+long CheckpointBarrier::GetId() const { return id_; }
+
+long CheckpointBarrier::GetTimestamp() const { return timestamp_; }
+
+bool CheckpointBarrier::IsCheckpoint() const
+{
+    return !(checkpointOptions_->GetCheckpointType()->IsSavepoint());
+}
+
+CheckpointBarrier *CheckpointBarrier::AsUnaligned()
+{
+    return checkpointOptions_->IsUnalignedCheckpoint()
+               ? this
+               : new CheckpointBarrier(
+                     GetId(), GetTimestamp(),
+                     GetCheckpointOptions()->ToUnaligned());
+}
+
+std::string CheckpointBarrier::ToString() const
+{
+    std::ostringstream oss;
+    oss << "CheckpointBarrier " << id_ << " @ " << timestamp_
+        << " Options: " << checkpointOptions_->ToString();
+    return oss.str();
+}
+
+namespace std {
+    std::size_t hash<CheckpointBarrier>::operator()(const CheckpointBarrier &ref) const
+    {
+        return static_cast<std::size_t>(
+            (static_cast<std::uint64_t>(ref.GetId()) ^ (static_cast<std::uint64_t>(ref.GetId()) >> 32) ^
+             static_cast<std::uint64_t>(ref.GetTimestamp()) ^ (static_cast<std::uint64_t>(ref.GetTimestamp()) >> 32))
+        );
+    }
+}

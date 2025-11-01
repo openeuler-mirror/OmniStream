@@ -1,9 +1,10 @@
+
 #include <gtest/gtest.h>
 #include <basictypes/String.h>
 #include "streaming/api/operators/SourceOperator.h"
-#include "connector-kafka/source/KafkaSource.h"
+#include "connector/kafka/source/KafkaSource.h"
 #include "streaming/runtime/tasks/SystemProcessingTimeService.h"
-#include "runtime/io/OmniPushingAsyncDataInput.h"
+#include "streaming/runtime/io/OmniPushingAsyncDataInput.h"
 
 class MockSourceOutput : public Output {
 public:
@@ -36,7 +37,7 @@ TEST(SourceOperatorTest, DISABLED_filterTest) {
     auto description = R"({"batch":false,"format":"kafka","emitProgressiveWatermarks":true,"properties":{"auto.offset.reset":"earliest","bootstrap.servers":"localhost:9092","group.id":"test-group"},"watermarkStrategy":"no","outOfOrdernessMillis":1000,"deserializationSchema":"SimpleStringSchema","hasMetadata":false,"outputNames":[],"outputTypes":[]})";
     nlohmann::json opDescriptionJSON = nlohmann::json::parse(description);
     // create kafka source
-    std::shared_ptr<KafkaSource> source = std::make_shared<KafkaSource>(opDescriptionJSON);
+    std::shared_ptr<KafkaSource> source = std::make_shared<KafkaSource>(opDescriptionJSON, false);
     ProcessingTimeService* timeService = new SystemProcessingTimeService();
     auto out = new MockSourceOutput();
     auto emitOut = new omnistream::OmniAsyncDataOutputToOutput(out);

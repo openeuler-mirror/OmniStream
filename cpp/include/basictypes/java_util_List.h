@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 // java_util_List
 #ifndef JAVA_UNTIL_LIST_H
@@ -14,6 +21,7 @@
 #include "java_util_Collection.h"
 #include "Integer.h"
 #include "Double.h"
+#include "java_util_function_Consumer.h"
 
 // todo 不同list子类需要分离
 
@@ -22,6 +30,8 @@ public:
     std::list<Object *> list;
 
     List();
+
+    List(int count) {};
 
     List(nlohmann::json jsonObj);
 
@@ -42,11 +52,15 @@ public:
 
     void remove(int32_t idx);
 
+    void remove(Object* ele);
+
     bool contains(std::string &str);
 
     bool contains(Object *a);
 
     int size();
+
+    void forEach(java_util_function_Consumer* consumer);
 
     //    void clear() {
     //    }
@@ -63,14 +77,22 @@ public:
         using listIterator = std::list<Object *>::iterator;
 
         listIterator current_;
-        listIterator end_;
+        listIterator lastRet;
+        List* innerList;
 
     public:
-        ListIterator(listIterator begin, listIterator end);
+        ListIterator(List* innerList, listIterator begin, listIterator end);
+
+        ~ListIterator() override
+        {
+            innerList->putRefCount();
+        }
 
         bool hasNext();
 
         Object *next();
+
+        void remove() override;
     };
 
     ~List() override;

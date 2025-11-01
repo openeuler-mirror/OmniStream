@@ -2,7 +2,7 @@
 #include "runtime/buffer/ObjectBufferBuilder.h"
 #include "runtime/buffer/ObjectBufferRecycler.h"
 #include "runtime/buffer/ObjectSegment.h"
-#include "core/streamrecord/StreamRecord.h"
+#include "streaming/runtime/streamrecord/StreamRecord.h"
 
 using namespace omnistream;
 TEST(ObjectBufferBuilderTest, AppendAndCommintNotFull)
@@ -131,7 +131,7 @@ TEST(ObjectBufferBuilderTest, BufferConsumerReadable)
 
     ObjectBufferBuilder *bufferBuilder = new ObjectBufferBuilder(objSegment, recycler);
 
-    std::shared_ptr<ObjectBufferConsumer> bufferConsumer = bufferBuilder->createBufferConsumer();
+    std::shared_ptr<ObjectBufferConsumer> bufferConsumer = std::dynamic_pointer_cast<ObjectBufferConsumer>(bufferBuilder->createBufferConsumer());
 
     for (int i = 0; i < size; i++)
     {
@@ -163,7 +163,7 @@ TEST(ObjectBufferBuilderTest, BufferConsumerDataIdentical)
 
     ObjectBufferBuilder *bufferBuilder = new ObjectBufferBuilder(objSegment, recycler);
 
-    std::shared_ptr<ObjectBufferConsumer> bufferConsumer = bufferBuilder->createBufferConsumer();
+    std::shared_ptr<ObjectBufferConsumer> bufferConsumer = std::dynamic_pointer_cast<ObjectBufferConsumer>(bufferBuilder->createBufferConsumer());
 
     StreamRecord **objects = new StreamRecord *[size];
     for (int i = 0; i < size; i++)
@@ -174,7 +174,7 @@ TEST(ObjectBufferBuilderTest, BufferConsumerDataIdentical)
         objects[i] = record;
         bufferBuilder->appendAndCommit(record);
     }
-    std::shared_ptr<VectorBatchBuffer> readBuffer = bufferConsumer->build();
+    std::shared_ptr<VectorBatchBuffer> readBuffer = std::dynamic_pointer_cast<VectorBatchBuffer>(bufferConsumer->build());
     int readSize = readBuffer->GetSize();
     EXPECT_EQ(readSize, size);
     for (size_t i = 0; i < readSize; i++)

@@ -1,23 +1,29 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #ifndef FLINK_TNEL_STREAMINGJOINOPERATOR_H
 #define FLINK_TNEL_STREAMINGJOINOPERATOR_H
 #include "AbstractStreamingJoinOperator.h"
-#include "table/data/utils/JoinedRowData.h"
-#include "table/KeySelector.h"
+#include "table/data/JoinedRowData.h"
+#include "table/runtime/keyselector/KeySelector.h"
 #include "table/data/GenericRowData.h"
 #include "table/data/util/RowDataUtil.h"
-#include "table/vectorbatch/VectorBatch.h"
+#include "table/data/vectorbatch/VectorBatch.h"
 #include "OmniOperatorJIT/core/src/vector/large_string_container.h"
-#include <arm_sve.h>
 
 template <typename K>
 class StreamingJoinOperator : public AbstractStreamingJoinOperator<K> {
 public:
     StreamingJoinOperator(const nlohmann::json&  config, Output * output)
-            :AbstractStreamingJoinOperator<K> (config, output)
+        :AbstractStreamingJoinOperator<K> (config, output)
     {
         this->output = output;
         LOG("<<<<<<JOIN DESC:" << config.dump())
@@ -68,11 +74,23 @@ public:
 
     void ProcessWatermark1(Watermark* watermark) override
     {
-        AbstractStreamOperator<K>::ProcessWatermark1(watermark);
+        LOG(">>>>>>>>>>")
+        if (this->combinedWatermark->UpdateWatermark(0, watermark->getTimestamp())) {
+            if (this->timeServiceManager != nullptr) {
+                this->timeServiceManager->template advanceWatermark<int64_t>(new Watermark(this->combinedWatermark->GetCombinedWatermark()));
+            }
+            this->output->emitWatermark(new Watermark(this->combinedWatermark->GetCombinedWatermark()));
+        }
     }
     void ProcessWatermark2(Watermark* watermark) override
     {
-        AbstractStreamOperator<K>::ProcessWatermark2(watermark);
+        LOG(">>>>>>>>>>")
+        if (this->combinedWatermark->UpdateWatermark(1, watermark->getTimestamp())) {
+            if (this->timeServiceManager != nullptr) {
+                this->timeServiceManager->template advanceWatermark<int64_t>(new Watermark(this->combinedWatermark->GetCombinedWatermark()));
+            }
+            this->output->emitWatermark(new Watermark(this->combinedWatermark->GetCombinedWatermark()));
+        }
     }
 
     std::shared_ptr<omnistream::TaskMetricGroup> GetMectrics() override
@@ -91,21 +109,21 @@ protected:
     JoinRecordStateView<K>* leftRecordStateView;
     JoinRecordStateView<K>* rightRecordStateView;
     void processElement(
-            RowData *input,
-            JoinRecordStateView<K> *inputSideStateView,
-            JoinRecordStateView<K> *otherSideStateView,
-            bool inputIsLeft,
-            bool isSuppress)
+        RowData *input,
+        JoinRecordStateView<K> *inputSideStateView,
+        JoinRecordStateView<K> *otherSideStateView,
+        bool inputIsLeft,
+        bool isSuppress)
     {
         NOT_IMPL_EXCEPTION
     };
 
     void processBatch(
-            omnistream::VectorBatch *input,
-            JoinRecordStateView<K> *inputSideStateView,
-            JoinRecordStateView<K> *otherSideStateView,
-            bool inputIsLeft,
-            bool isSuppress);
+        omnistream::VectorBatch *input,
+        JoinRecordStateView<K> *inputSideStateView,
+        JoinRecordStateView<K> *otherSideStateView,
+        bool inputIsLeft,
+        bool isSuppress);
 
 private:
 
@@ -151,29 +169,25 @@ private:
     omniruntime::vec::BaseVector* buildOtherSideColumnVarchar(omnistream::VectorBatch *input, JoinRecordStateView<K> *otherSideStateView, int32_t icol, bool inputIsOuter);
 
     void setOutPutValueInput(omnistream::VectorBatch *input, bool inputIsLeft, bool inputIsOuter, JoinRecordStateView<K> *otherSideStateView,
-                             omnistream::VectorBatch* outputVB);
+                                                  omnistream::VectorBatch* outputVB);
 
     void setOutPutValueOther(omnistream::VectorBatch *input, bool inputIsLeft, bool inputIsOuter, JoinRecordStateView<K> *otherSideStateView,
                              omnistream::VectorBatch* outputVB);
 
     void setOutPutMetaData(omnistream::VectorBatch *input, bool inputIsOuter, bool otherIsOuter,
-                           omnistream::VectorBatch* outputVB);
+                        omnistream::VectorBatch* outputVB);
 
     RowKind getOutputVBRowKind(omnistream::VectorBatch *input, bool inputIsOuter, bool otherIsOuter, int index);
-
-    void setRowKind_sve(int i, int size, uint8_t* dst, int8_t* condition);
-
-    void setTimestamp_raw(int start, int size, const int64_t* src, int64_t* dst, int rowIndex);
 
     void AssembleFisrtTime(omnistream::VectorBatch* input, omnistream::VectorBatch* outputVB, bool inputIsLeft);
 
     void AssembleSecondTime(omnistream::VectorBatch* input, omnistream::VectorBatch* outputVB,
-                            JoinRecordStateView<K> *otherSideStateView, bool inputIsLeft);
+                                                JoinRecordStateView<K> *otherSideStateView, bool inputIsLeft);
     void DealOneBatchInColumnVarchar(long id, int32_t icol, int& rowIndex, JoinRecordStateView<K> *otherSideStateView,
-                                     omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>*& outputCol);
+        omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>*& outputCol);
     template <typename T, typename S>
     void DealOneBatchInColumn(long id, int32_t icol, int& rowIndex, int& curbatchId,
-                              JoinRecordStateView<K> *otherSideStateView, omniruntime::vec::Vector<S>*& inputCol,
-                              omniruntime::vec::Vector<T>*& outputCol);
+        JoinRecordStateView<K> *otherSideStateView, omniruntime::vec::Vector<S>*& inputCol,
+        omniruntime::vec::Vector<T>*& outputCol);
 };
 #endif

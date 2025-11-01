@@ -1,7 +1,18 @@
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
+
 #ifndef FLINK_TNEL_ROWDATA_H
 #define FLINK_TNEL_ROWDATA_H
 
-#include "table/RowKind.h"
+#include "RowKind.h"
 #include "../types/logical/LogicalType.h"
 #include "FieldGetter.h"
 #include "TimestampData.h"
@@ -10,18 +21,18 @@
 #include <functional>
 #include <cstddef>
 
-inline std::size_t hash_combine(std::size_t lhs, std::size_t rhs) {
+inline std::size_t hash_combine(std::size_t lhs, std::size_t rhs)
+{
     lhs ^= rhs + 0x9e3779b9 + (lhs << 6) + (lhs >> 2);
     return lhs;
 }
 class RowData {
-
 public:
     explicit RowData(int rowDataTypeId);
 
     virtual ~RowData() = default;
 
-    //virutal
+    // virutal
     /**
    * Returns the number of fields in this row.
    *
@@ -39,11 +50,11 @@ public:
     /** Returns true if the field is null at the given position. */
     virtual bool isNullAt(int pos) = 0;
 
-    virtual long * getLong(int pos) = 0;
+    virtual long* getLong(int pos) = 0;
 
     virtual bool *getBool(int pos) = 0;
 
-    virtual int * getInt(int pos) = 0;
+    virtual int* getInt(int pos) = 0;
 
     virtual BinaryStringData* getString(int pos);
 
@@ -75,12 +86,12 @@ public:
     virtual bool operator==(const RowData &other) const = 0;
     virtual int hashCode() const = 0;
     virtual int hashCodeFast() const = 0;
-    //constant
+    // constant
     static const int BinaryRowDataID = 0;
     static const int GenericRowDataID = 1;
     static const int JoinedRowDataID = 2;
 
-    //non virtual
+    // non virtual
     [[nodiscard]] int getRowDataTypeId() const;
 
     static FieldGetter* createFieldGetter(LogicalType *fieldType, int fieldPos);
@@ -90,41 +101,34 @@ public:
     virtual RowData* copy() { return nullptr;};
 private:
     int rowDataTypeID_ {-1};
-
 };
 
-namespace std
-{
+namespace std {
     template <>
-    struct hash<RowData>
-    {
+    struct hash<RowData> {
         std::size_t operator()(const RowData &ns) const noexcept
         {
             return ns.hashCodeFast();
         }
     };
     template <>
-    struct equal_to<RowData>
-    {
+    struct equal_to<RowData> {
         bool operator()(const RowData &lhs, const RowData &rhs) const noexcept
         {
             return lhs == rhs;
         }
     };
-    //Attention: Be very careful when using this! It does not hash its address
     template <>
-    struct hash<RowData*>
-    {
+    struct hash<RowData*> {
         std::size_t operator()(const RowData* nsPtr) const noexcept
         {
             // std::cout<<"RowData::hash "<<nsPtr->hashCode()<<std::endl;
             return nsPtr->hashCodeFast();
         }
     };
-    //Attention: Be very careful when using this! It does not compare the address. but the content
+    // Attention: Be very careful when using this! It does not compare the address. but the content
     template <>
-    struct equal_to<RowData*>
-    {
+    struct equal_to<RowData*> {
         bool operator()(const RowData* lhs, const RowData* rhs) const noexcept
         {
             // std::cout<<"RowData::Equal? "<<(*lhs == *rhs)<<std::endl;
@@ -133,5 +137,5 @@ namespace std
     };
 }
 
-#endif //FLINK_TNEL_ROWDATA_H
+#endif // FLINK_TNEL_ROWDATA_H
 

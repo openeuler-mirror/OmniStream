@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #include "AvailabilityWithBacklog.h"
@@ -12,55 +19,65 @@ namespace omnistream {
 
     AvailabilityWithBacklog::AvailabilityWithBacklog() : isAvailable(false), backlog(0) {}
 
-    AvailabilityWithBacklog::AvailabilityWithBacklog(bool isAvailable, int backlog) : isAvailable(isAvailable), backlog(backlog) {
+    AvailabilityWithBacklog::AvailabilityWithBacklog(bool isAvailable, int backlog) : isAvailable(isAvailable), backlog(backlog)
+    {
         if (backlog < 0) {
             throw std::invalid_argument("Backlog must be non-negative.");
         }
     }
 
-    AvailabilityWithBacklog::AvailabilityWithBacklog(const AvailabilityWithBacklog& other) : isAvailable(other.isAvailable), backlog(other.backlog) {}
+    AvailabilityWithBacklog::AvailabilityWithBacklog(const AvailabilityWithBacklog& other_) : isAvailable(other_.isAvailable), backlog(other_.backlog) {}
 
-    AvailabilityWithBacklog& AvailabilityWithBacklog::operator=(const AvailabilityWithBacklog& other) {
-        if (this != &other) {
-            isAvailable = other.isAvailable;
-            backlog = other.backlog;
+    AvailabilityWithBacklog& AvailabilityWithBacklog::operator=(const AvailabilityWithBacklog& other_)
+    {
+        if (this != &other_) {
+            isAvailable = other_.isAvailable;
+            backlog = other_.backlog;
         }
         return *this;
     }
 
-    bool AvailabilityWithBacklog::operator==(const AvailabilityWithBacklog& other) const {
-        return isAvailable == other.isAvailable && backlog == other.backlog;
+    bool AvailabilityWithBacklog::operator==(const AvailabilityWithBacklog& other_) const
+    {
+        return isAvailable == other_.isAvailable && backlog == other_.backlog;
     }
 
-    bool AvailabilityWithBacklog::operator!=(const AvailabilityWithBacklog& other) const {
-        return !(*this == other);
+    bool AvailabilityWithBacklog::operator!=(const AvailabilityWithBacklog& other_) const
+    {
+        return !(*this == other_);
     }
 
     AvailabilityWithBacklog::~AvailabilityWithBacklog() {}
 
-    bool AvailabilityWithBacklog::getIsAvailable() const {
+    bool AvailabilityWithBacklog::getIsAvailable() const
+    {
         return isAvailable;
     }
 
-    int AvailabilityWithBacklog::getBacklog() const {
+    int AvailabilityWithBacklog::getBacklog() const
+    {
         return backlog;
     }
 
-    void AvailabilityWithBacklog::setIsAvailable(bool isAvailable) {
-        this->isAvailable = isAvailable;
+    void AvailabilityWithBacklog::setIsAvailable(bool isAvailable_)
+    {
+        this->isAvailable = isAvailable_;
     }
 
-    void AvailabilityWithBacklog::setBacklog(int backlog) {
-        if (backlog < 0) {
+    void AvailabilityWithBacklog::setBacklog(int backlog_)
+    {
+        if (backlog_ < 0) {
             throw std::invalid_argument("Backlog must be non-negative.");
         }
-        this->backlog = backlog;
+        this->backlog = backlog_;
     }
 
-    std::string AvailabilityWithBacklog::toString() const {
+    std::string AvailabilityWithBacklog::toString() const
+    {
         std::stringstream ss;
-        ss << "AvailabilityWithBacklog{isAvailable=" << (isAvailable ? "true" : "false") << ", backlog=" << backlog << "}";
+        ss << "AvailabilityWithBacklog{isAvailable=" << (isAvailable ? "true" : "false") << ", backlog=" << backlog <<
+                "}";
         return ss.str();
     }
 
-} // namespace omnistream
+}

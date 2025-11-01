@@ -1,12 +1,12 @@
 #include <gtest/gtest.h>
 #include <iostream>
 #include <nlohmann/json.hpp>
-#include <taskmanager/RuntimeEnvironment.h>
-#include "table/vectorbatch/VectorBatch.h"
+#include "table/data/vectorbatch/VectorBatch.h"
+#include <taskmanager/OmniRuntimeEnvironment.h>
 #include "OmniOperatorJIT/core/test/util/test_util.h"
 #include "test/core/operators/OutputTest.h"
 #include "table/runtime/operators/window/processor/AbstractWindowAggProcessor.h"
-#include "core/operators/StreamOperatorFactory.h"
+#include "streaming/api/operators/StreamOperatorFactory.h"
 #include <thread>
 #include <chrono>
 
@@ -151,7 +151,11 @@ TEST(NEXTMARKTESTQ12, DISABLED_COUNTTEST) {
     auto *output = new BatchOutputTest();
     auto* slicingWindowOperator = dynamic_cast<SlicingWindowOperator<RowData*, int64_t>*>(
             StreamOperatorFactory::createOperatorAndCollector(opConfig, output));
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("InnerJoinOperator", 2, 1, 0)));
+    auto env2 = new omnistream::RuntimeEnvironmentV2();
+    auto taskInfo = new TaskInformationPOD();
+    taskInfo->setStateBackend("HashMapStateBackend");
+    env2->setTaskConfiguration(*taskInfo);
+    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
     slicingWindowOperator->setup();
     slicingWindowOperator->initializeState(initializer, new LongSerializer());
     slicingWindowOperator->open();

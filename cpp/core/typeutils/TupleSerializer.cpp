@@ -1,10 +1,29 @@
 /*
- * @Copyright: Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * @Copyright: Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
  * @Description: Tuple Serializer for DataStream
  */
 #include <string>
 #include "../type/StringValue.h"
 #include "TupleSerializer.h"
+
+Tuple2Serializer::Tuple2Serializer()
+{
+    reuseBuffer = new Tuple2();
+}
+
+Tuple2Serializer::Tuple2Serializer(nlohmann::json &type) : Tuple2Serializer()
+{
+    createSerializer(type);
+}
+
+Tuple2Serializer::Tuple2Serializer(const std::vector<TypeInformation*> &types) : Tuple2Serializer()
+{
+    arity = types.size();
+    fieldSerializers.resize(arity);
+    for (int i = 0; i < arity; ++i) {
+        fieldSerializers[i] = types[i]->createTypeSerializer();
+    }
+}
 
 void *Tuple2Serializer::deserialize(DataInputView &source)
 {
@@ -54,41 +73,14 @@ void Tuple2Serializer::createSerializer(nlohmann::json &type)
         LOG("Tuple type Name: " + typeName)
         if (typeName == "Long") {
             LOG("TupleSerializer: Long")
-            fieldSerializers.push_back(LongSerializer::INSTANCE);
+            fieldSerializers.push_back(new LongSerializer());
         } else if (typeName == "String") {
             LOG("TupleSerializer: String")
-            fieldSerializers.push_back(StringSerializer::INSTANCE);
+            fieldSerializers.push_back(new StringSerializer());
         } else {
             // throw OmniException("not support serializer type");
         }
     }
-}
-
-TypeSerializer* Tuple2Serializer::getTypeSerializer(BackendDataType typeId)
-{
-    if (typeId == BackendDataType::LONG_BK) {
-        return LongSerializer::INSTANCE;
-    } else if (typeId == BackendDataType::VARCHAR_BK) {
-        LOG("TupleSerializer: String")
-        return StringSerializer::INSTANCE;
-    } else {
-        // throw OmniException("not support serializer type");
-        return nullptr;
-    }
-}
-
-void Tuple2Serializer::createSerializer(BackendDataType firstType, BackendDataType secondType)
-{
-    arity = 2;
-    fieldSerializers.push_back(getTypeSerializer(firstType));
-    fieldSerializers.push_back(getTypeSerializer(secondType));
-}
-
-Object* Tuple2Serializer::GetBuffer()
-{
-    thread_local Tuple2 buffer;
-    buffer.setRefCount(1);
-    return &buffer;
 }
 
 BackendDataType Tuple2Serializer::getBackendId() const
@@ -96,7 +88,19 @@ BackendDataType Tuple2Serializer::getBackendId() const
     return BackendDataType::TUPLE_OBJ_OBJ_BK;
 }
 
-Tuple2Serializer* Tuple2Serializer::STRING_LONG_INSTANCE =
-        new Tuple2Serializer(BackendDataType::VARCHAR_BK, BackendDataType::LONG_BK);
+void Tuple2Serializer::setSubBufferReusable(bool bufferReusable_)
+{
+    for (auto& fieldSerializer : fieldSerializers) {
+        fieldSerializer->setSelfBufferReusable(bufferReusable_);
+    }
+}
 
-Tuple2Serializer::Tuple2SerializerCleaner Tuple2Serializer::cleaner;
+Object* Tuple2Serializer::GetBuffer()
+{
+    if (bufferReusable) {
+        // existed element will be replaced in set function
+        reuseBuffer->getRefCount();
+        return reuseBuffer;
+    }
+    return new Tuple2();
+}

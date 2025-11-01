@@ -5,14 +5,14 @@
 #include <future>
 #include <stdexcept>
 #include <memory>
-#include "runtime/tasks/mailbox/MailboxProcessor.h"
-#include "runtime/tasks/mailbox/MailboxExecutor.h"
-#include "runtime/tasks/mailbox/MailboxDefaultAction.h"
+#include "streaming/runtime/tasks/mailbox/MailboxProcessor.h"
+#include "streaming/runtime/tasks/mailbox/MailboxExecutor.h"
+#include "streaming/runtime/tasks/mailbox/MailboxDefaultAction.h"
 #include <exception>
-#include "runtime/tasks/mailbox/MailboxController.h"
-#include "runtime/tasks/mailbox/TaskMailbox.h"
-#include "runtime/tasks/mailbox/Mail.h"
-#include "runtime/tasks/mailbox/TaskMailboxImpl.h"
+#include "streaming/runtime/tasks/mailbox/MailboxController.h"
+#include "streaming/runtime/tasks/mailbox/TaskMailbox.h"
+#include "streaming/runtime/tasks/mailbox/Mail.h"
+#include "streaming/runtime/tasks/mailbox/TaskMailboxImpl.h"
 #include "core/utils/function/ThrowingRunnable.h"
 
 #include <atomic>
@@ -24,11 +24,11 @@
 //this class is used for mail contructor
 class NoOpRunnable : public omnistream::ThrowingRunnable {
   public:
-      void run() override {}
+      void Run() override {}
 
-      void tryCancel() override {}
+      void TryCancel() override {}
 
-      std::string toString() const override {
+      std::string ToString() const override {
           return "NoOpRunnable: No operation.";
       }
 };

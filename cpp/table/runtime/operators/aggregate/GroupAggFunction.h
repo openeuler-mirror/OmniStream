@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 #ifndef FLINK_TNEL_GROUP_AGG_FUNCTION_H
 #define FLINK_TNEL_GROUP_AGG_FUNCTION_H
@@ -15,16 +22,16 @@
 #include "table/data/util/RowDataUtil.h"
 #include "table/data/RowData.h"
 #include "table/types/logical/LogicalType.h"
-#include "table/data/utils/JoinedRowData.h"
+#include "table/data/JoinedRowData.h"
 #include "table/typeutils/InternalTypeInfo.h"
-#include "core/api/ValueState.h"
+#include "core/api/common/state/ValueState.h"
 #include "core/api/common/state/ValueStateDescriptor.h"
 #include "functions/OpenContext.h"
 #include "streaming/api/functions/KeyedProcessFunction.h"
 #include "functions/RuntimeContext.h"
-#include "core/operators/StreamingRuntimeContext.h"
-#include "core/operators/TimestampedCollector.h"
-#include "KeySelector.h"
+#include "streaming/api/operators/StreamingRuntimeContext.h"
+#include "streaming/api/operators/TimestampedCollector.h"
+#include "table/runtime/keyselector/KeySelector.h"
 
 using namespace omniruntime::type;
 using json = nlohmann::json;
@@ -47,10 +54,10 @@ public:
     ~GroupAggFunction();
     void open(const Configuration& parameters) override;
     JoinedRowData* getResultRow() override;
-    void processElement(RowData& input, Context& ctx, TimestampedCollector& out);
+    void processElement(RowData* input, Context* ctx, TimestampedCollector* out);
     void processBatch(omnistream::VectorBatch* inputBatch,
                       KeyedProcessFunction<RowData *, RowData *, RowData *>::Context &ctx, TimestampedCollector& out);
-    void processBatchColumnar(omnistream::VectorBatch *input, const std::vector<RowInfo> &groupInfo, RowData *accumulators);
+    void processBatchColumnar(omnistream::VectorBatch *input, const std::vector<RowInfo> &groupInfo, RowData *pData);
     void close();
     ValueState<RowData*>* getValueState() override;
     static std::vector<std::int32_t> getKeyedTypes(const std::vector<int32_t> keyedIndex, const std::vector<std::string> inputTypes);

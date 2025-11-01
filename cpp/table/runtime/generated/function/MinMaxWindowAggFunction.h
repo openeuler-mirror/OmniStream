@@ -1,3 +1,13 @@
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
 #ifndef MINWINDOWAGGFUNCTION_H
 #define MINWINDOWAGGFUNCTION_H
 
@@ -13,8 +23,28 @@
 
 
 class MinMaxWindowAggFunction : public NamespaceAggsHandleFunction<int64_t> {
+public:
+    MinMaxWindowAggFunction(int aggIdx, int accIndex, int valueIndex, FuncType aggOperator, SliceAssigner* sliceAssigner)
+        :aggIdx(aggIdx),
+        accIndex(accIndex),
+        valueIndex(valueIndex),
+        aggOperator(aggOperator),
+        sliceAssigner(sliceAssigner),
+        aggValue(aggOperator == MAX_FUNC ? std::numeric_limits<long>::min() : std::numeric_limits<long>::max()),
+        limit(aggOperator == MAX_FUNC ? std::numeric_limits<long>::min() : std::numeric_limits<long>::max()) {
+    };
+    void open(StateDataViewStore* store) override;
+    void accumulate(RowData *accInput) override;
+    void merge(long ns, RowData *otherAcc) override;
+    void setAccumulators(long ns, RowData *acc) override;
+    RowData *getAccumulators() override;
+    RowData *createAccumulators(int accumulatorArity) override;
+    RowData *getValue(long ns) override;
+    void retract(RowData *input) override;
+    void Cleanup(long ns) override;
+    void close() override;
+
 private:
-    //todo: slicesharedSliceAssigner hop and cumulative
     StateDataViewStore* store;
 
     int64_t namespaceVal;
@@ -29,31 +59,6 @@ private:
     long aggCountValue;
     bool countIsNull;
     const int countIdx = 1;
-
-public:
-    // todo sharedassigner
-    MinMaxWindowAggFunction(int aggIdx, int accIndex, int valueIndex, FuncType aggOperator, SliceAssigner* sliceAssigner)
-        :aggIdx(aggIdx),
-        accIndex(accIndex),
-        valueIndex(valueIndex),
-        aggOperator(aggOperator),
-        sliceAssigner(sliceAssigner),
-        aggValue(aggOperator == MAX_FUNC ? std::numeric_limits<long>::min() : std::numeric_limits<long>::max()),
-        limit(aggOperator == MAX_FUNC ? std::numeric_limits<long>::min() : std::numeric_limits<long>::max()) {
-
-    };
-    void open(StateDataViewStore* store) override;
-    void accumulate(RowData *accInput) override;
-    void merge(long ns, RowData *otherAcc) override;
-    void setAccumulators(long ns, RowData *acc) override;
-    RowData *getAccumulators() override;
-    RowData *createAccumulators(int accumulatorArity) override;
-    RowData *getValue(long ns) override;
-    void retract(RowData *input) override;
-    void Cleanup(long ns) override;
-    void close() override;
 };
 
-
-
-#endif //MINWINDOWAGGFUNCTION_H
+#endif

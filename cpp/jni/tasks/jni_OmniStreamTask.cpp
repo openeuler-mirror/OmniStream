@@ -1,10 +1,17 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 #include "com_huawei_omniruntime_flink_runtime_tasks_OmniStreamTask.h"
 #include "common.h"
 #include "nlohmann/json.hpp"
-#include "core/task/StreamTask.h"
+#include "streaming/runtime/tasks/StreamTask.h"
 #include "runtime/taskmanager/OmniTask.h"
 
 
@@ -28,7 +35,7 @@ JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_tasks_OmniStre
 
     LOG("After Calling StreamTask with json  " << reinterpret_cast<long>(streamTask))
 
-    (env)->ReleaseStringUTFChars(TDDString, cStrTDD);
+    env->ReleaseStringUTFChars(TDDString, cStrTDD);
 
     return reinterpret_cast<long>(streamTask);
 };
@@ -44,6 +51,7 @@ JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_tasks_OmniStre
 
     auto *streamTask = reinterpret_cast<omnistream::datastream::StreamTask *>(omniStreamTaskRef);
     auto *processor = streamTask->createOmniInputProcessor(channelJson, operatorMethodIndicator);
+    std::cout << "Java_com_huawei_omniruntime_flink_runtime_tasks_OmniStreamTask_createNativeOmniInputProcessor operatorMethodIndicator :" << operatorMethodIndicator << std::endl;
     streamTask->addStreamOneInputProcessor(processor);
 
     return reinterpret_cast<long>(processor);

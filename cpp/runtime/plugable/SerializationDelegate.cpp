@@ -1,0 +1,36 @@
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
+
+#include <stdexcept>
+#include "SerializationDelegate.h"
+
+SerializationDelegate::SerializationDelegate(std::unique_ptr<TypeSerializer> serializer)
+    :instance_(nullptr), serializer_(std::move(serializer)) {}
+
+Object *SerializationDelegate::getInstance() const
+{
+    return instance_;
+}
+
+void SerializationDelegate::setInstance(Object *instance)
+{
+    this->instance_ = instance;
+}
+
+void SerializationDelegate::write(DataOutputSerializer &out)
+{
+    serializer_->serialize(instance_, out);
+}
+
+void SerializationDelegate::read(DataInputView &in)
+{
+    THROW_LOGIC_EXCEPTION("Deserialization method called on SerializationDelegate.");
+}

@@ -1,12 +1,12 @@
 #include <gtest/gtest.h>
 #include "streaming/api/operators/KeyedProcessOperator.h"
-#include "core/streamrecord/StreamRecord.h"
-#include "core/operators/TimestampedCollector.h"
+#include "streaming/runtime/streamrecord/StreamRecord.h"
+#include "streaming/api/operators/TimestampedCollector.h"
 #include "table/runtime/operators/aggregate/GroupAggFunction.h"
 #include "table/typeutils/RowDataSerializer.h"
 #include "table/data/RowData.h"
 #include <nlohmann/json.hpp>
-#include "runtime/taskmanager/RuntimeEnvironment.h"
+#include "runtime/taskmanager/OmniRuntimeEnvironment.h"
 #include "core/api/common/TaskInfoImpl.h"
 #include <vector>
 #include <test/util/test_util.h>
@@ -19,7 +19,7 @@ class MockUserFunction : public KeyedProcessFunction<RowData *, RowData *, RowDa
 {
 public:
     void open(const Configuration& parameters) override {};
-    void processElement(RowData &input, Context &ctx, TimestampedCollector &out) override { isCalled = true; }
+    void processElement(RowData *input, Context *ctx, TimestampedCollector *out) override { isCalled = true; }
     bool isCalled = false;
     JoinedRowData* getResultRow() override {return nullptr;};
     void processBatch(omnistream::VectorBatch* inputBatch, Context& ctx, TimestampedCollector& out) override {};
@@ -60,9 +60,12 @@ TEST(KeyedProcessOperatorTest, Open)
     GroupAggFunction *groupAgg = new GroupAggFunction(1L, config);
     KeyedProcessOperator<RowData *, RowData *, RowData *> keyedProcessOperator(groupAgg, new OutputTest(), config);
     keyedProcessOperator.setup();
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("KeyedProcessOperatorTest", 2, 1, 0)));
-    std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col1", BasicLogicalType::BIGINT), 
-        omnistream::RowField("col1", BasicLogicalType::BIGINT)});
+    auto env2 = new omnistream::RuntimeEnvironmentV2();
+    auto taskInfo = new TaskInformationPOD();
+    taskInfo->setStateBackend("HashMapStateBackend");
+    env2->setTaskConfiguration(*taskInfo);
+    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
+    std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({RowField("col1", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::BIGINT)});
     TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
 
     ASSERT_NO_THROW(keyedProcessOperator.initializeState(initializer, ser));
@@ -88,9 +91,12 @@ TEST(KeyedProcessOperatorTest, ProcessElementWithMockedUserFunction)
 
     KeyedProcessOperator<RowData *, RowData *, RowData *> keyedProcessOperator(userFunction, new OutputTest(), config);
     keyedProcessOperator.setup();
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("KeyedProcessOperatorTest", 2, 1, 0)));
-    std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col1", BasicLogicalType::BIGINT), 
-        omnistream::RowField("col1", BasicLogicalType::BIGINT)});
+    auto env2 = new omnistream::RuntimeEnvironmentV2();
+    auto taskInfo = new TaskInformationPOD();
+    taskInfo->setStateBackend("HashMapStateBackend");
+    env2->setTaskConfiguration(*taskInfo);
+    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
+    std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col1", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::BIGINT)});
     TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
 
     keyedProcessOperator.initializeState(initializer, ser);
@@ -147,9 +153,12 @@ TEST(KeyedProcessOperatorTest, FastTop1FunctionTest)
     BatchOutputTest* output = new BatchOutputTest();
     KeyedProcessOperator keyedProcessOperator(fastTop1Function, output, config);
     keyedProcessOperator.setup();
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("KeyedProcessOperatorTest", 2, 1, 0)));
-    std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col1", BasicLogicalType::BIGINT), 
-        omnistream::RowField("col2", BasicLogicalType::BIGINT), omnistream::RowField("col3", BasicLogicalType::TIMESTAMP_WITHOUT_TIME_ZONE)});
+    auto env2 = new omnistream::RuntimeEnvironmentV2();
+    auto taskInfo = new TaskInformationPOD();
+    taskInfo->setStateBackend("HashMapStateBackend");
+    env2->setTaskConfiguration(*taskInfo);
+    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
+    std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col1", BasicLogicalType::BIGINT), omnistream::RowField("col2", BasicLogicalType::BIGINT),omnistream::RowField("col3", BasicLogicalType::TIMESTAMP_WITHOUT_TIME_ZONE)});
     TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
 
     keyedProcessOperator.initializeState(initializer, ser);
@@ -229,9 +238,12 @@ TEST(KeyedProcessOperatorTest, Appened)
     BatchOutputTest* output = new BatchOutputTest();
     KeyedProcessOperator keyedProcessOperator(TopNFunction, output, config);
     keyedProcessOperator.setup();
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("KeyedProcessOperatorTest", 2, 1, 0)));
-    std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col1", BasicLogicalType::BIGINT), 
-        omnistream::RowField("col2", BasicLogicalType::BIGINT), omnistream::RowField("col3", BasicLogicalType::BIGINT)});
+    auto env2 = new omnistream::RuntimeEnvironmentV2();
+    auto taskInfo = new TaskInformationPOD();
+    taskInfo->setStateBackend("HashMapStateBackend");
+    env2->setTaskConfiguration(*taskInfo);
+    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
+    std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col1", BasicLogicalType::BIGINT), omnistream::RowField("col2", BasicLogicalType::BIGINT),omnistream::RowField("col3", BasicLogicalType::BIGINT)});
     TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
 
     keyedProcessOperator.initializeState(initializer, ser);
@@ -314,9 +326,12 @@ TEST(KeyedProcessOperatorTest, DISABLED_Appened2)
     BatchOutputTest* output = new BatchOutputTest();
     KeyedProcessOperator keyedProcessOperator(TopNFunction, output, config);
     keyedProcessOperator.setup();
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("KeyedProcessOperatorTest", 2, 1, 0)));
-    std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col1", BasicLogicalType::BIGINT), 
-        omnistream::RowField("col2", BasicLogicalType::BIGINT), omnistream::RowField("col3", BasicLogicalType::BIGINT)});
+    auto env2 = new omnistream::RuntimeEnvironmentV2();
+    auto taskInfo = new TaskInformationPOD();
+    taskInfo->setStateBackend("HashMapStateBackend");
+    env2->setTaskConfiguration(*taskInfo);
+    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
+    std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col1", BasicLogicalType::BIGINT), omnistream::RowField("col2", BasicLogicalType::BIGINT),omnistream::RowField("col3", BasicLogicalType::BIGINT)});
     TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
 
     keyedProcessOperator.initializeState(initializer, ser);

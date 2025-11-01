@@ -1,9 +1,15 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #include "ObjectBufferConsumerWithPartialRecordLength.h"
-
 
 #include <sstream>
 #include <stdexcept>
@@ -11,7 +17,8 @@
 namespace omnistream {
 
     ObjectBufferConsumerWithPartialRecordLength::ObjectBufferConsumerWithPartialRecordLength(std::shared_ptr<ObjectBufferConsumer> bufferConsumer, int partialRecordLength)
-        : bufferConsumer(bufferConsumer), partialRecordLength(partialRecordLength) {
+        : bufferConsumer(bufferConsumer), partialRecordLength(partialRecordLength)
+    {
         if (!bufferConsumer) {
             throw std::invalid_argument("bufferConsumer cannot be null");
         }
@@ -22,19 +29,23 @@ namespace omnistream {
         LOG_TRACE("destructor")
     }
 
-    std::shared_ptr<ObjectBufferConsumer> ObjectBufferConsumerWithPartialRecordLength::getBufferConsumer() {
+    std::shared_ptr<ObjectBufferConsumer> ObjectBufferConsumerWithPartialRecordLength::getBufferConsumer()
+    {
         return bufferConsumer;
     }
 
-    int ObjectBufferConsumerWithPartialRecordLength::getPartialRecordLength() {
+    int ObjectBufferConsumerWithPartialRecordLength::getPartialRecordLength()
+    {
         return partialRecordLength;
     }
 
-    std::shared_ptr<VectorBatchBuffer> ObjectBufferConsumerWithPartialRecordLength::build() {
-        return bufferConsumer->build();
+    std::shared_ptr<VectorBatchBuffer> ObjectBufferConsumerWithPartialRecordLength::build()
+    {
+        return std::dynamic_pointer_cast<VectorBatchBuffer>(bufferConsumer->build());
     }
 
-    bool ObjectBufferConsumerWithPartialRecordLength::cleanupPartialRecord() {
+    bool ObjectBufferConsumerWithPartialRecordLength::cleanupPartialRecord()
+    {
         if (partialRecordLength < 0) {
             throw std::runtime_error("Approximate local recovery does not yet work with unaligned checkpoint!");
         }
@@ -56,7 +67,8 @@ namespace omnistream {
         }
     }
 
-    std::string ObjectBufferConsumerWithPartialRecordLength::toString() const {
+    std::string ObjectBufferConsumerWithPartialRecordLength::toString() const
+    {
         std::stringstream ss;
         ss << "ObjectBufferConsumerWithPartialRecordLength{";
         ss << "bufferConsumer=" << (bufferConsumer ? "present" : "null") << ", ";

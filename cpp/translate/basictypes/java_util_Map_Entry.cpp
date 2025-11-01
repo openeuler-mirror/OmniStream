@@ -1,0 +1,59 @@
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
+#include "basictypes/java_util_Map_Entry.h"
+
+MapEntry::MapEntry(Object *key, Object *value)
+{
+    key_ = key;
+    value_ = value;
+    key->getRefCount();
+    value->getRefCount();
+}
+
+MapEntry::MapEntry()
+{
+    key_ = nullptr;
+    value_ = nullptr;
+}
+
+MapEntry::~MapEntry()
+{
+    if (key_ != nullptr) {
+        key_->putRefCount();
+    }
+    if (value_ != nullptr) {
+        value_->putRefCount();
+    }
+}
+
+Object *MapEntry::getKey() const { return key_; }
+
+const Object *MapEntry::getValue() const
+{
+    return value_;
+}
+
+Object *MapEntry::getKey()
+{
+    return key_;
+}
+
+Object *MapEntry::getValue()
+{
+    return value_;
+}
+
+void MapEntry::setValue(Object *newValue)
+{
+    newValue->getRefCount();
+    value_->putRefCount();
+    value_ = newValue;
+}

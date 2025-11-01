@@ -1,15 +1,15 @@
-#include "core/operators/StreamOperatorStateHandler.h"
-#include "core/operators/StreamTaskStateInitializerImpl.h"
+#include "streaming/api/operators/StreamOperatorStateHandler.h"
+#include "streaming/api/operators/StreamTaskStateInitializerImpl.h"
 #include "core/typeutils/LongSerializer.h"
 #include "runtime/execution/Environment.h"
-#include "runtime/taskmanager/RuntimeEnvironment.h"
+#include "runtime/taskmanager/OmniRuntimeEnvironment.h"
 #include "core/api/common/TaskInfoImpl.h"
 
 #include <gtest/gtest.h>
 
 TEST(StreamOperatorStateHandlerTest, Init)
 {
-    Environment *env = new RuntimeEnvironment(new TaskInfoImpl("Test", 2, 1, 0));
+    omnistream::EnvironmentV2* env = new omnistream::RuntimeEnvironmentV2();
     StreamTaskStateInitializerImpl initializer(env);
     StreamOperatorStateContextImpl<int> *context = initializer.streamOperatorStateContext<int>(new IntSerializer(), nullptr, nullptr);
     ASSERT_NO_THROW(context->keyedStateBackend());

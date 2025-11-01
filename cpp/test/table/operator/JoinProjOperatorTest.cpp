@@ -9,10 +9,9 @@
 
 #include "test/core/operators/OutputTest.h"
 #include "OmniOperatorJIT/core/test/util/test_util.h"
-#include "taskmanager/RuntimeEnvironment.h"
 #include "api/common/TaskInfoImpl.h"
 #include "runtime/operators/join/StreamingJoinOperator.h"
-#include "core/operators/StreamCalcBatch.h"
+#include "streaming/api/operators/StreamCalcBatch.h"
 
 
 namespace omnistream {

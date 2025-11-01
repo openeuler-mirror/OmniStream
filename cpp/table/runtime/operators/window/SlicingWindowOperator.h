@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 #ifndef SLICINGWINDOWOPERATOR_H
 #define SLICINGWINDOWOPERATOR_H
@@ -8,18 +15,18 @@ template <typename Keytype>
 class SlicingWindowProcessor;
 
 #include "nlohmann/json.hpp"
-#include "functions/Watermark.h"
-#include "table/runtime/operators/TimerHeapInternalTimer.h"
-#include "table/vectorbatch/VectorBatch.h"
+#include "streaming/api/watermark/Watermark.h"
+#include "streaming/api/operators/TimerHeapInternalTimer.h"
+#include "table/data/vectorbatch/VectorBatch.h"
 #include "table/runtime/operators/TableStreamOperator.h"
-#include "core/operators/OneInputStreamOperator.h"
+#include "streaming/api/operators/OneInputStreamOperator.h"
 #include "streaming/api/operators/Triggerable.h"
-#include "core/api/ListState.h"
-#include "core/operators/TimestampedCollector.h"
-#include "core/api/ListState.h"
+#include "core/api/common/state/ListState.h"
+#include "streaming/api/operators/TimestampedCollector.h"
+#include "core/api/common/state/ListState.h"
 #include "table/runtime/operators/InternalTimerService.h"
 #include "runtime/state/KeyedStateBackend.h"
-#include "core/operators/Output.h"
+#include "streaming/api/operators/Output.h"
 #include "functions/RuntimeContext.h"
 #include "test/core/operators/OutputTest.h"
 #include "table/runtime/operators/window/processor/AbstractWindowAggProcessor.h"
@@ -36,7 +43,7 @@ public:
     SlicingWindowOperator(SlicingWindowProcessor<W> *windowProcessor, const nlohmann::json config);
     ~SlicingWindowOperator() override { delete watermarkState; };
     void open() override;
-    void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer)
+    void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) override
     {
         AbstractStreamOperator::initializeState(initializer, keySerializer);
     };

@@ -1,30 +1,37 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 #ifndef FLINK_TNEL_RECORDSWINDOWBUFFER_H
 #define FLINK_TNEL_RECORDSWINDOWBUFFER_H
 
 #include <unordered_map>
 #include <vector>
-#include <core/operators/TimestampedCollector.h>
+#include <streaming/api/operators/TimestampedCollector.h>
 #include <table/data/GenericRowData.h>
 #include <string_view>
 
-#include "table/vectorbatch/VectorBatch.h"
+#include "table/data/vectorbatch/VectorBatch.h"
 #include "table/runtime/operators/window/WindowKey.h"
 #include "table/runtime/generated/AggsHandleFunction.h"
 #include "common.h"
 #include "table/data/util/RowDataUtil.h"
-#include "table/data/utils/JoinedRowData.h"
+#include "table/data/JoinedRowData.h"
 #include "table/runtime/operators/window/state/WindowValueState.h"
 #include "test/core/operators/OutputTest.h"
 #include <regex>
-#include <operators/StreamOperatorStateHandler.h>
+#include <streaming/api/operators/StreamOperatorStateHandler.h>
 #include <table/runtime/generated/NamespaceAggsHandleFunction.h>
 #include <mutex>
 #include "table/utils/TimeWindowUtil.h"
 #include "table/runtime/operators/window/slicing/SliceAssigners.h"
-#include "KeySelector.h"
+#include "table/runtime/keyselector/KeySelector.h"
 
 class RecordsWindowBuffer {
 public:

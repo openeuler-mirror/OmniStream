@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #include "LocalSlicingWindowAggOperator.h"
@@ -12,7 +19,7 @@
 #include "table/runtime/generated/function/EmptyNamespaceFunction.h"
 #include <iostream>
 #include "table/data/util/RowDataUtil.h"
-#include "core/operators/TimestampedCollector.h"
+#include "streaming/api/operators/TimestampedCollector.h"
 
 void LocalSlicingWindowAggOperator::open()
 {
@@ -138,7 +145,10 @@ void LocalSlicingWindowAggOperator::ProcessWatermark(Watermark *mark)
         }
     }
     LOG("LocalSlicingWindowAggOperator::processWatermark end: " << mark->getTimestamp())
-    AbstractStreamOperator<long>::ProcessWatermark(mark);
+    if (timeServiceManager != nullptr) {
+        timeServiceManager->template advanceWatermark<int64_t>(mark);
+    }
+    output->emitWatermark(mark);
 }
 
 bool LocalSlicingWindowAggOperator::SendAccResults(Watermark *mark)

@@ -1,5 +1,22 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * We modify this part of the code based on Apache Flink to implement native execution of Flink operators.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
  */
 
 // PipelinedResultPartition.cpp
@@ -13,56 +30,59 @@
 namespace omnistream {
 
 PipelinedResultPartition::PipelinedResultPartition(
-    const std::string& owningTaskName,
+    const std::string &owningTaskName,
     int partitionIndex,
-    const ResultPartitionIDPOD& partitionId,
+    const ResultPartitionIDPOD &partitionId,
     int partitionType,
-    std::vector<std::shared_ptr<ResultSubpartition>> subpartitions,
+    std::vector<std::shared_ptr<ResultSubpartition> > subpartitions,
     int numTargetKeyGroups,
     std::shared_ptr<ResultPartitionManager> partitionManager,
-     std::shared_ptr<Supplier<ObjectBufferPool>> bufferPool)
+    std::shared_ptr<Supplier<BufferPool>> bufferPool)
     : BufferWritingResultPartition(owningTaskName,
-        partitionIndex,
-        partitionId,
-        checkResultPartitionType(partitionType),
-        subpartitions,
-        numTargetKeyGroups,
-        partitionManager,
-        bufferPool),
+                                   partitionIndex,
+                                   partitionId,
+                                   checkResultPartitionType(partitionType),
+                                   subpartitions,
+                                   numTargetKeyGroups,
+                                   partitionManager,
+                                   bufferPool),
       allRecordsProcessedSubpartitions(subpartitions.size(), false),
       numNotAllRecordsProcessedSubpartitions(subpartitions.size()),
+      hasNotifiedEndOfUserRecords(false),
       allRecordsProcessedFuture(std::make_shared<CompletableFuture>()),
       consumedSubpartitions(subpartitions.size(), false),
-      numberOfUsers(subpartitions.size() + 1) {
-}
+      numberOfUsers(subpartitions.size() + 1) {}
 
 PipelinedResultPartition::PipelinedResultPartition(const std::string& owningTaskName, int partitionIndex,
     const ResultPartitionIDPOD& partitionId, int partitionType, int numSubpartitions, int numTargetKeyGroups,
-    std::shared_ptr<ResultPartitionManager> partitionManager, std::shared_ptr<Supplier<ObjectBufferPool>> bufferPool):
-    BufferWritingResultPartition(owningTaskName,
+    std::shared_ptr<ResultPartitionManager> partitionManager, std::shared_ptr<Supplier<BufferPool>> bufferPool, int taskType)
+    :BufferWritingResultPartition(owningTaskName,
         partitionIndex,
         partitionId,
         checkResultPartitionType(partitionType),
         numSubpartitions,
         numTargetKeyGroups,
         partitionManager,
-        bufferPool),
-      allRecordsProcessedSubpartitions(numSubpartitions, false),
-      numNotAllRecordsProcessedSubpartitions(numSubpartitions),
-      allRecordsProcessedFuture(std::make_shared<CompletableFuture>()),
-      consumedSubpartitions(numSubpartitions, false),
-      numberOfUsers(numSubpartitions + 1)
+        bufferPool, taskType),
+    allRecordsProcessedSubpartitions(numSubpartitions, false),
+    numNotAllRecordsProcessedSubpartitions(numSubpartitions),
+    hasNotifiedEndOfUserRecords(false),
+    allRecordsProcessedFuture(std::make_shared<CompletableFuture>()),
+    consumedSubpartitions(numSubpartitions, false),
+    numberOfUsers(numSubpartitions + 1)
 {
     LOG_PART("Body of PipelinedResultPartition constructor")
 }
 
 
-void PipelinedResultPartition::OnConsumedSubpartition(int subpartitionIndex) {
+void PipelinedResultPartition::OnConsumedSubpartition(int subpartitionIndex)
+{
     // std::cout<<"you are in PipelinedResultPartition::OnConsumedSubpartition"<<std::endl;
     decrementNumberOfUsers(subpartitionIndex);
 }
 
-void PipelinedResultPartition::decrementNumberOfUsers(int subpartitionIndex) {
+void PipelinedResultPartition::decrementNumberOfUsers(int subpartitionIndex)
+{
     if (isReleased()) {
         return;
     }
@@ -91,15 +111,18 @@ void PipelinedResultPartition::decrementNumberOfUsers(int subpartitionIndex) {
 }
 
 
-void PipelinedResultPartition::flushAll() {
+void PipelinedResultPartition::flushAll()
+{
     flushAllSubpartitions(false);
 }
 
-void PipelinedResultPartition::flush(int targetSubpartition) {
+void PipelinedResultPartition::flush(int targetSubpartition)
+{
     flushSubpartition(targetSubpartition, false);
 }
 
-void PipelinedResultPartition::NotifyEndOfData(StopMode mode) {
+void PipelinedResultPartition::NotifyEndOfData(StopMode mode)
+{
     std::lock_guard<std::recursive_mutex> lockGuard(lock);
     if (!hasNotifiedEndOfUserRecords) {
         broadcastEvent(std::make_shared<EndOfData>(mode), false);
@@ -107,11 +130,13 @@ void PipelinedResultPartition::NotifyEndOfData(StopMode mode) {
     }
 }
 
-std::shared_ptr<CompletableFuture> PipelinedResultPartition::getAllDataProcessedFuture() {
+std::shared_ptr<CompletableFuture> PipelinedResultPartition::getAllDataProcessedFuture()
+{
     return allRecordsProcessedFuture;
 }
 
-void PipelinedResultPartition::onSubpartitionAllDataProcessed(int subpartition) {
+void PipelinedResultPartition::onSubpartitionAllDataProcessed(int subpartition)
+{
     std::lock_guard<std::recursive_mutex> lockGuard(lock);
     if (allRecordsProcessedSubpartitions[subpartition]) {
         return;
@@ -125,11 +150,13 @@ void PipelinedResultPartition::onSubpartitionAllDataProcessed(int subpartition) 
     }
 }
 
-std::string PipelinedResultPartition::toString() {
+std::string PipelinedResultPartition::toString()
+{
     return "PipelinedResultPartition " + partitionId.toString() + " [" + std::to_string(partitionType) + ", " + std::to_string(subpartitions_.size()) + " subpartitions, " + std::to_string(numberOfUsers) + " pending consumptions]";
 }
 
-int PipelinedResultPartition::checkResultPartitionType(int type) {
+int PipelinedResultPartition::checkResultPartitionType(int type)
+{
     if (type != ResultPartitionType::PIPELINED && type != ResultPartitionType::PIPELINED_BOUNDED && type != ResultPartitionType::PIPELINED_APPROXIMATE) {
         throw std::invalid_argument("Invalid ResultPartitionType for PipelinedResultPartition.");
     }
@@ -140,17 +167,18 @@ void PipelinedResultPartition::releaseInternal() {
 }
 
     /**
-void PipelinedResultPartition::finishReadRecoveredState(bool notifyAndBlockOnCompletion) {
+void PipelinedResultPartition::FinishReadRecoveredState(bool notifyAndBlockOnCompletion) {
     for (const auto& subpartition : subpartitions) {
         if (auto checkpointedSubpartition = std::dynamic_pointer_cast<CheckpointedResultSubpartition>(subpartition)) {
-            checkpointedSubpartition->finishReadRecoveredState(notifyAndBlockOnCompletion);
+            checkpointedSubpartition->FinishReadRecoveredState(notifyAndBlockOnCompletion);
         }
     }
 }
 
 */
 
-void PipelinedResultPartition::close() {
+void PipelinedResultPartition::close()
+{
     decrementNumberOfUsers(PIPELINED_RESULT_PARTITION_ITSELF);
     ResultPartition::close();
 }

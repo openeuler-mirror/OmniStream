@@ -1,9 +1,25 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * We modify this part of the code based on Apache Flink to implement native execution of Flink operators.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
  */
 
 #include "ResultPartitionFactory.h"
-
 
 #include <buffer/NetworkObjectBufferPool.h>
 
@@ -15,9 +31,12 @@ namespace omnistream  {
 
     ResultPartitionFactory::ResultPartitionFactory(
         std::shared_ptr<ResultPartitionManager> partitionManager,
-        std::shared_ptr<ObjectBufferPoolFactory> bufferPoolFactory,
+        std::shared_ptr<NetworkObjectBufferPool> objectBufferPoolFactory,
+        std::shared_ptr<::datastream::NetworkMemoryBufferPool> memoryBufferPoolFactory,
         int networkBufferSize) : partitionManager(partitionManager),
-                                 bufferPoolFactory(bufferPoolFactory), networkBufferSize(networkBufferSize)
+                                 objectBufferPoolFactory(objectBufferPoolFactory),
+                                 memoryBufferPoolFactory(memoryBufferPoolFactory),
+                                 networkBufferSize(networkBufferSize)
     {
     }
 
@@ -26,18 +45,18 @@ namespace omnistream  {
         const std::string& taskNameWithSubtaskAndId,
         int partitionIndex,
         const ResultPartitionDeploymentDescriptorPOD& desc,
-        std::shared_ptr<OmniShuffleEnvironmentConfiguration> config)
+        std::shared_ptr<OmniShuffleEnvironmentConfiguration> config,
+        int taskType)
     {
         return create(
-
             taskNameWithSubtaskAndId,
             partitionIndex,
             desc.getShuffleDescriptor().getResultPartitionID(),
             desc.getPartitionType(),
             desc.getNumberOfSubpartitions(),
             desc.getMaxParallelism(),
-            createBufferPoolFactory(desc.getNumberOfSubpartitions(), desc.getPartitionType(),config),
-            config);
+            createBufferPoolFactory(desc.getNumberOfSubpartitions(), desc.getPartitionType(), config, taskType),
+            config, taskType);
     }
 
     std::shared_ptr<ResultPartition> ResultPartitionFactory::create(
@@ -47,14 +66,16 @@ namespace omnistream  {
         int resultPartitionType,
         int numberOfSubpartitions,
         int maxParallelism,
-        std::shared_ptr<Supplier<ObjectBufferPool>> bufferPoolFactory,
-        std::shared_ptr<OmniShuffleEnvironmentConfiguration> config)
+        std::shared_ptr<Supplier<BufferPool>> bufferPoolFactory,
+        std::shared_ptr<OmniShuffleEnvironmentConfiguration> config,
+        int taskType)
     {
         LOG_PART("Inside real partition creation.")
         LOG_PART(" resultPartitionType  " << resultPartitionType  << " name " << ResultPartitionType::getNameByType(resultPartitionType))
 
-        if (resultPartitionType == ResultPartitionType::PIPELINED  || resultPartitionType == ResultPartitionType::PIPELINED_BOUNDED)
-        {   auto pipelinedPartition = std::make_shared<PipelinedResultPartition>(
+        if (resultPartitionType == ResultPartitionType::PIPELINED || resultPartitionType ==
+            ResultPartitionType::PIPELINED_BOUNDED) {
+            auto pipelinedPartition = std::make_shared<PipelinedResultPartition>(
                 taskNameWithSubtaskAndId,
                 partitionIndex,
                 id,
@@ -62,64 +83,62 @@ namespace omnistream  {
                 numberOfSubpartitions,
                 maxParallelism,
                 partitionManager,
-                bufferPoolFactory);
+                bufferPoolFactory,
+                taskType);
 
             std::vector<std::shared_ptr<ResultSubpartition>> resultPartitionns;
             LOG_PART("Just before sub partition creation. numberOfSubpartitions is  "  << std::to_string(numberOfSubpartitions))
-            for (auto i = 0; i < numberOfSubpartitions; i++)
-            {
-                LOG_PART("Inside sub partition creation. index is  "  << std::to_string(i))
-                //todo: configuredNetworkBuffersPerChannel and NetworkBuffersPerChannel are identical
+            for (auto i = 0; i < numberOfSubpartitions; i++) {
+                LOG_PART("Inside sub partition creation. index is  " << std::to_string(i))
                 int configuredNetworkBuffersPerChannel = config->getNetworkBuffersPerChannel();
-                auto subPartition  =   std::make_shared<PipelinedSubpartition>(i, configuredNetworkBuffersPerChannel, pipelinedPartition);
+                auto subPartition = std::make_shared<PipelinedSubpartition>(
+                    i, configuredNetworkBuffersPerChannel, pipelinedPartition);
                 resultPartitionns.push_back(subPartition);
             }
             pipelinedPartition->setSubpartitions(resultPartitionns);
             return pipelinedPartition;
-        } else
-        {
+        } else {
             THROW_LOGIC_EXCEPTION("only support pipelined result partition")
         }
     }
 
-
-    class ObjectBufferPoolFactoryLambda : public Supplier<ObjectBufferPool>
-    {
-      private:
-        std::shared_ptr<ObjectBufferPoolFactory> factory_;
-        int  Left_numRequiredBuffers;
-        int  Right_maxUsedBuffers;
-        int  numberOfSubpartitions;
-        int  resultPartitionType;
-        std::shared_ptr<OmniShuffleEnvironmentConfiguration> config;
-
+    class BufferPoolFactoryLambda : public Supplier<BufferPool> {
     public:
-        ObjectBufferPoolFactoryLambda(const std::shared_ptr<ObjectBufferPoolFactory>& factory,
-            int leftNumRequiredBuffers, int rightMaxUsedBuffers, int numberOfSubpartitions, int resultPartitionType,std::shared_ptr<OmniShuffleEnvironmentConfiguration> config)
+        BufferPoolFactoryLambda(const std::shared_ptr<BufferPoolFactory> &factory,
+                                int leftNumRequiredBuffers, int rightMaxUsedBuffers, int numberOfSubpartitions,
+                                int resultPartitionType, std::shared_ptr<OmniShuffleEnvironmentConfiguration> config)
             : factory_(factory),
               Left_numRequiredBuffers(leftNumRequiredBuffers),
               Right_maxUsedBuffers(rightMaxUsedBuffers),
               numberOfSubpartitions(numberOfSubpartitions),
               resultPartitionType(resultPartitionType),
-              config(config)
-        {
+              config(config) {
         }
 
-        std::shared_ptr<ObjectBufferPool> get() override
+        std::shared_ptr<BufferPool> get() override
         {
-            auto networkpool = std::static_pointer_cast<NetworkObjectBufferPool>(factory_);
-            LOG("ObjectBufferPoolFactoryLambda get")
-            return networkpool->createBufferPool(Left_numRequiredBuffers, Right_maxUsedBuffers, numberOfSubpartitions,
-                config->getNetworkBuffersPerChannel());
-            //todo: add config
-              //FakerConfig::networkBuffersPerChannel);
+            LOG("BufferPoolFactoryLambda get")
+            return factory_->createBufferPool(Left_numRequiredBuffers, Right_maxUsedBuffers, numberOfSubpartitions,
+                                              config->getNetworkBuffersPerChannel());
         };
-        std::string toString() const override { return {}; };
-        ~ObjectBufferPoolFactoryLambda() override = default;
+
+        std::string toString() const override
+        {
+            return "BufferPoolFactoryLambda";
+        };
+
+        ~BufferPoolFactoryLambda() override = default;
+    private:
+        std::shared_ptr<BufferPoolFactory> factory_;
+        int Left_numRequiredBuffers;
+        int Right_maxUsedBuffers;
+        int numberOfSubpartitions;
+        int resultPartitionType;
+        std::shared_ptr<OmniShuffleEnvironmentConfiguration> config;
     };
 
-    std::shared_ptr<Supplier<ObjectBufferPool>> ResultPartitionFactory::createBufferPoolFactory(int numberOfSubpartitions,
-        int resultPartitionType,std::shared_ptr<OmniShuffleEnvironmentConfiguration> config)
+    std::shared_ptr<Supplier<BufferPool>> ResultPartitionFactory::createBufferPoolFactory(int numberOfSubpartitions,
+        int resultPartitionType, std::shared_ptr<OmniShuffleEnvironmentConfiguration> config, int taskType)
     {
         LOG_PART("Beginning of createBufferPoolFactory")
         bool isSortShuffle = (resultPartitionType == ResultPartitionType::BLOCKING_PERSISTENT ||
@@ -139,25 +158,25 @@ namespace omnistream  {
 
         int rightMaxUsedBuffers = pairs.second;
 
-        auto supplier = std::make_shared<ObjectBufferPoolFactoryLambda>(bufferPoolFactory,
-            leftNumRequiredBuffers,
-            rightMaxUsedBuffers,
-            numberOfSubpartitions,
-            resultPartitionType,
-            config);
-        /**
-        auto supplier = std::make_shared<LambdaSupplier<ObjectBufferPool>>(  [=]()-> std::shared_ptr<ObjectBufferPool> {
-
-             LOG_PART("Before createBufferPool")
-             return bufferPoolFactory->createBufferPool(Left_numRequiredBuffers,
-                 Right_maxUsedBuffers,
-                 numberOfSubpartitions,
-                 resultPartitionType);
+        if (taskType == 1) {
+            LOG_PART("end  of createBufferPoolFactory")
+            return std::make_shared<BufferPoolFactoryLambda>(objectBufferPoolFactory,
+                leftNumRequiredBuffers,
+                rightMaxUsedBuffers,
+                numberOfSubpartitions,
+                resultPartitionType,
+                config);
+        } else if (taskType == 2) {
+            return std::make_shared<BufferPoolFactoryLambda>(memoryBufferPoolFactory,
+                leftNumRequiredBuffers,
+                rightMaxUsedBuffers,
+                numberOfSubpartitions,
+                resultPartitionType,
+                config);
+        } else {
+            // todo: throw out exception
+            return nullptr;
         }
-        );**/
-
-        LOG_PART("end  of createBufferPoolFactory")
-        return supplier;
     }
 
 }

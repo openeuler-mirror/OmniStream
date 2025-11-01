@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 // InputGate.h
@@ -27,16 +34,16 @@ class InputGate : public PullingAsyncDataInput<BufferOrEvent> {
 public:
     virtual ~InputGate() = default;
 
-    virtual int getNumberOfInputChannels() = 0;
-    virtual bool isFinished() = 0;
-    virtual bool hasReceivedEndOfData() = 0;
-    virtual  std::optional<std::shared_ptr<BufferOrEvent>> getNext() = 0;
-    std::optional<std::shared_ptr<BufferOrEvent>> pollNext() override = 0;
+    virtual int GetNumberOfInputChannels() = 0;
+    virtual bool IsFinished() = 0;
+    virtual bool HasReceivedEndOfData() = 0;
+    virtual  std::optional<std::shared_ptr<BufferOrEvent>> GetNext() = 0;
+    std::optional<std::shared_ptr<BufferOrEvent>> PollNext() override = 0;
     virtual void sendTaskEvent(const std::shared_ptr<TaskEvent>& event) = 0;
 
-    std::shared_ptr<CompletableFuture> getAvailableFuture() override;
+    std::shared_ptr<CompletableFuture> GetAvailableFuture() override;
 
-    virtual void resumeConsumption(const InputChannelInfo& channelInfo) = 0;
+    virtual void ResumeConsumption(const InputChannelInfo& channelInfo) = 0;
     virtual void acknowledgeAllRecordsProcessed(const InputChannelInfo& channelInfo) = 0;
     virtual std::shared_ptr<InputChannel> getChannel(int channelIndex) = 0;
 
@@ -45,9 +52,9 @@ public:
     std::shared_ptr<CompletableFuture> getPriorityEventAvailableFuture();
 
     virtual void setup() = 0;
-    virtual void requestPartitions() = 0;
+    virtual void RequestPartitions() = 0;
     virtual std::shared_ptr<CompletableFuture> getStateConsumedFuture() = 0;
-    virtual void finishReadRecoveredState() = 0;
+    virtual void FinishReadRecoveredState() = 0;
 
 protected:
     AvailabilityHelper availabilityHelper;

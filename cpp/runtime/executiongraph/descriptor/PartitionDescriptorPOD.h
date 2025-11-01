@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #ifndef PARTITIONDESCRIPTORPOD_H
@@ -25,6 +32,7 @@ public:
         : resultId(resultId), totalNumberOfPartitions(totalNumberOfPartitions), partitionId(partitionId), partitionType(partitionType), numberOfSubpartitions(numberOfSubpartitions), connectionIndex(connectionIndex) {}
 
     // Copy constructor
+    PartitionDescriptorPOD &operator=(const PartitionDescriptorPOD&) = delete;
     PartitionDescriptorPOD(const PartitionDescriptorPOD& other) = default;
 
     // Getters
@@ -36,22 +44,22 @@ public:
     int getConnectionIndex() const { return connectionIndex; }
 
     // Setters
-    void setResultId(const AbstractIDPOD& resultId) { this->resultId = resultId; }
-    void setTotalNumberOfPartitions(int totalNumberOfPartitions) { this->totalNumberOfPartitions = totalNumberOfPartitions; }
-    void setPartitionId(const IntermediateResultPartitionIDPOD& partitionId) { this->partitionId = partitionId; }
-    void setPartitionType(int partitionType) { this->partitionType = partitionType; }
-    void setNumberOfSubpartitions(int numberOfSubpartitions) { this->numberOfSubpartitions = numberOfSubpartitions; }
-    void setConnectionIndex(int connectionIndex) { this->connectionIndex = connectionIndex; }
+    void setResultId(const AbstractIDPOD& resultId_) { this->resultId = resultId_; }
+    void setTotalNumberOfPartitions(int totalNumberOfPartitions_) { this->totalNumberOfPartitions = totalNumberOfPartitions_; }
+    void setPartitionId(const IntermediateResultPartitionIDPOD& partitionId_) { this->partitionId = partitionId_; }
+    void setPartitionType(int partitionType_) { this->partitionType = partitionType_; }
+    void setNumberOfSubpartitions(int numberOfSubpartitions_) { this->numberOfSubpartitions = numberOfSubpartitions_; }
+    void setConnectionIndex(int connectionIndex_) { this->connectionIndex = connectionIndex_; }
 
     bool operator==(const PartitionDescriptorPOD& other) const
     {
         return
-        resultId == other.getResultId() &&
-            totalNumberOfPartitions==other.getTotalNumberOfPartitions() &&
+                resultId == other.getResultId() &&
+                totalNumberOfPartitions == other.getTotalNumberOfPartitions() &&
                 partitionId == other.getPartitionId() &&
-                    partitionType==other.getPartitionType() &&
-                        numberOfSubpartitions==other.getNumberOfSubpartitions() &&
-                            connectionIndex==other.getConnectionIndex();
+                partitionType == other.getPartitionType() &&
+                numberOfSubpartitions == other.getNumberOfSubpartitions() &&
+                connectionIndex == other.getConnectionIndex();
     }
     // toString method
     std::string toString() const

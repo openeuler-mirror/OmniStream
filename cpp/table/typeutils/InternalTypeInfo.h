@@ -1,3 +1,13 @@
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
 
 #ifndef FLINK_TNEL_INTERNALTYPEINFO_H
 #define FLINK_TNEL_INTERNALTYPEINFO_H
@@ -8,11 +18,10 @@
 #include "../types/logical/RowType.h"
 
 class InternalTypeInfo : public TypeInformation {
-
 public:
     InternalTypeInfo(LogicalType *type, TypeSerializer *typeSerializer);
 
-    TypeSerializer *createTypeSerializer(std::string) override;
+    TypeSerializer *createTypeSerializer() override;
 
     std::string name() override;
 
@@ -20,20 +29,18 @@ public:
 
     static InternalTypeInfo *of(LogicalType *type);
 
-    static InternalTypeInfo *OfRowType(omnistream::RowType *type);
+    static InternalTypeInfo *ofRowType(omnistream::RowType *type);
 
     static InternalTypeInfo *INT_TYPE;
 
-    //omniruntime::type::DataTypeId getDataId() const override { return typeSerializer == nullptr? type_ == nullptr ? omniruntime::type::OMNI_INVALID : static_cast<omniruntime::type::DataTypeId>(type_->getTypeId()) : typeSerializer->getDataId();};
-
-    TypeSerializer* getTypeSerializer()
+    TypeSerializer* getTypeSerializer() override
     {
         return typeSerializer;
     }
 
     BackendDataType getBackendId() const override
     {
-        if(typeSerializer != nullptr) {
+        if (typeSerializer != nullptr) {
             return typeSerializer->getBackendId();
         } else {
             return BackendDataType::INVALID_BK;
@@ -47,13 +54,4 @@ private:
 };
 
 
-#endif //FLINK_TNEL_INTERNALTYPEINFO_H
-
-
-/**
-*   {
-        final Class<?> typeClass = LogicalTypeUtils.toInternalConversionClass(type);
-        final TypeSerializer<?> serializer = InternalSerializers.create(type);
-        return (InternalTypeInfo<T>) new InternalTypeInfo(type, typeClass, serializer);
-    }
-*/
+#endif

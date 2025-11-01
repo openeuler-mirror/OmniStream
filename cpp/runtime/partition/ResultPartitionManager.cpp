@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 
@@ -14,11 +21,13 @@ ResultPartitionManager::ResultPartitionManager() : registeredPartitions(), isShu
 {
 }
 
-ResultPartitionManager::~ResultPartitionManager() {
+ResultPartitionManager::~ResultPartitionManager()
+{
     shutdown();
 }
 
-void ResultPartitionManager::registerResultPartition(std::shared_ptr<ResultPartition> partition) {
+void ResultPartitionManager::registerResultPartition(std::shared_ptr<ResultPartition> partition)
+{
     std::cout<<"ResultPartitionManager::registerResultPartition: "<<partition.use_count()<<std::endl;
     std::lock_guard<std::recursive_mutex> lock(mutex_);
     if (isShutdown) {
@@ -28,16 +37,16 @@ void ResultPartitionManager::registerResultPartition(std::shared_ptr<ResultParti
     auto result = registeredPartitions.insert({partition->getPartitionId(), partition});
     if (!result.second) {
         THROW_RUNTIME_ERROR("Result partition already registered.")
-        //throw std::runtime_error("Result partition already registered.");
     }
 
-    LOG_PART( "Registered " << partition->toString() << std::endl)
+    LOG_PART("Registered " << partition->toString() << std::endl)
 }
 
 std::shared_ptr<ResultSubpartitionView> ResultPartitionManager::createSubpartitionView(
     const ResultPartitionIDPOD& partitionId,
     int subpartitionIndex,
-    std::shared_ptr<BufferAvailabilityListener> availabilityListener) {
+    std::shared_ptr<BufferAvailabilityListener> availabilityListener)
+{
     LOG("Requesting subpartition " << subpartitionIndex << " of " << partitionId.toString() << std::endl)
 
     LOCK_BEFORE()
@@ -50,12 +59,13 @@ std::shared_ptr<ResultSubpartitionView> ResultPartitionManager::createSubpartiti
     }
 
     std::shared_ptr<ResultPartition> partition = it->second;
-    LOG_PART( "Requesting subpartition " << subpartitionIndex << " of " << partition->toString() << std::endl)
+    LOG_PART("Requesting subpartition " << subpartitionIndex << " of " << partition->toString() << std::endl)
 
     return partition->createSubpartitionView(subpartitionIndex, availabilityListener);
 }
 
-void ResultPartitionManager::releasePartition(const ResultPartitionIDPOD& partitionId, std::optional<std::exception_ptr>  cause) {
+void ResultPartitionManager::releasePartition(const ResultPartitionIDPOD& partitionId, std::optional<std::exception_ptr>  cause)
+{
     std::lock_guard<std::recursive_mutex> lock(mutex_);
     auto it = registeredPartitions.find(partitionId);
     if (it != registeredPartitions.end()) {
@@ -66,7 +76,8 @@ void ResultPartitionManager::releasePartition(const ResultPartitionIDPOD& partit
     }
 }
 
-void ResultPartitionManager::shutdown() {
+void ResultPartitionManager::shutdown()
+{
     std::lock_guard<std::recursive_mutex> lock(mutex_);
     std::cout << "Releasing " << registeredPartitions.size() << " partitions because of shutdown." << std::endl;
 
@@ -79,7 +90,8 @@ void ResultPartitionManager::shutdown() {
     std::cout << "Successful shutdown." << std::endl;
 }
 
-void ResultPartitionManager::onConsumedPartition(std::shared_ptr<ResultPartition> partition) {
+void ResultPartitionManager::onConsumedPartition(std::shared_ptr<ResultPartition> partition)
+{
     std::lock_guard<std::recursive_mutex> lock(mutex_);
     auto it = registeredPartitions.find(partition->getPartitionId());
     if (it != registeredPartitions.end() && it->second == partition) {
@@ -89,7 +101,8 @@ void ResultPartitionManager::onConsumedPartition(std::shared_ptr<ResultPartition
     }
 }
 
-std::vector<ResultPartitionIDPOD> ResultPartitionManager::getUnreleasedPartitions() {
+std::vector<ResultPartitionIDPOD> ResultPartitionManager::getUnreleasedPartitions()
+{
     std::lock_guard<std::recursive_mutex> lock(mutex_);
     std::vector<ResultPartitionIDPOD> result;
     for (const auto& pair : registeredPartitions) {

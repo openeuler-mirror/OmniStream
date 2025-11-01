@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #ifndef VECTORBATCHBUFFER_H
@@ -9,14 +16,18 @@
 namespace omnistream {
 class VectorBatchBuffer : public ObjectBuffer, public std::enable_shared_from_this<VectorBatchBuffer> {
 public:
-    VectorBatchBuffer(std::shared_ptr<ObjectSegment> segment, std::shared_ptr<ObjectBufferRecycler> recycle);
+    VectorBatchBuffer(std::shared_ptr<ObjectSegment> segment, std::shared_ptr<BufferRecycler> recycler);
 
-    VectorBatchBuffer(std::shared_ptr<ObjectSegment> segment) : objectSegment(segment), recycler(nullptr)
+    explicit VectorBatchBuffer(std::shared_ptr<ObjectSegment> segment) : objectSegment(segment), recycler(nullptr)
     {
         bufferType = 0;
+        event_type = -1;
+        readerIndex_ = -1;
+        isCompressed_ = false;
     }
 
-    VectorBatchBuffer(int event_) : objectSegment(nullptr), recycler(nullptr)
+    explicit VectorBatchBuffer(int event_) : objectSegment(nullptr), recycler(nullptr), isCompressed_(false),
+        readerIndex_(-1)
     {
         // only use for event type
         bufferType  = 1;
@@ -60,7 +71,7 @@ public:
         return isRecycled_;
     }
 
-    std::shared_ptr<ObjectBuffer> RetainBuffer() override
+    std::shared_ptr<Buffer> RetainBuffer() override
     {
         LOG_TRACE("retain ")
         LOG_PART(
@@ -71,13 +82,13 @@ public:
         return shared_from_this();
     }
 
-    std::shared_ptr<ObjectBuffer> ReadOnlySlice() override
+    std::shared_ptr<Buffer> ReadOnlySlice() override
     {
         LOG_TRACE("ReadOnlySlice  ")
         return shared_from_this();
     }
 
-    std::shared_ptr<ObjectBuffer> ReadOnlySlice(int index, int length) override;
+    std::shared_ptr<Buffer> ReadOnlySlice(int index, int length) override;
 
     int GetMaxCapacity() const override
     {
@@ -123,8 +134,7 @@ public:
     {
         if (bufferType == 0) {
             return ObjectBufferDataType::DATA_BUFFER;
-        }
-        else {
+        } else {
             return ObjectBufferDataType::EVENT_BUFFER;
         }
     }
@@ -144,11 +154,14 @@ public:
     };
 
     std::shared_ptr<ObjectSegment> GetObjectSegment() override;
-    std::shared_ptr<ObjectBufferRecycler> GetRecycler() override;
+    std::shared_ptr<BufferRecycler> GetRecycler() override;
 
-    std::pair<uint8_t*, size_t> GetBytes() override { NOT_IMPL_EXCEPTION };
+    std::pair<uint8_t*, size_t> GetBytes() override
+    {
+        NOT_IMPL_EXCEPTION
+    };
 
-    [[nodiscard]] int EventType() const
+    [[nodiscard]] int EventType() const override
     {
         return event_type;
     }
@@ -161,14 +174,14 @@ public:
         return res;
     }
 
-    int GetBufferType()
+    int GetBufferType() override
     {
         return bufferType;
     }
 
 private:
     std::shared_ptr<ObjectSegment> objectSegment;
-    std::shared_ptr<ObjectBufferRecycler> recycler;
+    std::shared_ptr<BufferRecycler> recycler;
     // ObjectBufferDataType dataType;
     int bufferType;  // 0 vectorbatch, 1. event  for now
 

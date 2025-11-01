@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 // InputChannel.cpp
@@ -18,7 +25,7 @@ InputChannel::InputChannel(std::shared_ptr<SingleInputGate> inputGate, int chann
                            ResultPartitionIDPOD partitionId, int initialBackoff,
                            int maxBackoff, std::shared_ptr<Counter> numBytesIn,
                            std::shared_ptr<Counter> numBuffersIn)
-    : channelInfo(InputChannelInfo(inputGate->getGateIndex(), channelIndex)),
+    : channelInfo(InputChannelInfo(inputGate->GetGateIndex(), channelIndex)),
       partitionId(partitionId), inputGate(inputGate), initialBackoff(initialBackoff),
       maxBackoff(maxBackoff), numBytesIn(numBytesIn), numBuffersIn(numBuffersIn),
       currentBackoff(initialBackoff == 0 ? -1 : 0) {
@@ -32,27 +39,33 @@ InputChannel::InputChannel(std::shared_ptr<SingleInputGate> inputGate, int chann
     }
 }
 
-int InputChannel::getChannelIndex() const {
+int InputChannel::getChannelIndex() const
+{
     return channelInfo.getInputChannelIdx();
 }
 
-InputChannelInfo InputChannel::getChannelInfo() const {
+InputChannelInfo InputChannel::getChannelInfo() const
+{
     return channelInfo;
 }
 
-ResultPartitionIDPOD InputChannel::getPartitionId() const {
+ResultPartitionIDPOD InputChannel::getPartitionId() const
+{
     return partitionId;
 }
 
-void InputChannel::notifyChannelNonEmpty() {
+void InputChannel::notifyChannelNonEmpty()
+{
     inputGate->notifyChannelNonEmpty(shared_from_this());
 }
 
-void InputChannel::notifyPriorityEvent(int priorityBufferNumber) {
+void InputChannel::notifyPriorityEvent(int priorityBufferNumber)
+{
     inputGate->notifyPriorityEvent(shared_from_this(), priorityBufferNumber);
 }
 
-void InputChannel::checkError() {
+void InputChannel::checkError()
+{
     if (exception_occurred) {
         auto t = cause;
         try {
@@ -69,9 +82,10 @@ void InputChannel::checkError() {
     }
 }
 
-void InputChannel::setError(std::exception_ptr cause) {
+void InputChannel::setError(std::exception_ptr cause_)
+{
     std::lock_guard<std::mutex> lock(exception_mutex);
-    this->cause = std::move(cause);
+    this->cause = std::move(cause_);
     exception_occurred.store(true);
     notifyChannelNonEmpty();
     /**
@@ -81,11 +95,13 @@ void InputChannel::setError(std::exception_ptr cause) {
     */
 }
 
-int InputChannel::getCurrentBackoff() const {
+int InputChannel::getCurrentBackoff() const
+{
     return currentBackoff <= 0 ? 0 : currentBackoff;
 }
 
-bool InputChannel::increaseBackoff() {
+bool InputChannel::increaseBackoff()
+{
     if (currentBackoff < 0) {
         return false;
     }

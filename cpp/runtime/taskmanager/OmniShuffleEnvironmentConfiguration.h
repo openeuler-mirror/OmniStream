@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #ifndef OMNISHUFFLEENVIRONMENTCONFIGURATION_H
@@ -17,7 +24,7 @@ namespace omnistream {
                                                     networkBuffersPerChannel(0),
                                                     partitionRequestMaxBackoff(0),
                                                     sortShuffleMinBuffers(0),
-                                                    sortShuffleMinParallelism(0){
+                                                    sortShuffleMinParallelism(0) {
             }
 
             // Full argument constructor
@@ -30,14 +37,14 @@ namespace omnistream {
                                                 int floatingNetworkBuffersPerGate,
                                                 int sortShuffleMinBuffers,
                                                 int sortShuffleMinParallelism)
-                    : numNetworkBuffers(numNetworkBuffers), networkBufferSize(networkBufferSize),
-                      requestSegmentsTimeoutMillis(requestSegmentsTimeoutMillis),
-                      networkBuffersPerChannel(networkBuffersPerChannel),
-                      partitionRequestMaxBackoff(partitionRequestMaxBackoff),
-                      partitionRequestInitialBackoff(partitionRequestInitialBackoff),
-                      floatingNetworkBuffersPerGate(floatingNetworkBuffersPerGate),
-                    sortShuffleMinBuffers(sortShuffleMinBuffers),
-                    sortShuffleMinParallelism(sortShuffleMinParallelism){
+                : numNetworkBuffers(numNetworkBuffers), networkBufferSize(networkBufferSize),
+                  requestSegmentsTimeoutMillis(requestSegmentsTimeoutMillis),
+                  networkBuffersPerChannel(networkBuffersPerChannel),
+                  partitionRequestMaxBackoff(partitionRequestMaxBackoff),
+                  partitionRequestInitialBackoff(partitionRequestInitialBackoff),
+                  floatingNetworkBuffersPerGate(floatingNetworkBuffersPerGate),
+                  sortShuffleMinBuffers(sortShuffleMinBuffers),
+                  sortShuffleMinParallelism(sortShuffleMinParallelism) {
             }
 
             // Copy constructor
@@ -49,25 +56,45 @@ namespace omnistream {
                   partitionRequestInitialBackoff(other.partitionRequestInitialBackoff),
                   floatingNetworkBuffersPerGate(other.floatingNetworkBuffersPerGate),
                   sortShuffleMinBuffers(other.sortShuffleMinBuffers),
-                  sortShuffleMinParallelism(other.sortShuffleMinParallelism){
+                  sortShuffleMinParallelism(other.sortShuffleMinParallelism) {
+            }
+
+            OmniShuffleEnvironmentConfiguration& operator=(const OmniShuffleEnvironmentConfiguration& other)
+            {
+                if (this != &other) {
+                    numNetworkBuffers = other.numNetworkBuffers;
+                    networkBufferSize = other.networkBufferSize;
+                    requestSegmentsTimeoutMillis = other.requestSegmentsTimeoutMillis;
+                    networkBuffersPerChannel = other.networkBuffersPerChannel;
+                    partitionRequestMaxBackoff = other.partitionRequestMaxBackoff;
+                    partitionRequestInitialBackoff = other.partitionRequestInitialBackoff;
+                    floatingNetworkBuffersPerGate = other.floatingNetworkBuffersPerGate;
+                    sortShuffleMinBuffers = other.sortShuffleMinBuffers;
+                    sortShuffleMinParallelism = other.sortShuffleMinParallelism;
+                }
+                return *this;
             }
 
             // Getters
             int getNumNetworkBuffers() const { return numNetworkBuffers; }
             int getNetworkBufferSize() const { return networkBufferSize; }
             long getRequestSegmentsTimeoutMillis() const { return requestSegmentsTimeoutMillis; }
-            int getNetworkBuffersPerChannel() const {
+            int getNetworkBuffersPerChannel() const
+            {
                 return networkBuffersPerChannel;
             }
 
-            int getPartitionRequestMaxBackoff() const {
+            int getPartitionRequestMaxBackoff() const
+            {
                 return partitionRequestMaxBackoff;
             }
-            int getFloatingNetworkBuffersPerGate() const {
+            int getFloatingNetworkBuffersPerGate() const
+            {
                 return floatingNetworkBuffersPerGate;
             }
 
-            int getPartitionRequestInitialBackoff() const {
+            int getPartitionRequestInitialBackoff() const
+            {
                 return partitionRequestInitialBackoff;
             }
 
@@ -81,25 +108,30 @@ namespace omnistream {
                 return sortShuffleMinParallelism;
             }
             // Setters
-            void setNumNetworkBuffers(int numNetworkBuffers) { this->numNetworkBuffers = numNetworkBuffers; }
-            void setNetworkBufferSize(int networkBufferSize) { this->networkBufferSize = networkBufferSize; }
+            void setNumNetworkBuffers(int numNetworkBuffers_) { this->numNetworkBuffers = numNetworkBuffers_; }
+            void setNetworkBufferSize(int networkBufferSize_) { this->networkBufferSize = networkBufferSize_; }
 
-            void setRequestSegmentsTimeoutMillis(long requestSegmentsTimeoutMillis) {
-                this->requestSegmentsTimeoutMillis = requestSegmentsTimeoutMillis;
+            void setRequestSegmentsTimeoutMillis(long requestSegmentsTimeoutMillis_)
+            {
+                this->requestSegmentsTimeoutMillis = requestSegmentsTimeoutMillis_;
             }
-            void setNetworkBuffersPerChannel(int networkBuffersPerChannel) {
-                this->networkBuffersPerChannel = networkBuffersPerChannel;
+            void setNetworkBuffersPerChannel(int networkBuffersPerChannel_)
+            {
+                this->networkBuffersPerChannel = networkBuffersPerChannel_;
             }
-            void setPartitionRequestMaxBackoff(int partitionRequestMaxBackoff) {
-                this->partitionRequestMaxBackoff = partitionRequestMaxBackoff;
+            void setPartitionRequestMaxBackoff(int partitionRequestMaxBackoff_)
+            {
+                this->partitionRequestMaxBackoff = partitionRequestMaxBackoff_;
             }
 
-            void setPartitionRequestInitialBackoff(int partitionRequestInitialBackoff) {
-                this->partitionRequestInitialBackoff = partitionRequestInitialBackoff;
+            void setPartitionRequestInitialBackoff(int partitionRequestInitialBackoff_)
+            {
+                this->partitionRequestInitialBackoff = partitionRequestInitialBackoff_;
             }
 
-            void setFloatingNetworkBuffersPerGate(int floatingNetworkBuffersPerGate) {
-                this->floatingNetworkBuffersPerGate=floatingNetworkBuffersPerGate;
+            void setFloatingNetworkBuffersPerGate(int floatingNetworkBuffersPerGate_)
+            {
+                this->floatingNetworkBuffersPerGate = floatingNetworkBuffersPerGate_;
             }
 
             void SetsortShuffleMinParallelism(int newsortShuffleMinParallelism)
@@ -113,7 +145,8 @@ namespace omnistream {
             }
 
             // toString method
-            std::string toString() const {
+            std::string toString() const
+            {
                 return "OmniShuffleEnvironmentConfiguration{ numNetworkBuffers=" + std::to_string(numNetworkBuffers) +
                        ", networkBufferSize=" + std::to_string(networkBufferSize) +
                        ", requestSegmentsTimeoutMillis=" + std::to_string(requestSegmentsTimeoutMillis) +
@@ -143,20 +176,4 @@ namespace omnistream {
 }
 
 
-#endif //OMNISHUFFLEENVIRONMENTCONFIGURATION_H
-/***
- *
-*        NettyShuffleEnvironmentConfiguration networkConfig =
-                NettyShuffleEnvironmentConfiguration.fromConfiguration(
-                        shuffleEnvironmentContext.getConfiguration(),
-                        shuffleEnvironmentContext.getNetworkMemorySize(),
-                        shuffleEnvironmentContext.isLocalCommunicationOnly(),
-                        shuffleEnvironmentContext.getHostAddress());
-        return createNettyShuffleEnvironment(
-                networkConfig,
-                shuffleEnvironmentContext.getTaskExecutorResourceId(),
-                shuffleEnvironmentContext.getEventPublisher(),
-                shuffleEnvironmentContext.getParentMetricGroup(),
-                shuffleEnvironmentContext.getIoExecutor());
-    }
- */
+#endif

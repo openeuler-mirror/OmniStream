@@ -1,12 +1,12 @@
 #ifndef FLINK_TNEL_OUTPUTTEST_H
 #define FLINK_TNEL_OUTPUTTEST_H
 
-#include "core/io/RecordWriterOutput.h"
-#include "core/operators/Output.h"
-#include "core/streamrecord/StreamRecord.h"
-#include "table/Row.h"
+#include "streaming/runtime/io/RecordWriterOutput.h"
+#include "streaming/api/operators/Output.h"
+#include "streaming/runtime/streamrecord/StreamRecord.h"
+#include "table/data/Row.h"
 #include "table/data/GenericRowData.h"
-#include "table/vectorbatch/VectorBatch.h"
+#include "table/data/vectorbatch/VectorBatch.h"
 // Instancing an Output view to retrieve records
 class OutputTest : public Output {
 private:

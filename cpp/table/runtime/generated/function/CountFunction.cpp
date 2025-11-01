@@ -1,3 +1,13 @@
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
 #include "CountFunction.h"
 
 bool CountFunction::equaliser(BinaryRowData *r1, BinaryRowData *r2)
@@ -44,15 +54,13 @@ void CountFunction::accumulate(RowData *accInput)
     }
     if (shouldDoAccumulate) {
         if (aggIdx == -1 && valueIndex == -1) {
-            //count(*) (from count_retract) case
             aggCount++;
             valueIsNull = false;
         } else {
             bool isFieldNull = accInput->isNullAt(aggIdx);
-
             if (!isFieldNull) {
                 if (!valueIsNull) {
-                    //input data not null and aggCount not null, aggCount++
+                    // input data not null and aggCount not null, aggCount++
                     aggCount++;
                 } else {
                     aggCount = 1L;
@@ -156,7 +164,7 @@ void CountFunction::setAccumulators(RowData *acc)
 
 void CountFunction::resetAccumulators()
 {
-    aggCount = ((long)0L);
+    aggCount = (static_cast<long>(0L));
     valueIsNull = false;
     LOG("Reset Acc. Count:  " << aggCount << " countIsNull: " << valueIsNull);
 }
@@ -188,10 +196,9 @@ void CountFunction::getValue(BinaryRowData *newAggValue)
 {
     LOG("newAggValue->getArity : " << newAggValue->getArity());
     LOG("valueIndex : " <<valueIndex);
-    //if valueIndex == 1. it means a count(*) from count_retract
     if (valueIndex != -1) {
         if (valueIsNull) {
-            LOG("setNullAt " );
+            LOG("setNullAt ");
             newAggValue->setNullAt(valueIndex);
         } else {
             LOG("setLong aggCount :"  << aggCount);

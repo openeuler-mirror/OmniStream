@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 #ifndef INTERNALTIMERSERVICEIMPL_H
 #define INTERNALTIMERSERVICEIMPL_H
@@ -7,16 +14,16 @@
 #pragma once
 
 #include <climits>
-#include "functions/Watermark.h"
+#include "streaming/api/watermark/Watermark.h"
 #include "runtime/state/KeyGroupRange.h"
 #include "runtime/state/InternalKeyContextImpl.h"
 #include <queue>
-#include "TimerHeapInternalTimer.h"
+#include "streaming/api/operators/TimerHeapInternalTimer.h"
 #include "InternalTimerService.h"
 #include "runtime/state/heap/HeapPriorityQueueSet.h"
 #include "streaming/api/operators/Triggerable.h"
 #include "streaming/runtime/tasks/ProcessingTimeService.h"
-#include "core/operators/KeyContext.h"
+#include "streaming/api/operators/KeyContext.h"
 #include "InternalTimersSnapshot.h"
 #include <cstdint>
 #include <functional>
@@ -45,12 +52,7 @@ public:
         HeapPriorityQueueSet<TimerHeapInternalTimer<K, N> *, MinHeapComparator<K, N>> *processingTimeTimersQueue,
         HeapPriorityQueueSet<TimerHeapInternalTimer<K, N> *, MinHeapComparator<K, N>> *eventTimeTimersQueue);
 
-    ~InternalTimerServiceImpl() override
-    {
-        delete localKeyGroupRange;
-        delete processingTimeTimersQueue;
-        delete eventTimeTimersQueue;
-    };
+    ~InternalTimerServiceImpl() override;
     long currentProcessingTime() override;
     long currentWatermark() override;
     void advanceWatermark(long time) override;
@@ -61,19 +63,19 @@ public:
     void registerEventTimeTimer(N nameSpace, long time);
     void deleteEventTimeTimer(N nameSpace, long time);
 private:
-    KeyContext<K> *keyContext;
-    ProcessingTimeService *processingTimeService{};
-    KeyGroupRange *localKeyGroupRange{};
-    HeapPriorityQueueSet<TimerHeapInternalTimer<K, N> *, MinHeapComparator<K, N>> *processingTimeTimersQueue;
-    HeapPriorityQueueSet<TimerHeapInternalTimer<K, N> *, MinHeapComparator<K, N>> *eventTimeTimersQueue;
+    KeyContext<K> *keyContext = nullptr;
+    ProcessingTimeService *processingTimeService = nullptr;
+    KeyGroupRange *localKeyGroupRange = nullptr;
+    HeapPriorityQueueSet<TimerHeapInternalTimer<K, N> *, MinHeapComparator<K, N>> *processingTimeTimersQueue = nullptr;
+    HeapPriorityQueueSet<TimerHeapInternalTimer<K, N> *, MinHeapComparator<K, N>> *eventTimeTimersQueue = nullptr;
 
     InternalTimersSnapshot<K, N> restoredTimersSnapshot;
     int localKeyGroupRangeStartIndex{};
     long currentWatermarkValue = LONG_MIN;
 
-    Triggerable<K, N> *triggerTarget;
-    TypeSerializer *keySerializer{};
-    TypeSerializer *namespaceSerializer{};
+    Triggerable<K, N> *triggerTarget = nullptr;
+    TypeSerializer *keySerializer = nullptr;
+    TypeSerializer *namespaceSerializer = nullptr;
     bool isInitialized{};
     void OnProcessingTime(int64_t time) override;
 };
@@ -92,6 +94,23 @@ InternalTimerServiceImpl<K, N>::InternalTimerServiceImpl(KeyGroupRange *localKey
     this->keySerializer = nullptr;
     this->namespaceSerializer = nullptr;
     this->triggerTarget = nullptr;
+}
+
+template <typename K, typename N>
+InternalTimerServiceImpl<K, N>::~InternalTimerServiceImpl()
+{
+    if (namespaceSerializer != nullptr) {
+        delete namespaceSerializer;
+        namespaceSerializer = nullptr;
+    }
+    if (processingTimeTimersQueue != nullptr) {
+        delete processingTimeTimersQueue;
+        processingTimeTimersQueue = nullptr;
+    }
+    if (eventTimeTimersQueue != nullptr) {
+        delete eventTimeTimersQueue;
+        eventTimeTimersQueue = nullptr;
+    }
 }
 
 template <typename K, typename N>
@@ -119,6 +138,7 @@ void InternalTimerServiceImpl<K, N>::advanceWatermark(long time)
         LOG_PRINTF(
             "InternalTimerServiceImpl: to trigger key %ld, timestamp %ld", timer->getKey(), timer->getTimestamp());
         triggerTarget->onEventTime(timer);
+        delete timer;
         timer = eventTimeTimersQueue->peek();
     }
 }

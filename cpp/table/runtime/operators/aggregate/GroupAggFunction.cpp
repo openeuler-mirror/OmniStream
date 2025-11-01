@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 #include "GroupAggFunction.h"
 #include "table/typeutils/BinaryRowDataSerializer.h"
@@ -108,9 +115,9 @@ void GroupAggFunction::open(const Configuration& parameters)
     LOG("GroupAggFunction open() running")
     // Init HeapValueState
     omnistream::RowType accRowType(true, this->accTypes);
-    auto accRowTypeInfo = InternalTypeInfo::OfRowType(&accRowType);
+    auto accRowTypeInfo = InternalTypeInfo::ofRowType(&accRowType);
     std::string accStateName = "accState";
-    ValueStateDescriptor *accDesc = new ValueStateDescriptor(accStateName, accRowTypeInfo);
+    ValueStateDescriptor<RowData*> *accDesc = new ValueStateDescriptor<RowData*>(accStateName, accRowTypeInfo);
     accDesc->SetStateSerializer(accRowTypeInfo->getTypeSerializer());
 
     // This kind of specific template type should all be solved by an if-else based on stateDescription
@@ -204,11 +211,11 @@ JoinedRowData* GroupAggFunction::getResultRow()
     return resultRow;
 }
 
-void GroupAggFunction::processElement(RowData& input, Context& ctx, TimestampedCollector& out)
+void GroupAggFunction::processElement(RowData* input, Context* ctx, TimestampedCollector* out)
 {
     bool firstRow;
     bool isEqual = true;
-    RowData* currentKey = ctx.getCurrentKey();
+    RowData* currentKey = ctx->getCurrentKey();
     RowData* accumulators = accState->value();
 
     if (accumulators == nullptr) {
@@ -218,9 +225,9 @@ void GroupAggFunction::processElement(RowData& input, Context& ctx, TimestampedC
             throw std::runtime_error("current key is nullptr");
         }
         RowData* updatedKey = currentKey->copy();
-        ctx.setCurrentKey(updatedKey);
+        ctx->setCurrentKey(updatedKey);
         currentKey = updatedKey;
-        if (RowDataUtil::isRetractMsg(input.getRowKind())) {
+        if (RowDataUtil::isRetractMsg(input->getRowKind())) {
             return;
         }
         firstRow = true;
@@ -242,16 +249,45 @@ void GroupAggFunction::processElement(RowData& input, Context& ctx, TimestampedC
     for (int i = 0; i < aggregateCallsCount; ++i) {
         // Fill reUsePrevAggValue with current value
         functions[i]->getValue(reUsePrevAggValue);
-        if (RowDataUtil::isAccumulateMsg(input.getRowKind())) {
-            functions[i]->accumulate(&input);
+        if (RowDataUtil::isAccumulateMsg(input->getRowKind())) {
+            functions[i]->accumulate(input);
         } else {
-            functions[i]->retract(&input);
+            functions[i]->retract(input);
         }
         functions[i]->getValue(reUseNewAggValue);
         functions[i]->getAccumulators(reinterpret_cast<BinaryRowData*>(accumulators));
     }
-    
-    AssembleResultForElement(accumulators, isEqual, firstRow, currentKey, out);
+
+    if (!recordCounter->recordCountIsZero(accumulators)) {
+        // Flink update accumulators in state here. But since we directly take the RowData* and updates in getAccumulator, the value in statebackend is already updated!
+        if (!firstRow) {
+            for (int i = 0; i < aggregateCallsCount; i++) {
+                if (!functions[i]->equaliser(reUsePrevAggValue, reUseNewAggValue)) {
+                    isEqual = false;
+                    break;
+                }
+            }
+            if (stateRetentionTime <= 0 && isEqual) {
+                return;
+            }
+
+            if (generateUpdateBefore) {
+                resultRow->replace(currentKey, reUsePrevAggValue)->setRowKind(RowKind::UPDATE_BEFORE);
+                out->collect(resultRow);
+            }
+
+            resultRow->replace(currentKey, reUseNewAggValue)->setRowKind(RowKind::UPDATE_AFTER);
+        } else {
+            resultRow->replace(currentKey, reUseNewAggValue)->setRowKind(RowKind::INSERT);
+        }
+        out->collect(resultRow);
+    } else {
+        if (!firstRow) {
+            resultRow->replace(currentKey, reUsePrevAggValue)->setRowKind(RowKind::DELETE);
+            out->collect(resultRow);
+        }
+        accState->clear();
+    }
 }
 
 void GroupAggFunction::processBatchColumnar(omnistream::VectorBatch *input, const std::vector<RowInfo> &groupInfo,
@@ -284,7 +320,6 @@ void GroupAggFunction::processBatchColumnar(omnistream::VectorBatch *input, cons
         function->getValue(reUseNewAggValue);
         function->getAccumulators(reinterpret_cast<BinaryRowData*>(accumulators));
     }
-    static_cast<HeapValueState<RowData*, VoidNamespace, RowData*> *>(accState)->update(accumulators);
 }
 
 void GroupAggFunction::processBatch(omnistream::VectorBatch *input, KeyedProcessFunction<RowData *,
@@ -318,13 +353,13 @@ void GroupAggFunction::processBatch(omnistream::VectorBatch *input, KeyedProcess
         } else {
             firstRow = false;
         }
-        LOG("will setAccumulators ")
         for (auto& func : functions) {
             func->setAccumulators(accumulators);
         }
         processBatchColumnar(input, groupInfo, accumulators);
         LOG("functions loop aggregateCallsCount end")
         AssembleResultForBatch(accumulators, isEqual, firstRow, currentKey, resultKeys, resultValues, resultRowKinds);
+        delete copyKey;
     }
     ClearEnv(input, resultKeys, resultValues, resultRowKinds, out, keyToRowIndices);
     LOG("GroupAggFunction processBatch end")
@@ -510,6 +545,7 @@ void GroupAggFunction::AssembleResultForBatch(RowData* accumulators, bool isEqua
                                               std::vector<RowKind>& resultRowKinds)
 {
     if (!recordCounter->recordCountIsZero(accumulators)) {
+        static_cast<HeapValueState<RowData*, VoidNamespace, RowData*> *>(accState)->update(accumulators);
         // Flink update accumulators in state here. But since we directly take the RowData* and updates in getAccumulator, the value in statebackend is already updated!
         if (!firstRow) {
             if (EndAssemble(isEqual)) {
@@ -547,6 +583,7 @@ void GroupAggFunction::FillRowIndices(omnistream::VectorBatch *input,
         auto it = keyToRowIndices.find(key);
         if (it != keyToRowIndices.end()) {
             it->second.push_back(RowInfo{rowIndex, rowKind});
+            delete key;
         } else {
             keyToRowIndices[key] = {RowInfo{rowIndex, rowKind}};
         }

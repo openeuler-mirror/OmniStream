@@ -10,11 +10,10 @@ TEST(CopyOnWriteStateTableTest, InitTest)
     IntSerializer *ser = IntSerializer::INSTANCE;
     InternalKeyContextImpl<int> *context = new InternalKeyContextImpl<int>(new KeyGroupRange(0, 2), 3);
     RegisteredKeyValueStateBackendMetaInfo *metaInfo = new RegisteredKeyValueStateBackendMetaInfo("metaInfo", ser, ser);
-    CopyOnWriteStateTable<int, int, int> table(context, metaInfo, ser);
+    CopyOnWriteStateTable<int, int, int> table(context, metaInfo, ser); // metaInfo delete when table delete
     EXPECT_EQ(table.isEmpty(), true);
     EXPECT_EQ(table.getKeyGroupOffset(), 0);
     delete context;
-    delete metaInfo;
 }
 
 // TEST(CopyOnWriteStateTableTest, PutAndGetTest)
@@ -52,7 +51,6 @@ TEST(CopyOnWriteStateTableTest, PutAndGetTest)
     }
     EXPECT_EQ(table.size(), 10);
     delete context;
-    delete metaInfo;
 }
 
 // TEST(CopyOnWriteStateTableTest, IteratorTest)
@@ -93,5 +91,4 @@ TEST(CopyOnWriteStateTableTest, IteratorTest)
     }
     EXPECT_EQ(iteratorSet, compareSet);
     delete context;
-    delete metaInfo;
 }

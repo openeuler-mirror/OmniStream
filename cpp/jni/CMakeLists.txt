@@ -15,11 +15,15 @@ target_link_libraries(tnel PRIVATE ${JNI_LIBRARIES})
 #target_link_libraries(tnel PRIVATE core table  asan)
 
 target_link_libraries(tnel PRIVATE
+        -Wl,--whole-archive basictypes
+        -Wl,--whole-archive basicfunctions
+        -Wl,--whole-archive thirdlibrary
+        -Wl,--whole-archive kaccgson
         -Wl,--whole-archive core
         -Wl,--whole-archive table
         -Wl,--whole-archive runtime
         -Wl,--whole-archive datagen
-        -Wl,--whole-archive connector-kafka
+        -Wl,--whole-archive connector
         -Wl,--no-whole-archive streaming
         -Wl,--no-whole-archive )
 
@@ -41,7 +45,7 @@ if(EXISTS "${OMNIRUNTIME_LIB_DIR}/lib${ORT_VEC_SO}.a")
 endif()
 
 file(GLOB_RECURSE jni_cpp_files  ${CMAKE_CURRENT_SOURCE_DIR} "*.cpp")
-message(STATUS "All cpp files ${jni_cpp_files}")
+message(STATUS "All jni_cpp_files files ${jni_cpp_files}")
 
 set(SOURCES ${jni_cpp_files})
 
@@ -75,3 +79,10 @@ endfunction()
 
 # Call the function to print properties
 print_target_properties(tnel)
+
+install(
+        TARGETS tnel
+        LIBRARY DESTINATION lib
+        ARCHIVE DESTINATION lib
+        RUNTIME DESTINATION bin
+)

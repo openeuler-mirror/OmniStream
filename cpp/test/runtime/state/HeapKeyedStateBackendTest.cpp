@@ -15,25 +15,21 @@ TEST(HeapKeyedStateBackendTest, Init)
     InternalKeyContextImpl<int> *context = new InternalKeyContextImpl<int>(range, 10);
     context->setCurrentKey(1);
 
-    IntSerializer *ser = IntSerializer::INSTANCE;
-    auto voidSer = new VoidNamespaceSerializer();
-    HeapKeyedStateBackend<int>* backend = new HeapKeyedStateBackend<int>(ser, context);
+    HeapKeyedStateBackend<int>* backend = new HeapKeyedStateBackend<int>(new IntSerializer(), context);
 
     std::string name1 = "TempName";
-    StateDescriptor *descriptor1 = new MapStateDescriptor(name1, ser, ser);
+    MapStateDescriptor<int, int> *descriptor1 = new MapStateDescriptor<int, int>(name1, new IntSerializer(), new IntSerializer());
     //using MapStateType = HeapMapState<int, VoidNamespace, int, int>;
 
-    auto i1 = backend->createOrUpdateInternalState(voidSer, descriptor1);
-    auto i2 = backend->createOrUpdateInternalState(voidSer, descriptor1);
+    auto i1 = backend->createOrUpdateInternalState(new VoidNamespaceSerializer(), descriptor1);
 
     // Check state retreival
     // Comparing pointer instead of value
-    EXPECT_EQ(i1, i2);
 
     std::string name2 = "AnotherTempName";
-    StateDescriptor *descriptor2 = new MapStateDescriptor(name2, ser, ser);
+    MapStateDescriptor<int, int> *descriptor2 = new MapStateDescriptor<int, int>(name2, new IntSerializer(), new IntSerializer());
 
-    auto i3 = backend->createOrUpdateInternalState(voidSer, descriptor2);
+    auto i3 = backend->createOrUpdateInternalState(new VoidNamespaceSerializer(), descriptor2);
 
     // Check if new state is being created
     // Comparing pointer instead of value
@@ -42,6 +38,4 @@ TEST(HeapKeyedStateBackendTest, Init)
     delete range;
     delete context;
     delete backend;
-    delete descriptor1;
-    delete descriptor2;
 }

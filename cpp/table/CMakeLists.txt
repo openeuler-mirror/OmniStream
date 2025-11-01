@@ -28,9 +28,16 @@ target_link_libraries(table  PRIVATE
         ${ORT_CODEGEN_SO}
         xxHash::xxhash
 )
+target_link_libraries(table PUBLIC project_config)
 message(STATUS "${CMAKE_CXX_FLAGS}")
 
 if (JEMALLOC_LIB)
     target_link_libraries(table PRIVATE ${JEMALLOC_LIB})
 endif()
 
+install(
+        TARGETS table
+        LIBRARY DESTINATION lib
+        ARCHIVE DESTINATION lib
+        RUNTIME DESTINATION bin
+)

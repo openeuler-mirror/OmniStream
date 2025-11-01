@@ -72,7 +72,8 @@ TEST(StringTest, SetData) {
     std::string s = "hello";
     std::copy(s.data(), s.data() + s.size(), data);
     str.setData(data);
-    EXPECT_STREQ(str.getValue().data(), "hello");
+    std::string res(str.getValue().data(), s.size());
+    EXPECT_EQ(res, "hello");
     free(data);
 }
 

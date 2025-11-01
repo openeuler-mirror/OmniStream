@@ -32,4 +32,10 @@ if (JEMALLOC_LIB)
         target_link_libraries(core PRIVATE ${JEMALLOC_LIB})
 endif()
 
+install(
+        TARGETS datagen
+        LIBRARY DESTINATION lib
+        ARCHIVE DESTINATION lib
+        RUNTIME DESTINATION bin
+)
 

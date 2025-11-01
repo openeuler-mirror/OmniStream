@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #ifndef RESOURCEIDPOD_H
@@ -43,8 +50,8 @@ namespace omnistream {
         const std::string& getMetadata() const { return metadata; }
 
         // Setters
-        void setResourceId(const std::string& resourceId) { this->resourceId = resourceId; }
-        void setMetadata(const std::string& metadata) { this->metadata = metadata; }
+        void setResourceId(const std::string& resourceId_) { this->resourceId = resourceId_; }
+        void setMetadata(const std::string& metadata_) { this->metadata = metadata_; }
 
         // toString method
         std::string toString() const
@@ -61,8 +68,7 @@ namespace omnistream {
 
 } // namespace omnistream
 
-namespace std
-{
+namespace std {
     template <>
     struct hash<omnistream::ResourceIDPOD> {
         std::size_t operator()(const omnistream::ResourceIDPOD& obj) const

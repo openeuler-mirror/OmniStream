@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #ifndef STREAMEDGEPOD_H
@@ -86,19 +93,19 @@ public:
     }
 
     int getSourceId() const { return sourceId; }
-    void setSourceId(int sourceId) { this->sourceId = sourceId; }
+    void setSourceId(int sourceId_) { this->sourceId = sourceId_; }
 
     int getTargetId() const { return targetId; }
-    void setTargetId(int targetId) { this->targetId = targetId; }
+    void setTargetId(int targetId_) { this->targetId = targetId_; }
 
     int getTypeNumber() const { return typeNumber; }
-    void setTypeNumber(int typeNumber) { this->typeNumber = typeNumber; }
+    void setTypeNumber(int typeNumber_) { this->typeNumber = typeNumber_; }
 
     const StreamPartitionerPOD& getPartitioner() const { return partitioner; }
-    void setPartitioner(const StreamPartitionerPOD& partitioner) { this->partitioner = partitioner; }
+    void setPartitioner(const StreamPartitionerPOD& partitioner_) { this->partitioner = partitioner_; }
 
     long getBufferTimeout() const { return bufferTimeout; }
-    void setBufferTimeout(long bufferTimeout) { this->bufferTimeout = bufferTimeout; }
+    void setBufferTimeout(long bufferTimeout_) { this->bufferTimeout = bufferTimeout_; }
 
     std::string toString() const
     {
@@ -133,4 +140,4 @@ namespace std {
 } // namespace std
 
 
-#endif //
+#endif

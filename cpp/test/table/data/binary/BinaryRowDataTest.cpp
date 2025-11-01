@@ -325,8 +325,6 @@ TEST(BinaryRowDataTest, CreateBinaryRowDataWithMemTest) {
 
         row->setInt(0, 5);
         EXPECT_FALSE(row->isNullAt(0));
-
-        delete[] row->getSegment();
         delete row;
 }
 
@@ -351,7 +349,6 @@ TEST(BinaryRowDataTest, TimestampSetCompactTime) {
         // // Free the array storing the memory segments
         // delete row->getSegments();
         // Finally, free the row itself
-        delete row->getSegment();
         delete row;
 }
 
@@ -377,7 +374,6 @@ TEST(BinaryRowDataTest, TimestampSetNonCompactTime) {
         // // Free the array storing the memory segments
         // delete row->getSegments();
         // Finally, free the row itself
-        delete[] row->getSegment();
         delete row;
 }
 
@@ -397,7 +393,6 @@ TEST(BinaryRowDataTest, TimestampSetOutOfBoundNonCompactTimeThrowsException) {
         // // Free the array storing the memory segments
         // delete row->getSegments();
         // Finally, free the row itself
-        delete[] row->getSegment();
         delete row;
 }
 
@@ -419,7 +414,6 @@ TEST(BinaryRowDataTest, TimestampGetCompactTime) {
     // // Free the array storing the memory segments
     // delete row->getSegments();
     // Finally, free the row itself
-    delete[] row->getSegment();
     delete row;
 }
 
@@ -443,7 +437,6 @@ TEST(BinaryRowDataTest, DISABLED_TimestampGetNonCompactTime) {
     // // Free the array storing the memory segments
     // delete row->getSegments();
     // Finally, free the row itself
-    delete[] row->getSegment();
     delete row;
 }
 

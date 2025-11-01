@@ -1,3 +1,14 @@
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
+
 #ifndef FLINK_TNEL_LOGICALTYPE_H
 #define FLINK_TNEL_LOGICALTYPE_H
 
@@ -8,10 +19,6 @@
 #include "OmniOperatorJIT/core/src/type/data_type.h"
 
 class LogicalType {
-protected:
-    bool isNullable_;
-    int typeId_;
-
 public:
     LogicalType(int typeId, bool isNullable);
     int getTypeId() const;
@@ -23,16 +30,17 @@ public:
 
     static std::unordered_map<std::string, omniruntime::type::DataTypeId> nameToIdMap;
     static void buildNameToIdMap();
+
+protected:
+    bool isNullable_;
+    int typeId_;
 };
 
 class BasicLogicalType : public LogicalType {
-private:
-    std::vector<LogicalType*> emptyChildren;
-
 public:
     BasicLogicalType(int typeId, bool isNullable) : LogicalType(typeId, isNullable){};
 
-    //Basic type has no children
+    // Basic type has no children
     std::vector<LogicalType*> getChildren()
     {
         return emptyChildren;
@@ -48,5 +56,8 @@ public:
     static BasicLogicalType* DATE;
     static BasicLogicalType* DOUBLE;
     static BasicLogicalType* INVALID_TYPE;
+
+private:
+    std::vector<LogicalType*> emptyChildren;
 };
-#endif  //FLINK_TNEL_LOGICALTYPE_H
+#endif

@@ -1,3 +1,14 @@
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
+
 #ifndef OMNISTREAM_EMPTYFUNCTION_H
 #define OMNISTREAM_EMPTYFUNCTION_H
 
@@ -10,17 +21,17 @@
 
 class EmptyNamespaceFunction : public AggsHandleFunction {
 public:
-    void getValue(BinaryRowData* aggValue) override {
-        aggValue = new BinaryRowData(0);
-    }
+    void getValue(BinaryRowData* aggValue) override {}
     void setWindowSize(int windowSize) override {}
-    bool equaliser(BinaryRowData* r1, BinaryRowData* r2) override {
+    bool equaliser(BinaryRowData* r1, BinaryRowData* r2) override
+    {
         return false;
     }
     void accumulate(RowData* input) override {}
     void accumulate(omnistream::VectorBatch *input, const std::vector<int>& indices) override {}
 
-    void retract(RowData* input) override {
+    void retract(RowData* input) override
+    {
         throw std::runtime_error("This function does not require retract method, but the retract method is called.");
     }
     void retract(omnistream::VectorBatch* input, const std::vector<int>& indices) override
@@ -28,9 +39,7 @@ public:
         throw std::runtime_error("This function does not require retract method, but the retract method is called.");
     }
     void merge(RowData* accumulators) override {}
-    void createAccumulators(BinaryRowData* accumulators) override {
-        accumulators = new BinaryRowData(0);
-    }
+    void createAccumulators(BinaryRowData* accumulators) override {}
     void setAccumulators(RowData* accumulators) override {}
     void resetAccumulators() override {}
     void getAccumulators(BinaryRowData* accumulators) override {}
@@ -39,4 +48,4 @@ public:
 };
 
 
-#endif //OMNISTREAM_EMPTYFUNCTION_H
+#endif

@@ -1,18 +1,25 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 #pragma once
 
 #include <stdexcept>
 #include <vector>
 #include "table/data/RowData.h"
-#include "table/RowKind.h"
+#include "table/data/RowKind.h"
 #include "table/runtime/generated/NamespaceAggsHandleFunction.h"
 #include "core/typeutils/TypeSerializer.h"
 #include "table/types/logical/LogicalType.h"
-#include "table/data/utils/JoinedRowData.h"
+#include "table/data/JoinedRowData.h"
 #include "table/runtime/operators/window/WindowOperator.cpp"
-#include "core/operators/AbstractStreamOperator.h"
+#include "streaming/api/operators/AbstractStreamOperator.h"
 
 template<typename K, typename W>
 class AggregateWindowOperator : public WindowOperator<K, W> {

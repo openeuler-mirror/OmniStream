@@ -1,26 +1,34 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #include "InputGate.h"
 
 namespace omnistream {
-
-
-std::shared_ptr<CompletableFuture> InputGate::getAvailableFuture() {
-    return availabilityHelper.getAvailableFuture();
+std::shared_ptr<CompletableFuture> InputGate::GetAvailableFuture()
+{
+    return availabilityHelper.GetAvailableFuture();
 }
 
-std::vector<InputChannelInfo> InputGate::getChannelInfos() {
+std::vector<InputChannelInfo> InputGate::getChannelInfos()
+{
     std::vector<InputChannelInfo> channelInfos;
-    for (int index = 0; index < getNumberOfInputChannels(); index++) {
+    for (int index = 0; index < GetNumberOfInputChannels(); index++) {
         channelInfos.push_back(getChannel(index)->getChannelInfo());
     }
     return channelInfos;
 }
 
-std::shared_ptr<CompletableFuture>  InputGate::getPriorityEventAvailableFuture() {
-    return priorityAvailabilityHelper.getAvailableFuture();
+std::shared_ptr<CompletableFuture> InputGate::getPriorityEventAvailableFuture()
+{
+    return priorityAvailabilityHelper.GetAvailableFuture();
 }
 
 template <typename INPUT, typename DATA>

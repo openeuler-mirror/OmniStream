@@ -1,5 +1,5 @@
 /*
-* Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+* Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
  */
 #include "DescriptiveStatisticsHistogramStatistics.h"
 #include <algorithm>
@@ -39,7 +39,7 @@ namespace omnistream {
     double DescriptiveStatisticsHistogramStatistics::GetStdDev()
     {
         auto data = GetData();
-        int n = data.size();
+        int n = static_cast<int>(data.size());
         if (n == 0) { return 0.0; }
         double mean = GetMean();
         double sqSum = std::inner_product(data.begin(), data.end(), data.begin(), 0.0,

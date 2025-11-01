@@ -1,8 +1,8 @@
 #include "table/runtime/operators/sink/SinkOperator.h"
 #include "runtime/operators/sink/TimeStampInserterSinkOperator.h"
 #include "typeutils/BinaryRowDataSerializer.h"
-#include "writer/RecordWriter.h"
-#include "io/RecordWriterOutput.h"
+#include "runtime/io/network/api/writer/RecordWriter.h"
+#include "streaming/runtime/io/RecordWriterOutput.h"
 #include "test/table/runtime/operators/DummyStreamPartitioner.h"
 #include <gtest/gtest.h>
 #include <vector/vector_helper.h>

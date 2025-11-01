@@ -1,13 +1,19 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 #ifndef FLINK_TNEL_USERFACINGMAPSTATE_H
 #define FLINK_TNEL_USERFACINGMAPSTATE_H
-#include "core/api/MapState.h"
+#include "core/api/common/state/MapState.h"
 
 template <typename K, typename V>
-class UserFacingMapState : public MapState<K, V>
-{
+class UserFacingMapState : public MapState<K, V> {
 public:
     void clear() override {};
     UserFacingMapState(MapState<K, V> *originalState) : originalState(originalState) {};
@@ -16,7 +22,7 @@ public:
     void put(const K &key, const V &value) override { originalState->put(key, value); };
     bool contains(const K &key) override { return originalState->contains(key); };
 
-    typename emhash7::HashMap<K, V>::iterator *iterator() override { return originalState->iterator(); };
+    typename emhash7::HashMap<K, V>::Iterator *iterator() override { return originalState->iterator(); };
 private:
     MapState<K, V> *originalState;
 };

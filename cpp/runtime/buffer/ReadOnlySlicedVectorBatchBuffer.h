@@ -20,7 +20,7 @@ public:
         SetSize(length);
     }
 
-    std::shared_ptr<ObjectBufferRecycler> GetRecycler() override
+    std::shared_ptr<BufferRecycler> GetRecycler() override
     {
         return parent_->GetRecycler();
     };
@@ -36,18 +36,18 @@ public:
         return parent_->IsRecycled();
     };
 
-    std::shared_ptr<ObjectBuffer> RetainBuffer() override
+    std::shared_ptr<Buffer> RetainBuffer() override
     {
         LOG_TRACE("Calling RetainBuffer() from ReadOnlySlicedVectorBatchBuffer")
         return parent_->RetainBuffer();
     };
 
-    std::shared_ptr<ObjectBuffer> ReadOnlySlice() override
+    std::shared_ptr<Buffer> ReadOnlySlice() override
     {
         throw std::runtime_error("ReadOnlySlicedVectorBatchBuffer does not support ReadOnlySlice");
     };
 
-    std::shared_ptr<ObjectBuffer> ReadOnlySlice(int index, int length) override
+    std::shared_ptr<Buffer> ReadOnlySlice(int index, int length) override
     {
         throw std::runtime_error("ReadOnlySlicedVectorBatchBuffer does not support ReadOnlySlice");
     };

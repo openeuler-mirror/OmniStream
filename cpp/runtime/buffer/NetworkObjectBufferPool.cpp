@@ -1,8 +1,17 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #include "NetworkObjectBufferPool.h"
+
+#include <memory/MemorySegmentFactory.h>
 
 #include "LocalObjectBufferPool.h"
 #include "objectsegment/ObjectSegmentFactory.h"
@@ -49,6 +58,11 @@ NetworkObjectBufferPool::NetworkObjectBufferPool(
 
     LOG("Allocated " << (((long)segmentSize * availableObjectSegments.size()) >> 20) << " MB for network buffer pool (number of memory segments:"
                      << availableObjectSegments.size() << ", bytes per segment: " << segmentSize << ").\n")
+}
+
+NetworkObjectBufferPool::~NetworkObjectBufferPool()
+{
+    availableObjectSegments.clear();
 }
 
 std::shared_ptr<ObjectSegment> NetworkObjectBufferPool::requestPooledObjectSegment()
@@ -144,7 +158,7 @@ std::shared_ptr<ObjectSegment> NetworkObjectBufferPool::internalRequestObjectSeg
         return nullptr;
     }
     auto segment = availableObjectSegments.front();
-     availableObjectSegments.pop_front();
+    availableObjectSegments.pop_front();
     if (availableObjectSegments.empty() && segment) {
         availabilityHelper->resetUnavailable();
     }
@@ -165,6 +179,7 @@ void NetworkObjectBufferPool::revertRequiredBuffers(int size)
     redistributeBuffers();
 }
 
+// void NetworkObjectBufferPool::internalRecycleObjectSegments(const std::vector<std::shared_ptr<ObjectSegment>> &segments)
 void NetworkObjectBufferPool::internalRecycleObjectSegments(const std::vector<std::shared_ptr<ObjectSegment>> &segments)
 {
     LOG("internalRecycleObjectSegments running")
@@ -236,6 +251,7 @@ int NetworkObjectBufferPool::getNumberOfUsedObjectSegments()
     return getTotalNumberOfObjectSegments() - getNumberOfAvailableObjectSegments();
 }
 
+// todo: if this mehtod used, we need add implementation for memory segment
 long NetworkObjectBufferPool::getUsedMemory()
 {
     return static_cast<long>(getNumberOfUsedObjectSegments()) * objectSegmentSize;
@@ -259,18 +275,18 @@ int NetworkObjectBufferPool::countBuffers()
     return buffers;
 }
 
-std::shared_ptr<CompletableFuture> NetworkObjectBufferPool::getAvailableFuture()
+std::shared_ptr<CompletableFuture> NetworkObjectBufferPool::GetAvailableFuture()
 {
-    return availabilityHelper->getAvailableFuture();
+    return availabilityHelper->GetAvailableFuture();
 }
 
-std::shared_ptr<ObjectBufferPool> NetworkObjectBufferPool::createBufferPool(int numRequiredBuffers, int maxUsedBuffers)
+std::shared_ptr<BufferPool> NetworkObjectBufferPool::createBufferPool(int numRequiredBuffers, int maxUsedBuffers)
 {
     LOG("createBufferPool func1")
     return internalCreateObjectBufferPool(numRequiredBuffers, maxUsedBuffers, 0, INT_MAX);
 }
 
-std::shared_ptr<ObjectBufferPool> NetworkObjectBufferPool::createBufferPool(
+std::shared_ptr<BufferPool> NetworkObjectBufferPool::createBufferPool(
     int numRequiredBuffers, int maxUsedBuffers, int numSubpartitions, int maxBuffersPerChannel)
 {
     LOG_INFO_IMP("createBufferPool numRequiredBuffers : " << numRequiredBuffers
@@ -282,7 +298,7 @@ std::shared_ptr<ObjectBufferPool> NetworkObjectBufferPool::createBufferPool(
     return res;
 }
 
-std::shared_ptr<ObjectBufferPool> NetworkObjectBufferPool::internalCreateObjectBufferPool(
+std::shared_ptr<BufferPool> NetworkObjectBufferPool::internalCreateObjectBufferPool(
     int numRequiredBuffers, int maxUsedBuffers, int numSubpartitions, int maxBuffersPerChannel)
 {
     LOG("try to get lock ....")
@@ -313,8 +329,10 @@ std::shared_ptr<ObjectBufferPool> NetworkObjectBufferPool::internalCreateObjectB
     return localObjectBufferPool;
 }
 
-void NetworkObjectBufferPool::destroyBufferPool(std::shared_ptr<ObjectBufferPool> objectBufferPool)
+// void NetworkObjectBufferPool::destroyBufferPool(std::shared_ptr<ObjectBufferPool> objectBufferPool)
+void NetworkObjectBufferPool::destroyBufferPool(std::shared_ptr<BufferPool> objectBufferPool)
 {
+    // todo: here we should consider memoryBufferPool case
     auto localObjectBufferPool = std::dynamic_pointer_cast<LocalObjectBufferPool>(objectBufferPool);
     if (!localObjectBufferPool) {
         throw std::invalid_argument("bufferPool is no LocalBufferPool");
@@ -322,7 +340,7 @@ void NetworkObjectBufferPool::destroyBufferPool(std::shared_ptr<ObjectBufferPool
     // std::lock_guard<std::mutex> lock(factoryLock);
     std::lock_guard<std::recursive_mutex> lock(factoryLock);
     if (allBufferPools.erase(localObjectBufferPool) > 0) {
-        numTotalRequiredBuffers -= localObjectBufferPool->getNumberOfRequiredObjectSegments();
+        numTotalRequiredBuffers -= localObjectBufferPool->getNumberOfRequiredSegments();
         redistributeBuffers();
     }
 }
@@ -332,11 +350,9 @@ void NetworkObjectBufferPool::destroyAllBufferPools()
     // std::lock_guard<std::mutex> lock(factoryLock);
     std::lock_guard<std::recursive_mutex> lock(factoryLock);
     std::vector<std::shared_ptr<LocalObjectBufferPool>> poolsCopy(allBufferPools.begin(), allBufferPools.end());
+    // std::vector<std::shared_ptr<LocalObjectBufferPool>> poolsCopy(allObjectBufferPools.begin(), allObjectBufferPools.end());
     for (const auto &pool : poolsCopy) {
         pool->lazyDestroy();
-    }
-    if (!allBufferPools.empty() || numTotalRequiredBuffers > 0) {
-        throw std::runtime_error("NetworkBufferPool is not empty after destroying all LocalBufferPools");
     }
 }
 
@@ -372,14 +388,14 @@ void NetworkObjectBufferPool::redistributeBuffers()
 
     if (numAvailableMemorySegment == 0) {
         for (const auto &bufferPool : allBufferPools) {
-            bufferPool->setNumBuffers(bufferPool->getNumberOfRequiredObjectSegments());
+            bufferPool->setNumBuffers(bufferPool->getNumberOfRequiredSegments());
         }
         return;
     }
 
     long totalCapacity = 0;
     for (const auto &bufferPool : allBufferPools) {
-        int excessMax = bufferPool->getMaxNumberOfObjectSegments() - bufferPool->getNumberOfRequiredObjectSegments();
+        int excessMax = bufferPool->getMaxNumberOfSegments() - bufferPool->getNumberOfRequiredSegments();
         totalCapacity += std::min(numAvailableMemorySegment, excessMax);
     }
 
@@ -391,7 +407,7 @@ void NetworkObjectBufferPool::redistributeBuffers()
     long totalPartsUsed = 0;
     int numDistributedMemorySegment = 0;
     for (const auto &bufferPool : allBufferPools) {
-        int excessMax = bufferPool->getMaxNumberOfObjectSegments() - bufferPool->getNumberOfRequiredObjectSegments();
+        int excessMax = bufferPool->getMaxNumberOfSegments() - bufferPool->getNumberOfRequiredSegments();
         if (excessMax == 0) {
             continue;
         }
@@ -399,7 +415,7 @@ void NetworkObjectBufferPool::redistributeBuffers()
         totalPartsUsed += std::min(numAvailableMemorySegment, excessMax);
         int mySize = memorySegmentsToDistribute * totalPartsUsed / totalCapacity - numDistributedMemorySegment;
         numDistributedMemorySegment += mySize;
-        bufferPool->setNumBuffers(bufferPool->getNumberOfRequiredObjectSegments() + mySize);
+        bufferPool->setNumBuffers(bufferPool->getNumberOfRequiredSegments() + mySize);
     }
 }
 

@@ -57,16 +57,16 @@ struct Comparator
 
 TEST(HeapPriorityQueueSetTest, Initialization)
 {
-    auto *keyGroupRange = new KeyGroupRange(1, 5);
-    HeapPriorityQueueSet<IntType *, Comparator> *pq = new HeapPriorityQueueSet<IntType *, Comparator>(keyGroupRange, keyGroupRange->getNumberOfKeyGroups(), 10);
+    auto *keyGroupRange = new KeyGroupRange(0, 5);
+    HeapPriorityQueueSet<IntType *, Comparator> *pq = new HeapPriorityQueueSet<IntType *, Comparator>(keyGroupRange, keyGroupRange->getNumberOfKeyGroups(), 6);
     pq->add<int>(new IntType(1));
     EXPECT_EQ(pq->poll<int>()->getKey(), 1);
 }
 
 TEST(HeapPriorityQueueSetTest, Inserts)
 {
-    auto *keyGroupRange = new KeyGroupRange(1, 5);
-    HeapPriorityQueueSet<IntType *, Comparator> *pq = new HeapPriorityQueueSet<IntType *, Comparator>(keyGroupRange, keyGroupRange->getNumberOfKeyGroups(), 10);
+    auto *keyGroupRange = new KeyGroupRange(0, 5);
+    HeapPriorityQueueSet<IntType *, Comparator> *pq = new HeapPriorityQueueSet<IntType *, Comparator>(keyGroupRange, keyGroupRange->getNumberOfKeyGroups(), 6);
     pq->add<int>(new IntType(1));
     pq->add<int>(new IntType(3));
     pq->add<int>(new IntType(2));
@@ -80,8 +80,8 @@ TEST(HeapPriorityQueueSetTest, Inserts)
 
 TEST(HeapPriorityQueueSetTest, HeadChange)
 {
-    auto *keyGroupRange = new KeyGroupRange(1, 5);
-    HeapPriorityQueueSet<IntType *, Comparator> *pq = new HeapPriorityQueueSet<IntType *, Comparator>(keyGroupRange, keyGroupRange->getNumberOfKeyGroups(), 10);
+    auto *keyGroupRange = new KeyGroupRange(0, 5);
+    HeapPriorityQueueSet<IntType *, Comparator> *pq = new HeapPriorityQueueSet<IntType *, Comparator>(keyGroupRange, keyGroupRange->getNumberOfKeyGroups(), 6);
     EXPECT_EQ(pq->add<int>(new IntType(5)), true);
     EXPECT_EQ(pq->add<int>(new IntType(3)), true);
     EXPECT_EQ(pq->add<int>(new IntType(3)), false);
@@ -91,8 +91,8 @@ TEST(HeapPriorityQueueSetTest, HeadChange)
 
 TEST(HeapPriorityQueueSetTest, ClearTest)
 {
-    auto *keyGroupRange = new KeyGroupRange(1, 5);
-    HeapPriorityQueueSet<IntType *, Comparator> *pq = new HeapPriorityQueueSet<IntType *, Comparator>(keyGroupRange, keyGroupRange->getNumberOfKeyGroups(), 10);
+    auto *keyGroupRange = new KeyGroupRange(0, 5);
+    HeapPriorityQueueSet<IntType *, Comparator> *pq = new HeapPriorityQueueSet<IntType *, Comparator>(keyGroupRange, keyGroupRange->getNumberOfKeyGroups(), 6);
     EXPECT_EQ(pq->add<int>(new IntType(5)), true);
     EXPECT_EQ(pq->isEmpty(), false);
     EXPECT_EQ(pq->poll<int>()->getKey(), 5);
@@ -102,8 +102,8 @@ TEST(HeapPriorityQueueSetTest, ClearTest)
 
 TEST(HeapPriorityQueueSetTest, DuplicateTest)
 {
-    auto *keyGroupRange = new KeyGroupRange(1, 5);
-    HeapPriorityQueueSet<IntType *, Comparator> *pq = new HeapPriorityQueueSet<IntType *, Comparator>(keyGroupRange, keyGroupRange->getNumberOfKeyGroups(), 10);
+    auto *keyGroupRange = new KeyGroupRange(0, 5);
+    HeapPriorityQueueSet<IntType *, Comparator> *pq = new HeapPriorityQueueSet<IntType *, Comparator>(keyGroupRange, keyGroupRange->getNumberOfKeyGroups(), 6);
     pq->add<int>(new IntType(1));
     pq->add<int>(new IntType(1));
 
@@ -113,8 +113,8 @@ TEST(HeapPriorityQueueSetTest, DuplicateTest)
 
 TEST(HeapPriorityQueueSetTest, RemoveTest)
 {
-    auto *keyGroupRange = new KeyGroupRange(1, 5);
-    HeapPriorityQueueSet<IntType *, Comparator> *pq = new HeapPriorityQueueSet<IntType *, Comparator>(keyGroupRange, keyGroupRange->getNumberOfKeyGroups(), 10);
+    auto *keyGroupRange = new KeyGroupRange(0, 5);
+    HeapPriorityQueueSet<IntType *, Comparator> *pq = new HeapPriorityQueueSet<IntType *, Comparator>(keyGroupRange, keyGroupRange->getNumberOfKeyGroups(), 6);
     pq->add<int>(new IntType(1));
     pq->add<int>(new IntType(2));
     pq->add<int>(new IntType(3));

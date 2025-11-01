@@ -1,40 +1,25 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * We modify this part of the code based on Apache Flink to implement native execution of Flink operators.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
  */
 
 #include "NexmarkUtils.h"
-std::vector<long> NexmarkUtils::RateShape::interEventDelayUs(int firstRate, int nextRate,
-                                                             const RateUnit &unit, int numGenerators) const
-{
-    if (firstRate == nextRate) {
-        std::vector<long> interEventDelayUs(1);
-        interEventDelayUs[0] = unit.rateToPeriodUs(firstRate) * numGenerators;
-        return interEventDelayUs;
-    }
-    switch (type) {
-        case SQUARE: {
-            std::vector<long> interEventDelayUs(2);
-            interEventDelayUs[0] = unit.rateToPeriodUs(firstRate) * numGenerators;
-            interEventDelayUs[1] = unit.rateToPeriodUs(nextRate) * numGenerators;
-            return interEventDelayUs;
-        }
-        case SINE: {
-            double mid = (firstRate + nextRate) / 2.0;
-            double amp = (firstRate - nextRate) / 2.0; // may be -ve
-            std::vector<long> interEventDelayUs(N);
-            for (int i = 0; i < N; i++) {
-                double r = (2.0 * M_PI * i) / N;
-                double rate = mid + amp * std::cos(r);
-                long rounded = static_cast<long>(std::round(rate));
-                interEventDelayUs[i] = unit.rateToPeriodUs(rounded) * numGenerators;
-            }
-            return interEventDelayUs;
-        }
-    }
-    throw std::runtime_error("Switch should be exhaustive");
-}
-
-
 // Definition of static members of RateUnit.
 const NexmarkUtils::RateUnit NexmarkUtils::RateUnit::PER_SECOND(1000000L);
 const NexmarkUtils::RateUnit NexmarkUtils::RateUnit::PER_MINUTE(60000000L);

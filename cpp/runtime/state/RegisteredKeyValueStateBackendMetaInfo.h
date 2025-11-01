@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 #ifndef FLINK_TNEL_REGISTEREDKEYVALUESTATEBACKENDMETAINFO_H
 #define FLINK_TNEL_REGISTEREDKEYVALUESTATEBACKENDMETAINFO_H
@@ -7,22 +14,77 @@
 #include <string>
 #include "RegisteredStateMetaInfoBase.h"
 #include "core/typeutils/TypeSerializer.h"
+#include "core/api/common/state/StateDescriptor.h"
+#include "runtime/state/metainfo/StateMetaInfoSnapshot.h"
 
-class RegisteredKeyValueStateBackendMetaInfo : public RegisteredStateMetaInfoBase
-{
+class RegisteredKeyValueStateBackendMetaInfo : public RegisteredStateMetaInfoBase {
 public:
     RegisteredKeyValueStateBackendMetaInfo(
-        std::string name, TypeSerializer *namespaceSerializer, TypeSerializer *stateSerializer)
-        : RegisteredStateMetaInfoBase(name), namespaceSerializer(namespaceSerializer), stateSerializer(stateSerializer) {};
-    // Only implemented getters. No setters needed
-    TypeSerializer *getNamespaceSerializer() { return namespaceSerializer; };
-    void setNamespaceSerializer(TypeSerializer *newSerializer) { namespaceSerializer = newSerializer; };
-    TypeSerializer *getStateSerializer() { return stateSerializer; };
-    void setStateSerializer(TypeSerializer *newSerializer) { stateSerializer = newSerializer; };
+        StateDescriptor::Type stateType, // @Nonnull
+        const std::string& name, // @Nonnull
+        TypeSerializer* namespaceSerializer, // @Nonnull
+        TypeSerializer* stateSerializer) // @Nonnull
+        : RegisteredStateMetaInfoBase(name), stateType(stateType), namespaceSerializer(namespaceSerializer),
+        stateSerializer(stateSerializer) {}
+
+    RegisteredKeyValueStateBackendMetaInfo(
+        const std::string& name, // @Nonnull
+        TypeSerializer* namespaceSerializer, // @Nonnull
+        TypeSerializer* stateSerializer) // @Nonnull
+        : RegisteredKeyValueStateBackendMetaInfo(
+            StateDescriptor::Type::UNKNOWN, name, namespaceSerializer, stateSerializer) {};
+
+    explicit RegisteredKeyValueStateBackendMetaInfo(const StateMetaInfoSnapshot &snapshot);
+    // @Nonnull
+    StateDescriptor::Type getStateType() const
+    {
+        return stateType;
+    }
+
+    // @Nonnull
+    TypeSerializer* getNamespaceSerializer() const
+    {
+        return namespaceSerializer;
+    }
+
+    // @Nonnull
+    TypeSerializer* getStateSerializer() const
+    {
+        return stateSerializer;
+    }
+
+    // @Nonnull
+    std::shared_ptr<StateMetaInfoSnapshot> snapshot() override
+    {
+        return computeSnapshot();
+    }
+
+    void setNamespaceSerializer(TypeSerializer* nmspaceSerializer)
+    {
+        namespaceSerializer = nmspaceSerializer;
+    }
+    void setStateSerializer(TypeSerializer* sttSerializer)
+    {
+        stateSerializer = sttSerializer;
+    }
 private:
     // Instead of using serializer provider, straight up use serializer
     // Might change later if needed
-    TypeSerializer *namespaceSerializer;
-    TypeSerializer *stateSerializer;
+    StateDescriptor::Type stateType;
+    TypeSerializer* namespaceSerializer;
+    TypeSerializer* stateSerializer;
+
+    static StateDescriptor::Type parseStateType(const std::string& typeStr)
+    {
+        if (typeStr == "VALUE") return StateDescriptor::Type::VALUE;
+        if (typeStr == "LIST") return StateDescriptor::Type::LIST;
+        if (typeStr == "MAP") return StateDescriptor::Type::MAP;
+        if (typeStr == "REDUCING") return StateDescriptor::Type::REDUCING;
+        if (typeStr == "AGGREGATING") return StateDescriptor::Type::AGGREGATING;
+        if (typeStr == "FOLDING") return StateDescriptor::Type::FOLDING;
+        return StateDescriptor::Type::UNKNOWN;
+    }
+    // @Nonnull
+    std::shared_ptr<StateMetaInfoSnapshot> computeSnapshot();
 };
 #endif // FLINK_TNEL_REGISTEREDKEYVALUESTATEBACKENDMETAINFO_H

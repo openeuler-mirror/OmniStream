@@ -1,0 +1,38 @@
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
+
+#ifndef OMNISTREAM_OMNISTREAMONEINPUTPROCESSOR_H
+#define OMNISTREAM_OMNISTREAMONEINPUTPROCESSOR_H
+
+#include "OmniStreamInputProcessor.h"
+#include "OmniStreamTaskInput.h"
+#include "OmniPushingAsyncDataInput.h"
+#include "streaming/runtime/tasks/OperatorChain.h"
+
+namespace omnistream {
+    class OmniStreamOneInputProcessor : public OmniStreamInputProcessor {
+    public:
+        OmniStreamOneInputProcessor(OmniStreamTaskInput *input, OmniStreamTaskInput::OmniDataOutput *output,
+            OperatorChainV2 *operatorChain);
+
+        DataInputStatus processInput() override;
+        std::shared_ptr<CompletableFuture> GetAvailableFuture() override;
+        OmniStreamTaskInput* GetInput();
+        void close() override;
+
+    private:
+        OmniStreamTaskInput *input;
+        OmniStreamTaskInput::OmniDataOutput *output;
+        OperatorChainV2 *endOfInputAware;
+    };
+}
+
+#endif // OMNISTREAM_OMNISTREAMONEINPUTPROCESSOR_H

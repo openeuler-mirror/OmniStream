@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
-#include "core/io/NonSpanningWrapper.h"
-#include "core/plugable/SerializationDelegate.h"
+#include "runtime/io/network/api/serialization/NonSpanningWrapper.h"
+#include "runtime/plugable/SerializationDelegate.h"
 #include "core/utils/utils.h"
 #include <cstdint>
 #include <cstring>

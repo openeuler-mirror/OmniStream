@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #ifndef INPUT_GATE_DEPLOYMENT_DESCRIPTOR_POD_H
@@ -21,9 +28,16 @@ namespace omnistream {
         int consumedSubpartitionIndex;
         std::vector<ShuffleDescriptorPOD> inputChannels;
 
-        InputGateDeploymentDescriptorPOD():consumedPartitionType(0),consumedSubpartitionIndex(0){};
-        InputGateDeploymentDescriptorPOD(IntermediateDataSetIDPOD consumedResultId, int consumedPartitionType, int consumedSubpartitionIndex, const std::vector<ShuffleDescriptorPOD>& inputChannels):
-                consumedResultId(consumedResultId),consumedPartitionType(consumedPartitionType),consumedSubpartitionIndex(consumedSubpartitionIndex),inputChannels(inputChannels){};
+        InputGateDeploymentDescriptorPOD(): consumedPartitionType(0), consumedSubpartitionIndex(0) {};
+        InputGateDeploymentDescriptorPOD(IntermediateDataSetIDPOD consumedResultId, int consumedPartitionType,
+                                         int consumedSubpartitionIndex,
+                                         const std::vector<ShuffleDescriptorPOD> &
+                                         inputChannels): consumedResultId(consumedResultId),
+                                                         consumedPartitionType(consumedPartitionType),
+                                                         consumedSubpartitionIndex(consumedSubpartitionIndex),
+                                                         inputChannels(inputChannels) {
+        };
+        InputGateDeploymentDescriptorPOD &operator=(const InputGateDeploymentDescriptorPOD&) = default;
         InputGateDeploymentDescriptorPOD(const InputGateDeploymentDescriptorPOD& other) = default;
 
         friend bool operator==(const InputGateDeploymentDescriptorPOD& lhs, const InputGateDeploymentDescriptorPOD& rhs)
@@ -47,28 +61,26 @@ namespace omnistream {
             seed ^= (seed << 6) + (seed >> 2) + 0x48D85043 + static_cast<std::size_t>(obj.consumedSubpartitionIndex);
 
             seed ^= (seed << 6) + (seed >> 2) + 0x65AFCBFA;
-            for (auto& item: obj.inputChannels)
-            {
-               seed ^= hash_value(item) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+            for (auto& item: obj.inputChannels) {
+                seed ^= hash_value(item) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
             }
             return seed;
         }
 
-        //Getters
+        // Getters
         IntermediateDataSetIDPOD getConsumedResultId() const { return consumedResultId; }
         int getConsumedPartitionType() const { return consumedPartitionType; }
         int getConsumedSubpartitionIndex() const { return consumedSubpartitionIndex; }
         const std::vector<ShuffleDescriptorPOD> &getShuffleDescriptors() const { return inputChannels; }
 
-        //Setter
-        void setConsumedResultId(const IntermediateDataSetIDPOD& consumedResultId){ this->consumedResultId = consumedResultId;}
-        void setConsumedPartitionType(int consumedPartitionType){ this->consumedPartitionType = consumedPartitionType;}
-        void setConsumedSubpartitionIndex(int consumedSubpartitionIndex){ this->consumedSubpartitionIndex = consumedSubpartitionIndex;}
+        // Setter
+        void setConsumedResultId(const IntermediateDataSetIDPOD& consumedResultId_){ this->consumedResultId = consumedResultId_;}
+        void setConsumedPartitionType(int consumedPartitionType_){ this->consumedPartitionType = consumedPartitionType_;}
+        void setConsumedSubpartitionIndex(int consumedSubpartitionIndex_){ this->consumedSubpartitionIndex = consumedSubpartitionIndex_;}
         void setInputChannels(const std::vector<ShuffleDescriptorPOD>& inputChannels){ this->inputChannels = inputChannels;}
 
         std::string toString() const
         {
-            //todo add str
             return "InputGateDeploymentDescriptorPOD";
         }
 
@@ -77,8 +89,7 @@ namespace omnistream {
 
 } // namespace omnistream
 
-namespace std
-{
+namespace std {
     template <>
     struct hash<omnistream::InputGateDeploymentDescriptorPOD> {
         std::size_t operator()(const omnistream::InputGateDeploymentDescriptorPOD& obj) const

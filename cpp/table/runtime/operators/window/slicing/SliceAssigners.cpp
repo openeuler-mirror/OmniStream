@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 #include "SliceAssigners.h"
 
@@ -92,7 +99,7 @@ int64_t SlicedSharedSliceAssigner::getLastWindowEnd(int64_t sliceEnd)
 };
 
 
-TumblingSliceAssigner::TumblingSliceAssigner(int rowtimeIndex, ZoneId *shiftTimeZone, int64_t size,
+TumblingSliceAssigner::TumblingSliceAssigner(int rowtimeIndex, omnistream::ZoneId *shiftTimeZone, int64_t size,
                                              int64_t offset): AbstractSliceAssigner(rowtimeIndex, shiftTimeZone),
                                                               size(size), offset(offset)
 {
@@ -160,7 +167,7 @@ int64_t TumblingSliceAssigner::GetCurrentTimeStamp(omnistream::VectorBatch *elem
     return TimeWindow1::GetCurrentTimeStamp(element, rowId, clock, rowTimeIdx);
 }
 
-HoppingSliceAssigner::HoppingSliceAssigner(int rowtimeIndex, ZoneId *shiftTimeZone,
+HoppingSliceAssigner::HoppingSliceAssigner(int rowtimeIndex, omnistream::ZoneId *shiftTimeZone,
                                            int64_t size, int64_t slide, int64_t offset)
     : AbstractSliceAssigner(rowtimeIndex, shiftTimeZone), size(size), slide(slide), offset(offset), sliceSize(std::gcd(size, slide))
 {
@@ -320,7 +327,7 @@ int64_t HoppingSliceAssigner::getNumSlicesPerWindow()
     return numSlicesPerWindow;
 }
 
-CumulativeSliceAssigner::CumulativeSliceAssigner(int rowtimeIndex, ZoneId *shiftTimeZone,
+CumulativeSliceAssigner::CumulativeSliceAssigner(int rowtimeIndex, omnistream::ZoneId *shiftTimeZone,
                                                  int64_t maxSize, int64_t step, int64_t offset)
     : AbstractSliceAssigner(rowtimeIndex, shiftTimeZone), maxSize(maxSize), step(step), offset(offset)
 {
@@ -433,7 +440,7 @@ SliceAssigner* AssignerAtt::createSliceAssigner(const nlohmann::json parsedJson)
         nlohmann::json rowtimeIndex = parsedJson["timeAttributeIndex"];
         rowtimeIndexVal = rowtimeIndex.get<long>();
     }
-    auto zonePtr = std::make_shared<ZoneId>();
+    auto zonePtr = new omnistream::ZoneId();
     size_t windowTypeIndex = windowMsgStr.find('(');
     auto windowTypeStr = windowMsgStr.substr(0, windowTypeIndex);
     std::string tempStr;
@@ -447,6 +454,7 @@ SliceAssigner* AssignerAtt::createSliceAssigner(const nlohmann::json parsedJson)
         sliceAssigner = CreateCumlativeSliceAssigner(windowMsgStr, rowtimeIndexVal, zonePtr);
     } else {
         // not support window type
+        THROW_LOGIC_EXCEPTION("wrong slice assigner type passed")
     }
 
     if (parsedJson.contains("windowEndIndex")) {
@@ -464,7 +472,7 @@ SliceAssigner* AssignerAtt::createSliceAssigner(const nlohmann::json parsedJson)
 }
 
 CumulativeSliceAssigner* AssignerAtt::CreateCumlativeSliceAssigner(std::string windowMsgStr, int rowtimeIndexVal,
-                                                                   std::shared_ptr<ZoneId> zonePtr)
+                                                                   omnistream::ZoneId* zonePtr)
 {
     size_t index = windowMsgStr.find("max_size=[");
     std::string tempStr = windowMsgStr.substr(index + 10);
@@ -477,7 +485,7 @@ CumulativeSliceAssigner* AssignerAtt::CreateCumlativeSliceAssigner(std::string w
     index = windowMsgStr.find("offset=[");
     auto offsetIsNull = index == std::string::npos;
     CumulativeSliceAssigner* sliceAssigner = SliceAssigners::SliceAssigners::cumulative(rowtimeIndexVal,
-                                                                                        zonePtr.get(),
+                                                                                        zonePtr,
                                                                                         maxSizeNum,
                                                                                         stepNum);
     long offsetNum;
@@ -491,7 +499,7 @@ CumulativeSliceAssigner* AssignerAtt::CreateCumlativeSliceAssigner(std::string w
 }
 
 TumblingSliceAssigner* AssignerAtt::CreateTumbleSliceAssigner(std::string windowMsgStr, int rowtimeIndexVal,
-                                                              std::shared_ptr<ZoneId> zonePtr)
+                                                              omnistream::ZoneId* zonePtr)
 {
     size_t index = windowMsgStr.find("size=[");
     std::string tempStr = windowMsgStr.substr(index + 6);
@@ -500,7 +508,7 @@ TumblingSliceAssigner* AssignerAtt::CreateTumbleSliceAssigner(std::string window
     index = windowMsgStr.find("offset=[");
     auto offsetIsNull = index == std::string::npos;
     TumblingSliceAssigner* sliceAssigner = SliceAssigners::SliceAssigners::tumbling(rowtimeIndexVal,
-                                                                                    zonePtr.get(), sizeNum);
+                                                                                    zonePtr, sizeNum);
     long offsetNum;
     if (!offsetIsNull) {
         tempStr = windowMsgStr.substr(index + 8);
@@ -512,7 +520,7 @@ TumblingSliceAssigner* AssignerAtt::CreateTumbleSliceAssigner(std::string window
 }
 
 HoppingSliceAssigner* AssignerAtt::CreateHopSliceAssigner(std::string windowMsgStr, int rowtimeIndexVal,
-                                                          std::shared_ptr<ZoneId> zonePtr)
+                                                          omnistream::ZoneId* zonePtr)
 {
     size_t index = windowMsgStr.find("size=[");
     std::string tempStr = windowMsgStr.substr(index + 6);
@@ -524,7 +532,7 @@ HoppingSliceAssigner* AssignerAtt::CreateHopSliceAssigner(std::string windowMsgS
     auto slideNum = stoll(getContentVal(tempStrptr)) * (tempStr.find("ms") != std::string::npos ? 1 : 1000);
     index = windowMsgStr.find("offset=[");
     auto offsetIsNull = index == std::string::npos;
-    HoppingSliceAssigner* sliceAssigner = SliceAssigners::hopping(rowtimeIndexVal, zonePtr.get(),
+    HoppingSliceAssigner* sliceAssigner = SliceAssigners::hopping(rowtimeIndexVal, zonePtr,
                                                                   sizeNum, slideNum);
     long offsetNum;
     if (!offsetIsNull) {

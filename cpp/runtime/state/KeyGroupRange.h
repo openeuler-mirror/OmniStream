@@ -1,13 +1,20 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 #ifndef FLINK_TNEL_KEYGROUPRANGE_H
 #define FLINK_TNEL_KEYGROUPRANGE_H
 
 #include <stdexcept>
+#include <nlohmann/json.hpp>
 #include "core/utils/Iterator.h"
-class KeyGroupRange
-{
+class KeyGroupRange {
 public:
     KeyGroupRange()
     {
@@ -22,23 +29,20 @@ public:
 
     KeyGroupRange(int startKeyGroup, int endKeyGroup)
     {
-        if (startKeyGroup < 0)
-        {
+        if (startKeyGroup < 0) {
             throw std::invalid_argument("IllegalArgumentException");
         }
-        if (startKeyGroup > endKeyGroup)
-        {
+        if (startKeyGroup > endKeyGroup) {
             throw std::invalid_argument("IllegalArgumentException");
         }
         this->startKeyGroup = startKeyGroup;
         this->endKeyGroup = endKeyGroup;
-        if (getNumberOfKeyGroups() < 0)
-        {
+        if (getNumberOfKeyGroups() < 0) {
             throw std::invalid_argument("Potential Overflow Detected.");
         }
     }
 
-    bool contains(int keyGroup)
+    bool contains(int keyGroup) const
     {
         return keyGroup >= startKeyGroup && keyGroup <= endKeyGroup;
     }
@@ -48,12 +52,12 @@ public:
         return 1 + endKeyGroup - startKeyGroup;
     }
 
-    int getStartKeyGroup()
+    int getStartKeyGroup() const
     {
         return startKeyGroup;
     }
 
-    int getEndKeyGroup()
+    int getEndKeyGroup() const
     {
         return endKeyGroup;
     }
@@ -68,26 +72,61 @@ public:
         return startKeyGroup == other.startKeyGroup && endKeyGroup == other.endKeyGroup;
     }
 
-    KeyGroupRange *of(int startKeyGroup, int endKeyGroup)
+    std::string ToString() const
     {
-        if (startKeyGroup <= endKeyGroup)
-        {
-            return new KeyGroupRange(startKeyGroup, endKeyGroup);
+        nlohmann::json json;
+        json["startKeyGroup"] = startKeyGroup;
+        json["endKeyGroup"] = endKeyGroup;
+        json["numberOfKeyGroups"] = getNumberOfKeyGroups();
+        return json.dump();
+    }
+    int getNumberOfKeyGroups() const
+    {
+        return 1 + endKeyGroup - startKeyGroup;
+    }
+    KeyGroupRange *getIntersection(const KeyGroupRange& other) const
+    {
+        int start = std::max(startKeyGroup, other.startKeyGroup);
+        int end = std::min(endKeyGroup, other.endKeyGroup);
+        if (start <= end) {
+            return new KeyGroupRange(start, end);
+        } else {
+            return EMPTY_KEY_GROUP_RANGE();
         }
-        else
-        {
+    }
+    bool operator==(const KeyGroupRange& other) const
+    {
+        return startKeyGroup == other.startKeyGroup && endKeyGroup == other.endKeyGroup;
+    }
+
+    bool operator!=(const KeyGroupRange& other) const
+    {
+        return !(*this == other);
+    }
+
+    static KeyGroupRange *of(int startKeyGroupInput, int endKeyGroupInput)
+    {
+        if (startKeyGroupInput <= endKeyGroupInput) {
+            return new KeyGroupRange(startKeyGroupInput, endKeyGroupInput);
+        } else {
             return EMPTY_KEY_GROUP_RANGE();
         }
     }
 
-    // Iterator
-    class KeyGroupIterator : public Iterator<int>
+    std::size_t hashCode() const
     {
+        std::size_t seed = 0x43987123;
+        seed ^= (seed << 6) + (seed >> 2) + 0x1762F1AB + std::hash<int>()(startKeyGroup);
+        seed ^= (seed << 6) + (seed >> 2) + 0x13572357 + std::hash<int>()(endKeyGroup);
+        return seed;
+    }
+    // Iterator
+    class KeyGroupIterator : public omnistream::utils::Iterator<int> {
     public:
-        KeyGroupIterator(const KeyGroupRange &r) : range(r), iteratorPos(0) {}
+        explicit KeyGroupIterator(const KeyGroupRange &r) : range(r), iteratorPos(0) {}
         bool hasNext()
         {
-            return iteratorPos < 1 + range.endKeyGroup + range.startKeyGroup;
+            return iteratorPos < 1 + range.endKeyGroup - range.startKeyGroup;
         }
         int next()
         {
@@ -104,7 +143,6 @@ public:
 private:
     int startKeyGroup;
     int endKeyGroup;
-
 };
 
 #endif // FLINK_TNEL_KEYGROUPRANGE_H

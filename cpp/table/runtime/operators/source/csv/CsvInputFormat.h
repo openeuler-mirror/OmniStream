@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 #pragma once
 
@@ -12,7 +19,7 @@
 #include "CsvRow.h"
 #include "CsvSchema.h"
 #include "CsvConverter.h"
-#include "core/streamrecord/StreamRecord.h"
+#include "streaming/runtime/streamrecord/StreamRecord.h"
 #include "runtime/operators/source/InputSplit.h"
 #include "table/data/binary/BinaryRowData.h"
 #include "table/types/logical/DataType.h"
@@ -62,7 +69,7 @@ public:
         return inputStream_.eof();
     }
 
-    OUT* nextRecord(int& lineID, int& start, int end) {
+    OUT* nextRecord() {
         if (!inputStream_.is_open()) {
             std::cerr << "File is not open" << std::endl;
             return nullptr;
@@ -72,18 +79,14 @@ public:
         std::string line;
         size_t lineCount = 0;
 
-        while (lineCount < batchSize_ && lineID < end && !inputStream_.eof()) {
-
+        while (lineCount < batchSize_ &&  !inputStream_.eof()) {
             std::getline(inputStream_, line);
-            if (inputStream_.fail()) {
-                break;
-            }
-            if (lineID++ < start)
-            {
-                continue;
-            }
             if (line.empty()) { // skip empty lines
                 continue;
+            }
+            if (inputStream_.fail()) {
+//                std::cerr << "Failed to read line" << std::endl;
+                break;
             }
             CsvRow csvRow(line, csvSchema_);
             rows.push_back(csvRow);
@@ -93,7 +96,7 @@ public:
         if (rows.empty()) {
             return nullptr;
         }
-        start += batchSize_;
+
         return CsvConverter::convert(rows, mapping_);
     }
 
@@ -115,7 +118,7 @@ public:
             std::cerr << "Failed to read line" << std::endl;
             return nullptr;
         }
-    
+
         std::cout << "Read line: " << line << std::endl;
         return new CsvRow(line, csvSchema_);
     }
@@ -145,4 +148,4 @@ private:
 };
 
 }  // namespace csv
-}  // namespace omnistream
+}  // namespace omnistreams

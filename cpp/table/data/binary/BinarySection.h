@@ -1,7 +1,17 @@
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
+
 #ifndef OMNIFLINK_BINARYSECTION_H
 #define OMNIFLINK_BINARYSECTION_H
 
-// #include "../../../core/memory/MemorySegment.h"
 #include <cstdint>
 // forward declaration
 template <typename U>
@@ -14,21 +24,9 @@ class LazyBinaryFormat;
 
 // Important: BinarySection does not own Segments, it only ref the segment. The actor object who use BinarySection and its
 // descendants should provide the segments and own the segments.
-class BinarySection
-{
+class BinarySection {
     template <typename U>
     friend class LazyBinaryFormat;
-
-protected:
-    // Assume we're using segment[0] as just a simple byte array, and offset_ is usually 0
-    // MemorySegment ** segments_;
-    uint8_t *memoryBuffer;
-    int offset_ = 0;
-    int sizeInBytes_ = 0;
-    // int numSegments_;
-
-    int bufferCapacity = 0;
-    int owner_ = 0;  //0 default not own mem,  1 own the mem
 
 public:
     BinarySection() = default;
@@ -38,8 +36,6 @@ public:
 
     BinarySection(uint8_t *segment, int offset, int sizeInBytes) : memoryBuffer(segment), offset_(offset), sizeInBytes_(sizeInBytes) {};
 
-    // void pointTo(MemorySegment* segment, int offset_, int sizeInBytes);
-    // void pointTo(MemorySegment **  segments, int numSegments, int offset, int sizeInBytes);
     void pointTo(uint8_t *segment, int offset, int sizeInBytes, int bufferCapacity);
     void own(uint8_t *segment, int offset, int sizeInBytes, int bufferCapacity);
 
@@ -52,6 +48,16 @@ public:
     // int getNumSegments() const;
     uint8_t *getSegment() const;
     int getBufferCapacity() const;
+    void changeOwner(int owner);
+protected:
+    // Assume we're using segment[0] as just a simple byte array, and offset_ is usually 0
+    // MemorySegment ** segments_;
+    uint8_t *memoryBuffer;
+    int offset_ = 0;
+    int sizeInBytes_ = 0;
+
+    int bufferCapacity = 0;
+    int owner_ = 0;  // 0 default not own mem,  1 own the mem
 };
 
 #endif // OMNIFLINK_BINARYSECTION_H

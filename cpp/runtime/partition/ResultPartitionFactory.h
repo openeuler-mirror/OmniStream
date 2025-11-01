@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #ifndef RESULTPARTITIONFACTORY_H
@@ -13,16 +20,23 @@
 #include "core/utils/function/Supplier.h"
 #include <taskmanager/OmniShuffleEnvironmentConfiguration.h>
 
+#include "buffer/BufferPoolFactory.h"
+#include "buffer/NetworkMemoryBufferPool.h"
+#include "buffer/NetworkObjectBufferPool.h"
+
 
 namespace omnistream {
+    using ::datastream::NetworkMemoryBufferPool;
+
     class ResultPartitionFactory {
-        public:
+    public:
         // Default constructor
         ResultPartitionFactory() = default;
 
         // Full argument constructor
         ResultPartitionFactory(std::shared_ptr<ResultPartitionManager> partitionManager,
-                               std::shared_ptr<ObjectBufferPoolFactory> bufferPoolFactory,
+                               std::shared_ptr<NetworkObjectBufferPool> objectBufferPoolFactory,
+                               std::shared_ptr<NetworkMemoryBufferPool> memoryBufferPoolFactory,
                                int networkBufferSize);
 
         // Getters
@@ -32,7 +46,7 @@ namespace omnistream {
 
         // Setters
         void setPartitionManager(std::shared_ptr<ResultPartitionManager> partitionManager);
-        void setBufferPoolFactory(std::shared_ptr<ObjectBufferPoolFactory> bufferPoolFactory);
+        void setBufferPoolFactory(std::shared_ptr<BufferPoolFactory> bufferPoolFactory);
         void setNetworkBufferSize(int networkBufferSize);
 
         // toString method
@@ -42,7 +56,8 @@ namespace omnistream {
             const std::string &taskNameWithSubtaskAndId,
             int partitionIndex,
             const ResultPartitionDeploymentDescriptorPOD &desc,
-            std::shared_ptr<OmniShuffleEnvironmentConfiguration> config);
+            std::shared_ptr<OmniShuffleEnvironmentConfiguration> config,
+            int taskType);
 
         std::shared_ptr<ResultPartition> create(
             const std::string &taskNameWithSubtaskAndId,
@@ -51,17 +66,18 @@ namespace omnistream {
             int resultPartitionType,
             int numberOfSubpartitions,
             int maxParallelism,
-            std::shared_ptr<Supplier<ObjectBufferPool>> bufferPoolFactory,
-            std::shared_ptr<OmniShuffleEnvironmentConfiguration> config);
-        std::shared_ptr<Supplier<ObjectBufferPool>>  createBufferPoolFactory(int numberOfSubpartitions, int resultPartitionType,std::shared_ptr<OmniShuffleEnvironmentConfiguration> config) ;
+            std::shared_ptr<Supplier<BufferPool>> bufferPoolFactory,
+            std::shared_ptr<OmniShuffleEnvironmentConfiguration> config, int taskType);
+        std::shared_ptr<Supplier<BufferPool>>  createBufferPoolFactory(int numberOfSubpartitions, int resultPartitionType, std::shared_ptr<OmniShuffleEnvironmentConfiguration> config, int taskType);
 
-        private:
+    private:
         std::shared_ptr<ResultPartitionManager> partitionManager;
-        std::shared_ptr<ObjectBufferPoolFactory> bufferPoolFactory;
+        std::shared_ptr<NetworkObjectBufferPool> objectBufferPoolFactory;
+        std::shared_ptr<NetworkMemoryBufferPool> memoryBufferPoolFactory;
         int networkBufferSize;
-      };
+    };
 
 }
 
 
-#endif //RESULTPARTITIONFACTORY_H
+#endif

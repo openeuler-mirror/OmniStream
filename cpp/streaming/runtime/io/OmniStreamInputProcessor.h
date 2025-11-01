@@ -1,0 +1,41 @@
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
+
+#ifndef OMNISTREAM_OMNISTREAMINPUTPROCESSOR_H
+#define OMNISTREAM_OMNISTREAMINPUTPROCESSOR_H
+
+#include "runtime/io/AvailabilityProvider.h"
+#include "streaming/runtime/io/DataInputStatus.h"
+#include "core/utils/threads/CompletableFutureV2.h"
+#include "runtime/checkpoint/channel/ChannelStateWriter.h"
+
+namespace omnistream {
+
+    class OmniStreamInputProcessor : public AvailabilityProvider {
+    public:
+        virtual DataInputStatus processInput() = 0;
+
+        std::shared_ptr<CompletableFuture> GetAvailableFuture() override
+        {
+            return nullptr;
+        }
+
+        virtual void close() {}
+
+        CompletableFutureV2<void> *prepareSnapshot(ChannelStateWriter *writer, long checkpointID)
+        {
+            return nullptr;
+        };
+    };
+}
+
+
+#endif

@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 #pragma once
 
@@ -30,14 +37,14 @@ class Task : public Runnable {
 public:
     explicit Task(Runnable* runnable) : target(runnable) {}
 
-    void run() override {
+    void run() override
+    {
         if (target) {
             target->run();
         }
     }
 private:
     Runnable* target;
-
 };
 
 enum class FutureState {
@@ -49,17 +56,6 @@ enum class FutureState {
 };
 
 class CompletableFuture {
-private:
-    FutureState state;
-    std::atomic<bool> done;
-    std::exception_ptr exception;
-    std::mutex mtx;
-    std::condition_variable cv;
-    std::thread worker;
-
-    // Static method for thread execution
-    static void executeTask(CompletableFuture* future, Runnable* task);
-
 public:
     CompletableFuture();
     ~CompletableFuture();
@@ -106,6 +102,17 @@ public:
     void setCompleted() ;
 
     std::string toString() const;
+
+private:
+    FutureState state;
+    std::atomic<bool> done;
+    std::exception_ptr exception;
+    std::mutex mtx;
+    std::condition_variable cv;
+    std::thread worker;
+
+    // Static method for thread execution
+    static void executeTask(CompletableFuture* future, Runnable* task);
 };
 
 } // namespace omnistream

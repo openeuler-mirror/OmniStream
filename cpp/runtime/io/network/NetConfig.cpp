@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #include "NetConfig.h"
@@ -16,23 +23,28 @@ namespace omnistream {
 
     NetConfig::~NetConfig() {}
 
-    std::string NetConfig::getServerAddress() const {
+    std::string NetConfig::getServerAddress() const
+    {
         return serverAddress;
     }
 
-    void NetConfig::setServerAddress(const std::string& serverAddress) {
-        this->serverAddress = serverAddress;
+    void NetConfig::setServerAddress(const std::string& serverAddress_)
+    {
+        this->serverAddress = serverAddress_;
     }
 
-    int NetConfig::getServerPort() const {
+    int NetConfig::getServerPort() const
+    {
         return serverPort;
     }
 
-    void NetConfig::setServerPort(int serverPort) {
-        this->serverPort = serverPort;
+    void NetConfig::setServerPort(int serverPort_)
+    {
+        this->serverPort = serverPort_;
     }
 
-    std::string NetConfig::toString() const {
+    std::string NetConfig::toString() const
+    {
         std::stringstream ss;
         ss << "NetConfig{"
            << "serverAddress='" << serverAddress << '\''

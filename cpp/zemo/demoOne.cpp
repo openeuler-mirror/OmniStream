@@ -1,10 +1,22 @@
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
+
 #include <iostream>
 #include <atomic>
 #include <thread>
 #include <vector>
 #include <chrono>
 
-int main() {
+int main()
+{
     std::atomic<bool> ready(false); // Initialize an atomic boolean to false
 
     // Worker thread function
@@ -46,7 +58,7 @@ int main() {
     // Signal the worker thread to start its main work
     bool expected_main = false;
     bool desired_main = true;
-    ready.compare_exchange_strong(expected_main, desired_main); //change ready to true.
+    ready.compare_exchange_strong(expected_main, desired_main); // change ready to true.
 
     std::cout << "Main thread: Signaled worker thread." << std::endl;
 

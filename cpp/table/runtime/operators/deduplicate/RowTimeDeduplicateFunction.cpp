@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 #include "RowTimeDeduplicateFunction.h"
 #include <iostream>
@@ -38,10 +45,8 @@ unordered_map<RowData *, long> RowTimeDeduplicateFunction::getUpdateState(
 {
     unordered_map<RowData *, long> tmpState;
     int curBatchId = getCurrentBatchId() - 1;
-    long* comboIDs = new long[rowCount];
-    VectorBatchUtil::getComboId_sve(curBatchId, rowCount, comboIDs);
     for (int i = 0; i < rowCount; i++) {
-        long comboId = comboIDs[i];
+        long comboId = VectorBatchUtil::getComboId(curBatchId, i);
 
         // 建立key
         RowData *key = groupByKeySelector->getKey(inputVB, i);
@@ -58,11 +63,11 @@ unordered_map<RowData *, long> RowTimeDeduplicateFunction::getUpdateState(
         } else if (itTmp != tmpState.end()) {
             long curComboId = itTmp->second;
             if (isDuplicate(curComboId, comboId)) {
-                tmpState[key] = comboId;
+                itTmp->second = comboId;
             }
+            delete key;
         }
     }
-    delete[] comboIDs;
     return tmpState;
 }
 
@@ -72,9 +77,11 @@ void RowTimeDeduplicateFunction::addToOutVectorBatch(
     LOG("comboID is, " << comboID)
     int colCount = inputVB->GetVectorCount();
     auto batch = recordStateVB->getVectorBatch(VectorBatchUtil::getBatchId(comboID));
+    delVb.insert(batch);
     int rowId = VectorBatchUtil::getRowId(comboID);
     outputVB->setTimestamp(rowIndex, batch->getTimestamp(rowId));
     auto currentVectorBatch = recordStateVB->getVectorBatch(VectorBatchUtil::getBatchId(comboID));
+    delVb.insert(currentVectorBatch);
     for (int col = 0; col < colCount; col++) {
         auto dataType = currentVectorBatch->Get(col)->GetTypeId();
         if (dataType == omniruntime::type::DataTypeId::OMNI_INT) {
@@ -116,7 +123,7 @@ void RowTimeDeduplicateFunction::processBatch(omnistream::VectorBatch *inputVB, 
     /* 输入一个vectorBatch，记录他目前的id和行数 */
     int rowCount = inputVB->GetRowCount();
     recordStateVB->addVectorBatch(inputVB);
-
+    delVb.insert(inputVB);
     int resultCount = 0;
 
     auto updateState = getUpdateState(inputVB, ctx, rowCount, resultCount);
@@ -148,7 +155,9 @@ void RowTimeDeduplicateFunction::processBatch(omnistream::VectorBatch *inputVB, 
         }
         addToOutVectorBatch(inputVB, outputVB, it.second, rowIndex);
         rowIndex += 1;
+        delete it.first;
     }
+    freeDelBatch();
     if (outputVB->GetVectorCount() != 0) {
         out.collect((void *) outputVB);
     }
@@ -171,9 +180,9 @@ long RowTimeDeduplicateFunction::getRowtime(long row)
     int batchId = VectorBatchUtil::getBatchId(row);
     int rowId = VectorBatchUtil::getRowId(row);
     LOG("batchis is " << batchId <<  ", rowid is " << rowId)
-
-    return reinterpret_cast<omniruntime::vec::Vector<int64_t> *>(
-            recordStateVB->getVectorBatch(batchId)->Get(rowtimeIndex_))
+    auto vb = recordStateVB->getVectorBatch(batchId);
+    delVb.insert(vb);
+    return reinterpret_cast<omniruntime::vec::Vector<int64_t> *>(vb->Get(rowtimeIndex_))
             ->GetValue(rowId);
 }
 
@@ -183,12 +192,18 @@ void RowTimeDeduplicateFunction::open(const Configuration &config)
     LOG("RowTimeDeduplicateFunction open")
     std::string deduplicateStateName = "recordState";
     TypeSerializer *serializer = new LongSerializer();
-    ValueStateDescriptor *recordStateDesc = new ValueStateDescriptor(deduplicateStateName, serializer);
+    auto *recordStateDesc = new ValueStateDescriptor<int64_t>(deduplicateStateName, serializer);
 
     this->recordStateVB =
             static_cast<StreamingRuntimeContext<RowData *> *>(getRuntimeContext())->getState<int64_t>(recordStateDesc);
     static_cast<HeapValueState<RowData *, VoidNamespace, int64_t> *>(this->recordStateVB)->setDefaultValue(-1);
-
+    if (dynamic_cast<RocksdbValueState<RowData *, VoidNamespace, int64_t> *>(recordStateVB)) {
+        INFO_RELEASE("RowTimeDeduplicateFunction backend is rocksdb")
+        backendType = 1;
+    } else {
+        INFO_RELEASE("RowTimeDeduplicateFunction backend is mem")
+        backendType = 0;
+    }
     LOG("RowTimeDeduplicateFunction open finish")
 }
 
@@ -202,4 +217,16 @@ std::vector<int32_t> RowTimeDeduplicateFunction::getKeyedTypes(const std::vector
         }
     }
     return keyedTypes;
+}
+
+void RowTimeDeduplicateFunction::freeDelBatch()
+{
+    if (backendType == 0) {
+        delVb.clear();
+        return;
+    }
+    for (auto vb: delVb) {
+        omniruntime::vec::VectorHelper::FreeVecBatch(vb);
+    }
+    delVb.clear();
 }

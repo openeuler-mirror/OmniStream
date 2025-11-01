@@ -1,5 +1,5 @@
 /*
- * @Copyright: Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * @Copyright: Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
  * @Description: StreamOneInputProcess for DataStream
  */
 #ifndef FLINK_TNEL_TYPEINFOFACTORY_H
@@ -8,6 +8,8 @@
 #include <string>
 #include <nlohmann/json.hpp>
 #include "TypeInformation.h"
+#include "BasicTypeInfo.h"
+#include "TupleTypeInfo.h"
 #include "table/types/logical/LogicalType.h"
 #include "types/logical/RowType.h"
 
@@ -17,7 +19,7 @@ using string = std::string;
 
 class TypeInfoFactory {
 public:
-    static TypeInformation *createTypeInfo(const char* name, const std::string config);
+    static TypeInformation *createTypeInfo(const char* name);
 
     // internalType  is mapped from java table internal type, which is for sql type
     static TypeInformation *createInternalTypeInfo(const nlohmann::json &rowType);
@@ -27,8 +29,10 @@ public:
 
     static TypeInformation *createCommittableMessageInfo();
 
+    static TypeInformation *createDataStreamTypeInfo(const nlohmann::json &serializerInfo);
+
     // may not be  useful, leave it as it for now. basic internal type is mapped from java sql type, logicaltyperoot.PREDEFINED,
-    static TypeInformation *createBasicInternalTypeInfo(const char* name, const std::string config);
+    static TypeInformation *createBasicInternalTypeInfo(const char* name);
 
     static LogicalType* createLogicalType(const std::string type);
 
@@ -36,4 +40,4 @@ public:
 };
 
 
-#endif   //FLINK_TNEL_TYPEINFOFACTORY_H
+#endif

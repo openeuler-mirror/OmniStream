@@ -1,3 +1,13 @@
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
 
 #ifndef FLINK_TNEL_ROWDATASERIALIZER_H
 #define FLINK_TNEL_ROWDATASERIALIZER_H
@@ -14,10 +24,8 @@
 
 class RowDataSerializer : public TypeSerializerSingleton  {
 public:
-    //RowDataSerializer(std::vector<LogicalType*> * types, std::vector<TypeSerializer *> *fieldSerializers);
-
     explicit RowDataSerializer(omnistream::RowType *rowType);
-    ~RowDataSerializer();
+    ~RowDataSerializer() override;
 
     void *deserialize(DataInputView &source) override;
 
@@ -25,7 +33,7 @@ public:
 
     [[nodiscard]] const char *getName() const override;
 
-    BinaryRowData * toBinaryRow(RowData* row);
+    BinaryRowData* toBinaryRow(RowData* row);
 
     BackendDataType getBackendId() const override { return BackendDataType::ROW_BK;};
     
@@ -35,9 +43,9 @@ private:
     std::vector<TypeSerializer*> fieldSerializers_;
     std::vector<FieldGetter*> fieldGetters_;
 
-     BinaryRowData* reuseRow_;
-     BinaryRowWriter* reuseWriter_;
+    BinaryRowData* reuseRow_;
+    BinaryRowWriter* reuseWriter_;
 };
 
 
-#endif //FLINK_TNEL_ROWDATASERIALIZER_H
+#endif

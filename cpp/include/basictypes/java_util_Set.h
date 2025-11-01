@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 #ifndef JAVA_UNTIL_SET_H
 #define JAVA_UNTIL_SET_H
@@ -13,13 +20,15 @@
 #include "java_util_Collection.h"
 
 struct ObjectSetHash {
-    size_t operator()(Object *obj) const {
+    size_t operator()(Object *obj) const
+    {
         return obj ? obj->hashCode() : 0;
     }
 };
 
 struct ObjectSetEqual {
-    bool operator()(Object *a, Object *b) const {
+    bool operator()(Object *a, Object *b) const
+    {
         if (a == b) return true;
         if (!a || !b) return false;
         return a->equals(b);
@@ -52,7 +61,9 @@ public:
     using SetIterator = std::unordered_set<Object *, ObjectSetHash, ObjectSetEqual>::iterator;
 
     public:
-        SETIterator(SetIterator begin, SetIterator end);
+        SETIterator(Set *set);
+
+        ~SETIterator();
 
         bool hasNext();
 
@@ -60,6 +71,7 @@ public:
     private:
         SetIterator current_;
         SetIterator end_;
+        Set *set;
     };
 
     ~Set();
@@ -74,7 +86,7 @@ public:
     Set(nlohmann::json jsonObj);
 
     Set(std::unordered_set<std::string> set);
-private:
+
     std::unordered_set<Object *, ObjectSetHash, ObjectSetEqual> set_;
 };
 using HashSet = Set;

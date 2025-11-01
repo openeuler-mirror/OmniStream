@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #ifndef TASKDEPLOYMENTDESCRIPTORPOD_H
@@ -22,10 +29,13 @@ namespace omnistream {
         // Full argument constructor
         TaskDeploymentDescriptorPOD(const JobIDPOD& jobId,
                                      const std::vector<ResultPartitionDeploymentDescriptorPOD>& producedPartitions,
-                                     const std::vector<InputGateDeploymentDescriptorPOD>& inputGates)
-            : jobId(jobId), producedPartitions(producedPartitions), inputGates(inputGates) {}
+                                     const std::vector<InputGateDeploymentDescriptorPOD>& inputGates,
+                                     std::string taskSnapshot)
+            : jobId(jobId), producedPartitions(producedPartitions), inputGates(inputGates),
+            taskStateSnapshot(taskSnapshot) {}
 
         // Copy constructor
+        TaskDeploymentDescriptorPOD &operator=(const TaskDeploymentDescriptorPOD&) = default;
         TaskDeploymentDescriptorPOD(const TaskDeploymentDescriptorPOD& other) = default;
 
         // Getters
@@ -33,16 +43,34 @@ namespace omnistream {
         const std::vector<ResultPartitionDeploymentDescriptorPOD>& getProducedPartitions() const { return producedPartitions; }
         const std::vector<InputGateDeploymentDescriptorPOD>& getInputGates() const { return inputGates; }
 
+        std::string getTaskStateSnapshot() const
+        {
+            return taskStateSnapshot;
+        }
+
+        long getRestoreCheckpointId() const
+        {
+            return restoreCheckpointId;
+        }
+
         // Setters
         void setJobId(const JobIDPOD& jobId) { this->jobId = jobId; }
         void setProducedPartitions(const std::vector<ResultPartitionDeploymentDescriptorPOD>& producedPartitions) { this->producedPartitions = producedPartitions; }
         void setInputGates(const std::vector<InputGateDeploymentDescriptorPOD>& inputGates) { this->inputGates = inputGates; }
+        void setTaskStateSnapshot(std::string taskSnapshot)
+        {
+            this->taskStateSnapshot = taskSnapshot;
+        }
+        void setRestoreCheckpointId(long restoreCheckpointId)
+        {
+            this->restoreCheckpointId = restoreCheckpointId;
+        }
 
         // toString method
         std::string toString() const
         {
             std::string str = "TaskDeploymentDescriptorPOD:\n";
-            str += "  JobID: " + jobId.toString() + "\n";
+            str += "  JobIDPOD: " + jobId.toString() + "\n";
             str += "  Produced Partitions:\n";
             for (const auto& partition : producedPartitions) {
                 str += "    " + partition.toString() + "\n";
@@ -51,6 +79,7 @@ namespace omnistream {
             for (const auto& gate : inputGates) {
                 str += "    " + gate.toString() + "\n";
             }
+            str += " TaskStateSnapshot: " + taskStateSnapshot + "\n";
             return str;
         }
 
@@ -69,18 +98,19 @@ namespace omnistream {
                 h2 ^= hash_value(partition);
             }
             size_t h3 = 0;
-            for(const auto& gate: inputGates) {
-                h3^= hash_value(gate);
+            for (const auto &gate: inputGates) {
+                h3 ^= hash_value(gate);
             }
 
             return h1 ^ (h2 << 1) ^ (h3 << 2);
         }
-
-        NLOHMANN_DEFINE_TYPE_INTRUSIVE(TaskDeploymentDescriptorPOD, jobId, producedPartitions, inputGates)
+        NLOHMANN_DEFINE_TYPE_INTRUSIVE(TaskDeploymentDescriptorPOD, jobId, producedPartitions, inputGates, taskStateSnapshot, restoreCheckpointId)
     private:
         JobIDPOD jobId;
         std::vector<ResultPartitionDeploymentDescriptorPOD> producedPartitions;
         std::vector<InputGateDeploymentDescriptorPOD> inputGates;
+        std::string taskStateSnapshot;
+        long restoreCheckpointId;
     };
 
 } // namespace omnistreamcd

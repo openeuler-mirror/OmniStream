@@ -1,3 +1,14 @@
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
+
 #include "MinMaxFunction.h"
 #include <stdexcept>
 #include <iostream>
@@ -11,7 +22,7 @@ void MinMaxFunction::accumulate(RowData *accInput)
         bool isFilterNull = accInput->isNullAt(filterIndex);
         isFilter = !isFilterNull && *(accInput->getBool(filterIndex));
     }
-    if(isFilter) {
+    if (isFilter) {
         switch (typeId) {
             case DataTypeId::OMNI_TIMESTAMP:
             case DataTypeId::OMNI_LONG: {
@@ -24,10 +35,9 @@ void MinMaxFunction::accumulate(RowData *accInput)
             }
             default:
                 LOG("Data type is not supported.");
-            throw std::runtime_error("Data type is not supported.");
+                throw std::runtime_error("Data type is not supported.");
         }
     }
-
 }
 
 void MinMaxFunction::accumulateLong(RowData *accInput)
@@ -57,8 +67,8 @@ void MinMaxFunction::accumulateString(RowData *accInput)
         stringAggValue = valueIsNull ? stringAggValueLimit : stringAggValue;
     } else {
         bool toUpdate = !valueIsNull && (aggOperator == MAX_FUNC ?
-            compareStrRowDataSimple(fieldValue, stringAggValue) > 0 :
-            compareStrRowDataSimple(fieldValue,stringAggValue ) < 0);
+            compareStrRowDataSimple(fieldValue, stringAggValue) > 0
+            : compareStrRowDataSimple(fieldValue, stringAggValue) < 0);
         if (valueIsNull || toUpdate) {
             stringAggValue = fieldValue;
             valueIsNull = false;
@@ -163,12 +173,10 @@ int MinMaxFunction::compareStrRowDataSimple(const std::string& leftStr, const st
 
 void MinMaxFunction::retract(RowData *retractInput)
 {
-    //throw std::runtime_error("This function does not require retract method, but retract was called.");
 }
 
 void MinMaxFunction::retract(omnistream::VectorBatch* input, const std::vector<int>& indices)
 {
-    // throw std::runtime_error("This function does not require retract method, but retract was called.");
 }
 
 void MinMaxFunction::merge(RowData *otherAcc)
@@ -202,7 +210,8 @@ void MinMaxFunction::resetAccumulators()
     valueIsNull = true;
 }
 
-void MinMaxFunction::createAccumulators(BinaryRowData* accumulators) {
+void MinMaxFunction::createAccumulators(BinaryRowData* accumulators)
+{
     switch (typeId) {
         case DataTypeId::OMNI_TIMESTAMP:
         case DataTypeId::OMNI_LONG: {
@@ -243,7 +252,6 @@ void MinMaxFunction::getAccumulators(BinaryRowData *accumulators)
 
 void MinMaxFunction::getValue(BinaryRowData *newAggValue)
 {
-    //todo set new value start_time end_time
     if (valueIsNull) {
         newAggValue->setNullAt(valueIndex);
     } else {

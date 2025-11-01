@@ -1,10 +1,19 @@
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
+
 #ifndef FLINK_TNEL_MEMORYSEGMENT_H
 #define FLINK_TNEL_MEMORYSEGMENT_H
 
 #include <cstdint>
-#include <iostream>
-#include <arm_sve.h>
-
+#include "Segment.h"
 // MemorySegment is a segment of mem.
 // in cpp, MemorySegment may not be useful as in java.
 // At this time, for convenience of migrating java code to cpp, MemorySegment is helpful
@@ -15,16 +24,17 @@
  * Notice, MemorySegment always wrap the existing mem
  *
  */
-class MemorySegment {
+class MemorySegment : public Segment {
 public:
     // wrap the existing mem
     MemorySegment(uint8_t* offHeapBuffer, int size);
     explicit MemorySegment(int size);
-
+    MemorySegment(uint8_t* offHeapBuffer, int size, void* owner);
     uint8_t* getAll();
 
     // get byte at the index
     uint8_t get(int index);
+    uint8_t* getData();
 
     void put(int index, uint8_t b);
     void put(int index, const uint8_t* src, int offset, int length);
@@ -56,7 +66,7 @@ public:
 
     bool equalTo(MemorySegment seg2, int offset1, int offset2, int length);
 
-    void getResData(void* dst, void* src, size_t cur, int res);
+    ~MemorySegment() override;
 
 private:
     // so far, assume we only run with LITTLE ENDIAN cpu architecture
