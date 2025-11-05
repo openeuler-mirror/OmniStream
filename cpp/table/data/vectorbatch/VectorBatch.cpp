@@ -81,7 +81,7 @@ namespace omnistream {
 
         for (int colIndex = 0; colIndex < numColumns; ++colIndex) {
             auto col = this->Get(colIndex);
-            if (col->IsNull(colIndex)) {
+            if (col->IsNull(rowIndex)) {
                 outRow->setNullAt(colIndex);
                 continue;
             }

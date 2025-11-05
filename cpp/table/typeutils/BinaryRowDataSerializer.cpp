@@ -64,6 +64,27 @@ void BinaryRowDataSerializer::serialize(void *row, DataOutputSerializer &target)
     }
 }
 
+void BinaryRowDataSerializer::serialize(Object *row, DataOutputSerializer &target)
+{
+    LOG(">>>>")
+    // We eventually needs to implement a JoinedRowDataSerializer
+    // in Q4, Agg/Join are never the last Op in chain, so JoinedRowDataSerialzier is not needed of Q4.
+    auto *castedRow = reinterpret_cast<RowData *>(static_cast<void *>(row));
+    if (castedRow->getRowDataTypeId() == RowData::JoinedRowDataID) {
+        INFO_RELEASE("WARNING: joinedRowToBinaryRow are only meant for testing. It only treat long type!!");
+    } else {
+        auto *binRow = reinterpret_cast<BinaryRowData *>(row);
+        LOG(">>>>" << binRow->getSizeInBytes())
+        target.writeInt(binRow->getSizeInBytes());
+
+        LOG("getBufferCapacity>>>>" << binRow->getBufferCapacity() << " , getOffset :" << binRow->getOffset())
+
+        BinarySegmentUtils::copyToView(binRow->getSegment(),
+                                       binRow->getBufferCapacity(), binRow->getOffset(),
+                                       binRow->getSizeInBytes(), target);
+    }
+}
+
 const char *BinaryRowDataSerializer::getName() const
 {
     return "BinaryRowDataSerializer";

@@ -26,6 +26,8 @@ public:
 
     void serialize(void *row, DataOutputSerializer &target) override;
 
+    void serialize(Object *row, DataOutputSerializer &target) override;
+
     [[nodiscard]] const char *getName() const override;
 
     static BinaryRowData* joinedRowToBinaryRow(JoinedRowData *row, const std::vector<int32_t>& typeId = {});

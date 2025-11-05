@@ -10,6 +10,9 @@
  */
 
 #include "OmniLocalChannelReader.h"
+#include "runtime/streamrecord/StreamRecord.h"
+#include "table/typeutils/BinaryRowDataSerializer.h"
+#include "streaming/runtime/streamrecord/StreamElementSerializer.h"
 
 namespace omnistream {
     OmniLocalChannelReader::OmniLocalChannelReader(ResultPartitionIDPOD partitionId, int subPartitionIndex,
@@ -53,7 +56,7 @@ namespace omnistream {
             if (wait) {
                 INFO_RELEASE(
                     "************* JNI INVOCATION FOR " << taskNameWithSubtask_ <<
-                    " checkIfDataAvailable in OmniLocalChannelReader IS WAITING")
+                                                        " checkIfDataAvailable in OmniLocalChannelReader IS WAITING")
             }
             return !wait;
         });
@@ -72,18 +75,16 @@ namespace omnistream {
 
         std::lock_guard<std::recursive_mutex> lock(fetchingDataMutex);
         std::shared_ptr<BufferAndBacklog> bufferAndLog =
-                this->subpartitionView->getNextBuffer();
+            this->subpartitionView->getNextBuffer();
 
         if (bufferAndLog) {
             std::shared_ptr<Buffer> buffer = bufferAndLog->getBuffer();
             if (buffer->GetSize() > 0) {
                 if (auto vBuffer = std::dynamic_pointer_cast<VectorBatchBuffer>(buffer)) {
-                    // handle VectorBatchBuffer specific processing, maybe will implement it in the future
-                    INFO_RELEASE(
-                        "VectorBatchBuffer is not supported in OmniLocalChannelReader, so it will be recycled directly.......");
-                    buffer->RecycleBuffer();
-                    throw std::logic_error("VectorBatchBuffer is not supported in OmniLocalChannelReader");
-                } else if (auto nBuffer = std::dynamic_pointer_cast<datastream::ReadOnlySlicedNetworkBuffer>(buffer)) {
+                    WrapBufferInfoIntoBinaryRowDataInfo(vBuffer, bufferAndLog);
+                    return 1;
+                } else if (auto nBuffer = std::dynamic_pointer_cast<::datastream::ReadOnlySlicedNetworkBuffer>(
+                    buffer)) {
                     WrapBufferInfoIntoMemorySegmentInfo(
                         nBuffer, bufferAndLog);
                     return 1;
@@ -126,25 +127,27 @@ namespace omnistream {
         memorySegmentInfo->nextDataType = nextDataType;
         memorySegmentInfo->sequenceNumber = sequenceNumber;
         pendingRecyclingBuffer = nBuffer;
+        INFO_RELEASE("memorySegmentAddress is " << memorySegmentInfo->memorySegmentAddress << " offset is "
+                                                << memorySegmentInfo->readIndex << " numBytes is " << memorySegmentInfo->length
+                                                << " currentDataType is " << memorySegmentInfo->currentDataType << " backlog is "
+                                                << memorySegmentInfo->backlog << " nextDataType is " << memorySegmentInfo->nextDataType
+                                                << " sequenceNumber is " << memorySegmentInfo->sequenceNumber)
     }
 
-    void OmniLocalChannelReader::recycleMemorySegment(long memorySegmentAddress)
-    {
+    void OmniLocalChannelReader::recycleMemorySegment(long memorySegmentAddress) {
         if (pendingRecyclingBuffer) {
             pendingRecyclingBuffer->RecycleBuffer();
             pendingRecyclingBuffer = nullptr;
         }
     }
 
-    void OmniLocalChannelReader::Close()
-    {
+    void OmniLocalChannelReader::Close() {
         std::unique_lock<std::recursive_mutex> lock(dataAvailableMutex);
         isStopped = true;
         dataAvailableCondition.notify_one();
     }
 
-    void OmniLocalChannelReader::ReleaseAllResources()
-    {
+    void OmniLocalChannelReader::ReleaseAllResources() {
         Close();
         recycleMemorySegment(0);
         if (subpartitionView) {
@@ -153,8 +156,125 @@ namespace omnistream {
         }
     }
 
-    void OmniLocalChannelReader::ResumeConsumption()
-    {
+    void OmniLocalChannelReader::ResumeConsumption() {
         subpartitionView->resumeConsumption();
+    }
+
+    int OmniLocalChannelReader::calculateTotalRows(const std::shared_ptr<ObjectSegment>& objectSegment, int offset, int vbNum) {
+        int totalRow = 0;
+        for (int i = offset; i < vbNum + offset; i++) {
+            StreamElement *streamElement = objectSegment->getObject(i);
+            if (dynamic_cast<StreamRecord *>(streamElement)) {
+                auto *streamRecord = dynamic_cast<StreamRecord *>(streamElement);
+                auto *element = static_cast<VectorBatch *>(streamRecord->getValue());
+                totalRow += element->GetRowCount();
+            }
+        }
+        return totalRow;
+    }
+
+    void OmniLocalChannelReader::setRowDataToPtr(RowData* binaryRowData, uint8_t* dataResultContainer, unsigned int& position, int vectorBatchCol, VectorBatch* element, int index) {
+        BinaryRowDataSerializer *binaryRowDataSerializer = new BinaryRowDataSerializer(vectorBatchCol);
+        omnistream::datastream::StreamElementSerializer streamElementSerializer(binaryRowDataSerializer);
+
+        DataOutputSerializer* valueOutputSerializer = new DataOutputSerializer(4);
+
+        OutputBufferStatus *valueOutputBufferStatus = new OutputBufferStatus();
+        valueOutputSerializer->setBackendBuffer(valueOutputBufferStatus);
+        StreamRecord streamRecord;
+        streamRecord.setValue(binaryRowData);
+        if (element->getTimestamps() != nullptr) {
+            streamRecord.setTimestamp(element->getTimestamp(index));
+        }
+        valueOutputSerializer->setPosition(4);
+        streamElementSerializer.serialize(&streamRecord, *valueOutputSerializer);
+        valueOutputSerializer->writeIntUnsafe(valueOutputSerializer->length() - 4, 0);
+        *reinterpret_cast<uint32_t *>(dataResultContainer +
+                                                  position) = valueOutputSerializer->length();
+        position += 4;
+        *reinterpret_cast<uint64_t *>(dataResultContainer +
+                                                  position) = reinterpret_cast<uint64_t>(valueOutputSerializer->getData());
+        position += 8;
+
+        INFO_RELEASE(" length is " << valueOutputSerializer->length() << " data ptr is "
+                                << reinterpret_cast<uint64_t>(valueOutputSerializer->getData()))
+
+        valueOutputBufferStatus->ownership = 0;
+        delete valueOutputSerializer;
+        delete valueOutputBufferStatus;
+    }
+
+
+    void OmniLocalChannelReader::WrapBufferInfoIntoBinaryRowDataInfo(
+        const std::shared_ptr<omnistream::VectorBatchBuffer> &vBuffer,
+        const std::shared_ptr<BufferAndBacklog> &bufferAndLog) {
+
+        int vbNum = vBuffer->GetSize();
+        int32_t vectorBatchCol = 0;
+        int offset = vBuffer->GetOffset();
+        std::shared_ptr<ObjectSegment> objectSegment = vBuffer->GetObjectSegment();
+
+        // Calc total row
+        int totalRow = calculateTotalRows(objectSegment, offset, vbNum);
+        int totalSize = totalRow * 12; // length(int32_t) + ptr(uint64_t)
+        uint8_t *dataResultContainer = new uint8_t[totalSize];
+        INFO_RELEASE("totalSize is " << totalSize << " dataResultContainer ptr is "
+                                     << reinterpret_cast<uint64_t>(dataResultContainer))
+        memorySegmentInfo->memorySegmentAddress = reinterpret_cast<uint64_t>(dataResultContainer);
+
+        unsigned int position = 0;
+        // Encapsulated BinaryRowData Information
+        for (int i = offset; i < vbNum + offset; i++) {
+            StreamElement *streamElement = objectSegment->getObject(i);
+            if (dynamic_cast<StreamRecord *>(streamElement)) {
+                auto *streamRecord = dynamic_cast<StreamRecord *>(streamElement);
+                auto *element = static_cast<VectorBatch *>(streamRecord->getValue());
+                auto vectorBatchRow = element->GetRowCount();
+                vectorBatchCol = element->GetVectorCount();
+
+                for (int j = 0; j < vectorBatchRow; j++) {
+                    auto binaryRowData = element->extractRowData(j);
+                    // serializer binaryRowData
+                    setRowDataToPtr(binaryRowData, dataResultContainer, position, vectorBatchCol, element, j);
+                }
+            } else if (dynamic_cast<Watermark *>(streamElement)) {
+                auto *watermark = dynamic_cast<Watermark *>(streamElement);
+
+                omnistream::datastream::StreamElementSerializer streamElementSerializer(nullptr);
+                auto *valueOutputSerializer = new DataOutputSerializer(4);
+                auto *valueOutputBufferStatus = new OutputBufferStatus();
+                valueOutputSerializer->setBackendBuffer(valueOutputBufferStatus);
+                valueOutputSerializer->setPosition(4);
+                streamElementSerializer.serialize(watermark, *valueOutputSerializer);
+                valueOutputSerializer->writeIntUnsafe(valueOutputSerializer->length() - 4, 0);
+                *reinterpret_cast<uint32_t *>(dataResultContainer + position) = valueOutputSerializer->length();
+                position += 4;
+                *reinterpret_cast<uint64_t *>(dataResultContainer +
+                                                                  position) = reinterpret_cast<uint64_t>(valueOutputSerializer->getData());
+                position += 8;
+                valueOutputBufferStatus->ownership = 0;
+                delete valueOutputSerializer;
+                delete valueOutputBufferStatus;
+            }
+        }
+
+        // get other msg
+        int sequenceNumber = bufferAndLog->getSequenceNumber();
+        int backlog = bufferAndLog->getBuffersInBacklog();
+        int nextDataType = 0;
+        if (bufferAndLog->getNextDataType() == ObjectBufferDataType::DATA_BUFFER) {
+            nextDataType = 1;
+        } else if (bufferAndLog->getNextDataType() == ObjectBufferDataType::EVENT_BUFFER) {
+            nextDataType = 2;
+        }
+        int currentDataType = 1;
+        memorySegmentInfo->readIndex = offset;
+        memorySegmentInfo->length = totalRow;
+        memorySegmentInfo->currentDataType = currentDataType;
+        memorySegmentInfo->backlog = backlog;
+        memorySegmentInfo->nextDataType = nextDataType;
+        memorySegmentInfo->sequenceNumber = sequenceNumber;
+        pendingRecyclingBuffer = vBuffer;
+
     }
 }
