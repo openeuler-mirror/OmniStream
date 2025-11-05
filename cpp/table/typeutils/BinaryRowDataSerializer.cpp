@@ -20,6 +20,14 @@ BinaryRowDataSerializer::BinaryRowDataSerializer(int numFields) : numFields_(num
     reUse_->pointTo(bytes, 0, SEG_SIZE, SEG_SIZE);
 }
 
+BinaryRowDataSerializer::BinaryRowDataSerializer(int numFields, const std::vector<std::string>& inputTypes) : numFields_(numFields) {
+    inputTypes_ = inputTypes;
+    fixedLengthPartSize_ = BinaryRowData::calculateFixPartSizeInBytes(numFields_);
+    reUse_ = new BinaryRowData(numFields_);
+    auto *bytes = new uint8_t[SEG_SIZE];
+    reUse_->pointTo(bytes, 0, SEG_SIZE, SEG_SIZE);
+}
+
 BinaryRowDataSerializer::~BinaryRowDataSerializer()
 {
     delete reUse_;
@@ -136,4 +144,8 @@ BinaryRowData* BinaryRowDataSerializer::joinedRowFromBothBinaryRow(JoinedRowData
     BinaryRowData *newRow = BinaryRowData::createRowFromSubJoinedRows(row1, row2);
     newRow->setRowKind(row->getRowKind());
     return newRow;
+}
+
+const std::vector<std::string>& BinaryRowDataSerializer::getInputTypes() const {
+    return inputTypes_;
 }
