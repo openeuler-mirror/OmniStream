@@ -46,12 +46,12 @@ std::string flinkPathToString(JNIEnv* env, jobject flinkPathObj)
         throw std::runtime_error("Failed to find org.apache.flink.core.fs.Path class");
     }
 
-    // 获取getPath()方法ID（返回字符串表示）
-    jmethodID getPathMethod = env->GetMethodID(pathClass, "getPath", "()Ljava/lang/String;");
+    // 调用toString()方法
+    jmethodID getPathMethod = env->GetMethodID(pathClass, "toString", "()Ljava/lang/String;");
     if (!getPathMethod) {
         env->ExceptionDescribe();
         env->DeleteLocalRef(pathClass);
-        throw std::runtime_error("Failed to get Path.getPath() method ID");
+        throw std::runtime_error("Failed to get Path.toString() method ID");
     }
 
     // 调用getPath()方法获取字符串路径
