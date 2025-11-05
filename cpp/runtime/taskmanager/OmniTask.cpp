@@ -122,6 +122,7 @@ namespace omnistream {
     {
         if (invokable_ != nullptr) {
             invokable_->cancel();
+            invokable_->input_processor()->close();
         }
     }
 

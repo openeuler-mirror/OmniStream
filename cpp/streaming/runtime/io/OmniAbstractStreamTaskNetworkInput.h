@@ -35,7 +35,7 @@ class OmniAbstractStreamTaskNetworkInput : public OmniStreamTaskInput {
 public:
     OmniAbstractStreamTaskNetworkInput(int64_t inputIndex, std::shared_ptr<CheckpointedInputGate> inputGate, int taskType,
         TypeSerializer *inputSerializer, std::vector<long> & channelInfos)
-        : inputIndex(inputIndex), inputGate(std::move(inputGate)), taskType(taskType), currentRecordDeserializer(nullptr)
+        : inputIndex(inputIndex), inputGate(std::move(inputGate)), taskType(taskType), currentRecordDeserializer(nullptr), output_(nullptr)
     {
         inSerializer = inputSerializer;
         deserializationDelegate_ = new NonReusingDeserializationDelegate(
@@ -44,6 +44,7 @@ public:
         rowCount = 0;
         maxRowCount = 1000;
         timeout = 1000;
+        running_.exchange(true);
     }
 
     DataInputStatus emitNext(OmniPushingAsyncDataInput::OmniDataOutput *output) override
@@ -56,6 +57,12 @@ public:
         if (taskType == 1) {
             fromOriginal = inputGate->fromOriginal();
             if (fromOriginal) {
+                if (!isStartTimer) {
+                    INFO_RELEASE("Start timer thread")
+                    timer_thread_ = std::thread(&OmniAbstractStreamTaskNetworkInput::timerThread, this);
+                    isStartTimer = true;
+                }
+                output_ = output;
                 return processForSQLFromOriginal(output);
             } else {
                 return processForSQL(output);
@@ -66,6 +73,25 @@ public:
             throw std::runtime_error("Unknown taskType: " + taskType);
         }
     }
+
+    void timerThread() {
+        while (running_) {
+            std::unique_lock<std::mutex> lock(mutex_);
+            if (cv_.wait_for(lock, std::chrono::seconds(1), [this]() {
+                return !running_ || rowList.empty();
+            })) {
+                if (!running_) break;
+            } else {
+                if (!rowList.empty()) {
+                    lock.unlock();
+                    INFO_RELEASE("Raw to Native, triggering by schedule")
+                    emitCurrentBatch(output_);
+                }
+            }
+        }
+        INFO_RELEASE("timer thread end")
+    }
+
 
     std::shared_ptr<CompletableFuture> GetAvailableFuture() override
     {
@@ -258,12 +284,19 @@ public:
                 batchStartTime = std::chrono::steady_clock::now();
             }
 
-            // 2.Push the row data into list
-            auto newRow = reinterpret_cast<BinaryRowData *>(row->copy());
-            rowList.push_back(newRow);
-            LOG("push in a record, size is " << rowList.size())
-            rowCount++;
-            numberOfRow++;
+            {
+                std::unique_lock<std::mutex> lock(mutex_);
+                if (rowList.empty()) {
+                    batchStartTime = std::chrono::steady_clock::now();
+                }
+
+                // 2.Push the row data into list
+                auto newRow = reinterpret_cast<BinaryRowData *>(row->copy());
+                rowList.push_back(newRow);
+                LOG("push in a record, size is " << rowList.size())
+                rowCount++;
+                numberOfRow++;
+            }
 
             // 3.Calculate the elapsed time
             auto currentTime = std::chrono::steady_clock::now();
@@ -284,16 +317,21 @@ public:
             return;
         }
         // Convert the rowdata list to VectorBatch
+        StreamRecord* batchRecord = nullptr;
         const std::vector<std::string>& inputTypes = reinterpret_cast<BinaryRowDataSerializer *>(inSerializer)->getInputTypes();
-        omnistream::VectorBatch *resultBatch = createOutputBatch(rowList, inputTypes);
-        StreamRecord* batchRecord = new StreamRecord(resultBatch);
+        {
+            std::unique_lock<std::mutex> lock(mutex_);
+            omnistream::VectorBatch *resultBatch = createOutputBatch(rowList, inputTypes);
+            batchRecord = new StreamRecord(resultBatch);
+            for (BinaryRowData* row : rowList) {
+                delete row;
+            }
+            rowList.clear();
+            rowCount = 0;
+            cv_.notify_one();
+        }
         output->emitRecord(batchRecord);
 
-        for (BinaryRowData* row : rowList) {
-            delete row;
-        }
-        rowList.clear();
-        rowCount = 0;
         batchStartTime = std::chrono::steady_clock::now();
     }
 
@@ -425,6 +463,7 @@ public:
 
     void close() override
     {
+        running_.exchange(false);
         INFO_RELEASE("OmniAbstractStreamTaskNetworkInput received numberOfRow: " << numberOfRow)
     }
 
@@ -494,6 +533,14 @@ private:
     // List of BinaryRowData to be accumulated, only init in SQLFromOriginal case
     std::vector<BinaryRowData *> rowList;
     std::chrono::steady_clock::time_point batchStartTime;
+
+    // timerThread相关
+    std::atomic<bool> running_{false};
+    std::mutex mutex_;           // 保护缓冲区的互斥锁
+    std::condition_variable cv_; // 用于线程同步的条件变量
+    std::thread timer_thread_;   // 定时器线程
+    OmniPushingAsyncDataInput::OmniDataOutput *output_;
+    bool isStartTimer = false;
 };
 }  // namespace omnistream
 

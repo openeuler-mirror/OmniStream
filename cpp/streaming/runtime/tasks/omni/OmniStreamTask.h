@@ -100,6 +100,10 @@ namespace omnistream {
             }
         };
 
+        std::shared_ptr<OmniStreamInputProcessor> input_processor() const {
+            return inputProcessor_;
+        }
+
         void abortCheckpointOnBarrier(long checkpointId, CheckpointException cause) override {};
 
         bool IsUsingNonBlockingInput();
@@ -134,6 +138,9 @@ namespace omnistream {
         StreamOperator* mainOperator_;
         std::shared_ptr<OmniStreamInputProcessor> inputProcessor_;
 
+
+
+    protected:
         /**
         * All actions outside of the task {@link #mailboxProcessor mailbox} (i.e. performed by another
         * thread) must be executed through this executor to ensure that we don't have concurrent method
