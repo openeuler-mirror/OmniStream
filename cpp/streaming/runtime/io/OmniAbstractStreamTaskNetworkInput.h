@@ -329,6 +329,7 @@ public:
                     setBool(outputBatch, numRows, colIndex, rowList);
                     break;
                 }
+                case DataTypeId::OMNI_CHAR:
                 case DataTypeId::OMNI_VARCHAR: {
                     setString(outputBatch, numRows, colIndex, collectedRows);
                     break;
@@ -411,7 +412,7 @@ public:
             if (collectedRows[rowIndex]->isNullAt(colIndex)) {
                 vector->SetNull(rowIndex);
             } else {
-                vector->SetValue(rowIndex, *collectedRows[rowIndex]->getInt(colIndex));
+                vector->SetValue(rowIndex, *collectedRows[rowIndex]->getBool(colIndex));
             }
         }
         outputBatch->Append(vector);

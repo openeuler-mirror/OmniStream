@@ -22,6 +22,16 @@ void SerializeIntIntoRowData(vec::BaseVector *baseVector, int32_t rowIdx, Binary
         result->setInt(pos, reinterpret_cast<vec::Vector<int32_t>*>(baseVector)->GetValue(rowIdx));
     }
 }
+
+void SerializeBooleanIntoRowData(vec::BaseVector *baseVector, int32_t rowIdx, BinaryRowData *result, int32_t pos)
+{
+    if (baseVector->IsNull(rowIdx)) {
+        result->setNullAt(pos);
+    } else {
+        result->setBool(pos, reinterpret_cast<vec::Vector<bool>*>(baseVector)->GetValue(rowIdx));
+    }
+}
+
 void SerializeVarcharIntoRowData(vec::BaseVector *baseVector, int32_t rowIdx, BinaryRowData *result, int32_t pos)
 {
     if (baseVector->IsNull(rowIdx)) {
@@ -82,12 +92,12 @@ std::vector<VBToRowSerializer> rowSerializerCenter = {
     SerializeIntIntoRowData,        // OMNI_INT
     SerializeLongIntoRowData,       // OMNI_LONG
     nullptr,                        // OMNI_DOUBLE
-    nullptr,                        // OMNI_BOOLEAN
+    SerializeBooleanIntoRowData,    // OMNI_BOOLEAN
     nullptr,                        // OMNI_SHORT
     nullptr,                        // OMNI_DECIMAL64,
     nullptr,                        // OMNI_DECIMAL128
     SerializeIntIntoRowData,        // OMNI_DATE32
-    SerializeLongIntoRowData,       // OMNI_DATE64
+    SerializeLongIntoRowData,       // OMNI_DATE64bool
     SerializeIntIntoRowData,        // OMNI_TIME32
     SerializeLongIntoRowData,       // OMNI_TIME64
     SerializeLongIntoRowData,       // OMNI_TIMESTAMP

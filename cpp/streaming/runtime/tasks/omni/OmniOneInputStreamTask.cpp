@@ -43,15 +43,21 @@ namespace omnistream {
             for (size_t i = 0; i < channelInfos.size(); ++i) {
                 channelInfoIndex.push_back(static_cast<long>(channelInfos[i].getInputChannelIdx()));
             }
-            auto inputTypes = this->taskConfiguration_.getStreamConfigPOD().getOperatorDescription().getInputs();
-            LOG("OmniOneInputStreamTask::CreateTaskInput inputTypes size is" << inputTypes.size());
-            TypeDescriptionPOD inputType;
-            inputType = inputTypes[0];
-            auto types = inputType.getType();
-            json typeArray = json::parse(types);
+            LOG("OperatorDescription " <<  this->taskConfiguration_.getStreamConfigPOD().getOperatorDescription().toString())
             std::vector<std::string> typeList;
-            for (const auto& obj: typeArray) {
-                typeList.push_back(obj.at("type").get<std::string>());
+            std::string description = this->taskConfiguration_.getStreamConfigPOD().getOperatorDescription().getDescription();
+            auto descriptionJson = nlohmann::json::parse(description);
+            if (!descriptionJson.contains("inputTypes")) {
+                auto inputTypes = this->taskConfiguration_.getStreamConfigPOD().getOperatorDescription().getInputs();
+                TypeDescriptionPOD inputType;
+                inputType = inputTypes[0];
+                auto types = inputType.getType();
+                json typeArray = json::parse(types);
+                for (const auto& obj: typeArray) {
+                    typeList.push_back(obj.at("type").get<std::string>());
+                }
+            } else {
+                typeList = descriptionJson["inputTypes"].get<std::vector<std::string>>();
             }
             return OmniStreamTaskNetworkInputFactory::create(0, inputGate, taskType, new BinaryRowDataSerializer(typeList.size(), typeList), channelInfoIndex);
         } else if (taskType == 2) {
