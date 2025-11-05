@@ -350,7 +350,11 @@ public:
     {
         auto *vector = new omniruntime::vec::Vector<int32_t>(numRows);
         for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
-            vector->SetValue(rowIndex, *collectedRows[rowIndex]->getInt(colIndex));
+            if (collectedRows[rowIndex]->isNullAt(colIndex)) {
+                vector->SetNull(rowIndex);
+            } else {
+                vector->SetValue(rowIndex, *collectedRows[rowIndex]->getInt(colIndex));
+            }
         }
         outputBatch->Append(vector);
     }
@@ -360,7 +364,11 @@ public:
     {
         auto *vector = new omniruntime::vec::Vector<int64_t>(numRows);
         for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
-            vector->SetValue(rowIndex, *collectedRows[rowIndex]->getLong(colIndex));
+            if (collectedRows[rowIndex]->isNullAt(colIndex)) {
+                vector->SetNull(rowIndex);
+            } else {
+                vector->SetValue(rowIndex, *collectedRows[rowIndex]->getLong(colIndex));
+            }
         }
         outputBatch->Append(vector);
     }
@@ -371,8 +379,12 @@ public:
         using VarcharVector = omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>;
         VarcharVector *vector = new VarcharVector(numRows);
         for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
-            auto value = std::string(collectedRows[rowIndex]->getStringView(colIndex));
-            omniruntime::vec::VectorHelper::VectorSetValue<DataTypeId::OMNI_VARCHAR>(vector, rowIndex, (void*)&value);
+            if (collectedRows[rowIndex]->isNullAt(colIndex)) {
+                vector->SetNull(rowIndex);
+            } else {
+                auto value = std::string(collectedRows[rowIndex]->getStringView(colIndex));
+                omniruntime::vec::VectorHelper::VectorSetValue<DataTypeId::OMNI_VARCHAR>(vector, rowIndex, (void*)&value);
+            }
         }
         outputBatch->Append(vector);
     }
@@ -382,7 +394,11 @@ public:
     {
         auto *vector = new omniruntime::vec::Vector<double>(numRows);
         for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
-            vector->SetValue(rowIndex, *collectedRows[rowIndex]->getLong(colIndex));
+            if (collectedRows[rowIndex]->isNullAt(colIndex)) {
+                vector->SetNull(rowIndex);
+            } else {
+                vector->SetValue(rowIndex, *collectedRows[rowIndex]->getLong(colIndex));
+            }
         }
         outputBatch->Append(vector);
     }
@@ -392,7 +408,11 @@ public:
     {
         auto *vector = new omniruntime::vec::Vector<bool>(numRows);
         for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
-            vector->SetValue(rowIndex, *collectedRows[rowIndex]->getInt(colIndex));
+            if (collectedRows[rowIndex]->isNullAt(colIndex)) {
+                vector->SetNull(rowIndex);
+            } else {
+                vector->SetValue(rowIndex, *collectedRows[rowIndex]->getInt(colIndex));
+            }
         }
         outputBatch->Append(vector);
     }
