@@ -48,6 +48,7 @@ public:
     virtual std::shared_ptr<InputChannel> getChannel(int channelIndex) = 0;
 
     std::vector<InputChannelInfo> getChannelInfos();
+    bool fromOriginal();
 
     std::shared_ptr<CompletableFuture> getPriorityEventAvailableFuture();
 

@@ -36,13 +36,12 @@ namespace omnistream {
             }
         }
         auto description = nlohmann::json::parse(pod.getOperatorDescription().getDescription());
-        auto inputTypes = description["inputTypes"];
-        createInputProcessor(inputList1, inputList2, inputTypes);
+        createInputProcessor(inputList1, inputList2, description);
     }
 
     void OmniTwoInputStreamTask::createInputProcessor(std::vector<std::shared_ptr<IndexedInputGate>> inputGates1,
                                                       std::vector<std::shared_ptr<IndexedInputGate>> inputGates2,
-                                                      const json &inputTypes)
+                                                      const json &description)
     {
         std::vector<std::shared_ptr<OmniStreamTaskSourceInput>> emptySourceInputs;
 
@@ -65,7 +64,7 @@ namespace omnistream {
             { inputGates1, inputGates2 },
             checkpointBarrierHandler);
         inputProcessor_ = OmniStreamTwoInputProcessorFactory::create(operatorChain, checkpointedInputGates,
-            static_cast<TwoInputStreamOperator*>(mainOperator_), taskType, inputTypes);
+            static_cast<TwoInputStreamOperator*>(mainOperator_), taskType, description);
     }
 
     const shared_ptr<CheckpointBarrierHandler> &OmniTwoInputStreamTask::GetCheckpointBarrierHandler() const

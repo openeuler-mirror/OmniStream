@@ -49,6 +49,11 @@ InputChannelInfo InputChannel::getChannelInfo() const
     return channelInfo;
 }
 
+InputChannelInfo& InputChannel::getChannelInfo()
+{
+    return channelInfo;
+}
+
 ResultPartitionIDPOD InputChannel::getPartitionId() const
 {
     return partitionId;

@@ -37,9 +37,34 @@ public:
         TypeSerializer *inputSerializer, std::vector<long> & channelInfos)
         : inputIndex(inputIndex), inputGate(std::move(inputGate)), taskType(taskType), currentRecordDeserializer(nullptr)
     {
+        inSerializer = inputSerializer;
         deserializationDelegate_ = new NonReusingDeserializationDelegate(
                 std::make_unique<datastream::StreamElementSerializer>(inputSerializer));
         recordDeserializers = getRecordDeserializers(channelInfos);
+        rowCount = 0;
+        maxRowCount = 1000;
+        timeout = 1000;
+    }
+
+    DataInputStatus emitNext(OmniPushingAsyncDataInput::OmniDataOutput *output) override
+    {
+        // we might need reconstruct here
+        if (auto curOutput = dynamic_cast<OmniStreamTaskNetworkOutput*>(output)) {
+            curOutput->setTaskType(taskType);
+        }
+
+        if (taskType == 1) {
+            fromOriginal = inputGate->fromOriginal();
+            if (fromOriginal) {
+                return processForSQLFromOriginal(output);
+            } else {
+                return processForSQL(output);
+            }
+        } else if (taskType == 2) {
+            return processForDataStream(output);
+        } else {
+            throw std::runtime_error("Unknown taskType: " + taskType);
+        }
     }
 
     std::shared_ptr<CompletableFuture> GetAvailableFuture() override
@@ -47,13 +72,13 @@ public:
         // no inputGate no output
         return AVAILABLE;
     }
-
     std::unique_ptr<std::unordered_map<long, datastream::RecordDeserializer *>> getRecordDeserializers(
     std::vector<long> & channelInfos)
     {
         std::unique_ptr<std::unordered_map<long, datastream::RecordDeserializer *>> recordDeserializers
                 = std::make_unique<std::unordered_map<long, datastream::RecordDeserializer *>>();
         for (size_t i = 0; i < channelInfos.size(); i++) {
+            LOG("getRecordDeserializers channelInfo " << i)
             auto deserializer = new datastream::SpillingAdaptiveSpanningRecordDeserializer();
             (*recordDeserializers)[channelInfos.at(i)] = deserializer;
         }
@@ -131,7 +156,7 @@ public:
         }
     }
 
-    void processBufferForDataStream(std::shared_ptr<BufferOrEvent> bufferOrEvent)
+    void processBufferForDataStreamAndSQLFromOriginal(std::shared_ptr<BufferOrEvent> bufferOrEvent)
     {
         auto buffer = std::static_pointer_cast<ReadOnlySlicedNetworkBuffer>(bufferOrEvent->getBuffer());
         auto inputChannelInfo = bufferOrEvent->getChannelInfo();
@@ -173,7 +198,7 @@ public:
             if (bufferOrEventOpt) {
                 auto bufferOrEvent = bufferOrEventOpt.value();
                 if (bufferOrEvent->isBuffer()) {
-                    processBufferForDataStream(bufferOrEvent);
+                    processBufferForDataStreamAndSQLFromOriginal(bufferOrEvent);
                 } else  {
                     std::cout << "current is event" << std::endl;
                     std::shared_ptr<AbstractEvent> event = bufferOrEvent->getEvent();
@@ -186,20 +211,190 @@ public:
         }
     }
 
-    DataInputStatus emitNext(OmniPushingAsyncDataInput::OmniDataOutput *output) override
+    DataInputStatus processForSQLFromOriginal(OmniPushingAsyncDataInput::OmniDataOutput *output)
     {
-        // we might need reconstruct here
-        if (auto curOutput = dynamic_cast<OmniStreamTaskNetworkOutput*>(output)) {
-            curOutput->setTaskType(taskType);
+        while (true) {
+            if (currentRecordDeserializer != nullptr) {
+                DeserializationResult &result = currentRecordDeserializer->getNextRecord(*deserializationDelegate_);
+
+                if (unlikely(result.isBufferConsumed())) {
+                    LOG("isBufferConsumed: do we really buffer consumed?!!!")
+                    currentRecordDeserializer = nullptr;
+                }
+
+                if (likely(result.isFullRecord())) {
+                    return processFullRecordForSQLFromOriginal(output);
+                }
+            }
+
+            auto bufferOrEventOpt = inputGate->PollNext();
+            if (bufferOrEventOpt) {
+                auto bufferOrEvent = bufferOrEventOpt.value();
+                if (bufferOrEvent->isBuffer()) {
+                    processBufferForDataStreamAndSQLFromOriginal(bufferOrEvent);
+                } else  {
+                    std::cout << "current is event" << std::endl;
+                    std::shared_ptr<AbstractEvent> event = bufferOrEvent->getEvent();
+                    DataInputStatus status = processEvent(event, output);
+                    return status;
+                }
+            } else {
+                return DataInputStatus::NOTHING_AVAILABLE;
+            }
+        }
+    }
+
+    DataInputStatus processFullRecordForSQLFromOriginal(OmniPushingAsyncDataInput::OmniDataOutput *output)
+    {
+        auto *element = reinterpret_cast<StreamElement *>(deserializationDelegate_->getInstance()); // 这里面包装的是BinaryRowData
+        if (element->getTag() == StreamElementTag::TAG_WATERMARK) {
+            output->emitWatermark(reinterpret_cast<Watermark *>(element));
+        } else {
+            auto record = reinterpret_cast<StreamRecord *>(element);
+            auto row = reinterpret_cast<BinaryRowData *>(record->getValue());
+
+            // 1.If rowList is empty, reset the batch start time
+            if (rowList.empty()) {
+                batchStartTime = std::chrono::steady_clock::now();
+            }
+
+            // 2.Push the row data into list
+            auto newRow = reinterpret_cast<BinaryRowData *>(row->copy());
+            rowList.push_back(newRow);
+            LOG("push in a record, size is " << rowList.size())
+            rowCount++;
+            numberOfRow++;
+
+            // 3.Calculate the elapsed time
+            auto currentTime = std::chrono::steady_clock::now();
+            auto elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - batchStartTime).count();
+            // 4.If the number of records reaches the maximum capacity is reached
+            if (rowCount >= maxRowCount || elapsedMs >= timeout) {
+                LOG("Reach the maximum capacity or timeout, start to generate VectorBatch and send to output")
+                // 3. Convert the rowList to VectorBatch, send to output, and clear the state
+                emitCurrentBatch(output);
+            }
+        }
+        return DataInputStatus::MORE_AVAILABLE;
+    }
+
+    void emitCurrentBatch(OmniPushingAsyncDataInput::OmniDataOutput *output)
+    {
+        if (rowCount == 0) {
+            return;
+        }
+        // Convert the rowdata list to VectorBatch
+        const std::vector<std::string>& inputTypes = reinterpret_cast<BinaryRowDataSerializer *>(inSerializer)->getInputTypes();
+        omnistream::VectorBatch *resultBatch = createOutputBatch(rowList, inputTypes);
+        StreamRecord* batchRecord = new StreamRecord(resultBatch);
+        output->emitRecord(batchRecord);
+
+        for (BinaryRowData* row : rowList) {
+            delete row;
+        }
+        rowList.clear();
+        rowCount = 0;
+        batchStartTime = std::chrono::steady_clock::now();
+    }
+
+    omnistream::VectorBatch* createOutputBatch(std::vector<BinaryRowData*> collectedRows,
+                                               const std::vector<std::string>& inputTypes)
+    {
+        INFO_RELEASE("Start to createOutputBatch")
+        int numColumns = inputTypes.size();
+        auto inputRowType =  new std::vector<omniruntime::type::DataTypeId>;
+        for (const auto &typeStr : inputTypes) {
+            inputRowType->push_back(LogicalType::flinkTypeToOmniTypeId(typeStr));
+        }
+        int numRows = collectedRows.size();
+        INFO_RELEASE("collectedRows: " << collectedRows.size())
+        auto* outputBatch = new omnistream::VectorBatch(numRows);
+        for (int colIndex = 0; colIndex < numColumns; ++colIndex) {
+            switch (inputRowType->at(colIndex)) {
+                case DataTypeId::OMNI_LONG:
+                case DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:
+                case DataTypeId::OMNI_TIMESTAMP: {
+                    setLong(outputBatch, numRows, colIndex, collectedRows);
+                    break;
+                }
+                case DataTypeId::OMNI_INT: {
+                    setInt(outputBatch, numRows, colIndex, collectedRows);
+                    break;
+                }
+                case DataTypeId::OMNI_DOUBLE: {
+                    setDouble(outputBatch, numRows, colIndex, collectedRows);
+                    break;
+                }
+                case DataTypeId::OMNI_BOOLEAN: {
+                    setBool(outputBatch, numRows, colIndex, rowList);
+                    break;
+                }
+                case DataTypeId::OMNI_VARCHAR: {
+                    setString(outputBatch, numRows, colIndex, collectedRows);
+                    break;
+                }
+                default: {
+                    throw std::runtime_error("Unsupported column type in inputRow");
+                }
+            }
         }
 
-        if (taskType == 1) {
-            return processForSQL(output);
-        } else if (taskType == 2) {
-            return processForDataStream(output);
-        } else {
-            throw std::runtime_error("Unknown taskType: " + taskType);
+        for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
+            outputBatch->setRowKind(rowIndex, collectedRows[rowIndex]->getRowKind());
         }
+        return outputBatch;
+    }
+
+    void setInt(omniruntime::vec::VectorBatch* outputBatch,
+                int numRows, int colIndex, std::vector<BinaryRowData*> collectedRows)
+    {
+        auto *vector = new omniruntime::vec::Vector<int32_t>(numRows);
+        for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
+            vector->SetValue(rowIndex, *collectedRows[rowIndex]->getInt(colIndex));
+        }
+        outputBatch->Append(vector);
+    }
+
+    void setLong(omniruntime::vec::VectorBatch* outputBatch,
+                 int numRows, int colIndex, std::vector<BinaryRowData*> collectedRows)
+    {
+        auto *vector = new omniruntime::vec::Vector<int64_t>(numRows);
+        for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
+            vector->SetValue(rowIndex, *collectedRows[rowIndex]->getLong(colIndex));
+        }
+        outputBatch->Append(vector);
+    }
+
+    void setString(omniruntime::vec::VectorBatch* outputBatch,
+                   int numRows, int colIndex, std::vector<BinaryRowData*> collectedRows)
+    {
+        using VarcharVector = omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>;
+        VarcharVector *vector = new VarcharVector(numRows);
+        for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
+            auto value = std::string(collectedRows[rowIndex]->getStringView(colIndex));
+            omniruntime::vec::VectorHelper::VectorSetValue<DataTypeId::OMNI_VARCHAR>(vector, rowIndex, (void*)&value);
+        }
+        outputBatch->Append(vector);
+    }
+
+    void setDouble(omniruntime::vec::VectorBatch* outputBatch,
+                   int numRows, int colIndex, std::vector<BinaryRowData*> collectedRows)
+    {
+        auto *vector = new omniruntime::vec::Vector<double>(numRows);
+        for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
+            vector->SetValue(rowIndex, *collectedRows[rowIndex]->getLong(colIndex));
+        }
+        outputBatch->Append(vector);
+    }
+
+    void setBool(omniruntime::vec::VectorBatch* outputBatch,
+                 int numRows, int colIndex, std::vector<BinaryRowData*> collectedRows)
+    {
+        auto *vector = new omniruntime::vec::Vector<bool>(numRows);
+        for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
+            vector->SetValue(rowIndex, *collectedRows[rowIndex]->getInt(colIndex));
+        }
+        outputBatch->Append(vector);
     }
 
     int getInputIndex() override
@@ -238,14 +433,46 @@ protected:
         return DataInputStatus::MORE_AVAILABLE;
     }
 
+    // Specifically for SQL from original task
+    DataInputStatus processEvent(std::shared_ptr<AbstractEvent> event, OmniPushingAsyncDataInput::OmniDataOutput *output)
+    {
+        if (dynamic_cast<EndOfData *>(event.get())) { // END_OF_USER_RECORDS_EVENT is End_of_Data
+            if (inputGate->HasReceivedEndOfData()) {
+                // Which means reach the end of Data, if the rowList still remains data, create the last vectorbatch and send to output
+                emitCurrentBatch(output);
+                return DataInputStatus::END_OF_DATA;
+            }
+        } else if (dynamic_cast<EndOfPartitionEvent *>(event.get())) {
+            // it means one sub partition or channel end. we need to check if all end by checking input gate state
+            if (inputGate->IsFinished()) {
+                return DataInputStatus::END_OF_INPUT;
+            }
+        }
+        // by default,continue the data processing
+        return DataInputStatus::MORE_AVAILABLE;
+    }
+
 private:
     // for troubleshooting
-    int NullValueCount   = 0;
+    int NullValueCount = 0;
     bool isLastValueNull = false;
     int taskType;
     std::unique_ptr<std::unordered_map<long, datastream::RecordDeserializer *>> recordDeserializers;
     datastream::RecordDeserializer* currentRecordDeserializer;
     DeserializationDelegate* deserializationDelegate_;
+    TypeSerializer *inSerializer;
+    // Determine if the upstream task is an original Java task.
+    bool fromOriginal = true;
+    // When the current SQL task has a Java task as its upstream,
+    // maintain the number of rows accumulated for generating VectorBatch.
+    int rowCount;
+    // Maximum number of rows supported by VectorBatch
+    int maxRowCount;
+    // Maximum timeout for accumulating VectorBatch(ms)
+    int timeout;
+    // List of BinaryRowData to be accumulated, only init in SQLFromOriginal case
+    std::vector<BinaryRowData *> rowList;
+    std::chrono::steady_clock::time_point batchStartTime;
 };
 }  // namespace omnistream
 

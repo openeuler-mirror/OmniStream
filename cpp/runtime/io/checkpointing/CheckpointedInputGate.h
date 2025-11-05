@@ -50,6 +50,7 @@ public:
     std::optional<std::shared_ptr<BufferOrEvent>> PollNext() override;
     bool IsFinished() override;
     bool HasReceivedEndOfData() override;
+    bool fromOriginal();
 
     // Checkpoint-specific APIs
     CompletableFutureV2<void>& GetAllBarriersReceivedFuture(long checkpointId);

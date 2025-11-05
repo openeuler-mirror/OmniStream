@@ -112,6 +112,11 @@ int CheckpointedInputGate::GetNumberOfInputChannels() const
     return inputGate_->GetNumberOfInputChannels();
 }
 
+bool CheckpointedInputGate::fromOriginal()
+{
+    return inputGate_->fromOriginal();
+}
+
 std::shared_ptr<InputChannel> CheckpointedInputGate::GetChannel(int channelIndex)
 {
     return inputGate_->getChannel(channelIndex);

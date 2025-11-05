@@ -34,11 +34,26 @@ namespace omnistream {
 
     OmniStreamTaskInput* OmniOneInputStreamTask::CreateTaskInput(std::shared_ptr<CheckpointedInputGate> inputGate)
     {
-        // initialize TypeInformationa and channelInfos
+        // initialize TypeInformation and channelInfos
         if (taskType == 1) {
             // todo: fix it later
-            std::vector<long> channelInfos{};
-            return OmniStreamTaskNetworkInputFactory::create(0, inputGate, taskType, nullptr, channelInfos);
+            std::vector<long> channelInfoIndex;
+            auto channelInfos = inputGate->GetChannelInfos();
+            channelInfoIndex.reserve(channelInfos.size());
+            for (size_t i = 0; i < channelInfos.size(); ++i) {
+                channelInfoIndex.push_back(static_cast<long>(channelInfos[i].getInputChannelIdx()));
+            }
+            auto inputTypes = this->taskConfiguration_.getStreamConfigPOD().getOperatorDescription().getInputs();
+            LOG("OmniOneInputStreamTask::CreateTaskInput inputTypes size is" << inputTypes.size());
+            TypeDescriptionPOD inputType;
+            inputType = inputTypes[0];
+            auto types = inputType.getType();
+            json typeArray = json::parse(types);
+            std::vector<std::string> typeList;
+            for (const auto& obj: typeArray) {
+                typeList.push_back(obj.at("type").get<std::string>());
+            }
+            return OmniStreamTaskNetworkInputFactory::create(0, inputGate, taskType, new BinaryRowDataSerializer(typeList.size(), typeList), channelInfoIndex);
         } else if (taskType == 2) {
             auto operatorPod = this->taskConfiguration_.getStreamConfigPOD().getOperatorDescription();
 

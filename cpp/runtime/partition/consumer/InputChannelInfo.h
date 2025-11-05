@@ -27,6 +27,8 @@ namespace omnistream {
 
         int getGateIdx() const;
         void setGateIdx(int gateIdx);
+        void setOmni();
+        bool getOmni();
 
         int getInputChannelIdx() const;
         void setInputChannelIdx(int inputChannelIdx);
@@ -40,6 +42,8 @@ namespace omnistream {
     private:
         int gateIdx;
         int inputChannelIdx;
+        // if the InputChannel is an OmniLocalInputChannel?
+        bool omni = false;
     };
 
 } // namespace omnistream

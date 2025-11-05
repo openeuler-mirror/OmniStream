@@ -34,20 +34,34 @@ namespace omnistream::datastream {
             LOG("timestamp: " + std::to_string(timestamp))
             LOG("typeSerializer_: is kind of  " << typeSerializer_->getName());
 #endif
-            Object* buffer = typeSerializer_->GetBuffer();
-            typeSerializer_->deserialize(buffer, source);
-            reUsableRecord_->setValue(buffer);
+            // Check the typeSerializer_
+            if (strcmp(typeSerializer_->getName(), "BinaryRowDataSerializer") == 0) {
+                auto binaryRowData = typeSerializer_->deserialize(source);
+                reUsableRecord_->setValue(binaryRowData);
+                reUsableRecord_->setTag(StreamElementTag::TAG_REC_WITH_TIMESTAMP);
+                reUsableRecord_->setTimestamp(timestamp);
+            } else {
+                Object* buffer = typeSerializer_->GetBuffer();
+                typeSerializer_->deserialize(buffer, source);
+                reUsableRecord_->setValue(buffer);
 
-            reUsableRecord_->setTag(StreamElementTag::TAG_REC_WITH_TIMESTAMP);
-            reUsableRecord_->setTimestamp(timestamp);
+                reUsableRecord_->setTag(StreamElementTag::TAG_REC_WITH_TIMESTAMP);
+                reUsableRecord_->setTimestamp(timestamp);
+            }
+
             return reUsableRecord_;
         } else if (tag == static_cast<int>(StreamElementTag::TAG_REC_WITHOUT_TIMESTAMP)) {
 #ifdef DEBUG
             LOG("typeSerializer_: is kind of  " << typeSerializer_->getName());
 #endif
-            Object* buffer = typeSerializer_->GetBuffer();
-            typeSerializer_->deserialize(buffer, source);
-            reUsableRecord_->setValue(buffer);
+            if (strcmp(typeSerializer_->getName(), "BinaryRowDataSerializer") == 0) {
+                auto binaryRowData = typeSerializer_->deserialize(source);
+                reUsableRecord_->setValue(binaryRowData);
+            } else {
+                Object* buffer = typeSerializer_->GetBuffer();
+                typeSerializer_->deserialize(buffer, source);
+                reUsableRecord_->setValue(buffer);
+            }
             return reUsableRecord_;
         } else if (tag == static_cast<int>(StreamElementTag::TAG_WATERMARK)) {
             long timestamp = source.readLong();
