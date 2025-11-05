@@ -163,7 +163,11 @@ public:
         auto inputChannelInfo = bufferOrEvent->getChannelInfo();
         currentRecordDeserializer = getActiveSerializer(inputChannelInfo.getInputChannelIdx());
         if (currentRecordDeserializer == nullptr) {
-            THROW_LOGIC_EXCEPTION("currentRecordDeserializer has already been released");
+            auto deserializer = new datastream::SpillingAdaptiveSpanningRecordDeserializer();
+            (*recordDeserializers)[inputChannelInfo.getInputChannelIdx()] = deserializer;
+            currentRecordDeserializer = deserializer;
+            LOG("warn: currentRecordDeserializer has already been released. << RecordDeserializer idx is "
+                << inputChannelInfo.getInputChannelIdx());
         }
         currentRecordDeserializer->SetNextBuffer(buffer);
     }
