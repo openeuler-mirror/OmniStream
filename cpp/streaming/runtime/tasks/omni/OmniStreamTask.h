@@ -66,7 +66,7 @@ namespace omnistream {
         // in the most cases, it does not to be overridden
         void restoreInternal();
 
-        void cancel();
+        virtual void cancel();
 
         // most case to be overrided by subclass
         virtual void init()

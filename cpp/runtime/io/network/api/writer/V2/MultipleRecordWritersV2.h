@@ -17,6 +17,8 @@ namespace omnistream {
 
         void close() override;
 
+        void cancel() override;
+
         void broadcastEvent(std::shared_ptr<AbstractEvent> event) override
         {
             for (auto writer : recordWriters) {

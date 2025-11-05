@@ -16,6 +16,8 @@ public:
 
     virtual void close() = 0;
 
+    virtual void cancel() = 0;
+
     virtual void broadcastEvent(std::shared_ptr<AbstractEvent> event) = 0;
 };
 }

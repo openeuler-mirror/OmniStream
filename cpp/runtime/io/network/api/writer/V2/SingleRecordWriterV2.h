@@ -15,7 +15,8 @@ namespace omnistream {
         RecordWriterV2* getRecordWriter(int outputIndex) override;
 
         ~SingleRecordWriterV2() override = default;
-        
+
+        void cancel() override;
         void close() override;
 
         void broadcastEvent(std::shared_ptr<AbstractEvent> event) override

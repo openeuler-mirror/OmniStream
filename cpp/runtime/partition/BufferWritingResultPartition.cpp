@@ -193,6 +193,11 @@ namespace omnistream {
         ResultPartition::finish();
     }
 
+    void BufferWritingResultPartition::cancel()
+    {
+        bufferPool->cancel();
+    }
+
     void BufferWritingResultPartition::close()
     {
         if (broadcastBufferBuilder) {

@@ -120,7 +120,9 @@ namespace omnistream {
 
     void OmniTask::cancel()
     {
-        invokable_->cancel();
+        if (invokable_ != nullptr) {
+            invokable_->cancel();
+        }
     }
 
     uintptr_t OmniTask::setupStreamTask(std::string streamClassName)

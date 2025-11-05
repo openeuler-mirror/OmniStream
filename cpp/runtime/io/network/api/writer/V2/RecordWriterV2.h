@@ -47,6 +47,7 @@ namespace omnistream {
 
         void setSerializationDelegate(SerializationDelegate* serializationDelegate_);
 
+        virtual void cancel();
         virtual void close();
 
         void broadcastEvent(std::shared_ptr<AbstractEvent> event)

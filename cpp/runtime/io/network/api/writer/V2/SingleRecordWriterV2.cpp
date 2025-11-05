@@ -17,4 +17,10 @@ namespace omnistream {
         LOG_INFO_IMP("SingleRecordWriterV2 close")
         recordWriter_->close();
     }
+
+    void SingleRecordWriterV2::cancel()
+    {
+        LOG_INFO_IMP("SingleRecordWriterV2 cancel")
+        recordWriter_->cancel();
+    }
 }

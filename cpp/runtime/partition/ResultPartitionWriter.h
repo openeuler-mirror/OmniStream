@@ -72,6 +72,7 @@ namespace omnistream {
 
         virtual bool isReleased() = 0;
 
+        virtual void cancel() = 0;
         virtual void close() = 0;
 
         virtual std::string toString() const

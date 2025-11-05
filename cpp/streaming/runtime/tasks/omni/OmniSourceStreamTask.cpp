@@ -81,4 +81,11 @@ const std::string OmniSourceStreamTask::getName() const
 {
     return std::string("OmniSourceStreamTask");
 }
+
+void OmniSourceStreamTask::cancel()
+{
+    OmniStreamTask::cancel();
+    // avoid back pressure
+    recordWriter_->cancel();
+}
 }

@@ -18,6 +18,7 @@ namespace omnistream {
             throw std::invalid_argument("NonRecordWriterV2 unsupport");
         }
 
+        void cancel() override {}
         void close() override {}
         void broadcastEvent(std::shared_ptr<AbstractEvent> event) override {}
     };

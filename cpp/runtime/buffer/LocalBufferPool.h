@@ -58,6 +58,7 @@ namespace omnistream {
         void recycle(std::shared_ptr<Segment> segment, int channel);
         virtual void returnExcessSegments() = 0;
         void setNumBuffers(int numBuffers) override;
+        void cancel() override;
 
     protected:
 
@@ -79,6 +80,8 @@ namespace omnistream {
         bool shouldBeAvailable();
         bool checkAvailability();
         bool requestingWhenAvailable_ = false;
+        // used for job cancellation to avoid back pressure
+        std::atomic<bool> cancelled_{false};
     };
 }
 

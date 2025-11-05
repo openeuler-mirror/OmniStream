@@ -64,6 +64,13 @@ namespace omnistream {
         }
     }
 
+    void RecordWriterV2::cancel()
+    {
+        LOG_INFO_IMP("RecordWriterV2::cancel" << taskName);
+        targetPartitionWriter_->cancel();
+        INFO_RELEASE("Task:" << taskName << " Total number of row emitted:" << counter_);
+    }
+
     void RecordWriterV2::close()
     {
         LOG_INFO_IMP("RecordWriterV2::close" << taskName);

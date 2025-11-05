@@ -202,4 +202,9 @@ namespace omnistream {
         return listener->notifyBufferAvailable(nullptr);
     }
 
+    void LocalBufferPool::cancel()
+    {
+        cancelled_ = true;
+    }
+
 }

@@ -60,6 +60,7 @@ public:
     std::shared_ptr<ResultSubpartitionView> createSubpartitionView(
         int subpartitionIndex, std::shared_ptr<BufferAvailabilityListener> availabilityListener) override;
     void finish() override;
+    void cancel() override;
     void close() override;
 
     virtual void setSubpartitions(const std::vector<std::shared_ptr<ResultSubpartition>>& subpartitions);
