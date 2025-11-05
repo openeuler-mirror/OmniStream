@@ -1,12 +1,19 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 #pragma once
 
 #include <iterator>
 #include <memory>
 
-#include "core/operators/StreamingRuntimeContext.h"
+#include "streaming/api/operators/StreamingRuntimeContext.h"
 #include "core/typeinfo/TypeInfoFactory.h"
 #include "core/typeinfo/TypeInformation.h"
 #include "core/typeutils/TypeSerializer.h"
@@ -20,57 +27,29 @@ namespace omnistream {
 template <typename OUT>
 class InputFormatSourceFunction : public SourceFunction<OUT>, public AbstractRichFunction {
 public:
-    InputFormatSourceFunction(omnistream::csv::CsvInputFormat<OUT>* format, InputSplit* inputSplit)
-        :isRunning_(true), format_(format), inputSplit_(inputSplit)
-    {
-        std::ifstream inputStream_;
-        inputStream_.open(inputSplit->getFilePath(), std::ios::in | std::ios::binary);
-        if (!inputStream_.is_open()) {
-            std::cerr << "Failed to open file: " << inputSplit->getFilePath() << std::endl;
-            return;
-        }
-        int lineCount_ = 0;
-        std::string line;
-        while (std::getline(inputStream_, line)) {  // 逐行读取
-            lineCount_++;  // 行数递增
-        }
-        lineCount = lineCount_;
-
-        inputStream_.close();
+    InputFormatSourceFunction(omnistream::csv::CsvInputFormat<OUT> *format, InputSplit *inputSplit)
+        : isRunning_(true), format_(format), inputSplit_(inputSplit) {
     }
 
     void run(SourceContext* ctx)
     {
 #ifdef TROUBLE_SHOOTING
         // in order to trigger back pressure
-        for (int i = 0 ; i < 1000 ; i ++) {
+        for (int i = 0; i < 1000; i++) {
 #endif
-        int parallelism = this->getRuntimeContext()->getNumberOfParallelSubtasks();
         int taskId = this->getRuntimeContext()->getIndexOfThisSubtask();
-
-        int start = 0;
-        int end = lineCount;
-        int subMaxEvents = lineCount / parallelism;
-        if (taskId == parallelism - 1) {
-            start = subMaxEvents * (parallelism - 1);
-            end = lineCount;
-        } else {
-            start = subMaxEvents * taskId;
-            end = start + subMaxEvents;
+        if (taskId > 0) {
+            return;
         }
-        int lineID = 0;
-
+        INFO_RELEASE("taskId is: " << taskId)
             format_->open(inputSplit_);
 
             while (isRunning_ && !format_->reachedEnd()) {
-                OUT *nextElement = format_->nextRecord(lineID, start, end);
+                OUT* nextElement = format_->nextRecord();
 
                 if (nextElement != nullptr) {
                     ctx->collect(nextElement);
                 } else {
-                    break;
-                }
-                if (start >= end) {
                     break;
                 }
             }

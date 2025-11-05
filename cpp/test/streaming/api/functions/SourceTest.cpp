@@ -2,8 +2,8 @@
 #include "datagen/nexmark/generator/NexmarkGenerator.h"
 #include "datagen/nexmark/NexmarkSourceFunction.h"
 #include "core/typeinfo/TypeInfoFactory.h"
-#include "runtime/taskmanager/RuntimeEnvironment.h"
-#include "core/operators/StreamingRuntimeContext.h"
+#include "streaming/api/operators/StreamingRuntimeContext.h"
+#include "runtime/taskmanager/OmniRuntimeEnvironment.h"
 
 class DummySourceContext : public SourceContext {
 public:
@@ -40,7 +40,7 @@ public:
 TEST(SourceTest, NexmarkDataGeneratorTest) {
     int batchSize = 100;
     BatchEventDeserializer* eventDeserializer = new BatchEventDeserializer(batchSize);
-    auto typeInfo = TypeInfoFactory::createTypeInfo("String", "TBD");
+    auto typeInfo = TypeInfoFactory::createTypeInfo("String");
 
     // In NexmarkConfiguration, all values have been set to their default value
     NexmarkConfiguration nexmarkConfig;
@@ -56,7 +56,7 @@ TEST(SourceTest, NexmarkDataGeneratorTest) {
     GeneratorConfig config {nexmarkConfig, 1740182400000, 0, 100, 0};
     NexmarkSourceFunction<omnistream::VectorBatch> srcFunc {config, eventDeserializer, typeInfo};
 
-    auto runtimeEnv = new RuntimeEnvironment(new TaskInfoImpl("SourceFunctionTest", 2, 1, 0));
+    auto runtimeEnv = new omnistream::RuntimeEnvironmentV2();
     auto runtimeCtx = new StreamingRuntimeContext<int>();
     runtimeCtx->setEnvironment(runtimeEnv);
     srcFunc.setRuntimeContext(runtimeCtx);

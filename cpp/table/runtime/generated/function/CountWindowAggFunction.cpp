@@ -1,21 +1,35 @@
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
 #include "CountWindowAggFunction.h"
 
 #include "table/data/binary/BinaryRowData.h"
 
 
-void CountWindowAggFunction::open(StateDataViewStore* store) {
+void CountWindowAggFunction::open(StateDataViewStore* store)
+{
     this->store = store;
 }
 
-void CountWindowAggFunction::accumulate(RowData* accInput)  {
+void CountWindowAggFunction::accumulate(RowData* accInput)
+{
     aggValue++;
 }
 
-void CountWindowAggFunction::retract(RowData* retractInput) {
+void CountWindowAggFunction::retract(RowData* retractInput)
+{
     throw std::runtime_error("Retract operation not supported");
 }
 
-void CountWindowAggFunction::merge(int64_t namespaceObj, RowData* otherAcc) {
+void CountWindowAggFunction::merge(int64_t namespaceObj, RowData* otherAcc)
+{
     // use accIndex, the input is the accumulator, not the input row
     bool inputIsNull = otherAcc->isNullAt(aggIdx);
     if (!inputIsNull) {
@@ -26,7 +40,8 @@ void CountWindowAggFunction::merge(int64_t namespaceObj, RowData* otherAcc) {
     valueIsNull = inputIsNull;
 }
 
-void CountWindowAggFunction::setAccumulators(int64_t namespaceObj, RowData* acc) {
+void CountWindowAggFunction::setAccumulators(int64_t namespaceObj, RowData* acc)
+{
     bool isInputNull = acc->isNullAt(accIndex);
     if (!isInputNull) {
         aggValue = *acc->getLong(accIndex);
@@ -36,8 +51,10 @@ void CountWindowAggFunction::setAccumulators(int64_t namespaceObj, RowData* acc)
     valueIsNull = isInputNull;
 }
 
-RowData* CountWindowAggFunction::getAccumulators() {
+RowData* CountWindowAggFunction::getAccumulators()
+{
     BinaryRowData *currentAcc = BinaryRowData::createBinaryRowDataWithMem(1);
+    currentAcc->changeOwner(0);
     if (valueIsNull) {
         currentAcc->setNullAt(accIndex);
     } else {
@@ -46,18 +63,21 @@ RowData* CountWindowAggFunction::getAccumulators() {
     return currentAcc;
 }
 
-RowData* CountWindowAggFunction::createAccumulators(int accumulatorArity) {
+RowData* CountWindowAggFunction::createAccumulators(int accumulatorArity)
+{
     BinaryRowData *currentAcc = BinaryRowData::createBinaryRowDataWithMem(accumulatorArity);
+    currentAcc->changeOwner(0);
     currentAcc->setLong(accIndex, 0L);
     return currentAcc;
 }
 
-RowData* CountWindowAggFunction::getValue(int64_t ns) {
+RowData* CountWindowAggFunction::getValue(int64_t ns)
+{
     BinaryRowData *result;
     int64_t startTime = sliceAssigner->getWindowStart(ns);
-//    TimestampData *start = TimestampData::fromEpochMillis(startTime);
     int length = 3;
     result = BinaryRowData::createBinaryRowDataWithMem(length);
+    result->changeOwner(0);
     if (!valueIsNull) {
         result->setLong(0, aggValue);
     } else {
@@ -68,6 +88,7 @@ RowData* CountWindowAggFunction::getValue(int64_t ns) {
     return result;
 }
 
-void CountWindowAggFunction::Cleanup(int64_t namespaceObj) {
+void CountWindowAggFunction::Cleanup(int64_t namespaceObj)
+{
     namespaceVal = namespaceObj;
 }

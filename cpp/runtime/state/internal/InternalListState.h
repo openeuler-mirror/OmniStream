@@ -1,13 +1,21 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 #ifndef FLINK_TNEL_INTERNALLISTSTATE_H
 #define FLINK_TNEL_INTERNALLISTSTATE_H
 #include "InternalKvState.h"
+#include <vector>
+#include "api/common/state/ListState.h"
 
 template <typename K, typename N, typename UV>
-class InternalListState : virtual public InternalKvState<K, N, std::vector<UV> *>, virtual public ListState<UV>
-{
+class InternalListState : virtual public InternalKvState<K, N, std::vector<UV> *>, virtual public ListState<UV> {
 public:
     virtual std::vector<UV> *get() = 0;
     virtual void add(const UV &value) = 0;

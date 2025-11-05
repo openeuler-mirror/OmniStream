@@ -1,12 +1,9 @@
 #include <gtest/gtest.h>
 #include "core/type/StringValue.h"
-#include "io/DataOutputSerializer.h"
-#include "io/DataInputDeserializer.h"
-#include "core/utils/SysDataInput.h"
-#include "io/NonSpanningWrapper.h"
+#include "memory/DataOutputSerializer.h"
+#include "runtime/io/network/api/serialization/NonSpanningWrapper.h"
 #include <string>
 #include <cstring>
-#include <limits>
 #include <codecvt>
 #include <locale>
 
@@ -34,7 +31,6 @@ TEST(StringValueTest, WriteAndReadTest) {
     stringValue2.read(in);
 
     EXPECT_EQ(stringValue.getValue(), stringValue2.getValue());
-    free(out.getData());
 }
 
 TEST(StringValueTest, WriteAndReadLargeStringTest) {
@@ -58,7 +54,6 @@ TEST(StringValueTest, WriteAndReadLargeStringTest) {
     stringValue2.read(in);
 
     EXPECT_EQ(stringValue.getValue(), stringValue2.getValue());
-    free(out.getData());
 }
 
 TEST(StringValueTest, WriteStringTest) {
@@ -82,7 +77,6 @@ TEST(StringValueTest, WriteStringTest) {
     for (size_t i = 0; i < len; ++i) {
         EXPECT_EQ(data[i + 1], static_cast<uint8_t>(buffer.getValue()[i]));
     }*/
-    free(out.getData());
 }
 
 TEST(StringValueTest, WriteStringLargeTest) {
@@ -125,6 +119,27 @@ TEST(StringValueTest, WriteStringLargeTest) {
     }
 }
 
+TEST(StringValueTest, WriteAndReadStringTest) {
+    std::string expectedValue = "o4测试用字符..............................************************************";
+    String *s = new String(expectedValue);
+
+    DataOutputSerializer out{};
+    uint8_t *data = reinterpret_cast<uint8_t *>(malloc(100));
+    out.setBackendBuffer(data, 100);
+
+    StringValue::writeString(s, out);
+
+    omnistream::datastream::NonSpanningWrapper in;
+    in.initializeFromMemoryBuffer(out.getData(), 100);
+
+    String *result = new String();
+    StringValue::readString(result, in);
+
+    EXPECT_EQ(result->getValue(), s->getValue());
+    delete s;
+    delete result;
+}
+
 TEST(StringValueTest, ReadStringTest) {
     std::string expectedValue = "Hello, World!";
     // 计算长度并填充到前缀中
@@ -158,22 +173,25 @@ TEST(StringValueTest, ReadStringTest) {
     // 添加字符串内容
     data.insert(data.end(), expectedValue.begin(), expectedValue.end());
 
-    String buffer("", data.size());
+    auto buffer = new String();
     omnistream::datastream::NonSpanningWrapper in;
     in.initializeFromMemoryBuffer(data.data(), 100);
 
-    StringValue::readString(&buffer, in);
+    StringValue::readString(buffer, in);
 
-    EXPECT_EQ(buffer.getValue(), expectedValue);
+    EXPECT_EQ(buffer->getValue(), expectedValue);
+    delete buffer;
 }
 
 TEST(StringValueTest, ReadStringLargeTest) {
     std::string expectedValue(1000, 'A');
     // 计算长度并填充到前缀中
     size_t len = expectedValue.size();
-    size_t prefixLength = len < HIGH_BIT ? 1 : (len < HIGH_BIT14 ? 2 : (len < HIGH_BIT21 ? 3 : (len < HIGH_BIT28 ? 4 : 5)));
 
-    std::vector<uint8_t> data(prefixLength);
+    int32_t maxLimit = 5  + 3 * len;
+
+    std::vector<uint8_t> data(1000 + maxLimit);
+
     size_t idx = 0;
     if (len < HIGH_BIT) {
         data[idx++] = static_cast<uint8_t>(len + 1);
@@ -197,16 +215,34 @@ TEST(StringValueTest, ReadStringLargeTest) {
         data[idx++] = static_cast<uint8_t>((len + 1) >> 28);
     }
 
+    uint32_t lenToWrite = len + 1;
+    for (int i = 0; i < expectedValue.size(); i++) {
+        uint32_t c = static_cast<uint32_t>(static_cast<unsigned char>(expectedValue[i]));
+
+        // manual loop unroll, as it performs much better on jdk8
+        if (c < HIGH_BIT) {
+            data[idx++] = (c & 0xff);
+        } else if (c < HIGH_BIT14) {
+            data[idx++] = ((c | HIGH_BIT) & 0xff);
+            data[idx++] = ((c >> 7) & 0xff);
+        } else {
+            data[idx++] = ((lenToWrite | HIGH_BIT) & 0xff);
+            data[idx++] = ((lenToWrite >> 7 | HIGH_BIT) & 0xff);
+            data[idx++] = ((lenToWrite >> 14) & 0xff);
+        }
+    }
+
     // 添加字符串内容
-    data.insert(data.end(), expectedValue.begin(), expectedValue.end());
+    //data.insert(data.end(), expectedValue.begin(), expectedValue.end());
 
-    String buffer("", data.size());
+    auto buffer = new String("", idx + 1);
     omnistream::datastream::NonSpanningWrapper in;
-    in.initializeFromMemoryBuffer(data.data(), data.size());
+    in.initializeFromMemoryBuffer(data.data(), idx + 1);
 
-    StringValue::readString(&buffer, in);
+    StringValue::readString(buffer, in);
 
-    EXPECT_EQ(buffer.getValue(), expectedValue);
+    EXPECT_EQ(buffer->getValue(), expectedValue);
+    delete buffer;
 }
 
 TEST(StringValueTest, ReadStringNullTest) {
@@ -226,9 +262,9 @@ TEST(StringValueTest, ReadStringReallocateMemoryTest) {
     std::string expectedValue(1000, 'A');
     // 计算长度并填充到前缀中
     size_t len = expectedValue.size();
-    size_t prefixLength = len < HIGH_BIT ? 1 : (len < HIGH_BIT14 ? 2 : (len < HIGH_BIT21 ? 3 : (len < HIGH_BIT28 ? 4 : 5)));
+    int32_t maxLimit = 5  + 3 * len;
 
-    std::vector<uint8_t> data(prefixLength);
+    std::vector<uint8_t> data(1000 + maxLimit);
     size_t idx = 0;
     if (len < HIGH_BIT) {
         data[idx++] = static_cast<uint8_t>(len + 1);
@@ -252,15 +288,30 @@ TEST(StringValueTest, ReadStringReallocateMemoryTest) {
         data[idx++] = static_cast<uint8_t>((len + 1) >> 28);
     }
 
-    // 添加字符串内容
-    data.insert(data.end(), expectedValue.begin(), expectedValue.end());
+    uint32_t lenToWrite = len + 1;
+    for (int i = 0; i < expectedValue.size(); i++) {
+        uint32_t c = static_cast<uint32_t>(static_cast<unsigned char>(expectedValue[i]));
 
-    String buffer("", 1); // 初始容量很小，确保需要重新分配内存
+        // manual loop unroll, as it performs much better on jdk8
+        if (c < HIGH_BIT) {
+            data[idx++] = (c & 0xff);
+        } else if (c < HIGH_BIT14) {
+            data[idx++] = ((c | HIGH_BIT) & 0xff);
+            data[idx++] = ((c >> 7) & 0xff);
+        } else {
+            data[idx++] = ((lenToWrite | HIGH_BIT) & 0xff);
+            data[idx++] = ((lenToWrite >> 7 | HIGH_BIT) & 0xff);
+            data[idx++] = ((lenToWrite >> 14) & 0xff);
+        }
+    }
+
+    auto buffer = new String("", 1); // 初始容量很小，确保需要重新分配内存
     omnistream::datastream::NonSpanningWrapper in;
-    in.initializeFromMemoryBuffer(data.data(), data.size());
+    in.initializeFromMemoryBuffer(data.data(), idx + 1);
 
-    StringValue::readString(&buffer, in);
+    StringValue::readString(buffer, in);
 
-    EXPECT_EQ(buffer.getValue(), expectedValue);
-    EXPECT_EQ(buffer.getSize(), len);
+    EXPECT_EQ(buffer->getValue(), expectedValue);
+    EXPECT_EQ(buffer->getSize(), len);
+    delete buffer;
 }

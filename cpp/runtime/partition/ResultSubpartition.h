@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #ifndef OMNISTREAM_RESULTSUBPARTITION_H
@@ -14,10 +21,8 @@
 #include "ResultSubpartitionInfoPOD.h"
 #include "ResultSubpartitionView.h"
 
-namespace omnistream
-{
-    class ResultSubpartition
-    {
+namespace omnistream {
+    class ResultSubpartition {
     public:
         ResultSubpartition() {};
         ResultSubpartition(int index, std::shared_ptr<ResultPartition> parent);
@@ -36,7 +41,8 @@ namespace omnistream
             this->parent->OnConsumedSubpartition(getSubPartitionIndex());
         };
 
-        virtual int add(std::shared_ptr<ObjectBufferConsumer> bufferConsumer, int partialRecordLength) = 0;
+        // virtual int add(std::shared_ptr<ObjectBufferConsumer> bufferConsumer, int partialRecordLength) = 0;
+        virtual int add(std::shared_ptr<BufferConsumer> bufferConsumer, int partialRecordLength) = 0;
         virtual void flush() = 0;
         virtual void finish() = 0;
         virtual void release() = 0;
@@ -53,8 +59,8 @@ namespace omnistream
 
     protected:
         ResultSubpartitionInfoPOD subpartitionInfo;
-        std::shared_ptr<ResultPartition> parent;
         int index;
+        std::shared_ptr<ResultPartition> parent;
     };
 } // namespace omnistream
 

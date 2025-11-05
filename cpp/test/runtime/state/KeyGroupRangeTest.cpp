@@ -16,8 +16,8 @@ TEST(KeyGroupRangeTest, Equals)
     KeyGroupRange range1 = KeyGroupRange(0, 10);
     KeyGroupRange range2 = KeyGroupRange(0, 10);
     KeyGroupRange range3 = KeyGroupRange(0, 2);
-    EXPECT_EQ(range1.equals(range2), true);
-    EXPECT_EQ(range1.equals(range3), false);
+    EXPECT_EQ(range1 == range2, true);
+    EXPECT_EQ(range1 == range3, false);
 }
 
 TEST(KeyGroupRangeTest, Contains)

@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #ifndef OMNISTREAM_ROCKSDBMAPSTATE_H
@@ -7,13 +14,15 @@
 
 #include <emhash7.hpp>
 #include "core/typeutils/TypeSerializer.h"
-#include "core/api/MapState.h"
+#include "core/api/common/state/MapState.h"
 #include "../VoidNamespace.h"
 #include "core/api/common/state/StateDescriptor.h"
 #include "table/data/binary/BinaryRowData.h"
-#include "vectorbatch/VectorBatch.h"
+#include "table/data/vectorbatch/VectorBatch.h"
 #include "runtime/state/internal/InternalKvState.h"
+#include "runtime/state/RocksDbKvStateInfo.h"
 #include "RocksdbMapStateTable.h"
+#include "state/RocksDbKvStateInfo.h"
 
 // The state is a map. in the InternalKvState, the state is stored as a pointer to emhash7
 template<typename K, typename N, typename UK, typename UV>
@@ -22,10 +31,7 @@ public:
     RocksdbMapState(RocksdbMapStateTable<K, N, UK, UV> *stateTable, TypeSerializer *keySerializer,
             TypeSerializer *valueSerializer, TypeSerializer *namespaceSerializer);
 
-    ~RocksdbMapState()
-    {
-        // delete stateTable;
-    };
+    ~RocksdbMapState() = default;
 
     TypeSerializer *getKeySerializer() const { return keySerializer; };
 
@@ -38,6 +44,9 @@ public:
     void setValueSerializer(TypeSerializer *serializer) { valueSerializer = serializer; };
 
     std::optional<UV> get(const UK &userKey) override;
+
+    // for DataStream used
+    Object* Get(Object* userKey) override;
 
     void put(const UK &userKey, const UV &userValue) override;
 
@@ -63,12 +72,15 @@ public:
     // like Join's emhash<RowData*, int> with currentNamespace and currentKey
     emhash7::HashMap<UK, UV> *entries() override;
 
-    void addVectorBatch(omnistream::VectorBatch* vectorBatch);
+    // for DataStream used.
+    java_util_Iterator* iterator() override;
+
+    void addVectorBatch(omnistream::VectorBatch* vectorBatch) override;
     omnistream::VectorBatch *getVectorBatch(int batchId) override;
-    const std::vector<omnistream::VectorBatch*> &getVectorBatches() const;
     long getVectorBatchesSize() override;
 
-    void createTable(ROCKSDB_NAMESPACE::DB* db, std::string cfName);
+    void createTable(ROCKSDB_NAMESPACE::DB* db, std::string cfName,
+                     std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>> *kvStateInformation);
 
 private:
     RocksdbMapStateTable<K, N, UK, UV> *stateTable;
@@ -82,6 +94,16 @@ template<typename K, typename N, typename UK, typename UV>
 emhash7::HashMap<UK, UV> *RocksdbMapState<K, N, UK, UV>::entries()
 {
     return stateTable->entries(currentNamespace);
+}
+
+template<typename K, typename N, typename UK, typename UV>
+java_util_Iterator* RocksdbMapState<K, N, UK, UV>::iterator()
+{
+    if constexpr (std::is_same_v<UK, Object*> && std::is_same_v<UV, Object*>) {
+        return stateTable->iterator();
+    } else {
+        THROW_LOGIC_EXCEPTION("type is not Object in RocksdbMapState::iterator()")
+    }
 }
 
 template<typename K, typename N, typename UK, typename UV>
@@ -101,6 +123,20 @@ std::optional<UV> RocksdbMapState<K, N, UK, UV>::get(const UK &userKey)
         }
     }
     return std::make_optional<UV>(uv);
+}
+
+template<typename K, typename N, typename UK, typename UV>
+Object* RocksdbMapState<K, N, UK, UV>::Get(Object* userKey)
+{
+    if (stateTable == nullptr) {
+        throw std::runtime_error("RocksdbMapStateTable is not initialized.");
+    }
+    if constexpr (std::is_same_v<UV, Object*>) {
+        UV uv = stateTable->get(currentNamespace, userKey);
+        return uv;
+    } else {
+        THROW_LOGIC_EXCEPTION("type is not Object in RocksdbMapState::get()")
+    }
 }
 
 template<typename K, typename N, typename UK, typename UV>
@@ -131,7 +167,7 @@ void RocksdbMapState<K, N, UK, UV>::remove(const UK &userKey)
 template<typename K, typename N, typename UK, typename UV>
 bool RocksdbMapState<K, N, UK, UV>::contains(const UK &userKey)
 {
-    return true;
+    return stateTable->contains(userKey);
 }
 
 template <typename K, typename N, typename UK, typename UV>
@@ -177,15 +213,10 @@ omnistream::VectorBatch *RocksdbMapState<K, N, UK, UV>::getVectorBatch(int batch
 };
 
 template<typename K, typename N, typename UK, typename UV>
-const std::vector<omnistream::VectorBatch*> &RocksdbMapState<K, N, UK, UV>::getVectorBatches() const
+void RocksdbMapState<K, N, UK, UV>::createTable(ROCKSDB_NAMESPACE::DB* db, std::string cfName,
+    std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>> *kvStateInformation)
 {
-    return this->vectorBatches;
-}
-
-template<typename K, typename N, typename UK, typename UV>
-void RocksdbMapState<K, N, UK, UV>::createTable(ROCKSDB_NAMESPACE::DB* db, std::string cfName)
-{
-    stateTable->createTable(db, cfName);
+    stateTable->createTable(db, cfName, kvStateInformation);
 }
 
 template<typename K, typename N, typename UK, typename UV>

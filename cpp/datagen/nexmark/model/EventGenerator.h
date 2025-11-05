@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #ifndef OMNISTREAM_EVENTGENERATOR_H
@@ -35,7 +42,7 @@ public:
     }
     int nextInt(int bound)
     {
-        return dist_int(engine) % bound;
+        return static_cast<int>(dist_int(engine)) % bound;
     }
     long nextLong()
     {
@@ -43,7 +50,7 @@ public:
     }
     long nextLong(long bound)
     {
-        return dist_long(engine) % bound;
+        return static_cast<int64_t>(dist_long(engine)) % bound;
     }
     double nextDouble()
     {
@@ -58,8 +65,8 @@ public:
         std::string str(length, ' ');
         // Handle remaining characters sequentially
         for (int i = 0; i < length; ++i) {
-            int index = dist_char(engine);
-            str[i] = index == 13 ? special : ('a' + index);
+            unsigned int index = dist_char(engine);
+            str[i] = index == 13 ? special : static_cast<char>('a' + index);
         }
         return str;
     }
@@ -67,8 +74,8 @@ public:
     std::string_view nextString(char* buffer, int length, char special = ' ')
     {
         for (int i = 0; i < length; ++i) {
-            int index = dist_char(engine);
-            buffer[i] = index == 13 ? special : ('a' + index);
+            unsigned int index = dist_char(engine);
+            buffer[i] = index == 13 ? special : static_cast<char>('a' + index);
         }
         return buffer;
     }
@@ -123,7 +130,7 @@ void StringsGenerator::fillWithRandomLower(SplittableRandom &random, char *buffe
         }
         if constexpr (useSpecial) {
             int index = rnd % 26;
-            buffer[length - 1] = (index == 13 ? special : ('a' + index));
+            buffer[length - 1] = (index == 13 ? special : static_cast<char>('a' + index));
         } else {
             buffer[length - 1] = 'a' + (rnd % 26);
         }

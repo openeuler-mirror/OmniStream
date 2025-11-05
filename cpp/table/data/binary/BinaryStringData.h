@@ -1,3 +1,14 @@
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
+
 #ifndef FLINK_TNEL_BINARYSTRINGDATA_H
 #define FLINK_TNEL_BINARYSTRINGDATA_H
 
@@ -9,12 +20,12 @@
 #include "StringUtf8Utils.h"
 #include "LazyBinaryFormat.h"
 
-class BinaryStringData : public StringData,  public LazyBinaryFormat<std::u32string>
-{
+class BinaryStringData : public StringData,  public LazyBinaryFormat<std::u32string> {
 public:
     // Constructors
     BinaryStringData() = default;
-    explicit BinaryStringData(std::u32string * str) : LazyBinaryFormat<std::u32string>(str) {
+    explicit BinaryStringData(std::u32string * str) : LazyBinaryFormat<std::u32string>(str)
+    {
         ensureMaterialized();
     };
     // BinaryStringData(MemorySegment *segments[], int offset, int sizeInBytes) : LazyBinaryFormat(segments, offset, sizeInBytes) {};
@@ -31,7 +42,6 @@ public:
     static BinaryStringData *fromString(std::u32string *str);
     static BinaryStringData *fromBytes(uint8_t* bytes, int len);
     static BinaryStringData *fromBytes(uint8_t* bytes, int offset, int len);
-    // static BinaryStringData* fromAddress(MemorySegment* segments, int offset, int numBytes);
 
     static BinaryStringData *EMPTY_UTF8;
 

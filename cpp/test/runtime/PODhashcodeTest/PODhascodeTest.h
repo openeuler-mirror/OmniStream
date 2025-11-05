@@ -1,4 +1,3 @@
-
 #ifndef PODHASCODETEST_H
 #define PODHASCODETEST_H
 #include <gtest/gtest.h>
@@ -33,7 +32,6 @@ TEST(PODhascodeTest,AbstractIDPOD) {
   //check put(key,old)
   EXPECT_EQ(maps[abs1], 1);
 
-
   //check put(key,new)  get(key)=new
   maps[abs1]=2;
   EXPECT_EQ(maps[abs1], 2);
@@ -49,6 +47,7 @@ TEST(PODhascodeTest,AbstractIDPOD) {
   EXPECT_EQ(maps[abs1],100);
 
 }
+
 TEST(PODhascodeTest, JobInformationPOD) {
   //todo: create a JobInformationPOD instance
   std::unordered_map<omnistream::JobInformationPOD,int> maps;
@@ -70,12 +69,12 @@ TEST(PODhascodeTest, JobInformationPOD) {
   maps.erase(jobinformation1);
   EXPECT_EQ(maps[jobinformation1], 0);
 
-
   maps[jobinformation2]=11;
   EXPECT_EQ(maps[jobinformation1], 11);
   EXPECT_EQ(maps[jobinformation2], 11);
 
 }
+
 // for JobIDPOD
 TEST(PODhascodeTest, JobIDPOD) {
   //todo: create a JobInformationPOD instance
@@ -106,67 +105,53 @@ TEST(PODhascodeTest, ExecutionAttemptIDPOD) {
   //todo: create a JobInformationPOD instance
   std::unordered_map<omnistream::ExecutionAttemptIDPOD,int> maps;
 
-  omnistream::AbstractIDPOD abs1(20000,20000);
-  omnistream::AbstractIDPOD abs2(20000,20000);
-  // omnistream::AbstractIDPOD abs3(20000,20001);
+  auto execution1 = omnistream::ExecutionAttemptIDPOD::randomId();
+  auto execution2 = execution1;
 
-  omnistream::ExecutionAttemptIDPOD execution1(abs1);
-  omnistream::ExecutionAttemptIDPOD execution2(abs2);
-  // omnistream::ExecutionAttemptIDPOD execution3(abs3);
-
-  maps[abs1]=1;
-  // maps[abs2]=2;
-  // maps[abs3]=3;
+  EXPECT_EQ(maps[execution1], 0);
+  
   //check1
-  EXPECT_EQ(maps[abs1], 1);
+  maps[execution1] = 1;
+  EXPECT_EQ(maps[execution1], 1);
 
   //check2
-  maps[abs1]=100;
-  EXPECT_EQ(maps[abs1], 100);
+  maps[execution2]=100;
+  EXPECT_EQ(maps[execution1], 100);
 
   //check3
-  maps.erase(abs1);
-  EXPECT_EQ(maps[abs1], 0);
-
+  maps.erase(execution1);
+  EXPECT_EQ(maps[execution1], 0);
 
   //check4
-  maps[abs2]=11;
-  EXPECT_EQ(maps[abs1], 11);
-  EXPECT_EQ(maps[abs2], 11);
+  maps[execution2]=11;
+  EXPECT_EQ(maps[execution1], 11);
+  EXPECT_EQ(maps[execution2], 11);
 }
 
 TEST(PODhascodeTest, ShuffleIOOwnerContextPOD) {
 
   std::unordered_map<omnistream::ShuffleIOOwnerContextPOD,int> maps;
 
-  omnistream::AbstractIDPOD abs1(20000,20000);
-  omnistream::AbstractIDPOD abs2(20000,20000);
+  auto execution = omnistream::ExecutionAttemptIDPOD::randomId();
 
-  omnistream::ExecutionAttemptIDPOD execution1(abs1);
-  omnistream::ExecutionAttemptIDPOD execution2(abs2);
+  omnistream::ShuffleIOOwnerContextPOD shuffle1("s1",execution);
+  omnistream::ShuffleIOOwnerContextPOD shuffle2 = shuffle1;
 
-
-  omnistream::ShuffleIOOwnerContextPOD shuffle1("s1",execution1);
-  omnistream::ShuffleIOOwnerContextPOD shuffle2("s1",execution1);
-
+  EXPECT_EQ(maps[shuffle1], 0);
 
   maps[shuffle1]=1;
   EXPECT_EQ(maps[shuffle1], 1);
 
   maps[shuffle1]=2;
-
   EXPECT_EQ(maps[shuffle1], 2);
 
   maps.erase(shuffle1);
   EXPECT_EQ(maps[shuffle1], 0);
 
-
   maps[shuffle2]=10;
-
   EXPECT_EQ(maps[shuffle1], 10);
   EXPECT_EQ(maps[shuffle2], 10);
 }
-
 
 TEST(PODhascodeTest, IntermediateDataSetIDPOD) {
 
@@ -261,8 +246,8 @@ TEST(PODhascodeTest, NonChainedOutputPOD) {
   omnistream::StreamPartitionerPOD s1("s1",hashFields1);
   omnistream::StreamPartitionerPOD s2("s2",hashFields2);
 
-  omnistream::NonChainedOutputPOD nc1(30,40,50,2000000,abs1,false,s1,1);
-  omnistream::NonChainedOutputPOD nc2(30,40,50,2000000,abs1,false,s1,1);
+  omnistream::NonChainedOutputPOD nc1(true, 30,40,50,2000000,abs1,false,s1,1);
+  omnistream::NonChainedOutputPOD nc2(true, 30,40,50,2000000,abs1,false,s1,1);
 
   maps[nc1]=1;
   EXPECT_EQ(maps[nc1], 1);
@@ -275,7 +260,6 @@ TEST(PODhascodeTest, NonChainedOutputPOD) {
   EXPECT_EQ(maps[nc1], 200);
   EXPECT_EQ(maps[nc2], 200);
 }
-
 
 TEST(PODhascodeTest, StreamEdgePOD) {
 
@@ -290,12 +274,10 @@ TEST(PODhascodeTest, StreamEdgePOD) {
   std::vector<omnistream::KeyFieldInfoPOD> hashFields1={k1,k2,k3};
   std::vector<omnistream::KeyFieldInfoPOD> hashFields2={k4,k5,k6};
 
-
   omnistream::StreamPartitionerPOD s1("s1",hashFields1);
   omnistream::StreamPartitionerPOD s2("s2",hashFields2);
   omnistream::StreamEdgePOD sp1(1,2,3,s1,false);
   omnistream::StreamEdgePOD sp2(1,2,3,s1,false);
-
 
   maps[sp1]=1;
   EXPECT_EQ(maps[sp1], 1);
@@ -329,12 +311,9 @@ TEST(PODhascodeTest, TypeDescriptionPOD) {
 
 }
 
-
 TEST(PODhascodeTest, OperatorPOD) {
 
-
   std::unordered_map<omnistream::OperatorPOD,int> maps;
-
 
   omnistream::TypeDescriptionPOD k1("a",false,30,"b",30,"po");
   omnistream::TypeDescriptionPOD k2("b",true,40,"a",50,"pod");
@@ -346,7 +325,6 @@ TEST(PODhascodeTest, OperatorPOD) {
 
   omnistream::OperatorPOD op1("zirui","1","engineer",hashFields1,k4);
   omnistream::OperatorPOD op2("zirui","1","engineer",hashFields1,k4);
-
 
   maps[op1]=1;
   EXPECT_EQ(maps[op1], 1);
@@ -361,7 +339,6 @@ TEST(PODhascodeTest, OperatorPOD) {
   EXPECT_EQ(maps[op1], 10);
 
 }
-
 
 TEST(PODhascodeTest, StreamConfigPOD) {
 
@@ -408,9 +385,9 @@ TEST(PODhascodeTest, StreamConfigPOD) {
   omnistream::IntermediateDataSetIDPOD abs3(20000,20001);
   //
   //
-  omnistream::NonChainedOutputPOD nc1(30,40,50,2000000,abs1,false,s1,1);
-  omnistream::NonChainedOutputPOD nc2(40,50,60,5000000,abs2,true,s1,1);
-  omnistream::NonChainedOutputPOD nc3(30,50,50,2000000,abs1,false,s1,1);
+  omnistream::NonChainedOutputPOD nc1(true, 30,40,50,2000000,abs1,false,s1,1);
+  omnistream::NonChainedOutputPOD nc2(true, 40,50,60,5000000,abs2,true,s1,1);
+  omnistream::NonChainedOutputPOD nc3(true, 30,50,50,2000000,abs1,false,s1,1);
   //
   std::vector<omnistream::NonChainedOutputPOD>opNonChainedOutputs={nc1,nc2,nc3}; //todo
   //
@@ -540,13 +517,16 @@ TEST(PODhascodeTest,PartitionInfoPOD) {
   // EXPECT_EQ(maps[Irp], 1);
 
 }
+
 TEST(PODhascodeTest,ResultPartitionIDPOD) {
   std::unordered_map<omnistream::ResultPartitionIDPOD,int>maps;
   omnistream::AbstractIDPOD abs1(20000,20000);
   omnistream::IntermediateResultPartitionIDPOD Ipid(abs1,10);
-  omnistream::ExecutionAttemptIDPOD execution1(abs1);
-  omnistream::ResultPartitionIDPOD rPod(Ipid,execution1);
-  omnistream::ResultPartitionIDPOD rPod2(Ipid,execution1);
+  auto execution = omnistream::ExecutionAttemptIDPOD::randomId();
+  omnistream::ResultPartitionIDPOD rPod(Ipid,execution);
+  omnistream::ResultPartitionIDPOD rPod2 = rPod;
+
+  EXPECT_EQ(maps[rPod], 0);
 
   maps[rPod]=1;
   EXPECT_EQ(maps[rPod], 1);
@@ -558,7 +538,6 @@ TEST(PODhascodeTest,ResultPartitionIDPOD) {
   maps[rPod2]=10;
   EXPECT_EQ(maps[rPod2], 10);
   EXPECT_EQ(maps[rPod], 10);
-
 
 }
 
@@ -592,14 +571,14 @@ TEST(PODhascodeTest,ShuffleDescriptorPOD) {
   std::unordered_map<omnistream::ShuffleDescriptorPOD,int>maps;
   omnistream::ResourceIDPOD reID("zirui","Canada Vancouver");
 
-
   omnistream::AbstractIDPOD abs1(20000,20000);
   omnistream::IntermediateResultPartitionIDPOD Ipid(abs1,10);
-  omnistream::ExecutionAttemptIDPOD execution1(abs1);
-  omnistream::ResultPartitionIDPOD rPod(Ipid,execution1);
+
+  auto execution = omnistream::ExecutionAttemptIDPOD::randomId();
+  omnistream::ResultPartitionIDPOD rPod(Ipid,execution);
 
   omnistream::ShuffleDescriptorPOD Slpd(rPod,false,true,reID);
-  omnistream::ShuffleDescriptorPOD Slpd2(rPod,false,true,reID);
+  omnistream::ShuffleDescriptorPOD Slpd2 = Slpd;
 
   maps[Slpd]=1;
   EXPECT_EQ(maps[Slpd], 1);
@@ -614,10 +593,6 @@ TEST(PODhascodeTest,ShuffleDescriptorPOD) {
   EXPECT_EQ(maps[Slpd2], 10);
 
   EXPECT_EQ(maps[Slpd], 10);
-
-
-
-
 }
 
 TEST(PODhascodeTest,InputGateDeploymentDescriptorPOD) {
@@ -635,10 +610,10 @@ TEST(PODhascodeTest,InputGateDeploymentDescriptorPOD) {
   omnistream::IntermediateResultPartitionIDPOD Ipid1(abs1,10);
   omnistream::IntermediateResultPartitionIDPOD Ipid2(abs2,110);
 
-  omnistream::ExecutionAttemptIDPOD execution1(abs1);
-  omnistream::ExecutionAttemptIDPOD execution2(abs2);
+  auto execution = omnistream::ExecutionAttemptIDPOD::randomId();
+  auto execution2 = omnistream::ExecutionAttemptIDPOD::randomId();
 
-  omnistream::ResultPartitionIDPOD rPod1(Ipid1,execution1);
+  omnistream::ResultPartitionIDPOD rPod1(Ipid1,execution);
   omnistream::ResultPartitionIDPOD rPod2(Ipid2,execution2);
 
   omnistream::ResourceIDPOD reID("zirui","Canada Vancouver");
@@ -671,8 +646,6 @@ TEST(PODhascodeTest,InputGateDeploymentDescriptorPOD) {
   EXPECT_EQ(maps[IDpod], 10);
   EXPECT_EQ(maps[IDpod2], 10);
 
-
-
 }
 
 TEST(PODhascodeTest,ResultPartitionDeploymentDescriptorPOD) {
@@ -688,16 +661,14 @@ TEST(PODhascodeTest,ResultPartitionDeploymentDescriptorPOD) {
   omnistream::AbstractIDPOD abs1(20000,20000); //TODO
   omnistream::AbstractIDPOD abs2(20001,10000);
 
-
   omnistream::IntermediateResultPartitionIDPOD Ipid1(abs1,10);  //TODO
   omnistream::IntermediateResultPartitionIDPOD Ipid2(abs2,110);
 
-  omnistream::ExecutionAttemptIDPOD execution1(abs1);
-  omnistream::ExecutionAttemptIDPOD execution2(abs2);
+  auto execution1 = omnistream::ExecutionAttemptIDPOD::randomId();
+  auto execution2 = omnistream::ExecutionAttemptIDPOD::randomId();
 
   omnistream::ResultPartitionIDPOD rPod1(Ipid1,execution1);
   omnistream::ResultPartitionIDPOD rPod2(Ipid2,execution2);
-
 
   omnistream::ShuffleDescriptorPOD shuffleDescriptor(rPod1,false,true,reID); //TODO
   omnistream::ShuffleDescriptorPOD Slpd2(rPod1,false,true,reID2);
@@ -727,12 +698,7 @@ TEST(PODhascodeTest,ResultPartitionDeploymentDescriptorPOD) {
   maps[result_partition_deployment_descriptor_pod2]=10;
   EXPECT_EQ(maps[result_partition_deployment_descriptor_pod2], 10);
   EXPECT_EQ(maps[result_partition_deployment_descriptor_pod], 10);
-
-
-
 }
-
-
 
 TEST(PODhascodeTest,TaskDeploymentDescriptorPOD) {
   std::unordered_map<omnistream::TaskDeploymentDescriptorPOD,int> maps;
@@ -741,11 +707,9 @@ TEST(PODhascodeTest,TaskDeploymentDescriptorPOD) {
   // std::vector<ResultPartitionDeploymentDescriptorPOD> producedPartitions;
   // std::vector<InputGateDeploymentDescriptorPOD> inputGates;
 
-
   omnistream::JobIDPOD jobid1(20000,20000);
   omnistream::JobIDPOD jobid2(20000,20000);
   omnistream::JobIDPOD jobid3(20000,20000);
-
 
   omnistream::ResourceIDPOD reID("zirui","Canada Vancouver");
   omnistream::ResourceIDPOD reID2("leo","Canada TOronto");
@@ -756,16 +720,14 @@ TEST(PODhascodeTest,TaskDeploymentDescriptorPOD) {
   omnistream::AbstractIDPOD abs1(20000,20000); //TODO
   omnistream::AbstractIDPOD abs2(20001,10000);
 
-
   omnistream::IntermediateResultPartitionIDPOD Ipid1(abs1,10);  //TODO
   omnistream::IntermediateResultPartitionIDPOD Ipid2(abs2,110);
 
-  omnistream::ExecutionAttemptIDPOD execution1(abs1);
-  omnistream::ExecutionAttemptIDPOD execution2(abs2);
+  auto execution1 = omnistream::ExecutionAttemptIDPOD::randomId();
+  auto execution2 = omnistream::ExecutionAttemptIDPOD::randomId();
 
   omnistream::ResultPartitionIDPOD rPod1(Ipid1,execution1);
   omnistream::ResultPartitionIDPOD rPod2(Ipid2,execution2);
-
 
   omnistream::ShuffleDescriptorPOD shuffleDescriptor(rPod1,false,true,reID); //TODO
   omnistream::ShuffleDescriptorPOD Slpd2(rPod1,false,true,reID2);
@@ -782,15 +744,12 @@ TEST(PODhascodeTest,TaskDeploymentDescriptorPOD) {
   abs1,13,Ipid1,
   15,17);
 
-
   //todo
   std::vector<omnistream::ResultPartitionDeploymentDescriptorPOD> producedPartitions={result_partition_deployment_descriptor_pod, result_partition_deployment_descriptor_pod2};
-
 
   omnistream::IntermediateDataSetIDPOD ibs1(20000,20000);
   omnistream::IntermediateDataSetIDPOD ibs2(20001,20000);
   omnistream::IntermediateDataSetIDPOD ibs3(20000,20001);
-
 
   omnistream::ShuffleDescriptorPOD Slpd(rPod1,false,true,reID);
 
@@ -803,8 +762,9 @@ TEST(PODhascodeTest,TaskDeploymentDescriptorPOD) {
   //todo
   std::vector<omnistream::InputGateDeploymentDescriptorPOD> inputGates={IDpod1,IDpod2};
 
-  omnistream::TaskDeploymentDescriptorPOD TDDpod(jobid1,producedPartitions,inputGates);
-  omnistream::TaskDeploymentDescriptorPOD TDDpod2(jobid1,producedPartitions,inputGates);
+  std::string taskStateSnapshot = "";
+  omnistream::TaskDeploymentDescriptorPOD TDDpod(jobid1,producedPartitions,inputGates, taskStateSnapshot);
+  omnistream::TaskDeploymentDescriptorPOD TDDpod2(jobid1,producedPartitions,inputGates, taskStateSnapshot);
 
   maps[TDDpod]=1;
   EXPECT_EQ(maps[TDDpod],1);

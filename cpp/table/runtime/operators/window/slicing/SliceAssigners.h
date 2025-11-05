@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 #ifndef FLINK_TNEL_SLICEASSIGNERS_H
 #define FLINK_TNEL_SLICEASSIGNERS_H
@@ -13,7 +20,7 @@
 #include "algorithm"
 #include "optional"
 #include "numeric"
-#include "table/vectorbatch/VectorBatch.h"
+#include "table/data/vectorbatch/VectorBatch.h"
 #include "iostream"
 #include "iterator"
 #include "cstddef"
@@ -44,12 +51,14 @@ public:
     virtual ~IteratorBase() = default;
     virtual std::vector<int64_t> getList() = 0;
 };
+namespace omnistream {
+    class ZoneId {
+    public:
+        ZoneId() {}
+        ~ZoneId() = default;
+    };
+}
 
-class ZoneId {
-public:
-    ZoneId() {}
-    ~ZoneId() {}
-};
 
 class SliceAssigner {
 public:
@@ -92,10 +101,10 @@ public:
 protected:
     int rowtimeIndex;
     bool isEventTimeBool;
-    ZoneId *shiftTimeZone;
+    omnistream::ZoneId *shiftTimeZone;
 
     // 构造函数受保护，防止直接实例化
-    AbstractSliceAssigner(int rowtimeIndex, ZoneId *shiftTimeZone)
+    AbstractSliceAssigner(int rowtimeIndex, omnistream::ZoneId *shiftTimeZone)
         : rowtimeIndex(rowtimeIndex), shiftTimeZone(shiftTimeZone)
     {
         this->isEventTimeBool = rowtimeIndex >= 0;
@@ -252,7 +261,7 @@ public:
 
 class TumblingSliceAssigner : public AbstractSliceAssigner, public SliceUnsharedAssigner {
 public:
-    TumblingSliceAssigner(int rowtimeIndex, ZoneId *shiftTimeZone, int64_t size, int64_t offset);
+    TumblingSliceAssigner(int rowtimeIndex, omnistream::ZoneId *shiftTimeZone, int64_t size, int64_t offset);
     ~TumblingSliceAssigner() override;
     TumblingSliceAssigner* withOffset(int64_t offset);
     int64_t assignSliceEnd(omnistream::VectorBatch *element, int rowId, ClockService *clock) override;
@@ -273,7 +282,7 @@ private:
 
 class HoppingSliceAssigner : public AbstractSliceAssigner, public SliceSharedAssigner {
 public:
-    HoppingSliceAssigner(int rowtimeIndex, ZoneId *shiftTimeZone,
+    HoppingSliceAssigner(int rowtimeIndex, omnistream::ZoneId *shiftTimeZone,
                          int64_t size, int64_t slide, int64_t offset);
     ~HoppingSliceAssigner() override;
     HoppingSliceAssigner* withOffset(int64_t offset);
@@ -306,7 +315,7 @@ private:
 
 class CumulativeSliceAssigner : public AbstractSliceAssigner, public SliceSharedAssigner {
 public:
-    CumulativeSliceAssigner(int rowtimeIndex, ZoneId *shiftTimeZone,
+    CumulativeSliceAssigner(int rowtimeIndex, omnistream::ZoneId *shiftTimeZone,
                             int64_t maxSize, int64_t step, int64_t offset);
     ~CumulativeSliceAssigner() override;
     CumulativeSliceAssigner* withOffset(int64_t offset);
@@ -341,7 +350,7 @@ public:
 
     static TumblingSliceAssigner* tumbling(
             int rowtimeIndex,
-            ZoneId *shiftTimeZone,
+            omnistream::ZoneId *shiftTimeZone,
             int64_t size
     )
     {
@@ -352,7 +361,7 @@ public:
 
     static HoppingSliceAssigner *hopping(
             int rowtimeIndex,
-            ZoneId *shiftTimeZone,
+            omnistream::ZoneId *shiftTimeZone,
             std::int64_t size,
             std::int64_t slide
     )
@@ -364,7 +373,7 @@ public:
 
     static CumulativeSliceAssigner* cumulative(
             int rowtimeIndex,
-            ZoneId *shiftTimeZone,
+            omnistream::ZoneId *shiftTimeZone,
             int64_t maxSize,
             int64_t step
     )
@@ -380,11 +389,11 @@ public:
     static SliceAssigner* createSliceAssigner(const nlohmann::json parsedJson);
     static std::string getContentVal(std::string *ptr);
     static HoppingSliceAssigner* CreateHopSliceAssigner(std::string windowMsgStr, int rowtimeIndexVal,
-                                                        std::shared_ptr<ZoneId> zonePtr);
+                                                        omnistream::ZoneId* zonePtr);
     static TumblingSliceAssigner* CreateTumbleSliceAssigner(std::string windowMsgStr, int rowtimeIndexVal,
-                                                            std::shared_ptr<ZoneId> zonePtr);
+                                                            omnistream::ZoneId* zonePtr);
     static CumulativeSliceAssigner* CreateCumlativeSliceAssigner(std::string windowMsgStr, int rowtimeIndexVal,
-                                                                 std::shared_ptr<ZoneId> zonePtr);
+                                                                 omnistream::ZoneId* zonePtr);
 };
 
 #endif

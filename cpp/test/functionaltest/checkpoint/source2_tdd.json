@@ -1,0 +1,59 @@
+{
+  "jobId": {
+    "upperPart": 2581386063172303651,
+    "lowerPart": -6388831191268251860
+  },
+  "producedPartitions": [
+    {
+      "shuffleDescriptor": {
+        "resultPartitionID": {
+          "partitionId": {
+            "intermediateDataSetID": {
+              "upperPart": -2112904881824675343,
+              "lowerPart": 2948588651830977424
+            },
+            "partitionNum": 0
+          },
+          "producerId": {
+            "executionGraphId": {
+              "upperPart": -8437315273652180223,
+              "lowerPart": -4120898242626391041
+            },
+            "executionVertexId": {
+              "jobVertexId": {
+                "upperPart": 4665423025443562707,
+                "lowerPart": -87212506574776952
+              },
+              "subtaskIndex": 0
+            },
+            "attemptNumber": 0
+          }
+        },
+        "hasLocalResource": true,
+        "storesLocalResourcesOn": {
+          "resourceId": "localhost:32903-f21895",
+          "metadata": ""
+        },
+        "unknown": false
+      },
+      "maxParallelism": 128,
+      "notifyPartitionDataAvailable": true,
+      "resultId": {
+        "upperPart": -2112904881824675343,
+        "lowerPart": 2948588651830977424
+      },
+      "totalNumberOfPartitions": 1,
+      "partitionId": {
+        "intermediateDataSetID": {
+          "upperPart": -2112904881824675343,
+          "lowerPart": 2948588651830977424
+        },
+        "partitionNum": 0
+      },
+      "partitionType": 7,
+      "numberOfSubpartitions": 1
+    }
+  ],
+  "inputGates": [],
+  "taskStateSnapshot": ""
+}

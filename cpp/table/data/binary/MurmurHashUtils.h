@@ -1,9 +1,19 @@
-#pragma once
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
+#ifndef MURMURHASHUTILS_H
+#define MURMURHASHUTILS_H
 
 #include <cstdint>
 #include <cassert>
 #include <cstring>
-#include <arm_sve.h>
 
 class MurmurHashUtils {
 public:
@@ -31,5 +41,6 @@ private:
     static int fmix(int h1, int length);
     static int fmix(int h);
     static std::uint64_t fmix(std::uint64_t h);
-    static void getResData(void* dst, void* src, size_t cur, int res);
 };
+
+#endif // MURMURHASHUTILS_H

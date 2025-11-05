@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #ifndef LOCAL_OBJECT_BUFFER_POOL_H
@@ -14,18 +21,19 @@
 
 #include "ObjectBuffer.h"
 #include "ObjectBufferBuilder.h"
-#include "ObjectBufferListener.h"
 #include "ObjectBufferRecycler.h"
 #include "ObjectSegment.h"
+#include "BufferPool.h"
+#include "LocalBufferPool.h"
 
-#include "ObjectBufferPool.h"
-namespace omnistream
-{
+namespace omnistream {
     class NetworkObjectBufferPool;
+    class LocalBufferPool;
 }
+
 namespace omnistream {
 
-    class LocalObjectBufferPool : public ObjectBufferPool, public std::enable_shared_from_this<LocalObjectBufferPool> {
+    class LocalObjectBufferPool : public LocalBufferPool {
     public:
     LocalObjectBufferPool(std::shared_ptr<NetworkObjectBufferPool> networkBufferPool, int numberOfRequiredMemorySegments)
         : LocalObjectBufferPool(networkBufferPool, numberOfRequiredMemorySegments, INT_MAX, 0, INT_MAX) {}
@@ -42,68 +50,75 @@ namespace omnistream {
     ~LocalObjectBufferPool() override = default;
 
     void postConstruct();
+    void lazyDestroy() override;
 
     void reserveSegments(int numberOfSegmentsToReserve) override;
     bool isDestroyed() override;
-    int getNumberOfRequiredObjectSegments() const override  ;
-    int getMaxNumberOfObjectSegments() const override;
-    int getNumberOfAvailableObjectSegments()  override;
+    int getMaxNumberOfSegments() const override;
+    int getNumberOfAvailableSegments()  override;
     int getNumBuffers()  override;
     int bestEffortGetNumOfUsedBuffers() const override;
-    std::shared_ptr<ObjectBuffer> requestBuffer() override;
-    std::shared_ptr<ObjectBufferBuilder> requestObjectBufferBuilder() override;
-    std::shared_ptr<ObjectBufferBuilder> requestObjectBufferBuilder(int targetChannel) override;
-    std::shared_ptr<ObjectBufferBuilder> requestObjectBufferBuilderBlocking() override;
-    std::shared_ptr<ObjectSegment> requestObjectSegmentBlocking() override;
-    std::shared_ptr<ObjectBufferBuilder> requestObjectBufferBuilderBlocking(int targetChannel) override;
-    std::shared_ptr<ObjectSegment> requestObjectSegment() override;
-    void recycle(std::shared_ptr<ObjectSegment> segment) override;
-    void lazyDestroy() override;
-    bool addBufferListener(std::shared_ptr<ObjectBufferListener> listener) override;
-    void setNumBuffers(int numBuffers) override;
-    std::shared_ptr<CompletableFuture> getAvailableFuture()  override;
-    std::string toString() const override;
+    std::shared_ptr<CompletableFuture> GetAvailableFuture()  override;
 
-    private:
+    std::shared_ptr<Buffer> requestBuffer() override;
+    std::shared_ptr<BufferBuilder> requestBufferBuilder() override;
+    std::shared_ptr<BufferBuilder> requestBufferBuilder(int targetChannel) override;
+    std::shared_ptr<BufferBuilder> requestBufferBuilderBlocking() override;
+    std::shared_ptr<BufferBuilder> requestBufferBuilderBlocking(int targetChannel) override;
+
+    std::shared_ptr<ObjectBuffer> requestObjectBuffer();
+    std::shared_ptr<ObjectBufferBuilder> requestObjectBufferBuilder();
+    std::shared_ptr<ObjectBufferBuilder> requestObjectBufferBuilder(int targetChannel);
+    std::shared_ptr<ObjectBufferBuilder> requestObjectBufferBuilderBlocking();
+    std::shared_ptr<ObjectBufferBuilder> requestObjectBufferBuilderBlocking(int targetChannel);
+
+    std::shared_ptr<Segment> requestSegment() override;
+    std::shared_ptr<Segment> requestSegment(int targetChannel) override;
+    std::shared_ptr<Segment> requestSegmentBlocking() override;
+    std::shared_ptr<Segment> requestSegmentBlocking(int targetChannel) override;
+
+    std::shared_ptr<ObjectSegment> requestObjectSegment();
+    std::shared_ptr<ObjectSegment> requestObjectSegment(int targetChannel);
+    std::shared_ptr<ObjectSegment> requestObjectSegmentBlocking();
+    std::shared_ptr<ObjectSegment> requestObjectSegmentBlocking(int targetChannel);
+
     std::shared_ptr<ObjectBuffer> toObjectBuffer(std::shared_ptr<ObjectSegment> segment);
     std::shared_ptr<ObjectBufferBuilder> toObjectBufferBuilder(std::shared_ptr<ObjectSegment> segment, int targetChannel);
-    std::shared_ptr<ObjectSegment> requestObjectSegmentBlocking(int targetChannel);
-    std::shared_ptr<ObjectSegment> requestObjectSegment(int targetChannel);
-    bool requestObjectSegmentFromGlobal();
-    void requestObjectSegmentFromGlobalWhenAvailable();
-    void onGlobalPoolAvailable();
-    bool shouldBeAvailable();
-    bool checkAvailability();
-    void checkConsistentAvailability();
-    void recycle(std::shared_ptr<ObjectSegment> segment, int channel);
-    bool fireBufferAvailableNotification(std::shared_ptr<ObjectBufferListener> listener, std::shared_ptr<ObjectSegment> segment);
-    void mayNotifyAvailable(std::shared_ptr<CompletableFuture> toNotify);
+
+    std::string toString() const override;
+
+    void returnSegment(std::shared_ptr<Segment> segment) override;
     void returnObjectSegment(std::shared_ptr<ObjectSegment> segment);
+
+    void returnExcessSegments() override;
     void returnExcessObjectSegments();
-    bool hasExcessBuffers();
-    bool isRequestedSizeReached();
+
+    bool requestSegmentFromGlobal() override;
+
+    private:
+
+    bool hasExcessBuffers() override;
+    bool isRequestedSizeReached() override;
 
     class SubpartitionBufferRecycler : public ObjectBufferRecycler {
     public:
-        SubpartitionBufferRecycler(int channel,  std::shared_ptr<LocalObjectBufferPool> bufferPool);
-        void recycle(std::shared_ptr<ObjectSegment> segment) override;
+        SubpartitionBufferRecycler(int channel,  std::shared_ptr<LocalBufferPool> bufferPool);
+        void recycle(std::shared_ptr<Segment> segment) override;
     protected:
         int channel_;
-        std::shared_ptr<LocalObjectBufferPool> bufferPool_;
+        std::shared_ptr<LocalBufferPool> bufferPool_;
     };
 
-    static const int UNKNOWN_CHANNEL = -1;
-
     std::shared_ptr<NetworkObjectBufferPool> networkObjBufferPool_;
+
     /** The minimum number of required segments for this pool. */
-    int numberOfRequiredObjectSegments_;
-        std::recursive_mutex recursiveMutex;
+    // std::recursive_mutex recursiveMutex;
     std::deque<std::shared_ptr<ObjectSegment>> availableObjectSegments_;
     std::mutex availableObjectSegmentsMutex;
 
-    std::deque<std::shared_ptr<ObjectBufferListener>> registeredListeners_;
+    // std::deque<std::shared_ptr<ObjectBufferListener>> registeredListeners_;
+    std::deque<std::shared_ptr<BufferListener>> registeredListeners_;
     int maxNumberOfObjectSegments_;
-    int currentPoolSize_;
 
     /**
      * Number of all memory segments, which have been requested from the network buffer pool and are
@@ -111,13 +126,9 @@ namespace omnistream {
      * segments).
      */
     int numberOfRequestedObjectSegments_;
-    int maxBuffersPerChannel_;
-    std::vector<int> subpartitionBuffersCount_;
     std::vector<std::shared_ptr<ObjectBufferRecycler>> subpartitionBufferRecyclers_;
     int unavailableSubpartitionsCount_ = 0;
     bool isDestroyed_ = false;
-    std::shared_ptr<AvailabilityHelper>  availabilityHelper_;
-    bool requestingWhenAvailable_ = false;
 };
 
 } // namespace omnistream

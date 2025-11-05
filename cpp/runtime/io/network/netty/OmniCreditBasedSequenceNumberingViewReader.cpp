@@ -1,7 +1,16 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 #include "OmniCreditBasedSequenceNumberingViewReader.h"
+
+#include <buffer/ReadOnlySlicedNetworkBuffer.h>
 
 namespace omnistream {
     OmniCreditBasedSequenceNumberingViewReader::
@@ -9,7 +18,7 @@ namespace omnistream {
                                                int subPartitionIndex,
                                                long outputBufferStatus)
         : outputBufferStatus(
-            reinterpret_cast<OutputBufferStatus*>(outputBufferStatus))
+            reinterpret_cast<OutputBufferStatus *>(outputBufferStatus))
     {
         LOG_TRACE("create OmniCreditBasedSequenceNumberingViewReader "
             << reinterpret_cast<long>(this))
@@ -18,6 +27,8 @@ namespace omnistream {
 
     OmniCreditBasedSequenceNumberingViewReader::~OmniCreditBasedSequenceNumberingViewReader()
     {
+        //        delete nettyBufferPool;
+        //        delete outputBufferStatus;
     }
 
     void OmniCreditBasedSequenceNumberingViewReader::notifyDataAvailable()
@@ -47,7 +58,7 @@ namespace omnistream {
         auto queueSize = 0;
         {
             std::lock_guard<std::recursive_mutex> lock(queueMutex);
-            queueSize = this->serializedBatchQueue.size();
+            queueSize = static_cast<int>(this->serializedBatchQueue.size());
         }
         LOG_TRACE(
             "OmniCreditBasedSequenceNumberingViewReaderN getAvailabilityAndBacklog "
@@ -67,18 +78,36 @@ namespace omnistream {
 
         std::lock_guard<std::recursive_mutex> lock(fetchingDataMutex);
         std::shared_ptr<BufferAndBacklog> bufferAndLog =
-            this->subpartitionView->getNextBuffer();
+                this->subpartitionView->getNextBuffer();
         while (bufferAndLog) {
-            std::shared_ptr<VectorBatchBuffer> vectorBatchBuffer = bufferAndLog->getBuffer();
-            if (vectorBatchBuffer->GetSize() > 0) {
-                // serialize data
-                SerializeBufferAndBacklog(vectorBatchBuffer);
-            } else {
-                LOG("buffer size is 0, so i need to return " << std::this_thread::get_id())
-                break;
+            std::shared_ptr<Buffer> buffer = dynamic_pointer_cast<Buffer>(bufferAndLog->getBuffer());
+            if (auto vectorBatchBuffer = std::dynamic_pointer_cast<VectorBatchBuffer>(buffer)) {
+                if (vectorBatchBuffer->GetSize() > 0) {
+                    // serialize data
+                    SerializeBufferAndBacklog(vectorBatchBuffer);
+                } else {
+                    LOG("buffer size is 0, so i need to return " << std::this_thread::get_id())
+                    break;
+                }
+                // recycle buffer
+                vectorBatchBuffer->RecycleBuffer();
+            } else if (auto nBuffer = std::dynamic_pointer_cast<datastream::ReadOnlySlicedNetworkBuffer>(buffer)) {
+                uint8_t *memorySegmentAddress = nBuffer->getMemorySegment()->getAll();
+                int memorySegmentOffset = nBuffer->GetMemorySegmentOffset();
+                uint8_t *readableAddress = memorySegmentAddress + memorySegmentOffset;
+                int datasSize = nBuffer->GetSize();
+                int bufferType = nBuffer->isBuffer() ? 1 : 2;
+                SerializedBatchInfo serializedBatchInfo = {
+                    readableAddress, datasSize,
+                    -1, bufferType
+                };
+                std::lock_guard<std::recursive_mutex> lock(queueMutex);
+                auto serializedBatchInfoPtr =
+                        std::make_shared<SerializedBatchInfo>(serializedBatchInfo);
+                networkBufferPendingRecycling.insert({reinterpret_cast<long>(readableAddress), nBuffer});
+                serializedBatchQueue.push(serializedBatchInfoPtr);
             }
-            // recycle buffer
-            vectorBatchBuffer->RecycleBuffer();
+
             bufferAndLog = this->subpartitionView->getNextBuffer();
         }
     }
@@ -88,13 +117,13 @@ namespace omnistream {
         int readElementNumber = 0;
         if (this->serializedBatchQueue.size() > 0) {
             std::lock_guard<std::recursive_mutex> lock(queueMutex);
-            int dataSize = this->serializedBatchQueue.size();
+            size_t dataSize = this->serializedBatchQueue.size();
             readElementNumber = dataSize > 10 ? 10 : dataSize;
-            intptr_t dataResultContainer = this->outputBufferStatus->outputBuffer_;
-            int position = 0;
+            uintptr_t dataResultContainer = this->outputBufferStatus->outputBuffer_;
+            unsigned int position = 0;
             for (int i = 0; i < readElementNumber; i++) {
                 std::shared_ptr<SerializedBatchInfo> serializedBatchInfo =
-                    this->serializedBatchQueue.front();
+                        this->serializedBatchQueue.front();
                 this->serializedBatchQueue.pop();
                 long bufferAddress = 0;
                 int bufferLength = 0;
@@ -102,41 +131,48 @@ namespace omnistream {
                     bufferAddress = -1;
                     bufferLength = serializedBatchInfo->event;
                     INFO_RELEASE(">>>OmniCreditBasedSequenceNumberingViewReader pop an event from queue type"
-                                 <<serializedBatchInfo->event << "from subpartitionView for "
-                                 << reinterpret_cast<long>(this))
+                        <<serializedBatchInfo->event << "from subpartitionView for "
+                        << reinterpret_cast<long>(this))
                 } else {
-                    bufferAddress =
-                        reinterpret_cast<long>(serializedBatchInfo->buffer);
+                    bufferAddress = reinterpret_cast<long>(serializedBatchInfo->buffer);
                     bufferLength = serializedBatchInfo->size;
                 }
-                LOG("bufferAddress: " << bufferAddress
-                    << " bufferLength: " << bufferLength)
-                *reinterpret_cast<uint64_t*>(dataResultContainer + position) =
-                    bufferAddress;
+                LOG("bufferAddress: " << bufferAddress << " bufferLength: " << bufferLength)
+                * reinterpret_cast<uint64_t *>(dataResultContainer + position) = bufferAddress;
                 position += 8;
-                *reinterpret_cast<uint32_t*>(dataResultContainer + position) =
-                    bufferLength;
+                *reinterpret_cast<uint32_t *>(dataResultContainer + position) = bufferLength;
+                position += 4;
+                *reinterpret_cast<uint32_t *>(dataResultContainer + position) =
+                        serializedBatchInfo->bufferType;
                 position += 4;
             }
         }
-        this->outputBufferStatus->numberElement = readElementNumber;
+        this->outputBufferStatus->numberElement = static_cast<int32_t>(readElementNumber);
         return readElementNumber;
     }
 
-    void OmniCreditBasedSequenceNumberingViewReader::DoSerializeVectorBatch(VectorBatch* element, int vectorSize,
-                                                                            std::shared_ptr<NettyBufferInfo>&
+    void OmniCreditBasedSequenceNumberingViewReader::DoSerializeVectorBatch(VectorBatch *element, int vectorSize,
+                                                                            std::shared_ptr<NettyBufferInfo> &
                                                                             bufferInfo)
     {
+        if (!bufferInfo) {
+            INFO_RELEASE("buffer info in DoSerializeVectorBatch is null")
+            throw std::runtime_error("buffer info in DoSerializeVectorBatch is null");
+        }
         VectorBatchSerializationUtils::serializeVectorBatch(
             element, vectorSize, bufferInfo->GetAddress());
         bufferInfo->SetWrittenBytes(vectorSize);
         bufferInfo->IncrementElementNum();
     }
 
-    bool OmniCreditBasedSequenceNumberingViewReader::SerializeVectorBatch(VectorBatch* element,
-                                                                          std::shared_ptr<NettyBufferInfo>& bufferInfo)
+    bool OmniCreditBasedSequenceNumberingViewReader::SerializeVectorBatch(VectorBatch *element,
+                                                                          std::shared_ptr<NettyBufferInfo> &bufferInfo)
     {
         int vectorSize = VectorBatchSerializationUtils::calculateVectorBatchSerializableSize(element);
+        if (!bufferInfo) {
+            INFO_RELEASE("buffer info in SerializeVectorBatch is null")
+            throw std::runtime_error("buffer info in SerializeVectorBatch is null");
+        }
         if (vectorSize > bufferSize - bufferInfo->elementNumBytes) {
             // send regular buffer to queue first
             AddNettyBufferInfoToQueue(bufferInfo);
@@ -167,8 +203,16 @@ namespace omnistream {
             AddNettyBufferInfoToQueue(bufferInfo);
             // allocate a new buffer
             auto bigBufferInfo = RequestNettyBuffer(dataSize);
+            if (!bufferInfo) {
+                INFO_RELEASE("buffer info in DoSerializeWaterMark is null")
+                throw std::runtime_error("buffer info in DoSerializeWaterMark is null");
+            }
             VectorBatchSerializationUtils::SerializWatermark(
                 timestamp, dataSize, bufferInfo->GetAddress());
+            if (!bigBufferInfo) {
+                INFO_RELEASE("big buffer info in DoSerializeWaterMark is null")
+                throw std::runtime_error("big buffer info in DoSerializeWaterMark is null");
+            }
             bigBufferInfo->SetWrittenBytes(dataSize);
             bigBufferInfo->IncrementElementNum();
             AddNettyBufferInfoToQueue(bigBufferInfo);
@@ -189,7 +233,7 @@ namespace omnistream {
     }
 
     void OmniCreditBasedSequenceNumberingViewReader::AddNettyBufferInfoToQueue(
-        std::shared_ptr<NettyBufferInfo>& bufferInfo)
+        std::shared_ptr<NettyBufferInfo> &bufferInfo)
     {
         if (bufferInfo->GetWrittenBytes() > 0) {
             VectorBatchSerializationUtils::SerializElementNum(bufferInfo->GetElementNum(),
@@ -255,28 +299,28 @@ namespace omnistream {
             evenType
         };
         auto serializedBatchInfoPtr =
-            std::make_shared<SerializedBatchInfo>(serializedBatchInfo);
+                std::make_shared<SerializedBatchInfo>(serializedBatchInfo);
         serializedBatchQueue.push(serializedBatchInfoPtr);
         INFO_RELEASE(">>>OmniCreditBasedSequenceNumberingViewReader push an event to queue type: "<< evenType
-                     << "from subpartitionView for " << reinterpret_cast<long>(this))
+            << "from subpartitionView for " << reinterpret_cast<long>(this))
     }
 
     void OmniCreditBasedSequenceNumberingViewReader::SerializeVectorBatchBuffer(
         std::shared_ptr<VectorBatchBuffer> vectorBatchBuffer)
     {
         std::shared_ptr<ObjectSegment> objectSegment =
-            vectorBatchBuffer->GetObjectSegment();
+                vectorBatchBuffer->GetObjectSegment();
         int vectorBatchSize = vectorBatchBuffer->GetSize();
         auto offset = vectorBatchBuffer->GetOffset();
         auto bufferInfo = RequestNettyBuffer(bufferSize);
         for (int i = offset; i < vectorBatchSize + offset; i++) {
-            StreamElement* streamElement = objectSegment->getObject(i);
-            if (dynamic_cast<StreamRecord*>(streamElement)) {
-                StreamRecord* streamRecord =
-                    static_cast<StreamRecord*>(streamElement);
+            StreamElement *streamElement = objectSegment->getObject(i);
+            if (dynamic_cast<StreamRecord *>(streamElement)) {
+                StreamRecord *streamRecord =
+                        static_cast<StreamRecord *>(streamElement);
                 // Handle StreamRecord
                 // process streamRecord
-                VectorBatch* element = static_cast<VectorBatch*>(
+                VectorBatch *element = static_cast<VectorBatch *>(
                     streamRecord->getValue());
                 while (!SerializeVectorBatch(element, bufferInfo)) {
                     // it means buffer is not enough
@@ -287,9 +331,9 @@ namespace omnistream {
                 }
                 omniruntime::vec::VectorHelper::FreeVecBatch(element);
                 delete streamRecord;
-            } else if (dynamic_cast<Watermark*>(streamElement)) {
-                Watermark* watermark =
-                    static_cast<Watermark*>(streamElement);
+            } else if (dynamic_cast<Watermark *>(streamElement)) {
+                Watermark *watermark =
+                        static_cast<Watermark *>(streamElement);
                 // Handle Watermark
                 long timestamp = watermark->getTimestamp();
                 while (!DoSerializeWaterMark(timestamp, bufferInfo)) {
@@ -320,5 +364,20 @@ namespace omnistream {
             delete nettyBufferPool;
             nettyBufferPool = nullptr;
         }
+    }
+
+    void OmniCreditBasedSequenceNumberingViewReader::RecycleNetworkBuffer(long address)
+    {
+        std::lock_guard<std::recursive_mutex> lock(recycleNetworkBufferMutex);
+        auto it = networkBufferPendingRecycling.find(address);
+        if (it != networkBufferPendingRecycling.end()) {
+            it->second->RecycleBuffer();
+            networkBufferPendingRecycling.erase(it);
+        }
+    }
+
+    void OmniCreditBasedSequenceNumberingViewReader::ResumeConsumption()
+    {
+        this->subpartitionView->resumeConsumption();
     }
 } // namespace omnistream

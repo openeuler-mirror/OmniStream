@@ -5,12 +5,12 @@
 #include <gtest/gtest.h>
 #include "types/logical/LogicalType.h"
 #include "runtime/operators/source/csv/CsvSchema.h"
-#include "streamrecord/StreamRecord.h"
+#include "streaming/runtime/streamrecord/StreamRecord.h"
 #include "runtime/operators/source/csv/CsvInputFormat.h"
-#include "core/operators/StreamSource.h"
+#include "streaming/api/operators/StreamSource.h"
 #include "table/runtime/operators/source/InputSplit.h"
 #include "typeutils/BinaryRowDataSerializer.h"
-#include "io/RecordWriterOutput.h"
+#include "streaming/runtime/io/RecordWriterOutput.h"
 #include "test/table/runtime/operators/DummyStreamPartitioner.h"
 
 TEST(SourceTestTest, DISABLED_initoper)

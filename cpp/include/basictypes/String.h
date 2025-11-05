@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 #ifndef FLINK_TNEL_STRING_H
 #define FLINK_TNEL_STRING_H
@@ -37,7 +44,7 @@ public:
 
     virtual size_t getSize();
 
-    void setValue(const std::string &val);
+    void setValue(const std::string &val) override;
 
     void setValue(const std::string_view &val);
 
@@ -102,13 +109,19 @@ public:
 
     static std::unique_ptr<String> valueOf(Object *obj);
 
+    static String* valueOf(int32_t val);
+
+    static String* valueOf(int64_t val);
+
     std::string_view ref();
 
     virtual void setData(char *pointer);
 
     virtual void setSize(size_t size);
+
 private:
     std::string inner;
+    int hash;
 };
 
 #endif // FLINK_TNEL_STRING_H

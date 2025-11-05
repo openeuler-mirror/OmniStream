@@ -45,18 +45,18 @@ function show_usage() {
     echo "  -g, --gccopt  mode    Build all (C++, Java, Dependencies) with gcc optimization"
 }
 
-function build_securec() {
+function build_boundscheck() {
     echo "test"
-  local securec_src_dir="$dependency_root/libboundscheck"
+  local boundscheck_src_dir="$dependency_root/libboundscheck"
 
   echo "Start build open source code for libboundscheck"
-  cd ${securec_src_dir}/src
+  cd ${boundscheck_src_dir}/src
   sudo make
 
   export C_INCLUDE_PATH="$dependency_root:$C_INCLUDE_PATH"
   export CPLUS_INCLUDE_PATH="$dependency_root:$CPLUS_INCLUDE_PATH"
-  export LD_LIBRARY_PATH="${securec_src_dir}/lib:$LD_LIBRARY_PATH"
-  export LIBRARY_PATH="${securec_src_dir}/lib:$LIBRARY_PATH"
+  export LD_LIBRARY_PATH="${boundscheck_src_dir}/lib:$LD_LIBRARY_PATH"
+  export LIBRARY_PATH="${boundscheck_src_dir}/lib:$LIBRARY_PATH"
 }
 
 function build_java() {
@@ -99,7 +99,7 @@ function build_jemalloc() {
 function build_rdkafka() {
    dep_src_dir="$dependency_root/rdkafka"
    cd  $dep_src_dir
-   git apply "${cpp_root}/connector-kafka/omni_kafka_opt.patch"
+   git apply "${cpp_root}/connector/kafka/omni_kafka_opt.patch"
    ./configure --CFLAGS="-O3" --CXXFLAGS="-O3"
    make -j$num_cpus
    sudo make install
@@ -256,7 +256,7 @@ function build_with_mode() {
             exit 1
     }
     cd $cpp_build_dir/
-    cmake .. -DCMAKE_BUILD_TYPE=$build_type -DCMAKE_INSTALL_PREFIX=$(pwd)/libbasictypes && cmake --build . --parallel 16 --target functions && cmake --install .|| {
+    cmake .. -DCMAKE_BUILD_TYPE=$build_type -DCMAKE_INSTALL_PREFIX=$(pwd)/libbasictypes && cmake --build . --parallel 16 --target basicfunctions && cmake --install .|| {
       echo CMake Failed
             exit 1
     }
@@ -310,6 +310,7 @@ function run_test_with_mode() {
         ;;
   esac
 
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$cpp_build_dir/jni
     mkdir -p $cpp_build_dir/test
     cd $cpp_build_dir/test
     ./tneltest
@@ -340,7 +341,7 @@ if  [[ $# -gt 0 ]]; then
             ;;
         -c|--cpp)
             # Build C++ dependency
-            # build_securec
+            # build_boundscheck
             # build_json
             # build_abseil
             # build_re2
@@ -358,7 +359,7 @@ if  [[ $# -gt 0 ]]; then
             ;;
         -u|--unit-test)
             # build_java
-            # build_securec
+            # build_boundscheck
             # build_json
             # build_abseil
             # build_re2
@@ -375,7 +376,7 @@ if  [[ $# -gt 0 ]]; then
         -a|--all)
             # Build C++, Java, dependencies, no need to build googletest dependency
             # build_java
-            # build_securec
+            # build_boundscheck
             # build_json
             # build_abseil
             # build_re2
@@ -390,7 +391,7 @@ if  [[ $# -gt 0 ]]; then
         -g|--gccopt)
             # Build C++, Java, dependencies, no need to build googletest dependency
             # build_java
-            # build_securec
+            # build_boundscheck
             # build_json
             # build_abseil
             # build_re2

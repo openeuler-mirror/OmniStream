@@ -1,12 +1,12 @@
 #include <gtest/gtest.h>
 #include <iostream>
 #include <nlohmann/json.hpp>
-#include <taskmanager/RuntimeEnvironment.h>
-#include "table/vectorbatch/VectorBatch.h"
+#include "table/data/vectorbatch/VectorBatch.h"
+#include <taskmanager/OmniRuntimeEnvironment.h>
 #include "OmniOperatorJIT/core/test/util/test_util.h"
 #include "test/core/operators/OutputTest.h"
 #include "table/runtime/operators/window/processor/AbstractWindowAggProcessor.h"
-#include "core/operators/StreamOperatorFactory.h"
+#include "streaming/api/operators/StreamOperatorFactory.h"
 
 using json = nlohmann::json;
 using namespace omnistream;
@@ -98,7 +98,11 @@ TEST(NEXTMARKTESTQ7, MAXTEST) {
     auto* slicingWindowOperator = dynamic_cast<SlicingWindowOperator<RowData*, int64_t>*>(
             StreamOperatorFactory::createOperatorAndCollector(opConfig, output));
 
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("GlobalWindowAgg", 128, 1, 0)));
+    auto env2 = new omnistream::RuntimeEnvironmentV2();
+    auto taskInfo = new TaskInformationPOD();
+    taskInfo->setStateBackend("HashMapStateBackend");
+    env2->setTaskConfiguration(*taskInfo);
+    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
     std::vector<omnistream::RowField> typeInfo{omnistream::RowField("col0", BasicLogicalType::BIGINT)};
     slicingWindowOperator->setup();
     TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, typeInfo));

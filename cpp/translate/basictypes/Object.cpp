@@ -1,0 +1,99 @@
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
+#include "basictypes/Object.h"
+
+Object::Object() = default;
+
+Object::Object(nlohmann::json jsonObj)
+{
+    return;
+}
+
+Object::~Object() = default;
+
+int Object::hashCode()
+{
+    return 0;
+}
+
+bool Object::equals(Object *obj)
+{
+    return false;
+}
+
+std::string Object::toString()
+{
+    return std::string();
+}
+
+Object *Object::clone()
+{
+    return nullptr;
+}
+
+Object::Object(const Object &obj)
+{
+    this->refCount = 1;
+    this->isClone = obj.isClone;
+}
+
+Object::Object(Object &&obj)
+{
+    this->refCount = obj.refCount;
+    this->isClone = obj.isClone;
+}
+
+Object &Object::operator=(const Object &obj)
+{
+    this->refCount = obj.refCount;
+    this->isClone = obj.isClone;
+    return *this;
+}
+
+Object &Object::operator=(Object &&obj)
+{
+    this->refCount = obj.refCount;
+    this->isClone = obj.isClone;
+    return *this;
+}
+
+void Object::putRefCount()
+{
+    if (__builtin_expect(--refCount != 0, true)) {
+        return;
+    }
+    delete this;
+}
+
+void Object::getRefCount()
+{
+    ++refCount;
+}
+
+void Object::setRefCount(uint32_t count)
+{
+    refCount = count;
+}
+
+bool Object::isCloned()
+{
+    return isClone;
+}
+
+uint32_t Object::getRefCountNumber()
+{
+    return refCount;
+}
+
+void Object::setValue(const std::string& value)
+{
+    NOT_IMPL_EXCEPTION
+}

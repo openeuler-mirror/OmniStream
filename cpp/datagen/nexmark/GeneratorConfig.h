@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #ifndef OMNISTREAM_GENERATORCONFIG_H
@@ -118,9 +125,9 @@ public:
     std::vector<GeneratorConfig> split(int n) const;
 
     /** Return copy of this config except with given parameters. */
-    GeneratorConfig copyWithConfig(int64_t firstEventId, int64_t maxEvents, int64_t firstEventNumber) const
+    GeneratorConfig copyWithConfig(int64_t firstEventId_, int64_t maxEvents_, int64_t firstEventNumber_) const
     {
-        return GeneratorConfig(configuration, baseTime, firstEventId, maxEvents, firstEventNumber);
+        return GeneratorConfig(configuration, baseTime, firstEventId_, maxEvents_, firstEventNumber_);
     }
 
     /** Return an estimate of the bytes needed by {@code numEvents}. */

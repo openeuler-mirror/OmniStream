@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 #include "table/runtime/operators/aggregate/window/RecordCounter.h"
-#include "table/data/utils/JoinedRowData.h"
+#include "table/data/JoinedRowData.h"
 
 TEST(RecordCounterTest, AccumulationRecordCounterTest) {
     JoinedRowData joinedRowData(nullptr, nullptr);

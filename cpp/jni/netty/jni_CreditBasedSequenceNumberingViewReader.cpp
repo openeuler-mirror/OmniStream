@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #include <taskmanager/OmniTask.h>
@@ -7,7 +14,6 @@
 #include <string>
 #include "common.h"
 #include "org_apache_flink_runtime_io_network_netty_OmniCreditBasedSequenceNumberingViewReader.h"
-#include "com_huawei_omniruntime_flink_runtime_io_network_buffer_NativeBufferRecycler.h"
 #include "runtime/io/network/netty/OmniCreditBasedSequenceNumberingViewReader.h"
 #include "runtime/executiongraph/descriptor/ResultPartitionIDPOD.h"
 
@@ -21,7 +27,6 @@ JNIEXPORT jlong JNICALL Java_org_apache_flink_runtime_io_network_netty_OmniCredi
     nlohmann::json partitionId = nlohmann::json::parse(paritionIdStr);
     omnistream::ResultPartitionIDPOD partitionIdPOD = partitionId;
 
-
     auto task = reinterpret_cast<omnistream::OmniTask *>(nativeTask);
     return task->createNativeCreditBasedSequenceNumberingViewReader(resultBufferAddress, partitionIdPOD, subPartitionId);
 }
@@ -30,6 +35,9 @@ JNIEXPORT jlong JNICALL Java_org_apache_flink_runtime_io_network_netty_OmniCredi
 JNIEXPORT jint JNICALL Java_org_apache_flink_runtime_io_network_netty_OmniCreditBasedSequenceNumberingViewReader_getAvailabilityAndBacklog
   (JNIEnv *jniEnv, jobject input, jlong creditBasedSequenceNumberingViewReaderRef, jint numCreditsAvailable)
 {
+    if (creditBasedSequenceNumberingViewReaderRef==-1) {
+        return 0;
+    }
     auto task = reinterpret_cast<omnistream::OmniCreditBasedSequenceNumberingViewReader *>(creditBasedSequenceNumberingViewReaderRef);
     return task->getAvailabilityAndBacklog();
 }
@@ -39,17 +47,6 @@ JNIEXPORT jint JNICALL Java_org_apache_flink_runtime_io_network_netty_OmniCredit
 {
     auto task = reinterpret_cast<omnistream::OmniCreditBasedSequenceNumberingViewReader *>(creditBasedSequenceNumberingViewReaderRef);
     return task->getNextBuffer();
-}
-
-
-
-JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_io_network_buffer_NativeBufferRecycler_freeNativeByteBuffer
-  (JNIEnv *jniEnv, jobject input,  jlong creditBasedSequenceNumberingViewReaderRef, jlong nativeByteBufferAddressRef)
-{
-    auto omniCreditBasedSequenceNumberingViewReader =
-        reinterpret_cast<omnistream::OmniCreditBasedSequenceNumberingViewReader *>
-    (creditBasedSequenceNumberingViewReaderRef);
-    omniCreditBasedSequenceNumberingViewReader->RecycleNettyBuffer(nativeByteBufferAddressRef);
 }
 
 JNIEXPORT void JNICALL
@@ -72,4 +69,14 @@ Java_org_apache_flink_runtime_io_network_netty_OmniCreditBasedSequenceNumberingV
     auto task = reinterpret_cast<omnistream::OmniCreditBasedSequenceNumberingViewReader*>(
         creditBasedSequenceNumberingViewReaderRef);
     task->DestroyNettyBufferPool();
+}
+
+JNIEXPORT void JNICALL
+Java_org_apache_flink_runtime_io_network_netty_OmniCreditBasedSequenceNumberingViewReader_resumeConsumption
+(JNIEnv* jniEnv, jobject input, jlong creditBasedSequenceNumberingViewReaderRef)
+{
+    // it is possible OmniCreditBasedSequenceNumberingViewReader is destroyed already
+    auto view = reinterpret_cast<omnistream::OmniCreditBasedSequenceNumberingViewReader*>(
+        creditBasedSequenceNumberingViewReaderRef);
+    view->ResumeConsumption();
 }

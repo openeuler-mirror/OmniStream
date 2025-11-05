@@ -1,16 +1,27 @@
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
+
 #include "AverageFunction.h"
 
 AverageFunction::AverageFunction(int aggIdx, std::string inputType, int accIndexSum, int accIndexCount0, int valueIndex,
-     int filterIndex)
+    int filterIndex)
     : aggIdx(aggIdx),
       accIndexSum(accIndexSum),
       accIndexCount0(accIndexCount0),
-//      accIndexCount1(accIndexCount1), // for count(*)
       valueIndex(valueIndex),
       filterIndex(filterIndex)
 {
     typeId = LogicalType::flinkTypeToOmniTypeId(inputType);
     hasFilter = filterIndex != -1;
+    store = nullptr;
 }
 
 void AverageFunction::accumulate(RowData *accInput)
@@ -53,16 +64,6 @@ void AverageFunction::accumulate(RowData *accInput)
                 count0 += 1;
             }
         }
-
-        // Update agg1_count1
-//        if (accIndexCount1 != -1) {
-//            if (count1IsNull) {
-//                count1 = 1;
-//                count1IsNull = false;
-//            } else {
-//                count1 += 1;
-//            }
-//        }
     }
 }
 
@@ -126,10 +127,6 @@ void AverageFunction::setAccumulators(RowData *_acc)
 
     count0IsNull = _acc->isNullAt(accIndexCount0);
     count0 = count0IsNull ? 0L : *_acc->getLong(accIndexCount0);
-//    if (accIndexCount1 != -1) {
-//        count1IsNull = _acc->isNullAt(accIndexCount1);
-//        count1 = count1IsNull ? 0L : *_acc->getLong(accIndexCount1);
-//    }
 }
 
 void AverageFunction::resetAccumulators()
@@ -139,9 +136,6 @@ void AverageFunction::resetAccumulators()
 
     count0 = 0;
     count0IsNull = false;
-
-//    count1 = 0;
-//    count1IsNull = false;
 }
 
 void AverageFunction::open(StateDataViewStore *store)
@@ -149,7 +143,8 @@ void AverageFunction::open(StateDataViewStore *store)
     this->store = store;
 }
 
-void AverageFunction::createAccumulators(BinaryRowData* accumulators) {
+void AverageFunction::createAccumulators(BinaryRowData* accumulators)
+{
     accumulators->setLong(accIndexSum, 0L);
     accumulators->setLong(accIndexCount0, 0L);
 }

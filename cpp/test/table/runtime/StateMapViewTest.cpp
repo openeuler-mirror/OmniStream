@@ -1,4 +1,4 @@
-#include "table/runtime/StateMapView.h"
+#include "table/runtime/dataview/StateMapView.h"
 #include "runtime/state/VoidNamespace.h"
 #include "core/typeutils/LongSerializer.h"
 #include "runtime/state/heap/CopyOnWriteStateTable.h"

@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #ifndef FLINK_TNEL_HASHMAP_H
@@ -13,45 +20,34 @@
 #include "nlohmann/json.hpp"
 #include "Double.h"
 #include "Integer.h"
-
-struct HashFunction {
-    size_t operator()(Object *obj) const {
-        return obj ? obj->hashCode() : 0;
-    }
-};
-
-struct EqualFunction {
-    bool operator()(Object *a, Object *b) const {
-        if (a == b) return true;
-        if (!a || !b) return false;
-        return a->equals(b);
-    }
-};
+#include "core/include/emhash7.hpp"
 
 class Set;
 //  unordered_map as HashMap
 class HashMap : public Object {
 public:
-    using MapType = std::unordered_map<
+    using MapType = emhash7::HashMap<
         Object *,
-        Object *,
-        HashFunction,
-        EqualFunction
+        Object *
     >;
 
-    MapType map_;
+    MapType* map_ = nullptr;
 
     HashMap();
 
+    HashMap(MapType *map);
+
     HashMap(nlohmann::json jsonObj);
 
-    HashMap(std::unordered_map<std::string,std::list<std::string>>);
+    HashMap(emhash7::HashMap<std::string, std::list<std::string>>);
 
-    HashMap(std::unordered_map<std::string, std::string>);
+    HashMap(emhash7::HashMap<std::string, std::string>);
+
+    HashMap(emhash7::HashMap<Object*, Object*>*, bool assign);
 
     explicit HashMap(HashMap *map);
 
-    ~HashMap();
+    virtual ~HashMap();
 
     Object *get(Object *key) const;
 
@@ -76,6 +72,8 @@ public:
 
     bool remove(std::string str);
 
+    void clear();
+
     // Set<MapEntry> HashMap.entrySet(void)
     // Set<K> HashMap.keySet(void)
 
@@ -83,14 +81,52 @@ public:
 
     Set *keySet();
 
-    typename MapType::iterator begin();
+    typename MapType::Iterator begin();
 
-    typename MapType::iterator end();
+    typename MapType::Iterator end();
 
     Object *clone() override;
+
+    class MapIterator : public java_util_Iterator {
+    public:
+        using mapIterator = MapType::Iterator;
+
+        mapIterator current_;
+        mapIterator lastRet;
+        HashMap* map;
+
+    public:
+        MapIterator(HashMap* map);
+
+        ~MapIterator();
+
+        bool hasNext();
+
+        void remove();
+
+        Object *next();
+    };
+
+    class EmptyIterator : public java_util_Iterator {
+    public:
+    public:
+        EmptyIterator() = default;
+
+        bool hasNext()
+        {
+            return false;
+        }
+
+        Object *next()
+        {
+            return nullptr;
+        }
+    };
+
+    // need free
+    java_util_Iterator *iterator();
+    thread_local static java_util_Iterator *EMPTY_ITERATOR;
 };
 
 using Map = HashMap;
-
-
-#endif //FLINK_TNEL_HASHMAP_H
+#endif // FLINK_TNEL_HASHMAP_H

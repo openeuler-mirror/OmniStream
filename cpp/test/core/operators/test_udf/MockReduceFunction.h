@@ -1,4 +1,3 @@
-
 #ifndef FLINK_TNEL_MOCKREDUCEFUNCTION_H
 #define FLINK_TNEL_MOCKREDUCEFUNCTION_H
 #include "functions/ReduceFunction.h"

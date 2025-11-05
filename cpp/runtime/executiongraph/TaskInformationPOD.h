@@ -1,37 +1,54 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #ifndef TASKINFORMATIONPOD_H
 #define TASKINFORMATIONPOD_H
 
 #include <string>
+#include <filesystem>
 #include <nlohmann/json.hpp>
 #include "StreamConfigPOD.h"
+#include "CheckpointConfigPOD.h"
+#include "ExecutionCheckpointConfigPOD.h"
 #include "operatorchain/OperatorChainPOD.h"
 
 namespace omnistream {
 
 class TaskInformationPOD {
 public:
-    TaskInformationPOD() = default;
+    TaskInformationPOD()
+        : taskName(""), numberOfSubtasks(1), maxNumberOfSubtasks(1), indexOfSubtask(0),
+          streamConfig(StreamConfigPOD()), chainedConfig(), stateBackend(""),
+          rocksdbStorePaths(), taskType(1), checkpointConfig(CheckpointConfigPOD()),
+          executionCheckpointConfig(ExecutionCheckpointConfigPOD()), localRecoveryConfig(""),
+          tmpWorkingDirectory("/tmp") {}
 
     TaskInformationPOD(const std::string &taskName, int numberOfSubtasks, int maxNumberOfSubtasks, int indexOfSubtask,
                        const StreamConfigPOD &streamConfigPOD, const OperatorChainPOD &operatorChain,
-                       const std::vector<StreamConfigPOD> &chainedConfig_ )
+                       const std::vector<StreamConfigPOD> &chainedConfig_, const int taskType = 1)
         : taskName(taskName), numberOfSubtasks(numberOfSubtasks), maxNumberOfSubtasks(maxNumberOfSubtasks),
-        indexOfSubtask(indexOfSubtask), streamConfig(streamConfigPOD), chainedConfig(chainedConfig_)
-    {}
+          indexOfSubtask(indexOfSubtask), streamConfig(streamConfigPOD), chainedConfig(chainedConfig_),
+          taskType(taskType) {
+    }
 
     TaskInformationPOD(const std::string &taskName, int numberOfSubtasks, int maxNumberOfSubtasks, int indexOfSubtask,
                        const StreamConfigPOD &streamConfigPOD, const OperatorChainPOD &operatorChain,
                        const std::vector<StreamConfigPOD> &chainedConfig_, std::string &stateBackend,
                        std::vector<std::string> rocksdbStorePaths)
         : taskName(taskName), numberOfSubtasks(numberOfSubtasks), maxNumberOfSubtasks(maxNumberOfSubtasks),
-        indexOfSubtask(indexOfSubtask), stateBackend(stateBackend), rocksdbStorePaths(rocksdbStorePaths),
-        streamConfig(streamConfigPOD), chainedConfig(chainedConfig_)
+        indexOfSubtask(indexOfSubtask), streamConfig(streamConfigPOD), chainedConfig(chainedConfig_),
+        stateBackend(stateBackend), rocksdbStorePaths(rocksdbStorePaths)
     {}
 
+    TaskInformationPOD &operator=(const TaskInformationPOD&) = default;
     TaskInformationPOD(const TaskInformationPOD &other) = default;
 
     std::string getTaskName() const
@@ -39,9 +56,9 @@ public:
         return taskName;
     }
 
-    void setTaskName(const std::string &taskName)
+    void setTaskName(const std::string &taskName_)
     {
-        this->taskName = taskName;
+        this->taskName = taskName_;
     }
 
     int getNumberOfSubtasks() const
@@ -49,9 +66,9 @@ public:
         return numberOfSubtasks;
     }
 
-    void setNumberOfSubtasks(int numberOfSubtasks)
+    void setNumberOfSubtasks(int numberOfSubtasks_)
     {
-        this->numberOfSubtasks = numberOfSubtasks;
+        this->numberOfSubtasks = numberOfSubtasks_;
     }
 
     int getIndexOfSubtask() const
@@ -59,9 +76,9 @@ public:
         return indexOfSubtask;
     }
 
-    void setIndexOfSubtask(int indexOfSubtask)
+    void setIndexOfSubtask(int indexOfSubtask_)
     {
-        this->indexOfSubtask = indexOfSubtask;
+        this->indexOfSubtask = indexOfSubtask_;
     }
 
     int getMaxNumberOfSubtasks() const
@@ -69,9 +86,9 @@ public:
         return maxNumberOfSubtasks;
     }
 
-    void setMaxNumberOfSubtasks(int maxNumberOfSubtasks)
+    void setMaxNumberOfSubtasks(int maxNumberOfSubtasks_)
     {
-        this->maxNumberOfSubtasks = maxNumberOfSubtasks;
+        this->maxNumberOfSubtasks = maxNumberOfSubtasks_;
     }
 
     const StreamConfigPOD &getStreamConfigPOD() const
@@ -161,19 +178,65 @@ public:
                 rocksdbStorePaths == other.rocksdbStorePaths;
     }
 
+    int GetTaskType() const
+    {
+        return taskType;
+    }
+
+    void SetTaskType(const int &taskType)
+    {
+        this->taskType = taskType;
+    }
+
+    const CheckpointConfigPOD& getCheckpointConfig() const
+    {
+        return checkpointConfig;
+    }
+
+    void setCheckpointConfig(const CheckpointConfigPOD& cfg)
+    {
+        checkpointConfig = cfg;
+    }
+
+    const ExecutionCheckpointConfigPOD& getExecutionCheckpointConfig() const
+    {
+        return executionCheckpointConfig;
+    }
+
+    void setExecutionCheckpointConfig(const ExecutionCheckpointConfigPOD& cfg)
+    {
+        executionCheckpointConfig = cfg;
+    }
+
+    const std::string& getLocalRecoveryConfig() const
+    {
+        return localRecoveryConfig;
+    }
+
+    std::filesystem::path getTmpWorkingDirectory()
+    {
+        return tmpWorkingDirectory;
+    }
+
     NLOHMANN_DEFINE_TYPE_INTRUSIVE(
         TaskInformationPOD, taskName, numberOfSubtasks, maxNumberOfSubtasks, indexOfSubtask, stateBackend,
-        rocksdbStorePaths,  streamConfig, chainedConfig)
+        rocksdbStorePaths,  streamConfig, chainedConfig, taskType, checkpointConfig, executionCheckpointConfig,
+        localRecoveryConfig, tmpWorkingDirectory)
 private:
     std::string taskName;
     int numberOfSubtasks;
     int maxNumberOfSubtasks;
     int indexOfSubtask;
+    StreamConfigPOD streamConfig;
+    std::vector<StreamConfigPOD> chainedConfig;
     std::string stateBackend;
     std::vector<std::string> rocksdbStorePaths;
-    StreamConfigPOD streamConfig;
     std::unordered_map<int, StreamConfigPOD> chainedConfigMap;
-    std::vector<StreamConfigPOD> chainedConfig;
+    int taskType;
+    CheckpointConfigPOD checkpointConfig;
+    ExecutionCheckpointConfigPOD executionCheckpointConfig;
+    std::string localRecoveryConfig;
+    std::string tmpWorkingDirectory;
 };
 
 }  // namespace omnistream

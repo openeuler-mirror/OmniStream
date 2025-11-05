@@ -1,0 +1,811 @@
+Subject: [PATCH] Row to Native local transfer
+---
+Index: cpp/runtime/io/checkpointing/CheckpointedInputGate.cpp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/cpp/runtime/io/checkpointing/CheckpointedInputGate.cpp b/cpp/runtime/io/checkpointing/CheckpointedInputGate.cpp
+--- a/cpp/runtime/io/checkpointing/CheckpointedInputGate.cpp	(revision 51b4a29beae07c9f740a39fb75de935d6e453865)
++++ b/cpp/runtime/io/checkpointing/CheckpointedInputGate.cpp	(revision 5eda130509023c643889e84c77ced65ce86aa94e)
+@@ -105,6 +105,11 @@
+     return inputGate_->GetNumberOfInputChannels();
+ }
+ 
++bool CheckpointedInputGate::fromOriginal()
++{
++    return inputGate_->fromOriginal();
++}
++
+ std::shared_ptr<InputChannel> CheckpointedInputGate::GetChannel(int channelIndex)
+ {
+     return inputGate_->getChannel(channelIndex);
+Index: cpp/runtime/io/checkpointing/CheckpointedInputGate.h
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/cpp/runtime/io/checkpointing/CheckpointedInputGate.h b/cpp/runtime/io/checkpointing/CheckpointedInputGate.h
+--- a/cpp/runtime/io/checkpointing/CheckpointedInputGate.h	(revision 51b4a29beae07c9f740a39fb75de935d6e453865)
++++ b/cpp/runtime/io/checkpointing/CheckpointedInputGate.h	(revision 5eda130509023c643889e84c77ced65ce86aa94e)
+@@ -43,6 +43,7 @@
+     std::optional<std::shared_ptr<BufferOrEvent>> PollNext() override;
+     bool IsFinished() override;
+     bool HasReceivedEndOfData() override;
++    bool fromOriginal();
+ 
+     // Checkpoint-specific APIs
+     CompletableFutureV2<void>& GetAllBarriersReceivedFuture(long checkpointId);
+Index: cpp/runtime/partition/consumer/InputChannel.cpp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/cpp/runtime/partition/consumer/InputChannel.cpp b/cpp/runtime/partition/consumer/InputChannel.cpp
+--- a/cpp/runtime/partition/consumer/InputChannel.cpp	(revision 51b4a29beae07c9f740a39fb75de935d6e453865)
++++ b/cpp/runtime/partition/consumer/InputChannel.cpp	(revision 5eda130509023c643889e84c77ced65ce86aa94e)
+@@ -42,6 +42,11 @@
+     return channelInfo;
+ }
+ 
++InputChannelInfo& InputChannel::getChannelInfo()
++{
++    return channelInfo;
++}
++
+ ResultPartitionIDPOD InputChannel::getPartitionId() const
+ {
+     return partitionId;
+Index: cpp/runtime/partition/consumer/InputChannel.h
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/cpp/runtime/partition/consumer/InputChannel.h b/cpp/runtime/partition/consumer/InputChannel.h
+--- a/cpp/runtime/partition/consumer/InputChannel.h	(revision 51b4a29beae07c9f740a39fb75de935d6e453865)
++++ b/cpp/runtime/partition/consumer/InputChannel.h	(revision 5eda130509023c643889e84c77ced65ce86aa94e)
+@@ -29,6 +29,7 @@
+ 
+     int getChannelIndex() const;
+     InputChannelInfo getChannelInfo() const;
++    InputChannelInfo& getChannelInfo();
+     ResultPartitionIDPOD getPartitionId() const;
+ 
+     virtual void resumeConsumption() = 0;
+Index: cpp/runtime/partition/consumer/InputChannelInfo.cpp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/cpp/runtime/partition/consumer/InputChannelInfo.cpp b/cpp/runtime/partition/consumer/InputChannelInfo.cpp
+--- a/cpp/runtime/partition/consumer/InputChannelInfo.cpp	(revision 51b4a29beae07c9f740a39fb75de935d6e453865)
++++ b/cpp/runtime/partition/consumer/InputChannelInfo.cpp	(revision 5eda130509023c643889e84c77ced65ce86aa94e)
+@@ -36,6 +36,16 @@
+         this->gateIdx = gateIdx_;
+     }
+ 
++    void InputChannelInfo::setOmni()
++    {
++        this->omni = true;
++    }
++
++    bool InputChannelInfo::getOmni()
++    {
++        return omni;
++    }
++
+     int InputChannelInfo::getInputChannelIdx() const
+     {
+         return inputChannelIdx;
+Index: cpp/runtime/partition/consumer/InputChannelInfo.h
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/cpp/runtime/partition/consumer/InputChannelInfo.h b/cpp/runtime/partition/consumer/InputChannelInfo.h
+--- a/cpp/runtime/partition/consumer/InputChannelInfo.h	(revision 51b4a29beae07c9f740a39fb75de935d6e453865)
++++ b/cpp/runtime/partition/consumer/InputChannelInfo.h	(revision 5eda130509023c643889e84c77ced65ce86aa94e)
+@@ -20,6 +20,8 @@
+ 
+         int getGateIdx() const;
+         void setGateIdx(int gateIdx);
++        void setOmni();
++        bool getOmni();
+ 
+         int getInputChannelIdx() const;
+         void setInputChannelIdx(int inputChannelIdx);
+@@ -33,6 +35,8 @@
+     private:
+         int gateIdx;
+         int inputChannelIdx;
++        // if the InputChannel is an OmniLocalInputChannel?
++        bool omni = false;
+     };
+ 
+ } // namespace omnistream
+Index: cpp/runtime/partition/consumer/InputGate.cpp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/cpp/runtime/partition/consumer/InputGate.cpp b/cpp/runtime/partition/consumer/InputGate.cpp
+--- a/cpp/runtime/partition/consumer/InputGate.cpp	(revision 51b4a29beae07c9f740a39fb75de935d6e453865)
++++ b/cpp/runtime/partition/consumer/InputGate.cpp	(revision 5eda130509023c643889e84c77ced65ce86aa94e)
+@@ -19,6 +19,20 @@
+     return channelInfos;
+ }
+ 
++bool InputGate::fromOriginal()
++{
++    // Determine whether all InputChannelInfo have the omni type.
++    // Once it exists, it indicates that the upstream task is an original Java task.
++    bool res = false;
++    for (int index = 0; index < GetNumberOfInputChannels(); index++) {
++        if (getChannel(index)->getChannelInfo().getOmni()) {
++            res = true;
++            break;
++        }
++    }
++    return res;
++}
++
+ std::shared_ptr<CompletableFuture> InputGate::getPriorityEventAvailableFuture()
+ {
+     return priorityAvailabilityHelper.GetAvailableFuture();
+Index: cpp/runtime/partition/consumer/InputGate.h
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/cpp/runtime/partition/consumer/InputGate.h b/cpp/runtime/partition/consumer/InputGate.h
+--- a/cpp/runtime/partition/consumer/InputGate.h	(revision 51b4a29beae07c9f740a39fb75de935d6e453865)
++++ b/cpp/runtime/partition/consumer/InputGate.h	(revision 5eda130509023c643889e84c77ced65ce86aa94e)
+@@ -41,6 +41,7 @@
+     virtual std::shared_ptr<InputChannel> getChannel(int channelIndex) = 0;
+ 
+     std::vector<InputChannelInfo> getChannelInfos();
++    bool fromOriginal();
+ 
+     std::shared_ptr<CompletableFuture> getPriorityEventAvailableFuture();
+ 
+Index: cpp/runtime/partition/consumer/OmniLocalInputChannel.cpp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/cpp/runtime/partition/consumer/OmniLocalInputChannel.cpp b/cpp/runtime/partition/consumer/OmniLocalInputChannel.cpp
+--- a/cpp/runtime/partition/consumer/OmniLocalInputChannel.cpp	(revision 51b4a29beae07c9f740a39fb75de935d6e453865)
++++ b/cpp/runtime/partition/consumer/OmniLocalInputChannel.cpp	(revision 5eda130509023c643889e84c77ced65ce86aa94e)
+@@ -20,6 +20,8 @@
+                             numBytesIn, numBuffersIn)
+     {
+         originalNetworkBufferRecycler_ = std::make_shared<OriginalNetworkBufferRecycler>();
++        channelInfo.setOmni();
++        LOG("Get OmniLocalInputChannel omni: " << channelInfo.getOmni())
+     }
+ 
+     void OmniLocalInputChannel::notifyOriginalDataAvailable(long bufferAddress, int bufferLength, int readIndex,
+Index: cpp/streaming/runtime/io/OmniAbstractStreamTaskNetworkInput.h
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/cpp/streaming/runtime/io/OmniAbstractStreamTaskNetworkInput.h b/cpp/streaming/runtime/io/OmniAbstractStreamTaskNetworkInput.h
+--- a/cpp/streaming/runtime/io/OmniAbstractStreamTaskNetworkInput.h	(revision 51b4a29beae07c9f740a39fb75de935d6e453865)
++++ b/cpp/streaming/runtime/io/OmniAbstractStreamTaskNetworkInput.h	(revision 5eda130509023c643889e84c77ced65ce86aa94e)
+@@ -30,9 +30,34 @@
+         TypeSerializer *inputSerializer, std::vector<long> & channelInfos)
+         : inputIndex(inputIndex), inputGate(std::move(inputGate)), taskType(taskType), currentRecordDeserializer(nullptr)
+     {
++        inSerializer = inputSerializer;
+         deserializationDelegate_ = new NonReusingDeserializationDelegate(
+                 std::make_unique<datastream::StreamElementSerializer>(inputSerializer));
+         recordDeserializers = getRecordDeserializers(channelInfos);
++        rowCount = 0;
++        maxRowCount = 1000;
++        timeout = 1000;
++    }
++
++    DataInputStatus emitNext(OmniPushingAsyncDataInput::OmniDataOutput *output) override
++    {
++        // we might need reconstruct here
++        if (auto curOutput = dynamic_cast<OmniStreamTaskNetworkOutput*>(output)) {
++            curOutput->setTaskType(taskType);
++        }
++
++        if (taskType == 1) {
++            fromOriginal = inputGate->fromOriginal();
++            if (fromOriginal) {
++                return processForSQLFromOriginal(output);
++            } else {
++                return processForSQL(output);
++            }
++        } else if (taskType == 2) {
++            return processForDataStream(output);
++        } else {
++            throw std::runtime_error("Unknown taskType: " + taskType);
++        }
+     }
+ 
+     std::shared_ptr<CompletableFuture> GetAvailableFuture() override
+@@ -40,13 +65,14 @@
+         // no inputGate no output
+         return AVAILABLE;
+     }
+-
+     std::unique_ptr<std::unordered_map<long, datastream::RecordDeserializer *>> getRecordDeserializers(
+     std::vector<long> & channelInfos)
+     {
++        LOG("===================getRecordDeserializers start===================")
+         std::unique_ptr<std::unordered_map<long, datastream::RecordDeserializer *>> recordDeserializers
+                 = std::make_unique<std::unordered_map<long, datastream::RecordDeserializer *>>();
+         for (size_t i = 0; i < channelInfos.size(); i++) {
++            LOG("getRecordDeserializers channelInfo " << i)
+             auto deserializer = new datastream::SpillingAdaptiveSpanningRecordDeserializer();
+             (*recordDeserializers)[channelInfos.at(i)] = deserializer;
+         }
+@@ -124,7 +150,7 @@
+         }
+     }
+ 
+-    void processBufferForDataStream(std::shared_ptr<BufferOrEvent> bufferOrEvent)
++    void processBufferForDataStreamAndSQLFromOriginal(std::shared_ptr<BufferOrEvent> bufferOrEvent)
+     {
+         auto buffer = std::static_pointer_cast<ReadOnlySlicedNetworkBuffer>(bufferOrEvent->getBuffer());
+         auto inputChannelInfo = bufferOrEvent->getChannelInfo();
+@@ -166,7 +192,7 @@
+             if (bufferOrEventOpt) {
+                 auto bufferOrEvent = bufferOrEventOpt.value();
+                 if (bufferOrEvent->isBuffer()) {
+-                    processBufferForDataStream(bufferOrEvent);
++                    processBufferForDataStreamAndSQLFromOriginal(bufferOrEvent);
+                 } else  {
+                     std::cout << "current is event" << std::endl;
+                     std::shared_ptr<AbstractEvent> event = bufferOrEvent->getEvent();
+@@ -179,20 +205,190 @@
+         }
+     }
+ 
+-    DataInputStatus emitNext(OmniPushingAsyncDataInput::OmniDataOutput *output) override
++    DataInputStatus processForSQLFromOriginal(OmniPushingAsyncDataInput::OmniDataOutput *output)
+     {
+-        // we might need reconstruct here
+-        if (auto curOutput = dynamic_cast<OmniStreamTaskNetworkOutput*>(output)) {
+-            curOutput->setTaskType(taskType);
+-        }
++        while (true) {
++            if (currentRecordDeserializer != nullptr) {
++                DeserializationResult &result = currentRecordDeserializer->getNextRecord(*deserializationDelegate_);
++
++                if (unlikely(result.isBufferConsumed())) {
++                    LOG("isBufferConsumed: do we really buffer consumed?!!!")
++                    currentRecordDeserializer = nullptr;
++                }
+ 
+-        if (taskType == 1) {
+-            return processForSQL(output);
+-        } else if (taskType == 2) {
+-            return processForDataStream(output);
++                if (likely(result.isFullRecord())) {
++                    return processFullRecordForSQLFromOriginal(output);
++                }
++            }
++
++            auto bufferOrEventOpt = inputGate->PollNext();
++            if (bufferOrEventOpt) {
++                auto bufferOrEvent = bufferOrEventOpt.value();
++                if (bufferOrEvent->isBuffer()) {
++                    processBufferForDataStreamAndSQLFromOriginal(bufferOrEvent);
++                } else  {
++                    std::cout << "current is event" << std::endl;
++                    std::shared_ptr<AbstractEvent> event = bufferOrEvent->getEvent();
++                    DataInputStatus status = processEvent(event, output);
++                    return status;
++                }
++            } else {
++                return DataInputStatus::NOTHING_AVAILABLE;
++            }
++        }
++    }
++
++    DataInputStatus processFullRecordForSQLFromOriginal(OmniPushingAsyncDataInput::OmniDataOutput *output)
++    {
++        auto *element = reinterpret_cast<StreamElement *>(deserializationDelegate_->getInstance()); // 这里面包装的是BinaryRowData
++        if (element->getTag() == StreamElementTag::TAG_WATERMARK) {
++            output->emitWatermark(reinterpret_cast<Watermark *>(element));
+         } else {
+-            throw std::runtime_error("Unknown taskType: " + taskType);
++            auto record = reinterpret_cast<StreamRecord *>(element);
++            auto row = reinterpret_cast<BinaryRowData *>(record->getValue());
++
++            // 1.If rowList is empty, reset the batch start time
++            if (rowList.empty()) {
++                batchStartTime = std::chrono::steady_clock::now();
++            }
++
++            // 2.Push the row data into list
++            auto newRow = reinterpret_cast<BinaryRowData *>(row->copy());
++            rowList.push_back(newRow);
++            LOG("push in a record, size is " << rowList.size())
++            rowCount++;
++            numberOfRow++;
++
++            // 3.Calculate the elapsed time
++            auto currentTime = std::chrono::steady_clock::now();
++            auto elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - batchStartTime).count();
++            // 4.If the number of records reaches the maximum capacity is reached
++            if (rowCount >= maxRowCount || elapsedMs >= timeout) {
++                LOG("Reach the maximum capacity or timeout, start to generate VectorBatch and send to output")
++                // 3. Convert the rowList to VectorBatch, send to output, and clear the state
++                emitCurrentBatch(output);
++            }
++        }
++        return DataInputStatus::MORE_AVAILABLE;
++    }
++
++    void emitCurrentBatch(OmniPushingAsyncDataInput::OmniDataOutput *output)
++    {
++        if (rowCount == 0) {
++            return;
+         }
++        // Convert the rowdata list to VectorBatch
++        const std::vector<std::string>& inputTypes = reinterpret_cast<BinaryRowDataSerializer *>(inSerializer)->getInputTypes();
++        omnistream::VectorBatch *resultBatch = createOutputBatch(rowList, inputTypes);
++        StreamRecord* batchRecord = new StreamRecord(resultBatch);
++        output->emitRecord(batchRecord);
++
++        for (BinaryRowData* row : rowList) {
++            delete row;
++        }
++        rowList.clear();
++        rowCount = 0;
++        batchStartTime = std::chrono::steady_clock::now();
++    }
++
++    omnistream::VectorBatch* createOutputBatch(std::vector<BinaryRowData*> collectedRows,
++                                               const std::vector<std::string>& inputTypes)
++    {
++        INFO_RELEASE("Start to createOutputBatch")
++        int numColumns = inputTypes.size();
++        auto inputRowType =  new std::vector<omniruntime::type::DataTypeId>;
++        for (const auto &typeStr : inputTypes) {
++            inputRowType->push_back(LogicalType::flinkTypeToOmniTypeId(typeStr));
++        }
++        int numRows = collectedRows.size();
++        INFO_RELEASE("collectedRows: " << collectedRows.size())
++        auto* outputBatch = new omnistream::VectorBatch(numRows);
++        for (int colIndex = 0; colIndex < numColumns; ++colIndex) {
++            switch (inputRowType->at(colIndex)) {
++                case DataTypeId::OMNI_LONG:
++                case DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:
++                case DataTypeId::OMNI_TIMESTAMP: {
++                    setLong(outputBatch, numRows, colIndex, collectedRows);
++                    break;
++                }
++                case DataTypeId::OMNI_INT: {
++                    setInt(outputBatch, numRows, colIndex, collectedRows);
++                    break;
++                }
++                case DataTypeId::OMNI_DOUBLE: {
++                    setDouble(outputBatch, numRows, colIndex, collectedRows);
++                    break;
++                }
++                case DataTypeId::OMNI_BOOLEAN: {
++                    setBool(outputBatch, numRows, colIndex, rowList);
++                    break;
++                }
++                case DataTypeId::OMNI_VARCHAR: {
++                    setString(outputBatch, numRows, colIndex, collectedRows);
++                    break;
++                }
++                default: {
++                    throw std::runtime_error("Unsupported column type in inputRow");
++                }
++            }
++        }
++
++        for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
++            outputBatch->setRowKind(rowIndex, collectedRows[rowIndex]->getRowKind());
++        }
++        return outputBatch;
++    }
++
++    void setInt(omniruntime::vec::VectorBatch* outputBatch,
++                int numRows, int colIndex, std::vector<BinaryRowData*> collectedRows)
++    {
++        auto *vector = new omniruntime::vec::Vector<int32_t>(numRows);
++        for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
++            vector->SetValue(rowIndex, *collectedRows[rowIndex]->getInt(colIndex));
++        }
++        outputBatch->Append(vector);
++    }
++
++    void setLong(omniruntime::vec::VectorBatch* outputBatch,
++                 int numRows, int colIndex, std::vector<BinaryRowData*> collectedRows)
++    {
++        auto *vector = new omniruntime::vec::Vector<int64_t>(numRows);
++        for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
++            vector->SetValue(rowIndex, *collectedRows[rowIndex]->getLong(colIndex));
++        }
++        outputBatch->Append(vector);
++    }
++
++    void setString(omniruntime::vec::VectorBatch* outputBatch,
++                   int numRows, int colIndex, std::vector<BinaryRowData*> collectedRows)
++    {
++        using VarcharVector = omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>;
++        VarcharVector *vector = new VarcharVector(numRows);
++        for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
++            auto value = std::string(collectedRows[rowIndex]->getStringView(colIndex));
++            omniruntime::vec::VectorHelper::VectorSetValue<DataTypeId::OMNI_VARCHAR>(vector, rowIndex, (void*)&value);
++        }
++        outputBatch->Append(vector);
++    }
++
++    void setDouble(omniruntime::vec::VectorBatch* outputBatch,
++                   int numRows, int colIndex, std::vector<BinaryRowData*> collectedRows)
++    {
++        auto *vector = new omniruntime::vec::Vector<double>(numRows);
++        for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
++            vector->SetValue(rowIndex, *collectedRows[rowIndex]->getLong(colIndex));
++        }
++        outputBatch->Append(vector);
++    }
++
++    void setBool(omniruntime::vec::VectorBatch* outputBatch,
++                 int numRows, int colIndex, std::vector<BinaryRowData*> collectedRows)
++    {
++        auto *vector = new omniruntime::vec::Vector<bool>(numRows);
++        for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
++            vector->SetValue(rowIndex, *collectedRows[rowIndex]->getInt(colIndex));
++        }
++        outputBatch->Append(vector);
+     }
+ 
+     int getInputIndex() override
+@@ -230,15 +426,47 @@
+         // by default,continue the data processing
+         return DataInputStatus::MORE_AVAILABLE;
+     }
++
++    // Specifically for SQL from original task
++    DataInputStatus processEvent(std::shared_ptr<AbstractEvent> event, OmniPushingAsyncDataInput::OmniDataOutput *output)
++    {
++        if (dynamic_cast<EndOfData *>(event.get())) { // END_OF_USER_RECORDS_EVENT is End_of_Data
++            if (inputGate->HasReceivedEndOfData()) {
++                // Which means reach the end of Data, if the rowList still remains data, create the last vectorbatch and send to output
++                emitCurrentBatch(output);
++                return DataInputStatus::END_OF_DATA;
++            }
++        } else if (dynamic_cast<EndOfPartitionEvent *>(event.get())) {
++            // it means one sub partition or channel end. we need to check if all end by checking input gate state
++            if (inputGate->IsFinished()) {
++                return DataInputStatus::END_OF_INPUT;
++            }
++        }
++        // by default,continue the data processing
++        return DataInputStatus::MORE_AVAILABLE;
++    }
+ 
+ private:
+     // for troubleshooting
+-    int NullValueCount   = 0;
++    int NullValueCount = 0;
+     bool isLastValueNull = false;
+     int taskType;
+     std::unique_ptr<std::unordered_map<long, datastream::RecordDeserializer *>> recordDeserializers;
+     datastream::RecordDeserializer* currentRecordDeserializer;
+     DeserializationDelegate* deserializationDelegate_;
++    TypeSerializer *inSerializer;
++    // Determine if the upstream task is an original Java task.
++    bool fromOriginal = true;
++    // When the current SQL task has a Java task as its upstream,
++    // maintain the number of rows accumulated for generating VectorBatch.
++    int rowCount;
++    // Maximum number of rows supported by VectorBatch
++    int maxRowCount;
++    // Maximum timeout for accumulating VectorBatch(ms)
++    int timeout;
++    // List of BinaryRowData to be accumulated, only init in SQLFromOriginal case
++    std::vector<BinaryRowData *> rowList;
++    std::chrono::steady_clock::time_point batchStartTime;
+ };
+ }  // namespace omnistream
+ 
+Index: cpp/streaming/runtime/io/OmniStreamTwoInputProcessorFactory.h
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/cpp/streaming/runtime/io/OmniStreamTwoInputProcessorFactory.h b/cpp/streaming/runtime/io/OmniStreamTwoInputProcessorFactory.h
+--- a/cpp/streaming/runtime/io/OmniStreamTwoInputProcessorFactory.h	(revision 51b4a29beae07c9f740a39fb75de935d6e453865)
++++ b/cpp/streaming/runtime/io/OmniStreamTwoInputProcessorFactory.h	(revision 5eda130509023c643889e84c77ced65ce86aa94e)
+@@ -16,11 +16,15 @@
+ namespace omnistream {
+     class OmniStreamTwoInputProcessorFactory {
+     public:
+-        static std::shared_ptr<OmniStreamMultipleInputProcessor> create(OperatorChainV2* operatorChain, std::vector<std::shared_ptr<CheckpointedInputGate>> inputGates,
+-                                                        TwoInputStreamOperator* streamOperator,
+-                                                        int taskType, const json &inputTypes)
++        static std::shared_ptr<OmniStreamMultipleInputProcessor> create(OperatorChainV2* operatorChain,
++                                                                        std::vector<std::shared_ptr<CheckpointedInputGate>> inputGates,
++                                                                        TwoInputStreamOperator* streamOperator,
++                                                                        int taskType, const json &description)
+         {
++            INFO_RELEASE("OmniStreamMultipleInputProcessor description" << description)
++            // 1. Create Input
+             std::vector<OmniStreamOneInputProcessor*> processors;
++
+             std::vector<long> channelInfoIndex1;
+             // Copy elements from JSON array to C++ array
+             auto channelInfos1 = inputGates[0]->GetChannelInfos();
+@@ -28,9 +32,31 @@
+             for (size_t i = 0; i < channelInfos1.size(); ++i) {
+                 channelInfoIndex1.push_back(static_cast<long>(channelInfos1[i].getInputChannelIdx()));
+             }
+-            TypeInformation* inputTypeInfo1 = nullptr;
+-            TypeInformation* inputTypeInfo2 = nullptr;
+-            if (taskType == 2) {
++
++            std::vector<long> channelInfoIndex2;
++            // Copy elements from JSON array to C++ array
++            auto channelInfos2 = inputGates[1]->GetChannelInfos();
++            channelInfoIndex2.reserve(channelInfos2.size());
++            for (size_t i = 0; i < channelInfos2.size(); ++i) {
++                channelInfoIndex2.push_back(static_cast<long>(channelInfos2[i].getInputChannelIdx()));
++            }
++
++            OmniStreamTaskInput *input1 = nullptr;
++            OmniStreamTaskInput *input2 = nullptr;
++
++            if (taskType == 1) {
++                auto leftTypes = description["leftInputTypes"].get<std::vector<std::string>>();
++                auto rightTypes = description["rightInputTypes"].get<std::vector<std::string>>();
++
++                input1 = OmniStreamTaskNetworkInputFactory::create(0, inputGates[0], taskType,
++                                                                   new BinaryRowDataSerializer(leftTypes.size(), leftTypes), channelInfoIndex1);
++                input2 = OmniStreamTaskNetworkInputFactory::create(1, inputGates[1], taskType,
++                                                                   new BinaryRowDataSerializer(rightTypes.size(), rightTypes), channelInfoIndex2);
++            } else if (taskType == 2) {
++                auto inputTypes = description["inputTypes"];
++                TypeInformation* inputTypeInfo1 = nullptr;
++                TypeInformation* inputTypeInfo2 = nullptr;
++
+                 if (inputTypes.size() < 2) {
+                     THROW_LOGIC_EXCEPTION("Invalid channel input index.");
+                 }
+@@ -42,30 +68,27 @@
+                     THROW_LOGIC_EXCEPTION("Invalid channel input index.");
+                 }
+                 inputTypeInfo2 = TypeInfoFactory::createDataStreamTypeInfo(inputTypes[1]);
+-            }
+-            OmniStreamTaskInput *input1 = OmniStreamTaskNetworkInputFactory::create(
+-                0, inputGates[0], taskType, inputTypeInfo1 == nullptr ? nullptr : inputTypeInfo1->createTypeSerializer(), channelInfoIndex1);
+-            if (inputTypeInfo1 != nullptr) {
+-                delete inputTypeInfo1;
++
++                input1 = OmniStreamTaskNetworkInputFactory::create(0, inputGates[0], taskType,
++                                                                   inputTypeInfo1 == nullptr ? nullptr : inputTypeInfo1->createTypeSerializer(), channelInfoIndex1);
++                if (inputTypeInfo1 != nullptr) {
++                    delete inputTypeInfo1;
++                }
++
++                input2 = OmniStreamTaskNetworkInputFactory::create(1, inputGates[1], taskType,
++                                                                   inputTypeInfo2 == nullptr ? nullptr : inputTypeInfo2->createTypeSerializer(), channelInfoIndex2);
++                if (inputTypeInfo2 != nullptr) {
++                    delete inputTypeInfo2;
++                }
+             }
++
+             if (!streamOperator->GetMectrics()) {
+                 INFO_RELEASE("metric is null")
+                 throw std::runtime_error("metric is null");
+             }
+             auto counter = streamOperator->GetMectrics()->GetInternalOperatorIOMetric(streamOperator->getTypeName(), "numRecordsIn");
+-            std::vector<long> channelInfoIndex2;
+-            // Copy elements from JSON array to C++ array
+-            auto channelInfos2 = inputGates[1]->GetChannelInfos();
+-            channelInfoIndex2.reserve(channelInfos2.size());
+-            for (size_t i = 0; i < channelInfos2.size(); ++i) {
+-                channelInfoIndex2.push_back(static_cast<long>(channelInfos2[i].getInputChannelIdx()));
+-            }
+-            OmniStreamTaskInput *input2 = reinterpret_cast<OmniStreamTaskInput *>(
+-                OmniStreamTaskNetworkInputFactory::create(1, inputGates[1], taskType,
+-                inputTypeInfo2 == nullptr ? nullptr : inputTypeInfo2->createTypeSerializer(), channelInfoIndex2));
+-            if (inputTypeInfo2 != nullptr) {
+-                delete inputTypeInfo2;
+-            }
++
++            // 2. CreateOutput
+             omnistream::OmniStreamTwoInputProcessorFactory::OmniStreamTaskNetworkOutPut *pOutPut1 = nullptr;
+             omnistream::OmniStreamTwoInputProcessorFactory::OmniStreamTaskNetworkOutPut *pOutPut2 = nullptr;
+             if (taskType == 1) {
+Index: cpp/streaming/runtime/streamrecord/StreamElementSerializer.cpp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/cpp/streaming/runtime/streamrecord/StreamElementSerializer.cpp b/cpp/streaming/runtime/streamrecord/StreamElementSerializer.cpp
+--- a/cpp/streaming/runtime/streamrecord/StreamElementSerializer.cpp	(revision 51b4a29beae07c9f740a39fb75de935d6e453865)
++++ b/cpp/streaming/runtime/streamrecord/StreamElementSerializer.cpp	(revision 5eda130509023c643889e84c77ced65ce86aa94e)
+@@ -27,20 +27,34 @@
+             LOG("timestamp: " + std::to_string(timestamp))
+             LOG("typeSerializer_: is kind of  " << typeSerializer_->getName());
+ #endif
+-            Object* buffer = typeSerializer_->GetBuffer();
+-            typeSerializer_->deserialize(buffer, source);
+-            reUsableRecord_->setValue(buffer);
++            // Check the typeSerializer_
++            if (strcmp(typeSerializer_->getName(), "BinaryRowDataSerializer") == 0) {
++                auto binaryRowData = typeSerializer_->deserialize(source);
++                reUsableRecord_->setValue(binaryRowData);
++                reUsableRecord_->setTag(StreamElementTag::TAG_REC_WITH_TIMESTAMP);
++                reUsableRecord_->setTimestamp(timestamp);
++            } else {
++                Object* buffer = typeSerializer_->GetBuffer();
++                typeSerializer_->deserialize(buffer, source);
++                reUsableRecord_->setValue(buffer);
+ 
+-            reUsableRecord_->setTag(StreamElementTag::TAG_REC_WITH_TIMESTAMP);
+-            reUsableRecord_->setTimestamp(timestamp);
++                reUsableRecord_->setTag(StreamElementTag::TAG_REC_WITH_TIMESTAMP);
++                reUsableRecord_->setTimestamp(timestamp);
++            }
++
+             return reUsableRecord_;
+         } else if (tag == static_cast<int>(StreamElementTag::TAG_REC_WITHOUT_TIMESTAMP)) {
+ #ifdef DEBUG
+             LOG("typeSerializer_: is kind of  " << typeSerializer_->getName());
+ #endif
+-            Object* buffer = typeSerializer_->GetBuffer();
+-            typeSerializer_->deserialize(buffer, source);
+-            reUsableRecord_->setValue(buffer);
++            if (strcmp(typeSerializer_->getName(), "BinaryRowDataSerializer") == 0) {
++                auto binaryRowData = typeSerializer_->deserialize(source);
++                reUsableRecord_->setValue(binaryRowData);
++            } else {
++                Object* buffer = typeSerializer_->GetBuffer();
++                typeSerializer_->deserialize(buffer, source);
++                reUsableRecord_->setValue(buffer);
++            }
+             return reUsableRecord_;
+         } else if (tag == static_cast<int>(StreamElementTag::TAG_WATERMARK)) {
+             long timestamp = source.readLong();
+Index: cpp/streaming/runtime/tasks/omni/OmniOneInputStreamTask.cpp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/cpp/streaming/runtime/tasks/omni/OmniOneInputStreamTask.cpp b/cpp/streaming/runtime/tasks/omni/OmniOneInputStreamTask.cpp
+--- a/cpp/streaming/runtime/tasks/omni/OmniOneInputStreamTask.cpp	(revision 51b4a29beae07c9f740a39fb75de935d6e453865)
++++ b/cpp/streaming/runtime/tasks/omni/OmniOneInputStreamTask.cpp	(revision 5eda130509023c643889e84c77ced65ce86aa94e)
+@@ -27,11 +27,26 @@
+ 
+     OmniStreamTaskInput* OmniOneInputStreamTask::CreateTaskInput(std::shared_ptr<CheckpointedInputGate> inputGate)
+     {
+-        // initialize TypeInformationa and channelInfos
++        // initialize TypeInformation and channelInfos
+         if (taskType == 1) {
+             // todo: fix it later
+-            std::vector<long> channelInfos{};
+-            return OmniStreamTaskNetworkInputFactory::create(0, inputGate, taskType, nullptr, channelInfos);
++            std::vector<long> channelInfoIndex;
++            auto channelInfos = inputGate->GetChannelInfos();
++            channelInfoIndex.reserve(channelInfos.size());
++            for (size_t i = 0; i < channelInfos.size(); ++i) {
++                channelInfoIndex.push_back(static_cast<long>(channelInfos[i].getInputChannelIdx()));
++            }
++            auto inputTypes = this->taskConfiguration_.getStreamConfigPOD().getOperatorDescription().getInputs();
++            LOG("OmniOneInputStreamTask::CreateTaskInput inputTypes size is" << inputTypes.size());
++            TypeDescriptionPOD inputType;
++            inputType = inputTypes[0];
++            auto types = inputType.getType();
++            json typeArray = json::parse(types);
++            std::vector<std::string> typeList;
++            for (const auto& obj: typeArray) {
++                typeList.push_back(obj.at("type").get<std::string>());
++            }
++            return OmniStreamTaskNetworkInputFactory::create(0, inputGate, taskType, new BinaryRowDataSerializer(typeList.size(), typeList), channelInfoIndex);
+         } else if (taskType == 2) {
+             auto operatorPod = this->taskConfiguration_.getStreamConfigPOD().getOperatorDescription();
+ 
+Index: cpp/streaming/runtime/tasks/omni/OmniTwoInputStreamTask.cpp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/cpp/streaming/runtime/tasks/omni/OmniTwoInputStreamTask.cpp b/cpp/streaming/runtime/tasks/omni/OmniTwoInputStreamTask.cpp
+--- a/cpp/streaming/runtime/tasks/omni/OmniTwoInputStreamTask.cpp	(revision 51b4a29beae07c9f740a39fb75de935d6e453865)
++++ b/cpp/streaming/runtime/tasks/omni/OmniTwoInputStreamTask.cpp	(revision 5eda130509023c643889e84c77ced65ce86aa94e)
+@@ -29,13 +29,13 @@
+             }
+         }
+         auto description = nlohmann::json::parse(pod.getOperatorDescription().getDescription());
+-        auto inputTypes = description["inputTypes"];
+-        createInputProcessor(inputList1, inputList2, inputTypes);
++        INFO_RELEASE("OmniTwoInputStreamTask::init description: " << description)
++        createInputProcessor(inputList1, inputList2, description);
+     }
+ 
+     void OmniTwoInputStreamTask::createInputProcessor(std::vector<std::shared_ptr<IndexedInputGate>> inputGates1,
+                                                       std::vector<std::shared_ptr<IndexedInputGate>> inputGates2,
+-                                                      const json &inputTypes)
++                                                      const json &description)
+     {
+         std::vector<std::shared_ptr<OmniStreamTaskSourceInput>> emptySourceInputs;
+ 
+@@ -58,7 +58,7 @@
+             { inputGates1, inputGates2 },
+             checkpointBarrierHandler);
+         inputProcessor_ = OmniStreamTwoInputProcessorFactory::create(operatorChain, checkpointedInputGates,
+-            static_cast<TwoInputStreamOperator*>(mainOperator_), taskType, inputTypes);
++            static_cast<TwoInputStreamOperator*>(mainOperator_), taskType, description);
+     }
+ 
+     const shared_ptr<CheckpointBarrierHandler> &OmniTwoInputStreamTask::GetCheckpointBarrierHandler() const
+Index: cpp/table/typeutils/BinaryRowDataSerializer.cpp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/cpp/table/typeutils/BinaryRowDataSerializer.cpp b/cpp/table/typeutils/BinaryRowDataSerializer.cpp
+--- a/cpp/table/typeutils/BinaryRowDataSerializer.cpp	(revision 51b4a29beae07c9f740a39fb75de935d6e453865)
++++ b/cpp/table/typeutils/BinaryRowDataSerializer.cpp	(revision 5eda130509023c643889e84c77ced65ce86aa94e)
+@@ -13,6 +13,15 @@
+     reUse_->pointTo(bytes, 0, SEG_SIZE, SEG_SIZE);
+ }
+ 
++BinaryRowDataSerializer::BinaryRowDataSerializer(int numFields, const std::vector<std::string>& inputTypes) : numFields_(numFields)
++{
++    inputTypes_ = inputTypes;
++    fixedLengthPartSize_ = BinaryRowData::calculateFixPartSizeInBytes(numFields_);
++    reUse_ = new BinaryRowData(numFields_);
++    auto *bytes = new uint8_t[SEG_SIZE];
++    reUse_->pointTo(bytes, 0, SEG_SIZE, SEG_SIZE);
++}
++
+ BinaryRowDataSerializer::~BinaryRowDataSerializer()
+ {
+     delete reUse_;
+@@ -130,3 +139,8 @@
+     newRow->setRowKind(row->getRowKind());
+     return newRow;
+ }
++
++const std::vector<std::string>& BinaryRowDataSerializer::getInputTypes() const
++{
++    return inputTypes_;
++}
+Index: cpp/table/typeutils/BinaryRowDataSerializer.h
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/cpp/table/typeutils/BinaryRowDataSerializer.h b/cpp/table/typeutils/BinaryRowDataSerializer.h
+--- a/cpp/table/typeutils/BinaryRowDataSerializer.h	(revision 51b4a29beae07c9f740a39fb75de935d6e453865)
++++ b/cpp/table/typeutils/BinaryRowDataSerializer.h	(revision 5eda130509023c643889e84c77ced65ce86aa94e)
+@@ -12,6 +12,7 @@
+ class BinaryRowDataSerializer : public TypeSerializerSingleton {
+ public:
+     explicit BinaryRowDataSerializer(int numFields);
++    BinaryRowDataSerializer(int numFields, const std::vector<std::string>& inputTypes);
+     ~BinaryRowDataSerializer() override;
+ 
+     // void * BinaryRowData
+@@ -28,12 +29,16 @@
+     static BinaryRowData* joinedRowFromBothBinaryRow(JoinedRowData *row);
+ 
+     BackendDataType getBackendId() const override { return BackendDataType::ROW_BK;};
++
++    const std::vector<std::string>& getInputTypes() const;
++
+ private:
+     // Add JoinedRowDataSerializer, then pass the unconverted JoinedRowData to
+     // output collector instead of the converted BinaryRowData
+     int numFields_;
+     int fixedLengthPartSize_;
+     BinaryRowData* reUse_;
++    std::vector<std::string> inputTypes_;
+ 
+     const static int SEG_SIZE = 2048;
+ };

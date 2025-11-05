@@ -1,6 +1,12 @@
-
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 
@@ -15,13 +21,15 @@
 
 #include "io/network/api/serialization/EventSerializer.h"
 #include "RemoteInputChannel.h"
+#include "event/EndOfData.h"
+#include "event/EndOfPartitionEvent.h"
 
 namespace omnistream {
 
 SingleInputGate::SingleInputGate(const std::string &owningTaskName, int gateIndex,
     const IntermediateDataSetIDPOD &consumedResultId, const int consumedPartitionType, int consumedSubpartitionIndex,
     int numberOfInputChannels, std::shared_ptr<PartitionProducerStateProvider> partitionProducerStateProvider,
-    std::function<std::shared_ptr<ObjectBufferPool>()> bufferPoolFactory,
+    std::function<std::shared_ptr<BufferPool>()> bufferPoolFactory,
     std::shared_ptr<ObjectSegmentProvider> objectSegmentProvider, int segmentSize)
     : owningTaskName(owningTaskName), gateIndex(gateIndex), consumedResultId(consumedResultId),
       consumedPartitionType(consumedPartitionType), consumedSubpartitionIndex(consumedSubpartitionIndex),
@@ -93,7 +101,7 @@ std::shared_ptr<CompletableFuture> SingleInputGate::getStateConsumedFuture()
     return CompletableFuture::allOf(futures);
 }
 
-void SingleInputGate::requestPartitions()
+void SingleInputGate::RequestPartitions()
 {
     LOCK_BEFORE()
     std::lock_guard<std::recursive_mutex> lock(requestLock);
@@ -112,7 +120,7 @@ void SingleInputGate::requestPartitions()
                << "number of total input channels [" << inputChannels.size()
                << "] and the currently set number of input "
                << "channels [" << numberOfInputChannels << "].";
-             THROW_RUNTIME_ERROR(ss.str());
+            THROW_RUNTIME_ERROR(ss.str());
         }
 
         convertRecoveredInputChannels();
@@ -126,28 +134,6 @@ void SingleInputGate::requestPartitions()
 
 void SingleInputGate::convertRecoveredInputChannels()
 {
-    // Debug log would go here
-
-    /**
-    for (auto& entry : inputChannels) {
-        auto& inputChannel = entry.second;
-        auto recoveredChannel = std::dynamic_pointer_cast<RecoveredInputChannel>(inputChannel);
-
-        if (recoveredChannel) {
-            try {
-                auto realInputChannel = recoveredChannel->toInputChannel();
-                inputChannel->releaseAllResources();
-                entry.second = realInputChannel;
-                channels[inputChannel->getChannelIndex()] = realInputChannel;
-            } catch (const std::exception& e) {
-                inputChannel->setError(std::current_exception());
-                return;
-            }
-        }
-    }
-    */
-    // original end
-
 }
 
 void SingleInputGate::internalRequestPartitions()
@@ -159,7 +145,7 @@ void SingleInputGate::internalRequestPartitions()
     }
 }
 
-void SingleInputGate::finishReadRecoveredState()
+void SingleInputGate::FinishReadRecoveredState()
 {
     /**
     for (auto& channel : channels) {
@@ -171,12 +157,12 @@ void SingleInputGate::finishReadRecoveredState()
     */
 }
 
-int SingleInputGate::getNumberOfInputChannels()
+int SingleInputGate::GetNumberOfInputChannels()
 {
     return numberOfInputChannels;
 }
 
-int SingleInputGate::getGateIndex()
+int SingleInputGate::GetGateIndex()
 {
     return gateIndex;
 }
@@ -226,12 +212,12 @@ int SingleInputGate::getConsumedPartitionType()
     return consumedPartitionType;
 }
 
-std::shared_ptr<ObjectBufferProvider> SingleInputGate::getBufferProvider()
+std::shared_ptr<BufferProvider> SingleInputGate::getBufferProvider()
 {
     return bufferPool;
 }
 
-std::shared_ptr<ObjectBufferPool> SingleInputGate::getBufferPool()
+std::shared_ptr<BufferPool> SingleInputGate::getBufferPool()
 {
     return bufferPool;
 }
@@ -276,7 +262,8 @@ std::shared_ptr<InputChannel> SingleInputGate::getChannel(int channelIndex)
     return channels[channelIndex];
 }
 
-void SingleInputGate::setBufferPool(std::shared_ptr<ObjectBufferPool> pool)
+// void SingleInputGate::setBufferPool(std::shared_ptr<ObjectBufferPool> pool)
+void SingleInputGate::setBufferPool(std::shared_ptr<BufferPool> pool)
 {
     if (this->bufferPool != nullptr) {
         throw std::runtime_error("Bug in input gate setup logic: buffer pool has "
@@ -452,22 +439,22 @@ void SingleInputGate::close()
     }
 }
 
-bool SingleInputGate::isFinished()
+bool SingleInputGate::IsFinished()
 {
     return hasReceivedAllEndOfPartitionEvents;
 }
 
-bool SingleInputGate::hasReceivedEndOfData()
+bool SingleInputGate::HasReceivedEndOfData()
 {
     return hasReceivedEndOfData_;
 }
 
-std::optional<std::shared_ptr<BufferOrEvent>> SingleInputGate::getNext()
+std::optional<std::shared_ptr<BufferOrEvent>> SingleInputGate::GetNext()
 {
     return getNextBufferOrEvent(true);
 }
 
-std::optional<std::shared_ptr<BufferOrEvent>> SingleInputGate::pollNext()
+std::optional<std::shared_ptr<BufferOrEvent>> SingleInputGate::PollNext()
 {
     // LOG_PART(">>>>")
     // LOG_PART("<<<<<" << toString())
@@ -497,8 +484,7 @@ std::optional<std::shared_ptr<BufferOrEvent>> SingleInputGate::getNextBufferOrEv
     LOG_PART("after  waitAndGetNextData: " << next.has_value())
 
     auto &inputWithData = *next;
-    auto bufferOrEvent = transformToBufferOrEvent(
-        inputWithData.data.buffer, inputWithData.moreAvailable, inputWithData.input, inputWithData.morePriorityEvents);
+    auto bufferOrEvent = transformToBufferOrEvent(inputWithData.data.buffer, inputWithData.moreAvailable, inputWithData.input, inputWithData.morePriorityEvents);
     return bufferOrEvent;
 }
 
@@ -527,16 +513,14 @@ std::optional<SingleInputGate::InputWithData<BufferAndAvailability>> SingleInput
         if (bufferAndAvailability.moreAvailable()) {
             // enqueue the inputChannel at the end to avoid starvation
             queueChannelUnsafe(inputChannel, bufferAndAvailability.morePriorityEvents());
-        } else
-        {
+        } else {
             // diagnostic : why there is buffer  NO moreAvailable.
             // For event buffer, assume only ENDOFPARTITION
             // let us show what is inside the buffer
             LOG_TRACE(" bufferAndAvailability.moreAvailable() is false")
             auto buffer = bufferAndAvailability.buffer;
             LOG_TRACE(" bufferAndAvailability.moreAvailable(): buffer " << buffer.get())
-            if (buffer)
-            {
+            if (buffer) {
                 LOG_TRACE(" bufferAndAvailability.moreAvailable(): buffer size"   << buffer->GetSize()
                 <<  "datatype  is data "  << (buffer->GetDataType() == ObjectBufferDataType::DATA_BUFFER)
                 << "datatype is event " << (buffer->GetDataType() == ObjectBufferDataType::EVENT_BUFFER))
@@ -566,7 +550,7 @@ void SingleInputGate::checkUnavailability()
     }
 }
 
-std::shared_ptr<BufferOrEvent> SingleInputGate::transformToBufferOrEvent(std::shared_ptr<ObjectBuffer> buffer,
+std::shared_ptr<BufferOrEvent> SingleInputGate::transformToBufferOrEvent(std::shared_ptr<Buffer> buffer,
     bool moreAvailable, std::shared_ptr<InputChannel> currentChannel, bool morePriorityEvents)
 {
         if (buffer->isBuffer()) {
@@ -577,22 +561,19 @@ std::shared_ptr<BufferOrEvent> SingleInputGate::transformToBufferOrEvent(std::sh
         }
 }
 
-std::shared_ptr<BufferOrEvent> SingleInputGate::transformBuffer(std::shared_ptr<ObjectBuffer> buffer,
+std::shared_ptr<BufferOrEvent> SingleInputGate::transformBuffer(std::shared_ptr<Buffer> buffer,
     bool moreAvailable, std::shared_ptr<InputChannel> currentChannel, bool morePriorityEvents)
 {
     return std::make_shared<BufferOrEvent>(
         decompressBufferIfNeeded(buffer), currentChannel->getChannelInfo(), moreAvailable, morePriorityEvents);
 }
 
-std::shared_ptr<BufferOrEvent> SingleInputGate::transformEvent(std::shared_ptr<ObjectBuffer> buffer, bool moreAvailable,
+std::shared_ptr<BufferOrEvent> SingleInputGate::transformEvent(std::shared_ptr<Buffer> buffer, bool moreAvailable,
     std::shared_ptr<InputChannel> currentChannel, bool morePriorityEvents)
 {
-    // LOG("Inside transformEvent ,buff" <<  (buffer->isBuffer()? "data":"event" ) )
+    std::shared_ptr<AbstractEvent> event = EventSerializer::fromBuffer(buffer);
 
-    int event = EventSerializer::fromBuffer(buffer);
-    // LOG("Event is " << event)
-
-    if (EventSerializer::END_OF_PARTITION_EVENT == event) {
+    if (dynamic_cast<EndOfPartitionEvent *>(event.get())) {
         INFO_RELEASE("END_OF_PARTITION_EVENT received by channel :" << currentChannel->getChannelIndex()
             << " of Task :" << owningTaskName)
         std::lock_guard<std::recursive_mutex> lock(inputChannelsWithDataMutex);
@@ -614,14 +595,14 @@ std::shared_ptr<BufferOrEvent> SingleInputGate::transformEvent(std::shared_ptr<O
             // 1. releasing inputChannelsWithData lock in this method and reaching this place
             // 2. empty data notification that re-enqueues a channel we can end up with
             // moreAvailable flag set to true, while we expect no more data.
-            assert(!moreAvailable || !pollNext().has_value());
+            assert(!moreAvailable || !PollNext().has_value());
             moreAvailable = false;
             markAvailable();
         }
 
         currentChannel->releaseAllResources();
-        LOG_TRACE("This Gate is "  << (isFinished() ? "finished" : "not finished"))
-    } else if (EventSerializer::END_OF_USER_RECORDS_EVENT == event) {
+        LOG_TRACE("This Gate is "  << (IsFinished() ? "finished" : "not finished"))
+    } else if (dynamic_cast<EndOfData *>(event.get())) {
         INFO_RELEASE("END_OF_USER_RECORDS_EVENT received by channel :" << currentChannel->getChannelIndex()
             << " of Task :" << owningTaskName)
         std::lock_guard<std::recursive_mutex> lock(inputChannelsWithDataMutex);
@@ -638,10 +619,9 @@ std::shared_ptr<BufferOrEvent> SingleInputGate::transformEvent(std::shared_ptr<O
             moreAvailable,
             buffer->GetSize(),
             morePriorityEvents);
-
 }
 
-std::shared_ptr<ObjectBuffer> SingleInputGate::decompressBufferIfNeeded(std::shared_ptr<ObjectBuffer> buffer)
+std::shared_ptr<Buffer> SingleInputGate::decompressBufferIfNeeded(std::shared_ptr<Buffer> buffer)
 {
     // fix it later
     /**
@@ -684,9 +664,9 @@ void SingleInputGate::sendTaskEvent(const std::shared_ptr<TaskEvent> &event)
     }
 }
 
-void SingleInputGate::resumeConsumption(const InputChannelInfo &channelInfo)
+void SingleInputGate::ResumeConsumption(const InputChannelInfo &channelInfo)
 {
-    assert(!isFinished());
+    assert(!IsFinished());
     // BEWARE: consumption resumption only happens for streaming jobs in which all slots
     // are allocated together so there should be no UnknownInputChannel. As a result, it
     // is safe to not synchronize the requestLock here. We will refactor the code to not
@@ -696,7 +676,7 @@ void SingleInputGate::resumeConsumption(const InputChannelInfo &channelInfo)
 
 void SingleInputGate::acknowledgeAllRecordsProcessed(const InputChannelInfo &channelInfo)
 {
-    assert(!isFinished());
+    assert(!IsFinished());
     channels[channelInfo.getInputChannelIdx()]->acknowledgeAllRecordsProcessed();
 }
 
@@ -790,7 +770,7 @@ void SingleInputGate::queueChannel(
 
     GateNotificationHelper notification(this, inputChannelsWithData);
     {
-       std::unique_lock<std::recursive_mutex> lock(inputChannelsWithDataMutex);
+        std::unique_lock<std::recursive_mutex> lock(inputChannelsWithDataMutex);
         bool priority = prioritySequenceNumber.has_value() || forcePriority;
         const int sleepTime = 100;
         if (!forcePriority && priority && prioritySequenceNumber.has_value() &&
@@ -870,18 +850,20 @@ std::optional<std::shared_ptr<InputChannel>> SingleInputGate::getChannel(bool bl
         }
 
         if (!blocking) {
-            if (inputChannelsWithData.isEmpty())
-            {
+            if (inputChannelsWithData.isEmpty()) {
                 availabilityHelper.resetUnavailable();
                 return std::nullopt;
-            } else
-            {
+            } else {
                 break; // continue normal process
             }
         }
     }
 
     std::shared_ptr<InputChannel> inputChannel = inputChannelsWithData.poll();
+    if (!inputChannel) {
+        INFO_RELEASE("input channel is null")
+        throw std::runtime_error("input channel is null");
+    }
     enqueuedInputChannelsWithData[inputChannel->getChannelIndex()] = false;
 
     return inputChannel;
@@ -964,6 +946,13 @@ std::string SingleInputGate::toString()
     ss << "}";
     return ss.str();
 }
+
+void SingleInputGate::changeLocalInputChannelToOriginal(int channelIndex,
+                                                        std::shared_ptr<InputChannel> original)
+{
+    channels[channelIndex] = original;
+}
+
 
 }  // namespace omnistream
 

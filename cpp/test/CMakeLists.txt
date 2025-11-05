@@ -25,15 +25,16 @@ target_include_directories(${TNEL_TEST_TARGET} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_directories(${TNEL_TEST_TARGET} PUBLIC "${OMNIRUNTIME_LIB_DIR}")
 target_link_libraries(${TNEL_TEST_TARGET} 
-        PRIVATE 
+        PRIVATE
         boundscheck
         core
         table
         runtime
         streaming
         datagen
-        #datastream
         basictypes
+        basicfunctions
+        thirdlibrary
 #        jvm
         ${ORT_VEC_SO}
         ${ORT_CODEGEN_SO}
@@ -42,6 +43,7 @@ target_link_libraries(${TNEL_TEST_TARGET}
         -Wl,--whole-archive
         -Wl,--no-whole-archive
         GTest::GTest GTest::Main
+        gmock
 )
 include(CTest)
 add_test(NAME Tests COMMAND tneltest)
@@ -64,8 +66,12 @@ set(INPUT_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/table/runtime/operators/rank/q19_expected_output.csv
     ${CMAKE_CURRENT_SOURCE_DIR}/table/runtime/operators/rank/without_rownumber.csv
     ${CMAKE_CURRENT_SOURCE_DIR}/functionaltest/e2e/input/*
+    ${CMAKE_CURRENT_SOURCE_DIR}/functionaltest/checkpoint/join_tdd.json
+    ${CMAKE_CURRENT_SOURCE_DIR}/functionaltest/checkpoint/source1_tdd.json
+    ${CMAKE_CURRENT_SOURCE_DIR}/functionaltest/checkpoint/source2_tdd.json
+    ${CMAKE_CURRENT_SOURCE_DIR}/functionaltest/checkpoint/taskMCSConfJoin.json
 )
-
+message(STATUS "current INPUT_FILES for test ${INPUT_FILES}")
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/runtime/e2e/q4_e2e_csv_input_0.txt AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/runtime/e2e/q4_e2e_csv_input_1.txt)
     list(APPEND INPUT_FILES 
         ${CMAKE_CURRENT_SOURCE_DIR}/runtime/e2e/q4_e2e_csv_input_0.txt
@@ -75,6 +81,10 @@ endif()
 
 # Create the input directory if it doesn't exist
 file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/test/input)
+target_link_libraries(${TNEL_TEST_TARGET} PUBLIC project_config)
+if (WITH_OMNISTATESTORE)
+    target_link_libraries(${TNEL_TEST_TARGET} PRIVATE libockdbjni-linux64.so)
+endif ()
 
 if (JEMALLOC_LIB)
     target_link_libraries(${TNEL_TEST_TARGET} PRIVATE ${JEMALLOC_LIB})

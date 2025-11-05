@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 #pragma once
 #include <memory>
@@ -8,14 +15,17 @@
 #include <string>
 #include "NettyBufferPool.h"
 #include "common.h"
-#include "core/streamrecord/StreamRecord.h"
-#include "include/functions/Watermark.h"
+#include "streaming/runtime/streamrecord/StreamRecord.h"
+#include "streaming/api/watermark/Watermark.h"
 #include "partition/BufferAvailabilityListener.h"
 #include "partition/ResultPartitionManager.h"
 #include "runtime/executiongraph/descriptor/ResultPartitionIDPOD.h"
 #include "table/utils/VectorBatchSerializationUtils.h"
-
+#include <buffer/NetworkBuffer.h>
+namespace ds = ::datastream;
 namespace omnistream {
+    using ::datastream::NetworkBuffer;
+
     class OmniCreditBasedSequenceNumberingViewReader
         : public BufferAvailabilityListener {
     public:
@@ -46,6 +56,9 @@ namespace omnistream {
         void SerializeVectorBatchBuffer(
             std::shared_ptr<VectorBatchBuffer> vectorBatchBuffer);
         void DestroyNettyBufferPool() ;
+        void RecycleNetworkBuffer(long address);
+
+        void ResumeConsumption() ;
 
     private:
         std::shared_ptr<ResultSubpartitionView> subpartitionView;
@@ -60,5 +73,7 @@ namespace omnistream {
         std::recursive_mutex fetchingDataMutex;
         int requestNextBufferWaitingTime = 10;
         int noBufferPrintCount = 200;
+        std::unordered_map<long, std::shared_ptr<NetworkBuffer>> networkBufferPendingRecycling;
+        std::recursive_mutex recycleNetworkBufferMutex;
     };
 } // namespace omnistream

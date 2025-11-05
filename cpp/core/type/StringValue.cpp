@@ -1,6 +1,22 @@
 /*
- * @Copyright: Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
- * @Description: String Value for DataStream
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * We modify this part of the code based on Apache Flink to implement native execution of Flink operators.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
  */
 
 #include <cstdint>
@@ -65,7 +81,7 @@ void StringValue::read(DataInputView &in)
                 shift += 7;
             }
             c |= curr << shift;
-            value_.push_back(c);;
+            value_.push_back(c);
         }
     }
 }
@@ -85,11 +101,10 @@ void StringValue::setValue(const std::u32string &value)
     len_ = value.size();
 }
 
-//
 void StringValue::writeString(const std::u32string *value, DataOutputSerializer &out)
 {
     if (value != nullptr) {
-        auto &cs = const_cast<std::u32string &>(*value);
+        auto &cs = *value;
 
         uint32_t strlen = cs.length();
 
@@ -101,7 +116,7 @@ void StringValue::writeString(const std::u32string *value, DataOutputSerializer 
 
         // string is prefixed by it's variable length encoded size, which can take 1-5 bytes.
         if (lenToWrite < HIGH_BIT) {
-            out.write((uint8_t) lenToWrite);
+            out.write(static_cast<uint8_t>(lenToWrite));
         } else if (lenToWrite < HIGH_BIT14) {
             out.write((lenToWrite | HIGH_BIT));
             out.write((lenToWrite >> 7));
@@ -208,30 +223,52 @@ void StringValue::writeString(String *buffer, DataOutputSerializer &out)
             THROW_LOGIC_EXCEPTION("CharSequence is too long.");
         }
 
-        // string is prefixed by it's variable length encoded size, which can take 1-5 bytes.
+        // opt: Save the serialization result through a temporary array,
+        // and then call the batch structure to write it to the output byte stream.
+        std::vector<uint8_t> serializedData;
+        int32_t maxLimit = 5  + 3 * strlen;
+        serializedData.reserve(maxLimit);
+        int32_t index = 0;
         if (likely(lenToWrite < HIGH_BIT)) {
-            out.write((uint8_t) lenToWrite);
+            serializedData[index++] = (lenToWrite & 0xff);
         } else if (lenToWrite < HIGH_BIT14) {
-            out.write((lenToWrite | HIGH_BIT));
-            out.write((lenToWrite >> 7));
+            serializedData[index++] = ((lenToWrite | HIGH_BIT) & 0xff);
+            serializedData[index++] = ((lenToWrite >> 7) & 0xff);
         } else if (lenToWrite < HIGH_BIT21) {
-            out.write(lenToWrite | HIGH_BIT);
-            out.write((lenToWrite >> 7) | HIGH_BIT);
-            out.write((lenToWrite >> 14));
+            serializedData[index++] = ((lenToWrite | HIGH_BIT) & 0xff);
+            serializedData[index++] = ((lenToWrite >> 7 | HIGH_BIT) & 0xff);
+            serializedData[index++] = ((lenToWrite >> 14) & 0xff);
         } else if (lenToWrite < HIGH_BIT28) {
-            out.write(lenToWrite | HIGH_BIT);
-            out.write((lenToWrite >> 7) | HIGH_BIT);
-            out.write((lenToWrite >> 14) | HIGH_BIT);
-            out.write((lenToWrite >> 21));
+            serializedData[index++] = ((lenToWrite | HIGH_BIT) & 0xff);
+            serializedData[index++] = ((lenToWrite >> 7 | HIGH_BIT) & 0xff);
+            serializedData[index++] = ((lenToWrite >> 14 | HIGH_BIT) & 0xff);
+            serializedData[index++] = ((lenToWrite >> 21) & 0xff);
         } else {
-            out.write(lenToWrite | HIGH_BIT);
-            out.write((lenToWrite >> 7) | HIGH_BIT);
-            out.write((lenToWrite >> 14) | HIGH_BIT);
-            out.write((lenToWrite >> 21) | HIGH_BIT);
-            out.write((lenToWrite >> 28));
+            serializedData[index++] = ((lenToWrite | HIGH_BIT) & 0xff);
+            serializedData[index++] = ((lenToWrite >> 7 | HIGH_BIT) & 0xff);
+            serializedData[index++] = ((lenToWrite >> 14 | HIGH_BIT) & 0xff);
+            serializedData[index++] = ((lenToWrite >> 21 | HIGH_BIT) & 0xff);
+            serializedData[index++] = ((lenToWrite >> 28) & 0xff);
         }
+
+        for (uint32_t i = 0; i < strlen; i++) {
+            uint32_t c = value[i];
+
+            // manual loop unroll, as it performs much better on jdk8
+            if (c < HIGH_BIT) {
+                serializedData[index++] = (c & 0xff);
+            } else if (c < HIGH_BIT14) {
+                serializedData[index++] = ((c | HIGH_BIT) & 0xff);
+                serializedData[index++] = ((c >> 7) & 0xff);
+            } else {
+                serializedData[index++] = ((lenToWrite | HIGH_BIT) & 0xff);
+                serializedData[index++] = ((lenToWrite >> 7 | HIGH_BIT) & 0xff);
+                serializedData[index++] = ((lenToWrite >> 14) & 0xff);
+            }
+        }
+
         // use memcpy to write all data
-        out.write((uint8_t *) value.data(), strlen, 0, strlen);
+        out.write((uint8_t *) serializedData.data(), maxLimit, 0, index);
     } else {
         out.write(0);
     }
@@ -269,8 +306,20 @@ void StringValue::readString(String *buffer, SysDataInput& in)
         data = buffer->data();
     }
 
-    in.readFully(reinterpret_cast<uint8_t *>(data), len, 0, len);
+    for (uint32_t i = 0; i < len; i++) {
+        unsigned int c = in.readUnsignedByte();
+        if (c >= HIGH_BIT) {
+            int shift = 7;
+            unsigned int curr;
+            c = c & 0x7f;
+            while ((curr = in.readUnsignedByte()) >= HIGH_BIT) {
+                c |= (curr & 0x7f) << shift;
+                shift += 7;
+            }
+            c |= curr << shift;
+        }
+        data[i] = c;
+    }
     buffer->resize(len);
 }
-
 

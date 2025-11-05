@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 #ifndef FLINK_TNEL_HEAPPRIORITYQUEUESET_H
 #define FLINK_TNEL_HEAPPRIORITYQUEUESET_H
@@ -8,15 +15,17 @@
 #include <vector>
 #include "runtime/state/KeyGroupRange.h"
 #include "runtime/state/InternalKeyContextImpl.h"
-#include "table/runtime/operators/TimerHeapInternalTimer.h"
+#include "streaming/api/operators/TimerHeapInternalTimer.h"
 #include "emhash7.hpp"
 #include "runtime/state/KeyGroupRangeAssignment.h"
 
 template <typename T, typename Comparator>
-class HeapPriorityQueueSet
-{
+class HeapPriorityQueueSet {
 public:
     HeapPriorityQueueSet(KeyGroupRange *keyGroupRange, int minCapacity, int totalNumberOfKeyGroups);
+
+    ~HeapPriorityQueueSet();
+
     bool isEmpty();
 
     template <typename K>
@@ -50,8 +59,7 @@ template <typename T, typename Comparator>
 int HeapPriorityQueueSet<T, Comparator>::globalKeyGroupToLocalIndex(int keyGroup)
 {
     int startKeyGroup = keyGroupRange->getStartKeyGroup();
-    if (keyGroup < startKeyGroup)
-    {
+    if (keyGroup < startKeyGroup) {
         THROW_LOGIC_EXCEPTION("Does not include key group")
     }
     return keyGroup - startKeyGroup;
@@ -64,7 +72,7 @@ inline emhash7::HashMap<T, T, std::hash<T>, std::equal_to<T>> *HeapPriorityQueue
     std::hash<K> keyHash;
     K key = element->getKey();
     // should be keyHash(key) % totalNumberOfKeyGroups?
-    int keyGroup = keyHash(key) % 128;
+    int keyGroup = MathUtils::murmurHash(keyHash(key)) % totalNumberOfKeyGroups;
     return getDedupMapForKeyGroup(keyGroup);
 }
 
@@ -80,23 +88,18 @@ bool HeapPriorityQueueSet<T, Comparator>::removeFromQueue(T element)
     std::vector<T> temp;
     bool removed = false;
 
-    while (!priorityQueue.empty())
-    {
-        if (*(priorityQueue.top()) != *element)
-        {
+    while (!priorityQueue.empty()) {
+        if (*(priorityQueue.top()) != *element) {
             temp.push_back(priorityQueue.top());
             priorityQueue.pop();
-        }
-        else
-        {
+        } else {
             priorityQueue.pop();
             removed = true;
             break;
         }
     }
 
-    for (const auto &item : temp)
-    {
+    for (const auto &item: temp) {
         priorityQueue.push(item);
     }
 
@@ -107,7 +110,17 @@ template <typename T, typename Comparator>
 HeapPriorityQueueSet<T, Comparator>::HeapPriorityQueueSet(KeyGroupRange *keyGroupRange, int minCapacity, int totalNumberOfKeyGroups) : totalNumberOfKeyGroups(totalNumberOfKeyGroups), keyGroupRange(keyGroupRange)
 {
     int keyGroupsInLocalRange = keyGroupRange->getNumberOfKeyGroups();
-    deduplicationMapsByKeyGroup.resize(keyGroupsInLocalRange, new emhash7::HashMap<T, T, std::hash<T>, std::equal_to<T>>());
+    for (int i = 0; i < keyGroupsInLocalRange; ++i) {
+        deduplicationMapsByKeyGroup.push_back(new emhash7::HashMap<T, T, std::hash<T>, std::equal_to<T>>());
+    }
+}
+
+template <typename T, typename Comparator>
+HeapPriorityQueueSet<T, Comparator>::~HeapPriorityQueueSet()
+{
+    for (size_t i = 0; i < deduplicationMapsByKeyGroup.size(); ++i) {
+        delete deduplicationMapsByKeyGroup[i];
+    }
 }
 
 template <typename T, typename Comparator>
@@ -120,8 +133,7 @@ template <typename T, typename Comparator>
 template <typename K>
 T HeapPriorityQueueSet<T, Comparator>::poll()
 {
-    if (priorityQueue.empty())
-    {
+    if (priorityQueue.empty()) {
         return nullptr;
     }
 
@@ -130,8 +142,7 @@ T HeapPriorityQueueSet<T, Comparator>::poll()
 
     auto map = getDedupMapForElement<K>(toRemove);
     auto it = map->find(toRemove);
-    if (it != map->end())
-    {
+    if (it != map->end()) {
         map->erase(it);
     }
     return toRemove;
@@ -144,21 +155,19 @@ bool HeapPriorityQueueSet<T, Comparator>::add(T element)
     auto *map = getDedupMapForElement<K>(element);
     auto it = map->find(element);
     bool inMap = it != map->end();
-    if (!inMap)
-    {
+    if (!inMap) {
         bool change = false;
         T oldTop;
-        if (priorityQueue.size() == 0)
-        {
+        if (priorityQueue.size() == 0) {
             change = true;
-        }
-        else
-        {
+        } else {
             oldTop = priorityQueue.top();
         }
         map->emplace(std::make_pair(element, element));
         priorityQueue.push(element);
         return change ? true : oldTop != priorityQueue.top();
+    } else {
+        delete element;
     }
     return false;
 }
@@ -170,8 +179,7 @@ bool HeapPriorityQueueSet<T, Comparator>::remove(T toRemove)
     auto *map = getDedupMapForElement<K>(toRemove);
     auto it = map->find(toRemove);
     bool inMap = it != map->end();
-    if (inMap)
-    {
+    if (inMap) {
         map->erase(it);
         return removeFromQueue(toRemove);
     }
@@ -187,12 +195,10 @@ T HeapPriorityQueueSet<T, Comparator>::peek()
 template <typename T, typename Comparator>
 void HeapPriorityQueueSet<T, Comparator>::clear()
 {
-    while (!priorityQueue.empty())
-    {
+    while (!priorityQueue.empty()) {
         priorityQueue.pop();
     }
-    for (auto *map : deduplicationMapsByKeyGroup)
-    {
+    for (auto *map: deduplicationMapsByKeyGroup) {
         map->clear();
     }
 }

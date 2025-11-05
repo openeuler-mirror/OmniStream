@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 #include "WindowOperator.h"
 #include "assigners/MergingWindowAssigner.h"
@@ -25,7 +32,7 @@ void WindowOperator<K, W>::open()
     // init windowState
     BinaryRowDataSerializer *binaryRowDataSerializer = new BinaryRowDataSerializer(1);
     std::string aggName = "window-aggs";
-    ValueStateDescriptor *valueStateDescriptor = new ValueStateDescriptor(aggName, binaryRowDataSerializer);
+    auto *valueStateDescriptor = new ValueStateDescriptor<RowData*>(aggName, binaryRowDataSerializer);
     using S = HeapValueState<RowData *, TimeWindow, RowData *>;
     auto keyedStateBackend = this->stateHandler->getKeyedStateBackend();
     S *state = keyedStateBackend->template getOrCreateKeyedState<TimeWindow, S, RowData *>(
@@ -112,7 +119,6 @@ void WindowOperator<K, W>::processBatch(StreamRecord *record)
     LOG("getEntireRow rowCount :" << rowCount)
     for (int rowIndex = 0; rowIndex < rowCount; rowIndex++) {
         RowData *currentRow = input->extractRowData(rowIndex);
-
         // temp fix: check if watermark needs to be advanced
         long timestamp = *currentRow->getLong(rowtimeIndex);
         if (timestamp > maxTimestamp) {
@@ -131,7 +137,8 @@ void WindowOperator<K, W>::processBatch(StreamRecord *record)
 template<typename K, typename W>
 void WindowOperator<K, W>::processElement(RowData *inputRow)
 {
-    BinaryRowData* key = this->keySelector->getKey((BinaryRowData *) inputRow);
+    BinaryRowData* key = this->keySelector->getKey((BinaryRowData *) inputRow);\
+    key->changeOwner(0);
     this->stateHandler->setCurrentKey(key);
 
     long timestamp = 0;

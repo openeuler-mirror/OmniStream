@@ -1,16 +1,16 @@
 #include "datagen/meituan/JoinSource.h"
 #include "test/core/operators/OutputTest.h"
 #include "OmniOperatorJIT/core/src/vector/vector_helper.h"
-#include "runtime/taskmanager/RuntimeEnvironment.h"
-#include "core/operators/StreamingRuntimeContext.h"
-#include "operators/source/NonTimestampContext.h"
+#include "streaming/api/operators/StreamingRuntimeContext.h"
+#include "streaming/api/operators/source/NonTimestampContext.h"
+#include "runtime/taskmanager/OmniRuntimeEnvironment.h"
 #include <gtest/gtest.h>
 
 
 TEST(DatagenTest, MeituanTest)
 {
     // Set up runtime context
-    auto runtimeEnv = new RuntimeEnvironment(new TaskInfoImpl("JoinsourceTest", 2, 1, 0));
+    auto runtimeEnv = new omnistream::RuntimeEnvironmentV2();
     auto runtimeCtx = new StreamingRuntimeContext<StreamRecord>();
     runtimeCtx->setEnvironment(runtimeEnv);
 

@@ -1,15 +1,27 @@
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
 #include "MinMaxWindowAggFunction.h"
 
 #include "table/data/binary/BinaryRowData.h"
 
 
-void MinMaxWindowAggFunction::open(StateDataViewStore* store) {
+void MinMaxWindowAggFunction::open(StateDataViewStore* store)
+{
     this->store = store;
 }
 
-void MinMaxWindowAggFunction::accumulate(RowData *accInput) {
+void MinMaxWindowAggFunction::accumulate(RowData *accInput)
+{
     bool inputIsNull = accInput->isNullAt(aggIdx);
-    int64_t fieldVal = inputIsNull? limit : *(accInput->getLong(aggIdx));
+    int64_t fieldVal = inputIsNull ? limit : *(accInput->getLong(aggIdx));
 
     if (inputIsNull) {
         aggValue = valueIsNull ? limit : aggValue;
@@ -25,7 +37,8 @@ void MinMaxWindowAggFunction::accumulate(RowData *accInput) {
     }
 }
 
-void MinMaxWindowAggFunction::merge(long ns, RowData *otherAcc) {
+void MinMaxWindowAggFunction::merge(long ns, RowData *otherAcc)
+{
     bool inputIsNull = otherAcc->isNullAt(accIndex);
     int64_t otherField = inputIsNull ? limit : *otherAcc->getLong(accIndex);
     if (inputIsNull) {
@@ -45,14 +58,16 @@ void MinMaxWindowAggFunction::merge(long ns, RowData *otherAcc) {
     }
 }
 
-void MinMaxWindowAggFunction::setAccumulators(long ns, RowData *acc) {
+void MinMaxWindowAggFunction::setAccumulators(long ns, RowData *acc)
+{
     valueIsNull = acc->isNullAt(accIndex);
     aggValue = valueIsNull ? limit : *acc->getLong(accIndex);
     countIsNull = acc->isNullAt(1);
     aggCountValue = countIsNull ? -1 : *acc->getLong(countIdx);
 }
 
-RowData *MinMaxWindowAggFunction::getAccumulators() {// todo:!!!!!aggtypes size 传入修改acc返回字段数目
+RowData *MinMaxWindowAggFunction::getAccumulators()
+{
     LOG(">>>>Function getAccumulators")
     BinaryRowData *currentAcc = BinaryRowData::createBinaryRowDataWithMem(2);
     if (valueIsNull) {
@@ -68,7 +83,8 @@ RowData *MinMaxWindowAggFunction::getAccumulators() {// todo:!!!!!aggtypes size 
     return currentAcc;
 }
 
-RowData *MinMaxWindowAggFunction::createAccumulators(int accumulatorArity) {
+RowData *MinMaxWindowAggFunction::createAccumulators(int accumulatorArity)
+{
     LOG(">>>>create Accumulators")
     BinaryRowData *result = BinaryRowData::createBinaryRowDataWithMem(accumulatorArity + 1);
     result->setNullAt(0);
@@ -76,10 +92,10 @@ RowData *MinMaxWindowAggFunction::createAccumulators(int accumulatorArity) {
     return result;
 }
 
-RowData *MinMaxWindowAggFunction::getValue(long ns) {
+RowData *MinMaxWindowAggFunction::getValue(long ns)
+{
     BinaryRowData *result;
     int64_t startTime = sliceAssigner->getWindowStart(ns);
-//    TimestampData *start = TimestampData::fromEpochMillis(startTime);
     int length = 3;
     result = BinaryRowData::createBinaryRowDataWithMem(length);
     if (!valueIsNull) {
@@ -92,12 +108,12 @@ RowData *MinMaxWindowAggFunction::getValue(long ns) {
 //    result->setTimestamp(length -2, *start, 0);// todo precision
 //    result->setTimestamp(length - 1, TimestampData::fromEpochMillis(ns), 0);// todo precision
 
-
     return result;
 }
 
 // 保持其他方法实现
-void MinMaxWindowAggFunction::retract(RowData *input) {
+void MinMaxWindowAggFunction::retract(RowData *input)
+{
     throw std::runtime_error("Retract not supported");
 }
 

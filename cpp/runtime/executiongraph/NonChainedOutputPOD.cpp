@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 
@@ -11,20 +18,21 @@
 namespace omnistream {
 
 NonChainedOutputPOD::NonChainedOutputPOD()
-    : sourceNodeId(0), consumerParallelism(0), consumerMaxParallelism(0),
+    : supportsUnalignedCheckpoints(false), sourceNodeId(0), consumerParallelism(0), consumerMaxParallelism(0),
       bufferTimeout(0), dataSetId(), isPersistentDataSet(false), partitioner(), partitionType(0) {}
 
-NonChainedOutputPOD::NonChainedOutputPOD(int sourceNodeId, int consumerParallelism,
+NonChainedOutputPOD::NonChainedOutputPOD(bool supportsUnalignedCheckpoints, int sourceNodeId, int consumerParallelism,
                                          int consumerMaxParallelism, long bufferTimeout,
                                          IntermediateDataSetIDPOD dataSetId, bool isPersistentDataSet,
                                          StreamPartitionerPOD partitioner, int partitionType)
-    : sourceNodeId(sourceNodeId), consumerParallelism(consumerParallelism),
+    : supportsUnalignedCheckpoints(supportsUnalignedCheckpoints), sourceNodeId(sourceNodeId), consumerParallelism(consumerParallelism),
       consumerMaxParallelism(consumerMaxParallelism), bufferTimeout(bufferTimeout),
       dataSetId(dataSetId), isPersistentDataSet(isPersistentDataSet),
       partitioner(partitioner), partitionType(partitionType) {}
 
 NonChainedOutputPOD::NonChainedOutputPOD(const NonChainedOutputPOD& other)
-    : sourceNodeId(other.sourceNodeId), consumerParallelism(other.consumerParallelism),
+    : supportsUnalignedCheckpoints(other.supportsUnalignedCheckpoints),
+      sourceNodeId(other.sourceNodeId), consumerParallelism(other.consumerParallelism),
       consumerMaxParallelism(other.consumerMaxParallelism), bufferTimeout(other.bufferTimeout),
       dataSetId(other.dataSetId), isPersistentDataSet(other.isPersistentDataSet),
       partitioner(other.partitioner), partitionType(other.partitionType) {}
@@ -32,6 +40,7 @@ NonChainedOutputPOD::NonChainedOutputPOD(const NonChainedOutputPOD& other)
 NonChainedOutputPOD& NonChainedOutputPOD::operator=(const NonChainedOutputPOD& other)
 {
     if (this != &other) {
+        supportsUnalignedCheckpoints = other.supportsUnalignedCheckpoints;
         sourceNodeId = other.sourceNodeId;
         consumerParallelism = other.consumerParallelism;
         consumerMaxParallelism = other.consumerMaxParallelism;
@@ -46,14 +55,19 @@ NonChainedOutputPOD& NonChainedOutputPOD::operator=(const NonChainedOutputPOD& o
 
 NonChainedOutputPOD::~NonChainedOutputPOD() {}
 
+bool NonChainedOutputPOD::getSupportsUnalignedCheckpoints() const
+{
+    return supportsUnalignedCheckpoints;
+}
+
 int NonChainedOutputPOD::getSourceNodeId() const
 {
     return sourceNodeId;
 }
 
-void NonChainedOutputPOD::setSourceNodeId(int sourceNodeId)
+void NonChainedOutputPOD::setSourceNodeId(int sourceNodeId_)
 {
-    this->sourceNodeId = sourceNodeId;
+    this->sourceNodeId = sourceNodeId_;
 }
 
 int NonChainedOutputPOD::getConsumerParallelism() const
@@ -61,9 +75,9 @@ int NonChainedOutputPOD::getConsumerParallelism() const
     return consumerParallelism;
 }
 
-void NonChainedOutputPOD::setConsumerParallelism(int consumerParallelism)
+void NonChainedOutputPOD::setConsumerParallelism(int consumerParallelism_)
 {
-    this->consumerParallelism = consumerParallelism;
+    this->consumerParallelism = consumerParallelism_;
 }
 
 int NonChainedOutputPOD::getConsumerMaxParallelism() const
@@ -71,9 +85,9 @@ int NonChainedOutputPOD::getConsumerMaxParallelism() const
     return consumerMaxParallelism;
 }
 
-void NonChainedOutputPOD::setConsumerMaxParallelism(int consumerMaxParallelism)
+void NonChainedOutputPOD::setConsumerMaxParallelism(int consumerMaxParallelism_)
 {
-    this->consumerMaxParallelism = consumerMaxParallelism;
+    this->consumerMaxParallelism = consumerMaxParallelism_;
 }
 
 long NonChainedOutputPOD::getBufferTimeout() const
@@ -81,9 +95,9 @@ long NonChainedOutputPOD::getBufferTimeout() const
     return bufferTimeout;
 }
 
-void NonChainedOutputPOD::setBufferTimeout(long bufferTimeout)
+void NonChainedOutputPOD::setBufferTimeout(long bufferTimeout_)
 {
-    this->bufferTimeout = bufferTimeout;
+    this->bufferTimeout = bufferTimeout_;
 }
 
 IntermediateDataSetIDPOD NonChainedOutputPOD::getDataSetId() const
@@ -91,9 +105,9 @@ IntermediateDataSetIDPOD NonChainedOutputPOD::getDataSetId() const
     return dataSetId;
 }
 
-void NonChainedOutputPOD::setDataSetId(const IntermediateDataSetIDPOD& dataSetId)
+void NonChainedOutputPOD::setDataSetId(const IntermediateDataSetIDPOD& dataSetId_)
 {
-    this->dataSetId = dataSetId;
+    this->dataSetId = dataSetId_;
 }
 
 bool NonChainedOutputPOD::getIsPersistentDataSet() const
@@ -101,9 +115,9 @@ bool NonChainedOutputPOD::getIsPersistentDataSet() const
     return isPersistentDataSet;
 }
 
-void NonChainedOutputPOD::setIsPersistentDataSet(bool isPersistentDataSet)
+void NonChainedOutputPOD::setIsPersistentDataSet(bool isPersistentDataSet_)
 {
-    this->isPersistentDataSet = isPersistentDataSet;
+    this->isPersistentDataSet = isPersistentDataSet_;
 }
 
 StreamPartitionerPOD NonChainedOutputPOD::getPartitioner() const
@@ -111,9 +125,9 @@ StreamPartitionerPOD NonChainedOutputPOD::getPartitioner() const
     return partitioner;
 }
 
-void NonChainedOutputPOD::setPartitioner(const StreamPartitionerPOD& partitioner)
+void NonChainedOutputPOD::setPartitioner(const StreamPartitionerPOD& partitioner_)
 {
-    this->partitioner = partitioner;
+    this->partitioner = partitioner_;
 }
 
 int NonChainedOutputPOD::getPartitionType() const
@@ -121,9 +135,9 @@ int NonChainedOutputPOD::getPartitionType() const
     return partitionType;
 }
 
-void NonChainedOutputPOD::setPartitionType(int partitionType)
+void NonChainedOutputPOD::setPartitionType(int partitionType_)
 {
-    this->partitionType = partitionType;
+    this->partitionType = partitionType_;
 }
 
 std::string NonChainedOutputPOD::toString() const

@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #ifndef PRIORITIZEDDEQUE_H
@@ -19,10 +26,6 @@ namespace omnistream {
 
 template <typename T>
 class PrioritizedDeque {
-private:
-    std::deque<std::shared_ptr<T>> deque;
-    int numPriorityElements;
-
 public:
     PrioritizedDeque();
     ~PrioritizedDeque();
@@ -47,6 +50,9 @@ public:
     int hashCode() const;
     std::string toString() const;
     std::shared_ptr<T> peekLast() const;
+private:
+    std::deque<std::shared_ptr<T>> deque;
+    int numPriorityElements;
 };
 
 template <typename T>
@@ -56,7 +62,8 @@ template <typename T>
 PrioritizedDeque<T>::~PrioritizedDeque() {}
 
 template <typename T>
-void PrioritizedDeque<T>::addPriorityElement(std::shared_ptr<T> element) {
+void PrioritizedDeque<T>::addPriorityElement(std::shared_ptr<T> element)
+{
     if (numPriorityElements == 0) {
         deque.push_front(element);
     } else if (static_cast<size_t>(numPriorityElements) == deque.size()) {
@@ -76,12 +83,14 @@ void PrioritizedDeque<T>::addPriorityElement(std::shared_ptr<T> element) {
 }
 
 template <typename T>
-void PrioritizedDeque<T>::add(std::shared_ptr<T> element) {
+void PrioritizedDeque<T>::add(std::shared_ptr<T> element)
+{
     deque.push_back(element);
 }
 
 template <typename T>
-void PrioritizedDeque<T>::add(std::shared_ptr<T> element, bool priority, bool _prioritize) {
+void PrioritizedDeque<T>::add(std::shared_ptr<T> element, bool priority, bool _prioritize)
+{
     if (!priority) {
         add(element);
     } else {
@@ -94,7 +103,8 @@ void PrioritizedDeque<T>::add(std::shared_ptr<T> element, bool priority, bool _p
 }
 
 template <typename T>
-void PrioritizedDeque<T>::prioritize(std::shared_ptr<T> element) {
+void PrioritizedDeque<T>::prioritize(std::shared_ptr<T> element)
+{
     auto it = deque.begin();
     for (int i = 0; i < numPriorityElements && it != deque.end(); ++i, ++it) {
         if (*it == element) {
@@ -113,12 +123,14 @@ void PrioritizedDeque<T>::prioritize(std::shared_ptr<T> element) {
 }
 
 template <typename T>
-std::vector<std::shared_ptr<T>> PrioritizedDeque<T>::asUnmodifiableCollection() const {
+std::vector<std::shared_ptr<T>> PrioritizedDeque<T>::asUnmodifiableCollection() const
+{
     return std::vector<std::shared_ptr<T>>(deque.begin(), deque.end());
 }
 
 template <typename T>
-std::shared_ptr<T> PrioritizedDeque<T>::getAndRemove(std::function<bool(const std::shared_ptr<T>&)> preCondition) {
+std::shared_ptr<T> PrioritizedDeque<T>::getAndRemove(std::function<bool(const std::shared_ptr<T>&)> preCondition)
+{
     auto it = deque.begin();
     for (int i = 0; it != deque.end(); ++i, ++it) {
         if (preCondition(*it)) {
@@ -134,7 +146,8 @@ std::shared_ptr<T> PrioritizedDeque<T>::getAndRemove(std::function<bool(const st
 }
 
 template <typename T>
-std::shared_ptr<T> PrioritizedDeque<T>::poll() {
+std::shared_ptr<T> PrioritizedDeque<T>::poll()
+{
     if (deque.empty()) {
         return nullptr;
     }
@@ -147,7 +160,8 @@ std::shared_ptr<T> PrioritizedDeque<T>::poll() {
 }
 
 template <typename T>
-std::shared_ptr<T> PrioritizedDeque<T>::peek() const {
+std::shared_ptr<T> PrioritizedDeque<T>::peek() const
+{
     if (deque.empty()) {
         return nullptr;
     }
@@ -155,12 +169,14 @@ std::shared_ptr<T> PrioritizedDeque<T>::peek() const {
 }
 
 template <typename T>
-int PrioritizedDeque<T>::getNumPriorityElements() const {
+int PrioritizedDeque<T>::getNumPriorityElements() const
+{
     return numPriorityElements;
 }
 
 template <typename T>
-bool PrioritizedDeque<T>::containsPriorityElement(std::shared_ptr<T> element) const {
+bool PrioritizedDeque<T>::containsPriorityElement(std::shared_ptr<T> element) const
+{
     if (numPriorityElements == 0) {
         return false;
     }
@@ -174,43 +190,51 @@ bool PrioritizedDeque<T>::containsPriorityElement(std::shared_ptr<T> element) co
 }
 
 template <typename T>
-int PrioritizedDeque<T>::size() const {
+int PrioritizedDeque<T>::size() const
+{
     return deque.size();
 }
 
 template <typename T>
-int PrioritizedDeque<T>::getNumUnprioritizedElements() const {
+int PrioritizedDeque<T>::getNumUnprioritizedElements() const
+{
     return size() - getNumPriorityElements();
 }
 
 template <typename T>
-typename std::vector<std::shared_ptr<T>>::const_iterator PrioritizedDeque<T>::iterator() const {
+typename std::vector<std::shared_ptr<T>>::const_iterator PrioritizedDeque<T>::iterator() const
+{
     return deque.begin();
 }
 
 template <typename T>
-void PrioritizedDeque<T>::clear() {
+void PrioritizedDeque<T>::clear()
+{
     deque.clear();
     numPriorityElements = 0;
 }
 
 template <typename T>
-bool PrioritizedDeque<T>::isEmpty() const {
+bool PrioritizedDeque<T>::isEmpty() const
+{
     return deque.empty();
 }
 
 template <typename T>
-bool PrioritizedDeque<T>::contains(std::shared_ptr<T> element) const {
+bool PrioritizedDeque<T>::contains(std::shared_ptr<T> element) const
+{
     return std::find(deque.begin(), deque.end(), element) != deque.end();
 }
 
 template <typename T>
-bool PrioritizedDeque<T>::equals(const PrioritizedDeque<T>& other) const {
+bool PrioritizedDeque<T>::equals(const PrioritizedDeque<T>& other) const
+{
     return numPriorityElements == other.numPriorityElements && deque == other.deque;
 }
 
 template <typename T>
-int PrioritizedDeque<T>::hashCode() const {
+int PrioritizedDeque<T>::hashCode() const
+{
     size_t seed = 0;
     for (const auto& item : deque) {
         seed ^= std::hash<std::shared_ptr<T>>{}(item) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
@@ -220,7 +244,8 @@ int PrioritizedDeque<T>::hashCode() const {
 }
 
 template <typename T>
-std::string PrioritizedDeque<T>::toString() const {
+std::string PrioritizedDeque<T>::toString() const
+{
     std::stringstream ss;
     ss << "[";
     for (auto it = deque.begin(); it != deque.end(); ++it) {
@@ -229,7 +254,7 @@ std::string PrioritizedDeque<T>::toString() const {
         }
         if (*it) {
             ss << (**it);
-        }else{
+        } else {
             ss << "nullptr";
         }
     }
@@ -238,7 +263,8 @@ std::string PrioritizedDeque<T>::toString() const {
 }
 
 template <typename T>
-std::shared_ptr<T> PrioritizedDeque<T>::peekLast() const {
+std::shared_ptr<T> PrioritizedDeque<T>::peekLast() const
+{
     if (deque.empty()) {
         return nullptr;
     }

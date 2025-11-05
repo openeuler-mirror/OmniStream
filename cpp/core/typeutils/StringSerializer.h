@@ -1,5 +1,5 @@
 /*
- * @Copyright: Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * @Copyright: Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
  * @Description: String Serializer for DataStream
  */
 #ifndef FLINK_TNEL_STRINGSERIALIZER_H
@@ -11,7 +11,10 @@
 
 class StringSerializer : public TypeSerializerSingleton {
 public:
-    StringSerializer() {};
+    StringSerializer()
+    {
+        reuseBuffer = new String();
+    };
     void *deserialize(DataInputView &source) override;
 
     void serialize(void *record, DataOutputSerializer &target) override;
@@ -19,8 +22,6 @@ public:
     void deserialize(Object *buffer, DataInputView &source) override;
 
     void serialize(Object *buffer, DataOutputSerializer &target) override;
-
-    Object* GetBuffer() override;
     
     BackendDataType getBackendId() const override
     {
@@ -46,5 +47,10 @@ public:
     }
 
     static StringSerializerCleaner cleaner;
+
+    Object* GetBuffer() override;
+
+private:
+    StringSerializer* reuseSerializer;
 };
-#endif //FLINK_TNEL_STRINGSERIALIZER_H
+#endif

@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #include "ResultPartition.h"
@@ -20,7 +27,8 @@ ResultPartition::ResultPartition(
     int numSubpartitions,
     int numTargetKeyGroups,
     std::shared_ptr<ResultPartitionManager> partitionManager,
-    std::shared_ptr<Supplier<ObjectBufferPool>> bufferPoolFactory )
+    std::shared_ptr<Supplier<BufferPool>> bufferPoolFactory,
+    int taskType)
     : owningTaskName(owningTaskName),
       partitionIndex(partitionIndex),
       partitionId(partitionId),
@@ -28,15 +36,16 @@ ResultPartition::ResultPartition(
       partitionManager(partitionManager),
       numSubpartitions(numSubpartitions),
       numTargetKeyGroups(numTargetKeyGroups),
-      bufferPoolFactory_(bufferPoolFactory)
+      bufferPoolFactory_(bufferPoolFactory),
+      taskType(taskType)
 {
     LOG_PART("Inside constructor");
 }
 
-void ResultPartition::setup() {
+void ResultPartition::setup()
+{
     if (bufferPool != nullptr) {
         THROW_RUNTIME_ERROR("Bug in result partition setup logic: Already registered buffer pool.")
-        //throw std::runtime_error("Bug in result partition setup logic: Already registered buffer pool.");
     }
 
     LOG_PART("Before get buffer pool");
@@ -47,50 +56,61 @@ void ResultPartition::setup() {
     LOG_PART(" after register partition")
 }
 
-std::string ResultPartition::getOwningTaskName() const {
+std::string ResultPartition::getOwningTaskName() const
+{
     return owningTaskName;
 };
 
-    ResultPartitionIDPOD ResultPartition::getPartitionId()  {
+    ResultPartitionIDPOD ResultPartition::getPartitionId()
+    {
     return partitionId;
 }
 
-int ResultPartition::getPartitionIndex() const {
+int ResultPartition::getPartitionIndex() const
+{
     return partitionIndex;
 }
 
-int ResultPartition::getNumberOfSubpartitions()  {
+int ResultPartition::getNumberOfSubpartitions()
+{
     return numSubpartitions;
 }
 
-std::shared_ptr<ObjectBufferPool> ResultPartition::getBufferPool() {
+std::shared_ptr<BufferPool> ResultPartition::getBufferPool()
+{
     return bufferPool;
 }
 
-int ResultPartition::getPartitionType() const {
+int ResultPartition::getPartitionType() const
+{
     return partitionType;
 }
 
-std::shared_ptr<CompletableFuture> ResultPartition::getAllDataProcessedFuture() {
+std::shared_ptr<CompletableFuture> ResultPartition::getAllDataProcessedFuture()
+{
     throw std::runtime_error("UnsupportedOperationException");
 }
 
 void ResultPartition::onSubpartitionAllDataProcessed(int subpartition) {}
 
-void ResultPartition::finish() {
+void ResultPartition::finish()
+{
     checkInProduceState();
     isFinished_ = true;
 }
 
-bool ResultPartition::isFinished()  {
+bool ResultPartition::isFinished()
+{
     return isFinished_;
 }
 
-void ResultPartition::release() {
+void ResultPartition::release()
+{
     release(nullptr);
 }
 
-void ResultPartition::release(std::optional<std::exception_ptr> cause) {
+void ResultPartition::release(std::optional<std::exception_ptr> cause)
+{
         bool expected = false;
         if (isReleased_.compare_exchange_strong(expected, true)) {
             std::cout << owningTaskName << ": Releasing " << toString() << std::endl;
@@ -102,48 +122,58 @@ void ResultPartition::release(std::optional<std::exception_ptr> cause) {
             releaseInternal();
         }
     }
-    void ResultPartition::closeBufferPool() {
+    void ResultPartition::closeBufferPool()
+    {
         if (bufferPool != nullptr) {
             bufferPool->lazyDestroy();
         }
     }
-    void ResultPartition::close() {
+    void ResultPartition::close()
+    {
         this->closeBufferPool();
     }
 
-void ResultPartition::fail(std::optional<std::exception_ptr>  throwable) {
+void ResultPartition::fail(std::optional<std::exception_ptr>  throwable)
+{
     if (bufferPool != nullptr) {
         bufferPool->lazyDestroy();
     }
     partitionManager->releasePartition(partitionId, throwable);
 }
 
-std::optional<std::exception_ptr>  ResultPartition::getFailureCause()  {
+std::optional<std::exception_ptr>  ResultPartition::getFailureCause()
+{
     return cause;
 }
 
-int ResultPartition::getNumTargetKeyGroups()  {
+int ResultPartition::getNumTargetKeyGroups()
+{
     return numTargetKeyGroups;
 }
 
 
-bool ResultPartition::isReleased()  {
+bool ResultPartition::isReleased()
+{
     return isReleased_.load();
 }
 
-std::shared_ptr<CompletableFuture>  ResultPartition::getAvailableFuture() {
-    return bufferPool->getAvailableFuture();
+std::shared_ptr<CompletableFuture> ResultPartition::GetAvailableFuture()
+{
+    return bufferPool->GetAvailableFuture();
 }
 
-std::string ResultPartition::toString() const {
+std::string ResultPartition::toString() const
+{
     return "ResultPartition " + partitionId.toString() + " [" + std::to_string(partitionType) + ", " + std::to_string(numSubpartitions) + " subpartitions]";
 }
 
-std::shared_ptr<ResultPartitionManager> ResultPartition::getPartitionManager() {
+std::shared_ptr<ResultPartitionManager> ResultPartition::getPartitionManager()
+{
     return partitionManager;
 }
 
-void ResultPartition::checkInProduceState() const {
+void ResultPartition::checkInProduceState() const
+{
     if (isFinished_) {
         throw std::runtime_error("Partition already finished.");
     }

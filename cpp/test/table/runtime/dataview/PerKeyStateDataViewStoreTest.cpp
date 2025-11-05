@@ -1,11 +1,11 @@
 #include "table/runtime/dataview/PerKeyStateDataViewStore.h"
-#include "table/runtime/StateMapView.h"
+#include "table/runtime/dataview/StateMapView.h"
 #include "runtime/state/InternalKeyContextImpl.h"
 #include "core/typeutils/LongSerializer.h"
 #include "runtime/state/HeapKeyedStateBackend.h"
 #include "runtime/state/DefaultKeyedStateStore.h"
 #include "functions/RuntimeContext.h"
-#include "core/operators/StreamingRuntimeContext.h"
+#include "streaming/api/operators/StreamingRuntimeContext.h"
 #include "core/typeutils/MapSerializer.h"
 #include "runtime/state/KeyGroupRange.h"
 #include <emhash7.hpp>
@@ -17,8 +17,7 @@ TEST(PerKeyStateDataViewStoreTest, InitTest)
     auto *keyContext = new InternalKeyContextImpl<int>(range, 10);
     keyContext->setCurrentKey(1);
     keyContext->setCurrentKeyGroupIndex(1);
-    IntSerializer *ser = new IntSerializer();
-    auto *backend = new HeapKeyedStateBackend<int>(ser, keyContext);
+    auto *backend = new HeapKeyedStateBackend<int>(new IntSerializer(), keyContext);
 
     // Initialize DefaultKeyedStateStore
     auto *stateStore = new DefaultKeyedStateStore(backend);
@@ -30,7 +29,7 @@ TEST(PerKeyStateDataViewStoreTest, InitTest)
     auto *store = new PerKeyStateDataViewStore(ctx);
 
     // Should be created successfully
-    ASSERT_NO_THROW((store->getStateMapView<VoidNamespace, int, int *>("test", false, ser, ser)));
+    ASSERT_NO_THROW((store->getStateMapView<VoidNamespace, int, int *>("test", false, new IntSerializer(), new IntSerializer())));
     delete store;
     delete ctx;
     delete stateStore;
@@ -45,8 +44,7 @@ TEST(PerKeyStateDataViewStoreTest, RetrievalTest)
     auto *keyContext = new InternalKeyContextImpl<int>(range, 10);
     keyContext->setCurrentKey(1);
     keyContext->setCurrentKeyGroupIndex(1);
-    IntSerializer *ser = new IntSerializer();
-    auto *backend = new HeapKeyedStateBackend<int>(ser, keyContext);
+    auto *backend = new HeapKeyedStateBackend<int>(new IntSerializer(), keyContext);
 
     // Initialize DefaultKeyedStateStore
     auto *stateStore = new DefaultKeyedStateStore(backend);
@@ -59,14 +57,14 @@ TEST(PerKeyStateDataViewStoreTest, RetrievalTest)
 
     // Should be created successfully
     KeyedStateMapViewWithKeysNotNull<VoidNamespace, int, int> *mapView =
-            reinterpret_cast<KeyedStateMapViewWithKeysNotNull<VoidNamespace, int, int> *>(store->getStateMapView<VoidNamespace, int, int *>("test", false, ser, ser));
+            reinterpret_cast<KeyedStateMapViewWithKeysNotNull<VoidNamespace, int, int> *>(store->getStateMapView<VoidNamespace, int, int *>("test", false, new IntSerializer(), new IntSerializer()));
 
     mapView->put(1, 3);
 
     EXPECT_EQ(*(mapView->get(1)), 3);
 
     KeyedStateMapViewWithKeysNotNull<VoidNamespace, int, int> *newMapView =
-            reinterpret_cast<KeyedStateMapViewWithKeysNotNull<VoidNamespace, int, int> *>(store->getStateMapView<VoidNamespace, int, int *>("test", false, ser, ser));
+            reinterpret_cast<KeyedStateMapViewWithKeysNotNull<VoidNamespace, int, int> *>(store->getStateMapView<VoidNamespace, int, int *>("test", false, new IntSerializer(), new IntSerializer()));
 
     EXPECT_EQ(*(newMapView->get(1)), 3);
 

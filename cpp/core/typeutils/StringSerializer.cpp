@@ -1,5 +1,5 @@
 /*
- * @Copyright: Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * @Copyright: Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
  * @Description: String Serializer for DataStream
  */
 #include <string>
@@ -31,11 +31,14 @@ void StringSerializer::serialize(Object *buffer, DataOutputSerializer &target)
     LOG("StringSerializer::serialize change end +++")
 }
 
-Object* StringSerializer::GetBuffer()
-{
-    thread_local String buffer;
-    return &buffer;
-}
-
 StringSerializer* StringSerializer::INSTANCE = new StringSerializer();
 StringSerializer::StringSerializerCleaner StringSerializer::cleaner;
+
+Object* StringSerializer::GetBuffer()
+{
+    if (bufferReusable) {
+        reuseBuffer->getRefCount();
+        return reuseBuffer;
+    }
+    return new String();
+}

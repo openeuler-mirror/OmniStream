@@ -1,18 +1,19 @@
 /*
- * @Copyright: Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * @Copyright: Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
  * @Description: Type Serializer
  */
 #ifndef FLINK_TNEL_TYPESERIALIZER_H
 #define FLINK_TNEL_TYPESERIALIZER_H
 
-#include <io/DataOutputSerializer.h>
+#include <memory/DataOutputSerializer.h>
 
-#include "../io/DataInputView.h"
+#include "../memory/DataInputView.h"
 #include "OmniOperatorJIT/core/src/type/data_type.h"
 
-#include "functions/StreamElement.h"
+#include "streaming/runtime/streamrecord/StreamElement.h"
 #include "OmniOperatorJIT/core/src/type/data_type.h"
 #include "basictypes/Object.h"
+#include "TypeSerializerSnapshot.h"
 
 enum class BackendDataType {
     BIGINT_BK,
@@ -28,7 +29,8 @@ enum class BackendDataType {
     OBJECT_BK,
     LONG_BK,
     ROW_LIST_BK,
-    INVALID_BK
+    INVALID_BK,
+    POJO_BK
 };
 
 class TypeSerializer {
@@ -59,8 +61,38 @@ public:
     virtual const char* getName() const;
     virtual BackendDataType getBackendId() const = 0;
 
-    virtual ~TypeSerializer() {}
+    virtual ~TypeSerializer()
+    {
+        if (reuseBuffer != nullptr) {
+            reuseBuffer->putRefCount();
+        }
+    }
+
+    void setSelfBufferReusable(bool bufferReusable_)
+    {
+        bufferReusable = bufferReusable_;
+        setSubBufferReusable(bufferReusable_);
+    }
+
+    virtual void setSubBufferReusable(bool bufferReusable_) {}
+
+    bool isReusable()
+    {
+        return bufferReusable;
+    }
+
+    virtual TypeSerializer* duplicate()
+    {
+        // Only VoidNamespaceSerializer, MapSerializer, KyroSerializer are used in MT6000C
+        NOT_IMPL_EXCEPTION
+    };
+    virtual std::shared_ptr<TypeSerializerSnapshot> snapshotConfiguration()
+    {
+        // Only VoidNamespaceSerializer, MapSerializer, KyroSerializer are used in MT6000C
+        NOT_IMPL_EXCEPTION
+    };
+protected:
+    Object* reuseBuffer = nullptr;
+    bool bufferReusable = false;
 };
-
-
-#endif  //FLINK_TNEL_TYPESERIALIZER_H
+#endif

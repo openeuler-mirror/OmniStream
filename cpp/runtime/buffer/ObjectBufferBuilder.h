@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #ifndef OMNISTREAM_BUFFERBUILDER_H
@@ -7,64 +14,32 @@
 
 #include <memory>
 #include <string>
-#include <vector>
-#include <atomic>
 
-#include "ObjectBuffer.h"
+#include "BufferBuilder.h"
 #include "ObjectBufferConsumer.h"
-#include "ObjectBufferRecycler.h"
 #include "ObjectSegment.h"
-#include "PositionMarker.h"
 
 namespace omnistream {
 
-class ObjectBufferBuilder {
+class ObjectBufferBuilder : public BufferBuilder {
 public:
-    ObjectBufferBuilder(std::shared_ptr<ObjectSegment> objSegment, std::shared_ptr<ObjectBufferRecycler> recycler);
-    ~ObjectBufferBuilder();
+    ObjectBufferBuilder(std::shared_ptr<ObjectSegment> objSegment, std::shared_ptr<BufferRecycler> recycler);
+    ~ObjectBufferBuilder() override = default;
 
-    std::shared_ptr<ObjectBufferConsumer> createBufferConsumer();
-    std::shared_ptr<ObjectBufferConsumer> createBufferConsumerFromBeginning();
-    int appendAndCommit(void* source);
-    int append(void* source);
-    void commit();
-    int finish();
-    bool isFinished();
-    bool isFull();
+    int append(void *source) override;
 
-    int getMaxCapacity();
-    void trim(int newSize);
+    using BufferBuilder::createBufferConsumer;
+    std::shared_ptr<BufferConsumer> createBufferConsumerFromBeginning() override;
+    std::shared_ptr<BufferConsumer> createBufferConsumer(int currentReaderPosition) override;
 
-    void close();
-    std::string toString() ;
+    std::string toString() override ;
 
     // for test
     StreamElement* getObject(int index);
 private:
 
-    class SettablePositionMarker : public PositionMarker {
-    public:
-        SettablePositionMarker();
-        int get() const override;
-        bool isFinished();
-        int getCached();
-        int markFinished();
-        void move(int offset);
-        void set(int value);
-        void commit();
-
-    private:
-        std::atomic<int> position;
-        int cachedPosition;
-    };
-
     std::shared_ptr<ObjectSegment> objSegment;
-    std::shared_ptr<VectorBatchBuffer> buffer;
-    int maxCapacity;
     bool bufferConsumerCreated;
-    std::shared_ptr<SettablePositionMarker> positionMarker;
-
-    std::shared_ptr<ObjectBufferConsumer> createBufferConsumer(int currentReaderPosition);
 };
 
 } // namespace omnistream

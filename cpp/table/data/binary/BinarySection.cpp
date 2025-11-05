@@ -1,6 +1,17 @@
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
+
 #include "BinarySection.h"
 #include "core/include/common.h"
-#include "core/task/StreamTask.h"
+#include "streaming/runtime/tasks/StreamTask.h"
 
 /**
  * public final void pointTo(MemorySegment segment, int offset_, int sizeInBytes) {
@@ -12,63 +23,52 @@
  * @param sizeInBytes
  */
 
-// void BinarySection::pointTo(MemorySegment *segment, int offset, int sizeInBytes) {
-//      // NOT_IMPL_EXCEPTION
-//     //todo maybe need to be optimized later.
-//     auto temp = new MemorySegment * [1];
-//     temp[0] = segment;
-//     pointTo(temp, 1, offset, sizeInBytes);
-// }
-
-// void BinarySection::pointTo(MemorySegment **segments, int numSegments, int offset, int sizeInBytes) {
-//     segments_ = segments;
-//     numSegments_ = numSegments;
-//     offset_ = offset;
-//     sizeInBytes_ = sizeInBytes;
-// }
-
-BinarySection::~BinarySection() {
+BinarySection::~BinarySection()
+{
     LOG("destructor  BinarySection");
     if (owner_ == 1 && memoryBuffer && bufferCapacity > 0) {
         delete[] memoryBuffer;
     }
 }
 
-void BinarySection::pointTo(uint8_t *segment, int offset, int sizeInBytes,int bufferCapacity) {
+void BinarySection::pointTo(uint8_t *segment, int offset, int sizeInBytes, int bufferCapacity_)
+{
     memoryBuffer = segment;
     offset_ = offset;
     sizeInBytes_ = sizeInBytes;
-    this->bufferCapacity = bufferCapacity;
+    this->bufferCapacity = bufferCapacity_;
 }
 
-void BinarySection::own(uint8_t *segment, int offset, int sizeInBytes,int bufferCapacity) {
+void BinarySection::own(uint8_t *segment, int offset, int sizeInBytes, int bufferCapacity_)
+{
     memoryBuffer = segment;
     offset_ = offset;
     sizeInBytes_ = sizeInBytes;
-    this->bufferCapacity = bufferCapacity;
+    this->bufferCapacity = bufferCapacity_;
     owner_ = 1;
 }
 
-int BinarySection::getSizeInBytes() const {
+int BinarySection::getSizeInBytes() const
+{
     return sizeInBytes_;
 }
 
-// MemorySegment **BinarySection::getSegments() const {
-//     return segments_;
-// }
-
-int BinarySection::getOffset() const {
+int BinarySection::getOffset() const
+{
     return offset_;
 }
 
-// int BinarySection::getNumSegments() const {
-//     return numSegments_;
-// }
-
-uint8_t *BinarySection::getSegment() const {
+uint8_t *BinarySection::getSegment() const
+{
     return memoryBuffer;
 }
 
-int BinarySection::getBufferCapacity() const {
+int BinarySection::getBufferCapacity() const
+{
     return bufferCapacity;
+}
+
+void BinarySection::changeOwner(int owner)
+{
+    owner_ = owner;
 }

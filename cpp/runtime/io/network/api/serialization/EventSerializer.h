@@ -1,5 +1,5 @@
 /*
-* Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+* Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
  */
 
 #ifndef OMNISTREAM_EVENTSERIALIZER_H
@@ -9,42 +9,67 @@
 #include <vector>
 #include <cstdint>
 #include <utility>
+#include <buffer/NetworkBuffer.h>
 #include <buffer/ObjectBufferConsumer.h>
+#include <checkpoint/SavepointType.h>
+#include <memory/MemorySegment.h>
 
+#include "buffer/NetworkBuffer.h"
 #include "event/AbstractEvent.h"
+#include "partition/consumer/BufferOrEvent.h"
+#include "partition/consumer/InputChannel.h"
+#include "io/network/api/CheckpointBarrier.h"
 
+using ::datastream::NetworkBuffer;
 
 namespace omnistream {
     class ObjectBuffer;
 
     class EventSerializer {
     public:
+        static std::shared_ptr<NetworkBuffer> toBuffer(std::shared_ptr<AbstractEvent> event, bool hasPriority);
+        // static std::shared_ptr<ObjectBufferConsumer> toBufferConsumer(const int event, bool hasPriority) ;
+        static std::shared_ptr<BufferConsumer> ToBufferConsumer(std::shared_ptr<AbstractEvent> event,
+                                                                bool hasPriority);
+        static std::shared_ptr<AbstractEvent> fromBuffer(const std::shared_ptr<Buffer>& buffer);
 
-    static std::shared_ptr<ObjectBuffer> toBuffer(const int event, bool hasPriority) ;
-    static std::shared_ptr<ObjectBufferConsumer> toBufferConsumer(const int event, bool hasPriority) ;
-    static std::shared_ptr<ObjectBufferConsumer> ToBufferConsumer(std::shared_ptr<AbstractEvent> event,
-        bool hasPriority);
-    static int fromBuffer(const std::shared_ptr<ObjectBuffer>& buffer);
+        static std::shared_ptr<MemorySegment> ToSerializedEvent(std::shared_ptr<AbstractEvent> event);
+        static std::shared_ptr<AbstractEvent> fromSerializedEvent(std::shared_ptr<Buffer> buffer);
+
+        static std::shared_ptr<BufferOrEvent> fromNetworkBuffer(
+            std::shared_ptr<::datastream::NetworkBuffer> networkBuffer,
+            std::shared_ptr<Buffer> buffer,
+            bool moreAvailable,
+            std::shared_ptr<InputChannel> currentChannel,
+            bool morePriorityEvents);
+
+        // static std::shared_ptr<CheckpointBarrier> deserializeBarrier(std::shared_ptr<ByteBuffer> buffer);
+        static std::shared_ptr<MemorySegment> SerializeCheckpointBarrier(
+            std::shared_ptr<CheckpointBarrier> checkpointBarrier);
+        static void EncodeSavepointType(
+            SavepointType* savepointType, ByteBuffer& buffer);
+        static std::shared_ptr<CheckpointBarrier> DeserializeCheckpointBarrier(ByteBuffer &buffer);
+        static SnapshotType* DecodeSavepointType(uint8_t checkpointTypeCode, ByteBuffer& buffer);
 
     public:
-
         static const int INVALID_EVENT;;
-    static const int END_OF_PARTITION_EVENT;
-    static const int CHECKPOINT_BARRIER_EVENT;
-    static const int END_OF_SUPERSTEP_EVENT;
-    static const int OTHER_EVENT;
-    static const int CANCEL_CHECKPOINT_MARKER_EVENT;
-    static const int END_OF_CHANNEL_STATE_EVENT;
-    static const int ANNOUNCEMENT_EVENT;
-    static const int VIRTUAL_CHANNEL_SELECTOR_EVENT;
-    static const int END_OF_USER_RECORDS_EVENT;
-
-    static const int CHECKPOINT_TYPE_CHECKPOINT;
-    static const int CHECKPOINT_TYPE_SAVEPOINT;
-    static const int CHECKPOINT_TYPE_SAVEPOINT_SUSPEND;
-    static const int CHECKPOINT_TYPE_SAVEPOINT_TERMINATE;
-};
-
+        static const int END_OF_PARTITION_EVENT;
+        static const int CHECKPOINT_BARRIER_EVENT;
+        static const int END_OF_SUPERSTEP_EVENT;
+        static const int OTHER_EVENT;
+        static const int CANCEL_CHECKPOINT_MARKER_EVENT;
+        static const int END_OF_CHANNEL_STATE_EVENT;
+        static const int ANNOUNCEMENT_EVENT;
+        static const int VIRTUAL_CHANNEL_SELECTOR_EVENT;
+        static const int END_OF_USER_RECORDS_EVENT;
+        static constexpr uint8_t CHECKPOINT_TYPE_CHECKPOINT = 0x00;
+        static constexpr uint8_t CHECKPOINT_TYPE_SAVEPOINT = 0x01;
+        static constexpr uint8_t CHECKPOINT_TYPE_SAVEPOINT_SUSPEND = 0x02;
+        static constexpr uint8_t CHECKPOINT_TYPE_SAVEPOINT_TERMINATE = 0x03;
+        static constexpr uint8_t CHECKPOINT_TYPE_FULL_CHECKPOINT = 0x04;
+        static constexpr uint8_t SAVEPOINT_FORMAT_CANONICAL = 0x00;
+        static constexpr uint8_t SAVEPOINT_FORMAT_NATIVE = 0x01;
+    };
 }
 
 #endif // OMNISTREAM_EVENTSERIALIZER_H

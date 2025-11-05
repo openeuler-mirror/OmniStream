@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #ifndef FLINK_TNEL_JAVAARRAY_H
@@ -9,9 +16,9 @@
 #include <stdexcept>
 #include <utility>
 #include <initializer_list>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
+#include <cstdlib>
+#include <cstdio>
+#include <cstring>
 #include "Object.h"
 
 template <typename T>
@@ -28,8 +35,9 @@ public:
     JavaArray() : length(0), data_(nullptr), capacity_(0) {}
 
     explicit JavaArray(int size)
-        : length(size), data_(new T[size]), capacity_(size)
+        : length(size), capacity_(size)
     {
+        data_ = new T[size];
         errno_t ret = memset_s((void *)data_, sizeof(T) * size, 0, sizeof(T) * size);
         if (ret != 0) {
             throw std::runtime_error("memset_s failed" + std::to_string(ret));
@@ -51,10 +59,9 @@ public:
         }
     }
 
-    ~JavaArray()
+    ~JavaArray() override
     {
-        if (data_)
-            delete data_;
+        delete data_;
     }
 
     JavaArray(const JavaArray& other) : JavaArray(other.length)
@@ -65,7 +72,7 @@ public:
     }
 
     JavaArray(JavaArray&& other) noexcept
-        : length(other.length), data_(other.data_), capacity_(other.capacity_)
+        : length(other.length), data_(other.data_),  capacity_(other.capacity_)
     {
         other.data_ = nullptr;
         other.length = other.capacity_ = 0;
@@ -168,7 +175,6 @@ public:
             reserve(capacity_ == 0 ? 1 : capacity_ * EXPAND_SIZE);
         }
         data_[length++] = value;
-        length = length;
     }
 
     void push_back(T&& value)
@@ -177,7 +183,6 @@ public:
             reserve(capacity_ == 0 ? 1 : capacity_ * EXPAND_SIZE);
         }
         data_[length++] = std::move(value);
-        length = length;
     }
 
     template <typename... Args>
@@ -214,22 +219,22 @@ public:
 
     bool operator!=(const JavaArray& other) const
     {
-        return !(*this == other);
+        return *this != other;
     }
 
-    bool equals(Object *obj);
+    bool equals(Object *obj) override;
 
-    Object* clone();
+    Object* clone() override;
 
     void set(int index, T obj);
 
     T get(int index);
 
-    int length;
 private:
     static const int EXPAND_SIZE = 2;
-    T* data_;
-    int capacity_;
+    int length = 0;
+    T* data_ = nullptr;
+    int capacity_ = 0;
 };
 
 #endif // FLINK_TNEL_JAVAARRAY_H

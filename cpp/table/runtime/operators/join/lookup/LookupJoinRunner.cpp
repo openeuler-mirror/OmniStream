@@ -1,10 +1,17 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #include "LookupJoinRunner.h"
 
-void LookupJoinRunner::processBatch(omnistream::VectorBatch *in, ProcessFunction::Context *cxt, Collector *out)
+void LookupJoinRunner::processBatch(omnistream::VectorBatch *in, Context *cxt, Collector *out)
 {
     // This collector is the TableFunctionCollector in LookupJoinRunner
     // out is the downstream operator
@@ -25,7 +32,7 @@ void LookupJoinRunner::open(const Configuration &parameters)
     std::string temporalTableSourceSpec = description["temporalTableSourceSpec"];
     std::string connectorType = description["connectorType"];
     std::string filepath;
-    // todo: check all possibility of the parameter! And how to find the file path with it
+    // todo: check all possitiblity of this parameter! And how to find the file path with it
     if (connectorType == "filesystem") {
         filepath = description["connectorPath"];
     } else {
@@ -41,11 +48,13 @@ void LookupJoinRunner::open(const Configuration &parameters)
     fetcher->open();
 }
 
-LookupJoinRunner::LookupJoinRunner(nlohmann::json description, Collector* innerCollector)
+LookupJoinRunner::LookupJoinRunner(nlohmann::json description, Collector *innerCollector)
     : innerCollector(innerCollector), description(description)
 {
     isLeftOuterJoin = (description["joinType"].get<std::string>() == "LeftOuterJoin");
 }
 
 void LookupJoinRunner::close()
-{}
+{
+    delete fetcher;
+}

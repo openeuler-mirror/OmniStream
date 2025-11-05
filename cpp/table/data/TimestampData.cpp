@@ -1,28 +1,43 @@
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
 #include <stdexcept>
 #include <chrono>
 #include <iomanip>
 #include <ctime>
 #include "TimestampData.h"
 
-TimestampData::TimestampData(long millisecond, int nanoOfMillisecond): millisecond(millisecond), nanoOfMillisecond(nanoOfMillisecond) {
+TimestampData::TimestampData(long millisecond, int nanoOfMillisecond): millisecond(millisecond), nanoOfMillisecond(nanoOfMillisecond)
+{
     if (nanoOfMillisecond < 0 || nanoOfMillisecond > 999999) {
         throw std::invalid_argument("nanoOfMillisecond must be between 0 and 999999.");
     }
 }
 
-long TimestampData::getMillisecond() const {
+long TimestampData::getMillisecond() const
+{
     return millisecond;
 }
 
-int TimestampData::getNanoOfMillisecond() const {
+int TimestampData::getNanoOfMillisecond() const
+{
     return nanoOfMillisecond;
 }
 
-TimestampData *TimestampData::fromEpochMillis(long milliseconds) {
+TimestampData *TimestampData::fromEpochMillis(long milliseconds)
+{
     return new TimestampData(milliseconds, 0);
 }
 
-TimestampData *TimestampData::fromEpochMillis(long milliseconds, int nanosOfMillisecond) {
+TimestampData *TimestampData::fromEpochMillis(long milliseconds, int nanosOfMillisecond)
+{
     return new TimestampData(milliseconds, nanosOfMillisecond);
 }
 
@@ -32,7 +47,8 @@ bool TimestampData::isCompact(int percision)
 }
 
 
-long TimestampData::stringToEpochMillis(std::string str) {
+long TimestampData::stringToEpochMillis(std::string str)
+{
     // Support formats like "2025-02-07 12:00:00.000" and "1989-03-04 08:00:00"
     auto start = str.find_first_not_of(' ');
     auto end = str.find_last_not_of(' ');
@@ -43,7 +59,6 @@ long TimestampData::stringToEpochMillis(std::string str) {
 
     std::istringstream ss(datetime);
     ss >> std::get_time(&t, "%Y-%m-%d %H:%M:%S");
-
     if (ss.fail()) {
         throw std::runtime_error("Failed to parse datetime string");
     }
@@ -77,6 +92,7 @@ long TimestampData::stringToEpochMillis(std::string str) {
     */
 }
 
-TimestampData* TimestampData::fromString(std::string str) {
+TimestampData* TimestampData::fromString(std::string str)
+{
     return new TimestampData(stringToEpochMillis(str), 0);
 }

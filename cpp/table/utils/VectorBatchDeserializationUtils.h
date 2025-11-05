@@ -1,3 +1,13 @@
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
 
 #pragma once
 
@@ -8,8 +18,7 @@
 #include "OmniOperatorJIT/core/src/vector/vector.h"
 #include "OmniOperatorJIT/core/src/vector/vector_helper.h"
 #include "OmniOperatorJIT/core/src/vector/nulls_buffer.h"
-#include "table/vectorbatch/VectorBatch.h"
-#include <arm_sve.h>
+#include "table/data/vectorbatch/VectorBatch.h"
 
 using namespace omniruntime::vec;
 using namespace omniruntime::type;
@@ -21,63 +30,45 @@ namespace omnistream {
 // vector<xxx>
 class VectorBatchDeserializationUtils {
 public:
-    static void getResData(void* dst, void* src, size_t cur, int res)
+    static VectorBatch* deserializeVectorBatch(uint8_t *&buffer)
     {
-        svbool_t pg = svwhilelt_b8(0, res);
-        svuint8_t s = svld1(pg, reinterpret_cast<uint8_t*>(src) + cur);
-        svst1(pg, reinterpret_cast<uint8_t*>(dst) + cur, s);
-    }
-
-    static VectorBatch* deserializeVectorBatch(uint8_t *&buffer) {
         LOG("----deserializeVectorBatch start:: " << buffer)
 
         int32_t batchSize;
-        size_t len = sizeof(batchSize);
-        size_t skip_num = svcntb();
-        size_t num = len / skip_num;
-        svbool_t pTrue = svptrue_b8();
-        size_t cur = 0;
-        for (size_t i = 0; i < num; i++)
-        {
-            svuint8_t s = svld1(pTrue, reinterpret_cast<uint8_t*>(buffer) + cur);
-            svst1(pTrue, reinterpret_cast<uint8_t*>(&batchSize) + cur, s);
-            cur += skip_num;
-        }
-        getResData(&batchSize, buffer, cur, len - cur);
-
+        memcpy_s(&batchSize, sizeof(batchSize), buffer, sizeof(batchSize));
         buffer += sizeof(batchSize);
 
         int32_t vectorCount;
-        memcpy(&vectorCount, buffer,
+        memcpy_s(&vectorCount, sizeof(vectorCount), buffer,
                  sizeof(vectorCount));
         buffer += sizeof(vectorCount);
 
         int32_t rowCnt = 0;
-        memcpy(&rowCnt, buffer, sizeof(rowCnt));
+        memcpy_s(&rowCnt, sizeof(rowCnt), buffer, sizeof(rowCnt));
         buffer += sizeof(rowCnt);
 
         VectorBatch* batch = new VectorBatch(rowCnt);
 
-        memcpy(batch->getTimestamps(), buffer,
+        memcpy_s(batch->getTimestamps(), sizeof(int64_t) * rowCnt, buffer,
                  sizeof(int64_t) * rowCnt);
         buffer += sizeof(int64_t) * rowCnt;
 
-        memcpy(batch->getRowKinds(), buffer,
+        memcpy_s(batch->getRowKinds(), sizeof(RowKind) * rowCnt, buffer,
                  sizeof(RowKind) * rowCnt);
         buffer += sizeof(RowKind) * rowCnt;
 
         for (int idx = 0; idx < vectorCount; idx++) {
             int32_t vectorSize;
-            memcpy(&vectorSize, buffer, sizeof(int32_t));
+            memcpy_s(&vectorSize, sizeof(int32_t), buffer, sizeof(int32_t));
             buffer += sizeof(int32_t);
 
             int8_t encodingNum;
-            memcpy(&encodingNum, buffer, sizeof(int8_t));
+            memcpy_s(&encodingNum, sizeof(int8_t), buffer, sizeof(int8_t));
 
             buffer += sizeof(int8_t);
 
             int8_t dataTypeNum;
-            memcpy(&dataTypeNum, buffer, sizeof(int8_t));
+            memcpy_s(&dataTypeNum, sizeof(int8_t), buffer, sizeof(int8_t));
             buffer += sizeof(int8_t);
             DataTypeId dataType = static_cast<DataTypeId>(dataTypeNum);
 
@@ -103,9 +94,8 @@ public:
         return batch;
     }
 
-    static BaseVector *deserializePrimitiveVector(int32_t vectorSize,
-                                                  uint8_t *&buffer,
-                                                  DataTypeId dataType) {
+    static BaseVector *deserializePrimitiveVector(int32_t vectorSize, uint8_t *&buffer, DataTypeId dataType)
+    {
         BaseVector *baseVector = nullptr;
 
         switch (dataType) {
@@ -155,16 +145,15 @@ public:
             }
             default:
                 throw std::runtime_error("Unsupported data type");
-                break;
         }
-
         return baseVector;
     }
 
     static Vector<LargeStringContainer<std::string_view>> *
-    deserializeCharVector(int32_t size, uint8_t *&buffer) {
+    deserializeCharVector(int32_t size, uint8_t *&buffer)
+    {
         int32_t stringBodySize;
-        memcpy(&stringBodySize, buffer, sizeof(int32_t));
+        memcpy_s(&stringBodySize, sizeof(int32_t), buffer, sizeof(int32_t));
         buffer += sizeof(int32_t);
 
         Vector<LargeStringContainer<std::string_view>> *charVector =
@@ -174,112 +163,55 @@ public:
 
         // deserialize offset data
         int32_t *offsetArr = UnsafeStringVector::GetOffsets(charVector);
-        memcpy(offsetArr, buffer,
+        memcpy_s(offsetArr, sizeof(int32_t) * (size + 1), buffer,
                  sizeof(int32_t) * (size + 1));
         buffer += sizeof(int32_t) * (size + 1);
 
         size_t copySize = offsetArr[size] * sizeof(char);
-
-        size_t len = copySize;
-        size_t skip_num = svcntb();
-        size_t num = len / skip_num;
-        svbool_t pTrue = svptrue_b8();
-        size_t cur = 0;
-        for (size_t i = 0; i < num; i++)
-        {
-            svuint8_t s = svld1(pTrue, reinterpret_cast<uint8_t*>(buffer) + cur);
-            svst1(pTrue, reinterpret_cast<uint8_t*>(UnsafeStringVector::GetValues(charVector)) + cur, s);
-            cur += skip_num;
-        }
-        getResData(UnsafeStringVector::GetValues(charVector), buffer, cur, len - cur);
+        memcpy_s(UnsafeStringVector::GetValues(charVector), copySize, buffer,
+                 copySize);
         buffer += offsetArr[size] * sizeof(char);
 
         return charVector;
     }
 
     static void deserializeNulls(BaseVector *baseVector, uint8_t *&buffer,
-                                 int32_t size) {
+                                 int32_t size)
+    {
         auto nullData = UnsafeBaseVector::GetNulls(baseVector);
         auto nullByteSize = omniruntime::vec::NullsBuffer::CalculateNbytes(size);
-
-        size_t len = nullByteSize;
-        size_t skip_num = svcntb();
-        size_t num = len / skip_num;
-        svbool_t pTrue = svptrue_b8();
-        size_t cur = 0;
-        for (size_t i = 0; i < num; i++)
-        {
-            svuint8_t s = svld1(pTrue, reinterpret_cast<uint8_t*>(buffer) + cur);
-            svst1(pTrue, reinterpret_cast<uint8_t*>(nullData) + cur, s);
-            cur += skip_num;
-        }
-        getResData(nullData, buffer, cur, len - cur);
-
+        memcpy_s(nullData, sizeof(bool) * size, buffer, sizeof(bool) * size);
         buffer += nullByteSize;
     }
 
-    static void deserializeInt64(Vector<int64_t> *vector64, uint8_t *&buffer) {
+    static void deserializeInt64(Vector<int64_t> *vector64, uint8_t *&buffer)
+    {
         int32_t size = vector64->GetSize();
 
         deserializeNulls(vector64, buffer, size);
 
         int64_t *data = UnsafeVector::GetRawValues(vector64);
-
-        size_t len = sizeof(int64_t) * size;
-        size_t skip_num = svcntb();
-        size_t num = len / skip_num;
-        svbool_t pTrue = svptrue_b8();
-        size_t cur = 0;
-        for (size_t i = 0; i < num; i++)
-        {
-            svuint8_t s = svld1(pTrue, reinterpret_cast<uint8_t*>(buffer) + cur);
-            svst1(pTrue, reinterpret_cast<uint8_t*>(data) + cur, s);
-            cur += skip_num;
-        }
-        getResData(data, buffer, cur, len - cur);
+        memcpy_s(data, sizeof(int64_t) * size, buffer, sizeof(int64_t) * size);
         buffer += sizeof(int64_t) * size;
     }
 
-    static void deserializeInt32(Vector<int32_t> *vector32, uint8_t *&buffer) {
+    static void deserializeInt32(Vector<int32_t> *vector32, uint8_t *&buffer)
+    {
         int32_t size = vector32->GetSize();
 
         deserializeNulls(vector32, buffer, size);
         int32_t *data = UnsafeVector::GetRawValues(vector32);
 
-        size_t len = sizeof(int32_t) * size;
-        size_t skip_num = svcntb();
-        size_t num = len / skip_num;
-        svbool_t pTrue = svptrue_b8();
-        size_t cur = 0;
-        for (size_t i = 0; i < num; i++)
-        {
-            svuint8_t s = svld1(pTrue, reinterpret_cast<uint8_t*>(buffer) + cur);
-            svst1(pTrue, reinterpret_cast<uint8_t*>(data) + cur, s);
-            cur += skip_num;
-        }
-        getResData(data, buffer, cur, len - cur);
-
+        memcpy_s(data, sizeof(int32_t) * size, buffer, sizeof(int32_t) * size);
         buffer += sizeof(int32_t) * size;
     }
 
-    static void deserializeInt16(Vector<int16_t> *vector16, uint8_t *&buffer) {
+    static void deserializeInt16(Vector<int16_t> *vector16, uint8_t *&buffer)
+    {
         int32_t size = vector16->GetSize();
         deserializeNulls(vector16, buffer, size);
         int16_t *data = UnsafeVector::GetRawValues(vector16);
-
-        size_t len = sizeof(int16_t) * size;
-        size_t skip_num = svcntb();
-        size_t num = len / skip_num;
-        svbool_t pTrue = svptrue_b8();
-        size_t cur = 0;
-        for (size_t i = 0; i < num; i++)
-        {
-            svuint8_t s = svld1(pTrue, reinterpret_cast<uint8_t*>(buffer) + cur);
-            svst1(pTrue, reinterpret_cast<uint8_t*>(data) + cur, s);
-            cur += skip_num;
-        }
-        getResData(data, buffer, cur, len - cur);
-
+        memcpy_s(data, sizeof(int16_t) * size, buffer, sizeof(int16_t) * size);
         buffer += sizeof(int16_t) * size;
     }
 
@@ -289,20 +221,7 @@ public:
         int32_t size = vectorDouble->GetSize();
         deserializeNulls(vectorDouble, buffer, size);
         double *data = UnsafeVector::GetRawValues(vectorDouble);
-
-        size_t len = sizeof(double) * size;
-        size_t skip_num = svcntb();
-        size_t num = len / skip_num;
-        svbool_t pTrue = svptrue_b8();
-        size_t cur = 0;
-        for (size_t i = 0; i < num; i++)
-        {
-            svuint8_t s = svld1(pTrue, reinterpret_cast<uint8_t*>(buffer) + cur);
-            svst1(pTrue, reinterpret_cast<uint8_t*>(data) + cur, s);
-            cur += skip_num;
-        }
-        getResData(data, buffer, cur, len - cur);
-
+        memcpy_s(data, sizeof(double) * size, buffer, sizeof(double) * size);
         buffer += sizeof(double) * size;
     }
 
@@ -311,20 +230,7 @@ public:
         int32_t size = vectorBool->GetSize();
         deserializeNulls(vectorBool, buffer, size);
         bool *data = UnsafeVector::GetRawValues(vectorBool);
-
-        size_t len = sizeof(bool) * size;
-        size_t skip_num = svcntb();
-        size_t num = len / skip_num;
-        svbool_t pTrue = svptrue_b8();
-        size_t cur = 0;
-        for (size_t i = 0; i < num; i++)
-        {
-            svuint8_t s = svld1(pTrue, reinterpret_cast<uint8_t*>(buffer) + cur);
-            svst1(pTrue, reinterpret_cast<uint8_t*>(data) + cur, s);
-            cur += skip_num;
-        }
-        getResData(data, buffer, cur, len - cur);
-
+        memcpy_s(data, sizeof(bool) * size, buffer, sizeof(bool) * size);
         buffer += sizeof(bool) * size;
     }
 
@@ -334,20 +240,8 @@ public:
         int32_t size = vectorDecimal128->GetSize();
         deserializeNulls(vectorDecimal128, buffer, size);
         Decimal128 *data = UnsafeVector::GetRawValues(vectorDecimal128);
-
-        size_t len = sizeof(Decimal128) * size;
-        size_t skip_num = svcntb();
-        size_t num = len / skip_num;
-        svbool_t pTrue = svptrue_b8();
-        size_t cur = 0;
-        for (size_t i = 0; i < num; i++)
-        {
-            svuint8_t s = svld1(pTrue, reinterpret_cast<uint8_t*>(buffer) + cur);
-            svst1(pTrue, reinterpret_cast<uint8_t*>(data) + cur, s);
-            cur += skip_num;
-        }
-        getResData(data, buffer, cur, len - cur);
-
+        memcpy_s(data, sizeof(Decimal128) * size, buffer,
+                 sizeof(Decimal128) * size);
         buffer += sizeof(Decimal128) * size;
     }
 
@@ -356,33 +250,21 @@ public:
                                                uint8_t *&buffer)
     {
         int32_t *values = new int32_t[rowCnt];
-
-        size_t len = sizeof(int32_t) * rowCnt;
-        size_t skip_num = svcntb();
-        size_t num = len / skip_num;
-        svbool_t pTrue = svptrue_b8();
-        size_t cur = 0;
-        for (size_t i = 0; i < num; i++)
-        {
-            svuint8_t s = svld1(pTrue, reinterpret_cast<uint8_t*>(buffer) + cur);
-            svst1(pTrue, reinterpret_cast<uint8_t*>(values) + cur, s);
-            cur += skip_num;
-        }
-        getResData(values, buffer, cur, len - cur);
-
+        memcpy_s(values, sizeof(int32_t) * rowCnt, buffer,
+                 sizeof(int32_t) * rowCnt);
         buffer += sizeof(int32_t) * rowCnt;
 
         int32_t dictOffset = 0;
-        memcpy(&dictOffset, buffer, sizeof(int32_t));
+        memcpy_s(&dictOffset, sizeof(int32_t), buffer, sizeof(int32_t));
 
         buffer += sizeof(int32_t);
 
         int32_t dictSize = 0;
-        memcpy(&dictSize, buffer, sizeof(int32_t));
+        memcpy_s(&dictSize, sizeof(int32_t), buffer, sizeof(int32_t));
         buffer += sizeof(int32_t);
 
         int32_t stringBodySize = 0;
-        memcpy(&stringBodySize, buffer, sizeof(int32_t));
+        memcpy_s(&stringBodySize, sizeof(int32_t), buffer, sizeof(int32_t));
 
         buffer += sizeof(int32_t);
         auto nullByteSize = omniruntime::vec::NullsBuffer::CalculateNbytes(rowCnt);
@@ -390,7 +272,6 @@ public:
             std::make_shared<AlignedBuffer<uint8_t>>(nullByteSize);
         memcpy(nullsBuffer->GetBuffer(), buffer,
                nullByteSize);
-
         buffer += nullByteSize;
 
         std::shared_ptr<LargeStringContainer<std::string_view>>
@@ -402,14 +283,20 @@ public:
         int32_t *offset =
             UnsafeStringContainer::GetOffsets(stringContainer.get());
 
-        memcpy(offset, buffer,
-                 sizeof(int32_t) * (dictSize + 1));
+        auto ret = memcpy_s(offset, sizeof(int32_t) * (dictSize + 1), buffer,
+            sizeof(int32_t) * (dictSize + 1));
+        if (ret != EOK) {
+            LOG("memcpy_s failed for string offset, ret = " << ret)
+        }
         buffer += sizeof(int32_t) * (dictSize + 1);
 
         // string body
-        memcpy(UnsafeStringContainer::GetValues(stringContainer.get()),
-                 buffer,
-                 offset[dictSize] * sizeof(char));
+        ret = memcpy_s(UnsafeStringContainer::GetValues(stringContainer.get()),
+                       offset[dictSize] * sizeof(char), buffer,
+                       offset[dictSize] * sizeof(char));
+        if (ret != EOK) {
+            LOG("memcpy_s failed for string offset, ret = " << ret)
+        }
         buffer += offset[dictSize] * sizeof(char);
 
         auto dictionary =
@@ -426,20 +313,7 @@ public:
     static long derializeWatermark(uint8_t*& buffer)
     {
         long timestamp;
-
-        size_t len = sizeof(long);
-        size_t skip_num = svcntb();
-        size_t num = len / skip_num;
-        svbool_t pTrue = svptrue_b8();
-        size_t cur = 0;
-        for (size_t i = 0; i < num; i++)
-        {
-            svuint8_t s = svld1(pTrue, reinterpret_cast<uint8_t*>(buffer) + cur);
-            svst1(pTrue, reinterpret_cast<uint8_t*>(&timestamp) + cur, s);
-            cur += skip_num;
-        }
-        getResData(&timestamp, buffer, cur, len - cur);
-
+        memcpy_s(&timestamp, sizeof(long), buffer, sizeof(long));
         buffer += sizeof(long);
         return timestamp;
     }

@@ -1,3 +1,7 @@
+/*
+* Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ */
+
 #ifndef FLINK_TNEL_INTERNALKEYCONTEXTIMPL_H
 #define FLINK_TNEL_INTERNALKEYCONTEXTIMPL_H
 
@@ -7,16 +11,10 @@
 #include <string>
 
 template <typename K>
-class InternalKeyContextImpl : public InternalKeyContext<K>
-{
-private:
-    KeyGroupRange *keyGroupRange;
-    int numberOfKeyGroups;
-    K currentKey;
-    int currentKeyGroupIndex;
-
+class InternalKeyContextImpl : public InternalKeyContext<K> {
 public:
-    InternalKeyContextImpl(KeyGroupRange *keyGroupRange, int numberOfKeyGroups) : keyGroupRange(keyGroupRange), numberOfKeyGroups(numberOfKeyGroups) {
+    InternalKeyContextImpl(KeyGroupRange *keyGroupRange, int numberOfKeyGroups) : keyGroupRange(keyGroupRange), numberOfKeyGroups(numberOfKeyGroups)
+    {
         if constexpr (std::is_same_v<K, Object*>) {
             currentKey = nullptr;
         } else if constexpr (std::is_same_v<K, int64_t>) {
@@ -29,7 +27,14 @@ public:
         }
     };
 
-    ~InternalKeyContextImpl() override = default;
+    ~InternalKeyContextImpl() override
+    {
+        if constexpr (std::is_same_v<K, Object*>) {
+            if (this->currentKey != nullptr) {
+                reinterpret_cast<Object*>(this->currentKey)->putRefCount();
+            }
+        }
+    }
 
     // Getters
     K getCurrentKey() override { return currentKey; };
@@ -38,18 +43,35 @@ public:
     KeyGroupRange *getKeyGroupRange() override { return keyGroupRange; };
 
     // Setters
-    void setCurrentKey(K currentKey) override {
+    void setCurrentKey(K currentKey) override
+    {
+        if constexpr (std::is_same_v<K, Object*>) {
+            if (this->currentKey != nullptr) {
+                reinterpret_cast<Object*>(this->currentKey)->putRefCount();
+            }
+        }
         this->currentKey = currentKey;
+        if constexpr (std::is_same_v<K, Object*>) {
+            reinterpret_cast<Object*>(this->currentKey)->getRefCount();
+        }
         setCurrentKeyGroupIndex(KeyGroupRangeAssignment<K>::assignToKeyGroup(this->currentKey, getNumberOfKeyGroups()));
     };
 
     void setCurrentKeyGroupIndex(int currentKeyGroupIndex) override;
+private:
+    KeyGroupRange *keyGroupRange;
+    int numberOfKeyGroups;
+    K currentKey;
+    int currentKeyGroupIndex;
 };
+
 template <typename K>
-inline void InternalKeyContextImpl<K>::setCurrentKeyGroupIndex(int currentKeyGroupIndex) {
-    if (!keyGroupRange->contains(currentKeyGroupIndex))
-    {
-        std::string err = "Key group " + std::to_string(currentKeyGroupIndex) + " is not in the range of " + std::to_string(keyGroupRange->getStartKeyGroup()) + " and " + std::to_string(keyGroupRange->getEndKeyGroup());
+inline void InternalKeyContextImpl<K>::setCurrentKeyGroupIndex(int currentKeyGroupIndex)
+{
+    if (!keyGroupRange->contains(currentKeyGroupIndex)) {
+        std::string err = "Key group " + std::to_string(currentKeyGroupIndex) + " is not in the range of " +
+                          std::to_string(keyGroupRange->getStartKeyGroup()) + " and " + std::to_string(
+                              keyGroupRange->getEndKeyGroup());
         THROW_LOGIC_EXCEPTION(err);
     }
     this->currentKeyGroupIndex = currentKeyGroupIndex;

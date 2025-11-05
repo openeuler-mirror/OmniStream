@@ -1,17 +1,24 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 #ifndef FLINK_TNEL_FASTTOP1FUNCTION_H
 #define FLINK_TNEL_FASTTOP1FUNCTION_H
 
 #include "AbstractTopNFunction.h"
-#include "vectorbatch/VectorBatch.h"
+#include "table/data/vectorbatch/VectorBatch.h"
 #include "runtime/state/heap/HeapValueState.h"
 #include "rank_range.h"
 #include "Top1Comparator.h"
 #include "types/logical/RowType.h"
 #include "typeutils/InternalTypeInfo.h"
-#include "operators/StreamingRuntimeContext.h"
+#include "streaming/api/operators/StreamingRuntimeContext.h"
 #include "typeutils/RowDataSerializer.h"
 #include "core/typeinfo/TypeInfoFactory.h"
 #include "SortedKVCache.h"
@@ -40,7 +47,7 @@ public:
     };
     // Initialization method; call before processing batches.
     void open(const Configuration& context) override;
-
+    void freeKeyInCache(KeyType mutableKey);
 private:
     ValueState<RowData*> *stateStore = nullptr;
     Top1Comparator<KeyType> *comparator = nullptr;
@@ -51,9 +58,9 @@ private:
 template<typename KeyType>
 void FastTop1Function<KeyType>::open(const Configuration& context)
 {
-    auto rankRowTypeInfo = InternalTypeInfo::OfRowType(TypeInfoFactory::createRowType(this->inputRowType));
+    auto rankRowTypeInfo = InternalTypeInfo::ofRowType(TypeInfoFactory::createRowType(this->inputRowType));
     std::string name = "rank";
-    ValueStateDescriptor* recordStateDesc = new ValueStateDescriptor(name, rankRowTypeInfo);
+    ValueStateDescriptor<RowData*>* recordStateDesc = new ValueStateDescriptor<RowData*>(name, rankRowTypeInfo);
     recordStateDesc->SetStateSerializer(rankRowTypeInfo->getTypeSerializer());
     this->stateStore = static_cast<StreamingRuntimeContext<KeyType> *>(this->getRuntimeContext())->template getState<RowData*>(recordStateDesc);
     comparator = new Top1Comparator<KeyType>(this->partitionKeyTypeIds, this->partitionKeyIndices,
@@ -69,7 +76,7 @@ void FastTop1Function<KeyType>::processBatch(omnistream::VectorBatch* inputBatch
     }
     // Find top-1 row IDs by partition using the helper function.
     std::unordered_map<KeyType, int> top1RowIds = comparator->findTop1RowIdsByPartition(inputBatch);
-
+    std::set<RowData*> rowToDel;
     // Process each partition key's top row.
     for (const auto& [partitionKey, rowId] : top1RowIds) {
         KeyType mutableKey = partitionKey;
@@ -95,17 +102,26 @@ void FastTop1Function<KeyType>::processBatch(omnistream::VectorBatch* inputBatch
                 this->collectUpdateAfter(inputRow, 1, timestamp);
                 stateStore->update(inputRow, false);
                 kvCache.put(mutableKey, inputRow);
+            } else {
+                freeKeyInCache(mutableKey);
             }
         }
     }
-
-    // }
-
+    omniruntime::vec::VectorHelper::FreeVecBatch(inputBatch);
     omnistream::VectorBatch *outputBatch = this->createOutputBatch();
-    delete inputBatch;
     this->collectOutputBatch(out, outputBatch);
     // Explicitly clear the `top1RowIds` map to release memory.
     kvCache.clearOldValues();
+}
+
+template<typename KeyType>
+void FastTop1Function<KeyType>::freeKeyInCache(KeyType key)
+{
+    if constexpr (std::is_same<KeyType, RowData*>::value) {
+        if (kvCache.hasKey(key)) {
+            delete key;
+        }
+    }
 }
 
 template<typename KeyType>

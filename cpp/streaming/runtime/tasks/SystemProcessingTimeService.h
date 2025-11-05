@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #ifndef FLINK_TNEL_SYSTEMPROCESSINGTIMESERVICE_H
@@ -12,12 +19,14 @@
 #include "ScheduledTaskExecutor.h"
 #include "streaming/runtime/tasks/ScheduledTaskExecutor.h"
 
-class SystemProcessingTimeService : public TimerService {
+class SystemProcessingTimeService : public omnistream::runtime::TimerService {
 public:
     SystemProcessingTimeService() : status(0), timeService(1)
     {
         quiesceCompletedFuture = std::make_shared<omnistream::CompletableFuture>();
     }
+
+    ~SystemProcessingTimeService() = default;
 
     int64_t getCurrentProcessingTime() override
     {
@@ -27,15 +36,22 @@ public:
 
     bool isTerminated() override { return status.load() == STATUS_ALIVE; };
     void shutdownService() override { status.store(STATUS_SHUTDOWN); };
-    void registerTimer(int64_t timestamp, ProcessingTimeCallback *target) override
+
+    bool shutdownServiceUninterruptible(long timeoutMs) override
+    {
+        // todo: need dev
+        return false;
+    }
+
+    ScheduledFutureTask* registerTimer(int64_t timestamp, ProcessingTimeCallback *target) override
     {
         if (status.load() != STATUS_ALIVE) {
-            return;
+            return nullptr;
         }
 
         int64_t delay = ProcessingTimeServiceUtil::getProcessingTimeDelay(timestamp, getCurrentProcessingTime());
         omnistream::Runnable* task = wrapOnTimerCallback(target, timestamp, 0);
-        timeService.Schedule(task, delay);
+        return timeService.Schedule(task, delay);
     }
 
     ScheduledFutureTask* scheduleWithFixedDelay(ProcessingTimeCallback* callback,

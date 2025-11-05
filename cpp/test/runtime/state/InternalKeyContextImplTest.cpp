@@ -25,7 +25,7 @@ TEST(InternalKeyContextImplTest, GetKeyGroupRange)
 {
     KeyGroupRange *range = new KeyGroupRange(0, 10);
     InternalKeyContextImpl<int> *context = new InternalKeyContextImpl<int>(range, 10);
-    EXPECT_EQ(context->getKeyGroupRange()->equals(*range), true);
+    EXPECT_EQ(*context->getKeyGroupRange(), *range);
     delete range;
     delete context;
 }

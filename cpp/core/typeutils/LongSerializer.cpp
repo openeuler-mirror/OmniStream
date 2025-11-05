@@ -1,5 +1,5 @@
 /*
- * @Copyright: Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * @Copyright: Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
  * @Description: Long Serializer for DataStream
  */
 #include "LongSerializer.h"
@@ -31,13 +31,10 @@ void LongSerializer::serialize(Object *buffer, DataOutputSerializer &target)
     LOG("LongSerializer::serialize change end +++")
 }
 
-Object* LongSerializer::GetBuffer()
+LongSerializer::LongSerializer()
 {
-    thread_local Long buffer;
-    return &buffer;
+    reuseBuffer = new Long();
 }
-
-LongSerializer::LongSerializer() {}
 
 LongSerializer* LongSerializer::INSTANCE = new LongSerializer();
 LongSerializer::LongSerializerCleaner LongSerializer::cleaner;
@@ -63,13 +60,20 @@ void IntSerializer::serialize(Object *buffer, DataOutputSerializer& target)
     NOT_IMPL_EXCEPTION;
 }
 
-Object* IntSerializer::GetBuffer()
+IntSerializer::IntSerializer()
 {
-    return nullptr;
+    reuseBuffer = nullptr;
 }
-
-IntSerializer::IntSerializer() {};
 
 IntSerializer* IntSerializer::INSTANCE = new IntSerializer();
 
 IntSerializer::IntSerializerCleaner IntSerializer::cleaner;
+
+Object* LongSerializer::GetBuffer()
+{
+    if (bufferReusable) {
+        reuseBuffer->getRefCount();
+        return reuseBuffer;
+    }
+    return new Long();
+}

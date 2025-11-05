@@ -1,14 +1,21 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 #ifndef FLINK_TNEL_KEYED_PROCESS_OPERATOR_H
 #define FLINK_TNEL_KEYED_PROCESS_OPERATOR_H
 
 #include "ChainingStrategy.h"
-#include "core/operators/AbstractUdfStreamOperator.h"
-#include "core/operators/OneInputStreamOperator.h"
-#include "core/operators/TimestampedCollector.h"
-#include "core/streamrecord/StreamRecord.h"
+#include "streaming/api/operators/AbstractUdfStreamOperator.h"
+#include "streaming/api/operators/OneInputStreamOperator.h"
+#include "TimestampedCollector.h"
+#include "streaming/runtime/streamrecord/StreamRecord.h"
 #include "runtime/state/VoidNamespace.h"
 #include "streaming/api/functions/KeyedProcessFunction.h"
 #include "table/runtime/operators/aggregate/GroupAggFunction.h"
@@ -64,7 +71,7 @@ public:
         }
         context->element = element;
         // In sql API, all input StreamRecord for operator is RowData*
-        this->userFunction->processElement(*static_cast<RowData *>(element->getValue()), *context, *collector); // GroupAgg
+        this->userFunction->processElement(static_cast<IN>(element->getValue()), context, collector); // GroupAgg
         context->element = nullptr;
     }
 
@@ -125,15 +132,21 @@ public:
         return 0;
     }
 
+    omnistream::streaming::TimerService *timerService() override
+    {
+        return localTimerService.get();
+    }
+
     K getCurrentKey() const override {
         return owner_->getCurrentKey();
     }
-    void setCurrentKey(K& key) override {
+    void setCurrentKey(K key) override {
         owner_->setCurrentKey(key);
     }
     StreamRecord* element = nullptr;
 
 private:
+    std::shared_ptr<omnistream::streaming::TimerService> localTimerService;
     KeyedProcessOperator<K, IN, OUT>* owner_;
 };
 

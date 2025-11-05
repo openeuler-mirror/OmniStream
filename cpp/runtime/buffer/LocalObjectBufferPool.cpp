@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #include "LocalObjectBufferPool.h"
@@ -10,52 +17,42 @@
 #include <climits>
 
 #include "NetworkObjectBufferPool.h"
+#include "ObjectBufferListener.h"
 #include "VectorBatchBuffer.h"
 
-namespace omnistream
-{
-
+namespace omnistream {
     LocalObjectBufferPool::LocalObjectBufferPool(std::shared_ptr<NetworkObjectBufferPool> networkObjBufferPool,
                                                  int numberOfRequiredObjectSegments,
                                                  int maxNumberOfMemorySegments,
                                                  int numberOfSubpartitions,
                                                  int maxBuffersPerChannel)
-        : networkObjBufferPool_(networkObjBufferPool),
-          numberOfRequiredObjectSegments_(numberOfRequiredObjectSegments),
+        : LocalBufferPool(numberOfSubpartitions, maxBuffersPerChannel, numberOfRequiredObjectSegments, numberOfRequiredObjectSegments, maxNumberOfMemorySegments, std::make_shared<AvailabilityHelper>()),
+          networkObjBufferPool_(networkObjBufferPool),
           maxNumberOfObjectSegments_(maxNumberOfMemorySegments),
-          currentPoolSize_(numberOfRequiredObjectSegments),
           numberOfRequestedObjectSegments_(0),
-          maxBuffersPerChannel_(maxBuffersPerChannel),
-          subpartitionBuffersCount_(numberOfSubpartitions, 0),
           subpartitionBufferRecyclers_(numberOfSubpartitions),
-          unavailableSubpartitionsCount_(0),
-          isDestroyed_(false),
-          availabilityHelper_(std::make_shared<AvailabilityHelper>())
+          isDestroyed_(false)
     {
         LOG_PART("Beginning of constructor")
-        LOG_PART(" numberOfRequiredObjectSegments_"  << numberOfRequiredObjectSegments_
+        LOG_PART(" numberOfRequiredObjectSegments_"  << numberOfRequiredSegments_
             << " maxNumberOfMemorySegments_"  << maxNumberOfObjectSegments_
             <<  "currentPoolSize_"  << currentPoolSize_
             << " maxBuffersPerChannel_"  << maxBuffersPerChannel_)
 
-        if (numberOfRequiredObjectSegments_ <= 0)
-        {
+        if (numberOfRequiredSegments_ <= 0) {
             throw std::invalid_argument(
-                "Required number of memory segments (" + std::to_string(numberOfRequiredObjectSegments_) +
+                "Required number of memory segments (" + std::to_string(numberOfRequiredSegments_) +
                 ") should be larger than 0.");
         }
 
-        if (maxNumberOfMemorySegments < numberOfRequiredObjectSegments_)
-        {
+        if (maxNumberOfMemorySegments < numberOfRequiredSegments_) {
             throw std::invalid_argument(
                 "Maximum number of memory segments (" + std::to_string(maxNumberOfMemorySegments) +
-                ") should not be smaller than minimum (" + std::to_string(numberOfRequiredObjectSegments_) + ").");
+                ") should not be smaller than minimum (" + std::to_string(numberOfRequiredSegments_) + ").");
         }
 
-        if (numberOfSubpartitions > 0)
-        {
-            if (maxBuffersPerChannel <= 0)
-            {
+        if (numberOfSubpartitions > 0) {
+            if (maxBuffersPerChannel <= 0) {
                 throw std::invalid_argument(
                     "Maximum number of buffers for each channel (" + std::to_string(maxBuffersPerChannel) +
                     ") should be larger than 0.");
@@ -65,8 +62,7 @@ namespace omnistream
         {
             std::lock_guard<std::recursive_mutex> lock(recursiveMutex);
             LOG("constructor get lock")
-            if (checkAvailability())
-            {
+            if (checkAvailability()) {
                 availabilityHelper_->resetAvailable();
             }
             checkConsistentAvailability();
@@ -77,32 +73,28 @@ namespace omnistream
     void LocalObjectBufferPool::postConstruct()
     {
         LOG("LocalObjectBufferPool post constructor end")
-        for (size_t i = 0; i < subpartitionBufferRecyclers_.size(); i++)
-        {
+        for (size_t i = 0; i < subpartitionBufferRecyclers_.size(); i++) {
             subpartitionBufferRecyclers_[i] = std::make_shared<SubpartitionBufferRecycler>(i,   shared_from_this());
         }
     }
 
     void LocalObjectBufferPool::reserveSegments(int numberOfSegmentsToReserve)
     {
-        if (numberOfSegmentsToReserve > numberOfRequiredObjectSegments_)
-        {
+        if (numberOfSegmentsToReserve > numberOfRequiredSegments_) {
             throw std::invalid_argument("Can not reserve more segments than number of required segments.");
         }
 
         std::shared_ptr<CompletableFuture> toNotify = nullptr;
         {
             std::lock_guard<std::recursive_mutex> lock(recursiveMutex);
-            if (isDestroyed_)
-            {
+            if (isDestroyed_) {
                 throw std::runtime_error("Buffer pool has been destroyed.");
             }
 
-            if (numberOfRequestedObjectSegments_ < numberOfSegmentsToReserve)
-            {
+            if (numberOfRequestedObjectSegments_ < numberOfSegmentsToReserve) {
                 auto segments = networkObjBufferPool_->requestPooledObjectSegmentsBlocking(
                     numberOfSegmentsToReserve - numberOfRequestedObjectSegments_);
-                availableObjectSegments_.insert(availableObjectSegments_.end(), segments.begin(), segments.end());
+                availableSegments.insert(availableSegments.end(), segments.begin(), segments.end());
                 toNotify = availabilityHelper_->getUnavailableToResetAvailable();
             }
         }
@@ -115,20 +107,16 @@ namespace omnistream
         return isDestroyed_;
     }
 
-    int LocalObjectBufferPool::getNumberOfRequiredObjectSegments() const
-    {
-        return numberOfRequiredObjectSegments_;
-    }
 
-    int LocalObjectBufferPool::getMaxNumberOfObjectSegments() const
+    int LocalObjectBufferPool::getMaxNumberOfSegments() const
     {
         return maxNumberOfObjectSegments_;
     }
 
-    int LocalObjectBufferPool::getNumberOfAvailableObjectSegments()
+    int LocalObjectBufferPool::getNumberOfAvailableSegments()
     {
         std::lock_guard<std::recursive_mutex> lock(recursiveMutex);
-        return static_cast<int>(availableObjectSegments_.size());
+        return static_cast<int>(availableSegments.size());
     }
 
     int LocalObjectBufferPool::getNumBuffers()
@@ -139,12 +127,37 @@ namespace omnistream
 
     int LocalObjectBufferPool::bestEffortGetNumOfUsedBuffers() const
     {
-        int best = numberOfRequestedObjectSegments_ - availableObjectSegments_.size();
+        int best = numberOfRequestedObjectSegments_ - static_cast<int>(availableSegments.size());
         return best > 0 ? best : 0;
     }
 
+    std::shared_ptr<Buffer> LocalObjectBufferPool::requestBuffer()
+    {
+        return requestObjectBuffer();
+    }
 
-    std::shared_ptr<ObjectBuffer> LocalObjectBufferPool::requestBuffer()
+    std::shared_ptr<BufferBuilder> LocalObjectBufferPool::requestBufferBuilder()
+    {
+        return requestObjectBufferBuilder();
+    }
+
+    std::shared_ptr<BufferBuilder> LocalObjectBufferPool::requestBufferBuilder(int targetChannel)
+    {
+        return requestObjectBufferBuilder(targetChannel);
+    }
+
+    std::shared_ptr<BufferBuilder> LocalObjectBufferPool::requestBufferBuilderBlocking()
+    {
+        return requestObjectBufferBuilderBlocking();
+    }
+
+    std::shared_ptr<BufferBuilder> LocalObjectBufferPool::requestBufferBuilderBlocking(int targetChannel)
+    {
+        return requestObjectBufferBuilderBlocking(targetChannel);
+    }
+
+
+    std::shared_ptr<ObjectBuffer> LocalObjectBufferPool::requestObjectBuffer()
     {
         LOG(">>>")
         return toObjectBuffer(requestObjectSegment());
@@ -183,8 +196,7 @@ namespace omnistream
     std::shared_ptr<ObjectBuffer> LocalObjectBufferPool::toObjectBuffer(std::shared_ptr<ObjectSegment> objectSegment)
     {
         LOG(">>>")
-        if (!objectSegment)
-        {
+        if (!objectSegment) {
             return nullptr;
         }
         return std::make_shared<VectorBatchBuffer>(objectSegment, shared_from_this());
@@ -194,18 +206,14 @@ namespace omnistream
         std::shared_ptr<ObjectSegment> memorySegment, int targetChannel)
     {
         LOG("LocalObjectBufferPool::toObjectBufferBuilder running")
-        if (!memorySegment)
-        {
+        if (!memorySegment) {
             return nullptr;
         }
 
-        if (targetChannel == UNKNOWN_CHANNEL)
-        {
+        if (targetChannel == UNKNOWN_CHANNEL) {
             LOG("ObjectBufferBuilder with subpartitionBufferRecyclers_ with this")
             return std::make_shared<ObjectBufferBuilder>(memorySegment, shared_from_this());
-        }
-        else
-        {
+        } else {
             LOG("ObjectBufferBuilder with subpartitionBufferRecyclers_")
             LOG("subpartitionBufferRecyclers_[targetChannel] " << std::to_string(targetChannel)  << "  " \
                 << ((subpartitionBufferRecyclers_[targetChannel]) ? std::to_string(reinterpret_cast<long>(subpartitionBufferRecyclers_[targetChannel].get())) : "nullptr")
@@ -215,26 +223,69 @@ namespace omnistream
         }
     }
 
+
+    std::shared_ptr<Segment> LocalObjectBufferPool::requestSegmentBlocking(int targetChannel)
+    {
+        return requestObjectSegmentBlocking(targetChannel);
+    }
+
+
     std::shared_ptr<ObjectSegment> LocalObjectBufferPool::requestObjectSegmentBlocking(int targetChannel)
     {
         std::shared_ptr<ObjectSegment> segment;
         LOG("requestObjectSegment loop will running")
-        LOG_PART(" Back Pressure possible happens, current segment in pool is " << availableObjectSegments_.size())
-        while (!(segment = requestObjectSegment(targetChannel)))
-        {
-            try
-            {
-            }
-            catch (const std::exception& e)
-            {
-                std::cerr << "The available future is completed exceptionally." << std::endl;
-                throw;
-            }
-            LOG_PART(" Back Pressure happens, current segment in pool is " << availableObjectSegments_.size() << "for channel "<< targetChannel)
+        LOG_PART(" Back Pressure possible happens, current segment in pool is " << availableSegments.size())
+        while (!(segment = requestObjectSegment(targetChannel))) {
+            LOG_PART(
+                " Back Pressure happens, current segment in pool is " << availableSegments.size() <<
+                "for channel "<< targetChannel)
             // workaround sleep for a while
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
         return segment;
+    }
+
+
+    bool LocalObjectBufferPool::requestSegmentFromGlobal()
+    {
+        std::lock_guard<std::recursive_mutex> lock(recursiveMutex);
+        LOG("requestObjectSegmentFromGlobal get lock")
+        if (isRequestedSizeReached()) {
+            return false;
+        }
+
+        if (isDestroyed_) {
+            throw std::runtime_error(
+                "Destroyed buffer pools should never acquire segments - this will lead to buffer leaks.");
+        }
+
+        std::shared_ptr<ObjectSegment> segment = networkObjBufferPool_->requestPooledObjectSegment();
+        if (segment != nullptr) {
+            availableSegments.push_back(segment);
+            numberOfRequestedObjectSegments_++;
+
+            LOG_PART("requestPooledObjectSegment from networkObjBufferPool_ , numberOfRequestedObjectSegments_  " << numberOfRequestedObjectSegments_
+                << " currentPoolSize_ :" << currentPoolSize_)
+            return true;
+        }
+        return false;
+    }
+
+
+    std::shared_ptr<Segment> LocalObjectBufferPool::requestSegment()
+    {
+        return requestObjectSegment(UNKNOWN_CHANNEL);
+    }
+
+
+    std::shared_ptr<Segment> LocalObjectBufferPool::requestSegment(int targetChannel)
+    {
+        return requestObjectSegment(targetChannel);
+    }
+
+    std::shared_ptr<Segment> LocalObjectBufferPool::requestSegmentBlocking()
+    {
+        return requestSegmentBlocking(UNKNOWN_CHANNEL);
     }
 
     std::shared_ptr<ObjectSegment> LocalObjectBufferPool::requestObjectSegment(int targetChannel)
@@ -244,42 +295,34 @@ namespace omnistream
         {
             std::lock_guard<std::recursive_mutex> lock(recursiveMutex);
             LOG("get lock std::this_thread::get_id()" << std::this_thread::get_id())
-            if (isDestroyed_)
-            {
+            if (isDestroyed_) {
                 throw std::runtime_error("Buffer pool is destroyed.");
             }
 
-            if (targetChannel != UNKNOWN_CHANNEL && subpartitionBuffersCount_[targetChannel] >= maxBuffersPerChannel_)
-            {
+            if (targetChannel != UNKNOWN_CHANNEL && subpartitionBuffersCount_[targetChannel] >= maxBuffersPerChannel_) {
                 return nullptr;
             }
 
-            if (!availableObjectSegments_.empty())
-            {
+            if (!availableSegments.empty()) {
                 LOG("availableObjectSegments is not empty")
-                segment = availableObjectSegments_.front();
+                segment = std::dynamic_pointer_cast<ObjectSegment>(availableSegments.front());
                 LOG("availableObjectSegments is segment.get()" << segment.get() << "segment " << segment)
-                availableObjectSegments_.pop_front();
-                LOG("availableObjectSegments_.size()" << availableObjectSegments_.size())
+                availableSegments.pop_front();
+                LOG("availableObjectSegments_.size()" << availableSegments.size())
                 LOG_PART("requestObjectSegment for targetChannel " << targetChannel
-                      << "availableObjectSegments_.size()" << availableObjectSegments_.size())
-            }
-            else
-            {
+                      << "availableObjectSegments_.size()" << availableSegments.size())
+            } else {
                 LOG("availableObjectSegments is empty")
                 return nullptr;
             }
 
-            if (targetChannel != UNKNOWN_CHANNEL)
-            {
-                if (++subpartitionBuffersCount_[targetChannel] == maxBuffersPerChannel_)
-                {
+            if (targetChannel != UNKNOWN_CHANNEL) {
+                if (++subpartitionBuffersCount_[targetChannel] == maxBuffersPerChannel_) {
                     unavailableSubpartitionsCount_++;
                 }
             }
 
-            if (!checkAvailability())
-            {
+            if (!checkAvailability()) {
                 availabilityHelper_->resetUnavailable();
             }
 
@@ -295,190 +338,27 @@ namespace omnistream
         return requestObjectSegment(-1);
     }
 
-    bool LocalObjectBufferPool::requestObjectSegmentFromGlobal()
-    {
-        std::lock_guard<std::recursive_mutex> lock(recursiveMutex);
-        LOG("requestObjectSegmentFromGlobal get lock")
-        if (isRequestedSizeReached())
-        {
-            return false;
-        }
-
-        if (isDestroyed_)
-        {
-            throw std::runtime_error(
-                "Destroyed buffer pools should never acquire segments - this will lead to buffer leaks.");
-        }
-
-        std::shared_ptr<ObjectSegment> segment = networkObjBufferPool_->requestPooledObjectSegment();
-        if (segment != nullptr)
-        {
-            availableObjectSegments_.push_back(segment);
-            numberOfRequestedObjectSegments_++;
-
-            LOG_PART("requestPooledObjectSegment from networkObjBufferPool_ , numberOfRequestedObjectSegments_  " << numberOfRequestedObjectSegments_
-                << " currentPoolSize_ :" << currentPoolSize_)
-            return true;
-        }
-        return false;
-    }
-
-    void LocalObjectBufferPool::requestObjectSegmentFromGlobalWhenAvailable()
-    {
-        std::lock_guard<std::recursive_mutex> lock(recursiveMutex);
-        LOG("requestObjectSegmentFromGlobalWhenAvailable get lock")
-        if (requestingWhenAvailable_)
-        {
-            return;
-        }
-        requestingWhenAvailable_ = true;
-    }
-
-    void LocalObjectBufferPool::onGlobalPoolAvailable()
-    {
-        std::shared_ptr<CompletableFuture> toNotify = nullptr;
-        {
-            std::lock_guard<std::recursive_mutex> lock(recursiveMutex);
-            requestingWhenAvailable_ = false;
-            if (isDestroyed_ || availabilityHelper_->isApproximatelyAvailable())
-            {
-                return;
-            }
-
-            if (checkAvailability())
-            {
-                toNotify = availabilityHelper_->getUnavailableToResetAvailable();
-            }
-        }
-        mayNotifyAvailable(toNotify);
-    }
-
-    bool LocalObjectBufferPool::shouldBeAvailable()
-    {
-        std::lock_guard<std::recursive_mutex> lock(recursiveMutex);
-        LOG("shouldBeAvailable get lock")
-        return !availableObjectSegments_.empty() && unavailableSubpartitionsCount_ == 0;
-    }
-
-    bool LocalObjectBufferPool::checkAvailability()
-    {
-        std::lock_guard<std::recursive_mutex> lock(recursiveMutex);
-        LOG("checkAvailability get lock")
-        if (!availableObjectSegments_.empty())
-        {
-            return unavailableSubpartitionsCount_ == 0;
-        }
-        if (!isRequestedSizeReached())
-        {
-            if (requestObjectSegmentFromGlobal())
-            {
-                return unavailableSubpartitionsCount_ == 0;
-            }
-            else
-            {
-                requestObjectSegmentFromGlobalWhenAvailable();
-                return shouldBeAvailable();
-            }
-        }
-        return false;
-    }
-
-    void LocalObjectBufferPool::checkConsistentAvailability()
-    {
-        std::lock_guard<std::recursive_mutex> lock(recursiveMutex);
-        LOG("checkConsistentAvailability get lock")
-        bool shouldBeAvailableValue = shouldBeAvailable();
-        if (availabilityHelper_->isApproximatelyAvailable() != shouldBeAvailableValue)
-        {
-            throw std::runtime_error("Inconsistent availability: expected " + std::to_string(shouldBeAvailableValue));
-        }
-    }
-
-    void LocalObjectBufferPool::recycle(std::shared_ptr<ObjectSegment> segment)
-    {
-        recycle(segment, UNKNOWN_CHANNEL);
-    }
-
-    void LocalObjectBufferPool::recycle(std::shared_ptr<ObjectSegment> segment, int channel)
-    {
-        LOG_TRACE("recycle an object segment............. " << segment.get() << " for channel " << channel);
-        std::shared_ptr<ObjectBufferListener> listener;
-        std::shared_ptr<CompletableFuture> toNotify = nullptr;
-        do
-        {
-            std::lock_guard<std::recursive_mutex> lock(recursiveMutex);
-            if (channel != -1)
-            {
-                if (subpartitionBuffersCount_[channel]-- == maxBuffersPerChannel_)
-                {
-                    unavailableSubpartitionsCount_--;
-                }
-            }
-
-            if (isDestroyed_ || hasExcessBuffers())
-            {
-                returnObjectSegment(segment);
-                return;
-            }
-            else
-            {
-                if (registeredListeners_.empty())
-                {
-                    LOG_TRACE(" Listeners is empty for segment to recycle " << segment.get());
-                    availableObjectSegments_.push_back(segment);
-                    if (!availabilityHelper_->isApproximatelyAvailable() && unavailableSubpartitionsCount_ == 0)
-                    {
-                        toNotify = availabilityHelper_->getUnavailableToResetAvailable();
-                    }
-                    break;
-                } else
-                {
-                    // while not sure the detail machnism of listener, if it is not empty, ther must be some other consumer using
-                    // this buffer/segment  so that we can not recycle.
-                    listener = registeredListeners_.front();
-                    registeredListeners_.pop_front();
-                }
-            }
-
-            checkConsistentAvailability();
-        }
-        while (!fireBufferAvailableNotification(listener, segment));
-
-        mayNotifyAvailable(toNotify);
-    }
-
-    bool LocalObjectBufferPool::fireBufferAvailableNotification(std::shared_ptr<ObjectBufferListener> listener,
-                                                                std::shared_ptr<ObjectSegment> segment)
-    {
-        return listener->notifyBufferAvailable(std::make_shared<VectorBatchBuffer>(segment, shared_from_this()));
-    }
-
     void LocalObjectBufferPool::lazyDestroy()
     {
         std::shared_ptr<CompletableFuture> toNotify = nullptr;
         {
             std::lock_guard<std::recursive_mutex> lock(recursiveMutex);
-            if (!isDestroyed_)
-            {
+            if (!isDestroyed_) {
                 std::shared_ptr<ObjectSegment> segment;
-                while (!availableObjectSegments_.empty())
-                {
+                while (!availableObjectSegments_.empty()) {
                     segment = availableObjectSegments_.front();
                     availableObjectSegments_.pop_front();
                     returnObjectSegment(segment);
                 }
 
                 std::shared_ptr<ObjectBufferListener> listener;
-                while (!registeredListeners_.empty())
-                {
-                    listener = registeredListeners_.front();
+                while (!registeredListeners_.empty()) {
+                    listener = std::dynamic_pointer_cast<ObjectBufferListener>(registeredListeners_.front());
                     registeredListeners_.pop_front();
                     listener->notifyBufferDestroyed();
                 }
-
-                if (!isAvailable())
-                {
-                    toNotify = availabilityHelper_->getAvailableFuture();
+                if (!isAvailable()) {
+                    toNotify = availabilityHelper_->GetAvailableFuture();
                 }
 
                 isDestroyed_ = true;
@@ -490,66 +370,17 @@ namespace omnistream
         networkObjBufferPool_->destroyBufferPool(shared_from_this());
     }
 
-    bool LocalObjectBufferPool::addBufferListener(std::shared_ptr<ObjectBufferListener> listener)
+    std::shared_ptr<CompletableFuture> LocalObjectBufferPool::GetAvailableFuture()
     {
-        std::lock_guard<std::recursive_mutex> lock(recursiveMutex);
-        if (!availableObjectSegments_.empty() || isDestroyed_)
-        {
-            return false;
-        }
-
-        registeredListeners_.push_back(listener);
-        return true;
-    }
-
-
-    void LocalObjectBufferPool::setNumBuffers(int numBuffers)
-    {
-        std::shared_ptr<CompletableFuture> toNotify;
-        {
-            std::lock_guard<std::recursive_mutex> lock(recursiveMutex);
-            if (numBuffers < numberOfRequiredObjectSegments_)
-            {
-                throw std::invalid_argument(
-                    "Buffer pool needs at least " + std::to_string(numberOfRequiredObjectSegments_) +
-                    " buffers, but tried to set to " + std::to_string(numBuffers));
-            }
-
-            currentPoolSize_ = std::min(numBuffers, maxNumberOfObjectSegments_);
-
-            returnExcessObjectSegments();
-
-            if (isDestroyed_)
-            {
-                return;
-            }
-
-            if (checkAvailability())
-            {
-                toNotify = availabilityHelper_->getUnavailableToResetAvailable();
-            }
-            else
-            {
-                availabilityHelper_->resetUnavailable();
-            }
-
-            checkConsistentAvailability();
-        }
-
-        mayNotifyAvailable(toNotify);
-    }
-
-    std::shared_ptr<CompletableFuture> LocalObjectBufferPool::getAvailableFuture()
-    {
-        return availabilityHelper_->getAvailableFuture();
+        return availabilityHelper_->GetAvailableFuture();
     }
 
     std::string LocalObjectBufferPool::toString() const
     {
         return "[size: " + std::to_string(currentPoolSize_) +
-            ", required: " + std::to_string(numberOfRequiredObjectSegments_) +
+            ", required: " + std::to_string(numberOfRequiredSegments_) +
             ", requested: " + std::to_string(numberOfRequestedObjectSegments_) +
-            ", available: " + std::to_string(availableObjectSegments_.size()) +
+            ", available: " + std::to_string(availableSegments.size()) +
             ", max: " + std::to_string(maxNumberOfObjectSegments_) +
             ", listeners: " + std::to_string(registeredListeners_.size()) +
             ", subpartitions: " + std::to_string(subpartitionBuffersCount_.size()) +
@@ -557,32 +388,40 @@ namespace omnistream
             ", destroyed: " + (isDestroyed_ ? "true" : "false") + "]";
     }
 
-    void LocalObjectBufferPool::mayNotifyAvailable(std::shared_ptr<CompletableFuture> toNotify)
+    // void LocalObjectBufferPool::mayNotifyAvailable(std::shared_ptr<CompletableFuture> toNotify)
+    // {
+    //     {
+    //     }
+    // }
+
+    void LocalObjectBufferPool::returnSegment(std::shared_ptr<Segment> segment)
     {
-        if (toNotify)
-        {
-        }
+        auto toRecycledSegment = std::dynamic_pointer_cast<ObjectSegment>(segment);
+        assert(toRecycledSegment && "Expected segment to be of type ObjectSegment");
+        returnObjectSegment(toRecycledSegment);
     }
 
     void LocalObjectBufferPool::returnObjectSegment(std::shared_ptr<ObjectSegment> segment)
     {
         std::lock_guard<std::recursive_mutex> lock(recursiveMutex);
         numberOfRequestedObjectSegments_--;
-        networkObjBufferPool_->recyclePooledObjectSegment(segment);
+    }
+
+    void LocalObjectBufferPool::returnExcessSegments()
+    {
+        returnExcessObjectSegments();
     }
 
     void LocalObjectBufferPool::returnExcessObjectSegments()
     {
         std::lock_guard<std::recursive_mutex> lock(recursiveMutex);
-        while (hasExcessBuffers())
-        {
-            if (availableObjectSegments_.empty())
-            {
+        while (hasExcessBuffers()) {
+            if (availableSegments.empty()) {
                 return;
             }
 
-            std::shared_ptr<ObjectSegment> segment = availableObjectSegments_.front();
-            availableObjectSegments_.pop_front();
+            std::shared_ptr<ObjectSegment> segment = std::dynamic_pointer_cast<ObjectSegment>(availableSegments.front());
+            availableSegments.pop_front();
             returnObjectSegment(segment);
         }
     }
@@ -598,18 +437,14 @@ namespace omnistream
     }
 
     LocalObjectBufferPool::SubpartitionBufferRecycler::SubpartitionBufferRecycler(
-        int channel, std::shared_ptr<LocalObjectBufferPool> bufferPool)
+        int channel, std::shared_ptr<LocalBufferPool> bufferPool)
         : channel_(channel), bufferPool_(bufferPool)
     {
     }
 
-    void LocalObjectBufferPool::SubpartitionBufferRecycler::recycle(std::shared_ptr<ObjectSegment> segment)
+    void LocalObjectBufferPool::SubpartitionBufferRecycler::recycle(std::shared_ptr<Segment> segment)
     {
         bufferPool_->recycle(segment, channel_);
     }
 
-
-    /////////////////////////////////////////////////////////////////////
-
-    ////namespace end////////////////////////////////////////
 } ///

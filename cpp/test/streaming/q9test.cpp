@@ -1,12 +1,12 @@
 #include <gtest/gtest.h>
 
-#include "../../core/operators/StreamCalcBatch.cpp"
-#include "../../runtime/taskmanager/RuntimeEnvironment.h"
+#include "../../streaming/api/operators/StreamCalcBatch.cpp"
+#include "../../runtime/taskmanager/OmniRuntimeEnvironment.h"
 #include "../../streaming/api/operators/KeyedProcessOperator.h"
 #include "../../table/runtime/operators/join/StreamingJoinOperator.h"
 #include "../../table/runtime/operators/join/window/WindowJoinOperator.h"
 #include "../../table/runtime/operators/rank/FastTop1Function.h"
-#include "../../table/vectorbatch/VectorBatch.cpp"
+#include "../../table/data/vectorbatch/VectorBatch.h"
 #include "../../test/core/operators/OutputTest.h"
 
 std::string calc2Description =
@@ -115,12 +115,14 @@ TEST(q9, test) {
     key->setup();
     key->setDescription(rankjson);
 
-    StreamTaskStateInitializerImpl *initializer =
-        new StreamTaskStateInitializerImpl(new RuntimeEnvironment(
-            new TaskInfoImpl("StreamingJoinOperatorTest", 1, 1, 0)));
+    auto env2 = new omnistream::RuntimeEnvironmentV2();
+    auto taskInfo = new TaskInformationPOD();
+    taskInfo->setStateBackend("HashMapStateBackend");
+    env2->setTaskConfiguration(*taskInfo);
+    StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
 
-    join->initializeState(initializer, nullptr);
-    key->initializeState(initializer, nullptr);
+    join->initializeState(initializer, new BinaryRowDataSerializer(1));
+    key->initializeState(initializer, new BinaryRowDataSerializer(1));
 
     calc2->open();
     calc4->open();

@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #ifndef OMNISTREAM_PULLINGASYNCDATAINPUT_H
@@ -18,13 +25,13 @@ namespace omnistream {
     public:
         ~PullingAsyncDataInput() override = default;
 
-        virtual std::optional<std::shared_ptr<T>> pollNext() = 0;
+        virtual std::optional<std::shared_ptr<T>> PollNext() = 0;
 
-        virtual bool isFinished() = 0;
+        virtual bool IsFinished() = 0;
 
-        virtual bool hasReceivedEndOfData() = 0;
+        virtual bool HasReceivedEndOfData() = 0;
 
-        virtual std::string toString() const
+        std::string toString() override
         {
             return "PullingAsyncDataInput";
         }

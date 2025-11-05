@@ -1,23 +1,30 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #ifndef FLINK_TNEL_LOCALSLICINGWINDOWAGGOPERATOR_H
 #define FLINK_TNEL_LOCALSLICINGWINDOWAGGOPERATOR_H
 
 #include <regex>
-#include "core/operators/AbstractStreamOperator.h"
-#include "table/data/utils/JoinedRowData.h"
+#include "streaming/api/operators/AbstractStreamOperator.h"
+#include "table/data/JoinedRowData.h"
 #include "table/typeutils/BinaryRowDataSerializer.h"
-#include "core/operators/TimestampedCollector.h"
+#include "streaming/api/operators/TimestampedCollector.h"
 #include "test/core/operators/OutputTest.h"
 #include "table/runtime/operators/window/WindowKey.h"
 #include "table/runtime/operators/window/slicing/SliceAssigners.h"
 #include "table/runtime/generated/AggsHandleFunction.h"
-#include "core/operators/OneInputStreamOperator.h"
-#include "functions/Watermark.h"
+#include "streaming/api/operators/OneInputStreamOperator.h"
+#include "streaming/api/watermark/Watermark.h"
 #include "core/include/common.h"
-#include "KeySelector.h"
+#include "table/runtime/keyselector/KeySelector.h"
 
 class LocalSlicingWindowAggOperator : public AbstractStreamOperator<long>, public OneInputStreamOperator {
 public:
@@ -39,7 +46,6 @@ public:
             }
         }
         keySelector = new KeySelector<RowData*>(keyedTypes, keyedIndex);
-        emptyRow = new BinaryRowData(0);
         windowRow = new GenericRowData(1);
         accWindowRow = new JoinedRowData();
         resultRow = new JoinedRowData();
@@ -120,7 +126,6 @@ private:
     KeySelector<RowData*> *keySelector;
     std::vector<int32_t> keyedIndex;
     SliceAssigner* sliceAssigner;
-    BinaryRowData* emptyRow;
     long currentWatermark = 0;
     long nextTriggerWatermark = 0;
     long windowInterval;

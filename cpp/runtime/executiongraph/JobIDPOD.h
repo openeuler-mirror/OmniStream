@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #ifndef JOBIDPOD_H
@@ -8,22 +15,23 @@
 #include <iostream>
 #include <string>
 #include <nlohmann/json.hpp> // Include for JSON serialization
+#include "runtime/executiongraph/common/AbstractIDPOD.h"
 
 namespace omnistream {
 
-    class JobIDPOD {
+    class JobIDPOD : public AbstractIDPOD {
     public:
-        JobIDPOD() : upperPart(0), lowerPart(0) {} // Default constructor
-        JobIDPOD(long long upper, long long lower) : upperPart(upper), lowerPart(lower) {}
+        JobIDPOD() : AbstractIDPOD() {} // Default constructor
+        JobIDPOD(uint64_t upperPart, uint64_t lowerPart) : AbstractIDPOD(upperPart, lowerPart) {}
+        JobIDPOD(std::vector<uint8_t> buf) : AbstractIDPOD(buf) {}
 
-        JobIDPOD(const JobIDPOD &other)
-            : upperPart(other.upperPart),
-              lowerPart(other.lowerPart) {
-        }
+        JobIDPOD(const JobIDPOD &other) : AbstractIDPOD(other) {}
 
-        JobIDPOD(JobIDPOD &&other) noexcept
-            : upperPart(other.upperPart),
-              lowerPart(other.lowerPart) {
+        JobIDPOD(JobIDPOD &&other) noexcept : AbstractIDPOD(std::move(other)) {}
+
+        static JobIDPOD *generate()
+        {
+            return new JobIDPOD();
         }
 
         JobIDPOD& operator=(const JobIDPOD &other)
@@ -65,10 +73,10 @@ namespace omnistream {
             return seed;
         }
 
-        long long getUpperPart() const { return upperPart; }
+        long getUpperPart() const { return upperPart; }
         void setUpperPart(long long upper) { upperPart = upper; }
 
-        long long getLowerPart() const { return lowerPart; }
+        long getLowerPart() const { return lowerPart; }
         void setLowerPart(long long lower) { lowerPart = lower; }
 
         std::string toString() const
@@ -78,12 +86,13 @@ namespace omnistream {
                    '}';
         }
 
-        NLOHMANN_DEFINE_TYPE_INTRUSIVE(JobIDPOD, upperPart, lowerPart)
-    private:
-        long long upperPart;
-        long long lowerPart;
-    };
+        static JobIDPOD *fromByteArray(std::vector<uint8_t> buf)
+        {
+            return new JobIDPOD(buf);
+        }
 
+        NLOHMANN_DEFINE_TYPE_INTRUSIVE(JobIDPOD, upperPart, lowerPart)
+    };
 
 } // namespace omnistream
 
@@ -98,4 +107,4 @@ namespace std {
 }
 
 
-#endif //JOBIDPOD_H
+#endif

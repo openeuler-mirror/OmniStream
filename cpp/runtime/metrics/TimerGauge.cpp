@@ -1,5 +1,5 @@
 /*
-* Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+* Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
  */
 #include "TimerGauge.h"
 #include "SystemClock.h" // Assume a concrete Clock implementation

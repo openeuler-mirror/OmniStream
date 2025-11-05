@@ -6,7 +6,7 @@
 #include "nlohmann/json.hpp"
 #include "runtime/taskexecutor/OmniTaskExecutor.h"
 #include "runtime/taskmanager/OmniTask.h"
-#include "runtime/tasks/OmniStreamTask.h"
+#include "streaming/runtime/tasks/omni/OmniStreamTask.h"
 #include "test/functionaltest/e2e/FrameworkConfig.h"
 
 
@@ -55,8 +55,8 @@ TEST_F(TaskManagerTest, DISABLED_TaskManagerAndStreamTaskTest) {
     taskExecutor_ = std::make_shared<omnistream::OmniTaskExecutor>(taskManagerServices_);
 
     // JNI submitTaskNative
-    sourceTask_ = std::shared_ptr<omnistream::OmniTask>(taskExecutor_->submitTask(jobInfo_, srcTaskInfo_, srcTddInfo_));
-    sinkTask_   = std::shared_ptr<omnistream::OmniTask>(taskExecutor_->submitTask(jobInfo_, sinkTaskInfo_, sinkTddInfo_));
+    sourceTask_ = std::shared_ptr<omnistream::OmniTask>(taskExecutor_->submitTask(jobInfo_, srcTaskInfo_, srcTddInfo_,nullptr,nullptr,nullptr,nullptr));
+    sinkTask_   = std::shared_ptr<omnistream::OmniTask>(taskExecutor_->submitTask(jobInfo_, sinkTaskInfo_, sinkTddInfo_,nullptr,nullptr,nullptr,nullptr));
 
     std::thread sourceThread([&]() {
         // JNI setupStreamTaskBeforeInvoke

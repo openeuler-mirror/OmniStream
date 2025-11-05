@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 #include "table/data/RowData.h"
-#include "table/data/utils/JoinedRowData.h"
+#include "table/data/JoinedRowData.h"
 #include "table/data/binary/BinaryRowData.h"
 
 #include <iostream>

@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
-#include "core/operators/StreamOperatorFactory.h"
+#include "streaming/api/operators/StreamOperatorFactory.h"
 #include "core/graph/OperatorConfig.h"
-#include "core/task/WatermarkGaugeExposingOutput.h"
-#include "core/operators/OneInputStreamOperator.h"
+#include "streaming/runtime/tasks/WatermarkGaugeExposingOutput.h"
+#include "streaming/api/operators/OneInputStreamOperator.h"
 #include "test_utils/Mocks.h"
 #include "nlohmann/json.hpp"
 #include "runtime/executiongraph/StreamConfigPOD.h"
@@ -19,6 +19,7 @@ public:
         omnistream::OperatorPOD operatorPod;
         operatorPod.setDescription(description);
         operatorPod.setId(id);
+        operatorPod.setVOperatorType(omnistream::Type_o::STREAM);
         return StreamOperatorFactory::createOperatorAndCollector(operatorPod, chainOutput, nullptr);
     }
 };

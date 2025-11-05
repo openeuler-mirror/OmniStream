@@ -1,20 +1,38 @@
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
+
 #include "TimeWindowCountWindowAggFunction.h"
+
 #include "CountWindowAggFunction.h"
+
 #include "table/data/binary/BinaryRowData.h"
 
-void TimeWindowCountWindowAggFunction::open(StateDataViewStore* store) {
+
+void TimeWindowCountWindowAggFunction::open(StateDataViewStore* store)
+{
     this->store = store;
 }
 
-void TimeWindowCountWindowAggFunction::accumulate(RowData* accInput)  {
+void TimeWindowCountWindowAggFunction::accumulate(RowData* accInput)
+{
     aggValue++;
 }
 
-void TimeWindowCountWindowAggFunction::retract(RowData* retractInput) {
+void TimeWindowCountWindowAggFunction::retract(RowData* retractInput)
+{
     throw std::runtime_error("Retract operation not supported");
 }
 
-void TimeWindowCountWindowAggFunction::merge(TimeWindow namespaceObj, RowData* otherAcc) {
+void TimeWindowCountWindowAggFunction::merge(TimeWindow namespaceObj, RowData* otherAcc)
+{
     // use accIndex, the input is the accumulator, not the input row
     bool inputIsNull = otherAcc->isNullAt(aggIdx);
     if (!inputIsNull) {
@@ -25,7 +43,8 @@ void TimeWindowCountWindowAggFunction::merge(TimeWindow namespaceObj, RowData* o
     valueIsNull = inputIsNull;
 }
 
-void TimeWindowCountWindowAggFunction::setAccumulators(TimeWindow namespaceObj, RowData* acc) {
+void TimeWindowCountWindowAggFunction::setAccumulators(TimeWindow namespaceObj, RowData* acc)
+{
     bool isInputNull = acc->isNullAt(accIndex);
     if (!isInputNull) {
         aggValue = *acc->getLong(accIndex);
@@ -35,7 +54,8 @@ void TimeWindowCountWindowAggFunction::setAccumulators(TimeWindow namespaceObj, 
     valueIsNull = isInputNull;
 }
 
-RowData* TimeWindowCountWindowAggFunction::getAccumulators() {
+RowData* TimeWindowCountWindowAggFunction::getAccumulators()
+{
     BinaryRowData *currentAcc = BinaryRowData::createBinaryRowDataWithMem(1);
     if (valueIsNull) {
         currentAcc->setNullAt(accIndex);
@@ -45,15 +65,16 @@ RowData* TimeWindowCountWindowAggFunction::getAccumulators() {
     return currentAcc;
 }
 
-RowData* TimeWindowCountWindowAggFunction::createAccumulators(int accumulatorArity) {
+RowData* TimeWindowCountWindowAggFunction::createAccumulators(int accumulatorArity)
+{
     BinaryRowData *currentAcc = BinaryRowData::createBinaryRowDataWithMem(accumulatorArity);
     currentAcc->setLong(accIndex, 0L);
     return currentAcc;
 }
 
-RowData* TimeWindowCountWindowAggFunction::getValue(TimeWindow ns) {
+RowData* TimeWindowCountWindowAggFunction::getValue(TimeWindow ns)
+{
     BinaryRowData *result;
-//    TimestampData *start = TimestampData::fromEpochMillis(startTime);
     int length = 5;
     result = BinaryRowData::createBinaryRowDataWithMem(length);
     if (!valueIsNull) {
@@ -64,7 +85,6 @@ RowData* TimeWindowCountWindowAggFunction::getValue(TimeWindow ns) {
     result->setLong(1, namespaceVal.start);
     result->setLong(2, namespaceVal.end);
 
-    // TODO : This logic is derived from q11 and needs to be further optimized and designed into a more generic version.
     if (false) {
         result->setLong(3, nullptr);
     } else {
@@ -78,6 +98,7 @@ RowData* TimeWindowCountWindowAggFunction::getValue(TimeWindow ns) {
     return result;
 }
 
-void TimeWindowCountWindowAggFunction::Cleanup(TimeWindow namespaceObj) {
+void TimeWindowCountWindowAggFunction::Cleanup(TimeWindow namespaceObj)
+{
     namespaceVal = namespaceObj;
 }

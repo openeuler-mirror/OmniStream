@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "core/task/StreamTask.h"
+#include "streaming/runtime/tasks/StreamTask.h"
 #include "runtime/taskmanager/OmniRuntimeEnvironment.h"
 #include "core/api/common/TaskInfoImpl.h"
 #include <memory>
@@ -10,6 +10,7 @@
 
 using namespace std;
 using namespace testing;
+using namespace omnistream;
 using json = nlohmann::json;
 
 static omnistream::datastream::StreamTask *createTaskTest() {
@@ -31,12 +32,18 @@ static omnistream::datastream::StreamTask *createTaskTest() {
     omnistream::StreamConfigPOD streamConfigPod;
     omnistream::OperatorPOD operatorPod;
     std::string  id = "org.apache.flink.streaming.api.operators.StreamMap";
-    std::string description = R"({"udf_so":"/tmp/libMockMapFunction.so","udf_obj":"{}"})";
+    std::string description = R"({"udf_so":"/tmp/libMockMapFunction.so","udf_obj":"{}","stateKeyTypes":{"serializerName":"org.apache.flink.api.common.typeutils.base.LongSerializer"},"jobType":2})";
     operatorPod.setDescription(description);
     operatorPod.setId(id);
+    operatorPod.setJobType(Type_o::STREAM);
+    operatorPod.setTaskType(Type_o::STREAM);
+    operatorPod.setVOperatorType(Type_o::STREAM);
     streamConfigPod.setOperatorDescription(operatorPod);
     omnistream::TaskInformationPOD taskInformationPOD;
     taskInformationPOD.setStreamConfigPOD(streamConfigPod);
+    std::vector<omnistream::StreamConfigPOD> chained_config;
+    chained_config.push_back(streamConfigPod);
+    taskInformationPOD.setChainedConfig(chained_config);
 
     env->setTaskConfiguration(taskInformationPOD);
     OutputBufferStatus outputBufferStatus;

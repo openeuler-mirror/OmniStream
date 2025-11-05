@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #ifndef OMNISTREAM_NEXMARKUTILS_H
@@ -16,12 +23,6 @@ class NexmarkUtils {
 public:
     class RateUnit {
     public:
-        // Public method: Number of microseconds between events at given rate.
-        long rateToPeriodUs(long rate) const
-        {
-            return (usPerUnit + rate / 2) / rate;
-        }
-
         // Static members for RateUnit.
         static const RateUnit PER_SECOND;
         static const RateUnit PER_MINUTE;
@@ -42,18 +43,6 @@ public:
     //
     class RateShape {
     public:
-        // Return inter-event delay, in microseconds, for each generator to follow in order to achieve
-        // rate at unit using numGenerators.
-        long interEventDelayUs(int rate, const RateUnit &unit, int numGenerators) const
-        {
-            return unit.rateToPeriodUs(rate) * numGenerators;
-        }
-
-        // Return array of successive inter-event delays, in microseconds, for each generator to follow
-        // in order to achieve this shape with firstRate/nextRate at unit using numGenerators.
-        std::vector<long>
-        interEventDelayUs(int firstRate, int nextRate, const RateUnit &unit, int numGenerators) const;
-
         // Return delay between steps, in seconds, for result of interEventDelayUs, so as to
         // cycle through the entire sequence every ratePeriodSec.
         int stepLengthSec(int ratePeriodSec) const

@@ -73,7 +73,7 @@ function build_rdkafka {
     rename "#repo#codehub#OmniStream#3rdparty#rdkafka" "$srcdir" *
 
     cd $RDKAFKA_SRC_PATH
-    git apply "${OMNISTREAM_SRC_PATH}/cpp/connector-kafka/omni_kafka_opt.patch"
+    git apply "${OMNISTREAM_SRC_PATH}/cpp/connector/kafka/omni_kafka_opt.patch"
     ./configure --cc=$GCC_INSTALL_PATH/bin/gcc --cxx=$GCC_INSTALL_PATH/bin/g++ --CFLAGS="-O3" --CXXFLAGS="-O3"
 
     GCC_INSTALL_PATH_CHANGED=$(echo "$GCC_INSTALL_PATH" | sed 's/\//\\\//g')

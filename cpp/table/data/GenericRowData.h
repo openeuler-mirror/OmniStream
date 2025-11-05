@@ -1,3 +1,14 @@
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
+
 #ifndef CPP_GENERICROWDATA_H
 #define CPP_GENERICROWDATA_H
 
@@ -5,25 +16,25 @@
 #include <memory>
 #include "RowData.h"
 
-class GenericRowData : public RowData
-{
+class GenericRowData : public RowData {
 public:
-    GenericRowData(int arity) : RowData(RowData::GenericRowDataID), arity_(arity) {
+    GenericRowData(int arity) : RowData(RowData::GenericRowDataID), arity_(arity)
+    {
         fields_.resize(arity);
         typeIDs_.resize(arity);
         null_.resize(arity, false);
     }
     GenericRowData(std::vector<int>& typeIDs, RowKind kind): RowData(RowData::GenericRowDataID),
         kind_(kind),
-        arity_(typeIDs.size()) ,
+        arity_(typeIDs.size()),
         typeIDs_(typeIDs) {
         fields_.resize(arity_);
         null_.resize(arity_, false);
     }
 
-    GenericRowData(std::vector<int>& typeIDs) : RowData(RowData::GenericRowDataID),kind_(RowKind::INSERT),
-        arity_(typeIDs.size()) ,
-        typeIDs_(typeIDs){
+    GenericRowData(std::vector<int>& typeIDs) : RowData(RowData::GenericRowDataID), kind_(RowKind::INSERT),
+        arity_(typeIDs.size()),
+        typeIDs_(typeIDs) {
         fields_.resize(arity_);
         null_.resize(arity_, false);
     }
@@ -31,7 +42,8 @@ public:
     ~GenericRowData() override = default;
 
     /** Returns the long value at the given position. */
-    long * getLong(int pos) override{
+    long* getLong(int pos) override
+    {
         return &fields_[pos];
     };
 
@@ -40,23 +52,24 @@ public:
         return reinterpret_cast<bool *>(fields_[pos]);
     };
 
-    int * getInt(int pos) override {
+    int* getInt(int pos) override
+    {
         return reinterpret_cast<int *>(fields_.data() + pos);
     }
-    /** Returns the string value at the given position. */
-    // StringData getString(int pos);
 
     TimestampData *getTimestamp(int pos) { return reinterpret_cast<TimestampData *>(fields_[pos]); };
 
     TimestampData *getTimestampPrecise(int pos) { return reinterpret_cast<TimestampData *>(fields_[pos]); };
 
-    //non virtual
-    [[nodiscard]] int getRowDataTypeId() const {
+    // non virtual
+    [[nodiscard]] int getRowDataTypeId() const
+    {
         return RowData::GenericRowDataID;
     };
 
     template<typename... Args>
-    GenericRowData* of(std::vector<int>& typeIDs, Args...args){
+    GenericRowData* of(std::vector<int>& typeIDs, Args...args)
+    {
         GenericRowData* rowData = new GenericRowData(typeIDs);
         rowData->setFieldandProceedPos(args...);
         curPos = 0;
@@ -64,15 +77,16 @@ public:
     }
 
     template<typename... Args>
-    GenericRowData* ofKind(RowKind kind, std::vector<int>& typeIDs, Args...args){
+    GenericRowData* ofKind(RowKind kind, std::vector<int>& typeIDs, Args...args)
+    {
         GenericRowData* rowData = new GenericRowData(typeIDs, kind);
         rowData->setFieldandProceedPos(args...);
         curPos = 0;
         return rowData;
     }
 
-    //todo: need to include situation for all not raw datatypes
-    template<typename T> void setField(int pos, T value) {
+    template<typename T> void setField(int pos, T value)
+    {
         if constexpr (std::is_same<T, std::nullptr_t>::value) {
             null_[pos] = true;
         } else if constexpr(!std::is_pointer<T>::value) {
@@ -86,7 +100,8 @@ public:
         }
     }
 
-    long getField(int pos) const {
+    long getField(int pos) const
+    {
         return fields_[pos];
     }
 
@@ -105,21 +120,26 @@ public:
         kind_ = kind;
     }
 
-    bool isNullAt(int pos) override {
+    bool isNullAt(int pos) override
+    {
         return null_[pos];
     }
 
-    std::vector<int> getTypeIDs() const {
+    std::vector<int> getTypeIDs() const
+    {
         return typeIDs_;
     }
 
-    int hashCode() const override {
+    int hashCode() const override
+    {
         NOT_IMPL_EXCEPTION;
     }
-    int hashCodeFast() const override {
+    int hashCodeFast() const override
+    {
         NOT_IMPL_EXCEPTION;
     };
-    bool operator==(const RowData &other) const {
+    bool operator==(const RowData &other) const
+    {
         NOT_IMPL_EXCEPTION;
     }
 private:
@@ -132,14 +152,13 @@ private:
     std::vector<int> typeIDs_;
 
     std::vector<bool> null_;
-
     
-
     int curPos = 0;
-    template<typename T> void setFieldandProceedPos(T value) {
+    template<typename T> void setFieldandProceedPos(T value)
+    {
         setField(curPos, value);
         curPos++;
     }
 };
 
-#endif //CPP_GENERICROWDATA_H
+#endif

@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "core/io/DataInputDeserializer.h"
+#include "core/memory/DataInputDeserializer.h"
 #include <cstdint>
 #include <cstring>
 

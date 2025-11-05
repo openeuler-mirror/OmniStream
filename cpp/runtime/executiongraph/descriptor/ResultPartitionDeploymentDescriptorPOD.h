@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #ifndef RESULTPARTITIONDEPLOYMENTDESCRIPTORPOD_H
@@ -24,6 +31,7 @@ namespace omnistream {
         : shuffleDescriptor(shuffleDescriptor), maxParallelism(maxParallelism), notifyPartitionDataAvailable(notifyPartitionDataAvailable), resultId(resultId), totalNumberOfPartitions(totalNumberOfPartitions), partitionId(partitionId), partitionType(partitionType), numberOfSubpartitions(numberOfSubpartitions) {}
 
     // Copy Constructor
+    ResultPartitionDeploymentDescriptorPOD &operator=(const ResultPartitionDeploymentDescriptorPOD&) = default;
     ResultPartitionDeploymentDescriptorPOD(const ResultPartitionDeploymentDescriptorPOD& other) = default;
 
     friend bool operator==(const ResultPartitionDeploymentDescriptorPOD& lhs,
@@ -70,14 +78,14 @@ namespace omnistream {
     int getNumberOfSubpartitions() const { return numberOfSubpartitions; }
 
     // Setters
-    void setShuffleDescriptor(const ShuffleDescriptorPOD& shuffleDescriptor) { this->shuffleDescriptor = shuffleDescriptor; }
-    void setMaxParallelism(int maxParallelism) { this->maxParallelism = maxParallelism; }
-    void setNotifyPartitionDataAvailable(bool notifyPartitionDataAvailable) { this->notifyPartitionDataAvailable = notifyPartitionDataAvailable; }
-    void setResultId(const AbstractIDPOD& resultId) { this->resultId = resultId; }
-    void setTotalNumberOfPartitions(int totalNumberOfPartitions) { this->totalNumberOfPartitions = totalNumberOfPartitions; }
-    void setPartitionId(const IntermediateResultPartitionIDPOD& partitionId) { this->partitionId = partitionId; }
-    void setPartitionType(int partitionType) { this->partitionType = partitionType; }
-    void setNumberOfSubpartitions(int numberOfSubpartitions) { this->numberOfSubpartitions = numberOfSubpartitions; }
+    void setShuffleDescriptor(const ShuffleDescriptorPOD& shuffleDescriptor_) { this->shuffleDescriptor = shuffleDescriptor_; }
+    void setMaxParallelism(int maxParallelism_) { this->maxParallelism = maxParallelism_; }
+    void setNotifyPartitionDataAvailable(bool notifyPartitionDataAvailable_) { this->notifyPartitionDataAvailable = notifyPartitionDataAvailable_; }
+    void setResultId(const AbstractIDPOD& resultId_) { this->resultId = resultId_; }
+    void setTotalNumberOfPartitions(int totalNumberOfPartitions_) { this->totalNumberOfPartitions = totalNumberOfPartitions_; }
+    void setPartitionId(const IntermediateResultPartitionIDPOD& partitionId_) { this->partitionId = partitionId_; }
+    void setPartitionType(int partitionType_) { this->partitionType = partitionType_; }
+    void setNumberOfSubpartitions(int numberOfSubpartitions_) { this->numberOfSubpartitions = numberOfSubpartitions_; }
 
     // toString() method
     std::string toString() const
@@ -101,7 +109,7 @@ namespace omnistream {
     int maxParallelism;
     bool notifyPartitionDataAvailable;
 
-        //PartitionDescriptorPOD partitionDescriptor;
+    // PartitionDescriptorPOD partitionDescriptor;
     AbstractIDPOD resultId;
     int totalNumberOfPartitions;
     IntermediateResultPartitionIDPOD partitionId;

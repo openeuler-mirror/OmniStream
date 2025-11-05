@@ -23,11 +23,23 @@
                             "partitionNum": 0
                         },
                         "producerId": {
-                            "executionAttemptId": {
-                                "upperPart": -9208541395953694100,
-                                "lowerPart": -8601305216628533670
-                            }
-                        }
+                        "executionAttemptId": {
+                            "upperPart": -9208541395953694100,
+                            "lowerPart": -8601305216628533670
+                        },
+                        "executionGraphId": {
+                            "upperPart": -9208541395953694100,
+                            "lowerPart": -8601305216628533670
+                        },
+                        "executionVertexId": {
+                            "jobVertexId": {
+                                "upperPart": 0,
+                                "lowerPart": 0
+                            },
+                            "subtaskIndex": 0
+                        },
+                        "attemptNumber": 0
+                    }
                     },
                     "hasLocalResource": true,
                     "storesLocalResourcesOn": {
@@ -38,5 +50,8 @@
                 }
             ]
         }
-    ]
+    ],
+    "taskStateSnapshot": "",
+    "localRecoveryConfig": "",
+    "restoreCheckpointId": 123
 }

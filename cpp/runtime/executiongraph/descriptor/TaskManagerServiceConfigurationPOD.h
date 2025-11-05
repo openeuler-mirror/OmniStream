@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #ifndef TASKMANAGERSERVICECONFIGURATIONPOD_H
@@ -16,15 +23,18 @@ class TaskManagerServiceConfigurationPOD {
 
 public:
     // Default constructor
-    TaskManagerServiceConfigurationPOD() :
-        memorySize(0), pageSize(0), requestSegmentsTimeoutMillis(0),
-        numIoThreads(0), externalAddress(""), localCommunicationOnly(false),networkbuffersPerChannel(0), partitionRequestMaxBackoff(0),
-    partitionRequestInitialBackoff(0),floatingNetworkbuffersPerGate(0),segmentSize(0),numberofSegmentsGlobal(0),sortShuffleMinBuffers(0),sortShuffleMinParallelism(0)
-    {}
+    TaskManagerServiceConfigurationPOD() : memorySize(0), pageSize(0), requestSegmentsTimeoutMillis(0),
+                                           numIoThreads(0), externalAddress(""), localCommunicationOnly(false),
+                                           networkbuffersPerChannel(0), partitionRequestMaxBackoff(0),
+                                           partitionRequestInitialBackoff(0), floatingNetworkbuffersPerGate(0),
+                                           segmentSize(0), numberofSegmentsGlobal(0), sortShuffleMinBuffers(0),
+                                           sortShuffleMinParallelism(0) {
+    }
 
     // Copy constructor
-    TaskManagerServiceConfigurationPOD(const TaskManagerServiceConfigurationPOD& other) :
-        resourceID(other.resourceID),
+    TaskManagerServiceConfigurationPOD &operator=(const TaskManagerServiceConfigurationPOD&) = delete;
+    TaskManagerServiceConfigurationPOD(const TaskManagerServiceConfigurationPOD& other)
+        :resourceID(other.resourceID),
         memorySize(other.memorySize),
         pageSize(other.pageSize),
         requestSegmentsTimeoutMillis(other.requestSegmentsTimeoutMillis),
@@ -46,20 +56,20 @@ public:
         int partition_request_initial_backoff, int partition_request_max_backoff,
         int floating_networkbuffers_per_gate, int segment_size,
         int numberof_segments_global, int sortShuffleMinBuffers, int sortShuffleMinParallelism)
-    : resourceID(resource_id),
-      memorySize(memory_size),
-      pageSize(page_size),
-      requestSegmentsTimeoutMillis(request_segments_timeout_millis),
-      numIoThreads(num_io_threads),
-      externalAddress(external_address),
-      localCommunicationOnly(local_communication_only),
-      networkbuffersPerChannel(networkbuffers_per_channel),
-      partitionRequestMaxBackoff(partition_request_max_backoff),
-      partitionRequestInitialBackoff(partition_request_initial_backoff),
-      floatingNetworkbuffersPerGate(floating_networkbuffers_per_gate),
-      segmentSize(segment_size),
-      numberofSegmentsGlobal(numberof_segments_global),
-      sortShuffleMinBuffers(sortShuffleMinBuffers), sortShuffleMinParallelism(sortShuffleMinParallelism)
+        : resourceID(resource_id),
+        memorySize(memory_size),
+        pageSize(page_size),
+        requestSegmentsTimeoutMillis(request_segments_timeout_millis),
+        numIoThreads(num_io_threads),
+        externalAddress(external_address),
+        localCommunicationOnly(local_communication_only),
+        networkbuffersPerChannel(networkbuffers_per_channel),
+        partitionRequestMaxBackoff(partition_request_max_backoff),
+        partitionRequestInitialBackoff(partition_request_initial_backoff),
+        floatingNetworkbuffersPerGate(floating_networkbuffers_per_gate),
+        segmentSize(segment_size),
+        numberofSegmentsGlobal(numberof_segments_global),
+        sortShuffleMinBuffers(sortShuffleMinBuffers), sortShuffleMinParallelism(sortShuffleMinParallelism)
     {
     }
 
@@ -113,67 +123,67 @@ public:
     }
 
     // Setters
-    void setResourceID(const ResourceIDPOD& resourceID)
+    void setResourceID(const ResourceIDPOD& resourceID_)
     {
-        this->resourceID = resourceID;
+        this->resourceID = resourceID_;
     }
-    void setMemorySize(long memorySize)
+    void setMemorySize(long memorySize_)
     {
-        this->memorySize = memorySize;
+        this->memorySize = memorySize_;
     }
-    void setPageSize(int pageSize)
+    void setPageSize(int pageSize_)
     {
-        this->pageSize = pageSize;
+        this->pageSize = pageSize_;
     }
-    void setRequestSegmentsTimeoutMillis(long requestSegmentsTimeoutMillis)
+    void setRequestSegmentsTimeoutMillis(long requestSegmentsTimeoutMillis_)
     {
-        this->requestSegmentsTimeoutMillis = requestSegmentsTimeoutMillis;
+        this->requestSegmentsTimeoutMillis = requestSegmentsTimeoutMillis_;
     }
-    void setNumIoThreads(int numIoThreads)
+    void setNumIoThreads(int numIoThreads_)
     {
-        this->numIoThreads = numIoThreads;
+        this->numIoThreads = numIoThreads_;
     }
-    void setExternalAddress(const std::string& externalAddress)
+    void setExternalAddress(const std::string& externalAddress_)
     {
-        this->externalAddress = externalAddress;
+        this->externalAddress = externalAddress_;
     }
-    void setLocalCommunicationOnly(bool localCommunicationOnly)
+    void setLocalCommunicationOnly(bool localCommunicationOnly_)
     {
-        this->localCommunicationOnly = localCommunicationOnly;
-    }
-
-    void setnetworkbuffersPerChannel(int networkbuffersPerChannel)
-    {
-        this->networkbuffersPerChannel=networkbuffersPerChannel;
-    }
-    void setpartitionRequestInitialBackoff(int setpartitionRequestInitialBackoff)
-    {
-        this->partitionRequestInitialBackoff=partitionRequestInitialBackoff;
-    }
-    void setpartitionRequestMaxBackoff(int partitionRequestMaxBackoff)
-    {
-        this->partitionRequestMaxBackoff=partitionRequestMaxBackoff;
-    }
-    void setfloatingNetworkbuffersPerGate(int floatingNetworkbuffersPerGate)
-    {
-        this->floatingNetworkbuffersPerGate=floatingNetworkbuffersPerGate;
-    }
-    void setsegmentSize(int segmentSize)
-    {
-        this->segmentSize=segmentSize;
-    }
-    void setnumberofSegmentsGlobal(int numberofSegmentsGlobal)
-    {
-        this->numberofSegmentsGlobal=numberofSegmentsGlobal;
+        this->localCommunicationOnly = localCommunicationOnly_;
     }
 
-    void setsortShuffleMinParallelism(int sortShuffleMinParallelism)
+    void setnetworkbuffersPerChannel(int networkbuffersPerChannel_)
     {
-        this->sortShuffleMinParallelism=sortShuffleMinParallelism;
+        this->networkbuffersPerChannel = networkbuffersPerChannel_;
     }
-    void setsortShuffleMinBuffers(int sortShuffleMinBuffers)
+    void setpartitionRequestInitialBackoff(int setpartitionRequestInitialBackoff_)
     {
-        this->sortShuffleMinBuffers=sortShuffleMinBuffers;
+        this->partitionRequestInitialBackoff = setpartitionRequestInitialBackoff_;
+    }
+    void setpartitionRequestMaxBackoff(int partitionRequestMaxBackoff_)
+    {
+        this->partitionRequestMaxBackoff = partitionRequestMaxBackoff_;
+    }
+    void setfloatingNetworkbuffersPerGate(int floatingNetworkbuffersPerGate_)
+    {
+        this->floatingNetworkbuffersPerGate = floatingNetworkbuffersPerGate_;
+    }
+    void setsegmentSize(int segmentSize_)
+    {
+        this->segmentSize = segmentSize_;
+    }
+    void setnumberofSegmentsGlobal(int numberofSegmentsGlobal_)
+    {
+        this->numberofSegmentsGlobal = numberofSegmentsGlobal_;
+    }
+
+    void setsortShuffleMinParallelism(int sortShuffleMinParallelism_)
+    {
+        this->sortShuffleMinParallelism = sortShuffleMinParallelism_;
+    }
+    void setsortShuffleMinBuffers(int sortShuffleMinBuffers_)
+    {
+        this->sortShuffleMinBuffers = sortShuffleMinBuffers_;
     }
 
     // toString method
@@ -191,8 +201,6 @@ public:
                            ", floatingNetworkbuffersPerGate: " + std::to_string(floatingNetworkbuffersPerGate)+
                                ", numberofSegmentsGlobal: " + std::to_string(numberofSegmentsGlobal)+
                                     ", segmentSize: " + std::to_string(segmentSize);
-
-
     }
 
     // JSON serialization/deserialization using NLOHMANN_DEFINE_TYPE_INTRUSIVE

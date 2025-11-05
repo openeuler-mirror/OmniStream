@@ -1,3 +1,13 @@
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
 #pragma once
 
 #include <memory>
@@ -7,8 +17,7 @@
 
 class DataTypeVisitor;
 
-namespace omnistream
-{
+namespace omnistream {
  /**
   * Describes the data type of a value in the table ecosystem. Instances of this class can be used to
   * declare input and/or output types of operations.
@@ -16,46 +25,48 @@ namespace omnistream
   * The DataType class has two responsibilities: declaring a logical type and giving hints
   * about the physical representation of data to the planner.
   */
- class DataType {
- public:
-  DataType(std::shared_ptr<LogicalType> logicalType, std::shared_ptr<void> conversionClass = nullptr);
-  virtual ~DataType() = default;
+class DataType {
+public:
+    DataType(std::shared_ptr<LogicalType> logicalType, std::shared_ptr<void> conversionClass = nullptr);
 
-  /**
-   * Returns the corresponding logical type.
-   */
-  std::shared_ptr<LogicalType> getLogicalType() const;
+    virtual ~DataType() = default;
 
-  /**
-   * Returns the corresponding conversion class for representing values.
-   */
-  std::shared_ptr<void> getConversionClass() const;
+    /**
+    * Returns the corresponding logical type.
+    */
+    std::shared_ptr<LogicalType> getLogicalType() const;
 
-  /**
-   * Returns the child data types if this type is a composite type.
-   */
-  virtual std::vector<std::shared_ptr<DataType>> getChildren() const = 0;
+    /**
+    * Returns the corresponding conversion class for representing values.
+    */
+    std::shared_ptr<void> getConversionClass() const;
 
-  /**
-   * Accepts a visitor to allow for type-specific handling.
-   */
-  virtual void accept(DataTypeVisitor& visitor) = 0;
+    /**
+    * Returns the child data types if this type is a composite type.
+    */
+    virtual std::vector<std::shared_ptr<DataType> > getChildren() const = 0;
 
-  virtual std::string toString() const = 0;
+    /**
+    * Accepts a visitor to allow for type-specific handling.
+    */
+    virtual void accept(DataTypeVisitor &visitor) = 0;
 
-  bool operator==(const DataType& other) const;
+    virtual std::string toString() const = 0;
 
- protected:
-  std::shared_ptr<LogicalType> logicalType_;
-  std::shared_ptr<void> conversionClass_;
+    bool operator==(const DataType &other) const;
 
- private:
-     static void performEarlyClassValidation(
-             std::shared_ptr<LogicalType> logicalType,
-             std::shared_ptr<void> candidate) {};
+protected:
+    std::shared_ptr<LogicalType> logicalType_;
+    std::shared_ptr<void> conversionClass_;
 
-     static std::shared_ptr<void> ensureConversionClass(
-             std::shared_ptr<LogicalType> logicalType,
-             std::shared_ptr<void> clazz) { return nullptr; };
- };
+private:
+    static void performEarlyClassValidation(
+     std::shared_ptr<LogicalType> logicalType,
+     std::shared_ptr<void> candidate) {
+    };
+
+    static std::shared_ptr<void> ensureConversionClass(
+      std::shared_ptr<LogicalType> logicalType,
+      std::shared_ptr<void> clazz) { return nullptr; };
+    };
 }

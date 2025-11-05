@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #include "MemorySegment.h"
@@ -9,19 +16,17 @@
 
 #include "../include/common.h"
 
-MemorySegment::MemorySegment(uint8_t* offHeapBuffer, int size) : offHeapBuffer_(offHeapBuffer), size_(size), owner_(nullptr) {
+MemorySegment::MemorySegment(uint8_t* offHeapBuffer, int size) : Segment(SegmentType::MEMORY_SEGMENT), offHeapBuffer_(offHeapBuffer), size_(size), owner_(nullptr) {
 }
 
-void MemorySegment::getResData(void* dst, void* src, size_t cur, int res)
+MemorySegment::MemorySegment(uint8_t* offHeapBuffer, int size, void* owner) : Segment(SegmentType::MEMORY_SEGMENT), offHeapBuffer_(offHeapBuffer), size_(size), owner_(owner)
 {
-    svbool_t pg = svwhilelt_b8(0, res);
-    svuint8_t s = svld1(pg, reinterpret_cast<uint8_t*>(src) + cur);
-    svst1(pg, reinterpret_cast<uint8_t*>(dst) + cur, s);
 }
 
-MemorySegment::MemorySegment(int size) : size_(size)
+MemorySegment::MemorySegment(int size) : Segment(SegmentType::MEMORY_SEGMENT), size_(size)
 {
     offHeapBuffer_ = new uint8_t[size];
+    owner_ = nullptr;
 }
 
 uint8_t* MemorySegment::getAll()
@@ -37,6 +42,11 @@ uint8_t MemorySegment::get(int index)
         std::cerr << "Index: " << index << " size: " << size_ << std::endl;
         THROW_LOGIC_EXCEPTION("IndexOutOfBoundsException");
     }
+}
+
+uint8_t* MemorySegment::getData()
+{
+    return offHeapBuffer_;
 }
 
 /**
@@ -59,19 +69,10 @@ void MemorySegment::put(int index, const uint8_t* src, int offset, int length)
 {
     if (index >= 0 && index <= size_ - length) {
         void* pos = static_cast<void*>(offHeapBuffer_ + index);
-
-        size_t skip_num = svcntb();
-        size_t num = length / skip_num;
-        svbool_t pTrue = svptrue_b8();
-        size_t cur = 0;
-        for (size_t i = 0; i < num; i++)
-        {
-            svuint8_t s = svld1(pTrue, const_cast<uint8_t*>(src + offset) + cur);
-            svst1(pTrue, reinterpret_cast<uint8_t*>(pos) + cur, s);
-            cur += skip_num;
+        auto ret = memcpy_s(pos, length, src + offset, length);
+        if (ret != EOK) {
+            throw std::runtime_error("memcpy_s failed");
         }
-        getResData(pos, const_cast<uint8_t*>(src + offset), cur, length - cur);
-
     } else {
         std::cerr << "Index: " << index << " size: " << size_ << std::endl;
         throw std::out_of_range("Index out of bound");
@@ -89,22 +90,14 @@ int MemorySegment::getSize() const
 void MemorySegment::get(int index, uint8_t* dst, int offset, int length)
 {
     if (index >= 0 && index <= size_ - length) {
-        size_t skip_num = svcntb();
-        size_t num = length / skip_num;
-        svbool_t pTrue = svptrue_b8();
-        size_t cur = 0;
-        for (size_t i = 0; i < num; i++)
-        {
-            svuint8_t s = svld1(pTrue, const_cast<uint8_t*>(offHeapBuffer_ + index) + cur);
-            svst1(pTrue, reinterpret_cast<uint8_t*>(dst + offset) + cur, s);
-            cur += skip_num;
+        auto ret = memcpy_s(dst + offset, length, offHeapBuffer_ + index, length);
+        if (ret != EOK) {
+            throw std::runtime_error("memcpy_s failed");
         }
-        getResData(dst + offset, const_cast<uint8_t*>(offHeapBuffer_ + index), cur, length - cur);
     } else {
         std::cerr << "Index: " << index << " size: " << size_ << std::endl;
         THROW_LOGIC_EXCEPTION("IndexOutOfBoundsException");
     }
-
 }
 
 int MemorySegment::size()
@@ -114,35 +107,25 @@ int MemorySegment::size()
 
 long* MemorySegment::getLong(int index)
 {
-
     if (index >= 0 && static_cast<size_t>(index) <= size_ - sizeof(long)) {
         return reinterpret_cast<long*>(offHeapBuffer_ + index);
     } else {
         std::cerr << "Index: " << index << " size: " << size_ << std::endl;
         THROW_LOGIC_EXCEPTION("IndexOutOfBoundsException");
     }
-
 }
 
 void MemorySegment::putLong(int index, long value)
 {
     if (index >= 0 && static_cast<size_t>(index) <= size_ - sizeof(long)) {
-        size_t skip_num = svcntb();
-        size_t num = sizeof(long) / skip_num;
-        svbool_t pTrue = svptrue_b8();
-        size_t cur = 0;
-        for (size_t i = 0; i < num; i++)
-        {
-            svuint8_t s = svld1(pTrue, reinterpret_cast<uint8_t*>(&value) + cur);
-            svst1(pTrue, reinterpret_cast<uint8_t*>(offHeapBuffer_ + index) + cur, s);
-            cur += skip_num;
+        auto ret = memcpy_s(offHeapBuffer_ + index, sizeof(long), &value, sizeof(long));
+        if (ret != EOK) {
+            throw std::runtime_error("memcpy_s failed");
         }
-        getResData(offHeapBuffer_ + index, &value, cur, sizeof(long) - cur);
     } else {
         std::cerr << "Index: " << index << " size: " << size_ << std::endl;
         THROW_LOGIC_EXCEPTION("IndexOutOfBoundsException");
     }
-    
 }
 
 int* MemorySegment::getInt(int index)
@@ -153,24 +136,15 @@ int* MemorySegment::getInt(int index)
         std::cerr << "Index: " << index << " size: " << size_ << std::endl;
         THROW_LOGIC_EXCEPTION("IndexOutOfBoundsException");
     }
-    
 }
 
 void MemorySegment::putInt(int index, int value)
 {
     if (index >= 0 && static_cast<size_t>(index) <= size_ - sizeof(int)) {
-        size_t len = sizeof(int);
-        size_t skip_num = svcntb();
-        size_t num = len / skip_num;
-        svbool_t pTrue = svptrue_b8();
-        size_t cur = 0;
-        for (size_t i = 0; i < num; i++)
-        {
-            svuint8_t s = svld1(pTrue, reinterpret_cast<uint8_t*>(&value) + cur);
-            svst1(pTrue, reinterpret_cast<uint8_t*>(offHeapBuffer_ + index) + cur, s);
-            cur += skip_num;
+        auto ret = memcpy_s(offHeapBuffer_ + index, sizeof(int), &value, sizeof(int));
+        if (ret != EOK) {
+            throw std::runtime_error("memcpy_s failed");
         }
-        getResData(offHeapBuffer_ + index, &value, cur, len - cur);
     } else {
         std::cerr << "Index: " << index << " size: " << size_ << std::endl;
         THROW_LOGIC_EXCEPTION("IndexOutOfBoundsException");
@@ -188,6 +162,12 @@ void MemorySegment::putInt(int index, int value)
  */
 bool MemorySegment::equalTo(MemorySegment seg2, int offset1, int offset2, int length)
 {
-
     return (memcmp((offHeapBuffer_ + offset1), (seg2.offHeapBuffer_ + offset2), length) == 0);
+}
+
+MemorySegment::~MemorySegment()
+{
+    if (!owner_) {
+        delete offHeapBuffer_;
+    }
 }

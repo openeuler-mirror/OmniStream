@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 // LocalInputChannel.h
@@ -24,9 +31,7 @@
 namespace omnistream {
 
 class LocalInputChannel : public InputChannel,
-                          public BufferAvailabilityListener
-// public std::enable_shared_from_this<LocalInputChannel>
-{
+                          public BufferAvailabilityListener {
 public:
     LocalInputChannel(std::shared_ptr<SingleInputGate> inputGate, int channelIndex, ResultPartitionIDPOD partitionId,
         std::shared_ptr<ResultPartitionManager> partitionManager,
@@ -36,7 +41,7 @@ public:
     );
 
     //  void checkpointStarted(const CheckpointBarrier& barrier) override;
-    void checkpointStopped(long checkpointId) override;
+    void CheckpointStopped(long checkpointId) override;
     void notifyDataAvailable() override;
     void resumeConsumption() override;
     void acknowledgeAllRecordsProcessed() override;
@@ -49,6 +54,10 @@ public:
     std::shared_ptr<ResultSubpartitionView> getSubpartitionView();
     void notifyBufferAvailable(int subpartitionId) override;
 
+public:
+    void retriggerSubpartitionRequest(
+        std::shared_ptr<std::chrono::steady_clock::time_point> timer, int subpartitionIndex);
+    std::shared_ptr<ResultSubpartitionView> checkAndWaitForSubpartitionView();
 protected:
     void requestSubpartition(int subpartitionIndex) override;
     std::optional<BufferAndAvailability> getNextBuffer() override;
@@ -60,12 +69,6 @@ private:
     //  std::shared_ptr<TaskEventPublisher> taskEventPublisher;
     std::shared_ptr<ResultSubpartitionView> subpartitionView;
     std::atomic<bool> isReleased_{false};
-    //   ChannelStatePersister channelStatePersister;
-
-public:
-    void retriggerSubpartitionRequest(
-        std::shared_ptr<std::chrono::steady_clock::time_point> timer, int subpartitionIndex);
-    std::shared_ptr<ResultSubpartitionView> checkAndWaitForSubpartitionView();
 };
 
 }  // namespace omnistream

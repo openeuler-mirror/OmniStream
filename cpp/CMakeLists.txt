@@ -6,12 +6,38 @@ project(OmniStream)
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
 set(CMAKE_CXX_STANDARD 17)
+if(DEFINED ENV{OMNI_HOME})
+    set(CMAKE_INSTALL_PREFIX $ENV{OMNI_HOME} CACHE PATH "Install path prefix" FORCE)
+endif()
+option(WITH_OMNISTATESTORE "Enable to build with OmniStateStore" OFF)
+add_library(project_config INTERFACE)
+if(WITH_OMNISTATESTORE)
+    target_compile_definitions(project_config INTERFACE WITH_OMNISTATESTORE)
+endif()
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/core/        DESTINATION include/core        FILES_MATCHING PATTERN "*.h")
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/streaming/   DESTINATION include/streaming   FILES_MATCHING PATTERN "*.h")
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/runtime/     DESTINATION include/runtime     FILES_MATCHING PATTERN "*.h")
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/table/       DESTINATION include/table       FILES_MATCHING PATTERN "*.h")
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/util/        DESTINATION include/util        FILES_MATCHING PATTERN "*.h")
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/third_party/ DESTINATION include/third_party FILES_MATCHING PATTERN "*.h")
+message(STATUS "CMAKE_INSTALL_PREFIX is.   ${CMAKE_INSTALL_PREFIX}")
 
 # third party for data stream
 include_directories(include)
-#include_directories(${CMAKE_SOURCE_DIR})
-install(DIRECTORY include/ DESTINATION include)
-install(DIRECTORY conf/ DESTINATION conf)
+install(DIRECTORY conf/ DESTINATION ${CMAKE_INSTALL_PREFIX}/conf)
+
+
+function(install_headers)
+    message(STATUS "OmniStream build path: ${CMAKE_CURRENT_SOURCE_DIR}")
+    file(GLOB_RECURSE HEADER_FILES ${CMAKE_CURRENT_SOURCE_DIR}/*.h ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
+    foreach(FILE_PATH ${HEADER_FILES})
+        get_filename_component(RELATIVE_PATH ${FILE_PATH} PATH)
+        file(RELATIVE_PATH RELATIVE_PATH ${CMAKE_CURRENT_SOURCE_DIR} ${RELATIVE_PATH})
+        install(FILES ${FILE_PATH} DESTINATION ${CMAKE_INSTALL_PREFIX}/OmniStream/${RELATIVE_PATH})
+    endforeach()
+endfunction()
+
+install_headers()
 
 option(FLAME_GRAPH "Enable settings for capturing flame graphs." OFF)
 option(SVE "Enable SVE instruction set" OFF)
@@ -43,6 +69,7 @@ endif ()
 # path for nlohmann
 # list(APPEND CMAKE_PREFIX_PATH "/opt/nlohmann" "/opt/googletest/build")
 # include_directories("/opt/nlohmann/include")
+
 
 ##### JNI #################
 ###########################
@@ -122,7 +149,6 @@ endif()
 set(CMAKE_SKIP_RPATH TRUE)
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} -lrt -fno-var-tracking-assignments -pipe -g -Wall -fPIC -fno-omit-frame-pointer -fno-common -fno-stack-protector")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -lrt -fno-var-tracking-assignments -Wno-terminate -Wno-delete-incomplete -pipe -Wall -Wno-strict-aliasing -Wtrampolines -D_FORTIFY_SOURCE=2 -fPIC -finline-functions -fstack-protector-strong -s -Wl,-z,noexecstack -Wl,-z,relro,-z,now -finline-limit=6000 --param inline-unit-growth=300")
-add_compile_options("-march=armv8-a+sve")
 
 # Default including directory
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/core/include/" "${CMAKE_CURRENT_SOURCE_DIR}"
@@ -133,7 +159,7 @@ include_directories("${CMAKE_CURRENT_SOURCE_DIR}/core/include/" "${CMAKE_CURRENT
         "${CMAKE_CURRENT_SOURCE_DIR}/runtime/"
         "${CMAKE_CURRENT_SOURCE_DIR}/streaming/"
         "${CMAKE_CURRENT_SOURCE_DIR}/table/"
-        "${CMAKE_CURRENT_SOURCE_DIR}/connector-kafka/"
+        "${CMAKE_CURRENT_SOURCE_DIR}/connector/"
         # "${CMAKE_CURRENT_SOURCE_DIR}/util/"
 )
 
@@ -168,7 +194,7 @@ if(ENABLE_ORT_1_7)
 else ()
     set(ORT_VEC_SO boostkit-omniop-vector-1.9.0-aarch64)
     set(ORT_CODEGEN_SO boostkit-omniop-codegen-1.9.0-aarch64)
-    set(ORT_OP_SO boostkit-omniop-operator-1.9.0-aarch64)
+    set(ORT_OP_SO boostkit-omniop-operator-1.9.0-aarch64)    
 endif()
 
 option(ENABLE_TSHOOT "Enable trouble shooting macro" OFF)
@@ -180,9 +206,9 @@ endif()
 
 MESSAGE(STATUS "OmniRuntime Dir ${OMNIRUNTIME_DIR} ${OMNIRUNTIME_LIB_DIR} ${OMNIRUNTIME_SRC_DIR}")
 # common libraries for all modules
-add_subdirectory(basictypes)
-add_subdirectory(functions)
-add_subdirectory(thirdlibrary)
+add_subdirectory(translate/basictypes)
+add_subdirectory(translate/functions)
+add_subdirectory(translate/thirdlibrary)
 add_subdirectory(core)
 add_subdirectory(table)
 add_subdirectory(jni)
@@ -192,7 +218,7 @@ add_subdirectory(datagen)
 add_subdirectory(streaming)
 # add_subdirectory(util)
 # add_subdirectory(zemo)
-add_subdirectory(connector-kafka)
+add_subdirectory(connector)
 
 # Use OmniOperatorJIT's codegen and expression instead
 # add_subdirectory(codegen)

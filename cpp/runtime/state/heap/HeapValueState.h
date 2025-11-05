@@ -1,11 +1,18 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 #ifndef FLINK_TNEL_HEAPVALUESTATE_H
 #define FLINK_TNEL_HEAPVALUESTATE_H
 #include "core/typeutils/TypeSerializer.h"
-#include "core/api/ValueState.h"
-#include "../VoidNamespace.h"
+#include "core/api/common/state/ValueState.h"
+#include "state/VoidNamespace.h"
 #include "StateTable.h"
 #include "core/api/common/state/StateDescriptor.h"
 
@@ -15,9 +22,7 @@ public:
     HeapValueState(StateTable<K, N, V> *stateTable, TypeSerializer *keySerializer, TypeSerializer *valueSerializer,
         TypeSerializer *namespaceSerializer, V defaultValue);
 
-    ~HeapValueState() {
-        stateTable->deleteMaps();
-    };
+    ~HeapValueState() = default;
 
     TypeSerializer *getKeySerializer()
     {
@@ -80,7 +85,19 @@ void HeapValueState<K, N, V>::update(const V &value, bool copyKey)
     if (copyKey) {
         stateTable->copyCurrentKey();
     }
-    stateTable->put(currentNamespace, value);
+    if constexpr (std::is_same_v<V, Object*>) {
+        auto oldValue = static_cast<Object*>(stateTable->get(currentNamespace));
+        if (oldValue != nullptr) {
+            oldValue->putRefCount();
+        }
+        if (value != nullptr) {
+            auto newValue = static_cast<Object*>(value);
+            stateTable->put(currentNamespace, newValue);
+            newValue->getRefCount();
+        }
+    } else {
+        stateTable->put(currentNamespace, value);
+    }
 }
 
 template <typename K, typename N, typename V>
@@ -104,7 +121,12 @@ template <typename K, typename N, typename V>
 V HeapValueState<K, N, V>::value()
 {
     V result = stateTable->get(currentNamespace);
-    if constexpr (std::is_pointer<V>::value) {
+    if constexpr (std::is_same_v<V, Object*>) {
+        if (result != nullptr) {
+            reinterpret_cast<Object*>(result)->getRefCount();
+        }
+        return result;
+    } else if constexpr (std::is_pointer<V>::value) {
         return result == nullptr ? defaultValue : result;
     } else {
         return result == std::numeric_limits<V>::max() ? defaultValue : result;

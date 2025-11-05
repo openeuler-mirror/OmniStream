@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #ifndef TYPEDESCRIPTIONPOD_H
@@ -25,25 +32,26 @@ namespace omnistream {
         TypeDescriptionPOD(const std::string& kind, bool isNull, int precision, const std::string& type, int timestampKind, std::string fieldName)
             : kind(kind), isNull(isNull), precision(precision), type(type), timestampKind(timestampKind), fieldName(fieldName) {}
 
+        TypeDescriptionPOD &operator=(const TypeDescriptionPOD&) = default;
         TypeDescriptionPOD(const TypeDescriptionPOD& other) = default;
 
         std::string getKind() const { return kind; }
-        void setKind(const std::string& kind) { this->kind = kind; }
+        void setKind(const std::string& kind_) { this->kind = kind_; }
 
         bool getIsNull() const { return isNull; }
-        void setIsNull(bool isNull) { this->isNull = isNull; }
+        void setIsNull(bool isNull_) { this->isNull = isNull_; }
 
         int getPrecision() const { return precision; }
-        void setPrecision(int precision) { this->precision = precision; }
+        void setPrecision(int precision_) { this->precision = precision_; }
 
         std::string getType() const { return type; }
-        void setType(const std::string& type) { this->type = type; }
+        void setType(const std::string& type_) { this->type = type_; }
 
         int getTimestampKind() const { return timestampKind; }
-        void setTimestampKind(int timestampKind) { this->timestampKind = timestampKind; }
+        void setTimestampKind(int timestampKind_) { this->timestampKind = timestampKind_; }
 
         std::string getFieldName() const { return fieldName; }
-        void setFieldName(const std::string& fieldName) { this->fieldName = fieldName; }
+        void setFieldName(const std::string& fieldName_) { this->fieldName = fieldName_; }
 
         std::string toString() const
         {
@@ -57,10 +65,10 @@ namespace omnistream {
         {
             return
             this->kind==other.kind &&
-                this->isNull==other.isNull &&
-                    this->precision==other.precision&&
+                this->isNull == other.isNull &&
+                    this->precision == other.precision &&
                         this->type==other.type &&
-                            this->timestampKind==other.timestampKind &&
+                            this->timestampKind == other.timestampKind &&
                                 this->fieldName==other.fieldName;
         }
 
@@ -74,12 +82,12 @@ namespace std {
     struct hash<omnistream::TypeDescriptionPOD> {
         std::size_t operator()(const omnistream::TypeDescriptionPOD& obj) const
         {
-            size_t h1=std::hash<std::string>{}(obj.kind);
-            size_t h2=std::hash<long>{}(obj.isNull);
-            size_t h3=std::hash<int>{}(obj.precision);
-            size_t h4=std::hash<std::string>{}(obj.type);
-            size_t h5=std::hash<int>{}(obj.timestampKind);
-            size_t h8=std::hash<std::string>{}(obj.fieldName);
+            size_t h1 = std::hash<std::string>{}(obj.kind);
+            size_t h2 = std::hash<long>{}(obj.isNull);
+            size_t h3 = std::hash<int>{}(obj.precision);
+            size_t h4 = std::hash<std::string>{}(obj.type);
+            size_t h5 = std::hash<int>{}(obj.timestampKind);
+            size_t h8 = std::hash<std::string>{}(obj.fieldName);
 
             size_t seed = 0;
 
@@ -96,4 +104,4 @@ namespace std {
 } // namespace std
 
 
-#endif //TYPEDESCRIPTIONPOD_H
+#endif

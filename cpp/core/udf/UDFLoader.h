@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 #ifndef FLINK_TNEL_UDFLOADER_H
 #define FLINK_TNEL_UDFLOADER_H
@@ -12,6 +19,8 @@
 #include "functions/SourceFunction.h"
 #include "functions/FlatMapFunction.h"
 #include "functions/KeySelect.h"
+#include "functions/KeyedCoProcessFunction.h"
+#include "streaming/api/functions/ProcessFunction.h"
 #include "functions/RuntimeContext.h"
 #include "udf_hash.h"
 #include "nlohmann/json.hpp"
@@ -22,7 +31,8 @@ using FlatMapDllType = FlatMapFunctionUnique<Object>(nlohmann::json);
 using FilterDllType = FilterFunctionUnique<Object>(nlohmann::json);
 using SourceDllType = SourceFunctionUnique<Object>(nlohmann::json);
 using KeySelectDllType = KeySelectUnique<Object>(nlohmann::json);
-
+using KeyedCoProcessDllType = KeyedCoProcessFunctionUnique<Object*, Object*, Object*, Object*>(nlohmann::json);
+using ProcessOperatorDllType = ProcessFunctionUnique<Object*, Object*>(nlohmann::json);
 
 using SerializeFunction = char*(char*);
 using DeSerializeFunction = char*(char*);
@@ -99,6 +109,15 @@ public:
         return LoadUDFFunction<KeySelectDllType >(filePath, KeySelectName);
     }
 
+    KeyedCoProcessDllType* LoadKeyedCoProcessFunction(const std::string &filePath)
+    {
+        return LoadUDFFunction<KeyedCoProcessDllType >(filePath, KeyedCoProcessFuncName);
+    }
+
+    ProcessOperatorDllType* LoadProcessOperatorFunction(const std::string &filePath)
+    {
+        return LoadUDFFunction<ProcessOperatorDllType >(filePath, ProcessOperatorFuncName);
+    }
 
     RichMapFunctionType* LoadRichMapFunction(const std::string &filePah)
     {
@@ -137,16 +156,19 @@ private:
         return funcPointer;
     }
 
-    const char* ReduceFuncName = "NewInstance";
-    const char* MapFuncName = "NewInstance";
-    const char* SerializeName = "NewInstance";
-    const char* DeSerializeName = "NewInstance";
-    const char* FlatMapFuncName = "NewInstance";
-    const char* FilterFuncName = "NewInstance";
-    const char* SourceFuncName = "NewInstance";
-    const char* KeySelectName = "NewInstance";
-    const char* DebugName = "NewInstance";
+    const char* NormalFunctionName = "NewInstance";
+    const char* ReduceFuncName = NormalFunctionName;
+    const char* MapFuncName = NormalFunctionName;
+    const char* SerializeName = NormalFunctionName;
+    const char* DeSerializeName = NormalFunctionName;
+    const char* FlatMapFuncName = NormalFunctionName;
+    const char* FilterFuncName = NormalFunctionName;
+    const char* SourceFuncName = NormalFunctionName;
+    const char* KeySelectName = NormalFunctionName;
+    const char* KeyedCoProcessFuncName = NormalFunctionName;
+    const char* ProcessOperatorFuncName = NormalFunctionName;
+    const char* DebugName = NormalFunctionName;
     const char* HashName = "Hash";
     const char* CmpName = "Cmp";
 };
-#endif //FLINK_TNEL_UDFLOADER_H
+#endif

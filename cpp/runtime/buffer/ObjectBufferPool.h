@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #ifndef OMNISTREAM_OBJECTBUFFERPOOL_H
@@ -19,17 +26,7 @@ namespace omnistream {
     class ObjectBufferPool : public ObjectBufferProvider, public ObjectBufferRecycler {
     public:
         ObjectBufferPool() = default;
-        ~ObjectBufferPool() override = default;
 
-        virtual void reserveSegments(int numberOfSegmentsToReserve)  = 0;
-        virtual void lazyDestroy()  = 0;
-        bool isDestroyed() override =0 ;
-        virtual int getNumberOfRequiredObjectSegments() const =0 ;
-        virtual int getMaxNumberOfObjectSegments() const =0 ;
-        virtual int getNumBuffers()  =0 ;
-        virtual void setNumBuffers(int numBuffers) =0 ;
-        virtual int getNumberOfAvailableObjectSegments()  =0 ;
-        virtual int bestEffortGetNumOfUsedBuffers() const =0 ;
         virtual std::shared_ptr<ObjectSegment> requestObjectSegment() = 0;
         virtual std::shared_ptr<ObjectSegment> requestObjectSegmentBlocking() =0;
         std::string toString() const override =0 ;

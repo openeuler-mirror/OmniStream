@@ -1,3 +1,14 @@
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
+
 #include <algorithm>
 #include <mutex>
 #include "LogicalType.h"
@@ -23,7 +34,7 @@ std::unordered_map<std::string, omniruntime::type::DataTypeId> LogicalType::name
 DataTypeId LogicalType::flinkTypeToOmniTypeId(const std::string& flinkType)
 {
     buildNameToIdMap();
-    //Deal with tailing "NOT NULL"
+    // Deal with tailing "NOT NULL"
     std::string basicStrippedType = flinkType;
     const std::string suffix = " NOT NULL";
     if (basicStrippedType.size() > suffix.size() &&
@@ -47,8 +58,6 @@ DataTypeId LogicalType::flinkTypeToOmniTypeId(const std::string& flinkType)
             return it->second;
         }
         if (basicStrippedType.substr(0, 9) == "TIMESTAMP") {
-            // TODO: We currently only consider low precision time.
-            //return DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE;
             return DataTypeId::OMNI_TIMESTAMP;
         }
     }
@@ -129,8 +138,6 @@ void LogicalType::buildNameToIdMap()
         // These are the extra LogicalTypeRoot typeName
         nameToIdMap["TIME_WITHOUT_TIME_ZONE"] = DataTypeId::OMNI_TIME_WITHOUT_TIME_ZONE;
         nameToIdMap["TIMESTAMP_WITHOUT_TIME_ZONE"] = DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE;
-        //TODO: Currently TIMESTAMP_WITHOUT_TIME_ZONE is just TIMESTAMP, since we only consider low precision timestamp
-        // nameToIdMap["TIMESTAMP_WITHOUT_TIME_ZONE"]  = DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE;
         nameToIdMap["TIMESTAMP_WITHOUT_TIME_ZONE"] = DataTypeId::OMNI_TIMESTAMP;
         nameToIdMap["TIMESTAMP_WITH_TIME_ZONE"] = DataTypeId::OMNI_TIMESTAMP_WITH_TIME_ZONE;
         nameToIdMap["TIMESTAMP_WITH_LOCAL_TIME_ZONE"] = DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE;
@@ -139,9 +146,6 @@ void LogicalType::buildNameToIdMap()
     });
 }
 
-// LogicalTypeRoot LogicalType::getTypeRoot() const {
-//     return typeRoot;
-// }
 BasicLogicalType* BasicLogicalType::BOOLEAN = new BasicLogicalType(DataTypeId::OMNI_BOOLEAN, true);
 BasicLogicalType* BasicLogicalType::INTEGER = new BasicLogicalType(DataTypeId::OMNI_INT, true);
 BasicLogicalType* BasicLogicalType::BIGINT = new BasicLogicalType(DataTypeId::OMNI_LONG, true);

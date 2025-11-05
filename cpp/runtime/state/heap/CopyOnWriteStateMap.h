@@ -1,6 +1,18 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ *
+ * Modify this part of the code to implement native execution of Flink operators.
  */
+
+#ifndef COPYONWRITESTATEMAP_H
+#define COPYONWRITESTATEMAP_H
 // emhash7::HashMap for C++11/14/17
 // version 2.2.5
 // https://github.com/ktprime/emhash/blob/master/hash_table7.hpp
@@ -118,18 +130,26 @@ of resizing granularity. Ignoring variance, the expected occurrences of list siz
 #    define EMH_UNLIKELY(condition) condition
 #endif
 
-#define EMH_KEY(p,n)     p[n].first
-#define EMH_VAL(p,n)     p[n].second
-#define EMH_NMSPACE(p,n)     p[n].third
-#define EMH_BUCKET(p,n)  p[n].bucket
-#define EMH_PKV(p,n)     p[n]
-#define EMH_NEW(key, val, nmspace, bucket, version)\
-            new(_pairs + bucket) PairT(key, val, nmspace, bucket, version, version); _num_filled ++; EMH_SET(bucket)
+#define EMH_KEY(p, n)     p[n].first
+#define EMH_VAL(p, n)     p[n].second
+#define EMH_NMSPACE(p, n)     p[n].third
+#define EMH_BUCKET(p, n)  p[n].bucket
+#define EMH_PKV(p, n)     p[n]
+#define EMH_NEW(key, val, nmspace, bucket, version) \
+            new(_pairs + (bucket)) PairT(key, val, nmspace, bucket, version, version); _num_filled ++; EMH_SET(bucket)
 
+#ifndef EMH_MASK
 #define EMH_MASK(n)       uint8_t(1 << (n % MASK_BIT))
+#endif
+#ifndef EMH_SET
 #define EMH_SET(n)        _bitmask[n / MASK_BIT] &= ~(EMH_MASK(n))
+#endif
+#ifndef EMH_CLS
 #define EMH_CLS(n)        _bitmask[n / MASK_BIT] |= EMH_MASK(n)
+#endif
+#ifndef EMH_EMPTY
 #define EMH_EMPTY(n)      (_bitmask[n / MASK_BIT] & (EMH_MASK(n))) != 0
+#endif
 
 namespace omnistream {
 
@@ -150,7 +170,7 @@ namespace omnistream {
     static_assert((int)INACTIVE < 0, "INACTIVE must negative (to int)");
 #endif
 
-//count the leading zero bit
+    // count the leading zero bit
     static inline size_type CTZ(size_t n)
     {
 #if defined(__x86_64__) || (__BYTE_ORDER__ && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
@@ -182,53 +202,54 @@ namespace omnistream {
     }
 
     template <typename K, typename N, typename S>
-    struct MapEntry {
-        MapEntry(const MapEntry& rhs, int entryV)
-                :second(rhs.second), first(rhs.first), third(rhs.third)
+    struct CopyOnWriteMapEntry {
+        CopyOnWriteMapEntry(const CopyOnWriteMapEntry& rhs, int entryV)
+            : second(rhs.second), first(rhs.first), third(rhs.third)
         {
             bucket = rhs.bucket;
             stateVersion = rhs.stateVersion;
             entryVersion = entryV;
         }
-        MapEntry(MapEntry&& rhs, int entryV) noexcept
-                :second(std::move(rhs.second)), first(std::move(rhs.first)), third(std::move(rhs.third))
+        CopyOnWriteMapEntry(CopyOnWriteMapEntry&& rhs, int entryV) noexcept
+            : second(std::move(rhs.second)), first(std::move(rhs.first)), third(std::move(rhs.third))
         {
             bucket = rhs.bucket;
             stateVersion = rhs.stateVersion;
             entryVersion = entryV;
         }
 
-        MapEntry(const K& key, const S& val, const N& nmspace, size_type ibucket, int stateV, int entryV)
-                :second(val), first(key), third(nmspace)
+        CopyOnWriteMapEntry(const K& key, const S& val, const N& nmspace, size_type ibucket, int stateV, int entryV)
+            : second(val), first(key), third(nmspace)
         {
             bucket = ibucket;
             stateVersion = stateV;
             entryVersion = entryV;
         }
 
-        MapEntry(K&& key, S&& val, N&& nmspace, size_type ibucket, int stateV, int entryV)
-                :second(std::move(val)), first(std::move(key)), third(std::move(nmspace))
+        CopyOnWriteMapEntry(K&& key, S&& val, N&& nmspace, size_type ibucket, int stateV, int entryV)
+            : second(std::move(val)), first(std::move(key)), third(std::move(nmspace))
         {
             bucket = ibucket;
             stateVersion = stateV;
             entryVersion = entryV;
         }
 
-        void setState(S state, int mapVersion) {
+        void setState(S state, int mapVersion)
+        {
             // naturally, we can update the state version every time we replace the old state with a
             // different object
-            // todo: be careful with the != here. If State is a pointer, the meaing of != might not be what we want
             if (state != second) {
                 second = state;
                 stateVersion = mapVersion;
             }
         }
 
-        bool equals(const MapEntry<K, N, S>& rhs) {
+        bool equals(const CopyOnWriteMapEntry<K, N, S>& rhs)
+        {
             // todo: be careful with the == here. If State is a pointer, the meaing of == might not be what we want
             return second == rhs.second && first == rhs.first && third == rhs.third;
         }
-        void swap(MapEntry<K, N, S> &o)
+        void swap(CopyOnWriteMapEntry<K, N, S> &o)
         {
             std::swap(second, o.second);
             std::swap(first, o.first);
@@ -251,14 +272,16 @@ namespace omnistream {
 /// A cache-friendly hash table with open addressing, linear/qua probing and power-of-two capacity
 /// Customized hasher and equaliser should take both key and namespace as input
     struct CombineHash {
-        template <typename K, typename N>
-        size_t operator()(const K& _key, const N& _nmspace) const {
+        template<typename K, typename N>
+        size_t operator()(const K &_key, const N &_nmspace) const
+        {
             return std::hash<K>()(_key) ^ std::hash<N>()(_nmspace);
         }
     };
     struct CombineEqual {
-        template <typename K, typename N>
-        size_t operator()(const K& _key1, const K& _key2, const N& _nmspace1, const N& _nmspace2) const {
+        template<typename K, typename N>
+        size_t operator()(const K &_key1, const K &_key2, const N &_nmspace1, const N &_nmspace2) const
+        {
             return std::equal_to<K>{}(_key1, _key2) && std::equal_to<N>{}(_nmspace1, _nmspace2);
         }
     };
@@ -284,8 +307,7 @@ namespace omnistream {
     };
 
     template <typename KeyT, typename N, typename ValueT, typename HashT = CombineHash, typename EqT = CombineEqual>
-    class CopyOnWriteStateMap : public StateMap<KeyT, N, ValueT>
-    {
+    class CopyOnWriteStateMap : public StateMap<KeyT, N, ValueT> {
 #ifndef EMH_DEFAULT_LOAD_FACTOR
         constexpr static float EMH_DEFAULT_LOAD_FACTOR = 0.80f;
 #endif
@@ -293,8 +315,8 @@ namespace omnistream {
 
     public:
         typedef CopyOnWriteStateMap<KeyT, N, ValueT> htype;
-        typedef MapEntry<KeyT, N, ValueT>               value_pair;
-        typedef MapEntry<KeyT, N, ValueT>               PairT;
+        typedef CopyOnWriteMapEntry<KeyT, N, ValueT>               value_pair;
+        typedef CopyOnWriteMapEntry<KeyT, N, ValueT>               PairT;
 
         CopyOnWriteStateMap(TypeSerializer* serializer, size_type bucket = 2, float mlf = EMH_DEFAULT_LOAD_FACTOR) noexcept
         {
@@ -302,8 +324,7 @@ namespace omnistream {
             init(bucket, mlf);
         }
 
-        class iterator : public InternalKvState<KeyT, N, ValueT>::StateIncrementalVisitor
-        {
+        class iterator : public InternalKvState<KeyT, N, ValueT>::StateIncrementalVisitor {
         public:
             typedef std::forward_iterator_tag iterator_category;
             typedef std::ptrdiff_t            difference_type;
@@ -315,7 +336,7 @@ namespace omnistream {
             iterator() = default;
             iterator(const iterator &it) : _map(it._map), _bucket(it._bucket), _from(it._from), _bmask(it._bmask) {}
 
-            //iterator(const htype* hash_map, size_type bucket, bool) : _map(hash_map), _bucket(bucket) { init(); }
+            // iterator(const htype* hash_map, size_type bucket, bool) : _map(hash_map), _bucket(bucket) { init(); }
 #if EMH_ITER_SAFE
             iterator(const htype* hash_map, size_type bucket) : _map(hash_map), _bucket(bucket) { init(); }
 #else
@@ -323,10 +344,12 @@ namespace omnistream {
 #endif
 
             // -------- Flink APIs-----------
-            bool hasNext() override {
+            bool hasNext() override
+            {
                 return _bucket != _map->_num_buckets;
             }
-            ValueT nextEntries() override {
+            ValueT nextEntries() override
+            {
                 auto& val = _map->EMH_VAL(_pairs, _bucket);
                 this->operator++();
                 return val;
@@ -414,7 +437,8 @@ namespace omnistream {
                 _bucket = _from + CTZ(_bmask);
             }
         };
-        iterator* getStateIncrementalVisitor(int recommendedMaxNumberOfReturnedRecords) override {
+        iterator* getStateIncrementalVisitor(int recommendedMaxNumberOfReturnedRecords) override
+        {
             iterator* it = new iterator(this->begin());
             return it;
         }
@@ -540,14 +564,17 @@ namespace omnistream {
                     _num_filled --;
                     it->~value_pair();
                 }
-            }
-            else {
+            } else {
                 for (auto it = begin(); _num_filled; ++it) {
                     _num_filled --;
-                    if constexpr (std::is_pointer_v<KeyT>) {
+                    if constexpr (std::is_same_v<KeyT, Object*>) {
+                        static_cast<Object*>(it->first)->putRefCount();
+                    } else if constexpr (std::is_pointer_v<KeyT>) {
                         delete it->first;
                     }
-                    if constexpr (std::is_pointer_v<ValueT>) {
+                    if constexpr (std::is_same_v<ValueT, Object*>) {
+                        static_cast<Object*>(it->second)->putRefCount();
+                    } else if constexpr (std::is_pointer_v<ValueT>) {
                         delete it->second;
                     }
                     if constexpr (std::is_pointer_v<N>) {
@@ -660,8 +687,7 @@ namespace omnistream {
 
             auto next_bucket = EMH_BUCKET(_pairs, bucket);
             const auto eqkey = _eq(key, EMH_KEY(_pairs, bucket), nmspace, EMH_NMSPACE(_pairs, bucket));
-            if (eqkey)
-            {
+            if (eqkey) {
                 if (next_bucket == bucket)
                     return bucket;
 
@@ -673,22 +699,21 @@ namespace omnistream {
 
                 EMH_BUCKET(_pairs, bucket) = (nbucket == next_bucket) ? bucket : nbucket;
                 return next_bucket;
-            }
-            else if (next_bucket == bucket)
+            } else if (next_bucket == bucket) {
                 return INACTIVE;
+            }
 
             auto prev_bucket = bucket;
-            while (true)
-            {
+            while (true) {
                 const auto nbucket = EMH_BUCKET(_pairs, next_bucket);
-                if (_eq(key, EMH_KEY(_pairs, next_bucket), nmspace, EMH_NMSPACE(_pairs, next_bucket)))
-                {
+                if (_eq(key, EMH_KEY(_pairs, next_bucket), nmspace, EMH_NMSPACE(_pairs, next_bucket))) {
                     EMH_BUCKET(_pairs, prev_bucket) = (nbucket == next_bucket) ? prev_bucket : nbucket;
                     return next_bucket;
                 }
 
-                if (nbucket == next_bucket)
+                if (nbucket == next_bucket) {
                     break;
+                }
                 prev_bucket = next_bucket;
                 next_bucket = nbucket;
             }
@@ -709,13 +734,13 @@ namespace omnistream {
         void clear()
         {
             if (!is_triviall_destructable() && _num_filled) {
-                memset_s(_bitmask, (_num_buckets + 7) / 8, (int)0xFFFFFFFF, (_num_buckets + 7) / 8);
-                if (_num_buckets < 8) _bitmask[0] =  uint8_t((1 << _num_buckets) - 1);
-            }
-            else if (_num_filled)
+                memset_s(_bitmask, (_num_buckets + 7) / 8, (int) 0xFFFFFFFF, (_num_buckets + 7) / 8);
+                if (_num_buckets < 8) _bitmask[0] = uint8_t((1 << _num_buckets) - 1);
+            } else if (_num_filled) {
                 clearkv();
+            }
 
-            //EMH_BUCKET(_pairs, _num_buckets) = 0; //_last
+            // EMH_BUCKET(_pairs, _num_buckets) = 0; //_last
             _num_filled = 0;
         }
 
@@ -865,10 +890,10 @@ namespace omnistream {
             return 0;
         }
 
-        //kick out bucket and find empty to occpuy
-        //it will break the orgin link and relnik again.
-        //before: main_bucket-->prev_bucket --> bucket   --> next_bucket
-        //atfer : main_bucket-->prev_bucket --> (removed)--> new_bucket--> next_bucket
+        // kick out bucket and find empty to occpuy
+        // it will break the orgin link and relnik again.
+        // before: main_bucket-->prev_bucket --> bucket   --> next_bucket
+        // atfer : main_bucket-->prev_bucket --> (removed)--> new_bucket--> next_bucket
         size_type kickout_bucket(const size_type kmain, const size_type kbucket)
         {
             const auto next_bucket = EMH_BUCKET(_pairs, kbucket);
@@ -902,15 +927,14 @@ namespace omnistream {
             if (EMH_EMPTY(bucket)) {
                 isempty = true;
                 return bucket;
-            }
-            else if (_eq(key, bucket_key, nmspace, bucket_nmspace)) {
+            } else if (_eq(key, bucket_key, nmspace, bucket_nmspace)) {
                 isempty = false;
                 return bucket;
             }
 
             isempty = true;
             auto next_bucket = EMH_BUCKET(_pairs, bucket);
-            //check current bucket_key is in main bucket or not
+            // check current bucket_key is in main bucket or not
             const auto kmain_bucket = hash_key(bucket_key, bucket_nmspace) & _mask;
             if (kmain_bucket != bucket)
                 return kickout_bucket(kmain_bucket, bucket);
@@ -920,7 +944,7 @@ namespace omnistream {
 #if EMH_LRU_SET
             auto prev_bucket = bucket;
 #endif
-            //find next linked bucket and check key, if lru is set then swap current key with prev_bucket
+            // find next linked bucket and check key, if lru is set then swap current key with prev_bucket
             while (true) {
                 if (EMH_UNLIKELY(_eq(key, EMH_KEY(_pairs, next_bucket), nmspace, EMH_NMSPACE(_pairs, next_bucket)))) {
                     isempty = false;
@@ -942,7 +966,7 @@ namespace omnistream {
                 next_bucket = nbucket;
             }
 
-            const auto new_bucket = find_empty_bucket(next_bucket, bucket);// : find_empty_bucket(next_bucket);
+            const auto new_bucket = find_empty_bucket(next_bucket, bucket); // : find_empty_bucket(next_bucket);
             return EMH_BUCKET(_pairs, next_bucket) = new_bucket;
         }
 
@@ -951,29 +975,27 @@ namespace omnistream {
         {
 #if EMH_ITER_SAFE
             const auto boset = bucket_from % 8;
-        auto* const align = (uint8_t*)_bitmask + bucket_from / 8;(void)main_bucket;
-        size_t bmask; memcpy_s(&bmask, align + 0, sizeof(bmask)); bmask >>= boset;// bmask |= ((size_t)align[8] << (SIZE_BIT - boset));
+        auto* const align = (uint8_t*)_bitmask + bucket_from / 8;
+        (void)main_bucket;
+        size_t bmask;
+        memcpy_s(&bmask, align + 0, sizeof(bmask));
+        bmask >>= boset; // bmask |= ((size_t)align[8] << (SIZE_BIT - boset));
         if (EMH_LIKELY(bmask != 0))
             return bucket_from + CTZ(bmask);
 #else
             const auto boset  = bucket_from % 8;
-            auto* const align = (uint8_t*)_bitmask + bucket_from / 8; (void)bucket_from;
-            const size_t bmask  = (*(size_t*)(align) >> boset);// & 0xF0F0F0F0FF0FF0FFull;//
+            auto* const align = (uint8_t*)_bitmask + bucket_from / 8;
+            (void)bucket_from;
+            const size_t bmask  = (*(size_t*)(align) >> boset); // & 0xF0F0F0F0FF0FF0FFull;//
             if (EMH_LIKELY(bmask != 0))
                 return bucket_from + CTZ(bmask);
 #endif
 
             const auto qmask = _mask / SIZE_BIT;
-            if (0) {
-                const size_type step = (main_bucket - SIZE_BIT / 4) & qmask;
-                const auto bmask3 = *((size_t*)_bitmask + step);
-                if (bmask3 != 0)
-                    return step * SIZE_BIT + CTZ(bmask3);
-            }
 
-            //auto next_bucket = (bucket_from + 0 * SIZE_BIT) & qmask;
+            // auto next_bucket = (bucket_from + 0 * SIZE_BIT) & qmask;
             auto& last = EMH_BUCKET(_pairs, _num_buckets);
-            for (; ; ) {
+            for (; ;) {
                 last &= qmask;
                 const auto bmask2 = *((size_t*)_bitmask + last);
                 if (bmask2 != 0)
@@ -986,19 +1008,6 @@ namespace omnistream {
                     return next1 * SIZE_BIT + CTZ(bmask1);
                 }
                 last += 1;
-#else
-                next_bucket += offset < 10 ? 1 + SIZE_BIT * offset : 1 + qmask / 32;
-            if (next_bucket >= qmask) {
-                next_bucket += 1;
-                next_bucket &= qmask;
-            }
-
-            const auto bmask1 = *((size_t*)_bitmask + next_bucket);
-            if (bmask1 != 0) {
-                last = next_bucket;
-                return next_bucket * SIZE_BIT + CTZ(bmask1);
-            }
-            offset += 1;
 #endif
             }
         }
@@ -1037,7 +1046,7 @@ namespace omnistream {
             if (EMH_EMPTY(bucket))
                 return bucket;
 
-            //check current bucket_key is in main bucket or not
+            // check current bucket_key is in main bucket or not
             const auto kmain_bucket = hash_key(EMH_KEY(_pairs, bucket), EMH_NMSPACE(_pairs, bucket)) & _mask;
             if (EMH_UNLIKELY(kmain_bucket != bucket))
                 return kickout_bucket(kmain_bucket, bucket);
@@ -1046,7 +1055,7 @@ namespace omnistream {
             if (next_bucket != bucket)
                 next_bucket = find_last_bucket(next_bucket);
 
-            //find a new empty and link it to tail
+            // find a new empty and link it to tail
             return EMH_BUCKET(_pairs, next_bucket) = find_empty_bucket(next_bucket, bucket);
         }
 
@@ -1101,11 +1110,6 @@ namespace omnistream {
 }
 // namespace emhash7
 #if __cplusplus >= 201103L
-//template <class Key, class Val> using ehmap7 = emhash7::HashMap<Key, Val, std::hash<Key>, std::equal_to<Key>>;
 #endif
 
-//2. improve rehash and find miss performance(reduce peak memory)
-//3. dump or Serialization interface
-//4. node hash map support
-//5. load_factor > 1.0 && add grow ration
-//... https://godbolt.org/
+#endif

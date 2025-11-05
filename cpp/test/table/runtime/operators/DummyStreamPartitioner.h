@@ -6,12 +6,12 @@
 
 #define OMNISTREAM_DUMMYSTREAMPARTITIONER_H
 
-#include "writer/RecordWriter.h"
-#include "io/RecordWriterOutput.h"
+#include "runtime/io/network/api/writer/RecordWriter.h"
+#include "streaming/runtime/io/RecordWriterOutput.h"
 
-using namespace omnistream;
+// using namespace omnistream;
 
-class DummyStreamPartitioner : public datastream::StreamPartitioner<IOReadableWritable> {
+class DummyStreamPartitioner : public omnistream::datastream::StreamPartitioner<IOReadableWritable> {
 public:
     bool isPointWise() const override
     {

@@ -1,13 +1,13 @@
 #include <gtest/gtest.h>
 #include <iostream>
 #include <nlohmann/json.hpp>
-#include <taskmanager/RuntimeEnvironment.h>
+#include <taskmanager/OmniRuntimeEnvironment.h>
  
-#include "table/vectorbatch/VectorBatch.h"
+#include "table/data/vectorbatch/VectorBatch.h"
 #include "OmniOperatorJIT/core/test/util/test_util.h"
 #include "test/core/operators/OutputTest.h"
 #include "table/runtime/operators/window/processor/AbstractWindowAggProcessor.h"
-#include "core/operators/StreamOperatorFactory.h"
+#include "streaming/api/operators/StreamOperatorFactory.h"
  
 using json = nlohmann::json;
 using namespace omnistream;
@@ -75,7 +75,11 @@ TEST(GlobalWindowAggTest, DISABLED_OnTimerTest) {
     std::cout << "================step 03===================" << std::endl;
     SlicingWindowOperator<RowData*, int64_t> *operators = new SlicingWindowOperator<RowData*, int64_t>(processor, windowing);
     std::cout << "================step 04===================" << std::endl;
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("InnerJoinOperator", 2, 1, 0)));
+    auto env2 = new omnistream::RuntimeEnvironmentV2();
+    auto taskInfo = new TaskInformationPOD();
+    taskInfo->setStateBackend("HashMapStateBackend");
+    env2->setTaskConfiguration(*taskInfo);
+    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
     operators->setup();
     operators->initializeState(initializer, new LongSerializer());
 
@@ -121,7 +125,11 @@ TEST(GlobalWindowAggTest, DISABLED_TUMBLETest) {
     std::cout << "================step 03===================" << std::endl;
     SlicingWindowOperator<RowData*, int64_t> *operators = new SlicingWindowOperator<RowData*, int64_t>(processor, windowing);
     std::cout << "================step 04===================" << std::endl;
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("InnerJoinOperator", 2, 1, 0)));
+    auto env2 = new omnistream::RuntimeEnvironmentV2();
+    auto taskInfo = new TaskInformationPOD();
+    taskInfo->setStateBackend("HashMapStateBackend");
+    env2->setTaskConfiguration(*taskInfo);
+    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
     operators->setup();
     operators->initializeState(initializer, new LongSerializer());
  
@@ -163,8 +171,11 @@ TEST(GlobalWindowAggTest, DISABLED_HOPTest1) {
     auto *output = new BatchOutputTest();
     auto* slicingWindowOperator = dynamic_cast<SlicingWindowOperator<RowData*, int64_t>*>(
             StreamOperatorFactory::createOperatorAndCollector(opConfig, output));
-
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("InnerJoinOperator", 2, 1, 0)));
+    auto env2 = new omnistream::RuntimeEnvironmentV2();
+    auto taskInfo = new TaskInformationPOD();
+    taskInfo->setStateBackend("HashMapStateBackend");
+    env2->setTaskConfiguration(*taskInfo);
+    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
     slicingWindowOperator->setup();
     slicingWindowOperator->initializeState(initializer, new LongSerializer());
 

@@ -1,0 +1,103 @@
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
+
+#include "SimpleSelectorRecordWriterV2.h"
+
+#include <streaming/runtime/streamrecord/StreamElementSerializer.h>
+
+namespace omnistream {
+    SimpleSelectorRecordWriterV2::SimpleSelectorRecordWriterV2(std::shared_ptr<ResultPartitionWriter> writer,
+                                                               ChannelSelectorV2<StreamRecord> *channelSelector,
+                                                               datastream::StreamPartitioner<IOReadableWritable> * partitioner,
+                                                               long timeout,
+                                                               const std::string &taskName,
+                                                               int taskType): RecordWriterV2(
+        writer, timeout, taskName, taskType)
+    {
+        this->channelSelector = channelSelector;
+        this->partitioner = partitioner;
+
+        if (this->channelSelector != nullptr) {
+            // check null before use
+            this->channelSelector->setup(numberOfChannels);
+        } else if (this->partitioner != nullptr) {
+            this->partitioner->setup(numberOfChannels);
+        } else {
+            LOG("Error: ChannelSelector is null in ChannelSelectorRecordWriter constructor." << std::endl)
+        }
+
+        if (taskType == 2) {
+            this->serializer = new DataOutputSerializer(128);
+        }
+    }
+
+
+    void SimpleSelectorRecordWriterV2::emit(StreamRecord *record)
+    {
+        if (taskType == 1) {
+            auto vectorBatch = static_cast<VectorBatch*>(record->getValue());
+            size_t row_cnt = vectorBatch->GetRowCount();
+            counter_ += row_cnt;
+
+            if (channelSelector != nullptr) {
+                auto selectedChannel = channelSelector->selectChannel(record);
+
+                // LOG(">>> before emit " << std::to_string(selectedChannel) << "  record is " << reinterpret_cast<long>(record))
+                for (auto it = selectedChannel.begin(); it != selectedChannel.end(); ++it) {
+                    emit(it->second, it->first);
+                }
+            } else {
+                std::cerr << "Error: ChannelSelector is null in ChannelSelectorRecordWriter::emit." << std::endl;
+            }
+        } else if (taskType == 2) {
+            this->serializationDelegate->setInstance(record);
+            int channel = partitioner->selectChannel(serializationDelegate);
+
+            auto byteBuffer = serializeRecord(serializer, serializationDelegate);
+
+            record->setValue(byteBuffer);
+            emit(record, channel);
+        }
+    }
+
+    ByteBuffer* SimpleSelectorRecordWriterV2::serializeRecord(DataOutputSerializer* serializer, IOReadableWritable *record)
+    {
+        // correspond to original flink logic for we will put it into memory segment
+        serializer->setPositionUnsafe(4);
+
+        record->write(*serializer);
+
+        int length = serializer->length() - 4;
+        serializer->writeIntUnsafe(length, 0);
+
+        return serializer->wrapAsByteBuffer();
+    }
+
+    void SimpleSelectorRecordWriterV2::emit(StreamRecord *record, int targetSubpartitionIndex)
+    {
+        LOG(">>> before emit  targetSubpartition " << std::to_string(targetSubpartitionIndex) << "  record is " <<
+            reinterpret_cast<long>(record))
+        this->targetPartitionWriter_->emitRecord(record, targetSubpartitionIndex);
+    }
+
+    void SimpleSelectorRecordWriterV2::broadcastEmit(Watermark *watermark)
+    {
+        if (taskType == 2) {
+            this->serializationDelegate->setInstance(watermark);
+            auto byteBuffer = serializeRecord(serializer, serializationDelegate);
+            watermark->setValue(byteBuffer);
+        }
+        LOG(">>> before broadcast watermark " << std::to_string(watermark->getTimestamp()))
+        for (int i = 0; i < numberOfChannels; i++) {
+            this->targetPartitionWriter_->emitRecord(reinterpret_cast<void*>(watermark), i);
+        }
+    }
+}

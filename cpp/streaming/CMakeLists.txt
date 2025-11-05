@@ -23,3 +23,10 @@ set_property(TARGET streaming PROPERTY POSITION_INDEPENDENT_CODE ON)
 if (JEMALLOC_LIB)
     target_link_libraries(streaming PRIVATE ${JEMALLOC_LIB})
 endif()
+
+install(
+        TARGETS runtime
+        LIBRARY DESTINATION lib
+        ARCHIVE DESTINATION lib
+        RUNTIME DESTINATION bin
+)

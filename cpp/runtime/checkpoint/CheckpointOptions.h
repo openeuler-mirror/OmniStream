@@ -1,0 +1,91 @@
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
+#ifndef FLINK_TNEL_CHECKPOINTOPTIONS_H
+#define FLINK_TNEL_CHECKPOINTOPTIONS_H
+
+#include <limits>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+
+#include "../state/CheckpointStorageLocationReference.h"
+#include "CheckpointType.h"
+#include <nlohmann/json.hpp>
+
+class CheckpointOptions {
+public:
+    enum class AlignmentType {
+        AT_LEAST_ONCE,
+        ALIGNED,
+        UNALIGNED,
+        FORCED_ALIGNED
+    };
+    static constexpr long NO_ALIGNED_CHECKPOINT_TIME_OUT =
+        std::numeric_limits<long>::max();
+    CheckpointOptions(SnapshotType *checkpointType,
+                      CheckpointStorageLocationReference *targetLocation,
+                      AlignmentType alignmentType,
+                      long alignedCheckpointTimeout);
+
+    CheckpointOptions(SnapshotType *checkpointType,
+                      CheckpointStorageLocationReference *targetLocation);
+
+    static CheckpointOptions *NotExactlyOnce(
+        SnapshotType &type, CheckpointStorageLocationReference *location);
+
+    static CheckpointOptions *AlignedNoTimeout(
+        SnapshotType &type, CheckpointStorageLocationReference *location);
+
+    static CheckpointOptions *Unaligned(
+        SnapshotType &type, CheckpointStorageLocationReference *location);
+
+    static CheckpointOptions *AlignedWithTimeout(
+        SnapshotType &type, CheckpointStorageLocationReference *location,
+        long alignedCheckpointTimeout);
+
+    static CheckpointOptions *ForConfig(
+        SnapshotType &checkpointType,
+        CheckpointStorageLocationReference *locationReference,
+        bool isExactlyOnceMode, bool isUnalignedEnabled,
+        long alignedCheckpointTimeout);
+
+    AlignmentType GetAlignment() const;
+    long GetAlignedCheckpointTimeout() const;
+    bool NeedsAlignment() const;
+    bool IsTimeoutable() const;
+    SnapshotType *GetCheckpointType() const;
+    CheckpointStorageLocationReference *GetTargetLocation() const;
+
+    bool IsExactlyOnceMode() const;
+    bool IsUnalignedCheckpoint() const;
+    bool NeedsChannelState() const;
+    static CheckpointOptions *FromJson(nlohmann::json &config);
+
+    CheckpointOptions *WithUnalignedSupported();
+    CheckpointOptions *WithUnalignedUnsupported();
+    bool operator==(const CheckpointOptions &other) const;
+    bool operator!=(const CheckpointOptions &other) const;
+    std::string ToString() const;
+    CheckpointOptions *ToUnaligned() const;
+    static CheckpointOptions *ForCheckpointWithDefaultLocation();
+
+private:
+    static CheckpointOptions *ForceAligned(
+        SnapshotType &type, CheckpointStorageLocationReference *location,
+        long alignedCheckpointTimeout);
+
+    SnapshotType *checkpointType_;
+    CheckpointStorageLocationReference *targetLocation_;
+    const AlignmentType alignmentType_;
+    const long alignedCheckpointTimeout_;
+    static CheckpointOptions *CHECKPOINT_AT_DEFAULT_LOCATION;
+};
+#endif // FLINK_TNEL_CHECKPOINTOPTIONS_H

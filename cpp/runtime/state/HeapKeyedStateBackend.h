@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 #ifndef FLINK_TNEL_HEAPKEYEDSTATEBACKEND_H
 #define FLINK_TNEL_HEAPKEYEDSTATEBACKEND_H
@@ -26,8 +33,6 @@ using namespace omniruntime::type;
  (1) basic non-map value (2) pointer to non-map value, like RowData*
  (3) pointer to map, like emhash<RowData*, int>* for Join
  (4) very rarely and don't use it, directly a map
-
- TODO: currently in case (1) we only accepts type that have std::numeric_limits<T>::max(), due to return of nullptr not acceptable in V get()
 */
 
 // Very simplified class, reduces a lot of unused variables and functions
@@ -56,18 +61,70 @@ public:
                     auto stateTable = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace,
                         emhash7::HashMap<XXH128_hash_t, std::tuple<int32_t, int32_t, int64_t>>*>*>(stateTablePtr);
                     delete stateTable;
+                } else if ((keyId == BackendDataType::OBJECT_BK || keyId == BackendDataType::POJO_BK) &&
+                           (valueId == BackendDataType::OBJECT_BK || valueId == BackendDataType::POJO_BK)) {
+                    auto stateTable = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace,
+                            emhash7::HashMap<Object*, Object*> *> *>(stateTablePtr);
+                    delete stateTable;
+                } else if (keyId == BackendDataType::VARCHAR_BK && valueId == BackendDataType::INT_BK) {
+                    auto stateTable = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace,
+                            emhash7::HashMap<std::string, int> *> *>(stateTablePtr);
+                    delete stateTable;
+                } else if (keyId == BackendDataType::INT_BK && valueId == BackendDataType::INT_BK) {
+                    auto stateTable = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace,
+                            emhash7::HashMap<int, int> *> *>(stateTablePtr);
+                    delete stateTable;
+                } else if (keyId == BackendDataType::ROW_BK && valueId == BackendDataType::ROW_LIST_BK) {
+                    auto stateTable = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace,
+                            emhash7::HashMap<RowData*, std::vector<RowData*>*> *> *>(stateTablePtr);
+                    delete stateTable;
+                } else {
+                    NOT_IMPL_EXCEPTION
+                }
+            } else if (desc->getType() == StateDescriptor::Type::VALUE) {
+                auto dataId = desc->getBackendId();
+                if (dataId == BackendDataType::OBJECT_BK || dataId == BackendDataType::POJO_BK) {
+                    auto stateTable = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, Object*> *>(stateTablePtr);
+                    delete stateTable;
+                } else if (dataId == BackendDataType::INT_BK) {
+                    auto stateTable = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, int> *>(stateTablePtr);
+                    delete stateTable;
+                } else if (dataId == BackendDataType::ROW_BK) {
+                    auto stateTable = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, RowData *> *>(stateTablePtr);
+                    delete stateTable;
+                } else {
+                    NOT_IMPL_EXCEPTION
+                }
+            } else if (desc->getType() == StateDescriptor::Type::LIST) {
+                auto dataId = desc->getBackendId();
+                if (dataId == BackendDataType::BIGINT_BK) {
+                    auto stateTable = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, std::vector<int64_t>*> *>(stateTablePtr);
+                    delete stateTable;
+                } else {
+                    NOT_IMPL_EXCEPTION;
                 }
             }
+            delete desc;
+        }
+
+        for (const auto& pair : createdKvState) {
+            delete reinterpret_cast<State *>(pair.second);
         }
     };
+
+    std::shared_ptr<std::packaged_task<SnapshotResult<KeyedStateHandle>*()>> snapshot(
+            long checkpointId,
+            long timestamp,
+            CheckpointStreamFactory *streamFactory,
+            CheckpointOptions *checkpointOptions) { return nullptr;}
 
 private:
     template<typename N, typename S>
     StateTable<K, N, S> *tryRegisterStateTable(TypeSerializer *namespaceSerializer, StateDescriptor *stateDesc);
-    //pointer to StateTable<K, N, V>
-    emhash7::HashMap<std::string, std::tuple<uintptr_t, StateDescriptor*>> registeredKvStates = {};
-    //pointer to intervalKvState
-    emhash7::HashMap<std::string, uintptr_t> createdKvState = {};
+    // pointer to StateTable<K, N, V>
+    emhash7::HashMap<std::string, std::tuple<uintptr_t, StateDescriptor*>> registeredKvStates;
+    // pointer to intervalKvState
+    emhash7::HashMap<std::string, uintptr_t> createdKvState;
 
     template<typename N, typename UK, typename UV>
     HeapMapState<K, N, UK, UV>* createOrUpdateInternalMapState(TypeSerializer *namespaceSerializer, StateDescriptor *stateDesc);
@@ -109,8 +166,17 @@ uintptr_t HeapKeyedStateBackend<K>::createOrUpdateInternalState(TypeSerializer *
         } else if (keyId == BackendDataType::TIME_WINDOW_BK && valueId == BackendDataType::TIME_WINDOW_BK) {
             return (uintptr_t) createOrUpdateInternalMapState<VoidNamespace, TimeWindow, TimeWindow>(namespaceSerializer, stateDesc);
         } else if (keyId == BackendDataType::ROW_BK && valueId == BackendDataType::ROW_LIST_BK) {
-            return (uintptr_t) createOrUpdateInternalMapState<VoidNamespace, RowData*, std::vector<RowData*>*>
-                (namespaceSerializer, stateDesc);
+            return (uintptr_t) createOrUpdateInternalMapState<VoidNamespace,
+                RowData*, std::vector<RowData*>*>(namespaceSerializer, stateDesc);
+        } else if (keyId == BackendDataType::VARCHAR_BK && valueId == BackendDataType::OBJECT_BK) {
+            return (uintptr_t) createOrUpdateInternalMapState<VoidNamespace,
+                Object*, Object*>(namespaceSerializer, stateDesc);
+        } else if (keyId == BackendDataType::OBJECT_BK && valueId == BackendDataType::POJO_BK) {
+            return (uintptr_t) createOrUpdateInternalMapState<VoidNamespace,
+                Object*, Object*>(namespaceSerializer, stateDesc);
+        } else if (keyId == BackendDataType::OBJECT_BK && valueId == BackendDataType::OBJECT_BK) {
+            return (uintptr_t) createOrUpdateInternalMapState<VoidNamespace,
+                Object*, Object*>(namespaceSerializer, stateDesc);
         } else {
             NOT_IMPL_EXCEPTION;
         }
@@ -128,7 +194,9 @@ uintptr_t HeapKeyedStateBackend<K>::createOrUpdateInternalState(TypeSerializer *
         } else if (dataId == BackendDataType::BIGINT_BK) {
             return (uintptr_t) createOrUpdateInternalValueState<VoidNamespace, int64_t>(namespaceSerializer, stateDesc);
         } else if (dataId == BackendDataType::OBJECT_BK) {
-            return (uintptr_t) createOrUpdateInternalValueState<VoidNamespace, Object* >(namespaceSerializer, stateDesc);
+            return (uintptr_t) createOrUpdateInternalValueState<VoidNamespace, Object*>(namespaceSerializer, stateDesc);
+        } else if (dataId == BackendDataType::POJO_BK) {
+            return (uintptr_t) createOrUpdateInternalValueState<VoidNamespace, Object*>(namespaceSerializer, stateDesc);
         } else {
             NOT_IMPL_EXCEPTION;
         }
@@ -209,9 +277,9 @@ HeapValueState<K, N, V> *HeapKeyedStateBackend<K>::createOrUpdateInternalValueSt
 
 template<typename K>
 template<typename N, typename UK, typename UV>
-HeapMapState<K, N, UK, UV> *
-HeapKeyedStateBackend<K>::createOrUpdateInternalMapState(TypeSerializer *namespaceSerializer,
-                                                         StateDescriptor *stateDesc)
+HeapMapState<K, N, UK, UV>* HeapKeyedStateBackend<K>::createOrUpdateInternalMapState(
+    TypeSerializer *namespaceSerializer,
+    StateDescriptor *stateDesc)
 {
     using S = emhash7::HashMap<UK, UV>*;
     StateTable<K, N, S> *stateTable = tryRegisterStateTable<N, S>(namespaceSerializer, stateDesc);

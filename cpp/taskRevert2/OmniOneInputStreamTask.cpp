@@ -1,0 +1,153 @@
+/*
+* Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
+
+#include "OmniOneInputStreamTask.h"
+
+#include <typeinfo/TypeInfoFactory.h>
+
+#include "streaming/runtime/io/StreamTaskNetworkInputFactory.h"
+#include "streaming/runtime/io/StreamOneInputProcessor.h"
+#include "streaming/runtime/io/OmniPushingAsyncDataInput.h"
+#include "streaming/runtime/io/OmniStreamTaskNetworkInput.h"
+#include "streaming/runtime/io/OmniStreamTaskNetworkInputFactory.h"
+#include "streaming/runtime/io/StreamTaskNetworkOutput.h"
+#include "streaming/runtime/io/OmniStreamOneInputProcessor.h"
+#include "../../io/OmniStreamTaskNetworkOutput.h"
+
+namespace omnistream {
+
+
+    // temporary set parameter type is int
+    OmniPushingAsyncDataInput::OmniDataOutput *OmniOneInputStreamTask::createDataOutput(
+        std::shared_ptr<omnistream::SimpleCounter> & numRecordsIn)
+    {
+        return new OmniStreamTaskNetworkOutput(dynamic_cast<OneInputStreamOperator*>(mainOperator_), numRecordsIn);
+    }
+
+    OmniStreamTaskInput* OmniOneInputStreamTask::CreateTaskInput(std::shared_ptr<CheckpointedInputGate> inputGate)
+    {
+        // initialize TypeInformation and channelInfos
+        if (taskType == 1) {
+            // todo: fix it later
+            std::vector<long> channelInfoIndex;
+            auto channelInfos = inputGate->GetChannelInfos();
+            channelInfoIndex.reserve(channelInfos.size());
+            for (size_t i = 0; i < channelInfos.size(); ++i) {
+                channelInfoIndex.push_back(static_cast<long>(channelInfos[i].getInputChannelIdx()));
+            }
+            auto inputTypes = this->taskConfiguration_.getStreamConfigPOD().getOperatorDescription().getInputs();
+            LOG("OmniOneInputStreamTask::CreateTaskInput inputTypes size is" << inputTypes.size());
+            TypeDescriptionPOD inputType;
+            inputType = inputTypes[0];
+            auto types = inputType.getType();
+            json typeArray = json::parse(types);
+            std::vector<std::string> typeList;
+            for (const auto& obj: typeArray) {
+                typeList.push_back(obj.at("type").get<std::string>());
+            }
+            return OmniStreamTaskNetworkInputFactory::create(0, inputGate, taskType, new BinaryRowDataSerializer(typeList.size(), typeList), channelInfoIndex);
+        } else if (taskType == 2) {
+            auto operatorPod = this->taskConfiguration_.getStreamConfigPOD().getOperatorDescription();
+
+            auto inputTypes = operatorPod.getInputs();
+
+            // Create a C++ normal array (vector)
+            std::vector<long> channel_array(inputTypes.size());
+
+            // Copy elements from JSON array to C++ array
+            for (size_t i = 0; i < inputTypes.size(); ++i) {
+                channel_array[i] = static_cast<long>(i);
+            }
+
+            TypeDescriptionPOD inputType;
+            inputType = inputTypes[0];
+
+            TypeInformation *typeInfo;
+
+            if (inputType.kind == "basic") {
+                std::string inputTypeName = inputType.type;
+                typeInfo = TypeInfoFactory::createTypeInfo(inputTypeName.c_str());
+            } else if (inputType.kind == "Tuple") {
+                auto filedType = ::json::parse(inputType.type);
+                typeInfo = TypeInfoFactory::createTupleTypeInfo(filedType);
+            } else {
+                THROW_LOGIC_EXCEPTION("Unknown Input type" + inputType.kind)
+            }
+
+            TypeSerializer *inputSerializer = typeInfo->getTypeSerializer();
+
+            return OmniStreamTaskNetworkInputFactory::create(0, inputGate, taskType, inputSerializer, channel_array);
+        } else {
+            THROW_LOGIC_EXCEPTION("Unknown taskType " + taskType)
+        }
+    }
+
+
+    void OmniOneInputStreamTask::init()
+    {
+        OmniStreamTask::init();
+        auto counter = env_->taskMetricGroup()->GetInternalOperatorIOMetric(
+            mainOperator_->getTypeName(), "numRecordsOut");
+        auto inputGate = CreateCheckpointedInputGate();
+        auto output = createDataOutput(reinterpret_cast<std::shared_ptr<omnistream::SimpleCounter> &>(counter));
+        auto input = CreateTaskInput(inputGate);
+
+        inputProcessor_ = std::make_shared<OmniStreamOneInputProcessor>(input, output, operatorChain);
+    }
+
+    void OmniOneInputStreamTask::processInput(std::shared_ptr<MailboxDefaultAction::Controller> controller)
+    {
+        // LOG(">>>>OmniOneInputStreamTask::processInput")
+        OmniStreamTask::processInput(controller);
+
+#ifdef TROUBLE_SHOOTING
+    // assume this is sink
+    LOG_TRACE(taskName_ << "   Sink  Slow down  thefor 1 second to trigger the back pressure")
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+#endif
+    }
+
+    const std::string OmniOneInputStreamTask::getName() const
+    {
+        return std::string("OmniOneInputStreamTask");
+    }
+
+    void OmniOneInputStreamTask::cleanup()
+    {
+        OmniStreamTask::cleanup();
+        inputProcessor_->close();
+    }
+
+    std::shared_ptr<CheckpointedInputGate> OmniOneInputStreamTask::CreateCheckpointedInputGate()
+    {
+        auto checkpointableInputs = env_->GetAllInputGates();
+        std::vector<std::shared_ptr<OmniStreamTaskSourceInput>> emptySourceInputs;
+
+        taskConfiguration_ = env_->taskConfiguration();
+        auto checkpointExecutionConfig = taskConfiguration_.getExecutionCheckpointConfig();
+        auto checkpointBarrierHandler = InputProcessorUtil::CreateCheckpointBarrierHandler(
+            this,
+            getName(),
+            GetSubtaskCheckpointCoordinator(),
+            mainMailboxExecutor_,
+            systemTimerService,
+            {checkpointableInputs},
+            emptySourceInputs,
+            checkpointExecutionConfig.getUnalignedCheckpointsEnabled(),
+            checkpointExecutionConfig.getCheckpointAfterTasksFinishEnabled());
+
+        auto checkpointedInputGates = InputProcessorUtil::CreateCheckpointedMultipleInputGate(
+            mainMailboxExecutor_,
+            {checkpointableInputs}, checkpointBarrierHandler);
+
+        return checkpointedInputGates[0];
+    }
+}

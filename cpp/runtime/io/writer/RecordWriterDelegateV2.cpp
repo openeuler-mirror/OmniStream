@@ -1,1 +1,0 @@
-#include "RecordWriterDelegateV2.h"

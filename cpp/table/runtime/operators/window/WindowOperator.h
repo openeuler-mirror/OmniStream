@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 #pragma once
 
@@ -10,21 +17,21 @@
 #include "table/runtime/operators/InternalTimerService.h"
 #include "table/runtime/operators/window/triggers/Trigger.h"
 #include "table/data/binary/BinaryRowData.h"
-#include "core/operators/OneInputStreamOperator.h"
-#include "core/operators/AbstractStreamOperator.h"
-#include "core/operators/TimestampedCollector.h"
-#include "core/streamrecord/StreamRecord.h"
+#include "streaming/api/operators/OneInputStreamOperator.h"
+#include "streaming/api/operators/AbstractStreamOperator.h"
+#include "streaming/api/operators/TimestampedCollector.h"
+#include "streaming/runtime/streamrecord/StreamRecord.h"
 #include "streaming/api/operators/Triggerable.h"
 #include "table/runtime/operators/window/triggers/EventTimeTriggers.h"
 #include "runtime/operators/aggregate/window/RecordCounter.h"
 #include "core/api/common/state/StateDescriptor.h"
 #include "table/typeutils/RowDataSerializer.h"
-#include "table/runtime/operators/TimerHeapInternalTimer.h"
+#include "streaming/api/operators/TimerHeapInternalTimer.h"
 #include "runtime/state/HeapKeyedStateBackend.h"
 #include "table/runtime/operators/aggregate/handler/GroupingWindowAggsCountHandler.h"
 #include "table/runtime/operators/aggregate/handler/GroupingOnlyWindowHandler.h"
 #include "table/runtime/generated/NamespaceAggsHandleFunction.h"
-#include "KeySelector.h"
+#include "table/runtime/keyselector/KeySelector.h"
 
 template<typename K, typename W>
 class WindowOperator : public OneInputStreamOperator, public AbstractStreamOperator<K>, public Triggerable<K, W> {

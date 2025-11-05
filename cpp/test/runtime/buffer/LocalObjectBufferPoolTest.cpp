@@ -14,19 +14,19 @@ TEST(LocalObjectBufferPoolTest, RequestBuffer)
     int maxBufferAllowedToRequest = 5;
     std::shared_ptr<LocalObjectBufferPool> localObjectBufferPool = std::make_shared<LocalObjectBufferPool>(networkObjectBufferPool, requiredBufferNum, maxBufferAllowedToRequest);
 
-    EXPECT_EQ(localObjectBufferPool->getNumberOfAvailableObjectSegments(), 1);
+    EXPECT_EQ(localObjectBufferPool->getNumberOfAvailableSegments(), 1);
     EXPECT_EQ(networkObjectBufferPool->getNumberOfAvailableObjectSegments(), segmentNum - 1);
 
-    std::shared_ptr<ObjectBuffer> buffer1 = localObjectBufferPool->requestBuffer();
+    std::shared_ptr<Buffer> buffer1 = localObjectBufferPool->requestBuffer();
     EXPECT_EQ(networkObjectBufferPool->getNumberOfAvailableObjectSegments(), segmentNum  - 2);
-    std::shared_ptr<ObjectBuffer> buffer2 = localObjectBufferPool->requestBuffer();
-    std::shared_ptr<ObjectBuffer> buffer3 = localObjectBufferPool->requestBuffer();
+    std::shared_ptr<Buffer> buffer2 = localObjectBufferPool->requestBuffer();
+    std::shared_ptr<Buffer> buffer3 = localObjectBufferPool->requestBuffer();
     EXPECT_EQ(networkObjectBufferPool->getNumberOfAvailableObjectSegments(), segmentNum  - 4);
-    std::shared_ptr<ObjectBuffer> buffer4 = localObjectBufferPool->requestBuffer();
-    std::shared_ptr<ObjectBuffer> buffer5 = localObjectBufferPool->requestBuffer();
+    std::shared_ptr<Buffer> buffer4 = localObjectBufferPool->requestBuffer();
+    std::shared_ptr<Buffer> buffer5 = localObjectBufferPool->requestBuffer();
 
     EXPECT_EQ(networkObjectBufferPool->getNumberOfAvailableObjectSegments(), segmentNum  - 5);
-    std::shared_ptr<ObjectBuffer> buffer6 = localObjectBufferPool->requestBuffer();
+    std::shared_ptr<Buffer> buffer6 = localObjectBufferPool->requestBuffer();
 
     EXPECT_EQ(buffer6, nullptr);
 
@@ -46,16 +46,16 @@ TEST(LocalObjectBufferPoolTest, Recycle)
     std::shared_ptr<LocalObjectBufferPool> localObjectBufferPool = std::make_shared<LocalObjectBufferPool>(networkObjectBufferPool, requiredBufferNum, maxBufferAllowedToRequest);
 
 
-    std::shared_ptr<ObjectBuffer> buffer1 = localObjectBufferPool->requestBuffer();
+    std::shared_ptr<Buffer> buffer1 = localObjectBufferPool->requestBuffer();
     buffer1->RecycleBuffer();
-    EXPECT_EQ(localObjectBufferPool->getNumberOfAvailableObjectSegments(), 2);
+    EXPECT_EQ(localObjectBufferPool->getNumberOfAvailableSegments(), 2);
 
-    std::shared_ptr<ObjectBuffer> buffer2 = localObjectBufferPool->requestBuffer();
-    std::shared_ptr<ObjectBuffer> buffer3 = localObjectBufferPool->requestBuffer();
-    std::shared_ptr<ObjectBuffer> buffer4 = localObjectBufferPool->requestBuffer();
-    std::shared_ptr<ObjectBuffer> buffer5 = localObjectBufferPool->requestBuffer();
-    std::shared_ptr<ObjectBuffer> buffer6 = localObjectBufferPool->requestBuffer();
-    EXPECT_EQ(localObjectBufferPool->getNumberOfAvailableObjectSegments(), 0);
+    std::shared_ptr<Buffer> buffer2 = localObjectBufferPool->requestBuffer();
+    std::shared_ptr<Buffer> buffer3 = localObjectBufferPool->requestBuffer();
+    std::shared_ptr<Buffer> buffer4 = localObjectBufferPool->requestBuffer();
+    std::shared_ptr<Buffer> buffer5 = localObjectBufferPool->requestBuffer();
+    std::shared_ptr<Buffer> buffer6 = localObjectBufferPool->requestBuffer();
+    EXPECT_EQ(localObjectBufferPool->getNumberOfAvailableSegments(), 0);
     EXPECT_EQ(networkObjectBufferPool->getNumberOfAvailableObjectSegments(), segmentNum  - 5);
 
     buffer2->RecycleBuffer();
@@ -63,7 +63,7 @@ TEST(LocalObjectBufferPoolTest, Recycle)
     buffer4->RecycleBuffer();
     buffer5->RecycleBuffer();
     buffer6->RecycleBuffer();
-    EXPECT_EQ(localObjectBufferPool->getNumberOfAvailableObjectSegments(), 5);
+    EXPECT_EQ(localObjectBufferPool->getNumberOfAvailableSegments(), 5);
     EXPECT_EQ(networkObjectBufferPool->getNumberOfAvailableObjectSegments(), segmentNum  - 5);
 
 }

@@ -1,17 +1,25 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #ifndef OMNISTREAM_APPENDONLYTOPNFUNCTION_H
 #define OMNISTREAM_APPENDONLYTOPNFUNCTION_H
 
 #include <vector>
+#include <set>
 #include "table/typeutils/InternalTypeInfo.h"
 
 #include "table/data/RowData.h"
-#include "table/KeySelector.h"
-#include "core/api/MapState.h"
-#include "core/operators/StreamingRuntimeContext.h"
+#include "table/runtime/keyselector/KeySelector.h"
+#include "core/api/common/state/MapState.h"
+#include "streaming/api/operators/StreamingRuntimeContext.h"
 #include "TopNBuffer.h"
 #include "AbstractTopNFunction.h"
 #include "table/typeutils/BinaryRowDataSerializer.h"
@@ -41,7 +49,7 @@ public:
         // Flink's AbstractToNFunction has open
         // For simplicity, create a new RuntimeContext and get the MapState.
         // Q19 use 1 BIGINT as partition key and 1 BIGINT as sortKey. Can probably be improved
-        auto *descriptor = new MapStateDescriptor("topn-state",
+        auto *descriptor = new MapStateDescriptor<RowData*, std::vector<RowData*>*>("topn-state",
                                                     new BinaryRowDataSerializer(1), new BinaryRowDataListSerializer());
         // K = partitionKey, N is VOid, UK = sortKey, UV = list of rows
         // getMapState<UK=sortKey, UV=list of rows>
@@ -66,6 +74,13 @@ public:
             K partitionKey = partitionKeySelector.getKey(inputBatch, i);
             auto sortKey = sortKeySelector.getKey(inputBatch, i);
             ctx.setCurrentKey(partitionKey);
+            bool useKeyInState = false;
+            if (dataState->contains(sortKey)) {
+                auto it  = dataState->entries()->find(sortKey);
+                rowToDel.insert(sortKey);
+                sortKey = it->first;
+                useKeyInState = true;
+            }
             // Get existing rows for this partition key
             buffer = initHeapStates(sortKey, partitionKey);
             // check whether the sortKey is in the topN range
@@ -86,13 +101,21 @@ public:
                 } else {
                     processElementWithoutRowNumber(copy, &out);
                 }
+            } else {
+                if (!useKeyInState) {
+                    rowToDel.insert(sortKey);
+                }
             }
         }
-
+        omniruntime::vec::VectorHelper::FreeVecBatch(inputBatch);
         if (this->hasOutputRows()) {
             omnistream::VectorBatch *outputBatch = this->createOutputBatch();
             this->collectOutputBatch(out, outputBatch);
         }
+        for (auto row: rowToDel) {
+            delete row;
+        }
+        rowToDel.clear();
     };
 
     void processElement(RowData& input, typename KeyedProcessFunction<RowData *, RowData *, RowData *>::Context &ctx,
@@ -116,23 +139,27 @@ private:
 
     KeySelector<K> partitionKeySelector;
     KeySelector<RowData*> sortKeySelector;
+    std::set<RowData*> rowToDel;
 
     TopNBuffer* initHeapStates(RowData* sortKey, K currentKey)
     {
         this->requestCount += 1;
         // kvSortedMap stores partition key to its TopNBuffer
-        TopNBuffer*& ptr = kvSortedMap[currentKey];
-        if (!ptr) {
-            ptr = new TopNBuffer();  // Create a new instance if not found
+        TopNBuffer*& topBuffer = kvSortedMap[currentKey];
+        if (!topBuffer) {
+            topBuffer = new TopNBuffer();  // Create a new instance if not found
             // Get list of rows that belongs to this partition && this sortKey
             auto listOfRows = dataState->get(sortKey);
             if (listOfRows) {
-                ptr->putAll(sortKey, *listOfRows);
+                topBuffer->putAll(sortKey, *listOfRows);
             }
         } else {
             this->hitCount++;
+            if constexpr (std::is_same<K, RowData *>::value) {
+                rowToDel.insert(currentKey);
+            }
         }
-        return ptr;
+        return topBuffer;
     }
 
     void processElementWithRowNumber(const RowData* sortKey, RowData* input, TimestampedCollector* out)
@@ -177,12 +204,17 @@ private:
         while (iterator != buffer->end()) {
             RowData* key = iterator->first;
             toDeleteSortKeys.push_back(key);
+            rowToDel.insert(key);
             dataState->remove(key);
             ++iterator;
         }
         // To Delete key will not be given to the downstream
         for (const auto &toDeleteKey : toDeleteSortKeys) {
+            std::vector<RowData*>* values = buffer->get(toDeleteKey);
             buffer->removeAll(toDeleteKey);
+            for (auto rowValue: *values) {
+                rowToDel.insert(rowValue);
+            }
         }
     }
 

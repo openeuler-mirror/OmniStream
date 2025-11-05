@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 #ifndef FLINK_TNEL_ABSTRACTTOPNFUNCTION_H
 #define FLINK_TNEL_ABSTRACTTOPNFUNCTION_H
@@ -8,7 +15,7 @@
 #include <cstdint>
 #include <unordered_map>
 #include "runtime/state/heap/HeapValueState.h"
-#include "vectorbatch/VectorBatch.h"
+#include "table/data/vectorbatch/VectorBatch.h"
 #include "vector/vector_helper.h"
 #include <vector>
 #include <functional>
@@ -17,8 +24,8 @@
 #include <regex>
 
 #include "rank_range.h"
-#include "operators/TimestampedCollector.h"
-#include "table/RowKind.h"
+#include "streaming/api/operators/TimestampedCollector.h"
+#include "table/data/RowKind.h"
 #include "data/binary/BinaryRowData.h"
 #include "streaming/api/functions/KeyedProcessFunction.h"
 #include "functions/OpenContext.h"
@@ -36,8 +43,8 @@ public:
     virtual void open(const Configuration &context) = 0;
     void parseDescription(const nlohmann::json &jsonString);
 
-    virtual void processElement(RowData& input, typename KeyedProcessFunction<KeyType, RowData *, RowData *>::Context &ctx,
-        TimestampedCollector &out) override {};
+    void processElement(RowData* input, typename KeyedProcessFunction<KeyType, RowData *, RowData *>::Context *ctx,
+        TimestampedCollector *out) override {};
     ~AbstractTopNFunction()
     {
         delete rankRange;

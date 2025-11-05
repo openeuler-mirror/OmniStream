@@ -1,3 +1,14 @@
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
+
 #ifndef OMNIFLINK_TYPE_UTIL_H
 #define OMNIFLINK_TYPE_UTIL_H
 
@@ -13,7 +24,8 @@
 class TypeUtil {
 public:
     // Helper function for debugging DataType
-    static std::string TypeToString(int32_t id) {
+    static std::string TypeToString(int32_t id)
+    {
         switch (id) {
             case LogicalTypeRoot::BOOLEAN_TYPE_ID:
                 return "Bool";
@@ -40,16 +52,16 @@ public:
         }
     }
 
-    static bool IsStringType(int32_t id) {
+    static bool IsStringType(int32_t id)
+    {
         return id == LogicalTypeRoot::CHAR_TYPE_ID || id == LogicalTypeRoot::VARCHAR_TYPE_ID;
     }
 
-    static bool IsDecimalType(int32_t id) {
+    static bool IsDecimalType(int32_t id)
+    {
         return id == LogicalTypeRoot::DECIMAL_TYPE_ID;
     }
 };
 
 
-#endif //OMNIFLINK_TYPE_UTIL_H
-
-
+#endif

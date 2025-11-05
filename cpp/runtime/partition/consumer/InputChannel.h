@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 // InputChannel.h
@@ -17,26 +24,12 @@
 #include <executiongraph/descriptor/ResultPartitionIDPOD.h>
 #include "InputChannelInfo.h"
 #include "partition/virtual_enable_shared_from_this_base.h"
+#include "runtime/io/network/api/CheckpointBarrier.h"
 
 namespace omnistream {
 class SingleInputGate;
 
 class InputChannel : public virtual_enable_shared_from_this<InputChannel> {
-protected:
-    InputChannelInfo channelInfo;
-    ResultPartitionIDPOD partitionId;
-    std::shared_ptr<SingleInputGate> inputGate;
-    // std::atomic<std::shared_ptr<std::exception>> cause;
-    std::atomic<bool> exception_occurred{false};
-    std::exception_ptr cause;
-    std::mutex exception_mutex;
-
-    int initialBackoff;
-    int maxBackoff;
-    std::shared_ptr<Counter> numBytesIn;
-    std::shared_ptr<Counter> numBuffersIn;
-    int currentBackoff;
-
 public:
     InputChannel(std::shared_ptr<SingleInputGate> inputGate, int channelIndex, ResultPartitionIDPOD partitionId,
         int initialBackoff, int maxBackoff, std::shared_ptr<Counter> numBytesIn, std::shared_ptr<Counter> numBuffersIn);
@@ -48,20 +41,14 @@ public:
     virtual void resumeConsumption() = 0;
     virtual void acknowledgeAllRecordsProcessed() = 0;
 
-protected:
-    void notifyChannelNonEmpty();
-    void notifyPriorityEvent(int priorityBufferNumber);
-    virtual void notifyBufferAvailable(int numAvailableBuffers)
-    {}
-
 public:
     virtual void requestSubpartition(int subpartitionIndex) = 0;
     virtual std::optional<BufferAndAvailability> getNextBuffer() = 0;
 
-    // virtual void checkpointStarted(std::shared_ptr<CheckpointBarrier> barrier) {}
-    virtual void checkpointStopped(long checkpointId)
+    virtual void CheckpointStarted(const CheckpointBarrier& barrier) {}
+    virtual void CheckpointStopped(long checkpointId)
     {}
-    virtual void convertToPriorityEvent(int sequenceNumber)
+    virtual void ConvertToPriorityEvent(int sequenceNumber)
     {}
 
     virtual void sendTaskEvent(std::shared_ptr<TaskEvent> event) = 0;
@@ -87,6 +74,26 @@ public:
     virtual std::string toString() = 0;
     static const int initBackoffConstant = 100;
     static const int maxBackoffConstant = 1000;
+protected:
+    InputChannelInfo channelInfo;
+    ResultPartitionIDPOD partitionId;
+    std::shared_ptr<SingleInputGate> inputGate;
+    // std::atomic<std::shared_ptr<std::exception>> cause;
+    std::atomic<bool> exception_occurred{false};
+    std::exception_ptr cause;
+    std::mutex exception_mutex;
+
+    int initialBackoff;
+    int maxBackoff;
+    std::shared_ptr<Counter> numBytesIn;
+    std::shared_ptr<Counter> numBuffersIn;
+    int currentBackoff;
+
+protected:
+    void notifyChannelNonEmpty();
+    void notifyPriorityEvent(int priorityBufferNumber);
+    virtual void notifyBufferAvailable(int numAvailableBuffers)
+    {}
 };
 
 }  // namespace omnistream

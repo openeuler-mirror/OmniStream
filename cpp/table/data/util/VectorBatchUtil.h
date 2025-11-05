@@ -1,16 +1,25 @@
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
 #ifndef FLINK_TNEL_VECTOR_BATCH_UTIL_H
 #define FLINK_TNEL_VECTOR_BATCH_UTIL_H
 
-#include "table/vectorbatch/VectorBatch.h"
+#include "table/data/vectorbatch/VectorBatch.h"
 #include "OmniOperatorJIT/core/src/vector/unsafe_vector.h"
-#include <arm_sve.h>
 
-class VectorBatchUtil
-{
+class VectorBatchUtil {
 public:
     static inline int32_t getBatchId(int64_t id)
     {
-        return (int32_t)(id >> 32);
+        uint64_t uid = static_cast<uint64_t>(id);
+        return (int32_t)(uid >> 32);
     }
 
     static inline int32_t getRowId(int64_t id)
@@ -20,37 +29,10 @@ public:
 
     static inline int64_t getComboId(int batchId, int rowId)
     {
-        return ((int64_t)batchId << 32) | rowId;
-    }
-
-    static void deComboIDSVE(uint64_t* src, uint32_t* batchIDdst, uint32_t* rowIDdst, int num)
-    {
-        int processNum = svcntw();
-        int half = svcntd();
-        for (int i = 0; i < num; i+=processNum) {
-            svbool_t pg = svwhilelt_b64(i, num);
-            svbool_t pg2 = svwhilelt_b64(i + half, num);
-            svbool_t pg3 = svwhilelt_b32(i, num);
-            svuint64_t comboID = svld1(pg, src + i);
-            svuint64_t comboID2 = svld1(pg2, src + i + half);
-
-            svuint32_t rowID = svuzp1(svreinterpret_u32(comboID), svreinterpret_u32(comboID2));
-            svuint32_t batchID = svuzp2(svreinterpret_u32(comboID), svreinterpret_u32(comboID2));
-
-            svst1_u32(pg3, rowIDdst + i, rowID);
-            svst1_u32(pg3, batchIDdst + i, batchID);
-        }
-    }
-
-    static void getComboId_sve(int batchId, int rowCount, int64_t* result) {
-        int processNum = svcntd();
-        svint64_t batchData = svlsl_n_s64_x(svptrue_b64(), svdup_n_s64(batchId), 32);
-        for (int i = 0; i < rowCount; i+= processNum) {
-            svbool_t pg = svwhilelt_b64(i, rowCount);
-            svint64_t rowData = svindex_s64(i, 1);
-            svint64_t comboIDs = svorr_z(pg, batchData, rowData);
-            svst1_s64(pg, result + i, comboIDs);
-        }
+        uint64_t ubatchId = static_cast<uint64_t>(batchId);
+        uint32_t urowId = static_cast<uint32_t>(rowId);
+        ubatchId =  (ubatchId << 32) | urowId;
+        return static_cast<int64_t>(ubatchId);
     }
 
     // To print VectorBatch, use VectorHelper::PrintVecBatch from OmniOperatorJIT/core/src/vector/vector_helper.h
@@ -61,26 +43,21 @@ public:
         auto data = omniruntime::vec::unsafe::UnsafeVector::GetRawValues(reinterpret_cast<omniruntime::vec::Vector<fromType> *>(vec));
         auto numRows = vec->GetSize();
         returnType *dataCopy = new returnType[numRows];
-        for (int i = 0; i < numRows; i++)
-        {
-            if constexpr (std::is_same<returnType, Decimal128>::value)
-            {
+        for (int i = 0; i < numRows; i++) {
+            if constexpr (std::is_same<returnType, Decimal128>::value) {
                 dataCopy[i] = Decimal128(static_cast<int128_t>(data[i]));
-            }
-            else
-            {
+            } else {
                 dataCopy[i] = static_cast<returnType>(data[i]);
             }
         }
         omniruntime::vec::Vector<returnType> *newVector = new omniruntime::vec::Vector<returnType>(numRows);
-        for (int32_t i = 0; i < numRows; i++)
-        {
+        for (int32_t i = 0; i < numRows; i++) {
             newVector->SetValue(i, dataCopy[i]);
         }
         return newVector;
     }
 
-    static std::string getValueAtAsStr(omnistream::VectorBatch *vecBatch, int32_t col, int32_t row, std::vector<std::string> inputTypes={})
+    static std::string getValueAtAsStr(omnistream::VectorBatch *vecBatch, int32_t col, int32_t row, std::vector<std::string> inputTypes = {})
     {
         std::string value;
         if (vecBatch->Get(col)->IsNull(row)) {

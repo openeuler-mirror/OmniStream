@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #include "VectorBatchUtils.h"
@@ -47,6 +54,10 @@ void VectorBatchUtils::AppendIntVectorForBool(omnistream::VectorBatch* outputVB,
 void VectorBatchUtils::AppendStringVector(omnistream::VectorBatch* outputVB, std::vector<RowData*> collectedRows,
                                           int numRowsPerVB, int colIndex)
 {
+    // Add bounds checking to prevent infinite loop
+    if (numRowsPerVB < 0 || numRowsPerVB > static_cast<int>(collectedRows.size())) {
+        throw std::runtime_error("Invalid numRowsPerVB: " + std::to_string(numRowsPerVB));
+    }
     auto* vector = new omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>(numRowsPerVB);
     for (int rowIndex = 0; rowIndex < numRowsPerVB; ++rowIndex) {
         std::string_view strView = collectedRows[rowIndex]->getStringView(colIndex);

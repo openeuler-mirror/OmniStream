@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #ifndef BUFFER_WRITING_RESULT_PARTITION_H
@@ -28,7 +35,8 @@ public:
         std::vector<std::shared_ptr<ResultSubpartition>> subpartitions,
         int numTargetKeyGroups,
         std::shared_ptr<ResultPartitionManager> partitionManager,
-         std::shared_ptr<Supplier<ObjectBufferPool>> bufferPoolFactory);
+         // std::shared_ptr<Supplier<ObjectBufferPool>> bufferPoolFactory);
+         std::shared_ptr<Supplier<BufferPool>> bufferPoolFactory);
 
     BufferWritingResultPartition(
        const std::string& owningTaskName,
@@ -38,7 +46,8 @@ public:
        int numSubpartitions,
        int numTargetKeyGroups,
        std::shared_ptr<ResultPartitionManager> partitionManager,
-        std::shared_ptr<Supplier<ObjectBufferPool>> bufferPoolFactory);
+        std::shared_ptr<Supplier<BufferPool>> bufferPoolFactory,
+        int taskType);
 
     void setup() override;
     int getNumberOfQueuedBuffers() override;
@@ -46,8 +55,8 @@ public:
     void emitRecord(void* record, int targetSubpartition) override;
     void broadcastRecord(void* record) override;
     void broadcastEvent(std::shared_ptr<AbstractEvent> event, bool isPriorityEvent) override;
+    std::shared_ptr<BufferBuilder> appendUnicastDataForRecordContinuation(void *record, int targetSubpartition);
 
-    //  void setMetricGroup(std::shared_ptr<TaskIOMetricGroup> metrics) override;
     std::shared_ptr<ResultSubpartitionView> createSubpartitionView(
         int subpartitionIndex, std::shared_ptr<BufferAvailabilityListener> availabilityListener) override;
     void finish() override;
@@ -62,34 +71,13 @@ protected:
     void flushSubpartition(int targetSubpartition, bool finishProducers);
     void flushAllSubpartitions(bool finishProducers);
 
-protected:
     std::vector<std::shared_ptr<ResultSubpartition>> subpartitions_;
 
-    std::vector<std::shared_ptr<ObjectBufferBuilder>> unicastBufferBuilders;
+    std::vector<std::shared_ptr<BufferBuilder>> unicastBufferBuilders;
 
-    std::shared_ptr<ObjectBufferBuilder> broadcastBufferBuilder;
-    //std::shared_ptr<TimerGauge> backPressuredTimeMsPerSecond;
-
-    std::shared_ptr<ObjectBufferBuilder> appendUnicastDataForNewRecord(
-        void* record, int targetSubpartition);
-
-    void addToSubpartition(std::shared_ptr<ObjectBufferBuilder> buffer, int targetSubpartition, int i);
-
- //   std::shared_ptr<ObjectBufferBuilder> appendUnicastDataForRecordContinuation(
- //       std::shared_ptr<java::nio::ByteBuffer> remainingRecordBytes, int targetSubpartition);
-
-  //  std::shared_ptr<ObjectBufferBuilder> appendBroadcastDataForNewRecord(std::shared_ptr<java::nio::ByteBuffer> record);
-
-    //  std::shared_ptr<ObjectBufferBuilder> appendBroadcastDataForRecordContinuation(
-  //      std::shared_ptr<java::nio::ByteBuffer> remainingRecordBytes);
+    std::shared_ptr<BufferBuilder> broadcastBufferBuilder;
 
     void createBroadcastBufferConsumers(std::shared_ptr<ObjectBufferBuilder> buffer, int partialRecordBytes);
-
-    std::shared_ptr<ObjectBufferBuilder> requestNewUnicastBufferBuilder(int targetSubpartition);
-
-    std::shared_ptr<ObjectBufferBuilder> requestNewBroadcastBufferBuilder();
-
-    std::shared_ptr<ObjectBufferBuilder> requestNewBufferBuilderFromPool(int targetSubpartition);
 
     void finishUnicastBufferBuilder(int targetSubpartition);
 
@@ -100,6 +88,17 @@ protected:
     void ensureUnicastMode();
 
     void ensureBroadcastMode();
+
+private:
+    std::shared_ptr<BufferBuilder> requestNewUnicastBufferBuilder(int targetSubpartition);
+
+    std::shared_ptr<BufferBuilder> requestNewBroadcastBufferBuilder();
+
+    std::shared_ptr<BufferBuilder> requestNewBufferBuilderFromPool(int targetSubpartition);
+
+    void addToSubpartition(std::shared_ptr<BufferBuilder> buffer, int targetSubpartition, int i);
+
+    std::shared_ptr<BufferBuilder> appendUnicastDataForNewRecord(void* record, int targetSubpartition);
 };
 
 } // namespace omnistream

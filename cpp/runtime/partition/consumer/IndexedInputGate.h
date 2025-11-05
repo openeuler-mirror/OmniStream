@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #ifndef OMNISTREAM_INDEXEDINPUTGATE_H
@@ -11,36 +18,36 @@
 #include "InputGate.h"
 
 #include "InputChannelInfo.h"
-
+#include "runtime/io/network/partition/consumer/CheckpointableInput.h"
 #include "InputChannel.h"
 #include <iostream>
 
 namespace omnistream {
 
-    class IndexedInputGate : public InputGate {
+    class IndexedInputGate : public InputGate, public CheckpointableInput {
     public:
         IndexedInputGate() = default;
         ~IndexedInputGate() override = default;
 
-        virtual int getGateIndex()  = 0;
+        virtual int GetGateIndex()  = 0;
         virtual std::vector<InputChannelInfo> getUnfinishedChannels()  = 0;
 
-        int getInputGateIndex()   {   // checkinto related , do it ilater
-            return getGateIndex();
-        }
+        int GetInputGateIndex() override;
+        void CheckpointStarted(const CheckpointBarrier& barrier) override;
+        void CheckpointStopped(long checkpointId) override;
+        std::vector<InputChannelInfo> GetChannelInfos() override;
 
-        void blockConsumption(const InputChannelInfo& channelInfo)  {   // checkinto related , do it ilater
+        void BlockConsumption(const InputChannelInfo& channelInfo) override {   // checkinto related , do it ilater
         }
-
-        void convertToPriorityEvent(int channelIndex, int sequenceNumber)  {   // checkinto related , do it ilater
-            getChannel(channelIndex)->convertToPriorityEvent(sequenceNumber);
+        void ConvertToPriorityEvent(int channelIndex, int sequenceNumber)  {   // checkinto related , do it ilater
+            getChannel(channelIndex)->ConvertToPriorityEvent(sequenceNumber);
         }
 
         virtual int getBuffersInUseCount()  = 0;
         virtual void announceBufferSize(int bufferSize) = 0;
 
         std::string toString()  override {
-            return "IndexedInputGate [gateIndex=" + std::to_string(getGateIndex()) + "]";
+            return "IndexedInputGate [gateIndex=" + std::to_string(GetGateIndex()) + "]";
         }
     };
 

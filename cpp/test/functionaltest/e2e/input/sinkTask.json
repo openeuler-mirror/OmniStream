@@ -3,6 +3,7 @@
     "numberOfSubtasks": 1,
     "maxNumberOfSubtasks": 128,
     "indexOfSubtask": 0,
+    "taskType": 1,
     "stateBackend": "HashMapStateBackend",
     "rocksdbStorePaths": [],
     "streamConfig": {
@@ -33,7 +34,10 @@
                 "fieldName": ""
             },
             "operatorId" : "EBCDEFGHI",
-            "vertexID": 2
+            "vertexID": 2,
+            "jobType" : 1,
+            "taskType" : 1,
+            "operatorType": 1
         },
         "operatorFactoryName": "org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorFactory",
         "inStreamEdges": [
@@ -49,6 +53,7 @@
             }
         ],
         "numberOfNetworkInputs": 1,
+        "jobType" : 1,
         "omniConf" : {
             "omni.bindcore.strategy" : "0"
         }
@@ -82,7 +87,10 @@
                     "fieldName": ""
                 },
                 "operatorId" : "FBCDEFGHI",
-                "vertexID": 2
+                "vertexID": 2,
+                "jobType" : 1,
+                "taskType" : 1,
+                "operatorType": 1
             },
             "operatorFactoryName": "org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorFactory",
             "inStreamEdges": [
@@ -98,9 +106,39 @@
                 }
             ],
             "numberOfNetworkInputs": 1,
+            "jobType" : 1,
             "omniConf" : {
                 "omni.bindcore.strategy" : "0"
             }
         }
-    ]
+    ],
+    "checkpointConfig": {
+        "checkpointsDirectory": "/tmp",
+        "stateBackend": "",
+        "checkpointStorage": "",
+        "maxRetainedCheckpoint": 0,
+        "asyncSnapshots": false,
+        "incrementalCheckpoints": false,
+        "localRecovery": false,
+        "localRecoveryTaskManagerStateRootDirs": "",
+        "savepointDirectory": "",
+        "fsSmallFileThreshold": 0,
+        "fsWriteBufferSize": 0
+    },
+    "executionCheckpointConfig": {
+        "alignedCheckpointTimeoutSecond": 0,
+        "alignedCheckpointTimeoutNano": 0,
+        "checkpointIdOfIgnoredInFlightData": -1,
+        "checkpointInterval": -1,
+        "checkpointTimeout": 600000,
+        "checkpointingMode": "EXACTLY_ONCE",
+        "externalizedCheckpointCleanup": "NO_EXTERNALIZED_CHECKPOINTS",
+        "forceUnalignedCheckpoints": false,
+        "maxConcurrentCheckpoints": 1,
+        "minPauseBetweenCheckpoints": 0,
+        "tolerableCheckpointFailureNumber": -1,
+        "unalignedCheckpointsEnabled": true,
+        "checkpointAfterTasksFinishEnabled": false
+    },
+    "localRecoveryConfig": ""
 }

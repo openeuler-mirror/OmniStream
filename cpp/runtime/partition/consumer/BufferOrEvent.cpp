@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 // BufferOrEvent.cpp
@@ -13,58 +20,58 @@
 
 namespace omnistream {
 
-BufferOrEvent::BufferOrEvent(std::shared_ptr<ObjectBuffer> buffer,
-                            InputChannelInfo channelInfo,
+BufferOrEvent::BufferOrEvent(std::shared_ptr<Buffer> buffer,
+                             InputChannelInfo channelInfo,
                              bool moreAvailable, bool morePriorityEvents)
     : buffer_(buffer),
-      event_(EventSerializer::INVALID_EVENT),
+      event_(nullptr),
       hasPriority_(false),
-      moreAvailable_(moreAvailable),
-      morePriorityEvents_(morePriorityEvents),
       channelInfo_(channelInfo),
-      size_(buffer ? buffer->GetSize() : 0) {
+      size_(buffer ? buffer->GetSize() : 0),
+      moreAvailable_(moreAvailable),
+      morePriorityEvents_(morePriorityEvents) {
     if (!buffer) {
         throw std::invalid_argument("Buffer cannot be null");
     }
 }
 
-BufferOrEvent::BufferOrEvent(int event, bool hasPriority,
+BufferOrEvent::BufferOrEvent(std::shared_ptr<AbstractEvent> event, bool hasPriority,
                              InputChannelInfo channelInfo, bool moreAvailable,
                              int size, bool morePriorityEvents)
     : buffer_(nullptr),
       event_(event),
       hasPriority_(hasPriority),
-      moreAvailable_(moreAvailable),
-      morePriorityEvents_(morePriorityEvents),
       channelInfo_(channelInfo),
-      size_(size) {
-    //    throw std::invalid_argument("Event cannot be null");
-    //}
+      size_(size),
+      moreAvailable_(moreAvailable),
+      morePriorityEvents_(morePriorityEvents) {
 }
 
 // Visible for testing
-BufferOrEvent::BufferOrEvent(std::shared_ptr<ObjectBuffer> buffer,
+BufferOrEvent::BufferOrEvent(std::shared_ptr<Buffer> buffer,
                              InputChannelInfo channelInfo)
     : BufferOrEvent(buffer, channelInfo, true, false) {}
 
 // Visible for testing
-BufferOrEvent::BufferOrEvent(int event,
+BufferOrEvent::BufferOrEvent(std::shared_ptr<AbstractEvent> event,
                              InputChannelInfo channelInfo)
     : BufferOrEvent(event, false, channelInfo, true, 0, false) {}
 
 bool BufferOrEvent::isBuffer() const { return buffer_ != nullptr; }
 
-bool BufferOrEvent::isEvent() const { return event_ != EventSerializer::INVALID_EVENT; }
+bool BufferOrEvent::isEvent() const { return event_ != nullptr; }
 
-std::shared_ptr<ObjectBuffer> BufferOrEvent::getBuffer() const { return buffer_; }
+std::shared_ptr<Buffer> BufferOrEvent::getBuffer() const { return buffer_; }
 
-int BufferOrEvent::getEvent() const { return event_; }
+std::shared_ptr<AbstractEvent> BufferOrEvent::getEvent() const { return event_; }
 
-InputChannelInfo BufferOrEvent::getChannelInfo() const {
+InputChannelInfo BufferOrEvent::getChannelInfo() const
+{
     return channelInfo_;
 }
 
-void BufferOrEvent::setChannelInfo(InputChannelInfo channelInfo) {
+void BufferOrEvent::setChannelInfo(InputChannelInfo channelInfo)
+{
     channelInfo_ = channelInfo;
 }
 
@@ -72,7 +79,8 @@ bool BufferOrEvent::moreAvailable() const { return moreAvailable_; }
 
 bool BufferOrEvent::morePriorityEvents() const { return morePriorityEvents_; }
 
-std::string BufferOrEvent::toString() const {
+std::string BufferOrEvent::toString() const
+{
     std::stringstream ss;
     ss << "BufferOrEvent [";
     if (isBuffer()) {
@@ -88,7 +96,8 @@ std::string BufferOrEvent::toString() const {
     return ss.str();
 }
 
-void BufferOrEvent::setMoreAvailable(bool moreAvailable) {
+void BufferOrEvent::setMoreAvailable(bool moreAvailable)
+{
     moreAvailable_ = moreAvailable;
 }
 

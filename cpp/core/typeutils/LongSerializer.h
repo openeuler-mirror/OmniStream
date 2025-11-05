@@ -1,5 +1,5 @@
 /*
- * @Copyright: Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * @Copyright: Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
  * @Description: Long Serializer for DataStream
  */
 #ifndef FLINK_TNEL_LONGSERIALIZER_H
@@ -16,7 +16,6 @@ public:
 
     void deserialize(Object *buffer, DataInputView& source) override;
     void serialize(Object *buffer, DataOutputSerializer& target) override;
-    Object* GetBuffer() override;
 
     static LongSerializer* INSTANCE;
 
@@ -43,6 +42,18 @@ public:
     {
         return BackendDataType::BIGINT_BK;
     };
+
+    Object* GetBuffer() override;
+    virtual TypeSerializer* duplicate()
+    {
+        // Don't duplicate, use existing instance
+        return LongSerializer::INSTANCE;
+    };
+    virtual std::shared_ptr<TypeSerializerSnapshot> snapshotConfiguration()
+    {
+        // to-Do
+        return nullptr;
+    };
 };
 
 class IntSerializer : public TypeSerializerSingleton {
@@ -54,7 +65,6 @@ public:
 
     void deserialize(Object *buffer, DataInputView& source) override;
     void serialize(Object *buffer, DataOutputSerializer& target) override;
-    Object* GetBuffer() override;
 
     static IntSerializer* INSTANCE;
 
@@ -83,4 +93,4 @@ public:
     };
 };
 
-#endif //FLINK_TNEL_LONGSERIALIZER_H
+#endif

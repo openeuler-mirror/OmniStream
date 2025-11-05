@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 #pragma once
 #include "LocalInputChannel.h"
@@ -7,11 +14,14 @@
 #include <optional>
 #include <memory>
 #include <queue>
-#include <arm_sve.h>
-#include "core/streamrecord/StreamRecord.h"
-#include "include/functions/Watermark.h"
-#include "include/functions/StreamElement.h"
+
+#include "RemoteDataFetcherBridge.h"
+#include "streaming/runtime/streamrecord/StreamRecord.h"
+#include "streaming/api/watermark/Watermark.h"
+#include "streaming/runtime/streamrecord/StreamElement.h"
 #include "runtime/buffer/ObjectBufferRecycler.h"
+#include "runtime/buffer/OriginalNetworkBufferRecycler.h"
+
 
 namespace omnistream {
     class RemoteInputChannel : public LocalInputChannel {
@@ -23,15 +33,21 @@ namespace omnistream {
                            std::shared_ptr<Counter> numBytesIn, std::shared_ptr<Counter> numBuffersIn
         );
         void requestSubpartition(int subpartitionIndex) override;
-        void notifyRemoteDataAvailable(long bufferAddress, int bufferLength, int sequenceNumber);
+        void notifyRemoteDataAvailableForVectorBatch(long bufferAddress, int bufferLength, int sequenceNumber);
         std::optional<BufferAndAvailability> getNextBuffer() override;
         std::shared_ptr<ObjectSegment> DoDataDeserializationResult(uint8_t*& buffer, int bufferLength);
-        void getResData(void* dst, void* src, size_t cur, int res);
+        void notifyRemoteDataAvailableForNetworkBuffer(long bufferAddress, int bufferLength, int readIndex,
+                                                       int sequenceNumber,
+                                                       std::shared_ptr<OriginalNetworkBufferRecycler>
+                                                       originalNetworkBufferRecycler, bool isBuffer, int bufferType);
 
+        void SetRemoteDataFetcherBridge(std::shared_ptr<RemoteDataFetcherBridge> remoteDataFetcherBridge);
+        void resumeConsumption() override;
     private:
-        std::queue<std::shared_ptr<VectorBatchBuffer>> dataQueue;
+        std::queue<std::shared_ptr<Buffer>> dataQueue;
         int expectSequenceNumber = 0;
         int initialCredit;
         std::recursive_mutex queueMutex;
+        std::shared_ptr<RemoteDataFetcherBridge> remoteDataFetcherBridge;
     };
 };

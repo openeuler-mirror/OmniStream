@@ -4,6 +4,7 @@
     "maxNumberOfSubtasks": 128,
     "indexOfSubtask": 0,
     "stateBackend": "HashMapStateBackend",
+    "taskType": 1,
     "rocksdbStorePaths": [],
     "streamConfig": {
         "outEdgesInOrder": [
@@ -34,7 +35,8 @@
                     "partitionerName": "forward",
                     "hashFields": []
                 },
-                "partitionType": 7
+                "partitionType": 7,
+                "supportsUnalignedCheckpoints": false
             }
         ],
         "opChainedOutputs": [],
@@ -52,11 +54,15 @@
                 "fieldName": ""
             },
             "operatorId" : "ABCDEFGHI",
-            "vertexID": 1
+            "vertexID": 1,
+            "jobType" : 1,
+            "taskType" : 1,
+            "operatorType": 1
         },
         "operatorFactoryName": "org.apache.flink.streaming.api.operators.SourceOperatorFactory",
         "inStreamEdges": [],
         "numberOfNetworkInputs": 0,
+        "jobType" : 1,
         "omniConf" : {
             "omni.bindcore.strategy" : "0"
         }
@@ -91,7 +97,9 @@
                         "partitionerName": "forward",
                         "hashFields": []
                     },
-                    "partitionType": 7
+                    "partitionType": 7,
+                    "supportsUnalignedCheckpoints": false
+
                 }
             ],
             "opChainedOutputs": [],
@@ -109,14 +117,47 @@
                     "fieldName": ""
                 },
                 "operatorId" : "DBCDEFGHI",
-                "vertexID": 1
+                "vertexID": 1,
+                "jobType" : 1,
+                "taskType" : 1,
+                "operatorType": 1
             },
             "operatorFactoryName": "org.apache.flink.streaming.api.operators.SourceOperatorFactory",
             "inStreamEdges": [],
             "numberOfNetworkInputs": 0,
+            "jobType" : 1,
             "omniConf" : {
                 "omni.bindcore.strategy" : "0"
             }
         }
-    ]
+    ],
+    "checkpointConfig": {
+        "checkpointsDirectory": "/tmp",
+        "stateBackend": "HashMapStateBackend",
+        "checkpointStorage": "",
+        "maxRetainedCheckpoint": 1,
+        "asyncSnapshots": true,
+        "incrementalCheckpoints": false,
+        "localRecovery": false,
+        "localRecoveryTaskManagerStateRootDirs": "",
+        "savepointDirectory": "",
+        "fsSmallFileThreshold": 20480,
+        "fsWriteBufferSize": 4096
+    },
+    "executionCheckpointConfig": {
+        "alignedCheckpointTimeoutSecond": 0,
+        "alignedCheckpointTimeoutNano": 0,
+        "checkpointIdOfIgnoredInFlightData": -1,
+        "checkpointInterval": -1,
+        "checkpointTimeout": 600000,
+        "checkpointingMode": "EXACTLY_ONCE",
+        "externalizedCheckpointCleanup": "NO_EXTERNALIZED_CHECKPOINTS",
+        "forceUnalignedCheckpoints": false,
+        "maxConcurrentCheckpoints": 1,
+        "minPauseBetweenCheckpoints": 0,
+        "tolerableCheckpointFailureNumber": 0,
+        "unalignedCheckpointsEnabled": false,
+        "checkpointAfterTasksFinishEnabled": true
+    },
+    "localRecoveryConfig": ""
 }

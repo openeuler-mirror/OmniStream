@@ -13,7 +13,6 @@ TEST(DefaultKeyedStateStoreTest, MapStateTest)
     InternalKeyContextImpl<std::string> *context = new InternalKeyContextImpl<std::string>(range, 10);
     context->setCurrentKey("partition1");
     context->setCurrentKeyGroupIndex(1);
-    IntSerializer *ser = IntSerializer::INSTANCE;
     StringDataSerializer *keySer = new StringDataSerializer();
     HeapKeyedStateBackend<std::string> *backend =
         new HeapKeyedStateBackend<std::string>(keySer, context);
@@ -21,7 +20,7 @@ TEST(DefaultKeyedStateStoreTest, MapStateTest)
     // Initialize DefaultKeyedStateStore
     DefaultKeyedStateStore<std::string> stateStore(backend);
     std::string name = "name";
-    MapStateDescriptor *stateDesc = new MapStateDescriptor(name,keySer,ser);
+    MapStateDescriptor<std::string, int> *stateDesc = new MapStateDescriptor<std::string, int>(name,new StringDataSerializer(), new IntSerializer());
     using MapStateType = HeapMapState<std::string, VoidNamespace, std::string, int>;
     auto *mapState = reinterpret_cast<HeapMapState<std::string, VoidNamespace, std::string, int>*>
             (stateStore.getMapState<std::string, int>(stateDesc));
@@ -36,7 +35,6 @@ TEST(DefaultKeyedStateStoreTest, MapStateTest)
     delete range;
     delete context;
     delete backend;
-    delete stateDesc;
 }
 
 TEST(DefaultKeyedStateStoreTest, ValueStateTest)
@@ -46,14 +44,13 @@ TEST(DefaultKeyedStateStoreTest, ValueStateTest)
     InternalKeyContextImpl<int> *context = new InternalKeyContextImpl<int>(range, 10);
     context->setCurrentKey(1);
     context->setCurrentKeyGroupIndex(1);
-    IntSerializer *ser = IntSerializer::INSTANCE;
     HeapKeyedStateBackend<int> *backend =
-        new HeapKeyedStateBackend<int>(ser, context);
+        new HeapKeyedStateBackend<int>(new IntSerializer(), context);
 
     // Initialize DefaultKeyedStateStore
     DefaultKeyedStateStore<int> stateStore(backend);
     std::string name = "name";
-    auto *stateDesc = new ValueStateDescriptor(name, ser);
+    auto *stateDesc = new ValueStateDescriptor<int>(name, new IntSerializer());
 
     //using ValueStateType = HeapValueState<int, VoidNamespace, int>;
 
@@ -61,13 +58,11 @@ TEST(DefaultKeyedStateStoreTest, ValueStateTest)
     auto *state2 = stateStore.getState<int>(stateDesc);
     EXPECT_EQ(state, state2);
     std::string anotherName = "another name";
-    auto *stateDesc1 = new ValueStateDescriptor(anotherName, ser);
+    auto *stateDesc1 = new ValueStateDescriptor<int>(anotherName, new IntSerializer());
     auto *state3 = stateStore.getState<int>(stateDesc1);
     EXPECT_NE(state, state3);
 
     delete range;
     delete context;
     delete backend;
-    delete stateDesc;
-    delete stateDesc1;
 }

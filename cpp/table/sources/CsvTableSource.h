@@ -1,3 +1,14 @@
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
+
 #ifndef FLINK_TNEL_CSVTABLESOURCE_H
 #define FLINK_TNEL_CSVTABLESOURCE_H
 
@@ -8,20 +19,21 @@
 #include <emhash7.hpp>
 #include <nlohmann/json.hpp>
 #include "core/typeinfo/TypeInformation.h"
-#include "table/vectorbatch/VectorBatch.h"
+#include "table/data/vectorbatch/VectorBatch.h"
 #include "OmniOperatorJIT/core/src/type/data_type.h"
 #include "functions/Collector.h"
 
 class CsvTableSource {
 public:
-    CsvTableSource(std::string filepath, std::vector<std::string> fieldTypeStrs) :
-            fieldTypeStrs(fieldTypeStrs),
-            filepath(filepath) {}
+    CsvTableSource(std::string filepath, std::vector<std::string> fieldTypeStrs)
+        :fieldTypeStrs(fieldTypeStrs), filepath(filepath) {}
     size_t countCsvRows();
-    std::string getFilePath() const {
+    std::string getFilePath() const
+    {
         return filepath;
     }
-    std::vector<std::string> getTableFieldTypes() const {
+    std::vector<std::string> getTableFieldTypes() const
+    {
         return fieldTypeStrs;
     }
 private:
@@ -29,94 +41,18 @@ private:
     std::string filepath;
 };
 
-/*
-class CsvTableSource {
-public:
-    // TODO: Flink uses string for delimiter. Here I use char cause std::getline only accepts char as delimiter.
-    static constexpr char DEFAULT_FIELD_DELIMITER = ',';
-    static constexpr char DEFAULT_LINE_DELIMITER = '\n';
-    using VarcharVecType = omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>;
-public:
-    class CsvInputFormatConfig {
-    public:
-        CsvInputFormatConfig(std::string path_, std::vector<std::string> &fieldNames_,
-                             std::vector<TypeInformation *> &fieldTypes_,
-                             std::vector<int32_t> selectedFields_, char fieldDelim_, char lineDelim_,
-                             char quoteCharacter_,
-                             bool ignoreFirstLine_, bool ignoreComments_, bool lenient_, bool emptyColumnAsNull_) :
-                path(path_),
-                fieldNames(std::move(fieldNames_)),
-                fieldTypes(std::move(fieldTypes_)),
-                selectedFields(std::move(selectedFields_)),
-                fieldDelim(fieldDelim_),
-                lineDelim(lineDelim_),
-                quoteCharacter(quoteCharacter_),
-                ignoreFirstLine(ignoreFirstLine_),
-                ignoreComments(ignoreComments_),
-                lenient(lenient_),
-                emptyColumnAsNull(emptyColumnAsNull_) {
-            // Default is to select all fields
-            if (selectedFields[0] == -1) {
-                for (int i = 0; i < selectedFields.size(); i++) {
-                    selectedFields[i] = i;
-                }
-            }
-        };
-        std::vector<std::string> getSelectedFieldNames();
-        // TODO: Find a C++ csv reader!
-        inline std::string getFilePath() const {
-            return path;
-        }
-        auto getFieldTypes() const {
-            return fieldTypes;
-        }
-    private:
-        std::string path;
-        std::vector<std::string> fieldNames;
-        std::vector<TypeInformation *> fieldTypes;
-        std::vector<int32_t> selectedFields;
-        char fieldDelim = DEFAULT_FIELD_DELIMITER;
-        char lineDelim = DEFAULT_LINE_DELIMITER;
-        char quoteCharacter;
-        bool ignoreFirstLine;
-        bool ignoreComments;
-        bool lenient;
-        bool emptyColumnAsNull;
-    };
-    CsvTableSource(std::string path, std::vector<std::string> &fieldNames, std::vector<TypeInformation *> &fieldTypes) :
-        config (path, fieldNames, fieldTypes, std::vector<int32_t>(fieldTypes.size(), -1), DEFAULT_FIELD_DELIMITER, DEFAULT_LINE_DELIMITER,
-                                      '\"', false, true, false, false){}
-
-
-    CsvTableSource(std::string path, std::vector<std::string> &fieldNames, std::vector<TypeInformation *> &fieldTypes,
-                   std::vector<int32_t> &selectedFields,
-                   char fieldDelim, char lineDelim, char quoteCharactor, bool ignoreFirstLine,
-                   std::string ignoreComments, bool lenient) :
-                   config (path, fieldNames, fieldTypes, selectedFields, fieldDelim, lineDelim, quoteCharactor, ignoreFirstLine,
-                           (bool)(ignoreComments==""), lenient, false){
-    }
-
-    CsvInputFormatConfig getConfig() const {
-        return config;
-    }
-
-    static int32_t countCsvRows(const std::string& filename);
-private:
-    CsvTableSource(CsvInputFormatConfig config_) : config(config_) {}
-    CsvInputFormatConfig config;
-};
-*/
 template<typename T>
-inline void CsvStrConverterFunc(const std::string &inStr, omniruntime::vec::BaseVector *vec, int rowIndex) {
+inline void CsvStrConverterFunc(const std::string &inStr, omniruntime::vec::BaseVector *vec, int rowIndex)
+{
     // todo: implement it for all dataTypes
     if constexpr (std::is_same_v<int64_t, T>) {
-        static_cast<omniruntime::vec::Vector<int64_t> * >(vec)->SetValue(rowIndex, std::stol(inStr));
+        static_cast<omniruntime::vec::Vector<int64_t>* >(vec)->SetValue(rowIndex, std::stol(inStr));
     } else if constexpr (std::is_same_v<int32_t, T>) {
-        static_cast<omniruntime::vec::Vector<int32_t> * >(vec)->SetValue(rowIndex, std::stoi(inStr));
+        static_cast<omniruntime::vec::Vector<int32_t>* >(vec)->SetValue(rowIndex, std::stoi(inStr));
     } else if constexpr (std::is_same_v<std::string_view, T>) {
         std::string_view inStrView(inStr.data(), inStr.size());
         using VarcharVecType = omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>;
-        static_cast<VarcharVecType * >(vec)->SetValue(rowIndex, inStrView);
+        static_cast<VarcharVecType* >(vec)->SetValue(rowIndex, inStrView);
     }
 }
 
@@ -124,8 +60,14 @@ inline void CsvStrConverterFunc(const std::string &inStr, omniruntime::vec::Base
 template<typename K>
 class CsvLookupFunction {
 public:
+    ~CsvLookupFunction()
+    {
+        delete csvDataVecBatch;
+    }
+
     // The lookup op description
-    CsvLookupFunction(const nlohmann::json& description, CsvTableSource *src) : description(description), src (src) {
+    CsvLookupFunction(const nlohmann::json& description, CsvTableSource *src) : description(description), src (src)
+    {
         // prepare the csv side vectorbatch
         int hashRowCnt = src->countCsvRows();
         csvDataVecBatch = new omniruntime::vec::VectorBatch(hashRowCnt);
@@ -162,7 +104,8 @@ public:
     }
 
     // Construct the hash table from csv file
-    void open() {
+    void open()
+    {
         auto lookupKeys = description["lookupKeys"];
         auto selectedFields = description["selectedFields"].get<std::vector<int>>();
         for (const auto &[key, value]: lookupKeys.items()) {
@@ -174,7 +117,6 @@ public:
             targetKeys.push_back(targetIdx);
         }
         if (sourceKeys.size() != 1 || targetKeys.size() != 1) {
-            // TODO: Currently we only deal with one column as Key
             NOT_IMPL_EXCEPTION;
         }
 
@@ -216,16 +158,18 @@ public:
     }
 
     // Used for testing
-    std::vector<int32_t> &getTestFunc(K key) {
+    std::vector<int32_t> &getTestFunc(K key)
+    {
         return dataMap[key];
     }
 
     // Search for matched rows and convert these rows to a vector batch
     // Here collector is the TableFunctionCollector from FlatMapFunction
-    void eval(omnistream::VectorBatch *vb, Collector *collector) {
+    void eval(omnistream::VectorBatch *vb, Collector *collector)
+    {
         int32_t totRowCnt = 0;
         // vb'w rowId and hashside's rowIds
-        auto probekeyCol = reinterpret_cast<omniruntime::vec::Vector<K> * > (vb->GetVectors()[sourceKeys[0]]);
+        auto probekeyCol = reinterpret_cast<omniruntime::vec::Vector<K>* > (vb->GetVectors()[sourceKeys[0]]);
         // Get matched rows and build output as a vector batch
         int32_t rowCount = vb->GetRowCount();
         // i-th row from probe is matched with a vector of csv rows
@@ -245,11 +189,37 @@ public:
 private:
     omnistream::VectorBatch *buildOutput(omnistream::VectorBatch *vb,
                                          std::vector<std::tuple<int32_t*, int32_t>> &matchedRows,
-                                         int32_t totRowCnt) {
+                                         int32_t totRowCnt)
+    {
         // In matchedRows, it stores {probe_row_index : {vector of matched csv row indices}}
         auto output = new omnistream::VectorBatch(totRowCnt);
         // build the probe side, it is written as the left side in output
         omniruntime::vec::BaseVector *outCol = nullptr;
+        BuildProbeOutput(vb, matchedRows, totRowCnt, output, outCol);
+        // build the hash side
+        BuildHashOutput(vb, matchedRows, totRowCnt, output, outCol);
+
+        int32_t outputRowIndex = 0;
+        int32_t rowIndex = 0;
+        for (size_t probeRow = 0; probeRow < matchedRows.size(); probeRow++) {
+            int32_t targetRowsCnt = std::get<1>(matchedRows[probeRow]);
+            if (targetRowsCnt == 0) {
+                continue; // no match found for this one
+            }
+            int64_t timestamp = vb->getTimestamp(probeRow);
+            RowKind rowKind = vb->getRowKind(probeRow);
+            for (int i = 0; i < targetRowsCnt; i++) {
+                output->setRowKind(outputRowIndex, rowKind);
+                output->setTimestamp(outputRowIndex++, timestamp);
+            }
+            rowIndex += targetRowsCnt;
+        }
+        return output;
+    };
+
+    void BuildProbeOutput(omnistream::VectorBatch *vb, std::vector<std::tuple<int32_t*, int32_t>> &matchedRows,
+                          int32_t totRowCnt, omnistream::VectorBatch* output, omniruntime::vec::BaseVector * outCol)
+    {
         for (int icol = 0; icol < vb->GetVectorCount(); icol++) {
             auto typeId = vb->Get(icol)->GetTypeId();
             switch (typeId) {
@@ -270,7 +240,11 @@ private:
             }
             output->Append(outCol);
         }
-        // build the hash side
+    }
+
+    void BuildHashOutput(omnistream::VectorBatch *vb, std::vector<std::tuple<int32_t*, int32_t>> &matchedRows,
+                         int32_t totRowCnt, omnistream::VectorBatch* output, omniruntime::vec::BaseVector * outCol)
+    {
         for (size_t icol = 0; icol < src->getTableFieldTypes().size(); icol++) {
             auto typeId = LogicalType::flinkTypeToOmniTypeId(src->getTableFieldTypes()[icol]);
             switch (typeId) {
@@ -284,45 +258,29 @@ private:
                 case omniruntime::type::OMNI_VARCHAR:
                 case omniruntime::type::OMNI_CHAR:
                     outCol = buildHashOutputColumn<omniruntime::vec::LargeStringContainer<std::string_view>>(
-                            matchedRows, totRowCnt, icol);
+                        matchedRows, totRowCnt, icol);
                     break;
                 default:
                     std::runtime_error("Type not supported!");
             }
             output->Append(outCol);
         }
-
-        int32_t outputRowIndex = 0;
-        int32_t rowIndex = 0;
-        for (size_t probeRow = 0; probeRow < matchedRows.size(); probeRow++) {
-            int32_t targetRowsCnt = std::get<1>(matchedRows[probeRow]);
-            if(targetRowsCnt == 0) {
-                continue;//no match found for this one
-            }
-            int64_t timestamp = vb->getTimestamp(probeRow);
-            RowKind rowKind = vb->getRowKind(probeRow);
-            for (int i = 0; i < targetRowsCnt; i++) {
-                output->setRowKind(outputRowIndex, rowKind);
-                output->setTimestamp(outputRowIndex++, timestamp);
-            }
-            rowIndex += targetRowsCnt;
-        }
-        return output;
-    };
+    }
 
     template<typename T>
-    omniruntime::vec::Vector<T> *buildHashOutputColumn
-            (std::vector<std::tuple<int32_t*, int32_t>> &matchedRows, int32_t totRowCnt, int colIndex) {
+    omniruntime::vec::Vector<T> *buildHashOutputColumn(std::vector<std::tuple<int32_t *, int32_t> > &matchedRows,
+                                                       int32_t totRowCnt, int colIndex)
+    {
         auto outVec = new omniruntime::vec::Vector<T>(totRowCnt);
         auto inputCol = static_cast<omniruntime::vec::Vector<T> *> (csvDataVecBatch->Get(colIndex));
 
         int32_t outRowIndex = 0;
         for (size_t probeRow = 0; probeRow < matchedRows.size(); probeRow++) {
             int32_t targetRowsCnt = std::get<1>(matchedRows[probeRow]);
-            if(targetRowsCnt == 0) {
-                continue;// no match found for this one
+            if (targetRowsCnt == 0) {
+                continue; // no match found for this one
             }
-            int32_t* targetRowsIndices = std::get<0>(matchedRows[probeRow]);
+            int32_t *targetRowsIndices = std::get<0>(matchedRows[probeRow]);
             for (int32_t i = 0; i < targetRowsCnt; i++) {
                 auto value = inputCol->GetValue(targetRowsIndices[i]);
                 outVec->SetValue(outRowIndex++, value);
@@ -334,14 +292,15 @@ private:
     template<typename T>
     omniruntime::vec::Vector<T> *buildProbeOutputColumn(omnistream::VectorBatch *vb,
                                                         std::vector<std::tuple<int32_t*, int32_t>> &matchedRows,
-                                                        int32_t totRowCnt, int colIndex) {
+                                                        int32_t totRowCnt, int colIndex)
+    {
         auto outVec = new omniruntime::vec::Vector<T>(totRowCnt);
         auto inputCol = static_cast<omniruntime::vec::Vector<T> *> (vb->Get(colIndex));
         int32_t rowIndex = 0;
         for (size_t probeRow = 0; probeRow < matchedRows.size(); probeRow++) {
             int32_t targetRowsCnt = std::get<1>(matchedRows[probeRow]);
-            if(targetRowsCnt == 0) {
-                continue;//no match found for this one
+            if (targetRowsCnt == 0) {
+                continue; // no match found for this one
             }
             auto val = inputCol->GetValue(probeRow);
             for (int i = 0; i < targetRowsCnt; i++) {
@@ -360,7 +319,6 @@ private:
     omniruntime::vec::VectorBatch *csvDataVecBatch;
     using GetFromStrAndSetToVB = void (*)(const std::string &, omniruntime::vec::BaseVector *, int);
     std::vector<GetFromStrAndSetToVB> csvStrConverters;
-
 };
 
-#endif //FLINK_TNEL_CSVTABLESOURCE_H
+#endif

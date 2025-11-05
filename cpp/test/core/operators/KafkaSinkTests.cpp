@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include <nlohmann/json.hpp>
-#include "connector-kafka/sink/KafkaSink.h"
-#include "core/operators/sink/SinkWriterOperator.h"
+#include "connector/kafka/sink/KafkaSink.h"
+#include "streaming/api/operators/sink/SinkWriterOperator.h"
 #include <ctime>
 
 using json = nlohmann::json;

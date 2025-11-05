@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #ifndef RESULTPARTITIONIDPOD_H
@@ -45,8 +52,8 @@ public:
     const ExecutionAttemptIDPOD& getProducerId() const { return producerId; }
 
     // Setters
-    void setPartitionId(const IntermediateResultPartitionIDPOD& partitionId) { this->partitionId = partitionId; }
-    void setProducerId(const ExecutionAttemptIDPOD& producerId) { this->producerId = producerId; }
+    void setPartitionId(const IntermediateResultPartitionIDPOD& partitionId_) { this->partitionId = partitionId_; }
+    void setProducerId(const ExecutionAttemptIDPOD& producerId_) { this->producerId = producerId_; }
 
     // toString method (example implementation)
     std::string toString() const
@@ -64,8 +71,7 @@ private:
 
 } // namespace omnistream
 
-namespace std
-{
+namespace std {
     template <>
     struct hash<omnistream::ResultPartitionIDPOD> {
         std::size_t operator()(const omnistream::ResultPartitionIDPOD& obj) const

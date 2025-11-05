@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #include "Event.h"
@@ -13,8 +20,9 @@ std::vector<int> Event::PersonTypes = {2, 15, 15, 15, 15, 15, 12, 15};
 bool Bid::operator==(const Event& _other) const
 {
     auto ptr = dynamic_cast<const Bid*>(&_other);
-    if (ptr == nullptr)
+    if (ptr == nullptr) {
         return false;
+    }
     const Bid& other = *ptr;
     return auction == other.auction &&
            bidder == other.bidder &&
@@ -63,8 +71,9 @@ std::string Auction::toString() const
 bool Auction::operator==(const Event& other) const
 {
     auto ptr = dynamic_cast<const Auction*>(&other);
-    if (ptr == nullptr)
+    if (ptr == nullptr) {
         return false;
+    }
     const Auction& auction = *ptr;
     return id == auction.id &&
            initialBid == auction.initialBid &&
@@ -108,8 +117,9 @@ std::string Person::toString() const
 bool Person::operator==(const Event& _other) const
 {
     auto ptr = dynamic_cast<const Person*>(&_other);
-    if (ptr == nullptr)
+    if (ptr == nullptr) {
         return false;
+    }
     const Person& other = *ptr;
     return id == other.id &&
            dateTime == other.dateTime &&

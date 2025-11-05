@@ -1,5 +1,12 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #ifndef OMNISTREAM_AVAILABILITY_PROVIDER_H
@@ -13,25 +20,25 @@ namespace omnistream {
 
     class AvailabilityProvider {
     public:
-        AvailabilityProvider() {}
-        virtual ~AvailabilityProvider() {}
+        AvailabilityProvider() = default;
+        virtual ~AvailabilityProvider() = default;
 
         static std::shared_ptr<CompletableFuture> AVAILABLE;
 
-        virtual  std::shared_ptr<CompletableFuture> getAvailableFuture()  =0;
+        virtual std::shared_ptr<CompletableFuture> GetAvailableFuture() = 0;
 
         static std::shared_ptr<CompletableFuture> and_(std::shared_ptr<CompletableFuture> first, std::shared_ptr<CompletableFuture> second);
         static std::shared_ptr<CompletableFuture> or_(std::shared_ptr<CompletableFuture> first, std::shared_ptr<CompletableFuture> second);
 
         bool isAvailable()
         {
-            auto future = getAvailableFuture();
+            auto future = GetAvailableFuture();
             return future && (future == AVAILABLE || future->isDone());
         }
 
         bool isApproximatelyAvailable()
         {
-            return getAvailableFuture() == AVAILABLE;
+            return GetAvailableFuture() == AVAILABLE;
         }
 
         virtual std::string toString()
