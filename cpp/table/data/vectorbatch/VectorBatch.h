@@ -103,8 +103,10 @@ public:
                      std::vector<std::string> inputTypes = {}) const;
 
     std::string TransformTime(int vectorID, int rowID) const;
-    std::string transformDecimal(
-            int vectorID, int rowID, std::vector<std::pair<int32_t, int32_t>>& decimalInfo) const;
+    std::string transformDecimal128(
+                    int vectorID, int rowID, std::vector<std::pair<int32_t, int32_t>>& decimalInfo) const;
+    std::string transformDecimal64(
+                int vectorID, int rowID, std::vector<std::pair<int32_t, int32_t>>& decimalInfo) const;
     void WriteToFileInternal(int vectorID, int rowID,
                              std::ofstream& file,
                              std::vector<std::pair<int32_t, int32_t>> decimalInfo,
