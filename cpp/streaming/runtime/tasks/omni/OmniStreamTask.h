@@ -66,7 +66,7 @@ namespace omnistream {
         // in the most cases, it does not to be overridden
         void restoreInternal();
 
-        void cancel();
+        virtual void cancel();
 
         // most case to be overrided by subclass
         virtual void init()
@@ -99,6 +99,10 @@ namespace omnistream {
                 throw std::runtime_error("");
             }
         };
+
+        std::shared_ptr<OmniStreamInputProcessor> input_processor() const {
+            return inputProcessor_;
+        }
 
         void abortCheckpointOnBarrier(long checkpointId, CheckpointException cause) override {};
 
@@ -134,6 +138,9 @@ namespace omnistream {
         StreamOperator* mainOperator_;
         std::shared_ptr<OmniStreamInputProcessor> inputProcessor_;
 
+
+
+    protected:
         /**
         * All actions outside of the task {@link #mailboxProcessor mailbox} (i.e. performed by another
         * thread) must be executed through this executor to ensure that we don't have concurrent method

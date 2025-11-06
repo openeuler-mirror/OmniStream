@@ -20,6 +20,14 @@ BinaryRowDataSerializer::BinaryRowDataSerializer(int numFields) : numFields_(num
     reUse_->pointTo(bytes, 0, SEG_SIZE, SEG_SIZE);
 }
 
+BinaryRowDataSerializer::BinaryRowDataSerializer(int numFields, const std::vector<std::string>& inputTypes) : numFields_(numFields) {
+    inputTypes_ = inputTypes;
+    fixedLengthPartSize_ = BinaryRowData::calculateFixPartSizeInBytes(numFields_);
+    reUse_ = new BinaryRowData(numFields_);
+    auto *bytes = new uint8_t[SEG_SIZE];
+    reUse_->pointTo(bytes, 0, SEG_SIZE, SEG_SIZE);
+}
+
 BinaryRowDataSerializer::~BinaryRowDataSerializer()
 {
     delete reUse_;
@@ -51,6 +59,27 @@ void BinaryRowDataSerializer::serialize(void *row, DataOutputSerializer &target)
     if (castedRow->getRowDataTypeId() == RowData::JoinedRowDataID) {
         INFO_RELEASE("WARNING: joinedRowToBinaryRow are only meant for testing. It only treat long type!!");
         reUse_ = joinedRowToBinaryRow(static_cast<JoinedRowData *>(row));
+    } else {
+        auto *binRow = reinterpret_cast<BinaryRowData *>(row);
+        LOG(">>>>" << binRow->getSizeInBytes())
+        target.writeInt(binRow->getSizeInBytes());
+
+        LOG("getBufferCapacity>>>>" << binRow->getBufferCapacity() << " , getOffset :" << binRow->getOffset())
+
+        BinarySegmentUtils::copyToView(binRow->getSegment(),
+                                       binRow->getBufferCapacity(), binRow->getOffset(),
+                                       binRow->getSizeInBytes(), target);
+    }
+}
+
+void BinaryRowDataSerializer::serialize(Object *row, DataOutputSerializer &target)
+{
+    LOG(">>>>")
+    // We eventually needs to implement a JoinedRowDataSerializer
+    // in Q4, Agg/Join are never the last Op in chain, so JoinedRowDataSerialzier is not needed of Q4.
+    auto *castedRow = reinterpret_cast<RowData *>(static_cast<void *>(row));
+    if (castedRow->getRowDataTypeId() == RowData::JoinedRowDataID) {
+        INFO_RELEASE("WARNING: joinedRowToBinaryRow are only meant for testing. It only treat long type!!");
     } else {
         auto *binRow = reinterpret_cast<BinaryRowData *>(row);
         LOG(">>>>" << binRow->getSizeInBytes())
@@ -115,4 +144,8 @@ BinaryRowData* BinaryRowDataSerializer::joinedRowFromBothBinaryRow(JoinedRowData
     BinaryRowData *newRow = BinaryRowData::createRowFromSubJoinedRows(row1, row2);
     newRow->setRowKind(row->getRowKind());
     return newRow;
+}
+
+const std::vector<std::string>& BinaryRowDataSerializer::getInputTypes() const {
+    return inputTypes_;
 }

@@ -19,12 +19,15 @@
 class BinaryRowDataSerializer : public TypeSerializerSingleton {
 public:
     explicit BinaryRowDataSerializer(int numFields);
+    BinaryRowDataSerializer(int numFields, const std::vector<std::string>& inputTypes);
     ~BinaryRowDataSerializer() override;
 
     // void * BinaryRowData
     void *deserialize(DataInputView &source) override;
 
     void serialize(void *row, DataOutputSerializer &target) override;
+
+    void serialize(Object *row, DataOutputSerializer &target) override;
 
     [[nodiscard]] const char *getName() const override;
 
@@ -33,12 +36,15 @@ public:
     static BinaryRowData* joinedRowFromBothBinaryRow(JoinedRowData *row);
 
     BackendDataType getBackendId() const override { return BackendDataType::ROW_BK;};
+
+    const std::vector<std::string>& getInputTypes() const;
 private:
     // Add JoinedRowDataSerializer, then pass the unconverted JoinedRowData to
     // output collector instead of the converted BinaryRowData
     int numFields_;
     int fixedLengthPartSize_;
     BinaryRowData* reUse_;
+    std::vector<std::string> inputTypes_;
 
     const static int SEG_SIZE = 2048;
 };

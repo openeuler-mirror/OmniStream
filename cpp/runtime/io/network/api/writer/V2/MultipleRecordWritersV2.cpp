@@ -21,4 +21,11 @@ namespace omnistream {
         }
     }
 
+    void MultipleRecordWritersV2::cancel()
+    {
+        LOG_INFO_IMP("MultipleRecordWritersV2 close")
+        for (auto* writer : recordWriters) {
+            writer->cancel();
+        }
+    }
 }

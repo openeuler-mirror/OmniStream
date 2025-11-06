@@ -48,6 +48,7 @@ namespace omnistream {
         ~OmniSourceStreamTask() override = default;
         const std::string getName() const override;
         void AdvanceToEndOfEventTime() override;
+        void cancel() override;
 
     private:
         FinishingReason finishingReason = FinishingReason::END_OF_DATA;

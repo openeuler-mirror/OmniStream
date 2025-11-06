@@ -45,5 +45,12 @@ namespace omnistream {
     {
         return new OmniStreamTaskSourceInput(mainOperator_, 0, 0);
     }
+
+    void OmniSourceOperatorStreamTask::cancel()
+    {
+        OmniStreamTask::cancel();
+        // avoid back pressure
+        recordWriter_->cancel();
+    }
 }
 

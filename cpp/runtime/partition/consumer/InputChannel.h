@@ -36,6 +36,7 @@ public:
 
     int getChannelIndex() const;
     InputChannelInfo getChannelInfo() const;
+    InputChannelInfo& getChannelInfo();
     ResultPartitionIDPOD getPartitionId() const;
 
     virtual void resumeConsumption() = 0;

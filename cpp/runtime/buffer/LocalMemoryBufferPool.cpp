@@ -308,6 +308,9 @@ namespace datastream {
         LOG_PART(" Back Pressure possible happens, current segment in pool is " << availableSegments.size())
         while (!(segment = requestMemorySegment(targetChannel))) {
             LOG_PART(" Back Pressure happens, current segment in pool is " << availableSegments.size() << "for channel "<< targetChannel)
+            if (cancelled_.load()) {
+                throw std::runtime_error("task has been cancelled");
+            }
             // workaround sleep for a while
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }

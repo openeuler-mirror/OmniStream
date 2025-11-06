@@ -27,6 +27,8 @@ namespace omnistream {
                             numBytesIn, numBuffersIn)
     {
         originalNetworkBufferRecycler_ = std::make_shared<OriginalNetworkBufferRecycler>();
+        channelInfo.setOmni();
+        LOG("Get OmniLocalInputChannel omni: " << channelInfo.getOmni())
     }
 
     void OmniLocalInputChannel::notifyOriginalDataAvailable(long bufferAddress, int bufferLength, int readIndex,

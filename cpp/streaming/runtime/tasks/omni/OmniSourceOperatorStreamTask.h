@@ -33,6 +33,7 @@ namespace omnistream {
         const std::string getName() const override;
         OmniPushingAsyncDataInput::OmniDataOutput* createDataOutput();
         OmniStreamTaskInput* createTaskInput();
+        void cancel() override;
     };
 }
 

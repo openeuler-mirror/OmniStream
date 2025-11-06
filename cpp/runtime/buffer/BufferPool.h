@@ -21,6 +21,7 @@ namespace omnistream {
     public:
         virtual void reserveSegments(int numberOfSegmentsToReserve)  = 0;
         virtual void lazyDestroy() = 0;
+        virtual void cancel() = 0;
         bool isDestroyed() override = 0;
         virtual int getNumberOfRequiredSegments() const =0 ;
         virtual int getMaxNumberOfSegments() const =0 ;

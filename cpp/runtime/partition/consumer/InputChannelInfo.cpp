@@ -43,6 +43,16 @@ namespace omnistream {
         this->gateIdx = gateIdx_;
     }
 
+    void InputChannelInfo::setOmni()
+    {
+        this->omni = true;
+    }
+
+    bool InputChannelInfo::getOmni()
+    {
+        return omni;
+    }
+
     int InputChannelInfo::getInputChannelIdx() const
     {
         return inputChannelIdx;

@@ -20,6 +20,8 @@
 #include "partition/ResultPartitionManager.h"
 #include "runtime/executiongraph/descriptor/ResultPartitionIDPOD.h"
 #include <buffer/ReadOnlySlicedNetworkBuffer.h>
+#include "buffer/ReadOnlySlicedVectorBatchBuffer.h"
+#include "table/data/RowData.h"
 
 namespace omnistream {
     struct MemorySegmentInfo {
@@ -31,6 +33,7 @@ namespace omnistream {
         int32_t nextDataType;
         int32_t sequenceNumber;
     };
+
 
     class OmniLocalChannelReader : public BufferAvailabilityListener {
     public:
@@ -49,9 +52,14 @@ namespace omnistream {
         void ReleaseAllResources();
         void WrapBufferInfoIntoMemorySegmentInfo(std::shared_ptr<::datastream::ReadOnlySlicedNetworkBuffer> nBuffer,
                                                  std::shared_ptr<BufferAndBacklog> bufferAndLog);
+        void WrapBufferInfoIntoBinaryRowDataInfo(const std::shared_ptr<omnistream::VectorBatchBuffer>& nBuffer,
+                                                 const std::shared_ptr<BufferAndBacklog>& bufferAndLog);
         void ResumeConsumption();
 
     private:
+        int calculateTotalRows(const std::shared_ptr<ObjectSegment>& objectSegment, int offset, int vbNum);
+        void setRowDataToPtr(RowData* binaryRowData, uint8_t* dataResultContainer, unsigned int& position, int vectorBatchCol, VectorBatch* element, int index);
+
         ResultPartitionIDPOD partitionId_;
         int subPartitionIndex_;
         std::shared_ptr<ResultSubpartitionView> subpartitionView;
