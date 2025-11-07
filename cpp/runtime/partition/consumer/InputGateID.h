@@ -49,7 +49,7 @@ namespace omnistream {
 
         bool operator<(const InputGateID& other) const
         {
-            return true;
+            return consumedResultID < other.consumedResultID;
         }
 
         size_t hashCode() const
