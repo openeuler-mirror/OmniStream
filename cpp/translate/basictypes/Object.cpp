@@ -78,7 +78,7 @@ void Object::getRefCount()
     ++refCount;
 }
 
-void Object::setRefCount(uint64_t count)
+void Object::setRefCount(uint32_t count)
 {
     refCount = count;
 }
@@ -88,7 +88,7 @@ bool Object::isCloned()
     return isClone;
 }
 
-uint64_t Object::getRefCountNumber()
+uint32_t Object::getRefCountNumber()
 {
     return refCount;
 }
