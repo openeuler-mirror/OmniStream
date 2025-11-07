@@ -68,6 +68,8 @@ public:
     int getNumberOfBytesToNearestWord(int numBytes);
     void zeroOutPaddingBytes(int fieldOffset, int numBytes);
     void setOffsetAndSize(int headerOffset, int varcharOffset, int len);
+    void setDecimal128(int pos, uint64_t low, int64_t high);
+    omniruntime::type::Decimal128* getDecimal128(int pos, int precision);
 
     // non virtual
     int getFixedLengthPartSize() const;

@@ -62,6 +62,16 @@ bool *BinaryRowData::getBool(int pos)
     return MemorySegmentUtils::getBool(memoryBuffer, bufferCapacity, getFieldOffset(pos));
 }
 
+omniruntime::type::Decimal128* BinaryRowData::getDecimal128(int pos, int precision) {
+    if (precision <= 6) {
+        auto value = MemorySegmentUtils::getBool(memoryBuffer, bufferCapacity, getFieldOffset(pos));
+        return new omniruntime::type::Decimal128(*value);
+    } else {
+        throw std::runtime_error("Decimal not supported precision which bigger than 6");
+    }
+}
+
+
 int BinaryRowData::calculateBitSetWidthInBytes(int arity)
 {
     return ((arity + 63 + HEADER_SIZE_IN_BITS) >>6) <<3;
@@ -418,3 +428,38 @@ int BinaryRowData::hashCodeFast() const
     }
     return hash;
 }
+
+void BinaryRowData::setDecimal128(int pos, uint64_t low, int64_t high) {
+    setNotNullAt(pos);
+    types[pos] = 2;
+    int roundedSize = getNumberOfBytesToNearestWord(16);
+    int segmentSize = this->getSizeInBytes();
+
+    // Write header
+    setOffsetAndSize(getFieldOffset(pos), segmentSize, 16);
+
+    // Calculate the new buffer size
+    int newBufferCapacity = bufferCapacity + roundedSize;
+
+    // Allocate a new buffer with the increased size
+    auto *newBuffer = new uint8_t[newBufferCapacity]();
+
+    // Copy existing data to the new buffer
+    auto ret = memcpy_s(newBuffer, newBufferCapacity, memoryBuffer, bufferCapacity);
+    if (ret != EOK) {
+        INFO_RELEASE("BinaryRowData.cpp setDecimal128, memcpy_s failed")
+        throw std::runtime_error("memcpy_s failed");
+    }
+
+    // Update the memoryBuffer pointer and bufferCapacity
+    delete[] memoryBuffer;    // Free the old buffer
+
+    memoryBuffer = newBuffer;
+    bufferCapacity = newBufferCapacity;
+    sizeInBytes_ = newBufferCapacity;
+
+    MemorySegmentUtils::putLong(memoryBuffer, bufferCapacity, segmentSize, __builtin_bswap64(high));
+    MemorySegmentUtils::putLong(memoryBuffer, bufferCapacity, segmentSize + 8, __builtin_bswap64(low));
+    zeroOutPaddingBytes(segmentSize, 16);
+}
+

@@ -158,7 +158,7 @@ namespace omnistream {
         return result;
     }
 
-    std::string VectorBatch::transformDecimal(int vectorID,
+    std::string VectorBatch::transformDecimal128(int vectorID,
                                               int rowID, std::vector<std::pair<int32_t, int32_t>>& decimalInfo) const
     {
         std::string valueStr = (reinterpret_cast<omniruntime::vec::Vector<Decimal128> *>(vectors[vectorID])->GetValue(
@@ -176,6 +176,34 @@ namespace omnistream {
         }
         return valueStr;
     }
+
+        std::string VectorBatch::transformDecimal64(int vectorID,
+                                                      int rowID, std::vector<std::pair<int32_t, int32_t>>& decimalInfo) const {
+        std::string valueStr = std::to_string(reinterpret_cast<omniruntime::vec::Vector<long> *>(vectors[vectorID])->GetValue(
+                        rowID));
+        if (static_cast<int>(decimalInfo.size()) > vectorID && decimalInfo[vectorID].second > 0) {
+            int32_t scale = decimalInfo[vectorID].second;
+            int len = static_cast<int>(valueStr.length());
+            // Case when scale is greater than or equal to the number length
+            bool negtiveFlag = false;
+            if (len > 0 && valueStr[0] == '-') {
+                valueStr = valueStr.substr(1, len);
+                negtiveFlag = true;
+                len -= 1;
+            }
+            if (scale >= len) {
+                valueStr = "0." + std::string(scale - len, '0') + valueStr;
+            } else {
+                // Insert the decimal point at the correct position
+                valueStr = valueStr.substr(0, len - scale) + "." + valueStr.substr(len - scale);
+            }
+            if (negtiveFlag) {
+                valueStr = "-"+valueStr;
+            }
+        }
+        return valueStr;
+    }
+
 
     void VectorBatch::WriteString(std::ofstream& file, int vectorID, int rowID) const
     {
@@ -224,13 +252,12 @@ namespace omnistream {
                 file << reinterpret_cast<omniruntime::vec::Vector<bool> *>(vectors[vectorID])->GetValue(rowID);
                 break;
             case omniruntime::type::DataTypeId::OMNI_DECIMAL64: {
-                int scale10 = decimalInfo.empty() ? 1 : std::pow(10, decimalInfo[vectorID].second);
-                file << reinterpret_cast<omniruntime::vec::Vector<int64_t> *>(
-                    vectors[vectorID])->GetValue(rowID) * 1.0 / scale10;
+                auto valueStr = transformDecimal64(vectorID, rowID, decimalInfo);
+                                file << valueStr;
                 break;
             }
             case omniruntime::type::DataTypeId::OMNI_DECIMAL128: {
-                auto valueStr = transformDecimal(vectorID, rowID, decimalInfo);
+                auto valueStr = transformDecimal128(vectorID, rowID, decimalInfo);
                 file << valueStr;
                 break;
             }

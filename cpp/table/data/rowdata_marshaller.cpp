@@ -32,6 +32,15 @@ void SerializeBooleanIntoRowData(vec::BaseVector *baseVector, int32_t rowIdx, Bi
     }
 }
 
+void SerializeDecimal128IntoRowData(vec::BaseVector *baseVector, int32_t rowIdx, BinaryRowData *result, int32_t pos) {
+    if (baseVector->IsNull(rowIdx)) {
+        result->setNullAt(pos);
+    } else {
+        auto value = reinterpret_cast<vec::Vector<Decimal128>*>(baseVector)->GetValue(rowIdx);
+        result->setDecimal128(pos, value.LowBits(), value.HighBits());
+    }
+}
+
 void SerializeVarcharIntoRowData(vec::BaseVector *baseVector, int32_t rowIdx, BinaryRowData *result, int32_t pos)
 {
     if (baseVector->IsNull(rowIdx)) {
@@ -56,7 +65,8 @@ void DeserializeIntFromRowData(vec::BaseVector *baseVector, int32_t rowIdx, Bina
     if (input->isNullAt(pos)) {
         baseVector->SetNull(rowIdx);
     } else {
-        reinterpret_cast<vec::Vector<int64_t>*>(baseVector)->SetValue(rowIdx, *input->getLong(pos));
+        reinterpret_cast<vec::Vector<int32_t> *>(baseVector)->SetValue(rowIdx, *input->getInt(pos));
+
     }
 }
 
@@ -65,7 +75,7 @@ void DeserializeLongFromRowData(vec::BaseVector *baseVector, int32_t rowIdx, Bin
     if (input->isNullAt(pos)) {
         baseVector->SetNull(rowIdx);
     } else {
-        reinterpret_cast<vec::Vector<int32_t> *>(baseVector)->SetValue(rowIdx, *input->getInt(pos));
+        reinterpret_cast<vec::Vector<int64_t>*>(baseVector)->SetValue(rowIdx, *input->getLong(pos));
     }
 }
 
@@ -94,8 +104,8 @@ std::vector<VBToRowSerializer> rowSerializerCenter = {
     nullptr,                        // OMNI_DOUBLE
     SerializeBooleanIntoRowData,    // OMNI_BOOLEAN
     nullptr,                        // OMNI_SHORT
-    nullptr,                        // OMNI_DECIMAL64,
-    nullptr,                        // OMNI_DECIMAL128
+    SerializeLongIntoRowData,       // OMNI_DECIMAL64,
+    SerializeDecimal128IntoRowData, // OMNI_DECIMAL128
     SerializeIntIntoRowData,        // OMNI_DATE32
     SerializeLongIntoRowData,       // OMNI_DATE64bool
     SerializeIntIntoRowData,        // OMNI_TIME32

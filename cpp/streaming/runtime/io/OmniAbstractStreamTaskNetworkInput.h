@@ -372,6 +372,14 @@ public:
                     setString(outputBatch, numRows, colIndex, collectedRows);
                     break;
                 }
+                case DataTypeId::OMNI_DECIMAL64: {
+                    setDecimal64(outputBatch, numRows, colIndex, collectedRows);
+                    break;
+                }
+                case DataTypeId::OMNI_DECIMAL128: {
+                    setDecimal128(outputBatch, numRows, colIndex, collectedRows);
+                    break;
+                }
                 default: {
                     throw std::runtime_error("Unsupported column type in inputRow");
                 }
@@ -411,6 +419,33 @@ public:
         }
         outputBatch->Append(vector);
     }
+
+    void setDecimal64(omniruntime::vec::VectorBatch* outputBatch,
+                      int numRows, int colIndex, std::vector<BinaryRowData*> collectedRows) {
+        auto *vector = new omniruntime::vec::Vector<int64_t>(numRows, DataTypeId::OMNI_DECIMAL64);
+        for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
+            if (collectedRows[rowIndex]->isNullAt(colIndex)) {
+                vector->SetNull(rowIndex);
+            } else {
+                vector->SetValue(rowIndex, *collectedRows[rowIndex]->getLong(colIndex));
+            }
+        }
+        outputBatch->Append(vector);
+    }
+
+    void setDecimal128(omniruntime::vec::VectorBatch* outputBatch,
+                       int numRows, int colIndex, std::vector<BinaryRowData*> collectedRows) {
+        auto *vector = new omniruntime::vec::Vector<Decimal128>(numRows);
+        for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
+            if (collectedRows[rowIndex]->isNullAt(colIndex)) {
+                vector->SetNull(rowIndex);
+            } else {
+                vector->SetValue(rowIndex, *collectedRows[rowIndex]->getDecimal128(colIndex, 0));
+            }
+        }
+        outputBatch->Append(vector);
+    }
+
 
     void setString(omniruntime::vec::VectorBatch* outputBatch,
                    int numRows, int colIndex, std::vector<BinaryRowData*> collectedRows)
