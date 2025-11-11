@@ -104,10 +104,11 @@ void FastTop1Function<KeyType>::processBatch(omnistream::VectorBatch* inputBatch
                 kvCache.put(mutableKey, inputRow);
             } else {
                 freeKeyInCache(mutableKey);
+                delete inputRow;  // Free the input row as it's not needed.
             }
         }
     }
-    omniruntime::vec::VectorHelper::FreeVecBatch(inputBatch);
+    delete inputBatch;
     omnistream::VectorBatch *outputBatch = this->createOutputBatch();
     this->collectOutputBatch(out, outputBatch);
     // Explicitly clear the `top1RowIds` map to release memory.
@@ -118,9 +119,7 @@ template<typename KeyType>
 void FastTop1Function<KeyType>::freeKeyInCache(KeyType key)
 {
     if constexpr (std::is_same<KeyType, RowData*>::value) {
-        if (kvCache.hasKey(key)) {
-            delete key;
-        }
+       delete key;
     }
 }
 
