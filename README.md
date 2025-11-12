@@ -10,6 +10,9 @@
 
 OmniStream算子加速采用Native Code（C/C++）实现Flink SQL和DataStream算子。针对Flink SQL，OmniStream采用C++结合向量化指令实现算子，以列式内存数据格式OmniVec进行内存计算，充分利用向量化加速，提升SQL计算性能。针对Flink DataStream，OmniStream采用C++结合向量化指令实现算子，结合UDF翻译工具将UDF翻译成C++程序，充分发挥Native Code性能优势，提升DataStream场景性能。
 
+关于OmniStream的详细介绍，请参考鲲鹏社区在线课程：<b>[《OmniStream开源项目介绍》](https://www.hikunpeng.com/learn/courses-list/detail/1983343850145337345)</b>。
+
+
 # 版本说明
 
 <a name="table237422676"></a>
