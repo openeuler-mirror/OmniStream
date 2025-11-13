@@ -523,7 +523,7 @@ void GroupAggFunction::ClearEnv(omnistream::VectorBatch *input, std::vector<RowD
                                 TimestampedCollector &out,
                                 std::unordered_map<RowData*, std::vector<RowInfo>> keyToRowIndices)
 {
-    omniruntime::vec::VectorHelper::FreeVecBatch(input);
+    delete input;
     if (!resultKeys.empty()) {
         resultBatch = createOutputBatch(resultKeys, resultValues, resultRowKinds);
         collectOutputBatch(out, resultBatch);

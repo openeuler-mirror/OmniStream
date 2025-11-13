@@ -86,7 +86,7 @@ namespace omnistream::datastream {
             for (int32_t i = 0; i < colSize; i++) {
                 applyFilterResult(newBatch, newVectorBatch, colVecs, i);
             }
-            omniruntime::vec::VectorHelper::FreeVecBatch(input);
+            delete input;
             record->setValue(newVectorBatch);
             AbstractStreamOperator<K>::output->collect(record);
         }
