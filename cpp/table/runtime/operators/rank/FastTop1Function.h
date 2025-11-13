@@ -1,12 +1,5 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
- * You can use this software according to the terms and conditions of the Mulan PSL v2.
- * You may obtain a copy of Mulan PSL v2 at:
- *          http://license.coscl.org.cn/MulanPSL2
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
- * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
- * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
- * See the Mulan PSL v2 for more details.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
 #ifndef FLINK_TNEL_FASTTOP1FUNCTION_H
 #define FLINK_TNEL_FASTTOP1FUNCTION_H
@@ -53,6 +46,7 @@ private:
     Top1Comparator<KeyType> *comparator = nullptr;
     SortedKVCache<KeyType, RowData*> kvCache;
     int compareRows(BinaryRowData *inputRow, BinaryRowData *previousRow);
+    int compareRowsV2(omnistream::VectorBatch* vectorBatch,int rowId, BinaryRowData *previousRow);
 };
 
 template<typename KeyType>
@@ -75,15 +69,16 @@ void FastTop1Function<KeyType>::processBatch(omnistream::VectorBatch* inputBatch
         return;
     }
     // Find top-1 row IDs by partition using the helper function.
-    std::unordered_map<KeyType, int> top1RowIds = comparator->findTop1RowIdsByPartition(inputBatch);
+    // std::unordered_map<KeyType, int> top1RowIds = comparator->findTop1RowIdsByPartition(inputBatch);
+    std::unordered_map<KeyType, int> top1RowIds = comparator->findTop1RowIdsByPartitionV2(inputBatch);
     std::set<RowData*> rowToDel;
     // Process each partition key's top row.
     for (const auto& [partitionKey, rowId] : top1RowIds) {
         KeyType mutableKey = partitionKey;
         ctx.setCurrentKey(mutableKey);
         // Retrieve the top row for the partition key.
-        RowData *inputRow = inputBatch->extractRowData(rowId);
-        int64_t timestamp = inputBatch->getTimestamp(rowId);
+        // RowData *inputRow = inputBatch->extractRowData(rowId);
+        // int64_t timestamp = inputBatch->getTimestamp(rowId);
         // Get the current state for the partition key.
         RowData* previousRow = kvCache.get(mutableKey);
         if (previousRow == nullptr) {
@@ -91,23 +86,39 @@ void FastTop1Function<KeyType>::processBatch(omnistream::VectorBatch* inputBatch
         }
 
         if (previousRow == nullptr) {
+            RowData *inputRow = inputBatch->extractRowData(rowId);
+
             // No previous state, insert the new row into the state store.
             stateStore->update(inputRow, false);
             kvCache.put(mutableKey, inputRow);
+            int64_t timestamp = inputBatch->getTimestamp(rowId);
             this->collectInsert(inputRow, 1, timestamp);  // Emit the new row.
         } else {
             // input sort key is higher than old sort key
-            if (compareRows(static_cast<BinaryRowData*>(inputRow), static_cast<BinaryRowData*>(previousRow)) < 0) {
+            // if (compareRows(static_cast<BinaryRowData*>(inputRow), static_cast<BinaryRowData*>(previousRow)) < 0) {
+            //     this->collectUpdateBefore(previousRow, 1, timestamp);  // Emit an update.
+            //     this->collectUpdateAfter(inputRow, 1, timestamp);
+            //     stateStore->update(inputRow, false);
+            //     kvCache.put(mutableKey, inputRow);
+            // } else {
+            //     freeKeyInCache(mutableKey);
+            //     delete inputRow;
+            // }
+
+            if (compareRowsV2(inputBatch,rowId, static_cast<BinaryRowData*>(previousRow)) < 0) {
+                int64_t timestamp = inputBatch->getTimestamp(rowId);
+                RowData *inputRow = inputBatch->extractRowData(rowId);
                 this->collectUpdateBefore(previousRow, 1, timestamp);  // Emit an update.
                 this->collectUpdateAfter(inputRow, 1, timestamp);
                 stateStore->update(inputRow, false);
                 kvCache.put(mutableKey, inputRow);
             } else {
                 freeKeyInCache(mutableKey);
-                delete inputRow;  // Free the input row as it's not needed.
+                // delete inputRow;
             }
         }
     }
+    // omniruntime::vec::VectorHelper::FreeVecBatch(inputBatch);
     delete inputBatch;
     omnistream::VectorBatch *outputBatch = this->createOutputBatch();
     this->collectOutputBatch(out, outputBatch);
@@ -119,7 +130,10 @@ template<typename KeyType>
 void FastTop1Function<KeyType>::freeKeyInCache(KeyType key)
 {
     if constexpr (std::is_same<KeyType, RowData*>::value) {
-       delete key;
+        delete key;
+        // if (kvCache.hasKey(key)) { // todo ? why must be in kvCache are deletable ? what if kvCache is full and evict this key ?
+        //     delete key;
+        // }
     }
 }
 
@@ -157,6 +171,63 @@ int FastTop1Function<KeyType>::compareRows(BinaryRowData* inputRow,
                     throw std::runtime_error("input row is null, check the data");
                 }
                 TimestampData *inputVal = inputRow->getTimestamp(colId);
+                TimestampData *previousVal = previousRow->getTimestamp(colId);
+                if (inputVal->getMillisecond() == previousVal->getMillisecond()) {
+                    comparisonResult = (inputVal->getNanoOfMillisecond() < previousVal->getNanoOfMillisecond()) ? -1 :
+                                       (inputVal->getNanoOfMillisecond() > previousVal->getNanoOfMillisecond()) ? 1 : 0;
+                } else {
+                    comparisonResult = (inputVal->getMillisecond() < previousVal->getMillisecond()) ? -1 : 1;
+                }
+                break;
+            }
+                // Add other data types as needed.
+            default:
+                throw std::runtime_error("Unsupported DataTypeId for row comparison." + this->inputRowType->at(colId));
+        }
+
+        // Adjust the comparison result based on the sort order.
+        if (comparisonResult != 0) {
+            return ascending ? comparisonResult : -comparisonResult;
+        }
+    }
+
+    // If all key columns are equal, return 0.
+    return 0;
+}
+
+
+template<typename KeyType>
+int FastTop1Function<KeyType>::compareRowsV2(omnistream::VectorBatch* originalVb,int rowId,
+                                           BinaryRowData* previousRow)
+{
+    // if (!originalVb) {
+    //     LOG("input row is null")
+    //     throw std::runtime_error("input row is null");
+    // }
+    for (size_t i = 0; i < this->sortKeyIndices.size(); ++i) {
+        int colId = this->sortKeyIndices[i];
+        bool ascending = this->sortOrder[i];
+
+        // Compare values based on the column type
+        int comparisonResult = 0;
+
+        switch (this->inputRowType->at(colId)) {
+            case DataTypeId::OMNI_INT: {
+                int32_t inputVal =  reinterpret_cast<vec::Vector<int32_t>*>(originalVb->Get(colId))->GetValue(rowId);
+                int32_t previousVal = *previousRow->getInt(colId);
+                comparisonResult = (inputVal < previousVal) ? -1 : (inputVal > previousVal) ? 1 : 0;
+                break;
+            }
+            case DataTypeId::OMNI_LONG: {
+                int64_t inputVal =reinterpret_cast<vec::Vector<int64_t>*>(originalVb->Get(colId))->GetValue(rowId);
+                int64_t previousVal = *previousRow->getLong(colId);
+                comparisonResult = (inputVal < previousVal) ? -1 : (inputVal > previousVal) ? 1 : 0;
+                break;
+            }
+            case DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:
+            case DataTypeId::OMNI_TIMESTAMP: {
+                    int64_t currentMillseconds =reinterpret_cast<vec::Vector<int64_t>*>(originalVb->Get(colId))->GetValue(rowId);
+                TimestampData* inputVal = TimestampData::fromEpochMillis(currentMillseconds);
                 TimestampData *previousVal = previousRow->getTimestamp(colId);
                 if (inputVal->getMillisecond() == previousVal->getMillisecond()) {
                     comparisonResult = (inputVal->getNanoOfMillisecond() < previousVal->getNanoOfMillisecond()) ? -1 :

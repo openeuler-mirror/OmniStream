@@ -1,12 +1,5 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
- * You can use this software according to the terms and conditions of the Mulan PSL v2.
- * You may obtain a copy of Mulan PSL v2 at:
- *          http://license.coscl.org.cn/MulanPSL2
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
- * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
- * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
- * See the Mulan PSL v2 for more details.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
 #ifndef FLINK_TNEL_TOP1COMPARATOR_H
 #define FLINK_TNEL_TOP1COMPARATOR_H
@@ -42,14 +35,14 @@ public:
         ASSERT(!ascending_.empty());
         ASSERT(vectorBatch_ != nullptr);
         ASSERT(other.vectorBatch_ != nullptr);
-    
+
         for (size_t i = 0; i < columnIds_.size(); ++i) {
             int colId = columnIds_[i];
-    
+
             DataTypeId dataTypeId = vectorBatch_->Get(colId)->GetTypeId();
             int64_t a = 0;
             int64_t b = 0;
-    
+
             // Cast the vector and access the value for the current row.
             switch (dataTypeId) {
                 case DataTypeId::OMNI_INT: {
@@ -79,7 +72,7 @@ public:
                 default:
                     throw std::runtime_error("Unsupported DataTypeId for column comparison.");
             }
-    
+
             if (a != b) {
                 return ascending_[i] ? a > b : a < b;
             }
@@ -124,7 +117,7 @@ public:
         ASSERT(vectorBatch != nullptr);
         // Extract the top-1 row ID for each partition key.
         std::unordered_map<K, int> top1RowIds;
-    
+
         if (vectorBatch->GetVectorCount() == 0) {
             return top1RowIds;
         }
@@ -132,9 +125,9 @@ public:
         // Map to store heaps for each partition key.
         std::unordered_map<K, std::priority_queue<CompositeKeyRef, std::vector<CompositeKeyRef>,
                                                                                 CompositeKeyComparator>> partitionHeaps;
-    
+
         size_t rowCount = vectorBatch->GetRowCount();
-    
+
         // Populate the heaps.
         for (size_t rowId = 0; rowId < rowCount; ++rowId) {
             // Use keySelector to get key
@@ -150,11 +143,53 @@ public:
                 partitionHeaps[key].push(keyRef);
             }
         }
-    
+
         for (auto& [k, heap] : partitionHeaps) {
             top1RowIds[k] = heap.top().getRowId();
         }
-    
+
+        return top1RowIds;
+    }
+
+    std::unordered_map<K, int> findTop1RowIdsByPartitionV2(omnistream::VectorBatch* vectorBatch)
+    {
+        LOG("findTop1RowIdsByPartition is called.");
+        ASSERT(vectorBatch != nullptr);
+        // Extract the top-1 row ID for each partition key.
+        std::unordered_map<K, int> top1RowIds;
+
+        if (vectorBatch->GetVectorCount() == 0) {
+            return top1RowIds;
+        }
+
+        // Map to store heaps for each partition key.
+        std::unordered_map<K, CompositeKeyRef> partitionHeaps;
+
+        size_t rowCount = vectorBatch->GetRowCount();
+
+        // Populate the heaps.
+        for (size_t rowId = 0; rowId < rowCount; ++rowId) {
+            // Use keySelector to get key
+            K key = keySelector_.getKey(vectorBatch, static_cast<int>(rowId));
+            CompositeKeyRef keyRef(sortColumnIds_, ascending_, static_cast<int>(rowId), vectorBatch);
+            auto it = partitionHeaps.find(key);
+            if (it != partitionHeaps.end()) {
+                if (keyRef < it->second)
+                {
+                    it->second = keyRef;
+                }
+                if constexpr (std::is_same<K, RowData *>::value) {
+                    delete key;
+                }
+            } else {
+                partitionHeaps.emplace(key, keyRef);
+            }
+        }
+
+        for (auto& [k, heap] : partitionHeaps) {
+            top1RowIds[k] = heap.getRowId();
+        }
+
         return top1RowIds;
     }
 
