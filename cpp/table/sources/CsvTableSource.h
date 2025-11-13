@@ -184,6 +184,7 @@ public:
         }
         auto output = buildOutput(vb, matchedRows, totRowCnt);
         collector->collect(output);
+        delete vb;
     }
 
 private:
