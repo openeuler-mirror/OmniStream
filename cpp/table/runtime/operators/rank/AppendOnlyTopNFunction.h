@@ -107,7 +107,7 @@ public:
                 }
             }
         }
-        omniruntime::vec::VectorHelper::FreeVecBatch(inputBatch);
+        delete inputBatch;
         if (this->hasOutputRows()) {
             omnistream::VectorBatch *outputBatch = this->createOutputBatch();
             this->collectOutputBatch(out, outputBatch);

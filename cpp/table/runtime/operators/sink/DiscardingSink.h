@@ -43,8 +43,7 @@ public:
         if (valueType == SinkInputValueType::ROW_DATA) {
         } else if (valueType == SinkInputValueType::VEC_BATCH) {
             if (outfile == "") {
-                omniruntime::vec::VectorHelper::FreeVecBatch(
-                    reinterpret_cast<omnistream::VectorBatch *>(data->getValue()));
+                delete reinterpret_cast<omnistream::VectorBatch *>(data->getValue());
                 delete data;
                 return;
             }

@@ -329,7 +329,7 @@ namespace omnistream {
                 if (!bufferInfo) {
                     bufferInfo = RequestNettyBuffer(bufferSize);
                 }
-                omniruntime::vec::VectorHelper::FreeVecBatch(element);
+                delete element;
                 delete streamRecord;
             } else if (dynamic_cast<Watermark *>(streamElement)) {
                 Watermark *watermark =

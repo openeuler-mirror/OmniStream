@@ -76,17 +76,16 @@ void StreamCalcBatch::processBatch(StreamRecord* input) {
                 }
                 outputBatch = new omnistream::VectorBatch(projectedVecs, timestamps, rowkinds);
                 // This destructor clears both rowkind/timestamp and the data vectors
-                omniruntime::codegen::VectorHelper::FreeVecBatch(record);
+                delete record;
                 
                 timestampedCollector_->collect(outputBatch);
             } else {
                 LOG("Filter selected 0 rows");
-                omniruntime::codegen::VectorHelper::FreeVecBatch(record);
+                delete record;
             }
         } else {
             // All rows are kept. Use current timestamp* and RowKind* to create a omnistream::Vectorbatch
             outputBatch = new omnistream::VectorBatch(projectedVecs, record->getTimestamps(), record->getRowKinds());
-            // FreeVecBatch is a omniruntime function, which only release vectors, not timestamps and rowkinds
             omniruntime::codegen::VectorHelper::FreeVecBatch(record);
             timestampedCollector_->collect(outputBatch);
         }

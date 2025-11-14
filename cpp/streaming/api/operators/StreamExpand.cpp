@@ -60,7 +60,7 @@ void StreamExpand::processBatch(StreamRecord* input)
             calcOperator->processBatch(new StreamRecord(record_copy));
             calcOperator->close();
         }
-        omniruntime::codegen::VectorHelper::FreeVecBatch(record);
+        delete record;
     }
 }
 

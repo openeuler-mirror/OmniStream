@@ -86,7 +86,7 @@ public:
             return;
         }
         for (auto vb: delVb) {
-            omniruntime::vec::VectorHelper::FreeVecBatch(vb);
+            delete vb;
         }
         delVb.clear();
     }
