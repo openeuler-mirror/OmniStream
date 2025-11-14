@@ -59,7 +59,7 @@ public:
     {
         delete keySelectorLeft;
         delete keySelectorRight;
-        
+
         LOG("AbstractStreamingJoinOperator<K>::~AbstractStreamingJoinOperator");
     };
 
@@ -231,6 +231,7 @@ void AbstractStreamingJoinOperator<K>::of(
     deleteKinds.clear();
     matchedLists.resize(input->GetRowCount());
     matchedCount.resize(input->GetRowCount(), 0);
+    std::vector<K> deleteKeys;
 
     for (int i = 0; i < input->GetRowCount(); i++) {
         // If null in key, it doesn't count as match
@@ -239,6 +240,7 @@ void AbstractStreamingJoinOperator<K>::of(
         }
         auto key = keySelector->getKey(input, i);
         this->setCurrentKey(key);
+        deleteKeys.push_back(key);
         std::unique_ptr<std::vector<int64_t>> vecs = std::make_unique<std::vector<int64_t>>();
         if constexpr(std::is_same_v<InputSideHasNoUniqueKey<K>, otherViewT>) {
             if (!needHandleInputSide(otherSideStateView, vecs)) {
@@ -280,9 +282,18 @@ void AbstractStreamingJoinOperator<K>::of(
             matchedCount[i] = vecs == nullptr ? 0 : vecs->size();
             matchedLists[i] = std::move(vecs);
         }
+    }
+
+    for (auto key : deleteKeys) {
         if constexpr (std::is_same<K, RowData*>::value) {
             delete key;
         }
+    }
+    deleteKeys.clear();
+
+    auto view = dynamic_cast<JoinRecordStateView<K> *>(otherSideStateView);
+    if (view != nullptr) {
+        view->cleanEntriesCache();
     }
 }
 
@@ -301,6 +312,13 @@ bool AbstractStreamingJoinOperator<K>::needHandleInputSide(otherViewT *otherSide
             vecs->push_back(std::get<1>(it->second));
         }
     }
+    // //so delete matchedMap after use here for rocksdb
+    // if (static_cast<InputSideHasNoUniqueKey<K> *>(otherSideStateView)->backendType == 1)
+    // {
+    //     matchedMap->clear();
+    //     delete matchedMap;
+    // }
+
     return true;
 }
 

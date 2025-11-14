@@ -87,12 +87,18 @@ public:
         }
         for (auto vb: delVb) {
             delete vb;
+            // omniruntime::vec::VectorHelper::FreeVecBatch(vb);
         }
         delVb.clear();
     }
 
     void addOrRectractRecord(omnistream::VectorBatch *input, KeySelector<K>* keySelector,
          bool otherIsOuter, KeyedStateBackend<K> *backend, bool filterNulls, const std::vector<int32_t>& numAssociates) override;
+
+    void cleanEntriesCache() {
+        recordStateVB->clearEntriesCache();
+    }
+
 
 private:
     MAP_STATE_TYPE* recordStateVB;
