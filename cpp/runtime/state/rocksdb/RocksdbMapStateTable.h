@@ -13,6 +13,7 @@
 #define OMNISTREAM_ROCKSDBMAPSTATETABLE_H
 
 #include <vector>
+#include <unordered_set>
 #include <type_traits>
 #include <tuple>
 #include <functional>  // for std::hash
@@ -120,10 +121,95 @@ public:
             if constexpr (std::is_pointer_v<UV>) {
                 return (UV)resPtr;
             } else {
-                return *(UV *)resPtr;
+                return *(UV *)resPtr; // attention: need to delete restPtr in the caller after using
             }
         }
     };
+
+    void GetByBatch(std::unordered_map<K,std::unordered_set<XXH128_hash_t>> &dataToGet,std::unordered_map<std::pair<K,XXH128_hash_t>,UV> &result)
+    {
+
+        std::vector<std::pair<K,XXH128_hash_t>> kvpairs;
+        std::vector<std::string> key_strings;
+        for (auto &item : dataToGet) {
+            K currentKey = item.first;
+            keyContext->setCurrentKey(currentKey);
+
+            for (auto &userKey : item.second) {
+                // outputSerializer free need after Delete called
+                DataOutputSerializer outputSerializer;
+                OutputBufferStatus outputBufferStatus;
+                outputSerializer.setBackendBuffer(&outputBufferStatus);
+                ROCKSDB_NAMESPACE::Slice sliceKey = serializerKeyAndUserKey(outputSerializer, (UK)userKey);
+                key_strings.emplace_back(sliceKey.data(),sliceKey.size());
+                kvpairs.push_back({currentKey,userKey} );
+            }
+        }
+
+        std::vector<ROCKSDB_NAMESPACE::Slice> key_slices;
+        for (const auto &key_string : key_strings) {
+            key_slices.emplace_back(key_string.data(),key_string.size());
+        }
+
+        std::vector<rocksdb::Status> statuses(key_slices.size());
+        std::vector<rocksdb::PinnableSlice> resultsValue(key_slices.size());
+        rocksdb::ReadOptions ro;
+        ro.async_io = true;
+        rocksDb->MultiGet(ro, table,
+             (int)key_slices.size(), key_slices.data(),
+             resultsValue.data(), statuses.data(),false);
+
+        for (size_t i = 0; i < kvpairs.size(); ++i)
+        {
+            const auto& logicalPair = kvpairs[i];
+            const rocksdb::Status& st = statuses[i];
+
+            if (st.ok())
+            {
+                // Found in RocksDB
+                const rocksdb::PinnableSlice& val = resultsValue[i];
+                UV value = decodeValueFromPinnable(val);
+                result.emplace(logicalPair,value);
+
+            }
+        }
+    }
+
+
+    UV decodeValueFromPinnable(const rocksdb::PinnableSlice& val) {
+        // Build a read-only view into the pinned bytes:
+        DataInputDeserializer in(
+            reinterpret_cast<const uint8_t*>(val.data()),
+            static_cast<int>(val.size()),
+            /*position=*/0
+        );
+
+        // Your serializer:
+        auto* stateSerializer = getStateSerializer();
+
+        if constexpr (std::is_same_v<UV, Object*>) {
+            // Special path that deserializes into an existing "buffer" the serializer owns.
+            auto buffer = stateSerializer->GetBuffer();
+            stateSerializer->deserialize(buffer, in);
+            // Ownership of 'buffer' follows your serializer contract.
+            return buffer;
+        } else {
+            // Generic path that returns a heap pointer to the decoded object.
+            void* resPtr = stateSerializer->deserialize(in);
+
+            if constexpr (std::is_pointer_v<UV>) {
+                // Return the pointer as-is. Caller must know who frees it.
+                return static_cast<UV>(resPtr);
+            } else {
+                // Copy out the object and free the temporary heap allocation.
+                UV value = *static_cast<UV*>(resPtr);
+                delete static_cast<UV*>(resPtr);
+                return value;
+            }
+        }
+    }
+
+
 
     void put(const N &nameSpace, const UK &userKey, const UV &state)
     {
@@ -143,6 +229,59 @@ public:
         rocksDb->Put(writeOptions, table, sliceKey, sliceValue);
     };
 
+    void putByBatch(const K &key,const std::unordered_map<UK,UV> &dataToAdd)
+    {
+        keyContext->setCurrentKey(key);
+        ROCKSDB_NAMESPACE::WriteBatch putBatch;
+        for (auto &item : dataToAdd) {
+            UK userKey = item.first;
+            auto value = item.second;
+                // outputSerializer free need after Put called
+            DataOutputSerializer outputSerializer;
+            OutputBufferStatus outputBufferStatus;
+            outputSerializer.setBackendBuffer(&outputBufferStatus);
+            ROCKSDB_NAMESPACE::Slice sliceKey = serializerKeyAndUserKey(outputSerializer, (UK)userKey);
+
+            // valueOutputSerializer free need after Put called
+            DataOutputSerializer valueOutputSerializer;
+            OutputBufferStatus valueOutputBufferStatus;
+            valueOutputSerializer.setBackendBuffer(&valueOutputBufferStatus);
+            ROCKSDB_NAMESPACE::Slice  sliceValue = serializerValue(valueOutputSerializer, (UV)value);
+            putBatch.Put(table,sliceKey,sliceValue);
+        }
+        auto ret = rocksDb->Write(writeOptions, &putBatch);
+
+    }
+
+    void putByBatch(std::unordered_map<K, std::unordered_map<UK,UV>> &dataToAdd)
+    {
+        ROCKSDB_NAMESPACE::WriteBatch putBatch;
+        for (auto &item : dataToAdd)
+        {
+            K key = item.first;
+            auto userKeyValues = item.second;
+            keyContext->setCurrentKey(key);
+            for (auto &item : userKeyValues) {
+                UK userKey = item.first;
+                auto value = item.second;
+                // outputSerializer free need after Put called
+                DataOutputSerializer outputSerializer;
+                OutputBufferStatus outputBufferStatus;
+                outputSerializer.setBackendBuffer(&outputBufferStatus);
+                ROCKSDB_NAMESPACE::Slice sliceKey = serializerKeyAndUserKey(outputSerializer, (UK)userKey);
+
+                // valueOutputSerializer free need after Put called
+                DataOutputSerializer valueOutputSerializer;
+                OutputBufferStatus valueOutputBufferStatus;
+                valueOutputSerializer.setBackendBuffer(&valueOutputBufferStatus);
+                ROCKSDB_NAMESPACE::Slice  sliceValue = serializerValue(valueOutputSerializer, (UV)value);
+                putBatch.Put(table,sliceKey,sliceValue);
+            }
+        }
+        auto ret = rocksDb->Write(writeOptions, &putBatch);
+
+    }
+
     void remove(const N &nameSpace, const UK &userKey)
     {
         // 删除
@@ -153,6 +292,51 @@ public:
         ROCKSDB_NAMESPACE::Slice sliceKey = serializerKeyAndUserKey(outputSerializer, userKey);
         rocksDb->Delete(writeOptions, table, sliceKey);
     };
+
+    void removeByBatch(std::unordered_map<K,std::unordered_set<UK>> &dataToRemove)
+    {
+        ROCKSDB_NAMESPACE::WriteBatch deleteBatch;
+        for (auto &item : dataToRemove) {
+            K currentKey = item.first;
+            keyContext->setCurrentKey(currentKey);
+
+            for (auto &userKey : item.second) {
+                // outputSerializer free need after Delete called
+                DataOutputSerializer outputSerializer;
+                OutputBufferStatus outputBufferStatus;
+                outputSerializer.setBackendBuffer(&outputBufferStatus);
+                ROCKSDB_NAMESPACE::Slice sliceKey = serializerKeyAndUserKey(outputSerializer, userKey);
+                deleteBatch.Delete(table,sliceKey);
+            }
+        }
+         auto ret = rocksDb->Write(writeOptions, &deleteBatch);
+    }
+
+    void addByBatch(std::unordered_map<K,std::unordered_set<RowData*>> &dataToAdd)
+    {
+        ROCKSDB_NAMESPACE::WriteBatch putBatch;
+        for (auto &item : dataToAdd) {
+            K& currentKey = item.first;
+            keyContext->setCurrentKey(currentKey);
+
+            for (auto &userKey : item.second) {
+                // outputSerializer free need after Put called
+                DataOutputSerializer outputSerializer;
+                OutputBufferStatus outputBufferStatus;
+                outputSerializer.setBackendBuffer(&outputBufferStatus);
+                ROCKSDB_NAMESPACE::Slice sliceKey = serializerKeyAndUserKey(outputSerializer, (UK)userKey);
+
+                // valueOutputSerializer free need after Put called
+                DataOutputSerializer valueOutputSerializer;
+                OutputBufferStatus valueOutputBufferStatus;
+                valueOutputSerializer.setBackendBuffer(&valueOutputBufferStatus);
+                ROCKSDB_NAMESPACE::Slice  sliceValue = serializerValue(valueOutputSerializer, (UV)userKey);
+                putBatch.Put(table,sliceKey,sliceValue);
+            }
+        }
+        writeOptions.memtable_insert_hint_per_batch = true;
+        auto ret = rocksDb->Write(writeOptions, &putBatch);
+    }
 
     bool contains(const UK &userKey)
     {
@@ -172,10 +356,16 @@ public:
         return true;
     }
 
+    std::unordered_map<K, emhash7::HashMap<UK, UV>> entriesCache;
     emhash7::HashMap<UK, UV>* entries(const N &nameSpace)
     {
-        auto* resultMap = new emhash7::HashMap<UK, UV>();
+        // auto* resultMap = new emhash7::HashMap<UK, UV>();
         auto currentKey = keyContext->getCurrentKey();
+        if (auto it = entriesCache.find(currentKey); it != entriesCache.end()) {
+            return it->second.size() >0 ? & it->second : nullptr;
+        }
+
+        emhash7::HashMap<UK, UV> resultMap;
 
         // 序列化key
         DataOutputSerializer keyOutputSerializer;
@@ -211,9 +401,18 @@ public:
             } else {
                 void *resPtr = getUserKeySerializer()->deserialize(serializedData);
                 if constexpr (std::is_pointer_v<UK>) {
-                    entryKey = (UK)resPtr;
+                    UK temp = (UK)resPtr;
+                    BinaryRowData* rd = dynamic_cast<BinaryRowData*>(temp);
+                    if (rd!=nullptr)
+                    {
+                        entryKey = (UK)(rd->copy());
+                    }else
+                    {
+                        entryKey = (UK)resPtr;
+                    }
                 } else {
-                    entryKey = *(UK *)resPtr;
+                    entryKey = *(UK *)resPtr; //todo need to delete
+                    delete resPtr;
                 }
             }
 
@@ -229,20 +428,17 @@ public:
                 if constexpr (std::is_pointer_v<UV>) {
                     entryValue = (UV)resPtr;
                 } else {
-                    entryValue = *(UV *)resPtr;
+                    entryValue = *(UV *)resPtr; //todo need to delete restPtr
+                    delete resPtr;
                 }
             }
-            resultMap->emplace(entryKey, entryValue);
+            resultMap.emplace(std::move(entryKey), std::move(entryValue));
         }
 
         delete iterator;
 
-        if (resultMap->size() == 0) {
-            delete resultMap;
-            return nullptr;
-        } else {
-            return resultMap;
-        }
+        auto [it, inserted] = entriesCache.emplace(currentKey, std::move(resultMap));
+        return it->second.size() >0 ? &it->second: nullptr;
     }
 
     java_util_Iterator *iterator()
@@ -303,13 +499,16 @@ public:
         ROCKSDB_NAMESPACE::Slice key(reinterpret_cast<const char *>(keyOutputSerializer.getData()),
                                      (int32_t) (keyOutputSerializer.getPosition()));
         int batchSize = omnistream::VectorBatchSerializationUtils::calculateVectorBatchSerializableSize(vectorBatch);
-        auto *buffer = new uint8_t[batchSize];
+        // auto *buffer = new uint8_t[batchSize];
+        std::vector<uint8_t> buf(batchSize);
+        auto *buffer= buf.data();
         omnistream::SerializedBatchInfo serializedBatchInfo =
             omnistream::VectorBatchSerializationUtils::serializeVectorBatch(vectorBatch, batchSize, buffer);
         ROCKSDB_NAMESPACE::Slice vbValue(reinterpret_cast<const char *>(serializedBatchInfo.buffer),
                                          serializedBatchInfo.size);
 
         auto res = rocksDb->Put(writeOptions, VBTable, key, vbValue);
+        // delete [] buffer;
         vectorBatchId += 1;
     }
 
