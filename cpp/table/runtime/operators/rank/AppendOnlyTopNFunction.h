@@ -215,6 +215,8 @@ private:
             for (auto rowValue: *values) {
                 rowToDel.insert(rowValue);
             }
+            values->clear();
+            delete values;
         }
     }
 
@@ -230,6 +232,7 @@ private:
             if (size <= 1) {
                 buffer->removeAll(lastKey);
                 dataState->remove(lastKey);
+                rowToDel.insert(lastKey);
             } else {
                 buffer->removeLast();
                 dataState->put(lastKey, lastList);
@@ -240,6 +243,7 @@ private:
             } else {
                 // lastElement shouldn't be null
                 this->collectDelete(lastElement);
+                rowToDel.insert(lastElement);
             }
         }
 
