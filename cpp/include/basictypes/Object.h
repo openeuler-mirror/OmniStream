@@ -48,18 +48,18 @@ public:
 
     void getRefCount();
 
-    void setRefCount(uint32_t count);
+    void setRefCount(uint64_t count);
 
     bool isCloned();
 
-    uint32_t getRefCountNumber();
+    uint64_t getRefCountNumber();
 
     virtual void setValue(const std::string& value);
 public:
     std::recursive_mutex mutex;
     bool isClone = false;
     bool isPool = false;
-    uint32_t refCount = 1;
+    uint64_t refCount = 1;
 };
 
 
