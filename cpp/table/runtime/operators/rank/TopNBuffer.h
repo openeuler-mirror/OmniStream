@@ -61,6 +61,12 @@ public:
         return treeMap[sortKey];
     }
 
+    bool contains(RowData* sortKey)
+    {
+        return treeMap.find(sortKey) != treeMap.end();
+    }
+
+
     void removeAll(RowData* sortKey)
     {
         auto it = treeMap.find(sortKey);
