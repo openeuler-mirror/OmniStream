@@ -411,7 +411,7 @@ public:
                         entryKey = (UK)resPtr;
                     }
                 } else {
-                    entryKey = *(UK *)resPtr; //todo need to delete
+                    entryKey = *(UK *)resPtr;
                     delete resPtr;
                 }
             }
@@ -428,7 +428,7 @@ public:
                 if constexpr (std::is_pointer_v<UV>) {
                     entryValue = (UV)resPtr;
                 } else {
-                    entryValue = *(UV *)resPtr; //todo need to delete restPtr
+                    entryValue = *(UV *)resPtr;
                     delete resPtr;
                 }
             }

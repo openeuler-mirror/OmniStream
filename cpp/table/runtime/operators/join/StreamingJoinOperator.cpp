@@ -185,7 +185,6 @@ void StreamingJoinOperator<K>::AssembleSecondTime(omnistream::VectorBatch* input
             default:
                 std::runtime_error("DataType not supported yet!");
         }
-        otherSideStateView->freeDelVectorBatch();
     }
 }
 
@@ -210,7 +209,6 @@ omniruntime::vec::BaseVector *StreamingJoinOperator<K>::buildOtherSideColumn(omn
         } else if (inputIsOuter) { // No match and input is Outer: add null-padded records
             outputCol->SetNull(rowIndex++);
         }
-        otherSideStateView->freeDelVectorBatch();
     }
 
     // Loop wont run for inner join as deletedRecords can have elements only if other is Outer
@@ -227,7 +225,6 @@ omniruntime::vec::BaseVector *StreamingJoinOperator<K>::buildOtherSideColumn(omn
         }
         auto val = inputCol->GetValue(rowId);
         outputCol->SetValue(rowIndex++, val);
-        otherSideStateView->freeDelVectorBatch();
     }
 
     return outputCol;
@@ -273,7 +270,6 @@ omniruntime::vec::BaseVector *StreamingJoinOperator<K>::buildOtherSideColumnVarc
         } else if (inputIsOuter) { // No match and input is Outer: add null-padded records
             outputCol->SetNull(rowIndex++);
         }
-        otherSideStateView->freeDelVectorBatch();
     }
 
     // Loop wont run for inner join as deletedRecords can have elements only if other is Outer
@@ -295,7 +291,6 @@ omniruntime::vec::BaseVector *StreamingJoinOperator<K>::buildOtherSideColumnVarc
             auto sv = castedCol->GetValue(rowId);
             outputCol->SetValue(rowIndex++, sv);
         }
-        otherSideStateView->freeDelVectorBatch();
     }
 
     return outputCol;
@@ -427,7 +422,6 @@ void StreamingJoinOperator<K>::setOutPutValueOther(omnistream::VectorBatch *inpu
             default:
                 std::runtime_error("DataType not supported yet!");
         }
-        otherSideStateView->freeDelVectorBatch();
     }
 }
 
