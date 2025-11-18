@@ -29,13 +29,13 @@ public:
             std::function<std::optional<UV>(UV &)> transformFunc)
     {
         // Default fallback: emulate with get, update, remove
-        auto record = this->get(key);
+        auto record = this->get(key); // for rockdb backend , the record need to be deleted each time
         if (record.has_value()) {
             auto maybeUpdated = transformFunc(*record);
             if (maybeUpdated) {
                 this->update(key, *maybeUpdated);
             } else {
-                this->remove(key);
+                this->remove(key); //so for the memory backend , the data need to be removed
             }
         } else if (transformFunc(defaultValue).has_value()) {
             this->put(key, defaultValue);
@@ -48,6 +48,7 @@ public:
     virtual typename emhash7::HashMap<UK, UV> *entries() = 0;
 
     virtual java_util_Iterator* iterator() = 0;
+    virtual void clearEntriesCache(){}
 };
 
 using DataStreamMapState = MapState<Object*, Object*>;

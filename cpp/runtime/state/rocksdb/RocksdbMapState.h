@@ -47,10 +47,15 @@ public:
 
     // for DataStream used
     Object* Get(Object* userKey) override;
+    void GetByBatch(std::unordered_map<K,std::unordered_set<XXH128_hash_t>> &dataToGet,std::unordered_map<std::pair<K,XXH128_hash_t>,UV> &result);
+
 
     void put(const UK &userKey, const UV &userValue) override;
+    void putByBatch(const K &key,const std::unordered_map<UK,UV> &dataToAdd);
+    void putByBatch(std::unordered_map<K,std::unordered_map<UK,UV>> &dataToAdd);
 
     void remove(const UK &userKey) override;
+    void removeByBatch(std::unordered_map<K,std::unordered_set<UK>> &dataToRemove);
 
     bool contains(const UK &userKey) override;
 
@@ -59,7 +64,7 @@ public:
     void setCurrentNamespace(N nameSpace) override;
 
     void clear() override {};
-
+    void clearEntriesCache();
     static RocksdbMapState<K, N, UK, UV> *
     create(StateDescriptor *stateDesc, RocksdbMapStateTable<K, N, UK, UV> *stateTable,
     TypeSerializer *keySerializer);
@@ -94,6 +99,12 @@ template<typename K, typename N, typename UK, typename UV>
 emhash7::HashMap<UK, UV> *RocksdbMapState<K, N, UK, UV>::entries()
 {
     return stateTable->entries(currentNamespace);
+}
+
+template<typename K, typename N, typename UK, typename UV>
+void RocksdbMapState<K, N, UK, UV>::clearEntriesCache()
+{
+    stateTable->entriesCache.clear();
 }
 
 template<typename K, typename N, typename UK, typename UV>
@@ -139,6 +150,16 @@ Object* RocksdbMapState<K, N, UK, UV>::Get(Object* userKey)
     }
 }
 
+
+template<typename K, typename N, typename UK, typename UV>
+void RocksdbMapState<K, N, UK, UV>::GetByBatch(std::unordered_map<K,std::unordered_set<XXH128_hash_t>> &dataToGet,std::unordered_map<std::pair<K,XXH128_hash_t>,UV> &result)
+{
+    if (stateTable == nullptr) {
+        throw std::runtime_error("RocksdbMapStateTable is not initialized.");
+    }
+    stateTable->GetByBatch(dataToGet,result);
+}
+
 template<typename K, typename N, typename UK, typename UV>
 RocksdbMapState<K, N, UK, UV>::RocksdbMapState(RocksdbMapStateTable<K, N, UK, UV> *stateTable,
     TypeSerializer *keySerializer, TypeSerializer *valueSerializer, TypeSerializer *namespaceSerializer)
@@ -159,11 +180,28 @@ void RocksdbMapState<K, N, UK, UV>::put(const UK &userKey, const UV &userValue)
 }
 
 template<typename K, typename N, typename UK, typename UV>
+void RocksdbMapState<K, N, UK, UV>::putByBatch(const K &key,const std::unordered_map<UK,UV> &dataToAdd)
+{
+    stateTable->putByBatch(key, dataToAdd);
+}
+
+
+template<typename K, typename N, typename UK, typename UV>
+void RocksdbMapState<K, N, UK, UV>::putByBatch(std::unordered_map<K,std::unordered_map<UK,UV>> &dataToAdd)
+{
+    stateTable->putByBatch(dataToAdd);
+}
+
+template<typename K, typename N, typename UK, typename UV>
 void RocksdbMapState<K, N, UK, UV>::remove(const UK &userKey)
 {
     stateTable->remove(currentNamespace, userKey);
 }
-
+template<typename K, typename N, typename UK, typename UV>
+void RocksdbMapState<K, N, UK, UV>::removeByBatch(std::unordered_map<K,std::unordered_set<UK>> &dataToRemove)
+{
+    stateTable->removeByBatch(dataToRemove);
+}
 template<typename K, typename N, typename UK, typename UV>
 bool RocksdbMapState<K, N, UK, UV>::contains(const UK &userKey)
 {

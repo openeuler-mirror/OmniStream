@@ -113,11 +113,25 @@ template <typename K, typename N, typename V>
 V RocksdbValueState<K, N, V>::value()
 {
     auto result = stateTable->get(currentNamespace);
-
-    if constexpr (std::is_pointer<V>::value) {
-        return result == nullptr ? defaultValue : result;
+    // For BinaryRowData, the underlying implementation uses a shared BinaryRowData
+    // instance to deserialize data from RocksDB. Therefore, we need to copy it
+    // to avoid it being overwritten or deleted by the next get operation.
+    if constexpr (std::is_pointer<V>::value)
+    {
+        if (result == nullptr) {
+            return defaultValue;
+        }
+        auto *br = dynamic_cast<BinaryRowData*>(result);
+        if (br == nullptr) {
+            return result;
+        }
+        auto *copied = br->copy();
+        if constexpr (std::is_convertible_v<decltype(copied), V>) {
+            return static_cast<V>(copied);
+        } else {
+            return result;
+        }
     } else {
-        // S can only be RowData*, cowMap<RowData*, int>*, or int-like types for now.
         return result == std::numeric_limits<V>::max() ? defaultValue : result;
     }
 }
