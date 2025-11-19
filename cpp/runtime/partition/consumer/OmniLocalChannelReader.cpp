@@ -168,6 +168,8 @@ namespace omnistream {
                 auto *streamRecord = dynamic_cast<StreamRecord *>(streamElement);
                 auto *element = static_cast<VectorBatch *>(streamRecord->getValue());
                 totalRow += element->GetRowCount();
+            } else if (dynamic_cast<Watermark *>(streamElement)) {
+                totalRow += 1;
             }
         }
         return totalRow;
