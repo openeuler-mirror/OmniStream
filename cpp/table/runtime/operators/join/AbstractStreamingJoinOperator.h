@@ -283,7 +283,8 @@ void AbstractStreamingJoinOperator<K>::of(
             matchedLists[i] = std::move(vecs);
         }
     }
-
+    // todo: here need to update numberOfAssocaites of the records in deleteRecords for OuterInputSideHasNoUniqueKey
+    //delete keys
     for (auto key : deleteKeys) {
         if constexpr (std::is_same<K, RowData*>::value) {
             delete key;
