@@ -47,8 +47,26 @@ public:
     virtual std::vector<omnistream::VectorBatch *> getVectorBatches() const = 0;
     virtual omnistream::VectorBatch *getVectorBatch(int batchId) = 0;
     virtual long getVectorBatchesSize() = 0;
-    virtual void freeDelVectorBatch() = 0;
+    virtual void freeDelVectorBatch()
+    {
+        this->cachedVb.clear();
+        if (backendType == 0) {
+            this->delVb.clear();
+            return;
+        }
+        for (auto vb: this->delVb) {
+            delete vb;
+        }
+        this->delVb.clear();
+    };
+
     virtual void cleanEntriesCache() = 0;
+
+protected:
+    std::unordered_map<int, omnistream::VectorBatch *> cachedVb;
+    std::set<omnistream::VectorBatch *> delVb;
+    int backendType = 0; // 0-> men 1-> bss 2-> rocksdb
+
 };
 
 template <typename K>
@@ -58,9 +76,6 @@ public:
     using UV = std::tuple<int32_t, int64_t>;
     using MAP_STATE_TYPE = MapState<XXH128_hash_t, UV>;
     using MAP_TYPE = emhash7::HashMap<XXH128_hash_t, UV>;
-    std::set<omnistream::VectorBatch *> delVb;
-    std::unordered_map<int, omnistream::VectorBatch *> cachedVb;
-    int backendType = 0; // 0-> men 1-> rocksdb, bss
 
     InputSideHasNoUniqueKey(StreamingRuntimeContext<K> *ctx, std::string stateName, InternalTypeInfo *recordType)
     {
@@ -71,15 +86,15 @@ public:
 #ifdef WITH_OMNISTATESTORE
         if (auto *backend = dynamic_cast<BssMapState<K, VoidNamespace, XXH128_hash_t, UV> *>(recordStateVB)) {
             INFO_RELEASE("InputSideHasNoUniqueKey backend is bss")
-            backendType = 1;
+            this->backendType = 1;
         }
 #endif
         if (auto *backend = dynamic_cast<RocksdbMapState<K, VoidNamespace, XXH128_hash_t, UV> *>(recordStateVB)) {
             INFO_RELEASE("InputSideHasNoUniqueKey backend is rocksdb")
-            backendType = 2;
+            this->backendType = 2;
         } else {
             INFO_RELEASE("InputSideHasNoUniqueKey backend is mem")
-            backendType = 0;
+            this->backendType = 0;
         }
     }
 
@@ -94,18 +109,18 @@ public:
 
     void addVectorBatch(omnistream::VectorBatch *vectorBatch) override
     {
-        delVb.insert(vectorBatch);
+        this->delVb.insert(vectorBatch);
         recordStateVB->addVectorBatch(vectorBatch);
     }
 
     omnistream::VectorBatch *getVectorBatch(int batchId)
     {
-        if (cachedVb.end() != cachedVb.find((batchId))) {
-            return cachedVb[batchId];
+        if (this->cachedVb.end() != this->cachedVb.find((batchId))) {
+            return this->cachedVb[batchId];
         }
         auto vb =  recordStateVB->getVectorBatch(batchId);
-        delVb.insert(vb);
-        cachedVb.emplace(batchId, vb);
+        this->delVb.insert(vb);
+        this->cachedVb.emplace(batchId, vb);
         return vb;
     }
 
@@ -128,20 +143,6 @@ public:
     {
         return recordStateVB;
     };
-
-    void freeDelVectorBatch()
-    {
-        cachedVb.clear();
-        if (backendType == 0) {
-            delVb.clear();
-            return;
-        }
-        for (auto vb: delVb) {
-            delete vb;
-            // omniruntime::vec::VectorHelper::FreeVecBatch(vb);
-        }
-        delVb.clear();
-    }
 
     void addOrRectractRecord(omnistream::VectorBatch *input, KeySelector<K>* keySelector,
         bool otherIsOuter, KeyedStateBackend<K> *backend, bool filterNulls, const std::vector<int32_t>& numAssociates) override;
@@ -170,7 +171,7 @@ void InputSideHasNoUniqueKey<K>::addOrRectractRecord(omnistream::VectorBatch *in
     int32_t batchId = getCurrentBatchId();  // vector<vb*>.size(); this need to be called before addVectorBatch(input)
     this->addVectorBatch(input);
     // compress a row into a xxhash128 value.
-    if (backendType == 2) {
+    if (this->backendType == 2) {
         ProcessRockDBRecordsInBatch( input, keySelector, filterNulls, batchId);
         return;
     }
