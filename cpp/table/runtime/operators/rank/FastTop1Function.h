@@ -105,7 +105,7 @@ void FastTop1Function<KeyType>::processBatch(omnistream::VectorBatch* inputBatch
             //     delete inputRow;
             // }
 
-            if (compareRowsV2(inputBatch,rowId, static_cast<BinaryRowData*>(previousRow)) < 0) {
+            if (compareRowsV2(inputBatch,rowId, static_cast<BinaryRowData*>(previousRow)) > 0) {
                 int64_t timestamp = inputBatch->getTimestamp(rowId);
                 RowData *inputRow = inputBatch->extractRowData(rowId);
                 this->collectUpdateBefore(previousRow, 1, timestamp);  // Emit an update.
