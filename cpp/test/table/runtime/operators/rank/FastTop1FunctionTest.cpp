@@ -110,7 +110,7 @@ TEST(FastTop1FunctionTest, ProcessSingleBatch) {
         "generateUpdateBefore": false,
         "processFunction": "FastTop1Function",
         "sortFieldIndices": [1, 2],
-        "sortAscendingOrders": [true, true],
+        "sortAscendingOrders": [false, true],
         "sortNullsIsLast": [true, false]
     })DELIM";
 
@@ -167,7 +167,7 @@ TEST(FastTop1FunctionTest, ProcessMultipleBatches) {
         "generateUpdateBefore": false,
         "processFunction": "FastTop1Function",
         "sortFieldIndices": [1, 2],
-        "sortAscendingOrders": [true, true],
+        "sortAscendingOrders": [false, false],
         "sortNullsIsLast": [true, false]
     })DELIM";
 
@@ -377,7 +377,7 @@ TEST(FastTop1FunctionTest, ProcessSingleBatchWithTwoPKeys) {
         "generateUpdateBefore": false,
         "processFunction": "FastTop1Function",
         "sortFieldIndices": [3],
-        "sortAscendingOrders": [false],
+        "sortAscendingOrders": [true],
         "sortNullsIsLast": [true, false]
     })DELIM";
 
@@ -437,7 +437,7 @@ TEST(FastTop1FunctionTest, ProcessMultipleBatchesWithTwoPKeys) {
         "generateUpdateBefore": false,
         "processFunction": "FastTop1Function",
         "sortFieldIndices": [3],
-        "sortAscendingOrders": [false],
+        "sortAscendingOrders": [true],
         "sortNullsIsLast": [true, false]
     })DELIM";
 

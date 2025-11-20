@@ -74,7 +74,7 @@ public:
             }
 
             if (a != b) {
-                return ascending_[i] ? a > b : a < b;
+                return ascending_[i] ? a < b : a > b;
             }
         }
         return false; // All keys are equal.
