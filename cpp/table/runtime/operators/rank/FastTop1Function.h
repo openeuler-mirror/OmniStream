@@ -244,7 +244,7 @@ int FastTop1Function<KeyType>::compareRowsV2(omnistream::VectorBatch* originalVb
 
         // Adjust the comparison result based on the sort order.
         if (comparisonResult != 0) {
-            return ascending ? comparisonResult : -comparisonResult;
+            return ascending ? -comparisonResult : comparisonResult;
         }
     }
 

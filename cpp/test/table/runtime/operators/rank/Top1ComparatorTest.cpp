@@ -46,7 +46,7 @@ TEST(Top1ComparatorTest, BasicFunctionality) {
     std::vector<int32_t> pkTypes = {omniruntime::type::OMNI_LONG};
     std::vector<int> pk = {0};
     auto *comparator = new Top1Comparator<int64_t>(pkTypes, pk, sortColumnIds, ascending);
-    auto top1RowIds = comparator->findTop1RowIdsByPartition(vectorBatch);
+    auto top1RowIds = comparator->findTop1RowIdsByPartitionV2(vectorBatch);
 
     // Check results for each partition (KeyCol).
     EXPECT_EQ(top1RowIds[0], 0);
@@ -57,7 +57,7 @@ TEST(Top1ComparatorTest, BasicFunctionality) {
 
     ascending[0] = false;
     comparator = new Top1Comparator<int64_t>(pkTypes, pk, sortColumnIds, ascending);
-    top1RowIds = comparator->findTop1RowIdsByPartition(vectorBatch);
+    top1RowIds = comparator->findTop1RowIdsByPartitionV2(vectorBatch);
 
     EXPECT_EQ(top1RowIds[0], 3);
     EXPECT_EQ(top1RowIds[1], 1);
@@ -76,7 +76,7 @@ TEST(Top1ComparatorTest, TieBreaking) {
     std::vector<int32_t> pkTypes = {omniruntime::type::OMNI_LONG};
     std::vector<int> pk = {0};
     auto *comparator = new Top1Comparator<int64_t>(pkTypes, pk, sortColumnIds, ascending);
-    auto top1RowIds = comparator->findTop1RowIdsByPartition(vectorBatch);
+    auto top1RowIds = comparator->findTop1RowIdsByPartitionV2(vectorBatch);
 
     // Check results for each partition (KeyCol), resolving ties with Date.
     EXPECT_EQ(top1RowIds[0], 0);
@@ -184,7 +184,7 @@ TEST(Top1ComparatorTest, BasicFunctionalityWithTwoPKeys) {
     //Create comparator
     auto *comparator = new Top1Comparator<RowData*>(pkTypes, pk, sortColumnIds, ascending);
     //template K = BinaryRowData*
-    auto top1RowIds = comparator->findTop1RowIdsByPartition(vectorBatch);
+    auto top1RowIds = comparator->findTop1RowIdsByPartitionV2(vectorBatch);
 
     /*  top1RowIds
         (1000, 1001), 0
@@ -221,7 +221,7 @@ TEST(Top1ComparatorTest, BasicFunctionalityWithTwoPKeys) {
     //Create another comparator
     comparator = new Top1Comparator<RowData*>(pkTypes, pk, sortColumnIds, ascending);
     //template K = BinaryRowData*
-    top1RowIds = comparator->findTop1RowIdsByPartition(vectorBatch);
+    top1RowIds = comparator->findTop1RowIdsByPartitionV2(vectorBatch);
 
     /*  top1RowIds
         (1000, 1001), 0
@@ -268,7 +268,7 @@ TEST(Top1ComparatorTest, TieBreakingWithTwoPKeys) {
     //Create comparator
     auto *comparator = new Top1Comparator<RowData*>(pkTypes, pk, sortColumnIds, ascending);
     //template K = BinaryRowData*
-    auto top1RowIds = comparator->findTop1RowIdsByPartition(vectorBatch);
+    auto top1RowIds = comparator->findTop1RowIdsByPartitionV2(vectorBatch);
 
     /*  top1RowIds
         (1000, 1001), 0

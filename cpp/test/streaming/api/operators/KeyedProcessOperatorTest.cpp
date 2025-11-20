@@ -139,8 +139,8 @@ TEST(KeyedProcessOperatorTest, FastTop1FunctionTest)
         2
     ],
     "sortAscendingOrders": [
-        true,
-        false
+        false,
+        true
     ],
     "sortNullsIsLast": [
         true,
