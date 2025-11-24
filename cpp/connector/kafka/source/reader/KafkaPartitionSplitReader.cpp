@@ -89,10 +89,6 @@ void KafkaPartitionSplitReader::handleSplitsChanges(const std::vector<KafkaParti
     consumer->assignment(currentAssignment);
     newPartitionAssignments.insert(newPartitionAssignments.end(), currentAssignment.begin(), currentAssignment.end());
     consumer->assign(newPartitionAssignments);
-//    std::this_thread::sleep_for(std::chrono::seconds(5));
-//    delete records;
-//    seekToStartingOffsets(partitionsStartingFromEarliest, partitionsStartingFromLatest,
-//        partitionsStartingFromSpecifiedOffsets);
     acquireAndSetStoppingOffsets(partitionsStoppingAtLatest, partitionsStoppingAtCommitted);
     removeEmptySplits();
 

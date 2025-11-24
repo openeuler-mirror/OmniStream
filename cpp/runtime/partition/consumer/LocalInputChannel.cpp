@@ -134,8 +134,6 @@ std::optional<BufferAndAvailability> LocalInputChannel::getNextBuffer()
     auto next = subpartitionViewPtr->getNextBuffer();
     if (!next) {
         if (subpartitionViewPtr->isReleased()) {
-            //   throw CancelTaskException("Consumed partition " + subpartitionViewPtr->toString() + " has been
-            //   released.");
             THROW_LOGIC_EXCEPTION("TBD")
         } else {
             return std::nullopt;

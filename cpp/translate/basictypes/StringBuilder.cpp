@@ -75,12 +75,6 @@ StringBuilder* StringBuilder::deleteCharAt(int32_t idx)
     return this;
 }
 
-// void StringBuilder::append(std::unique_ptr<String> &input) {
-//    }
-//    if (val.empty()) return; // No need to append empty data
-//    // Directly expand the vector and append the content
-// }
-
 StringBuilder* StringBuilder::append(Object *input)
 {
     auto value = String::valueOf(input);

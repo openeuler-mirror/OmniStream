@@ -15,9 +15,9 @@
 
 /**
  * public final void pointTo(MemorySegment segment, int offset_, int sizeInBytes) {
-//        pointTo(new MemorySegment[] {segment}, offset_, sizeInBytes);
-//    }
-//
+       pointTo(new MemorySegment[] {segment}, offset_, sizeInBytes);
+   }
+
  * @param segment
  * @param offset
  * @param sizeInBytes

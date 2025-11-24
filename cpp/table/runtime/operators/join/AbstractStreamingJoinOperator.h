@@ -313,12 +313,6 @@ bool AbstractStreamingJoinOperator<K>::needHandleInputSide(otherViewT *otherSide
             vecs->push_back(std::get<1>(it->second));
         }
     }
-    // //so delete matchedMap after use here for rocksdb
-    // if (static_cast<InputSideHasNoUniqueKey<K> *>(otherSideStateView)->backendType == 1)
-    // {
-    //     matchedMap->clear();
-    //     delete matchedMap;
-    // }
 
     return true;
 }

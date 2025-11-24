@@ -499,7 +499,6 @@ public:
         ROCKSDB_NAMESPACE::Slice key(reinterpret_cast<const char *>(keyOutputSerializer.getData()),
                                      (int32_t) (keyOutputSerializer.getPosition()));
         int batchSize = omnistream::VectorBatchSerializationUtils::calculateVectorBatchSerializableSize(vectorBatch);
-        // auto *buffer = new uint8_t[batchSize];
         std::vector<uint8_t> buf(batchSize);
         auto *buffer= buf.data();
         omnistream::SerializedBatchInfo serializedBatchInfo =

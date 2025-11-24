@@ -471,7 +471,6 @@ std::optional<std::shared_ptr<BufferOrEvent>> SingleInputGate::getNextBufferOrEv
 
     if (closeFuture->isDone()) {
         THROW_LOGIC_EXCEPTION("nput gate is already closed.")
-        // throw CancelTaskException("Input gate is already closed.");
     }
 
     // LOG_PART("before waitAndGetNextData")
@@ -815,10 +814,6 @@ bool SingleInputGate::isOutdated(int sequenceNumber, int lastSequenceNumber)
  */
 bool SingleInputGate::queueChannelUnsafe(std::shared_ptr<InputChannel> channel, bool priority)
 {
-    // fix it later   assert Thread.holdsLock(inputChannelsWithData);
-    // assert(std::this_thread::get_id() ==
-    // std::lock_guard<std::recursive_mutex>(inputChannelsWithDataMutex).locked_by);
-
     if (channelsWithEndOfPartitionEvents[channel->getChannelIndex()]) {
         return false;
     }
