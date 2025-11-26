@@ -60,7 +60,6 @@ namespace omnistream::datastream {
         if (nonSpanningWrapper->canReadRecord(recordLen)) {
             return nonSpanningWrapper->readInto(target);
         } else {
-            // LOG(" spanningWrapper->transferFrom: with the recordLen is" << recordLen);
             spanningWrapper->transferFrom(*nonSpanningWrapper, recordLen);
             return DeserializationResult_PARTIAL_RECORD;
         }

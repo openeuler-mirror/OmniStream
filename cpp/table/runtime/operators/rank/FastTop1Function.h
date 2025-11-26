@@ -77,9 +77,6 @@ void FastTop1Function<KeyType>::processBatch(omnistream::VectorBatch* inputBatch
         KeyType mutableKey = partitionKey;
         ctx.setCurrentKey(mutableKey);
         // Retrieve the top row for the partition key.
-        // RowData *inputRow = inputBatch->extractRowData(rowId);
-        // int64_t timestamp = inputBatch->getTimestamp(rowId);
-        // Get the current state for the partition key.
         RowData* previousRow = kvCache.get(mutableKey);
         if (previousRow == nullptr) {
             previousRow = stateStore->value();
@@ -94,17 +91,6 @@ void FastTop1Function<KeyType>::processBatch(omnistream::VectorBatch* inputBatch
             int64_t timestamp = inputBatch->getTimestamp(rowId);
             this->collectInsert(inputRow, 1, timestamp);  // Emit the new row.
         } else {
-            // input sort key is higher than old sort key
-            // if (compareRows(static_cast<BinaryRowData*>(inputRow), static_cast<BinaryRowData*>(previousRow)) < 0) {
-            //     this->collectUpdateBefore(previousRow, 1, timestamp);  // Emit an update.
-            //     this->collectUpdateAfter(inputRow, 1, timestamp);
-            //     stateStore->update(inputRow, false);
-            //     kvCache.put(mutableKey, inputRow);
-            // } else {
-            //     freeKeyInCache(mutableKey);
-            //     delete inputRow;
-            // }
-
             if (compareRowsV2(inputBatch,rowId, static_cast<BinaryRowData*>(previousRow)) > 0) {
                 int64_t timestamp = inputBatch->getTimestamp(rowId);
                 RowData *inputRow = inputBatch->extractRowData(rowId);
@@ -114,7 +100,6 @@ void FastTop1Function<KeyType>::processBatch(omnistream::VectorBatch* inputBatch
                 kvCache.put(mutableKey, inputRow);
             } else {
                 freeKeyInCache(mutableKey);
-                // delete inputRow;
             }
         }
     }
@@ -131,9 +116,6 @@ void FastTop1Function<KeyType>::freeKeyInCache(KeyType key)
 {
     if constexpr (std::is_same<KeyType, RowData*>::value) {
         delete key;
-        // if (kvCache.hasKey(key)) { // todo ? why must be in kvCache are deletable ? what if kvCache is full and evict this key ?
-        //     delete key;
-        // }
     }
 }
 
@@ -200,10 +182,6 @@ template<typename KeyType>
 int FastTop1Function<KeyType>::compareRowsV2(omnistream::VectorBatch* originalVb,int rowId,
                                            BinaryRowData* previousRow)
 {
-    // if (!originalVb) {
-    //     LOG("input row is null")
-    //     throw std::runtime_error("input row is null");
-    // }
     for (size_t i = 0; i < this->sortKeyIndices.size(); ++i) {
         int colId = this->sortKeyIndices[i];
         bool ascending = this->sortOrder[i];

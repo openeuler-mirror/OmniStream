@@ -34,6 +34,9 @@ public:
     {
         valueLen = valueData.size();
         value = reinterpret_cast<char *>(malloc(valueLen));
+        if (!value) {
+            throw std::runtime_error("allocate memory failed!");
+        }
         memcpy_s(value, valueLen, valueData.data(), valueLen);
     }
 

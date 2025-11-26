@@ -32,7 +32,6 @@ JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_tasks_OmniStre
     auto task = reinterpret_cast<omnistream::OmniTask *>(nativeTask);
 
     auto *streamTask = new omnistream::datastream::StreamTask(tdd, bufferStatus, task->getRuntimeEnv());
-
     LOG("After Calling StreamTask with json  " << reinterpret_cast<long>(streamTask))
 
     env->ReleaseStringUTFChars(TDDString, cStrTDD);

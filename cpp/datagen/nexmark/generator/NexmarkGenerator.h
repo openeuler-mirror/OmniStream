@@ -107,6 +107,11 @@ public:
     // Return an estimate of fraction of output consumed.
     double getFractionConsumed() const
     {
+        if (config.maxEvents == 0) {
+            GErrorLog("max event num is 0");
+            throw std::runtime_error("max event num is 0");
+        }
+        
         return static_cast<double>(eventsCountSoFar) / config.maxEvents;
     }
 

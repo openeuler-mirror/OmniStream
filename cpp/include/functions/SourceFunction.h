@@ -22,9 +22,6 @@
  * */
 template <typename T>
 class SourceFunction : public Object {
-    // Static assertion for compile-time check (preferred)
-    // static_assert(std::is_base_of_v<StreamRecord, T>, "T must be derived from StreamRecord");
-
 public:
     virtual void run(SourceContext* context) = 0;
     virtual void cancel() = 0;

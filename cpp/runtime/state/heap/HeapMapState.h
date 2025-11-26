@@ -188,15 +188,6 @@ template<typename K, typename N, typename UK, typename UV>
 void HeapMapState<K, N, UK, UV>::put(const UK &userKey, const UV &userValue)
 {
     LOG_PRINTF("HeapMapState::put\\n\\t\\t this=%p, stateTable=%p\n", this, stateTable);
-
-    /*
-    if constexpr(std::is_same_v<UK, RowData*>) {
-        if (auto temp = dynamic_cast<RowData *>(userKey); temp != nullptr) {
-            std::cout << "userKey=";
-            temp->printRow();
-        }
-    }
-    */
     emhash7::HashMap<UK, UV> *userMap = stateTable->get(currentNamespace);
     LOG_PRINTF("stateTable %p found userMap? %p\n", stateTable, userMap);
     if (userMap == nullptr) {

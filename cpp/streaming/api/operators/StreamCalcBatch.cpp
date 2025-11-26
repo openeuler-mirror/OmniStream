@@ -15,7 +15,8 @@
 #include "StreamCalcBatch.h"
 
 using json = nlohmann::json;
-static bool checkAllFieldReference(const json& jsonDesc) {
+static bool checkAllFieldReference(const json& jsonDesc)
+{
     // check all the field references
     if (jsonDesc.contains("indices") && jsonDesc["indices"].is_array()) {
         for (auto &index: jsonDesc["indices"]) {
@@ -37,13 +38,10 @@ StreamCalcBatch::StreamCalcBatch(const nlohmann::json &description, Output* outp
     this->output = output;
 }
 
-StreamCalcBatch::~StreamCalcBatch() {
-   // if (!isSimpleProjection_ || hasFilter) {
-   //     delete exprEvaluator;
-   // }
-}
+StreamCalcBatch::~StreamCalcBatch() {}
 
-void StreamCalcBatch::processBatch(StreamRecord* input) {
+void StreamCalcBatch::processBatch(StreamRecord* input)
+{
     LOG("===>>>>>>")
     int32_t newRowCnt = 0;
     auto record = reinterpret_cast<omnistream::VectorBatch*>(input->getValue());
@@ -93,7 +91,8 @@ void StreamCalcBatch::processBatch(StreamRecord* input) {
     delete input;
 }
 
-void StreamCalcBatch::open() {
+void StreamCalcBatch::open()
+{
     LOG("===>>>>>>")
 
     // If codegen is required
@@ -102,10 +101,8 @@ void StreamCalcBatch::open() {
 
     if (!isSimpleProjection_ || hasFilter) {
         JSONParser parser = JSONParser();
-        if (description_.contains("indices"))
-        {
-            for (auto &index : description_["indices"])
-            {
+        if (description_.contains("indices")) {
+            for (auto &index : description_["indices"]) {
                 auto expr = parser.ParseJSON(index);
                 projExprs.push_back(expr);
             }
@@ -135,12 +132,14 @@ void StreamCalcBatch::close()
     timestampedCollector_->close();
 }
 
-const char *StreamCalcBatch::getName() {
+const char *StreamCalcBatch::getName()
+{
     // later, should use its unique name
     return "StreamCalcBatch";
 }
 
-void StreamCalcBatch::parseDescription(json& descriptionJson) {
+void StreamCalcBatch::parseDescription(json& descriptionJson)
+{
     std::vector<std::string> inputTypeStrs = descriptionJson["inputTypes"].get<std::vector<std::string>>();
     //----------- A temporary solution for unsupported codegen functions
     int nextIndex = inputTypeStrs.size();
@@ -165,28 +164,30 @@ void StreamCalcBatch::parseDescription(json& descriptionJson) {
     }
 }
 
-void StreamCalcBatch::collectUnsupportedExpr(json &description, int32_t& nextIndex) {
+void StreamCalcBatch::collectUnsupportedExpr(json &description, int32_t& nextIndex)
+{
     collectUnsupportedExprImpl(description, nextIndex);
 
     if (description.is_object()) {
         for (auto it = description.begin(); it != description.end(); ++it) {
             collectUnsupportedExpr(it.value(), nextIndex);
         }
-    }
-    else if (description.is_array()) {
+    } else if (description.is_array()) {
         for (auto& element : description) {
             collectUnsupportedExpr(element, nextIndex);
         }
     }
 }
-inline bool IsMulInt64Decimal64Decimal128(const nlohmann::json& obj) {
+inline bool IsMulInt64Decimal64Decimal128(const nlohmann::json& obj)
+{
     // Special case: int64 multiply decimal64 get decimal128 with same scale
     return obj["exprType"] == "BINARY" && obj["operator"]=="MULTIPLY" && obj["returnType"] == OMNI_DECIMAL128
            && obj["right"]["exprType"] == "FIELD_REFERENCE" && obj["right"]["dataType"] == OMNI_LONG
            && obj["left"]["exprType"] == "LITERAL" && obj["left"]["dataType"] == OMNI_DECIMAL64
            && obj["left"]["scale"] == obj["scale"];
 }
-void StreamCalcBatch::manuallyAddNewVectors(omnistream::VectorBatch *vb) const {
+void StreamCalcBatch::manuallyAddNewVectors(omnistream::VectorBatch *vb) const
+{
     LOG("=======>>>");
     int row = vb->GetRowCount();
     for (const auto& obj : replacedDescriptions_) {
@@ -195,8 +196,7 @@ void StreamCalcBatch::manuallyAddNewVectors(omnistream::VectorBatch *vb) const {
             std::string regexToMatch = obj["arguments"][1]["value"].get<std::string>();
             int32_t group = obj["arguments"][2]["value"].get<int32_t>();
             vb->Append(omnistream::RegexpExtract(vb->Get(inputIndex), regexToMatch, group));
-        }
-        else if (IsMulInt64Decimal64Decimal128(obj)) {
+        } else if (IsMulInt64Decimal64Decimal128(obj)) {
             LOG("IsMulInt64Decimal64Decimal128");
             auto vec = new omniruntime::vec::Vector<Decimal128>(row);
             // left is literal and right is field reference
@@ -223,7 +223,8 @@ void StreamCalcBatch::manuallyAddNewVectors(omnistream::VectorBatch *vb) const {
     }
 }
 
-void StreamCalcBatch::collectUnsupportedExprImpl(nlohmann::json& field, int32_t &nextIndex) {
+void StreamCalcBatch::collectUnsupportedExprImpl(nlohmann::json& field, int32_t &nextIndex)
+{
     if (!field.is_object() || !field.contains("exprType")) {
         return;
     }

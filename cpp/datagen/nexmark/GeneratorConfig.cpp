@@ -17,6 +17,11 @@ std::vector<GeneratorConfig> GeneratorConfig::split(int n) const
         // No split required.
         results.push_back(*this);
     } else {
+        if (n == 0) {
+            GErrorLog("split num is 0");
+            throw std::runtime_error("split num is 0");
+        }
+    
         int64_t subMaxEvents = maxEvents / n;
         int64_t subFirstEventId = firstEventId;
         for (int i = 0; i < n; i++) {
