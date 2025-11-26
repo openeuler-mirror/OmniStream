@@ -60,7 +60,7 @@ public:
         restoreStateHandles_(std::move(restoreStateHandles)),
         keyGroupRange_(keyGroupRange),
         keySerializer_(std::move(keySerializer)),
-        instanceBasePath_(std::move(instanceBasePath)),
+        instanceBasePath_(instanceBasePath),
         numberOfTransferringThreads_(numberOfTransferringThreads),
         keyGroupPrefixBytes_(keyGroupPrefixBytes),
         overlapFractionThreshold_(0),
