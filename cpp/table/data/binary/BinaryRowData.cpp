@@ -414,7 +414,7 @@ RowData *BinaryRowData::copy()
     auto *bytes = new uint8_t[sizeInBytes_];
     MemorySegmentUtils::copy(memoryBuffer, offset_, bytes, 0, sizeInBytes_);
     
-    newRow->own(bytes, 0, sizeInBytes_, bufferCapacity);
+    newRow->own(bytes, 0, sizeInBytes_, sizeInBytes_);
     newRow->types = types;
     return newRow;
 }
