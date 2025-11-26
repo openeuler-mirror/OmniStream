@@ -341,66 +341,26 @@ if  [[ $# -gt 0 ]]; then
             ;;
         -c|--cpp)
             # Build C++ dependency
-            # build_boundscheck
-            # build_json
-            # build_abseil
-            # build_re2
-#            build_gflags
-            # build_snappy
-            # build_rocksdb
             build_rdkafka
-            # build_jemalloc
             # Build C++ project (implement this function)
             echo "Building C++ project..."
 	          build_cpp $2 "OFF"
             ;;
         -j|--java)
-            # build_java
             ;;
         -u|--unit-test)
-            # build_java
-            # build_boundscheck
-            # build_json
-            # build_abseil
-            # build_re2
-            # build_xxhash
-            # build_google_test
-#            build_gflags
-            # build_snappy
-            # build_rocksdb
             build_rdkafka
-            # build_jemalloc
             build_cpp coverage "ON"
             run_test_with_mode coverage
             ;;
         -a|--all)
             # Build C++, Java, dependencies, no need to build googletest dependency
-            # build_java
-            # build_boundscheck
-            # build_json
-            # build_abseil
-            # build_re2
-            # build_xxhash
-#            build_gflags
-            # build_snappy
-            # build_rocksdb
             build_rdkafka
-            # build_jemalloc
             build_cpp $2 "OFF"
             ;;
         -g|--gccopt)
             # Build C++, Java, dependencies, no need to build googletest dependency
-            # build_java
-            # build_boundscheck
-            # build_json
-            # build_abseil
-            # build_re2
-            # build_xxhash
-#            build_gflags
-            # build_snappy
-            # build_rocksdb
             build_rdkafka_gccopt
-            # build_jemalloc
             build_cpp_gccopt $2 "OFF"
             ;;
         *)
