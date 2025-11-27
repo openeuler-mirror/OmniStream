@@ -381,7 +381,7 @@ private:
                                                                temporaryRestoreInstancePath,
                                                                omniTaskBridge_);
         // read meta data
-        auto serializerStr = TaskStateSnapshotSerializer::parseIncrementalRemoteKeyedStateHandle(localKeyedStateHandle);
+        auto serializerStr = TaskStateSnapshotSerializer::parseIncrementalRemoteKeyedStateHandle(restoreStateHandle);
         auto stateMetaInfoSnapshots = omniTaskBridge_->readMetaData(to_string(serializerStr));
 
         std::vector<rocksdb::ColumnFamilyDescriptor> columnFamilyDescriptors =
