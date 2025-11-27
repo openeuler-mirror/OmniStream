@@ -147,6 +147,22 @@ nlohmann::json TaskStateSnapshotSerializer::parseIncrementalKeyedStateHandle(
     return handleJson;
 }
 
+nlohmann::json TaskStateSnapshotSerializer::parseIncrementalRemoteKeyedStateHandle(
+    std::shared_ptr<IncrementalRemoteKeyedStateHandle> kh)
+{
+    nlohmann::json handleJson;
+    handleJson["@class"] = "org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle";
+    handleJson["keyGroupRange"] = parseKeyGroupRange(kh->GetKeyGroupRange());
+    handleJson["stateHandleId"] = parseStateHandleId(kh->GetStateHandleId());
+    handleJson["checkpointId"] = kh->GetCheckpointId();
+    handleJson["backendIdentifier"] = kh->GetBackendIdentifier().ToString();
+    handleJson["metaDataState"] = parseMetaDataState(kh->GetMetaDataStateHandle());
+    handleJson["sharedState"] = parseSharedState(kh->GetSharedStateHandles());
+    handleJson["privateState"] = parseSharedState(kh->GetPrivateState());
+    handleJson["persistedSizeOfThisCheckpoint"] = kh->GetCheckpointedSize();
+    return handleJson;
+}
+
 nlohmann::json TaskStateSnapshotSerializer::parseMetaDataState(std::shared_ptr<StreamStateHandle> metaDataStateHandle)
 {
     nlohmann::json metaDataStateHandleJson;

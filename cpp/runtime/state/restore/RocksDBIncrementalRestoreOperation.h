@@ -351,6 +351,7 @@ private:
         ) : db_(db),
             columnFamilyDescriptors_(std::move(columnFamilyDescriptors)),
             stateMetaInfoSnapshots_(std::move(stateMetaInfoSnapshots)),
+            columnFamilyHandles_(columnFamilyHandles),
             readOptions_(std::make_shared<rocksdb::ReadOptions>()) {
             if (columnFamilyHandles_.empty()) {
                 throw std::invalid_argument("columnFamilyHandles cannot be empty");
@@ -380,9 +381,8 @@ private:
                                                                temporaryRestoreInstancePath,
                                                                omniTaskBridge_);
         // read meta data
-        // Here it will use a IncrementalRemoteKeyedStateHandle. I haven't implemented this one yet!
-        LOG(">>>>>>>>> This function shouldn't have been called with restoreWithoutRescaling");
-        auto stateMetaInfoSnapshots = omniTaskBridge_->readMetaData("");
+        auto serializerStr = TaskStateSnapshotSerializer::parseIncrementalRemoteKeyedStateHandle(localKeyedStateHandle);
+        auto stateMetaInfoSnapshots = omniTaskBridge_->readMetaData(to_string(serializerStr));
 
         std::vector<rocksdb::ColumnFamilyDescriptor> columnFamilyDescriptors =
                 createColumnFamilyDescriptors(stateMetaInfoSnapshots, false);

@@ -37,6 +37,8 @@ public:
 
     static nlohmann::json parseIncrementalKeyedStateHandle(std::shared_ptr<IncrementalLocalKeyedStateHandle> kh);
 
+    static nlohmann::json parseIncrementalRemoteKeyedStateHandle(std::shared_ptr<IncrementalRemoteKeyedStateHandle> kh);
+
     static nlohmann::json parseKeyGroupRange(KeyGroupRange keyGroupRange);
 
     static nlohmann::json parseStateHandleId(StateHandleID stateHandleID);
