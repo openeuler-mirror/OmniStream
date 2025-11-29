@@ -41,7 +41,7 @@ omnistream::VectorBatch *copyVectorBatch(omnistream::VectorBatch *srcVectorBatch
     }
     pBatch->setTimestamps(0, srcVectorBatch->getTimestamps(), rowCount);
     pBatch->setRowKinds(0, srcVectorBatch->getRowKinds(), rowCount);
-
+    delete[] pos;
     return pBatch;
 }
 

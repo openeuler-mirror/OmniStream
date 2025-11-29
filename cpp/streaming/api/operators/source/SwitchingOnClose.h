@@ -55,8 +55,8 @@ public:
     void close() override
     {
         nestedContext->close();
-        delete nestedContext;
         this->nestedContext = new ClosedContext(nestedContext->getCheckpointLock());
+        delete nestedContext;
     }
 
 private:

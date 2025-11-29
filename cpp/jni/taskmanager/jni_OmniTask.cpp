@@ -123,13 +123,10 @@ JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_Omn
   (JNIEnv *jniEnv, jobject, jlong nativeTask, jlong checkpointID, jlong checkpointTimestamp, jstring checkpointoptionJson)
 {
     auto task = reinterpret_cast<omnistream::OmniTask *>(nativeTask);
-    const char* checkpointoptionsChars = jniEnv->GetStringUTFChars(checkpointoptionJson, nullptr);
-    std::string checkpointoptionsStr(checkpointoptionsChars);
-    jniEnv->ReleaseStringUTFChars(checkpointoptionJson, checkpointoptionsChars);
-    json j = json::parse(checkpointoptionsStr);
     const char* checkpointStr = jniEnv->GetStringUTFChars(checkpointoptionJson, nullptr);
     nlohmann::json checkpointoptionJsonStr = json::parse(checkpointStr);
-    CheckpointOptions * checkpoint_options=CheckpointOptions::FromJson(checkpointoptionJsonStr);
+    jniEnv->ReleaseStringUTFChars(checkpointoptionJson, checkpointStr);
+    CheckpointOptions * checkpoint_options = CheckpointOptions::FromJson(checkpointoptionJsonStr);
     task->triggerCheckpointBarrier(checkpointID, checkpointTimestamp, checkpoint_options);
 }
 
