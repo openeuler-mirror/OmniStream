@@ -18,6 +18,7 @@
 class MurmurHashUtils {
 public:
     static const int DEFAULT_SEED = 42;
+    static const int WORD_SIZE = 4;
 
     static int hashUnsafeBytesByWords(const void* base, std::size_t offset, int lengthInBytes);
     static int hashUnsafeBytes(const void* base, std::size_t offset, int lengthInBytes);

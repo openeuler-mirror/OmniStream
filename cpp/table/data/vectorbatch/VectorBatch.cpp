@@ -333,6 +333,7 @@ namespace omnistream {
                         break;
                     }
                     default:
+                        XXH3_freeState(state);
                         throw std::runtime_error("Type not supported yet");
                 }
             }

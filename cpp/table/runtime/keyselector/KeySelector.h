@@ -99,7 +99,9 @@ K KeySelector<K>::getKey(omnistream::VectorBatch *inputBatch, int row, bool enab
         }
         return key;
     } else {
-        assert(keyColIndices.size() == 1);
+        if (keyColIndices.size() != 1) {
+            throw std::runtime_error("KeySelector getKey: keyColIndices size is not 1");
+        }
         switch (keyColTypeIds[0]) {
             case OMNI_LONG:
             case OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:
@@ -144,7 +146,9 @@ K KeySelector<K>::getKey(RowData* input)
         }
         return key;
     } else {
-        assert(keyColIndices.size() == 1);
+        if (keyColIndices.size() != 1) {
+            throw std::runtime_error("KeySelector getKey: keyColIndices size is not 1");
+        }
         switch (keyColTypeIds[0]) {
             case OMNI_LONG:
             case OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:

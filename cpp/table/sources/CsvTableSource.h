@@ -112,7 +112,10 @@ public:
             // Key from the input side
             sourceKeys.push_back(value["index"]);
             int targetIdx = std::stoi(key);
-            assert(targetIdx != -1);
+            if (targetIdx == -1) {
+                throw std::runtime_error("CsvLookupFunction open: targetIdx is -1");
+            }
+            
             // Key from filesystem side
             targetKeys.push_back(targetIdx);
         }

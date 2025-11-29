@@ -87,14 +87,15 @@ public:
 
     template<typename T> void setField(int pos, T value)
     {
+        if (pos < 0 || pos >= arity_) {
+            throw std::out_of_range("GenericRowData::setField position out of range");
+        }
         if constexpr (std::is_same<T, std::nullptr_t>::value) {
             null_[pos] = true;
         } else if constexpr(!std::is_pointer<T>::value) {
             fields_[pos] = value;
             null_[pos] = false;
         } else {
-            // todo: here need to move the ownership of varchar pointer to this instance
-            // Temp Solution for Testing
             fields_[pos] = reinterpret_cast<long>(value);
             null_[pos] = false;
         }
@@ -122,6 +123,9 @@ public:
 
     bool isNullAt(int pos) override
     {
+        if (pos < 0 || pos >= arity_) {
+            return true;
+        }
         return null_[pos];
     }
 

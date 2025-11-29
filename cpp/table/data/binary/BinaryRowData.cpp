@@ -448,6 +448,7 @@ void BinaryRowData::setDecimal128(int pos, uint64_t low, int64_t high) {
     auto ret = memcpy_s(newBuffer, newBufferCapacity, memoryBuffer, bufferCapacity);
     if (ret != EOK) {
         INFO_RELEASE("BinaryRowData.cpp setDecimal128, memcpy_s failed")
+        delete[] memoryBuffer;
         throw std::runtime_error("memcpy_s failed");
     }
 

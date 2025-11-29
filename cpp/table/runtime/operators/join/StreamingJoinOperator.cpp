@@ -87,7 +87,10 @@ void StreamingJoinOperator<K>::open()
         rightKeyTypes.push_back(this->rightInputTypes[kIndex]);
     }
     // make sure the key types are the same
-    assert(leftKeyTypes == rightKeyTypes);
+    if (leftKeyTypes != rightKeyTypes) {
+        throw std::runtime_error("Left key types do not match right key types");
+    }
+    
     this->keySelectorLeft = new KeySelector<K>(leftKeyTypes, this->leftKeyIndex);
     this->keySelectorRight = new KeySelector<K>(rightKeyTypes, this->rightKeyIndex);
 }

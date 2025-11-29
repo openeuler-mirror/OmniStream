@@ -43,6 +43,10 @@ namespace omnistream::datastream {
         if (unlikely(length_ == 0)) {
             THROW_LOGIC_EXCEPTION("NullptrException");
         }
+        if (!hasRemaining()) {
+            THROW_LOGIC_EXCEPTION("data_ has no remaining bytes to read");
+        }
+    
         return data_[position_++];
     }
 
@@ -156,8 +160,8 @@ namespace omnistream::datastream {
 
     int64_t NonSpanningWrapper::readLong()
     {
-        if (unlikely(position_ + sizeof(uint64_t) > length_)) {
-            // Handle error or throw exception
+        const size_t required_size = sizeof(uint64_t);
+        if (unlikely(length_ < required_size || position_ > length_ - required_size)) {
             THROW_LOGIC_EXCEPTION("EOFException");
         }
         auto ret = static_cast <int64_t>

@@ -197,7 +197,9 @@ void AbstractStreamingJoinOperator<K>::open()
     } catch (const std::runtime_error &e) {
         throw std::runtime_error("failed to open join operator");
     }
-    assert(leftKeyIndex.size() == rightKeyIndex.size());
+    if (leftKeyIndex.size() != rightKeyIndex.size()) {
+        throw std::runtime_error("leftKeyIndex size does not match rightKeyIndex size");
+    }
 }
 template <typename K>
 void AbstractStreamingJoinOperator<K>::close()

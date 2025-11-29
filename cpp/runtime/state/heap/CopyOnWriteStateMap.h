@@ -776,8 +776,10 @@ namespace omnistream {
             uint64_t buckets = _num_filled > (1u << 16) ? (1u << 16) : 2u;
             while (buckets < required_buckets) { buckets *= 2; }
 
-            assert(buckets < max_size() && buckets > _num_filled);
-
+            if (buckets >= max_size() || buckets <= _num_filled) {
+                throw std::runtime_error("CopyOnWriteStateMap too big");
+            }
+            
             auto num_buckets = (size_type)buckets;
             auto old_num_filled = _num_filled;
             auto old_mask  = _num_buckets - 1;
@@ -829,7 +831,9 @@ namespace omnistream {
 #endif
 
             free(old_pairs);
-            assert(old_num_filled == _num_filled);
+            if (old_num_filled != _num_filled) {
+                throw std::runtime_error("CopyOnWriteStateMap rehash failed");
+            }
         }
 
     private:

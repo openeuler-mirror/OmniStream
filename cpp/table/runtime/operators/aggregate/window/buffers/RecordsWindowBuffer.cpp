@@ -123,7 +123,9 @@ void RecordsWindowBuffer::CreateFunctions(SliceAssigner *sliceAssigner,
         aggValueIndex++;
         aggFuncIndex++;
     }
-    assert(aggValueIndex == static_cast<int>(aggValueTypes.size()));
+    if (aggValueIndex != static_cast<int>(aggValueTypes.size())) {
+        throw std::runtime_error("CreateFunctions: aggValueIndex does not match aggValueTypes size");
+    }
 }
 
 std::vector<std::string> RecordsWindowBuffer::getKeyedTypes(std::vector<int32_t> keyedIndex, std::vector<std::string> inputTypes)

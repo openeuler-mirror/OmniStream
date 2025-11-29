@@ -1058,9 +1058,15 @@ namespace emhash7
 #else
             puts(buff);
 #endif
-            assert(sumn == _num_filled);
-            assert(sums == bucket_coll || !show_cache);
-            assert(bucket_coll == buckets[0]);
+            if (sumn != _num_filled) {
+                throw std::runtime_error("HashMap dump_statics assertion failed");
+            }
+            if (sums != bucket_coll && show_cache) {
+                throw std::runtime_error("HashMap dump_statics assertion failed");
+            }
+            if (bucket_coll != buckets[0]) {
+                throw std::runtime_error("HashMap dump_statics assertion failed");
+            }
         }
 #endif
 
@@ -1532,8 +1538,9 @@ namespace emhash7
                 buckets *= 2;
             }
 
-            assert(buckets < max_size() && buckets > _num_filled);
-
+            if (buckets >= max_size() || buckets <= _num_filled) {
+                throw std::runtime_error("HashMap rehash assertion failed");
+            }
             auto num_buckets = static_cast<size_type>(buckets);
             auto old_num_filled = _num_filled;
             auto old_mask = _num_buckets - 1;
@@ -1584,7 +1591,9 @@ namespace emhash7
 #endif
 
             free(old_pairs);
-            assert(old_num_filled == _num_filled);
+            if (_num_filled != old_num_filled) {
+                throw std::runtime_error("HashMap rehash assertion failed");
+            }
         }
 
     private:

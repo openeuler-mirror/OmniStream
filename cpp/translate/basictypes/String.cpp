@@ -241,6 +241,10 @@ bool String::equals(const std::string &str) const
 
 bool String::contains(const std::string &str) const
 {
+    if (!&str) {
+        throw std::invalid_argument("Input string is null");
+    }
+    
     return (this->inner.find(str) != std::string::npos);
 }
 

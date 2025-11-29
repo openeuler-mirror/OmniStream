@@ -101,13 +101,13 @@ void LocalSlicingWindowAggOperator::processBatch(StreamRecord *record)
         return;
     }
     int64_t sliceEndArr[rowCount];
-    for (int i = 0; i < input->GetRowCount(); i++) {
+    for (int64_t i = 0; i < input->GetRowCount(); i++) {
         sliceEndArr[i] = sliceAssigner->assignSliceEnd(input, i, clock);
     }
     if (currentWatermark == 0) {
         currentWatermark = sliceEndArr[0];
     }
-    for (int row = 0; row < rowCount; ++row) {
+    for (int64_t row = 0; row < rowCount; ++row) {
         // 获取key列索引，key列数据类型
         long rowTime = sliceEndArr[row];
         if (rowTime < currentWatermark) {
@@ -238,12 +238,7 @@ omnistream::VectorBatch* LocalSlicingWindowAggOperator::createOutputBatch(std::v
                 break;
             }
             case DataTypeId::OMNI_VARCHAR: {
-                auto* vector = new omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>(numRows);
-                for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
-                    std::string_view strView = collectedRows[rowIndex]->getStringView(colIndex);
-                    vector->SetValue(rowIndex, strView);
-                }
-                outputBatch->Append(vector);
+                SetStringVectorBatch(outputBatch, numRows, colIndex, collectedRows);
                 break;
             }
             default: {
@@ -254,9 +249,27 @@ omnistream::VectorBatch* LocalSlicingWindowAggOperator::createOutputBatch(std::v
 
     // Set row kind for all rows (only if there are rows)
     for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
+        if (!collectedRows[rowIndex]) {
+            throw std::runtime_error("Null RowData encountered in createOutputBatch");
+        }
         outputBatch->setRowKind(rowIndex, collectedRows[rowIndex]->getRowKind());
     }
     return outputBatch;
+}
+
+void LocalSlicingWindowAggOperator::SetStringVectorBatch(omnistream::VectorBatch* outputBatch, int numRows,
+    int colIndex, const std::vector<RowData*>& collectedRows)
+{
+    auto* vector = new omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>(numRows);
+    for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
+        auto checkedRow = collectedRows[rowIndex];
+        if (!checkedRow) {
+            throw std::runtime_error("Null RowData encountered in createOutputBatch [String column]");
+        }
+        std::string_view strView = checkedRow->getStringView(colIndex);
+        vector->SetValue(rowIndex, strView);
+    }
+    outputBatch->Append(vector);
 }
 
 void LocalSlicingWindowAggOperator::SetLong(omniruntime::vec::VectorBatch* outputBatch,

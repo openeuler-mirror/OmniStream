@@ -215,7 +215,7 @@ bool IncrementalRemoteKeyedStateHandle::operator==(const IncrementalRemoteKeyedS
 
 long IncrementalRemoteKeyedStateHandle::GetStateSize() const
 {
-    long size = metaStateHandle_ ? 0 : metaStateHandle_->GetStateSize();
+    long size = metaStateHandle_ ? metaStateHandle_->GetStateSize() : 0;
 
     for (HandleAndLocalPath path : sharedState_) {
         size += path.GetStateSize();

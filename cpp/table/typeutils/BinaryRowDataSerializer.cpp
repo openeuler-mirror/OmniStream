@@ -103,12 +103,18 @@ BinaryRowData* BinaryRowDataSerializer::joinedRowToBinaryRow(JoinedRowData *row,
     if (typeId.empty()) {
         INFO_RELEASE("WARNING: joinedRowToBinaryRow are only meant for testing. It only treat long type!!");
     }
+    if (!row) {
+        GErrorLog("JoinedRowData is null");
+        throw std::runtime_error("JoinedRowData is null");
+    }
     // by default, all fields are long or timestamp. If there are other type, typeId need to be provided.
     // Eventually, we will have a JoinedRowDataSerializer. This is just for testing purposes
     BinaryRowData *newRow = BinaryRowData::createBinaryRowDataWithMem(row->getArity());
     newRow->setRowKind(row->getRowKind());
     if (!typeId.empty()) {
-        assert(typeId.size() == static_cast<size_t>(row->getArity()));
+        if (typeId.size() != static_cast<size_t>(row->getArity())) {
+            throw std::runtime_error("joinedRowToBinaryRow: typeId size does not match row arity");
+        }
     }
     for (int i = 0; i < newRow->getArity(); i++) {
         if (typeId.empty() || typeId[i] == omniruntime::type::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE ||
