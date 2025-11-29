@@ -70,7 +70,7 @@ namespace omnistream {
 
     RowData* VectorBatch::extractRowData(int rowIndex)
     {
-        if (rowIndex > this->GetRowCount()) {
+        if (rowIndex >= this->GetRowCount()) {
             return nullptr;
         }
         // Get the number of columns in the batch.

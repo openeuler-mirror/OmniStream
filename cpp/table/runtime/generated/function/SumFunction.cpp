@@ -104,6 +104,9 @@ void SumFunction::accumulate(omnistream::VectorBatch *input, const std::vector<i
                 sum = fieldValue;
                 sumIsNull = false;
             } else {
+                if (sum > std::numeric_limits<long>::max() - fieldValue) {
+                    throw std::invalid_argument("SumFunction Overflow detected!");
+                }
                 sum += fieldValue;
             }
         }
