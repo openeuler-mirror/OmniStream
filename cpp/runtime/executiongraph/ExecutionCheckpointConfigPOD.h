@@ -158,7 +158,7 @@ public:
 
     bool getUnalignedCheckpointsEnabled() const
     {
-        return unalignedCheckpointsEnabled;
+        return true;
     }
 
     void setUnalignedCheckpointsEnabled(bool input)
