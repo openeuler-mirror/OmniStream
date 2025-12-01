@@ -58,6 +58,7 @@ public:
         if (nestedContext) {
             delete nestedContext;
         }
+        nestedContext = nullptr;
     }
 
 private:
