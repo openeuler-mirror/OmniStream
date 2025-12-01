@@ -22,7 +22,7 @@ using namespace omniruntime::type;
 FieldGetter* RowData::createFieldGetter(LogicalType* fieldType, int fieldPos)
 {
     if (!fieldType) {
-        THROW_LOGIC_EXCEPTION("field type is null");
+        throw std::runtime_error("field type is null");
     }
     switch (fieldType->getTypeId()) {
         case DataTypeId::OMNI_LONG:

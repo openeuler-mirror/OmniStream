@@ -52,8 +52,10 @@ void OmniSourceStreamTask::init()
 void OmniSourceStreamTask::processInput(std::shared_ptr<MailboxDefaultAction::Controller> controller)
 {
     LOG("OmniSourceStreamTask::processInput")
-    assert(dynamic_cast<StreamSource<omnistream::VectorBatch> *>(mainOperator_) && "mainOperator_ must be of type StreamSource");
-
+    if (!dynamic_cast<StreamSource<omnistream::VectorBatch> *>(mainOperator_)) {
+        throw std::runtime_error("mainOperator_ is not of type StreamSource<omnistream::VectorBatch>");
+    }
+    
     dynamic_cast<StreamSource<omnistream::VectorBatch> *>(mainOperator_)->run();
     // clean up resources or emit final watermark
     CompleteProcessing();

@@ -9,6 +9,7 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "thirdlibrary/java_time_Instant.h"
+#include <climits>
 
 Instant::Instant(int64_t second, int32_t nano)
 {
@@ -40,6 +41,9 @@ int Instant::floorDiv(int a, int b)
     if (b == 0) {
         throw std::invalid_argument("Divisor cannot be zero.");
     }
+    if (a == INT_MIN && b == -1) {
+        throw std::overflow_error("Integer overflow on floorMod.");
+    }
     int result = a / b;
 
     if ((a < 0) != (b < 0) && a % b != 0) {
@@ -52,6 +56,9 @@ int Instant::floorMod(int a, int b)
 {
     if (b == 0) {
         throw std::invalid_argument("Divisor cannot be zero.");
+    }
+    if (a == INT_MIN && b == -1) {
+        throw std::overflow_error("Integer overflow on floorMod.");
     }
     int remainder = a % b;
 

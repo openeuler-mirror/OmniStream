@@ -54,6 +54,7 @@ public:
         for (int32_t i = 0; i < numRows; i++) {
             newVector->SetValue(i, dataCopy[i]);
         }
+        delete[] dataCopy;
         return newVector;
     }
 

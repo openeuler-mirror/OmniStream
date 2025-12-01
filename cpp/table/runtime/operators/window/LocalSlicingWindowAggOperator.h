@@ -141,6 +141,8 @@ private:
     int rowtimeIndexVal;
     ClockService* clock;
     void ExtractFunction();
+    void SetStringVectorBatch(omnistream::VectorBatch* outputBatch, int numRows,
+        int colIndex, const std::vector<RowData*>& collectedRows);
 };
 
 #endif

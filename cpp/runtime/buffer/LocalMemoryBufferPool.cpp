@@ -127,7 +127,9 @@ namespace datastream {
     void LocalMemoryBufferPool::returnSegment(std::shared_ptr<Segment> segment)
     {
         auto toRecycledSegment = std::dynamic_pointer_cast<MemorySegment>(segment);
-        assert(toRecycledSegment && "Expected segment to be of type ObjectSegment");
+        if (!toRecycledSegment) {
+            throw std::runtime_error("Segment is not of type MemorySegment.");
+        }
         returnMemorySegment(toRecycledSegment);
     }
 

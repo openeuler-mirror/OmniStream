@@ -139,8 +139,12 @@ void GroupAggFunction::open(const Configuration& parameters)
 
     LOG("group agg accStartingIndex: "<<accStartingIndex)
     LOG("group agg accumulatorArity: "<<accumulatorArity)
-    assert(accStartingIndex == accumulatorArity);
-    assert(aggValueIndex == static_cast<int>(aggValueTypes.size()));
+    if (accStartingIndex != accumulatorArity) {
+        throw std::runtime_error("GroupAggFunction open: accStartingIndex does not match accumulatorArity");
+    }
+    if (aggValueIndex != static_cast<int>(aggValueTypes.size())) {
+        throw std::runtime_error("GroupAggFunction open: aggValueIndex does not match aggValueTypes size");
+    }
 
     aggregateCallsCount = description["aggInfoList"]["aggregateCalls"].size();
     resultRow = new JoinedRowData();
@@ -457,6 +461,8 @@ omnistream::VectorBatch* GroupAggFunction::createOutputBatch(std::vector<RowData
                 break;
             }
             default: {
+                delete outputRowType;
+                delete outputBatch;
                 LOG("Unsupported column type in inputRow (createOutputBatch). colIndex : "<<colIndex)
                 throw std::runtime_error("Unsupported column type in inputRow");
             }
@@ -467,6 +473,7 @@ omnistream::VectorBatch* GroupAggFunction::createOutputBatch(std::vector<RowData
     for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
         outputBatch->setRowKind(rowIndex, rowKinds[rowIndex]);
     }
+    delete outputRowType;
     return outputBatch;
 }
 

@@ -576,7 +576,9 @@ std::shared_ptr<BufferOrEvent> SingleInputGate::transformEvent(std::shared_ptr<B
         INFO_RELEASE("END_OF_PARTITION_EVENT received by channel :" << currentChannel->getChannelIndex()
             << " of Task :" << owningTaskName)
         std::lock_guard<std::recursive_mutex> lock(inputChannelsWithDataMutex);
-        assert(!channelsWithEndOfPartitionEvents[currentChannel->getChannelIndex()]);
+        if (channelsWithEndOfPartitionEvents[currentChannel->getChannelIndex()]) {
+            throw std::runtime_error("Received more than one EndOfPartitionEvent from the same channel.");
+        }
         channelsWithEndOfPartitionEvents[currentChannel->getChannelIndex()] = true;
         auto count = std::count(channelsWithEndOfPartitionEvents.begin(), channelsWithEndOfPartitionEvents.end(), true);
         hasReceivedAllEndOfPartitionEvents = count == static_cast<long>(numberOfInputChannels);
@@ -594,7 +596,10 @@ std::shared_ptr<BufferOrEvent> SingleInputGate::transformEvent(std::shared_ptr<B
             // 1. releasing inputChannelsWithData lock in this method and reaching this place
             // 2. empty data notification that re-enqueues a channel we can end up with
             // moreAvailable flag set to true, while we expect no more data.
-            assert(!moreAvailable || !PollNext().has_value());
+            if (moreAvailable && PollNext().has_value()) {
+                throw std::runtime_error("Bug in input gate logic: moreAvailable flag is true when all "
+                                      "EndOfPartitionEvents have been received.");
+            }
             moreAvailable = false;
             markAvailable();
         }
@@ -605,7 +610,10 @@ std::shared_ptr<BufferOrEvent> SingleInputGate::transformEvent(std::shared_ptr<B
         INFO_RELEASE("END_OF_USER_RECORDS_EVENT received by channel :" << currentChannel->getChannelIndex()
             << " of Task :" << owningTaskName)
         std::lock_guard<std::recursive_mutex> lock(inputChannelsWithDataMutex);
-        assert(!channelsWithEndOfUserRecords[currentChannel->getChannelIndex()]);
+        if (channelsWithEndOfUserRecords[currentChannel->getChannelIndex()]) {
+            throw std::runtime_error("Received more than one EndOfData from the same channel.");
+        }
+        
         channelsWithEndOfUserRecords[currentChannel->getChannelIndex()] = true;
         auto count = std::count(channelsWithEndOfUserRecords.begin(), channelsWithEndOfUserRecords.end(), true);
         hasReceivedEndOfData_ = count == static_cast<long>(numberOfInputChannels);
@@ -622,16 +630,6 @@ std::shared_ptr<BufferOrEvent> SingleInputGate::transformEvent(std::shared_ptr<B
 
 std::shared_ptr<Buffer> SingleInputGate::decompressBufferIfNeeded(std::shared_ptr<Buffer> buffer)
 {
-    // fix it later
-    /**
-    if (buffer->IsCompressed()) {
-        try {
-            assert(bufferDecompressor != nullptr);
-            return bufferDecompressor->decompressToIntermediateBuffer(buffer);
-        } finally {
-            buffer->RecycleBuffer();
-        }
-    } */
     return buffer;
 }
 
@@ -665,7 +663,10 @@ void SingleInputGate::sendTaskEvent(const std::shared_ptr<TaskEvent> &event)
 
 void SingleInputGate::ResumeConsumption(const InputChannelInfo &channelInfo)
 {
-    assert(!IsFinished());
+    if (IsFinished()) {
+        throw std::runtime_error("Input gate is already finished.");
+    }
+    
     // BEWARE: consumption resumption only happens for streaming jobs in which all slots
     // are allocated together so there should be no UnknownInputChannel. As a result, it
     // is safe to not synchronize the requestLock here. We will refactor the code to not
@@ -675,7 +676,9 @@ void SingleInputGate::ResumeConsumption(const InputChannelInfo &channelInfo)
 
 void SingleInputGate::acknowledgeAllRecordsProcessed(const InputChannelInfo &channelInfo)
 {
-    assert(!IsFinished());
+    if (IsFinished()) {
+        throw std::runtime_error("Input gate is already finished.");
+    }
     channels[channelInfo.getInputChannelIdx()]->acknowledgeAllRecordsProcessed();
 }
 
@@ -685,7 +688,9 @@ void SingleInputGate::acknowledgeAllRecordsProcessed(const InputChannelInfo &cha
 
 void SingleInputGate::notifyChannelNonEmpty(std::shared_ptr<InputChannel> channel)
 {
-    assert(channel != nullptr);
+    if (!channel) {
+        throw std::runtime_error("Input channel is null.");
+    }
     // LOG_PART("begnning")
     queueChannel(channel, std::nullopt, false);
 }
@@ -701,13 +706,18 @@ void SingleInputGate::notifyChannelNonEmpty(std::shared_ptr<InputChannel> channe
  */
 void SingleInputGate::notifyPriorityEvent(std::shared_ptr<InputChannel> inputChannel, int prioritySequenceNumber)
 {
-    assert(inputChannel != nullptr);
+    if (inputChannel) {
+        throw std::invalid_argument("Input channel is null.");
+    }
     queueChannel(inputChannel, prioritySequenceNumber, false);
 }
 
 void SingleInputGate::notifyPriorityEventForce(std::shared_ptr<InputChannel> inputChannel)
 {
-    assert(inputChannel != nullptr);
+    if (!inputChannel) {
+        throw std::runtime_error("Input channel is null.");
+    }
+    
     queueChannel(inputChannel, std::nullopt, true);
 }
 

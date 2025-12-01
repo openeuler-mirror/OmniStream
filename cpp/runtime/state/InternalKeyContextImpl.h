@@ -52,6 +52,9 @@ public:
         }
         this->currentKey = currentKey;
         if constexpr (std::is_same_v<K, Object*>) {
+            if (this->currentKey == nullptr) {
+                throw std::runtime_error("Current key is null pointer.");
+            }
             reinterpret_cast<Object*>(this->currentKey)->getRefCount();
         }
         setCurrentKeyGroupIndex(KeyGroupRangeAssignment<K>::assignToKeyGroup(this->currentKey, getNumberOfKeyGroups()));

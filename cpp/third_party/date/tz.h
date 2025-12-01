@@ -282,6 +282,10 @@ std::string
 ambiguous_local_time::make_msg(local_time<Duration> tp, const local_info& i)
 {
     assert(i.result == local_info::ambiguous);
+    if (i.result != local_info::ambiguous) {
+        throw std::runtime_error("time util corrupted!");
+    }
+    
     std::ostringstream os;
     os << tp << " is ambiguous.  It could be\n"
        << tp << ' ' << i.first.abbrev << " == "

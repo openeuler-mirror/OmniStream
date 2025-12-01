@@ -15,8 +15,13 @@ namespace omnistream {
     // for DATE_FORMAT
     BaseVector *BatchDateFormat(BaseVector *inputVec, const std::string &format)
     {
-        assert(inputVec->GetTypeId() == OMNI_LONG);
-        assert(format == "yyyy-MM-dd" || format == "HH:mm");
+        if (inputVec->GetEncoding() != OMNI_FLAT) {
+            throw std::runtime_error("Only flat encoding is supported for DATE_FORMAT function.");
+        }
+    
+        if (format != "yyyy-MM-dd" && format != "HH:mm") {
+            throw std::runtime_error("Unsupported format string for DATE_FORMAT function.");
+        }
         auto input = reinterpret_cast<Vector<int64_t> *>(inputVec);
         auto newVec = new Vector<LargeStringContainer<std::string_view>>(input->GetSize());
         if (format == "yyyy-MM-dd") {

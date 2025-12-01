@@ -91,6 +91,11 @@ void PipelinedResultPartition::decrementNumberOfUsers(int subpartitionIndex)
 
     {
         std::lock_guard<std::recursive_mutex> lockGuard(lock);
+        if (subpartitionIndex < -1 || subpartitionIndex >= static_cast<int>(consumedSubpartitions.size())) {
+            throw std::runtime_error("Invalid subpartition index received in consume notification: " +
+                                     std::to_string(subpartitionIndex));
+        }
+        
         if (subpartitionIndex != PIPELINED_RESULT_PARTITION_ITSELF) {
             std::cout << "we are here  subpartitionIndex != PIPELINED_RESULT_PARTITION_ITSELF"<<std::endl;
             if (consumedSubpartitions[subpartitionIndex]) {
