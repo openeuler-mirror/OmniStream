@@ -193,6 +193,7 @@ namespace omnistream::runtime {
             } catch (const std::exception &e) {
                 LogError("Exception in async checkpoint: %s", e.what());
             }
+            delete asyncCheckpointRunnable;
         });
         LOG(">>>>> Done")
     }

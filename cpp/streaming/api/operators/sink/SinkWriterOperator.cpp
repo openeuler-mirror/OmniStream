@@ -55,6 +55,7 @@ RowData* SinkWriterOperator::getOutputEntireRow(omnistream::VectorBatch *vecBatc
             row->setString(i, new BinaryStringData(strVal.get()));
         } else {
             LOG("Data type not supported: " << inputTypes[i])
+            delete row;
             throw std::runtime_error("Data type not supported");
         };
     }

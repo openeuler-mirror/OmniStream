@@ -47,7 +47,7 @@ JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_tasks_OmniStre
     LOG("channel info is: " + std::string(channelInfos))
 
     nlohmann::json channelJson = nlohmann::json::parse(channelInfos);
-
+    env->ReleaseStringUTFChars(inputChannelInfo, channelInfos);
     auto *streamTask = reinterpret_cast<omnistream::datastream::StreamTask *>(omniStreamTaskRef);
     auto *processor = streamTask->createOmniInputProcessor(channelJson, operatorMethodIndicator);
     std::cout << "Java_com_huawei_omniruntime_flink_runtime_tasks_OmniStreamTask_createNativeOmniInputProcessor operatorMethodIndicator :" << operatorMethodIndicator << std::endl;

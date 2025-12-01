@@ -75,6 +75,7 @@ RowData* OutputConversionOperator::getEntireRow(omnistream::VectorBatch *batch, 
                 row->setString(i, new BinaryStringData(u32Str.get()));
         } else {
             LOG("Data type not supported: " << inputTypes[i])
+            delete row;
             throw std::runtime_error("Data type not supported");
         };
     }

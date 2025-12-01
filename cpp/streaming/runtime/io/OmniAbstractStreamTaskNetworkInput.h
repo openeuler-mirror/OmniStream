@@ -381,11 +381,12 @@ public:
                     break;
                 }
                 default: {
+                    delete inputRowType;
                     throw std::runtime_error("Unsupported column type in inputRow");
                 }
             }
         }
-
+        delete inputRowType;
         for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
             outputBatch->setRowKind(rowIndex, collectedRows[rowIndex]->getRowKind());
         }
