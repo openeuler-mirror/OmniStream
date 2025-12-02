@@ -71,7 +71,11 @@ int32_t StringBuilder::length()
 
 StringBuilder* StringBuilder::deleteCharAt(int32_t idx)
 {
-    // todo implement the deleteCharAt method
+    if (idx >= 0 && idx < value.size()) {
+        value.erase(value.begin() + idx);
+    } else {
+        THROW_LOGIC_EXCEPTION("index of bounds");
+    }
     return this;
 }
 
