@@ -79,6 +79,10 @@ SnapshotsFinalizeResult *AsyncCheckpointRunnable::FinalizeNonFinishedSnapshots()
             ->getJobManagerOwnedState()->getResultSubpartitionState().GetStateSize();
         bytesPersistedDuringAlignment += finalizedSnapshot
             ->getJobManagerOwnedState()->getInputChannelState().GetStateSize();
+
+        if (finalizedSnapshot) {
+            delete finalizedSnapshot;
+        }
     }
     LOG(">>>>>>> end FinalizeNonFinishedSnapshots")
     return new SnapshotsFinalizeResult(
