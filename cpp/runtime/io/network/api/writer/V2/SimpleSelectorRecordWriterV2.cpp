@@ -58,6 +58,7 @@ namespace omnistream {
                 std::cerr << "Error: ChannelSelector is null in ChannelSelectorRecordWriter::emit." << std::endl;
             }
         } else if (taskType == 2) {
+            auto *value = static_cast<Object *>(record->getValue());
             this->serializationDelegate->setInstance(record);
             int channel = partitioner->selectChannel(serializationDelegate);
 
@@ -65,6 +66,12 @@ namespace omnistream {
 
             record->setValue(byteBuffer);
             emit(record, channel);
+            if (byteBuffer) {
+                delete byteBuffer;
+            }
+            if (value) {
+                value->putRefCount();
+            }
         }
     }
 
