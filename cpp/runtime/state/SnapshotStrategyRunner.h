@@ -55,9 +55,6 @@ public:
                 LOG("native rocksdb checkpoint has been finished.");
             }
         }
-        if (snapshotResources) {
-            delete snapshotResources;
-        }
         return task;
     }
 
