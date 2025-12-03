@@ -128,10 +128,6 @@ namespace omnistream::runtime {
             checkpointStorage->clearCacheFor(checkpointId);
         }
 
-        if (storage) {
-            delete storage;
-        }
-
         checkpointStorage->clearCacheFor(checkpointId);
 
         constexpr int nanoToMillis = 1000000;
@@ -302,9 +298,6 @@ namespace omnistream::runtime {
         } catch (const std::exception &e) {
             LOG("Exception during checkpointing: " + std::string(e.what()));
             cleanup(snapshotFutures, metadata, metrics, e);
-        }
-        if (snapshotFutures) {
-            delete snapshotFutures;
         }
     }
 

@@ -129,10 +129,6 @@ public:
             snapshotContext,
             isUsingCustomRawKeyedState);
 
-        if (snapshotContext) {
-            delete snapshotContext;
-        }
-
         return snapshotInProgress;
     }
 
