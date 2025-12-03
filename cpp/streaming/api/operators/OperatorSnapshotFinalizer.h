@@ -64,6 +64,12 @@ public:
             *StateObjectCollection<InputChannelStateHandle>::EmptyIfNull(nullptr),
             *StateObjectCollection<ResultSubpartitionStateHandle>::EmptyIfNull(nullptr));
         LOG(">>>>>>> end OperatorSnapshotFinalizer")
+        if (keyedStateManaged) {
+            delete keyedStateManaged;
+        }
+        if (KeyedStateRaw) {
+            delete KeyedStateRaw;
+        }
     };
 
     [[nodiscard]] std::shared_ptr<OperatorSubtaskState> getTaskLocalState() const

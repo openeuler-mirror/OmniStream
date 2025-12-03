@@ -64,7 +64,7 @@ SnapshotsFinalizeResult *AsyncCheckpointRunnable::FinalizeNonFinishedSnapshots()
         auto operatorID = entry.first;
         OperatorSnapshotFutures *snapshotInProgress = entry.second;
 
-        OperatorSnapshotFinalizer *finalizedSnapshot = new OperatorSnapshotFinalizer(snapshotInProgress);
+        auto finalizedSnapshot = std::make_shared<OperatorSnapshotFinalizer>(snapshotInProgress);
 
         jobManagerTaskOperatorSubtaskStates->PutSubtaskStateByOperatorID(
             operatorID,
@@ -79,10 +79,6 @@ SnapshotsFinalizeResult *AsyncCheckpointRunnable::FinalizeNonFinishedSnapshots()
             ->getJobManagerOwnedState()->getResultSubpartitionState().GetStateSize();
         bytesPersistedDuringAlignment += finalizedSnapshot
             ->getJobManagerOwnedState()->getInputChannelState().GetStateSize();
-
-        if (finalizedSnapshot) {
-            delete finalizedSnapshot;
-        }
     }
     LOG(">>>>>>> end FinalizeNonFinishedSnapshots")
     return new SnapshotsFinalizeResult(
