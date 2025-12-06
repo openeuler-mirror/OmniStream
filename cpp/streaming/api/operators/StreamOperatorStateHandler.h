@@ -130,7 +130,7 @@ public:
             isUsingCustomRawKeyedState);
 
         if (snapshotContext) {
-            delete snapshotContext
+            delete snapshotContext;
         }
 
         return snapshotInProgress;
