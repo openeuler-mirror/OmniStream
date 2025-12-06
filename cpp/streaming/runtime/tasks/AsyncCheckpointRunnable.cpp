@@ -64,7 +64,7 @@ SnapshotsFinalizeResult *AsyncCheckpointRunnable::FinalizeNonFinishedSnapshots()
         auto operatorID = entry.first;
         OperatorSnapshotFutures *snapshotInProgress = entry.second;
 
-        OperatorSnapshotFinalizer *finalizedSnapshot = new OperatorSnapshotFinalizer(snapshotInProgress);
+        auto finalizedSnapshot = std::make_shared<OperatorSnapshotFinalizer>(snapshotInProgress);
 
         jobManagerTaskOperatorSubtaskStates->PutSubtaskStateByOperatorID(
             operatorID,
