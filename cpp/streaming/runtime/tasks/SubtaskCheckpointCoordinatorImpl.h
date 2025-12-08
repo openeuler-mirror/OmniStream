@@ -239,7 +239,8 @@ namespace omnistream::runtime {
                 CheckpointMetricsBuilder *metrics,
                 bool istaskDeployedAsFinished,
                 bool isTaskFinished,
-                omnistream::Supplier<bool> *isRunning
+                omnistream::Supplier<bool> *isRunning,
+                CheckpointOptions *options
         );
 
         static ChannelStateWriter *openChannelStateWriter(
