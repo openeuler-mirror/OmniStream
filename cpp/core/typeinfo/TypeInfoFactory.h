@@ -12,12 +12,13 @@
 #include "TupleTypeInfo.h"
 #include "table/types/logical/LogicalType.h"
 #include "types/logical/RowType.h"
+#include "basictypes/Object.h"
 
 // for convenience
 using json = nlohmann::json;
 using string = std::string;
 
-class TypeInfoFactory {
+class TypeInfoFactory : public Object {
 public:
     static TypeInformation *createTypeInfo(const char* name);
 

@@ -13,7 +13,7 @@
 
 #include <chrono>
 #include <ctime>
-#include "table/runtime/operators/window/slicing/SliceAssigners.h"
+#include "java_time_ZoneId.h"
 #include "java_time_temporal_TemporalAccessor.h"
 #include "java_time_Instant.h"
 
@@ -21,7 +21,7 @@
 
 class LocalDateTime : public TemporalAccessor {
 public:
-    static LocalDateTime *ofInstant(Instant *instant, omnistream::ZoneId *zoneId);
+    static LocalDateTime *ofInstant(Instant *instant, ZoneId *zoneId);
 
     std::tm *getTm();
 
