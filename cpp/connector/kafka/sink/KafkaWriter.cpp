@@ -78,6 +78,7 @@ void KafkaWriter::write(String *element)
     }
     auto record = recordSerializer->Serialize(element);
     ProduceRecord(record);
+    delete element;
 }
 
 void KafkaWriter::write(Row *element)
