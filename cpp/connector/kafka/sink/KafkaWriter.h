@@ -139,7 +139,7 @@ private:
         while (timer_worker_thread_flag.load()) {
             clock_gettime(CLOCK_MONOTONIC, &end);
             // 计算时间差
-            long ns = (end.tv_sec - start.tv_sec) * 1000000000L + (end.tv_nsec - start.tv_nsec);
+            uint64_t ns = (end.tv_sec - start.tv_sec) * 1000000000L + (end.tv_nsec - start.tv_nsec);
             if (ns >= 5000000000L) {
                 handleRecord();
                 start = end;
