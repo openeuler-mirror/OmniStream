@@ -37,7 +37,11 @@ namespace omnistream {
 
     OmniPushingAsyncDataInput::OmniDataOutput *OmniSourceOperatorStreamTask::createDataOutput()
     {
-        return new OmniAsyncDataOutputToOutput(operatorChain->GetMainOperatorOutput(), false);
+        bool isDataStream = false;
+        if (taskType == 2) {
+            isDataStream = true;
+        }
+        return new OmniAsyncDataOutputToOutput(operatorChain->GetMainOperatorOutput(), isDataStream);
     }
 
 
