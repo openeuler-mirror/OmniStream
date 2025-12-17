@@ -23,6 +23,7 @@ namespace omnistream {
         } else {
             auto newRecord = new StreamRecord(streamRecord->getValue(), streamRecord->getTimestamp());
             output->collect(newRecord);
+            delete newRecord;
         }
     }
 
