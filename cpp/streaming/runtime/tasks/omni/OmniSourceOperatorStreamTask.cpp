@@ -15,6 +15,9 @@
 #include "streaming/runtime/io/OmniStreamTaskSourceInput.h"
 
 namespace omnistream {
+
+    const int DATASTREAM_TASK_TYPE = 2;
+
     void omnistream::OmniSourceOperatorStreamTask::init()
     {
         OmniStreamTask::init();
@@ -38,7 +41,7 @@ namespace omnistream {
     OmniPushingAsyncDataInput::OmniDataOutput *OmniSourceOperatorStreamTask::createDataOutput()
     {
         bool isDataStream = false;
-        if (taskType == 2) {
+        if (taskType == DATASTREAM_TASK_TYPE) {
             isDataStream = true;
         }
         return new OmniAsyncDataOutputToOutput(operatorChain->GetMainOperatorOutput(), isDataStream);
