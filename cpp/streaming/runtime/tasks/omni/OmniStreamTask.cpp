@@ -213,8 +213,6 @@ void OmniStreamTask::restoreGates()
 
 void OmniStreamTask::invoke()
 {
-    MetricManager*  shmMemMgr = MetricManager::GetInstance();
-    this->shmmetric_processInput = shmMemMgr->RegisterMetric(MetricManager::omniStreamTaskProcessInputID);
     LOG("Invoking {}." << getName());
 
     // let the task do its work
