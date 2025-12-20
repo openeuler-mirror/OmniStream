@@ -213,9 +213,7 @@ private:
         maybeCreateCondition(threadIndex);
         notFull.push(&putConditionAndFlags[threadIndex]->cond);
         // Use wait with predicate to handle spurious wakeups
-        putConditionAndFlags[threadIndex]->cond.wait(lk, [this, threadIndex]() {
-            return putConditionAndFlags[threadIndex]->wakeUp;
-        });
+        putConditionAndFlags[threadIndex]->cond.wait(lk);
     }
 };
 

@@ -93,7 +93,7 @@ namespace omnistream::datastream {
             } else {
                 auto backend = input->clone();
                 values->update(backend);
-
+                backend->putRefCount();
                 this->output->collect(record);
             }
             LOG("-----StreamGroupedReduceOperator processElement end-----");
