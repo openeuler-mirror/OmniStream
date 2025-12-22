@@ -18,7 +18,7 @@ namespace datastream {
                                                  int maxNumberOfMemorySegments,
                                                  int numberOfSubpartitions,
                                                  int maxBuffersPerChannel)
-        : LocalBufferPool(numberOfSubpartitions, 1, numberOfRequiredMemorySegments,
+        : LocalBufferPool(numberOfSubpartitions, maxBuffersPerChannel, numberOfRequiredMemorySegments,
                           numberOfRequiredMemorySegments,
                           maxNumberOfMemorySegments, std::make_shared<AvailabilityHelper>()),
           networkMemoryBufferPool(networkMemoryBufferPool),
