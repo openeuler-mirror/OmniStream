@@ -494,7 +494,7 @@ std::optional<SingleInputGate::InputWithData<BufferAndAvailability>> SingleInput
         auto inputChannelOpt = getChannel(blocking);
         // LOG(">>>>inputChannelOpt  " << inputChannelOpt.has_value())
         if (!inputChannelOpt) {
-            const int sleepTime = 90;
+            const int sleepTime = 100;
             std::this_thread::sleep_for(std::chrono::microseconds(sleepTime)); // sleep使inputChannelsWithDataMutex读写分配均匀
             return std::nullopt;
         }

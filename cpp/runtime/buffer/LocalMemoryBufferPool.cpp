@@ -284,7 +284,7 @@ namespace datastream {
 
             if (targetChannel != UNKNOWN_CHANNEL) {
                 if (++subpartitionBuffersCount_[targetChannel] == maxBuffersPerChannel_) {
-                    unavailableSubpartitionsCount_++;
+                    unavailableSubpartitionsCount++;
                 }
             }
 
@@ -314,7 +314,7 @@ namespace datastream {
                 throw std::runtime_error("task has been cancelled");
             }
             // workaround sleep for a while
-            std::this_thread::sleep_for(std::chrono::microseconds(100));
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
         return segment;
     }
