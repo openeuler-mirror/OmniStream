@@ -177,6 +177,8 @@ void InputSideHasNoUniqueKey<K>::addOrRectractRecord(omnistream::VectorBatch *in
     }
 
     std::vector<XXH128_hash_t> xxh128Hashes = input->getXXH128s();
+    long* comboIDs = new long[input->GetRowCount()];
+    VectorBatchUtil::getComboId_sve(batchId, input->GetRowCount(), comboIDs);
     for (int i = 0; i < input->GetRowCount(); i++) {
         if (filterNulls && keySelector->isAnyKeyNull(input, i)) {
             continue;
@@ -188,7 +190,7 @@ void InputSideHasNoUniqueKey<K>::addOrRectractRecord(omnistream::VectorBatch *in
         recordStateVB->updateOrCreate(
             ukey,
             /* default value used only if key is missing and delta is positive */
-            UV {1, VectorBatchUtil::getComboId(batchId, i)},
+            UV {1, comboIDs[i]},
             [delta, &numAssociates, i](UV& val) -> std::optional<UV> {
                 int newCount = std::get<0>(val) + delta;
                 if (newCount != 0) {
@@ -204,6 +206,7 @@ void InputSideHasNoUniqueKey<K>::addOrRectractRecord(omnistream::VectorBatch *in
             delete key;
         }
     }
+    delete[] comboIDs;
 }
 
 template <typename K>

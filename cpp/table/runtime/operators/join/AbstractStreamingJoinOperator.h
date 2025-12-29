@@ -31,6 +31,8 @@
 #include "streaming/api/operators/TimestampedCollector.h"
 #include "JoinRecordStateView.h"
 
+#include <arm_sve.h>
+
 // joinCondition includes 2 steps:
 // (1) check if key is null
 // (2) check if filter condition is satisfied
@@ -127,7 +129,7 @@ protected:
     // Null-padded entries that need to be inserted/deleted
     std::vector<int64_t> deleteRecords;
     // Kinds for those null-padded entries based on accumulate(0) or retract(1)
-    std::vector<int> deleteKinds;
+    std::vector<int8_t> deleteKinds;
 
     FilterFuncPtr generatedFilter = nullptr;
     JoinedRowFilterFunc joinCondition;
@@ -259,12 +261,12 @@ void AbstractStreamingJoinOperator<K>::of(
                 if (RowDataUtil::isAccumulateMsg(input->getRowKind(i))) {
                     if (std::get<1>(it->second) == 0) {
                         deleteRecords.push_back(std::get<2>(it->second));
-                        deleteKinds.push_back(0);
+                        deleteKinds.push_back(static_cast<int8_t>(0));
                     }
                 } else {
                     if (std::get<1>(it->second) == 1) {
                         deleteRecords.push_back(std::get<2>(it->second));
-                        deleteKinds.push_back(1);
+                        deleteKinds.push_back(static_cast<int8_t>(1));
                     }
                 }
                 int32_t newNumAssociate = RowDataUtil::isAccumulateMsg(input->getRowKind(i))?  std::get<1>(it->second) + 1 : std::get<1>(it->second) - 1;
@@ -397,10 +399,30 @@ std::unique_ptr<std::vector<int64_t>> AbstractStreamingJoinOperator<K>::filterRe
         }
     }
 
+    int num = (*matchedRecords).size();
+    uint32_t* batchIDdst = new uint32_t[num];
+    uint32_t* rowIDdst = new uint32_t[num];
+
+    int processNum = svcntw();
+    int half = svcntd();
+    for (int i = 0; i < num; i+=processNum) {
+        svbool_t pg = svwhilelt_b64(i, num);
+        svbool_t pg2 = svwhilelt_b64(i + half, num);
+        svbool_t pg3 = svwhilelt_b32(i, num);
+        svuint64_t comboID = svld1(pg, reinterpret_cast<uint64_t*>((*matchedRecords).data()) + i);
+        svuint64_t comboID2 = svld1(pg2, reinterpret_cast<uint64_t*>((*matchedRecords).data()) + i + half);
+
+        svuint32_t rowID = svuzp1(svreinterpret_u32(comboID), svreinterpret_u32(comboID2));
+        svuint32_t batchID = svuzp2(svreinterpret_u32(comboID), svreinterpret_u32(comboID2));
+
+        svst1_u32(pg3, rowIDdst + i, rowID);
+        svst1_u32(pg3, batchIDdst + i, batchID);
+    }
+
     // for the otherSide
-    for (const int64_t &comboId : *matchedRecords) {
-        int32_t othersideRowId = VectorBatchUtil::getRowId(comboId);
-        int32_t othersideBatchId = VectorBatchUtil::getBatchId(comboId);
+    for (int i = 0; i < num; i++) {
+        int32_t othersideRowId = rowIDdst[i];
+        int32_t othersideBatchId = batchIDdst[i];
 
         for (auto col : colRefsForNonEquiCondition) {
             bool isLeftColumn = col < leftArity;
@@ -413,12 +435,14 @@ std::unique_ptr<std::vector<int64_t>> AbstractStreamingJoinOperator<K>::filterRe
 
         omniruntime::op::ExecutionContext context;
         auto result = generatedFilter(
-            vals.data(), reinterpret_cast<bool *>(nulls.data()), nullptr, &resultBool, nullptr, (int64_t)(&context));
+                vals.data(), reinterpret_cast<bool *>(nulls.data()), nullptr, &resultBool, nullptr, (int64_t)(&context));
+
         if (result) {
-            filteredRecords->push_back(comboId);
+            filteredRecords->push_back((*matchedRecords)[i]);
         }
     }
-
+    delete[] rowIDdst;
+    delete[] batchIDdst;
     return filteredRecords;
 }
 

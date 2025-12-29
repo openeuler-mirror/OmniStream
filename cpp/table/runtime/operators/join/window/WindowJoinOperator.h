@@ -29,6 +29,8 @@
 #include "OmniOperatorJIT/core/src/vector/unsafe_vector.h"
 #include "OmniOperatorJIT/core/src/operator/execution_context.h"
 
+#include <arm_sve.h>
+
 using VectorBatchId = uint64_t;
 
 using namespace omnistream;
@@ -508,21 +510,37 @@ template <typename TYPE>
 inline void WindowJoinOperator<KeyType>::insertLeft(int colIdx, std::vector<VectorBatchId> *leftElements,
     std::vector<VectorBatchId> *rightElements, omnistream::VectorBatch *outputBatch, bool isInner)
 {
+    int num = (*leftElements).size();
+    uint32_t* batchIDdst = new uint32_t[num];
+    uint32_t* rowIDdst = new uint32_t[num];
+    int processNum = svcntw();
+    int half = svcntd();
+    for (int i = 0; i < num; i+=processNum) {
+        svbool_t pg = svwhilelt_b64(i, num);
+        svbool_t pg2 = svwhilelt_b64(i + half, num);
+        svbool_t pg3 = svwhilelt_b32(i, num);
+        svuint64_t comboID = svld1(pg, (*leftElements).data() + i);
+        svuint64_t comboID2 = svld1(pg2, (*leftElements).data() + i + half);
+        svuint32_t rowID = svuzp1(svreinterpret_u32(comboID), svreinterpret_u32(comboID2));
+        svuint32_t batchID = svuzp2(svreinterpret_u32(comboID), svreinterpret_u32(comboID2));
+        svst1_u32(pg3, rowIDdst + i, rowID);
+        svst1_u32(pg3, batchIDdst + i, batchID);
+    }
     auto col = reinterpret_cast<omniruntime::vec::Vector<TYPE> *>(outputBatch->Get(colIdx));
     if (isNonEquiCondition || !isInner) {
         int rowIdx = 0;
-        for (auto element : *leftElements) {
-            int batchId = VectorBatchUtil::getBatchId(element);
-            int rowId = VectorBatchUtil::getRowId(element);
+        for (int j = 0; j < num; j++) {
+            int batchId = batchIDdst[j];
+            int rowId = rowIDdst[j];
             col->SetValue(
                 rowIdx, leftWindowState->getVectorBatch(batchId)->template GetValueAt<TYPE>(colIdx, rowId));
             rowIdx++;
         }
     } else {
         int rowIdx = 0;
-        for (auto element : *leftElements) {
-            int batchId = VectorBatchUtil::getBatchId(element);
-            int rowId = VectorBatchUtil::getRowId(element);
+        for (int j = 0; j < num; j++) {
+            int batchId = batchIDdst[j];
+            int rowId = rowIDdst[j];
             auto value = leftWindowState->getVectorBatch(batchId)->template GetValueAt<TYPE>(colIdx, rowId);
             for (size_t i = 0; i < rightElements->size(); i++) {
                 col->SetValue(i + rowIdx, value);
@@ -530,6 +548,8 @@ inline void WindowJoinOperator<KeyType>::insertLeft(int colIdx, std::vector<Vect
             rowIdx += rightElements->size();
         }
     }
+    delete batchIDdst;
+    delete rowIDdst;
 }
 
 template <typename KeyType>
@@ -550,9 +570,28 @@ void WindowJoinOperator<KeyType>::insertLeftVarchar(int colIdx, std::vector<Vect
         }
     } else {
         int rowIdx = 0;
-        for (auto element : *leftElements) {
-            int batchId = VectorBatchUtil::getBatchId(element);
-            int rowId = VectorBatchUtil::getRowId(element);
+        int num = (*leftElements).size();
+        uint32_t* batchIDdst = new uint32_t[num];
+        uint32_t* rowIDdst = new uint32_t[num];
+
+        int processNum = svcntw();
+        int half = svcntd();
+        for (int i = 0; i < num; i+=processNum) {
+            svbool_t pg = svwhilelt_b64(i, num);
+            svbool_t pg2 = svwhilelt_b64(i + half, num);
+            svbool_t pg3 = svwhilelt_b32(i, num);
+            svuint64_t comboID = svld1(pg, (*leftElements).data() + i);
+            svuint64_t comboID2 = svld1(pg2, (*leftElements).data() + i + half);
+
+            svuint32_t rowID = svuzp1(svreinterpret_u32(comboID), svreinterpret_u32(comboID2));
+            svuint32_t batchID = svuzp2(svreinterpret_u32(comboID), svreinterpret_u32(comboID2));
+
+            svst1_u32(pg3, rowIDdst + i, rowID);
+            svst1_u32(pg3, batchIDdst + i, batchID);
+        }
+        for (int j = 0; j < num; j++) {
+            int batchId = batchIDdst[j];
+            int rowId = rowIDdst[j];
             auto value = reinterpret_cast<varcharVecType *>(
                 leftWindowState->getVectorBatch(batchId)->Get(colIdx))->GetValue(rowId);
             for (size_t i = 0; i < rightElements->size(); i++) {
@@ -560,6 +599,8 @@ void WindowJoinOperator<KeyType>::insertLeftVarchar(int colIdx, std::vector<Vect
             }
             rowIdx += rightElements->size();
         }
+        delete batchIDdst;
+        delete rowIDdst;
     }
 }
 
@@ -568,12 +609,28 @@ template <typename TYPE>
 inline void WindowJoinOperator<KeyType>::insertRight(int colIdx, std::vector<VectorBatchId> *leftElements,
     std::vector<VectorBatchId> *rightElements, omnistream::VectorBatch *outputBatch, bool isInner)
 {
+    int num = (*rightElements).size();
+    uint32_t* batchIDdst = new uint32_t[num];
+    uint32_t* rowIDdst = new uint32_t[num];
+    int processNum = svcntw();
+    int half = svcntd();
+    for (int i = 0; i < num; i+=processNum) {
+        svbool_t pg = svwhilelt_b64(i, num);
+        svbool_t pg2 = svwhilelt_b64(i + half, num);
+        svbool_t pg3 = svwhilelt_b32(i, num);
+        svuint64_t comboID = svld1(pg, (*rightElements).data() + i);
+        svuint64_t comboID2 = svld1(pg2, (*rightElements).data() + i + half);
+        svuint32_t rowID = svuzp1(svreinterpret_u32(comboID), svreinterpret_u32(comboID2));
+        svuint32_t batchID = svuzp2(svreinterpret_u32(comboID), svreinterpret_u32(comboID2));
+        svst1_u32(pg3, rowIDdst + i, rowID);
+        svst1_u32(pg3, batchIDdst + i, batchID);
+    }
     auto col = reinterpret_cast<omniruntime::vec::Vector<TYPE> *>(outputBatch->Get(colIdx));
     if (isNonEquiCondition || !isInner) {
         int rowIdx = 0;
-        for (auto element : *rightElements) {
-            int batchId = VectorBatchUtil::getBatchId(element);
-            int rowId = VectorBatchUtil::getRowId(element);
+        for (int i = 0; i < num; i++) {
+            int batchId = batchIDdst[i];
+            int rowId = rowIDdst[i];
             col->SetValue(rowIdx,
                 rightWindowState->getVectorBatch(batchId)->template GetValueAt<TYPE>(
                     colIdx - leftTypes.size(), rowId));
@@ -582,8 +639,8 @@ inline void WindowJoinOperator<KeyType>::insertRight(int colIdx, std::vector<Vec
     } else {
         for (size_t i = 0; i < rightElements->size(); i++) {
             auto element = rightElements->at(i);
-            int batchId = VectorBatchUtil::getBatchId(element);
-            int rowId = VectorBatchUtil::getRowId(element);
+            int batchId = batchIDdst[i];
+            int rowId = rowIDdst[i];
             auto value = rightWindowState->getVectorBatch(batchId)->template GetValueAt<TYPE>(
                 colIdx - leftTypes.size(), rowId);
             for (size_t j = 0; j < leftElements->size(); j++) {
@@ -592,6 +649,8 @@ inline void WindowJoinOperator<KeyType>::insertRight(int colIdx, std::vector<Vec
             }
         }
     }
+    delete[] batchIDdst;
+    delete[] rowIDdst;
 }
 
 template <typename KeyType>
@@ -611,10 +670,26 @@ void WindowJoinOperator<KeyType>::insertRightVarchar(int colIdx, std::vector<Vec
             rowIdx++;
         }
     } else {
+        int num = (*rightElements).size();
+        uint32_t* batchIDdst = new uint32_t[num];
+        uint32_t* rowIDdst = new uint32_t[num];
+        int processNum = svcntw();
+        int half = svcntd();
+        for (int i = 0; i < num; i+=processNum) {
+            svbool_t pg = svwhilelt_b64(i, num);
+            svbool_t pg2 = svwhilelt_b64(i + half, num);
+            svbool_t pg3 = svwhilelt_b32(i, num);
+            svuint64_t comboID = svld1(pg, (*rightElements).data() + i);
+            svuint64_t comboID2 = svld1(pg2, (*rightElements).data() + i + half);
+            svuint32_t rowID = svuzp1(svreinterpret_u32(comboID), svreinterpret_u32(comboID2));
+            svuint32_t batchID = svuzp2(svreinterpret_u32(comboID), svreinterpret_u32(comboID2));
+            svst1_u32(pg3, rowIDdst + i, rowID);
+            svst1_u32(pg3, batchIDdst + i, batchID);
+        }
         for (size_t i = 0; i < rightElements->size(); i++) {
             auto element = rightElements->at(i);
-            int batchId = VectorBatchUtil::getBatchId(element);
-            int rowId = VectorBatchUtil::getRowId(element);
+            int batchId = batchIDdst[i];
+            int rowId = rowIDdst[i];
             auto value = reinterpret_cast<varcharVecType *>(
                 rightWindowState->getVectorBatch(batchId)->Get(colIdx - leftTypes.size()))->GetValue(rowId);
             for (size_t j = 0; j < leftElements->size(); j++) {
@@ -622,6 +697,8 @@ void WindowJoinOperator<KeyType>::insertRightVarchar(int colIdx, std::vector<Vec
                 col->SetValue(valIdx, value);
             }
         }
+        delete[] batchIDdst;
+        delete[] rowIDdst;
     }
 }
 template <typename KeyType>

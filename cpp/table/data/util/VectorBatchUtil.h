@@ -13,6 +13,7 @@
 
 #include "table/data/vectorbatch/VectorBatch.h"
 #include "OmniOperatorJIT/core/src/vector/unsafe_vector.h"
+#include <arm_sve.h>
 
 class VectorBatchUtil {
 public:
@@ -33,6 +34,36 @@ public:
         uint32_t urowId = static_cast<uint32_t>(rowId);
         ubatchId =  (ubatchId << 32) | urowId;
         return static_cast<int64_t>(ubatchId);
+    }
+
+    static void deComboIDSVE(uint64_t* src, uint32_t* batchIDdst, uint32_t* rowIDdst, int num)
+    {
+        int processNum = svcntw();
+        int half = svcntd();
+        for (int i = 0; i < num; i+=processNum) {
+            svbool_t pg = svwhilelt_b64(i, num);
+            svbool_t pg2 = svwhilelt_b64(i + half, num);
+            svbool_t pg3 = svwhilelt_b32(i, num);
+            svuint64_t comboID = svld1(pg, src + i);
+            svuint64_t comboID2 = svld1(pg2, src + i + half);
+
+            svuint32_t rowID = svuzp1(svreinterpret_u32(comboID), svreinterpret_u32(comboID2));
+            svuint32_t batchID = svuzp2(svreinterpret_u32(comboID), svreinterpret_u32(comboID2));
+
+            svst1_u32(pg3, rowIDdst + i, rowID);
+            svst1_u32(pg3, batchIDdst + i, batchID);
+        }
+    }
+
+    static void getComboId_sve(int batchId, int rowCount, int64_t* result) {
+        int processNum = svcntd();
+        svint64_t batchData = svlsl_n_s64_x(svptrue_b64(), svdup_n_s64(batchId), 32);
+        for (int i = 0; i < rowCount; i+= processNum) {
+            svbool_t pg = svwhilelt_b64(i, rowCount);
+            svint64_t rowData = svindex_s64(i, 1);
+            svint64_t comboIDs = svorr_z(pg, batchData, rowData);
+            svst1_s64(pg, result + i, comboIDs);
+        }
     }
 
     // To print VectorBatch, use VectorHelper::PrintVecBatch from OmniOperatorJIT/core/src/vector/vector_helper.h

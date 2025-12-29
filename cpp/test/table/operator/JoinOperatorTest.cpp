@@ -1074,11 +1074,18 @@ TEST(OuterJoinTest, DISABLED_RightJoin)
     for (int i = 0; i < 8; i++) {
         EXPECT_EQ(expectedVB->getRowKind(i), outputVB->getRowKind(i));
     }
-
-    delete vectorBatchLeft;
-    delete vectorBatchRight;
-    delete outputVB;
-    delete expectedVB;
+    if (vectorBatchLeft) {
+        delete vectorBatchLeft;
+    }
+    if (vectorBatchRight) {
+        delete vectorBatchRight;
+    }
+    if (outputVB) {
+        delete outputVB;
+    }
+    if (expectedVB) {
+        delete expectedVB;
+    }
 }
 
 TEST(OuterJoinTest, LeftJoinAdvance)
@@ -1263,11 +1270,18 @@ TEST(OuterJoinTest, LeftJoinAdvance)
         std::cout << to_string(outputVB->getRowKind(i)) << std::endl;
     }
     omniruntime::vec::VectorHelper::PrintVecBatch(outputVB);
-
-    delete vectorBatchLeft;
-    delete vectorBatchRight;
-    delete outputVB;
-    delete expectedVB;
+    if (vectorBatchLeft) {
+        delete vectorBatchLeft;
+    }
+    if (vectorBatchRight) {
+        delete vectorBatchRight;
+    }
+    if (outputVB) {
+        delete outputVB;
+    }
+    if (expectedVB) {
+        delete expectedVB;
+    }
 }
 
 TEST(OuterJoinTest, DISABLED_RightJoinAdvance)
