@@ -88,7 +88,6 @@ namespace datastream {
                 toNotify = availabilityHelper_->getUnavailableToResetAvailable();
             }
         }
-        mayNotifyAvailable(toNotify);
     }
 
     bool LocalMemoryBufferPool::isDestroyed()
