@@ -49,7 +49,6 @@ namespace omnistream {
 
         virtual void returnSegment(std::shared_ptr<Segment> segment) = 0;
 
-        void mayNotifyAvailable(std::shared_ptr<CompletableFuture> toNotify);
         // virtual std::shared_ptr<ObjectBuffer> toObjectBuffer(std::shared_ptr<ObjectSegment> segment) = 0;
         // virtual std::shared_ptr<ObjectBufferBuilder> toObjectBufferBuilder(std::shared_ptr<ObjectSegment> segment, int targetChannel) = 0;
 

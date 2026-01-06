@@ -98,7 +98,6 @@ namespace omnistream {
                 toNotify = availabilityHelper_->getUnavailableToResetAvailable();
             }
         }
-        mayNotifyAvailable(toNotify);
     }
 
     bool LocalObjectBufferPool::isDestroyed()
@@ -365,8 +364,6 @@ namespace omnistream {
             }
         }
 
-        mayNotifyAvailable(toNotify);
-
         networkObjBufferPool_->destroyBufferPool(shared_from_this());
     }
 
@@ -387,12 +384,6 @@ namespace omnistream {
             ", maxBuffersPerChannel: " + std::to_string(maxBuffersPerChannel_) +
             ", destroyed: " + (isDestroyed_ ? "true" : "false") + "]";
     }
-
-    // void LocalObjectBufferPool::mayNotifyAvailable(std::shared_ptr<CompletableFuture> toNotify)
-    // {
-    //     {
-    //     }
-    // }
 
     void LocalObjectBufferPool::returnSegment(std::shared_ptr<Segment> segment)
     {
