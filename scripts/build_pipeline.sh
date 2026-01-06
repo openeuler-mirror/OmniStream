@@ -28,7 +28,7 @@ echo "CPP root: $cpp_root"
 echo "Java master directory: $java_master_dir"
 echo "Dependencies source tarball directory: $dependency_root"
 
-num_cpus=$(nproc)
+num_cpus=$(($(nproc)/2))
 echo "Number of CPUs: $num_cpus"
 
 
