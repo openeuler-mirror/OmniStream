@@ -18,6 +18,7 @@
 #include "table/data/util/RowDataUtil.h"
 #include "table/data/vectorbatch/VectorBatch.h"
 #include "OmniOperatorJIT/core/src/vector/large_string_container.h"
+#include <arm_sve.h>
 
 template <typename K>
 class StreamingJoinOperator : public AbstractStreamingJoinOperator<K> {
@@ -183,6 +184,11 @@ private:
 
     void AssembleSecondTime(omnistream::VectorBatch* input, omnistream::VectorBatch* outputVB,
                                                 JoinRecordStateView<K> *otherSideStateView, bool inputIsLeft);
+
+    void setRowKind_sve(svbool_t pg, uint8_t* dst, int8_t* condition);
+
+    void setTimestamp_raw(int start, int size, const int64_t* src, int64_t* dst, int rowIndex);
+
     void DealOneBatchInColumnVarchar(long id, int32_t icol, int& rowIndex, JoinRecordStateView<K> *otherSideStateView,
         omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>*& outputCol);
     template <typename T, typename S>

@@ -18,6 +18,7 @@
 #include "table/data/vectorbatch/VectorBatch.h"
 #include "vector/vector_helper.h"
 #include "table/data/Row.h"
+#include <arm_sve.h>
 
 namespace omnistream {
 template<typename T>
@@ -80,7 +81,6 @@ public:
         }
 
         delete vectorBatch;
-        delete streamRecord;
 
         return result;
     }
@@ -90,6 +90,35 @@ public:
     virtual bool isPointwise() = 0;
     [[nodiscard]] virtual std::string toString() const = 0;
     virtual std::unique_ptr<SubtaskStateMapper> getUpstreamSubtaskStateMapper() = 0;
+
+    void setRowKind_sve(int i, int size, uint8_t* src, int32_t* offsets, uint8_t* dst) {
+        auto pg = svwhilelt_b32(i, size);
+        svint32_t offsetRaw = svld1_s32(pg, offsets);
+        svuint32_t rawData = svld1ub_gather_offset_u32(pg, src, offsetRaw);
+
+        svuint8_t u8_vec = svreinterpret_u8_u32(rawData);
+        svuint8_t indices = svindex_u8(0, sizeof(uint32_t));
+        svuint8_t packed = svtbl(u8_vec, indices);
+
+        auto pg2 = svwhilelt_b8(i, size);
+        svst1_u8(pg2, dst, packed);
+    }
+
+    void setTimestamp_sve(int i, int size, int64_t* src, int32_t* offsets, int64_t* dst) {
+        auto pg = svwhilelt_b32(i, size);
+        svint32_t offsetRaw = svld1_s32(pg, offsets);
+        svint64_t offset1 = svunpklo(offsetRaw);
+        svint64_t offset2 = svunpkhi(offsetRaw);
+
+        auto pg2 = svwhilelt_b64(i, size);
+        svint64_t rawData = svld1_gather_index(pg2, src, offset1);
+        svst1_s64(pg2, dst, rawData);
+
+        int jump = svcntd();
+        auto pg3 = svwhilelt_b64(i + jump, size);
+        svint64_t rawData2 = svld1_gather_index(pg3, src, offset2);
+        svst1_s64(pg3, dst + jump, rawData2);
+    }
 
     StreamRecord* buildNewStreamRecordBasedOnOffsets(std::vector<int>& offsets, StreamRecord* originStreamRecord,
          long timestamp)
@@ -110,10 +139,12 @@ public:
                     offsets.data(), 0, offsets.size()));
             }
         }
-        for (size_t i = 0; i < offsets.size(); i++) {
+        int processElement = svcntw();
+        int size = offsets.size();
+        for (size_t i = 0; i < offsets.size(); i += processElement) {
             int position = offsets[i];
-            copyedVectorBatch->setRowKind(i, vectorBatch->getRowKind(position));
-            copyedVectorBatch->setTimestamp(i, vectorBatch->getTimestamp(position));
+            setRowKind_sve(i, size, reinterpret_cast<uint8_t*>(vectorBatch->getRowKinds()), offsets.data() + i, reinterpret_cast<uint8_t*>(copyedVectorBatch->getRowKinds()) + i);
+            setTimestamp_sve(i, size, vectorBatch->getTimestamps(), offsets.data() + i, copyedVectorBatch->getTimestamps() + i);
         }
         return new StreamRecord(copyedVectorBatch, timestamp);
 }

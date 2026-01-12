@@ -214,10 +214,26 @@ omniruntime::vec::BaseVector *StreamingJoinOperator<K>::buildOtherSideColumn(omn
         }
     }
 
+    int num = this->deleteRecords.size();
+    uint32_t* batchIDdst = new uint32_t[num];
+    uint32_t* rowIDdst = new uint32_t[num];
+    int processNum = svcntw();
+    int half = svcntd();
+    for (int i = 0; i < num; i+=processNum) {
+        svbool_t pg = svwhilelt_b64(i, num);
+        svbool_t pg2 = svwhilelt_b64(i + half, num);
+        svbool_t pg3 = svwhilelt_b32(i, num);
+        svuint64_t comboID = svld1(pg, reinterpret_cast<uint64_t*>(this->deleteRecords.data()) + i);
+        svuint64_t comboID2 = svld1(pg2, reinterpret_cast<uint64_t*>(this->deleteRecords.data()) + i + half);
+        svuint32_t rowID = svuzp1(svreinterpret_u32(comboID), svreinterpret_u32(comboID2));
+        svuint32_t batchID = svuzp2(svreinterpret_u32(comboID), svreinterpret_u32(comboID2));
+        svst1_u32(pg3, rowIDdst + i, rowID);
+        svst1_u32(pg3, batchIDdst + i, batchID);
+    }
     // Loop wont run for inner join as deletedRecords can have elements only if other is Outer
-    for (auto id : this->deleteRecords) {
-        auto batchId = VectorBatchUtil::getBatchId(id);
-        auto rowId = VectorBatchUtil::getRowId(id);
+    for (int i = 0; i < num; i++) {
+        auto batchId = batchIDdst[i];
+        auto rowId = rowIDdst[i];
         if (curbatchId != batchId) {
             if (otherSideStateView->getVectorBatch(batchId) == nullptr) {
                 throw std::runtime_error("get batch is nullptr in buildOtherSideColumn");
@@ -229,7 +245,8 @@ omniruntime::vec::BaseVector *StreamingJoinOperator<K>::buildOtherSideColumn(omn
         auto val = inputCol->GetValue(rowId);
         outputCol->SetValue(rowIndex++, val);
     }
-
+    delete[] batchIDdst;
+    delete[] rowIDdst;
     return outputCol;
 }
 
@@ -274,17 +291,33 @@ omniruntime::vec::BaseVector *StreamingJoinOperator<K>::buildOtherSideColumnVarc
             outputCol->SetNull(rowIndex++);
         }
     }
+    int num = this->deleteRecords.size();
+    uint32_t* batchIDdst = new uint32_t[num];
+    uint32_t* rowIDdst = new uint32_t[num];
+    int processNum = svcntw();
+    int half = svcntd();
+    for (int i = 0; i < num; i+=processNum) {
+        svbool_t pg = svwhilelt_b64(i, num);
+        svbool_t pg2 = svwhilelt_b64(i + half, num);
+        svbool_t pg3 = svwhilelt_b32(i, num);
+        svuint64_t comboID = svld1(pg, reinterpret_cast<uint64_t*>(this->deleteRecords.data()) + i);
+        svuint64_t comboID2 = svld1(pg2, reinterpret_cast<uint64_t*>(this->deleteRecords.data()) + i + half);
 
+        svuint32_t rowID = svuzp1(svreinterpret_u32(comboID), svreinterpret_u32(comboID2));
+        svuint32_t batchID = svuzp2(svreinterpret_u32(comboID), svreinterpret_u32(comboID2));
+
+        svst1_u32(pg3, rowIDdst + i, rowID);
+        svst1_u32(pg3, batchIDdst + i, batchID);
+    }
     // Loop wont run for inner join as deletedRecords can have elements only if other is Outer
-    for (auto id : this->deleteRecords) {
-        auto batchId = VectorBatchUtil::getBatchId(id);
-        auto rowId = VectorBatchUtil::getRowId(id);
-        auto vectorBatch = otherSideStateView->getVectorBatch(batchId);
-        if (vectorBatch == nullptr) {
+    for (int i = 0; i < num; i++) {
+        auto batchId = batchIDdst[i];
+        auto rowId = rowIDdst[i];
+        auto inputCol = otherSideStateView->getVectorBatch(batchId)->Get(icol);
+        if (otherSideStateView->getVectorBatch(batchId) == nullptr) {
             LOG("string from vectorBatch is nullptr")
             throw std::runtime_error("string from vectorBatch is nullptr");
         }
-        auto inputCol = vectorBatch->Get(icol);
         if (inputCol->GetEncoding() == OMNI_FLAT) {
             auto castedCol = reinterpret_cast<FlatTypeS*>(inputCol);
             auto sv = castedCol->GetValue(rowId);
@@ -295,7 +328,8 @@ omniruntime::vec::BaseVector *StreamingJoinOperator<K>::buildOtherSideColumnVarc
             outputCol->SetValue(rowIndex++, sv);
         }
     }
-
+    delete[] batchIDdst;
+    delete[] rowIDdst;
     return outputCol;
 }
 
@@ -446,6 +480,25 @@ RowKind StreamingJoinOperator<K>::getOutputVBRowKind(omnistream::VectorBatch *in
 }
 
 template<typename K>
+void StreamingJoinOperator<K>::setRowKind_sve(svbool_t pg, uint8_t* dst, int8_t* condition) {
+    uint8_t deleteVal = static_cast<uint8_t>(RowKind::DELETE);
+	uint8_t insertVal = static_cast<uint8_t>(RowKind::INSERT);
+    svint8_t condData = svld1_s8(pg, condition);
+    svbool_t isDelete = svcmpeq_n_s8(pg, condData, 0);
+    svuint8_t data = svdup_n_u8(deleteVal);
+	data = svsel_u8(isDelete, data, svdup_n_u8(insertVal));
+    svst1_u8(pg, dst, data);
+}
+
+template<typename K>
+void StreamingJoinOperator<K>::setTimestamp_raw(int start, int size, const int64_t* src, int64_t* dst, int rowIndex) {
+    int processElement = svcntb();
+    for (int i = 0; i < processElement && start + i < size; i++) {
+        dst[i + rowIndex] = src[i + start];
+    }
+}
+
+template<typename K>
 void StreamingJoinOperator<K>::setOutPutMetaData(omnistream::VectorBatch *input, bool inputIsOuter, bool otherIsOuter,
                                                  omnistream::VectorBatch *outputVB)
 {
@@ -465,13 +518,14 @@ void StreamingJoinOperator<K>::setOutPutMetaData(omnistream::VectorBatch *input,
             outputVB->setTimestamp(rowIndex++, input->getTimestamp(i));
         }
     }
-
-    for (size_t i = 0; i < this->deleteRecords.size(); i++) {
-        if (this->deleteKinds[i] == 0) { // For accumulate when numAssociates is 0
-            outputVB->setRowKind(rowIndex, RowKind::DELETE);
-        } else { // For retract when numAssociates is 1
-            outputVB->setRowKind(rowIndex, RowKind::INSERT);
-        }
-        outputVB->setTimestamp(rowIndex++, input->getTimestamp(i));
+	int size = this->deleteRecords.size();
+	int vlenB = svcntb();
+    for (int i = 0; i < size; i += vlenB) {
+		svbool_t pg8 = svwhilelt_b8_s32(i, size);
+		int actualCount = svcntp_b8(pg8, pg8);
+		setRowKind_sve(pg8, reinterpret_cast<uint8_t*>(outputVB->getRowKinds()) + rowIndex,
+					   this->deleteKinds.data() + i);
+		setTimestamp_raw(i, size, input->getTimestamps(), outputVB->getTimestamps(), rowIndex);
+		rowIndex += actualCount;
     }
 }
