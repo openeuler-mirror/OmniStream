@@ -122,6 +122,11 @@ void GroupAggFunction::open(const Configuration& parameters)
 
     // This kind of specific template type should all be solved by an if-else based on stateDescription
     accState = static_cast<StreamingRuntimeContext<RowData*> *>(getRuntimeContext())->getState<RowData*>(accDesc);
+
+    if (dynamic_cast<RocksdbValueState<RowData*, VoidNamespace, RowData*> *>(accState)) {
+        this->backend=2;
+    }
+
     int accStartingIndex = 0;
     int aggValueIndex = 0;
     InitAggFunctions(accStartingIndex, aggValueIndex);
@@ -345,8 +350,7 @@ void GroupAggFunction::processBatch(omnistream::VectorBatch *input, KeyedProcess
     for (auto& pair : keyToRowIndices) {
         bool isEqual = true;
         RowData* currentKey = pair.first;
-        RowData* copyKey = currentKey->copy();
-        ctx.setCurrentKey(copyKey);
+        ctx.setCurrentKey(currentKey);
         std::vector<RowInfo>& groupInfo = pair.second;
         RowData* accumulators = accState->value();
         bool firstRow = accumulators == nullptr;
@@ -359,12 +363,25 @@ void GroupAggFunction::processBatch(omnistream::VectorBatch *input, KeyedProcess
         }
         for (auto& func : functions) {
             func->setAccumulators(accumulators);
+            func->setCurrentGroupKey(currentKey);
+            func->setBackend(backend);
         }
         processBatchColumnar(input, groupInfo, accumulators);
         LOG("functions loop aggregateCallsCount end")
         AssembleResultForBatch(accumulators, isEqual, firstRow, currentKey, resultKeys, resultValues, resultRowKinds);
-        delete copyKey;
     }
+
+    if (backend == 2) {
+        UpdateAccumulatorsInRocksDB(pendingUpdates);
+        for (auto& pair :  pendingUpdates) {
+            delete pair.second;
+        }
+        pendingUpdates.clear();
+        for (auto& func : functions) {
+            func->updateInnerState();
+        }
+    }
+
     ClearEnv(input, resultKeys, resultValues, resultRowKinds, out, keyToRowIndices);
     LOG("GroupAggFunction processBatch end")
 }
@@ -521,7 +538,7 @@ bool GroupAggFunction::FirstRowAccumulate(std::vector<RowInfo>& groupInfo, RowDa
         func->createAccumulators(dynamic_cast<BinaryRowData *>(accumulators));
     }
     // Flink don't do update here, it updates it in if (!recordCounter->recordCountIsZero(accumulators)){}
-    static_cast<HeapValueState<RowData*, VoidNamespace, RowData*> *>(accState)->update(accumulators);
+    // static_cast<HeapValueState<RowData*, VoidNamespace, RowData*> *>(accState)->update(accumulators);
     return true;
 }
 
@@ -552,7 +569,11 @@ void GroupAggFunction::AssembleResultForBatch(RowData* accumulators, bool isEqua
                                               std::vector<RowKind>& resultRowKinds)
 {
     if (!recordCounter->recordCountIsZero(accumulators)) {
-        static_cast<HeapValueState<RowData*, VoidNamespace, RowData*> *>(accState)->update(accumulators);
+        if (backend == 2) {
+            pendingUpdates.emplace(currentKey, accumulators);
+        }else {
+            accState->update(accumulators);
+        }
         // Flink update accumulators in state here. But since we directly take the RowData* and updates in getAccumulator, the value in statebackend is already updated!
         if (!firstRow) {
             if (EndAssemble(isEqual)) {
@@ -637,4 +658,9 @@ bool GroupAggFunction::EndAssemble(bool isEqual)
         return true;
     }
     return false;
+}
+
+void GroupAggFunction::UpdateAccumulatorsInRocksDB(std::unordered_map<RowData*, RowData*>& pendingUpdates)
+{
+    accState->updateByBatch(pendingUpdates);
 }

@@ -21,6 +21,7 @@ public:
     ~ValueState() override = default;
     virtual T value() = 0;
     virtual void update(const T &value, bool copyKey = false) = 0;
+    virtual void updateByBatch(std::unordered_map<RowData*, T>& pendingUpdates) {};
 };
 
 using DataStreamValueState = ValueState<Object*>;

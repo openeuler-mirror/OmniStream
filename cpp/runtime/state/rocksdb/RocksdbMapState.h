@@ -53,6 +53,7 @@ public:
     void put(const UK &userKey, const UV &userValue) override;
     void putByBatch(const K &key,const std::unordered_map<UK,UV> &dataToAdd);
     void putByBatch(std::unordered_map<K,std::unordered_map<UK,UV>> &dataToAdd);
+    void putByBatch(std::vector<std::shared_ptr<std::tuple<K,UK,std::shared_ptr<std::string>>>> &dataToAdd);
 
     void remove(const UK &userKey) override;
     void removeByBatch(std::unordered_map<K,std::unordered_set<UK>> &dataToRemove);
@@ -86,6 +87,7 @@ public:
 
     void createTable(ROCKSDB_NAMESPACE::DB* db, std::string cfName,
                      std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>> *kvStateInformation);
+    std::shared_ptr<std::string> getRawBytes(UK& uk);
 
 private:
     RocksdbMapStateTable<K, N, UK, UV> *stateTable;
@@ -150,6 +152,12 @@ Object* RocksdbMapState<K, N, UK, UV>::Get(Object* userKey)
     }
 }
 
+template<typename K, typename N, typename UK, typename UV>
+std::shared_ptr<std::string> RocksdbMapState<K, N, UK, UV>::getRawBytes(UK& uk)
+{
+    return stateTable->getRawBytes(currentNamespace,uk);
+}
+
 
 template<typename K, typename N, typename UK, typename UV>
 void RocksdbMapState<K, N, UK, UV>::GetByBatch(std::unordered_map<K,std::unordered_set<XXH128_hash_t>> &dataToGet,std::unordered_map<std::pair<K,XXH128_hash_t>,UV> &result)
@@ -188,6 +196,12 @@ void RocksdbMapState<K, N, UK, UV>::putByBatch(const K &key,const std::unordered
 
 template<typename K, typename N, typename UK, typename UV>
 void RocksdbMapState<K, N, UK, UV>::putByBatch(std::unordered_map<K,std::unordered_map<UK,UV>> &dataToAdd)
+{
+    stateTable->putByBatch(dataToAdd);
+}
+
+template<typename K, typename N, typename UK, typename UV>
+void RocksdbMapState<K, N, UK, UV>::putByBatch(std::vector<std::shared_ptr<std::tuple<K,UK,std::shared_ptr<std::string>>>> &dataToAdd)
 {
     stateTable->putByBatch(dataToAdd);
 }

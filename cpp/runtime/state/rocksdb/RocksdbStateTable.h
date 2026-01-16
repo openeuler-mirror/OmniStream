@@ -169,6 +169,45 @@ public:
         }
     }
 
+    void putByBatch(N &nameSpace, std::unordered_map<K, S>& pendingUpdates)
+    {
+        // 存入
+        ROCKSDB_NAMESPACE::WriteBatch putBatch;
+        for (auto& entry : pendingUpdates) {
+            RowData* key = entry.first;
+            S state = entry.second;
+
+            keyContext->setCurrentKey(key);
+            LOG("RocksDB put");
+            DataOutputSerializer outputSerializer;
+            OutputBufferStatus outputBufferStatus;
+            outputSerializer.setBackendBuffer(&outputBufferStatus);
+            ROCKSDB_NAMESPACE::Slice sliceKey = GetKeyNameSpaceSlice(outputSerializer, nameSpace);
+
+            // value序列化
+            TypeSerializer *vSerializer = getStateSerializer();
+            DataOutputSerializer valueOutputSerializer;
+            OutputBufferStatus valueOutputBufferStatus;
+            valueOutputSerializer.setBackendBuffer(&valueOutputBufferStatus);
+
+            S tmpS = state;
+
+            if constexpr (std::is_pointer_v<S>) {
+                vSerializer->serialize(tmpS, valueOutputSerializer);
+            } else {
+                vSerializer->serialize(&tmpS, valueOutputSerializer);
+            }
+
+            ROCKSDB_NAMESPACE::Slice sliceValue(reinterpret_cast<const char *>(valueOutputSerializer.getData()),
+                                                valueOutputSerializer.length());
+            putBatch.Put(table,sliceKey,sliceValue);
+        }
+        auto s3 = rocksDb->Write(writeOptions, &putBatch);
+
+        if (s3.ok()) {
+        }
+    };
+
     void put(N &nameSpace, const S &state)
     {
         // 存入

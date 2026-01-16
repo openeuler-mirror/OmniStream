@@ -10,10 +10,16 @@
  */
 #ifndef FLINK_TNEL_STATEMAPVIEW_H
 #define FLINK_TNEL_STATEMAPVIEW_H
+
+#include <nlohmann/json.hpp>
 #include "MapView.h"
 #include "StateDataView.h"
 #include "core/api/common/state/ValueState.h"
 #include "core/api/common/state/MapState.h"
+#include "../runtime/state/rocksdb/RocksdbMapState.h"
+using json = nlohmann::json;
+
+
 
 template <typename N, typename EK, typename EV>
 class StateMapView : public MapView<EK, EV>, public StateDataView<N> {
@@ -36,6 +42,39 @@ public:
     void put(const std::optional<EK>& key, const EV& value) override { key == std::nullopt ? getNullState()->update(value) : getMapState()->put(*key, value); };
     void remove(const std::optional<EK>& key) { key == std::nullopt ? getNullState()->clear() : getMapState()->remove(*key); };
     void contains(const std::optional<EK>& key) { return key == std::nullopt ? getNullState()->value() != nullptr : getMapState()->contains(*key); };
+    emhash7::HashMap<EK, EV> *entries()
+    {
+        return getMapState()->entries();
+    };
+    void putByBatch(std::vector<std::shared_ptr<std::tuple<RowData*,EK,std::shared_ptr<std::string>>>> & batchData)
+    {
+        auto rocksDBMap = dynamic_cast<RocksdbMapState<RowData*,N,EK,EV> *>(getMapState());
+        if (rocksDBMap) {
+            rocksDBMap->putByBatch(batchData);
+        }
+    }
+
+    std::shared_ptr<json> getInnerMap(EK& ek)
+    {
+        auto rocksDBMap = dynamic_cast<RocksdbMapState<RowData*,N,EK,EV> *>(getMapState());
+        if (rocksDBMap) {
+            std::shared_ptr<std::string> rawString= rocksDBMap->getRawBytes(ek);
+            try {
+                if (rawString == nullptr || rawString->empty()) {
+                    return nullptr;
+                }
+                return std::make_shared<json>(json::parse(*rawString));
+            } catch (const json::parse_error& e) {
+               LOG("parse json error............");
+            }
+        }
+        return nullptr;
+    }
+
+    void cleanup()
+    {
+        getMapState()->clearEntriesCache();
+    }
 protected:
     virtual ValueState<EV> *getNullState() = 0;
     virtual MapState<EK, EV> *getMapState() = 0;

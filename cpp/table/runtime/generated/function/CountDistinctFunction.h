@@ -25,6 +25,7 @@ public:
     {
         hasFilter = filterIndex != -1;
         typeId = LogicalType::flinkTypeToOmniTypeId(inputType);
+        stateKey = (aggIdx << 16) | (filterIndex == -1 ? 0 : filterIndex);
     }
 
     void setWindowSize(int windowSize) override {};
@@ -42,6 +43,10 @@ public:
     void getValue(BinaryRowData *aggValue) override;
     void cleanup() override {};
     void close() override {};
+    void setCurrentGroupKey(RowData* key) override;
+    void accumulateInRocksDB(omnistream::VectorBatch *input, const std::vector<int> &indices);
+    void updateInnerState();
+
 
 private:
     long aggCount;
@@ -55,6 +60,11 @@ private:
     omniruntime::type::DataTypeId typeId;
     StateDataViewStore *store;
     KeyedStateMapViewWithKeysNullable<VoidNamespace, long, long> *distinctMapView;
+    RowData * currentGroupKey;
+    // std::unordered_map<RowData*,std::unordered_map<long,long>> groupKeyToDistinctSetMap;
+    // std::unordered_map<RowData*,std::shared_ptr<std::string>> groupKeyToDistinctSetMap;
+    std::vector<std::shared_ptr<std::tuple<RowData*,long,std::shared_ptr<std::string>>>> keyAndValuesTuples;
+    long stateKey;
 };
 
 
