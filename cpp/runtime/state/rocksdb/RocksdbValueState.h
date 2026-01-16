@@ -77,6 +77,7 @@ public:
     void addVectorBatch(omnistream::VectorBatch *vectorBatch) override;
     omnistream::VectorBatch *getVectorBatch(int batchId) override;
     long getVectorBatchesSize() override;
+    void updateByBatch(std::unordered_map<K, V>& pendingUpdates);
 
 private:
     RocksdbStateTable<K, N, V> *stateTable;
@@ -183,5 +184,12 @@ void RocksdbValueState<K, N, V>::clear()
 {
     stateTable->clear(currentNamespace);
 }
+
+template<typename K, typename N, typename V>
+void RocksdbValueState<K, N, V>::updateByBatch(std::unordered_map<K, V>& pendingUpdates)
+{
+    stateTable->putByBatch(currentNamespace,pendingUpdates);
+}
+
 
 #endif // OMNISTREAM_ROCKSDBVALUESTATE_H

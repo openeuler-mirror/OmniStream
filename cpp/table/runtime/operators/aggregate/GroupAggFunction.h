@@ -80,6 +80,7 @@ public:
     void FillRowIndices(omnistream::VectorBatch *input, std::unordered_map<RowData*,
             std::vector<RowInfo>>& keyToRowIndices, int rowCount);
     bool EndAssemble(bool isEqual);
+    void UpdateAccumulatorsInRocksDB(std::unordered_map<RowData*, RowData*>& pendingUpdates);
 
 private:
     std::vector<std::string> accTypes;
@@ -117,6 +118,9 @@ private:
     std::vector<std::string> handleInputTypes();
     std::map<int, int> handleDistinctInfo();
     void deleteRowData(vector<RowData *> &rowVector);
+    int backend=0; //0: memory, 1: bss, 2: rocksdb
+    //rocksdb update container
+    std::unordered_map<RowData*, RowData*> pendingUpdates;
 };
 
 #endif // FLINK_TNEL_GROUP_AGG_FUNCTION_H
