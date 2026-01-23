@@ -349,8 +349,9 @@ std::unique_ptr<SingleCheckpointBarrierHandler> SingleCheckpointBarrierHandler::
     BarrierAlignmentUtil::DelayableTimer<std::function<void()>>* registerTimer, bool enableCheckpointAfterTasksFinished,
     const std::vector<CheckpointableInput*>& inputs)
 {
-    LOG(">>>>>>>>>>>")
-    auto state = new WaitingForFirstBarrier();
+    auto channelState = ChannelState(inputs);
+    auto state = new WaitingForFirstBarrier(std::move(channelState));
+
     // fix state waitingforfirstbarrier is implemented
     return std::make_unique<SingleCheckpointBarrierHandler>(
             taskName, toNotifyOnCheckpoint, nullptr, clock, numOpenChannels,
