@@ -48,7 +48,7 @@ public:
             return FinishCheckpoint();
         }
 
-        // Stay in collcting state.
+        // Stay in collecting state.
         return this;
     }
 
