@@ -48,54 +48,68 @@ TEST(SingleCheckpointBarrierHandlerTest, ProcessBarrier_ValidBarrier_Transitions
     auto mockTask = std::make_unique<NiceMock<MockCheckpointableTask>>();
     auto mockCoordinator = std::make_unique<NiceMock<MockSubtaskCheckpointCoordinator>>();
     Clock& clock = SystemClock::GetInstance();
-    auto mockInput = std::make_unique<TestInput>(0);
 
-    InputChannelInfo channelInfo(0, 0);
+    auto input0 = std::make_unique<TestInput>(0);
+    auto input1 = std::make_unique<TestInput>(1);
+    std::vector<CheckpointableInput*> inputs = {input0.get(), input1.get()};
 
-    std::vector<CheckpointableInput *> inputs = {mockInput.get()};
+    auto* initialState = new AlternatingWaitingForFirstBarrierUnaligned(false, ChannelState(inputs));
 
-    auto state = new AlternatingWaitingForFirstBarrierUnaligned(false, ChannelState(inputs));
+    auto executor = std::make_unique<MailboxExecutorTest>();
+    auto timerService = std::make_unique<SystemProcessingTimeService>();
 
-    auto executor = new MailboxExecutorTest();
-    auto timerService = new SystemProcessingTimeService();
+    auto* delayableTimer = BarrierAlignmentUtil::createRegisterTimerCallback<std::function<void()>>(
+        executor.get(), timerService.get());
+    std::unique_ptr<BarrierAlignmentUtil::DelayableTimer<std::function<void()>>> timerGuard(delayableTimer);
 
-    auto delayableTimer = BarrierAlignmentUtil::createRegisterTimerCallback<std::function<void()>>(
-            executor, timerService);
-    auto cancellable = delayableTimer->RegisterTask([]() {},
-                                                    std::chrono::milliseconds(100));
-
-    EXPECT_NE(cancellable, nullptr);
+    auto* cancellableRaw = delayableTimer->RegisterTask([]() {}, std::chrono::milliseconds(100));
+    std::unique_ptr<BarrierAlignmentUtil::Cancellable> cancellable(cancellableRaw);
+    ASSERT_NE(cancellable, nullptr);
     EXPECT_NO_THROW(cancellable->Cancel());
 
-    SingleCheckpointBarrierHandler *handler = new SingleCheckpointBarrierHandler(
-            "testTask",
-            mockTask.get(),
-            mockCoordinator.get(),
-            clock,
-            1, // numOpenChannels
-            state,
-            false, // alternating
-            delayableTimer,
-            inputs,
-            false // enableCheckpointAfterTasksFinished
-    );
+    std::unique_ptr<SingleCheckpointBarrierHandler> handler(new SingleCheckpointBarrierHandler(
+        "testTask",
+        mockTask.get(),
+        mockCoordinator.get(),
+        clock,
+        2,
+        initialState,
+        false,
+        delayableTimer,
+        inputs,
+        false
+    ));
 
     auto checkpointType = CheckpointType::CHECKPOINT;
     auto targetLocation = CheckpointStorageLocationReference::GetDefault();
-    CheckpointOptions *options = new CheckpointOptions(checkpointType, targetLocation);
-    CheckpointBarrier barrier(1, 123456789, options);
+    CheckpointOptions options(checkpointType, targetLocation);
+    CheckpointBarrier barrier(1, 123456789, &options);
 
-    // ACT
-    handler->ProcessBarrier(barrier, channelInfo, false);
+    InputChannelInfo ch0(0, 0);
+    InputChannelInfo ch1(1, 0);
 
-    // ASSERT
+    handler->ProcessBarrier(barrier, ch0, /*isRpcTriggered=*/false);
+
     EXPECT_EQ(handler->GetLatestCheckpointId(), 1);
+    EXPECT_TRUE(handler->IsCheckpointPending());
+
+    EXPECT_TRUE(input0->blockedChannels_.count(0) > 0);
+    EXPECT_TRUE(input1->blockedChannels_.empty());
+
+    auto* curState1 = handler->GetCurrentState();
+    EXPECT_NE(dynamic_cast<AlternatingCollectingBarriersUnaligned*>(curState1), nullptr);
+
+    handler->ProcessBarrier(barrier, ch1, /*isRpcTriggered=*/false);
+
     EXPECT_FALSE(handler->IsCheckpointPending());
 
-    BarrierHandlerState *next = state->BarrierReceived(handler->GetContext(), channelInfo, &barrier, true);
+    EXPECT_TRUE(input0->resumedChannels_.count(0) > 0);
+    EXPECT_TRUE(input1->resumedChannels_.count(0) > 0);
 
-    auto *asAlignedWaiting = dynamic_cast<AlternatingCollectingBarriersUnaligned *>(next);
-    EXPECT_NE(asAlignedWaiting, nullptr);
+    auto* curState2 = handler->GetCurrentState();
+    EXPECT_NE(dynamic_cast<AlternatingWaitingForFirstBarrierUnaligned*>(curState2), nullptr);
+
+    timerService->shutdownService();
 }
 
 TEST(SingleCheckpointBarrierHandlerTest, AlignmentTimeout_SwitchesToUnaligned) {
