@@ -26,6 +26,7 @@
 #include "table/data/RowData.h"
 
 #include "table/runtime/operators/window/TimeWindow.h"
+#include <set>
 
 using namespace omniruntime::type;
 /*
@@ -177,7 +178,7 @@ uintptr_t HeapKeyedStateBackend<K>::createOrUpdateInternalState(TypeSerializer *
         } else if (keyId == BackendDataType::OBJECT_BK && valueId == BackendDataType::OBJECT_BK) {
             return (uintptr_t) createOrUpdateInternalMapState<VoidNamespace,
                 Object*, Object*>(namespaceSerializer, stateDesc);
-        } else {
+        }else {
             NOT_IMPL_EXCEPTION;
         }
     } else if (stateDesc->getType() == StateDescriptor::Type::VALUE) {
@@ -197,6 +198,8 @@ uintptr_t HeapKeyedStateBackend<K>::createOrUpdateInternalState(TypeSerializer *
             return (uintptr_t) createOrUpdateInternalValueState<VoidNamespace, Object*>(namespaceSerializer, stateDesc);
         } else if (dataId == BackendDataType::POJO_BK) {
             return (uintptr_t) createOrUpdateInternalValueState<VoidNamespace, Object*>(namespaceSerializer, stateDesc);
+        } else if (dataId == BackendDataType::SET_LONG) {
+            return (uintptr_t) createOrUpdateInternalValueState<VoidNamespace,std::set<long>*>(namespaceSerializer, stateDesc);
         } else {
             NOT_IMPL_EXCEPTION;
         }

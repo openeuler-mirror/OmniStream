@@ -30,7 +30,8 @@ enum class BackendDataType {
     LONG_BK,
     ROW_LIST_BK,
     INVALID_BK,
-    POJO_BK
+    POJO_BK,
+    SET_LONG
 };
 
 class TypeSerializer {
