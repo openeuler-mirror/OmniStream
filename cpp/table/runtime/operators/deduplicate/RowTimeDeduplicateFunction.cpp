@@ -40,153 +40,31 @@ void RowTimeDeduplicateFunction::initOutputVector(omnistream::VectorBatch *out, 
     }
 }
 
-unordered_map<RowData *, long> RowTimeDeduplicateFunction::getUpdateState(
-    omnistream::VectorBatch *inputVB, Context &ctx, const int rowCount, int& resultCount)
-{
-    unordered_map<RowData *, long> tmpState;
-    int curBatchId = getCurrentBatchId() - 1;
-    long* comboIDs = new long[rowCount];
-    VectorBatchUtil::getComboId_sve(curBatchId, rowCount, comboIDs);
-    for (int i = 0; i < rowCount; i++) {
-        long comboId = comboIDs[i];
-
-        // 建立key
-        RowData *key = groupByKeySelector->getKey(inputVB, i);
-        ctx.setCurrentKey(key);
-        int64_t preValue = recordStateVB->value();
-        auto itTmp = tmpState.find(key);  // containskey
-        if (preValue == -1 && itTmp == tmpState.end()) {
-            tmpState[key] = comboId;
-        } else if (itTmp == tmpState.end() && isDuplicate(preValue, comboId)) {
-            tmpState[key] = comboId;
-            if (generateUpdateBefore_) {
-                resultCount += 1;
-            }
-        } else if (itTmp != tmpState.end()) {
-            long curComboId = itTmp->second;
-            if (isDuplicate(curComboId, comboId)) {
-                tmpState[key] = comboId;
-            }
-            delete key;
-        }
-    }
-    delete[] comboIDs;
-    return tmpState;
-}
-
-void RowTimeDeduplicateFunction::addToOutVectorBatch(
-    omnistream::VectorBatch *inputVB, omnistream::VectorBatch *outputVB, long comboID, int rowIndex)
-{
-    LOG("comboID is, " << comboID)
-    int colCount = inputVB->GetVectorCount();
-    auto batch = recordStateVB->getVectorBatch(VectorBatchUtil::getBatchId(comboID));
-    delVb.insert(batch);
-    int rowId = VectorBatchUtil::getRowId(comboID);
-    outputVB->setTimestamp(rowIndex, batch->getTimestamp(rowId));
-    auto currentVectorBatch = recordStateVB->getVectorBatch(VectorBatchUtil::getBatchId(comboID));
-    delVb.insert(currentVectorBatch);
-    for (int col = 0; col < colCount; col++) {
-        auto dataType = currentVectorBatch->Get(col)->GetTypeId();
-        if (dataType == omniruntime::type::DataTypeId::OMNI_INT) {
-            auto val =
-                    reinterpret_cast<omniruntime::vec::Vector<int32_t> *>(batch->Get(col))->GetValue(
-                        rowId);
-            reinterpret_cast<omniruntime::vec::Vector<int32_t> *>(outputVB->Get(col))
-                    ->SetValue(rowIndex, val);
-        } else if (dataType == omniruntime::type::DataTypeId::OMNI_LONG) {
-            auto val =
-                    reinterpret_cast<omniruntime::vec::Vector<int64_t> *>(batch->Get(col))->GetValue(
-                        rowId);
-            reinterpret_cast<omniruntime::vec::Vector<int64_t> *>(outputVB->Get(col))
-                    ->SetValue(rowIndex, val);
-        } else if (dataType == omniruntime::type::DataTypeId::OMNI_CHAR) {
-            if (currentVectorBatch->Get(col)->GetEncoding() == omniruntime::vec::OMNI_FLAT) {
-                auto casted = reinterpret_cast<omniruntime::vec::Vector
-                        <omniruntime::vec::LargeStringContainer<std::string_view>> *>(batch->Get(col))->GetValue(rowId);
-                reinterpret_cast<omniruntime::vec::Vector
-                        <omniruntime::vec::LargeStringContainer<std::string_view>> *>(
-                        outputVB->Get(col))
-                        ->SetValue(rowIndex, casted);  // issue here
-            } else { // DICTIONARY
-                auto casted =
-                        reinterpret_cast<omniruntime::vec::Vector<omniruntime::vec::DictionaryContainer<
-                                std::string_view, omniruntime::vec::LargeStringContainer>> *>(batch->Get(col))->GetValue(rowId);
-                reinterpret_cast<omniruntime::vec::Vector
-                        <omniruntime::vec::LargeStringContainer<std::string_view>> *>(
-                        outputVB->Get(col))
-                        ->SetValue(rowIndex, casted);  // issue here
-            }
-        }
-    }
-}
-
 void RowTimeDeduplicateFunction::processBatch(omnistream::VectorBatch *inputVB, Context &ctx, TimestampedCollector &out)
 {
-    LOG("start rowtimededuplicate")
-    /* 输入一个vectorBatch，记录他目前的id和行数 */
-    int rowCount = inputVB->GetRowCount();
     recordStateVB->addVectorBatch(inputVB);
     delVb.insert(inputVB);
-    int resultCount = 0;
-
-    auto updateState = getUpdateState(inputVB, ctx, rowCount, resultCount);
-    const int defaultValue = -1;
-
-    omnistream::VectorBatch *outputVB = new omnistream::VectorBatch(updateState.size() + resultCount);
-    initOutputVector(outputVB, inputVB, updateState.size() + resultCount);
-    int rowIndex = 0;
-    for (auto it: updateState) {
-        RowData *k = it.first;
-        ctx.setCurrentKey(k);
-        int64_t preValue = recordStateVB->value();
-
-        recordStateVB->update(it.second);
-        // auto preIt = deduplicateState.find(it.first);  // 找到之前状态后端的值！！！！！
-        if (generateUpdateBefore_ || generateInsert_) {
-            if (preValue == defaultValue) {
-                outputVB->setRowKind(rowIndex, RowKind::INSERT);
-            } else {
-                if (generateUpdateBefore_) {
-                    outputVB->setRowKind(rowIndex, RowKind::UPDATE_BEFORE);
-                    addToOutVectorBatch(inputVB, outputVB, preValue, rowIndex);
-                    rowIndex += 1;
-                }
-                outputVB->setRowKind(rowIndex, RowKind::UPDATE_AFTER);
-            }
-        } else {
-            outputVB->setRowKind(rowIndex, RowKind::UPDATE_AFTER);
-        }
-        addToOutVectorBatch(inputVB, outputVB, it.second, rowIndex);
-        rowIndex += 1;
-        delete it.first;
-    }
+    vectorBatchCacheMap.emplace(getCurrentBatchId() - 1, inputVB);
+    auto outputVectorBatch = ProcessUpdateRecord(inputVB, ctx);
     freeDelBatch();
-    if (outputVB->GetVectorCount() != 0) {
-        out.collect((void *) outputVB);
-    }
-
-    LOG("end rowtimededuplicate")
-    res = outputVB;
+    out.collect(outputVectorBatch);
 }
 
-bool RowTimeDeduplicateFunction::isDuplicate(long preRow, long currentRow)
+bool RowTimeDeduplicateFunction::CompareRecord(int preRowId, int currentRowId,
+                                                                omnistream::VectorBatch* previousVB,
+                                                                omnistream::VectorBatch* currentVB)
 {
+    long previousTime = reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(previousVB->Get(rowtimeIndex_))
+        ->GetValue(preRowId);
+    long currentTime = reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(currentVB->Get(rowtimeIndex_))
+        ->GetValue(currentRowId);
+
     if (keepLastRow_) {
-        return getRowtime(preRow) <= getRowtime(currentRow);
-    } else {
-        return getRowtime(currentRow) < getRowtime(preRow);
+        return previousTime <= currentTime;
     }
-}
-
-long RowTimeDeduplicateFunction::getRowtime(long row)
-{
-    int batchId = VectorBatchUtil::getBatchId(row);
-    int rowId = VectorBatchUtil::getRowId(row);
-    LOG("batchis is " << batchId <<  ", rowid is " << rowId)
-    auto vb = recordStateVB->getVectorBatch(batchId);
-    delVb.insert(vb);
-    return reinterpret_cast<omniruntime::vec::Vector<int64_t> *>(vb->Get(rowtimeIndex_))
-            ->GetValue(rowId);
+    else {
+        return currentTime < previousTime;
+    }
 }
 
 
@@ -225,6 +103,7 @@ std::vector<int32_t> RowTimeDeduplicateFunction::getKeyedTypes(const std::vector
 
 void RowTimeDeduplicateFunction::freeDelBatch()
 {
+    vectorBatchCacheMap.clear();
     if (backendType == 0) {
         delVb.clear();
         return;
@@ -234,4 +113,195 @@ void RowTimeDeduplicateFunction::freeDelBatch()
         delete vb;
     }
     delVb.clear();
+}
+
+unordered_map<RowData*, int32_t> RowTimeDeduplicateFunction::GetNeededUpdateRecord(
+    omnistream::VectorBatch* inputVB)
+{
+    int rowCount = inputVB->GetRowCount();
+    unordered_map<RowData *, int32_t> updatedRecord; // value is the rowId
+    for (int i = 0; i < rowCount; i++) {
+        RowData *key = groupByKeySelector->getKey(inputVB, i);
+
+        auto itTmp = updatedRecord.find(key);  // containskey
+        if (itTmp == updatedRecord.end()) {
+            updatedRecord[key] = i;
+        } else {
+            int32_t previousRowId = itTmp->second;
+            bool shouldUpdated = CompareRecord(previousRowId,i,inputVB,inputVB);
+            if (shouldUpdated) {
+                updatedRecord[key] = i;
+            }
+            delete key ;
+        }
+    }
+    return updatedRecord;
+}
+
+omnistream::VectorBatch* RowTimeDeduplicateFunction::ProcessUpdateRecord(omnistream::VectorBatch* inputVB, Context& ctx)
+{
+    std::vector<std::tuple<long, long, RowData*>> updatedRecords; //
+    updatedRecords.reserve(inputVB->GetRowCount() / 4);
+    int outPutRowCount = 0;
+
+    auto updateState = GetNeededUpdateRecord(inputVB);
+    int currentBatchId = getCurrentBatchId() - 1;
+    omnistream::VectorBatch* outputVB = nullptr;
+    for (auto it : updateState) {
+        RowData* k = it.first;
+        int currentRowId = it.second;
+        ctx.setCurrentKey(k);
+        int64_t preCombineId = recordStateVB->value();
+        if (preCombineId == -1) {
+            long combineId = VectorBatchUtil::getComboId(currentBatchId, currentRowId);
+            updatedRecords.emplace_back(-99, combineId, k);
+            outPutRowCount++;
+        }
+        else {
+            int preBatchId = VectorBatchUtil::getBatchId(preCombineId);
+            int preRowId = VectorBatchUtil::getRowId(preCombineId);
+            omnistream::VectorBatch* previousVectorBatch = GetVectorBatchById(preBatchId);
+            if (previousVectorBatch == nullptr) {
+                LOG("previousVectorBatch is nullptr..........why......")
+            }
+            else {
+                bool isUpdated = CompareRecord(preRowId, currentRowId, previousVectorBatch, inputVB);
+                if (isUpdated) {
+                    long combineId = VectorBatchUtil::getComboId(currentBatchId, currentRowId);
+                    updatedRecords.emplace_back(preCombineId, combineId, k);
+                    if (generateUpdateBefore_) {
+                        outPutRowCount += 2;
+                    }
+                    else {
+                        outPutRowCount++;
+                    }
+                }
+            }
+        }
+    }
+
+    outputVB = new omnistream::VectorBatch(outPutRowCount);
+    initOutputVector(outputVB, inputVB, outPutRowCount);
+
+    int rowIndex = 0;
+    for (int i = 0; i < updatedRecords.size(); i++) {
+        auto record = updatedRecords[i];
+        long preCombineId = std::get<0>(record);
+        long curCombineId = std::get<1>(record);
+        if (generateUpdateBefore_ || generateInsert_) {
+            if (preCombineId == -99) {
+                outputVB->setRowKind(rowIndex, RowKind::INSERT);
+                CopyTargetVectorBatchToOut(outputVB, curCombineId, rowIndex);
+                rowIndex++;
+            }
+            else {
+                if (generateUpdateBefore_) {
+                    outputVB->setRowKind(i, RowKind::UPDATE_BEFORE);
+                    CopyTargetVectorBatchToOut(outputVB, preCombineId, rowIndex);
+                    rowIndex++;
+                }
+                outputVB->setRowKind(rowIndex, RowKind::UPDATE_AFTER);
+                CopyTargetVectorBatchToOut(outputVB, curCombineId, rowIndex);
+                rowIndex++;
+            }
+        }
+        else {
+            outputVB->setRowKind(rowIndex, RowKind::UPDATE_AFTER);
+            CopyTargetVectorBatchToOut(outputVB, curCombineId, rowIndex);
+            rowIndex++;
+        }
+    }
+    if (updatedRecords.size() > 0) {
+        UpdateStateBackend(updatedRecords, ctx);
+    }
+    return outputVB;
+}
+
+omnistream::VectorBatch* RowTimeDeduplicateFunction::GetVectorBatchById(int32_t batchId)
+{
+    LOG("batchis is " << batchId <<  ", rowid is " << rowId)
+    auto it = vectorBatchCacheMap.find(batchId);
+    if (it != vectorBatchCacheMap.end()) {
+        return it->second;
+    }else {
+        auto vb = recordStateVB->getVectorBatch(batchId);
+        vectorBatchCacheMap.emplace(batchId, vb);
+        delVb.insert(vb);
+        return vb;
+    }
+}
+
+void RowTimeDeduplicateFunction::UpdateStateBackend(std::vector<std::tuple<long,long,RowData*>> &updateRecords,Context& ctx)
+{
+    if (backendType == 0) {
+        // mem backend
+        for (auto record : updateRecords) {
+            long curCombineId = std::get<1>(record);
+            auto rowKey = std::get<2>(record);
+            ctx.setCurrentKey(rowKey);
+            recordStateVB->update(curCombineId);
+        }
+    }else {
+        // rocksdb backend
+        std::unordered_map<RowData*, int64_t> pendingUpdates ;
+        for (auto record : updateRecords) {
+            long curCombineId = std::get<1>(record);
+            auto rowKey = std::get<2>(record);
+            pendingUpdates.emplace(rowKey, curCombineId);
+        }
+        auto rocksdbStateBackend = dynamic_cast<RocksdbValueState<RowData *, VoidNamespace, int64_t> *>(recordStateVB) ;
+        if (rocksdbStateBackend) {
+            rocksdbStateBackend->updateByBatch(pendingUpdates);
+        }
+    }
+    //clear the keys
+    for (auto record : updateRecords) {
+        auto rowKey = std::get<2>(record);
+        delete rowKey;
+    }
+}
+
+
+void RowTimeDeduplicateFunction::CopyTargetVectorBatchToOut(omnistream::VectorBatch *outputVB, long comboID, int rowIndex)
+{
+    LOG("comboID is, " << comboID)
+    int batchId = VectorBatchUtil::getBatchId(comboID);
+    int rowId = VectorBatchUtil::getRowId(comboID);
+    auto batch = GetVectorBatchById(batchId);
+    //set timestamp
+    outputVB->setTimestamp(rowIndex, batch->getTimestamp(rowId));
+    int colCount = batch->GetVectorCount();
+    for (int col = 0; col < colCount; col++) {
+        auto dataType = batch->Get(col)->GetTypeId();
+        if (dataType == omniruntime::type::DataTypeId::OMNI_INT) {
+            auto val =
+                    reinterpret_cast<omniruntime::vec::Vector<int32_t> *>(batch->Get(col))->GetValue(
+                        rowId);
+            reinterpret_cast<omniruntime::vec::Vector<int32_t> *>(outputVB->Get(col))
+                    ->SetValue(rowIndex, val);
+        } else if (dataType == omniruntime::type::DataTypeId::OMNI_LONG) {
+            auto val =
+                    reinterpret_cast<omniruntime::vec::Vector<int64_t> *>(batch->Get(col))->GetValue(
+                        rowId);
+            reinterpret_cast<omniruntime::vec::Vector<int64_t> *>(outputVB->Get(col))
+                    ->SetValue(rowIndex, val);
+        } else if (dataType == omniruntime::type::DataTypeId::OMNI_CHAR) {
+            if (batch->Get(col)->GetEncoding() == omniruntime::vec::OMNI_FLAT) {
+                auto casted = reinterpret_cast<omniruntime::vec::Vector
+                        <omniruntime::vec::LargeStringContainer<std::string_view>> *>(batch->Get(col))->GetValue(rowId);
+                reinterpret_cast<omniruntime::vec::Vector
+                        <omniruntime::vec::LargeStringContainer<std::string_view>> *>(
+                        outputVB->Get(col))
+                        ->SetValue(rowIndex, casted);  // issue here
+            } else { // DICTIONARY
+                auto casted =
+                        reinterpret_cast<omniruntime::vec::Vector<omniruntime::vec::DictionaryContainer<
+                                std::string_view, omniruntime::vec::LargeStringContainer>> *>(batch->Get(col))->GetValue(rowId);
+                reinterpret_cast<omniruntime::vec::Vector
+                        <omniruntime::vec::LargeStringContainer<std::string_view>> *>(
+                        outputVB->Get(col))
+                        ->SetValue(rowIndex, casted);  // issue here
+            }
+        }
+    }
 }

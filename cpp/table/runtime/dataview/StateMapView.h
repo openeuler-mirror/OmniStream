@@ -11,13 +11,12 @@
 #ifndef FLINK_TNEL_STATEMAPVIEW_H
 #define FLINK_TNEL_STATEMAPVIEW_H
 
-#include <nlohmann/json.hpp>
+#include <unordered_map>
 #include "MapView.h"
 #include "StateDataView.h"
 #include "core/api/common/state/ValueState.h"
 #include "core/api/common/state/MapState.h"
 #include "../runtime/state/rocksdb/RocksdbMapState.h"
-using json = nlohmann::json;
 
 
 
@@ -54,19 +53,45 @@ public:
         }
     }
 
-    std::shared_ptr<json> getInnerMap(EK& ek)
+    void putByBatch(std::vector<std::shared_ptr<std::tuple<RowData*, EK, EV>>> &batchData)
+    {
+        if (batchData.empty()) {
+            return;
+        }
+
+        auto rocksDBMap = dynamic_cast<RocksdbMapState<RowData*, N, EK, EV> *>(getMapState());
+        if (rocksDBMap) {
+            rocksDBMap->putByBatch(batchData);
+            return;
+        }
+
+        for (const auto& item : batchData) {
+            getMapState()->put(std::get<1>(*item), std::get<2>(*item));
+        }
+    }
+
+    void putByBatch(RowData* key, const std::unordered_map<EK, EV>& batchData)
+    {
+        if (batchData.empty()) {
+            return;
+        }
+
+        auto rocksDBMap = dynamic_cast<RocksdbMapState<RowData*, N, EK, EV> *>(getMapState());
+        if (rocksDBMap) {
+            rocksDBMap->putByBatch(key, batchData);
+            return;
+        }
+
+        for (const auto& item : batchData) {
+            getMapState()->put(item.first, item.second);
+        }
+    }
+
+    std::shared_ptr<std::string> getRawBytes(EK& ek)
     {
         auto rocksDBMap = dynamic_cast<RocksdbMapState<RowData*,N,EK,EV> *>(getMapState());
         if (rocksDBMap) {
-            std::shared_ptr<std::string> rawString= rocksDBMap->getRawBytes(ek);
-            try {
-                if (rawString == nullptr || rawString->empty()) {
-                    return nullptr;
-                }
-                return std::make_shared<json>(json::parse(*rawString));
-            } catch (const json::parse_error& e) {
-               LOG("parse json error............");
-            }
+            return rocksDBMap->getRawBytes(ek);
         }
         return nullptr;
     }

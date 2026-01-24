@@ -381,14 +381,69 @@ public:
         ROCKSDB_NAMESPACE::Slice key(reinterpret_cast<const char *>(keyOutputSerializer.getData()),
                                      (int32_t) (keyOutputSerializer.getPosition()));
         int batchSize = omnistream::VectorBatchSerializationUtils::calculateVectorBatchSerializableSize(vectorBatch);
-        uint8_t *buffer = new uint8_t[batchSize];
+        std::vector<uint8_t> buf(batchSize);
+        auto *buffer= buf.data();
         omnistream::SerializedBatchInfo serializedBatchInfo =
-                omnistream::VectorBatchSerializationUtils::serializeVectorBatch(vectorBatch, batchSize, buffer);
+            omnistream::VectorBatchSerializationUtils::serializeVectorBatch(vectorBatch, batchSize, buffer);
         ROCKSDB_NAMESPACE::Slice vbValue(reinterpret_cast<const char *>(serializedBatchInfo.buffer),
                                          serializedBatchInfo.size);
 
         auto res = rocksDb->Put(writeOptions, VBTable, key, vbValue);
         vectorBatchId += 1;
+    }
+
+    void addVectorBatchWithId(omnistream::VectorBatch *vectorBatch,int vbId)
+    {
+        DataOutputSerializer keyOutputSerializer;
+        OutputBufferStatus outputBufferStatus;
+        keyOutputSerializer.setBackendBuffer(&outputBufferStatus);
+        LongSerializer longSerializer;
+        longSerializer.serialize(&vbId, keyOutputSerializer);
+
+        ROCKSDB_NAMESPACE::Slice key(reinterpret_cast<const char *>(keyOutputSerializer.getData()),
+                                     (int32_t) (keyOutputSerializer.getPosition()));
+        int batchSize = omnistream::VectorBatchSerializationUtils::calculateVectorBatchSerializableSize(vectorBatch);
+        std::vector<uint8_t> buf(batchSize);
+        auto *buffer= buf.data();
+        omnistream::SerializedBatchInfo serializedBatchInfo =
+            omnistream::VectorBatchSerializationUtils::serializeVectorBatch(vectorBatch, batchSize, buffer);
+        ROCKSDB_NAMESPACE::Slice vbValue(reinterpret_cast<const char *>(serializedBatchInfo.buffer),
+                                         serializedBatchInfo.size);
+
+        auto res = rocksDb->Put(writeOptions, VBTable, key, vbValue);
+    }
+
+    void addVectorBatchByBatch(std::unordered_map<int,omnistream::VectorBatch*>& rocksDBVBUpdatedMap)
+    {
+        // 存入
+        ROCKSDB_NAMESPACE::WriteBatch putBatch;
+        for (auto& entry : rocksDBVBUpdatedMap) {
+            int vbId = entry.first;
+            omnistream::VectorBatch* vectorBatch = entry.second;
+
+            DataOutputSerializer keyOutputSerializer;
+            OutputBufferStatus outputBufferStatus;
+            keyOutputSerializer.setBackendBuffer(&outputBufferStatus);
+            LongSerializer longSerializer;
+            longSerializer.serialize(&vbId, keyOutputSerializer);
+
+            ROCKSDB_NAMESPACE::Slice key(reinterpret_cast<const char *>(keyOutputSerializer.getData()),
+                                         (int32_t) (keyOutputSerializer.getPosition()));
+            int batchSize = omnistream::VectorBatchSerializationUtils::calculateVectorBatchSerializableSize(vectorBatch);
+            std::vector<uint8_t> buf(batchSize);
+            auto *buffer= buf.data();
+            omnistream::SerializedBatchInfo serializedBatchInfo =
+                omnistream::VectorBatchSerializationUtils::serializeVectorBatch(vectorBatch, batchSize, buffer);
+            ROCKSDB_NAMESPACE::Slice vbValue(reinterpret_cast<const char *>(serializedBatchInfo.buffer),
+                                             serializedBatchInfo.size);
+            putBatch.Put(VBTable,key,vbValue);
+        }
+        auto s3 = rocksDb->Write(writeOptions, &putBatch);
+
+        if (s3.ok()) {
+        }
+
+
     }
 
     omnistream::VectorBatch *getVectorBatch(long batchId)

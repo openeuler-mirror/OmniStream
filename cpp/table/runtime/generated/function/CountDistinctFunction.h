@@ -12,6 +12,12 @@
 #ifndef FLINK_TNEL_COUNTDISTINCTFUNCTION_H
 #define FLINK_TNEL_COUNTDISTINCTFUNCTION_H
 
+#include <cstddef>
+#include <cstdint>
+#include <deque>
+#include <list>
+#include <unordered_map>
+#include <unordered_set>
 #include "../AggsHandleFunction.h"
 #include "../table/runtime/dataview/StateDataViewStore.h"
 #include "../runtime/state/VoidNamespace.h"
@@ -25,7 +31,6 @@ public:
     {
         hasFilter = filterIndex != -1;
         typeId = LogicalType::flinkTypeToOmniTypeId(inputType);
-        stateKey = (aggIdx << 16) | (filterIndex == -1 ? 0 : filterIndex);
     }
 
     void setWindowSize(int windowSize) override {};
@@ -41,14 +46,36 @@ public:
     void getAccumulators(BinaryRowData *accumulators) override;
     void createAccumulators(BinaryRowData *accumulators) override;
     void getValue(BinaryRowData *aggValue) override;
-    void cleanup() override {};
-    void close() override {};
+    void cleanup() override;
+    void close() override;
     void setCurrentGroupKey(RowData* key) override;
     void accumulateInRocksDB(omnistream::VectorBatch *input, const std::vector<int> &indices);
     void updateInnerState();
+    ~CountDistinctFunction() override;
 
 
 private:
+    using PendingDistinctUpdates = std::unordered_map<RowData*, std::unordered_map<long, long>>;
+
+    struct DistinctCacheNode {
+        RowData* groupKey;
+        std::unordered_set<long> distinctKeys;
+        std::deque<long> distinctKeyOrder;
+    };
+
+    using DistinctCacheList = std::list<DistinctCacheNode>;
+    using DistinctCacheIter = DistinctCacheList::iterator;
+    using DistinctCacheIndex = std::unordered_map<RowData*, DistinctCacheIter>;
+
+    DistinctCacheIter findOrLoadDistinctCache(RowData* groupKey);
+    void touchDistinctCache(DistinctCacheIter it);
+    void evictDistinctCacheIfNeeded();
+    void invalidateDistinctCache(RowData* groupKey);
+    void clearDistinctCache();
+
+    static constexpr size_t DISTINCT_CACHE_CAPACITY = 10000;
+    static constexpr size_t DISTINCT_KEYS_PER_GROUP_CAPACITY = 10000;
+
     long aggCount;
     bool valueIsNull;
     int aggIdx;
@@ -61,10 +88,9 @@ private:
     StateDataViewStore *store;
     KeyedStateMapViewWithKeysNullable<VoidNamespace, long, long> *distinctMapView;
     RowData * currentGroupKey;
-    // std::unordered_map<RowData*,std::unordered_map<long,long>> groupKeyToDistinctSetMap;
-    // std::unordered_map<RowData*,std::shared_ptr<std::string>> groupKeyToDistinctSetMap;
-    std::vector<std::shared_ptr<std::tuple<RowData*,long,std::shared_ptr<std::string>>>> keyAndValuesTuples;
-    long stateKey;
+    DistinctCacheList distinctCacheLru;
+    DistinctCacheIndex distinctCacheIndex;
+    PendingDistinctUpdates pendingDistinctUpdates;
 };
 
 

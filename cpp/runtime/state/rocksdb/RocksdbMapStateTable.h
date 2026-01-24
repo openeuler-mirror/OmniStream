@@ -148,9 +148,7 @@ public:
             if constexpr (std::is_pointer_v<UV>) {
                 return (UV)resPtr;
             } else {
-                UV value = *(UV*)resPtr;
-                delete (UV*)resPtr;
-                return value;
+                return *(UV *)resPtr; // attention: need to delete restPtr in the caller after using
             }
         }
     };
@@ -365,10 +363,10 @@ public:
         ROCKSDB_NAMESPACE::WriteBatch putBatch;
         for (auto& item : dataToAdd) {
             K key = std::get<0>(*item);
-            keyContext->setCurrentKey(key);
             UK ukey = std::get<1>(*item);
             std::shared_ptr<std::string> strPtr = std::get<2>(*item);
             // outputSerializer free need after Put called
+            keyContext->setCurrentKey(key);
             DataOutputSerializer outputSerializer;
             OutputBufferStatus outputBufferStatus;
             outputSerializer.setBackendBuffer(&outputBufferStatus);
@@ -378,7 +376,32 @@ public:
             DataOutputSerializer valueOutputSerializer;
             OutputBufferStatus valueOutputBufferStatus;
             valueOutputSerializer.setBackendBuffer(&valueOutputBufferStatus);
+            // Write exact byte length instead of relying on C-string termination.
             ROCKSDB_NAMESPACE::Slice sliceValue(strPtr->data(), strPtr->size());
+            putBatch.Put(table, sliceKey, sliceValue);
+        }
+        writeOptions.memtable_insert_hint_per_batch = true;
+        auto ret = rocksDb->Write(writeOptions, &putBatch);
+    }
+
+    void putByBatch(std::vector<std::shared_ptr<std::tuple<K,UK,UV>>>& dataToAdd)
+    {
+        ROCKSDB_NAMESPACE::WriteBatch putBatch;
+        for (auto& item : dataToAdd) {
+            K key = std::get<0>(*item);
+            UK ukey = std::get<1>(*item);
+            UV value = std::get<2>(*item);
+            keyContext->setCurrentKey(key);
+
+            DataOutputSerializer outputSerializer;
+            OutputBufferStatus outputBufferStatus;
+            outputSerializer.setBackendBuffer(&outputBufferStatus);
+            ROCKSDB_NAMESPACE::Slice sliceKey = serializerKeyAndUserKey(outputSerializer, ukey);
+
+            DataOutputSerializer valueOutputSerializer;
+            OutputBufferStatus valueOutputBufferStatus;
+            valueOutputSerializer.setBackendBuffer(&valueOutputBufferStatus);
+            ROCKSDB_NAMESPACE::Slice sliceValue = serializerValue(valueOutputSerializer, value);
             putBatch.Put(table, sliceKey, sliceValue);
         }
         writeOptions.memtable_insert_hint_per_batch = true;
