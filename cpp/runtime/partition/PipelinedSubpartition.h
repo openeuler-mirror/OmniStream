@@ -15,17 +15,15 @@
 
 #include <deque>
 #include <memory>
+#include <mutex>
 #include <vector>
 #include <string>
-#include <stdexcept>
-#include <algorithm>
-#include <mutex>
-#include <buffer/ObjectBufferConsumerWithPartialRecordLength.h>
 
 #include "PipelinedSubpartitionView.h"
 #include "PrioritizedDeque.h"
 #include "ResultSubpartition.h"
 #include "buffer/BufferConsumerWithPartialRecordLength.h"
+#include "checkpoint/channel/ChannelStateWriter.h"
 
 namespace omnistream {
 
@@ -54,6 +52,7 @@ public:
     void flush() override;
    // std::shared_ptr<BufferBuilder> requestBufferBuilderBlocking() override;  chekcpoint related
     // std::shared_ptr<VectorBatchBuffer> buildSliceBuffer(std::shared_ptr<ObjectBufferConsumerWithPartialRecordLength> buffer);
+    void SetChannelStateWriter(const std::shared_ptr<ChannelStateWriter> &channelStateWriter);
     std::shared_ptr<Buffer> buildSliceBuffer(std::shared_ptr<BufferConsumerWithPartialRecordLength> bufferConsumerWithPartialRecordLength);
     // std::shared_ptr<ObjectBufferConsumerWithPartialRecordLength> getNextBuffer();
     std::shared_ptr<BufferConsumerWithPartialRecordLength> getNextBuffer();
@@ -65,6 +64,8 @@ private:
     // PrioritizedDeque<ObjectBufferConsumerWithPartialRecordLength> buffers;
     PrioritizedDeque<BufferConsumerWithPartialRecordLength> buffers;
     std::recursive_mutex buffersMutex;
+    std::shared_ptr<CompletableFutureV2<std::vector<std::shared_ptr<Buffer>>>> channelStateFuture_;
+    long channelStateCheckpointId_ = 0;
 
     int buffersInBacklog;
     std::shared_ptr<PipelinedSubpartitionView> readView;
@@ -76,9 +77,17 @@ private:
     int bufferSize_;
     bool isBlocked;
     int sequenceNumber;
+    std::shared_ptr<ChannelStateWriter> channelStateWriter_;
 
     int add(std::shared_ptr<BufferConsumer> bufferConsumer, int partialRecordLength, bool finish);
     bool addBuffer(std::shared_ptr<BufferConsumer> bufferConsumer, int partialRecordLength);
+    std::shared_ptr<CheckpointBarrier> ParseCheckpointBarrier(const std::shared_ptr<BufferConsumer> &bufferConsumer);
+    bool ProcessPriorityBuffer(std::shared_ptr<BufferConsumer> bufferConsumer, int partialRecordLength);
+    void ProcessTimeoutableCheckpointBarrier(std::shared_ptr<BufferConsumer> bufferConsumer);
+    std::shared_ptr<CheckpointBarrier> ParseAndCheckTimeoutableCheckpointBarrier(
+        const std::shared_ptr<BufferConsumer> &bufferConsumer);
+    std::shared_ptr<CompletableFutureV2<std::vector<std::shared_ptr<Buffer>>>> CreateChannelStateFuture(long checkpointId);
+    void CompleteChannelStateFuture(std::vector<std::shared_ptr<Buffer>> &channelResult, std::exception_ptr e);
 
     bool isDataAvailableUnsafe();
     ObjectBufferDataType getNextBufferTypeUnsafe();

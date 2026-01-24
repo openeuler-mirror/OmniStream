@@ -43,6 +43,7 @@ public:
     //  void checkpointStarted(const CheckpointBarrier& barrier) override;
     void CheckpointStopped(long checkpointId) override;
     void notifyDataAvailable() override;
+    void notifyPriorityEvent(int prioritySequenceNumber) override;
     void resumeConsumption() override;
     void acknowledgeAllRecordsProcessed() override;
     bool isReleased() override;

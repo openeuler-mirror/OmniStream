@@ -53,13 +53,26 @@ namespace omnistream {
             return sourceOperator;
         }
 
-        void BlockConsumption(const InputChannelInfo& channelInfo) override {}
+        void BlockConsumption(const InputChannelInfo& channelInfo) override
+        {
+            isBlockedAvailability->resetUnavailable();
+        }
 
-        void ResumeConsumption(const InputChannelInfo& channelInfo) override {}
+        void BlockConsumption()
+        {
+            isBlockedAvailability->resetUnavailable();
+        }
+
+        void ResumeConsumption(const InputChannelInfo& channelInfo) override
+        {
+        }
 
         void ConvertToPriorityEvent(int channelIndex, int sequenceNumber) override {}
 
-        void CheckpointStarted(const CheckpointBarrier& barrier) override {};
+        void CheckpointStarted(const CheckpointBarrier& barrier) override
+        {
+            BlockConsumption();
+        }
 
         void CheckpointStopped(long checkpointId) override {};
 

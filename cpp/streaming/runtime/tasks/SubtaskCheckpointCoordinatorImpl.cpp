@@ -78,8 +78,16 @@ namespace omnistream::runtime {
 
     void SubtaskCheckpointCoordinatorImpl::PrepareInflightDataSnapshot(long checkpointId)
     {
-        // TTODO
-        (*prepareInputSnapshot)(channelStateWriter, checkpointId);
+        auto future = (*prepareInputSnapshot)(channelStateWriter, checkpointId);
+        future->ThenRun([this, checkpointId, future]() mutable {
+            try {
+                future->Get();
+                channelStateWriter->FinishInput(checkpointId);
+            } catch (...) {
+                auto ex = std::current_exception();
+                channelStateWriter->Abort(checkpointId, ex, false);
+            }
+        });
     }
 
     bool SubtaskCheckpointCoordinatorImpl::CancelAsyncCheckpointRunnable(long checkpointId)
@@ -265,7 +273,7 @@ namespace omnistream::runtime {
             THROW_LOGIC_EXCEPTION("CheckpointOptions or CheckpointMetricsBuilder is null");
         }
 
-        if (lastCheckpointId == metadata->GetCheckpointId()) {
+        if (lastCheckpointId >= metadata->GetCheckpointId()) {
             CheckAndClearAbortedStatus(metadata->GetCheckpointId());
             return;
         }
