@@ -70,7 +70,7 @@ namespace omnistream {
 
     RowData* VectorBatch::extractRowData(int rowIndex)
     {
-        if (rowIndex > this->GetRowCount()) {
+        if (rowIndex >= this->GetRowCount()) {
             return nullptr;
         }
         // Get the number of columns in the batch.
@@ -333,6 +333,7 @@ namespace omnistream {
                         break;
                     }
                     default:
+                        XXH3_freeState(state);
                         throw std::runtime_error("Type not supported yet");
                 }
             }

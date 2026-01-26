@@ -242,7 +242,9 @@ template <class Duration>
 std::string
 nonexistent_local_time::make_msg(local_time<Duration> tp, const local_info& i)
 {
-    assert(i.result == local_info::nonexistent);
+    if (i.result != local_info::nonexistent) {
+        throw std::runtime_error("time util corrupted!");
+    }   
     std::ostringstream os;
     os << tp << " is in a gap between\n"
        << local_seconds{i.first.end.time_since_epoch()} + i.first.offset << ' '
@@ -280,6 +282,10 @@ std::string
 ambiguous_local_time::make_msg(local_time<Duration> tp, const local_info& i)
 {
     assert(i.result == local_info::ambiguous);
+    if (i.result != local_info::ambiguous) {
+        throw std::runtime_error("time util corrupted!");
+    }
+    
     std::ostringstream os;
     os << tp << " is ambiguous.  It could be\n"
        << tp << ' ' << i.first.abbrev << " == "

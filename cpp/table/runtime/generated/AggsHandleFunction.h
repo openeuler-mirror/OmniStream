@@ -35,6 +35,11 @@ public:
     virtual void getAccumulators(BinaryRowData* accumulators) = 0;
     virtual void cleanup() = 0;
     virtual void close() = 0;
+    virtual void setCurrentGroupKey(RowData* key) {};
+    virtual void setBackend(int inputBackend) {this->backend = inputBackend;}
+    virtual void updateInnerState() {};
+protected:
+    int backend=0; // 0: memory, 1: bss, 2: rocksdb
 };
 
 #endif // FLINK_TNEL_AGGS_HANDLE_FUNCTION_H

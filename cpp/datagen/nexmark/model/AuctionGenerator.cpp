@@ -38,6 +38,10 @@ std::unique_ptr<Auction> AuctionGenerator::nextAuction(long eventsCountSoFar, lo
 
 long AuctionGenerator::lastBase0AuctionId(const GeneratorConfig &config, long eventId)
 {
+    if (config.totalProportion == 0) {
+        GErrorLog("event num is 0");
+        throw std::runtime_error("event num is 0");
+    }
     long epoch = eventId / config.totalProportion;
     long offset = eventId % config.totalProportion;
     if (offset < config.personProportion) {
@@ -55,6 +59,10 @@ long AuctionGenerator::nextAuctionLengthMs(long eventsCountSoFar, SplittableRand
                                            const GeneratorConfig &config)
 {
     long currentEventNumber = config.nextAdjustedEventNumber(eventsCountSoFar);
+    if (config.totalProportion == 0) {
+        GErrorLog("event num is 0");
+        throw std::runtime_error("event num is 0");
+    }
     long numEventsForAuctions = (config.getNumInFlightAuctions() * config.totalProportion) / config.auctionProportion;
     long futureAuction = config.timestampForEvent(currentEventNumber + numEventsForAuctions);
     long horizonMs = futureAuction - timestamp;

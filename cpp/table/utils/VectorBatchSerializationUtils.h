@@ -111,7 +111,7 @@ public:
             throw std::runtime_error("memcpy_s failed");
         }
         buffer += sizeof(int32_t);
-
+        bufferSize -= sizeof(int32_t);
         Encoding encoding = baseVector->GetEncoding();
         int8_t codingNumeric = static_cast<int8_t>(encoding);
         ret = memcpy_s(buffer, bufferSize, &codingNumeric, sizeof(int8_t));
@@ -119,7 +119,7 @@ public:
             throw std::runtime_error("memcpy_s failed");
         }
         buffer += sizeof(int8_t);
-
+        bufferSize -= sizeof(int8_t);
         DataTypeId dataType = baseVector->GetTypeId();
         int8_t numericValue = static_cast<int8_t>(dataType);
         ret = memcpy_s(buffer, bufferSize, &numericValue, sizeof(int8_t));
@@ -127,6 +127,7 @@ public:
             throw std::runtime_error("memcpy_s failed");
         }
         buffer += sizeof(int8_t);
+        bufferSize -= sizeof(int8_t);
     }
 
     static void serializeStringDictionaryBody(BaseVector *baseVector,
@@ -207,11 +208,11 @@ public:
 
         size_t len = nullByteSize;
         auto ret =
-            memcpy_s(buffer, bufferSize, nullData, sizeof(bool) * valueSize);
+            memcpy_s(buffer, bufferSize, nullData, nullByteSize);
         if (ret != EOK) {
             throw std::runtime_error("memcpy_s failed");
         }
-        buffer += sizeof(bool) * valueSize;
+        buffer += nullByteSize;
 
         // offset array
         ret = memcpy_s(buffer, bufferSize, offsetArr,

@@ -8,10 +8,11 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-
+#include <nlohmann/json.hpp>
 #include "CountDistinctFunction.h"
 #include "typeutils/InternalSerializers.h"
 #include "runtime/dataview/PerKeyStateDataViewStore.h"
+using json = nlohmann::json;
 
 bool CountDistinctFunction::equaliser(BinaryRowData *r1, BinaryRowData *r2)
 {
@@ -105,12 +106,89 @@ void CountDistinctFunction::accumulate(RowData *accInput)
     LOG("Accumulate. Count:  " << aggCount << " countIsNull: " << valueIsNull)
 }
 
-void CountDistinctFunction::accumulate(omnistream::VectorBatch *input, const std::vector<int> &indices)
+void CountDistinctFunction::accumulate(omnistream::VectorBatch* input, const std::vector<int>& indices)
 {
+    if (backend == 2) {
+        this->accumulateInRocksDB(input, indices);
+    } else {
+        auto columnData = input->Get(aggIdx);
+        const bool hasFilterCol = hasFilter;
+        const auto filterData = hasFilterCol
+                                    ? reinterpret_cast<omniruntime::vec::Vector<bool>*>(input->Get(filterIndex))
+                                    : nullptr;
+        for (int rowIndex : indices) {
+            bool shouldDoAccumulate = true;
+            if (hasFilterCol) {
+                bool isFilterNull = filterData->IsNull(rowIndex);
+                shouldDoAccumulate = !isFilterNull && filterData->GetValue(rowIndex);
+            }
+            if (!shouldDoAccumulate) continue;
+            bool isFieldNull = columnData->IsNull(rowIndex);
+            long fieldValue;
+            switch (typeId) {
+            case DataTypeId::OMNI_INT: {
+                fieldValue = isFieldNull
+                                 ? -1L
+                                 : dynamic_cast<omniruntime::vec::Vector<int>*>(columnData)->GetValue(rowIndex);
+                break;
+            }
+            case DataTypeId::OMNI_LONG: {
+                fieldValue = isFieldNull
+                                 ? -1L
+                                 : dynamic_cast<omniruntime::vec::Vector<long>*>(columnData)->GetValue(rowIndex);
+                break;
+            }
+            default:
+                LOG("Data type is not supported.");
+                throw std::runtime_error("Data type is not supported.");
+            }
+            std::optional<long> distinctKey = isFieldNull ? std::nullopt : std::optional<long>{fieldValue};
+            std::optional<long> value = distinctMapView->get(distinctKey);
+            long trueValue = value.has_value() ? value.value() : 0L;
+            uint64_t uValue = static_cast<uint64_t>(trueValue);
+            long existed = uValue & (1 << 0);
+            if (existed == 0) {
+                uValue = uValue | (1 << 0);
+                trueValue = static_cast<long>(uValue);
+                if (!isFieldNull) {
+                    if (!valueIsNull) {
+                        aggCount++;
+                    }
+                    else {
+                        aggCount = 1L;
+                        valueIsNull = false;
+                    }
+                }
+                distinctMapView->put(distinctKey, trueValue);
+            }
+        }
+        LOG("Accumulate. Count: " << aggCount << " valueIsNull: " << valueIsNull);
+    }
+}
+
+
+void CountDistinctFunction::accumulateInRocksDB(omnistream::VectorBatch* input, const std::vector<int>& indices)
+{
+    std::shared_ptr<json> jsonData = distinctMapView->getInnerMap(stateKey);
+    std::unordered_map<long, long> distinctCache;
+    bool needUpdate = false;
+
+    if (jsonData != nullptr) {
+        for (const auto& item : *jsonData) {
+            if (!item.is_array() || item.size() != 2) {
+                continue;
+            }
+            long key = item[0].get<long>();
+            long value = item[1].get<long>();
+            distinctCache.emplace(key, value);
+        }
+    }
+
     auto columnData = input->Get(aggIdx);
     const bool hasFilterCol = hasFilter;
     const auto filterData = hasFilterCol
-        ? reinterpret_cast<omniruntime::vec::Vector<bool> *>(input->Get(filterIndex)) : nullptr;
+                                ? reinterpret_cast<omniruntime::vec::Vector<bool>*>(input->Get(filterIndex))
+                                : nullptr;
     for (int rowIndex : indices) {
         bool shouldDoAccumulate = true;
         if (hasFilterCol) {
@@ -121,42 +199,52 @@ void CountDistinctFunction::accumulate(omnistream::VectorBatch *input, const std
         bool isFieldNull = columnData->IsNull(rowIndex);
         long fieldValue;
         switch (typeId) {
-            case DataTypeId::OMNI_INT: {
-                fieldValue = isFieldNull
-                    ? -1L : dynamic_cast<omniruntime::vec::Vector<int> *>(columnData)->GetValue(rowIndex);
-                break;
-            }
-            case DataTypeId::OMNI_LONG: {
-                fieldValue = isFieldNull
-                    ? -1L : dynamic_cast<omniruntime::vec::Vector<long> *>(columnData)->GetValue(rowIndex);
-                break;
-            }
-            default:
-                LOG("Data type is not supported.");
-                throw std::runtime_error("Data type is not supported.");
+        case DataTypeId::OMNI_INT: {
+            fieldValue = isFieldNull
+                             ? -1L
+                             : dynamic_cast<omniruntime::vec::Vector<int>*>(columnData)->GetValue(rowIndex);
+            break;
+        }
+        case DataTypeId::OMNI_LONG: {
+            fieldValue = isFieldNull
+                             ? -1L
+                             : dynamic_cast<omniruntime::vec::Vector<long>*>(columnData)->GetValue(rowIndex);
+            break;
+        }
+        default:
+            LOG("Data type is not supported.");
+            throw std::runtime_error("Data type is not supported.");
         }
         std::optional<long> distinctKey = isFieldNull ? std::nullopt : std::optional<long>{fieldValue};
-        std::optional<long> value = distinctMapView->get(distinctKey);
-        long trueValue = value.has_value() ? value.value() : 0L;
-        uint64_t uValue = static_cast<uint64_t>(trueValue);
-        long existed = uValue & (1 << 0);
-        if (existed == 0) {
-            uValue = uValue | (1 << 0);
-            trueValue = static_cast<long>(uValue);
-            if (!isFieldNull) {
-                if (!valueIsNull) {
-                    aggCount++;
-                } else {
-                    aggCount = 1L;
-                    valueIsNull = false;
-                }
+
+        if (distinctKey.has_value()) {
+            if (auto it = distinctCache.find(distinctKey.value()); it != distinctCache.end()) {
+                continue;
             }
-            distinctMapView->put(distinctKey, trueValue);
+            distinctCache.emplace(distinctKey.value(), 1L);
+            needUpdate = true;
+        }
+
+        if (!isFieldNull) {
+            if (!valueIsNull) {
+                aggCount++;
+            }
+            else {
+                aggCount = 1L;
+                valueIsNull = false;
+            }
         }
     }
+    if (needUpdate) {
+        json needUpdateKeysJson = distinctCache;
+        auto dumpedPtr = std::make_shared<std::string>(needUpdateKeysJson.dump());
+
+        keyAndValuesTuples.push_back(std::make_shared<std::tuple<RowData*,long,std::shared_ptr<std::string>>>
+            (std::make_tuple(this->currentGroupKey,stateKey, dumpedPtr)));
+    }
+
     LOG("Accumulate. Count: " << aggCount << " valueIsNull: " << valueIsNull);
 }
-
 
 void CountDistinctFunction::retract(RowData *retractInput)
 {
@@ -218,4 +306,17 @@ void CountDistinctFunction::getValue(BinaryRowData *newAggValue)
         newAggValue->setLong(valueIndex, aggCount);
     }
     LOG("Get value: " << aggCount)
+}
+
+void CountDistinctFunction::setCurrentGroupKey(RowData* key)
+{
+    this->currentGroupKey = key;
+}
+
+void CountDistinctFunction::updateInnerState()
+{
+    this->distinctMapView->putByBatch(keyAndValuesTuples);
+    keyAndValuesTuples.clear();
+    this->distinctMapView->cleanup();
+
 }

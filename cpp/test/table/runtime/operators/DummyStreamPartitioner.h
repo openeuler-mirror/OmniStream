@@ -25,11 +25,6 @@ public:
         return 0;
     }
 
-//    std::vector<int> selectChannelForBatch(IOReadableWritable &record)
-//    {
-//        return std::vector<int>();
-//    }
-
     bool isBroadcast() const override
     {
         return false;

@@ -27,6 +27,10 @@ long PersonGenerator::nextBase0PersonId(long eventId, SplittableRandom &random, 
 
 long PersonGenerator::lastBase0PersonId(const GeneratorConfig &config, long eventId)
 {
+    if (config.totalProportion == 0) {
+        GErrorLog("event num is 0");
+        throw std::runtime_error("event num is 0");
+    }
     long epoch = eventId / config.totalProportion;
     long offset = eventId % config.totalProportion;
     if (offset >= config.personProportion) {

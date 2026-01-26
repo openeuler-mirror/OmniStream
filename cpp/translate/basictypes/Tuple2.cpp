@@ -83,6 +83,9 @@ int Tuple2::hashCode()
 
 bool Tuple2::equals(Object *obj)
 {
+    if (obj == nullptr) {
+        return false;
+    }
     Tuple2 *tuple = reinterpret_cast<Tuple2 *>(obj);
     return f0->equals(tuple->GetF0()) && f1->equals(tuple->GetF1());
 }

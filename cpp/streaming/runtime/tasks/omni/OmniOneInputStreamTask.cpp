@@ -64,12 +64,12 @@ namespace omnistream {
             auto operatorPod = this->taskConfiguration_.getStreamConfigPOD().getOperatorDescription();
 
             auto inputTypes = operatorPod.getInputs();
-
+            auto numberOfInputChannels = inputGate->GetNumberOfInputChannels();
             // Create a C++ normal array (vector)
-            std::vector<long> channel_array(inputTypes.size());
+            std::vector<long> channel_array(numberOfInputChannels);
 
             // Copy elements from JSON array to C++ array
-            for (size_t i = 0; i < inputTypes.size(); ++i) {
+            for (size_t i = 0; i < numberOfInputChannels; ++i) {
                 channel_array[i] = static_cast<long>(i);
             }
 

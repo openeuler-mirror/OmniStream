@@ -9,6 +9,7 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "basictypes/Object.h"
+#include "basictypes/Class.h"
 
 Object::Object() = default;
 
@@ -96,4 +97,14 @@ uint64_t Object::getRefCountNumber()
 void Object::setValue(const std::string& value)
 {
     NOT_IMPL_EXCEPTION
+}
+
+Class *Object::getClass()
+{
+    return nullptr;
+}
+
+Class *Object::getObjectClass()
+{
+    return nullptr;
 }

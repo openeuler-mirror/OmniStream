@@ -71,15 +71,13 @@ int32_t StringBuilder::length()
 
 StringBuilder* StringBuilder::deleteCharAt(int32_t idx)
 {
-    // todo implement the deleteCharAt method
+    if (idx >= 0 && idx < value.size()) {
+        value.erase(value.begin() + idx);
+    } else {
+        THROW_LOGIC_EXCEPTION("index of bounds");
+    }
     return this;
 }
-
-// void StringBuilder::append(std::unique_ptr<String> &input) {
-//    }
-//    if (val.empty()) return; // No need to append empty data
-//    // Directly expand the vector and append the content
-// }
 
 StringBuilder* StringBuilder::append(Object *input)
 {

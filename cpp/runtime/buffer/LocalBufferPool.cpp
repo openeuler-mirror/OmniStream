@@ -101,8 +101,6 @@ namespace omnistream {
             checkConsistentAvailability();
         }
         while (!fireBufferAvailableNotification(listener, segment));
-
-        mayNotifyAvailable(toNotify);
     }
 
     int LocalBufferPool::getNumberOfRequiredSegments() const
@@ -138,8 +136,6 @@ namespace omnistream {
 
             checkConsistentAvailability();
         }
-
-        mayNotifyAvailable(toNotify);
     }
 
 
@@ -168,7 +164,6 @@ namespace omnistream {
                 toNotify = availabilityHelper_->getUnavailableToResetAvailable();
             }
         }
-        mayNotifyAvailable(toNotify);
     }
 
     std::shared_ptr<CompletableFuture> LocalBufferPool::GetAvailableFuture()
@@ -185,13 +180,6 @@ namespace omnistream {
             return;
         }
         requestingWhenAvailable_ = true;
-    }
-
-
-    void LocalBufferPool::mayNotifyAvailable(std::shared_ptr<CompletableFuture> toNotify)
-    {
-        if (toNotify) {
-        }
     }
 
     bool LocalBufferPool::fireBufferAvailableNotification(std::shared_ptr<BufferListener> listener,

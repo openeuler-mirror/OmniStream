@@ -17,7 +17,6 @@ void *JoinTupleSerializer2::deserialize(DataInputView &source)
     int32_t second = source.readInt();
     int64_t third = source.readLong();
     std::tuple<int32_t, int32_t, int64_t>* res = new std::tuple<int32_t, int32_t, int64_t>(first, second, third);
-
     return static_cast<void*>(res);
 }
 

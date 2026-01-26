@@ -13,7 +13,9 @@
 
 StreamRecord* BatchEventDeserializer::deserialize(std::unique_ptr<Event> event)
 {
-    assert(event != nullptr);
+    if (event == nullptr) {
+        throw std::runtime_error("Event is null.");
+    }
     if (collectedCnt == 0) {
         createNewEventBatch();
     }

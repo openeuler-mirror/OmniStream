@@ -40,6 +40,9 @@ Object* Array::get(int index)
 
 bool Array::equals(Object *obj)
 {
+    if (obj == nullptr || dynamic_cast<Array *>(obj) == nullptr) {
+        return false;
+    }
     auto a = reinterpret_cast<Array *>(obj);
     for (int i = 0; i < this->length; i++) {
         Object *src = (Object *)(this->data_[i]);

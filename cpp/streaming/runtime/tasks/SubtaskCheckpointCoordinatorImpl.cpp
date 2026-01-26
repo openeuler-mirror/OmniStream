@@ -166,7 +166,8 @@ namespace omnistream::runtime {
         CheckpointMetricsBuilder *metrics,
         bool istaskDeployedAsFinished,
         bool isTaskFinished,
-        omnistream::Supplier<bool> *isRunning)
+        omnistream::Supplier<bool> *isRunning,
+        CheckpointOptions *options)
     {
         LOG(">>>>>> isTaskDeployedAsFinished " << istaskDeployedAsFinished << " isTaskFinished " << isTaskFinished);
         AsyncCheckpointRunnable *asyncCheckpointRunnable = new AsyncCheckpointRunnable(
@@ -187,12 +188,21 @@ namespace omnistream::runtime {
                 isTaskFinished,
                 isRunning);
         RegisterAsyncCheckpointRunnable(asyncCheckpointRunnable->GetCheckpointId(), asyncCheckpointRunnable);
-        asyncOperationsThreadPool->Execute([asyncCheckpointRunnable]() {
+        asyncOperationsThreadPool->Execute([asyncCheckpointRunnable,
+            operatorSnapshotsInProgress,
+            metadata,
+            metrics,
+            options]() {
             try {
                 asyncCheckpointRunnable->Run();
             } catch (const std::exception &e) {
                 LogError("Exception in async checkpoint: %s", e.what());
             }
+            delete asyncCheckpointRunnable;
+            delete operatorSnapshotsInProgress;
+            delete metadata;
+            delete metrics;
+            delete options;
         });
         LOG(">>>>> Done")
     }
@@ -290,7 +300,8 @@ namespace omnistream::runtime {
                 new std::unordered_map<OperatorID, OperatorSnapshotFutures *>();
         try {
             if (takeSnapshotSync(snapshotFutures, metadata, metrics, options, operatorChain, isRunning)) {
-                finishAndReportAsync(snapshotFutures, metadata, metrics, operatorChain->IsTaskDeployedAsFinished(), isTaskFinished, isRunning);
+                finishAndReportAsync(snapshotFutures, metadata, metrics,
+                    operatorChain->IsTaskDeployedAsFinished(), isTaskFinished, isRunning, options);
             } else {
                 cleanup(snapshotFutures, metadata, metrics, std::runtime_error("Checkpoint declined"));
             }

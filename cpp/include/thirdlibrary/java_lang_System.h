@@ -16,7 +16,7 @@
 
 class java_lang_System {
 public:
-    static long currentTimeMillis();
+    static int64_t currentTimeMillis();
     static String* getProperty(String* key);
 };
 

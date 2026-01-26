@@ -105,8 +105,6 @@ RowData *MinMaxWindowAggFunction::getValue(long ns)
     }
     result->setLong(length - 2, startTime);
     result->setLong(length - 1, ns);
-//    result->setTimestamp(length -2, *start, 0);// todo precision
-//    result->setTimestamp(length - 1, TimestampData::fromEpochMillis(ns), 0);// todo precision
 
     return result;
 }

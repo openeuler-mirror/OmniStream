@@ -30,12 +30,14 @@ jobject convertToJavaByteStreamStateHandle(
         "(Ljava/lang/String;[B)V");
     if (!constructor) {
         env->ExceptionDescribe();
+        env->DeleteLocalRef(byteStreamStateHandleClass);
         return nullptr;
     }
 
     // 2. 转换 handleName
     jstring jHandleName = env->NewStringUTF(cppHandle.GetHandleName().c_str());
     if (!jHandleName) {
+        env->DeleteLocalRef(byteStreamStateHandleClass);
         return nullptr;
     }
 
@@ -44,6 +46,7 @@ jobject convertToJavaByteStreamStateHandle(
     jbyteArray jData = env->NewByteArray(static_cast<jsize>(cppData.size()));
     if (!jData) {
         env->DeleteLocalRef(jHandleName);
+        env->DeleteLocalRef(byteStreamStateHandleClass);
         return nullptr;
     }
     env->SetByteArrayRegion(

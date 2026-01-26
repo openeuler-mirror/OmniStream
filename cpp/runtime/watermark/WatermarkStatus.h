@@ -41,6 +41,9 @@ public:
 
     bool Equals(WatermarkStatus *other)
     {
+        if (other == nullptr) {
+            return false;
+        }
         return other->GetStatus() == status_;
     }
 

@@ -180,7 +180,7 @@ public:
     {
         auto nullData = UnsafeBaseVector::GetNulls(baseVector);
         auto nullByteSize = omniruntime::vec::NullsBuffer::CalculateNbytes(size);
-        memcpy_s(nullData, sizeof(bool) * size, buffer, sizeof(bool) * size);
+        memcpy_s(nullData, nullByteSize, buffer, nullByteSize);
         buffer += nullByteSize;
     }
 

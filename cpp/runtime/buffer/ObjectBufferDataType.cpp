@@ -29,7 +29,9 @@ ObjectBufferDataType::ObjectBufferDataType(bool isBuffer, bool isEvent, bool isB
     : isBuffer_(isBuffer), isEvent_(isEvent), isBlockingUpstream_(isBlockingUpstream), hasPriority_(hasPriority), requiresAnnouncement_(requiresAnnouncement)
 {
     if (requiresAnnouncement_ && hasPriority_) {
-        throw std::invalid_argument("VectorBatchBufferDataType has both priority and requires announcement, which is not supported and doesn't make sense. There should be no need for announcing priority events, which are always overtaking in-flight data.");
+        throw std::invalid_argument("ObjectBufferDataType has both priority and requires announcement, "
+                                    "which is not supported and doesn't make sense. There should be no need for "
+                                    "announcing priority events, which are always overtaking in-flight data.");
     }
 }
 
@@ -79,7 +81,7 @@ bool ObjectBufferDataType::requiresAnnouncement() const
 std::string ObjectBufferDataType::toString() const
 {
     std::stringstream ss;
-    ss << "VectorBatchBufferDataType{";
+    ss << "ObjectBufferDataType{";
     ss << "isBuffer=" << (isBuffer_ ? "true" : "false") << ", ";
     ss << "isEvent=" << (isEvent_ ? "true" : "false") << ", ";
     ss << "isBlockingUpstream=" << (isBlockingUpstream_ ? "true" : "false") << ", ";

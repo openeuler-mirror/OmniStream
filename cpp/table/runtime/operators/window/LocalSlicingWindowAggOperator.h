@@ -74,10 +74,7 @@ public:
         if (watermark == INT64_MAX) {
             return watermark;
         }
-        long triggerWatermark;
-        long remainder = watermark % interval;
-        triggerWatermark = remainder < 0L ? watermark - (interval + interval) : watermark - remainder;
-        triggerWatermark = watermark + interval - 1L;
+        long triggerWatermark = watermark + interval - 1L;
 
         return triggerWatermark > watermark ? triggerWatermark : triggerWatermark + interval;
     }
@@ -144,6 +141,8 @@ private:
     int rowtimeIndexVal;
     ClockService* clock;
     void ExtractFunction();
+    void SetStringVectorBatch(omnistream::VectorBatch* outputBatch, int numRows,
+        int colIndex, const std::vector<RowData*>& collectedRows);
 };
 
 #endif

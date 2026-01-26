@@ -43,9 +43,7 @@ ObjectBufferConsumer::ObjectBufferConsumer(std::shared_ptr<VectorBatchBuffer> bu
 
 ObjectBufferConsumer::~ObjectBufferConsumer()
 {
-    LOG_TRACE("destruction begin")
-    // close(); // already closed in pollBuffer() in PipelinedSubpartition.cpp
-    LOG_TRACE("destruction end")
+    LOG_TRACE("destruction ObjectBufferConsumer")
 }
 
 std::shared_ptr<BufferConsumer> ObjectBufferConsumer::copy()

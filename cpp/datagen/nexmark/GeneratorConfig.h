@@ -218,6 +218,10 @@ public:
     {
         int64_t n = configuration.outOfOrderGroupSize;
         int64_t eventNumber = nextEventNumber(numEvents);
+        if (n == 0) {
+            GErrorLog("split num is 0");
+            throw std::runtime_error("split num is 0");
+        }
         int64_t base = (eventNumber / n) * n;
         int64_t offset = (eventNumber * 953LL) % n;
         return base + offset;
@@ -230,6 +234,10 @@ public:
     int64_t nextEventNumberForWatermark(int64_t numEvents) const
     {
         int64_t n = configuration.outOfOrderGroupSize;
+        if (n == 0) {
+            GErrorLog("split num is 0");
+            throw std::runtime_error("split num is 0");
+        }
         int64_t eventNumber = nextEventNumber(numEvents);
         return (eventNumber / n) * n;
     }

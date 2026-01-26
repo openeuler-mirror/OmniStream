@@ -209,7 +209,7 @@ void omnistream::VectorBatchSerializationUtils::serializePrimitiveVector(BaseVec
     auto nullData = UnsafeBaseVector::GetNulls(baseVector);
     auto nullByteSize = omniruntime::vec::NullsBuffer::CalculateNbytes(rowCount);
     auto ret =
-            memcpy_s(buffer, bufferSize, nullData, sizeof(bool) * rowCount);
+            memcpy_s(buffer, bufferSize, nullData, nullByteSize);
     if (ret != EOK) {
         throw std::runtime_error("memcpy_s failed");
     }
@@ -256,6 +256,11 @@ void omnistream::VectorBatchSerializationUtils::serializeCharVector(BaseVector *
     Vector<LargeStringContainer<std::string_view>> *charVector =
             dynamic_cast<Vector<LargeStringContainer<std::string_view>> *>(
                     baseVector);
+    if (!charVector) {
+        GErrorLog("Failed to cast BaseVector to Vector<LargeStringContainer<std::string_view>>");
+        throw std::runtime_error("Failed to cast BaseVector to Vector<LargeStringContainer<std::string_view>>");
+    }
+    
     std::shared_ptr<LargeStringContainer<std::string_view>>
             stringContainer = UnsafeStringVector::GetContainer(charVector);
     int32_t *offsetArr =
@@ -347,7 +352,7 @@ void omnistream::VectorBatchSerializationUtils::serializeDouble(BaseVector *base
             static_cast<Vector<double> *>(baseVector);
     double *data = UnsafeVector::GetRawValues(vectorDouble);
     int32_t size = sizeof(double) * baseVector->GetSize();
-    auto ret = memcpy_s(buffer, size, data, size);
+    auto ret = memcpy_s(buffer, bufferSize, data, size);
     if (ret != EOK) {
         throw std::runtime_error("memcpy_s failed");
     }

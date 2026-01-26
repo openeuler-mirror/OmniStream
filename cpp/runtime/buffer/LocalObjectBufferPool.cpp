@@ -98,7 +98,6 @@ namespace omnistream {
                 toNotify = availabilityHelper_->getUnavailableToResetAvailable();
             }
         }
-        mayNotifyAvailable(toNotify);
     }
 
     bool LocalObjectBufferPool::isDestroyed()
@@ -365,8 +364,6 @@ namespace omnistream {
             }
         }
 
-        mayNotifyAvailable(toNotify);
-
         networkObjBufferPool_->destroyBufferPool(shared_from_this());
     }
 
@@ -388,16 +385,12 @@ namespace omnistream {
             ", destroyed: " + (isDestroyed_ ? "true" : "false") + "]";
     }
 
-    // void LocalObjectBufferPool::mayNotifyAvailable(std::shared_ptr<CompletableFuture> toNotify)
-    // {
-    //     {
-    //     }
-    // }
-
     void LocalObjectBufferPool::returnSegment(std::shared_ptr<Segment> segment)
     {
         auto toRecycledSegment = std::dynamic_pointer_cast<ObjectSegment>(segment);
-        assert(toRecycledSegment && "Expected segment to be of type ObjectSegment");
+        if (!toRecycledSegment) {
+            throw std::runtime_error("Segment is not of type ObjectSegment.");
+        }
         returnObjectSegment(toRecycledSegment);
     }
 

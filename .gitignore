@@ -3,7 +3,7 @@
 build
 cmake_build_*/
 conf/
-include/
+3rdparty/
 # Compiled Object files
 *.slo
 *.lo

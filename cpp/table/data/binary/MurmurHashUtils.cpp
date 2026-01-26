@@ -9,6 +9,7 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "MurmurHashUtils.h"
+#include <stdexcept>
 #include <libboundscheck/include/securec.h>
 
 int MurmurHashUtils::hashUnsafeBytesByWords(const void* base, std::size_t offset, int lengthInBytes)
@@ -56,7 +57,10 @@ int MurmurHashUtils::hashBytes(const uint8_t* segment, int offset, int lengthInB
 
 int MurmurHashUtils::hashUnsafeBytes(const void* base, std::size_t offset, int lengthInBytes, int seed)
 {
-    assert(lengthInBytes >= 0);
+    if (lengthInBytes < 0) {
+        throw std::runtime_error("Length in bytes cannot be negative.");
+    }
+    
     int lengthAligned = lengthInBytes - lengthInBytes % 4;
     int h1 = hashUnsafeBytesByInt(base, offset, lengthAligned, seed);
     for (int i = lengthAligned; i < lengthInBytes; i++) {
@@ -69,7 +73,9 @@ int MurmurHashUtils::hashUnsafeBytes(const void* base, std::size_t offset, int l
 
 int MurmurHashUtils::hashUnsafeBytesByInt(const void* base, std::size_t offset, int lengthInBytes, int seed)
 {
-    assert(lengthInBytes % 4 == 0);
+    if (lengthInBytes % WORD_SIZE != 0) {
+        throw std::runtime_error("Length in bytes is not aligned to 4 bytes.");
+    }
     int h1 = seed;
     for (int i = 0; i < lengthInBytes; i += 4) {
         int halfWord;
@@ -82,7 +88,9 @@ int MurmurHashUtils::hashUnsafeBytesByInt(const void* base, std::size_t offset, 
 
 int MurmurHashUtils::hashBytesByInt(const uint8_t* segment, int offset, int lengthInBytes, int seed)
 {
-    assert(lengthInBytes % 4 == 0);
+    if (lengthInBytes % WORD_SIZE != 0) {
+        throw std::runtime_error("Length in bytes is not aligned to 4 bytes.");
+    }
     int h1 = seed;
     for (int i = 0; i < lengthInBytes; i += 4) {
         int halfWord;

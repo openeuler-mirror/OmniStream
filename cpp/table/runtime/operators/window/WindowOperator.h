@@ -317,9 +317,13 @@ private:
 
     WindowAssigner<W>* getSessionWindowAssigner(const std::string& windowType)
     {
+        constexpr int CHARACTER_NUM = 2;
         unsigned long start = windowType.rfind(',');
         unsigned long end = windowType.rfind(')');
-        long sessionGap = std::stol(windowType.substr(start + 2, end - start - 2));
+        if (end <= start + CHARACTER_NUM) {
+            throw std::invalid_argument("getSessionWindowAssigner sessionGap init failed!");
+        }
+        long sessionGap = std::stol(windowType.substr(start + CHARACTER_NUM, end - start - CHARACTER_NUM));
         return new SessionWindowAssigner(sessionGap, true);
     }
 

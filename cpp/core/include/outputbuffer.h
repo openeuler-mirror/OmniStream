@@ -16,7 +16,6 @@
 
 
 struct OutputBufferStatus {
-        // uint8_t raw[32]; // To access the raw bytes
         uintptr_t outputBuffer_;
         int32_t capacity_;
         int32_t outputSize; // byte size

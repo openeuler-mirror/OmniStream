@@ -70,14 +70,18 @@ void String::setData(const char *pointer)
 
 int String::hashCode()
 {
-    int64_t h = hash;
-    if (hash == 0 && inner.size() > 0) {
-        for (size_t i = 0; i < inner.size(); ++i) {
-            h = static_cast<int>(31 * h + static_cast<int>(inner[i]));
-        }
-        hash = static_cast<int>(h);
+    size_t usedSize = inner.size();
+    if (usedSize == 0) {
+        return 0;
     }
-    return hash;
+    int64_t hash = 0;
+    for (size_t i = 0; i < usedSize; ++i) {
+        hash = 31 * hash + static_cast<int>(inner[i]);
+        if (hash > INT32_MAX || hash < INT32_MIN) {
+            hash = (int)hash;
+        }
+    }
+    return (int)hash;
 }
 
 bool String::equals(Object *obj)
@@ -241,6 +245,10 @@ bool String::equals(const std::string &str) const
 
 bool String::contains(const std::string &str) const
 {
+    if (!&str) {
+        throw std::invalid_argument("Input string is null");
+    }
+    
     return (this->inner.find(str) != std::string::npos);
 }
 

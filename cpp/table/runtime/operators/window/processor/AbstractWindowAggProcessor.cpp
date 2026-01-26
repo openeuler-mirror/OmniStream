@@ -316,6 +316,7 @@ omnistream::VectorBatch* AbstractWindowAggProcessor::createOutputBatch(std::vect
     for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
         outputBatch->setRowKind(rowIndex, collectedRows[rowIndex]->getRowKind());
     }
+    delete outputRowType;
     return outputBatch;
 }
 

@@ -10,7 +10,7 @@
  */
 #include "thirdlibrary/java_time_LocalDateTime.h"
 
-LocalDateTime *LocalDateTime::ofInstant(Instant *instant, omnistream::ZoneId *zoneId)
+LocalDateTime *LocalDateTime::ofInstant(Instant *instant, ZoneId *zoneId)
 {
     //        time_t t = instant->getEpochSecond() + instant->getNano() / SEC_TO_NSEC;
     time_t t = instant->getEpochSecond();
