@@ -88,7 +88,7 @@ public:
                 bool enableCheckpointAfterTasksFinished);
 
         // Destructor
-        ~SingleCheckpointBarrierHandler() override {};
+        ~SingleCheckpointBarrierHandler() override;
 
         // Override virtual methods from base class
         void ProcessBarrier(const CheckpointBarrier& barrier,

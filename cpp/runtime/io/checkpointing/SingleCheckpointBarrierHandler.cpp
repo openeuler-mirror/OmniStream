@@ -48,6 +48,12 @@ SingleCheckpointBarrierHandler::SingleCheckpointBarrierHandler(
     context_ = new ControllerImpl(this, subTaskCheckpointCoordinator_);
 }
 
+SingleCheckpointBarrierHandler::~SingleCheckpointBarrierHandler()
+{
+	delete currentState_;
+	delete context_;
+}
+
 // Main ProcessBarrier implementation
 void SingleCheckpointBarrierHandler::ProcessBarrier(
     const CheckpointBarrier& barrier,
@@ -105,7 +111,13 @@ void SingleCheckpointBarrierHandler::MarkCheckpointAlignedAndTransformState(
     }
 
     try {
-        currentState_ = stateTransformer(currentState_);
+		auto* old = currentState_;
+		auto* next = stateTransformer(old);
+		if (next != old) {
+			delete old;
+		}
+        currentState_ = next;
+
     } catch (const CheckpointException& e) {
         AbortInternal(currentCheckpointId_, e);
         return;
@@ -198,9 +210,14 @@ void SingleCheckpointBarrierHandler::RegisterAlignmentTimer(const CheckpointBarr
     auto timerTask = [this, announcedBarrier, barrierId]() {
         try {
             if (currentCheckpointId_ == barrierId && !GetAllBarriersReceivedFuture(barrierId).IsDone()) {
-                currentState_ = currentState_->AlignedCheckpointTimeout(
+				auto* old = currentState_;
+				auto* next = old->AlignedCheckpointTimeout(
                     dynamic_cast<Controller*>(context_),
                     const_cast<CheckpointBarrier*>(&announcedBarrier));
+				if (next != old) {
+					delete old;
+				}
+                currentState_ = next;
             }
         } catch (const CheckpointException& ex) {
             AbortInternal(barrierId, ex);
@@ -349,8 +366,9 @@ std::unique_ptr<SingleCheckpointBarrierHandler> SingleCheckpointBarrierHandler::
     BarrierAlignmentUtil::DelayableTimer<std::function<void()>>* registerTimer, bool enableCheckpointAfterTasksFinished,
     const std::vector<CheckpointableInput*>& inputs)
 {
-    LOG(">>>>>>>>>>>")
-    auto state = new WaitingForFirstBarrier();
+    auto channelState = ChannelState(inputs);
+    auto state = new WaitingForFirstBarrier(std::move(channelState));
+
     // fix state waitingforfirstbarrier is implemented
     return std::make_unique<SingleCheckpointBarrierHandler>(
             taskName, toNotifyOnCheckpoint, nullptr, clock, numOpenChannels,

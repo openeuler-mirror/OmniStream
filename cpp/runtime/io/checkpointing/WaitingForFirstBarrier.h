@@ -13,26 +13,37 @@
 
 
 #include "runtime/io/checkpointing/BarrierHandlerState.h"
+#include "runtime/io/checkpointing/ChannelState.h"
+
+/**
+ * Aligned-only checkpoint barrier handler state.
+ *
+ * In aligned mode, once a barrier is received on an input channel we (optionally)
+ * block that channel until barriers from all input channels arrive. only after
+ * all barriers are received we trigger the checkpoint, then unblock all channels.
+ */
 
 class WaitingForFirstBarrier : public BarrierHandlerState {
-    BarrierHandlerState* BarrierReceived(Controller* controller, InputChannelInfo channelInfo,
-        CheckpointBarrier* barrier, bool markChannelBlocked) override
-        {
-            // TTODO
-            return nullptr;
-        };
 
-    BarrierHandlerState* AlignedCheckpointTimeout(Controller* controller, CheckpointBarrier* barrier) override
-    {
-        // TTODO
-        return nullptr;
-    };
+public:
 
-    BarrierHandlerState* FinishCheckpoint() override
-    {
-        // TTODO
-        return nullptr;
-    };
+    explicit WaitingForFirstBarrier(ChannelState state);
+
+    BarrierHandlerState* BarrierReceived(
+        Controller* controller,
+        InputChannelInfo channelInfo,
+        CheckpointBarrier* barrier,
+        bool markChannelBlocked) override;
+
+    BarrierHandlerState* AlignedCheckpointTimeout(
+        Controller* controller,
+        CheckpointBarrier* barrier) override;
+
+    BarrierHandlerState* FinishCheckpoint() override;
+
+private:
+    ChannelState state_;
+
 };
 
 
