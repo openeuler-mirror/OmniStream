@@ -69,7 +69,7 @@ namespace omnistream::runtime {
             if (!barrier.GetCheckpointOptions()->IsUnalignedCheckpoint()) {
                 inputs_[channelInfo.getGateIdx()]->ResumeConsumption(channelInfo);
             }
-
+			LOG("Func:ProcessBarrier returns, because barrierId <= lastCancelledOrCompletedCheckpointId_");
             return;
         }
 
@@ -78,7 +78,7 @@ namespace omnistream::runtime {
             if (!barrier.GetCheckpointOptions()->IsUnalignedCheckpoint()) {
                 inputs_[channelInfo.getGateIdx()]->ResumeConsumption(channelInfo);
             }
-
+			LOG("Func:ProcessBarrier returns, because urrentCheckpointId_ > barrierId ||(currentCheckpointId_ == barrierId && !IsCheckpointPending())");
             return;
         }
 
@@ -93,6 +93,7 @@ namespace omnistream::runtime {
         // due to priority-event reordering). The handler tracks aligned channels for the current
         // checkpoint; if we've already seen this channel, ignore the duplicate.
         if (alignedChannels_.find(channelInfo) != alignedChannels_.end()) {
+			LOG("Func:ProcessBarrier returns, because alignedChannels_.find(channelInfo) != alignedChannels_.end()");
             return;
         }
 
@@ -121,6 +122,7 @@ namespace omnistream::runtime {
         const CheckpointBarrier& barrier,
         const std::function<BarrierHandlerState*(BarrierHandlerState*)>& stateTransformer)
     {
+		LOG("Func:MarkCheckpointAlignedAndTransformState start")
         alignedChannels_.insert(alignedChannel);
         const bool isAlwaysUnalignedHandler = (!alternating_ && subTaskCheckpointCoordinator_ != nullptr);
         const bool shouldTrackAlignment = !isAlwaysUnalignedHandler &&
@@ -269,6 +271,7 @@ namespace omnistream::runtime {
     // Register alignment timer
     void SingleCheckpointBarrierHandler::RegisterAlignmentTimer(const CheckpointBarrier& announcedBarrier)
     {
+		LOG("Func:RegisterAlignmentTimer start.")
         if (!announcedBarrier.GetCheckpointOptions()->IsTimeoutable()) {
             return;
         }
@@ -298,6 +301,7 @@ namespace omnistream::runtime {
                     return;
                 }
 
+				LOG("Timeout, start transition.")
                 currentCheckpointUnaligned_ = true;
                 auto* old = currentState_;
                 auto* next = old->AlignedCheckpointTimeout(

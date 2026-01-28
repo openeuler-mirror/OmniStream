@@ -99,6 +99,7 @@ public:
 
         // Force aligned
         if (!enableUnaligned) {
+			LOG("ZZT creates a aligned barrier handler");
             return runtime::SingleCheckpointBarrierHandler::aligned(
                 taskName,
                 toNotifyOnCheckpoint,
@@ -113,6 +114,7 @@ public:
         //  - aligned-checkpoint-timeout == 0  => Always Unaligned (no alignment attempt)
         //  - aligned-checkpoint-timeout > 0   => Aligned attempt + timeout => Unaligned
         if (alignedCheckpointTimeoutMillis == 0) {
+			LOG("ZZT creates a unaligned barrier handler");
             return runtime::SingleCheckpointBarrierHandler::unaligned(
                 taskName,
                 toNotifyOnCheckpoint,
@@ -124,6 +126,7 @@ public:
                 allInputs);
         }
 
+		LOG("ZZT creates a alternating barrier handler");
         return runtime::SingleCheckpointBarrierHandler::alternating(
             taskName,
             toNotifyOnCheckpoint,
