@@ -83,6 +83,7 @@ namespace omnistream {
         ResourceIDPOD producerResourceId = shuffleDescriptor.getStoresLocalResourcesOn();
         channelStatistics->numLocalChannels++;
 
+        // todo ChannelStateWriter
         if (producerResourceId == this->taskExecutorResourceId) {
             std::shared_ptr<LocalInputChannel> channel =
                     std::make_shared<LocalInputChannel>(inputGate, index,

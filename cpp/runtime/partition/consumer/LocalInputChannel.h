@@ -27,6 +27,8 @@
 #include "InputChannel.h"
 
 #include "SingleInputGate.h"
+#include "checkpoint/channel/ChannelStateWriter.h"
+#include "runtime/io/channelutil/ChannelStatePersister.h"
 
 namespace omnistream {
 
@@ -40,7 +42,14 @@ public:
         //  std::shared_ptr<ChannelStateWriter> stateWriter
     );
 
-    //  void checkpointStarted(const CheckpointBarrier& barrier) override;
+    LocalInputChannel(std::shared_ptr<SingleInputGate> inputGate, int channelIndex,
+        ResultPartitionIDPOD partitionId, std::shared_ptr<ResultPartitionManager> _partitionManager,
+        // std::shared_ptr<TaskEventPublisher> taskEventPublisher,
+        int initialBackoff, int maxBackoff, std::shared_ptr<Counter> numBytesIn, std::shared_ptr<Counter> numBuffersIn,
+        std::shared_ptr<ChannelStateWriter> stateWriter
+    );
+
+    void CheckpointStarted(const CheckpointBarrier& barrier) override;
     void CheckpointStopped(long checkpointId) override;
     void notifyDataAvailable() override;
     void notifyPriorityEvent(int prioritySequenceNumber) override;
@@ -68,6 +77,7 @@ private:
     std::recursive_mutex requestLock;
     std::shared_ptr<ResultPartitionManager> partitionManager;
     //  std::shared_ptr<TaskEventPublisher> taskEventPublisher;
+    std::shared_ptr<ChannelStatePersister> channelStatePersister;
     std::shared_ptr<ResultSubpartitionView> subpartitionView;
     std::atomic<bool> isReleased_{false};
 };
