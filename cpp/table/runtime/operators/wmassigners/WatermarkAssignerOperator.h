@@ -44,6 +44,7 @@ public:
 
     std::string getTypeName() override;
     void processWatermarkStatus(WatermarkStatus *watermarkStatus) override;
+    omnistream::VectorBatch *sliceVecBatch(omnistream::VectorBatch *batch, int32_t offset, int32_t newRowCnt);
 
 private:
     int rowtimeIndex_;

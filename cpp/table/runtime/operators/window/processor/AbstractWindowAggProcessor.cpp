@@ -72,22 +72,47 @@ AbstractWindowAggProcessor::AbstractWindowAggProcessor(const nlohmann::json desc
 bool AbstractWindowAggProcessor::processBatch(omnistream::VectorBatch* vectorbatch)
 {
     int64_t sliceEndArr[vectorbatch->GetRowCount()];
+    bool dropArr[vectorbatch->GetRowCount()];
     for (int i = 0; i < vectorbatch->GetRowCount(); i++) {
         int64_t sliceEnd = sliceAssigner->assignSliceEnd(vectorbatch, i, clockService);
         sliceEndArr[i] = sliceEnd;
         // ZoneId is supposed to be UTC
         // todo support other ZoneId
+        auto currentKey = keySelector->getKey(vectorbatch, i);
         if (!isEventTime) {
-            auto currentKey = keySelector->getKey(vectorbatch, i);
             WindowKey* temp = new WindowKey(sliceEnd, currentKey);
             auto result = uniqueData.insert(temp->hash());
             if (result.second) {
                 stateBackend->setCurrentKey(currentKey);
                 internalTimerService->registerProcessingTimeTimer(sliceEnd, sliceEnd - 1);
             }
+            dropArr[i] = false;
+        }
+        if (isEventTime && TimeWindowUtil::isWindowFired(sliceEnd, currentProgress)){
+            WindowedSliceAssigner* windowedSliceAssigner = dynamic_cast<WindowedSliceAssigner*>(sliceAssigner);
+            SliceAssigner* assigner = windowedSliceAssigner->GetInnerAssigner();
+            if (assigner == nullptr ){
+                throw std::runtime_error("assigner is nullptr");
+            }
+            long lastWindowEnd = assigner->getLastWindowEnd(sliceEnd);
+            if (TimeWindowUtil::isWindowFired(lastWindowEnd, currentProgress)) {
+                // the last window has been triggered, so the element can be dropped now
+              LOG("drop element sliceEnd: " << sliceEnd)
+              dropArr[i] = true;
+              continue;
+            } else {
+                //register elements;
+                int64_t unfiredFirstWindow = sliceEnd;
+                while (TimeWindowUtil::isWindowFired(unfiredFirstWindow, currentProgress)) {
+                    unfiredFirstWindow += windowInterval;
+                }
+                stateBackend->setCurrentKey(currentKey);
+                internalTimerService->registerEventTimeTimer(unfiredFirstWindow, unfiredFirstWindow - 1);
+                dropArr[i] = false;
+            }
         }
     }
-    windowBuffer->addVectorBatch(vectorbatch, sliceEndArr);
+    windowBuffer->addVectorBatch(vectorbatch, sliceEndArr, dropArr);
     return false;
 }
 
@@ -108,6 +133,9 @@ void AbstractWindowAggProcessor::open(AbstractKeyedStateBackend<RowData*> *keyed
 }
 
 void AbstractWindowAggProcessor::initializeWatermark(int64_t watermark) {
+    if (isEventTime) {
+ 	        currentProgress = watermark;
+ 	    }
 }
 
 void AbstractWindowAggProcessor::advanceProgress(StreamOperatorStateHandler<RowData*> *stateHandler, long progress)

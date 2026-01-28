@@ -150,21 +150,25 @@ std::string RecordsWindowBuffer::extractAggFunction(const std::string& input)
     }
 }
 
-void RecordsWindowBuffer::addVectorBatch(omnistream::VectorBatch *input, int64_t *sliceEndArr)
-{
+//skip droped records, only add valid records to window buffer
+void RecordsWindowBuffer::addVectorBatch(omnistream::VectorBatch *input, int64_t *sliceEndArr, bool* dropArr){
     auto rowCount = input->GetRowCount();
     if (rowCount < 0) {
         return;
     }
     std::lock_guard<std::mutex> lock(bufferMutex);
     for (int row = 0; row < rowCount; ++row) {
-        // 获取key列索引，key列数据类型
+        if (dropArr[row] == true){
+            continue;
+        }
         RowData *keyRow = keySelector->getKey(input, row);
         long rowTime = sliceEndArr[row];
+        minSliceEnd = std::min(rowTime, minSliceEnd);
         RowData *currentRow = input->extractRowData(row);
         if (currentRow == nullptr) {
             continue;
         }
+       
         WindowKey* windowKey = new WindowKey(rowTime, keyRow);
         auto it = recordsBuffer.find(*windowKey);
         if (it != recordsBuffer.end()) {
@@ -178,6 +182,10 @@ void RecordsWindowBuffer::addVectorBatch(omnistream::VectorBatch *input, int64_t
 
 void RecordsWindowBuffer::advanceProgress(StreamOperatorStateHandler<RowData*> *stateHandler, long currentProgress)
 {
+    if (!TimeWindowUtil::isWindowFired(minSliceEnd, currentProgress)){
+        LOG("no windows in record buffer is fired.")
+        return;
+    }
     std::vector<RowData*> resultRows;
     std::lock_guard<std::mutex> lock(bufferMutex);
     // 开始遍历每一个key
@@ -207,6 +215,7 @@ void RecordsWindowBuffer::advanceProgress(StreamOperatorStateHandler<RowData*> *
     }
     recordsBuffer.clear();
     resultRows.clear();
+    minSliceEnd = INT64_MAX;
     LOG("end RecordsWindowBuffer::advanceProgress")
 }
 

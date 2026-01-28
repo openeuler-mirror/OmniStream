@@ -38,7 +38,7 @@ public:
     RecordsWindowBuffer(const nlohmann::json& config, WindowValueState<RowData*, int64_t, RowData*> *state, Output* output, SliceAssigner* sliceAssigner, InternalTimerServiceImpl<RowData*, int64_t>* internalTimerService);
     void CreateFunctions(SliceAssigner *sliceAssigner, const string &AGGCALLSNAME, vector<std::string> &types);
     void InitializeKeySelectorAndTypes(const nlohmann::json& config);
-    void addVectorBatch(omnistream::VectorBatch *elementBatch, int64_t *sliceEndArr);
+    void addVectorBatch(omnistream::VectorBatch *elementBatch, int64_t *sliceEndArr, bool* dropArr);
     void addVectorBatch(omnistream::VectorBatch *elementBatch, omnistream::VectorBatch *binaryRowKeySelector, int64_t *sliceEndArr);
     void advanceProgress(StreamOperatorStateHandler<RowData*> *stateHandler, long currentProgress);
     RowData* getEntireRow(omnistream::VectorBatch *batch, int rowId);
@@ -91,6 +91,7 @@ private:
     std::mutex bufferMutex;
     SliceAssigner* sliceAssigner;
     const int emptyAggFuncNum = 1;
+    int64_t minSliceEnd = INT64_MAX;
 };
 
 
