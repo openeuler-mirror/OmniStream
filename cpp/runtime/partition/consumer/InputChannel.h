@@ -92,7 +92,7 @@ protected:
 
 protected:
     void notifyChannelNonEmpty();
-    void notifyPriorityEvent(int priorityBufferNumber);
+    void NotifyPriorityEvent(int priorityBufferNumber);
     virtual void notifyBufferAvailable(int numAvailableBuffers)
     {}
 };

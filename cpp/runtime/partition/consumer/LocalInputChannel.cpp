@@ -174,6 +174,11 @@ void LocalInputChannel::notifyDataAvailable()
     notifyChannelNonEmpty();
 }
 
+void LocalInputChannel::notifyPriorityEvent(int prioritySequenceNumber)
+{
+    NotifyPriorityEvent(prioritySequenceNumber);
+}
+
 std::shared_ptr<ResultSubpartitionView> LocalInputChannel::checkAndWaitForSubpartitionView()
 {
     LOCK_BEFORE()

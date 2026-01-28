@@ -177,12 +177,12 @@ namespace omnistream::runtime {
 
             void InitInputsCheckpoint(const CheckpointBarrier& checkpointBarrier) override
             {
-                // Initialize channel-state tracking (writer/metadata) for this checkpoint.
-                // For purely aligned handler, subTaskCheckpointCoordinator_ may be null.
-                if (subTaskCheckpointCoordinator_ != nullptr) {
-                    subTaskCheckpointCoordinator_->InitInputsCheckpoint(
-                        checkpointBarrier.GetId(), checkpointBarrier.GetCheckpointOptions());
+                if (UNLIKELY(subTaskCheckpointCoordinator_ == nullptr)) {
+                    return;
                 }
+                long barrierId = checkpointBarrier.GetId();
+                subTaskCheckpointCoordinator_->InitInputsCheckpoint(barrierId,
+                    checkpointBarrier.GetCheckpointOptions());
             }
 
         private:
