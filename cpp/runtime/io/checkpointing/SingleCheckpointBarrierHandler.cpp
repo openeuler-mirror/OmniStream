@@ -381,14 +381,14 @@ namespace omnistream::runtime {
             currentState_ = nullptr;
         }
 
+        ChannelState channelState(inputs_);
         // Recreate the initial state based on handler mode.
         if (subTaskCheckpointCoordinator_ == nullptr) {
             // Pure aligned handler.
-            currentState_ = new WaitingForFirstBarrier();
+            currentState_ = new WaitingForFirstBarrier(std::move(channelState));
             return;
         }
 
-        ChannelState channelState(inputs_);
         if (alternating_) {
             currentState_ = new AlternatingWaitingForFirstBarrier(std::move(channelState));
         } else {
