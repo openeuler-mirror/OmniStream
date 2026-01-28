@@ -104,7 +104,7 @@ namespace omnistream {
             return inputProcessor_;
         }
 
-        void abortCheckpointOnBarrier(long checkpointId, CheckpointException cause) override {};
+        void abortCheckpointOnBarrier(long checkpointId, CheckpointException cause) override;
 
         bool IsUsingNonBlockingInput();
         // stream task specific

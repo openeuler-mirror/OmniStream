@@ -138,6 +138,11 @@ namespace omnistream::runtime {
                 omnistream::OperatorChainV2 *operatorChain,
                 omnistream::Supplier<bool> *isRunning);
 
+        // Abort a checkpoint due to a cancel-barrier (Flink 1.16.3).
+        // This is a best-effort cleanup hook: it clears the storage cache, aborts channel-state writes,
+        // records the checkpoint as aborted, and cancels any in-progress alignment timer.
+        void AbortCheckpointOnBarrier(long checkpointId, const std::exception_ptr& cause);
+
         CheckpointStorageWorkerView *getCheckpointStorage();
 
         ChannelStateWriter *getChannelStateWriter();

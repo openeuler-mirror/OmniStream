@@ -57,6 +57,7 @@ TEST(InputProcessorUtilTest, CreatesCheckpointedMultipleInputGates) {
             inputGateGroups,
             sourceInputs,
             false, // enableUnaligned
+            0,     // alignedCheckpointTimeoutMillis
             true   // enableCheckpointAfterTasksFinish
     );
     ASSERT_NE(handler, nullptr);

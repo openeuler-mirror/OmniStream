@@ -8,8 +8,10 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
+#include <algorithm>
 #include "SubtaskCheckpointCoordinatorImpl.h"
 #include "runtime/io/network/api/CancelCheckpointMarker.h"
+
 namespace omnistream::runtime {
     std::set<long> SubtaskCheckpointCoordinatorImpl::createAbortedCheckpointIds(int maxRecordAbortedCheckpoints)
     {
@@ -414,6 +416,48 @@ namespace omnistream::runtime {
         omnistream::Supplier<bool> *isRunning)
     {
         notifyCheckpoint(checkpointId, operatorChain, isRunning, NotifyCheckpointOperation::SUBSUME);
+    }
+
+    void SubtaskCheckpointCoordinatorImpl::AbortCheckpointOnBarrier(
+        long checkpointId,
+        const std::exception_ptr& cause)
+    {
+        // - update lastCheckpointId
+        // - prune aborted ids below lastCheckpointId
+        // - record this aborted checkpoint id
+        // - clear storage cache
+        // - abort channel-state writer and clean up
+        // - cancel any in-progress alignment timer for this checkpoint
+        lastCheckpointId = std::max(lastCheckpointId, checkpointId);
+
+        for (auto it = abortedCheckpointIds.begin(); it != abortedCheckpointIds.end();) {
+            if (*it < lastCheckpointId) {
+                it = abortedCheckpointIds.erase(it);
+            } else {
+                break;
+            }
+        }
+        abortedCheckpointIds.insert(checkpointId);
+
+        if (checkpointStorage) {
+            checkpointStorage->clearCacheFor(checkpointId);
+        }
+
+        if (channelStateWriter) {
+            channelStateWriter->Abort(checkpointId, cause, true);
+        }
+
+        try {
+            if (env && env->getTaskStateManager()) {
+                env->getTaskStateManager()->NotifyCheckpointAbortedV2(checkpointId);
+            }
+        } catch (...) {
+            // Best-effort.
+        }
+
+        if (checkpointId == alignmentCheckpointId) {
+            CancelAlignmentTimer();
+        }
     }
 
     void SubtaskCheckpointCoordinatorImpl::notifyCheckpoint(

@@ -30,12 +30,12 @@
 
 namespace omnistream::runtime {
 
-/**
- * SingleCheckpointBarrierHandler is used for triggering checkpoint while reading the first
- * barrier and keeping track of the number of received barriers and consumed barriers.
- */
-class SingleCheckpointBarrierHandler : public CheckpointBarrierHandler {
-public:
+    /**
+    * SingleCheckpointBarrierHandler is used for triggering checkpoint while reading the first
+    * barrier and keeping track of the number of received barriers and consumed barriers.
+    */
+    class SingleCheckpointBarrierHandler : public CheckpointBarrierHandler {
+    public:
         // Factory methods
         static std::unique_ptr<SingleCheckpointBarrierHandler> createUnalignCheckpointBarrierHandler(
                 SubtaskCheckpointCoordinator* checkpointCoordinator,
@@ -64,15 +64,15 @@ public:
                 bool enableCheckpointAfterTasksFinished,
                 const std::vector<CheckpointableInput*>& inputs);
 
-    static std::unique_ptr<SingleCheckpointBarrierHandler> alternating(
-            const std::string& taskName,
-            CheckpointableTask* toNotifyOnCheckpoint,
-            SubtaskCheckpointCoordinator* checkpointCoordinator,
-            Clock& clock,
-            int numOpenChannels,
-            BarrierAlignmentUtil::DelayableTimer<std::function<void()>>* registerTimer,
-            bool enableCheckpointAfterTasksFinished,
-            const std::vector<CheckpointableInput*>& inputs);
+        static std::unique_ptr<SingleCheckpointBarrierHandler> alternating(
+                const std::string& taskName,
+                CheckpointableTask* toNotifyOnCheckpoint,
+                SubtaskCheckpointCoordinator* checkpointCoordinator,
+                Clock& clock,
+                int numOpenChannels,
+                BarrierAlignmentUtil::DelayableTimer<std::function<void()>>* registerTimer,
+                bool enableCheckpointAfterTasksFinished,
+                const std::vector<CheckpointableInput*>& inputs);
 
         // Constructor
         SingleCheckpointBarrierHandler(
@@ -123,19 +123,25 @@ public:
         {
             return currentState_;
         }
-protected:
+
+    protected:
         void TriggerCheckpoint(const CheckpointBarrier& trigger);
         void RegisterAlignmentTimer(const CheckpointBarrier& announcedBarrier);
         void CheckNewCheckpoint(const CheckpointBarrier& barrier);
         void AbortInternal(int64_t cancelledId, CheckpointFailureReason reason);
         void AbortInternal(int64_t cancelledId, const CheckpointException& exception);
         void ResetAlignmentTimer();
+        // Reset the barrier-handling state machine to the initial "waiting" state.
+        // This is required for correctness after abort/subsume to avoid leaking the previous
+        // checkpoint's state into the next one.
+        void ResetToWaitingState();
         void CancelSubsumedCheckpoint(int64_t barrierId);
         void MarkCheckpointAlignedAndTransformState(
-            const InputChannelInfo& alignedChannel,
-            const CheckpointBarrier& barrier,
-            const std::function<BarrierHandlerState*(BarrierHandlerState*)>& stateTransformer);
-private:
+        const InputChannelInfo& alignedChannel,
+        const CheckpointBarrier& barrier,
+        const std::function<BarrierHandlerState*(BarrierHandlerState*)>& stateTransformer);
+
+    private:
         class ControllerImpl : public Controller {
         public:
             ControllerImpl(SingleCheckpointBarrierHandler* parent,
@@ -144,7 +150,7 @@ private:
 
             void TriggerGlobalCheckpoint(const CheckpointBarrier& checkpointBarrier) override
             {
-                LOG(">>>>>>>")
+                LOG("ZZT TriggerGlobalCheckpoint");
                 parent_->TriggerCheckpoint(checkpointBarrier);
             }
 
@@ -171,12 +177,18 @@ private:
 
             void InitInputsCheckpoint(const CheckpointBarrier& checkpointBarrier) override
             {
+                // Initialize channel-state tracking (writer/metadata) for this checkpoint.
+                // For purely aligned handler, subTaskCheckpointCoordinator_ may be null.
+                if (subTaskCheckpointCoordinator_ != nullptr) {
+                    subTaskCheckpointCoordinator_->InitInputsCheckpoint(
+                        checkpointBarrier.GetId(), checkpointBarrier.GetCheckpointOptions());
+                }
             }
 
         private:
-                SingleCheckpointBarrierHandler* parent_;
-                SubtaskCheckpointCoordinator* subTaskCheckpointCoordinator_;
-            };
+            SingleCheckpointBarrierHandler* parent_;
+            SubtaskCheckpointCoordinator* subTaskCheckpointCoordinator_;
+        };
 
         // Member variables
         std::string taskName_;
@@ -198,6 +210,10 @@ private:
         // State management
         BarrierHandlerState *currentState_;
         std::unique_ptr<BarrierAlignmentUtil::Cancellable> currentAlignmentTimer_;
+        // Tracks whether the current checkpoint has been switched to Unaligned mode (timeout -> UC).
+        bool currentCheckpointUnaligned_{false};
+        // Guard against stale timer callbacks clearing a newer timer instance.
+        int64_t currentAlignmentTimerCheckpointId_{-1};
         bool alternating_;
     };
 } // omnistream
