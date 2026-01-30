@@ -25,7 +25,7 @@ namespace omnistream {
         virtual ~ChannelStateSerializer() = default;
 
         virtual void WriteHeader(std::ostringstream &dataStream) = 0;
-        virtual void WriteData(std::ostringstream &dataStream, const ObjectBuffer &buffer) = 0;
+        virtual void WriteData(std::ostringstream &dataStream, const Buffer *buffer, size_t num) = 0;
         virtual int64_t GetHeaderLength() const = 0;
     };
 
@@ -33,12 +33,37 @@ namespace omnistream {
     public:
         void WriteHeader(std::ostringstream &dataStream) override
         {
-            NOT_IMPL_EXCEPTION
+            int head = 0;
+            dataStream.write((const char *)&head, sizeof(int));
         }
 
-        void WriteData(std::ostringstream &dataStream, const ObjectBuffer &buffer) override
+        void WriteData(std::ostringstream &dataStream, const Buffer *buffers, size_t num) override
         {
-            NOT_IMPL_EXCEPTION
+            int size = getSize(buffers, num);
+            dataStream.write((const char *)&size, sizeof(size));
+            for (size_t i = 0; i < num; i++) {
+
+            }
+        }
+        
+        int getSize(Buffer *buffers, size_t num)
+        {
+            int len = 0;
+            for (size_t i = 0; i < num; i++) {
+        
+            }
+            return len;
+        }
+    
+        void readHeader(std::istringstream &dataStream)
+        {
+            int version;
+            dataStream.read((char *)&version, sizeof(int));
+        }
+
+        int readData()
+        {
+
         }
 
         int64_t GetHeaderLength() const override

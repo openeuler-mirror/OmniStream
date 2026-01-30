@@ -50,7 +50,7 @@ public:
         ChannelStateSerializer* serializer)
         : ChannelStateWriteRequestDispatcherImpl(checkpointStorage, jobID, serializer) {}
 
-    void dispatch(ChannelStateWriteRequest& request) override {
+    void dispatch(std::shared_ptr<ChannelStateWriteRequest> request) override {
         ChannelStateWriteRequestDispatcherImpl::dispatch(request);
         {
             std::lock_guard<std::mutex> lock(mutex);
@@ -296,7 +296,7 @@ TEST(ChannelStateWriteRequestExecutorImplTest, CleanUpOnSubtaskRelease) {
     executor.registerSubtask(jvid, 0);
     
     auto future = std::make_shared<CompletableFutureV2<void>>();
-    auto request = std::make_unique<CheckpointInProgressRequest>(
+    auto request = std::make_shared<CheckpointInProgressRequest>(
         "TestRequest",
         jvid, 0, 1,
         [](ChannelStateCheckpointWriter&) {},
@@ -332,7 +332,7 @@ TEST(ChannelStateWriteRequestExecutorImplTest, ShutdownCancelsPendingRequests) {
     executor.registerSubtask(jvid, 0);
     
     auto future = std::make_shared<CompletableFutureV2<void>>();
-    auto request = std::make_unique<CheckpointInProgressRequest>(
+    auto request = std::make_shared<CheckpointInProgressRequest>(
         "TestRequest",
         jvid, 0, 1,
         [](ChannelStateCheckpointWriter&) {},

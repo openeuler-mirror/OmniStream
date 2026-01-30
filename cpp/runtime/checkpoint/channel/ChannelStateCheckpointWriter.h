@@ -86,7 +86,7 @@ namespace omnistream {
 
         ~ChannelStateCheckpointWriter();
 
-        void RegisterSubtaskResult(const SubtaskID &id, ChannelStateWriter::ChannelStateWriteResult &result);
+        void RegisterSubtaskResult(const SubtaskID &id, std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> result);
         void ReleaseSubtask(const SubtaskID &id);
         void WriteInput(const JobVertexID &jvid,
                         int subtaskIndex,
@@ -100,9 +100,10 @@ namespace omnistream {
         void CompleteOutput(const JobVertexID &jvid, int subtaskIndex);
         void Fail(const JobVertexID &jvid, int subtaskIndex, const std::exception_ptr &e);
         void Fail(const std::exception_ptr &e);
+        void Reset();
         void Start(const JobVertexID &jobVertexID, int subtaskIndex,
-                   ChannelStateWriter::ChannelStateWriteResult &targetResult,
-                   const CheckpointStorageLocationReference &locationReference);
+                   std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> targetResult,
+                   CheckpointStorageLocationReference *locationReference);
         void Abort(const JobVertexID &jobVertexID, int subtaskIndex, const std::exception_ptr &cause);
         void RegisterSubtask(const JobVertexID &jobVertexID, int subtaskIndex);
 
@@ -124,7 +125,7 @@ namespace omnistream {
         template <typename K>
         void Write(std::map<K, typename AbstractChannelStateHandle<K>::StateContentMetaInfo> &offsets,
                    const K &key,
-                   const ObjectBuffer *buffer,
+                   const Buffer *buffer,
                    bool precondition,
                    const std::string &action)
         {
@@ -132,7 +133,7 @@ namespace omnistream {
                 throw std::logic_error("Precondition failed for " + action);
             }
             int64_t offset = checkpointStream->GetPos();
-            serializer->WriteData(*dataStream, *buffer);
+            serializer->WriteData(*dataStream, buffer, 1);
             int64_t size = checkpointStream->GetPos() - offset;
             offsets[key].WithDataAdded(offset, size);
         }

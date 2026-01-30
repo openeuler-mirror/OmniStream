@@ -30,7 +30,7 @@ namespace omnistream {
         return f;
     }
 
-    std::unique_ptr<ChannelStateWriteRequest> ChannelStateWriteRequest::completeInput(
+    std::shared_ptr<ChannelStateWriteRequest> ChannelStateWriteRequest::completeInput(
         JobVertexID jobVertexID,
         int subtaskIndex,
         long checkpointId)
@@ -38,19 +38,19 @@ namespace omnistream {
         auto ready = std::make_shared<CompletableFutureV2<void>>();
         ready->Complete();
 
-        return std::make_unique<CheckpointInProgressRequest>(
+        return std::make_shared<CheckpointInProgressRequest>(
             "CheckpointCompleteInput",
             jobVertexID,
             subtaskIndex,
             checkpointId,
-            [jobVertexID, subtaskIndex](ChannelStateCheckpointWriter &w) {
-                w.CompleteInput(jobVertexID, subtaskIndex);
+            [jobVertexID, subtaskIndex](std::shared_ptr<ChannelStateCheckpointWriter> &w) {
+                w->CompleteInput(jobVertexID, subtaskIndex);
             },
             [](const std::exception_ptr &) {},
             std::move(ready));
     }
 
-    std::unique_ptr<ChannelStateWriteRequest> ChannelStateWriteRequest::completeOutput(
+    std::shared_ptr<ChannelStateWriteRequest> ChannelStateWriteRequest::completeOutput(
         JobVertexID jobVertexID,
         int subtaskIndex,
         long checkpointId)
@@ -58,19 +58,19 @@ namespace omnistream {
         auto ready = std::make_shared<CompletableFutureV2<void>>();
         ready->Complete();
 
-        return std::make_unique<CheckpointInProgressRequest>(
+        return std::make_shared<CheckpointInProgressRequest>(
             "CheckpointCompleteOutput",
             jobVertexID,
             subtaskIndex,
             checkpointId,
-            [jobVertexID, subtaskIndex](ChannelStateCheckpointWriter &w) {
-                w.CompleteOutput(jobVertexID, subtaskIndex);
+            [jobVertexID, subtaskIndex](std::shared_ptr<ChannelStateCheckpointWriter> &w) {
+                w->CompleteOutput(jobVertexID, subtaskIndex);
             },
             [](const std::exception_ptr &) {},
             std::move(ready));
     }
 
-    std::unique_ptr<ChannelStateWriteRequest> ChannelStateWriteRequest::writeInput(
+    std::shared_ptr<ChannelStateWriteRequest> ChannelStateWriteRequest::writeInput(
         JobVertexID jobVertexID,
         int subtaskIndex,
         long checkpointId,
@@ -79,14 +79,14 @@ namespace omnistream {
     {
         auto buffersPtr = std::make_shared<std::vector<ObjectBuffer *>>(std::move(buffers));
 
-        return std::make_unique<CheckpointInProgressRequest>(
+        return std::make_shared<CheckpointInProgressRequest>(
             "WriteInput",
             jobVertexID,
             subtaskIndex,
             checkpointId,
-            [jobVertexID, subtaskIndex, info, buffersPtr](ChannelStateCheckpointWriter &writer) {
+            [jobVertexID, subtaskIndex, info, buffersPtr](std::shared_ptr<ChannelStateCheckpointWriter> &writer) {
                 for (auto *buffer : *buffersPtr) {
-                    writer.WriteInput(jobVertexID, subtaskIndex, info, buffer);
+                    writer->WriteInput(jobVertexID, subtaskIndex, info, buffer);
                 }
             },
             [buffersPtr](const std::exception_ptr &) {
@@ -96,7 +96,7 @@ namespace omnistream {
             });
     }
 
-    std::unique_ptr<ChannelStateWriteRequest> ChannelStateWriteRequest::writeOutput(
+    std::shared_ptr<ChannelStateWriteRequest> ChannelStateWriteRequest::writeOutput(
         JobVertexID jobVertexID,
         int subtaskIndex,
         long checkpointId,
@@ -105,14 +105,14 @@ namespace omnistream {
     {
         auto buffersPtr = std::make_shared<std::vector<ObjectBuffer *>>(std::move(buffers));
 
-        return std::make_unique<CheckpointInProgressRequest>(
+        return std::make_shared<CheckpointInProgressRequest>(
             "writeOutput",
             jobVertexID,
             subtaskIndex,
             checkpointId,
-            [jobVertexID, subtaskIndex, info, buffersPtr](ChannelStateCheckpointWriter &writer) {
+            [jobVertexID, subtaskIndex, info, buffersPtr](std::shared_ptr<ChannelStateCheckpointWriter> &writer) {
                 for (auto *buffer : *buffersPtr) {
-                    writer.WriteOutput(jobVertexID, subtaskIndex, info, buffer);
+                    writer->WriteOutput(jobVertexID, subtaskIndex, info, buffer);
                 }
             },
             [buffersPtr](const std::exception_ptr &) {
@@ -122,7 +122,7 @@ namespace omnistream {
             });
     }
 
-    std::unique_ptr<ChannelStateWriteRequest> ChannelStateWriteRequest::writeOutputFuture(
+    std::shared_ptr<ChannelStateWriteRequest> ChannelStateWriteRequest::writeOutputFuture(
         JobVertexID jobVertexID,
         int subtaskIndex,
         long checkpointId,
@@ -133,15 +133,15 @@ namespace omnistream {
 
         dataFuture->ThenRun([voidFuture]() { voidFuture->Complete(); });
 
-        return std::make_unique<CheckpointInProgressRequest>(
+        return std::make_shared<CheckpointInProgressRequest>(
             "writeOutputFuture",
             jobVertexID,
             subtaskIndex,
             checkpointId,
-            [jobVertexID, subtaskIndex, info, dataFuture](ChannelStateCheckpointWriter &writer) {
+            [jobVertexID, subtaskIndex, info, dataFuture](std::shared_ptr<ChannelStateCheckpointWriter> &writer) {
                 auto buffers = dataFuture->Get();
                 for (auto *buffer : buffers) {
-                    writer.WriteOutput(jobVertexID, subtaskIndex, info, buffer);
+                    writer->WriteOutput(jobVertexID, subtaskIndex, info, buffer);
                 }
             },
             [dataFuture](const std::exception_ptr &) {
@@ -155,56 +155,64 @@ namespace omnistream {
             voidFuture);
     }
 
-    std::unique_ptr<ChannelStateWriteRequest> ChannelStateWriteRequest::start(
+    std::shared_ptr<ChannelStateWriteRequest> ChannelStateWriteRequest::start(
         JobVertexID jobVertexID,
         int subtaskIndex,
         long checkpointId,
-        ChannelStateWriter::ChannelStateWriteResult &targetResult,
-        CheckpointStorageLocationReference locationReference)
+        const std::string name)
     {
-        return std::make_unique<CheckpointStartRequest>(
-            jobVertexID, subtaskIndex, checkpointId, targetResult, std::move(locationReference));
+        auto targetResult = std::make_shared<ChannelStateWriter::ChannelStateWriteResult>();
+        CheckpointStorageLocationReference *locationReference = new CheckpointStorageLocationReference();
+        return std::make_shared<CheckpointStartRequest>(
+            jobVertexID, subtaskIndex, checkpointId, targetResult, locationReference);
     }
 
-    std::unique_ptr<ChannelStateWriteRequest> ChannelStateWriteRequest::terminate(
+    std::shared_ptr<ChannelStateWriteRequest> ChannelStateWriteRequest::terminate(
         JobVertexID jobVertexID, int subtaskIndex, long checkpointId, const std::exception_ptr &cause)
     {
-        return std::make_unique<CheckpointAbortRequest>(jobVertexID, subtaskIndex, checkpointId, cause);
+        return std::make_shared<CheckpointAbortRequest>(jobVertexID, subtaskIndex, checkpointId, cause);
     }
 
-    std::unique_ptr<ChannelStateWriteRequest> ChannelStateWriteRequest::registerSubtask(
+    std::shared_ptr<ChannelStateWriteRequest> ChannelStateWriteRequest::registerSubtask(
         JobVertexID jobVertexID, int subtaskIndex)
     {
-        return std::make_unique<SubtaskRegisterRequest>(jobVertexID, subtaskIndex);
+        return std::make_shared<SubtaskRegisterRequest>(jobVertexID, subtaskIndex);
     }
 
-    std::unique_ptr<ChannelStateWriteRequest> ChannelStateWriteRequest::releaseSubtask(
+    std::shared_ptr<ChannelStateWriteRequest> ChannelStateWriteRequest::releaseSubtask(
         JobVertexID jobVertexID, int subtaskIndex)
     {
-        return std::make_unique<SubtaskReleaseRequest>(jobVertexID, subtaskIndex);
+        return std::make_shared<SubtaskReleaseRequest>(jobVertexID, subtaskIndex);
     }
 
     CheckpointStartRequest::CheckpointStartRequest(
         JobVertexID jobVertexID,
         int subtaskIndex,
         long checkpointId,
-        ChannelStateWriter::ChannelStateWriteResult &targetResult,
-        CheckpointStorageLocationReference locationReference)
+        std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> targetResult,
+        CheckpointStorageLocationReference *locationReference)
         : ChannelStateWriteRequest(jobVertexID, subtaskIndex, checkpointId, "Start"),
           targetResult_(targetResult),
-          locationReference_(std::move(locationReference)) {}
+          locationReference_(locationReference) {}
 
-    ChannelStateWriter::ChannelStateWriteResult &CheckpointStartRequest::getTargetResult() { return targetResult_; }
-    CheckpointStorageLocationReference &CheckpointStartRequest::getLocationReference() { return locationReference_; }
+    std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> CheckpointStartRequest::getTargetResult()
+    {
+        return targetResult_;
+    }
+
+    CheckpointStorageLocationReference *CheckpointStartRequest::getLocationReference()
+    {
+        return locationReference_;
+    }
 
     void CheckpointStartRequest::cancel(const std::exception_ptr &cause)
     {
-        targetResult_.Fail(cause);
+        targetResult_->Fail(cause);
     }
 
-    void CheckpointStartRequest::execute(ChannelStateCheckpointWriter &writer)
+    void CheckpointStartRequest::execute(std::shared_ptr<ChannelStateCheckpointWriter> writer)
     {
-        writer.Start(getJobVertexID(), getSubtaskIndex(), targetResult_, locationReference_);
+        writer->Start(getJobVertexID(), getSubtaskIndex(), targetResult_, locationReference_);
     }
 
     CheckpointInProgressRequest::CheckpointInProgressRequest(
@@ -266,7 +274,7 @@ namespace omnistream {
         }
     }
 
-    void CheckpointInProgressRequest::execute(ChannelStateCheckpointWriter &writer)
+    void CheckpointInProgressRequest::execute(std::shared_ptr<ChannelStateCheckpointWriter> writer)
     {
         CheckpointInProgressRequestState expected = CheckpointInProgressRequestState::NEW;
         if (!state_.compare_exchange_strong(expected, CheckpointInProgressRequestState::EXECUTING)) {
@@ -298,9 +306,9 @@ namespace omnistream {
 
     void CheckpointAbortRequest::cancel(const std::exception_ptr &) {}
 
-    void CheckpointAbortRequest::execute(ChannelStateCheckpointWriter &writer)
+    void CheckpointAbortRequest::execute(std::shared_ptr<ChannelStateCheckpointWriter> writer)
     {
-        writer.Abort(getJobVertexID(), getSubtaskIndex(), cause_);
+        writer->Abort(getJobVertexID(), getSubtaskIndex(), cause_);
     }
 
     SubtaskRegisterRequest::SubtaskRegisterRequest(JobVertexID jobVertexID, int subtaskIndex)
@@ -311,9 +319,9 @@ namespace omnistream {
         // No-op for register requests
     }
 
-    void SubtaskRegisterRequest::execute(ChannelStateCheckpointWriter &writer)
+    void SubtaskRegisterRequest::execute(std::shared_ptr<ChannelStateCheckpointWriter> writer)
     {
-        writer.RegisterSubtask(getJobVertexID(), getSubtaskIndex());
+        writer->RegisterSubtask(getJobVertexID(), getSubtaskIndex());
     }
 
     SubtaskReleaseRequest::SubtaskReleaseRequest(JobVertexID jobVertexID, int subtaskIndex)
@@ -321,9 +329,9 @@ namespace omnistream {
 
     void SubtaskReleaseRequest::cancel(const std::exception_ptr &) {}
 
-    void SubtaskReleaseRequest::execute(ChannelStateCheckpointWriter &writer)
+    void SubtaskReleaseRequest::execute(std::shared_ptr<ChannelStateCheckpointWriter> writer)
     {
-        writer.ReleaseSubtask(SubtaskID(getJobVertexID(), getSubtaskIndex()));
+        writer->ReleaseSubtask(SubtaskID(getJobVertexID(), getSubtaskIndex()));
     }
 
 } // namespace omnistream

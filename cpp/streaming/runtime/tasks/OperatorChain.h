@@ -186,7 +186,7 @@ namespace omnistream {
     void NotifyCheckpointSubsumed(long checkpointId);
     void SnapshotState(std::unordered_map<OperatorID, OperatorSnapshotFutures *>& operatorSnapshotsInProgress,
         CheckpointMetaData &checkpointMetaData, CheckpointOptions *checkpointOptions, Supplier<bool>* isRunning,
-        ChannelStateWriter::ChannelStateWriteResult& channelStateWriteResult, CheckpointStreamFactory* storage);
+        std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> channelStateWriteResult, CheckpointStreamFactory* storage);
     bool IsTaskDeployedAsFinished()
     {
         return false;
@@ -209,7 +209,7 @@ namespace omnistream {
 
     OperatorEventDispatcherImpl* operatorEventDispatcher;
 
-    void SnapshotChannelStates(StreamOperator* op, ChannelStateWriter::ChannelStateWriteResult& channelStateWriteResult,
+    void SnapshotChannelStates(StreamOperator* op, std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> channelStateWriteResult,
         OperatorSnapshotFutures& snapshotInProgress);
 
     void SendAcknowledgeCheckpointEvent(long checkpointId);
@@ -277,7 +277,7 @@ namespace omnistream {
         CheckpointOptions *checkpointOptions,
         StreamOperator *op,
         Supplier<bool> *isRunning,
-        ChannelStateWriter::ChannelStateWriteResult &channelStateWriteResult,
+        std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> channelStateWriteResult,
         CheckpointStreamFactory *storage);
 
     OperatorSnapshotFutures *CheckpointStreamOperator(

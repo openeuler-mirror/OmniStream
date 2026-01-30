@@ -206,7 +206,7 @@ namespace omnistream {
 
         // Read the location reference
         int locationRefLen = buffer.getIntBigEndian();
-        CheckpointStorageLocationReference* locationRef = nullptr;
+        CheckpointStorageLocationReference *locationRef = nullptr;
         if (locationRefLen == -1) {
             locationRef = CheckpointStorageLocationReference::GetDefault();
         } else {

@@ -39,7 +39,7 @@ namespace omnistream {
     }
 
     void ChannelStateCheckpointWriter::RegisterSubtaskResult(const SubtaskID &id,
-                                                             ChannelStateWriter::ChannelStateWriteResult &result)
+                                                             std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> result)
     {
         if (IsDone()) {
             throw std::logic_error("Write is already done");
@@ -135,11 +135,14 @@ namespace omnistream {
         throwable = e;
         failResultAndCloseStream(e);
     }
+    void ChannelStateCheckpointWriter::Reset()
+    {
 
+    }
     void ChannelStateCheckpointWriter::Start(const JobVertexID &jobVertexID,
                                              int subtaskIndex,
-                                             ChannelStateWriter::ChannelStateWriteResult &targetResult,
-                                             const CheckpointStorageLocationReference &locationReference)
+                                             std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> targetResult,
+                                             CheckpointStorageLocationReference *locationReference)
     {
         SubtaskID id = SubtaskID::Of(jobVertexID, subtaskIndex);
         RegisterSubtaskResult(id, targetResult);

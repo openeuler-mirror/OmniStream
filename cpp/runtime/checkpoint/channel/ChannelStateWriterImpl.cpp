@@ -25,10 +25,11 @@ namespace omnistream {
           wasClosed_(false)
     {
         serializer_ = std::make_unique<ChannelStateSerializerImpl>();
-        auto dispatcher = std::make_unique<ChannelStateWriteRequestDispatcherImpl>(
+        auto dispatcher = std::make_shared<ChannelStateWriteRequestDispatcherImpl>(
             checkpointStorage,
             JobIDPOD{},
             serializer_.get());
+        executor_ = std::make_shared<ChannelStateWriteRequestExecutorImpl>(dispatcher);
     }
 
     void ChannelStateWriterImpl::Start(long checkpointId, const CheckpointOptions &options)
@@ -42,7 +43,7 @@ namespace omnistream {
             throw std::runtime_error(taskName_ + " exceeded max checkpoints");
         }
 
-        results_.emplace(checkpointId, ChannelStateWriteResult());
+        results_.emplace(checkpointId, std::make_shared<ChannelStateWriter::ChannelStateWriteResult>());
         auto &result = results_.at(checkpointId);
 
         enqueue(
@@ -50,8 +51,7 @@ namespace omnistream {
                 jobVertexID_,
                 subtaskIndex_,
                 checkpointId,
-                result,
-                *options.GetTargetLocation()),
+                "Start"),
             false);
     }
 
@@ -154,14 +154,14 @@ namespace omnistream {
         }
     }
 
-    ChannelStateWriter::ChannelStateWriteResult ChannelStateWriterImpl::GetAndRemoveWriteResult(long checkpointId)
+    std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> ChannelStateWriterImpl::GetAndRemoveWriteResult(long checkpointId)
     {
         std::lock_guard<std::mutex> lock(resultsMutex_);
         auto it = results_.find(checkpointId);
         if (it == results_.end()) {
             throw std::invalid_argument("Checkpoint result not found");
         }
-        auto result = std::move(it->second);
+        auto result = it->second;
         results_.erase(it);
         return result;
     }
@@ -184,12 +184,22 @@ namespace omnistream {
             false);
     }
 
+    void ChannelStateWriterImpl::open()
+    {
+        executor_->start();
+    }
+
     void ChannelStateWriterImpl::validateCheckpointId(long checkpointId)
     {
     }
 
-    void ChannelStateWriterImpl::enqueue(std::unique_ptr<ChannelStateWriteRequest> request, bool priority)
+    void ChannelStateWriterImpl::enqueue(std::shared_ptr<ChannelStateWriteRequest> request, bool priority)
     {
+        if (priority) {
+            executor_->submitPriority(request);
+        } else {
+            executor_->submit(request);
+        }
     }
 
 } // namespace omnistream

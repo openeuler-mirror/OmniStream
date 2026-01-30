@@ -94,7 +94,7 @@ TEST(ChannelStateWriteRequestDispatcherImplTest, InitialiseRequestDispatcher) {
     );
 
     JobVertexID jobVertexID(-1,-1);
-    ChannelStateWriter::ChannelStateWriteResult targetResult;
+    std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> targetResult;
     CheckpointStorageLocationReference locationReference;
 
     auto registerRequest = new SubtaskRegisterRequest(jobVertexID, 1);

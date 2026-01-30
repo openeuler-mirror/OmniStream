@@ -31,30 +31,27 @@ namespace omnistream {
     class ChannelStateWriteRequestExecutorImpl : public ChannelStateWriteRequestExecutor {
     public:
         ChannelStateWriteRequestExecutorImpl(
-            ChannelStateWriteRequestDispatcher *dispatcher,
-            int maxSubtasks,
-            std::function<void(ChannelStateWriteRequestExecutor *)> onRegistered,
-            std::mutex &registerLock);
+            std::shared_ptr<ChannelStateWriteRequestDispatcher> dispatcher);
 
         ~ChannelStateWriteRequestExecutorImpl() override;
 
         void start() override;
-        void submit(std::unique_ptr<ChannelStateWriteRequest> req) override;
-        void submitPriority(std::unique_ptr<ChannelStateWriteRequest> req) override;
+        void submit(std::shared_ptr<ChannelStateWriteRequest> req) override;
+        void submitPriority(std::shared_ptr<ChannelStateWriteRequest> req) override;
         void registerSubtask(const JobVertexID &jvid, int idx) override;
         void releaseSubtask(const JobVertexID &jvid, int idx) override;
         void shutdown() override;
 
     private:
-        ChannelStateWriteRequestDispatcher *dispatcher;
+        std::shared_ptr<ChannelStateWriteRequestDispatcher> dispatcher;
         const int maxSubtasks;
         std::function<void(ChannelStateWriteRequestExecutor *)> onRegistered;
         std::mutex &registerLock;
 
         std::mutex mutex;
         std::condition_variable cv;
-        std::deque<std::unique_ptr<ChannelStateWriteRequest>> readyQueue;
-        std::map<SubtaskID, std::queue<std::unique_ptr<ChannelStateWriteRequest>>> unreadyQueues;
+        std::deque<std::shared_ptr<ChannelStateWriteRequest>> readyQueue;
+        std::map<SubtaskID, std::queue<std::shared_ptr<ChannelStateWriteRequest>>> unreadyQueues;
         std::set<SubtaskID> subtasks;
 
         std::atomic<bool> isRegistering;
@@ -65,9 +62,9 @@ namespace omnistream {
 
         void run();
         void loop();
-        std::unique_ptr<ChannelStateWriteRequest> take();
-        void enqueue(std::unique_ptr<ChannelStateWriteRequest> req, bool priority);
-        void registerCallback(ChannelStateWriteRequest *first, SubtaskID sid);
+        std::shared_ptr<ChannelStateWriteRequest> take();
+        void enqueue(std::shared_ptr<ChannelStateWriteRequest> req, bool priority);
+        void registerCallback(std::shared_ptr<ChannelStateWriteRequest> first, SubtaskID sid);
         void cleanup();
         void completeRegistration();
     };

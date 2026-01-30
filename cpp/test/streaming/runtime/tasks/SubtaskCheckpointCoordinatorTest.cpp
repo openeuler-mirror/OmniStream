@@ -10,7 +10,7 @@ TEST(SubtaskCheckpointCoordinatorTest, InitTest)
         std::make_shared<omnistream::RuntimeEnvironmentV2>(),
         false,
         false,
-        new std::function<CompletableFutureV2<void> *(ChannelStateWriter *, long)>(),
+        new std::function<CompletableFutureV2<void> *(std::shared_ptr<ChannelStateWriter>, long)>(),
         new BarrierAlignmentUtil::DelayableTimer<std::function<void()>>());
     delete coordinator;
 }

@@ -230,7 +230,7 @@ namespace omnistream {
         bool isRunning;
 
         CompletableFutureV2<void> *prepareInputSnapshot(
-            ChannelStateWriter *channelStateWriter,
+            std::shared_ptr<ChannelStateWriter> channelStateWriter,
             long checkpointID
         );
 

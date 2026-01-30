@@ -17,19 +17,20 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <memory>
 
 class CheckpointStorageLocationReference {
 public:
     explicit CheckpointStorageLocationReference(std::vector<uint8_t> *encodedReference);
     CheckpointStorageLocationReference();
 
-    bool operator==(const CheckpointStorageLocationReference &other) const
+    bool operator==(CheckpointStorageLocationReference *other) const
     {
         if (this->encodedReference_ == nullptr ||
-            other.encodedReference_ == nullptr) {
-            return this->encodedReference_ == other.encodedReference_;
+            other->encodedReference_ == nullptr) {
+            return this->encodedReference_ == other->encodedReference_;
         }
-        return *(this->encodedReference_) == *(other.encodedReference_);
+        return *(this->encodedReference_) == *(other->encodedReference_);
     }
 
     ~CheckpointStorageLocationReference();

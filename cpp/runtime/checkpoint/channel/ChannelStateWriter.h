@@ -63,12 +63,12 @@ public:
             return resultSubpartitionStateHandles;
         }
 
-        static ChannelStateWriteResult CreateEmpty() noexcept
+        static std::shared_ptr<ChannelStateWriteResult> CreateEmpty() noexcept
         {
             auto inputFuture = std::make_shared<CompletableFutureV2<InputChannelStateHandleVecPtr>>();
             auto resultFuture = std::make_shared<CompletableFutureV2<ResultSubpartitionStateVecPtr>>();
             
-            return ChannelStateWriteResult(inputFuture, resultFuture);
+            return std::make_shared<ChannelStateWriteResult>(inputFuture, resultFuture);
         }
 
         void Fail(const std::exception_ptr& cause)
@@ -102,7 +102,7 @@ public:
     static ChannelStateWriteResult empty;
     /** Initiate write of channel state for the given checkpoint id. */
     virtual void Start(long checkpointId, const CheckpointOptions& checkpointOptions) = 0;
-
+    virtual void open() = 0;
     virtual ~ChannelStateWriter() = default;
 
     /**
@@ -178,13 +178,15 @@ public:
      *
      * @throws IllegalArgumentException if the passed checkpointId is not known.
      */
-    virtual ChannelStateWriteResult GetAndRemoveWriteResult(long checkpointId) = 0;
+    virtual std::shared_ptr<ChannelStateWriteResult> GetAndRemoveWriteResult(long checkpointId) = 0;
 };
 
 /** No-op implementation of {@link ChannelStateWriter}. */
 class NoOpChannelStateWriter : public ChannelStateWriter {
 public:
-   static NoOpChannelStateWriter *noOp;
+   static std::shared_ptr<NoOpChannelStateWriter> noOp;
+    void open() override
+    {}
 
     void Start(long checkpointId, const CheckpointOptions& checkpointOptions) override
     {}
@@ -210,9 +212,9 @@ public:
     void Abort(long checkpointId, const std::exception_ptr& cause, bool cleanup) override
     {}
 
-    ChannelStateWriteResult GetAndRemoveWriteResult(long checkpointId) override
+    std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> GetAndRemoveWriteResult(long checkpointId) override
     {
-        return ChannelStateWriteResult::CreateEmpty();
+        return ChannelStateWriter::ChannelStateWriteResult::CreateEmpty();
     }
 };
 
