@@ -91,11 +91,11 @@ namespace omnistream {
         void WriteInput(const JobVertexID &jvid,
                         int subtaskIndex,
                         const InputChannelInfo &info,
-                        ObjectBuffer *buffer);
+                        std::shared_ptr<ObjectBuffer> buffer);
         void WriteOutput(const JobVertexID &jvid,
                          int subtaskIndex,
                          const ResultSubpartitionInfoPOD &info,
-                         ObjectBuffer *buffer);
+                         std::shared_ptr<ObjectBuffer> buffer);
         void CompleteInput(const JobVertexID &jvid, int subtaskIndex);
         void CompleteOutput(const JobVertexID &jvid, int subtaskIndex);
         void Fail(const JobVertexID &jvid, int subtaskIndex, const std::exception_ptr &e);
@@ -125,7 +125,7 @@ namespace omnistream {
         template <typename K>
         void Write(std::map<K, typename AbstractChannelStateHandle<K>::StateContentMetaInfo> &offsets,
                    const K &key,
-                   const Buffer *buffer,
+                   std::shared_ptr<ObjectBuffer> buffer,
                    bool precondition,
                    const std::string &action)
         {
@@ -133,7 +133,7 @@ namespace omnistream {
                 throw std::logic_error("Precondition failed for " + action);
             }
             int64_t offset = checkpointStream->GetPos();
-            serializer->WriteData(*dataStream, buffer, 1);
+            serializer->WriteData(*dataStream, buffer);
             int64_t size = checkpointStream->GetPos() - offset;
             offsets[key].WithDataAdded(offset, size);
         }

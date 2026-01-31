@@ -59,7 +59,7 @@ namespace omnistream {
         long checkpointId,
         const InputChannelInfo &info,
         int startSeqNum,
-        std::vector<ObjectBuffer *> data)
+        std::vector<std::shared_ptr<Buffer>> data)
     {
         validateCheckpointId(checkpointId);
         enqueue(
@@ -68,7 +68,7 @@ namespace omnistream {
                 subtaskIndex_,
                 checkpointId,
                 info,
-                std::move(data)),
+                data),
             false);
     }
 
@@ -76,7 +76,7 @@ namespace omnistream {
         long checkpointId,
         const ResultSubpartitionInfoPOD &info,
         int startSeqNum,
-        std::vector<ObjectBuffer *> &data)
+        std::vector<std::shared_ptr<Buffer>> &data)
     {
         validateCheckpointId(checkpointId);
         enqueue(
@@ -85,7 +85,7 @@ namespace omnistream {
                 subtaskIndex_,
                 checkpointId,
                 info,
-                std::move(data)),
+                data),
             false);
     }
 
@@ -93,7 +93,7 @@ namespace omnistream {
         long checkpointId,
         const ResultSubpartitionInfoPOD &info,
         int startSeqNum,
-        std::shared_ptr<CompletableFutureV2<std::vector<ObjectBuffer *>>> data)
+        std::shared_ptr<CompletableFutureV2<std::vector<std::shared_ptr<Buffer>>>> data)
     {
         validateCheckpointId(checkpointId);
         enqueue(

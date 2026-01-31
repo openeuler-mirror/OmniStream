@@ -51,13 +51,12 @@ public:
         }
 
         if (!knownBuffers.empty()) {
-        // todo wein
-//            channelStateWriter_->AddInputData(
-//                barrierId,
-//                channelInfo_,
-//                ChannelStateWriter::sequenceNumberUnknown,
-//                knownBuffers
-//            );
+            channelStateWriter_->AddInputData(
+                barrierId,
+                channelInfo_,
+                ChannelStateWriter::sequenceNumberUnknown,
+                knownBuffers
+            );
         }
     }
 
@@ -77,13 +76,12 @@ public:
         if (checkpointStatus_ == CheckpointStatus::BARRIER_PENDING && buffer->isBuffer()) {
             std::vector<std::shared_ptr<Buffer>> buffers;
             buffers.push_back(buffer->RetainBuffer());
-            // todo wein
-//            channelStateWriter_->AddInputData(
-//                lastSeenBarrier_,
-//                channelInfo_,
-//                ChannelStateWriterConstants::sequenceNumberUnknown,
-//                buffers
-//            );
+            channelStateWriter_->AddInputData(
+                lastSeenBarrier_,
+                channelInfo_,
+                ChannelStateWriter::sequenceNumberUnknown,
+                buffers
+            );
         }
     }
 

@@ -118,7 +118,7 @@ public:
      * @see org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter#sequenceNumberUnknown
      */
     virtual void AddInputData(long checkpointId, const omnistream::InputChannelInfo& info, int startSeqNum,
-        std::vector<omnistream::ObjectBuffer*> data) = 0;
+        std::vector<std::shared_ptr<omnistream::Buffer>> data) = 0;
 
     /**
      * Add in-flight buffers from the {@link
@@ -135,7 +135,7 @@ public:
      * @see org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter#sequenceNumberUnknown
      */
     virtual void AddOutputData(long checkpointId, const omnistream::ResultSubpartitionInfoPOD& info, int startSeqNum,
-        std::vector<omnistream::ObjectBuffer*>& data) = 0;
+        std::vector<std::shared_ptr<omnistream::Buffer>>& data) = 0;
 
     /**
      * Add in-flight bufferFuture from the {@link
@@ -147,7 +147,7 @@ public:
      * barrier.
      */
     virtual void AddOutputDataFuture(long checkpointId, const omnistream::ResultSubpartitionInfoPOD& info,
-        int startSeqNum, std::shared_ptr<CompletableFutureV2<std::vector<omnistream::ObjectBuffer*>>> data) = 0;
+        int startSeqNum, std::shared_ptr<CompletableFutureV2<std::vector<std::shared_ptr<omnistream::Buffer>>>> data) = 0;
 
     /**
      * Finalize write of channel state data for the given checkpoint id. Must be called after {@link
@@ -192,15 +192,15 @@ public:
     {}
 
     void AddInputData(long checkpointId, const omnistream::InputChannelInfo& info, int startSeqNum,
-        std::vector<omnistream::ObjectBuffer*> data) override
+        std::vector<std::shared_ptr<omnistream::Buffer>> data) override
     {}
 
     void AddOutputData(long checkpointId, const omnistream::ResultSubpartitionInfoPOD& info, int startSeqNum,
-        std::vector<omnistream::ObjectBuffer*>& data) override
+        std::vector<std::shared_ptr<omnistream::Buffer>>& data) override
     {}
 
     void AddOutputDataFuture(long checkpointId, const omnistream::ResultSubpartitionInfoPOD& info, int startSeqNum,
-        std::shared_ptr<CompletableFutureV2<std::vector<omnistream::ObjectBuffer*>>> data) override
+        std::shared_ptr<CompletableFutureV2<std::vector<std::shared_ptr<omnistream::Buffer>>>> data) override
     {}
 
     void FinishInput(long checkpointId) override

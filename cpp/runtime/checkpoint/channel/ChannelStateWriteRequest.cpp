@@ -75,23 +75,23 @@ namespace omnistream {
         int subtaskIndex,
         long checkpointId,
         InputChannelInfo info,
-        std::vector<ObjectBuffer *> buffers)
+        std::vector<std::shared_ptr<Buffer>> buffers)
     {
-        auto buffersPtr = std::make_shared<std::vector<ObjectBuffer *>>(std::move(buffers));
-
         return std::make_shared<CheckpointInProgressRequest>(
             "WriteInput",
             jobVertexID,
             subtaskIndex,
             checkpointId,
-            [jobVertexID, subtaskIndex, info, buffersPtr](std::shared_ptr<ChannelStateCheckpointWriter> &writer) {
-                for (auto *buffer : *buffersPtr) {
-                    writer->WriteInput(jobVertexID, subtaskIndex, info, buffer);
+            [jobVertexID, subtaskIndex, info, buffers](std::shared_ptr<ChannelStateCheckpointWriter> &writer) {
+                for (std::shared_ptr<Buffer> buffer : buffers) {
+                    auto buf = std::dynamic_pointer_cast<ObjectBuffer>(buffer);
+                    writer->WriteInput(jobVertexID, subtaskIndex, info, buf);
                 }
             },
-            [buffersPtr](const std::exception_ptr &) {
-                for (auto *buffer : *buffersPtr) {
-                    buffer->RecycleBuffer();
+            [buffers](const std::exception_ptr &) {
+                for (std::shared_ptr<Buffer> buffer : buffers) {
+                    auto buf = std::dynamic_pointer_cast<ObjectBuffer>(buffer);
+                    buf->RecycleBuffer();
                 }
             });
     }
@@ -101,23 +101,23 @@ namespace omnistream {
         int subtaskIndex,
         long checkpointId,
         ResultSubpartitionInfoPOD info,
-        std::vector<ObjectBuffer *> buffers)
+        std::vector<std::shared_ptr<Buffer>> buffers)
     {
-        auto buffersPtr = std::make_shared<std::vector<ObjectBuffer *>>(std::move(buffers));
-
         return std::make_shared<CheckpointInProgressRequest>(
             "writeOutput",
             jobVertexID,
             subtaskIndex,
             checkpointId,
-            [jobVertexID, subtaskIndex, info, buffersPtr](std::shared_ptr<ChannelStateCheckpointWriter> &writer) {
-                for (auto *buffer : *buffersPtr) {
-                    writer->WriteOutput(jobVertexID, subtaskIndex, info, buffer);
+            [jobVertexID, subtaskIndex, info, buffers](std::shared_ptr<ChannelStateCheckpointWriter> &writer) {
+                for (std::shared_ptr<Buffer> buffer : buffers) {
+                    auto buf = std::dynamic_pointer_cast<ObjectBuffer>(buffer);
+                    writer->WriteOutput(jobVertexID, subtaskIndex, info, buf);
                 }
             },
-            [buffersPtr](const std::exception_ptr &) {
-                for (auto *buffer : *buffersPtr) {
-                    buffer->RecycleBuffer();
+            [buffers](const std::exception_ptr &) {
+                for (std::shared_ptr<Buffer> buffer : buffers) {
+                    auto buf = std::dynamic_pointer_cast<ObjectBuffer>(buffer);
+                    buf->RecycleBuffer();
                 }
             });
     }
@@ -127,7 +127,7 @@ namespace omnistream {
         int subtaskIndex,
         long checkpointId,
         ResultSubpartitionInfoPOD info,
-        std::shared_ptr<CompletableFutureV2<std::vector<ObjectBuffer *>>> dataFuture)
+        std::shared_ptr<CompletableFutureV2<std::vector<std::shared_ptr<Buffer>>>> dataFuture)
     {
         auto voidFuture = std::make_shared<CompletableFutureV2<void>>();
 
@@ -140,15 +140,17 @@ namespace omnistream {
             checkpointId,
             [jobVertexID, subtaskIndex, info, dataFuture](std::shared_ptr<ChannelStateCheckpointWriter> &writer) {
                 auto buffers = dataFuture->Get();
-                for (auto *buffer : buffers) {
-                    writer->WriteOutput(jobVertexID, subtaskIndex, info, buffer);
+                for (std::shared_ptr<Buffer> buffer : buffers) {
+                    auto buf = std::dynamic_pointer_cast<ObjectBuffer>(buffer);
+                    writer->WriteOutput(jobVertexID, subtaskIndex, info, buf);
                 }
             },
             [dataFuture](const std::exception_ptr &) {
                 if (dataFuture->IsDone()) {
                     auto buffers = dataFuture->GetNow({});
-                    for (auto *buffer : buffers) {
-                        buffer->RecycleBuffer();
+                    for (std::shared_ptr<Buffer> buffer : buffers) {
+                        auto buf = std::dynamic_pointer_cast<ObjectBuffer>(buffer);
+                        buf->RecycleBuffer();
                     }
                 }
             },
