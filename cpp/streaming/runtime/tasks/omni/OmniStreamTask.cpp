@@ -479,7 +479,7 @@ namespace omnistream {
             // Java would return CompletableFuture.completedFuture(null)
             return new CompletableFutureV2<void>;
         }
-        return inputProcessor_->prepareSnapshot(channelStateWriter, checkpointID);
+        return inputProcessor_->PrepareSnapshot(channelStateWriter, checkpointID);
     }
 
     bool OmniStreamTask::PerformCheckpoint(CheckpointMetaData* checkpointMetaData,

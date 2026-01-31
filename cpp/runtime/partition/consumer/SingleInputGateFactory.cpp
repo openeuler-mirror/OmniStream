@@ -13,6 +13,7 @@
 #include "LocalInputChannel.h"
 #include "RemoteInputChannel.h"
 #include "OmniLocalInputChannel.h"
+#include "checkpoint/channel/ChannelStateWriterImpl.h"
 
 namespace omnistream {
     std::shared_ptr<SingleInputGate> SingleInputGateFactory::create(std::string owningTaskName, int gateIndex, std::shared_ptr<InputGateDeploymentDescriptorPOD> igdd,
@@ -84,13 +85,15 @@ namespace omnistream {
         channelStatistics->numLocalChannels++;
 
         // todo ChannelStateWriter
+        std::shared_ptr<ChannelStateWriter> stateWriter = std::make_shared<ChannelStateWriterImpl>();
         if (producerResourceId == this->taskExecutorResourceId) {
             std::shared_ptr<LocalInputChannel> channel =
                     std::make_shared<LocalInputChannel>(inputGate, index,
                                                         shuffleDescriptor.getResultPartitionID(), partitionManager,
                                                         partitionRequestInitialBackoff, partitionRequestMaxBackoff,
                                                         std::shared_ptr<SimpleCounter>(),
-                                                        std::shared_ptr<SimpleCounter>());
+                                                        std::shared_ptr<SimpleCounter>(),
+                                                        stateWriter);
             LOG("CREATE A LOCAL INPUT CHANNEL#################################");
             return channel;
         } else {
@@ -100,7 +103,8 @@ namespace omnistream {
                                                          partitionRequestInitialBackoff, partitionRequestMaxBackoff,
                                                          networkBuffersPerChannel,
                                                          std::shared_ptr<SimpleCounter>(),
-                                                         std::shared_ptr<SimpleCounter>());
+                                                         std::shared_ptr<SimpleCounter>(),
+                                                         stateWriter);
             LOG("CREATE A REMOTE INPUT CHANNEL#################################");
             return channel;
         }
@@ -109,10 +113,13 @@ namespace omnistream {
     std::shared_ptr<OmniLocalInputChannel> SingleInputGateFactory::createOriginalInputChannel(
         std::shared_ptr<SingleInputGate> inputGate, int index, ResultPartitionIDPOD& partitionId)
     {
+        // todo ChannelStateWriter
+        std::shared_ptr<ChannelStateWriter> stateWriter = std::make_shared<ChannelStateWriterImpl>();
         return std::make_shared<OmniLocalInputChannel>(inputGate, index, partitionId, partitionManager,
                                                 partitionRequestInitialBackoff, partitionRequestMaxBackoff,
                                                 networkBuffersPerChannel,
-                                                std::shared_ptr<SimpleCounter>(), std::shared_ptr<SimpleCounter>());
+                                                std::shared_ptr<SimpleCounter>(), std::shared_ptr<SimpleCounter>(),
+                                                stateWriter);
     }
 
 }

@@ -27,7 +27,7 @@ namespace omnistream {
         std::shared_ptr<CompletableFuture> GetAvailableFuture() override;
         OmniStreamTaskInput* GetInput();
         void close() override;
-
+        CompletableFutureV2<void>* PrepareSnapshot(ChannelStateWriter* writer, long checkpointID) override;
     private:
         OmniStreamTaskInput *input;
         OmniStreamTaskInput::OmniDataOutput *output;

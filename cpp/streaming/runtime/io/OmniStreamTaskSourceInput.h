@@ -85,6 +85,12 @@ namespace omnistream {
         {
             return inputGateIndex;
         }
+
+        CompletableFutureV2<void>* PrepareSnapshot(ChannelStateWriter* writer, long checkpointID)
+        {
+            LOG("SourceInput prepare snapshot, checkpointID: " <<checkpointID);
+            return nullptr;
+        }
     private:
         SourceOperator<>* sourceOperator;
         std::shared_ptr<AvailabilityHelper> isBlockedAvailability = std::make_shared<AvailabilityHelper>();

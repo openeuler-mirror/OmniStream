@@ -12,6 +12,8 @@ namespace omnistream {
         virtual int getInputIndex() = 0;
 
         virtual void close() {};
+
+        virtual CompletableFutureV2<void>* PrepareSnapshot(ChannelStateWriter* writer, long checkpointID) = 0;
     };
 
 }

@@ -30,7 +30,7 @@ namespace omnistream {
 
         virtual void close() {}
 
-        CompletableFutureV2<void> *prepareSnapshot(std::shared_ptr<ChannelStateWriter> writer, long checkpointID)
+        virtual CompletableFutureV2<void> *PrepareSnapshot(std::shared_ptr<ChannelStateWriter> writer, long checkpointID)
         {
             return nullptr;
         };

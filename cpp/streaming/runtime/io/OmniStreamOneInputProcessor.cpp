@@ -34,6 +34,14 @@ namespace omnistream {
     {
         return input;
     }
+
+    CompletableFutureV2<void>* OmniStreamOneInputProcessor::PrepareSnapshot(ChannelStateWriter* writer,
+            long checkpointID)
+    {
+        LOG("OneInput prepare snapshot, checkpointID: " << checkpointID);
+        return input->PrepareSnapshot(writer, checkpointID);
+    }
+
     void OmniStreamOneInputProcessor::close()
     {
         input->close();

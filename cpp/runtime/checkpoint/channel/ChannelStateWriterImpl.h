@@ -27,6 +27,7 @@ namespace omnistream {
 
     class ChannelStateWriterImpl : public ChannelStateWriter {
     public:
+        ChannelStateWriterImpl() = default;
         ChannelStateWriterImpl(
             const JobVertexID &jobVertexID,
             const std::string &taskName,
