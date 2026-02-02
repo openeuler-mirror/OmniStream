@@ -122,7 +122,10 @@ namespace omnistream::datastream {
     }
 
     std::vector<std::shared_ptr<omnistream::Buffer>> SpillingAdaptiveSpanningRecordDeserializer::GetUnconsumedBuffer()
-    {}
+    {
+        std::vector<std::shared_ptr<omnistream::Buffer>> buffers;
+        return buffers;
+    }
 
     SpillingAdaptiveSpanningRecordDeserializer::~SpillingAdaptiveSpanningRecordDeserializer()
     {

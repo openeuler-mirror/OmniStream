@@ -32,7 +32,8 @@ namespace omnistream {
             const JobVertexID &jobVertexID,
             const std::string &taskName,
             int subtaskIndex,
-            CheckpointStorage *checkpointStorage,
+            std::shared_ptr<CheckpointStorage> checkpointStorage,
+            std::shared_ptr<CheckpointStorageWorkerView> streamFactoryResolver,
             int maxCheckpoints = 1000,
             int maxSubtasksPerChannelStateFile = 10);
 

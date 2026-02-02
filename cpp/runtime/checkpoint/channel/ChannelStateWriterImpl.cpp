@@ -15,7 +15,8 @@ namespace omnistream {
         const JobVertexID &jobVertexID,
         const std::string &taskName,
         int subtaskIndex,
-        CheckpointStorage *checkpointStorage,
+        std::shared_ptr<CheckpointStorage> checkpointStorage,
+        std::shared_ptr<CheckpointStorageWorkerView> streamFactoryResolver,
         int maxCheckpoints,
         int maxSubtasksPerChannelStateFile)
         : jobVertexID_(jobVertexID),
@@ -28,7 +29,8 @@ namespace omnistream {
         auto dispatcher = std::make_shared<ChannelStateWriteRequestDispatcherImpl>(
             checkpointStorage,
             JobIDPOD{},
-            serializer_.get());
+            serializer_.get(),
+            streamFactoryResolver);
         executor_ = std::make_shared<ChannelStateWriteRequestExecutorImpl>(dispatcher);
     }
 

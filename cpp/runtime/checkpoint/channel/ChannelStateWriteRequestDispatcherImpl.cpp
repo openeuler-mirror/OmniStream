@@ -13,16 +13,17 @@
 namespace omnistream {
 
     ChannelStateWriteRequestDispatcherImpl::ChannelStateWriteRequestDispatcherImpl(
-        CheckpointStorage *checkpointStorage,
+        std::shared_ptr<CheckpointStorage> checkpointStorage,
         const JobIDPOD &jobID,
-        ChannelStateSerializer *serializer)
+        ChannelStateSerializer *serializer,
+        std::shared_ptr<CheckpointStorageWorkerView> streamFactoryResolver)
         : checkpointStorage(checkpointStorage),
           jobID(jobID),
           serializer(serializer),
           ongoingCheckpointId(-1),
           maxAbortedCheckpointId(-1),
           abortedSubtaskID(JobVertexID(-1, -1), -1),
-          streamFactoryResolver(nullptr) {}
+          streamFactoryResolver(streamFactoryResolver) {}
 
     void ChannelStateWriteRequestDispatcherImpl::dispatch(std::shared_ptr<ChannelStateWriteRequest> request)
     {
@@ -191,7 +192,7 @@ namespace omnistream {
             [this, writer]() { writer->Reset(); });
     }
 
-    CheckpointStorageWorkerView *ChannelStateWriteRequestDispatcherImpl::getStreamFactoryResolver()
+    std::shared_ptr<CheckpointStorageWorkerView> ChannelStateWriteRequestDispatcherImpl::getStreamFactoryResolver()
     {
         if (!streamFactoryResolver) {
             streamFactoryResolver = checkpointStorage->createCheckpointStorage(jobID);

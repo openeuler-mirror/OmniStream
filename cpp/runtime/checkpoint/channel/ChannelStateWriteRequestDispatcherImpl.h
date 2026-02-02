@@ -29,15 +29,16 @@ namespace omnistream {
     class ChannelStateWriteRequestDispatcherImpl : public ChannelStateWriteRequestDispatcher {
     public:
         ChannelStateWriteRequestDispatcherImpl(
-            CheckpointStorage *checkpointStorage,
+            std::shared_ptr<CheckpointStorage> checkpointStorage,
             const JobIDPOD &jobID,
-            ChannelStateSerializer *serializer);
+            ChannelStateSerializer *serializer,
+            std::shared_ptr<CheckpointStorageWorkerView> streamFactoryResolver);
 
         void dispatch(std::shared_ptr<ChannelStateWriteRequest> request) override;
         void fail(const std::exception_ptr &cause) override;
 
     private:
-        CheckpointStorage *checkpointStorage;
+        std::shared_ptr<CheckpointStorage> checkpointStorage;
         JobIDPOD jobID;
         ChannelStateSerializer *serializer;
         std::set<SubtaskID> registeredSubtasks;
@@ -47,7 +48,7 @@ namespace omnistream {
         SubtaskID abortedSubtaskID;
         std::exception_ptr abortedCause;
         std::unordered_map<uint64_t, std::shared_ptr<ChannelStateCheckpointWriter>> writers;
-        CheckpointStorageWorkerView *streamFactoryResolver;
+        std::shared_ptr<CheckpointStorageWorkerView> streamFactoryResolver;
 
         void dispatchInternal(std::shared_ptr<ChannelStateWriteRequest> request);
         bool isAbortedCheckpoint(long checkpointId);
@@ -58,7 +59,7 @@ namespace omnistream {
         void failAndClearWriter(const std::exception_ptr &e);
         void failAndClearWriter(const JobVertexID &jvid, int idx, const std::exception_ptr &e);
         std::shared_ptr<ChannelStateCheckpointWriter> buildWriter(std::shared_ptr<CheckpointStartRequest> request);
-        CheckpointStorageWorkerView *getStreamFactoryResolver();
+        std::shared_ptr<CheckpointStorageWorkerView> getStreamFactoryResolver();
     };
 
 } // namespace omnistream

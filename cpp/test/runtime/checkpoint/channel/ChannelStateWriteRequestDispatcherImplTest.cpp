@@ -27,14 +27,14 @@ public:
 
 class CheckpointStorageTest : public CheckpointStorage {
 public:
-    CheckpointStorageAccess* createCheckpointStorage(const JobIDPOD& jobId) override {
+    std::shared_ptr<CheckpointStorageAccess> createCheckpointStorage(const JobIDPOD& jobId) override {
         // const std::string dir = std::filesystem::temp_directory_path().string();
         const std::string dir = "";
 
         Path* checkpointDir = new Path(dir);
         Path* savepointDir = new Path(dir);
         
-        return new FsCheckpointStorageAccess(
+        return make_shared<FsCheckpointStorageAccess>(
             checkpointDir,
             savepointDir,
             jobId,

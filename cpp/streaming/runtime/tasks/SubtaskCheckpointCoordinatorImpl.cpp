@@ -244,7 +244,8 @@ namespace omnistream::runtime {
     }
 
     std::shared_ptr<ChannelStateWriter> SubtaskCheckpointCoordinatorImpl::openChannelStateWriter(
-        std::string taskName, omnistream::CheckpointStorage *checkpointStorage,
+        std::string taskName, std::shared_ptr<omnistream::CheckpointStorage> checkpointStorage,
+        std::shared_ptr<omnistream::CheckpointStorageWorkerView> streamFactoryResolver,
         std::shared_ptr<omnistream::EnvironmentV2> env)
     {
         // JobIDPOD seems to be similar to JobVertexID. Remove one, then replace the temp JobVertexID with:
@@ -253,7 +254,8 @@ namespace omnistream::runtime {
         std::shared_ptr<ChannelStateWriterImpl> writer = std::make_shared<omnistream::ChannelStateWriterImpl>(omnistream::JobVertexID(0, 0),
                                                       taskName,
                                                       env->taskConfiguration().getIndexOfSubtask(),
-                                                      checkpointStorage);
+                                                      checkpointStorage,
+                                                      streamFactoryResolver);
         writer->open();
         return writer;
     }
@@ -327,9 +329,6 @@ namespace omnistream::runtime {
 
     SubtaskCheckpointCoordinatorImpl::~SubtaskCheckpointCoordinatorImpl()
     {
-        if (checkpointStorage) {
-            delete checkpointStorage;
-        }
         if (alignmentTimer) {
             delete alignmentTimer;
         }
@@ -358,7 +357,7 @@ namespace omnistream::runtime {
     }
 
     SubtaskCheckpointCoordinatorImpl::SubtaskCheckpointCoordinatorImpl(
-        CheckpointStorageWorkerView *checkpointStorage,
+        std::shared_ptr<CheckpointStorageWorkerView> checkpointStorage,
         std::string taskName,
         std::shared_ptr<omnistream::StreamTaskActionExecutor> actionExecutor,
         std::shared_ptr<omnistream::EnvironmentV2> env,
@@ -367,7 +366,7 @@ namespace omnistream::runtime {
         std::shared_ptr<ChannelStateWriter> channelStateWriter,
         bool enableCheckpointAfterTasksFinished,
         BarrierAlignmentUtil::DelayableTimer<std::function<void()>> *registerTimer)
-        : checkpointStorage(new CachingCheckpointStorageWorkerView(checkpointStorage)),
+        : checkpointStorage(make_shared<CachingCheckpointStorageWorkerView>(checkpointStorage)),
           taskName(taskName),
           actionExecutor(actionExecutor),
           env(env),
@@ -529,7 +528,7 @@ namespace omnistream::runtime {
         }
     }
 
-    CheckpointStorageWorkerView *SubtaskCheckpointCoordinatorImpl::getCheckpointStorage()
+    std::shared_ptr<CheckpointStorageWorkerView> SubtaskCheckpointCoordinatorImpl::getCheckpointStorage()
     {
         return checkpointStorage;
     }

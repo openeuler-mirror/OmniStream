@@ -17,7 +17,7 @@
 #include "CheckpointStorageLocationReference.h"
 #include "CheckpointStreamFactory.h"
 #include "CheckpointStateToolset.h"
-
+namespace omnistream {
 class CheckpointStorageWorkerView {
 public:
     virtual CheckpointStreamFactory *resolveCheckpointStorageLocation(
@@ -29,4 +29,5 @@ public:
 
     virtual ~CheckpointStorageWorkerView() = default;
 };
+}
 #endif // FLINK_TNEL_CHECKPOINTSTORAGEWORKERVIEW_H

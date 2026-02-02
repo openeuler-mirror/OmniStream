@@ -87,9 +87,10 @@ namespace omnistream {
             stateBackend = new RocksDBStateBackend(taskConfiguration_);
         }
         checkpointStorage = createCheckpointStorage(stateBackend);
-        CheckpointStorageAccess *checkpointStorageAccess = checkpointStorage->createCheckpointStorage();
+        std::shared_ptr<CheckpointStorageAccess> checkpointStorageAccess = checkpointStorage->createCheckpointStorage();
 
         subtaskCheckpointCoordinator = std::make_shared<runtime::SubtaskCheckpointCoordinatorImpl>(
+            checkpointStorage,
             checkpointStorageAccess,
             env_->taskConfiguration().getTaskName(),
             actionExecutor_,
