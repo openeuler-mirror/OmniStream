@@ -31,6 +31,7 @@ namespace omnistream::datastream {
 
         virtual void clear() = 0;
         virtual  void SetNextBuffer(std::shared_ptr<ReadOnlySlicedNetworkBuffer> buffer)=0;
+        virtual std::vector<std::shared_ptr<omnistream::Buffer>> GetUnconsumedBuffer();
 
         /**
          * Gets the unconsumed buffer_ which needs to be persisted in unaligned checkpoint scenario.

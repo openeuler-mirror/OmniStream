@@ -86,7 +86,7 @@ namespace omnistream {
             return inputGateIndex;
         }
 
-        CompletableFutureV2<void>* PrepareSnapshot(ChannelStateWriter* writer, long checkpointID)
+        CompletableFutureV2<void>* PrepareSnapshot(std::shared_ptr<ChannelStateWriter> writer, long checkpointID)
         {
             LOG("SourceInput prepare snapshot, checkpointID: " <<checkpointID);
             return nullptr;
