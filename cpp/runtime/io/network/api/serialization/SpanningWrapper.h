@@ -27,7 +27,20 @@ public:
     void transferLeftOverTo(NonSpanningWrapper& nonSpanningWrapper);
     void transferFrom(NonSpanningWrapper &partial, int nextRecordLength);
     void addNextChunkFromMemoryBuffer(const uint8_t* buffer, int numBytes);
-
+    std::shared_ptr<Buffer> GetUnconsumedSegment()
+    {
+        LOG("SpanningWrapper GetUnconsumedSegment position: " << lengthBuffer_->position());
+        if (lengthBuffer_->position() <= 0) {
+            return nullptr;
+        }
+        uint8_t *data = reinterpret_cast<uint8_t *>(malloc(lengthBuffer_->position()));
+        std::shared_ptr<MemorySegment> memorySegment = std::make_shared<MemorySegment>(data, lengthBuffer_->position());
+        memorySegment->put(0, lengthBuffer_->getValue(), 0, lengthBuffer_->position());
+        std::shared_ptr<::datastream::NetworkBuffer> networkBuffer = std::make_shared<::datastream::NetworkBuffer>(
+            memorySegment, lengthBuffer_->position(), 0, std::make_shared<OriginalNetworkBufferRecycler>(),
+            ObjectBufferDataType::DATA_BUFFER);
+        return networkBuffer;
+    }
 private:
     std::vector<uint8_t> buffer_; // internal buff to stick data, has the ownership
 
