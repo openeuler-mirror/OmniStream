@@ -45,6 +45,7 @@ namespace omnistream::runtime {
           currentState_(currentState),
           alternating_(alternating)
     {
+        allBarriersReceivedFuture_ = CompletableFutureV2<void>();
         context_ = new ControllerImpl(this, subTaskCheckpointCoordinator_);
     }
 
@@ -265,7 +266,7 @@ namespace omnistream::runtime {
         alignedChannels_.clear();
         targetChannelCount_ = numOpenChannels_;
         currentCheckpointUnaligned_ = barrier.GetCheckpointOptions()->IsUnalignedCheckpoint();
-        allBarriersReceivedFuture_ = CompletableFutureV2<void>();
+        // allBarriersReceivedFuture_ = CompletableFutureV2<void>();
     }
 
     // Register alignment timer
@@ -466,7 +467,8 @@ namespace omnistream::runtime {
         if (checkpointId > currentCheckpointId_) {
             throw std::runtime_error("Checkpoint " + std::to_string(checkpointId) + " has not been started at all");
         }
-
+        LOG("SingleCheckpointBarrierHandler GetAllBarriersReceivedFuture checkpointId: " << checkpointId
+            << ", currentCheckpointId: " << currentCheckpointId_);
         return allBarriersReceivedFuture_;
     }
 
