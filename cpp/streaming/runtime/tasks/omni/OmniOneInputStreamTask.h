@@ -19,6 +19,7 @@
 #include "runtime/metrics/SimpleCounter.h"
 #include "runtime/io/checkpointing/CheckpointBarrierHandler.h"
 #include "runtime/io/checkpointing/InputProcessorUtil.h"
+#include "watermark/StatusWatermarkValve.h"
 
 namespace omnistream {
     class OmniOneInputStreamTask : public OmniStreamTask {

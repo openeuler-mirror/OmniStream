@@ -30,13 +30,31 @@
 #include "streaming/runtime/io/OmniStreamTaskNetworkOutput.h"
 #include "typeutils/TypeSerializer.h"
 #include "runtime/io/checkpointing/CheckpointedInputGate.h"
+#include "watermark/StatusWatermarkValve.h"
+
 namespace omnistream {
 class OmniAbstractStreamTaskNetworkInput : public OmniStreamTaskInput {
 public:
     OmniAbstractStreamTaskNetworkInput(int64_t inputIndex, std::shared_ptr<CheckpointedInputGate> inputGate, int taskType,
         TypeSerializer *inputSerializer, std::vector<long> & channelInfos)
-        : inputIndex(inputIndex), inputGate(std::move(inputGate)), taskType(taskType), currentRecordDeserializer(nullptr), output_(nullptr)
+        :inputIndex(inputIndex), inputGate(std::move(inputGate)), taskType(taskType), currentRecordDeserializer(nullptr), output_(nullptr)
     {
+        inSerializer = inputSerializer;
+        deserializationDelegate_ = new NonReusingDeserializationDelegate(
+                std::make_unique<datastream::StreamElementSerializer>(inputSerializer));
+        recordDeserializers = getRecordDeserializers(channelInfos);
+        rowCount = 0;
+        maxRowCount = 1000;
+        timeout = 1000;
+        running_.exchange(true);
+    }
+    OmniAbstractStreamTaskNetworkInput(std::unique_ptr<StatusWatermarkValve> watermarkValve, std::shared_ptr<CheckpointedInputGate> inputGate, int taskType,
+        TypeSerializer *inputSerializer, std::vector<long> & channelInfos)
+        :statusWatermarkValve_(std::move(watermarkValve)), inputGate(std::move(inputGate)), taskType(taskType), currentRecordDeserializer(nullptr), output_(nullptr)
+    {
+        if (statusWatermarkValve_ == nullptr) {
+            throw std::runtime_error("statusWatermarkValve_ cannot be null");
+        }
         inSerializer = inputSerializer;
         deserializationDelegate_ = new NonReusingDeserializationDelegate(
                 std::make_unique<datastream::StreamElementSerializer>(inputSerializer));
@@ -128,7 +146,7 @@ public:
             std::to_string(reinterpret_cast<int64_t>(bufferOrEvent.get())))
         if (bufferOrEvent->isBuffer()) {
             auto buff = std::reinterpret_pointer_cast<ObjectBuffer>(bufferOrEvent->getBuffer());
-
+            auto bufferChannelInfo= bufferOrEvent->getChannelInfo();
             auto size = buff->GetSize();
             auto objSegment = buff->GetObjectSegment();
             auto offset = buff->GetOffset();
@@ -148,7 +166,13 @@ public:
 
                     output->emitRecord(reinterpret_cast<StreamRecord *>(object));
                 } else if (object->getTag() == StreamElementTag::TAG_WATERMARK) {
-                    output->emitWatermark(reinterpret_cast<Watermark *>(object));
+                    auto watermark = reinterpret_cast<Watermark*>(object);
+                    int64_t updatedTimestamp = statusWatermarkValve_->inputWatermark(watermark, bufferChannelInfo.getInputChannelIdx());
+                    if(updatedTimestamp!= INT64_MIN){
+                        watermark->setTimestamp(updatedTimestamp);
+                        output->emitWatermark(watermark);
+                    }
+                    
                 }
             }
             // more avaiable means there could be more data come in
@@ -274,7 +298,8 @@ public:
     {
         auto *element = reinterpret_cast<StreamElement *>(deserializationDelegate_->getInstance()); // 这里面包装的是BinaryRowData
         if (element->getTag() == StreamElementTag::TAG_WATERMARK) {
-            output->emitWatermark(reinterpret_cast<Watermark *>(element));
+            auto watermark = reinterpret_cast<Watermark *>(element);
+            output->emitWatermark(reinterpret_cast<Watermark *>(watermark));
         } else {
             auto record = reinterpret_cast<StreamRecord *>(element);
             auto row = reinterpret_cast<BinaryRowData *>(record->getValue());
@@ -505,6 +530,7 @@ public:
 
 protected:
     int64_t inputIndex;
+    std::unique_ptr<StatusWatermarkValve> statusWatermarkValve_;
     std::shared_ptr<CheckpointedInputGate> inputGate;
     std::atomic<long> numberOfRow {0};
 

@@ -49,14 +49,15 @@ namespace omnistream {
 
             OmniStreamTaskInput *input1 = nullptr;
             OmniStreamTaskInput *input2 = nullptr;
-
+            auto valve0 = std::make_unique<StatusWatermarkValve>(inputGates[0]->getNumberOfInputChannels());
+            auto valve1 = std::make_unique<StatusWatermarkValve>(inputGates[1]->getNumberOfInputChannels());
             if (taskType == 1) {
                 auto leftTypes = description["leftInputTypes"].get<std::vector<std::string>>();
                 auto rightTypes = description["rightInputTypes"].get<std::vector<std::string>>();
 
-                input1 = OmniStreamTaskNetworkInputFactory::create(0, inputGates[0], taskType,
+                input1 = OmniStreamTaskNetworkInputFactory::create(valve0, inputGates[0], taskType,
                                                                    new BinaryRowDataSerializer(leftTypes.size(), leftTypes), channelInfoIndex1);
-                input2 = OmniStreamTaskNetworkInputFactory::create(1, inputGates[1], taskType,
+                input2 = OmniStreamTaskNetworkInputFactory::create(valve1, inputGates[1], taskType,
                                                                    new BinaryRowDataSerializer(rightTypes.size(), rightTypes), channelInfoIndex2);
             } else if (taskType == 2) {
                 auto inputTypes = description["inputTypes"];
@@ -75,13 +76,13 @@ namespace omnistream {
                 }
                 inputTypeInfo2 = TypeInfoFactory::createDataStreamTypeInfo(inputTypes[1]);
 
-                input1 = OmniStreamTaskNetworkInputFactory::create(0, inputGates[0], taskType,
+                input1 = OmniStreamTaskNetworkInputFactory::create((int64_t)0, inputGates[0], taskType,
                                                                    inputTypeInfo1 == nullptr ? nullptr : inputTypeInfo1->createTypeSerializer(), channelInfoIndex1);
                 if (inputTypeInfo1 != nullptr) {
                     delete inputTypeInfo1;
                 }
 
-                input2 = OmniStreamTaskNetworkInputFactory::create(1, inputGates[1], taskType,
+                input2 = OmniStreamTaskNetworkInputFactory::create((int64_t)1, inputGates[1], taskType,
                                                                    inputTypeInfo2 == nullptr ? nullptr : inputTypeInfo2->createTypeSerializer(), channelInfoIndex2);
                 if (inputTypeInfo2 != nullptr) {
                     delete inputTypeInfo2;
