@@ -43,6 +43,7 @@
 #include "state/RocksDbKvStateInfo.h"
 #include "runtime/state/DefaultConfigurableOptionsFactory.h"
 
+const int FALCON_PREFIX_PARAM = 13;
 
 /* S is the value used in the State,
  * like RowData* for HeapValueState,
