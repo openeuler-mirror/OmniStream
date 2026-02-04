@@ -47,6 +47,11 @@ void LocalInputChannel::CheckpointStarted(const CheckpointBarrier& barrier)
     channelStatePersister->StartPersisting(barrier.GetId(), knownBuffers);
 }
 
+void LocalInputChannel::SetChannelStateWriter(std::shared_ptr<ChannelStateWriter> channelStateWriter)
+{
+   channelStatePersister = std::make_shared<ChannelStatePersister>(channelStateWriter, getChannelInfo());
+}
+
 void LocalInputChannel::CheckpointStopped(long checkpointId) {
     channelStatePersister->StopPersisting(checkpointId);
 }

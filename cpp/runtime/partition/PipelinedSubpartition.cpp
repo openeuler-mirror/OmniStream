@@ -379,11 +379,11 @@ bool PipelinedSubpartition::ProcessPriorityBuffer(std::shared_ptr<BufferConsumer
         }
 
         if (!inflightBuffers.empty()) {
-            channelStateWriter_->AddOutputDataFuture(
+            channelStateWriter_->AddOutputData(
                 barrier->GetId(),
                 subpartitionInfo,
                 ChannelStateWriter::sequenceNumberUnknown,
-                CreateChannelStateFuture(barrier->GetId()));
+                inflightBuffers);
         }
     }
     return buffers.getNumPriorityElements() == 1 && !isBlocked;
@@ -393,11 +393,11 @@ void PipelinedSubpartition::ProcessTimeoutableCheckpointBarrier(std::shared_ptr<
 {
     auto barrier = ParseAndCheckTimeoutableCheckpointBarrier(bufferConsumer);
     std::vector<std::shared_ptr<Buffer>> inflightBuffers;
-    channelStateWriter_->AddOutputData(
+    channelStateWriter_->AddOutputDataFuture(
         barrier->GetId(),
         subpartitionInfo,
         ChannelStateWriter::sequenceNumberUnknown,
-        inflightBuffers);
+        CreateChannelStateFuture(barrier->GetId()));
 }
 
 std::shared_ptr<CheckpointBarrier> PipelinedSubpartition::ParseAndCheckTimeoutableCheckpointBarrier(

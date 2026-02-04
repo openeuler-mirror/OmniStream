@@ -129,6 +129,7 @@ namespace omnistream {
                    bool precondition,
                    const std::string &action)
         {
+        LOG("ChannelStateCheckpointWriter write start...")
             if (!precondition) {
                 throw std::logic_error("Precondition failed for " + action);
             }

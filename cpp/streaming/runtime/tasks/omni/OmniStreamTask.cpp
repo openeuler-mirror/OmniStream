@@ -102,7 +102,7 @@ namespace omnistream {
             runtime::BarrierAlignmentUtil::template createRegisterTimerCallback<std::function<void()>>(nullptr, systemTimerService.get())
 
         );
-
+        InjectChannelStateWriterIntoChannels();
         // Reconstruct LocalRecoveryConfig
         std::shared_ptr<LocalRecoveryDirectoryProviderImpl> dirProvider;
 
@@ -133,6 +133,14 @@ namespace omnistream {
     bool OmniStreamTask::IsUsingNonBlockingInput()
     {
         return true;
+    }
+
+    void OmniStreamTask::InjectChannelStateWriterIntoChannels()
+    {
+        auto channelStateWriter = subtaskCheckpointCoordinator->getChannelStateWriter();
+        for (auto gate : env_->GetAllInputGates()) {
+            gate->SetChannelStateWriter(channelStateWriter);
+        }
     }
 
     void OmniStreamTask::restoreInternal()

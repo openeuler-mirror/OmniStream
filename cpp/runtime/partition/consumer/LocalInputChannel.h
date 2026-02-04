@@ -63,7 +63,7 @@ public:
     std::string toString() override;
     std::shared_ptr<ResultSubpartitionView> getSubpartitionView();
     void notifyBufferAvailable(int subpartitionId) override;
-
+    void SetChannelStateWriter(std::shared_ptr<ChannelStateWriter> channelStateWriter) override;
 public:
     void retriggerSubpartitionRequest(
         std::shared_ptr<std::chrono::steady_clock::time_point> timer, int subpartitionIndex);
@@ -73,7 +73,7 @@ protected:
     std::optional<BufferAndAvailability> getNextBuffer() override;
     void sendTaskEvent(std::shared_ptr<TaskEvent> event) override;
 
-private:
+protected:
     std::recursive_mutex requestLock;
     std::shared_ptr<ResultPartitionManager> partitionManager;
     //  std::shared_ptr<TaskEventPublisher> taskEventPublisher;

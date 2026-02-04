@@ -147,7 +147,7 @@ namespace omnistream::runtime {
 
         std::shared_ptr<CheckpointStorageWorkerView> getCheckpointStorage();
 
-        std::shared_ptr<ChannelStateWriter> getChannelStateWriter();
+        std::shared_ptr<ChannelStateWriter> getChannelStateWriter() override;
 
     private:
         class LimitedSizeSet : public std::set<long> {

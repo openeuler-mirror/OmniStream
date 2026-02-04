@@ -156,4 +156,43 @@ namespace omnistream {
         this->remoteDataFetcherBridge->InvokeJavaRemoteDataFetcherResumeConsumption(gateIndex, channelIndex);
     }
 
+    void RemoteInputChannel::CheckpointStarted(const CheckpointBarrier &barrier)
+    {
+        std::lock_guard<std::recursive_mutex> lock(queueMutex);
+        if (barrier.GetId() < lastBarrierId_) {
+            LOG("Barrier id is too small");
+            return;
+        } else if (barrier.GetId() > lastBarrierId_) {
+            ResetLastBarrier();
+        }
+        channelStatePersister->StartPersisting(barrier.GetId(), GetInflightBuffersUnsafe(barrier.GetId()));
+    }
+
+    void RemoteInputChannel::CheckpointStopped(long checkpointId)
+    {
+        std::lock_guard<std::recursive_mutex> lock(queueMutex);
+        channelStatePersister->StopPersisting(checkpointId);
+        if (lastBarrierId_ == checkpointId) {
+            ResetLastBarrier();
+        }
+    }
+
+    std::vector<std::shared_ptr<Buffer>> RemoteInputChannel::GetInflightBuffersUnsafe(long checkpointId)
+    {
+        std::lock_guard<std::recursive_mutex> lock(queueMutex);
+        std::vector<std::shared_ptr<Buffer>> inflightBuffers;
+        std::queue<std::shared_ptr<Buffer>> tmpQueue = dataQueue;
+
+        while (!tmpQueue.empty()) {
+            std::shared_ptr<Buffer> buffer = tmpQueue.front();
+            if (buffer->isBuffer()) {
+                inflightBuffers.push_back(buffer->RetainBuffer());
+            }
+            tmpQueue.pop();
+        }
+        LOG("RemoteInputChannel get inflight buffers success, buffer num:" << inflightBuffers.size()
+            << ", checkpointId: " << checkpointId);
+        return inflightBuffers;
+    }
+
 } // namespace omnistream

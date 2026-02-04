@@ -63,6 +63,8 @@ namespace omnistream {
         // in the most cases, it does not to be overridden
         void restore();
 
+        void InjectChannelStateWriterIntoChannels();
+
         // in the most cases, it does not to be overridden
         void restoreInternal();
 
