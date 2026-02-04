@@ -29,6 +29,9 @@
 #include "runtime/state/DefaultConfigurableOptionsFactory.h"
 #include "rocksdb/db.h"
 #include "rocksdb/options.h"
+#include "rocksdb/slice_transform.h"
+#include "rocksdb/table.h"
+#include "rocksdb/filter_policy.h"
 #include "state/rocksdb/RocksDbStringAppendOperator.h"
 
 #include "table/utils/VectorBatchSerializationUtils.h"
@@ -36,6 +39,8 @@
 
 #include "../../../core/utils/MathUtils.h"
 #include "state/RocksDbKvStateInfo.h"
+
+const int FALCON_PREFIX_PARAM = 13;
 
 /* S is the value used in the State,
  * like RowData* for HeapValueState,
@@ -66,8 +71,15 @@ public:
         // set merge method, listState need
         options.merge_operator.reset(new RocksDbStringAppendOperator(','));
         ROCKSDB_NAMESPACE::ColumnFamilyOptions familyOptions(options);
-        DefaultConfigurableOptionsFactory::createColumnOptions(familyOptions);
 
+        // [FALCON] -----------------------------------------------------------------------------------------------
+        // familyOptions.memtable_factory.reset(ROCKSDB_NAMESPACE::NewHashLinkListRepFactory());
+        // familyOptions.prefix_extractor.reset(ROCKSDB_NAMESPACE::NewCappedPrefixTransform(FALCON_PREFIX_PARAM));
+        // familyOptions.compression = ROCKSDB_NAMESPACE::CompressionType::kZlibCompression;
+        // INFO_RELEASE("[FALCON] enable zlib for valueState.")
+        // [FALCON] -----------------------------------------------------------------------------------------------
+
+        DefaultConfigurableOptionsFactory::createColumnOptions(familyOptions);
         ROCKSDB_NAMESPACE::Status s;
         auto it1 = kvStateInformation->find(cfName);
         if (it1 != kvStateInformation->end() && it1->second->columnFamilyHandle_) {
@@ -396,6 +408,10 @@ public:
     {
         return vectorBatchId;
     }
+
+    // [FALCON] function which will be called in RocksdbValueState
+    K getCurrentKey() { return keyContext->getCurrentKey(); }
+    void setCurrentKey(K newKey) { keyContext->setCurrentKey(newKey); }
 
     class StateEntryIterator : public InternalKvState<K, N, S>::StateIncrementalVisitor {
     public:
