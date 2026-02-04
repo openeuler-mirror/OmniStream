@@ -71,10 +71,9 @@ public:
 
     static long getNextTriggerWatermark(long watermark, long interval)
     {
-        if (watermark == INT64_MAX) {
-            return watermark;
-        }
-        long triggerWatermark = watermark + interval - 1L;
+        long remainder = (interval <= 0) ? 0 : (watermark % interval);
+ 	    long start = remainder < 0L ? watermark -(remainder + interval): watermark - remainder;
+ 	    long triggerWatermark = start + interval - 1L;
 
         return triggerWatermark > watermark ? triggerWatermark : triggerWatermark + interval;
     }
@@ -137,7 +136,6 @@ private:
     void SetLong(omniruntime::vec::VectorBatch* outputBatch, int numRows, int colIndex, std::vector<RowData*> vec);
     void SetInt(omniruntime::vec::VectorBatch* outputBatch, int numRows, int colIndex, std::vector<RowData*> vec);
     std::vector<WindowKey*> invertOrder;
-    int64_t tmpMaxProgress = INT64_MIN;
     int rowtimeIndexVal;
     ClockService* clock;
     void ExtractFunction();

@@ -20,7 +20,6 @@ public:
         } else if constexpr (std::is_same_v<K, int64_t>) {
             // Initialize currentKey and currentKeyGroupIndex
             currentKey = 0;
-            setCurrentKey(currentKey);
         } else if constexpr (std::is_pointer_v<K>) {
             // Initialize currentKey and currentKeyGroupIndex
             currentKey = nullptr;
