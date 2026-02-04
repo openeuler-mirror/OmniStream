@@ -11,7 +11,6 @@
 #ifndef OMNISTREAM_STATUSWATERMARKVALVE_H
 #define OMNISTREAM_STATUSWATERMARKVALVE_H
 
-#include "functions/StreamElement.h"
 #include "common.h"
 #include "WatermarkStatus.h"
 
