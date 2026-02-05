@@ -27,7 +27,7 @@ class StatusWatermarkValve{
 
     public:
         int64_t inputWatermark(Watermark* watermark, int channelIndex){
-            int64_t timestamp = watermark->getTimesStamp();
+            int64_t timestamp = watermark->getTimestamp();
             if (timestamp > channelStatuses[channelIndex].watermark) {
                 channelStatuses[channelIndex].watermark = timestamp;
             }
