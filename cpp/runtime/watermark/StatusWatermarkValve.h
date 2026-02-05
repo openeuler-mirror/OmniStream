@@ -26,6 +26,10 @@ class StatusWatermarkValve{
         int64_t lastOutputWatermark;
 
     public:
+        StatusWatermarkValve(int numInputChannels) {
+            channelStatuses.resize(numInputChannels);
+            lastOutputWatermark = INT64_MIN;
+        }
         int64_t inputWatermark(Watermark* watermark, int channelIndex){
             int64_t timestamp = watermark->getTimestamp();
             if (timestamp > channelStatuses[channelIndex].watermark) {

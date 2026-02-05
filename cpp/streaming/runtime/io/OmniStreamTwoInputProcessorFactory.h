@@ -49,8 +49,8 @@ namespace omnistream {
 
             OmniStreamTaskInput *input1 = nullptr;
             OmniStreamTaskInput *input2 = nullptr;
-            auto valve0 = std::make_unique<StatusWatermarkValve>(inputGates[0]->getNumberOfInputChannels());
-            auto valve1 = std::make_unique<StatusWatermarkValve>(inputGates[1]->getNumberOfInputChannels());
+            auto valve0 = std::make_unique<StatusWatermarkValve>(inputGates[0]->GetNumberOfInputChannels());
+            auto valve1 = std::make_unique<StatusWatermarkValve>(inputGates[1]->GetNumberOfInputChannels());
             if (taskType == 1) {
                 auto leftTypes = description["leftInputTypes"].get<std::vector<std::string>>();
                 auto rightTypes = description["rightInputTypes"].get<std::vector<std::string>>();
