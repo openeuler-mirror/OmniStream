@@ -29,7 +29,7 @@ std::string uint32_to_hex_string(uint32_t value)
 std::string bytesToHex(uint8_t * _bytes__, size_t _size__)
 {
     std::stringstream ss;
-    ss << std::hex << std::uppercase  << std::setfill('0');
+    ss << std::hex << std::setfill('0');
     for (size_t i = 0; i < _size__; ++i) {
         ss << std::setw(2) <<  static_cast<int>(_bytes__[i]);
     }

@@ -178,9 +178,10 @@ private:
             omniTaskBridge_->readMetaData(to_string(serializerStr));
         // TTODO: Here use the real stateMetaInfoSnapshots, instead of the fake one.
 
-        Path path = localKeyedStateHandle->getDirectoryStateHandle()->getDirectory();
+        Path path = localKeyedStateHandle->GetDirectoryStateHandle()->getDirectory();
         std::filesystem::path restoreSourcePath = path.toString();
 
+        LOG("localKeyedStateHandle path!" << restoreSourcePath);
         rocksHandle_->openDB(createColumnFamilyDescriptors(stateMetaInfoSnapshots, false),
                              stateMetaInfoSnapshots,
                              restoreSourcePath);

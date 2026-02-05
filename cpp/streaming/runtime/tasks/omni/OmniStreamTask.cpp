@@ -116,6 +116,8 @@ void OmniStreamTask::postConstruct()
             TaskStateSnapshotDeserializer::HexStringToOperatorId<JobVertexID>(localJson["jobVertexID"]);
         dirProvider = std::make_shared<LocalRecoveryDirectoryProviderImpl>(
             allocationBaseDirs, jobId, jobVertexId, std::stoi(localJson["subtaskIndex"].get<std::string>()));
+        dirProvider->SetJobIdHexStr(localJson["jobID"]);
+        dirProvider->SetVertexIdHexStr(localJson["jobVertexID"]);
     }
     auto localRecoveryConfig = std::make_shared<LocalRecoveryConfig>(dirProvider);
     env_->setLocalRecoveryConfig(localRecoveryConfig);

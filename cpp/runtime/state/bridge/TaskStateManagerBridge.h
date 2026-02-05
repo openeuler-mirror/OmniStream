@@ -28,6 +28,7 @@ public:
         std::string &localState) = 0;
         virtual void notifyCheckpointAborted(std::string checkpointId)= 0;
         virtual void NotifyCheckpointComplete(std::string checkpointId)=0;
+        virtual std::shared_ptr<TaskStateSnapshot> RetrieveLocalState(long restoreCheckpointId) = 0;
 };
 }
 

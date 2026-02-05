@@ -87,7 +87,7 @@ protected:
             long checkpointId,
             std::shared_ptr<omnistream::OmniTaskBridge> bridge)
     {
-        return bridge->CallMaterializeMetaData(checkpointId, stateMetaInfoSnapshots);
+        return bridge->CallMaterializeMetaData(checkpointId, stateMetaInfoSnapshots, localRecoveryConfig_);
     };
 
     std::shared_ptr<SnapshotDirectory> prepareLocalSnapshotDirectory(long checkpointId);

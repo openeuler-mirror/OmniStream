@@ -94,7 +94,7 @@ TEST(DeserializerTestSuite, DeserializesLocalStateSnapshotFromFile) {
     }) << "The output of ToString() is not valid JSON. Output was: " << to_string_output;
 
     EXPECT_EQ(parsed_json["stateHandleName"], "TaskStateSnapshot");
-    std::string opIdHex = "4BF7C1955FFE56E2106D666433EAF137";
+    std::string opIdHex = "4bf7c1955ffe56e2106d666433eaf137";
     ASSERT_TRUE(parsed_json["subtaskStatesByOperatorID"].contains(opIdHex));
 }
 

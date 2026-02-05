@@ -166,7 +166,7 @@ public:
     std::string ToString() const override
     {
         nlohmann::json json;
-        json["directoryStateHandle"] = nlohmann::json::parse(this->getDirectoryStateHandle()->ToString());
+        json["directoryStateHandle"] = nlohmann::json::parse(this->GetDirectoryStateHandle()->ToString());
         json["keyGroupRange"] = nlohmann::json::parse(this->GetKeyGroupRange().ToString());
         json["backendIdentifier"] = backendIdentifier_.ToString();
         json["checkpointId"] = checkpointId_;

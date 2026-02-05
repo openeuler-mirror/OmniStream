@@ -26,7 +26,10 @@ public:
         const KeyGroupRange& keyGroupRange)
         : directoryStateHandle_(directoryHandle),
           keyGroupRange_(keyGroupRange),
-          stateHandleId_(StateHandleID::randomStateHandleId()) {}
+          stateHandleId_(StateHandleID::randomStateHandleId()) 
+    {
+        directoryStateHandle = new DirectoryStateHandle(directoryHandle->getDirectory(), directoryHandle->GetStateSize());
+    }
 
     DirectoryKeyedStateHandle(const nlohmann::json& json)
         : directoryStateHandle_(nullptr),
@@ -41,14 +44,23 @@ public:
         }
 
         directoryStateHandle_ = new DirectoryStateHandle(json["directoryStateHandle"]);
+        directoryStateHandle = new DirectoryStateHandle(directoryStateHandle_->getDirectory(), directoryStateHandle_->GetStateSize());
         keyGroupRange_ = KeyGroupRange(json["keyGroupRange"]["startKeyGroup"], json["keyGroupRange"]["endKeyGroup"]);
     }
 
-    ~DirectoryKeyedStateHandle() = default;
+    ~DirectoryKeyedStateHandle()
+    {
+        delete directoryStateHandle;
+    }
 
     DirectoryStateHandle* getDirectoryStateHandle() const
     {
         return directoryStateHandle_;
+    }
+
+    DirectoryStateHandle* GetDirectoryStateHandle() const
+    {
+        return directoryStateHandle;
     }
 
     KeyGroupRange GetKeyGroupRange() const override
@@ -79,7 +91,7 @@ public:
 
     long GetStateSize() const override
     {
-        return directoryStateHandle_->GetStateSize();
+        return directoryStateHandle->GetStateSize();
     }
 
     long GetCheckpointedSize() override
@@ -98,7 +110,7 @@ public:
     {
         nlohmann::json json;
         json["stateHandleName"] = "DirectoryKeyedStateHandle";
-        json["directoryStateHandle"] = nlohmann::json::parse(directoryStateHandle_->ToString());
+        json["directoryStateHandle"] = nlohmann::json::parse(directoryStateHandle->ToString());
         json["keyGroupRange"] = nlohmann::json::parse(keyGroupRange_.ToString());
         return json.dump();
     }
@@ -111,6 +123,7 @@ public:
 
 private:
     DirectoryStateHandle* directoryStateHandle_;
+    DirectoryStateHandle* directoryStateHandle;
     KeyGroupRange keyGroupRange_;
     StateHandleID stateHandleId_;
 };

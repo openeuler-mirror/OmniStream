@@ -16,6 +16,7 @@
 #include "core/fs/Path.h"
 #include "runtime/state/SnapshotResult.h"
 #include "runtime/state/StreamStateHandle.h"
+#include "state/LocalRecoveryConfig.h"
 
 class OmniTaskBridgeImpl2 : public omnistream::OmniTaskBridge {
 public:
@@ -30,7 +31,8 @@ public:
 
     std::shared_ptr<SnapshotResult<StreamStateHandle>> CallMaterializeMetaData(
             jlong checkpointId,
-            std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& snapshots) override;
+            std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& snapshots,
+            std::shared_ptr<LocalRecoveryConfig> localRecoveryConfig) override;
 
     jobject CallUploadFilesToCheckpointFs(const std::vector<Path>& filePaths,
                                           int numberOfSnapshottingThreads) override;
