@@ -111,7 +111,7 @@ namespace omnistream::runtime {
         bool IsCheckpointPending() const override;
         // Additional public methods
         // Be very careful when using this function. It returns a refernce because future can't be copied
-        CompletableFutureV2<void>& GetAllBarriersReceivedFuture(int64_t checkpointId) override;
+        std::shared_ptr<CompletableFutureV2<void>> GetAllBarriersReceivedFuture(int64_t checkpointId) override;
         int GetNumOpenChannels() const;
         std::string ToString() const;
         Controller *GetContext() const
@@ -205,7 +205,9 @@ namespace omnistream::runtime {
         int64_t lastCancelledOrCompletedCheckpointId_;
         int numOpenChannels_;
         CompletableFutureV2<void> allBarriersReceivedFuture_;
+        std::shared_ptr<CompletableFutureV2<void>> allBarriersReceivedFuture_V2;
         CompletableFutureV2<void> completed;
+        std::shared_ptr<CompletableFutureV2<void>> completed_V2;
 
         // State management
         BarrierHandlerState *currentState_;

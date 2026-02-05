@@ -32,16 +32,17 @@ namespace omnistream {
         return status;
     }
 
-    CompletableFutureV2<void>* OmniStreamMultipleInputProcessor::PrepareSnapshot(std::shared_ptr<ChannelStateWriter> writer,
+    std::shared_ptr<CompletableFutureV2<void>> OmniStreamMultipleInputProcessor::PrepareSnapshot(std::shared_ptr<ChannelStateWriter> writer,
         long checkpointID)
     {
         LOG("MultipleInput prepare snapshot, checkpointID: " << checkpointID);
-        std::vector<CompletableFutureV2<void>*> inputFutures;
+//        std::vector<CompletableFutureV2<void>*> inputFutures;
+        std::vector<std::shared_ptr<CompletableFutureV2<void>>> inputFutures;
         for (int index = 0; index < processors.size(); index++) {
             inputFutures.push_back(processors[index]->PrepareSnapshot(writer, checkpointID));
         }
 
-        auto cf_ptr = new CompletableFutureV2<void>();
+        auto cf_ptr = std::make_shared<CompletableFutureV2<void>>();
         std::thread([cf_ptr, inputFutures] () mutable {
             try {
                 for (auto &f : inputFutures) {

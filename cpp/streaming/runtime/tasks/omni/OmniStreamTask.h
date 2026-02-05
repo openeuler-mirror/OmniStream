@@ -231,7 +231,7 @@ namespace omnistream {
         std::shared_ptr<CheckpointStorage> checkpointStorage;
         bool isRunning;
 
-        CompletableFutureV2<void> *prepareInputSnapshot(
+        std::shared_ptr<CompletableFutureV2<void>> prepareInputSnapshot(
             std::shared_ptr<ChannelStateWriter> channelStateWriter,
             long checkpointID
         );

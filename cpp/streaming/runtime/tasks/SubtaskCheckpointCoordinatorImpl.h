@@ -44,7 +44,7 @@ namespace omnistream::runtime {
                 std::shared_ptr<omnistream::EnvironmentV2> env,
                 bool unalignedCheckpointEnabled,
                 bool enableCheckpointAfterTasksFinished,
-                std::function<CompletableFutureV2<void> *(std::shared_ptr<ChannelStateWriter>, long)> *prepareInputSnapshot,
+                std::function<std::shared_ptr<CompletableFutureV2<void>>(std::shared_ptr<ChannelStateWriter>, long)> *prepareInputSnapshot,
                 BarrierAlignmentUtil::DelayableTimer<std::function<void()>> *registerTimer
         ) : SubtaskCheckpointCoordinatorImpl(
                 checkpointStorage,
@@ -67,7 +67,7 @@ namespace omnistream::runtime {
                 std::shared_ptr<omnistream::EnvironmentV2> env,
                 bool unalignedCheckpointEnabled,
                 bool enableCheckpointAfterTasksFinished,
-                std::function<CompletableFutureV2<void> *(std::shared_ptr<ChannelStateWriter>, long)> *prepareInputSnapshot,
+                std::function<std::shared_ptr<CompletableFutureV2<void>>(std::shared_ptr<ChannelStateWriter>, long)> *prepareInputSnapshot,
                 int maxRecordAbortedCheckpoints,
                 BarrierAlignmentUtil::DelayableTimer<std::function<void()>> *registerTimer
         ) : SubtaskCheckpointCoordinatorImpl(
@@ -93,7 +93,7 @@ namespace omnistream::runtime {
                 std::string taskName,
                 std::shared_ptr<omnistream::StreamTaskActionExecutor> actionExecutor,
                 std::shared_ptr<omnistream::EnvironmentV2> env,
-                std::function<CompletableFutureV2<void> *(std::shared_ptr<ChannelStateWriter>, long)> *prepareInputSnapshot,
+                std::function<std::shared_ptr<CompletableFutureV2<void>>(std::shared_ptr<ChannelStateWriter>, long)> *prepareInputSnapshot,
                 int maxRecordAbortedCheckpoints,
                 std::shared_ptr<ChannelStateWriter> channelStateWriter,
                 bool enableCheckpointAfterTasksFinished,
@@ -267,7 +267,7 @@ namespace omnistream::runtime {
         std::string taskName;
         std::shared_ptr<omnistream::StreamTaskActionExecutor> actionExecutor;
         std::shared_ptr<omnistream::EnvironmentV2> env;
-        std::function<CompletableFutureV2<void> *(std::shared_ptr<ChannelStateWriter>, long)> *prepareInputSnapshot;
+        std::function<std::shared_ptr<CompletableFutureV2<void>>(std::shared_ptr<ChannelStateWriter>, long)> *prepareInputSnapshot;
         std::shared_ptr<ChannelStateWriter> channelStateWriter;
         std::set<long> abortedCheckpointIds;
         bool enableCheckpointAfterTasksFinished;
