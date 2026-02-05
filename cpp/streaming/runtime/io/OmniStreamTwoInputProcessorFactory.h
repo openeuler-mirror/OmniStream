@@ -55,9 +55,9 @@ namespace omnistream {
                 auto leftTypes = description["leftInputTypes"].get<std::vector<std::string>>();
                 auto rightTypes = description["rightInputTypes"].get<std::vector<std::string>>();
 
-                input1 = OmniStreamTaskNetworkInputFactory::create(valve0, inputGates[0], taskType,
+                input1 = OmniStreamTaskNetworkInputFactory::create(std::move(valve0), inputGates[0], taskType,
                                                                    new BinaryRowDataSerializer(leftTypes.size(), leftTypes), channelInfoIndex1);
-                input2 = OmniStreamTaskNetworkInputFactory::create(valve1, inputGates[1], taskType,
+                input2 = OmniStreamTaskNetworkInputFactory::create(std::move(valve1), inputGates[1], taskType,
                                                                    new BinaryRowDataSerializer(rightTypes.size(), rightTypes), channelInfoIndex2);
             } else if (taskType == 2) {
                 auto inputTypes = description["inputTypes"];
