@@ -42,8 +42,8 @@ public:
         using ResultSubpartitionStateFuture = std::shared_ptr<CompletableFutureV2<ResultSubpartitionStateVecPtr>>;
 
         ChannelStateWriteResult() noexcept
-            : inputChannelStateHandles(),
-              resultSubpartitionStateHandles()
+            : inputChannelStateHandles(std::make_shared<CompletableFutureV2<InputChannelStateHandleVecPtr>>()),
+              resultSubpartitionStateHandles(std::make_shared<CompletableFutureV2<ResultSubpartitionStateVecPtr>>())
         {}
 
         ChannelStateWriteResult(

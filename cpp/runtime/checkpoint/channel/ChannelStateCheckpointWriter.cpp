@@ -61,7 +61,7 @@ namespace omnistream {
     void ChannelStateCheckpointWriter::WriteInput(const JobVertexID &jvid,
                                                   int subtaskIndex,
                                                   const InputChannelInfo &info,
-                                                  std::shared_ptr<ObjectBuffer> buffer)
+                                                  std::shared_ptr<Buffer> buffer)
     {
         if (IsDone()) {
             buffer->RecycleBuffer();
@@ -81,7 +81,7 @@ namespace omnistream {
     void ChannelStateCheckpointWriter::WriteOutput(const JobVertexID &jvid,
                                                    int subtaskIndex,
                                                    const ResultSubpartitionInfoPOD &info,
-                                                   std::shared_ptr<ObjectBuffer> buffer)
+                                                   std::shared_ptr<Buffer> buffer)
     {
         if (IsDone()) {
             buffer->RecycleBuffer();

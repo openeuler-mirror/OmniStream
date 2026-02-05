@@ -25,6 +25,7 @@ public:
     virtual void Flush() = 0;
     virtual void Sync() = 0;
     virtual void Close() = 0;
+    virtual void Write(const void *data, size_t length) = 0;
     virtual ~FSDataOutputStream() = default;
 };
 
