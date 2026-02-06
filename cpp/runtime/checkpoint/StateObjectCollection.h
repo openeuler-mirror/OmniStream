@@ -222,7 +222,7 @@ public:
         for (const auto& obj : stateObjects) {
             if (obj) {
                 auto derived = std::dynamic_pointer_cast<BridgeKeyedStateHandle>(obj);
-                if (derived != nullptr) {
+                if (derived != nullptr && derived->handle != nullptr) {
                     std::string jsonStr = derived->handle->ToString();
                     state_objects_array.push_back(nlohmann::json::parse(jsonStr));
                 } else{

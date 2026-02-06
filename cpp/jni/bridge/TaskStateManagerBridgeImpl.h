@@ -235,6 +235,14 @@ public:
                 // 处理返回结果
                 if (ret != nullptr) {
                     const char* resultStr = env->GetStringUTFChars(ret, nullptr);
+                    if (resultStr == nullptr){
+                        GErrorLog("Error: resultStr is null");
+                        env->ExceptionDescribe();
+                        env->ExceptionClear();
+                        env->DeleteLocalRef(taskStateManagerWrapperClass);
+                        g_OmniStreamJVM->DetachCurrentThread();
+                        return nullptr;
+                    }
                     std::string snapshotInfoString(resultStr);
                     env->ReleaseStringUTFChars(ret, resultStr);
 
