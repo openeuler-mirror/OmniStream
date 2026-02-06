@@ -366,7 +366,8 @@ bool PipelinedSubpartition::ProcessPriorityBuffer(std::shared_ptr<BufferConsumer
 
     auto barrier = ParseCheckpointBarrier(bufferConsumer);
     if (barrier != nullptr) {
-        if (barrier != nullptr) {
+        if (!barrier->GetCheckpointOptions()->IsUnalignedCheckpoint()) {
+            LOG("Only unalined checkpoints should be priority events.");
             throw std::runtime_error("Only unalined checkpoints should be priority events.");
         }
         auto elements = buffers.asUnmodifiableCollection();

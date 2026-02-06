@@ -47,6 +47,7 @@
 #include "runtime/state/LocalRecoveryConfig.h"
 #include "runtime/state/LocalRecoveryDirectoryProviderImpl.h"
 #include "runtime/taskmanager/OmniTask.h"
+#include "partition/BufferWritingResultPartition.h"
 
 namespace omnistream {
 
@@ -140,6 +141,11 @@ namespace omnistream {
         auto channelStateWriter = subtaskCheckpointCoordinator->getChannelStateWriter();
         for (auto gate : env_->GetAllInputGates()) {
             gate->SetChannelStateWriter(channelStateWriter);
+        }
+        for (auto writer : env_->writers()) {
+            if (auto writerChild = std::dynamic_pointer_cast<BufferWritingResultPartition>(writer)) {
+                writerChild->SetChannelStateWriter(channelStateWriter);
+            }
         }
     }
 
