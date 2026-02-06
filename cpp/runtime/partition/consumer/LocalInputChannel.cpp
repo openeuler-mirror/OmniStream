@@ -176,12 +176,8 @@ std::optional<BufferAndAvailability> LocalInputChannel::getNextBuffer()
 
     // LOG("after LocalInputChannel::next->getBuffer() 1")
     LOG("after LocalInputChannel::next->getBuffer() 2")
-    /***
-    channelStatePersister.checkForBarrier(*buffer);
-    channelStatePersister.maybePersist(*buffer);
-    NetworkActionsLogger::traceInput("LocalInputChannel#getNextBuffer", *buffer, inputGate->getOwningTaskName(),
-    channelInfo, channelStatePersister, next->sequenceNumber);
-    **/
+    channelStatePersister->CheckForBarrier(buffer);
+    channelStatePersister->MaybePersist(buffer);
 
     if (next->getNextDataType().isEvent()) {
         LOG_TRACE("event buffer " << buffer->ToDebugString(false))
