@@ -210,7 +210,7 @@ public:
         // Given two class of type T, return whether they are equal based on their extracted identity <E>
         template<typename T, typename E>
         std::function<bool(std::shared_ptr<T>, std::shared_ptr<T>)> eqStateApprover(
-            const std::function<const E&(std::shared_ptr<T>)> &identityExtractor)
+            const std::function<const E(std::shared_ptr<T>)> &identityExtractor)
         {
             return [identityExtractor](std::shared_ptr<T> ref, std::shared_ptr<T> alt) -> bool {
                 return identityExtractor(ref) == identityExtractor(alt);

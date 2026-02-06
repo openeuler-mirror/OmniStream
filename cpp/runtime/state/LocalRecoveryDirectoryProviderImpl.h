@@ -89,6 +89,33 @@ public:
         return result;
     }
 
+    std::vector<std::filesystem::path> GetPaths() const override
+    {
+        return allocationBaseDirs_;
+    }
+
+    int GetSubIndex() const override
+    {
+        return subtaskIndex_;
+    }
+
+    void SetJobIdHexStr(std::string hexStr) override
+    {
+        jobIdHexStr = hexStr;
+    }
+    std::string GetJobIdHexStr()  override
+    {
+        return jobIdHexStr;
+    }
+    void SetVertexIdHexStr(std::string hexStr)  override
+    {
+        vertexIdHexStr = hexStr;
+    }
+    std::string GetVertexIdHexStr()  override
+    {
+        return vertexIdHexStr;
+    }
+
 private:
     std::string SubtaskDirString() const
     {
@@ -106,6 +133,8 @@ private:
     omnistream::JobIDPOD jobID_;
     omnistream::JobVertexID jobVertexID_;
     int subtaskIndex_;
+    std::string jobIdHexStr;
+    std::string vertexIdHexStr;
 };
 
 #endif // OMNISTREAM_LOCALRECOVERYDIRECTORYPROVIDERIMPL_H

@@ -39,6 +39,11 @@ public:
         return std::move(physicalID);
     }
 
+    std::string GetStreamStateHandleIDKeyString()
+    {
+        return physicalID->getKeyString();
+    }
+
     PhysicalStateHandleID GetStreamStateHandleID() const override
     {
         return *physicalID;

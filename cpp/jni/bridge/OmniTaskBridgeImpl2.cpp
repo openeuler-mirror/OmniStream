@@ -389,7 +389,8 @@ std::shared_ptr<SnapshotResult<StreamStateHandle>> ConvertSnapshotResult(JNIEnv*
 
 std::shared_ptr<SnapshotResult<StreamStateHandle>> OmniTaskBridgeImpl2::CallMaterializeMetaData(
     jlong checkpointId,
-    std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& snapshots)
+    std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& snapshots,
+    std::shared_ptr<LocalRecoveryConfig> localRecoveryConfig)
 {
     if (m_globalOmniTaskRef == nullptr) {
         GErrorLog("StreamTask is not registered in TaskStateManagerBridgeImpl::CallMaterializeMetaData");
@@ -414,16 +415,51 @@ std::shared_ptr<SnapshotResult<StreamStateHandle>> OmniTaskBridgeImpl2::CallMate
     }
     std::string stateMetaInfoStr = stateMetaInfoJson.dump();
 
+    std::string localRecoveryConfigStr = "{}";
+    if (localRecoveryConfig != nullptr){
+        try {
+            nlohmann::json localRecoveryJson;
+            auto directoryProvider = localRecoveryConfig->GetLocalStateDirectoryProvider();
+
+            // 序列化 allocationBaseDirs_
+            nlohmann::json baseDirsArray = nlohmann::json::array();
+            for (const auto& path : directoryProvider->GetPaths()) {
+                baseDirsArray.push_back(path.string()); // 将filesystem::path转换为字符串
+            }
+            localRecoveryJson["allocationBaseDirs"] = baseDirsArray;
+
+            // 序列化 jobID_
+            localRecoveryJson["jobID"] = directoryProvider->GetJobIdHexStr();
+
+            // 序列化 jobVertexID_
+            localRecoveryJson["jobVertexID"] = directoryProvider->GetVertexIdHexStr();
+
+            // 序列化 subtaskIndex_
+            localRecoveryJson["subtaskIndex"] = directoryProvider->GetSubIndex();
+
+            localRecoveryConfigStr = localRecoveryJson.dump();
+
+        } catch (const std::exception& e) {
+            std::stringstream errorMsg;
+            errorMsg << "Failed to serialize localRecoveryConfig: " << e.what();
+            GErrorLog(errorMsg.str());
+            localRecoveryConfigStr = "{}"; // 序列化失败时使用空JSON
+        }
+
+    }
+
     jclass cls = env->GetObjectClass(m_globalOmniTaskRef);
     jmethodID mid = env->GetMethodID(
         cls,
         "materializeMetaData",
-        "(JLjava/lang/String;)Lorg/apache/flink/runtime/state/SnapshotResult;"
+        "(JLjava/lang/String;Ljava/lang/String;)Lorg/apache/flink/runtime/state/SnapshotResult;"
     );
     jstring jStateMetaInfoStr = env->NewStringUTF(stateMetaInfoStr.c_str());
-    jobject resultObj = env->CallObjectMethod(m_globalOmniTaskRef, mid, checkpointId, jStateMetaInfoStr);
+    jstring jLocalRecoveryConfigStr = env->NewStringUTF(localRecoveryConfigStr.c_str());
+    jobject resultObj = env->CallObjectMethod(m_globalOmniTaskRef, mid, checkpointId, jStateMetaInfoStr, jLocalRecoveryConfigStr);
 
     env->DeleteLocalRef(jStateMetaInfoStr);
+    env->DeleteLocalRef(jLocalRecoveryConfigStr);
     env->DeleteLocalRef(cls);
 
     return ConvertSnapshotResult(env, resultObj);

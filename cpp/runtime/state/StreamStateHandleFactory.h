@@ -16,6 +16,7 @@
 #include "runtime/state/filesystem/FileStateHandle.h"
 #include "state/filesystem/RelativeFileStateHandle.h"
 #include "state/memory/ByteStreamStateHandle.h"
+#include "PlaceholderStreamStateHandle.h"
 #include <nlohmann/json.hpp>
 
 class StreamStateHandleFactory {
@@ -43,6 +44,12 @@ public:
             std::string handleName = json["handleName"].get<std::string>();
             std::string encoded_data = json.at("data").get<std::string>();
             return std::make_shared<ByteStreamStateHandle>(handleName, Base64_decode(encoded_data));
+        } else if (className.find("PlaceholderStreamStateHandle") != std::string::npos) {
+            long stateSize = json["stateSize"].get<long>();
+            std::string keyString = json["physicalID"]["keyString"].get<std::string>();
+            std::unique_ptr<PhysicalStateHandleID> physicalID = std::make_unique<PhysicalStateHandleID>(keyString);
+            std::shared_ptr<PlaceholderStreamStateHandle> handle =  std::make_shared<PlaceholderStreamStateHandle>(std::move(physicalID), stateSize);
+            return handle;
         }
         return nullptr;
     }

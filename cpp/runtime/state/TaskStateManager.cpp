@@ -103,7 +103,10 @@ PrioritizedOperatorSubtaskState TaskStateManager::prioritizedOperatorState(const
 
     long restoreCheckpointId = jobManagerTaskRestore_->getRestoreCheckpointId();
 
-    std::shared_ptr<TaskStateSnapshot> localStateSnapshot = localStateStore_->retrieveLocalState(restoreCheckpointId);
+    std::shared_ptr<TaskStateSnapshot> localStateSnapshot = bridge_->RetrieveLocalState(restoreCheckpointId);
+    if (localStateSnapshot == nullptr) {
+        LOG("load local snapshot failed!");
+    }
 
     localStateStore_->pruneMatchingCheckpoints(
         [restoreCheckpointId](long checkpointId) -> bool {

@@ -26,6 +26,7 @@
 #include "runtime/state/StateObject.h"
 #include "runtime/state/CompositeStateHandle.h"
 #include "core/include/common.h"
+#include "runtime/snapshot/RocksDBSnapshotStrategyBase.h"
 
 template<typename T>
 class StateObjectCollection : public StateObject {
@@ -220,7 +221,13 @@ public:
 
         for (const auto& obj : stateObjects) {
             if (obj) {
-                state_objects_array.push_back(nlohmann::json::parse(obj->ToString()));
+                auto derived = std::dynamic_pointer_cast<BridgeKeyedStateHandle>(obj);
+                if (derived != nullptr && derived->handle != nullptr) {
+                    std::string jsonStr = derived->handle->ToString();
+                    state_objects_array.push_back(nlohmann::json::parse(jsonStr));
+                } else{
+                    state_objects_array.push_back(nlohmann::json::parse(obj->ToString()));
+                }
             } else {
                 state_objects_array.push_back(nullptr);
             }
