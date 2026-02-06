@@ -130,7 +130,10 @@ namespace omnistream {
 
         if (!queue.empty() || !req->getReadyFuture()->IsDone()) {
             std::shared_ptr<ChannelStateWriteRequest> raw = req;
-            queue.push(std::move(req));
+            {
+                std::lock_guard<std::mutex> lock(mutex);
+                queue.push(std::move(req));
+            }
 
             registerCallback(raw, sid);
         } else {
@@ -159,7 +162,7 @@ namespace omnistream {
                 q.pop();
             }
             if (!q.empty()) {
-                registerCallback(first, sid);
+                registerCallback(q.front(), sid);
             }
             cv.notify_all();
         });
