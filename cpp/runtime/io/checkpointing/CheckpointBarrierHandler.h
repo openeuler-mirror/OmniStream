@@ -56,7 +56,7 @@ public:
     int64_t GetAlignmentDurationNanos();
     int64_t GetCheckpointStartDelayNanos() const;
 
-    virtual CompletableFutureV2<void>& GetAllBarriersReceivedFuture(int64_t checkpointId);
+    virtual std::shared_ptr<CompletableFutureV2<void>> GetAllBarriersReceivedFuture(int64_t checkpointId);
 
     virtual bool IsCheckpointPending() const = 0;
     void AddProcessedBytes(int bytes);
@@ -87,6 +87,7 @@ private:
     std::shared_ptr<CompletableFutureV2<int64_t>> latestBytesProcessedDuringAlignment;
     const bool enableCheckpointAfterTasksFinished;
     CompletableFutureV2<void> completed;
+    std::shared_ptr<CompletableFutureV2<void>> completed_V2;
 
     // Disable copying
     CheckpointBarrierHandler(const CheckpointBarrierHandler&) = delete;

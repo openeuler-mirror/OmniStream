@@ -99,7 +99,7 @@ namespace omnistream {
             env_,
             checkpointExecutionConfig.getUnalignedCheckpointsEnabled(),
             checkpointExecutionConfig.getCheckpointAfterTasksFinishEnabled(),
-            new std::function<CompletableFutureV2<void>*(std::shared_ptr<ChannelStateWriter>, long)>([this](std::shared_ptr<ChannelStateWriter> writer, long checkpointId) { return this->prepareInputSnapshot(writer, checkpointId); }),
+            new std::function<std::shared_ptr<CompletableFutureV2<void>>(std::shared_ptr<ChannelStateWriter>, long)>([this](std::shared_ptr<ChannelStateWriter> writer, long checkpointId) { return this->prepareInputSnapshot(writer, checkpointId); }),
             runtime::BarrierAlignmentUtil::template createRegisterTimerCallback<std::function<void()>>(nullptr, systemTimerService.get())
 
         );
@@ -486,13 +486,13 @@ namespace omnistream {
         return nullptr;
     }
 
-    CompletableFutureV2<void> *OmniStreamTask::prepareInputSnapshot(
+    std::shared_ptr<CompletableFutureV2<void>> OmniStreamTask::prepareInputSnapshot(
         std::shared_ptr<ChannelStateWriter> channelStateWriter,
         long checkpointID)
     {
         if (inputProcessor_ == nullptr) {
             // Java would return CompletableFuture.completedFuture(null)
-            return new CompletableFutureV2<void>;
+            return std::make_shared<CompletableFutureV2<void>>();
         }
         return inputProcessor_->PrepareSnapshot(channelStateWriter, checkpointID);
     }

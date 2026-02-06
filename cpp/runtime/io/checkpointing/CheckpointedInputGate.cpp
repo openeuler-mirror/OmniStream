@@ -97,7 +97,7 @@ std::optional<std::shared_ptr<BufferOrEvent>> CheckpointedInputGate::HandleEmpty
     return std::nullopt;
 }
 
-CompletableFutureV2<void>& CheckpointedInputGate::GetAllBarriersReceivedFuture(long checkpointId)
+std::shared_ptr<CompletableFutureV2<void>> CheckpointedInputGate::GetAllBarriersReceivedFuture(long checkpointId)
 {
     return barrierHandler_->GetAllBarriersReceivedFuture(checkpointId);
 }

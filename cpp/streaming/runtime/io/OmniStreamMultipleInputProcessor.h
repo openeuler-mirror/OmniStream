@@ -29,7 +29,7 @@ namespace omnistream {
             // TTODO
             return nullptr;
         };
-        CompletableFutureV2<void>* PrepareSnapshot(std::shared_ptr<ChannelStateWriter> writer, long checkpointID) override;
+        std::shared_ptr<CompletableFutureV2<void>> PrepareSnapshot(std::shared_ptr<ChannelStateWriter> writer, long checkpointID) override;
     private:
         std::vector<OmniStreamOneInputProcessor *> processors;
         std::shared_ptr<MutipleInputSelectionHandler> inputSelectionHandler;

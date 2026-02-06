@@ -45,7 +45,7 @@ namespace omnistream::runtime {
           currentState_(currentState),
           alternating_(alternating)
     {
-        allBarriersReceivedFuture_ = CompletableFutureV2<void>();
+        //allBarriersReceivedFuture_ = CompletableFutureV2<void>();
         context_ = new ControllerImpl(this, subTaskCheckpointCoordinator_);
     }
 
@@ -266,7 +266,9 @@ namespace omnistream::runtime {
         alignedChannels_.clear();
         targetChannelCount_ = numOpenChannels_;
         currentCheckpointUnaligned_ = barrier.GetCheckpointOptions()->IsUnalignedCheckpoint();
-        // allBarriersReceivedFuture_ = CompletableFutureV2<void>();
+        LOG("CheckNewCheckpoint cp="<<barrierId<<" create future");
+        //allBarriersReceivedFuture_ = CompletableFutureV2<void>();
+        allBarriersReceivedFuture_V2 = std::make_shared<CompletableFutureV2<void>>();
     }
 
     // Register alignment timer
@@ -289,7 +291,7 @@ namespace omnistream::runtime {
                 if (currentAlignmentTimerCheckpointId_ != barrierId) {
                     return;
                 }
-                if (currentCheckpointId_ != barrierId || GetAllBarriersReceivedFuture(barrierId).IsDone()) {
+                if (currentCheckpointId_ != barrierId || GetAllBarriersReceivedFuture(barrierId)->IsDone()) {
                     return;
                 }
                 if (currentCheckpointUnaligned_) {
@@ -298,7 +300,7 @@ namespace omnistream::runtime {
 
                 // Re-check completion right before switching: the last barrier path completes the future
                 // early to avoid races, but this callback might have started slightly earlier.
-                if (GetAllBarriersReceivedFuture(barrierId).IsDone()) {
+                if (GetAllBarriersReceivedFuture(barrierId)->IsDone()) {
                     return;
                 }
 
@@ -373,8 +375,8 @@ namespace omnistream::runtime {
         	// Best-effort: abort cleanup must not fail due to notification issues.
     	}
 
-        if (!allBarriersReceivedFuture_.IsDone()) {
-            allBarriersReceivedFuture_.Cancel();
+        if (allBarriersReceivedFuture_V2 && !allBarriersReceivedFuture_V2->IsDone()) {
+            allBarriersReceivedFuture_V2->CompleteExceptionally(std::make_exception_ptr(exception));
         }
     }
 
@@ -454,14 +456,14 @@ namespace omnistream::runtime {
     }
 
     // Get all barriers received future
-    CompletableFutureV2<void>& SingleCheckpointBarrierHandler::GetAllBarriersReceivedFuture(int64_t checkpointId)
+    std::shared_ptr<CompletableFutureV2<void>> SingleCheckpointBarrierHandler::GetAllBarriersReceivedFuture(int64_t checkpointId)
     {
         if (checkpointId < currentCheckpointId_ || numOpenChannels_ == 0) {
-            if (!completed.IsDone()) {
-                completed.Complete();
+            if (!completed_V2->IsDone()) {
+                completed_V2->Complete();
             }
 
-            return completed;
+            return completed_V2;
         }
 
         if (checkpointId > currentCheckpointId_) {
@@ -469,7 +471,7 @@ namespace omnistream::runtime {
         }
         LOG("SingleCheckpointBarrierHandler GetAllBarriersReceivedFuture checkpointId: " << checkpointId
             << ", currentCheckpointId: " << currentCheckpointId_);
-        return allBarriersReceivedFuture_;
+        return allBarriersReceivedFuture_V2;
     }
 
     // Get number of open channels

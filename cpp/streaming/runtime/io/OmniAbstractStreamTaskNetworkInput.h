@@ -503,7 +503,7 @@ public:
         INFO_RELEASE("OmniAbstractStreamTaskNetworkInput received numberOfRow: " << numberOfRow)
     }
 
-    CompletableFutureV2<void>* PrepareSnapshot(std::shared_ptr<ChannelStateWriter> writer, long checkpointId) override
+    std::shared_ptr<CompletableFutureV2<void>> PrepareSnapshot(std::shared_ptr<ChannelStateWriter> writer, long checkpointId) override
     {
         LOG("Network prepare snapshot, checkpointId: " << checkpointId);
         for (const auto &pair : *recordDeserializers) {
@@ -518,7 +518,10 @@ public:
                 throw std::runtime_error("Error: " + std::string(e.what()));
             }
         }
-        return &inputGate->GetAllBarriersReceivedFuture(checkpointId);
+
+        auto f = inputGate->GetAllBarriersReceivedFuture(checkpointId);
+        LOG("PrepareSnapshot cp="<<checkpointId<<" future_ptr="<<f);
+        return f;
     }
 protected:
     int64_t inputIndex;
