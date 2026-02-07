@@ -48,6 +48,10 @@ namespace omnistream {
         SubtaskID abortedSubtaskID;
         std::exception_ptr abortedCause;
         std::unordered_map<uint64_t, std::shared_ptr<ChannelStateCheckpointWriter>> writers;
+        void RemoveWriter(long checkpointId)
+        {
+            writers.erase(checkpointId);
+        }
         std::shared_ptr<CheckpointStorageWorkerView> streamFactoryResolver;
 
         void dispatchInternal(std::shared_ptr<ChannelStateWriteRequest> request);
