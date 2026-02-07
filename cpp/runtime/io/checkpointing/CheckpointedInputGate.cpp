@@ -14,6 +14,7 @@
 #include "event/EndOfData.h"
 #include "event/EndOfPartitionEvent.h"
 #include "event/EndOfChannelStateEvent.h"
+#include "io/network/api/EventAnnouncement.h"
 
 namespace omnistream {
 
@@ -74,7 +75,30 @@ std::optional<std::shared_ptr<BufferOrEvent>> CheckpointedInputGate::HandleEvent
         if (!checkpointBarrier) {
             throw std::runtime_error("Failed to cast event to CheckpointBarrier");
         }
-        barrierHandler_->ProcessBarrier(*checkpointBarrier, bufferOrEvent->getChannelInfo(), false);
+        barrierHandler_->ProcessBarrier(*checkpointBarrier,
+                                        bufferOrEvent->getChannelInfo(),
+                                        false);
+    } else if (bufferOrEvent->getEvent()->GetEventClassName() == "EventAnnouncement") {
+        LOG("ZZT received an announcement event.")
+        auto ann = std::dynamic_pointer_cast<EventAnnouncement>(bufferOrEvent->getEvent());
+        if (!ann) {
+            LOG("ZZT ann is nullptr!")
+            throw std::runtime_error("Failed to cast event to EventAnnouncement");
+        }
+
+        auto announced = ann->GetAnnouncedEvent();
+        // announcements are used to announce timeoutable aligned checkpoint barriers.
+        if (announced && announced->GetEventClassName() == "CheckpointBarrier") {
+            LOG("ZZT event class name is CheckpointBarrier.")
+            auto announcedBarrier = std::dynamic_pointer_cast<CheckpointBarrier>(announced);
+            if (!announcedBarrier) {
+                LOG("ZZT announcedBarrier is nullptr!")
+                throw std::runtime_error("Failed to cast announced event to CheckpointBarrier");
+            }
+            barrierHandler_->ProcessBarrierAnnouncement(*announcedBarrier,
+                                                        ann->GetSequenceNumber(),
+                                                        bufferOrEvent->getChannelInfo());
+        }
     } else if (bufferOrEvent->getEvent()->GetEventClassName() == "CancelCheckpointMarker") {
         barrierHandler_->ProcessCancellationBarrier(
             *std::dynamic_pointer_cast<CancelCheckpointMarker>(bufferOrEvent->getEvent()),

@@ -41,6 +41,17 @@ BarrierHandlerState* AbstractAlternatingAlignedBarrierHandlerState::BarrierRecei
     return TransitionAfterBarrierReceived(state);
 }
 
+BarrierHandlerState* AbstractAlternatingAlignedBarrierHandlerState::AnnouncementReceived(Controller* /*controller*/,
+                                                                                         InputChannelInfo channelInfo,
+                                                                                         int sequenceNumber)
+{
+    // Only record the announcement; do NOT prioritize it here.
+    // Prioritization happens when the aligned checkpoint times out.
+    LOG("ZZT start AnnouncementReceived, ")
+    state.addSeenAnnouncement(channelInfo, sequenceNumber);
+    return this;
+}
+
 BarrierHandlerState* AbstractAlternatingAlignedBarrierHandlerState::FinishCheckpoint()
 {
     state.UnblockAllChannels();
