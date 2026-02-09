@@ -611,6 +611,7 @@ std::shared_ptr<SnapshotResult<StreamStateHandle>> OmniTaskBridgeImpl2::CloseSav
     env->DeleteLocalRef(provider);
     return res;
 }
+
 void OmniTaskBridgeImpl2::WriteSavepointOutputStream(jobject provider, const int8_t *chunk, size_t offset, size_t len)
 {
     JNIEnv* env = nullptr;
@@ -630,6 +631,7 @@ void OmniTaskBridgeImpl2::WriteSavepointOutputStream(jobject provider, const int
     env->CallVoidMethod(m_globalOmniTaskRef, mid, provider, data);
     env->DeleteLocalRef(data);
 }
+
 void OmniTaskBridgeImpl2::WriteSavepointMetadata(jobject provider, const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& snapshots)
 {
     JNIEnv* env = nullptr;
@@ -662,6 +664,7 @@ void OmniTaskBridgeImpl2::WriteSavepointMetadata(jobject provider, const std::ve
     env->CallVoidMethod(m_globalOmniTaskRef, mid, provider, jStateMetaInfoStr);
     env->DeleteLocalRef(jStateMetaInfoStr);
 }
+
 long OmniTaskBridgeImpl2::GetSavepointOutputStreamPos(jobject provider)
 {
     JNIEnv* env = nullptr;
@@ -678,6 +681,7 @@ long OmniTaskBridgeImpl2::GetSavepointOutputStreamPos(jobject provider)
     jmethodID mid = env->GetMethodID(cls, "getSavepointOutputStreamPos", "(Lorg/apache/flink/runtime/state/CheckpointStreamWithResultProvider;)J");
     return env->CallLongMethod(m_globalOmniTaskRef, mid, provider);
 }
+
 JNIEnv* OmniTaskBridgeImpl2::getJNIEnv()
 {
     JNIEnv* env = nullptr;

@@ -93,7 +93,7 @@ public:
             return;
         }
         const int8_t *src = (const int8_t *)data;
-        while (len + offset_ > 4096) {
+        while (len + offset_ >= 4096) {
             size_t size = 4096 - offset_;
             (void)memcpy_s(&chunk_[offset_], size, src, size);
             len -= size;
