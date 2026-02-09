@@ -65,13 +65,13 @@ public:
     );
 
     std::string getDescription() const;
-    SnapshotResources *syncPrepareResources(long checkpointId);
+    std::shared_ptr<SnapshotResources> syncPrepareResources(long checkpointId);
     void cleanupIncompleteSnapshot(
             std::shared_ptr<SnapshotDirectory> localBackupDirectory
     );
 
     virtual std::shared_ptr<SnapshotResultSupplier<KeyedStateHandle>> asyncSnapshot(
-            SnapshotResources* snapshotResources,
+            const std::shared_ptr<SnapshotResources>& snapshotResources,
             long checkpointId,
             long timestamp,
             CheckpointStreamFactory* checkpointStreamFactory,
@@ -116,7 +116,7 @@ protected:
                 std::vector<std::shared_ptr<StateMetaInfoSnapshot>> stateMetaInfoSnapshots);
 
         virtual ~RocksDBSnapshotOperation() = default;
-        SnapshotResult<KeyedStateHandle> *get(std::shared_ptr<omnistream::OmniTaskBridge> bridge) override;
+        std::shared_ptr<SnapshotResult<KeyedStateHandle>> get(std::shared_ptr<omnistream::OmniTaskBridge> bridge) override;
 
     protected:
         std::shared_ptr<KeyedStateHandle> getLocalSnapshot(
@@ -160,9 +160,9 @@ public:
 
 class SnapshotResultSupplierEmpty :  public SnapshotResultSupplier<KeyedStateHandle> {
 public:
-    SnapshotResult<KeyedStateHandle> *get(std::shared_ptr<omnistream::OmniTaskBridge> bridge) override
+    std::shared_ptr<SnapshotResult<KeyedStateHandle>> get(std::shared_ptr<omnistream::OmniTaskBridge> bridge) override
     {
-        return SnapshotResult<KeyedStateHandle>::Empty().get();
+        return SnapshotResult<KeyedStateHandle>::Empty();
     }
 };
 

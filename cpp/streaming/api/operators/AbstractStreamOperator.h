@@ -209,9 +209,10 @@ public:
     };
 
     OperatorSnapshotFutures *SnapshotState(long checkpointId,
-       long timestamp,
-       CheckpointOptions *checkpointOptions,
-       CheckpointStreamFactory* storageLocation) override
+        long timestamp,
+        CheckpointOptions *checkpointOptions,
+        CheckpointStreamFactory* storageLocation,
+        const std::shared_ptr<OmniTaskBridge>& bridge) override
     {
         return stateHandler->SnapshotState(
             this,
@@ -221,7 +222,8 @@ public:
             timestamp,
             checkpointOptions,
             storageLocation,
-            false);
+            false,
+            bridge);
     }
 
     void notifyCheckpointComplete(long checkpointId)

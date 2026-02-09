@@ -185,8 +185,9 @@ namespace omnistream {
     void NotifyCheckpointAborted(long checkpointId);
     void NotifyCheckpointSubsumed(long checkpointId);
     void SnapshotState(std::unordered_map<OperatorID, OperatorSnapshotFutures *>& operatorSnapshotsInProgress,
-        CheckpointMetaData &checkpointMetaData, CheckpointOptions *checkpointOptions, Supplier<bool>* isRunning,
-        ChannelStateWriter::ChannelStateWriteResult& channelStateWriteResult, CheckpointStreamFactory* storage);
+        CheckpointMetaData &checkpointMetaData, CheckpointOptions *checkpointOptions, std::shared_ptr<Supplier<bool>> isRunning,
+        ChannelStateWriter::ChannelStateWriteResult& channelStateWriteResult, CheckpointStreamFactory* storage,
+        const std::shared_ptr<OmniTaskBridge>& bridge);
     bool IsTaskDeployedAsFinished()
     {
         return false;
@@ -276,16 +277,18 @@ namespace omnistream {
         CheckpointMetaData checkpointMetaData,
         CheckpointOptions *checkpointOptions,
         StreamOperator *op,
-        Supplier<bool> *isRunning,
+        std::shared_ptr<Supplier<bool>> isRunning,
         ChannelStateWriter::ChannelStateWriteResult &channelStateWriteResult,
-        CheckpointStreamFactory *storage);
+        CheckpointStreamFactory *storage,
+        const std::shared_ptr<OmniTaskBridge>& bridge);
 
     OperatorSnapshotFutures *CheckpointStreamOperator(
         StreamOperator *op,
         CheckpointMetaData checkpointMetaData,
         CheckpointOptions *checkpointOptions,
         CheckpointStreamFactory *storageLocation,
-        Supplier<bool> *isRunning);
+        std::shared_ptr<Supplier<bool>> isRunning,
+        const std::shared_ptr<OmniTaskBridge>& bridge);
     // std::vector<OperatorConfig> & opChainConfig_;
     // std::shared_ptr<RecordWriterDelegate> recordWriterDelegate_;
     };

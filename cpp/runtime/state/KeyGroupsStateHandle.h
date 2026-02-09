@@ -119,8 +119,11 @@ public:
 
     std::string ToString() const override
     {
-        return "KeyGroupsStateHandle{keyGroupRangeOffsets = " + keyGroupRangeOffsets_.ToString() +
-                                                                ", stateHandleId = " + stateHandleId_.ToString() + "}";
+        nlohmann::json json;
+        json["stateHandleName"] = "KeyGroupsStateHandle";
+        json["stateHandleId"] = nlohmann::json::parse(stateHandleId_.ToString());
+        json["keyGroupRangeOffsets"] = nlohmann::json::parse(keyGroupRangeOffsets_.ToString());
+        return json.dump();
     }
 
     std::optional<std::vector<uint8_t>> AsBytesIfInMemory() const override {return stateHandle_->AsBytesIfInMemory();}

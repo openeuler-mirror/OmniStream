@@ -39,13 +39,14 @@ RocksNativeFullSnapshotStrategy::RocksNativeFullSnapshotStrategy(
     stateUploader(rocksDBStateUploader) {}
 
 std::shared_ptr<SnapshotResultSupplier<KeyedStateHandle>> RocksNativeFullSnapshotStrategy::asyncSnapshot(
-    SnapshotResources* snapshotResources,
+    const std::shared_ptr<SnapshotResources>& snapshotResources,
     long checkpointId,
     long timestamp,
     CheckpointStreamFactory* checkpointStreamFactory,
     CheckpointOptions* checkpointOptions)
 {
-    auto rocksdbSnapshotResources = static_cast<NativeRocksDBSnapshotResources*>(snapshotResources);
+    LOG("RocksNativeFullSnapshotStrategy::asyncSnapshot");
+    auto rocksdbSnapshotResources = static_cast<NativeRocksDBSnapshotResources*>(snapshotResources.get());
 
     if (rocksdbSnapshotResources->stateMetaInfoSnapshots.empty()) {
         return std::make_shared<SnapshotResultSupplierEmpty>();
@@ -99,7 +100,7 @@ RocksNativeFullSnapshotStrategy::RocksDBNativeFullSnapshotOperation::RocksDBNati
     keyGroupRange_(keyGroupRange),
     outerStrategy_(outerStrategy) {}
 
-SnapshotResult<KeyedStateHandle> *RocksNativeFullSnapshotStrategy::RocksDBNativeFullSnapshotOperation::get(
+std::shared_ptr<SnapshotResult<KeyedStateHandle>>RocksNativeFullSnapshotStrategy::RocksDBNativeFullSnapshotOperation::get(
     std::shared_ptr<omnistream::OmniTaskBridge> bridge)
 {
     bool completed = false;
@@ -130,13 +131,13 @@ SnapshotResult<KeyedStateHandle> *RocksNativeFullSnapshotStrategy::RocksDBNative
             metaStateHandle->GetTaskLocalSnapshot(),
             std::vector<HandleAndLocalPath>());
 
-        SnapshotResult<KeyedStateHandle> *result;
+        std::shared_ptr<SnapshotResult<KeyedStateHandle>> result;
         if (localSnapshot) {
             result = (jmIncrementalKeyedStateHandle != nullptr) ?
-                new SnapshotResult<KeyedStateHandle>(jmIncrementalKeyedStateHandle, localSnapshot)
-                : new SnapshotResult<KeyedStateHandle>(nullptr, nullptr);
+                std::make_shared<SnapshotResult<KeyedStateHandle>>(jmIncrementalKeyedStateHandle, localSnapshot)
+                : std::make_shared<SnapshotResult<KeyedStateHandle>>(nullptr, nullptr);
         } else {
-            result = new SnapshotResult<KeyedStateHandle>(jmIncrementalKeyedStateHandle, nullptr);
+            result = std::make_shared<SnapshotResult<KeyedStateHandle>>(jmIncrementalKeyedStateHandle, nullptr);
         }
 
         completed = true;

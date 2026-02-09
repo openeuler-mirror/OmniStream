@@ -16,6 +16,7 @@
 #include <map>
 #include <filesystem>
 #include <future>
+#include <memory>
 #include "AbstractKeyedStateBackend.h"
 #include "InternalKeyContext.h"
 #include "core/typeutils/TypeSerializer.h"
@@ -29,6 +30,10 @@
 #include "runtime/state/rocksdb/RocksdbMapState.h"
 #include "runtime/state/rocksdb/RocksdbListState.h"
 #include "runtime/state/rocksdb/RocksdbMapStateTable.h"
+#include "runtime/state/RocksDBWriteBatchWrapper.h"
+#include "runtime/state/SavepointResources.h"
+#include "runtime/state/SnapshotExecutionType.h"
+#include "runtime/state/RocksDBFullSnapshotResources.h"
 #include "RegisteredKeyValueStateBackendMetaInfo.h"
 #include "table/data/RowData.h"
 #include "table/runtime/operators/window/TimeWindow.h"
@@ -159,6 +164,7 @@ public:
         std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>> *kvStateInformation,
         std::shared_ptr<ResourceGuard> rocksDBResourceGuard,
         int keyGroupPrefixBytes,
+        std::shared_ptr<RocksDBWriteBatchWrapper> writeBatchWrapper,
         std::shared_ptr<TaskStateManagerBridge> bridge,
         std::shared_ptr<omnistream::OmniTaskBridge> omniTaskBridge)
         : AbstractKeyedStateBackend<K>(keySerializer, context),
@@ -169,6 +175,7 @@ public:
         keyGroupRange_(keyGroupRange),
         keySerializer_(keySerializer),
         keyGroupPrefixBytes_(keyGroupPrefixBytes),
+        writeBatchWrapper_(writeBatchWrapper),
         bridge_(bridge),
         omniTaskBridge_(omniTaskBridge)
     {
@@ -177,7 +184,7 @@ public:
         maxParallelism_ = keyGroupRange->getNumberOfKeyGroups();
     }
 
-    std::shared_ptr<std::packaged_task<SnapshotResult<KeyedStateHandle>*()>> snapshot(
+    std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<KeyedStateHandle>>()>> snapshot(
             long checkpointId,
             long timestamp,
             CheckpointStreamFactory* streamFactory,
@@ -196,12 +203,25 @@ public:
             strategy->notifyCheckpointComplete(completedCheckpointId);
         }
     }
+    std::shared_ptr<SavepointResources> savepoint() override
+    {
+        writeBatchWrapper_->Flush();
+        auto snapshotResources = RocksDBFullSnapshotResources::create(
+            *kvStateInformation_,
+            db,
+            rocksDBResourceGuard_,
+            keyGroupRange_,
+            keySerializer_,
+            keyGroupPrefixBytes_);
+        return std::make_shared<SavepointResources>(snapshotResources, SnapshotExecutionType::ASYNCHRONOUS);
+    }
 
 private:
     int startGroup_;
     int endGroup_;
     int maxParallelism_;
     ROCKSDB_NAMESPACE::DB* db;
+    std::shared_ptr<RocksDBWriteBatchWrapper> writeBatchWrapper_;
     std::string kDBPath;
     RocksDBSnapshotStrategyBase* strategy;
     std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>> *kvStateInformation_;

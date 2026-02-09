@@ -575,6 +575,109 @@ std::vector<StateMetaInfoSnapshot> OmniTaskBridgeImpl2::readMetaData(const std::
         return {};
     }
 }
+jobject OmniTaskBridgeImpl2::AcquireSavepointOutputStream(long checkpointId)
+{
+    JNIEnv* env = nullptr;
+    jint ret = g_OmniStreamJVM->GetEnv(reinterpret_cast<void **>(&env), JNI_VERSION_1_8);
+    jint attachRes = 0;
+    if (ret == JNI_EDETACHED) {
+        attachRes = g_OmniStreamJVM->AttachCurrentThread(reinterpret_cast<void **>(&env), nullptr);
+    }
+    if (attachRes != JNI_OK || env == nullptr) {
+        GErrorLog("Failed to attach C++ thread to JVM inside AcquireSavepointOutputStream");
+        return nullptr;
+    }
+    jclass cls = env->GetObjectClass(m_globalOmniTaskRef);
+    jmethodID mid = env->GetMethodID(cls, "acquireSavepointOutputStream", "(J)Lorg/apache/flink/runtime/state/CheckpointStreamWithResultProvider;");
+    auto provider =  env->CallObjectMethod(m_globalOmniTaskRef, mid, checkpointId);
+    return provider;
+}
+std::shared_ptr<SnapshotResult<StreamStateHandle>> OmniTaskBridgeImpl2::CloseSavepointOutputStream(jobject provider)
+{
+    JNIEnv* env = nullptr;
+    jint ret = g_OmniStreamJVM->GetEnv(reinterpret_cast<void **>(&env), JNI_VERSION_1_8);
+    jint attachRes = 0;
+    if (ret == JNI_EDETACHED) {
+        attachRes = g_OmniStreamJVM->AttachCurrentThread(reinterpret_cast<void **>(&env), nullptr);
+    }
+    if (attachRes != JNI_OK || env == nullptr) {
+        GErrorLog("Failed to attach C++ thread to JVM inside CloseSavepointOutputStream");
+        return nullptr;
+    }
+    jclass cls = env->GetObjectClass(m_globalOmniTaskRef);
+    jmethodID mid = env->GetMethodID(cls, "closeSavepointOutputStream", "(Lorg/apache/flink/runtime/state/CheckpointStreamWithResultProvider;)Lorg/apache/flink/runtime/state/SnapshotResult;");
+    jobject javaResult = env->CallObjectMethod(m_globalOmniTaskRef, mid, provider);
+    auto res =  ConvertSnapshotResult(env, javaResult);
+    env->DeleteLocalRef(provider);
+    return res;
+}
+void OmniTaskBridgeImpl2::WriteSavepointOutputStream(jobject provider, const int8_t *chunk, size_t offset, size_t len)
+{
+    JNIEnv* env = nullptr;
+    jint ret = g_OmniStreamJVM->GetEnv(reinterpret_cast<void **>(&env), JNI_VERSION_1_8);
+    jint attachRes = 0;
+    if (ret == JNI_EDETACHED) {
+        attachRes = g_OmniStreamJVM->AttachCurrentThread(reinterpret_cast<void **>(&env), nullptr);
+    }
+    if (attachRes != JNI_OK || env == nullptr) {
+        GErrorLog("Failed to attach C++ thread to JVM inside WriteSavepointOutputStream");
+        return;
+    }
+    jclass cls = env->GetObjectClass(m_globalOmniTaskRef);
+    jmethodID mid = env->GetMethodID(cls, "writeSavepointOutputStream", "(Lorg/apache/flink/runtime/state/CheckpointStreamWithResultProvider;[B)V");
+    jbyteArray data = env->NewByteArray(len);
+    env->SetByteArrayRegion(data, offset, len, chunk);
+    env->CallVoidMethod(m_globalOmniTaskRef, mid, provider, data);
+    env->DeleteLocalRef(data);
+}
+void OmniTaskBridgeImpl2::WriteSavepointMetadata(jobject provider, const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& snapshots)
+{
+    JNIEnv* env = nullptr;
+    jint ret = g_OmniStreamJVM->GetEnv(reinterpret_cast<void **>(&env), JNI_VERSION_1_8);
+    jint attachRes = 0;
+    if (ret == JNI_EDETACHED) {
+        attachRes = g_OmniStreamJVM->AttachCurrentThread(reinterpret_cast<void **>(&env), nullptr);
+    }
+    if (attachRes != JNI_OK || env == nullptr) {
+        GErrorLog("Failed to attach C++ thread to JVM inside WriteSavepointMetadata");
+        return;
+    }
+
+    nlohmann::json stateMetaInfoJson = nlohmann::json::array();
+    //TODO 需要增加key序列化器和namespace序列化器以保证omnistream创建的savepoint在flink可恢复
+    for (const auto& snapshot : snapshots) {
+        nlohmann::json jsonObj;
+        jsonObj["name"] = snapshot->getName();
+        jsonObj["backendStateType"] =
+        static_cast<int>(StateMetaInfoSnapshot::getCode(snapshot->getBackendStateType()));
+        jsonObj["options"] = snapshot->getOptionsImmutable();
+        stateMetaInfoJson.push_back(std::move(jsonObj));
+    }
+    std::string stateMetaInfoStr = stateMetaInfoJson.dump();
+    LOG(std::string("savepoint: metadata size: ") + std::to_string(stateMetaInfoStr.size()));
+    LOG(std::string("savepoint: metadata: ") + stateMetaInfoStr);
+    jclass cls = env->GetObjectClass(m_globalOmniTaskRef);
+    jmethodID mid = env->GetMethodID(cls, "writeSavepointMetadata", "(Lorg/apache/flink/runtime/state/CheckpointStreamWithResultProvider;Ljava/lang/String;)V");
+    jstring jStateMetaInfoStr = env->NewStringUTF(stateMetaInfoStr.c_str());
+    env->CallVoidMethod(m_globalOmniTaskRef, mid, provider, jStateMetaInfoStr);
+    env->DeleteLocalRef(jStateMetaInfoStr);
+}
+long OmniTaskBridgeImpl2::GetSavepointOutputStreamPos(jobject provider)
+{
+    JNIEnv* env = nullptr;
+    jint ret = g_OmniStreamJVM->GetEnv(reinterpret_cast<void **>(&env), JNI_VERSION_1_8);
+    jint attachRes = 0;
+    if (ret == JNI_EDETACHED) {
+        attachRes = g_OmniStreamJVM->AttachCurrentThread(reinterpret_cast<void **>(&env), nullptr);
+    }
+    if (attachRes != JNI_OK || env == nullptr) {
+        GErrorLog("Failed to attach C++ thread to JVM inside GetSavepointOutputStreamPos");
+        return -1;
+    }
+    jclass cls = env->GetObjectClass(m_globalOmniTaskRef);
+    jmethodID mid = env->GetMethodID(cls, "getSavepointOutputStreamPos", "(Lorg/apache/flink/runtime/state/CheckpointStreamWithResultProvider;)J");
+    return env->CallLongMethod(m_globalOmniTaskRef, mid, provider);
+}
 JNIEnv* OmniTaskBridgeImpl2::getJNIEnv()
 {
     JNIEnv* env = nullptr;

@@ -48,13 +48,13 @@ public:
         long lastCompletedCheckpointId
     );
 
-    SnapshotResources *syncPrepareResources(long checkpointId)
+    std::shared_ptr<SnapshotResources> syncPrepareResources(long checkpointId)
     {
         return RocksDBSnapshotStrategyBase::syncPrepareResources(checkpointId);
     };
 
     std::shared_ptr<SnapshotResultSupplier<KeyedStateHandle>> asyncSnapshot(
-        SnapshotResources* snapshotResources,
+        const std::shared_ptr<SnapshotResources>& snapshotResources,
         long checkpointId,
         long timestamp,
         CheckpointStreamFactory* checkpointStreamFactory,
@@ -80,7 +80,7 @@ protected:
             SnapshotType::SharingFilesStrategy sharingFilesStrategy,
             std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& stateMetaInfoSnapshots);
 
-        SnapshotResult<KeyedStateHandle> *get(std::shared_ptr<omnistream::OmniTaskBridge> bridge) override;
+        std::shared_ptr<SnapshotResult<KeyedStateHandle>> get(std::shared_ptr<omnistream::OmniTaskBridge> bridge) override;
 
     private:
         long uploadSnapshotFiles(

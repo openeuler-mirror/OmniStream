@@ -30,7 +30,7 @@ public:
      */
     RocksTransformingIteratorWrapper(
         std::unique_ptr<rocksdb::Iterator> iterator,
-        StateSnapshotTransformer<std::vector<uint8_t>>* transformer)
+        StateSnapshotTransformer<std::vector<int8_t>>* transformer)
         : RocksIteratorWrapper(std::move(iterator)),
         stateSnapshotTransformer_(transformer)
     {
@@ -59,7 +59,7 @@ public:
         RocksIteratorWrapper::prev();
     }
 
-    std::vector<uint8_t> value()
+    std::vector<int8_t> value()
     {
         if (!isValid()) {
             throw std::runtime_error("value() called on invalid iterator");
@@ -68,7 +68,7 @@ public:
     }
 
 private:
-    StateSnapshotTransformer<std::vector<uint8_t>>* stateSnapshotTransformer_;
-    std::vector<uint8_t> currentValue_;
+    StateSnapshotTransformer<std::vector<int8_t>>* stateSnapshotTransformer_;
+    std::vector<int8_t> currentValue_;
 };
 #endif // OMNISTREAM_ROCKSTRANSFORMINGITERATORWRAPPER_H

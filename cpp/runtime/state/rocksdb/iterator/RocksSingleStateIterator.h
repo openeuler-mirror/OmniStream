@@ -14,6 +14,9 @@
 #include <stdexcept>
 #include "SingleStateIterator.h"
 #include "runtime/state/RocksIteratorWrapper.h"
+#include "common.h"
+#include <iostream>
+#include <string>
 
 /**
  * Wraps a RocksDB iterator to cache its current key and assigns an id for the key/value state.
@@ -34,14 +37,20 @@ public:
         if (!iterator_) {
             throw std::invalid_argument("RocksIteratorWrapper cannot be null");
         }
-        currentKey_ = std::vector<uint8_t>(iterator_->key().begin(), iterator_->key().end());
+        currentKey_.clear();
+        for(auto& c:iterator_->key()){
+            currentKey_.push_back(c);
+        }
     }
 
     void next() override
     {
         iterator_->next();
         if (iterator_->isValid()) {
-            currentKey_ = std::vector<uint8_t>(iterator_->key().begin(), iterator_->key().end());
+            currentKey_.clear();
+            for(auto& c:iterator_->key()){
+                currentKey_.push_back(c);
+            }
         }
     }
 
@@ -50,14 +59,18 @@ public:
         return iterator_ && iterator_->isValid();
     }
 
-    std::vector<uint8_t> key() const override
+    std::vector<int8_t> key() const override
     {
         return currentKey_;
     }
 
-    std::vector<uint8_t> value() const override
+    std::vector<int8_t> value() const override
     {
-        return std::vector<uint8_t>(iterator_->value().begin(), iterator_->value().end());
+        std::vector<int8_t> value;
+        for(auto& c:iterator_->value()) {
+            value.push_back(c);
+        }
+        return value;
     }
 
     int getKvStateId() const override
@@ -74,7 +87,7 @@ public:
 
 private:
     std::unique_ptr<RocksIteratorWrapper> iterator_;
-    std::vector<uint8_t> currentKey_;
+    std::vector<int8_t> currentKey_;
     int kvStateId_;
 };
 #endif // OMNISTREAM_ROCKSSINGLESTATEITERATOR_H

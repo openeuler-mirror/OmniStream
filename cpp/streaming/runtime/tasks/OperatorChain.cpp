@@ -17,6 +17,7 @@
 #include <typeinfo/TypeInfoFactory.h>
 #include "core/typeutils/LongSerializer.h"
 #include "WatermarkGaugeExposingOutput.h"
+#include "state/bridge/OmniTaskBridge.h"
 #include "streaming/api/operators/AbstractStreamOperator.h"
 #include "omni/OmniStreamTask.h"
 #include "runtime/io/network/api/writer/RecordWriterDelegate.h"
@@ -469,8 +470,9 @@ void OperatorChainV2::NotifyCheckpointSubsumed(long checkpointId)
 
 void OperatorChainV2::SnapshotState(
     std::unordered_map<OperatorID, OperatorSnapshotFutures *>& operatorSnapshotsInProgress,
-    CheckpointMetaData &checkpointMetaData, CheckpointOptions *checkpointOptions, Supplier<bool>* isRunning,
-    ChannelStateWriter::ChannelStateWriteResult& channelStateWriteResult, CheckpointStreamFactory* storage)
+    CheckpointMetaData &checkpointMetaData, CheckpointOptions *checkpointOptions, std::shared_ptr<Supplier<bool>> isRunning,
+    ChannelStateWriter::ChannelStateWriteResult& channelStateWriteResult, CheckpointStreamFactory* storage,
+    const std::shared_ptr<OmniTaskBridge>& bridge)
 {
     try {
         auto iter = getAllOperators(true);
@@ -478,7 +480,7 @@ void OperatorChainV2::SnapshotState(
             auto op = iter.next()->getStreamOperator();
             operatorSnapshotsInProgress[op->GetOperatorID()]
             = BuildOperatorSnapshotFutures(checkpointMetaData, checkpointOptions, op, isRunning,
-                channelStateWriteResult, storage);
+                channelStateWriteResult, storage, bridge);
         }
         SendAcknowledgeCheckpointEvent(checkpointMetaData.GetCheckpointId());
     } catch (...) {
@@ -487,28 +489,30 @@ void OperatorChainV2::SnapshotState(
 }
 
 OperatorSnapshotFutures *OperatorChainV2::BuildOperatorSnapshotFutures(CheckpointMetaData checkpointMetaData,
-    CheckpointOptions *checkpointOptions, StreamOperator* op, Supplier<bool>* isRunning,
-    ChannelStateWriter::ChannelStateWriteResult& channelStateWriteResult, CheckpointStreamFactory* storage)
+    CheckpointOptions *checkpointOptions, StreamOperator* op,std::shared_ptr<Supplier<bool>> isRunning,
+    ChannelStateWriter::ChannelStateWriteResult& channelStateWriteResult, CheckpointStreamFactory* storage,
+    const std::shared_ptr<OmniTaskBridge>& bridge)
 {
     OperatorSnapshotFutures *snapshotInProgress = CheckpointStreamOperator(op, checkpointMetaData, checkpointOptions,
-        storage, isRunning);
+        storage, isRunning, bridge);
     return snapshotInProgress;
 }
 
 OperatorSnapshotFutures *OperatorChainV2::CheckpointStreamOperator(StreamOperator* op,
     CheckpointMetaData checkpointMetaData, CheckpointOptions *checkpointOptions,
-    CheckpointStreamFactory* storageLocation, Supplier<bool>* isRunning)
+    CheckpointStreamFactory* storageLocation, std::shared_ptr<Supplier<bool>> isRunning,
+    const std::shared_ptr<OmniTaskBridge>& bridge)
 {
     try {
         auto aop = dynamic_cast<AbstractStreamOperator<RowData *>*>(op);
         if (aop) {
             return aop->SnapshotState(checkpointMetaData.GetCheckpointId(), checkpointMetaData.GetTimestamp(),
-                                      checkpointOptions, storageLocation);
+                                      checkpointOptions, storageLocation, bridge);
         }
         auto sop = dynamic_cast<AbstractStreamOperator<Object *>*>(op);
         if (sop) {
             return sop->SnapshotState(checkpointMetaData.GetCheckpointId(), checkpointMetaData.GetTimestamp(),
-                                      checkpointOptions, storageLocation);
+                                      checkpointOptions, storageLocation, bridge);
         }
         throw std::runtime_error("checkpointStreamOperator failed");
     } catch (...) {

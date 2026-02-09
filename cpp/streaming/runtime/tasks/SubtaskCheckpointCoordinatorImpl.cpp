@@ -98,7 +98,7 @@ namespace omnistream::runtime {
         CheckpointMetricsBuilder *checkpointMetrics,
         CheckpointOptions *checkpointOptions,
         omnistream::OperatorChainV2 *operatorChain,
-        omnistream::Supplier<bool> *isRunning)
+        std::shared_ptr<omnistream::Supplier<bool>> isRunning)
     {
         LOG(">>>>>>>>>")
         if (operatorChain->IsClosed()) {
@@ -123,7 +123,8 @@ namespace omnistream::runtime {
                 checkpointOptions,
                 isRunning,
                 channelStateWriteResult,
-                storage);
+                storage,
+                env->getTaskStateManager()->getOmniTaskBridge());
         } catch (...) {
             checkpointStorage->clearCacheFor(checkpointId);
         }
@@ -166,7 +167,7 @@ namespace omnistream::runtime {
         CheckpointMetricsBuilder *metrics,
         bool istaskDeployedAsFinished,
         bool isTaskFinished,
-        omnistream::Supplier<bool> *isRunning,
+        std::shared_ptr<omnistream::Supplier<bool>> isRunning,
         CheckpointOptions *options)
     {
         LOG(">>>>>> isTaskDeployedAsFinished " << istaskDeployedAsFinished << " isTaskFinished " << isTaskFinished);
@@ -256,7 +257,7 @@ namespace omnistream::runtime {
         CheckpointMetricsBuilder *metrics,
         omnistream::OperatorChainV2 *operatorChain,
         bool isTaskFinished,
-        omnistream::Supplier<bool> *isRunning)
+        std::shared_ptr<omnistream::Supplier<bool>> isRunning)
     {
         LOG(">>>>>>> isTaskFinished? " << isTaskFinished)
         if (!options || !metrics) {

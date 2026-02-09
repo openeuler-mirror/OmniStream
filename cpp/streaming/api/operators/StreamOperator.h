@@ -83,7 +83,8 @@ public:
      * @throws Exception exception that happened during snapshotting.
      */
     virtual OperatorSnapshotFutures *SnapshotState(long checkpointId, long timestamp,
-        CheckpointOptions *checkpointOptions, CheckpointStreamFactory* storageLocation)
+        CheckpointOptions *checkpointOptions, CheckpointStreamFactory* storageLocation,
+        const std::shared_ptr<OmniTaskBridge>& bridge)
     {
         LOG("checkpointId " << checkpointId << " timestamp " << timestamp);
         return new OperatorSnapshotFutures();

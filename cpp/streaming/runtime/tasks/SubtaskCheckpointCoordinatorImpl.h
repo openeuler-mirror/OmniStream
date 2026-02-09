@@ -106,7 +106,7 @@ namespace omnistream::runtime {
                 CheckpointMetricsBuilder *metrics,
                 omnistream::OperatorChainV2 *operatorChain,
                 bool isTaskFinished,
-                omnistream::Supplier<bool> *isRunning
+                std::shared_ptr<omnistream::Supplier<bool>> isRunning
         ) override;
 
         void InitInputsCheckpoint(long checkpointId, CheckpointOptions *options) override;
@@ -212,7 +212,7 @@ namespace omnistream::runtime {
                 CheckpointMetricsBuilder *checkpointMetrics,
                 CheckpointOptions *checkpointOptions,
                 omnistream::OperatorChainV2 *operatorChain,
-                omnistream::Supplier<bool> *isRunning
+                std::shared_ptr<omnistream::Supplier<bool>> isRunning
         );
 
         void cleanup(
@@ -239,7 +239,7 @@ namespace omnistream::runtime {
                 CheckpointMetricsBuilder *metrics,
                 bool istaskDeployedAsFinished,
                 bool isTaskFinished,
-                omnistream::Supplier<bool> *isRunning,
+                std::shared_ptr<omnistream::Supplier<bool>> isRunning,
                 CheckpointOptions *options
         );
 

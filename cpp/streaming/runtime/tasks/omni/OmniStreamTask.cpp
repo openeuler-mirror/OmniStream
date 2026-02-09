@@ -503,7 +503,7 @@ bool OmniStreamTask::PerformCheckpoint(CheckpointMetaData* checkpointMetaData,
                     && this->finalCheckpointMinId == INT64_MIN) {
                     this->finalCheckpointMinId = checkpointMetaData->GetCheckpointId();
                 }
-                LambdaSupplier<bool> isRunningLoad(
+                std::shared_ptr<LambdaSupplier<bool>> isRunningLoad = std::make_shared<LambdaSupplier<bool>>(
                     [this]() {
                         auto ret = std::make_shared<bool>(this->IsRunning());
                         return ret;
@@ -511,7 +511,7 @@ bool OmniStreamTask::PerformCheckpoint(CheckpointMetaData* checkpointMetaData,
                 );
 
                 subtaskCheckpointCoordinator->checkpointState(checkpointMetaData, checkpointOptions, checkpointMetrics,
-                    operatorChain, finishedOperators, &isRunningLoad);
+                    operatorChain, finishedOperators, isRunningLoad);
             }
         );
         if (isRunning) {

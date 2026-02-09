@@ -13,6 +13,7 @@
 #include <util/omni_exception.h>
 #include <utils/exception/Throwable.h>
 #include <vector>
+#include <cstdint>
 #include <jni.h>
 #include "state/metainfo/StateMetaInfoSnapshot.h"
 #include "runtime/state/SnapshotResult.h"
@@ -36,6 +37,16 @@ namespace omnistream {
                                                       int numberOfSnapshottingThreads) = 0;
 
         virtual std::vector<StateMetaInfoSnapshot> readMetaData(const std::string &metaStateHandle) = 0;
+
+        virtual jobject AcquireSavepointOutputStream(long checkpointId) = 0;
+
+        virtual std::shared_ptr<SnapshotResult<StreamStateHandle>> CloseSavepointOutputStream(jobject provider) = 0;
+
+        virtual void WriteSavepointOutputStream(jobject provider, const int8_t *chunk, size_t offset, size_t len) = 0;
+
+        virtual void WriteSavepointMetadata(jobject provider, const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& snapshots) = 0;
+
+        virtual long GetSavepointOutputStreamPos(jobject provider) = 0;
 
         virtual JNIEnv* getJNIEnv() = 0;
     };

@@ -12,6 +12,7 @@
 #define FLINK_TNEL_KEYGROUPRANGEOFFSETS_H
 #include "runtime/state/StreamStateHandle.h"
 #include "runtime/state/KeyedStateHandle.h"
+#include <sstream>
 
 class KeyGroupRangeOffsets {
 public:
@@ -88,17 +89,16 @@ public:
 
     std::string ToString() const
     {
-        std::string result = "KeyGroupRangeOffsets{keyGroupRange = " + keyGroupRange_.ToString();
-        if (offsets_.size() <= 10) {
-            result += ", offsets = [";
-            for (size_t i = 0; i < offsets_.size(); ++i) {
-                if (i > 0) result += ", ";
-                result += std::to_string(offsets_[i]);
-            }
-            result += "]";
+        std::stringstream ss;
+        ss<< "{" << "\"keyGroupRange\":"<<keyGroupRange_.ToString();
+        ss<<",\"offsets\":[";
+        for(size_t i = 0; i< offsets_.size(); ++i) {
+            if(i>0) ss<<",";
+            ss<< std::to_string(offsets_[i]);
         }
-        result += "}";
-        return result;
+        ss<<"]";
+        ss<<"}";
+        return ss.str();
     }
 
     std::size_t hashCode() const
