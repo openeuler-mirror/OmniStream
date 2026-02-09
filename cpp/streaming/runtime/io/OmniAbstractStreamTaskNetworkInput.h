@@ -81,6 +81,8 @@ public:
                     isStartTimer = true;
                 }
                 output_ = output;
+                //Caution: watermark is not updated among input channels(StatusWatermarkValue not called)
+                //Todo: watermark should be updated later for parallel running.
                 return processForSQLFromOriginal(output);
             } else {
                 return processForSQL(output);
