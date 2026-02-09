@@ -82,7 +82,7 @@ namespace omnistream {
     {
         auto barrier = std::dynamic_pointer_cast<CheckpointBarrier>(event);
         if (barrier != nullptr) {
-            LOG_DEBUG("Barrier Iddd: " << barrier->getId() << ", supportsUnalignedCheckpoints_" << supportsUnalignedCheckpoints_ << ", isPriorityEvent: " << isPriorityEvent)
+            LOG_DEBUG("Barrier Iddd: " << barrier->GetId() << ", supportsUnalignedCheckpoints_" << supportsUnalignedCheckpoints_ << ", isPriorityEvent: " << isPriorityEvent)
         }
 
         if (isPriorityEvent && !supportsUnalignedCheckpoints_) {
