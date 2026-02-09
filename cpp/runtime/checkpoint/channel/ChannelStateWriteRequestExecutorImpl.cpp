@@ -35,7 +35,7 @@ namespace omnistream {
     {
         std::lock_guard<std::mutex> lock(mutex);
         if (!stopped) {
-            enqueue(std::move(req), false);
+            enqueue(req, false);
         }
     }
 
@@ -43,7 +43,7 @@ namespace omnistream {
     {
         std::lock_guard<std::mutex> lock(mutex);
         if (!stopped) {
-            enqueue(std::move(req), true);
+            enqueue(req, true);
         }
     }
 
@@ -132,15 +132,15 @@ namespace omnistream {
             std::shared_ptr<ChannelStateWriteRequest> raw = req;
             {
                 std::lock_guard<std::mutex> lock(mutex);
-                queue.push(std::move(req));
+                queue.push(req);
             }
 
             registerCallback(raw, sid);
         } else {
             if (priority) {
-                readyQueue.push_front(std::move(req));
+                readyQueue.push_front(req);
             } else {
-                readyQueue.push_back(std::move(req));
+                readyQueue.push_back(req);
             }
             cv.notify_all();
         }
@@ -158,7 +158,7 @@ namespace omnistream {
             auto& q = it->second;
 
             while (!q.empty() && q.front()->getReadyFuture()->IsDone()) {
-                readyQueue.push_back(std::move(q.front()));
+                readyQueue.push_back(q.front());
                 q.pop();
             }
             if (!q.empty()) {

@@ -51,20 +51,30 @@ namespace omnistream {
     void ChannelStateWriteRequestDispatcherImpl::dispatchInternal(std::shared_ptr<ChannelStateWriteRequest> request)
     {
         std::lock_guard<std::mutex> lock(mutex);
-
+        std::shared_ptr<ChannelStateCheckpointWriter> writer = nullptr;
+        auto it = writers.find(request->getCheckpointId());
+        if (it != writers.end()) {
+            writer = it->second;
+        }
         if (auto req = std::dynamic_pointer_cast<CheckpointStartRequest>(request)) {
-            writers[request->getCheckpointId()] = buildWriter(req);
+            handleCheckpointStartRequest(req);
         } else if (auto req = std::dynamic_pointer_cast<CheckpointInProgressRequest>(request)) {
-            std::shared_ptr<ChannelStateCheckpointWriter> writer = nullptr;
-            auto it = writers.find(request->getCheckpointId());
-            if (it != writers.end()) {
-                writer = it->second;
+            if (writer && ongoingCheckpointId == request->getCheckpointId()) {
+                req->execute(writer);
             }
+        }else if (auto req = std::dynamic_pointer_cast<SubtaskReleaseRequest>(request)) {
+            SubtaskID sid = SubtaskID::Of(req->getJobVertexID(), req->getSubtaskIndex());
+            registeredSubtasks.erase(sid);
             if (writer) {
                 req->execute(writer);
             }
         } else {
             throw std::invalid_argument("Unknown request type");
+        }
+        if (isAbortedCheckpoint(request->getCheckpointId())) {
+            handleAbortedRequest(request);
+        } else if (auto req = std::dynamic_pointer_cast<CheckpointAbortRequest>(request)) {
+            handleCheckpointAbortRequest(req);
         }
     }
 
@@ -107,6 +117,9 @@ namespace omnistream {
         }
         if (!writer) {
             writer = buildWriter(request);
+            if (writer) {
+                writers[request->getCheckpointId()] = writer;
+            }
             ongoingCheckpointId = request->getCheckpointId();
         }
 
@@ -179,17 +192,19 @@ namespace omnistream {
 
     std::shared_ptr<ChannelStateCheckpointWriter> ChannelStateWriteRequestDispatcherImpl::buildWriter(std::shared_ptr<CheckpointStartRequest> request)
     {
-        std::shared_ptr<ChannelStateCheckpointWriter> writer = nullptr;
-        auto it = writers.find(request->getCheckpointId());
+        long id = request->getCheckpointId();
+        auto it = writers.find(id);
         if (it != writers.end()) {
-            writer = it->second;
+            return nullptr;
         }
+        SubtaskID sid = SubtaskID::Of(request->getJobVertexID(), request->getSubtaskIndex());
+        registeredSubtasks.insert(sid);
         return std::make_shared<ChannelStateCheckpointWriter>(
             registeredSubtasks,
-            request->getCheckpointId(),
-            getStreamFactoryResolver()->resolveCheckpointStorageLocation(request->getCheckpointId(), request->getLocationReference()),
+            id,
+            getStreamFactoryResolver()->resolveCheckpointStorageLocation(id, request->getLocationReference()),
             serializer,
-            [this, writer]() { writer->Reset(); });
+            [this, id]() { this->RemoveWriter(id); });
     }
 
     std::shared_ptr<CheckpointStorageWorkerView> ChannelStateWriteRequestDispatcherImpl::getStreamFactoryResolver()

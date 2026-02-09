@@ -56,10 +56,9 @@ namespace omnistream::runtime {
 	}
 
     // Main ProcessBarrier implementation
-    void SingleCheckpointBarrierHandler::ProcessBarrier(
-        const CheckpointBarrier& barrier,
-        const InputChannelInfo& channelInfo,
-        bool isRpcTriggered)
+    void SingleCheckpointBarrierHandler::ProcessBarrier(const CheckpointBarrier& barrier,
+                                                        const InputChannelInfo& channelInfo,
+                                                        bool isRpcTriggered)
     {
         int64_t barrierId = barrier.GetId();
         LOG(taskName_ + ": Received barrier from channel " + channelInfo.toString() + " @" + std::to_string(barrierId));
@@ -189,9 +188,9 @@ namespace omnistream::runtime {
             LOG(taskName_ + ": All the channels are aligned for checkpoint " + std::to_string(currentCheckpointId_))
 
             ResetAlignmentTimer();
-            if (!allBarriersReceivedFuture_.IsDone()) {
+            //if (!allBarriersReceivedFuture_.IsDone()) {
                 allBarriersReceivedFuture_.Complete();
-            }
+            //}
         }
     }
 
@@ -205,24 +204,49 @@ namespace omnistream::runtime {
     }
 
     // Process barrier announcement
-    void SingleCheckpointBarrierHandler::ProcessBarrierAnnouncement(
-        const CheckpointBarrier& announcedBarrier,
-        int sequenceNumber,
-        const InputChannelInfo& channelInfo)
+    void SingleCheckpointBarrierHandler::ProcessBarrierAnnouncement(const CheckpointBarrier& announcedBarrier,
+                                                                    int sequenceNumber,
+                                                                    const InputChannelInfo& channelInfo)
     {
+        LOG("ZZT start ProcessBarrierAnnouncement, barrier Id: " << announcedBarrier.GetId())
         // Ignore announcements for checkpoints that are already cancelled/completed.
         if (announcedBarrier.GetId() <= lastCancelledOrCompletedCheckpointId_) {
+            LOG("ZZT announcedBarrier.GetId() <= lastCancelledOrCompletedCheckpointId_. barrier Id: " << announcedBarrier.GetId())
             return;
         }
 
+        // Announcements are only meaningful for timeoutable aligned checkpoints.
+        if (announcedBarrier.GetCheckpointOptions() == nullptr ||
+            announcedBarrier.GetCheckpointOptions()->IsUnalignedCheckpoint()) {
+            LOG("ZZT announcedBarrier.GetCheckpointOptions() == nullptr || announcedBarrier.GetCheckpointOptions()->IsUnalignedCheckpoint(), barrier Id: " << announcedBarrier.GetId())
+            return;
+        }
+
+        // An announcement can arrive before the first barrier. Start tracking the checkpoint now so
+        // that we don't lose the announced sequence number when the barrier arrives later.
         CheckNewCheckpoint(announcedBarrier);
 
         int64_t barrierId = announcedBarrier.GetId();
-        if (currentCheckpointId_ > barrierId ||
-            (currentCheckpointId_ == barrierId && !IsCheckpointPending())) {
-            std::cout << taskName_ << ": Obsolete announcement of checkpoint " << barrierId
-                      << " for channel " << channelInfo.toString() << std::endl;
+        if (currentCheckpointId_ > barrierId || (currentCheckpointId_ == barrierId && !IsCheckpointPending())) {
+            LOG("ZZT scurrentCheckpointId_ > barrierId || (currentCheckpointId_ == barrierId && !IsCheckpointPending()), barrier Id: " << announcedBarrier.GetId())
+            std::cout << taskName_ << ": Obsolete announcement of checkpoint "
+                      << barrierId << " for channel " << channelInfo.toString() << std::endl;
             return;
+        }
+
+        // Record the announcement in the current handler state.
+        // NOTE: Do NOT prioritize it here. Prioritization happens when aligned checkpoint times out.
+        try {
+            auto* oldState = currentState_;
+            auto* nextState = currentState_->AnnouncementReceived(dynamic_cast<Controller*>(context_),
+                                                                  channelInfo,
+                                                                  sequenceNumber);
+            if (nextState != oldState) {
+                delete oldState;
+            }
+            currentState_ = nextState;
+        } catch (...) {
+            // best effort; announcement should not fail the task
         }
     }
 
@@ -421,6 +445,7 @@ namespace omnistream::runtime {
     // Reset alignment timer
     void SingleCheckpointBarrierHandler::ResetAlignmentTimer()
     {
+        LOG("ZZT ResetAlignmentTimer")
         if (currentAlignmentTimer_) {
             currentAlignmentTimer_->Cancel();
             currentAlignmentTimer_.reset();
