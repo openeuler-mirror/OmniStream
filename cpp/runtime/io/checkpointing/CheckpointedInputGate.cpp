@@ -70,9 +70,13 @@ std::optional<std::shared_ptr<BufferOrEvent>> CheckpointedInputGate::PollNext()
 std::optional<std::shared_ptr<BufferOrEvent>> CheckpointedInputGate::HandleEvent(
     const std::shared_ptr<BufferOrEvent>& bufferOrEvent)
 {
+    auto eventClassName = bufferOrEvent->getEvent()->GetEventClassName();
+    LOG("ZZT eventClassName: " << eventClassName)
+
     if (bufferOrEvent->getEvent()->GetEventClassName() == "CheckpointBarrier") {
         auto checkpointBarrier = std::dynamic_pointer_cast<CheckpointBarrier>(bufferOrEvent->getEvent());
         if (!checkpointBarrier) {
+            LOG("ZZT checkpointBarrier is nullptr")
             throw std::runtime_error("Failed to cast event to CheckpointBarrier");
         }
         barrierHandler_->ProcessBarrier(*checkpointBarrier,

@@ -20,7 +20,7 @@ BarrierHandlerState* AbstractAlternatingAlignedBarrierHandlerState::BarrierRecei
     CheckpointBarrier* barrier,
     bool markChannelBlocked)
 {
-    LOG(">>>>>>>")
+    LOG_DEBUG("ZZT AbstractAlternatingAlignedBarrierHandlerState::BarrierReceived")
     if (barrier->GetCheckpointOptions()->IsUnalignedCheckpoint()) {
         return AlignedCheckpointTimeout(controller, barrier)
             ->BarrierReceived(controller, channelInfo, barrier, markChannelBlocked);

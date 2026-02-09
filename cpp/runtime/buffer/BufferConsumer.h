@@ -94,6 +94,14 @@ namespace omnistream {
 
         bool isFinished() const;
         virtual std::shared_ptr<Buffer> build() = 0;
+
+        std::shared_ptr<Buffer> buildForPeek() {
+            int oldReaderPos = currentReaderPosition;
+            auto built = build();
+            currentReaderPosition = oldReaderPos;
+            return built;
+        }
+
         void skip(int bytesToSkip);
         virtual std::shared_ptr<BufferConsumer> copy() = 0;
         virtual std::shared_ptr<BufferConsumer> copyWithReaderPosition(int readerPosition) = 0;

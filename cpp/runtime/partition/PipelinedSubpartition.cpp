@@ -340,8 +340,10 @@ bool PipelinedSubpartition::addBuffer(std::shared_ptr<BufferConsumer> bufferCons
 {
     LOG("buffer consumer added to buffers" << (bufferConsumer->isBuffer() ? "buffer": "event"))
     if (bufferConsumer->getDataType().hasPriority()) {
+        LOG_DEBUG("ZZT 111111!")
         return ProcessPriorityBuffer(bufferConsumer, partialRecordLength);
     } else if (ObjectBufferDataType::TIMEOUTABLE_ALIGNED_CHECKPOINT_BARRIER == bufferConsumer->getDataType()) {
+        LOG_DEBUG("ZZT 111111!")
         ProcessTimeoutableCheckpointBarrier(bufferConsumer);
     }
     buffers.add(std::make_shared<BufferConsumerWithPartialRecordLength>(bufferConsumer, partialRecordLength));
@@ -353,8 +355,10 @@ bool PipelinedSubpartition::addBuffer(std::shared_ptr<BufferConsumer> bufferCons
 std::shared_ptr<CheckpointBarrier> PipelinedSubpartition::ParseCheckpointBarrier(
     const std::shared_ptr<BufferConsumer> &bufferConsumer)
 {
-    auto buffer = bufferConsumer->build();
+    //auto buffer = bufferConsumer->build();
+    auto buffer = bufferConsumer->buildForPeek();
     auto event = EventSerializer::fromBuffer(buffer);
+    //auto event = EventSerializer::fromBuffe_V2r(buffer);
     return std::dynamic_pointer_cast<CheckpointBarrier>(event);
 }
 
@@ -375,7 +379,7 @@ bool PipelinedSubpartition::ProcessPriorityBuffer(std::shared_ptr<BufferConsumer
         for (const auto &current : elements) {
             auto buffer = current->getBufferConsumer();
             if (buffer->isBuffer()) {
-                inflightBuffers.push_back(buffer->build());
+                inflightBuffers.push_back(buffer->buildForPeek());
             }
         }
 
@@ -406,10 +410,12 @@ std::shared_ptr<CheckpointBarrier> PipelinedSubpartition::ParseAndCheckTimeoutab
 {
     auto barrier = ParseCheckpointBarrier(bufferConsumer);
     if (barrier == nullptr) {
+        LOG_DEBUG("ZZT find barrier is null!")
         throw std::runtime_error("Parse the timeoutable Checkpoint Barrier failed, barrier is null.");
     }
-    if (barrier->GetCheckpointOptions()->IsTimeoutable() &&
+    if (barrier->GetCheckpointOptions()->IsTimeoutable() ||
         ObjectBufferDataType::TIMEOUTABLE_ALIGNED_CHECKPOINT_BARRIER == bufferConsumer->getDataType()) {
+        LOG_DEBUG("ZZT find a logical error!")
         throw std::runtime_error("Barrier type is TIMEOUTABLE_ALIGNED_CHECKPOINT_BARRIER.");
     }
     return barrier;

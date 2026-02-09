@@ -46,6 +46,7 @@ namespace omnistream::runtime {
           alternating_(alternating)
     {
         //allBarriersReceivedFuture_ = CompletableFutureV2<void>();
+        LOG_DEBUG("SingleCheckpointBarrierHandler init")
         context_ = new ControllerImpl(this, subTaskCheckpointCoordinator_);
     }
 
@@ -122,7 +123,7 @@ namespace omnistream::runtime {
         const CheckpointBarrier& barrier,
         const std::function<BarrierHandlerState*(BarrierHandlerState*)>& stateTransformer)
     {
-		LOG("Func:MarkCheckpointAlignedAndTransformState start")
+		LOG_DEBUG("Func:MarkCheckpointAlignedAndTransformState start")
         alignedChannels_.insert(alignedChannel);
         const bool isAlwaysUnalignedHandler = (!alternating_ && subTaskCheckpointCoordinator_ != nullptr);
         const bool shouldTrackAlignment = !isAlwaysUnalignedHandler &&
@@ -137,8 +138,8 @@ namespace omnistream::runtime {
             shouldTrackAlignment && (alignedChannels_.size() == static_cast<size_t>(targetChannelCount_));
         if (alternating_ && isLastBarrierForAlignment) {
             ResetAlignmentTimer();
-            if (!allBarriersReceivedFuture_.IsDone()) {
-                allBarriersReceivedFuture_.Complete();
+            if (!allBarriersReceivedFuture_V2->IsDone()) {
+                allBarriersReceivedFuture_V2->Complete();
             }
         }
 
@@ -185,12 +186,12 @@ namespace omnistream::runtime {
         if (alignedChannels_.size() == (unsigned int)targetChannelCount_) {
             alignedChannels_.clear();
             lastCancelledOrCompletedCheckpointId_ = currentCheckpointId_;
-            LOG(taskName_ + ": All the channels are aligned for checkpoint " + std::to_string(currentCheckpointId_))
+            LOG_DEBUG(taskName_ + ": All the channels are aligned for checkpoint " + std::to_string(currentCheckpointId_))
 
             ResetAlignmentTimer();
-            //if (!allBarriersReceivedFuture_.IsDone()) {
-                allBarriersReceivedFuture_.Complete();
-            //}
+            if (!allBarriersReceivedFuture_V2->IsDone()) {
+                allBarriersReceivedFuture_V2->Complete();
+            }
         }
     }
 
@@ -208,17 +209,17 @@ namespace omnistream::runtime {
                                                                     int sequenceNumber,
                                                                     const InputChannelInfo& channelInfo)
     {
-        LOG("ZZT start ProcessBarrierAnnouncement, barrier Id: " << announcedBarrier.GetId())
+        LOG_DEBUG("ZZT start ProcessBarrierAnnouncement, barrier Id: " << announcedBarrier.GetId())
         // Ignore announcements for checkpoints that are already cancelled/completed.
         if (announcedBarrier.GetId() <= lastCancelledOrCompletedCheckpointId_) {
-            LOG("ZZT announcedBarrier.GetId() <= lastCancelledOrCompletedCheckpointId_. barrier Id: " << announcedBarrier.GetId())
+            LOG_DEBUG("ZZT announcedBarrier.GetId() <= lastCancelledOrCompletedCheckpointId_. barrier Id: " << announcedBarrier.GetId())
             return;
         }
 
         // Announcements are only meaningful for timeoutable aligned checkpoints.
         if (announcedBarrier.GetCheckpointOptions() == nullptr ||
             announcedBarrier.GetCheckpointOptions()->IsUnalignedCheckpoint()) {
-            LOG("ZZT announcedBarrier.GetCheckpointOptions() == nullptr || announcedBarrier.GetCheckpointOptions()->IsUnalignedCheckpoint(), barrier Id: " << announcedBarrier.GetId())
+            LOG_DEBUG("ZZT announcedBarrier.GetCheckpointOptions() == nullptr || announcedBarrier.GetCheckpointOptions()->IsUnalignedCheckpoint(), barrier Id: " << announcedBarrier.GetId())
             return;
         }
 
@@ -228,7 +229,7 @@ namespace omnistream::runtime {
 
         int64_t barrierId = announcedBarrier.GetId();
         if (currentCheckpointId_ > barrierId || (currentCheckpointId_ == barrierId && !IsCheckpointPending())) {
-            LOG("ZZT scurrentCheckpointId_ > barrierId || (currentCheckpointId_ == barrierId && !IsCheckpointPending()), barrier Id: " << announcedBarrier.GetId())
+            LOG_DEBUG("ZZT scurrentCheckpointId_ > barrierId || (currentCheckpointId_ == barrierId && !IsCheckpointPending()), barrier Id: " << announcedBarrier.GetId())
             std::cout << taskName_ << ": Obsolete announcement of checkpoint "
                       << barrierId << " for channel " << channelInfo.toString() << std::endl;
             return;
@@ -275,7 +276,7 @@ namespace omnistream::runtime {
     // Check new checkpoint
     void SingleCheckpointBarrierHandler::CheckNewCheckpoint(const CheckpointBarrier& barrier)
     {
-        LOG(">>>>>" << " id " << barrier.GetId()<< " timestamp " << barrier.GetTimestamp())
+        LOG_DEBUG(">>>>>" << " id " << barrier.GetId()<< " timestamp " << barrier.GetTimestamp())
         int64_t barrierId = barrier.GetId();
         if (currentCheckpointId_ >= barrierId) {
             return; // This barrier is not the first for this checkpoint
@@ -400,7 +401,8 @@ namespace omnistream::runtime {
     	}
 
         if (allBarriersReceivedFuture_V2 && !allBarriersReceivedFuture_V2->IsDone()) {
-            allBarriersReceivedFuture_V2->CompleteExceptionally(std::make_exception_ptr(exception));
+//            allBarriersReceivedFuture_V2->CompleteExceptionally(std::make_exception_ptr(exception));
+            allBarriersReceivedFuture_V2->Cancel();
         }
     }
 
@@ -494,7 +496,7 @@ namespace omnistream::runtime {
         if (checkpointId > currentCheckpointId_) {
             throw std::runtime_error("Checkpoint " + std::to_string(checkpointId) + " has not been started at all");
         }
-        LOG("SingleCheckpointBarrierHandler GetAllBarriersReceivedFuture checkpointId: " << checkpointId
+        LOG_DEBUG("SingleCheckpointBarrierHandler GetAllBarriersReceivedFuture checkpointId: " << checkpointId
             << ", currentCheckpointId: " << currentCheckpointId_);
         return allBarriersReceivedFuture_V2;
     }
@@ -509,7 +511,7 @@ namespace omnistream::runtime {
     void SingleCheckpointBarrierHandler::Close()
     {
         ResetAlignmentTimer();
-        allBarriersReceivedFuture_.Cancel();
+        allBarriersReceivedFuture_V2->Cancel();
         CheckpointBarrierHandler::Close();
     }
 

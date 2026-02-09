@@ -67,6 +67,11 @@ namespace omnistream {
         return fromSerializedEvent(buffer);
     }
 
+    std::shared_ptr<AbstractEvent> EventSerializer::fromBuffer_V2(const std::shared_ptr<Buffer>& buffer)
+    {
+        return fromSerializedEvent_V2(buffer);
+    }
+
     std::shared_ptr<MemorySegment> EventSerializer::ToSerializedEvent(std::shared_ptr<AbstractEvent> event)
     {
         std::shared_ptr<MemorySegment> memorySegment = nullptr;
@@ -112,12 +117,14 @@ namespace omnistream {
 
     std::shared_ptr<AbstractEvent> EventSerializer::fromSerializedEvent(std::shared_ptr<Buffer> buffer)
     {
+        LOG_DEBUG("ZZT fromSerializedEvent V1 !")
         if (buffer == nullptr || buffer->GetSize() < 4) {
             throw std::runtime_error("Buffer is null or too small to contain an event");
         }
 
         auto networkBuffer = std::dynamic_pointer_cast<datastream::NetworkBuffer>(buffer);
         if (!networkBuffer) {
+            LOG_DEBUG("ZZT find a cast error!")
             throw std::runtime_error("it is not netwokrk buffer, so it can not be converted to event.");
         }
         uint8_t* rawData = networkBuffer->getMemorySegment()->getData();
@@ -146,6 +153,51 @@ namespace omnistream {
             buffer->RecycleBuffer();
             return std::make_shared<EventAnnouncement>(announced, seq);
         } else {
+            LOG_DEBUG("ZZT find no support event type!")
+            buffer->RecycleBuffer();
+            return nullptr;
+        }
+    }
+
+        std::shared_ptr<AbstractEvent> EventSerializer::fromSerializedEvent_V2(std::shared_ptr<Buffer> buffer)
+    {
+        LOG_DEBUG("ZZT fromSerializedEvent V2 !")
+        if (buffer == nullptr || buffer->GetSize() < 4) {
+            throw std::runtime_error("Buffer is null or too small to contain an event");
+        }
+
+        auto networkBuffer = std::dynamic_pointer_cast<datastream::NetworkBuffer>(buffer);
+        if (!networkBuffer) {
+            LOG_DEBUG("ZZT find a cast error!")
+            throw std::runtime_error("it is not netwokrk buffer, so it can not be converted to event.");
+        }
+        uint8_t* rawData = networkBuffer->getMemorySegment()->getData();
+        ByteBuffer byteBuffer = ByteBuffer(rawData, networkBuffer->GetSize());
+        int eventType = byteBuffer.getIntFromValue();
+        if (eventType == END_OF_PARTITION_EVENT) {
+//            buffer->RecycleBuffer();
+            return EndOfPartitionEvent::getInstance();
+        } else if (eventType == END_OF_USER_RECORDS_EVENT) {
+//            buffer->RecycleBuffer();
+            return std::make_shared<EndOfData>(StopMode::DRAIN);
+        } else if (eventType == CHECKPOINT_BARRIER_EVENT) {
+            std::shared_ptr<CheckpointBarrier> checkpointBarrier = DeserializeCheckpointBarrier(byteBuffer);
+//            buffer->RecycleBuffer();
+            return checkpointBarrier;
+        } else if (eventType == ANNOUNCEMENT_EVENT) {
+            int seq = byteBuffer.getIntFromValue();
+            int announcedType = byteBuffer.getIntFromValue();
+
+            std::shared_ptr<AbstractEvent> announced;
+            if (announcedType == CHECKPOINT_BARRIER_EVENT) {
+                announced = DeserializeCheckpointBarrier(byteBuffer);
+            } else {
+                throw std::runtime_error("Unsupported announced event type in EventAnnouncement.");
+            }
+//            buffer->RecycleBuffer();
+            return std::make_shared<EventAnnouncement>(announced, seq);
+        } else {
+            LOG_DEBUG("ZZT find no support event type!")
             return nullptr;
         }
     }

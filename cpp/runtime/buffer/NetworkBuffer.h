@@ -56,43 +56,84 @@ public:
 
     void RecycleBuffer() override
     {
-        // data buffer has recyler, event buffer does not
         if (recycler == nullptr) {
+            return; // event buffer
+        }
+
+        int prev = refCount.fetch_sub(1, std::memory_order_acq_rel);
+        if (prev <= 0) {
+            refCount.fetch_add(1, std::memory_order_relaxed);
+            LOG_DEBUG("WARN: double recycle or invalid recycle on NetworkBuffer=" << this << ", refCount was " << prev);
             return;
         }
 
-        if (IsRecycled()) {
-            throw std::runtime_error("Trying to recycle a NetworkBuffer that has already been recycled");
-        } else {
-            LOG_PART(
-                "The buffer " << this << " refCount is decremented from " << refCount.load() << " to "
-                              << (refCount.load() - 1)
-            )
-
-            refCount--;
-            if (refCount.load() == 0) {
-                LOG_PART("NetworkBuffer recycled " << this)
-                recycler->recycle(this->getMemorySegment());
-                isRecycled_ = true;
-            }
+        if (prev == 1) {
+            recycler->recycle(this->getMemorySegment());
+            isRecycled_ = true;
         }
     }
 
     bool IsRecycled() const override
     {
-        return isRecycled_;
+        return refCount.load(std::memory_order_acquire) <= 0;
     }
 
     std::shared_ptr<Buffer> RetainBuffer() override
     {
-        LOG_TRACE("retain ")
-        LOG_PART(
-            "RetainBuffer The buffer " << this << " refCount is incremented from " << refCount.load() << " to "
-                                       << (refCount.load() + 1)
-        )
-        refCount++;
+        if (recycler == nullptr) {
+            return shared_from_this();
+        }
+
+        int prev = refCount.fetch_add(1, std::memory_order_acq_rel);
+        if (prev <= 0) {
+            refCount.fetch_sub(1, std::memory_order_relaxed);
+            LOG("ZZT WARN: retain on already recycled NetworkBuffer=" << this << ", refCount was " << prev);
+            return nullptr;
+        }
         return shared_from_this();
     }
+
+
+
+//    void RecycleBuffer() override
+//    {
+//        // data buffer has recyler, event buffer does not
+//        if (recycler == nullptr) {
+//            return;
+//        }
+//
+//        if (IsRecycled()) {
+//            throw std::runtime_error("Trying to recycle a NetworkBuffer that has already been recycled");
+//        } else {
+//            LOG_PART(
+//                "The buffer " << this << " refCount is decremented from " << refCount.load() << " to "
+//                              << (refCount.load() - 1)
+//            )
+//
+//            refCount--;
+//            if (refCount.load() == 0) {
+//                LOG_PART("NetworkBuffer recycled " << this)
+//                recycler->recycle(this->getMemorySegment());
+//                isRecycled_ = true;
+//            }
+//        }
+//    }
+//
+//    bool IsRecycled() const override
+//    {
+//        return isRecycled_;
+//    }
+//
+//    std::shared_ptr<Buffer> RetainBuffer() override
+//    {
+//        LOG_TRACE("retain ")
+//        LOG_PART(
+//            "RetainBuffer The buffer " << this << " refCount is incremented from " << refCount.load() << " to "
+//                                       << (refCount.load() + 1)
+//        )
+//        refCount++;
+//        return shared_from_this();
+//    }
 
     std::shared_ptr<Buffer> ReadOnlySlice() override
     {

@@ -274,7 +274,7 @@ namespace omnistream::runtime {
         bool isTaskFinished,
         omnistream::Supplier<bool> *isRunning)
     {
-        LOG(">>>>>>> isTaskFinished? " << isTaskFinished)
+        LOG_DEBUG(">>>>>>> isTaskFinished? " << isTaskFinished)
         if (!options || !metrics) {
             THROW_LOGIC_EXCEPTION("CheckpointOptions or CheckpointMetricsBuilder is null");
         }
@@ -316,8 +316,10 @@ namespace omnistream::runtime {
                 new std::unordered_map<OperatorID, OperatorSnapshotFutures *>();
         try {
             if (takeSnapshotSync(snapshotFutures, metadata, metrics, options, operatorChain, isRunning)) {
+                LOG_DEBUG("ZZT finishAndReportAsync start lastCheckpointId: " << lastCheckpointId)
                 finishAndReportAsync(snapshotFutures, metadata, metrics,
                     operatorChain->IsTaskDeployedAsFinished(), isTaskFinished, isRunning, options);
+                LOG_DEBUG("ZZT finishAndReportAsync end lastCheckpointId: " << lastCheckpointId)
             } else {
                 cleanup(snapshotFutures, metadata, metrics, std::runtime_error("Checkpoint declined"));
             }

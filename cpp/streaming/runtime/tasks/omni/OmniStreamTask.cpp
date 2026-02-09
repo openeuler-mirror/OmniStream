@@ -68,7 +68,7 @@ namespace omnistream {
 
     void OmniStreamTask::postConstruct()
     {
-        LOG("begin>>>>")
+        LOG_DEBUG("ZZT postConstruct begin")
 
         // needs to be shared_ptr
         auto streamTaskAction = std::make_shared<StreamTaskAction>(shared_from_this());
@@ -122,7 +122,7 @@ namespace omnistream {
         }
         auto localRecoveryConfig = std::make_shared<LocalRecoveryConfig>(dirProvider);
         env_->setLocalRecoveryConfig(localRecoveryConfig);
-        LOG("postConstruct end >>>> mailboxProcessor_ " << mailboxProcessor_->toString())
+        LOG_DEBUG("postConstruct end >>>> mailboxProcessor_ " << mailboxProcessor_->toString())
     }
 
     void OmniStreamTask::restore()

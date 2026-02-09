@@ -69,6 +69,7 @@ namespace omnistream {
                 req->execute(writer);
             }
         } else {
+            LOG_DEBUG("WN ChannelStateWriteRequestDispatcherImpl::dispatchInternal")
             throw std::invalid_argument("Unknown request type");
         }
         if (isAbortedCheckpoint(request->getCheckpointId())) {

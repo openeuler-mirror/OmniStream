@@ -172,7 +172,9 @@ namespace omnistream {
             auto subPartitionInfo = subpartition->getSubpartitionInfo();
             auto index = subpartition->getSubPartitionIndex();
             subpartition->add(eventBufferConsumer, 0);
-            INFO_RELEASE(" Send " << event->GetEventClassName() << " to subPartition " << subPartitionInfo.toString()
+//            INFO_DEBUG(" Send " << event->GetEventClassName() << " to subPartition " << subPartitionInfo.toString() << ", index : " << index)
+            LOG_DEBUG("[RP=" << (void*)this << "]Send " << event->GetEventClassName()
+                << " to subPartition " << subPartitionInfo.toString()
                 << ", index : " << index)
         }
     }

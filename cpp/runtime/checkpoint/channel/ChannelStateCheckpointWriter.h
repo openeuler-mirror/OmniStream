@@ -129,8 +129,9 @@ namespace omnistream {
                    bool precondition,
                    const std::string &action)
         {
-        LOG("ChannelStateCheckpointWriter write start...")
+            LOG_DEBUG("ChannelStateCheckpointWriter write start! action: " << action)
             if (!precondition) {
+                LOG_DEBUG("WN void Write.")
                 throw std::logic_error("Precondition failed for " + action);
             }
             int64_t offset = checkpointStream->GetPos();
