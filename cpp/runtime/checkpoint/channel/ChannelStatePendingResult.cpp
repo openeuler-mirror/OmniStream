@@ -15,8 +15,8 @@ namespace omnistream {
     ChannelStatePendingResult::ChannelStatePendingResult(
         int subtaskIndex,
         int64_t checkpointId,
-        ChannelStateWriter::ChannelStateWriteResult &result,
-        ChannelStateSerializer *serializer)
+        std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> result,
+        std::shared_ptr<ChannelStateSerializer> serializer)
         : subtaskIndex(subtaskIndex),
           checkpointId(checkpointId),
           result(result),
@@ -67,12 +67,12 @@ namespace omnistream {
 
     void ChannelStatePendingResult::Fail(const std::exception_ptr &e)
     {
-        result.Fail(e);
+        result->Fail(e);
     }
 
     bool ChannelStatePendingResult::IsDone() const
     {
-        return result.IsDone();
+        return result->IsDone();
     }
 
 } // namespace omnistream

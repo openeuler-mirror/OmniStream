@@ -33,3 +33,4 @@ conf/
 *.exe
 *.out
 *.app
+.vscode

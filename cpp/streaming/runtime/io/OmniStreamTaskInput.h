@@ -12,6 +12,9 @@ namespace omnistream {
         virtual int getInputIndex() = 0;
 
         virtual void close() {};
+
+//        virtual CompletableFutureV2<void>* PrepareSnapshot(std::shared_ptr<ChannelStateWriter> writer, long checkpointID) = 0;
+        virtual std::shared_ptr<CompletableFutureV2<void>> PrepareSnapshot(std::shared_ptr<ChannelStateWriter> writer, long checkpointID) = 0;
     };
 
 }

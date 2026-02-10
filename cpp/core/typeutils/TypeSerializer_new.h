@@ -14,6 +14,7 @@
 template <typename T>
 class TypeSerializer {
 public:
+    TypeSerializer() = default;
     virtual bool isImmutableType() = 0;
     virtual TypeSerializer<T> duplicate() = 0;
     virtual T createInstance() = 0;

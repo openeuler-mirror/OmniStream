@@ -46,4 +46,11 @@ namespace omnistream {
         return infos;
     }
 
+    void IndexedInputGate::SetChannelStateWriter(std::shared_ptr<ChannelStateWriter> channelStateWriter)
+    {
+        int num = GetNumberOfInputChannels();
+        for (int i = 0; i < num; ++i) {
+            getChannel(i)->SetChannelStateWriter(channelStateWriter);
+        }
+    }
 }  // namespace omnistream

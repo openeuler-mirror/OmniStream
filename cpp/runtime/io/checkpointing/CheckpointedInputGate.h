@@ -53,7 +53,7 @@ public:
     bool fromOriginal();
 
     // Checkpoint-specific APIs
-    CompletableFutureV2<void>& GetAllBarriersReceivedFuture(long checkpointId);
+    std::shared_ptr<CompletableFutureV2<void>> GetAllBarriersReceivedFuture(long checkpointId);
     int GetNumberOfInputChannels() const;
     std::shared_ptr<InputChannel> GetChannel(int channelIndex);
     std::vector<InputChannelInfo> GetChannelInfos() const;

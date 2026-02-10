@@ -24,13 +24,14 @@ using namespace ::datastream;
 namespace omnistream::datastream {
     class RecordDeserializer : public  TypeSerializer {
     public:
-
+        RecordDeserializer() = default;
         virtual DeserializationResult& getNextRecord(IOReadableWritable& target) =0;
 
         virtual void setNextBuffer(const uint8_t* buffer,  int size) = 0;
 
         virtual void clear() = 0;
         virtual  void SetNextBuffer(std::shared_ptr<ReadOnlySlicedNetworkBuffer> buffer)=0;
+        virtual std::vector<std::shared_ptr<omnistream::Buffer>> GetUnconsumedBuffer()=0;
 
         /**
          * Gets the unconsumed buffer_ which needs to be persisted in unaligned checkpoint scenario.

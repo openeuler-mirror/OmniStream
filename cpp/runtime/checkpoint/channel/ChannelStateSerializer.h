@@ -16,7 +16,7 @@
 #include <vector>
 #include <cstdint>
 #include <iostream>
-
+#include "core/memory/MemorySegment.h"
 #include "runtime/buffer/ObjectBuffer.h"
 
 namespace omnistream {
@@ -25,7 +25,7 @@ namespace omnistream {
         virtual ~ChannelStateSerializer() = default;
 
         virtual void WriteHeader(std::ostringstream &dataStream) = 0;
-        virtual void WriteData(std::ostringstream &dataStream, const ObjectBuffer &buffer) = 0;
+        virtual void WriteData(std::ostringstream &dataStream, std::shared_ptr<Buffer> buffer) = 0;
         virtual int64_t GetHeaderLength() const = 0;
     };
 
@@ -33,12 +33,37 @@ namespace omnistream {
     public:
         void WriteHeader(std::ostringstream &dataStream) override
         {
-            NOT_IMPL_EXCEPTION
+            int head = 0;
+            dataStream.write((const char *)&head, sizeof(int));
         }
 
-        void WriteData(std::ostringstream &dataStream, const ObjectBuffer &buffer) override
+        void WriteData(std::ostringstream &dataStream, std::shared_ptr<Buffer> buffers) override
         {
-            NOT_IMPL_EXCEPTION
+            int size = getSize(buffers);
+            dataStream.write((const char *)&size, sizeof(size));
+            auto segment = buffers->GetSegment();
+            auto memorySegment = std::dynamic_pointer_cast<MemorySegment>(segment);
+            if (!memorySegment) {
+                dataStream.write((const char *)memorySegment->getData(), size);
+            }
+        }
+        
+        int getSize(std::shared_ptr<Buffer> buffers)
+        {
+            int len = 0;
+            len += buffers->GetSize();
+            return len;
+        }
+    
+        void readHeader(std::istringstream &dataStream)
+        {
+            int version;
+            dataStream.read((char *)&version, sizeof(int));
+        }
+
+        int readData()
+        {
+
         }
 
         int64_t GetHeaderLength() const override

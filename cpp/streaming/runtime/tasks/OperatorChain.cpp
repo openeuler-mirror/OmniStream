@@ -535,7 +535,7 @@ void OperatorChainV2::SendAcknowledgeCheckpointEvent(long checkpointId)
 }
 
 void OperatorChainV2::SnapshotChannelStates(StreamOperator *op,
-    ChannelStateWriter::ChannelStateWriteResult &channelStateWriteResult, OperatorSnapshotFutures &snapshotInProgress)
+    std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> channelStateWriteResult, OperatorSnapshotFutures &snapshotInProgress)
 {
     NOT_IMPL_EXCEPTION
 }

@@ -117,7 +117,7 @@ CheckpointOptions *CheckpointOptions::FromJson(nlohmann::json &config)
         throw std::invalid_argument("Unknown checkpoint type");
     }
 
-    CheckpointStorageLocationReference* targetLocation;
+    CheckpointStorageLocationReference *targetLocation;
     if (config["targetLocation"]["encodedReference"].is_null()) {
         targetLocation = CheckpointStorageLocationReference::GetDefault();
     } else {
@@ -164,7 +164,7 @@ bool CheckpointOptions::NeedsAlignment() const
 bool CheckpointOptions::operator==(const CheckpointOptions &other) const
 {
     return *checkpointType_ == (*other.checkpointType_) &&
-           *targetLocation_ == (*other.targetLocation_) &&
+           targetLocation_ == other.targetLocation_ &&
            alignmentType_ == other.alignmentType_ &&
            alignedCheckpointTimeout_ == other.alignedCheckpointTimeout_;
 }

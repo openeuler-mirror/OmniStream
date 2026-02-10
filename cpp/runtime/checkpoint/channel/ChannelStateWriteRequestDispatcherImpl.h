@@ -29,36 +29,41 @@ namespace omnistream {
     class ChannelStateWriteRequestDispatcherImpl : public ChannelStateWriteRequestDispatcher {
     public:
         ChannelStateWriteRequestDispatcherImpl(
-            CheckpointStorage *checkpointStorage,
+            std::shared_ptr<CheckpointStorage> checkpointStorage,
             const JobIDPOD &jobID,
-            ChannelStateSerializer *serializer);
+            std::shared_ptr<ChannelStateSerializer> serializer,
+            std::shared_ptr<CheckpointStorageWorkerView> streamFactoryResolver);
 
-        void dispatch(ChannelStateWriteRequest &request) override;
+        void dispatch(std::shared_ptr<ChannelStateWriteRequest> request) override;
         void fail(const std::exception_ptr &cause) override;
 
     private:
-        CheckpointStorage *checkpointStorage;
+        std::shared_ptr<CheckpointStorage> checkpointStorage;
         JobIDPOD jobID;
-        ChannelStateSerializer *serializer;
+        std::shared_ptr<ChannelStateSerializer> serializer;
         std::set<SubtaskID> registeredSubtasks;
         std::mutex mutex;
         long ongoingCheckpointId;
         long maxAbortedCheckpointId;
         SubtaskID abortedSubtaskID;
         std::exception_ptr abortedCause;
-        std::unique_ptr<ChannelStateCheckpointWriter> writer;
-        CheckpointStorageWorkerView *streamFactoryResolver;
+        std::unordered_map<uint64_t, std::shared_ptr<ChannelStateCheckpointWriter>> writers;
+        void RemoveWriter(long checkpointId)
+        {
+            writers.erase(checkpointId);
+        }
+        std::shared_ptr<CheckpointStorageWorkerView> streamFactoryResolver;
 
-        void dispatchInternal(ChannelStateWriteRequest &request);
+        void dispatchInternal(std::shared_ptr<ChannelStateWriteRequest> request);
         bool isAbortedCheckpoint(long checkpointId);
-        void handleAbortedRequest(ChannelStateWriteRequest &request);
-        void handleCheckpointStartRequest(CheckpointStartRequest &request);
-        void handleCheckpointInProgressRequest(CheckpointInProgressRequest &request);
-        void handleCheckpointAbortRequest(CheckpointAbortRequest &request);
+        void handleAbortedRequest(std::shared_ptr<ChannelStateWriteRequest> request);
+        void handleCheckpointStartRequest(std::shared_ptr<CheckpointStartRequest> request);
+        void handleCheckpointInProgressRequest(std::shared_ptr<CheckpointInProgressRequest> request);
+        void handleCheckpointAbortRequest(std::shared_ptr<CheckpointAbortRequest> request);
         void failAndClearWriter(const std::exception_ptr &e);
         void failAndClearWriter(const JobVertexID &jvid, int idx, const std::exception_ptr &e);
-        std::unique_ptr<ChannelStateCheckpointWriter> buildWriter(CheckpointStartRequest &request);
-        CheckpointStorageWorkerView *getStreamFactoryResolver();
+        std::shared_ptr<ChannelStateCheckpointWriter> buildWriter(std::shared_ptr<CheckpointStartRequest> request);
+        std::shared_ptr<CheckpointStorageWorkerView> getStreamFactoryResolver();
     };
 
 } // namespace omnistream

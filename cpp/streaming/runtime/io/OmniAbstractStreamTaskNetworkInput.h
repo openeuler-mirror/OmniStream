@@ -503,6 +503,26 @@ public:
         INFO_RELEASE("OmniAbstractStreamTaskNetworkInput received numberOfRow: " << numberOfRow)
     }
 
+    std::shared_ptr<CompletableFutureV2<void>> PrepareSnapshot(std::shared_ptr<ChannelStateWriter> writer, long checkpointId) override
+    {
+        LOG("Network prepare snapshot, checkpointId: " << checkpointId);
+        for (const auto &pair : *recordDeserializers) {
+            std::vector<InputChannelInfo> channelInfofos = inputGate->GetChannelInfos(); 
+            try {
+                writer->AddInputData(
+                    checkpointId,
+                    channelInfofos[pair.first],
+                    ChannelStateWriter::sequenceNumberUnknown,
+                    (pair.second)->GetUnconsumedBuffer());
+            } catch (const std::exception& e) {
+                throw std::runtime_error("Error: " + std::string(e.what()));
+            }
+        }
+
+        auto f = inputGate->GetAllBarriersReceivedFuture(checkpointId);
+        LOG("PrepareSnapshot cp="<<checkpointId<<" future_ptr="<<f);
+        return f;
+    }
 protected:
     int64_t inputIndex;
     std::shared_ptr<CheckpointedInputGate> inputGate;

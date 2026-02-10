@@ -31,6 +31,7 @@ public:
 class MockSubtaskCheckpointCoordinator : public SubtaskCheckpointCoordinator {
 public:
     MOCK_METHOD(void, InitInputsCheckpoint, (long id, CheckpointOptions * checkpointOptions), (override));
+    MOCK_METHOD(std::shared_ptr<ChannelStateWriter>, getChannelStateWriter, (), (override));
 };
 
 TEST(InputProcessorUtilTest, CreatesCheckpointedMultipleInputGates) {
@@ -57,6 +58,7 @@ TEST(InputProcessorUtilTest, CreatesCheckpointedMultipleInputGates) {
             inputGateGroups,
             sourceInputs,
             false, // enableUnaligned
+            0,     // alignedCheckpointTimeoutMillis
             true   // enableCheckpointAfterTasksFinish
     );
     ASSERT_NE(handler, nullptr);

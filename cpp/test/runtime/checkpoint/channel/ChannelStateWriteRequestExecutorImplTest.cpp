@@ -23,7 +23,7 @@ public:
     void WriteHeader(std::ostringstream&) override { 
         writeHeaderCalled = true; 
     }
-    void WriteData(std::ostringstream&, const ObjectBuffer&) override { 
+    void WriteData(std::ostringstream &dataStream, std::shared_ptr<Buffer> buffer) override { 
         writeDataCalled = true;
     }
     int64_t GetHeaderLength() const override { return 999; }
@@ -34,8 +34,8 @@ public:
 
 class CheckpointStorageTest : public CheckpointStorage {
 public:  
-    CheckpointStorageAccess* createCheckpointStorage(const JobIDPOD& jobId) override {
-        return new FsCheckpointStorageAccess(
+    std::shared_ptr<CheckpointStorageAccess> createCheckpointStorage(const JobIDPOD& jobId) override {
+        return std::make_shared<FsCheckpointStorageAccess>(
             new Path(""), 
             new Path(""), 
             jobId, 100, 100);
@@ -45,17 +45,18 @@ public:
 class ChannelStateWriteRequestDispatcherImplTest : public ChannelStateWriteRequestDispatcherImpl {
 public:
     ChannelStateWriteRequestDispatcherImplTest(
-        CheckpointStorage* checkpointStorage,
+        std::shared_ptr<CheckpointStorage>checkpointStorage,
         const JobIDPOD& jobID,
-        ChannelStateSerializer* serializer)
-        : ChannelStateWriteRequestDispatcherImpl(checkpointStorage, jobID, serializer) {}
+        std::shared_ptr<ChannelStateSerializer> serializer,
+        std::shared_ptr<CheckpointStorageWorkerView> streamFactoryResolver)
+        : ChannelStateWriteRequestDispatcherImpl(checkpointStorage, jobID, serializer, streamFactoryResolver) {}
 
-    void dispatch(ChannelStateWriteRequest& request) override {
+    void dispatch(std::shared_ptr<ChannelStateWriteRequest> request) override {
         ChannelStateWriteRequestDispatcherImpl::dispatch(request);
         {
             std::lock_guard<std::mutex> lock(mutex);
-            processedRequests.push_back(request.getName());
-            processedSubtaskIDs.push_back(request.getSubtaskIndex());
+            processedRequests.push_back(request->getName());
+            processedSubtaskIDs.push_back(request->getSubtaskIndex());
             count++;
             cv.notify_all();
         }
@@ -121,16 +122,11 @@ TEST(ChannelStateWriteRequestExecutorImplTest, ProcessesFullLifecycle) {
     auto storage = std::make_shared<CheckpointStorageTest>();
     auto serializer = std::make_shared<ChannelStateSerializerImplTest>();
     auto dispatcher = std::make_shared<ChannelStateWriteRequestDispatcherImpl>(
-        storage.get(), JobIDPOD(-1, -1), serializer.get()
+        storage, JobIDPOD(-1, -1), serializer, storage->createCheckpointStorage(JobIDPOD(-1, -1))
     );
     
     std::mutex registerLock;
-    ChannelStateWriteRequestExecutorImpl executor(
-        dispatcher.get(),
-        2,
-        [](ChannelStateWriteRequestExecutor*){},
-        registerLock
-    );
+    ChannelStateWriteRequestExecutorImpl executor(dispatcher);
     executor.start();
 
     JobVertexID jvid1(1, 1);
@@ -141,8 +137,8 @@ TEST(ChannelStateWriteRequestExecutorImplTest, ProcessesFullLifecycle) {
     executor.registerSubtask(jvid1, 0);
     executor.registerSubtask(jvid2, 0);
     
-    executor.submit(ChannelStateWriteRequest::start(jvid1, 0, 1, targetResult, locationRef));
-    executor.submit(ChannelStateWriteRequest::start(jvid2, 0, 1, targetResult, locationRef));
+    executor.submit(ChannelStateWriteRequest::start(jvid1, 0, 1, "Start"));
+    executor.submit(ChannelStateWriteRequest::start(jvid2, 0, 1, "Start"));
     
     executor.submit(ChannelStateWriteRequest::writeInput(jvid1, 0, 1, InputChannelInfo{}, {}));
     executor.submit(ChannelStateWriteRequest::writeInput(jvid2, 0, 1, InputChannelInfo{}, {}));
@@ -166,16 +162,11 @@ TEST(ChannelStateWriteRequestExecutorImplTest, PriorityRequests) {
     auto storage = std::make_shared<CheckpointStorageTest>();
     auto serializer = std::make_shared<ChannelStateSerializerImplTest>();
     auto dispatcher = std::make_shared<ChannelStateWriteRequestDispatcherImplTest>(
-        storage.get(), JobIDPOD(-1, -1), serializer.get()
+        storage, JobIDPOD(-1, -1), serializer, storage->createCheckpointStorage(JobIDPOD(-1, -1))
     );
     
     std::mutex registerLock;
-    ChannelStateWriteRequestExecutorImpl executor(
-        dispatcher.get(),
-        1,
-        [](ChannelStateWriteRequestExecutor*){},
-        registerLock
-    );
+    ChannelStateWriteRequestExecutorImpl executor(dispatcher);
     executor.start();
 
     JobVertexID jvid(1, 1);
@@ -183,36 +174,38 @@ TEST(ChannelStateWriteRequestExecutorImplTest, PriorityRequests) {
     
     auto targetResult = ChannelStateWriter::ChannelStateWriteResult::CreateEmpty();
     CheckpointStorageLocationReference locationRef;
-    executor.submit(ChannelStateWriteRequest::start(jvid, 1, 1, targetResult, locationRef));
+    executor.submit(ChannelStateWriteRequest::start(jvid, 1, 1, "Start"));
 
-    auto buffer = new ObjectBufferTest();
+    auto buffer = std::make_shared<ObjectBufferTest>();
+    std::vector<std::shared_ptr<Buffer>> buffers;
+    buffers.push_back(buffer);
     executor.submit(ChannelStateWriteRequest::writeInput(
         jvid, 
         2, 
         1, 
         InputChannelInfo{}, 
-        std::vector<ObjectBuffer*>{ buffer }
+        buffers
     ));
     executor.submit(ChannelStateWriteRequest::writeInput(
         jvid, 
         3, 
         1, 
         InputChannelInfo{}, 
-        std::vector<ObjectBuffer*>{ buffer }
+        buffers
     ));
     executor.submitPriority(ChannelStateWriteRequest::writeInput(
         jvid, 
         4, 
         1, 
         InputChannelInfo{}, 
-        std::vector<ObjectBuffer*>{ buffer }
+        buffers
     ));
     executor.submit(ChannelStateWriteRequest::writeInput(
         jvid, 
         5, 
         1, 
         InputChannelInfo{}, 
-        std::vector<ObjectBuffer*>{ buffer }
+        buffers
     ));
     executor.submit(ChannelStateWriteRequest::completeInput(jvid, 6, 1));
     
@@ -238,16 +231,11 @@ TEST(ChannelStateWriteRequestExecutorImplTest, UnreadyRequests) {
     auto storage = std::make_shared<CheckpointStorageTest>();
     auto serializer = std::make_shared<ChannelStateSerializerImplTest>();
     auto dispatcher = std::make_shared<ChannelStateWriteRequestDispatcherImpl>(
-        storage.get(), JobIDPOD(-1, -1), serializer.get()
+        storage, JobIDPOD(-1, -1), serializer, storage->createCheckpointStorage(JobIDPOD(-1, -1))
     );
     
     std::mutex registerLock;
-    ChannelStateWriteRequestExecutorImpl executor(
-        dispatcher.get(),
-        1,
-        [](ChannelStateWriteRequestExecutor*){},
-        registerLock
-    );
+    ChannelStateWriteRequestExecutorImpl executor(dispatcher);
     executor.start();
 
     JobVertexID jvid(1, 1);
@@ -255,53 +243,49 @@ TEST(ChannelStateWriteRequestExecutorImplTest, UnreadyRequests) {
     
     auto targetResult = ChannelStateWriter::ChannelStateWriteResult::CreateEmpty();
     CheckpointStorageLocationReference locationRef;
-    executor.submit(ChannelStateWriteRequest::start(jvid, 0, 1, targetResult, locationRef));
+    executor.submit(ChannelStateWriteRequest::start(jvid, 0, 1, "Start"));
 
-    auto buffer = new ObjectBufferTest();
+    auto buffer = std::make_shared<ObjectBufferTest>();
+    std::vector<std::shared_ptr<Buffer>> buffers;
+    buffers.push_back(buffer);
     executor.submit(ChannelStateWriteRequest::writeInput(
         jvid, 
         0, 
         1, 
         InputChannelInfo{}, 
-        std::vector<ObjectBuffer*>{ buffer }
+        buffers
     ));
     executor.submit(ChannelStateWriteRequest::completeInput(jvid, 0, 1));
     executor.submit(ChannelStateWriteRequest::completeOutput(jvid, 0, 1));
     std::this_thread::sleep_for(500ms);
     EXPECT_TRUE(serializer->writeHeaderCalled);
     EXPECT_TRUE(serializer->writeDataCalled);
-    EXPECT_TRUE(buffer->recycled);
+    EXPECT_TRUE(buffer->IsRecycled());
     executor.shutdown();
-
-    delete buffer;
 }
 
 TEST(ChannelStateWriteRequestExecutorImplTest, CleanUpOnSubtaskRelease) {
     auto storage = std::make_shared<CheckpointStorageTest>();
     auto serializer = std::make_shared<ChannelStateSerializerImplTest>();
     auto dispatcher = std::make_shared<ChannelStateWriteRequestDispatcherImpl>(
-        storage.get(), JobIDPOD(-1, -1), serializer.get()
+        storage, JobIDPOD(-1, -1), serializer, storage->createCheckpointStorage(JobIDPOD(-1, -1))
     );
     
     std::mutex registerLock;
-    ChannelStateWriteRequestExecutorImpl executor(
-        dispatcher.get(),
-        1,
-        [](ChannelStateWriteRequestExecutor*){},
-        registerLock
-    );
+    ChannelStateWriteRequestExecutorImpl executor(dispatcher);
     executor.start();
 
     JobVertexID jvid(1, 1);
     executor.registerSubtask(jvid, 0);
     
     auto future = std::make_shared<CompletableFutureV2<void>>();
-    auto request = std::make_unique<CheckpointInProgressRequest>(
+    int subtaskIndex = 0;
+    auto request = std::make_shared<CheckpointInProgressRequest>(
         "TestRequest",
         jvid, 0, 1,
-        [](ChannelStateCheckpointWriter&) {},
-        [](const std::exception_ptr&) {},
-        future
+        [jvid, subtaskIndex](std::shared_ptr<ChannelStateCheckpointWriter> &w) {
+            w->CompleteInput(jvid, subtaskIndex);
+        }
     );
     
     executor.submit(std::move(request));
@@ -316,28 +300,24 @@ TEST(ChannelStateWriteRequestExecutorImplTest, ShutdownCancelsPendingRequests) {
     auto storage = std::make_shared<CheckpointStorageTest>();
     auto serializer = std::make_shared<ChannelStateSerializerImplTest>();
     auto dispatcher = std::make_shared<ChannelStateWriteRequestDispatcherImpl>(
-        storage.get(), JobIDPOD(-1, -1), serializer.get()
+        storage, JobIDPOD(-1, -1), serializer, storage->createCheckpointStorage(JobIDPOD(-1, -1))
     );
     
     std::mutex registerLock;
-    ChannelStateWriteRequestExecutorImpl executor(
-        dispatcher.get(),
-        1,
-        [](ChannelStateWriteRequestExecutor*){},
-        registerLock
-    );
+    ChannelStateWriteRequestExecutorImpl executor(dispatcher);
     executor.start();
 
     JobVertexID jvid(1, 1);
     executor.registerSubtask(jvid, 0);
     
     auto future = std::make_shared<CompletableFutureV2<void>>();
-    auto request = std::make_unique<CheckpointInProgressRequest>(
+    int subtaskIndex = 0;
+    auto request = std::make_shared<CheckpointInProgressRequest>(
         "TestRequest",
         jvid, 0, 1,
-        [](ChannelStateCheckpointWriter&) {},
-        [](const std::exception_ptr&) {},
-        future
+        [jvid, subtaskIndex](std::shared_ptr<ChannelStateCheckpointWriter> &w) {
+            w->CompleteInput(jvid, subtaskIndex);
+        }
     );
     
     executor.submit(std::move(request));
@@ -350,7 +330,7 @@ TEST(ChannelStateWriteRequestExecutorImplTest, RegistrationFlow) {
     auto storage = std::make_shared<CheckpointStorageTest>();
     auto serializer = std::make_shared<ChannelStateSerializerImplTest>();
     auto dispatcher = std::make_shared<ChannelStateWriteRequestDispatcherImpl>(
-        storage.get(), JobIDPOD(-1, -1), serializer.get()
+        storage, JobIDPOD(-1, -1), serializer, storage->createCheckpointStorage(JobIDPOD(-1, -1))
     );
     
     std::mutex registerLock;
@@ -358,15 +338,7 @@ TEST(ChannelStateWriteRequestExecutorImplTest, RegistrationFlow) {
     std::mutex callbackMutex;
     std::condition_variable callbackCv;
     
-    ChannelStateWriteRequestExecutorImpl executor(
-        dispatcher.get(),
-        2,
-        [&](ChannelStateWriteRequestExecutor*) { 
-            callbackCount++; 
-            callbackCv.notify_one();
-        },
-        registerLock
-    );
+    ChannelStateWriteRequestExecutorImpl executor(dispatcher);
     executor.start();
 
     JobVertexID jvid1(1, 1);
@@ -395,16 +367,11 @@ TEST(ChannelStateWriteRequestExecutorImplTest, ConcurrentRequests) {
     auto storage = std::make_shared<CheckpointStorageTest>();
     auto serializer = std::make_shared<ChannelStateSerializerImplTest>();
     auto dispatcher = std::make_shared<ChannelStateWriteRequestDispatcherImpl>(
-        storage.get(), JobIDPOD(-1, -1), serializer.get()
+        storage, JobIDPOD(-1, -1), serializer, storage->createCheckpointStorage(JobIDPOD(-1, -1))
     );
     
     std::mutex registerLock;
-    ChannelStateWriteRequestExecutorImpl executor(
-        dispatcher.get(),
-        5,
-        [](ChannelStateWriteRequestExecutor*){},
-        registerLock
-    );
+    ChannelStateWriteRequestExecutorImpl executor(dispatcher);
     executor.start();
 
     for (int i = 0; i < 5; i++) {
@@ -419,8 +386,7 @@ TEST(ChannelStateWriteRequestExecutorImplTest, ConcurrentRequests) {
                 JobVertexID(i, i),
                 i,
                 1,
-                targetResult,
-                locationRef
+                "Start"
             )
         );
     }
@@ -432,13 +398,9 @@ TEST(ChannelStateWriteRequestExecutorImplTest, ConcurrentRequests) {
         threads.emplace_back([&, t] {
             for (int i = 0; i < requestsPerThread; i++) {
                 JobVertexID jvid(t % 5, t % 5);
-                std::vector<ObjectBuffer*> buffers;
-                buffers.push_back(new ObjectBufferTest());
-                executor.submit(
-                    ChannelStateWriteRequest::writeInput(
-                        jvid, t % 5, 1, InputChannelInfo{}, std::move(buffers)
-                    )
-                );
+                std::vector<std::shared_ptr<Buffer>> buffers;
+                buffers.push_back(std::make_shared<ObjectBufferTest>());
+                executor.submit(ChannelStateWriteRequest::writeInput(jvid, t % 5, 1, InputChannelInfo{}, buffers));
             }
         });
     }
@@ -461,16 +423,11 @@ TEST(ChannelStateWriteRequestExecutorImplTest, RequestOrdering) {
     auto storage = std::make_shared<CheckpointStorageTest>();
     auto serializer = std::make_shared<ChannelStateSerializerImplTest>();
     auto dispatcher = std::make_shared<ChannelStateWriteRequestDispatcherImplTest>(
-        storage.get(), JobIDPOD(-1, -1), serializer.get()
+        storage, JobIDPOD(-1, -1), serializer, storage->createCheckpointStorage(JobIDPOD(-1, -1))
     );
 
     std::mutex registerLock;
-    ChannelStateWriteRequestExecutorImpl executor(
-        dispatcher.get(),
-        1,
-        [](ChannelStateWriteRequestExecutor*){},
-        registerLock
-    );
+    ChannelStateWriteRequestExecutorImpl executor(dispatcher);
     executor.start();
 
     JobVertexID jvid(1, 1);
@@ -478,7 +435,7 @@ TEST(ChannelStateWriteRequestExecutorImplTest, RequestOrdering) {
 
     auto targetResult = ChannelStateWriter::ChannelStateWriteResult::CreateEmpty();
     CheckpointStorageLocationReference locationRef;
-    executor.submit(ChannelStateWriteRequest::start(jvid, 0, 42, targetResult, locationRef));
+    executor.submit(ChannelStateWriteRequest::start(jvid, 0, 42, "Start"));
     executor.submit(ChannelStateWriteRequest::writeInput(jvid, 0, 42, InputChannelInfo{}, {}));
     ASSERT_TRUE(dispatcher->waitFor(3));
 
@@ -501,7 +458,7 @@ TEST(ChannelStateWriteRequestExecutorImplTest, OnRegisteredCalledOnce) {
     auto storage = std::make_shared<CheckpointStorageTest>();
     auto serializer = std::make_shared<ChannelStateSerializerImplTest>();
     auto dispatcher = std::make_shared<ChannelStateWriteRequestDispatcherImpl>(
-        storage.get(), JobIDPOD(-1,-1), serializer.get()
+        storage, JobIDPOD(-1, -1), serializer, storage->createCheckpointStorage(JobIDPOD(-1, -1))
     );
 
     std::mutex registerLock;
@@ -509,16 +466,7 @@ TEST(ChannelStateWriteRequestExecutorImplTest, OnRegisteredCalledOnce) {
     std::condition_variable callbackCv;
     int called = 0;
 
-    ChannelStateWriteRequestExecutorImpl executor(
-        dispatcher.get(),
-        2,
-        [&](auto*) {
-            std::lock_guard<std::mutex> lk(callbackMutex);
-            called++;
-            callbackCv.notify_one();
-        },
-        registerLock
-    );
+    ChannelStateWriteRequestExecutorImpl executor(dispatcher);
     executor.start();
 
     executor.registerSubtask(JobVertexID(1,1), 1);

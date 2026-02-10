@@ -13,6 +13,7 @@
 #define ORIGINALNETWORKBUFFERRECYCLER_H
 #include "BufferRecycler.h"
 #include "core/memory/MemorySegment.h"
+#include <condition_variable>
 #include <queue>
 
 namespace omnistream {

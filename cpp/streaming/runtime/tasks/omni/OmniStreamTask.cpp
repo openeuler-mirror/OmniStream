@@ -46,63 +46,66 @@
 #include "runtime/state/RocksDBStateBackend.h"
 #include "runtime/state/LocalRecoveryConfig.h"
 #include "runtime/state/LocalRecoveryDirectoryProviderImpl.h"
+#include "runtime/taskmanager/OmniTask.h"
+#include "partition/BufferWritingResultPartition.h"
 
 namespace omnistream {
 
-OmniStreamTask::OmniStreamTask(std::shared_ptr<RuntimeEnvironmentV2> &env, int taskType)
-    : OmniStreamTask(env, StreamTaskActionExecutor::IMMEDIATE, taskType){};
+    OmniStreamTask::OmniStreamTask(std::shared_ptr<RuntimeEnvironmentV2> &env, int taskType)
+        : OmniStreamTask(env, StreamTaskActionExecutor::IMMEDIATE, taskType){};
 
-OmniStreamTask::OmniStreamTask(
-    std::shared_ptr<RuntimeEnvironmentV2> &env, std::shared_ptr<StreamTaskActionExecutor> actionExecutor, int taskType)
-    : OmniStreamTask(env, actionExecutor, std::make_shared<TaskMailboxImpl>(std::this_thread::get_id()), taskType)
-{}
+    OmniStreamTask::OmniStreamTask(
+        std::shared_ptr<RuntimeEnvironmentV2> &env, std::shared_ptr<StreamTaskActionExecutor> actionExecutor, int taskType)
+        : OmniStreamTask(env, actionExecutor, std::make_shared<TaskMailboxImpl>(std::this_thread::get_id()), taskType)
+    {}
 
-OmniStreamTask::OmniStreamTask(std::shared_ptr<RuntimeEnvironmentV2> &env,
-    std::shared_ptr<StreamTaskActionExecutor> actionExecutor, std::shared_ptr<TaskMailbox> mailbox, int taskType)
-    : env_(env), actionExecutor_(actionExecutor), mailbox_(mailbox), taskConfiguration_(env->taskConfiguration()), taskType(taskType)
-{
-    LOG("begin>>>>")
-}
-
-void OmniStreamTask::postConstruct()
-{
-    LOG("begin>>>>")
-
-    // needs to be shared_ptr
-    auto streamTaskAction = std::make_shared<StreamTaskAction>(shared_from_this());
-    mailboxProcessor_ = std::make_shared<MailboxProcessor>(streamTaskAction, mailbox_, actionExecutor_);
-    mainMailboxExecutor_ = mailboxProcessor_->getMainMailboxExecutor();
-    LOG("mailboxProcessor_  init setup>>>>")
-    taskConfiguration_ = env_->taskConfiguration();
-    auto checkpointExecutionConfig = taskConfiguration_.getExecutionCheckpointConfig();
-    taskName_ = taskConfiguration_.getTaskName();
-    LOG("begin>>>>"  << taskName_);
-    recordWriter_ = createRecordWriterDelegate(taskConfiguration_, env_);
-    systemTimerService = make_shared<SystemProcessingTimeService>();
-    // SubtaskCheckpointCoordinatorImpl initialization
-    if (taskConfiguration_.getStateBackend() == "HashMapStateBackend") {
-        stateBackend = new HashMapStateBackend();
-    } else {
-        stateBackend = new RocksDBStateBackend(taskConfiguration_);
+    OmniStreamTask::OmniStreamTask(std::shared_ptr<RuntimeEnvironmentV2> &env,
+        std::shared_ptr<StreamTaskActionExecutor> actionExecutor, std::shared_ptr<TaskMailbox> mailbox, int taskType)
+        : env_(env), actionExecutor_(actionExecutor), mailbox_(mailbox), taskConfiguration_(env->taskConfiguration()), taskType(taskType)
+    {
+        LOG("begin>>>>")
     }
-    checkpointStorage = createCheckpointStorage(stateBackend);
-    CheckpointStorageAccess *checkpointStorageAccess = checkpointStorage->createCheckpointStorage();
 
-    subtaskCheckpointCoordinator = std::make_shared<runtime::SubtaskCheckpointCoordinatorImpl>(
-        checkpointStorageAccess,
-        env_->taskConfiguration().getTaskName(),
-        actionExecutor_,
-        // getAsyncOperatorsThreadPool(),
-        env_,
-        checkpointExecutionConfig.getUnalignedCheckpointsEnabled(),
-        checkpointExecutionConfig.getCheckpointAfterTasksFinishEnabled(),
-        new std::function<CompletableFutureV2<void>*(ChannelStateWriter*, long)>([this](ChannelStateWriter *writer, long checkpointId) { return this->prepareInputSnapshot(writer, checkpointId); }),
-        runtime::BarrierAlignmentUtil::template createRegisterTimerCallback<std::function<void()>>(nullptr, systemTimerService.get())
+    void OmniStreamTask::postConstruct()
+    {
+        LOG_DEBUG("ZZT postConstruct begin")
 
-    );
+        // needs to be shared_ptr
+        auto streamTaskAction = std::make_shared<StreamTaskAction>(shared_from_this());
+        mailboxProcessor_ = std::make_shared<MailboxProcessor>(streamTaskAction, mailbox_, actionExecutor_);
+        mainMailboxExecutor_ = mailboxProcessor_->getMainMailboxExecutor();
+        LOG("mailboxProcessor_  init setup>>>>")
+        taskConfiguration_ = env_->taskConfiguration();
+        auto checkpointExecutionConfig = taskConfiguration_.getExecutionCheckpointConfig();
+        taskName_ = taskConfiguration_.getTaskName();
+        LOG("begin>>>>"  << taskName_);
+        recordWriter_ = createRecordWriterDelegate(taskConfiguration_, env_);
+        systemTimerService = make_shared<SystemProcessingTimeService>();
+        // SubtaskCheckpointCoordinatorImpl initialization
+        if (taskConfiguration_.getStateBackend() == "HashMapStateBackend") {
+            stateBackend = new HashMapStateBackend();
+        } else {
+            stateBackend = new RocksDBStateBackend(taskConfiguration_);
+        }
+        checkpointStorage = createCheckpointStorage(stateBackend);
+        std::shared_ptr<CheckpointStorageAccess> checkpointStorageAccess = checkpointStorage->createCheckpointStorage();
 
-    // Reconstruct LocalRecoveryConfig
-    std::shared_ptr<LocalRecoveryDirectoryProviderImpl> dirProvider;
+        subtaskCheckpointCoordinator = std::make_shared<runtime::SubtaskCheckpointCoordinatorImpl>(
+            checkpointStorage,
+            checkpointStorageAccess,
+            env_->taskConfiguration().getTaskName(),
+            actionExecutor_,
+            // getAsyncOperatorsThreadPool(),
+            env_,
+            checkpointExecutionConfig.getUnalignedCheckpointsEnabled(),
+            checkpointExecutionConfig.getCheckpointAfterTasksFinishEnabled(),
+            new std::function<std::shared_ptr<CompletableFutureV2<void>>(std::shared_ptr<ChannelStateWriter>, long)>([this](std::shared_ptr<ChannelStateWriter> writer, long checkpointId) { return this->prepareInputSnapshot(writer, checkpointId); }),
+            runtime::BarrierAlignmentUtil::template createRegisterTimerCallback<std::function<void()>>(nullptr, systemTimerService.get())
+
+        );
+        InjectChannelStateWriterIntoChannels();
+        // Reconstruct LocalRecoveryConfig
+        std::shared_ptr<LocalRecoveryDirectoryProviderImpl> dirProvider;
 
     if (taskConfiguration_.getCheckpointConfig().getLocalRecovery()) {
         std::string localRecoveryProviderStr = taskConfiguration_.getLocalRecoveryConfig();
@@ -124,380 +127,391 @@ void OmniStreamTask::postConstruct()
     LOG("postConstruct end >>>> mailboxProcessor_ " << mailboxProcessor_->toString())
 }
 
-void OmniStreamTask::restore()
-{
-    LOG(">>>>>>>>")
-    restoreInternal();
-}
+    void OmniStreamTask::restore()
+    {
+        LOG(">>>>>>>>")
+        restoreInternal();
+    }
 
-bool OmniStreamTask::IsUsingNonBlockingInput()
-{
-    return true;
-}
+    bool OmniStreamTask::IsUsingNonBlockingInput()
+    {
+        return true;
+    }
 
-void OmniStreamTask::restoreInternal()
-{
-    LOG("Initializing {}." << getName());
+    void OmniStreamTask::InjectChannelStateWriterIntoChannels()
+    {
+        auto channelStateWriter = subtaskCheckpointCoordinator->getChannelStateWriter();
+        for (auto gate : env_->GetAllInputGates()) {
+            gate->SetChannelStateWriter(channelStateWriter);
+        }
+        for (auto writer : env_->writers()) {
+            if (auto writerChild = std::dynamic_pointer_cast<BufferWritingResultPartition>(writer)) {
+                writerChild->SetChannelStateWriter(channelStateWriter);
+            }
+        }
+    }
 
-    this->operatorChain =
-        new RegularOperatorChain(std::weak_ptr<OmniStreamTask>(shared_from_this()), this->recordWriter_);
-    StreamTaskStateInitializerImpl *initializer =
-        new StreamTaskStateInitializerImpl(stateBackend, env_.get());
-    this->operatorChain->initializeStateAndOpenOperators(initializer, taskConfiguration_);
-    this->mainOperator_ = operatorChain->getMainOperator();
+    void OmniStreamTask::restoreInternal()
+    {
+        LOG("Initializing {}." << getName());
 
-    isRunning = true;
+        this->operatorChain =
+            new RegularOperatorChain(std::weak_ptr<OmniStreamTask>(shared_from_this()), this->recordWriter_);
+        StreamTaskStateInitializerImpl *initializer =
+            new StreamTaskStateInitializerImpl(stateBackend, env_.get());
+        this->operatorChain->initializeStateAndOpenOperators(initializer, taskConfiguration_);
+        this->mainOperator_ = operatorChain->getMainOperator();
 
-    // task specific initialization
-    init();
+        isRunning = true;
 
-    /*
-            *   // we need to make sure that any triggers scheduled in open() cannot be
-                    // executed before all operators are opened
-                    CompletableFuture<Void> allGatesRecoveredFuture = actionExecutor.call(this::restoreGates);
-     */
-    // for now, skip the actionExecutor, direct call restroGates
-    // and inside restoregate does not use mailbox loop.
-    // we assume the new inputgate is alreay restore.
-    restoreGates();
-}
+        // task specific initialization
+        init();
+
+        /*
+                *   // we need to make sure that any triggers scheduled in open() cannot be
+                        // executed before all operators are opened
+                        CompletableFuture<Void> allGatesRecoveredFuture = actionExecutor.call(this::restoreGates);
+         */
+        // for now, skip the actionExecutor, direct call restroGates
+        // and inside restoregate does not use mailbox loop.
+        // we assume the new inputgate is alreay restore.
+        restoreGates();
+    }
 
 /**
 *   private CompletableFuture<Void> restoreGates() throws Exception {
-    SequentialChannelStateReader reader =
-            getEnvironment().getTaskStateManager().getSequentialChannelStateReader();
-    reader.readOutputData(
-            getEnvironment().getAllWriters(), !configuration.isGraphContainingLoops());
+        SequentialChannelStateReader reader =
+                getEnvironment().getTaskStateManager().getSequentialChannelStateReader();
+        reader.readOutputData(
+                getEnvironment().getAllWriters(), !configuration.isGraphContainingLoops());
 
-    operatorChain.initializeStateAndOpenOperators(createStreamTaskStateInitializer());
+        operatorChain.initializeStateAndOpenOperators(createStreamTaskStateInitializer());
 
-    IndexedInputGate[] inputGates = getEnvironment().getAllInputGates();
-    channelIOExecutor.execute(
-            () -> {
-                try {
-                    reader.readInputData(inputGates);
-                } catch (Exception e) {
-                    asyncExceptionHandler.handleAsyncException(
-                            "Unable to read channel state", e);
-                }
-            });
+        IndexedInputGate[] inputGates = getEnvironment().getAllInputGates();
+        channelIOExecutor.execute(
+                () -> {
+                    try {
+                        reader.readInputData(inputGates);
+                    } catch (Exception e) {
+                        asyncExceptionHandler.handleAsyncException(
+                                "Unable to read channel state", e);
+                    }
+                });
 
-    List<CompletableFuture<?>> recoveredFutures = new ArrayList<>(inputGates.length);
-    for (InputGate inputGate : inputGates) {
-        recoveredFutures.add(inputGate.getStateConsumedFuture());
+        List<CompletableFuture<?>> recoveredFutures = new ArrayList<>(inputGates.length);
+        for (InputGate inputGate : inputGates) {
+            recoveredFutures.add(inputGate.getStateConsumedFuture());
 
-        inputGate
-                .getStateConsumedFuture()
-                .thenRun(
-                        () ->
-                                mainMailboxExecutor.execute(
-                                        inputGate::RequestPartitions,
-                                        "Input gate request partitions"));
+            inputGate
+                    .getStateConsumedFuture()
+                    .thenRun(
+                            () ->
+                                    mainMailboxExecutor.execute(
+                                            inputGate::RequestPartitions,
+                                            "Input gate request partitions"));
+        }
+
+        return CompletableFuture.allOf(recoveredFutures.toArray(new CompletableFuture[0]))
+                .thenRun(mailboxProcessor::suspend);
     }
-
-    return CompletableFuture.allOf(recoveredFutures.toArray(new CompletableFuture[0]))
-            .thenRun(mailboxProcessor::suspend);
-}
-
-
  *
  */
 
-// simple requirePartionView for each local chaneel
-void OmniStreamTask::restoreGates()
-{
-    LOG("restoreGates begin" << taskName_)
-    auto _inputGates = env_->GetAllInputGates();
-    for (auto &inputGate : _inputGates) {
-        inputGate->RequestPartitions();
-    }
-}
-
-void OmniStreamTask::invoke()
-{
-    LOG("Invoking {}." << getName());
-
-    // let the task do its work
-    LOG("Invoking {}." << getName() << "run mailbox loop");
-    runMailboxLoop();
-}
-
-void OmniStreamTask::cancel()
-{
-    mailboxProcessor_->suspend();
-}
-
-void OmniStreamTask::cleanup()
-{
-    LOG_INFO_IMP("Stream Task Clean up")
-    // clean up operator chain and record writer
-    releaseOutputResource();
-}
-
-void OmniStreamTask::releaseOutputResource()
-{
-    LOG_INFO_IMP(" recordWriter_  "  << reinterpret_cast<uintptr_t>(recordWriter_.get()))
-    if (recordWriter_) {
-        recordWriter_->close();
-    }
-}
-
-void OmniStreamTask::EndData(StopMode mode)
-{
-    INFO_RELEASE("TaskName:" << taskName_ << " EndData with  Mode:" <<  static_cast<int>(mode));
-    if (mode == StopMode::DRAIN) {
-        AdvanceToEndOfEventTime();
+    // simple requirePartionView for each local chaneel
+    void OmniStreamTask::restoreGates()
+    {
+        LOG("restoreGates begin" << taskName_)
+        auto _inputGates = env_->GetAllInputGates();
+        for (auto &inputGate : _inputGates) {
+            inputGate->RequestPartitions();
+        }
     }
 
-    if (operatorChain) {
-        operatorChain->finishOperators(actionExecutor_.get());
-        this->finishedOperators = true;
+    void OmniStreamTask::invoke()
+    {
+        LOG("Invoking {}." << getName());
+
+        // let the task do its work
+        LOG("Invoking {}." << getName() << "run mailbox loop");
+        runMailboxLoop();
     }
 
-    for (auto partitionWriter : env_->writers()) {
-        partitionWriter->NotifyEndOfData(mode);
+    void OmniStreamTask::cancel()
+    {
+        mailboxProcessor_->suspend();
     }
 
-    this->endOfDataReceived = true;
-}
-
-void OmniStreamTask::processInput(std::shared_ptr<MailboxDefaultAction::Controller> controller)
-{
-    auto status = inputProcessor_->processInput();
-    switch (status) {
-        case DataInputStatus::MORE_AVAILABLE:
-            break;
-        case DataInputStatus::NOTHING_AVAILABLE:
-            break;
-        case DataInputStatus::END_OF_RECOVERY:
-            THROW_LOGIC_EXCEPTION("");
-        case DataInputStatus::END_OF_DATA:
-            EndData(StopMode::DRAIN);
-            break;
-        case DataInputStatus::NOT_PROCESSED:
-            break;
-        case DataInputStatus::STOPPED:
-            return;
-        case DataInputStatus::END_OF_INPUT:
-             mailboxProcessor_->suspend();
-             return;
+    void OmniStreamTask::cleanup()
+    {
+        LOG_INFO_IMP("Stream Task Clean up")
+        // clean up operator chain and record writer
+        releaseOutputResource();
     }
-}
 
-const std::string OmniStreamTask::getName() const
-{
-    return taskName_;
-}
-
-std::shared_ptr<RecordWriterDelegateV2> OmniStreamTask::createRecordWriterDelegate(
-    TaskInformationPOD taskConfig, std::shared_ptr<RuntimeEnvironmentV2> environment)
-{
-    std::vector<RecordWriterV2 *> recordWriters = createRecordWriters(taskConfiguration_, environment);
-    LOG("TaskInformation " << taskConfig.toString() << "and recorderWriter size " << recordWriters.size());
-    if (recordWriters.size() == 1) {
-        return std::make_shared<SingleRecordWriterV2>(recordWriters[0]);
-    } else if (recordWriters.empty()) {
-        return std::make_shared<NonRecordWriterV2>();
-    } else {
-        return std::make_shared<MultipleRecordWritersV2>(recordWriters);
+    void OmniStreamTask::releaseOutputResource()
+    {
+        LOG_INFO_IMP(" recordWriter_  "  << reinterpret_cast<uintptr_t>(recordWriter_.get()))
+        if (recordWriter_) {
+            recordWriter_->close();
+        }
     }
-}
 
-std::vector<RecordWriterV2 *> OmniStreamTask::createRecordWriters(
-    TaskInformationPOD taskConfig, std::shared_ptr<RuntimeEnvironmentV2> environment)
-{
-    auto recordWriters = std::vector<RecordWriterV2 *>();
-    auto outEdgesInOrder = taskConfig.getStreamConfigPOD().getOutEdgesInOrder();
-    for (size_t i = 0; i < outEdgesInOrder.size(); i++) {
-        auto outEdge = outEdgesInOrder[i];
-        recordWriters.push_back(createRecordWriter(outEdge, i, environment, taskName_, outEdge.getBufferTimeout()));
-    }
-    return recordWriters;
-}
-
-RecordWriterV2 *OmniStreamTask::createRecordWriter(StreamEdgePOD& edge, int outputIndex,
-    std::shared_ptr<RuntimeEnvironmentV2> environment, std::string taskName, long bufferTimeout)
-{
-    // output partitioner
-
-    auto partitioner = edge.getPartitioner();
-
-    // Sql Task
-    if (taskType == 1) {
-        auto outputPartitioner = createPartitionerFromDesc(partitioner);
-        LOG("output partitioner "
-        << "output index: " << outputIndex << " task name: " << taskName_);
-        // workaround for now
-        if (outputPartitioner == nullptr) {
-            THROW_RUNTIME_ERROR("outputPartitioner is null");  // the below can not work
+    void OmniStreamTask::EndData(StopMode mode)
+    {
+        INFO_RELEASE("TaskName:" << taskName_ << " EndData with  Mode:" <<  static_cast<int>(mode));
+        if (mode == StopMode::DRAIN) {
+            AdvanceToEndOfEventTime();
         }
 
-        auto bufferPartitionWriter = env_->writers()[outputIndex];
-        // we initialize the partitioner here with the number of key groups (aka max. parallelism)
-        if (typeid(*outputPartitioner) == typeid(KeyGroupStreamPartitionerV2<StreamRecord, BinaryRowData*>)) {
-            int numKeyGroups = bufferPartitionWriter->getNumTargetKeyGroups();
-            if (0 < numKeyGroups) {
-                reinterpret_cast<KeyGroupStreamPartitionerV2<StreamRecord, BinaryRowData*> *>(outputPartitioner)
-                    ->configure(numKeyGroups);
+        if (operatorChain) {
+            operatorChain->finishOperators(actionExecutor_.get());
+            this->finishedOperators = true;
+        }
+
+        for (auto partitionWriter : env_->writers()) {
+            partitionWriter->NotifyEndOfData(mode);
+        }
+
+        this->endOfDataReceived = true;
+    }
+
+    void OmniStreamTask::processInput(std::shared_ptr<MailboxDefaultAction::Controller> controller)
+    {
+        auto status = inputProcessor_->processInput();
+        switch (status) {
+            case DataInputStatus::MORE_AVAILABLE:
+                break;
+            case DataInputStatus::NOTHING_AVAILABLE:
+                break;
+            case DataInputStatus::END_OF_RECOVERY:
+                THROW_LOGIC_EXCEPTION("");
+            case DataInputStatus::END_OF_DATA:
+                EndData(StopMode::DRAIN);
+                break;
+            case DataInputStatus::NOT_PROCESSED:
+                break;
+            case DataInputStatus::STOPPED:
+                return;
+            case DataInputStatus::END_OF_INPUT:
+                 mailboxProcessor_->suspend();
+                 return;
+        }
+    }
+
+    const std::string OmniStreamTask::getName() const
+    {
+        return taskName_;
+    }
+
+    std::shared_ptr<RecordWriterDelegateV2> OmniStreamTask::createRecordWriterDelegate(
+        TaskInformationPOD taskConfig, std::shared_ptr<RuntimeEnvironmentV2> environment)
+    {
+        std::vector<RecordWriterV2 *> recordWriters = createRecordWriters(taskConfiguration_, environment);
+        LOG("TaskInformation " << taskConfig.toString() << "and recorderWriter size " << recordWriters.size());
+        if (recordWriters.size() == 1) {
+            return std::make_shared<SingleRecordWriterV2>(recordWriters[0]);
+        } else if (recordWriters.empty()) {
+            return std::make_shared<NonRecordWriterV2>();
+        } else {
+            return std::make_shared<MultipleRecordWritersV2>(recordWriters);
+        }
+    }
+
+    std::vector<RecordWriterV2 *> OmniStreamTask::createRecordWriters(
+        TaskInformationPOD taskConfig, std::shared_ptr<RuntimeEnvironmentV2> environment)
+    {
+        auto recordWriters = std::vector<RecordWriterV2 *>();
+        auto outEdgesInOrder = taskConfig.getStreamConfigPOD().getOutEdgesInOrder();
+        for (size_t i = 0; i < outEdgesInOrder.size(); i++) {
+            auto outEdge = outEdgesInOrder[i];
+            recordWriters.push_back(createRecordWriter(outEdge, i, environment, taskName_, outEdge.getBufferTimeout()));
+        }
+        return recordWriters;
+    }
+
+    RecordWriterV2 *OmniStreamTask::createRecordWriter(StreamEdgePOD& edge, int outputIndex,
+        std::shared_ptr<RuntimeEnvironmentV2> environment, std::string taskName, long bufferTimeout)
+    {
+        // output partitioner
+
+        auto partitioner = edge.getPartitioner();
+
+        // Sql Task
+        if (taskType == 1) {
+            auto outputPartitioner = createPartitionerFromDesc(partitioner);
+            LOG("output partitioner "
+            << "output index: " << outputIndex << " task name: " << taskName_);
+            // workaround for now
+            if (outputPartitioner == nullptr) {
+                THROW_RUNTIME_ERROR("outputPartitioner is null");  // the below can not work
             }
-        }
 
-        auto writer = RecordWriterBuilderV2()
-                          .withChannelSelector(outputPartitioner)
-                          .withWriter(bufferPartitionWriter)
-                          .withTimeout(bufferTimeout)
-                          .withTaskName(taskName)
-                          .withJobType(taskType)
-                          .build();
-
-        writer->postConstruct();
-        return writer;
-    } else if (taskType == 2) {
-        // Datastream Task
-        auto outputPartitioner = createPartitionerFromDesc(edge);
-
-        LOG("output partitioner "
-        << "output index: " << outputIndex << " task name: " << taskName_);
-        // workaround for now
-        if (outputPartitioner == nullptr) {
-            THROW_RUNTIME_ERROR("outputPartitioner is null");  // the below can not work
-        }
-
-        auto bufferPartitionWriter = env_->writers()[outputIndex];
-        // we initialize the partitioner here with the number of key groups (aka max. parallelism)
-        if (typeid(*outputPartitioner) == typeid(datastream::KeyGroupStreamPartitioner<StreamRecord, BinaryRowData*>)) {
-            int numKeyGroups = bufferPartitionWriter->getNumTargetKeyGroups();
-            if (0 < numKeyGroups) {
-                reinterpret_cast<datastream::KeyGroupStreamPartitioner<StreamRecord, BinaryRowData*> *>(outputPartitioner)
-                    ->configure(numKeyGroups);
-            }
-        }
-
-        auto writer = RecordWriterBuilderV2()
-                          .withChannelSelector(outputPartitioner)
-                          .withWriter(bufferPartitionWriter)
-                          .withTimeout(bufferTimeout)
-                          .withTaskName(taskName)
-                          .withJobType(taskType)
-                          .build();
-
-        writer->postConstruct();
-        return writer;
-    } else {
-        THROW_RUNTIME_ERROR("unknown taskType " + taskType);  // the below can not work
-    }
-}
-
-// record write deleage
-
-StreamPartitionerV2<StreamRecord>* OmniStreamTask::createPartitionerFromDesc(StreamPartitionerPOD partitioner)
-{
-    if (partitioner.getPartitionerName() == StreamPartitionerPOD::FORWARD) {
-        return new ForwardPartitionerV2<StreamRecord>();
-    } else if (partitioner.getPartitionerName() == StreamPartitionerPOD::REBALANCE) {
-        return new RebalancePartitionerV2<StreamRecord>();
-    } else if (partitioner.getPartitionerName() == StreamPartitionerPOD::RESCALE) {
-        return new RescalePartitionerV2<StreamRecord>();
-    } else if (partitioner.getPartitionerName() == StreamPartitionerPOD::GLOBAL) {
-        return new GlobalPartitionerV2<StreamRecord>();
-    } else if (partitioner.getPartitionerName() == StreamPartitionerPOD::HASH) {
-        auto hashFields = partitioner.getHashFields();
-        auto keySelector = buildKeySelector<BinaryRowData*>(hashFields);
-        int32_t maxParallelism = env_->taskConfiguration().getMaxNumberOfSubtasks();
-        return new KeyGroupStreamPartitionerV2<StreamRecord, BinaryRowData*>(keySelector, maxParallelism);
-    } else if (partitioner.getPartitionerName() == StreamPartitionerPOD::NONE) {
-        return new SimplePartitioner<StreamRecord>();
-    } else {
-        throw std::invalid_argument("Invalid partitioner!");
-    }
-}
-
-datastream::StreamPartitioner<IOReadableWritable>* OmniStreamTask::createPartitionerFromDesc(const StreamEdgePOD& edge)
-{
-    const auto& partitioner = edge.getPartitioner();
-
-    if (partitioner.getPartitionerName() == StreamPartitionerPOD::FORWARD) {
-        return new datastream::ForwardPartitioner<IOReadableWritable>();
-    } else if (partitioner.getPartitionerName() == StreamPartitionerPOD::REBALANCE) {
-        return new datastream::RebalancePartitioner<IOReadableWritable>();
-    } else if (partitioner.getPartitionerName() == StreamPartitionerPOD::RESCALE) {
-        return new datastream::RescalePartitioner<IOReadableWritable>();
-    } else if (partitioner.getPartitionerName() == StreamPartitionerPOD::HASH) {
-        int targetId = edge.getTargetId();
-        int sourceId = edge.getSourceId();
-        std::unordered_map<int, StreamConfigPOD> configMap = env_->taskConfiguration().getChainedConfigMap();
-        auto description = configMap[sourceId].getOperatorDescription().getDescription();
-        nlohmann::json config = nlohmann::json::parse(description);
-        return new datastream::KeyGroupStreamPartitioner<IOReadableWritable, Object>(config, targetId, 128);
-    } else if (partitioner.getPartitionerName() == StreamPartitionerPOD::NONE) {
-        throw std::invalid_argument("Invalid partitioner!");
-    } else {
-        throw std::invalid_argument("Invalid partitioner!");
-    }
-}
-
-template<typename K>
-KeySelector<K>* OmniStreamTask::buildKeySelector(std::vector<KeyFieldInfoPOD>& keyFields)
-{
-    std::vector<int> keyCols;
-    std::vector<int> keyTypes;
-    for (auto& keyField : keyFields) {
-        keyCols.emplace_back(keyField.getFieldIndex());
-        if (keyField.getFieldTypeName().compare("BIGINT") == 0) {
-            keyTypes.emplace_back(omniruntime::type::OMNI_LONG);
-        }
-        if (keyField.getFieldTypeName().compare("VARCHAR") == 0) {
-            keyTypes.emplace_back(omniruntime::type::OMNI_VARCHAR);
-        }
-        if (keyField.getFieldTypeName().compare("INTEGER") == 0) {
-            keyTypes.emplace_back(omniruntime::type::OMNI_INT);
-        }
-    }
-    return new KeySelector<BinaryRowData*>(keyTypes, keyCols);
-}
-
-
-// mailbox loop
-void OmniStreamTask::runMailboxLoop()
-{
-    LOG("runMailboxLoop  >>>>>")
-    mailboxProcessor_->runMailboxLoop();
-}
-
-void OmniStreamTask::dispatchOperatorEvent(const std::string& operatorIdString, const std::string& eventString)
-{
-    operatorChain->DispatchOperatorEvent(operatorIdString, eventString);
-}
-
-std::shared_ptr<CheckpointStorage> OmniStreamTask::createCheckpointStorage(StateBackend* backend)
-{
-    return nullptr;
-}
-
-CompletableFutureV2<void> *OmniStreamTask::prepareInputSnapshot(
-    ChannelStateWriter *channelStateWriter,
-    long checkpointID)
-{
-    if (inputProcessor_ == nullptr) {
-        // Java would return CompletableFuture.completedFuture(null)
-        return new CompletableFutureV2<void>;
-    }
-    return inputProcessor_->prepareSnapshot(channelStateWriter, checkpointID);
-}
-
-bool OmniStreamTask::PerformCheckpoint(CheckpointMetaData* checkpointMetaData,
-    CheckpointOptions* checkpointOptions, CheckpointMetricsBuilder* checkpointMetrics)
-{
-    try {
-        SnapshotType* checkpointType = checkpointOptions->GetCheckpointType();
-        LOG("Starting checkpoint {} {} on task {}" << checkpointMetaData->GetCheckpointId()
-            << checkpointType->ToString() << getName());
-
-        VoidFunctionRunnable checkpointRunnable(
-            [this, checkpointMetaData, checkpointOptions, checkpointMetrics, checkpointType]() {
-                if (IsSynchronous(checkpointType)) {
-                    SetSynchronousSavepoint(checkpointMetaData->GetCheckpointId());
+            auto bufferPartitionWriter = env_->writers()[outputIndex];
+            // we initialize the partitioner here with the number of key groups (aka max. parallelism)
+            if (typeid(*outputPartitioner) == typeid(KeyGroupStreamPartitionerV2<StreamRecord, BinaryRowData*>)) {
+                int numKeyGroups = bufferPartitionWriter->getNumTargetKeyGroups();
+                if (0 < numKeyGroups) {
+                    reinterpret_cast<KeyGroupStreamPartitionerV2<StreamRecord, BinaryRowData*> *>(outputPartitioner)
+                        ->configure(numKeyGroups);
                 }
+            }
+
+            auto writer = RecordWriterBuilderV2()
+                              .withChannelSelector(outputPartitioner)
+                              .withWriter(bufferPartitionWriter)
+                              .withTimeout(bufferTimeout)
+                              .withTaskName(taskName)
+                              .withJobType(taskType)
+                              .build();
+
+            writer->postConstruct();
+            return writer;
+        } else if (taskType == 2) {
+            // Datastream Task
+            auto outputPartitioner = createPartitionerFromDesc(edge);
+
+            LOG("output partitioner "
+            << "output index: " << outputIndex << " task name: " << taskName_);
+            // workaround for now
+            if (outputPartitioner == nullptr) {
+                THROW_RUNTIME_ERROR("outputPartitioner is null");  // the below can not work
+            }
+
+            auto bufferPartitionWriter = env_->writers()[outputIndex];
+            // we initialize the partitioner here with the number of key groups (aka max. parallelism)
+            if (typeid(*outputPartitioner) == typeid(datastream::KeyGroupStreamPartitioner<StreamRecord, BinaryRowData*>)) {
+                int numKeyGroups = bufferPartitionWriter->getNumTargetKeyGroups();
+                if (0 < numKeyGroups) {
+                    reinterpret_cast<datastream::KeyGroupStreamPartitioner<StreamRecord, BinaryRowData*> *>(outputPartitioner)
+                        ->configure(numKeyGroups);
+                }
+            }
+
+            auto writer = RecordWriterBuilderV2()
+                              .withChannelSelector(outputPartitioner)
+                              .withWriter(bufferPartitionWriter)
+                              .withTimeout(bufferTimeout)
+                              .withTaskName(taskName)
+                              .withJobType(taskType)
+                              .build();
+
+            writer->postConstruct();
+            return writer;
+        } else {
+            THROW_RUNTIME_ERROR("unknown taskType " + taskType);  // the below can not work
+        }
+    }
+
+    // record write deleage
+
+    StreamPartitionerV2<StreamRecord>* OmniStreamTask::createPartitionerFromDesc(StreamPartitionerPOD partitioner)
+    {
+        if (partitioner.getPartitionerName() == StreamPartitionerPOD::FORWARD) {
+            return new ForwardPartitionerV2<StreamRecord>();
+        } else if (partitioner.getPartitionerName() == StreamPartitionerPOD::REBALANCE) {
+            return new RebalancePartitionerV2<StreamRecord>();
+        } else if (partitioner.getPartitionerName() == StreamPartitionerPOD::RESCALE) {
+            return new RescalePartitionerV2<StreamRecord>();
+        } else if (partitioner.getPartitionerName() == StreamPartitionerPOD::GLOBAL) {
+            return new GlobalPartitionerV2<StreamRecord>();
+        } else if (partitioner.getPartitionerName() == StreamPartitionerPOD::HASH) {
+            auto hashFields = partitioner.getHashFields();
+            auto keySelector = buildKeySelector<BinaryRowData*>(hashFields);
+            int32_t maxParallelism = env_->taskConfiguration().getMaxNumberOfSubtasks();
+            return new KeyGroupStreamPartitionerV2<StreamRecord, BinaryRowData*>(keySelector, maxParallelism);
+        } else if (partitioner.getPartitionerName() == StreamPartitionerPOD::NONE) {
+            return new SimplePartitioner<StreamRecord>();
+        } else {
+            throw std::invalid_argument("Invalid partitioner!");
+        }
+    }
+
+    datastream::StreamPartitioner<IOReadableWritable>* OmniStreamTask::createPartitionerFromDesc(const StreamEdgePOD& edge)
+    {
+        const auto& partitioner = edge.getPartitioner();
+
+        if (partitioner.getPartitionerName() == StreamPartitionerPOD::FORWARD) {
+            return new datastream::ForwardPartitioner<IOReadableWritable>();
+        } else if (partitioner.getPartitionerName() == StreamPartitionerPOD::REBALANCE) {
+            return new datastream::RebalancePartitioner<IOReadableWritable>();
+        } else if (partitioner.getPartitionerName() == StreamPartitionerPOD::RESCALE) {
+            return new datastream::RescalePartitioner<IOReadableWritable>();
+        } else if (partitioner.getPartitionerName() == StreamPartitionerPOD::HASH) {
+            int targetId = edge.getTargetId();
+            int sourceId = edge.getSourceId();
+            std::unordered_map<int, StreamConfigPOD> configMap = env_->taskConfiguration().getChainedConfigMap();
+            auto description = configMap[sourceId].getOperatorDescription().getDescription();
+            nlohmann::json config = nlohmann::json::parse(description);
+            return new datastream::KeyGroupStreamPartitioner<IOReadableWritable, Object>(config, targetId, 128);
+        } else if (partitioner.getPartitionerName() == StreamPartitionerPOD::NONE) {
+            throw std::invalid_argument("Invalid partitioner!");
+        } else {
+            throw std::invalid_argument("Invalid partitioner!");
+        }
+    }
+
+    template<typename K>
+    KeySelector<K>* OmniStreamTask::buildKeySelector(std::vector<KeyFieldInfoPOD>& keyFields)
+    {
+        std::vector<int> keyCols;
+        std::vector<int> keyTypes;
+        for (auto& keyField : keyFields) {
+            keyCols.emplace_back(keyField.getFieldIndex());
+            if (keyField.getFieldTypeName().compare("BIGINT") == 0) {
+                keyTypes.emplace_back(omniruntime::type::OMNI_LONG);
+            }
+            if (keyField.getFieldTypeName().compare("VARCHAR") == 0) {
+                keyTypes.emplace_back(omniruntime::type::OMNI_VARCHAR);
+            }
+            if (keyField.getFieldTypeName().compare("INTEGER") == 0) {
+                keyTypes.emplace_back(omniruntime::type::OMNI_INT);
+            }
+        }
+        return new KeySelector<BinaryRowData*>(keyTypes, keyCols);
+    }
+
+
+    // mailbox loop
+    void OmniStreamTask::runMailboxLoop()
+    {
+        LOG("runMailboxLoop  >>>>>")
+        mailboxProcessor_->runMailboxLoop();
+    }
+
+    void OmniStreamTask::dispatchOperatorEvent(const std::string& operatorIdString, const std::string& eventString)
+    {
+        operatorChain->DispatchOperatorEvent(operatorIdString, eventString);
+    }
+
+    std::shared_ptr<CheckpointStorage> OmniStreamTask::createCheckpointStorage(StateBackend* backend)
+    {
+        return nullptr;
+    }
+
+    std::shared_ptr<CompletableFutureV2<void>> OmniStreamTask::prepareInputSnapshot(
+        std::shared_ptr<ChannelStateWriter> channelStateWriter,
+        long checkpointID)
+    {
+        if (inputProcessor_ == nullptr) {
+            // Java would return CompletableFuture.completedFuture(null)
+            return std::make_shared<CompletableFutureV2<void>>();
+        }
+        return inputProcessor_->PrepareSnapshot(channelStateWriter, checkpointID);
+    }
+
+    bool OmniStreamTask::PerformCheckpoint(CheckpointMetaData* checkpointMetaData,
+        CheckpointOptions* checkpointOptions, CheckpointMetricsBuilder* checkpointMetrics)
+    {
+        try {
+            SnapshotType* checkpointType = checkpointOptions->GetCheckpointType();
+            LOG("Starting checkpoint {} {} on task {}" << checkpointMetaData->GetCheckpointId()
+                << checkpointType->ToString() << getName());
+
+            VoidFunctionRunnable checkpointRunnable(
+                [this, checkpointMetaData, checkpointOptions, checkpointMetrics, checkpointType]() {
+                    if (IsSynchronous(checkpointType)) {
+                        SetSynchronousSavepoint(checkpointMetaData->GetCheckpointId());
+                    }
 
                 if (AreCheckpointsWithFinishedTasksEnabled() && endOfDataReceived
                     && this->finalCheckpointMinId == INT64_MIN) {
@@ -510,33 +524,84 @@ bool OmniStreamTask::PerformCheckpoint(CheckpointMetaData* checkpointMetaData,
                     }
                 );
 
-                subtaskCheckpointCoordinator->checkpointState(checkpointMetaData, checkpointOptions, checkpointMetrics,
-                    operatorChain, finishedOperators, isRunningLoad);
-            }
-        );
-        if (isRunning) {
-            actionExecutor_->run(&checkpointRunnable);
-            return true;
-        } else {
-            VoidFunctionRunnable broadcastRunnable(
-                [this, &checkpointMetaData]() {
-                    // we cannot perform our checkpoint - let the downstream operators know that
-                    // they
-                    // should not wait for any input from this operator
+                    subtaskCheckpointCoordinator->checkpointState(checkpointMetaData, checkpointOptions, checkpointMetrics,
+                        operatorChain, finishedOperators, &isRunningLoad);
+                }
+            );
+            if (isRunning) {
+                actionExecutor_->run(&checkpointRunnable);
+                return true;
+            } else {
+                VoidFunctionRunnable broadcastRunnable(
+                    [this, &checkpointMetaData]() {
+                        // we cannot perform our checkpoint - let the downstream operators know that
+                        // they
+                        // should not wait for any input from this operator
 
-                    // we cannot broadcast the cancellation markers on the 'operator chain',
-                    // because it may not
-                    // yet be created
-                    auto message = std::make_shared<CancelCheckpointMarker>(checkpointMetaData->GetCheckpointId());
-                    recordWriter_->broadcastEvent(message);
-                });
-            actionExecutor_->run(&broadcastRunnable);
-            return false;
+                        // we cannot broadcast the cancellation markers on the 'operator chain',
+                        // because it may not
+                        // yet be created
+                        auto message = std::make_shared<CancelCheckpointMarker>(checkpointMetaData->GetCheckpointId());
+                        recordWriter_->broadcastEvent(message);
+                    });
+                actionExecutor_->run(&broadcastRunnable);
+                return false;
+            }
+        } catch (const std::exception& e) {
+            throw; // Re-throw the exception
         }
-    } catch (const std::exception& e) {
-        throw; // Re-throw the exception
     }
-}
+
+    void OmniStreamTask::abortCheckpointOnBarrier(long checkpointId, CheckpointException cause)
+    {
+        LOG("Aborting checkpoint via cancel-barrier " << checkpointId << " for task " << getName());
+
+        // clear checkpoint storage cache and abort channel-state writes.
+        try {
+            std::shared_ptr<runtime::SubtaskCheckpointCoordinatorImpl> subtaskCheckpointCoordinatorImpl =
+                std::dynamic_pointer_cast<runtime::SubtaskCheckpointCoordinatorImpl>(subtaskCheckpointCoordinator);
+            if (subtaskCheckpointCoordinatorImpl) {
+                subtaskCheckpointCoordinatorImpl->AbortCheckpointOnBarrier(
+                    checkpointId, std::make_exception_ptr(cause));
+            }
+        } catch (...) {
+            //
+        }
+
+        // Notify the JobManager that we decline this checkpoint.
+        try {
+            if (env_ && env_->omniTask()) {
+                env_->omniTask()->declineCheckpoint(checkpointId, cause.GetCheckpointFailureReason());
+            }
+        } catch (...) {
+            //
+        }
+
+        // Notify operators and broadcast a CancelCheckpointMarker downstream.
+        VoidFunctionRunnable abortRunnable(
+            [this, checkpointId]() {
+                try {
+                    if (operatorChain != nullptr) {
+                        operatorChain->NotifyCheckpointAborted(checkpointId);
+                        operatorChain->broadcastEvent(
+                            std::make_shared<omnistream::CancelCheckpointMarker>(checkpointId));
+                    } else if (recordWriter_ != nullptr) {
+                        auto msg = std::make_shared<omnistream::CancelCheckpointMarker>(checkpointId);
+                        recordWriter_->broadcastEvent(msg);
+                    }
+                } catch (...) {
+                    //
+                }
+            },
+            "AbortCheckpointOnBarrier");
+
+        if (actionExecutor_) {
+            actionExecutor_->run(&abortRunnable);
+        } else {
+            abortRunnable.Run();
+        }
+    }
+
     std::shared_ptr<CompletableFutureV2<void>> OmniStreamTask::notifyCheckpointCompleteAsync(long checkpointId)
     {
         std::string description = "checkpoint " + checkpointId;
@@ -547,6 +612,7 @@ bool OmniStreamTask::PerformCheckpoint(CheckpointMetaData* checkpointMetaData,
                 },
                 description);
     }
+
     std::shared_ptr<CompletableFutureV2<void>> OmniStreamTask::notifyCheckpointSubsumedAsync(long checkpointId)
     {
         std::string description = "checkpoint " + checkpointId;
@@ -593,6 +659,7 @@ bool OmniStreamTask::PerformCheckpoint(CheckpointMetaData* checkpointMetaData,
             },
             description);
     }
+
     // TTODO: TO BE COMPELETED
     std::shared_ptr<CompletableFutureV2<void>> OmniStreamTask::notifyCheckpointOperation(std::function<void()> runnable, const std::string& description)
     {
@@ -641,94 +708,94 @@ bool OmniStreamTask::PerformCheckpoint(CheckpointMetaData* checkpointMetaData,
         return syncSavepoint != INT64_MIN && syncSavepoint == checkpointId;
     }
 
-std::shared_ptr<CompletableFutureV2<bool>> OmniStreamTask::triggerCheckpointAsync(
-    CheckpointMetaData *checkpointMetaData, CheckpointOptions *checkpointOptions)
-{
-    auto result = std::make_shared<CompletableFutureV2<bool>>();
-    auto mailboxRunnable = std::make_shared<VoidFunctionRunnable>(
-        [this, result, checkpointMetaData, checkpointOptions]() {
-            try {
-                auto inputGates = env_->GetAllInputGates();
-                bool noUnfinishedInputGates = std::all_of(inputGates.begin(),
-                    inputGates.end(), [](const std::shared_ptr<InputGate>& gate) {
-                        return gate->IsFinished();
-                    });
-                if (noUnfinishedInputGates) {
-                    result->Complete(TriggerCheckpointAsyncInMailbox(checkpointMetaData, checkpointOptions));
-                } else {
-                    result->Complete(triggerUnfinishedChannelsCheckpoint(checkpointMetaData, checkpointOptions));
+    std::shared_ptr<CompletableFutureV2<bool>> OmniStreamTask::triggerCheckpointAsync(
+        CheckpointMetaData *checkpointMetaData, CheckpointOptions *checkpointOptions)
+    {
+        auto result = std::make_shared<CompletableFutureV2<bool>>();
+        auto mailboxRunnable = std::make_shared<VoidFunctionRunnable>(
+            [this, result, checkpointMetaData, checkpointOptions]() {
+                try {
+                    auto inputGates = env_->GetAllInputGates();
+                    bool noUnfinishedInputGates = std::all_of(inputGates.begin(),
+                        inputGates.end(), [](const std::shared_ptr<InputGate>& gate) {
+                            return gate->IsFinished();
+                        });
+                    if (noUnfinishedInputGates) {
+                        result->Complete(TriggerCheckpointAsyncInMailbox(checkpointMetaData, checkpointOptions));
+                    } else {
+                        result->Complete(triggerUnfinishedChannelsCheckpoint(checkpointMetaData, checkpointOptions));
+                    }
+                } catch (const std::exception& ex) {
+                    // Report the failure both via the Future result but also to the mailbox
+                    // TTODO: result->set_exception(std::current_exception());
+                    throw;
                 }
-            } catch (const std::exception& ex) {
-                // Report the failure both via the Future result but also to the mailbox
-                // TTODO: result->set_exception(std::current_exception());
+            }
+        );
+
+        mainMailboxExecutor_->execute(mailboxRunnable, "triggerCheckpointInMailbox");
+        return result;
+    }
+
+    bool OmniStreamTask::TriggerCheckpointAsyncInMailbox(CheckpointMetaData *checkpointMetaData,
+        CheckpointOptions *checkpointOptions)
+    {
+        // TTODO: FlinkSecurityManager::monitorUserSystemExitForCurrentThread();
+        try {
+            auto currentTime = std::chrono::duration_cast<std::chrono::milliseconds>(
+                    std::chrono::system_clock::now().time_since_epoch()).count();
+
+            latestAsyncCheckpointStartDelayNanos =
+                1000000L * std::max(0L, currentTime - checkpointMetaData->GetTimestamp());
+
+            // No alignment if we inject a checkpoint
+            CheckpointMetricsBuilder checkpointMetrics;
+            checkpointMetrics.SetAlignmentDurationNanos(0L);
+            checkpointMetrics.SetBytesProcessedDuringAlignment(0L);
+            checkpointMetrics.SetCheckpointStartDelayNanos(latestAsyncCheckpointStartDelayNanos);
+
+            subtaskCheckpointCoordinator->InitInputsCheckpoint(checkpointMetaData->GetCheckpointId(),
+                checkpointOptions);
+
+            bool success = PerformCheckpoint(checkpointMetaData, checkpointOptions, &checkpointMetrics);
+            if (!success) {
+                DeclineCheckpoint(checkpointMetaData->GetCheckpointId());
+            }
+            return success;
+        } catch (...) {
+            // propagate exceptions only if the task is still in "running" state
+            if (isRunning) {
+                LOG("Could not perform checkpoint " << checkpointMetaData->GetCheckpointId() <<
+                    " for operator " + getName() + ".");
                 throw;
+            } else {
+                LOG("Could not perform checkpoint {} for operator {} while the invokable was not in state running." <<
+                    checkpointMetaData->GetCheckpointId() << getName());
+                return false;
             }
         }
-    );
-
-    mainMailboxExecutor_->execute(mailboxRunnable, "triggerCheckpointInMailbox");
-    return result;
-}
-
-bool OmniStreamTask::TriggerCheckpointAsyncInMailbox(CheckpointMetaData *checkpointMetaData,
-    CheckpointOptions *checkpointOptions)
-{
-    // TTODO: FlinkSecurityManager::monitorUserSystemExitForCurrentThread();
-    try {
-        auto currentTime = std::chrono::duration_cast<std::chrono::milliseconds>(
-                std::chrono::system_clock::now().time_since_epoch()).count();
-
-        latestAsyncCheckpointStartDelayNanos =
-            1000000L * std::max(0L, currentTime - checkpointMetaData->GetTimestamp());
-
-        // No alignment if we inject a checkpoint
-        CheckpointMetricsBuilder checkpointMetrics;
-        checkpointMetrics.SetAlignmentDurationNanos(0L);
-        checkpointMetrics.SetBytesProcessedDuringAlignment(0L);
-        checkpointMetrics.SetCheckpointStartDelayNanos(latestAsyncCheckpointStartDelayNanos);
-
-        subtaskCheckpointCoordinator->InitInputsCheckpoint(checkpointMetaData->GetCheckpointId(),
-            checkpointOptions);
-
-        bool success = PerformCheckpoint(checkpointMetaData, checkpointOptions, &checkpointMetrics);
-        if (!success) {
-            DeclineCheckpoint(checkpointMetaData->GetCheckpointId());
-        }
-        return success;
-    } catch (...) {
-        // propagate exceptions only if the task is still in "running" state
-        if (isRunning) {
-            LOG("Could not perform checkpoint " << checkpointMetaData->GetCheckpointId() <<
-                " for operator " + getName() + ".");
-            throw;
-        } else {
-            LOG("Could not perform checkpoint {} for operator {} while the invokable was not in state running." <<
-                checkpointMetaData->GetCheckpointId() << getName());
-            return false;
-        }
+        // TTODO: FlinkSecurityManager::unmonitorUserSystemExitForCurrentThread();
     }
-    // TTODO: FlinkSecurityManager::unmonitorUserSystemExitForCurrentThread();
-}
 
-bool OmniStreamTask::triggerUnfinishedChannelsCheckpoint(CheckpointMetaData *checkpointMetaData,
-    CheckpointOptions *checkpointOptions)
-{
-    std::optional<CheckpointBarrierHandler*> checkpointBarrierHandler = GetCheckpointBarrierHandler();
-    // First make sure the Handler is not empty
-    if (checkpointBarrierHandler) {
-        CheckpointBarrier barrier(checkpointMetaData->GetCheckpointId(), checkpointMetaData->GetTimestamp(),
-            checkpointOptions);
+    bool OmniStreamTask::triggerUnfinishedChannelsCheckpoint(CheckpointMetaData *checkpointMetaData,
+        CheckpointOptions *checkpointOptions)
+    {
+        std::optional<CheckpointBarrierHandler*> checkpointBarrierHandler = GetCheckpointBarrierHandler();
+        // First make sure the Handler is not empty
+        if (checkpointBarrierHandler) {
+            CheckpointBarrier barrier(checkpointMetaData->GetCheckpointId(), checkpointMetaData->GetTimestamp(),
+                checkpointOptions);
 
-        for (const auto &inputGate: env_->GetAllInputGates()) {
-            if (inputGate->IsFinished()) {
-                continue;
+            for (const auto &inputGate: env_->GetAllInputGates()) {
+                if (inputGate->IsFinished()) {
+                    continue;
+                }
+                for (const auto &channelInfo: inputGate->getUnfinishedChannels()) {
+                    checkpointBarrierHandler.value()->ProcessBarrier(barrier, channelInfo, true);
+                }
             }
-            for (const auto &channelInfo: inputGate->getUnfinishedChannels()) {
-                checkpointBarrierHandler.value()->ProcessBarrier(barrier, channelInfo, true);
-            }
+            return true;
         }
-        return true;
+        return false;
     }
-    return false;
-}
 } // namespace omnistream
