@@ -575,6 +575,7 @@ std::vector<StateMetaInfoSnapshot> OmniTaskBridgeImpl2::readMetaData(const std::
         return {};
     }
 }
+
 jobject OmniTaskBridgeImpl2::AcquireSavepointOutputStream(long checkpointId)
 {
     JNIEnv* env = nullptr;
@@ -592,6 +593,7 @@ jobject OmniTaskBridgeImpl2::AcquireSavepointOutputStream(long checkpointId)
     auto provider =  env->CallObjectMethod(m_globalOmniTaskRef, mid, checkpointId);
     return provider;
 }
+
 std::shared_ptr<SnapshotResult<StreamStateHandle>> OmniTaskBridgeImpl2::CloseSavepointOutputStream(jobject provider)
 {
     JNIEnv* env = nullptr;
@@ -656,8 +658,6 @@ void OmniTaskBridgeImpl2::WriteSavepointMetadata(jobject provider, const std::ve
         stateMetaInfoJson.push_back(std::move(jsonObj));
     }
     std::string stateMetaInfoStr = stateMetaInfoJson.dump();
-    LOG(std::string("savepoint: metadata size: ") + std::to_string(stateMetaInfoStr.size()));
-    LOG(std::string("savepoint: metadata: ") + stateMetaInfoStr);
     jclass cls = env->GetObjectClass(m_globalOmniTaskRef);
     jmethodID mid = env->GetMethodID(cls, "writeSavepointMetadata", "(Lorg/apache/flink/runtime/state/CheckpointStreamWithResultProvider;Ljava/lang/String;)V");
     jstring jStateMetaInfoStr = env->NewStringUTF(stateMetaInfoStr.c_str());
