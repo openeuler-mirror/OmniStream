@@ -523,7 +523,6 @@ TEST(RocksDBTest, ValueStateTest) {
     BinaryRowData* keyRowData = BinaryRowData::createBinaryRowDataWithMem(1);
     keyRowData->setLong(0, 100);
     context->setCurrentKey(keyRowData);
-    context->setCurrentKeyGroupIndex(1);
     // Initialize RegisteredKeyValueStateBackendMetaInfo
     auto metaInfo = std::make_unique<RegisteredKeyValueStateBackendMetaInfo>("metaInfo",
                                          voidNamespaceSerializer, binaryRowDataSerializer);
