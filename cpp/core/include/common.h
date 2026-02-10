@@ -106,6 +106,7 @@ std::cout.flush();  \
 
 
 #else
+#define LOG_DEBUG(msg)
 #define LOG(msg)
 #define LOG_TRACE(msg)
 #define LOG_PART(msg)
