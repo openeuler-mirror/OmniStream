@@ -134,7 +134,7 @@ namespace omnistream::runtime {
                 *checkpointMetaData,
                 checkpointOptions,
                 isRunning,
-                *channelStateWriteResult,
+                channelStateWriteResult,
                 storage,
                 env->getTaskStateManager()->getOmniTaskBridge());
         } catch (...) {
