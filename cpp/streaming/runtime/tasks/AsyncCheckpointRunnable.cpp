@@ -9,6 +9,10 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "AsyncCheckpointRunnable.h"
+#include <chrono>
+#include <thread>
+using namespace std::chrono;
+
 
 bool AsyncCheckpointRunnable::IsRunning() const
 {
@@ -43,7 +47,9 @@ void AsyncCheckpointRunnable::Run()
         }
         finishedFuture.Complete();
     }
-    catch (...) {
+    catch (std::exception& e) {
+        LOG(std::string("savepoint: AsyncCheckpointRunnable error ")+e.what());
+        std::this_thread::sleep_for(100ms);
         HandleExecutionException(std::current_exception());
     }
     (*consumer)(this);

@@ -27,8 +27,8 @@ public:
     /** Returns the key-group for the current key. */
     virtual int keyGroup() const = 0;
 
-    virtual std::vector<uint8_t> key() const = 0;
-    virtual std::vector<uint8_t> value() const = 0;
+    virtual std::vector<int8_t> key() const = 0;
+    virtual std::vector<int8_t> value() const = 0;
 
     /** Returns the Id of the K/V state to which the current key belongs. */
     virtual int kvStateId() const = 0;

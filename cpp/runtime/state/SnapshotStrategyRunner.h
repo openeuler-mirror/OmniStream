@@ -35,17 +35,17 @@ public:
         {}
     ~SnapshotStrategyRunner() {};
 
-    std::shared_ptr<std::packaged_task<SnapshotResult<KeyedStateHandle>*()>> snapshot(
+    std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<KeyedStateHandle>>()>> snapshot(
         long checkpointId,
         long timestamp,
         CheckpointStreamFactory* streamFactory,
         CheckpointOptions* checkpointOptions,
         std::shared_ptr<omnistream::OmniTaskBridge> bridge)
     {
-        SnapshotResources *snapshotResources = snapshotStrategy_->syncPrepareResources(checkpointId);
+        auto snapshotResources = snapshotStrategy_->syncPrepareResources(checkpointId);
         auto asyncSnapshot = snapshotStrategy_->asyncSnapshot(snapshotResources, checkpointId, timestamp, streamFactory, checkpointOptions);
-        auto task = std::make_shared<std::packaged_task<SnapshotResult<KeyedStateHandle>*()>>(
-            [asyncSnapshot, bridge]() {
+        auto task = std::make_shared<std::packaged_task<std::shared_ptr<SnapshotResult<KeyedStateHandle>>()>>(
+            [=]() {
                 return asyncSnapshot->get(bridge);
         });
 
@@ -54,9 +54,6 @@ public:
             if (res) {
                 LOG("native rocksdb checkpoint has been finished.");
             }
-        }
-        if (snapshotResources) {
-            delete snapshotResources;
         }
         return task;
     }

@@ -24,7 +24,7 @@ class SnapshotResultSupplier {
 public:
     virtual ~SnapshotResultSupplier() = default;
 
-    virtual SnapshotResult<S>* get(std::shared_ptr<omnistream::OmniTaskBridge> bridge) = 0;
+    virtual std::shared_ptr<SnapshotResult<S>> get(std::shared_ptr<omnistream::OmniTaskBridge> bridge) = 0;
 };
 
 template <typename S, typename SR>
@@ -33,13 +33,13 @@ public:
     virtual ~SnapshotStrategy() = default;
 
     virtual std::shared_ptr<SnapshotResultSupplier<S>> asyncSnapshot(
-        SR *snapshotResources,
+        const std::shared_ptr<SR>& snapshotResources,
         long checkpointId,
         long timestamp,
         CheckpointStreamFactory* streamFactory,
         CheckpointOptions* checkpointOptions) = 0;
 
-    virtual SnapshotResources *syncPrepareResources(long checkpointId) = 0;
+    virtual std::shared_ptr<SR> syncPrepareResources(long checkpointId) = 0;
 };
 
 #endif // OMNISTREAM_SNAPSHOTSTRATEGY_H

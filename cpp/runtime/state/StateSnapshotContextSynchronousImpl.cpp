@@ -38,7 +38,7 @@ long StateSnapshotContextSynchronousImpl::getCheckpointTimestamp()
     return checkpointTimestamp_;
 }
 
-std::shared_ptr<std::packaged_task<SnapshotResult<KeyedStateHandle>*()>> StateSnapshotContextSynchronousImpl::getKeyedStateStreamFuture()
+std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<KeyedStateHandle>>()>> StateSnapshotContextSynchronousImpl::getKeyedStateStreamFuture()
 {
     if (keyedStateCheckpointClosingFuture == nullptr) {
         // TTODO

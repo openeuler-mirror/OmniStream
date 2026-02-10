@@ -12,6 +12,7 @@
 #define FLINK_TNEL_HEAPKEYEDSTATEBACKEND_H
 #include <emhash7.hpp>
 #include <map>
+#include "common.h"
 #include "AbstractKeyedStateBackend.h"
 #include "InternalKeyContext.h"
 #include "core/typeutils/TypeSerializer.h"
@@ -112,11 +113,16 @@ public:
         }
     };
 
-    std::shared_ptr<std::packaged_task<SnapshotResult<KeyedStateHandle>*()>> snapshot(
+    std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<KeyedStateHandle>>()>> snapshot(
             long checkpointId,
             long timestamp,
             CheckpointStreamFactory *streamFactory,
             CheckpointOptions *checkpointOptions) { return nullptr;}
+    
+    std::shared_ptr<SavepointResources> savepoint() override
+    {
+        NOT_IMPL_EXCEPTION;
+    }
 
 private:
     template<typename N, typename S>

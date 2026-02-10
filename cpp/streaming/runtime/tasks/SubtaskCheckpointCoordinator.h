@@ -36,7 +36,7 @@ namespace omnistream {
                 CheckpointMetricsBuilder *metrics,
                 omnistream::OperatorChainV2 *operatorChain,
                 bool isTaskFinished,
-                omnistream::Supplier<bool> *isRunning
+                std::shared_ptr<omnistream::Supplier<bool>> isRunning
         ) {};
     };
 }

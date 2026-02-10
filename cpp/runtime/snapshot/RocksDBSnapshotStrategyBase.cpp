@@ -55,7 +55,7 @@ std::string RocksDBSnapshotStrategyBase::getDescription() const
 }
 
 
-SnapshotResources *RocksDBSnapshotStrategyBase::syncPrepareResources(long checkpointId)
+std::shared_ptr<SnapshotResources> RocksDBSnapshotStrategyBase::syncPrepareResources(long checkpointId)
 {
     auto snapshotDirectory = prepareLocalSnapshotDirectory(checkpointId);
 
@@ -65,7 +65,7 @@ SnapshotResources *RocksDBSnapshotStrategyBase::syncPrepareResources(long checkp
     auto previousSnapshot = snapshotMetaData(checkpointId, stateMetaInfoSnapshots);
     takeDBNativeCheckpoint(snapshotDirectory);
 
-    return new NativeRocksDBSnapshotResources(
+    return std::make_shared<NativeRocksDBSnapshotResources>(
             snapshotDirectory,
             previousSnapshot,
             stateMetaInfoSnapshots);
@@ -234,7 +234,7 @@ std::shared_ptr<KeyedStateHandle> RocksDBSnapshotStrategyBase::RocksDBSnapshotOp
     return nullptr;
 }
 
-SnapshotResult<KeyedStateHandle> *RocksDBSnapshotStrategyBase::RocksDBSnapshotOperation::get(
+std::shared_ptr<SnapshotResult<KeyedStateHandle>> RocksDBSnapshotStrategyBase::RocksDBSnapshotOperation::get(
     std::shared_ptr<omnistream::OmniTaskBridge> bridge)
 {
     return nullptr;

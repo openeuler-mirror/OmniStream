@@ -24,8 +24,8 @@ public:
 
     virtual void next() = 0;
     virtual bool isValid() const = 0;
-    virtual std::vector<uint8_t> key() const = 0;
-    virtual std::vector<uint8_t> value() const = 0;
+    virtual std::vector<int8_t> key() const = 0;
+    virtual std::vector<int8_t> value() const = 0;
     virtual int getKvStateId() const = 0;
     virtual void close() = 0;
 };

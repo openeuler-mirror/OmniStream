@@ -16,7 +16,7 @@ TEST(AsyncCheckpointRunnableTest, InitTest)
             [](std::string, std::exception) {}),
         false, 
         false, 
-        new omnistream::LambdaSupplier<bool>(std::function<std::shared_ptr<bool>()>(
+        std::make_shared<omnistream::LambdaSupplier<bool>>(std::function<std::shared_ptr<bool>()>(
             []() { return std::make_shared<bool>(true); })));
     EXPECT_TRUE(asyncCheckpointRunnable->IsRunning());
     delete asyncCheckpointRunnable;

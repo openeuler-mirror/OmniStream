@@ -32,12 +32,12 @@ public:
     long getCheckpointId();
     long getCheckpointTimestamp();
 
-    std::shared_ptr<std::packaged_task<SnapshotResult<KeyedStateHandle>*()>> getKeyedStateStreamFuture();
+    std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<KeyedStateHandle>>()>> getKeyedStateStreamFuture();
     std::shared_ptr<std::packaged_task<SnapshotResult<OperatorStateHandle>>> getOperatorStateStreamFuture();
     void closeExceptionally();
 
 protected:
-    std::shared_ptr<std::packaged_task<SnapshotResult<KeyedStateHandle>*()>> keyedStateCheckpointClosingFuture;
+    std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<KeyedStateHandle>>()>> keyedStateCheckpointClosingFuture;
     std::shared_ptr<std::packaged_task<SnapshotResult<OperatorStateHandle>>> operatorStateCheckpointClosingFuture;
 
 private:

@@ -23,6 +23,7 @@
 #include "runtime/state/RocksIteratorWrapper.h"
 #include "SingleStateIterator.h"
 #include "RocksSingleStateIterator.h"
+#include "common.h"
 
 class RocksStatesPerKeyGroupMergeIterator : public KeyValueStateIterator {
 public:
@@ -50,8 +51,8 @@ public:
 
     RocksStatesPerKeyGroupMergeIterator(
         std::unique_ptr<CloseableRegistry> closeableRegistry,
-        std::vector<std::pair<std::unique_ptr<RocksIteratorWrapper>, int>> kvStateIterators,
-        std::vector<std::unique_ptr<SingleStateIterator>> heapPriorityQueueIterators,
+        std::vector<std::pair<std::unique_ptr<RocksIteratorWrapper>, int>>& kvStateIterators,
+        std::vector<std::unique_ptr<SingleStateIterator>>& heapPriorityQueueIterators,
         int keyGroupPrefixByteCount)
         : closeableRegistry_(std::move(closeableRegistry)),
         heap_(IteratorComparator(keyGroupPrefixByteCount)),
@@ -132,12 +133,12 @@ public:
         return result;
     }
 
-    std::vector<uint8_t> key() const
+    std::vector<int8_t> key() const
     {
         return currentSubIterator_->key();
     }
 
-    std::vector<uint8_t> value() const
+    std::vector<int8_t> value() const
     {
         return currentSubIterator_->value();
     }
@@ -225,7 +226,7 @@ private:
         }
     }
 
-    bool isDifferentKeyGroup(const std::vector<uint8_t>& a, const std::vector<uint8_t>& b)
+    bool isDifferentKeyGroup(const std::vector<int8_t>& a, const std::vector<int8_t>& b)
     {
         // 优化：使用memcmp进行快速比较
         if (a.size() < keyGroupPrefixByteCount_ || b.size() < keyGroupPrefixByteCount_) {
@@ -235,7 +236,7 @@ private:
         return std::memcmp(a.data(), b.data(), keyGroupPrefixByteCount_) != 0;
     }
 
-    void detectNewKeyGroup(const std::vector<uint8_t>& oldKey)
+    void detectNewKeyGroup(const std::vector<int8_t>& oldKey)
     {
         if (isDifferentKeyGroup(oldKey, currentSubIterator_->key())) {
             newKeyGroup_ = true;
@@ -243,8 +244,8 @@ private:
     }
 
     static int compareKeyGroupsForByteArrays(
-        const std::vector<uint8_t>& a,
-        const std::vector<uint8_t>& b,
+        const std::vector<int8_t>& a,
+        const std::vector<int8_t>& b,
         int len)
     {
         // 确保有足够的字节进行比较

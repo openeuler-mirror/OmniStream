@@ -18,6 +18,7 @@
 
 #include "core/fs/CloseableRegistry.h"
 #include "streaming/runtime/metrics/MetricGroup.h"
+#include "state/RocksDBWriteBatchWrapper.h"
 #include "core/typeutils/TypeSerializer.h"
 #include "runtime/state/rocksdb/util/ResourceGuard.h"
 
@@ -275,6 +276,8 @@ RocksdbKeyedStateBackend<K> *RocksDBKeyedStateBackendBuilder<K>::build()
             backendUID,
             materializedSstFiles,
             lastCompletedCheckpointId);
+        
+        auto writeBatchWrapper = std::make_shared<RocksDBWriteBatchWrapper>(db, writeBatchSize);
 
         auto keyContext = new InternalKeyContextImpl<K>(keyGroupRange, numberOfKeyGroups);
 
@@ -287,6 +290,7 @@ RocksdbKeyedStateBackend<K> *RocksDBKeyedStateBackendBuilder<K>::build()
             kvStateInformation,
             rocksDBResourceGuard,
             keyGroupPrefixBytes,
+            writeBatchWrapper,
             bridge,
             omniTaskBridge);
     } catch (const std::exception& e) {

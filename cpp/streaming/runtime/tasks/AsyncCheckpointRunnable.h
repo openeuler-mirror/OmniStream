@@ -53,7 +53,7 @@ public:
         std::function<void(std::string, std::exception)> *asyncExceptionHandler,
         bool isTaskDeployedAsFinished,
         bool isTaskFinished,
-        omnistream::Supplier<bool> *isTaskRunning)
+        std::shared_ptr<omnistream::Supplier<bool>> isTaskRunning)
         : operatorSnapshotsInProgress(operatorSnapshotsInProgress),
           checkpointMetaData(checkpointMetaData),
           checkpointMetric(checkpointMetrics),
@@ -106,7 +106,7 @@ private:
     std::function<void(std::string, std::exception)> *asyncExceptionHandler;
     bool isTaskDeployedAsFinished;
     bool isTaskFinished;
-    omnistream::Supplier<bool> *isTaskRunning;
+    std::shared_ptr<omnistream::Supplier<bool>> isTaskRunning;
     std::atomic<AsyncCheckpointState> asyncCheckpointState;
     CompletableFutureV2<void> finishedFuture;
 };

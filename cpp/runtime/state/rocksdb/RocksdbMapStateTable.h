@@ -39,6 +39,8 @@
 #include "utils/VectorBatchSerializationUtils.h"
 #include "state/RocksDbKvStateInfo.h"
 #include "runtime/state/DefaultConfigurableOptionsFactory.h"
+#include "common.h"
+#include <sstream>
 
 
 /* S is the value used in the State,
@@ -764,7 +766,7 @@ public:
             DataOutputSerializer keyOutputSerializer;
             OutputBufferStatus outputBufferStatus;
             keyOutputSerializer.setBackendBuffer(&outputBufferStatus);
-
+            keyOutputSerializer.writeByte(static_cast<uint32_t>(stateTable->keyContext->getCurrentKeyGroupIndex()));
             if constexpr (std::is_pointer_v<K>) {
                 stateTable->getKeySerializer()->serialize(currentKey, keyOutputSerializer);
             } else {
@@ -863,7 +865,7 @@ protected:
         auto currentKey = keyContext->getCurrentKey();
 
         // 序列化key, userKey
-
+        outputSerializer.writeByte(static_cast<uint32_t>(keyContext->getCurrentKeyGroupIndex()));
         if constexpr (std::is_pointer_v<K>) {
             getKeySerializer()->serialize(currentKey, outputSerializer);
         } else {
@@ -875,6 +877,7 @@ protected:
         } else {
             getUserKeySerializer()->serialize(&userKey, outputSerializer);
         }
+
         return ROCKSDB_NAMESPACE::Slice(reinterpret_cast<const char *>(outputSerializer.getData()),
                                         outputSerializer.length());
     }
@@ -882,9 +885,9 @@ protected:
     ROCKSDB_NAMESPACE::Slice serializerKey(DataOutputSerializer &outputSerializer)
     {
         auto currentKey = keyContext->getCurrentKey();
-
+        
         // 序列化key, userKey
-
+        outputSerializer.writeByte(static_cast<uint32_t>(keyContext->getCurrentKeyGroupIndex()));
         if constexpr (std::is_pointer_v<K>) {
             getKeySerializer()->serialize(currentKey, outputSerializer);
         } else {
@@ -892,7 +895,7 @@ protected:
         }
 
         return ROCKSDB_NAMESPACE::Slice(reinterpret_cast<const char *>(outputSerializer.getData()),
-                                        outputSerializer.length());
+                                outputSerializer.length());
     }
 
     ROCKSDB_NAMESPACE::Slice serializerValue(DataOutputSerializer &valueOutputSerializer, UV userValue)

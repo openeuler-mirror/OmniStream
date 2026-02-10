@@ -9,6 +9,7 @@
 #define OMNITASKBRIDGEIMPL2_H
 
 #include <common.h>
+#include <memory>
 #include <jni.h>
 #include <state/bridge/OmniTaskBridge.h>
 #include <state/metainfo/StateMetaInfoSnapshot.h>
@@ -38,6 +39,12 @@ public:
                                           int numberOfSnapshottingThreads) override;
 
     JNIEnv* getJNIEnv() override;
+
+    jobject AcquireSavepointOutputStream(long checkpointId) override;
+    std::shared_ptr<SnapshotResult<StreamStateHandle>> CloseSavepointOutputStream(jobject provider) override;
+    void WriteSavepointOutputStream(jobject provider, const int8_t *chunk, size_t offset, size_t len) override;
+    void WriteSavepointMetadata(jobject provider, const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& snapshots) override;
+    long GetSavepointOutputStreamPos(jobject provider) override;
 
 public:
     jobject m_globalOmniTaskRef;

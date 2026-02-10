@@ -15,6 +15,7 @@
 #include "KeyGroupRange.h"
 #include "CheckpointStreamFactory.h"
 #include "runtime/checkpoint/CheckpointOptions.h"
+#include "state/SavepointResources.h"
 #include "SnapshotResult.h"
 #include "KeyedStateHandle.h"
 #include <future>
@@ -23,13 +24,15 @@ template <typename K>
 class CheckpointableKeyedStateBackend : public KeyedStateBackend<K> {
 public:
     virtual KeyGroupRange *getKeyGroupRange() = 0;
-    virtual std::shared_ptr<std::packaged_task<SnapshotResult<KeyedStateHandle>*()>> snapshot(
+    virtual std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<KeyedStateHandle>>()>> snapshot(
         long checkpointId,
         long timestamp,
         CheckpointStreamFactory *streamFactory,
         CheckpointOptions *checkpointOptions) = 0;
 
     ~CheckpointableKeyedStateBackend() = default;
+
+    virtual std::shared_ptr<SavepointResources> savepoint() = 0;
 };
 
 #endif // OMNISTREAM_CHECKPOINTABLEKEYEDSTATEBACKEND
