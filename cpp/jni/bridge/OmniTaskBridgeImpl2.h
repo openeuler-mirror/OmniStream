@@ -17,6 +17,7 @@
 #include "core/fs/Path.h"
 #include "runtime/state/SnapshotResult.h"
 #include "runtime/state/StreamStateHandle.h"
+#include "runtime/state/restore/KeyGroupEntry.h"
 #include "state/LocalRecoveryConfig.h"
 
 class OmniTaskBridgeImpl2 : public omnistream::OmniTaskBridge {
@@ -29,6 +30,17 @@ public:
         std::string &exceptionJson) override;
 
     std::vector<StateMetaInfoSnapshot> readMetaData(const std::string &metaStateHandle) override;
+
+    void getKeyGroupEntries(jobject inputStream,
+        int &currentKvStateId, bool isUsingKeyGroupCompression, std::vector<KeyGroupEntry> &entries) override;
+
+    jobject getSavepointInputStream(const std::string &metaStateHandle) override;
+
+    void setSavepointInputStreamOffset(jobject inputStream, int64_t offset) override;
+
+    bool isUsingKeyGroupCompression(jobject inputStream) override;
+
+    void closeSavepointInputStream(jobject inputStream) override;
 
     std::shared_ptr<SnapshotResult<StreamStateHandle>> CallMaterializeMetaData(
             jlong checkpointId,

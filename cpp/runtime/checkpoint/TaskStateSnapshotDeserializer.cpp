@@ -50,6 +50,9 @@ std::shared_ptr<KeyedStateHandle> TaskStateSnapshotDeserializer::ParseKeyedState
     if (className.find("IncrementalLocalKeyedStateHandle") != std::string::npos) {
         return ParseLocalStateHandle(j);
     }
+    if (className.find("KeyGroupsSavepointStateHandle") != std::string::npos) {
+        return ParseKeyGroupsSavepointStateHandle(j);
+    }
 
     throw std::runtime_error("Unsupported or unknown KeyedStateHandle type: " + className);
 }

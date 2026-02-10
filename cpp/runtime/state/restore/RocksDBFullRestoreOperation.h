@@ -25,6 +25,7 @@
 #include "runtime/state/RocksDbKvStateInfo.h"
 #include "runtime/state/rocksdb/RocksDbHandle.h"
 #include "runtime/state/RocksDBWriteBatchWrapper.h"
+#include "runtime/state/bridge/OmniTaskBridge.h"
 #include "rocksdb/db.h"
 #include "rocksdb/options.h"
 
@@ -51,6 +52,7 @@ public:
      * @param columnFamilyOptionsFactory factory for column family options
      * @param restoreStateHandles collection of state handles to restore from
      * @param writeBatchSize write batch size for RocksDB operations
+     * @param omniTaskBridge omniTaskBridge
      */
     RocksDBFullRestoreOperation(
             KeyGroupRange* keyGroupRange,
@@ -60,7 +62,8 @@ public:
             std::shared_ptr<rocksdb::DBOptions> dbOptions,
             std::function<rocksdb::ColumnFamilyOptions(const std::string&)> columnFamilyOptionsFactory,
             const std::vector<std::shared_ptr<KeyedStateHandle>>& restoreStateHandles,
-            long writeBatchSize);
+            long writeBatchSize,
+            std::shared_ptr<OmniTaskBridge> omniTaskBridge);
 
     /**
      * Destructor
@@ -93,7 +96,7 @@ private:
     void applyRestoreResult(std::unique_ptr<SavepointRestoreResult> savepointRestoreResult);
 
     void restoreKVStateData(
-            std::unique_ptr<KeyGroupIterator> keyGroups,
+            std::shared_ptr<KeyGroupIterator> keyGroups,
             std::unordered_map<int, rocksdb::ColumnFamilyHandle*> columnFamilyHandles);
 };
 
@@ -107,7 +110,8 @@ RocksDBFullRestoreOperation<K>::RocksDBFullRestoreOperation(
     std::shared_ptr<rocksdb::DBOptions> dbOptions,
     std::function<rocksdb::ColumnFamilyOptions(const std::string&)> columnFamilyOptionsFactory,
     const std::vector<std::shared_ptr<KeyedStateHandle>>& restoreStateHandles,
-    long writeBatchSize)
+    long writeBatchSize,
+    std::shared_ptr<OmniTaskBridge> omniTaskBridge)
     : writeBatchSize_(writeBatchSize)
 {
     // Create RocksDBHandle
@@ -121,7 +125,8 @@ RocksDBFullRestoreOperation<K>::RocksDBFullRestoreOperation(
     savepointRestoreOperation_ = std::make_unique<FullSnapshotRestoreOperation<K>>(
             keyGroupRange,
             restoreStateHandles,
-            keySerializer);
+            keySerializer,
+            omniTaskBridge);
 }
 
 template<typename K>
@@ -168,14 +173,13 @@ void RocksDBFullRestoreOperation<K>::applyRestoreResult(
         columnFamilyHandles.insert({i, registeredStateCFHandle->columnFamilyHandle_});
     }
 
-    KeyGroupIterator* keyGroups = savepointRestoreResult->getKeyGroupIterator();
-    std::unique_ptr<KeyGroupIterator> kGroups(keyGroups);
-    restoreKVStateData(std::move(kGroups), columnFamilyHandles);
+    auto keyGroups = savepointRestoreResult->getKeyGroupIterator();
+    restoreKVStateData(keyGroups, columnFamilyHandles);
 }
 
 template<typename K>
 void RocksDBFullRestoreOperation<K>::restoreKVStateData(
-    std::unique_ptr<KeyGroupIterator> keyGroups,
+    std::shared_ptr<KeyGroupIterator> keyGroups,
     std::unordered_map<int, rocksdb::ColumnFamilyHandle*> columnFamilyHandles)
 {
     std::unique_ptr<RocksDBWriteBatchWrapper> rocksDbWriteBatchWrapper =
@@ -199,6 +203,7 @@ void RocksDBFullRestoreOperation<K>::restoreKVStateData(
             rocksDbWriteBatchWrapper->Put(handle, key, value);
         }
     }
+    rocksDbWriteBatchWrapper->Flush();
 }
 
 #endif // OMNISTREAM_ROCKSDBFULLRESTOREOPERATION_H

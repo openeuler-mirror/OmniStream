@@ -20,6 +20,7 @@
 #include "TaskStateSnapshot.h"
 #include "runtime/state/IncrementalRemoteKeyedStateHandle.h"
 #include "runtime/state/IncrementalLocalKeyedStateHandle.h"
+#include "runtime/state/KeyGroupsSavepointStateHandle.h"
 #include "runtime/state/filesystem/RelativeFileStateHandle.h"
 #include "runtime/state/DirectoryKeyedStateHandle.h"
 using json = nlohmann::json;
@@ -131,6 +132,12 @@ private:
     {
         // New parser for RelativeFileStateHandle
         auto handle = std::make_shared<DirectoryStateHandle>(j);
+        return handle;
+    }
+
+    static std::shared_ptr<KeyGroupsSavepointStateHandle> ParseKeyGroupsSavepointStateHandle(const json &j)
+    {
+        auto handle = std::make_shared<KeyGroupsSavepointStateHandle>(j);
         return handle;
     }
 

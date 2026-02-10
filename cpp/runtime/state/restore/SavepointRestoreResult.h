@@ -20,23 +20,23 @@
 class SavepointRestoreResult {
 public:
     SavepointRestoreResult(std::vector<StateMetaInfoSnapshot> stateMetaInfoSnapshots,
-                           std::unique_ptr<KeyGroupIterator> keyGroupIterator)
+                           std::shared_ptr<KeyGroupIterator> keyGroupIterator)
         : stateMetaInfoSnapshots_(stateMetaInfoSnapshots),
-          keyGroupIterator_(std::move(keyGroupIterator)) {}
+          keyGroupIterator_(keyGroupIterator) {}
 
     const std::vector<StateMetaInfoSnapshot>& getStateMetaInfoSnapshots() const
     {
         return stateMetaInfoSnapshots_;
     }
 
-    KeyGroupIterator* getKeyGroupIterator() const
+    std::shared_ptr<KeyGroupIterator> getKeyGroupIterator() const
     {
-        return keyGroupIterator_.get();
+        return keyGroupIterator_;
     }
 
 private:
     std::vector<StateMetaInfoSnapshot> stateMetaInfoSnapshots_;
-    std::unique_ptr<KeyGroupIterator> keyGroupIterator_;
+    std::shared_ptr<KeyGroupIterator> keyGroupIterator_;
 };
 
 #endif // OMNISTREAM_SAVEPOINTRESTORERESULT_H

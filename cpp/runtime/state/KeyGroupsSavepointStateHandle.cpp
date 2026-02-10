@@ -8,6 +8,12 @@ KeyGroupsSavepointStateHandle::KeyGroupsSavepointStateHandle(
     : KeyGroupsStateHandle(groupRangeOffsets, streamStateHandle)
 {
 }
+
+KeyGroupsSavepointStateHandle::KeyGroupsSavepointStateHandle(const nlohmann::json &description)
+    : KeyGroupsStateHandle(description)
+{
+}
+
 std::shared_ptr<KeyedStateHandle>
 KeyGroupsSavepointStateHandle::GetIntersection(const KeyGroupRange& keyGroupRange) const
 {
