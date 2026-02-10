@@ -137,8 +137,7 @@ private:
 
     static std::shared_ptr<KeyGroupsSavepointStateHandle> ParseKeyGroupsSavepointStateHandle(const json &j)
     {
-        auto handle = std::make_shared<KeyGroupsSavepointStateHandle>(j);
-        return handle;
+        return std::make_shared<KeyGroupsSavepointStateHandle>(j);
     }
 
     static std::shared_ptr<IncrementalLocalKeyedStateHandle> ParseLocalStateHandle(const json &j)

@@ -595,17 +595,20 @@ void OmniTaskBridgeImpl2::getKeyGroupEntries(jobject inputStream,
     JNIEnv* env;
     jint res = g_OmniStreamJVM->AttachCurrentThread(reinterpret_cast<void**>(&env), nullptr);
     if (res != JNI_OK) {
+        INFO_RELEASE("Error: getKeyGroupEntries could not AttachCurrentThread for JNI call");
         return;
     }
     if (m_globalOmniTaskRef != nullptr) {
         jclass omniTaskWrapperClass = env->GetObjectClass(m_globalOmniTaskRef);
         if (omniTaskWrapperClass == nullptr) {
+            INFO_RELEASE("Error: getKeyGroupEntries could not GetObjectClass for JNI call");
             g_OmniStreamJVM->DetachCurrentThread();
             return;
         }
         jmethodID mid = env->GetMethodID(omniTaskWrapperClass, "getKeyGroupEntries",
             "(Lorg/apache/flink/core/fs/FSDataInputStream;IZ)Ljava/lang/String;");
         if (mid == nullptr) {
+            INFO_RELEASE("Error: getKeyGroupEntries could not GetMethodID for JNI call");
             env->DeleteLocalRef(omniTaskWrapperClass); // Clean up local ref
             g_OmniStreamJVM->DetachCurrentThread();
             return;
@@ -621,6 +624,12 @@ void OmniTaskBridgeImpl2::getKeyGroupEntries(jobject inputStream,
         if (env->ExceptionCheck()) {
             env->ExceptionDescribe(); // Print exception details to stderr
             env->ExceptionClear();    // Clear the exception
+            return;
+        }
+
+        if (result == nullptr) {
+            INFO_RELEASE("Error: getKeyGroupEntries get null result for JNI call");
+            return;
         }
 
         // Convert jstring to std::string
@@ -644,17 +653,20 @@ jobject OmniTaskBridgeImpl2::getSavepointInputStream(const std::string &metaStat
     jobject inputStream = nullptr;
     jint res = g_OmniStreamJVM->AttachCurrentThread(reinterpret_cast<void**>(&env), nullptr);
     if (res != JNI_OK) {
+        INFO_RELEASE("Error: getSavepointInputStream could not AttachCurrentThread for JNI call");
         return nullptr;
     }
     if (m_globalOmniTaskRef != nullptr) {
         jclass omniTaskWrapperClass = env->GetObjectClass(m_globalOmniTaskRef);
         if (omniTaskWrapperClass == nullptr) {
+            INFO_RELEASE("Error: getSavepointInputStream could not GetObjectClass for JNI call");
             g_OmniStreamJVM->DetachCurrentThread();
             return nullptr;
         }
         jmethodID mid = env->GetMethodID(omniTaskWrapperClass, "getSavepointInputStream",
             "(Ljava/lang/String;)Lorg/apache/flink/core/fs/FSDataInputStream;");
         if (mid == nullptr) {
+            INFO_RELEASE("Error: getSavepointInputStream could not get methodID for JNI call");
             env->DeleteLocalRef(omniTaskWrapperClass); // Clean up local ref
             g_OmniStreamJVM->DetachCurrentThread();
             return nullptr;
@@ -676,17 +688,20 @@ bool OmniTaskBridgeImpl2::isUsingKeyGroupCompression(jobject inputStream)
     bool result = false;
     jint res = g_OmniStreamJVM->AttachCurrentThread(reinterpret_cast<void**>(&env), nullptr);
     if (res != JNI_OK) {
+        INFO_RELEASE("Error: isUsingKeyGroupCompression could not AttachCurrentThread for JNI call");
         return false;
     }
     if (m_globalOmniTaskRef != nullptr) {
         jclass omniTaskWrapperClass = env->GetObjectClass(m_globalOmniTaskRef);
         if (omniTaskWrapperClass == nullptr) {
+            INFO_RELEASE("Error: isUsingKeyGroupCompression could not GetObjectClass for JNI call");
             g_OmniStreamJVM->DetachCurrentThread();
             return false;
         }
         jmethodID mid = env->GetMethodID(omniTaskWrapperClass, "isUsingKeyGroupCompression",
             "(Lorg/apache/flink/core/fs/FSDataInputStream;)Z");
         if (mid == nullptr) {
+            INFO_RELEASE("Error: isUsingKeyGroupCompression could not GetMethodID for JNI call");
             env->DeleteLocalRef(omniTaskWrapperClass); // Clean up local ref
             g_OmniStreamJVM->DetachCurrentThread();
             return false;
@@ -706,17 +721,20 @@ void OmniTaskBridgeImpl2::setSavepointInputStreamOffset(jobject inputStream, int
     JNIEnv* env;
     jint res = g_OmniStreamJVM->AttachCurrentThread(reinterpret_cast<void**>(&env), nullptr);
     if (res != JNI_OK) {
+        INFO_RELEASE("Error: setSavepointInputStreamOffset could not AttachCurrentThread for JNI call");
         return;
     }
     if (m_globalOmniTaskRef != nullptr) {
         jclass omniTaskWrapperClass = env->GetObjectClass(m_globalOmniTaskRef);
         if (omniTaskWrapperClass == nullptr) {
+            INFO_RELEASE("Error: setSavepointInputStreamOffset could not GetObjectClass for JNI call");
             g_OmniStreamJVM->DetachCurrentThread();
             return;
         }
         jmethodID mid = env->GetMethodID(omniTaskWrapperClass, "setSavepointInputStreamOffset",
             "(Lorg/apache/flink/core/fs/FSDataInputStream;J)V");
         if (mid == nullptr) {
+            INFO_RELEASE("Error: setSavepointInputStreamOffset could not GetMethodID for JNI call");
             env->DeleteLocalRef(omniTaskWrapperClass); // Clean up local ref
             g_OmniStreamJVM->DetachCurrentThread();
             return;
@@ -734,17 +752,20 @@ void OmniTaskBridgeImpl2::closeSavepointInputStream(jobject inputStream)
     JNIEnv* env;
     jint res = g_OmniStreamJVM->AttachCurrentThread(reinterpret_cast<void**>(&env), nullptr);
     if (res != JNI_OK) {
+        INFO_RELEASE("Error: closeSavepointInputStream could not AttachCurrentThread for JNI call");
         return;
     }
     if (m_globalOmniTaskRef != nullptr) {
         jclass omniTaskWrapperClass = env->GetObjectClass(m_globalOmniTaskRef);
         if (omniTaskWrapperClass == nullptr) {
+            INFO_RELEASE("Error: closeSavepointInputStream could not GetObjectClass for JNI call");
             g_OmniStreamJVM->DetachCurrentThread();
             return;
         }
         jmethodID mid = env->GetMethodID(omniTaskWrapperClass, "closeSavepointInputStream",
             "(Lorg/apache/flink/core/fs/FSDataInputStream;)V");
         if (mid == nullptr) {
+            INFO_RELEASE("Error: closeSavepointInputStream could not GetMethodID for JNI call");
             env->DeleteLocalRef(omniTaskWrapperClass); // Clean up local ref
             g_OmniStreamJVM->DetachCurrentThread();
             return;
