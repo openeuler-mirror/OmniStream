@@ -16,7 +16,7 @@ namespace omnistream {
         int subtaskIndex,
         int64_t checkpointId,
         std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> result,
-        ChannelStateSerializer *serializer)
+        std::shared_ptr<ChannelStateSerializer> serializer)
         : subtaskIndex(subtaskIndex),
           checkpointId(checkpointId),
           result(result),

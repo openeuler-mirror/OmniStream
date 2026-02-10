@@ -16,7 +16,7 @@ namespace omnistream {
         const std::set<SubtaskID> &subtasks,
         int64_t checkpointId,
         CheckpointStreamFactory *streamFactory,
-        ChannelStateSerializer *serializer,
+        std::shared_ptr<ChannelStateSerializer> serializer,
         std::function<void()> onComplete)
         : checkpointId(checkpointId), serializer(serializer), onComplete(onComplete)
     {

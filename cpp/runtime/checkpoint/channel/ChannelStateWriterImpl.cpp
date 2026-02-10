@@ -25,11 +25,11 @@ namespace omnistream {
           maxCheckpoints_(maxCheckpoints),
           wasClosed_(false)
     {
-        serializer_ = std::make_unique<ChannelStateSerializerImpl>();
+        serializer_ = std::make_shared<ChannelStateSerializerImpl>();
         auto dispatcher = std::make_shared<ChannelStateWriteRequestDispatcherImpl>(
             checkpointStorage,
             JobIDPOD{},
-            serializer_.get(),
+            serializer_,
             streamFactoryResolver);
         executor_ = std::make_shared<ChannelStateWriteRequestExecutorImpl>(dispatcher);
     }

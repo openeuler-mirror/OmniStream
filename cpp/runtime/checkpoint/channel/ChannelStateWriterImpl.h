@@ -69,7 +69,7 @@ namespace omnistream {
         std::mutex resultsMutex_;
         std::shared_ptr<ChannelStateWriteRequestExecutor> executor_;
         std::map<long, std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult>> results_;
-        std::unique_ptr<ChannelStateSerializer> serializer_;
+        std::shared_ptr<ChannelStateSerializer> serializer_;
 
         void validateCheckpointId(long checkpointId);
         void enqueue(std::shared_ptr<ChannelStateWriteRequest> request, bool priority);

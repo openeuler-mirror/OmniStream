@@ -31,7 +31,7 @@ namespace omnistream {
         ChannelStateWriteRequestDispatcherImpl(
             std::shared_ptr<CheckpointStorage> checkpointStorage,
             const JobIDPOD &jobID,
-            ChannelStateSerializer *serializer,
+            std::shared_ptr<ChannelStateSerializer> serializer,
             std::shared_ptr<CheckpointStorageWorkerView> streamFactoryResolver);
 
         void dispatch(std::shared_ptr<ChannelStateWriteRequest> request) override;
@@ -40,7 +40,7 @@ namespace omnistream {
     private:
         std::shared_ptr<CheckpointStorage> checkpointStorage;
         JobIDPOD jobID;
-        ChannelStateSerializer *serializer;
+        std::shared_ptr<ChannelStateSerializer> serializer;
         std::set<SubtaskID> registeredSubtasks;
         std::mutex mutex;
         long ongoingCheckpointId;

@@ -15,7 +15,7 @@ namespace omnistream {
     ChannelStateWriteRequestDispatcherImpl::ChannelStateWriteRequestDispatcherImpl(
         std::shared_ptr<CheckpointStorage> checkpointStorage,
         const JobIDPOD &jobID,
-        ChannelStateSerializer *serializer,
+        std::shared_ptr<ChannelStateSerializer> serializer,
         std::shared_ptr<CheckpointStorageWorkerView> streamFactoryResolver)
         : checkpointStorage(checkpointStorage),
           jobID(jobID),

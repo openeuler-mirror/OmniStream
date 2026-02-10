@@ -7,11 +7,11 @@ using namespace omnistream;
 TEST(ChannelStateWriteResultTest, CreateEmpty)
 {
     auto result = ChannelStateWriter::ChannelStateWriteResult::CreateEmpty();
-    EXPECT_FALSE(result.IsDone());
+    EXPECT_FALSE(result->IsDone());
     
-    result.Fail(std::make_exception_ptr(std::runtime_error("Test failure")));
-    EXPECT_TRUE(result.GetInputChannelStateHandles()->IsCancelled());
-    EXPECT_TRUE(result.GetResultSubpartitionStateHandles()->IsCancelled());
+    result->Fail(std::make_exception_ptr(std::runtime_error("Test failure")));
+    EXPECT_TRUE(result->GetInputChannelStateHandles()->IsCancelled());
+    EXPECT_TRUE(result->GetResultSubpartitionStateHandles()->IsCancelled());
 }
 
 TEST(ChannelStateWriteResultTest, IsDone)
