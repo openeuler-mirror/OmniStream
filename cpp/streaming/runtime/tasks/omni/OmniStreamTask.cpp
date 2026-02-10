@@ -525,7 +525,7 @@ namespace omnistream {
                 );
 
                     subtaskCheckpointCoordinator->checkpointState(checkpointMetaData, checkpointOptions, checkpointMetrics,
-                        operatorChain, finishedOperators, &isRunningLoad);
+                        operatorChain, finishedOperators, isRunningLoad);
                 }
             );
             if (isRunning) {
