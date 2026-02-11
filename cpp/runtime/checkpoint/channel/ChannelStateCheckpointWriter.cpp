@@ -220,7 +220,7 @@ namespace omnistream {
         auto id = SubtaskID::Of(jvid, subtaskIndex);
         auto it = pendingResults.find(id);
         if (it == pendingResults.end()) {
-            LOG_DEBUG("WN ChannelStateCheckpointWriter::GetChannelStatePendingResult")
+            LOG_DEBUG("ChannelStateCheckpointWriter::GetChannelStatePendingResult")
             throw std::runtime_error("Subtask not registered: " + id.ToString());
         }
         return it->second;

@@ -7,12 +7,13 @@ find_package(GTest REQUIRED)
 
 file(GLOB_RECURSE ALL_CPP_FILES ${CMAKE_CURRENT_SOURCE_DIR}/../ "*.cpp")
 
-set(TEST_SOURCES "")
-foreach(file${ALL_CPP_FILES})
-    if(NOT file MATCHES ".*test/runtime/checkpoint/channel/.*")
-        list(APPEND TEST_SOURCES ${file})
-    endif()
-endforeach()
+set(TEST_SOURCES ${ALL_CPP_FILES})
+
+list(FILTER TEST_SOURCES EXCLUDE REGEX ".*test/runtime/checkpoint/channel/.*")
+
+list(FILTER TEST_SOURCES EXCLUDE REGEX ".*/test_udf/.*")
+
+message(STATUS "current TEST_SOURCES files for test: ${TEST_SOURCES}")
 
 list(FILTER TEST_SOURCES EXCLUDE REGEX ".*/test_udf/.*")
 message(STATUS "current TEST_SOURCES  files for test ${TEST_SOURCES}")

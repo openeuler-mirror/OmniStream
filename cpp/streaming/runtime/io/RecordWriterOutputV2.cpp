@@ -86,7 +86,6 @@ namespace omnistream {
         }
 
         if (isPriorityEvent && !supportsUnalignedCheckpoints_) {
-            //auto barrier = std::dynamic_pointer_cast<CheckpointBarrier>(event);
             if (barrier != nullptr) {
                 CheckpointOptions* newOptions = barrier->GetCheckpointOptions()->WithUnalignedUnsupported();
                 CheckpointBarrier* newBarrier = barrier->WithOptions(newOptions);

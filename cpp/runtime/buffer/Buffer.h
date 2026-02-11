@@ -20,8 +20,6 @@
 namespace omnistream {
 class Buffer {
 public:
-    // virtual ~Buffer() = 0;
-
     enum class DataType {
         NONE,
         DATA_BUFFER,
