@@ -14,9 +14,11 @@
 #include "runtime/state/KeyedStateHandle.h"
 #include "runtime/state/KeyGroupRangeOffsets.h"
 #include "runtime/state/PhysicalStateHandleID.h"
+#include "runtime/state/StreamStateHandleFactory.h"
 #include <boost/uuid/uuid.hpp>
 #include <boost/uuid/uuid_io.hpp>
 #include <boost/uuid/uuid_generators.hpp>
+#include <nlohmann/json.hpp>
 
 class KeyGroupsStateHandle : public StreamStateHandle, public KeyedStateHandle {
 public:
@@ -30,6 +32,14 @@ public:
         std::shared_ptr<StreamStateHandle> streamStateHandle, const StateHandleID& stateHandleId)
         : keyGroupRangeOffsets_(groupRangeOffsets), stateHandle_(std::move(streamStateHandle)),
         stateHandleId_(stateHandleId)
+    {}
+
+    explicit KeyGroupsStateHandle(const nlohmann::json &description):
+        keyGroupRangeOffsets_(description["keyGroupRange"]["startKeyGroup"].get<int>(),
+            description["keyGroupRange"]["endKeyGroup"].get<int>(),
+            description["groupRangeOffsets"]["offsets"].get<std::vector<int64_t>>()),
+        stateHandle_(StreamStateHandleFactory::from_json(description["stateHandle"])),
+        stateHandleId_(StateHandleID(description["stateHandleId"]["keyString"].get<std::string>()))
     {}
 
     ~KeyGroupsStateHandle() noexcept(true) override = default;

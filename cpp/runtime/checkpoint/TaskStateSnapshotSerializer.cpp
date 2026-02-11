@@ -163,6 +163,16 @@ nlohmann::json TaskStateSnapshotSerializer::parseIncrementalRemoteKeyedStateHand
     return handleJson;
 }
 
+nlohmann::json TaskStateSnapshotSerializer::parseKeyGroupsStateHandle(std::shared_ptr<KeyGroupsStateHandle> kh)
+{
+    nlohmann::json handleJson;
+    handleJson["@class"] = "org.apache.flink.runtime.state.KeyGroupsStateHandle";
+    handleJson["keyGroupRange"] = parseKeyGroupRange(kh->GetKeyGroupRange());
+    handleJson["metaDataState"] = parseMetaDataState(kh->getDelegateStateHandle());
+    handleJson["stateHandleId"] = parseStateHandleId(kh->GetStateHandleId());
+    return handleJson;
+}
+
 nlohmann::json TaskStateSnapshotSerializer::parseMetaDataState(std::shared_ptr<StreamStateHandle> metaDataStateHandle)
 {
     nlohmann::json metaDataStateHandleJson;

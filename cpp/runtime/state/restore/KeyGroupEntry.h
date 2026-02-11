@@ -17,7 +17,7 @@
 
 class KeyGroupEntry {
 public:
-    using ByteArray = std::vector<uint8_t>;
+    using ByteArray = std::vector<int8_t>;
 
     KeyGroupEntry(int kvStateId, ByteArray key, ByteArray value)
         : kvStateId_(kvStateId),
