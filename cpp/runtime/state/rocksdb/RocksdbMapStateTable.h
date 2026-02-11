@@ -419,7 +419,7 @@ public:
         DataOutputSerializer keyOutputSerializer;
         OutputBufferStatus outputBufferStatus;
         keyOutputSerializer.setBackendBuffer(&outputBufferStatus);
-
+        keyOutputSerializer.writeByte(static_cast<uint32_t>(keyContext->getCurrentKeyGroupIndex()));
         if constexpr (std::is_pointer_v<K>) {
             getKeySerializer()->serialize(currentKey, keyOutputSerializer);
         } else {
@@ -766,6 +766,7 @@ public:
             DataOutputSerializer keyOutputSerializer;
             OutputBufferStatus outputBufferStatus;
             keyOutputSerializer.setBackendBuffer(&outputBufferStatus);
+            keyOutputSerializer.writeByte(static_cast<uint32_t>(stateTable->keyContext->getCurrentKeyGroupIndex()));
             if constexpr (std::is_pointer_v<K>) {
                 stateTable->getKeySerializer()->serialize(currentKey, keyOutputSerializer);
             } else {
@@ -864,6 +865,7 @@ protected:
         auto currentKey = keyContext->getCurrentKey();
 
         // 序列化key, userKey
+        outputSerializer.writeByte(static_cast<uint32_t>(keyContext->getCurrentKeyGroupIndex()));
         if constexpr (std::is_pointer_v<K>) {
             getKeySerializer()->serialize(currentKey, outputSerializer);
         } else {
@@ -885,6 +887,7 @@ protected:
         auto currentKey = keyContext->getCurrentKey();
         
         // 序列化key, userKey
+        outputSerializer.writeByte(static_cast<uint32_t>(keyContext->getCurrentKeyGroupIndex()));
         if constexpr (std::is_pointer_v<K>) {
             getKeySerializer()->serialize(currentKey, outputSerializer);
         } else {
