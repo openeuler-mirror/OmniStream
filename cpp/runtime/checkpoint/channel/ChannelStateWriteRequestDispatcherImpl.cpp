@@ -86,10 +86,6 @@ namespace omnistream {
 
     void ChannelStateWriteRequestDispatcherImpl::handleAbortedRequest(std::shared_ptr<ChannelStateWriteRequest> request)
     {
-        if (!request) {
-            LOG("Error: request is null");
-            throw std::runtime_error("Aborted by another subtask"))));
-        }
         if (request->getCheckpointId() != maxAbortedCheckpointId) {
             request->cancel(std::make_exception_ptr(CheckpointException(CheckpointFailureReason::CHECKPOINT_DECLINED_SUBSUMED)));
             return;
