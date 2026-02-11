@@ -8,11 +8,84 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#include <nlohmann/json.hpp>
+#include <iterator>
+#include <optional>
+#include <unordered_map>
+#include <unordered_set>
 #include "CountDistinctFunction.h"
 #include "typeutils/InternalSerializers.h"
 #include "runtime/dataview/PerKeyStateDataViewStore.h"
-using json = nlohmann::json;
+
+CountDistinctFunction::DistinctCacheIter CountDistinctFunction::findOrLoadDistinctCache(RowData* groupKey)
+{
+    if (groupKey == nullptr) {
+        return distinctCacheLru.end();
+    }
+
+    auto cacheIt = distinctCacheIndex.find(groupKey);
+    if (cacheIt != distinctCacheIndex.end()) {
+        touchDistinctCache(cacheIt->second);
+        return cacheIt->second;
+    }
+
+    RowData* keyCopy = groupKey->copy();
+    if (keyCopy == nullptr) {
+        return distinctCacheLru.end();
+    }
+
+    distinctCacheLru.push_front(DistinctCacheNode{keyCopy, {}});
+    auto nodeIt = distinctCacheLru.begin();
+    nodeIt->distinctKeys.reserve(64);
+    nodeIt->distinctKeyOrder.clear();
+
+    distinctCacheIndex.emplace(nodeIt->groupKey, nodeIt);
+    evictDistinctCacheIfNeeded();
+    return nodeIt;
+}
+
+void CountDistinctFunction::touchDistinctCache(DistinctCacheIter it)
+{
+    if (it != distinctCacheLru.begin()) {
+        distinctCacheLru.splice(distinctCacheLru.begin(), distinctCacheLru, it);
+    }
+}
+
+void CountDistinctFunction::evictDistinctCacheIfNeeded()
+{
+    while (distinctCacheLru.size() > DISTINCT_CACHE_CAPACITY) {
+        auto tailIt = std::prev(distinctCacheLru.end());
+        RowData* staleKey = tailIt->groupKey;
+        distinctCacheIndex.erase(staleKey);
+        delete staleKey;
+        distinctCacheLru.pop_back();
+    }
+}
+
+void CountDistinctFunction::invalidateDistinctCache(RowData* groupKey)
+{
+    if (groupKey == nullptr) {
+        return;
+    }
+    auto cacheIt = distinctCacheIndex.find(groupKey);
+    if (cacheIt == distinctCacheIndex.end()) {
+        return;
+    }
+
+    auto nodeIt = cacheIt->second;
+    RowData* cachedKey = nodeIt->groupKey;
+    distinctCacheLru.erase(nodeIt);
+    distinctCacheIndex.erase(cacheIt);
+    delete cachedKey;
+}
+
+void CountDistinctFunction::clearDistinctCache()
+{
+    for (auto& node : distinctCacheLru) {
+        delete node.groupKey;
+    }
+    distinctCacheLru.clear();
+    distinctCacheIndex.clear();
+}
 
 bool CountDistinctFunction::equaliser(BinaryRowData *r1, BinaryRowData *r2)
 {
@@ -39,6 +112,8 @@ bool CountDistinctFunction::equaliser(BinaryRowData *r1, BinaryRowData *r2)
 void CountDistinctFunction::open(StateDataViewStore *store)
 {
     this->store = store;
+    distinctCacheIndex.reserve(DISTINCT_CACHE_CAPACITY);
+    pendingDistinctUpdates.reserve(64);
     auto *perKeyViewStore =
         reinterpret_cast<PerKeyStateDataViewStore<RowData *> *>(store);
     // todo support more data types
@@ -62,7 +137,7 @@ void CountDistinctFunction::open(StateDataViewStore *store)
 void CountDistinctFunction::accumulate(RowData *accInput)
 {
     bool isFieldNull = accInput->isNullAt(aggIdx);
-    long fieldValue;
+    long fieldValue = 0L;
     switch (typeId) {
         case DataTypeId::OMNI_INT: {
             fieldValue = isFieldNull ? -1L : *accInput->getInt(aggIdx);
@@ -77,29 +152,16 @@ void CountDistinctFunction::accumulate(RowData *accInput)
             throw std::runtime_error("Data type is not supported.");
     }
     bool shouldDoAccumulate = !hasFilter || (hasFilter && *accInput->getBool(filterIndex));
-    bool isDistinctValueChanged = false;
-    if (shouldDoAccumulate) {
-        std::optional<long> distinctKey =
-            isFieldNull ? std::nullopt : std::optional<long> { fieldValue };
-        std::optional<long> value = distinctMapView->get(distinctKey);
-        long trueValue = value.has_value() ? value.value() : 0L;
-        unsigned long unsignedTrueValue = static_cast<unsigned long>(trueValue);
-        unsigned long existed = unsignedTrueValue & (1UL << 0);
-        if (existed == 0) {
-            unsignedTrueValue |= (1UL << 0);
-            trueValue = static_cast<long>(unsignedTrueValue);
-            isDistinctValueChanged = true;
-            if (!isFieldNull) {
-                if (!valueIsNull) {
-                    aggCount++;
-                } else {
-                    aggCount = 1L;
-                    valueIsNull = false;
-                }
+    if (shouldDoAccumulate && !isFieldNull) {
+        std::optional<long> value = distinctMapView->get(std::optional<long> { fieldValue });
+        if (!value.has_value()) {
+            if (!valueIsNull) {
+                aggCount++;
+            } else {
+                aggCount = 1L;
+                valueIsNull = false;
             }
-        }
-        if (isDistinctValueChanged) {
-            distinctMapView->put(distinctKey, trueValue);
+            distinctMapView->put(std::optional<long> { fieldValue }, 0L);
         }
     }
 
@@ -124,42 +186,34 @@ void CountDistinctFunction::accumulate(omnistream::VectorBatch* input, const std
             }
             if (!shouldDoAccumulate) continue;
             bool isFieldNull = columnData->IsNull(rowIndex);
-            long fieldValue;
+            if (isFieldNull) {
+                continue;
+            }
+
+            long fieldValue = 0L;
             switch (typeId) {
             case DataTypeId::OMNI_INT: {
-                fieldValue = isFieldNull
-                                 ? -1L
-                                 : dynamic_cast<omniruntime::vec::Vector<int>*>(columnData)->GetValue(rowIndex);
+                fieldValue = dynamic_cast<omniruntime::vec::Vector<int>*>(columnData)->GetValue(rowIndex);
                 break;
             }
             case DataTypeId::OMNI_LONG: {
-                fieldValue = isFieldNull
-                                 ? -1L
-                                 : dynamic_cast<omniruntime::vec::Vector<long>*>(columnData)->GetValue(rowIndex);
+                fieldValue = dynamic_cast<omniruntime::vec::Vector<long>*>(columnData)->GetValue(rowIndex);
                 break;
             }
             default:
                 LOG("Data type is not supported.");
                 throw std::runtime_error("Data type is not supported.");
             }
-            std::optional<long> distinctKey = isFieldNull ? std::nullopt : std::optional<long>{fieldValue};
-            std::optional<long> value = distinctMapView->get(distinctKey);
-            long trueValue = value.has_value() ? value.value() : 0L;
-            uint64_t uValue = static_cast<uint64_t>(trueValue);
-            long existed = uValue & (1 << 0);
-            if (existed == 0) {
-                uValue = uValue | (1 << 0);
-                trueValue = static_cast<long>(uValue);
-                if (!isFieldNull) {
-                    if (!valueIsNull) {
-                        aggCount++;
-                    }
-                    else {
-                        aggCount = 1L;
-                        valueIsNull = false;
-                    }
+            std::optional<long> value = distinctMapView->get(std::optional<long>{fieldValue});
+            if (!value.has_value()) {
+                if (!valueIsNull) {
+                    aggCount++;
                 }
-                distinctMapView->put(distinctKey, trueValue);
+                else {
+                    aggCount = 1L;
+                    valueIsNull = false;
+                }
+                distinctMapView->put(std::optional<long>{fieldValue}, 0L);
             }
         }
         LOG("Accumulate. Count: " << aggCount << " valueIsNull: " << valueIsNull);
@@ -169,19 +223,14 @@ void CountDistinctFunction::accumulate(omnistream::VectorBatch* input, const std
 
 void CountDistinctFunction::accumulateInRocksDB(omnistream::VectorBatch* input, const std::vector<int>& indices)
 {
-    std::shared_ptr<json> jsonData = distinctMapView->getInnerMap(stateKey);
-    std::unordered_map<long, long> distinctCache;
-    bool needUpdate = false;
-
-    if (jsonData != nullptr) {
-        for (const auto& item : *jsonData) {
-            if (!item.is_array() || item.size() != 2) {
-                continue;
-            }
-            long key = item[0].get<long>();
-            long value = item[1].get<long>();
-            distinctCache.emplace(key, value);
+    auto cacheNode = findOrLoadDistinctCache(currentGroupKey);
+    auto pendingGroupUpdatesIt = pendingDistinctUpdates.end();
+    if (currentGroupKey != nullptr) {
+        auto [it, inserted] = pendingDistinctUpdates.try_emplace(currentGroupKey);
+        if (inserted) {
+            it->second.reserve(64);
         }
+        pendingGroupUpdatesIt = it;
     }
 
     auto columnData = input->Get(aggIdx);
@@ -189,58 +238,96 @@ void CountDistinctFunction::accumulateInRocksDB(omnistream::VectorBatch* input, 
     const auto filterData = hasFilterCol
                                 ? reinterpret_cast<omniruntime::vec::Vector<bool>*>(input->Get(filterIndex))
                                 : nullptr;
+    auto* intColumn = (typeId == DataTypeId::OMNI_INT)
+                          ? dynamic_cast<omniruntime::vec::Vector<int>*>(columnData)
+                          : nullptr;
+    auto* longColumn = (typeId == DataTypeId::OMNI_LONG)
+                           ? dynamic_cast<omniruntime::vec::Vector<long>*>(columnData)
+                           : nullptr;
+
+    if ((typeId == DataTypeId::OMNI_INT && intColumn == nullptr) ||
+        (typeId == DataTypeId::OMNI_LONG && longColumn == nullptr)) {
+        LOG("Input column type mismatch for COUNT DISTINCT.");
+        throw std::runtime_error("Input column type mismatch for COUNT DISTINCT.");
+    }
+
+    // Stage 1: deduplicate incoming records within this batch.
+    std::unordered_set<long> batchDistinctKeys;
+    batchDistinctKeys.reserve(indices.size());
+
     for (int rowIndex : indices) {
         bool shouldDoAccumulate = true;
         if (hasFilterCol) {
             bool isFilterNull = filterData->IsNull(rowIndex);
             shouldDoAccumulate = !isFilterNull && filterData->GetValue(rowIndex);
         }
-        if (!shouldDoAccumulate) continue;
-        bool isFieldNull = columnData->IsNull(rowIndex);
-        long fieldValue;
-        switch (typeId) {
-        case DataTypeId::OMNI_INT: {
-            fieldValue = isFieldNull
-                             ? -1L
-                             : dynamic_cast<omniruntime::vec::Vector<int>*>(columnData)->GetValue(rowIndex);
-            break;
+        if (!shouldDoAccumulate) {
+            continue;
         }
-        case DataTypeId::OMNI_LONG: {
-            fieldValue = isFieldNull
-                             ? -1L
-                             : dynamic_cast<omniruntime::vec::Vector<long>*>(columnData)->GetValue(rowIndex);
-            break;
-        }
-        default:
-            LOG("Data type is not supported.");
-            throw std::runtime_error("Data type is not supported.");
-        }
-        std::optional<long> distinctKey = isFieldNull ? std::nullopt : std::optional<long>{fieldValue};
 
-        if (distinctKey.has_value()) {
-            if (auto it = distinctCache.find(distinctKey.value()); it != distinctCache.end()) {
+        if (columnData->IsNull(rowIndex)) {
+            continue;
+        }
+
+        long fieldValue = 0L;
+        switch (typeId) {
+            case DataTypeId::OMNI_INT: {
+                fieldValue = static_cast<long>(intColumn->GetValue(rowIndex));
+                break;
+            }
+            case DataTypeId::OMNI_LONG: {
+                fieldValue = longColumn->GetValue(rowIndex);
+                break;
+            }
+            default:
+                LOG("Data type is not supported.");
+                throw std::runtime_error("Data type is not supported.");
+        }
+
+        batchDistinctKeys.emplace(fieldValue);
+    }
+
+    // Stage 2: compare deduplicated keys with cache + state and collect new keys for deferred batch flush.
+    for (const long fieldValue : batchDistinctKeys) {
+        if (cacheNode != distinctCacheLru.end()) {
+            auto& cachedDistinctSet = cacheNode->distinctKeys;
+            auto& distinctKeyOrder = cacheNode->distinctKeyOrder;
+            auto cacheIt = cachedDistinctSet.find(fieldValue);
+            if (cacheIt != cachedDistinctSet.end()) {
                 continue;
             }
-            distinctCache.emplace(distinctKey.value(), 1L);
-            needUpdate = true;
-        }
 
-        if (!isFieldNull) {
-            if (!valueIsNull) {
-                aggCount++;
-            }
-            else {
-                aggCount = 1L;
-                valueIsNull = false;
+            cachedDistinctSet.emplace(fieldValue);
+            distinctKeyOrder.push_back(fieldValue);
+            while (cachedDistinctSet.size() > DISTINCT_KEYS_PER_GROUP_CAPACITY) {
+                const long evictedKey = distinctKeyOrder.front();
+                distinctKeyOrder.pop_front();
+                cachedDistinctSet.erase(evictedKey);
             }
         }
-    }
-    if (needUpdate) {
-        json needUpdateKeysJson = distinctCache;
-        auto dumpedPtr = std::make_shared<std::string>(needUpdateKeysJson.dump());
 
-        keyAndValuesTuples.push_back(std::make_shared<std::tuple<RowData*,long,std::shared_ptr<std::string>>>
-            (std::make_tuple(this->currentGroupKey,stateKey, dumpedPtr)));
+        if (pendingGroupUpdatesIt != pendingDistinctUpdates.end()) {
+            auto& pendingGroupUpdates = pendingGroupUpdatesIt->second;
+            if (pendingGroupUpdates.find(fieldValue) != pendingGroupUpdates.end()) {
+                continue;
+            }
+        }
+
+        std::optional<long> stateValue = distinctMapView->get(std::optional<long>{fieldValue});
+        if (stateValue.has_value()) {
+            continue;
+        }
+
+        if (pendingGroupUpdatesIt != pendingDistinctUpdates.end()) {
+            pendingGroupUpdatesIt->second.emplace(fieldValue, 0L);
+        }
+
+        if (!valueIsNull) {
+            aggCount++;
+        } else {
+            aggCount = 1L;
+            valueIsNull = false;
+        }
     }
 
     LOG("Accumulate. Count: " << aggCount << " valueIsNull: " << valueIsNull);
@@ -271,7 +358,22 @@ void CountDistinctFunction::resetAccumulators()
 {
     aggCount = (static_cast<long>(0L));
     valueIsNull = false;
-    distinctMapView->clear();
+
+    pendingDistinctUpdates.erase(currentGroupKey);
+
+    auto* entries = distinctMapView->entries();
+    if (entries != nullptr) {
+        std::vector<long> keysToRemove;
+        keysToRemove.reserve(entries->size());
+        for (const auto& entry : *entries) {
+            keysToRemove.push_back(entry.first);
+        }
+        for (const long distinctKey : keysToRemove) {
+            distinctMapView->remove(std::optional<long>{distinctKey});
+        }
+    }
+
+    invalidateDistinctCache(currentGroupKey);
     LOG("Reset Acc. Count:  " << aggCount << " countIsNull: " << valueIsNull)
 }
 
@@ -315,8 +417,44 @@ void CountDistinctFunction::setCurrentGroupKey(RowData* key)
 
 void CountDistinctFunction::updateInnerState()
 {
-    this->distinctMapView->putByBatch(keyAndValuesTuples);
-    keyAndValuesTuples.clear();
-    this->distinctMapView->cleanup();
+    size_t pendingSize = 0;
+    for (const auto& groupEntry : pendingDistinctUpdates) {
+        pendingSize += groupEntry.second.size();
+    }
 
+    std::vector<std::shared_ptr<std::tuple<RowData*, long, long>>> pendingTupleUpdates;
+    pendingTupleUpdates.reserve(pendingSize);
+    for (auto& groupEntry : pendingDistinctUpdates) {
+        RowData* groupKey = groupEntry.first;
+        if (groupKey == nullptr || groupEntry.second.empty()) {
+            continue;
+        }
+        for (const auto& keyValue : groupEntry.second) {
+            pendingTupleUpdates.push_back(
+                std::make_shared<std::tuple<RowData*, long, long>>(
+                    std::make_tuple(groupKey, keyValue.first, keyValue.second)));
+        }
+    }
+
+    if (!pendingTupleUpdates.empty()) {
+        distinctMapView->putByBatch(pendingTupleUpdates);
+    }
+    pendingDistinctUpdates.clear();
+    this->distinctMapView->cleanup();
+}
+
+void CountDistinctFunction::cleanup()
+{
+    pendingDistinctUpdates.clear();
+}
+
+void CountDistinctFunction::close()
+{
+    pendingDistinctUpdates.clear();
+    clearDistinctCache();
+}
+
+CountDistinctFunction::~CountDistinctFunction()
+{
+    clearDistinctCache();
 }

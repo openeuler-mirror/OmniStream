@@ -122,7 +122,7 @@ V RocksdbValueState<K, N, V>::value()
         if (result == nullptr) {
             return defaultValue;
         }
-        if constexpr (std::is_base_of_v<BinaryRowData, std::remove_pointer_t<V>>) {
+        if constexpr (std::is_base_of_v<RowData, std::remove_pointer_t<V>>) {
             auto *br = dynamic_cast<BinaryRowData*>(result);
             if (br == nullptr) {
                 return result;
