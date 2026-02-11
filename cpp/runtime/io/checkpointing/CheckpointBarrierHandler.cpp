@@ -25,8 +25,6 @@ namespace omnistream {
         // Initialize
         latestAlignmentDurationNanos = std::make_shared<CompletableFutureV2<int64_t>>();
         latestBytesProcessedDuringAlignment = std::make_shared<CompletableFutureV2<int64_t>>();
-        completed_V2 = std::make_shared<CompletableFutureV2<void>>();
-        completed_V2->Complete();
     }
 
     CheckpointBarrierHandler::~CheckpointBarrierHandler() = default;

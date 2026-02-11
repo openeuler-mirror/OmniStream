@@ -208,7 +208,6 @@ namespace omnistream::runtime {
         std::shared_ptr<CompletableFutureV2<void>> allBarriersReceivedFuture_V2;
         CompletableFutureV2<void> completed;
         std::shared_ptr<CompletableFutureV2<void>> completed_V2;
-        bool closed_{false};
 
         // State management
         BarrierHandlerState *currentState_;
