@@ -163,8 +163,13 @@ bool CheckpointOptions::NeedsAlignment() const
 
 bool CheckpointOptions::operator==(const CheckpointOptions &other) const
 {
+    const bool sameLocation =
+        (targetLocation_ == other.targetLocation_) ||
+        (targetLocation_ != nullptr && other.targetLocation_ != nullptr &&
+         ((*targetLocation_) == other.targetLocation_));
+
     return *checkpointType_ == (*other.checkpointType_) &&
-           targetLocation_ == other.targetLocation_ &&
+           sameLocation &&
            alignmentType_ == other.alignmentType_ &&
            alignedCheckpointTimeout_ == other.alignedCheckpointTimeout_;
 }

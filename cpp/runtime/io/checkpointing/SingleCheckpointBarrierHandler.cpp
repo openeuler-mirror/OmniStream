@@ -99,11 +99,8 @@ namespace omnistream::runtime {
         }
 
         // After switching to UC, we must stop blocking channels on late barriers.
-        const bool isAlwaysUnalignedHandler = (!alternating_ && subTaskCheckpointCoordinator_ != nullptr);
-        const bool markChannelBlocked = (!isRpcTriggered) &&
-                                       !isAlwaysUnalignedHandler &&
-                                       !currentCheckpointUnaligned_ &&
-                                       !barrier.GetCheckpointOptions()->IsUnalignedCheckpoint();
+        const bool markChannelBlocked = (!isRpcTriggered) && !currentCheckpointUnaligned_ &&
+            !barrier.GetCheckpointOptions()->IsUnalignedCheckpoint();
 
         CheckpointBarrier* barrierPtr = const_cast<CheckpointBarrier*>(&barrier);
 
