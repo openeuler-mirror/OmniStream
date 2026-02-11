@@ -340,10 +340,10 @@ bool PipelinedSubpartition::addBuffer(std::shared_ptr<BufferConsumer> bufferCons
 {
     LOG("buffer consumer added to buffers" << (bufferConsumer->isBuffer() ? "buffer": "event"))
     if (bufferConsumer->getDataType().hasPriority()) {
-        LOG_DEBUG("ZZT 111111!")
+        LOG_DEBUG("111111!")
         return ProcessPriorityBuffer(bufferConsumer, partialRecordLength);
     } else if (ObjectBufferDataType::TIMEOUTABLE_ALIGNED_CHECKPOINT_BARRIER == bufferConsumer->getDataType()) {
-        LOG_DEBUG("ZZT 111111!")
+        LOG_DEBUG("111111!")
         ProcessTimeoutableCheckpointBarrier(bufferConsumer);
     }
     buffers.add(std::make_shared<BufferConsumerWithPartialRecordLength>(bufferConsumer, partialRecordLength));
@@ -410,12 +410,12 @@ std::shared_ptr<CheckpointBarrier> PipelinedSubpartition::ParseAndCheckTimeoutab
 {
     auto barrier = ParseCheckpointBarrier(bufferConsumer);
     if (barrier == nullptr) {
-        LOG_DEBUG("ZZT find barrier is null!")
+        LOG_DEBUG("find barrier is null!")
         throw std::runtime_error("Parse the timeoutable Checkpoint Barrier failed, barrier is null.");
     }
     if (barrier->GetCheckpointOptions()->IsTimeoutable() ||
         ObjectBufferDataType::TIMEOUTABLE_ALIGNED_CHECKPOINT_BARRIER == bufferConsumer->getDataType()) {
-        LOG_DEBUG("ZZT find a logical error!")
+        LOG_DEBUG("find a logical error!")
         throw std::runtime_error("Barrier type is TIMEOUTABLE_ALIGNED_CHECKPOINT_BARRIER.");
     }
     return barrier;

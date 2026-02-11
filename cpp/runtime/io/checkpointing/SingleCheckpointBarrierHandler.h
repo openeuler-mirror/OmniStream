@@ -150,7 +150,7 @@ namespace omnistream::runtime {
 
             void TriggerGlobalCheckpoint(const CheckpointBarrier& checkpointBarrier) override
             {
-                LOG_DEBUG(parent_->taskName_ << "ZZT TriggerGlobalCheckpoint checkpointId=" << checkpointBarrier.GetId());
+                LOG_DEBUG(parent_->taskName_ << "TriggerGlobalCheckpoint checkpointId=" << checkpointBarrier.GetId());
                 parent_->TriggerCheckpoint(checkpointBarrier);
             }
 

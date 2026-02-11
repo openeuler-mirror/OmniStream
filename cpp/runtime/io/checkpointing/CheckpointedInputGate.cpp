@@ -71,32 +71,32 @@ std::optional<std::shared_ptr<BufferOrEvent>> CheckpointedInputGate::HandleEvent
     const std::shared_ptr<BufferOrEvent>& bufferOrEvent)
 {
     auto eventClassName = bufferOrEvent->getEvent()->GetEventClassName();
-    LOG("ZZT eventClassName: " << eventClassName)
+    LOG("eventClassName: " << eventClassName)
 
     if (bufferOrEvent->getEvent()->GetEventClassName() == "CheckpointBarrier") {
         auto checkpointBarrier = std::dynamic_pointer_cast<CheckpointBarrier>(bufferOrEvent->getEvent());
         if (!checkpointBarrier) {
-            LOG("ZZT checkpointBarrier is nullptr")
+            LOG("checkpointBarrier is nullptr")
             throw std::runtime_error("Failed to cast event to CheckpointBarrier");
         }
         barrierHandler_->ProcessBarrier(*checkpointBarrier,
                                         bufferOrEvent->getChannelInfo(),
                                         false);
     } else if (bufferOrEvent->getEvent()->GetEventClassName() == "EventAnnouncement") {
-        LOG("ZZT received an announcement event.")
+        LOG("received an announcement event.")
         auto ann = std::dynamic_pointer_cast<EventAnnouncement>(bufferOrEvent->getEvent());
         if (!ann) {
-            LOG("ZZT ann is nullptr!")
+            LOG("ann is nullptr!")
             throw std::runtime_error("Failed to cast event to EventAnnouncement");
         }
 
         auto announced = ann->GetAnnouncedEvent();
         // announcements are used to announce timeoutable aligned checkpoint barriers.
         if (announced && announced->GetEventClassName() == "CheckpointBarrier") {
-            LOG("ZZT event class name is CheckpointBarrier.")
+            LOG("event class name is CheckpointBarrier.")
             auto announcedBarrier = std::dynamic_pointer_cast<CheckpointBarrier>(announced);
             if (!announcedBarrier) {
-                LOG("ZZT announcedBarrier is nullptr!")
+                LOG("announcedBarrier is nullptr!")
                 throw std::runtime_error("Failed to cast announced event to CheckpointBarrier");
             }
             barrierHandler_->ProcessBarrierAnnouncement(*announcedBarrier,

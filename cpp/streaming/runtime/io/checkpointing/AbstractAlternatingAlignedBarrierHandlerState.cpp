@@ -20,7 +20,7 @@ BarrierHandlerState* AbstractAlternatingAlignedBarrierHandlerState::BarrierRecei
     CheckpointBarrier* barrier,
     bool markChannelBlocked)
 {
-    LOG_DEBUG("ZZT AbstractAlternatingAlignedBarrierHandlerState::BarrierReceived")
+    LOG_DEBUG("AbstractAlternatingAlignedBarrierHandlerState::BarrierReceived")
     if (barrier->GetCheckpointOptions()->IsUnalignedCheckpoint()) {
         return AlignedCheckpointTimeout(controller, barrier)
             ->BarrierReceived(controller, channelInfo, barrier, markChannelBlocked);
@@ -47,7 +47,7 @@ BarrierHandlerState* AbstractAlternatingAlignedBarrierHandlerState::Announcement
 {
     // Only record the announcement; do NOT prioritize it here.
     // Prioritization happens when the aligned checkpoint times out.
-    LOG("ZZT start AnnouncementReceived, ")
+    LOG("start AnnouncementReceived, ")
     state.addSeenAnnouncement(channelInfo, sequenceNumber);
     return this;
 }

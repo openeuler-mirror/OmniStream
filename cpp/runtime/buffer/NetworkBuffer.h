@@ -87,7 +87,7 @@ public:
         int prev = refCount.fetch_add(1, std::memory_order_acq_rel);
         if (prev <= 0) {
             refCount.fetch_sub(1, std::memory_order_relaxed);
-            LOG("ZZT WARN: retain on already recycled NetworkBuffer=" << this << ", refCount was " << prev);
+            LOG("WARN: retain on already recycled NetworkBuffer=" << this << ", refCount was " << prev);
             return nullptr;
         }
         return shared_from_this();

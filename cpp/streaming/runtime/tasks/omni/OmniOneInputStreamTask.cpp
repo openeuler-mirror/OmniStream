@@ -126,7 +126,7 @@ namespace omnistream {
 
     void OmniOneInputStreamTask::cleanup()
     {
-        LOG_DEBUG("ZZT find cleanup inputProcessor_")
+        LOG_DEBUG("Find cleanup inputProcessor_")
         OmniStreamTask::cleanup();
         inputProcessor_->close();
     }

@@ -117,14 +117,14 @@ namespace omnistream {
 
     std::shared_ptr<AbstractEvent> EventSerializer::fromSerializedEvent(std::shared_ptr<Buffer> buffer)
     {
-        LOG_DEBUG("ZZT fromSerializedEvent V1 !")
+        LOG_DEBUG("fromSerializedEvent V1 !")
         if (buffer == nullptr || buffer->GetSize() < 4) {
             throw std::runtime_error("Buffer is null or too small to contain an event");
         }
 
         auto networkBuffer = std::dynamic_pointer_cast<datastream::NetworkBuffer>(buffer);
         if (!networkBuffer) {
-            LOG_DEBUG("ZZT find a cast error!")
+            LOG_DEBUG("find a cast error!")
             throw std::runtime_error("it is not netwokrk buffer, so it can not be converted to event.");
         }
         uint8_t* rawData = networkBuffer->getMemorySegment()->getData();
@@ -153,7 +153,7 @@ namespace omnistream {
             buffer->RecycleBuffer();
             return std::make_shared<EventAnnouncement>(announced, seq);
         } else {
-            LOG_DEBUG("ZZT find no support event type!")
+            LOG_DEBUG("find no support event type!")
             buffer->RecycleBuffer();
             return nullptr;
         }
@@ -161,14 +161,14 @@ namespace omnistream {
 
         std::shared_ptr<AbstractEvent> EventSerializer::fromSerializedEvent_V2(std::shared_ptr<Buffer> buffer)
     {
-        LOG_DEBUG("ZZT fromSerializedEvent V2 !")
+        LOG_DEBUG("fromSerializedEvent V2 !")
         if (buffer == nullptr || buffer->GetSize() < 4) {
             throw std::runtime_error("Buffer is null or too small to contain an event");
         }
 
         auto networkBuffer = std::dynamic_pointer_cast<datastream::NetworkBuffer>(buffer);
         if (!networkBuffer) {
-            LOG_DEBUG("ZZT find a cast error!")
+            LOG_DEBUG("find a cast error!")
             throw std::runtime_error("it is not netwokrk buffer, so it can not be converted to event.");
         }
         uint8_t* rawData = networkBuffer->getMemorySegment()->getData();
@@ -197,7 +197,7 @@ namespace omnistream {
 //            buffer->RecycleBuffer();
             return std::make_shared<EventAnnouncement>(announced, seq);
         } else {
-            LOG_DEBUG("ZZT find no support event type!")
+            LOG_DEBUG("find no support event type!")
             return nullptr;
         }
     }

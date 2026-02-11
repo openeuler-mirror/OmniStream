@@ -68,7 +68,7 @@ namespace omnistream {
 
     void OmniStreamTask::postConstruct()
     {
-        LOG_DEBUG("ZZT postConstruct begin")
+        LOG_DEBUG("postConstruct begin")
 
         // needs to be shared_ptr
         auto streamTaskAction = std::make_shared<StreamTaskAction>(shared_from_this());

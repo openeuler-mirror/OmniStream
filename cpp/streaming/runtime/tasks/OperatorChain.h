@@ -160,7 +160,7 @@ namespace omnistream {
 
         void broadcastEvent(std::shared_ptr<AbstractEvent> event, bool isPriorityEvent)
         {
-            LOG_DEBUG("ZZT broadcastEvent")
+            LOG_DEBUG("broadcastEvent")
             for (RecordWriterOutputV2* streamOutput : streamOutputs) {
                 streamOutput->broadcastEvent(event, isPriorityEvent);
             }
