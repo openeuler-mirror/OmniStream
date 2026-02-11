@@ -48,6 +48,9 @@ namespace omnistream::runtime {
         //allBarriersReceivedFuture_ = CompletableFutureV2<void>();
         LOG_DEBUG("SingleCheckpointBarrierHandler init")
         context_ = new ControllerImpl(this, subTaskCheckpointCoordinator_);
+        completed_V2 = std::make_shared<CompletableFutureV2<void>>();
+        completed_V2->Complete();
+        allBarriersReceivedFuture_V2 = completed_V2;
     }
 
 	SingleCheckpointBarrierHandler::~SingleCheckpointBarrierHandler()
@@ -510,8 +513,15 @@ namespace omnistream::runtime {
     // Close handler
     void SingleCheckpointBarrierHandler::Close()
     {
+        if (closed_) {
+            return;
+        }
+        closed_ = true;
+
         ResetAlignmentTimer();
-        allBarriersReceivedFuture_V2->Cancel();
+        if (allBarriersReceivedFuture_V2) {
+            allBarriersReceivedFuture_V2->Cancel();
+        }
         CheckpointBarrierHandler::Close();
     }
 
