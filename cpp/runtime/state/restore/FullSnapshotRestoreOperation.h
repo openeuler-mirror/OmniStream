@@ -27,6 +27,7 @@
 #include "runtime/state/KeyGroupRange.h"
 #include "runtime/state/metainfo/StateMetaInfoSnapshot.h"
 #include "runtime/state/RocksDbKvStateInfo.h"
+#include "runtime/state/bridge/OmniTaskBridge.h"
 #include "typeutils/TypeSerializer.h"
 #include "typeutils/TypeSerializerSnapshot.h"
 
@@ -55,7 +56,8 @@ public:
 */
     FullSnapshotRestoreOperation(KeyGroupRange* keyGroupRange,
                                  const std::vector<std::shared_ptr<KeyedStateHandle>>& restoreStateHandles,
-                                 std::shared_ptr<TypeSerializer> keySerializerProvider);
+                                 std::shared_ptr<TypeSerializer> keySerializerProvider,
+                                 std::shared_ptr<OmniTaskBridge> omniTaskBridge);
 
     ~FullSnapshotRestoreOperation();
 
@@ -65,6 +67,7 @@ private:
     KeyGroupRange* keyGroupRange_;
     std::vector<std::shared_ptr<KeyedStateHandle>> restoreStateHandles_;
     std::shared_ptr<TypeSerializer> keySerializerProvider_;
+    std::shared_ptr<OmniTaskBridge> omniTaskBridge_;
     bool isKeySerializerCompatibilityChecked_;
 };
 
@@ -72,17 +75,19 @@ private:
 template<typename K>
 std::unique_ptr<SavepointRestoreResultIterator> FullSnapshotRestoreOperation<K>::restore()
 {
-    return std::make_unique<SavepointRestoreResultIterator>();
+    return std::make_unique<SavepointRestoreResultIterator>(restoreStateHandles_, omniTaskBridge_);
 }
 
 template<typename K>
 FullSnapshotRestoreOperation<K>::FullSnapshotRestoreOperation(
     KeyGroupRange* keyGroupRange,
     const std::vector<std::shared_ptr<KeyedStateHandle>>& restoreStateHandles,
-    std::shared_ptr<TypeSerializer> keySerializerProvider)
+    std::shared_ptr<TypeSerializer> keySerializerProvider,
+    std::shared_ptr<OmniTaskBridge> omniTaskBridge)
     : keyGroupRange_(keyGroupRange),
       restoreStateHandles_(restoreStateHandles),
       keySerializerProvider_(keySerializerProvider),
+      omniTaskBridge_(omniTaskBridge),
       isKeySerializerCompatibilityChecked_(false) {
     // Filter out null state handles
     restoreStateHandles_.erase(

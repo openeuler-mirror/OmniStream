@@ -16,6 +16,9 @@
 #include "KeyGroup.h"
 #include "KeyGroupIterator.h"
 #include "runtime/state/KeyedStateHandle.h"
+#include "runtime/state/KeyGroupsStateHandle.h"
+#include "runtime/state/bridge/OmniTaskBridge.h"
+#include "runtime/checkpoint/TaskStateSnapshotSerializer.h"
 
 class SavepointRestoreResultIterator {
 public:
@@ -24,8 +27,9 @@ public:
     }
 
     SavepointRestoreResultIterator(
-            const std::vector<std::shared_ptr<KeyedStateHandle>>& stateHandles)
-        : stateHandles_(stateHandles), currentIndex_(0) {
+            const std::vector<std::shared_ptr<KeyedStateHandle>>& stateHandles,
+            std::shared_ptr<OmniTaskBridge> omniTaskBridge)
+        : omniTaskBridge_(omniTaskBridge), stateHandles_(stateHandles), currentIndex_(0) {
     }
 
     bool hasNext()
@@ -39,27 +43,38 @@ public:
             throw std::out_of_range("No more elements in SavepointRestoreResultIterator");
         }
 
+        auto stateHandle = stateHandles_[currentIndex_++];
+        auto keyedStateHandle = std::dynamic_pointer_cast<KeyGroupsStateHandle>(stateHandle);
+        if (!keyedStateHandle) {
+            throw unexpectedStateHandleException(
+                typeid(KeyGroupsStateHandle),
+                typeid(*stateHandle)
+            );
+        }
         // In a real implementation, this would deserialize the state handle
         // and extract the actual state metadata and key groups
         // For now, we create a placeholder
+        auto serializerStr = TaskStateSnapshotSerializer::parseKeyGroupsStateHandle(keyedStateHandle);
+        std::vector<StateMetaInfoSnapshot> stateMetaInfoSnapshots = 
+            omniTaskBridge_->readMetaData(to_string(serializerStr));
 
-        std::vector<StateMetaInfoSnapshot> stateMetaInfoSnapshots;
         // This would involve deserializing the savepoint data
+        auto keyGroupIterator = std::make_shared<KeyGroupIterator>(keyedStateHandle, omniTaskBridge_);
 
-        std::vector<KeyGroup> keyGroups;
-        // This would involve reading the key-value pairs from the savepoint
-
-        auto keyGroupIterator = std::make_unique<KeyGroupIterator>(keyGroups);
-
-        return std::make_unique<SavepointRestoreResult>(
-                stateMetaInfoSnapshots,
-                std::move(keyGroupIterator)
-        );
+        return std::make_unique<SavepointRestoreResult>(stateMetaInfoSnapshots, keyGroupIterator);
     };
 
 private:
     std::vector<std::shared_ptr<KeyedStateHandle>> stateHandles_;
+    std::shared_ptr<OmniTaskBridge> omniTaskBridge_;
     size_t currentIndex_;
+    std::runtime_error unexpectedStateHandleException(
+            const std::type_info& expected, const std::type_info& actual)
+    {
+        return std::runtime_error(
+            "Unexpected state handle type: expected " +
+            std::string(expected.name()) + ", but got " + std::string(actual.name()));
+    }
 };
 
 #endif // OMNISTREAM_SAVEPOINTRESTORERESULTITERATOR_H

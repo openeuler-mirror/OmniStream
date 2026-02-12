@@ -419,7 +419,7 @@ public:
         DataOutputSerializer keyOutputSerializer;
         OutputBufferStatus outputBufferStatus;
         keyOutputSerializer.setBackendBuffer(&outputBufferStatus);
-
+        keyOutputSerializer.writeByte(static_cast<uint32_t>(keyContext->getCurrentKeyGroupIndex()));
         if constexpr (std::is_pointer_v<K>) {
             getKeySerializer()->serialize(currentKey, keyOutputSerializer);
         } else {
