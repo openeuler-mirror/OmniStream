@@ -33,6 +33,16 @@ public:
     {
         return BackendDataType::OBJECT_BK;
     }
+
+    SerializerType getSerializerType() const override
+    {
+        return  SerializerType::BIG_INT;
+    }
+
+    void initializeJsonInfo() override
+    {
+        typeJson = {getSerializerType()};
+    }
     static BigIntSerializer* INSTANCE;
     void deserialize(Object *buffer, DataInputView &source) override;
     void serialize(Object *buffer, DataOutputSerializer &target) override;

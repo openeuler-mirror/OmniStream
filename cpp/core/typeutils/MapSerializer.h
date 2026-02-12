@@ -58,6 +58,16 @@ public:
         // to-Do
         return nullptr;
     };
+
+    SerializerType getSerializerType() const override
+    {
+        return  SerializerType::MAP;
+    }
+
+    void initializeJsonInfo() override
+    {
+        typeJson = {getSerializerType(), "", keySerializer, valueSerializer};
+    }
 private:
     TypeSerializer *keySerializer;
     TypeSerializer *valueSerializer;

@@ -60,6 +60,16 @@ public:
 
     Object* GetBuffer() override;
 
+    SerializerType getSerializerType() const override
+    {
+        return  SerializerType::POJO;
+    }
+
+    void initializeJsonInfo() override
+    {
+        typeJson = {getSerializerType(), clazz, nullptr, nullptr, registeredSerializers, fields};
+    }
+
 private:
     TypeSerializer* getSubclassSerializer(const std::string& subclass);
     TypeSerializer* getSubclassSerializer(uint8_t flags, DataInputView &source);

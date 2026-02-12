@@ -54,6 +54,16 @@ public:
         // to-Do
         return nullptr;
     };
+
+    SerializerType getSerializerType() const override
+    {
+        return  SerializerType::LONG;
+    }
+
+    void initializeJsonInfo() override
+    {
+        typeJson = {getSerializerType()};
+    }
 };
 
 class IntSerializer : public TypeSerializerSingleton {

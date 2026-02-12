@@ -40,6 +40,17 @@ public:
     void setSubBufferReusable(bool bufferReusable_) override;
 
     Object* GetBuffer() override;
+
+    std::string toJson() override;
+    {
+        typeJson = {getSerializerType(), "", nullptr, elementSerializer};
+    }
+
+    SerializerType getSerializerType() const override
+    {
+        return  SerializerType::LIST;
+    }
+
 private:
     TypeSerializer* elementSerializer;
 };

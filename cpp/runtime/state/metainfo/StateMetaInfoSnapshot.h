@@ -171,6 +171,21 @@ public:
                 return "";
         }
     }
+
+    std::string getSerializerJson() const {
+        nlohmann::json jsonArray = nlohmann::json::array();
+        for (auto it = serializers.begin; it != serializers.end; it++) {
+            auto serializer = obj.second.second;
+            if (serializer == nullptr) {
+                continue;
+            }
+            nlohmann::json obj;
+            obj[it.second.first] = serializer.toJson();
+            jsonArray.push_back(std::move(obj));
+        }
+        return jsonArray.dump;
+    }
+
 private:
     /** The name of the state. */
     const std::string name;

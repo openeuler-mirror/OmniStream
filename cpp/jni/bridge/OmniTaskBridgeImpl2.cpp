@@ -411,9 +411,11 @@ std::shared_ptr<SnapshotResult<StreamStateHandle>> OmniTaskBridgeImpl2::CallMate
         jsonObj["backendStateType"] =
         static_cast<int>(StateMetaInfoSnapshot::getCode(snapshot->getBackendStateType()));
         jsonObj["options"] = snapshot->getOptionsImmutable();
+        jsonObj["serializer"] = snapshot->getSerializerJson();
         stateMetaInfoJson.push_back(std::move(jsonObj));
     }
     std::string stateMetaInfoStr = stateMetaInfoJson.dump();
+    INFO_RELEASE("zjb CallMaterializeMetaData:" << stateMetaInfoStr)
 
     std::string localRecoveryConfigStr = "{}";
     if (localRecoveryConfig != nullptr){

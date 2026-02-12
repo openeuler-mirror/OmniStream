@@ -50,6 +50,16 @@ public:
 
     Object* GetBuffer() override;
 
+    SerializerType getSerializerType() const override
+    {
+        return  SerializerType::STRING;
+    }
+
+    void initializeJsonInfo() override
+    {
+        typeJson = {getSerializerType()};
+    }
+
 private:
     StringSerializer* reuseSerializer;
 };
