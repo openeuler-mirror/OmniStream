@@ -416,7 +416,7 @@ std::shared_ptr<SnapshotResult<StreamStateHandle>> OmniTaskBridgeImpl2::CallMate
     std::string stateMetaInfoStr = stateMetaInfoJson.dump();
 
     std::string localRecoveryConfigStr = "{}";
-    if (localRecoveryConfig != nullptr){
+    if (localRecoveryConfig != nullptr && localRecoveryConfig->IsLocalRecoveryEnabled()){
         try {
             nlohmann::json localRecoveryJson;
             auto directoryProvider = localRecoveryConfig->GetLocalStateDirectoryProvider();
