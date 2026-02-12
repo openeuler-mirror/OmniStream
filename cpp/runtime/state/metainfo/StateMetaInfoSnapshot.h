@@ -174,7 +174,7 @@ public:
 
     std::string getSerializerJson() const {
         nlohmann::json jsonArray = nlohmann::json::array();
-        for (auto it = serializers.begin; it != serializers.end; it++) {
+        for (auto it = serializers.begin(); it != serializers.end(); it++) {
             auto serializer = obj.second.second;
             if (serializer == nullptr) {
                 continue;
@@ -183,7 +183,7 @@ public:
             obj[it.second.first] = serializer.toJson();
             jsonArray.push_back(std::move(obj));
         }
-        return jsonArray.dump;
+        return jsonArray.dump();
     }
 
 private:

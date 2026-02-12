@@ -14,6 +14,7 @@
 #include "OmniOperatorJIT/core/src/type/data_type.h"
 #include "basictypes/Object.h"
 #include "TypeSerializerSnapshot.h"
+#include "SerializerJsonInfo.h"
 
 enum class BackendDataType {
     BIGINT_BK,
