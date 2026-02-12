@@ -42,8 +42,8 @@ public:
         using ResultSubpartitionStateFuture = std::shared_ptr<CompletableFutureV2<ResultSubpartitionStateVecPtr>>;
 
         ChannelStateWriteResult() noexcept
-            : inputChannelStateHandles(),
-              resultSubpartitionStateHandles()
+            : inputChannelStateHandles(std::make_shared<CompletableFutureV2<InputChannelStateHandleVecPtr>>()),
+              resultSubpartitionStateHandles(std::make_shared<CompletableFutureV2<ResultSubpartitionStateVecPtr>>())
         {}
 
         ChannelStateWriteResult(
@@ -63,12 +63,12 @@ public:
             return resultSubpartitionStateHandles;
         }
 
-        static ChannelStateWriteResult CreateEmpty() noexcept
+        static std::shared_ptr<ChannelStateWriteResult> CreateEmpty() noexcept
         {
             auto inputFuture = std::make_shared<CompletableFutureV2<InputChannelStateHandleVecPtr>>();
             auto resultFuture = std::make_shared<CompletableFutureV2<ResultSubpartitionStateVecPtr>>();
             
-            return ChannelStateWriteResult(inputFuture, resultFuture);
+            return std::make_shared<ChannelStateWriteResult>(inputFuture, resultFuture);
         }
 
         void Fail(const std::exception_ptr& cause)
@@ -102,7 +102,7 @@ public:
     static ChannelStateWriteResult empty;
     /** Initiate write of channel state for the given checkpoint id. */
     virtual void Start(long checkpointId, const CheckpointOptions& checkpointOptions) = 0;
-
+    virtual void open() = 0;
     virtual ~ChannelStateWriter() = default;
 
     /**
@@ -118,7 +118,7 @@ public:
      * @see org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter#sequenceNumberUnknown
      */
     virtual void AddInputData(long checkpointId, const omnistream::InputChannelInfo& info, int startSeqNum,
-        std::vector<omnistream::ObjectBuffer*> data) = 0;
+        std::vector<std::shared_ptr<omnistream::Buffer>> data) = 0;
 
     /**
      * Add in-flight buffers from the {@link
@@ -135,7 +135,7 @@ public:
      * @see org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter#sequenceNumberUnknown
      */
     virtual void AddOutputData(long checkpointId, const omnistream::ResultSubpartitionInfoPOD& info, int startSeqNum,
-        std::vector<omnistream::ObjectBuffer*>& data) = 0;
+        std::vector<std::shared_ptr<omnistream::Buffer>>& data) = 0;
 
     /**
      * Add in-flight bufferFuture from the {@link
@@ -147,7 +147,7 @@ public:
      * barrier.
      */
     virtual void AddOutputDataFuture(long checkpointId, const omnistream::ResultSubpartitionInfoPOD& info,
-        int startSeqNum, std::shared_ptr<CompletableFutureV2<std::vector<omnistream::ObjectBuffer*>>> data) = 0;
+        int startSeqNum, std::shared_ptr<CompletableFutureV2<std::vector<std::shared_ptr<omnistream::Buffer>>>> data) = 0;
 
     /**
      * Finalize write of channel state data for the given checkpoint id. Must be called after {@link
@@ -178,27 +178,29 @@ public:
      *
      * @throws IllegalArgumentException if the passed checkpointId is not known.
      */
-    virtual ChannelStateWriteResult GetAndRemoveWriteResult(long checkpointId) = 0;
+    virtual std::shared_ptr<ChannelStateWriteResult> GetAndRemoveWriteResult(long checkpointId) = 0;
 };
 
 /** No-op implementation of {@link ChannelStateWriter}. */
 class NoOpChannelStateWriter : public ChannelStateWriter {
 public:
-   static NoOpChannelStateWriter *noOp;
+   static std::shared_ptr<NoOpChannelStateWriter> noOp;
+    void open() override
+    {}
 
     void Start(long checkpointId, const CheckpointOptions& checkpointOptions) override
     {}
 
     void AddInputData(long checkpointId, const omnistream::InputChannelInfo& info, int startSeqNum,
-        std::vector<omnistream::ObjectBuffer*> data) override
+        std::vector<std::shared_ptr<omnistream::Buffer>> data) override
     {}
 
     void AddOutputData(long checkpointId, const omnistream::ResultSubpartitionInfoPOD& info, int startSeqNum,
-        std::vector<omnistream::ObjectBuffer*>& data) override
+        std::vector<std::shared_ptr<omnistream::Buffer>>& data) override
     {}
 
     void AddOutputDataFuture(long checkpointId, const omnistream::ResultSubpartitionInfoPOD& info, int startSeqNum,
-        std::shared_ptr<CompletableFutureV2<std::vector<omnistream::ObjectBuffer*>>> data) override
+        std::shared_ptr<CompletableFutureV2<std::vector<std::shared_ptr<omnistream::Buffer>>>> data) override
     {}
 
     void FinishInput(long checkpointId) override
@@ -210,9 +212,9 @@ public:
     void Abort(long checkpointId, const std::exception_ptr& cause, bool cleanup) override
     {}
 
-    ChannelStateWriteResult GetAndRemoveWriteResult(long checkpointId) override
+    std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> GetAndRemoveWriteResult(long checkpointId) override
     {
-        return ChannelStateWriteResult::CreateEmpty();
+        return ChannelStateWriter::ChannelStateWriteResult::CreateEmpty();
     }
 };
 

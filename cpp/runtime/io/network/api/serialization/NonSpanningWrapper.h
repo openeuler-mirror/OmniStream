@@ -18,6 +18,10 @@
 #include "DeserializationResult.h"
 #include "core/io/IOReadableWritable.h"
 #include "core/utils/ByteBuffer.h"
+#include "memory/MemorySegment.h"
+#include "buffer/Buffer.h"
+#include "buffer/NetworkBuffer.h"
+#include "buffer/OriginalNetworkBufferRecycler.h"
 
 namespace omnistream::datastream {
 class NonSpanningWrapper : public DataInputView {
@@ -60,6 +64,21 @@ public:
 
     double readDouble() override;
 
+    std::shared_ptr<Buffer> GetUnconsumedSegment()
+    {
+        LOG("NonSpanningWrapper GetUnconsumedSegment position: " << position_ << ", length: " << length_
+            << ", remaining: " << remaining());
+        if (!hasRemaining() || remaining() <= 0) {
+            return nullptr;
+        }
+        uint8_t *data = reinterpret_cast<uint8_t *>(malloc(remaining()));
+        std::shared_ptr<MemorySegment> memorySegment = std::make_shared<MemorySegment>(data, remaining());
+        memorySegment->put(0, data_, position_, remaining());
+        std::shared_ptr<::datastream::NetworkBuffer> networkBuffer = std::make_shared<::datastream::NetworkBuffer>(
+            memorySegment, remaining(), 0, std::make_shared<OriginalNetworkBufferRecycler>(),
+            ObjectBufferDataType::DATA_BUFFER);
+        return networkBuffer;
+    }
 private:
 
     const std::string BROKEN_SERIALIZATION_ERROR_MESSAGE =   "Serializer consumed more bytes than the record had. ";

@@ -23,8 +23,6 @@
 #include "../../io/OmniStreamTaskNetworkOutput.h"
 
 namespace omnistream {
-
-
     // temporary set parameter type is int
     OmniPushingAsyncDataInput::OmniDataOutput *OmniOneInputStreamTask::createDataOutput(
         std::shared_ptr<omnistream::SimpleCounter> & numRecordsIn)
@@ -128,6 +126,7 @@ namespace omnistream {
 
     void OmniOneInputStreamTask::cleanup()
     {
+        LOG_DEBUG("Find cleanup inputProcessor_")
         OmniStreamTask::cleanup();
         inputProcessor_->close();
     }
@@ -139,6 +138,9 @@ namespace omnistream {
 
         taskConfiguration_ = env_->taskConfiguration();
         auto checkpointExecutionConfig = taskConfiguration_.getExecutionCheckpointConfig();
+        const std::int64_t alignedCheckpointTimeoutMillis =
+            checkpointExecutionConfig.getAlignedCheckpointTimeoutSecond() * 1000 +
+            checkpointExecutionConfig.getAlignedCheckpointTimeoutNano() / 1000000;
         auto checkpointBarrierHandler = InputProcessorUtil::CreateCheckpointBarrierHandler(
             this,
             getName(),
@@ -148,6 +150,7 @@ namespace omnistream {
             {checkpointableInputs},
             emptySourceInputs,
             checkpointExecutionConfig.getUnalignedCheckpointsEnabled(),
+            alignedCheckpointTimeoutMillis,
             checkpointExecutionConfig.getCheckpointAfterTasksFinishEnabled());
 
         auto checkpointedInputGates = InputProcessorUtil::CreateCheckpointedMultipleInputGate(

@@ -51,12 +51,12 @@ namespace omnistream {
         return latestCheckpointStartDelayNanos;
     }
 
-    CompletableFutureV2<void>& CheckpointBarrierHandler::GetAllBarriersReceivedFuture(int64_t checkpointId)
+    std::shared_ptr<CompletableFutureV2<void>> CheckpointBarrierHandler::GetAllBarriersReceivedFuture(int64_t checkpointId)
     {
-        if (!completed.IsDone()) {
-            completed.Complete();
+        if (!completed_V2->IsDone()) {
+            completed_V2->Complete();
         }
-        return completed;
+        return completed_V2;
     }
 
     void CheckpointBarrierHandler::NotifyCheckpoint(const CheckpointBarrier& checkpointBarrier)

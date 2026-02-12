@@ -118,6 +118,7 @@ namespace omnistream {
         std::shared_ptr<RemoteDataFetcherBridge> GetRemoteDataFetcherBridge();
 
     private:
+        std::atomic<bool> flag{false};
         JobInformationPOD jobInfo_;
         TaskInformationPOD taskInfo_;
         TaskDeploymentDescriptorPOD taskDeploymentDescriptor_;

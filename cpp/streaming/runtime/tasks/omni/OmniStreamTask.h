@@ -63,6 +63,8 @@ namespace omnistream {
         // in the most cases, it does not to be overridden
         void restore();
 
+        void InjectChannelStateWriterIntoChannels();
+
         // in the most cases, it does not to be overridden
         void restoreInternal();
 
@@ -104,7 +106,7 @@ namespace omnistream {
             return inputProcessor_;
         }
 
-        void abortCheckpointOnBarrier(long checkpointId, CheckpointException cause) override {};
+        void abortCheckpointOnBarrier(long checkpointId, CheckpointException cause) override;
 
         bool IsUsingNonBlockingInput();
         // stream task specific
@@ -229,8 +231,8 @@ namespace omnistream {
         std::shared_ptr<CheckpointStorage> checkpointStorage;
         bool isRunning;
 
-        CompletableFutureV2<void> *prepareInputSnapshot(
-            ChannelStateWriter *channelStateWriter,
+        std::shared_ptr<CompletableFutureV2<void>> prepareInputSnapshot(
+            std::shared_ptr<ChannelStateWriter> channelStateWriter,
             long checkpointID
         );
 

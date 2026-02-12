@@ -22,7 +22,7 @@ BarrierHandlerState* AlternatingWaitingForFirstBarrierUnaligned::BarrierReceived
     CheckpointBarrier* barrier,
     bool markChannelBlocked)
 {
-    LOG("<<<<<<<")
+    LOG_DEBUG("AlternatingWaitingForFirstBarrierUnaligned::BarrierReceived")
     if (markChannelBlocked && !barrier->GetCheckpointOptions()->IsUnalignedCheckpoint()) {
         state_.BlockChannel(channelInfo);
     }

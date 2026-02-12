@@ -53,13 +53,26 @@ namespace omnistream {
             return sourceOperator;
         }
 
-        void BlockConsumption(const InputChannelInfo& channelInfo) override {}
+        void BlockConsumption(const InputChannelInfo& channelInfo) override
+        {
+            isBlockedAvailability->resetUnavailable();
+        }
 
-        void ResumeConsumption(const InputChannelInfo& channelInfo) override {}
+        void BlockConsumption()
+        {
+            isBlockedAvailability->resetUnavailable();
+        }
+
+        void ResumeConsumption(const InputChannelInfo& channelInfo) override
+        {
+        }
 
         void ConvertToPriorityEvent(int channelIndex, int sequenceNumber) override {}
 
-        void CheckpointStarted(const CheckpointBarrier& barrier) override {};
+        void CheckpointStarted(const CheckpointBarrier& barrier) override
+        {
+            BlockConsumption();
+        }
 
         void CheckpointStopped(long checkpointId) override {};
 
@@ -71,6 +84,12 @@ namespace omnistream {
         int GetInputGateIndex() override
         {
             return inputGateIndex;
+        }
+
+        std::shared_ptr<CompletableFutureV2<void>> PrepareSnapshot(std::shared_ptr<ChannelStateWriter> writer, long checkpointID)
+        {
+            LOG("SourceInput prepare snapshot, checkpointID: " <<checkpointID);
+            return nullptr;
         }
     private:
         SourceOperator<>* sourceOperator;

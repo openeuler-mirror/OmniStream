@@ -15,7 +15,8 @@ namespace omnistream {
                               ResultPartitionIDPOD partitionId,
                               std::shared_ptr<ResultPartitionManager> partitionManager,
                               int initialBackoff, int maxBackoff, int networkBuffersPerChannel,
-                              std::shared_ptr<Counter> numBytesIn, std::shared_ptr<Counter> numBuffersIn
+                              std::shared_ptr<Counter> numBytesIn, std::shared_ptr<Counter> numBuffersIn,
+                              std::shared_ptr<ChannelStateWriter> stateWriter
         );
 
         void requestSubpartition(int subpartitionIndex) override;

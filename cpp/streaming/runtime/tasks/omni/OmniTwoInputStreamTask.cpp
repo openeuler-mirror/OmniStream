@@ -47,6 +47,9 @@ namespace omnistream {
 
         taskConfiguration_ = env_->taskConfiguration();
         auto checkpointExecutionConfig = taskConfiguration_.getExecutionCheckpointConfig();
+        const std::int64_t alignedCheckpointTimeoutMillis =
+            checkpointExecutionConfig.getAlignedCheckpointTimeoutSecond() * 1000 +
+            checkpointExecutionConfig.getAlignedCheckpointTimeoutNano() / 1000000;
         checkpointBarrierHandler = InputProcessorUtil::CreateCheckpointBarrierHandler(
             this,
             getName(),
@@ -56,6 +59,7 @@ namespace omnistream {
             { inputGates1, inputGates2 },
             emptySourceInputs,
             checkpointExecutionConfig.getUnalignedCheckpointsEnabled(),
+            alignedCheckpointTimeoutMillis,
             checkpointExecutionConfig.getCheckpointAfterTasksFinishEnabled());
 
         // Flatten inputGates1&2 into one vector and wrap them in checkpointedInputGate

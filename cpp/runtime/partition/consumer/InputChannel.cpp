@@ -64,7 +64,7 @@ void InputChannel::notifyChannelNonEmpty()
     inputGate->notifyChannelNonEmpty(shared_from_this());
 }
 
-void InputChannel::notifyPriorityEvent(int priorityBufferNumber)
+void InputChannel::NotifyPriorityEvent(int priorityBufferNumber)
 {
     inputGate->notifyPriorityEvent(shared_from_this(), priorityBufferNumber);
 }

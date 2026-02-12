@@ -28,7 +28,7 @@ public:
 
     ~FsCheckpointStateOutputStream() = default;
 
-    void Write(const void* data, size_t length);
+    void Write(const void* data, size_t length) override;
 
     void Flush();
 

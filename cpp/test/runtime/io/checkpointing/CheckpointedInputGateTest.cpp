@@ -111,6 +111,7 @@ public:
 class DummyCoordinator : public SubtaskCheckpointCoordinator {
 public:
     void InitInputsCheckpoint(long, CheckpointOptions*) override {}
+    std::shared_ptr<ChannelStateWriter> getChannelStateWriter() override {}
 };
 
 

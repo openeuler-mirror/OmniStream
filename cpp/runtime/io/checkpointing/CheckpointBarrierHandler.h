@@ -35,19 +35,16 @@ public:
     bool IsCheckpointAfterTasksFinishedEnabled() const;
     virtual void Close() {};
 
-    virtual void ProcessBarrier(
-        const CheckpointBarrier& receivedBarrier,
-        const InputChannelInfo& channelInfo,
-        bool isRpcTriggered) = 0;
+    virtual void ProcessBarrier(const CheckpointBarrier& receivedBarrier,
+                                const InputChannelInfo& channelInfo,
+                                bool isRpcTriggered) = 0;
 
-    virtual void ProcessBarrierAnnouncement(
-        const CheckpointBarrier& announcedBarrier,
-        int sequenceNumber,
-        const InputChannelInfo& channelInfo) = 0;
+    virtual void ProcessBarrierAnnouncement(const CheckpointBarrier& announcedBarrier,
+                                            int sequenceNumber,
+                                            const InputChannelInfo& channelInfo) = 0;
 
-    virtual void ProcessCancellationBarrier(
-        const CancelCheckpointMarker& cancelBarrier,
-        const InputChannelInfo& channelInfo) = 0;
+    virtual void ProcessCancellationBarrier(const CancelCheckpointMarker& cancelBarrier,
+                                            const InputChannelInfo& channelInfo) = 0;
 
     virtual void ProcessEndOfPartition(const InputChannelInfo& channelInfo) = 0;
 
@@ -56,15 +53,15 @@ public:
     int64_t GetAlignmentDurationNanos();
     int64_t GetCheckpointStartDelayNanos() const;
 
-    virtual CompletableFutureV2<void>& GetAllBarriersReceivedFuture(int64_t checkpointId);
+    virtual std::shared_ptr<CompletableFutureV2<void>> GetAllBarriersReceivedFuture(int64_t checkpointId);
 
     virtual bool IsCheckpointPending() const = 0;
     void AddProcessedBytes(int bytes);
+
 protected:
-    CheckpointBarrierHandler(
-            CheckpointableTask* toNotifyOnCheckpoint,
-            Clock& clock,
-            bool enableCheckpointAfterTasksFinished);
+    CheckpointBarrierHandler(CheckpointableTask* toNotifyOnCheckpoint,
+                             Clock& clock,
+                             bool enableCheckpointAfterTasksFinished);
     void NotifyCheckpoint(const CheckpointBarrier& checkpointBarrier);
     void NotifyAbortOnCancellationBarrier(int64_t checkpointId);
     void NotifyAbort(int64_t checkpointId, const CheckpointException& cause);
@@ -77,6 +74,7 @@ protected:
     bool IsDuringAlignment() const;
     Clock& GetClock() const;
     Clock& clock;
+
 private:
     CheckpointableTask* toNotifyOnCheckpoint;
     std::shared_ptr<CompletableFutureV2<int64_t>> latestAlignmentDurationNanos;
@@ -87,6 +85,7 @@ private:
     std::shared_ptr<CompletableFutureV2<int64_t>> latestBytesProcessedDuringAlignment;
     const bool enableCheckpointAfterTasksFinished;
     CompletableFutureV2<void> completed;
+    std::shared_ptr<CompletableFutureV2<void>> completed_V2;
 
     // Disable copying
     CheckpointBarrierHandler(const CheckpointBarrierHandler&) = delete;

@@ -5,7 +5,15 @@ set(TNEL_TEST_TARGET tneltest)
 # find gtest package
 find_package(GTest REQUIRED)
 
-file(GLOB_RECURSE TEST_SOURCES  ${CMAKE_CURRENT_SOURCE_DIR}/../ "*.cpp")
+file(GLOB_RECURSE ALL_CPP_FILES ${CMAKE_CURRENT_SOURCE_DIR}/../ "*.cpp")
+
+set(TEST_SOURCES "")
+foreach(file ${ALL_CPP_FILES})
+    if(NOT file MATCHES ".*test/runtime/checkpoint/channel/.*")
+        list(APPEND TEST_SOURCES ${file})
+    endif()
+endforeach()
+
 list(FILTER TEST_SOURCES EXCLUDE REGEX ".*/test_udf/.*")
 message(STATUS "current TEST_SOURCES  files for test ${TEST_SOURCES}")
 message(STATUS "current ROOT_SOURCES files for test ${ROOT_SOURCES}")

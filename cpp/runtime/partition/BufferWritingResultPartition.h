@@ -20,6 +20,7 @@
 
 #include "BufferAvailabilityListener.h"
 #include "ResultSubpartitionView.h"
+#include "checkpoint/channel/ChannelStateWriter.h"
 
 #include <iostream>
 
@@ -66,7 +67,7 @@ public:
     virtual void setSubpartitions(const std::vector<std::shared_ptr<ResultSubpartition>>& subpartitions);
 
     std::vector<std::shared_ptr<ResultSubpartition>> getAllPartitions();
-
+    void SetChannelStateWriter(const std::shared_ptr<ChannelStateWriter> &channelStateWriter);
 protected:
     void releaseInternal() override = 0;
     void flushSubpartition(int targetSubpartition, bool finishProducers);

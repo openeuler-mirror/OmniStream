@@ -37,17 +37,18 @@ namespace omnistream::runtime {
     class SubtaskCheckpointCoordinatorImpl : public omnistream::SubtaskCheckpointCoordinator {
     public:
         SubtaskCheckpointCoordinatorImpl(
-                CheckpointStorageWorkerView *checkpointStorage,
+                std::shared_ptr<CheckpointStorage> checkpointStorage,
+                std::shared_ptr<CheckpointStorageWorkerView> checkpointStorageView,
                 std::string taskName,
                 std::shared_ptr<omnistream::StreamTaskActionExecutor> actionExecutor,
                 std::shared_ptr<omnistream::EnvironmentV2> env,
                 bool unalignedCheckpointEnabled,
                 bool enableCheckpointAfterTasksFinished,
-                std::function<CompletableFutureV2<void> *(ChannelStateWriter *, long)> *prepareInputSnapshot,
+                std::function<std::shared_ptr<CompletableFutureV2<void>>(std::shared_ptr<ChannelStateWriter>, long)> *prepareInputSnapshot,
                 BarrierAlignmentUtil::DelayableTimer<std::function<void()>> *registerTimer
         ) : SubtaskCheckpointCoordinatorImpl(
-                nullptr,
                 checkpointStorage,
+                checkpointStorageView,
                 taskName,
                 actionExecutor,
                 env,
@@ -59,14 +60,14 @@ namespace omnistream::runtime {
         ) {};
 
         SubtaskCheckpointCoordinatorImpl(
-                omnistream::CheckpointStorage *checkpointStorage,
-                CheckpointStorageWorkerView *checkpointStorageView,
+                std::shared_ptr<omnistream::CheckpointStorage> checkpointStorage,
+                std::shared_ptr<CheckpointStorageWorkerView> checkpointStorageView,
                 std::string taskName,
                 std::shared_ptr<omnistream::StreamTaskActionExecutor> actionExecutor,
                 std::shared_ptr<omnistream::EnvironmentV2> env,
                 bool unalignedCheckpointEnabled,
                 bool enableCheckpointAfterTasksFinished,
-                std::function<CompletableFutureV2<void> *(ChannelStateWriter *, long)> *prepareInputSnapshot,
+                std::function<std::shared_ptr<CompletableFutureV2<void>>(std::shared_ptr<ChannelStateWriter>, long)> *prepareInputSnapshot,
                 int maxRecordAbortedCheckpoints,
                 BarrierAlignmentUtil::DelayableTimer<std::function<void()>> *registerTimer
         ) : SubtaskCheckpointCoordinatorImpl(
@@ -77,23 +78,24 @@ namespace omnistream::runtime {
                 prepareInputSnapshot,
                 maxRecordAbortedCheckpoints,
                 unalignedCheckpointEnabled ?
-                openChannelStateWriter(taskName, checkpointStorage, env) :
+                openChannelStateWriter(taskName, checkpointStorage, checkpointStorageView, env) :
                 NoOpChannelStateWriter::noOp,
                 enableCheckpointAfterTasksFinished,
                 registerTimer
         )
         {
-            asyncOperationsThreadPool = std::make_unique<ExecutorService>(4);
+            asyncOperationsThreadPool = std::make_shared<ExecutorService>(4);
+            this->prepareInputSnapshot = prepareInputSnapshot;
         };
 
         SubtaskCheckpointCoordinatorImpl(
-                CheckpointStorageWorkerView *checkpointStorage,
+                std::shared_ptr<CheckpointStorageWorkerView> streamFactoryResolver,
                 std::string taskName,
                 std::shared_ptr<omnistream::StreamTaskActionExecutor> actionExecutor,
                 std::shared_ptr<omnistream::EnvironmentV2> env,
-                std::function<CompletableFutureV2<void> *(ChannelStateWriter *, long)> *prepareInputSnapshot,
+                std::function<std::shared_ptr<CompletableFutureV2<void>>(std::shared_ptr<ChannelStateWriter>, long)> *prepareInputSnapshot,
                 int maxRecordAbortedCheckpoints,
-                ChannelStateWriter *channelStateWriter,
+                std::shared_ptr<ChannelStateWriter> channelStateWriter,
                 bool enableCheckpointAfterTasksFinished,
                 BarrierAlignmentUtil::DelayableTimer<std::function<void()>> *registerTimer
         );
@@ -138,9 +140,14 @@ namespace omnistream::runtime {
                 omnistream::OperatorChainV2 *operatorChain,
                 omnistream::Supplier<bool> *isRunning);
 
-        CheckpointStorageWorkerView *getCheckpointStorage();
+        // Abort a checkpoint due to a cancel-barrier (Flink 1.16.3).
+        // This is a best-effort cleanup hook: it clears the storage cache, aborts channel-state writes,
+        // records the checkpoint as aborted, and cancels any in-progress alignment timer.
+        void AbortCheckpointOnBarrier(long checkpointId, const std::exception_ptr& cause);
 
-        ChannelStateWriter *getChannelStateWriter();
+        std::shared_ptr<CheckpointStorageWorkerView> getCheckpointStorage();
+
+        std::shared_ptr<ChannelStateWriter> getChannelStateWriter() override;
 
     private:
         class LimitedSizeSet : public std::set<long> {
@@ -163,7 +170,7 @@ namespace omnistream::runtime {
         public:
             CachingCheckpointStorageWorkerView() = default;
 
-            explicit CachingCheckpointStorageWorkerView(CheckpointStorageWorkerView *delegate)
+            explicit CachingCheckpointStorageWorkerView(std::shared_ptr<CheckpointStorageWorkerView> delegate)
                 : delegate(delegate) {}
 
             void clearCacheFor(long checkpointId)
@@ -172,7 +179,7 @@ namespace omnistream::runtime {
             }
 
             CheckpointStreamFactory *resolveCheckpointStorageLocation(
-                    int64_t checkpointId, CheckpointStorageLocationReference &reference) override;
+                    int64_t checkpointId, CheckpointStorageLocationReference *reference) override;
 
             CheckpointStateOutputStream *createTaskOwnedStateStream() override;
 
@@ -180,7 +187,7 @@ namespace omnistream::runtime {
 
         private:
             std::unordered_map<long, CheckpointStreamFactory *> cache;
-            CheckpointStorageWorkerView *delegate;
+            std::shared_ptr<CheckpointStorageWorkerView> delegate;
         };
 
         std::set<long> createAbortedCheckpointIds(int maxRecordAbortedCheckpoints);
@@ -243,9 +250,10 @@ namespace omnistream::runtime {
                 CheckpointOptions *options
         );
 
-        static ChannelStateWriter *openChannelStateWriter(
+        static std::shared_ptr<ChannelStateWriter> openChannelStateWriter(
                 std::string taskName,
-                omnistream::CheckpointStorage *checkpointStorage,
+                std::shared_ptr<omnistream::CheckpointStorage> checkpointStorage,
+                std::shared_ptr<omnistream::CheckpointStorageWorkerView> streamFactoryResolver,
                 std::shared_ptr<omnistream::EnvironmentV2> env
         );
 
@@ -255,12 +263,12 @@ namespace omnistream::runtime {
                 omnistream::Supplier<bool> *isRunning,
                 NotifyCheckpointOperation notifyCheckpointOperation
         );
-        CachingCheckpointStorageWorkerView *checkpointStorage;
+        std::shared_ptr<CachingCheckpointStorageWorkerView> checkpointStorage;
         std::string taskName;
         std::shared_ptr<omnistream::StreamTaskActionExecutor> actionExecutor;
         std::shared_ptr<omnistream::EnvironmentV2> env;
-        std::function<CompletableFutureV2<void> *(ChannelStateWriter *, long)> *prepareInputSnapshot;
-        ChannelStateWriter *channelStateWriter;
+        std::function<std::shared_ptr<CompletableFutureV2<void>>(std::shared_ptr<ChannelStateWriter>, long)> *prepareInputSnapshot;
+        std::shared_ptr<ChannelStateWriter> channelStateWriter;
         std::set<long> abortedCheckpointIds;
         bool enableCheckpointAfterTasksFinished;
         BarrierAlignmentUtil::DelayableTimer<std::function<void()>> *registerTimer;
@@ -271,7 +279,7 @@ namespace omnistream::runtime {
         long alignmentCheckpointId;
         BarrierAlignmentUtil::Cancellable *alignmentTimer = nullptr;
         std::mutex mutexLock;
-        std::unique_ptr<ExecutorService> asyncOperationsThreadPool;
+        std::shared_ptr<ExecutorService> asyncOperationsThreadPool;
         bool closed = false;
         std::unordered_map<long, AsyncCheckpointRunnable *> checkpoints;
     };
