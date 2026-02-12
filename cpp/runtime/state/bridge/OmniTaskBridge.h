@@ -18,6 +18,7 @@
 #include "state/metainfo/StateMetaInfoSnapshot.h"
 #include "runtime/state/SnapshotResult.h"
 #include "runtime/state/StreamStateHandle.h"
+#include "runtime/state/restore/KeyGroupEntry.h"
 #include "core/fs/Path.h"
 #include "state/LocalRecoveryConfig.h"
 
@@ -47,6 +48,17 @@ namespace omnistream {
         virtual void WriteSavepointMetadata(jobject provider, const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& snapshots) = 0;
 
         virtual long GetSavepointOutputStreamPos(jobject provider) = 0;
+
+        virtual void getKeyGroupEntries(jobject inputStream,
+            int &currentKvStateId, bool isUsingKeyGroupCompression, std::vector<KeyGroupEntry> &entries) = 0;
+
+        virtual jobject getSavepointInputStream(const std::string &metaStateHandle) = 0;
+
+        virtual void setSavepointInputStreamOffset(jobject inputStream, int64_t offset) = 0;
+
+        virtual bool isUsingKeyGroupCompression(jobject inputStream) = 0;
+
+        virtual void closeSavepointInputStream(jobject inputStream) = 0;
 
         virtual JNIEnv* getJNIEnv() = 0;
     };

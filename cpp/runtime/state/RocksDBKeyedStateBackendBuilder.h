@@ -187,7 +187,8 @@ private:
                     dbOptions,
                     columnFamilyOptionsFactory,
                     restoreStateHandles,
-                    writeBatchSize);
+                    writeBatchSize,
+                    omniTaskBridge);
         }
     }
 
