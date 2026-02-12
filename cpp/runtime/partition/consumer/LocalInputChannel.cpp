@@ -150,7 +150,8 @@ std::optional<BufferAndAvailability> LocalInputChannel::getNextBuffer()
     }
     LOG("subpartitionViewPtr.get()" << subpartitionViewPtr.get())
     auto next = subpartitionViewPtr->getNextBuffer();
-    while (!next && next->getBuffer()->GetSize() == 0) {
+    while (next && next->getBuffer()->GetSize() == 0) {
+        next->getBuffer()->RecycleBuffer();
         next = subpartitionView->getNextBuffer();
         numBuffersIn->Inc();
     }
