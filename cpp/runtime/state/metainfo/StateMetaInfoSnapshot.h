@@ -175,12 +175,12 @@ public:
     std::string getSerializerJson() const {
         nlohmann::json jsonArray = nlohmann::json::array();
         for (auto it = serializers.begin(); it != serializers.end(); it++) {
-            auto serializer = obj.second.second;
+            auto serializer = it.second;
             if (serializer == nullptr) {
                 continue;
             }
             nlohmann::json obj;
-            obj[it.second.first] = serializer.toJson();
+            obj[it.first] = serializer->toJson();
             jsonArray.push_back(std::move(obj));
         }
         return jsonArray.dump();

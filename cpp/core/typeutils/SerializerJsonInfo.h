@@ -11,6 +11,8 @@
 #ifndef OMNISTREAM_SERIALIZERJSONINFO_H
 #define OMNISTREAM_SERIALIZERJSONINFO_H
 
+#include "TypeSerializer.h"
+
 enum class SerializerType {
     UN_KNOW,
     LIST,
@@ -58,7 +60,7 @@ public:
 
         nlohmann::json fieldTypesJson = nlohmann::json::array();
         for (auto i = 0; i < fieldSerializers.size(); i++) {
-            nlohmann::json fileIdJson;
+            nlohmann::json fieIdJson;
             auto fieIdName = fieldNames[i];
             auto fieIdSerializer = fieldSerializers[i];
             if (fieIdSerializer == nullptr) {
@@ -67,7 +69,7 @@ public:
             }
             fieIdJson["fieIdInfo:"] = fieIdName;
             fieIdJson["fieIdName"] = fieIdSerializer;
-            fieldTypesJson.push_back(std::move(fileIdJson));
+            fieldTypesJson.push_back(std::move(fieIdJson));
         }
         jsonObj["fields"] = fieldTypesJson.dump();
         return jsonObj.dump();

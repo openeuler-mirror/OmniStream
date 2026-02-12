@@ -16,6 +16,8 @@
 #include "TypeSerializerSnapshot.h"
 #include "SerializerJsonInfo.h"
 
+struct SerializerJsonInfo;
+
 enum class BackendDataType {
     BIGINT_BK,
     INT_BK,
