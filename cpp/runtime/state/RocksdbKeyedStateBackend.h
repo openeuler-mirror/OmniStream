@@ -222,6 +222,8 @@ private:
     emhash7::HashMap<std::string, std::tuple<uintptr_t, StateDescriptor*>> registeredKvStates;
     // pointer to intervalKvState
     emhash7::HashMap<std::string, uintptr_t> createdKvState;
+    // [FALCON] pointer to intervalKvState that enable falcon cache
+    emhash7::HashMap<std::string, uintptr_t> falconKvState = {};
 
     template <typename N, typename UK, typename UV>
     RocksdbMapState<K, N, UK, UV> *createOrUpdateInternalMapState(
@@ -452,6 +454,21 @@ RocksdbValueState<K, N, V> *RocksdbKeyedStateBackend<K>::createOrUpdateInternalV
     }
     createdKvState[stateDesc->getName()] = reinterpret_cast<uintptr_t>(createdState);
     createdState->createTable(db, stateDesc->getName(), kvStateInformation_);
+
+    // [FALCON] -------------------------------------------------------------------------------------------
+    // todo: ttl state is not implemented in omniStream, thus falcon does not check it
+    // store the reference of all the created value states, all of them enable falcon cache
+    falconKvState[stateDesc->getName()] = reinterpret_cast<uintptr_t>(createdState);
+    INFO_RELEASE("[FALCON] <" << stateDesc->getName() << ", ValueState> enable falcon cache.\n")
+    // after this state is created, update cache size limit for all the created states who use falcon cache.
+    int newCacheSize = 3000 / falconKvState.size(); // todo: move 3000 to outside flink yaml file
+    INFO_RELEASE("[FALCON] update falcon cache size to " << newCacheSize << ".\n")
+    for (auto &entry : falconKvState) {
+        auto* state = reinterpret_cast<RocksdbValueState<K, N, V> *>(entry.second);
+        state->stateCache->updateSizeLimit(newCacheSize);
+    }
+    // [FALCON] -------------------------------------------------------------------------------------------
+
     return createdState;
 }
 

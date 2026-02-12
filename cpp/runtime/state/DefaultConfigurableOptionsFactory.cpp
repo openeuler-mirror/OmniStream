@@ -98,6 +98,11 @@ void DefaultConfigurableOptionsFactory::createColumnOptions(ROCKSDB_NAMESPACE::C
         useBloomFilter->putRefCount();
         bitsPerKey->putRefCount();
         blockBasedMode->putRefCount();
+
+        // [FALCON] enable filter parameters
+        blockBasedTableOptions.partition_filters = true;
+        blockBasedTableOptions.index_type = ROCKSDB_NAMESPACE::BlockBasedTableOptions::kTwoLevelIndexSearch;
+        INFO_RELEASE("[FALCON] enable partition filter.")
     }
     currentOptions.table_factory.reset(NewBlockBasedTableFactory(blockBasedTableOptions));
 }
