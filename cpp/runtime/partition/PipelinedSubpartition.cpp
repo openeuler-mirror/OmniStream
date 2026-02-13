@@ -413,8 +413,8 @@ std::shared_ptr<CheckpointBarrier> PipelinedSubpartition::ParseAndCheckTimeoutab
         LOG_DEBUG("find barrier is null!")
         throw std::runtime_error("Parse the timeoutable Checkpoint Barrier failed, barrier is null.");
     }
-    if (barrier->GetCheckpointOptions()->IsTimeoutable() ||
-        ObjectBufferDataType::TIMEOUTABLE_ALIGNED_CHECKPOINT_BARRIER == bufferConsumer->getDataType()) {
+    if (!barrier->GetCheckpointOptions()->IsTimeoutable() ||
+        ObjectBufferDataType::TIMEOUTABLE_ALIGNED_CHECKPOINT_BARRIER != bufferConsumer->getDataType()) {
         LOG_DEBUG("find a logical error!")
         throw std::runtime_error("Barrier type is TIMEOUTABLE_ALIGNED_CHECKPOINT_BARRIER.");
     }
