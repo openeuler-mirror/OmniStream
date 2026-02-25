@@ -17,7 +17,7 @@ std::shared_ptr<StateMetaInfoSnapshot> RegisteredKeyValueStateBackendMetaInfo::c
         StateMetaInfoSnapshot::CommonOptionsKeys::KEYED_STATE_TYPE)] = std::to_string((int) stateType);
 
     std::unordered_map<std::string, TypeSerializer*> serializerMap;
-    serializerMap.emplace("valueSerializer", getStateSerializer());
+    serializerMap.emplace("stateSerializer", getStateSerializer());
     serializerMap.emplace("namespaceSerializer", getNamespaceSerializer());
 
     std::unordered_map<std::string, std::shared_ptr<TypeSerializerSnapshot>> serializerConfigSnapshotsMap;
