@@ -179,7 +179,7 @@ public:
             if (serializer == nullptr) {
                 continue;
             }
-           mapJson[it->first] = serializer;
+           mapJson[it->first] = serializer->toJson();
         }
         return mapJson.dump();
     }
