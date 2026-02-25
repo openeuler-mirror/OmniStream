@@ -108,17 +108,17 @@ namespace omnistream {
             int subtaskIndex,
             long checkpointId,
             std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> targetResult,
-            CheckpointStorageLocationReference *locationReference);
+            std::shared_ptr<CheckpointStorageLocationReference> locationReference);
 
         std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> getTargetResult();
-        CheckpointStorageLocationReference *getLocationReference();
+        std::shared_ptr<CheckpointStorageLocationReference> getLocationReference();
 
         void cancel(const std::exception_ptr &cause) override;
         void execute(std::shared_ptr<ChannelStateCheckpointWriter> writer) override;
 
     private:
         std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> targetResult_;
-        CheckpointStorageLocationReference *locationReference_;
+        std::shared_ptr<CheckpointStorageLocationReference> locationReference_;
     };
 
     class CheckpointInProgressRequest : public ChannelStateWriteRequest {

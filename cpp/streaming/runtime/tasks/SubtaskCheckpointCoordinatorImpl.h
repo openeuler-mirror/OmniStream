@@ -179,7 +179,7 @@ namespace omnistream::runtime {
             }
 
             CheckpointStreamFactory *resolveCheckpointStorageLocation(
-                    int64_t checkpointId, CheckpointStorageLocationReference *reference) override;
+                    int64_t checkpointId, std::shared_ptr<CheckpointStorageLocationReference> reference) override;
 
             CheckpointStateOutputStream *createTaskOwnedStateStream() override;
 

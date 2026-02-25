@@ -62,7 +62,8 @@ std::shared_ptr<SnapshotResultSupplier<KeyedStateHandle>> RocksNativeFullSnapsho
             stateMetaInfoSnapshots,
             backendUID_,
             keyGroupRange_,
-            this));
+            this,
+            checkpointOptions));
 }
 
 void RocksNativeFullSnapshotStrategy::notifyCheckpointComplete(int64_t completedCheckpointId) {}
@@ -90,7 +91,8 @@ RocksNativeFullSnapshotStrategy::RocksDBNativeFullSnapshotOperation::RocksDBNati
     std::vector<std::shared_ptr<StateMetaInfoSnapshot>> stateMetaInfoSnapshots,
     UUID backendUID,
     KeyGroupRange keyGroupRange,
-    RocksNativeFullSnapshotStrategy* outerStrategy)
+    RocksNativeFullSnapshotStrategy* outerStrategy,
+    CheckpointOptions *checkpointOptions)
     : RocksDBSnapshotOperation(
         checkpointId,
         checkpointStreamFactory,
@@ -98,7 +100,8 @@ RocksNativeFullSnapshotStrategy::RocksDBNativeFullSnapshotOperation::RocksDBNati
         stateMetaInfoSnapshots),
     backendUID_(backendUID),
     keyGroupRange_(keyGroupRange),
-    outerStrategy_(outerStrategy) {}
+    outerStrategy_(outerStrategy),
+    checkpointOptions_(checkpointOptions) {}
 
 std::shared_ptr<SnapshotResult<KeyedStateHandle>>RocksNativeFullSnapshotStrategy::RocksDBNativeFullSnapshotOperation::get(
     std::shared_ptr<omnistream::OmniTaskBridge> bridge)
@@ -111,6 +114,7 @@ std::shared_ptr<SnapshotResult<KeyedStateHandle>>RocksNativeFullSnapshotStrategy
         metaStateHandle = outerStrategy_->materializeMetaData(
             stateMetaInfoSnapshots,
             checkpointId,
+            checkpointOptions_,
             bridge);
 
         int64_t checkpointedSize = metaStateHandle->GetStateSize();

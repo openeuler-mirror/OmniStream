@@ -19,6 +19,7 @@
 #include "runtime/state/StreamStateHandle.h"
 #include "runtime/state/restore/KeyGroupEntry.h"
 #include "state/LocalRecoveryConfig.h"
+#include "runtime/checkpoint/CheckpointOptions.h"
 
 class OmniTaskBridgeImpl2 : public omnistream::OmniTaskBridge {
 public:
@@ -45,14 +46,15 @@ public:
     std::shared_ptr<SnapshotResult<StreamStateHandle>> CallMaterializeMetaData(
             jlong checkpointId,
             std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& snapshots,
-            std::shared_ptr<LocalRecoveryConfig> localRecoveryConfig) override;
+            std::shared_ptr<LocalRecoveryConfig> localRecoveryConfig,
+            CheckpointOptions *checkpointOptions) override;
 
     jobject CallUploadFilesToCheckpointFs(const std::vector<Path>& filePaths,
                                           int numberOfSnapshottingThreads) override;
 
     JNIEnv* getJNIEnv() override;
 
-    jobject AcquireSavepointOutputStream(long checkpointId) override;
+    jobject AcquireSavepointOutputStream(long checkpointId, CheckpointOptions *checkpointOptions) override;
     std::shared_ptr<SnapshotResult<StreamStateHandle>> CloseSavepointOutputStream(jobject provider) override;
     void WriteSavepointOutputStream(jobject provider, const int8_t *chunk, size_t offset, size_t len) override;
     void WriteSavepointMetadata(jobject provider, const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& snapshots) override;

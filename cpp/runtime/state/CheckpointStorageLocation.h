@@ -15,6 +15,6 @@
 #include "CheckpointStorageLocationReference.h"
 class CheckpointStorageLocation : public CheckpointStreamFactory {
     virtual void disposeOnFailure() = 0;
-    virtual CheckpointStorageLocationReference *getLocationReference() = 0;
+    virtual std::shared_ptr<CheckpointStorageLocationReference> getLocationReference() = 0;
 };
 #endif // FLINK_TNEL_CHECKPOINTSTORAGELOCATION_H

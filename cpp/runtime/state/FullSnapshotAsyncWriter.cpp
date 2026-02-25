@@ -7,9 +7,10 @@
 #include "common.h"
 FullSnapshotAsyncWriter::FullSnapshotAsyncWriter(
     SnapshotType *snapshotType,
+    CheckpointOptions *checkpointOptions,
     long checkpointId,
     const std::shared_ptr<FullSnapshotResources> & snapshotResources)
-    : snapshotResources_(snapshotResources),checkpointId_(checkpointId),snapshotType_(snapshotType)
+    : snapshotResources_(snapshotResources),checkpointOptions_(checkpointOptions),checkpointId_(checkpointId),snapshotType_(snapshotType)
 {
 }
 static constexpr int END_OF_KEY_GROUP_MASK = 0xffff;
@@ -21,7 +22,7 @@ std::shared_ptr<SnapshotResult<KeyedStateHandle>> FullSnapshotAsyncWriter::get(
     try{
         auto keyGroupRangeOffsets = std::make_shared<KeyGroupRangeOffsets>(
             *snapshotResources_->getKeyGroupRange());
-        CheckpointStateOutputStreamProxy stream(bridge, checkpointId_);
+        CheckpointStateOutputStreamProxy stream(bridge, checkpointId_, checkpointOptions_);
         stream.writeMetadata(snapshotResources_->getMetaInfoSnapshots());
         std::vector<int8_t> previousKey;
         std::vector<int8_t> previousValue;
@@ -73,7 +74,7 @@ std::shared_ptr<SnapshotResult<KeyedStateHandle>> FullSnapshotAsyncWriter::get(
         if(mergeIterator) {
             mergeIterator->close();
         }
-        LOG("savepoint error:" << e.what());
+            INFO_RELEASE("savepoint: FullSnapshotAsyncWriter err" << e.what());
         return SnapshotResult<KeyedStateHandle>::Empty();
     }
 }

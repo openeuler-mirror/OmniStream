@@ -142,7 +142,7 @@ namespace omnistream {
     void ChannelStateCheckpointWriter::Start(const JobVertexID &jobVertexID,
                                              int subtaskIndex,
                                              std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> targetResult,
-                                             CheckpointStorageLocationReference *locationReference)
+                                             std::shared_ptr<CheckpointStorageLocationReference> locationReference)
     {
         SubtaskID id = SubtaskID::Of(jobVertexID, subtaskIndex);
         RegisterSubtaskResult(id, targetResult);

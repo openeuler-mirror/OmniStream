@@ -19,6 +19,7 @@
 #include "runtime/state/SnapshotResult.h"
 #include "runtime/state/StreamStateHandle.h"
 #include "runtime/state/restore/KeyGroupEntry.h"
+#include "runtime/checkpoint/CheckpointOptions.h"
 #include "core/fs/Path.h"
 #include "state/LocalRecoveryConfig.h"
 
@@ -32,14 +33,15 @@ namespace omnistream {
         virtual std::shared_ptr<SnapshotResult<StreamStateHandle>> CallMaterializeMetaData(
                 jlong checkpointId,
                 std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& snapshots,
-                std::shared_ptr<LocalRecoveryConfig> localRecoveryConfig) = 0;
+                std::shared_ptr<LocalRecoveryConfig> localRecoveryConfig,
+                CheckpointOptions *checkpointOptions) = 0;
         
         virtual jobject CallUploadFilesToCheckpointFs(const std::vector<Path>& filePaths,
                                                       int numberOfSnapshottingThreads) = 0;
 
         virtual std::vector<StateMetaInfoSnapshot> readMetaData(const std::string &metaStateHandle) = 0;
 
-        virtual jobject AcquireSavepointOutputStream(long checkpointId) = 0;
+        virtual jobject AcquireSavepointOutputStream(long checkpointId, CheckpointOptions *checkpointOptions) = 0;
 
         virtual std::shared_ptr<SnapshotResult<StreamStateHandle>> CloseSavepointOutputStream(jobject provider) = 0;
 

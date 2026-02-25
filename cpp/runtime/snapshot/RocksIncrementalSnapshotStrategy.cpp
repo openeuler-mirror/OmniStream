@@ -78,7 +78,8 @@ std::shared_ptr<SnapshotResultSupplier<KeyedStateHandle>> RocksIncrementalSnapsh
             snapshotDirectory,
             previousSnapshot,
             sharingStrategy,
-            stateMetaInfoSnapshots);
+            stateMetaInfoSnapshots,
+            checkpointOptions);
 }
 
 void RocksIncrementalSnapshotStrategy::notifyCheckpointComplete(long completedCheckpointId)
@@ -137,7 +138,8 @@ RocksIncrementalSnapshotStrategy::RocksDBIncrementalSnapshotOperation::RocksDBIn
     std::shared_ptr<SnapshotDirectory> localBackupDirectory,
     std::shared_ptr<PreviousSnapshot> previousSnapshot,
     SnapshotType::SharingFilesStrategy sharingFilesStrategy,
-    std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& stateMetaInfoSnapshots)
+    std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& stateMetaInfoSnapshots,
+    CheckpointOptions *checkpointOptions)
     : RocksDBSnapshotOperation(
     checkpointId,
     checkpointStreamFactory,
@@ -145,7 +147,8 @@ RocksIncrementalSnapshotStrategy::RocksDBIncrementalSnapshotOperation::RocksDBIn
     stateMetaInfoSnapshots),
     parent_(parent),
     previousSnapshot_(previousSnapshot),
-    sharingFilesStrategy_(sharingFilesStrategy) {}
+    sharingFilesStrategy_(sharingFilesStrategy),
+    checkpointOptions_(checkpointOptions) {}
 
 std::shared_ptr<SnapshotResult<KeyedStateHandle>> RocksIncrementalSnapshotStrategy::RocksDBIncrementalSnapshotOperation::get(
     std::shared_ptr<omnistream::OmniTaskBridge> bridge)
@@ -160,6 +163,7 @@ std::shared_ptr<SnapshotResult<KeyedStateHandle>> RocksIncrementalSnapshotStrate
         metaStateHandle = parent_->materializeMetaData(
             stateMetaInfoSnapshots,
             checkpointId,
+            checkpointOptions_,
             bridge);
 
         // 2. 上传文件

@@ -16,6 +16,7 @@
 #include "state/SnapshotResult.h"
 #include "state/StreamStateHandle.h"
 #include "state/bridge/OmniTaskBridge.h"
+#include "runtime/checkpoint/CheckpointOptions.h"
 #include <jni.h>
 #include <stdexcept>
 
@@ -28,9 +29,9 @@ private:
     size_t pos_ = 0;
 
 public:
-    CheckpointStateOutputStreamProxy(const std::shared_ptr<omnistream::OmniTaskBridge> &bridge, long checkpointId): bridge_(bridge)
+    CheckpointStateOutputStreamProxy(const std::shared_ptr<omnistream::OmniTaskBridge> &bridge, long checkpointId, CheckpointOptions *checkpointOptions): bridge_(bridge)
     {
-        provider_ = bridge_->AcquireSavepointOutputStream(checkpointId);
+        provider_ = bridge_->AcquireSavepointOutputStream(checkpointId, checkpointOptions);
         if(!provider_){
             throw std::runtime_error("Failed to AcquireSavepointOutputStream");
         }

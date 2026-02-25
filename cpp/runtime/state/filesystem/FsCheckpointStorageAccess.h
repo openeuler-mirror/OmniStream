@@ -72,7 +72,7 @@ public:
     CheckpointStateToolset *createTaskOwnedCheckpointStateToolset() override { return nullptr; };
 
     CheckpointStreamFactory *resolveCheckpointStorageLocation(
-        int64_t checkpointId, CheckpointStorageLocationReference *reference) override
+        int64_t checkpointId, std::shared_ptr<CheckpointStorageLocationReference> reference) override
     {
         if (reference->IsDefaultReference()) {
             Path *checkpointDir =

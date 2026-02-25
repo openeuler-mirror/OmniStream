@@ -9,9 +9,11 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "CheckpointStorageLocationReference.h"
+#include "nlohmann/json.hpp"
+#include "common.h"
 
 CheckpointStorageLocationReference::CheckpointStorageLocationReference(
-    std::vector<uint8_t> *encodedReference) : encodedReference_(encodedReference)
+    std::shared_ptr<std::vector<uint8_t>> encodedReference) : encodedReference_(encodedReference)
 {
     if (encodedReference == nullptr || encodedReference->empty()) {
         throw std::invalid_argument("encodedReference must not be empty");
@@ -22,16 +24,13 @@ CheckpointStorageLocationReference::CheckpointStorageLocationReference() : encod
 {
 }
 
-CheckpointStorageLocationReference::~CheckpointStorageLocationReference()
-{
-    delete encodedReference_;
-}
+CheckpointStorageLocationReference::~CheckpointStorageLocationReference() = default;
 
-std::vector<uint8_t> *CheckpointStorageLocationReference::GetReferenceBytes()
+std::shared_ptr<std::vector<uint8_t>> CheckpointStorageLocationReference::GetReferenceBytes()
     const
 {
     return encodedReference_ != nullptr ? encodedReference_
-                                        : new std::vector<uint8_t>();
+                                        : std::make_shared<std::vector<uint8_t>>();
 }
 
 bool CheckpointStorageLocationReference::IsDefaultReference() const
@@ -58,18 +57,31 @@ int CheckpointStorageLocationReference::HashCode() const
 
 std::string CheckpointStorageLocationReference::ToString() const
 {
+    nlohmann::json json;
     if (encodedReference_ == nullptr) {
-        return "(default)";
+        json["referenceBytes"] =  "(default)";
     } else {
         std::ostringstream oss;
         oss << std::hex << std::setfill('0');
         for (uint8_t byte : *encodedReference_) {
             oss << std::setw(2) << static_cast<int>(byte);
         }
-        return oss.str();
+        json["referenceBytes"] = oss.str();
     }
+    return json.dump();
 }
 
-CheckpointStorageLocationReference *
+nlohmann::json CheckpointStorageLocationReference::ToJson() const
+{
+    nlohmann::json json;
+    if (encodedReference_ == nullptr) {
+        json["referenceBytes"] =  "(default)";
+    } else {
+        json["referenceBytes"] = std::string(reinterpret_cast<const char*>(encodedReference_->data()), encodedReference_->size());
+    }
+    return json;
+}
+
+std::shared_ptr<CheckpointStorageLocationReference>
     CheckpointStorageLocationReference::DEFAULT =
-        new CheckpointStorageLocationReference();
+        std::make_shared< CheckpointStorageLocationReference>();

@@ -49,6 +49,7 @@ public:
         }
         return std::make_shared<FullSnapshotAsyncWriter>(
             SavepointType::savepoint(SavepointFormatType::CANONICAL),
+            checkpointOptions,
             checkpointId,
             snapshotResources);
     }

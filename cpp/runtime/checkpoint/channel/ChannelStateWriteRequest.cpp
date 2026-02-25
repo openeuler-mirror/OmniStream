@@ -170,7 +170,7 @@ namespace omnistream {
         const std::string name)
     {
         auto targetResult = std::make_shared<ChannelStateWriter::ChannelStateWriteResult>();
-        CheckpointStorageLocationReference *locationReference = new CheckpointStorageLocationReference();
+        std::shared_ptr<CheckpointStorageLocationReference> locationReference = std::make_shared<CheckpointStorageLocationReference>();
         return std::make_shared<CheckpointStartRequest>(
             jobVertexID, subtaskIndex, checkpointId, targetResult, locationReference);
     }
@@ -198,7 +198,7 @@ namespace omnistream {
         int subtaskIndex,
         long checkpointId,
         std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> targetResult,
-        CheckpointStorageLocationReference *locationReference)
+        std::shared_ptr<CheckpointStorageLocationReference> locationReference)
         : ChannelStateWriteRequest(jobVertexID, subtaskIndex, checkpointId, "Start"),
           targetResult_(targetResult),
           locationReference_(locationReference) {}
@@ -208,7 +208,7 @@ namespace omnistream {
         return targetResult_;
     }
 
-    CheckpointStorageLocationReference *CheckpointStartRequest::getLocationReference()
+    std::shared_ptr<CheckpointStorageLocationReference> CheckpointStartRequest::getLocationReference()
     {
         return locationReference_;
     }

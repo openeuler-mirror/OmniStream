@@ -207,7 +207,7 @@ namespace omnistream {
     {
         int byteSize = 38;
         CheckpointOptions* checkpointOptions = checkpointBarrier->GetCheckpointOptions();
-        std::vector<uint8_t>* reference =
+        std::shared_ptr<std::vector<uint8_t>> reference =
             checkpointOptions->GetTargetLocation()->IsDefaultReference()
                 ? nullptr
                 : checkpointOptions->GetTargetLocation()->GetReferenceBytes();
@@ -294,13 +294,13 @@ namespace omnistream {
 
         // Read the location reference
         int locationRefLen = buffer.getIntBigEndian();
-        CheckpointStorageLocationReference *locationRef = nullptr;
+        std::shared_ptr<CheckpointStorageLocationReference> locationRef = nullptr;
         if (locationRefLen == -1) {
             locationRef = CheckpointStorageLocationReference::GetDefault();
         } else {
-            std::vector<uint8_t>* bytes = new std::vector<uint8_t>(locationRefLen);
+            std::shared_ptr<std::vector<uint8_t>> bytes = std::make_shared<std::vector<uint8_t>>(locationRefLen);
             buffer.getBytes(bytes->data(), locationRefLen);
-            locationRef = new CheckpointStorageLocationReference(bytes);
+            locationRef = std::make_shared<CheckpointStorageLocationReference>(bytes);
         }
         // Read the alignment type ordinal and convert it to the enum type
         uint8_t alignmentOrdinal = buffer.getByte();

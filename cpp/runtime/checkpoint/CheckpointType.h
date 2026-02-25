@@ -32,6 +32,8 @@ public:
 
     std::string ToString() override;
 
+    nlohmann::json ToJson() override;
+
 private:
     const std::string name;
     const SharingFilesStrategy sharingFilesStrategy_;
