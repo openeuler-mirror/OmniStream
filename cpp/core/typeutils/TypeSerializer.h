@@ -14,7 +14,6 @@
 #include "OmniOperatorJIT/core/src/type/data_type.h"
 #include "basictypes/Object.h"
 #include "TypeSerializerSnapshot.h"
-#include "SerializerJsonInfo.h"
 
 struct SerializerJsonInfo;
 
@@ -95,16 +94,9 @@ public:
         NOT_IMPL_EXCEPTION
     };
 
-
-    virtual void initializeJsonInfo();
     virtual std::string toJson()
     {
         return typeJson.toJson();
-    }
-
-    virtual SerializerType getSerializerType() const
-    {
-        return  SerializerType::UNKNOWN;
     }
 
 protected:

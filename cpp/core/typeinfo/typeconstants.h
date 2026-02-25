@@ -27,6 +27,7 @@ extern const char* TYPE_NAME_TUPLE_SERIALIZER;
 extern const char* TYPE_NAME_POJO_SERIALIZER;
 extern const char* TYPE_NAME_MAP_SERIALIZER;
 extern const char* TYPE_NAME_LIST_SERIALIZER;
+extern const char* TYPE_NAME_VOID_SERIALIZER;
 
 
 #endif  // FLINK_TNEL_TYPECONSTANTS_H

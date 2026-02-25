@@ -12,6 +12,7 @@
 #ifndef OMNISTREAM_LISTSERIALIZER_H
 #define OMNISTREAM_LISTSERIALIZER_H
 #include "TypeSerializerSingleton.h"
+#include "SerializerJsonInfo.h"
 
 class ListSerializer : public TypeSerializerSingleton {
 public:
@@ -41,14 +42,10 @@ public:
 
     Object* GetBuffer() override;
 
-    std::string toJson() override;
+    std::string toJson() override
     {
-        typeJson = {getSerializerType(), "", nullptr, elementSerializer};
-    }
-
-    SerializerType getSerializerType() const override
-    {
-        return  SerializerType::LIST;
+        SerializerJsonInfo typeJson = {SerializerType::LIST, "", nullptr, elementSerializer};
+        return typeJson.toJson();
     }
 
 private:

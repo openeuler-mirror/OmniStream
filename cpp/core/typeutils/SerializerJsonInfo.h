@@ -14,15 +14,15 @@
 #include "TypeSerializer.h"
 
 enum class SerializerType {
-    UN_KNOW,
-    LIST,
-    BIG_INT,
-    LONG,
-    INT,
-    DOUBLE,
-    MAP,
-    POJO,
-    STRING
+    UNKNOWN = 0,
+    LIST = 1,
+    BIG_INT = 2,
+    LONG = 3,
+    INT = 4,
+    DOUBLE = 5,
+    MAP = 6,
+    POJO = 7,
+    STRING_T = 8
 };
 
 struct SerializerJsonInfo {
@@ -44,14 +44,12 @@ public:
         jsonObj["type"] = type;
         jsonObj["element_type"] = elementType;
         if (keySerializer != nullptr) {
-            jsonObj["keySerializer"] = keySerializer.toJson();
+            jsonObj["keySerializer"] = keySerializer->toJson();
         }
         if (valueSerializer != nullptr) {
-            jsonObj["valueSerializer"] = valueSerializer.toJson();
+            jsonObj["valueSerializer"] = valueSerializer->toJson();
         }
         if (fieldSerializers.size() != fieldNames.size()) {
-            GErrorLog(
-                    "unexpect field size,type size:" << fieldSerializers.size() << ", name size:" << fieldNames.size());
             return jsonObj.dump();
         }
         if (fieldSerializers.size() == 0) {
@@ -60,16 +58,15 @@ public:
 
         nlohmann::json fieldTypesJson = nlohmann::json::array();
         for (auto i = 0; i < fieldSerializers.size(); i++) {
-            nlohmann::json fieIdJson;
-            auto fieIdName = fieldNames[i];
+            nlohmann::json fieldJson;
+            auto fieldName = fieldNames[i];
             auto fieIdSerializer = fieldSerializers[i];
             if (fieIdSerializer == nullptr) {
-                GErrorLog("field: " << fieIdName << " has null serializer");
                 continue;
             }
-            fieIdJson["fieIdInfo:"] = fieIdName;
-            fieIdJson["fieIdName"] = fieIdSerializer;
-            fieldTypesJson.push_back(std::move(fieIdJson));
+            fieldJson["fieIdInfo:"] = fieIdName;
+            fieldJson["fieIdName"] = fieIdSerializer->toJson();
+            fieldTypesJson.push_back(std::move(fieldJson));
         }
         jsonObj["fields"] = fieldTypesJson.dump();
         return jsonObj.dump();

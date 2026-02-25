@@ -69,7 +69,8 @@ private:
             std::vector<std::shared_ptr<StateMetaInfoSnapshot>> stateMetaInfoSnapshots,
             UUID backendUID,
             KeyGroupRange keyGroupRange,
-            RocksNativeFullSnapshotStrategy* outerStrategy);
+            RocksNativeFullSnapshotStrategy* outerStrategy,
+            std::shared_ptr<TypeSerializer> keySerializer);
 
         std::shared_ptr<SnapshotResult<KeyedStateHandle>> get(std::shared_ptr<omnistream::OmniTaskBridge> bridge) override;
 

@@ -22,6 +22,8 @@ BasicTypeInfo *BasicTypeInfo::getBasicTypeInfo(const std::string typeName_)
         return new BasicTypeInfo(typeName_);
     } else if (typeName_ == TYPE_NAME_INT_SERIALIZER) {
         return new BasicTypeInfo(typeName_);
+    }else if (typeName_ == TYPE_NAME_VOID_SERIALIZER){
+        return new BasicTypeInfo(typeName_);
     }
     return nullptr;
 }

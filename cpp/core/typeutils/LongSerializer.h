@@ -6,6 +6,7 @@
 #define FLINK_TNEL_LONGSERIALIZER_H
 
 #include "TypeSerializerSingleton.h"
+#include "SerializerJsonInfo.h"
 
 class LongSerializer : public TypeSerializerSingleton {
 public:
@@ -55,14 +56,10 @@ public:
         return nullptr;
     };
 
-    SerializerType getSerializerType() const override
+    std::string toJson() override
     {
-        return  SerializerType::LONG;
-    }
-
-    void initializeJsonInfo() override
-    {
-        typeJson = {getSerializerType()};
+        SerializerJsonInfo typeJson = {SerializerType::LONG};
+        return typeJson.toJson();
     }
 };
 

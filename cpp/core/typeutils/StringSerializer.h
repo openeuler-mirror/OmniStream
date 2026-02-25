@@ -50,14 +50,10 @@ public:
 
     Object* GetBuffer() override;
 
-    SerializerType getSerializerType() const override
+    std::string toJson() override
     {
-        return  SerializerType::STRING;
-    }
-
-    void initializeJsonInfo() override
-    {
-        typeJson = {getSerializerType()};
+        SerializerJsonInfo typeJson = {SerializerType::STRING_T};
+        return typeJson.toJson();
     }
 
 private:

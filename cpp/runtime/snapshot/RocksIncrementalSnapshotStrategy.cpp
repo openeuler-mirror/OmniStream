@@ -78,7 +78,8 @@ std::shared_ptr<SnapshotResultSupplier<KeyedStateHandle>> RocksIncrementalSnapsh
             snapshotDirectory,
             previousSnapshot,
             sharingStrategy,
-            stateMetaInfoSnapshots);
+            stateMetaInfoSnapshots,
+            keySerializer_);
 }
 
 void RocksIncrementalSnapshotStrategy::notifyCheckpointComplete(long completedCheckpointId)
@@ -142,7 +143,8 @@ RocksIncrementalSnapshotStrategy::RocksDBIncrementalSnapshotOperation::RocksDBIn
     checkpointId,
     checkpointStreamFactory,
     localBackupDirectory,
-    stateMetaInfoSnapshots),
+    stateMetaInfoSnapshots,
+    keySerializer),
     parent_(parent),
     previousSnapshot_(previousSnapshot),
     sharingFilesStrategy_(sharingFilesStrategy) {}
@@ -160,7 +162,8 @@ std::shared_ptr<SnapshotResult<KeyedStateHandle>> RocksIncrementalSnapshotStrate
         metaStateHandle = parent_->materializeMetaData(
             stateMetaInfoSnapshots,
             checkpointId,
-            bridge);
+            bridge,
+            keySerializer->toJson());
 
         // 2. 上传文件
         long uploadedSize = uploadSnapshotFiles(

@@ -44,8 +44,8 @@ public:
 
     std::shared_ptr<SnapshotResult<StreamStateHandle>> CallMaterializeMetaData(
             jlong checkpointId,
-            std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& snapshots,
-            std::shared_ptr<LocalRecoveryConfig> localRecoveryConfig) override;
+            std::vector<std::shared_ptr<StateMetaInfoSnapshot>> &snapshots,
+            std::shared_ptr<LocalRecoveryConfig> localRecoveryConfig, std::string keySerializer) override;
 
     jobject CallUploadFilesToCheckpointFs(const std::vector<Path>& filePaths,
                                           int numberOfSnapshottingThreads) override;

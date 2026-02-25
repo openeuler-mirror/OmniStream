@@ -206,11 +206,13 @@ RocksDBSnapshotStrategyBase::RocksDBSnapshotOperation::RocksDBSnapshotOperation(
     long checkpointId,
     CheckpointStreamFactory* checkpointStreamFactory,
     std::shared_ptr<SnapshotDirectory> localBackupDirectory,
-    std::vector<std::shared_ptr<StateMetaInfoSnapshot>> stateMetaInfoSnapshots)
+    std::vector<std::shared_ptr<StateMetaInfoSnapshot>> stateMetaInfoSnapshots,
+    std::shared_ptr<TypeSerializer> keySerializer)
     : checkpointId(checkpointId),
     checkpointStreamFactory(checkpointStreamFactory),
     stateMetaInfoSnapshots(std::move(stateMetaInfoSnapshots)),
-    localBackupDirectory(std::move(localBackupDirectory))
+    localBackupDirectory(std::move(localBackupDirectory)),
+    keySerializer(keySerializer)
 {
     tmpResourcesRegistry = std::make_shared<CloseableRegistry>();
 }

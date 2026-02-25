@@ -32,7 +32,7 @@ namespace omnistream {
         virtual std::shared_ptr<SnapshotResult<StreamStateHandle>> CallMaterializeMetaData(
                 jlong checkpointId,
                 std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& snapshots,
-                std::shared_ptr<LocalRecoveryConfig> localRecoveryConfig) = 0;
+                std::shared_ptr<LocalRecoveryConfig> localRecoveryConfig, std::string keySerializer) = 0;
         
         virtual jobject CallUploadFilesToCheckpointFs(const std::vector<Path>& filePaths,
                                                       int numberOfSnapshottingThreads) = 0;

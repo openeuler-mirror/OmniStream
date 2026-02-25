@@ -78,7 +78,8 @@ protected:
             std::shared_ptr<SnapshotDirectory> localBackupDirectory,
             std::shared_ptr<PreviousSnapshot> previousSnapshot,
             SnapshotType::SharingFilesStrategy sharingFilesStrategy,
-            std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& stateMetaInfoSnapshots);
+            std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& stateMetaInfoSnapshots,
+            std::shared_ptr<TypeSerializer> keySerializer);
 
         std::shared_ptr<SnapshotResult<KeyedStateHandle>> get(std::shared_ptr<omnistream::OmniTaskBridge> bridge) override;
 

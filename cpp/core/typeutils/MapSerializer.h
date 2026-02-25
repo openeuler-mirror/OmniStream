@@ -59,15 +59,12 @@ public:
         return nullptr;
     };
 
-    SerializerType getSerializerType() const override
+    std::string toJson() override
     {
-        return  SerializerType::MAP;
+        SerializerJsonInfo typeJson = {SerializerType::MAP, "", keySerializer, valueSerializer};
+        return typeJson.toJson();
     }
 
-    void initializeJsonInfo() override
-    {
-        typeJson = {getSerializerType(), "", keySerializer, valueSerializer};
-    }
 private:
     TypeSerializer *keySerializer;
     TypeSerializer *valueSerializer;
