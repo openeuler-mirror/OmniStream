@@ -15,8 +15,6 @@
 #include "basictypes/Object.h"
 #include "TypeSerializerSnapshot.h"
 
-struct SerializerJsonInfo;
-
 enum class BackendDataType {
     BIGINT_BK,
     INT_BK,
@@ -96,12 +94,11 @@ public:
 
     virtual std::string toJson()
     {
-        return typeJson.toJson();
+        return "";
     }
 
 protected:
     Object* reuseBuffer = nullptr;
     bool bufferReusable = false;
-    SerializerJsonInfo typeJson;
 };
 #endif
