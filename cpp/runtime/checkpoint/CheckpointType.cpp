@@ -9,6 +9,7 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "CheckpointType.h"
+#include "nlohmann/json.hpp"
 
 CheckpointType *CheckpointType::CHECKPOINT = new CheckpointType(
     "Checkpoint", SnapshotType::SharingFilesStrategy::FORWARD_BACKWARD);
@@ -31,6 +32,16 @@ bool CheckpointType::operator==(const SnapshotType &other) const
 
 std::string CheckpointType::ToString()
 {
-    return "CheckpointType{name='" + name + "', sharingFilesStrategy=" +
-           std::to_string(static_cast<int>(sharingFilesStrategy_)) + "}";
+    nlohmann::json json;
+    json["name"] = name;
+    json["sharingFilesStrategy"] = sharingFilesStrategy_;
+    return json.dump();
+}
+
+nlohmann::json CheckpointType::ToJson()
+{
+    nlohmann::json json;
+    json["name"] = name;
+    json["sharingFilesStrategy"] = sharingFilesStrategy_;
+    return json;
 }

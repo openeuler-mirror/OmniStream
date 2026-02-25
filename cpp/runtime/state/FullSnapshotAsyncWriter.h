@@ -16,14 +16,16 @@
 #include "state/FullSnapshotResources.h"
 #include "state/SnapshotStrategy.h"
 #include "checkpoint/SnapshotType.h"
+#include "checkpoint/CheckpointOptions.h"
 class FullSnapshotAsyncWriter: public SnapshotResultSupplier<KeyedStateHandle> {
 private:
     std::shared_ptr<FullSnapshotResources> snapshotResources_;
     long checkpointId_;
     SnapshotType *snapshotType_;
+    CheckpointOptions *checkpointOptions_;
 
 public:
-    FullSnapshotAsyncWriter(SnapshotType *snapshotType, long checkpointId, const std::shared_ptr<FullSnapshotResources> &snapshotResources);
+    FullSnapshotAsyncWriter(SnapshotType *snapshotType, CheckpointOptions *checkpointOptions, long checkpointId, const std::shared_ptr<FullSnapshotResources> &snapshotResources);
     std::shared_ptr<SnapshotResult<KeyedStateHandle>>
     get(std::shared_ptr<omnistream::OmniTaskBridge> bridge) override;
 };

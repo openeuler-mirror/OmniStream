@@ -85,9 +85,10 @@ protected:
     std::shared_ptr<SnapshotResult<StreamStateHandle>> materializeMetaData(
             std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& stateMetaInfoSnapshots,
             long checkpointId,
+            CheckpointOptions *checkpointOptions,
             std::shared_ptr<omnistream::OmniTaskBridge> bridge)
     {
-        return bridge->CallMaterializeMetaData(checkpointId, stateMetaInfoSnapshots, localRecoveryConfig_);
+        return bridge->CallMaterializeMetaData(checkpointId, stateMetaInfoSnapshots, localRecoveryConfig_, checkpointOptions);
     };
 
     std::shared_ptr<SnapshotDirectory> prepareLocalSnapshotDirectory(long checkpointId);

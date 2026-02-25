@@ -103,7 +103,7 @@ namespace omnistream {
         void Reset();
         void Start(const JobVertexID &jobVertexID, int subtaskIndex,
                    std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> targetResult,
-                   CheckpointStorageLocationReference *locationReference);
+                   std::shared_ptr<CheckpointStorageLocationReference> locationReference);
         void Abort(const JobVertexID &jobVertexID, int subtaskIndex, const std::exception_ptr &cause);
         void RegisterSubtask(const JobVertexID &jobVertexID, int subtaskIndex);
 

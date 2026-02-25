@@ -383,7 +383,7 @@ namespace omnistream::runtime {
 
     CheckpointStreamFactory *SubtaskCheckpointCoordinatorImpl::CachingCheckpointStorageWorkerView::resolveCheckpointStorageLocation(
         int64_t checkpointId,
-        CheckpointStorageLocationReference *reference)
+        std::shared_ptr<CheckpointStorageLocationReference> reference)
     {
         auto it = cache.find(checkpointId);
         if (it != cache.end()) {

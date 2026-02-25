@@ -26,7 +26,8 @@ public:
 
 TEST(BarrierAlignmentUtilTest, GetTimerDelay)
 {
-    auto options = new CheckpointOptions(CheckpointType::CHECKPOINT, new CheckpointStorageLocationReference(new std::vector<uint8_t>({0x01, 0x02, 0x03})),
+    std::vector<uint8_t> bytes = {0x01, 0x02, 0x03};
+    auto options = new CheckpointOptions(CheckpointType::CHECKPOINT, std::make_shared<CheckpointStorageLocationReference>(std::make_shared<std::vector<uint8_t>>(bytes)),
                                          CheckpointOptions::AlignmentType::ALIGNED,
                                          1000); // 1 second timeout
     auto barrier = new CheckpointBarrier(0, 1234567890, options);
@@ -38,8 +39,7 @@ TEST(BarrierAlignmentUtilTest, GetTimerDelay)
     clockMillis = 1234567890 + 1500;
     delay = BarrierAlignmentUtil::getTimerDelay(clockMillis, *barrier);
     EXPECT_EQ(delay, 0);
-    delete options->GetTargetLocation();
-    delete barrier;
+     delete barrier;
 }
 
 TEST(BarrierAlignmentUtilTest, DelayableTimerRegisterTask)

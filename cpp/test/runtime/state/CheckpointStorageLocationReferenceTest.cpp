@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-
+#include <memory>
 #include "runtime/state/CheckpointStorageLocationReference.h"
 
 TEST(CheckpointStorageLocationReferenceTest, DefaultTest)
@@ -11,11 +11,10 @@ TEST(CheckpointStorageLocationReferenceTest, DefaultTest)
 
 TEST(CheckpointStorageLocationReferenceTest, InitTest)
 {
-    auto encodedReference = new std::vector<uint8_t>{1, 2, 3, 4, 5};
-    auto ref = new CheckpointStorageLocationReference(encodedReference);
+    std::vector<uint8_t> bytes = {1, 2, 3, 4, 5};
+    auto encodedReference = std::make_shared<std::vector<uint8_t>>(bytes);
+    auto ref = std::make_shared<CheckpointStorageLocationReference>(encodedReference);
 
     EXPECT_FALSE(ref->IsDefaultReference());
     EXPECT_EQ(*(ref->GetReferenceBytes()), *encodedReference);
-
-    delete ref;
 }

@@ -12,6 +12,7 @@
 #define FLINK_TNEL_SNAPSHOTTYPE_H
 
 #include <string>
+#include "nlohmann/json.hpp"
 
 class SnapshotType {
 public:
@@ -26,6 +27,7 @@ public:
     virtual std::string GetName() const = 0;
     virtual SharingFilesStrategy GetSharingFilesStrategy() const = 0;
     virtual std::string ToString() = 0;
+    virtual nlohmann::json  ToJson() = 0;
     virtual bool operator==(const SnapshotType &other) const = 0;
 };
 

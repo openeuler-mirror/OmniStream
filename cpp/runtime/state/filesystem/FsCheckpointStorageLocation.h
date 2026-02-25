@@ -25,7 +25,7 @@ public:
         Path *checkpointDir,
         Path *sharedStateDir,
         Path *taskOwnedStateDir,
-        CheckpointStorageLocationReference *reference,
+        std::shared_ptr<CheckpointStorageLocationReference> reference,
         int fileStateSizeThreshold,
         int writeBufferSize)
         : FsCheckpointStreamFactory(fileSystem, checkpointDir, sharedStateDir, fileStateSizeThreshold, writeBufferSize),
@@ -77,7 +77,7 @@ private:
     Path *sharedStateDirectory;
     Path *taskOwnedStateDirectory;
     Path *metadataFilePath;
-    CheckpointStorageLocationReference *reference;
+    std::shared_ptr<CheckpointStorageLocationReference> reference;
     int fileStateSizeThreshold;
     int writeBufferSize;
 };
