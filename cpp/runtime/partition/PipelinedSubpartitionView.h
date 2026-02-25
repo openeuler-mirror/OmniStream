@@ -34,6 +34,7 @@ namespace omnistream {
         std::shared_ptr<BufferAndBacklog> getNextBuffer() override;
         void notifyDataAvailable() override;
         void notifyPriorityEvent(int priorityBufferNumber) override;
+        void ConvertToPriorityEvent(int sequenceNumber) override;
         void releaseAllResources() override;
         bool isReleased() override;
         void resumeConsumption() override;

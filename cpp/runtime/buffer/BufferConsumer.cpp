@@ -78,4 +78,9 @@ namespace omnistream {
         return buffer->GetDataType();
     }
 
+    void BufferConsumer::SetDataType(const ObjectBufferDataType& dataType)
+    {
+        buffer->SetDataType(dataType);
+    }
+
 }

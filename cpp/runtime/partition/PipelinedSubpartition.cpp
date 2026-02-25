@@ -82,7 +82,8 @@ std::shared_ptr<BufferAndBacklog> PipelinedSubpartition::pollBuffer()
 {
     std::lock_guard<std::recursive_mutex> lock(buffersMutex);
     LOG(">>>>>>buffers.peek() is " << buffers.peek() << " buffers.size()" << buffers.size() << " buffers address" << &buffers);
-    if (isBlocked) {
+    // When blocked by an aligned checkpoint barrier, priority events (e.g., timeout->UC) must still overtake.
+    if (isBlocked && buffers.getNumPriorityElements() == 0) {
         return nullptr;
     }
 
@@ -391,7 +392,76 @@ bool PipelinedSubpartition::ProcessPriorityBuffer(std::shared_ptr<BufferConsumer
                 inflightBuffers);
         }
     }
-    return buffers.getNumPriorityElements() == 1 && !isBlocked;
+    // Priority events must be forwarded/announced even if the subpartition is currently blocked.
+    return buffers.getNumPriorityElements() == 1;
+}
+
+void PipelinedSubpartition::ConvertToPriorityEvent(int announcedSequenceNumber)
+{
+    std::shared_ptr<BufferConsumerWithPartialRecordLength> target;
+    int targetIndex = -1;
+    std::shared_ptr<CheckpointBarrier> barrier;
+    std::vector<std::shared_ptr<Buffer>> overtaken;
+    bool completedFuture = false;
+
+    {
+        std::lock_guard<std::recursive_mutex> lock(buffersMutex);
+
+        auto elements = buffers.asUnmodifiableCollection();
+        for (int i = 0; i < static_cast<int>(elements.size()); ++i) {
+            const auto& e = elements[i];
+            if (!e || !e->getBufferConsumer()) {
+                continue;
+            }
+            const auto dt = e->getBufferConsumer()->getDataType();
+            if (dt == ObjectBufferDataType::TIMEOUTABLE_ALIGNED_CHECKPOINT_BARRIER || dt.requiresAnnouncement()) {
+                target = e;
+                targetIndex = i;
+                break;
+            }
+        }
+        if (!target) {
+            return;
+        }
+
+        barrier = ParseCheckpointBarrier(target->getBufferConsumer());
+
+        // Collect overtaken data buffers before the barrier.
+        for (int i = 0; i < targetIndex; ++i) {
+            const auto& e = elements[i];
+            if (!e || !e->getBufferConsumer()) {
+                continue;
+            }
+            auto bc = e->getBufferConsumer();
+            if (bc->isBuffer()) {
+                overtaken.emplace_back(bc->buildForPeek());
+            }
+        }
+
+        // Turn the barrier into a priority event so pollBuffer() can overtake it even if blocked.
+        target->getBufferConsumer()->SetDataType(ObjectBufferDataType::PRIORITIZED_EVENT_BUFFER);
+        buffers.prioritize(target);
+
+        // If we previously registered a channelState future for this timeoutable barrier, complete it now.
+        if (barrier && channelStateFuture_ && channelStateCheckpointId_ == barrier->GetId()) {
+            // Complete the channel-state future that was registered when the timeoutable barrier was enqueued.
+            CompleteChannelStateFuture(overtaken, std::exception_ptr{});
+            channelStateCheckpointId_ = 0;
+            completedFuture = true;
+        }
+    }
+
+    // Best effort: if no future was registered (or id mismatch), directly persist overtaken buffers.
+    if (!completedFuture && barrier && channelStateWriter_ && !overtaken.empty()) {
+        channelStateWriter_->AddOutputData(
+            barrier->GetId(),
+            subpartitionInfo,
+            ChannelStateWriter::sequenceNumberUnknown,
+            overtaken);
+    }
+
+    notifyPriorityEvent(announcedSequenceNumber);
+    notifyDataAvailable();
 }
 
 void PipelinedSubpartition::ProcessTimeoutableCheckpointBarrier(std::shared_ptr<BufferConsumer> bufferConsumer)
@@ -410,13 +480,13 @@ std::shared_ptr<CheckpointBarrier> PipelinedSubpartition::ParseAndCheckTimeoutab
 {
     auto barrier = ParseCheckpointBarrier(bufferConsumer);
     if (barrier == nullptr) {
-        LOG_DEBUG("find barrier is null!")
+        LOG_DEBUG("Find barrier is null!")
         throw std::runtime_error("Parse the timeoutable Checkpoint Barrier failed, barrier is null.");
     }
+    // TIMEOUTABLE_ALIGNED_CHECKPOINT_BARRIER is expected here.
     if (!barrier->GetCheckpointOptions()->IsTimeoutable() ||
         ObjectBufferDataType::TIMEOUTABLE_ALIGNED_CHECKPOINT_BARRIER != bufferConsumer->getDataType()) {
-        LOG_DEBUG("find a logical error!")
-        throw std::runtime_error("Barrier type is TIMEOUTABLE_ALIGNED_CHECKPOINT_BARRIER.");
+        throw std::runtime_error("Barrier is not a timeoutable aligned checkpoint barrier.");
     }
     return barrier;
 }

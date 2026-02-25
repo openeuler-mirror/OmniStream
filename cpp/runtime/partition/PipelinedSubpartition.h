@@ -39,6 +39,9 @@ public:
     void finish() override;
     void release() override;
     std::shared_ptr<BufferAndBacklog> pollBuffer();
+    // Convert the announced timeoutable aligned barrier in this subpartition into a priority event
+    // so it can overtake buffered data when alignment times out.
+    void ConvertToPriorityEvent(int announcedSequenceNumber);
     void resumeConsumption();
     void acknowledgeAllDataProcessed();
     bool isReleased() override;

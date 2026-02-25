@@ -131,7 +131,6 @@ namespace omnistream {
         if (!queue.empty() || !req->getReadyFuture()->IsDone()) {
             std::shared_ptr<ChannelStateWriteRequest> raw = req;
             {
-                //std::lock_guard<std::mutex> lock(mutex);
                 queue.push(req);
             }
 
