@@ -22,11 +22,11 @@ ScheduledFutureTask* DelayedWorkQueue::Take()
 {
     std::unique_lock<std::mutex> lock(queueMutex);
 
-    while (true) {
+    while (!stop) {
         condition.wait(lock, [this] { return stop || !queue.empty(); });
 
         if (stop) {
-            return nullptr;
+            break;
         }
 
         ScheduledFutureTask* task = queue.top();
@@ -43,6 +43,8 @@ ScheduledFutureTask* DelayedWorkQueue::Take()
                     return stop || queue.empty() || queue.top() != task || task->GetDelay() <= 0;
                 });
     }
+
+    return nullptr;
 }
 
 void DelayedWorkQueue::Shutdown()
