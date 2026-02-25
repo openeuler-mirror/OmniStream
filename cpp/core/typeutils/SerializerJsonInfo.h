@@ -64,7 +64,7 @@ public:
             if (fieIdSerializer == nullptr) {
                 continue;
             }
-            fieldJson["fieIdInfo:"] = fieIdName;
+            fieldJson["fieIdInfo:"] = fieldName;
             fieldJson["fieIdName"] = fieIdSerializer->toJson();
             fieldTypesJson.push_back(std::move(fieldJson));
         }
