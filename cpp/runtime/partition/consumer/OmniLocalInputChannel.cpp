@@ -22,9 +22,10 @@ namespace omnistream {
                                                  std::shared_ptr<ResultPartitionManager> partitionManager,
                                                  int initialBackoff, int maxBackoff, int networkBuffersPerChannel,
                                                  std::shared_ptr<Counter> numBytesIn,
-                                                 std::shared_ptr<Counter> numBuffersIn)
+                                                 std::shared_ptr<Counter> numBuffersIn,
+                                                 std::shared_ptr<ChannelStateWriter> stateWriter)
         : LocalInputChannel(inputGate, channelIndex, partitionId, partitionManager, initialBackoff, maxBackoff,
-                            numBytesIn, numBuffersIn)
+                            numBytesIn, numBuffersIn, stateWriter)
     {
         originalNetworkBufferRecycler_ = std::make_shared<OriginalNetworkBufferRecycler>();
         channelInfo.setOmni();

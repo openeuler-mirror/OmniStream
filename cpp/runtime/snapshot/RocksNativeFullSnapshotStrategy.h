@@ -70,6 +70,7 @@ private:
             UUID backendUID,
             KeyGroupRange keyGroupRange,
             RocksNativeFullSnapshotStrategy* outerStrategy,
+            CheckpointOptions *checkpointOptions,
             std::shared_ptr<TypeSerializer> keySerializer);
 
         std::shared_ptr<SnapshotResult<KeyedStateHandle>> get(std::shared_ptr<omnistream::OmniTaskBridge> bridge) override;
@@ -82,6 +83,7 @@ private:
         UUID backendUID_;
         KeyGroupRange keyGroupRange_;
         RocksNativeFullSnapshotStrategy* outerStrategy_;
+        CheckpointOptions *checkpointOptions_;
     };
 };
 

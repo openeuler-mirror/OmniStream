@@ -123,6 +123,7 @@ public:
     void releaseAllResources() override {}
     void announceBufferSize(int) override {}
     int getBuffersInUseCount() override { return 0; }
+    void SetChannelStateWriter(std::shared_ptr<ChannelStateWriter> channelStateWriter) override {}
     std::string toString() override { return "DummyInputChannel"; }
 
 private:

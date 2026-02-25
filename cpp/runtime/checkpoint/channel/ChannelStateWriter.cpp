@@ -12,5 +12,5 @@
 #include "ChannelStateWriter.h"
 
 // Static member definition
-NoOpChannelStateWriter *NoOpChannelStateWriter::noOp = new NoOpChannelStateWriter();
+std::shared_ptr<NoOpChannelStateWriter> NoOpChannelStateWriter::noOp = std::make_shared<NoOpChannelStateWriter>();
 

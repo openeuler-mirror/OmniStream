@@ -26,6 +26,11 @@ public:
         CheckpointBarrier* barrier,
         bool markChannelBlocked) override;
 
+    BarrierHandlerState* AnnouncementReceived(
+        Controller* controller,
+        InputChannelInfo channelInfo,
+        int sequenceNumber) override;
+
     BarrierHandlerState* AlignedCheckpointTimeout(
         Controller* controller,
         CheckpointBarrier* barrier) override = 0;

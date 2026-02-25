@@ -63,6 +63,7 @@ std::shared_ptr<SnapshotResultSupplier<KeyedStateHandle>> RocksNativeFullSnapsho
             backendUID_,
             keyGroupRange_,
             this,
+            checkpointOptions,
             keySerializer_));
 }
 
@@ -92,6 +93,7 @@ RocksNativeFullSnapshotStrategy::RocksDBNativeFullSnapshotOperation::RocksDBNati
     UUID backendUID,
     KeyGroupRange keyGroupRange,
     RocksNativeFullSnapshotStrategy* outerStrategy,
+    CheckpointOptions *checkpointOptions,
     std::shared_ptr<TypeSerializer> keySerializer)
     : RocksDBSnapshotOperation(
         checkpointId,
@@ -101,7 +103,8 @@ RocksNativeFullSnapshotStrategy::RocksDBNativeFullSnapshotOperation::RocksDBNati
         keySerializer),
     backendUID_(backendUID),
     keyGroupRange_(keyGroupRange),
-    outerStrategy_(outerStrategy) {}
+    outerStrategy_(outerStrategy),
+    checkpointOptions_(checkpointOptions) {}
 
 std::shared_ptr<SnapshotResult<KeyedStateHandle>>RocksNativeFullSnapshotStrategy::RocksDBNativeFullSnapshotOperation::get(
     std::shared_ptr<omnistream::OmniTaskBridge> bridge)
@@ -114,6 +117,7 @@ std::shared_ptr<SnapshotResult<KeyedStateHandle>>RocksNativeFullSnapshotStrategy
         metaStateHandle = outerStrategy_->materializeMetaData(
             stateMetaInfoSnapshots,
             checkpointId,
+            checkpointOptions_,
             bridge,
             keySerializer->toJson());
 

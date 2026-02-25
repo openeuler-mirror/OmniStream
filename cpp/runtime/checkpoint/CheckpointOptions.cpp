@@ -9,10 +9,11 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "CheckpointOptions.h"
+#include "common.h"
 
 CheckpointOptions::CheckpointOptions(
     SnapshotType *checkpointType,
-    CheckpointStorageLocationReference *targetLocation,
+    std::shared_ptr<CheckpointStorageLocationReference> targetLocation,
     AlignmentType alignmentType, long alignedCheckpointTimeout)
     : checkpointType_(checkpointType), targetLocation_(targetLocation),
       alignmentType_(alignmentType), alignedCheckpointTimeout_(alignedCheckpointTimeout)
@@ -39,28 +40,28 @@ CheckpointOptions::CheckpointOptions(
 
 CheckpointOptions::CheckpointOptions(
     SnapshotType *checkpointType,
-    CheckpointStorageLocationReference *targetLocation)
+    std::shared_ptr<CheckpointStorageLocationReference> targetLocation)
     : checkpointType_(checkpointType), targetLocation_(targetLocation),
       alignmentType_(AlignmentType::ALIGNED), alignedCheckpointTimeout_(NO_ALIGNED_CHECKPOINT_TIME_OUT)
 {
 }
 
 CheckpointOptions *CheckpointOptions::NotExactlyOnce(
-    SnapshotType &type, CheckpointStorageLocationReference *location)
+    SnapshotType &type, std::shared_ptr<CheckpointStorageLocationReference> location)
 {
     return new CheckpointOptions(&type, location, AlignmentType::AT_LEAST_ONCE,
                                  NO_ALIGNED_CHECKPOINT_TIME_OUT);
 }
 
 CheckpointOptions *CheckpointOptions::AlignedNoTimeout(
-    SnapshotType &type, CheckpointStorageLocationReference *location)
+    SnapshotType &type, std::shared_ptr<CheckpointStorageLocationReference> location)
 {
     return new CheckpointOptions(&type, location, AlignmentType::ALIGNED,
                                  NO_ALIGNED_CHECKPOINT_TIME_OUT);
 }
 
 CheckpointOptions *CheckpointOptions::Unaligned(
-    SnapshotType &type, CheckpointStorageLocationReference *location)
+    SnapshotType &type, std::shared_ptr<CheckpointStorageLocationReference> location)
 {
     if (type.IsSavepoint()) {
         throw std::invalid_argument("Savepoints can not be unaligned");
@@ -70,7 +71,7 @@ CheckpointOptions *CheckpointOptions::Unaligned(
 }
 
 CheckpointOptions *CheckpointOptions::AlignedWithTimeout(
-    SnapshotType &type, CheckpointStorageLocationReference *location,
+    SnapshotType &type, std::shared_ptr<CheckpointStorageLocationReference> location,
     long alignedCheckpointTimeout)
 {
     if (type.IsSavepoint()) {
@@ -81,7 +82,7 @@ CheckpointOptions *CheckpointOptions::AlignedWithTimeout(
 }
 
 CheckpointOptions *CheckpointOptions::ForceAligned(
-    SnapshotType &type, CheckpointStorageLocationReference *location,
+    SnapshotType &type, std::shared_ptr<CheckpointStorageLocationReference> location,
     long alignedCheckpointTimeout)
 {
     if (type.IsSavepoint()) {
@@ -92,6 +93,7 @@ CheckpointOptions *CheckpointOptions::ForceAligned(
 }
 CheckpointOptions *CheckpointOptions::FromJson(nlohmann::json &config)
 {
+    INFO_RELEASE(std::string("savepoint: CheckpointOptions::FromJson"));
     auto alignmentTypeStr = config["alignment"].get<std::string>();
     AlignmentType alignmentType;
     if (alignmentTypeStr == "AT_LEAST_ONCE") {
@@ -117,13 +119,13 @@ CheckpointOptions *CheckpointOptions::FromJson(nlohmann::json &config)
         throw std::invalid_argument("Unknown checkpoint type");
     }
 
-    CheckpointStorageLocationReference* targetLocation;
+    std::shared_ptr<CheckpointStorageLocationReference> targetLocation = nullptr;
     if (config["targetLocation"]["encodedReference"].is_null()) {
         targetLocation = CheckpointStorageLocationReference::GetDefault();
     } else {
-        auto encodedReference = new std::vector<uint8_t>(
+        auto encodedReference = std::make_shared<std::vector<uint8_t>>(
             config["targetLocation"]["encodedReference"].get<std::vector<uint8_t>>());
-        targetLocation = new CheckpointStorageLocationReference(encodedReference);
+        targetLocation = std::make_shared<CheckpointStorageLocationReference>(encodedReference);
     }
 
     return new CheckpointOptions(checkpointType, targetLocation, alignmentType, alignedCheckpointTimeout);
@@ -131,7 +133,7 @@ CheckpointOptions *CheckpointOptions::FromJson(nlohmann::json &config)
 
 CheckpointOptions *CheckpointOptions::ForConfig(
     SnapshotType &checkpointType,
-    CheckpointStorageLocationReference *locationReference,
+     std::shared_ptr<CheckpointStorageLocationReference> locationReference,
     bool isExactlyOnceMode, bool isUnalignedEnabled,
     long alignedCheckpointTimeout)
 {
@@ -163,8 +165,13 @@ bool CheckpointOptions::NeedsAlignment() const
 
 bool CheckpointOptions::operator==(const CheckpointOptions &other) const
 {
+    const bool sameLocation =
+        (targetLocation_ == other.targetLocation_) ||
+        (targetLocation_ != nullptr && other.targetLocation_ != nullptr &&
+         ((*targetLocation_) == (*other.targetLocation_)));
+
     return *checkpointType_ == (*other.checkpointType_) &&
-           *targetLocation_ == (*other.targetLocation_) &&
+           sameLocation &&
            alignmentType_ == other.alignmentType_ &&
            alignedCheckpointTimeout_ == other.alignedCheckpointTimeout_;
 }
@@ -176,13 +183,56 @@ bool CheckpointOptions::operator!=(const CheckpointOptions &other) const
 
 std::string CheckpointOptions::ToString() const
 {
-    std::ostringstream oss;
-    oss << "CheckpointOptions{"
-        << "checkpointType=" << checkpointType_->ToString()
-        << ", targetLocation=" << targetLocation_->ToString()
-        << ", alignmentType=" << static_cast<int>(alignmentType_)
-        << ", alignedCheckpointTimeout=" << alignedCheckpointTimeout_ << "}";
-    return oss.str();
+    nlohmann::json json;
+
+    if (checkpointType_ != nullptr)
+    {
+        json["checkpointType"] = checkpointType_->ToString();
+    }
+    if (targetLocation_ != nullptr)
+    {
+        json["targetLocation"] = targetLocation_->ToString();
+    } else{
+        INFO_RELEASE("savepoint: targetLocation_ == null:");
+        json["targetLocation"]["referenceBytes"] =  "(default)";
+    }
+    if (alignmentType_ == AlignmentType::AT_LEAST_ONCE) {
+        json["alignmentType"] = "AT_LEAST_ONCE";
+    } else if (alignmentType_ == AlignmentType::ALIGNED) {
+        json["alignmentType"] = "ALIGNED";
+    } else if (alignmentType_ == AlignmentType::UNALIGNED) {
+        json["alignmentType"] = "UNALIGNED";
+    } else if (alignmentType_ == AlignmentType::FORCED_ALIGNED) {
+        json["alignmentType"] = "FORCED_ALIGNED";
+    }
+    json["alignedCheckpointTimeout"] = alignedCheckpointTimeout_;
+    return json.dump();
+}
+
+nlohmann::json CheckpointOptions::ToJson() const
+{
+    nlohmann::json json;
+
+    if (checkpointType_ != nullptr) {
+        json["checkpointType"] = checkpointType_->ToJson();
+    }
+    if (targetLocation_ != nullptr) {
+        json["targetLocation"] = targetLocation_->ToJson();
+    } else {
+        INFO_RELEASE("savepoint: targetLocation_ == null:");
+        json["targetLocation"]["referenceBytes"] =  "(default)";
+    }
+    if (alignmentType_ == AlignmentType::AT_LEAST_ONCE) {
+        json["alignmentType"] = "AT_LEAST_ONCE";
+    } else if (alignmentType_ == AlignmentType::ALIGNED) {
+        json["alignmentType"] = "ALIGNED";
+    } else if (alignmentType_ == AlignmentType::UNALIGNED) {
+        json["alignmentType"] = "UNALIGNED";
+    } else if (alignmentType_ == AlignmentType::FORCED_ALIGNED) {
+        json["alignmentType"] = "FORCED_ALIGNED";
+    }
+    json["alignedCheckpointTimeout"] = alignedCheckpointTimeout_;
+    return json;
 }
 
 CheckpointOptions *CheckpointOptions::ForCheckpointWithDefaultLocation()
@@ -218,7 +268,7 @@ SnapshotType *CheckpointOptions::GetCheckpointType() const
     return checkpointType_;
 }
 
-CheckpointStorageLocationReference *CheckpointOptions::GetTargetLocation()
+ std::shared_ptr<CheckpointStorageLocationReference> CheckpointOptions::GetTargetLocation()
     const
 {
     return targetLocation_;

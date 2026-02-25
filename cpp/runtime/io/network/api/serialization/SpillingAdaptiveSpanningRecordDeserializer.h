@@ -34,6 +34,7 @@ public:
 
     BackendDataType getBackendId() const override { return BackendDataType::INVALID_BK; };
     void SetNextBuffer(std::shared_ptr<ReadOnlySlicedNetworkBuffer> buffer);
+    std::vector<std::shared_ptr<omnistream::Buffer>> GetUnconsumedBuffer() override;
 private:
 
     DeserializationResult& readNextRecord(IOReadableWritable& target);

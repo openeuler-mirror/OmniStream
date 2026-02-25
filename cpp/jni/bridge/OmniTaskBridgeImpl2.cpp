@@ -392,6 +392,7 @@ std::shared_ptr<SnapshotResult<StreamStateHandle>> OmniTaskBridgeImpl2::CallMate
     jlong checkpointId,
     std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& snapshots,
     std::shared_ptr<LocalRecoveryConfig> localRecoveryConfig,
+    CheckpointOptions *checkpointOptions,
     std::string keySerializer)
 {
     if (m_globalOmniTaskRef == nullptr) {
@@ -405,7 +406,10 @@ std::shared_ptr<SnapshotResult<StreamStateHandle>> OmniTaskBridgeImpl2::CallMate
         GErrorLog("Failed to attach C++ thread to JVM inside TaskStateManagerBridgeImpl::CallMaterializeMetaData");
         return nullptr;
     }
-
+    if (checkpointOptions == nullptr) {
+        GErrorLog("checkpointOptions is nullptr in TaskStateManagerBridgeImpl::CallMaterializeMetaData");
+        return nullptr;
+    }
     nlohmann::json stateMetaInfoJson = nlohmann::json::array();
     for (const auto& snapshot : snapshots) {
         nlohmann::json jsonObj;
@@ -420,7 +424,7 @@ std::shared_ptr<SnapshotResult<StreamStateHandle>> OmniTaskBridgeImpl2::CallMate
     std::string stateMetaInfoStr = stateMetaInfoJson.dump();
 
     std::string localRecoveryConfigStr = "{}";
-    if (localRecoveryConfig != nullptr){
+    if (localRecoveryConfig != nullptr && localRecoveryConfig->IsLocalRecoveryEnabled()){
         try {
             nlohmann::json localRecoveryJson;
             auto directoryProvider = localRecoveryConfig->GetLocalStateDirectoryProvider();
@@ -451,20 +455,31 @@ std::shared_ptr<SnapshotResult<StreamStateHandle>> OmniTaskBridgeImpl2::CallMate
         }
 
     }
-
+    nlohmann::json jcheckpointOptions = checkpointOptions->ToJson();
+    std::string checkpointOptionsStr = jcheckpointOptions.dump();
     jclass cls = env->GetObjectClass(m_globalOmniTaskRef);
     jmethodID mid = env->GetMethodID(
         cls,
         "materializeMetaData",
-        "(JLjava/lang/String;Ljava/lang/String;)Lorg/apache/flink/runtime/state/SnapshotResult;"
+        "(JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lorg/apache/flink/runtime/state/SnapshotResult;"
     );
     jstring jStateMetaInfoStr = env->NewStringUTF(stateMetaInfoStr.c_str());
     jstring jLocalRecoveryConfigStr = env->NewStringUTF(localRecoveryConfigStr.c_str());
-    jobject resultObj = env->CallObjectMethod(m_globalOmniTaskRef, mid, checkpointId, jStateMetaInfoStr, jLocalRecoveryConfigStr);
-
+    jstring jcheckpointOptionsStr = env->NewStringUTF(checkpointOptionsStr.c_str());
+    jobject resultObj = env->CallObjectMethod(m_globalOmniTaskRef, mid, checkpointId, jStateMetaInfoStr, jLocalRecoveryConfigStr, jcheckpointOptionsStr);
+    if (env->ExceptionCheck()) {
+        env->ExceptionDescribe();
+        env->ExceptionClear();
+        env->DeleteLocalRef(jStateMetaInfoStr);
+        env->DeleteLocalRef(jLocalRecoveryConfigStr);
+        env->DeleteLocalRef(cls);
+        env->DeleteLocalRef(jcheckpointOptionsStr);
+        throw std::runtime_error("Failed to call materializeMetaData");
+    }
     env->DeleteLocalRef(jStateMetaInfoStr);
     env->DeleteLocalRef(jLocalRecoveryConfigStr);
     env->DeleteLocalRef(cls);
+    env->DeleteLocalRef(jcheckpointOptionsStr);
 
     return ConvertSnapshotResult(env, resultObj);
 }
@@ -799,7 +814,7 @@ void OmniTaskBridgeImpl2::closeSavepointInputStream(jobject inputStream)
     g_OmniStreamJVM->DetachCurrentThread();
 }
 
-jobject OmniTaskBridgeImpl2::AcquireSavepointOutputStream(long checkpointId)
+jobject OmniTaskBridgeImpl2::AcquireSavepointOutputStream(long checkpointId, CheckpointOptions *checkpointOptions)
 {
     JNIEnv* env = nullptr;
     jint ret = g_OmniStreamJVM->GetEnv(reinterpret_cast<void **>(&env), JNI_VERSION_1_8);
@@ -811,9 +826,23 @@ jobject OmniTaskBridgeImpl2::AcquireSavepointOutputStream(long checkpointId)
         GErrorLog("Failed to attach C++ thread to JVM inside AcquireSavepointOutputStream");
         return nullptr;
     }
+    if (checkpointOptions == nullptr) {
+        GErrorLog("checkpointOptions is nullptr in TaskStateManagerBridgeImpl::AcquireSavepointOutputStream");
+        return nullptr;
+    }
+    nlohmann::json jcheckpointOptions = checkpointOptions->ToJson();
+    std::string checkpointOptionsStr = jcheckpointOptions.dump();
     jclass cls = env->GetObjectClass(m_globalOmniTaskRef);
-    jmethodID mid = env->GetMethodID(cls, "acquireSavepointOutputStream", "(J)Lorg/apache/flink/runtime/state/CheckpointStreamWithResultProvider;");
-    auto provider =  env->CallObjectMethod(m_globalOmniTaskRef, mid, checkpointId);
+    jmethodID mid = env->GetMethodID(cls, "acquireSavepointOutputStream", "(JLjava/lang/String;)Lorg/apache/flink/runtime/state/CheckpointStreamWithResultProvider;");
+        jstring jcheckpointOptionsStr = env->NewStringUTF(checkpointOptionsStr.c_str());
+    auto provider =  env->CallObjectMethod(m_globalOmniTaskRef, mid, checkpointId, jcheckpointOptionsStr);
+    if (env->ExceptionCheck()) {
+        env->ExceptionDescribe();
+        env->ExceptionClear();
+        env->DeleteLocalRef(jcheckpointOptionsStr);
+        throw std::runtime_error("Failed to call AcquireSavepointOutputStream");
+    }
+    env->DeleteLocalRef(jcheckpointOptionsStr);
     return provider;
 }
 

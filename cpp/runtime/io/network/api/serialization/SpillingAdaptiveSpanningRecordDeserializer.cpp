@@ -121,6 +121,16 @@ namespace omnistream::datastream {
         }
     }
 
+    std::vector<std::shared_ptr<omnistream::Buffer>> SpillingAdaptiveSpanningRecordDeserializer::GetUnconsumedBuffer()
+    {
+        auto buffer = nonSpanningWrapper->hasRemaining() ?
+            nonSpanningWrapper->GetUnconsumedSegment() :
+            spanningWrapper->GetUnconsumedSegment();
+        std::vector<std::shared_ptr<omnistream::Buffer>> buffers;
+        buffers.push_back(buffer);
+        return buffers;
+    }
+
     SpillingAdaptiveSpanningRecordDeserializer::~SpillingAdaptiveSpanningRecordDeserializer()
     {
         delete spanningWrapper;

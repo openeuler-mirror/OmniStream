@@ -16,7 +16,7 @@ namespace omnistream {
         const std::set<SubtaskID> &subtasks,
         int64_t checkpointId,
         CheckpointStreamFactory *streamFactory,
-        ChannelStateSerializer *serializer,
+        std::shared_ptr<ChannelStateSerializer> serializer,
         std::function<void()> onComplete)
         : checkpointId(checkpointId), serializer(serializer), onComplete(onComplete)
     {
@@ -39,7 +39,7 @@ namespace omnistream {
     }
 
     void ChannelStateCheckpointWriter::RegisterSubtaskResult(const SubtaskID &id,
-                                                             ChannelStateWriter::ChannelStateWriteResult &result)
+                                                             std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> result)
     {
         if (IsDone()) {
             throw std::logic_error("Write is already done");
@@ -61,7 +61,7 @@ namespace omnistream {
     void ChannelStateCheckpointWriter::WriteInput(const JobVertexID &jvid,
                                                   int subtaskIndex,
                                                   const InputChannelInfo &info,
-                                                  ObjectBuffer *buffer)
+                                                  std::shared_ptr<Buffer> buffer)
     {
         if (IsDone()) {
             buffer->RecycleBuffer();
@@ -81,7 +81,7 @@ namespace omnistream {
     void ChannelStateCheckpointWriter::WriteOutput(const JobVertexID &jvid,
                                                    int subtaskIndex,
                                                    const ResultSubpartitionInfoPOD &info,
-                                                   ObjectBuffer *buffer)
+                                                   std::shared_ptr<Buffer> buffer)
     {
         if (IsDone()) {
             buffer->RecycleBuffer();
@@ -135,11 +135,14 @@ namespace omnistream {
         throwable = e;
         failResultAndCloseStream(e);
     }
+    void ChannelStateCheckpointWriter::Reset()
+    {
 
+    }
     void ChannelStateCheckpointWriter::Start(const JobVertexID &jobVertexID,
                                              int subtaskIndex,
-                                             ChannelStateWriter::ChannelStateWriteResult &targetResult,
-                                             const CheckpointStorageLocationReference &locationReference)
+                                             std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> targetResult,
+                                             std::shared_ptr<CheckpointStorageLocationReference> locationReference)
     {
         SubtaskID id = SubtaskID::Of(jobVertexID, subtaskIndex);
         RegisterSubtaskResult(id, targetResult);
@@ -217,6 +220,7 @@ namespace omnistream {
         auto id = SubtaskID::Of(jvid, subtaskIndex);
         auto it = pendingResults.find(id);
         if (it == pendingResults.end()) {
+            LOG_DEBUG("ChannelStateCheckpointWriter::GetChannelStatePendingResult")
             throw std::runtime_error("Subtask not registered: " + id.ToString());
         }
         return it->second;

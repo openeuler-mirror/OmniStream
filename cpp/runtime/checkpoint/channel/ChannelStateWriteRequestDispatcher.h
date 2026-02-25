@@ -20,7 +20,7 @@ namespace omnistream {
     public:
         virtual ~ChannelStateWriteRequestDispatcher() = default;
 
-        virtual void dispatch(ChannelStateWriteRequest &request) = 0;
+        virtual void dispatch(std::shared_ptr<omnistream::ChannelStateWriteRequest> request) = 0;
         virtual void fail(const std::exception_ptr &cause) = 0;
     };
 

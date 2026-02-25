@@ -40,6 +40,14 @@ public:
         Controller* controller,
         CheckpointBarrier* barrier) = 0;
 
+    virtual BarrierHandlerState* AnnouncementReceived(
+        Controller* /*controller*/,
+        InputChannelInfo /*channelInfo*/,
+        int /*sequenceNumber*/)
+    {
+        return this;
+    }
+
     virtual BarrierHandlerState* FinishCheckpoint() = 0;
 };
 

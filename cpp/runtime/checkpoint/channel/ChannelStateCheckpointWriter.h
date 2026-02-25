@@ -81,34 +81,35 @@ namespace omnistream {
             const std::set<SubtaskID> &subtasks,
             int64_t checkpointId,
             CheckpointStreamFactory *streamFactory,
-            ChannelStateSerializer *serializer,
+            std::shared_ptr<ChannelStateSerializer> serializer,
             std::function<void()> onComplete);
 
         ~ChannelStateCheckpointWriter();
 
-        void RegisterSubtaskResult(const SubtaskID &id, ChannelStateWriter::ChannelStateWriteResult &result);
+        void RegisterSubtaskResult(const SubtaskID &id, std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> result);
         void ReleaseSubtask(const SubtaskID &id);
         void WriteInput(const JobVertexID &jvid,
                         int subtaskIndex,
                         const InputChannelInfo &info,
-                        ObjectBuffer *buffer);
+                        std::shared_ptr<Buffer> buffer);
         void WriteOutput(const JobVertexID &jvid,
                          int subtaskIndex,
                          const ResultSubpartitionInfoPOD &info,
-                         ObjectBuffer *buffer);
+                         std::shared_ptr<Buffer> buffer);
         void CompleteInput(const JobVertexID &jvid, int subtaskIndex);
         void CompleteOutput(const JobVertexID &jvid, int subtaskIndex);
         void Fail(const JobVertexID &jvid, int subtaskIndex, const std::exception_ptr &e);
         void Fail(const std::exception_ptr &e);
+        void Reset();
         void Start(const JobVertexID &jobVertexID, int subtaskIndex,
-                   ChannelStateWriter::ChannelStateWriteResult &targetResult,
-                   const CheckpointStorageLocationReference &locationReference);
+                   std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> targetResult,
+                   std::shared_ptr<CheckpointStorageLocationReference> locationReference);
         void Abort(const JobVertexID &jobVertexID, int subtaskIndex, const std::exception_ptr &cause);
         void RegisterSubtask(const JobVertexID &jobVertexID, int subtaskIndex);
 
     private:
         int64_t checkpointId;
-        ChannelStateSerializer *serializer;
+        std::shared_ptr<ChannelStateSerializer> serializer;
         std::function<void()> onComplete;
         std::map<SubtaskID, ChannelStatePendingResult *> pendingResults;
         std::set<SubtaskID> subtasksToRegister;
@@ -124,15 +125,18 @@ namespace omnistream {
         template <typename K>
         void Write(std::map<K, typename AbstractChannelStateHandle<K>::StateContentMetaInfo> &offsets,
                    const K &key,
-                   const ObjectBuffer *buffer,
+                   std::shared_ptr<Buffer> buffer,
                    bool precondition,
                    const std::string &action)
         {
+            LOG_DEBUG("ChannelStateCheckpointWriter write start! action: " << action)
             if (!precondition) {
+                LOG_DEBUG("void Write.")
                 throw std::logic_error("Precondition failed for " + action);
             }
             int64_t offset = checkpointStream->GetPos();
-            serializer->WriteData(*dataStream, *buffer);
+            serializer->WriteData(*dataStream, buffer);
+            checkpointStream->Write(dataStream->str().c_str(), dataStream->str().size());
             int64_t size = checkpointStream->GetPos() - offset;
             offsets[key].WithDataAdded(offset, size);
         }

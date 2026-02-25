@@ -9,13 +9,14 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include "PipelinedSubpartition.h"
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
-#include <io/network/api/serialization/EventSerializer.h>
 
+#include "io/network/api/serialization/EventSerializer.h"
+#include "PipelinedSubpartition.h"
 #include "event/EndOfPartitionEvent.h"
+#include "checkpoint/channel/ChannelStateWriter.h"
 #include "runtime/buffer/VectorBatchBuffer.h"
 
 namespace omnistream {
@@ -266,6 +267,11 @@ void PipelinedSubpartition::flush()
     }
 }
 
+void PipelinedSubpartition::SetChannelStateWriter(const std::shared_ptr<ChannelStateWriter> &channelStateWriter)
+{
+    channelStateWriter_ = channelStateWriter;
+}
+
 std::shared_ptr<Buffer> PipelinedSubpartition::buildSliceBuffer(
     std::shared_ptr<BufferConsumerWithPartialRecordLength> bufferConsumerWithPartialRecordLength)
 {
@@ -333,10 +339,114 @@ int PipelinedSubpartition::add(std::shared_ptr<BufferConsumer> bufferConsumer, i
 bool PipelinedSubpartition::addBuffer(std::shared_ptr<BufferConsumer> bufferConsumer, int partialRecordLength)
 {
     LOG("buffer consumer added to buffers" << (bufferConsumer->isBuffer() ? "buffer": "event"))
+    if (bufferConsumer->getDataType().hasPriority()) {
+        LOG_DEBUG("111111!")
+        return ProcessPriorityBuffer(bufferConsumer, partialRecordLength);
+    } else if (ObjectBufferDataType::TIMEOUTABLE_ALIGNED_CHECKPOINT_BARRIER == bufferConsumer->getDataType()) {
+        LOG_DEBUG("111111!")
+        ProcessTimeoutableCheckpointBarrier(bufferConsumer);
+    }
     buffers.add(std::make_shared<BufferConsumerWithPartialRecordLength>(bufferConsumer, partialRecordLength));
     LOG("buffer priorityqueue size " << std::to_string(buffers.size()) << " first buffer  "
                                      << std::to_string(reinterpret_cast<long>(buffers.peek().get())))
     return false;
+}
+
+std::shared_ptr<CheckpointBarrier> PipelinedSubpartition::ParseCheckpointBarrier(
+    const std::shared_ptr<BufferConsumer> &bufferConsumer)
+{
+    //auto buffer = bufferConsumer->build();
+    auto buffer = bufferConsumer->buildForPeek();
+    auto event = EventSerializer::fromBuffer(buffer);
+    //auto event = EventSerializer::fromBuffe_V2r(buffer);
+    return std::dynamic_pointer_cast<CheckpointBarrier>(event);
+}
+
+bool PipelinedSubpartition::ProcessPriorityBuffer(std::shared_ptr<BufferConsumer> bufferConsumer, int partialRecordLength)
+{
+    buffers.addPriorityElement(std::make_shared<BufferConsumerWithPartialRecordLength>(bufferConsumer,
+        partialRecordLength));
+    size_t numPriorityElements = buffers.getNumPriorityElements();
+
+    auto barrier = ParseCheckpointBarrier(bufferConsumer);
+    if (barrier != nullptr) {
+        if (!barrier->GetCheckpointOptions()->IsUnalignedCheckpoint()) {
+            LOG("Only unalined checkpoints should be priority events.");
+            throw std::runtime_error("Only unalined checkpoints should be priority events.");
+        }
+        auto elements = buffers.asUnmodifiableCollection();
+        std::vector<std::shared_ptr<Buffer>> inflightBuffers;
+        for (const auto &current : elements) {
+            auto buffer = current->getBufferConsumer();
+            if (buffer->isBuffer()) {
+                inflightBuffers.push_back(buffer->buildForPeek());
+            }
+        }
+
+        if (!inflightBuffers.empty()) {
+            channelStateWriter_->AddOutputData(
+                barrier->GetId(),
+                subpartitionInfo,
+                ChannelStateWriter::sequenceNumberUnknown,
+                inflightBuffers);
+        }
+    }
+    return buffers.getNumPriorityElements() == 1 && !isBlocked;
+}
+
+void PipelinedSubpartition::ProcessTimeoutableCheckpointBarrier(std::shared_ptr<BufferConsumer> bufferConsumer)
+{
+    auto barrier = ParseAndCheckTimeoutableCheckpointBarrier(bufferConsumer);
+    std::vector<std::shared_ptr<Buffer>> inflightBuffers;
+    channelStateWriter_->AddOutputDataFuture(
+        barrier->GetId(),
+        subpartitionInfo,
+        ChannelStateWriter::sequenceNumberUnknown,
+        CreateChannelStateFuture(barrier->GetId()));
+}
+
+std::shared_ptr<CheckpointBarrier> PipelinedSubpartition::ParseAndCheckTimeoutableCheckpointBarrier(
+    const std::shared_ptr<BufferConsumer> &bufferConsumer)
+{
+    auto barrier = ParseCheckpointBarrier(bufferConsumer);
+    if (barrier == nullptr) {
+        LOG_DEBUG("find barrier is null!")
+        throw std::runtime_error("Parse the timeoutable Checkpoint Barrier failed, barrier is null.");
+    }
+    if (barrier->GetCheckpointOptions()->IsTimeoutable() ||
+        ObjectBufferDataType::TIMEOUTABLE_ALIGNED_CHECKPOINT_BARRIER == bufferConsumer->getDataType()) {
+        LOG_DEBUG("find a logical error!")
+        throw std::runtime_error("Barrier type is TIMEOUTABLE_ALIGNED_CHECKPOINT_BARRIER.");
+    }
+    return barrier;
+}
+
+std::shared_ptr<CompletableFutureV2<std::vector<std::shared_ptr<Buffer>>>> PipelinedSubpartition::CreateChannelStateFuture(long checkpointId)
+{
+    std::lock_guard<std::recursive_mutex> lock(buffersMutex);
+    if (channelStateFuture_ != nullptr) {
+        std::vector<std::shared_ptr<Buffer>> channelResult;
+        std::string errorMessage = "Has uncompleted channelStateFuture of checkpointId: " +
+        std::to_string(channelStateCheckpointId_) +
+        ", current checkpointId: " +
+        std::to_string(checkpointId);
+        CompleteChannelStateFuture(channelResult, std::make_exception_ptr(std::runtime_error(errorMessage)));
+    }
+
+    channelStateFuture_ = std::make_shared<CompletableFutureV2<std::vector<std::shared_ptr<Buffer>>>>();
+    channelStateCheckpointId_ = checkpointId;
+    return channelStateFuture_;
+}
+
+void PipelinedSubpartition::CompleteChannelStateFuture(std::vector<std::shared_ptr<Buffer>> &channelResult, std::exception_ptr e)
+{
+    std::lock_guard<std::recursive_mutex> lock(buffersMutex);
+    if (e != nullptr){
+        channelStateFuture_->CompleteExceptionally(e);
+    } else {
+        channelStateFuture_->Complete(channelResult);
+    }
+    channelStateFuture_ = nullptr;
 }
 
 bool PipelinedSubpartition::isDataAvailableUnsafe()
@@ -368,7 +478,12 @@ void PipelinedSubpartition::notifyDataAvailable()
 }
 
 void PipelinedSubpartition::notifyPriorityEvent(int prioritySequenceNumber)
-{}
+{
+    std::shared_ptr<PipelinedSubpartitionView> readView = this->readView;
+    if (readView != nullptr && prioritySequenceNumber != -1) {
+        readView->notifyPriorityEvent(prioritySequenceNumber);
+    }
+}
 
 int PipelinedSubpartition::getNumberOfFinishedBuffers()
 {

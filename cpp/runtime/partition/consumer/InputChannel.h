@@ -21,10 +21,12 @@
 #include <metrics/Counter.h>
 
 #include "BufferAndAvailability.h"
-#include <executiongraph/descriptor/ResultPartitionIDPOD.h>
+#include "executiongraph/descriptor/ResultPartitionIDPOD.h"
 #include "InputChannelInfo.h"
 #include "partition/virtual_enable_shared_from_this_base.h"
 #include "runtime/io/network/api/CheckpointBarrier.h"
+#include "event/TaskEvent.h"
+#include "checkpoint/channel/ChannelStateWriter.h"
 
 namespace omnistream {
 class SingleInputGate;
@@ -58,7 +60,7 @@ public:
     virtual void releaseAllResources() = 0;
     virtual void announceBufferSize(int newBufferSize) = 0;
     virtual int getBuffersInUseCount() = 0;
-
+    virtual void SetChannelStateWriter(std::shared_ptr<ChannelStateWriter> channelStateWriter) = 0;
 public:
     void checkError();
     void setError(std::exception_ptr cause);
@@ -92,7 +94,7 @@ protected:
 
 protected:
     void notifyChannelNonEmpty();
-    void notifyPriorityEvent(int priorityBufferNumber);
+    void NotifyPriorityEvent(int priorityBufferNumber);
     virtual void notifyBufferAvailable(int numAvailableBuffers)
     {}
 };

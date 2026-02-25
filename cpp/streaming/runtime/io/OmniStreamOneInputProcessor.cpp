@@ -34,6 +34,14 @@ namespace omnistream {
     {
         return input;
     }
+
+    std::shared_ptr<CompletableFutureV2<void>> OmniStreamOneInputProcessor::PrepareSnapshot(std::shared_ptr<ChannelStateWriter> writer,
+            long checkpointID)
+    {
+        LOG("OneInput prepare snapshot, checkpointID: " << checkpointID);
+        return input->PrepareSnapshot(writer, checkpointID);
+    }
+
     void OmniStreamOneInputProcessor::close()
     {
         input->close();

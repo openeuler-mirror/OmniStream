@@ -82,6 +82,7 @@ std::cout.flush();  \
 **/
 
 #define LOG(msg)         LOG_TRACE(msg)
+#define LOG_DEBUG(msg)   LOG_INFO_IMP(msg)
 #define LOG_TRACE(msg)   LOG_INTERNAL("[______TRACE_____]",  msg)
 #define LOG_PART(msg)     LOG_INTERNAL("[___PARTITION____]", msg)
 #define LOG_INFO_IMP(msg) LOG_INTERNAL("[____INFO____]", msg)
@@ -105,6 +106,7 @@ std::cout.flush();  \
 
 
 #else
+#define LOG_DEBUG(msg)
 #define LOG(msg)
 #define LOG_TRACE(msg)
 #define LOG_PART(msg)

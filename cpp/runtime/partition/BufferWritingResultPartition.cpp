@@ -13,6 +13,7 @@
 
 #include <streaming/runtime/streamrecord/StreamRecord.h>
 
+#include "PipelinedSubpartition.h"
 #include "io/network/api/serialization/EventSerializer.h"
 
 namespace omnistream {
@@ -65,6 +66,16 @@ namespace omnistream {
     std::vector<std::shared_ptr<ResultSubpartition>> BufferWritingResultPartition::getAllPartitions()
     {
         return subpartitions_;
+    }
+
+    void BufferWritingResultPartition::SetChannelStateWriter(
+        const std::shared_ptr<ChannelStateWriter> &channelStateWriter)
+    {
+        for (auto subpartition : subpartitions_) {
+            if (auto subpartitionChild = std::dynamic_pointer_cast<PipelinedSubpartition>(subpartition)) {
+                subpartitionChild->SetChannelStateWriter(channelStateWriter);
+            }
+        }
     }
 
     void BufferWritingResultPartition::setup()
@@ -161,7 +172,9 @@ namespace omnistream {
             auto subPartitionInfo = subpartition->getSubpartitionInfo();
             auto index = subpartition->getSubPartitionIndex();
             subpartition->add(eventBufferConsumer, 0);
-            INFO_RELEASE(" Send " << event->GetEventClassName() << " to subPartition " << subPartitionInfo.toString()
+//            INFO_DEBUG(" Send " << event->GetEventClassName() << " to subPartition " << subPartitionInfo.toString() << ", index : " << index)
+            LOG_DEBUG("[RP=" << (void*)this << "]Send " << event->GetEventClassName()
+                << " to subPartition " << subPartitionInfo.toString()
                 << ", index : " << index)
         }
     }

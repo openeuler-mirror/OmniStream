@@ -706,7 +706,7 @@ void SingleInputGate::notifyChannelNonEmpty(std::shared_ptr<InputChannel> channe
  */
 void SingleInputGate::notifyPriorityEvent(std::shared_ptr<InputChannel> inputChannel, int prioritySequenceNumber)
 {
-    if (inputChannel) {
+    if (!inputChannel) {
         throw std::invalid_argument("Input channel is null.");
     }
     queueChannel(inputChannel, prioritySequenceNumber, false);

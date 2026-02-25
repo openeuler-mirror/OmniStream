@@ -194,6 +194,10 @@ namespace omnistream {
         try {
             LOG_INFO_IMP("Invokable restore")
             this->invokable_->restore();
+
+            flag.store(true);
+            LOG_DEBUG("find OmniTask initialized, task name: " << taskNameWithSubtask_)
+
             // init remote fetcher here because, the channels have been created and restored
             if (remoteDataFetcherBridge_ != nullptr) {
                 remoteDataFetcherBridge_->InitCppRemoteInputChannel(this->inputGates);
@@ -260,6 +264,17 @@ namespace omnistream {
 
     void OmniTask::DoRunInvoke(long streamTaskAddress)
     {
+        int count = 0;
+
+        while (!flag.load()) {
+            LOG_DEBUG("find OmniTask still uninitialzed, tasm name : " << taskNameWithSubtask_)
+            count++;
+            if (count > 5) {
+                break;
+            }
+            sleep(5);
+        }
+
         try {
             INFO_RELEASE("welcome to native")
             LOG_INFO_IMP("Invokable Invoke")
