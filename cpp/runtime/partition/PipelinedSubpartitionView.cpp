@@ -47,6 +47,14 @@ void PipelinedSubpartitionView::notifyPriorityEvent(int priorityBufferNumber)
     availabilityListener->notifyPriorityEvent(priorityBufferNumber);
 }
 
+void PipelinedSubpartitionView::ConvertToPriorityEvent(int sequenceNumber)
+{
+    if (!parent) {
+        return;
+    }
+    parent->ConvertToPriorityEvent(sequenceNumber);
+}
+
 void PipelinedSubpartitionView::releaseAllResources()
 {
     bool expected = false;

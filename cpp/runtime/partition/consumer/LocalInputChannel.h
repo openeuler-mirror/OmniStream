@@ -51,6 +51,7 @@ public:
 
     void CheckpointStarted(const CheckpointBarrier& barrier) override;
     void CheckpointStopped(long checkpointId) override;
+    void ConvertToPriorityEvent(int sequenceNumber) override;
     void notifyDataAvailable() override;
     void notifyPriorityEvent(int prioritySequenceNumber) override;
     void resumeConsumption() override;

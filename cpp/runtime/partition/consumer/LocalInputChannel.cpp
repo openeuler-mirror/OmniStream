@@ -198,6 +198,22 @@ void LocalInputChannel::notifyPriorityEvent(int prioritySequenceNumber)
     NotifyPriorityEvent(prioritySequenceNumber);
 }
 
+void LocalInputChannel::ConvertToPriorityEvent(int sequenceNumber)
+{
+    if (isReleased_) {
+        return;
+    }
+    if (subpartitionView) {
+        LOG("subpartitionView->ConvertToPriorityEvent(sequenceNumber)")
+        subpartitionView->ConvertToPriorityEvent(sequenceNumber);
+    }
+
+    if (inputGate) {
+        LOG("inputGate->notifyPriorityEventForce")
+        inputGate->notifyPriorityEventForce(InputChannel::shared_from_this());
+    }
+}
+
 std::shared_ptr<ResultSubpartitionView> LocalInputChannel::checkAndWaitForSubpartitionView()
 {
     LOCK_BEFORE()
