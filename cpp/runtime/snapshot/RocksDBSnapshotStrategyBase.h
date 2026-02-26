@@ -133,7 +133,7 @@ protected:
         std::vector<std::shared_ptr<StateMetaInfoSnapshot>> stateMetaInfoSnapshots;
         std::shared_ptr<SnapshotDirectory> localBackupDirectory;
         std::shared_ptr<CloseableRegistry> tmpResourcesRegistry;
-        std::shared_ptr<TypeSerialzier> keySerializer;
+        std::shared_ptr<TypeSerializer> keySerializer;
     };
 };
 
