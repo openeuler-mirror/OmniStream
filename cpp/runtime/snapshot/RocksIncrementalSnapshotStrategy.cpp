@@ -140,7 +140,8 @@ RocksIncrementalSnapshotStrategy::RocksDBIncrementalSnapshotOperation::RocksDBIn
     std::shared_ptr<PreviousSnapshot> previousSnapshot,
     SnapshotType::SharingFilesStrategy sharingFilesStrategy,
     std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& stateMetaInfoSnapshots,
-    CheckpointOptions *checkpointOptions)
+    CheckpointOptions *checkpointOptions,
+    std::shared_ptr<TypeSerializer> keySerializer)
     : RocksDBSnapshotOperation(
     checkpointId,
     checkpointStreamFactory,

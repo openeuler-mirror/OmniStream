@@ -19,6 +19,7 @@
 #include "runtime/state/SnapshotResult.h"
 #include "runtime/state/StreamStateHandle.h"
 #include "runtime/state/restore/KeyGroupEntry.h"
+#include "runtime/checkpoint/CheckpointOptions.h"
 #include "core/fs/Path.h"
 #include "state/LocalRecoveryConfig.h"
 
