@@ -13,6 +13,7 @@
 
 #include "common.h"
 #include "WatermarkStatus.h"
+#include <optional>
 
 struct InputChannelStatus{
     int64_t watermark;
@@ -30,21 +31,33 @@ class StatusWatermarkValve{
             channelStatuses.resize(numInputChannels);
             lastOutputWatermark = INT64_MIN;
         }
-        int64_t inputWatermark(Watermark* watermark, int channelIndex){
+        std::optional<long> inputWatermark(Watermark* watermark, int channelIndex){
+            if (watermark == nullptr) {
+                return std::nullopt; 
+            }
             int64_t timestamp = watermark->getTimestamp();
+            if(channelIndex<0 || channelIndex>=channelStatuses.size() ){
+                std::cerr << "WARNING: Ignored invalid channel index: " << channelIndex << std::endl;
+                return timestamp;
+            }
             if (timestamp > channelStatuses[channelIndex].watermark) {
                 channelStatuses[channelIndex].watermark = timestamp;
             }
             int64_t newMin = INT64_MAX;
+            bool allIdle = true;
             for(const auto& status: channelStatuses){
                 if(!status.isActive) continue;
+                allIdle = false;
                 if(status.watermark < newMin){
                     newMin = status.watermark;
                 }
             }
+            if (allIdle) {
+                return lastOutputWatermark;
+            }
             if (newMin> lastOutputWatermark){
                 lastOutputWatermark = newMin;
-                return newMin;
+                return lastOutputWatermark;
             }
             return lastOutputWatermark;
         }

@@ -169,9 +169,9 @@ public:
                     output->emitRecord(reinterpret_cast<StreamRecord *>(object));
                 } else if (object->getTag() == StreamElementTag::TAG_WATERMARK) {
                     auto watermark = reinterpret_cast<Watermark*>(object);
-                    int64_t updatedTimestamp = statusWatermarkValve_->inputWatermark(watermark, bufferChannelInfo.getInputChannelIdx());
-                    if(updatedTimestamp!= INT64_MIN){
-                        watermark->setTimestamp(updatedTimestamp);
+                    std::optional<long> updatedTimestamp = statusWatermarkValve_->inputWatermark(watermark, bufferChannelInfo.getInputChannelIdx());
+                    if((updatedTimestamp.has_value()) && (updatedTimestamp.value()!= INT64_MIN)){
+                        watermark->setTimestamp(updatedTimestamp.value());
                         output->emitWatermark(watermark);
                     }
                     
