@@ -107,6 +107,8 @@ namespace omnistream {
         virtual std::shared_ptr<BufferConsumer> copyWithReaderPosition(int readerPosition) = 0;
         bool isBuffer() const;
         ObjectBufferDataType getDataType() const;
+        // Used by timeout->UC to convert a timeoutable aligned barrier into a priority event.
+        void SetDataType(const ObjectBufferDataType& dataType);
         void close();
         bool isRecycled() const;
         int getWrittenBytes();
