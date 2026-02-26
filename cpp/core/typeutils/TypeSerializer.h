@@ -91,6 +91,12 @@ public:
         // Only VoidNamespaceSerializer, MapSerializer, KyroSerializer are used in MT6000C
         NOT_IMPL_EXCEPTION
     };
+
+    virtual std::string toJson()
+    {
+        return "";
+    }
+
 protected:
     Object* reuseBuffer = nullptr;
     bool bufferReusable = false;

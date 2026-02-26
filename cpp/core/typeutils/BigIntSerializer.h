@@ -14,6 +14,7 @@
 
 #include "TypeSerializerSingleton.h"
 #include "basictypes/BigInteger.h"
+#include "SerializerJsonInfo.h"
 
 class BigIntSerializer : public TypeSerializerSingleton {
 public:
@@ -33,6 +34,13 @@ public:
     {
         return BackendDataType::OBJECT_BK;
     }
+
+    std::string toJson() override
+    {
+        SerializerJsonInfo typeJson = {SerializerType::BIG_INT};
+        return typeJson.toJson();
+    }
+
     static BigIntSerializer* INSTANCE;
     void deserialize(Object *buffer, DataInputView &source) override;
     void serialize(Object *buffer, DataOutputSerializer &target) override;

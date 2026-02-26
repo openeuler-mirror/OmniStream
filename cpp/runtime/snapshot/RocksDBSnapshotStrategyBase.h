@@ -86,9 +86,11 @@ protected:
             std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& stateMetaInfoSnapshots,
             long checkpointId,
             CheckpointOptions *checkpointOptions,
-            std::shared_ptr<omnistream::OmniTaskBridge> bridge)
+            std::shared_ptr<omnistream::OmniTaskBridge> bridge,
+            std::string keySerializer = "")
     {
-        return bridge->CallMaterializeMetaData(checkpointId, stateMetaInfoSnapshots, localRecoveryConfig_, checkpointOptions);
+        return bridge->CallMaterializeMetaData(checkpointId, stateMetaInfoSnapshots, localRecoveryConfig_,
+                                               checkpointOptions, keySerializer);
     };
 
     std::shared_ptr<SnapshotDirectory> prepareLocalSnapshotDirectory(long checkpointId);
@@ -114,7 +116,8 @@ protected:
                 long checkpointId,
                 CheckpointStreamFactory* checkpointStreamFactory,
                 std::shared_ptr<SnapshotDirectory> localBackupDirectory,
-                std::vector<std::shared_ptr<StateMetaInfoSnapshot>> stateMetaInfoSnapshots);
+                std::vector<std::shared_ptr<StateMetaInfoSnapshot>> stateMetaInfoSnapshots,
+                std::shared_ptr<TypeSerializer> keySerializer);
 
         virtual ~RocksDBSnapshotOperation() = default;
         std::shared_ptr<SnapshotResult<KeyedStateHandle>> get(std::shared_ptr<omnistream::OmniTaskBridge> bridge) override;
@@ -130,6 +133,7 @@ protected:
         std::vector<std::shared_ptr<StateMetaInfoSnapshot>> stateMetaInfoSnapshots;
         std::shared_ptr<SnapshotDirectory> localBackupDirectory;
         std::shared_ptr<CloseableRegistry> tmpResourcesRegistry;
+        std::shared_ptr<TypeSerializer> keySerializer;
     };
 };
 
@@ -157,6 +161,7 @@ public:
     std::shared_ptr<SnapshotDirectory> snapshotDirectory;
     std::shared_ptr<PreviousSnapshot> previousSnapshot;
     std::vector<std::shared_ptr<StateMetaInfoSnapshot>> stateMetaInfoSnapshots;
+    std::shared_ptr<TypeSerializer> keySerializer;
 };
 
 class SnapshotResultSupplierEmpty :  public SnapshotResultSupplier<KeyedStateHandle> {

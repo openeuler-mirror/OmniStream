@@ -13,6 +13,7 @@
 #define FLINK_TNEL_TYPESERIALIZERSINGLETON_H
 
 #include "TypeSerializer.h"
+#include "SerializerJsonInfo.h"
 
 class TypeSerializerSingleton : public TypeSerializer {
 };

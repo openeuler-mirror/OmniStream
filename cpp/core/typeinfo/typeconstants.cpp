@@ -25,3 +25,4 @@ const char* TYPE_NAME_TUPLE_SERIALIZER = "org.apache.flink.api.java.typeutils.ru
 const char* TYPE_NAME_POJO_SERIALIZER = "org.apache.flink.api.java.typeutils.runtime.PojoSerializer";
 const char* TYPE_NAME_MAP_SERIALIZER = "org.apache.flink.api.common.typeutils.base.MapSerializer";
 const char* TYPE_NAME_LIST_SERIALIZER = "org.apache.flink.api.common.typeutils.base.ListSerializer";
+const char* TYPE_NAME_VOID_SERIALIZER = "org.apache.flink.runtime.state.VoidNamespaceSerializer";

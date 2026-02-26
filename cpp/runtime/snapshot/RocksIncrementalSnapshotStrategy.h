@@ -79,7 +79,8 @@ protected:
             std::shared_ptr<PreviousSnapshot> previousSnapshot,
             SnapshotType::SharingFilesStrategy sharingFilesStrategy,
             std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& stateMetaInfoSnapshots,
-            CheckpointOptions *checkpointOptions);
+            CheckpointOptions *checkpointOptions,
+            std::shared_ptr<TypeSerializer> keySerializer);
 
         std::shared_ptr<SnapshotResult<KeyedStateHandle>> get(std::shared_ptr<omnistream::OmniTaskBridge> bridge) override;
 

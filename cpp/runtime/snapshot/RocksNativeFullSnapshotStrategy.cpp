@@ -63,7 +63,8 @@ std::shared_ptr<SnapshotResultSupplier<KeyedStateHandle>> RocksNativeFullSnapsho
             backendUID_,
             keyGroupRange_,
             this,
-            checkpointOptions));
+            checkpointOptions,
+            keySerializer_));
 }
 
 void RocksNativeFullSnapshotStrategy::notifyCheckpointComplete(int64_t completedCheckpointId) {}
@@ -92,12 +93,14 @@ RocksNativeFullSnapshotStrategy::RocksDBNativeFullSnapshotOperation::RocksDBNati
     UUID backendUID,
     KeyGroupRange keyGroupRange,
     RocksNativeFullSnapshotStrategy* outerStrategy,
-    CheckpointOptions *checkpointOptions)
+    CheckpointOptions *checkpointOptions,
+    std::shared_ptr<TypeSerializer> keySerializer)
     : RocksDBSnapshotOperation(
         checkpointId,
         checkpointStreamFactory,
         localBackupDirectory,
-        stateMetaInfoSnapshots),
+        stateMetaInfoSnapshots,
+        keySerializer),
     backendUID_(backendUID),
     keyGroupRange_(keyGroupRange),
     outerStrategy_(outerStrategy),
@@ -115,7 +118,8 @@ std::shared_ptr<SnapshotResult<KeyedStateHandle>>RocksNativeFullSnapshotStrategy
             stateMetaInfoSnapshots,
             checkpointId,
             checkpointOptions_,
-            bridge);
+            bridge,
+            keySerializer->toJson());
 
         int64_t checkpointedSize = metaStateHandle->GetStateSize();
         checkpointedSize += uploadSnapshotFiles(privateFiles, bridge);

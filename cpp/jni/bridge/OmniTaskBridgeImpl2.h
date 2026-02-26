@@ -47,7 +47,7 @@ public:
             jlong checkpointId,
             std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& snapshots,
             std::shared_ptr<LocalRecoveryConfig> localRecoveryConfig,
-            CheckpointOptions *checkpointOptions) override;
+            CheckpointOptions *checkpointOptions, std::string keySerializer) override;
 
     jobject CallUploadFilesToCheckpointFs(const std::vector<Path>& filePaths,
                                           int numberOfSnapshottingThreads) override;

@@ -6,6 +6,7 @@
 #include "state/filesystem/FileStateHandle.h"
 #include "state/memory/ByteStreamStateHandle.h"
 #include "state/filesystem/RelativeFileStateHandle.h"
+#include "typeinfo/TypeInfoFactory.h"
 
 enum class StreamStateHandleType {
     Unknown,
@@ -391,7 +392,8 @@ std::shared_ptr<SnapshotResult<StreamStateHandle>> OmniTaskBridgeImpl2::CallMate
     jlong checkpointId,
     std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& snapshots,
     std::shared_ptr<LocalRecoveryConfig> localRecoveryConfig,
-    CheckpointOptions *checkpointOptions)
+    CheckpointOptions *checkpointOptions,
+    std::string keySerializer)
 {
     if (m_globalOmniTaskRef == nullptr) {
         GErrorLog("StreamTask is not registered in TaskStateManagerBridgeImpl::CallMaterializeMetaData");
@@ -415,6 +417,8 @@ std::shared_ptr<SnapshotResult<StreamStateHandle>> OmniTaskBridgeImpl2::CallMate
         jsonObj["backendStateType"] =
         static_cast<int>(StateMetaInfoSnapshot::getCode(snapshot->getBackendStateType()));
         jsonObj["options"] = snapshot->getOptionsImmutable();
+        jsonObj["serializer"] = snapshot->getSerializerJson();
+        jsonObj["keySerializer"] = keySerializer;
         stateMetaInfoJson.push_back(std::move(jsonObj));
     }
     std::string stateMetaInfoStr = stateMetaInfoJson.dump();
@@ -528,6 +532,22 @@ std::vector<StateMetaInfoSnapshot> convertResult(const std::string& cppResult)
         for (const auto& [key, value] : oneSnapshot["optionsImmutable"].items()) {
             tmpOptions[key] = value.get<std::string>();
         }
+        std::unordered_map<std::string, TypeSerializer *> tmpSerializers;
+        if(oneSnapshot.contains("serializer")){
+            auto serializers = oneSnapshot["serializer"];
+            if(serializers.contains("namespaceSerializer")){
+                auto namespaceSerializer = TypeInfoFactory::createDataStreamTypeInfo(serializers["namespaceSerializer"]);
+                if(namespaceSerializer != nullptr){
+                    tmpSerializers.emplace("NAMESPACE_SERIALIZER", namespaceSerializer->getTypeSerializer());
+                }
+            }
+            if(serializers.contains("stateSerializer")){
+                auto stateSerializer = TypeInfoFactory::createDataStreamTypeInfo(serializers["stateSerializer"]);
+                if(stateSerializer != nullptr){
+                    tmpSerializers.emplace("VALUE_SERIALIZER", stateSerializer->getTypeSerializer());
+                }
+            }
+        }
         // Currently we don't take snapshot of serializers
         StateMetaInfoSnapshot::BackendStateType bst;
         auto backendStateTypeStr = oneSnapshot["backendStateType"].get<std::string>();
@@ -540,7 +560,7 @@ std::vector<StateMetaInfoSnapshot> convertResult(const std::string& cppResult)
         } else {
             throw std::runtime_error("Unknown BackendStateType.");
         }
-        toReturn.push_back(StateMetaInfoSnapshot(oneSnapshot["name"].get<std::string>(), bst, tmpOptions, {}, {}));
+        toReturn.push_back(StateMetaInfoSnapshot(oneSnapshot["name"].get<std::string>(), bst, tmpOptions, {}, tmpSerializers));
     }
     return toReturn;
 }
@@ -887,6 +907,7 @@ void OmniTaskBridgeImpl2::WriteSavepointMetadata(jobject provider, const std::ve
         jsonObj["backendStateType"] =
         static_cast<int>(StateMetaInfoSnapshot::getCode(snapshot->getBackendStateType()));
         jsonObj["options"] = snapshot->getOptionsImmutable();
+        jsonObj["serializer"] = snapshot->getSerializerJson();
         stateMetaInfoJson.push_back(std::move(jsonObj));
     }
     std::string stateMetaInfoStr = stateMetaInfoJson.dump();

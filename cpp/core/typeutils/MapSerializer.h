@@ -58,6 +58,13 @@ public:
         // to-Do
         return nullptr;
     };
+
+    std::string toJson() override
+    {
+        SerializerJsonInfo typeJson = {SerializerType::MAP, "", keySerializer, valueSerializer};
+        return typeJson.toJson();
+    }
+
 private:
     TypeSerializer *keySerializer;
     TypeSerializer *valueSerializer;
