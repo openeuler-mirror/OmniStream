@@ -560,7 +560,7 @@ std::vector<StateMetaInfoSnapshot> convertResult(const std::string& cppResult)
         } else {
             throw std::runtime_error("Unknown BackendStateType.");
         }
-        toReturn.push_back(StateMetaInfoSnapshot(oneSnapshot["name"].get<std::string>(), bst, tmpOptions, {}, tmpSerializers}));
+        toReturn.push_back(StateMetaInfoSnapshot(oneSnapshot["name"].get<std::string>(), bst, tmpOptions, {}, tmpSerializers));
     }
     return toReturn;
 }
@@ -907,7 +907,7 @@ void OmniTaskBridgeImpl2::WriteSavepointMetadata(jobject provider, const std::ve
         jsonObj["backendStateType"] =
         static_cast<int>(StateMetaInfoSnapshot::getCode(snapshot->getBackendStateType()));
         jsonObj["options"] = snapshot->getOptionsImmutable();
-        jsonObj["serializer"] = snapshot->getSerialzerJson();
+        jsonObj["serializer"] = snapshot->getSerializerJson();
         stateMetaInfoJson.push_back(std::move(jsonObj));
     }
     std::string stateMetaInfoStr = stateMetaInfoJson.dump();
