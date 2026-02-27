@@ -51,12 +51,12 @@ public:
     }
 
     void writeMetadata(
-        const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& snapshots)
+        const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& snapshots, std::string keySerializer)
     {
         if (provider_ == nullptr) {
             return;
         }
-        bridge_->WriteSavepointMetadata(provider_, snapshots);
+        bridge_->WriteSavepointMetadata(provider_, snapshots, keySerializer);
         pos_ = bridge_->GetSavepointOutputStreamPos(provider_);
     }
 

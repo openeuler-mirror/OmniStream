@@ -46,7 +46,8 @@ public:
         long checkpointId,
         long timestamp,
         CheckpointStreamFactory* checkpointStreamFactory,
-        CheckpointOptions* checkpointOptions) override;
+        CheckpointOptions* checkpointOptions,
+        std::string keySerializer = "") override;
 
     void notifyCheckpointComplete(int64_t completedCheckpointId);
     void notifyCheckpointAborted(int64_t abortedCheckpointId);

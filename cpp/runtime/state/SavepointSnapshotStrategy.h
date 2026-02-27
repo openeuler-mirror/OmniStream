@@ -35,7 +35,8 @@ public:
         long checkpointId,
         long timestamp,
         CheckpointStreamFactory *streamFactory,
-        CheckpointOptions *checkpointOptions) override
+        CheckpointOptions *checkpointOptions,
+        std::string keySerializer = "") override
     {
         if(savepointResources_->getMetaInfoSnapshots().empty()) {
             struct EmptySnapshotResourceSupplier 
@@ -51,7 +52,8 @@ public:
             SavepointType::savepoint(SavepointFormatType::CANONICAL),
             checkpointOptions,
             checkpointId,
-            snapshotResources);
+            snapshotResources,
+            keySerializer);
     }
 };
 #endif

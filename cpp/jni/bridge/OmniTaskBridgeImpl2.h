@@ -57,7 +57,8 @@ public:
     jobject AcquireSavepointOutputStream(long checkpointId, CheckpointOptions *checkpointOptions) override;
     std::shared_ptr<SnapshotResult<StreamStateHandle>> CloseSavepointOutputStream(jobject provider) override;
     void WriteSavepointOutputStream(jobject provider, const int8_t *chunk, size_t offset, size_t len) override;
-    void WriteSavepointMetadata(jobject provider, const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& snapshots) override;
+    void WriteSavepointMetadata(jobject provider, const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& snapshots,
+                                std::string keySerializer) override;
     long GetSavepointOutputStreamPos(jobject provider) override;
 
 public:

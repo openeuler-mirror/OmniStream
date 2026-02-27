@@ -194,7 +194,8 @@ public:
             strategy->getDescription(),
             strategy,
             SnapshotExecutionType::ASYNCHRONOUS);
-        return snapshotstrategyrunner->snapshot(checkpointId, timestamp, streamFactory, options, omniTaskBridge_);
+        return snapshotstrategyrunner->snapshot(checkpointId, timestamp, streamFactory, options, omniTaskBridge_,
+                                                keySerializer_->toJson());
     }
 
     void notifyCheckpointComplete(long completedCheckpointId)

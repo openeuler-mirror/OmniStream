@@ -188,6 +188,7 @@ public:
             }
 
             if (keyedStateBackend) {
+                auto keySerializer = keyedStateBackend->getKeySerializer();
                 if (isCanonicalSavepoint(checkpointOptions->GetCheckpointType())) {
                     // TTODO
                     // Create a snapshot runner with prepareCanonicalSavepoint()
@@ -199,7 +200,8 @@ public:
                             timestamp,
                             checkpointStreamFactory,
                             checkpointOptions,
-                            bridge));
+                            bridge,
+                            keySerializer->toJson()));
                 } else {
                     snapshotInProgress->setKeyedStateManagedFuture(
                         keyedStateBackend->snapshot(checkpointId, timestamp, checkpointStreamFactory, checkpointOptions)

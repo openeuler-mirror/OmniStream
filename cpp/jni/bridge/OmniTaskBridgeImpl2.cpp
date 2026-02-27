@@ -886,7 +886,8 @@ void OmniTaskBridgeImpl2::WriteSavepointOutputStream(jobject provider, const int
     env->DeleteLocalRef(data);
 }
 
-void OmniTaskBridgeImpl2::WriteSavepointMetadata(jobject provider, const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& snapshots)
+void OmniTaskBridgeImpl2::WriteSavepointMetadata(jobject provider, const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& snapshots,
+                                                 std::string keySerializer)
 {
     JNIEnv* env = nullptr;
     jint ret = g_OmniStreamJVM->GetEnv(reinterpret_cast<void **>(&env), JNI_VERSION_1_8);
@@ -908,6 +909,7 @@ void OmniTaskBridgeImpl2::WriteSavepointMetadata(jobject provider, const std::ve
         static_cast<int>(StateMetaInfoSnapshot::getCode(snapshot->getBackendStateType()));
         jsonObj["options"] = snapshot->getOptionsImmutable();
         jsonObj["serializer"] = snapshot->getSerializerJson();
+        jsonObj["keySerializer"] = keySerializer;
         stateMetaInfoJson.push_back(std::move(jsonObj));
     }
     std::string stateMetaInfoStr = stateMetaInfoJson.dump();

@@ -23,9 +23,11 @@ private:
     long checkpointId_;
     SnapshotType *snapshotType_;
     CheckpointOptions *checkpointOptions_;
+    std::string keySerializer_;
 
 public:
-    FullSnapshotAsyncWriter(SnapshotType *snapshotType, CheckpointOptions *checkpointOptions, long checkpointId, const std::shared_ptr<FullSnapshotResources> &snapshotResources);
+    FullSnapshotAsyncWriter(SnapshotType *snapshotType, CheckpointOptions *checkpointOptions, long checkpointId,
+                            const std::shared_ptr<FullSnapshotResources> &snapshotResources, std::string keySerializer);
     std::shared_ptr<SnapshotResult<KeyedStateHandle>>
     get(std::shared_ptr<omnistream::OmniTaskBridge> bridge) override;
 };

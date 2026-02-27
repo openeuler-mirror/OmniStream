@@ -47,7 +47,8 @@ std::shared_ptr<SnapshotResultSupplier<KeyedStateHandle>> RocksIncrementalSnapsh
     long checkpointId,
     long timestamp,
     CheckpointStreamFactory* checkpointStreamFactory,
-    CheckpointOptions* checkpointOptions)
+    CheckpointOptions* checkpointOptions,
+    std::string keySerializer)
 {
     auto rocksdbSnapshotResources = static_cast<NativeRocksDBSnapshotResources*>(snapshotResources.get());
 

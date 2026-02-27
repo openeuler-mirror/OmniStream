@@ -40,10 +40,12 @@ public:
         long timestamp,
         CheckpointStreamFactory* streamFactory,
         CheckpointOptions* checkpointOptions,
-        std::shared_ptr<omnistream::OmniTaskBridge> bridge)
+        std::shared_ptr<omnistream::OmniTaskBridge> bridge,
+        std::string keySerializer)
     {
         auto snapshotResources = snapshotStrategy_->syncPrepareResources(checkpointId);
-        auto asyncSnapshot = snapshotStrategy_->asyncSnapshot(snapshotResources, checkpointId, timestamp, streamFactory, checkpointOptions);
+        auto asyncSnapshot = snapshotStrategy_->asyncSnapshot(snapshotResources, checkpointId, timestamp, streamFactory,
+                                                              checkpointOptions, keySerializer);
         auto task = std::make_shared<std::packaged_task<std::shared_ptr<SnapshotResult<KeyedStateHandle>>()>>(
             [=]() {
                 return asyncSnapshot->get(bridge);
