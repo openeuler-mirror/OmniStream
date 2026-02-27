@@ -216,6 +216,13 @@ void WindowJoinOperator<KeyType>::open()
             LOG("WindowJoinOperator opened in KEYED mode.") 
     } else {
            LOG("WindowJoinOperator opened with no key")
+           //If a windowJoin has no key, the parallelism is restricted to 1(ignore the conf set). 
+           //Using a default key is a valid workaround, but it will fail if optimization allows parallelism > 1. 
+           if constexpr (std::is_same_v<KeyType, int64_t>) {
+                 this->setCurrentKey(0);
+            } else if constexpr (std::is_pointer_v<KeyType>) {
+                this->setCurrentKey(nullptr);
+            }
     }
     
     generatedFilter = generateJoinCondition();

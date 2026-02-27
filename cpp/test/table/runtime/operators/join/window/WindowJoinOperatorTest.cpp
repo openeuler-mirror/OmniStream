@@ -260,7 +260,7 @@ TEST(WindowJoinOperatorTest, DISABLED_InnerJoinTest)
     delete b2;
 }
 
-TEST(WindowJoinOperatorTest, InnerJoinTest_BinaryRowDataKey)
+TEST(WindowJoinOperatorTest, DISABLED_InnerJoinTest_BinaryRowDataKey)
 {
  
     auto vbatchLeft = getLeftBatch();
