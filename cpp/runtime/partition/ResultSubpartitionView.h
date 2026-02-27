@@ -26,7 +26,7 @@ class ResultSubpartitionView {
 public:
     virtual ~ResultSubpartitionView() = default;
 
-    virtual std::shared_ptr<BufferAndBacklog> getNextBuffer() = 0;
+    virtual BufferAndBacklog* getNextBuffer() = 0;
     virtual void notifyDataAvailable() = 0;
     virtual void notifyPriorityEvent(int priorityBufferNumber) {}
     // Best-effort hook for 'aligned attempt + timeout -> UC' to overtake an announced event.

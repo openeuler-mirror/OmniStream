@@ -44,8 +44,9 @@ namespace omnistream::datastream {
 
     private:
         TypeSerializer *typeSerializer_;
-        StreamRecord *reUsableRecord_{};
-        Watermark *reUsableWatermark_{};
+        bool isDatastream;
+        StreamRecord *reUsableRecord_ = nullptr;
+        Watermark *reUsableWatermark_ = nullptr;
     };
 }
 #endif

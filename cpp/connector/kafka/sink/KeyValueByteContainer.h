@@ -33,7 +33,7 @@ public:
     KeyValueByteContainer(char *keyData, std::string_view valueData) : key(keyData)
     {
         valueLen = valueData.size();
-        value = reinterpret_cast<char *>(malloc(valueLen));
+        value = reinterpret_cast<char *>(malloc(valueLen)); // free by rdkafka
         if (!value) {
             throw std::runtime_error("allocate memory failed!");
         }

@@ -17,7 +17,7 @@
 
 #include "ResultSubpartitionView.h"
 #include "BufferAvailabilityListener.h"
-
+// check
 namespace omnistream {
 
     class ResultPartitionProvider {

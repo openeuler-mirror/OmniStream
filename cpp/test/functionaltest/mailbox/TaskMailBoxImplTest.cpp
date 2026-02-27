@@ -45,7 +45,7 @@ TEST(TaskMailboxImplTest, testhasMailFunction){
     std::shared_ptr<omnistream::TaskMailbox> taskMailbox = std::make_shared<omnistream::TaskMailboxImpl>(mailboxThreadId);
 
     std::cout<<"mailboxThreadId"<<mailboxThreadId<<std::endl;
-    auto mailA=std::make_shared<omnistream::Mail>(
+    auto mailA= new omnistream::Mail(
       std::make_shared<NoOpRunnable>(),
       MAX_PRIORITY,
       "mailA",
@@ -63,25 +63,25 @@ TEST(TaskMailboxImplTest, testhasputhead){
   std::shared_ptr<omnistream::TaskMailbox> taskMailbox = std::make_shared<omnistream::TaskMailboxImpl>(mailboxThreadId);
 
   std::cout<<"mailboxThreadId"<<mailboxThreadId<<std::endl;
-    auto mailA=std::make_shared<omnistream::Mail>(
+    auto mailA=new omnistream::Mail(
       std::make_shared<NoOpRunnable>(),
       MAX_PRIORITY,
       "mailA",
       std::vector<std::string>{});
 
-    auto mailB=std::make_shared<omnistream::Mail>(
+    auto mailB=new omnistream::Mail(
       std::make_shared<NoOpRunnable>(),
       MAX_PRIORITY,
       "mailB",
       std::vector<std::string>{});
 
-    auto mailC=std::make_shared<omnistream::Mail>(
+    auto mailC=new omnistream::Mail(
       std::make_shared<NoOpRunnable>(),
       DEFAULT_PRIORITY,
       "mailC",
       std::vector<std::string>{});
 
-    auto mailD=std::make_shared<omnistream::Mail>(
+    auto mailD=new omnistream::Mail(
       std::make_shared<NoOpRunnable>(),
       DEFAULT_PRIORITY,
       "mailD",
@@ -104,7 +104,7 @@ TEST(TaskMailboxImplTest, testhasputhead){
 TEST(TaskMailboxImplTest,testContracts){
   int MAX_PRIORITY = 1;
   int DEFAULT_PRIORITY = 0;
-  std::queue<std::shared_ptr<omnistream::Mail>> testObjects;
+  std::queue<omnistream::Mail*> testObjects;
   std::thread::id mailboxThreadId = std::this_thread::get_id();  // get current thread ID
 
   std::shared_ptr<omnistream::TaskMailbox> taskMailbox = std::make_shared<omnistream::TaskMailboxImpl>(mailboxThreadId);
@@ -112,7 +112,7 @@ TEST(TaskMailboxImplTest,testContracts){
   ASSERT_FALSE(taskMailbox->hasMail());
 
   for(int i = 0; i < 10; i++){
-    std::shared_ptr<omnistream::Mail> mail = std::make_shared<omnistream::Mail>(
+    omnistream::Mail* mail = new omnistream::Mail(
       std::make_shared<NoOpRunnable>(), DEFAULT_PRIORITY, "mail, DEFAULT_PRIORITY", std::vector<std::string>{}
     );
     testObjects.push(mail);
@@ -131,7 +131,7 @@ TEST(TaskMailboxImplTest,testContracts){
 
 void testLifecyclePuttingInternal(std::shared_ptr<omnistream::TaskMailbox> taskMailbox){
   try {
-    auto mail=std::make_shared<omnistream::Mail>(
+    auto mail=new omnistream::Mail(
       std::make_shared<NoOpRunnable>(),
       DEFAULT_PRIORITY,
       "mail",
@@ -149,13 +149,13 @@ TEST(TaskMailboxImplTest, testLifeCycleQuiesce) {
 
   std::shared_ptr<omnistream::TaskMailbox> taskMailbox = std::make_shared<omnistream::TaskMailboxImpl>(mailboxThreadId);
 
-  auto mailA=std::make_shared<omnistream::Mail>(
+  auto mailA=new omnistream::Mail(
     std::make_shared<NoOpRunnable>(),
     DEFAULT_PRIORITY,
     "mailA",
     std::vector<std::string>{});
 
-  auto mailB=std::make_shared<omnistream::Mail>(
+  auto mailB=new omnistream::Mail(
     std::make_shared<NoOpRunnable>(),
     DEFAULT_PRIORITY,
     "mailB",
@@ -170,10 +170,10 @@ TEST(TaskMailboxImplTest, testLifeCycleQuiesce) {
 
   // check tryTake
   auto mail = taskMailbox->tryTake(DEFAULT_PRIORITY);
-  bool result=mail.has_value();
+  bool result=(mail != nullptr);
   ASSERT_TRUE(result);  // should have one in box
   auto mail2 = taskMailbox->tryTake(DEFAULT_PRIORITY);
-  bool result2= mail2.has_value();
+  bool result2= (mail2 != nullptr);
   ASSERT_FALSE(result2);
 }
 
@@ -193,22 +193,22 @@ TEST(TaskMailboxImplTest, testPutAsHeadWithPriority){
   std::thread::id mailboxThreadId = std::this_thread::get_id();  // get current thread ID
 
   std::shared_ptr<omnistream::TaskMailbox> taskMailbox = std::make_shared<omnistream::TaskMailboxImpl>(mailboxThreadId);
-  auto mailA=std::make_shared<omnistream::Mail>(
+  auto mailA=new omnistream::Mail(
     std::make_shared<NoOpRunnable>(),
     2,
     "mailA",
     std::vector<std::string>{});
-  auto mailB=std::make_shared<omnistream::Mail>(
+  auto mailB=new omnistream::Mail(
     std::make_shared<NoOpRunnable>(),
     2,
     "mailB",
     std::vector<std::string>{});
-  auto mailC=std::make_shared<omnistream::Mail>(
+  auto mailC=new omnistream::Mail(
     std::make_shared<NoOpRunnable>(),
     1,
     "mailC",
     std::vector<std::string>{});
-  auto mailD=std::make_shared<omnistream::Mail>(
+  auto mailD=new omnistream::Mail(
     std::make_shared<NoOpRunnable>(),
     1,
     "mailD",
@@ -231,11 +231,11 @@ TEST(TaskMailboxImplTest,testBatchAndNonBatchTake){
   std::thread::id mailboxThreadId = std::this_thread::get_id();  // get current thread ID
 
   std::shared_ptr<omnistream::TaskMailbox> taskMailbox = std::make_shared<omnistream::TaskMailboxImpl>(mailboxThreadId);
-  std::vector<std::shared_ptr<omnistream::Mail>>mails;
+  std::vector<omnistream::Mail*>mails;
 
   //make a vector containing 6 mail tasks
   for(int i=0;i<6;i++){
-    auto mail=std::make_shared<omnistream::Mail>(
+    auto mail=new omnistream::Mail(
       std::make_shared<NoOpRunnable>(),
       1,
       std::to_string(i),
@@ -258,7 +258,7 @@ TEST(TaskMailboxImplTest,testBatchAndNonBatchTake){
   ASSERT_EQ(taskMailbox->tryTake(1),mails[1]);
   ASSERT_EQ(taskMailbox->take(1),mails[2]);
   // // batch empty, so only regular methods work
-  ASSERT_FALSE(taskMailbox->tryTakeFromBatch().has_value());
+  ASSERT_FALSE(taskMailbox->tryTakeFromBatch());
 
 
   ASSERT_EQ(taskMailbox->tryTake(1),mails[3]);
@@ -273,13 +273,13 @@ TEST(TaskMailboxImplTest,testBatchDrain){
   std::thread::id mailboxThreadId = std::this_thread::get_id();  // get current thread ID
 
   std::shared_ptr<omnistream::TaskMailbox> taskMailbox = std::make_shared<omnistream::TaskMailboxImpl>(mailboxThreadId);
-  auto mailA=std::make_shared<omnistream::Mail>(
+  auto mailA=new omnistream::Mail(
     std::make_shared<NoOpRunnable>(),
     1,
     "mailA",
     std::vector<std::string>{});
 
-  auto mailB=std::make_shared<omnistream::Mail>(
+  auto mailB=new omnistream::Mail(
     std::make_shared<NoOpRunnable>(),
     2,
     "mailB",
@@ -311,13 +311,13 @@ TEST(TaskMailboxImplTest,testBatchDrain){
 TEST(TaskMailboxImplTest,testBatchPriority){
   std::thread::id mailboxThreadId = std::this_thread::get_id();  // get current thread ID
   std::shared_ptr<omnistream::TaskMailbox> taskMailbox = std::make_shared<omnistream::TaskMailboxImpl>(mailboxThreadId);
-  auto mailA=std::make_shared<omnistream::Mail>(
+  auto mailA=new omnistream::Mail(
     std::make_shared<NoOpRunnable>(),
     1,
     "mailA",
     std::vector<std::string>{});
 
-  auto mailB=std::make_shared<omnistream::Mail>(
+  auto mailB=new omnistream::Mail(
     std::make_shared<NoOpRunnable>(),
     2,
     "mailB",
@@ -332,10 +332,10 @@ TEST(TaskMailboxImplTest,testBatchPriority){
   ASSERT_EQ(mail1,mailB);
 
   auto mail2=taskMailbox->tryTakeFromBatch();
-  ASSERT_TRUE(mail2.has_value());
+  ASSERT_TRUE(mail2);
 
 
-  ASSERT_EQ(mail2.value(),mailA);
+  ASSERT_EQ(mail2,mailA);
 
 }
 // //TODO

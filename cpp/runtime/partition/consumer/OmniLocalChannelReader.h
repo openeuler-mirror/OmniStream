@@ -50,14 +50,14 @@ namespace omnistream {
         void recycleMemorySegment(long memorySegmentAddress);
         void Close();
         void ReleaseAllResources();
-        void WrapBufferInfoIntoMemorySegmentInfo(std::shared_ptr<::datastream::ReadOnlySlicedNetworkBuffer> nBuffer,
-                                                 std::shared_ptr<BufferAndBacklog> bufferAndLog);
-        void WrapBufferInfoIntoBinaryRowDataInfo(const std::shared_ptr<omnistream::VectorBatchBuffer>& nBuffer,
-                                                 const std::shared_ptr<BufferAndBacklog>& bufferAndLog);
+        void WrapBufferInfoIntoMemorySegmentInfo(::datastream::ReadOnlySlicedNetworkBuffer* nBuffer,
+                                                 BufferAndBacklog* bufferAndLog);
+        void WrapBufferInfoIntoBinaryRowDataInfo(omnistream::VectorBatchBuffer* nBuffer,
+                                                 BufferAndBacklog* bufferAndLog);
         void ResumeConsumption();
 
     private:
-        int calculateTotalRows(const std::shared_ptr<ObjectSegment>& objectSegment, int offset, int vbNum);
+        int calculateTotalRows(ObjectSegment *objectSegment, int offset, int vbNum);
         void setRowDataToPtr(RowData* binaryRowData, uint8_t* dataResultContainer, unsigned int& position, int vectorBatchCol, VectorBatch* element, int index);
 
         ResultPartitionIDPOD partitionId_;
@@ -68,9 +68,9 @@ namespace omnistream {
         MemorySegmentInfo* memorySegmentInfo;
         std::condition_variable_any dataAvailableCondition;
         std::recursive_mutex dataAvailableMutex;
-        volatile bool dataAvailable = false;
-        std::shared_ptr<Buffer> pendingRecyclingBuffer;
-        volatile bool isStopped = false;
+        std::atomic<bool> dataAvailable = false;
+        Buffer* pendingRecyclingBuffer = nullptr;
+        std::atomic<bool> isStopped = false;
         std::string taskNameWithSubtask_;
     };
 } // namespace omnistream

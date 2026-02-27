@@ -9,6 +9,7 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "basictypes/String.h"
+#include "basictypes/ObjectPool.h"
 
 String::String(): hash(0) {
 }
@@ -35,84 +36,20 @@ String &String::operator=(String &&str) = default;
 
 String::~String() = default;
 
-std::string_view String::getValue()
+void String::putRefCount()
 {
-    return inner;
-}
-
-char *String::getData()
-{
-    return inner.data();
-}
-
-size_t String::getSize()
-{
-    return static_cast<size_t>(inner.size());
-}
-
-void String::setValue(const std::string &val)
-{
-    inner = val;
-    hash = 0;
-}
-
-void String::setValue(const std::string_view &val)
-{
-    inner = val;
-    hash = 0;
-}
-
-void String::setData(const char *pointer)
-{
-    inner = pointer;
-    hash = 0;
-}
-
-int String::hashCode()
-{
-    size_t usedSize = inner.size();
-    if (usedSize == 0) {
-        return 0;
-    }
-    int64_t hash = 0;
-    for (size_t i = 0; i < usedSize; ++i) {
-        hash = 31 * hash + static_cast<int>(inner[i]);
-        if (hash > INT32_MAX || hash < INT32_MIN) {
-            hash = (int)hash;
+    if (--refCount <= 0) {
+        if (this->isPool) {
+            // inner.clear();
+            // this->refCount = 1;
+            ObjectPool<String> *stringObjectPool = ObjectPool<String>::getInstance();
+            this->next = stringObjectPool->head;
+            stringObjectPool->head = this;
+        } else {
+            delete this;
         }
     }
-    return (int)hash;
 }
-
-bool String::equals(Object *obj)
-{
-    const auto *str = reinterpret_cast<String *>(obj);
-    return this->inner == str->inner;
-}
-
-std::string String::toString()
-{
-    return inner;
-}
-
-Object *String::clone()
-{
-    return new String(inner);
-}
-
-void String::resize(const int64_t size)
-{
-    inner.resize(size);
-}
-
-char *String::data()
-{
-    return inner.data();
-}
-
-// std::unique_ptr<Array> String::splitToUniquePtr(const std::string &pattern) {
-//    return std::unique_ptr<Array>(this->split(pattern));
-// }
 
 String *String::replace(const std::string &target, const std::string &replacement)
 {
@@ -134,18 +71,23 @@ String *String::replace(const String *target, const String *replacement)
 
 Array *String::split(const std::string &pattern)
 {
-    auto *array = new Array();
+    ObjectPool<Array> *arrayObjectPool = ObjectPool<Array>::getInstance();
+    Array *curArray = arrayObjectPool->getObject();
+    ObjectPool<String> *stringObjectPool = ObjectPool<String>::getInstance();
+
     size_t start = 0;
     size_t index = inner.find(pattern);
     while (index != std::string::npos) {
-        auto *subStr = new String(inner.substr(start, index - start));
-        array->push_back(subStr);
+        String *subStr = stringObjectPool->getObject();
+        subStr->setValue(inner.substr(start, index - start));
+        curArray->push_back(subStr);
         start = index + pattern.length();
         index = inner.find(pattern, start);
     }
-    auto *subStr = new String(inner.substr(start));
-    array->push_back(subStr);
-    return array;
+    String *subStr = stringObjectPool->getObject();
+    subStr->setValue(inner.substr(start));
+    curArray->push_back(subStr);
+    return curArray;
 }
 
 Array *String::split(const std::regex &re)
@@ -194,121 +136,4 @@ String *String::replaceAll(const std::string &pattern, const std::string &replac
     }
     const std::string res = std::regex_replace(inner, regex_, replace);
     return new String(res);
-}
-
-int32_t String::lastIndexOf(const std::string &s_patt) const
-{
-    return static_cast<int32_t>(inner.rfind(s_patt));
-}
-
-int32_t String::lastIndexOf(const String *s_patt) const
-{
-    return static_cast<int32_t>(inner.rfind(s_patt->inner));
-}
-
-int32_t String::length() const
-{
-    return static_cast<int32_t>(inner.size());
-}
-
-String *String::substring(const int32_t idx) const
-{
-    std::string s = this->inner.substr(idx);
-    return new String(std::move(s));
-}
-
-String *String::substring(const int32_t start, const int32_t end) const
-{
-    std::string s = this->inner.substr(start, end);
-    return new String(std::move(s));
-}
-
-bool String::equals(const String *obj) const
-{
-    auto &cur = this->inner;
-    auto &val = obj->inner;
-    return cur == val;
-}
-
-bool String::equals(String * obj)
-{
-    auto &cur = this->inner;
-    auto &val = obj->inner;
-    return cur == val;
-}
-
-bool String::equals(const std::string &str) const
-{
-    auto &cur = this->inner;
-    return cur == str;
-}
-
-bool String::contains(const std::string &str) const
-{
-    if (!&str) {
-        throw std::invalid_argument("Input string is null");
-    }
-    
-    return (this->inner.find(str) != std::string::npos);
-}
-
-bool String::contains(const String *str) const
-{
-    return (this->inner.find(str->inner) != std::string::npos);
-}
-
-bool String::endsWith(const String *str) const
-{
-    auto &s1 = this->inner;
-    auto &s2 = str->inner;
-    return std::equal(s2.rbegin(), s2.rend(), s1.rbegin());
-}
-
-bool String::endsWith(const std::string &str)
-{
-    auto &s1 = this->inner;
-    return std::equal(str.rbegin(), str.rend(), s1.rbegin());
-}
-
-bool String::startsWith(const String *str) const
-{
-    return this->inner.find(str->inner) == 0;
-}
-
-bool String::startsWith(const std::string &str) const
-{
-    return inner.find(str) == 0;
-}
-
-std::unique_ptr<String> String::valueOf(Object *obj)
-{
-    if (obj) {
-        return std::make_unique<String>(obj->toString());
-    }
-    return nullptr;
-}
-
-String* String::valueOf(int32_t obj)
-{
-    return new String(std::to_string(obj));
-}
-
-String* String::valueOf(int64_t obj)
-{
-    return new String(std::to_string(obj));
-}
-
-std::string_view String::ref()
-{
-    return this->inner;
-}
-
-void String::setData(char *pointer)
-{
-    inner = pointer;
-}
-
-void String::setSize(size_t size)
-{
-    inner.resize(size);
 }

@@ -14,6 +14,7 @@
 
 #include "OmniStreamOneInputProcessor.h"
 #include "MutipleInputSelectionHandler.h"
+#include "MultipleFuturesAvailabilityHelper.h"
 
 namespace omnistream {
     class OmniStreamMultipleInputProcessor : public OmniStreamInputProcessor {
@@ -21,18 +22,16 @@ namespace omnistream {
         OmniStreamMultipleInputProcessor(std::vector<OmniStreamOneInputProcessor *> &&processors,
                                          std::shared_ptr<MutipleInputSelectionHandler> inputSelectionHandler)
             : processors(processors), inputSelectionHandler(inputSelectionHandler) {
+            availabilityHelper = std::make_shared<MultipleFuturesAvailabilityHelper>(processors.size());
         }
 
         DataInputStatus processInput() override;
-        std::shared_ptr<CompletableFuture> GetAvailableFuture() override
-        {
-            // TTODO
-            return nullptr;
-        };
+        std::shared_ptr<CompletableFuture> GetAvailableFuture() override;
         std::shared_ptr<CompletableFutureV2<void>> PrepareSnapshot(std::shared_ptr<ChannelStateWriter> writer, long checkpointID) override;
     private:
         std::vector<OmniStreamOneInputProcessor *> processors;
         std::shared_ptr<MutipleInputSelectionHandler> inputSelectionHandler;
+        std::shared_ptr<MultipleFuturesAvailabilityHelper> availabilityHelper;
         bool isPrepared = false;
         int32_t lastReadInputIndex;
         int selectFirstReadingInputIndex();

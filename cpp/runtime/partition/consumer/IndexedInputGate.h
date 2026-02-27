@@ -22,7 +22,7 @@
 #include "InputChannel.h"
 #include "InputGate.h"
 #include "checkpoint/channel/ChannelStateWriter.h"
-
+// check
 namespace omnistream {
 
     class IndexedInputGate : public InputGate, public CheckpointableInput {

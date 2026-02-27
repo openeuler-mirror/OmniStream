@@ -36,30 +36,33 @@ namespace omnistream {
                                                             int sequenceNumber,
                                                             int memorySegmentOffset, int bufferType)
     {
-        std::shared_ptr<MemorySegment> memorySegment = std::make_shared<MemorySegment>(
+        MemorySegment *memorySegment = new MemorySegment(
             reinterpret_cast<uint8_t *>(bufferAddress), bufferLength, this);
-        std::shared_ptr<::datastream::NetworkBuffer> networkBuffer = std::make_shared<::datastream::NetworkBuffer>(
-            memorySegment, bufferLength, readIndex, originalNetworkBufferRecycler_, bufferType);
-        std::shared_ptr<::datastream::ReadOnlySlicedNetworkBuffer> readOnlyBuffer =
-                std::make_shared<::datastream::ReadOnlySlicedNetworkBuffer>(
+        datastream::NetworkBuffer *networkBuffer = new datastream::NetworkBuffer(
+            memorySegment, bufferLength, readIndex, originalNetworkBufferRecycler_, bufferType, true);
+        datastream::ReadOnlySlicedNetworkBuffer* readOnlyBuffer =
+                new datastream::ReadOnlySlicedNetworkBuffer(
                     networkBuffer, readIndex + memorySegmentOffset,
                     bufferLength);
-        std::lock_guard<std::recursive_mutex> lock(queueMutex);
+        std::unique_lock<std::recursive_mutex> lock(queueMutex);
         dataQueue.push(
             std::make_shared<
                 BufferAndAvailability>(readOnlyBuffer, ObjectBufferDataType::DATA_BUFFER, dataQueue.size(),
                                        sequenceNumber));
+        // INFO_RELEASE("dataQueue size: " + std::to_string(dataQueue.size()))
+        lock.unlock();
         notifyDataAvailable();
     }
 
     std::optional<BufferAndAvailability> OmniLocalInputChannel::getNextBuffer()
     {
-        std::lock_guard<std::recursive_mutex> lock(queueMutex);
+        std::unique_lock<std::recursive_mutex> lock(queueMutex);
         if (dataQueue.empty()) {
             return std::nullopt;
         }
         auto buffer = dataQueue.front();
         dataQueue.pop();
+        lock.unlock();
         return std::optional<BufferAndAvailability>{*buffer};
     }
 

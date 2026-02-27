@@ -12,6 +12,16 @@
 #include "InputGate.h"
 
 namespace omnistream {
+
+void InputGate::setChannelStateWriter(std::shared_ptr<ChannelStateWriter> channelStateWriter) {
+    for (int index = 0, numChannels = GetNumberOfInputChannels(); index < numChannels; index++) {
+        std::shared_ptr<InputChannel> channel = getChannel(index);
+        if (std::dynamic_pointer_cast<ChannelStateHolder>(channel)) {
+            (std::reinterpret_pointer_cast<ChannelStateHolder>(channel))->setChannelStateWriter(channelStateWriter);
+        }
+    }
+}
+
 std::shared_ptr<CompletableFuture> InputGate::GetAvailableFuture()
 {
     return availabilityHelper.GetAvailableFuture();

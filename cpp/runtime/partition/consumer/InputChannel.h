@@ -73,6 +73,10 @@ public:
     {
         return 0;
     }
+    virtual int unsynchronizedGetSizeOfQueuedBuffers()
+    {
+        return 0;
+    }
     virtual void setup(){};
     virtual std::string toString() = 0;
     static const int initBackoffConstant = 100;

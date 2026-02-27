@@ -58,6 +58,7 @@ enum class FutureState {
 class CompletableFuture {
 public:
     CompletableFuture();
+    CompletableFuture(bool done);
     ~CompletableFuture();
 
     // Prevent copying
@@ -102,6 +103,7 @@ public:
     void setCompleted() ;
 
     std::string toString() const;
+    void complete();
 
 private:
     FutureState state;

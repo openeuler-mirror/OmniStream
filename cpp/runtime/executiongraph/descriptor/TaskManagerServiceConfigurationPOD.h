@@ -28,7 +28,7 @@ public:
                                            networkbuffersPerChannel(0), partitionRequestMaxBackoff(0),
                                            partitionRequestInitialBackoff(0), floatingNetworkbuffersPerGate(0),
                                            segmentSize(0), numberofSegmentsGlobal(0), sortShuffleMinBuffers(0),
-                                           sortShuffleMinParallelism(0) {
+                                           sortShuffleMinParallelism(0), maxBuffersPerChannel(0) {
     }
 
     // Copy constructor
@@ -48,14 +48,15 @@ public:
         segmentSize(other.segmentSize),
         numberofSegmentsGlobal(other.numberofSegmentsGlobal),
         sortShuffleMinBuffers(other.sortShuffleMinBuffers),
-        sortShuffleMinParallelism(other.sortShuffleMinParallelism)
+        sortShuffleMinParallelism(other.sortShuffleMinParallelism),
+        maxBuffersPerChannel(other.maxBuffersPerChannel)
     {}
     TaskManagerServiceConfigurationPOD(const ResourceIDPOD &resource_id, long memory_size, int page_size,
         long request_segments_timeout_millis, int num_io_threads, const std::string &external_address,
         bool local_communication_only, int networkbuffers_per_channel,
         int partition_request_initial_backoff, int partition_request_max_backoff,
         int floating_networkbuffers_per_gate, int segment_size,
-        int numberof_segments_global, int sortShuffleMinBuffers, int sortShuffleMinParallelism)
+        int numberof_segments_global, int sortShuffleMinBuffers, int sortShuffleMinParallelism, int maxBuffersPerChannel)
         : resourceID(resource_id),
         memorySize(memory_size),
         pageSize(page_size),
@@ -69,7 +70,7 @@ public:
         floatingNetworkbuffersPerGate(floating_networkbuffers_per_gate),
         segmentSize(segment_size),
         numberofSegmentsGlobal(numberof_segments_global),
-        sortShuffleMinBuffers(sortShuffleMinBuffers), sortShuffleMinParallelism(sortShuffleMinParallelism)
+        sortShuffleMinBuffers(sortShuffleMinBuffers), sortShuffleMinParallelism(sortShuffleMinParallelism), maxBuffersPerChannel(maxBuffersPerChannel)
     {
     }
 
@@ -120,6 +121,11 @@ public:
     int getsortShuffleMinBuffers() const
     {
         return sortShuffleMinBuffers;
+    }
+
+    int getmaxBuffersPerChannel() const
+    {
+        return maxBuffersPerChannel;
     }
 
     // Setters
@@ -186,6 +192,11 @@ public:
         this->sortShuffleMinBuffers = sortShuffleMinBuffers_;
     }
 
+    void setmaxBuffersPerChannel(int maxBuffersPerChannel)
+    {
+        this->maxBuffersPerChannel = maxBuffersPerChannel;
+    }
+
     // toString method
     std::string toString() const
     {
@@ -200,7 +211,7 @@ public:
                        ", partitionRequestMaxBackoff: " + std::to_string(partitionRequestMaxBackoff)+
                            ", floatingNetworkbuffersPerGate: " + std::to_string(floatingNetworkbuffersPerGate)+
                                ", numberofSegmentsGlobal: " + std::to_string(numberofSegmentsGlobal)+
-                                    ", segmentSize: " + std::to_string(segmentSize);
+                                    ", segmentSize: " + std::to_string(segmentSize) + ", maxBuffersPerChannel: " + std::to_string(maxBuffersPerChannel);
     }
 
     // JSON serialization/deserialization using NLOHMANN_DEFINE_TYPE_INTRUSIVE
@@ -211,7 +222,7 @@ public:
                                     networkbuffersPerChannel, partitionRequestInitialBackoff,
                                     partitionRequestMaxBackoff, floatingNetworkbuffersPerGate,
                                     numberofSegmentsGlobal, segmentSize,
-                                    sortShuffleMinParallelism, sortShuffleMinBuffers)
+                                    sortShuffleMinParallelism, sortShuffleMinBuffers, maxBuffersPerChannel)
 private:
     ResourceIDPOD resourceID;
     long memorySize;
@@ -230,6 +241,7 @@ private:
 
     int sortShuffleMinBuffers;
     int sortShuffleMinParallelism;
+    int maxBuffersPerChannel;
 };
 
 } // namespace omnistream

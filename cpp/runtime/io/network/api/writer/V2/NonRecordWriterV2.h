@@ -21,6 +21,16 @@ namespace omnistream {
         void cancel() override {}
         void close() override {}
         void broadcastEvent(std::shared_ptr<AbstractEvent> event) override {}
+
+        std::shared_ptr<CompletableFuture> GetAvailableFuture() override
+        {
+            THROW_LOGIC_EXCEPTION("No record writer instance")
+        }
+
+        bool isAvailable() override
+        {
+            return true;
+        }
     };
 }
 

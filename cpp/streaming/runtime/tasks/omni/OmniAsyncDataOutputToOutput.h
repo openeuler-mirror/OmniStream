@@ -25,11 +25,12 @@ namespace omnistream {
         void emitWatermark(Watermark *watermark) override;
         void emitWatermarkStatus(WatermarkStatus *watermarkStatus) override;
 
-        ~OmniAsyncDataOutputToOutput() override = default;
+        ~OmniAsyncDataOutputToOutput() override;
 
     private:
-        Output *output;
+        Output *output = nullptr;
         bool isDataStream;
+        StreamRecord *reuse = nullptr;
     };
 };
 

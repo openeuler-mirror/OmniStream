@@ -25,8 +25,28 @@ namespace omnistream {
                 writer->broadcastEvent(event);
             }
         }
+
+        std::shared_ptr<CompletableFuture> GetAvailableFuture() override
+        {
+            for (int i = 0; i < recordWriters.size(); i++) {
+                futures.push_back(recordWriters[i]->GetAvailableFuture());
+            }
+            return CompletableFuture::allOf(futures);
+        }
+
+        bool isAvailable() override
+        {
+            for (auto recordWriter : recordWriters) {
+                if (!recordWriter->isAvailable()) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
     private:
         std::vector<RecordWriterV2*> recordWriters;
+        std::vector<std::shared_ptr<CompletableFuture>> futures;
     };
 }
 

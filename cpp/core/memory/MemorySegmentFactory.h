@@ -19,8 +19,8 @@
 class MemorySegmentFactory {
 public:
 
-    static std::shared_ptr<MemorySegment>  wrap(int size);
-    static std::shared_ptr<MemorySegment> wrap(uint8_t *buffer, int size);
+    static MemorySegment *wrap(int size);
+    static MemorySegment *wrap(uint8_t *buffer, int size);
 };
 
 #endif // FLINK_TNEL_MEMORYSEGMENTFACTORY_H

@@ -22,9 +22,9 @@ namespace omnistream {
         OriginalNetworkBufferRecycler() = default;
         ~OriginalNetworkBufferRecycler() override = default;
 
-        void recycle(std::shared_ptr<Segment> segment) override
+        void recycle(Segment *segment) override
         {
-            auto memorySegment = std::dynamic_pointer_cast<MemorySegment>(segment);
+            auto memorySegment = reinterpret_cast<MemorySegment*>(segment);
             if (memorySegment) {
                 long address = reinterpret_cast<long>(memorySegment->getAll());
 

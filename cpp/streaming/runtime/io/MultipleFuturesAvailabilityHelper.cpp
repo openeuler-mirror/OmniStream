@@ -14,11 +14,12 @@
 namespace omnistream {
 
     void MultipleFuturesAvailabilityHelper::notifyCompletion() {
+        availableFuture->complete();
     }
 
     MultipleFuturesAvailabilityHelper::MultipleFuturesAvailabilityHelper(int size)
     {
-        futuresToCombine.reserve(size);
+        futuresToCombine.resize(size);
     }
 
     std::shared_ptr<CompletableFuture> MultipleFuturesAvailabilityHelper::getAvailableFuture()
@@ -33,11 +34,13 @@ namespace omnistream {
         }
     }
 
-    void MultipleFuturesAvailabilityHelper::anyOf(int idx, std::shared_ptr<CompletableFuture> availabilityFuture)
+    void MultipleFuturesAvailabilityHelper::anyOf(int idx, const std::shared_ptr<CompletableFuture>& availabilityFuture)
     {
         if (futuresToCombine[idx] == nullptr || futuresToCombine[idx]->isDone()) {
             futuresToCombine[idx] = availabilityFuture;
-            availabilityFuture->thenRun(new InnerRunnable(this));
+            auto inner = new InnerRunnable(this);
+            availabilityFuture->thenRun(inner);
+            delete inner;
         }
     }
 

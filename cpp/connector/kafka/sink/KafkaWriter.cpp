@@ -45,15 +45,19 @@ KafkaWriter::KafkaWriter(DeliveryGuarantee deliveryGuarantee,
     rd_topic2 = RdKafka::Topic::create(currentProducer2->getKafkaProducer(), topic, tconf, errstr);
     partitionNum = rd_topic1->get_partition_num();
 
-    time_worker_thread = std::thread(&KafkaWriter::timer_thread, this);
+    taskId = omnistream::TimerThreadPool::GetTimerThreadPoolInstance()->addPeriodicTask(5000, [](KafkaWriter* kafkaWriter) {
+        kafkaWriter->timer_thread();
+    }, this);
 }
 
 KafkaWriter::~KafkaWriter()
 {
+    omnistream::TimerThreadPool::GetTimerThreadPoolInstance()->cancel(taskId);
     delete kafkaProducerConfig;
     delete rd_topic1;
     delete rd_topic2;
     delete recordSerializer;
+
     stop_flag.store(true);
     cv.notify_all();
 
@@ -63,9 +67,6 @@ KafkaWriter::~KafkaWriter()
     }
 
     timer_worker_thread_flag.store(false);
-    if (time_worker_thread.joinable()) {
-        time_worker_thread.join();
-    }
 }
 
 void KafkaWriter::write(String *element)
@@ -78,7 +79,7 @@ void KafkaWriter::write(String *element)
     }
     auto record = recordSerializer->Serialize(element);
     ProduceRecord(record);
-    delete element;
+    element->putRefCount();
 }
 
 void KafkaWriter::write(Row *element)
@@ -164,20 +165,17 @@ std::shared_ptr<FlinkKafkaInternalProducer> KafkaWriter::getOrCreateTransactiona
 
 void KafkaWriter::ProduceRecord(KeyValueByteContainer &record)
 {
-    std::unique_lock<std::recursive_mutex> gLock(gMtx);
+    std::unique_lock<std::mutex> gLock(gMtx);
     values.push_back(record.value);
     valuesLens.push_back(record.valueLen);
-    records.push_back(std::move(record));
     ++cur;
     if (cur >= limit) {
         handleRecord();
-        clock_gettime(CLOCK_MONOTONIC, &start);
     }
 }
 
 void KafkaWriter::handleRecord()
 {
-    std::unique_lock<std::recursive_mutex> gLock(gMtx);
     const size_t mid = cur / 2;
     // 分割数据
     std::vector<char*> first_half(values.begin(), values.begin() + mid);
@@ -200,7 +198,6 @@ void KafkaWriter::handleRecord()
 
     values.clear();
     valuesLens.clear();
-    records.clear();
     cur = 0;
 }
 

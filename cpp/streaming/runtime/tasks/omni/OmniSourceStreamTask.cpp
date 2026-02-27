@@ -49,7 +49,7 @@ void OmniSourceStreamTask::init()
     OmniStreamTask::init();
 }
 
-void OmniSourceStreamTask::processInput(std::shared_ptr<MailboxDefaultAction::Controller> controller)
+void OmniSourceStreamTask::processInput(MailboxDefaultAction::Controller *controller)
 {
     LOG("OmniSourceStreamTask::processInput")
     if (!dynamic_cast<StreamSource<omnistream::VectorBatch> *>(mainOperator_)) {

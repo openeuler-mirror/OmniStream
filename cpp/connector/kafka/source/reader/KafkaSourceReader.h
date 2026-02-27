@@ -31,20 +31,20 @@ public:
      * 构造函数
      */
     KafkaSourceReader(
-            std::shared_ptr<FutureCompletingBlockingQueue<RdKafka::Message>>& elementsQueue,
-            std::shared_ptr<SingleThreadFetcherManager<RdKafka::Message, KafkaPartitionSplit>>& splitFetcherManager,
-            std::shared_ptr<RecordEmitter<RdKafka::Message, KafkaPartitionSplitState>>& recordEmitter,
-            const std::shared_ptr<SourceReaderContext>& context, bool isBatch);
+            FutureCompletingBlockingQueue<RdKafka::Message>* elementsQueue,
+            SingleThreadFetcherManager<RdKafka::Message, KafkaPartitionSplit>* splitFetcherManager,
+            RecordEmitter<RdKafka::Message, KafkaPartitionSplitState>* recordEmitter,
+            SourceReaderContext* context, bool isBatch);
 
     /**
      * 析构函数
      */
     ~KafkaSourceReader() = default;
 
-    std::shared_ptr<KafkaPartitionSplitState> initializedState(KafkaPartitionSplit* split) override;
+    KafkaPartitionSplitState* initializedState(KafkaPartitionSplit* split) override;
 
     void onSplitFinished(
-        std::unordered_map<std::string, std::shared_ptr<KafkaPartitionSplitState>>& finishedSplitIds) override
+        const std::unordered_map<std::string, KafkaPartitionSplitState*>& finishedSplitIds) override
     {
         for (auto& [ignored, splitState]: finishedSplitIds) {
             if (splitState->getCurrentOffset() >= 0) {

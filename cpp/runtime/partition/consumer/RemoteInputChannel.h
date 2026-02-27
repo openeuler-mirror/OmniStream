@@ -46,14 +46,14 @@ namespace omnistream {
         void resumeConsumption() override;
         void CheckpointStarted(const CheckpointBarrier& barrier) override;
         void CheckpointStopped(long checkpointId) override;
-        std::vector<std::shared_ptr<Buffer>> GetInflightBuffersUnsafe(long checkpointId);
+        std::vector<Buffer*> GetInflightBuffersUnsafe(long checkpointId);
 
         void ResetLastBarrier()
         {
             lastBarrierId_ = 1;
         }
     private:
-        std::queue<std::shared_ptr<Buffer>> dataQueue;
+        std::queue<Buffer*> dataQueue;
         int expectSequenceNumber = 0;
         int initialCredit;
         std::recursive_mutex queueMutex;

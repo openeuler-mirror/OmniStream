@@ -23,7 +23,7 @@
 namespace omnistream {
     class OmniStreamTwoInputProcessorFactory {
     public:
-        static std::shared_ptr<OmniStreamMultipleInputProcessor> create(OperatorChainV2* operatorChain,
+        static OmniStreamMultipleInputProcessor* create(OperatorChainV2* operatorChain,
                                                                         std::vector<std::shared_ptr<CheckpointedInputGate>> inputGates,
                                                                         TwoInputStreamOperator* streamOperator,
                                                                         int taskType, const json &description)
@@ -124,7 +124,7 @@ namespace omnistream {
 
             processors.push_back(new OmniStreamOneInputProcessor(input1, pOutPut1, operatorChain));
             processors.push_back(new OmniStreamOneInputProcessor(input2, pOutPut2, operatorChain));
-            return std::make_shared<OmniStreamMultipleInputProcessor>(std::move(processors), std::make_shared<MutipleInputSelectionHandler>(2));
+            return new OmniStreamMultipleInputProcessor(std::move(processors), std::make_shared<MutipleInputSelectionHandler>(2));
         }
     private:
         class OmniStreamTaskNetworkOutPut : public OmniPushingAsyncDataInput::OmniDataOutput {

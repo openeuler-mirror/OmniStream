@@ -18,19 +18,16 @@ namespace datastream {
                                                  int maxNumberOfMemorySegments,
                                                  int numberOfSubpartitions,
                                                  int maxBuffersPerChannel)
-        : LocalBufferPool(numberOfSubpartitions, maxBuffersPerChannel, numberOfRequiredMemorySegments,
+        : LocalBufferPool(networkMemoryBufferPool, numberOfSubpartitions, maxBuffersPerChannel, numberOfRequiredMemorySegments,
                           numberOfRequiredMemorySegments,
                           maxNumberOfMemorySegments, std::make_shared<AvailabilityHelper>()),
           networkMemoryBufferPool(networkMemoryBufferPool),
-          numberOfRequiredMemorySegments(numberOfRequiredMemorySegments),
-          maxNumberOfObjectSegments_(maxNumberOfMemorySegments),
-          currentPoolSize_(numberOfRequiredMemorySegments),
           numberOfRequestedMemorySegments(0),
-          subpartitionBufferRecyclers_(numberOfSubpartitions)
+          subpartitionBufferRecyclers_(numberOfSubpartitions, nullptr)
     {
         LOG_PART("Beginning of constructor")
-        LOG_PART(" numberOfRequiredObjectSegments_"  << numberOfRequiredSegments_
-            << " maxNumberOfMemorySegments_"  << maxNumberOfObjectSegments_
+        INFO_RELEASE(" numberOfRequiredObjectSegments_" << numberOfRequiredSegments_
+                                                        << " maxNumberOfMemorySegments_" << maxNumberOfSegments
             <<  "currentPoolSize_"  << currentPoolSize_
             << " maxBuffersPerChannel_"  << maxBuffersPerChannel_)
 
@@ -49,12 +46,13 @@ namespace datastream {
         }
 
         {
-            std::lock_guard<std::recursive_mutex> lock(recursiveMutex);
+            std::unique_lock<std::recursive_mutex> lock(availableSegmentsLock);
             LOG("constructor get lock")
-            if (checkAvailability()) {
-                availabilityHelper_->resetAvailable();
-            }
-            checkConsistentAvailability();
+//            if (checkAvailability()) {
+//                availabilityHelper_->resetAvailable();
+//            }
+//            checkConsistentAvailability();
+            checkAndUpdateAvailability();
         }
         LOG("LocalObjectBufferPool constructor end")
     }
@@ -64,53 +62,55 @@ namespace datastream {
     {
         LOG("LocalObjectBufferPool post constructor end")
         for (size_t i = 0; i < subpartitionBufferRecyclers_.size(); i++) {
-            subpartitionBufferRecyclers_[i] = std::make_shared<SubpartitionBufferRecycler>(i,   shared_from_this());
+            subpartitionBufferRecyclers_[i] = std::make_shared<SubpartitionBufferRecycler>(i, shared_from_this());
         }
     }
 
     void LocalMemoryBufferPool::reserveSegments(int numberOfSegmentsToReserve)
     {
-        if (numberOfSegmentsToReserve > numberOfRequiredMemorySegments) {
+        /*if (numberOfSegmentsToReserve > numberOfRequiredMemorySegments) {
             throw std::invalid_argument("Can not reserve more segments than number of required segments.");
-        }
+        }*/
 
         std::shared_ptr<CompletableFuture> toNotify = nullptr;
         {
-            std::lock_guard<std::recursive_mutex> lock(recursiveMutex);
+            std::lock_guard<std::recursive_mutex> lock(availableSegmentsLock);
             if (isDestroyed_) {
                 throw std::runtime_error("Buffer pool has been destroyed.");
             }
 
             if (numberOfRequestedMemorySegments < numberOfSegmentsToReserve) {
                 auto segments = networkMemoryBufferPool->requestPooledMemorySegmentsBlocking(
-                    numberOfSegmentsToReserve - numberOfRequiredMemorySegments);
+                        numberOfSegmentsToReserve - numberOfRequiredSegments_);
                 availableSegments.insert(availableSegments.end(), segments.begin(), segments.end());
+                INFO_RELEASE("availableSegments size: " << availableSegments.size() << ", segments: " << segments.size() << "numberOfSegmentsToReserve: " << numberOfSegmentsToReserve << ", numberOfRequiredMemorySegments: " << numberOfRequiredSegments_)
                 toNotify = availabilityHelper_->getUnavailableToResetAvailable();
             }
         }
+        mayNotifyAvailable(toNotify);
     }
 
     bool LocalMemoryBufferPool::isDestroyed()
     {
-        std::lock_guard<std::recursive_mutex> lock(recursiveMutex);
+        std::lock_guard<std::recursive_mutex> lock(availableSegmentsLock);
         return isDestroyed_;
     }
 
 
     int LocalMemoryBufferPool::getMaxNumberOfSegments() const
     {
-        return maxNumberOfObjectSegments_;
+        return maxNumberOfSegments;
     }
 
     int LocalMemoryBufferPool::getNumberOfAvailableSegments()
     {
-        std::lock_guard<std::recursive_mutex> lock(recursiveMutex);
+        std::lock_guard<std::recursive_mutex> lock(availableSegmentsLock);
         return static_cast<int>(availableSegments.size());
     }
 
     int LocalMemoryBufferPool::getNumBuffers()
     {
-        std::lock_guard<std::recursive_mutex> lock(recursiveMutex);
+        std::lock_guard<std::recursive_mutex> lock(availableSegmentsLock);
         return static_cast<int>(currentPoolSize_);
     }
 
@@ -123,9 +123,9 @@ namespace datastream {
     void LocalMemoryBufferPool::lazyDestroy() {
     }
 
-    void LocalMemoryBufferPool::returnSegment(std::shared_ptr<Segment> segment)
+    void LocalMemoryBufferPool::returnSegment(Segment *segment)
     {
-        auto toRecycledSegment = std::dynamic_pointer_cast<MemorySegment>(segment);
+        auto toRecycledSegment = dynamic_cast<MemorySegment*>(segment);
         if (!toRecycledSegment) {
             throw std::runtime_error("Segment is not of type MemorySegment.");
         }
@@ -133,9 +133,8 @@ namespace datastream {
     }
 
 
-    void LocalMemoryBufferPool::returnMemorySegment(std::shared_ptr<MemorySegment> segment)
+    void LocalMemoryBufferPool::returnMemorySegment(MemorySegment *segment)
     {
-        std::lock_guard<std::recursive_mutex> lock(recursiveMutex);
         numberOfRequestedMemorySegments--;
         networkMemoryBufferPool->recyclePooledMemorySegment(segment);
     }
@@ -147,29 +146,29 @@ namespace datastream {
     };
 
 
-    std::shared_ptr<BufferBuilder> LocalMemoryBufferPool::requestBufferBuilder()
+    BufferBuilder *LocalMemoryBufferPool::requestBufferBuilder()
     {
         return requestMemoryBufferBuilder();
     };
 
 
-    std::shared_ptr<BufferBuilder> LocalMemoryBufferPool::requestBufferBuilder(int targetChannel)
+    BufferBuilder *LocalMemoryBufferPool::requestBufferBuilder(int targetChannel)
     {
         return requestMemoryBufferBuilder(targetChannel);
     };
 
-    std::shared_ptr<BufferBuilder> LocalMemoryBufferPool::requestBufferBuilderBlocking()
+    BufferBuilder *LocalMemoryBufferPool::requestBufferBuilderBlocking()
     {
         return requestMemoryBufferBuilderBlocking();
     };
 
-    std::shared_ptr<BufferBuilder> LocalMemoryBufferPool::requestBufferBuilderBlocking(int targetChannel)
+    BufferBuilder *LocalMemoryBufferPool::requestBufferBuilderBlocking(int targetChannel)
     {
         return requestMemoryBufferBuilderBlocking(targetChannel);
     };
 
 
-    std::shared_ptr<NetworkBuffer> LocalMemoryBufferPool::toNetworkBuffer(std::shared_ptr<MemorySegment> memorySegment)
+    std::shared_ptr<NetworkBuffer> LocalMemoryBufferPool::toNetworkBuffer(MemorySegment *memorySegment)
     {
         LOG(">>>")
         if (!memorySegment) {
@@ -183,8 +182,8 @@ namespace datastream {
         return toNetworkBuffer(requestMemorySegment());
     }
 
-    std::shared_ptr<MemoryBufferBuilder> LocalMemoryBufferPool::toMemoryBufferBuilder(
-        std::shared_ptr<MemorySegment> memorySegment, int targetChannel)
+    MemoryBufferBuilder *LocalMemoryBufferPool::toMemoryBufferBuilder(
+            MemorySegment *memorySegment, int targetChannel)
     {
         LOG("LocalMemoryBufferPool::toMemoryBufferBuilder running")
         if (!memorySegment) {
@@ -193,127 +192,162 @@ namespace datastream {
 
         if (targetChannel == UNKNOWN_CHANNEL) {
             LOG("LocalMemoryBufferPool with subpartitionBufferRecyclers_ with this")
-            return std::make_shared<MemoryBufferBuilder>(memorySegment, shared_from_this());
+            return new MemoryBufferBuilder(memorySegment, shared_from_this());
         } else {
             LOG("LocalMemoryBufferPool with subpartitionBufferRecyclers_")
             LOG("subpartitionBufferRecyclers_[targetChannel] " << std::to_string(targetChannel)  << "  " \
                 << ((subpartitionBufferRecyclers_[targetChannel]) ? std::to_string(reinterpret_cast<long>(subpartitionBufferRecyclers_[targetChannel].get())) : "nullptr")
                 << std::endl)
 
-            return std::make_shared<MemoryBufferBuilder>(memorySegment, subpartitionBufferRecyclers_[targetChannel]);
+            return new MemoryBufferBuilder(memorySegment, subpartitionBufferRecyclers_[targetChannel]);
         }
     }
 
 
-    std::shared_ptr<MemoryBufferBuilder> LocalMemoryBufferPool::requestMemoryBufferBuilder()
+    MemoryBufferBuilder *LocalMemoryBufferPool::requestMemoryBufferBuilder()
     {
         return toMemoryBufferBuilder(requestMemorySegment(UNKNOWN_CHANNEL), UNKNOWN_CHANNEL);
     }
 
-    std::shared_ptr<MemoryBufferBuilder> LocalMemoryBufferPool::requestMemoryBufferBuilder(int targetChannel)
+    MemoryBufferBuilder *LocalMemoryBufferPool::requestMemoryBufferBuilder(int targetChannel)
     {
         return toMemoryBufferBuilder(requestMemorySegment(targetChannel), targetChannel);
     }
 
-    std::shared_ptr<MemoryBufferBuilder> LocalMemoryBufferPool::requestMemoryBufferBuilderBlocking()
+    MemoryBufferBuilder *LocalMemoryBufferPool::requestMemoryBufferBuilderBlocking()
     {
         return toMemoryBufferBuilder(requestMemorySegmentBlocking(), UNKNOWN_CHANNEL);
     }
 
-    std::shared_ptr<MemoryBufferBuilder> LocalMemoryBufferPool::requestMemoryBufferBuilderBlocking(int targetChannel)
+    MemoryBufferBuilder *LocalMemoryBufferPool::requestMemoryBufferBuilderBlocking(int targetChannel)
     {
         return toMemoryBufferBuilder(requestMemorySegmentBlocking(targetChannel), targetChannel);
     }
 
 
-    std::shared_ptr<Segment> LocalMemoryBufferPool::requestSegment()
+    Segment* LocalMemoryBufferPool::requestSegment()
     {
         return requestMemorySegment();
     }
 
-    std::shared_ptr<Segment> LocalMemoryBufferPool::requestSegment(int targetChannel)
+    Segment* LocalMemoryBufferPool::requestSegment(int targetChannel)
     {
         return requestMemorySegment(targetChannel);
     }
 
 
-    std::shared_ptr<Segment> LocalMemoryBufferPool::requestSegmentBlocking()
+    Segment *LocalMemoryBufferPool::requestSegmentBlocking()
     {
         return requestMemorySegmentBlocking();
     }
 
-    std::shared_ptr<Segment> LocalMemoryBufferPool::requestSegmentBlocking(int targetChannel)
+    Segment *LocalMemoryBufferPool::requestSegmentBlocking(int targetChannel)
     {
         return requestMemorySegmentBlocking(targetChannel);
     }
 
-    std::shared_ptr<MemorySegment> LocalMemoryBufferPool::requestMemorySegment()
+    MemorySegment *LocalMemoryBufferPool::requestMemorySegment()
     {
         return requestMemorySegment(UNKNOWN_CHANNEL);
     }
 
+    MemorySegment *LocalMemoryBufferPool::requestPooledMemorySegment()
+    {
+        MemorySegment *segment = networkMemoryBufferPool->requestPooledMemorySegment();
+        if (segment != nullptr) {
+            numberOfRequestedMemorySegments++;
+        }
+        return segment;
+    }
 
-    std::shared_ptr<MemorySegment> LocalMemoryBufferPool::requestMemorySegment(int targetChannel)
+    MemorySegment *LocalMemoryBufferPool::requestOverdraftMemorySegmentFromGlobal()
+    {
+        int maxOverdraftBuffersPerGate = 0; // todo: value from config
+        if (numberOfRequestedMemorySegments - currentPoolSize_ >= maxOverdraftBuffersPerGate) {
+            return nullptr;
+        }
+
+        return requestPooledMemorySegment();
+    }
+
+    MemorySegment *LocalMemoryBufferPool::requestMemorySegment(int targetChannel)
     {
         LOG("requestObjectSegment in LocalObjectBufferPool")
-        std::shared_ptr<MemorySegment> segment;
+        MemorySegment * segment = nullptr;
         {
-            std::lock_guard<std::recursive_mutex> lock(recursiveMutex);
+            std::lock_guard<std::recursive_mutex> lock(availableSegmentsLock);
             LOG("get lock std::this_thread::get_id()" << std::this_thread::get_id())
             if (isDestroyed_) {
                 throw std::runtime_error("Buffer pool is destroyed.");
             }
 
-            if (targetChannel != UNKNOWN_CHANNEL && subpartitionBuffersCount_[targetChannel] >= maxBuffersPerChannel_) {
-                return nullptr;
-            }
+//            //todo ? why add this check
+//            if (targetChannel != UNKNOWN_CHANNEL && subpartitionBuffersCount_[targetChannel] >= maxBuffersPerChannel_) {
+//                INFO_RELEASE("----wait buffer release----")
+//                return nullptr;
+//            }
 
             if (!availableSegments.empty()) {
                 LOG("availableMemorySegments is not empty")
-                segment = std::reinterpret_pointer_cast<MemorySegment>(availableSegments.front());
-                LOG("availableMemorySegments is segment.get()" << segment.get() << "segment " << segment)
+                segment = reinterpret_cast<MemorySegment*>(availableSegments.front());
+                LOG("availableMemorySegments is segment.get()" << segment << "segment " << segment)
                 availableSegments.pop_front();
                 LOG("availableSegments.size()" << availableSegments.size())
                 LOG_PART("requestMemorySegment for targetChannel " << targetChannel
                       << "availableSegments.size()" << availableSegments.size())
-            } else {
+            } else if (isRequestedSizeReached()) {
                 LOG("availableMemorySegments is empty")
+                // todo: the method needs to be improved.
+                segment = requestOverdraftMemorySegmentFromGlobal();
+            }
+
+            if (segment == nullptr) {
                 return nullptr;
             }
 
             if (targetChannel != UNKNOWN_CHANNEL) {
-                if (++subpartitionBuffersCount_[targetChannel] == maxBuffersPerChannel_) {
-                    unavailableSubpartitionsCount++;
+                if ((++subpartitionBuffersCount_[targetChannel]) == maxBuffersPerChannel_) {
+                    unavailableSubpartitionsCount_++;
                 }
             }
 
-            if (!checkAvailability()) {
+            checkAndUpdateAvailability();
+
+            /*if (!checkAvailability()) {
                 availabilityHelper_->resetUnavailable();
+            }else {
+                availabilityHelper_->resetAvailable();
             }
 
-            checkConsistentAvailability();
+            checkConsistentAvailability();*/
             LOG("unlock std::this_thread::get_id()" << std::this_thread::get_id())
         }
         return segment;
     }
 
-    std::shared_ptr<MemorySegment> LocalMemoryBufferPool::requestMemorySegmentBlocking()
+    MemorySegment *LocalMemoryBufferPool::requestMemorySegmentBlocking()
     {
         return requestMemorySegmentBlocking(UNKNOWN_CHANNEL);
     }
 
-    std::shared_ptr<MemorySegment> LocalMemoryBufferPool::requestMemorySegmentBlocking(int targetChannel)
+    MemorySegment *LocalMemoryBufferPool::requestMemorySegmentBlocking(int targetChannel)
     {
-        std::shared_ptr<MemorySegment> segment;
+        MemorySegment *segment;
         LOG("requestObjectSegment loop will running")
         LOG_PART(" Back Pressure possible happens, current segment in pool is " << availableSegments.size())
         while (!(segment = requestMemorySegment(targetChannel))) {
-            LOG_PART(" Back Pressure happens, current segment in pool is " << availableSegments.size() << "for channel "<< targetChannel)
+            // INFO_RELEASE(" Back Pressure happens, current segment in pool is " << availableSegments.size() << "for channel "<< targetChannel)
             if (cancelled_.load()) {
                 throw std::runtime_error("task has been cancelled");
             }
             // workaround sleep for a while
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            // INFO_RELEASE("sleep requestMemorySegmentBlocking")
+            //INFO_RELEASE("LocalMemoryBufferPool sleep time: " << std::to_string(1))
+//            int sleep_time = getWaitSizeFromEnv();
+//            std::this_thread::sleep_for(std::chrono::microseconds(sleep_time));
+             this->GetAvailableFuture()->get();
+            // std::cout << "LocalMemoryBufferPool has requested segement" << std::endl;
+
         }
         return segment;
     }
@@ -325,14 +359,16 @@ namespace datastream {
 
     void LocalMemoryBufferPool::returnExcessMemorySegments()
     {
-        std::lock_guard<std::recursive_mutex> lock(recursiveMutex);
         while (hasExcessBuffers()) {
             if (availableSegments.empty()) {
                 return;
             }
 
-            std::shared_ptr<MemorySegment> segment = std::dynamic_pointer_cast<MemorySegment>(availableSegments.front());
+            MemorySegment *segment = reinterpret_cast<MemorySegment*>(availableSegments.front());
             availableSegments.pop_front();
+            if (segment == nullptr) {
+                return;
+            }
             returnMemorySegment(segment);
         }
     }
@@ -351,23 +387,20 @@ namespace datastream {
 
     bool LocalMemoryBufferPool::requestSegmentFromGlobal()
     {
-        std::lock_guard<std::recursive_mutex> lock(recursiveMutex);
-        LOG("requestObjectSegmentFromGlobal get lock")
+        LOG("requestMemorySegmentFromGlobal in lock")
         if (isRequestedSizeReached()) {
             return false;
         }
 
-        if (isDestroyed_) {
-            throw std::runtime_error(
-                "Destroyed buffer pools should never acquire segments - this will lead to buffer leaks.");
-        }
+//        if (isDestroyed_) {
+//            throw std::runtime_error(
+//                "Destroyed buffer pools should never acquire segments - this will lead to buffer leaks.");
+//        }
 
-        std::shared_ptr<MemorySegment> segment = networkMemoryBufferPool->requestPooledMemorySegment();
+        MemorySegment *segment = requestPooledMemorySegment();
         if (segment != nullptr) {
             availableSegments.push_back(segment);
-            numberOfRequestedMemorySegments++;
-
-            LOG_PART("requestPooledObjectSegment from networkObjBufferPool_ , numberOfRequestedObjectSegments_  " << numberOfRequestedMemorySegments
+            LOG_PART("requestPooledMemorySegment from networkMemoryBufferPool_ , numberOfRequestedMemorySegments_  " << numberOfRequestedMemorySegments
                 << " currentPoolSize_ :" << currentPoolSize_)
             return true;
         }
@@ -377,25 +410,14 @@ namespace datastream {
     std::string LocalMemoryBufferPool::toString() const
     {
         return "[size: " + std::to_string(currentPoolSize_) +
-            ", required: " + std::to_string(numberOfRequiredMemorySegments) +
-            ", requested: " + std::to_string(numberOfRequestedMemorySegments) +
-            ", available: " + std::to_string(availableSegments.size()) +
-            ", max: " + std::to_string(maxNumberOfObjectSegments_) +
-            ", listeners: " + std::to_string(registeredListeners_.size()) +
+               ", required: " + std::to_string(numberOfRequiredSegments_) +
+               ", requested: " + std::to_string(numberOfRequestedMemorySegments) +
+               ", available: " + std::to_string(availableSegments.size()) +
+               ", max: " + std::to_string(maxNumberOfSegments) +
+               ", listeners: " + std::to_string(registeredListeners_.size()) +
             ", subpartitions: " + std::to_string(subpartitionBuffersCount_.size()) +
             ", maxBuffersPerChannel: " + std::to_string(maxBuffersPerChannel_) +
             ", destroyed: " + (isDestroyed_ ? "true" : "false") + "]";
-    }
-
-
-    LocalMemoryBufferPool::SubpartitionBufferRecycler::SubpartitionBufferRecycler(int channel,
-        std::shared_ptr<LocalBufferPool> bufferPool)
-        : channel_(channel), bufferPool_(bufferPool) {
-    }
-
-    void LocalMemoryBufferPool::SubpartitionBufferRecycler::recycle(std::shared_ptr<Segment> segment)
-    {
-        bufferPool_->recycle(segment, channel_);
     }
 
 }

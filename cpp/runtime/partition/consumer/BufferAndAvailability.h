@@ -18,24 +18,24 @@
 
 namespace omnistream {
     struct BufferAndAvailability {
-        std::shared_ptr<Buffer> buffer;
+        Buffer* buffer; // e.g. ReadOnlySlicedNetworkBuffer
         ObjectBufferDataType nextDataType;
         int buffersInBacklog_;
         int sequenceNumber;
 
         // BufferAndAvailability(std::shared_ptr<ObjectBuffer> buffer, ObjectBufferDataType nextDataType,
-        BufferAndAvailability(std::shared_ptr<Buffer> buffer, ObjectBufferDataType nextDataType,
+        BufferAndAvailability(Buffer* buffer, ObjectBufferDataType nextDataType,
                               int buffersInBacklog, int sequenceNumber)
             : buffer(buffer), nextDataType(nextDataType), buffersInBacklog_(buffersInBacklog),
               sequenceNumber(sequenceNumber) {}
 
-        std::shared_ptr<Buffer> bufferPtr() { return buffer; }
         bool moreAvailable() const { return nextDataType != ObjectBufferDataType::NONE; }
         bool morePriorityEvents() const { return nextDataType.hasPriority(); }
         int buffersInBacklog() const { return buffersInBacklog_; }
         bool hasPriority() const { return buffer->GetDataType().hasPriority(); }
         int getSequenceNumber() const { return sequenceNumber; }
 
+        virtual void setup() {}
         std::string toString() const
         {
             return "BufferAndAvailability{"

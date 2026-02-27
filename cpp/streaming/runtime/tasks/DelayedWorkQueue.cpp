@@ -10,7 +10,6 @@
  */
 
 #include "DelayedWorkQueue.h"
-
 void DelayedWorkQueue::Offer(ScheduledFutureTask* task)
 {
     std::lock_guard<std::mutex> lock(queueMutex);

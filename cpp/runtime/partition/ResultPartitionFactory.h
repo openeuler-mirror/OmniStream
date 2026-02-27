@@ -24,7 +24,7 @@
 #include "buffer/NetworkMemoryBufferPool.h"
 #include "buffer/NetworkObjectBufferPool.h"
 
-
+// check
 namespace omnistream {
     using ::datastream::NetworkMemoryBufferPool;
 

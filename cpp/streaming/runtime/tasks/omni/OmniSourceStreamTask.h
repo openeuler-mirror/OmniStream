@@ -43,7 +43,7 @@ namespace omnistream {
 
         void init() override;
 
-        void processInput(std::shared_ptr<MailboxDefaultAction::Controller> controller) override;
+        void processInput(MailboxDefaultAction::Controller *controller) override;
 
         ~OmniSourceStreamTask() override = default;
         const std::string getName() const override;

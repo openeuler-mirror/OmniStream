@@ -416,6 +416,7 @@ namespace omnistream {
                 reader->requestSubpartitionView(resultPartitionManager, partitionId, subPartitionId);
                 break; // Exit loop if successful
             } catch (...) {
+                INFO_RELEASE("OmniTask 1 sleep time: " << std::to_string(200))
                 std::this_thread::sleep_for(std::chrono::milliseconds(200));
             }
             if (++retryCount >= 3) {
@@ -524,6 +525,7 @@ namespace omnistream {
                 break; // Exit loop if successful
             }
             catch (...) {
+                INFO_RELEASE("OmniTask 2 sleep time: " << std::to_string(200))
                 std::this_thread::sleep_for(std::chrono::milliseconds(200));
             }
             if (++retryCount >= 3) {

@@ -33,18 +33,18 @@ namespace omnistream {
 
         virtual bool isMailboxThread() const = 0;
         virtual bool hasMail() const = 0;
-        virtual std::optional<std::shared_ptr<Mail>> tryTake(int priority) = 0;
-        virtual std::shared_ptr<Mail> take(int priority) = 0;
+        virtual Mail* tryTake(int priority) = 0;
+        virtual Mail* take(int priority) = 0;
 
         virtual bool createBatch() = 0;
-        virtual std::optional<std::shared_ptr<Mail>> tryTakeFromBatch() = 0;
+        virtual Mail* tryTakeFromBatch() = 0;
 
-        virtual void put(std::shared_ptr<Mail>& mail) = 0;
-        virtual void putFirst(std::shared_ptr<Mail>& mail) = 0;
+        virtual void put(Mail* mail) = 0;
+        virtual void putFirst(Mail* mail) = 0;
 
-        virtual std::vector<std::shared_ptr<Mail>> drain() = 0;
+        virtual std::vector<Mail*> drain() = 0;
         virtual void quiesce() = 0;
-        virtual std::vector<std::shared_ptr<Mail>> close() = 0;
+        virtual std::vector<Mail*> close() = 0;
         virtual State getState()  = 0;
 
         virtual void runExclusively(const std::shared_ptr<ThrowingRunnable>& runnable) = 0;

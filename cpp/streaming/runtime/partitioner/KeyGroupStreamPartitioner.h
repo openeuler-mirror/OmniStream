@@ -43,13 +43,17 @@ namespace omnistream::datastream {
 
             nlohmann::json udfObjJson = nlohmann::json::parse(udfObj);
             auto symbol = udfLoader.LoadKeySelectFunction(path);
-            keySelector = symbol(udfObjJson);
+            keySelector = symbol(udfObjJson).release();
             if (maxParallelism <= 0) {
                 throw std::invalid_argument("Number of key-groups must be > 0!");
             }
             if (!keySelector) {
                 throw std::invalid_argument("Key selector cannot be null");
             }
+        }
+
+        ~KeyGroupStreamPartitioner() override {
+            delete keySelector;
         }
 
         int getMaxParallelism() const
@@ -96,7 +100,7 @@ namespace omnistream::datastream {
         UDFLoader udfLoader;
         nlohmann::json config;
         int targetId;
-        KeySelectUnique<K> keySelector = nullptr;
+        KeySelect<K>* keySelector = nullptr;
         int maxParallelism;
     };
 }

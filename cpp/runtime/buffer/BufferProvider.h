@@ -27,13 +27,13 @@ namespace omnistream {
 
         virtual std::shared_ptr<Buffer> requestBuffer() = 0;
 
-        virtual std::shared_ptr<BufferBuilder> requestBufferBuilder() = 0;
+        virtual BufferBuilder *requestBufferBuilder() = 0;
 
-        virtual std::shared_ptr<BufferBuilder> requestBufferBuilder(int targetChannel) = 0;
+        virtual BufferBuilder *requestBufferBuilder(int targetChannel) = 0;
 
-        virtual std::shared_ptr<BufferBuilder> requestBufferBuilderBlocking() = 0;
+        virtual BufferBuilder *requestBufferBuilderBlocking() = 0;
 
-        virtual std::shared_ptr<BufferBuilder> requestBufferBuilderBlocking(int targetChannel) = 0;
+        virtual BufferBuilder *requestBufferBuilderBlocking(int targetChannel) = 0;
 
         virtual bool addBufferListener(std::shared_ptr<BufferListener> listener) = 0;
 

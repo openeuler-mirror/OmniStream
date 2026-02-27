@@ -67,7 +67,7 @@ public:
                 ((Object *)data_[i])->putRefCount();
         }
         if (data_)
-            delete data_;
+            delete[] data_;
     }
 
     Array(const Array& other) : Array(other.length)
@@ -178,7 +178,7 @@ public:
     void push_back(const T& value)
     {
         if (length >= capacity_) {
-            reserve(capacity_ == 0 ? 1 : capacity_ * EXPAND_SIZE);
+            reserve(capacity_ == 0 ? 2 : capacity_ * EXPAND_SIZE);
         }
         data_[length++] = value;
     }
@@ -186,7 +186,7 @@ public:
     void push_back(T&& value)
     {
         if (length >= capacity_) {
-            reserve(capacity_ == 0 ? 1 : capacity_ * EXPAND_SIZE);
+            reserve(capacity_ == 0 ? 2 : capacity_ * EXPAND_SIZE);
         }
         data_[length++] = std::move(value);
     }
@@ -195,7 +195,7 @@ public:
     reference emplace_back(Args&&... args)
     {
         if (length >= capacity_) {
-            reserve(capacity_ == 0 ? 1 : capacity_ * EXPAND_SIZE);
+            reserve(capacity_ == 0 ? 2 : capacity_ * EXPAND_SIZE);
         }
         new(data_ + length) T(std::forward<Args>(args)...);
         return data_[length++];
@@ -236,7 +236,12 @@ public:
 
     T get(int index);
 
+    void clear();
+
+    void putRefCount() override;
+
     int length;
+    Array *next = nullptr;
 private:
     static const int EXPAND_SIZE = 2;
     T* data_;

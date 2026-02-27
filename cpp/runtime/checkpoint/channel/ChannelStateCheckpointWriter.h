@@ -91,11 +91,11 @@ namespace omnistream {
         void WriteInput(const JobVertexID &jvid,
                         int subtaskIndex,
                         const InputChannelInfo &info,
-                        std::shared_ptr<Buffer> buffer);
+                        Buffer* buffer);
         void WriteOutput(const JobVertexID &jvid,
                          int subtaskIndex,
                          const ResultSubpartitionInfoPOD &info,
-                         std::shared_ptr<Buffer> buffer);
+                         Buffer* buffer);
         void CompleteInput(const JobVertexID &jvid, int subtaskIndex);
         void CompleteOutput(const JobVertexID &jvid, int subtaskIndex);
         void Fail(const JobVertexID &jvid, int subtaskIndex, const std::exception_ptr &e);
@@ -125,7 +125,7 @@ namespace omnistream {
         template <typename K>
         void Write(std::map<K, typename AbstractChannelStateHandle<K>::StateContentMetaInfo> &offsets,
                    const K &key,
-                   std::shared_ptr<Buffer> buffer,
+                   Buffer* buffer,
                    bool precondition,
                    const std::string &action)
         {

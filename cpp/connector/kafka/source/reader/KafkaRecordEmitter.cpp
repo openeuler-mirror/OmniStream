@@ -25,7 +25,7 @@ KafkaRecordEmitter::~KafkaRecordEmitter()
 }
 
 void KafkaRecordEmitter::emitRecord(RdKafka::Message* consumerRecord, SourceOutput* output,
-    std::shared_ptr<KafkaPartitionSplitState>& splitState)
+    KafkaPartitionSplitState* splitState)
 {
     try {
         sourceOutputWrapper->setSourceOutput(output);
@@ -39,7 +39,7 @@ void KafkaRecordEmitter::emitRecord(RdKafka::Message* consumerRecord, SourceOutp
 
 void KafkaRecordEmitter::emitBatchRecord(
     const std::vector<RdKafka::Message*>& messageVec, SourceOutput* output,
-    std::shared_ptr<KafkaPartitionSplitState>& splitState)
+    KafkaPartitionSplitState* splitState)
 {
     try {
         sourceOutputWrapper->setSourceOutput(output);

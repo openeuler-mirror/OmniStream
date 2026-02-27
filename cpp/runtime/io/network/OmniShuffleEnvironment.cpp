@@ -70,22 +70,28 @@ namespace omnistream {
             auto inputGate = singleInputGateFactory->create(ownerContext.getOwnerName(), gateIndex,
                                                             std::make_shared<InputGateDeploymentDescriptorPOD>(igdd), partitionProducerStateProvider, taskType);
             LOG("InputGate created successfully.")
-            auto *id = new InputGateID(igdd.getConsumedResultId(), ownerContext.getExecutionAttemptID());
-            (*inputGatesById)[*id] = inputGate;
+            auto id = std::make_shared<InputGateID>(igdd.getConsumedResultId(), ownerContext.getExecutionAttemptID());
+            (*inputGatesById)[id] = inputGate;
+            std::shared_ptr<Runnable> removeIdTask = nullptr;
+            {
+                class RemoveIdTask : public Runnable {
+                public:
+                    std::shared_ptr<std::map<std::shared_ptr<InputGateID>, std::shared_ptr<SingleInputGate>>> map;
+                    std::shared_ptr<InputGateID> id;
+                    RemoveIdTask(std::shared_ptr<std::map<std::shared_ptr<InputGateID>, std::shared_ptr<SingleInputGate> > > map,
+                                 std::shared_ptr<InputGateID> id): map(std::move(map)), id(std::move(id)) {
+                    }
 
-            class RemoveIdTask : public Runnable {
-            public:
-                std::shared_ptr<std::map<InputGateID, std::shared_ptr<SingleInputGate>>> map;
-                std::shared_ptr<InputGateID> id;
-                RemoveIdTask(std::shared_ptr<std::map<InputGateID, std::shared_ptr<SingleInputGate> > > map,
-                             std::shared_ptr<InputGateID> id): map(std::move(map)), id(std::move(id)) {
-                }
+                    void run() override
+                    {
+                        (map)->erase(id);
+                    }
+                };
+                removeIdTask = std::make_shared<RemoveIdTask>(inputGatesById, id);
+                // inputGate->getCloseFuture()->thenRun(removeIdTask.get());
+            }
 
-                void run() override
-                {
-                    (*map).erase(*id);
-                }
-            };
+
             LOG("InputGate CloseFuture set successfully")
             inputGates.push_back(inputGate);
         }

@@ -49,6 +49,7 @@
 #include <executiongraph/descriptor/ShuffleDescriptorPOD.h>
 #include <utils/lang/AutoCloseable.h>
 #include "buffer/BufferPool.h"
+#include "buffer/SegmentProvider.h"
 
 namespace omnistream {
         class SingleInputGate : public IndexedInputGate, public AutoCloseable {
@@ -62,7 +63,7 @@ namespace omnistream {
                         int numberOfInputChannels,
                         std::shared_ptr<PartitionProducerStateProvider> partitionProducerStateProvider,
                         std::function<std::shared_ptr<BufferPool>()> bufferPoolFactory,
-                        std::shared_ptr<ObjectSegmentProvider> memorySegmentProvider,
+                        std::shared_ptr<SegmentProvider> segmentProvider,
                         int segmentSize);
 
                 void setup() override;
@@ -82,7 +83,7 @@ namespace omnistream {
                 std::shared_ptr<BufferProvider> getBufferProvider();
                 // std::shared_ptr<ObjectBufferPool> getBufferPool();
                 std::shared_ptr<BufferPool> getBufferPool();
-                std::shared_ptr<ObjectSegmentProvider> getMemorySegmentProvider();
+                std::shared_ptr<SegmentProvider> getSegmentProvider();
                 std::string getOwningTaskName();
                 int getNumberOfQueuedBuffers();
                 std::shared_ptr<CompletableFuture> getCloseFuture();
@@ -99,9 +100,9 @@ namespace omnistream {
                 bool IsFinished() override;
                 bool HasReceivedEndOfData() override;
 
-                std::optional<std::shared_ptr<BufferOrEvent>> GetNext() override;
-                std::optional<std::shared_ptr<BufferOrEvent>> PollNext() override;
-                std::optional<std::shared_ptr<BufferOrEvent>> getNextBufferOrEvent(bool blocking);
+                BufferOrEvent* GetNext() override;
+                BufferOrEvent* PollNext() override;
+                BufferOrEvent* getNextBufferOrEvent(bool blocking);
 
                 void sendTaskEvent(const std::shared_ptr<TaskEvent>& event) override;
                 void ResumeConsumption(const InputChannelInfo& channelInfo) override;
@@ -127,7 +128,8 @@ namespace omnistream {
                 void internalRequestPartitions();
 
                 template<typename T>
-                struct InputWithData {
+                class InputWithData {
+                public:
                         std::shared_ptr<InputChannel> input;
                         T data;
                         bool moreAvailable;
@@ -137,32 +139,28 @@ namespace omnistream {
                             : input(input), data(data), moreAvailable(moreAvailable), morePriorityEvents(morePriorityEvents) {}
                 };
 
-                std::optional<InputWithData<BufferAndAvailability>> waitAndGetNextData(bool blocking);
+                SingleInputGate::InputWithData<BufferAndAvailability>* waitAndGetNextData(bool blocking);
                 void checkUnavailability();
-                std::shared_ptr<BufferOrEvent> transformToBufferOrEvent(
-                        // std::shared_ptr<ObjectBuffer> buffer,
-                        std::shared_ptr<Buffer> buffer,
+                BufferOrEvent* transformToBufferOrEvent(
+                        Buffer* buffer,
                         bool moreAvailable,
                         std::shared_ptr<InputChannel> currentChannel,
                         bool morePriorityEvents);
-                std::shared_ptr<BufferOrEvent> transformBuffer(
-                        // std::shared_ptr<ObjectBuffer> buffer,
-                        std::shared_ptr<Buffer> buffer,
+                BufferOrEvent* transformBuffer(
+                        Buffer* buffer,
                         bool moreAvailable,
                         std::shared_ptr<InputChannel> currentChannel,
                         bool morePriorityEvents);
-                std::shared_ptr<BufferOrEvent> transformEvent(
-                        // std::shared_ptr<ObjectBuffer> buffer,
-                        std::shared_ptr<Buffer> buffer,
+                BufferOrEvent* transformEvent(
+                        Buffer* buffer,
                         bool moreAvailable,
                         std::shared_ptr<InputChannel> currentChannel,
                         bool morePriorityEvents);
-                // std::shared_ptr<ObjectBuffer> decompressBufferIfNeeded(std::shared_ptr<ObjectBuffer> buffer);
-                std::shared_ptr<Buffer> decompressBufferIfNeeded(std::shared_ptr<Buffer> buffer);
+                Buffer* decompressBufferIfNeeded(Buffer* buffer);
                 void markAvailable();
                 bool isOutdated(int sequenceNumber, int lastSequenceNumber);
-                bool queueChannelUnsafe(std::shared_ptr<InputChannel> channel, bool priority);
-                std::optional<std::shared_ptr<InputChannel>> getChannel(bool blocking);
+                bool queueChannelUnsafe(const std::shared_ptr<InputChannel>& channel, bool priority);
+                std::optional<std::shared_ptr<InputChannel>> getChannel(bool blocking, std::unique_lock<std::recursive_mutex> &lock);
 
                 // Lock object to guard partition requests and runtime channel updates
                 std::recursive_mutex requestLock;
@@ -194,6 +192,7 @@ namespace omnistream {
 
                 // Synchronization for inputChannelsWithData
                 std::recursive_mutex inputChannelsWithDataMutex;
+                std::condition_variable_any cv;
 
                 // Field guaranteeing uniqueness for inputChannelsWithData queue
                 std::vector<bool> enqueuedInputChannelsWithData;
@@ -206,13 +205,13 @@ namespace omnistream {
                 // The partition producer state listener
                 std::shared_ptr<PartitionProducerStateProvider> partitionProducerStateProvider;
 
-                // Buffer pool for incoming buffers
+                // Buffer pool for incoming buffers, e.g. LocalMemoryBufferPool
                 std::shared_ptr<BufferPool> bufferPool;
 
                 // Factory for creating buffer pool
                 std::function<std::shared_ptr<BufferPool>()> bufferPoolFactory;
 
-                std::shared_ptr<ObjectSegmentProvider> objectSegmentProvider;
+                std::shared_ptr<SegmentProvider> segmentProvider;
 
                 bool hasReceivedAllEndOfPartitionEvents;
                 bool hasReceivedEndOfData_;
@@ -228,7 +227,8 @@ namespace omnistream {
 
                 // Buffer decompressor
                 // Segment to read data from file region
-                std::shared_ptr<ObjectSegment> unpooledSegment;
+                // ObjectSegment *unpooledSegment; // todo: need fix
+                bool shouldDrainOnEndOfData = true;
         };
 }
 

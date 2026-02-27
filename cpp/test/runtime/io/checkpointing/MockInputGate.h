@@ -100,12 +100,12 @@ public:
         return hasReceivedEndOfData_;
     }
 
-    std::optional<std::shared_ptr<BufferOrEvent>> GetNext() override {
-        return std::nullopt;
+    BufferOrEvent* GetNext() override {
+        return nullptr;
     }
 
-    std::optional<std::shared_ptr<BufferOrEvent>> PollNext() override {
-        return std::nullopt;
+    BufferOrEvent* PollNext() override {
+        return nullptr;
     }
 
     std::optional<std::shared_ptr<BufferOrEvent>> getNextBufferOrEvent(bool /*blocking*/) {

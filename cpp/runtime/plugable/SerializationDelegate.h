@@ -17,7 +17,10 @@
 
 class SerializationDelegate : public IOReadableWritable {
 public:
-    explicit SerializationDelegate(std::unique_ptr<TypeSerializer>serializer);
+    explicit SerializationDelegate(TypeSerializer* serializer);
+
+    ~SerializationDelegate() override;
+
     Object *getInstance() const;
     void setInstance(Object *instance);
 
@@ -27,6 +30,6 @@ public:
 
 private:
     Object *instance_;
-    std::unique_ptr<TypeSerializer> serializer_;
+    TypeSerializer* serializer_;
 };
 #endif

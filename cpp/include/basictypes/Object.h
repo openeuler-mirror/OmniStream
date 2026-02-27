@@ -44,9 +44,11 @@ public:
 
     Object &operator=(Object &&obj);
 
-    void putRefCount();
+    virtual void putRefCount();
 
-    void getRefCount();
+    inline void getRefCount() {
+        ++refCount;
+    }
 
     void setRefCount(uint64_t count);
 

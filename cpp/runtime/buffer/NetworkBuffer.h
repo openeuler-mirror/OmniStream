@@ -21,255 +21,223 @@
 #include "core/memory/MemorySegment.h"
 
 using namespace omnistream;
-
+// check
 namespace datastream {
 
-class NetworkBuffer : public Buffer, public std::enable_shared_from_this<NetworkBuffer> {
-public:
-    NetworkBuffer(std::shared_ptr<MemorySegment> memorySegment, std::shared_ptr<BufferRecycler> recycler);
-    NetworkBuffer(std::shared_ptr<MemorySegment> memorySegment, int bufferLength, int readIndex,
-                  std::shared_ptr<BufferRecycler> recycler, int bufferType);
+    class NetworkBuffer : public Buffer {
+    public:
+        NetworkBuffer(MemorySegment *memorySegment, std::shared_ptr<BufferRecycler> recycler, bool segmentOwner = false);
+        NetworkBuffer(MemorySegment *memorySegment, int bufferLength, int readIndex,
+                      std::shared_ptr<BufferRecycler> recycler, int bufferType, bool segmentOwner = false);
 
-    NetworkBuffer(std::shared_ptr<MemorySegment> memorySegment, int bufferLength, int readIndex,
-                  std::shared_ptr<BufferRecycler> recycler);
+        NetworkBuffer(MemorySegment *memorySegment, int bufferLength, int readIndex,
+                      std::shared_ptr<BufferRecycler> recycler, bool segmentOwner = false);
 
-    NetworkBuffer(std::shared_ptr<MemorySegment> memorySegment, int bufferLength, int readIndex,
-                  std::shared_ptr<BufferRecycler> recycler, ObjectBufferDataType dataType);
+        NetworkBuffer(MemorySegment *memorySegment, int bufferLength, int readIndex,
+                      std::shared_ptr<BufferRecycler> recycler, ObjectBufferDataType dataType, bool segmentOwner = false);
+        // todo: check whether use
+        explicit NetworkBuffer(MemorySegment *memorySegment, bool segmentOwner = false)
+                : NetworkBuffer(memorySegment, nullptr, segmentOwner) {}
 
-    explicit NetworkBuffer(std::shared_ptr<MemorySegment> memorySegment)
-        : NetworkBuffer(memorySegment, nullptr) {}
-
-    explicit NetworkBuffer(int event_) : NetworkBuffer(nullptr)
-    {
-        bufferType  = 1;
-        event_type  = event_;
-        currentSize = 1;
-        dataType =ObjectBufferDataType::EVENT_BUFFER;
-    }
-
-    ~NetworkBuffer() = default;
-
-    bool isBuffer() const override
-    {
-        return dataType.isBuffer();
-    }
-
-    void RecycleBuffer() override
-    {
-        if (recycler == nullptr) {
-            return; // event buffer
+        // todo: check whether use
+        explicit NetworkBuffer(int event_) : NetworkBuffer(nullptr)
+        {
+            bufferType  = 1;
+            event_type  = event_;
+            currentSize = 1;
+            dataType =ObjectBufferDataType::EVENT_BUFFER;
         }
 
-        int prev = refCount.fetch_sub(1, std::memory_order_acq_rel);
-        if (prev <= 0) {
-            refCount.fetch_add(1, std::memory_order_relaxed);
-            LOG_DEBUG("WARN: double recycle or invalid recycle on NetworkBuffer=" << this << ", refCount was " << prev);
-            return;
+        // delete in ReadOnlySlicedNetworkBuffer
+        ~NetworkBuffer() override {
+            if (segmentOwner) {
+                delete memorySegment;
+            }
         }
 
-        if (prev == 1) {
-            recycler->recycle(this->getMemorySegment());
-            isRecycled_ = true;
-        }
-    }
-
-    bool IsRecycled() const override
-    {
-        return refCount.load(std::memory_order_acquire) <= 0;
-    }
-
-    std::shared_ptr<Buffer> RetainBuffer() override
-    {
-        if (recycler == nullptr) {
-            return shared_from_this();
+        bool isBuffer() const override
+        {
+            return dataType.isBuffer();
         }
 
-        int prev = refCount.fetch_add(1, std::memory_order_acq_rel);
-        if (prev <= 0) {
-            refCount.fetch_sub(1, std::memory_order_relaxed);
-            LOG("WARN: retain on already recycled NetworkBuffer=" << this << ", refCount was " << prev);
-            return nullptr;
+        void RecycleBuffer() override
+        {
+            // data buffer has recyler, event buffer does not
+            if (recycler == nullptr) {
+                return;
+            }
+
+            if (IsRecycled()) {
+                throw std::runtime_error("Trying to recycle a NetworkBuffer that has already been recycled");
+            } else {
+                LOG_PART(
+                        "The buffer " << this << " refCount is decremented from " << refCount.load() << " to "
+                                      << (refCount.load() - 1)
+                )
+
+                refCount.fetch_sub(1);
+                if (refCount.load() == 0) {
+                    // INFO_RELEASE("NetworkBuffer recycled " << this)
+                    recycler->recycle(this->getMemorySegment());
+                    isRecycled_ = true;
+                }
+            }
         }
-        return shared_from_this();
-    }
 
+        bool IsRecycled() const override
+        {
+            return isRecycled_;
+        }
 
+        Buffer* RetainBuffer() override
+        {
+            LOG_TRACE("retain ")
+            LOG_PART(
+                    "RetainBuffer The buffer " << this << " refCount is incremented from " << refCount.load() << " to "
+                                               << (refCount.load() + 1)
+            )
+            refCount.fetch_add(1);
+            return this;
+        }
 
-//    void RecycleBuffer() override
-//    {
-//        // data buffer has recyler, event buffer does not
-//        if (recycler == nullptr) {
-//            return;
-//        }
-//
-//        if (IsRecycled()) {
-//            throw std::runtime_error("Trying to recycle a NetworkBuffer that has already been recycled");
-//        } else {
-//            LOG_PART(
-//                "The buffer " << this << " refCount is decremented from " << refCount.load() << " to "
-//                              << (refCount.load() - 1)
-//            )
-//
-//            refCount--;
-//            if (refCount.load() == 0) {
-//                LOG_PART("NetworkBuffer recycled " << this)
-//                recycler->recycle(this->getMemorySegment());
-//                isRecycled_ = true;
-//            }
-//        }
-//    }
-//
-//    bool IsRecycled() const override
-//    {
-//        return isRecycled_;
-//    }
-//
-//    std::shared_ptr<Buffer> RetainBuffer() override
-//    {
-//        LOG_TRACE("retain ")
-//        LOG_PART(
-//            "RetainBuffer The buffer " << this << " refCount is incremented from " << refCount.load() << " to "
-//                                       << (refCount.load() + 1)
-//        )
-//        refCount++;
-//        return shared_from_this();
-//    }
+        Buffer* ReadOnlySlice() override
+        {
+            LOG("EventBuffer::ReadOnlySlice");
+            return ReadOnlySlice(GetReaderIndex(), GetSize() - GetReaderIndex());
+        }
 
-    std::shared_ptr<Buffer> ReadOnlySlice() override
-    {
-        LOG("EventBuffer::ReadOnlySlice");
-        return ReadOnlySlice(GetReaderIndex(), GetSize() - GetReaderIndex());
-    }
+        Buffer* ReadOnlySlice(int index, int length) override;
 
-    std::shared_ptr<Buffer> ReadOnlySlice(int index, int length) override;
+        int GetMaxCapacity() const override
+        {
+            return memorySegment->getSize();
+        }
 
-    int GetMaxCapacity() const override
-    {
-        return memorySegment->getSize();
-    }
+        int GetReaderIndex() const override
+        {
+            return readerIndex_;
+        }
 
-    int GetReaderIndex() const override
-    {
-        return readerIndex_;
-    }
+        void SetReaderIndex(int readerIndex) override
+        {
+            readerIndex_ = readerIndex;
+        }
 
-    void SetReaderIndex(int readerIndex) override
-    {
-        readerIndex_ = readerIndex;
-    }
+        int GetSize() const override
+        {
+            return currentSize;
+        }
 
-    int GetSize() const override
-    {
-        return currentSize;
-    }
+        void SetSize(int writerIndex) override
+        {
+            currentSize = writerIndex;
+        }
 
-    void SetSize(int writerIndex) override
-    {
-        currentSize = writerIndex;
-    }
+        int ReadableObjects() const override
+        {
+            return 0;
+        }
 
-    int ReadableObjects() const override
-    {
-        return 0;
-    }
+        bool IsCompressed() const override
+        {
+            return false;
+        }
 
-    bool IsCompressed() const override
-    {
-        return false;
-    }
+        void SetCompressed(bool isCompressed) override
+        {
+            isCompressed_ = isCompressed;
+        }
 
-    void SetCompressed(bool isCompressed) override
-    {
-        isCompressed_ = isCompressed;
-    }
+        ObjectBufferDataType GetDataType() const override
+        {
+            return dataType;
+        }
 
-    ObjectBufferDataType GetDataType() const override
-    {
-        return dataType;
-    }
+        void SetDataType(ObjectBufferDataType dataType_) override
+        {
+            this->dataType = dataType_;
+        };
 
-    void SetDataType(ObjectBufferDataType dataType_) override
-    {
-        this->dataType = dataType_;
+        int RefCount() const override
+        {
+            return refCount.load();
+        }
+
+        std::string ToDebugString(bool includeHash) const override
+        {
+            std::stringstream ss;
+            ss << "buffertype =" << std::to_string(bufferType) << ", event_type " << std::to_string(event_type);
+            return ss.str();
+        };
+
+        Segment *GetSegment() override
+        {
+            return getMemorySegment();
+        }
+
+        MemorySegment *getMemorySegment();
+        std::shared_ptr<BufferRecycler> GetRecycler() override;
+
+        static std::pair<uint8_t *, size_t> GetBytes()
+        {
+            NOT_IMPL_EXCEPTION
+        };
+
+        [[nodiscard]] int EventType() const override
+        {
+            return event_type;
+        }
+
+        int GetBufferType() override
+        {
+            return bufferType;
+        }
+
+        int GetOffset() const override
+        {
+            return 0;
+        };
+
+        virtual int GetMemorySegmentOffset() const
+        {
+            return 0;
+        }
+
+        void SetBufferType(int bufferType_)
+        {
+            bufferType = bufferType_;
+            if (bufferType_ == 1) {
+                dataType = ObjectBufferDataType::EVENT_BUFFER;
+            }
+        }
+
+    private:
+        MemorySegment *memorySegment;
+        std::shared_ptr<BufferRecycler> recycler;
+
+        int bufferType;  // 0 buffer, 1. event  for now
+        int event_type;
+
+        int currentSize;
+        bool isCompressed_ = false;
+        bool isRecycled_ = false;
+        int readerIndex_;
+
+        std::atomic<int> refCount = 0;
+        ObjectBufferDataType dataType = ObjectBufferDataType::DATA_BUFFER;
+        bool segmentOwner = false;
     };
 
-    int RefCount() const override
-    {
-        return refCount.load();
-    }
 
-    std::string ToDebugString(bool includeHash) const override
-    {
-        std::stringstream ss;
-        ss << "buffertype =" << std::to_string(bufferType) << ", event_type " << std::to_string(event_type);
-        return ss.str();
+    enum class DataType {
+        NONE,
+        DATA_BUFFER,
+        EVENT_BUFFER,
+        PRIORITIZED_EVENT_BUFFER,
+        ALIGNED_CHECKPOINT_BARRIER,
+        TIMEOUTABLE_ALIGNED_CHECKPOINT_BARRIER,
+        RECOVERY_COMPLETION
     };
-
-    std::shared_ptr<Segment> GetSegment() override
-    {
-        return getMemorySegment();
-    }
-
-    std::shared_ptr<MemorySegment> getMemorySegment();
-    std::shared_ptr<BufferRecycler> GetRecycler() override;
-
-    static std::pair<uint8_t *, size_t> GetBytes()
-    {
-        NOT_IMPL_EXCEPTION
-    };
-
-    [[nodiscard]] int EventType() const override
-    {
-        return event_type;
-    }
-
-    static std::shared_ptr<NetworkBuffer> EmptyBuffer()
-    {
-        std::shared_ptr<MemorySegment> segment_ = std::make_shared<MemorySegment>(0);
-        auto res                                = std::make_shared<NetworkBuffer>(segment_);
-        res->SetSize(0);
-        return res;
-    }
-
-    int GetBufferType() override
-    {
-        return bufferType;
-    }
-
-    int GetOffset() const override
-    {
-        return 0;
-    };
-
-    int GetMemorySegmentOffset() const
-    {
-        return 0;
-    }
-
-    void SetBufferType(int bufferType_)
-    {
-        bufferType = bufferType_;
-        if (bufferType_ == 1) {
-            dataType = ObjectBufferDataType::EVENT_BUFFER;
-        }
-    }
-
-private:
-    std::shared_ptr<MemorySegment> memorySegment;
-    std::shared_ptr<BufferRecycler> recycler;
-
-    int bufferType;  // 0 buffer, 1. event  for now
-    int event_type;
-
-    int currentSize;
-    bool isCompressed_;
-    bool isRecycled_ = false;
-    int readerIndex_;
-
-    std::atomic<int> refCount;
-    int memorySegmentOffset;
-    ObjectBufferDataType dataType = ObjectBufferDataType::DATA_BUFFER;
-};
 }
 
 #endif // NETWORKBUFFER_H

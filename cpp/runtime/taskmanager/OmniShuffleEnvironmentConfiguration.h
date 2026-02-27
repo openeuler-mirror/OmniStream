@@ -24,7 +24,8 @@ namespace omnistream {
                                                     networkBuffersPerChannel(0),
                                                     partitionRequestMaxBackoff(0),
                                                     sortShuffleMinBuffers(0),
-                                                    sortShuffleMinParallelism(0) {
+                                                    sortShuffleMinParallelism(0),
+                                                    maxBuffersPerChannel(0) {
             }
 
             // Full argument constructor
@@ -36,7 +37,8 @@ namespace omnistream {
                                                 int partitionRequestMaxBackoff,
                                                 int floatingNetworkBuffersPerGate,
                                                 int sortShuffleMinBuffers,
-                                                int sortShuffleMinParallelism)
+                                                int sortShuffleMinParallelism,
+                                                int maxBuffersPerChannel)
                 : numNetworkBuffers(numNetworkBuffers), networkBufferSize(networkBufferSize),
                   requestSegmentsTimeoutMillis(requestSegmentsTimeoutMillis),
                   networkBuffersPerChannel(networkBuffersPerChannel),
@@ -44,7 +46,8 @@ namespace omnistream {
                   partitionRequestInitialBackoff(partitionRequestInitialBackoff),
                   floatingNetworkBuffersPerGate(floatingNetworkBuffersPerGate),
                   sortShuffleMinBuffers(sortShuffleMinBuffers),
-                  sortShuffleMinParallelism(sortShuffleMinParallelism) {
+                  sortShuffleMinParallelism(sortShuffleMinParallelism),
+                  maxBuffersPerChannel(maxBuffersPerChannel) {
             }
 
             // Copy constructor
@@ -56,7 +59,8 @@ namespace omnistream {
                   partitionRequestInitialBackoff(other.partitionRequestInitialBackoff),
                   floatingNetworkBuffersPerGate(other.floatingNetworkBuffersPerGate),
                   sortShuffleMinBuffers(other.sortShuffleMinBuffers),
-                  sortShuffleMinParallelism(other.sortShuffleMinParallelism) {
+                  sortShuffleMinParallelism(other.sortShuffleMinParallelism),
+                  maxBuffersPerChannel(other.maxBuffersPerChannel) {
             }
 
             OmniShuffleEnvironmentConfiguration& operator=(const OmniShuffleEnvironmentConfiguration& other)
@@ -71,6 +75,7 @@ namespace omnistream {
                     floatingNetworkBuffersPerGate = other.floatingNetworkBuffersPerGate;
                     sortShuffleMinBuffers = other.sortShuffleMinBuffers;
                     sortShuffleMinParallelism = other.sortShuffleMinParallelism;
+                    maxBuffersPerChannel = other.maxBuffersPerChannel;
                 }
                 return *this;
             }
@@ -107,6 +112,11 @@ namespace omnistream {
             {
                 return sortShuffleMinParallelism;
             }
+            int GetmaxBuffersPerChannel() const
+            {
+                return maxBuffersPerChannel;
+            }
+
             // Setters
             void setNumNetworkBuffers(int numNetworkBuffers_) { this->numNetworkBuffers = numNetworkBuffers_; }
             void setNetworkBufferSize(int networkBufferSize_) { this->networkBufferSize = networkBufferSize_; }
@@ -144,6 +154,11 @@ namespace omnistream {
                 this->sortShuffleMinBuffers = newsortShuffleMinBuffers;
             }
 
+            void SetmaxBuffersPerChannel(int newmaxBuffersPerChannel)
+            {
+                this->maxBuffersPerChannel = newmaxBuffersPerChannel;
+            }
+
             // toString method
             std::string toString() const
             {
@@ -153,6 +168,7 @@ namespace omnistream {
                         ", networkBuffersPerChannel=" + std::to_string(networkBuffersPerChannel) +
                         ", partitionRequestInitialBackoff=" + std::to_string(partitionRequestInitialBackoff) +
                         ", partitionRequestMaxBackoff=" + std::to_string(partitionRequestMaxBackoff) +
+                        ", maxBuffersPerChannel=" + std::to_string(maxBuffersPerChannel) +
                        "}";
             };
 
@@ -161,7 +177,7 @@ namespace omnistream {
                 long requestSegmentsTimeoutMillis, int networkBuffersPerChannel,
                 int partitionRequestInitialBackoff, int partitionRequestMaxBackoff,
                 int floatingNetworkBuffersPerGate,
-                int sortShuffleMinBuffers, int sortShuffleMinParallelism);
+                int sortShuffleMinBuffers, int sortShuffleMinParallelism, int maxBuffersPerChannel);
     private:
             int numNetworkBuffers;
             int networkBufferSize;
@@ -172,6 +188,7 @@ namespace omnistream {
             int floatingNetworkBuffersPerGate;
             int sortShuffleMinBuffers;
             int sortShuffleMinParallelism;
+            int maxBuffersPerChannel;
     };
 }
 

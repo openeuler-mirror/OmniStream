@@ -47,28 +47,24 @@ std::shared_ptr<CompletableFuture> CheckpointedInputGate::GetAvailableFuture()
     return inputGate_->GetAvailableFuture();
 }
 
-std::optional<std::shared_ptr<BufferOrEvent>> CheckpointedInputGate::PollNext()
+BufferOrEvent* CheckpointedInputGate::PollNext()
 {
-    auto next = inputGate_->PollNext();
-    if (!next.has_value()) {
+    auto bufferOrEvent = inputGate_->PollNext();
+    if (!bufferOrEvent) {
         return HandleEmptyBuffer();
     }
 
-    auto bufferOrEvent  = next.value();
-    if (!bufferOrEvent) {
-        return std::nullopt;  // defensive: in case shared_ptr is null
-    }
     if (bufferOrEvent->isEvent()) {
         return HandleEvent(bufferOrEvent);
-    } else if (next.value()->isBuffer()) {
+    } else if (bufferOrEvent->isBuffer()) {
         barrierHandler_->AddProcessedBytes(bufferOrEvent->getSize());
         return bufferOrEvent;
     }
-    return std::nullopt;
+    return nullptr;
 }
 
-std::optional<std::shared_ptr<BufferOrEvent>> CheckpointedInputGate::HandleEvent(
-    const std::shared_ptr<BufferOrEvent>& bufferOrEvent)
+BufferOrEvent* CheckpointedInputGate::HandleEvent(
+        BufferOrEvent* bufferOrEvent)
 {
     auto eventClassName = bufferOrEvent->getEvent()->GetEventClassName();
     LOG("eventClassName: " << eventClassName)
@@ -117,12 +113,12 @@ std::optional<std::shared_ptr<BufferOrEvent>> CheckpointedInputGate::HandleEvent
     return bufferOrEvent;
 }
 
-std::optional<std::shared_ptr<BufferOrEvent>> CheckpointedInputGate::HandleEmptyBuffer()
+BufferOrEvent* CheckpointedInputGate::HandleEmptyBuffer()
 {
     if (inputGate_->IsFinished()) {
         isFinished_ = true;
     }
-    return std::nullopt;
+    return nullptr;
 }
 
 std::shared_ptr<CompletableFutureV2<void>> CheckpointedInputGate::GetAllBarriersReceivedFuture(long checkpointId)

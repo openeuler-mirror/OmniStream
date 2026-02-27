@@ -87,6 +87,7 @@ namespace omnistream {
             }
 
             TypeSerializer *inputSerializer = typeInfo->getTypeSerializer();
+            inputSerializer->setSelfBufferReusable(true);
 
             return OmniStreamTaskNetworkInputFactory::create(0, inputGate, taskType, inputSerializer, channel_array);
         } else {
@@ -104,10 +105,10 @@ namespace omnistream {
         auto output = createDataOutput(reinterpret_cast<std::shared_ptr<omnistream::SimpleCounter> &>(counter));
         auto input = CreateTaskInput(inputGate);
 
-        inputProcessor_ = std::make_shared<OmniStreamOneInputProcessor>(input, output, operatorChain);
+        inputProcessor_ = new OmniStreamOneInputProcessor(input, output, operatorChain);
     }
 
-    void OmniOneInputStreamTask::processInput(std::shared_ptr<MailboxDefaultAction::Controller> controller)
+    void OmniOneInputStreamTask::processInput(MailboxDefaultAction::Controller *controller)
     {
         // LOG(">>>>OmniOneInputStreamTask::processInput")
         OmniStreamTask::processInput(controller);

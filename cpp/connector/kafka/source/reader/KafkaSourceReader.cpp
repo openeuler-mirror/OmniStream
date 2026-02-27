@@ -12,17 +12,17 @@
 #include "KafkaSourceReader.h"
 
 KafkaSourceReader::KafkaSourceReader(
-    std::shared_ptr<FutureCompletingBlockingQueue<RdKafka::Message>>& elementsQueue,
-    std::shared_ptr<SingleThreadFetcherManager<RdKafka::Message, KafkaPartitionSplit>>& splitFetcherManager,
-    std::shared_ptr<RecordEmitter<RdKafka::Message, KafkaPartitionSplitState>>& recordEmitter,
-    const std::shared_ptr<SourceReaderContext>& context, bool isBatch)
+    FutureCompletingBlockingQueue<RdKafka::Message>* elementsQueue,
+    SingleThreadFetcherManager<RdKafka::Message, KafkaPartitionSplit>* splitFetcherManager,
+    RecordEmitter<RdKafka::Message, KafkaPartitionSplitState>* recordEmitter,
+    SourceReaderContext* context, bool isBatch)
     : SingleThreadMultiplexSourceReaderBase<RdKafka::Message, KafkaPartitionSplit, KafkaPartitionSplitState>(
     elementsQueue, splitFetcherManager, recordEmitter, context, isBatch)
 {
     commitOffsetsOnCheckpoint_ = false;
 }
 
-std::shared_ptr<KafkaPartitionSplitState> KafkaSourceReader::initializedState(KafkaPartitionSplit* split)
+KafkaPartitionSplitState* KafkaSourceReader::initializedState(KafkaPartitionSplit* split)
 {
-    return std::make_shared<KafkaPartitionSplitState>(split);
+    return new KafkaPartitionSplitState(split);
 }

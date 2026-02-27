@@ -15,9 +15,9 @@
 
 namespace omnistream {
 
-    BufferAndBacklog::BufferAndBacklog() : buffersInBacklog(0), nextDataType(ObjectBufferDataType::NONE), sequenceNumber(0) {}
+    BufferAndBacklog::BufferAndBacklog() : buffer(nullptr), buffersInBacklog(0), nextDataType(ObjectBufferDataType::NONE), sequenceNumber(0) {}
 
-    BufferAndBacklog::BufferAndBacklog(std::shared_ptr<Buffer> buffer, int buffersInBacklog, ObjectBufferDataType nextDataType, int sequenceNumber)
+    BufferAndBacklog::BufferAndBacklog(Buffer *buffer, int buffersInBacklog, const ObjectBufferDataType& nextDataType, int sequenceNumber)
         :  buffersInBacklog(buffersInBacklog), nextDataType(nextDataType), sequenceNumber(sequenceNumber)
     {
         if (buffer == nullptr) {
@@ -28,7 +28,7 @@ namespace omnistream {
 
     BufferAndBacklog::~BufferAndBacklog() {}
 
-    std::shared_ptr<Buffer> BufferAndBacklog::getBuffer() const
+    Buffer *BufferAndBacklog::getBuffer() const
     {
         return buffer;
     }
@@ -58,7 +58,7 @@ namespace omnistream {
         return nextDataType.isEvent(); // Assuming VectorBatchBuffer::DataType::EVENT is defined for event type
     }
 
-    BufferAndBacklog BufferAndBacklog::fromBufferAndLookahead(std::shared_ptr<Buffer> current, ObjectBufferDataType nextDataType, int backlog, int sequenceNumber_)
+    BufferAndBacklog BufferAndBacklog::fromBufferAndLookahead(Buffer *current, const ObjectBufferDataType& nextDataType, int backlog, int sequenceNumber_)
     {
         return BufferAndBacklog(current, backlog, nextDataType, sequenceNumber_);
     }

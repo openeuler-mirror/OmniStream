@@ -34,6 +34,11 @@ uint8_t* MemorySegment::getAll()
     return offHeapBuffer_;
 }
 
+void* MemorySegment::getOwner()
+{
+    return owner_;
+}
+
 uint8_t MemorySegment::get(int index)
 {
     if (index >= 0 && index < size_) {
@@ -68,11 +73,12 @@ void MemorySegment::put(int index, uint8_t byte)
 void MemorySegment::put(int index, const uint8_t* src, int offset, int length)
 {
     if (index >= 0 && index <= size_ - length) {
-        void* pos = static_cast<void*>(offHeapBuffer_ + index);
-        auto ret = memcpy_s(pos, length, src + offset, length);
+        uint8_t* pos = static_cast<uint8_t*>(offHeapBuffer_ + index);
+        std::copy(src + offset, src + offset + length, pos);
+        /*auto ret = memcpy_s(pos, length, src + offset, length);
         if (ret != EOK) {
-            throw std::runtime_error("memcpy_s failed");
-        }
+            throw std::runtime_error("memcpy_s failed, ret: " + std::to_string(ret));
+        }*/
     } else {
         std::cerr << "Index: " << index << " size: " << size_ << std::endl;
         throw std::out_of_range("Index out of bound");

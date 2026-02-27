@@ -105,6 +105,16 @@ namespace omnistream {
             return (uselectedInputsMask & uavailableInputsMask & unotFinishedInputsMask) != 0;
         }
 
+        inline bool isInputSelected(int inputIndex)
+        {
+            return checkBitMask(selectedInputsMask, inputIndex);
+        }
+
+        inline bool isInputFinished(int inputIndex)
+        {
+            return !checkBitMask(notFinishedInputsMask, inputIndex);
+        }
+
         void nextSelection()
         {
             switch (operatingMode) {

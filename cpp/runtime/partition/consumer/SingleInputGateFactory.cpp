@@ -23,10 +23,13 @@ namespace omnistream {
         // std::function<std::shared_ptr<ObjectBufferPool>()> factoryFunc = createBufferPoolFactory(networkBufferPool, floatingNetworkBuffersPerGate);
 
         std::function<std::shared_ptr<BufferPool>()> factoryFunc;
+        std::shared_ptr<SegmentProvider> segmentProvider;
             if (taskType == 1) {
                 factoryFunc  = createBufferPoolFactory(networkObjectBufferPool, floatingNetworkBuffersPerGate);
+                segmentProvider = networkObjectBufferPool;
             } else if (taskType == 2) {
                 factoryFunc  = createBufferPoolFactory(networkMemoryBufferPool, floatingNetworkBuffersPerGate);
+                segmentProvider = networkMemoryBufferPool;
             }
         LOG("new SingleInputGate will running")
         std::shared_ptr<SingleInputGate> inputGate = std::make_shared<SingleInputGate>(owningTaskName,
@@ -37,7 +40,7 @@ namespace omnistream {
                                                                                        igdd->getShuffleDescriptors().size(),
                                                                                        partitionProducerStateProvider,
                                                                                        factoryFunc,
-                                                                                       nullptr,
+                                                                                       segmentProvider,
                                                                                        networkBufferSize);
         LOG("createInputChannels will running")
         createInputChannels(owningTaskName, igdd, inputGate);

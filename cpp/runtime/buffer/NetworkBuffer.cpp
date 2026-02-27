@@ -12,10 +12,10 @@
 #include "NetworkBuffer.h"
 #include "ReadOnlySlicedNetworkBuffer.h"
 namespace datastream {
-
+    // create in BufferBuilder
     NetworkBuffer::NetworkBuffer(
-        std::shared_ptr<MemorySegment> memorySegment,
-        std::shared_ptr<BufferRecycler> recycler)
+            MemorySegment *memorySegment,
+        std::shared_ptr<BufferRecycler> recycler, bool segmentOwner)
     {
         bufferType = 0;
         if (memorySegment == nullptr) {
@@ -35,25 +35,26 @@ namespace datastream {
         this->currentSize = memorySegment->getSize();
         // Invoking this constructor implies that the caller (bufferBuilder) owns the segment
         refCount.store(1);
+        this->segmentOwner = segmentOwner;
     }
 
-    NetworkBuffer::NetworkBuffer(std::shared_ptr<MemorySegment> memorySegment, int bufferLength, int readIndex,
-                                 std::shared_ptr<BufferRecycler> recycler, int bufferType) : NetworkBuffer(
-        memorySegment, bufferLength, readIndex, recycler)
+    NetworkBuffer::NetworkBuffer(MemorySegment *memorySegment, int bufferLength, int readIndex,
+                                 std::shared_ptr<BufferRecycler> recycler, int bufferType, bool segmentOwner) : NetworkBuffer(
+        memorySegment, bufferLength, readIndex, recycler, segmentOwner)
     {
         SetBufferType(bufferType);
     }
 
-    NetworkBuffer::NetworkBuffer(std::shared_ptr<MemorySegment> memorySegment, int bufferLength, int readIndex,
+    NetworkBuffer::NetworkBuffer(MemorySegment *memorySegment, int bufferLength, int readIndex,
                                  std::shared_ptr<BufferRecycler> recycler,
-                                 ObjectBufferDataType dataType_) : NetworkBuffer(
-        memorySegment, bufferLength, readIndex, recycler)
+                                 ObjectBufferDataType dataType_, bool segmentOwner) : NetworkBuffer(
+        memorySegment, bufferLength, readIndex, recycler, segmentOwner)
     {
         SetDataType(dataType_);
     }
 
-    NetworkBuffer::NetworkBuffer(std::shared_ptr<MemorySegment> memorySegment, int bufferLength, int readIndex,
-                                 std::shared_ptr<BufferRecycler> recycler)
+    NetworkBuffer::NetworkBuffer(MemorySegment *memorySegment, int bufferLength, int readIndex,
+                                 std::shared_ptr<BufferRecycler> recycler, bool segmentOwner)
     {
         if (memorySegment == nullptr) {
             throw std::runtime_error("segment is null");
@@ -67,10 +68,12 @@ namespace datastream {
         this->currentSize = bufferLength;
         this->readerIndex_ = readIndex;
         refCount.store(1);
+        this->segmentOwner = segmentOwner;
     }
 
 
-    std::shared_ptr<MemorySegment> NetworkBuffer::getMemorySegment()
+
+    MemorySegment *NetworkBuffer::getMemorySegment()
     {
         return memorySegment;
     }
@@ -81,10 +84,10 @@ namespace datastream {
     }
 
 
-    std::shared_ptr<Buffer> NetworkBuffer::ReadOnlySlice(int index, int length)
+    Buffer* NetworkBuffer::ReadOnlySlice(int index, int length)
     {
         LOG_TRACE("Beginning VectorBatchBuffer ")
-        auto sliceBuffer = std::make_shared<ReadOnlySlicedNetworkBuffer>(shared_from_this(), index, length);
+        auto sliceBuffer = new ReadOnlySlicedNetworkBuffer(this, index, length);
         return sliceBuffer;
     }
 

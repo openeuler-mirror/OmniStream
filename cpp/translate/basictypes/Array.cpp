@@ -10,6 +10,7 @@
  */
 #include <stdexcept>
 #include "basictypes/Array.h"
+#include "basictypes/ObjectPool.h"
 
 void Array::append(Object *value)
 {
@@ -61,4 +62,30 @@ Object* Array::clone()
         a->data_[i] = (Object *)arr->clone();
     }
     return a;
+}
+
+void Array::clear()
+{
+    for (int i = 0; i < this->length; ++i) {
+        if (data_ != nullptr && data_[i]) {
+            data_[i]->putRefCount();
+            data_[i] = nullptr;
+        }
+    }
+    length = 0;
+}
+
+void Array::putRefCount()
+{
+    if (--refCount <= 0) {
+        if (this->isPool) {
+            this->clear();
+            this->refCount = 1;
+            ObjectPool<Array> *arrayObjectPool = ObjectPool<Array>::getInstance();
+            this->next = arrayObjectPool->head;
+            arrayObjectPool->head = this;
+        } else {
+            delete this;
+        }
+    }
 }

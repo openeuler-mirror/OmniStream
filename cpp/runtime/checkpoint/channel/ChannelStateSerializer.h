@@ -25,7 +25,7 @@ namespace omnistream {
         virtual ~ChannelStateSerializer() = default;
 
         virtual void WriteHeader(std::ostringstream &dataStream) = 0;
-        virtual void WriteData(std::ostringstream &dataStream, std::shared_ptr<Buffer> buffer) = 0;
+        virtual void WriteData(std::ostringstream &dataStream, Buffer* buffer) = 0;
         virtual int64_t GetHeaderLength() const = 0;
     };
 
@@ -37,18 +37,18 @@ namespace omnistream {
             dataStream.write((const char *)&head, sizeof(int));
         }
 
-        void WriteData(std::ostringstream &dataStream, std::shared_ptr<Buffer> buffers) override
+        void WriteData(std::ostringstream &dataStream, Buffer* buffers) override
         {
             int size = getSize(buffers);
             dataStream.write((const char *)&size, sizeof(size));
             auto segment = buffers->GetSegment();
-            auto memorySegment = std::dynamic_pointer_cast<MemorySegment>(segment);
+            auto memorySegment = dynamic_cast<MemorySegment*>(segment);
             if (!memorySegment) {
                 dataStream.write((const char *)memorySegment->getData(), size);
             }
         }
         
-        int getSize(std::shared_ptr<Buffer> buffers)
+        int getSize(Buffer* buffers)
         {
             int len = 0;
             len += buffers->GetSize();

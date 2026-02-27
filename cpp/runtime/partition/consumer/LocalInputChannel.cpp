@@ -43,7 +43,7 @@ LocalInputChannel::LocalInputChannel(std::shared_ptr<SingleInputGate> inputGate,
 
 void LocalInputChannel::CheckpointStarted(const CheckpointBarrier& barrier)
 {
-    std::vector<std::shared_ptr<Buffer>> knownBuffers;
+    std::vector<Buffer*> knownBuffers;
     channelStatePersister->StartPersisting(barrier.GetId(), knownBuffers);
 }
 
@@ -67,7 +67,7 @@ void LocalInputChannel::requestSubpartition(int subpartitionIndex)
     std::lock_guard<std::recursive_mutex> lock(requestLock);
     LOCK_AFTER()
 
-    if (isReleased_) {
+    if (isReleased_.load()) {
         throw std::runtime_error("LocalInputChannel has been released already");
     }
 
@@ -88,7 +88,7 @@ void LocalInputChannel::requestSubpartition(int subpartitionIndex)
                 THROW_RUNTIME_ERROR("Error requesting subpartition.");
             }
             subpartitionView = subpartitionViewTmp;
-            if (isReleased_) {
+            if (isReleased_.load()) {
                 subpartitionView->releaseAllResources();
                 subpartitionView.reset();
             } else {
@@ -126,6 +126,7 @@ void LocalInputChannel::retriggerSubpartitionRequest(
         throw std::runtime_error("already requested partition");
     }
     std::thread([this, subpartitionIndex]() {
+        INFO_RELEASE("LocalInputChannel sleep time: " << std::to_string(getCurrentBackoff()))
         std::this_thread::sleep_for(std::chrono::milliseconds(getCurrentBackoff()));
         try {
             requestSubpartition(subpartitionIndex);
@@ -142,16 +143,17 @@ std::optional<BufferAndAvailability> LocalInputChannel::getNextBuffer()
 
     std::shared_ptr<ResultSubpartitionView> subpartitionViewPtr = subpartitionView;
     if (!subpartitionViewPtr) {
-        if (isReleased_) {
+        if (isReleased_.load()) {
             return std::nullopt;
         }
 
         subpartitionViewPtr = checkAndWaitForSubpartitionView();
     }
     LOG("subpartitionViewPtr.get()" << subpartitionViewPtr.get())
-    auto next = subpartitionViewPtr->getNextBuffer();
+    BufferAndBacklog* next = subpartitionViewPtr->getNextBuffer();
     while (next && next->getBuffer()->GetSize() == 0) {
         next->getBuffer()->RecycleBuffer();
+        // todo: need free buffer memory?
         next = subpartitionView->getNextBuffer();
         numBuffersIn->Inc();
     }
@@ -166,8 +168,8 @@ std::optional<BufferAndAvailability> LocalInputChannel::getNextBuffer()
     LOG("before LocalInputChannel::next->getBuffer()")
 
     // std::shared_ptr<ObjectBuffer> buffer = next->getBuffer();
-    std::shared_ptr<Buffer> buffer = next->getBuffer();
-
+    Buffer* buffer = next->getBuffer();
+    // todo: need realization
     LOG("after LocalInputChannel::next->getBuffer()")
     /**
         if (auto fileRegionBuffer = std::dynamic_pointer_cast<FileRegionBuffer>(buffer)) {
@@ -183,8 +185,12 @@ std::optional<BufferAndAvailability> LocalInputChannel::getNextBuffer()
     if (next->getNextDataType().isEvent()) {
         LOG_TRACE("event buffer " << buffer->ToDebugString(false))
     }
+    const ObjectBufferDataType &bufferDataType = next->getNextDataType();
+    int buffersInBacklog = next->getBuffersInBacklog();
+    int sequenceNumber = next->getSequenceNumber();
+    delete next;
     return BufferAndAvailability{
-        buffer, next->getNextDataType(), next->getBuffersInBacklog(), next->getSequenceNumber()};
+        buffer, bufferDataType, buffersInBacklog, sequenceNumber};
 }
 
 void LocalInputChannel::notifyDataAvailable()
@@ -220,7 +226,7 @@ std::shared_ptr<ResultSubpartitionView> LocalInputChannel::checkAndWaitForSubpar
     std::lock_guard<std::recursive_mutex> lock(requestLock);
     LOCK_AFTER()
 
-    if (isReleased_) {
+    if (isReleased_.load()) {
         throw std::runtime_error("released");
     }
     if (!subpartitionView) {
@@ -231,7 +237,7 @@ std::shared_ptr<ResultSubpartitionView> LocalInputChannel::checkAndWaitForSubpar
 
 void LocalInputChannel::resumeConsumption()
 {
-    if (isReleased_) {
+    if (isReleased_.load()) {
         throw std::runtime_error("Channel released.");
     }
 
@@ -245,7 +251,7 @@ void LocalInputChannel::resumeConsumption()
 
 void LocalInputChannel::acknowledgeAllRecordsProcessed()
 {
-    if (isReleased_) {
+    if (isReleased_.load()) {
         throw std::runtime_error("Channel released.");
     }
 
@@ -269,13 +275,13 @@ void LocalInputChannel::sendTaskEvent(TaskEvent event) {
 
 bool LocalInputChannel::isReleased()
 {
-    return isReleased_;
+    return isReleased_.load();
 }
 
 void LocalInputChannel::releaseAllResources()
 {
-    if (!isReleased_) {
-        isReleased_ = true;
+    if (!isReleased_.load()) {
+        isReleased_.store(true);
 
         if (subpartitionView) {
             subpartitionView->releaseAllResources();
@@ -286,7 +292,7 @@ void LocalInputChannel::releaseAllResources()
 
 void LocalInputChannel::announceBufferSize(int newBufferSize)
 {
-    if (isReleased_) {
+    if (isReleased_.load()) {
         throw std::runtime_error("Channel released.");
     }
 

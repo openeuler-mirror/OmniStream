@@ -10,7 +10,7 @@
  */
 
 #include "RecordWriterV2.h"
-
+#include "configuration/ExecutionOptions.h"
 #include "common.h"
 
 namespace omnistream {
@@ -21,10 +21,10 @@ namespace omnistream {
                                    long timeout_, std::string taskName_, int taskType)
         : targetPartitionWriter_(targetPartitionWriter),
           taskName(taskName_),
-          flushAlways(false),
           outputFlusher(nullptr),
           taskType(taskType) {
         this->numberOfChannels = targetPartitionWriter_->getNumberOfSubpartitions();
+        this->flushAlways = (timeout == ExecutionOptions::FLUSH_AFTER_EVERY_RECORD);
         this->timeout = timeout_;
     }
 
@@ -76,5 +76,10 @@ namespace omnistream {
         LOG_INFO_IMP("RecordWriterV2::close" << taskName);
         outputFlusher->terminate();
         INFO_RELEASE("Task:" << taskName << " Total number of row emitted:" << counter_);
+    }
+
+    std::shared_ptr<CompletableFuture> RecordWriterV2::GetAvailableFuture()
+    {
+        return targetPartitionWriter_->GetAvailableFuture();
     }
 } // namespace omnistream

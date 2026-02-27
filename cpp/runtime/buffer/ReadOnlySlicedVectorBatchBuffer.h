@@ -11,13 +11,17 @@
 namespace omnistream {
 class ReadOnlySlicedVectorBatchBuffer : public VectorBatchBuffer {
 public:
-    ReadOnlySlicedVectorBatchBuffer(std::shared_ptr<VectorBatchBuffer> parent, int index, int length)
+    ReadOnlySlicedVectorBatchBuffer(VectorBatchBuffer* parent, int index, int length)
         : VectorBatchBuffer(parent->GetObjectSegment(), parent->GetRecycler()),
           parent_(parent),
           index_(index),
           length_(length)
     {
         SetSize(length);
+    }
+
+    ~ReadOnlySlicedVectorBatchBuffer() override {
+        //delete parent_;
     }
 
     std::shared_ptr<BufferRecycler> GetRecycler() override
@@ -36,18 +40,18 @@ public:
         return parent_->IsRecycled();
     };
 
-    std::shared_ptr<Buffer> RetainBuffer() override
+    Buffer* RetainBuffer() override
     {
         LOG_TRACE("Calling RetainBuffer() from ReadOnlySlicedVectorBatchBuffer")
         return parent_->RetainBuffer();
     };
 
-    std::shared_ptr<Buffer> ReadOnlySlice() override
+    Buffer* ReadOnlySlice() override
     {
         throw std::runtime_error("ReadOnlySlicedVectorBatchBuffer does not support ReadOnlySlice");
     };
 
-    std::shared_ptr<Buffer> ReadOnlySlice(int index, int length) override
+    Buffer* ReadOnlySlice(int index, int length) override
     {
         throw std::runtime_error("ReadOnlySlicedVectorBatchBuffer does not support ReadOnlySlice");
     };
@@ -68,7 +72,7 @@ public:
     };
 
 private:
-    std::shared_ptr<VectorBatchBuffer> parent_;
+    VectorBatchBuffer* parent_ = nullptr;
     int index_;
     int length_;
 };

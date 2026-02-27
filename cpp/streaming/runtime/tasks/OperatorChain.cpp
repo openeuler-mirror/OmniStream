@@ -108,7 +108,13 @@ WatermarkGaugeExposingOutput* OperatorChainV2::createOutputCollector(
     if (allOutputs.size() == 1) {
         return allOutputs[0];
     } else {
-        return new VectorBatchCopyingBroadcastingOutputCollector(allOutputs);
+        if (streamTask->getTaskType() == 1) {
+            return new VectorBatchCopyingBroadcastingOutputCollector(allOutputs);
+        } else if (streamTask->getTaskType() == 2) {
+            return new datastream::CopyingBroadcastingOutputCollector(allOutputs);
+        } else {
+            THROW_LOGIC_EXCEPTION("not support task type: " + std::to_string(streamTask->getTaskType()));
+        }
     }
 }
 
@@ -250,6 +256,7 @@ RecordWriterOutputV2 *OperatorChainV2::createStreamOutput(
 {
     LOG("typeInformation.name()" << typeInformation.name())
     TypeSerializer *serializer = typeInformation.getTypeSerializer();
+    serializer->setSelfBufferReusable(true);
     LOG("After creation of serializer " << serializer->getName())
     return new RecordWriterOutputV2(recordWriter, serializer, streamOutput.getSupportsUnalignedCheckpoints());
 }

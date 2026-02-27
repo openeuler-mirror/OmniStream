@@ -75,7 +75,7 @@ namespace omnistream {
         int subtaskIndex,
         long checkpointId,
         InputChannelInfo info,
-        std::vector<std::shared_ptr<Buffer>> buffers)
+        std::vector<Buffer*> buffers)
     {
         return std::make_shared<CheckpointInProgressRequest>(
             "WriteInput",
@@ -83,17 +83,18 @@ namespace omnistream {
             subtaskIndex,
             checkpointId,
             [jobVertexID, subtaskIndex, info, buffers](std::shared_ptr<ChannelStateCheckpointWriter> &writer) {
-                for (std::shared_ptr<Buffer> buffer : buffers) {
+                for (Buffer* buffer : buffers) {
                     if (buffer) {
                         writer->WriteInput(jobVertexID, subtaskIndex, info, buffer);
                     }
                 }
             },
             [buffers](const std::exception_ptr &) {
-                for (std::shared_ptr<Buffer> buffer : buffers) {
-                    if (buffer) {
-                        buffer->RecycleBuffer();
-                    }
+                for (auto *buffer : buffers) {
+                   if (buffer) {
+                       buffer->RecycleBuffer();
+                       delete buffer; // todo: is it right?
+                   }
                 }
             });
     }
@@ -103,7 +104,7 @@ namespace omnistream {
         int subtaskIndex,
         long checkpointId,
         ResultSubpartitionInfoPOD info,
-        std::vector<std::shared_ptr<Buffer>> buffers)
+        std::vector<Buffer*> buffers)
     {
         return std::make_shared<CheckpointInProgressRequest>(
             "writeOutput",
@@ -111,16 +112,17 @@ namespace omnistream {
             subtaskIndex,
             checkpointId,
             [jobVertexID, subtaskIndex, info, buffers](std::shared_ptr<ChannelStateCheckpointWriter> &writer) {
-                for (std::shared_ptr<Buffer> buffer : buffers) {
+                for (Buffer* buffer : buffers) {
                     if (buffer) {
                         writer->WriteOutput(jobVertexID, subtaskIndex, info, buffer);
                     }
                 }
             },
             [buffers](const std::exception_ptr &) {
-                for (std::shared_ptr<Buffer> buffer : buffers) {
+                for (auto *buffer : buffers) {
                     if (buffer) {
                         buffer->RecycleBuffer();
+                        delete buffer; // todo: is it right?
                     }
                 }
             });
@@ -131,7 +133,7 @@ namespace omnistream {
         int subtaskIndex,
         long checkpointId,
         ResultSubpartitionInfoPOD info,
-        std::shared_ptr<CompletableFutureV2<std::vector<std::shared_ptr<Buffer>>>> dataFuture)
+        std::shared_ptr<CompletableFutureV2<std::vector<Buffer*>>> dataFuture)
     {
         auto voidFuture = std::make_shared<CompletableFutureV2<void>>();
 
@@ -144,7 +146,7 @@ namespace omnistream {
             checkpointId,
             [jobVertexID, subtaskIndex, info, dataFuture](std::shared_ptr<ChannelStateCheckpointWriter> &writer) {
                 auto buffers = dataFuture->Get();
-                for (std::shared_ptr<Buffer> buffer : buffers) {
+                for (Buffer* buffer : buffers) {
                     if (buffer) {
                         writer->WriteOutput(jobVertexID, subtaskIndex, info, buffer);
                     }
@@ -153,9 +155,10 @@ namespace omnistream {
             [dataFuture](const std::exception_ptr &) {
                 if (dataFuture->IsDone()) {
                     auto buffers = dataFuture->GetNow({});
-                    for (std::shared_ptr<Buffer> buffer : buffers) {
+                    for (auto *buffer : buffers) {
                         if (buffer) {
                             buffer->RecycleBuffer();
+                            delete buffer; // todo: is it right?
                         }
                     }
                 }

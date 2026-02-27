@@ -26,7 +26,7 @@ void LongSerializer::deserialize(Object *buffer, DataInputView &source)
 void LongSerializer::serialize(Object *buffer, DataOutputSerializer &target)
 {
     LOG("LongSerializer::serialize change start +++ value : ");
-    int64_t value = reinterpret_cast<Long *>(buffer)->getValue();
+    const int64_t value = reinterpret_cast<Long *>(buffer)->getValue();
     target.writeLong(value);
     LOG("LongSerializer::serialize change end +++")
 }

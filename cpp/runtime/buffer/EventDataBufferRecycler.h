@@ -19,7 +19,7 @@ namespace omnistream {
         }
 
         // Recycle the segment
-        void recycle(std::shared_ptr<Segment> objectBuffer) override;
+        void recycle(Segment *objectBuffer) override;
 
         // Convert to string representation
         [[nodiscard]] std::string toString() const override

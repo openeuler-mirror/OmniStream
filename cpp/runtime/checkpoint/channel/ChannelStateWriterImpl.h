@@ -42,17 +42,17 @@ namespace omnistream {
             long checkpointId,
             const InputChannelInfo &info,
             int startSeqNum,
-            std::vector<std::shared_ptr<Buffer>> data) override;
+            std::vector<Buffer*> data) override;
         void AddOutputData(
             long checkpointId,
             const ResultSubpartitionInfoPOD &info,
             int startSeqNum,
-            std::vector<std::shared_ptr<Buffer>> &data) override;
+            std::vector<Buffer*> &data) override;
         void AddOutputDataFuture(
             long checkpointId,
             const ResultSubpartitionInfoPOD &info,
             int startSeqNum,
-            std::shared_ptr<CompletableFutureV2<std::vector<std::shared_ptr<Buffer>>>> data) override;
+            std::shared_ptr<CompletableFutureV2<std::vector<Buffer*>>> data) override;
         void FinishInput(long checkpointId) override;
         void FinishOutput(long checkpointId) override;
         void Abort(long checkpointId, const std::exception_ptr &cause, bool cleanup) override;

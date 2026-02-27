@@ -26,27 +26,27 @@
 namespace omnistream {
     class MailboxExecutorImpl : public MailboxExecutor {
     public:
-        MailboxExecutorImpl(std::shared_ptr<TaskMailbox> mailbox, int priority,
+        MailboxExecutorImpl(TaskMailbox* mailbox, int priority,
                             std::shared_ptr<StreamTaskActionExecutor> actionExecutor)
-            : mailbox(std::move(mailbox)),
+            : mailbox(mailbox),
               priority(priority),
               actionExecutor(std::move(actionExecutor))
         {
         }
 
-        MailboxExecutorImpl(std::shared_ptr<TaskMailbox> mailbox, int priority,
+        MailboxExecutorImpl(TaskMailbox* mailbox, int priority,
                             std::shared_ptr<StreamTaskActionExecutor> actionExecutor,
-                            std::shared_ptr<MailboxProcessor> mailboxProcessor)
-            : mailbox(std::move(mailbox)),
+                            MailboxProcessor* mailboxProcessor)
+            : mailbox(mailbox),
               priority(priority),
               actionExecutor(std::move(actionExecutor)),
-              mailboxProcessor_(std::move(mailboxProcessor))
+              mailboxProcessor_(mailboxProcessor)
         {
         }
 
         void execute(std::shared_ptr<ThrowingRunnable> command, const std::string &description) override
         {
-                auto mail = std::make_shared<Mail>(std::move(command),
+                auto mail = new Mail(std::move(command),
                     priority,
                     actionExecutor,
                     description,
@@ -57,7 +57,7 @@ namespace omnistream {
         void execute(std::shared_ptr<ThrowingRunnable> command, const std::string &descriptionFormat,
                      const std::vector<std::any> &descriptionArgs) override
         {
-            auto mail = std::make_shared<Mail>(std::move(command),
+            auto mail = new Mail(std::move(command),
                     priority,
                     actionExecutor,
                     descriptionFormat,
@@ -75,8 +75,8 @@ namespace omnistream {
         bool tryYield() override
         {
             auto optionalMail = mailbox->tryTake(priority);
-            if (optionalMail.has_value()) {
-                (*optionalMail)->run();
+            if (optionalMail) {
+                optionalMail->run();
 
                 return true;
             } else {
@@ -90,10 +90,10 @@ namespace omnistream {
         }
 
     private:
-        const std::shared_ptr<TaskMailbox> mailbox;
+        TaskMailbox* mailbox;
         const int priority;
         const std::shared_ptr<StreamTaskActionExecutor> actionExecutor;
-        std::shared_ptr<MailboxProcessor> mailboxProcessor_;
+        MailboxProcessor* mailboxProcessor_;
     };
 } // namespace omnistream
 

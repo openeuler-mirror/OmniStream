@@ -75,12 +75,10 @@ void Tuple2Serializer::createSerializer(nlohmann::json &type)
             LOG("TupleSerializer: Long")
             auto longSerializer = new LongSerializer();
             fieldSerializers.push_back(longSerializer);
-            longSerializer->setSelfBufferReusable(true);
         } else if (typeName == "String") {
             LOG("TupleSerializer: String")
             auto stringSerializer = new StringSerializer();
             fieldSerializers.push_back(stringSerializer);
-            stringSerializer->setSelfBufferReusable(true);
         } else {
             // throw OmniException("not support serializer type");
         }
