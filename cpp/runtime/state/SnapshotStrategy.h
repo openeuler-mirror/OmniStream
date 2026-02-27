@@ -37,7 +37,8 @@ public:
         long checkpointId,
         long timestamp,
         CheckpointStreamFactory* streamFactory,
-        CheckpointOptions* checkpointOptions) = 0;
+        CheckpointOptions* checkpointOptions,
+        std::string keySerializer = "") = 0;
 
     virtual std::shared_ptr<SR> syncPrepareResources(long checkpointId) = 0;
 };

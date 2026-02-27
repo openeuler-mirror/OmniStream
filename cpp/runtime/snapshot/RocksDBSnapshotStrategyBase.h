@@ -75,7 +75,8 @@ public:
             long checkpointId,
             long timestamp,
             CheckpointStreamFactory* checkpointStreamFactory,
-            CheckpointOptions* checkpointOptions) = 0;
+            CheckpointOptions* checkpointOptions,
+            std::string keySerializer = "") = 0;
 protected:
     virtual std::shared_ptr<PreviousSnapshot> snapshotMetaData(
             long checkpointId,

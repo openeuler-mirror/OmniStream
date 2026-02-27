@@ -43,7 +43,8 @@ std::shared_ptr<SnapshotResultSupplier<KeyedStateHandle>> RocksNativeFullSnapsho
     long checkpointId,
     long timestamp,
     CheckpointStreamFactory* checkpointStreamFactory,
-    CheckpointOptions* checkpointOptions)
+    CheckpointOptions* checkpointOptions,
+    std::string keySerializer)
 {
     LOG("RocksNativeFullSnapshotStrategy::asyncSnapshot");
     auto rocksdbSnapshotResources = static_cast<NativeRocksDBSnapshotResources*>(snapshotResources.get());

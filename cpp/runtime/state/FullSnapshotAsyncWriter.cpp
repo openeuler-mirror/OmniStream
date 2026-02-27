@@ -9,8 +9,13 @@ FullSnapshotAsyncWriter::FullSnapshotAsyncWriter(
     SnapshotType *snapshotType,
     CheckpointOptions *checkpointOptions,
     long checkpointId,
-    const std::shared_ptr<FullSnapshotResources> & snapshotResources)
-    : snapshotResources_(snapshotResources),checkpointOptions_(checkpointOptions),checkpointId_(checkpointId),snapshotType_(snapshotType)
+    const std::shared_ptr<FullSnapshotResources> & snapshotResources,
+    std::string keySerializer)
+    : snapshotResources_(snapshotResources),
+    checkpointOptions_(checkpointOptions),
+    checkpointId_(checkpointId),
+    snapshotType_(snapshotType),
+    keySerializer_(keySerializer)
 {
 }
 static constexpr int END_OF_KEY_GROUP_MASK = 0xffff;
@@ -23,7 +28,7 @@ std::shared_ptr<SnapshotResult<KeyedStateHandle>> FullSnapshotAsyncWriter::get(
         auto keyGroupRangeOffsets = std::make_shared<KeyGroupRangeOffsets>(
             *snapshotResources_->getKeyGroupRange());
         CheckpointStateOutputStreamProxy stream(bridge, checkpointId_, checkpointOptions_);
-        stream.writeMetadata(snapshotResources_->getMetaInfoSnapshots());
+        stream.writeMetadata(snapshotResources_->getMetaInfoSnapshots(), keySerializer_);
         std::vector<int8_t> previousKey;
         std::vector<int8_t> previousValue;
         mergeIterator = snapshotResources_->createKVStateIterator();
