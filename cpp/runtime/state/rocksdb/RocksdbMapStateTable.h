@@ -31,6 +31,9 @@
 #include "rocksdb/db.h"
 #include "rocksdb/options.h"
 #include "core/include/emhash7.hpp"
+#include "rocksdb/slice_transform.h"
+#include "rocksdb/table.h"
+#include "rocksdb/filter_policy.h"
 
 #include "../../../core/utils/MathUtils.h"
 #include "basictypes/java_util_Iterator.h"
@@ -42,6 +45,7 @@
 #include "common.h"
 #include <sstream>
 
+const int FALCON_PREFIX_PARAM = 13;
 
 /* S is the value used in the State,
  * like RowData* for HeapValueState,
@@ -68,6 +72,14 @@ public:
         LOG("create MapState column family")
         this->rocksDb = db;
         ROCKSDB_NAMESPACE::ColumnFamilyOptions familyOptions;
+
+        // [FALCON]-----------------------------------------------------------------------------------------------
+        // familyOptions.memtable_factory.reset(ROCKSDB_NAMESPACE::NewHashLinkListRepFactory());
+        familyOptions.prefix_extractor.reset(ROCKSDB_NAMESPACE::NewCappedPrefixTransform(FALCON_PREFIX_PARAM));
+        // familyOptions.compression = ROCKSDB_NAMESPACE::CompressionType::kZlibCompression;
+        INFO_RELEASE("[FALCON] enable prefix for mapState.")
+        // [FALCON]-----------------------------------------------------------------------------------------------
+
         DefaultConfigurableOptionsFactory::createColumnOptions(familyOptions);
 
         ROCKSDB_NAMESPACE::Status s;
@@ -428,7 +440,19 @@ public:
 
         ROCKSDB_NAMESPACE::Slice sliceKey(reinterpret_cast<const char *>(keyOutputSerializer.getData()),
                                           keyOutputSerializer.length());
-        ROCKSDB_NAMESPACE::Iterator* iterator = rocksDb->NewIterator(ROCKSDB_NAMESPACE::ReadOptions(), table);
+
+        // [FALCON]------------------------------------------------------------------------------------------------
+        ROCKSDB_NAMESPACE::ReadOptions readOption;
+        if (sliceKey.size() < FALCON_PREFIX_PARAM) {
+            readOption.total_order_seek = true;
+        } else {
+            readOption.total_order_seek = false;
+        }
+        // INFO_RELEASE("[FALCON] performing prefix length check.") // avoid too much log print
+
+        ROCKSDB_NAMESPACE::Iterator* iterator = rocksDb->NewIterator(readOption, table);
+        // [FALCON]------------------------------------------------------------------------------------------------
+
         if (iterator == nullptr) {
             THROW_LOGIC_EXCEPTION("iterator from db is null")
         }
@@ -775,7 +799,19 @@ public:
 
             ROCKSDB_NAMESPACE::Slice sliceKey(reinterpret_cast<const char *>(keyOutputSerializer.getData()),
                                               keyOutputSerializer.length());
-            ROCKSDB_NAMESPACE::Iterator* iterator = stateTable->rocksDb->NewIterator(stateTable->readOptions, stateTable->table);
+
+            // [FALCON]------------------------------------------------------------------------------------------------
+            ROCKSDB_NAMESPACE::ReadOptions readOption = stateTable->readOptions;
+            if (sliceKey.size() < FALCON_PREFIX_PARAM || currentEntry != nullptr) {
+                readOption.total_order_seek = true;
+            } else {
+                readOption.total_order_seek = false;
+            }
+            // INFO_RELEASE("[FALCON] loadCache performing prefix length check.") // too much log print
+
+            ROCKSDB_NAMESPACE::Iterator* iterator = stateTable->rocksDb->NewIterator(readOption, stateTable->table);
+            // [FALCON]------------------------------------------------------------------------------------------------
+
             if (iterator == nullptr) {
                 expired = true;
                 return;
