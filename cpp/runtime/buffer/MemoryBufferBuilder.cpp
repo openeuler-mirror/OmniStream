@@ -15,10 +15,27 @@
 
 
 namespace datastream {
-    MemoryBufferBuilder::MemoryBufferBuilder(std::shared_ptr<MemorySegment> memorySegment,
+    MemoryBufferBuilder::MemoryBufferBuilder(MemorySegment *memorySegment,
                                              std::shared_ptr<BufferRecycler> recycler)
-        : BufferBuilder(std::make_shared<NetworkBuffer>(memorySegment, recycler)), memorySegment(memorySegment),
-          bufferConsumerCreated(false) {
+        : BufferBuilder(new NetworkBuffer(memorySegment, recycler)), memorySegment(memorySegment) {
+        taskId = TimerThreadPool::GetTimerThreadPoolInstance()->addPeriodicTask(200, [](MemoryBufferBuilder* memoryBufferBuilder) {
+            memoryBufferBuilder->commit();
+        }, this);
+    }
+
+    MemoryBufferBuilder::~MemoryBufferBuilder() {
+        TimerThreadPool::GetTimerThreadPoolInstance()->cancel(taskId);
+    }
+
+    int MemoryBufferBuilder::appendAndCommit(void *source)
+    {
+        int writtenBytes = append(source);
+        commitCount++;
+        if (commitCount > MAX_COMMIT_COUNT) {
+            commit();
+            commitCount = 0;
+        }
+        return writtenBytes;
     }
 
     int MemoryBufferBuilder::append(void *source)
@@ -32,16 +49,18 @@ namespace datastream {
         auto value = reinterpret_cast<ByteBuffer*>(record->getValue());
 
         int needed = value->remaining();
-        int available = getMaxCapacity() - positionMarker->getCached();
+        int maxCapacity = getMaxCapacity();
+        int cached = positionMarker->getCached();
+        int available = maxCapacity - cached;
         int toCopy = std::min(needed, available);
 
         LOG("put source to memorySegment")
-        memorySegment->put(positionMarker->getCached(), value->getValue(), value->position(), toCopy);
-        value->setPosition(value->position() + toCopy);
+        int position_ = value->position();
+        memorySegment->put(cached, value->getValue(), position_, toCopy);
+        value->setPosition(position_ + toCopy);
 
         LOG("toCopy is " << toCopy << " current mark is " << positionMarker->getCached() << " value position is " << value->position())
         positionMarker->move(toCopy);
-
         return toCopy;
     }
 
@@ -57,7 +76,7 @@ namespace datastream {
             throw std::runtime_error("Two BufferConsumer shouldn't exist for one BufferBuilder");
         }
         bufferConsumerCreated = true;
-        return std::make_shared<MemoryBufferConsumer>(std::dynamic_pointer_cast<NetworkBuffer>(buffer->RetainBuffer()), positionMarker, currentReaderPosition);
+        return std::make_shared<MemoryBufferConsumer>(reinterpret_cast<NetworkBuffer*>(buffer->RetainBuffer()), positionMarker, currentReaderPosition);
     }
 
 

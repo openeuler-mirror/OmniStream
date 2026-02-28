@@ -97,7 +97,6 @@ void ResultPartitionManager::onConsumedPartition(std::shared_ptr<ResultPartition
     if (it != registeredPartitions.end() && it->second == partition) {
         registeredPartitions.erase(partition->getPartitionId());
         partition->release();
-        ResultPartitionIDPOD partitionId = partition->getPartitionId();
     }
 }
 

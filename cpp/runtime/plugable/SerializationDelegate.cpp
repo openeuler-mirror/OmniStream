@@ -12,8 +12,13 @@
 #include <stdexcept>
 #include "SerializationDelegate.h"
 
-SerializationDelegate::SerializationDelegate(std::unique_ptr<TypeSerializer> serializer)
-    :instance_(nullptr), serializer_(std::move(serializer)) {}
+SerializationDelegate::SerializationDelegate(TypeSerializer* serializer)
+    :instance_(nullptr), serializer_(serializer) {}
+
+SerializationDelegate::~SerializationDelegate()
+{
+    delete serializer_;
+}
 
 Object *SerializationDelegate::getInstance() const
 {

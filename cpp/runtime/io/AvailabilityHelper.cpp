@@ -41,7 +41,7 @@ namespace omnistream {
 
     void AvailabilityHelper::resetUnavailable()
     {
-        if (availableFuture == AVAILABLE) {
+        if (isAvailable()) {
             availableFuture = std::make_shared<CompletableFuture>();
         }
     }

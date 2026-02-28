@@ -26,16 +26,16 @@ namespace omnistream {
     class ObjectBufferConsumer : public BufferConsumer {
     public:
 
-        ObjectBufferConsumer(std::shared_ptr<VectorBatchBuffer> buffer, int size);
-        ObjectBufferConsumer(std::shared_ptr<VectorBatchBuffer> buffer, std::shared_ptr<PositionMarker> currentWriterPosition, int currentReaderPosition);
+        ObjectBufferConsumer(VectorBatchBuffer* buffer, int size);
+        ObjectBufferConsumer(VectorBatchBuffer* buffer, PositionMarker *currentWriterPosition, int currentReaderPosition);
         ~ObjectBufferConsumer() override;
 
-        std::shared_ptr<Buffer> build() override;
+        Buffer* build() override;
 
         std::shared_ptr<BufferConsumer> copy() override;
         std::shared_ptr<BufferConsumer> copyWithReaderPosition(int readerPosition) override;
 
-        std::shared_ptr<VectorBatchBuffer> buildVectorBatchBuffer();
+        VectorBatchBuffer* buildVectorBatchBuffer();
 
         bool isStartOfDataBuffer() const override;
         std::string toDebugString(bool includeHash) override;

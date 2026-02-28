@@ -54,41 +54,41 @@ namespace omnistream {
     OmniStreamTask::OmniStreamTask(std::shared_ptr<RuntimeEnvironmentV2> &env, int taskType)
         : OmniStreamTask(env, StreamTaskActionExecutor::IMMEDIATE, taskType){};
 
-    OmniStreamTask::OmniStreamTask(
-        std::shared_ptr<RuntimeEnvironmentV2> &env, std::shared_ptr<StreamTaskActionExecutor> actionExecutor, int taskType)
-        : OmniStreamTask(env, actionExecutor, std::make_shared<TaskMailboxImpl>(std::this_thread::get_id()), taskType)
-    {}
+OmniStreamTask::OmniStreamTask(
+    std::shared_ptr<RuntimeEnvironmentV2> &env, std::shared_ptr<StreamTaskActionExecutor> actionExecutor, int taskType)
+    : OmniStreamTask(env, actionExecutor, new TaskMailboxImpl(std::this_thread::get_id()), taskType)
+{}
 
-    OmniStreamTask::OmniStreamTask(std::shared_ptr<RuntimeEnvironmentV2> &env,
-        std::shared_ptr<StreamTaskActionExecutor> actionExecutor, std::shared_ptr<TaskMailbox> mailbox, int taskType)
-        : env_(env), actionExecutor_(actionExecutor), mailbox_(mailbox), taskConfiguration_(env->taskConfiguration()), taskType(taskType)
-    {
-        LOG("begin>>>>")
-    }
+OmniStreamTask::OmniStreamTask(std::shared_ptr<RuntimeEnvironmentV2> &env,
+    std::shared_ptr<StreamTaskActionExecutor> actionExecutor, TaskMailbox* mailbox, int taskType)
+    : env_(env), actionExecutor_(actionExecutor), mailbox_(mailbox), taskConfiguration_(env->taskConfiguration()), taskType(taskType)
+{
+    LOG("begin>>>>")
+}
 
     void OmniStreamTask::postConstruct()
     {
         LOG_DEBUG("postConstruct begin")
 
-        // needs to be shared_ptr
-        auto streamTaskAction = std::make_shared<StreamTaskAction>(shared_from_this());
-        mailboxProcessor_ = std::make_shared<MailboxProcessor>(streamTaskAction, mailbox_, actionExecutor_);
-        mainMailboxExecutor_ = mailboxProcessor_->getMainMailboxExecutor();
-        LOG("mailboxProcessor_  init setup>>>>")
-        taskConfiguration_ = env_->taskConfiguration();
-        auto checkpointExecutionConfig = taskConfiguration_.getExecutionCheckpointConfig();
-        taskName_ = taskConfiguration_.getTaskName();
-        LOG("begin>>>>"  << taskName_);
-        recordWriter_ = createRecordWriterDelegate(taskConfiguration_, env_);
-        systemTimerService = make_shared<SystemProcessingTimeService>();
-        // SubtaskCheckpointCoordinatorImpl initialization
-        if (taskConfiguration_.getStateBackend() == "HashMapStateBackend") {
-            stateBackend = new HashMapStateBackend();
-        } else {
-            stateBackend = new RocksDBStateBackend(taskConfiguration_);
-        }
-        checkpointStorage = createCheckpointStorage(stateBackend);
-        std::shared_ptr<CheckpointStorageAccess> checkpointStorageAccess = checkpointStorage->createCheckpointStorage();
+    // needs to be shared_ptr
+    auto streamTaskAction = new StreamTaskAction(shared_from_this());
+    mailboxProcessor_ = new MailboxProcessor(streamTaskAction, mailbox_, actionExecutor_);
+    mainMailboxExecutor_ = mailboxProcessor_->getMainMailboxExecutor();
+    LOG("mailboxProcessor_  init setup>>>>")
+    taskConfiguration_ = env_->taskConfiguration();
+    auto checkpointExecutionConfig = taskConfiguration_.getExecutionCheckpointConfig();
+    taskName_ = taskConfiguration_.getTaskName();
+    LOG("begin>>>>"  << taskName_);
+    recordWriter_ = createRecordWriterDelegate(taskConfiguration_, env_);
+    systemTimerService = make_shared<SystemProcessingTimeService>();
+    // SubtaskCheckpointCoordinatorImpl initialization
+    if (taskConfiguration_.getStateBackend() == "HashMapStateBackend") {
+        stateBackend = new HashMapStateBackend();
+    } else {
+        stateBackend = new RocksDBStateBackend(taskConfiguration_);
+    }
+    checkpointStorage = createCheckpointStorage(stateBackend);
+    std::shared_ptr<CheckpointStorageAccess> checkpointStorageAccess = checkpointStorage->createCheckpointStorage();
 
         subtaskCheckpointCoordinator = std::make_shared<runtime::SubtaskCheckpointCoordinatorImpl>(
             checkpointStorage,
@@ -275,28 +275,41 @@ namespace omnistream {
         this->endOfDataReceived = true;
     }
 
-    void OmniStreamTask::processInput(std::shared_ptr<MailboxDefaultAction::Controller> controller)
-    {
-        auto status = inputProcessor_->processInput();
-        switch (status) {
-            case DataInputStatus::MORE_AVAILABLE:
-                break;
-            case DataInputStatus::NOTHING_AVAILABLE:
-                break;
-            case DataInputStatus::END_OF_RECOVERY:
-                THROW_LOGIC_EXCEPTION("");
-            case DataInputStatus::END_OF_DATA:
-                EndData(StopMode::DRAIN);
-                break;
-            case DataInputStatus::NOT_PROCESSED:
-                break;
-            case DataInputStatus::STOPPED:
+void OmniStreamTask::processInput(MailboxDefaultAction::Controller *controller)
+{
+    auto status = inputProcessor_->processInput();
+    switch (status) {
+        case DataInputStatus::MORE_AVAILABLE:
+            /*if (recordWriter_->isAvailable()) {
                 return;
-            case DataInputStatus::END_OF_INPUT:
-                 mailboxProcessor_->suspend();
-                 return;
-        }
+            }*/
+            return;
+        case DataInputStatus::NOTHING_AVAILABLE:
+            break;
+        case DataInputStatus::END_OF_RECOVERY:
+            THROW_LOGIC_EXCEPTION("");
+        case DataInputStatus::END_OF_DATA:
+            EndData(StopMode::DRAIN);
+            return;
+        case DataInputStatus::NOT_PROCESSED:
+            return;
+        case DataInputStatus::STOPPED:
+            EndData(StopMode::NO_DRAIN);
+            return;
+        case DataInputStatus::END_OF_INPUT:
+            // todo:
+             mailboxProcessor_->suspend();
+             return;
     }
+    std::shared_ptr<CompletableFuture> resumeFuture;
+    if (!inputProcessor_->isAvailable()) {
+        resumeFuture = inputProcessor_->GetAvailableFuture();
+    } else {
+        return;
+    };
+    // thread wait
+    resumeFuture->get();
+}
 
     const std::string OmniStreamTask::getName() const
     {

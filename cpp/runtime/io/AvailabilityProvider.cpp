@@ -24,7 +24,7 @@
 
 namespace omnistream {
 
-    std::shared_ptr<CompletableFuture> AvailabilityProvider::AVAILABLE = std::make_shared<CompletableFuture>();
+    std::shared_ptr<CompletableFuture> AvailabilityProvider::AVAILABLE = std::make_shared<CompletableFuture>(true);
 
     std::shared_ptr<CompletableFuture> AvailabilityProvider::and_(std::shared_ptr<CompletableFuture> first, std::shared_ptr<CompletableFuture> second)
     {

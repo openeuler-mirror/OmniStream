@@ -38,8 +38,7 @@ public:
         : inputIndex(inputIndex), inputGate(std::move(inputGate)), taskType(taskType), currentRecordDeserializer(nullptr), output_(nullptr)
     {
         inSerializer = inputSerializer;
-        deserializationDelegate_ = new NonReusingDeserializationDelegate(
-                std::make_unique<datastream::StreamElementSerializer>(inputSerializer));
+        deserializationDelegate_ = new NonReusingDeserializationDelegate(new datastream::StreamElementSerializer(inputSerializer));
         recordDeserializers = getRecordDeserializers(channelInfos);
         rowCount = 0;
         maxRowCount = 1000;
@@ -50,7 +49,7 @@ public:
     DataInputStatus emitNext(OmniPushingAsyncDataInput::OmniDataOutput *output) override
     {
         // we might need reconstruct here
-        if (auto curOutput = dynamic_cast<OmniStreamTaskNetworkOutput*>(output)) {
+        if (auto curOutput = reinterpret_cast<OmniStreamTaskNetworkOutput*>(output)) {
             curOutput->setTaskType(taskType);
         }
 
@@ -96,7 +95,15 @@ public:
     std::shared_ptr<CompletableFuture> GetAvailableFuture() override
     {
         // no inputGate no output
-        return AVAILABLE;
+
+        if(taskType == 1) {
+            return AVAILABLE;
+        }else {
+            if(currentRecordDeserializer != nullptr) {
+                return AVAILABLE;
+            }
+            return inputGate->GetAvailableFuture();
+        }
     }
     std::unique_ptr<std::unordered_map<long, datastream::RecordDeserializer *>> getRecordDeserializers(
     std::vector<long> & channelInfos)
@@ -117,22 +124,20 @@ public:
     }
 
     DataInputStatus processBufferOrEventOptForSQL(OmniPushingAsyncDataInput::OmniDataOutput *output,
-                                                  std::optional<std::shared_ptr<BufferOrEvent>>& bufferOrEventOpt)
+                                                  BufferOrEvent* bufferOrEvent)
     {
         isLastValueNull = false;
         NullValueCount = 0;
 
-        LOG(">>>>> bufferOrEventOpt has value")
-        auto bufferOrEvent = bufferOrEventOpt.value();
         LOG(">>>>> bufferOrEventOpt bufferOrEvent" +
-            std::to_string(reinterpret_cast<int64_t>(bufferOrEvent.get())))
+            std::to_string(reinterpret_cast<int64_t>(bufferOrEvent)))
         if (bufferOrEvent->isBuffer()) {
-            auto buff = std::reinterpret_pointer_cast<ObjectBuffer>(bufferOrEvent->getBuffer());
+            auto buff = reinterpret_cast<ObjectBuffer*>(bufferOrEvent->getBuffer());
 
             auto size = buff->GetSize();
             auto objSegment = buff->GetObjectSegment();
             auto offset = buff->GetOffset();
-            LOG(">>>>object segment is " << std::to_string(reinterpret_cast<long>(objSegment.get())))
+            LOG(">>>>object segment is " << std::to_string(reinterpret_cast<long>(objSegment)))
             LOG(">>>>>buffer size is " << size << " buffer offset is " << offset)
 
             LOG("===================start output=======================")
@@ -166,9 +171,11 @@ public:
     DataInputStatus processForSQL(OmniPushingAsyncDataInput::OmniDataOutput *output)
     {
         while (true) {
-            auto bufferOrEventOpt = inputGate->PollNext();
-            if (bufferOrEventOpt) {
-                return processBufferOrEventOptForSQL(output, bufferOrEventOpt);
+            auto bufferOrEvent = inputGate->PollNext();
+            if (bufferOrEvent) {
+                DataInputStatus status = processBufferOrEventOptForSQL(output, bufferOrEvent);
+                delete bufferOrEvent;
+                return status;
             } else {
                 if (isLastValueNull) {
                     NullValueCount++;
@@ -182,9 +189,9 @@ public:
         }
     }
 
-    void processBufferForDataStreamAndSQLFromOriginal(std::shared_ptr<BufferOrEvent> bufferOrEvent)
+    void processBufferForDataStreamAndSQLFromOriginal(BufferOrEvent* bufferOrEvent)
     {
-        auto buffer = std::static_pointer_cast<ReadOnlySlicedNetworkBuffer>(bufferOrEvent->getBuffer());
+        auto buffer = static_cast<ReadOnlySlicedNetworkBuffer*>(bufferOrEvent->getBuffer());
         auto inputChannelInfo = bufferOrEvent->getChannelInfo();
         currentRecordDeserializer = getActiveSerializer(inputChannelInfo.getInputChannelIdx());
         if (currentRecordDeserializer == nullptr) {
@@ -217,18 +224,20 @@ public:
 
                 if (likely(result.isFullRecord())) {
                     return processFullRecordForDataStream(output);
+                    // continue;
                 }
             }
 
-            auto bufferOrEventOpt = inputGate->PollNext();
-            if (bufferOrEventOpt) {
-                auto bufferOrEvent = bufferOrEventOpt.value();
+            auto bufferOrEvent = inputGate->PollNext();
+            if (bufferOrEvent) {
                 if (bufferOrEvent->isBuffer()) {
                     processBufferForDataStreamAndSQLFromOriginal(bufferOrEvent);
+                    delete bufferOrEvent;
                 } else  {
                     std::cout << "current is event" << std::endl;
                     std::shared_ptr<AbstractEvent> event = bufferOrEvent->getEvent();
                     DataInputStatus status = processEvent(event);
+                    delete bufferOrEvent;
                     return status;
                 }
             } else {
@@ -253,15 +262,16 @@ public:
                 }
             }
 
-            auto bufferOrEventOpt = inputGate->PollNext();
-            if (bufferOrEventOpt) {
-                auto bufferOrEvent = bufferOrEventOpt.value();
+            auto bufferOrEvent = inputGate->PollNext();
+            if (bufferOrEvent) {
                 if (bufferOrEvent->isBuffer()) {
                     processBufferForDataStreamAndSQLFromOriginal(bufferOrEvent);
+                    delete bufferOrEvent;
                 } else  {
                     std::cout << "current is event" << std::endl;
                     std::shared_ptr<AbstractEvent> event = bufferOrEvent->getEvent();
                     DataInputStatus status = processEvent(event, output);
+                    delete bufferOrEvent;
                     return status;
                 }
             } else {

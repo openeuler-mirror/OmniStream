@@ -61,10 +61,11 @@ namespace omnistream {
     void ChannelStateCheckpointWriter::WriteInput(const JobVertexID &jvid,
                                                   int subtaskIndex,
                                                   const InputChannelInfo &info,
-                                                  std::shared_ptr<Buffer> buffer)
+                                                  Buffer* buffer)
     {
         if (IsDone()) {
             buffer->RecycleBuffer();
+            delete buffer; // todo: is it right?
             return;
         }
 
@@ -76,15 +77,17 @@ namespace omnistream {
               "ChannelState#WriteInput");
 
         buffer->RecycleBuffer();
+        delete buffer; // todo: is it right?
     }
 
     void ChannelStateCheckpointWriter::WriteOutput(const JobVertexID &jvid,
                                                    int subtaskIndex,
                                                    const ResultSubpartitionInfoPOD &info,
-                                                   std::shared_ptr<Buffer> buffer)
+                                                   Buffer* buffer)
     {
         if (IsDone()) {
             buffer->RecycleBuffer();
+            delete buffer; // todo: is it right?
             return;
         }
 
@@ -92,6 +95,7 @@ namespace omnistream {
         Write(pending->GetResultSubpartitionOffsets(), info, buffer,
               !pending->IsAllOutputsReceived(), "ChannelState#WriteOutput");
         buffer->RecycleBuffer();
+        delete buffer; // todo: is it right?
     }
 
     void ChannelStateCheckpointWriter::CompleteInput(const JobVertexID &jvid, int subtaskIndex)

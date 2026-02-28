@@ -74,11 +74,6 @@ void Object::putRefCount()
     delete this;
 }
 
-void Object::getRefCount()
-{
-    ++refCount;
-}
-
 void Object::setRefCount(uint64_t count)
 {
     refCount = count;

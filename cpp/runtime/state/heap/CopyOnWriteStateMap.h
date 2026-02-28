@@ -489,8 +489,19 @@ namespace omnistream {
                     EMH_NEW(key, std::move(ValueT()), nmspace, bucket, stateMapVersion);
                 }
             }
-
+            if constexpr (std::is_same_v<ValueT, Object*>) {
+                Object *oldValue = static_cast<Object*>(EMH_VAL(_pairs, bucket));
+                if (oldValue != nullptr) {
+                    oldValue->putRefCount();
+                }
+            }
             EMH_VAL(_pairs, bucket) = value;
+            if constexpr (std::is_same_v<ValueT, Object*>) {
+                Object *newValue = static_cast<Object*>(EMH_VAL(_pairs, bucket));
+                if (newValue != nullptr) {
+                    newValue->getRefCount();
+                }
+            }
         }
 
         void put(KeyT&& key, N&& nmspace, ValueT&& value) noexcept override

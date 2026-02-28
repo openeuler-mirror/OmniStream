@@ -86,14 +86,14 @@ void HeapValueState<K, N, V>::update(const V &value, bool copyKey)
         stateTable->copyCurrentKey();
     }
     if constexpr (std::is_same_v<V, Object*>) {
-        auto oldValue = static_cast<Object*>(stateTable->get(currentNamespace));
+        /*auto oldValue = static_cast<Object*>(stateTable->get(currentNamespace));
         if (oldValue != nullptr) {
             oldValue->putRefCount();
-        }
+        }*/
         if (value != nullptr) {
             auto newValue = static_cast<Object*>(value);
-            stateTable->put(currentNamespace, newValue);
-            newValue->getRefCount();
+            stateTable->put(currentNamespace, newValue); // oldValue handle putRefCount, newValue handle getRefCount in inner
+            // newValue->getRefCount();
         }
     } else {
         stateTable->put(currentNamespace, value);

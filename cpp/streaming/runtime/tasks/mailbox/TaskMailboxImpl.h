@@ -34,18 +34,18 @@ namespace omnistream {
         bool hasMail() const override;
         int size();
 
-        std::optional<std::shared_ptr<Mail>> tryTake(int priority) override;
-        std::shared_ptr<Mail> take(int priority) override;
+        Mail* tryTake(int priority) override;
+        Mail* take(int priority) override;
 
         bool createBatch() override;
-        std::optional<std::shared_ptr<Mail>> tryTakeFromBatch() override;
+        Mail* tryTakeFromBatch() override;
 
-        void put(std::shared_ptr<Mail>& mail) override;
-        void putFirst(std::shared_ptr<Mail>& mail) override;
+        void put(Mail* mail) override;
+        void putFirst(Mail* mail) override;
 
-        std::vector<std::shared_ptr<Mail>> drain() override;
+        std::vector<Mail*> drain() override;
         void quiesce() override;
-        std::vector<std::shared_ptr<Mail>> close() override;
+        std::vector<Mail*> close() override;
         State getState()  override;
         void runExclusively(const std::shared_ptr<ThrowingRunnable>& runnable) override;
 
@@ -53,14 +53,14 @@ namespace omnistream {
 
     private:
         std::recursive_mutex lock;
-        std::deque<std::shared_ptr<Mail>> queue;
-        std::condition_variable notEmpty;
+        std::deque<Mail*> queue;
+        std::condition_variable_any notEmpty;
         State state = State::OPEN;
         std::thread::id taskMailboxThreadId;
-        std::deque<std::shared_ptr<Mail>> batch;
+        std::deque<Mail*> batch;
         std::atomic<bool> hasNewMail = false;
 
-        std::shared_ptr<Mail> takeOrNull(std::deque<std::shared_ptr<Mail>>& queue, int priority);
+        Mail* takeOrNull(std::deque<Mail*> &queue, int priority);
         void checkIsMailboxThread() const;
         void checkPutStateConditions();
         void checkTakeStateConditions();

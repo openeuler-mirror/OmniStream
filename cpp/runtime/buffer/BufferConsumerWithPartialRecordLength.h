@@ -21,11 +21,12 @@ namespace omnistream {
     class BufferConsumerWithPartialRecordLength {
     public:
         BufferConsumerWithPartialRecordLength(std::shared_ptr<BufferConsumer> bufferConsumer, int partialRecordLength);
+        // delete in PipelinedSubpartition
         ~BufferConsumerWithPartialRecordLength();
 
         std::shared_ptr<BufferConsumer> getBufferConsumer();
         int getPartialRecordLength();
-        std::shared_ptr<Buffer> build();
+        Buffer *build();
         bool cleanupPartialRecord();
         std::string toString() const;
 

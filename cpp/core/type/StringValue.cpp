@@ -160,11 +160,14 @@ void StringValue::writeString(const std::u32string *value, DataOutputSerializer 
 std::u32string *StringValue::readString(SysDataInput& in)
 {
     // the length we read is offset_ by one, because a length of zero indicates a null value
-    unsigned int len = in.readUnsignedByte();
+    auto data_ = in.getData();
+    auto position_ = in.getPosition();
+    unsigned int len = static_cast<int>(data_[position_++]);
 
     LOG("first len" + std::to_string(len))
 
     if (len == 0) {
+        in.setPosition(position_);
         return nullptr;
     }
 
@@ -172,7 +175,7 @@ std::u32string *StringValue::readString(SysDataInput& in)
         int shift = 7;
         unsigned int curr;
         len = len & 0x7f;
-        while ((curr = in.readUnsignedByte()) >= HIGH_BIT) {
+        while ((curr = static_cast<int>(data_[position_++])) >= HIGH_BIT) {
             len |= (curr & 0x7f) << shift;
             shift += 7;
         }
@@ -191,12 +194,12 @@ std::u32string *StringValue::readString(SysDataInput& in)
     }
 
     for (unsigned int i = 0; i < len; i++) {
-        unsigned int c = in.readUnsignedByte();
+        unsigned int c = static_cast<int>(data_[position_++]);
         if (c >= HIGH_BIT) {
             int shift = 7;
             unsigned int curr;
             c = c & 0x7f;
-            while ((curr = in.readUnsignedByte()) >= HIGH_BIT) {
+            while ((curr = static_cast<int>(data_[position_++])) >= HIGH_BIT) {
                 c |= (curr & 0x7f) << shift;
                 shift += 7;
             }
@@ -206,7 +209,7 @@ std::u32string *StringValue::readString(SysDataInput& in)
     }
 
     LOG("final string" + u32string_to_std_string(*data));
-
+    in.setPosition(position_);
     return data;
 }
 
@@ -225,9 +228,8 @@ void StringValue::writeString(String *buffer, DataOutputSerializer &out)
 
         // opt: Save the serialization result through a temporary array,
         // and then call the batch structure to write it to the output byte stream.
-        std::vector<uint8_t> serializedData;
-        int32_t maxLimit = 5  + 3 * strlen;
-        serializedData.reserve(maxLimit);
+        int32_t maxLimit = 5 + 3 * strlen;
+        uint8_t serializedData[maxLimit];
         int32_t index = 0;
         if (likely(lenToWrite < HIGH_BIT)) {
             serializedData[index++] = (lenToWrite & 0xff);
@@ -268,7 +270,7 @@ void StringValue::writeString(String *buffer, DataOutputSerializer &out)
         }
 
         // use memcpy to write all data
-        out.write((uint8_t *) serializedData.data(), maxLimit, 0, index);
+        out.write((uint8_t *) serializedData, maxLimit, 0, index);
     } else {
         out.write(0);
     }
@@ -277,11 +279,14 @@ void StringValue::writeString(String *buffer, DataOutputSerializer &out)
 void StringValue::readString(String *buffer, SysDataInput& in)
 {
     // the length we read is offset_ by one, because a length of zero indicates a null value
-    unsigned int len = in.readUnsignedByte();
+    auto data_ = in.getData();
+    auto position_ = in.getPosition();
+    unsigned int len = static_cast<int>(data_[position_++]);
 #ifdef DEBUG
     LOG("first len" + std::to_string(len))
 #endif
     if (unlikely(len == 0)) {
+        in.setPosition(position_);
         return;
     }
 
@@ -289,7 +294,7 @@ void StringValue::readString(String *buffer, SysDataInput& in)
         int shift = 7;
         unsigned int curr;
         len = len & 0x7f;
-        while ((curr = in.readUnsignedByte()) >= HIGH_BIT) {
+        while ((curr = static_cast<int>(data_[position_++])) >= HIGH_BIT) {
             len |= (curr & 0x7f) << shift;
             shift += 7;
         }
@@ -302,17 +307,17 @@ void StringValue::readString(String *buffer, SysDataInput& in)
     size_t capacity = buffer->getSize();
     // read all date into str
     if (unlikely(capacity < len)) {
-        buffer->resize(len);
+        buffer->resize(len * 2);
         data = buffer->data();
     }
 
     for (uint32_t i = 0; i < len; i++) {
-        unsigned int c = in.readUnsignedByte();
+        unsigned int c = static_cast<int>(data_[position_++]);
         if (c >= HIGH_BIT) {
             int shift = 7;
             unsigned int curr;
             c = c & 0x7f;
-            while ((curr = in.readUnsignedByte()) >= HIGH_BIT) {
+            while ((curr = static_cast<int>(data_[position_++])) >= HIGH_BIT) {
                 c |= (curr & 0x7f) << shift;
                 shift += 7;
             }
@@ -321,5 +326,6 @@ void StringValue::readString(String *buffer, SysDataInput& in)
         data[i] = c;
     }
     buffer->resize(len);
+    in.setPosition(position_);
 }
 

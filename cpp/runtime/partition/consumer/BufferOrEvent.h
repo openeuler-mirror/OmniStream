@@ -25,7 +25,7 @@ namespace omnistream {
 
     class BufferOrEvent {
     public:
-        BufferOrEvent(std::shared_ptr<Buffer> buffer, InputChannelInfo channelInfo,
+        BufferOrEvent(Buffer* buffer, InputChannelInfo channelInfo,
                       bool moreAvailable, bool morePriorityEvents);
 
         BufferOrEvent(std::shared_ptr<AbstractEvent>, bool hasPriority,
@@ -33,7 +33,7 @@ namespace omnistream {
                       bool morePriorityEvents);
 
         // Visible for testing
-        BufferOrEvent(std::shared_ptr<Buffer> buffer, InputChannelInfo channelInfo);
+        BufferOrEvent(Buffer* buffer, InputChannelInfo channelInfo);
 
         // Visible for testing
         BufferOrEvent(std::shared_ptr<AbstractEvent>, InputChannelInfo channelInfo);
@@ -41,7 +41,7 @@ namespace omnistream {
         bool isBuffer() const;
         bool isEvent() const;
 
-        std::shared_ptr<Buffer> getBuffer() const;
+        Buffer* getBuffer() const;
         std::shared_ptr<AbstractEvent>  getEvent() const;
         InputChannelInfo getChannelInfo() const;
 
@@ -58,7 +58,7 @@ namespace omnistream {
         bool hasPriority() const;
 
     private:
-        std::shared_ptr<Buffer> buffer_;
+        Buffer* buffer_;
         std::shared_ptr<AbstractEvent> event_;
         bool hasPriority_;
         InputChannelInfo channelInfo_;

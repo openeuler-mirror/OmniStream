@@ -31,7 +31,7 @@ PipelinedSubpartitionView::PipelinedSubpartitionView() : parent(nullptr), availa
 
 PipelinedSubpartitionView::~PipelinedSubpartitionView() {}
 
-std::shared_ptr<BufferAndBacklog> PipelinedSubpartitionView::getNextBuffer()
+BufferAndBacklog* PipelinedSubpartitionView::getNextBuffer()
 {
     // LOG_TRACE(">>> beginnning of get NextBuffer")
     return parent->pollBuffer();

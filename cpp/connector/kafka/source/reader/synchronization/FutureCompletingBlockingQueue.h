@@ -141,7 +141,7 @@ private:
         std::shared_ptr<omnistream::CompletableFuture> current = currentFuture;
         if (current != AVAILABLE) {
             currentFuture = AVAILABLE;
-            current->setCompleted();
+            current->complete();
         }
     }
 

@@ -33,8 +33,8 @@ public:
     const char *getName() const override;
 
     BackendDataType getBackendId() const override { return BackendDataType::INVALID_BK; };
-    void SetNextBuffer(std::shared_ptr<ReadOnlySlicedNetworkBuffer> buffer);
-    std::vector<std::shared_ptr<omnistream::Buffer>> GetUnconsumedBuffer() override;
+    void SetNextBuffer(ReadOnlySlicedNetworkBuffer* buffer);
+    std::vector<omnistream::Buffer*> GetUnconsumedBuffer() override;
 private:
 
     DeserializationResult& readNextRecord(IOReadableWritable& target);
@@ -42,7 +42,7 @@ private:
 
     NonSpanningWrapper *nonSpanningWrapper;
     SpanningWrapper *spanningWrapper;
-    std::shared_ptr<ReadOnlySlicedNetworkBuffer> currentBuffer;
+    ReadOnlySlicedNetworkBuffer* currentBuffer = nullptr;
 };
 }
 

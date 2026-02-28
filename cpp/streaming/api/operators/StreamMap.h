@@ -80,9 +80,14 @@ namespace omnistream::datastream {
             }
         }
 
+        void ProcessWatermark(Watermark *watermark) override
+        {
+            AbstractStreamOperator<K>::ProcessWatermark(watermark);
+        }
+
         void processWatermarkStatus(WatermarkStatus *watermarkStatus) override
         {
-            NOT_IMPL_EXCEPTION;
+            AbstractStreamOperator<K>::processWatermarkStatus(watermarkStatus);
         }
 
         bool canBeStreamOperator() override

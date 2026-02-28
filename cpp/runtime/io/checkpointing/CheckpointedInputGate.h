@@ -47,7 +47,7 @@ public:
     // This uses old CompletableFuture because the InputGate uses it. It might be problematic!
     std::shared_ptr<CompletableFuture> GetAvailableFuture() override;
 
-    std::optional<std::shared_ptr<BufferOrEvent>> PollNext() override;
+    BufferOrEvent* PollNext() override;
     bool IsFinished() override;
     bool HasReceivedEndOfData() override;
     bool fromOriginal();
@@ -62,8 +62,8 @@ public:
     long GetAlignmentDurationNanos() const;
     long GetCheckpointStartDelayNanos() const;
     void Close();
-    std::optional<std::shared_ptr<BufferOrEvent>> HandleEvent(const std::shared_ptr<BufferOrEvent>& bufferOrEvent);
-    std::optional<std::shared_ptr<BufferOrEvent>> HandleEmptyBuffer();
+    BufferOrEvent* HandleEvent(BufferOrEvent* bufferOrEvent);
+    BufferOrEvent* HandleEmptyBuffer();
 
 private:
     std::shared_ptr<InputGate> inputGate_;

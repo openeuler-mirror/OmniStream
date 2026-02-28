@@ -27,8 +27,8 @@
 class KafkaSourceFetcherManager : public SingleThreadFetcherManager<RdKafka::Message, KafkaPartitionSplit> {
 public:
     KafkaSourceFetcherManager(
-            std::shared_ptr<FutureCompletingBlockingQueue<RdKafka::Message>>& elementsQueue,
-            std::function<std::shared_ptr<SplitReader<RdKafka::Message, KafkaPartitionSplit>>()>& splitReaderSupplier);
+            FutureCompletingBlockingQueue<RdKafka::Message>* elementsQueue,
+            std::function<SplitReader<RdKafka::Message, KafkaPartitionSplit>*()>& splitReaderSupplier);
 };
 
 

@@ -42,10 +42,8 @@ namespace omnistream {
         };
         DummyObjectBufferRecycler() = default;
         ~DummyObjectBufferRecycler() override = default;
-        void recycle(std::shared_ptr<Segment> objectBuffer) override
-        {
-            auto toRecycledSegment = std::dynamic_pointer_cast<ObjectSegment>(objectBuffer);
-        };
+        void recycle(Segment *objectBuffer) override
+        {};
 
         std::string toString() const override
         {

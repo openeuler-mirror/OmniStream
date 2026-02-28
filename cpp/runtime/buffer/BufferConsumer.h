@@ -36,66 +36,72 @@ namespace omnistream {
 
         class CachedPositionMarker {
         public:
-            CachedPositionMarker(const std::shared_ptr<PositionMarker>& positionMarker, int cachedPosition)
-                : positionMarker(positionMarker),
-                  cachedPosition(cachedPosition)
-            {
-                LOG_TRACE("consturctur")
-            }
-
-            explicit CachedPositionMarker(std::shared_ptr<PositionMarker> positionMarker) : positionMarker(
+            explicit CachedPositionMarker(PositionMarker *positionMarker) : positionMarker(
                 positionMarker)
             {
                 update();
                 LOG_TRACE("consturctur2")
             }
 
-            bool isFinished() const
+            inline bool isFinished() const
             {
                 return PositionMarker::isFinished(cachedPosition);
             }
 
-            int getCached()
+            inline int getCached()
             {
                 return PositionMarker::getAbsolute(cachedPosition);
             }
 
-            int getLatest()
+            inline int getLatest()
             {
                 return PositionMarker::getAbsolute(positionMarker->get());
             }
 
-            void update()
+            inline void update()
             {
                 cachedPosition = positionMarker->get();
             }
 
-            void selfCheck()
+            inline void selfCheck()
             {
-                LOG_TRACE("selfCheck  "  << std::to_string(positionMarker.use_count()))
+                LOG_TRACE("selfCheck  "  << std::to_string(positionMarker->get()))
             }
 
             ~CachedPositionMarker()
             {
                 LOG_TRACE("~CachedPositionMarker ")
                 selfCheck();
+                delete positionMarker;
+            }
+
+            inline PositionMarker *getInnerPositionMarker()
+            {
+                return positionMarker;
             }
         private:
-            std::shared_ptr<PositionMarker> positionMarker;
+            PositionMarker *positionMarker;
             int cachedPosition;
         };
 
-        BufferConsumer(std::shared_ptr<Buffer> buffer_,
-            std::shared_ptr<PositionMarker> writerPosition, int currentReaderPosition)
-            : buffer(buffer_), writerPosition(writerPosition), currentReaderPosition(currentReaderPosition) {
+        BufferConsumer(Buffer* buffer_,
+                       PositionMarker *writerPosition, int currentReaderPosition)
+            : buffer(buffer_), currentReaderPosition(currentReaderPosition) {
+            this->writerPosition = new CachedPositionMarker(writerPosition);
         };
 
-        virtual ~BufferConsumer() = default;
+        // delete in BufferConsumerWithPartialRecordLength
+        virtual ~BufferConsumer() {
+            if (buffer->RefCount() == 0) {
+                delete buffer;
+            }
+            delete writerPosition;
+        }
 
         bool isFinished() const;
-        virtual std::shared_ptr<Buffer> build() = 0;
+        virtual Buffer *build() = 0;
 
-        std::shared_ptr<Buffer> buildForPeek() {
+        Buffer* buildForPeek() {
             int oldReaderPos = currentReaderPosition;
             auto built = build();
             currentReaderPosition = oldReaderPos;
@@ -121,8 +127,8 @@ namespace omnistream {
         int getBufferType();
 
     protected:
-        std::shared_ptr<Buffer> buffer;
-        CachedPositionMarker writerPosition;
+        Buffer* buffer = nullptr;
+        CachedPositionMarker *writerPosition = nullptr;
         int currentReaderPosition;
     };
 }

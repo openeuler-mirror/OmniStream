@@ -141,14 +141,13 @@ public:
     int pollRecordsThread() {
         int recordCount = 0;
         while (true) {
-            auto bufferOrEventOpt = downstreamInputGate_->PollNext();
-            if (!bufferOrEventOpt.has_value()) {
+            auto bufferOrEvent = downstreamInputGate_->PollNext();
+            if (!bufferOrEvent) {
                 continue;
             }
 
-            auto bufferOrEvent = bufferOrEventOpt.value();
             if (bufferOrEvent->isBuffer()) {
-                auto buff = reinterpret_pointer_cast<ObjectBuffer>(bufferOrEvent->getBuffer());
+                auto buff = reinterpret_cast<ObjectBuffer*>(bufferOrEvent->getBuffer());
 
                 auto size       = buff->GetSize();
                 auto objSegment = buff->GetObjectSegment();
@@ -177,6 +176,7 @@ public:
                     break;
                 }
             }
+            delete bufferOrEvent;
         }
         downstreamInputGate_->close();
         return recordCount;

@@ -16,6 +16,8 @@
 
 #include "BufferPool.h"
 #include "io/AvailabilityHelper.h"
+#include "AvailabilityStatus.h"
+#include "NetworkBufferPool.h"
 
 namespace omnistream {
 
@@ -23,12 +25,20 @@ namespace omnistream {
     public:
 
         LocalBufferPool(
-            // std::shared_ptr<NetworkObjectBufferPool> networkObjBufferPool,
+            std::shared_ptr<NetworkBufferPool> networkBufferPool,
             int numberOfSubpartitions,
-            int maxBuffersPerChannel, int currentPoolSize, int numberOfRequiredObjectSegments, int maxNumberOfSegments, std::shared_ptr<AvailabilityHelper>  availabilityHelper);
+            int maxBuffersPerChannel, int currentPoolSize, int numberOfRequiredSegments, int maxNumberOfSegments, std::shared_ptr<AvailabilityHelper>  availabilityHelper);
+        ~LocalBufferPool() {
+            for (auto segment : availableSegments) {
+                delete segment;
+            }
+            availableSegments.clear();
+        }
+
         virtual bool isRequestedSizeReached() = 0;
 
         void checkConsistentAvailability();
+        std::shared_ptr<CompletableFuture> checkAndUpdateAvailability();
         // void lazyDestroy() override;
 
         // std::shared_ptr<Segment> requestSegment() override;
@@ -44,27 +54,43 @@ namespace omnistream {
         bool addBufferListener(std::shared_ptr<BufferListener> listener) override;
         std::shared_ptr<CompletableFuture> GetAvailableFuture() override;
 
-        void recycle(std::shared_ptr<Segment> segment) override;
+        void recycle(Segment *segment) override;
         virtual bool hasExcessBuffers() = 0;
 
-        virtual void returnSegment(std::shared_ptr<Segment> segment) = 0;
+        virtual void returnSegment(Segment *segment) = 0;
 
         // virtual std::shared_ptr<ObjectBuffer> toObjectBuffer(std::shared_ptr<ObjectSegment> segment) = 0;
         // virtual std::shared_ptr<ObjectBufferBuilder> toObjectBufferBuilder(std::shared_ptr<ObjectSegment> segment, int targetChannel) = 0;
+        void mayNotifyAvailable(std::shared_ptr<CompletableFuture> toNotify);
+        bool fireBufferAvailableNotification(std::shared_ptr<BufferListener> listener, Segment *segment);
 
-        bool fireBufferAvailableNotification(std::shared_ptr<BufferListener> listener, std::shared_ptr<Segment> segment);
-
-        void recycle(std::shared_ptr<Segment> segment, int channel);
+        void recycle(Segment *segment, int channel);
         virtual void returnExcessSegments() = 0;
         void setNumBuffers(int numBuffers) override;
         void cancel() override;
 
     protected:
+        class SubpartitionBufferRecycler : public BufferRecycler {
+        public:
+            SubpartitionBufferRecycler(int channel, std::shared_ptr<LocalBufferPool> bufferPool);
+
+            void recycle(Segment *segment) override;
+
+            std::string toString() const override
+            {
+                return "MemoryBufferRecycler";
+            };
+
+        protected:
+            int channel_;
+            std::shared_ptr<LocalBufferPool> bufferPool_;
+        };
 
         static const int UNKNOWN_CHANNEL = -1;
-        std::recursive_mutex recursiveMutex;
+        std::recursive_mutex availableSegmentsLock;
         std::deque<std::shared_ptr<BufferListener>> registeredListeners_;
-        std::deque<std::shared_ptr<Segment>> availableSegments;
+        std::deque<Segment*> availableSegments;
+        std::shared_ptr<NetworkBufferPool> networkBufferPool;
 
         int maxBuffersPerChannel_;
         int currentPoolSize_;
@@ -77,10 +103,11 @@ namespace omnistream {
         int unavailableSubpartitionsCount_ = 0;
         // std::shared_ptr<NetworkObjectBufferPool> networkObjBufferPool_;
         bool shouldBeAvailable();
-        bool checkAvailability();
-        bool requestingWhenAvailable_ = false;
+        const AvailabilityStatus &checkAvailability();
         // used for job cancellation to avoid back pressure
         std::atomic<bool> cancelled_{false};
+
+        bool requestingNotificationOfGlobalPoolAvailable;
     };
 }
 

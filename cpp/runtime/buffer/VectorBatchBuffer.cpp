@@ -15,8 +15,8 @@
 
 namespace omnistream {
 VectorBatchBuffer::VectorBatchBuffer(
-    std::shared_ptr<ObjectSegment> segment,
-    std::shared_ptr<BufferRecycler> recycle
+        ObjectSegment *segment,
+        std::shared_ptr<BufferRecycler> recycle
 )
 {
     bufferType = 0;
@@ -42,20 +42,20 @@ std::shared_ptr<BufferRecycler> VectorBatchBuffer::GetRecycler()
     return recycler;
 }
 
-std::shared_ptr<ObjectSegment> VectorBatchBuffer::GetObjectSegment()
+ObjectSegment *VectorBatchBuffer::GetObjectSegment()
 {
     return objectSegment;
 }
 
-std::shared_ptr<Buffer> VectorBatchBuffer::ReadOnlySlice(int index, int length)
+Buffer* VectorBatchBuffer::ReadOnlySlice(int index, int length)
 {
     if (bufferType == 0) {
         LOG_TRACE("Beginning VectorBatchBuffer ")
-        auto sliceBuffer = std::make_shared<ReadOnlySlicedVectorBatchBuffer>(shared_from_this(), index, length);
-        return std::dynamic_pointer_cast<VectorBatchBuffer>(sliceBuffer);
+        auto sliceBuffer = new ReadOnlySlicedVectorBatchBuffer(this, index, length);
+        return dynamic_cast<VectorBatchBuffer*>(sliceBuffer);
     } else {
         LOG_TRACE("Event Buffer  ")
-        return std::make_shared<VectorBatchBuffer>(event_type);
+        return new VectorBatchBuffer(event_type);
     }
 }
 

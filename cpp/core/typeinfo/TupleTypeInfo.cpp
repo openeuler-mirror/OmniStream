@@ -29,6 +29,7 @@ TypeSerializer *TupleTypeInfo::createTypeSerializer()
 TupleTypeInfo *TupleTypeInfo::of(const json &type)
 {
     auto *serializer = new Tuple2Serializer(const_cast<json &>(type));
+    serializer->setSelfBufferReusable(true);
     return new TupleTypeInfo(serializer);
 }
 

@@ -9,8 +9,7 @@ TEST(ObjectBufferBuilderTest, AppendAndCommintNotFull)
 {
 
     int size = 10;
-    auto objSegment = std::make_shared<ObjectSegment>(size);
-
+    auto objSegment = new ObjectSegment(size);
     std::shared_ptr<DummyObjectBufferRecycler> recycler = DummyObjectBufferRecycler::getInstance();
 
     ObjectBufferBuilder *bufferBuilder = new ObjectBufferBuilder(objSegment, recycler);
@@ -27,13 +26,15 @@ TEST(ObjectBufferBuilderTest, AppendAndCommintNotFull)
 
     EXPECT_EQ(bufferBuilder->getMaxCapacity(), size);
     EXPECT_EQ(bufferBuilder->isFull(), false);
+    delete objSegment;
+    delete bufferBuilder;
 }
 
 TEST(ObjectBufferBuilderTest, AppendAndCommintFull)
 {
 
     int size = 10;
-    auto objSegment = std::make_shared<ObjectSegment>(size);
+    auto objSegment = new ObjectSegment(size);
 
     std::shared_ptr<DummyObjectBufferRecycler> recycler = DummyObjectBufferRecycler::getInstance();
 
@@ -51,13 +52,15 @@ TEST(ObjectBufferBuilderTest, AppendAndCommintFull)
 
     EXPECT_EQ(bufferBuilder->getMaxCapacity(), size);
     EXPECT_EQ(bufferBuilder->isFull(), true);
+    delete objSegment;
+    delete bufferBuilder;
 }
 
 TEST(ObjectBufferBuilderTest, AppendAndCommintExceed)
 {
 
     int size = 10;
-    auto objSegment = std::make_shared<ObjectSegment>(size);
+    auto objSegment = new ObjectSegment(size);
 
     std::shared_ptr<DummyObjectBufferRecycler> recycler = DummyObjectBufferRecycler::getInstance();
 
@@ -78,13 +81,15 @@ TEST(ObjectBufferBuilderTest, AppendAndCommintExceed)
     {
         EXPECT_STREQ(e.what(), "BufferBuilder is finished");
     }
+    delete objSegment;
+    delete bufferBuilder;
 }
 
 TEST(ObjectBufferBuilderTest, Finish)
 {
 
     int size = 10;
-    auto objSegment = std::make_shared<ObjectSegment>(size);
+    auto objSegment = new ObjectSegment(size);
 
     std::shared_ptr<DummyObjectBufferRecycler> recycler = DummyObjectBufferRecycler::getInstance();
 
@@ -99,13 +104,15 @@ TEST(ObjectBufferBuilderTest, Finish)
     }
     bufferBuilder->finish();
     EXPECT_EQ(bufferBuilder->isFinished(), true);
+    delete objSegment;
+    delete bufferBuilder;
 }
 
 TEST(ObjectBufferBuilderTest, Recycle)
 {
 
     int size = 10;
-    auto objSegment = std::make_shared<ObjectSegment>(size);
+    auto objSegment = new ObjectSegment(size);
 
     std::shared_ptr<DummyObjectBufferRecycler> recycler = DummyObjectBufferRecycler::getInstance();
 
@@ -119,13 +126,15 @@ TEST(ObjectBufferBuilderTest, Recycle)
         bufferBuilder->append(record);
     }
     bufferBuilder->close();
+    delete objSegment;
+    delete bufferBuilder;
 }
 
 TEST(ObjectBufferBuilderTest, BufferConsumerReadable)
 {
 
     int size = 10;
-    auto objSegment = std::make_shared<ObjectSegment>(size);
+    auto objSegment = new ObjectSegment(size);
 
     std::shared_ptr<DummyObjectBufferRecycler> recycler = DummyObjectBufferRecycler::getInstance();
 
@@ -151,13 +160,15 @@ TEST(ObjectBufferBuilderTest, BufferConsumerReadable)
     EXPECT_EQ(bufferConsumer->isDataAvailable(), false);
     // bufferConsumer->close();
     // EXPECT_EQ(bufferConsumer->IsRecycled(), true);
+    delete objSegment;
+    delete bufferBuilder;
 }
 
 TEST(ObjectBufferBuilderTest, BufferConsumerDataIdentical)
 {
 
     int size = 10;
-    auto objSegment = std::make_shared<ObjectSegment>(size);
+    auto objSegment = new ObjectSegment(size);
 
     std::shared_ptr<DummyObjectBufferRecycler> recycler = DummyObjectBufferRecycler::getInstance();
 
@@ -174,7 +185,7 @@ TEST(ObjectBufferBuilderTest, BufferConsumerDataIdentical)
         objects[i] = record;
         bufferBuilder->appendAndCommit(record);
     }
-    std::shared_ptr<VectorBatchBuffer> readBuffer = std::dynamic_pointer_cast<VectorBatchBuffer>(bufferConsumer->build());
+    VectorBatchBuffer* readBuffer = dynamic_cast<VectorBatchBuffer*>(bufferConsumer->build());
     int readSize = readBuffer->GetSize();
     EXPECT_EQ(readSize, size);
     for (size_t i = 0; i < readSize; i++)
@@ -182,4 +193,5 @@ TEST(ObjectBufferBuilderTest, BufferConsumerDataIdentical)
         StreamRecord *record = static_cast<StreamRecord*>(readBuffer->GetObjectSegment()->getObject(i));
         EXPECT_EQ(record, objects[i]);
     }
+    delete readBuffer;
 }

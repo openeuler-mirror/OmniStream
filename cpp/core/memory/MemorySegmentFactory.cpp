@@ -13,13 +13,13 @@
 
 #include <memory>
 
-std::shared_ptr<MemorySegment> MemorySegmentFactory::wrap(int size)
+MemorySegment *MemorySegmentFactory::wrap(int size)
 {
-    return std::make_shared<MemorySegment>(size);
+    return new MemorySegment(size);
 }
 
-std::shared_ptr<MemorySegment> MemorySegmentFactory::wrap(uint8_t *buffer, int size)
+MemorySegment *MemorySegmentFactory::wrap(uint8_t *buffer, int size)
 {
-    return std::make_shared<MemorySegment>(buffer, size);
+    return new MemorySegment(buffer, size);
 }
 

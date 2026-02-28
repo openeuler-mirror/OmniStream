@@ -36,7 +36,7 @@ namespace omnistream {
         return partialRecordLength;
     }
 
-    std::shared_ptr<Buffer> BufferConsumerWithPartialRecordLength::build()
+    Buffer *BufferConsumerWithPartialRecordLength::build()
     {
         return bufferConsumer->build();
     }

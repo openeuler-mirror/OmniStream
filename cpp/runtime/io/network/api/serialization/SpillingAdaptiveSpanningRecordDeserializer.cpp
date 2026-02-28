@@ -105,10 +105,10 @@ namespace omnistream::datastream {
     {
         return "SpillingAdaptiveSpanningRecordDeserializer";
     }
-    void SpillingAdaptiveSpanningRecordDeserializer::SetNextBuffer(std::shared_ptr<ReadOnlySlicedNetworkBuffer> buffer)
+    void SpillingAdaptiveSpanningRecordDeserializer::SetNextBuffer(ReadOnlySlicedNetworkBuffer* buffer)
     {
         currentBuffer = buffer;
-        std::shared_ptr<MemorySegment>  memorySegment = buffer->getMemorySegment();
+        auto memorySegment = buffer->getMemorySegment();
         int offset = buffer->GetMemorySegmentOffset();
         int numBytes = buffer->GetSize();
         const uint8_t *data = memorySegment->getData();
@@ -121,12 +121,12 @@ namespace omnistream::datastream {
         }
     }
 
-    std::vector<std::shared_ptr<omnistream::Buffer>> SpillingAdaptiveSpanningRecordDeserializer::GetUnconsumedBuffer()
+    std::vector<omnistream::Buffer*> SpillingAdaptiveSpanningRecordDeserializer::GetUnconsumedBuffer()
     {
         auto buffer = nonSpanningWrapper->hasRemaining() ?
             nonSpanningWrapper->GetUnconsumedSegment() :
             spanningWrapper->GetUnconsumedSegment();
-        std::vector<std::shared_ptr<omnistream::Buffer>> buffers;
+        std::vector<omnistream::Buffer*> buffers;
         buffers.push_back(buffer);
         return buffers;
     }

@@ -14,17 +14,18 @@
 
 #include <memory>
 #include "DeserializationDelegate.h"
-#include "core/typeutils/TypeSerializer.h"
+#include "streaming/runtime/streamrecord/StreamElementSerializer.h"
 
 class NonReusingDeserializationDelegate : public DeserializationDelegate {
 public:
-    explicit NonReusingDeserializationDelegate(std::unique_ptr<TypeSerializer> serializer);
+    explicit NonReusingDeserializationDelegate(omnistream::datastream::StreamElementSerializer *serializer);
+    ~NonReusingDeserializationDelegate() override;
     void* getInstance() override;
     void setInstance(void* instance) override;
     void write(DataOutputSerializer& out) override;
     void read(DataInputView& in) override;
 private:
-    std::unique_ptr<TypeSerializer> serializer_;
+    omnistream::datastream::StreamElementSerializer *serializer_;
     void* instance_;
 };
 

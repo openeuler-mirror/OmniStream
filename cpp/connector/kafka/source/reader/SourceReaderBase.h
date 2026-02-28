@@ -26,10 +26,10 @@
 template <typename E, typename SplitT, typename SplitStateT>
 class SourceReaderBase : public SourceReader<SplitT> {
 public:
-    SourceReaderBase(std::shared_ptr<FutureCompletingBlockingQueue<RdKafka::Message>> elementsQueue,
-        std::shared_ptr<SingleThreadFetcherManager<E, SplitT>> splitFetcherManager,
-        std::shared_ptr<RecordEmitter<E, SplitStateT>> recordEmitter,
-        const std::shared_ptr<SourceReaderContext> context, bool isBatch)
+    SourceReaderBase(FutureCompletingBlockingQueue<RdKafka::Message>* elementsQueue,
+        SingleThreadFetcherManager<E, SplitT>* splitFetcherManager,
+        RecordEmitter<E, SplitStateT>* recordEmitter,
+        SourceReaderContext* context, bool isBatch)
         : isBatch(isBatch), elementsQueue(elementsQueue), splitStates(), recordEmitter(recordEmitter),
         splitFetcherManager(splitFetcherManager), context(context), noMoreSplitsAssignment(false)
     {
@@ -40,7 +40,17 @@ public:
         currentSplitOutput = nullptr;
     }
 
-    virtual ~SourceReaderBase() = default;
+    virtual ~SourceReaderBase()
+    {
+        delete elementsQueue;
+        delete splitFetcherManager;
+        delete recordEmitter;
+        delete context;
+        for (auto& item : splitStates) {
+            delete item.second;
+        }
+        splitStates.clear();
+    }
 
     // 轮询下一个记录
     InputStatus pollNext(ReaderOutput* output) override
@@ -66,13 +76,12 @@ public:
 
     void normalPoll(const std::vector<RdKafka::Message*> &records, RecordsWithSplitIds<E>* recordsWithSplitId)
     {
-        std::vector<RdKafka::Message*>::const_iterator recordIterator;
         auto currentSplitStoppingOffset = recordsWithSplitId->getSplitStoppingOffset();
-        for (recordIterator = records.begin(); recordIterator != records.end(); ++recordIterator) {
-            if (static_cast<size_t>((*recordIterator)->offset()) >= currentSplitStoppingOffset) {
+        for (RdKafka::Message* record : records) {
+            if (record->offset() >= currentSplitStoppingOffset) {
                 break;
             }
-            recordEmitter->emitRecord(*recordIterator, currentSplitOutput, currentSplitContext->state);
+            recordEmitter->emitRecord(record, currentSplitOutput, currentSplitContext->state);
         }
     }
 
@@ -123,7 +132,7 @@ public:
         // Initialize the state for each split.
         for (const auto& s : splits) {
             const std::string &splitId = s->splitId();
-            splitStates[splitId] = std::make_shared<SplitContext>(splitId, initializedState(s));
+            splitStates[splitId] = new SplitContext(splitId, initializedState(s));
         }
         // Hand over the splits to the split fetcher to start fetch.
         splitFetcherManager->addSplits(splits);
@@ -163,21 +172,20 @@ public:
 
 protected:
     // 初始化新拆分的状态
-    virtual std::shared_ptr<KafkaPartitionSplitState> initializedState(KafkaPartitionSplit* split) = 0;
+    virtual KafkaPartitionSplitState* initializedState(KafkaPartitionSplit* split) = 0;
 
-    virtual void onSplitFinished(std::unordered_map<std::string,
-        std::shared_ptr<KafkaPartitionSplitState>>& finishedSplitIds) {};
+    virtual void onSplitFinished(const std::unordered_map<std::string, KafkaPartitionSplitState*>& finishedSplitIds) {};
 private:
     bool isBatch;
-    std::shared_ptr<FutureCompletingBlockingQueue<E>> elementsQueue;
-    std::unordered_map<std::string, std::shared_ptr<SplitContext>> splitStates;
-    std::shared_ptr<RecordEmitter<E, SplitStateT>> recordEmitter;
-    std::shared_ptr<SplitFetcherManager<E, SplitT>> splitFetcherManager;
-    const std::shared_ptr<SourceReaderContext> context;
+    FutureCompletingBlockingQueue<E>* elementsQueue;
+    std::unordered_map<std::string, SplitContext*> splitStates;
+    RecordEmitter<E, SplitStateT>* recordEmitter;
+    SplitFetcherManager<E, SplitT>* splitFetcherManager;
+    SourceReaderContext* context;
     // 最新从拆分读取器提取的按拆分的记录批次
     RecordsWithSplitIds<E>* currentFetch = nullptr;
     // 当前拆分的上下文
-    std::shared_ptr<SplitContext> currentSplitContext;
+    SplitContext* currentSplitContext;
     // 当前拆分的输出
     SourceOutput* currentSplitOutput;
     // 指示 SourceReader 是否将被分配更多拆分
@@ -223,15 +231,19 @@ private:
             binded1 = true;
         }
 
-        const std::set<std::string> finishedSplits = fetch->finishedSplits();
+        const std::set<std::string> &finishedSplits = fetch->finishedSplits();
         if (!finishedSplits.empty()) {
-            std::unordered_map<std::string, std::shared_ptr<KafkaPartitionSplitState>> stateOfFinishedSplits;
+            std::unordered_map<std::string, KafkaPartitionSplitState*> stateOfFinishedSplits;
             for (const auto& finishedSplitId : finishedSplits) {
                 stateOfFinishedSplits[finishedSplitId] = splitStates[finishedSplitId]->state;
-                splitStates.erase(finishedSplitId);
                 output->ReleaseOutputForSplit(finishedSplitId);
             }
             onSplitFinished(stateOfFinishedSplits);
+            for (const auto& finishedSplitId : finishedSplits) {
+                SplitContext* splitContext = splitStates[finishedSplitId];
+                delete splitContext;
+                splitStates.erase(finishedSplitId);
+            }
         }
 
         fetch->recycle();
@@ -255,6 +267,7 @@ private:
         currentSplitOutput = &(currentSplitContext->getOrCreateSplitOutput(output));
         return true;
     }
+
     // 判断读取是否结束或稍后可用
     InputStatus finishedOrAvailableLater()
     {

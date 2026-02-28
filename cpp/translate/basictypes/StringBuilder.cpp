@@ -81,8 +81,8 @@ StringBuilder* StringBuilder::deleteCharAt(int32_t idx)
 
 StringBuilder* StringBuilder::append(Object *input)
 {
-    auto value = String::valueOf(input);
-    return this->append(value.get());
+    auto value = input->toString();
+    return this->append(value);
 }
 
 StringBuilder* StringBuilder::append(const std::string &input)

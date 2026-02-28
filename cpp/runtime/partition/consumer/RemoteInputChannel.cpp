@@ -41,14 +41,14 @@ namespace omnistream {
             int eventType = bufferLength;
             LOG("remote got an event data:::: event type: " << eventType)
             INFO_RELEASE("remote got an event data:::: event type: " << eventType)
-            auto eventData = std::make_shared<VectorBatchBuffer>(eventType);
+            auto eventData = new VectorBatchBuffer(eventType);
             std::lock_guard<std::recursive_mutex> lock(queueMutex);
             this->dataQueue.push(eventData);
         } else {
             uint8_t* buffer = reinterpret_cast<uint8_t*>(bufferAddress);
             // do data deserialization
             std::shared_ptr<ObjectSegment> objectSegment = this->DoDataDeserializationResult(buffer, bufferLength);
-            auto vectorBatchBuffer = std::make_shared<VectorBatchBuffer>(objectSegment);
+            auto vectorBatchBuffer = new VectorBatchBuffer(objectSegment.get());
             vectorBatchBuffer->SetSize(objectSegment->getSize());
             std::lock_guard<std::recursive_mutex> lock(queueMutex);
             this->dataQueue.push(vectorBatchBuffer);
@@ -126,16 +126,16 @@ namespace omnistream {
     {
         LOG("notifyRemoteDataAvailableForDataStream bufferAddress: " << bufferAddress
             << " bufferLength: " << bufferLength << " sequenceNumber: " << sequenceNumber);
-        std::shared_ptr<MemorySegment> memorySegment = std::make_shared<MemorySegment>(
+        MemorySegment *memorySegment = new MemorySegment(
             reinterpret_cast<uint8_t*>(bufferAddress), bufferLength, this);
-        std::shared_ptr<::datastream::NetworkBuffer> networkBuffer = std::make_shared<::datastream::NetworkBuffer>(
-            memorySegment, bufferLength, readIndex, originalNetworkBufferRecycler, bufferType);
-        std::shared_ptr<::datastream::ReadOnlySlicedNetworkBuffer> readOnlyBuffer =
-            std::make_shared<::datastream::ReadOnlySlicedNetworkBuffer>(networkBuffer, readIndex,
-                                                                        bufferLength);
+        datastream::NetworkBuffer *networkBuffer = new datastream::NetworkBuffer(
+            memorySegment, bufferLength, readIndex, originalNetworkBufferRecycler, bufferType, true);
+        datastream::ReadOnlySlicedNetworkBuffer* readOnlyBuffer =
+            new datastream::ReadOnlySlicedNetworkBuffer(networkBuffer, readIndex, bufferLength);
 
-        std::lock_guard<std::recursive_mutex> lock(queueMutex);
+        std::unique_lock<std::recursive_mutex> lock(queueMutex);
         this->dataQueue.push(readOnlyBuffer);
+        lock.unlock();
         this->notifyDataAvailable();
     }
 
@@ -177,14 +177,14 @@ namespace omnistream {
         }
     }
 
-    std::vector<std::shared_ptr<Buffer>> RemoteInputChannel::GetInflightBuffersUnsafe(long checkpointId)
+    std::vector<Buffer*> RemoteInputChannel::GetInflightBuffersUnsafe(long checkpointId)
     {
         std::lock_guard<std::recursive_mutex> lock(queueMutex);
-        std::vector<std::shared_ptr<Buffer>> inflightBuffers;
-        std::queue<std::shared_ptr<Buffer>> tmpQueue = dataQueue;
+        std::vector<Buffer*> inflightBuffers;
+        std::queue<Buffer*> tmpQueue = dataQueue;
 
         while (!tmpQueue.empty()) {
-            std::shared_ptr<Buffer> buffer = tmpQueue.front();
+            Buffer* buffer = tmpQueue.front();
             if (buffer->isBuffer()) {
                 inflightBuffers.push_back(buffer->RetainBuffer());
             }

@@ -23,7 +23,7 @@ namespace omnistream {
     public:
         virtual ~BufferRecycler() = default;
 
-        virtual void recycle(std::shared_ptr<Segment> objectBuffer) = 0;
+        virtual void recycle(Segment *segment) = 0;
 
         [[nodiscard]] virtual std::string toString() const = 0;
     };
@@ -39,7 +39,7 @@ namespace omnistream {
         };
         DummyBufferRecycler() = default;
         ~DummyBufferRecycler() override = default;
-        void recycle(std::shared_ptr<Segment> objectBuffer) override {
+        void recycle(Segment *segment) override {
         };
 
         [[nodiscard]] std::string toString() const override

@@ -14,66 +14,84 @@
 
 namespace omnistream {
 
-    LocalBufferPool::LocalBufferPool(int numberOfSubpartitions, int maxBuffersPerChannel, int currentPoolSize,
-                                     int numberOfRequiredObjectSegments, int maxNumberOfSegments,
-                                     std::shared_ptr<AvailabilityHelper> availabilityHelper)
-        : maxBuffersPerChannel_(maxBuffersPerChannel), currentPoolSize_(currentPoolSize),
-          numberOfRequiredSegments_(numberOfRequiredObjectSegments),
+    LocalBufferPool::LocalBufferPool(
+            std::shared_ptr<NetworkBufferPool> networkBufferPool,
+            int numberOfSubpartitions, int maxBuffersPerChannel, int currentPoolSize,
+            int numberOfRequiredSegments, int maxNumberOfSegments,
+            std::shared_ptr<AvailabilityHelper> availabilityHelper)
+        : networkBufferPool(networkBufferPool), maxBuffersPerChannel_(maxBuffersPerChannel), currentPoolSize_(currentPoolSize),
+          numberOfRequiredSegments_(numberOfRequiredSegments),
           maxNumberOfSegments(maxNumberOfSegments),
           availabilityHelper_(availabilityHelper),
           subpartitionBuffersCount_(numberOfSubpartitions, 0) {
     }
 
-
-    bool LocalBufferPool::checkAvailability()
-    {
-        std::lock_guard<std::recursive_mutex> lock(recursiveMutex);
-        LOG("checkAvailability get lock")
-        if (!availableSegments.empty()) {
-            return unavailableSubpartitionsCount_ == 0;
-        }
-        if (!isRequestedSizeReached()) {
-            if (requestSegmentFromGlobal()) {
-                return unavailableSubpartitionsCount_ == 0;
-            } else {
-                requestSegmentFromGlobalWhenAvailable();
-                return shouldBeAvailable();
-            }
-        }
-        return false;
-    }
-
     void LocalBufferPool::checkConsistentAvailability()
     {
-        std::lock_guard<std::recursive_mutex> lock(recursiveMutex);
-        LOG("checkConsistentAvailability get lock")
+        LOG("checkConsistentAvailability in lock")
         bool shouldBeAvailableValue = shouldBeAvailable();
         if (availabilityHelper_->isApproximatelyAvailable() != shouldBeAvailableValue) {
             throw std::runtime_error("Inconsistent availability: expected " + std::to_string(shouldBeAvailableValue));
         }
     }
 
+    const AvailabilityStatus &LocalBufferPool::checkAvailability()
+    {
+        if (!availableSegments.empty()) {
+            return AvailabilityStatus::from(shouldBeAvailable(), false);
+        }
+        if (isRequestedSizeReached()) {
+            return AvailabilityStatus::UNAVAILABLE_NEED_NOT_REQUESTING_NOTIFICATION();
+        }
+        bool needRequestingNotificationOfGlobalPoolAvailable = false;
+        // There aren't availableMemorySegments, and we continue to request new memory segment from
+        // global pool.
+        if (!requestSegmentFromGlobal()) {
+            // If we can not get a buffer from global pool, we should request from it when it
+            // becomes available. It should be noted that if we are already in this status, do not
+            // need to repeat the request.
+            needRequestingNotificationOfGlobalPoolAvailable = !requestingNotificationOfGlobalPoolAvailable;
+        }
+        return AvailabilityStatus::from(shouldBeAvailable(), needRequestingNotificationOfGlobalPoolAvailable);
+    }
+
+    std::shared_ptr<CompletableFuture> LocalBufferPool::checkAndUpdateAvailability()
+    {
+        std::shared_ptr<CompletableFuture> toNotify = nullptr;
+        const AvailabilityStatus &availabilityStatus = checkAvailability();
+        if (availabilityStatus.isAvailable()) {
+            toNotify = availabilityHelper_->getUnavailableToResetAvailable();
+        } else {
+            availabilityHelper_->resetUnavailable();
+        }
+        if (availabilityStatus.isNeedRequestingNotificationOfGlobalPoolAvailable()) {
+            requestSegmentFromGlobalWhenAvailable();
+        }
+
+        checkConsistentAvailability();
+        return toNotify;
+    }
+
     bool LocalBufferPool::shouldBeAvailable()
     {
-        std::lock_guard<std::recursive_mutex> lock(recursiveMutex);
-        LOG("shouldBeAvailable get lock")
+        LOG("shouldBeAvailable in lock")
         return !availableSegments.empty() && unavailableSubpartitionsCount_ == 0;
     }
 
 
-    void LocalBufferPool::recycle(std::shared_ptr<Segment> segment)
+    void LocalBufferPool::recycle(Segment *segment)
     {
         recycle(segment, UNKNOWN_CHANNEL);
     }
 
-    void LocalBufferPool::recycle(std::shared_ptr<Segment> segment, int channel)
+    void LocalBufferPool::recycle(Segment *segment, int channel)
     {
-        LOG_TRACE("recycle an object segment............. " << segment.get() << " for channel " << channel);
-        std::shared_ptr<BufferListener> listener;
+        // INFO_RELEASE("recycle an object segment............. " << segment.get() << " for channel " << channel);
+        std::shared_ptr<BufferListener> listener = nullptr;
         std::shared_ptr<CompletableFuture> toNotify = nullptr;
         do {
-            std::lock_guard<std::recursive_mutex> lock(recursiveMutex);
-            if (channel != -1) {
+            std::lock_guard<std::recursive_mutex> lock(availableSegmentsLock);
+            if (channel != UNKNOWN_CHANNEL) {
                 if (subpartitionBuffersCount_[channel]-- == maxBuffersPerChannel_) {
                     unavailableSubpartitionsCount_--;
                 }
@@ -84,9 +102,9 @@ namespace omnistream {
                 return;
             } else {
                 if (registeredListeners_.empty()) {
-                    LOG_TRACE(" Listeners is empty for segment to recycle " << segment.get());
+                    // INFO_RELEASE(" Listeners is empty for segment to recycle " << segment.get());
                     availableSegments.push_back(segment);
-                    if (!availabilityHelper_->isApproximatelyAvailable() && unavailableSubpartitionsCount_ == 0) {
+                    if (!availabilityHelper_->isApproximatelyAvailable() && shouldBeAvailable()) {
                         toNotify = availabilityHelper_->getUnavailableToResetAvailable();
                     }
                     break;
@@ -101,6 +119,8 @@ namespace omnistream {
             checkConsistentAvailability();
         }
         while (!fireBufferAvailableNotification(listener, segment));
+
+        mayNotifyAvailable(toNotify);
     }
 
     int LocalBufferPool::getNumberOfRequiredSegments() const
@@ -113,7 +133,7 @@ namespace omnistream {
     {
         std::shared_ptr<CompletableFuture> toNotify;
         {
-            std::lock_guard<std::recursive_mutex> lock(recursiveMutex);
+            std::lock_guard<std::recursive_mutex> lock(availableSegmentsLock);
             if (numBuffers < numberOfRequiredSegments_) {
                 throw std::invalid_argument(
                     "Buffer pool needs at least " + std::to_string(numberOfRequiredSegments_) +
@@ -127,21 +147,16 @@ namespace omnistream {
             if (isDestroyed_) {
                 return;
             }
-
-            if (checkAvailability()) {
-                toNotify = availabilityHelper_->getUnavailableToResetAvailable();
-            } else {
-                availabilityHelper_->resetUnavailable();
-            }
-
-            checkConsistentAvailability();
+            toNotify = checkAndUpdateAvailability();
         }
+
+        mayNotifyAvailable(toNotify);
     }
 
 
     bool LocalBufferPool::addBufferListener(std::shared_ptr<BufferListener> listener)
     {
-        std::lock_guard<std::recursive_mutex> lock(recursiveMutex);
+        std::lock_guard<std::recursive_mutex> lock(availableSegmentsLock);
         if (!availableSegments.empty() || isDestroyed_) {
             return false;
         }
@@ -154,16 +169,15 @@ namespace omnistream {
     {
         std::shared_ptr<CompletableFuture> toNotify = nullptr;
         {
-            std::lock_guard<std::recursive_mutex> lock(recursiveMutex);
-            requestingWhenAvailable_ = false;
+            std::lock_guard<std::recursive_mutex> lock(availableSegmentsLock);
+            requestingNotificationOfGlobalPoolAvailable = false;
             if (isDestroyed_ || availabilityHelper_->isApproximatelyAvailable()) {
                 return;
             }
 
-            if (checkAvailability()) {
-                toNotify = availabilityHelper_->getUnavailableToResetAvailable();
-            }
+            toNotify = checkAndUpdateAvailability();
         }
+        mayNotifyAvailable(toNotify);
     }
 
     std::shared_ptr<CompletableFuture> LocalBufferPool::GetAvailableFuture()
@@ -174,19 +188,42 @@ namespace omnistream {
 
     void LocalBufferPool::requestSegmentFromGlobalWhenAvailable()
     {
-        std::lock_guard<std::recursive_mutex> lock(recursiveMutex);
-        LOG("requestObjectSegmentFromGlobalWhenAvailable get lock")
-        if (requestingWhenAvailable_) {
-            return;
+        if (requestingNotificationOfGlobalPoolAvailable) {
+            throw std::runtime_error("local buffer pool is already in the state of requesting memory segment from global when it is available.");
         }
-        requestingWhenAvailable_ = true;
+        requestingNotificationOfGlobalPoolAvailable = true;
+        std::shared_ptr<Runnable> runnable = nullptr;
+        {
+            class InnerRunnable : public Runnable {
+            public:
+                InnerRunnable(LocalBufferPool* self) {
+                    this->self = self;
+                }
+                ~InnerRunnable() = default;
+                void run() override {
+                    self->onGlobalPoolAvailable();
+                }
+            private:
+                LocalBufferPool* self;
+            };
+            runnable = std::make_shared<InnerRunnable>(this);
+        }
+        networkBufferPool->GetAvailableFuture()->thenRun(runnable.get());
+    }
+
+
+    void LocalBufferPool::mayNotifyAvailable(std::shared_ptr<CompletableFuture> toNotify)
+    {
+        if (toNotify) {
+            toNotify->complete();
+        }
     }
 
     bool LocalBufferPool::fireBufferAvailableNotification(std::shared_ptr<BufferListener> listener,
-        std::shared_ptr<Segment> segment)
+                                                          Segment *segment)
     {
-        // seems useless
-        // std::make_shared<VectorBatchBuffer>(segment, shared_from_this())
+        // seems useless, because registeredListeners is empty
+        // todo: need fix
         return listener->notifyBufferAvailable(nullptr);
     }
 
@@ -195,4 +232,13 @@ namespace omnistream {
         cancelled_ = true;
     }
 
+    LocalBufferPool::SubpartitionBufferRecycler::SubpartitionBufferRecycler(int channel,
+                                                                                  std::shared_ptr<LocalBufferPool> bufferPool)
+            : channel_(channel), bufferPool_(bufferPool) {
+    }
+
+    void LocalBufferPool::SubpartitionBufferRecycler::recycle(Segment *segment)
+    {
+        bufferPool_->recycle(segment, channel_);
+    }
 }

@@ -23,6 +23,15 @@ namespace omnistream {
         {
             recordWriter_->broadcastEvent(event);
         }
+
+        std::shared_ptr<CompletableFuture> GetAvailableFuture() override
+        {
+            return recordWriter_->GetAvailableFuture();
+        }
+
+        bool isAvailable() override {
+            return recordWriter_->isAvailable();
+        }
     private:
         RecordWriterV2* recordWriter_;
     };

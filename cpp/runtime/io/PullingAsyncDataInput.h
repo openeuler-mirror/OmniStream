@@ -25,7 +25,7 @@ namespace omnistream {
     public:
         ~PullingAsyncDataInput() override = default;
 
-        virtual std::optional<std::shared_ptr<T>> PollNext() = 0;
+        virtual T* PollNext() = 0;
 
         virtual bool IsFinished() = 0;
 

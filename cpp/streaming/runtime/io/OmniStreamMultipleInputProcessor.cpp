@@ -94,4 +94,21 @@ namespace omnistream {
         }
         return readingInputIndex;
     }
+
+    std::shared_ptr<CompletableFuture> OmniStreamMultipleInputProcessor::GetAvailableFuture()
+    {
+        if (inputSelectionHandler->isAnyInputAvailable() || inputSelectionHandler->areAllInputsFinished()) {
+            return AVAILABLE;
+        }
+
+        availabilityHelper->resetToUnAvailable();
+        for (int i = 0; i < processors.size(); i++) {
+            if (!inputSelectionHandler->isInputFinished(i)
+                && inputSelectionHandler->isInputSelected(i)) {
+                availabilityHelper->anyOf(i, processors[i]->GetAvailableFuture());
+            }
+        }
+        return availabilityHelper->getAvailableFuture();
+    }
+
 }

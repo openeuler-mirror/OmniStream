@@ -26,10 +26,11 @@
 #include "ResultSubpartition.h"
 
 #include "ResultPartitionManager.h"
-
+#include "CheckpointedResultPartition.h"
+#include "ChannelStateHolder.h"
 namespace omnistream {
     
-class PipelinedResultPartition : public BufferWritingResultPartition {
+class PipelinedResultPartition : public BufferWritingResultPartition, public CheckpointedResultPartition, public ChannelStateHolder {
 public:
     PipelinedResultPartition(
         const std::string& owningTaskName,
@@ -40,7 +41,7 @@ public:
         int numTargetKeyGroups,
         std::shared_ptr<ResultPartitionManager> partitionManager,
          // std::shared_ptr<Supplier<ObjectBufferPool>> bufferPool);
-         std::shared_ptr<Supplier<BufferPool>> bufferPool);
+         std::shared_ptr<Supplier<BufferPool>> bufferPoolFactory);
 
     PipelinedResultPartition(
        const std::string& owningTaskName,
@@ -50,8 +51,7 @@ public:
         int numSubpartitions,
        int numTargetKeyGroups,
        std::shared_ptr<ResultPartitionManager> partitionManager,
-        // std::shared_ptr<Supplier<ObjectBufferPool>> bufferPool);
-        std::shared_ptr<Supplier<BufferPool>> bufferPool,
+        std::shared_ptr<Supplier<BufferPool>> bufferPoolFactory,
         int taskType);
 
     void flushAll() override;
@@ -59,13 +59,14 @@ public:
     void NotifyEndOfData(StopMode mode) override;
     std::shared_ptr<CompletableFuture> getAllDataProcessedFuture() override;
     void onSubpartitionAllDataProcessed(int subpartition) override;
-    void releaseInternal() override;
 
-  //  void finishReadRecoveredState(bool notifyAndBlockOnCompletion) override;
     void close() override;
     std::string toString() override;
     void OnConsumedSubpartition(int subpartitionIndex) override;
 
+    void setChannelStateWriter(std::shared_ptr<ChannelStateWriter> channelStateWriter) override;
+    std::shared_ptr<CheckpointedResultSubpartition> getCheckpointedSubpartition(int subpartitionIndex) override;
+    void finishReadRecoveredState(bool notifyAndBlockOnCompletion) override;
 private:
     void decrementNumberOfUsers(int subpartitionIndex);
     static int checkResultPartitionType(int type);

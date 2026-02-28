@@ -83,14 +83,14 @@ public:
     }
     void RecycleBuffer() override { recycled = true; }
     bool IsRecycled() const override { return recycled; }
-    std::shared_ptr<Buffer> RetainBuffer() override {
-        return std::make_shared<ObjectBufferTest>(); 
+    Buffer* RetainBuffer() override {
+        return this;
     }
-    std::shared_ptr<Buffer> ReadOnlySlice() override {
-        return std::make_shared<ObjectBufferTest>(); 
+    Buffer* ReadOnlySlice() override {
+        return this;
     }
-    std::shared_ptr<Buffer> ReadOnlySlice(int index, int length) override {
-        return std::make_shared<ObjectBufferTest>(); 
+    Buffer* ReadOnlySlice(int index, int length) override {
+        return this;
     }
     int GetMaxCapacity() const override { return 1024; }
     int GetReaderIndex() const override { return 0; }
@@ -104,8 +104,8 @@ public:
     void SetDataType(ObjectBufferDataType dataType) override {}
     int RefCount() const override { return 1; }
     std::string ToDebugString(bool includeHash) const override { return "ObjectBufferTest"; }
-    std::shared_ptr<ObjectSegment> GetObjectSegment() override { 
-        return std::make_shared<ObjectSegment>(0); 
+    ObjectSegment *GetObjectSegment() override {
+        return std::make_shared<ObjectSegment>(0).get();
     }
     std::pair<uint8_t *, size_t> GetBytes() override { 
         return {nullptr, 0}; 

@@ -122,7 +122,7 @@ private:
 class KafkaPartitionSplitReader : public SplitReader<RdKafka::Message, KafkaPartitionSplit> {
 public:
     KafkaPartitionSplitReader(const std::unordered_map<std::string, std::string>& props,
-        std::shared_ptr<SourceReaderContext> context);
+                              SourceReaderContext* context);
     ~KafkaPartitionSplitReader();
 
     RecordsWithSplitIds<RdKafka::Message>* fetch() override;
@@ -132,7 +132,7 @@ public:
 
 private:
     inline static const long POLL_TIMEOUT = 10000L;
-    std::unique_ptr<RdKafkaConsumer> consumer;
+    RdKafkaConsumer* consumer;
     std::unordered_map<RdKafka::TopicPartition*, long, TopicPartitionHash, TopicPartitionComparator> stoppingOffsets;
     const int subtaskId;
     std::set<std::string> emptySplits;

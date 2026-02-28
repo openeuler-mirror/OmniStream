@@ -77,11 +77,10 @@ namespace omnistream {
         }
 
         std::lock_guard<std::recursive_mutex> lock(fetchingDataMutex);
-        std::shared_ptr<BufferAndBacklog> bufferAndLog =
-                this->subpartitionView->getNextBuffer();
+        BufferAndBacklog* bufferAndLog = this->subpartitionView->getNextBuffer();
         while (bufferAndLog) {
-            std::shared_ptr<Buffer> buffer = dynamic_pointer_cast<Buffer>(bufferAndLog->getBuffer());
-            if (auto vectorBatchBuffer = std::dynamic_pointer_cast<VectorBatchBuffer>(buffer)) {
+            Buffer* buffer = dynamic_cast<Buffer*>(bufferAndLog->getBuffer());
+            if (auto vectorBatchBuffer = dynamic_cast<VectorBatchBuffer*>(buffer)) {
                 if (vectorBatchBuffer->GetSize() > 0) {
                     // serialize data
                     SerializeBufferAndBacklog(vectorBatchBuffer);
@@ -91,7 +90,8 @@ namespace omnistream {
                 }
                 // recycle buffer
                 vectorBatchBuffer->RecycleBuffer();
-            } else if (auto nBuffer = std::dynamic_pointer_cast<datastream::ReadOnlySlicedNetworkBuffer>(buffer)) {
+                delete vectorBatchBuffer;
+            } else if (auto nBuffer = dynamic_cast<datastream::ReadOnlySlicedNetworkBuffer*>(buffer)) {
                 uint8_t *memorySegmentAddress = nBuffer->getMemorySegment()->getAll();
                 int memorySegmentOffset = nBuffer->GetMemorySegmentOffset();
                 uint8_t *readableAddress = memorySegmentAddress + memorySegmentOffset;
@@ -104,10 +104,12 @@ namespace omnistream {
                 std::lock_guard<std::recursive_mutex> lock(queueMutex);
                 auto serializedBatchInfoPtr =
                         std::make_shared<SerializedBatchInfo>(serializedBatchInfo);
-                networkBufferPendingRecycling.insert({reinterpret_cast<long>(readableAddress), nBuffer});
+                std::lock_guard<std::recursive_mutex> maplock(recycleNetworkBufferMutex);
+                networkBufferPendingRecycling.insert({reinterpret_cast<int64_t>(readableAddress), nBuffer});
                 serializedBatchQueue.push(serializedBatchInfoPtr);
             }
 
+            delete bufferAndLog;
             bufferAndLog = this->subpartitionView->getNextBuffer();
         }
     }
@@ -268,6 +270,7 @@ namespace omnistream {
                         << reinterpret_cast<long>(this))
                     count = 0;
                 }
+                INFO_RELEASE("OmniCreditBasedSequenceNumberingViewReader sleep time: " << std::to_string(requestNextBufferWaitingTime))
                 std::this_thread::sleep_for(std::chrono::milliseconds(requestNextBufferWaitingTime));
             }
         } while (!bufferInfo);
@@ -280,7 +283,7 @@ namespace omnistream {
     }
 
     void OmniCreditBasedSequenceNumberingViewReader::SerializeBufferAndBacklog(
-        std::shared_ptr<VectorBatchBuffer> vectorBatchBuffer)
+            VectorBatchBuffer* vectorBatchBuffer)
     {
         if (vectorBatchBuffer->isBuffer()) {
             SerializeVectorBatchBuffer(vectorBatchBuffer);
@@ -290,7 +293,7 @@ namespace omnistream {
     }
 
     void OmniCreditBasedSequenceNumberingViewReader::SerializeEvent(
-        std::shared_ptr<VectorBatchBuffer> vectorBatchBuffer)
+            VectorBatchBuffer* vectorBatchBuffer)
     {
         int evenType = vectorBatchBuffer->EventType();
         std::lock_guard<std::recursive_mutex> lock(queueMutex);
@@ -306,10 +309,9 @@ namespace omnistream {
     }
 
     void OmniCreditBasedSequenceNumberingViewReader::SerializeVectorBatchBuffer(
-        std::shared_ptr<VectorBatchBuffer> vectorBatchBuffer)
+            VectorBatchBuffer* vectorBatchBuffer)
     {
-        std::shared_ptr<ObjectSegment> objectSegment =
-                vectorBatchBuffer->GetObjectSegment();
+        ObjectSegment *objectSegment = vectorBatchBuffer->GetObjectSegment();
         int vectorBatchSize = vectorBatchBuffer->GetSize();
         auto offset = vectorBatchBuffer->GetOffset();
         auto bufferInfo = RequestNettyBuffer(bufferSize);
@@ -366,12 +368,13 @@ namespace omnistream {
         }
     }
 
-    void OmniCreditBasedSequenceNumberingViewReader::RecycleNetworkBuffer(long address)
+    void OmniCreditBasedSequenceNumberingViewReader::RecycleNetworkBuffer(int64_t address)
     {
         std::lock_guard<std::recursive_mutex> lock(recycleNetworkBufferMutex);
         auto it = networkBufferPendingRecycling.find(address);
         if (it != networkBufferPendingRecycling.end()) {
             it->second->RecycleBuffer();
+            delete it->second;
             networkBufferPendingRecycling.erase(it);
         }
     }

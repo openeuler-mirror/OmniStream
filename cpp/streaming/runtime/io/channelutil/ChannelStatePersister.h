@@ -32,7 +32,7 @@ public:
     {
     }
 
-    void StartPersisting(int64_t barrierId, const std::vector<std::shared_ptr<Buffer>>& knownBuffers)
+    void StartPersisting(int64_t barrierId, const std::vector<Buffer*>& knownBuffers)
     {
         std::lock_guard<std::mutex> lock(mutex_);
         LogEvent("StartPersisting", barrierId);
@@ -70,11 +70,11 @@ public:
         }
     }
 
-    void MaybePersist(const std::shared_ptr<Buffer>& buffer)
+    void MaybePersist(Buffer* buffer)
     {
         std::lock_guard<std::mutex> lock(mutex_);
         if (checkpointStatus_ == CheckpointStatus::BARRIER_PENDING && buffer->isBuffer()) {
-            std::vector<std::shared_ptr<Buffer>> buffers;
+            std::vector<Buffer*> buffers;
             buffers.push_back(buffer->RetainBuffer());
             channelStateWriter_->AddInputData(
                 lastSeenBarrier_,
@@ -85,7 +85,7 @@ public:
         }
     }
 
-    std::optional<int64_t> CheckForBarrier(const std::shared_ptr<Buffer>& buffer)
+    std::optional<int64_t> CheckForBarrier(Buffer* buffer)
     {
         std::lock_guard<std::mutex> lock(mutex_);
         auto event = ParseEvent(buffer);
@@ -112,7 +112,7 @@ public:
         return std::nullopt;
     }
 
-    std::shared_ptr<AbstractEvent> ParseEvent(const std::shared_ptr<Buffer>& buffer)
+    std::shared_ptr<AbstractEvent> ParseEvent(Buffer* buffer)
     {
         if (buffer->isBuffer()) {
             return nullptr;

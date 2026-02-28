@@ -18,11 +18,16 @@
 class SplitContext {
 public:
     std::string splitId;
-    std::shared_ptr<KafkaPartitionSplitState> state;
+    KafkaPartitionSplitState* state;
     SourceOutput* sourceOutput = nullptr;
 
-    SplitContext(const std::string& splitId, const std::shared_ptr<KafkaPartitionSplitState>& state)
+    SplitContext(const std::string& splitId, KafkaPartitionSplitState* state)
         : splitId(splitId), state(state) {}
+
+    ~SplitContext()
+    {
+        delete state;
+    }
 
     // 获取或创建 SplitOutput 的方法
     SourceOutput &getOrCreateSplitOutput(ReaderOutput* mainOutput)

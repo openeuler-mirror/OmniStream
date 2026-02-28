@@ -28,7 +28,7 @@ namespace omnistream {
 
         std::shared_ptr<ObjectBufferConsumer> getBufferConsumer();
         int getPartialRecordLength();
-        std::shared_ptr<VectorBatchBuffer> build();
+        VectorBatchBuffer* build();
         bool cleanupPartialRecord();
         std::string toString() const;
 

@@ -61,21 +61,21 @@ namespace omnistream {
             int subtaskIndex,
             long checkpointId,
             InputChannelInfo info,
-            std::vector<std::shared_ptr<Buffer>> buffers);
+            std::vector<Buffer*> buffers);
 
         static std::shared_ptr<ChannelStateWriteRequest> writeOutput(
             JobVertexID jobVertexID,
             int subtaskIndex,
             long checkpointId,
             ResultSubpartitionInfoPOD info,
-            std::vector<std::shared_ptr<Buffer>> buffers);
+            std::vector<Buffer*> buffers);
 
         static std::shared_ptr<ChannelStateWriteRequest> writeOutputFuture(
             JobVertexID jobVertexID,
             int subtaskIndex,
             long checkpointId,
             ResultSubpartitionInfoPOD info,
-            std::shared_ptr<CompletableFutureV2<std::vector<std::shared_ptr<Buffer>>>> dataFuture);
+            std::shared_ptr<CompletableFutureV2<std::vector<Buffer*>>> dataFuture);
 
         static std::shared_ptr<ChannelStateWriteRequest> start(
             JobVertexID jobVertexID,

@@ -34,19 +34,19 @@ KafkaSource::KafkaSource(nlohmann::json& opDescriptionJSON, bool isBatch) : isBa
 }
 
 SourceReader<KafkaPartitionSplit>* KafkaSource::createReader(
-    const std::shared_ptr<SourceReaderContext>& readerContext) const
+    SourceReaderContext* readerContext) const
 {
     auto subTaskId = readerContext->getSubTaskIndex();
-    auto elementsQueue = std::make_shared<FutureCompletingBlockingQueue<RdKafka::Message>>(subTaskId);
+    auto elementsQueue = new FutureCompletingBlockingQueue<RdKafka::Message>(subTaskId);
     deserializationSchema->open();
-    std::function<std::shared_ptr<SplitReader<RdKafka::Message, KafkaPartitionSplit>>()> splitReaderSupplier =
+    std::function<SplitReader<RdKafka::Message, KafkaPartitionSplit>*()> splitReaderSupplier =
         [this, readerContext]() {
-            return std::make_shared<KafkaPartitionSplitReader>(props, readerContext);
+            return new KafkaPartitionSplitReader(props, readerContext);
         };
-    std::shared_ptr<RecordEmitter<RdKafka::Message, KafkaPartitionSplitState>> recordEmitter =
-        std::make_shared<KafkaRecordEmitter>(deserializationSchema);
-    std::shared_ptr<SingleThreadFetcherManager<RdKafka::Message, KafkaPartitionSplit>> kafkaSourceFetcherManager =
-        std::make_shared<KafkaSourceFetcherManager>(elementsQueue, splitReaderSupplier);
+    RecordEmitter<RdKafka::Message, KafkaPartitionSplitState>* recordEmitter =
+        new KafkaRecordEmitter(deserializationSchema);
+    SingleThreadFetcherManager<RdKafka::Message, KafkaPartitionSplit>* kafkaSourceFetcherManager =
+        new KafkaSourceFetcherManager(elementsQueue, splitReaderSupplier);
     return new KafkaSourceReader(elementsQueue, kafkaSourceFetcherManager, recordEmitter, readerContext, isBatch);
 }
 

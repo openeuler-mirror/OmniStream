@@ -31,7 +31,7 @@ namespace omnistream {
         PipelinedSubpartitionView();
         ~PipelinedSubpartitionView() override;
 
-        std::shared_ptr<BufferAndBacklog> getNextBuffer() override;
+        BufferAndBacklog* getNextBuffer() override;
         void notifyDataAvailable() override;
         void notifyPriorityEvent(int priorityBufferNumber) override;
         void ConvertToPriorityEvent(int sequenceNumber) override;

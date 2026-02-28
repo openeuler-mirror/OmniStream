@@ -16,6 +16,9 @@ namespace omnistream {
 CompletableFuture::CompletableFuture()
     : state(FutureState::NOT_STARTED), done(false) {
 }
+    CompletableFuture::CompletableFuture(bool flag)
+            : state(FutureState::COMPLETED), done(flag) {
+    }
 
 CompletableFuture::~CompletableFuture()
 {
@@ -242,6 +245,14 @@ void CompletableFuture::setCompleted()
 {
     std::lock_guard<std::mutex> lock(mtx);
     state = FutureState::COMPLETED;
+}
+
+void CompletableFuture::complete()
+{
+    std::lock_guard<std::mutex> lock(mtx);
+    state = FutureState::COMPLETED;
+    done.store(true);
+    cv.notify_all();
 }
 
 std::string CompletableFuture::toString() const

@@ -47,14 +47,14 @@ namespace omnistream {
     bool OmniLocalChannelReader::checkIfDataAvailable()
     {
         std::unique_lock<std::recursive_mutex> lock(dataAvailableMutex);
-        if (isStopped) {
+        if (isStopped.load()) {
             INFO_RELEASE("OmniLocalChannelReader is stopped, no data available.");
             return false;
         }
         dataAvailableCondition.wait(lock, [this] {
-            bool wait = !dataAvailable && !isStopped;
+            bool wait = !dataAvailable.load() && !isStopped.load();
             if (wait) {
-                INFO_RELEASE(
+                LOG(
                     "************* JNI INVOCATION FOR " << taskNameWithSubtask_ <<
                                                         " checkIfDataAvailable in OmniLocalChannelReader IS WAITING")
             }
@@ -74,28 +74,31 @@ namespace omnistream {
         }
 
         std::lock_guard<std::recursive_mutex> lock(fetchingDataMutex);
-        std::shared_ptr<BufferAndBacklog> bufferAndLog =
-            this->subpartitionView->getNextBuffer();
+        BufferAndBacklog* bufferAndLog = this->subpartitionView->getNextBuffer();
 
         if (bufferAndLog) {
-            std::shared_ptr<Buffer> buffer = bufferAndLog->getBuffer();
+            Buffer* buffer = bufferAndLog->getBuffer();
             if (buffer->GetSize() > 0) {
-                if (auto vBuffer = std::dynamic_pointer_cast<VectorBatchBuffer>(buffer)) {
+                if (auto vBuffer = dynamic_cast<VectorBatchBuffer*>(buffer)) {
                     WrapBufferInfoIntoBinaryRowDataInfo(vBuffer, bufferAndLog);
+                    delete bufferAndLog;
                     return 1;
-                } else if (auto nBuffer = std::dynamic_pointer_cast<::datastream::ReadOnlySlicedNetworkBuffer>(
-                    buffer)) {
-                    WrapBufferInfoIntoMemorySegmentInfo(
-                        nBuffer, bufferAndLog);
+                } else if (auto nBuffer = dynamic_cast<::datastream::ReadOnlySlicedNetworkBuffer*>(buffer)) {
+                    WrapBufferInfoIntoMemorySegmentInfo(nBuffer, bufferAndLog);
+                    delete bufferAndLog;
                     return 1;
                 } else {
                     INFO_RELEASE("Unknown buffer type!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
                     buffer->RecycleBuffer();
+                    delete buffer;
+                    delete bufferAndLog;
                     throw std::logic_error("Unknown buffer type in OmniLocalChannelReader");
                 }
             } else {
                 LOG("buffer size is 0, so i need to return " << std::this_thread::get_id());
                 buffer->RecycleBuffer();
+                delete buffer;
+                delete bufferAndLog;
                 return 0;
             }
         } else {
@@ -104,8 +107,8 @@ namespace omnistream {
     }
 
     void OmniLocalChannelReader::WrapBufferInfoIntoMemorySegmentInfo(
-        std::shared_ptr<::datastream::ReadOnlySlicedNetworkBuffer> nBuffer,
-        std::shared_ptr<BufferAndBacklog> bufferAndLog)
+        ::datastream::ReadOnlySlicedNetworkBuffer* nBuffer,
+        BufferAndBacklog* bufferAndLog)
     {
         uint8_t *memorySegmentAddress = nBuffer->getMemorySegment()->getAll();
         int offset = nBuffer->GetMemorySegmentOffset();
@@ -127,7 +130,7 @@ namespace omnistream {
         memorySegmentInfo->nextDataType = nextDataType;
         memorySegmentInfo->sequenceNumber = sequenceNumber;
         pendingRecyclingBuffer = nBuffer;
-        INFO_RELEASE("memorySegmentAddress is " << memorySegmentInfo->memorySegmentAddress << " offset is "
+        LOG("memorySegmentAddress is " << memorySegmentInfo->memorySegmentAddress << " offset is "
                                                 << memorySegmentInfo->readIndex << " numBytes is " << memorySegmentInfo->length
                                                 << " currentDataType is " << memorySegmentInfo->currentDataType << " backlog is "
                                                 << memorySegmentInfo->backlog << " nextDataType is " << memorySegmentInfo->nextDataType
@@ -137,6 +140,7 @@ namespace omnistream {
     void OmniLocalChannelReader::recycleMemorySegment(long memorySegmentAddress) {
         if (pendingRecyclingBuffer) {
             pendingRecyclingBuffer->RecycleBuffer();
+            delete pendingRecyclingBuffer;
             pendingRecyclingBuffer = nullptr;
         }
     }
@@ -160,7 +164,7 @@ namespace omnistream {
         subpartitionView->resumeConsumption();
     }
 
-    int OmniLocalChannelReader::calculateTotalRows(const std::shared_ptr<ObjectSegment>& objectSegment, int offset, int vbNum) {
+    int OmniLocalChannelReader::calculateTotalRows(ObjectSegment *objectSegment, int offset, int vbNum) {
         int totalRow = 0;
         for (int i = offset; i < vbNum + offset; i++) {
             StreamElement *streamElement = objectSegment->getObject(i);
@@ -208,13 +212,13 @@ namespace omnistream {
 
 
     void OmniLocalChannelReader::WrapBufferInfoIntoBinaryRowDataInfo(
-        const std::shared_ptr<omnistream::VectorBatchBuffer> &vBuffer,
-        const std::shared_ptr<BufferAndBacklog> &bufferAndLog) {
+        omnistream::VectorBatchBuffer* vBuffer,
+        BufferAndBacklog* bufferAndLog) {
 
         int vbNum = vBuffer->GetSize();
         int32_t vectorBatchCol = 0;
         int offset = vBuffer->GetOffset();
-        std::shared_ptr<ObjectSegment> objectSegment = vBuffer->GetObjectSegment();
+        ObjectSegment *objectSegment = vBuffer->GetObjectSegment();
 
         // Calc total row
         int totalRow = calculateTotalRows(objectSegment, offset, vbNum);

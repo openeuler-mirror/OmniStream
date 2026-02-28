@@ -65,10 +65,11 @@ namespace omnistream::datastream {
             if (keySelectorSymbol == nullptr) {
                 throw std::out_of_range("null pointer when load " + keySoName);
             }
-            keySelector = keySelectorSymbol(udfObjJson);
+            keySelector = keySelectorSymbol(udfObjJson).release();
         }
 
         ~StreamGroupedReduceOperator() override {
+            delete keySelector;
         }
 
         void processElement(StreamRecord *record) override
@@ -143,9 +144,14 @@ namespace omnistream::datastream {
         void close() override {
         }
 
+        void ProcessWatermark(Watermark *watermark) override
+        {
+            AbstractStreamOperator<K*>::ProcessWatermark(watermark);
+        }
+
         void processWatermarkStatus(WatermarkStatus *watermarkStatus) override
         {
-            NOT_IMPL_EXCEPTION;
+            AbstractStreamOperator<K*>::processWatermarkStatus(watermarkStatus);
         }
 
         bool canBeStreamOperator() override
@@ -158,7 +164,7 @@ namespace omnistream::datastream {
         ValueState<K*> *values;
         TypeSerializer *serializer;
         UDFLoader udfLoader;
-        KeySelectUnique<K> keySelector;
+        KeySelect<K>* keySelector = nullptr;
         int32_t coreId = -1;
         bool binded = false;
     };

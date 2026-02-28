@@ -24,6 +24,7 @@
  * Notice, MemorySegment always wrap the existing mem
  *
  */
+ // check
 class MemorySegment : public Segment {
 public:
     // wrap the existing mem
@@ -31,7 +32,7 @@ public:
     explicit MemorySegment(int size);
     MemorySegment(uint8_t* offHeapBuffer, int size, void* owner);
     uint8_t* getAll();
-
+    void* getOwner();
     // get byte at the index
     uint8_t get(int index);
     uint8_t* getData();
