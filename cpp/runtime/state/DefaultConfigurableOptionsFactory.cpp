@@ -92,6 +92,8 @@ void DefaultConfigurableOptionsFactory::createColumnOptions(ROCKSDB_NAMESPACE::C
             checksum = ROCKSDB_NAMESPACE::ChecksumType::kxxHash;
         } else if (checksumName == "kxxHash64") {
             checksum = ROCKSDB_NAMESPACE::ChecksumType::kxxHash64;
+        } else if (checksumName == "kXXH3") {
+            checksum = ROCKSDB_NAMESPACE::ChecksumType::kXXH3;
         } else {
         	GErrorLog("Invalid checksum type : " + checksumName + ", use default value : kxxHash64.");
         }
