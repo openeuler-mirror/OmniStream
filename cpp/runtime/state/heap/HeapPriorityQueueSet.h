@@ -70,7 +70,6 @@ template <typename K>
 inline emhash7::HashMap<T, T, std::hash<T>, std::equal_to<T>> *HeapPriorityQueueSet<T, Comparator>::getDedupMapForElement(T element)
 {
     K key = element->getKey();
-    // should be keyHash(key) % totalNumberOfKeyGroups?
     int keyGroup = KeyGroupRangeAssignment<K>::assignToKeyGroup(key, totalNumberOfKeyGroups);
     return getDedupMapForKeyGroup(keyGroup);
 }
