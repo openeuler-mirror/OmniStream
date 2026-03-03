@@ -28,9 +28,12 @@ public:
 
     std::shared_ptr<rocksdb::DBOptions> getDbOptions()
     {
-        auto opt = createBaseCommonDBOptions();
-        opt->create_if_missing = true;
-        return opt;
+        auto options = createBaseCommonDBOptions();
+
+        // set the configurable options
+        DefaultConfigurableOptionsFactory::createDBOptions(*options);
+
+        return options;
     }
 
     std::shared_ptr<rocksdb::ColumnFamilyOptions> getColumnOptions()
@@ -48,6 +51,7 @@ private:
         auto options = std::make_shared<rocksdb::DBOptions>();
         options->use_fsync = false;
         options->stats_dump_period_sec = 0;
+        options->create_if_missing = true;
         return options;
     }
 
