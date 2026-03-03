@@ -113,7 +113,7 @@ template<typename K, typename N, typename UK, typename UV>
 java_util_Iterator* RocksdbMapState<K, N, UK, UV>::iterator()
 {
     if constexpr (std::is_same_v<UK, Object*> && std::is_same_v<UV, Object*>) {
-        return stateTable->iterator();
+        return stateTable->iterator(currentNamespace);
     } else {
         THROW_LOGIC_EXCEPTION("type is not Object in RocksdbMapState::iterator()")
     }
@@ -165,7 +165,7 @@ void RocksdbMapState<K, N, UK, UV>::GetByBatch(std::unordered_map<K,std::unorder
     if (stateTable == nullptr) {
         throw std::runtime_error("RocksdbMapStateTable is not initialized.");
     }
-    stateTable->GetByBatch(dataToGet,result);
+    stateTable->GetByBatch(currentNamespace, dataToGet,result);
 }
 
 template<typename K, typename N, typename UK, typename UV>
@@ -190,20 +190,20 @@ void RocksdbMapState<K, N, UK, UV>::put(const UK &userKey, const UV &userValue)
 template<typename K, typename N, typename UK, typename UV>
 void RocksdbMapState<K, N, UK, UV>::putByBatch(const K &key,const std::unordered_map<UK,UV> &dataToAdd)
 {
-    stateTable->putByBatch(key, dataToAdd);
+    stateTable->putByBatch(currentNamespace, key, dataToAdd);
 }
 
 
 template<typename K, typename N, typename UK, typename UV>
 void RocksdbMapState<K, N, UK, UV>::putByBatch(std::unordered_map<K,std::unordered_map<UK,UV>> &dataToAdd)
 {
-    stateTable->putByBatch(dataToAdd);
+    stateTable->putByBatch(currentNamespace, dataToAdd);
 }
 
 template<typename K, typename N, typename UK, typename UV>
 void RocksdbMapState<K, N, UK, UV>::putByBatch(std::vector<std::shared_ptr<std::tuple<K,UK,std::shared_ptr<std::string>>>> &dataToAdd)
 {
-    stateTable->putByBatch(dataToAdd);
+    stateTable->putByBatch(currentNamespace, dataToAdd);
 }
 
 template<typename K, typename N, typename UK, typename UV>
@@ -214,12 +214,12 @@ void RocksdbMapState<K, N, UK, UV>::remove(const UK &userKey)
 template<typename K, typename N, typename UK, typename UV>
 void RocksdbMapState<K, N, UK, UV>::removeByBatch(std::unordered_map<K,std::unordered_set<UK>> &dataToRemove)
 {
-    stateTable->removeByBatch(dataToRemove);
+    stateTable->removeByBatch(currentNamespace, dataToRemove);
 }
 template<typename K, typename N, typename UK, typename UV>
 bool RocksdbMapState<K, N, UK, UV>::contains(const UK &userKey)
 {
-    return stateTable->contains(userKey);
+    return stateTable->contains(currentNamespace, userKey);
 }
 
 template <typename K, typename N, typename UK, typename UV>
