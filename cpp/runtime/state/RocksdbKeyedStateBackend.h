@@ -190,6 +190,8 @@ public:
             CheckpointStreamFactory* streamFactory,
             CheckpointOptions* options)
     {
+        flushFalconCacheBeforeCheckpoint(); // [FALCON] flush falcon cache before snapshot
+
         auto snapshotstrategyrunner = std::make_unique<SnapshotStrategyRunner<KeyedStateHandle, SnapshotResources>>(
             strategy->getDescription(),
             strategy,
@@ -206,6 +208,8 @@ public:
     }
     std::shared_ptr<SavepointResources> savepoint() override
     {
+        flushFalconCacheBeforeCheckpoint(); // [FALCON] flush falcon cache before savepoint
+
         writeBatchWrapper_->Flush();
         auto snapshotResources = RocksDBFullSnapshotResources::create(
             *kvStateInformation_,
@@ -246,6 +250,9 @@ private:
     // [FALCON] pointer to intervalKvState that enable falcon cache
     emhash7::HashMap<std::string, uintptr_t> falconKvState = {};
 
+    // [FALCON] flush falcon cache before savepoint and snapshot
+    void flushFalconCacheBeforeCheckpoint();
+
     template <typename N, typename UK, typename UV>
     RocksdbMapState<K, N, UK, UV> *createOrUpdateInternalMapState(
             TypeSerializer *namespaceSerializer, StateDescriptor *stateDesc);
@@ -270,6 +277,18 @@ private:
     void registerKvStateInformation(StateDescriptor *stateDesc, TypeSerializer *namespaceSerializer,
                                     TypeSerializer *stateSerializer);
 };
+
+template <typename K>
+void RocksdbKeyedStateBackend<K>::flushFalconCacheBeforeCheckpoint()
+{
+    // if falcon cache is disabled, falconKvState is empty, this function will do nothing. Note that, if a state has
+    // been inserted into falconKvState, it's K and V are all Object* type, and N is VoidNamespace type.
+    for (auto &entry : falconKvState) {
+        auto* state = reinterpret_cast<RocksdbValueState<Object *, VoidNamespace, Object *> *>(entry.second);
+        state->stateCache->flush();
+        state->stateCache->clearAll();
+    }
+}
 
 template <typename K>
 uintptr_t RocksdbKeyedStateBackend<K>::createOrUpdateInternalState(TypeSerializer *namespaceSerializer,
@@ -479,7 +498,7 @@ RocksdbValueState<K, N, V> *RocksdbKeyedStateBackend<K>::createOrUpdateInternalV
     // [FALCON] -------------------------------------------------------------------------------------------
     // enable falcon cache only for dataStream case
     // todo: ttl state is not implemented in omniStream, thus falcon does not check it
-    if constexpr (std::is_same_v<K, Object*> && std::is_same_v<V, Object*>) {
+    if constexpr (std::is_same_v<K, Object*> && std::is_same_v<N, VoidNamespace> && std::is_same_v<V, Object*>) {
        // store the reference of all the created value states, all of them enable falcon cache
        falconKvState[stateDesc->getName()] = reinterpret_cast<uintptr_t>(createdState);
        INFO_RELEASE("[FALCON] <" << stateDesc->getName() << ", ValueState> enable falcon cache.\n")

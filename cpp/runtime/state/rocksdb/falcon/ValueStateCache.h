@@ -68,6 +68,11 @@ public:
     virtual void flush() = 0;
 
     /**
+     * Clear falcon cache and free object memory.
+     */
+    virtual void clearAll() = 0;
+
+    /**
      * When cache size reach upper size limit, flush the coldest state to RocksDB if needed and then remove it from
      * falcon cache. Note that we defensively check whether cache size exceeds upper size limit a lot, if so, flush and
      * clear falcon cache.

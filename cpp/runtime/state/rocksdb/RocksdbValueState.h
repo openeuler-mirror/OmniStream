@@ -149,11 +149,7 @@ public:
 
     ~ValueStateLRUCache()
     {
-        for (auto &[falconKey, falconValue] : cache) {
-            delete falconKey;
-            delete falconValue;
-        }
-        cache.clear();
+        clearAll();
     }
 
     V get(const K& key, const N& ns) override
@@ -249,11 +245,7 @@ public:
     void removeEldestState() override
     {
         flush();
-        for (auto &[falconKey, falconValue] : cache) {
-            delete falconKey;
-            delete falconValue;
-        }
-        cache.clear();
+        clearAll();
     }
 
     void flush() override
@@ -292,6 +284,15 @@ public:
         }
     }
 
+    void clearAll() override
+    {
+        for (auto &[falconKey, falconValue] : cache) {
+            delete falconKey;
+            delete falconValue;
+        }
+        cache.clear();
+    }
+
     [[nodiscard]] int getSizeLimit() const override
     {
         return cacheSizeLimit;
@@ -302,11 +303,7 @@ public:
         cacheSizeLimit = newSizeLimit;
         if (cache.size() > cacheSizeLimit) {
             flush();
-            for (auto &[falconKey, falconValue] : cache) {
-                delete falconKey;
-                delete falconValue;
-            }
-            cache.clear();
+            clearAll();
         }
     }
 
