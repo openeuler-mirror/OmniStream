@@ -44,6 +44,10 @@ public:
     static std::unique_ptr<ConfigOption> BLOOM_FILTER_BLOCK_BASED_MODE;
     static std::unique_ptr<ConfigOption> RESTORE_OVERLAP_FRACTION_THRESHOLD;
     static std::unique_ptr<ConfigOption> CHECKSUM_TYPE;
+    static std::unique_ptr<ConfigOption> USE_MANAGED_MEMORY;
+    static std::unique_ptr<ConfigOption> HIGH_PRIORITY_POOL_RATIO;
+    static std::unique_ptr<ConfigOption> WRITE_BUFFER_RATIO;
+    static std::unique_ptr<ConfigOption> USE_PARTITIONED_INDEX_FILTERS;
 };
 
 
