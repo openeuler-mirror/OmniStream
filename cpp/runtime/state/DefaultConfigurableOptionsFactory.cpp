@@ -79,6 +79,28 @@ void DefaultConfigurableOptionsFactory::createColumnOptions(ROCKSDB_NAMESPACE::C
         blockCacheSize->putRefCount();
     }
 
+    auto checksumType = reinterpret_cast<String*>(Configuration::TM_CONFIG
+            ->getValue(RocksDBConfigurableOptions::CHECKSUM_TYPE));
+    if (checksumType != nullptr) {
+        ROCKSDB_NAMESPACE::ChecksumType checksum = ROCKSDB_NAMESPACE::ChecksumType::kxxHash64;
+        std::string checksumName = checksumType->toString();
+        if (checksumName == "kNoChecksum") {
+            checksum = ROCKSDB_NAMESPACE::ChecksumType::kNoChecksum;
+        } else if (checksumName == "kCRC32c") {
+            checksum = ROCKSDB_NAMESPACE::ChecksumType::kCRC32c;
+        } else if (checksumName == "kxxHash") {
+            checksum = ROCKSDB_NAMESPACE::ChecksumType::kxxHash;
+        } else if (checksumName == "kxxHash64") {
+            checksum = ROCKSDB_NAMESPACE::ChecksumType::kxxHash64;
+        } else if (checksumName == "kXXH3") {
+            checksum = ROCKSDB_NAMESPACE::ChecksumType::kXXH3;
+        } else {
+        	GErrorLog("Invalid checksum type : " + checksumName + ", use default value : kxxHash64.");
+        }
+        blockBasedTableOptions.checksum = checksum;
+        checksumType->putRefCount();
+    }
+
     auto useBloomFilter = reinterpret_cast<Boolean*>(Configuration::TM_CONFIG
             ->getValue(RocksDBConfigurableOptions::USE_BLOOM_FILTER));
     if (useBloomFilter != nullptr && useBloomFilter->value) {
@@ -98,6 +120,11 @@ void DefaultConfigurableOptionsFactory::createColumnOptions(ROCKSDB_NAMESPACE::C
         useBloomFilter->putRefCount();
         bitsPerKey->putRefCount();
         blockBasedMode->putRefCount();
+
+        // [FALCON] enable filter parameters
+        blockBasedTableOptions.partition_filters = true;
+        blockBasedTableOptions.index_type = ROCKSDB_NAMESPACE::BlockBasedTableOptions::kTwoLevelIndexSearch;
+        INFO_RELEASE("[FALCON] enable partition filter.")
     }
     currentOptions.table_factory.reset(NewBlockBasedTableFactory(blockBasedTableOptions));
 }

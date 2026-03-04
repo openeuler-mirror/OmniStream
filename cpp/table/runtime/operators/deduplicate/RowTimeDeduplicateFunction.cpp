@@ -199,11 +199,12 @@ void RowTimeDeduplicateFunction::open(const Configuration &config)
 
     this->recordStateVB =
             static_cast<StreamingRuntimeContext<RowData *> *>(getRuntimeContext())->getState<int64_t>(recordStateDesc);
-    static_cast<HeapValueState<RowData *, VoidNamespace, int64_t> *>(this->recordStateVB)->setDefaultValue(-1);
     if (dynamic_cast<RocksdbValueState<RowData *, VoidNamespace, int64_t> *>(recordStateVB)) {
+        static_cast<RocksdbValueState<RowData *, VoidNamespace, int64_t> *>(this->recordStateVB)->setDefaultValue(-1);
         INFO_RELEASE("RowTimeDeduplicateFunction backend is rocksdb")
         backendType = 1;
     } else {
+        static_cast<HeapValueState<RowData *, VoidNamespace, int64_t> *>(this->recordStateVB)->setDefaultValue(-1);
         INFO_RELEASE("RowTimeDeduplicateFunction backend is mem")
         backendType = 0;
     }

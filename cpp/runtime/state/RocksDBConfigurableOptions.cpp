@@ -74,6 +74,9 @@ std::unique_ptr<ConfigOption> RocksDBConfigurableOptions::BLOOM_FILTER_BLOCK_BAS
 std::unique_ptr<ConfigOption> RocksDBConfigurableOptions::RESTORE_OVERLAP_FRACTION_THRESHOLD =
         std::make_unique<ConfigOption>(new String("state.backend.rocksdb.restore-overlap-fraction-threshold"),
                          new Double(0.0));
+std::unique_ptr<ConfigOption> RocksDBConfigurableOptions::CHECKSUM_TYPE =
+        std::make_unique<ConfigOption>(new String("state.backend.rocksdb.checksum-type"),
+                         new String("kxxHash64"));
 std::unique_ptr<ConfigOption> RocksDBConfigurableOptions::USE_MANAGED_MEMORY =
         std::make_unique<ConfigOption>(new String("state.backend.rocksdb.memory.managed"),
                          new Boolean(true));
