@@ -60,6 +60,5 @@ Class* className::clazz_ = []() { \
         }, \
         [](Object* obj, Object* value) { \
             static_cast<cls*>(obj)->fieldName = static_cast<WrapperType*>(value)->value; \
-            static_cast<WrapperType*>(value)->putRefCount();                             \
         });
 #endif // OMNISTREAM_REFLECTMACROS_H
