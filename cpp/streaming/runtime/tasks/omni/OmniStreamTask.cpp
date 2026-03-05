@@ -617,8 +617,9 @@ void OmniStreamTask::processInput(MailboxDefaultAction::Controller *controller)
 
     std::shared_ptr<CompletableFutureV2<void>> OmniStreamTask::notifyCheckpointCompleteAsync(long checkpointId)
     {
-        std::string description = "checkpoint " + checkpointId;
-        description = description +  " complete";
+        std::string description = "checkpoint ";
+        description += std::to_string(checkpointId);
+        description += " complete";
             return notifyCheckpointOperation(
                 [this, checkpointId]() {
                     notifyCheckpointComplete(checkpointId);
@@ -628,8 +629,9 @@ void OmniStreamTask::processInput(MailboxDefaultAction::Controller *controller)
 
     std::shared_ptr<CompletableFutureV2<void>> OmniStreamTask::notifyCheckpointSubsumedAsync(long checkpointId)
     {
-        std::string description = "checkpoint " + checkpointId;
-        description = description +  " subsumed";
+        std::string description = "checkpoint ";
+        description += std::to_string(checkpointId);
+        description += " subsumed";
         return notifyCheckpointOperation(
             [this, checkpointId]() {
                 std::shared_ptr<runtime::SubtaskCheckpointCoordinatorImpl> subtaskCheckpointCoordinatorImpl =
@@ -649,8 +651,9 @@ void OmniStreamTask::processInput(MailboxDefaultAction::Controller *controller)
     // TTODO: TO BE COMPELETED
     std::shared_ptr<CompletableFutureV2<void>> OmniStreamTask::notifyCheckpointAbortAsync(long checkpointId, long latestCompletedCheckpointId)
     {
-        std::string description = "checkpoint " + checkpointId;
-        description = description +  " aborted";
+        std::string description = "checkpoint ";
+        description += std::to_string(checkpointId);
+        description += " aborted";
 
         return notifyCheckpointOperation([=]() {
             if (latestCompletedCheckpointId > 0) {
