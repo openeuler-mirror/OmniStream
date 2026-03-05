@@ -801,14 +801,12 @@ void SingleInputGate::queueChannel(
             isOutdated(prioritySequenceNumber.value(), lastPrioritySequenceNumber[channel->getChannelIndex()])) {
             // priority event at the given offset already polled (notification is not atomic
             // in respect to buffer enqueuing), so just ignore the notification
-            lock.unlock();
             INFO_RELEASE("notify data buffer sleep1")
             // std::this_thread::sleep_for(std::chrono::microseconds(sleepTime)); // sleep使inputChannelsWithDataMutex读写分配均匀
             return;
         }
 
         if (!queueChannelUnsafe(channel, priority)) {
-            lock.unlock();
             // INFO_RELEASE("data exist")
 //            std::this_thread::sleep_for(std::chrono::microseconds(sleepTime)); // sleep使inputChannelsWithDataMutex读写分配均匀
             return;
