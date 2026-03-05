@@ -611,49 +611,64 @@ std::vector<StateMetaInfoSnapshot> OmniTaskBridgeImpl2::readMetaData(const std::
     }
 }
 
-
-void convertEntryResult(const std::string& cppResult, int &currentKvStateId, std::vector<KeyGroupEntry> &entries)
+std::vector<int8_t> jbyteArrayToVector(JNIEnv* env, jbyteArray byteArray)
 {
-    entries.clear();
-    nlohmann::json parsed = nlohmann::json::parse(cppResult);
-    currentKvStateId = parsed["currentKvStateId"].get<int>();
-    for (const auto& oneEntry : parsed["entries"]) {
-        auto key = oneEntry["key"].get<std::vector<int8_t>>();
-        auto value = oneEntry["value"].get<std::vector<int8_t>>();
-        entries.push_back(KeyGroupEntry(oneEntry["kvStateId"].get<int>(), key, value));
+    std::vector<int8_t> result;
+    if (!byteArray) {
+        return result;
     }
+
+    jsize length = env->GetArrayLength(byteArray);
+    if (length < 0) {
+        return result;
+    }
+
+    result.reserve(length);
+    jbyte* data = static_cast<jbyte*>(env->GetPrimitiveArrayCritical(byteArray, nullptr));
+    if (data != nullptr) {
+        result.assign(data, data + length);
+        env->ReleasePrimitiveArrayCritical(byteArray, data, JNI_ABORT);
+    }
+    return result;
 }
 
 void OmniTaskBridgeImpl2::getKeyGroupEntries(jobject inputStream,
     int &currentKvStateId, bool isUsingKeyGroupCompression, std::vector<KeyGroupEntry> &entries)
 {
+    entries.clear();
     JNIEnv* env;
     jint res = g_OmniStreamJVM->AttachCurrentThread(reinterpret_cast<void**>(&env), nullptr);
     if (res != JNI_OK) {
-        INFO_RELEASE("Error: getKeyGroupEntries could not AttachCurrentThread for JNI call");
+        GErrorLog("Error: getKeyGroupEntries could not AttachCurrentThread for JNI call");
         return;
     }
     if (m_globalOmniTaskRef != nullptr) {
         jclass omniTaskWrapperClass = env->GetObjectClass(m_globalOmniTaskRef);
         if (omniTaskWrapperClass == nullptr) {
-            INFO_RELEASE("Error: getKeyGroupEntries could not GetObjectClass for JNI call");
+            GErrorLog("Error: getKeyGroupEntries could not GetObjectClass for JNI call");
             g_OmniStreamJVM->DetachCurrentThread();
             return;
         }
+
+        jclass entryWrapperClass = env->FindClass("com/huawei/omniruntime/flink/runtime/restore/KeyGroupEntryWrapper");
+        jclass entryClass = env->FindClass("com/huawei/omniruntime/flink/runtime/restore/KeyGroupEntry");
+
+        jfieldID currentKvStateIdField = env->GetFieldID(entryWrapperClass, "currentKvStateId", "I");
+        jfieldID entriesField = env->GetFieldID(entryWrapperClass, "entries", "[Lcom/huawei/omniruntime/flink/runtime/restore/KeyGroupEntry;");
+        jfieldID entryKvStateIdField = env->GetFieldID(entryWrapperClass, "kvStateId", "I");
+        jfieldID entryCountField = env->GetFieldID(entryWrapperClass, "count", "I");
+
+        jfieldID entryKeyField = env->GetFieldID(entryClass, "key", "[B");
+        jfieldID entryValueField = env->GetFieldID(entryClass, "value", "[B");
+
         jmethodID mid = env->GetMethodID(omniTaskWrapperClass, "getKeyGroupEntries",
-            "(Lorg/apache/flink/core/fs/FSDataInputStream;IZ)Ljava/lang/String;");
-        if (mid == nullptr) {
-            INFO_RELEASE("Error: getKeyGroupEntries could not GetMethodID for JNI call");
-            env->DeleteLocalRef(omniTaskWrapperClass); // Clean up local ref
-            g_OmniStreamJVM->DetachCurrentThread();
-            return;
-        }
+            "(Lorg/apache/flink/core/fs/FSDataInputStream;IZ)Lcom/huawei/omniruntime/flink/runtime/restore/KeyGroupEntryWrapper;");
 
         jint jCurrentKvStateId = static_cast<jint>(currentKvStateId);
         jboolean jIsUsingKeyGroupCompression = static_cast<jboolean>(isUsingKeyGroupCompression);
 
         // Invoke the Java method
-        jstring result = (jstring) env->CallObjectMethod(m_globalOmniTaskRef,
+        jobject result = env->CallObjectMethod(m_globalOmniTaskRef,
             mid, inputStream, jCurrentKvStateId, jIsUsingKeyGroupCompression);
 
         if (env->ExceptionCheck()) {
@@ -663,17 +678,31 @@ void OmniTaskBridgeImpl2::getKeyGroupEntries(jobject inputStream,
         }
 
         if (result == nullptr) {
-            INFO_RELEASE("Error: getKeyGroupEntries get null result for JNI call");
+            GErrorLog("Error: getKeyGroupEntries get null result for JNI call");
             return;
         }
 
-        // Convert jstring to std::string
-        const char* strChars = env->GetStringUTFChars(result, nullptr);
-        std::string cppResult(strChars);
-        env->ReleaseStringUTFChars(result, strChars);
+        currentKvStateId = env->GetIntField(result, currentKvStateIdField);
+        int kvStateId = env->GetIntField(result, entryKvStateIdField);
+        int count = env->GetIntField(result, entryCountField);
 
-        convertEntryResult(cppResult, currentKvStateId, entries);
+        jobjectArray entriesArray = static_cast<jobjectArray>(env->GetObjectField(result, entriesField));
 
+        for (int i = 0; i < count; i++) {
+            jobject entry = env->GetObjectArrayElement(entriesArray, i);
+            jbyteArray keyArray = static_cast<jbyteArray>(env->GetObjectField(entry, entryKeyField));
+            jbyteArray valueArray = static_cast<jbyteArray>(env->GetObjectField(entry, entryValueField));
+
+            entries.emplace_back(KeyGroupEntry(kvStateId, std::move(jbyteArrayToVector(env, keyArray)),
+                std::move(jbyteArrayToVector(env, valueArray))));
+            
+            if (entry) env->DeleteLocalRef(entry);
+            if (keyArray) env->DeleteLocalRef(keyArray);
+            if (valueArray) env->DeleteLocalRef(valueArray);
+        }
+        env->DeleteLocalRef(entriesArray);
+        env->DeleteLocalRef(entryWrapperClass);
+        env->DeleteLocalRef(entryClass);
         env->DeleteLocalRef(result);
         env->DeleteLocalRef(omniTaskWrapperClass);
     } else {

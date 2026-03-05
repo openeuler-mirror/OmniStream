@@ -17,6 +17,7 @@
 #include <vector>
 #include <unordered_map>
 #include <filesystem>
+#include <chrono>
 
 #include "RocksDBRestoreOperation.h"
 #include "FullSnapshotRestoreOperation.h"
@@ -133,6 +134,7 @@ template<typename K>
 std::shared_ptr<RocksDBRestoreResult> RocksDBFullRestoreOperation<K>::restore()
 {
     try {
+        auto start = std::chrono::high_resolution_clock::now();
         // Open or create RocksDB instance
         rocksDbHandle_->openDB();
 
@@ -147,6 +149,9 @@ std::shared_ptr<RocksDBRestoreResult> RocksDBFullRestoreOperation<K>::restore()
 
         UUID empty_uid{};
         std::map<long, std::vector<IncrementalKeyedStateHandle::HandleAndLocalPath>> empty_map{};
+        auto end = std::chrono::high_resolution_clock::now();
+        INFO_RELEASE("Restore native task took "
+            << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms.");
         return std::make_shared<RocksDBRestoreResult>(
                 rocksDbHandle_->getDb(),
                 rocksDbHandle_->getDefaultColumnFamilyHandle(),
