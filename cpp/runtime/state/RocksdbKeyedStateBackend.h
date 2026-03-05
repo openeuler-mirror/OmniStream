@@ -496,19 +496,16 @@ RocksdbValueState<K, N, V> *RocksdbKeyedStateBackend<K>::createOrUpdateInternalV
     createdState->createTable(db, stateDesc->getName(), kvStateInformation_);
 
     // [FALCON] -------------------------------------------------------------------------------------------
-    // enable falcon cache only for dataStream case
     // todo: ttl state is not implemented in omniStream, thus falcon does not check it
-    if constexpr (std::is_same_v<K, Object*> && std::is_same_v<N, VoidNamespace> && std::is_same_v<V, Object*>) {
-       // store the reference of all the created value states, all of them enable falcon cache
-       falconKvState[stateDesc->getName()] = reinterpret_cast<uintptr_t>(createdState);
-       INFO_RELEASE("[FALCON] <" << stateDesc->getName() << ", ValueState> enable falcon cache.\n")
-       // after this state is created, update cache size limit for all the created states who use falcon cache.
-       int newCacheSize = 3000 / falconKvState.size();
-       INFO_RELEASE("[FALCON] update falcon cache size to " << newCacheSize << ".\n")
-       for (auto &entry : falconKvState) {
-           auto* state = reinterpret_cast<RocksdbValueState<K, N, V> *>(entry.second);
-           state->stateCache->updateSizeLimit(newCacheSize);
-       }
+    // store the reference of all the created value states, all of them enable falcon cache
+    falconKvState[stateDesc->getName()] = reinterpret_cast<uintptr_t>(createdState);
+    INFO_RELEASE("[FALCON] <" << stateDesc->getName() << ", ValueState> enable falcon cache.\n")
+    // after this state is created, update cache size limit for all the created states who use falcon cache.
+    int newCacheSize = 3000 / falconKvState.size();
+    INFO_RELEASE("[FALCON] update falcon cache size to " << newCacheSize << ".\n")
+    for (auto &entry : falconKvState) {
+        auto* state = reinterpret_cast<RocksdbValueState<K, N, V> *>(entry.second);
+        state->stateCache->updateSizeLimit(newCacheSize);
     }
     // [FALCON] -------------------------------------------------------------------------------------------
 
