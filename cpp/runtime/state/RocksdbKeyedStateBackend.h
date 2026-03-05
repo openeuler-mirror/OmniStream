@@ -281,8 +281,10 @@ private:
 template <typename K>
 void RocksdbKeyedStateBackend<K>::flushFalconCacheBeforeCheckpoint()
 {
-    // if falcon cache is disabled, falconKvState is empty, this function will do nothing. Note that, if a state has
-    // been inserted into falconKvState, it's K and V are all Object* type, and N is VoidNamespace type.
+    // If falcon cache is disabled, falconKvState is empty, this function will do nothing.
+    // Note that, in current version, falcon cache is always enabled. But for sql cases, omniStream will revert to raw
+    // Flink. Thus, this function will always be called in dataStream case, which means K and V are all Object* type,
+    // and N is VoidNamespace type.
     for (auto &entry : falconKvState) {
         auto* state = reinterpret_cast<RocksdbValueState<Object *, VoidNamespace, Object *> *>(entry.second);
         state->stateCache->flush();

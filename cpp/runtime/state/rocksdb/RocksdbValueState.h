@@ -155,7 +155,7 @@ public:
     V get(const K& key, const N& ns) override
     {
         // case1: sql case
-        if constexpr (std::is_same_v<K, Object*> && std::is_same_v<N, VoidNamespace> && std::is_same_v<V, Object*>) {
+        if constexpr (!(std::is_same_v<K, Object*> && std::is_same_v<N, VoidNamespace> && std::is_same_v<V, Object*>)) {
             return valueState->getValue();
         }
         // case2: dataStream case
@@ -215,7 +215,7 @@ public:
     void put(const K& key, const N& ns, const V& value) override
     {
         // case1: sql case
-        if constexpr (std::is_same_v<K, Object*> && std::is_same_v<N, VoidNamespace> && std::is_same_v<V, Object*>) {
+        if constexpr (!(std::is_same_v<K, Object*> && std::is_same_v<N, VoidNamespace> && std::is_same_v<V, Object*>)) {
             valueState->writeValue(value);
             return;
         }
@@ -242,7 +242,7 @@ public:
     void remove(const K& key, const N& ns) override
     {
         // case1: sql case
-        if constexpr (std::is_same_v<K, Object*> && std::is_same_v<N, VoidNamespace> && std::is_same_v<V, Object*>) {
+        if constexpr (!(std::is_same_v<K, Object*> && std::is_same_v<N, VoidNamespace> && std::is_same_v<V, Object*>)) {
             valueState->deleteValue();
             return;
         }
