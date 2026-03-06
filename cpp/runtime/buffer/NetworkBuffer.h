@@ -68,7 +68,7 @@ namespace datastream {
             }
 
             if (IsRecycled()) {
-                throw std::runtime_error("Trying to recycle a NetworkBuffer that has already been recycled");
+                INFO_RELEASE("Trying to recycle a NetworkBuffer that has already been recycled");
             } else {
                 LOG_PART(
                         "The buffer " << this << " refCount is decremented from " << refCount.load() << " to "
