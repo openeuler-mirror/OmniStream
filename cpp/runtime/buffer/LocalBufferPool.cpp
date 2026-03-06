@@ -192,23 +192,20 @@ namespace omnistream {
             throw std::runtime_error("local buffer pool is already in the state of requesting memory segment from global when it is available.");
         }
         requestingNotificationOfGlobalPoolAvailable = true;
-        std::shared_ptr<Runnable> runnable = nullptr;
-        {
-            class InnerRunnable : public Runnable {
-            public:
-                InnerRunnable(LocalBufferPool* self) {
-                    this->self = self;
-                }
-                ~InnerRunnable() = default;
-                void run() override {
-                    self->onGlobalPoolAvailable();
-                }
-            private:
-                LocalBufferPool* self;
-            };
-            runnable = std::make_shared<InnerRunnable>(this);
-        }
-        networkBufferPool->GetAvailableFuture()->thenRun(runnable.get());
+        class InnerRunnable : public Runnable {
+        public:
+            InnerRunnable(LocalBufferPool* self) {
+                this->self = self;
+            }
+            ~InnerRunnable() = default;
+            void run() override {
+                self->onGlobalPoolAvailable();
+            }
+        private:
+            LocalBufferPool* self;
+        };
+        auto runnable = std::make_shared<InnerRunnable>(this);
+        networkBufferPool->GetAvailableFuture()->thenRun(runnable);
     }
 
 
