@@ -38,9 +38,8 @@ namespace omnistream {
     {
         if (futuresToCombine[idx] == nullptr || futuresToCombine[idx]->isDone()) {
             futuresToCombine[idx] = availabilityFuture;
-            auto inner = new InnerRunnable(this);
+            auto inner = std::make_shared<InnerRunnable>(this);
             availabilityFuture->thenRun(inner);
-            delete inner;
         }
     }
 
