@@ -40,7 +40,7 @@
 #include "../../../core/utils/MathUtils.h"
 #include "state/RocksDbKvStateInfo.h"
 
-//const int FALCON_PREFIX_PARAM = 13;
+const int FALCON_HASH_PARAM = 13;
 
 /* S is the value used in the State,
  * like RowData* for HeapValueState,
@@ -75,7 +75,7 @@ public:
 
         // [FALCON] -----------------------------------------------------------------------------------------------
         familyOptions.memtable_factory.reset(ROCKSDB_NAMESPACE::NewHashLinkListRepFactory());
-        familyOptions.prefix_extractor.reset(ROCKSDB_NAMESPACE::NewCappedPrefixTransform(FALCON_PREFIX_PARAM));
+        familyOptions.prefix_extractor.reset(ROCKSDB_NAMESPACE::NewCappedPrefixTransform(FALCON_HASH_PARAM));
         INFO_RELEASE("[FALCON] enable hash memTable for valueState.")
         // [FALCON] -----------------------------------------------------------------------------------------------
 

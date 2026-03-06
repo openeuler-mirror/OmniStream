@@ -45,7 +45,7 @@
 #include "common.h"
 #include <sstream>
 
-const int FALCON_PREFIX_PARAM = 13;
+const int FALCON_RANGE_FILTER_PARAM = 13;
 
 /* S is the value used in the State,
  * like RowData* for HeapValueState,
@@ -75,7 +75,7 @@ public:
 
         // [FALCON]-----------------------------------------------------------------------------------------------
         // familyOptions.memtable_factory.reset(ROCKSDB_NAMESPACE::NewHashLinkListRepFactory());
-        familyOptions.prefix_extractor.reset(ROCKSDB_NAMESPACE::NewCappedPrefixTransform(FALCON_PREFIX_PARAM));
+        familyOptions.prefix_extractor.reset(ROCKSDB_NAMESPACE::NewCappedPrefixTransform(FALCON_RANGE_FILTER_PARAM));
         // familyOptions.compression = ROCKSDB_NAMESPACE::CompressionType::kZlibCompression;
         INFO_RELEASE("[FALCON] enable prefix for mapState.")
         // [FALCON]-----------------------------------------------------------------------------------------------
