@@ -38,7 +38,7 @@ PipelinedSubpartition::~PipelinedSubpartition()
 
 void PipelinedSubpartition::setChannelStateWriter(std::shared_ptr<ChannelStateWriter> channelStateWriter)
 {
-    this->channelStateWriter = channelStateWriter;
+    this->channelStateWriter_ = channelStateWriter;
 }
 
 int PipelinedSubpartition::add(std::shared_ptr<BufferConsumer> bufferConsumer, int partialRecordLength)
@@ -613,7 +613,6 @@ std::shared_ptr<CompletableFutureV2<std::vector<Buffer*>>> PipelinedSubpartition
 
 void PipelinedSubpartition::CompleteChannelStateFuture(std::vector<Buffer*> &channelResult, std::exception_ptr e)
 {
-    std::lock_guard<std::mutex> lock(buffersMutex);
     if (e != nullptr){
         channelStateFuture_->CompleteExceptionally(e);
     } else {

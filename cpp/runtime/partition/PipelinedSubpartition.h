@@ -91,7 +91,6 @@ private:
     volatile bool isReleased_;
     long totalNumberOfBuffers;
     long totalNumberOfBytes;
-    std::shared_ptr<ChannelStateWriter> channelStateWriter;
     int bufferSize_ = INT_MAX;
     std::shared_ptr<CompletableFuture> channelStateFuture;
     long channelStateCheckpointId;
