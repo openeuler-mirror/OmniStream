@@ -92,7 +92,7 @@ BufferAndBacklog* PipelinedSubpartition::pollBuffer()
     std::lock_guard<std::mutex> lock(buffersMutex);
     LOG(">>>>>>buffers.peek() is " << buffers.peek() << " buffers.size()" << buffers.size() << " buffers address" << &buffers);
     // When blocked by an aligned checkpoint barrier, priority events (e.g., timeout->UC) must still overtake.
-    if (isBlocked) {
+    if (isBlocked && buffers.getNumPriorityElements() == 0) {
         return nullptr;
     }
 
@@ -108,20 +108,14 @@ BufferAndBacklog* PipelinedSubpartition::pollBuffer()
     }
 
     // LOG_TRACE("PipelinedSubpartition::pollBuffer() before while  isEmppty " << buffers.isEmpty())
-    bool isbarrier = false;
     while (!buffers.isEmpty()) {
         LOG_TRACE("PipelinedSubpartition::pollBuffer()  Inside the while "<< parent->getOwningTaskName() << " buffer size " << buffers.size())
         auto bufferConsumerWithPartialRecordLength = buffers.peek();
         std::shared_ptr<BufferConsumer> bufferConsumer =
             bufferConsumerWithPartialRecordLength->getBufferConsumer();
         if (bufferConsumer->getDataType() == ObjectBufferDataType::TIMEOUTABLE_ALIGNED_CHECKPOINT_BARRIER) {
-            isbarrier = true;
             // todo: finsh checkpoint
             // completeTimeoutableCheckpointBarrier(bufferConsumer);
-        }
-
-        if (bufferConsumer->getDataType() == ObjectBufferDataType::ALIGNED_CHECKPOINT_BARRIER) {
-            isbarrier = true;
         }
         LOG("PipelinedSubpartition::pollBuffer(): buildSliceBuffer"<< parent->getOwningTaskName())
         buffer = buildSliceBuffer(bufferConsumerWithPartialRecordLength);
@@ -164,7 +158,7 @@ BufferAndBacklog* PipelinedSubpartition::pollBuffer()
         return nullptr;
     }
 
-    if (isbarrier || buffer->GetDataType().isBlockingUpstream()) {
+    if (buffer->GetDataType().isBlockingUpstream()) {
         isBlocked = true;
     }
 
