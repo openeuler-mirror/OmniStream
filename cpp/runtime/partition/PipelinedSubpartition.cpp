@@ -596,7 +596,6 @@ std::shared_ptr<CheckpointBarrier> PipelinedSubpartition::ParseAndCheckTimeoutab
 
 std::shared_ptr<CompletableFutureV2<std::vector<Buffer*>>> PipelinedSubpartition::CreateChannelStateFuture(long checkpointId)
 {
-    std::lock_guard<std::mutex> lock(buffersMutex);
     if (channelStateFuture_ != nullptr) {
         std::vector<Buffer*> channelResult;
         std::string errorMessage = "Has uncompleted channelStateFuture of checkpointId: " +
