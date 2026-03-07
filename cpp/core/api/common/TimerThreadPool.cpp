@@ -101,9 +101,28 @@ namespace omnistream {
         }
     }
 
-    void TimerThreadPool::cancel(TimerThreadPool::TaskId id) {
-        std::lock_guard<std::mutex> lock(timer_mutex_);
-        cancelled_ids_.insert(id);
+    void TimerThreadPool::cancel(TaskId id) {
+        // 1. 从令牌 map 中移除并获取令牌的 shared_ptr
+        std::shared_ptr<Token> token_to_invalidate;
+        {
+            std::lock_guard<std::mutex> lock(tokens_mutex_);
+            auto it = task_tokens_.find(id);
+            if (it != task_tokens_.end()) {
+                token_to_invalidate = it->second;
+                task_tokens_.erase(it);
+            }
+        }
+
+        // 2. 如果找到了令牌，就将其有效性设为 false
+        if (token_to_invalidate) {
+            token_to_invalidate->is_valid.store(false, std::memory_order_release);
+        }
+
+        // 3. 同时，也要将 ID 加入旧的取消集合，以便 scheduler_ 线程清理队列
+        {
+            std::lock_guard<std::mutex> lock(timer_mutex_);
+            cancelled_ids_.insert(id);
+        }
     }
 
     void TimerThreadPool::cleanCancelledTasks() {

@@ -59,11 +59,15 @@ namespace omnistream {
         void cancel(TaskId id);
 
     private:
+        struct Token {
+            std::atomic<bool> is_valid{true}; // 原子布尔值，表示任务是否有效
+        };
         struct TimerTask {
             std::chrono::steady_clock::time_point execute_time;
             std::function<void()> func;
             TaskId id;
             unsigned int period_ms; // 0 表示单次，>0 表示循环周期
+            std::shared_ptr<Token> token;
 
             bool operator<(const TimerTask& other) const {
                 return execute_time > other.execute_time; // 最小堆
@@ -74,12 +78,29 @@ namespace omnistream {
         template<class F, class... Args>
         TaskId submitTask(unsigned int delay_ms, unsigned int period_ms, F&& f, Args&&... args) {
             TaskId id = next_task_id_++;
-            auto task_func = std::bind(std::forward<F>(f), std::forward<Args>(args)...);
+
+            // 1. 创建一个生存令牌 (包含原子布尔)
+            auto token = std::make_shared<Token>();
+
+            // 2. 将令牌与 TaskId 关联起来
+            {
+                std::lock_guard<std::mutex> lock(tokens_mutex_);
+                task_tokens_[id] = token;
+            }
+
+            // 3. 创建一个包装后的任务函数，它在执行原函数前先检查令牌
+            auto task_func = [token, f = std::bind(std::forward<F>(f), std::forward<Args>(args)...)] () {
+                // 原子读取，无需锁，安全
+                if (token->is_valid.load(std::memory_order_acquire)) {
+                    f(); // 令牌有效，安全执行原函数
+                }
+            };
+
             auto execute_time = std::chrono::steady_clock::now() + std::chrono::milliseconds(delay_ms);
 
             {
                 std::lock_guard<std::mutex> lock(timer_mutex_);
-                timers_.push({execute_time, task_func, id, period_ms});
+                timers_.push({execute_time, task_func, id, period_ms, token});
             }
             timer_cv_.notify_one();
             return id;
@@ -104,6 +125,9 @@ namespace omnistream {
         std::atomic<bool> stop_;
         std::atomic<TaskId> next_task_id_;
         std::unordered_set<TaskId> cancelled_ids_;
+
+        std::unordered_map<TaskId, std::shared_ptr<Token>> task_tokens_;
+        mutable std::mutex tokens_mutex_;
     };
 }
 #endif //OMNISTREAM_TIMERTHREADPOOL_H
