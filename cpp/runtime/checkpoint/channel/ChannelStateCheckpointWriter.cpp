@@ -65,7 +65,6 @@ namespace omnistream {
     {
         if (IsDone()) {
             buffer->RecycleBuffer();
-            delete buffer; // todo: is it right?
             return;
         }
 
@@ -77,7 +76,6 @@ namespace omnistream {
               "ChannelState#WriteInput");
 
         buffer->RecycleBuffer();
-        delete buffer; // todo: is it right?
     }
 
     void ChannelStateCheckpointWriter::WriteOutput(const JobVertexID &jvid,
@@ -87,7 +85,6 @@ namespace omnistream {
     {
         if (IsDone()) {
             buffer->RecycleBuffer();
-            delete buffer; // todo: is it right?
             return;
         }
 
@@ -95,7 +92,6 @@ namespace omnistream {
         Write(pending->GetResultSubpartitionOffsets(), info, buffer,
               !pending->IsAllOutputsReceived(), "ChannelState#WriteOutput");
         buffer->RecycleBuffer();
-        delete buffer; // todo: is it right?
     }
 
     void ChannelStateCheckpointWriter::CompleteInput(const JobVertexID &jvid, int subtaskIndex)

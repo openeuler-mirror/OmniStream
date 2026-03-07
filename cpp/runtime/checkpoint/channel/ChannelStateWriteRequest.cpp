@@ -93,7 +93,6 @@ namespace omnistream {
                 for (auto *buffer : buffers) {
                    if (buffer) {
                        buffer->RecycleBuffer();
-                       delete buffer; // todo: is it right?
                    }
                 }
             });
@@ -122,7 +121,6 @@ namespace omnistream {
                 for (auto *buffer : buffers) {
                     if (buffer) {
                         buffer->RecycleBuffer();
-                        delete buffer; // todo: is it right?
                     }
                 }
             });
@@ -158,7 +156,6 @@ namespace omnistream {
                     for (auto *buffer : buffers) {
                         if (buffer) {
                             buffer->RecycleBuffer();
-                            delete buffer; // todo: is it right?
                         }
                     }
                 }

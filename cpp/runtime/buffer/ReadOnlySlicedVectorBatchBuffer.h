@@ -27,49 +27,49 @@ public:
     std::shared_ptr<BufferRecycler> GetRecycler() override
     {
         return parent_->GetRecycler();
-    };
+    }
 
     void RecycleBuffer() override
     {
         LOG_TRACE("Calling RecycleBuffer() from ReadOnlySlicedVectorBatchBuffer")
         parent_->RecycleBuffer();
-    };
+    }
 
     bool IsRecycled() const override
     {
         return parent_->IsRecycled();
-    };
+    }
 
     Buffer* RetainBuffer() override
     {
         LOG_TRACE("Calling RetainBuffer() from ReadOnlySlicedVectorBatchBuffer")
         return parent_->RetainBuffer();
-    };
+    }
 
     Buffer* ReadOnlySlice() override
     {
         throw std::runtime_error("ReadOnlySlicedVectorBatchBuffer does not support ReadOnlySlice");
-    };
+    }
 
     Buffer* ReadOnlySlice(int index, int length) override
     {
         throw std::runtime_error("ReadOnlySlicedVectorBatchBuffer does not support ReadOnlySlice");
-    };
+    }
 
     int GetMaxCapacity() const override
     {
         return parent_->GetMaxCapacity();
-    };
+    }
 
     int GetReaderIndex() const override
     {
         return parent_->GetReaderIndex() + index_;
-    };
+    }
 
     int GetOffset() const override
     {
         return index_;
-    };
+    }
 
 private:
     VectorBatchBuffer* parent_ = nullptr;
