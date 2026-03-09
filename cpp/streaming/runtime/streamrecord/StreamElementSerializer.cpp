@@ -20,7 +20,7 @@ namespace omnistream::datastream {
     {
         reUsableRecord_ = new StreamRecord();
         reUsableWatermark_ = new Watermark(0);
-        if (strcmp(typeSerializer_->getName(), "BinaryRowDataSerializer") == 0) {
+        if (!typeSerializer || (strcmp(typeSerializer_->getName(), "BinaryRowDataSerializer") == 0)) {
             isDatastream = false;
         } else {
             isDatastream = true;
