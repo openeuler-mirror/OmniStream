@@ -106,7 +106,7 @@ std::shared_ptr<CompletableFuture> CompletableFuture::thenRun(std::shared_ptr<Ru
 {
     class ChainedTask : public Runnable {
     public:
-        ChainedTask(CompletableFuture* parentFuture, std::shared_ptr<Runnable> nextTask)
+        ChainedTask(std::shared_ptr<CompletableFuture> parentFuture, std::shared_ptr<Runnable> nextTask)
             : parent(parentFuture), next(std::move(nextTask)) {}
 
         void run() override
@@ -118,11 +118,11 @@ std::shared_ptr<CompletableFuture> CompletableFuture::thenRun(std::shared_ptr<Ru
             next->run();
         }
     private:
-        CompletableFuture* parent;
+        std::shared_ptr<CompletableFuture> parent;
         std::shared_ptr<Runnable> next;
     };
 
-    auto chainedTask = std::make_shared<ChainedTask>(this, task);
+    auto chainedTask = std::make_shared<ChainedTask>(shared_from_this(), task);
     return runAsync(chainedTask);
 }
 
