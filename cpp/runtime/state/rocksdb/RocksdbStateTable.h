@@ -40,7 +40,7 @@
 #include "../../../core/utils/MathUtils.h"
 #include "state/RocksDbKvStateInfo.h"
 
-//const int FALCON_PREFIX_PARAM = 13;
+const int FALCON_HASH_PARAM = 13;
 
 /* S is the value used in the State,
  * like RowData* for HeapValueState,
@@ -68,15 +68,19 @@ public:
         this->rocksDb = db;
         rocksdb::Options options;
         options.create_if_missing = true;
+        if (metaInfo->getStateType() == StateDescriptor::Type::VALUE) {
+            options.allow_concurrent_memtable_write = false;
+        }
         // set merge method, listState need
         options.merge_operator.reset(new RocksDbStringAppendOperator(','));
         ROCKSDB_NAMESPACE::ColumnFamilyOptions familyOptions(options);
 
         // [FALCON] -----------------------------------------------------------------------------------------------
-        // familyOptions.memtable_factory.reset(ROCKSDB_NAMESPACE::NewHashLinkListRepFactory());
-        // familyOptions.prefix_extractor.reset(ROCKSDB_NAMESPACE::NewCappedPrefixTransform(FALCON_PREFIX_PARAM));
-        // familyOptions.compression = ROCKSDB_NAMESPACE::CompressionType::kZlibCompression;
-        // INFO_RELEASE("[FALCON] enable zlib for valueState.")
+        if (metaInfo->getStateType() == StateDescriptor::Type::VALUE) {
+            familyOptions.memtable_factory.reset(ROCKSDB_NAMESPACE::NewHashLinkListRepFactory());
+            familyOptions.prefix_extractor.reset(ROCKSDB_NAMESPACE::NewCappedPrefixTransform(FALCON_HASH_PARAM));
+            INFO_RELEASE("[FALCON] enable hash memTable for valueState.")
+        }
         // [FALCON] -----------------------------------------------------------------------------------------------
 
         DefaultConfigurableOptionsFactory::createColumnOptions(familyOptions);

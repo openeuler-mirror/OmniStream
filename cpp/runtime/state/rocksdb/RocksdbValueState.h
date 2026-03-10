@@ -154,6 +154,11 @@ public:
 
     V get(const K& key, const N& ns) override
     {
+        // case1: sql case
+        if constexpr (!(std::is_same_v<K, Object*> && std::is_same_v<N, VoidNamespace> && std::is_same_v<V, Object*>)) {
+            return valueState->getValue();
+        }
+        // case2: dataStream case
         // use new operator to create falconKey and falconValue, so that their life circle are bind with falcon cache.
         // when remove elements from cache, e.g., using erase() or clear(), make sure delete operation is called.
         auto falconKey = new KeyType(key, ns);
@@ -209,6 +214,12 @@ public:
 
     void put(const K& key, const N& ns, const V& value) override
     {
+        // case1: sql case
+        if constexpr (!(std::is_same_v<K, Object*> && std::is_same_v<N, VoidNamespace> && std::is_same_v<V, Object*>)) {
+            valueState->writeValue(value);
+            return;
+        }
+        // case2: dataStream case
         auto falconKey = new KeyType(key, ns);
         auto falconValue = new ValType(value, false);
         auto it = cache.find(falconKey);
@@ -230,6 +241,12 @@ public:
 
     void remove(const K& key, const N& ns) override
     {
+        // case1: sql case
+        if constexpr (!(std::is_same_v<K, Object*> && std::is_same_v<N, VoidNamespace> && std::is_same_v<V, Object*>)) {
+            valueState->deleteValue();
+            return;
+        }
+        // case2: dataStream case
         auto falconKey = new KeyType(key, ns);
         auto it = cache.find(falconKey);
         if (it != cache.end()) {
@@ -250,7 +267,6 @@ public:
 
     void flush() override
     {
-        // todo: check if we do not deep copy currentKey, whether it will be modified by line 248
         K currentKey = valueState->getCurrentKey();
         N currentNamespace = valueState->getNamespace();
         // [refcount] currentKey's refcount will -1 when setKeyAndNamespace during flush loop, if we directly restore it

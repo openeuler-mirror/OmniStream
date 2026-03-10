@@ -45,7 +45,7 @@
 #include "common.h"
 #include <sstream>
 
-const int FALCON_PREFIX_PARAM = 13;
+const int FALCON_RANGE_FILTER_PARAM = 13;
 
 /* S is the value used in the State,
  * like RowData* for HeapValueState,
@@ -75,7 +75,7 @@ public:
 
         // [FALCON]-----------------------------------------------------------------------------------------------
         // familyOptions.memtable_factory.reset(ROCKSDB_NAMESPACE::NewHashLinkListRepFactory());
-        familyOptions.prefix_extractor.reset(ROCKSDB_NAMESPACE::NewCappedPrefixTransform(FALCON_PREFIX_PARAM));
+        familyOptions.prefix_extractor.reset(ROCKSDB_NAMESPACE::NewCappedPrefixTransform(FALCON_RANGE_FILTER_PARAM));
         // familyOptions.compression = ROCKSDB_NAMESPACE::CompressionType::kZlibCompression;
         INFO_RELEASE("[FALCON] enable prefix for mapState.")
         // [FALCON]-----------------------------------------------------------------------------------------------
@@ -464,7 +464,7 @@ public:
 
         // [FALCON]------------------------------------------------------------------------------------------------
         ROCKSDB_NAMESPACE::ReadOptions readOption;
-        if (sliceKey.size() < FALCON_PREFIX_PARAM) {
+        if (sliceKey.size() < FALCON_RANGE_FILTER_PARAM) {
             readOption.total_order_seek = true;
         } else {
             readOption.total_order_seek = false;
@@ -844,7 +844,7 @@ public:
 
             // [FALCON]------------------------------------------------------------------------------------------------
             ROCKSDB_NAMESPACE::ReadOptions readOption = stateTable->readOptions;
-            if (sliceKey.size() < FALCON_PREFIX_PARAM || currentEntry != nullptr) {
+            if (sliceKey.size() < FALCON_RANGE_FILTER_PARAM || currentEntry != nullptr) {
                 readOption.total_order_seek = true;
             } else {
                 readOption.total_order_seek = false;
