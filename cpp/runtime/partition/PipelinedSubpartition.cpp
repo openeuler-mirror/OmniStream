@@ -92,7 +92,7 @@ BufferAndBacklog* PipelinedSubpartition::pollBuffer()
     std::lock_guard<std::mutex> lock(buffersMutex);
     LOG(">>>>>>buffers.peek() is " << buffers.peek() << " buffers.size()" << buffers.size() << " buffers address" << &buffers);
     // When blocked by an aligned checkpoint barrier, priority events (e.g., timeout->UC) must still overtake.
-    if (isBlocked && buffers.getNumPriorityElements() == 0) {
+    if (isBlocked) {
         return nullptr;
     }
 

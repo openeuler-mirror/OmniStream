@@ -17,7 +17,7 @@ namespace datastream {
               length_(length),
               bufferType(parent->GetBufferType())
         {
-            dataType = parent->GetDataType();
+            this->SetDataType(parent->GetDataType());
             SetSize(length);
             memorySegmentOffset = parent->GetMemorySegmentOffset()+index;
         }
@@ -75,11 +75,6 @@ namespace datastream {
             return index_;
         }
 
-        bool isBuffer() const override
-        {
-            return dataType.isBuffer();
-        }
-
         int GetMemorySegmentOffset() const
         {
             return memorySegmentOffset;
@@ -91,7 +86,6 @@ namespace datastream {
         int length_;
         int bufferType = 0; // 0 for data buffer, 1 for event buffer
         int memorySegmentOffset;
-        ObjectBufferDataType dataType;
     };
 }
 
