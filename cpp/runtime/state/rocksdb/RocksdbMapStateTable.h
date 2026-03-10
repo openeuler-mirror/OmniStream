@@ -443,7 +443,7 @@ public:
 
         // [FALCON]------------------------------------------------------------------------------------------------
         ROCKSDB_NAMESPACE::ReadOptions readOption;
-        if (sliceKey.size() < FALCON_PREFIX_PARAM) {
+        if (sliceKey.size() < FALCON_RANGE_FILTER_PARAM) {
             readOption.total_order_seek = true;
         } else {
             readOption.total_order_seek = false;
@@ -802,7 +802,7 @@ public:
 
             // [FALCON]------------------------------------------------------------------------------------------------
             ROCKSDB_NAMESPACE::ReadOptions readOption = stateTable->readOptions;
-            if (sliceKey.size() < FALCON_PREFIX_PARAM || currentEntry != nullptr) {
+            if (sliceKey.size() < FALCON_RANGE_FILTER_PARAM || currentEntry != nullptr) {
                 readOption.total_order_seek = true;
             } else {
                 readOption.total_order_seek = false;

@@ -267,7 +267,6 @@ public:
 
     void flush() override
     {
-        // todo: check if we do not deep copy currentKey, whether it will be modified by line 248
         K currentKey = valueState->getCurrentKey();
         N currentNamespace = valueState->getNamespace();
         // [refcount] currentKey's refcount will -1 when setKeyAndNamespace during flush loop, if we directly restore it
