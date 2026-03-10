@@ -23,7 +23,7 @@ public:
 
     std::string name; // such as org.example.PVMVLogType; java.lang.Long
 
-    emhash7::HashMap<std::string, std::string> fieldTypes_;
+    std::map<std::string, std::string> fieldTypes_;
 
     explicit Class(Creator creator);
 

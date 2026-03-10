@@ -36,8 +36,8 @@ TEST(TypeExtractorTest, PojoTest) {
     ASSERT_NE(derivedObj, nullptr);
 
     auto fieldInfo1 = derivedObj->getTypeAt(0);
-    ASSERT_EQ(fieldInfo1->name(), TYPE_NAME_STRING_SERIALIZER);
+    ASSERT_EQ(fieldInfo1->name(), TYPE_NAME_LONG_SERIALIZER);
 
     auto fieldInfo2 = derivedObj->getTypeAt(1);
-    ASSERT_EQ(fieldInfo2->name(), TYPE_NAME_LONG_SERIALIZER);
+    ASSERT_EQ(fieldInfo2->name(), TYPE_NAME_STRING_SERIALIZER);
 }
