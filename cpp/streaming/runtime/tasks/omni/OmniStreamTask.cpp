@@ -238,6 +238,7 @@ OmniStreamTask::OmniStreamTask(std::shared_ptr<RuntimeEnvironmentV2> &env,
 
     void OmniStreamTask::cancel()
     {
+        cancelled_.store(true);
         mailboxProcessor_->suspend();
     }
 
@@ -308,7 +309,11 @@ void OmniStreamTask::processInput(MailboxDefaultAction::Controller *controller)
         return;
     };
     // thread wait
-    resumeFuture->get();
+    while (!resumeFuture->get(100)) {
+        if (cancelled_.load()) {
+            return;
+        }
+    }
 }
 
     const std::string OmniStreamTask::getName() const
