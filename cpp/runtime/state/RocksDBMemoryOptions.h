@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+* Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
  * You can use this software according to the terms and conditions of the Mulan PSL v2.
  * You may obtain a copy of Mulan PSL v2 at:
  *          http://license.coscl.org.cn/MulanPSL2
@@ -9,13 +9,16 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef OMNISTREAM_CHANNELSTATEHOLDER_H
-#define OMNISTREAM_CHANNELSTATEHOLDER_H
-#include "runtime/checkpoint/channel/ChannelStateWriter.h"
-namespace omnistream {
-    class ChannelStateHolder {
-        public:
-        virtual void setChannelStateWriter(std::shared_ptr<ChannelStateWriter> channelStateWriter) = 0;
-    };
-}
-#endif //OMNISTREAM_CHANNELSTATEHOLDER_H
+#ifndef OMNISTREAM_ROCKSDBMEMORYOPTIONS_H
+#define OMNISTREAM_ROCKSDBMEMORYOPTIONS_H
+
+#include <cstdint>
+
+class RocksDBMemoryOptions {
+public:
+    thread_local static int64_t calculatedCacheCapacity;
+    thread_local static double highPriorityPoolRatio;
+    thread_local static int64_t writeBufferManagerCapacity;
+};
+
+#endif //OMNISTREAM_ROCKSDBMEMORYOPTIONS_H

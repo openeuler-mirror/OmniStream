@@ -272,7 +272,9 @@ public:
         // [refcount] currentKey's refcount will -1 when setKeyAndNamespace during flush loop, if we directly restore it
         // after flush loop, currentKey will be pointed to null object.
         if constexpr (std::is_same_v<K, Object*>) {
-            reinterpret_cast<Object*>(currentKey)->getRefCount();
+            if (currentKey != nullptr) {
+                reinterpret_cast<Object*>(currentKey)->getRefCount();
+            }
         }
         for (auto &[falconKey, falconValue]  : cache) {
             if (falconValue->isDirty()) {

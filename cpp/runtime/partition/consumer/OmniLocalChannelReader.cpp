@@ -140,7 +140,7 @@ namespace omnistream {
     void OmniLocalChannelReader::recycleMemorySegment(long memorySegmentAddress) {
         if (pendingRecyclingBuffer) {
             pendingRecyclingBuffer->RecycleBuffer();
-            delete pendingRecyclingBuffer;
+            // do not need to delete buffer here, buffer is deleted in the destructor of BufferConsumer
             pendingRecyclingBuffer = nullptr;
         }
     }

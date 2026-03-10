@@ -74,3 +74,18 @@ std::unique_ptr<ConfigOption> RocksDBConfigurableOptions::BLOOM_FILTER_BLOCK_BAS
 std::unique_ptr<ConfigOption> RocksDBConfigurableOptions::RESTORE_OVERLAP_FRACTION_THRESHOLD =
         std::make_unique<ConfigOption>(new String("state.backend.rocksdb.restore-overlap-fraction-threshold"),
                          new Double(0.0));
+std::unique_ptr<ConfigOption> RocksDBConfigurableOptions::CHECKSUM_TYPE =
+        std::make_unique<ConfigOption>(new String("state.backend.rocksdb.checksum-type"),
+                         new String("kxxHash64"));
+std::unique_ptr<ConfigOption> RocksDBConfigurableOptions::USE_MANAGED_MEMORY =
+        std::make_unique<ConfigOption>(new String("state.backend.rocksdb.memory.managed"),
+                         new Boolean(true));
+std::unique_ptr<ConfigOption> RocksDBConfigurableOptions::HIGH_PRIORITY_POOL_RATIO =
+        std::make_unique<ConfigOption>(new String("state.backend.rocksdb.memory.high-prio-pool-ratio"),
+                         new Double(0.1));
+std::unique_ptr<ConfigOption> RocksDBConfigurableOptions::WRITE_BUFFER_RATIO =
+        std::make_unique<ConfigOption>(new String("state.backend.rocksdb.memory.write-buffer-ratio"),
+                         new Double(0.5));
+std::unique_ptr<ConfigOption> RocksDBConfigurableOptions::USE_PARTITIONED_INDEX_FILTERS =
+        std::make_unique<ConfigOption>(new String("state.backend.rocksdb.memory.partitioned-index-filters"),
+                         new Boolean(false));

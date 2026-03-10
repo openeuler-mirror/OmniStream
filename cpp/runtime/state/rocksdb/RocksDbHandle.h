@@ -30,6 +30,7 @@
 #include "rocksdb/db.h"
 #include "rocksdb/options.h"
 #include "rocksdb/status.h"
+#include "state/RocksDBMemoryOptions.h"
 
 namespace fs = std::filesystem;
 
@@ -191,6 +192,27 @@ private:
     {
         rocksdb::ColumnFamilyOptions columnFamilyOptions =
                 RocksDbOperationUtils::createColumnFamilyOptions(columnFamilyOptionsFactory, "default");
+
+        // This is a temporary bugfix to address the OOM issue.
+        // The logic should be moved to RocksDBResourceContainer in the future.
+        auto memoryManaged = reinterpret_cast<Boolean*>(Configuration::TM_CONFIG->getValue(RocksDBConfigurableOptions::USE_MANAGED_MEMORY));
+        if (memoryManaged != nullptr && memoryManaged->value) {
+            INFO_RELEASE("RocksDB memory managed is enabled,"
+                " RocksDBMemoryOptions::calculatedCacheCapacity: " << RocksDBMemoryOptions::calculatedCacheCapacity <<
+                " highPriorityPoolRatio: " << RocksDBMemoryOptions::highPriorityPoolRatio <<
+                " writeBufferManagerCapacity: " << RocksDBMemoryOptions::writeBufferManagerCapacity)
+            auto cache =  ROCKSDB_NAMESPACE::NewLRUCache(RocksDBMemoryOptions::calculatedCacheCapacity, -1, false, RocksDBMemoryOptions::highPriorityPoolRatio);
+            std::shared_ptr<ROCKSDB_NAMESPACE::WriteBufferManager> writeBufferManager =
+                std::make_shared<ROCKSDB_NAMESPACE::WriteBufferManager>(RocksDBMemoryOptions::writeBufferManagerCapacity, cache);
+            dbOptions->write_buffer_manager = writeBufferManager;
+
+            ROCKSDB_NAMESPACE::BlockBasedTableOptions blockBasedTableOptions;
+            blockBasedTableOptions.block_cache = cache;
+            columnFamilyOptions.table_factory.reset(NewBlockBasedTableFactory(blockBasedTableOptions));
+
+            memoryManaged->putRefCount();
+        }
+
         db = RocksDbOperationUtils::openDB(
             dbPath, columnFamilyDescriptors, columnFamilyHandles, columnFamilyOptions, *dbOptions);
         defaultColumnFamilyHandle = columnFamilyHandles[0];
