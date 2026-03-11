@@ -28,7 +28,7 @@ namespace omnistream {
                                                                         TwoInputStreamOperator* streamOperator,
                                                                         int taskType, const json &description)
         {
-            // 1. Create Input
+            
             std::vector<OmniStreamOneInputProcessor*> processors;
 
             std::vector<long> channelInfoIndex1;
@@ -47,16 +47,17 @@ namespace omnistream {
                 channelInfoIndex2.push_back(static_cast<long>(channelInfos2[i].getInputChannelIdx()));
             }
 
-            OmniStreamTaskInput *input1 = nullptr;
-            OmniStreamTaskInput *input2 = nullptr;
-
+            OmniStreamTaskInput *taskInput1 = nullptr;
+            OmniStreamTaskInput *taskInput2 = nullptr;
+            auto watermarkValve0 = std::make_unique<StatusWatermarkValve>(inputGates[0]->GetNumberOfInputChannels());
+            auto watermarkValve1 = std::make_unique<StatusWatermarkValve>(inputGates[1]->GetNumberOfInputChannels());
             if (taskType == 1) {
                 auto leftTypes = description["leftInputTypes"].get<std::vector<std::string>>();
                 auto rightTypes = description["rightInputTypes"].get<std::vector<std::string>>();
 
-                input1 = OmniStreamTaskNetworkInputFactory::create(0, inputGates[0], taskType,
+                taskInput1 = OmniStreamTaskNetworkInputFactory::create(std::move(watermarkValve0), inputGates[0], taskType,
                                                                    new BinaryRowDataSerializer(leftTypes.size(), leftTypes), channelInfoIndex1);
-                input2 = OmniStreamTaskNetworkInputFactory::create(1, inputGates[1], taskType,
+                taskInput2 = OmniStreamTaskNetworkInputFactory::create(std::move(watermarkValve1), inputGates[1], taskType,
                                                                    new BinaryRowDataSerializer(rightTypes.size(), rightTypes), channelInfoIndex2);
             } else if (taskType == 2) {
                 auto inputTypes = description["inputTypes"];
@@ -75,13 +76,13 @@ namespace omnistream {
                 }
                 inputTypeInfo2 = TypeInfoFactory::createDataStreamTypeInfo(inputTypes[1]);
 
-                input1 = OmniStreamTaskNetworkInputFactory::create(0, inputGates[0], taskType,
+                taskInput1 = OmniStreamTaskNetworkInputFactory::create((int64_t)0, inputGates[0], taskType,
                                                                    inputTypeInfo1 == nullptr ? nullptr : inputTypeInfo1->createTypeSerializer(), channelInfoIndex1);
                 if (inputTypeInfo1 != nullptr) {
                     delete inputTypeInfo1;
                 }
 
-                input2 = OmniStreamTaskNetworkInputFactory::create(1, inputGates[1], taskType,
+                taskInput2 = OmniStreamTaskNetworkInputFactory::create((int64_t)1, inputGates[1], taskType,
                                                                    inputTypeInfo2 == nullptr ? nullptr : inputTypeInfo2->createTypeSerializer(), channelInfoIndex2);
                 if (inputTypeInfo2 != nullptr) {
                     delete inputTypeInfo2;
@@ -122,8 +123,8 @@ namespace omnistream {
                 THROW_LOGIC_EXCEPTION("Invalid task type in creating OmniStreamTwoInputProcessor.");
             }
 
-            processors.push_back(new OmniStreamOneInputProcessor(input1, pOutPut1, operatorChain));
-            processors.push_back(new OmniStreamOneInputProcessor(input2, pOutPut2, operatorChain));
+            processors.push_back(new OmniStreamOneInputProcessor(taskInput1, pOutPut1, operatorChain));
+            processors.push_back(new OmniStreamOneInputProcessor(taskInput2, pOutPut2, operatorChain));
             return std::make_shared<OmniStreamMultipleInputProcessor>(std::move(processors), std::make_shared<MutipleInputSelectionHandler>(2));
         }
     private:

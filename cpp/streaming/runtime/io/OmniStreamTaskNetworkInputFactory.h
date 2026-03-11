@@ -21,6 +21,10 @@ namespace omnistream {
         {
             return new OmniStreamTaskNetworkInput(inputIndex, inputGate, taskType, inputSerializer, channelInfos);
         }
+        static OmniStreamTaskNetworkInput* create(std::unique_ptr<StatusWatermarkValve> watermarkValve, const std::shared_ptr<CheckpointedInputGate>& inputGate, int taskType, TypeSerializer *inputSerializer, std::vector<long> & channelInfos)
+        {
+            return new OmniStreamTaskNetworkInput(std::move(watermarkValve), inputGate, taskType, inputSerializer, channelInfos);
+        }
     };
 }
 

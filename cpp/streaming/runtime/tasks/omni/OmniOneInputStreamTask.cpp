@@ -59,7 +59,9 @@ namespace omnistream {
             } else {
                 typeList = descriptionJson["inputTypes"].get<std::vector<std::string>>();
             }
-            return OmniStreamTaskNetworkInputFactory::create(0, inputGate, taskType, new BinaryRowDataSerializer(typeList.size(), typeList), channelInfoIndex);
+            int numofSubtask= channelInfos.size();
+            auto watermarkValve = std::make_unique<StatusWatermarkValve>(numofSubtask);
+            return OmniStreamTaskNetworkInputFactory::create(std::move(watermarkValve), inputGate, taskType, new BinaryRowDataSerializer(typeList.size(), typeList), channelInfoIndex);
         } else if (taskType == 2) {
             auto operatorPod = this->taskConfiguration_.getStreamConfigPOD().getOperatorDescription();
 
@@ -90,7 +92,7 @@ namespace omnistream {
 
             TypeSerializer *inputSerializer = typeInfo->getTypeSerializer();
 
-            return OmniStreamTaskNetworkInputFactory::create(0, inputGate, taskType, inputSerializer, channel_array);
+            return OmniStreamTaskNetworkInputFactory::create((int64_t)0, inputGate, taskType, inputSerializer, channel_array);
         } else {
             THROW_LOGIC_EXCEPTION("Unknown taskType " + taskType)
         }
