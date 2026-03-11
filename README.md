@@ -2,7 +2,7 @@
 
 ## 最新消息<a name="ZH-CN_TOPIC_0000002517961774"></a>
 
-- \[2026.03.30\]：发布OmniStream 1.2.0。增加UDF翻译工具所使用依赖的头文件安装内容。
+- \[2026.03.30\]：发布OmniStream 1.2.0。增加UDF翻译工具所使用依赖的头文件安装内容，在有状态场景下使能omniStateStore加速特性。
 - \[2025.12.30\]：发布OmniStream 1.1.0。在SQL场景中，新增支持task级别算子回退机制；在DataStream场景中，KeyedCoProcess算子支持checkpoint、restore。
 - \[2025.06.30\]：发布OmniStream 1.0.0。SQL：实现了Calc、GroupAgg、Join、Deduplicate、Rank、Window、Kafka Source/Sink算子加速；实现了高效数据组织方式OmniVec；实现了对内存和RocksDB状态后端的支持。 DataStream：实现了Kafka Source、Kafka Sink、Map、FlatMap、 Reduce、Filter算子加速；实现了UDF基础框架和UDF翻译基础库，支持UDF自动Native化框架成功运行DataStream Wordcount等有状态和无状态用例；实现了对内存状态后端的支持。
 
@@ -29,6 +29,13 @@ OmniStream Flink Native化特性通过Native Code（C/C++）重构Flink SQL与Da
 - 针对SQL，OmniStream采用C++结合向量化指令实现算子，通过向量化加速，提升SQL计算性能。
 - 针对DataStream，OmniStream采用C++结合向量化指令实现算子，充分发挥Native Code性能优势，提升DataStream场景性能。
 
+在有状态场景中，OmniStream支持基于Native化架构使能omniStateStore加速特性，通过降低RocksDB访问频次减少磁盘IO，以提升查询性能。
+
+- 针对RocksDBValueState，通过状态缓存在内存中完成状态聚合，减少RocksDB访问频次。
+- 针对RocksDBValueState，将memTable的数据结构修改为LinkHashList，提升状态点读点写效率。
+- 针对RocksDBMapState，通过前缀filter过滤冗余磁盘查找操作，提升状态范围查询性能。
+- 针对各状态类型，通过动态调整不同层级的filter大小过滤冗余磁盘查找操作，提升状态点读性能。
+
 **SQL<a name="zh-cn_topic_0000002543922607_section6310183119441"></a>**
 
 OmniStream Flink Native化特性采用Java适配层（Java Adapter）与C++核心层（CPP Core）双层架构设计。
@@ -51,6 +58,16 @@ OmniStream Flink DataStream Native化架构如[图 2](#architecture-of-omnistrea
 
 **图 2** OmniStream Flink DataStream Native化整体架构设计<a name="zh-cn_topic_0000002543922607_fig918683363812"></a><a id="architecture-of-omnistream-flink-datastream-native"></a>
 ![](figures/architecture-of-omnistream-flink-datastream-native.png "OmniStream-Flink-DataStream-Native化整体架构设计")
+
+**OmniStateStore<a name="zh-cn_topic_0000002543922607_section10781121012457"></a>**
+
+当omniStream的SQL或DataStream场景使用RocksDB状态后端时，将自动使能omniStateStore加速特性，通过状态聚合、状态过滤等技术降低RocksDB访问频次，减少磁盘IO开销，提升应用端到端吞吐。
+
+OmniStream Flink DataStream Native化架构如[图 3](#architecture-of-omnistream-omniStateStore)所示。
+
+**图 3** OmniStream使能OmniStateStore加速特性整体架构设计<a name="zh-cn_topic_0000002543922607_zh-cn_topic_0000002228744542_fig685102835814"></a><a id="architecture-of-omnistream-omniStateStore"></a>
+
+<a href="./figures/architecture-of-omnistream-omniStateStore.png"><img src="./figures/architecture-of-omnistream-omniStateStore.png" alt="OmniStream对接OmniStateStore整体架构设计" width="600" /></a>
 
 ## 约束与限制<a name="ZH-CN_TOPIC_0000002517961784"></a>
 
@@ -82,6 +99,10 @@ OmniStream Flink Native化的配置限制包括数据类型、算子支持、状
 - Filter算子目前只支持RichFilterFunction。
 - 状态后端只支持内存，不支持Checkpoint。
 
+**OmniStateStore<a name="zh-cn_topic_0000002512242608_section14862183194614"></a>**
+
+- 支持的加速特性：Flink语义状态缓存、动态Filter技术、智能多流感知技术。
+- 上述加速特性在omniStream中默认开启，暂不支持加速特性关闭功能。
 
 ### 应用场景<a name="ZH-CN_TOPIC_0000002549521541"></a>
 
