@@ -235,6 +235,8 @@ namespace omnistream {
 
         std::atomic<bool> endOfDataReceived {false};
 
+        std::atomic<bool> cancelled_ {false};
+
         // SubtaskCheckpointCoordinator
         std::shared_ptr<omnistream::SubtaskCheckpointCoordinator> subtaskCheckpointCoordinator;
         StateBackend *stateBackend;
