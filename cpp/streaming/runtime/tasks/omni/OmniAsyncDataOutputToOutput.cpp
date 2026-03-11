@@ -13,12 +13,6 @@
 namespace omnistream {
     OmniAsyncDataOutputToOutput::OmniAsyncDataOutputToOutput(Output* output_, bool isDataStream)
         : output(output_), isDataStream(isDataStream) {
-        reuse = new StreamRecord();
-    }
-
-    OmniAsyncDataOutputToOutput::~OmniAsyncDataOutputToOutput()
-    {
-        delete reuse;
     }
 
     void OmniAsyncDataOutputToOutput::emitRecord(StreamRecord *streamRecord)
@@ -27,8 +21,8 @@ namespace omnistream {
         if (isDataStream) {
             output->collect(streamRecord);
         } else {
-            reuse->replace(streamRecord->getValue(), streamRecord->getTimestamp());
-            output->collect(reuse);
+             auto newRecord = new StreamRecord(streamRecord->getValue(), streamRecord->getTimestamp());	 
+             output->collect(newRecord);
         }
     }
 
