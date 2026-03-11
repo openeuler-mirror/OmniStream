@@ -152,7 +152,7 @@ if (uniqueName == OPERATOR_NAME_STREAM_EXPAND) {
         LOG("Operator AggregateWindowOperator address " + std::to_string(reinterpret_cast<long>(op)))
         return static_cast<OneInputStreamOperator *>(op);
     } else if (uniqueName == OPERATOR_NAME_WINDOW_INNER_JOIN) {
-        auto op = new InnerJoinOperator<int64_t>(opConfig.getDescription(), chainOutput, nullptr, nullptr);
+        auto op = new InnerJoinOperator<BinaryRowData*>(opConfig.getDescription(), chainOutput, nullptr, nullptr);
         op->setup();
         LOG("Operator WindowJoinOperator address " + std::to_string(reinterpret_cast<long>(op)));
         return static_cast<TwoInputStreamOperator *>(op);
@@ -496,7 +496,7 @@ StreamOperator* StreamOperatorFactory::CreateWindowInnerJoinOp(OperatorPOD &opCo
 {
     auto description = opConfig.getDescription();
     nlohmann::json opDescriptionJSON = nlohmann::json::parse(description);
-    auto op = new InnerJoinOperator<int64_t>(opDescriptionJSON, chainOutput, nullptr, nullptr);
+    auto op = new InnerJoinOperator<BinaryRowData*>(opDescriptionJSON, chainOutput, nullptr, nullptr);
     op->setup(std::move(task));
     LOG("Operator WindowJoinOperator address " + std::to_string(reinterpret_cast<long>(op)));
     return static_cast<TwoInputStreamOperator *>(op);

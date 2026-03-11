@@ -114,7 +114,24 @@ namespace std {
             return binaryRowData.hashCode();
         }
     };
-    
+    template <>
+    struct hash<BinaryRowData*> {
+        std::size_t operator()(const BinaryRowData* nsPtr) const noexcept
+        {
+            LOG("jojo:>>BinaryRowData::hash")
+            //std::cout<<"BinaryRowData::hash "<<nsPtr->hashCodeFast()<<std::endl;
+            auto hashFast=  nsPtr ? nsPtr->hashCodeFast():0 ;
+            LOG("BinaryRowData hash<>end ")
+            return static_cast<size_t>(hashFast);
+        }
+    };
+    template <>
+    struct equal_to<BinaryRowData*> {
+        bool operator()(const BinaryRowData* lhs, const BinaryRowData* rhs) const noexcept
+        {
+            return *lhs == *rhs;
+        }
+    };
 }
 
 

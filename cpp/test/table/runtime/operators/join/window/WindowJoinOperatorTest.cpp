@@ -260,6 +260,98 @@ TEST(WindowJoinOperatorTest, DISABLED_InnerJoinTest)
     delete b2;
 }
 
+TEST(WindowJoinOperatorTest, DISABLED_InnerJoinTest_BinaryRowDataKey)
+{
+ 
+    auto vbatchLeft = getLeftBatch();
+    auto vbatchRight = getRightBatch();
+ 
+    auto *out = new OutputTestVectorBatch();
+    auto op = new InnerJoinOperator<BinaryRowData*>(parsedJsonEqui, out, new LongSerializer(), new LongSerializer());
+    auto env2 = new omnistream::RuntimeEnvironmentV2();
+    auto taskInfo = new TaskInformationPOD();
+    taskInfo->setStateBackend("HashMapStateBackend");
+    env2->setTaskConfiguration(*taskInfo);
+    StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
+    op->setup();
+    op->initializeState(initializer, new LongSerializer());
+    op->open();
+    op->processBatch1(new StreamRecord(vbatchLeft));
+    op->processBatch2(new StreamRecord(vbatchRight));
+ 
+    op->getInternalTimerService()->advanceWatermark(100000);
+ 
+    /*
+    Output Batch 1
+    (int) , (long)       , (int), (int) , (long)       , (int)
+    KeyCol, WindowEndTime, value, KeyCol, WindowEndTime, value
+    0     , 1000         , 12   , 0     , 1000         , 100
+ 
+    Output Batch 2
+    (int) , (long)       , (int), (int) , (long)       , (int)
+    KeyCol, WindowEndTime, value, KeyCol, WindowEndTime, value
+    1     , 1000         , 24   , 1     , 1000         , 200
+    1     , 1000         , 24   , 1     , 1000         , 300
+    */
+ 
+    auto v11 = new omniruntime::vec::Vector<int32_t>(1);
+    v11->SetValue(0, 0);
+    auto v12 = new omniruntime::vec::Vector<int64_t>(1);
+    v12->SetValue(0, 1000);
+    auto v13 = new omniruntime::vec::Vector<int32_t>(1);
+    v13->SetValue(0, 12);
+    auto v14 = new omniruntime::vec::Vector<int32_t>(1);
+    v14->SetValue(0, 0);
+    auto v15 = new omniruntime::vec::Vector<int64_t>(1);
+    v15->SetValue(0, 1000);
+    auto v16 = new omniruntime::vec::Vector<int32_t>(1);
+    v16->SetValue(0, 100);
+    auto b1 = new omnistream::VectorBatch(1);
+    b1->Append(v11);
+    b1->Append(v12);
+    b1->Append(v13);
+    b1->Append(v14);
+    b1->Append(v15);
+    b1->Append(v16);
+ 
+    EXPECT_TRUE(inOutput(b1, out));
+ 
+    auto v21 = new omniruntime::vec::Vector<int32_t>(2);
+    v21->SetValue(0, 1);
+    v21->SetValue(1, 1);
+    auto v22 = new omniruntime::vec::Vector<int64_t>(2);
+    v22->SetValue(0, 1000);
+    v22->SetValue(1, 1000);
+    auto v23 = new omniruntime::vec::Vector<int32_t>(2);
+    v23->SetValue(0, 24);
+    v23->SetValue(1, 24);
+    auto v24 = new omniruntime::vec::Vector<int32_t>(2);
+    v24->SetValue(0, 1);
+    v24->SetValue(1, 1);
+    auto v25 = new omniruntime::vec::Vector<int64_t>(2);
+    v25->SetValue(0, 1000);
+    v25->SetValue(1, 1000);
+    auto v26 = new omniruntime::vec::Vector<int32_t>(2);
+    v26->SetValue(0, 200);
+    v26->SetValue(1, 300);
+    auto b2 = new omnistream::VectorBatch(2);
+    b2->Append(v21);
+    b2->Append(v22);
+    b2->Append(v23);
+    b2->Append(v24);
+    b2->Append(v25);
+    b2->Append(v26);
+ 
+    EXPECT_TRUE(inOutput(b2, out));
+ 
+    op->close();
+//    delete op;
+    delete initializer;
+    delete out;
+    delete b1;
+    delete b2;
+}
+
 TEST(WindowJoinOperatorTest, DISABLED_LeftOuterJoinTest)
 {
 
