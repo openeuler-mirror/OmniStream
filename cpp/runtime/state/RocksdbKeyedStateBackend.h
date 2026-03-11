@@ -440,9 +440,14 @@ RocksdbStateTable<K, N, S> *RocksdbKeyedStateBackend<K>::tryRegisterStateTable(T
         stateTable->setMetaInfo(std::move(restoredKvMetaInfo));
         return stateTable;
     } else {
-        std::unique_ptr<RegisteredKeyValueStateBackendMetaInfo> newMetaInfo =
-                std::make_unique<RegisteredKeyValueStateBackendMetaInfo>(stateDesc->getName(), namespaceSerializer,
-                                                           newStateSerializer);
+        std::unique_ptr<RegisteredKeyValueStateBackendMetaInfo> newMetaInfo = nullptr;
+        if (stateDesc->getType() == StateDescriptor::Type::VALUE) {
+            newMetaInfo = std::make_unique<RegisteredKeyValueStateBackendMetaInfo>(stateDesc->getType(),
+                stateDesc->getName(), namespaceSerializer, newStateSerializer);
+        } else {
+            newMetaInfo = std::make_unique<RegisteredKeyValueStateBackendMetaInfo>(stateDesc->getName(),
+                namespaceSerializer, newStateSerializer);
+        }
         RocksdbStateTable<K, N, S> *stateTable =
                 new RocksdbStateTable<K, N, S>(this->context, std::move(newMetaInfo), this->keySerializer);
         std::tuple tuple(reinterpret_cast<uintptr_t>(stateTable), stateDesc);
