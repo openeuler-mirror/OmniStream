@@ -70,15 +70,15 @@ private:
     BinaryRowData* reUseNewAggValue{};
     std::vector<int32_t> keyedIndex;
     std::vector<int32_t> keyedTypes;
-    KeySelector<RowData*> *keySelector;
+    std::unique_ptr<KeySelector<RowData*>> keySelector;
     int accumulatorArity = 0;
-    std::vector<NamespaceAggsHandleFunction<int64_t>*> localFunctions;
-    std::vector<NamespaceAggsHandleFunction<int64_t>*> globalFunctions;
+    std::vector<std::unique_ptr<NamespaceAggsHandleFunction<int64_t>>> localFunctions;
+    std::vector<std::unique_ptr<NamespaceAggsHandleFunction<int64_t>>> globalFunctions;
     int aggregateCallsCount = 0;
     BinaryRowData* reUseAggValue;
     GenericRowData* windowRow;
     JoinedRowData* accWindowRow;
-    JoinedRowData* resultRow = nullptr;
+    std::unique_ptr<JoinedRowData> resultRow;
     omnistream::VectorBatch* resultBatch = nullptr;
     TimestampedCollector* collector;
     std::vector<std::string> accTypes;
@@ -87,7 +87,7 @@ private:
     WindowValueState<RowData *, int64_t, RowData *> *accState;
     Output* output;
     InternalTimerServiceImpl<RowData*, int64_t>* internalTimerService;
-    bool isWindwoAgg;
+    bool isWindowAgg;
     std::mutex bufferMutex;
     SliceAssigner* sliceAssigner;
     const int emptyAggFuncNum = 1;
