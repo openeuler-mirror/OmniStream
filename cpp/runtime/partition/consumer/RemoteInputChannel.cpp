@@ -134,9 +134,13 @@ namespace omnistream {
             new datastream::ReadOnlySlicedNetworkBuffer(networkBuffer, readIndex, bufferLength);
 
         std::unique_lock<std::recursive_mutex> lock(queueMutex);
+        bool wasEmpty = this->dataQueue.empty();
         this->dataQueue.push(readOnlyBuffer);
         lock.unlock();
-        this->notifyDataAvailable();
+
+        if (wasEmpty) {
+            this->notifyDataAvailable();
+        }
     }
 
     void RemoteInputChannel::SetRemoteDataFetcherBridge(

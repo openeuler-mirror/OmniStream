@@ -791,6 +791,7 @@ void SingleInputGate::queueChannel(
     };
 
     GateNotificationHelper notification(this, cv);
+
     {
         // INFO_RELEASE("notification start")
         std::unique_lock<std::recursive_mutex> lock(inputChannelsWithDataMutex);

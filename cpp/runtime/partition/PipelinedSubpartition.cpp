@@ -159,6 +159,7 @@ BufferAndBacklog* PipelinedSubpartition::pollBuffer()
     }
 
     if (buffer->GetDataType().isBlockingUpstream()) {
+        INFO_RELEASE("PipelinedSubpartition is blocked, event data type: " << buffer->GetDataType().toString() << ", subpartitionIndex: " << this->getSubPartitionIndex())
         isBlocked = true;
     }
 

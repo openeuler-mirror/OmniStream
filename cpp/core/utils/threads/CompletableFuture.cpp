@@ -9,16 +9,10 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "CompletableFuture.h"
-#include <iostream>
 
 namespace omnistream {
-
-CompletableFuture::CompletableFuture()
-    : state(FutureState::NOT_STARTED), done(false) {
-}
-    CompletableFuture::CompletableFuture(bool flag)
-            : state(FutureState::COMPLETED), done(flag) {
-    }
+CompletableFuture::CompletableFuture() : state(FutureState::NOT_STARTED), done(false) {}
+CompletableFuture::CompletableFuture(bool flag, FutureState futureState) : state(futureState), done(flag) {}
 
 CompletableFuture::~CompletableFuture()
 {

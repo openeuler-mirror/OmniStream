@@ -42,9 +42,6 @@ MailboxProcessor::MailboxProcessor(MailboxDefaultAction* mailboxDefaultAction,
 
 MailboxProcessor::~MailboxProcessor()
 {
-    if (suspendedDefaultAction) {
-        delete suspendedDefaultAction;
-    }
     if (mailbox_) {
         delete mailbox_;
     }
@@ -317,9 +314,7 @@ void MailboxProcessor::maybeRestartIdleTimer()
     }
 }
 
-MailboxDefaultAction::Suspension* MailboxProcessor::suspendDefaultAction(
-    std::shared_ptr<PeriodTimer> suspensionTimer)
-{
+std::shared_ptr<MailboxDefaultAction::Suspension> MailboxProcessor::suspendDefaultAction(std::shared_ptr<PeriodTimer> suspensionTimer) {
     if (!mailbox_->isMailboxThread()) {
         throw std::runtime_error("Suspending must only be called from the mailbox thread!");
     }
@@ -328,10 +323,9 @@ MailboxDefaultAction::Suspension* MailboxProcessor::suspendDefaultAction(
         throw std::runtime_error("Default action has already been suspended");
     }
     if (!suspendedDefaultAction) {
-        suspendedDefaultAction = new DefaultActionSuspension(suspensionTimer);
+        suspendedDefaultAction = std::make_shared<DefaultActionSuspension>(this, suspensionTimer);
     }
 
-    maybeRestartIdleTimer();
     return suspendedDefaultAction;
 }
 
@@ -342,13 +336,27 @@ void MailboxProcessor::sendPoisonMail(std::shared_ptr<ThrowingRunnable> mail, co
     mailbox_->runExclusively(runnable);
 }
 
-MailboxProcessor::DefaultActionSuspension::~DefaultActionSuspension() {
-}
+class LambdaResume : public MailboxProcessor::lambdaHelper {
+public:
+    LambdaResume(MailboxProcessor* processor) : lambdaHelper(processor) {}
+    void lambda() {
+        resume();
+    }
+};
 
 void MailboxProcessor::DefaultActionSuspension::resume() {
+    if (this->mailboxProcessor_->isMailboxThread()) {
+        this->mailboxProcessor_->suspendedDefaultAction = nullptr;
+        return;
+    }
+
+    try {
+        auto runnable = std::make_shared<MemberFunctionRunnable<LambdaResume>>(
+            std::make_shared<LambdaResume>(this->mailboxProcessor_), &LambdaResume::lambda);
+        this->mailboxProcessor_->sendControlMail(runnable, "resume default action");
+    } catch (...) {
+        GErrorLog("Something wrong happen, but ignore it");
+    }
 }
 
 }  // namespace omnistream
-
-// MailboxProcessor::MailboxController::MailboxController(MailboxProcessor* mailboxProcessor) :
-// mailboxProcessor(mailboxProcessor

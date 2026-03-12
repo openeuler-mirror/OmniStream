@@ -28,8 +28,8 @@ namespace omnistream {
         ~MailboxController() override;
 
         void allActionsCompleted() override;
-        MailboxDefaultAction::Suspension* suspendDefaultAction(std::shared_ptr<PeriodTimer> suspensionPeriodTimer) override;
-        MailboxDefaultAction::Suspension* suspendDefaultAction() override;
+        std::shared_ptr<MailboxDefaultAction::Suspension> suspendDefaultAction(std::shared_ptr<PeriodTimer> suspensionPeriodTimer) override;
+        std::shared_ptr<MailboxDefaultAction::Suspension> suspendDefaultAction() override;
 
         std::string toString() const;
 

@@ -34,7 +34,7 @@ namespace omnistream {
         }
     }
 
-    void MultipleFuturesAvailabilityHelper::anyOf(int idx, const std::shared_ptr<CompletableFuture>& availabilityFuture)
+    void MultipleFuturesAvailabilityHelper::anyOf(int idx, std::shared_ptr<CompletableFuture> availabilityFuture)
     {
         if (futuresToCombine[idx] == nullptr || futuresToCombine[idx]->isDone()) {
             futuresToCombine[idx] = availabilityFuture;

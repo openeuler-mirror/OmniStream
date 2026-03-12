@@ -107,6 +107,8 @@ namespace omnistream {
                 std::lock_guard<std::recursive_mutex> maplock(recycleNetworkBufferMutex);
                 networkBufferPendingRecycling.insert({reinterpret_cast<int64_t>(readableAddress), nBuffer});
                 serializedBatchQueue.push(serializedBatchInfoPtr);
+            } else {
+                THROW_RUNTIME_ERROR("Unknown buffer type in getNextBufferInternal")
             }
 
             delete bufferAndLog;
