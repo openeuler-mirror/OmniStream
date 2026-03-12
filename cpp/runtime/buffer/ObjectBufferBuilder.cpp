@@ -44,6 +44,7 @@ std::shared_ptr<BufferConsumer> ObjectBufferBuilder::createBufferConsumer(int cu
         throw std::runtime_error("Two BufferConsumer shouldn't exist for one BufferBuilder");
     }
     bufferConsumerCreated = true;
+    positionMarker->addRef();
     return std::make_shared<ObjectBufferConsumer>(dynamic_cast<VectorBatchBuffer*>(buffer->RetainBuffer()), positionMarker, currentReaderPosition);
 }
 

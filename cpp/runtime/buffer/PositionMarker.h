@@ -25,6 +25,7 @@
 #include <string>
 #include <sstream>
 #include <cmath>
+#include <atomic>
 #include "core/include/common.h"
 // check
 namespace omnistream {
@@ -48,7 +49,22 @@ public:
         return std::abs(position);
     }
 
+    void addRef()
+    {
+        refCount_.fetch_add(1, std::memory_order_relaxed);
+    }
+
+    void release()
+    {
+        if (refCount_.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+            delete this;
+        }
+    }
+
     virtual ~PositionMarker() = default;
+
+private:
+    std::atomic<int> refCount_{1}; // 创建时引用计数为 1
 };
 
 } // namespace omnistream

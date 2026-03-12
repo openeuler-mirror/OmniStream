@@ -72,7 +72,10 @@ namespace omnistream {
             {
                 LOG_TRACE("~CachedPositionMarker ")
                 selfCheck();
-                delete positionMarker;
+                if (positionMarker) {
+                    positionMarker->release();
+                    positionMarker = nullptr;
+                }
             }
 
             inline PositionMarker *getInnerPositionMarker()
