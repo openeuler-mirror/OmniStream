@@ -1,44 +1,56 @@
 #pragma once
 #include <set>
+#include <vector>
 
 /**
  * In-memory ordered TopN buffer.
  * Stores comboIds (long), sorted by Comparator.
- * Owns the std::set value directly (no raw pointer ownership problems).
+ * Uses multiset so equal-sort rows can coexist.
  */
 template <typename Comparator>
 class SetTopNBuffer {
 public:
-    using Buffer = std::set<long, Comparator>;
+    using Buffer = std::multiset<long, Comparator>;
 
     explicit SetTopNBuffer(Comparator cmp)
-        : buffer_(cmp),bufferId(-99) {}
+        : buffer_(cmp), bufferId(-99) {}
 
     inline auto begin() { return buffer_.begin(); }
     inline auto end()   { return buffer_.end(); }
 
-    inline void AddElement(long id) { buffer_.insert(id); }
+    inline bool AddElement(long id) {
+        buffer_.insert(id);
+        return true;
+    }
 
     inline void RemoveSmallestElement() {
-        if (!buffer_.empty()) buffer_.erase(buffer_.begin());
+        if (!buffer_.empty()) {
+            auto it = buffer_.end();
+            --it;
+            buffer_.erase(it);
+        }
     }
 
     inline int GetSize() const { return (int)buffer_.size(); }
 
-    inline long GetSmallestElement() const { return *buffer_.begin(); }
+    inline long GetSmallestElement() const {
+        auto it = buffer_.end();
+        --it;
+        return *it;
+    }
 
-    inline void LoadFromPlainSet(const std::set<long>& plain) {
+    inline void LoadFromPlainVector(const std::vector<long>& plain) {
         buffer_.clear();
         buffer_.insert(plain.begin(), plain.end());
     }
 
-    inline std::set<long>* ToPlainSet() const {
-        return new std::set<long>(buffer_.begin(), buffer_.end());
+    inline std::vector<long>* ToPlainVector() const {
+        return new std::vector<long>(buffer_.begin(), buffer_.end());
     }
     inline void SetBufferId(int id) { bufferId = id; }
     inline int GetBufferId() const { return bufferId; }
 
 private:
-    int bufferId;// unique buffer identifier
     Buffer buffer_;
+    int bufferId; // unique buffer identifier
 };
