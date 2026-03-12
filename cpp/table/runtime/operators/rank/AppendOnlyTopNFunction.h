@@ -21,7 +21,7 @@
 #include "core/api/common/state/MapState.h"
 #include "streaming/api/operators/StreamingRuntimeContext.h"
 #include "AbstractTopNFunction.h"
-#include "table/typeutils/SortedSetLong.h"
+#include "table/typeutils/SortedVectorLong.h"
 #include "core/api/common/state/ValueState.h"
 #include "SetTopNBuffer.h"
 #include <string_view>
@@ -54,12 +54,12 @@ public:
     {
 
         std::string topNStateName = "topNState";
-        TypeSerializer *topNSerializer = new SortedSetLong();
-        auto* topNStateDesc = new ValueStateDescriptor<std::set<long>*>(topNStateName, topNSerializer);
+        TypeSerializer *topNSerializer = new SortedVectorLong();
+        auto* topNStateDesc = new ValueStateDescriptor<std::vector<long>*>(topNStateName, topNSerializer);
         this->topNState = static_cast<StreamingRuntimeContext<K> *>(this->getRuntimeContext())
-                ->template getState<std::set<long> *>(topNStateDesc);
+                ->template getState<std::vector<long> *>(topNStateDesc);
 
-        if (dynamic_cast<RocksdbValueState<RowData *, VoidNamespace, std::set<long>*>*>(topNState))
+        if (dynamic_cast<RocksdbValueState<RowData *, VoidNamespace, std::vector<long>*>*>(topNState))
         {
             rocksdbBackend =true;
         }
@@ -108,24 +108,24 @@ public:
         }
 
 
-        std::unordered_map<K,std::set<long>*> rocksDBBatchUpdateMap;
+        std::unordered_map<K,std::vector<long>*> rocksDBBatchUpdateMap;
 
         if (changedKeysInThisBatch.size() >0) {
 
             for (auto key : changedKeysInThisBatch) {
                 BufferT* changedBuffer = partitionKeyToTopNbufferMap[key];
                 int size = changedBuffer->GetSize();
-                std::set<long>* updatedTopNSetState = changedBuffer->ToPlainSet();
+                std::vector<long>* updatedTopNState = changedBuffer->ToPlainVector();
 
                 if (rocksdbBackend) {
-                    rocksDBBatchUpdateMap.emplace(key, updatedTopNSetState);
+                    rocksDBBatchUpdateMap.emplace(key, updatedTopNState);
                 }else {
                     ctx.setCurrentKey(key);
                     auto v = topNState->value();
                     if (v!= nullptr) {
                         delete v;
                     }
-                    topNState->update(updatedTopNSetState);
+                    topNState->update(updatedTopNState);
                 }
             }
         }
@@ -174,18 +174,17 @@ public:
     }
 
 
-    void updateRockDBTopNStateByBatch(std::unordered_map<K,std::set<long>*> &rocksDBBatchUpdateMap)
+    void updateRockDBTopNStateByBatch(std::unordered_map<K,std::vector<long>*> &rocksDBBatchUpdateMap)
     {
         auto  rockdbTopNState = dynamic_cast<RocksdbValueState<K, VoidNamespace,
-                                                                std::set<long>*>*>(topNState);
+                                                                std::vector<long>*>*>(topNState);
         rockdbTopNState->updateByBatch(rocksDBBatchUpdateMap);
     }
 
 
     bool addCurrentToTargetBuffer(long currentComId,omnistream::VectorBatch* currentVb,long topN, BufferT* buffer) {
         if (buffer->GetSize()< topN) {
-            buffer->AddElement(currentComId);
-            return true;
+            return buffer->AddElement(currentComId);
         }else {
             long smallest = buffer->GetSmallestElement();
             long pbatchId = VectorBatchUtil::getBatchId(smallest);
@@ -196,8 +195,7 @@ public:
             bool inRange = CompareRowData(currentVb,crowId,GetVectorBatch(pbatchId),prowId);
             if (inRange) {
                 buffer->RemoveSmallestElement();
-                buffer->AddElement(currentComId);
-                return true;
+                return buffer->AddElement(currentComId);
             } else {
                 return false;
             }
@@ -232,11 +230,12 @@ public:
             long val1 = reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(col1)->GetValue(rowId1);
             long val2 = reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(col2)->GetValue(rowId2);
             if (val1 < val2) {
-                return !this->sortOrder[i]; // ascending
+                return this->sortOrder[i]; // ascending
             } else if (val1 > val2) {
-                return this->sortOrder[i]; // descending
+                return !this->sortOrder[i]; // descending
             }
         }
+        // return this->sortOrder[0];
         return false; // equal
     }
 
@@ -362,7 +361,7 @@ private:
     static const int64_t serialVersionUID = -4708453213104128011LL;
     // a map state stores mapping from sort key to records list which is in topN
     // ValueState<RowData*>* vectorBatchState;
-    ValueState<std::set<long>*>* topNState;
+    ValueState<std::vector<long>*>* topNState;
     BufferT* buffer;
     // the kvSortedMap stores mapping from partition key to it's buffer
     emhash7::HashMap<K, BufferT*> partitionKeyToTopNbufferMap;
@@ -376,7 +375,7 @@ private:
     K currentKey;
     std::unordered_map<int32_t,omnistream::VectorBatch *> vectorBatchCacheMap;
     std::vector<long> collectedIds;
-    std::vector<int> collectedRanks;
+    std::vector<int64_t> collectedRanks;
 
 
 
@@ -389,7 +388,7 @@ private:
             // Get list of rows that belongs to this partition && this sortKey
             auto listOfRows = topNState->value();
             if (listOfRows) {
-                topBuffer->LoadFromPlainSet(*listOfRows);
+                topBuffer->LoadFromPlainVector(*listOfRows);
                 // long firstElement = *listOfRows->begin();
                 // int batchId = VectorBatchUtil::getBatchId(firstElement);
                 // topBuffer->SetBufferId(batchId);

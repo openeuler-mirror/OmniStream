@@ -17,6 +17,7 @@
 #include <filesystem>
 #include <future>
 #include <memory>
+#include <vector>
 #include "AbstractKeyedStateBackend.h"
 #include "InternalKeyContext.h"
 #include "core/typeutils/TypeSerializer.h"
@@ -443,7 +444,7 @@ uintptr_t RocksdbKeyedStateBackend<K>::GetValueState(TypeSerializer *namespaceSe
     } else if (dataId == BackendDataType::POJO_BK || dataId == BackendDataType::OBJECT_BK) {
         return (uintptr_t) createOrUpdateInternalValueState<VoidNamespace, Object*>(namespaceSerializer, stateDesc);
     }else if (dataId == BackendDataType::SET_LONG) {
-        return (uintptr_t) createOrUpdateInternalValueState<VoidNamespace, std::set<long>*>(namespaceSerializer, stateDesc);
+        return (uintptr_t) createOrUpdateInternalValueState<VoidNamespace, std::vector<long>*>(namespaceSerializer, stateDesc);
     } else {
         NOT_IMPL_EXCEPTION
     }

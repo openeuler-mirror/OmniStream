@@ -1,13 +1,13 @@
 
-#ifndef OMNISTREAM_SORTEDSETLONG_H
-#define OMNISTREAM_SORTEDSETLONG_H
+#ifndef OMNISTREAM_SORTEDVECTORLONG_H
+#define OMNISTREAM_SORTEDVECTORLONG_H
 
 #include "../../core/typeutils/TypeSerializerSingleton.h"
 using namespace omniruntime::type;
 
-class SortedSetLong : public TypeSerializerSingleton {
+class SortedVectorLong : public TypeSerializerSingleton {
 public:
-    SortedSetLong() {};
+    SortedVectorLong() {};
     void *deserialize(DataInputView &source) override;
 
     void serialize(void *record, DataOutputSerializer &target) override;
@@ -17,4 +17,4 @@ public:
         return BackendDataType::SET_LONG;
     }
 };
-#endif //OMNISTREAM_SORTEDSETLONG_H
+#endif //OMNISTREAM_SORTEDVECTORLONG_H

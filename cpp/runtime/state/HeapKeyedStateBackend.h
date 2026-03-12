@@ -13,6 +13,7 @@
 #include <emhash7.hpp>
 #include <map>
 #include "common.h"
+#include <vector>
 #include "AbstractKeyedStateBackend.h"
 #include "InternalKeyContext.h"
 #include "core/typeutils/TypeSerializer.h"
@@ -94,6 +95,9 @@ public:
                 } else if (dataId == BackendDataType::ROW_BK) {
                     auto stateTable = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, RowData *> *>(stateTablePtr);
                     delete stateTable;
+                } else if (dataId == BackendDataType::SET_LONG) {
+                    auto stateTable = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, std::vector<long> *> *>(stateTablePtr);
+                    delete stateTable;
                 } else {
                     NOT_IMPL_EXCEPTION
                 }
@@ -119,7 +123,7 @@ public:
             long timestamp,
             CheckpointStreamFactory *streamFactory,
             CheckpointOptions *checkpointOptions) { return nullptr;}
-    
+
     std::shared_ptr<SavepointResources> savepoint() override
     {
         NOT_IMPL_EXCEPTION;
@@ -205,7 +209,7 @@ uintptr_t HeapKeyedStateBackend<K>::createOrUpdateInternalState(TypeSerializer *
         } else if (dataId == BackendDataType::POJO_BK) {
             return (uintptr_t) createOrUpdateInternalValueState<VoidNamespace, Object*>(namespaceSerializer, stateDesc);
         } else if (dataId == BackendDataType::SET_LONG) {
-            return (uintptr_t) createOrUpdateInternalValueState<VoidNamespace,std::set<long>*>(namespaceSerializer, stateDesc);
+            return (uintptr_t) createOrUpdateInternalValueState<VoidNamespace,std::vector<long>*>(namespaceSerializer, stateDesc);
         } else {
             NOT_IMPL_EXCEPTION;
         }
