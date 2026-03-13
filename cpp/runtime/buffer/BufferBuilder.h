@@ -26,11 +26,16 @@ namespace omnistream {
     public:
         explicit BufferBuilder(Buffer* buffer) : buffer(buffer)
         {
-            positionMarker = new SettablePositionMarker(); // delete by BufferConsumer
+            positionMarker = new SettablePositionMarker();
             maxCapacity = buffer->GetMaxCapacity();
         }
 
-        virtual ~BufferBuilder() = default;
+        virtual ~BufferBuilder() {
+            if (positionMarker) {
+                positionMarker->release();
+                positionMarker = nullptr;
+            }
+        }
 
         virtual std::shared_ptr<BufferConsumer> createBufferConsumerFromBeginning() = 0;
         virtual std::shared_ptr<BufferConsumer> createBufferConsumer(int currentReaderPosition) = 0;

@@ -16,15 +16,18 @@
 
 namespace datastream {
     MemoryBufferBuilder::MemoryBufferBuilder(MemorySegment *memorySegment,
-                                             std::shared_ptr<BufferRecycler> recycler)
-        : BufferBuilder(new NetworkBuffer(memorySegment, recycler)), memorySegment(memorySegment) {
-        taskId = TimerThreadPool::GetTimerThreadPoolInstance()->addPeriodicTask(200, [](MemoryBufferBuilder* memoryBufferBuilder) {
-            memoryBufferBuilder->commit();
-        }, this);
+                                                 std::shared_ptr<BufferRecycler> recycler)
+            : BufferBuilder(new NetworkBuffer(memorySegment, recycler)), memorySegment(memorySegment) {
+        positionMarker->addRef();
+        auto* marker = positionMarker;
+        taskId = TimerThreadPool::GetTimerThreadPoolInstance()->addPeriodicTask(200,[marker]() {
+            marker->commit();
+        });
     }
 
     MemoryBufferBuilder::~MemoryBufferBuilder() {
         TimerThreadPool::GetTimerThreadPoolInstance()->cancel(taskId);
+        positionMarker->release();
     }
 
     int MemoryBufferBuilder::appendAndCommit(void *source)
@@ -76,6 +79,7 @@ namespace datastream {
             throw std::runtime_error("Two BufferConsumer shouldn't exist for one BufferBuilder");
         }
         bufferConsumerCreated = true;
+        positionMarker->addRef();
         return std::make_shared<MemoryBufferConsumer>(reinterpret_cast<NetworkBuffer*>(buffer->RetainBuffer()), positionMarker, currentReaderPosition);
     }
 
