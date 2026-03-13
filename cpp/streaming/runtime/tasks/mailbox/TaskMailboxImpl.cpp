@@ -24,8 +24,7 @@ namespace omnistream {
     bool TaskMailboxImpl::isMailboxThread() const
     {
         // LOG("current id " << std::this_thread::get_id() << "and " << taskMailboxThreadId)
-        //return std::this_thread::get_id() == taskMailboxThreadId;
-        return true;
+        return std::this_thread::get_id() == taskMailboxThreadId;
     }
 
     bool TaskMailboxImpl::hasMail() const

@@ -27,12 +27,12 @@ namespace omnistream {
         mailboxProcessor_->allActionsCompleted();
     }
 
-    MailboxDefaultAction::Suspension* MailboxController::suspendDefaultAction(std::shared_ptr<PeriodTimer> suspensionPeriodTimer)
+    std::shared_ptr<MailboxDefaultAction::Suspension> MailboxController::suspendDefaultAction(std::shared_ptr<PeriodTimer> suspensionPeriodTimer)
     {
         return mailboxProcessor_->suspendDefaultAction(suspensionPeriodTimer);
     }
 
-    MailboxDefaultAction::Suspension* MailboxController::suspendDefaultAction()
+    std::shared_ptr<MailboxDefaultAction::Suspension> MailboxController::suspendDefaultAction()
     {
         return mailboxProcessor_->suspendDefaultAction(nullptr);
     }

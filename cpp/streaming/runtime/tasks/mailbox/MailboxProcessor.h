@@ -13,6 +13,7 @@
 #define MAILBOX_PROCESSOR_H
 
 #include <memory>
+#include <utility>
 #include <vector>
 #include <optional>
 #include <string>
@@ -69,7 +70,7 @@ namespace omnistream {
         bool processMailsNonBlocking(bool singleStep) ;
         void maybePauseIdleTimer();
         void maybeRestartIdleTimer();
-        MailboxDefaultAction::Suspension* suspendDefaultAction(
+        std::shared_ptr<MailboxDefaultAction::Suspension> suspendDefaultAction(
             std::shared_ptr<PeriodTimer> suspensionTimer);
         bool isNextLoopPossible() const {
             return !suspended;
@@ -77,19 +78,19 @@ namespace omnistream {
 
         class DefaultActionSuspension : public MailboxDefaultAction::Suspension {
         public:
-            explicit DefaultActionSuspension(std::shared_ptr<PeriodTimer> &suspensionTimer) : suspensionTimer(
-                suspensionTimer) {
-            };
-            ~DefaultActionSuspension() override;
+            explicit DefaultActionSuspension(MailboxProcessor* mailboxProcessor, std::shared_ptr<PeriodTimer> suspensionTimer) :
+                mailboxProcessor_(mailboxProcessor), suspensionTimer_(std::move(suspensionTimer)) {}
+
             void resume() override;
             std::shared_ptr<PeriodTimer> getSuspensionTimer()
             {
-                return suspensionTimer;
+                return suspensionTimer_;
             };
 
         private:
-            void resumeInternal() {};
-            std::shared_ptr<PeriodTimer> suspensionTimer;
+            MailboxProcessor* mailboxProcessor_;
+            std::shared_ptr<PeriodTimer> suspensionTimer_;
+
         };
 
         class lambdaHelper {
@@ -104,6 +105,10 @@ namespace omnistream {
             void mailboxLoopRunning(bool mailboxLoopRunning)
             {
                 processor_->mailboxLoopRunning = mailboxLoopRunning;
+            }
+
+            void resume() {
+                processor_->suspendedDefaultAction = nullptr;
             }
 
             TaskMailbox* getMailbox()
@@ -122,7 +127,7 @@ namespace omnistream {
         MailboxDefaultAction* mailboxDefaultAction = nullptr;
         bool suspended;
         bool mailboxLoopRunning;
-        DefaultActionSuspension* suspendedDefaultAction = nullptr;
+        std::shared_ptr<DefaultActionSuspension> suspendedDefaultAction;
         std::shared_ptr<StreamTaskActionExecutor> actionExecutor;
         int workaround = 0;
     };

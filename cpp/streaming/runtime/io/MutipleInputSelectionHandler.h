@@ -14,6 +14,7 @@
 
 #include <stdexcept>
 #include "DataInputStatus.h"
+#include "common.h"
 
 namespace omnistream {
 
@@ -32,7 +33,9 @@ namespace omnistream {
                 switch (inputStatus) {
                     case DataInputStatus::MORE_AVAILABLE:
                         nextSelection();
-                        checkBitMask(availableInputsMask, inputIndex);
+                        if (!checkBitMask(availableInputsMask, inputIndex)) {
+                            THROW_RUNTIME_ERROR("input " << std::to_string(inputIndex) << " is not available")
+                        }
                         return DataInputStatus::MORE_AVAILABLE;
                     case DataInputStatus::NOTHING_AVAILABLE:
                         availableInputsMask = unsetBitMask(availableInputsMask, inputIndex);

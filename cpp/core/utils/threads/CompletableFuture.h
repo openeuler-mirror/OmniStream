@@ -58,7 +58,7 @@ enum class FutureState {
 class CompletableFuture : public std::enable_shared_from_this<CompletableFuture> {
 public:
     CompletableFuture();
-    CompletableFuture(bool done);
+    CompletableFuture(bool done, FutureState futureState = FutureState::COMPLETED);
     ~CompletableFuture();
 
     // Prevent copying

@@ -41,6 +41,7 @@ namespace omnistream {
 
     void AvailabilityHelper::resetUnavailable()
     {
+        std::unique_lock<std::recursive_mutex> lock(availableFutureMutex);
         if (isAvailable()) {
             availableFuture = std::make_shared<CompletableFuture>();
         }
@@ -48,11 +49,13 @@ namespace omnistream {
 
     void AvailabilityHelper::resetAvailable()
     {
+        std::unique_lock<std::recursive_mutex> lock(availableFutureMutex);
         availableFuture = AVAILABLE;
     }
 
     std::shared_ptr<CompletableFuture> AvailabilityHelper::getUnavailableToResetAvailable()
     {
+        std::unique_lock<std::recursive_mutex> lock(availableFutureMutex);
         std::shared_ptr<CompletableFuture> toNotify = availableFuture;
         availableFuture = AVAILABLE;
         return toNotify;
@@ -60,6 +63,7 @@ namespace omnistream {
 
     std::shared_ptr<CompletableFuture> AvailabilityHelper::getUnavailableToResetUnavailable()
     {
+        std::unique_lock<std::recursive_mutex> lock(availableFutureMutex);
         std::shared_ptr<CompletableFuture> toNotify = availableFuture;
         availableFuture = std::make_shared<CompletableFuture>();
         return toNotify;
@@ -67,6 +71,7 @@ namespace omnistream {
 
     std::shared_ptr<CompletableFuture> AvailabilityHelper::GetAvailableFuture()
     {
+        std::unique_lock<std::recursive_mutex> lock(availableFutureMutex);
         return availableFuture;
     }
 

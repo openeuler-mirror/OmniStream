@@ -142,7 +142,7 @@ public:
     void finish()
     {
         stopInternalServices();
-        finished->setCompleted();
+        finished->complete();
     }
 
     void close()

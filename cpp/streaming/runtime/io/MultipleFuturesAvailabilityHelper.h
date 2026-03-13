@@ -37,10 +37,11 @@ namespace omnistream {
 
         void resetToUnAvailable();
 
-        void anyOf(int idx, const std::shared_ptr<CompletableFuture>& availabilityFuture);
+        void anyOf(int idx, std::shared_ptr<CompletableFuture> availabilityFuture);
     private:
         std::vector<std::shared_ptr<CompletableFuture>> futuresToCombine;
         std::shared_ptr<CompletableFuture> availableFuture = std::make_shared<CompletableFuture>();
+        std::recursive_mutex availableFutureMutex;
 
         void notifyCompletion();
     };

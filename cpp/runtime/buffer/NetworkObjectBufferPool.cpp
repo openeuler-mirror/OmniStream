@@ -198,7 +198,7 @@ void NetworkObjectBufferPool::internalRecycleObjectSegments(const std::vector<Ob
         }
         cv.notify_all();
         if (toNotify != nullptr) {
-            toNotify->setCompleted();
+            toNotify->complete();
         }
     }
 }
