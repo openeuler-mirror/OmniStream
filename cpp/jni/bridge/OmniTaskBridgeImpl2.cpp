@@ -652,14 +652,30 @@ void OmniTaskBridgeImpl2::getKeyGroupEntries(jobject inputStream,
 
         jclass entryWrapperClass = env->FindClass("com/huawei/omniruntime/flink/runtime/restore/KeyGroupEntryWrapper");
         jclass entryClass = env->FindClass("com/huawei/omniruntime/flink/runtime/restore/KeyGroupEntry");
+        if (unlikely(entryWrapperClass == nullptr || entryClass == nullptr)) {
+            GErrorLog("Error: getKeyGroupEntries could not FindClass for JNI call");
+            g_OmniStreamJVM->DetachCurrentThread();
+            return;
+        }
 
         jfieldID currentKvStateIdField = env->GetFieldID(entryWrapperClass, "currentKvStateId", "I");
         jfieldID entriesField = env->GetFieldID(entryWrapperClass, "entries", "[Lcom/huawei/omniruntime/flink/runtime/restore/KeyGroupEntry;");
         jfieldID entryKvStateIdField = env->GetFieldID(entryWrapperClass, "kvStateId", "I");
         jfieldID entryCountField = env->GetFieldID(entryWrapperClass, "count", "I");
+        if (unlikely(currentKvStateIdField == nullptr || entriesField == nullptr
+            || entryKvStateIdField == nullptr || entryCountField == nullptr)) {
+            GErrorLog("Error: getKeyGroupEntries entryWrapperClass could not GetFieldID for JNI call");
+            g_OmniStreamJVM->DetachCurrentThread();
+            return;
+        }
 
         jfieldID entryKeyField = env->GetFieldID(entryClass, "key", "[B");
         jfieldID entryValueField = env->GetFieldID(entryClass, "value", "[B");
+        if (unlikely(entryKeyField == nullptr || entryValueField == nullptr)) {
+            GErrorLog("Error: getKeyGroupEntries entryClass could not GetFieldID for JNI call");
+            g_OmniStreamJVM->DetachCurrentThread();
+            return;
+        }
 
         jmethodID mid = env->GetMethodID(omniTaskWrapperClass, "getKeyGroupEntries",
             "(Lorg/apache/flink/core/fs/FSDataInputStream;IZ)Lcom/huawei/omniruntime/flink/runtime/restore/KeyGroupEntryWrapper;");
@@ -674,11 +690,13 @@ void OmniTaskBridgeImpl2::getKeyGroupEntries(jobject inputStream,
         if (env->ExceptionCheck()) {
             env->ExceptionDescribe(); // Print exception details to stderr
             env->ExceptionClear();    // Clear the exception
+            g_OmniStreamJVM->DetachCurrentThread();
             return;
         }
 
         if (result == nullptr) {
             GErrorLog("Error: getKeyGroupEntries get null result for JNI call");
+            g_OmniStreamJVM->DetachCurrentThread();
             return;
         }
 
@@ -737,6 +755,12 @@ jobject OmniTaskBridgeImpl2::getSavepointInputStream(const std::string &metaStat
         }
         jstring msHandle = env->NewStringUTF(metaStateHandle.c_str());
         inputStream = env->CallObjectMethod(m_globalOmniTaskRef, mid, msHandle);
+        if (env->ExceptionCheck()) {
+            env->ExceptionDescribe();
+            env->ExceptionClear();
+            g_OmniStreamJVM->DetachCurrentThread();
+            throw std::runtime_error("Failed to call SavepointInputStream get method");
+        }
         env->DeleteLocalRef(msHandle);
         env->DeleteLocalRef(omniTaskWrapperClass);
     } else {
@@ -771,6 +795,12 @@ bool OmniTaskBridgeImpl2::isUsingKeyGroupCompression(jobject inputStream)
             return false;
         }
         auto ret = env->CallBooleanMethod(m_globalOmniTaskRef, mid, inputStream);
+        if (env->ExceptionCheck()) {
+            env->ExceptionDescribe();
+            env->ExceptionClear();
+            g_OmniStreamJVM->DetachCurrentThread();
+            throw std::runtime_error("Failed to call SavepointInputStream use compression method");
+        }
         result = (ret == JNI_TRUE);
         env->DeleteLocalRef(omniTaskWrapperClass);
     } else {
@@ -804,6 +834,12 @@ void OmniTaskBridgeImpl2::setSavepointInputStreamOffset(jobject inputStream, int
             return;
         }
         env->CallObjectMethod(m_globalOmniTaskRef, mid, inputStream, offset);
+        if (env->ExceptionCheck()) {
+            env->ExceptionDescribe();
+            env->ExceptionClear();
+            g_OmniStreamJVM->DetachCurrentThread();
+            throw std::runtime_error("Failed to call SavepointInputStream set offset method");
+        }
         env->DeleteLocalRef(omniTaskWrapperClass);
     } else {
         GErrorLog("Error: Could not get TaskStateManagerWrapper class for JNI call");
@@ -835,6 +871,13 @@ void OmniTaskBridgeImpl2::closeSavepointInputStream(jobject inputStream)
             return;
         }
         env->CallObjectMethod(m_globalOmniTaskRef, mid, inputStream);
+        if (env->ExceptionCheck()) {
+            env->ExceptionDescribe();
+            env->ExceptionClear();
+            env->DeleteLocalRef(inputStream);
+            g_OmniStreamJVM->DetachCurrentThread();
+            throw std::runtime_error("Failed to call SavepointInputStream close method");
+        }
         env->DeleteLocalRef(omniTaskWrapperClass);
         env->DeleteLocalRef(inputStream);
     } else {

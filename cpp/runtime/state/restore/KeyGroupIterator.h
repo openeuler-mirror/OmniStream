@@ -33,11 +33,15 @@ public:
             isUsingKeyGroupCompression_ = omniTaskBridge_->isUsingKeyGroupCompression(inputStream_);
     }
 
-    bool hasNext()
+    ~KeyGroupIterator()
     {
-        if (currentIndex_ >= keyGroupRange_.getNumberOfKeyGroups()) {
+        if (inputStream_ != nullptr) {
             omniTaskBridge_->closeSavepointInputStream(inputStream_);
         }
+    }
+
+    bool hasNext()
+    {
         return currentIndex_ < keyGroupRange_.getNumberOfKeyGroups();
     }
 
