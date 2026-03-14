@@ -26,6 +26,15 @@ public:
         isCompressed_ = false;
     }
 
+    explicit VectorBatchBuffer(std::shared_ptr<ObjectSegment> segment)
+            : objectSegment(segment.get()), recycler(nullptr), ownedSegment_(std::move(segment))
+    {
+        bufferType = 0;
+        event_type = -1;
+        readerIndex_ = -1;
+        isCompressed_ = false;
+    }
+
     explicit VectorBatchBuffer(int event_) : objectSegment(nullptr), recycler(nullptr), isCompressed_(false),
         readerIndex_(-1)
     {
@@ -173,6 +182,7 @@ public:
 
 private:
     ObjectSegment *objectSegment;
+    std::shared_ptr<ObjectSegment> ownedSegment_; // 共享指针包装，保证ObjectSegment生命周期
     std::shared_ptr<BufferRecycler> recycler;
     // ObjectBufferDataType dataType;
     int bufferType;  // 0 vectorbatch, 1. event  for now

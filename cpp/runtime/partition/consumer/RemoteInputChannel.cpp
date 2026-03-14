@@ -48,7 +48,7 @@ namespace omnistream {
             uint8_t* buffer = reinterpret_cast<uint8_t*>(bufferAddress);
             // do data deserialization
             std::shared_ptr<ObjectSegment> objectSegment = this->DoDataDeserializationResult(buffer, bufferLength);
-            auto vectorBatchBuffer = new VectorBatchBuffer(objectSegment.get());
+            auto vectorBatchBuffer = new VectorBatchBuffer(objectSegment);
             vectorBatchBuffer->SetSize(objectSegment->getSize());
             std::lock_guard<std::recursive_mutex> lock(queueMutex);
             this->dataQueue.push(vectorBatchBuffer);
