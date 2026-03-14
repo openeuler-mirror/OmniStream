@@ -467,7 +467,7 @@ RocksdbMapStateTable<K, N, UK, UV> *RocksdbKeyedStateBackend<K>::tryRegisterMapS
         return stateTable;
     } else {
         std::unique_ptr<RegisteredKeyValueStateBackendMetaInfo> newMetaInfo = nullptr;
-		if (stateDesc->getType() == StateDescriptor::Type::Value) {
+		if (stateDesc->getType() == StateDescriptor::Type::VALUE) {
 			// [FALCON] value type info is needed for RocksDBValueState to enable hash optimization
 			newMetaInfo = std::make_unique<RegisteredKeyValueStateBackendMetaInfo>(stateDesc->getType(),
 				stateDesc->getName(), namespaceSerializer, newStateSerializer);
