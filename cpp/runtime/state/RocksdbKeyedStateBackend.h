@@ -466,9 +466,15 @@ RocksdbMapStateTable<K, N, UK, UV> *RocksdbKeyedStateBackend<K>::tryRegisterMapS
         stateTable->setMetaInfo(std::move(restoredKvMetaInfo));
         return stateTable;
     } else {
-        std::unique_ptr<RegisteredKeyValueStateBackendMetaInfo> newMetaInfo =
-                std::make_unique<RegisteredKeyValueStateBackendMetaInfo>(stateDesc->getName(), namespaceSerializer,
-                                                           newStateSerializer);
+        std::unique_ptr<RegisteredKeyValueStateBackendMetaInfo> newMetaInfo = nullptr;
+		if (stateDesc->getType() == StateDescriptor::Type::Value) {
+			// [FALCON] value type info is needed for RocksDBValueState to enable hash optimization
+			newMetaInfo = std::make_unique<RegisteredKeyValueStateBackendMetaInfo>(stateDesc->getType(),
+				stateDesc->getName(), namespaceSerializer, newStateSerializer);
+		} else {
+			newMetaInfo = std::make_unique<RegisteredKeyValueStateBackendMetaInfo>(stateDesc->getName(),
+				namespaceSerializer, newStateSerializer);
+		}
         RocksdbMapStateTable<K, N, UK, UV> *stateTable =
                 new RocksdbMapStateTable<K, N, UK, UV>(this->context, std::move(newMetaInfo), this->keySerializer,
                                                        stateDesc->GetUserKeySerializer());
