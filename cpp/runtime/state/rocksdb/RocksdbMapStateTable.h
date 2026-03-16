@@ -123,7 +123,9 @@ public:
             if constexpr (std::is_pointer_v<UV>) {
                 return (UV)resPtr;
             } else {
-                return *(UV *)resPtr; // attention: need to delete restPtr in the caller after using
+                UV value = *(UV*)resPtr;
+                delete (UV*)resPtr;
+                return value;
             }
         }
     };
@@ -301,6 +303,65 @@ public:
         auto ret = rocksDb->Write(writeOptions, &putBatch);
     }
 
+    void putByBatch(std::unordered_map<K, std::vector<std::tuple<UK, UV>>> &dataToAdd)
+    {
+        ROCKSDB_NAMESPACE::WriteBatch putBatch;
+
+        DataOutputSerializer keyPrefixOutputSerializer;
+        OutputBufferStatus keyPrefixOutputBufferStatus;
+        keyPrefixOutputSerializer.setBackendBuffer(&keyPrefixOutputBufferStatus);
+
+        DataOutputSerializer keyOutputSerializer;
+        OutputBufferStatus keyOutputBufferStatus;
+        keyOutputSerializer.setBackendBuffer(&keyOutputBufferStatus);
+
+        DataOutputSerializer valueOutputSerializer;
+        OutputBufferStatus valueOutputBufferStatus;
+        valueOutputSerializer.setBackendBuffer(&valueOutputBufferStatus);
+
+        for (auto &item : dataToAdd) {
+            const K& key = item.first;
+            auto& userKeyValues = item.second;
+            if (userKeyValues.empty()) {
+                continue;
+            }
+            keyContext->setCurrentKey(key);
+
+            keyPrefixOutputSerializer.clear();
+            serializerKey(keyPrefixOutputSerializer);
+            const int keyPrefixLength = keyPrefixOutputSerializer.length();
+
+            keyOutputSerializer.clear();
+            keyOutputSerializer.write(
+                keyPrefixOutputSerializer.getData(),
+                keyPrefixLength,
+                0,
+                keyPrefixLength);
+
+            for (const auto& keyValue : userKeyValues) {
+                const UK& userKey = std::get<0>(keyValue);
+                const UV& value = std::get<1>(keyValue);
+
+                keyOutputSerializer.setPosition(keyPrefixLength);
+                if constexpr (std::is_pointer_v<UK>) {
+                    getUserKeySerializer()->serialize(userKey, keyOutputSerializer);
+                } else {
+                    UK mutableUserKey = userKey;
+                    getUserKeySerializer()->serialize(&mutableUserKey, keyOutputSerializer);
+                }
+                ROCKSDB_NAMESPACE::Slice sliceKey(
+                    reinterpret_cast<const char *>(keyOutputSerializer.getData()),
+                    keyOutputSerializer.length());
+
+                valueOutputSerializer.clear();
+                ROCKSDB_NAMESPACE::Slice sliceValue = serializerValue(valueOutputSerializer, value);
+                putBatch.Put(table, sliceKey, sliceValue);
+            }
+        }
+        writeOptions.memtable_insert_hint_per_batch = true;
+        auto ret = rocksDb->Write(writeOptions, &putBatch);
+    }
+
     void putByBatch(std::vector<std::shared_ptr<std::tuple<K,UK,std::shared_ptr<std::string>>>>& dataToAdd)
     {
         ROCKSDB_NAMESPACE::WriteBatch putBatch;
@@ -344,6 +405,34 @@ public:
             DataOutputSerializer valueOutputSerializer;
             OutputBufferStatus valueOutputBufferStatus;
             valueOutputSerializer.setBackendBuffer(&valueOutputBufferStatus);
+            ROCKSDB_NAMESPACE::Slice sliceValue = serializerValue(valueOutputSerializer, value);
+            putBatch.Put(table, sliceKey, sliceValue);
+        }
+        writeOptions.memtable_insert_hint_per_batch = true;
+        auto ret = rocksDb->Write(writeOptions, &putBatch);
+    }
+
+    void putByBatch(std::vector<std::tuple<K,UK,UV>>& dataToAdd)
+    {
+        ROCKSDB_NAMESPACE::WriteBatch putBatch;
+        DataOutputSerializer outputSerializer;
+        OutputBufferStatus outputBufferStatus;
+        outputSerializer.setBackendBuffer(&outputBufferStatus);
+
+        DataOutputSerializer valueOutputSerializer;
+        OutputBufferStatus valueOutputBufferStatus;
+        valueOutputSerializer.setBackendBuffer(&valueOutputBufferStatus);
+
+        for (auto& item : dataToAdd) {
+            K key = std::get<0>(item);
+            UK ukey = std::get<1>(item);
+            UV value = std::get<2>(item);
+            keyContext->setCurrentKey(key);
+
+            outputSerializer.clear();
+            ROCKSDB_NAMESPACE::Slice sliceKey = serializerKeyAndUserKey(outputSerializer, ukey);
+
+            valueOutputSerializer.clear();
             ROCKSDB_NAMESPACE::Slice sliceValue = serializerValue(valueOutputSerializer, value);
             putBatch.Put(table, sliceKey, sliceValue);
         }
@@ -417,12 +506,20 @@ public:
         outputSerializer.setBackendBuffer(&outputBufferStatus);
         ROCKSDB_NAMESPACE::Slice sliceKey = serializerKeyAndUserKey(outputSerializer, userKey);
 
-        std::string valueInTable;
-        ROCKSDB_NAMESPACE::Status s = rocksDb->Get(readOptions, table, sliceKey, &valueInTable);
-        if (!s.ok() || valueInTable.length() == 0) {
+        // Fast negative path. May return false positives, so fallback to Get for exact existence check.
+        bool valueFoundByMayExist = false;
+        std::string mayExistValue;
+        const bool keyMayExist = rocksDb->KeyMayExist(readOptions, table, sliceKey, &mayExistValue, &valueFoundByMayExist);
+        if (!keyMayExist) {
             return false;
         }
-        return true;
+        if (valueFoundByMayExist) {
+            return true;
+        }
+
+        ROCKSDB_NAMESPACE::PinnableSlice pinnedValue;
+        ROCKSDB_NAMESPACE::Status s = rocksDb->Get(readOptions, table, sliceKey, &pinnedValue);
+        return s.ok();
     }
 
     std::unordered_map<K, emhash7::HashMap<UK, UV>> entriesCache;

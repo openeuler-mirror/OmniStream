@@ -9,7 +9,7 @@ set(CMAKE_CXX_STANDARD 17)
 if(DEFINED ENV{OMNI_HOME})
     set(CMAKE_INSTALL_PREFIX $ENV{OMNI_HOME} CACHE PATH "Install path prefix" FORCE)
 endif()
-option(WITH_OMNISTATESTORE "Enable to build with OmniStateStore" ON)
+option(WITH_OMNISTATESTORE "Enable to build with OmniStateStore" OFF)
 add_library(project_config INTERFACE)
 if(WITH_OMNISTATESTORE)
     target_compile_definitions(project_config INTERFACE WITH_OMNISTATESTORE)
@@ -149,7 +149,6 @@ endif()
 set(CMAKE_SKIP_RPATH TRUE)
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} -lrt -fno-var-tracking-assignments -pipe -g -Wall -fPIC -fno-omit-frame-pointer -fno-common -fno-stack-protector")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -lrt -fno-var-tracking-assignments -Wno-terminate -Wno-delete-incomplete -pipe -Wall -Wno-strict-aliasing -Wtrampolines -D_FORTIFY_SOURCE=2 -fPIC -finline-functions -fstack-protector-strong -s -Wl,-z,noexecstack -Wl,-z,relro,-z,now -finline-limit=6000 --param inline-unit-growth=300")
-add_compile_options("-march=armv8-a+sve")
 
 # Default including directory
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/core/include/" "${CMAKE_CURRENT_SOURCE_DIR}"
@@ -170,15 +169,10 @@ include_directories("${CMAKE_CURRENT_SOURCE_DIR}/core/include/" "${CMAKE_CURRENT
 # Assume contain will have and only container has /repo dur
 set(CONTAINER_DIR "/repo")
 
-if(EXISTS "${CONTAINER_DIR}")
-    set(OMNIRUNTIME_DIR "$ENV{OMNI_HOME}")
-    set(OMNIRUNTIME_LIB_DIR "${OMNIRUNTIME_DIR}/lib")
-    set(OMNIRUNTIME_SRC_DIR "/repo/codehub")
-else()
-    set(OMNIRUNTIME_DIR "$ENV{HOME}")
-    set(OMNIRUNTIME_LIB_DIR "${OMNIRUNTIME_DIR}/opt/lib")
-    set(OMNIRUNTIME_SRC_DIR "${OMNIRUNTIME_DIR}")
-endif()
+set(OMNIRUNTIME_DIR "$ENV{OMNI_HOME}")
+set(OMNIRUNTIME_LIB_DIR "${OMNIRUNTIME_DIR}/lib")
+set(OMNIRUNTIME_SRC_DIR "/opt/buildtools")
+
 
 include_directories("${OMNIRUNTIME_SRC_DIR}/")
 include_directories("${OMNIRUNTIME_SRC_DIR}/OmniOperatorJIT/")
@@ -193,9 +187,12 @@ if(ENABLE_ORT_1_7)
     set(ORT_CODEGEN_SO boostkit-omniop-codegen-1.7.0-aarch64)
     set(ORT_OP_SO boostkit-omniop-operator-1.7.0-aarch64)
 else ()
-    set(ORT_VEC_SO boostkit-omniop-vector-2.0.0-aarch64)
-    set(ORT_CODEGEN_SO boostkit-omniop-codegen-2.0.0-aarch64)
-    set(ORT_OP_SO boostkit-omniop-operator-2.0.0-aarch64)    
+#    set(ORT_VEC_SO boostkit-omniop-vector-2.0.0-aarch64)
+#    set(ORT_CODEGEN_SO boostkit-omniop-codegen-2.0.0-aarch64)
+#    set(ORT_OP_SO boostkit-omniop-operator-2.0.0-aarch64)
+    set(ORT_VEC_SO boostkit-omniop-vector-1.9.0-aarch64)
+    set(ORT_CODEGEN_SO boostkit-omniop-codegen-1.9.0-aarch64)
+    set(ORT_OP_SO boostkit-omniop-operator-1.9.0-aarch64)
 endif()
 
 option(ENABLE_TSHOOT "Enable trouble shooting macro" OFF)
@@ -225,15 +222,16 @@ add_subdirectory(connector)
 # add_subdirectory(codegen)
 # add_subdirectory(expression)
 
-option(ENABLE_TESTS "Provide unit tests" ON)
-if (ENABLE_TESTS)
+option(ENABLE_TESTS "Provide unit tests" OFF)
+if (NOT ENABLE_TESTS)
+    message(STATUS "ENABLE_TESTS is forced ON for this branch.")
+    set(ENABLE_TESTS ON CACHE BOOL "Provide unit tests" FORCE)
     add_subdirectory(test)
 endif ()
 
 enable_testing()
 
 message(STATUS "Compiler options: ${CMAKE_CXX_FLAGS}")
-
 
 
 

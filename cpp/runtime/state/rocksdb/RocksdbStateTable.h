@@ -171,38 +171,43 @@ public:
 
     void putByBatch(N &nameSpace, std::unordered_map<K, S>& pendingUpdates)
     {
-        // 存入
+        if (pendingUpdates.empty()) {
+            return;
+        }
+
         ROCKSDB_NAMESPACE::WriteBatch putBatch;
+
+        TypeSerializer *vSerializer = getStateSerializer();
+
+        DataOutputSerializer keyOutputSerializer;
+        OutputBufferStatus keyOutputBufferStatus;
+        keyOutputSerializer.setBackendBuffer(&keyOutputBufferStatus);
+
+        DataOutputSerializer valueOutputSerializer;
+        OutputBufferStatus valueOutputBufferStatus;
+        valueOutputSerializer.setBackendBuffer(&valueOutputBufferStatus);
+
         for (auto& entry : pendingUpdates) {
-            RowData* key = entry.first;
-            S state = entry.second;
+            keyContext->setCurrentKey(entry.first);
 
-            keyContext->setCurrentKey(key);
-            LOG("RocksDB put");
-            DataOutputSerializer outputSerializer;
-            OutputBufferStatus outputBufferStatus;
-            outputSerializer.setBackendBuffer(&outputBufferStatus);
-            ROCKSDB_NAMESPACE::Slice sliceKey = GetKeyNameSpaceSlice(outputSerializer, nameSpace);
+            keyOutputSerializer.clear();
+            ROCKSDB_NAMESPACE::Slice sliceKey = GetKeyNameSpaceSlice(keyOutputSerializer, nameSpace);
 
-            // value序列化
-            TypeSerializer *vSerializer = getStateSerializer();
-            DataOutputSerializer valueOutputSerializer;
-            OutputBufferStatus valueOutputBufferStatus;
-            valueOutputSerializer.setBackendBuffer(&valueOutputBufferStatus);
-
-            S tmpS = state;
+            valueOutputSerializer.clear();
 
             if constexpr (std::is_pointer_v<S>) {
-                vSerializer->serialize(tmpS, valueOutputSerializer);
+                vSerializer->serialize(entry.second, valueOutputSerializer);
             } else {
-                vSerializer->serialize(&tmpS, valueOutputSerializer);
+                vSerializer->serialize(&entry.second, valueOutputSerializer);
             }
 
             ROCKSDB_NAMESPACE::Slice sliceValue(reinterpret_cast<const char *>(valueOutputSerializer.getData()),
                                                 valueOutputSerializer.length());
             putBatch.Put(table,sliceKey,sliceValue);
         }
-        auto s3 = rocksDb->Write(writeOptions, &putBatch);
+        ROCKSDB_NAMESPACE::WriteOptions batchWriteOptions = writeOptions;
+        batchWriteOptions.memtable_insert_hint_per_batch = true;
+        auto s3 = rocksDb->Write(batchWriteOptions, &putBatch);
 
         if (s3.ok()) {
         }

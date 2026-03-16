@@ -14,10 +14,8 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <deque>
-#include <list>
-#include <unordered_map>
-#include <unordered_set>
+#include <tuple>
+#include <vector>
 #include "../AggsHandleFunction.h"
 #include "../table/runtime/dataview/StateDataViewStore.h"
 #include "../runtime/state/VoidNamespace.h"
@@ -26,7 +24,8 @@ using namespace omniruntime::type;
 
 class CountDistinctFunction : public AggsHandleFunction {
 public:
-    CountDistinctFunction(int aggIdx, std::string inputType, int accIndex, int valueIndex, int aggFuncIndex, int filterIndex)
+    CountDistinctFunction(int aggIdx, std::string inputType, int accIndex = -1, int valueIndex = -1,
+                          int aggFuncIndex = -1, int filterIndex = -1)
         : valueIsNull(true), aggIdx(aggIdx), accIndex(accIndex), valueIndex(valueIndex), aggFuncIndex(aggFuncIndex), filterIndex(filterIndex)
     {
         hasFilter = filterIndex != -1;
@@ -51,30 +50,18 @@ public:
     void setCurrentGroupKey(RowData* key) override;
     void accumulateInRocksDB(omnistream::VectorBatch *input, const std::vector<int> &indices);
     void updateInnerState();
+    void bindAccValueIndex(int accStartIndex, int valueStartIndex) override
+    {
+        accIndex = accStartIndex;
+        valueIndex = valueStartIndex;
+    }
+    int accumulatorSlots() const override { return 1; }
+    bool hasAggOutput() const override { return valueIndex >= 0; }
     ~CountDistinctFunction() override;
 
 
 private:
-    using PendingDistinctUpdates = std::unordered_map<RowData*, std::unordered_map<long, long>>;
-
-    struct DistinctCacheNode {
-        RowData* groupKey;
-        std::unordered_set<long> distinctKeys;
-        std::deque<long> distinctKeyOrder;
-    };
-
-    using DistinctCacheList = std::list<DistinctCacheNode>;
-    using DistinctCacheIter = DistinctCacheList::iterator;
-    using DistinctCacheIndex = std::unordered_map<RowData*, DistinctCacheIter>;
-
-    DistinctCacheIter findOrLoadDistinctCache(RowData* groupKey);
-    void touchDistinctCache(DistinctCacheIter it);
-    void evictDistinctCacheIfNeeded();
-    void invalidateDistinctCache(RowData* groupKey);
-    void clearDistinctCache();
-
-    static constexpr size_t DISTINCT_CACHE_CAPACITY = 10000;
-    static constexpr size_t DISTINCT_KEYS_PER_GROUP_CAPACITY = 10000;
+    using PendingDistinctUpdates = std::vector<std::tuple<RowData*, long, long>>;
 
     long aggCount;
     bool valueIsNull;
@@ -88,8 +75,6 @@ private:
     StateDataViewStore *store;
     KeyedStateMapViewWithKeysNullable<VoidNamespace, long, long> *distinctMapView;
     RowData * currentGroupKey;
-    DistinctCacheList distinctCacheLru;
-    DistinctCacheIndex distinctCacheIndex;
     PendingDistinctUpdates pendingDistinctUpdates;
 };
 
