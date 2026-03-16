@@ -68,17 +68,16 @@ public:
         this->rocksDb = db;
         rocksdb::Options options;
         options.create_if_missing = true;
-        if (metaInfo->getStateType() == StateDescriptor::Type::VALUE) {
-            options.allow_concurrent_memtable_write = false;
-        }
         // set merge method, listState need
         options.merge_operator.reset(new RocksDbStringAppendOperator(','));
         ROCKSDB_NAMESPACE::ColumnFamilyOptions familyOptions(options);
 
         // [FALCON] -----------------------------------------------------------------------------------------------
         if (metaInfo->getStateType() == StateDescriptor::Type::VALUE) {
+			// modify columnFamily option and read option for current columnFamily
             familyOptions.memtable_factory.reset(ROCKSDB_NAMESPACE::NewHashLinkListRepFactory());
             familyOptions.prefix_extractor.reset(ROCKSDB_NAMESPACE::NewCappedPrefixTransform(FALCON_HASH_PARAM));
+			readOptions.total_order_seek = true;
             INFO_RELEASE("[FALCON] enable hash memTable for valueState.")
         }
         // [FALCON] -----------------------------------------------------------------------------------------------

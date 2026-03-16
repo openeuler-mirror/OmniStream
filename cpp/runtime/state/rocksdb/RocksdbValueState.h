@@ -168,7 +168,9 @@ public:
             // [refcount] udf and omniStream will interaction through RocksdbValueState.value(), after udf have used
             // the return value, it will decrease value's refcount, thus we should increase value's refcount here.
             if constexpr (std::is_same_v<V, Object*>) {
-                reinterpret_cast<Object*>(value)->getRefCount();
+				if (value != nullptr) {
+                	reinterpret_cast<Object*>(value)->getRefCount();
+				}
             }
             delete falconKey; // if we do not insert falconKey into falcon cache, directly delete it.
             return value;

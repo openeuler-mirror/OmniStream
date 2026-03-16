@@ -287,8 +287,10 @@ void RocksdbKeyedStateBackend<K>::flushFalconCacheBeforeCheckpoint()
     // and N is VoidNamespace type.
     for (auto &entry : falconKvState) {
         auto* state = reinterpret_cast<RocksdbValueState<Object *, VoidNamespace, Object *> *>(entry.second);
-        state->stateCache->flush();
-        state->stateCache->clearAll();
+        if (state != nullptr && state->stateCache != nullptr) {
+            state->stateCache->flush();
+            state->stateCache->clearAll();
+        }
     }
 }
 
@@ -440,9 +442,14 @@ RocksdbStateTable<K, N, S> *RocksdbKeyedStateBackend<K>::tryRegisterStateTable(T
         stateTable->setMetaInfo(std::move(restoredKvMetaInfo));
         return stateTable;
     } else {
-        std::unique_ptr<RegisteredKeyValueStateBackendMetaInfo> newMetaInfo =
-                std::make_unique<RegisteredKeyValueStateBackendMetaInfo>(stateDesc->getName(), namespaceSerializer,
-                                                           newStateSerializer);
+        std::unique_ptr<RegisteredKeyValueStateBackendMetaInfo> newMetaInfo = nullptr;
+		if (stateDesc->getType() == StateDescriptor::Type::VALUE) {
+			newMetaInfo = std::make_unique<RegisteredKeyValueStateBackendMetaInfo>(stateDesc->getType(),
+				stateDesc->getName(), namespaceSerializer, newStateSerializer);
+		} else {
+			newMetaInfo = std::make_unique<RegisteredKeyValueStateBackendMetaInfo>(stateDesc->getName(),
+				namespaceSerializer, newStateSerializer);
+		}
         RocksdbStateTable<K, N, S> *stateTable =
                 new RocksdbStateTable<K, N, S>(this->context, std::move(newMetaInfo), this->keySerializer);
         std::tuple tuple(reinterpret_cast<uintptr_t>(stateTable), stateDesc);
@@ -467,8 +474,8 @@ RocksdbMapStateTable<K, N, UK, UV> *RocksdbKeyedStateBackend<K>::tryRegisterMapS
         return stateTable;
     } else {
         std::unique_ptr<RegisteredKeyValueStateBackendMetaInfo> newMetaInfo =
-                std::make_unique<RegisteredKeyValueStateBackendMetaInfo>(stateDesc->getName(), namespaceSerializer,
-                                                           newStateSerializer);
+			std::make_unique<RegisteredKeyValueStateBackendMetaInfo>(stateDesc->getName(), namespaceSerializer,
+																	 newStateSerializer);
         RocksdbMapStateTable<K, N, UK, UV> *stateTable =
                 new RocksdbMapStateTable<K, N, UK, UV>(this->context, std::move(newMetaInfo), this->keySerializer,
                                                        stateDesc->GetUserKeySerializer());
@@ -507,7 +514,9 @@ RocksdbValueState<K, N, V> *RocksdbKeyedStateBackend<K>::createOrUpdateInternalV
     INFO_RELEASE("[FALCON] update falcon cache size to " << newCacheSize << ".\n")
     for (auto &entry : falconKvState) {
         auto* state = reinterpret_cast<RocksdbValueState<K, N, V> *>(entry.second);
-        state->stateCache->updateSizeLimit(newCacheSize);
+        if (state != nullptr && state->stateCache != nullptr) {
+            state->stateCache->updateSizeLimit(newCacheSize);
+        }
     }
     // [FALCON] -------------------------------------------------------------------------------------------
 
