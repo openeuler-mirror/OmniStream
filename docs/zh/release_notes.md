@@ -12,7 +12,7 @@
 </tr>
 <tr id="row237mcpsimp"><th class="firstcol" valign="top" width="30%" id="mcps1.1.3.2.1"><p id="p239mcpsimp"><a name="p239mcpsimp"></a><a name="p239mcpsimp"></a>产品版本</p>
 </th>
-<td class="cellrowborder" valign="top" width="70%" headers="mcps1.1.3.2.1 "><p id="p241mcpsimp"><a name="p241mcpsimp"></a><a name="p241mcpsimp"></a>25.3.0</p>
+<td class="cellrowborder" valign="top" width="70%" headers="mcps1.1.3.2.1 "><p id="p241mcpsimp"><a name="p241mcpsimp"></a><a name="p241mcpsimp"></a>26.0.0</p>
 </td>
 </tr>
 <tr id="row242mcpsimp"><th class="firstcol" valign="top" width="30%" id="mcps1.1.3.3.1"><p id="p244mcpsimp"><a name="p244mcpsimp"></a><a name="p244mcpsimp"></a>软件名称和版本</p>
@@ -70,12 +70,12 @@
 </tr>
 <tr id="row372mcpsimp"><th class="firstcol" valign="top" width="30%" id="mcps1.1.3.3.1"><p id="p16130155318350"><a name="p16130155318350"></a><a name="p16130155318350"></a><strong id="b6130153123511"><a name="b6130153123511"></a><a name="b6130153123511"></a>Virus Lib Version</strong></p>
 </th>
-<td class="cellrowborder" valign="top" width="70%" headers="mcps1.1.3.3.1 "><p id="p11410171883911"><a name="p11410171883911"></a><a name="p11410171883911"></a>2025-12-10 08:00:00.0</p>
+<td class="cellrowborder" valign="top" width="70%" headers="mcps1.1.3.3.1 "><p id="p11410171883911"><a name="p11410171883911"></a><a name="p11410171883911"></a>2026-03-10 08:00:00.0</p>
 </td>
 </tr>
 <tr id="row377mcpsimp"><th class="firstcol" valign="top" width="30%" id="mcps1.1.3.4.1"><p id="p8130953193518"><a name="p8130953193518"></a><a name="p8130953193518"></a><strong id="b111307535355"><a name="b111307535355"></a><a name="b111307535355"></a>Scan Time</strong></p>
 </th>
-<td class="cellrowborder" valign="top" width="70%" headers="mcps1.1.3.4.1 "><p id="p5410131843916"><a name="p5410131843916"></a><a name="p5410131843916"></a>2025-12-11 22:44:53</p>
+<td class="cellrowborder" valign="top" width="70%" headers="mcps1.1.3.4.1 "><p id="p5410131843916"><a name="p5410131843916"></a><a name="p5410131843916"></a>2026-03-11 22:44:53</p>
 </td>
 </tr>
 <tr id="row382mcpsimp"><th class="firstcol" valign="top" width="30%" id="mcps1.1.3.5.1"><p id="p1313025319356"><a name="p1313025319356"></a><a name="p1313025319356"></a><strong id="b121301753183517"><a name="b121301753183517"></a><a name="b121301753183517"></a>Scan Result</strong></p>
@@ -104,7 +104,7 @@
 </tr>
 <tr id="row407mcpsimp"><th class="firstcol" valign="top" width="30%" id="mcps1.1.3.4.1"><p id="p7535357123511"><a name="p7535357123511"></a><a name="p7535357123511"></a><strong id="b55351577359"><a name="b55351577359"></a><a name="b55351577359"></a>Scan Time</strong></p>
 </th>
-<td class="cellrowborder" valign="top" width="70%" headers="mcps1.1.3.4.1 "><p id="p0636132614396"><a name="p0636132614396"></a><a name="p0636132614396"></a>2025-12-11 22:45:17</p>
+<td class="cellrowborder" valign="top" width="70%" headers="mcps1.1.3.4.1 "><p id="p0636132614396"><a name="p0636132614396"></a><a name="p0636132614396"></a>2026-03-11 22:45:17</p>
 </td>
 </tr>
 <tr id="row412mcpsimp"><th class="firstcol" valign="top" width="30%" id="mcps1.1.3.5.1"><p id="p853575743519"><a name="p853575743519"></a><a name="p853575743519"></a><strong id="b15535145733510"><a name="b15535145733510"></a><a name="b15535145733510"></a>Scan Result</strong></p>
@@ -128,12 +128,12 @@
 </tr>
 <tr id="row432mcpsimp"><th class="firstcol" valign="top" width="30%" id="mcps1.1.3.3.1"><p id="p86387113364"><a name="p86387113364"></a><a name="p86387113364"></a><strong id="b1763811110368"><a name="b1763811110368"></a><a name="b1763811110368"></a>Virus Lib Version</strong></p>
 </th>
-<td class="cellrowborder" valign="top" width="70%" headers="mcps1.1.3.3.1 "><p id="p176532032163918"><a name="p176532032163918"></a><a name="p176532032163918"></a>2025-12-11 10:04:00</p>
+<td class="cellrowborder" valign="top" width="70%" headers="mcps1.1.3.3.1 "><p id="p176532032163918"><a name="p176532032163918"></a><a name="p176532032163918"></a>2026-03-11 10:04:00</p>
 </td>
 </tr>
 <tr id="row437mcpsimp"><th class="firstcol" valign="top" width="30%" id="mcps1.1.3.4.1"><p id="p963814153612"><a name="p963814153612"></a><a name="p963814153612"></a><strong id="b1638201103619"><a name="b1638201103619"></a><a name="b1638201103619"></a>Scan Time</strong></p>
 </th>
-<td class="cellrowborder" valign="top" width="70%" headers="mcps1.1.3.4.1 "><p id="p1965303216394"><a name="p1965303216394"></a><a name="p1965303216394"></a>2025-12-11 22:44:59</p>
+<td class="cellrowborder" valign="top" width="70%" headers="mcps1.1.3.4.1 "><p id="p1965303216394"><a name="p1965303216394"></a><a name="p1965303216394"></a>2026-03-11 22:44:59</p>
 </td>
 </tr>
 <tr id="row442mcpsimp"><th class="firstcol" valign="top" width="30%" id="mcps1.1.3.5.1"><p id="p563815113365"><a name="p563815113365"></a><a name="p563815113365"></a><strong id="b663812173616"><a name="b663812173616"></a><a name="b663812173616"></a>Scan Result</strong></p>
@@ -254,8 +254,8 @@ DataStream
 
 |文档名称|内容简介|交付形式|
 |--|--|--|
-|《Kunpeng BoostKit 25.3.0 大数据OmniRuntime 1.9.0 版本说明书》|本文档提供OmniRuntime的版本发布信息。|开源仓|
-|《Kunpeng BoostKit 25.3.0 大数据OmniRuntime 特性指南》|本文档提供OmniRuntime安装部署等指导。|开源仓|
+|《Kunpeng BoostKit 26.0.0 大数据OmniRuntime 1.9.0 版本说明书》|本文档提供OmniRuntime的版本发布信息。|开源仓|
+|《Kunpeng BoostKit 26.0.0 大数据OmniRuntime 特性指南》|本文档提供OmniRuntime安装部署等指导。|开源仓|
 
 
 

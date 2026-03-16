@@ -67,8 +67,7 @@ OmniStream improves the processing performance of the Flink engine while preserv
 Nexmark: It is a benchmark suite designed for evaluating queries on continuous data streams. It offers fair and comprehensive performance tests for stream processing systems, serving as a tool for both optimization guidance and performance comparison.
 
 
-
-## Constraints<a name="EN-US_TOPIC_0000002517961784"></a>
+## Constraints
 
 OmniStream has restrictions on supported data types, operators, and state backends. Plan your tasks accordingly and avoid unsupported scenarios.
 
@@ -257,7 +256,7 @@ Check the  **PermitRootLogin**  configuration item in  **/etc/ssh/sshd\_config**
 
 Download link:
 
-[Kunpeng BoostKit 25.3.0 Big Data OmniRuntime Open Source Software Notice.docx](resource/Kunpeng BoostKit 25.3.0 Big Data OmniRuntime Open Source Software Notice.docx)
+[Kunpeng BoostKit 26.0.0 Big Data OmniRuntime Open Source Software Notice.docx](resource/Kunpeng BoostKit 26.0.0 Big Data OmniRuntime Open Source Software Notice.docx)
 
 
 ## Disclaimer<a name="EN-US_TOPIC_0000002549641559"></a>

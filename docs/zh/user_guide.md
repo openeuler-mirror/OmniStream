@@ -16,13 +16,13 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
 
 **表 1** 算子和表达式支持表格中符号的含义<a id="算子和表达式支持表格中符号的含义"></a>
 
-|符号|含义|
-|--|--|
-|S|表示支持该算子或表达式。|
-|PS|表示部分支持该算子或表达式，但存在一些限定条件。具体的限定条件请参见。|
-|NS|表示不支持该算子或表达式。|
-|NA|表示不涉及该算子或表达式。开源版本Flink也没有此输入场景。|
-|[Blank Cell]|表示不适用或需要确认。|
+|符号| 含义                                                                |
+|--|-------------------------------------------------------------------|
+|S| 表示支持该算子或表达式。                                                      |
+|PS| 表示部分支持该算子或表达式，但存在一些限定条件。具体的限定条件请参见[约束与限制](../../README.md#约束与限制)。 |
+|NS| 表示不支持该算子或表达式。                                                     |
+|NA| 表示不涉及该算子或表达式。开源版本Flink也没有此输入场景。                                   |
+|[Blank Cell]| 表示不适用或需要确认。                                                       |
 
 
 **表 2** 支持的算子列表<a id="支持的算子列表"></a>
@@ -193,8 +193,8 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
     cd /usr/local/flink-1.16.3/log
     ```
 
-    - 日志中提示“Shared Memory Metric Manager Loading Succeed!”，表示Native so库已经正常加载。
-    - 日志中提示“welcome to native”，表示已经成功使能OmniStream。
+    - 日志中提示"Shared Memory Metric Manager Loading Succeed!"，表示Native so库已经正常加载。
+    - 日志中提示"welcome to native"，表示已经成功使能OmniStream。
 
     ![](figures/zh-cn_image_0000002517961058.png)
 
@@ -204,19 +204,19 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
 在DataStream场景下，详细描述从启动Flink集群到完成OmniStream使能的操作步骤。
 
 1. 如果是在多Task Manager场景下运行DataStream任务，需要在flink-conf.yaml文件中添加配置omni.batch: true，以提升多该场景下的shuffle效率，以达到更优性能。
-    1. 打开“/usr/local/flink/conf/flink-conf.yaml“文件。
+    1. 打开"/usr/local/flink/conf/flink-conf.yaml"文件。
 
         ```
         vi /usr/local/flink/conf/flink-conf.yaml
         ```
 
-    2. 按“i“进入编辑模式，增加如下配置。
+    2. 按"i"进入编辑模式，增加如下配置。
 
         ```
         omni.batch: true
         ```
 
-    3. 按“Esc“键，输入**:wq!**，按“Enter“保存并退出编辑。
+    3. 按"Esc"键，输入 **:wq!**，按"Enter"保存并退出编辑。
 
 2. 进入flink\_jm\_8c32g容器，启动Flink集群。
 
@@ -228,7 +228,7 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
     ```
 
     >![](public_sys-resources/icon-notice.gif) **须知：** 
-    >每次退出并重新进入容器后，需要执行**source /etc/profile**命令重新注入环境变量，避免运行任务找不到依赖组件。
+    > 每次退出并重新进入容器后，需要执行**source /etc/profile**命令重新注入环境变量，避免运行任务找不到依赖组件。
 
 3. 查看Job Manager和Task Manager是否启动成功。
     1. 在flink\_jm\_8c32g容器中查看是否存在**StandaloneSessionClusterEntrypoint**进程。
@@ -255,44 +255,36 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
         ![](figures/zh-cn_image_0000002518120982.png)
 
 4. 创建并配置Kafka消费者和生产者配置文件。
-    1. 进入flink\_tm1\_8c32g容器。
-
-```
-docker exec -it flink_tm1_8c32g /bin/bash
-```
-
-    2. <a name="li71941829175515"></a>创建“/opt/conf“目录。
-
-```
-mkdir /opt/conf
-cd /opt/conf
-```
-
+    1. 进入flink_tm1_8c32g容器。
+    ```
+    docker exec -it flink_tm1_8c32g /bin/bash
+    ```
+    2. 创建"/opt/conf"目录。 <a id="4.2"></a>
+    ```
+    mkdir /opt/conf
+    cd /opt/conf
+    ```
     3. 新增Kafka消费者配置文件kafka\_consumer.conf。
+    ```
+    fetch.queue.backoff.ms=20
+    group.id=omni
+    max.poll.records=10000
+    ```
+    4. 新增Kafka生产者配置文件kafka_producer.conf。<a id="4.4"></a>
+    ```
+    queue.buffering.max.messages=2000000
+    queue.buffering.max.kbytes=20971520
+    queue.buffering.max.ms=5
+    linger.ms=5
+    batch.num.messages=200000
+    batch.size=3145728
+    max.push.records=10000
+    ```
+   5. 进入flink_tm2_8c32g，执行步骤[4.ii](#4.2)～[4.iv](#4.4)。
 
-        ```
-        fetch.queue.backoff.ms=20
-        group.id=omni
-        max.poll.records=10000
-        ```
-
-    4. <a name="li191941296556"></a>新增Kafka生产者配置文件kafka\_producer.conf。
-
-        ```
-        queue.buffering.max.messages=2000000
-        queue.buffering.max.kbytes=20971520
-        queue.buffering.max.ms=5
-        linger.ms=5
-        batch.num.messages=200000
-        batch.size=3145728
-        max.push.records=10000
-        ```
-
-    5. 进入flink\_tm2\_8c32g，执行步骤[4.b](#li71941829175515)～[4.d](#li191941296556)。
-
-        ```
-        docker exec -it flink_tm1_8c32g /bin/bash
-        ```
+   ```
+   docker exec -it flink_tm1_8c32g /bin/bash
+   ```
 
 5. 在物理机上启动ZooKeeper和Kafka，详情请参见《[Kafka 部署指南](https://www.hikunpeng.com/document/detail/zh/kunpengbds/ecosystemEnable/Kafka/kunpengkafka_04_0011.html)》。
 6. 使用Kafka创建Topic并生成数据。
@@ -346,7 +338,7 @@ cd /opt/conf
         ```
 
 7. 构建作业JAR包。
-    1. 进入物理机“/opt“路径，创建“/opt/job/src/main/java/com/huawei/boostkit“路径。
+    1. 进入物理机"/opt"路径，创建"/opt/job/src/main/java/com/huawei/boostkit"路径。
 
         ```
         mkdir -p /opt/job/src/main/java/com/huawei/boostkit
@@ -354,13 +346,13 @@ cd /opt/conf
         ```
 
     2. 创建Flink作业Java文件。
-        1. 打开“/opt/job/src/main/java/com/huawei/boostkit/FlinkWordCount.java“.
+        1. 打开"/opt/job/src/main/java/com/huawei/boostkit/FlinkWordCount.java"。
 
             ```
             vi /opt/job/src/main/java/com/huawei/boostkit/FlinkWordCount.java
             ```
 
-        2. 按“i“进入编辑模式，添加如下内容。
+        2. 按"i"进入编辑模式，添加如下内容。
 
             ```
             package com.huawei.boostkit;
@@ -434,16 +426,16 @@ cd /opt/conf
             }
             ```
 
-        3. 按“Esc“键，输入**:wq!**，按“Enter“保存并退出编辑。
+        3. 按"Esc"键，输入**:wq!**，按"Enter"保存并退出编辑。
 
     3. 创建pom.xml文件。
-        1. 打开“/opt/job/pom.xml“.
+        1. 打开"/opt/job/pom.xml"。
 
             ```
             vi /opt/job/pom.xml
             ```
 
-        2. 按“i“进入编辑模式，添加如下内容。
+        2. 按"i"进入编辑模式，添加如下内容。
 
             ```
             <?xml version="1.0" encoding="UTF-8"?>
@@ -554,9 +546,9 @@ cd /opt/conf
             </project>
             ```
 
-        3. 按“Esc“键，输入**:wq!**，按“Enter“保存并退出编辑。
+        3. 按"Esc"键，输入**:wq!**，按"Enter"保存并退出编辑。
 
-    4. 执行**mvn clean package**打包命令后，将会在target目录下生成ziliao-1.0-SNAPSHOT-jar-with-dependencies.jar。再将该JAR包上传到flink\_jm\_8c32g容器的“/usr/local/flink“目录。
+    4. 执行**mvn clean package**打包命令后，将会在target目录下生成ziliao-1.0-SNAPSHOT-jar-with-dependencies.jar。再将该JAR包上传到flink\_jm\_8c32g容器的"/usr/local/flink"目录。
 
         ```
         mvn clean package
@@ -573,20 +565,20 @@ cd /opt/conf
     ```
 
 9. 修改UDF配置文件。
-    1. 设置运行用例包名udf\_package和主类名main\_class
+    1. 设置运行用例包名udf\_package和主类名main\_class。
 
         ```
         vim /opt/udf-trans-opt/udf-translator/conf/udf_tune.properties
         ```
 
-    2. 按“i“进入编辑模式，修改udf\_package和main\_class，修改为以下内容。
+    2. 按"i"进入编辑模式，修改udf\_package和main\_class，修改为以下内容。
 
         ```
         udf_package=com.huawei.boostkit
         main_class=com.huawei.boostkit.FlinkWordCount
         ```
 
-    3. 按“Esc“键，输入:**wq!**，按“Enter“保存并退出编辑。
+    3. 按"Esc"键，输入:**wq!**，按"Enter"保存并退出编辑。
 
 10. 翻译测试用例JAR包。
 
@@ -602,14 +594,14 @@ cd /opt/conf
     ```
 
 12. 查看Sink Topic的数据。
-    1. 消费Kafka数据查看作业是否正常运行。
+    
+   消费Kafka数据查看作业是否正常运行。
+    ```
+    cd /usr/local/kafka
+    bin/kafka-console-consumer.sh --bootstrap-server Kafka服务端的物理机IP地址:9092 --topic result --from-beginning
+    ```
 
-        ```
-        cd /usr/local/kafka
-        bin/kafka-console-consumer.sh --bootstrap-server Kafka服务端的物理机IP地址:9092 --topic result --from-beginning
-        ```
-
-        ![](figures/zh-cn_image_0000002549520819.png)
+    ![](figures/zh-cn_image_0000002549520819.png)
 
 13. 在flink\_jm\_8c32g容器上查看最新的Flink客户端日志flink-root-client-xxx.log。
 
@@ -641,14 +633,14 @@ cd /opt/conf
 >-   当前步骤仅供需要卸载OmniStream时参考，不属于部署OmniStream的必要操作步骤。
 >-   卸载OmniStream之前，请确保Flink引擎没有处于任务执行的状态。
 
-下述卸载过程以安装目录为“/opt/Dependency\_library“和“/usr/local/OmniStream“为例进行说明。
+下述卸载过程以安装目录为"/opt/Dependency\_library"和"/usr/local/OmniStream"为例进行说明。
 
-1. 删除“/opt/Dependency\_library“和“/usr/local/OmniStream“部署软件时加入的依赖软件包。
-2. 修改“Flink bin“目录下的config.sh文件，恢复Flink默认配置。
+1. 删除"/opt/Dependency\_library"和"/usr/local/OmniStream"部署软件时加入的依赖软件包。
+2. 修改`$FLINK_HOME/conf`目录下的config.sh文件，恢复Flink默认配置。
 
     具体操作为，将[zh-cn\_topic\_0000002518120970.md\#zh-cn\_topic\_0000002263584129\_zh-cn\_topic\_0000001467846504\_li6176059914](zh-cn_topic_0000002518120970.md#zh-cn_topic_0000002263584129_zh-cn_topic_0000001467846504_li6176059914)中的修改还原至未修改前的状态。
 
-3. 修改“Flink conf“目录下的flink-conf.yaml文件，恢复Flink默认配置。
+3. 修改`$FLINK_HOME/conf`目录下的flink-conf.yaml文件，恢复Flink默认配置。
 
     具体操作为，将[zh-cn\_topic\_0000002518120970.md\#zh-cn\_topic\_0000002263584129\_li4699113149](zh-cn_topic_0000002518120970.md#zh-cn_topic_0000002263584129_li4699113149)中的修改还原至未修改前的状态。
 
