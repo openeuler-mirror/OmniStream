@@ -16,7 +16,7 @@
 using namespace omniruntime::type;
 class CountFunction : public AggsHandleFunction {
 public:
-    CountFunction(int aggIdx, std::string inputType, int accIndex, int valueIndex, int filterIndex = -1)
+    CountFunction(int aggIdx, std::string inputType, int accIndex = -1, int valueIndex = -1, int filterIndex = -1)
         : valueIsNull(true), aggIdx(aggIdx), accIndex(accIndex), valueIndex(valueIndex), filterIndex(filterIndex)
     {
         typeId = LogicalType::flinkTypeToOmniTypeId(inputType);
@@ -39,6 +39,13 @@ public:
     void getValue(BinaryRowData *aggValue) override;
     void cleanup() override {};
     void close() override {};
+    void bindAccValueIndex(int accStartIndex, int valueStartIndex) override
+    {
+        accIndex = accStartIndex;
+        valueIndex = valueStartIndex;
+    }
+    int accumulatorSlots() const override { return 1; }
+    bool hasAggOutput() const override { return !isCountStar && valueIndex >= 0; }
     void setCountStart(bool isCountStartFunc);
 
 private:

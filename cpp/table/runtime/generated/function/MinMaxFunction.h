@@ -21,7 +21,8 @@ enum FuncType {
 };
 class MinMaxFunction : public AggsHandleFunction {
 public:
-    MinMaxFunction(int aggIdx, std::string inputType, int accIndex, int valueIndex, FuncType aggOperator, int filterIndex = -1)
+    MinMaxFunction(int aggIdx, std::string inputType, int accIndex = -1, int valueIndex = -1,
+                   FuncType aggOperator = MAX_FUNC, int filterIndex = -1)
         : aggOperator(aggOperator),
           aggValue(aggOperator == MAX_FUNC ? std::numeric_limits<long>::min() : std::numeric_limits<long>::max()),
           valueIsNull(true),
@@ -55,6 +56,13 @@ public:
     void cleanup() override {};
     void close() override {};
     bool equaliser(BinaryRowData *r1, BinaryRowData *r2) override;
+    void bindAccValueIndex(int accStartIndex, int valueStartIndex) override
+    {
+        accIndex = accStartIndex;
+        valueIndex = valueStartIndex;
+    }
+    int accumulatorSlots() const override { return 1; }
+    bool hasAggOutput() const override { return valueIndex >= 0; }
 private:
     FuncType aggOperator;
     long aggValue;
