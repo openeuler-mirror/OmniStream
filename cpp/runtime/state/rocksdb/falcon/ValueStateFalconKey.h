@@ -29,10 +29,14 @@ public:
         // [refcount] when key is create and insert into cache, increase its refcount; when key is delete and remove
         // from cache, decrease its refcount. In this way, key's refcount is controlled by falcon itself.
         if constexpr (std::is_same_v<K, Object*>) {
-            reinterpret_cast<Object*>(this->key)->getRefCount();
+			if (this->key != nullptr) {
+				reinterpret_cast<Object*>(this->key)->getRefCount();
+			}
         }
         if constexpr (std::is_same_v<N, Object*>) {
-            reinterpret_cast<Object*>(this->ns)->getRefCount();
+			if (this->ns != nullptr) {
+            	reinterpret_cast<Object*>(this->ns)->getRefCount();
+			}
         }
     }
 
@@ -42,32 +46,40 @@ public:
         this->key = K();
         this->ns = N();
         if constexpr (std::is_same_v<K, Object*>) {
-            reinterpret_cast<Object*>(this->key)->getRefCount();
+			if (this->key != nullptr) {
+				reinterpret_cast<Object*>(this->key)->getRefCount();
+            }
         }
         if constexpr (std::is_same_v<N, Object*>) {
-            reinterpret_cast<Object*>(this->ns)->getRefCount();
+			if (this->ns != nullptr) {
+            	reinterpret_cast<Object*>(this->ns)->getRefCount();
+			}
         }
     }
 
     ~ValueStateFalconKey()
     {
         if constexpr (std::is_pointer_v<K>) {
-            // [refcount] when falconKey is removed from cache, key's ref count should -1 to avoid memory leak.
-            if constexpr (std::is_same_v<K, Object*>) {
-                reinterpret_cast<Object*>(key)->putRefCount();
-            } else {
-                delete key;
-            }
-            key = nullptr;
+			if (key != nullptr) {
+            	// [refcount] when falconKey is removed from cache, key's ref count should -1 to avoid memory leak.
+            	if constexpr (std::is_same_v<K, Object*>) {
+                	reinterpret_cast<Object*>(key)->putRefCount();
+            	} else {
+                	delete key;
+            	}
+            	key = nullptr;
+			}
         }
         if constexpr (std::is_pointer_v<N>) {
-            // [refcount] when falconKey is removed from cache, key's ref count should -1 to avoid memory leak.
-            if constexpr (std::is_same_v<N, Object*>) {
-                reinterpret_cast<Object*>(ns)->putRefCount();
-            } else {
-                delete ns;
-            }
-            ns = nullptr;
+			if (ns != nullptr) {
+            	// [refcount] when falconKey is removed from cache, key's ref count should -1 to avoid memory leak.
+            	if constexpr (std::is_same_v<N, Object*>) {
+                	reinterpret_cast<Object*>(ns)->putRefCount();
+            	} else {
+                	delete ns;
+            	}
+            	ns = nullptr;
+			}
         }
     }
 

@@ -287,8 +287,10 @@ void RocksdbKeyedStateBackend<K>::flushFalconCacheBeforeCheckpoint()
     // and N is VoidNamespace type.
     for (auto &entry : falconKvState) {
         auto* state = reinterpret_cast<RocksdbValueState<Object *, VoidNamespace, Object *> *>(entry.second);
-        state->stateCache->flush();
-        state->stateCache->clearAll();
+        if (state != nullptr && state->stateCache != nullptr) {
+            state->stateCache->flush();
+            state->stateCache->clearAll();
+        }
     }
 }
 
@@ -512,7 +514,9 @@ RocksdbValueState<K, N, V> *RocksdbKeyedStateBackend<K>::createOrUpdateInternalV
     INFO_RELEASE("[FALCON] update falcon cache size to " << newCacheSize << ".\n")
     for (auto &entry : falconKvState) {
         auto* state = reinterpret_cast<RocksdbValueState<K, N, V> *>(entry.second);
-        state->stateCache->updateSizeLimit(newCacheSize);
+        if (state != nullptr && state->stateCache != nullptr) {
+            state->stateCache->updateSizeLimit(newCacheSize);
+        }
     }
     // [FALCON] -------------------------------------------------------------------------------------------
 

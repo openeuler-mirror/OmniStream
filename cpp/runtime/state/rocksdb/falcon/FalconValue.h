@@ -28,7 +28,9 @@ public:
         // [refcount] when value is create and insert into cache, increase its refcount; when value is delete and remove
         // from cache, decrease its refcount. In this way, value's refcount is controlled by falcon itself.
         if constexpr (std::is_same_v<V, Object*>) {
-            reinterpret_cast<Object*>(this->value)->getRefCount();
+			if (this->value != nullptr) {
+				reinterpret_cast<Object*>(this->value)->getRefCount();
+			}
         }
     }
     FalconValue() // used for LinkedHashMap to initialize link head and link tail
@@ -36,19 +38,23 @@ public:
         this->value = V();
         dirty = false;
         if constexpr (std::is_same_v<V, Object*>) {
-            reinterpret_cast<Object*>(this->value)->getRefCount();
+			if (this->value != nullptr) {
+			    reinterpret_cast<Object*>(this->value)->getRefCount();
+			}
         }
     }
     ~FalconValue()
     {
         if constexpr (std::is_pointer_v<V>) {
-            // [refcount] when falconValue is removed from cache, value's ref count should -1 to avoid memory leak.
-            if constexpr (std::is_same_v<V, Object*>) {
-                reinterpret_cast<Object*>(value)->putRefCount();
-            } else {
-                delete value;
-            }
-            value = nullptr;
+			if (value != nullptr) {
+				// [refcount] when falconValue is removed from cache, value's ref count should -1 to avoid memory leak.
+            	if constexpr (std::is_same_v<V, Object*>) {
+                	reinterpret_cast<Object*>(value)->putRefCount();
+            	} else {
+                	delete value;
+            	}
+            	value = nullptr;
+			}
         }
     }
 
