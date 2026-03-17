@@ -11,7 +11,6 @@ OmniStream Flink Native化采用单机容器化部署方案，使用Docker容器
 **图 1** 组网规划<a name="zh-cn_topic_0000002263664085_fig2900236105214"></a><a id="组网规划"></a>
 ![](figures/组网规划.png "组网规划")
 
-OmniStream Flink Native化采用单机容器化部署方案，使用Docker容器运行Flink。
 ### 环境要求<a name="ZH-CN_TOPIC_0000002517344922"></a>
 
 安装OmniStream Flink Native化特性前，请参见本节内容，提前准备软硬件安装环境，以确保后续安装操作顺利进行。
@@ -61,14 +60,14 @@ OmniStream Flink Native化采用单机容器化部署方案，使用Docker容器
 
 **表 3** 软件获取列表<a id="软件获取列表"></a>
 
-|名称|包名|发布类型|说明|获取地址|
-|--|--|--|--|--|
-|OmniStream压缩包|BoostKit-omniruntime-omnistream-1.1.0.zip|开源|OmniStream Flink Native化特性软件安装包。|获取链接|
-|UDF翻译工具|UNT-1.0-35.noarch.rpm|开源|UDF翻译工具RPM包，安装后在/opt路径下新增UDF翻译工具。|获取链接|
-|AI4C|AI4C-1.0.4-8.aarch64.rpm|开源|支持编译器集成机器学习驱动的优化技术的框架。RPM包直接安装。|获取链接|
-|KACC_JSON|BoostKit-kaccjson_1.1.0.zip|闭源|自研的用于UDF翻译中替换GSON的C++版实现，该ZIP包含适配层和KACC_JSON核心实现，内含若干头文件和静态库。从获取链接文件Dependency_library_OmniStream.zip解压获取。|获取链接|
-|KSL|BoostKit-ksl_2.5.1.zip|闭源|正则加速库，该zip包含ReplaceAll用于优化String基础库，内含头文件和1个静态库。|获取链接|
-|Dependency_library|Dependency_library.zipDependency_library.z01|开源|OmniStream Flink Native化运行时所依赖的库文件。由于压缩文件太大分卷压缩，需把压缩文件全部下载下来。|获取链接1获取链接2|
+|名称| 包名                                               |发布类型|说明|获取地址|
+|--|--------------------------------------------------|--|--|--|
+|OmniStream压缩包| BoostKit-omniruntime-omnistream-1.1.0.zip        |开源|OmniStream Flink Native化特性软件安装包。|获取链接|
+|UDF翻译工具| UNT-1.0-35.noarch.rpm                            |开源|UDF翻译工具RPM包，安装后在/opt路径下新增UDF翻译工具。|获取链接|
+|AI4C| AI4C-1.0.4-8.aarch64.rpm                         |开源|支持编译器集成机器学习驱动的优化技术的框架。RPM包直接安装。|获取链接|
+|KACC_JSON| BoostKit-kaccjson_1.1.0.zip                      |闭源|自研的用于UDF翻译中替换GSON的C++版实现，该ZIP包含适配层和KACC_JSON核心实现，内含若干头文件和静态库。从获取链接文件Dependency_library_OmniStream.zip解压获取。|获取链接|
+|KSL| BoostKit-ksl_2.5.1.zip                           |闭源|正则加速库，该zip包含ReplaceAll用于优化String基础库，内含头文件和1个静态库。|获取链接|
+|Dependency_library| Dependency_library.zip<br>Dependency_library.z01 |开源|OmniStream Flink Native化运行时所依赖的库文件。由于压缩文件太大分卷压缩，需把压缩文件全部下载下来。|获取链接1获取链接2|
 
 
 **软件安装包完整性校验<a name="zh-cn_topic_0000002228744546_section156811729327"></a>**
@@ -80,8 +79,6 @@ OmniStream Flink Native化采用单机容器化部署方案，使用Docker容器
 1. 获取软件数字证书和软件安装包。
 2. [获取校验工具和校验方法](https://support.huawei.com/enterprise/zh/tool/pgp-verify-TL1000000054)。
 3. 参见上述链接下载的《OpenPGP签名验证指南》进行软件安装包完整性检查。
-
-安装OmniStream Flink Native化特性前，请参见本节内容，提前准备软硬件安装环境，以确保后续安装操作顺利进行。
 
 
 ## 安装特性<a name="ZH-CN_TOPIC_0000002549064703"></a>
@@ -168,7 +165,7 @@ OmniStream Flink Native化采用单机容器化部署方案，使用Docker容器
         passwd
         ```
 
-    6. 再次生成RSA密钥，遇到提示时，按“Enter“。
+    6. 再次生成RSA密钥，遇到提示时，按"Enter"。
 
         ```
         ssh-keygen -t rsa
@@ -188,19 +185,18 @@ OmniStream Flink Native化采用单机容器化部署方案，使用Docker容器
         ssh-copy-id -i ~/.ssh/id_rsa.pub root@flink_tm2_8c32g
         ```
 
-安装Docker并部署多个容器以搭建Flink环境。如果服务器无法连接外网，请根据实际情况配置本地Yum源，确保安装过程顺利。
 #### 安装JDK<a name="ZH-CN_TOPIC_0000002517344928"></a>
 
 安装并配置毕昇JDK，为运行Flink集群提供运行时环境。
 
-1. 进入物理机的“/usr/local“目录并下载bisheng-jdk-8u342-linux-aarch64.tar.gz。
+1. 进入物理机的"/usr/local"目录并下载bisheng-jdk-8u342-linux-aarch64.tar.gz。
 
     ```
     cd /usr/local
     wget --no-check-certificate https://mirror.iscas.ac.cn/kunpeng/archive/compiler/bisheng_jdk/bisheng-jdk-8u342-linux-aarch64.tar.gz
     ```
 
-2. 进入“/usr/local“目录并解压bisheng-jdk-8u342-linux-aarch64.tar.gz，且将解压后的JDK目录的所属用户、所属用户组变更为“root”。
+2. 进入"/usr/local"目录并解压bisheng-jdk-8u342-linux-aarch64.tar.gz，且将解压后的JDK目录的所属用户、所属用户组变更为"root”。
 
     ```
     tar -zxvf bisheng-jdk-8u342-linux-aarch64.tar.gz
@@ -208,12 +204,11 @@ OmniStream Flink Native化采用单机容器化部署方案，使用Docker容器
     chgrp -R root /usr/local/bisheng-jdk1.8.0_342
     ```
 
-安装并配置毕昇JDK，为运行Flink集群提供运行时环境。
 #### 安装Flink<a name="ZH-CN_TOPIC_0000002517504826"></a>
 
 在物理机上部署并配置Flink，使其能够运行在多个Docker容器中，以便后续可以提交并运行Flink作业。
 
-1. 进入物理机的“/usr/local“目录并下载Flink软件部署包。
+1. 进入物理机的"/usr/local"目录并下载Flink软件部署包。
 
     ```
     cd /usr/local
@@ -223,7 +218,7 @@ OmniStream Flink Native化采用单机容器化部署方案，使用Docker容器
     >![](public_sys-resources/icon-note.gif) **说明：** 
     >flink-1.16.3-bin-scala\_2.12.tgz为Flink软件包名称，如果使用的是其他版本的Flink，请根据实际情况修改。
 
-2. 到“/usr/local“目录解压flink-1.16.3-bin-scala\_2.12.tgz，建立软链接，便于后期版本更换。
+2. 到"/usr/local"目录解压flink-1.16.3-bin-scala\_2.12.tgz，建立软链接，便于后期版本更换。
 
     ```
     tar -zxvf flink-1.16.3-bin-scala_2.12.tgz
@@ -235,26 +230,26 @@ OmniStream Flink Native化采用单机容器化部署方案，使用Docker容器
     >flink-1.16.3为Flink软件目录名称，如果使用的是其他版本的Flink，请根据实际情况修改。
 
 3. 配置Flink的masters和workers文件。
-    1. 打开“/usr/local/flink/conf/masters“文件。
+    1. 打开"/usr/local/flink/conf/masters"文件。
 
         ```
         vi /usr/local/flink/conf/masters
         ```
 
-    2. 按“i“进入编辑模式，将masters内容修改为容器flink\_jm\_8c32g的容器ID:8081，例如：
+    2. 按"i"进入编辑模式，将masters内容修改为容器flink\_jm\_8c32g的容器ID:8081，例如：
 
         ```
         4a376b30106b:8081
         ```
 
-    3. 按“Esc“键，输入**:wq!**，按“Enter“保存并退出编辑。
-    4. 打开“/usr/local/flink/conf/workers“文件。
+    3. 按"Esc"键，输入 **:wq!**，按"Enter"保存并退出编辑。
+    4. 打开"/usr/local/flink/conf/workers"文件。
 
         ```
         vi /usr/local/flink/conf/workers
         ```
 
-    5. 按“i“进入编辑模式，将workers内容修改为flink\_tm1\_8c32g、flink\_tm2\_8c32g容器的容器ID，例如（2个Docker容器，每个Docker 4个Task Manager配置）：
+    5. 按"i"进入编辑模式，将workers内容修改为flink\_tm1\_8c32g、flink\_tm2\_8c32g容器的容器ID，例如（2个Docker容器，每个Docker 4个Task Manager配置）：
 
         ```
         c3ddf10d0353
@@ -267,14 +262,14 @@ OmniStream Flink Native化采用单机容器化部署方案，使用Docker容器
         c3bbdbcc1ae1
         ```
 
-    6. 按“Esc“键，输入**:wq!**，按“Enter“保存并退出编辑。
-    7. 打开“/usr/local/flink/conf/flink-conf.yaml“文件。
+    6. 按"Esc"键，输入 **:wq!**，按"Enter"保存并退出编辑。
+    7. 打开"/usr/local/flink/conf/flink-conf.yaml"文件。
 
         ```
         vi /usr/local/flink/conf/flink-conf.yaml
         ```
 
-    8. 按“i“进入编辑模式，替换为如下配置，并将jobmanager.rpc.address修改为容器flink\_jm\_8c32g的容器ID，建议配置的slot总数大于并行度，例如：
+    8. 按"i"进入编辑模式，替换为如下配置，并将jobmanager.rpc.address修改为容器flink\_jm\_8c32g的容器ID，建议配置的slot总数大于并行度，例如：
 
         ```
         taskmanager.memory.process.size: 8G
@@ -299,14 +294,13 @@ OmniStream Flink Native化采用单机容器化部署方案，使用Docker容器
         #env.java.opts: -verbose:gc -XX:NewRatio=3 -XX:+PrintGCDetails -XX:+PrintGCDateStamps -XX:ParallelGCThreads=4
         ```
 
-    9. 按“Esc“键，输入**:wq!**，按“Enter“保存并退出编辑。
+    9. 按"Esc"键，输入 **:wq!**，按"Enter"保存并退出编辑。
 
-在物理机上部署并配置Flink，使其能够运行在多个Docker容器中，以便后续可以提交并运行Flink作业。
 #### 安装Nexmark<a name="ZH-CN_TOPIC_0000002549064707"></a>
 
 安装和配置Nexmark，用于验证和测试Flink。
 
-1. 下载nexmark-flink.tgz到物理机“/opt“目录中并解压。
+1. 下载nexmark-flink.tgz到物理机"/opt"目录中并解压。
 
     ```
     cd /opt
@@ -316,14 +310,14 @@ OmniStream Flink Native化采用单机容器化部署方案，使用Docker容器
     chown -R root:root nexmark
     ```
 
-2. 修改Nexmark配置文件“/opt/nexmark/conf/nexmark.yaml“。
+2. 修改Nexmark配置文件"/opt/nexmark/conf/nexmark.yaml"。
     1. 打开文件。
 
         ```
         vi /opt/nexmark/conf/nexmark.yaml
         ```
 
-    2. 按“i“进入编辑模式，将文件内容替换为如下。并修改nexmark.metric.reporter.host为flink\_jm\_8c32g容器的ID。
+    2. 按"i"进入编辑模式，将文件内容替换为如下。并修改nexmark.metric.reporter.host为flink\_jm\_8c32g容器的ID。
 
         ```
         ################################################################################
@@ -401,9 +395,8 @@ OmniStream Flink Native化采用单机容器化部署方案，使用Docker容器
         # kafka.bootstrap.servers: ***:9092
         ```
 
-    3. 按“Esc“键，输入**:wq!**，按“Enter“保存并退出编辑。
+    3. 按"Esc"键，输入 **:wq!**，按"Enter"保存并退出编辑。
 
-安装和配置Nexmark，用于验证和测试Flink。
 #### 安装Python<a name="ZH-CN_TOPIC_0000002517344926"></a>
 
 在flink\_jm\_8c32g中，通过RPM包安装Python。
@@ -411,6 +404,8 @@ OmniStream Flink Native化采用单机容器化部署方案，使用Docker容器
 ```
 wget --no-check-certificate https://repo.openeuler.org/openEuler-preview/openEuler-22.03-LTS-SP4-HP-preview/OS/aarch64/Packages/python3-setuptools-59.4.0-5.oe2203sp4.noarch.rpm
 rpm -ivh python3-setuptools-59.4.0-5.oe2203sp4.noarch.rpm
+rm -rf /usr/bin/python
+ln -s /usr/bin/python3 /usr/bin/python
 ```
 
 
@@ -421,8 +416,6 @@ rpm -ivh python3-setuptools-59.4.0-5.oe2203sp4.noarch.rpm
 ```
 wget --no-check-certificate https://repo.openeuler.org/openEuler-preview/openEuler-22.03-LTS-SP4-HP-preview/OS/aarch64/Packages/yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
 rpm -ivh yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
-rm -rf /usr/bin/python
-ln -s /usr/bin/python3 /usr/bin/python
 ```
 
 
@@ -443,7 +436,7 @@ ln -s /usr/bin/python3 /usr/bin/python
     ```
 
 3. 安装其他依赖包。
-    1. 请参见[**表 3** 软件获取列表](#软件获取列表)获取依赖包Dependency\_library.zip和Dependency\_library.z01，解压到“/opt“路径。
+    1. 请参见[**表 3** 软件获取列表](#软件获取列表)获取依赖包Dependency\_library.zip和Dependency\_library.z01，解压到"/opt"路径。
 
         ```
         zip -F Dependency_library.zip --out Dependency_library_complete.zip
@@ -451,7 +444,7 @@ ln -s /usr/bin/python3 /usr/bin/python
         chmod -R 550 /opt/Dependency_library/*
         ```
 
-    2. 从Dependency\_library中获取nexmark-flink-0.3-SNAPSHOT.jar，复制到“flink/lib“目录中，并替换“nexmark/lib“下的nexmark-flink-0.2-SNAPSHOT.jar。
+    2. 从Dependency\_library中获取nexmark-flink-0.3-SNAPSHOT.jar，复制到"flink/lib"目录中，并替换"nexmark/lib"下的nexmark-flink-0.2-SNAPSHOT.jar。
 
         ```
         cp /opt/Dependency_library/nexmark-flink-0.3-SNAPSHOT.jar /usr/local/flink/lib
@@ -459,18 +452,17 @@ ln -s /usr/bin/python3 /usr/bin/python
         cp /opt/Dependency_library/nexmark-flink-0.3-SNAPSHOT.jar /opt/nexmark/lib/
         ```
 
-        以上操作完成后，Flink在启动时将自动扫描“flink/lib“目录并加载该依赖包，无需执行额外的安装命令。
+        以上操作完成后，Flink在启动时将自动扫描"flink/lib"目录并加载该依赖包，无需执行额外的安装命令。
 
-安装运行时依赖的其他软件包。
 
 
 ### 安装OmniStream<a name="ZH-CN_TOPIC_0000002549064711"></a>
 
 在Flink独立部署模式中，可以通过安装预先编译好的OmniStream Flink Native化二进制包，将其以插件的形式集成到Flink中。
 
-1. 在物理机上创建目录“/usr/local/OmniStream“，用于存放OmniStream Flink Native化的二进制文件。
+1. 在物理机上创建目录"/usr/local/OmniStream"，用于存放OmniStream Flink Native化的二进制文件。
 
-    将从[**表 3** 软件获取列表](#软件获取列表)中获取的BoostKit-omnistream\_1.1.0.zip安装包解压到“/usr/local/OmniStream“目录下。
+    将从[**表 3** 软件获取列表](#软件获取列表)中获取的BoostKit-omnistream\_1.1.0.zip安装包解压到"/usr/local/OmniStream"目录下。
 
     ```
     unzip BoostKit-omnistream_1.1.0.zip
@@ -498,14 +490,14 @@ ln -s /usr/bin/python3 /usr/bin/python
     include
     ```
 
-3. 编辑Flink的配置文件“/usr/local/flink/bin/config.sh“。
+3. 编辑Flink的配置文件"/usr/local/flink/bin/config.sh"。
     1. 打开文件。
 
         ```
         vi /usr/local/flink/bin/config.sh
         ```
 
-    2. 按“i“进入编辑模式，找到constructFlinkClassPath\(\)函数，注释掉原有的echo行，并添加新的PATCH路径。
+    2. 按"i"进入编辑模式，找到constructFlinkClassPath\(\)函数，注释掉原有的echo行，并添加新的PATCH路径。
 
         ```
         # echo "$FLINK_CLASSPATH""$FLINK_DIST"
@@ -517,44 +509,43 @@ ln -s /usr/bin/python3 /usr/bin/python
 
         ![](figures/zh-cn_image_0000002517504848.png)
 
-    3. 按“Esc“键，输入**:wq!**，按“Enter“保存并退出编辑。
+    3. 按"Esc"键，输入 **:wq!**，按"Enter"保存并退出编辑。
 
-4. 编辑Flink的配置文件“/usr/local/flink/conf/flink-conf.yaml“。
+4. 编辑Flink的配置文件"/usr/local/flink/conf/flink-conf.yaml"。
     1. 打开文件。
 
         ```
         vi /usr/local/flink/conf/flink-conf.yaml
         ```
 
-    2. 按“i“进入编辑模式，添加libtnel.so文件所在的路径到env.java.opts中，即[2](#zh-cn_topic_0000002263584129_li146334222212)中解压后so文件所在的目录。
+    2. 按"i"进入编辑模式，添加libtnel.so文件所在的路径到env.java.opts中，即[2](#zh-cn_topic_0000002263584129_li146334222212)中解压后so文件所在的目录。
 
         ```
         env.java.opts: -Djava.library.path=/usr/local/OmniStream/
         ```
 
-    3. 按“Esc“键，输入**:wq!**，按“Enter“保存并退出编辑。
+    3. 按"Esc"键，输入 **:wq!**，按"Enter"保存并退出编辑。
 
-在Flink独立部署模式中，可以通过安装预先编译好的OmniStream Flink Native化二进制包，将其以插件的形式集成到Flink中。
 ### 安装UDF翻译工具<a name="ZH-CN_TOPIC_0000002517504824"></a>
 
 **安装UDF翻译工具RPM包<a name="section5466185845817"></a>**
 
-1. 从[**表 3** 软件获取列表](#软件获取列表)中获取UDF翻译工具的RPM包，将RPM包上传至物理机的“/opt“目录。
-2. 在容器flink\_jm\_8c32g中安装该RPM包，安装路径默认为“/opt“。
+1. 从[**表 3** 软件获取列表](#软件获取列表)中获取UDF翻译工具的RPM包，将RPM包上传至物理机的"/opt"目录。
+2. 在容器flink\_jm\_8c32g中安装该RPM包，安装路径默认为"/opt"。
 
     ```
     rpm -ivh UNT-1.0-35.noarch.rpm
     ```
 
-    命令执行完成后会自动创建“/opt/udf-trans-opt“目录。
+    命令执行完成后会自动创建"/opt/udf-trans-opt"目录。
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
-    >如果没有创建“/opt/udf-trans-opt“目录，请执行以下命令手动创建。
+    >如果没有创建"/opt/udf-trans-opt"目录，请执行以下命令手动创建。
     >```
     >mkdir /opt/udf-trans-opt
     >```
 
-3. 将[安装OmniStream](安装OmniStream.md)中安装后的基础库目录复制到“/opt/udf-trans-opt“。
+3. 将[安装OmniStream](安装OmniStream.md)中安装后的基础库目录复制到"/opt/udf-trans-opt"。
 
     ```
     docker cp /usr/local/OmniStream/libbasictypes flink_jm_8c32g:/opt/udf-trans-opt
@@ -564,14 +555,14 @@ ln -s /usr/bin/python3 /usr/bin/python
 
 1. 上传并解压KACC\_JSON。
 
-    从[**表 3** 软件获取列表](#软件获取列表)中获取BoostKit-kacccjson\_1.0.0.zip，上传该压缩包至物理机的“/opt“目录，并解压。
+    从[**表 3** 软件获取列表](#软件获取列表)中获取BoostKit-kacccjson\_1.0.0.zip，上传该压缩包至物理机的"/opt"目录，并解压。
 
     ```
     cd /opt/
     unzip BoostKit-kacccjson_1.0.0.zip
     ```
 
-2. 将KACC\_JSON头文件和静态库复制到flink\_jm\_8c32g容器中的UDF翻译工具路径“/opt/udf-trans-opt/libbasictypes“。
+2. 将KACC\_JSON头文件和静态库复制到flink\_jm\_8c32g容器中的UDF翻译工具路径"/opt/udf-trans-opt/libbasictypes"。
 
     ```
     docker cp include/kacc_json flink_jm_8c32g:/opt/udf-trans-opt/libbasictypes/include/
@@ -580,7 +571,7 @@ ln -s /usr/bin/python3 /usr/bin/python
     ```
 
 3. 下载KSL并解压安装。
-    1. 从[**表 3** 软件获取列表](#软件获取列表)获取BoostKit-ksl\_2.5.1.zip，上传该压缩包至物理机的“/opt“目录，解压并复制RPM包到flink\_jm\_8c32g容器中。
+    1. 从[**表 3** 软件获取列表](#软件获取列表)获取BoostKit-ksl\_2.5.1.zip，上传该压缩包至物理机的"/opt"目录，解压并复制RPM包到flink\_jm\_8c32g容器中。
 
         ```
         cd /opt
@@ -597,7 +588,7 @@ ln -s /usr/bin/python3 /usr/bin/python
         ```
 
 4. 安装OmniStream依赖头文件。
-    1. 将从[**表 3** 软件获取列表](#软件获取列表)中获取的depend.zip安装包解压到“/usr/local/OmniStream/depend“目录下。
+    1. 将从[**表 3** 软件获取列表](#软件获取列表)中获取的depend.zip安装包解压到"/usr/local/OmniStream/depend"目录下。
 
         ```
         mkdir -p /usr/local/OmniStream/depend/
@@ -610,7 +601,7 @@ ln -s /usr/bin/python3 /usr/bin/python
         docker cp /usr/local/OmniStream/libbasictypes/include/third_party flink_jm_8c32g:/opt/udf-trans-opt/libbasictypes/include/
         ```
 
-    2. 根据步骤《OmniOperator算子加速特性指南》的“安装依赖（源码编译安装方式，SparkExtension和Gluten场景）”部分内容安装jemalloc。安装完成后，复制jemalloc.h到容器UDF工具的头文件引用目录中。
+    2. 根据步骤《OmniOperator算子加速特性指南》的"安装依赖（源码编译安装方式，SparkExtension和Gluten场景）”部分内容安装jemalloc。安装完成后，复制jemalloc.h到容器UDF工具的头文件引用目录中。
 
         ```
         docker cp /opt/omni-operator/jemalloc/include/jemalloc/jemalloc.h flink_jm_8c32g:/opt/udf-trans-opt/libbasictypes/include/
@@ -642,8 +633,8 @@ ln -s /usr/bin/python3 /usr/bin/python
         docker cp /usr/local/OmniStream/depend/nlohmann/include/nlohmann flink_jm_8c32g:/opt/udf-trans-opt/libbasictypes/include/
         ```
 
-5. 安装libboundscheck头文件“/opt/udf-trans-opt/libbasictypes“。
-    1. 进入flink\_jm\_8c32g容器创建目录“/opt/udf-trans-opt/libbasictypes/include/libboundscheck“并退出容器。
+5. 安装libboundscheck头文件"/opt/udf-trans-opt/libbasictypes"。
+    1. 进入flink\_jm\_8c32g容器创建目录"/opt/udf-trans-opt/libbasictypes/include/libboundscheck"并退出容器。
 
         ```
         docker exec -it flink_jm_8c32g bash
@@ -651,7 +642,7 @@ ln -s /usr/bin/python3 /usr/bin/python
         exit
         ```
 
-    2. 将[安装OmniStream](安装OmniStream.md)步骤中安装后的include复制到flink\_jm\_8c32g容器的“/opt/udf-trans-opt/libbasictypes/include/libboundscheck“目录。
+    2. 将[安装OmniStream](安装OmniStream.md)步骤中安装后的include复制到flink\_jm\_8c32g容器的"/opt/udf-trans-opt/libbasictypes/include/libboundscheck"目录。
 
         ```
         docker cp /usr/local/OmniStream/include flink_jm_8c32g:/opt/udf-trans-opt/libbasictypes/include/libboundscheck
@@ -660,7 +651,7 @@ ln -s /usr/bin/python3 /usr/bin/python
 
 ### 安装AI4C<a name="ZH-CN_TOPIC_0000002517344924"></a>
 
-从[**表 3** 软件获取列表](#软件获取列表)中获取依赖包AI4C-1.0.4-8.aarch64.rpm，上传到flink\_jm\_8c32g“/opt“路径，并安装。
+从[**表 3** 软件获取列表](#软件获取列表)中获取依赖包AI4C-1.0.4-8.aarch64.rpm，上传到flink\_jm\_8c32g"/opt"路径，并安装。
 
 ```
 docker cp AI4C-1.0.4-8.aarch64.rpm flink_jm_8c32g:/opt
@@ -705,13 +696,13 @@ rpm -ivh --nodeps AI4C-1.0.4-8.aarch64.rpm
     ```
 
 3. <a name="zh-cn_topic_0000002263664073_li8865185893116"></a>在每个容器内设置Flink、JDK、Nexmark和LLVM的环境变量。
-    1. 打开“/etc/profile“文件。
+    1. 打开"/etc/profile"文件。
 
         ```
         vi /etc/profile
         ```
 
-    2. 按“i“进入编辑模式，添加如下内容。
+    2. 按"i"进入编辑模式，添加如下内容。
 
         ```
         export JAVA_HOME=/usr/local/bisheng-jdk1.8.0_342
@@ -725,7 +716,7 @@ rpm -ivh --nodeps AI4C-1.0.4-8.aarch64.rpm
         export LD_LIBRARY_PATH=/usr/local/OmniStream:/opt/Dependency_library/:$LD_LIBRARY_PATH
         ```
 
-    3. 按“Esc“键，输入**:wq!**，按“Enter“保存并退出编辑。
+    3. 按"Esc"键，输入 **:wq!**，按"Enter"保存并退出编辑。
     4. 使环境变量生效。
 
         ```

@@ -11,7 +11,6 @@ A total of three Docker containers are deployed, whose specifications are all 8c
 **Figure  1**  Networking diagram<a name="en-us_topic_0000002263664085_fig2900236105214"></a>  
 ![](figures/networking-diagram.png "networking-diagram")
 
-OmniStream adopts a single-node, containerized deployment model, running Flink within Docker containers.
 ### Environment Requirements<a name="EN-US_TOPIC_0000002517344922"></a>
 
 Before installing OmniStream, prepare the hardware and software environments to facilitate subsequent installation operations.
@@ -61,14 +60,14 @@ Before installing OmniStream, prepare the hardware and software environments to 
 
 **Table  3**  OmniStream software packages
 
-|Software Name|Package Name|Release Type|Description|How to Obtain|
-|--|--|--|--|--|
-|OmniStream package|BoostKit-omniruntime-omnistream-1.1.0.zip|Open source|OmniStream software installation package.|Link|
-|UDF translator|UNT-1.0-35.noarch.rpm|Open source|UDF translator RPM package. After the installation is complete, the UDF translator is added to the /opt directory.|Link|
-|AI4C|AI4C-1.0.4-8.aarch64.rpm|Open source|A framework that allows the compiler to integrate machine learning–driven optimization technologies. Install the RPM package.|Link|
-|KACC_JSON|BoostKit-kaccjson_1.1.0.zip|Closed source|Self-developed C++ implementation package used to replace GSON in UDF translation. This ZIP package contains the adaptation layer and KACC_JSON implementation, and also contains header files and a static library. Obtain the **Dependency_library_OmniStream.zip** file and decompress it.|Link|
-|KSL|BoostKit-ksl_2.5.1.zip|Closed source|Regular expression acceleration library, which contains the ReplaceAll function for optimizing the basic string library and contains header files and a static library.|Contact Huawei technical support.|
-|Dependency_library|Dependency_library.zipDependency_library.z01|Open source|Library file on which OmniStream depends. The file is compressed into several volumes. Download all the volumes.|Link 1Link 2|
+|Software Name| Package Name                                    |Release Type|Description|How to Obtain|
+|--|-------------------------------------------------|--|--|--|
+|OmniStream package| BoostKit-omniruntime-omnistream-1.1.0.zip       |Open source|OmniStream software installation package.|Link|
+|UDF translator| UNT-1.0-35.noarch.rpm                           |Open source|UDF translator RPM package. After the installation is complete, the UDF translator is added to the /opt directory.|Link|
+|AI4C| AI4C-1.0.4-8.aarch64.rpm                        |Open source|A framework that allows the compiler to integrate machine learning–driven optimization technologies. Install the RPM package.|Link|
+|KACC_JSON| BoostKit-kaccjson_1.1.0.zip                     |Closed source|Self-developed C++ implementation package used to replace GSON in UDF translation. This ZIP package contains the adaptation layer and KACC_JSON implementation, and also contains header files and a static library. Obtain the **Dependency_library_OmniStream.zip** file and decompress it.|Link|
+|KSL| BoostKit-ksl_2.5.1.zip                          |Closed source|Regular expression acceleration library, which contains the ReplaceAll function for optimizing the basic string library and contains header files and a static library.|Contact Huawei technical support.|
+|Dependency_library| Dependency_library.zip<br>Dependency_library.z01 |Open source|Library file on which OmniStream depends. The file is compressed into several volumes. Download all the volumes.|Link 1Link 2|
 
 
 **Verifying the Software Package Integrity<a name="en-us_topic_0000002228744546_section156811729327"></a>**
@@ -80,8 +79,6 @@ Verify a software package as follows:
 1. Obtain the digital certificate and software.
 2. Obtain the  [verification tool and guide](https://support.huawei.com/enterprise/en/tool/pgp-verify-TL1000000054).
 3. Verify the package integrity by following the procedure described in the  _OpenPGP Signature Verification Guide_  obtained from the URL.
-
-Before installing OmniStream, prepare the hardware and software environments to facilitate subsequent installation operations.
 
 
 ## Installing the Feature<a name="EN-US_TOPIC_0000002549064703"></a>
@@ -188,7 +185,6 @@ Install Docker and deploy multiple containers to set up the Flink environment. I
         ssh-copy-id -i ~/.ssh/id_rsa.pub root@flink_tm2_8c32g
         ```
 
-Install Docker and deploy multiple containers to set up the Flink environment. If the server cannot connect to the Internet, configure a local yum repository according to your environment to ensure a smooth installation.
 #### Installing the JDK<a name="EN-US_TOPIC_0000002517344928"></a>
 
 Install and configure the BiSheng JDK to provide a runtime environment for the Flink cluster.
@@ -208,7 +204,6 @@ Install and configure the BiSheng JDK to provide a runtime environment for the F
     chgrp -R root /usr/local/bisheng-jdk1.8.0_342
     ```
 
-Install and configure the BiSheng JDK to provide a runtime environment for the Flink cluster.
 #### Installing Flink<a name="EN-US_TOPIC_0000002517504826"></a>
 
 Deploy and configure Flink on physical machines to run in multiple Docker containers, allowing Flink jobs to be submitted and executed.
@@ -301,7 +296,6 @@ Deploy and configure Flink on physical machines to run in multiple Docker contai
 
     9. Press  **Esc**, type  **:wq!**, and press  **Enter**  to save the file and exit.
 
-Deploy and configure Flink on physical machines to run in multiple Docker containers, allowing Flink jobs to be submitted and executed.
 #### Installing Nexmark<a name="EN-US_TOPIC_0000002549064707"></a>
 
 Install and configure Nexmark to verify and test Flink.
@@ -403,7 +397,6 @@ Install and configure Nexmark to verify and test Flink.
 
     3. Press  **Esc**, type  **:wq!**, and press  **Enter**  to save the file and exit.
 
-Install and configure Nexmark to verify and test Flink.
 #### Installing Python<a name="EN-US_TOPIC_0000002517344926"></a>
 
 Install the Python RPM package in the  **flink\_jm\_8c32g**  container.
@@ -411,6 +404,8 @@ Install the Python RPM package in the  **flink\_jm\_8c32g**  container.
 ```
 wget --no-check-certificate https://repo.openeuler.org/openEuler-preview/openEuler-22.03-LTS-SP4-HP-preview/OS/aarch64/Packages/python3-setuptools-59.4.0-5.oe2203sp4.noarch.rpm
 rpm -ivh python3-setuptools-59.4.0-5.oe2203sp4.noarch.rpm
+rm -rf /usr/bin/python
+ln -s /usr/bin/python3 /usr/bin/python
 ```
 
 
@@ -421,8 +416,6 @@ Install the yaml-cpp RPM package in the  **flink\_jm\_8c32g**  container.
 ```
 wget --no-check-certificate https://repo.openeuler.org/openEuler-preview/openEuler-22.03-LTS-SP4-HP-preview/OS/aarch64/Packages/yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
 rpm -ivh yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
-rm -rf /usr/bin/python
-ln -s /usr/bin/python3 /usr/bin/python
 ```
 
 
@@ -460,8 +453,6 @@ Install other software packages on which the feature depends.
         ```
 
         After the preceding operations are complete, the  **flink/lib**  directory is scanned and the dependency package is loaded automatically during Flink startup. No additional installation commands are required.
-
-Install other software packages on which the feature depends.
 
 
 ### Installing OmniStream<a name="EN-US_TOPIC_0000002549064711"></a>
@@ -534,7 +525,6 @@ In independent deployment mode, you can install the precompiled OmniStream binar
 
     3. Press  **Esc**, type  **:wq!**, and press  **Enter**  to save the file and exit.
 
-In independent deployment mode, you can install the precompiled OmniStream binary package and integrate it into Flink as a plugin.
 ### Installing the UDF Translator<a name="EN-US_TOPIC_0000002517504824"></a>
 
 **Installing the UDF Translator RPM Package<a name="section5466185845817"></a>**

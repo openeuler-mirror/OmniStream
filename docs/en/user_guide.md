@@ -16,13 +16,13 @@ This section describes the scope, restrictions, and usage rules of SQL operators
 
 **Table  1**  Meanings of symbols in the operator and expression support tables
 
-|Symbol|Description|
-|--|--|
-|S|Indicates that the operator or expression is supported.|
-|PS|Indicates that the operator or expression is partially supported, with some restrictions. For details about the restrictions, see .|
-|NS|Indicates that the operator or expression is not supported.|
-|NA|Indicates that the operator or expression is not involved. This scenario does not exist in open source Flink.|
-|[Blank Cell]|Indicates a scenario that is irrelevant or needs to be confirmed.|
+|Symbol| Description                                                                                                                                                             |
+|--|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|S| Indicates that the operator or expression is supported.                                                                                                                 |
+|PS| Indicates that the operator or expression is partially supported, with some restrictions. For details about the restrictions, see [Constraints](../../README_en.md#constraints) . |
+|NS| Indicates that the operator or expression is not supported.                                                                                                             |
+|NA| Indicates that the operator or expression is not involved. This scenario does not exist in open source Flink.                                                           |
+|[Blank Cell]| Indicates a scenario that is irrelevant or needs to be confirmed.                                                                                                       |
 
 
 **Table  2**  Supported operators
@@ -257,42 +257,42 @@ This section describes how to start a Flink cluster and enable OmniStream in Dat
 4. Create and configure the Kafka consumer and producer configuration files.
     1. Access the  **flink\_tm1\_8c32g**  container.
 
-```
-docker exec -it flink_tm1_8c32g /bin/bash
-```
+    ```
+    docker exec -it flink_tm1_8c32g /bin/bash
+    ```
 
     2. <a name="li71941829175515"></a>Create an  **/opt/conf**  directory.
 
-```
-mkdir /opt/conf
-cd /opt/conf
-```
+    ```
+    mkdir /opt/conf
+    cd /opt/conf
+    ```
 
-    3. Create the Kafka consumer configuration file  **kafka\_consumer.conf**.
+   3. Create the Kafka consumer configuration file  **kafka\_consumer.conf**.
 
-        ```
-        fetch.queue.backoff.ms=20
-        group.id=omni
-        max.poll.records=10000
-        ```
+    ```
+       fetch.queue.backoff.ms=20
+       group.id=omni
+       max.poll.records=10000
+   ```
 
     4. <a name="li191941296556"></a>Create the Kafka producer configuration file  **kafka\_producer.conf**.
 
-        ```
-        queue.buffering.max.messages=2000000
-        queue.buffering.max.kbytes=20971520
-        queue.buffering.max.ms=5
-        linger.ms=5
-        batch.num.messages=200000
-        batch.size=3145728
-        max.push.records=10000
-        ```
+    ```
+    queue.buffering.max.messages=2000000
+    queue.buffering.max.kbytes=20971520
+    queue.buffering.max.ms=5
+    linger.ms=5
+    batch.num.messages=200000
+    batch.size=3145728
+    max.push.records=10000
+    ```
 
     5. Access the  **flink\_tm2\_8c32g**  container and perform steps  [4.b](#li71941829175515)  to  [4.d](#li191941296556).
 
-        ```
-        docker exec -it flink_tm1_8c32g /bin/bash
-        ```
+    ```
+    docker exec -it flink_tm1_8c32g /bin/bash
+    ```
 
 5. Start ZooKeeper and Kafka on the physical machine. For details, see  [Kafka Deployment Guide](https://www.hikunpeng.com/document/detail/en/kunpengbds/ecosystemEnable/Kafka/kunpengkafka_04_0011.html).
 6. Use Kafka to create topics and generate data.
@@ -602,14 +602,15 @@ cd /opt/conf
     ```
 
 12. View the sink topic data.
-    1. Consume Kafka data and check whether the job is running properly.
 
-        ```
-        cd /usr/local/kafka
-        bin/kafka-console-consumer.sh --bootstrap-server IP_address_of_Kafka_server's_physical_machine:9092 --topic result --from-beginning
-        ```
+    Consume Kafka data and check whether the job is running properly.
 
-        ![](figures/en-us_image_0000002549520819.png)
+    ```
+    cd /usr/local/kafka
+    bin/kafka-console-consumer.sh --bootstrap-server IP_address_of_Kafka_server's_physical_machine:9092 --topic result --from-beginning
+    ```
+
+    ![](figures/en-us_image_0000002549520819.png)
 
 13. In the  **flink\_jm\_8c32g**  container, view the latest Flink client log  **flink-root-client-xxx.log**.
 
@@ -642,11 +643,11 @@ Contact Huawei technical support to download the OmniStream software installatio
 The following steps assume that the installation directories are  **/opt/Dependency\_library**  and  **/usr/local/OmniStream**.
 
 1. Delete software dependency packages from  **/opt/Dependency\_library**  and  **/usr/local/OmniStream**.
-2. Modify the  **config.sh**  file in the  **Flink bin**  directory to restore the default Flink configuration.
+2. Modify the  **config.sh**  file in the  **$FLINK_HOME/conf**  directory to restore the default Flink configuration.
 
     Specifically, restore the values set in  [en-us\_topic\_0000002518120970.md\#en-us\_topic\_0000002263584129\_en-us\_topic\_0000001467846504\_li6176059914](en-us_topic_0000002518120970.md#en-us_topic_0000002263584129_en-us_topic_0000001467846504_li6176059914)  to their original values.
 
-3. Modify the  **flink-conf.yaml**  file in the  **Flink conf**  directory to restore the default Flink configuration.
+3. Modify the  **flink-conf.yaml**  file in the  **$FLINK_HOME/conf**  directory to restore the default Flink configuration.
 
     Specifically, restore the values set in  [en-us\_topic\_0000002518120970.md\#en-us\_topic\_0000002263584129\_li4699113149](en-us_topic_0000002518120970.md#en-us_topic_0000002263584129_li4699113149)  to their original values.
 
