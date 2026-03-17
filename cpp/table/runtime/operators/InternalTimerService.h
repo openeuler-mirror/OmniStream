@@ -37,6 +37,10 @@ public:
     virtual void deleteEventTimeTimer(N nameSpace, long time) = 0;
 
     virtual void advanceWatermark(long time) = 0;
+
+    // temp fix for too many timers in priority queue
+    // this function should to be deleted when RocksDBCachingPriorityQueueSet is implemented in the future
+    virtual void deleteFirstEventTimeTimer() = 0;
 };
 
 #endif
