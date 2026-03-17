@@ -67,7 +67,7 @@ BufferOrEvent* CheckpointedInputGate::HandleEvent(
         BufferOrEvent* bufferOrEvent)
 {
     auto eventClassName = bufferOrEvent->getEvent()->GetEventClassName();
-    LOG("eventClassName: " << eventClassName)
+    INFO_RELEASE("Start to handle event, eventClassName: " << eventClassName)
 
     if (bufferOrEvent->getEvent()->GetEventClassName() == "CheckpointBarrier") {
         auto checkpointBarrier = std::dynamic_pointer_cast<CheckpointBarrier>(bufferOrEvent->getEvent());

@@ -63,7 +63,7 @@ namespace omnistream {
         LOG_INFO_IMP(">>>> Task Init")
         LOG_INFO_IMP(">>>> Shuffle Env address" << reinterpret_cast<long>(shuffleEnv_.get()))
 
-        this->taskNameWithSubtask_ = taskInfo.getTaskName(); // need to be confirrm
+        this->taskNameWithSubtask_ = taskInfo.getTaskName() + "#" + std::to_string(taskInfo.getIndexOfSubtask());
         this->executionId_ = ExecutionAttemptIDPOD();        // need to be know where to get it.
         this->allocationId_ = AbstractIDPOD();               //// need to be know where to get it.
         this->taskType = taskInfo.GetTaskType();
@@ -216,7 +216,7 @@ namespace omnistream {
     void OmniTask::doRun(long streamTaskAddress)
     {
         INFO_RELEASE("welcome to native")
-        INFO_RELEASE(" doRun starting: " << taskNameWithSubtask_)
+        INFO_RELEASE("doRun starting, taskNameWithSubtask: " << taskNameWithSubtask_)
 
         LOG_INFO_IMP("doRun.... ")
         LOG("now oper is :" << taskNameWithSubtask_)
