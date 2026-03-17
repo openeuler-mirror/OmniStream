@@ -785,8 +785,8 @@ bool WindowJoinOperator<KeyType>::filter(VectorBatchId leftElement, VectorBatchI
 
         auto result = generatedFilter(vals, nulls, nullptr, resultBool, nullptr, (int64_t)(&context));
 
-        delete vals;
-        delete nulls;
+        delete[] vals;
+        delete[] nulls;
         delete resultBool;
         return result;
     } else {
