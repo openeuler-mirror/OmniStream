@@ -68,25 +68,19 @@ namespace datastream {
             }
 
             if (IsRecycled()) {
-                INFO_RELEASE("Trying to recycle a NetworkBuffer that has already been recycled");
+                GErrorLog("Trying to recycle a NetworkBuffer that has already been recycled");
             } else {
-                LOG_PART(
-                        "The buffer " << this << " refCount is decremented from " << refCount.load() << " to "
-                                      << (refCount.load() - 1)
-                )
-
-                refCount.fetch_sub(1);
-                if (refCount.load() == 0) {
-                    // INFO_RELEASE("NetworkBuffer recycled " << this)
+                int prev = refCount.fetch_sub(1);
+                if (prev == 1) {
                     recycler->recycle(this->getMemorySegment());
-                    isRecycled_ = true;
+                    isRecycled_.store(true);
                 }
             }
         }
 
         bool IsRecycled() const override
         {
-            return isRecycled_;
+            return isRecycled_.load();
         }
 
         Buffer* RetainBuffer() override
@@ -220,7 +214,7 @@ namespace datastream {
 
         int currentSize;
         bool isCompressed_ = false;
-        bool isRecycled_ = false;
+        std::atomic<bool> isRecycled_ = false;
         int readerIndex_;
 
         std::atomic<int> refCount = 0;
