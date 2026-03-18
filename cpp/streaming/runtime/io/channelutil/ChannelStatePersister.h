@@ -34,8 +34,8 @@ public:
 
     void StartPersisting(int64_t barrierId, const std::vector<Buffer*>& knownBuffers)
     {
-        std::lock_guard<std::mutex> lock(mutex_);
-        LogEvent("StartPersisting", barrierId);
+        std::lock_guard<std::mutex> persistLock(mutex_);
+        LOG("StartPersisting" << barrierId)
 
         if (checkpointStatus_ == CheckpointStatus::BARRIER_RECEIVED && lastSeenBarrier_ > barrierId) {
             throw std::runtime_error(
@@ -62,8 +62,8 @@ public:
 
     void StopPersisting(int64_t id)
     {
-        std::lock_guard<std::mutex> lock(mutex_);
-        LogEvent("StopPersisting", id);
+        std::lock_guard<std::mutex> persistLock(mutex_);
+        LOG("StopPersisting" << id)
         if (id >= lastSeenBarrier_) {
             checkpointStatus_ = CheckpointStatus::COMPLETED;
             lastSeenBarrier_ = id;
@@ -72,7 +72,7 @@ public:
 
     void MaybePersist(Buffer* buffer)
     {
-        std::lock_guard<std::mutex> lock(mutex_);
+        std::lock_guard<std::mutex> persistLock(mutex_);
         if (checkpointStatus_ == CheckpointStatus::BARRIER_PENDING && buffer->isBuffer()) {
             std::vector<Buffer*> buffers;
             buffers.push_back(buffer->RetainBuffer());
@@ -87,7 +87,7 @@ public:
 
     std::optional<int64_t> CheckForBarrier(Buffer* buffer)
     {
-        std::lock_guard<std::mutex> lock(mutex_);
+        std::lock_guard<std::mutex> persistLock(mutex_);
         auto event = ParseEvent(buffer);
 
         if (event == nullptr) {
@@ -100,12 +100,12 @@ public:
                 : lastSeenBarrier_;
 
             if (barrierId >= expectedBarrierId) {
-                LogEvent("found barrier", barrierId);
+                LOG("found barrier" << barrierId)
                 checkpointStatus_ = CheckpointStatus::BARRIER_RECEIVED;
                 lastSeenBarrier_ = barrierId;
                 return std::make_optional(lastSeenBarrier_);
             } else {
-                LogEvent("ignoring barrier", barrierId);
+                LOG("ignoring barrier" << barrierId)
             }
         }
 
@@ -138,13 +138,6 @@ private:
             case CheckpointStatus::BARRIER_RECEIVED: return "BARRIER_RECEIVED";
             default: return "UNKNOWN";
         }
-    }
-
-    void LogEvent(const std::string& event, int64_t barrierId) const
-    {
-        #ifdef DEBUG
-        std::cout << event << " " << barrierId << ", lastSeenBarrier_ = " << lastSeenBarrier_ << std::endl;
-        #endif
     }
 private:
     InputChannelInfo channelInfo_;

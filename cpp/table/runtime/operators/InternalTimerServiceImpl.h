@@ -62,6 +62,10 @@ public:
     void deleteProcessingTimeTimer(N nameSpace, long time);
     void registerEventTimeTimer(N nameSpace, long time);
     void deleteEventTimeTimer(N nameSpace, long time);
+
+    // temp fix for too many timers in priority queue
+    // this function should to be deleted when RocksDBCachingPriorityQueueSet is implemented in the future
+    void deleteFirstEventTimeTimer();
 private:
     KeyContext<K> *keyContext = nullptr;
     ProcessingTimeService *processingTimeService = nullptr;
@@ -213,6 +217,14 @@ void InternalTimerServiceImpl<K, N>::deleteEventTimeTimer(N nameSpace, long time
     auto *toRemove = new TimerHeapInternalTimer(time, keyContext->getCurrentKey(), nameSpace);
     eventTimeTimersQueue->template remove<K>(toRemove);
     delete toRemove;
+}
+
+template <typename K, typename N>
+void InternalTimerServiceImpl<K, N>::deleteFirstEventTimeTimer()
+{
+    TimerHeapInternalTimer<K, N> *timer = eventTimeTimersQueue->peek();
+    eventTimeTimersQueue->template poll<K>();
+    delete timer;
 }
 
 

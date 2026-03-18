@@ -234,7 +234,6 @@ public:
                     processBufferForDataStreamAndSQLFromOriginal(bufferOrEvent);
                     delete bufferOrEvent;
                 } else  {
-                    std::cout << "current is event" << std::endl;
                     std::shared_ptr<AbstractEvent> event = bufferOrEvent->getEvent();
                     DataInputStatus status = processEvent(event);
                     delete bufferOrEvent;
@@ -268,7 +267,6 @@ public:
                     processBufferForDataStreamAndSQLFromOriginal(bufferOrEvent);
                     delete bufferOrEvent;
                 } else  {
-                    std::cout << "current is event" << std::endl;
                     std::shared_ptr<AbstractEvent> event = bufferOrEvent->getEvent();
                     DataInputStatus status = processEvent(event, output);
                     delete bufferOrEvent;

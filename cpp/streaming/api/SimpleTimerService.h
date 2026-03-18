@@ -40,6 +40,9 @@ public:
 
     void registerEventTimeTimer(long time) override
     {
+        if (++timerSize > 10000) {
+            internalTimerService->deleteFirstEventTimeTimer();
+        }
         internalTimerService->registerEventTimeTimer(VoidNamespace(), time);
     }
 
@@ -55,5 +58,6 @@ public:
 
 private:
     InternalTimerService<VoidNamespace> *internalTimerService;
+    uint32_t timerSize = 0;
 };
 #endif // OMNISTREAM_SIMPLETIMERSERVICE_H
