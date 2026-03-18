@@ -308,7 +308,7 @@ void OmniStreamTask::processInput(MailboxDefaultAction::Controller *controller)
     // } else
     if (!inputProcessor_->isAvailable()) {
         resumeFuture = inputProcessor_->GetAvailableFuture();
-        INFO_RELEASE("inputProcessor is not available, wait for it")
+        LOG("inputProcessor is not available, wait for it")
     } else {
         return;
     }

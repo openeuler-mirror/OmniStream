@@ -93,6 +93,7 @@ bool HeapPriorityQueueSet<T, Comparator>::removeFromQueue(T element)
             temp.push_back(priorityQueue.top());
             priorityQueue.pop();
         } else {
+            delete priorityQueue.top();
             priorityQueue.pop();
             removed = true;
             break;
@@ -118,6 +119,7 @@ HeapPriorityQueueSet<T, Comparator>::HeapPriorityQueueSet(KeyGroupRange *keyGrou
 template <typename T, typename Comparator>
 HeapPriorityQueueSet<T, Comparator>::~HeapPriorityQueueSet()
 {
+    clear();
     for (size_t i = 0; i < deduplicationMapsByKeyGroup.size(); ++i) {
         delete deduplicationMapsByKeyGroup[i];
     }
@@ -196,6 +198,7 @@ template <typename T, typename Comparator>
 void HeapPriorityQueueSet<T, Comparator>::clear()
 {
     while (!priorityQueue.empty()) {
+        delete priorityQueue.top();
         priorityQueue.pop();
     }
     for (auto *map: deduplicationMapsByKeyGroup) {

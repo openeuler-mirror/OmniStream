@@ -54,6 +54,15 @@ public:
     {
         if constexpr (std::is_same_v<K, RowData *>) {
             return this->timestamp == other.timestamp && *this->key == *other.key && this->nameSpace == other.nameSpace;
+        } else if constexpr (std::is_same_v<K, Object *>) {
+            auto lkey = reinterpret_cast<Object*>(this->key);
+            auto rkey = reinterpret_cast<Object*>(other.key);
+            if (lkey == nullptr && rkey == nullptr) {
+                return true;
+            } else if (lkey == nullptr || rkey == nullptr) {
+                return false;
+            }
+            return lkey->equals(rkey) && this->timestamp == other.timestamp && this->nameSpace == other.nameSpace;
         } else {
             return this->timestamp == other.timestamp && this->key == other.key && this->nameSpace == other.nameSpace;
         }
@@ -90,6 +99,8 @@ namespace std {
             int result = static_cast<int>(timestamp ^ (timestamp >> 32));
             if constexpr (std::is_same_v<K, RowData *>) {
                 result = 31 * result + key->hashCode();
+            } else if constexpr (std::is_same_v<K, Object *>) {
+                result = 31 * result + reinterpret_cast<Object*>(key)->hashCode();
             }
             if constexpr (std::is_same_v<N, TimeWindow>) {
                 result = 31 * result + nameSpace.HashCode();
@@ -110,6 +121,18 @@ namespace std {
                 return *lhs->getKey() == *rhs->getKey() &&
                         lhs->getTimestamp() == rhs->getTimestamp() &&
                         lhs->getNamespace() == rhs->getNamespace();
+            } else if constexpr (std::is_same_v<K, Object *>) {
+                auto lkey = reinterpret_cast<Object*>(lhs->getKey());
+                auto rkey = reinterpret_cast<Object*>(rhs->getKey());
+                if (lkey == nullptr && rkey == nullptr) {
+                    return true;
+                } else if (lkey == nullptr || rkey == nullptr) {
+                    return false;
+                }
+                auto res = lkey->equals(rkey) &&
+                           lhs->getTimestamp() == rhs->getTimestamp() &&
+                           lhs->getNamespace() == rhs->getNamespace();
+                return res;
             } else {
                 return lhs->getKey() == rhs->getKey() &&
                         lhs->getTimestamp() == rhs->getTimestamp() &&

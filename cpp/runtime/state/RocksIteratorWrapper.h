@@ -90,6 +90,11 @@ public:
         iterator->Seek(rocksdb::Slice(target));
     }
 
+    void seek(const rocksdb::Slice& target)
+    {
+        iterator->Seek(target);
+    }
+
     void seekForPrev(const std::string& target)
     {
         iterator->SeekForPrev(rocksdb::Slice(target));
