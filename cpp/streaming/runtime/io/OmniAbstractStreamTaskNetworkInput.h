@@ -30,6 +30,7 @@
 #include "streaming/runtime/io/OmniStreamTaskNetworkOutput.h"
 #include "typeutils/TypeSerializer.h"
 #include "runtime/io/checkpointing/CheckpointedInputGate.h"
+#include "runtime/event/EndOfChannelStateEvent.h"
 namespace omnistream {
 class OmniAbstractStreamTaskNetworkInput : public OmniStreamTaskInput {
 public:
@@ -213,6 +214,7 @@ public:
 
     DataInputStatus processForDataStream(OmniPushingAsyncDataInput::OmniDataOutput *output)
     {
+        LOG("datastream processForDataStream");
         while (true) {
             if (currentRecordDeserializer != nullptr) {
                 DeserializationResult &result = currentRecordDeserializer->getNextRecord(*deserializationDelegate_);
@@ -231,6 +233,7 @@ public:
             auto bufferOrEvent = inputGate->PollNext();
             if (bufferOrEvent) {
                 if (bufferOrEvent->isBuffer()) {
+                    std::cout<<"receive a buffer" <<std::endl;
                     processBufferForDataStreamAndSQLFromOriginal(bufferOrEvent);
                     delete bufferOrEvent;
                 } else  {
@@ -551,12 +554,20 @@ protected:
     {
         if (dynamic_cast<EndOfData *>(event.get())) { // END_OF_USER_RECORDS_EVENT is End_of_Data
             if (inputGate->HasReceivedEndOfData()) {
+                INFO_RELEASE("received a EndOfData event!");
                 return DataInputStatus::END_OF_DATA;
             }
         } else if (dynamic_cast<EndOfPartitionEvent *>(event.get())) {
             // it means one sub partition or channel end. we need to check if all end by checking input gate state
             if (inputGate->IsFinished()) {
+                INFO_RELEASE("received a EndOfPartitionEvent event!");
                 return DataInputStatus::END_OF_INPUT;
+            }
+        } else if (dynamic_cast<EndOfChannelStateEvent *>(event.get())) {
+            INFO_RELEASE("received a end of recovery event start");
+            if (inputGate->AllChannelsRecovered()) {
+                INFO_RELEASE("received a end of recovery event end");
+                return DataInputStatus::END_OF_RECOVERY;
             }
         }
         // by default,continue the data processing

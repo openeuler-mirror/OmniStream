@@ -551,6 +551,18 @@ namespace omnistream {
             if (it != inputChannelMap.end()) {
                 // Partition exists in the map
                 std::shared_ptr<InputChannel> channel = it->second;
+                std::shared_ptr<InputChannel> inputChannel = channel;
+                LOG("changeLocalInputChannelToOriginal invoke!")
+                if(auto local2 = std::dynamic_pointer_cast<OmniLocalInputChannel>(inputChannel)){
+                    LOG("changeLocalInputChannelToOriginal instance of OmniLocalInputChannel!");
+                } else  if(auto local1 = std::dynamic_pointer_cast<LocalInputChannel>(inputChannel)){
+                    LOG("changeLocalInputChannelToOriginal instance of LocalInputChannel!");
+                } else if(auto remote1 = std::dynamic_pointer_cast<RemoteInputChannel>(inputChannel)){
+                    LOG("changeLocalInputChannelToOriginal instance of RemoteInputChannel!");
+                } else{
+                    LOG("changeLocalInputChannelToOriginal unKnown channel type!");
+                }
+                
                 // create omniLocalInputChannel
                 auto omniShuffleEnv = std::dynamic_pointer_cast<OmniShuffleEnvironment>(this->shuffleEnv_);
                 std::shared_ptr<SingleInputGateFactory> singleInputGateFactory = omniShuffleEnv->

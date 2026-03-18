@@ -39,11 +39,32 @@ namespace omnistream {
 
         std::string toString() const;
 
+        int hashcode() const
+        {
+            return (gateIdx << 16) ^ inputChannelIdx;
+        }
+
+        bool equals(const InputChannelInfo& other) const
+        {
+            return gateIdx == other.gateIdx && inputChannelIdx == other.inputChannelIdx;
+        }
     private:
         int gateIdx;
         int inputChannelIdx;
         // if the InputChannel is an OmniLocalInputChannel?
         bool omni = false;
+    };
+    struct InputChannelInfoHash {
+        std::size_t operator()(const InputChannelInfo& own) const {
+            return own.hashcode();
+        }
+    };
+
+    struct InputChannelInfoEqual {
+        bool operator()(const InputChannelInfo& lhs, const InputChannelInfo& rhs) const {
+            if (lhs == rhs) return true;
+            return lhs.equals(rhs);
+        }
     };
 
 } // namespace omnistream

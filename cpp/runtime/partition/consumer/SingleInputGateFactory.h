@@ -69,11 +69,15 @@ public:
 
     std::function<std::shared_ptr<BufferPool>()>  createBufferPoolFactory(std::shared_ptr<BufferPoolFactory> networkBufferPool, int floatingNetworkBuffersPerGate);
 
-    void createInputChannels(std::string owningTaskName, std::shared_ptr<InputGateDeploymentDescriptorPOD> inputGateDeploymentDescriptor, std::shared_ptr<SingleInputGate> inputGate);
+    void createInputChannels(std::string owningTaskName,
+                             std::shared_ptr<InputGateDeploymentDescriptorPOD> inputGateDeploymentDescriptor,
+                             std::shared_ptr<SingleInputGate> inputGate,
+                             int consumedSubpartitionIndex);
 
     std::shared_ptr<InputChannel> createInputChannel(std::shared_ptr<SingleInputGate> inputGate, int index,
                                                      ShuffleDescriptorPOD shuffleDescriptor,
-                                                     std::shared_ptr<ChannelStatistics> channelStatistics);
+                                                     std::shared_ptr<ChannelStatistics> channelStatistics,
+                                                     int consumedSubpartitionIndex);
 
     // Getters
     ResourceIDPOD getTaskExecutorResourceId() const { return taskExecutorResourceId; }
@@ -118,7 +122,10 @@ public:
 
     std::shared_ptr<OmniLocalInputChannel> createOriginalInputChannel(std::shared_ptr<SingleInputGate> inputGate,
                                                                       int index, ResultPartitionIDPOD& partitionId);
-
+    int getNetworkBuffersPerChannel()
+    {
+        return networkBuffersPerChannel;
+    }
 private:
     ResourceIDPOD taskExecutorResourceId;
     std::shared_ptr<ResultPartitionManager> partitionManager;

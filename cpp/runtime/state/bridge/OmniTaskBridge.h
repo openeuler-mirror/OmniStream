@@ -65,6 +65,8 @@ namespace omnistream {
         virtual void closeSavepointInputStream(jobject inputStream) = 0;
 
         virtual JNIEnv* getJNIEnv() = 0;
+
+        virtual bool CallDownloadFileToLocal(const StreamStateHandle &cppHandle, const std::string &restoreInstancePath) = 0;
     };
 }
 

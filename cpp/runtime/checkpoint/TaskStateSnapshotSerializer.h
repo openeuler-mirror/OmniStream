@@ -56,7 +56,7 @@ public:
     static nlohmann::json parseDirectoryStateHandle(DirectoryStateHandle* directoryStateHandle);
 
     static nlohmann::json parseInflightDataRescalingDescriptor(
-        const InflightDataRescalingDescriptor& rescalingDescriptor);
+        const std::shared_ptr<InflightDataRescalingDescriptor> rescalingDescriptor);
 };
 
 #endif // OMNISTREAM_TASKSTATESNAPSHOTSERIALIZER_H

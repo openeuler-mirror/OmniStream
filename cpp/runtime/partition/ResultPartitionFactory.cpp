@@ -32,7 +32,7 @@ namespace omnistream  {
     ResultPartitionFactory::ResultPartitionFactory(
         std::shared_ptr<ResultPartitionManager> partitionManager,
         std::shared_ptr<NetworkObjectBufferPool> objectBufferPoolFactory,
-        std::shared_ptr<::datastream::NetworkMemoryBufferPool> memoryBufferPoolFactory,
+        std::shared_ptr<datastream::NetworkMemoryBufferPool> memoryBufferPoolFactory,
         int networkBufferSize) : partitionManager(partitionManager),
                                  objectBufferPoolFactory(objectBufferPoolFactory),
                                  memoryBufferPoolFactory(memoryBufferPoolFactory),

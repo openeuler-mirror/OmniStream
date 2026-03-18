@@ -25,6 +25,10 @@ public:
         LOG(">>>>>>> start OperatorSnapshotFinalizer")
         auto keyedStateManaged = FutureUtils::runIfNotDoneAndGet(snapshotFutures->getKeyedStateManagedFuture());
         auto KeyedStateRaw = FutureUtils::runIfNotDoneAndGet(snapshotFutures->getKeyedStateRawFuture());
+        std::shared_ptr<SnapshotResult<StateObjectCollection<InputChannelStateHandle>>> inputChannelState =
+                FutureUtils::runIfNotDoneAndGet(snapshotFutures->getInputChannelStateFuture());
+        std::shared_ptr<SnapshotResult<StateObjectCollection<ResultSubpartitionStateHandle>>> resultPartitionState =
+                FutureUtils::runIfNotDoneAndGet(snapshotFutures->getResultSubpartitionStateFuture());
 
         std::shared_ptr<StateObjectCollection<KeyedStateHandle>> jobManagerOwnedManaged;
         std::shared_ptr<StateObjectCollection<KeyedStateHandle>> taskLocalManaged;
@@ -54,15 +58,19 @@ public:
             *StateObjectCollection<OperatorStateHandle>::SingletonOrEmpty(nullptr),
             *jobManagerOwnedManaged,
             *jobManagerOwnedRaw,
-            *StateObjectCollection<InputChannelStateHandle>::EmptyIfNull(nullptr),
-            *StateObjectCollection<ResultSubpartitionStateHandle>::EmptyIfNull(nullptr));
+            inputChannelState == nullptr ? *StateObjectCollection<InputChannelStateHandle>::Empty() :
+                *inputChannelState->GetJobManagerOwnedSnapshot(),
+            resultPartitionState == nullptr ? *StateObjectCollection<ResultSubpartitionStateHandle>::Empty() :
+                *resultPartitionState->GetJobManagerOwnedSnapshot());
         taskLocalState = std::make_shared<OperatorSubtaskState>(
             *StateObjectCollection<OperatorStateHandle>::SingletonOrEmpty(nullptr),
             *StateObjectCollection<OperatorStateHandle>::SingletonOrEmpty(nullptr),
             *taskLocalManaged,
             *taskLocalRaw,
-            *StateObjectCollection<InputChannelStateHandle>::EmptyIfNull(nullptr),
-            *StateObjectCollection<ResultSubpartitionStateHandle>::EmptyIfNull(nullptr));
+            inputChannelState == nullptr ? *StateObjectCollection<InputChannelStateHandle>::Empty() :
+                *inputChannelState->GetJobManagerOwnedSnapshot(),
+            resultPartitionState == nullptr ? *StateObjectCollection<ResultSubpartitionStateHandle>::Empty() :
+                *resultPartitionState->GetJobManagerOwnedSnapshot());
         LOG(">>>>>>> end OperatorSnapshotFinalizer")
     };
 

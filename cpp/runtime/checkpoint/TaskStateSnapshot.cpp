@@ -73,20 +73,50 @@ bool TaskStateSnapshot::HasState() const
  * Returns the input channel mapping for rescaling with in-flight data or {@link
  * InflightDataRescalingDescriptor#noRescale}.
  */
-InflightDataRescalingDescriptor TaskStateSnapshot::GetInputRescalingDescriptor() const
+std::shared_ptr<InflightDataRescalingDescriptor> TaskStateSnapshot::GetInputRescalingDescriptor() const
 {
-    // TTODO
-    return InflightDataRescalingDescriptor::noRescale;
+    std::vector<std::shared_ptr<InflightDataRescalingDescriptor>> list;
+    for (const auto &subtaskState: subtaskStatesByOperatorID) {
+        std::shared_ptr<InflightDataRescalingDescriptor> descriptor = subtaskState.second->getInputRescalingDescriptor();
+        if (!InflightDataRescalingDescriptor::noRescale->Equals(&*descriptor)) {
+            list.emplace_back(descriptor);
+        }
+    }
+    LOG("GetInputRescalingDescriptor descriptor size: " << list.size());
+    int index = 0;
+    for (const auto& inflightDataRescalingDescriptor : list) {
+        LOG("InputRescaling index: " << ++index << ", descriptor: " << inflightDataRescalingDescriptor->ToString());
+    }
+    if (list.empty()) {
+        LOG("InputRescaling is noRescale.");
+        return InflightDataRescalingDescriptor::noRescale;
+    }
+    return list[0];
 }
 
 /**
  * Returns the output channel mapping for rescaling with in-flight data or {@link
  * InflightDataRescalingDescriptor#noRescale}.
  */
-InflightDataRescalingDescriptor TaskStateSnapshot::GetOutputRescalingDescriptor() const
+std::shared_ptr<InflightDataRescalingDescriptor> TaskStateSnapshot::GetOutputRescalingDescriptor() const
 {
-    // TTODO
-    return InflightDataRescalingDescriptor::noRescale;
+    std::vector<std::shared_ptr<InflightDataRescalingDescriptor>> list;
+    for (const auto &subtaskState: subtaskStatesByOperatorID) {
+        std::shared_ptr<InflightDataRescalingDescriptor> descriptor = subtaskState.second->getOutputRescalingDescriptor();
+        if (!InflightDataRescalingDescriptor::noRescale->Equals(&*descriptor)) {
+            list.emplace_back(descriptor);
+        }
+    }
+    LOG("GetOutputRescalingDescriptor descriptor size: " << list.size());
+    int index = 0;
+    for (const auto& inflightDataRescalingDescriptor : list) {
+        LOG("OutputRescaling index: " << ++index << ", descriptor: " << inflightDataRescalingDescriptor->ToString());
+    }
+    if (list.empty()) {
+        LOG("OutputRescaling is noRescale.");
+        return InflightDataRescalingDescriptor::noRescale;
+    }
+    return list[0];
 }
 
 void TaskStateSnapshot::DiscardState()
@@ -151,14 +181,15 @@ std::string TaskStateSnapshot::ToString() const
 }
 
 /** Returns the only valid mapping as ensured by {@link StateAssignmentOperation}. */
-InflightDataRescalingDescriptor TaskStateSnapshot::GetMapping(std::function<InflightDataRescalingDescriptor
+std::shared_ptr<InflightDataRescalingDescriptor> TaskStateSnapshot::GetMapping(
+    std::function<std::shared_ptr<InflightDataRescalingDescriptor>
     (const std::shared_ptr<OperatorSubtaskState>&)> mappingExtractor) const
 {
-    std::vector<InflightDataRescalingDescriptor> mappings;
+    std::vector<std::shared_ptr<InflightDataRescalingDescriptor>> mappings;
 
     for (const auto& pair : subtaskStatesByOperatorID) {
         if (pair.second != nullptr) {
-            InflightDataRescalingDescriptor mapping = mappingExtractor(pair.second);
+            std::shared_ptr<InflightDataRescalingDescriptor> mapping = mappingExtractor(pair.second);
             if (!(mapping == InflightDataRescalingDescriptor::noRescale)) {
                 mappings.push_back(mapping);
             }

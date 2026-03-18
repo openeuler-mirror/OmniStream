@@ -41,6 +41,12 @@ namespace omnistream {
             this->parent->OnConsumedSubpartition(getSubPartitionIndex());
         };
 
+        BufferBuilder *requestBufferBuilderBlocking()
+        {
+            return parent->getBufferPool()->requestBufferBuilderBlocking();
+        }
+
+        virtual void addRecovered(std::shared_ptr<BufferConsumer> bufferConsumer) = 0;
         // virtual int add(std::shared_ptr<ObjectBufferConsumer> bufferConsumer, int partialRecordLength) = 0;
         virtual long getTotalNumberOfBuffersUnsafe() = 0;
         virtual long getTotalNumberOfBytesUnsafe() = 0;

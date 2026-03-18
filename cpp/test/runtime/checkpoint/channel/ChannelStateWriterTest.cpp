@@ -24,9 +24,9 @@ TEST(ChannelStateWriteResultTest, IsDone)
     ChannelStateWriter::ChannelStateWriteResult result(inputFuture, resultFuture);
     EXPECT_FALSE(result.IsDone());
 
-    inputFuture->Complete(std::make_shared<std::vector<InputChannelStateHandle>>());
+    inputFuture->Complete(std::make_shared<std::vector<std::shared_ptr<InputChannelStateHandle>>>());
     EXPECT_FALSE(result.IsDone());
 
-    resultFuture->Complete(std::make_shared<std::vector<ResultSubpartitionStateHandle>>());
+    resultFuture->Complete(std::make_shared<std::vector<std::shared_ptr<ResultSubpartitionStateHandle>>>());
     EXPECT_TRUE(result.IsDone());
 }

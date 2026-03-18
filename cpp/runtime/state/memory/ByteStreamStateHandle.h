@@ -18,7 +18,83 @@
 #include "core/fs/FSDataInputStream.h"
 #include "runtime/state/StreamStateHandle.h"
 #include "common.h"
+/**
+ * An input stream view on a byte array.
+ */
+class ByteStateHandleInputStream : public FSDataInputStream {
+public:
+    explicit ByteStateHandleInputStream(const std::vector<uint8_t>& data)
+        : data_(data), index_(0) {}
 
+    /**
+     * Seek to the given offset from the start of the data.
+     * The next read will begin at that location.
+     *
+     * @param desired the desired offset
+     * @throws ios_base::failure if position is out of bounds
+     */
+    void Seek(std::streampos desired) override
+    {
+        if (desired < 0 || static_cast<size_t>(desired) > data_.size()) {
+            throw std::ios_base::failure("Seek position out of bounds");
+        }
+        index_ = static_cast<size_t>(desired);
+    }
+
+    /**
+     * Returns the current read position in the data.
+     */
+    std::streampos GetPos() const override
+    {
+        return static_cast<std::streampos>(index_);
+    }
+
+    /**
+     * Reads a single byte from the data.
+     *
+     * @return the byte read (0–255), or -1 if end of stream
+     */
+    int Read() override
+    {
+        return index_ < data_.size() ? data_[index_++] & 0xFF : -1;
+    }
+
+    /**
+     * Reads multiple bytes into a buffer.
+     *
+     * Note: bounds checking on the output buffer is assumed to be handled externally.
+     *
+     * @return number of bytes read, or -1 if end of stream
+     */
+    int Read(std::vector<uint8_t>& buffer, int off, int len) override
+    {
+        if (off < 0 || len < 0 || static_cast<size_t>(off + len) > buffer.size()) {
+            throw std::out_of_range("Invalid buffer offset or length");
+        }
+
+        size_t bytesLeft = data_.size() - index_;
+        if (bytesLeft == 0) return -1;
+
+        size_t bytesToCopy = std::min(static_cast<size_t>(len), bytesLeft);
+        if (bytesToCopy == 0) return 0;
+
+        auto err = memcpy_s(
+            buffer.data() + off,
+            buffer.size() - off,
+            data_.data() + index_,
+            bytesToCopy);
+        if (err != EOK) {
+            throw std::runtime_error("memcpy_s failed with error code: " + std::to_string(err));
+        }
+
+        index_ += bytesToCopy;
+        return static_cast<int>(bytesToCopy);
+    }
+
+private:
+    std::vector<uint8_t> data_;
+    size_t index_;
+};
 /**
  * A state handle that contains stream state in a byte array.
  */
@@ -48,9 +124,9 @@ public:
     /**
      * Opens an input stream to read from the byte array state.
      */
-    std::unique_ptr<FSDataInputStream> OpenInputStream() const override
+    std::shared_ptr<FSDataInputStream> OpenInputStream() const override
     {
-        return std::make_unique<ByteStateHandleInputStream>(data_);
+        return std::make_shared<ByteStateHandleInputStream>(data_);
     }
 
     /**
@@ -126,84 +202,6 @@ public:
 private:
     std::string handleName_;
     std::vector<uint8_t> data_;
-
-    /**
-     * An input stream view on a byte array.
-     */
-    class ByteStateHandleInputStream : public FSDataInputStream {
-    public:
-        explicit ByteStateHandleInputStream(const std::vector<uint8_t>& data)
-            : data_(data), index_(0) {}
-
-        /**
-         * Seek to the given offset from the start of the data.
-         * The next read will begin at that location.
-         *
-         * @param desired the desired offset
-         * @throws ios_base::failure if position is out of bounds
-         */
-        void Seek(std::streampos desired) override
-        {
-            if (desired < 0 || static_cast<size_t>(desired) > data_.size()) {
-                throw std::ios_base::failure("Seek position out of bounds");
-            }
-            index_ = static_cast<size_t>(desired);
-        }
-
-        /**
-         * Returns the current read position in the data.
-         */
-        std::streampos GetPos() const override
-        {
-            return static_cast<std::streampos>(index_);
-        }
-
-        /**
-         * Reads a single byte from the data.
-         *
-         * @return the byte read (0–255), or -1 if end of stream
-         */
-        int Read() override
-        {
-            return index_ < data_.size() ? data_[index_++] & 0xFF : -1;
-        }
-
-        /**
-         * Reads multiple bytes into a buffer.
-         *
-         * Note: bounds checking on the output buffer is assumed to be handled externally.
-         *
-         * @return number of bytes read, or -1 if end of stream
-         */
-        int Read(std::vector<uint8_t>& buffer, int off, int len) override
-        {
-            if (off < 0 || len < 0 || static_cast<size_t>(off + len) > buffer.size()) {
-                throw std::out_of_range("Invalid buffer offset or length");
-            }
-
-            size_t bytesLeft = data_.size() - index_;
-            if (bytesLeft == 0) return -1;
-
-            size_t bytesToCopy = std::min(static_cast<size_t>(len), bytesLeft);
-            if (bytesToCopy == 0) return 0;
-
-            auto err = memcpy_s(
-                buffer.data() + off,
-                buffer.size() - off,
-                data_.data() + index_,
-                bytesToCopy);
-            if (err != EOK) {
-                throw std::runtime_error("memcpy_s failed with error code: " + std::to_string(err));
-            }
-
-            index_ += bytesToCopy;
-            return static_cast<int>(bytesToCopy);
-        }
-
-    private:
-        std::vector<uint8_t> data_;
-        size_t index_;
-    };
 };
 
 #endif // FLINK_TNEL_BYTESTREAMSTATEHANDLE_H

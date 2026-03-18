@@ -67,7 +67,8 @@ namespace omnistream {
                         int segmentSize);
 
                 void setup() override;
-                std::shared_ptr<CompletableFuture> getStateConsumedFuture() override;
+                std::shared_ptr<CompletableFutureV2<void>> getStateConsumedFuture() override;
+                std::vector<bool> getStateConsumedFuture1() override;
                 void RequestPartitions() override;
                 void FinishReadRecoveredState() override;
 

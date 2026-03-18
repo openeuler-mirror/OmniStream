@@ -196,6 +196,7 @@ std::optional<BufferAndAvailability> LocalInputChannel::getNextBuffer()
 void LocalInputChannel::notifyDataAvailable()
 {
     // LOG_PART("Beginnging")
+    LOG("LocalInputChannel notifyDataAvailable invoke!");
     notifyChannelNonEmpty();
 }
 

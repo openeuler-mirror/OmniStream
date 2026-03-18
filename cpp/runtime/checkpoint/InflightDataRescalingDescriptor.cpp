@@ -12,7 +12,7 @@
 #include "InflightDataRescalingDescriptor.h"
 
 namespace omnistream {
-    InflightDataRescalingDescriptor InflightDataRescalingDescriptor::noRescale = NoRescalingDescriptor();
+    std::shared_ptr<InflightDataRescalingDescriptor> InflightDataRescalingDescriptor::noRescale = std::make_shared<NoRescalingDescriptor>();
 
     bool InflightDataGateOrPartitionRescalingDescriptor::operator==(
         const InflightDataGateOrPartitionRescalingDescriptor &o) const
@@ -47,7 +47,7 @@ namespace omnistream {
             oss << oldSubtaskIndexes[i];
         }
         oss << "]";
-        oss << ", rescaledChannelsMappings=" << rescaledChannelsMappings.ToString();
+        oss << ", rescaledChannelsMappings=" << rescaledChannelsMappings->ToString();
         oss << ", ambiguousSubtaskIndexes={";
         bool first = true;
         for (const auto &index: ambiguousSubtaskIndexes) {

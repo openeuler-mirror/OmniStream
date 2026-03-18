@@ -61,6 +61,15 @@ public:
                                 std::string keySerializer) override;
     long GetSavepointOutputStreamPos(jobject provider) override;
 
+    /**
+     * @brief Download a remote file to the local file system.
+     *
+     * @param cppHandle The handle of the remote file (StreamStateHandle object).
+     * @param restoreInstancePath The destination local file path where the downloaded file will be stored.
+     * @return true if the file is successfully downloaded and saved; false otherwise.
+     */
+    bool CallDownloadFileToLocal(const StreamStateHandle &cppHandle, const std::string &restoreInstancePath) override;
+
 public:
     jobject m_globalOmniTaskRef;
 };

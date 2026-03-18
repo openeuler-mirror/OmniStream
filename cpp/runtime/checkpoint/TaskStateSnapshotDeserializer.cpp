@@ -57,33 +57,200 @@ std::shared_ptr<KeyedStateHandle> TaskStateSnapshotDeserializer::ParseKeyedState
     throw std::runtime_error("Unsupported or unknown KeyedStateHandle type: " + className);
 }
 
+
+std::shared_ptr<ResultSubpartitionStateHandle> TaskStateSnapshotDeserializer::ParseResultStateHandle(const json &j)
+{
+    LOG("ParseResultStateHandle: " << j.dump());
+    if (!j.contains("@class")) {
+       LOG("ERROR: State handle JSON is missing the '@class' field.");
+       throw std::runtime_error("State handle JSON is missing the '@class' field.");
+    }
+    const std::string className = j.at("@class").get<std::string>();
+    if (className.find("ResultSubpartitionStateHandle") == std::string::npos) {
+       LOG("ERROR: State handle JSON is error, className: " << className);
+       throw std::runtime_error("State handle JSON is error, className: " + className);
+    }
+    int subTaskIndex = j["subtaskIndex"].get<int>();
+    ResultSubpartitionInfoPOD info;
+    std::shared_ptr<StreamStateHandle> delegate;
+    const std::string className2 = j["delegate"].at("@class").get<std::string>();
+    if (className2.find("ByteStreamStateHandle") != std::string::npos) {
+       std::string handleName = j["delegate"]["handleName"].get<std::string>();
+       std::string encodedData = j["delegate"]["data"].get<std::string>();
+       std::vector<uint8_t> decodedData = Base64_decode(encodedData);
+       delegate = std::make_shared<ByteStreamStateHandle>(handleName, decodedData);
+    } else if (className2.find("RelativeFileStateHandle") != std::string::npos) {
+       delegate = std::make_shared<RelativeFileStateHandle>(j["delegate"]);
+    } else {
+       LOG("ERROR: Not support for StreamStateHandle type: " << className2);
+       throw std::runtime_error("Not support for StreamStateHandle type: " + className2);
+    }
+    const std::string className3 = j["info"].at("@class").get<std::string>();
+    if (className3.find("ResultSubpartitionInfo") != std::string::npos) {
+       int partitionIdx = j["info"]["partitionIdx"].get<int>();
+       int subPartitionIdx = j["info"]["subPartitionIdx"].get<int>();
+       info = ResultSubpartitionInfoPOD(partitionIdx, subPartitionIdx);
+    }
+    std::vector<int64_t> offsets = j["offsets"][1].get<std::vector<int64_t>>();
+    int64_t size = j["size"].get<int64_t>();
+    AbstractChannelStateHandle<ResultSubpartitionInfoPOD>::StateContentMetaInfo metaInfo(offsets, size);
+    return std::make_shared<ResultSubpartitionStateHandle>(subTaskIndex, info, delegate, metaInfo);
+}
+
+std::shared_ptr<InputChannelStateHandle> TaskStateSnapshotDeserializer::ParseInputStateHandle(const json &j)
+{
+    LOG("ParseInputStateHandle: " << j.dump());
+    if (!j.contains("@class")) {
+       LOG("ERROR: State handle JSON is missing the '@class' field.");
+       throw std::runtime_error("State handle JSON is missing the '@class' field.");
+    }
+    const std::string className = j.at("@class").get<std::string>();
+    if (className.find("InputChannelStateHandle") == std::string::npos) {
+       LOG("ERROR: State handle JSON is error, className: " << className);
+       throw std::runtime_error("State handle JSON is error, className: " + className);
+    }
+    int subTaskIndex = j["subtaskIndex"].get<int>();
+    omnistream::InputChannelInfo info;
+    std::shared_ptr<StreamStateHandle> delegate;
+    const std::string className2 = j["delegate"].at("@class").get<std::string>();
+    if (className2.find("ByteStreamStateHandle") != std::string::npos) {
+       std::string handleName = j["delegate"]["handleName"].get<std::string>();
+       std::string encodedData = j["delegate"]["data"].get<std::string>();
+       std::vector<uint8_t> decodedData = Base64_decode(encodedData);
+       delegate = std::make_shared<ByteStreamStateHandle>(handleName, decodedData);
+    } else if (className2.find("RelativeFileStateHandle") != std::string::npos) {
+       delegate = std::make_shared<RelativeFileStateHandle>(j["delegate"]);
+    } else {
+       LOG("ERROR: Not support for StreamStateHandle type: " << className2);
+       throw std::runtime_error("Not support for StreamStateHandle type: " + className2);
+    }
+    const std::string className3 = j["info"].at("@class").get<std::string>();
+    if (className3.find("InputChannelInfo") != std::string::npos) {
+       int partitionIdx = j["info"]["gateIdx"].get<int>();
+       int subPartitionIdx = j["info"]["inputChannelIdx"].get<int>();
+       info = InputChannelInfo(partitionIdx, subPartitionIdx);
+    }
+    std::vector<int64_t> offsets = j["offsets"][1].get<std::vector<int64_t>>();
+    int64_t size = j["size"].get<int64_t>();
+    AbstractChannelStateHandle<InputChannelInfo>::StateContentMetaInfo metaInfo(offsets, size);
+    return std::make_shared<InputChannelStateHandle>(subTaskIndex, info, delegate, metaInfo);
+}
+
+std::shared_ptr<InflightDataRescalingDescriptor> TaskStateSnapshotDeserializer::ParseInflightDataRescalingDescriptor(const json& j)
+{
+    LOG("ParseInflightDataRescalingDescriptor: " << j.dump());
+    if (!j.contains("@class")) {
+        LOG("ERROR: State handle JSON is missing the '@class' field.");
+        throw std::runtime_error("Rescaling descriptor JSON is missing the '@class' field.");
+    }
+    const std::string className = j.at("@class").get<std::string>();
+    if (className.find("InflightDataRescalingDescriptor") == std::string::npos) {
+        LOG("ERROR: State handle JSON is error, className: " << className);
+        throw std::runtime_error("State handle JSON is error, className: " + className);
+    }
+    std::vector<InflightDataGateOrPartitionRescalingDescriptor> gateOrPartitionDescriptors;
+    auto mappingsJson = j.at("gateOrPartitionDescriptors");
+    if (mappingsJson.size() >= 2 && mappingsJson[0].is_string() && mappingsJson[1].is_array()) {
+        mappingsJson = mappingsJson[1]; // 取实际描述符数组
+    }
+    if (mappingsJson.empty()) {
+        LOG("GateOrPartitionDescriptors is empty");
+        return nullptr;
+    }
+    for (auto &mappingJson : mappingsJson) {
+        const std::string className2 = mappingJson.at("@class").get<std::string>();
+        if (className2.find("InflightDataGateOrPartitionRescalingDescriptor") != std::string::npos) {
+            std::vector<int> oldSubtaskIndexes = mappingJson["oldSubtaskIndexes"].get<std::vector<int>>();
+            std::set<int> ambiguousSubtaskIndexes;
+            auto& idxJson = mappingJson["ambiguousSubtaskIndexes"];
+            if (idxJson.is_array() && idxJson.size() == 2 && idxJson[0].is_string()) {
+                ambiguousSubtaskIndexes = idxJson[1].get<std::set<int>>();
+            } else {
+                ambiguousSubtaskIndexes = idxJson.get<std::set<int>>();
+            }
+            InflightDataGateOrPartitionRescalingDescriptor::MappingType mappingType;
+            std::shared_ptr<RescaleMappings> rescaleMappings;
+            std::string mappingTypeStr = mappingJson["mappingType"].get<std::string>();
+            if (mappingTypeStr.find("RESCALING") != std::string::npos) {
+                mappingType = InflightDataGateOrPartitionRescalingDescriptor::MappingType::RESCALING;
+            } else if (mappingTypeStr.find("IDENTITY") != std::string::npos) {
+                mappingType = InflightDataGateOrPartitionRescalingDescriptor::MappingType::IDENTITY;
+            } else {
+                LOG("ERROR: Not support for mapping type: " << mappingTypeStr);
+                throw std::runtime_error("ERROR: Not support for mapping type: " + mappingTypeStr);
+            }
+            const std::string className3 = mappingJson["rescaledChannelsMappings"].at("@class").get<std::string>();
+            if (className3.find("RescaleMappings") != std::string::npos) {
+                int numberOfSources = mappingJson["rescaledChannelsMappings"]["numberOfSources"].get<int>();
+                int numberOfTargets = mappingJson["rescaledChannelsMappings"]["numberOfTargets"].get<int>();
+                const auto &rescaledMappings = mappingJson["rescaledChannelsMappings"]["mappings"].get<std::vector<std::vector<int>>>();
+                if (rescaledMappings.empty()) {
+                    rescaleMappings = std::make_shared<IdentityRescaleMappings>(numberOfSources, numberOfTargets);
+                } else {
+                    rescaleMappings = std::make_shared<RescaleMappings>(numberOfSources, rescaledMappings, numberOfTargets);
+                }
+            } else {
+                LOG("ERROR: Not support for rescaledChannelsMappings type: " << className3);
+                throw std::runtime_error("ERROR: Not support for rescaledChannelsMappings type: " + className3);
+            }
+            InflightDataGateOrPartitionRescalingDescriptor
+                descriptor(oldSubtaskIndexes, rescaleMappings, ambiguousSubtaskIndexes, mappingType);
+            gateOrPartitionDescriptors.emplace_back(descriptor);
+        } else {
+            LOG("ERROR: Not support for RescalingDescriptor type: " << className2);
+            throw std::runtime_error("ERROR: Not support for RescalingDescriptor type: " + className2);
+        }
+    }
+    return std::make_shared<InflightDataRescalingDescriptor>(gateOrPartitionDescriptors);
+}
+
 std::shared_ptr<OperatorSubtaskState> TaskStateSnapshotDeserializer::ParseOperatorSubtaskState(const json &j)
 {
     auto managedKeyedStateCol = ParseStateObjectCollection<KeyedStateHandle>(
         j.at("managedKeyedState"), &ParseKeyedStateHandle);
-
+    auto inputChannelStateCol = ParseStateObjectCollection<InputChannelStateHandle>(
+        j.at("inputChannelState"), &ParseInputStateHandle);
+    auto resultSubpartitionStateCol = ParseStateObjectCollection<ResultSubpartitionStateHandle>(
+        j.at("resultSubpartitionState"), &ParseResultStateHandle);
+    auto inputRescalingDescriptorCol = ParseInflightDataRescalingDescriptor(j.at("inputRescalingDescriptor"));
+    if (inputRescalingDescriptorCol == nullptr) {
+        inputRescalingDescriptorCol = std::make_shared<NoRescalingDescriptor>();
+    }
+    LOG("Input rescaling descriptor: " << inputRescalingDescriptorCol->ToString());
+    auto outputRescalingDescriptorCol = ParseInflightDataRescalingDescriptor(j.at("outputRescalingDescriptor"));
+    if (outputRescalingDescriptorCol == nullptr) {
+        outputRescalingDescriptorCol = std::make_shared<NoRescalingDescriptor>();
+    }
+    LOG("Output rescaling descriptor: " << outputRescalingDescriptorCol->ToString());
     StateObjectCollection<KeyedStateHandle> managedKeyedStateHandles;
     if (managedKeyedStateCol) {
         // This calls a constructor of StateObjectCollection
         managedKeyedStateHandles = StateObjectCollection<KeyedStateHandle>(managedKeyedStateCol->ToArray());
     }
+    StateObjectCollection<InputChannelStateHandle> inputChannelStates;
+    if (inputChannelStateCol) {
+        // This calls a constructor of StateObjectCollection
+        inputChannelStates = StateObjectCollection<InputChannelStateHandle>(inputChannelStateCol->ToArray());
+    }
+    StateObjectCollection<ResultSubpartitionStateHandle> resultSubpartitionStates;
+    if (resultSubpartitionStateCol) {
+        // This calls a constructor of StateObjectCollection
+        resultSubpartitionStates = StateObjectCollection<ResultSubpartitionStateHandle>(resultSubpartitionStateCol->ToArray());
+    }
 
     StateObjectCollection<OperatorStateHandle> managedOperatorState; // Empty lvalue
     StateObjectCollection<OperatorStateHandle> rawOperatorState;     // Empty lvalue
     StateObjectCollection<KeyedStateHandle> rawKeyedState;           // Empty lvalue
-    StateObjectCollection<InputChannelStateHandle> inputChannelState; // Empty lvalue
-    StateObjectCollection<ResultSubpartitionStateHandle> resultSubpartitionState; // Empty lvalue
-    NoRescalingDescriptor noRescalingDescriptor;
 
     auto subtaskState = std::make_shared<OperatorSubtaskState>(
         managedOperatorState,
         rawOperatorState,
         managedKeyedStateHandles, // The only one with data
         rawKeyedState,
-        inputChannelState,
-        resultSubpartitionState,
-        noRescalingDescriptor,
-        noRescalingDescriptor
+        inputChannelStates, // The only one with data
+        resultSubpartitionStates, // The only one with data
+        inputRescalingDescriptorCol, // The only one with data
+        outputRescalingDescriptorCol // The only one with data
     );
 
     return subtaskState;

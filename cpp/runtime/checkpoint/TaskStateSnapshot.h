@@ -90,13 +90,13 @@ public:
      * Returns the input channel mapping for rescaling with in-flight data or {@link
      * InflightDataRescalingDescriptor#noRescale}.
      */
-    InflightDataRescalingDescriptor GetInputRescalingDescriptor() const;
+    std::shared_ptr<InflightDataRescalingDescriptor> GetInputRescalingDescriptor() const;
 
     /**
      * Returns the output channel mapping for rescaling with in-flight data or {@link
      * InflightDataRescalingDescriptor#noRescale}.
      */
-    InflightDataRescalingDescriptor GetOutputRescalingDescriptor() const;
+    std::shared_ptr<InflightDataRescalingDescriptor> GetOutputRescalingDescriptor() const;
 
     void DiscardState() override;
 
@@ -144,8 +144,8 @@ private:
     bool isTaskFinished;
 
     /** Returns the only valid mapping as ensured by {@link StateAssignmentOperation}. */
-    InflightDataRescalingDescriptor GetMapping(
-        std::function<InflightDataRescalingDescriptor(const std::shared_ptr<OperatorSubtaskState>&)>
+    std::shared_ptr<InflightDataRescalingDescriptor> GetMapping(
+        std::function<std::shared_ptr<InflightDataRescalingDescriptor>(const std::shared_ptr<OperatorSubtaskState>&)>
             mappingExtractor) const;
 };
 

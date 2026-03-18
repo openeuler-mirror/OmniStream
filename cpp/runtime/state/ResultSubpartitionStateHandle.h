@@ -12,26 +12,38 @@
 #ifndef OMNISTREAM_RESULTSUBPARTITIONSTATEHANDLE_H
 #define OMNISTREAM_RESULTSUBPARTITIONSTATEHANDLE_H
 #include "runtime/state/StateObject.h"
-class ResultSubpartitionStateHandle : public StateObject {
+#include "AbstractChannelStateHandle.h"
+#include "runtime/partition/ResultSubpartitionInfoPOD.h"
+class ResultSubpartitionStateHandle : public omnistream::AbstractChannelStateHandle<omnistream::ResultSubpartitionInfoPOD> {
 public:
+    ResultSubpartitionStateHandle(int subTaskIndex,
+                                  omnistream::ResultSubpartitionInfoPOD info,
+                                  std::shared_ptr<StreamStateHandle> delegate,
+                                  StateContentMetaInfo contentMetaInfo)
+            : omnistream::AbstractChannelStateHandle<omnistream::ResultSubpartitionInfoPOD>(subTaskIndex, info,
+                                                                                            delegate,
+                                                                                            contentMetaInfo.GetOffsets(),
+                                                                                            contentMetaInfo.GetSize()) {}
+
+
     // This class should be a template with InputChannelInfo, and info should be of class InputChannelInfo
     // This is a temporary place holder for checkpointing's PioritizedOperatorSubtaskState
-    std::string getInfo() const
-    {
-        return info;
-    }
-    void DiscardState() override {}
+//    std::string getInfo() const
+//    {
+//        return info;
+//    }
+//    void DiscardState() override {}
 
-    long GetStateSize() const override
-    {
-        return 0;
-    };
+//    long GetStateSize() const override
+//    {
+//        return 0;
+//    };
 
-    std::string ToString() const override
-    {
-        return "ResultSubpartitionStateHandle";
-    };
-private:
-    std::string info = "ResultSubpartitionStateHandle";
+//    std::string ToString() const override
+//    {
+//        return "ResultSubpartitionStateHandle";
+//    };
+//private:
+//    std::string info = "ResultSubpartitionStateHandle";
 };
 #endif // OMNISTREAM_RESULTSUBPARTITIONSTATEHANDLE_H

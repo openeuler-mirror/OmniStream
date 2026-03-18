@@ -52,6 +52,7 @@ namespace omnistream {
         {
             delete inputProcessor_;
             delete mailboxProcessor_;
+            delete mailboxProcessor;
         }
 
         // getter
@@ -168,6 +169,7 @@ namespace omnistream {
         TaskMailbox* mailbox_; // 负责存储相应 task 任务（也就是 mail），它支持多写单读，单线程读取并处理, delete by MailboxProcessor
         MailboxProcessor* mailboxProcessor_; // MailBox 的核心处理线程，MailboxDefaultAction 是其默认的 action 实现
         std::shared_ptr<MailboxExecutor> mainMailboxExecutor_; // 它负责向 MailBox 提交 task 任务
+        MailboxProcessor *mailboxProcessor;
         std::shared_ptr<SystemProcessingTimeService> systemTimerService;
 
         TaskInformationPOD taskConfiguration_;

@@ -26,7 +26,7 @@
 
 // check
 namespace omnistream {
-    using ::datastream::NetworkMemoryBufferPool;
+    using datastream::NetworkMemoryBufferPool;
 
     class ResultPartitionFactory {
     public:

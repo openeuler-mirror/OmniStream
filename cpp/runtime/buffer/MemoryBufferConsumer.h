@@ -21,7 +21,7 @@
 
 using namespace omnistream;
 
-namespace datastream {
+namespace omnistream::datastream {
 
     class MemoryBufferConsumer : public BufferConsumer {
     public:
