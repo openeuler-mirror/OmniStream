@@ -250,13 +250,37 @@ None
 ## Related Documentation<a name="EN-US_TOPIC_0000002548933523"></a>
 
 ### Related Documentation<a name="EN-US_TOPIC_0000002517333760"></a>
-
-|Document|Description|Delivery Method|
-|--|--|--|
-|Kunpeng BoostKit 26.0.0 Big Data OmniRuntime 1.9.0 Release Notes|Provides the OmniRuntime version release information.|Open source repository|
-|Kunpeng BoostKit 26.0.0 Big Data OmniRuntime Feature Guide|Describes how to install and deploy OmniRuntime.|Open source repository|
-
-
+<font size=3>
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left;">Document</th>
+      <th style="text-align: left;">Description</th>
+      <th style="text-align: left;">Delivery Method</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left;">《OmniStream 1.2.0 Release Notes》</td>
+      <td style="text-align: left;">Provides the OmniStream version release information.</td>
+      <td style="text-align: left;">Open source repository</td>
+    </tr>
+    <tr>
+      <td style="text-align: left;">《OmniStream Installation Guide》</td>
+      <td style="text-align: left;">Describes how to install and deploy OmniStream.</td>
+      <td style="text-align: left;">Open source repository</td>
+    </tr>
+    <tr>
+      <td style="text-align: left;">《OmniStream User Guide》</td>
+      <td style="text-align: left;">Describes how to use OmniStream</td>
+      <td style="text-align: left;">Open source repository</td>
+    </tr>
+    <tr>
+      <td style="text-align: left;">《OmniStream F&Q》</td>
+      <td style="text-align: left;">ocument potential issues and their solutions encountered during installation, deployment, and usage.</td>
+      <td style="text-align: left;">Open source repository</td>
+    </tr>
+</table>
 
 ### Obtaining Documentation<a name="EN-US_TOPIC_0000002517493604"></a>
 

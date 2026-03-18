@@ -17,7 +17,7 @@
 </tr>
 <tr id="row242mcpsimp"><th class="firstcol" valign="top" width="30%" id="mcps1.1.3.3.1"><p id="p244mcpsimp"><a name="p244mcpsimp"></a><a name="p244mcpsimp"></a>软件名称和版本</p>
 </th>
-<td class="cellrowborder" valign="top" width="70%" headers="mcps1.1.3.3.1 "><p id="p138515418112"><a name="p138515418112"></a><a name="p138515418112"></a>OmniStream 1.1.0</p>
+<td class="cellrowborder" valign="top" width="70%" headers="mcps1.1.3.3.1 "><p id="p138515418112"><a name="p138515418112"></a><a name="p138515418112"></a>OmniStream 1.2.0</p>
 </td>
 </tr>
 </tbody>
@@ -252,10 +252,46 @@ DataStream
 
 ### 版本配套文档<a name="ZH-CN_TOPIC_0000002517333760"></a>
 
-|文档名称|内容简介|交付形式|
-|--|--|--|
-|《Kunpeng BoostKit 26.0.0 大数据OmniRuntime 1.9.0 版本说明书》|本文档提供OmniRuntime的版本发布信息。|开源仓|
-|《Kunpeng BoostKit 26.0.0 大数据OmniRuntime 特性指南》|本文档提供OmniRuntime安装部署等指导。|开源仓|
+## 1.3 版本配套文档
+### 版本配套文档
+<font size=3>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left;">文档名称</th>
+      <th style="text-align: left;">内容简介</th>
+      <th style="text-align: left;">交付形式</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left;">《OmniStream 1.2.0 版本说明书》</td>
+      <td style="text-align: left;">提供OmniStream的版本更新内容与发布说明</td>
+      <td style="text-align: left;">开源仓</td>
+    </tr>
+    <tr>
+      <td style="text-align: left;">《OmniStream 快速入门》</td>
+      <td style="text-align: left;">提供OmniStream的快速上手教程，帮助用户快速了解和使用该组件。</td>
+      <td style="text-align: left;">开源仓</td>
+    </tr>
+    <tr>
+      <td style="text-align: left;">《OmniStream 安装指南》</td>
+      <td style="text-align: left;">提供OmniStream的安装部署指导。</td>
+      <td style="text-align: left;">开源仓</td>
+    </tr>
+    <tr>
+      <td style="text-align: left;">《OmniStream 使用指南》</td>
+      <td style="text-align: left;">提供OmniStream的使用操作指导。</td>
+      <td style="text-align: left;">开源仓</td>
+    </tr>
+    <tr>
+      <td style="text-align: left;">《OmniStream 常见问题》</td>
+      <td style="text-align: left;">记录安装、部署和使用过程中可能遇到的问题及其解决方法。</td>
+      <td style="text-align: left;">开源仓</td>
+    </tr>
+  </tbody>
+</table>
 
 
 
