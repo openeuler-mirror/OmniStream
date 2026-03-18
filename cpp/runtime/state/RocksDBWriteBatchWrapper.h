@@ -98,6 +98,7 @@ public:
                 // do nothing
             }
         }
+        batch_->Clear();
     }
 
 private:

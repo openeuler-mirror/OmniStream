@@ -150,6 +150,9 @@ public:
 
         std::string valueInTable;
         ROCKSDB_NAMESPACE::Status s = rocksDb->Get(readOptions, table, sliceKey, &valueInTable);
+        if (!s.ok() && valueInTable.length() != 0) {
+            THROW_RUNTIME_ERROR("rocksdb state table get failed, status is << " << s.ToString());
+        }
         if (!s.ok() || valueInTable.length() == 0) {
             if constexpr (std::is_pointer_v<S>) {
                 return nullptr;
@@ -220,7 +223,8 @@ public:
         }
         auto s3 = rocksDb->Write(writeOptions, &putBatch);
 
-        if (s3.ok()) {
+        if (!s3.ok()) {
+            THROW_RUNTIME_ERROR("rocksdb state table put by batch failed, status is << " << s3.ToString());
         }
     };
 
@@ -250,7 +254,8 @@ public:
         ROCKSDB_NAMESPACE::Slice sliceValue(reinterpret_cast<const char *>(valueOutputSerializer.getData()),
                                             valueOutputSerializer.length());
         auto s3 = rocksDb->Put(writeOptions, table, sliceKey, sliceValue);
-        if (s3.ok()) {
+        if (!s3.ok()) {
+            THROW_RUNTIME_ERROR("rocksdb state table put failed, status is << " << s3.ToString());
         }
     };
 

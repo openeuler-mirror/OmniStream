@@ -253,7 +253,8 @@ private:
     {
         LOG(">>>>>>>>>>")
         if (combinedWatermark->UpdateWatermark(index, mark->getTimestamp())) {
-            this->ProcessWatermark(new Watermark(combinedWatermark->GetCombinedWatermark()));
+            Watermark watermark(combinedWatermark->GetCombinedWatermark());
+            this->ProcessWatermark(&watermark);
         }
     }
 };

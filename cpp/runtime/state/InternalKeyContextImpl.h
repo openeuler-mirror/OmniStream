@@ -46,17 +46,17 @@ public:
     void setCurrentKey(K currentKey) override
     {
         if constexpr (std::is_same_v<K, Object*>) {
+            if (currentKey == nullptr) {
+                throw std::runtime_error("Current key is null pointer.");
+            }
+            reinterpret_cast<Object*>(currentKey)->getRefCount();
+        }
+        if constexpr (std::is_same_v<K, Object*>) {
             if (this->currentKey != nullptr) {
                 reinterpret_cast<Object*>(this->currentKey)->putRefCount();
             }
         }
         this->currentKey = currentKey;
-        if constexpr (std::is_same_v<K, Object*>) {
-            if (this->currentKey == nullptr) {
-                throw std::runtime_error("Current key is null pointer.");
-            }
-            reinterpret_cast<Object*>(this->currentKey)->getRefCount();
-        }
         setCurrentKeyGroupIndex(KeyGroupRangeAssignment<K>::assignToKeyGroup(this->currentKey, getNumberOfKeyGroups()));
     };
 

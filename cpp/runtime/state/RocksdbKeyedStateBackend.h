@@ -542,6 +542,7 @@ RocksdbMapState<K, N, UK, UV> *RocksdbKeyedStateBackend<K>::createOrUpdateIntern
     }
     createdKvState[stateDesc->getName()] = reinterpret_cast<uintptr_t>(createdState);
     createdState->createTable(db, stateDesc->getName(), kvStateInformation_);
+    createdState->setMaxParallelism(maxParallelism_);
     return createdState;
 }
 
