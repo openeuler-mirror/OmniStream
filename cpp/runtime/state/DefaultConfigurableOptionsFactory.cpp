@@ -173,7 +173,7 @@ void DefaultConfigurableOptionsFactory::createDBOptions(rocksdb::DBOptions &curr
     }
 
     // [FALCON] set allow_concurrent_memtable_write as false for hash memTable
-    currentOptions.allow_concurrent_memtable_write = false;
-    INFO_RELEASE("[FALCON] successfully set allow_concurrent_memtable_write as false for hash memTable.")
+    // currentOptions.allow_concurrent_memtable_write = false;
+    // INFO_RELEASE("[FALCON] successfully set allow_concurrent_memtable_write as false for hash memTable.")
 }
 
