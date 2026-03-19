@@ -320,9 +320,10 @@ namespace omnistream {
         // Read the alignment timeout
         int64_t alignmentTimeout = buffer.getLong();
         // Build the CheckpointOptions instance
-        CheckpointOptions* options = new CheckpointOptions(snapshotType, locationRef, alignmentType, alignmentTimeout);
+        CheckpointOptions* parsedOptions = new CheckpointOptions(snapshotType, locationRef, alignmentType, alignmentTimeout);
+        CheckpointOptions* runtimeOptions = parsedOptions->ToRuntimeAlignedNoTimeout();
         // Construct and return the CheckpointBarrier
-        return std::make_shared<CheckpointBarrier>(id, timestamp, options);
+        return std::make_shared<CheckpointBarrier>(id, timestamp, runtimeOptions);
     }
 
     SnapshotType* EventSerializer::DecodeSavepointType(uint8_t checkpointTypeCode, ByteBuffer& buffer)
