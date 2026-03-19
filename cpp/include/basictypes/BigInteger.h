@@ -54,9 +54,9 @@ public:
 
 private:
     std::vector<int> makePositive(const std::vector<int> &val);
-    std::vector<int> makePositive(const std::vector<unsigned char> &val);
+    std::vector<int> makePositive(const uint8_t* start, const int length);
     std::vector<int> trustedStripLeadingZeroInts(const std::vector<int> &val);
-    std::vector<int> stripLeadingZeroBytes(const std::vector<unsigned char> &a);
+    std::vector<int> stripLeadingZeroBytes(const uint8_t* start, const int length);
     void checkRange();
     void checkRange() const;
     void destructiveMulAdd(std::vector<int> &magnitude, int superRadix, int groupVal);

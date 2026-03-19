@@ -10,6 +10,6 @@
  */
 
 #include "RocksDBMemoryOptions.h"
-thread_local int64_t RocksDBMemoryOptions::calculatedCacheCapacity = 1216872465LL;
+thread_local int64_t RocksDBMemoryOptions::calculatedCacheCapacity = 2 * 1216872465LL;
 thread_local double RocksDBMemoryOptions::highPriorityPoolRatio = 0.1;
-thread_local int64_t RocksDBMemoryOptions::writeBufferManagerCapacity = 486748986LL;
+thread_local int64_t RocksDBMemoryOptions::writeBufferManagerCapacity = 2 * 486748986LL;

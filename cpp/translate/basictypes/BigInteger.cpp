@@ -464,12 +464,12 @@ void BigInteger::setByteArray(uint8_t *buffer, int capacity, int offset, int len
         return;
     }
 
-    std::vector<unsigned char> val(buffer + offset, buffer + offset + length);
-    if (val[0] < 0) {
-        mag = makePositive(val);
+    auto first = buffer + offset;
+    if (first[0] < 0) {
+        mag = makePositive(first, length);
         signum = -1;
     } else {
-        mag = stripLeadingZeroBytes(val);
+        mag = stripLeadingZeroBytes(first, length);
         signum = (mag.size() == 0 ? 0 : 1);
     }
     if (mag.size() >= MAX_MAG_LENGTH) {
@@ -478,9 +478,8 @@ void BigInteger::setByteArray(uint8_t *buffer, int capacity, int offset, int len
     return;
 }
 
-std::vector<int> BigInteger::stripLeadingZeroBytes(const std::vector<unsigned char> &a)
+std::vector<int> BigInteger::stripLeadingZeroBytes(const uint8_t* a, const int byteLength)
 {
-    size_t byteLength = a.size();
     if (byteLength == 0) {
         return std::vector<int>();
     }
@@ -514,10 +513,9 @@ std::vector<int> BigInteger::stripLeadingZeroBytes(const std::vector<unsigned ch
     return result;
 }
 
-std::vector<int> BigInteger::makePositive(const std::vector<unsigned char> &a)
+std::vector<int> BigInteger::makePositive(const uint8_t* a, const int byteLength)
 {
     int keep = 0;
-    int byteLength = a.size();
 
     while (keep < byteLength && a[keep] == -1) {
         keep++;
