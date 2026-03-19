@@ -127,7 +127,11 @@ namespace omnistream::datastream {
             nonSpanningWrapper->GetUnconsumedSegment() :
             spanningWrapper->GetUnconsumedSegment();
         std::vector<omnistream::Buffer*> buffers;
-        buffers.push_back(buffer);
+        if (buffer != nullptr) {
+            buffers.push_back(buffer);
+            return buffers;
+        }
+        LOG_DEBUG(" buffers is null  ");
         return buffers;
     }
 

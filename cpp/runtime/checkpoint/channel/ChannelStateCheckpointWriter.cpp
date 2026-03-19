@@ -9,7 +9,8 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "ChannelStateCheckpointWriter.h"
-
+#include "ChannelStateWriter.h"
+#include "state/filesystem/FileStateHandle.h"
 namespace omnistream {
 
     ChannelStateCheckpointWriter::ChannelStateCheckpointWriter(
@@ -199,15 +200,12 @@ namespace omnistream {
             checkpointStream->Flush();
             handle = checkpointStream->CloseAndGetHandle();
         }
-        for (auto &kv : pendingResults) {
-            kv.second->FinishResult(handle);
-        }
     }
 
     void ChannelStateCheckpointWriter::failResultAndCloseStream(const std::exception_ptr &e)
     {
-        for (auto &kv : pendingResults)
-            kv.second->Fail(e);
+        // for (auto &kv : pendingResults)
+            // kv.second->Fail(e);
         try {
             checkpointStream->Close();
         } catch (const std::exception &ex) {

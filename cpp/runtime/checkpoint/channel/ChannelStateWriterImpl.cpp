@@ -38,14 +38,14 @@ namespace omnistream {
     {
         std::lock_guard<std::mutex> lock(resultsMutex_);
         if (results_.find(checkpointId) != results_.end()) {
-            throw std::runtime_error(taskName_ + " result already exists for checkpoint");
+            return ;
         }
 
         if (results_.size() >= static_cast<size_t>(maxCheckpoints_)) {
             throw std::runtime_error(taskName_ + " exceeded max checkpoints");
         }
-
-        results_.emplace(checkpointId, std::make_shared<ChannelStateWriter::ChannelStateWriteResult>());
+        auto channelStateWriteResult = ChannelStateWriter::ChannelStateWriteResult::CreateEmpty();
+        results_.emplace(checkpointId, channelStateWriteResult);
         auto &result = results_.at(checkpointId);
 
         enqueue(
@@ -53,6 +53,7 @@ namespace omnistream {
                 jobVertexID_,
                 subtaskIndex_,
                 checkpointId,
+                channelStateWriteResult,
                 "Start"),
             false);
     }
@@ -197,6 +198,7 @@ namespace omnistream {
 
     void ChannelStateWriterImpl::enqueue(std::shared_ptr<ChannelStateWriteRequest> request, bool priority)
     {
+        LOG_DEBUG(" enqueue " << request->getName() << " checkpointid " << request->getCheckpointId());
         if (priority) {
             executor_->submitPriority(request);
         } else {

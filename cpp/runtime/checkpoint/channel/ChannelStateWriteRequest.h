@@ -81,6 +81,7 @@ namespace omnistream {
             JobVertexID jobVertexID,
             int subtaskIndex,
             long checkpointId,
+            std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> targetResult,
             const std::string name);
 
         static std::shared_ptr<ChannelStateWriteRequest> terminate(

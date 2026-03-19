@@ -45,10 +45,11 @@ namespace omnistream {
                     networkBuffer, readIndex + memorySegmentOffset,
                     bufferLength);
         std::unique_lock<std::recursive_mutex> lock(queueMutex);
-        dataQueue.push(
-            std::make_shared<
-                BufferAndAvailability>(readOnlyBuffer, ObjectBufferDataType::DATA_BUFFER, dataQueue.size(),
-                                       sequenceNumber));
+        std::shared_ptr<BufferAndAvailability> data = std::make_shared<BufferAndAvailability>(readOnlyBuffer,
+            ObjectBufferDataType::DATA_BUFFER, dataQueue.size(), sequenceNumber);
+        if (data != nullptr) {
+            dataQueue.push(data);
+        }
         // INFO_RELEASE("dataQueue size: " + std::to_string(dataQueue.size()))
         lock.unlock();
         notifyDataAvailable();

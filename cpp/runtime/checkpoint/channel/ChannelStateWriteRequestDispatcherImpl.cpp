@@ -43,7 +43,7 @@ namespace omnistream {
             writer = it->second;
         }
         if (writer) {
-            writer->Fail(cause);
+            // writer->Fail(cause);
             writer.reset();
         }
     }
@@ -53,6 +53,7 @@ namespace omnistream {
         std::lock_guard<std::mutex> lock(mutex);
         std::shared_ptr<ChannelStateCheckpointWriter> writer = nullptr;
         auto it = writers.find(request->getCheckpointId());
+        LOG_DEBUG(" dispatchInternal " << request->getName() << " checkpoint " << request->getCheckpointId() << " ongoingCheckpointId " << ongoingCheckpointId);
         if (it != writers.end()) {
             writer = it->second;
         }
@@ -60,6 +61,7 @@ namespace omnistream {
             handleCheckpointStartRequest(req);
         } else if (auto req = std::dynamic_pointer_cast<CheckpointInProgressRequest>(request)) {
             if (writer && ongoingCheckpointId == request->getCheckpointId()) {
+                LOG_DEBUG(" dispatchInternal " << request->getName() << " checkpoint " << request->getCheckpointId());
                 req->execute(writer);
             }
         }else if (auto req = std::dynamic_pointer_cast<SubtaskReleaseRequest>(request)) {
@@ -173,8 +175,10 @@ namespace omnistream {
             writer = it->second;
         }
         if (writer) {
-            writer->Fail(e);
+            // writer->Fail(e);
             writer->Reset();
+        } else {
+            registeredSubtasks.clear();
         }
     }
 
@@ -186,7 +190,7 @@ namespace omnistream {
             writer = it->second;
         }
         if (writer) {
-            writer->Fail(jvid, idx, e);
+            // writer->Fail(jvid, idx, e);
             writer->Reset();
         }
     }

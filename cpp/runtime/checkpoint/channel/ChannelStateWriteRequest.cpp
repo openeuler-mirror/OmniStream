@@ -167,9 +167,9 @@ namespace omnistream {
         JobVertexID jobVertexID,
         int subtaskIndex,
         long checkpointId,
+        std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> targetResult,
         const std::string name)
     {
-        auto targetResult = std::make_shared<ChannelStateWriter::ChannelStateWriteResult>();
         std::shared_ptr<CheckpointStorageLocationReference> locationReference = std::make_shared<CheckpointStorageLocationReference>();
         return std::make_shared<CheckpointStartRequest>(
             jobVertexID, subtaskIndex, checkpointId, targetResult, locationReference);
@@ -215,7 +215,7 @@ namespace omnistream {
 
     void CheckpointStartRequest::cancel(const std::exception_ptr &cause)
     {
-        targetResult_->Fail(cause);
+        // targetResult_->Fail(cause);
     }
 
     void CheckpointStartRequest::execute(std::shared_ptr<ChannelStateCheckpointWriter> writer)
