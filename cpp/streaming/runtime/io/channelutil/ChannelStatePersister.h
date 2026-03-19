@@ -75,13 +75,15 @@ public:
         std::lock_guard<std::mutex> persistLock(mutex_);
         if (checkpointStatus_ == CheckpointStatus::BARRIER_PENDING && buffer->isBuffer()) {
             std::vector<Buffer*> buffers;
-            buffers.push_back(buffer->RetainBuffer());
-            channelStateWriter_->AddInputData(
-                lastSeenBarrier_,
-                channelInfo_,
-                ChannelStateWriter::sequenceNumberUnknown,
-                buffers
-            );
+            Buffer *inflightbuffer = buffer->RetainBuffer();
+            if (inflightbuffer != nullptr) {
+                buffers.push_back(inflightbuffer);
+                channelStateWriter_->AddInputData(lastSeenBarrier_, channelInfo_,
+                    ChannelStateWriter::sequenceNumberUnknown, buffers);
+            } else {
+                LOG_DEBUG(" buffers is null  ");
+                buffer->RecycleBuffer();
+            }
         }
     }
 

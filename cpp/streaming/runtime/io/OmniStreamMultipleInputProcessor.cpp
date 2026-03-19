@@ -39,7 +39,12 @@ namespace omnistream {
 //        std::vector<CompletableFutureV2<void>*> inputFutures;
         std::vector<std::shared_ptr<CompletableFutureV2<void>>> inputFutures;
         for (int index = 0; index < processors.size(); index++) {
-            inputFutures.push_back(processors[index]->PrepareSnapshot(writer, checkpointID));
+            std::shared_ptr<CompletableFutureV2<void>> f = processors[index]->PrepareSnapshot(writer, checkpointID);
+            if (f != nullptr) {
+                inputFutures.push_back(f);
+            } else {
+                LOG_DEBUG(" inputFuture is null.");
+            }
         }
 
         auto cf_ptr = std::make_shared<CompletableFutureV2<void>>();

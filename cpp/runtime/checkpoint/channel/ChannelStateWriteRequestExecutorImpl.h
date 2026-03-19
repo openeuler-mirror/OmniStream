@@ -55,8 +55,8 @@ namespace omnistream {
         std::set<SubtaskID> subtasks;
 
         std::atomic<bool> isRegistering;
-        std::atomic<bool> stopped;
-        std::atomic<bool> started;
+        std::atomic<bool> stopped{false};
+        std::atomic<bool> started{false};
         std::thread worker;
         std::exception_ptr exceptionPtr;
 
