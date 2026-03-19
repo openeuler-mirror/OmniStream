@@ -97,14 +97,9 @@ void BufferManager::requestExclusiveBuffers(int numExclusiveBuffers)
 
 std::shared_ptr<omnistream::Buffer> BufferManager::requestBufferBlocking() 
 {
-    int times = 0;
-    while (true) {
-        {
+//    while (true) {
+//        {
             std::lock_guard<std::mutex> bufLock(bufferQueueLock);
-            if (++times > 10) {
-                LOG("Input channel [" << inputChannel->getChannelInfo().toString() << "] can not get a buffer");
-                throw std::runtime_error("channel has already been released!");
-            }      
             auto buffer = bufferQueue->takeBuffer();
             if (buffer != nullptr) {
                 return buffer;
@@ -126,10 +121,9 @@ std::shared_ptr<omnistream::Buffer> BufferManager::requestBufferBlocking()
                                         
                 shouldContinueRequest(bufferPool);
             }
-        }
-            
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    }
+//        }
+//        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+//    }
 }
 
 void BufferManager::releaseFloatingBuffers()
