@@ -99,6 +99,6 @@ public:
 
 protected:
     Object* reuseBuffer = nullptr;
-    bool bufferReusable = true;
+    bool bufferReusable = false;
 };
 #endif

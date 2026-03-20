@@ -14,7 +14,7 @@
 #include <streaming/runtime/streamrecord/StreamRecord.h>
 
 
-namespace datastream {
+namespace omnistream::datastream {
     MemoryBufferBuilder::MemoryBufferBuilder(MemorySegment *memorySegment,
                                                  std::shared_ptr<BufferRecycler> recycler)
             : BufferBuilder(new NetworkBuffer(memorySegment, recycler)), memorySegment(memorySegment) {
@@ -67,6 +67,32 @@ namespace datastream {
         return toCopy;
     }
 
+    int MemoryBufferBuilder::appendRawBytes(const uint8_t* source, int length)
+    {
+        if (isFinished()) {
+            throw std::runtime_error("BufferBuilder is finished");
+        }
+        if (length < 0) {
+            throw std::invalid_argument("length must be non-negative");
+        }
+        if (length == 0) {
+            return 0;
+        }
+        if (source == nullptr) {
+            throw std::invalid_argument("source must not be null when length > 0");
+        }
+
+        int available = getMaxCapacity() - positionMarker->getCached();
+        int toCopy = std::min(length, available);
+        if (toCopy <= 0) {
+            return 0;
+        }
+
+        memorySegment->put(positionMarker->getCached(), source, 0, toCopy);
+        positionMarker->move(toCopy);
+        commit();
+        return toCopy;
+    }
 
     std::shared_ptr<BufferConsumer> MemoryBufferBuilder::createBufferConsumerFromBeginning()
     {

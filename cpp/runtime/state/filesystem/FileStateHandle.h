@@ -46,7 +46,7 @@ public:
         return filePath_;
     }
 
-    std::unique_ptr<FSDataInputStream> OpenInputStream() const override
+    std::shared_ptr<FSDataInputStream> OpenInputStream() const override
     {
         return nullptr;
     }

@@ -21,7 +21,7 @@ namespace omnistream {
     {
         // LOG(">>>process Input")
         DataInputStatus status = input->emitNext(output);
-        // LOG_TRACE(" Return status  "  << DataInputStatusHelper::mapToInt(status))
+        LOG_TRACE("emitNext return status: "  << DataInputStatusHelper::mapToInt(status))
         return status;
     }
 

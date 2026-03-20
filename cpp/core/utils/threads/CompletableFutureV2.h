@@ -11,8 +11,9 @@
 #ifndef COMPLETABLE_FUTURE_V2_H
 #define COMPLETABLE_FUTURE_V2_H
 
+#include <iostream>
 #include <future>
-#include <thread>
+#include <thread> 
 #include <mutex>
 #include <memory>
 #include <functional>
@@ -217,6 +218,7 @@ public:
     // Complete without value
     void Complete()
     {
+        std::cout<<"Complete future complete!"<<std::endl;
         std::call_once(flag_, [this]() {
             promise_.set_value();
             completed_ = true;
@@ -284,6 +286,7 @@ public:
     // This function is very likely to be problematic. Try to avoid it.
     void ThenRun(std::function<void()> callback)
     {
+        std::cout<<"execute then run method!"<<std::endl;
         auto wrapper = [this, callback]() {
             if (completed_) {
                 callback();
@@ -299,9 +302,46 @@ public:
             }
         }
     }
-    // Wait for all futures to complete
+   // Wait for all futures to complete
     static std::shared_ptr<CompletableFutureV2<void>> AllOf(
-        const std::vector<std::shared_ptr<CompletableFutureV2<void>>>& futures);
+        const std::vector<std::shared_ptr<CompletableFutureV2<void>>>& futures)
+    {
+        auto cf_ptr = std::make_shared<CompletableFutureV2<void>>();
+        std::thread([cf_ptr, futures]() mutable {
+            try {
+                for (auto& f : futures) {
+                    f->Get(); // wait for each to complete
+                }
+                cf_ptr->Complete();
+                std::cout<<"all of future complete!"<<std::endl;
+            } catch (...) {
+                cf_ptr->CompleteExceptionally(std::current_exception());
+            }
+        }).detach();
+        return cf_ptr;
+    }
+
+    // 2. 新增链式 ThenRun：返回一个新的 future，其完成标志着 callback 执行完毕
+    std::shared_ptr<CompletableFutureV2<void>> ThenRunWithFuture(std::function<void()> callback) {
+        auto result = std::make_shared<CompletableFutureV2<void>>();
+        auto wrapper = [this, callback, result]() {
+            if (completed_) {
+                callback();                  // 执行用户回调
+                result->Complete();          // 标记 result future 完成
+            }
+        };
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            if (completed_) {
+                // 如果已经完成，立即执行 callback 并完成 result
+                std::thread(std::move(wrapper)).detach(); // 异步执行，避免阻塞调用线程
+            } else {
+                // 否则将 wrapper 存入回调列表，待 future 完成时执行
+                callbacks_.push_back(std::move(wrapper));
+            }
+        }
+        return result;
+    }
 private:
     std::promise<void> promise_;
     std::shared_future<void> future_;

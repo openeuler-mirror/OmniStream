@@ -15,6 +15,7 @@
 #include "event/EndOfPartitionEvent.h"
 #include "event/EndOfChannelStateEvent.h"
 #include "io/network/api/EventAnnouncement.h"
+#include "iostream"
 
 namespace omnistream {
 
@@ -24,7 +25,7 @@ CheckpointedInputGate::CheckpointedInputGate(std::shared_ptr<InputGate> inputGat
     : inputGate_(std::move(inputGate)),
     barrierHandler_(std::move(barrierHandler)),
     mailboxExecutor_(std::move(mailboxExecutor)),
-    upstreamRecoveryTracker_(UpstreamRecoveryTracker::NO_OP()),
+    upstreamRecoveryTracker_(std::make_shared<UpstreamRecoveryTrackerImpl>(inputGate_)),
     isFinished_(false) {}
 
 CheckpointedInputGate::CheckpointedInputGate(std::shared_ptr<InputGate> inputGate,

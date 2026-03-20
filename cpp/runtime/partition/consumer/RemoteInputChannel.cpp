@@ -12,6 +12,7 @@
 #include "table/utils/VectorBatchDeserializationUtils.h"
 #include "common.h"
 #include "runtime/buffer/NetworkBuffer.h"
+#include "runtime/io/checkpointing/CheckpointBarrierHandler.h"
 #include <buffer/ReadOnlySlicedNetworkBuffer.h>
 
 namespace omnistream {
@@ -157,8 +158,11 @@ namespace omnistream {
 
     void RemoteInputChannel::resumeConsumption()
     {
+        if (!forwardResumeToJava_) {
+            return;
+        }
+        
         if (this->remoteDataFetcherBridge == nullptr) {
-            LOG("RemoteInputChannel::resumeConsumption: remoteDataFetcherBridge is null");
             return;
         }
         int gateIndex = this->getChannelInfo().getGateIdx();

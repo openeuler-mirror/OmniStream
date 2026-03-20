@@ -22,7 +22,7 @@
 
 using namespace omnistream;
 // check
-namespace datastream {
+namespace omnistream::datastream {
 
     class NetworkBuffer : public Buffer {
     public:

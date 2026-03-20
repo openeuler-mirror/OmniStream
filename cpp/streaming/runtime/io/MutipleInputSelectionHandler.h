@@ -30,6 +30,9 @@ namespace omnistream {
 
     DataInputStatus updateStatusAndSelection(DataInputStatus inputStatus, int inputIndex)
     {
+        if (inputStatus == DataInputStatus::END_OF_RECOVERY ){
+            return DataInputStatus::END_OF_RECOVERY;
+        }
                 switch (inputStatus) {
                     case DataInputStatus::MORE_AVAILABLE:
                         nextSelection();

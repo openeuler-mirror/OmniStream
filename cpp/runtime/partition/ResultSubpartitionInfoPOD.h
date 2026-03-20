@@ -35,11 +35,32 @@ namespace omnistream {
         bool operator<(const ResultSubpartitionInfoPOD& other) const;
 
         std::string toString() const;
+        int hashcode() const
+        {
+            return (partitionIdx << 16) ^ subPartitionIdx;
+        }
 
+        bool equals(const ResultSubpartitionInfoPOD& other) const
+        {
+            return partitionIdx == other.partitionIdx && subPartitionIdx == other.subPartitionIdx;
+        }
     private:
         int partitionIdx;
         int subPartitionIdx;
     };
+    struct ResultSubpartitionInfoPODHash {
+        std::size_t operator()(const ResultSubpartitionInfoPOD& own) const {
+            return own.hashcode();
+        }
+    };
+
+    struct IResultSubpartitionInfoPODEqual {
+        bool operator()(const ResultSubpartitionInfoPOD& lhs, const ResultSubpartitionInfoPOD& rhs) const {
+            if (lhs == rhs) return true;
+            return lhs.equals(rhs);
+        }
+    };
+
 
 } // namespace omnistream
 

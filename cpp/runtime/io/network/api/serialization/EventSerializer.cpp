@@ -25,6 +25,7 @@
 
 #include "buffer/MemoryBufferConsumer.h"
 #include "runtime/checkpoint/SavepointType.h"
+#include "runtime/event/EndOfChannelStateEvent.h"
 
 namespace omnistream {
     const int EventSerializer::INVALID_EVENT = -1;
@@ -111,6 +112,10 @@ namespace omnistream {
             memorySegment = new MemorySegment(arr, byteSize);
             return memorySegment;
 
+        } else if (dynamic_cast<EndOfChannelStateEvent*>(event.get())) {
+            data = new uint8_t[4]{0, 0, 0, END_OF_CHANNEL_STATE_EVENT};
+            memorySegment = new MemorySegment(data, 4);
+            return memorySegment;
         }
         throw std::runtime_error("Unsupported event type");
     }
@@ -155,6 +160,9 @@ namespace omnistream {
             }
             buffer->RecycleBuffer();
             return std::make_shared<EventAnnouncement>(announced, seq);
+        } else if (eventType == END_OF_CHANNEL_STATE_EVENT) {
+            buffer->RecycleBuffer();
+            return EndOfChannelStateEvent::getInstance();
         } else {
             LOG_DEBUG("find no support event type!")
             buffer->RecycleBuffer();
@@ -312,9 +320,10 @@ namespace omnistream {
         // Read the alignment timeout
         int64_t alignmentTimeout = buffer.getLong();
         // Build the CheckpointOptions instance
-        CheckpointOptions* options = new CheckpointOptions(snapshotType, locationRef, alignmentType, alignmentTimeout);
+        CheckpointOptions* parsedOptions = new CheckpointOptions(snapshotType, locationRef, alignmentType, alignmentTimeout);
+        CheckpointOptions* runtimeOptions = parsedOptions->ToRuntimeAlignedNoTimeout();
         // Construct and return the CheckpointBarrier
-        return std::make_shared<CheckpointBarrier>(id, timestamp, options);
+        return std::make_shared<CheckpointBarrier>(id, timestamp, runtimeOptions);
     }
 
     SnapshotType* EventSerializer::DecodeSavepointType(uint8_t checkpointTypeCode, ByteBuffer& buffer)

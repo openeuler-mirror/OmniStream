@@ -7,7 +7,7 @@
 
 #include "NetworkBuffer.h"
 // check
-namespace datastream {
+namespace omnistream::datastream {
     class ReadOnlySlicedNetworkBuffer : public NetworkBuffer {
     public:
         ReadOnlySlicedNetworkBuffer(NetworkBuffer* parent, int index, int length)
