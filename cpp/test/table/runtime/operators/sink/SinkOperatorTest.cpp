@@ -198,7 +198,7 @@ TEST(TimeStampSinkOperatorTest, InitTest)
     StreamRecord *record = new StreamRecord(rowData);
     op.processElement(record);
     omnistream::VectorBatch* batch = createVectorBatch();
-    StreamRecord *record2 = new StreamRecord(rowData);
+    StreamRecord *record2 = new StreamRecord(batch);
     op.processBatch(record2);
 }
 
