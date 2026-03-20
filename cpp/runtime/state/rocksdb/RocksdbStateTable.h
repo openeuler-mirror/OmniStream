@@ -77,8 +77,8 @@ public:
 			// modify columnFamily option and read option for current columnFamily
             // familyOptions.memtable_factory.reset(ROCKSDB_NAMESPACE::NewHashLinkListRepFactory());
             // familyOptions.prefix_extractor.reset(ROCKSDB_NAMESPACE::NewCappedPrefixTransform(FALCON_HASH_PARAM));
-			// readOptions.total_order_seek = true;
-            // INFO_RELEASE("[FALCON] enable hash memTable for valueState.")
+			readOptions.total_order_seek = false;
+            INFO_RELEASE("[FALCON] enable hash memTable for valueState.")
         }
         // [FALCON] -----------------------------------------------------------------------------------------------
 
