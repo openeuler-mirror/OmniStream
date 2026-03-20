@@ -127,6 +127,7 @@ public:
         // Flink 1.16.3 behavior:
         //  - aligned-checkpoint-timeout == 0  => Always Unaligned (no alignment attempt)
         //  - aligned-checkpoint-timeout > 0   => Aligned attempt + timeout => Unaligned
+        alignedCheckpointTimeoutMillis = 60;
         if (alignedCheckpointTimeoutMillis == 0) {
 			LOG("creates a unaligned barrier handler");
             return runtime::SingleCheckpointBarrierHandler::unaligned(
