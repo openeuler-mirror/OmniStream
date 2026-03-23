@@ -78,7 +78,7 @@ namespace omnistream::runtime {
                 prepareInputSnapshot,
                 maxRecordAbortedCheckpoints,
                 unalignedCheckpointEnabled ?
-                openChannelStateWriter(taskName, checkpointStorage, checkpointStorageView, env) :
+                NoOpChannelStateWriter::noOp :
                 NoOpChannelStateWriter::noOp,
                 enableCheckpointAfterTasksFinished,
                 registerTimer
