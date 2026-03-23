@@ -224,18 +224,21 @@ OmniStreamTask::OmniStreamTask(std::shared_ptr<RuntimeEnvironmentV2> &env,
     void OmniStreamTask::restoreGates() 
     {
         try {
-            LOG("restoreGates begin " << taskName_);
-                
+            INFO_RELEASE("restoreGates begin " << taskName_);
+            auto indexedInputGates = env_->GetAllInputGates();
+            if (indexedInputGates.empty()) {
+                INFO_RELEASE("SQL scenarios, do not need to restore the channel.");
+                return;
+            }
             auto reader = env_->getTaskStateManager()->getSequentialChannelStateReader();
             reader->readOutputData(env_->getAllWriters(), false);
-                
-            auto indexedInputGates = env_->GetAllInputGates();
+
             std::vector<std::shared_ptr<InputGate>> inputGateVec;
             inputGateVec.reserve(indexedInputGates.size());
             for (const auto& inputGate : indexedInputGates) {
                 inputGateVec.emplace_back(inputGate);
             }
-                
+
             reader->readInputData(inputGateVec);
                 
             LOG("restoreGates before recovery mailbox loop");
@@ -259,13 +262,13 @@ OmniStreamTask::OmniStreamTask(std::shared_ptr<RuntimeEnvironmentV2> &env,
                                                 "restoreGates exited but some recovered channels were not fully consumed");
                 }
                             
-                LOG("restoreGates requestPartitions directly after recovery loop");
-                inputGate->RequestPartitions();
+                INFO_RELEASE("restoreGates requestPartitions directly after recovery loop");
+                inputGate->RequestPartitions(taskType);
             }
                 
-            LOG("restoreGates complete!");
+            INFO_RELEASE("restoreGates complete!");
         } catch (...) {
-            LOG("Error: restoreGates failed, unable to read channel state");
+            INFO_RELEASE("Error: restoreGates failed, unable to read channel state");
             throw std::runtime_error("restoreGates failed, unable to read channel state");
         }
     }
@@ -327,7 +330,7 @@ void OmniStreamTask::processInput(MailboxDefaultAction::Controller *controller)
         case DataInputStatus::NOTHING_AVAILABLE:
             break;
         case DataInputStatus::END_OF_RECOVERY:
-            LOG("processInput END_OF_RECOVERY, stop recovery mail box!");
+            INFO_RELEASE("processInput END_OF_RECOVERY, stop recovery mail box!");
             mailboxProcessor_->suspend();
             return;
         case DataInputStatus::END_OF_DATA:

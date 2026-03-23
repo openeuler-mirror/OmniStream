@@ -54,7 +54,7 @@ public:
         return {};
     }
 
-    void RequestPartitions() override {
+    void RequestPartitions(int taskType) override {
         LOG( "MockInputGate::RequestPartitions called");
         partitionsRequested_ = true;
     }

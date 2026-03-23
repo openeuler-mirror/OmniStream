@@ -219,7 +219,7 @@ public:
 
     void setup() override {}
 
-    void RequestPartitions() override {}
+    void RequestPartitions(int taskType) override {}
 
     std::shared_ptr<CompletableFutureV2<void>> getStateConsumedFuture() override
     {
@@ -278,7 +278,7 @@ public:
     void ResumeConsumption(const InputChannelInfo&) override {}
     void acknowledgeAllRecordsProcessed(const InputChannelInfo&) override {}
     void setup() override {}
-    void RequestPartitions() override {}
+    void RequestPartitions(int taskType) override {}
     std::shared_ptr<CompletableFutureV2<void>> getStateConsumedFuture() override { return {}; }
     std::vector<bool> getStateConsumedFuture1() override{return {};}
     void FinishReadRecoveredState() override {}
