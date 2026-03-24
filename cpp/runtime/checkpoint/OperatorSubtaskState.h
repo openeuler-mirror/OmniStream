@@ -29,8 +29,8 @@ namespace omnistream {
             StateObjectCollection<KeyedStateHandle> &rawKeyedState,
             StateObjectCollection<InputChannelStateHandle> &inputChannelState,
             StateObjectCollection<ResultSubpartitionStateHandle> &resultSubpartitionState,
-            InflightDataRescalingDescriptor &inputRescalingDescriptor,
-            InflightDataRescalingDescriptor &outputRescalingDescriptor)
+            std::shared_ptr<InflightDataRescalingDescriptor> inputRescalingDescriptor,
+            std::shared_ptr<InflightDataRescalingDescriptor> outputRescalingDescriptor)
             : managedOperatorState(managedOperatorState),
             rawOperatorState(rawOperatorState),
             managedKeyedState(managedKeyedState),
@@ -166,11 +166,11 @@ namespace omnistream {
         {
             return managedKeyedState;
         }
-        const auto& getInputRescalingDescriptor() const
+        const auto getInputRescalingDescriptor() const
         {
             return inputRescalingDescriptor;
         }
-        const auto& getOutputRescalingDescriptor() const
+        const auto getOutputRescalingDescriptor() const
         {
             return outputRescalingDescriptor;
         }
@@ -200,9 +200,9 @@ namespace omnistream {
 
         StateObjectCollection<ResultSubpartitionStateHandle> resultSubpartitionState;
 
-        InflightDataRescalingDescriptor inputRescalingDescriptor;
+        std::shared_ptr<InflightDataRescalingDescriptor> inputRescalingDescriptor;
 
-        InflightDataRescalingDescriptor outputRescalingDescriptor;
+        std::shared_ptr<InflightDataRescalingDescriptor> outputRescalingDescriptor;
 
         /**
          * The state size. This is also part of the deserialized state handle. We store it here in order

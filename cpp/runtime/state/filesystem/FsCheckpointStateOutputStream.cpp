@@ -10,6 +10,7 @@
  */
 #include "FsCheckpointStateOutputStream.h"
 #include <fstream>
+#include "FileStateHandle.h"
 
 FsCheckpointStateOutputStream::FsCheckpointStateOutputStream(
     Path basePath, int fs,
@@ -59,12 +60,16 @@ void FsCheckpointStateOutputStream::Sync()
 
 void FsCheckpointStateOutputStream::Close()
 {
-    NOT_IMPL_EXCEPTION
+    if (outStream_) {
+        outStream_ = nullptr;
+        closed_ = true;
+    }
 }
 
 StreamStateHandle* FsCheckpointStateOutputStream::CloseAndGetHandle()
 {
-    NOT_IMPL_EXCEPTION
+    FileStateHandle *hand = new FileStateHandle(tempPath_, 0);
+    return static_cast<StreamStateHandle *>(hand);
 }
 
 bool FsCheckpointStateOutputStream::IsClosed()

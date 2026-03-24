@@ -52,6 +52,12 @@ namespace omnistream {
         {
             lastBarrierId_ = 1;
         }
+        
+        void SetForwardResumeToJava(bool forwardResumeToJava) 
+        {
+            forwardResumeToJava_ = forwardResumeToJava;
+        }
+        
     private:
         std::queue<Buffer*> dataQueue;
         int expectSequenceNumber = 0;
@@ -59,5 +65,7 @@ namespace omnistream {
         std::recursive_mutex queueMutex;
         std::shared_ptr<RemoteDataFetcherBridge> remoteDataFetcherBridge;
         long lastBarrierId_ = -1;
+        bool forwardResumeToJava_ = true;
+        
     };
 };

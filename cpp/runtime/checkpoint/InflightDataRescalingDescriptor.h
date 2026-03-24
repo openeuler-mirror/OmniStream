@@ -37,7 +37,7 @@ namespace omnistream {
         };
 
         InflightDataGateOrPartitionRescalingDescriptor(const std::vector<int> &oldSubtaskIndexes,
-                                                       const RescaleMappings &rescaledChannelsMappings,
+                                                       const std::shared_ptr<RescaleMappings> &rescaledChannelsMappings,
                                                        const std::set<int> &ambiguousSubtaskIndexes,
                                                        MappingType mappingType) noexcept: oldSubtaskIndexes(
                 oldSubtaskIndexes),
@@ -70,7 +70,7 @@ namespace omnistream {
             return oldSubtaskIndexes;
         }
 
-        const RescaleMappings &GetRescaledChannelsMappings() const
+        const std::shared_ptr<RescaleMappings> GetRescaledChannelsMappings() const
         {
             return rescaledChannelsMappings;
         }
@@ -93,7 +93,7 @@ namespace omnistream {
          * Set when channels are merged because the connected operator has been rescaled for each
          * gate/partition.
          */
-        const RescaleMappings rescaledChannelsMappings;
+        const std::shared_ptr<RescaleMappings> rescaledChannelsMappings;
         /** All channels where upstream duplicates data (only valid for downstream mappings). */
         const std::set<int> ambiguousSubtaskIndexes;
         const MappingType mappingType;
@@ -102,7 +102,7 @@ namespace omnistream {
 
     class InflightDataRescalingDescriptor {
     public:
-        static InflightDataRescalingDescriptor noRescale;
+        static std::shared_ptr<InflightDataRescalingDescriptor> noRescale;
 
         explicit InflightDataRescalingDescriptor(
             const std::vector<InflightDataGateOrPartitionRescalingDescriptor> &gateOrPartitionDescriptors) noexcept
@@ -117,8 +117,7 @@ namespace omnistream {
 
         virtual std::shared_ptr<RescaleMappings> GetChannelMapping(int gateOrPartitionIndex) const
         {
-            return std::make_shared<RescaleMappings>(
-                    gateOrPartitionDescriptors[gateOrPartitionIndex].rescaledChannelsMappings);
+            return gateOrPartitionDescriptors[gateOrPartitionIndex].rescaledChannelsMappings;
         }
 
         virtual bool IsAmbiguous(int gateOrPartitionIndex, int oldSubtaskIndex) const
@@ -159,6 +158,10 @@ namespace omnistream {
             return oss.str();
         }
 
+        std::vector<InflightDataGateOrPartitionRescalingDescriptor> GetGateOrPartitionDescriptors()
+        {
+            return gateOrPartitionDescriptors;
+        }
     protected:
         // Default constructor for subclasses
         InflightDataRescalingDescriptor() = default;
@@ -183,7 +186,7 @@ namespace omnistream {
 
         std::shared_ptr<RescaleMappings> GetChannelMapping(int gateOrPartitionIndex) const override
         {
-            return std::make_shared<RescaleMappings>(IdentityRescaleMappings::SYMMETRIC_IDENTITY);
+            return IdentityRescaleMappings::SYMMETRIC_IDENTITY;
         }
 
         bool IsAmbiguous(int gateOrPartitionIndex, int oldSubtaskIndex) const override

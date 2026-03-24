@@ -35,6 +35,10 @@ namespace omnistream {
         void resumeConsumption() override;
 
         void SetOmniLocalInputChannelBridge(std::shared_ptr<OmniLocalInputChannelBridge> omniLocalInputChannelBridge);
+        
+        void SetForwardResumeToJava(bool forwardResumeToJava) {
+            forwardResumeToJava_ = forwardResumeToJava;
+        }
 
     private:
         int expectSequenceNumber = 0;
@@ -43,6 +47,7 @@ namespace omnistream {
         std::shared_ptr<OriginalNetworkBufferRecycler> originalNetworkBufferRecycler_;
         std::queue<std::shared_ptr<BufferAndAvailability> > dataQueue;
         std::shared_ptr<OmniLocalInputChannelBridge> omniLocalInputChannelBridge;
+        bool forwardResumeToJava_ = true;
     };
 }
 #endif // OMNILOCALINPUTCHANNEL_H

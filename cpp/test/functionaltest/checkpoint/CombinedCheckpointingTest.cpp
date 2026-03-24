@@ -237,7 +237,7 @@ TEST(CheckpointingCombinedTest, DISABLED_Test1) {
     indexedInputGates.reserve(singleInputGates.size());
     for (const auto& sg : singleInputGates) {
         sg->setup();
-        sg->RequestPartitions();
+        sg->RequestPartitions(2);
         indexedInputGates.push_back(sg);
     }
     env->SetInputGates(indexedInputGates);

@@ -44,7 +44,7 @@ public:
 
     ~KeyGroupsStateHandle() noexcept(true) override = default;
 
-    std::unique_ptr<FSDataInputStream> OpenInputStream() const override {return stateHandle_->OpenInputStream();}
+    std::shared_ptr<FSDataInputStream> OpenInputStream() const override {return stateHandle_->OpenInputStream();}
 
     std::shared_ptr<KeyedStateHandle> GetIntersection(
         const KeyGroupRange& keyGroupRange) const override

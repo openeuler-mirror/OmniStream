@@ -105,7 +105,7 @@ namespace omnistream {
         while (true) {
             auto req = take();
             if (!req) {
-                return;
+                continue;
             }
             dispatcher->dispatch(req);
         }

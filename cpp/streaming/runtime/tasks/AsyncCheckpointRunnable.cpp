@@ -99,8 +99,8 @@ SnapshotsFinalizeResult *AsyncCheckpointRunnable::FinalizedFinishedSnapshots()
     LOG(">>>>>>>>>")
     for (auto entry : *operatorSnapshotsInProgress) {
         auto snapshotInProgress = entry.second;
-        snapshotInProgress->getInputChannelStateFuture()->get();
-        snapshotInProgress->getResultSubpartitionStateFuture()->get();
+        snapshotInProgress->getInputChannelStateFuture().get();
+        snapshotInProgress->getResultSubpartitionStateFuture().get();
     }
     return new SnapshotsFinalizeResult(
         TaskStateSnapshot::finishedOnRestore,

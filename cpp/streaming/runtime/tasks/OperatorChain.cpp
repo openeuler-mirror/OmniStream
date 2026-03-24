@@ -23,6 +23,7 @@
 #include "runtime/io/network/api/writer/RecordWriterDelegate.h"
 #include "taskmanager/OmniRuntimeEnvironment.h"
 #include "streaming/api/operators/OperatorSnapshotFutures.h"
+#include "runtime/checkpoint/channel/ChannelStateWriter.h"
 
 namespace omnistream {
 
@@ -502,6 +503,7 @@ OperatorSnapshotFutures *OperatorChainV2::BuildOperatorSnapshotFutures(Checkpoin
 {
     OperatorSnapshotFutures *snapshotInProgress = CheckpointStreamOperator(op, checkpointMetaData, checkpointOptions,
         storage, isRunning, bridge);
+    SnapshotChannelStates(op, channelStateWriteResult, snapshotInProgress);
     return snapshotInProgress;
 }
 
@@ -542,8 +544,45 @@ void OperatorChainV2::SendAcknowledgeCheckpointEvent(long checkpointId)
 }
 
 void OperatorChainV2::SnapshotChannelStates(StreamOperator *op,
-    std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> channelStateWriteResult, OperatorSnapshotFutures &snapshotInProgress)
+    std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> channelStateWriteResult, OperatorSnapshotFutures *snapshotInProgress)
 {
-    NOT_IMPL_EXCEPTION
+    StreamOperator* mainOpe = (mainOperatorWrapper == nullptr) ? nullptr : mainOperatorWrapper->getStreamOperator();
+    if (mainOpe == op) {
+        channelStateWriteResult->GetInputChannelStateHandles()->ThenApply(
+                [&snapshotInProgress](const std::shared_ptr<std::vector<std::shared_ptr<InputChannelStateHandle>>>& handles_ptr) {
+                    if (!handles_ptr) {
+                        return;
+                    }
+                    std::shared_ptr<StateObjectCollection<InputChannelStateHandle>> collection = std::make_shared<StateObjectCollection<InputChannelStateHandle>>(
+                            *handles_ptr);
+                    auto snapshotResult = SnapshotResult<StateObjectCollection<InputChannelStateHandle>>::Of(collection);
+                    using PackagedTaskType = std::packaged_task<std::shared_ptr<SnapshotResult<StateObjectCollection<InputChannelStateHandle>>>()>;
+                    PackagedTaskType task([snapshotResult]() {
+                        return  snapshotResult;
+                    });
+                    auto task_ptr = std::make_shared<PackagedTaskType>(std::move(task));
+                    snapshotInProgress->setInputChannelStateFuture(task_ptr);
+                }
+        );
+    }
+    StreamOperator* tailOpe = (tailOperatorWrapper == nullptr) ? nullptr : tailOperatorWrapper->getStreamOperator();
+    if(op == tailOpe) {
+        channelStateWriteResult->GetResultSubpartitionStateHandles()->ThenApply(
+                [&snapshotInProgress](const std::shared_ptr<std::vector<std::shared_ptr<ResultSubpartitionStateHandle>>>& handles_ptr) {
+                    if (!handles_ptr) {
+                        return;
+                    }
+                    std::shared_ptr<StateObjectCollection<ResultSubpartitionStateHandle>> collection = std::make_shared<StateObjectCollection<ResultSubpartitionStateHandle>>(
+                            *handles_ptr);
+                    auto snapshotResult = SnapshotResult<StateObjectCollection<ResultSubpartitionStateHandle>>::Of(collection);
+                    using PackagedTaskType = std::packaged_task<std::shared_ptr<SnapshotResult<StateObjectCollection<ResultSubpartitionStateHandle>>>()>;
+                    PackagedTaskType task([snapshotResult]() {
+                        return snapshotResult;
+                    });
+                    auto task_ptr = std::make_shared<PackagedTaskType>(std::move(task));
+                    snapshotInProgress->setResultSubpartitionStateFuture(task_ptr);
+                }
+        );
+    }
 }
 }  // namespace omnistream

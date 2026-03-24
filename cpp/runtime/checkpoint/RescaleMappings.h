@@ -28,7 +28,7 @@ namespace omnistream {
     public:
         virtual ~RescaleMappings() = default;
 
-        static RescaleMappings SYMMETRIC_IDENTITY;
+        static std::shared_ptr<RescaleMappings> SYMMETRIC_IDENTITY;
 
         static constexpr int EMPTY_TARGETS[] = {};
 
@@ -68,6 +68,7 @@ namespace omnistream {
 
         static RescaleMappings of(const std::vector<std::vector<int> > &mappedTargets, int numberOfTargets);
         std::string ToString() const;
+        RescaleMappings invert();
     protected:
         int numberOfSources;
         std::vector<std::vector<int> > mappings;

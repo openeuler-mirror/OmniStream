@@ -12,6 +12,7 @@
 #include "table/utils/VectorBatchDeserializationUtils.h"
 #include "common.h"
 #include "runtime/buffer/NetworkBuffer.h"
+#include "runtime/io/checkpointing/CheckpointBarrierHandler.h"
 #include <buffer/ReadOnlySlicedNetworkBuffer.h>
 
 namespace omnistream {
@@ -43,16 +44,20 @@ namespace omnistream {
             INFO_RELEASE("remote got an event data:::: event type: " << eventType)
             auto eventData = new VectorBatchBuffer(eventType);
             std::lock_guard<std::recursive_mutex> lock(queueMutex);
-            this->dataQueue.push(eventData);
+            if (eventData != nullptr) {
+                this->dataQueue.push(eventData);
+            }
         } else {
             uint8_t* buffer = reinterpret_cast<uint8_t*>(bufferAddress);
             // do data deserialization
             std::shared_ptr<ObjectSegment> objectSegment = this->DoDataDeserializationResult(buffer, bufferLength);
             auto vectorBatchBuffer = new VectorBatchBuffer(objectSegment);
-            vectorBatchBuffer->SetSize(objectSegment->getSize());
-            std::lock_guard<std::recursive_mutex> lock(queueMutex);
-            this->dataQueue.push(vectorBatchBuffer);
-            LOG("remote got an buffer  "<< vectorBatchBuffer->ToDebugString(true));
+            if (vectorBatchBuffer != nullptr) {
+                vectorBatchBuffer->SetSize(objectSegment->getSize());
+                std::lock_guard<std::recursive_mutex> lock(queueMutex);
+                this->dataQueue.push(vectorBatchBuffer);
+                LOG("remote got an buffer  "<< vectorBatchBuffer->ToDebugString(true));
+            }
         }
         this->notifyDataAvailable();
     }
@@ -135,7 +140,9 @@ namespace omnistream {
 
         std::unique_lock<std::recursive_mutex> lock(queueMutex);
         bool wasEmpty = this->dataQueue.empty();
-        this->dataQueue.push(readOnlyBuffer);
+        if (readOnlyBuffer != nullptr) {
+            this->dataQueue.push(readOnlyBuffer);
+        }
         lock.unlock();
 
         if (wasEmpty) {
@@ -151,8 +158,11 @@ namespace omnistream {
 
     void RemoteInputChannel::resumeConsumption()
     {
+        if (!forwardResumeToJava_) {
+            return;
+        }
+        
         if (this->remoteDataFetcherBridge == nullptr) {
-            LOG("RemoteInputChannel::resumeConsumption: remoteDataFetcherBridge is null");
             return;
         }
         int gateIndex = this->getChannelInfo().getGateIdx();
@@ -189,7 +199,7 @@ namespace omnistream {
 
         while (!tmpQueue.empty()) {
             Buffer* buffer = tmpQueue.front();
-            if (buffer->isBuffer()) {
+            if ((buffer != nullptr) && (buffer->isBuffer())) {
                 inflightBuffers.push_back(buffer->RetainBuffer());
             }
             tmpQueue.pop();

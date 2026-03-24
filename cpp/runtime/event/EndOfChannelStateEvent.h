@@ -10,12 +10,13 @@
  */
 #pragma once
 #include <typeinfo>
+#include <memory>
 #include "RuntimeEvent.h"
 
 namespace omnistream {
     class EndOfChannelStateEvent : public RuntimeEvent {
     public:
-        static EndOfChannelStateEvent &getInstance();
+        static std::shared_ptr<EndOfChannelStateEvent> getInstance();
         // {
         //     static EndOfChannelStateEvent instance;
         // }
@@ -35,7 +36,7 @@ namespace omnistream {
             return "EndOfChannelStateEvent";
         }
 
-    private:
-        EndOfChannelStateEvent() {}
+    // private:
+    //     EndOfChannelStateEvent() {}
     };
 } // namespace omnistream

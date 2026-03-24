@@ -171,15 +171,6 @@ namespace omnistream::runtime {
             throw std::runtime_error("Error in state transformation: " + std::string(e.what()));
         }
 
-        // Register the alignment timeout timer on the first barrier of a timeoutable aligned checkpoint.
-        // This follows Flink 1.16.3 semantics: delay = timeout - (now - barrier.timestamp), clamped to 0.
-        if (alternating_ && shouldTrackAlignment &&
-            alignedChannels_.size() == 1 &&
-            targetChannelCount_ > 1 &&
-            barrier.GetCheckpointOptions()->IsTimeoutable()) {
-            RegisterAlignmentTimer(barrier);
-        }
-
         if (alignedChannels_.size() == (unsigned int)targetChannelCount_) {
             alignedChannels_.clear();
             lastCancelledOrCompletedCheckpointId_ = currentCheckpointId_;

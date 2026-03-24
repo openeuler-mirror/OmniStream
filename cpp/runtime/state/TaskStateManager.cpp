@@ -29,7 +29,12 @@ namespace omnistream {
           bridge_(bridge),
           jobManagerTaskRestore_(jobManagerTaskRestore),
           omniTaskBridge_(omniTaskBridge)
-    {}
+    {
+        std::shared_ptr<TaskStateSnapshot> taskStateSnapshot =
+                jobManagerTaskRestore == nullptr ? std::make_shared<TaskStateSnapshot>()
+                                                 : jobManagerTaskRestore->getTaskStateSnapshot();
+        sequentialChannelStateReader_ = std::make_shared<SequentialChannelStateReaderImpl>(taskStateSnapshot, omniTaskBridge);
+    }
 
 TaskStateManager::~TaskStateManager()
 {

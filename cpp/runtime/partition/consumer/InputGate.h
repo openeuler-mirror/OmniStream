@@ -27,6 +27,7 @@
 #include "InputChannelInfo.h"
 #include "partition/ChannelStateHolder.h"
 #include <event/TaskEvent.h>
+#include "core/utils/threads/CompletableFutureV2.h"
 
 // check
 namespace omnistream {
@@ -57,8 +58,9 @@ public:
     std::shared_ptr<CompletableFuture> getPriorityEventAvailableFuture();
 
     virtual void setup() = 0;
-    virtual void RequestPartitions() = 0;
-    virtual std::shared_ptr<CompletableFuture> getStateConsumedFuture() = 0;
+    virtual void RequestPartitions(int taskType) = 0;
+    virtual std::shared_ptr<CompletableFutureV2<void>> getStateConsumedFuture() = 0;
+    virtual std::vector<bool> getStateConsumedFuture1() = 0;
     virtual void FinishReadRecoveredState() = 0;
 
 protected:

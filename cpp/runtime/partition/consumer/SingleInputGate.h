@@ -67,8 +67,9 @@ namespace omnistream {
                         int segmentSize);
 
                 void setup() override;
-                std::shared_ptr<CompletableFuture> getStateConsumedFuture() override;
-                void RequestPartitions() override;
+                std::shared_ptr<CompletableFutureV2<void>> getStateConsumedFuture() override;
+                std::vector<bool> getStateConsumedFuture1() override;
+                void RequestPartitions(int taskType) override;
                 void FinishReadRecoveredState() override;
 
                 int GetNumberOfInputChannels() override;
@@ -122,7 +123,16 @@ namespace omnistream {
                 void changeLocalInputChannelToOriginal(
                         int channelIndex,
                         std::shared_ptr<InputChannel> original);
-
+        
+                void SetForwardResumeToJava(bool forwardResumeToJava) 
+                {
+                        forwardResumeToJava_ = forwardResumeToJava;
+                }
+                
+                bool GetForwardResumeToJava() const {
+                        return forwardResumeToJava_;
+                }
+        
         private:
                 void convertRecoveredInputChannels();
                 void internalRequestPartitions();
@@ -229,6 +239,7 @@ namespace omnistream {
                 // Segment to read data from file region
                 // ObjectSegment *unpooledSegment; // todo: need fix
                 bool shouldDrainOnEndOfData = true;
+                bool forwardResumeToJava_ = true;
         };
 }
 

@@ -15,7 +15,6 @@
 namespace omnistream {
     void OmniTwoInputStreamTask::init()
     {
-        this->postConstruct();
         auto pod = env_->taskConfiguration().getStreamConfigPOD();
         int32_t numberOfInputs = pod.getNumberOfNetworkInputs();
         std::vector<std::shared_ptr<IndexedInputGate>> inputList1;

@@ -12,7 +12,7 @@
 #include "LocalMemoryBufferPool.h"
 
 
-namespace datastream {
+namespace omnistream::datastream {
     LocalMemoryBufferPool::LocalMemoryBufferPool(std::shared_ptr<NetworkMemoryBufferPool> networkMemoryBufferPool,
                                                  int numberOfRequiredMemorySegments,
                                                  int maxNumberOfMemorySegments,

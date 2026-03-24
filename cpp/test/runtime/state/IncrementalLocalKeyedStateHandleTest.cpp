@@ -23,7 +23,7 @@ public:
     }
     std::size_t hashCode() const { return std::hash<std::string>()(value_); }
 
-    std::unique_ptr<FSDataInputStream> OpenInputStream() const override {
+    std::shared_ptr<FSDataInputStream> OpenInputStream() const override {
         return nullptr;
     }
 

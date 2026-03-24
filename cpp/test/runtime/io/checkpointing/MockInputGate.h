@@ -32,7 +32,7 @@ class MockInputGate : public IndexedInputGate, public AutoCloseable {
 public:
     explicit MockInputGate(int gateIndex)
         : gateIndex_(gateIndex),
-          stateConsumedFuture_(std::make_shared<CompletableFuture>()),
+          stateConsumedFuture_(std::make_shared<CompletableFutureV2<void>>()),
           closeFuture_(std::make_shared<CompletableFuture>()),
           buffersInUseCount_(0),
           consumedPartitionType_(0),
@@ -45,11 +45,16 @@ public:
         LOG("MockInputGate::setup called for gateIndex=" << gateIndex_);
     }
 
-    std::shared_ptr<CompletableFuture> getStateConsumedFuture() override {
+    std::shared_ptr<CompletableFutureV2<void>> getStateConsumedFuture() override {
         return stateConsumedFuture_;
     }
 
-    void RequestPartitions() override {
+    std::vector<bool> getStateConsumedFuture1() override
+    {
+        return {};
+    }
+
+    void RequestPartitions(int taskType) override {
         LOG( "MockInputGate::RequestPartitions called");
         partitionsRequested_ = true;
     }
@@ -164,7 +169,7 @@ private:
     int bufferSize_;
     int consumedPartitionType_;
 
-    std::shared_ptr<CompletableFuture> stateConsumedFuture_;
+    std::shared_ptr<CompletableFutureV2<void>> stateConsumedFuture_;
     std::shared_ptr<CompletableFuture> closeFuture_;
 
     std::shared_ptr<ObjectBufferPool> bufferPool_;

@@ -11,7 +11,7 @@
 
 #include "MemoryBufferConsumer.h"
 
-namespace datastream {
+namespace omnistream::datastream {
     MemoryBufferConsumer::MemoryBufferConsumer(NetworkBuffer* buffer, int size)
         : MemoryBufferConsumer(buffer, new FixedSizePositionMarker(-size), 0)
     {

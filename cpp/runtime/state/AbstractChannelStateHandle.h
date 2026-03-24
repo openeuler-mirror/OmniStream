@@ -20,7 +20,7 @@
 namespace omnistream {
 
 template <typename Info>
-class AbstractChannelStateHandle {
+class AbstractChannelStateHandle : public StateObject {
 public:
     struct StateContentMetaInfo {
         std::vector<int64_t> offsets;
@@ -59,7 +59,7 @@ public:
           offsets(offsets),
           size(size) {}
 
-    virtual ~AbstractChannelStateHandle() = default;
+    ~AbstractChannelStateHandle() = default;
 
     int GetSubtaskIndex() const
     {
@@ -81,18 +81,26 @@ public:
         return delegate;
     }
 
-    virtual void DiscardState()
+    void DiscardState()
     {
         if (delegate) {
             delegate->DiscardState();
         }
     }
 
-    virtual int64_t GetStateSize()
+    long GetStateSize() const
     {
         return size;
     }
 
+    std::string ToString() const override
+    {
+        std::stringstream ss;
+        ss << "AbstractChannelStateHandle{subtaskIndex=" << subtaskIndex
+                << ", info=" << info.toString() << ", delegate" << delegate->ToString()
+                << ",size:" << size << "}";
+        return ss.str();
+    }
 protected:
     const int subtaskIndex;
     const Info info;

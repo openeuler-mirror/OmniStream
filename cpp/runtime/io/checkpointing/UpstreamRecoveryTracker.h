@@ -47,9 +47,9 @@ public:
             }
             --numUnrestoredChannels_;
             if (numUnrestoredChannels_ == 0) {
-                for (const auto& info : inputGate_->getChannelInfos()) {
-                    inputGate_->ResumeConsumption(info);
-                }
+//                for (const auto& info : inputGate_->getChannelInfos()) {
+//                    inputGate_->ResumeConsumption(info);
+//                }
                 restoredChannels_.clear();
             }
         }

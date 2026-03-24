@@ -39,6 +39,7 @@ namespace omnistream {
 
     void OmniLocalChannelReader::notifyDataAvailable()
     {
+        LOG("OmniLocalChannelReader notifyDataAvailable invoke!");
         std::unique_lock<std::recursive_mutex> lock(dataAvailableMutex);
         dataAvailable = true;
         dataAvailableCondition.notify_one();
