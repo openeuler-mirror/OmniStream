@@ -135,18 +135,6 @@ SELECT 'Hello, Flink!';
 
 可以正常输出结果即安装正常。
 
-# 贡献指南
-
-如果使用过程中有任何问题，或者需要反馈特性需求和bug报告，可以提交isssues联系我们，具体贡献方法可参考[这里](https://gitcode.com/boostkit/community/blob/master/docs/contributor/contributing.md)。
-
 # 免责声明
 
 此代码仓计划参与Flink软件开源，仅作Flink功能扩展/Flink性能提升，编码风格遵照原生开源软件，继承原生开源软件安全设计，不破坏原生开源软件设计及编码风格和方式，软件的任何漏洞与安全问题，均由相应的上游社区根据其漏洞和安全响应机制解决。请密切关注上游社区发布的通知和版本更新。鲲鹏计算社区对软件的漏洞及安全问题不承担任何责任。
-
-# 参考文档
-
-安装指南：
-
-https://www.hikunpeng.com/document/detail/zh/kunpengbds/appAccelFeatures/sqlqueryaccelf/kunpengbds_omniruntime_20_09018.html
-
-
