@@ -147,6 +147,7 @@ BufferAndBacklog* PipelinedSubpartition::pollBuffer()
         }
         // buffer is null, not sent to downstream, need to recycle here
         buffer->RecycleBuffer();
+        delete buffer; // this is ReadOnlySlicedNetworkBuffer in datastream, so we directly delete it (not specified in SQL)
         buffer = nullptr;
         if (!bufferConsumer->isFinished()) {
             break;

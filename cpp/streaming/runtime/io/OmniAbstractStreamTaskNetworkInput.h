@@ -157,8 +157,12 @@ public:
                     output->emitWatermark(reinterpret_cast<Watermark *>(object));
                 }
             }
-            // more avaiable means there could be more data come in
+
             buff->RecycleBuffer();
+            delete buff; // this is ReadOnlySlicedNetworkBuffer, so we directly delete it
+            buff = nullptr;
+
+            // more avaiable means there could be more data come in
             return DataInputStatus::MORE_AVAILABLE;
         } else {
             // we got event
@@ -233,7 +237,6 @@ public:
             auto bufferOrEvent = inputGate->PollNext();
             if (bufferOrEvent) {
                 if (bufferOrEvent->isBuffer()) {
-                    std::cout<<"receive a buffer" <<std::endl;
                     processBufferForDataStreamAndSQLFromOriginal(bufferOrEvent);
                     delete bufferOrEvent;
                 } else  {

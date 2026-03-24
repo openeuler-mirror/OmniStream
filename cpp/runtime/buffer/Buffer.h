@@ -27,6 +27,7 @@ namespace omnistream {
         virtual void RecycleBuffer() = 0;
 
         virtual bool IsRecycled() const = 0;
+        virtual bool ShouldBeDeleted() { return false; }
         virtual Buffer* RetainBuffer() = 0;
         virtual Buffer* ReadOnlySlice() = 0;
         virtual Buffer* ReadOnlySlice(int index, int length) = 0;
@@ -37,13 +38,13 @@ namespace omnistream {
         virtual void SetSize(int writerIndex) = 0;
         virtual int ReadableObjects() const = 0;
 
-    virtual bool IsCompressed() const = 0;
-    virtual void SetCompressed(bool isCompressed) = 0;
-    virtual ObjectBufferDataType GetDataType() const = 0;
-    virtual void SetDataType(ObjectBufferDataType dataType) = 0;
-    virtual int GetBufferType() = 0;
-    virtual int RefCount() const = 0;
-    virtual std::string ToDebugString(bool includeHash) const = 0;
+        virtual bool IsCompressed() const = 0;
+        virtual void SetCompressed(bool isCompressed) = 0;
+        virtual ObjectBufferDataType GetDataType() const = 0;
+        virtual void SetDataType(ObjectBufferDataType dataType) = 0;
+        virtual int GetBufferType() = 0;
+        virtual int RefCount() const = 0;
+        virtual std::string ToDebugString(bool includeHash) const = 0;
 
         // temp added
         virtual int EventType() const = 0;

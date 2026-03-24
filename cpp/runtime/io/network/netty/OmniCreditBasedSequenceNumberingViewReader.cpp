@@ -376,7 +376,7 @@ namespace omnistream {
         auto it = networkBufferPendingRecycling.find(address);
         if (it != networkBufferPendingRecycling.end()) {
             it->second->RecycleBuffer();
-            // do not need to delete buffer here, buffer is deleted in the destructor of BufferConsumer
+            delete it->second; // this is ReadOnlySlicedNetworkBuffer, so we directly delete it
             networkBufferPendingRecycling.erase(it);
         }
     }

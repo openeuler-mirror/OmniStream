@@ -95,9 +95,6 @@ namespace omnistream {
 
         // delete in BufferConsumerWithPartialRecordLength
         virtual ~BufferConsumer() {
-            if (buffer->RefCount() == 0) {
-                delete buffer;
-            }
             delete writerPosition;
         }
 

@@ -34,7 +34,7 @@ namespace omnistream::datastream {
         this->recycler = recycler;
         this->currentSize = 0;
         // Invoking this constructor implies that the caller (bufferBuilder) owns the segment
-        refCount.store(1);
+        refCount_.store(1);
         this->segmentOwner = segmentOwner;
     }
 
@@ -67,7 +67,7 @@ namespace omnistream::datastream {
         this->recycler = recycler;
         this->currentSize = bufferLength;
         this->readerIndex_ = readIndex;
-        refCount.store(1);
+        refCount_.store(1);
         this->segmentOwner = segmentOwner;
     }
 

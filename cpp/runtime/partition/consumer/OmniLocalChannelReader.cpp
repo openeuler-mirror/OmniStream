@@ -130,7 +130,8 @@ namespace omnistream {
         memorySegmentInfo->backlog = backlog;
         memorySegmentInfo->nextDataType = nextDataType;
         memorySegmentInfo->sequenceNumber = sequenceNumber;
-        pendingRecyclingBuffer = nBuffer;
+        std::lock_guard<std::recursive_mutex> lock(recycleBufferMutex);
+        pendingRecyclingBufferMap.emplace(memorySegmentInfo->memorySegmentAddress, nBuffer);
         LOG("memorySegmentAddress is " << memorySegmentInfo->memorySegmentAddress << " offset is "
                                                 << memorySegmentInfo->readIndex << " numBytes is " << memorySegmentInfo->length
                                                 << " currentDataType is " << memorySegmentInfo->currentDataType << " backlog is "
@@ -139,10 +140,13 @@ namespace omnistream {
     }
 
     void OmniLocalChannelReader::recycleMemorySegment(long memorySegmentAddress) {
-        if (pendingRecyclingBuffer) {
-            pendingRecyclingBuffer->RecycleBuffer();
-            // do not need to delete buffer here, buffer is deleted in the destructor of BufferConsumer
-            pendingRecyclingBuffer = nullptr;
+        uint64_t address = static_cast<uint64_t>(memorySegmentAddress);
+        std::lock_guard<std::recursive_mutex> lock(recycleBufferMutex);
+        auto it = pendingRecyclingBufferMap.find(address);
+        if (it != pendingRecyclingBufferMap.end()) {
+            it->second->RecycleBuffer();
+            delete it->second;
+            pendingRecyclingBufferMap.erase(it);
         }
     }
 
@@ -281,7 +285,8 @@ namespace omnistream {
         memorySegmentInfo->backlog = backlog;
         memorySegmentInfo->nextDataType = nextDataType;
         memorySegmentInfo->sequenceNumber = sequenceNumber;
-        pendingRecyclingBuffer = vBuffer;
+        std::lock_guard<std::recursive_mutex> lock(recycleBufferMutex);
+        pendingRecyclingBufferMap.emplace(memorySegmentInfo->memorySegmentAddress, vBuffer);
 
     }
 }
