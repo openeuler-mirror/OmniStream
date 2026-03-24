@@ -66,7 +66,6 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
 |REGEX_EXTRACT|Scalar Functions|NA|S|NS|NA|
 
 
-介绍在Flink 1.16.3、Flink 1.17.1和Flink 1.20.0引擎下，OmniStream Flink Native化特性对SQL算子及表达式（含数据类型）的支持范围、限制条件与使用规则。
 ### DataStream算子和UDF支持情况<a name="ZH-CN_TOPIC_0000002517961054"></a>
 
 介绍在Flink 1.16.3引擎下，OmniStream Flink Native化特性对DataStream算子及用户自定义函数（UDF）的支持范围、限制条件与性能影响。
@@ -109,7 +108,6 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
 |JsonArray|Iterator<JsonElement> iterator()|
 
 
-介绍在Flink 1.16.3引擎下，OmniStream Flink Native化特性对DataStream算子及用户自定义函数（UDF）的支持范围、限制条件与性能影响。
 ### （SQL场景）使能OmniStream<a name="ZH-CN_TOPIC_0000002549640821"></a>
 
 在SQL场景下，详细描述从启动Flink集群到完成OmniStream使能的操作步骤。
@@ -198,7 +196,6 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
 
     ![](figures/zh-cn_image_0000002517961058.png)
 
-在SQL场景下，详细描述从启动Flink集群到完成OmniStream使能的操作步骤。
 ### （DataStream场景）使能OmniStream<a name="ZH-CN_TOPIC_0000002518120974"></a>
 
 在DataStream场景下，详细描述从启动Flink集群到完成OmniStream使能的操作步骤。
@@ -216,7 +213,7 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
         omni.batch: true
         ```
 
-    3. 按"Esc"键，输入 **:wq!**，按"Enter"保存并退出编辑。
+    3. 按"Esc"键，输入 **:wq!** ，按"Enter"保存并退出编辑。
 
 2. 进入flink\_jm\_8c32g容器，启动Flink集群。
 
@@ -426,7 +423,7 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
             }
             ```
 
-        3. 按"Esc"键，输入**:wq!**，按"Enter"保存并退出编辑。
+        3. 按"Esc"键，输入 **:wq!**，按"Enter"保存并退出编辑。
 
     3. 创建pom.xml文件。
         1. 打开"/opt/job/pom.xml"。
@@ -546,7 +543,7 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
             </project>
             ```
 
-        3. 按"Esc"键，输入**:wq!**，按"Enter"保存并退出编辑。
+        3. 按"Esc"键，输入 **:wq!**，按"Enter"保存并退出编辑。
 
     4. 执行**mvn clean package**打包命令后，将会在target目录下生成ziliao-1.0-SNAPSHOT-jar-with-dependencies.jar。再将该JAR包上传到flink\_jm\_8c32g容器的"/usr/local/flink"目录。
 
@@ -578,7 +575,7 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
         main_class=com.huawei.boostkit.FlinkWordCount
         ```
 
-    3. 按"Esc"键，输入:**wq!**，按"Enter"保存并退出编辑。
+    3. 按"Esc"键，输入 **wq!**，按"Enter"保存并退出编辑。
 
 10. 翻译测试用例JAR包。
 
@@ -594,11 +591,11 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
     ```
 
 12. 查看Sink Topic的数据。
-    
-   消费Kafka数据查看作业是否正常运行。
+  
+    消费Kafka数据查看作业是否正常运行。
     ```
     cd /usr/local/kafka
-    bin/kafka-console-consumer.sh --bootstrap-server Kafka服务端的物理机IP地址:9092 --topic result --from-beginning
+    bin/kafka-console-consumer.sh --bootstrap-server 服务端的物理机IP地址:9092 --topic result --from-beginning
     ```
 
     ![](figures/zh-cn_image_0000002549520819.png)
@@ -612,8 +609,6 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
     确认无报错信息，表示已经成功使能OmniStream。
 
     ![](figures/zh-cn_image_0000002518120980.png)
-
-在DataStream场景下，详细描述从启动Flink集群到完成OmniStream使能的操作步骤。
 
 
 ## 维护特性<a name="ZH-CN_TOPIC_0000002517961044"></a>
@@ -636,13 +631,11 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
 下述卸载过程以安装目录为"/opt/Dependency\_library"和"/usr/local/OmniStream"为例进行说明。
 
 1. 删除"/opt/Dependency\_library"和"/usr/local/OmniStream"部署软件时加入的依赖软件包。
-2. 修改`$FLINK_HOME/conf`目录下的config.sh文件，恢复Flink默认配置。
+2. 修改`$FLINK_HOME/bin`目录下的config.sh文件，恢复Flink默认配置。
 
-    具体操作为，将[zh-cn\_topic\_0000002518120970.md\#zh-cn\_topic\_0000002263584129\_zh-cn\_topic\_0000001467846504\_li6176059914](zh-cn_topic_0000002518120970.md#zh-cn_topic_0000002263584129_zh-cn_topic_0000001467846504_li6176059914)中的修改还原至未修改前的状态。
+    具体操作为，将[安装指南-安装OmniStream-步骤3](installation_guide.md)中的修改还原至未修改前的状态。
 
 3. 修改`$FLINK_HOME/conf`目录下的flink-conf.yaml文件，恢复Flink默认配置。
 
-    具体操作为，将[zh-cn\_topic\_0000002518120970.md\#zh-cn\_topic\_0000002263584129\_li4699113149](zh-cn_topic_0000002518120970.md#zh-cn_topic_0000002263584129_li4699113149)中的修改还原至未修改前的状态。
-
-升级或卸载OmniStream时请满足操作规范。
+    具体操作为，将[安装指南-安装OmniStream-步骤4](installation_guide.md)中的修改还原至未修改前的状态。
 

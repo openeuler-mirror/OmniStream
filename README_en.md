@@ -38,21 +38,21 @@ OmniStream uses an architecture consisting of the Java Adapter layer and the CPP
 
 An SQL query submitted through SQL or Table API is parsed, and an execution plan is then generated. The Java Adapter layer obtains the execution plan, initializes related tasks in the CPP, and generates an operator chain. After the initialization process is complete, the task runs to read data from the source. After a series of operator processing operations, Sink outputs the result.
 
-[Figure 1](#en-us_topic_0000002543922607_en-us_topic_0000002228744542_fig685102835814)  shows the architecture of OmniStream Flink SQL Native.
+[Figure 1](#en-us_topic_0000002543922607_en-us_topic_0000002228744542_fig685102835814)  shows the architecture of OmniStream Flink SQL Native.<br>
 
-**Figure  1**  Architecture of OmniStream Flink SQL Native<a name="en-us_topic_0000002543922607_en-us_topic_0000002228744542_fig685102835814"></a>  
+**Figure  1**  Architecture of OmniStream Flink SQL Native<a name="en-us_topic_0000002543922607_en-us_topic_0000002228744542_fig685102835814"></a><br>
 ![](figures/architecture-of-omnistream-flink-sql-native.png "architecture-of-omnistream-flink-sql-native")
 
 **DataStream<a name="en-us_topic_0000002543922607_section10781121012457"></a>**
 
 After receiving an input, the DataStream API parses it into an execution plan. The Java adapter layer parses the plan, initializes related tasks on the C++ side, and builds the corresponding operator chain. After the initialization process is complete, the task runs to read data from the source. After a series of operator processing operations, Sink outputs the result.
 
-[Figure 2](#en-us_topic_0000002543922607_fig918683363812)  shows the architecture of OmniStream Flink DataStream Native.
+[Figure 2](#en-us_topic_0000002543922607_fig918683363812)  shows the architecture of OmniStream Flink DataStream Native.<br>
 
-**Figure  2**  Architecture of OmniStream Flink DataStream Native<a name="en-us_topic_0000002543922607_fig918683363812"></a>  
+**Figure  2**  Architecture of OmniStream Flink DataStream Native<a name="en-us_topic_0000002543922607_fig918683363812"></a><br>
 ![](figures/architecture-of-omnistream-flink-datastream-native.png "architecture-of-omnistream-flink-datastream-native")
 
-The OmniStream Flink Native feature uses native code \(C/C++\) to reconstruct the logic of Flink SQL and DataStream operators, improving query performance.
+
 ### Application Scenarios<a name="EN-US_TOPIC_0000002549521541"></a>
 
 OmniStream improves the processing performance of the Flink engine while preserving existing development practices and architectural compatibility. In large-scale real-time data analysis scenarios, it significantly enhances processing capacity and execution efficiency.
@@ -61,7 +61,6 @@ Apache Flink is an open source real-time stream processing engine. As services r
 
 OmniStream supports Flink 1.16.3. It parses user-submitted SQL statements into a series of operators and executes them using native operators provided by it. These native operators replace open source Flink operators, significantly improving performance.
 
-OmniStream improves the processing performance of the Flink engine while preserving existing development practices and architectural compatibility. In large-scale real-time data analysis scenarios, it significantly enhances processing capacity and execution efficiency.
 ### Related Concepts<a name="EN-US_TOPIC_0000002518121694"></a>
 
 Nexmark: It is a benchmark suite designed for evaluating queries on continuous data streams. It offers fair and comprehensive performance tests for stream processing systems, serving as a tool for both optimization guidance and performance comparison.
@@ -97,7 +96,6 @@ For details, see  [Supported DataStream Operators and UDFs](en-us_topic_00000025
 - The Filter operator must be RichFilterFunction.
 - The state backend supports only memory and does not support checkpoints.
 
-OmniStream has restrictions on supported data types, operators, and state backends. Plan your tasks accordingly and avoid unsupported scenarios.
 ## Directory Structure<a name="EN-US_TOPIC_0000002518121690"></a>
 
 The full project directory structure is as follows:
@@ -250,13 +248,6 @@ Check the  **PermitRootLogin**  configuration item in  **/etc/ssh/sshd\_config**
 </tbody>
 </table>
 
-
-
-## Open Source Software Notice<a name="EN-US_TOPIC_0000002521198186"></a>
-
-Download link:
-
-[Kunpeng BoostKit 26.0.0 Big Data OmniRuntime Open Source Software Notice.docx](resource/Kunpeng BoostKit 26.0.0 Big Data OmniRuntime Open Source Software Notice.docx)
 
 
 ## Disclaimer<a name="EN-US_TOPIC_0000002549641559"></a>
