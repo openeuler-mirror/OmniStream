@@ -69,7 +69,7 @@ namespace omnistream {
                 void setup() override;
                 std::shared_ptr<CompletableFutureV2<void>> getStateConsumedFuture() override;
                 std::vector<bool> getStateConsumedFuture1() override;
-                void RequestPartitions() override;
+                void RequestPartitions(int taskType) override;
                 void FinishReadRecoveredState() override;
 
                 int GetNumberOfInputChannels() override;

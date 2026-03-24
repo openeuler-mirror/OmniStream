@@ -123,7 +123,7 @@ std::vector<bool> SingleInputGate::getStateConsumedFuture1()
     return futures;
 }
 
-void SingleInputGate::RequestPartitions()
+void SingleInputGate::RequestPartitions(int taskType)
 {
     //LOCK_BEFORE()
     std::unique_lock<std::recursive_mutex> lock(requestLock);
@@ -148,7 +148,9 @@ void SingleInputGate::RequestPartitions()
         convertRecoveredInputChannels();
 
         // LOG_PART("before intneral request partions ")
-        internalRequestPartitions();
+        if (taskType == 1) {
+            internalRequestPartitions();
+        }
     }
 
     requestedPartitionsFlag = true;
@@ -231,7 +233,7 @@ void SingleInputGate::internalRequestPartitions()
 {
     for (auto &entry : inputChannels) {
         auto &inputChannel = entry.second;
-//            inputChannel->requestSubpartition(consumedSubpartitionIndex);
+        inputChannel->requestSubpartition(consumedSubpartitionIndex);
     }
 }
 

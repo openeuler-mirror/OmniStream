@@ -588,6 +588,12 @@ protected:
             if (inputGate->IsFinished()) {
                 return DataInputStatus::END_OF_INPUT;
             }
+        } else if (dynamic_cast<EndOfChannelStateEvent *>(event.get())) {
+            INFO_RELEASE("received a end of recovery event start");
+            if (inputGate->AllChannelsRecovered()) {
+                INFO_RELEASE("received a end of recovery event end");
+                return DataInputStatus::END_OF_RECOVERY;
+            }
         }
         // by default,continue the data processing
         return DataInputStatus::MORE_AVAILABLE;
