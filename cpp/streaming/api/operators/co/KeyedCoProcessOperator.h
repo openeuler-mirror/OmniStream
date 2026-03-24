@@ -291,6 +291,12 @@ public :
     }
 
     void close() override {
+        // Since both AbstractUdfStreamOperator and TwoInputStreamOperator inherit from the same base class StreamOperator,
+        // the overridden close method in AbstractUdfStreamOperator is not invoked correctly in polymorphic contexts.
+        // As a temporary workaround, the close method is overridden again here.
+        // A proper solution in the future may involve introducing virtual inheritance across StreamOperator,
+        // AbstractStreamOperator, OneInputStreamOperator and TwoInputStreamOperator to address the diamond inheritance issue.
+        AbstractUdfStreamOperator<KeyedCoProcessFunction<K*, IN1, IN2, OUT>, OUT>::close();
     }
 
 protected:

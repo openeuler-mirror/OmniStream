@@ -28,6 +28,7 @@ namespace omnistream {
         DataInputStatus processInput() override;
         std::shared_ptr<CompletableFuture> GetAvailableFuture() override;
         std::shared_ptr<CompletableFutureV2<void>> PrepareSnapshot(std::shared_ptr<ChannelStateWriter> writer, long checkpointID) override;
+        void close() override;
     private:
         std::vector<OmniStreamOneInputProcessor *> processors;
         std::shared_ptr<MutipleInputSelectionHandler> inputSelectionHandler;

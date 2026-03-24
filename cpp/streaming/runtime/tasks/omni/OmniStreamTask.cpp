@@ -292,6 +292,11 @@ OmniStreamTask::OmniStreamTask(std::shared_ptr<RuntimeEnvironmentV2> &env,
         LOG_INFO_IMP("Stream Task Clean up")
         // clean up operator chain and record writer
         releaseOutputResource();
+
+        if (operatorChain != nullptr && !closedOperators_) {
+            closedOperators_ = true;
+            operatorChain->CloseAllOperators();
+        }
     }
 
     void OmniStreamTask::releaseOutputResource()

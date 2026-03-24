@@ -71,6 +71,7 @@ public:
         : AbstractKeyedStateBackend<K>(keySerializer, context), startGroup_(startGroup), endGroup_(endGroup),
           maxParallelism_(maxParallelism)
     {
+        // this constructor has been deprecated
         // 持有db实例
         kDBPath = backendHome;
         if (!(fs::exists(fs::path(kDBPath)) && fs::is_directory(fs::path(kDBPath)))) {
@@ -98,61 +99,9 @@ public:
     // Originally used to create an internal state, not necessary here
     uintptr_t createOrUpdateInternalState(TypeSerializer *namespaceSerializer, StateDescriptor *stateDesc) override;
 
-    virtual ~RocksdbKeyedStateBackend() override
+    ~RocksdbKeyedStateBackend() override
     {
-        for (const auto& pair : registeredKvStates) {
-            StateDescriptor* desc = std::get<1>(pair.second);
-            uintptr_t stateTablePtr = std::get<0>(pair.second);
-            STD_LOG (" Join Heapkeyed Backend first " << pair.first   << "StateTable ptr " << stateTablePtr);
-            if (desc->getType() == StateDescriptor::Type::MAP) {
-                auto keyId = desc->getKeyDataId();
-                auto valueId = desc->getValueDataId();
-                if ((keyId == BackendDataType::OBJECT_BK || keyId == BackendDataType::POJO_BK) &&
-                    (valueId == BackendDataType::OBJECT_BK || valueId == BackendDataType::POJO_BK)) {
-                    auto stateTable = reinterpret_cast<RocksdbMapStateTable<K, VoidNamespace, Object*, Object*> *>(stateTablePtr);
-                    delete stateTable;
-                } else {
-                    NOT_IMPL_EXCEPTION
-                }
-            } else if (desc->getType() == StateDescriptor::Type::VALUE) {
-                auto dataId = desc->getBackendId();
-                if (dataId == BackendDataType::OBJECT_BK || dataId == BackendDataType::POJO_BK) {
-                    auto stateTable = reinterpret_cast<RocksdbStateTable<K, VoidNamespace, Object*> *>(stateTablePtr);
-                    delete stateTable;
-                } else {
-                    NOT_IMPL_EXCEPTION
-                }
-            } else if (desc->getType() == StateDescriptor::Type::LIST) {
-                auto dataId = desc->getBackendId();
-                if (dataId == BackendDataType::BIGINT_BK) {
-                    auto stateTable = reinterpret_cast<RocksdbStateTable<K, VoidNamespace, std::vector<int64_t>*> *>(stateTablePtr);
-                    delete stateTable;
-                } else {
-                    NOT_IMPL_EXCEPTION
-                }
-            }
-            delete desc;
-        }
-        registeredKvStates.clear();
-
-        for (const auto& pair : createdKvState) {
-            auto *state = reinterpret_cast<State *>(pair.second);
-            delete state;
-        }
-        createdKvState.clear();
-
-        // close
-        db->Close();
-        // clear path
-        std::error_code ec;
-        // 直接使用remove_all删除整个目录树
-        std::filesystem::remove_all(kDBPath, ec);
-        // 如果ec有错误，则删除失败
-        if (ec) {
-            std::cerr << "删除失败: " << ec.message() << std::endl;
-        }
-
-        delete db;
+        RocksdbKeyedStateBackend<K>::dispose();
     };
 
     RocksdbKeyedStateBackend(
@@ -221,11 +170,81 @@ public:
         return std::make_shared<SavepointResources>(snapshotResources, SnapshotExecutionType::ASYNCHRONOUS);
     }
 
+    void dispose() override {
+        if (disposed_) {
+            return;
+        }
+        INFO_RELEASE("Start to dispose RocksDB Keyed State Backend.");
+        AbstractKeyedStateBackend<K>::dispose();
+        rocksDBResourceGuard_->close();
+
+        if (db != nullptr) {
+            for (const auto& pair : registeredKvStates) {
+                StateDescriptor* desc = std::get<1>(pair.second);
+                uintptr_t stateTablePtr = std::get<0>(pair.second);
+                if (desc->getType() == StateDescriptor::Type::MAP) {
+                    auto keyId = desc->getKeyDataId();
+                    auto valueId = desc->getValueDataId();
+                    if ((keyId == BackendDataType::OBJECT_BK || keyId == BackendDataType::POJO_BK) &&
+                        (valueId == BackendDataType::OBJECT_BK || valueId == BackendDataType::POJO_BK)) {
+                        auto stateTable = reinterpret_cast<RocksdbMapStateTable<K, VoidNamespace, Object*, Object*> *>(stateTablePtr);
+                        delete stateTable;
+                        stateTable = nullptr;
+                    } else {
+                        NOT_IMPL_EXCEPTION
+                    }
+                } else if (desc->getType() == StateDescriptor::Type::VALUE) {
+                    auto dataId = desc->getBackendId();
+                    if (dataId == BackendDataType::OBJECT_BK || dataId == BackendDataType::POJO_BK) {
+                        auto stateTable = reinterpret_cast<RocksdbStateTable<K, VoidNamespace, Object*> *>(stateTablePtr);
+                        delete stateTable;
+                        stateTable = nullptr;
+                    } else {
+                        NOT_IMPL_EXCEPTION
+                    }
+                } else if (desc->getType() == StateDescriptor::Type::LIST) {
+                    auto dataId = desc->getBackendId();
+                    if (dataId == BackendDataType::BIGINT_BK) {
+                        auto stateTable = reinterpret_cast<RocksdbStateTable<K, VoidNamespace, std::vector<int64_t>*> *>(stateTablePtr);
+                        delete stateTable;
+                        stateTable = nullptr;
+                    } else {
+                        NOT_IMPL_EXCEPTION
+                    }
+                }
+                delete desc;
+                desc = nullptr;
+            }
+            registeredKvStates.clear();
+
+            for (const auto& pair : createdKvState) {
+                auto *state = reinterpret_cast<State *>(pair.second);
+                delete state;
+                state = nullptr;
+            }
+            createdKvState.clear();
+
+            db->Close();
+
+            INFO_RELEASE("Cleaning up RocksDB working directory " << kDBPath)
+            std::error_code ec;
+            std::filesystem::remove_all(kDBPath, ec);
+            if (ec) {
+                GErrorLog("Could not delete RocksDB working directory " + kDBPath + ", error message = " + ec.message().c_str());
+            }
+            INFO_RELEASE("RocksDB Keyed State Backend has been disposed.")
+            delete db;
+            db = nullptr;
+        }
+        disposed_ = true;
+    }
+
 private:
     int startGroup_;
     int endGroup_;
     int maxParallelism_;
     ROCKSDB_NAMESPACE::DB* db;
+    bool disposed_ = false; // mark whether the backend is already disposed and prevent duplicate disposing
     std::shared_ptr<RocksDBWriteBatchWrapper> writeBatchWrapper_;
     std::string kDBPath;
     RocksDBSnapshotStrategyBase* strategy;

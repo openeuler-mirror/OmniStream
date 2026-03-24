@@ -126,4 +126,9 @@ namespace omnistream {
         return availabilityHelper->getAvailableFuture();
     }
 
+    void OmniStreamMultipleInputProcessor::close() {
+        for (auto processor : processors) {
+            processor->close();
+        }
+    }
 }
