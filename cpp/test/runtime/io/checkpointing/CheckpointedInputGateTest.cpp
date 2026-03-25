@@ -86,7 +86,7 @@ public:
 
     void setup() override {}
 
-    void RequestPartitions(int taskType) override {}
+    void RequestPartitions() override {}
 
     std::shared_ptr<CompletableFutureV2<void>> getStateConsumedFuture() override
     {

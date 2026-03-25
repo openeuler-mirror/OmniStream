@@ -94,6 +94,19 @@ JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_Omn
     task->dispatchOperatorEvent(operatorIdString, eventString);
 }
 
+JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_notifyChannelToOmni
+(JNIEnv * env, jobject, jlong nativeTaskRef, jstring partitionIdJson)
+{
+    const char* paritionIdChars = (env)->GetStringUTFChars(partitionIdJson, nullptr);
+    std::string paritionIdStr(paritionIdChars);
+    (env)->ReleaseStringUTFChars(partitionIdJson, paritionIdChars);
+
+    nlohmann::json partitionId = nlohmann::json::parse(paritionIdStr);
+    omnistream::ResultPartitionIDPOD partitionIdPOD = partitionId;
+    auto task = reinterpret_cast<omnistream::OmniTask*>(nativeTaskRef);
+    task->notifyChannelToOmni(partitionIdPOD);
+}
+
 JNIEXPORT void JNICALL
 Java_com_huawei_omniruntime_flink_runtime_io_network_partition_RemoteDataFetcher_notifyRemoteDataAvailable
 (JNIEnv*, jobject, jlong nativeTask, jint inputGateIndex, jint channelIndex, jlong bufferAddress, jint bufferLength,

@@ -573,6 +573,26 @@ namespace omnistream {
         return -1;
     }
 
+    void OmniTask::notifyChannelToOmni(const ResultPartitionIDPOD &partitionId)
+    {
+        const IntermediateResultPartitionIDPOD& irp = partitionId.getPartitionId();
+        for (const std::shared_ptr<SingleInputGate>& singleInputGate : this->inputGates) {
+            std::unordered_map<IntermediateResultPartitionIDPOD, std::shared_ptr<InputChannel>>& inputChannelMap =
+                singleInputGate->getInputChannels();
+            auto it = inputChannelMap.find(irp);
+            if (it == inputChannelMap.end()) {
+                continue;
+            }
+            auto channel = it->second;
+            if (auto inputChannel = std::dynamic_pointer_cast<RecoveredInputChannel>(channel)) {
+                inputChannel->SetIsOmniChannel(true);
+                INFO_RELEASE("Successfully notify native local input channel to omni. "
+                    << channel->getChannelInfo().toString());
+            }
+            return;
+        }
+    }
+
     int OmniTask::GetTaskType()
     {
         return taskType;

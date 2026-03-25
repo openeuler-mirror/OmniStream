@@ -139,6 +139,16 @@ public:
         return networkBuffersPerChannel;
     }
 
+    void SetIsOmniChannel(bool isOmniChannel)
+    {
+        toOmniChannel_ = isOmniChannel;
+    }
+
+    bool IsOmniChannel() const
+    {
+        return toOmniChannel_;
+    }
+
 private:
     struct RecoveredBufferEntry {
         Buffer* buffer;
@@ -160,6 +170,7 @@ private:
     int networkBuffersPerChannel;
     bool exclusiveBuffersAssigned = false;
     long lastStoppedCheckpointId = -1;
+    bool toOmniChannel_ = false;
     std::mutex bufferLock;
 };
 

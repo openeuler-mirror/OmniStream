@@ -30,7 +30,12 @@ public:
             LOG("ERROR: LocalRecoveredInputChannel stateWriter is null.")
             throw std::runtime_error("ERROR: LocalRecoveredInputChannel stateWriter is null.");
         }
-
+        if (IsOmniChannel()) {
+            return std::make_shared<omnistream::OmniLocalInputChannel>(inputGate, getChannelIndex(), partitionId,
+                                                       partitionManager, initialBackoff, maxBackoff,
+                                                       getNetworkBuffersPerChannel(), numBytesIn,
+                                                       numBuffersIn, stateWriter);
+        }
         return std::make_shared<omnistream::LocalInputChannel>(inputGate, getChannelIndex(), partitionId,
                                                                partitionManager, initialBackoff, maxBackoff, numBytesIn,
                                                                numBuffersIn, stateWriter);

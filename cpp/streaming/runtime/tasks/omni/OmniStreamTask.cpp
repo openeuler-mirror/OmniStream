@@ -260,7 +260,7 @@ OmniStreamTask::OmniStreamTask(std::shared_ptr<RuntimeEnvironmentV2> &env,
                 }
 
                 INFO_RELEASE("restoreGates requestPartitions directly after recovery loop");
-                inputGate->RequestPartitions(taskType);
+                inputGate->RequestPartitions();
             }
 
             INFO_RELEASE("restoreGates complete!");
