@@ -39,7 +39,7 @@ public:
         : inputIndex(inputIndex), inputGate(std::move(inputGate)), taskType(taskType), currentRecordDeserializer(nullptr), output_(nullptr)
     {
         inSerializer = inputSerializer;
-        deserializationDelegate_ = new NonReusingDeserializationDelegate(new datastream::StreamElementSerializer(inputSerializer));
+        deserializationDelegate_ = std::make_unique<NonReusingDeserializationDelegate>(new datastream::StreamElementSerializer(inSerializer));
         recordDeserializers = getRecordDeserializers(channelInfos);
         rowCount = 0;
         maxRowCount = 1000;
@@ -50,7 +50,7 @@ public:
     DataInputStatus emitNext(OmniPushingAsyncDataInput::OmniDataOutput *output) override
     {
         // we might need reconstruct here
-        if (auto curOutput = reinterpret_cast<OmniStreamTaskNetworkOutput*>(output)) {
+        if (auto curOutput = dynamic_cast<OmniStreamTaskNetworkOutput*>(output)) {
             curOutput->setTaskType(taskType);
         }
 
@@ -106,22 +106,22 @@ public:
             return inputGate->GetAvailableFuture();
         }
     }
-    std::unique_ptr<std::unordered_map<long, datastream::RecordDeserializer *>> getRecordDeserializers(
-    std::vector<long> & channelInfos)
-    {
-        std::unique_ptr<std::unordered_map<long, datastream::RecordDeserializer *>> recordDeserializers
-                = std::make_unique<std::unordered_map<long, datastream::RecordDeserializer *>>();
+    std::unique_ptr<std::unordered_map<long, std::unique_ptr<RecordDeserializer>>> getRecordDeserializers(std::vector<long> & channelInfos) {
+        std::unique_ptr<std::unordered_map<long, std::unique_ptr<RecordDeserializer>>> recordDeserializers
+                = std::make_unique<std::unordered_map<long, std::unique_ptr<RecordDeserializer>>>();
         for (size_t i = 0; i < channelInfos.size(); i++) {
-            LOG("getRecordDeserializers channelInfo " << i)
-            auto deserializer = new datastream::SpillingAdaptiveSpanningRecordDeserializer();
-            (*recordDeserializers)[channelInfos.at(i)] = deserializer;
+            auto deserializer = std::make_unique<SpillingAdaptiveSpanningRecordDeserializer>();
+            recordDeserializers->emplace(channelInfos.at(i), std::move(deserializer));
         }
         return recordDeserializers;
     }
 
-    [[nodiscard]] datastream::RecordDeserializer *getActiveSerializer(long channelInfo) const
-    {
-        return (*recordDeserializers)[channelInfo];
+    [[nodiscard]] RecordDeserializer *getActiveSerializer(long channelInfo) const {
+        auto it = recordDeserializers->find(channelInfo);
+        if (it == recordDeserializers->end()) {
+            THROW_RUNTIME_ERROR("ChannelInfo not found in recordDeserializers");
+        }
+        return it->second.get();
     }
 
     DataInputStatus processBufferOrEventOptForSQL(OmniPushingAsyncDataInput::OmniDataOutput *output,
@@ -607,10 +607,10 @@ private:
     int NullValueCount = 0;
     bool isLastValueNull = false;
     int taskType;
-    std::unique_ptr<std::unordered_map<long, datastream::RecordDeserializer *>> recordDeserializers;
-    datastream::RecordDeserializer* currentRecordDeserializer;
-    DeserializationDelegate* deserializationDelegate_;
-    TypeSerializer *inSerializer;
+    std::unique_ptr<std::unordered_map<long, std::unique_ptr<RecordDeserializer>>> recordDeserializers;
+    RecordDeserializer* currentRecordDeserializer;
+    std::unique_ptr<DeserializationDelegate> deserializationDelegate_;
+    TypeSerializer* inSerializer;
     // Determine if the upstream task is an original Java task.
     bool fromOriginal = true;
     // When the current SQL task has a Java task as its upstream,

@@ -25,7 +25,7 @@ namespace omnistream {
         auto output = createDataOutput();
         auto input = createTaskInput();
 
-        inputProcessor_ = new OmniStreamOneInputProcessor(input, output, operatorChain);
+        inputProcessor_ = new OmniStreamOneInputProcessor(input, output, operatorChain.get());
     }
 
     void omnistream::OmniSourceOperatorStreamTask::processInput(MailboxDefaultAction::Controller *controller)

@@ -107,7 +107,7 @@ public:
     }
 
     shared_ptr<ResultSubpartitionView>
-    createSubpartitionView(int index, std::shared_ptr<BufferAvailabilityListener> availabilityListener) override {
+    createSubpartitionView(int index, BufferAvailabilityListener* availabilityListener) override {
         return std::shared_ptr<ResultSubpartitionView>();
     }
 

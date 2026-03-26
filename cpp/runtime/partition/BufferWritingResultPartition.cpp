@@ -184,7 +184,7 @@ namespace omnistream {
     }
 
     std::shared_ptr<ResultSubpartitionView> BufferWritingResultPartition::createSubpartitionView(
-        int subpartitionIndex, std::shared_ptr<BufferAvailabilityListener> availabilityListener)
+        int subpartitionIndex, BufferAvailabilityListener* availabilityListener)
     {
         LOG_PART("Beginning")
         if (subpartitionIndex < 0 || subpartitionIndex >= numSubpartitions) {

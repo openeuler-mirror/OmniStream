@@ -101,23 +101,23 @@ namespace omnistream {
                 pOutPut1 = new OmniStreamTaskNetworkOutPut(
                         streamOperator, [](StreamRecord *record, TwoInputStreamOperator* streamOperator) {
                             streamOperator->processBatch1(record);
-                        }, 0, reinterpret_cast<std::shared_ptr<omnistream::SimpleCounter>&>(counter));
+                        }, 0, std::static_pointer_cast<omnistream::SimpleCounter>(counter));
                 pOutPut2 = new OmniStreamTaskNetworkOutPut(
                         streamOperator, [](StreamRecord *record,  TwoInputStreamOperator* streamOperator) {
                             streamOperator->processBatch2(record);
-                        }, 1, reinterpret_cast<std::shared_ptr<omnistream::SimpleCounter>&>(counter));
+                        }, 1, std::static_pointer_cast<omnistream::SimpleCounter>(counter));
             } else if (taskType == 2) {
                 pOutPut1 = new OmniStreamTaskNetworkOutPut(
                         streamOperator, [](StreamRecord *record, TwoInputStreamOperator* streamOperator) {
                             streamOperator->setKeyContextElement1(record);
                             streamOperator->processElement1(record);
-                        }, 0, reinterpret_cast<std::shared_ptr<omnistream::SimpleCounter>&>(counter));
+                        }, 0, std::static_pointer_cast<omnistream::SimpleCounter>(counter));
 
                 pOutPut2 = new OmniStreamTaskNetworkOutPut(
                         streamOperator, [](StreamRecord *record,  TwoInputStreamOperator* streamOperator) {
                             streamOperator->setKeyContextElement2(record);
                             streamOperator->processElement2(record);
-                        }, 1, reinterpret_cast<std::shared_ptr<omnistream::SimpleCounter>&>(counter));
+                        }, 1, std::static_pointer_cast<omnistream::SimpleCounter>(counter));
             } else {
                 THROW_LOGIC_EXCEPTION("Invalid task type in creating OmniStreamTwoInputProcessor.");
             }
@@ -132,7 +132,7 @@ namespace omnistream {
             using RecordConsumer = std::function<void(StreamRecord*, TwoInputStreamOperator* streamOperator)>;
 
             OmniStreamTaskNetworkOutPut(TwoInputStreamOperator *op, RecordConsumer consumer,
-                int32_t inputIndex, std::shared_ptr<omnistream::SimpleCounter> & numRecordsIn)
+                int64_t inputIndex, std::shared_ptr<omnistream::SimpleCounter> numRecordsIn)
                 : streamOperator(op), consumer_(consumer), inputIndex(inputIndex), numRecordsIn(numRecordsIn)
             {}
 

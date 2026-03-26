@@ -27,10 +27,8 @@
 #include "streaming/runtime/io/OmniStreamInputProcessor.h"
 #include "io/network/api/StopMode.h"
 #include "streaming/runtime/tasks/SubtaskCheckpointCoordinatorImpl.h"
-#include "streaming/runtime/tasks/TimerService.h"
 #include "runtime/state/CheckpointStorage.h"
 #include "runtime/io/checkpointing/CheckpointBarrierHandler.h"
-#include "runtime/state/hashmap/HashMapStateBackend.h"
 #include "streaming/runtime/tasks/SystemProcessingTimeService.h"
 #include "table/runtime/keyselector/KeySelector.h"
 
@@ -50,9 +48,10 @@ namespace omnistream {
 
         virtual ~OmniStreamTask()
         {
-            delete inputProcessor_;
-            delete mailboxProcessor_;
-            delete mailboxProcessor;
+            if (inputProcessor_ != nullptr) {
+                delete inputProcessor_;
+                inputProcessor_ = nullptr;
+            }
         }
 
         // getter
@@ -146,7 +145,7 @@ namespace omnistream {
         std::vector<OperatorConfig> operatorChainConfig_;
 
         // operator chain
-        omnistream::OperatorChainV2* operatorChain = nullptr;
+        std::unique_ptr<OperatorChainV2> operatorChain;
         std::shared_ptr<RecordWriterDelegateV2> recordWriter_;
         StreamOperator* mainOperator_;
         OmniStreamInputProcessor* inputProcessor_;
@@ -167,9 +166,8 @@ namespace omnistream {
 
         // mailbox loop
         TaskMailbox* mailbox_; // 负责存储相应 task 任务（也就是 mail），它支持多写单读，单线程读取并处理, delete by MailboxProcessor
-        MailboxProcessor* mailboxProcessor_; // MailBox 的核心处理线程，MailboxDefaultAction 是其默认的 action 实现
+        std::unique_ptr<MailboxProcessor> mailboxProcessor_; // MailBox 的核心处理线程，MailboxDefaultAction 是其默认的 action 实现
         std::shared_ptr<MailboxExecutor> mainMailboxExecutor_; // 它负责向 MailBox 提交 task 任务
-        MailboxProcessor *mailboxProcessor;
         std::shared_ptr<SystemProcessingTimeService> systemTimerService;
 
         TaskInformationPOD taskConfiguration_;
@@ -276,7 +274,7 @@ namespace omnistream {
 
     class StreamTaskAction : public MailboxDefaultAction {
     public:
-        explicit StreamTaskAction(std::shared_ptr<OmniStreamTask> task) : task_(task) {};
+        explicit StreamTaskAction(OmniStreamTask* task) : task_(task) {};
         ~StreamTaskAction() override = default;
         void runDefaultAction(Controller *controller) override
         {
@@ -284,7 +282,7 @@ namespace omnistream {
         };
 
     private:
-        std::shared_ptr<OmniStreamTask> task_;
+        OmniStreamTask* task_;
     };
 
     class ResumeWrapper : public Runnable {

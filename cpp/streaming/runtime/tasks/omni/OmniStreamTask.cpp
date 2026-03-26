@@ -72,12 +72,9 @@ OmniStreamTask::OmniStreamTask(std::shared_ptr<RuntimeEnvironmentV2> &env,
         LOG_DEBUG("postConstruct begin")
 
     // needs to be shared_ptr
-    auto streamTaskAction = new StreamTaskAction(shared_from_this());
-    mailboxProcessor_ = new MailboxProcessor(streamTaskAction, mailbox_, actionExecutor_);
+    auto streamTaskAction = std::make_unique<StreamTaskAction>(this);
+    mailboxProcessor_ = std::make_unique<MailboxProcessor>(std::move(streamTaskAction), mailbox_, actionExecutor_);
     mainMailboxExecutor_ = mailboxProcessor_->getMainMailboxExecutor();
-    mailboxProcessor = new MailboxProcessor(
-                        new StreamTaskAction(shared_from_this()),
-                        new TaskMailboxImpl(std::this_thread::get_id()), StreamTaskActionExecutor::IMMEDIATE);
     LOG("mailboxProcessor_  init setup>>>>")
     taskConfiguration_ = env_->taskConfiguration();
     auto checkpointExecutionConfig = taskConfiguration_.getExecutionCheckpointConfig();
@@ -160,7 +157,7 @@ OmniStreamTask::OmniStreamTask(std::shared_ptr<RuntimeEnvironmentV2> &env,
         LOG("Initializing {}." << getName());
 
         this->operatorChain =
-            new RegularOperatorChain(std::weak_ptr<OmniStreamTask>(shared_from_this()), this->recordWriter_);
+             std::make_unique<RegularOperatorChain>(std::weak_ptr<OmniStreamTask>(shared_from_this()), this->recordWriter_);
         StreamTaskStateInitializerImpl *initializer =
             new StreamTaskStateInitializerImpl(stateBackend, env_.get());
         this->operatorChain->initializeStateAndOpenOperators(initializer, taskConfiguration_);
@@ -313,8 +310,7 @@ OmniStreamTask::OmniStreamTask(std::shared_ptr<RuntimeEnvironmentV2> &env,
         if (mode == StopMode::DRAIN) {
             AdvanceToEndOfEventTime();
         }
-
-        if (operatorChain) {
+        if (operatorChain != nullptr) {
             operatorChain->finishOperators(actionExecutor_.get());
             this->finishedOperators = true;
         }
@@ -586,7 +582,7 @@ void OmniStreamTask::processInput(MailboxDefaultAction::Controller *controller)
                 );
 
                     subtaskCheckpointCoordinator->checkpointState(checkpointMetaData, checkpointOptions, checkpointMetrics,
-                        operatorChain, finishedOperators, isRunningLoad);
+                        operatorChain.get(), finishedOperators, isRunningLoad);
                 }
             );
             if (isRunning) {
@@ -691,7 +687,7 @@ void OmniStreamTask::processInput(MailboxDefaultAction::Controller *controller)
                         [running]() { return std::make_shared<bool>(running); });
 
                 subtaskCheckpointCoordinatorImpl->notifyCheckpointSubsumed(
-                    checkpointId, operatorChain, isRunningSupplier.get());
+                    checkpointId, operatorChain.get(), isRunningSupplier.get());
             },
             description);
     }
@@ -719,7 +715,7 @@ void OmniStreamTask::processInput(MailboxDefaultAction::Controller *controller)
                     [running]() { return std::make_shared<bool>(running); });
 
             subtaskCheckpointCoordinatorImpl->notifyCheckpointAborted(
-                checkpointId, operatorChain, isRunningSupplier.get());
+                checkpointId, operatorChain.get(), isRunningSupplier.get());
             },
             description);
     }
@@ -756,7 +752,7 @@ void OmniStreamTask::processInput(MailboxDefaultAction::Controller *controller)
                 [running]() { return std::make_shared<bool>(running); });
 
         subtaskCheckpointCoordinatorImpl->notifyCheckpointComplete(
-            checkpointId, operatorChain, isRunningSupplier.get());
+            checkpointId, operatorChain.get(), isRunningSupplier.get());
 
         if (isRunning) {
             if (isCurrentSyncSavepoint(checkpointId)) {

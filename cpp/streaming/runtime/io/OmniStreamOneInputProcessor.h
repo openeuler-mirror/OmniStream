@@ -22,6 +22,7 @@ namespace omnistream {
     public:
         OmniStreamOneInputProcessor(OmniStreamTaskInput *input, OmniStreamTaskInput::OmniDataOutput *output,
             OperatorChainV2 *operatorChain);
+        ~OmniStreamOneInputProcessor() override;
 
         DataInputStatus processInput() override;
         std::shared_ptr<CompletableFuture> GetAvailableFuture() override;

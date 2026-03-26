@@ -58,7 +58,7 @@ public:
     void acknowledgeAllDataProcessed();
     bool isReleased() override;
 
-    std::shared_ptr<ResultSubpartitionView> createReadView(std::shared_ptr<BufferAvailabilityListener> availabilityListener) override;
+    std::shared_ptr<ResultSubpartitionView> createReadView(BufferAvailabilityListener* availabilityListener) override;
     AvailabilityWithBacklog getAvailabilityAndBacklog(int numCreditsAvailable);
     int getNumberOfQueuedBuffers() override;
     void bufferSize(int desirableNewBufferSize) override;

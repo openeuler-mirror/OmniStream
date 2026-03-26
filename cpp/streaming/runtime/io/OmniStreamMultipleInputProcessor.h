@@ -24,6 +24,7 @@ namespace omnistream {
             : processors(processors), inputSelectionHandler(inputSelectionHandler) {
             availabilityHelper = std::make_shared<MultipleFuturesAvailabilityHelper>(processors.size());
         }
+        ~OmniStreamMultipleInputProcessor() override;
 
         DataInputStatus processInput() override;
         std::shared_ptr<CompletableFuture> GetAvailableFuture() override;

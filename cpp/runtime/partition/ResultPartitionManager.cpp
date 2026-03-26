@@ -45,7 +45,7 @@ void ResultPartitionManager::registerResultPartition(std::shared_ptr<ResultParti
 std::shared_ptr<ResultSubpartitionView> ResultPartitionManager::createSubpartitionView(
     const ResultPartitionIDPOD& partitionId,
     int subpartitionIndex,
-    std::shared_ptr<BufferAvailabilityListener> availabilityListener)
+    BufferAvailabilityListener* availabilityListener)
 {
     LOG("Requesting subpartition " << subpartitionIndex << " of " << partitionId.toString() << std::endl)
 

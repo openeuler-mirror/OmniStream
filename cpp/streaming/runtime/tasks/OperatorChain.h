@@ -112,18 +112,9 @@ namespace omnistream {
 
         ~OperatorChainV2()
         {
-            auto opWrap = mainOperatorWrapper;
-            while (opWrap != nullptr) {
-                auto op = opWrap->getStreamOperator();
-                delete op;
-                opWrap = opWrap->getNext();
-            }
             delete mainOperatorWrapper;
             mainOperatorWrapper = nullptr;
-            if (tailOperatorWrapper) {
-                delete tailOperatorWrapper;
-                tailOperatorWrapper = nullptr;
-            }
+            tailOperatorWrapper = nullptr;
         }
 
     void finishOperators(StreamTaskActionExecutor *actionExecutor);

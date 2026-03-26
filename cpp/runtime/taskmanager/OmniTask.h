@@ -23,9 +23,9 @@
 #include "connector/kafka/bind_core_manager.h"
 #include <state/bridge/OmniTaskBridge.h>
 #include "state/bridge/TaskOperatorEventGatewayBridge.h"
-#include "runtime/partition/consumer/OmniLocalInputChannel.h"
 #include "runtime/buffer/OriginalNetworkBufferRecycler.h"
 #include "runtime/partition/consumer/OmniLocalChannelReader.h"
+#include <io/network/netty/OmniCreditBasedSequenceNumberingViewReader.h>
 #include "partition/consumer/RemoteDataFetcherBridge.h"
 
 namespace omnistream {
@@ -148,7 +148,8 @@ namespace omnistream {
         omnistream::BindCoreStrategy strategy = BindCoreStrategy::ALL_IN_ONE;
         int taskType;
         std::shared_ptr<OriginalNetworkBufferRecycler> originalNetworkBufferRecycler_ = nullptr;
-        std::vector<std::shared_ptr<OmniLocalChannelReader>> omniLocalInputChannelReaders;
+        std::vector<std::unique_ptr<OmniLocalChannelReader>> omniLocalInputChannelReaders;
+        std::vector<std::unique_ptr<OmniCreditBasedSequenceNumberingViewReader>> omniCreditBasedSequenceNumberingViewReaders;
         std::shared_ptr<RemoteDataFetcherBridge> remoteDataFetcherBridge_ = nullptr;
     };
 }

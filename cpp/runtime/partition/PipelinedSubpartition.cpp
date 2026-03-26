@@ -195,10 +195,11 @@ bool PipelinedSubpartition::isReleased()
 }
 
 std::shared_ptr<ResultSubpartitionView> PipelinedSubpartition::createReadView(
-    std::shared_ptr<BufferAvailabilityListener> availabilityListener)
+    BufferAvailabilityListener* availabilityListener)
 {
     std::lock_guard<std::mutex> lock(buffersMutex);
     if (readView == nullptr) {
+        // todo: 循环引用
         readView = std::make_shared<PipelinedSubpartitionView>(shared_from_this(), availabilityListener);
     }
     return readView;

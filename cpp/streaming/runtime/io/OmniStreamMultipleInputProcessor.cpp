@@ -11,6 +11,14 @@
 
 #include "OmniStreamMultipleInputProcessor.h"
 namespace omnistream {
+    OmniStreamMultipleInputProcessor::~OmniStreamMultipleInputProcessor() {
+        for (auto processor : processors) {
+            if (processor != nullptr) {
+                delete processor;
+                processor = nullptr;
+            }
+        }
+    }
     DataInputStatus OmniStreamMultipleInputProcessor::processInput()
     {
         int readingInputIndex;
@@ -128,7 +136,9 @@ namespace omnistream {
 
     void OmniStreamMultipleInputProcessor::close() {
         for (auto processor : processors) {
-            processor->close();
+            if (processor != nullptr) {
+                processor->close();
+            }
         }
     }
 }

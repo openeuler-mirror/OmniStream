@@ -34,7 +34,7 @@ namespace omnistream {
         std::shared_ptr<ResultSubpartitionView> createSubpartitionView(
             const ResultPartitionIDPOD& partitionId,
             int subpartitionIndex,
-            std::shared_ptr<BufferAvailabilityListener> availabilityListener) override;
+            BufferAvailabilityListener* availabilityListener) override;
 
         void releasePartition(const ResultPartitionIDPOD& partitionId, std::optional<std::exception_ptr>  cause);
 

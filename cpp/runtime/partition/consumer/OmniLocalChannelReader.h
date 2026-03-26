@@ -40,6 +40,7 @@ namespace omnistream {
     public:
         OmniLocalChannelReader(ResultPartitionIDPOD partitionId,
                                int subPartitionIndex, long outputBufferStatus, std::string taskNameWithSubtas);
+        ~OmniLocalChannelReader() override;
 
         void requestSubpartitionView(
             std::shared_ptr<ResultPartitionManager> resultPartitionManager,

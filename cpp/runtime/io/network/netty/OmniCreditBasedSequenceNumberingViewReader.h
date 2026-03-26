@@ -78,7 +78,7 @@ namespace omnistream {
         OutputBufferStatus* outputBufferStatus;
         std::recursive_mutex queueMutex;
         int nextDataAvailable = 0;
-        NettyBufferPool* nettyBufferPool = nullptr;
+        std::unique_ptr<NettyBufferPool> nettyBufferPool;
         int bufferPoolSize = 100;
         // 32k
         int bufferSize = 32 * 1024;

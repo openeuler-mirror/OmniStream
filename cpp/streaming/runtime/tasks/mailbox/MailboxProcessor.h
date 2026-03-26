@@ -15,14 +15,10 @@
 #include <memory>
 #include <utility>
 #include <vector>
-#include <optional>
 #include <string>
-#include <sstream>
-#include <climits>
 #include "TaskMailbox.h"
 #include "MailboxDefaultAction.h"
 #include "StreamTaskActionExecutor.h"
-#include "Mail.h"
 #include "MailboxExecutor.h"
 #include "PeriodTimer.h"
 
@@ -31,10 +27,10 @@ namespace omnistream {
     class MailboxProcessor {
     public:
         MailboxProcessor();
-        explicit MailboxProcessor(MailboxDefaultAction* mailboxDefaultAction);
-        MailboxProcessor(MailboxDefaultAction* mailboxDefaultAction,
+        explicit MailboxProcessor(std::unique_ptr<MailboxDefaultAction> mailboxDefaultAction);
+        MailboxProcessor(std::unique_ptr<MailboxDefaultAction> mailboxDefaultAction,
                          std::shared_ptr<StreamTaskActionExecutor> actionExecutor);
-        MailboxProcessor(MailboxDefaultAction* mailboxDefaultAction,
+        MailboxProcessor(std::unique_ptr<MailboxDefaultAction> mailboxDefaultAction,
                          TaskMailbox* mailbox,
                          std::shared_ptr<StreamTaskActionExecutor> actionExecutor);
         ~MailboxProcessor();
@@ -124,7 +120,7 @@ namespace omnistream {
     private:
         // inner class forward declaration
         TaskMailbox* mailbox_ = nullptr;
-        MailboxDefaultAction* mailboxDefaultAction = nullptr;
+        std::unique_ptr<MailboxDefaultAction> mailboxDefaultAction;
         bool suspended;
         bool mailboxLoopRunning;
         std::shared_ptr<DefaultActionSuspension> suspendedDefaultAction;

@@ -79,7 +79,7 @@ void LocalInputChannel::requestSubpartition(int subpartitionIndex)
         try {
             auto subpartitionViewTmp = partitionManager->createSubpartitionView(
                 partitionId, subpartitionIndex,
-                BufferAvailabilityListener::shared_from_this());
+                this);
 
             LOG("after partitionManager->createSubpartitionView subpartitionView "
                 << std::to_string(reinterpret_cast<long>(subpartitionView.get())));

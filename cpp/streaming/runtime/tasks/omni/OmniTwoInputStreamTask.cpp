@@ -66,7 +66,7 @@ namespace omnistream {
             mainMailboxExecutor_,
             { inputGates1, inputGates2 },
             checkpointBarrierHandler);
-        inputProcessor_ = OmniStreamTwoInputProcessorFactory::create(operatorChain, checkpointedInputGates,
+        inputProcessor_ = OmniStreamTwoInputProcessorFactory::create(operatorChain.get(), checkpointedInputGates,
             static_cast<TwoInputStreamOperator*>(mainOperator_), taskType, description);
     }
 
