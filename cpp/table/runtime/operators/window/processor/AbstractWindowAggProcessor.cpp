@@ -71,8 +71,8 @@ AbstractWindowAggProcessor::AbstractWindowAggProcessor(const nlohmann::json desc
 
 bool AbstractWindowAggProcessor::processBatch(omnistream::VectorBatch* vectorbatch)
 {
-    int64_t sliceEndArr[vectorbatch->GetRowCount()];
-    bool dropArr[vectorbatch->GetRowCount()];
+    std::vector<int64_t> sliceEndArr(vectorbatch->GetRowCount());
+    std::vector<int8_t> dropArr(vectorbatch->GetRowCount());
     for (int i = 0; i < vectorbatch->GetRowCount(); i++) {
         int64_t sliceEnd = sliceAssigner->assignSliceEnd(vectorbatch, i, clockService);
         sliceEndArr[i] = sliceEnd;
@@ -80,7 +80,7 @@ bool AbstractWindowAggProcessor::processBatch(omnistream::VectorBatch* vectorbat
         // todo support other ZoneId
         auto currentKey = keySelector->getKey(vectorbatch, i);
         if (!isEventTime) {
-            WindowKey* temp = new WindowKey(sliceEnd, currentKey);
+            auto temp =std::make_unique<WindowKey>(sliceEnd, currentKey);
             auto result = uniqueData.insert(temp->hash());
             if (result.second) {
                 stateBackend->setCurrentKey(currentKey);
@@ -112,7 +112,7 @@ bool AbstractWindowAggProcessor::processBatch(omnistream::VectorBatch* vectorbat
             }
         }
     }
-    windowBuffer->addVectorBatch(vectorbatch, sliceEndArr, dropArr);
+    windowBuffer->addVectorBatch(vectorbatch, sliceEndArr.data(), reinterpret_cast<bool*>(dropArr.data()));
     return false;
 }
 
