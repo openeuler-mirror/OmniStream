@@ -28,7 +28,7 @@ namespace omnistream{
         }
 
         std::size_t hashCode() const {
-            constexpr std::size_t kGoldenRatio = 0x9e3779b9;  // 2^32 / 蠁 (蠁 鈮?1.618)
+            constexpr std::size_t kGoldenRatio = 0x9e3779b9; // 2^32 / φ (φ ≈ 1.618)
 
             std::size_t seed = 0;
 

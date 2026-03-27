@@ -27,6 +27,7 @@
 #include "InputChannelInfo.h"
 #include "partition/ChannelStateHolder.h"
 #include <event/TaskEvent.h>
+#include "core/utils/threads/CompletableFutureV2.h"
 
 // check
 namespace omnistream {

@@ -54,10 +54,8 @@ void ResultSubpartitionRecoveredStateHandler::recover(const ResultSubpartitionIn
     if (channels.empty()) {
         throw std::runtime_error("No mapped channels found in recover()");
     }
-    LOG("ResultSubpartitionRecoveredStateHandler recover555, channel size: " << channels.size())
 
     try {
-        INFO_RELEASE("ResultSubpartitionRecoveredStateHandler recover555, channel size: " << channels.size())
         for (const auto &item : channels){
             auto channelSelector = std::make_shared<SubtaskConnectionDescriptor>(subpartitionInfo.getSubPartitionIdx(),oldSubtaskIndex);
             INFO_RELEASE("send recover buffer :" << item->getSubpartitionInfo().toString());
@@ -211,7 +209,7 @@ void InputChannelRecoveredStateHandler::close()
     for (const auto& inputGate : inputGates) {
         inputGate->FinishReadRecoveredState();
     }
-    LOG("Close InputChannelRecoveredStateHandler, finishReadRecoveredState inputGate size锛? << inputGates.size());
+    LOG("Close InputChannelRecoveredStateHandler, finishReadRecoveredState inputGate size:" << inputGates.size());
 }
 
 std::shared_ptr<RecoveredInputChannel> InputChannelRecoveredStateHandler::getChannel(int gateIndex,
