@@ -40,10 +40,6 @@ namespace omnistream {
             forwardResumeToJava_ = forwardResumeToJava;
         }
 
-        void SetForwardResumeToJava(bool forwardResumeToJava) {
-            forwardResumeToJava_ = forwardResumeToJava;
-        }
-
     private:
         int expectSequenceNumber = 0;
         int initialCredit;

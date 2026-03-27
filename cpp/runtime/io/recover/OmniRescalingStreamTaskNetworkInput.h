@@ -33,7 +33,7 @@
 #include "streaming/runtime/streamrecord/StreamRecord.h"
 #include "streaming/runtime/tasks/StreamTask.h"
 #include "DemultiplexingRecordDeserializer.h"
-#include "io/checkpoin+#include "DemultiplexingRecordDeserializer.h"
+#include "io/checkpointing/CheckpointedInputGate.h"
 #include "checkpoint/InflightDataRescalingDescriptor.h"
 
 namespace omnistream {
@@ -93,9 +93,6 @@ public:
         return new OmniAbstractStreamTaskNetworkInput(inputIndex, inputGate, taskType, inSerializer, channelIds);
     }
 
-    /**
-     * 涓哄叿鏈夋涔夌殑閫氶亾锛堟仮澶嶅埌澶氫釜瀛愪换鍔＄殑閫氶亾锛夊垱寤鸿繃婊ゅ櫒銆傝繃婊ゅ櫒纭繚姣忎釜璁板綍鎭板ソ鎭㈠涓€娆°€?+     *
-     * <p>杩囨护鍣ㄤ笉寰楀湪涓嶅悓鐨勮櫄鎷熼€氶亾涔嬮棿鍏变韩锛屼互纭繚鐘舵€佸湪涓嶅悓瀛愪换鍔′箣闂村悓姝ャ€?+     */
     class RecordFilterFactory {
     public:
         RecordFilterFactory(int subtaskIndex, TypeSerializer *inputSerializer, int numberOfChannels,
@@ -111,14 +108,14 @@ public:
 
         std::function<bool(StreamRecord &)> apply(const InputChannelInfo &channelInfo)
         {
-            // 鑾峰彇鍒嗗尯鍣紙缂撳瓨锛?+            auto it = partitionerCache_.find(channelInfo.getGateIdx());
+            auto it = partitionerCache_.find(channelInfo.getGateIdx());
             if (it == partitionerCache_.end()) {
                 auto partitioner = createPartitioner(channelInfo.getGateIdx());
                 partitionerCache_[channelInfo.getGateIdx()] = partitioner;
                 it = partitionerCache_.find(channelInfo.getGateIdx());
             }
-            // 浣跨敤鍒嗗尯鍣ㄧ殑鍓湰锛屼互纭繚姝т箟铏氭嫙閫氶亾鐨勮繃婊ゅ櫒鍦ㄥ涓瓙浠诲姟闂寸姸鎬佷竴鑷?+            auto filter = std::make_shared<RecordFilter>(dynamic_cast<ChannelSelector<IOReadableWritable> *>(
-                                                             it->second),
+            auto filter = std::make_shared<RecordFilter>(dynamic_cast<ChannelSelector<IOReadableWritable> *>(
+                                                                 it->second),
                                                          inputSerializer_, subtaskIndex_);
             auto function = std::function<bool(StreamRecord &)>(
                 [filter](StreamRecord &record) { return filter->apply(record); });
