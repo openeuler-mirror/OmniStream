@@ -72,13 +72,16 @@ std::shared_ptr<SnapshotResult<KeyedStateHandle>> FullSnapshotAsyncWriter::get(
             auto jobManagerOwnedSnapshot = handle->GetJobManagerOwnedSnapshot();
             auto jmKeyedState = std::make_shared<KeyGroupsSavepointStateHandle>(
                 *keyGroupRangeOffsets.get(), jobManagerOwnedSnapshot);
+            snapshotResources_->cleanup();
             return SnapshotResult<KeyedStateHandle>::Of(jmKeyedState);
         }
+        snapshotResources_->cleanup();
         return SnapshotResult<KeyedStateHandle>::Empty();
     }catch(std::exception& e){
         if(mergeIterator) {
             mergeIterator->close();
         }
+        snapshotResources_->cleanup();
             INFO_RELEASE("savepoint: FullSnapshotAsyncWriter err" << e.what());
         return SnapshotResult<KeyedStateHandle>::Empty();
     }

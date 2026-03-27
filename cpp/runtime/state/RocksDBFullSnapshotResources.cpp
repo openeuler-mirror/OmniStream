@@ -125,3 +125,25 @@ RocksDBFullSnapshotResources::create(
         keyGroupRange,
         keySerializer);
 }
+
+RocksDBFullSnapshotResources::~RocksDBFullSnapshotResources() {
+    if (db_ != nullptr && snapshot_ != nullptr) {
+        db_->ReleaseSnapshot(snapshot_);
+    }
+    if (lease_ != nullptr) {
+        lease_->close();
+        delete lease_;
+    }
+}
+
+void RocksDBFullSnapshotResources::cleanup() {
+    if (db_ != nullptr && snapshot_ != nullptr) {
+        db_->ReleaseSnapshot(snapshot_);
+        snapshot_ = nullptr;
+    }
+    if (lease_ != nullptr) {
+        lease_->close();
+        delete lease_;
+        lease_ = nullptr;
+    }
+}
