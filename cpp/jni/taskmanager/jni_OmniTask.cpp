@@ -126,8 +126,9 @@ JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_Omn
     const char* checkpointStr = jniEnv->GetStringUTFChars(checkpointoptionJson, nullptr);
     nlohmann::json checkpointoptionJsonStr = json::parse(checkpointStr);
     jniEnv->ReleaseStringUTFChars(checkpointoptionJson, checkpointStr);
-    CheckpointOptions * checkpoint_options = CheckpointOptions::FromJson(checkpointoptionJsonStr);
-    task->triggerCheckpointBarrier(checkpointID, checkpointTimestamp, checkpoint_options);
+    CheckpointOptions *configuredOptions = CheckpointOptions::FromJson(checkpointoptionJsonStr);
+    CheckpointOptions *runtimeOptions = configuredOptions->ToRuntimeAlignedNoTimeout();
+    task->triggerCheckpointBarrier(checkpointID, checkpointTimestamp, runtimeOptions);
 }
 
 JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_abortCpp

@@ -17,7 +17,10 @@
 #include <cstdint>
 #include <iostream>
 #include "core/memory/MemorySegment.h"
+#include "include/basictypes/java_io_InputStream.h"
+#include "runtime/buffer/BufferBuilder.h"
 #include "runtime/buffer/ObjectBuffer.h"
+#include "state/memory/ByteStreamStateHandle.h"
 
 namespace omnistream {
     class ChannelStateSerializer {
@@ -28,13 +31,13 @@ namespace omnistream {
         virtual void WriteData(std::ostringstream &dataStream, Buffer* buffer) = 0;
         virtual int64_t GetHeaderLength() const = 0;
     };
+        dataStream.write(reinterpret_cast<const char*>(lenBytes), sizeof(lenBytes));
 
-    class ChannelStateSerializerImpl : public ChannelStateSerializer {
-    public:
-        void WriteHeader(std::ostringstream &dataStream) override
-        {
-            int head = 0;
-            dataStream.write((const char *)&head, sizeof(int));
+        auto segment = buffers->GetSegment();
+        auto memorySegment = dynamic_cast<MemorySegment*>(segment);
+        if (memorySegment == nullptr) {
+            throw std::runtime_error(
+                    "ChannelStateSerializerImpl::WriteData requires MemorySegment-backed buffer");
         }
 
         void WriteData(std::ostringstream &dataStream, Buffer* buffers) override
@@ -47,14 +50,14 @@ namespace omnistream {
                 dataStream.write((const char *)memorySegment->getData(), size);
             }
         }
-        
+
         int getSize(Buffer* buffers)
         {
             int len = 0;
             len += buffers->GetSize();
             return len;
         }
-    
+
         void readHeader(std::istringstream &dataStream)
         {
             int version;

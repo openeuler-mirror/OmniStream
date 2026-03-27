@@ -221,10 +221,11 @@ public:
 
     void RequestPartitions() override {}
 
-    std::shared_ptr<CompletableFuture> getStateConsumedFuture() override
-    {
-        return std::make_shared<CompletableFuture>();
+   std::shared_ptr<CompletableFutureV2<void>> getStateConsumedFuture() override
+   {
+        return std::make_shared<CompletableFutureV2<void>>();
     }
+
 
     void FinishReadRecoveredState() override {}
 
@@ -274,7 +275,8 @@ public:
     void acknowledgeAllRecordsProcessed(const InputChannelInfo&) override {}
     void setup() override {}
     void RequestPartitions() override {}
-    std::shared_ptr<CompletableFuture> getStateConsumedFuture() override { return {}; }
+    std::shared_ptr<CompletableFutureV2<void>> getStateConsumedFuture() override { return {}; }
+    std::vector<bool> getStateConsumedFuture1() override{return {};}
     void FinishReadRecoveredState() override {}
 
 private:

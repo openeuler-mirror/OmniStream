@@ -12,26 +12,36 @@
 #ifndef OMNISTREAM_INPUTCHANNELSTATEHANDLE_H
 #define OMNISTREAM_INPUTCHANNELSTATEHANDLE_H
 #include "runtime/state/StateObject.h"
-class InputChannelStateHandle : public StateObject {
+#include "AbstractChannelStateHandle.h"
+#include "runtime/partition/consumer/InputChannelInfo.h"
+class InputChannelStateHandle : public omnistream::AbstractChannelStateHandle<omnistream::InputChannelInfo>  {
 public:
+    InputChannelStateHandle(int subTaskIndex,
+                                  omnistream::InputChannelInfo info,
+                                  std::shared_ptr<StreamStateHandle> delegate,
+                                  StateContentMetaInfo contentMetaInfo)
+            : omnistream::AbstractChannelStateHandle<omnistream::InputChannelInfo>(subTaskIndex, info,
+                                                                                            delegate,
+                                                                                            contentMetaInfo.GetOffsets(),
+                                                                                            contentMetaInfo.GetSize()) {}
     // This class should be a template with InputChannelInfo, and info should be of class InputChannelInfo
     // This is a temporary place holder for checkpointing's PioritizedOperatorSubtaskState
-    std::string getInfo() const
-    {
-        return info;
-    }
-    void DiscardState() override {}
-
-    long GetStateSize() const override
-    {
-        return 0;
-    };
-
-    std::string ToString() const override
-    {
-        return "InputChannelStateHandle";
-    };
-private:
-    std::string info = "InputChannelStateHandle";
+//    std::string getInfo() const
+//    {
+//        return info;
+//    }
+//    void DiscardState() override {}
+//
+//    long GetStateSize() const override
+//    {
+//        return 0;
+//    };
+//
+//    std::string ToString() const override
+//    {
+//        return "InputChannelStateHandle";
+//    };
+//private:
+//    std::string info = "InputChannelStateHandle";
 };
 #endif // OMNISTREAM_INPUTCHANNELSTATEHANDLE_H

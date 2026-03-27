@@ -21,6 +21,9 @@
 #include "state/bridge/OmniTaskBridge.h"
 #include "runtime/checkpoint/PrioritizedOperatorSubtaskState.h"
 #include "checkpoint/JobManagerTaskRestore.h"
+#include "checkpoint/TaskStateSnapshot.h"
+#include "checkpoint/channel/SequentialChannelStateReaderImpl.h"
+
 namespace omnistream {
 class TaskStateManager {
 public:
@@ -89,9 +92,25 @@ public:
         return bridge_;
     }
 
+    std::shared_ptr<SequentialChannelStateReaderImpl> getSequentialChannelStateReader()
+    {
+        return sequentialChannelStateReader_;
+    }
+
     std::shared_ptr<OmniTaskBridge> getOmniTaskBridge()
     {
         return omniTaskBridge_;
+    }
+
+    std::shared_ptr<InflightDataRescalingDescriptor> getInputRescalingDescriptor()
+    {
+        if (jobManagerTaskRestore_ != nullptr) {
+            auto taskStateSnapshot = jobManagerTaskRestore_->getTaskStateSnapshot();
+            if (taskStateSnapshot != nullptr) {
+                return taskStateSnapshot->GetInputRescalingDescriptor();
+            }
+        }
+        return nullptr;
     }
 
 private:
@@ -101,6 +120,7 @@ private:
     ExecutionAttemptIDPOD executionAttempId_;
     std::shared_ptr<TaskStateManagerBridge> bridge_;
     std::shared_ptr<JobManagerTaskRestore> jobManagerTaskRestore_;
+    std::shared_ptr<SequentialChannelStateReaderImpl> sequentialChannelStateReader_;
     std::shared_ptr<OmniTaskBridge> omniTaskBridge_;
 };
 }

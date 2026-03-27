@@ -211,7 +211,7 @@ namespace omnistream {
     OperatorEventDispatcherImpl* operatorEventDispatcher;
 
     void SnapshotChannelStates(StreamOperator* op, std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> channelStateWriteResult,
-        OperatorSnapshotFutures& snapshotInProgress);
+        OperatorSnapshotFutures* snapshotInProgress);
 
     void SendAcknowledgeCheckpointEvent(long checkpointId);
 

@@ -15,7 +15,7 @@
 #include "LocalMemoryBufferPool.h"
 
 
-namespace datastream {
+namespace omnistream::datastream {
 
 NetworkMemoryBufferPool::NetworkMemoryBufferPool(
     int numberOfSegmentsToAllocate, int segmentSize, std::chrono::milliseconds requestSegmentsTimeout)

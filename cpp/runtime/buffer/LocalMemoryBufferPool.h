@@ -17,7 +17,7 @@
 #include "LocalBufferPool.h"
 #include "NetworkMemoryBufferPool.h"
 
-namespace datastream {
+namespace omnistream::datastream {
     class LocalMemoryBufferPool : public LocalBufferPool {
     public:
         LocalMemoryBufferPool(std::shared_ptr<NetworkMemoryBufferPool> networkBufferPool,

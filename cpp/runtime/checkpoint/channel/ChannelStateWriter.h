@@ -36,8 +36,8 @@ public:
     /** Channel state write result. */
     class ChannelStateWriteResult {
     public:
-        using InputChannelStateHandleVecPtr = std::shared_ptr<std::vector<InputChannelStateHandle>>;
-        using ResultSubpartitionStateVecPtr = std::shared_ptr<std::vector<ResultSubpartitionStateHandle>>;
+        using InputChannelStateHandleVecPtr = std::shared_ptr<std::vector<std::shared_ptr<InputChannelStateHandle>>>;
+        using ResultSubpartitionStateVecPtr = std::shared_ptr<std::vector<std::shared_ptr<ResultSubpartitionStateHandle>>>;
         using InputChannelStateFuture = std::shared_ptr<CompletableFutureV2<InputChannelStateHandleVecPtr>>;
         using ResultSubpartitionStateFuture = std::shared_ptr<CompletableFutureV2<ResultSubpartitionStateVecPtr>>;
 

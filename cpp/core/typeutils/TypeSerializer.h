@@ -47,8 +47,13 @@ public:
      *     Typically raised by the input view, which may have an underlying I/O channel from which
      *     it reads.
      */
-    virtual void* deserialize(DataInputView& source) = 0;
-    virtual void serialize(void* record, DataOutputSerializer& target) = 0;
+    virtual void* deserialize(DataInputView& source)
+    {
+        return nullptr;
+    }
+    virtual void serialize(void* record, DataOutputSerializer& target)
+    {
+    }
 
     // new interface for DataStream
     virtual void deserialize(Object *buffer, DataInputView& source) {};
@@ -59,7 +64,10 @@ public:
     }
 
     virtual const char* getName() const;
-    virtual BackendDataType getBackendId() const = 0;
+    virtual BackendDataType getBackendId() const
+    {
+        return BackendDataType::INVALID_BK;
+    }
 
     virtual ~TypeSerializer()
     {
@@ -99,6 +107,6 @@ public:
 
 protected:
     Object* reuseBuffer = nullptr;
-    bool bufferReusable = true;
+    bool bufferReusable = false;
 };
 #endif

@@ -11,6 +11,7 @@
 #ifndef COMPLETABLE_FUTURE_V2_H
 #define COMPLETABLE_FUTURE_V2_H
 
+#include <iostream>
 #include <future>
 #include <thread>
 #include <mutex>
@@ -217,6 +218,7 @@ public:
     // Complete without value
     void Complete()
     {
+        std::cout<<"Complete future complete!"<<std::endl;
         std::call_once(flag_, [this]() {
             promise_.set_value();
             completed_ = true;
@@ -284,6 +286,7 @@ public:
     // This function is very likely to be problematic. Try to avoid it.
     void ThenRun(std::function<void()> callback)
     {
+        std::cout<<"execute then run method!"<<std::endl;
         auto wrapper = [this, callback]() {
             if (completed_) {
                 callback();
@@ -299,9 +302,44 @@ public:
             }
         }
     }
-    // Wait for all futures to complete
+   // Wait for all futures to complete
     static std::shared_ptr<CompletableFutureV2<void>> AllOf(
-        const std::vector<std::shared_ptr<CompletableFutureV2<void>>>& futures);
+        const std::vector<std::shared_ptr<CompletableFutureV2<void>>>& futures)
+    {
+        auto cf_ptr = std::make_shared<CompletableFutureV2<void>>();
+        std::thread([cf_ptr, futures]() mutable {
+            try {
+                for (auto& f : futures) {
+                    f->Get(); // wait for each to complete
+                }
+                cf_ptr->Complete();
+                std::cout<<"all of future complete!"<<std::endl;
+            } catch (...) {
+                cf_ptr->CompleteExceptionally(std::current_exception());
+            }
+        }).detach();
+        return cf_ptr;
+    }
+
+    // 2. 鏂板閾惧紡 ThenRun锛氳繑鍥炰竴涓柊鐨?future锛屽叾瀹屾垚鏍囧織鐫€ callback 鎵ц瀹屾瘯
+    std::shared_ptr<CompletableFutureV2<void>> ThenRunWithFuture(std::function<void()> callback) {
+        auto result = std::make_shared<CompletableFutureV2<void>>();
+        auto wrapper = [this, callback, result]() {
+            if (completed_) {
+                callback();                  // 鎵ц鐢ㄦ埛鍥炶皟
+                result->Complete();          // 鏍囪 result future 瀹屾垚
+            }
+        };
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            if (completed_) {
+                // 濡傛灉宸茬粡瀹屾垚锛岀珛鍗虫墽琛?callback 骞跺畬鎴?result
+                std::thread(std::move(wrapper)).detach(); // 寮傛鎵ц锛岄伩鍏嶉樆濉炶皟鐢ㄧ嚎绋?+            } else {
+                // 鍚﹀垯灏?wrapper 瀛樺叆鍥炶皟鍒楄〃锛屽緟 future 瀹屾垚鏃舵墽琛?+                callbacks_.push_back(std::move(wrapper));
+            }
+        }
+        return result;
+    }
 private:
     std::promise<void> promise_;
     std::shared_future<void> future_;

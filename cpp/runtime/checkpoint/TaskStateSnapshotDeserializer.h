@@ -107,6 +107,11 @@ private:
     // Reads '@class' and calls the correct specific parser below.
     static std::shared_ptr<KeyedStateHandle> ParseKeyedStateHandle(const json &j);
 
+    static std::shared_ptr<ResultSubpartitionStateHandle> ParseResultStateHandle(const json &j);
+
+    static std::shared_ptr<InputChannelStateHandle> ParseInputStateHandle(const json &j);
+
+    static std::shared_ptr<InflightDataRescalingDescriptor> ParseInflightDataRescalingDescriptor(const json &j);
     // --- Specific Handle Parsers ---
     static std::shared_ptr<IncrementalRemoteKeyedStateHandle> ParseRemoteStateHandle(const json &j)
     {

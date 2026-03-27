@@ -77,21 +77,46 @@ PipelinedResultPartition::PipelinedResultPartition(const std::string& owningTask
 
 void PipelinedResultPartition::setChannelStateWriter(std::shared_ptr<ChannelStateWriter> channelStateWriter)
 {
-    for (auto subpartition : subpartitions_) {
-        if (std::dynamic_pointer_cast<ChannelStateHolder>(subpartition) != nullptr) {
-            std::reinterpret_pointer_cast<PipelinedSubpartition>(subpartition)->setChannelStateWriter(channelStateWriter);
+    for (const auto& subpartition : subpartitions_) {
+        auto pipelinedSubpartition =
+                std::dynamic_pointer_cast<PipelinedSubpartition>(subpartition);
+        if (pipelinedSubpartition) {
+            pipelinedSubpartition->setChannelStateWriter(channelStateWriter);
         }
     }
 }
 
-std::shared_ptr<CheckpointedResultSubpartition> PipelinedResultPartition::getCheckpointedSubpartition(int subpartitionIndex) {
-    return std::reinterpret_pointer_cast<CheckpointedResultSubpartition>(subpartitions_[subpartitionIndex]);
+//std::shared_ptr<CheckpointedResultSubpartition> PipelinedResultPartition::getCheckpointedSubpartition(int subpartitionIndex) {
+//    return std::reinterpret_pointer_cast<CheckpointedResultSubpartition>(subpartitions_[subpartitionIndex]);
+//}
+
+std::shared_ptr<C+PipelinedResultPartition::getCheckpointedSubpartition(int subpartitionIndex)
+{
+    auto pipelinedSubpartition =
+            std::dynamic_pointer_cast<PipelinedSubpartition>(subpartitions_[subpartitionIndex]);
+    if (!pipelinedSubpartition) {
+        throw std::runtime_error(
+                "subpartition is not a PipelinedSubpartition, subpartitionIndex=" +
+                std::to_string(subpartitionIndex));
+    }
+    return std::static_pointer_cast<CheckpointedResultSubpartition>(pipelinedSubpartition);
 }
 
-void PipelinedResultPartition::finishReadRecoveredState(bool notifyAndBlockOnCompletion) {
-        for (auto subpartition : subpartitions_) {
-            std::reinterpret_pointer_cast<CheckpointedResultSubpartition>(subpartition)->finishReadRecoveredState(notifyAndBlockOnCompletion);
+//void PipelinedResultPartition::finishReadRecoveredState(bool notifyAndBlockOnCompletion) {
+//        for (auto subpartition : subpartitions_) {
+//            std::reinterpret_pointer_cast<CheckpointedResultSubpartition>(subpartition)->finishReadRecoveredState(notifyAndBlockOnCompletion);
+//        }
+//}
+
+void PipelinedResultPartition:+{
+    for (const auto& subpartition : subpartitions_) {
+        auto pipelinedSubpartition =
+                std::dynamic_pointer_cast<PipelinedSubpartition>(subpartition);
+        if (!pipelinedSubpartition) {
+            throw std::runtime_error("subpartition is not a PipelinedSubpartition");
         }
+        pipelinedSubpartition->finishReadRecoveredState(notifyAndBlockOnCompletion);
+    }
 }
 
 /**

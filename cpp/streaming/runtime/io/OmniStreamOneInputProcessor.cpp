@@ -21,6 +21,14 @@ namespace omnistream {
     {
         // LOG(">>>process Input")
         DataInputStatus status = input->emitNext(output);
+        if(status == DataInputStatus::END_OF_RECOVERY){
+            auto recoverInput = dynamic_cast<OmniRescalingStreamTaskNetworkInput *>(input);
+            if(recoverInput){
+                input = recoverInput->finishRecover();
+            }
+            return DataInputStatus::MORE_AVAILABLE;
+        }
+        INFO_RELEASE("emitNext return status: "  << DataInputStatusHelper::mapToInt(status))
         // LOG_TRACE(" Return status  "  << DataInputStatusHelper::mapToInt(status))
         return status;
     }

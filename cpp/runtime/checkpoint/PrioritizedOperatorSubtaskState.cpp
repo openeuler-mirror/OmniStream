@@ -52,12 +52,12 @@ PrioritizedOperatorSubtaskState PrioritizedOperatorSubtaskState::Builder::build(
             rawOperatorAlternatives, eqStateApprover<OperatorStateHandle, OPStateHandleIdentity>(
                 [](std::shared_ptr<OperatorStateHandle> handle) { return handle->getStateNameToPartitionOffsets(); })),
         resolvePrioritizedAlternatives(jobManagerState.getInputChannelState(),
-            inputChannelStateAlternatives, eqStateApprover<InputChannelStateHandle, std::string>(
-                [](std::shared_ptr<InputChannelStateHandle> handle) { return handle->getInfo(); })),
+            inputChannelStateAlternatives, eqStateApprover<InputChannelStateHandle, InputChannelInfo>(
+                [](std::shared_ptr<InputChannelStateHandle> handle) { return handle->GetInfo(); })),
         resolvePrioritizedAlternatives(jobManagerState.getResultSubpartitionState(),
             resultSubpartitionStateAlternatives,
-            eqStateApprover<ResultSubpartitionStateHandle, std::string>(
-                [](std::shared_ptr<ResultSubpartitionStateHandle> handle) { return handle->getInfo(); })),
+            eqStateApprover<ResultSubpartitionStateHandle, ResultSubpartitionInfoPOD>(
+                [](std::shared_ptr<ResultSubpartitionStateHandle> handle) { return handle->GetInfo(); })),
         restoredCheckpointId);
 }
 

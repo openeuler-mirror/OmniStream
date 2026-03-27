@@ -25,12 +25,12 @@
 #include "BufferPool.h"
 #include "NetworkBufferPool.h"
 
-namespace datastream {
+namespace omnistream::datastream {
     class LocalMemoryBufferPool;
 }
 
 
-namespace datastream {
+namespace omnistream::datastream {
 
 using namespace omnistream;
 

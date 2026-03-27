@@ -54,10 +54,14 @@ namespace omnistream {
                 auto leftTypes = description["leftInputTypes"].get<std::vector<std::string>>();
                 auto rightTypes = description["rightInputTypes"].get<std::vector<std::string>>();
 
-                input1 = OmniStreamTaskNetworkInputFactory::create(0, inputGates[0], taskType,
-                                                                   new BinaryRowDataSerializer(leftTypes.size(), leftTypes), channelInfoIndex1);
+                input1 =
+                    OmniStreamTaskNetworkInputFactory::create(0, inputGates[0], taskType,
+                                                              new BinaryRowDataSerializer(leftTypes.size(), leftTypes),
+                                                              channelInfoIndex1, inflightDataRescalingDescriptor, getPartitionerFunction,taskInfo);
                 input2 = OmniStreamTaskNetworkInputFactory::create(1, inputGates[1], taskType,
-                                                                   new BinaryRowDataSerializer(rightTypes.size(), rightTypes), channelInfoIndex2);
+                                                              new BinaryRowDataSerializer(rightTypes.size(),
+                                                                                               rightTypes),
+                                                                   channelInfoIndex2, inflightDataRescalingDescriptor,getPartitionerFunction,taskInfo);
             } else if (taskType == 2) {
                 auto inputTypes = description["inputTypes"];
                 TypeInformation* inputTypeInfo1 = nullptr;
@@ -76,13 +80,19 @@ namespace omnistream {
                 inputTypeInfo2 = TypeInfoFactory::createDataStreamTypeInfo(inputTypes[1]);
 
                 input1 = OmniStreamTaskNetworkInputFactory::create(0, inputGates[0], taskType,
-                                                                   inputTypeInfo1 == nullptr ? nullptr : inputTypeInfo1->createTypeSerializer(), channelInfoIndex1);
+                                                                   inputTypeInfo1 == nullptr ?
+                                                                       nullptr :
+                                                                       inputTypeInfo1->createTypeSerializer(),
+                                                                   channelInfoIndex1, inflightDataRescalingDescriptor,getPartitionerFunction,taskInfo);
                 if (inputTypeInfo1 != nullptr) {
                     delete inputTypeInfo1;
                 }
 
                 input2 = OmniStreamTaskNetworkInputFactory::create(1, inputGates[1], taskType,
-                                                                   inputTypeInfo2 == nullptr ? nullptr : inputTypeInfo2->createTypeSerializer(), channelInfoIndex2);
+                                                                     inputTypeInfo2 == nullptr ?
+                                                                       nullptr :
+                                                                       inputTypeInfo2->createTypeSerializer(),
+                                                                   channelInfoIndex2, inflightDataRescalingDescriptor,getPartitionerFunction,taskInfo);
                 if (inputTypeInfo2 != nullptr) {
                     delete inputTypeInfo2;
                 }

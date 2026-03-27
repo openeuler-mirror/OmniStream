@@ -9,11 +9,9 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "CheckpointBarrierHandler.h"
-#include "CheckpointBarrierHandler.h"
 #include "metrics/Clock.h"
 
 namespace omnistream {
-
     CheckpointBarrierHandler::CheckpointBarrierHandler(
         CheckpointableTask* toNotifyOnCheckpoint,
         Clock& clock,
@@ -135,6 +133,7 @@ namespace omnistream {
 
     void CheckpointBarrierHandler::AddProcessedBytes(int bytes)
     {
+        INFO_RELEASE("Add processed bytes: " << bytes);
         if (IsDuringAlignment()) {
             bytesProcessedDuringAlignment += bytes;
         }

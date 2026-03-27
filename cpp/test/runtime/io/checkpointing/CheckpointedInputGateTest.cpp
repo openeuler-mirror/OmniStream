@@ -88,10 +88,14 @@ public:
 
     void RequestPartitions() override {}
 
-    std::shared_ptr<CompletableFuture> getStateConsumedFuture() override
+    std::shared_ptr<CompletableFutureV2<void>> getStateConsumedFuture() override
     {
-        return std::make_shared<CompletableFuture>();
+       return std::make_shared<CompletableFutureV2<void>>();
     }
+
+    std::vector<bool> getStateConsumedFuture1() override
+    {
+        return {};
 
     void FinishReadRecoveredState() override {}
 

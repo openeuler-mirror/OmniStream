@@ -413,7 +413,7 @@ int PipelinedSubpartition::add(std::shared_ptr<BufferConsumer> bufferConsumer, i
             return -1;
         }
 
-        LOG_TRACE("before add buffer ")
+        INFO_RELEASE("before add buffer ")
         if (addBuffer(bufferConsumer, partialRecordLength)) {
             prioritySequenceNumber = sequenceNumber;
         }
@@ -435,16 +435,15 @@ int PipelinedSubpartition::add(std::shared_ptr<BufferConsumer> bufferConsumer, i
 
 bool PipelinedSubpartition::addBuffer(std::shared_ptr<BufferConsumer> bufferConsumer, int partialRecordLength)
 {
-    LOG("buffer consumer added to buffers" << (bufferConsumer->isBuffer() ? "buffer": "event"))
+    INFO_RELEASE("buffer consumer added to buffers" << (bufferConsumer->isBuffer() ? "buffer": "event"))
     if (bufferConsumer->getDataType().hasPriority()) {
-        LOG_DEBUG("111111!")
         return ProcessPriorityBuffer(bufferConsumer, partialRecordLength);
     } else if (ObjectBufferDataType::TIMEOUTABLE_ALIGNED_CHECKPOINT_BARRIER == bufferConsumer->getDataType()) {
-        LOG_DEBUG("111111!")
+        INFO_RELEASE("PipelinedSubpartition::addBuffer");
         ProcessTimeoutableCheckpointBarrier(bufferConsumer);
     }
     buffers.add(std::make_shared<BufferConsumerWithPartialRecordLength>(bufferConsumer, partialRecordLength));
-    LOG("buffer priorityqueue size " << std::to_string(buffers.size()) << " first buffer  "
+    INFO_RELEASE("buffer priorityqueue size " << std::to_string(buffers.size()) << " first buffer  "
                                      << std::to_string(reinterpret_cast<long>(buffers.peek().get())))
     return false;
 }

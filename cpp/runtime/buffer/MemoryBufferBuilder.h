@@ -21,7 +21,7 @@
 #include "MemoryBufferConsumer.h"
 #include "api/common/TimerThreadPool.h"
 
-namespace datastream {
+namespace omnistream::datastream {
 
 // check
 class MemoryBufferBuilder : public BufferBuilder {
@@ -33,6 +33,8 @@ public:
     int appendAndCommit(void* source) override;
 
     int append(void *source);
+
+    int appendRawBytes(const uint8_t* source, int length);
 
     // using BufferBuilder::createBufferConsumer;
     std::shared_ptr<BufferConsumer> createBufferConsumerFromBeginning() override;

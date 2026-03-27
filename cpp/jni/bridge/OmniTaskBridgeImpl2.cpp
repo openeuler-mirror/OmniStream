@@ -515,6 +515,245 @@ jobject OmniTaskBridgeImpl2::CallUploadFilesToCheckpointFs(const std::vector<Pat
     return jResult;
 }
 
+jobject ConvertToJavaByteStreamStateHandle(JNIEnv* env, const ByteStreamStateHandle& cppHandle)
+{
+    // 1. 鑾峰彇 Java 绫诲拰鏂规硶 ID
+    jclass byteStreamStateHandleClass = env->FindClass(
+        "org/apache/flink/runtime/state/memory/ByteStreamStateHandle");
+    if (!byteStreamStateHandleClass) {
+        env->ExceptionDescribe();
+        return nullptr;
+    }
+
+    jmethodID constructor = env->GetMethodID(
+        byteStreamStateHandleClass,
+        "<init>",
+        "(Ljava/lang/String;[B)V");
+    if (!constructor) {
+        env->ExceptionDescribe();
+        env->DeleteLocalRef(byteStreamStateHandleClass);
+        return nullptr;
+    }
+
+    // 2. 杞崲 handleName
+    jstring jHandleName = env->NewStringUTF(cppHandle.GetHandleName().c_str());
+    if (!jHandleName) {
+        env->DeleteLocalRef(byteStreamStateHandleClass);
+        return nullptr;
+    }
+
+    // 3. 杞崲 data (std::vector<uint8_t> -> jbyteArray)
+    const auto& cppData = cppHandle.GetData();
+    jbyteArray jData = env->NewByteArray(static_cast<jsize>(cppData.size()));
+    if (!jData) {
+        env->DeleteLocalRef(jHandleName);
+        env->DeleteLocalRef(byteStreamStateHandleClass);
+        return nullptr;
+    }
+    env->SetByteArrayRegion(
+        jData,
+        0,
+        static_cast<jsize>(cppData.size()),
+        reinterpret_cast<const jbyte*>(cppData.data()));
+
+    // 4. 鍒涘缓 Java 瀵硅薄
+    jobject javaHandle = env->NewObject(
+        byteStreamStateHandleClass,
+        constructor,
+        jHandleName,
+        jData);
+
+    // 5. 娓呯悊灞€閮ㄥ紩鐢?+    env->DeleteLocalRef(jHandleName);
+    env->DeleteLocalRef(jData);
+    env->DeleteLocalRef(byteStreamStateHandleClass);
+
+    return javaHandle;
+}
+
+jobject ConvertToJavaFileStateHandle(JNIEnv* env, const FileStateHandle& cppHandle)
+{
+    // 1. 鑾峰彇Java绫诲拰鏂规硶
+    jclass fileStateHandleClass = env->FindClass("org/apache/flink/runtime/state/filesystem/FileStateHandle");
+    if (!fileStateHandleClass) {
+        env->ExceptionDescribe();
+        return nullptr;
+    }
+
+    jmethodID constructor = env->GetMethodID(
+        fileStateHandleClass,
+        "<init>",
+        "(Lorg/apache/flink/core/fs/Path;J)V");
+    if (!constructor) {
+        env->ExceptionDescribe();
+        env->DeleteLocalRef(fileStateHandleClass);
+        return nullptr;
+    }
+
+    // 2. 杞崲鏂囦欢璺緞锛圥ath瀵硅薄锛?+    // 鍏堣幏鍙朖ava鐨凱ath绫?+    jclass pathClass = env->FindClass("org/apache/flink/core/fs/Path");
+    jmethodID pathConstructor = env->GetMethodID(pathClass, "<init>", "(Ljava/lang/String;)V");
+
+    // 灏咰++璺緞杞崲涓篔ava瀛楃涓?+    std::string filePathStr = cppHandle.GetFilePath().toString();
+    jstring jFilePathStr = env->NewStringUTF(filePathStr.c_str());
+
+    // 鍒涘缓Java Path瀵硅薄
+    jobject javaPath = env->NewObject(pathClass, pathConstructor, jFilePathStr);
+
+    // 3. 鍒涘缓Java FileStateHandle瀵硅薄
+    jobject javaHandle = env->NewObject(
+        fileStateHandleClass,
+        constructor,
+        javaPath,
+        static_cast<jlong>(cppHandle.GetStateSize())
+    );
+
+    // 4. 娓呯悊灞€閮ㄥ紩鐢?+    env->DeleteLocalRef(jFilePathStr);
+    env->DeleteLocalRef(javaPath);
+    env->DeleteLocalRef(pathClass);
+    env->DeleteLocalRef(fileStateHandleClass);
+
+    return javaHandle;
+}
+
+jobject ConvertToJavaRelativeFileStateHandle(JNIEnv* env, const RelativeFileStateHandle& cppHandle)
+{
+    // 1. 鑾峰彇Java绫诲拰鏂规硶
+    jclass relativeHandleClass = env->FindClass(
+        "org/apache/flink/runtime/state/filesystem/RelativeFileStateHandle");
+    if (!relativeHandleClass) {
+        env->ExceptionDescribe();
+        return nullptr;
+    }
+
+    jmethodID constructor = env->GetMethodID(
+        relativeHandleClass,
+        "<init>",
+        "(Lorg/apache/flink/core/fs/Path;Ljava/lang/String;J)V");
+    if (!constructor) {
+        env->ExceptionDescribe();
+        env->DeleteLocalRef(relativeHandleClass);
+        return nullptr;
+    }
+
+    // 2. 杞崲鏂囦欢璺緞锛堝鐢‵ileStateHandle鐨凱ath杞崲閫昏緫锛?+    jclass pathClass = env->FindClass("org/apache/flink/core/fs/Path");
+    jmethodID pathConstructor = env->GetMethodID(pathClass, "<init>", "(Ljava/lang/String;)V");
+
+    std::string filePathStr = cppHandle.GetFilePath().toString();
+    jstring jFilePathStr = env->NewStringUTF(filePathStr.c_str());
+    jobject javaPath = env->NewObject(pathClass, pathConstructor, jFilePathStr);
+
+    // 3. 杞崲鐩稿璺緞
+    jstring jRelativePath = env->NewStringUTF(cppHandle.GetRelativePath().c_str());
+
+    // 4. 鍒涘缓Java瀵硅薄
+    jobject javaHandle = env->NewObject(
+        relativeHandleClass,
+        constructor,
+        javaPath,
+        jRelativePath,
+        static_cast<jlong>(cppHandle.GetStateSize())
+    );
+
+    // 5. 娓呯悊灞€閮ㄥ紩鐢?+    env->DeleteLocalRef(jFilePathStr);
+    env->DeleteLocalRef(javaPath);
+    env->DeleteLocalRef(jRelativePath);
+    env->DeleteLocalRef(pathClass);
+    env->DeleteLocalRef(relativeHandleClass);
+
+    return javaHandle;
+}
+
+jobject ConvertPathStrToJavaPath(JNIEnv* env, const std::filesystem::path& restoreInstancePath)
+{
+    // 1. 鑾峰彇Java鐨凱aths绫诲拰get鏂规硶
+    jclass pathsClass = env->FindClass("java/nio/file/Paths");
+    if (pathsClass == nullptr) {
+        // 绫绘湭鎵惧埌澶勭悊
+        return nullptr;
+    }
+
+    // 2. 鑾峰彇Paths.get(String, String...)鏂规硶
+    jmethodID getMethod = env->GetStaticMethodID(
+        pathsClass,
+        "get",
+        "(Ljava/lang/String;[Ljava/lang/String;)Ljava/nio/file/Path;");
+    if (getMethod == nullptr) {
+        // 鏂规硶鏈壘鍒板鐞?+        env->DeleteLocalRef(pathsClass);
+        return nullptr;
+    }
+
+    // 3. 灏唂s::path杞崲涓簀string
+    jstring pathString = env->NewStringUTF(restoreInstancePath.string().c_str());
+
+    // 4. 鍒涘缓绌虹殑String鏁扮粍浣滀负鍙彉鍙傛暟锛圥aths.get鐨勭浜屼釜鍙傛暟锛?+    jobjectArray emptyArray = env->NewObjectArray(0, env->FindClass("java/lang/String"), nullptr);
+
+    // 5. 璋冪敤Paths.get鏂规硶
+    jobject javaPath = env->CallStaticObjectMethod(
+        pathsClass,
+        getMethod,
+        pathString,
+        emptyArray);
+
+    // 6. 娓呯悊灞€閮ㄥ紩鐢?+    env->DeleteLocalRef(pathString);
+    env->DeleteLocalRef(emptyArray);
+    env->DeleteLocalRef(pathsClass);
+
+    return javaPath;
+}
+
+jobject ConvertToJavaStreamStateHandle(JNIEnv* env, const StreamStateHandle& cppHandle)
+{
+    // 鍔ㄦ€佺被鍨嬫鏌ワ紙濡傛灉鏄?ByteStreamStateHandle锛?+    if (auto byteHandle = dynamic_cast<const ByteStreamStateHandle*>(&cppHandle)) {
+        return ConvertToJavaByteStreamStateHandle(env, *byteHandle);
+    } else if (auto fileHandle = dynamic_cast<const FileStateHandle*>(&cppHandle)) {
+        return ConvertToJavaFileStateHandle(env, *fileHandle);
+    } else if (auto relHandle = dynamic_cast<const RelativeFileStateHandle*>(&cppHandle)) {
+        return ConvertToJavaRelativeFileStateHandle(env, *relHandle);
+    } else {
+        env->ThrowNew(
+            env->FindClass("java/lang/UnsupportedOperationException"),
+            "Unsupported StreamStateHandle type");
+        return nullptr;
+    }
+}
+
+bool OmniTaskBridgeImpl2::CallDownloadFileToLocal(const StreamStateHandle &cppHandle,
+    const std::string &restoreInstancePath)
+{
+    JNIEnv* env = nullptr;
+    jint attachRes = 0;
+    jint ret = g_OmniStreamJVM->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_8);
+    if (ret == JNI_EDETACHED) {
+        attachRes = g_OmniStreamJVM->AttachCurrentThread(reinterpret_cast<void**>(&env), nullptr);
+    }
+    if (attachRes != JNI_OK || env == nullptr) {
+        GErrorLog("Failed to attach C++ thread to JVM inside CallDownloadFileToLocal");
+        return false;
+    }
+
+    jobject restoreFileHandle = ConvertToJavaStreamStateHandle(env, cppHandle);
+    if (restoreFileHandle == nullptr) {
+        GErrorLog("Failed to convert to java stream state handle");
+        return false;
+    }
+    jobject restoreTargetPath = ConvertPathStrToJavaPath(env, restoreInstancePath);
+    if (restoreTargetPath == nullptr) {
+        GErrorLog("Failed to convert to java path");
+        return false;
+    }
+    jclass cls = env->GetObjectClass(m_globalOmniTaskRef);
+    // 鑾峰彇CallDownloadFileToLocal鏂规硶ID
+    jmethodID mid = env->GetMethodID(cls, "callDownloadFileToLocal",
+        "(Lorg/apache/flink/runtime/state/StreamStateHandle;Ljava/nio/file/Path;)Z");
+    auto jResult = env->CallBooleanMethod(m_globalOmniTaskRef, mid, restoreFileHandle, restoreTargetPath);
+    env->DeleteLocalRef(cls);
+    if (env->ExceptionCheck()) {
+        env->ExceptionDescribe();
+        env->ExceptionClear();
+        return false;
+    }
+    return jResult == JNI_TRUE;
+}
+
 std::vector<StateMetaInfoSnapshot> convertResult(const std::string& cppResult)
 {
     // reconstruct std::vector<StateMetaInfoSnapshot>

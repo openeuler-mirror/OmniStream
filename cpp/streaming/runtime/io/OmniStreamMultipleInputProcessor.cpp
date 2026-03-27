@@ -29,6 +29,16 @@ namespace omnistream {
         LOG("OmniStreamMultipleInputProcessor processInput reading index = " << readingInputIndex)
         DataInputStatus dataInputStatus = processors[readingInputIndex]->processInput();
         DataInputStatus status = inputSelectionHandler->updateStatusAndSelection(dataInputStatus, readingInputIndex);
+        if (status == DataInputStatus::END_OF_RECOVERY) {
+            suspendNum--;
+            if (UNLIKELY(suspendNum < 0)) {
+                LOG("Error: suspendNum should more than zero.")
+                throw std::runtime_error("Error: suspendNum should more than zero.");
+            }
+            if (suspendNum != 0) {
+                return DataInputStatus::MORE_AVAILABLE;
+            }
+        }
         return status;
     }
 

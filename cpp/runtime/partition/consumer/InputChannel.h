@@ -68,6 +68,17 @@ public:
     int getCurrentBackoff() const;
     bool increaseBackoff();
 
+    void setConsumedSubpartitionIndex(int index)
+    {
+        consumedSubpartitionIndex = index;
+    }
+
+
+    std::shared_ptr<SingleInputGate> getInputGate()
+    {
+        return inputGate;
+    }
+
 public:
     virtual int unsynchronizedGetNumberOfQueuedBuffers()
     {
@@ -78,7 +89,7 @@ public:
         return 0;
     }
     virtual void setup(){};
-    virtual std::string toString() = 0;
+    virtual std::string toString(){};
     static const int initBackoffConstant = 100;
     static const int maxBackoffConstant = 1000;
 protected:
@@ -95,6 +106,7 @@ protected:
     std::shared_ptr<Counter> numBytesIn;
     std::shared_ptr<Counter> numBuffersIn;
     int currentBackoff;
+    int consumedSubpartitionIndex;
 
 protected:
     void notifyChannelNonEmpty();

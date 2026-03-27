@@ -16,6 +16,7 @@
 #include "BufferAvailabilityListener.h"
 #include "ResultSubpartition.h"
 #include "AvailabilityWithBacklog.h"
+#include "core/include/common.h"
 
 namespace omnistream {
 
@@ -39,6 +40,7 @@ BufferAndBacklog* PipelinedSubpartitionView::getNextBuffer()
 
 void PipelinedSubpartitionView::notifyDataAvailable()
 {
+    INFO_RELEASE("PipelinedSubpartitionView notifyDataAvailable invoke!");
     availabilityListener->notifyDataAvailable();
 }
 

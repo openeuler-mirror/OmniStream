@@ -186,6 +186,11 @@ namespace omnistream {
             localRecoveryConfig = std::move(config);
             taskStateManager_->setLocalRecoveryConfig(localRecoveryConfig);
         }
+
+        std::vector<std::shared_ptr<ResultPartitionWriter>> getAllWriters()
+        {
+            return writers_;
+        }
     private:
         std::shared_ptr<ShuffleEnvironment> omniShuffleEnvironment_;
         TaskInformationPOD taskConfiguration_;

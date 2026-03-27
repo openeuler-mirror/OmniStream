@@ -273,7 +273,7 @@ nlohmann::json TaskStateSnapshotSerializer::parseSharedState(
 }
 
 nlohmann::json TaskStateSnapshotSerializer::parseInflightDataRescalingDescriptor(
-    const InflightDataRescalingDescriptor& rescalingDescriptor)
+    const std::shared_ptr<InflightDataRescalingDescriptor> rescalingDescriptor)
 {
     // TTODO: Now we assume it is empty
     nlohmann::json inputRescalingDesc;

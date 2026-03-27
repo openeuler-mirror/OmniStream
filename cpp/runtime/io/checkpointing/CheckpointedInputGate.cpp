@@ -15,6 +15,7 @@
 #include "event/EndOfPartitionEvent.h"
 #include "event/EndOfChannelStateEvent.h"
 #include "io/network/api/EventAnnouncement.h"
+#include "iostream"
 
 namespace omnistream {
 
@@ -24,7 +25,7 @@ CheckpointedInputGate::CheckpointedInputGate(std::shared_ptr<InputGate> inputGat
     : inputGate_(std::move(inputGate)),
     barrierHandler_(std::move(barrierHandler)),
     mailboxExecutor_(std::move(mailboxExecutor)),
-    upstreamRecoveryTracker_(UpstreamRecoveryTracker::NO_OP()),
+    upstreamRecoveryTracker_(std::make_shared<UpstreamRecoveryTrackerImpl>(inputGate_)),
     isFinished_(false) {}
 
 CheckpointedInputGate::CheckpointedInputGate(std::shared_ptr<InputGate> inputGate,
@@ -72,27 +73,27 @@ BufferOrEvent* CheckpointedInputGate::HandleEvent(
     if (bufferOrEvent->getEvent()->GetEventClassName() == "CheckpointBarrier") {
         auto checkpointBarrier = std::dynamic_pointer_cast<CheckpointBarrier>(bufferOrEvent->getEvent());
         if (!checkpointBarrier) {
-            LOG("checkpointBarrier is nullptr")
+            INFO_RELEASE("CheckpointedInputGate::HandleEvent checkpointBarrier is nullptr")
             throw std::runtime_error("Failed to cast event to CheckpointBarrier");
         }
         barrierHandler_->ProcessBarrier(*checkpointBarrier,
                                         bufferOrEvent->getChannelInfo(),
                                         false);
     } else if (bufferOrEvent->getEvent()->GetEventClassName() == "EventAnnouncement") {
-        LOG("received an announcement event.")
+        INFO_RELEASE("CheckpointedInputGate::HandleEvent received an announcement event.")
         auto ann = std::dynamic_pointer_cast<EventAnnouncement>(bufferOrEvent->getEvent());
         if (!ann) {
-            LOG("ann is nullptr!")
+            INFO_RELEASE("CheckpointedInputGate::HandleEvent ann is nullptr!")
             throw std::runtime_error("Failed to cast event to EventAnnouncement");
         }
 
         auto announced = ann->GetAnnouncedEvent();
         // announcements are used to announce timeoutable aligned checkpoint barriers.
         if (announced && announced->GetEventClassName() == "CheckpointBarrier") {
-            LOG("event class name is CheckpointBarrier.")
+            INFO_RELEASE("CheckpointedInputGate::HandleEvent event class name is CheckpointBarrier.")
             auto announcedBarrier = std::dynamic_pointer_cast<CheckpointBarrier>(announced);
             if (!announcedBarrier) {
-                LOG("announcedBarrier is nullptr!")
+                INFO_RELEASE("CheckpointedInputGate::HandleEvent announcedBarrier is nullptr!")
                 throw std::runtime_error("Failed to cast announced event to CheckpointBarrier");
             }
             barrierHandler_->ProcessBarrierAnnouncement(*announcedBarrier,
@@ -106,6 +107,7 @@ BufferOrEvent* CheckpointedInputGate::HandleEvent(
     } else if (bufferOrEvent->getEvent()->GetEventClassName() == "EndOfPartitionEvent") {
         barrierHandler_->ProcessEndOfPartition(bufferOrEvent->getChannelInfo());
     } else if (bufferOrEvent->getEvent()->GetEventClassName() == "EndOfChannelStateEvent") {
+        INFO_RELEASE("CheckpointedInputGate::HandleEvent received an EndOfChannelStateEvent.");
         upstreamRecoveryTracker_->handleEndOfRecovery(bufferOrEvent->getChannelInfo());
     } else {
     }

@@ -32,8 +32,8 @@ public:
     std::string toDebugString() const;
 
 private:
-    const bool whetherFullRecord;
-    const bool whetherBufferConsumed;
+     bool whetherFullRecord;
+     bool whetherBufferConsumed;
 };
 
 extern DeserializationResult DeserializationResult_PARTIAL_RECORD;

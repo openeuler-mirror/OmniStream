@@ -45,9 +45,16 @@ public:
         LOG("MockInputGate::setup called for gateIndex=" << gateIndex_);
     }
 
-    std::shared_ptr<CompletableFuture> getStateConsumedFuture() override {
+    std::shared_ptr<CompletableFutureV2<void>> getStateConsumedFuture() override {
         return stateConsumedFuture_;
     }
+
+
+    std::vector<bool> getStateConsumedFuture1() override
+    {
+        return {};
+    }
+
 
     void RequestPartitions() override {
         LOG( "MockInputGate::RequestPartitions called");
@@ -164,7 +171,7 @@ private:
     int bufferSize_;
     int consumedPartitionType_;
 
-    std::shared_ptr<CompletableFuture> stateConsumedFuture_;
+    std::shared_ptr<CompletableFutureV2<void>> stateConsumedFuture_;
     std::shared_ptr<CompletableFuture> closeFuture_;
 
     std::shared_ptr<ObjectBufferPool> bufferPool_;
