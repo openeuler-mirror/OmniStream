@@ -63,7 +63,7 @@ namespace omnistream {
             }
             return OmniStreamTaskNetworkInputFactory::create(0, inputGate, taskType,
                                                          new BinaryRowDataSerializer(typeList.size(), typeList),
-                                                         channelInfoIndex, inputRescalingDescriptor,getP
+                                                         channelInfoIndex, inputRescalingDescriptor,getPartitionerFunction, &taskConfiguration_);
         } else if (taskType == 2) {
             auto operatorPod = this->taskConfiguration_.getStreamConfigPOD().getOperatorDescription();
 

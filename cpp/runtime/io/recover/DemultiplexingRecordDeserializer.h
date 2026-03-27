@@ -27,10 +27,10 @@
 #include "runtime/streamrecord/StreamRecord.h"
 #include "api/watermark/Watermark.h"
 #include "watermark/WatermarkStatus.h"
-#include "event/SubtaskConnectionDescriptor.h"
+#include "runtime/event/SubtaskConnectionDescriptor.h"
 #include "partition/consumer/InputChannelInfo.h"
 #include "checkpoint/InflightDataRescalingDescriptor.h"
-#include "RecordFilter.h"
+#include "runtime/io/recover/RecordFilter.h"
 
 namespace omnistream {
 
@@ -210,7 +210,6 @@ public:
         }
         int totalChannels = oldSubtaskIndexes.size() * oldChannelIndexes.size();
         std::map<long, std::shared_ptr<VirtualChannel>> virtualChannels;
-        auto func = RecordFilter::all();
         for (int subtask : oldSubtaskIndexes) {
             for (int channel : oldChannelIndexes) {
                 SubtaskConnectionDescriptor descriptor = *new SubtaskConnectionDescriptor(subtask, channel);

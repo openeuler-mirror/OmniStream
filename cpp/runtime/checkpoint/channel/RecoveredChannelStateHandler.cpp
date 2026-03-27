@@ -66,9 +66,9 @@ void ResultSubpartitionRecoveredStateHandler::recover(const ResultSubpartitionIn
         INFO_RELEASE("ResultSubpartitionRecoveredStateHandler::recover exception:" << e.what());
     }
 
-                                         << ", subpartition " << subpartitionInfo.getSubPartitionIdx()
+    INFO_RELEASE("Recover state for partition" << ", subpartition " << subpartitionInfo.getSubPartitionIdx()
                                          << ", size " << bufferConsumer->getBufferSize()
-                                         << ", mappedChannels=" << channels.size())
+                                         << ", mappedChannels=" << channels.size());
 }
 
 void ResultSubpartitionRecoveredStateHandler::close()

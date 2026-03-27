@@ -26,7 +26,10 @@ namespace omnistream {
         static OmniStreamMultipleInputProcessor* create(OperatorChainV2* operatorChain,
                                                                         std::vector<std::shared_ptr<CheckpointedInputGate>> inputGates,
                                                                         TwoInputStreamOperator* streamOperator,
-                                                                        int taskType, const json &description)
+                                                                        int taskType, const json &description,
+                                                        std::shared_ptr<InflightDataRescalingDescriptor> inflightDataRescalingDescriptor,
+                                                        std::function<StreamPartitioner<IOReadableWritable> *(int)> getPartitionerFunction,
+                                                        TaskInformationPOD *taskInfo)
         {
             // 1. Create Input
             std::vector<OmniStreamOneInputProcessor*> processors;

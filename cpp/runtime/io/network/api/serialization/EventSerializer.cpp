@@ -28,6 +28,7 @@
 #include "runtime/event/EndOfChannelStateEvent.h"
 #include "runtime/event/EndOfSegmentEvent.h"
 #include "runtime/io/network/api/CancelCheckpointMarker.h"
+#include "runtime/event/SubtaskConnectionDescriptor.h"
 
 namespace omnistream {
     const int EventSerializer::INVALID_EVENT = -1;

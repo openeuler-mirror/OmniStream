@@ -31,6 +31,8 @@
 #include "typeutils/TypeSerializer.h"
 #include "runtime/io/checkpointing/CheckpointedInputGate.h"
 #include "runtime/event/EndOfChannelStateEvent.h"
+#include "table/typeutils/BinaryRowDataSerializer.h"
+
 namespace omnistream {
 class OmniAbstractStreamTaskNetworkInput : public OmniStreamTaskInput {
 public:
@@ -549,7 +551,7 @@ public:
                                                                long checkpointId) override
     {
         LOG("Network prepare snapshot, checkpointId: " << checkpointId);
-        for (const auto &pair : *recordDeserializers) {
+        for (const auto &pair : recordDeserializers) {
             std::vector<InputChannelInfo> channelInfofos = inputGate->GetChannelInfos(); 
             try {
                 std::vector<omnistream::Buffer*> buffers = (pair.second)->GetUnconsumedBuffer();
@@ -582,8 +584,9 @@ protected:
         output->emitRecord(static_cast<StreamRecord *>(recordOrMark));
     }
 
-    DataInputStatus processEvent(std::shared_ptr<AbstractEvent> event)
+    virtual DataInputStatus processEvent(BufferOrEvent *bufferOrEvent)
     {
+        std::shared_ptr<AbstractEvent> event = bufferOrEvent->getEvent();
         if (dynamic_cast<EndOfData *>(event.get())) { // END_OF_USER_RECORDS_EVENT is End_of_Data
             if (inputGate->HasReceivedEndOfData()) {
                 INFO_RELEASE("received a EndOfData event!");
@@ -607,8 +610,9 @@ protected:
     }
 
     // Specifically for SQL from original task
-    DataInputStatus processEvent(std::shared_ptr<AbstractEvent> event, OmniPushingAsyncDataInput::OmniDataOutput *output)
+    DataInputStatus processEvent(BufferOrEvent &bufferOrEvent, OmniPushingAsyncDataInput::OmniDataOutput *output)
     {
+        std::shared_ptr<AbstractEvent> event = bufferOrEvent.getEvent();
         if (dynamic_cast<EndOfData *>(event.get())) { // END_OF_USER_RECORDS_EVENT is End_of_Data
             if (inputGate->HasReceivedEndOfData()) {
                 // Which means reach the end of Data, if the rowList still remains data, create the last vectorbatch and send to output

@@ -34,7 +34,8 @@ public:
     RecordFilter(omnistream::datastream::ChannelSelector<IOReadableWritable> *partitioner,
                  TypeSerializer *inputSerializer, int subtaskIndex)
         : partitioner(partitioner), subtaskIndex(subtaskIndex)
-   +        // Initialize the delegate with the serializer.
+    {
+         // Initialize the delegate with the serializer.
         delegate = new SerializationDelegate(inputSerializer);
     }
 
@@ -67,7 +68,7 @@ public:
     }
 
 private:
-    omnistream::datastream::ChannelSelector<IORr;
+    omnistream::datastream::ChannelSelector<IOReadableWritable> *partitioner;
     SerializationDelegate *delegate;
     int subtaskIndex;
     std::shared_ptr<omnistream::datastream::StreamElementSerializer> streamElementSerializer;

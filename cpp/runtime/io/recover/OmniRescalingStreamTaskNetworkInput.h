@@ -166,7 +166,6 @@ public:
 
         for (auto &channelInfo : checkpointedInputGate->GetChannelInfos()) {
             auto channelId = channelInfo.getComplexId();
-            INFO_RELEASE("channel info:" << channelId << ",sub:" << ctChannelIdx());
             deserializers[channelId] = DemultiplexingRecordDeserializer::create(channelInfo, rescalingDescriptor,
                                                                                 DeserializerFactory::apply, function);
         }

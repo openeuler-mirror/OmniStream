@@ -24,6 +24,7 @@
 #include "runtime/io/checkpointing/BarrierAlignmentUtil.h"
 #include "streaming/runtime/tasks/SystemProcessingTimeService.h"
 #include "streaming/runtime/io/OmniStreamTaskSourceInput.h"
+#include "partition/consumer/RemoteInputChannel.h"
 #include "metrics/SystemClock.h"
 
 namespace omnistream {

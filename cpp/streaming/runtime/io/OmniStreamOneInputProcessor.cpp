@@ -10,6 +10,7 @@
  */
 
 #include "OmniStreamOneInputProcessor.h"
+#include "io/recover/OmniRescalingStreamTaskNetworkInput.h"
 
 namespace omnistream {
     OmniStreamOneInputProcessor::OmniStreamOneInputProcessor(OmniStreamTaskInput *input,
