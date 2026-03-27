@@ -118,5 +118,8 @@ namespace omnistream::datastream {
            << ", finished=" << isFinished() << "}";
         return ss.str();
     }
-
+    Segment* MemoryBufferBuilder::GetSegment()
+    {
+        return memorySegment;
+    }
 }

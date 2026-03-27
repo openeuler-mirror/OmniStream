@@ -10,7 +10,8 @@
  */
 
 #include "OperatorChain.h"
-
+#include <semaphore.h>
+#include <atomic>
 #include <streaming/api/operators/StreamOperatorFactory.h>
 #include "ChainingOutput.h"
 #include "DataStreamChainingOutput.h"
@@ -477,7 +478,7 @@ void OperatorChainV2::NotifyCheckpointSubsumed(long checkpointId)
 }
 
 void OperatorChainV2::SnapshotState(
-    std::unordered_map<OperatorID, OperatorSnapshotFutures *>& operatorSnapshotsInProgress,
+    std::unordered_map<OperatorID, OperatorSnapshotFutures *> *operatorSnapshotsInProgress,
     CheckpointMetaData &checkpointMetaData, CheckpointOptions *checkpointOptions, std::shared_ptr<Supplier<bool>> isRunning,
     std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> channelStateWriteResult, CheckpointStreamFactory* storage,
     const std::shared_ptr<OmniTaskBridge>& bridge)
@@ -486,7 +487,7 @@ void OperatorChainV2::SnapshotState(
         auto iter = getAllOperators(true);
         while (iter.hasNext()) {
             auto op = iter.next()->getStreamOperator();
-            operatorSnapshotsInProgress[op->GetOperatorID()]
+            (*operatorSnapshotsInProgress)[op->GetOperatorID()]
             = BuildOperatorSnapshotFutures(checkpointMetaData, checkpointOptions, op, isRunning,
                 channelStateWriteResult, storage, bridge);
         }
@@ -503,7 +504,9 @@ OperatorSnapshotFutures *OperatorChainV2::BuildOperatorSnapshotFutures(Checkpoin
 {
     OperatorSnapshotFutures *snapshotInProgress = CheckpointStreamOperator(op, checkpointMetaData, checkpointOptions,
         storage, isRunning, bridge);
-    SnapshotChannelStates(op, channelStateWriteResult, snapshotInProgress);
+    if (channelStateWriteResult->IsNeedsChannelState()) {
+        SnapshotChannelStates(op, channelStateWriteResult, snapshotInProgress);
+    }
     return snapshotInProgress;
 }
 
@@ -548,9 +551,11 @@ void OperatorChainV2::SnapshotChannelStates(StreamOperator *op,
 {
     StreamOperator* mainOpe = (mainOperatorWrapper == nullptr) ? nullptr : mainOperatorWrapper->getStreamOperator();
     if (mainOpe == op) {
+        snapshotInProgress->OperatorSemInit();
         channelStateWriteResult->GetInputChannelStateHandles()->ThenApply(
-                [&snapshotInProgress](const std::shared_ptr<std::vector<std::shared_ptr<InputChannelStateHandle>>>& handles_ptr) {
+                [snapshotInProgress](const std::shared_ptr<std::vector<std::shared_ptr<InputChannelStateHandle>>>& handles_ptr) {
                     if (!handles_ptr) {
+                        snapshotInProgress->OperatorSemPost();
                         return;
                     }
                     std::shared_ptr<StateObjectCollection<InputChannelStateHandle>> collection = std::make_shared<StateObjectCollection<InputChannelStateHandle>>(
@@ -562,14 +567,17 @@ void OperatorChainV2::SnapshotChannelStates(StreamOperator *op,
                     });
                     auto task_ptr = std::make_shared<PackagedTaskType>(std::move(task));
                     snapshotInProgress->setInputChannelStateFuture(task_ptr);
+                    snapshotInProgress->OperatorSemPost();
                 }
         );
     }
     StreamOperator* tailOpe = (tailOperatorWrapper == nullptr) ? nullptr : tailOperatorWrapper->getStreamOperator();
     if(op == tailOpe) {
+        snapshotInProgress->OperatorSemInit();
         channelStateWriteResult->GetResultSubpartitionStateHandles()->ThenApply(
-                [&snapshotInProgress](const std::shared_ptr<std::vector<std::shared_ptr<ResultSubpartitionStateHandle>>>& handles_ptr) {
+                [snapshotInProgress](const std::shared_ptr<std::vector<std::shared_ptr<ResultSubpartitionStateHandle>>>& handles_ptr) {
                     if (!handles_ptr) {
+                        snapshotInProgress->OperatorSemPost();
                         return;
                     }
                     std::shared_ptr<StateObjectCollection<ResultSubpartitionStateHandle>> collection = std::make_shared<StateObjectCollection<ResultSubpartitionStateHandle>>(
@@ -581,6 +589,7 @@ void OperatorChainV2::SnapshotChannelStates(StreamOperator *op,
                     });
                     auto task_ptr = std::make_shared<PackagedTaskType>(std::move(task));
                     snapshotInProgress->setResultSubpartitionStateFuture(task_ptr);
+                    snapshotInProgress->OperatorSemPost();
                 }
         );
     }

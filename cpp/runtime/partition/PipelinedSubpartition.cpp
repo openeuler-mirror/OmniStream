@@ -475,7 +475,12 @@ bool PipelinedSubpartition::ProcessPriorityBuffer(std::shared_ptr<BufferConsumer
         for (const auto &current : elements) {
             auto buffer = current->getBufferConsumer();
             if (buffer->isBuffer()) {
-                inflightBuffers.push_back(buffer->buildForPeek());
+                Buffer *inflightbuffer = buffer->buildForPeek();
+                if (inflightbuffer == nullptr) {
+                    LOG("writeOutput buffers is null ");
+                }
+                
+                inflightBuffers.push_back(inflightbuffer);
             }
         }
 
@@ -529,7 +534,11 @@ void PipelinedSubpartition::ConvertToPriorityEvent(int announcedSequenceNumber)
             }
             auto bc = e->getBufferConsumer();
             if (bc->isBuffer()) {
-                overtaken.emplace_back(bc->buildForPeek());
+                Buffer *buffer = bc->buildForPeek();
+                if (buffer == nullptr) {
+                    LOG("writeOutput buffers is null ");
+                }
+                overtaken.emplace_back(buffer);
             }
         }
 

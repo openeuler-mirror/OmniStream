@@ -983,10 +983,11 @@ sys_time<typename std::common_type<Duration, std::chrono::seconds>::type>
 time_zone::to_sys_impl(local_time<Duration> tp, choose, std::true_type) const
 {
     auto i = get_info(tp);
-    if (i.result == local_info::nonexistent)
+    if (i.result == local_info::nonexistent) {
         throw nonexistent_local_time(tp, i);
-    else if (i.result == local_info::ambiguous)
+    } else if (i.result == local_info::ambiguous) {
         throw ambiguous_local_time(tp, i);
+    }
     return sys_time<Duration>{tp.time_since_epoch()} - i.first.offset;
 }
 
@@ -1371,9 +1372,10 @@ inline
 TimeZonePtr2&&
 zoned_time<Duration, TimeZonePtr>::check(TimeZonePtr2&& p)
 {
-    if (detail::to_raw_pointer(p) == nullptr)
+    if (detail::to_raw_pointer(p) == nullptr) {
         throw std::runtime_error(
             "zoned_time constructed with a time zone pointer == nullptr");
+	}
     return std::forward<TimeZonePtr2>(p);
 }
 

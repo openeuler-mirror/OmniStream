@@ -92,7 +92,7 @@ OmniStreamTask::OmniStreamTask(std::shared_ptr<RuntimeEnvironmentV2> &env,
         stateBackend = new RocksDBStateBackend(taskConfiguration_);
     }
     checkpointStorage = createCheckpointStorage(stateBackend);
-    std::shared_ptr<CheckpointStorageAccess> checkpointStorageAccess = checkpointStorage->createCheckpointStorage();
+    std::shared_ptr<CheckpointStorageAccess> checkpointStorageAccess = checkpointStorage->createCheckpointStorage(taskConfiguration_.getTmpWorkingDirectory());
 
         subtaskCheckpointCoordinator = std::make_shared<runtime::SubtaskCheckpointCoordinatorImpl>(
             checkpointStorage,

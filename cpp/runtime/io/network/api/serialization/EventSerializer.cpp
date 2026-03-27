@@ -25,6 +25,9 @@
 
 #include "buffer/MemoryBufferConsumer.h"
 #include "runtime/checkpoint/SavepointType.h"
+#include "runtime/event/EndOfChannelStateEvent.h"
+#include "runtime/event/EndOfSegmentEvent.h"
+#include "runtime/io/network/api/CancelCheckpointMarker.h"
 
 namespace omnistream {
     const int EventSerializer::INVALID_EVENT = -1;
@@ -42,6 +45,9 @@ namespace omnistream {
         std::shared_ptr<AbstractEvent> event, bool hasPriority)
     {
         MemorySegment *res = ToSerializedEvent(event);
+        if (res == nullptr) {
+            return nullptr;
+        }
         ObjectBufferDataType dataType = ObjectBufferDataType::GetDataBufferType(hasPriority, event);
         NetworkBuffer* networkBuffer = new NetworkBuffer(
             res, res->getSize(), 0, EventDataBufferRecycler::GetInstance(), dataType, true);
@@ -53,7 +59,10 @@ namespace omnistream {
     std::shared_ptr<BufferConsumer> EventSerializer::ToBufferConsumer(std::shared_ptr<AbstractEvent> event,
                                                                       bool hasPriority)
     {
-        NetworkBuffer* buffer = toBuffer(event, hasPriority);
+        NetworkBuffer *buffer = toBuffer(event, hasPriority);
+        if (buffer == nullptr) {
+            return nullptr;
+        }
         int eventSize = buffer->getMemorySegment()->getSize();
         std::shared_ptr<BufferConsumer> bufferConsumer = std::make_shared<datastream::MemoryBufferConsumer>(
             buffer, eventSize);

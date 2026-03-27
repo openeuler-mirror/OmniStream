@@ -45,6 +45,7 @@ namespace omnistream {
             throw std::runtime_error(taskName_ + " exceeded max checkpoints");
         }
         auto channelStateWriteResult = ChannelStateWriter::ChannelStateWriteResult::CreateEmpty();
+        channelStateWriteResult->setIsNeedsChannelState(true);
         results_.emplace(checkpointId, channelStateWriteResult);
         auto &result = results_.at(checkpointId);
 

@@ -10,6 +10,8 @@
  */
 #include "AsyncCheckpointRunnable.h"
 #include <chrono>
+#include <semaphore.h>
+#include <atomic>
 #include <thread>
 using namespace std::chrono;
 
@@ -69,7 +71,7 @@ SnapshotsFinalizeResult *AsyncCheckpointRunnable::FinalizeNonFinishedSnapshots()
     for (auto entry : *operatorSnapshotsInProgress) {
         auto operatorID = entry.first;
         OperatorSnapshotFutures *snapshotInProgress = entry.second;
-
+        snapshotInProgress->OperatorSemWait();
         auto finalizedSnapshot = std::make_shared<OperatorSnapshotFinalizer>(snapshotInProgress);
 
         jobManagerTaskOperatorSubtaskStates->PutSubtaskStateByOperatorID(

@@ -51,6 +51,7 @@ namespace omnistream {
         inline void trim(int newSize);
         inline void close();
         virtual std::string toString() = 0;
+        virtual Segment* GetSegment() = 0;
 
     protected:
         class alignas(128) SettablePositionMarker final : public PositionMarker {

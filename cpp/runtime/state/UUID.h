@@ -47,8 +47,9 @@ public:
             uint64_t val = 0;
             std::istringstream iss(s);
             iss >> std::hex >> val;
-            if (iss.fail())
+            if (iss.fail()) {
                 throw std::invalid_argument("Invalid hex in UUID: " + s);
+            }
             return val;
         };
 

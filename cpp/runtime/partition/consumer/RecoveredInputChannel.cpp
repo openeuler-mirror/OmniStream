@@ -76,9 +76,13 @@ void RecoveredInputChannel::onRecoveredStateBuffer2(Buffer *buffer)
 void RecoveredInputChannel::finishReadRecoveredState()
 {
     LOG("Recovered input channel finishReadRecoveredState!");
-    onRecoveredStateBuffer(omnistream::EventSerializer::toBuffer(EndOfChannelStateEvent::getInstance(), false));
-    bufferManager->releaseFloatingBuffers();
-    LOG(inputGate->getOwningTaskName()<<"/"<< channelInfo.toString()<< " finished recovering input!");
+    NetworkBuffer* networkBuffer = omnistream::EventSerializer::toBuffer(
+            EndOfChannelStateEvent::getInstance(), false);
+    if (networkBuffer != nullptr) {
+        onRecoveredStateBuffer(networkBuffer);
+        bufferManager->releaseFloatingBuffers();
+        LOG(inputGate->getOwningTaskName()<<"/"<< channelInfo.toString()<< " finished recovering input!");
+    }
 }
 
 std::optional<omnistream::BufferAndAvailability> RecoveredInputChannel::getNextRecoveredStateBuffer()

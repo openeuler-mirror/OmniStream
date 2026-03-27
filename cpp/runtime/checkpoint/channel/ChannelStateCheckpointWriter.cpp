@@ -26,8 +26,10 @@ namespace omnistream {
         }
         subtasksToRegister = subtasks;
         checkpointStream = streamFactory->createCheckpointStateOutputStream(CheckpointedStateScope::EXCLUSIVE);
-        dataStream = new std::ostringstream();
-        serializer->WriteHeader(*dataStream);
+        size_t memSize = 64 * 1024 * 1024;
+        dataStream = (char *)malloc(memSize);
+        (void)memset_s(dataStream, memSize, 0, memSize);
+        serializer->WriteHeader(dataStream);
     }
 
     ChannelStateCheckpointWriter::~ChannelStateCheckpointWriter()
@@ -56,7 +58,7 @@ namespace omnistream {
     void ChannelStateCheckpointWriter::ReleaseSubtask(const SubtaskID &id)
     {
         subtasksToRegister.erase(id);
-        TryFinishResult();
+        TryFinishResult(nullptr);
     }
 
     void ChannelStateCheckpointWriter::WriteInput(const JobVertexID &jvid,
@@ -101,8 +103,9 @@ namespace omnistream {
             return;
         }
 
-        GetChannelStatePendingResult(jvid, subtaskIndex)->CompleteInput();
-        TryFinishResult();
+        ChannelStatePendingResult *pending = GetChannelStatePendingResult(jvid, subtaskIndex);
+        pending->CompleteInput();
+        TryFinishResult(pending);
     }
 
     void ChannelStateCheckpointWriter::CompleteOutput(const JobVertexID &jvid, int subtaskIndex)
@@ -111,8 +114,9 @@ namespace omnistream {
             return;
         }
 
-        GetChannelStatePendingResult(jvid, subtaskIndex)->CompleteOutput();
-        TryFinishResult();
+        ChannelStatePendingResult *pending = GetChannelStatePendingResult(jvid, subtaskIndex);
+        pending->CompleteOutput();
+        TryFinishResult(pending);
     }
 
     void ChannelStateCheckpointWriter::Fail(const JobVertexID &jvid, int subtaskIndex, const std::exception_ptr &e)
@@ -170,7 +174,7 @@ namespace omnistream {
         return false;
     }
 
-    void ChannelStateCheckpointWriter::TryFinishResult()
+    void ChannelStateCheckpointWriter::TryFinishResult(ChannelStatePendingResult *pending)
     {
         if (!subtasksToRegister.empty()) {
             return;
@@ -186,19 +190,36 @@ namespace omnistream {
         if (IsDone()) {
             onComplete();
         } else {
-            FinishWriteAndResult();
+            FinishWriteAndResult(pending);
             onComplete();
         }
     }
 
-    void ChannelStateCheckpointWriter::FinishWriteAndResult()
+    void ChannelStateCheckpointWriter::FinishWriteAndResult(ChannelStatePendingResult *pending)
     {
-        StreamStateHandle *handle = nullptr;
-        if (dataStream->str().size() == static_cast<size_t>(serializer->GetHeaderLength())) {
-            checkpointStream->Close();
-        } else {
-            checkpointStream->Flush();
-            handle = checkpointStream->CloseAndGetHandle();
+        std::shared_ptr<StreamStateHandle> handle = nullptr;
+
+        checkpointStream->Flush();
+        handle = checkpointStream->CloseAndGetHandle();
+
+        if (handle) {
+            auto channel = pending->GetInputChannelOffsets();
+            using InputChannelStateHandleVecPtr = std::shared_ptr<std::vector<std::shared_ptr<InputChannelStateHandle>>>;
+            InputChannelStateHandleVecPtr channelHandles = std::make_shared<std::vector<std::shared_ptr<InputChannelStateHandle>>>();
+            for (auto it = channel.begin(); it != channel.end(); ++it) {
+                auto inputChannelStateHandle = std::make_shared<InputChannelStateHandle>(pending->GetSubtaskIndex(), it->first, handle, it->second);
+                channelHandles->push_back(inputChannelStateHandle);
+            }
+            pending->GetResult()->GetInputChannelStateHandles()->Complete(channelHandles);
+            auto parition = pending->GetResultSubpartitionOffsets();
+            using ResultSubpartitionStateVecPtr = std::shared_ptr<std::vector<std::shared_ptr<ResultSubpartitionStateHandle>>>;
+            ResultSubpartitionStateVecPtr paritionHandles = std::make_shared<std::vector<std::shared_ptr<ResultSubpartitionStateHandle>>>();
+            for (auto it = parition.begin(); it != parition.end(); ++it) {
+
+                auto resultSubpartitionStateHandle = std::make_shared<ResultSubpartitionStateHandle>(pending->GetSubtaskIndex(), it->first, handle, it->second);
+                paritionHandles->push_back(resultSubpartitionStateHandle);
+            }
+            pending->GetResult()->GetResultSubpartitionStateHandles()->Complete(paritionHandles);
         }
     }
 

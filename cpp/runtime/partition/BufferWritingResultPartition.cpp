@@ -173,13 +173,15 @@ namespace omnistream {
 
         for (const auto& subpartition : subpartitions_) {
             auto eventBufferConsumer = EventSerializer::ToBufferConsumer(event, isPriorityEvent);
-            auto subPartitionInfo = subpartition->getSubpartitionInfo();
-            auto index = subpartition->getSubPartitionIndex();
-            subpartition->add(eventBufferConsumer, 0);
+            if (eventBufferConsumer != nullptr) {
+                auto subPartitionInfo = subpartition->getSubpartitionInfo();
+                auto index = subpartition->getSubPartitionIndex();
+                subpartition->add(eventBufferConsumer, 0);
 //            INFO_DEBUG(" Send " << event->GetEventClassName() << " to subPartition " << subPartitionInfo.toString() << ", index : " << index)
-            LOG_DEBUG("[RP=" << (void*)this << "]Send " << event->GetEventClassName()
-                << " to subPartition " << subPartitionInfo.toString()
-                << ", index : " << index)
+                LOG_DEBUG("[RP=" << (void *) this << "]Send " << event->GetEventClassName()
+                                 << " to subPartition " << subPartitionInfo.toString()
+                                 << ", index : " << index)
+            }
         }
     }
 
