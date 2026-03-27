@@ -35,6 +35,10 @@ namespace omnistream {
         void resumeConsumption() override;
 
         void SetOmniLocalInputChannelBridge(std::shared_ptr<OmniLocalInputChannelBridge> omniLocalInputChannelBridge);
+        
+        void SetForwardResumeToJava(bool forwardResumeToJava) {
+            forwardResumeToJava_ = forwardResumeToJava;
+        }
 
         void SetForwardResumeToJava(bool forwardResumeToJava) {
             forwardResumeToJava_ = forwardResumeToJava;

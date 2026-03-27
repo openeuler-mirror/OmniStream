@@ -8,7 +8,7 @@ OmniStream adopts a single-node, containerized deployment model, running Flink w
 
 A total of three Docker containers are deployed, whose specifications are all 8c32g. One container runs the Job Manager and the other two run the Task Manager.  [Figure 1](#en-us_topic_0000002263664085_fig2900236105214)  shows the networking diagram.
 
-**Figure  1**  Networking diagram<a name="en-us_topic_0000002263664085_fig2900236105214"></a>  
+**Figure  1**  Networking diagram<a name="en-us_topic_0000002263664085_fig2900236105214"></a>  <br>
 ![](figures/networking-diagram.png "networking-diagram")
 
 ### Environment Requirements<a name="EN-US_TOPIC_0000002517344922"></a>
@@ -37,21 +37,21 @@ Before installing OmniStream, prepare the hardware and software environments to 
 
 **Table  2**  OS and software requirements
 
-|Item|Version|Description|
-|--|--|--|
-|OS|openEuler 22.03 LTS SP4|None|
-|JDK|BiSheng JDK 1.8 (BiSheng JDK 1.8.0_342 recommended)|Deploy the JDK in all containers.|
-|Flink|1.16.31.17.11.20.0|See Flink Deployment Guide (CentOS & openEuler). Deploy Flink in all containers.|
-|Docker|19.03.15|None|
-|Nexmark|v0.2.0|Perform compilation by following the official instructions. Deploy Nexmark in all containers.|
-|Python|3.9.9|Deploy Python on the container or physical machine from which the job is submitted.|
-|yaml-cpp|0.6.3|Deploy it on the container or physical machine from which the job is submitted.|
-|GCC|10.3.1|None|
-|Maven|3.8.7|Use it to generate the JAR package of UDF test cases.|
-|Jemalloc|5.3.0|Use it to provide the header file used for UDF translation.|
-|OmniOperator|operator_flink_1107|Use it to provide the header file used for UDF translation.|
-|Xxhash|0.8.2|Use it to provide the header file used for UDF translation.|
-|nlohmann json|3.11.3|Use it to provide the header file used for UDF translation.|
+|Item| Version                                             |Description|
+|--|-----------------------------------------------------|--|
+|OS| openEuler 22.03 LTS SP4                             |None|
+|JDK| BiSheng JDK 1.8 (BiSheng JDK 1.8.0_342 recommended) |Deploy the JDK in all containers.|
+|Flink| 1.16.3<br>1.17.1<br>1.20.0                          |See Flink Deployment Guide (CentOS & openEuler). Deploy Flink in all containers.|
+|Docker| 19.03.15                                            |None|
+|Nexmark| v0.2.0                                              |Perform compilation by following the official instructions. Deploy Nexmark in all containers.|
+|Python| 3.9.9                                               |Deploy Python on the container or physical machine from which the job is submitted.|
+|yaml-cpp| 0.6.3                                               |Deploy it on the container or physical machine from which the job is submitted.|
+|GCC| 10.3.1                                              |None|
+|Maven| 3.8.7                                               |Use it to generate the JAR package of UDF test cases.|
+|Jemalloc| 5.3.0                                               |Use it to provide the header file used for UDF translation.|
+|OmniOperator| operator_flink_1107                                 |Use it to provide the header file used for UDF translation.|
+|Xxhash| 0.8.2                                               |Use it to provide the header file used for UDF translation.|
+|nlohmann json| 3.11.3                                              |Use it to provide the header file used for UDF translation.|
 
 
 **Obtaining the Software Packages<a name="en-us_topic_0000002228744546_section189181357102011"></a>**
@@ -62,7 +62,7 @@ Before installing OmniStream, prepare the hardware and software environments to 
 
 |Software Name| Package Name                                    |Release Type|Description|How to Obtain|
 |--|-------------------------------------------------|--|--|--|
-|OmniStream package| BoostKit-omniruntime-omnistream-1.1.0.zip       |Open source|OmniStream software installation package.|Link|
+|OmniStream package| BoostKit-omniruntime-omnistream-1.2.0.zip       |Open source|OmniStream software installation package.|Link|
 |UDF translator| UNT-1.0-35.noarch.rpm                           |Open source|UDF translator RPM package. After the installation is complete, the UDF translator is added to the /opt directory.|Link|
 |AI4C| AI4C-1.0.4-8.aarch64.rpm                        |Open source|A framework that allows the compiler to integrate machine learning–driven optimization technologies. Install the RPM package.|Link|
 |KACC_JSON| BoostKit-kaccjson_1.1.0.zip                     |Closed source|Self-developed C++ implementation package used to replace GSON in UDF translation. This ZIP package contains the adaptation layer and KACC_JSON implementation, and also contains header files and a static library. Obtain the **Dependency_library_OmniStream.zip** file and decompress it.|Link|
@@ -461,10 +461,10 @@ In independent deployment mode, you can install the precompiled OmniStream binar
 
 1. Create the  **/usr/local/OmniStream**  directory on the physical machine to store OmniStream binary files.
 
-    Extract the  **BoostKit-omnistream\_1.1.0.zip**  installation package obtained from  [Table 3](environment-requirements.md#en-us_topic_0000002228744546__table677mcpsimp)  to the  **/usr/local/OmniStream**  directory.
+    Extract the  **BoostKit-omnistream\_1.2.0.zip**  installation package obtained from  [Table 3](environment-requirements.md#en-us_topic_0000002228744546__table677mcpsimp)  to the  **/usr/local/OmniStream**  directory.
 
     ```
-    unzip BoostKit-omnistream_1.1.0.zip
+    unzip BoostKit-omnistream_1.2.0.zip
     mkdir -p /usr/local/OmniStream
     cp -r OmniStream_Default/* /usr/local/OmniStream/
     chmod -R 550 /usr/local/OmniStream/*
@@ -564,6 +564,8 @@ In independent deployment mode, you can install the precompiled OmniStream binar
 2. Copy the KACC\_JSON header files and static libraries to the  **/opt/udf-trans-opt/libbasictypes**  directory of the UDF translator in the  **flink\_jm\_8c32g**  container.
 
     ```
+    docker exec flink_jm_8c32g mkdir -p /opt/udf-trans-opt/libbasictypes/include 
+    docker exec flink_jm_8c32g mkdir -p /opt/udf-trans-opt/libbasictypes/lib
     docker cp include/kacc_json flink_jm_8c32g:/opt/udf-trans-opt/libbasictypes/include/
     docker cp include/kacc_gson_shell flink_jm_8c32g:/opt/udf-trans-opt/libbasictypes/include/
     docker cp libkaccgson.a flink_jm_8c32g:/opt/udf-trans-opt/libbasictypes/lib/
@@ -600,7 +602,7 @@ In independent deployment mode, you can install the precompiled OmniStream binar
         docker cp /usr/local/OmniStream/libbasictypes/include/third_party flink_jm_8c32g:/opt/udf-trans-opt/libbasictypes/include/
         ```
 
-    2. Install jemalloc by following instructions in section "Installing Dependencies \(by Compiling and Installing Source Code for SparkExtension and Gluten\)" in the  _OmniOperator Operator Acceleration Feature Guide_. After the installation is complete, copy  **jemalloc.h**  to the header file reference directory of the container UDF tool.
+    2. Install jemalloc by following instructions in section "Installing Dependencies \(by Compiling and Installing Source Code for SparkExtension and Gluten\)" in the [OmniOperator Operator Acceleration Feature Guide](https://gitcode.com/openeuler/OmniOperator/blob/master/docs/en/installation_guide.md). After the installation is complete, copy  **jemalloc.h**  to the header file reference directory of the container UDF tool.
 
         ```
         docker cp /opt/omni-operator/jemalloc/include/jemalloc/jemalloc.h flink_jm_8c32g:/opt/udf-trans-opt/libbasictypes/include/

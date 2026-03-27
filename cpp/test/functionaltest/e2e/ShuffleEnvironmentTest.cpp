@@ -113,7 +113,7 @@ public:
         downstreamInputGate_->setup();  // setBufferPool and setupChannels
 
         // requestSubpartition, connect upstream and downstream
-        downstreamInputGate_->RequestPartitions();  // partitionManager->createSubpartitionView
+        downstreamInputGate_->RequestPartitions(2);  // partitionManager->createSubpartitionView
 
         targetSubpartition_ = srcTddInfo_.getProducedPartitions()[0].getPartitionId().getPartitionNum();
     }

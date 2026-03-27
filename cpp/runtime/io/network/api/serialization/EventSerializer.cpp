@@ -25,8 +25,6 @@
 
 #include "buffer/MemoryBufferConsumer.h"
 #include "runtime/checkpoint/SavepointType.h"
-#include "runtime/event/EndOfChannelStateEvent.h"
-#include "event/SubtaskConnectionDescriptor.h"
 
 namespace omnistream {
     const int EventSerializer::INVALID_EVENT = -1;

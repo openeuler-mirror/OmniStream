@@ -20,6 +20,7 @@
  */
 
 #include "OmniStreamTask.h"
+#include <iostream>
 
 #include <streaming/runtime/partitioner/V2/StreamPartitionerV2.h>
 #include "runtime/io/network/api/writer/V2/RecordWriterDelegateV2.h"
@@ -74,6 +75,9 @@ OmniStreamTask::OmniStreamTask(std::shared_ptr<RuntimeEnvironmentV2> &env,
     auto streamTaskAction = new StreamTaskAction(shared_from_this());
     mailboxProcessor_ = new MailboxProcessor(streamTaskAction, mailbox_, actionExecutor_);
     mainMailboxExecutor_ = mailboxProcessor_->getMainMailboxExecutor();
+    mailboxProcessor = new MailboxProcessor(
+                        new StreamTaskAction(shared_from_this()),
+                        new TaskMailboxImpl(std::this_thread::get_id()), StreamTaskActionExecutor::IMMEDIATE);
     LOG("mailboxProcessor_  init setup>>>>")
     taskConfiguration_ = env_->taskConfiguration();
     auto checkpointExecutionConfig = taskConfiguration_.getExecutionCheckpointConfig();
@@ -220,19 +224,30 @@ OmniStreamTask::OmniStreamTask(std::shared_ptr<RuntimeEnvironmentV2> &env,
     void OmniStreamTask::restoreGates()
     {
         try {
+            INFO_RELEASE("restoreGates begin " << taskName_);
+            auto indexedInputGates = env_->GetAllInputGates();
+            if (indexedInputGates.empty()) {
+                INFO_RELEASE("SQL scenarios, do not need to restore the channel.");
+                return;
+            }
             auto reader = env_->getTaskStateManager()->getSequentialChannelStateReader();
             reader->readOutputData(env_->getAllWriters(), false);
-            auto indexedInputGates = env_->GetAllInputGates();
+
             std::vector<std::shared_ptr<InputGate>> inputGateVec;
             inputGateVec.reserve(indexedInputGates.size());
             for (const auto& inputGate : indexedInputGates) {
                 inputGateVec.emplace_back(inputGate);
             }
+
             reader->readInputData(inputGateVec);
+
+            LOG("restoreGates before recovery mailbox loop");
             mailboxProcessor_->runMailboxLoop();
+            LOG("restoreGates after recovery mailbox loop");
 
             for (const auto& inputGate : inputGateVec) {
                 auto recoveredFlags = inputGate->getStateConsumedFuture1();
+
                 bool allRecovered = true;
                 for (bool done : recoveredFlags) {
                     if (!done) {
@@ -242,18 +257,18 @@ OmniStreamTask::OmniStreamTask(std::shared_ptr<RuntimeEnvironmentV2> &env,
                 }
 
                 if (!allRecovered) {
-                    INFO_RELEASE("restoreGates: some recovered channels are not fully consumed yet");
+                    LOG("restoreGates: some recovered channels are not fully consumed yet");
                     throw std::runtime_error(
                                                 "restoreGates exited but some recovered channels were not fully consumed");
                 }
 
                 INFO_RELEASE("restoreGates requestPartitions directly after recovery loop");
-                inputGate->RequestPartitions();
+                inputGate->RequestPartitions(taskType);
             }
 
             INFO_RELEASE("restoreGates complete!");
         } catch (...) {
-            LOG("Error: restoreGates failed, unable to read channel state");
+            INFO_RELEASE("Error: restoreGates failed, unable to read channel state");
             throw std::runtime_error("restoreGates failed, unable to read channel state");
         }
     }
@@ -311,9 +326,6 @@ void OmniStreamTask::processInput(MailboxDefaultAction::Controller *controller)
     auto status = inputProcessor_->processInput();
     switch (status) {
         case DataInputStatus::MORE_AVAILABLE:
-            /*if (recordWriter_->isAvailable()) {
-                return;
-            }*/
             return;
         case DataInputStatus::NOTHING_AVAILABLE:
             break;

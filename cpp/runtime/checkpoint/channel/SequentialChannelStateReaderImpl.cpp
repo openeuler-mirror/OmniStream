@@ -20,26 +20,25 @@
 #include <memory>
 #include <sstream>
 #include <functional>
-#include <csignal>
 
 void SequentialChannelStateReaderImpl::readInputData(const std::vector<std::shared_ptr<InputGate>> &inputGates)
 {
-    INFO_RELEASE("Read input data start.");
+    LOG("Read input data start.");
     auto stateHandler = std::make_shared<InputChannelRecoveredStateHandler>(
         inputGates, taskStateSnapshot->GetInputRescalingDescriptor());
 
     readByInputChannel(stateHandler, groupByDelegateByInputChannel(streamSubtaskStates()));
-    INFO_RELEASE("Read input data end.");
+    LOG("Read input data end.");
 }
 
 void SequentialChannelStateReaderImpl::readOutputData(const std::vector<std::shared_ptr<ResultPartitionWriter>> &writers, bool notifyAndBlockOnCompletion)
 {
-    INFO_RELEASE("Read output data start.");
+    LOG("Read output data start.");
     auto stateHandler = std::make_shared<ResultSubpartitionRecoveredStateHandler>(
         writers, notifyAndBlockOnCompletion, taskStateSnapshot->GetOutputRescalingDescriptor());
-
+    
     readByResultSubpartition(stateHandler, groupByDelegateByResultSubpartition(streamSubtaskStates()));
-    INFO_RELEASE("Read output data end.");
+    LOG("Read output data end.");
 }
 
 void SequentialChannelStateReaderImpl::close()
@@ -50,7 +49,7 @@ void SequentialChannelStateReaderImpl::readByInputChannel(
     std::shared_ptr<InputChannelRecoveredStateHandler> stateHandler,
     const InputChannelHandleGroup &streamStateHandleListMap)
 {
-    INFO_RELEASE("readByInputChannel size: " << streamStateHandleListMap.size());
+    LOG("readByInputChannel size: " << streamStateHandleListMap.size());
     for (auto& entry : streamStateHandleListMap) {
         readSequentiallyByInputChannel(entry.second.first, entry.second.second, stateHandler);
     }
@@ -60,7 +59,7 @@ void SequentialChannelStateReaderImpl::readByResultSubpartition(
     std::shared_ptr<ResultSubpartitionRecoveredStateHandler> stateHandler,
     const ResultSubpartitionHandleGroup &streamStateHandleListMap)
 {
-    INFO_RELEASE("readByResultSubpartition size: " << streamStateHandleListMap.size());
+    LOG("readByResultSubpartition size: " << streamStateHandleListMap.size());
     for (auto& entry : streamStateHandleListMap) {
         readSequentiallyByResultSubpartition(entry.second.first, entry.second.second, stateHandler);
     }
@@ -80,14 +79,14 @@ void SequentialChannelStateReaderImpl::readSequentiallyByInputChannel(
    std::vector<InputChannelStateHandle> channelStateHandles,
    std::shared_ptr<InputChannelRecoveredStateHandler> stateHandle)
 {
-    INFO_RELEASE("readSequentiallyByInputChannel start.");
+    LOG("readSequentiallyByInputChannel start.");
     if(auto byteStreamStateHandle = std::dynamic_pointer_cast<ByteStreamStateHandle>(streamStateHandle)) {
         auto inputStream = byteStreamStateHandle->OpenInputStream();
         std::shared_ptr<ByteStateHandleInputStream> byteInputStream;
         if (byteInputStream = std::dynamic_pointer_cast<ByteStateHandleInputStream>(inputStream)) {
             serializer->ReadHeader2(byteInputStream);
         } else {
-            INFO_RELEASE("ERROR: Failed to cast input stream to ByteStateHandleInputStream");
+            LOG("ERROR: Failed to cast input stream to ByteStateHandleInputStream");
             throw std::runtime_error("Failed to cast input stream to ByteStateHandleInputStream");
         }
 
@@ -99,13 +98,13 @@ void SequentialChannelStateReaderImpl::readSequentiallyByInputChannel(
                 offsetAndChannelInfo.channelInfo,
                 offsetAndChannelInfo.oldSubtaskIndex);
         }
-        INFO_RELEASE("readSequentiallyByInputChannel end");
+        LOG("readSequentiallyByInputChannel end");
     } else if(std::dynamic_pointer_cast<RelativeFileStateHandle>(streamStateHandle)) {
         auto filePath = streamStateHandle->GetStreamStateHandleID().getKeyString();
         LOG("readSequentiallyByInputChannel file path: " << filePath);
         auto tmpPath = "/tmp/" + ExtractChkPath(filePath);
         if (omniTaskBridge_->CallDownloadFileToLocal(*streamStateHandle, tmpPath)) {
-            INFO_RELEASE("input downLoad file success: " << tmpPath);
+            LOG("downLoad file success: " << tmpPath);
         }
         std::ifstream is(tmpPath, std::ios::binary);
         if(!is.is_open()) {
@@ -146,15 +145,14 @@ void SequentialChannelStateReaderImpl::readSequentiallyByResultSubpartition(
    std::vector<ResultSubpartitionStateHandle> channelStateHandles,
    std::shared_ptr<ResultSubpartitionRecoveredStateHandler> stateHandle)
 {
-    INFO_RELEASE("readSequentiallyByResultSubpartition start.");
-    sleep(3);
+    LOG("readSequentiallyByResultSubpartition start.");
     if(auto byteStreamStateHandle = std::dynamic_pointer_cast<ByteStreamStateHandle>(streamStateHandle)) {
         auto inputStream = byteStreamStateHandle->OpenInputStream();
         std::shared_ptr<ByteStateHandleInputStream> byteInputStream;
         if (byteInputStream = std::dynamic_pointer_cast<ByteStateHandleInputStream>(inputStream)) {
             serializer->ReadHeader2(byteInputStream);
         } else {
-            INFO_RELEASE("ERROR: Failed to cast input stream to ByteStateHandleInputStream");
+            LOG("ERROR: Failed to cast input stream to ByteStateHandleInputStream");
             throw std::runtime_error("Failed to cast input stream to ByteStateHandleInputStream");
         }
 
@@ -166,17 +164,17 @@ void SequentialChannelStateReaderImpl::readSequentiallyByResultSubpartition(
                 offsetAndChannelInfo.channelInfo,
                 offsetAndChannelInfo.oldSubtaskIndex);
         }
-        INFO_RELEASE("readSequentiallyByResultSubpartition end");
+        LOG("readSequentiallyByResultSubpartition end");
     } else if(std::dynamic_pointer_cast<RelativeFileStateHandle>(streamStateHandle)) {
         auto filePath = streamStateHandle->GetStreamStateHandleID().getKeyString();
-        INFO_RELEASE("readSequentiallyByResultSubpartition file path: " << filePath);
+        LOG("readSequentiallyByResultSubpartition file path: " << filePath);
         auto tmpPath = "/tmp/" + ExtractChkPath(filePath);
         if (omniTaskBridge_->CallDownloadFileToLocal(*streamStateHandle, tmpPath)) {
-            INFO_RELEASE("downLoad file success: " << tmpPath);
+            LOG("downLoad file success: " << tmpPath);
         }
         std::ifstream is(tmpPath, std::ios::binary);
         if(!is.is_open()) {
-            INFO_RELEASE("ERROR: Failed to open stream state handle input stream. file path: " << filePath);
+            LOG("ERROR: Failed to open stream state handle input stream. file path: " << filePath);
             throw std::ios_base::failure("Failed to open stream state handle input stream.");
         }
 
@@ -196,11 +194,11 @@ void SequentialChannelStateReaderImpl::readSequentiallyByResultSubpartition(
                 std::filesystem::remove(tmpPath);
             }
         } catch(...) {
-            INFO_RELEASE("ERROR: close file failed.");
+            LOG("ERROR: close file failed.");
         }
-        INFO_RELEASE("readSequentiallyByResultSubpartition end");
+        LOG("readSequentiallyByResultSubpartition end");
     } else {
-        INFO_RELEASE("ERROR: streamStateHandle type is not excepted.");
+        LOG("ERROR: streamStateHandle type is not excepted.");
     }
 }
 
@@ -211,7 +209,7 @@ std::vector<std::shared_ptr<OperatorSubtaskState>> SequentialChannelStateReaderI
     auto subtaskStateMappings = taskStateSnapshot->GetSubtaskStateMappings();
 
     for (const auto& entry : subtaskStateMappings){
-        subtaskStates.push_back(entry.second);      //entry.second 搴旇鏄竴涓猻td::shared_ptr<OperatorSubtaskState>
+        subtaskStates.push_back(entry.second);      //entry.second 应该是一个std::shared_ptr<OperatorSubtaskState>
     }
 
     return subtaskStates;

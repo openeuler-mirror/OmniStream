@@ -40,7 +40,7 @@ BufferAndBacklog* PipelinedSubpartitionView::getNextBuffer()
 
 void PipelinedSubpartitionView::notifyDataAvailable()
 {
-    INFO_RELEASE("PipelinedSubpartitionView notifyDataAvailable invoke!");
+    LOG("PipelinedSubpartitionView notifyDataAvailable invoke!");
     availabilityListener->notifyDataAvailable();
 }
 

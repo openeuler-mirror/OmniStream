@@ -24,7 +24,6 @@
 #include "runtime/io/checkpointing/BarrierAlignmentUtil.h"
 #include "streaming/runtime/tasks/SystemProcessingTimeService.h"
 #include "streaming/runtime/io/OmniStreamTaskSourceInput.h"
-#include "partition/consumer/RemoteInputChannel.h"
 #include "metrics/SystemClock.h"
 
 namespace omnistream {
@@ -109,10 +108,11 @@ public:
         auto timerCallback =
             runtime::BarrierAlignmentUtil::createRegisterTimerCallback<std::function<void()>>(
                 mailboxExecutor.get(), timerService.get());
+
         // Force aligned
         enableUnaligned = false;
         if (!enableUnaligned) {
-			INFO_RELEASE("creates a aligned barrier handler");
+			LOG("creates a aligned barrier handler");
             return runtime::SingleCheckpointBarrierHandler::aligned(
                 taskName,
                 toNotifyOnCheckpoint,
@@ -128,7 +128,7 @@ public:
         //  - aligned-checkpoint-timeout > 0   => Aligned attempt + timeout => Unaligned
         alignedCheckpointTimeoutMillis = 60;
         if (alignedCheckpointTimeoutMillis == 0) {
-            INFO_RELEASE("creates a unaligned barrier handler");
+			LOG("creates a unaligned barrier handler");
             return runtime::SingleCheckpointBarrierHandler::unaligned(
                 taskName,
                 toNotifyOnCheckpoint,

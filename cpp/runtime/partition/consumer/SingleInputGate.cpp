@@ -111,22 +111,19 @@ std::vector<bool> SingleInputGate::getStateConsumedFuture1()
     LOCK_AFTER()
 
     std::vector<bool> futures;
-    INFO_RELEASE("SingleInputGate::getStateConsumedFuture1 channel size:" << inputChannels.size());
     for (const auto &entry : inputChannels) {
         auto inputChannel = entry.second;
         //  orginal begin
         auto recoveredChannel = std::dynamic_pointer_cast<RecoveredInputChannel>(inputChannel);
         if (recoveredChannel) {
-            auto b = recoveredChannel->getStateConsumedFuture1();
-            INFO_RELEASE("SingleInputGate::getStateConsumedFuture1:" << b << ",channel:" << recoveredChannel->getChannelInfo().toString());
-            futures.push_back(b);
+            futures.push_back(recoveredChannel->getStateConsumedFuture1());
         }
         // orignal end
     }
     return futures;
 }
 
-void SingleInputGate::RequestPartitions()
+void SingleInputGate::RequestPartitions(int taskType)
 {
     //LOCK_BEFORE()
     std::unique_lock<std::recursive_mutex> lock(requestLock);
@@ -151,7 +148,9 @@ void SingleInputGate::RequestPartitions()
         convertRecoveredInputChannels();
 
         // LOG_PART("before intneral request partions ")
-        internalRequestPartitions();
+        if (taskType == 1) {
+            internalRequestPartitions();
+        }
     }
 
     requestedPartitionsFlag = true;
@@ -159,22 +158,90 @@ void SingleInputGate::RequestPartitions()
 
 void SingleInputGate::convertRecoveredInputChannels()
 {
+      LOG("covert recovered input channels (" << numberOfInputChannels << " channels, inputChannels.size:"<<inputChannels.size());
+    for (auto &entry : inputChannels) {
+        std::shared_ptr<InputChannel> inputChannel = entry.second;
+        if(auto local = std::dynamic_pointer_cast<LocalRecoveredInputChannel>(inputChannel)){
+            LOG("before instance of LocalRecoveredInputChannel, to convert to normal channel!");
+        } else if(auto remote = std::dynamic_pointer_cast<RemoteRecoveredInputChannel>(inputChannel)) {
+            LOG("before instance of RemoteRecoveredInputChannel, to convert to normal channel!");
+        } else if(auto local2 = std::dynamic_pointer_cast<OmniLocalInputChannel>(inputChannel)){
+            LOG("before instance of OmniLocalInputChannel!");
+        } else  if(auto local1 = std::dynamic_pointer_cast<LocalInputChannel>(inputChannel)){
+            LOG("before instance of LocalInputChannel!");
+        } else if(auto remote1 = std::dynamic_pointer_cast<RemoteInputChannel>(inputChannel)){
+            LOG("before instance of RemoteInputChannel!");
+        } else{
+            LOG("before unKnown channel type!");
+        }
+    }
+    for (auto &entry : inputChannels) {
+        std::shared_ptr<InputChannel> inputChannel = entry.second;
+        IntermediateResultPartitionIDPOD key = entry.first;
+        auto recoveredChannel = std::dynamic_pointer_cast<RecoveredInputChannel>(inputChannel);
+        if (recoveredChannel) {
+            LOG("instance of RecoveredInputChannel, to convert to normal channel!");
+            if(auto local = std::dynamic_pointer_cast<LocalRecoveredInputChannel>(inputChannel)){
+                LOG("instance of LocalRecoveredInputChannel, to convert to normal channel!");
+            } else if(auto remote = std::dynamic_pointer_cast<RemoteRecoveredInputChannel>(inputChannel)){
+                LOG("instance of RemoteRecoveredInputChannel, to convert to normal channel!");
+            } else {
+                LOG("unKnown recover channel type!");
+            }
+            std::shared_ptr<omnistream::InputChannel> realChannel = recoveredChannel->toInputChannel();
+            recoveredChannel->releaseAllResources();
+            if(auto remote = std::dynamic_pointer_cast<RemoteInputChannel>(realChannel)){
+                LOG("realChannel of RemoteRecoveredInputChannel,  convert to normal channel!");
+            } else if(auto local = std::dynamic_pointer_cast<LocalInputChannel>(realChannel)){
+                LOG("realChannel of LocalRecoveredInputChannel,  convert to normal channel!");
+            } else {
+                LOG("unKnown realChannel recover channel type!");
+            }
+            inputChannels[key] = realChannel;
+            channels[recoveredChannel->getChannelIndex()] = realChannel;
+        } else {
+            LOG("channel is not a recover type!");
+            if(auto local = std::dynamic_pointer_cast<LocalInputChannel>(inputChannel)){
+                LOG("instance of LocalInputChannel!");
+            } else if(auto remote = std::dynamic_pointer_cast<RemoteInputChannel>(inputChannel)){
+                LOG("instance of RemoteInputChannel!");
+            } else{
+                LOG("unKnown channel type!");
+            }
+        }
+    }
+
+    for (auto &entry : inputChannels) {
+        std::shared_ptr<InputChannel> inputChannel = entry.second;
+        if(auto local = std::dynamic_pointer_cast<LocalRecoveredInputChannel>(inputChannel)){
+            LOG("after instance of LocalRecoveredInputChannel, to convert to normal channel!");
+        } else if(auto remote = std::dynamic_pointer_cast<RemoteRecoveredInputChannel>(inputChannel)) {
+            LOG("after instance of RemoteRecoveredInputChannel, to convert to normal channel!");
+        } else if(auto local2 = std::dynamic_pointer_cast<OmniLocalInputChannel>(inputChannel)){
+            LOG("after instance of OmniLocalInputChannel!");
+        } else  if(auto local1 = std::dynamic_pointer_cast<LocalInputChannel>(inputChannel)){
+            LOG("after instance of LocalInputChannel!");
+        } else if(auto remote1 = std::dynamic_pointer_cast<RemoteInputChannel>(inputChannel)){
+            LOG("after instance of RemoteInputChannel!");
+        } else{
+            LOG("after unKnown channel type!");
+        }
+    }
 }
 
 void SingleInputGate::internalRequestPartitions()
 {
     for (auto &entry : inputChannels) {
         auto &inputChannel = entry.second;
-//            inputChannel->requestSubpartition(consumedSubpartitionIndex);
+        inputChannel->requestSubpartition(consumedSubpartitionIndex);
     }
 }
 
 void SingleInputGate::FinishReadRecoveredState()
 {
-    /**
+    LOG("single input gate FinishReadRecoveredState!");
     for (auto& channel : channels) {
-        auto recoveredChannel = std::dynamic_pointer_cast<RecoveredInputChannel>(channel);
-        if (recoveredChannel) {
+        if (auto recoveredChannel = std::dynamic_pointer_cast<RecoveredInputChannel>(channel)) {
             recoveredChannel->finishReadRecoveredState();
         }
     }
@@ -541,9 +608,9 @@ SingleInputGate::InputWithData<BufferAndAvailability>* SingleInputGate::waitAndG
         auto inputChannel = inputChannelOpt.value();
         LOG("inputChannel->getNextBuffer()" << inputChannel.get())
 
-//        if (auto ca = std::dynamic_pointer_cast<RecoveredInputChannel>(inputChannel)){
-//            LOG("the channel is recover input channel !");
-//        }
+        if (auto ca = std::dynamic_pointer_cast<RecoveredInputChannel>(inputChannel)){
+            LOG("the channel is recover input channel !");
+        }
 
         auto bufferAndAvailabilityOpt = inputChannel->getNextBuffer();
         if (!bufferAndAvailabilityOpt) {
@@ -738,7 +805,6 @@ void SingleInputGate::acknowledgeAllRecordsProcessed(const InputChannelInfo &cha
 void SingleInputGate::notifyChannelNonEmpty(std::shared_ptr<InputChannel> channel)
 {
     if (!channel) {
-        INFO_RELEASE("Input channel is null.");
         throw std::runtime_error("Input channel is null.");
     }
     // LOG_PART("begnning")

@@ -69,7 +69,7 @@ namespace omnistream {
                 void setup() override;
                 std::shared_ptr<CompletableFutureV2<void>> getStateConsumedFuture() override;
                 std::vector<bool> getStateConsumedFuture1() override;
-                void RequestPartitions() override;
+                void RequestPartitions(int taskType) override;
                 void FinishReadRecoveredState() override;
 
                 int GetNumberOfInputChannels() override;
@@ -123,16 +123,16 @@ namespace omnistream {
                 void changeLocalInputChannelToOriginal(
                         int channelIndex,
                         std::shared_ptr<InputChannel> original);
-
-                void SetForwardResumeToJava(bool forwardResumeToJava)
+        
+                void SetForwardResumeToJava(bool forwardResumeToJava) 
                 {
                         forwardResumeToJava_ = forwardResumeToJava;
                 }
-
+                
                 bool GetForwardResumeToJava() const {
                         return forwardResumeToJava_;
                 }
-
+        
         private:
                 void convertRecoveredInputChannels();
                 void internalRequestPartitions();

@@ -54,7 +54,9 @@ void ResultSubpartitionRecoveredStateHandler::recover(const ResultSubpartitionIn
     if (channels.empty()) {
         throw std::runtime_error("No mapped channels found in recover()");
     }
-    try{
+    LOG("ResultSubpartitionRecoveredStateHandler recover555, channel size: " << channels.size())
+
+    try {
         INFO_RELEASE("ResultSubpartitionRecoveredStateHandler recover555, channel size: " << channels.size())
         for (const auto &item : channels){
             auto channelSelector = std::make_shared<SubtaskConnectionDescriptor>(subpartitionInfo.getSubPartitionIdx(),oldSubtaskIndex);
@@ -62,20 +64,10 @@ void ResultSubpartitionRecoveredStateHandler::recover(const ResultSubpartitionIn
             item->addRecovered(EventSerializer::ToBufferConsumer(channelSelector, false));
             item->addRecovered(bufferConsumer);
         }
-        //    if (channels.size() == 1) {
-        //        channels[0]->addRecovered(bufferConsumer);
-        //    } else {
-        //        // 鐜板湪杩欐潯鍒嗘敮鍏堟槑纭け璐ワ紝閬垮厤鍐嶆韪╁埌 MemoryBufferConsumer::copy() 鏈疄鐜?+        //        throw std::runtime_error(
-        //                "ResultSubpartitionRecoveredStateHandler::recover does not support fan-out restore yet: "
-        //                "multiple mapped channels require BufferConsumer::copy(), but MemoryBufferConsumer::copy() "
-        //                "is not implemented.");
-        //    }
-    }catch (const std::exception& e){
+    } catch (const std::exception& e){
         INFO_RELEASE("ResultSubpartitionRecoveredStateHandler::recover exception:" << e.what());
     }
 
-
-    INFO_RELEASE("Recovered state for partition " << subpartitionInfo.getPartitionIdx()
                                          << ", subpartition " << subpartitionInfo.getSubPartitionIdx()
                                          << ", size " << bufferConsumer->getBufferSize()
                                          << ", mappedChannels=" << channels.size())
@@ -138,7 +130,7 @@ std::vector<std::shared_ptr<CheckpointedResultSubpartition>>
     auto mapping = channelMapping_ ? channelMapping_->GetChannelMapping(pIdx)
                                    : IdentityRescaleMappings::SYMMETRIC_IDENTITY;
 
-    // 绾仮澶?/ 鏈?rescale锛氱洿鎺ユ寜 identity 鏄犲皠锛屼笉瑕佸幓 invert SYMMETRIC_IDENTITY
+    // 纯恢复 / 未 rescale：直接按 identity 映射，不要去 invert SYMMETRIC_IDENTITY
     if (!mapping || mapping->isIdentity()) {
         return { getSubpartition(pIdx, info.getSubPartitionIdx()) };
     }
@@ -188,19 +180,14 @@ void InputChannelRecoveredStateHandler::recover(const InputChannelInfo &inputCha
     const BufferWithContext &bufferWithContext)
 {
     auto buffer = bufferWithContext.context_;
+
     try {
         if (buffer->GetSize() > 0) {
             auto channels = getMappedChannels(inputChannelInfo);
             if (channels.empty()) {
                 throw std::runtime_error("No mapped channels found in InputChannelRecoveredStateHandler::recover");
             }
-//
-//            if (channels.size() == 1) {
-//                channels[0]->onRecoveredStateBuffer2(buffer);
-//            } else {
-//                throw std::runtime_error(
-//                                "InputChannelRecoveredStateHandler::recover does not support fan-out restore yet");
-//            }
+
             for (const auto &item : channels){
                 INFO_RELEASE("send input recover:" << item->getChannelInfo().toString());
                 item->onRecoveredStateBuffer(EventSerializer::toBuffer(std::make_shared<SubtaskConnectionDescriptor>(oldSubtaskIndex,inputChannelInfo.getInputChannelIdx()), false));

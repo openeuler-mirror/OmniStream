@@ -91,43 +91,22 @@ namespace omnistream {
         ResourceIDPOD producerResourceId = shuffleDescriptor.getStoresLocalResourcesOn();
         channelStatistics->numLocalChannels++;
 
-        // todo ChannelStateWriter
-        std::shared_ptr<ChannelStateWriter> stateWriter = std::make_shared<ChannelStateWriterImpl>();
         if (producerResourceId == this->taskExecutorResourceId) {
-            // std::shared_ptr<LocalInputChannel> channel =
-            //         std::make_shared<LocalInputChannel>(inputGate, index,
-            //                                             shuffleDescriptor.getResultPartitionID(), partitionManager,
-            //                                             partitionRequestInitialBackoff, partitionRequestMaxBackoff,
-            //                                             std::shared_ptr<SimpleCounter>(),
-            //                                             std::shared_ptr<SimpleCounter>(),
-            //                                             stateWriter);
-            std::shared_ptr<LocalRecoveredInputChannel> channel =
-                    std::make_shared<LocalRecoveredInputChannel>(inputGate, index,
+            INFO_RELEASE("CREATE A LOCAL RECOVERED INPUT CHANNEL#################################");
+            return std::make_shared<LocalRecoveredInputChannel>(inputGate, index,
                                                         shuffleDescriptor.getResultPartitionID(), consumedSubpartitionIndex,
                                                         partitionManager,
                                                         partitionRequestInitialBackoff, partitionRequestMaxBackoff,
                                                         std::shared_ptr<SimpleCounter>(),
-                                                        std::shared_ptr<SimpleCounter>(),getNetworkBuffersPerChannel());
-            LOG("CREATE A LOCAL INPUT CHANNEL#################################");
-            return channel;
-        } else {
-            // std::shared_ptr<RemoteInputChannel> channel =
-            //         std::make_shared<RemoteInputChannel>(inputGate, index,
-            //                                              shuffleDescriptor.getResultPartitionID(), partitionManager,
-            //                                              partitionRequestInitialBackoff, partitionRequestMaxBackoff,
-            //                                              networkBuffersPerChannel,
-            //                                              std::shared_ptr<+            //                                              std::shared_ptr<SimpleCounter>(),
-            //                                              stateWriter);
-            std::shared_ptr<RemoteRecoveredInputChannel> channel =
-                    std::make_shared<RemoteRecoveredInputChannel>(inputGate, index,
+                                                        std::shared_ptr<SimpleCounter>(),getNetworkBuffersPerChannel());;
+        }
+        INFO_RELEASE("CREATE A REMOTE RECOVERED INPUT CHANNEL#################################");
+        return std::make_shared<RemoteRecoveredInputChannel>(inputGate, index,
                                                          shuffleDescriptor.getResultPartitionID(), partitionManager,
                                                          partitionRequestInitialBackoff, partitionRequestMaxBackoff,
                                                          networkBuffersPerChannel,
                                                          std::shared_ptr<SimpleCounter>(),
                                                          std::shared_ptr<SimpleCounter>());
-            LOG("CREATE A REMOTE INPUT CHANNEL#################################");
-            return channel;
-        }
     }
 
     std::shared_ptr<OmniLocalInputChannel> SingleInputGateFactory::createOriginalInputChannel(

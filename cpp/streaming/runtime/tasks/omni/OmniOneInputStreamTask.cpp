@@ -164,7 +164,7 @@ namespace omnistream {
         auto checkpointedInputGates = InputProcessorUtil::CreateCheckpointedMultipleInputGate(
             mainMailboxExecutor_,
             {checkpointableInputs}, checkpointBarrierHandler);
-
+        
         return checkpointedInputGates[0];
     }
 }

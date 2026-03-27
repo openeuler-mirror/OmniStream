@@ -13,7 +13,7 @@
 
 #include <iostream>
 #include <future>
-#include <thread>
+#include <thread> 
 #include <mutex>
 #include <memory>
 #include <functional>
@@ -321,21 +321,23 @@ public:
         return cf_ptr;
     }
 
-    // 2. 鏂板閾惧紡 ThenRun锛氳繑鍥炰竴涓柊鐨?future锛屽叾瀹屾垚鏍囧織鐫€ callback 鎵ц瀹屾瘯
+    // 2. 新增链式 ThenRun：返回一个新的 future，其完成标志着 callback 执行完毕
     std::shared_ptr<CompletableFutureV2<void>> ThenRunWithFuture(std::function<void()> callback) {
         auto result = std::make_shared<CompletableFutureV2<void>>();
         auto wrapper = [this, callback, result]() {
             if (completed_) {
-                callback();                  // 鎵ц鐢ㄦ埛鍥炶皟
-                result->Complete();          // 鏍囪 result future 瀹屾垚
+                callback();                  // 执行用户回调
+                result->Complete();          // 标记 result future 完成
             }
         };
         {
             std::lock_guard<std::mutex> lock(mutex_);
             if (completed_) {
-                // 濡傛灉宸茬粡瀹屾垚锛岀珛鍗虫墽琛?callback 骞跺畬鎴?result
-                std::thread(std::move(wrapper)).detach(); // 寮傛鎵ц锛岄伩鍏嶉樆濉炶皟鐢ㄧ嚎绋?+            } else {
-                // 鍚﹀垯灏?wrapper 瀛樺叆鍥炶皟鍒楄〃锛屽緟 future 瀹屾垚鏃舵墽琛?+                callbacks_.push_back(std::move(wrapper));
+                // 如果已经完成，立即执行 callback 并完成 result
+                std::thread(std::move(wrapper)).detach(); // 异步执行，避免阻塞调用线程
+            } else {
+                // 否则将 wrapper 存入回调列表，待 future 完成时执行
+                callbacks_.push_back(std::move(wrapper));
             }
         }
         return result;

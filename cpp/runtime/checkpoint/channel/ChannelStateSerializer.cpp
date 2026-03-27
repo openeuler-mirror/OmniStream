@@ -14,7 +14,7 @@
 #include "runtime/checkpoint/channel/ChannelStateSerializer.h"
 
 namespace omnistream {
-
+    
     constexpr int32_t MAX_REASONABLE_CHANNEL_STATE_CHUNK = 64 * 1024 * 1024;
 
     inline int32_t DecodeIntBE(const uint8_t* b)
@@ -86,7 +86,7 @@ namespace omnistream {
             return le;
         }
 
-        // 涓よ竟閮藉悎鐞嗘椂锛屼紭鍏?Flink/Java 鏍囧噯澶х
+        // 两边都合理时，优先 Flink/Java 标准大端
         return be;
     }
 
@@ -106,7 +106,7 @@ namespace omnistream {
             return le;
         }
 
-        // 涓よ竟閮藉悎鐞嗘椂锛屼紭鍏?Flink/Java 鏍囧噯澶х
+        // 两边都合理时，优先 Flink/Java 标准大端
         return be;
     }
 

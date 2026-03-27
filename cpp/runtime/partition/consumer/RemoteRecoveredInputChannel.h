@@ -6,7 +6,8 @@
 #define OMNISTREAM_REMOTERECOVEREDINPUTCHANNEL_H
 
 #include "RecoveredInputChannel.h"
-#include "runtime/partition/ResultPartitionM+#include "RemoteInputChannel.h"
+#include "runtime/partition/ResultPartitionManager.h"
+#include "RemoteInputChannel.h"
 #include "iostream"
 #include "checkpoint/channel/ChannelStateWriterImpl.h"
 

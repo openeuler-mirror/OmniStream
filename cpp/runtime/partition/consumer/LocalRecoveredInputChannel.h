@@ -40,4 +40,4 @@ private:
     std::shared_ptr<omnistream::ResultPartitionManager> partitionManager;
 };
 
-#endif //OMNIST\ No newline at end of file
+#endif //OMNISTREAM_LOCALRECOVEREDINPUTCHANNEL_H

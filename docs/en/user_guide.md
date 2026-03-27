@@ -66,7 +66,6 @@ This section describes the scope, restrictions, and usage rules of SQL operators
 |REGEX_EXTRACT|Scalar functions|NA|S|NS|NA|
 
 
-This section describes the scope, restrictions, and usage rules of SQL operators and expressions \(including data types\) supported by the OmniStream Flink Native feature in Flink versions 1.16.3, 1.17.1, and 1.20.0.
 ### Supported DataStream Operators and UDFs<a name="EN-US_TOPIC_0000002517961054"></a>
 
 This section describes the scope of support, restrictions, and performance impact of the OmniStream Flink Native feature on DataStream operators and user-defined functions \(UDFs\) in Flink 1.16.3.
@@ -109,7 +108,6 @@ The supported data transfer objects include Long, String, and Tuple2<String, Lon
 |JsonArray|Iterator<JsonElement> iterator()|
 
 
-This section describes the scope of support, restrictions, and performance impact of the OmniStream Flink Native feature on DataStream operators and user-defined functions \(UDFs\) in Flink 1.16.3.
 ### Enabling OmniStream for SQL<a name="EN-US_TOPIC_0000002549640821"></a>
 
 This section describes how to start a Flink cluster and enable OmniStream in SQL scenarios.
@@ -198,7 +196,6 @@ This section describes how to start a Flink cluster and enable OmniStream in SQL
 
     ![](figures/en-us_image_0000002517961058.png)
 
-This section describes how to start a Flink cluster and enable OmniStream in SQL scenarios.
 ### Enabling OmniStream for DataStream<a name="EN-US_TOPIC_0000002518120974"></a>
 
 This section describes how to start a Flink cluster and enable OmniStream in DataStream scenarios.
@@ -622,7 +619,6 @@ This section describes how to start a Flink cluster and enable OmniStream in Dat
 
     ![](figures/en-us_image_0000002518120980.png)
 
-This section describes how to start a Flink cluster and enable OmniStream in DataStream scenarios.
 
 
 ## Maintaining the Feature<a name="EN-US_TOPIC_0000002517961044"></a>
@@ -643,12 +639,12 @@ Contact Huawei technical support to download the OmniStream software installatio
 The following steps assume that the installation directories are  **/opt/Dependency\_library**  and  **/usr/local/OmniStream**.
 
 1. Delete software dependency packages from  **/opt/Dependency\_library**  and  **/usr/local/OmniStream**.
-2. Modify the  **config.sh**  file in the  **$FLINK_HOME/conf**  directory to restore the default Flink configuration.
+2. Modify the  **config.sh**  file in the  **$FLINK_HOME/bin**  directory to restore the default Flink configuration.
 
-    Specifically, restore the values set in  [en-us\_topic\_0000002518120970.md\#en-us\_topic\_0000002263584129\_en-us\_topic\_0000001467846504\_li6176059914](en-us_topic_0000002518120970.md#en-us_topic_0000002263584129_en-us_topic_0000001467846504_li6176059914)  to their original values.
+    Specifically, restore the values set in  [Installation Guide-Installing OmniStream-Step3](installation_guide.md#installing-omnistreama-nameen-us_topic_0000002549064711a)  to their original values.
 
 3. Modify the  **flink-conf.yaml**  file in the  **$FLINK_HOME/conf**  directory to restore the default Flink configuration.
 
-    Specifically, restore the values set in  [en-us\_topic\_0000002518120970.md\#en-us\_topic\_0000002263584129\_li4699113149](en-us_topic_0000002518120970.md#en-us_topic_0000002263584129_li4699113149)  to their original values.
+    Specifically, restore the values set in  [Installation Guide-Installing OmniStream-Step4](installation_guide.md#installing-omnistreama-nameen-us_topic_0000002549064711a)  to their original values.
 
 

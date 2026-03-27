@@ -75,6 +75,7 @@ PipelinedResultPartition::PipelinedResultPartition(const std::string& owningTask
     LOG_PART("Body of PipelinedResultPartition constructor")
 }
 
+
 void PipelinedResultPartition::setChannelStateWriter(std::shared_ptr<ChannelStateWriter> channelStateWriter)
 {
     for (const auto& subpartition : subpartitions_) {
@@ -90,7 +91,8 @@ void PipelinedResultPartition::setChannelStateWriter(std::shared_ptr<ChannelStat
 //    return std::reinterpret_pointer_cast<CheckpointedResultSubpartition>(subpartitions_[subpartitionIndex]);
 //}
 
-std::shared_ptr<C+PipelinedResultPartition::getCheckpointedSubpartition(int subpartitionIndex)
+std::shared_ptr<CheckpointedResultSubpartition>
+PipelinedResultPartition::getCheckpointedSubpartition(int subpartitionIndex)
 {
     auto pipelinedSubpartition =
             std::dynamic_pointer_cast<PipelinedSubpartition>(subpartitions_[subpartitionIndex]);
@@ -108,7 +110,8 @@ std::shared_ptr<C+PipelinedResultPartition::getCheckpointedSubpartition(int subp
 //        }
 //}
 
-void PipelinedResultPartition:+{
+void PipelinedResultPartition::finishReadRecoveredState(bool notifyAndBlockOnCompletion)
+{
     for (const auto& subpartition : subpartitions_) {
         auto pipelinedSubpartition =
                 std::dynamic_pointer_cast<PipelinedSubpartition>(subpartition);

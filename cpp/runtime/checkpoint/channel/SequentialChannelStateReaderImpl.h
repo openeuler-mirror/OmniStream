@@ -91,7 +91,7 @@ public:
 
         return {ChannelStateByteBuffer::wrap(buffer), buffer};
     }
-
+    
     void readChunkByByteStreamForResultSubpartition(
         std::shared_ptr<ByteStateHandleInputStream>& source,
         long long sourceOffset,
@@ -107,7 +107,7 @@ public:
 
         while (length > 0) {
             auto bufferWithContext = stateHandler->getBuffer(channelInfo);
-
+            
             try {
                 while (length > 0 && bufferWithContext.buffer_->isWritable()) {
                     length -= serializer->ReadData2(source, bufferWithContext.buffer_, length);

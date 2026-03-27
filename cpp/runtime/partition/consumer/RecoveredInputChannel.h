@@ -3,7 +3,8 @@
  */
 
 #ifndef OMNISTREAM_RECOVEREDINPUTCHANNEL_H
-#define OMNISTREAM_RECOVEREDINPUTCHANNEL_H+
+#define OMNISTREAM_RECOVEREDINPUTCHANNEL_H
+
 #include "deque"
 #include "stdint.h"
 #include "InputChannel.h"
@@ -93,7 +94,8 @@ public:
 
     void resumeConsumption() override
     {
-        throw std::invalid_argumen+    }
+        throw std::invalid_argument("RecoveredInputChannel should never be blocked.");
+    }
 
     void acknowledgeAllRecordsProcessed() override
     {

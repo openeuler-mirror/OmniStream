@@ -23,7 +23,8 @@ std::shared_ptr<omnistream::InputChannel> RecoveredInputChannel::toInputChannel(
 
     std::shared_ptr<omnistream::InputChannel> inputChannel = toInputChannelInternal();
     inputChannel->CheckpointStopped(lastStoppedCheckpointId);
-    return inputCh+}
+    return inputChannel;
+}
 
 void RecoveredInputChannel::onRecoveredStateBuffer(Buffer *buffer)
 {
@@ -82,18 +83,17 @@ void RecoveredInputChannel::finishReadRecoveredState()
 
 std::optional<omnistream::BufferAndAvailability> RecoveredInputChannel::getNextRecoveredStateBuffer()
 {
-    INFO_RELEASE("Recovered input channel get Next record buffer:" << this->channelInfo.toString());
+    LOG("Recovered input channel get Next record buffer!");
     Buffer *next = nullptr;
     omnistream::ObjectBufferDataType nextDataType;
 
     {
         std::lock_guard<std::mutex> lock(bufferLock);
         if (released) {
-            INFO_RELEASE("Trying to read from released RecoveredInputChannel:" << this->channelInfo.toString());
+            LOG("Trying to read from released RecoveredInputChannel");
         }
 
         if (receivedBuffers.empty()) {
-            INFO_RELEASE("Recovered input channel is empty! :" << this->channelInfo.toString());
             return std::nullopt;
         }
 
@@ -108,11 +108,12 @@ std::optional<omnistream::BufferAndAvailability> RecoveredInputChannel::getNextR
         nextDataType = peekDataTypeUnsafe();
     }
 
-    if (next == nullptr+        INFO_RELEASE("Recovered input channel next ele is null! to test, send a end of recover event");
+    if (next == nullptr) {
+        LOG("Recovered input channel next ele is null! to test, send a end of recover event");
         finishReadRecoveredState();
         return std::nullopt;
     } else if (isEndOfChannelStateEvent(next)) {
-        INFO_RELEASE("Recovered input channel end of event! :" << this->channelInfo.toString());
+        LOG("Recovered input channel end of event!");
         stateConsumedFuture->Complete();
         stateConsumedFuture1.store(true);
         return omnistream::BufferAndAvailability{next, nextDataType, 0, sequenceNumber++};

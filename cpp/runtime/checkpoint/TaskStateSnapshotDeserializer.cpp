@@ -151,7 +151,7 @@ std::shared_ptr<InflightDataRescalingDescriptor> TaskStateSnapshotDeserializer::
     std::vector<InflightDataGateOrPartitionRescalingDescriptor> gateOrPartitionDescriptors;
     auto mappingsJson = j.at("gateOrPartitionDescriptors");
     if (mappingsJson.size() >= 2 && mappingsJson[0].is_string() && mappingsJson[1].is_array()) {
-        mappingsJson = mappingsJson[1]; // 鍙栧疄闄呮弿杩扮鏁扮粍
+        mappingsJson = mappingsJson[1]; // 取实际描述符数组
     }
     if (mappingsJson.empty()) {
         LOG("GateOrPartitionDescriptors is empty");
@@ -184,13 +184,9 @@ std::shared_ptr<InflightDataRescalingDescriptor> TaskStateSnapshotDeserializer::
                 int numberOfSources = mappingJson["rescaledChannelsMappings"]["numberOfSources"].get<int>();
                 int numberOfTargets = mappingJson["rescaledChannelsMappings"]["numberOfTargets"].get<int>();
                 const auto &rescaledMappings = mappingJson["rescaledChannelsMappings"]["mappings"].get<std::vector<std::vector<int>>>();
-                INFO_RELEASE("rescaledMappings:" << mappingJson["rescaledChannelsMappings"]["mappings"]);
-                INFO_RELEASE("rescaledMappings size:" << rescaledMappings.size());
                 if (rescaledMappings.empty()) {
-                    INFO_RELEASE("create IdentityRescaleMappings");
                     rescaleMappings = std::make_shared<IdentityRescaleMappings>(numberOfSources, numberOfTargets);
                 } else {
-                    INFO_RELEASE("create RescaleMappings");
                     rescaleMappings = std::make_shared<RescaleMappings>(numberOfSources, rescaledMappings, numberOfTargets);
                 }
             } else {

@@ -12,7 +12,8 @@
 #include "runtime/buffer/Buffer.h"
 #include "core/memory/Segment.h"
 #include "core/include/common.h"
-#include "+#include "runtime/buffer/NetworkMemoryBufferPool.h"
+#include "runtime/buffer/BufferRecycler.h"
+#include "runtime/buffer/NetworkMemoryBufferPool.h"
 #include "runtime/buffer/NetworkBuffer.h"
 #include "runtime/partition/consumer/SingleInputGate.h"
 #include "runtime/buffer/BufferListener.h"
@@ -40,34 +41,34 @@ public:
 
     std::shared_ptr<omnistream::Buffer> addExclusiveBuffer(
                 std::shared_ptr<omnistream::Buffer> buffer,
-                        int numRequiredBuffers)
+                        int numRequiredBuffers) 
     {
         exclusiveBuffers.emplace_back(buffer);
-
-        // 鍙湁鍦ㄢ€滆秴棰濃€濅笖纭疄鏈?floating buffer 鏃讹紝鎵嶅洖鏀朵竴涓?floating buffer
+        
+        // 只有在“超额”且确实有 floating buffer 时，才回收一个 floating buffer
         if (getAvailableBufferSize() > numRequiredBuffers && !floatingBuffers.empty()) {
             auto buf = floatingBuffers.front();
             floatingBuffers.pop_front();
             return buf;
         }
-
+        
         return nullptr;
     }
-
-    std::shared_ptr<omnistream::Buffer> takeBuffer()
+    
+    std::shared_ptr<omnistream::Buffer> takeBuffer() 
     {
         if (!floatingBuffers.empty()) {
             auto buffer = floatingBuffers.front();
             floatingBuffers.pop_front();
             return buffer;
         }
-
+        
         if (!exclusiveBuffers.empty()) {
             auto buffer = exclusiveBuffers.front();
             exclusiveBuffers.pop_front();
             return buffer;
         }
-
+        
         return nullptr;
     }
 
@@ -77,7 +78,8 @@ public:
 
     std::deque<std::shared_ptr<omnistream::Buffer>> getFloatingBuffers()
     {
-   +    }
+        return floatingBuffers;
+    }
 
     std::deque<std::shared_ptr<omnistream::Buffer>> clearFloatingBuffers() {
         std::deque<std::shared_ptr<omnistream::Buffer>> buffers = std::move(floatingBuffers);
@@ -135,7 +137,8 @@ public:
 
     void releaseFloatingBuffers();
 
-    [[n+
+    [[nodiscard]] std::string toString() const override;
+
     void recycle(Segment *segment) override;
 
     bool notifyBufferAvailable(std::shared_ptr<Buffer> buffer) override;

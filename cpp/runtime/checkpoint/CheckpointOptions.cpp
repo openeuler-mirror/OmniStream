@@ -46,17 +46,17 @@ CheckpointOptions::CheckpointOptions(
 {
 }
 
-CheckpointOptions *CheckpointOptions::ToRuntimeAlignedNoTimeout() const
+CheckpointOptions *CheckpointOptions::ToRuntimeAlignedNoTimeout() const 
 {
     if (!IsExactlyOnceMode()) {
         return const_cast<CheckpointOptions *>(this);
     }
-
+    
     if (alignmentType_ == AlignmentType::ALIGNED &&
                 alignedCheckpointTimeout_ == NO_ALIGNED_CHECKPOINT_TIME_OUT) {
         return const_cast<CheckpointOptions *>(this);
     }
-
+    
     return AlignedNoTimeout(*checkpointType_, targetLocation_);
 }
 
