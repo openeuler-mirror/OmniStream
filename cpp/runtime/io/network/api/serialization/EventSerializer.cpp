@@ -184,7 +184,9 @@ namespace omnistream {
             buffer->RecycleBuffer();
             return EndOfChannelStateEvent::getInstance();
         }else if(eventType == VIRTUAL_CHANNEL_SELECTOR_EVENT){
-            return std::make_shared<SubtaskConnectionDescriptor>(byteBuffer.getIntFromValue(),byteBuffer.getIntFromValue());
+            auto des = std::make_shared<SubtaskConnectionDescriptor>(byteBuffer.getIntFromValue(),byteBuffer.getIntFromValue());
+            buffer->RecycleBuffer();
+            return des;
         } else {
             LOG_DEBUG("find no support event type!")
             buffer->RecycleBuffer();
