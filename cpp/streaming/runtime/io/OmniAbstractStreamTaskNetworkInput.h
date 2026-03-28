@@ -222,7 +222,7 @@ public:
     {
         auto buffer = static_cast<ReadOnlySlicedNetworkBuffer *>(bufferOrEvent->getBuffer());
         auto inputChannelInfo = bufferOrEvent->getChannelInfo();
-        currentRecordDeserializer = getActiveSerializer(inputChannelInfo.getComplexId());
+        currentRecordDeserializer = getActiveSerializer(inputChannelInfo.getInputChannelId());
         if (currentRecordDeserializer == nullptr) {
             INFO_RELEASE("currentRecordDeserializer has already been released")
             THROW_LOGIC_EXCEPTION("currentRecordDeserializer has already been released");
