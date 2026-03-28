@@ -32,6 +32,10 @@ namespace omnistream {
 
     OmniStreamTaskInput* OmniOneInputStreamTask::CreateTaskInput(std::shared_ptr<CheckpointedInputGate> inputGate)
     {
+        auto inputRescalingDescriptor = env_->getTaskStateManager()->getInputRescalingDescriptor();
+        auto edges = taskConfiguration_.getStreamConfigPOD().getOutEdgesInOrder();
+        auto getPartitionerFunction = std::function<StreamPartitioner<IOReadableWritable>*(int)>(
+        [this, edges](int i) { return this->createPartitionerFromDesc(edges[i]); });
         // initialize TypeInformation and channelInfos
         if (taskType == 1) {
             // todo: fix it later
@@ -57,7 +61,9 @@ namespace omnistream {
             } else {
                 typeList = descriptionJson["inputTypes"].get<std::vector<std::string>>();
             }
-            return OmniStreamTaskNetworkInputFactory::create(0, inputGate, taskType, new BinaryRowDataSerializer(typeList.size(), typeList), channelInfoIndex);
+            return OmniStreamTaskNetworkInputFactory::create(0, inputGate, taskType,
+                                                         new BinaryRowDataSerializer(typeList.size(), typeList),
+                                                         channelInfoIndex, inputRescalingDescriptor,getPartitionerFunction, &taskConfiguration_);
         } else if (taskType == 2) {
             auto operatorPod = this->taskConfiguration_.getStreamConfigPOD().getOperatorDescription();
 
@@ -89,7 +95,8 @@ namespace omnistream {
             TypeSerializer *inputSerializer = typeInfo->getTypeSerializer();
             inputSerializer->setSelfBufferReusable(true);
 
-            return OmniStreamTaskNetworkInputFactory::create(0, inputGate, taskType, inputSerializer, channel_array);
+            return OmniStreamTaskNetworkInputFactory::create(0, inputGate, taskType, inputSerializer, channel_array,
+                                                             inputRescalingDescriptor,getPartitionerFunction,&taskConfiguration_);
         } else {
             THROW_LOGIC_EXCEPTION("Unknown taskType " + taskType)
         }

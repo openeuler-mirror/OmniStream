@@ -38,7 +38,7 @@ namespace omnistream {
 
         virtual bool isIdentity() const { return false; }
 
-        std::vector<int> getMappedIndexes(size_t sourceIndex) const
+        virtual std::vector<int> getMappedIndexes(size_t sourceIndex) const
         {
             if (sourceIndex >= mappings.size()) {
                 return {};
@@ -67,7 +67,7 @@ namespace omnistream {
         virtual std::set<int> getAmbiguousTargets();
 
         static RescaleMappings of(const std::vector<std::vector<int> > &mappedTargets, int numberOfTargets);
-        std::string ToString() const;
+        virtual std::string ToString() const;
         RescaleMappings invert();
     protected:
         int numberOfSources;
@@ -95,7 +95,22 @@ namespace omnistream {
 
         bool isIdentity() const override { return true; }
 
+        std::vector<int> getMappedIndexes(size_t sourceIndex) const override
+        {
+            if(sourceIndex >= numberOfTargets){
+                return {};
+            }
+            return {static_cast<int>(sourceIndex)};
+        }
+
         std::set<int> getAmbiguousTargets() override { return {}; }
+
+        std::string ToString() const override
+        {
+            std::ostringstream oss;
+            oss << "IdentityRescaleMappings{numberOfSources=" << numberOfSources << ", numberOfTargets=" << numberOfTargets;
+            return oss.str();
+        }
     };
 
 }

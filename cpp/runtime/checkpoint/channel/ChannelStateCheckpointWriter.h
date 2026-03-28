@@ -114,12 +114,12 @@ namespace omnistream {
         std::map<SubtaskID, ChannelStatePendingResult *> pendingResults;
         std::set<SubtaskID> subtasksToRegister;
         CheckpointStateOutputStream *checkpointStream;
-        std::ostringstream *dataStream;
+        char *dataStream;
         std::exception_ptr throwable;
 
         bool IsDone() const;
-        void TryFinishResult();
-        void FinishWriteAndResult();
+        void TryFinishResult(ChannelStatePendingResult *pending);
+        void FinishWriteAndResult(ChannelStatePendingResult *pending);
         void failResultAndCloseStream(const std::exception_ptr &e);
 
         template <typename K>
@@ -134,11 +134,20 @@ namespace omnistream {
                 LOG_DEBUG("void Write.")
                 throw std::logic_error("Precondition failed for " + action);
             }
-            int64_t offset = checkpointStream->GetPos();
-            serializer->WriteData(*dataStream, buffer);
-            checkpointStream->Write(dataStream->str().c_str(), dataStream->str().size());
-            int64_t size = checkpointStream->GetPos() - offset;
-            offsets[key].WithDataAdded(offset, size);
+            int64_t offset = 0;
+            serializer->WriteData(dataStream, buffer, offset);
+            if (offset == sizeof(int)) {
+                checkpointStream->Write(dataStream, buffer->GetSize() + sizeof(int) + sizeof(int));
+            } else {
+                checkpointStream->Write(dataStream + offset, buffer->GetSize() + sizeof(int));
+            }
+            int64_t size = buffer->GetSize() + sizeof(int);
+            auto it = offsets.find(key);
+            if (it != offsets.end()) {
+                it->second.WithDataAdded(offset, size);
+            } else {
+                offsets[key].WithDataAdded(offset, size);
+            }
         }
 
         ChannelStatePendingResult *GetChannelStatePendingResult(const JobVertexID &jvid, int subtaskIndex);

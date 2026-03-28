@@ -415,7 +415,7 @@ int PipelinedSubpartition::add(std::shared_ptr<BufferConsumer> bufferConsumer, i
             return -1;
         }
 
-        LOG_TRACE("before add buffer ")
+        INFO_RELEASE("before add buffer ")
         if (addBuffer(bufferConsumer, partialRecordLength)) {
             prioritySequenceNumber = sequenceNumber;
         }
@@ -437,16 +437,15 @@ int PipelinedSubpartition::add(std::shared_ptr<BufferConsumer> bufferConsumer, i
 
 bool PipelinedSubpartition::addBuffer(std::shared_ptr<BufferConsumer> bufferConsumer, int partialRecordLength)
 {
-    LOG("buffer consumer added to buffers" << (bufferConsumer->isBuffer() ? "buffer": "event"))
+    LOG_DEBUG("buffer consumer added to buffers" << (bufferConsumer->isBuffer() ? "buffer": "event"))
     if (bufferConsumer->getDataType().hasPriority()) {
-        LOG_DEBUG("111111!")
         return ProcessPriorityBuffer(bufferConsumer, partialRecordLength);
     } else if (ObjectBufferDataType::TIMEOUTABLE_ALIGNED_CHECKPOINT_BARRIER == bufferConsumer->getDataType()) {
-        LOG_DEBUG("111111!")
+        LOG_DEBUG("PipelinedSubpartition::addBuffer");
         ProcessTimeoutableCheckpointBarrier(bufferConsumer);
     }
     buffers.add(std::make_shared<BufferConsumerWithPartialRecordLength>(bufferConsumer, partialRecordLength));
-    LOG("buffer priorityqueue size " << std::to_string(buffers.size()) << " first buffer  "
+    LOG_DEBUG("buffer priorityqueue size " << std::to_string(buffers.size()) << " first buffer  "
                                      << std::to_string(reinterpret_cast<long>(buffers.peek().get())))
     return false;
 }
@@ -478,7 +477,12 @@ bool PipelinedSubpartition::ProcessPriorityBuffer(std::shared_ptr<BufferConsumer
         for (const auto &current : elements) {
             auto buffer = current->getBufferConsumer();
             if (buffer->isBuffer()) {
-                inflightBuffers.push_back(buffer->buildForPeek());
+                Buffer *inflightbuffer = buffer->buildForPeek();
+                if (inflightbuffer == nullptr) {
+                    LOG("writeOutput buffers is null ");
+                }
+                
+                inflightBuffers.push_back(inflightbuffer);
             }
         }
 
@@ -532,7 +536,11 @@ void PipelinedSubpartition::ConvertToPriorityEvent(int announcedSequenceNumber)
             }
             auto bc = e->getBufferConsumer();
             if (bc->isBuffer()) {
-                overtaken.emplace_back(bc->buildForPeek());
+                Buffer *buffer = bc->buildForPeek();
+                if (buffer == nullptr) {
+                    LOG("writeOutput buffers is null ");
+                }
+                overtaken.emplace_back(buffer);
             }
         }
 

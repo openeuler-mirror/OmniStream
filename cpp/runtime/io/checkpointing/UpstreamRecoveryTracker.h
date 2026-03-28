@@ -43,6 +43,7 @@ public:
         if (numUnrestoredChannels_ > 0) {
             auto result = restoredChannels_.insert(channelInfo);
             if (!result.second) {
+                INFO_RELEASE("Channel already restored:" << channelInfo.toString());
                 throw std::runtime_error("Channel already restored: " + channelInfo.toString());
             }
             --numUnrestoredChannels_;

@@ -81,9 +81,19 @@ public:
         {
             return inputChannelStateHandles->IsDone() && resultSubpartitionStateHandles->IsDone();
         }
+
+        bool IsNeedsChannelState()
+        {
+            return isNeedsChannelState;
+        }
+        void setIsNeedsChannelState(bool flag)
+        {
+            isNeedsChannelState = flag;
+        }
     private:
         InputChannelStateFuture inputChannelStateHandles;
         ResultSubpartitionStateFuture resultSubpartitionStateHandles;
+        bool isNeedsChannelState = false;
     };
 
     /**

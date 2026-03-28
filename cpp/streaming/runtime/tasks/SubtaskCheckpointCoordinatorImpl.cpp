@@ -130,7 +130,7 @@ namespace omnistream::runtime {
 
         try {
             operatorChain->SnapshotState(
-                *operatorSnapshotsInProgress,
+                operatorSnapshotsInProgress,
                 *checkpointMetaData,
                 checkpointOptions,
                 isRunning,

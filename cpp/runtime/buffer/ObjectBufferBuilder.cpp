@@ -83,4 +83,8 @@ std::string ObjectBufferBuilder::toString()
     return ss.str();
 }
 
+Segment* ObjectBufferBuilder::GetSegment()
+{
+    return objSegment;
+}
 } // namespace omnistream

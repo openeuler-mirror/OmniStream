@@ -11,7 +11,8 @@
 
 #include "streaming/api/watermark/Watermark.h"
 
-const Watermark Watermark::MAX_WATERMARK (LONG_MAX);
+Watermark Watermark::MAX_WATERMARK (LONG_MAX);
+Watermark Watermark::UNINITIALIZED (LONG_MIN);
 
 Watermark::Watermark(int64_t timestamp) : timestamp_(timestamp)
 {

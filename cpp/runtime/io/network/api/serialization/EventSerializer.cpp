@@ -26,6 +26,9 @@
 #include "buffer/MemoryBufferConsumer.h"
 #include "runtime/checkpoint/SavepointType.h"
 #include "runtime/event/EndOfChannelStateEvent.h"
+#include "runtime/event/EndOfSegmentEvent.h"
+#include "runtime/io/network/api/CancelCheckpointMarker.h"
+#include "runtime/event/SubtaskConnectionDescriptor.h"
 
 namespace omnistream {
     const int EventSerializer::INVALID_EVENT = -1;
@@ -43,6 +46,9 @@ namespace omnistream {
         std::shared_ptr<AbstractEvent> event, bool hasPriority)
     {
         MemorySegment *res = ToSerializedEvent(event);
+        if (res == nullptr) {
+            return nullptr;
+        }
         ObjectBufferDataType dataType = ObjectBufferDataType::GetDataBufferType(hasPriority, event);
         NetworkBuffer* networkBuffer = new NetworkBuffer(
             res, res->getSize(), 0, EventDataBufferRecycler::GetInstance(), dataType, true);
@@ -54,7 +60,10 @@ namespace omnistream {
     std::shared_ptr<BufferConsumer> EventSerializer::ToBufferConsumer(std::shared_ptr<AbstractEvent> event,
                                                                       bool hasPriority)
     {
-        NetworkBuffer* buffer = toBuffer(event, hasPriority);
+        NetworkBuffer *buffer = toBuffer(event, hasPriority);
+        if (buffer == nullptr) {
+            return nullptr;
+        }
         int eventSize = buffer->getMemorySegment()->getSize();
         std::shared_ptr<BufferConsumer> bufferConsumer = std::make_shared<datastream::MemoryBufferConsumer>(
             buffer, eventSize);
@@ -116,6 +125,17 @@ namespace omnistream {
             data = new uint8_t[4]{0, 0, 0, END_OF_CHANNEL_STATE_EVENT};
             memorySegment = new MemorySegment(data, 4);
             return memorySegment;
+        }else if(dynamic_cast<SubtaskConnectionDescriptor*>(event.get())){
+            auto selector = dynamic_cast<SubtaskConnectionDescriptor*>(event.get());
+            ByteBuffer byteBuffer = ByteBuffer(12);
+            byteBuffer.putInt(VIRTUAL_CHANNEL_SELECTOR_EVENT);
+            byteBuffer.putInt(selector->getInputSubtaskIndex());
+            byteBuffer.putInt(selector->getOutputSubtaskIndex());
+            byteBuffer.flip();
+            uint8_t* arr = new uint8_t[12];
+            memcpy_s(arr, 12, byteBuffer.getValue(), 12);
+            memorySegment = new MemorySegment(arr, 12);
+            return memorySegment;
         }
         throw std::runtime_error("Unsupported event type");
     }
@@ -163,6 +183,10 @@ namespace omnistream {
         } else if (eventType == END_OF_CHANNEL_STATE_EVENT) {
             buffer->RecycleBuffer();
             return EndOfChannelStateEvent::getInstance();
+        }else if(eventType == VIRTUAL_CHANNEL_SELECTOR_EVENT){
+            auto des = std::make_shared<SubtaskConnectionDescriptor>(byteBuffer.getIntFromValue(),byteBuffer.getIntFromValue());
+            buffer->RecycleBuffer();
+            return des;
         } else {
             LOG_DEBUG("find no support event type!")
             buffer->RecycleBuffer();

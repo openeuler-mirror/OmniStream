@@ -13,12 +13,14 @@ namespace omnistream{
     public:
         SubtaskConnectionDescriptor(int inputIndex, int outputIndex) : inputSubtaskIndex(inputIndex),
                                                                        outputSubtaskIndex(outputIndex) {}
-        bool operator==(const SubtaskConnectionDescriptor& other) const
+        bool operator==(const SubtaskConnectionDescriptor &other) const
         {
-            return inputSubtaskIndex == other.inputSubtaskIndex && outputSubtaskIndex == other.outputSubtaskIndex;
+            INFO_RELEASE("SubtaskConnectionDescriptor this :" <<this->toString() << ",other:" << other.toString());
+            return this == &other ||
+                   (inputSubtaskIndex == other.getInputSubtaskIndex() && outputSubtaskIndex == other.getOutputSubtaskIndex());
         }
 
-        std::string toString() {
+        std::string toString() const {
             std::stringstream ss;
             ss << "SubtaskConnectionDescriptor{ inputSubtaskIndex=" << inputSubtaskIndex << ", outputSubtaskIndex="
                << outputSubtaskIndex << "}";
@@ -26,7 +28,7 @@ namespace omnistream{
         }
 
         std::size_t hashCode() const {
-            constexpr std::size_t kGoldenRatio = 0x9e3779b9;  // 2^32 / φ (φ ≈ 1.618)
+            constexpr std::size_t kGoldenRatio = 0x9e3779b9; // 2^32 / φ (φ ≈ 1.618)
 
             std::size_t seed = 0;
 
@@ -39,7 +41,27 @@ namespace omnistream{
             return seed;
         }
 
-    private:
+        int getInputSubtaskIndex() const
+        {
+            return inputSubtaskIndex;
+        }
+        int getOutputSubtaskIndex() const
+        {
+            return outputSubtaskIndex;
+        }
+
+        long getComplexId()
+        {
+                return (((long)(inputSubtaskIndex)) << 32) || (outputSubtaskIndex & 0xFFFFFFFFL);
+        }
+
+    std::string GetEventClassName() override
+    {
+        return "SubtaskConnectionDescriptor";
+    }
+
+
+private:
         int inputSubtaskIndex;
         int outputSubtaskIndex;
     };

@@ -19,9 +19,9 @@
 namespace omnistream {
     class OmniStreamMultipleInputProcessor : public OmniStreamInputProcessor {
     public:
-        OmniStreamMultipleInputProcessor(std::vector<OmniStreamOneInputProcessor *> &&processors,
+        OmniStreamMultipleInputProcessor(std::vector<OmniStreamOneInputProcessor *> &&_processors,
                                          std::shared_ptr<MutipleInputSelectionHandler> inputSelectionHandler)
-            : processors(processors), inputSelectionHandler(inputSelectionHandler) {
+            : processors(_processors), inputSelectionHandler(inputSelectionHandler) {
             availabilityHelper = std::make_shared<MultipleFuturesAvailabilityHelper>(processors.size());
         }
         ~OmniStreamMultipleInputProcessor() override;

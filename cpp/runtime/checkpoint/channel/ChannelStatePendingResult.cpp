@@ -60,7 +60,7 @@ namespace omnistream {
         allOutputsReceived = true;
     }
 
-    void ChannelStatePendingResult::FinishResult(StreamStateHandle *stateHandle)
+    void ChannelStatePendingResult::FinishResult(std::shared_ptr<StreamStateHandle> stateHandle)
     {
         NOT_IMPL_EXCEPTION
     }
@@ -75,4 +75,17 @@ namespace omnistream {
         return result->IsDone();
     }
 
+    std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> ChannelStatePendingResult::GetResult()
+    {
+        return result;
+    }
+
+    const int ChannelStatePendingResult::GetSubtaskIndex()
+    {
+        return subtaskIndex;
+    }
+    const int64_t ChannelStatePendingResult::GetCheckpointId()
+    {
+        return checkpointId;
+    }
 } // namespace omnistream

@@ -27,10 +27,10 @@ namespace omnistream {
         
         virtual std::shared_ptr<CheckpointStorageAccess> createCheckpointStorage(const JobIDPOD& jobId) = 0;
 
-        std::shared_ptr<CheckpointStorageAccess> createCheckpointStorage()
+        std::shared_ptr<CheckpointStorageAccess> createCheckpointStorage(std::string tmpWorkingDirectory)
         {
             // Temp initialization
-            auto path1 = new Path("test1");
+            auto path1 = new Path(tmpWorkingDirectory);
             auto path2 = new Path("test2");
 
             return std::make_shared<FsCheckpointStorageAccess>(path1, path2, JobIDPOD(), 100, 100);

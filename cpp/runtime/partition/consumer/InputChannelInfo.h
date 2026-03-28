@@ -48,6 +48,10 @@ namespace omnistream {
         {
             return gateIdx == other.gateIdx && inputChannelIdx == other.inputChannelIdx;
         }
+
+        long getComplexId(){
+            return ((long)gateIdx) << 32 | inputChannelIdx;
+        }
     private:
         int gateIdx;
         int inputChannelIdx;

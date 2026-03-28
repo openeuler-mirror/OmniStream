@@ -143,14 +143,14 @@ private:
     struct RecoveredBufferEntry {
         Buffer* buffer;
         std::shared_ptr<omnistream::Buffer> owner;
-        
+
         RecoveredBufferEntry(Buffer* b, std::shared_ptr<omnistream::Buffer> o = nullptr)
             : buffer(b), owner(std::move(o)) {}
     };
-    
+
     std::deque<RecoveredBufferEntry> receivedBuffers;
     std::deque<std::shared_ptr<omnistream::Buffer>> consumedRecoveredBufferOwners;
-    
+
     std::shared_ptr<CompletableFutureV2<void>> stateConsumedFuture;
     std::atomic<bool> stateConsumedFuture1{false};
     std::shared_ptr<BufferManager> bufferManager;

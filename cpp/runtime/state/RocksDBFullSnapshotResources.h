@@ -76,6 +76,10 @@ public:
         KeyGroupRange* keyGroupRange,
         TypeSerializer* keySerializer);
         
+    ~RocksDBFullSnapshotResources();
+    
+    void cleanup() override;
+        
     static std::shared_ptr<RocksDBFullSnapshotResources>
     create(
         const std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>& kvStateInformation,

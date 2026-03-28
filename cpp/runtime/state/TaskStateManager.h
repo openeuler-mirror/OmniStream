@@ -102,6 +102,17 @@ public:
         return omniTaskBridge_;
     }
 
+    std::shared_ptr<InflightDataRescalingDescriptor> getInputRescalingDescriptor()
+    {
+        if (jobManagerTaskRestore_ != nullptr) {
+            auto taskStateSnapshot = jobManagerTaskRestore_->getTaskStateSnapshot();
+            if (taskStateSnapshot != nullptr) {
+                return taskStateSnapshot->GetInputRescalingDescriptor();
+            }
+        }
+        return nullptr;
+    }
+
 private:
     TaskLocalStateStore *localStateStore_;
     CheckpointResponder *checkpointResponder_; // should be removed later

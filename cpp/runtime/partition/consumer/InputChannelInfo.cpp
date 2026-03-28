@@ -11,6 +11,7 @@
 // InputChannelInfo.cpp
 #include "InputChannelInfo.h"
 #include <sstream>
+#include <nlohmann/json.hpp>
 
 namespace omnistream {
 
@@ -29,6 +30,24 @@ namespace omnistream {
             inputChannelIdx = other.inputChannelIdx;
         }
         return *this;
+    }
+
+    bool InputChannelInfo::operator==(const InputChannelInfo& other) const
+    {
+        return gateIdx == other.gateIdx && inputChannelIdx == other.inputChannelIdx;
+    }
+
+    bool InputChannelInfo::operator!=(const InputChannelInfo& other) const
+    {
+        return !(*this == other);
+    }
+
+    bool InputChannelInfo::operator<(const InputChannelInfo& other) const
+    {
+        if (gateIdx != other.gateIdx) {
+            return gateIdx < other.gateIdx;
+        }
+        return inputChannelIdx < other.inputChannelIdx;
     }
 
     InputChannelInfo::~InputChannelInfo() {}
@@ -63,28 +82,13 @@ namespace omnistream {
         this->inputChannelIdx = inputChannelIdx_;
     }
 
-    bool InputChannelInfo::operator==(const InputChannelInfo& other) const
-    {
-        return gateIdx == other.gateIdx && inputChannelIdx == other.inputChannelIdx;
-    }
-
-    bool InputChannelInfo::operator!=(const InputChannelInfo& other) const
-    {
-        return !(*this == other);
-    }
-    bool InputChannelInfo::operator<(const InputChannelInfo& other) const
-    {
-        if (gateIdx != other.gateIdx) {
-            return gateIdx < other.gateIdx;
-        }
-        return inputChannelIdx < other.inputChannelIdx;
-    }
-
     std::string InputChannelInfo::toString() const
     {
-        std::stringstream ss;
-        ss << "InputChannelInfo{gateIdx=" << gateIdx << ", inputChannelIdx=" << inputChannelIdx << "}";
-        return ss.str();
+        nlohmann::json j;
+        j["@class"] = "org.apache.flink.runtime.checkpoint.channel.InputChannelInfo";
+        j["gateIdx"] = gateIdx;
+        j["inputChannelIdx"] = inputChannelIdx;
+        return j.dump();
     }
 
 } // namespace omnistream

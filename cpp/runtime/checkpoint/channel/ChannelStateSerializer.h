@@ -16,6 +16,7 @@
 #include <vector>
 #include <cstdint>
 #include <iostream>
+#include <libboundscheck/include/securec.h>
 #include "core/memory/MemorySegment.h"
 #include "include/basictypes/java_io_InputStream.h"
 #include "runtime/buffer/BufferBuilder.h"
@@ -28,8 +29,8 @@ class ChannelStateSerializer {
 public:
     virtual ~ChannelStateSerializer() = default;
 
-    virtual void WriteHeader(std::ostringstream &dataStream) = 0;
-    virtual void WriteData(std::ostringstream &dataStream, Buffer* buffer) = 0;
+    virtual void WriteHeader(char *dataStream) = 0;
+    virtual void WriteData(char *dataStream, Buffer* buffer, int64_t &oldOffset) = 0;
     virtual int64_t GetHeaderLength() const = 0;
 
     virtual void ReadHeader(std::ifstream &stream) = 0;
@@ -46,22 +47,23 @@ public:
 
 class ChannelStateSerializerImpl : public ChannelStateSerializer {
 public:
-    void WriteHeader(std::ostringstream &dataStream) override
+    void WriteHeader(char *dataStream) override
     {
-        const uint8_t header[4] = {0, 0, 0, 0};
-        dataStream.write(reinterpret_cast<const char*>(header), sizeof(header));
+        uint8_t header[4];
+        (void)memset_s(header, 4, 0, 4);
+        int64_t oldOffset = offset.fetch_add(sizeof(header));
+        memcpy_s(dataStream + oldOffset, memSize, reinterpret_cast<const char*>(header), sizeof(header));
     }
 
-    void WriteData(std::ostringstream &dataStream, Buffer* buffers) override
+    void WriteData(char *dataStream, Buffer* buffers, int64_t &oldOffset) override
     {
         int32_t size = getSize(buffers);
-        const uint8_t lenBytes[4] = {
-            static_cast<uint8_t>((size >> 24) & 0xFF),
-            static_cast<uint8_t>((size >> 16) & 0xFF),
-            static_cast<uint8_t>((size >> 8) & 0xFF),
-            static_cast<uint8_t>(size & 0xFF)
-    };
-        dataStream.write(reinterpret_cast<const char*>(lenBytes), sizeof(lenBytes));
+        uint8_t lenBytes[4];
+        (void)memset_s(lenBytes, sizeof(lenBytes), 0, sizeof(lenBytes));
+            lenBytes[0] = static_cast<uint8_t>((size >> 24) & 0xFF);
+            lenBytes[1] = static_cast<uint8_t>((size >> 16) & 0xFF);
+            lenBytes[2] = static_cast<uint8_t>((size >> 8) & 0xFF);
+            lenBytes[3] = static_cast<uint8_t>(size & 0xFF);
 
         auto segment = buffers->GetSegment();
         auto memorySegment = dynamic_cast<MemorySegment*>(segment);
@@ -69,8 +71,11 @@ public:
             throw std::runtime_error(
                     "ChannelStateSerializerImpl::WriteData requires MemorySegment-backed buffer");
         }
-
-        dataStream.write(reinterpret_cast<const char*>(memorySegment->getData()), size);
+        oldOffset = offset.fetch_add(sizeof(lenBytes));
+        int64_t newOffset = oldOffset;
+        memcpy_s(dataStream + newOffset, memSize, reinterpret_cast<const char*>(lenBytes), sizeof(lenBytes));
+        newOffset = offset.fetch_add(size);
+        memcpy_s(dataStream + newOffset, memSize, reinterpret_cast<const char*>(memorySegment->getData()), size);
     }
 
     int getSize(Buffer* buffers)
@@ -78,17 +83,6 @@ public:
         int len = 0;
         len += buffers->GetSize();
         return len;
-    }
-
-    void readHeader(std::istringstream &dataStream)
-    {
-        int version;
-        dataStream.read((char *)&version, sizeof(int));
-    }
-
-    int readData()
-    {
-
     }
 
     int64_t GetHeaderLength() const override
@@ -106,6 +100,8 @@ public:
     int ReadData2(std::shared_ptr<ByteStateHandleInputStream> &stream, std::shared_ptr<ChannelStateByteBuffer> buffer, int bytes) override;
 
     std::vector<char> ExtractAndMerge(const std::vector<char> &bytes, const std::vector<long> &offsets) override;
+    std::atomic<int64_t> offset{0};
+    size_t memSize = 64 * 1024 * 1024;
 };
 
 class ChannelStateByteBuffer {

@@ -38,10 +38,12 @@ namespace omnistream {
 
         void CompleteInput();
         void CompleteOutput();
-        void FinishResult(StreamStateHandle *stateHandle);
+        void FinishResult(std::shared_ptr<StreamStateHandle> stateHandle);
         void Fail(const std::exception_ptr &e);
         bool IsDone() const;
-
+        std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> GetResult();
+        const int GetSubtaskIndex();
+        const int64_t GetCheckpointId();
     private:
         const int subtaskIndex;
         const int64_t checkpointId;

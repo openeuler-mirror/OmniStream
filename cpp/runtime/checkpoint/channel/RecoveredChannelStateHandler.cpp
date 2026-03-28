@@ -17,7 +17,7 @@ namespace omnistream {
 
 ResultSubpartitionRecoveredStateHandler::ResultSubpartitionRecoveredStateHandler(
     std::vector<std::shared_ptr<ResultPartitionWriter>> writers,
-    bool notifyAndBlockOnCompletion, 
+    bool notifyAndBlockOnCompletion,
     std::shared_ptr<InflightDataRescalingDescriptor> channelMapping)
     : writers_(std::move(writers)),
       notifyAndBlockOnCompletion_(notifyAndBlockOnCompletion),
@@ -30,9 +30,9 @@ ResultSubpartitionRecoveredStateHandler::~ResultSubpartitionRecoveredStateHandle
 
 ResultSubpartitionRecoveredStateHandler::BufferWithContext ResultSubpartitionRecoveredStateHandler::getBuffer(const ResultSubpartitionInfoPOD& subpartitionInfo)
 {
-    
+
     auto channels = getMappedChannels(subpartitionInfo);
-    
+
     if (channels.empty()) {
         throw std::runtime_error("No mapped channels found");
     }
@@ -42,37 +42,33 @@ ResultSubpartitionRecoveredStateHandler::BufferWithContext ResultSubpartitionRec
 
 void ResultSubpartitionRecoveredStateHandler::recover(const ResultSubpartitionInfoPOD& subpartitionInfo, int oldSubtaskIndex, const BufferWithContext& bufferWithContext)
 {
-    LOG("ResultSubpartitionRecoveredStateHandler recover111")
     BufferBuilder *bufferBuilder = bufferWithContext.context_;
     auto bufferConsumer = bufferBuilder->createBufferConsumerFromBeginning();
-    LOG("ResultSubpartitionRecoveredStateHandler recover222")
     bufferBuilder->finish();
-    LOG("ResultSubpartitionRecoveredStateHandler recover333")
 
     if (!bufferConsumer->isDataAvailable()) {
         return;
     }
 
-    LOG("ResultSubpartitionRecoveredStateHandler recover444")
     auto channels = getMappedChannels(subpartitionInfo);
     if (channels.empty()) {
         throw std::runtime_error("No mapped channels found in recover()");
     }
-    LOG("ResultSubpartitionRecoveredStateHandler recover555, channel size: " << channels.size())
-    if (channels.size() == 1) {
-        channels[0]->addRecovered(bufferConsumer);
-    } else {
-        // 现在这条分支先明确失败，避免再次踩到 MemoryBufferConsumer::copy() 未实现
-        throw std::runtime_error(
-                "ResultSubpartitionRecoveredStateHandler::recover does not support fan-out restore yet: "
-                "multiple mapped channels require BufferConsumer::copy(), but MemoryBufferConsumer::copy() "
-                "is not implemented.");
+
+    try {
+        for (const auto &item : channels){
+            auto channelSelector = std::make_shared<SubtaskConnectionDescriptor>(subpartitionInfo.getSubPartitionIdx(),oldSubtaskIndex);
+            INFO_RELEASE("send recover buffer :" << item->getSubpartitionInfo().toString());
+            item->addRecovered(EventSerializer::ToBufferConsumer(channelSelector, false));
+            item->addRecovered(bufferConsumer);
+        }
+    } catch (const std::exception& e){
+        INFO_RELEASE("ResultSubpartitionRecoveredStateHandler::recover exception:" << e.what());
     }
 
-    LOG("Recovered state for partition " << subpartitionInfo.getPartitionIdx()
-                                         << ", subpartition " << subpartitionInfo.getSubPartitionIdx()
+    INFO_RELEASE("Recover state for partition" << ", subpartition " << subpartitionInfo.getSubPartitionIdx()
                                          << ", size " << bufferConsumer->getBufferSize()
-                                         << ", mappedChannels=" << channels.size())
+                                         << ", mappedChannels=" << channels.size());
 }
 
 void ResultSubpartitionRecoveredStateHandler::close()
@@ -190,21 +186,21 @@ void InputChannelRecoveredStateHandler::recover(const InputChannelInfo &inputCha
                 throw std::runtime_error("No mapped channels found in InputChannelRecoveredStateHandler::recover");
             }
 
-            if (channels.size() == 1) {
-                channels[0]->onRecoveredStateBuffer2(buffer);
-            } else {
-                throw std::runtime_error(
-                                "InputChannelRecoveredStateHandler::recover does not support fan-out restore yet");
+            for (const auto &item : channels){
+                INFO_RELEASE("send input recover:" << item->getChannelInfo().toString());
+                item->onRecoveredStateBuffer(EventSerializer::toBuffer(std::make_shared<SubtaskConnectionDescriptor>(oldSubtaskIndex,inputChannelInfo.getInputChannelIdx()), false));
+                item->onRecoveredStateBuffer2(buffer);
             }
 
-            LOG("Recovered state for gate " << inputChannelInfo.getGateIdx()
+            INFO_RELEASE("Recovered state for gate " << inputChannelInfo.getGateIdx()
                                             << ", channel " << inputChannelInfo.getInputChannelIdx()
                                             << ", size " << buffer->GetSize()
                                             << ", mappedChannels=" << channels.size());
         }
     } catch (const std::exception& e){
         buffer->RecycleBuffer();
-        throw std::runtime_error("failed to InputChannelRecoveredStateHandler recover");
+        INFO_RELEASE("InputChannelRecoveredStateHandler::recover exception:" << e.what());
+        throw std::runtime_error("failed to InputChannelRecoveredStateHandler recover:");
     }
 }
 
@@ -213,7 +209,7 @@ void InputChannelRecoveredStateHandler::close()
     for (const auto& inputGate : inputGates) {
         inputGate->FinishReadRecoveredState();
     }
-    LOG("Close InputChannelRecoveredStateHandler, finishReadRecoveredState inputGate size：" << inputGates.size());
+    LOG("Close InputChannelRecoveredStateHandler, finishReadRecoveredState inputGate size:" << inputGates.size());
 }
 
 std::shared_ptr<RecoveredInputChannel> InputChannelRecoveredStateHandler::getChannel(int gateIndex,

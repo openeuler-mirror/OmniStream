@@ -161,8 +161,9 @@ namespace omnistream {
         if (!forwardResumeToJava_) {
             return;
         }
-        
+
         if (this->remoteDataFetcherBridge == nullptr) {
+            LOG("RemoteInputChannel::resumeConsumption: remoteDataFetcherBridge is null");
             return;
         }
         int gateIndex = this->getChannelInfo().getGateIdx();

@@ -13,6 +13,7 @@
 #define FLINK_TNEL_NONREUSINGDESERIALIZATIONDELEGATE_H
 
 #include <memory>
+#include <atomic>
 #include "DeserializationDelegate.h"
 #include "streaming/runtime/streamrecord/StreamElementSerializer.h"
 

@@ -89,11 +89,11 @@ namespace omnistream {
         if (!forwardResumeToJava_) {
             return;
         }
-        
+
         if (omniLocalInputChannelBridge == nullptr) {
             return;
         }
-        
+
         omniLocalInputChannelBridge->InvokeDoResumeConsumption();
     }
 

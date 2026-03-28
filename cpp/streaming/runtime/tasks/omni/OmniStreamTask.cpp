@@ -89,7 +89,7 @@ OmniStreamTask::OmniStreamTask(std::shared_ptr<RuntimeEnvironmentV2> &env,
         stateBackend = new RocksDBStateBackend(taskConfiguration_);
     }
     checkpointStorage = createCheckpointStorage(stateBackend);
-    std::shared_ptr<CheckpointStorageAccess> checkpointStorageAccess = checkpointStorage->createCheckpointStorage();
+    std::shared_ptr<CheckpointStorageAccess> checkpointStorageAccess = checkpointStorage->createCheckpointStorage(taskConfiguration_.getTmpWorkingDirectory());
 
         subtaskCheckpointCoordinator = std::make_shared<runtime::SubtaskCheckpointCoordinatorImpl>(
             checkpointStorage,
@@ -218,7 +218,7 @@ OmniStreamTask::OmniStreamTask(std::shared_ptr<RuntimeEnvironmentV2> &env,
  */
 
     // simple requirePartionView for each local chaneel
-    void OmniStreamTask::restoreGates() 
+    void OmniStreamTask::restoreGates()
     {
         try {
             INFO_RELEASE("restoreGates begin " << taskName_);
@@ -237,14 +237,14 @@ OmniStreamTask::OmniStreamTask(std::shared_ptr<RuntimeEnvironmentV2> &env,
             }
 
             reader->readInputData(inputGateVec);
-                
+
             LOG("restoreGates before recovery mailbox loop");
             mailboxProcessor_->runMailboxLoop();
             LOG("restoreGates after recovery mailbox loop");
-                
+
             for (const auto& inputGate : inputGateVec) {
                 auto recoveredFlags = inputGate->getStateConsumedFuture1();
-                            
+
                 bool allRecovered = true;
                 for (bool done : recoveredFlags) {
                     if (!done) {
@@ -252,24 +252,24 @@ OmniStreamTask::OmniStreamTask(std::shared_ptr<RuntimeEnvironmentV2> &env,
                         break;
                     }
                 }
-                            
+
                 if (!allRecovered) {
                     LOG("restoreGates: some recovered channels are not fully consumed yet");
                     throw std::runtime_error(
                                                 "restoreGates exited but some recovered channels were not fully consumed");
                 }
-                            
+
                 INFO_RELEASE("restoreGates requestPartitions directly after recovery loop");
                 inputGate->RequestPartitions(taskType);
             }
-                
+
             INFO_RELEASE("restoreGates complete!");
         } catch (...) {
             INFO_RELEASE("Error: restoreGates failed, unable to read channel state");
             throw std::runtime_error("restoreGates failed, unable to read channel state");
         }
     }
-    
+
     void OmniStreamTask::invoke()
     {
         LOG("Invoking {}." << getName());
