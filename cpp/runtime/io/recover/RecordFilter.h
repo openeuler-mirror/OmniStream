@@ -50,7 +50,7 @@ public:
     {
         auto *obj = dynamic_cast<Object *>(&streamRecord);
         if(!obj){
-            INFO_RELEASE("error,streamRecord cast to obj fail!");
+            LogError("error,streamRecord cast to obj fail!");
         }
         delegate->setInstance(obj);
         return partitioner->selectChannel(delegate) == subtaskIndex;
