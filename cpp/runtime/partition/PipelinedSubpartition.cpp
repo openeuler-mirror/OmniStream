@@ -435,15 +435,15 @@ int PipelinedSubpartition::add(std::shared_ptr<BufferConsumer> bufferConsumer, i
 
 bool PipelinedSubpartition::addBuffer(std::shared_ptr<BufferConsumer> bufferConsumer, int partialRecordLength)
 {
-    INFO_RELEASE("buffer consumer added to buffers" << (bufferConsumer->isBuffer() ? "buffer": "event"))
+    LOG_DEBUG("buffer consumer added to buffers" << (bufferConsumer->isBuffer() ? "buffer": "event"))
     if (bufferConsumer->getDataType().hasPriority()) {
         return ProcessPriorityBuffer(bufferConsumer, partialRecordLength);
     } else if (ObjectBufferDataType::TIMEOUTABLE_ALIGNED_CHECKPOINT_BARRIER == bufferConsumer->getDataType()) {
-        INFO_RELEASE("PipelinedSubpartition::addBuffer");
+        LOG_DEBUG("PipelinedSubpartition::addBuffer");
         ProcessTimeoutableCheckpointBarrier(bufferConsumer);
     }
     buffers.add(std::make_shared<BufferConsumerWithPartialRecordLength>(bufferConsumer, partialRecordLength));
-    INFO_RELEASE("buffer priorityqueue size " << std::to_string(buffers.size()) << " first buffer  "
+    LOG_DEBUG("buffer priorityqueue size " << std::to_string(buffers.size()) << " first buffer  "
                                      << std::to_string(reinterpret_cast<long>(buffers.peek().get())))
     return false;
 }

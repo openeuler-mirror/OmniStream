@@ -48,10 +48,10 @@ public:
         }
         bool operator!=(const AbstractChannelStateHandle<Info>::StateContentMetaInfo& other) const
         {
-            if (offsets == other.offsets) {
-                return (offsets == other.offsets);
+            if (size == other.size) {
+                return !(offsets == other.offsets);
             }
-            return false;
+            return true;
         }
     };
 
