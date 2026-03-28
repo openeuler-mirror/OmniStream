@@ -233,7 +233,7 @@ void SingleInputGate::internalRequestPartitions()
 {
     for (auto &entry : inputChannels) {
         auto &inputChannel = entry.second;
-//        inputChannel->requestSubpartition(consumedSubpartitionIndex);
+        inputChannel->requestSubpartition(consumedSubpartitionIndex);
     }
 }
 
