@@ -71,7 +71,6 @@ public:
 
     DataInputStatus processEvent(BufferOrEvent *bufferOrEvent) override
     {
-        // 浜嬩欢鎺ユ敹
         auto event = bufferOrEvent->getEvent();
         if (auto subtaskConnDesc = dynamic_cast<SubtaskConnectionDescriptor *>(event.get())) {
             auto channelId = bufferOrEvent->getChannelInfo().getComplexId();

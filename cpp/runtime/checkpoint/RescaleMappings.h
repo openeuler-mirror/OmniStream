@@ -109,7 +109,6 @@ namespace omnistream {
         {
             std::ostringstream oss;
             oss << "IdentityRescaleMappings{numberOfSources=" << numberOfSources << ", numberOfTargets=" << numberOfTargets;
-            oss <<", mappings=[";
             return oss.str();
         }
     };
