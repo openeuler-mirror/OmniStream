@@ -27,7 +27,7 @@ namespace omnistream {
             if(recoverInput){
                 input = recoverInput->finishRecover();
             }
-            return DataInputStatus::MORE_AVAILABLE;
+            return status;
         }
         INFO_RELEASE("emitNext return status: "  << DataInputStatusHelper::mapToInt(status))
         // LOG_TRACE(" Return status  "  << DataInputStatusHelper::mapToInt(status))
