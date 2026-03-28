@@ -38,8 +38,8 @@ class OmniAbstractStreamTaskNetworkInput : public OmniStreamTaskInput {
 public:
     OmniAbstractStreamTaskNetworkInput(int64_t inputIndex, std::shared_ptr<CheckpointedInputGate> inputGate,
                                        int taskType, TypeSerializer *inputSerializer, std::vector<long> &channelInfos,
-                                       std::unordered_map<long, std::unique_ptr<RecordDeserializer>> recordDeserializers)
-        : recordDeserializers(recordDeserializers),
+                                       std::unique_ptr<std::unordered_map<long, std::unique_ptr<RecordDeserializer>>> recordDeserializers)
+        : recordDeserializers(std::move(recordDeserializers)),
           inputIndex(inputIndex),
           inputGate(std::move(inputGate)),
           taskType(taskType),
@@ -133,22 +133,22 @@ public:
             return inputGate->GetAvailableFuture();
         }
     }
-    std::unordered_map<long, std::unique_ptr<RecordDeserializer>> getRecordDeserializers(
+    std::unique_ptr<std::unordered_map<long, std::unique_ptr<RecordDeserializer>>> getRecordDeserializers(
         std::vector<long> &channelInfos)
     {
-        std::unordered_map<long, std::unique_ptr<RecordDeserializer>> recordDeserializers =
-           std::unordered_map<long, std::unique_ptr<RecordDeserializer>>();
+        std::unique_ptr<std::unordered_map<long, std::unique_ptr<RecordDeserializer>>> recordDeserializers =
+           std::make_unique<std::unordered_map<long, std::unique_ptr<RecordDeserializer>>>();
         for (size_t i = 0; i < channelInfos.size(); i++) {
             LOG("getRecordDeserializers channelInfo " << i)
             auto deserializer = std::make_unique<SpillingAdaptiveSpanningRecordDeserializer>();
-            recordDeserializers.emplace(channelInfos.at(i), std::move(deserializer));
+            recordDeserializers->emplace(channelInfos.at(i), std::move(deserializer));
         }
         return recordDeserializers;
     }
 
-    virtual RecordDeserializer *getActiveSerializer(long channelInfo) const {
-        auto it = recordDeserializers.find(channelInfo);
-        if (it == recordDeserializers.end()) {
+    virtual RecordDeserializer *getActiveSerializer(long channelInfo) {
+        auto it = recordDeserializers->find(channelInfo);
+        if (it == recordDeserializers->end()) {
             THROW_RUNTIME_ERROR("ChannelInfo not found in recordDeserializers");
         }
         return it->second.get();
@@ -548,7 +548,7 @@ public:
                                                                long checkpointId) override
     {
         LOG("Network prepare snapshot, checkpointId: " << checkpointId);
-        for (const auto &pair : recordDeserializers) {
+        for (const auto &pair : *recordDeserializers) {
             std::vector<InputChannelInfo> channelInfofos = inputGate->GetChannelInfos(); 
             try {
                 std::vector<omnistream::Buffer*> buffers = (pair.second)->GetUnconsumedBuffer();
@@ -633,9 +633,7 @@ protected:
     }
 
 protected:
-    std::unordered_map<long, std::unique_ptr<RecordDeserializer>> recordDeserializers;
-
-private:
+    std::unique_ptr<std::unordered_map<long, std::unique_ptr<RecordDeserializer>>> recordDeserializers;
     // for troubleshooting
     int NullValueCount = 0;
     bool isLastValueNull = false;

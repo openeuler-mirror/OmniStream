@@ -193,20 +193,24 @@ public:
         }
     }
 
-    static DemultiplexingRecordDeserializer *create(
+    static std::unique_ptr<DemultiplexingRecordDeserializer> create(
         const InputChannelInfo &channelInfo, const InflightDataRescalingDescriptor &rescalingDescriptor,
         std::function<std::shared_ptr<RecordDeserializer>(int)> deserializerFactory,
         std::function<std::function<bool(StreamRecord &)>(const InputChannelInfo &)> recordFilterFactory)
     {
         std::vector<int> oldSubtaskIndexes = rescalingDescriptor.GetOldSubtaskIndexes(channelInfo.getGateIdx());
         if (oldSubtaskIndexes.empty()) {
-            return UNMAPPED;
+            return std::make_unique<DemultiplexingRecordDeserializer>(
+                std::map<long,
+                std::shared_ptr<typename DemultiplexingRecordDeserializer::VirtualChannel>>());
         }
         auto channelMapping = rescalingDescriptor.GetChannelMapping(channelInfo.getGateIdx());
         std::vector<int> oldChannelIndexes = channelMapping->getMappedIndexes(channelInfo.getInputChannelIdx());
         if (oldChannelIndexes.empty()) {
             INFO_RELEASE("DemultiplexingRecordDeserializer create old channel is empty:"<<channelInfo.toString() <<",channel:"<< channelMapping->ToString() );
-            return UNMAPPED;
+            return std::make_unique<DemultiplexingRecordDeserializer>(
+                std::map<long,
+                std::shared_ptr<typename DemultiplexingRecordDeserializer::VirtualChannel>>());
         }
         int totalChannels = oldSubtaskIndexes.size() * oldChannelIndexes.size();
         std::map<long, std::shared_ptr<VirtualChannel>> virtualChannels;
@@ -222,7 +226,7 @@ public:
             }
         }
         INFO_RELEASE("DemultiplexingRecordDeserializer create channel size:" << virtualChannels.size());
-        return new DemultiplexingRecordDeserializer(virtualChannels);
+        return std::make_unique<DemultiplexingRecordDeserializer>(virtualChannels);
     }
 
     std::string toString() const
