@@ -84,7 +84,7 @@ public:
                 singleInputGate->SetForwardResumeToJava(forwardResumeToJava);
             }
         }
-        
+
         for (const auto &group: inputGateGroups) {
             for (const auto &input: group) {
                 allInputs.push_back(input.get());

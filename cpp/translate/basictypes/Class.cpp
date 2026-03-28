@@ -37,7 +37,9 @@ void Class::set(Object* obj, const std::string& field, Object* value) const
 Object* Class::get(Object* obj, const std::string& field) const
 {
     auto it = getters_.find(field);
-    if (it == getters_.end()) throw std::runtime_error("Field not found: " + field);
+    if (it == getters_.end()) {
+        throw std::runtime_error("Field not found: " + field);
+    }
     return it->second(obj);
 }
 

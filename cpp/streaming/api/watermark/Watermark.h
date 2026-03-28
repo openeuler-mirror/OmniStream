@@ -18,7 +18,8 @@
 
 class Watermark : public StreamElement {
 public:
-    static const Watermark MAX_WATERMARK;
+    static Watermark MAX_WATERMARK;
+    static Watermark UNINITIALIZED;
 
     explicit Watermark(int64_t timestamp);
 

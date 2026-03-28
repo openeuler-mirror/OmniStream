@@ -46,6 +46,13 @@ public:
         {
             return size;
         }
+        bool operator!=(const AbstractChannelStateHandle<Info>::StateContentMetaInfo& other) const
+        {
+            if (size == other.size) {
+                return !(offsets == other.offsets);
+            }
+            return true;
+        }
     };
 
     AbstractChannelStateHandle(int subtaskIndex,

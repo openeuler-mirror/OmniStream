@@ -46,5 +46,11 @@ public:
     virtual PhysicalStateHandleID GetStreamStateHandleID() const = 0;
 
     virtual bool operator==(const StreamStateHandle& other) const = 0;
+
+    virtual void DiscardState() = 0;
+
+private:
+    int bufferSize_;
+    std::string filePath;
 };
 #endif // FLINK_TNEL_STREAMSTATEHANDLE_H

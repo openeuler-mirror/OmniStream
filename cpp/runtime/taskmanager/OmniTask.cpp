@@ -185,7 +185,7 @@ namespace omnistream {
 
     void OmniTask::DoRunRestore(long streamTaskAddress)
     {
-        INFO_RELEASE(" doRun starting: " << taskNameWithSubtask_)
+        INFO_RELEASE(" DoRunRestore starting: " << taskNameWithSubtask_)
 
         LOG_INFO_IMP("doRun.... ")
         LOG("now oper is :" << taskNameWithSubtask_)
@@ -194,11 +194,11 @@ namespace omnistream {
         setupPartitionsAndGates(consumableNotifyingPartitionWriters, inputGates);
 
         try {
-            LOG_INFO_IMP("Invokable restore")
+            INFO_RELEASE(" OmniTask::DoRunRestore Invokable restore before")
             this->invokable_->restore();
-
+            INFO_RELEASE(" OmniTask::DoRunRestore Invokable restore after")
             flag.store(true);
-            LOG_DEBUG("find OmniTask initialized, task name: " << taskNameWithSubtask_)
+            INFO_RELEASE("find OmniTask initialized, task name: " << taskNameWithSubtask_)
 
             // init remote fetcher here because, the channels have been created and restored
             if (remoteDataFetcherBridge_ != nullptr) {
@@ -215,7 +215,7 @@ namespace omnistream {
 
     void OmniTask::doRun(long streamTaskAddress)
     {
-        INFO_RELEASE("welcome to native")
+        INFO_RELEASE(" OmniTask::doRun welcome to native")
         INFO_RELEASE("doRun starting, taskNameWithSubtask: " << taskNameWithSubtask_)
 
         LOG_INFO_IMP("doRun.... ")
@@ -225,10 +225,10 @@ namespace omnistream {
         setupPartitionsAndGates(consumableNotifyingPartitionWriters, inputGates);
 
         try {
-            LOG_INFO_IMP("Invokable restore")
+            INFO_RELEASE("OmniTask::doRun Invokable restore")
             this->invokable_->restore();
 
-            LOG_INFO_IMP("Invokable Invoke")
+            LOG_INFO_IMP("OmniTask::doRun Invokable Invoke")
 
             this->invokable_->invoke();
         } catch (const PartitionNotFoundException &e) {
@@ -269,7 +269,7 @@ namespace omnistream {
         int count = 0;
 
         while (!flag.load()) {
-            LOG_DEBUG("find OmniTask still uninitialzed, tasm name : " << taskNameWithSubtask_)
+            INFO_RELEASE("find OmniTask still uninitialzed, tasm name : " << taskNameWithSubtask_)
             count++;
             if (count > 5) {
                 break;
@@ -278,7 +278,7 @@ namespace omnistream {
         }
 
         try {
-            INFO_RELEASE("welcome to native")
+            INFO_RELEASE("OmniTask::DoRunInvoke welcome to native")
             LOG_INFO_IMP("Invokable Invoke")
             this->invokable_->invoke();
         } catch (const PartitionNotFoundException &e) {
@@ -562,7 +562,7 @@ namespace omnistream {
                 } else{
                     LOG("changeLocalInputChannelToOriginal unKnown channel type!");
                 }
-                
+
                 // create omniLocalInputChannel
                 auto omniShuffleEnv = std::dynamic_pointer_cast<OmniShuffleEnvironment>(this->shuffleEnv_);
                 std::shared_ptr<SingleInputGateFactory> singleInputGateFactory = omniShuffleEnv->

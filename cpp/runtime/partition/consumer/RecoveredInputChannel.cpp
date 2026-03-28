@@ -15,18 +15,18 @@ std::shared_ptr<omnistream::InputChannel> RecoveredInputChannel::toInputChannel(
         LOG("recovery not completed, do not convert to normal channel!");
         throw std::runtime_error("recovery not completed, do not convert to normal channel!");
     }
-    
+
     {
         std::lock_guard<std::mutex> lock(bufferLock);
         consumedRecoveredBufferOwners.clear();
     }
-    
+
     std::shared_ptr<omnistream::InputChannel> inputChannel = toInputChannelInternal();
     inputChannel->CheckpointStopped(lastStoppedCheckpointId);
     return inputChannel;
 }
 
-void RecoveredInputChannel::onRecoveredStateBuffer(Buffer *buffer) 
+void RecoveredInputChannel::onRecoveredStateBuffer(Buffer *buffer)
 {
     bool recycleBuffer = true;
     bool wasEmpty = false;
@@ -38,11 +38,11 @@ void RecoveredInputChannel::onRecoveredStateBuffer(Buffer *buffer)
             recycleBuffer = false;
         }
     }
-    
+
     if (wasEmpty) {
         notifyChannelNonEmpty();
     }
-    
+
     if (recycleBuffer && buffer != nullptr) {
         buffer->RecycleBuffer();
     }
@@ -76,9 +76,13 @@ void RecoveredInputChannel::onRecoveredStateBuffer2(Buffer *buffer)
 void RecoveredInputChannel::finishReadRecoveredState()
 {
     LOG("Recovered input channel finishReadRecoveredState!");
-    onRecoveredStateBuffer(omnistream::EventSerializer::toBuffer(EndOfChannelStateEvent::getInstance(), false));
-    bufferManager->releaseFloatingBuffers();
-    LOG(inputGate->getOwningTaskName()<<"/"<< channelInfo.toString()<< " finished recovering input!");
+    NetworkBuffer* networkBuffer = omnistream::EventSerializer::toBuffer(
+            EndOfChannelStateEvent::getInstance(), false);
+    if (networkBuffer != nullptr) {
+        onRecoveredStateBuffer(networkBuffer);
+        bufferManager->releaseFloatingBuffers();
+        LOG(inputGate->getOwningTaskName()<<"/"<< channelInfo.toString()<< " finished recovering input!");
+    }
 }
 
 std::optional<omnistream::BufferAndAvailability> RecoveredInputChannel::getNextRecoveredStateBuffer()
@@ -86,28 +90,28 @@ std::optional<omnistream::BufferAndAvailability> RecoveredInputChannel::getNextR
     LOG("Recovered input channel get Next record buffer!");
     Buffer *next = nullptr;
     omnistream::ObjectBufferDataType nextDataType;
-    
+
     {
         std::lock_guard<std::mutex> lock(bufferLock);
         if (released) {
             LOG("Trying to read from released RecoveredInputChannel");
         }
-        
+
         if (receivedBuffers.empty()) {
             return std::nullopt;
         }
-        
+
         auto entry = std::move(receivedBuffers.front());
         receivedBuffers.pop_front();
-        
+
         next = entry.buffer;
         if (entry.owner) {
             consumedRecoveredBufferOwners.emplace_back(std::move(entry.owner));
         }
-        
+
         nextDataType = peekDataTypeUnsafe();
     }
-    
+
     if (next == nullptr) {
         LOG("Recovered input channel next ele is null! to test, send a end of recover event");
         finishReadRecoveredState();
@@ -162,13 +166,13 @@ void RecoveredInputChannel::releaseAllResources()
         if (!released) {
             released = true;
             shouldRelease = true;
-                
+
             while (!receivedBuffers.empty()) {
                 auto entry = std::move(receivedBuffers.front());
                 receivedBuffers.pop_front();
                 releasedBuffers.emplace_back(entry.buffer);
             }
-                
+
             consumedRecoveredBufferOwners.clear();
         }
     }
@@ -178,7 +182,7 @@ void RecoveredInputChannel::releaseAllResources()
     }
 }
 
-std::shared_ptr<omnistream::Buffer> RecoveredInputChannel::requestBufferBlocking() 
+std::shared_ptr<omnistream::Buffer> RecoveredInputChannel::requestBufferBlocking()
 {
     LOG("RecoveredInputChannel requestBufferBlocking111")
     if (!exclusiveBuffersAssigned) {

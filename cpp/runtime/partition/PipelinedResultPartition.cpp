@@ -75,14 +75,6 @@ PipelinedResultPartition::PipelinedResultPartition(const std::string& owningTask
     LOG_PART("Body of PipelinedResultPartition constructor")
 }
 
-//void PipelinedResultPartition::setChannelStateWriter(std::shared_ptr<ChannelStateWriter> channelStateWriter)
-//{
-//    for (auto subpartition : subpartitions_) {
-//        if (std::dynamic_pointer_cast<ChannelStateHolder>(subpartition) != nullptr) {
-//            std::reinterpret_pointer_cast<PipelinedSubpartition>(subpartition)->setChannelStateWriter(channelStateWriter);
-//        }
-//    }
-//}
 
 void PipelinedResultPartition::setChannelStateWriter(std::shared_ptr<ChannelStateWriter> channelStateWriter)
 {

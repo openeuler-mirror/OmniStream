@@ -141,6 +141,9 @@ namespace omnistream {
         std::shared_ptr<CompletableFutureV2<void>> notifyCheckpointAbortAsync(long checkpointid, long latestCompletedCheckpointId);
         std::shared_ptr<CompletableFutureV2<bool>> triggerCheckpointAsync(CheckpointMetaData* checkpointMetaData,
             CheckpointOptions* checkpointOptions);
+        StreamPartitionerV2<StreamRecord> *createPartitionerFromDesc(StreamPartitionerPOD partitioner);
+
+        datastream::StreamPartitioner<IOReadableWritable> *createPartitionerFromDesc(const StreamEdgePOD &edge);
     protected:
         std::shared_ptr<RuntimeEnvironmentV2> env_;
         std::vector<OperatorConfig> operatorChainConfig_;
@@ -223,11 +226,6 @@ namespace omnistream {
             long bufferTimeout);
 
         template<typename K> KeySelector<K>* buildKeySelector(std::vector<KeyFieldInfoPOD>& keyFields);
-
-        // partitioner
-        StreamPartitionerV2<StreamRecord> *createPartitionerFromDesc(StreamPartitionerPOD partitioner);
-
-        datastream::StreamPartitioner<IOReadableWritable> *createPartitionerFromDesc(const StreamEdgePOD &edge);
 
         // mailbox
         void runMailboxLoop();

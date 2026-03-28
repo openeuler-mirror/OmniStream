@@ -37,6 +37,7 @@ public:
 
     // for test
     StreamElement* getObject(int index);
+    Segment* GetSegment() override;
 private:
 
     ObjectSegment *objSegment;

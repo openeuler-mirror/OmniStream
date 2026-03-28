@@ -46,7 +46,7 @@ public:
     std::string ToString() const
     {
         nlohmann::json j;
-        j["stateHandleName"] = "PhysicalStateHandleID";
+        j["@class"] = "org.apache.flink.runtime.state.PhysicalStateHandleID";
         j["keyString"] = keyString_;
         return j.dump();
     }

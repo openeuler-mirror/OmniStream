@@ -26,6 +26,8 @@
 #include "runtime/state/StateObject.h"
 #include "runtime/state/CompositeStateHandle.h"
 #include "core/include/common.h"
+#include "runtime/state/InputChannelStateHandle.h"
+#include "runtime/state/ResultSubpartitionStateHandle.h"
 #include "runtime/snapshot/RocksDBSnapshotStrategyBase.h"
 
 template<typename T>

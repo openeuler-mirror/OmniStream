@@ -41,6 +41,7 @@ public:
     std::shared_ptr<BufferConsumer> createBufferConsumer(int currentReaderPosition) override;
 
     std::string toString() override;
+    Segment* GetSegment() override;
 
 private:
     MemorySegment *memorySegment;

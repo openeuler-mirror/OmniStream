@@ -82,13 +82,13 @@ std::shared_ptr<InflightDataRescalingDescriptor> TaskStateSnapshot::GetInputResc
             list.emplace_back(descriptor);
         }
     }
-    LOG("GetInputRescalingDescriptor descriptor size: " << list.size());
+    INFO_RELEASE("GetInputRescalingDescriptor descriptor size: " << list.size());
     int index = 0;
     for (const auto& inflightDataRescalingDescriptor : list) {
-        LOG("InputRescaling index: " << ++index << ", descriptor: " << inflightDataRescalingDescriptor->ToString());
+        INFO_RELEASE("InputRescaling index: " << ++index << ", descriptor: " << inflightDataRescalingDescriptor->ToString());
     }
     if (list.empty()) {
-        LOG("InputRescaling is noRescale.");
+        INFO_RELEASE("InputRescaling is noRescale.");
         return InflightDataRescalingDescriptor::noRescale;
     }
     return list[0];

@@ -184,7 +184,7 @@ namespace omnistream {
     void NotifyCheckpointComplete(long checkpointId);
     void NotifyCheckpointAborted(long checkpointId);
     void NotifyCheckpointSubsumed(long checkpointId);
-    void SnapshotState(std::unordered_map<OperatorID, OperatorSnapshotFutures *>& operatorSnapshotsInProgress,
+    void SnapshotState(std::unordered_map<OperatorID, OperatorSnapshotFutures *> *operatorSnapshotsInProgress,
         CheckpointMetaData &checkpointMetaData, CheckpointOptions *checkpointOptions, std::shared_ptr<Supplier<bool>> isRunning,
         std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> channelStateWriteResult, CheckpointStreamFactory* storage,
         const std::shared_ptr<OmniTaskBridge>& bridge);

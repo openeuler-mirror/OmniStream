@@ -34,9 +34,9 @@ namespace omnistream::datastream {
             return false;
         }
 
-        virtual bool isPointWise() const = 0;
-        virtual std::unique_ptr<StreamPartitioner<T>> copy() = 0;
-        [[nodiscard]] virtual std::string toString() const = 0;
+        virtual bool isPointWise() const {return false;}
+        virtual std::unique_ptr<StreamPartitioner<T>> copy() {return nullptr;}
+        [[nodiscard]] virtual std::string toString() const {return "";}
     protected:
         int numberOfChannels;
     };

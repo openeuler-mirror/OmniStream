@@ -20,7 +20,7 @@ namespace omnistream::datastream {
         virtual ~ChannelSelector() {}
 
         virtual void setup(int numberOfChannels) = 0;
-        virtual int selectChannel(T *record) = 0;
+        virtual int selectChannel(T *record) {return 0;}
         virtual bool isBroadcast() const = 0;
     };
 }

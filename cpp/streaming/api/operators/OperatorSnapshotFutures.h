@@ -13,6 +13,8 @@
 
 #include <future>
 #include <memory>
+#include <semaphore.h>
+#include <atomic>
 #include "runtime/state/SnapshotResult.h"
 #include "runtime/state/KeyedStateHandle.h"
 #include "runtime/state/OperatorStateHandle.h"
@@ -131,7 +133,25 @@ public:
         // TTODO
         return std::make_pair(0, 0);
     }
+    void OperatorSemInit() {
+        if (waitcount.fetch_add(1) == 0) {
+            sem = (sem_t *)malloc(sizeof(sem_t));
+            sem_init(sem, 0, 0);
+        }
+    }
+    void OperatorSemPost() {
+        if (waitcount.fetch_sub(1) == 1) {
+            sem_post(sem);
+        }
+    }
 
+    void OperatorSemWait() {
+        if (waitcount.load() != 0) {
+            sem_wait(sem);
+            sem_destroy(sem);
+            free(sem);
+        }
+    }
 private:
     std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<KeyedStateHandle>>()>> keyedStateManagedFuture;
     std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<KeyedStateHandle>>()>> keyedStateRawFuture;
@@ -141,6 +161,8 @@ private:
         inputChannelStateFuture;
     std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<StateObjectCollection<ResultSubpartitionStateHandle>>>()>>
         resultSubpartitionStateFuture;
+    sem_t *sem = nullptr;
+    std::atomic<int> waitcount{0};
 };
 
 #endif // OMNISTREAM_OPERATORSNAPSHOTFUTURES

@@ -10,6 +10,7 @@
  */
 
 #include "OmniStreamOneInputProcessor.h"
+#include "io/recover/OmniRescalingStreamTaskNetworkInput.h"
 
 namespace omnistream {
     OmniStreamOneInputProcessor::OmniStreamOneInputProcessor(OmniStreamTaskInput *input,
@@ -21,7 +22,15 @@ namespace omnistream {
     {
         // LOG(">>>process Input")
         DataInputStatus status = input->emitNext(output);
-        LOG_TRACE("emitNext return status: "  << DataInputStatusHelper::mapToInt(status))
+        if(status == DataInputStatus::END_OF_RECOVERY){
+            auto recoverInput = dynamic_cast<OmniRescalingStreamTaskNetworkInput *>(input);
+            if(recoverInput){
+                input = recoverInput->finishRecover();
+            }
+            return status;
+        }
+        INFO_RELEASE("emitNext return status: "  << DataInputStatusHelper::mapToInt(status))
+        // LOG_TRACE(" Return status  "  << DataInputStatusHelper::mapToInt(status))
         return status;
     }
 
