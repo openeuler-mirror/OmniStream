@@ -284,7 +284,7 @@ None
 
 ### Obtaining Documentation<a name="EN-US_TOPIC_0000002517493604"></a>
 
-Visit the open source repository to view or download required documents.
+Visit [the open source repository](https://gitcode.com/openeuler/OmniStream) to view or download required documents.
 
 
 

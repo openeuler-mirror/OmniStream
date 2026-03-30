@@ -2,7 +2,7 @@
 
 ## 源码编译
 
-### 1、依赖组件
+### 依赖组件
 
 <a name="table12473143919118"></a>
 <table><thead align="left"><tr id="row154733396114"><th class="cellrowborder" valign="top" width="50%" id="mcps1.1.3.1.1"><p id="p5473143971116"><a name="p5473143971116"></a><a name="p5473143971116"></a>软件</p>
@@ -85,18 +85,18 @@
 </table>
 
 
-### 2、编译命令
+### 编译命令
 
 1.  编译OmniStream前需要编译OmniAdaptor代码，编译命令如下。
 
-    ```
+    ```bash
     cd omnistream/omniop-flink-extension/omni-flink-bundle
     mvn clean package -DskipTests
     ```
 
 2.  OmniStream编译命令如下。
 
-    ```
+    ```bash
     cd OmniSteam/cpp
     mkdir build
     cd build
@@ -105,35 +105,32 @@
     ```
 
     >**说明：**
-    >$PARALLELISM表示编译指定并行度
+    >$PARALLELISM表示编译指定并行度。
 
 ## 环境部署
 
-部署请参考以下链接：
-
-https://www.hikunpeng.com/document/detail/zh/kunpengbds/appAccelFeatures/sqlqueryaccelf/kunpengbds_omniruntime_20_09018.html
+环境部署的详细操作步骤请参见[安装指南](./installation_guide.md)。
 
 ## 测试验证
 
-进入Flink安装目录下的bin目录，并启动Flink。
+1. 进入Flink安装目录下的bin目录，并启动Flink。
 
-```
-cd $FLINK_HOME/bin/ && ./start-cluster.sh
-```
+    ```bash
+    cd $FLINK_HOME/bin/ && ./start-cluster.sh
+    ```
 
-调用sql-client后，进行测试。
+2. 调用sql-client后，进行测试。
 
-```
-./sql-client.sh
-```
+    ```bash
+    ./sql-client.sh
+    ```
 
-在命令行中输入。
+3. 在命令行中输入以下内容。
 
-```
-SELECT 'Hello, Flink!';
-```
-
-可以正常输出结果即安装正常。
+    ```bash
+    SELECT 'Hello, Flink!';
+    ```
+    可以正常输出结果即安装正常。
 
 # 免责声明
 

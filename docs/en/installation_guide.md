@@ -37,21 +37,21 @@ Before installing OmniStream, prepare the hardware and software environments to 
 
 **Table  2**  OS and software requirements
 
-|Item| Version                                             |Description|
-|--|-----------------------------------------------------|--|
-|OS| openEuler 22.03 LTS SP4                             |None|
-|JDK| BiSheng JDK 1.8 (BiSheng JDK 1.8.0_342 recommended) |Deploy the JDK in all containers.|
-|Flink| 1.16.3<br>1.17.1<br>1.20.0                          |See Flink Deployment Guide (CentOS & openEuler). Deploy Flink in all containers.|
-|Docker| 19.03.15                                            |None|
-|Nexmark| v0.2.0                                              |Perform compilation by following the official instructions. Deploy Nexmark in all containers.|
-|Python| 3.9.9                                               |Deploy Python on the container or physical machine from which the job is submitted.|
-|yaml-cpp| 0.6.3                                               |Deploy it on the container or physical machine from which the job is submitted.|
-|GCC| 10.3.1                                              |None|
-|Maven| 3.8.7                                               |Use it to generate the JAR package of UDF test cases.|
-|Jemalloc| 5.3.0                                               |Use it to provide the header file used for UDF translation.|
-|OmniOperator| operator_flink_1107                                 |Use it to provide the header file used for UDF translation.|
-|Xxhash| 0.8.2                                               |Use it to provide the header file used for UDF translation.|
-|nlohmann json| 3.11.3                                              |Use it to provide the header file used for UDF translation.|
+|Item| Version                                                 | Description                                                                                                                                                                                 |
+|--|---------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|OS| [openEuler 22.03 LTS SP4](https://dl-cdn.openeuler.openatom.cn/openEuler-22.03-LTS-SP4/ISO/aarch64/openEuler-22.03-LTS-SP4-everything-debug-aarch64-dvd.iso)| None                                                                                                                                                                                        |
+|JDK| [BiSheng JDK 1.8 (BiSheng JDK 1.8.0_342 recommended)](https://mirror.iscas.ac.cn/kunpeng/archive/compiler/bisheng_jdk/bisheng-jdk-8u342-linux-aarch64.tar.gz) | Deploy the JDK in all containers.                                                                                                                                                           |
+|Flink| [1.16.3](https://archive.apache.org/dist/flink/flink-1.16.3/flink-1.16.3-bin-scala_2.12.tgz)<br>[1.17.1](https://archive.apache.org/dist/flink/flink-1.17.1/flink-1.17.1-bin-scala_2.12.tgz)<br>[1.20.0](https://archive.apache.org/dist/flink/flink-1.20.0/flink-1.20.0-bin-scala_2.12.tgz)                 | See [Flink Deployment Guide (CentOS & openEuler)](https://www.hikunpeng.com/document/detail/en/kunpengbds/ecosystemEnable/Flink/kunpengflink_04_0001.html). Deploy Flink in all containers. |
+|Docker| [19.03.15](https://www.hikunpeng.com/document/detail/zh/kunpengbds/appAccelFeatures/sqlqueryaccelf/kunpengbds_omniruntime_20_0911.html)                                            | None                                                                                                                                                                                        |
+|Nexmark| [v0.2.0](https://www.hikunpeng.com/document/detail/zh/kunpengbds/appAccelFeatures/sqlqueryaccelf/kunpengbds_omniruntime_20_0914.html)                                              | Perform compilation by following the [official instructions](https://github.com/nexmark/nexmark). Deploy Nexmark in all containers.                                                                                           |
+|Python| [3.9.9](https://www.hikunpeng.com/document/detail/zh/kunpengbds/appAccelFeatures/sqlqueryaccelf/kunpengbds_omniruntime_20_0915.html)                                               | Deploy Python on the container or physical machine from which the job is submitted.                                                                                                         |
+|yaml-cpp| [0.6.3](https://www.hikunpeng.com/document/detail/zh/kunpengbds/appAccelFeatures/sqlqueryaccelf/kunpengbds_omniruntime_20_0916.html)                                               | Deploy it on the container or physical machine from which the job is submitted.                                                                                                             |
+|GCC| [10.3.1](https://repo.openeuler.openatom.cn/openEuler-22.03-LTS-SP4/update/aarch64/Packages/gcc-10.3.1-66.oe2203sp4.aarch64.rpm)                                              | None                                                                                                                                                                                        |
+|Maven| [3.8.7](https://archive.apache.org/dist/maven/maven-3/3.8.7/binaries/apache-maven-3.8.7-bin.zip)                                               | Use it to generate the JAR package of UDF test cases.                                                                                                                                       |
+|Jemalloc| [5.3.0](https://github.com/jemalloc/jemalloc/archive/refs/tags/5.3.0.tar.gz)                                               | Use it to provide the header file used for UDF translation.                                                                                                                                 |
+|OmniOperator| [operator_flink_1107](https://atomgit.com/openeuler/OmniOperator/tree/operator_flink_1107)                                 | Use it to provide the header file used for UDF translation.                                                                                                                                 |
+|Xxhash| [0.8.2](https://github.com/Cyan4973/xxHash/tree/v0.8.2)                                               | Use it to provide the header file used for UDF translation.                                                                                                                                 |
+|nlohmann json| [3.11.3](https://github.com/nlohmann/json/tree/v3.11.3)                                              | Use it to provide the header file used for UDF translation.                                                                                                                                 |
 
 
 **Obtaining the Software Packages<a name="en-us_topic_0000002228744546_section189181357102011"></a>**
@@ -60,14 +60,14 @@ Before installing OmniStream, prepare the hardware and software environments to 
 
 **Table  3**  OmniStream software packages
 
-|Software Name| Package Name                                    |Release Type|Description|How to Obtain|
-|--|-------------------------------------------------|--|--|--|
-|OmniStream package| BoostKit-omniruntime-omnistream-1.2.0.zip       |Open source|OmniStream software installation package.|Link|
-|UDF translator| UNT-1.0-35.noarch.rpm                           |Open source|UDF translator RPM package. After the installation is complete, the UDF translator is added to the /opt directory.|Link|
-|AI4C| AI4C-1.0.4-8.aarch64.rpm                        |Open source|A framework that allows the compiler to integrate machine learning–driven optimization technologies. Install the RPM package.|Link|
-|KACC_JSON| BoostKit-kaccjson_1.1.0.zip                     |Closed source|Self-developed C++ implementation package used to replace GSON in UDF translation. This ZIP package contains the adaptation layer and KACC_JSON implementation, and also contains header files and a static library. Obtain the **Dependency_library_OmniStream.zip** file and decompress it.|Link|
-|KSL| BoostKit-ksl_2.5.1.zip                          |Closed source|Regular expression acceleration library, which contains the ReplaceAll function for optimizing the basic string library and contains header files and a static library.|Contact Huawei technical support.|
-|Dependency_library| Dependency_library.zip<br>Dependency_library.z01 |Open source|Library file on which OmniStream depends. The file is compressed into several volumes. Download all the volumes.|Link 1Link 2|
+|Software Name| Package Name                                     |Release Type|Description| How to Obtain                                                                                                                                                                                                                                                        |
+|--|--------------------------------------------------|--|--|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|OmniStream package| BoostKit-omniruntime-omnistream-1.2.0.zip        |Open source|OmniStream software installation package.| [Link](https://atomgit.com/openeuler/OmniStream/releases/download/tag_BoostKit_25.3.B032_001/BoostKit-omniruntime-omnistream-1.2.0.zip)                                                                                                                              |
+|UDF translator| UNT-1.0-35.noarch.rpm                            |Open source|UDF translator RPM package. After the installation is complete, the UDF translator is added to the /opt directory.| [Link](https://eur.openeuler.openatom.cn/results/cutie-deng/UNT/openeuler-22.03_LTS_SP4-aarch64/00110412-UNT/UNT-1.0-35.noarch.rpm)                                                                                                                                  |
+|AI4C| AI4C-1.0.4-8.aarch64.rpm                         |Open source|A framework that allows the compiler to integrate machine learning–driven optimization technologies. Install the RPM package.| [Link](https://gitee.com/kunpengcompute/boostkit-bigdata/releases/download/25.1.RC1-OmniStream-release/AI4C-1.0.4-8.aarch64.rpm)                                                                                                                                     |
+|KACC_JSON| BoostKit-kaccjson_1.1.0.zip                      |Closed source|Self-developed C++ implementation package used to replace GSON in UDF translation. This ZIP package contains the adaptation layer and KACC_JSON implementation, and also contains header files and a static library. Obtain the **Dependency_library_OmniStream.zip** file and decompress it.| [Link](https://atomgit.com/openeuler/OmniStream/releases/download/tag_BoostKit_25.3.B032_001/Dependency_library_OmniStream.zip)                                                                                                                                      |
+|KSL| BoostKit-ksl_2.5.1.zip                           |Closed source|Regular expression acceleration library, which contains the ReplaceAll function for optimizing the basic string library and contains header files and a static library.| [Contact Huawei technical support.](https://www.hikunpeng.com/boostkit/library/system?subtab=Hyperscan&version=2.5.1)                                                                                                                                                |
+|Dependency_library| Dependency_library.zip<br>Dependency_library.z01 |Open source|Library file on which OmniStream depends. The file is compressed into several volumes. Download all the volumes.| [Link 1](https://gitee.com/kunpengcompute/boostkit-bigdata/releases/download/25.1.RC1-OmniStream-release/Dependency_library.zip)<br>[Link 2](https://gitee.com/kunpengcompute/boostkit-bigdata/releases/download/25.1.RC1-OmniStream-release/Dependency_library.z01) |
 
 
 **Verifying the Software Package Integrity<a name="en-us_topic_0000002228744546_section156811729327"></a>**
@@ -91,7 +91,7 @@ Install Docker and deploy multiple containers to set up the Flink environment. I
 
 1. Install Docker and import the basic image. For details, see  [Docker Installation Guide \(CentOS & openEuler\) ](https://www.hikunpeng.com/document/detail/en/kunpengcpfs/ecosystemEnable/Docker/kunpengdocker_03_0001.html).
 
-    ```
+    ```bash
     cd /opt
     wget --no-check-certificate https://mirrors.huaweicloud.com/openeuler/openEuler-22.03-LTS-SP4/docker_img/aarch64/openEuler-docker.aarch64.tar.xz
     docker load < openEuler-docker.aarch64.tar.xz
@@ -99,13 +99,13 @@ Install Docker and deploy multiple containers to set up the Flink environment. I
 
 2. Create a network in bridge mode.
 
-    ```
+    ```bash
     docker network create -d bridge flink-network
     ```
 
     Check whether the network is created successfully.
 
-    ```
+    ```bash
     docker network ls
     ```
 
@@ -115,7 +115,7 @@ Install Docker and deploy multiple containers to set up the Flink environment. I
 
     The containers have the 8c32g specification, and are named  **flink\_jm\_8c32g**,  **flink\_tm1\_8c32g**, and  **flink\_tm2\_8c32g**. After all containers are started, the command execution process automatically exits.
 
-    ```
+    ```bash
     docker run -it -d --name flink_jm_8c32g --cpus=8 --memory=32g --network flink-network openeuler-22.03-lts-sp4 /bin/bash 
     docker run -it -d --name flink_tm1_8c32g --cpus=8 --memory=32g --network flink-network openeuler-22.03-lts-sp4 /bin/bash 
     docker run -it -d --name flink_tm2_8c32g --cpus=8 --memory=32g --network flink-network openeuler-22.03-lts-sp4 /bin/bash 
@@ -123,7 +123,7 @@ Install Docker and deploy multiple containers to set up the Flink environment. I
 
 4. Query the container IDs.
 
-    ```
+    ```bash
     docker ps
     ```
 
@@ -134,7 +134,7 @@ Install Docker and deploy multiple containers to set up the Flink environment. I
 5. Log in to all containers, enable the SSH service in the containers, and configure password-free login.
     1. Log in to the containers in sequence and perform  [5.b](#en-us_topic_0000002228584730_li791415596401)  to  [5.g](#li1581214912220).
 
-        ```
+        ```bash
         docker exec -it flink_jm_8c32g /bin/bash
         docker exec -it flink_tm1_8c32g /bin/bash
         docker exec -it flink_tm2_8c32g /bin/bash
@@ -142,44 +142,44 @@ Install Docker and deploy multiple containers to set up the Flink environment. I
 
     2. <a name="en-us_topic_0000002228584730_li791415596401"></a>Install the SSH service dependency, password change dependency, command editing dependency, command search dependency, and network management dependency. If other dependencies are missing in the image, install them by yourself.
 
-        ```
+        ```bash
         yum -y install openssh-clients openssh-server passwd vim findutils net-tools libXext libXrender gcc cmake make gcc-c++ unzip wget libXtst
         ```
 
     3. Generate an RSA key.
 
-        ```
+        ```bash
         ssh-keygen -A
         ```
 
     4. Enable the SSH service in the container.
 
-        ```
+        ```bash
         /usr/sbin/sshd -D &
         ```
 
     5. Set a password for the container.
 
-        ```
+        ```bash
         # Set the password of the current user. Remember the password.
         passwd
         ```
 
     6. Generate an RSA key again. When a message is displayed, press  **Enter**.
 
-        ```
+        ```bash
         ssh-keygen -t rsa
         ```
 
     7. <a name="li1581214912220"></a>Exit the container.
 
-        ```
+        ```bash
         exit
         ```
 
     8. On the  **flink\_jm\_8c32g**  container, enable SSH password-free login to other containers.
 
-        ```
+        ```bash
         docker exec -it flink_jm_8c32g /bin/bash
         ssh-copy-id -i ~/.ssh/id_rsa.pub root@flink_tm1_8c32g
         ssh-copy-id -i ~/.ssh/id_rsa.pub root@flink_tm2_8c32g
@@ -191,14 +191,14 @@ Install and configure the BiSheng JDK to provide a runtime environment for the F
 
 1. Go to the  **/usr/local**  path on the physical machine and download the  **bisheng-jdk-8u342-linux-aarch64.tar.gz**  file.
 
-    ```
+    ```bash
     cd /usr/local
     wget --no-check-certificate https://mirror.iscas.ac.cn/kunpeng/archive/compiler/bisheng_jdk/bisheng-jdk-8u342-linux-aarch64.tar.gz
     ```
 
 2. Extract  **bisheng-jdk-8u342-linux-aarch64.tar.gz**  in the  **/usr/local**  path and change the owner and owner group of the extracted JDK directory to  **root**.
 
-    ```
+    ```bash
     tar -zxvf bisheng-jdk-8u342-linux-aarch64.tar.gz
     chown -R root /usr/local/bisheng-jdk1.8.0_342
     chgrp -R root /usr/local/bisheng-jdk1.8.0_342
@@ -210,7 +210,7 @@ Deploy and configure Flink on physical machines to run in multiple Docker contai
 
 1. Go to the  **/usr/local**  directory on the physical machine and download the Flink software package.
 
-    ```
+    ```bash
     cd /usr/local
     wget --no-check-certificate https://archive.apache.org/dist/flink/flink-1.16.3/flink-1.16.3-bin-scala_2.12.tgz
     ```
@@ -220,7 +220,7 @@ Deploy and configure Flink on physical machines to run in multiple Docker contai
 
 2. Extract the  **flink-1.16.3-bin-scala\_2.12.tgz**  package in the  **/usr/local**  path and create a soft link for later version replacement.
 
-    ```
+    ```bash
     tar -zxvf flink-1.16.3-bin-scala_2.12.tgz
     chown -R root:root flink-1.16.3
     ln -s flink-1.16.3 flink
@@ -232,26 +232,26 @@ Deploy and configure Flink on physical machines to run in multiple Docker contai
 3. Configure the  **masters**  and  **workers**  files of Flink.
     1. Open the  **/usr/local/flink/conf/masters**  file.
 
-        ```
+        ```bash
         vi /usr/local/flink/conf/masters
         ```
 
     2. Press  **i**  to enter the insert mode and change the content of  **masters**  to the  **flink\_jm\_8c32g**  container ID  **8081**. For example:
 
-        ```
+        ```bash
         4a376b30106b:8081
         ```
 
     3. Press  **Esc**, type  **:wq!**, and press  **Enter**  to save the file and exit.
     4. Open the  **/usr/local/flink/conf/workers**  file.
 
-        ```
+        ```bash
         vi /usr/local/flink/conf/workers
         ```
 
     5. Press  **i**  to enter the insert mode, and change the content of  **workers**  to the IDs of the  **flink\_tm1\_8c32g**  and  **flink\_tm2\_8c32g**  containers. For example, configure four TaskManagers for each of two Docker containers.
 
-        ```
+        ```bash
         c3ddf10d0353
         c3ddf10d0353
         c3ddf10d0353
@@ -265,13 +265,13 @@ Deploy and configure Flink on physical machines to run in multiple Docker contai
     6. Press  **Esc**, type  **:wq!**, and press  **Enter**  to save the file and exit.
     7. Open the  **/usr/local/flink/conf/flink-conf.yaml**  file.
 
-        ```
+        ```bash
         vi /usr/local/flink/conf/flink-conf.yaml
         ```
 
     8. Press  **i**  to enter the insert mode, replace the configuration with the following, and change the value of  **jobmanager.rpc.address**  to the ID of the  **flink\_jm\_8c32g**  container ID. It is recommended that the total number of slots be greater than the degree of parallelism. For example:
 
-        ```
+        ```bash
         taskmanager.memory.process.size: 8G
         jobmanager.rpc.address: 4a376b30106b
         jobmanager.rpc.port: 6123
@@ -302,7 +302,7 @@ Install and configure Nexmark to verify and test Flink.
 
 1. Download  **nexmark-flink.tgz**  to the  **/opt**  directory on the physical machine and extract it.
 
-    ```
+    ```bash
     cd /opt
     wget --no-check-certificate https://github.com/nexmark/nexmark/releases/download/v0.2.0/nexmark-flink.tgz
     tar xzf nexmark-flink.tgz
@@ -313,13 +313,13 @@ Install and configure Nexmark to verify and test Flink.
 2. Modify the Nexmark configuration file  **/opt/nexmark/conf/nexmark.yaml**.
     1. Open the file.
 
-        ```
+        ```bash
         vi /opt/nexmark/conf/nexmark.yaml
         ```
 
     2. Press  **i**  to enter the insert mode and modify the file as follows: Change the value of  **nexmark.metric.reporter.host**  to the ID of the  **flink\_jm\_8c32g**  container.
 
-        ```
+        ```bash
         ################################################################################
         #  Licensed to the Apache Software Foundation (ASF) under one
         #  or more contributor license agreements.  See the NOTICE file
@@ -401,7 +401,7 @@ Install and configure Nexmark to verify and test Flink.
 
 Install the Python RPM package in the  **flink\_jm\_8c32g**  container.
 
-```
+```bash
 wget --no-check-certificate https://repo.openeuler.org/openEuler-preview/openEuler-22.03-LTS-SP4-HP-preview/OS/aarch64/Packages/python3-setuptools-59.4.0-5.oe2203sp4.noarch.rpm
 rpm -ivh python3-setuptools-59.4.0-5.oe2203sp4.noarch.rpm
 rm -rf /usr/bin/python
@@ -413,7 +413,7 @@ ln -s /usr/bin/python3 /usr/bin/python
 
 Install the yaml-cpp RPM package in the  **flink\_jm\_8c32g**  container.
 
-```
+```bash
 wget --no-check-certificate https://repo.openeuler.org/openEuler-preview/openEuler-22.03-LTS-SP4-HP-preview/OS/aarch64/Packages/yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
 rpm -ivh yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
 ```
@@ -425,20 +425,20 @@ Install other software packages on which the feature depends.
 
 1. Install the JSON dependency package on the physical machine.
 
-    ```
+    ```bash
     wget -P /usr/local/flink/lib/ https://repo.maven.apache.org/maven2/org/json/json/20240303/json-20240303.jar
     ```
 
 2. Install the Gson dependency package on the physical machine.
 
-    ```
+    ```bash
     wget -P /usr/local/flink/lib/ https://repo.maven.apache.org/maven2/com/google/code/gson/gson/2.11.0/gson-2.11.0.jar
     ```
 
 3. Install other dependency packages.
     1. Obtain the dependency packages  **Dependency\_library.zip**  and  **Dependency\_library.z01**  obtained from  [Table 3](environment-requirements.md#en-us_topic_0000002228744546__table677mcpsimp)  and extract them to the  **/opt**  directory.
 
-        ```
+        ```bash
         zip -F Dependency_library.zip --out Dependency_library_complete.zip
         unzip Dependency_library_complete.zip -d /opt
         chmod -R 550 /opt/Dependency_library/*
@@ -446,7 +446,7 @@ Install other software packages on which the feature depends.
 
     2. Obtain  **nexmark-flink-0.3-SNAPSHOT.jar**  from  **Dependency\_library**, copy it to the  **flink/lib**  directory, and use it to replace  **nexmark-flink-0.2-SNAPSHOT.jar**  in  **nexmark/lib**.
 
-        ```
+        ```bash
         cp /opt/Dependency_library/nexmark-flink-0.3-SNAPSHOT.jar /usr/local/flink/lib
         rm -rf /opt/nexmark/lib/nexmark-flink-0.2-SNAPSHOT.jar
         cp /opt/Dependency_library/nexmark-flink-0.3-SNAPSHOT.jar /opt/nexmark/lib/
@@ -461,10 +461,10 @@ In independent deployment mode, you can install the precompiled OmniStream binar
 
 1. Create the  **/usr/local/OmniStream**  directory on the physical machine to store OmniStream binary files.
 
-    Extract the  **BoostKit-omnistream\_1.2.0.zip**  installation package obtained from  [Table 3](environment-requirements.md#en-us_topic_0000002228744546__table677mcpsimp)  to the  **/usr/local/OmniStream**  directory.
+    Extract the  **BoostKit-omniruntime-omnistream-1.2.0.zip**  installation package obtained from  [Table 3](environment-requirements.md#en-us_topic_0000002228744546__table677mcpsimp)  to the  **/usr/local/OmniStream**  directory.
 
-    ```
-    unzip BoostKit-omnistream_1.2.0.zip
+    ```bash
+    unzip BoostKit-omniruntime-omnistream-1.2.0.zip
     mkdir -p /usr/local/OmniStream
     cp -r OmniStream_Default/* /usr/local/OmniStream/
     chmod -R 550 /usr/local/OmniStream/*
@@ -472,13 +472,13 @@ In independent deployment mode, you can install the precompiled OmniStream binar
 
 2. <a name="en-us_topic_0000002263584129_li146334222212"></a>Check the extracted files.
 
-    ```
+    ```bash
     ls
     ```
 
     After the binary package is extracted, the JAR package, SO files, basic library, and  **include**  directory are obtained.
 
-    ```
+    ```bash
     flink-tnel-0.1-SNAPSHOT.jar
     libtnel.so
     libboundscheck.so
@@ -492,13 +492,13 @@ In independent deployment mode, you can install the precompiled OmniStream binar
 3. Edit the Flink configuration file  **/usr/local/flink/bin/config.sh**.
     1. Open the file.
 
-        ```
+        ```bash
         vi /usr/local/flink/bin/config.sh
         ```
 
     2. Press  **i**  to enter the insert mode, find the  **constructFlinkClassPath\(\)**  function, comment out the  **echo**  line, and add a new  **PATCH**  path.
 
-        ```
+        ```bash
         # echo "$FLINK_CLASSPATH""$FLINK_DIST"
         PATCH=/usr/local/OmniStream/flink-tnel-0.1-SNAPSHOT.jar
         echo $PATCH:"$FLINK_CLASSPATH""$FLINK_DIST"
@@ -513,13 +513,13 @@ In independent deployment mode, you can install the precompiled OmniStream binar
 4. Edit the Flink configuration file  **/usr/local/flink/conf/flink-conf.yaml**.
     1. Open the file.
 
-        ```
+        ```bash
         vi /usr/local/flink/conf/flink-conf.yaml
         ```
 
     2. Press  **i**  to enter the insert mode. In  **env.java.opts**, add the  **libtnel.so**  file path, that is, the path to the  **.so**  files extracted in  [2](#en-us_topic_0000002263584129_li146334222212).
 
-        ```
+        ```bash
         env.java.opts: -Djava.library.path=/usr/local/OmniStream/
         ```
 
@@ -532,7 +532,7 @@ In independent deployment mode, you can install the precompiled OmniStream binar
 1. Obtain the UDF translator RPM package from  [Table 3](environment-requirements.md#en-us_topic_0000002228744546__table677mcpsimp)  and upload it to the  **/opt**  directory on the physical machine.
 2. Install the RPM package in the  **flink\_jm\_8c32g**  container. The default installation path is  **/opt**.
 
-    ```
+    ```bash
     rpm -ivh UNT-1.0-35.noarch.rpm
     ```
 
@@ -540,13 +540,13 @@ In independent deployment mode, you can install the precompiled OmniStream binar
 
     >![](public_sys-resources/icon-note.gif) **NOTE:** 
     >If the  **/opt/udf-trans-opt**  directory is not created, run the following command to manually create it:
-    >```
+    >```bash
     >mkdir /opt/udf-trans-opt
     >```
 
 3. Copy the basic library directory installed in  [Installing OmniStream](installing-omnistream.md)  to the  **/opt/udf-trans-opt**  directory.
 
-    ```
+    ```bash
     docker cp /usr/local/OmniStream/libbasictypes flink_jm_8c32g:/opt/udf-trans-opt
     ```
 
@@ -554,16 +554,16 @@ In independent deployment mode, you can install the precompiled OmniStream binar
 
 1. Upload and extract KACC\_JSON.
 
-    Obtain the  **BoostKit-kacccjson\_1.0.0.zip**  package from  [Table 3](environment-requirements.md#en-us_topic_0000002228744546__table677mcpsimp), upload it to the  **/opt**  directory on the physical machine, and extract it.
+    Obtain the  **BoostKit-kacccjson_1.1.0.zip**  package from  [Table 3](environment-requirements.md#en-us_topic_0000002228744546__table677mcpsimp), upload it to the  **/opt**  directory on the physical machine, and extract it.
 
-    ```
+    ```bash
     cd /opt/
-    unzip BoostKit-kacccjson_1.0.0.zip
+    unzip BoostKit-kacccjson_1.1.0.zip
     ```
 
 2. Copy the KACC\_JSON header files and static libraries to the  **/opt/udf-trans-opt/libbasictypes**  directory of the UDF translator in the  **flink\_jm\_8c32g**  container.
 
-    ```
+    ```bash
     docker exec flink_jm_8c32g mkdir -p /opt/udf-trans-opt/libbasictypes/include 
     docker exec flink_jm_8c32g mkdir -p /opt/udf-trans-opt/libbasictypes/lib
     docker cp include/kacc_json flink_jm_8c32g:/opt/udf-trans-opt/libbasictypes/include/
@@ -574,7 +574,7 @@ In independent deployment mode, you can install the precompiled OmniStream binar
 3. Download and extract the KSL installation package.
     1. Obtain the  **BoostKit-ksl\_2.5.1.zip**  package from  [Table 3](environment-requirements.md#en-us_topic_0000002228744546__table677mcpsimp), upload it to the  **/opt**  directory on the physical machine, extract it, and copy it to the  **flink\_jm\_8c32g**  container.
 
-        ```
+        ```bash
         cd /opt
         unzip BoostKit-ksl_2.5.1.zip
         docker cp boostkit-ksl-2.5.1-1.aarch64.rpm flink_jm_8c32g:/opt/udf-trans-opt/
@@ -582,7 +582,7 @@ In independent deployment mode, you can install the precompiled OmniStream binar
 
     2. Enter the  **flink\_jm\_8c32g**  container and install the KSL RPM package.
 
-        ```
+        ```bash
         docker exec -it flink_jm_8c32g bash
         cd /opt/udf-trans-opt/
         rpm -ivh boostkit-ksl-2.5.1-1.aarch64.rpm
@@ -591,7 +591,7 @@ In independent deployment mode, you can install the precompiled OmniStream binar
 4. Install the OmniStream dependency header files.
     1. Extract the  **depend.zip**  package obtained from  [Table 3](environment-requirements.md#en-us_topic_0000002228744546__table677mcpsimp)  to the  **/usr/local/OmniStream/depend**  directory.
 
-        ```
+        ```bash
         mkdir -p /usr/local/OmniStream/depend/
         unzip depend.zip -d /usr/local/OmniStream/depend/
         docker cp /usr/local/OmniStream/libbasictypes/OmniStream flink_jm_8c32g:/opt/udf-trans-opt/libbasictypes/include/
@@ -604,13 +604,13 @@ In independent deployment mode, you can install the precompiled OmniStream binar
 
     2. Install jemalloc by following instructions in section "Installing Dependencies \(by Compiling and Installing Source Code for SparkExtension and Gluten\)" in the [OmniOperator Operator Acceleration Feature Guide](https://gitcode.com/openeuler/OmniOperator/blob/master/docs/en/installation_guide.md). After the installation is complete, copy  **jemalloc.h**  to the header file reference directory of the container UDF tool.
 
-        ```
+        ```bash
         docker cp /opt/omni-operator/jemalloc/include/jemalloc/jemalloc.h flink_jm_8c32g:/opt/udf-trans-opt/libbasictypes/include/
         ```
 
     3. Download OmniOperator and copy all the OmniOperator source code to the header file reference directory of the container UDF tool.
 
-        ```
+        ```bash
         cd /usr/local/OmniStream/depend/
         git clone https://atomgit.com/openeuler/OmniOperator.git -b operator_flink_1107
         mv OmniOperator OmniOperatorJIT 
@@ -619,7 +619,7 @@ In independent deployment mode, you can install the precompiled OmniStream binar
 
     4. Download xxhash and copy  **xxhash.h**  to the header file reference directory of the UDF tool.
 
-        ```
+        ```bash
         cd /usr/local/OmniStream/depend/
         git clone https://github.com/Cyan4973/xxHash.git
         cd xxHash && git checkout tags/v0.8.2
@@ -628,7 +628,7 @@ In independent deployment mode, you can install the precompiled OmniStream binar
 
     5. Download nlohmann json and copy the  **include/nlohmann**  directory in the local code to the header file reference directory of the container UDF tool.
 
-        ```
+        ```bash
         cd /usr/local/OmniStream/depend/
         gitclone https://github.com/nlohmann/json.git-b v3.11.3
         docker cp /usr/local/OmniStream/depend/nlohmann/include/nlohmann flink_jm_8c32g:/opt/udf-trans-opt/libbasictypes/include/
@@ -637,7 +637,7 @@ In independent deployment mode, you can install the precompiled OmniStream binar
 5. Install the libboundscheck header file  **/opt/udf-trans-opt/libbasictypes**.
     1. Go to the  **flink\_jm\_8c32g**  container, create the  **/opt/udf-trans-opt/libbasictypes/include/libboundscheck**  directory, and exit the container.
 
-        ```
+        ```bash
         docker exec -it flink_jm_8c32g bash
         mkdir -p /opt/udf-trans-opt/libbasictypes/include/libboundscheck/
         exit
@@ -645,7 +645,7 @@ In independent deployment mode, you can install the precompiled OmniStream binar
 
     2. Copy the  **include**  directory installed in  [Installing OmniStream](installing-omnistream.md)  to the  **/opt/udf-trans-opt/libbasictypes/include/libboundscheck**  directory in the  **flink\_jm\_8c32g**  container.
 
-        ```
+        ```bash
         docker cp /usr/local/OmniStream/include flink_jm_8c32g:/opt/udf-trans-opt/libbasictypes/include/libboundscheck
         ```
 
@@ -654,7 +654,7 @@ In independent deployment mode, you can install the precompiled OmniStream binar
 
 Upload the dependency package  **AI4C-1.0.4-8.aarch64.rpm**  obtained from  [Table 3](environment-requirements.md#en-us_topic_0000002228744546__table677mcpsimp)  to the  **/opt**  directory in the  **flink\_jm\_8c32g**  container.
 
-```
+```bash
 docker cp AI4C-1.0.4-8.aarch64.rpm flink_jm_8c32g:/opt
 docker exec -it flink_jm_8c32g bash
 cd /opt
@@ -668,7 +668,7 @@ After installing and configuring basic software on the physical machine, complet
 
 1. Copy the directories of Nexmark, JDK, Flink, third-party dependencies, and OmniStream to all containers.
 
-    ```
+    ```bash
     docker cp /opt/nexmark flink_jm_8c32g:/usr/local/
     docker cp /usr/local/flink-1.16.3 flink_jm_8c32g:/usr/local/
     docker cp /usr/local/bisheng-jdk1.8.0_342 flink_jm_8c32g:/usr/local/
@@ -690,7 +690,7 @@ After installing and configuring basic software on the physical machine, complet
 
 2. Access the containers in sequence and perform  [3](#en-us_topic_0000002263664073_li8865185893116).
 
-    ```
+    ```bash
     docker exec -it flink_jm_8c32g /bin/bash
     docker exec -it flink_tm1_8c32g /bin/bash
     docker exec -it flink_tm2_8c32g /bin/bash
@@ -699,13 +699,13 @@ After installing and configuring basic software on the physical machine, complet
 3. <a name="en-us_topic_0000002263664073_li8865185893116"></a>Set environment variables for Flink, JDK, Nexmark, and LLVM in each container.
     1. Open the  **/etc/profile**  file.
 
-        ```
+        ```bash
         vi /etc/profile
         ```
 
     2. Press  **i**  to enter the insert mode and add the following content:
 
-        ```
+        ```bash
         export JAVA_HOME=/usr/local/bisheng-jdk1.8.0_342
         export PATH=$JAVA_HOME/bin:$PATH
         export FLINK_HOME=/usr/local/flink-1.16.3
@@ -720,13 +720,13 @@ After installing and configuring basic software on the physical machine, complet
     3. Press  **Esc**, type  **:wq!**, and press  **Enter**  to save the file and exit.
     4. Make the environment variables take effect.
 
-        ```
+        ```bash
         source /etc/profile
         ```
 
     5. Exit the container.
 
-        ```
+        ```bash
         exit
         ```
 
