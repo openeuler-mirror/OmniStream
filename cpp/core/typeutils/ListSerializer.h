@@ -49,7 +49,7 @@ public:
     }
 
 private:
-    TypeSerializer* elementSerializer;
+    TypeSerializer* elementSerializer = nullptr;
 };
 
 #endif // OMNISTREAM_LISTSERIALIZER_H

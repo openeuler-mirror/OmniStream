@@ -54,8 +54,8 @@ public:
 
 private:
     RowKind rowKind;
-    RowData* row1;
-    RowData* row2;
+    RowData* row1 = nullptr;
+    RowData* row2 = nullptr;
 };
 
 #endif // FLINK_TNEL_JOINEDROWDATA_H

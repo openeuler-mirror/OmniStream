@@ -62,7 +62,7 @@ namespace omnistream {
     protected:
         virtual void emit(StreamRecord *record, int targetSubpartition) = 0;
 
-        SerializationDelegate* serializationDelegate;
+        SerializationDelegate* serializationDelegate = nullptr;
 
         std::shared_ptr<ResultPartitionWriter> targetPartitionWriter_;
         int numberOfChannels;

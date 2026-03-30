@@ -150,8 +150,8 @@ namespace omnistream {
         // operator chain
         std::unique_ptr<OperatorChainV2> operatorChain;
         std::shared_ptr<RecordWriterDelegateV2> recordWriter_;
-        StreamOperator* mainOperator_;
-        OmniStreamInputProcessor* inputProcessor_;
+        StreamOperator* mainOperator_ = nullptr;
+        OmniStreamInputProcessor* inputProcessor_ = nullptr;
 
 
 

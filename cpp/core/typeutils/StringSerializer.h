@@ -57,6 +57,6 @@ public:
     }
 
 private:
-    StringSerializer* reuseSerializer;
+    StringSerializer* reuseSerializer = nullptr;
 };
 #endif

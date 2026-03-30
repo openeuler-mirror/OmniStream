@@ -53,7 +53,6 @@ namespace omnistream {
     private:
         FinishingReason finishingReason = FinishingReason::END_OF_DATA;
         void CompleteProcessing();
-        std::shared_ptr<OmniAsyncDataOutputToOutput> output;
     };
 }
 
