@@ -56,7 +56,7 @@ namespace omnistream {
         virtual std::shared_ptr<CompletableFuture> getAllDataProcessedFuture() = 0;
 
         virtual std::shared_ptr<ResultSubpartitionView> createSubpartitionView(
-            int index, std::shared_ptr<BufferAvailabilityListener> availabilityListener) = 0;
+            int index, BufferAvailabilityListener* availabilityListener) = 0;
 
         virtual void flushAll() = 0;
 

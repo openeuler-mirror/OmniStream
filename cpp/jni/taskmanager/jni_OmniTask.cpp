@@ -70,6 +70,14 @@ JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_Om
     return 1;
 }
 
+JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_doDeleteNativeTask
+        (JNIEnv *, jobject, jlong nativeTask)
+{
+    auto task = reinterpret_cast<omnistream::OmniTask *>(nativeTask);
+    delete task;
+    return 1;
+}
+
 JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_dispatchOperatorEvent
 (JNIEnv * env, jobject, jlong nativeTask, jstring operatorId, jstring eventDesc)
 {

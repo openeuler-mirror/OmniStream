@@ -38,8 +38,8 @@ class OmniAbstractStreamTaskNetworkInput : public OmniStreamTaskInput {
 public:
     OmniAbstractStreamTaskNetworkInput(int64_t inputIndex, std::shared_ptr<CheckpointedInputGate> inputGate,
                                        int taskType, TypeSerializer *inputSerializer, std::vector<long> &channelInfos,
-                                       std::unordered_map<long, datastream::RecordDeserializer *> recordDeserializers)
-        : recordDeserializers(recordDeserializers),
+                                       std::unique_ptr<std::unordered_map<long, std::unique_ptr<RecordDeserializer>>> recordDeserializers)
+        : recordDeserializers(std::move(recordDeserializers)),
           inputIndex(inputIndex),
           inputGate(std::move(inputGate)),
           taskType(taskType),
@@ -49,7 +49,7 @@ public:
     {
         inSerializer = inputSerializer;
         deserializationDelegate_ =
-            new NonReusingDeserializationDelegate(new datastream::StreamElementSerializer(inputSerializer));
+            std::make_unique<NonReusingDeserializationDelegate>(new datastream::StreamElementSerializer(inputSerializer));
         rowCount = 0;
         maxRowCount = 1000;
         timeout = 1000;
@@ -68,7 +68,7 @@ public:
         INFO_RELEASE("create OmniAbstractStreamTaskNetworkInput, task type is:" << taskType);
         inSerializer = inputSerializer;
         deserializationDelegate_ =
-            new NonReusingDeserializationDelegate(new datastream::StreamElementSerializer(inputSerializer));
+            std::make_unique<NonReusingDeserializationDelegate>(new datastream::StreamElementSerializer(inputSerializer));
         recordDeserializers= getRecordDeserializers(channelInfos);
         rowCount = 0;
         maxRowCount = 1000;
@@ -78,10 +78,8 @@ public:
 
     DataInputStatus emitNext(OmniPushingAsyncDataInput::OmniDataOutput *output) override
     {
-        // we might need reconstruct here
-        if (auto curOutput = reinterpret_cast<OmniStreamTaskNetworkOutput *>(output)) {
-            curOutput->setTaskType(taskType);
-        }
+        // temp fix for taskType, will be removed in the future (taskType should not be set in Runtime)
+        output->setTaskType(taskType);
 
         if (taskType == 1) {
             fromOriginal = inputGate->fromOriginal();
@@ -100,17 +98,16 @@ public:
             return processForDataStream(output);
         } else {
             INFO_RELEASE("Unknown taskType: " << taskType);
-            throw std::runtime_error("Unknown taskType: " + taskType);
         }
     }
 
-    void timerThread()
-    {
+    void timerThread() {
         while (running_) {
             std::unique_lock<std::mutex> lock(mutex_);
-            if (cv_.wait_for(lock, std::chrono::seconds(1), [this]() { return !running_ || rowList.empty(); })) {
-                if (!running_)
-                    break;
+            if (cv_.wait_for(lock, std::chrono::seconds(1), [this]() {
+                return !running_ || rowList.empty();
+            })) {
+                if (!running_) break;
             } else {
                 if (!rowList.empty()) {
                     lock.unlock();
@@ -136,33 +133,36 @@ public:
             return inputGate->GetAvailableFuture();
         }
     }
-    std::unordered_map<long, datastream::RecordDeserializer *> getRecordDeserializers(
+    std::unique_ptr<std::unordered_map<long, std::unique_ptr<RecordDeserializer>>> getRecordDeserializers(
         std::vector<long> &channelInfos)
     {
-        std::unordered_map<long, datastream::RecordDeserializer *> recordDeserializers =
-           std::unordered_map<long, datastream::RecordDeserializer *>();
+        std::unique_ptr<std::unordered_map<long, std::unique_ptr<RecordDeserializer>>> recordDeserializers =
+           std::make_unique<std::unordered_map<long, std::unique_ptr<RecordDeserializer>>>();
         for (size_t i = 0; i < channelInfos.size(); i++) {
             LOG("getRecordDeserializers channelInfo " << i)
-            auto deserializer = new datastream::SpillingAdaptiveSpanningRecordDeserializer();
-            recordDeserializers[channelInfos.at(i)] = deserializer;
+            auto deserializer = std::make_unique<SpillingAdaptiveSpanningRecordDeserializer>();
+            recordDeserializers->emplace(channelInfos.at(i), std::move(deserializer));
         }
         return recordDeserializers;
     }
 
-    virtual datastream::RecordDeserializer *getActiveSerializer(long channelInfo)
-    {
-        return recordDeserializers[channelInfo];
+    virtual RecordDeserializer *getActiveSerializer(long channelInfo) {
+        auto it = recordDeserializers->find(channelInfo);
+        if (it == recordDeserializers->end()) {
+            THROW_RUNTIME_ERROR("ChannelInfo not found in recordDeserializers");
+        }
+        return it->second.get();
     }
 
-    DataInputStatus processBufferOrEventOptForSQL(OmniPushingAsyncDataInput::OmniDataOutput *output,
-                                                  BufferOrEvent *bufferOrEvent)
+    DataInputStatus processBufferOrEventOptForSQL(OmniPushingAsyncDataInput::OmniDataOutput* output,
+                                                  BufferOrEvent* bufferOrEvent)
     {
         isLastValueNull = false;
         NullValueCount = 0;
 
         LOG(">>>>> bufferOrEventOpt bufferOrEvent" + std::to_string(reinterpret_cast<int64_t>(bufferOrEvent)))
         if (bufferOrEvent->isBuffer()) {
-            auto buff = reinterpret_cast<ObjectBuffer *>(bufferOrEvent->getBuffer());
+            auto buff = reinterpret_cast<ObjectBuffer*>(bufferOrEvent->getBuffer());
 
             auto size = buff->GetSize();
             auto objSegment = buff->GetObjectSegment();
@@ -188,6 +188,10 @@ public:
             }
             // more avaiable means there could be more data come in
             buff->RecycleBuffer();
+            delete buff; // this is ReadOnlySlicedNetworkBuffer, so we directly delete it
+            buff = nullptr;
+
+            // more avaiable means there could be more data come in
             return DataInputStatus::MORE_AVAILABLE;
         } else {
             // we got event
@@ -218,13 +222,12 @@ public:
         }
     }
 
-    void processBufferForDataStreamAndSQLFromOriginal(BufferOrEvent *bufferOrEvent)
+    void processBufferForDataStreamAndSQLFromOriginal(BufferOrEvent* bufferOrEvent)
     {
-        auto buffer = static_cast<ReadOnlySlicedNetworkBuffer *>(bufferOrEvent->getBuffer());
+        auto buffer = static_cast<ReadOnlySlicedNetworkBuffer* >(bufferOrEvent->getBuffer());
         auto inputChannelInfo = bufferOrEvent->getChannelInfo();
         currentRecordDeserializer = getActiveSerializer(inputChannelInfo.getInputChannelIdx());
         if (currentRecordDeserializer == nullptr) {
-            INFO_RELEASE("currentRecordDeserializer has already been released")
             THROW_LOGIC_EXCEPTION("currentRecordDeserializer has already been released");
         }
         currentRecordDeserializer->SetNextBuffer(buffer);
@@ -299,8 +302,7 @@ public:
                 if (bufferOrEvent->isBuffer()) {
                     processBufferForDataStreamAndSQLFromOriginal(bufferOrEvent);
                     delete bufferOrEvent;
-                } else {
-                    std::cout << "current is event" << std::endl;
+                } else  {
                     DataInputStatus status = processEvent(*bufferOrEvent, output);
                     delete bufferOrEvent;
                     return status;
@@ -359,14 +361,14 @@ public:
             return;
         }
         // Convert the rowdata list to VectorBatch
-        StreamRecord *batchRecord = nullptr;
+        StreamRecord* batchRecord = nullptr;
         const std::vector<std::string> &inputTypes =
-            reinterpret_cast<BinaryRowDataSerializer *>(inSerializer)->getInputTypes();
+            reinterpret_cast<BinaryRowDataSerializer* >(inSerializer)->getInputTypes();
         {
             std::unique_lock<std::mutex> lock(mutex_);
             omnistream::VectorBatch *resultBatch = createOutputBatch(rowList, inputTypes);
             batchRecord = new StreamRecord(resultBatch);
-            for (BinaryRowData *row : rowList) {
+            for (BinaryRowData* row : rowList) {
                 delete row;
             }
             rowList.clear();
@@ -378,7 +380,7 @@ public:
         batchStartTime = std::chrono::steady_clock::now();
     }
 
-    omnistream::VectorBatch *createOutputBatch(std::vector<BinaryRowData *> collectedRows,
+    omnistream::VectorBatch* createOutputBatch(std::vector<BinaryRowData *> collectedRows,
                                                const std::vector<std::string> &inputTypes)
     {
         INFO_RELEASE("Start to createOutputBatch")
@@ -389,7 +391,7 @@ public:
         }
         int numRows = collectedRows.size();
         INFO_RELEASE("collectedRows: " << collectedRows.size())
-        auto *outputBatch = new omnistream::VectorBatch(numRows);
+        auto* outputBatch = new omnistream::VectorBatch(numRows);
         for (int colIndex = 0; colIndex < numColumns; ++colIndex) {
             switch (inputRowType->at(colIndex)) {
                 case DataTypeId::OMNI_LONG:
@@ -450,9 +452,8 @@ public:
         outputBatch->Append(vector);
     }
 
-    void setLong(omniruntime::vec::VectorBatch *outputBatch, int numRows, int colIndex,
-                 std::vector<BinaryRowData *> collectedRows)
-    {
+    void setLong(omniruntime::vec::VectorBatch* outputBatch, int numRows, int colIndex,
+                 std::vector<BinaryRowData*> collectedRows) {
         auto *vector = new omniruntime::vec::Vector<int64_t>(numRows);
         for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
             if (collectedRows[rowIndex]->isNullAt(colIndex)) {
@@ -464,9 +465,8 @@ public:
         outputBatch->Append(vector);
     }
 
-    void setDecimal64(omniruntime::vec::VectorBatch *outputBatch, int numRows, int colIndex,
-                      std::vector<BinaryRowData *> collectedRows)
-    {
+    void setDecimal64(omniruntime::vec::VectorBatch* outputBatch, int numRows, int colIndex,
+                      std::vector<BinaryRowData*> collectedRows) {
         auto *vector = new omniruntime::vec::Vector<int64_t>(numRows, DataTypeId::OMNI_DECIMAL64);
         for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
             if (collectedRows[rowIndex]->isNullAt(colIndex)) {
@@ -478,9 +478,8 @@ public:
         outputBatch->Append(vector);
     }
 
-    void setDecimal128(omniruntime::vec::VectorBatch *outputBatch, int numRows, int colIndex,
-                       std::vector<BinaryRowData *> collectedRows)
-    {
+    void setDecimal128(omniruntime::vec::VectorBatch* outputBatch, int numRows, int colIndex,
+                       std::vector<BinaryRowData*> collectedRows) {
         auto *vector = new omniruntime::vec::Vector<Decimal128>(numRows);
         for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
             if (collectedRows[rowIndex]->isNullAt(colIndex)) {
@@ -492,9 +491,8 @@ public:
         outputBatch->Append(vector);
     }
 
-    void setString(omniruntime::vec::VectorBatch *outputBatch, int numRows, int colIndex,
-                   std::vector<BinaryRowData *> collectedRows)
-    {
+    void setString(omniruntime::vec::VectorBatch* outputBatch, int numRows, int colIndex,
+                   std::vector<BinaryRowData*> collectedRows) {
         using VarcharVector = omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>;
         VarcharVector *vector = new VarcharVector(numRows);
         for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
@@ -508,9 +506,8 @@ public:
         outputBatch->Append(vector);
     }
 
-    void setDouble(omniruntime::vec::VectorBatch *outputBatch, int numRows, int colIndex,
-                   std::vector<BinaryRowData *> collectedRows)
-    {
+    void setDouble(omniruntime::vec::VectorBatch* outputBatch, int numRows, int colIndex,
+                   std::vector<BinaryRowData*> collectedRows) {
         auto *vector = new omniruntime::vec::Vector<double>(numRows);
         for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
             if (collectedRows[rowIndex]->isNullAt(colIndex)) {
@@ -522,8 +519,8 @@ public:
         outputBatch->Append(vector);
     }
 
-    void setBool(omniruntime::vec::VectorBatch *outputBatch, int numRows, int colIndex,
-                 std::vector<BinaryRowData *> collectedRows)
+    void setBool(omniruntime::vec::VectorBatch* outputBatch, int numRows, int colIndex,
+                 std::vector<BinaryRowData*> collectedRows)
     {
         auto *vector = new omniruntime::vec::Vector<bool>(numRows);
         for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
@@ -551,7 +548,7 @@ public:
                                                                long checkpointId) override
     {
         LOG("Network prepare snapshot, checkpointId: " << checkpointId);
-        for (const auto &pair : recordDeserializers) {
+        for (const auto &pair : *recordDeserializers) {
             std::vector<InputChannelInfo> channelInfofos = inputGate->GetChannelInfos(); 
             try {
                 std::vector<omnistream::Buffer*> buffers = (pair.second)->GetUnconsumedBuffer();
@@ -636,14 +633,14 @@ protected:
     }
 
 protected:
-    std::unordered_map<long, datastream::RecordDeserializer *> recordDeserializers;
+    std::unique_ptr<std::unordered_map<long, std::unique_ptr<RecordDeserializer>>> recordDeserializers;
     // for troubleshooting
     int NullValueCount = 0;
     bool isLastValueNull = false;
     int taskType;
-    datastream::RecordDeserializer *currentRecordDeserializer;
-    DeserializationDelegate *deserializationDelegate_;
-    TypeSerializer *inSerializer;
+    RecordDeserializer* currentRecordDeserializer;
+    std::unique_ptr<DeserializationDelegate> deserializationDelegate_;
+    TypeSerializer* inSerializer;
     // Determine if the upstream task is an original Java task.
     bool fromOriginal = true;
     // When the current SQL task has a Java task as its upstream,

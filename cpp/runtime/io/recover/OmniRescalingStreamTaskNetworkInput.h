@@ -149,7 +149,7 @@ public:
         }
     };
 
-    static std::unordered_map<long, RecordDeserializer *> getRecordDeserializers(
+    static std::unique_ptr<std::unordered_map<long, std::unique_ptr<RecordDeserializer>>> getRecordDeserializers(
         std::shared_ptr<CheckpointedInputGate> checkpointedInputGate, TypeSerializer *inputSerializer,
         const InflightDataRescalingDescriptor &rescalingDescriptor,
         std::function<StreamPartitioner<IOReadableWritable> *(int)> gatePartitioners, TaskInformationPOD *taskInfo)
@@ -160,13 +160,13 @@ public:
             [recordFilterFactory](const InputChannelInfo &channelInfo) {
                 return recordFilterFactory->apply(channelInfo);
             });
-        std::unordered_map<long, RecordDeserializer *> deserializers;
-        deserializers.reserve(checkpointedInputGate->GetChannelInfos().size());
+        auto deserializers = std::make_unique<std::unordered_map<long, std::unique_ptr<RecordDeserializer>>>();
+        deserializers->reserve(checkpointedInputGate->GetChannelInfos().size());
 
         for (auto &channelInfo : checkpointedInputGate->GetChannelInfos()) {
             auto channelId = channelInfo.getComplexId();
-            deserializers[channelId] = DemultiplexingRecordDeserializer::create(channelInfo, rescalingDescriptor,
-                                                                                DeserializerFactory::apply, function);
+            deserializers->emplace(channelId, DemultiplexingRecordDeserializer::create(channelInfo, rescalingDescriptor,
+                                                                                DeserializerFactory::apply, function));
         }
         return deserializers;
     }

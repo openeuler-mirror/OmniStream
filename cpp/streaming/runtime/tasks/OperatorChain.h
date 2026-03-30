@@ -112,18 +112,9 @@ namespace omnistream {
 
         ~OperatorChainV2()
         {
-            auto opWrap = mainOperatorWrapper;
-            while (opWrap != nullptr) {
-                auto op = opWrap->getStreamOperator();
-                delete op;
-                opWrap = opWrap->getNext();
-            }
             delete mainOperatorWrapper;
             mainOperatorWrapper = nullptr;
-            if (tailOperatorWrapper) {
-                delete tailOperatorWrapper;
-                tailOperatorWrapper = nullptr;
-            }
+            tailOperatorWrapper = nullptr;
         }
 
     void finishOperators(StreamTaskActionExecutor *actionExecutor);
@@ -148,7 +139,7 @@ namespace omnistream {
             return isClosed_;
         }
 
-        void CloseAllOperators()
+        virtual void CloseAllOperators()
         {
             isClosed_ = true;
         }
@@ -205,15 +196,21 @@ namespace omnistream {
 
         std::vector<RecordWriterOutputV2*> streamOutputs;
 
-    // weak ref,
-    StreamOperatorWrapper *tailOperatorWrapper;
+        // weak ref,
+        StreamOperatorWrapper *tailOperatorWrapper;
 
-    OperatorEventDispatcherImpl* operatorEventDispatcher;
+        OperatorEventDispatcherImpl* operatorEventDispatcher;
 
-    void SnapshotChannelStates(StreamOperator* op, std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> channelStateWriteResult,
-        OperatorSnapshotFutures* snapshotInProgress);
+        void SnapshotChannelStates(StreamOperator* op, std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> channelStateWriteResult,
+            OperatorSnapshotFutures* snapshotInProgress);
 
-    void SendAcknowledgeCheckpointEvent(long checkpointId);
+        void SendAcknowledgeCheckpointEvent(long checkpointId);
+
+        ReadIterator getAllOperators(bool reverse) {
+            return reverse
+                       ? ReadIterator(tailOperatorWrapper, true)
+                       : ReadIterator(mainOperatorWrapper, false);
+        }
 
     private:
     // future the following function should be private and the logic will be refactory
@@ -253,13 +250,6 @@ namespace omnistream {
             std::unordered_map<int, StreamConfigPOD> &chainedConfigs,
             std::unordered_map<int, datastream::RecordWriterOutput *> &recordWriterOutputs,
             std::vector<StreamOperatorWrapper *> &allOperatorWrappers);
-
-        ReadIterator getAllOperators(bool reverse)
-        {
-            return reverse
-                       ? ReadIterator(tailOperatorWrapper, true)
-                       : ReadIterator(mainOperatorWrapper, false);
-        }
 
         void registerHandler(OperatorPOD &opDesc, StreamOperator *streamOperator)
         {

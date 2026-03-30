@@ -59,6 +59,14 @@ JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_Om
 
 /*
  * Class:     com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask
+ * Method:    doDeleteNativeTask
+ * Signature: (J)J
+ */
+JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_doDeleteNativeTask
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask
  * Method:    createNativeTaskMetricGroup
  * Signature: (J)J
  */

@@ -57,7 +57,7 @@ namespace omnistream {
             operator_->processWatermarkStatus(watermarkStatus);
         }
 
-        void setTaskType(int taskType_)
+        void setTaskType(int taskType_) override
         {
             this->taskType = taskType_;
         }

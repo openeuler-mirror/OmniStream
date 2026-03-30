@@ -24,19 +24,20 @@ namespace omnistream {
 MailboxProcessor::MailboxProcessor() : suspended(false), mailboxLoopRunning(false)
 {}
 
-MailboxProcessor::MailboxProcessor(MailboxDefaultAction* mailboxDefaultAction)
-    : MailboxProcessor(mailboxDefaultAction, StreamTaskActionExecutor::IMMEDIATE)
+MailboxProcessor::MailboxProcessor(std::unique_ptr<MailboxDefaultAction> mailboxDefaultAction)
+    : MailboxProcessor(std::move(mailboxDefaultAction), StreamTaskActionExecutor::IMMEDIATE)
 {}
 
-MailboxProcessor::MailboxProcessor(MailboxDefaultAction* mailboxDefaultAction,
+MailboxProcessor::MailboxProcessor(std::unique_ptr<MailboxDefaultAction> mailboxDefaultAction,
     std::shared_ptr<StreamTaskActionExecutor> actionExecutor)
     : MailboxProcessor(
-          mailboxDefaultAction, new TaskMailboxImpl(std::this_thread::get_id()), actionExecutor)
+          std::move(mailboxDefaultAction), new TaskMailboxImpl(std::this_thread::get_id()), actionExecutor)
 {}
 
-MailboxProcessor::MailboxProcessor(MailboxDefaultAction* mailboxDefaultAction,
+MailboxProcessor::MailboxProcessor(std::unique_ptr<MailboxDefaultAction> mailboxDefaultAction,
     TaskMailbox* mailbox, std::shared_ptr<StreamTaskActionExecutor> actionExecutor)
-    : mailbox_(mailbox), mailboxDefaultAction(mailboxDefaultAction), suspended(false), mailboxLoopRunning(true),
+    : mailbox_(mailbox), mailboxDefaultAction(std::move(mailboxDefaultAction)), suspended(false),
+      mailboxLoopRunning(true),
       suspendedDefaultAction(nullptr), actionExecutor(actionExecutor)
 {}
 
@@ -44,9 +45,6 @@ MailboxProcessor::~MailboxProcessor()
 {
     if (mailbox_) {
         delete mailbox_;
-    }
-    if (mailboxDefaultAction) {
-        delete mailboxDefaultAction;
     }
 }
 

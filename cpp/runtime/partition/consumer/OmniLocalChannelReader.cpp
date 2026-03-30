@@ -20,7 +20,16 @@ namespace omnistream {
         : partitionId_(partitionId), subPartitionIndex_(subPartitionIndex),
           memorySegmentInfo(reinterpret_cast<MemorySegmentInfo *>(outputBufferStatus)),
           taskNameWithSubtask_(std::move(taskNameWithSubtask))
-    {
+    { }
+
+    OmniLocalChannelReader::~OmniLocalChannelReader() {
+        INFO_RELEASE("When OmniLocalChannelReader is destroyed, "
+            "there are still " + std::to_string(pendingRecyclingBufferMap.size()) + " network buffers not recycled");
+        for (auto it = pendingRecyclingBufferMap.begin(); it != pendingRecyclingBufferMap.end();) {
+            it->second->RecycleBuffer();
+            delete it->second; // this is ReadOnlySlicedNetworkBuffer, so we directly delete it
+            it = pendingRecyclingBufferMap.erase(it);
+        }
     }
 
     void OmniLocalChannelReader::requestSubpartitionView(
@@ -30,7 +39,7 @@ namespace omnistream {
         std::lock_guard<std::recursive_mutex> lock(createViewMutex);
         this->subpartitionView = resultPartitionManager->createSubpartitionView(
             partitionId, subPartitionId,
-            BufferAvailabilityListener::shared_from_this());
+            this);
         if (!this->subpartitionView) {
             INFO_RELEASE("local reader subpartitionView is null.........................");
             throw std::runtime_error("Subpartition view is null");
@@ -130,7 +139,8 @@ namespace omnistream {
         memorySegmentInfo->backlog = backlog;
         memorySegmentInfo->nextDataType = nextDataType;
         memorySegmentInfo->sequenceNumber = sequenceNumber;
-        pendingRecyclingBuffer = nBuffer;
+        std::lock_guard<std::recursive_mutex> lock(recycleBufferMutex);
+        pendingRecyclingBufferMap.emplace(memorySegmentInfo->memorySegmentAddress, nBuffer);
         LOG("memorySegmentAddress is " << memorySegmentInfo->memorySegmentAddress << " offset is "
                                                 << memorySegmentInfo->readIndex << " numBytes is " << memorySegmentInfo->length
                                                 << " currentDataType is " << memorySegmentInfo->currentDataType << " backlog is "
@@ -139,10 +149,13 @@ namespace omnistream {
     }
 
     void OmniLocalChannelReader::recycleMemorySegment(long memorySegmentAddress) {
-        if (pendingRecyclingBuffer) {
-            pendingRecyclingBuffer->RecycleBuffer();
-            // do not need to delete buffer here, buffer is deleted in the destructor of BufferConsumer
-            pendingRecyclingBuffer = nullptr;
+        uint64_t address = static_cast<uint64_t>(memorySegmentAddress);
+        std::lock_guard<std::recursive_mutex> lock(recycleBufferMutex);
+        auto it = pendingRecyclingBufferMap.find(address);
+        if (it != pendingRecyclingBufferMap.end()) {
+            it->second->RecycleBuffer();
+            delete it->second; // this is ReadOnlySlicedNetworkBuffer, so we directly delete it
+            pendingRecyclingBufferMap.erase(it);
         }
     }
 
@@ -281,7 +294,8 @@ namespace omnistream {
         memorySegmentInfo->backlog = backlog;
         memorySegmentInfo->nextDataType = nextDataType;
         memorySegmentInfo->sequenceNumber = sequenceNumber;
-        pendingRecyclingBuffer = vBuffer;
+        std::lock_guard<std::recursive_mutex> lock(recycleBufferMutex);
+        pendingRecyclingBufferMap.emplace(memorySegmentInfo->memorySegmentAddress, vBuffer);
 
     }
 }

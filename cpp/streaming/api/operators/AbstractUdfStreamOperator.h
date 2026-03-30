@@ -55,6 +55,11 @@ public:
             uf->notifyCheckpointComplete(checkpointId);
         }
     }
+
+    void close() override {
+        AbstractStreamOperator<K>::close();
+        // todo: should the udf be closed?
+    }
 protected:
     F* userFunction = nullptr;
 };

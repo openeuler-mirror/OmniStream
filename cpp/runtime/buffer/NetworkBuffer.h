@@ -70,7 +70,7 @@ namespace omnistream::datastream {
             if (IsRecycled()) {
                 GErrorLog("Trying to recycle a NetworkBuffer that has already been recycled");
             } else {
-                int prev = refCount.fetch_sub(1);
+                int prev = refCount_.fetch_sub(1);
                 if (prev == 1) {
                     recycler->recycle(this->getMemorySegment());
                     isRecycled_.store(true);
@@ -83,14 +83,14 @@ namespace omnistream::datastream {
             return isRecycled_.load();
         }
 
+        bool ShouldBeDeleted() override {
+            int expected = 0;
+            return refCount_.compare_exchange_strong(expected, -1);
+        }
+
         Buffer* RetainBuffer() override
         {
-            LOG_TRACE("retain ")
-            LOG_PART(
-                    "RetainBuffer The buffer " << this << " refCount is incremented from " << refCount.load() << " to "
-                                               << (refCount.load() + 1)
-            )
-            refCount.fetch_add(1);
+            refCount_.fetch_add(1);
             return this;
         }
 
@@ -154,7 +154,7 @@ namespace omnistream::datastream {
 
         int RefCount() const override
         {
-            return refCount.load();
+            return refCount_.load();
         }
 
         std::string ToDebugString(bool includeHash) const override
@@ -217,7 +217,7 @@ namespace omnistream::datastream {
         std::atomic<bool> isRecycled_ = false;
         int readerIndex_;
 
-        std::atomic<int> refCount = 0;
+        std::atomic<int> refCount_ = 0;
         ObjectBufferDataType dataType = ObjectBufferDataType::DATA_BUFFER;
         bool segmentOwner = false;
     };

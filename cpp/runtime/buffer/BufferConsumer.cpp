@@ -62,7 +62,6 @@ namespace omnistream {
 
     void BufferConsumer::close()
     {
-        LOG_TRACE("before buffer recycle")
         if (!buffer->IsRecycled()) {
             buffer->RecycleBuffer();
         }

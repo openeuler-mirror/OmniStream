@@ -16,6 +16,7 @@
 #include <common.h>
 #include <condition_variable>
 #include <mutex>
+#include <unordered_map>
 #include "partition/BufferAvailabilityListener.h"
 #include "partition/ResultPartitionManager.h"
 #include "runtime/executiongraph/descriptor/ResultPartitionIDPOD.h"
@@ -39,6 +40,7 @@ namespace omnistream {
     public:
         OmniLocalChannelReader(ResultPartitionIDPOD partitionId,
                                int subPartitionIndex, long outputBufferStatus, std::string taskNameWithSubtas);
+        ~OmniLocalChannelReader() override;
 
         void requestSubpartitionView(
             std::shared_ptr<ResultPartitionManager> resultPartitionManager,
@@ -69,7 +71,8 @@ namespace omnistream {
         std::condition_variable_any dataAvailableCondition;
         std::recursive_mutex dataAvailableMutex;
         std::atomic<bool> dataAvailable = false;
-        Buffer* pendingRecyclingBuffer = nullptr;
+        std::unordered_map<uint64_t, Buffer*> pendingRecyclingBufferMap;
+        std::recursive_mutex recycleBufferMutex;
         std::atomic<bool> isStopped = false;
         std::string taskNameWithSubtask_;
     };

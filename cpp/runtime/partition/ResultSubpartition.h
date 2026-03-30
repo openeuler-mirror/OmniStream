@@ -57,7 +57,7 @@ namespace omnistream {
         virtual void finish() = 0;
         virtual void release() = 0;
         virtual std::shared_ptr<ResultSubpartitionView> createReadView(
-                std::shared_ptr<BufferAvailabilityListener> availabilityListener) = 0;
+                BufferAvailabilityListener* availabilityListener) = 0;
         virtual bool isReleased() = 0;
         virtual int getBuffersInBacklogUnsafe() const = 0;
         virtual int unsynchronizedGetNumberOfQueuedBuffers() = 0;

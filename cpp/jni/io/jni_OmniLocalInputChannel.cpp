@@ -18,6 +18,7 @@
 #include "runtime/taskmanager/OmniTask.h"
 #include "runtime/state/bridge/OmniLocalInputChannelBridge.h"
 #include "jni/bridge/OmniLocalInputChannelBridgeImpl.h"
+#include "runtime/partition/consumer/OmniLocalInputChannel.h"
 
 JNIEXPORT jlong JNICALL
 Java_org_apache_flink_runtime_io_network_partition_consumer_OmniLocalInputChannel_doChangeNativeLocalInputChannel

@@ -112,7 +112,7 @@ namespace omnistream {
         auto output = createDataOutput(reinterpret_cast<std::shared_ptr<omnistream::SimpleCounter> &>(counter));
         auto input = CreateTaskInput(inputGate);
 
-        inputProcessor_ = new OmniStreamOneInputProcessor(input, output, operatorChain);
+        inputProcessor_ = new OmniStreamOneInputProcessor(input, output, operatorChain.get());
     }
 
     void OmniOneInputStreamTask::processInput(MailboxDefaultAction::Controller *controller)

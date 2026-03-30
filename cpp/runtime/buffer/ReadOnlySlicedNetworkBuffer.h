@@ -22,21 +22,22 @@ namespace omnistream::datastream {
             memorySegmentOffset = parent->GetMemorySegmentOffset()+index;
         }
 
-        ~ReadOnlySlicedNetworkBuffer() override {
-            if (parent_->RefCount() == 0) {
-                delete parent_;
-            }
-        }
+        ~ReadOnlySlicedNetworkBuffer() override = default;
 
         std::shared_ptr<BufferRecycler> GetRecycler() override
         {
             return parent_->GetRecycler();
         }
 
-        void RecycleBuffer() override
-        {
-            LOG_TRACE("Calling RecycleBuffer() from ReadOnlySlicedNetworkBuffer")
+        void RecycleBuffer() override {
+            if (parent_ == nullptr) {
+                THROW_RUNTIME_ERROR("ReadOnlySlicedNetworkBuffer::RecycleBuffer() >>> parent_ is nullptr")
+            }
             parent_->RecycleBuffer();
+            if (parent_->ShouldBeDeleted()) {
+                delete parent_;
+                parent_ = nullptr;
+            }
         }
 
         bool IsRecycled() const override
@@ -46,7 +47,6 @@ namespace omnistream::datastream {
 
         Buffer* RetainBuffer() override
         {
-            LOG_TRACE("Calling RetainBuffer() from ReadOnlySlicedVectorBatchBuffer")
             return parent_->RetainBuffer();
         }
 

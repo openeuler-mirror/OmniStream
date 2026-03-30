@@ -17,7 +17,10 @@ NonReusingDeserializationDelegate::NonReusingDeserializationDelegate(omnistream:
     : serializer_(serializer), instance_(nullptr) {}
 
 NonReusingDeserializationDelegate::~NonReusingDeserializationDelegate() {
-    delete serializer_;
+    if (serializer_ != nullptr) {
+        delete serializer_;
+        serializer_ = nullptr;
+    }
 }
 
 void *NonReusingDeserializationDelegate::getInstance()

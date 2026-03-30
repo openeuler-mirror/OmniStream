@@ -27,7 +27,7 @@ namespace omnistream {
 
     class PipelinedSubpartitionView : public ResultSubpartitionView {
     public:
-        PipelinedSubpartitionView(std::shared_ptr<PipelinedSubpartition> parent, std::shared_ptr<BufferAvailabilityListener> listener);
+        PipelinedSubpartitionView(std::shared_ptr<PipelinedSubpartition> parent, BufferAvailabilityListener* listener);
         PipelinedSubpartitionView();
         ~PipelinedSubpartitionView() override;
 
@@ -49,7 +49,7 @@ namespace omnistream {
 
     private:
         std::shared_ptr<PipelinedSubpartition> parent;
-        std::shared_ptr<BufferAvailabilityListener> availabilityListener;
+        BufferAvailabilityListener* availabilityListener;
         std::atomic<bool> isReleased_;
     };
 

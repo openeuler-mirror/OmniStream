@@ -72,7 +72,7 @@ public:
     BufferBuilder *appendUnicastDataForRecordContinuation(void *record, int targetSubpartition);
 
     std::shared_ptr<ResultSubpartitionView> createSubpartitionView(
-        int subpartitionIndex, std::shared_ptr<BufferAvailabilityListener> availabilityListener) override;
+        int subpartitionIndex, BufferAvailabilityListener* availabilityListener) override;
     void finish() override;
     void cancel() override;
     void close() override;
