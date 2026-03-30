@@ -40,8 +40,7 @@ namespace omnistream {
             }
             return status;
         }
-        INFO_RELEASE("emitNext return status: "  << DataInputStatusHelper::mapToInt(status))
-        // LOG_TRACE(" Return status  "  << DataInputStatusHelper::mapToInt(status))
+        LOG("emitNext return status: "  << DataInputStatusHelper::mapToInt(status))
         return status;
     }
 
