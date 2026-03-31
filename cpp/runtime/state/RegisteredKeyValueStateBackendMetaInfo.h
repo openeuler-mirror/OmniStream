@@ -71,8 +71,8 @@ private:
     // Instead of using serializer provider, straight up use serializer
     // Might change later if needed
     StateDescriptor::Type stateType;
-    TypeSerializer* namespaceSerializer;
-    TypeSerializer* stateSerializer;
+    TypeSerializer* namespaceSerializer = nullptr;
+    TypeSerializer* stateSerializer = nullptr;
 
     static StateDescriptor::Type parseStateType(const std::string& typeStr)
     {

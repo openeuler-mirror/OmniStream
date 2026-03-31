@@ -243,15 +243,15 @@ private:
     int startGroup_;
     int endGroup_;
     int maxParallelism_;
-    ROCKSDB_NAMESPACE::DB* db;
+    ROCKSDB_NAMESPACE::DB* db = nullptr;
     bool disposed_ = false; // mark whether the backend is already disposed and prevent duplicate disposing
     std::shared_ptr<RocksDBWriteBatchWrapper> writeBatchWrapper_;
     std::string kDBPath;
     RocksDBSnapshotStrategyBase* strategy;
     std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>> *kvStateInformation_;
     std::shared_ptr<ResourceGuard> rocksDBResourceGuard_;
-    KeyGroupRange* keyGroupRange_;
-    TypeSerializer* keySerializer_;
+    KeyGroupRange* keyGroupRange_ = nullptr;
+    TypeSerializer* keySerializer_ = nullptr;
     int keyGroupPrefixBytes_;
     std::shared_ptr<TaskStateManagerBridge> bridge_;
     std::shared_ptr<omnistream::OmniTaskBridge> omniTaskBridge_;

@@ -186,20 +186,20 @@ namespace omnistream::runtime {
             }
 
         private:
-            SingleCheckpointBarrierHandler* parent_;
-            SubtaskCheckpointCoordinator* subTaskCheckpointCoordinator_;
+            SingleCheckpointBarrierHandler* parent_ = nullptr;
+            SubtaskCheckpointCoordinator* subTaskCheckpointCoordinator_ = nullptr;
         };
 
         // Member variables
         std::string taskName_;
-        Controller* context_;
-        BarrierAlignmentUtil::DelayableTimer<std::function<void()>>* registerTimer_;
-        SubtaskCheckpointCoordinator* subTaskCheckpointCoordinator_;
+        Controller* context_ = nullptr;
+        BarrierAlignmentUtil::DelayableTimer<std::function<void()>>* registerTimer_ = nullptr;
+        SubtaskCheckpointCoordinator* subTaskCheckpointCoordinator_ = nullptr;
         std::vector<CheckpointableInput*> inputs_;
 
         // Checkpoint tracking
         int64_t currentCheckpointId_;
-        CheckpointBarrier* pendingCheckpointBarrier_{};
+        CheckpointBarrier* pendingCheckpointBarrier_ = nullptr;
         std::unordered_set<InputChannelInfo> alignedChannels_;
         int targetChannelCount_;
         int64_t lastCancelledOrCompletedCheckpointId_;
