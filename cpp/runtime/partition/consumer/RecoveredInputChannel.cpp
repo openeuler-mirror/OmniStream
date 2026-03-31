@@ -143,7 +143,7 @@ bool RecoveredInputChannel::isEndOfChannelStateEvent(Buffer *buffer)
         return false;
     }
 
-    std::shared_ptr<AbstractEvent> event = EventSerializer::fromBuffer(buffer);
+    std::shared_ptr<AbstractEvent> event = EventSerializer::fromBufferNotRecycle(buffer);
     buffer->SetReaderIndex(0);
     if (dynamic_cast<EndOfChannelStateEvent*>(event.get())) {
         return true;
