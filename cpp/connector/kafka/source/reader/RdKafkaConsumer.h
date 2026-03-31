@@ -235,6 +235,7 @@ private:
     RdKafka::KafkaConsumer* consumer_;
     std::string topic_;
     int batch_size_ = 100000; // 默认批量大小
+    bool closed_ = false;
 };
 
 

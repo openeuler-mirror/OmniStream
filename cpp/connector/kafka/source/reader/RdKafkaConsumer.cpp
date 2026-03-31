@@ -43,7 +43,7 @@ RdKafkaConsumer::RdKafkaConsumer(const std::unordered_map<std::string, std::stri
 
 RdKafkaConsumer::~RdKafkaConsumer()
 {
-    consumer_->close();
+    close();
     delete consumer_;
 }
 
@@ -158,6 +158,10 @@ void RdKafkaConsumer::endOffsets(std::vector<std::shared_ptr<RdKafka::TopicParti
 
 void RdKafkaConsumer::close()
 {
+    if (closed_) {
+        return;
+    }
+    closed_ = true;
     RdKafka::ErrorCode resp = consumer_->close();
     if (resp != RdKafka::ERR_NO_ERROR) {
         std::cerr << "% close failed: " << RdKafka::err2str(resp)
