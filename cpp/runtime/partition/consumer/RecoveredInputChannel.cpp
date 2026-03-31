@@ -52,14 +52,14 @@ void RecoveredInputChannel::onRecoveredStateBuffer2(Buffer *buffer)
 {
     bool recycleBuffer = true;
     bool wasEmpty = false;
-    std::shared_ptr<ReadOnlySlicedNetworkBuffer> readOnlyBuffer;
+    ReadOnlySlicedNetworkBuffer* readOnlyBuffer;
     {
-        readOnlyBuffer = std::make_shared<ReadOnlySlicedNetworkBuffer>(
+        readOnlyBuffer = new ReadOnlySlicedNetworkBuffer(
             dynamic_cast<NetworkBuffer *>(buffer), 0, buffer->GetSize());
         std::lock_guard<std::mutex> lock(bufferLock);
         if (!released) {
             wasEmpty = receivedBuffers.empty();
-            receivedBuffers.emplace_back(readOnlyBuffer.get(), readOnlyBuffer);
+            receivedBuffers.emplace_back(readOnlyBuffer, nullptr);
             recycleBuffer = false;
         }
     }

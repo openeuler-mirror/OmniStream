@@ -113,6 +113,7 @@ namespace omnistream {
         void declineCheckpoint(long checkpointid, CheckpointFailureReason failureReason, std::exception *e);
         long createOmniLocalChannelReader(ResultPartitionIDPOD partitionId, int subPartitionId, long returnDataAddress);
         long changeLocalInputChannelToOriginal(ResultPartitionIDPOD partitionId);
+        void notifyChannelToOmni(const ResultPartitionIDPOD &partitionId);
         int GetTaskType();
         long GetRecycleBufferAddress();
         std::shared_ptr<RemoteDataFetcherBridge> GetRemoteDataFetcherBridge();

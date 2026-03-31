@@ -51,6 +51,14 @@ JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_Omn
 
 /*
  * Class:     com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask
+ * Method:    notifyChannelToOmni
+ * Signature: (JLjava/lang/String;)V
+ */
+JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_notifyChannelToOmni
+  (JNIEnv *, jobject, jlong, jstring);
+
+/*
+ * Class:     com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask
  * Method:    doRunNativeTask
  * Signature: (JJ)J
  */

@@ -123,7 +123,7 @@ std::vector<bool> SingleInputGate::getStateConsumedFuture1()
     return futures;
 }
 
-void SingleInputGate::RequestPartitions(int taskType)
+void SingleInputGate::RequestPartitions()
 {
     //LOCK_BEFORE()
     std::unique_lock<std::recursive_mutex> lock(requestLock);
@@ -148,9 +148,7 @@ void SingleInputGate::RequestPartitions(int taskType)
         convertRecoveredInputChannels();
 
         // LOG_PART("before intneral request partions ")
-        if (taskType == 1) {
-            internalRequestPartitions();
-        }
+        internalRequestPartitions();
     }
 
     requestedPartitionsFlag = true;
@@ -158,7 +156,7 @@ void SingleInputGate::RequestPartitions(int taskType)
 
 void SingleInputGate::convertRecoveredInputChannels()
 {
-      LOG("covert recovered input channels (" << numberOfInputChannels << " channels, inputChannels.size:"<<inputChannels.size());
+    LOG("covert recovered input channels (" << numberOfInputChannels << " channels, inputChannels.size:"<<inputChannels.size());
     for (auto &entry : inputChannels) {
         std::shared_ptr<InputChannel> inputChannel = entry.second;
         if(auto local = std::dynamic_pointer_cast<LocalRecoveredInputChannel>(inputChannel)){
@@ -167,10 +165,10 @@ void SingleInputGate::convertRecoveredInputChannels()
             LOG("before instance of RemoteRecoveredInputChannel, to convert to normal channel!");
         } else if(auto local2 = std::dynamic_pointer_cast<OmniLocalInputChannel>(inputChannel)){
             LOG("before instance of OmniLocalInputChannel!");
-        } else  if(auto local1 = std::dynamic_pointer_cast<LocalInputChannel>(inputChannel)){
-            LOG("before instance of LocalInputChannel!");
         } else if(auto remote1 = std::dynamic_pointer_cast<RemoteInputChannel>(inputChannel)){
             LOG("before instance of RemoteInputChannel!");
+        } else  if(auto local1 = std::dynamic_pointer_cast<LocalInputChannel>(inputChannel)){
+            LOG("before instance of LocalInputChannel!");
         } else{
             LOG("before unKnown channel type!");
         }
@@ -191,9 +189,11 @@ void SingleInputGate::convertRecoveredInputChannels()
             std::shared_ptr<omnistream::InputChannel> realChannel = recoveredChannel->toInputChannel();
             recoveredChannel->releaseAllResources();
             if(auto remote = std::dynamic_pointer_cast<RemoteInputChannel>(realChannel)){
-                LOG("realChannel of RemoteRecoveredInputChannel,  convert to normal channel!");
+                LOG("realChannel of RemoteRecoveredInputChannel, convert to normal channel!");
+            } else if(auto omniLocal = std::dynamic_pointer_cast<OmniLocalInputChannel>(realChannel)){
+                LOG("realChannel of OmniLocalInputChannel, convert to normal channel!");
             } else if(auto local = std::dynamic_pointer_cast<LocalInputChannel>(realChannel)){
-                LOG("realChannel of LocalRecoveredInputChannel,  convert to normal channel!");
+                LOG("realChannel of LocalRecoveredInputChannel, convert to normal channel!");
             } else {
                 LOG("unKnown realChannel recover channel type!");
             }
@@ -201,10 +201,12 @@ void SingleInputGate::convertRecoveredInputChannels()
             channels[recoveredChannel->getChannelIndex()] = realChannel;
         } else {
             LOG("channel is not a recover type!");
-            if(auto local = std::dynamic_pointer_cast<LocalInputChannel>(inputChannel)){
-                LOG("instance of LocalInputChannel!");
-            } else if(auto remote = std::dynamic_pointer_cast<RemoteInputChannel>(inputChannel)){
+            if(auto remote = std::dynamic_pointer_cast<RemoteInputChannel>(inputChannel)){
                 LOG("instance of RemoteInputChannel!");
+            } else if(auto omniLocal = std::dynamic_pointer_cast<OmniLocalInputChannel>(inputChannel)){
+                LOG("realChannel of OmniLocalInputChannel,  convert to normal channel!");
+            } else if(auto local = std::dynamic_pointer_cast<LocalInputChannel>(inputChannel)){
+                LOG("instance of LocalInputChannel!");
             } else{
                 LOG("unKnown channel type!");
             }

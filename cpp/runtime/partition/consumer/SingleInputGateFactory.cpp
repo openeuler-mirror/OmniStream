@@ -112,7 +112,6 @@ namespace omnistream {
     std::shared_ptr<OmniLocalInputChannel> SingleInputGateFactory::createOriginalInputChannel(
         std::shared_ptr<SingleInputGate> inputGate, int index, ResultPartitionIDPOD& partitionId)
     {
-        // todo ChannelStateWriter
         std::shared_ptr<ChannelStateWriter> stateWriter = std::make_shared<ChannelStateWriterImpl>();
         return std::make_shared<OmniLocalInputChannel>(inputGate, index, partitionId, partitionManager,
                                                 partitionRequestInitialBackoff, partitionRequestMaxBackoff,
