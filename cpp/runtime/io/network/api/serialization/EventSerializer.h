@@ -32,10 +32,11 @@ namespace omnistream {
         static std::shared_ptr<BufferConsumer> ToBufferConsumer(std::shared_ptr<AbstractEvent> event,
                                                                 bool hasPriority);
         static std::shared_ptr<AbstractEvent> fromBuffer(Buffer* buffer);
+        static std::shared_ptr<AbstractEvent> fromBufferNotRecycle(Buffer* buffer);
         static std::shared_ptr<AbstractEvent> fromBuffer_V2(const std::shared_ptr<Buffer>& buffer);
 
         static MemorySegment *ToSerializedEvent(std::shared_ptr<AbstractEvent> event);
-        static std::shared_ptr<AbstractEvent> fromSerializedEvent(Buffer* buffer);
+        static std::shared_ptr<AbstractEvent> fromSerializedEvent(Buffer* buffer, bool recycleEvent = true);
         static std::shared_ptr<AbstractEvent> fromSerializedEvent_V2(std::shared_ptr<Buffer> buffer);
 
 //        static std::shared_ptr<BufferOrEvent> fromNetworkBuffer(

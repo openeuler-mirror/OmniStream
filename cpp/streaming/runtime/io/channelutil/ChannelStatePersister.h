@@ -119,7 +119,7 @@ public:
         if (buffer->isBuffer()) {
             return nullptr;
         } else {
-            std::shared_ptr<AbstractEvent> event = EventSerializer::fromBuffer(buffer);
+            std::shared_ptr<AbstractEvent> event = EventSerializer::fromBufferNotRecycle(buffer);
             // 重置buffer的读取位置
             buffer->SetReaderIndex(0);
             return event;

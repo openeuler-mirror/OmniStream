@@ -77,6 +77,11 @@ namespace omnistream {
         return fromSerializedEvent(buffer);
     }
 
+    std::shared_ptr<AbstractEvent> EventSerializer::fromBufferNotRecycle(Buffer* buffer)
+    {
+        return fromSerializedEvent(buffer, false);
+    }
+
     std::shared_ptr<AbstractEvent> EventSerializer::fromBuffer_V2(const std::shared_ptr<Buffer>& buffer)
     {
         return fromSerializedEvent_V2(buffer);
@@ -140,7 +145,7 @@ namespace omnistream {
         throw std::runtime_error("Unsupported event type");
     }
 
-    std::shared_ptr<AbstractEvent> EventSerializer::fromSerializedEvent(Buffer* buffer)
+    std::shared_ptr<AbstractEvent> EventSerializer::fromSerializedEvent(Buffer* buffer, bool recycleEvent)
     {
         LOG_DEBUG("fromSerializedEvent V1 !")
         if (buffer == nullptr || buffer->GetSize() < 4) {
@@ -156,16 +161,22 @@ namespace omnistream {
         ByteBuffer byteBuffer = ByteBuffer(rawData, networkBuffer->GetSize());
         int eventType = byteBuffer.getIntFromValue();
         if (eventType == END_OF_PARTITION_EVENT) {
-            buffer->RecycleBuffer();
+            if (recycleEvent) {
+                buffer->RecycleBuffer();
+            }
             // delete buffer;
             return EndOfPartitionEvent::getInstance();
         } else if (eventType == END_OF_USER_RECORDS_EVENT) {
-            buffer->RecycleBuffer();
+            if (recycleEvent) {
+                buffer->RecycleBuffer();
+            }
             // delete buffer;
             return std::make_shared<EndOfData>(StopMode::DRAIN);
         } else if (eventType == CHECKPOINT_BARRIER_EVENT) {
             std::shared_ptr<CheckpointBarrier> checkpointBarrier = DeserializeCheckpointBarrier(byteBuffer);
-            buffer->RecycleBuffer();
+            if (recycleEvent) {
+                buffer->RecycleBuffer();
+            }
             // delete buffer;
             return checkpointBarrier;
         } else if (eventType == ANNOUNCEMENT_EVENT) {
@@ -178,18 +189,25 @@ namespace omnistream {
             } else {
                 throw std::runtime_error("Unsupported announced event type in EventAnnouncement.");
             }
-            buffer->RecycleBuffer();
+            if (recycleEvent) {
+                buffer->RecycleBuffer();
+            }
             return std::make_shared<EventAnnouncement>(announced, seq);
         } else if (eventType == END_OF_CHANNEL_STATE_EVENT) {
-            buffer->RecycleBuffer();
+            if (recycleEvent) {
+                buffer->RecycleBuffer();
+            }
             return EndOfChannelStateEvent::getInstance();
         }else if(eventType == VIRTUAL_CHANNEL_SELECTOR_EVENT){
             auto des = std::make_shared<SubtaskConnectionDescriptor>(byteBuffer.getIntFromValue(),byteBuffer.getIntFromValue());
-            buffer->RecycleBuffer();
+            if (recycleEvent) {
+                buffer->RecycleBuffer();
+            }
             return des;
         } else {
-            LOG_DEBUG("find no support event type!")
-            buffer->RecycleBuffer();
+            if (recycleEvent) {
+                buffer->RecycleBuffer();
+            }
             return nullptr;
         }
     }
