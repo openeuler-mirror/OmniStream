@@ -17,6 +17,7 @@
 #include "data/binary/BinaryRowData.h"
 #include "table/data/rowdata_marshaller.h"
 #include "OmniOperatorJIT/core/src/codegen/time_util.h"
+#include "table/utils/VectorBatchSerializationUtils.h"
 #include "OmniOperatorJIT/core/src/codegen/functions/dtoa.h"
 #include "OmniOperatorJIT/core/src/type/TimestampConversion.h"
 
@@ -37,15 +38,15 @@ std::string FormatDateLikeJava(int32_t daysSinceEpoch)
 }  // namespace
 
 namespace omnistream {
-VectorBatch::VectorBatch(size_t rowCnt)
-    : omniruntime::vec::VectorBatch(rowCnt),
-      timestamps(nullptr),
-      rowKinds(nullptr),
-      maxTimestamp(INT64_MIN)
-{
-    if (rowCnt > 0) {
-        timestamps = new int64_t[rowCnt];
-        memset_s(timestamps, sizeof(int64_t) * rowCnt, 0, sizeof(int64_t) * rowCnt);
+    VectorBatch::VectorBatch(size_t rowCnt)
+        : omniruntime::vec::VectorBatch(rowCnt),
+          timestamps(nullptr),
+          rowKinds(nullptr),
+          maxTimestamp(INT64_MIN)
+    {
+        if (rowCnt > 0) {
+            timestamps = new int64_t[rowCnt];
+            memset_s(timestamps, sizeof(int64_t) * rowCnt, 0, sizeof(int64_t) * rowCnt);
 
         rowKinds = new RowKind[rowCnt];
         memset_s(rowKinds, sizeof(RowKind) * rowCnt, 0, sizeof(RowKind) * rowCnt);
@@ -58,42 +59,50 @@ VectorBatch::~VectorBatch()
     delete[] rowKinds;
 }
 
-VectorBatch::VectorBatch(omniruntime::vec::VectorBatch* baseVecBatch, int64_t* timestamps, RowKind* rowkinds)
-    : omniruntime::vec::VectorBatch(baseVecBatch->GetRowCount())
-{
-    auto baseVectors = baseVecBatch->GetVectors();
-    this->vectors.insert(this->vectors.end(), baseVectors, baseVectors + baseVecBatch->GetVectorCount());
-    this->rowKinds = rowkinds;
-    this->timestamps = timestamps;
-    this->maxTimestamp = INT64_MIN;
-}
-int64_t VectorBatch::setMaxTimestamp(int colIdx)
-{
-    omniruntime::vec::Vector<int64_t>* col = reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(this->Get(colIdx));
-    for (int i = 0; i < this->GetRowCount(); i++) {
-        maxTimestamp = std::max(maxTimestamp, col->GetValue(i));
+    VectorBatch::VectorBatch(omniruntime::vec::VectorBatch *baseVecBatch, int64_t *timestamps, RowKind *rowkinds)
+        : omniruntime::vec::VectorBatch(baseVecBatch->GetRowCount()),
+          timestamps(timestamps),
+          rowKinds(rowkinds),
+          maxTimestamp(INT64_MIN)
+    {
+        auto baseVectors = baseVecBatch->GetVectors();
+        this->vectors.insert(this->vectors.end(), baseVectors, baseVectors + baseVecBatch->GetVectorCount());
+        refreshSizeInBytes();
     }
-    return maxTimestamp;
-}
 
-void VectorBatch::RearrangeColumns(std::vector<int32_t>& inputIndices)
-{
-    LOG("=====>");
-    std::vector<bool> toKeep(this->vectors.size(), false);
-    // Move column to its new position
-    std::vector<omniruntime::vec::BaseVector*> newVectors(inputIndices.size());
-    for (size_t i = 0; i < inputIndices.size(); i++) {
-        newVectors[i] = this->vectors[inputIndices[i]];
-        toKeep[inputIndices[i]] = true;
+    void VectorBatch::refreshSizeInBytes()
+    {
+        sizeInBytes_ = VectorBatchSerializationUtils::calculateVectorBatchPayloadSize(this);
     }
-    // remove vectors(cols) that are no longer needed
-    for (size_t i = 0; i < toKeep.size(); i++) {
-        if (!toKeep[i]) {
-            delete vectors[i];
+
+    int64_t  VectorBatch::setMaxTimestamp(int colIdx)
+    {
+        omniruntime::vec::Vector<int64_t>* col = reinterpret_cast<omniruntime::vec::Vector<int64_t>* >(this->Get(colIdx));
+        for (int i = 0; i < this->GetRowCount(); i++) {
+            maxTimestamp = std::max(maxTimestamp, col->GetValue(i));
         }
+        return maxTimestamp;
     }
-    this->vectors = newVectors;
-}
+
+    void VectorBatch::RearrangeColumns(std::vector<int32_t> &inputIndices)
+    {
+        LOG("=====>");
+        std::vector<bool> toKeep(this->vectors.size(), false);
+        // Move column to its new position
+        std::vector<omniruntime::vec::BaseVector*> newVectors(inputIndices.size());
+        for (size_t i = 0; i < inputIndices.size(); i++) {
+            newVectors[i] = this->vectors[inputIndices[i]];
+            toKeep[inputIndices[i]] = true;
+        }
+        // remove vectors(cols) that are no longer needed
+        for (size_t i = 0; i < toKeep.size(); i++) {
+            if (!toKeep[i]) {
+                delete vectors[i];
+            }
+        }
+        this->vectors = newVectors;
+        refreshSizeInBytes();
+    }
 
 // The caller takes ownership of the returned pointer
 RowData* VectorBatch::extractRowData(int rowIndex)
@@ -161,32 +170,31 @@ std::string removeTrailingZeros(std::string num)
     }
 }
 
-std::string VectorBatch::TransformTimeWithTimeZone(
-    int vectorID, int rowID, const std::string& tzStr, int precision) const
-{
-    auto millis = reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(vectors[vectorID])->GetValue(rowID);
-    int64_t adjusted_seconds = (millis >= 0) ? (millis / 1000) : ((millis - 999) / 1000);
-    int milliseconds = millis % 1000;
-    if (milliseconds < 0) {
-        const int addTime = 1000;
-        milliseconds += addTime; // 确保毫秒非负（如-1234ms → -2秒 + 766ms）
-    }
-    setenv("TZ", omniruntime::codegen::function::TimeZoneUtil::GetTZ(tzStr.c_str()), 1);
-    tzset();
-    struct tm timeinfo;
-    localtime_r(&adjusted_seconds, &timeinfo);
-    char buffer[80];
-    strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", &timeinfo);
-    std::ostringstream oss;
-    oss << buffer << ".";
+    std::string VectorBatch::TransformTimeWithTimeZone(int vectorID, int rowID, const std::string& tzStr, int precision) const
+    {
+        auto millis = reinterpret_cast<omniruntime::vec::Vector<int64_t> *>(vectors[vectorID])->GetValue(rowID);
+        int64_t adjusted_seconds = (millis >= 0) ? (millis / 1000) : ((millis - 999) / 1000);
+        int milliseconds = millis % 1000;
+        if (milliseconds < 0) {
+            const int addTime = 1000;
+            milliseconds += addTime; // 确保毫秒非负（如-1234ms → -2秒 + 766ms）
+        }
+        setenv("TZ", omniruntime::codegen::function::TimeZoneUtil::GetTZ(tzStr.c_str()), 1);
+        tzset();
+        struct tm timeinfo;
+        localtime_r(&adjusted_seconds, &timeinfo);
+        char buffer[80];
+        strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", &timeinfo);
+        std::ostringstream oss;
+        oss << buffer << ".";
 
-    if (precision <= 3) {
-        oss << std::setw(3) << std::setfill('0') << milliseconds; // 强制3位宽度，不足补零
-    } else if (precision <= 9) {
-        oss << std::setw(3) << std::setfill('0') << milliseconds << std::string(precision - 3, '0');
-    } else {
-        oss << std::setw(3) << std::setfill('0') << milliseconds << std::string(6, '0');
-    }
+        if (precision <= 3) {
+            oss << std::setw(3) << std::setfill('0') << milliseconds; // 强制3位宽度，不足补零
+        } else if (precision <= 9) {
+            oss << std::setw(3) << std::setfill('0') << milliseconds << std::string(precision - 3, '0');
+        } else {
+            oss << std::setw(3) << std::setfill('0') << milliseconds << std::string(6, '0');
+        }
 
     std::string result = oss.str();
     return result;
@@ -253,22 +261,24 @@ std::string VectorBatch::TransformTime(int vectorID, int rowID, int precision) c
     char buffer[80];
     strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", &timeinfo);
 
-    std::ostringstream oss;
-    oss << buffer << ".";
+        std::ostringstream oss;
+        oss << buffer << ".";
 
-    if (precision <= 3) {
-        // precision <= 3时，补齐到3位（毫秒精度）
-        oss << std::setw(3) << std::setfill('0') // 强制3位宽度，不足补零
-            << milliseconds;
-    } else if (precision <= 9) {
-        // 3 < precision <= 9时，输出毫秒部分并补0到precision位数
-        oss << std::setw(3) << std::setfill('0') // 强制3位宽度，不足补零
-            << milliseconds << std::string(precision - 3, '0');
-    } else {
-        // precision > 9时，截断到9位
-        oss << std::setw(3) << std::setfill('0')    // 强制3位宽度，不足补零
-            << milliseconds << std::string(6, '0'); // 补0到9位
-    }
+        if (precision <= 3) {
+            // precision <= 3时，补齐到3位（毫秒精度）
+            oss << std::setw(3) << std::setfill('0')  // 强制3位宽度，不足补零
+                << milliseconds;
+        } else if (precision <= 9) {
+            // 3 < precision <= 9时，输出毫秒部分并补0到precision位数
+            oss << std::setw(3) << std::setfill('0')  // 强制3位宽度，不足补零
+                << milliseconds
+                << std::string(precision - 3, '0');
+        } else {
+            // precision > 9时，截断到9位
+            oss << std::setw(3) << std::setfill('0')  // 强制3位宽度，不足补零
+                << milliseconds
+                << std::string(6, '0');  // 补0到9位
+        }
 
     std::string result = oss.str();
     return result;

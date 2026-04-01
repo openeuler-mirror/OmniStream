@@ -73,6 +73,27 @@ public:
         return rowKinds;
     }
 
+    int32_t getSizeInBytes() const
+    {
+        return sizeInBytes_;
+    }
+
+    void Append(omniruntime::vec::BaseVector* vector)
+    {
+        omniruntime::vec::VectorBatch::Append(vector);
+        refreshSizeInBytes();
+    }
+
+    void ClearVectors()
+    {
+        omniruntime::vec::VectorBatch::ClearVectors();
+    }
+
+    void FreeAllVectors()
+    {
+        omniruntime::vec::VectorBatch::FreeAllVectors();
+    }
+
     RowData* extractRowData(int rowIndex);
 
     [[nodiscard]] std::vector<XXH128_hash_t> getXXH128s();
@@ -148,10 +169,12 @@ public:
     static omnistream::VectorBatch* CreateVectorBatch(int rowCnt, const std::vector<DataTypeId>& dataTypes);
 
 private:
-    int64_t* timestamps;
-    RowKind* rowKinds;
-    int64_t maxTimestamp;
-    bool normalizeAndValidatePath(std::string& filePath) const
+        void refreshSizeInBytes();
+        int64_t* timestamps;
+        RowKind* rowKinds;
+        int64_t maxTimestamp;
+        int32_t sizeInBytes_ = 0;
+    bool normalizeAndValidatePath(std::string &filePath) const
     {
         // 1. 检查路径是否为空
         if (filePath.empty()) {

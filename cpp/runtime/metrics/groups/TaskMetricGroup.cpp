@@ -10,11 +10,12 @@ TaskMetricGroup::~TaskMetricGroup()
     CleanMetrics(); // Clear all metrics when the object is destroyed
 }
 
-// Add methods to manage task metrics
-void TaskMetricGroup::AddTaskIOMetric(const std::string& metricName, std::shared_ptr<Metric> metric)
-{
-    taskIOMetricGroup[metricName] = metric;
-}
+    // Add methods to manage task metrics
+    void TaskMetricGroup::AddTaskIOMetric(const std::string& metricName, std::shared_ptr<Metric> metric)
+    {
+        // taskIOMetricGroup[metricName] = metric;
+        taskIOMetricGroup_.AddMetric(metricName, metric);
+    }
 
 void TaskMetricGroup::AddInternalOperatorIOMetric(
     const std::string& operatorName, const std::string& metricName, std::shared_ptr<Metric> metric)
@@ -23,14 +24,10 @@ void TaskMetricGroup::AddInternalOperatorIOMetric(
     operatorNames.insert(operatorName); // Add operator name to the set
 }
 
-std::shared_ptr<Metric> TaskMetricGroup::GetTaskIOMetric(const std::string& metricName) const
-{
-    auto it = taskIOMetricGroup.find(metricName);
-    if (it != taskIOMetricGroup.end()) {
-        return it->second;
+    std::shared_ptr<Metric> TaskMetricGroup::GetTaskIOMetric(const std::string& metricName) const
+    {
+        return taskIOMetricGroup_.GetMetric(metricName);
     }
-    return nullptr;
-}
 
 std::shared_ptr<Metric> TaskMetricGroup::GetInternalOperatorIOMetric(
     const std::string& operatorName, const std::string& metricName) const
@@ -46,15 +43,31 @@ std::shared_ptr<Metric> TaskMetricGroup::GetInternalOperatorIOMetric(
     return nullptr;
 }
 
-std::unordered_set<std::string> TaskMetricGroup::GetOperatorNames() const
-{
-    return operatorNames;
-}
 
-void TaskMetricGroup::CleanMetrics()
-{
-    taskIOMetricGroup.clear();
-    internalOperatorIOMetricGroup.clear();
-    operatorNames.clear();
-}
-}; // namespace omnistream
+
+    std::unordered_set<std::string> TaskMetricGroup::GetOperatorNames() const
+    {
+        return operatorNames;
+    }
+
+    void TaskMetricGroup::CleanMetrics()
+    {
+        internalOperatorIOMetricGroup.clear();
+        operatorNames.clear();
+    }
+
+    TaskIOMetricGroup* TaskMetricGroup::GetTaskIOMetricGroup()
+    {
+        return &taskIOMetricGroup_;
+    }
+
+    std::shared_ptr<TaskBackendStateMetricGroup> TaskMetricGroup::GetTaskBackendStateMetricGroup()
+    {
+        std::lock_guard<std::mutex> lock(backendStateMutex_);
+        if (taskBackendStateMetricGroup_ == nullptr) {
+            taskBackendStateMetricGroup_ = std::make_shared<TaskBackendStateMetricGroup>(this);
+            addGroup("BackendState", taskBackendStateMetricGroup_);
+        }
+        return taskBackendStateMetricGroup_;
+    }
+};

@@ -12,16 +12,23 @@
 #ifndef OMNIENVIRONMENT_H
 #define OMNIENVIRONMENT_H
 
+#include <memory>
 #include <shuffle/ShuffleEnvironment.h>
 #include "runtime/state/TaskStateManager.h"
 #include <executiongraph/TaskInformationPOD.h>
 
 namespace omnistream {
-class EnvironmentV2 {
-public:
-    virtual std::shared_ptr<TaskStateManager> getTaskStateManager() = 0;
-    virtual const TaskInformationPOD& taskConfiguration() const = 0;
-};
-} // namespace omnistream
+    class TaskMetricGroup;
+
+    class EnvironmentV2 {
+    public:
+        virtual std::shared_ptr<TaskStateManager> getTaskStateManager() = 0;
+        virtual const TaskInformationPOD& taskConfiguration() const = 0;
+        // virtual TaskInformationPOD taskConfiguration() const = 0;
+        // Single entry point to the task's metric groups. Default null for environments that
+        // do not carry metrics.
+        virtual std::shared_ptr<TaskMetricGroup> taskMetricGroup() const { return nullptr; }
+    };
+}
 
 #endif

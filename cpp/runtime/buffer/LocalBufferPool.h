@@ -90,11 +90,12 @@ protected:
         std::shared_ptr<LocalBufferPool> bufferPool_;
     };
 
-    static const int UNKNOWN_CHANNEL = -1;
-    std::recursive_mutex availableSegmentsLock;
-    std::deque<std::shared_ptr<BufferListener>> registeredListeners_;
-    std::deque<Segment*> availableSegments;
-    std::shared_ptr<NetworkBufferPool> networkBufferPool;
+        static const int UNKNOWN_CHANNEL = -1;
+        std::recursive_mutex memoryMutex;
+        std::recursive_mutex availableSegmentsLock;
+        std::deque<std::shared_ptr<BufferListener>> registeredListeners_;
+        std::deque<Segment*> availableSegments;
+        std::shared_ptr<NetworkBufferPool> networkBufferPool;
 
     int maxBuffersPerChannel_;
     int currentPoolSize_;

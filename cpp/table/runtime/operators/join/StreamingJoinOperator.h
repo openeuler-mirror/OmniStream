@@ -111,7 +111,7 @@ public:
 
     std::string getTypeName() override
     {
-        return this->opName;
+        return this->GetOpName();
     }
 
 protected:

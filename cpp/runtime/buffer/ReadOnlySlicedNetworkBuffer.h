@@ -22,25 +22,20 @@ public:
         memorySegmentOffset = parent->GetMemorySegmentOffset() + index;
     }
 
-    ~ReadOnlySlicedNetworkBuffer() override = default;
-
-    std::shared_ptr<BufferRecycler> GetRecycler() override
-    {
-        return parent_->GetRecycler();
-    }
-
-    void RecycleBuffer() override
-    {
-        if (parent_ == nullptr) {
-            THROW_RUNTIME_ERROR("ReadOnlySlicedNetworkBuffer::RecycleBuffer() >>> parent_ is nullptr");
+        std::shared_ptr<BufferRecycler> GetRecycler() override
+        {
+            return parent_->GetRecycler();
         }
-        parent_->RecycleBuffer();
 
-        if (this->getSleepUs() <= 0 && parent_->ShouldBeDeleted()) {
-            delete parent_;
-            parent_ = nullptr;
+        void RecycleBuffer() override {
+            if (parent_ == nullptr) {
+                THROW_RUNTIME_ERROR("ReadOnlySlicedNetworkBuffer::RecycleBuffer() >>> parent_ is nullptr")
+            }
+            // Only drop our reference (mirror ReadOnlySlicedVectorBatchBuffer). The parent reclaims
+            // itself in the single thread that drives its refCount to 0, so we must NOT read or delete
+            // parent_ afterwards -- another sibling slice may already have driven it to 0 and freed it.
+            parent_->RecycleBuffer();
         }
-    }
 
     bool IsRecycled() const override
     {

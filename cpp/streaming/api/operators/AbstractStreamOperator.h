@@ -13,6 +13,7 @@
 
 #include <nlohmann/json.hpp>
 #include "StreamOperator.h"
+#include "NamedOperator.h"
 #include "AbstractStreamOperator.h"
 #include "StreamOperatorStateHandler.h"
 #include "Output.h"
@@ -36,6 +37,7 @@
 template <typename K>
 class AbstractStreamOperator : public StreamOperator,
                                public KeyContext<K>,
+                               public NamedOperator,
                                public StreamOperatorStateHandler<K>::CheckpointedStreamOperator {
 public:
     void setDescription(nlohmann::json description)
@@ -72,15 +74,6 @@ public:
         // Flink intialize stateKeySelector here
     }
 
-    void SetOpName(std::string operatorName)
-    {
-        this->opName = operatorName;
-    }
-
-    std::string GetOpName()
-    {
-        return this->opName;
-    }
 
     void setup(std::shared_ptr<omnistream::OmniStreamTask> task)
     {
@@ -140,8 +133,8 @@ public:
     {
         LOG("abstractStreamOperator::initializeState");
         auto operatorID = this->GetOperatorID();
-        StreamOperatorStateContextImpl<K>* context =
-            initializer->streamOperatorStateContext<K>(keySerializer, this, processingTimeService, &operatorID);
+        StreamOperatorStateContextImpl<K> *context =
+            initializer->streamOperatorStateContext<K>(keySerializer, this, processingTimeService, &operatorID,GetOpName());
         stateHandler = new StreamOperatorStateHandler<K>(context);
         auto stateStore = stateHandler->getKeyedStateStore();
         if (runtimeContext != nullptr) {
@@ -259,7 +252,6 @@ protected:
     nlohmann::json desc;
     InternalTimeServiceManager<K>* timeServiceManager = nullptr;
     std::shared_ptr<omnistream::TaskMetricGroup> metrics;
-    std::string opName;
     bool isStream = false;
     omnistream::IndexedCombinedWatermarkStatus* combinedWatermark = nullptr;
 

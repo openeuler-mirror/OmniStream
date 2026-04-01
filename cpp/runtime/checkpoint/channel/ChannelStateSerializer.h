@@ -22,6 +22,7 @@
 #include "runtime/buffer/BufferBuilder.h"
 #include "runtime/buffer/ObjectBuffer.h"
 #include "state/memory/ByteStreamStateHandle.h"
+#include <fstream>
 
 namespace omnistream {
 class ChannelStateByteBuffer;

@@ -14,6 +14,7 @@
 
 #include <string>
 #include <mutex>
+#include <cstdint>
 #include "nlohmann/json.hpp"
 #include "core/include/common.h"
 
@@ -62,6 +63,10 @@ public:
     virtual Class* getObjectClass();
 
     static Class* getClass();
+
+    // Approximate retained byte size of this object, including out-of-line bytes it owns.
+    // Default is the shallow base size; value-bearing subclasses override to add their payload.
+    virtual int64_t sizeInBytes() const { return static_cast<int64_t>(sizeof(Object)); }
 
 public:
     std::recursive_mutex mutex;

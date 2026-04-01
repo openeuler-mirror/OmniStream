@@ -14,6 +14,7 @@
 #include <emhash7.hpp>
 #include <map>
 #include "common.h"
+#include <mutex>
 #include <vector>
 #include <set>
 #include <unordered_map>
@@ -31,6 +32,8 @@
 #include "heap/HeapValueState.h"
 #include "runtime/state/heap/HeapListState.h"
 #include "RegisteredKeyValueStateBackendMetaInfo.h"
+#include "runtime/metrics/groups/OperatorStateMetricGroup.h"
+#include "runtime/state/StateSizeUtil.h"
 #include "table/data/RowData.h"
 #include "table/data/vectorbatch/VectorBatch.h"
 
@@ -78,8 +81,10 @@ public:
     // Originally used to create an internal state, not necessary here
     uintptr_t createOrUpdateInternalState(TypeSerializer* namespaceSerializer, StateDescriptor* stateDesc) override;
 
-    ~HeapKeyedStateBackend() override
-    {
+    ~HeapKeyedStateBackend() override {
+        if (auto* group = this->getOperatorStateMetricGroup()) {
+            group->ClearDataSizeSuppliers();
+        }
         for (const auto& pair : registeredKvStates) {
             StateDescriptor* desc = std::get<1>(pair.second);
             uintptr_t stateTablePtr = std::get<0>(pair.second);
@@ -280,6 +285,122 @@ public:
         return it == pendingRestoredPQEntries_.end() ? 0 : it->second.size();
     }
 
+    // Approximate per-category data sizes (bytes). Filled by mirroring the destructor's
+    // concrete-type dispatch and asking each table to sum its entries' key+value bytes
+    // (container values sized O(1) by element count, so per-key variation is captured).
+    struct StateDataSizes {
+        int64_t value = 0;
+        int64_t map = 0;
+        int64_t list = 0;
+    };
+
+    // REPORTER-THREAD SAFE. Pulled on demand from the SizeGauge suppliers. It never
+    // touches a live CopyOnWriteStateMap entry -- container/fixed sizes come from each table's running
+    // counter + size() + task-sampled cached widths (atomics). registeredKvStatesMutex_ guards the
+    // emhash7 traversal against a concurrent task-thread state registration. Approximate by design.
+    StateDataSizes computeStateDataSizes()
+    {
+        StateDataSizes out;
+        std::lock_guard<std::mutex> lock(registeredKvStatesMutex_);
+        for (const auto& pair : registeredKvStates) {
+            StateDescriptor* desc = std::get<1>(pair.second);
+            uintptr_t ptr = std::get<0>(pair.second);
+            if (desc->getType() == StateDescriptor::Type::MAP) {
+                auto keyId = desc->getKeyDataId();
+                auto valueId = desc->getValueDataId();
+                if (keyId == BackendDataType::XXHASH128_BK && valueId == BackendDataType::TUPLE_INT32_INT64) {
+                    out.map += incrementalTableSize<emhash7::HashMap<XXH128_hash_t, std::tuple<int32_t, int64_t>>*>(ptr);
+                } else if (keyId == BackendDataType::XXHASH128_BK && valueId == BackendDataType::TUPLE_INT32_INT32_INT64) {
+                    out.map += incrementalTableSize<emhash7::HashMap<XXH128_hash_t, std::tuple<int32_t, int32_t, int64_t>>*>(ptr);
+                } else if ((keyId == BackendDataType::OBJECT_BK || keyId == BackendDataType::POJO_BK) &&
+                           (valueId == BackendDataType::OBJECT_BK || valueId == BackendDataType::POJO_BK)) {
+                    out.map += incrementalTableSize<emhash7::HashMap<Object*, Object*>*>(ptr);
+                } else if (keyId == BackendDataType::VARCHAR_BK && valueId == BackendDataType::INT_BK) {
+                    out.map += incrementalTableSize<emhash7::HashMap<std::string, int>*>(ptr);
+                } else if (keyId == BackendDataType::INT_BK && valueId == BackendDataType::INT_BK) {
+                    out.map += incrementalTableSize<emhash7::HashMap<int, int>*>(ptr);
+                } else if (keyId == BackendDataType::ROW_BK && valueId == BackendDataType::ROW_LIST_BK) {
+                    out.map += incrementalTableSize<emhash7::HashMap<RowData*, std::vector<RowData*>*>*>(ptr);
+                }else if (keyId == BackendDataType::BIGINT_BK && valueId == BackendDataType::BIGINT_BK) {
+                    out.map += incrementalTableSize<emhash7::HashMap<long,long>*>(ptr);
+                }
+            } else if (desc->getType() == StateDescriptor::Type::VALUE) {
+                auto dataId = desc->getBackendId();
+                if (dataId == BackendDataType::OBJECT_BK || dataId == BackendDataType::POJO_BK) {
+                    out.value += fixedValueTableSize<Object*>(ptr);
+                } else if (dataId == BackendDataType::INT_BK) {
+                    out.value += fixedValueTableSize<int>(ptr);
+                }else if (dataId == BackendDataType::BIGINT_BK) {
+                    out.value += fixedValueTableSize<long>(ptr);
+                } else if (dataId == BackendDataType::ROW_BK) {
+                    out.value += fixedValueTableSize<RowData*>(ptr);
+                } else if (dataId == BackendDataType::SET_LONG) {
+                    // SET_LONG is a full-replace VALUE state via HeapValueState::update(),
+                    // so its element count is now maintained incrementally (liveNumElements_) like
+                    // MAP/LIST -- no CopyOnWriteStateMap walk. Still bucketed as VALUE.
+                    out.value += incrementalTableSize<std::vector<long>*>(ptr);
+                }
+            } else if (desc->getType() == StateDescriptor::Type::LIST) {
+                auto dataId = desc->getBackendId();
+                if (dataId == BackendDataType::BIGINT_BK) {
+                    out.list += incrementalTableSize<std::vector<int64_t>*>(ptr);
+                }
+            }
+        }
+        return out;
+    }
+
+    // VectorBatch buffers held in keyed state (join/dedup/topN). bytes = Σ live batch
+    // getSizeInBytes(); count = number of live batches.
+    struct VectorBatchSizes {
+        int64_t bytes = 0;
+        int64_t count = 0;
+    };
+
+    // REPORTER-THREAD SAFE. Sums each State's running VectorBatch atomics
+    // (vbDataSize_/vbCount_, maintained on the task thread at addVectorBatch/clearVectors). Never
+    // iterates a live vectorBatches vector off-thread. Walks createdStateObjects_ (offset-correct
+    // State* -- NOT a reinterpret_cast of the concrete-typed createdKvState bits). registeredKvStatesMutex_
+    // guards the traversal against a concurrent task-thread state registration.
+    VectorBatchSizes computeVectorBatchSizes()
+    {
+        VectorBatchSizes out;
+        std::lock_guard<std::mutex> lock(registeredKvStatesMutex_);
+        for (State* state : createdStateObjects_) {
+            out.bytes += state->getVbDataSize();
+            out.count += state->getVbCount();
+        }
+        return out;
+    }
+
+    // data sizes are now PULLED on demand by the metric-reporter thread (via the
+    // suppliers registered in SetOperatorStateMetricGroup), not pushed at checkpoint. So this hook
+    // no longer refreshes the gauges.
+    void notifyCheckpointComplete(long checkpointId) override
+    {
+    }
+
+    // store the group AND register the on-demand data-size suppliers. The SizeGauge
+    // supplier (reporter thread) invokes computeStateDataSizes()/computeVectorBatchSizes() through
+    // these lambdas, which is reporter-thread safe (atomics + size() only). The dtor clears them
+    // before teardown.
+    void SetOperatorStateMetricGroup(omnistream::OperatorStateMetricGroup *group) override
+    {
+        this->operatorStateMetricGroup_ = group;
+        if (group != nullptr) {
+            group->SetDataSizeSuppliers({
+                [this]() { return computeStateDataSizes().value; },
+                [this]() { return computeStateDataSizes().map; },
+                [this]() { return computeStateDataSizes().list; },
+                [this]() { return computeVectorBatchSizes().bytes; },
+                [this]() { return computeVectorBatchSizes().count; },
+                [this]() {
+                    StateDataSizes d = computeStateDataSizes();
+                    return d.value + d.map + d.list + computeVectorBatchSizes().bytes;
+                }});
+        }
+    }
+
 private:
     struct PendingPriorityQueueEntry {
         std::vector<int8_t> serializedKey;
@@ -309,8 +430,31 @@ private:
         pendingRestoredPQEntries_.erase(pendingIt);
     }
 
-    template <typename N, typename S>
-    StateTable<K, N, S>* tryRegisterStateTable(TypeSerializer* namespaceSerializer, StateDescriptor* stateDesc);
+    // Recovers the concrete CopyOnWriteStateTable<K, VoidNamespace, S>* (same cast the destructor
+    // uses) and returns its data size. N is irrelevant to the estimate. Used only for fixed-width
+    // VALUE state (Object*/int/RowData*).
+    // no container S routes here anymore (SET_LONG moved to incrementalTableSize).
+    // REPORTER-THREAD SAFE -- fixedValueDataSize() reads size() + the task-sampled
+    // cached key/value width atomics only; no CopyOnWriteStateMap entry is touched.
+    template <typename S>
+    int64_t fixedValueTableSize(uintptr_t ptr)
+    {
+        auto* st = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, S>*>(ptr);
+        return st->fixedValueDataSize();
+    }
+
+    // incremental size for container states (MAP, LIST, and SET_LONG). Reads the
+    // running liveNumElements_ counter (maintained at every Heap{Map,List,Value}State element-mutation
+    // site) instead of walking each key's container, so the checkpoint refresh does no per-entry walk.
+    template <typename S>
+    int64_t incrementalTableSize(uintptr_t ptr)
+    {
+        auto* st = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, S>*>(ptr);
+        return st->incrementalDataSize();
+    }
+
+    template<typename N, typename S>
+    StateTable<K, N, S> *tryRegisterStateTable(TypeSerializer *namespaceSerializer, StateDescriptor *stateDesc);
 
     StateTable<int, VoidNamespace, omnistream::VectorBatch*>* tryRegisterVectorBatchStateTable(
         StateDescriptor* stateDesc, KeyGroupRange* parentKeyGroupRange, int parentNumberOfKeyGroups);
@@ -329,10 +473,24 @@ private:
 
     // pointer to StateTable<K, N, V>, StateDescriptor, namespace BackendDataType
     emhash7::HashMap<std::string, std::tuple<uintptr_t, StateDescriptor*, BackendDataType>> registeredKvStates;
+    // pointer to StateTable<K, N, V>
+    // guards the STRUCTURE of registeredKvStates AND createdKvState (insertions in
+    // tryRegisterStateTable / createOrUpdateInternal*State and the reporter-thread traversals in
+    // computeStateDataSizes / computeVectorBatchSizes), so the metric-reporter thread can iterate them
+    // safely while the task thread may register a new state. The hot put/remove value path never takes
+    // this mutex, so state add/delete is unaffected.
+    std::mutex registeredKvStatesMutex_;
     // pointer to intervalKvState
     emhash7::HashMap<std::string, uintptr_t> createdKvState;
-    std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapperBase>>>
-        registeredPQStates_;
+    // correctly-converted State* for each created state (one per genuine create). We
+    // CANNOT recover a State* from createdKvState by reinterpret_cast: that map stores the CONCRETE
+    // pointer bits (round-tripped back to the concrete type on the update path), and State is a
+    // VIRTUAL base sitting at a non-zero offset -- reinterpret_cast<State*> would skip the offset
+    // adjustment and read the wrong memory. The push at the create site uses the implicit
+    // derived->base conversion, which applies the offset correctly. Guarded by
+    // registeredKvStatesMutex_ (same as createdKvState).
+    std::vector<State*> createdStateObjects_;
+    std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapperBase>>> registeredPQStates_;
     std::unordered_map<std::string, std::vector<PendingPriorityQueueEntry>> pendingRestoredPQEntries_;
     std::shared_ptr<HeapPriorityQueuesManager> priorityQueuesManager_;
     std::shared_ptr<omnistream::OmniTaskBridge> omniTaskBridge_;
@@ -473,7 +631,12 @@ StateTable<K, N, S>* HeapKeyedStateBackend<K>::tryRegisterStateTable(
         StateTable<K, N, S>* stateTable =
             new CopyOnWriteStateTable<K, N, S>(this->context, newMetaInfo, this->keySerializer);
         std::tuple tuple(reinterpret_cast<uintptr_t>(stateTable), stateDesc, namespaceSerializer->getBackendId());
-        registeredKvStates[stateDesc->getName()] = tuple;
+        {
+            // structural mutation -- guard against the reporter thread iterating
+            // registeredKvStates while this insert may rehash the emhash7 map.
+            std::lock_guard<std::mutex> lock(registeredKvStatesMutex_);
+            registeredKvStates[stateDesc->getName()] = tuple;
+        }
         return stateTable;
     }
 }
@@ -512,15 +675,27 @@ HeapListState<K, N, V>* HeapKeyedStateBackend<K>::createOrUpdateInternalListStat
     StateTable<int, VoidNamespace, omnistream::VectorBatch*>* vectorBatchStateTable =
         tryRegisterVectorBatchStateTable(stateDesc, stateTable->getKeyGroupRange(), stateTable->getNumberOfKeyGroups());
     auto it = createdKvState.find(stateDesc->getName());
+    bool isNewState = (it == createdKvState.end());
     HeapListState<K, N, V>* createdState;
-    if (it == createdKvState.end()) {
-        createdState =
-            HeapListState<K, N, V>::create(stateDesc, stateTable, this->getKeySerializer(), vectorBatchStateTable);
+    if (isNewState) {
+        createdState = HeapListState<K, N, V>::create(
+            stateDesc, stateTable, this->getKeySerializer(), vectorBatchStateTable);
+        if (auto *g = this->getOperatorStateMetricGroup()) {
+            g->IncListStateCount();
+        }
     } else {
         createdState = HeapListState<K, N, V>::update(
             stateDesc, stateTable, reinterpret_cast<HeapListState<K, N, V>*>(it->second), vectorBatchStateTable);
     }
-    createdKvState[stateDesc->getName()] = reinterpret_cast<uintptr_t>(createdState);
+    {
+        // guard the createdKvState/createdStateObjects_ mutation (may rehash/realloc)
+        // against the reporter thread iterating them in computeVectorBatchSizes().
+        std::lock_guard<std::mutex> lock(registeredKvStatesMutex_);
+        createdKvState[stateDesc->getName()] = reinterpret_cast<uintptr_t>(createdState);
+        if (isNewState) {
+            createdStateObjects_.push_back(createdState);  // implicit derived->State* (offset-correct)
+        }
+    }
     return createdState;
 }
 
@@ -534,15 +709,27 @@ HeapValueState<K, N, V>* HeapKeyedStateBackend<K>::createOrUpdateInternalValueSt
     StateTable<int, VoidNamespace, omnistream::VectorBatch*>* vectorBatchStateTable =
         tryRegisterVectorBatchStateTable(stateDesc, stateTable->getKeyGroupRange(), stateTable->getNumberOfKeyGroups());
     auto it = createdKvState.find(stateDesc->getName());
+    bool isNewState = (it == createdKvState.end());
     HeapValueState<K, N, V>* createdState;
-    if (it == createdKvState.end()) {
-        createdState =
-            HeapValueState<K, N, V>::create(stateDesc, stateTable, this->getKeySerializer(), vectorBatchStateTable);
+    if (isNewState) {
+        createdState = HeapValueState<K, N, V>::create(
+            stateDesc, stateTable, this->getKeySerializer(), vectorBatchStateTable);
+        if (auto *g = this->getOperatorStateMetricGroup()) {
+            g->IncValueStateCount();
+        }
     } else {
         createdState = HeapValueState<K, N, V>::update(
             stateDesc, stateTable, reinterpret_cast<HeapValueState<K, N, V>*>(it->second), vectorBatchStateTable);
     }
-    createdKvState[stateDesc->getName()] = reinterpret_cast<uintptr_t>(createdState);
+    {
+        // guard the createdKvState/createdStateObjects_ mutation (may rehash/realloc)
+        // against the reporter thread iterating them in computeVectorBatchSizes().
+        std::lock_guard<std::mutex> lock(registeredKvStatesMutex_);
+        createdKvState[stateDesc->getName()] = reinterpret_cast<uintptr_t>(createdState);
+        if (isNewState) {
+            createdStateObjects_.push_back(createdState);  // implicit derived->State* (offset-correct)
+        }
+    }
     return createdState;
 }
 
@@ -556,14 +743,26 @@ HeapMapState<K, N, UK, UV>* HeapKeyedStateBackend<K>::createOrUpdateInternalMapS
     StateTable<int, VoidNamespace, omnistream::VectorBatch*>* vectorBatchStateTable =
         tryRegisterVectorBatchStateTable(stateDesc, stateTable->getKeyGroupRange(), stateTable->getNumberOfKeyGroups());
     auto it = createdKvState.find(stateDesc->getName());
+    bool isNewState = (it == createdKvState.end());
     HeapMapState<K, N, UK, UV>* createdState;
-    if (it == createdKvState.end()) {
-        createdState =
-            HeapMapState<K, N, UK, UV>::create(stateDesc, stateTable, this->getKeySerializer(), vectorBatchStateTable);
+    if (isNewState) {
+        createdState = HeapMapState<K, N, UK, UV>::create(
+            stateDesc, stateTable, this->getKeySerializer(), vectorBatchStateTable);
+        if (auto *g = this->getOperatorStateMetricGroup()) {
+            g->IncMapStateCount();
+        }
     } else {
         createdState = HeapMapState<K, N, UK, UV>::update(
             stateDesc, stateTable, reinterpret_cast<HeapMapState<K, N, UK, UV>*>(it->second), vectorBatchStateTable);
     }
-    createdKvState[stateDesc->getName()] = reinterpret_cast<uintptr_t>(createdState);
+    {
+        // guard the createdKvState/createdStateObjects_ mutation (may rehash/realloc)
+        // against the reporter thread iterating them in computeVectorBatchSizes().
+        std::lock_guard<std::mutex> lock(registeredKvStatesMutex_);
+        createdKvState[stateDesc->getName()] = reinterpret_cast<uintptr_t>(createdState);
+        if (isNewState) {
+            createdStateObjects_.push_back(createdState);  // implicit derived->State* (offset-correct)
+        }
+    }
     return createdState;
 }

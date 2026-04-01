@@ -43,8 +43,12 @@ public:
 
     int32_t value;
 
-    void setValue(const std::string& basicString) override;
+    void setValue(const std::string &basicString) override;
 
+    int64_t sizeInBytes() const override
+    {
+        return static_cast<int64_t>(sizeof(*this));
+    }
 protected:
     static std::uint32_t parseInt(std::string_view s) noexcept;
 };

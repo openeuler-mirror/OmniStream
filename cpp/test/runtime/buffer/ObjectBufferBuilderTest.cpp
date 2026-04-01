@@ -3,6 +3,7 @@
 #include "runtime/buffer/ObjectBufferRecycler.h"
 #include "runtime/buffer/ObjectSegment.h"
 #include "streaming/runtime/streamrecord/StreamRecord.h"
+#include "table/data/vectorbatch/VectorBatch.h"
 
 using namespace omnistream;
 TEST(ObjectBufferBuilderTest, AppendAndCommintNotFull)

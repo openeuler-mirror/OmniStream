@@ -5,11 +5,14 @@
 #ifndef READONLYSLICEDVECTORBATCHBUFFER_H
 #define READONLYSLICEDVECTORBATCHBUFFER_H
 
+#include "LocalObjectBufferPool.h"
 #include "ObjectBuffer.h"
+#include "ObjectSegment.h"
 #include "VectorBatchBuffer.h"
 
 namespace omnistream {
-class ReadOnlySlicedVectorBatchBuffer : public VectorBatchBuffer {
+class ReadOnlySlicedVectorBatchBuffer : public VectorBatchBuffer
+{
 public:
     ReadOnlySlicedVectorBatchBuffer(VectorBatchBuffer* parent, int index, int length)
         : VectorBatchBuffer(parent->GetObjectSegment(), parent->GetRecycler()),
@@ -32,7 +35,10 @@ public:
 
     void RecycleBuffer() override
     {
-        LOG_TRACE("Calling RecycleBuffer() from ReadOnlySlicedVectorBatchBuffer");
+        LOG_TRACE("Calling RecycleBuffer() from ReadOnlySlicedVectorBatchBuffer")
+        static_cast<LocalObjectBufferPool::SubpartitionBufferRecycler*>(GetRecycler().get())
+            ->recycleBytes(byteToRecycle);
+        LOG_TRACE("ReadOnlySlicedVectorBatchBuffer bytesToRecycle = " << byteToRecycle)
         parent_->RecycleBuffer();
     }
 
@@ -72,10 +78,16 @@ public:
         return index_;
     }
 
+    void SetByteToRecycle(int64_t bytes)
+    {
+        byteToRecycle = bytes;
+    }
+
 private:
     VectorBatchBuffer* parent_ = nullptr;
     int index_;
     int length_;
+    int64_t byteToRecycle;
 };
 } // namespace omnistream
 

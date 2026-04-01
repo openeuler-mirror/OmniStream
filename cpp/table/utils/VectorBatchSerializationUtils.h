@@ -27,9 +27,9 @@ using namespace std;
 namespace omnistream {
 
 struct SerializedBatchInfo {
-    uint8_t* buffer;
-    int32_t size;
-    int event = -1;
+    uint8_t *memorySegmentAddress;
+    uint8_t *dataAddress;
+    int32_t dataSize;
     int bufferType = 0; // 0 for vector batch, 1 memory segment buffer ,2  memory segment event
 };
 
@@ -42,7 +42,8 @@ public:
 
     static void serializeTimestampAndRowKinds(VectorBatch* vectorBatch, uint8_t*& buffer, int32_t bufferSize);
 
-    static int32_t calculateVectorBatchSerializableSize(VectorBatch* vectorBatch);
+    static int32_t calculateVectorBatchSerializableSize(VectorBatch *vectorBatch);
+    static int32_t calculateVectorBatchPayloadSize(VectorBatch *vectorBatch);
 
     static int32_t calculateVectorSerializableSize(BaseVector* baseVector);
 

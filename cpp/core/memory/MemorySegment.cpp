@@ -184,6 +184,9 @@ bool MemorySegment::equalTo(MemorySegment seg2, int offset1, int offset2, int le
 MemorySegment::~MemorySegment()
 {
     if (!owner_) {
-        delete offHeapBuffer_;
+        // offHeapBuffer_ is always allocated with new uint8_t[] (here and by
+        // EventSerializer), so it must be released with delete[]. Using scalar
+        // delete is undefined behaviour and corrupts the heap.
+        delete[] offHeapBuffer_;
     }
 }

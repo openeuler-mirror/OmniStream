@@ -24,6 +24,7 @@
 #include "partition/ResultPartitionManager.h"
 #include "io/network/netty/OmniCreditBasedSequenceNumberingViewReader.h"
 #include "runtime/io/network/OmniShuffleEnvironment.h"
+#include "runtime/io/network/netty/GlobalNettyBufferPool.h"
 #include "runtime/partition/PartitionNotFoundException.h"
 #include "streaming/runtime/tasks/SubtaskCheckpointCoordinatorImpl.h"
 
@@ -223,14 +224,19 @@ void OmniTask::DoRunRestore(long streamTaskAddress)
     LOG("now oper is :" << taskNameWithSubtask_);
     LOG("setup result partition and inputgate ");
 
-    setupPartitionsAndGates(consumableNotifyingPartitionWriters, inputGates);
-
-    try {
-        INFO_RELEASE(" OmniTask::DoRunRestore Invokable restore before");
-        this->invokable_->restore();
-        INFO_RELEASE(" OmniTask::DoRunRestore Invokable restore after");
-        flag.store(true);
-        INFO_RELEASE("find OmniTask initialized, task name: " << taskNameWithSubtask_);
+        setupPartitionsAndGates(consumableNotifyingPartitionWriters, inputGates);
+        //set metricGroup for ResultPartition
+        for (auto &partitionWriter : consumableNotifyingPartitionWriters)
+        {
+            std::shared_ptr<AbstractMetricGroup> metricGroup = taskMetricGroup->GetTaskIOMetricGroup()->GetChildGroup("VectorBatchBufferPoolMetricGroup");
+            partitionWriter->SetMetricGroup(metricGroup);
+        }
+        try {
+            INFO_RELEASE(" OmniTask::DoRunRestore Invokable restore before")
+            this->invokable_->restore();
+            INFO_RELEASE(" OmniTask::DoRunRestore Invokable restore after")
+            flag.store(true);
+            INFO_RELEASE("find OmniTask initialized, task name: " << taskNameWithSubtask_)
 
         // init remote fetcher here because, the channels have been created and restored
         if (remoteDataFetcherBridge_ != nullptr) {
@@ -404,37 +410,26 @@ void OmniTask::CloseAllInputGates()
     }
 }
 
-void OmniTask::notifyRemoteDataAvailable(
-    int inputGateIndex,
-    int channelIndex,
-    long bufferAddress,
-    int bufferLength,
-    int readIndex,
-    int sequenceNumber,
-    bool isBuffer,
-    int bufferType)
-{
-    LOG("notifyRemoteDataAvailable");
-    auto inputGate = inputGates[inputGateIndex];
-    auto channel = inputGate->getChannel(channelIndex);
-    if (auto remoteChannel = std::dynamic_pointer_cast<RemoteInputChannel>(channel)) {
-        if (taskType == 1 && isBuffer) {
-            remoteChannel->notifyRemoteDataAvailableForVectorBatch(bufferAddress, bufferLength, sequenceNumber);
-            originalNetworkBufferRecycler_->recycle(bufferAddress);
+    void OmniTask::notifyRemoteDataAvailable(int inputGateIndex, int channelIndex, long bufferAddress,
+                                             int bufferLength, int readIndex, int sequenceNumber, bool isBuffer,
+                                             int bufferType)
+    {
+        LOG("notifyRemoteDataAvailable")
+        auto inputGate = inputGates[inputGateIndex];
+        auto channel = inputGate->getChannel(channelIndex);
+        if (auto remoteChannel = std::dynamic_pointer_cast<RemoteInputChannel>(channel)) {
+            if (taskType == 1 && isBuffer) {
+                remoteChannel->notifyRemoteDataAvailableForVectorBatch(bufferAddress, bufferLength, sequenceNumber);
+                originalNetworkBufferRecycler_->recycle(bufferAddress);// todo why recycle here
+            } else {
+                remoteChannel->notifyRemoteDataAvailableForNetworkBuffer(
+                    bufferAddress, bufferLength, readIndex, sequenceNumber,
+                    originalNetworkBufferRecycler_, isBuffer, bufferType);
+            }
         } else {
-            remoteChannel->notifyRemoteDataAvailableForNetworkBuffer(
-                bufferAddress,
-                bufferLength,
-                readIndex,
-                sequenceNumber,
-                originalNetworkBufferRecycler_,
-                isBuffer,
-                bufferType);
+            LOG("Channel is not a RemoteInputChannel")
         }
-    } else {
-        LOG("Channel is not a RemoteInputChannel");
     }
-}
 
 long OmniTask::createNativeCreditBasedSequenceNumberingViewReader(
     long resultBufferAddress, ResultPartitionIDPOD partitionId, int subPartitionId)
@@ -446,31 +441,37 @@ long OmniTask::createNativeCreditBasedSequenceNumberingViewReader(
     auto omniShuffleEnv = std::dynamic_pointer_cast<OmniShuffleEnvironment>(this->shuffleEnv_);
     LOG_TRACE(" task name " << taskNameWithSubtask_ << " convert to OmniShuffleEnvironment success............");
 
-    if (!omniShuffleEnv) {
-        LOG("Failed to cast shuffleEnv_ to OmniShuffleEnvironment");
-        return -1;
-    }
-    std::shared_ptr<ResultPartitionManager> resultPartitionManager = omniShuffleEnv->getResultPartitionManager();
+        std::shared_ptr<ResultPartitionManager> resultPartitionManager = omniShuffleEnv->getResultPartitionManager();
+        int numOfRequiredBuffers = consumableNotifyingPartitionWriters.at(0)->getNumberOfSubpartitions()+1;
+        // Create LocalNettyBufferPool from GlobalNettyBufferPool if available
+        std::shared_ptr<LocalNettyBufferPool> localNettyBufferPool;
+        auto globalNettyBufferPool = omniShuffleEnv->getGlobalNettyBufferPool();
+        if (globalNettyBufferPool) {
+            localNettyBufferPool = globalNettyBufferPool->createLocalPool(numOfRequiredBuffers);
+            std::lock_guard<std::mutex> lock(localNettyBufferPoolsMutex_);
+            localNettyBufferPools.push_back(localNettyBufferPool);
+        }
 
-    auto* reader = new OmniCreditBasedSequenceNumberingViewReader(partitionId, subPartitionId, resultBufferAddress);
-    int retryCount = 0;
-    while (true) {
-        try {
-            reader->requestSubpartitionView(resultPartitionManager, partitionId, subPartitionId);
-            break; // Exit loop if successful
-        } catch (...) {
-            INFO_RELEASE("OmniTask 1 sleep time: " << std::to_string(200));
-            std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        auto* reader = new OmniCreditBasedSequenceNumberingViewReader(partitionId,
+                                                               subPartitionId, resultBufferAddress,localNettyBufferPool);
+        int retryCount = 0;
+        while (true) {
+            try {
+                reader->requestSubpartitionView(resultPartitionManager, partitionId, subPartitionId);
+                break; // Exit loop if successful
+            } catch (...) {
+                INFO_RELEASE("OmniTask 1 sleep time: " << std::to_string(200))
+                std::this_thread::sleep_for(std::chrono::milliseconds(200));
+            }
+            if (++retryCount >= 3) {
+                LOG("Failed to request subpartition view after 3 attempts");
+                INFO_RELEASE("!!!!!!!!!!! Fail to create OmniCreditBasedSequenceNumberingViewReader after 3 times ");
+                delete reader;
+                return -1;
+            }
         }
-        if (++retryCount >= 3) {
-            LOG("Failed to request subpartition view after 3 attempts");
-            INFO_RELEASE("!!!!!!!!!!! Fail to create OmniCreditBasedSequenceNumberingViewReader after 3 times ");
-            delete reader;
-            return -1;
-        }
+        return reinterpret_cast<long>(reader);
     }
-    return reinterpret_cast<long>(reader);
-}
 
 std::shared_ptr<TaskMetricGroup> OmniTask::getTaskMetricGroup()
 {
@@ -544,11 +545,14 @@ long OmniTask::createOmniLocalChannelReader(
     auto omniShuffleEnv = std::dynamic_pointer_cast<OmniShuffleEnvironment>(this->shuffleEnv_);
     LOG_TRACE(" task name " << taskNameWithSubtask_ << " convert to OmniShuffleEnvironment success............");
 
-    if (!omniShuffleEnv) {
-        LOG("Failed to cast shuffleEnv_ to OmniShuffleEnvironment");
-        return -1;
-    }
-    std::shared_ptr<ResultPartitionManager> resultPartitionManager = omniShuffleEnv->getResultPartitionManager();
+        if (!omniShuffleEnv) {
+            INFO_RELEASE("PartitionRequest[LOCAL] FAILED task=" << taskNameWithSubtask_
+                << " partitionId=" << partitionId.toString()
+                << " subPartitionId=" << subPartitionId
+                << " reason=shuffleEnv_cast_failed")
+            return -1;
+        }
+        std::shared_ptr<ResultPartitionManager> resultPartitionManager = omniShuffleEnv->getResultPartitionManager();
 
     auto reader =
         std::make_unique<OmniLocalChannelReader>(partitionId, subPartitionId, returnDataAddress, taskNameWithSubtask_);
@@ -705,4 +709,108 @@ std::shared_ptr<RemoteDataFetcherBridge> OmniTask::GetRemoteDataFetcherBridge()
     return remoteDataFetcherBridge_;
 }
 
-} // namespace omnistream
+    void OmniTask::SetTaskLocalNettyBufferMetricGroup(std::shared_ptr<TaskLocalNettyBufferMetricGroup> taskLocalNettyBufferMetricGroup_)
+    {
+        this->taskLocalNettyBufferMetricGroup = taskLocalNettyBufferMetricGroup_;
+    }
+
+    void OmniTask::SetVectorBatchBufferPoolMetricGroup(
+        std::shared_ptr<VectorBatchBufferPoolMetricGroup> vectorBatchBufferPoolMetricGroup_)
+    {
+        this->vectorBatchBufferPoolMetricGroup = vectorBatchBufferPoolMetricGroup_;
+    }
+
+    SizeGauge::SizeSupplier OmniTask::CreateLocalNettyBufferMetricSupplier(const std::string& metricName)
+    {
+        auto sumMetric = [this](const std::function<int(const std::shared_ptr<LocalNettyBufferPool>&)>& getter) {
+            int total = 0;
+            std::lock_guard<std::mutex> lock(localNettyBufferPoolsMutex_);
+            for (const auto& localNettyBufferPool : localNettyBufferPools) {
+                if (localNettyBufferPool) {
+                    total += getter(localNettyBufferPool);
+                }
+            }
+            return total;
+        };
+
+        if (metricName == "requiredBuffers") {
+            return [sumMetric]() {
+                return sumMetric([](const std::shared_ptr<LocalNettyBufferPool>& pool) {
+                    return pool->getNumberOfRequiredBuffers();
+                });
+            };
+        }
+        if (metricName == "maxBuffers") {
+            return [sumMetric]() {
+                return sumMetric([](const std::shared_ptr<LocalNettyBufferPool>& pool) {
+                    return pool->getMaxNumberOfBuffers();
+                });
+            };
+        }
+        if (metricName == "currentPoolSize") {
+            return [sumMetric]() {
+                return sumMetric([](const std::shared_ptr<LocalNettyBufferPool>& pool) {
+                    return pool->getCurrentPoolSize();
+                });
+            };
+        }
+        if (metricName == "availableBuffers") {
+            return [sumMetric]() {
+                return sumMetric([](const std::shared_ptr<LocalNettyBufferPool>& pool) {
+                    return pool->getNumberOfAvailableBuffers();
+                });
+            };
+        }
+        if (metricName == "requestedBuffers") {
+            return [sumMetric]() {
+                return sumMetric([](const std::shared_ptr<LocalNettyBufferPool>& pool) {
+                    return pool->getNumberOfRequestedBuffers();
+                });
+            };
+        }
+        if (metricName == "requestRegularBufferCount") {
+            return [sumMetric]() {
+                return sumMetric([](const std::shared_ptr<LocalNettyBufferPool>& pool) {
+                    return pool->getRequestRegularBufferCount();
+                });
+            };
+        }
+        if (metricName == "requestBigBufferCount") {
+            return [sumMetric]() {
+                return sumMetric([](const std::shared_ptr<LocalNettyBufferPool>& pool) {
+                    return pool->getRequestBigBufferCount();
+                });
+            };
+        }
+        if (metricName == "recycleRegularBufferCount") {
+            return [sumMetric]() {
+                return sumMetric([](const std::shared_ptr<LocalNettyBufferPool>& pool) {
+                    return pool->getRecycleRegularBufferCount();
+                });
+            };
+        }
+        if (metricName == "recycleBigBufferCount") {
+            return [sumMetric]() {
+                return sumMetric([](const std::shared_ptr<LocalNettyBufferPool>& pool) {
+                    return pool->getRecycleBigBufferCount();
+                });
+            };
+        }
+        if (metricName == "bigTotalMemorySize") {
+            return [sumMetric]() {
+                return sumMetric([](const std::shared_ptr<LocalNettyBufferPool>& pool) {
+                    return pool->getBigTotalMemorySize();
+                });
+            };
+        }
+        if (metricName == "availableBigMemorySize") {
+            return [sumMetric]() {
+                return sumMetric([](const std::shared_ptr<LocalNettyBufferPool>& pool) {
+                    return pool->getAvailableBigMemorySize();
+                });
+            };
+        }
+
+        throw std::runtime_error("Unknown LocalNettyBufferPool metric: " + metricName);
+    }
+}

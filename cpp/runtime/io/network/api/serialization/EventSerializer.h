@@ -13,6 +13,7 @@
 #include <buffer/ObjectBufferConsumer.h>
 #include <checkpoint/SavepointType.h>
 #include <memory/MemorySegment.h>
+#include <core/utils/ByteBuffer.h>
 
 #include "buffer/NetworkBuffer.h"
 #include "event/AbstractEvent.h"

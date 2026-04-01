@@ -24,6 +24,8 @@
 
 #include <iostream>
 
+#include "metrics/TimerGauge.h"
+
 namespace omnistream {
 
 class BufferWritingResultPartition : public ResultPartition {
@@ -110,13 +112,13 @@ protected:
     void ensureUnicastMode();
 
     void ensureBroadcastMode();
-
+    void SetMetricGroup(std::shared_ptr<AbstractMetricGroup> metricGroup) override;
 private:
-    BufferBuilder* requestNewUnicastBufferBuilder(int targetSubpartition);
+    BufferBuilder *requestNewUnicastBufferBuilder(int targetSubpartition, uint64_t bytes=0);
 
     BufferBuilder* requestNewBroadcastBufferBuilder();
 
-    BufferBuilder* requestNewBufferBuilderFromPool(int targetSubpartition);
+    BufferBuilder *requestNewBufferBuilderFromPool(int targetSubpartition,uint64_t bytes=0);
 
     void addToSubpartition(BufferBuilder* buffer, int targetSubpartition, int i);
 
@@ -125,7 +127,11 @@ private:
 
     void resizeBuffer(BufferBuilder* buffer, int desirableBufferSize, int minDesirableBufferSize);
 
-    BufferBuilder* appendUnicastDataForNewRecord(void* record, int targetSubpartition);
+    BufferBuilder *appendUnicastDataForNewRecord(void* record, int targetSubpartition);
+
+    void requestMemoryForVectorBatch(int targetSubpartition,uint64_t bytes);
+
+    std::shared_ptr<TimerGauge> hardBackPressuredTimeMsPerSecond = std::make_shared<TimerGauge>();
 };
 
 } // namespace omnistream

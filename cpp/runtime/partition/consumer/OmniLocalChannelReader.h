@@ -22,6 +22,7 @@
 #include <buffer/ReadOnlySlicedNetworkBuffer.h>
 #include "buffer/ReadOnlySlicedVectorBatchBuffer.h"
 #include "table/data/RowData.h"
+#include "table/data/vectorbatch/VectorBatch.h"
 
 namespace omnistream {
 struct MemorySegmentInfo {

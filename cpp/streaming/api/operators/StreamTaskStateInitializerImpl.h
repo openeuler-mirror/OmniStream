@@ -21,6 +21,7 @@
 #include "BackendRestorerProcedure.h"
 #include "../../../core/include/common.h"
 #include "streaming/runtime/metrics/MetricGroup.h"
+#include "runtime/metrics/groups/TaskMetricGroup.h"
 #include "runtime/state/hashmap/HashMapStateBackend.h"
 #ifdef WITH_OMNISTATESTORE
 #include "runtime/state/BssKeyedStateBackend.h"
@@ -110,11 +111,8 @@ public:
           env(env) {};
 
     template <typename K>
-    StreamOperatorStateContextImpl<K>* streamOperatorStateContext(
-        TypeSerializer* keySerializer,
-        KeyContext<K>* keyContext,
-        ProcessingTimeService* processingTimeService,
-        OperatorID* operatorID = nullptr)
+    StreamOperatorStateContextImpl<K> *streamOperatorStateContext(TypeSerializer *keySerializer, KeyContext<K>* keyContext,
+        ProcessingTimeService *processingTimeService, OperatorID *operatorID = nullptr,const std::string &operatorName = "")
     {
         CheckpointableKeyedStateBackend<K>* keyedStatedBackend = nullptr;
         OperatorStateBackend* osBackend = nullptr;
@@ -139,6 +137,8 @@ public:
 
         InternalTimeServiceManager<K>* timeServiceManager = nullptr;
         if (keyedStatedBackend != nullptr) {
+            keyedStatedBackend->SetOperatorStateMetricGroup(resolveOperatorStateMetricGroup(operatorName));
+
             int maxNumberOfSubtasks = taskInfo.getMaxNumberOfSubtasks();
             auto rawKeyedStateHandles = collectRawKeyedStateHandles(operatorID);
             auto omniTaskBridge = env != nullptr && env->getTaskStateManager() != nullptr
@@ -199,8 +199,24 @@ private:
 
     std::vector<std::shared_ptr<KeyedStateHandle>> collectRawKeyedStateHandles(OperatorID* operatorID = nullptr);
 
-    StateBackend* stateBackend;
-    omnistream::EnvironmentV2* env;
+    // Resolves the per-operator state metric group by the operator's own name (matches
+    // OperatorPOD::getName()). The name is supplied by each operator via streamOperatorStateContext.
+    omnistream::OperatorStateMetricGroup *resolveOperatorStateMetricGroup(const std::string &operatorName)
+    {
+        if (env == nullptr || operatorName.empty()) {
+            return nullptr;
+        }
+        auto taskMetricGroup = env->taskMetricGroup();
+        if (taskMetricGroup == nullptr) {
+            return nullptr;
+        }
+        return taskMetricGroup->GetTaskBackendStateMetricGroup()
+            ->GetOrCreateOperatorGroup(operatorName)
+            .get();
+    }
+
+    StateBackend *stateBackend;
+    omnistream::EnvironmentV2 *env;
 };
 
 inline std::vector<std::shared_ptr<KeyedStateHandle>> StreamTaskStateInitializerImpl::collectRawKeyedStateHandles(

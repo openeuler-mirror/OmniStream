@@ -19,6 +19,8 @@
 #include "NetConfig.h"
 #include "OmniShuffleEnvironment.h"
 #include "buffer/NetworkMemoryBufferPool.h"
+#include "netty/GlobalNettyBufferPool.h"
+#include "netty/NettyBufferConf.h"
 
 namespace omnistream {
 std::shared_ptr<ShuffleEnvironment> OmniShuffleServiceFactory::createOmniShuffleEnvironment(
@@ -64,35 +66,37 @@ std::shared_ptr<ShuffleEnvironment> OmniShuffleServiceFactory::createOmniShuffle
     return createOmniShuffleEnvironmentWithConnectionMgr(config, resourceId, resultPartitionManager, connectionMgr);
 }
 
-/* full arg and logic factory method */
-std::shared_ptr<ShuffleEnvironment> OmniShuffleServiceFactory::createOmniShuffleEnvironmentWithConnectionMgr(
-    std::shared_ptr<OmniShuffleEnvironmentConfiguration> config,
-    ResourceIDPOD resourceId,
-    std::shared_ptr<ResultPartitionManager> resultPartitionManager,
-    std::shared_ptr<ConnectionManager> connectionManager)
-{
-    LOG_PART("networkObjectBufferPool will create");
-    LOG_PART(
-        " getNumNetworkBuffers  " << std::to_string(config->getNumNetworkBuffers()) << "  getNetworkBufferSize  "
-                                  << config->getNetworkBufferSize());
-    std::shared_ptr<NetworkObjectBufferPool> networkObjectBufferPool = std::make_shared<NetworkObjectBufferPool>(
-        config->getNumNetworkBuffers(),
-        config->getNetworkBufferSize(),
-        std::chrono::milliseconds(config->getRequestSegmentsTimeoutMillis()));
+    /* full arg and logic factory method */
+    std::shared_ptr<ShuffleEnvironment> OmniShuffleServiceFactory::createOmniShuffleEnvironmentWithConnectionMgr(
+        std::shared_ptr<OmniShuffleEnvironmentConfiguration> config,
+        ResourceIDPOD resourceId,
+        std::shared_ptr<ResultPartitionManager> resultPartitionManager,
+        std::shared_ptr<ConnectionManager> connectionManager)
+    {
+        LOG_PART("networkObjectBufferPool will create")
+        LOG_PART(  " getNumNetworkBuffers  " << std::to_string(config->getNumNetworkBuffers())
+            << "  getNetworkBufferSize  "   <<   config->getNetworkBufferSize())
+        std::shared_ptr<datastream::NetworkMemoryBufferPool> networkMemoryBufferPool =
+               std::make_shared<datastream::NetworkMemoryBufferPool> (
+                       config->getNumNetworkBuffers(),
+                       config->getNetworkBufferSize(),
+                       std::chrono::milliseconds(config->getRequestSegmentsTimeoutMillis()));
 
-    std::shared_ptr<datastream::NetworkMemoryBufferPool> networkMemoryBufferPool =
-        std::make_shared<datastream::NetworkMemoryBufferPool>(
-            config->getNumNetworkBuffers(),
-            config->getNetworkBufferSize(),
-            std::chrono::milliseconds(config->getRequestSegmentsTimeoutMillis()));
+        // Create GlobalNettyBufferPool for netty buffer management
+        NettyBufferConf nettyBufferConf(
+            config->getNumNetworkBuffers(),  // totalPoolSize
+            config->getNetworkBufferSize(),                       // bufferSize (32KB)
+            config->getNetworkBuffersPerChannel(),
+            config->getFloatingNetworkBuffersPerGate()
+        );
 
-    /**  //todo networkBufferPool or NetworkObjectBufferPool ?
-      std::shared_ptr<NetworkObjectBufferPool> networkObjectBufferPool =
-              std::make_shared<NetworkObjectBufferPool> (
-                      config->getNumNetworkBuffers(),
-                      config->getNetworkBufferSize(),
-                      std::chrono::milliseconds(config->getRequestSegmentsTimeoutMillis()));
-  */
+        auto globalNettyBufferPool = std::make_shared<GlobalNettyBufferPool>(nettyBufferConf);
+
+        std::shared_ptr<NetworkObjectBufferPool> networkObjectBufferPool =
+               std::make_shared<NetworkObjectBufferPool> (
+                       config->getNumNetworkBuffers(),
+                       config->getNetworkBufferSize(),
+                       std::chrono::milliseconds(config->getRequestSegmentsTimeoutMillis()));
 
     auto resultPartitionFactory = std::make_shared<ResultPartitionFactory>(
         resultPartitionManager, networkObjectBufferPool, networkMemoryBufferPool, config->getNetworkBufferSize());
@@ -100,14 +104,15 @@ std::shared_ptr<ShuffleEnvironment> OmniShuffleServiceFactory::createOmniShuffle
     auto singleInputGateFactory = std::make_shared<SingleInputGateFactory>(
         resourceId, config, resultPartitionManager, networkObjectBufferPool, networkMemoryBufferPool);
 
-    auto shuffleEnv = std::make_shared<OmniShuffleEnvironment>(
-        resourceId,
-        config,
-        networkObjectBufferPool,
-        resultPartitionManager,
-        resultPartitionFactory,
-        singleInputGateFactory);
-    return shuffleEnv;
-}
+        auto shuffleEnv = std::make_shared<OmniShuffleEnvironment>(
+            resourceId,
+            config,
+            networkObjectBufferPool,
+            resultPartitionManager,
+            resultPartitionFactory,
+            singleInputGateFactory,
+            globalNettyBufferPool);
+        return shuffleEnv;
+    }
 
 } // namespace omnistream

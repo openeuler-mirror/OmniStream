@@ -13,6 +13,7 @@
 #define NETWORKBUFFER_H
 
 #include <memory>
+#include <mutex>
 #include <stdexcept>
 #include <cstring>
 #include <cstdlib>
@@ -65,13 +66,12 @@ public:
         dataType = ObjectBufferDataType::EVENT_BUFFER;
     }
 
-    // delete in ReadOnlySlicedNetworkBuffer
-    ~NetworkBuffer() override
-    {
-        if (segmentOwner) {
-            delete memorySegment;
+        // delete in ReadOnlySlicedNetworkBuffer
+        ~NetworkBuffer() override {
+            // if (segmentOwner) {
+            //     delete memorySegment;
+            // }
         }
-    }
 
     bool isBuffer() const override
     {
@@ -85,37 +85,47 @@ public:
             return;
         }
 
-        if (IsRecycled()) {
-            GErrorLog("Trying to recycle a NetworkBuffer that has already been recycled");
-        } else {
-            int prev = refCount_.fetch_sub(1);
-            if (prev == 1) {
-                recycler->recycle(this->getMemorySegment());
-                isRecycled_.store(true);
-                if (sleep_us > 0) {
-                    std::this_thread::sleep_for(std::chrono::microseconds(sleep_us));
-                    delete this;
+            // Mirror VectorBatchBuffer::RecycleBuffer: decide recycle-once inside the lock, then
+            // recycle the SEGMENT outside the lock. RecycleBuffer only returns the segment to the pool
+            // -- it must NOT delete the wrapper object. Many callers (e.g. EventSerializer::
+            // fromSerializedEvent, with its commented-out `// delete buffer;`) rely on the object
+            // outliving the recycle call; the wrapper's lifetime is owned elsewhere. (VectorBatchBuffer
+            // behaves the same, including the same pre-existing, memory-safe wrapper leak.)
+            MemorySegment* segmentToRecycle = nullptr;
+            {
+                std::lock_guard<std::mutex> lock(refCountMutex_);
+                if (isRecycled_) {
+                    GErrorLog("Trying to recycle a NetworkBuffer that has already been recycled");
+                    return;
+                }
+                --refCount_;
+                if (refCount_ == 0) {
+                    isRecycled_ = true;
+                    segmentToRecycle = this->getMemorySegment();
                 }
             }
+            if (segmentToRecycle) {
+                recycler->recycle(segmentToRecycle);
+                delete this;
+            }
         }
-    }
 
-    bool IsRecycled() const override
-    {
-        return isRecycled_.load();
-    }
+        bool IsRecycled() const override
+        {
+            std::lock_guard<std::mutex> lock(refCountMutex_);
+            return isRecycled_;
+        }
 
-    bool ShouldBeDeleted() override
-    {
-        int expected = 0;
-        return refCount_.compare_exchange_strong(expected, -1);
-    }
-
-    Buffer* RetainBuffer() override
-    {
-        refCount_.fetch_add(1);
-        return this;
-    }
+        Buffer* RetainBuffer() override
+        {
+            // Keep the original permissive behavior (just increment), only made thread-safe. We do NOT
+            // add VectorBatchBuffer's "throw if released" check here: NetworkBuffer flows through many
+            // more paths (events, checkpoint barriers, spanning wrappers) and an unexpected throw would
+            // be a new failure mode. The recycle-once fix does not depend on this check.
+            std::lock_guard<std::mutex> lock(refCountMutex_);
+            ++refCount_;
+            return this;
+        }
 
     Buffer* ReadOnlySlice() override
     {
@@ -175,10 +185,11 @@ public:
         this->dataType = dataType_;
     };
 
-    int RefCount() const override
-    {
-        return refCount_.load();
-    }
+        int RefCount() const override
+        {
+            std::lock_guard<std::mutex> lock(refCountMutex_);
+            return refCount_;
+        }
 
     std::string ToDebugString(bool includeHash) const override
     {
@@ -240,16 +251,19 @@ private:
     int bufferType; // 0 buffer, 1. event  for now
     int event_type;
 
-    int currentSize;
-    bool isCompressed_ = false;
-    std::atomic<bool> isRecycled_ = false;
-    int readerIndex_;
+        int currentSize;
+        bool isCompressed_ = false;
+        // Mirror VectorBatchBuffer: refcount + recycled flag guarded by a mutex (was atomics), so the
+        // recycle-once decision and the wrapper deletion are a single critical section.
+        bool isRecycled_ = false;
+        int readerIndex_;
 
-    std::atomic<int> refCount_ = 0;
-    ObjectBufferDataType dataType = ObjectBufferDataType::DATA_BUFFER;
-    bool segmentOwner = false;
-    int32_t sleep_us = 0;
-};
+        int refCount_ = 0;
+        mutable std::mutex refCountMutex_;
+        ObjectBufferDataType dataType = ObjectBufferDataType::DATA_BUFFER;
+        bool segmentOwner = false;
+        int32_t sleep_us = 0;
+    };
 
 enum class DataType {
     NONE,

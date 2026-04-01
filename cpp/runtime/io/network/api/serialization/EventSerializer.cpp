@@ -17,6 +17,7 @@
 #include <cstring>
 #include <buffer/EventBuffer.h>
 #include <buffer/NetworkBuffer.h>
+#include <buffer/ReadOnlySlicedNetworkBuffer.h>
 #include <event/EndOfData.h>
 #include <event/EndOfPartitionEvent.h>
 #include <memory/MemorySegment.h>
@@ -155,73 +156,110 @@ std::shared_ptr<AbstractEvent> EventSerializer::fromSerializedEvent(Buffer* buff
         throw std::runtime_error("Buffer is null or too small to contain an event");
     }
 
-    auto networkBuffer = dynamic_cast<datastream::NetworkBuffer*>(buffer);
-    if (!networkBuffer) {
-        LOG_DEBUG("find a cast error!");
-        throw std::runtime_error("it is not netwokrk buffer, so it can not be converted to event.");
-    }
-    uint8_t* rawData = networkBuffer->getMemorySegment()->getData();
-    ByteBuffer byteBuffer = ByteBuffer(rawData, networkBuffer->GetSize());
-    int eventType = byteBuffer.getIntFromValue();
-    if (eventType == END_OF_PARTITION_EVENT) {
-        if (recycleEvent) {
-            buffer->RecycleBuffer();
+        bool isReadOnlySlicedNetworkBuffer = true;
+        auto networkBuffer = dynamic_cast<datastream::ReadOnlySlicedNetworkBuffer*>(buffer);
+        if (!networkBuffer) {
+            isReadOnlySlicedNetworkBuffer = false;
+            networkBuffer = dynamic_cast<datastream::NetworkBuffer*>(buffer);
+            if (!networkBuffer) {
+                LOG_DEBUG("find a cast error!")
+                throw std::runtime_error("it is not netwokrk buffer, so it can not be converted to event.");
+            }
         }
-        // delete buffer;
-        return EndOfPartitionEvent::getInstance();
-    } else if (eventType == END_OF_USER_RECORDS_EVENT) {
-        auto stopMode = static_cast<StopMode>(byteBuffer.getByte());
-        if (recycleEvent) {
-            buffer->RecycleBuffer();
-        }
-        // delete buffer;
-        return std::make_shared<EndOfData>(stopMode);
-    } else if (eventType == CHECKPOINT_BARRIER_EVENT) {
-        std::shared_ptr<CheckpointBarrier> checkpointBarrier = DeserializeCheckpointBarrier(byteBuffer);
-        if (recycleEvent) {
-            buffer->RecycleBuffer();
-        }
-        // delete buffer;
-        return checkpointBarrier;
-    } else if (eventType == ANNOUNCEMENT_EVENT) {
-        int seq = byteBuffer.getIntFromValue();
-        int announcedType = byteBuffer.getIntFromValue();
 
-        std::shared_ptr<AbstractEvent> announced;
-        if (announcedType == CHECKPOINT_BARRIER_EVENT) {
-            announced = DeserializeCheckpointBarrier(byteBuffer);
+        uint8_t* rawData = networkBuffer->getMemorySegment()->getData();
+        ByteBuffer byteBuffer = ByteBuffer(rawData, networkBuffer->GetSize());
+        int eventType = byteBuffer.getIntFromValue();
+        if (eventType == END_OF_PARTITION_EVENT) {
+            if (recycleEvent) {
+                buffer->RecycleBuffer();
+                if (isReadOnlySlicedNetworkBuffer)
+                {
+                    delete buffer;
+                }
+            }
+            // delete buffer;
+            return EndOfPartitionEvent::getInstance();
+        } else if (eventType == END_OF_USER_RECORDS_EVENT) {
+            auto stopMode = static_cast<StopMode>(byteBuffer.getByte());
+            if (recycleEvent) {
+                buffer->RecycleBuffer();
+                if (isReadOnlySlicedNetworkBuffer)
+                {
+                    delete buffer;
+                }
+            }
+            // delete buffer;
+            return std::make_shared<EndOfData>(stopMode);
+        } else if (eventType == CHECKPOINT_BARRIER_EVENT) {
+            std::shared_ptr<CheckpointBarrier> checkpointBarrier = DeserializeCheckpointBarrier(byteBuffer);
+            if (recycleEvent) {
+                buffer->RecycleBuffer();
+                if (isReadOnlySlicedNetworkBuffer)
+                {
+                    delete buffer;
+                }
+            }
+            // delete buffer;
+            return checkpointBarrier;
+        } else if (eventType == ANNOUNCEMENT_EVENT) {
+            int seq = byteBuffer.getIntFromValue();
+            int announcedType = byteBuffer.getIntFromValue();
+
+            std::shared_ptr<AbstractEvent> announced;
+            if (announcedType == CHECKPOINT_BARRIER_EVENT) {
+                announced = DeserializeCheckpointBarrier(byteBuffer);
+            } else {
+                throw std::runtime_error("Unsupported announced event type in EventAnnouncement.");
+            }
+            if (recycleEvent) {
+                buffer->RecycleBuffer();
+                if (isReadOnlySlicedNetworkBuffer)
+                {
+                    delete buffer;
+                }
+            }
+            return std::make_shared<EventAnnouncement>(announced, seq);
+        } else if (eventType == CANCEL_CHECKPOINT_MARKER_EVENT) {
+            auto checkpointId = byteBuffer.getLong();
+            if (recycleEvent) {
+                buffer->RecycleBuffer();
+                if (isReadOnlySlicedNetworkBuffer)
+                {
+                    delete buffer;
+                }
+            }
+            return std::make_shared<CancelCheckpointMarker>(checkpointId);
+        } else if (eventType == END_OF_CHANNEL_STATE_EVENT) {
+            if (recycleEvent) {
+                buffer->RecycleBuffer();
+                if (isReadOnlySlicedNetworkBuffer)
+                {
+                    delete buffer;
+                }
+            }
+            return EndOfChannelStateEvent::getInstance();
+        }else if(eventType == VIRTUAL_CHANNEL_SELECTOR_EVENT){
+            auto des = std::make_shared<SubtaskConnectionDescriptor>(byteBuffer.getIntFromValue(),byteBuffer.getIntFromValue());
+            if (recycleEvent) {
+                buffer->RecycleBuffer();
+                if (isReadOnlySlicedNetworkBuffer)
+                {
+                    delete buffer;
+                }
+            }
+            return des;
         } else {
-            throw std::runtime_error("Unsupported announced event type in EventAnnouncement.");
+            if (recycleEvent) {
+                buffer->RecycleBuffer();
+                if (isReadOnlySlicedNetworkBuffer)
+                {
+                    delete buffer;
+                }
+            }
+            return nullptr;
         }
-        if (recycleEvent) {
-            buffer->RecycleBuffer();
-        }
-        return std::make_shared<EventAnnouncement>(announced, seq);
-    } else if (eventType == CANCEL_CHECKPOINT_MARKER_EVENT) {
-        auto checkpointId = byteBuffer.getLong();
-        if (recycleEvent) {
-            buffer->RecycleBuffer();
-        }
-        return std::make_shared<CancelCheckpointMarker>(checkpointId);
-    } else if (eventType == END_OF_CHANNEL_STATE_EVENT) {
-        if (recycleEvent) {
-            buffer->RecycleBuffer();
-        }
-        return EndOfChannelStateEvent::getInstance();
-    } else if (eventType == VIRTUAL_CHANNEL_SELECTOR_EVENT) {
-        auto des =
-            std::make_shared<SubtaskConnectionDescriptor>(byteBuffer.getIntFromValue(), byteBuffer.getIntFromValue());
-        if (recycleEvent) {
-            buffer->RecycleBuffer();
-        }
-        return des;
-    } else {
-        if (recycleEvent) {
-            buffer->RecycleBuffer();
-        }
-        return nullptr;
     }
-}
 
 std::shared_ptr<AbstractEvent> EventSerializer::fromSerializedEvent_V2(std::shared_ptr<Buffer> buffer)
 {
