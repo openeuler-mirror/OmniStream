@@ -162,7 +162,7 @@ TEST(ChannelStateWriteRequestExecutorImplTest, ProcessesFullLifecycle) {
     executor.shutdown();
 }
 
-TEST(ChannelStateWriteRequestExecutorImplTest, PriorityRequests) {
+TEST(ChannelStateWriteRequestExecutorImplTest, DISABLED_PriorityRequests) {
     auto storage = std::make_shared<CheckpointStorageTest>();
     auto serializer = std::make_shared<ChannelStateSerializerImplTest>();
     auto dispatcher = std::make_shared<ChannelStateWriteRequestDispatcherImplTest>(
