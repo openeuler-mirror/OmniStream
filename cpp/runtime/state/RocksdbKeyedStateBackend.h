@@ -16,6 +16,7 @@
 #include <map>
 #include <filesystem>
 #include <future>
+#include <vector>
 #include "AbstractKeyedStateBackend.h"
 #include "InternalKeyContext.h"
 #include "core/typeutils/TypeSerializer.h"
@@ -43,7 +44,7 @@
 #include "runtime/state/KeyedStateHandle.h"
 #include "runtime/state/bridge/OmniTaskBridge.h"
 #include "runtime/state/bridge/TaskStateManagerBridge.h"
-
+#include  <set>
 namespace fs = std::filesystem;
 using namespace omniruntime::type;
 /*
@@ -341,6 +342,8 @@ uintptr_t RocksdbKeyedStateBackend<K>::GetValueState(TypeSerializer *namespaceSe
         return (uintptr_t) createOrUpdateInternalValueState<VoidNamespace, int64_t>(namespaceSerializer, stateDesc);
     } else if (dataId == BackendDataType::POJO_BK || dataId == BackendDataType::OBJECT_BK) {
         return (uintptr_t) createOrUpdateInternalValueState<VoidNamespace, Object*>(namespaceSerializer, stateDesc);
+    }else if (dataId == BackendDataType::SET_LONG) {
+        return (uintptr_t) createOrUpdateInternalValueState<VoidNamespace, std::vector<long>*>(namespaceSerializer, stateDesc);
     } else {
         NOT_IMPL_EXCEPTION
     }

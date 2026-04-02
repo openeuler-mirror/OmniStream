@@ -53,7 +53,10 @@ public:
     void put(const UK &userKey, const UV &userValue) override;
     void putByBatch(const K &key,const std::unordered_map<UK,UV> &dataToAdd);
     void putByBatch(std::unordered_map<K,std::unordered_map<UK,UV>> &dataToAdd);
+    void putByBatch(std::unordered_map<K, std::vector<std::tuple<UK, UV>>> &dataToAdd);
     void putByBatch(std::vector<std::shared_ptr<std::tuple<K,UK,std::shared_ptr<std::string>>>> &dataToAdd);
+    void putByBatch(std::vector<std::shared_ptr<std::tuple<K,UK,UV>>> &dataToAdd);
+    void putByBatch(std::vector<std::tuple<K,UK,UV>> &dataToAdd);
 
     void remove(const UK &userKey) override;
     void removeByBatch(std::unordered_map<K,std::unordered_set<UK>> &dataToRemove);
@@ -201,7 +204,25 @@ void RocksdbMapState<K, N, UK, UV>::putByBatch(std::unordered_map<K,std::unorder
 }
 
 template<typename K, typename N, typename UK, typename UV>
+void RocksdbMapState<K, N, UK, UV>::putByBatch(std::unordered_map<K, std::vector<std::tuple<UK, UV>>> &dataToAdd)
+{
+    stateTable->putByBatch(dataToAdd);
+}
+
+template<typename K, typename N, typename UK, typename UV>
 void RocksdbMapState<K, N, UK, UV>::putByBatch(std::vector<std::shared_ptr<std::tuple<K,UK,std::shared_ptr<std::string>>>> &dataToAdd)
+{
+    stateTable->putByBatch(dataToAdd);
+}
+
+template<typename K, typename N, typename UK, typename UV>
+void RocksdbMapState<K, N, UK, UV>::putByBatch(std::vector<std::shared_ptr<std::tuple<K,UK,UV>>> &dataToAdd)
+{
+    stateTable->putByBatch(dataToAdd);
+}
+
+template<typename K, typename N, typename UK, typename UV>
+void RocksdbMapState<K, N, UK, UV>::putByBatch(std::vector<std::tuple<K,UK,UV>> &dataToAdd)
 {
     stateTable->putByBatch(dataToAdd);
 }

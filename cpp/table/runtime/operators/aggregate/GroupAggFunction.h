@@ -50,6 +50,8 @@ public:
         RowKind rowKind;
     };
 
+    using GroupedRowsByKey = std::unordered_map<RowData*, std::vector<RowInfo>>;
+
     GroupAggFunction(long stateRetentionTime, const nlohmann::json& config);
     ~GroupAggFunction();
     void open(const Configuration& parameters) override;
@@ -57,6 +59,8 @@ public:
     void processElement(RowData* input, Context* ctx, TimestampedCollector* out);
     void processBatch(omnistream::VectorBatch* inputBatch,
                       KeyedProcessFunction<RowData *, RowData *, RowData *>::Context &ctx, TimestampedCollector& out);
+    void finish(KeyedProcessFunction<RowData *, RowData *, RowData *>::Context &ctx,
+                TimestampedCollector& out);
     void processBatchColumnar(omnistream::VectorBatch *input, const std::vector<RowInfo> &groupInfo, RowData *pData);
     void close();
     ValueState<RowData*>* getValueState() override;
@@ -116,7 +120,6 @@ private:
     inline void setString(omniruntime::vec::VectorBatch* outputBatch,
                           int numRows, int colIndex, std::vector<RowData*> vec);
     std::vector<std::string> handleInputTypes();
-    std::map<int, int> handleDistinctInfo();
     void deleteRowData(vector<RowData *> &rowVector);
     int backend=0; //0: memory, 1: bss, 2: rocksdb
     //rocksdb update container

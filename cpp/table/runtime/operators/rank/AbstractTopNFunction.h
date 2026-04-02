@@ -30,6 +30,7 @@
 #include "streaming/api/functions/KeyedProcessFunction.h"
 #include "functions/OpenContext.h"
 #include "TopNBuffer.h"
+#include "SetTopNBuffer.h"
 using namespace omnistream;
 template <typename KeyType>
 class AbstractTopNFunction : public KeyedProcessFunction<KeyType, RowData *, RowData *> {
@@ -122,6 +123,8 @@ protected:
     {
         return buffer.checkSortKeyInBufferRange(sortKey, getDefaultTopNSize());
     }
+
+
 protected:
     bool isConstantRankEnd = true;
     int rankEndIndex;

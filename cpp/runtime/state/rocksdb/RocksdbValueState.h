@@ -114,22 +114,23 @@ template <typename K, typename N, typename V>
 V RocksdbValueState<K, N, V>::value()
 {
     auto result = stateTable->get(currentNamespace);
-    // For BinaryRowData, the underlying implementation uses a shared BinaryRowData
-    // instance to deserialize data from RocksDB. Therefore, we need to copy it
-    // to avoid it being overwritten or deleted by the next get operation.
+    // For pointer types (e.g. BinaryRowData*, set<long>*): return defaultValue when null.
+    // For BinaryRowData*, the underlying implementation uses a shared instance to deserialize
+    // from RocksDB, so we must copy it to avoid it being overwritten by the next get.
     if constexpr (std::is_pointer<V>::value)
     {
         if (result == nullptr) {
             return defaultValue;
         }
-        auto *br = dynamic_cast<BinaryRowData*>(result);
-        if (br == nullptr) {
-            return result;
-        }
-        auto *copied = br->copy();
-        if constexpr (std::is_convertible_v<decltype(copied), V>) {
+        if constexpr (std::is_base_of_v<RowData, std::remove_pointer_t<V>>) {
+            auto *br = dynamic_cast<BinaryRowData*>(result);
+            if (br == nullptr) {
+                return result;
+            }
+            auto *copied = br->copy();
             return static_cast<V>(copied);
         } else {
+            // Other pointer types (e.g. set<long>*) are not shared; return as-is.
             return result;
         }
     } else {
