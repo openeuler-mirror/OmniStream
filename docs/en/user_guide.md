@@ -114,7 +114,7 @@ This section describes how to start a Flink cluster and enable OmniStream in SQL
 
 1. Access the  **flink\_jm\_8c32g**  container and start the Flink cluster.
 
-    ```
+    ```bash
     docker exec -it flink_jm_8c32g /bin/bash
     source /etc/profile
     cd /usr/local/flink-1.16.3/bin
@@ -127,7 +127,7 @@ This section describes how to start a Flink cluster and enable OmniStream in SQL
 2. Check whether the Job Manager and Task Manager are started successfully.
     1. Check the  **flink\_jm\_8c32g**  container for the  **StandaloneSessionClusterEntrypoint**  process.
 
-        ```
+        ```bash
         source /etc/profile
         jps
         ```
@@ -138,7 +138,7 @@ This section describes how to start a Flink cluster and enable OmniStream in SQL
 
     2. Access the  **flink\_tm1\_8c32g**  and  **flink\_tm2\_8c32g**  containers and check for the  **TaskManagerRunner**  process. The following commands use the  **flink\_tm1\_8c32g**  container as an example:
 
-        ```
+        ```bash
         docker exec -it flink_tm1_8c32g /bin/bash
         source /etc/profile
         jps
@@ -150,7 +150,7 @@ This section describes how to start a Flink cluster and enable OmniStream in SQL
 
 3. Start Nexmark in the  **flink\_jm\_8c32g**  container.
 
-    ```
+    ```bash
     docker exec -it flink_jm_8c32g /bin/bash
     source /etc/profile
     cd /usr/local/nexmark/bin
@@ -159,7 +159,7 @@ This section describes how to start a Flink cluster and enable OmniStream in SQL
 
 4. Access the  **flink\_tm1\_8c32g**  and  **flink\_tm2\_8c32g**  containers and check whether Nexmark is started successfully. The following commands use the  **flink\_tm1\_8c32g**  container as an example:
 
-    ```
+    ```bash
     docker exec -it flink_tm1_8c32g /bin/bash
     source /etc/profile
     jps
@@ -172,7 +172,7 @@ This section describes how to start a Flink cluster and enable OmniStream in SQL
 
 5. Execute the Nexmark test case  **Query0**  in the  **flink\_jm\_8c32g**  container.
 
-    ```
+    ```bash
     docker exec -it flink_jm_8c32g /bin/bash
     source /etc/profile
     cd /usr/local/nexmark/bin
@@ -186,7 +186,7 @@ This section describes how to start a Flink cluster and enable OmniStream in SQL
 
 6. View the latest  **.out**  log file of Flink in the container that hosts the Task Manager.
 
-    ```
+    ```bash
     docker exec -it flink_tm1_8c32g /bin/bash
     cd /usr/local/flink-1.16.3/log
     ```
@@ -203,13 +203,13 @@ This section describes how to start a Flink cluster and enable OmniStream in Dat
 1. If DataStream tasks are running in a multi-Task Manager environment, add  **omni.batch: true**  to the  **flink-conf.yaml**  file to improve shuffle efficiency and achieve better performance.
     1. Open the  **/usr/local/flink/conf/flink-conf.yaml**  file.
 
-        ```
+        ```bash
         vi /usr/local/flink/conf/flink-conf.yaml
         ```
 
     2. Press  **i**  to enter the insert mode and add the following content to the file:
 
-        ```
+        ```bash
         omni.batch: true
         ```
 
@@ -217,7 +217,7 @@ This section describes how to start a Flink cluster and enable OmniStream in Dat
 
 2. Access the  **flink\_jm\_8c32g**  container and start the Flink cluster.
 
-    ```
+    ```bash
     docker exec -it flink_jm_8c32g /bin/bash
     source /etc/profile
     cd /usr/local/flink-1.16.3/bin
@@ -230,7 +230,7 @@ This section describes how to start a Flink cluster and enable OmniStream in Dat
 3. Check whether the Job Manager and Task Manager are started successfully.
     1. Check the  **flink\_jm\_8c32g**  container for the  **StandaloneSessionClusterEntrypoint**  process.
 
-        ```
+        ```bash
         source /etc/profile
         jps
         ```
@@ -241,7 +241,7 @@ This section describes how to start a Flink cluster and enable OmniStream in Dat
 
     2. Access the  **flink\_tm1\_8c32g**  and  **flink\_tm2\_8c32g**  containers and check for the  **TaskManagerRunner**  process. The following commands use the  **flink\_tm1\_8c32g**  container as an example:
 
-        ```
+        ```bash
         docker exec -it flink_tm1_8c32g /bin/bash
         source /etc/profile
         jps
@@ -254,20 +254,20 @@ This section describes how to start a Flink cluster and enable OmniStream in Dat
 4. Create and configure the Kafka consumer and producer configuration files.
     1. Access the  **flink\_tm1\_8c32g**  container.
 
-    ```
+    ```bash
     docker exec -it flink_tm1_8c32g /bin/bash
     ```
 
     2. <a name="li71941829175515"></a>Create an  **/opt/conf**  directory.
 
-    ```
+    ```bash
     mkdir /opt/conf
     cd /opt/conf
     ```
 
    3. Create the Kafka consumer configuration file  **kafka\_consumer.conf**.
 
-    ```
+    ```bash
        fetch.queue.backoff.ms=20
        group.id=omni
        max.poll.records=10000
@@ -275,7 +275,7 @@ This section describes how to start a Flink cluster and enable OmniStream in Dat
 
     4. <a name="li191941296556"></a>Create the Kafka producer configuration file  **kafka\_producer.conf**.
 
-    ```
+    ```bash
     queue.buffering.max.messages=2000000
     queue.buffering.max.kbytes=20971520
     queue.buffering.max.ms=5
@@ -287,7 +287,7 @@ This section describes how to start a Flink cluster and enable OmniStream in Dat
 
     5. Access the  **flink\_tm2\_8c32g**  container and perform steps  [4.b](#li71941829175515)  to  [4.d](#li191941296556).
 
-    ```
+    ```bash
     docker exec -it flink_tm1_8c32g /bin/bash
     ```
 
@@ -299,7 +299,7 @@ This section describes how to start a Flink cluster and enable OmniStream in Dat
 
     1. Create topics for the source and sink.
 
-        ```
+        ```bash
         cd /usr/local/kafka
         bin/kafka-topics.sh --create --bootstrap-server IP_address_of_Kafka_server's_physical_machine:9092 --replication-factor 1 --partitions 1 --topic source_abcd
         bin/kafka-topics.sh --create --bootstrap-server IP_address_of_Kafka_server's_physical_machine:9092 --replication-factor 1 --partitions 1 --topic result
@@ -307,7 +307,7 @@ This section describes how to start a Flink cluster and enable OmniStream in Dat
 
     2. Save the following content as the script file  **producer.sh**.
 
-        ```
+        ```bash
         #!/bin/bash
         
         # Kafka installation directory (Replace the example directory with the actual one.)
@@ -338,14 +338,14 @@ This section describes how to start a Flink cluster and enable OmniStream in Dat
 
     3. Run the script to generate test data and write it to the source topic.
 
-        ```
+        ```bash
         ./producer.sh
         ```
 
 7. Build a job JAR package.
     1. Go to the  **/opt**  directory of the physical machine and create the  **/opt/job/src/main/java/com/huawei/boostkit**  directory.
 
-        ```
+        ```bash
         mkdir -p /opt/job/src/main/java/com/huawei/boostkit
         cd /opt/job/
         ```
@@ -353,13 +353,13 @@ This section describes how to start a Flink cluster and enable OmniStream in Dat
     2. Create a Java file for the Flink Job.
         1. Open  **/opt/job/src/main/java/com/huawei/boostkit/FlinkWordCount.java**.
 
-            ```
+            ```bash
             vi /opt/job/src/main/java/com/huawei/boostkit/FlinkWordCount.java
             ```
 
         2. Press  **i**  to enter the insert mode and add the following content:
 
-            ```
+            ```bash
             package com.huawei.boostkit;
             
             import org.apache.flink.api.common.eventtime.WatermarkStrategy;
@@ -436,13 +436,13 @@ This section describes how to start a Flink cluster and enable OmniStream in Dat
     3. Create a  **pom.xml**  file.
         1. Open  **/opt/job/pom.xml**.
 
-            ```
+            ```bash
             vi /opt/job/pom.xml
             ```
 
         2. Press  **i**  to enter the insert mode and add the following content:
 
-            ```
+            ```bash
             <?xml version="1.0" encoding="UTF-8"?>
             <project xmlns="http://maven.apache.org/POM/4.0.0"
                      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -555,14 +555,14 @@ This section describes how to start a Flink cluster and enable OmniStream in Dat
 
     4. After the  **mvn clean package**  command is executed, the  **ziliao-1.0-SNAPSHOT-jar-with-dependencies.jar**  file is generated in the  **target**  directory. Upload the JAR package to the  **/usr/local/flink**  directory in the  **flink\_jm\_8c32g**  container.
 
-        ```
+        ```bash
         mvn clean package
         docker cp /opt/job/target/ziliao-1.0-SNAPSHOT-jar-with-dependencies.jar flink_jm_8c32g:/usr/local/flink
         ```
 
 8. Export environment variables from the  **flink\_jm\_8c32g**  container.
 
-    ```
+    ```bash
     export CPLUS_INCLUDE_PATH=${JAVA_HOME}/include/:${JAVA_HOME}/include/linux:/opt/udf-trans-opt/libbasictypes/include:/opt/udf-trans-opt/libbasictypes/OmniStream/include:/opt/udf-trans-opt/libbasictypes/include/libboundscheck:/opt/udf-trans-opt/libbasictypes/OmniStream/core/include:/usr/local/ksl/include:$CPLUS_INCLUDE_PATH
     export C_INCLUDE_PATH=${JAVA_HOME}/include/:${JAVA_HOME}/include/linux:/opt/udf-trans-opt/libbasictypes/include:/opt/udf-trans-opt/libbasictypes/OmniStream/include:/opt/udf-trans-opt/libbasictypes/include/libboundscheck:/opt/udf-trans-opt/libbasictypes/OmniStream/core/include:/usr/local/ksl/include:$C_INCLUDE_PATH
     export LIBRARY_PATH=${JAVA_HOME}/jre/lib/aarch64:${JAVA_HOME}/jre/lib/aarch64/server:/opt/udf-trans-opt/libbasictypes/lib:/usr/local/ksl/lib:$LIBRARY_PATH
@@ -572,13 +572,13 @@ This section describes how to start a Flink cluster and enable OmniStream in Dat
 9. Modify the UDF configuration file.
     1. Set the test case package name \(**udf\_package**\) and main class name \(**main\_class**\).
 
-        ```
+        ```bash
         vim /opt/udf-trans-opt/udf-translator/conf/udf_tune.properties
         ```
 
     2. Press  **i**  to enter the insert mode and modify  **udf\_package**  and  **main\_class**  as follows:
 
-        ```
+        ```bash
         udf_package=com.huawei.boostkit
         main_class=com.huawei.boostkit.FlinkWordCount
         ```
@@ -587,13 +587,13 @@ This section describes how to start a Flink cluster and enable OmniStream in Dat
 
 10. Translate the test case JAR package.
 
-    ```
+    ```bash
     sh /opt/udf-trans-opt/udf-translator/bin/udf_translate.sh /usr/local/flink/ziliao-1.0-SNAPSHOT-jar-with-dependencies.jar flink
     ```
 
 11. Submit the job from the  **flink\_jm\_8c32g**  container.
 
-    ```
+    ```bash
     cd /usr/local/flink
     bin/flink run -c com.huawei.boostkit.FlinkWordCount ziliao-1.0-SNAPSHOT-jar-with-dependencies.jar
     ```
@@ -602,7 +602,7 @@ This section describes how to start a Flink cluster and enable OmniStream in Dat
 
     Consume Kafka data and check whether the job is running properly.
 
-    ```
+    ```bash
     cd /usr/local/kafka
     bin/kafka-console-consumer.sh --bootstrap-server IP_address_of_Kafka_server's_physical_machine:9092 --topic result --from-beginning
     ```
@@ -611,7 +611,7 @@ This section describes how to start a Flink cluster and enable OmniStream in Dat
 
 13. In the  **flink\_jm\_8c32g**  container, view the latest Flink client log  **flink-root-client-xxx.log**.
 
-    ```
+    ```bash
     cd /usr/local/flink-1.16.3/log
     ```
 

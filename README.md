@@ -2,7 +2,7 @@
 
 ## 最新消息<a name="ZH-CN_TOPIC_0000002517961774"></a>
 
-- \[2026.03.30\]：发布OmniStream 1.2.0。增加UDF翻译工具所使用依赖的头文件安装内容，在有状态场景下使能omniStateStore加速特性。
+- \[2026.03.30\]：发布OmniStream 1.2.0。增加UDF翻译工具所使用依赖的头文件安装内容，在有状态场景下使能OmniStateStore加速特性。
 - \[2025.12.30\]：发布OmniStream 1.1.0。在SQL场景中，新增支持task级别算子回退机制；在DataStream场景中，KeyedCoProcess算子支持checkpoint、restore。
 - \[2025.06.30\]：发布OmniStream 1.0.0。SQL：实现了Calc、GroupAgg、Join、Deduplicate、Rank、Window、Kafka Source/Sink算子加速；实现了高效数据组织方式OmniVec；实现了对内存和RocksDB状态后端的支持。 DataStream：实现了Kafka Source、Kafka Sink、Map、FlatMap、 Reduce、Filter算子加速；实现了UDF基础框架和UDF翻译基础库，支持UDF自动Native化框架成功运行DataStream Wordcount等有状态和无状态用例；实现了对内存状态后端的支持。
 

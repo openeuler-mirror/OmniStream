@@ -1,4 +1,4 @@
-# 使用指南<a name="ZH-CN_TOPIC_0000002549640817"></a>
+# 用户指南<a name="ZH-CN_TOPIC_0000002549640817"></a>
 
 ## 使用特性<a name="ZH-CN_TOPIC_0000002549520803"></a>
 
@@ -114,7 +114,7 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
 
 1. 进入flink\_jm\_8c32g容器，启动Flink集群。
 
-    ```
+    ```bash
     docker exec -it flink_jm_8c32g /bin/bash
     source /etc/profile
     cd /usr/local/flink-1.16.3/bin
@@ -127,7 +127,7 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
 2. 查看Job Manager和Task Manager是否启动成功。
     1. 在flink\_jm\_8c32g容器中查看是否存在**StandaloneSessionClusterEntrypoint**进程。
 
-        ```
+        ```bash
         source /etc/profile
         jps
         ```
@@ -138,7 +138,7 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
 
     2. 分别进入flink\_tm1\_8c32g、flink\_tm2\_8c32g容器查看是否存在**TaskManagerRunner**进程。下述命令以flink\_tm1\_8c32g容器为例：
 
-        ```
+        ```bash
         docker exec -it flink_tm1_8c32g /bin/bash
         source /etc/profile
         jps
@@ -150,7 +150,7 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
 
 3. 在flink\_jm\_8c32g容器中启动Nexmark。
 
-    ```
+    ```bash
     docker exec -it flink_jm_8c32g /bin/bash
     source /etc/profile
     cd /usr/local/nexmark/bin
@@ -159,7 +159,7 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
 
 4. 分别进入flink\_tm1\_8c32g、flink\_tm2\_8c32g容器查看Nexmark是否启动成功。下述命令以flink\_tm1\_8c32g容器为例：
 
-    ```
+    ```bash
     docker exec -it flink_tm1_8c32g /bin/bash
     source /etc/profile
     jps
@@ -172,7 +172,7 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
 
 5. 在flink\_jm\_8c32g容器执行Nexmark用例Query0。
 
-    ```
+    ```bash
     docker exec -it flink_jm_8c32g /bin/bash
     source /etc/profile
     cd /usr/local/nexmark/bin
@@ -186,13 +186,13 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
 
 6. 在Task Manager所在容器上查看Flink最新.out日志文件。
 
-    ```
+    ```bash
     docker exec -it flink_tm1_8c32g /bin/bash
     cd /usr/local/flink-1.16.3/log
     ```
 
-    - 日志中提示"Shared Memory Metric Manager Loading Succeed!"，表示Native so库已经正常加载。
-    - 日志中提示"welcome to native"，表示已经成功使能OmniStream。
+    - 日志中提示`Shared Memory Metric Manager Loading Succeed!`，表示Native so库已经正常加载。
+    - 日志中提示`welcome to native`，表示已经成功使能OmniStream。
 
     ![](figures/zh-cn_image_0000002517961058.png)
 
@@ -201,23 +201,23 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
 在DataStream场景下，详细描述从启动Flink集群到完成OmniStream使能的操作步骤。
 
 1. 如果是在多Task Manager场景下运行DataStream任务，需要在flink-conf.yaml文件中添加配置omni.batch: true，以提升多该场景下的shuffle效率，以达到更优性能。
-    1. 打开"/usr/local/flink/conf/flink-conf.yaml"文件。
+    1. 打开`/usr/local/flink/conf/flink-conf.yaml`文件。
 
-        ```
+        ```bash
         vi /usr/local/flink/conf/flink-conf.yaml
         ```
 
-    2. 按"i"进入编辑模式，增加如下配置。
+    2. 按`i`进入编辑模式，增加如下配置。
 
-        ```
+        ```bash
         omni.batch: true
         ```
 
-    3. 按"Esc"键，输入 **:wq!** ，按"Enter"保存并退出编辑。
+    3. 按`Esc`键，输入 **:wq!** ，按`Enter`保存并退出编辑。
 
 2. 进入flink\_jm\_8c32g容器，启动Flink集群。
 
-    ```
+    ```bash
     docker exec -it flink_jm_8c32g /bin/bash
     source /etc/profile
     cd /usr/local/flink-1.16.3/bin
@@ -230,7 +230,7 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
 3. 查看Job Manager和Task Manager是否启动成功。
     1. 在flink\_jm\_8c32g容器中查看是否存在**StandaloneSessionClusterEntrypoint**进程。
 
-        ```
+        ```bash
         source /etc/profile
         jps
         ```
@@ -241,7 +241,7 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
 
     2. 分别进入flink\_tm1\_8c32g、flink\_tm2\_8c32g容器查看是否存在**TaskManagerRunner**进程。下述命令以flink\_tm1\_8c32g容器为例。
 
-        ```
+        ```bash
         docker exec -it flink_tm1_8c32g /bin/bash
         source /etc/profile
         jps
@@ -253,22 +253,22 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
 
 4. 创建并配置Kafka消费者和生产者配置文件。
     1. 进入flink_tm1_8c32g容器。
-    ```
+    ```bash
     docker exec -it flink_tm1_8c32g /bin/bash
     ```
-    2. 创建"/opt/conf"目录。 <a id="4.2"></a>
-    ```
+    2. 创建`/opt/conf`目录。 <a id="4.2"></a>
+    ```bash
     mkdir /opt/conf
     cd /opt/conf
     ```
     3. 新增Kafka消费者配置文件kafka\_consumer.conf。
-    ```
+    ```bash
     fetch.queue.backoff.ms=20
     group.id=omni
     max.poll.records=10000
     ```
     4. 新增Kafka生产者配置文件kafka_producer.conf。<a id="4.4"></a>
-    ```
+    ```bash
     queue.buffering.max.messages=2000000
     queue.buffering.max.kbytes=20971520
     queue.buffering.max.ms=5
@@ -279,7 +279,7 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
     ```
    5. 进入flink_tm2_8c32g，执行步骤[4.ii](#4.2)～[4.iv](#4.4)。
 
-   ```
+   ```bash
    docker exec -it flink_tm1_8c32g /bin/bash
    ```
 
@@ -291,7 +291,7 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
 
     1. 创建Source和Sink的Topic。
 
-        ```
+        ```bash
         cd /usr/local/kafka
         bin/kafka-topics.sh --create --bootstrap-server Kafka服务端的物理机IP地址:9092 --replication-factor 1 --partitions 1 --topic source_abcd
         bin/kafka-topics.sh --create --bootstrap-server Kafka服务端的物理机IP地址:9092 --replication-factor 1 --partitions 1 --topic result
@@ -299,7 +299,7 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
 
     2. 将下面的内容保存为脚本文件producer.sh。
 
-        ```
+        ```bash
         #!/bin/bash
         
         # Kafka安装目录（请根据实际路径修改）
@@ -330,28 +330,28 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
 
     3. 执行脚本文件，生成测试数据并写入Source Topic。
 
-        ```
+        ```bash
         ./producer.sh
         ```
 
 7. 构建作业JAR包。
-    1. 进入物理机"/opt"路径，创建"/opt/job/src/main/java/com/huawei/boostkit"路径。
+    1. 进入物理机`/opt`路径，创建`/opt/job/src/main/java/com/huawei/boostkit`路径。
 
-        ```
+        ```bash
         mkdir -p /opt/job/src/main/java/com/huawei/boostkit
         cd /opt/job/
         ```
 
     2. 创建Flink作业Java文件。
-        1. 打开"/opt/job/src/main/java/com/huawei/boostkit/FlinkWordCount.java"。
+        1. 打开`/opt/job/src/main/java/com/huawei/boostkit/FlinkWordCount.java`。
 
-            ```
+            ```bash
             vi /opt/job/src/main/java/com/huawei/boostkit/FlinkWordCount.java
             ```
 
-        2. 按"i"进入编辑模式，添加如下内容。
+        2. 按`i`进入编辑模式，添加如下内容。
 
-            ```
+            ```bash
             package com.huawei.boostkit;
             
             import org.apache.flink.api.common.eventtime.WatermarkStrategy;
@@ -423,18 +423,18 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
             }
             ```
 
-        3. 按"Esc"键，输入 **:wq!**，按"Enter"保存并退出编辑。
+        3. 按`Esc`键，输入 **:wq!**，按`Enter`保存并退出编辑。
 
     3. 创建pom.xml文件。
-        1. 打开"/opt/job/pom.xml"。
+        1. 打开`/opt/job/pom.xml`。
 
-            ```
+            ```bash
             vi /opt/job/pom.xml
             ```
 
-        2. 按"i"进入编辑模式，添加如下内容。
+        2. 按`i`进入编辑模式，添加如下内容。
 
-            ```
+            ```bash
             <?xml version="1.0" encoding="UTF-8"?>
             <project xmlns="http://maven.apache.org/POM/4.0.0"
                      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -543,18 +543,18 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
             </project>
             ```
 
-        3. 按"Esc"键，输入 **:wq!**，按"Enter"保存并退出编辑。
+        3. 按`Esc`键，输入 **:wq!**，按`Enter`保存并退出编辑。
 
-    4. 执行**mvn clean package**打包命令后，将会在target目录下生成ziliao-1.0-SNAPSHOT-jar-with-dependencies.jar。再将该JAR包上传到flink\_jm\_8c32g容器的"/usr/local/flink"目录。
+    4. 执行**mvn clean package**打包命令后，将会在target目录下生成ziliao-1.0-SNAPSHOT-jar-with-dependencies.jar。再将该JAR包上传到flink\_jm\_8c32g容器的`/usr/local/flink`目录。
 
-        ```
+        ```bash
         mvn clean package
         docker cp /opt/job/target/ziliao-1.0-SNAPSHOT-jar-with-dependencies.jar flink_jm_8c32g:/usr/local/flink
         ```
 
 8. 在flink\_jm\_8c32g容器导出环境变量。
 
-    ```
+    ```bash
     export CPLUS_INCLUDE_PATH=${JAVA_HOME}/include/:${JAVA_HOME}/include/linux:/opt/udf-trans-opt/libbasictypes/include:/opt/udf-trans-opt/libbasictypes/OmniStream/include:/opt/udf-trans-opt/libbasictypes/include/libboundscheck:/opt/udf-trans-opt/libbasictypes/OmniStream/core/include:/usr/local/ksl/include:$CPLUS_INCLUDE_PATH
     export C_INCLUDE_PATH=${JAVA_HOME}/include/:${JAVA_HOME}/include/linux:/opt/udf-trans-opt/libbasictypes/include:/opt/udf-trans-opt/libbasictypes/OmniStream/include:/opt/udf-trans-opt/libbasictypes/include/libboundscheck:/opt/udf-trans-opt/libbasictypes/OmniStream/core/include:/usr/local/ksl/include:$C_INCLUDE_PATH
     export LIBRARY_PATH=${JAVA_HOME}/jre/lib/aarch64:${JAVA_HOME}/jre/lib/aarch64/server:/opt/udf-trans-opt/libbasictypes/lib:/usr/local/ksl/lib:$LIBRARY_PATH
@@ -564,28 +564,28 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
 9. 修改UDF配置文件。
     1. 设置运行用例包名udf\_package和主类名main\_class。
 
-        ```
+        ```bash
         vim /opt/udf-trans-opt/udf-translator/conf/udf_tune.properties
         ```
 
-    2. 按"i"进入编辑模式，修改udf\_package和main\_class，修改为以下内容。
+    2. 按`i`进入编辑模式，修改udf\_package和main\_class，修改为以下内容。
 
-        ```
+        ```bash
         udf_package=com.huawei.boostkit
         main_class=com.huawei.boostkit.FlinkWordCount
         ```
 
-    3. 按"Esc"键，输入 **wq!**，按"Enter"保存并退出编辑。
+    3. 按`Esc`键，输入 **wq!**，按`Enter`保存并退出编辑。
 
 10. 翻译测试用例JAR包。
 
-    ```
+    ```bash
     sh /opt/udf-trans-opt/udf-translator/bin/udf_translate.sh /usr/local/flink/ziliao-1.0-SNAPSHOT-jar-with-dependencies.jar flink
     ```
 
 11. 在flink\_jm\_8c32g容器提交作业。
 
-    ```
+    ```bash
     cd /usr/local/flink
     bin/flink run -c com.huawei.boostkit.FlinkWordCount ziliao-1.0-SNAPSHOT-jar-with-dependencies.jar
     ```
@@ -593,7 +593,7 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
 12. 查看Sink Topic的数据。
   
     消费Kafka数据查看作业是否正常运行。
-    ```
+    ```bash
     cd /usr/local/kafka
     bin/kafka-console-consumer.sh --bootstrap-server 服务端的物理机IP地址:9092 --topic result --from-beginning
     ```
@@ -602,7 +602,7 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
 
 13. 在flink\_jm\_8c32g容器上查看最新的Flink客户端日志flink-root-client-xxx.log。
 
-    ```
+    ```bash
     cd /usr/local/flink-1.16.3/log
     ```
 
@@ -628,9 +628,9 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
 >-   当前步骤仅供需要卸载OmniStream时参考，不属于部署OmniStream的必要操作步骤。
 >-   卸载OmniStream之前，请确保Flink引擎没有处于任务执行的状态。
 
-下述卸载过程以安装目录为"/opt/Dependency\_library"和"/usr/local/OmniStream"为例进行说明。
+下述卸载过程以安装目录为`/opt/Dependency_library`和`/usr/local/OmniStream`为例进行说明。
 
-1. 删除"/opt/Dependency\_library"和"/usr/local/OmniStream"部署软件时加入的依赖软件包。
+1. 删除`/opt/Dependency_library`和`/usr/local/OmniStream`部署软件时加入的依赖软件包。
 2. 修改`$FLINK_HOME/bin`目录下的config.sh文件，恢复Flink默认配置。
 
     具体操作为，将[安装指南-安装OmniStream-步骤3](installation_guide.md)中的修改还原至未修改前的状态。
