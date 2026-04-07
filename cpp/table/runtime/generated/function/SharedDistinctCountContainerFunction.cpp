@@ -13,10 +13,23 @@
 #include <algorithm>
 #include <optional>
 #include <stdexcept>
+#include "core/typeutils/LongSerializer.h"
 #include "runtime/dataview/PerKeyStateDataViewStore.h"
-#include "typeutils/InternalSerializers.h"
 
 using namespace omniruntime::type;
+
+namespace {
+TypeSerializer *createOwnedSharedDistinctSerializer(DataTypeId typeId)
+{
+    switch (typeId) {
+        case DataTypeId::OMNI_INT:
+        case DataTypeId::OMNI_LONG:
+            return new LongSerializer();
+        default:
+            throw std::runtime_error("Shared DISTINCT only supports INT/LONG key types.");
+    }
+}
+} // namespace
 
 SharedDistinctCountContainerFunction::SharedDistinctCountContainerFunction(std::string stateName)
     : stateName_(std::move(stateName))
@@ -166,8 +179,8 @@ void SharedDistinctCountContainerFunction::open(StateDataViewStore* store)
             perKeyViewStore->getStateMapView<VoidNamespace, long, long>(
                 group.stateName,
                 true,
-                InternalSerializers::create(new BasicLogicalType(group.typeId, false)),
-                InternalSerializers::create(new BasicLogicalType(DataTypeId::OMNI_LONG, false))));
+                createOwnedSharedDistinctSerializer(group.typeId),
+                new LongSerializer()));
     }
 }
 

@@ -12,8 +12,21 @@
 #include <algorithm>
 #include <unordered_set>
 #include "CountDistinctFunction.h"
-#include "typeutils/InternalSerializers.h"
+#include "core/typeutils/LongSerializer.h"
 #include "runtime/dataview/PerKeyStateDataViewStore.h"
+
+namespace {
+TypeSerializer *createOwnedDistinctSerializer(DataTypeId typeId)
+{
+    switch (typeId) {
+        case DataTypeId::OMNI_INT:
+        case DataTypeId::OMNI_LONG:
+            return new LongSerializer();
+        default:
+            throw std::runtime_error("Data type is not supported.");
+    }
+}
+} // namespace
 
 bool CountDistinctFunction::equaliser(BinaryRowData *r1, BinaryRowData *r2)
 {
@@ -49,8 +62,8 @@ void CountDistinctFunction::open(StateDataViewStore *store)
         case DataTypeId::OMNI_LONG: {
             distinctMapView = reinterpret_cast<KeyedStateMapViewWithKeysNullable<VoidNamespace, long, long> *>(
                     perKeyViewStore->getStateMapView<VoidNamespace, long, long>("distinct_acc" + std::to_string(aggFuncIndex), true,
-                                                                                InternalSerializers::create(new BasicLogicalType(typeId, false)),
-                                                                                InternalSerializers::create(new BasicLogicalType(typeId, false))));
+                                                                                createOwnedDistinctSerializer(typeId),
+                                                                                createOwnedDistinctSerializer(typeId)));
 
             break;
         }
