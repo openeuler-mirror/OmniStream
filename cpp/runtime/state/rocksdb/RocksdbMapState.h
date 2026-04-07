@@ -246,7 +246,7 @@ void RocksdbMapState<K, N, UK, UV>::putByBatch(std::unordered_map<K,std::unorder
 template<typename K, typename N, typename UK, typename UV>
 void RocksdbMapState<K, N, UK, UV>::putByBatch(std::unordered_map<K, std::vector<std::tuple<UK, UV>>> &dataToAdd)
 {
-    stateTable->putByBatch(dataToAdd);
+    stateTable->putByBatch(currentNamespace,dataToAdd);
 }
 
 template<typename K, typename N, typename UK, typename UV>
@@ -258,13 +258,13 @@ void RocksdbMapState<K, N, UK, UV>::putByBatch(std::vector<std::shared_ptr<std::
 template<typename K, typename N, typename UK, typename UV>
 void RocksdbMapState<K, N, UK, UV>::putByBatch(std::vector<std::shared_ptr<std::tuple<K,UK,UV>>> &dataToAdd)
 {
-    stateTable->putByBatch(dataToAdd);
+    stateTable->putByBatch(currentNamespace,dataToAdd);
 }
 
 template<typename K, typename N, typename UK, typename UV>
 void RocksdbMapState<K, N, UK, UV>::putByBatch(std::vector<std::tuple<K,UK,UV>> &dataToAdd)
 {
-    stateTable->putByBatch(dataToAdd);
+    stateTable->putByBatch(currentNamespace,dataToAdd);
 }
 
 template<typename K, typename N, typename UK, typename UV>
