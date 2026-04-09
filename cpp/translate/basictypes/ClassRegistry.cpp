@@ -9,6 +9,11 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "basictypes/ClassRegistry.h"
+
+#include "core/typeinfo/typeconstants.h"
+#include "basictypes/String.h"
+#include "runtime/state/VoidNamespace.h"
+
 ClassRegistry& ClassRegistry::instance()
 {
     static ClassRegistry registry;
@@ -37,6 +42,20 @@ Class* ClassRegistry::getClass(const std::string& name)
     Class* newClass = new Class(name);
     classes_[name] = newClass;
     return newClass;
+}
+
+Class* ClassRegistry::newClass(const std::string& name) {
+	if(strcasecmp(name.c_str(), TYPE_NAME_STRING) == 0
+		|| name == TYPE_NAME_STRING_CLASS
+		|| name == TYPE_NAME_STRING_CLASS_LINE) {
+		return new Class([]() -> Object* { return new String(); });
+	} else if(strcasecmp(name.c_str(), TYPE_NAME_VOID_NAMESPACE) == 0
+		|| name == TYPE_NAME_VOID_NAMESPACE_CLASS
+		|| name == TYPE_NAME_VOID_NAMESPACE_CLASS_LINE) {
+		return new Class([]() -> Object* { return new VoidNamespace(); });
+	} else {
+		return new Class(name);
+	}
 }
 
 bool ClassRegistry::hasRegistry(const std::string &name)

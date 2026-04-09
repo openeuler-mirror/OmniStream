@@ -10,40 +10,43 @@
  */
 #ifndef FLINK_TNEL_VOIDNAMESPACESERIALIZER_H
 #define FLINK_TNEL_VOIDNAMESPACESERIALIZER_H
-#include "core/typeutils/TypeSerializer.h"
+
+#include "core/typeutils/TypeSerializerSingleton.h"
 #include "VoidNamespace.h"
 
-class VoidNamespaceSerializer : public TypeSerializer {
+class VoidNamespaceSerializer : public TypeSerializerSingleton {
 public:
-    VoidNamespaceSerializer() {};
+    VoidNamespaceSerializer() { reuseBuffer = new VoidNamespace(); }
 
-    void *deserialize(DataInputView &source) override
-    {
-        source.readByte();
-        return static_cast<void *>(new VoidNamespace());
+    ~VoidNamespaceSerializer() override = default;
+
+    void* deserialize(DataInputView& source) override;
+
+    void serialize(void* record, DataOutputSerializer& target) override { target.write(0); }
+
+    void deserialize(Object* buffer, DataInputView& source) override {}
+
+    void serialize(Object* buffer, DataOutputSerializer& target) override { target.write(0); }
+
+    const char* getName() const override { return "VoidNamespaceSerializer"; }
+
+    virtual TypeSerializer* duplicate() { return VoidNamespaceSerializer::INSTANCE; }
+
+    virtual std::shared_ptr<TypeSerializerSnapshot> snapshotConfiguration(){
+        // TODO impl build serializer snapshot
+        NOT_IMPL_EXCEPTION
     }
 
-    void serialize(void *record, DataOutputSerializer &target) override
-    {
-        target.write(0);
+    BackendDataType getBackendId() const override { return BackendDataType::VOID_NAMESPACE_BK; }
+
+    std::string toJson() override {
+        SerializerJsonInfo typeJson = {SerializerType::VOID_NAMESPACE};
+        return typeJson.toJson();
     }
 
-    const char *getName() const override
-    {
-        // Not sure what this should return
-        return nullptr;
-    }
+    Object* GetBuffer() override;
 
-    BackendDataType getBackendId() const override { return BackendDataType::VOID_NAMESPACE_BK;};
-
-    TypeSerializer* duplicate() override
-    {
-        return new VoidNamespaceSerializer();
-    };
-    virtual std::shared_ptr<TypeSerializerSnapshot> snapshotConfiguration()
-    {
-        // Only VoidNamespaceSerializer, MapSerializer, KyroSerializer are used in MT6000C
-        return nullptr;
-    };
+    static VoidNamespaceSerializer* INSTANCE;
 };
+
 #endif // FLINK_TNEL_VOIDNAMESPACESERIALIZER_H

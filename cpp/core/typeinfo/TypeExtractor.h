@@ -18,25 +18,41 @@
 #include "PojoField.h"
 #include "PojoTypeInfo.h"
 #include "MapTypeInfo.h"
+#include "TimerTypeInfo.h"
+#include "runtime/state/VoidNamespace.h"
+#include "runtime/state/VoidNamespaceTypeInfo.h"
 #include "basictypes/ClassRegistry.h"
+#include "streaming/api/operators/TimerHeapInternalTimer.h"
 
 class TypeExtractor {
 public:
     inline static std::string MAP_NAME = "java_util_Map";
 
-    inline static TypeInformation *CreateTypeInfo(Class *cl)
-    {
-        auto basicTypeInfo = BasicTypeInfo::getBasicTypeInfoByClass(cl->name);
+    inline static TypeInformation *CreateTypeInfo(Class* cl) {
+        std::string className = cl->name;
+        auto basicTypeInfo = BasicTypeInfo::getBasicTypeInfoByClass(className);
         if (basicTypeInfo != nullptr) {
             return basicTypeInfo;
-        }
-        if (cl->name.compare(0, MAP_NAME.length(), MAP_NAME) == 0) {
+        } else if (className.compare(0, MAP_NAME.length(), MAP_NAME) == 0) {
             // java_util_Map<java_lang_String,java_util_Map<java_lang_String,java_lang_String>>
-            auto genericTypes = cl->name.substr(MAP_NAME.length() + 1, cl->name.length() - MAP_NAME.length() - 2);
+            auto genericTypes = className.substr(MAP_NAME.length() + 1, className.length() - MAP_NAME.length() - 2);
             auto types = splitAndTrim(genericTypes);
             auto keyTypeInfo = CreateTypeInfo(ClassRegistry::instance().getClass(types.first));
             auto valueTypeInfo = CreateTypeInfo(ClassRegistry::instance().getClass(types.second));
             return new MapTypeInfo(keyTypeInfo, valueTypeInfo);
+        } else if (strcasecmp(className.c_str(), TYPE_NAME_VOID_NAMESPACE) == 0
+                || className == TYPE_NAME_VOID_NAMESPACE_CLASS
+                || className == TYPE_NAME_VOID_NAMESPACE_CLASS_LINE) {
+            return new VoidNamespaceTypeInfo(className.c_str());
+        } else if (strcasecmp(className.c_str(), TYPE_NAME_TIMER) == 0
+                || className == TYPE_NAME_TIMER_CLASS
+                || className == TYPE_NAME_TIMER_CLASS_LINE) {
+            auto timer = static_cast<TimerHeapInternalTimer<Object*, Object*>*>(cl->newInstance());
+            Class* keyClazz = timer->getKey()->getClass();
+            Class* namespaceClazz = timer->getNamespace()->getClass();
+            auto keyTypeInfo = CreateTypeInfo(keyClazz);
+            auto namespaceTypeInfo = CreateTypeInfo(namespaceClazz);
+            return new TimerTypeInfo(keyTypeInfo, namespaceTypeInfo, keyClazz, namespaceClazz);
         }
         auto typeInformation = analyzePojo(cl);
         if (typeInformation != nullptr) {

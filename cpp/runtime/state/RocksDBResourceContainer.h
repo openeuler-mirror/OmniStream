@@ -39,6 +39,10 @@ public:
     std::shared_ptr<rocksdb::ColumnFamilyOptions> getColumnOptions()
     {
         auto opt = createBaseCommonColumnOptions();
+
+        // set the configurable options
+        DefaultConfigurableOptionsFactory::createColumnOptions(*opt);
+
         return opt;
     }
 

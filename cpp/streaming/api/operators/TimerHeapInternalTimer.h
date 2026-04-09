@@ -15,9 +15,10 @@
 #include "data/RowData.h"
 #include "table/runtime/operators/window/TimeWindow.h"
 #include "runtime/state/VoidNamespace.h"
+#include "basictypes/Object.h"
 
 template <typename K, typename N>
-class TimerHeapInternalTimer : public InternalTimer<K, N> {
+class TimerHeapInternalTimer : public InternalTimer<K, N>, public Object {
 public:
     TimerHeapInternalTimer(long timestamp, K key, N nameSpace)
         : key(key), nameSpace(nameSpace), timestamp(timestamp), timerHeapIndex(0)
@@ -25,12 +26,18 @@ public:
         if constexpr (std::is_same_v<K, Object*>) {
             reinterpret_cast<Object*>(key)->getRefCount();
         }
+        if constexpr (std::is_same_v<N, Object*>) {
+            reinterpret_cast<Object*>(nameSpace)->getRefCount();
+        }
     };
 
     ~TimerHeapInternalTimer()
     {
         if constexpr (std::is_same_v<K, Object*>) {
             reinterpret_cast<Object*>(key)->putRefCount();
+        }
+        if constexpr (std::is_same_v<N, Object*>) {
+            reinterpret_cast<Object*>(nameSpace)->putRefCount();
         }
     }
 
@@ -71,6 +78,41 @@ public:
     bool operator!=(TimerHeapInternalTimer<K, N> &other) const
     {
         return !(*this == other);
+    }
+
+	inline void setKey(K key_) {
+        if constexpr (std::is_same_v<K, Object*>) {
+            reinterpret_cast<Object*>(key)->putRefCount();
+        }
+        key = key_;
+        if constexpr (std::is_same_v<K, Object*>) {
+            reinterpret_cast<Object*>(key)->getRefCount();
+        }
+	}
+
+    inline void setNamespace(N nameSpace_) {
+        if constexpr (std::is_same_v<N, Object*>) {
+            reinterpret_cast<Object*>(nameSpace)->putRefCount();
+        }
+        nameSpace = nameSpace_;
+        if constexpr (std::is_same_v<N, Object*>) {
+            reinterpret_cast<Object*>(nameSpace)->getRefCount();
+        }
+	}
+
+	inline void setTimestamp(long timestamp_) {
+		timestamp = timestamp_;
+    }
+
+
+    void clear() {
+        if constexpr (std::is_same_v<K, Object*>) {
+            reinterpret_cast<Object*>(key)->putRefCount();
+        }
+        if constexpr (std::is_same_v<N, Object*>) {
+            reinterpret_cast<Object*>(nameSpace)->putRefCount();
+        }
+        return;
     }
 
 private:

@@ -22,7 +22,11 @@ enum class SerializerType {
     DOUBLE = 5,
     MAP = 6,
     POJO = 7,
-    STRING_T = 8
+    STRING_T = 8,
+    BOOLEAN = 9,
+    VOID = 10,
+    VOID_NAMESPACE = 11,
+    TIMER = 12
 };
 
 struct SerializerJsonInfo {
@@ -34,6 +38,8 @@ struct SerializerJsonInfo {
     TypeSerializer *keySerializer;
     // valueSerializer map及list中的pojo使用
     TypeSerializer *valueSerializer;
+    // namespaceSerializer TimerSerializer 使用
+    TypeSerializer *namespaceSerializer;
     // fieldSerializers和fieldNames pojo使用
     std::vector<TypeSerializer *> fieldSerializers;
     std::vector <std::string> fieldNames;
@@ -48,6 +54,9 @@ public:
         }
         if (valueSerializer != nullptr) {
             jsonObj["valueSerializer"] = valueSerializer->toJson();
+        }
+        if (namespaceSerializer != nullptr) {
+            jsonObj["namespaceSerializer"] = namespaceSerializer->toJson();
         }
         if (fieldSerializers.size() != fieldNames.size()) {
             return jsonObj.dump();

@@ -64,7 +64,7 @@ public:
 
     std::string toJson() override
     {
-        SerializerJsonInfo typeJson = {SerializerType::POJO, clazz, nullptr, nullptr, registeredSerializers, fields};
+        SerializerJsonInfo typeJson = {SerializerType::POJO, clazz, nullptr, nullptr, nullptr, registeredSerializers, fields};
         return typeJson.toJson();
     }
 

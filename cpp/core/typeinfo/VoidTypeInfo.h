@@ -13,16 +13,17 @@
 
 #include "../typeutils/VoidSerializer.h"
 #include "TypeInformation.h"
+#include "typeconstants.h"
 
 class VoidTypeInfo : public TypeInformation {
 public:
     explicit VoidTypeInfo(const char* name);
     TypeSerializer* createTypeSerializer() override;
     std::string name() override;
-    BackendDataType getBackendId() const override {return BackendDataType::VOID_NAMESPACE_BK;}
+    BackendDataType getBackendId() const override { return BackendDataType::OBJECT_BK; }
 
 private:
-    std::string name_;
+    const char* name_ = TYPE_NAME_VOID;
 };
 
 #endif  // VOIDTYPEINFO_H
