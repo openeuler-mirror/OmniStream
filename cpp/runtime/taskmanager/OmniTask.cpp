@@ -378,6 +378,7 @@ namespace omnistream {
         if (auto remoteChannel = std::dynamic_pointer_cast<RemoteInputChannel>(channel)) {
             if (taskType == 1 && isBuffer) {
                 remoteChannel->notifyRemoteDataAvailableForVectorBatch(bufferAddress, bufferLength, sequenceNumber);
+                originalNetworkBufferRecycler_->recycle(bufferAddress);
             } else {
                 remoteChannel->notifyRemoteDataAvailableForNetworkBuffer(
                     bufferAddress, bufferLength, readIndex, sequenceNumber,

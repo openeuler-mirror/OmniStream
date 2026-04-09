@@ -27,12 +27,16 @@ namespace omnistream {
             auto memorySegment = reinterpret_cast<MemorySegment*>(segment);
             if (memorySegment) {
                 long address = reinterpret_cast<long>(memorySegment->getAll());
-
-                std::lock_guard<std::mutex> lock(queue_mutex);
-                originalNetworkBufferQueue.push(address);
-                queue_cv.notify_one();
+                recycle(address);
             }
-        };
+        }
+
+        void recycle(long address)
+        {
+            std::lock_guard<std::mutex> lock(queue_mutex);
+            originalNetworkBufferQueue.push(address);
+            queue_cv.notify_one();
+        }
 
         [[nodiscard]] std::string toString() const override
         {
