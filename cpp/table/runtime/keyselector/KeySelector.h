@@ -186,14 +186,14 @@ KeySelector<K>::KeySelector(const std::vector<int32_t> &keyColTypeIds, const std
                 // varchar and char has the possibility of being a dictionary vector due to StreamCalc filter
                 serializers.push_back(this->VarcharSerializer);
                 deserializers.push_back(omniruntime::op::vectorDeSerializerCenter[typeId]);
+            } else if (typeId == omniruntime::type::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE) {
+                serializers.push_back(omniruntime::op::vectorSerializerCenter[omniruntime::type::OMNI_LONG]);
+                deserializers.push_back(omniruntime::op::vectorDeSerializerCenter[omniruntime::type::OMNI_LONG]);
             } else if (typeId < omniruntime::type::OMNI_INVALID) {
                 // If it is one of the old omniruntime types
                 serializers.push_back(omniruntime::op::vectorSerializerCenter[typeId]);
                 deserializers.push_back(omniruntime::op::vectorDeSerializerCenter[typeId]);
-            } else if (typeId == omniruntime::type::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE) {
-                serializers.push_back(omniruntime::op::vectorSerializerCenter[omniruntime::type::OMNI_LONG]);
-                deserializers.push_back(omniruntime::op::vectorDeSerializerCenter[omniruntime::type::OMNI_LONG]);
-            } else {
+	    } else {
                 throw std::runtime_error("Key type not supported!");
             }
         }

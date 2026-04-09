@@ -453,7 +453,7 @@ TEST(StreamCalcBatchTest, Q12ProctimeTest) {
                 "TIMESTAMP_LTZ(3)"
             ],
             "indices": [
-                {"exprType":"PROCTIME","returnType": 22}
+                {"exprType":"PROCTIME","returnType": 24}
             ],
             "condition": null
             }
