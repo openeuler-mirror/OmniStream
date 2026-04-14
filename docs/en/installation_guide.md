@@ -49,7 +49,7 @@ Before installing OmniStream, prepare the hardware and software environments to 
 |GCC| [10.3.1](https://repo.openeuler.openatom.cn/openEuler-22.03-LTS-SP4/update/aarch64/Packages/gcc-10.3.1-66.oe2203sp4.aarch64.rpm)                                              | None                                                                                                                                                                                        |
 |Maven| [3.8.7](https://archive.apache.org/dist/maven/maven-3/3.8.7/binaries/apache-maven-3.8.7-bin.zip)                                               | Use it to generate the JAR package of UDF test cases.                                                                                                                                       |
 |Jemalloc| [5.3.0](https://github.com/jemalloc/jemalloc/archive/refs/tags/5.3.0.tar.gz)                                               | Use it to provide the header file used for UDF translation.                                                                                                                                 |
-|OmniOperator| [operator_flink_1107](https://atomgit.com/openeuler/OmniOperator/tree/operator_flink_1107)                                 | Use it to provide the header file used for UDF translation.                                                                                                                                 |
+|OmniOperator| [master](https://atomgit.com/openeuler/OmniOperator/tree/master)                                 | Use it to provide the header file used for UDF translation.                                                                                                                                 |
 |Xxhash| [0.8.2](https://github.com/Cyan4973/xxHash/tree/v0.8.2)                                               | Use it to provide the header file used for UDF translation.                                                                                                                                 |
 |nlohmann json| [3.11.3](https://github.com/nlohmann/json/tree/v3.11.3)                                              | Use it to provide the header file used for UDF translation.                                                                                                                                 |
 
@@ -482,9 +482,10 @@ In independent deployment mode, you can install the precompiled OmniStream binar
     flink-tnel-0.1-SNAPSHOT.jar
     libtnel.so
     libboundscheck.so
-    libboostkit-omniop-codegen-2.0.0-aarch64.so
-    libboostkit-omniop-operator-2.0.0-aarch64.so
-    libboostkit-omniop-vector-2.0.0-aarch64.so
+    libboostkit-omniop-codegen-2.1.0-aarch64.so
+    libboostkit-omniop-operator-2.1.0-aarch64.so
+    libboostkit-omniop-vector-2.1.0-aarch64.so
+    libre2.so.11
     libbasictypes
     include
     ```
@@ -612,7 +613,7 @@ In independent deployment mode, you can install the precompiled OmniStream binar
 
         ```bash
         cd /usr/local/OmniStream/depend/
-        git clone https://atomgit.com/openeuler/OmniOperator.git -b operator_flink_1107
+        git clone https://atomgit.com/openeuler/OmniOperator.git -b master
         mv OmniOperator OmniOperatorJIT 
         docker cp /usr/local/OmniStream/depend/OmniOperatorJIT flink_jm_8c32g:/opt/udf-trans-opt/libbasictypes/include/
         ```
@@ -630,7 +631,7 @@ In independent deployment mode, you can install the precompiled OmniStream binar
 
         ```bash
         cd /usr/local/OmniStream/depend/
-        gitclone https://github.com/nlohmann/json.git-b v3.11.3
+        git clone https://github.com/nlohmann/json.git -b v3.11.3
         docker cp /usr/local/OmniStream/depend/nlohmann/include/nlohmann flink_jm_8c32g:/opt/udf-trans-opt/libbasictypes/include/
         ```
 
