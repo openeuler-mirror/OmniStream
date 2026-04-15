@@ -633,7 +633,7 @@ rpm -ivh yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
    4. 下载OmniOperator，将OmniOperator源码全部拷贝到容器UDF工具的头文件引用目录中。
        ```bash
        cd /usr/local/OmniStream/depend/
-       git clone https://atomgit.com/openeuler/OmniOperator.git -b operator_flink_1107
+       git clone https://atomgit.com/openeuler/OmniOperator.git -b master
        mv OmniOperator OmniOperatorJIT 
        docker cp /usr/local/OmniStream/depend/OmniOperatorJIT flink_jm_8c32g:/opt/udf-trans-opt/libbasictypes/include/
        ```
@@ -651,7 +651,7 @@ rpm -ivh yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
 
        ```bash
        cd /usr/local/OmniStream/depend/
-       gitclone https://github.com/nlohmann/json.git-b v3.11.3
+       git clone https://github.com/nlohmann/json.git -b v3.11.3
        docker cp /usr/local/OmniStream/depend/nlohmann/include/nlohmann flink_jm_8c32g:/opt/udf-trans-opt/libbasictypes/include/
        ```
 
