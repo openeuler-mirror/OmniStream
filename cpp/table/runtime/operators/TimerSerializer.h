@@ -10,22 +10,52 @@
  */
 #ifndef FLINK_TNEL_TIMERSERIALIZER_H
 #define FLINK_TNEL_TIMERSERIALIZER_H
-#include "core/typeutils/TypeSerializer.h"
+
+#include "core/typeutils/TypeSerializerSingleton.h"
 #include "streaming/api/operators/TimerHeapInternalTimer.h"
+#include "basictypes/Class.h"
 
-template <typename K, typename N>
-class TimerSerializer : public TypeSerializer {
+
+class TimerSerializer : public TypeSerializerSingleton {
 public:
-    TimerSerializer(TypeSerializer *keySerializer,
-                    TypeSerializer *namespaceSerializer) : keySerializer(keySerializer),
-                                                           namespaceSerializer(namespaceSerializer) {};
+    TimerSerializer(TypeSerializer* keySerializer_, TypeSerializer* namespaceSerializer_, Class* keyClazz_, Class* namespaceClazz_);
 
-    void *deserialize(DataInputView &source) override { NOT_IMPL_EXCEPTION; };
-    void serialize(void *record, DataOutputSerializer &target) override { NOT_IMPL_EXCEPTION; };
-    BackendDataType getBackendId() const override { return BackendDataType::INVALID_BK;};
+    ~TimerSerializer() override;
+
+    TimerHeapInternalTimer<Object*, Object*>* createInstance();
+
+    void* deserialize(DataInputView& source) override { NOT_IMPL_EXCEPTION }
+
+    void serialize(void* record, DataOutputSerializer& target) override { NOT_IMPL_EXCEPTION }
+
+    void serialize(Object* buffer, DataOutputSerializer& target) override;
+
+    void deserialize(Object* buffer, DataInputView& source) override;
+
+    std::shared_ptr<TypeSerializerSnapshot> snapshotConfiguration() {
+		// TODO impl build serializer snapshot
+        NOT_IMPL_EXCEPTION
+    }
+
+    BackendDataType getBackendId() const override { return BackendDataType::OBJECT_BK; }
+
+    const char* getName() const override { return "TimerSerializer"; }
+
+	void setSubBufferReusable(bool bufferReusable_) override;
+
+    Object* GetBuffer() override;
+
+    std::string toJson() override {
+        SerializerJsonInfo typeJson = {SerializerType::TIMER, "", keySerializer, nullptr, namespaceSerializer};
+        return typeJson.toJson();
+    };
+
 private:
-    TypeSerializer *keySerializer;
-    TypeSerializer *namespaceSerializer;
+    TypeSerializer* keySerializer;
+    TypeSerializer* namespaceSerializer;
+
+    Class* keyClazz;
+    Class* namespaceClazz;
 };
 
 #endif // FLINK_TNEL_TIMERSERIALIZER_H
