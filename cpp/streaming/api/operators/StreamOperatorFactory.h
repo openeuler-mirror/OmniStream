@@ -36,10 +36,14 @@ private:
         WatermarkGaugeExposingOutput* chainOutput, std::shared_ptr<omnistream::OmniStreamTask> task);
     static StreamOperator* CreateGlobalWindowAggOp(omnistream::OperatorPOD &opConfig,
         WatermarkGaugeExposingOutput* chainOutput, std::shared_ptr<omnistream::OmniStreamTask> task);
-    static StreamOperator* CreateGroupAggOp(omnistream::OperatorPOD &opConfig,
-        WatermarkGaugeExposingOutput* chainOutput, std::shared_ptr<omnistream::OmniStreamTask> task);
+    static StreamOperator* CreateGroupWindowAggOp(OperatorPOD &opConfig,
+                                                  WatermarkGaugeExposingOutput* chainOutput,
+                                                  std::shared_ptr<omnistream::OmniStreamTask> task,
+                                                   ProcessingTimeService* processingTimeService);
     static StreamOperator* CreateWatermarkAssignerOp(omnistream::OperatorPOD &opConfig,
-        WatermarkGaugeExposingOutput* chainOutput, std::shared_ptr<omnistream::OmniStreamTask> task);
+                                                     WatermarkGaugeExposingOutput* chainOutput,
+                                                     std::shared_ptr<omnistream::OmniStreamTask> task,
+                                                     ProcessingTimeService* processingTimeService);
     static StreamOperator* CreateKeyedProcessOp(omnistream::OperatorPOD &opConfig,
         WatermarkGaugeExposingOutput* chainOutput, std::shared_ptr<omnistream::OmniStreamTask> task);
     static StreamOperator* CreateSinkOp(omnistream::OperatorPOD &opConfig,

@@ -10,8 +10,13 @@
  */
 
 #include "DelayedWorkQueue.h"
+#include "common.h"
+
 void DelayedWorkQueue::Offer(ScheduledFutureTask* task)
 {
+    if (task == nullptr) {
+        THROW_RUNTIME_ERROR("DelayedWorkQueue::Offer, task is nullptr");
+    }
     std::lock_guard<std::mutex> lock(queueMutex);
     queue.push(task);
     condition.notify_one();

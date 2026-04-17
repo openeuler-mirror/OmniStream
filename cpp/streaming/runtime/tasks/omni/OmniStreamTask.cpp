@@ -49,6 +49,7 @@
 #include "runtime/state/LocalRecoveryDirectoryProviderImpl.h"
 #include "runtime/taskmanager/OmniTask.h"
 #include "partition/BufferWritingResultPartition.h"
+#include "streaming/runtime/tasks/ProcessingTimeServiceImpl.h"
 
 namespace omnistream {
 
@@ -81,7 +82,13 @@ OmniStreamTask::OmniStreamTask(std::shared_ptr<RuntimeEnvironmentV2> &env,
     taskName_ = taskConfiguration_.getTaskName();
     LOG("begin>>>>"  << taskName_);
     recordWriter_ = createRecordWriterDelegate(taskConfiguration_, env_);
-    systemTimerService = make_shared<SystemProcessingTimeService>();
+
+    // The internal TimerService used to define the current processing time (default = System.currentTimeMillis()),
+    // and register timers for tasks to be executed in the future.
+    timerService = std::make_shared<SystemProcessingTimeService>();
+    // In contrast to timerService, we should not register any user timers here. It should be used only for system level timers.
+    systemTimerService = std::make_shared<SystemProcessingTimeService>();
+
     // SubtaskCheckpointCoordinatorImpl initialization
     if (taskConfiguration_.getStateBackend() == "HashMapStateBackend") {
         stateBackend = new HashMapStateBackend();
@@ -857,5 +864,41 @@ void OmniStreamTask::processInput(MailboxDefaultAction::Controller *controller)
             return true;
         }
         return false;
+    }
+
+
+    // Create processingTimeService which can defer the execution of op.onProcessingTime to mainThread(Mailbox)
+    ProcessingTimeService* OmniStreamTask::createProcessingTimeService() {
+        ProcessingTimeServiceImpl::ProcessingTimeCallbackWrapper processingTimeCallbackWrapper = [this](ProcessingTimeCallback *callback) {
+            return deferCallbackToMailBox(this->mainMailboxExecutor_, callback);
+        };
+        return new ProcessingTimeServiceImpl(this->timerService.get(), std::move(processingTimeCallbackWrapper));
+    }
+
+    ProcessingTimeCallback* OmniStreamTask::deferCallbackToMailBox(std::shared_ptr<MailboxExecutor> mailboxExecutor, ProcessingTimeCallback* callback) {
+        class DeferredCallback : public ProcessingTimeCallback {
+            public:
+                DeferredCallback(std::shared_ptr<MailboxExecutor> mailboxExecutor, ProcessingTimeCallback* callback)
+                    : mailboxExecutor_(mailboxExecutor), callback_(callback) {}
+
+                void OnProcessingTime(int64_t timestamp) override {
+                    auto mailboxRunnable = std::make_shared<VoidFunctionRunnable>(
+                        [this, timestamp]() {
+                            try {
+                                this->callback_->OnProcessingTime(timestamp);
+                            } catch (...) {
+                                // todo: realize handleAsyncException
+                                THROW_RUNTIME_ERROR("Caught exception while processing timer")
+                            }
+                        }
+                    );
+
+                    mailboxExecutor_->execute(mailboxRunnable, "Timer callback");
+                }
+            private:
+                std::shared_ptr<MailboxExecutor> mailboxExecutor_;
+                ProcessingTimeCallback* callback_;
+        };
+        return new DeferredCallback(mailboxExecutor, callback);
     }
 } // namespace omnistream

@@ -15,8 +15,7 @@ TEST(WatermarkAssignerOperatorTest, InitTest)
     long outOfOrderT = 4000;
     long emissionInterval = 200;
     OutputTest *out = new OutputTest();
-    WatermarkAssignerOperator *op = new WatermarkAssignerOperator(out, timeRowIndex, outOfOrderT, emissionInterval);
-    op->setProcessingTimeService(new SystemProcessingTimeService());
+    WatermarkAssignerOperator *op = new WatermarkAssignerOperator(out, timeRowIndex, outOfOrderT, emissionInterval, new SystemProcessingTimeService());
     op->open();
 
     int rowCount = 5;

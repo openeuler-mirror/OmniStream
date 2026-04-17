@@ -143,6 +143,7 @@ namespace omnistream {
         StreamPartitionerV2<StreamRecord> *createPartitionerFromDesc(StreamPartitionerPOD partitioner);
 
         datastream::StreamPartitioner<IOReadableWritable> *createPartitionerFromDesc(const StreamEdgePOD &edge);
+        ProcessingTimeService* createProcessingTimeService();
     protected:
         std::shared_ptr<RuntimeEnvironmentV2> env_;
         std::vector<OperatorConfig> operatorChainConfig_;
@@ -153,7 +154,7 @@ namespace omnistream {
         StreamOperator* mainOperator_ = nullptr;
         OmniStreamInputProcessor* inputProcessor_ = nullptr;
 
-
+        static ProcessingTimeCallback* deferCallbackToMailBox(shared_ptr<MailboxExecutor> mailboxExecutor, ProcessingTimeCallback *callback);
 
     protected:
         /**
@@ -171,6 +172,7 @@ namespace omnistream {
         TaskMailbox* mailbox_; // 负责存储相应 task 任务（也就是 mail），它支持多写单读，单线程读取并处理, delete by MailboxProcessor
         std::unique_ptr<MailboxProcessor> mailboxProcessor_; // MailBox 的核心处理线程，MailboxDefaultAction 是其默认的 action 实现
         std::shared_ptr<MailboxExecutor> mainMailboxExecutor_; // 它负责向 MailBox 提交 task 任务
+        std::shared_ptr<ProcessingTimeService> timerService;
         std::shared_ptr<SystemProcessingTimeService> systemTimerService;
 
         TaskInformationPOD taskConfiguration_;

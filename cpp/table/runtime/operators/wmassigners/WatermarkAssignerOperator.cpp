@@ -11,21 +11,24 @@
 #include "WatermarkAssignerOperator.h"
 
 WatermarkAssignerOperator::WatermarkAssignerOperator(
-    Output *output, int rowtimeIndex, int64_t outOfOrderT, int64_t idleTimeout)
+    Output *output, int rowtimeIndex, int64_t outOfOrderT, int64_t idleTimeout, ProcessingTimeService* processingTimeService)
     : rowtimeIndex_(rowtimeIndex), outOfOrderTime_(outOfOrderT), idleTimeout_(idleTimeout)
 {
     setOutput(output);
     currentStatus = new WatermarkStatus(WatermarkStatus::activeStatus);
-    lastWatermark_ = 0 - outOfOrderT;
+    setProcessingTimeService(processingTimeService);
 }
 
 void WatermarkAssignerOperator::processBatch(StreamRecord *element)
 {
-     LOG("WateMark process Batch")
-//     }
+    LOG("WaterMark process Batch")
+
+    if (idleTimeout_ > 0 && currentStatus->Equals(WatermarkStatus::idleStatus)) {
+        emitWatermarkStatus(new WatermarkStatus(WatermarkStatus::activeStatus));
+        lastRecordTime_ = getProcessingTimeService()->getCurrentProcessingTime();
+    }
 
     omnistream::VectorBatch *batch = reinterpret_cast<omnistream::VectorBatch *>(element->getValue());
-
     int64_t currentWatermarkMax = 0;
 
     auto timeColumn = reinterpret_cast<omniruntime::vec::Vector<int64_t> *>(batch->Get(rowtimeIndex_));
@@ -45,7 +48,7 @@ void WatermarkAssignerOperator::processBatch(StreamRecord *element)
 
 void WatermarkAssignerOperator::processElement(StreamRecord *element)
 {
-    LOG("WateMark process element")
+    LOG("WaterMark process element")
     if (idleTimeout_ > 0 && currentStatus->Equals(WatermarkStatus::idleStatus)) {
         emitWatermarkStatus(new WatermarkStatus(WatermarkStatus::activeStatus));
         lastRecordTime_ = getProcessingTimeService()->getCurrentProcessingTime();
@@ -70,13 +73,15 @@ void WatermarkAssignerOperator::advanceWatermark()
 {
     if (currentWatermark_ > lastWatermark_) {
         lastWatermark_ = currentWatermark_;
-        output->emitWatermark(new Watermark(currentWatermark_));
+        Watermark *watermark = new Watermark(currentWatermark_);
+        output->emitWatermark(watermark);
     }
 }
 
 void WatermarkAssignerOperator::emitWatermarkStatus(WatermarkStatus *watermarkStatus)
 {
     currentStatus = watermarkStatus;
+    output->emitWatermarkStatus(watermarkStatus);
 }
 
 void WatermarkAssignerOperator::OnProcessingTime(int64_t timestamp)
@@ -101,14 +106,14 @@ int64_t WatermarkAssignerOperator::currentWatermark(int64_t element_watermark)
 
 void WatermarkAssignerOperator::open()
 {
+    lastRecordTime_ = getProcessingTimeService()->getCurrentProcessingTime();
+
     // Set emissionInterval_?
     // Usually set as default value, haven't seen a case where anything other than a predetermined value is used
-
-    lastWatermark_ = 0 - outOfOrderTime_;
-    // Convert time_point to epoch time in milliseconds
-    LOG("getProcessingTimeService()" << getProcessingTimeService())
-    this->setProcessingTimeService(new SystemProcessingTimeService());
-    lastRecordTime_ = getProcessingTimeService()->getCurrentProcessingTime();
+    if (emissionInterval_ > 0) {
+        int64_t now = getProcessingTimeService()->getCurrentProcessingTime();
+        getProcessingTimeService()->registerTimer(now + emissionInterval_, this);
+    }
 }
 
 void WatermarkAssignerOperator::ProcessWatermark(Watermark *mark)

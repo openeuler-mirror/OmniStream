@@ -14,22 +14,21 @@
 
 #pragma once
 
-#include <map>
 #include <set>
 #include <vector>
-#include <iostream>
 #include <memory>
 #include <functional>
-#include "../TimeWindow.h"
 #include "../assigners/MergingWindowAssigner.h"
 #include "core/api/common/state/MapState.h"
+#include "LRUMap.h"
+#include "runtime/operators/window/TimeWindow.h"
 
 template<typename W>
 class MergingWindowSet {
 public:
-    using MergeFunction = std::function<void(W &, std::unordered_set<W, MyKeyHash> &, W &, std::vector<W> &)>;
+    using MergeFunction = std::function<void(W &, std::unordered_set<W> &, W &, std::vector<W> &)>;
     using AssignerPtr = std::shared_ptr<MergingWindowAssigner<W>>;
-    using MappingPtr = std::unique_ptr<std::unordered_map<W, W, MyKeyHash>>;
+    using MappingPtr = std::unique_ptr<std::unordered_map<W, W>>;
 
     MergingWindowSet() = default;
 
@@ -37,7 +36,7 @@ public:
 
     MergingWindowSet(AssignerPtr windowAssigner, MapState<W, W>* mapping);
 
-    void InitializeCache(BinaryRowData key);
+    void InitializeCache(BinaryRowData *key);
 
     W GetStateWindow(const W &window);
 
@@ -61,9 +60,8 @@ private:
 
     // todo need to be HeapMapState, now only support same keyRowData
     MapState<W, W>* mapping;
-    // need to be LRUMap
-    std::unordered_map<BinaryRowData, std::set<W>*> cachedSortedWindows;
-    std::set<W>* sortedWindows;
+    LRUMap<BinaryRowData*, std::set<W>*> cachedSortedWindows{MAPPING_CACHE_SIZE};
+    std::set<W>* sortedWindows = nullptr;
     AssignerPtr windowAssigner;
 };
 #endif

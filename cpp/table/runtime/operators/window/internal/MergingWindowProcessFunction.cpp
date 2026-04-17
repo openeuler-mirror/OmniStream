@@ -28,10 +28,10 @@ template<typename K, typename W>
 std::vector<W> MergingWindowProcessFunction<K, W>::AssignStateNamespace(RowData *keyRowData, long timestamp)
 {
     std::vector<W> elementWindows = windowAssigner->AssignWindows(keyRowData, timestamp);
-    mergingWindows.InitializeCache(*dynamic_cast<BinaryRowData*>(keyRowData));
+    mergingWindows.InitializeCache(dynamic_cast<BinaryRowData*>(keyRowData));
     reuseActualWindows = std::vector<W>();
 
-    auto MergingFunction = [this](W &mergeResult, std::unordered_set<W, MyKeyHash> &mergedWindows, W &stateWindowResult,
+    auto MergingFunction = [this](W &mergeResult, std::unordered_set<W> &mergedWindows, W &stateWindowResult,
         std::vector<W> &stateWindowsToBeMerged) {
         long mergeResultMaxTs = mergeResult.maxTimestamp();
         if (!windowAssigner->IsEventTime() && mergeResultMaxTs <= this->ctx->CurrentProcessingTime()) {
@@ -117,9 +117,9 @@ void MergingWindowProcessFunction<K, W>::CleanWindowIfNeeded(W &window, long cur
         // retire expired window
         BinaryRowData *currentKey = dynamic_cast<BinaryRowData*>(this->ctx->CurrentKey());
         if (currentKey != nullptr) {
-            mergingWindows.InitializeCache(*currentKey);
+            mergingWindows.InitializeCache(currentKey);
         } else {
-            std::cerr << "Error: CurrentKey is not of type BinaryRowData" << std::endl;
+            GErrorLog("MergingWindowProcessFunction: CurrentKey is null");
         }
         mergingWindows.RetireWindow(window);
         // do not need to clear previous state, previous state is disabled in session window

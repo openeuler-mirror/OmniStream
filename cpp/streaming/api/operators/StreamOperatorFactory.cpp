@@ -87,7 +87,8 @@ if (uniqueName == OPERATOR_NAME_STREAM_EXPAND) {
     auto *watermarkAssignerOperator = new WatermarkAssignerOperator(chainOutput,
         opConfig.getDescription()["rowtimeFieldIndex"],
         4000,
-        opConfig.getDescription()["idleTimeout"]);
+        opConfig.getDescription()["idleTimeout"],
+        nullptr);
     watermarkAssignerOperator->setup();
     return static_cast<OneInputStreamOperator *>(watermarkAssignerOperator);
 } else if (uniqueName == OPERATOR_NAME_KEYED_PROCESS_OPERATOR) {
@@ -179,10 +180,12 @@ StreamOperator *StreamOperatorFactory::createOperatorAndCollector(omnistream::Op
     } else if (operatorID == OPERATOR_NAME_GLOBAL_WINDOW_AGG) {
         return CreateGlobalWindowAggOp(opDesc, chainOutput, task);
     } else if (operatorID == OPERATOR_NAME_GROUP_WINDOW_AGG) {
-        return CreateGroupAggOp(opDesc, chainOutput, task);
+        auto processingTimeService = task->createProcessingTimeService();
+        return CreateGroupWindowAggOp(opDesc, chainOutput, task, processingTimeService);
     } else if (operatorID == OPERATOR_NAME_WATERMARK_ASSIGNER) {
+        auto processingTimeService = task->createProcessingTimeService();
         // Idle timeout is currently set to 0, but might change depending on the config
-        return CreateWatermarkAssignerOp(opDesc, chainOutput, task);
+        return CreateWatermarkAssignerOp(opDesc, chainOutput, task, processingTimeService);
     } else if (operatorID == OPERATOR_NAME_KEYED_PROCESS_OPERATOR) {
         return CreateKeyedProcessOp(opDesc, chainOutput, task);
     } else if (operatorID == OPERATOR_NAME_SINK || operatorID == OPERATOR_NAME_COLLECT_SINK
@@ -272,24 +275,31 @@ StreamOperator* StreamOperatorFactory::CreateGlobalWindowAggOp(OperatorPOD &opCo
     return static_cast<OneInputStreamOperator *>(op);
 }
 
-StreamOperator* StreamOperatorFactory::CreateGroupAggOp(OperatorPOD &opConfig,
-    WatermarkGaugeExposingOutput *chainOutput, std::shared_ptr<omnistream::OmniStreamTask> task)
+StreamOperator* StreamOperatorFactory::CreateGroupWindowAggOp(OperatorPOD &opConfig, WatermarkGaugeExposingOutput *chainOutput,
+                                                              std::shared_ptr<omnistream::OmniStreamTask> task,
+                                                              ProcessingTimeService *processingTimeService)
 {
     auto description = opConfig.getDescription();
     nlohmann::json opDescriptionJSON = nlohmann::json::parse(description);
     auto *op = new AggregateWindowOperator<RowData*, TimeWindow>(opDescriptionJSON, chainOutput);
+    op->setProcessingTimeService(processingTimeService);
     op->setup(std::move(task));
     LOG("Operator AggregateWindowOperator address " + std::to_string(reinterpret_cast<long>(op)))
     return static_cast<OneInputStreamOperator *>(op);
 }
 
 StreamOperator* StreamOperatorFactory::CreateWatermarkAssignerOp(OperatorPOD &opConfig,
-    WatermarkGaugeExposingOutput *chainOutput, std::shared_ptr<omnistream::OmniStreamTask> task)
+                                                                 WatermarkGaugeExposingOutput *chainOutput,
+                                                                 std::shared_ptr<omnistream::OmniStreamTask> task,
+                                                                 ProcessingTimeService *processingTimeService)
 {
     auto description = opConfig.getDescription();
     nlohmann::json opDescriptionJSON = nlohmann::json::parse(description);
-    auto *watermarkAssignerOperator = new WatermarkAssignerOperator(chainOutput, opDescriptionJSON["rowtimeFieldIndex"],
-                                                                    opDescriptionJSON["intervalSecond"], 0);
+    auto *watermarkAssignerOperator = new WatermarkAssignerOperator(chainOutput,
+                                                                    opDescriptionJSON["rowtimeFieldIndex"],
+                                                                    opDescriptionJSON["intervalSecond"],
+                                                                    0,
+                                                                    processingTimeService);
     return static_cast<OneInputStreamOperator *>(watermarkAssignerOperator);
 }
 
