@@ -26,7 +26,9 @@ enum class SerializerType {
     BOOLEAN = 9,
     VOID = 10,
     VOID_NAMESPACE = 11,
-    TIMER = 12
+    TIMER = 12,
+    // TUPLE = 13 与 OmniAdaptor Java 端 OmniSerializerType.TUPLE 的 code 必须保持一致
+    TUPLE = 13
 };
 
 struct SerializerJsonInfo {

@@ -175,7 +175,65 @@ AbstractKeyedStateBackend<K> *StreamTaskStateInitializerImpl::keyedStatedBackend
     keyContext->setCurrentKeyGroupIndex(start);
 
     if (backendType == "HashMapStateBackend") {
-        return new HeapKeyedStateBackend<K>(keySerializer, keyContext);
+        // Retrieve state handles from checkpoint for restore
+        auto operatorIdStr = env->taskConfiguration().getStreamConfigPOD().getOperatorDescription().getOperatorId();
+        auto operatorId = TaskStateSnapshotDeserializer::HexStringToOperatorId<OperatorID>(operatorIdStr);
+        PrioritizedOperatorSubtaskState prioritizedOperatorSubtaskStates =
+            env->getTaskStateManager()->prioritizedOperatorState(operatorId);
+        auto omniTaskBridge = env->getTaskStateManager()->getOmniTaskBridge();
+
+        delete keyContext;  // builder creates its own InternalKeyContext
+
+        HeapKeyedStateBackendBuilder<K> builder(keySerializer, maxParallelism, keyGroupRange);
+        if (omniTaskBridge) {
+            builder.setOmniTaskBridge(omniTaskBridge);
+        }
+
+        // Extract keyed state handles for restore
+        auto handleVector = prioritizedOperatorSubtaskStates.getPrioritizedManagedKeyedState();
+        // 诊断：把 handleVector 的层级数量、每层 handle 数（含 null 与非 null）、最终筛出的 stateHandles 数量都打出来。
+        // OS-CP→OS-restore 看不到 "restoring from N state handle(s)" 时，最可能就是这里 handleVector 是空，
+        // 或所有 collection 里全是 null —— 据此能判断丢点在 JM→TM 还是 TM-Java→TM-C++。
+        INFO_RELEASE("[OS-CP-restore] operatorId=" << operatorIdStr
+            << " handleVector.size=" << handleVector.size());
+        size_t altIdx = 0;
+        for (const auto& collection : handleVector) {
+            int nonNullCount = 0;
+            for (const auto& handle : collection) {
+                if (handle) nonNullCount++;
+            }
+            INFO_RELEASE("[OS-CP-restore] operatorId=" << operatorIdStr
+                << " alternative=" << altIdx
+                << " collection.size=" << collection.Size()
+                << " nonNullHandles=" << nonNullCount);
+            altIdx++;
+        }
+        if (!handleVector.empty()) {
+            // Use the first (highest priority) alternative
+            std::set<std::shared_ptr<KeyedStateHandle>> stateHandles;
+            for (const auto& collection : handleVector) {
+                for (const auto& handle : collection) {
+                    if (handle) {
+                        stateHandles.insert(handle);
+                    }
+                }
+                if (!stateHandles.empty()) {
+                    break;  // Use the highest priority alternative
+                }
+            }
+            if (!stateHandles.empty()) {
+                INFO_RELEASE("HashMapStateBackend: restoring from " << stateHandles.size() << " state handle(s)");
+                builder.setStateHandles(stateHandles);
+            } else {
+                INFO_RELEASE("[OS-CP-restore] operatorId=" << operatorIdStr
+                    << " handleVector non-empty but all collections empty/null → state will start from scratch");
+            }
+        } else {
+            INFO_RELEASE("[OS-CP-restore] operatorId=" << operatorIdStr
+                << " handleVector empty → JM didn't deliver any keyed state for this subtask");
+        }
+
+        return builder.build();
     } else if (backendType == "EmbeddedRocksDBStateBackend") {
         std::string operatorIdentifierText = UUID::randomUUID().ToString();
         return static_cast<AbstractKeyedStateBackend<K> *>(keyedStatedBackend<K>(keySerializer,

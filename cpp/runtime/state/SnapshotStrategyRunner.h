@@ -43,21 +43,39 @@ public:
         std::shared_ptr<omnistream::OmniTaskBridge> bridge,
         std::string keySerializer)
     {
-        auto snapshotResources = snapshotStrategy_->syncPrepareResources(checkpointId);
-        auto asyncSnapshot = snapshotStrategy_->asyncSnapshot(snapshotResources, checkpointId, timestamp, streamFactory,
-                                                              checkpointOptions, keySerializer);
-        auto task = std::make_shared<std::packaged_task<std::shared_ptr<SnapshotResult<KeyedStateHandle>>()>>(
-            [=]() {
-                return asyncSnapshot->get(bridge);
-        });
+        try {
+            INFO_RELEASE("SnapshotStrategyRunner[" << description_
+                << "]: start syncPrepareResources, checkpointId=" << checkpointId);
+            auto snapshotResources = snapshotStrategy_->syncPrepareResources(checkpointId);
+            INFO_RELEASE("SnapshotStrategyRunner[" << description_
+                << "] syncPrepareResources finished, checkpointId=" << checkpointId);
+            auto asyncSnapshot = snapshotStrategy_->asyncSnapshot(snapshotResources, checkpointId, timestamp, streamFactory,
+                                                                  checkpointOptions, keySerializer);
+            INFO_RELEASE("SnapshotStrategyRunner[" << description_
+                << "]: asyncSnapshot supplier created, checkpointId=" << checkpointId);
+            auto task = std::make_shared<std::packaged_task<std::shared_ptr<SnapshotResult<KeyedStateHandle>>()>>(
+                [=]() {
+                    return asyncSnapshot->get(bridge);
+            });
 
-        if (executionType_ == SnapshotExecutionType::SYNCHRONOUS) {
-            auto res = asyncSnapshot->get(bridge);
-            if (res) {
-                LOG("native rocksdb checkpoint has been finished.");
+            if (executionType_ == SnapshotExecutionType::SYNCHRONOUS) {
+                auto res = asyncSnapshot->get(bridge);
+                if (res) {
+                    LOG("native rocksdb checkpoint has been finished.");
+                }
             }
+            return task;
+        } catch (const std::exception &e) {
+            INFO_RELEASE("SnapshotStrategyRunner[" << description_
+                << "]: snapshot pipeline failed during preparation, checkpointId=" << checkpointId
+                << ", exception=" << e.what());
+            throw;
+        } catch (...) {
+            INFO_RELEASE("SnapshotStrategyRunner[" << description_
+                << "]: snapshot pipeline failed during preparation, checkpointId=" << checkpointId
+                << ", exception=unknown");
+            throw;
         }
-        return task;
     }
 
 private:

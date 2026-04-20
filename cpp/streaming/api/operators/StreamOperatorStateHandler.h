@@ -157,6 +157,7 @@ public:
         bool isUsingCustomRawKeyedState,
         const std::shared_ptr<OmniTaskBridge>& bridge)
     {
+        INFO_RELEASE("ZZT snapshotState111.")
         try {
             if (timeServiceManager != nullptr) {
                 if (keyedStateBackend == nullptr) {
@@ -188,8 +189,17 @@ public:
             }
 
             if (keyedStateBackend) {
+                INFO_RELEASE("ZZT snapshotState222.")
+                // Set bridge on Heap backend for checkpoint (RocksDB gets it via constructor)
+                auto heapBackend = dynamic_cast<HeapKeyedStateBackend<K>*>(keyedStateBackend);
+                if (heapBackend && bridge) {
+                    INFO_RELEASE("ZZT snapshotState333.")
+                    heapBackend->setOmniTaskBridge(bridge);
+                }
+
                 auto keySerializer = keyedStateBackend->getKeySerializer();
                 if (isCanonicalSavepoint(checkpointOptions->GetCheckpointType())) {
+                    INFO_RELEASE("ZZT snapshotState444.")
                     // TTODO
                     // Create a snapshot runner with prepareCanonicalSavepoint()
                     // and set the snapshot as keyedStateManagedFuture
@@ -203,12 +213,39 @@ public:
                             bridge,
                             keySerializer->toJson()));
                 } else {
+                    INFO_RELEASE("ZZT snapshotState555.")
                     snapshotInProgress->setKeyedStateManagedFuture(
                         keyedStateBackend->snapshot(checkpointId, timestamp, checkpointStreamFactory, checkpointOptions)
                     );
                 }
             }
+            INFO_RELEASE("ZZT snapshotState666.")
+        } catch (const std::exception &e) {
+            INFO_RELEASE("StreamOperatorStateHandler::snapshotState operator=" << operatorName
+                << ", checkpointId=" << checkpointId
+                << ", exception=" << e.what());
+            try {
+                snapshotInProgress->cancel();
+            } catch (...) {
+                // Do nothing
+            }
+            std::string snapshotFailMessage = "Could not complete snapshot "
+                            + std::to_string(checkpointId)
+                            + " for operator "
+                            + operatorName
+                            + ". Root cause: "
+                            + e.what();
+
+            try {
+                snapshotContext->closeExceptionally();
+            } catch (...) {
+                // Do nothing
+            }
+            THROW_LOGIC_EXCEPTION(snapshotFailMessage);
         } catch (...) {
+            INFO_RELEASE("StreamOperatorStateHandler::snapshotState operator=" << operatorName
+                << ", checkpointId=" << checkpointId
+                << ", exception=unknown");
             try {
                 snapshotInProgress->cancel();
             } catch (...) {

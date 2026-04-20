@@ -60,7 +60,15 @@ public:
             {"REDUCING", Type::REDUCING},
             {"FOLDING", Type::FOLDING},
             {"AGGREGATING", Type::AGGREGATING},
-            {"MAP", Type::MAP}};
+            {"MAP", Type::MAP},
+            // Numeric encoding (used by computeSnapshot() which stores std::to_string((int)stateType))
+            {"0", Type::UNKNOWN},
+            {"1", Type::VALUE},
+            {"2", Type::LIST},
+            {"3", Type::REDUCING},
+            {"4", Type::FOLDING},
+            {"5", Type::AGGREGATING},
+            {"6", Type::MAP}};
         if (stringToType.find(type) != stringToType.end()) {
             return stringToType[type];
         } else {

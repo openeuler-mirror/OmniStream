@@ -20,6 +20,7 @@
 #include "TaskStateSnapshot.h"
 #include "runtime/state/IncrementalRemoteKeyedStateHandle.h"
 #include "runtime/state/IncrementalLocalKeyedStateHandle.h"
+#include "runtime/state/KeyGroupsStateHandle.h"
 #include "runtime/state/KeyGroupsSavepointStateHandle.h"
 #include "runtime/state/filesystem/RelativeFileStateHandle.h"
 #include "runtime/state/DirectoryKeyedStateHandle.h"
@@ -143,6 +144,11 @@ private:
     static std::shared_ptr<KeyGroupsSavepointStateHandle> ParseKeyGroupsSavepointStateHandle(const json &j)
     {
         return std::make_shared<KeyGroupsSavepointStateHandle>(j);
+    }
+
+    static std::shared_ptr<KeyGroupsStateHandle> ParseKeyGroupsStateHandle(const json &j)
+    {
+        return std::make_shared<KeyGroupsStateHandle>(j);
     }
 
     static std::shared_ptr<IncrementalLocalKeyedStateHandle> ParseLocalStateHandle(const json &j)

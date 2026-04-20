@@ -30,11 +30,13 @@ namespace omnistream::datastream {
     class StreamGroupedReduceOperator
             : public AbstractUdfStreamOperator<ReduceFunction<K>, K*>, public OneInputStreamOperator {
     public:
-        explicit StreamGroupedReduceOperator(Output *output, nlohmann::json config, bool isStream = true)
+        explicit StreamGroupedReduceOperator(Output *output, nlohmann::json config, bool isStream = true,
+                                             TypeSerializer *valueSerializer = nullptr)
         {
             LOG("-----create StreamGroupedReduceOperator-----");
             this->output = output;
             this->isStream = isStream;
+            this->valueSerializer_ = valueSerializer;
             loadUdf(config);
         }
 
@@ -136,7 +138,13 @@ namespace omnistream::datastream {
         void open() override
         {
             AbstractUdfStreamOperator<ReduceFunction<K>, K*>::open();
-            auto stateId = new ValueStateDescriptor<K*>(STATE_NAME, new ObjectSerializer());
+            // ObjectSerializer 是占位实现（serialize/deserialize 全是 NOT_IMPL），
+            // 运行时只用 Object 指针不会触发，但 checkpoint 写入会立即抛异常导致 CP 失败。
+            // 必须使用 operator 输入类型对应的真实 serializer。
+            TypeSerializer *stateSerializer = valueSerializer_ != nullptr
+                ? valueSerializer_ : static_cast<TypeSerializer *>(new ObjectSerializer());
+            stateSerializer->setSelfBufferReusable(false);
+            auto stateId = new ValueStateDescriptor<K*>(STATE_NAME, stateSerializer);
             auto keyedStateStore = this->stateHandler->getKeyedStateStore();
             values = keyedStateStore->template getState<K*>(stateId);
         }
@@ -163,6 +171,7 @@ namespace omnistream::datastream {
         std::string STATE_NAME = "_op_state";
         ValueState<K*> *values;
         TypeSerializer *serializer;
+        TypeSerializer *valueSerializer_ = nullptr;
         UDFLoader udfLoader;
         KeySelect<K>* keySelector = nullptr;
         int32_t coreId = -1;

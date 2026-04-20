@@ -608,9 +608,52 @@ StreamOperator *StreamOperatorFactory::CreateReduceOp(omnistream::OperatorPOD &o
     nlohmann::json opDescriptionJSON = nlohmann::json::parse(description);
     auto operatorType = opConfig.getOperatorType(); // 0(NULL), 1(SQL), 2(STREAM)
     if (operatorType == Type_o::STREAM) {
-        auto *op = new datastream::StreamGroupedReduceOperator<Object>(chainOutput, opDescriptionJSON, true);
+        // 从 opConfig.getInputs()[0] 推导 Tuple/Pojo serializer，作为 reduce 的 ValueState
+        // serializer。否则会落到 ObjectSerializer，CP 写入触发 NOT_IMPL_EXCEPTION。
+        // 任何解析失败都不应阻塞 operator 构造，回退到 nullptr → operator 内退化为旧路径。
+        TypeSerializer *valueSerializer = nullptr;
+        try {
+            const auto &inputs = opConfig.getInputs();
+            INFO_RELEASE("CreateReduceOp: opConfig has " << inputs.size() << " input(s)");
+            if (!inputs.empty()) {
+                const auto &inputType = inputs[0];
+                INFO_RELEASE("CreateReduceOp: inputs[0].kind=" << inputType.kind
+                    << ", type=" << inputType.type);
+                TypeInformation *typeInfo = nullptr;
+                if (inputType.kind == "basic") {
+                    typeInfo = TypeInfoFactory::createTypeInfo(inputType.type.c_str());
+                } else if (inputType.kind == "Tuple") {
+                    auto fieldType = nlohmann::json::parse(inputType.type);
+                    typeInfo = TypeInfoFactory::createTupleTypeInfo(fieldType);
+                } else {
+                    INFO_RELEASE("CreateReduceOp: unsupported input kind '" << inputType.kind
+                        << "', falling back to ObjectSerializer");
+                }
+                if (typeInfo != nullptr) {
+                    valueSerializer = typeInfo->getTypeSerializer();
+                    delete typeInfo;
+                    INFO_RELEASE("CreateReduceOp: built valueSerializer="
+                        << (valueSerializer ? valueSerializer->getName() : "null"));
+                }
+            }
+        } catch (const std::exception &e) {
+            INFO_RELEASE("CreateReduceOp: exception while building valueSerializer: " << e.what()
+                << ", falling back to ObjectSerializer");
+            valueSerializer = nullptr;
+        } catch (...) {
+            INFO_RELEASE("CreateReduceOp: unknown exception while building valueSerializer, falling back");
+            valueSerializer = nullptr;
+        }
+        auto *op = new datastream::StreamGroupedReduceOperator<Object>(chainOutput, opDescriptionJSON, true,
+                                                                        valueSerializer);
         op->setup(std::move(task));
-        return static_cast<OneInputStreamOperator *>(op);
+        // 关键：必须把 operator ID 设到 op 上，否则 CP 时 op->GetOperatorID() 返回默认 OperatorID，
+        // JM 把 state 存在那个错误 key 下，restore 用真实 operator ID 查就找不到 → 状态全丢。
+        // StreamGroupedReduceOperator 同时继承 AbstractUdfStreamOperator 与 OneInputStreamOperator，
+        // 两条路径都看得到 StreamOperator::SetOperatorID（diamond），直接调会 ambiguous，先 cast 一下。
+        auto *oneInputOp = static_cast<OneInputStreamOperator *>(op);
+        oneInputOp->SetOperatorID(opConfig.getOperatorId());
+        return oneInputOp;
     } else if (operatorType == Type_o::SQL) {
         // operatorType == "sql"
         NOT_IMPL_EXCEPTION

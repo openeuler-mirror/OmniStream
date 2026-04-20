@@ -42,12 +42,12 @@ LongSerializer::LongSerializerCleaner LongSerializer::cleaner;
 
 void *IntSerializer::deserialize(DataInputView &source)
 {
-    NOT_IMPL_EXCEPTION;
+    return reinterpret_cast<void *>(new int(source.readInt()));
 }
 
 void IntSerializer::serialize(void *record, DataOutputSerializer &target)
 {
-    NOT_IMPL_EXCEPTION;
+    target.writeInt(*(int *)record);
 }
 
 void IntSerializer::deserialize(Object *buffer, DataInputView& source)

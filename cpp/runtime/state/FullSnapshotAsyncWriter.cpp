@@ -3,6 +3,7 @@
 #include "bridge/OmniTaskBridge.h"
 #include "KeyGroupRangeOffsets.h"
 #include "KeyGroupsSavepointStateHandle.h"
+#include "KeyGroupsStateHandle.h"
 #include <sstream>
 #include "common.h"
 FullSnapshotAsyncWriter::FullSnapshotAsyncWriter(
@@ -25,20 +26,39 @@ std::shared_ptr<SnapshotResult<KeyedStateHandle>> FullSnapshotAsyncWriter::get(
 {
     std::shared_ptr<KeyValueStateIterator> mergeIterator = nullptr;
     try{
-        auto keyGroupRangeOffsets = std::make_shared<KeyGroupRangeOffsets>(
-            *snapshotResources_->getKeyGroupRange());
+        INFO_RELEASE("FullSnapshotAsyncWriter::get cp=" << checkpointId_
+            << " start, bridge=" << (bridge ? "ok" : "null")
+            << ", snapshotResources=" << (snapshotResources_ ? "ok" : "null"));
+        auto *kgRange = snapshotResources_->getKeyGroupRange();
+        INFO_RELEASE("FullSnapshotAsyncWriter::get cp=" << checkpointId_
+            << " keyGroupRange=" << (kgRange ? "ok" : "null")
+            << ", start=" << (kgRange ? kgRange->getStartKeyGroup() : -1)
+            << ", end=" << (kgRange ? kgRange->getEndKeyGroup() : -1));
+        auto keyGroupRangeOffsets = std::make_shared<KeyGroupRangeOffsets>(*kgRange);
+        INFO_RELEASE("FullSnapshotAsyncWriter::get cp=" << checkpointId_
+            << " keyGroupRangeOffsets created, checkpointOptions=" << (checkpointOptions_ ? "ok" : "null"));
         CheckpointStateOutputStreamProxy stream(bridge, checkpointId_, checkpointOptions_);
+        INFO_RELEASE("FullSnapshotAsyncWriter::get cp=" << checkpointId_
+            << " stream created, writeMetadata start, metaInfoCount=" << snapshotResources_->getMetaInfoSnapshots().size());
         stream.writeMetadata(snapshotResources_->getMetaInfoSnapshots(), keySerializer_);
+        INFO_RELEASE("FullSnapshotAsyncWriter::get cp=" << checkpointId_
+            << " writeMetadata finished");
         std::vector<int8_t> previousKey;
         std::vector<int8_t> previousValue;
         mergeIterator = snapshotResources_->createKVStateIterator();
+        INFO_RELEASE("FullSnapshotAsyncWriter::get cp=" << checkpointId_
+            << " createKVStateIterator finished, valid=" << (mergeIterator && mergeIterator->isValid()));
+        int entryCount = 0;
         if (mergeIterator->isValid()) {
             keyGroupRangeOffsets->setKeyGroupOffset(mergeIterator->keyGroup(), stream.getPos());
             stream.writeShort(mergeIterator->kvStateId());
             previousKey = mergeIterator->key();
             previousValue = mergeIterator->value();
             mergeIterator->next();
+            entryCount++;
         }
+        INFO_RELEASE("FullSnapshotAsyncWriter::get cp=" << checkpointId_
+            << " first entry read, starting iteration loop");
         while (mergeIterator->isValid()) {
             if (mergeIterator->isNewKeyGroup() || mergeIterator->isNewKeyValueState()) {
                 previousKey[0] |= FIRST_BIT_IN_BYTE_MASK;
@@ -57,7 +77,14 @@ std::shared_ptr<SnapshotResult<KeyedStateHandle>> FullSnapshotAsyncWriter::get(
             previousKey = mergeIterator->key();
             previousValue = mergeIterator->value();
             mergeIterator->next();
+            entryCount++;
+            if (entryCount % 10000 == 0) {
+                INFO_RELEASE("FullSnapshotAsyncWriter::get cp=" << checkpointId_
+                    << " iteration progress: " << entryCount << " entries written");
+            }
         }
+        INFO_RELEASE("FullSnapshotAsyncWriter::get cp=" << checkpointId_
+            << " iteration done, total entries=" << entryCount);
         if (!previousKey.empty()) {
             previousKey[0] |= FIRST_BIT_IN_BYTE_MASK;
             stream.writeInt(previousKey.size());
@@ -70,11 +97,22 @@ std::shared_ptr<SnapshotResult<KeyedStateHandle>> FullSnapshotAsyncWriter::get(
         auto handle = stream.close();
         if (handle) {
             auto jobManagerOwnedSnapshot = handle->GetJobManagerOwnedSnapshot();
-            auto jmKeyedState = std::make_shared<KeyGroupsSavepointStateHandle>(
-                *keyGroupRangeOffsets.get(), jobManagerOwnedSnapshot);
+            std::shared_ptr<KeyedStateHandle> jmKeyedState;
+            const bool isSavepoint = snapshotType_ && snapshotType_->IsSavepoint();
+            if (isSavepoint) {
+                jmKeyedState = std::make_shared<KeyGroupsSavepointStateHandle>(
+                    *keyGroupRangeOffsets.get(), jobManagerOwnedSnapshot);
+            } else {
+                jmKeyedState = std::make_shared<KeyGroupsStateHandle>(
+                    *keyGroupRangeOffsets.get(), jobManagerOwnedSnapshot);
+            }
+            INFO_RELEASE("FullSnapshotAsyncWriter::get cp=" << checkpointId_
+                << " isSavepoint=" << isSavepoint << " handle=ok");
             snapshotResources_->cleanup();
             return SnapshotResult<KeyedStateHandle>::Of(jmKeyedState);
         }
+        INFO_RELEASE("FullSnapshotAsyncWriter::get cp=" << checkpointId_
+            << " stream.close() returned null handle");
         snapshotResources_->cleanup();
         return SnapshotResult<KeyedStateHandle>::Empty();
     }catch(std::exception& e){
@@ -82,7 +120,8 @@ std::shared_ptr<SnapshotResult<KeyedStateHandle>> FullSnapshotAsyncWriter::get(
             mergeIterator->close();
         }
         snapshotResources_->cleanup();
-            INFO_RELEASE("savepoint: FullSnapshotAsyncWriter err" << e.what());
-        return SnapshotResult<KeyedStateHandle>::Empty();
+        INFO_RELEASE("FullSnapshotAsyncWriter::get cp=" << checkpointId_
+            << " exception: " << e.what());
+        throw;
     }
 }

@@ -1164,7 +1164,7 @@ jobject OmniTaskBridgeImpl2::AcquireSavepointOutputStream(long checkpointId, Che
     jclass cls = env->GetObjectClass(m_globalOmniTaskRef);
     jmethodID mid = env->GetMethodID(cls, "acquireSavepointOutputStream", "(JLjava/lang/String;)Lorg/apache/flink/runtime/state/CheckpointStreamWithResultProvider;");
         jstring jcheckpointOptionsStr = env->NewStringUTF(checkpointOptionsStr.c_str());
-    auto provider =  env->CallObjectMethod(m_globalOmniTaskRef, mid, checkpointId, jcheckpointOptionsStr);
+    auto localProvider =  env->CallObjectMethod(m_globalOmniTaskRef, mid, checkpointId, jcheckpointOptionsStr);
     if (env->ExceptionCheck()) {
         env->ExceptionDescribe();
         env->ExceptionClear();
@@ -1173,7 +1173,15 @@ jobject OmniTaskBridgeImpl2::AcquireSavepointOutputStream(long checkpointId, Che
         throw std::runtime_error("Failed to call AcquireSavepointOutputStream");
     }
     env->DeleteLocalRef(jcheckpointOptionsStr);
-    return provider;
+    if (localProvider == nullptr) {
+        return nullptr;
+    }
+    // CallObjectMethod 返回 local ref，仅在当前 JNI frame、当前线程有效。
+    // CheckpointStateOutputStreamProxy 会把 provider 跨线程（async checkpoint thread）
+    // 持续使用，必须升级为 global ref；CloseSavepointOutputStream 中 DeleteGlobalRef 释放。
+    jobject globalProvider = env->NewGlobalRef(localProvider);
+    env->DeleteLocalRef(localProvider);
+    return globalProvider;
 }
 
 std::shared_ptr<SnapshotResult<StreamStateHandle>> OmniTaskBridgeImpl2::CloseSavepointOutputStream(jobject provider)
@@ -1194,12 +1202,12 @@ std::shared_ptr<SnapshotResult<StreamStateHandle>> OmniTaskBridgeImpl2::CloseSav
     if (env->ExceptionCheck()) {
         env->ExceptionDescribe();
         env->ExceptionClear();
-        env->DeleteLocalRef(provider);
+        env->DeleteGlobalRef(provider);
         INFO_RELEASE("Error: Failed to call CloseSavepointOutputStream");
         throw std::runtime_error("Failed to call CloseSavepointOutputStream");
     }
     auto res =  ConvertSnapshotResult(env, javaResult);
-    env->DeleteLocalRef(provider);
+    env->DeleteGlobalRef(provider);
     return res;
 }
 
@@ -1289,11 +1297,11 @@ long OmniTaskBridgeImpl2::GetSavepointOutputStreamPos(jobject provider)
     if (env->ExceptionCheck()) {
         env->ExceptionDescribe();
         env->ExceptionClear();
-        env->DeleteLocalRef(provider);
         INFO_RELEASE("Error: Failed to call GetSavepointOutputStreamPos");
         throw std::runtime_error("Failed to call GetSavepointOutputStreamPos");
     }
-    env->DeleteLocalRef(provider);
+    // 不要在这里释放 provider —— 它的生命周期由 CheckpointStateOutputStreamProxy
+    // 通过 CloseSavepointOutputStream 统一管理。
     return pos;
 }
 

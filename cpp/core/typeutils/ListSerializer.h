@@ -38,6 +38,8 @@ public:
         return BackendDataType::OBJECT_BK;
     }
 
+    TypeSerializer* getElementSerializer() const { return elementSerializer; }
+
     void setSubBufferReusable(bool bufferReusable_) override;
 
     Object* GetBuffer() override;
