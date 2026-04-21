@@ -108,6 +108,9 @@ namespace omnistream {
         LOG(">>> before broadcast watermark " << std::to_string(watermark->getTimestamp()))
         for (int i = 0; i < numberOfChannels; i++) {
             this->targetPartitionWriter_->emitRecord(reinterpret_cast<void*>(watermark), i);
+            //todo: delete new watermark ptr properly.
+            Watermark* new_wm = new Watermark(*watermark);
+            this->targetPartitionWriter_->emitRecord(reinterpret_cast<void*>(new_wm), i);
         }
     }
 }

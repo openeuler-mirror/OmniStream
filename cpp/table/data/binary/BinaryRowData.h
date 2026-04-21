@@ -125,7 +125,8 @@ namespace std {
     struct hash<BinaryRowData*> {
         std::size_t operator()(const BinaryRowData* nsPtr) const noexcept
         {
-            return nsPtr->hashCodeFast();
+            auto hashFast=  nsPtr ? nsPtr->hashCodeFast() : 0;
+            return static_cast<size_t>(hashFast);
         }
     };
     // Attention: Be very careful when using this! It does not compare the address. but the content
