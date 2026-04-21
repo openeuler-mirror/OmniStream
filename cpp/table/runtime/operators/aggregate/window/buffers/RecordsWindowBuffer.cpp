@@ -213,7 +213,7 @@ void RecordsWindowBuffer::advanceProgress(StreamOperatorStateHandler<RowData*> *
 void RecordsWindowBuffer::WindowAggProcess(WindowKey currentKey, std::vector<RowData *>& entireRows,
                                            StreamOperatorStateHandler<RowData*> *stateHandler)
 {
-    if (isWindwoAgg) {
+    if (isWindowAgg) {
         winAggProcess(currentKey, entireRows, stateHandler);
         if (sliceAssigner->isEventTime()) {
             if (!TimeWindowUtil::isWindowFired(currentKey.getWindow(), internalTimerService->currentWatermark())) {
