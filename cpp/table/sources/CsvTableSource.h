@@ -90,6 +90,7 @@ public:
                     break;
                 }
                 case omniruntime::type::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:
+                case omniruntime::type::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE:
                 case omniruntime::type::OMNI_TIMESTAMP: {
                     csvStrConverters.push_back(CsvStrConverterFunc<int64_t>);
                     auto vec = new omniruntime::vec::Vector<int64_t>(hashRowCnt);
@@ -232,6 +233,7 @@ private:
                     break;
                 case omniruntime::type::OMNI_TIMESTAMP:
                 case omniruntime::type::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:
+                case omniruntime::type::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE:
                     outCol = buildProbeOutputColumn<int64_t>(vb, matchedRows, totRowCnt, icol);
                     break;
                 case omniruntime::type::OMNI_VARCHAR:
@@ -256,6 +258,7 @@ private:
                     outCol = buildHashOutputColumn<int64_t>(matchedRows, totRowCnt, icol);
                     break;
                 case omniruntime::type::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:
+                case omniruntime::type::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE:
                 case omniruntime::type::OMNI_TIMESTAMP:
                     outCol = buildHashOutputColumn<int64_t>(matchedRows, totRowCnt, icol);
                     break;

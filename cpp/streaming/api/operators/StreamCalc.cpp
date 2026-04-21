@@ -105,6 +105,7 @@ void StreamCalc::open()
                         to->setLong(toIndex, *from->getLong(fromIndex));
                     });
                         break;
+                case DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE:
                 case DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE: {
                     std::vector<std::string> outputTypes = description_["outputTypes"].get<std::vector<std::string>>();
                     if (extractPrecision(outputTypes[i]) > 3) {

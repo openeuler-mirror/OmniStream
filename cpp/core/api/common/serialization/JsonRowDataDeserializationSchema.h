@@ -61,6 +61,11 @@ public:
                                         TimestampData::fromString(node[name].get<std::string>())->getMillisecond());
                 break;
             }
+            case (omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE) : {
+                vectorBatch->SetValueAt(colIndex, rowIndex,
+                                        TimestampData::fromLocalTimeString(node[name].get<std::string>())->getMillisecond());
+                break;
+            }
             case omniruntime::type::DataTypeId::OMNI_CHAR:
             case omniruntime::type::DataTypeId::OMNI_VARCHAR: {
                 auto stringVec = reinterpret_cast<omniruntime::vec::Vector<
