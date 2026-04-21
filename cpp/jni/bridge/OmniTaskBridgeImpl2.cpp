@@ -1293,7 +1293,6 @@ long OmniTaskBridgeImpl2::GetSavepointOutputStreamPos(jobject provider)
         INFO_RELEASE("Error: Failed to call GetSavepointOutputStreamPos");
         throw std::runtime_error("Failed to call GetSavepointOutputStreamPos");
     }
-    env->DeleteLocalRef(provider);
     return pos;
 }
 
