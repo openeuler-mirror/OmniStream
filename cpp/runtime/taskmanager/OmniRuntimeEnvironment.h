@@ -94,8 +94,7 @@ namespace omnistream {
             return omniShuffleEnvironment_;
         }
 
-        [[nodiscard]] TaskInformationPOD taskConfiguration() const override
-        {
+        const TaskInformationPOD& taskConfiguration() const override {
             return taskConfiguration_;
         }
 

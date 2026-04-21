@@ -19,6 +19,7 @@
 #include "CheckpointConfigPOD.h"
 #include "ExecutionCheckpointConfigPOD.h"
 #include "operatorchain/OperatorChainPOD.h"
+#include "state/RocksDBMemoryConfiguration.h"
 
 namespace omnistream {
 
@@ -121,24 +122,43 @@ public:
         chainedConfig = chained_config;
     }
 
-    const std::string &getStateBackend() const
-    {
+    const std::string &getStateBackend() const {
         return stateBackend;
     }
 
-    void setStateBackend(const std::string &stateBackend_)
-    {
+    void setStateBackend(const std::string &stateBackend_) {
         stateBackend = stateBackend_;
     }
 
-    const std::vector<std::string> &getRocksdbStorePaths() const
-    {
+    const std::vector<std::string> &getRocksdbStorePaths() const {
         return rocksdbStorePaths;
     }
 
-    void setRocksdbStorePaths(const std::vector<std::string> &rocksdbStorePaths_)
-    {
+    void setRocksdbStorePaths(const std::vector<std::string> &rocksdbStorePaths_) {
         rocksdbStorePaths = rocksdbStorePaths_;
+    }
+
+    double getStateBackendManagedMemoryFraction() const {
+        return stateBackendManagedMemoryFraction;
+    }
+
+    uint64_t getStateBackendManagedMemorySize() const {
+        return stateBackendManagedMemorySize;
+    }
+
+    uint32_t getNumberOfTransferThreads() const {
+        return numberOfTransferThreads;
+    }
+
+    const RocksDBMemoryConfiguration& getRocksDBMemoryConfiguration() const {
+        return rocksDBMemoryConfiguration;
+    }
+
+    uint64_t getCacheAddr() const {
+        return cacheAddr;
+    }
+    uint64_t getWriteBufferManagerAddr() const {
+        return writeBufferManagerAddr;
     }
 
     std::string toString() const
@@ -213,15 +233,14 @@ public:
         return localRecoveryConfig;
     }
 
-    std::filesystem::path getTmpWorkingDirectory()
-    {
+    std::filesystem::path getTmpWorkingDirectory() const {
         return tmpWorkingDirectory;
     }
 
     NLOHMANN_DEFINE_TYPE_INTRUSIVE(
         TaskInformationPOD, taskName, numberOfSubtasks, maxNumberOfSubtasks, indexOfSubtask, stateBackend,
-        rocksdbStorePaths,  streamConfig, chainedConfig, taskType, checkpointConfig, executionCheckpointConfig,
-        localRecoveryConfig, tmpWorkingDirectory)
+        rocksdbStorePaths, stateBackendManagedMemoryFraction, stateBackendManagedMemorySize, cacheAddr, writeBufferManagerAddr, numberOfTransferThreads, rocksDBMemoryConfiguration, streamConfig,
+        chainedConfig, taskType, checkpointConfig, executionCheckpointConfig, localRecoveryConfig, tmpWorkingDirectory)
 private:
     std::string taskName;
     int numberOfSubtasks;
@@ -229,8 +248,18 @@ private:
     int indexOfSubtask;
     StreamConfigPOD streamConfig;
     std::vector<StreamConfigPOD> chainedConfig;
+
     std::string stateBackend;
+
+    // rocksdb related config
     std::vector<std::string> rocksdbStorePaths;
+    double stateBackendManagedMemoryFraction;
+    uint64_t stateBackendManagedMemorySize;
+    uint32_t numberOfTransferThreads;
+    RocksDBMemoryConfiguration rocksDBMemoryConfiguration;
+    uint64_t cacheAddr;
+    uint64_t writeBufferManagerAddr;
+
     std::unordered_map<int, StreamConfigPOD> chainedConfigMap;
     int taskType;
     CheckpointConfigPOD checkpointConfig;
