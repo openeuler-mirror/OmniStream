@@ -268,6 +268,7 @@ omnistream::VectorBatch *AbstractTopNFunction<KeyType>::createOutputBatch()
         switch (inputRowType->at(colIndex)) {
             case DataTypeId::OMNI_LONG:
             case DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:
+            case DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE:
             case DataTypeId::OMNI_TIMESTAMP: {
                 auto *vector = new omniruntime::vec::Vector<int64_t>(numRows);
                 for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {

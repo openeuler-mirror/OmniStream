@@ -51,6 +51,10 @@ public:
         auto& type = fieldTypes[colIndex];
         auto& name = fieldNames[colIndex];
         switch (type) {
+            case omniruntime::type::DataTypeId::OMNI_INT:{
+                vectorBatch->SetValueAt(colIndex, rowIndex, node[name].get<int32_t>());
+                break;
+            }
             case omniruntime::type::DataTypeId::OMNI_LONG:{
                 vectorBatch->SetValueAt(colIndex, rowIndex, node[name].get<int64_t>());
                 break;
@@ -59,6 +63,11 @@ public:
             case omniruntime::type::DataTypeId::OMNI_TIMESTAMP:{
                 vectorBatch->SetValueAt(colIndex, rowIndex,
                                         TimestampData::fromString(node[name].get<std::string>())->getMillisecond());
+                break;
+            }
+            case (omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE) : {
+                vectorBatch->SetValueAt(colIndex, rowIndex,
+                                        TimestampData::fromLocalTimeString(node[name].get<std::string>())->getMillisecond());
                 break;
             }
             case omniruntime::type::DataTypeId::OMNI_CHAR:

@@ -148,6 +148,7 @@ int FastTop1Function<KeyType>::compareRows(BinaryRowData* inputRow,
                 break;
             }
             case DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:
+            case DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE:
             case DataTypeId::OMNI_TIMESTAMP: {
                 if (!inputRow) {
                     throw std::runtime_error("input row is null, check the data");
@@ -203,6 +204,7 @@ int FastTop1Function<KeyType>::compareRowsV2(omnistream::VectorBatch* originalVb
                 break;
             }
             case DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:
+            case DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE:
             case DataTypeId::OMNI_TIMESTAMP: {
                     int64_t currentMillseconds =reinterpret_cast<vec::Vector<int64_t>*>(originalVb->Get(colId))->GetValue(rowId);
                 TimestampData* inputVal = TimestampData::fromEpochMillis(currentMillseconds);
