@@ -51,6 +51,10 @@ public:
         auto& type = fieldTypes[colIndex];
         auto& name = fieldNames[colIndex];
         switch (type) {
+            case omniruntime::type::DataTypeId::OMNI_INT:{
+                vectorBatch->SetValueAt(colIndex, rowIndex, node[name].get<int32_t>());
+                break;
+            }
             case omniruntime::type::DataTypeId::OMNI_LONG:{
                 vectorBatch->SetValueAt(colIndex, rowIndex, node[name].get<int64_t>());
                 break;

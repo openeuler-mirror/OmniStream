@@ -274,7 +274,7 @@ namespace omnistream {
 
     void VectorBatch::writeToFile(std::string &filename, std::ios_base::openmode mode,
                                   std::vector<std::pair<int32_t, int32_t>> decimalInfo,
-                                  std::vector<std::string> inputTypes = {}, long zoneOffsetSeconds) const
+                                  std::vector<std::string> inputTypes, long zoneOffsetSeconds) const
     {
         std::ofstream file;
         if (!normalizeAndValidatePath(filename)) {
