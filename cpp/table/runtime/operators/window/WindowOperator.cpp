@@ -95,9 +95,10 @@ void WindowOperator<K, W>::onEventTime(TimerHeapInternalTimer<K, W> *timer)
     if (triggerContext->OnEventTime(timer->getTimestamp())) {
         emitWindowResult(triggerContext->window);
     }
-    if (windowAssigner->IsEventTime()) {
-        windowFunction->CleanWindowIfNeeded(triggerContext->window, timer->getTimestamp());
-    }
+    // TODO: Enable window cleaning when the Window operator is adapted for RocksDB
+    // if (windowAssigner->IsEventTime()) {
+    //     windowFunction->CleanWindowIfNeeded(triggerContext->window, timer->getTimestamp());
+    // }
 }
 
 template<typename K, typename W>
