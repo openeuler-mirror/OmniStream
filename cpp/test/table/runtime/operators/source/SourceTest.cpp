@@ -3,6 +3,7 @@
  */
 
 #include <gtest/gtest.h>
+#include "core/api/common/serialization/JsonRowDataDeserializationSchema.h"
 #include "types/logical/LogicalType.h"
 #include "runtime/operators/source/csv/CsvRow.h"
 #include "runtime/operators/source/csv/CsvSchema.h"
@@ -32,6 +33,34 @@ TEST(SourceTestTest, CsvRowParsesQuotedJsonField)
     ASSERT_EQ(row.getNodes().size(), 2);
     EXPECT_EQ(row.getNodes()[0]->getValue(), "11");
     EXPECT_EQ(row.getNodes()[1]->getValue(), "[\"only\"]");
+}
+
+TEST(SourceTestTest, JsonRowDataDeserializationSchemaHandlesNullStringField)
+{
+    nlohmann::json description = {
+        {"outputNames", {"id", "json_str"}},
+        {"outputTypes", {"BIGINT", "VARCHAR(2147483647)"}}
+    };
+    JsonRowDataDeserializationSchema schema(description);
+
+    std::string record = R"({"id":1,"json_str":null})";
+    std::vector<const uint8_t*> messages{
+        reinterpret_cast<const uint8_t*>(record.data())
+    };
+    std::vector<size_t> lengths{record.size()};
+
+    auto* batch = reinterpret_cast<omnistream::VectorBatch*>(schema.deserialize(messages, lengths));
+    ASSERT_NE(batch, nullptr);
+
+    auto* idVector = reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(batch->Get(0));
+    auto* jsonVector = reinterpret_cast<omniruntime::vec::Vector<
+        omniruntime::vec::LargeStringContainer<std::string_view>>*>(batch->Get(1));
+
+    EXPECT_FALSE(idVector->IsNull(0));
+    EXPECT_EQ(idVector->GetValue(0), 1);
+    EXPECT_TRUE(jsonVector->IsNull(0));
+
+    delete batch;
 }
 
 TEST(SourceTestTest, DISABLED_initoper)
