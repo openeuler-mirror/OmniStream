@@ -15,64 +15,6 @@ TimeWindow::TimeWindow() {}
 
 TimeWindow::TimeWindow(long start, long end) : start(start), end(end) {}
 
-long TimeWindow::getStart() const
-{
-    return this->start;
-}
-
-long TimeWindow::getEnd() const
-{
-    return this->end;
-}
-
-long TimeWindow::maxTimestamp() const
-{
-    return this->end - 1L;
-}
-
-bool TimeWindow::intersects(const TimeWindow &other) const
-{
-    return this->start <= other.end && this->end >= other.start;
-}
-
-TimeWindow TimeWindow::cover(const TimeWindow &other) const
-{
-    return {std::min(this->start, other.start), std::max(this->end, other.end)};
-}
-
-long TimeWindow::getWindowStartWithOffset(long timestamp, long offset, long windowSize)
-{
-    long remainder = (timestamp - offset) % windowSize;
-    return remainder < 0L ? timestamp - (remainder + windowSize) : timestamp - remainder;
-}
-
-TimeWindow *TimeWindow::of(long start_, long end_)
-{
-    return new TimeWindow(start_, end_);
-}
-
-bool TimeWindow::operator<(const TimeWindow &other) const
-{
-    if (start == other.start) {
-        return end < other.end;
-    }
-    return start < other.start;
-}
-
-bool TimeWindow::operator>(const TimeWindow &other) const
-{
-    if (start == other.start) {
-        return end > other.end;
-    }
-    return start > other.start;
-}
-
-std::ostream &operator<<(std::ostream &os, const TimeWindow &obj)
-{
-    os << "TimeWindow{start=" << std::to_string(obj.start) << ", end=" << std::to_string(obj.end) << '}';
-    return os;
-}
-
 TimeWindow::Serializer::Serializer() {}
 
 bool TimeWindow::Serializer::isImmutableType() const

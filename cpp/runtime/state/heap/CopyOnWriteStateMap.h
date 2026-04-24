@@ -282,6 +282,13 @@ namespace omnistream {
         template<typename K, typename N>
         size_t operator()(const K &_key1, const K &_key2, const N &_nmspace1, const N &_nmspace2) const
         {
+            if constexpr (std::is_pointer_v<K>) {
+ 	                if (_key1 == nullptr && _key2 == nullptr) {
+ 	                     return std::equal_to<N>{}(_nmspace1, _nmspace2);
+ 	                }else if (_key1 == nullptr || _key2 == nullptr){
+ 	                     return  false;
+ 	                }
+ 	        }
             return std::equal_to<K>{}(_key1, _key2) && std::equal_to<N>{}(_nmspace1, _nmspace2);
         }
     };
@@ -476,13 +483,13 @@ namespace omnistream {
             if (isempty) {
                 if constexpr (NeedClone<KeyT>::value) {
                     if constexpr (std::is_same<KeyT, Object*>::value) {
-                        Object *cloned = reinterpret_cast<Object *>(key)->clone();
+                        Object *cloned = (key != nullptr) ? reinterpret_cast<Object *>(key)->clone() : nullptr;
                         EMH_NEW(cloned, std::move(ValueT()), nmspace, bucket, stateMapVersion);
                     }
 
                     if constexpr (std::is_same<KeyT, BinaryRowData*>::value || std::is_same<KeyT, RowData*>::value) {
-                        BinaryRowData *cloned = reinterpret_cast<BinaryRowData*>
-                            (reinterpret_cast<BinaryRowData *>(key)->copy());
+                        BinaryRowData *cloned = (key != nullptr) ? reinterpret_cast<BinaryRowData*>
+ 	                             (reinterpret_cast<BinaryRowData *>(key)->copy()) : nullptr;
                         EMH_NEW(cloned, std::move(ValueT()), nmspace, bucket, stateMapVersion);
                     }
                 } else {

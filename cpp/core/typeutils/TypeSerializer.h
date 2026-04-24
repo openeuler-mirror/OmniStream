@@ -73,6 +73,7 @@ public:
     {
         if (reuseBuffer != nullptr) {
             reuseBuffer->putRefCount();
+            reuseBuffer = nullptr;
         }
     }
 

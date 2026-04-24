@@ -25,7 +25,8 @@ class WatermarkAssignerOperator : public AbstractStreamOperator<int>,
                                   public OneInputStreamOperator,
                                   public ProcessingTimeCallback {
 public:
-    explicit WatermarkAssignerOperator(Output *, int rowtimeIndex, int64_t outOfOrderT, int64_t idleTimeout);
+    explicit WatermarkAssignerOperator(Output *, int rowtimeIndex, int64_t outOfOrderT, int64_t idleTimeout,
+                                       ProcessingTimeService* processingTimeService);
     ~WatermarkAssignerOperator() override = default;
 
     // Processing functions
@@ -44,6 +45,7 @@ public:
 
     std::string getTypeName() override;
     void processWatermarkStatus(WatermarkStatus *watermarkStatus) override;
+    omnistream::VectorBatch *sliceVecBatch(omnistream::VectorBatch *batch, int32_t offset, int32_t newRowCnt);
 
 private:
     int rowtimeIndex_;

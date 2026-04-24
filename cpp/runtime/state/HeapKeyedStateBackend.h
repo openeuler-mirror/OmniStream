@@ -44,16 +44,16 @@ public:
     // Originally used to create an internal state, not necessary here
     uintptr_t createOrUpdateInternalState(TypeSerializer *namespaceSerializer, StateDescriptor *stateDesc) override;
 
-    virtual  ~HeapKeyedStateBackend() override
-    {
-        STD_LOG("Join backend")
+    ~HeapKeyedStateBackend() override {
         for (const auto& pair : registeredKvStates) {
             StateDescriptor* desc = std::get<1>(pair.second);
             uintptr_t stateTablePtr = std::get<0>(pair.second);
-            STD_LOG (" Join Heapkeyed Backend first " << pair.first   << "StateTable ptr " << stateTablePtr);
             if (desc->getType() == StateDescriptor::Type::MAP) {
                 auto keyId = desc->getKeyDataId();
                 auto valueId = desc->getValueDataId();
+                INFO_RELEASE("~HeapKeyedStateBackend(), desc->getType():" << static_cast<int>(desc->getType()) <<
+                        ", desc->getKeyDataId():" << static_cast<int>(keyId) <<
+                        ", desc->getValueDataId():" << static_cast<int>(valueId))
                 if (keyId == BackendDataType::XXHASH128_BK && valueId == BackendDataType::TUPLE_INT32_INT64) {
                     auto stateTable = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace,
                         emhash7::HashMap<XXH128_hash_t, std::tuple<int32_t, int64_t>>*>*>(stateTablePtr);
@@ -79,11 +79,17 @@ public:
                     auto stateTable = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace,
                             emhash7::HashMap<RowData*, std::vector<RowData*>*> *> *>(stateTablePtr);
                     delete stateTable;
+                } else if (keyId == BackendDataType::TIME_WINDOW_BK && valueId == BackendDataType::TIME_WINDOW_BK) {
+                    auto stateTable = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace,
+                            emhash7::HashMap<TimeWindow, TimeWindow> *> *>(stateTablePtr);
+                    delete stateTable;
                 } else {
                     NOT_IMPL_EXCEPTION
                 }
             } else if (desc->getType() == StateDescriptor::Type::VALUE) {
                 auto dataId = desc->getBackendId();
+                INFO_RELEASE("~HeapKeyedStateBackend(), desc->getType():" << static_cast<int>(desc->getType()) <<
+                        ", desc->getBackendId():" << static_cast<int>(dataId))
                 if (dataId == BackendDataType::OBJECT_BK || dataId == BackendDataType::POJO_BK) {
                     auto stateTable = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, Object*> *>(stateTablePtr);
                     delete stateTable;
@@ -98,6 +104,8 @@ public:
                 }
             } else if (desc->getType() == StateDescriptor::Type::LIST) {
                 auto dataId = desc->getBackendId();
+                INFO_RELEASE("~HeapKeyedStateBackend(), desc->getType():" << static_cast<int>(desc->getType()) <<
+                        ", desc->getBackendId():" << static_cast<int>(dataId))
                 if (dataId == BackendDataType::BIGINT_BK) {
                     auto stateTable = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, std::vector<int64_t>*> *>(stateTablePtr);
                     delete stateTable;

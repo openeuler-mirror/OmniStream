@@ -29,15 +29,15 @@ public:
     {
         if constexpr (std::is_same_v<K, RowData*>) {
             // std::hash<RowData*> uses a simpler hasher. But here we need to keep it same as java
-            int hashCode = key->hashCode();
+            int hashCode = key ?  key->hashCode():0;
             return MathUtils::murmurHash(hashCode) % maxParallelism;
         }
         if constexpr (std::is_same_v<K, BinaryRowData*>) {
-            int hashCode = key->hashCode();
+            int hashCode = key ?  key->hashCode():0;
             return MathUtils::murmurHash(hashCode) % maxParallelism;
         }
         if constexpr (std::is_same_v<K, Object*>) {
-            int hashCode = ((Object*)key)->hashCode();
+            int hashCode = key ? ((Object*)key)->hashCode():0;
             int res = MathUtils::murmurHash(hashCode) % maxParallelism;
             return res;
         }

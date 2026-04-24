@@ -275,6 +275,7 @@ public:
             {
                 outerOpertor->triggerContext->window = newWindow;
                 outerOpertor->triggerContext->mergedWindows = mergedWindows;
+                outerOpertor->triggerContext->OnMerge();
             }
 
     private:

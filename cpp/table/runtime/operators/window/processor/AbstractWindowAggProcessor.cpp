@@ -22,7 +22,7 @@ AbstractWindowAggProcessor::AbstractWindowAggProcessor(const nlohmann::json desc
     isEventTime = sliceAssigner->isEventTime();
     windowInterval = sliceAssigner->getSliceEndInterval();
     outputTypes = description["outputTypes"].get<std::vector<std::string>>();
-    collector = new TimestampedCollector(this->output);
+    collector = std::make_unique<TimestampedCollector>(this->output);
     indexOfCountStar = description["aggInfoList"]["indexOfCountStar"];
     // agg function init, multiple function process is to be added
     bool isWindwoAgg = description.contains("isWindowAggregate") && description["isWindowAggregate"].get<bool>();
@@ -37,7 +37,6 @@ AbstractWindowAggProcessor::AbstractWindowAggProcessor(const nlohmann::json desc
     for (const auto &typeStr : outputTypes) {
         outputTypeIds.push_back(LogicalType::flinkTypeToOmniTypeId(typeStr));
     }
-    collector = new TimestampedCollector(this->output);
     inputTypes = description["inputTypes"].get<std::vector<std::string>>();
     keyedIndex = description["grouping"].get<std::vector<int32_t>>();
     for (int32_t index : keyedIndex) {
@@ -45,7 +44,7 @@ AbstractWindowAggProcessor::AbstractWindowAggProcessor(const nlohmann::json desc
             keyedTypes.push_back(LogicalType::flinkTypeToOmniTypeId(inputTypes[index]));
         }
     }
-    keySelector = new KeySelector<RowData*>(keyedTypes, keyedIndex);
+    keySelector = std::make_unique<KeySelector<RowData*>>(keyedTypes, keyedIndex);
     LOG("agginfolist size : " <<description["aggInfoList"][AGGCALLSNAME].size())
     if (description["aggInfoList"][AGGCALLSNAME].size() == 0) {
         NamespaceAggsHandleFunction<int64_t> *function = new GlobalEmptyNamespaceFunction(0, 0, 0, sliceAssigner);
@@ -61,7 +60,7 @@ AbstractWindowAggProcessor::AbstractWindowAggProcessor(const nlohmann::json desc
         } else if (aggType == "MAX") {
             globalFunction = new MinMaxWindowAggFunction(0, 0, 0, MAX_FUNC, sliceAssigner);
         } else if (aggType == "MIN") {
-            globalFunction = new MinMaxWindowAggFunction(0, 0, 0, MAX_FUNC, sliceAssigner);
+           globalFunction = new MinMaxWindowAggFunction(0, 0, 0, MIN_FUNC, sliceAssigner);
         } else {
             throw std::runtime_error("Unsupported aggregate type: " + aggTypeStr);
         }
@@ -71,23 +70,48 @@ AbstractWindowAggProcessor::AbstractWindowAggProcessor(const nlohmann::json desc
 
 bool AbstractWindowAggProcessor::processBatch(omnistream::VectorBatch* vectorbatch)
 {
-    int64_t sliceEndArr[vectorbatch->GetRowCount()];
+    std::vector<int64_t> sliceEndArr(vectorbatch->GetRowCount());
+    std::vector<int8_t> dropArr(vectorbatch->GetRowCount());
     for (int i = 0; i < vectorbatch->GetRowCount(); i++) {
         int64_t sliceEnd = sliceAssigner->assignSliceEnd(vectorbatch, i, clockService);
         sliceEndArr[i] = sliceEnd;
         // ZoneId is supposed to be UTC
         // todo support other ZoneId
+        auto currentKey = keySelector->getKey(vectorbatch, i);
         if (!isEventTime) {
-            auto currentKey = keySelector->getKey(vectorbatch, i);
-            WindowKey* temp = new WindowKey(sliceEnd, currentKey);
+            auto temp =std::make_unique<WindowKey>(sliceEnd, currentKey);
             auto result = uniqueData.insert(temp->hash());
             if (result.second) {
                 stateBackend->setCurrentKey(currentKey);
                 internalTimerService->registerProcessingTimeTimer(sliceEnd, sliceEnd - 1);
             }
+            dropArr[i] = false;
+        }
+        if (isEventTime && TimeWindowUtil::isWindowFired(sliceEnd, currentProgress)){
+            WindowedSliceAssigner* windowedSliceAssigner = dynamic_cast<WindowedSliceAssigner*>(sliceAssigner);
+            SliceAssigner* assigner = windowedSliceAssigner->GetInnerAssigner();
+            if (assigner == nullptr ){
+                throw std::runtime_error("assigner is nullptr");
+            }
+            long lastWindowEnd = assigner->getLastWindowEnd(sliceEnd);
+            if (TimeWindowUtil::isWindowFired(lastWindowEnd, currentProgress)) {
+                // the last window has been triggered, so the element can be dropped now
+              LOG("drop element sliceEnd: " << sliceEnd)
+              dropArr[i] = true;
+              continue;
+            } else {
+                //register elements;
+                int64_t unfiredFirstWindow = sliceEnd;
+                while (TimeWindowUtil::isWindowFired(unfiredFirstWindow, currentProgress)) {
+                    unfiredFirstWindow += windowInterval;
+                }
+                stateBackend->setCurrentKey(currentKey);
+                internalTimerService->registerEventTimeTimer(unfiredFirstWindow, unfiredFirstWindow - 1);
+                dropArr[i] = false;
+            }
         }
     }
-    windowBuffer->addVectorBatch(vectorbatch, sliceEndArr);
+    windowBuffer->addVectorBatch(vectorbatch, sliceEndArr.data(), reinterpret_cast<bool*>(dropArr.data()));
     return false;
 }
 
@@ -103,11 +127,14 @@ void AbstractWindowAggProcessor::open(AbstractKeyedStateBackend<RowData*> *keyed
     ValueStateDescriptor<RowData*> *accDesc = new ValueStateDescriptor<RowData*>(aggName, binaryRowDataSerializer);
     using S = HeapValueState<RowData*, int64_t, RowData*>;
     S* state = keyedStateBackend->template getOrCreateKeyedState<RowData*, S, RowData*>(new LongSerializer(), accDesc);
-    windowState = new WindowValueState<RowData*, int64_t, RowData*>(state);
-    windowBuffer = new RecordsWindowBuffer(config, windowState, output, sliceAssigner, internalTimerService);
+    windowState = std::make_unique<WindowValueState<RowData*, int64_t, RowData*>>(state);
+    windowBuffer =std::make_unique<RecordsWindowBuffer>(config, windowState.get(), output, sliceAssigner, internalTimerService);
 }
 
 void AbstractWindowAggProcessor::initializeWatermark(int64_t watermark) {
+    if (isEventTime) {
+ 	        currentProgress = watermark;
+ 	    }
 }
 
 void AbstractWindowAggProcessor::advanceProgress(StreamOperatorStateHandler<RowData*> *stateHandler, long progress)
@@ -174,7 +201,7 @@ void AbstractWindowAggProcessor::ProcessHopResult(RowData* result)
             std::vector<RowData *> resultRows;
             resultRows.push_back(BinaryRowDataSerializer::joinedRowToBinaryRow(resultRow, outputTypeIds));
             resultBatch = createOutputBatch(resultRows);
-            collectOutputBatch(collector, resultBatch);
+            collectOutputBatch(collector.get(), resultBatch);
         } else {
             LOG("window is empty")
         }
@@ -190,7 +217,7 @@ void AbstractWindowAggProcessor::ProcessNonHopResult(RowData* result)
         std::vector<RowData *> resultRows;
         resultRows.push_back(BinaryRowDataSerializer::joinedRowToBinaryRow(resultRow, outputTypeIds));
         resultBatch = createOutputBatch(resultRows);
-        collectOutputBatch(collector, resultBatch);
+        collectOutputBatch(collector.get(), resultBatch);
     } else {
         THROW_LOGIC_EXCEPTION("Unexpected fireWindow result! ResultRow and outputTypes columns not equal!!")
     }

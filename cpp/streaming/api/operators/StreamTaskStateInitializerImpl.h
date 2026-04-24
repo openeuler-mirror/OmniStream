@@ -146,7 +146,7 @@ AbstractKeyedStateBackend<K> *StreamTaskStateInitializerImpl::keyedStatedBackend
     int end = ((operatorIndex + 1) * maxParallelism - 1) / parallelism;
     KeyGroupRange *keyGroupRange = new KeyGroupRange(start, end);
 
-    LOG("operatorIndex " << operatorIndex << " maxParallelism " << maxParallelism << " parallelism " << parallelism << " start " << start << " end " << end);
+    INFO_RELEASE("operatorIndex " << operatorIndex << " maxParallelism " << maxParallelism << " parallelism " << parallelism << " start " << start << " end " << end);
     // Not sure about maxParallelism being the input here
     InternalKeyContextImpl<K> *keyContext = new InternalKeyContextImpl<K>(keyGroupRange, maxParallelism);
     keyContext->setCurrentKeyGroupIndex(start);
@@ -167,7 +167,7 @@ AbstractKeyedStateBackend<K> *StreamTaskStateInitializerImpl::keyedStatedBackend
     int end = ((operatorIndex + 1) * maxParallelism - 1) / parallelism;
     KeyGroupRange *keyGroupRange = new KeyGroupRange(start, end);
 
-    LOG("operatorIndex " << operatorIndex << " maxParallelism " << maxParallelism << " parallelism " <<
+    INFO_RELEASE("operatorIndex " << operatorIndex << " maxParallelism " << maxParallelism << " parallelism " <<
     parallelism << " start " << start << " end " << end);
     // Not sure about maxParallelism being the input here
     InternalKeyContextImpl<K> *keyContext = new InternalKeyContextImpl<K>(keyGroupRange, maxParallelism);

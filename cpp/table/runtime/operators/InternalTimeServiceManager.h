@@ -62,6 +62,7 @@ private:
     KeyContext<K> *keyContext;
     ProcessingTimeService *processingTimeService;
     int maxNumberOfSubtasks;
+    static constexpr int MIN_CAPACITY_OF_TIMER_QUEUE = 128;
 
     template <typename N>
     InternalTimerServiceImpl<K, N> *registerOrGetTimerService(std::string name);
@@ -106,9 +107,9 @@ InternalTimerServiceImpl<K, N> *InternalTimeServiceManager<K>::registerOrGetTime
         auto it = timerServices.find(name);
         if (it == timerServices.end()) {
             auto processingTimerQueue = new HeapPriorityQueueSet<TimerHeapInternalTimer<K, N> *,
-                    MinHeapComparator<K, N>>(localKeyGroupRange, 1, maxNumberOfSubtasks);
+                    MinHeapComparator<K, N>>(localKeyGroupRange, MIN_CAPACITY_OF_TIMER_QUEUE, maxNumberOfSubtasks);
             auto eventTimerQueue = new HeapPriorityQueueSet<TimerHeapInternalTimer<K, N> *, MinHeapComparator<K, N>>(
-                    localKeyGroupRange, 1, maxNumberOfSubtasks);
+                    localKeyGroupRange, MIN_CAPACITY_OF_TIMER_QUEUE, maxNumberOfSubtasks);
             InternalTimerServiceImpl<K, N> *timerService = new InternalTimerServiceImpl<K, N>(
                     localKeyGroupRange, keyContext, processingTimeService, processingTimerQueue, eventTimerQueue);
             timerServices.emplace(name, timerService);
@@ -120,9 +121,9 @@ InternalTimerServiceImpl<K, N> *InternalTimeServiceManager<K>::registerOrGetTime
         auto it = timerServicesVoidNameSpace.find(name);
         if (it == timerServicesVoidNameSpace.end()) {
             auto processingTimerQueue = new HeapPriorityQueueSet<TimerHeapInternalTimer<K, N> *,
-                    MinHeapComparator<K, N>>(localKeyGroupRange, 1, maxNumberOfSubtasks);
+                    MinHeapComparator<K, N>>(localKeyGroupRange, MIN_CAPACITY_OF_TIMER_QUEUE, maxNumberOfSubtasks);
             auto eventTimerQueue = new HeapPriorityQueueSet<TimerHeapInternalTimer<K, N> *, MinHeapComparator<K, N>>(
-                    localKeyGroupRange, 1, maxNumberOfSubtasks);
+                    localKeyGroupRange, MIN_CAPACITY_OF_TIMER_QUEUE, maxNumberOfSubtasks);
             InternalTimerServiceImpl<K, N> *timerService = new InternalTimerServiceImpl<K, N>(
                     localKeyGroupRange, keyContext, processingTimeService, processingTimerQueue, eventTimerQueue);
             timerServicesVoidNameSpace.emplace(name, timerService);
@@ -134,9 +135,9 @@ InternalTimerServiceImpl<K, N> *InternalTimeServiceManager<K>::registerOrGetTime
         auto it = timerServicesWindow.find(name);
         if (it == timerServicesWindow.end()) {
             auto processingTimerQueue = new HeapPriorityQueueSet<TimerHeapInternalTimer<K, N> *,
-                    MinHeapComparator<K, N>>(localKeyGroupRange, 1, maxNumberOfSubtasks);
+                    MinHeapComparator<K, N>>(localKeyGroupRange, MIN_CAPACITY_OF_TIMER_QUEUE, maxNumberOfSubtasks);
             auto eventTimerQueue = new HeapPriorityQueueSet<TimerHeapInternalTimer<K, N> *, MinHeapComparator<K, N>>(
-                    localKeyGroupRange, 1, maxNumberOfSubtasks);
+                    localKeyGroupRange, MIN_CAPACITY_OF_TIMER_QUEUE, maxNumberOfSubtasks);
             InternalTimerServiceImpl<K, N> *timerService = new InternalTimerServiceImpl<K, N>(
                     localKeyGroupRange, keyContext, processingTimeService, processingTimerQueue, eventTimerQueue);
             timerServicesWindow.emplace(name, timerService);

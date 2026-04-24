@@ -26,9 +26,16 @@ public:
     void NotifyAll();
 
 private:
+    struct Comparator {
+        bool operator()(ScheduledFutureTask* left, ScheduledFutureTask* right) {
+            // *left < *right means the right ScheduledFutureTask has higher priority (earlier execution time)
+            return *left < *right;
+        }
+    };
+
     std::mutex queueMutex;
     std::condition_variable condition;
-    std::priority_queue<ScheduledFutureTask*> queue;
+    std::priority_queue<ScheduledFutureTask*, std::vector<ScheduledFutureTask*>, Comparator> queue;
     bool stop = false;
 };
 

@@ -21,49 +21,68 @@
 
 class TimeWindow : public Window {
 public:
-    long start{};
-    long end{};
-
     TimeWindow();
 
     TimeWindow(long start, long end);
 
-    long getStart() const;
+    TimeWindow(const TimeWindow&) = default;
 
-    long getEnd() const;
+    long getStart() const {
+        return start;
+    }
 
-    long maxTimestamp() const override;
+    long getEnd() const {
+        return end;
+    }
 
-    bool intersects(const TimeWindow &other) const;
+    long maxTimestamp() const override {
+        return end - 1;
+    }
 
-    TimeWindow cover(const TimeWindow &other) const;
+    bool intersects(const TimeWindow &other) const {
+        return this->start <= other.end && this->end >= other.start;
+    }
 
-    static long getWindowStartWithOffset(long timestamp, long offset, long windowSize);
+    TimeWindow cover(const TimeWindow &other) const {
+        return {std::min(this->start, other.start), std::max(this->end, other.end)};
+    }
 
-    bool Equals(const TimeWindow &window) const
-    {
+    static long getWindowStartWithOffset(long timestamp, long offset, long windowSize) {
+        if (windowSize <= 0) {
+            THROW_RUNTIME_ERROR("windowSize should be larger than 0.")
+        }
+        long remainder = (timestamp - offset) % windowSize;
+        return remainder < 0L ? timestamp - (remainder + windowSize) : timestamp - remainder;
+    }
+
+    bool Equals(const TimeWindow &window) const {
         return end == window.end && start == window.start;
     }
 
-    int HashCode() const
-    {
-        return MathUtils::longToIntWithBitMixing(start + end);
+    size_t hashCode() const {
+        int32_t endTransformed = static_cast<int32_t>((end << 1) + 1);
+        return static_cast<size_t>(start + modInverse(endTransformed));
     }
 
-    static TimeWindow *of(long start, long end);
+    bool operator<(const TimeWindow &other) const {
+        if (start == other.start) {
+            return end < other.end;
+        }
+        return start < other.start;
+    }
 
-    bool operator<(const TimeWindow &other) const;
+    bool operator>(const TimeWindow &other) const {
+        if (start == other.start) {
+            return end > other.end;
+        }
+        return start > other.start;
+    }
 
-    bool operator>(const TimeWindow &other) const;
-
-    bool operator==(const TimeWindow &other) const
-    {
+    bool operator==(const TimeWindow &other) const {
         return start == other.start && end == other.end;
     }
 
-    TimeWindow(const TimeWindow&) = default;
-    TimeWindow &operator=(const TimeWindow &other)
-    {
+    TimeWindow &operator=(const TimeWindow &other) {
         if (this != &other) {
             start = other.start;
             end = other.end;
@@ -71,7 +90,10 @@ public:
         return *this;
     }
 
-    friend std::ostream &operator<<(std::ostream &os, const TimeWindow &obj);
+    friend std::ostream &operator<<(std::ostream &os, const TimeWindow &obj) {
+        os << "TimeWindow{start=" << std::to_string(obj.start) << ", end=" << std::to_string(obj.end) << '}';
+        return os;
+    }
 
     class Serializer : public TypeSerializerSingleton {
     public:
@@ -95,12 +117,19 @@ public:
 
         BackendDataType getBackendId() const;
     };
-};
+private:
+    long start{};
+    long end{};
 
-struct MyKeyHash {
-    std::size_t operator()(const TimeWindow &key) const
-    {
-        return MathUtils::longToIntWithBitMixing(key.start + key.end);
+    int32_t modInverse(int32_t x) const {
+        uint32_t ux = static_cast<uint32_t>(x);
+        // Cube gives inverse mod 2^4, as x^4 == 1 (mod 2^4) for all odd x.
+        uint32_t inverse = ux * ux * ux;
+        // Newton iteration doubles correct bits at each step.
+        inverse *= 2 - ux * inverse;
+        inverse *= 2 - ux * inverse;
+        inverse *= 2 - ux * inverse;
+        return static_cast<int32_t>(inverse);
     }
 };
 
@@ -109,7 +138,7 @@ namespace std {
     struct hash<TimeWindow> {
         std::size_t operator()(const TimeWindow& timeWindow) const noexcept
         {
-            return timeWindow.HashCode();
+            return timeWindow.hashCode();
         }
     };
 }

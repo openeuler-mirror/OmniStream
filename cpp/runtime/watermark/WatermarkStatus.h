@@ -15,18 +15,27 @@
 #include "streaming/runtime/streamrecord/StreamElement.h"
 #include "common.h"
 
-class WatermarkStatus : public StreamElement {
+class WatermarkStatus final : public StreamElement {
 public:
     const int status_;
-    static const int idleStatus = -1;
-    static const int activeStatus = 0;
-    static WatermarkStatus* idle;
-    static WatermarkStatus* active;
-    explicit WatermarkStatus(int status) noexcept : status_(status)
+    static constexpr int idleStatus = -1;
+    static constexpr int activeStatus = 0;
+    static WatermarkStatus* idle() {
+        static WatermarkStatus s(idleStatus);
+        return &s;
+    }
+
+    static WatermarkStatus* active() {
+        static WatermarkStatus s(activeStatus);
+        return &s;
+    }
+
+    explicit WatermarkStatus(int status) : status_(status)
     {
         if (status != idleStatus && status != activeStatus) {
             THROW_LOGIC_EXCEPTION("Invalid status value for WatermarkStatus");
         }
+        setTag(StreamElementTag::TAG_STREAM_STATUS);
     }
 
     bool IsIdle()

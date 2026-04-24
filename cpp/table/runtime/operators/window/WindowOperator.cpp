@@ -23,9 +23,7 @@ WindowOperator<K, W>::~WindowOperator()
 template<typename K, typename W>
 void WindowOperator<K, W>::open()
 {
-    internalTimerService =
-            AbstractStreamOperator<K>::getInternalTimerService("window-timers", windowSerializer, this);
-//    internalTimerService = new InternalTimerServiceImpl<K, W>(this);
+    internalTimerService = AbstractStreamOperator<K>::getInternalTimerService("window-timers", windowSerializer, this);
     triggerContext = new TriggerContext(this);
     triggerContext->Open();
 
@@ -97,6 +95,10 @@ void WindowOperator<K, W>::onEventTime(TimerHeapInternalTimer<K, W> *timer)
     if (triggerContext->OnEventTime(timer->getTimestamp())) {
         emitWindowResult(triggerContext->window);
     }
+    // TODO: Enable window cleaning when the Window operator is adapted for RocksDB
+    // if (windowAssigner->IsEventTime()) {
+    //     windowFunction->CleanWindowIfNeeded(triggerContext->window, timer->getTimestamp());
+    // }
 }
 
 template<typename K, typename W>
@@ -119,17 +121,6 @@ void WindowOperator<K, W>::processBatch(StreamRecord *record)
     LOG("getEntireRow rowCount :" << rowCount)
     for (int rowIndex = 0; rowIndex < rowCount; rowIndex++) {
         RowData *currentRow = input->extractRowData(rowIndex);
-        // temp fix: check if watermark needs to be advanced
-        long timestamp = *currentRow->getLong(rowtimeIndex);
-        if (timestamp > maxTimestamp) {
-            maxTimestamp = timestamp;
-        }
-        long newWatermark = maxTimestamp - this->allowedLateness - 1;
-        long currentWatermark = this->internalTimerService->currentWatermark();
-        if (newWatermark > currentWatermark) {
-            this->internalTimerService->advanceWatermark(newWatermark);
-        }
-
         this->processElement(currentRow);
     }
 }

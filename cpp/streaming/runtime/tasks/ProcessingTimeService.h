@@ -20,6 +20,7 @@
 
 class ProcessingTimeService {
 public:
+    virtual ~ProcessingTimeService() = default;
     // needs to return ScheduledFuture, not implemented yet
 //    virtual void registerTimer(int64_t timestamp, std::function<void(int64_t)> func) = 0;
     virtual ScheduledFutureTask* registerTimer(int64_t timestamp, ProcessingTimeCallback *target) = 0;

@@ -45,7 +45,7 @@ public:
             return;
         }
 
-        output->emitWatermarkStatus(WatermarkStatus::idle);
+        output->emitWatermarkStatus(WatermarkStatus::idle());
         watermarkEmitted->UpdateIdle(true);
         isIdle = true;
     }
@@ -66,7 +66,7 @@ private:
                 return true;
             }
 
-            output->emitWatermarkStatus(WatermarkStatus::active);
+            output->emitWatermarkStatus(WatermarkStatus::active());
             watermarkEmitted->UpdateIdle(false);
             isIdle = false;
             return false;

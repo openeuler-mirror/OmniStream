@@ -29,6 +29,7 @@ public:
     {
         LOG("AbstractKeyedStateBackend");
         delete keySerializer;
+        keySerializer = nullptr;
     }
 
     AbstractKeyedStateBackend(TypeSerializer *keySerializer, InternalKeyContext<K> *context) :context(context), keySerializer(keySerializer) {};
@@ -61,7 +62,7 @@ public:
 
 protected:
     InternalKeyContext<K> *context;
-    TypeSerializer *keySerializer;
+    TypeSerializer * keySerializer = nullptr;
     std::string lastName;
     // This state is InternalKvState
     uintptr_t lastState;

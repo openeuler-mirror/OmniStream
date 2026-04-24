@@ -109,12 +109,34 @@ private:
 namespace std {
     template<>
     struct hash<BinaryRowData> {
-        std::size_t operator()(const BinaryRowData& binaryRowData) const noexcept
+        std::size_t operator()(const BinaryRowData& ns) const noexcept
         {
-            return binaryRowData.hashCode();
+            return ns.hashCodeFast();
         }
     };
-    
+    template <>
+    struct equal_to<BinaryRowData> {
+        bool operator()(const BinaryRowData& lhs, const BinaryRowData& rhs) const noexcept
+        {
+            return lhs == rhs;
+        }
+    };
+    template <>
+    struct hash<BinaryRowData*> {
+        std::size_t operator()(const BinaryRowData* nsPtr) const noexcept
+        {
+            auto hashFast=  nsPtr ? nsPtr->hashCodeFast() : 0;
+            return static_cast<size_t>(hashFast);
+        }
+    };
+    // Attention: Be very careful when using this! It does not compare the address. but the content
+    template <>
+    struct equal_to<BinaryRowData*> {
+        bool operator()(const BinaryRowData* lhs, const BinaryRowData* rhs) const noexcept
+        {
+            return *lhs == *rhs;
+        }
+    };
 }
 
 

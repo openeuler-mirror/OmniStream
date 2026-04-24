@@ -30,7 +30,7 @@ public:
     {
         checkpointLock->mutex.lock();
         {
-            processAndEmitWatermarkStatus(WatermarkStatus::active);
+            processAndEmitWatermarkStatus(WatermarkStatus::active());
 
             if (nextCheck != nullptr) {
                 failOnNextCheck = false;
@@ -47,7 +47,7 @@ public:
     {
         checkpointLock->mutex.lock();
         {
-            processAndEmitWatermarkStatus(WatermarkStatus::active);
+            processAndEmitWatermarkStatus(WatermarkStatus::active());
 
             if (nextCheck != nullptr) {
                 failOnNextCheck = false;
@@ -65,7 +65,7 @@ public:
         if (allowWatermark(mark)) {
             checkpointLock->mutex.lock();
             {
-                processAndEmitWatermarkStatus(WatermarkStatus::active);
+                processAndEmitWatermarkStatus(WatermarkStatus::active());
 
                 if (nextCheck != nullptr) {
                     failOnNextCheck = false;
@@ -83,7 +83,7 @@ public:
     {
         checkpointLock->mutex.lock();
         {
-            processAndEmitWatermarkStatus(WatermarkStatus::idle);
+            processAndEmitWatermarkStatus(WatermarkStatus::idle());
         }
         checkpointLock->mutex.unlock();
     }
