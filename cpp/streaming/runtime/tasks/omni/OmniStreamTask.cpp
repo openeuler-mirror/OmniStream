@@ -86,7 +86,7 @@ OmniStreamTask::OmniStreamTask(std::shared_ptr<RuntimeEnvironmentV2> &env,
     if (taskConfiguration_.getStateBackend() == "HashMapStateBackend") {
         stateBackend = new HashMapStateBackend();
     } else {
-        stateBackend = new RocksDBStateBackend(taskConfiguration_);
+        stateBackend = new EmbeddedRocksDBStateBackend(taskConfiguration_);
     }
     checkpointStorage = createCheckpointStorage(stateBackend);
     std::shared_ptr<CheckpointStorageAccess> checkpointStorageAccess = checkpointStorage->createCheckpointStorage(taskConfiguration_.getTmpWorkingDirectory());
@@ -495,7 +495,8 @@ void OmniStreamTask::processInput(MailboxDefaultAction::Controller *controller)
         } else if (partitioner.getPartitionerName() == StreamPartitionerPOD::HASH) {
             int targetId = edge.getTargetId();
             int sourceId = edge.getSourceId();
-            std::unordered_map<int, StreamConfigPOD> configMap = env_->taskConfiguration().getChainedConfigMap();
+            auto taskInfo = env_->taskConfiguration();
+            std::unordered_map<int, StreamConfigPOD> configMap = taskInfo.getChainedConfigMap();
             auto description = configMap[sourceId].getOperatorDescription().getDescription();
             nlohmann::json config = nlohmann::json::parse(description);
             int32_t maxParallelism = env_->taskConfiguration().getMaxNumberOfSubtasks();

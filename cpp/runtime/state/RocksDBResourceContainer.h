@@ -11,13 +11,12 @@
 #ifndef OMNISTREAM_ROCKSDBRESOURCECONTAINER_H
 #define OMNISTREAM_ROCKSDBRESOURCECONTAINER_H
 
-#include <iostream>
-#include <rocksdb/db.h>
+#include "RocksDBSharedResources.h"
 
 class RocksDBResourceContainer {
 public:
-    RocksDBResourceContainer(const fs::path& instanceBasePath, bool enableStatistics)
-        : enableStatistics_(enableStatistics)
+    RocksDBResourceContainer(std::shared_ptr<RocksDBSharedResources> sharedResources, const fs::path& instanceBasePath, bool enableStatistics)
+        : sharedResources_(sharedResources), enableStatistics_(enableStatistics)
     {
         if (!instanceBasePath.empty()) {
             instanceRocksDBPath_ = instanceBasePath / "db";
@@ -33,20 +32,26 @@ public:
         // set the configurable options
         DefaultConfigurableOptionsFactory::createDBOptions(*options);
 
+        if (sharedResources_ != nullptr) {
+            options->write_buffer_manager = sharedResources_->getWriteBufferManager();
+        } else {
+            THROW_LOGIC_EXCEPTION("RocksDBResourceContainer::getDbOptions, RocksDBSharedResources should not be null.");
+        }
+
         return options;
     }
 
-    std::shared_ptr<rocksdb::ColumnFamilyOptions> getColumnOptions()
-    {
-        auto opt = createBaseCommonColumnOptions();
-
-        // set the configurable options
-        DefaultConfigurableOptionsFactory::createColumnOptions(*opt);
-
-        return opt;
+    std::shared_ptr<rocksdb::ColumnFamilyOptions> getColumnOptions() {
+        auto columnFamilyOptions = createBaseCommonColumnOptions();
+        DefaultConfigurableOptionsFactory::createColumnOptions(*columnFamilyOptions);
+        ROCKSDB_NAMESPACE::BlockBasedTableOptions blockBasedTableOptions;
+        blockBasedTableOptions.block_cache = sharedResources_->getCache();
+        columnFamilyOptions->table_factory.reset(NewBlockBasedTableFactory(blockBasedTableOptions));
+        return columnFamilyOptions;
     }
 
 private:
+    std::shared_ptr<RocksDBSharedResources> sharedResources_;
     std::optional<fs::path> instanceRocksDBPath_;
     bool enableStatistics_;
 
@@ -59,8 +64,7 @@ private:
         return options;
     }
 
-    std::shared_ptr<rocksdb::ColumnFamilyOptions> createBaseCommonColumnOptions()
-    {
+    std::shared_ptr<rocksdb::ColumnFamilyOptions> createBaseCommonColumnOptions() {
         auto opt = std::make_shared<rocksdb::ColumnFamilyOptions>();
         return opt;
     }
