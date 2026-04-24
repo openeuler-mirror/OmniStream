@@ -26,6 +26,10 @@
 #include "CommittableMessageInfo.h"
 #include "PojoField.h"
 #include "TypeInfoFactory.h"
+#include "basictypes/String.h"
+#include "runtime/state/VoidNamespace.h"
+#include "runtime/state/VoidNamespaceTypeInfo.h"
+#include "core/typeinfo/TimerTypeInfo.h"
 
 TypeInformation *TypeInfoFactory::createTypeInfo(const char *name)
 {
@@ -262,7 +266,28 @@ TypeInformation *TypeInfoFactory::createDataStreamTypeInfo(const json &serialize
     } else if (serializerName == TYPE_NAME_LIST_SERIALIZER) {
         auto elementTypeInfo = createDataStreamTypeInfo(serializerInfo["elementSerializer"]);
         typeInformation = new ListTypeInfo(elementTypeInfo);
-    } else {
+    }  else if (serializerName == TYPE_NAME_VOID_NAMESPACE_SERIALIZER) {
+        typeInformation = new VoidNamespaceTypeInfo(serializerName.c_str());
+    } else if (serializerName == TYPE_NAME_TIMER_SERIALIZER) {
+        auto keyTypeInfo = createDataStreamTypeInfo(serializerInfo["keySerializer"]);
+        auto namespaceTypeInfo = createDataStreamTypeInfo(serializerInfo["namespaceSerializer"]);
+
+   		std::string keyInstanceClass = TYPE_NAME_STRING_CLASS;
+		if(serializerInfo["keySerializer"].contains("serializerInstanceClazz")
+			&& !serializerInfo["keySerializer"]["serializerInstanceClazz"].empty()) {
+			keyInstanceClass = serializerInfo["keySerializer"]["serializerInstanceClazz"];
+		}
+   		std::string namespaceInstanceClass = TYPE_NAME_VOID_NAMESPACE_CLASS;
+		if(serializerInfo["namespaceSerializer"].contains("serializerInstanceClazz")
+			&& !serializerInfo["namespaceSerializer"]["serializerInstanceClazz"].empty()) {
+			namespaceInstanceClass = serializerInfo["namespaceSerializer"]["serializerInstanceClazz"];
+		}
+
+		typeInformation = new TimerTypeInfo(keyTypeInfo,
+				namespaceTypeInfo,
+				ClassRegistry::instance().newClass(keyInstanceClass),
+ 				ClassRegistry::instance().newClass(namespaceInstanceClass));
+	} else {
         THROW_RUNTIME_ERROR("invalid serializerName " + serializerName)
     }
     return typeInformation;

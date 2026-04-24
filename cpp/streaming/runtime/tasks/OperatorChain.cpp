@@ -366,7 +366,7 @@ StreamOperator *OperatorChainV2::createMainOperatorAndCollector(
 }
 
 void OperatorChainV2::initializeStateAndOpenOperators(StreamTaskStateInitializerImpl *initializer,
-    TaskInformationPOD taskConfiguration_)
+    const TaskInformationPOD& taskConfiguration_)
 {
     // call operators' initializeState() and open() in a reverse order.
     LOG("OperatorChainV2::initializeStateAndOpenOperators start")

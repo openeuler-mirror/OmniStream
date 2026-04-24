@@ -100,9 +100,9 @@ public:
    // write to file. The default mode is to open a new one
     void writeToFile(std::string& filename, std::ios_base::openmode mode = std::ios::out,
                      std::vector<std::pair<int32_t, int32_t>> decimalInfo = {},
-                     std::vector<std::string> inputTypes = {}) const;
+                     std::vector<std::string> inputTypes = {}, long zoneOffsetSeconds = 0) const;
 
-    std::string TransformTime(int vectorID, int rowID) const;
+    std::string TransformTime(int vectorID, int rowID, long zoneOffsetSeconds) const;
     std::string transformDecimal128(
                     int vectorID, int rowID, std::vector<std::pair<int32_t, int32_t>>& decimalInfo) const;
     std::string transformDecimal64(
@@ -110,7 +110,7 @@ public:
     void WriteToFileInternal(int vectorID, int rowID,
                              std::ofstream& file,
                              std::vector<std::pair<int32_t, int32_t>> decimalInfo,
-                             std::vector<std::string> inputTypes) const;
+                             std::vector<std::string> inputTypes, long zoneOffsetSeconds) const;
     void WriteString(std::ofstream& file, int vectorID, int rowID) const;
     VectorBatch* copy()
     {

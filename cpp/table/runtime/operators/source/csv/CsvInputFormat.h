@@ -49,9 +49,27 @@ public:
 
     void open(InputSplit* split)
     {
-        inputStream_.open(split->getFilePath(), std::ios::in | std::ios::binary);
+        std::string filePath = split->getFilePath();
+        // Convert URI format to local file path (e.g., "file:/tmp/data.csv" -> "/tmp/data.csv")
+        if (filePath.find("file:") == 0) {
+            filePath = filePath.substr(5);
+            // Handle "file:///path" (three slashes) or "file:/path" (one slash)
+            while (!filePath.empty() && filePath[0] == '/') {
+                // Keep removing leading slashes until we have exactly one
+                if (filePath.size() > 1 && filePath[1] == '/') {
+                    filePath = filePath.substr(1);
+                } else {
+                    break;
+                }
+            }
+            // Ensure path starts with /
+            if (filePath.empty() || filePath[0] != '/') {
+                filePath = "/" + filePath;
+            }
+        }
+        inputStream_.open(filePath, std::ios::in | std::ios::binary);
         if (!inputStream_.is_open()) {
-            std::cerr << "Failed to open file: " << split->getFilePath() << std::endl;
+            std::cerr << "Failed to open file: " << filePath << " (original: " << split->getFilePath() << ")" << std::endl;
             return;
         }
         inputStream_.seekg(split->getStartOffset());

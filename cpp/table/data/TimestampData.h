@@ -29,6 +29,7 @@ public:
 
     static long stringToEpochMillis(const std::string& str);
     static TimestampData* fromString(const std::string& str);
+    static TimestampData* fromLocalTimeString(const std::string& str);
 
     static bool isCompact(int percision);
 

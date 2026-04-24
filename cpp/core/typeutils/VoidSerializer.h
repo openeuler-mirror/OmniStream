@@ -14,25 +14,42 @@
 #define VOIDSERIALIZER_H
 
 #include "TypeSerializerSingleton.h"
+#include "SerializerJsonInfo.h"
+#include "basictypes/Void.h"
 
 class VoidSerializer : public TypeSerializerSingleton {
 public:
-    const char* getName() const override
-    {
-        return "VoidSerializer";
+    VoidSerializer() { reuseBuffer = new Void(); }
+
+    ~VoidSerializer() override = default;
+
+    void* deserialize(DataInputView& source) override;
+
+    void serialize(void* record, DataOutputSerializer& target) override { target.write(0); }
+
+    void deserialize(Object* buffer, DataInputView& source) override {}
+
+    void serialize(Object* buffer, DataOutputSerializer& target) override { target.write(0); }
+
+    const char* getName() const override { return "VoidSerializer"; }
+
+    virtual TypeSerializer* duplicate() { return VoidSerializer::INSTANCE; }
+
+    virtual std::shared_ptr<TypeSerializerSnapshot> snapshotConfiguration(){
+        // TODO impl build serializer snapshot
+        NOT_IMPL_EXCEPTION
     }
 
-    BackendDataType getBackendId() const override
-    {
-        return BackendDataType::VOID_NAMESPACE_BK;
+    BackendDataType getBackendId() const override { return BackendDataType::OBJECT_BK; }
+
+    std::string toJson() override {
+        SerializerJsonInfo typeJson = {SerializerType::VOID};
+        return typeJson.toJson();
     }
 
-    void* deserialize(DataInputView& source) override
-    {
-        return nullptr;
-    }
-    void serialize(void* record, DataOutputSerializer& target) override {
-    }
+    Object* GetBuffer() override;
+
+    static VoidSerializer* INSTANCE;
 };
 
 #endif  // VOIDSERIALIZER_H

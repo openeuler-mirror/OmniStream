@@ -169,6 +169,7 @@ private:
                             break;
                         case omniruntime::type::DataTypeId::OMNI_LONG:
                         case omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:
+                        case omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE:
                         case omniruntime::type::DataTypeId::OMNI_TIMESTAMP:
                             filterFuncPtrs.push_back(getValueAddress<int64_t>);
                             break;

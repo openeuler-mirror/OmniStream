@@ -89,7 +89,8 @@ namespace omnistream {
             // It is a omniruntime type
             if (typeId < OMNI_INVALID && rowSerializerCenter[typeId] != nullptr) {
                 rowSerializerCenter[typeId](col, rowIndex, outRow, colIndex);
-            } else if (typeId == DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE) {
+            } else if (typeId == DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE ||
+                typeId == omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE) {
                 rowSerializerCenter[OMNI_LONG](col, rowIndex, outRow, colIndex);
             } else {
                 throw std::runtime_error("Data type not supported");
@@ -131,10 +132,11 @@ namespace omnistream {
         }
     }
 
-    std::string VectorBatch::TransformTime(int vectorID, int rowID) const
+    std::string VectorBatch::TransformTime(int vectorID, int rowID, long zoneOffsetSeconds) const
     {
         auto millis = reinterpret_cast<omniruntime::vec::Vector<int64_t> *>(vectors[vectorID])->GetValue(rowID);
         int64_t adjusted_seconds = (millis >= 0) ? (millis / 1000) : ((millis - 999) / 1000);
+        adjusted_seconds += zoneOffsetSeconds;
         int milliseconds = millis % 1000;
         if (milliseconds < 0) {
             const int addTime = 1000;
@@ -223,16 +225,20 @@ namespace omnistream {
     void VectorBatch::WriteToFileInternal(int vectorID, int rowID,
                                           std::ofstream& file,
                                           std::vector<std::pair<int32_t, int32_t>> decimalInfo,
-                                          std::vector<std::string> inputTypes) const
+                                          std::vector<std::string> inputTypes, long zoneOffsetSeconds) const
     {
         int dataId = vectors[vectorID]->GetTypeId();
         switch (dataId) {
             case omniruntime::type::DataTypeId::OMNI_TIMESTAMP:
             case omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:
+            case omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE:
             case omniruntime::type::DataTypeId::OMNI_LONG:
                 LOG("vb writefile inputType is " << inputTypes[vectorID])
-                if (inputTypes[vectorID].substr(0, 9) == "TIMESTAMP") {
-                    auto result = TransformTime(vectorID, rowID);
+                if (inputTypes[vectorID] == "TIMESTAMP_WITH_LOCAL_TIME_ZONE") {
+                    auto result = TransformTime(vectorID, rowID, zoneOffsetSeconds);
+                    file << result;
+                } else if (inputTypes[vectorID].substr(0, 9) == "TIMESTAMP") {
+                    auto result = TransformTime(vectorID, rowID, 0);
                     file << result;
                 } else {
                     file << reinterpret_cast<omniruntime::vec::Vector<int64_t> *>(vectors[vectorID])->GetValue(rowID);
@@ -268,7 +274,7 @@ namespace omnistream {
 
     void VectorBatch::writeToFile(std::string &filename, std::ios_base::openmode mode,
                                   std::vector<std::pair<int32_t, int32_t>> decimalInfo,
-                                  std::vector<std::string> inputTypes) const
+                                  std::vector<std::string> inputTypes, long zoneOffsetSeconds) const
     {
         std::ofstream file;
         if (!normalizeAndValidatePath(filename)) {
@@ -291,7 +297,7 @@ namespace omnistream {
                 if (vectors[j]->IsNull(i)) {
                     file << "NULL";
                 } else {
-                    WriteToFileInternal(j, i, file, decimalInfo, inputTypes);
+                    WriteToFileInternal(j, i, file, decimalInfo, inputTypes, zoneOffsetSeconds);
                 }
             }
             file << "\n";
@@ -311,6 +317,7 @@ namespace omnistream {
                 switch (dataTypeId) {
                     case OMNI_LONG:
                     case OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:
+                    case OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE:
                     case OMNI_TIMESTAMP: {
                         auto casted = reinterpret_cast<omniruntime::vec::Vector<int64_t> *>(vec);
                         auto val = casted->GetValue(i);
@@ -387,6 +394,7 @@ namespace omnistream {
                 }
                 case (omniruntime::type::DataTypeId::OMNI_LONG):
                 case (omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE):
+                case (omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE):
                 case (omniruntime::type::DataTypeId::OMNI_TIMESTAMP): {
                     auto vec = new omniruntime::vec::Vector<int64_t>(rowCount);
                     vectorBatch->Append(vec);

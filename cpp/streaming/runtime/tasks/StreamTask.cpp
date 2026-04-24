@@ -79,7 +79,7 @@ namespace omnistream::datastream {
     {
         operatorChain_ = new omnistream::OperatorChainV2(env_, recordWriter_);
         LOG("After after OperatorChain ")
-        TaskInformationPOD taskConfiguration_ = env_->taskConfiguration();
+        auto& taskConfiguration_ = env_->taskConfiguration();
 
         StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env_.get());
         operatorChain_->initializeStateAndOpenOperators(initializer, taskConfiguration_);
@@ -320,7 +320,8 @@ namespace omnistream::datastream {
         } else if (partitioner.getPartitionerName() == StreamPartitionerPOD::HASH) {
             int targetId = edge.getTargetId();
             int sourceId = edge.getSourceId();
-            std::unordered_map<int, StreamConfigPOD> configMap = env_->taskConfiguration().getChainedConfigMap();
+            auto taskInfo = env_->taskConfiguration();
+            std::unordered_map<int, StreamConfigPOD> configMap = taskInfo.getChainedConfigMap();
             auto description = configMap[sourceId].getOperatorDescription().getDescription();
             nlohmann::json config = nlohmann::json::parse(description);
             return new KeyGroupStreamPartitioner<IOReadableWritable, Object>(config, targetId, 128);

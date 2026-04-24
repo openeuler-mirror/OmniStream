@@ -34,6 +34,9 @@ public:
                 }
             }
         }
+        if (sinkDescription.contains("zoneOffsetSeconds")) {
+            zoneOffsetSeconds = sinkDescription.value("zoneOffsetSeconds", 0l);
+        }
     };
 
     ~DiscardingSink() override = default;
@@ -48,7 +51,7 @@ public:
                 return;
             }
             auto vb = reinterpret_cast<omnistream::VectorBatch*>(data->getValue());
-            vb->writeToFile(outfile, std::ios::app, decimalInfo, inputTypes);
+            vb->writeToFile(outfile, std::ios::app, decimalInfo, inputTypes, zoneOffsetSeconds);
 
             delete static_cast<omnistream::VectorBatch*>(data->getValue());
             delete data;
@@ -63,6 +66,7 @@ private:
     std::vector<std::string> inputTypes;
     std::string outfile;
     std::vector<std::pair<int32_t, int32_t>> decimalInfo; // precision, scale
+    long zoneOffsetSeconds = 0l;
 };
 
 #endif  // FLINK_TNEL_DISCARDINGSINK_H

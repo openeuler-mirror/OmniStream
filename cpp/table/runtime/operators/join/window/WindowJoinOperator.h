@@ -325,6 +325,7 @@ template <typename KeyType> void WindowJoinOperator<KeyType>::BuildInnerLeft(std
             case omniruntime::type::DataTypeId::OMNI_LONG:
             case omniruntime::type::DataTypeId::OMNI_TIMESTAMP:
             case omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:
+            case omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE:
                 insertLeft<int64_t>(colIdx, leftElements, rightElements, outputBatch, true);
                 break;
             case omniruntime::type::DataTypeId::OMNI_DOUBLE:
@@ -363,6 +364,7 @@ template <typename KeyType> void WindowJoinOperator<KeyType>::BuildInnerRight(st
             case omniruntime::type::DataTypeId::OMNI_LONG:
             case omniruntime::type::DataTypeId::OMNI_TIMESTAMP:
             case omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:
+            case omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE:
                 insertRight<int64_t>(colIdx, leftElements, rightElements, outputBatch, true);
                 break;
             case omniruntime::type::DataTypeId::OMNI_DOUBLE:

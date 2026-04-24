@@ -10,32 +10,39 @@
  */
 #ifndef FLINK_TNEL_VOIDNAMESPACE_H
 #define FLINK_TNEL_VOIDNAMESPACE_H
-#include "core/typeutils/TypeSerializer.h"
 
-class VoidNamespace {
+#include "basictypes/Object.h"
+
+class VoidNamespace : public Object {
 public:
-    VoidNamespace() {};
-    bool operator==(const VoidNamespace &other) const { return true; };
-    operator size_t() const { return 0; };
-    operator int64_t() const { return 0; };
-    int hashCode()
-    {
-        return 99;
-    }
+    VoidNamespace()= default;
+
+    VoidNamespace(const VoidNamespace& other) = default;
+
+    ~VoidNamespace() override = default;
+
+    VoidNamespace& operator=(const VoidNamespace& other) { return *this; }
+
+    bool operator==(const VoidNamespace &other) const { return true; }
+
+    operator size_t() const { return 0; }
+
+    operator int64_t() const { return 0; }
+
+    int hashCode() {  return 99; }
 };
 
 namespace std {
     template <>
     struct hash<VoidNamespace> {
-        std::size_t operator()(const VoidNamespace &ns) const noexcept
-        {
+        std::size_t operator()(const VoidNamespace &ns) const noexcept {
             return 99;
         }
     };
+
     template <>
     struct equal_to<VoidNamespace> {
-        bool operator()(const VoidNamespace &lhs, const VoidNamespace &rhs) const noexcept
-        {
+        bool operator()(const VoidNamespace &lhs, const VoidNamespace &rhs) const noexcept {
             return true;
         }
     };

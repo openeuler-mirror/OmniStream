@@ -122,7 +122,7 @@ namespace omnistream {
         StreamOperator *createMainOperatorAndCollector(OperatorChainPOD &opChainConfig,
                                                        RecordWriterOutputV2 *chainOutput);
 
-    void initializeStateAndOpenOperators(StreamTaskStateInitializerImpl *initializer, TaskInformationPOD taskConfiguration_);
+    void initializeStateAndOpenOperators(StreamTaskStateInitializerImpl *initializer, const TaskInformationPOD& taskConfiguration_);
 
         [[nodiscard]] StreamOperator *getMainOperator() const
         {

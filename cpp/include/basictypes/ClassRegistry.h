@@ -27,6 +27,8 @@ public:
 
     Class* getClass(const std::string& name);
 
+    Class* newClass(const std::string& name);
+
     bool hasRegistry(const std::string& name);
 
 private:

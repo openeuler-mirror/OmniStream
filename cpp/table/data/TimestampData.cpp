@@ -122,3 +122,12 @@ TimestampData* TimestampData::fromString(const std::string& str)
 {
     return new TimestampData(stringToEpochMillis(str), 0);
 }
+
+TimestampData* TimestampData::fromLocalTimeString(const std::string& str)
+{
+    size_t pos = str.find_last_of('Z');
+    if (pos == std::string::npos) {
+        throw std::invalid_argument("Invalid timestamp_with_lzt string");
+    }
+    return new TimestampData(stringToEpochMillis(str.substr(0, pos)), 0);
+}

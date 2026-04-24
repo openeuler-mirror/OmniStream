@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 #include "types/logical/LogicalType.h"
+#include "runtime/operators/source/csv/CsvRow.h"
 #include "runtime/operators/source/csv/CsvSchema.h"
 #include "streaming/runtime/streamrecord/StreamRecord.h"
 #include "runtime/operators/source/csv/CsvInputFormat.h"
@@ -12,6 +13,26 @@
 #include "typeutils/BinaryRowDataSerializer.h"
 #include "streaming/runtime/io/RecordWriterOutput.h"
 #include "test/table/runtime/operators/DummyStreamPartitioner.h"
+
+TEST(SourceTestTest, CsvRowKeepsQuotesInUnquotedJsonField)
+{
+    omnistream::csv::CsvSchema schema({omniruntime::type::OMNI_LONG, omniruntime::type::OMNI_VARCHAR});
+    omnistream::csv::CsvRow row("11,[\"only\"]", schema);
+
+    ASSERT_EQ(row.getNodes().size(), 2);
+    EXPECT_EQ(row.getNodes()[0]->getValue(), "11");
+    EXPECT_EQ(row.getNodes()[1]->getValue(), "[\"only\"]");
+}
+
+TEST(SourceTestTest, CsvRowParsesQuotedJsonField)
+{
+    omnistream::csv::CsvSchema schema({omniruntime::type::OMNI_LONG, omniruntime::type::OMNI_VARCHAR});
+    omnistream::csv::CsvRow row("11,\"[\"\"only\"\"]\"", schema);
+
+    ASSERT_EQ(row.getNodes().size(), 2);
+    EXPECT_EQ(row.getNodes()[0]->getValue(), "11");
+    EXPECT_EQ(row.getNodes()[1]->getValue(), "[\"only\"]");
+}
 
 TEST(SourceTestTest, DISABLED_initoper)
 {
