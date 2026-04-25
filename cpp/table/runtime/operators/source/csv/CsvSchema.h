@@ -90,6 +90,11 @@ public:
         return arrayElementSeparator_;
     }
 
+    std::string getNullValue() const
+    {
+        return nullValue_;
+    }
+
     int getArity() const
     {
         return arity_;

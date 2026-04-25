@@ -9,39 +9,85 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "CsvConverter.h"
+#include <algorithm>
+#include <string>
 
 using namespace omniruntime::type;
 
 namespace omnistream {
 namespace csv {
 
+namespace {
+bool iequals(std::string a, std::string b) {
+    std::transform(a.begin(), a.end(), a.begin(), ::tolower);
+    std::transform(b.begin(), b.end(), b.begin(), ::tolower);
+    return a == b;
+}
+
+bool isCaseInsensitiveNullLiteral(const std::string& value)
+{
+    return iequals(value, "null");
+}
+
+bool isCsvNullValue(const std::string& value, const CsvSchema& schema)
+{
+    const std::string configuredNullValue = schema.getNullValue();
+    return (!configuredNullValue.empty() && iequals(value, configuredNullValue))
+        || isCaseInsensitiveNullLiteral(value);
+}
+
+} // namespace
+
 BinaryRowData* CsvConverter::convert(const CsvRow& csvRow)
 {
     // Original implementation uses `GenericRowData`
     BinaryRowData* rowData = BinaryRowData::createBinaryRowDataWithMem(csvRow.getNodes().size());
+    const CsvSchema schema = csvRow.getSchema();
     for (size_t i = 0; i < csvRow.getNodes().size(); i++) {
         CsvNode* node = csvRow.getNodes()[i].get();
         omniruntime::type::DataTypeId type = node->getType();
         std::string value = node->getValue();
+        if (isCsvNullValue(value, schema)) {
+            LOG("CsvConverter: Detected null value for column " << i << ", setting it as null in BinaryRowData.");
+            rowData->setNullAt(i);
+            continue;
+        }
+
         if (type == omniruntime::type::DataTypeId::OMNI_INT) {
-            rowData->setInt(i, std::stoi(value));
+            LOG("CsvConverter: Converting value '" << value << "' to int for column " << i);
+            try {
+                rowData->setInt(i, std::stoi(value));
+            } catch (const std::invalid_argument& e) {
+                LOG("CsvConverter: Invalid integer value '" << value << "' for column " << i << ", setting it as null.");
+                rowData->setNullAt(i);
+            } catch (const std::out_of_range& e) {
+                LOG("CsvConverter: Integer value '" << value << "' out of range for column " << i << ", setting it as null.");
+                rowData->setNullAt(i);
+            }
         } else if (type == omniruntime::type::DataTypeId::OMNI_LONG) {
+            LOG("CsvConverter: Converting value '" << value << "' to long for column " << i);
             try {
                 rowData->setLong(i, std::stol(value));
             } catch (const std::invalid_argument& e) {
-                // Not a valid number
+                LOG("CsvConverter: Invalid long value '" << value << "' for column " << i << ", setting it as null.");
                 rowData->setNullAt(i);
             } catch (const std::out_of_range& e) {
-                // Number is out of range for long
+                LOG("CsvConverter: Long value '" << value << "' out of range for column " << i << ", setting it as null.");
                 rowData->setNullAt(i);
             }
         } else if (type == omniruntime::type::DataTypeId::OMNI_VARCHAR) {
+            LOG("CsvConverter: Converting value '" << value << "' to string for column " << i);
             std::string_view sv = value;
             rowData->setStringView(i, sv);
         } else if (type == omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE ||
             type == omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE) {
-            static int milliSec = 3;
-            rowData->setTimestamp(i, *TimestampData::fromString(value), milliSec);
+            LOG("CsvConverter: Converting value '" << value << "' to timestamp for column " << i);
+            try {
+                static int milliSec = 3;
+                rowData->setTimestamp(i, *TimestampData::fromString(value), milliSec);
+            } catch (...) {
+                rowData->setNullAt(i);
+            }
         } else {
             throw std::runtime_error("Unsupported type: " + type);
         }
@@ -83,6 +129,7 @@ omnistream::VectorBatch* CsvConverter::convert(std::vector<CsvRow> &csvRows, std
     // Put data
     for (size_t rowIndex = 0; rowIndex < csvRows.size(); rowIndex++) {
         CsvRow csvRow = csvRows[rowIndex];
+        const CsvSchema schema = csvRow.getSchema();
         for (size_t colIndex = 0; colIndex < oneMap.size(); colIndex++) {
             int csvFieldIndex = oneMap[colIndex];
             CsvNode *node = csvRow.getNodes()[csvFieldIndex].get();
@@ -92,14 +139,25 @@ omnistream::VectorBatch* CsvConverter::convert(std::vector<CsvRow> &csvRows, std
                 throw std::runtime_error("CsvNode mismatch.");
             }
 
-            if (nodeValue == "null") {
+            if (isCsvNullValue(nodeValue, schema)) {
+                LOG("CsvConverter: Detected null value for column " << colIndex << " in row " << rowIndex
+                    << ", setting it as null in VectorBatch.");
                 vectorBatch->Get(colIndex)->SetNull(rowIndex);
                 continue;
             }
 
             switch (nodeType) {
                 case (omniruntime::type::DataTypeId::OMNI_INT): {
-                    vectorBatch->SetValueAt(colIndex, rowIndex, std::stoi(nodeValue));
+                    try {
+                        LOG("CsvConverter: Converting value '" << nodeValue << "' to integer for column " << colIndex << " in row " << rowIndex);
+                        vectorBatch->SetValueAt(colIndex, rowIndex, std::stoi(nodeValue));
+                    } catch (const std::invalid_argument& e) {
+                        LOG("CsvConverter: Invalid integer value '" << nodeValue << "' for column " << colIndex << " in row " << rowIndex << ", setting it as null.");
+                        vectorBatch->Get(colIndex)->SetNull(rowIndex);
+                    } catch (const std::out_of_range& e) {
+                        LOG("CsvConverter: Integer value '" << nodeValue << "' out of range for column " << colIndex << " in row " << rowIndex << ", setting it as null."); 
+                        vectorBatch->Get(colIndex)->SetNull(rowIndex);
+                    }
                     break;
                 }
                 case omniruntime::type::DataTypeId::OMNI_LONG:{
