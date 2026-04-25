@@ -262,7 +262,7 @@ bool SumFunction::equaliser(BinaryRowData *r1, BinaryRowData *r2)
 void SumFunction::setRetraction(int accIndexCount0Index)
 {
     this->accIndexCount0 = accIndexCount0Index;
-    if (accIndexCount0Index > 0) {
+    if (accIndexCount0Index >= 0) {
         consumeRetraction = true;
     }
 }

@@ -14,55 +14,54 @@
 
 #include <vector>
 #include <unordered_set>
-#include "table/typeutils/InternalTypeInfo.h"
+#include <unordered_map>
 
 #include "table/data/RowData.h"
 #include "table/runtime/keyselector/KeySelector.h"
 #include "core/api/common/state/MapState.h"
 #include "streaming/api/operators/StreamingRuntimeContext.h"
-#include "TopNBuffer.h"
 #include "AbstractTopNFunction.h"
-#include "table/typeutils/BinaryRowDataSerializer.h"
-#include "table/typeutils/BinaryRowDataListSerializer.h"
+#include "table/typeutils/SortedVectorLong.h"
+#include "core/api/common/state/ValueState.h"
+#include "SetTopNBuffer.h"
+#include <string_view>
+#include "table/data/util/VectorBatchUtil.h"
+#include "TopNDataComparator.h"
+
 
 // return true if the second row should be taken comparing with the first row
 
 template<typename K> // here K is partitionKey, sortKey will use RowData*
 class AppendOnlyTopNFunction : public AbstractTopNFunction<K> {
 public:
+    using Cmp      = TopNDataComparator<K>;
+    using BufferT  = SetTopNBuffer<Cmp>;
+
     explicit AppendOnlyTopNFunction(const nlohmann::json& rankConfig): AbstractTopNFunction<K>(rankConfig),
-        dataState(nullptr), buffer(nullptr),
+        topNState(nullptr), buffer(nullptr),
         partitionKeySelector(this->partitionKeyTypeIds, this->partitionKeyIndices),
         sortKeySelector(this->sortKeyTypeIds, this->sortKeyIndices)
     {
         if (this->sortKeyTypeIds.size() > 1 || this->sortKeyTypeIds[0] != OMNI_LONG || this->sortOrder[0]) {
             NOT_IMPL_EXCEPTION
         }
-        kvSortedMap.init(16);
-        // build comparator
-        // Need to do comparator here
+        partitionKeyToTopNbufferMap.init(16);
     }
     ~AppendOnlyTopNFunction() = default;
 
+
     void open(const Configuration &context) override
     {
-        // Flink's AbstractToNFunction has open
-        // For simplicity, create a new RuntimeContext and get the MapState.
-        // Q19 use 1 BIGINT as partition key and 1 BIGINT as sortKey. Can probably be improved
-        auto *descriptor = new MapStateDescriptor<RowData*, std::vector<RowData*>*>("topn-state",
-                                                    new BinaryRowDataSerializer(1), new BinaryRowDataListSerializer());
-        // K = partitionKey, N is VOid, UK = sortKey, UV = list of rows
-        // getMapState<UK=sortKey, UV=list of rows>
-        if (auto casted = dynamic_cast<StreamingRuntimeContext<K>*>(this->getRuntimeContext())) {
-            dataState = casted->template getMapState<RowData *, std::vector<RowData *> *>(
-                descriptor);
-            if (dynamic_cast<RocksdbMapState<RowData*, VoidNamespace,
-                                     RowData*, std::vector<RowData*>*>*>(dataState))
-            {
-                rocksdbBackend =true;
-            }
-        } else {
-            throw std::runtime_error("RuntimeContext is not StreamingRuntimeContext!");
+
+        std::string topNStateName = "topNState";
+        TypeSerializer *topNSerializer = new SortedVectorLong();
+        auto* topNStateDesc = new ValueStateDescriptor<std::vector<long>*>(topNStateName, topNSerializer);
+        this->topNState = static_cast<StreamingRuntimeContext<K> *>(this->getRuntimeContext())
+                ->template getState<std::vector<long> *>(topNStateDesc);
+
+        if (dynamic_cast<RocksdbValueState<RowData *, VoidNamespace, std::vector<long>*>*>(topNState))
+        {
+            rocksdbBackend =true;
         }
     }
 
@@ -70,71 +69,282 @@ public:
                     typename KeyedProcessFunction<K, RowData *, RowData *>::Context &ctx,
                     TimestampedCollector &out) override
     {
+        int topN = this->getDefaultTopNSize();
         this->initRankEnd(nullptr);
         int rowCnt = inputBatch->GetRowCount();
-        // auto keyColumn = reinterpret_cast<Vector<K>*>(inputBatch->Get(this->partitionKeyIndices[0]));
+        int curentBatchId = topNState->getVectorBatchesSize();
+        topNState->addVectorBatch(inputBatch);
 
+        std::unordered_set<K> changedKeysInThisBatch;
+        this->vectorBatchCacheMap.emplace(curentBatchId, inputBatch);
         for (int i = 0; i < rowCnt; i++) {
             LOG("Processing row " + std::to_string(i));
             K partitionKey = partitionKeySelector.getKey(inputBatch, i);
             currentKey = partitionKey;
-            auto sortKey = sortKeySelector.getKey(inputBatch, i);
+            // auto sortKey = sortKeySelector.getKey(inputBatch, i);
             ctx.setCurrentKey(partitionKey);
             // Get existing rows for this partition key
-            buffer = initHeapStates(sortKey, partitionKey);
+            // buffer = initHeapStates(sortKey, partitionKey);
+            buffer = initSetTopNBufferState(partitionKey);
+
+            long currentComId = VectorBatchUtil::getComboId(curentBatchId, i);
+
             // check whether the sortKey is in the topN range
-            if (this->checkSortKeyInBufferRange(sortKey, *buffer))
-            {
-                // insert sort key into buffer
-                auto copy = inputBatch->extractRowData(i);
-
-                if (buffer->contains(sortKey))
-                {
-                    rowToDel.insert(sortKey);
-                }
-                buffer->put(sortKey, copy);
-
-                if (rocksdbBackend)
-                {
-                    rocksDBChangedKeysMap[currentKey].insert(sortKey);
-                }else
-                {
-                    std::vector<RowData *> *inputs = buffer->get(sortKey);
-                    // update data state
-                    // copy a new collection to avoid mutating state values, see CopyOnWriteStateMap,
-                    // otherwise, the result might be corrupt.
-                    // don't need to perform a deep copy, because RowData elements will not be updated
-                    dataState->put(sortKey, inputs);
-                }
-
+            if (this->addCurrentToTargetBuffer(currentComId,inputBatch, topN, buffer)) {
+                changedKeysInThisBatch.insert(partitionKey);
                 if (this->outputRankNumber || this->hasOffset()) {
                     // the without-number-algorithm can't handle topN with offset,
                     // so use the with-number-algorithm to handle offset
-                    processElementWithRowNumber(sortKey, copy, &out);
+                    processElementWithRowNumber2(currentComId, &out);
                 } else {
-                    processElementWithoutRowNumber(copy, &out);
+                    processElementWithoutRowNumber2(currentComId, &out);
                 }
-            } else {
-                rowToDel.insert(sortKey);
             }
         }
-        // omniruntime::vec::VectorHelper::FreeVecBatch(inputBatch);
-        delete inputBatch;
-        if (this->hasOutputRows()) {
-            omnistream::VectorBatch *outputBatch = this->createOutputBatch();
+
+        if (this->collectedIds.size() > 0) {
+            omnistream::VectorBatch *outputBatch = generateOutputVectorBatch(inputBatch);
             this->collectOutputBatch(out, outputBatch);
+        }
+
+
+        std::unordered_map<K,std::vector<long>*> rocksDBBatchUpdateMap;
+
+        if (changedKeysInThisBatch.size() >0) {
+
+            for (auto key : changedKeysInThisBatch) {
+                BufferT* changedBuffer = partitionKeyToTopNbufferMap[key];
+                int size = changedBuffer->GetSize();
+                std::vector<long>* updatedTopNState = changedBuffer->ToPlainVector();
+
+                if (rocksdbBackend) {
+                    rocksDBBatchUpdateMap.emplace(key, updatedTopNState);
+                }else {
+                    ctx.setCurrentKey(key);
+                    auto v = topNState->value();
+                    if (v!= nullptr) {
+                        delete v;
+                    }
+                    topNState->update(updatedTopNState);
+                }
+            }
         }
 
         if (rocksdbBackend)
         {
-            ProcessRockDBStateChanges();
+            if (rocksDBBatchUpdateMap.size()>0) {
+                updateRockDBTopNStateByBatch(rocksDBBatchUpdateMap);
+            }
+
+            for (auto it : rocksDBBatchUpdateMap) {
+                delete it.second;
+            }
         }
+        Cleanup();
+    }
+
+
+    void Cleanup()
+    {
+        collectedIds.clear();
+        collectedRanks.clear();
+        this->collectedRowKinds.clear();
 
         for (auto row: rowToDel) {
             delete row;
         }
         rowToDel.clear();
-    };
+
+        for (auto it : this->vectorBatchCacheMap) {
+            if (rocksdbBackend) {
+                delete it.second;
+            }
+        }
+        this->vectorBatchCacheMap.clear();
+
+        //clear buffer map
+        for (auto& pair : partitionKeyToTopNbufferMap) {
+            delete pair.second;
+            if constexpr (std::is_same<K, RowData *>::value) {
+                delete pair.first;
+            }
+        }
+        partitionKeyToTopNbufferMap.clear();
+        buffer = nullptr;
+    }
+
+
+    void updateRockDBTopNStateByBatch(std::unordered_map<K,std::vector<long>*> &rocksDBBatchUpdateMap)
+    {
+        auto  rockdbTopNState = dynamic_cast<RocksdbValueState<K, VoidNamespace,
+                                                                std::vector<long>*>*>(topNState);
+        rockdbTopNState->updateByBatch(rocksDBBatchUpdateMap);
+    }
+
+
+    bool addCurrentToTargetBuffer(long currentComId,omnistream::VectorBatch* currentVb,long topN, BufferT* buffer) {
+        if (buffer->GetSize()< topN) {
+            return buffer->AddElement(currentComId);
+        }else {
+            long smallest = buffer->GetSmallestElement();
+            long pbatchId = VectorBatchUtil::getBatchId(smallest);
+            long prowId = VectorBatchUtil::getRowId(smallest);
+
+            long crowId = VectorBatchUtil::getRowId(currentComId);
+
+            bool inRange = CompareRowData(currentVb,crowId,GetVectorBatch(pbatchId),prowId);
+            if (inRange) {
+                buffer->RemoveSmallestElement();
+                return buffer->AddElement(currentComId);
+            } else {
+                return false;
+            }
+
+        }
+
+    }
+
+    omnistream::VectorBatch* GetVectorBatch(int32_t batchId,omnistream::VectorBatch* defaultVB = nullptr)
+    {
+        auto it = vectorBatchCacheMap.find(batchId);
+        if (it != vectorBatchCacheMap.end()) {
+            return it->second;
+        } else {
+            omnistream::VectorBatch* vb = topNState->getVectorBatch(batchId);
+            if (vb == nullptr) {
+                std::cout << "Error: cannot find vector batch for batchId " << batchId << std::endl;
+                return nullptr;
+            }
+            vectorBatchCacheMap.emplace(batchId, vb);
+            return vb;
+        }
+    }
+
+    bool CompareRowData(omnistream::VectorBatch* vb1, int rowId1, omnistream::VectorBatch* vb2, int rowId2)
+    {
+        for (size_t i = 0; i < this->sortKeyTypeIds.size(); i++) {
+            int sortIndex = this->sortKeyIndices[i];
+            auto col1 = vb1->Get(sortIndex);
+            auto col2 = vb2->Get(sortIndex);
+            // only support LONG now
+            long val1 = reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(col1)->GetValue(rowId1);
+            long val2 = reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(col2)->GetValue(rowId2);
+            if (val1 < val2) {
+                return this->sortOrder[i]; // ascending
+            } else if (val1 > val2) {
+                return !this->sortOrder[i]; // descending
+            }
+        }
+        // return this->sortOrder[0];
+        return false; // equal
+    }
+
+    omnistream::VectorBatch*  generateOutputVectorBatch(omnistream::VectorBatch* inputVB)
+    {
+
+        int rowCount = collectedIds.size();
+
+        omnistream::VectorBatch* outVB = new omnistream::VectorBatch(rowCount);
+        initOutputVector(outVB, inputVB, rowCount);
+        for (size_t i = 0; i < collectedIds.size(); i++) {
+            long comboId = collectedIds[i];
+            CopyTargetVectorBatchToOut(outVB, comboId, i);
+        }
+        if (this->outputRankNumber) {
+            auto rankVec = new omniruntime::vec::Vector<int64_t>(rowCount);
+            rankVec->SetValues(0, collectedRanks.data(), rowCount);
+            outVB->Append(rankVec);
+        }
+        outVB->setRowKinds(0, this->collectedRowKinds.data(), rowCount);
+        return outVB;
+
+    }
+
+    void initOutputVector(omnistream::VectorBatch* out, omnistream::VectorBatch* inputVB,
+                          int rowCount)
+    {
+        if (rowCount <= 0) {
+            return;
+        }
+        for (int col = 0; col < inputVB->GetVectorCount(); col++) {
+            auto dataType = inputVB->Get(col)->GetTypeId();
+            if (dataType == omniruntime::type::DataTypeId::OMNI_INT) {
+                auto newVec = new omniruntime::vec::Vector<int32_t>(rowCount);
+                out->Append(newVec);
+            }
+            else if (dataType == omniruntime::type::DataTypeId::OMNI_LONG ||
+                dataType == omniruntime::type::DataTypeId::OMNI_TIMESTAMP ||
+                dataType == omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE) {
+                auto newVec = new omniruntime::vec::Vector<int64_t>(rowCount);
+                out->Append(newVec);
+            }
+            else if (dataType == omniruntime::type::DataTypeId::OMNI_DOUBLE) {
+                auto newVec = new omniruntime::vec::Vector<double>(rowCount);
+                out->Append(newVec);
+            }
+            else if (dataType == omniruntime::type::DataTypeId::OMNI_BOOLEAN) {
+                auto newVec = new omniruntime::vec::Vector<bool>(rowCount);
+                out->Append(newVec);
+            }
+            else if (dataType == omniruntime::type::DataTypeId::OMNI_CHAR) {
+                auto newVec =
+                    std::make_unique<omniruntime::vec::Vector<
+                        omniruntime::vec::LargeStringContainer<std::string_view>>>(rowCount);
+                out->Append(newVec.release());
+            }
+            else {
+                throw std::runtime_error("Unsupported column type in inputRow");
+            }
+        }
+    }
+
+
+
+void CopyTargetVectorBatchToOut(omnistream::VectorBatch *outputVB, long comboID, int rowIndex)
+{
+    LOG("comboID is, " << comboID)
+    int batchId = VectorBatchUtil::getBatchId(comboID);
+    int rowId = VectorBatchUtil::getRowId(comboID);
+    auto batch = GetVectorBatch(batchId);
+    //set timestamp
+    outputVB->setTimestamp(rowIndex, batch->getTimestamp(rowId));
+    int colCount = batch->GetVectorCount();
+    for (int col = 0; col < colCount; col++) {
+        auto dataType = batch->Get(col)->GetTypeId();
+        if (dataType == omniruntime::type::DataTypeId::OMNI_INT) {
+            auto val =
+                    reinterpret_cast<omniruntime::vec::Vector<int32_t> *>(batch->Get(col))->GetValue(
+                        rowId);
+            reinterpret_cast<omniruntime::vec::Vector<int32_t> *>(outputVB->Get(col))
+                    ->SetValue(rowIndex, val);
+        } else if (dataType == omniruntime::type::DataTypeId::OMNI_LONG) {
+            auto val =
+                    reinterpret_cast<omniruntime::vec::Vector<int64_t> *>(batch->Get(col))->GetValue(
+                        rowId);
+            reinterpret_cast<omniruntime::vec::Vector<int64_t> *>(outputVB->Get(col))
+                    ->SetValue(rowIndex, val);
+        } else if (dataType == omniruntime::type::DataTypeId::OMNI_CHAR) {
+            if (batch->Get(col)->GetEncoding() == omniruntime::vec::OMNI_FLAT) {
+                auto casted = reinterpret_cast<omniruntime::vec::Vector
+                        <omniruntime::vec::LargeStringContainer<std::string_view>> *>(batch->Get(col))->GetValue(rowId);
+                reinterpret_cast<omniruntime::vec::Vector
+                        <omniruntime::vec::LargeStringContainer<std::string_view>> *>(
+                        outputVB->Get(col))
+                        ->SetValue(rowIndex, casted);  // issue here
+            } else { // DICTIONARY
+                auto casted =
+                        reinterpret_cast<omniruntime::vec::Vector<omniruntime::vec::DictionaryContainer<
+                                std::string_view, omniruntime::vec::LargeStringContainer>> *>(batch->Get(col))->GetValue(rowId);
+                reinterpret_cast<omniruntime::vec::Vector
+                        <omniruntime::vec::LargeStringContainer<std::string_view>> *>(
+                        outputVB->Get(col))
+                        ->SetValue(rowIndex, casted);  // issue here
+            }
+        }
+    }
+}
+
+
 
     void processElement(RowData& input, typename KeyedProcessFunction<RowData *, RowData *, RowData *>::Context &ctx,
                         TimestampedCollector &out)
@@ -143,266 +353,102 @@ public:
     }
     ValueState<K>* getValueState() override
     {
-        throw std::runtime_error("AppendOnlyTOpNFunction does not use value state!");
+        // throw std::runtime_error("AppendOnlyTOpNFunction does not use value state!");
+        return nullptr;
     }
+
 private:
     static const int64_t serialVersionUID = -4708453213104128011LL;
     // a map state stores mapping from sort key to records list which is in topN
-
-    MapState<RowData*, std::vector<RowData*>* >* dataState;
-    // the buffer stores mapping from sort key to records list, a heap mirror to dataState
-    TopNBuffer* buffer;
+    // ValueState<RowData*>* vectorBatchState;
+    ValueState<std::vector<long>*>* topNState;
+    BufferT* buffer;
     // the kvSortedMap stores mapping from partition key to it's buffer
-    emhash7::HashMap<K, TopNBuffer*> kvSortedMap;
+    emhash7::HashMap<K, BufferT*> partitionKeyToTopNbufferMap;
+    // emhash7::HashMap<BufferT*,int> bufferVectorBatchSequenceMap;
+    volatile int vectorBatchSequence = 0;//should be recoverable from state under rockdbbackend
 
     KeySelector<K> partitionKeySelector;
     KeySelector<RowData*> sortKeySelector;
-    std::set<RowData*> rowToDel;
+    std::vector<RowData*> rowToDel;
     bool rocksdbBackend = false;
     K currentKey;
-
-    struct RowDataHash {
-        size_t operator()(const K &_key) const
-        {
-            return std::hash<K>()(_key);
-        }
-    };
-    struct RowDataEq {
-        size_t operator()(const K &_key1, const K &_key2) const
-        {
-            return std::equal_to<K>{}(_key1, _key2);
-        }
-    };
-
-    std::unordered_map<K,std::unordered_set<RowData*>> rocksDBChangedKeysMap;
-    std::unordered_map<K,std::unordered_set<RowData*>>  rocksDBDeletedKeysMap;
+    std::unordered_map<int32_t,omnistream::VectorBatch *> vectorBatchCacheMap;
+    std::vector<long> collectedIds;
+    std::vector<int64_t> collectedRanks;
 
 
-    TopNBuffer* initHeapStates(RowData* sortKey, K currentKey)
+
+    BufferT* initSetTopNBufferState(K currentKey)
     {
-        this->requestCount += 1;
-        // kvSortedMap stores partition key to its TopNBuffer
-        TopNBuffer*& topBuffer = kvSortedMap[currentKey];
+        BufferT*& topBuffer = partitionKeyToTopNbufferMap[currentKey];
+
         if (!topBuffer) {
-            topBuffer = new TopNBuffer();  // Create a new instance if not found
+            topBuffer = new BufferT(Cmp{this});  // Create a new instance if not found
             // Get list of rows that belongs to this partition && this sortKey
-            // todo this is not correct,we should get all sortKeys under this currentKey and put them into buffer
-            auto listOfRows = dataState->get(sortKey);
+            auto listOfRows = topNState->value();
             if (listOfRows) {
-                topBuffer->putAll(sortKey, *listOfRows);
+                topBuffer->LoadFromPlainVector(*listOfRows);
+                // long firstElement = *listOfRows->begin();
+                // int batchId = VectorBatchUtil::getBatchId(firstElement);
+                // topBuffer->SetBufferId(batchId);
+                if (rocksdbBackend) {
+                    delete listOfRows;
+                }
             }
         } else {
             this->hitCount++;
             if constexpr (std::is_same<K, RowData *>::value) {
-                rowToDel.insert(currentKey);
+                rowToDel.push_back(currentKey);
             }
         }
         return topBuffer;
     }
 
-    void processElementWithRowNumber(const RowData* sortKey, RowData* input, TimestampedCollector* out)
+
+    void processElementWithRowNumber2(long currentComId, TimestampedCollector* out)
     {
+        //find current comid position in buffer, and the record behind it should be updated with rank number
         // Create an iterator over buffer entries.
         auto iterator = buffer->begin();
         long currentRank = 0L;
-        bool findsSortKey = false;
-        RowData* currentRow;
+        bool findTarget = false;
+        long current  = currentComId;
+        long previous = current;
         // Iterate while iterator is valid and isInRankEnd(currentRank)
         for (iterator = buffer->begin(); iterator != buffer->end(); iterator++) {
-            if (!this->isInRankEnd(currentRank)) {
-                break;
-            }
-            std::vector<RowData*>* records = iterator->second;
-            // meet its own sort key
-            if (!findsSortKey && (std::equal_to<RowData*>{}(iterator->first, sortKey))) {
-                currentRank += records->size();
-                currentRow = input;
-                findsSortKey = true;
-            } else if (findsSortKey) { // sortKey has already been found
-                size_t index = 0;
-                while (index < records->size() && this->isInRankEnd(currentRank)) {
-                    RowData* prevRow = (*records)[index];
-                    this->collectUpdateBefore(prevRow, currentRank, 0);
-                    this->collectUpdateAfter(currentRow, currentRank, 0);
-                    currentRow = prevRow;
-                    currentRank++;
-                    index++;
-                }
-            } else {
-                currentRank += records->size();
-            }
-        }
-        if (this->isInRankEnd(currentRank)) {
-            // there is no enough elements in Top-N, emit INSERT message for the new record.
-            this->collectInsert(currentRow, currentRank, 0);
-        }
 
-        // remove the records associated to the sort key which is out of topN
-        std::vector<RowData*> toDeleteSortKeys;
-        while (iterator != buffer->end()) {
-            RowData* key = iterator->first;
-            toDeleteSortKeys.push_back(key);
-            rowToDel.insert(key);
-            if (rocksdbBackend)
-            {
-               rocksDBDeletedKeysMap[currentKey].insert(key);
-            }else
-            {
-                dataState->remove(key);
-            }
-            ++iterator;
-        }
-        // To Delete key will not be given to the downstream
-        for (const auto &toDeleteKey : toDeleteSortKeys) {
-            std::vector<RowData*>* values = buffer->get(toDeleteKey);
-            buffer->removeAll(toDeleteKey);
-            for (auto rowValue: *values) {
-                rowToDel.insert(rowValue);
-            }
-            values->clear();
-            delete values;
-        }
-    }
-
-    void processElementWithoutRowNumber(RowData* input, TimestampedCollector* out)
-    {
-        if (buffer->getCurrentTopNum() > this->rankEnd) {
-            auto lastEntry = buffer->lastEntry();
-            auto lastKey = lastEntry->first;
-            auto lastList = lastEntry->second;
-
-            auto lastElement = buffer->lastElement();
-            int size = lastList->size();
-            if (size <= 1) {
-                buffer->removeAll(lastKey);
-                if (rocksdbBackend)
-                {
-                    rocksDBDeletedKeysMap[currentKey].insert(lastKey);
-                }else
-                {
-                    dataState->remove(lastKey);
-                }
-                //delete lastkey ???
-                rowToDel.insert(lastKey);
-            } else {
-                buffer->removeLast();
-                if (rocksdbBackend)
-                {
-                    rocksDBChangedKeysMap[currentKey].insert(lastKey);
-                }else
-                {
-                    dataState->put(lastKey, lastList);
-                }
-            }
-
-            if (size == 0 || input == lastElement) {
-                return;
-            } else {
-                // lastElement shouldn't be null
-                this->collectDelete(lastElement);
-                //add it to rowToDel to avoid memory leak
-                rowToDel.insert(lastElement);
-            }
-        }
-
-        // it first appears in the TopN, send INSERT message
-        this->collectInsert(input);
-    }
-
-    void ProcessRockDBStateChanges()
-    {
-        // Remove elements from rocksDBChangedKeysMap that are also marked deleted for the same partition key.
-        for (auto it = rocksDBChangedKeysMap.begin(); it != rocksDBChangedKeysMap.end();)
-        {
-            const K& pk = it->first;
-            auto& changedSet = it->second;
-
-            auto delIt = rocksDBDeletedKeysMap.find(pk);
-            if (delIt == rocksDBDeletedKeysMap.end())
-            {
-                ++it;
+            long record = *iterator;
+            if (currentComId == record) {
+                findTarget = true;
+                currentRank++;
                 continue;
             }
-
-            const auto& deletedSet = delIt->second;
-            for (auto setIt = changedSet.begin(); setIt != changedSet.end();)
-            {
-                if (deletedSet.find(*setIt) != deletedSet.end())
-                {
-                    setIt = changedSet.erase(setIt); // safe for inner container
+            if (findTarget) {
+                previous = record;
+                if (this->generateUpdateBefore) {
+                    collectedIds.push_back(previous);
+                    collectedRanks.push_back(currentRank);
+                    this->collectedRowKinds.push_back(RowKind::UPDATE_BEFORE);
                 }
-                else
-                {
-                    ++setIt;
-                }
-            }
-
-            if (changedSet.empty())
-            {
-                it = rocksDBChangedKeysMap.erase(it); // erase returns the next iterator
-            }
-            else
-            {
-                ++it;
+                collectedIds.push_back(current);
+                collectedRanks.push_back(currentRank);
+                this->collectedRowKinds.push_back(RowKind::UPDATE_AFTER);
+                current = previous;
+                currentRank++;
+            }else {
+                currentRank++;
             }
         }
-
-        DeleteRecordInRockDBStateByBatch();
-        AddRecordInRockDBStateByBatch();
-        rocksDBChangedKeysMap.clear();
-        rocksDBDeletedKeysMap.clear();
+        collectedIds.push_back(current);
+        this->collectedRowKinds.push_back(RowKind::INSERT);
+        collectedRanks.push_back(currentRank);
     }
 
-    void DeleteRecordInRockDBStateByBatch()
+    void processElementWithoutRowNumber2(long currentComId, TimestampedCollector* out)
     {
-        if (rocksDBDeletedKeysMap.empty())
-        {
-            return;
-        }
-        auto rocksDBState = dynamic_cast<RocksdbMapState<K, VoidNamespace,
-                                                         RowData*, std::vector<RowData*>*>*>(dataState);
-        if (rocksDBState !=nullptr)
-        {
-            rocksDBState->removeByBatch(rocksDBDeletedKeysMap);
-        }
-    }
-
-    void AddRecordInRockDBStateByBatch()
-    {
-        if (rocksDBChangedKeysMap.empty())
-        {
-            return;
-        }
-
-        auto rocksDBState = dynamic_cast<RocksdbMapState<K, VoidNamespace,
-                                                        RowData*, std::vector<RowData*>*>*>(dataState);
-
-        if (rocksDBState != nullptr)
-        {
-            std::unordered_map<K,std::unordered_map<RowData*, std::vector<RowData*>*>> dataToAdd;
-            for (auto& kv : rocksDBChangedKeysMap)
-            {
-                const K& pk = kv.first;
-                auto currentBuffer = kvSortedMap[pk];
-                auto& changedSet = kv.second;
-                std::unordered_map<RowData*, std::vector<RowData*>*> batchPutMap;
-                for (auto& sortKey : changedSet)
-                {
-                    auto dataExist = currentBuffer->contains(sortKey);
-                    if (dataExist)
-                    {
-                        auto inputs = currentBuffer->get(sortKey);
-                        batchPutMap.emplace(sortKey, inputs);
-
-                    }else
-                    {
-                        INFO_RELEASE("DANGER: sortKey not found in buffer during RocksDB batch put!");
-                    }
-                }
-                dataToAdd.emplace(pk, batchPutMap);
-            }
-            rocksDBState->putByBatch(dataToAdd);
-        }
+        collectedIds.push_back(currentComId);
+        this->collectedRowKinds.push_back(RowKind::INSERT);
     }
 };
 

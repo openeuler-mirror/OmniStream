@@ -10,7 +10,7 @@
 using namespace omniruntime::type;
 class LastStringValueFunction : public AggsHandleFunction {
 public:
-    LastStringValueFunction(int aggIdx, std::string inputType, int accIndex, int valueIndex)
+    LastStringValueFunction(int aggIdx, std::string inputType, int accIndex = -1, int valueIndex = -1)
         : valueIsNull(true), aggIdx(aggIdx), accIndex(accIndex), valueIndex(valueIndex)
     {
         typeId = LogicalType::flinkTypeToOmniTypeId(inputType);
@@ -31,6 +31,13 @@ public:
     void getValue(BinaryRowData *aggValue) override;
     void cleanup() override {};
     void close() override {};
+    void bindAccValueIndex(int accStartIndex, int valueStartIndex) override
+    {
+        accIndex = accStartIndex;
+        valueIndex = valueStartIndex;
+    }
+    int accumulatorSlots() const override { return 1; }
+    bool hasAggOutput() const override { return valueIndex >= 0; }
 
 private:
     bool valueIsNull;
