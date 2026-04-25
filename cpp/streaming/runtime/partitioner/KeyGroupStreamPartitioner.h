@@ -92,25 +92,6 @@ namespace omnistream::datastream {
             return channel;
         }
 
-        int selectChannel2(T *record) override
-        {
-            K *key;
-            try {
-                SerializationDelegate *serializationDelegate = reinterpret_cast<SerializationDelegate *>(record);
-                StreamRecord *streamRecord = reinterpret_cast<StreamRecord *>(serializationDelegate->getInstance());
-                // getkey() function maybe call getPutCount().
-                auto *in0 = reinterpret_cast<PVMVLogType *>(streamRecord->getValue());
-                auto sKey = in0->joinKey();
-                key = reinterpret_cast<K *>(sKey);
-            } catch (const std::exception &e) {
-                throw std::runtime_error("Could not extract key from ");
-            }
-            int channel = KeyGroupRangeAssignment<K *>::assignKeyToParallelOperator(key, maxParallelism,
-                                                                                    this->numberOfChannels);
-            static_cast<Object *>(key)->putRefCount();
-            return channel;
-        }
-
         std::unique_ptr<StreamPartitioner<T>> copy() override
         {
             return std::make_unique<KeyGroupStreamPartitioner<T, K>>(config, targetId, maxParallelism);
