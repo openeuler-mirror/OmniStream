@@ -67,10 +67,25 @@ TEST(CsvConversionTest, CsvRowMixedTypeConversion) {
 
 TEST(CsvConversionTest, CsvRowIntNullConversion) {
     omnistream::csv::CsvSchema schema({OMNI_INT_TYPE, OMNI_VARCHAR_TYPE});
-    omnistream::csv::CsvRow row = omnistream::csv::CsvRow("NULL,hi", schema);
+    schema.setNullValue("null");
+    omnistream::csv::CsvRow row = omnistream::csv::CsvRow("null,hi", schema);
     BinaryRowData *rowData      = omnistream::csv::CsvConverter::convert(row);
     EXPECT_TRUE(rowData->isNullAt(0));
     EXPECT_EQ(std::string(rowData->getStringView(1)), "hi");
+}
+
+TEST(CsvConversionTest, CsvRowConfiguredNullLiteralIsCaseSensitive) {
+    omnistream::csv::CsvSchema schema({OMNI_VARCHAR_TYPE});
+    schema.setNullValue("null");
+
+    BinaryRowData *upperRowData = omnistream::csv::CsvConverter::convert(
+        omnistream::csv::CsvRow("NULL", schema));
+    EXPECT_FALSE(upperRowData->isNullAt(0));
+    EXPECT_EQ(std::string(upperRowData->getStringView(0)), "NULL");
+
+    BinaryRowData *lowerRowData = omnistream::csv::CsvConverter::convert(
+        omnistream::csv::CsvRow("null", schema));
+    EXPECT_TRUE(lowerRowData->isNullAt(0));
 }
 
 TEST(CsvConversionTest, CsvRowBigIntVecBatchConversion) {
@@ -163,14 +178,30 @@ TEST(CsvConversionTest, CsvRowMixedTypeVecBatchConversion) {
 
 TEST(CsvConversionTest, CsvRowIntNullVecBatchConversion) {
     omnistream::csv::CsvSchema schema({OMNI_INT_TYPE, OMNI_VARCHAR_TYPE});
+    schema.setNullValue("null");
     std::vector<omnistream::csv::CsvRow> csvRows;
-    csvRows.emplace_back("NULL,hi", schema);
     csvRows.emplace_back("null,hello", schema);
+    csvRows.emplace_back("null,world", schema);
 
     omnistream::VectorBatch *batch = omnistream::csv::CsvConverter::convert(csvRows);
     auto *intVector = reinterpret_cast<omniruntime::vec::Vector<int32_t> *>(batch->Get(0));
     EXPECT_TRUE(intVector->IsNull(0));
     EXPECT_TRUE(intVector->IsNull(1));
+}
+
+TEST(CsvConversionTest, CsvRowVecBatchConfiguredNullLiteralIsCaseSensitive) {
+    omnistream::csv::CsvSchema schema({OMNI_VARCHAR_TYPE});
+    schema.setNullValue("null");
+    std::vector<omnistream::csv::CsvRow> csvRows;
+    csvRows.emplace_back("NULL", schema);
+    csvRows.emplace_back("null", schema);
+
+    omnistream::VectorBatch *batch = omnistream::csv::CsvConverter::convert(csvRows);
+    auto *stringVector = reinterpret_cast<omniruntime::vec::Vector<
+        omniruntime::vec::LargeStringContainer<std::string_view>> *>(batch->Get(0));
+    EXPECT_FALSE(stringVector->IsNull(0));
+    EXPECT_EQ(std::string(stringVector->GetValue(0)), "NULL");
+    EXPECT_TRUE(stringVector->IsNull(1));
 }
 
 TEST(CsvConversionTest, CsvFileVectorBatchConversion) {

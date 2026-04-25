@@ -69,36 +69,6 @@ private:
     bool closed_ = false;
 };
 
-void RunSplitFetcherManagerCloseTestProcess()
-{
-    auto* queue = new FutureCompletingBlockingQueue<RdKafka::Message>(0);
-    auto readerHolder = std::make_shared<BlockingKafkaSplitReader*>(nullptr);
-    std::function<SplitReader<RdKafka::Message, KafkaPartitionSplit>*()> supplier =
-        [readerHolder]() {
-            auto* reader = new BlockingKafkaSplitReader();
-            *readerHolder = reader;
-            return reader;
-        };
-    auto* manager = new KafkaSourceFetcherManager(queue, supplier);
-
-    auto topicPartition = std::shared_ptr<RdKafka::TopicPartition>(
-        RdKafka::TopicPartition::create("json_topic", 0));
-    std::vector<KafkaPartitionSplit*> splits{
-        new KafkaPartitionSplit(topicPartition, 0)
-    };
-
-    manager->addSplits(splits);
-    while (*readerHolder == nullptr) {
-        std::this_thread::yield();
-    }
-    (*readerHolder)->waitUntilFetchStarts();
-
-    manager->close(1000);
-    delete manager;
-    delete queue;
-    delete splits[0];
-    std::exit(0);
-}
 } // namespace
 
 TEST(SourceTestTest, CsvRowKeepsQuotesInUnquotedJsonField)
@@ -151,7 +121,34 @@ TEST(SourceTestTest, JsonRowDataDeserializationSchemaHandlesNullStringField)
 
 TEST(SourceTestTest, SplitFetcherManagerCloseJoinsExecutorThreads)
 {
-    ASSERT_EXIT(RunSplitFetcherManagerCloseTestProcess(), ::testing::ExitedWithCode(0), "");
+    auto* queue = new FutureCompletingBlockingQueue<RdKafka::Message>(0);
+    auto readerHolder = std::make_shared<BlockingKafkaSplitReader*>(nullptr);
+    std::function<SplitReader<RdKafka::Message, KafkaPartitionSplit>*()> supplier =
+        [readerHolder]() {
+            auto* reader = new BlockingKafkaSplitReader();
+            *readerHolder = reader;
+            return reader;
+        };
+    auto* manager = new KafkaSourceFetcherManager(queue, supplier);
+
+    auto topicPartition = std::shared_ptr<RdKafka::TopicPartition>(
+        RdKafka::TopicPartition::create("json_topic", 0));
+    std::vector<KafkaPartitionSplit*> splits{
+        new KafkaPartitionSplit(topicPartition, 0)
+    };
+
+    manager->addSplits(splits);
+    while (*readerHolder == nullptr) {
+        std::this_thread::yield();
+    }
+    (*readerHolder)->waitUntilFetchStarts();
+
+    manager->close(1000);
+    EXPECT_EQ(manager->getNumAliveFetchers(), 0);
+
+    delete manager;
+    delete queue;
+    delete splits[0];
 }
 
 TEST(SourceTestTest, DISABLED_initoper)

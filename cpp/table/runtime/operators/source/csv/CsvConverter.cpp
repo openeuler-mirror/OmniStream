@@ -9,7 +9,6 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "CsvConverter.h"
-#include <algorithm>
 #include <string>
 
 using namespace omniruntime::type;
@@ -18,22 +17,18 @@ namespace omnistream {
 namespace csv {
 
 namespace {
-bool iequals(std::string a, std::string b) {
-    std::transform(a.begin(), a.end(), a.begin(), ::tolower);
-    std::transform(b.begin(), b.end(), b.begin(), ::tolower);
-    return a == b;
-}
-
-bool isCaseInsensitiveNullLiteral(const std::string& value)
+bool isDefaultNullLiteral(const std::string& value)
 {
-    return iequals(value, "null");
+    return value == "null";
 }
 
 bool isCsvNullValue(const std::string& value, const CsvSchema& schema)
 {
-    const std::string configuredNullValue = schema.getNullValue();
-    return (!configuredNullValue.empty() && iequals(value, configuredNullValue))
-        || isCaseInsensitiveNullLiteral(value);
+    if (schema.hasNullValue()) {
+        return value == schema.getNullValue();
+    }
+
+    return isDefaultNullLiteral(value);
 }
 
 } // namespace
