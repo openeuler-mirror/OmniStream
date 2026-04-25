@@ -72,6 +72,7 @@ public:
         LOG("create MapState column family")
         this->rocksDb = db;
         ROCKSDB_NAMESPACE::ColumnFamilyOptions familyOptions;
+        ROCKSDB_NAMESPACE::BlockBasedTableOptions blockBasedTableOptions;
 
         // [FALCON]-----------------------------------------------------------------------------------------------
         // familyOptions.memtable_factory.reset(ROCKSDB_NAMESPACE::NewHashLinkListRepFactory());
@@ -80,7 +81,7 @@ public:
         INFO_RELEASE("[FALCON] enable prefix for mapState.")
         // [FALCON]-----------------------------------------------------------------------------------------------
 
-        DefaultConfigurableOptionsFactory::createColumnOptions(familyOptions);
+        DefaultConfigurableOptionsFactory::createColumnOptions(familyOptions, blockBasedTableOptions);
 
         ROCKSDB_NAMESPACE::Status s;
         auto it1 = kvStateInformation->find(cfName);

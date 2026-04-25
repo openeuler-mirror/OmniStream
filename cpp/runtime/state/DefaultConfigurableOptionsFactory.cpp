@@ -11,7 +11,9 @@
 
 
 #include "DefaultConfigurableOptionsFactory.h"
-void DefaultConfigurableOptionsFactory::createColumnOptions(ROCKSDB_NAMESPACE::ColumnFamilyOptions &currentOptions)
+void DefaultConfigurableOptionsFactory::createColumnOptions(
+        ROCKSDB_NAMESPACE::ColumnFamilyOptions& currentOptions,
+        ROCKSDB_NAMESPACE::BlockBasedTableOptions& blockBasedTableOptions)
 {
     auto compactionStyle = reinterpret_cast<Integer*>(Configuration::TM_CONFIG
             ->getValue(RocksDBConfigurableOptions::COMPACTION_STYLE));
@@ -55,8 +57,6 @@ void DefaultConfigurableOptionsFactory::createColumnOptions(ROCKSDB_NAMESPACE::C
         minWriteBufferNumberToMerge->putRefCount();
     }
 
-    ROCKSDB_NAMESPACE::BlockBasedTableOptions blockBasedTableOptions;
-
     auto blockSize = reinterpret_cast<String*>(Configuration::TM_CONFIG
             ->getValue(RocksDBConfigurableOptions::BLOCK_SIZE));
     if (blockSize != nullptr) {
@@ -69,14 +69,6 @@ void DefaultConfigurableOptionsFactory::createColumnOptions(ROCKSDB_NAMESPACE::C
     if (metadataBlockSize != nullptr) {
         blockBasedTableOptions.metadata_block_size = MemorySize::parseBytes(metadataBlockSize->getData());
         metadataBlockSize->putRefCount();
-    }
-
-    auto blockCacheSize = reinterpret_cast<String*>(Configuration::TM_CONFIG
-            ->getValue(RocksDBConfigurableOptions::BLOCK_CACHE_SIZE));
-    if (blockCacheSize != nullptr) {
-        auto blockCache = ROCKSDB_NAMESPACE::NewLRUCache(MemorySize::parseBytes(blockCacheSize->getData()));
-        blockBasedTableOptions.block_cache = blockCache;
-        blockCacheSize->putRefCount();
     }
 
     auto checksumType = reinterpret_cast<String*>(Configuration::TM_CONFIG

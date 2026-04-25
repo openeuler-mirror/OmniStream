@@ -10,8 +10,7 @@
  */
 
 
-#ifndef OMNISTREAM_DEFAULTCONFIGURABLEOPTIONSFACTORY_H
-#define OMNISTREAM_DEFAULTCONFIGURABLEOPTIONSFACTORY_H
+#pragma once
 #include "rocksdb/cache.h"
 #include "rocksdb/filter_policy.h"
 #include "rocksdb/options.h"
@@ -22,9 +21,6 @@
 
 class DefaultConfigurableOptionsFactory {
 public:
-    static void createColumnOptions(ROCKSDB_NAMESPACE::ColumnFamilyOptions &currentOptions);
-    static void createDBOptions(ROCKSDB_NAMESPACE::DBOptions &currentOptions);
+    static void createColumnOptions(ROCKSDB_NAMESPACE::ColumnFamilyOptions& currentOptions, ROCKSDB_NAMESPACE::BlockBasedTableOptions& blockBasedTableOptions);
+    static void createDBOptions(ROCKSDB_NAMESPACE::DBOptions& currentOptions);
 };
-
-
-#endif // OMNISTREAM_DEFAULTCONFIGURABLEOPTIONSFACTORY_H

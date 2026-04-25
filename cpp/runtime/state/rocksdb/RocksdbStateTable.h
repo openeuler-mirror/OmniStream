@@ -71,6 +71,7 @@ public:
         // set merge method, listState need
         options.merge_operator.reset(new RocksDbStringAppendOperator(','));
         ROCKSDB_NAMESPACE::ColumnFamilyOptions familyOptions(options);
+        ROCKSDB_NAMESPACE::BlockBasedTableOptions blockBasedTableOptions;
 
         // [FALCON] -----------------------------------------------------------------------------------------------
         if (metaInfo->getStateType() == StateDescriptor::Type::VALUE) {
@@ -82,7 +83,7 @@ public:
         }
         // [FALCON] -----------------------------------------------------------------------------------------------
 
-        DefaultConfigurableOptionsFactory::createColumnOptions(familyOptions);
+        DefaultConfigurableOptionsFactory::createColumnOptions(familyOptions, blockBasedTableOptions);
         ROCKSDB_NAMESPACE::Status s;
         auto it1 = kvStateInformation->find(cfName);
         if (it1 != kvStateInformation->end() && it1->second->columnFamilyHandle_) {
