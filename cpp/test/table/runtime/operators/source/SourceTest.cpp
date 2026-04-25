@@ -2,7 +2,16 @@
  * Copyright (c) Huawei Technologies Co., Ltd. 2012-2018. All rights reserved.
  */
 
+#include <condition_variable>
+#include <cstdlib>
+#include <mutex>
+#include <thread>
 #include <gtest/gtest.h>
+#include <librdkafka/rdkafkacpp.h>
+#include "connector/kafka/source/reader/fetcher/KafkaSourceFetcherManager.h"
+#include "connector/kafka/source/reader/SplitReader.h"
+#include "connector/kafka/source/split/KafkaPartitionSplit.h"
+#include "connector/kafka/source/reader/synchronization/FutureCompletingBlockingQueue.h"
 #include "core/api/common/serialization/JsonRowDataDeserializationSchema.h"
 #include "types/logical/LogicalType.h"
 #include "runtime/operators/source/csv/CsvRow.h"
@@ -14,6 +23,83 @@
 #include "typeutils/BinaryRowDataSerializer.h"
 #include "streaming/runtime/io/RecordWriterOutput.h"
 #include "test/table/runtime/operators/DummyStreamPartitioner.h"
+
+namespace {
+class BlockingKafkaSplitReader : public SplitReader<RdKafka::Message, KafkaPartitionSplit> {
+public:
+    RecordsWithSplitIds<RdKafka::Message>* fetch() override
+    {
+        std::unique_lock<std::mutex> lock(mutex_);
+        enteredFetch_ = true;
+        fetchStarted_.notify_all();
+        wakeSignal_.wait(lock, [this] { return closed_ || wokenUp_; });
+        return nullptr;
+    }
+
+    void handleSplitsChanges(const std::vector<KafkaPartitionSplit*>&) override
+    {
+    }
+
+    void wakeUp() override
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        wokenUp_ = true;
+        wakeSignal_.notify_all();
+    }
+
+    void close() override
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        closed_ = true;
+        wakeSignal_.notify_all();
+    }
+
+    void waitUntilFetchStarts()
+    {
+        std::unique_lock<std::mutex> lock(mutex_);
+        fetchStarted_.wait(lock, [this] { return enteredFetch_; });
+    }
+
+private:
+    std::mutex mutex_;
+    std::condition_variable fetchStarted_;
+    std::condition_variable wakeSignal_;
+    bool enteredFetch_ = false;
+    bool wokenUp_ = false;
+    bool closed_ = false;
+};
+
+void RunSplitFetcherManagerCloseTestProcess()
+{
+    auto* queue = new FutureCompletingBlockingQueue<RdKafka::Message>(0);
+    auto readerHolder = std::make_shared<BlockingKafkaSplitReader*>(nullptr);
+    std::function<SplitReader<RdKafka::Message, KafkaPartitionSplit>*()> supplier =
+        [readerHolder]() {
+            auto* reader = new BlockingKafkaSplitReader();
+            *readerHolder = reader;
+            return reader;
+        };
+    auto* manager = new KafkaSourceFetcherManager(queue, supplier);
+
+    auto topicPartition = std::shared_ptr<RdKafka::TopicPartition>(
+        RdKafka::TopicPartition::create("json_topic", 0));
+    std::vector<KafkaPartitionSplit*> splits{
+        new KafkaPartitionSplit(topicPartition, 0)
+    };
+
+    manager->addSplits(splits);
+    while (*readerHolder == nullptr) {
+        std::this_thread::yield();
+    }
+    (*readerHolder)->waitUntilFetchStarts();
+
+    manager->close(1000);
+    delete manager;
+    delete queue;
+    delete splits[0];
+    std::exit(0);
+}
+} // namespace
 
 TEST(SourceTestTest, CsvRowKeepsQuotesInUnquotedJsonField)
 {
@@ -61,6 +147,11 @@ TEST(SourceTestTest, JsonRowDataDeserializationSchemaHandlesNullStringField)
     EXPECT_TRUE(jsonVector->IsNull(0));
 
     delete batch;
+}
+
+TEST(SourceTestTest, SplitFetcherManagerCloseJoinsExecutorThreads)
+{
+    ASSERT_EXIT(RunSplitFetcherManagerCloseTestProcess(), ::testing::ExitedWithCode(0), "");
 }
 
 TEST(SourceTestTest, DISABLED_initoper)
