@@ -24,7 +24,6 @@
 #include "table/data/binary/MurmurHashUtils.h"
 #include "core/utils/MathUtils.h"
 #include "runtime/state/KeyGroupRangeAssignment.h"
-#include "streaming/runtime/partitioner/PVMVLogType.h"
 
 using json = nlohmann::json;
 /**
