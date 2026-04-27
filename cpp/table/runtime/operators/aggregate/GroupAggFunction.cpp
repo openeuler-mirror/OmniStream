@@ -11,18 +11,14 @@
 #include "GroupAggFunction.h"
 #include "table/typeutils/BinaryRowDataSerializer.h"
 #include "runtime/generated/function/AverageFunction.h"
-#include "runtime/generated/function/SharedDistinctCountContainerFunction.h"
+#include "runtime/generated/function/CountDistinctFunction.h"
 #include "runtime/dataview/PerKeyStateDataViewStore.h"
 #include "runtime/generated/function/CountFunction.h"
 #include "runtime/generated/function/MinMaxFunction.h"
 #include "runtime/generated/function/SumFunction.h"
 #include "runtime/generated/function/udf/LastStringValueFunction.h"
-#include <algorithm>
 #include <iostream>
 #include <regex>
-#include <tuple>
-#include <unordered_map>
-#include <utility>
 
 GroupAggFunction::GroupAggFunction(long stateRetentionTime,
                                    const nlohmann::json& config)
@@ -99,24 +95,20 @@ std::vector<std::string> GroupAggFunction::handleInputTypes()
     return types;
 }
 
-namespace {
-struct DistinctAggMeta {
-    int filterIndex = -1;
-    int argIndex = -1;
-};
-
-struct AggCallMeta {
-    int aggFuncIndex = -1;
-    std::string aggTypeStr;
-    std::string aggregationFunction;
-    std::string aggType;
-    int filterIndex = -1;
-    int aggIndex = -1;
-    std::string aggDataType;
-    bool isDistinctCount = false;
-    bool shouldDoRetract = false;
-};
-} // namespace
+std::map<int, int> GroupAggFunction::handleDistinctInfo()
+{
+    std::map<int, int> distinctInfoMap;
+    for (DistinctInfo info: distinctInfos) {
+        if (info.filterArgs.size() != info.aggIndexes.size()) {
+            std::cerr << "Error: filterArgs and aggIndexes size mismatch!" << std::endl;
+            continue;
+        }
+        for (size_t i = 0; i < info.filterArgs.size(); i++) {
+            distinctInfoMap[info.aggIndexes[i]] = info.filterArgs[i];
+        }
+    }
+    return distinctInfoMap;
+}
 
 void GroupAggFunction::open(const Configuration& parameters)
 {
@@ -144,11 +136,10 @@ void GroupAggFunction::open(const Configuration& parameters)
     // indexOfCountStar will not be -1 ，which is mainly used for the COUNT(*) operation.
     // In this case, we initialize an extra count function.
     if (indexOfCountStar != -1) {
-        auto *function = new CountFunction(-1, "BIGINT", -1, -1, -1);
+        auto *function = new CountFunction(-1, "BIGINT", accStartingIndex, -1, -1);
         function->setCountStart(true);
-        function->bindAccValueIndex(accStartingIndex, -1);
         functions.push_back(function);
-        accStartingIndex += function->accumulatorSlots();
+        accStartingIndex++;
     }
 
     LOG("group agg accStartingIndex: "<<accStartingIndex)
@@ -160,153 +151,68 @@ void GroupAggFunction::open(const Configuration& parameters)
         throw std::runtime_error("GroupAggFunction open: aggValueIndex does not match aggValueTypes size");
     }
 
-    aggregateCallsCount = static_cast<int>(aggValueTypes.size());
+    aggregateCallsCount = description["aggInfoList"]["aggregateCalls"].size();
     resultRow = new JoinedRowData();
-    reUsePrevAggValue = BinaryRowData::createBinaryRowDataWithMem(aggregateCallsCount);
+    reUsePrevAggValue = BinaryRowData::createBinaryRowDataWithMem(functions.size());
     LOG("init reUsePrevAggValue getArity : "<< reUsePrevAggValue->getArity())
-    reUseNewAggValue = BinaryRowData::createBinaryRowDataWithMem(aggregateCallsCount);
+    reUseNewAggValue = BinaryRowData::createBinaryRowDataWithMem(functions.size());
     sharedAccmulators = BinaryRowData::createBinaryRowDataWithMem(accTypes.size());
 }
 
 void GroupAggFunction::InitAggFunctions(int &accStartingIndex, int &aggValueIndex)
 {
-    functions.clear();
-    std::vector<std::string> types = handleInputTypes();
-    const auto& aggregateCalls = description["aggInfoList"]["aggregateCalls"];
-
-    std::unordered_map<int, DistinctAggMeta> distinctInfoMap;
-    if (distinctInfos.size() > 0)
-    {
-        LOG("GroupAggFunction open: processing distinctInfos with size " << distinctInfos.size());
-        for (const DistinctInfo& info : distinctInfos) {
-
-            for (size_t i = 0; i < info.aggIndexes.size(); i++) {
-                int distinctCountAggFuncIndex = info.aggIndexes[i];
-
-                DistinctAggMeta distinctAggMeta {
-                     info.filterArgs[i],
-                    info.argIndexes[0]
-                };
-                distinctInfoMap[distinctCountAggFuncIndex] = distinctAggMeta;
-            }
-        }
-    }
-
-    std::vector<AggCallMeta> sortedMetas;
-    sortedMetas.reserve(aggregateCalls.size());
-    for (size_t i = 0; i < aggregateCalls.size(); ++i) {
-        const auto& aggCall = aggregateCalls[i];
-        if (!aggCall.contains("name") || !aggCall["name"].is_string()) {
-            throw std::runtime_error("GroupAggFunction InitAggFunctions: aggregateCalls missing string field 'name'.");
-        }
-        if (!aggCall.contains("filterArg") || !aggCall["filterArg"].is_number_integer()) {
-            throw std::runtime_error("GroupAggFunction InitAggFunctions: aggregateCalls missing integer field 'filterArg'.");
-        }
-        if (!aggCall.contains("argIndexes") || !aggCall["argIndexes"].is_array()) {
-            throw std::runtime_error("GroupAggFunction InitAggFunctions: aggregateCalls missing array field 'argIndexes'.");
-        }
-
-        AggCallMeta meta;
-        meta.aggFuncIndex = static_cast<int>(i);
-        meta.aggTypeStr = aggCall["name"].get<std::string>();
-        meta.aggregationFunction = aggCall.contains("aggregationFunction")
-            ? aggCall["aggregationFunction"].get<std::string>()
-            : "";
-        meta.aggType = extractAggFunction(meta.aggTypeStr);
-        meta.filterIndex = aggCall["filterArg"].get<int>();
-
-        const auto argIndexes = aggCall["argIndexes"].get<std::vector<int>>();
-        meta.aggIndex = argIndexes.empty() ? -1 : argIndexes[0];
-
-        auto distinctInfoIt = distinctInfoMap.find(meta.aggFuncIndex);
-        meta.isDistinctCount = (meta.aggType == "COUNT" && distinctInfoIt != distinctInfoMap.end());
-        if (meta.isDistinctCount) {
-            meta.filterIndex = distinctInfoIt->second.filterIndex;
-        }
-
-        meta.aggDataType = meta.aggIndex == -1 ? "BIGINT" : types[meta.aggIndex];
-        meta.shouldDoRetract = meta.aggType == "SUM" &&
-            (meta.aggregationFunction.find("WithRetract") != std::string::npos);
-        sortedMetas.emplace_back(std::move(meta));
-    }
-
-    std::unordered_map<int, AggsHandleFunction*> functionByAggFuncIndex;
-    functionByAggFuncIndex.reserve(sortedMetas.size());
-    SharedDistinctCountContainerFunction* sharedDistinctContainer = nullptr;
-    bool distinctContainerInserted = false;
-
-    for (const auto& meta : sortedMetas) {
-        if (meta.isDistinctCount) {
-            if (meta.aggIndex < 0) {
-                throw std::runtime_error("GroupAggFunction InitAggFunctions: distinct COUNT requires a valid aggIndex.");
-            }
-            if (sharedDistinctContainer == nullptr) {
-                sharedDistinctContainer = new SharedDistinctCountContainerFunction("distinct_acc_shared");
-            }
-            sharedDistinctContainer->addDistinctEntry(meta.aggFuncIndex, meta.aggType, meta.aggIndex,
-                                                      meta.filterIndex, meta.aggDataType);
-            if (!distinctContainerInserted) {
-                functions.push_back(sharedDistinctContainer);
-                distinctContainerInserted = true;
-            }
-            continue;
-        }
-
+    vector<string> types = handleInputTypes();
+    map<int, int> distinctInfoMap = handleDistinctInfo();
+    int aggFuncIndex = 0;
+    for (const auto& aggCall : description["aggInfoList"]["aggregateCalls"]) {
+        string aggTypeStr = aggCall["name"];
+        string aggregationFunction = aggCall["aggregationFunction"];
+        string aggType = extractAggFunction(aggTypeStr);
+        int filterIndex = aggCall["filterArg"];
+        // Be careful here. It only deal with one agg per call. This should be fixed !!
+        int aggIndex = aggCall["argIndexes"].get<vector<int>>().empty() ? -1
+                                                                        : aggCall["argIndexes"].get<vector<int>>()[0];
+        string aggDataType = aggIndex == -1 ? "BIGINT" : types[aggIndex];
         AggsHandleFunction* function = nullptr;
-        if (meta.aggType == "AVG") {
-            function = new AverageFunction(meta.aggIndex, meta.aggDataType, -1, -1, -1, meta.filterIndex);
-        } else if (meta.aggType == "COUNT") {
-            function = new CountFunction(meta.aggIndex, meta.aggDataType, -1, -1, meta.filterIndex);
-        } else if (meta.aggType == "MAX") {
-            function = new MinMaxFunction(meta.aggIndex, meta.aggDataType, -1, -1, MAX_FUNC, meta.filterIndex);
-        } else if (meta.aggType == "MIN") {
-            function = new MinMaxFunction(meta.aggIndex, meta.aggDataType, -1, -1, MIN_FUNC, meta.filterIndex);
-        } else if (meta.aggType == "SUM") {
-            auto* sumFunction = new SumFunction(meta.aggIndex, meta.aggDataType, -1, -1, meta.filterIndex);
-            if (meta.shouldDoRetract) {
-                sumFunction->setRetraction(0);
+        bool shouldDoRetract = false;
+        // aggIndex -> column index of the input row (input row from vectorBatch)
+        // accIndex -> agg function value index in results row (row from acc state)
+        if (aggType == "AVG") {
+            function = new AverageFunction(aggIndex, aggDataType, accStartingIndex, accStartingIndex + 1, aggValueIndex,
+                                           filterIndex);
+        } else if (aggType == "COUNT") {
+            if (distinctInfoMap.find(aggFuncIndex) != distinctInfoMap.end()) {
+                filterIndex = distinctInfoMap[aggFuncIndex];
+                auto *distinctFunction = new CountDistinctFunction(aggIndex, aggDataType, accStartingIndex,
+                                                                   aggValueIndex, aggFuncIndex, filterIndex);
+                distinctFunction->open(new PerKeyStateDataViewStore(
+                        dynamic_cast<StreamingRuntimeContext<RowData *> *>(getRuntimeContext())));
+                function = distinctFunction;
+            } else {
+                function = new CountFunction(aggIndex, aggDataType, accStartingIndex, aggValueIndex, filterIndex);
             }
+        } else if (aggType == "MAX") {
+            function = new MinMaxFunction(aggIndex, aggDataType, accStartingIndex, aggValueIndex, MAX_FUNC, filterIndex);
+        } else if (aggType == "MIN") {
+            function = new MinMaxFunction(aggIndex, aggDataType, accStartingIndex, aggValueIndex, MIN_FUNC, filterIndex);
+        } else if (aggType == "SUM") {
+            shouldDoRetract = (aggregationFunction.find("WithRetract") != std::string::npos) ? true : shouldDoRetract;
+            int count0Index = shouldDoRetract ? accStartingIndex + 1 : -1;
+            SumFunction *sumFunction = new SumFunction(aggIndex, aggDataType, accStartingIndex,
+                                                       aggValueIndex, filterIndex);
+            sumFunction->setRetraction(count0Index);
             function = sumFunction;
-        } else if (meta.aggType == "last_string_value_without_retract") {
-            function = new LastStringValueFunction(meta.aggIndex, meta.aggDataType, -1, -1);
+        } else if (aggType == "last_string_value_without_retract") {
+            function = new LastStringValueFunction(aggIndex, aggDataType, accStartingIndex, aggValueIndex);
         } else {
-            throw std::runtime_error("Unsupported aggregate type: " + meta.aggTypeStr);
+            throw runtime_error("Unsupported aggregate type: " + aggTypeStr);
         }
-
-        functionByAggFuncIndex[meta.aggFuncIndex] = function;
+        // here we only consider the case of one aggregated column for each aggCal.
         functions.push_back(function);
+        accStartingIndex += ((aggType == "AVG") || (aggType == "SUM" && shouldDoRetract)) ? 2 : 1;
+        aggValueIndex++;
+        aggFuncIndex++;
     }
-
-    if (sharedDistinctContainer != nullptr) {
-        sharedDistinctContainer->finalizeEntries();
-        sharedDistinctContainer->open(new PerKeyStateDataViewStore(
-            dynamic_cast<StreamingRuntimeContext<RowData*>*>(getRuntimeContext())));
-    }
-
-    int nextAccIndex = accStartingIndex;
-    int nextValueIndex = aggValueIndex;
-    for (const auto& meta : sortedMetas) {
-        if (meta.isDistinctCount) {
-            sharedDistinctContainer->bindEntryAccValueIndex(meta.aggFuncIndex, nextAccIndex, nextValueIndex);
-            nextAccIndex++;
-            nextValueIndex++;
-            continue;
-        }
-
-        auto funcIt = functionByAggFuncIndex.find(meta.aggFuncIndex);
-        if (funcIt == functionByAggFuncIndex.end()) {
-            throw std::runtime_error("GroupAggFunction InitAggFunctions: function binding lookup failed.");
-        }
-        AggsHandleFunction* function = funcIt->second;
-        function->bindAccValueIndex(nextAccIndex, nextValueIndex);
-        nextAccIndex += function->accumulatorSlots();
-        if (function->hasAggOutput()) {
-            nextValueIndex++;
-        }
-    }
-
-    accStartingIndex = nextAccIndex;
-    aggValueIndex = nextValueIndex;
 }
 
 JoinedRowData* GroupAggFunction::getResultRow()
@@ -347,33 +253,25 @@ void GroupAggFunction::processElement(RowData* input, Context* ctx, TimestampedC
     // set accumulators to handler first
     for (auto& func : functions) {
         func->setAccumulators(accumulators);
-        func->setCurrentGroupKey(currentKey);
-        func->setBackend(backend);
     }
     // get previous aggregate result
-    for (auto& function : functions) {
-        if (function->hasAggOutput()) {
-            function->getValue(reUsePrevAggValue);
-        }
+    for (int i = 0; i < aggregateCallsCount; ++i) {
+        // Fill reUsePrevAggValue with current value
+        functions[i]->getValue(reUsePrevAggValue);
         if (RowDataUtil::isAccumulateMsg(input->getRowKind())) {
-            function->accumulate(input);
+            functions[i]->accumulate(input);
         } else {
-            function->retract(input);
+            functions[i]->retract(input);
         }
-        if (function->hasAggOutput()) {
-            function->getValue(reUseNewAggValue);
-        }
-        function->getAccumulators(reinterpret_cast<BinaryRowData*>(accumulators));
+        functions[i]->getValue(reUseNewAggValue);
+        functions[i]->getAccumulators(reinterpret_cast<BinaryRowData*>(accumulators));
     }
 
     if (!recordCounter->recordCountIsZero(accumulators)) {
         // Flink update accumulators in state here. But since we directly take the RowData* and updates in getAccumulator, the value in statebackend is already updated!
         if (!firstRow) {
-            for (auto& function : functions) {
-                if (!function->hasAggOutput()) {
-                    continue;
-                }
-                if (!function->equaliser(reUsePrevAggValue, reUseNewAggValue)) {
+            for (int i = 0; i < aggregateCallsCount; i++) {
+                if (!functions[i]->equaliser(reUsePrevAggValue, reUseNewAggValue)) {
                     isEqual = false;
                     break;
                 }
@@ -418,9 +316,7 @@ void GroupAggFunction::processBatchColumnar(omnistream::VectorBatch *input, cons
 
     // Process all aggregate functions
     for (auto &function : functions) {
-        if (function->hasAggOutput()) {
-            function->getValue(reUsePrevAggValue);
-        }
+        function->getValue(reUsePrevAggValue);
 
         // Batch accumulate
         if (!accumulateIndices.empty()) {
@@ -430,9 +326,7 @@ void GroupAggFunction::processBatchColumnar(omnistream::VectorBatch *input, cons
         if (!retractIndices.empty()) {
             function->retract(input, retractIndices);
         }
-        if (function->hasAggOutput()) {
-            function->getValue(reUseNewAggValue);
-        }
+        function->getValue(reUseNewAggValue);
         function->getAccumulators(reinterpret_cast<BinaryRowData*>(accumulators));
     }
 }
@@ -442,52 +336,44 @@ void GroupAggFunction::processBatch(omnistream::VectorBatch *input, KeyedProcess
 {
     auto rowCount = input->GetRowCount();
     if (rowCount < 0) {
-        delete input;
         return;
     }
-
-    GroupedRowsByKey keyToRowIndices;
-    keyToRowIndices.reserve(keyToRowIndices.size());
+    // Use map to organize all data with the same key.
+    std::unordered_map<RowData*, std::vector<RowInfo>> keyToRowIndices;
     LOG("getEntireRow rowCount :" << rowCount)
     FillRowIndices(input, keyToRowIndices, rowCount);
-
+    // List of rows to convert to VectorBatch
     std::vector<RowData*> resultKeys;
     std::vector<RowData*> resultValues;
     std::vector<RowKind> resultRowKinds;
+    // Start traversing each key
     for (auto& pair : keyToRowIndices) {
         bool isEqual = true;
         RowData* currentKey = pair.first;
-        auto& groupedRows = pair.second;
         ctx.setCurrentKey(currentKey);
-
+        std::vector<RowInfo>& groupInfo = pair.second;
         RowData* accumulators = accState->value();
         bool firstRow = accumulators == nullptr;
-        if (firstRow && !FirstRowAccumulate(groupedRows, accumulators)) {
-            continue;
+        if (firstRow) {
+            if (!FirstRowAccumulate(groupInfo, accumulators)) {
+                continue;
+            }
+        } else {
+            firstRow = false;
         }
-
         for (auto& func : functions) {
             func->setAccumulators(accumulators);
             func->setCurrentGroupKey(currentKey);
             func->setBackend(backend);
         }
-
-        if (!groupedRows.empty()) {
-            processBatchColumnar(input, groupedRows, accumulators);
-        } else {
-            // No rows left for this key after retract filtering.
-            if (firstRow) {
-                continue;
-            }
-        }
+        processBatchColumnar(input, groupInfo, accumulators);
         LOG("functions loop aggregateCallsCount end")
         AssembleResultForBatch(accumulators, isEqual, firstRow, currentKey, resultKeys, resultValues, resultRowKinds);
     }
 
     if (backend == 2) {
         UpdateAccumulatorsInRocksDB(pendingUpdates);
-        for (auto& pair : pendingUpdates) {
-            //delete each current key's related accumulator
+        for (auto& pair :  pendingUpdates) {
             delete pair.second;
         }
         pendingUpdates.clear();
@@ -495,30 +381,9 @@ void GroupAggFunction::processBatch(omnistream::VectorBatch *input, KeyedProcess
             func->updateInnerState();
         }
     }
-    if (!resultKeys.empty()) {
-        resultBatch = createOutputBatch(resultKeys, resultValues, resultRowKinds);
-        collectOutputBatch(out, resultBatch);
-    }
 
-    delete input;
-    for (auto& keyRowsPair : keyToRowIndices) {
-        //delete each generate key from vb
-        delete keyRowsPair.first;
-    }
-    keyToRowIndices.clear();
-
-    resultKeys.clear();
-    //delete the result RowData copied from reUseNewAggValue and reUsePreAggValue
-    deleteRowData(resultValues);
-    resultRowKinds.clear();
+    ClearEnv(input, resultKeys, resultValues, resultRowKinds, out, keyToRowIndices);
     LOG("GroupAggFunction processBatch end")
-}
-
-void GroupAggFunction::finish(KeyedProcessFunction<RowData *, RowData *, RowData *>::Context &ctx,
-                              TimestampedCollector &out)
-{
-    (void)ctx;
-    (void)out;
 }
 
 void GroupAggFunction::deleteRowData(vector<RowData *> &rowVector)
@@ -647,7 +512,6 @@ void GroupAggFunction::collectOutputBatch(TimestampedCollector out, omnistream::
 }
 
 void GroupAggFunction::close() {
-    // no-op
 }
 
 ValueState<RowData *> *GroupAggFunction::getValueState()
@@ -784,11 +648,8 @@ void GroupAggFunction::AssembleResultForElement(RowData *accumulators, bool isEq
 
 bool GroupAggFunction::EndAssemble(bool isEqual)
 {
-    for (auto& function : functions) {
-        if (!function->hasAggOutput()) {
-            continue;
-        }
-        if (!function->equaliser(reUsePrevAggValue, reUseNewAggValue)) {
+    for (int i = 0; i < aggregateCallsCount; i++) {
+        if (!functions[i]->equaliser(reUsePrevAggValue, reUseNewAggValue)) {
             isEqual = false;
             break;
         }

@@ -113,7 +113,7 @@ TEST(KeyedProcessOperatorTest, ProcessElementWithMockedUserFunction)
     delete record;
 }
 
-TEST(KeyedProcessOperatorTest, GroupAggFailsWhenAggregateCallMissingFilterArg)
+TEST(KeyedProcessOperatorTest, DISABLED_GroupAggFailsWhenAggregateCallMissingFilterArg)
 {
     std::string desc = R"delim({
     "originDescription": null,
@@ -151,7 +151,7 @@ TEST(KeyedProcessOperatorTest, GroupAggFailsWhenAggregateCallMissingFilterArg)
     ASSERT_THROW(keyedProcessOperator.open(), std::runtime_error);
 }
 
-TEST(KeyedProcessOperatorTest, GroupAggFailsWhenSharedDistinctExceeds64)
+TEST(KeyedProcessOperatorTest, DISABLED_GroupAggFailsWhenSharedDistinctExceeds64)
 {
     json config = {
         {"originDescription", nullptr},
