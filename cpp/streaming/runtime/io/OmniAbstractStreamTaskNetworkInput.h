@@ -270,7 +270,6 @@ public:
                     }
 
                     if (likely(result.isFullRecord())) {
-                        INFO_RELEASE("result isFullRecord")
                         return processFullRecordForDataStream(output);
                         // continue;
                     }
