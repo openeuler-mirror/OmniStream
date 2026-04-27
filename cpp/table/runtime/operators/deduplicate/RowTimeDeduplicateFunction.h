@@ -55,37 +55,25 @@ public:
 public:
     void processBatch(omnistream::VectorBatch *inputVB, Context &ctx, TimestampedCollector &out) override;
     void initOutputVector(omnistream::VectorBatch *out, omnistream::VectorBatch *inputVB, int rowCount);
-
-    // void buildOutput();
-    // unordered_map<RowData *, long> getUpdateState(
-    //     omnistream::VectorBatch *inputVB, Context &ctx, const int rowCount, int& resultCount);
-    // void addToOutVectorBatch(
-    //     omnistream::VectorBatch *inputVB, omnistream::VectorBatch *outVB, long comboID, int rowIndex);
-
+    void buildOutput();
+    unordered_map<RowData *, long> getUpdateState(
+        omnistream::VectorBatch *inputVB, Context &ctx, const int rowCount, int& resultCount);
+    void addToOutVectorBatch(
+        omnistream::VectorBatch *inputVB, omnistream::VectorBatch *outVB, long comboID, int rowIndex);
     void open(const Configuration &) override;
     static std::vector<std::int32_t> getKeyedTypes(const std::vector<int32_t> keyedIndex,
                                                    const std::vector<std::string> inputTypes);
-
-    unordered_map<RowData *, int32_t> GetNeededUpdateRecord(
-        omnistream::VectorBatch *inputVB);
-    bool CompareRecord(int preRowId, int currentRowId,omnistream::VectorBatch* previousVB,
-                                                                omnistream::VectorBatch* currentVB);
-
-    omnistream::VectorBatch*  ProcessUpdateRecord(omnistream::VectorBatch *inputVB, Context &ctx);
-
-    omnistream::VectorBatch* GetVectorBatchById(int32_t batchId);
-
-    void CopyTargetVectorBatchToOut(omnistream::VectorBatch *outputVB, long comboID, int rowIndex);
-    void UpdateStateBackend(std::vector<std::tuple<long,long,RowData*>> &updateRecords,Context& ctx);
-
-
-
 
     void freeDelBatch();
 
     int getCurrentBatchId()
     {
         return recordStateVB->getVectorBatchesSize();
+    }
+
+    omnistream::VectorBatch *getRes()
+    {
+        return res;
     }
 
     void processElement(omnistream::VectorBatch *input, Context* ctx, TimestampedCollector* out) override
@@ -116,12 +104,13 @@ private:
 
     StateType *recordStateVB = nullptr;  // 中间这个是什么
 
+    bool isDuplicate(long preRow, long currentRow);
+    long getRowtime(long row);
     KeySelector<RowData*> *groupByKeySelector;
     std::vector<int32_t> keyedTypes;
 
-    // omnistream::VectorBatch *res = nullptr;
+    omnistream::VectorBatch *res = nullptr;
     std::set<omnistream::VectorBatch *> delVb;
-    std::unordered_map<int32_t,omnistream::VectorBatch *> vectorBatchCacheMap;
     int backendType = 0; // 0-> men 1-> rocksdb
 };
 
