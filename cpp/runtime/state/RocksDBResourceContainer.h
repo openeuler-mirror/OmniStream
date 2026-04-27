@@ -43,10 +43,9 @@ public:
 
     std::shared_ptr<rocksdb::ColumnFamilyOptions> getColumnOptions() {
         auto columnFamilyOptions = createBaseCommonColumnOptions();
-        DefaultConfigurableOptionsFactory::createColumnOptions(*columnFamilyOptions);
         ROCKSDB_NAMESPACE::BlockBasedTableOptions blockBasedTableOptions;
         blockBasedTableOptions.block_cache = sharedResources_->getCache();
-        columnFamilyOptions->table_factory.reset(NewBlockBasedTableFactory(blockBasedTableOptions));
+        DefaultConfigurableOptionsFactory::createColumnOptions(*columnFamilyOptions, blockBasedTableOptions);
         return columnFamilyOptions;
     }
 

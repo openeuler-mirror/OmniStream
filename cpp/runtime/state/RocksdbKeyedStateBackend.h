@@ -89,8 +89,9 @@ public:
         kDBPath = kDBPath + "/" + thread_id + "_" + std::to_string(microseconds);
 
         ROCKSDB_NAMESPACE::Options options;
+        ROCKSDB_NAMESPACE::BlockBasedTableOptions blockBasedTableOptions;
         options.create_if_missing = true;
-        DefaultConfigurableOptionsFactory::createColumnOptions(options);
+        DefaultConfigurableOptionsFactory::createColumnOptions(options, blockBasedTableOptions);
         DefaultConfigurableOptionsFactory::createDBOptions(options);
         ROCKSDB_NAMESPACE::Status s = ROCKSDB_NAMESPACE::DB::Open(options, kDBPath, &db);
         if (!s.ok()) {
