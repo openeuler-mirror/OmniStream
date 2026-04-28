@@ -21,6 +21,7 @@ namespace omnistream::datastream {
         DeserializationResult &result = readNextRecord(target);
         if (currentBuffer && result.isBufferConsumed()) {
             currentBuffer->RecycleBuffer();
+            delete currentBuffer;
             currentBuffer = nullptr;
         }
         return result;
