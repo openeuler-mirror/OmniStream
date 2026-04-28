@@ -30,6 +30,7 @@ public:
         escapeChar_            = '\\';
         allowComments_         = false;
         arrayElementSeparator_ = ",";
+        hasNullValue_          = false;
         nullValue_             = "";
     }
 
@@ -61,6 +62,7 @@ public:
 
     void setNullValue(const std::string& nullValue)
     {
+        hasNullValue_ = true;
         nullValue_ = nullValue;
     }
 
@@ -90,6 +92,16 @@ public:
         return arrayElementSeparator_;
     }
 
+    std::string getNullValue() const
+    {
+        return nullValue_;
+    }
+
+    bool hasNullValue() const
+    {
+        return hasNullValue_;
+    }
+
     int getArity() const
     {
         return arity_;
@@ -111,6 +123,7 @@ private:
     char escapeChar_;
     bool allowComments_;
     std::string arrayElementSeparator_;
+    bool hasNullValue_;
     std::string nullValue_;
 
     int arity_;

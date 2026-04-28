@@ -390,6 +390,9 @@ StreamOperator* StreamOperatorFactory::CreateSourceOp(OperatorPOD &opConfig,
                 fields.push_back(LogicalType::flinkTypeToOmniTypeId(field["type"]));
             }
             omnistream::csv::CsvSchema schema(fields);
+            if (opDescriptionJSON.contains("nullValue") && !opDescriptionJSON["nullValue"].is_null()) {
+                schema.setNullValue(opDescriptionJSON["nullValue"]);
+            }
 
             std::vector<int> csvSelectFieldToProjectFieldMapping =
                     opDescriptionJSON["csvSelectFieldToProjectFieldMapping"];
