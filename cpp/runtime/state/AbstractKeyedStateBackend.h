@@ -55,7 +55,7 @@ public:
 
     void dispose() override;
 
-    bool requiresLegacySynchronousTimerSnapshots(SnapshotType *checkpointType)
+    virtual bool requiresLegacySynchronousTimerSnapshots(SnapshotType *checkpointType)
     {
         return false;
     }

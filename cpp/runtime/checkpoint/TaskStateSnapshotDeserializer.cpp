@@ -218,6 +218,10 @@ std::shared_ptr<OperatorSubtaskState> TaskStateSnapshotDeserializer::ParseOperat
         ? ParseStateObjectCollection<KeyedStateHandle>(j.at("managedKeyedState"), &ParseKeyedStateHandle)
         : std::make_shared<StateObjectCollection<KeyedStateHandle>>();
 
+    auto rawKeyedStateCol = j.contains("rawKeyedState")
+        ? ParseStateObjectCollection<KeyedStateHandle>(j.at("rawKeyedState"), &ParseKeyedStateHandle)
+        : std::make_shared<StateObjectCollection<KeyedStateHandle>>();
+
     auto inputChannelStateCol = j.contains("inputChannelState")
         ? ParseStateObjectCollection<InputChannelStateHandle>(j.at("inputChannelState"), &ParseInputStateHandle)
         : std::make_shared<StateObjectCollection<InputChannelStateHandle>>();
@@ -261,7 +265,10 @@ std::shared_ptr<OperatorSubtaskState> TaskStateSnapshotDeserializer::ParseOperat
 
     StateObjectCollection<OperatorStateHandle> managedOperatorState; // Empty lvalue
     StateObjectCollection<OperatorStateHandle> rawOperatorState;     // Empty lvalue
-    StateObjectCollection<KeyedStateHandle> rawKeyedState;           // Empty lvalue
+    StateObjectCollection<KeyedStateHandle> rawKeyedState;
+    if (rawKeyedStateCol) {
+        rawKeyedState = StateObjectCollection<KeyedStateHandle>(rawKeyedStateCol->ToArray());
+    }
 
     auto subtaskState = std::make_shared<OperatorSubtaskState>(
         managedOperatorState,
@@ -283,10 +290,24 @@ std::shared_ptr<StateObjectCollection<T>> TaskStateSnapshotDeserializer::ParseSt
 {
     const int maxSize = 2;
     auto collection = std::make_shared<StateObjectCollection<T>>();
-    if (j.is_array() && j.size() == maxSize && j.at(1).is_array()) {
-        for (const auto &item_json: j.at(1)) {
-            collection->Add(parser(item_json));
-        }
+    const json* stateObjects = nullptr;
+
+    if (j.is_array() && j.size() == maxSize && j.at(0).is_string() && j.at(1).is_array()) {
+        // Jackson/Flink style: ["StateObjectCollection", [ ... ]]
+        stateObjects = &j.at(1);
+    } else if (j.is_object() && j.contains("stateObjects") && j.at("stateObjects").is_array()) {
+        // OmniAdaptor style: {"stateObjects": [ ... ]}
+        stateObjects = &j.at("stateObjects");
+    } else if (j.is_array()) {
+        // Plain array, used by some tests/adaptors.
+        stateObjects = &j;
+    }
+
+    if (stateObjects == nullptr) {
+        return collection;
+    }
+    for (const auto &item_json: *stateObjects) {
+        collection->Add(parser(item_json));
     }
     return collection;
 }

@@ -14,6 +14,7 @@
 #include <memory>
 #include <tuple>
 #include <vector>
+#include <unordered_map>
 #include <emhash7.hpp>
 #include "common.h"
 #include "core/typeutils/TypeSerializer.h"
@@ -24,6 +25,7 @@
 #include "runtime/state/heap/CopyOnWriteStateTable.h"
 #include "runtime/state/heap/HeapFullSnapshotResources.h"
 #include "runtime/state/heap/HeapSingleStateIterator.h"
+#include "runtime/state/heap/HeapPriorityQueueSnapshotRestoreWrapperBase.h"
 #include "table/data/RowData.h"
 #include "table/runtime/operators/window/TimeWindow.h"
 
@@ -59,14 +61,18 @@ public:
 
     using RegisteredKvStates =
         emhash7::HashMap<std::string, std::tuple<uintptr_t, StateDescriptor *, BackendDataType>>;
+    using RegisteredPQStates =
+        std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapperBase>>>;
 
     HeapSnapshotResourceFactory(
         TypeSerializer *keySerializer,
         InternalKeyContext<K> *context,
-        RegisteredKvStates *registeredKvStates)
+        RegisteredKvStates *registeredKvStates,
+        RegisteredPQStates registeredPQStates)
         : keySerializer_(keySerializer),
           context_(context),
-          registeredKvStates_(registeredKvStates)
+          registeredKvStates_(registeredKvStates),
+          registeredPQStates_(registeredPQStates)
     {
     }
 
@@ -101,10 +107,54 @@ private:
 
     void collectPriorityQueueStateSnapshots(PreparedHeapSnapshotData &preparedData, long checkpointId)
     {
-        (void) preparedData;
-        (void) checkpointId;
-        // Reserved for future Heap PQ integration so PQ can participate in the
-        // same syncPrepareResources() freeze point as KV state.
+        if (!registeredPQStates_ || registeredPQStates_->empty()) {
+            return;
+        }
+
+        int pqStateId = static_cast<int>(preparedData.metaInfoSnapshots.size());
+        for (const auto &pair : *registeredPQStates_) {
+            const std::string &stateName = pair.first;
+            const auto &wrapper = pair.second;
+            if (!wrapper) {
+                INFO_RELEASE("HeapSnapshotResourceFactory: checkpointId=" << checkpointId
+                    << ", skip null PQ wrapper, stateName=" << stateName);
+                pqStateId++;
+                continue;
+            }
+
+            try {
+                INFO_RELEASE("HeapSnapshotResourceFactory: checkpointId=" << checkpointId
+                    << ", preparing PQ stateName=" << stateName
+                    << ", pqStateId=" << pqStateId);
+
+                preparedData.metaInfoSnapshots.push_back(wrapper->snapshotMetaInfo());
+                auto iterator = wrapper->createSnapshotIterator(
+                    pqStateId,
+                    preparedData.keyGroupPrefixBytes);
+                if (iterator && iterator->isValid()) {
+                    preparedData.stateIterators.push_back(std::move(iterator));
+                }
+
+                INFO_RELEASE("HeapSnapshotResourceFactory: checkpointId=" << checkpointId
+                    << ", prepared PQ stateName=" << stateName
+                    << ", pqStateId=" << pqStateId
+                    << ", accumulatedMetaInfoCount=" << preparedData.metaInfoSnapshots.size()
+                    << ", accumulatedIteratorCount=" << preparedData.stateIterators.size());
+            } catch (const std::exception &e) {
+                INFO_RELEASE("HeapSnapshotResourceFactory: checkpointId=" << checkpointId
+                    << ", failed while preparing PQ stateName=" << stateName
+                    << ", pqStateId=" << pqStateId
+                    << ", exception=" << e.what());
+                throw;
+            } catch (...) {
+                INFO_RELEASE("HeapSnapshotResourceFactory: checkpointId=" << checkpointId
+                    << ", failed while preparing PQ stateName=" << stateName
+                    << ", pqStateId=" << pqStateId
+                    << ", exception=unknown");
+                throw;
+            }
+            pqStateId++;
+        }
     }
 
     void collectKeyValueStateSnapshots(PreparedHeapSnapshotData &preparedData, long checkpointId)
@@ -314,6 +364,7 @@ private:
     TypeSerializer *keySerializer_;
     InternalKeyContext<K> *context_;
     RegisteredKvStates *registeredKvStates_;
+    RegisteredPQStates registeredPQStates_;
 };
 
 #endif // OMNISTREAM_HEAPSNAPSHOTRESOURCEFACTORY_H

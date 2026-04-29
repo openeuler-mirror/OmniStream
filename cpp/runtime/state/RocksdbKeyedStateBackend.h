@@ -138,13 +138,26 @@ public:
             strategy->notifyCheckpointComplete(completedCheckpointId);
         }
     }
+    bool requiresLegacySynchronousTimerSnapshots(SnapshotType *checkpointType) override
+    {
+        return heapPriorityQueuesManager_ != nullptr
+            && checkpointType != nullptr
+            && !checkpointType->IsSavepoint();
+    }
+
     std::shared_ptr<SavepointResources> savepoint() override
     {
         flushFalconCacheBeforeCheckpoint(); // [FALCON] flush falcon cache before savepoint
 
         writeBatchWrapper_->Flush();
+        std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapperBase>>> registeredPQStates;
+        if (heapPriorityQueuesManager_ != nullptr) {
+            registeredPQStates = heapPriorityQueuesManager_->getRegisteredPQStates();
+        }
+
         auto snapshotResources = RocksDBFullSnapshotResources::create(
             *kvStateInformation_,
+            registeredPQStates,
             db,
             rocksDBResourceGuard_,
             keyGroupRange_,

@@ -58,6 +58,8 @@ protected:
 private:
     /** Info collected per state during restore Phase 1, used in Phase 2 for deserialization. */
     struct RestoreStateInfo {
+        StateMetaInfoSnapshot::BackendStateType backendStateType;
+        std::string stateName;
         StateDescriptor *stateDesc;
         TypeSerializer *namespaceSerializer;
         TypeSerializer *valueSerializer;
@@ -233,6 +235,24 @@ HeapKeyedStateBackend<K> *HeapKeyedStateBackendBuilder<K>::build()
 
             for (size_t i = 0; i < metaInfos.size(); i++) {
                 auto &metaInfo = metaInfos[i];
+                auto backendStateType = metaInfo.getBackendStateType();
+
+                if (backendStateType == StateMetaInfoSnapshot::BackendStateType::PRIORITY_QUEUE) {
+                    INFO_RELEASE("HeapKeyedStateBackendBuilder: discovered PRIORITY_QUEUE state '"
+                        << metaInfo.getName()
+                        << "' at kvStateId=" << i
+                        << ", entries will be restored when the typed timer queue is created");
+                    stateInfos.push_back({backendStateType, metaInfo.getName(), nullptr, nullptr,
+                        metaInfo.getTypeSerializer("VALUE_SERIALIZER")});
+                    continue;
+                }
+
+                if (backendStateType != StateMetaInfoSnapshot::BackendStateType::KEY_VALUE) {
+                    INFO_RELEASE("HeapKeyedStateBackendBuilder: skipping unsupported backend state type for state '"
+                        << metaInfo.getName() << "'");
+                    stateInfos.push_back({backendStateType, metaInfo.getName(), nullptr, nullptr, nullptr});
+                    continue;
+                }
 
                 std::string stateTypeStr = metaInfo.getOption(
                     StateMetaInfoSnapshot::CommonOptionsKeys::KEYED_STATE_TYPE);
@@ -244,7 +264,7 @@ HeapKeyedStateBackend<K> *HeapKeyedStateBackendBuilder<K>::build()
                 if (nsSerializer == nullptr || valSerializer == nullptr) {
                     INFO_RELEASE("HeapKeyedStateBackendBuilder: skipping state '"
                         << metaInfo.getName() << "' — missing serializer(s)");
-                    stateInfos.push_back({nullptr, nullptr, nullptr});
+                    stateInfos.push_back({backendStateType, metaInfo.getName(), nullptr, nullptr, nullptr});
                     continue;
                 }
 
@@ -253,7 +273,7 @@ HeapKeyedStateBackend<K> *HeapKeyedStateBackendBuilder<K>::build()
                 // Create the state table via the existing type dispatch mechanism
                 backend->createOrUpdateInternalState(nsSerializer, desc);
 
-                stateInfos.push_back({desc, nsSerializer, valSerializer});
+                stateInfos.push_back({backendStateType, metaInfo.getName(), desc, nsSerializer, valSerializer});
             }
 
             // Phase 2: Iterate KV entries, deserialize, and write into state tables
@@ -261,6 +281,7 @@ HeapKeyedStateBackend<K> *HeapKeyedStateBackendBuilder<K>::build()
             int totalKeyGroups = 0;
             int totalSkippedInvalidKvStateId = 0;
             int totalSkippedNullStateDesc = 0;
+            int totalPriorityQueueEntriesRestored = 0;
             while (keyGroupIterator->hasNext()) {
                 auto keyGroup = keyGroupIterator->next();
                 int keyGroupId = keyGroup->getKeyGroupId();
@@ -280,6 +301,15 @@ HeapKeyedStateBackend<K> *HeapKeyedStateBackendBuilder<K>::build()
                     }
 
                     auto &info = stateInfos[kvStateId];
+                    if (info.backendStateType == StateMetaInfoSnapshot::BackendStateType::PRIORITY_QUEUE) {
+                        backend->addRestoredPriorityQueueEntry(
+                            info.stateName, entry->getKey(), keyGroupPrefixBytes);
+                        kgEntryCount++;
+                        totalEntriesRestored++;
+                        totalPriorityQueueEntriesRestored++;
+                        continue;
+                    }
+
                     if (info.stateDesc == nullptr) {
                         totalSkippedNullStateDesc++;
                         continue;  // State was skipped in Phase 1
