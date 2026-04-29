@@ -116,9 +116,14 @@ The full project directory structure is as follows:
 │  ├─translate
 │  └─zemo
 ├─docs
-├─figures
-├─public_sys-resources
-├─README.md
+│   └── en                                                   # English document directory
+│       ├── figures                                          # Directory of images in documents
+│       ├── public_sys-resources                             # Directory of images in documents
+│       ├── faq.md                                           # OmniStream FAQs
+│       ├── installation_guide.md                            # OmniStream Installation Guide
+│       ├── quick_start.md                                   # Quick Start
+│       ├── release_notes.md                                 # OmniStream Release Notes
+│       ├── user_guide.md                                    # OmniStream User Guide
 ├─README_en.md
 └─scriptss
 ```
@@ -126,29 +131,28 @@ The full project directory structure is as follows:
 
 ## Release Notes<a name="EN-US_TOPIC_0000002549521545"></a>
 
-For details about feature changes in each version, see [release_notes.md](./docs/en/release_notes.md)
+For details about feature changes in each version, see [Release Notes](./docs/en/release_notes.md)
 
 
 ## Environment Deployment<a name="EN-US_TOPIC_0000002518121692"></a>
 
-For details about the environment dependencies and installation methods of OmniStream, see [installation_guide.md](./docs/en/installation_guide.md)
+For details about the environment dependencies and installation methods of OmniStream, see [Installation Guide](./docs/en/installation_guide.md)
 
 
 ## Quick Start<a name="EN-US_TOPIC_0000002517961786"></a>
 
-For instructions on quickly verifying whether OmniStream is active and its performance improvements, see [quick_start.md](./docs/en/quick_start.md)
+For instructions on quickly verifying whether OmniStream is active and its performance improvements, see [Quick Start](./docs/en/quick_start.md)
 
 
 ## Helpful Links<a name="EN-US_TOPIC_0000002549641549"></a>
 
-|Name|Path|Overview|
-|--|--|--|
-|Quick Start|[quick_start.md](./docs/en/quick_start.md)|Provides guidance on how to quickly enable and verify the OmniStream feature.|
-|Release Notes|[release_notes.md](./docs/en/release_notes.md)|Provides basic information and feature updates of each OmniStream version.|
-|Installation Guide|[installation_guide.md](./docs/en/installation_guide.md)|Describes how to install OmniStream.|
-|User Guide|[user_guide.md](./docs/en/user_guide.md)|Provides details about how to use OmniStream.|
-|Best Practices|[best_practices.md](./docs/en/best_practices.md)|Provides practice cases of OmniStream.|
-|FAQs|[faq.md](./docs/en/faq.md)|Provides answers to frequently asked questions (FAQs) about installing and using OmniStream.|
+|Name|Overview|
+|--|--|
+|[Quick Start](./docs/en/quick_start.md)|Provides guidance on how to quickly enable and verify the OmniStream feature.|
+|[Release Notes](./docs/en/release_notes.md)|Provides basic information and feature updates of each OmniStream version.|
+|[Installation Guide](./docs/en/installation_guide.md)|Describes how to install OmniStream.|
+|[User Guide](./docs/en/user_guide.md)|Provides details about how to use OmniStream.|
+|[FAQs](./docs/en/faq.md)|Provides answers to frequently asked questions (FAQs) about installing and using OmniStream.|
 
 
 
@@ -292,8 +296,6 @@ The documents in the  _xxxdocs_  directory are licensed under CC BY 4.0. For det
     9. After your PR is approved and all tests pass, the CI system will merge it into the project's main branch.
 
 
-## Legal Statement<a name="EN-US_TOPIC_0000002549521539"></a>
-
 
 ## Suggestions and Feedback<a name="EN-US_TOPIC_0000002549641561"></a>
 
@@ -304,7 +306,7 @@ You are welcome to contribute to the community. If you have any questions or sug
 
 OmniStream is jointly developed by the following Huawei departments:
 
-- Kunpeng Computing BoostKit Development Dept
+Kunpeng Computing BoostKit Development Dept
 
 Thank you to everyone in the community for your PRs. We warmly welcome contributions to OmniStream!
 

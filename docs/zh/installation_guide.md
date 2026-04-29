@@ -26,8 +26,8 @@ OmniStream Flink Native化采用单机容器化部署方案，使用Docker容器
 |处理器|鲲鹏920新型号处理器|
 |内存大小|384GB（12 * 32GB）|
 |内存频率|2666MHz|
-|网络|业务网络10GE管理网络1GE|
-|硬盘|系统盘：1 * RAID 0（1 * 1.2TB SAS HDD）数据盘：12 * RAID 0（12 * 8TB SATA HDD）|
+|网络|业务网络10GE</br>管理网络1GE|
+|硬盘|系统盘：1 * RAID 0（1 * 1.2TB SAS HDD）</br>数据盘：12 * RAID 0（12 * 8TB SATA HDD）|
 |RAID控制卡|LSI SAS3508|
 
 
@@ -39,7 +39,7 @@ OmniStream Flink Native化采用单机容器化部署方案，使用Docker容器
 
 |项目| 版本                                                                                                                                                                                                                                                                                           | 说明                                                                                                                                                                |
 |--|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-|操作系统| [openEuler 22.03 LTS SP4](https://dl-cdn.openeuler.openatom.cn/openEuler-22.03-LTS-SP4/ISO/aarch64/openEuler-22.03-LTS-SP4-everything-debug-aarch64-dvd.iso)                                                                                                                                 | 无特殊说明。                                                                                                                                                            |
+|操作系统| [openEuler 22.03 LTS SP4](https://dl-cdn.openeuler.openatom.cn/openEuler-22.03-LTS-SP4/ISO/aarch64/openEuler-22.03-LTS-SP4-everything-debug-aarch64-dvd.iso)                                                                                                                                 | 无特殊要求。                                                                                                                                                            |
 |JDK| [毕昇JDK 1.8（建议使用毕昇JDK 1.8.0_342）](https://mirror.iscas.ac.cn/kunpeng/archive/compiler/bisheng_jdk/bisheng-jdk-8u342-linux-aarch64.tar.gz)                                                                                                                                                     | JDK需要部署到所有容器内。                                                                                                                                                    |
 |Flink| [1.16.3](https://archive.apache.org/dist/flink/flink-1.16.3/flink-1.16.3-bin-scala_2.12.tgz)<br>[1.17.1](https://archive.apache.org/dist/flink/flink-1.17.1/flink-1.17.1-bin-scala_2.12.tgz)<br>[1.20.0](https://archive.apache.org/dist/flink/flink-1.20.0/flink-1.20.0-bin-scala_2.12.tgz) | 部署指南请参见[《Flink 部署指南（CentOS&openEuler）》](https://www.hikunpeng.com/document/detail/zh/kunpengbds/ecosystemEnable/Flink/kunpengflink_04_0001.html)。Flink需要部署到所有容器内。 |
 |Docker| [19.03.15](https://www.hikunpeng.com/document/detail/zh/kunpengbds/appAccelFeatures/sqlqueryaccelf/kunpengbds_omniruntime_20_0911.html)                                                                                                                                                      | 无特殊说明。                                                                                                                                                            |
@@ -62,12 +62,12 @@ OmniStream Flink Native化采用单机容器化部署方案，使用Docker容器
 
 |名称| 包名                                               |发布类型|说明| 获取地址                                                                                                                                                                                                                                                               |
 |--|--------------------------------------------------|--|--|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-|OmniStream压缩包| BoostKit-omniruntime-omnistream-1.2.0.zip        |开源|OmniStream Flink Native化特性软件安装包。| [获取链接](https://atomgit.com/openeuler/OmniStream/releases/download/tag_BoostKit_26.0.RC1.B031_001/BoostKit-omniruntime-omnistream-1.2.0.zip)                                                                                                                            |
+|OmniStream压缩包| BoostKit-omniruntime-omnistream-1.2.0.zip        |开源|OmniStream Flink Native化特性软件安装包。| [获取链接](https://gitcode.com/openeuler/OmniStream/releases/download/tag_BoostKit_26.0.RC1.B031_001/BoostKit-omniruntime-omnistream-1.2.0.zip)                                                                                                                            |
 |UDF翻译工具| UNT-1.0-35.noarch.rpm                            |开源|UDF翻译工具RPM包，安装后在/opt路径下新增UDF翻译工具。| [获取链接](https://eur.openeuler.openatom.cn/results/cutie-deng/UNT/openeuler-22.03_LTS_SP4-aarch64/00110412-UNT/UNT-1.0-35.noarch.rpm)                                                                                                                                |
 |AI4C| AI4C-1.0.4-8.aarch64.rpm                         |开源|支持编译器集成机器学习驱动的优化技术的框架。RPM包直接安装。| [获取链接](https://gitee.com/kunpengcompute/boostkit-bigdata/releases/download/25.1.RC1-OmniStream-release/AI4C-1.0.4-8.aarch64.rpm)                                                                                                                                   |
-|KACC_JSON| BoostKit-kaccjson_1.1.0.zip                      |闭源|自研的用于UDF翻译中替换GSON的C++版实现，该ZIP包含适配层和KACC_JSON核心实现，内含若干头文件和静态库。从获取链接文件Dependency_library_OmniStream.zip解压获取。| [获取链接](https://atomgit.com/openeuler/OmniStream/releases/download/tag_BoostKit_25.3.B032_001/Dependency_library_OmniStream.zip)                                                                                                                                    |
+|KACC_JSON| BoostKit-kaccjson_1.1.0.zip                      |闭源|自研的用于UDF翻译中替换GSON的C++版实现，该ZIP包含适配层和KACC_JSON核心实现，内含若干头文件和静态库。</br>该文件从Dependency_library_OmniStream.zip解压获得。| [获取链接](https://gitcode.com/openeuler/OmniStream/releases/download/tag_BoostKit_26.0.RC1.B031_001/Dependency_library_OmniStream.zip)                                                                                                                                    |
 |KSL| BoostKit-ksl_2.5.1.zip                           |闭源|正则加速库，该zip包含ReplaceAll用于优化String基础库，内含头文件和1个静态库。| [获取链接](https://www.hikunpeng.com/boostkit/library/system?subtab=Hyperscan&version=2.5.1)                                                                                                                                                                           |
-|Dependency_library| Dependency_library.zip<br>Dependency_library.z01 |开源|OmniStream Flink Native化运行时所依赖的库文件。由于压缩文件太大分卷压缩，需把压缩文件全部下载下来。| [获取链接1](https://gitee.com/kunpengcompute/boostkit-bigdata/releases/download/25.1.RC1-OmniStream-release/Dependency_library.zip)<br>[获取链接2](https://gitee.com/kunpengcompute/boostkit-bigdata/releases/download/25.1.RC1-OmniStream-release/Dependency_library.z01) |
+|依赖库| Dependency_library_Default |开源|OmniStream Flink Native化运行时所依赖的库文件。</br>该文件夹从Dependency_library_OmniStream.zip解压获得。| [获取链接](https://gitcode.com/openeuler/OmniStream/releases/download/tag_BoostKit_26.0.RC1.B031_001/Dependency_library_OmniStream.zip) |
 
 
 **软件安装包完整性校验<a name="zh-cn_topic_0000002228744546_section156811729327"></a>**
@@ -436,11 +436,11 @@ rpm -ivh yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
     ```
 
 3. 安装其他依赖包。
-    1. 请参见[**表 3** 软件获取列表](#软件获取列表)获取依赖包Dependency\_library.zip和Dependency\_library.z01，解压到`/opt`路径。
+    1. 请参见[**表 3** 软件获取列表](#软件获取列表)获取依赖包Dependency_library_OmniStream.zip，解压到`/opt`路径。
 
         ```bash
-        zip -F Dependency_library.zip --out Dependency_library_complete.zip
-        unzip Dependency_library_complete.zip -d /opt
+        unzip Dependency_library_OmniStream.zip -d /opt
+        cp /opt/Dependency_library_Default /opt/Dependency_library        
         chmod -R 550 /opt/Dependency_library/*
         ```
 
@@ -547,7 +547,7 @@ rpm -ivh yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
     >mkdir /opt/udf-trans-opt
     >```
 
-3. 将[安装OmniStream](安装OmniStream.md)中安装后的基础库目录复制到`/opt/udf-trans-opt`。
+3. 将[安装OmniStream](#安装omnistream)中安装后的基础库目录复制到`/opt/udf-trans-opt`。
 
     ```bash
     docker cp /usr/local/OmniStream/libbasictypes flink_jm_8c32g:/opt/udf-trans-opt
@@ -606,15 +606,19 @@ rpm -ivh yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
         ```
 
    2. 安装jemalloc。
-       1. 下载jemalloc-5.3.0.tar.gz，并上传到管理节点。
+       1. 下载[jemalloc-5.3.0.tar.gz](https://github.com/jemalloc/jemalloc/archive/refs/tags/5.3.0.tar.gz)，并上传到管理节点。
+
            ```bash
            cd /opt/omni-operator/
            tar zxvf jemalloc-5.3.0.tar.gz
            mv jemalloc-5.3.0 jemalloc
            ```
-           >**说明：**/opt/omni-operator/jemalloc”目录用户可自行定义。
+
+           >![](public_sys-resources/icon-note.gif)**说明：**
+           >`/opt/omni-operator/jemalloc`目录用户可自行定义。
       
        2. 进入`jemalloc`目录，运行脚本并安装。
+
           ```bash
           cd jemalloc
           ./autogen.sh --disable-initial-exec-tls
@@ -622,15 +626,19 @@ rpm -ivh yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
           ```
           
       3. 拷贝`/opt/omni-operator/jemalloc/lib/libjemalloc.so.2`到`/opt/omni-operator/lib`目录下。
+
          ```bash
          cp /opt/omni-operator/jemalloc/lib/libjemalloc.so.2 /opt/omni-operator/lib/
          ```
 
    3. 复制jemalloc.h到容器UDF工具的头文件引用目录中。
+
       ```bash
       docker cp /opt/omni-operator/jemalloc/include/jemalloc/jemalloc.h flink_jm_8c32g:/opt/udf-trans-opt/libbasictypes/include/
       ```
+
    4. 下载OmniOperator，将OmniOperator源码全部拷贝到容器UDF工具的头文件引用目录中。
+
        ```bash
        cd /usr/local/OmniStream/depend/
        git clone https://atomgit.com/openeuler/OmniOperator.git -b master
@@ -664,7 +672,7 @@ rpm -ivh yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
         exit
         ```
 
-    2. 将[安装OmniStream](安装OmniStream.md)步骤中安装后的include复制到flink\_jm\_8c32g容器的`/opt/udf-trans-opt/libbasictypes/include/libboundscheck`目录。
+    2. 将[安装OmniStream](#安装omnistream)步骤中安装后的include复制到flink\_jm\_8c32g容器的`/opt/udf-trans-opt/libbasictypes/include/libboundscheck`目录。
 
         ```bash
         docker cp /usr/local/OmniStream/include flink_jm_8c32g:/opt/udf-trans-opt/libbasictypes/include/libboundscheck
@@ -685,7 +693,7 @@ rpm -ivh --nodeps AI4C-1.0.4-8.aarch64.rpm
 
 ### 容器化部署<a name="ZH-CN_TOPIC_0000002549064715"></a>
 
-在物理机完成基本软件安装和配置后，需要将[安装基础环境](安装基础环境.md)～[安装OmniStream](安装OmniStream.md)部署到容器中实现特性容器化使用。
+在物理机完成基本软件安装和配置后，需要将[安装基础环境](#安装基础环境)～[安装OmniStream](#安装omnistream)部署到容器中实现特性容器化使用。
 
 1. 将Nexmark、JDK、Flink、第三方依赖、OmniStream目录复制到所有容器内。
 

@@ -17,25 +17,25 @@ Before installing OmniStream, prepare the hardware and software environments to 
 
 **Hardware Requirements<a name="en-us_topic_0000002228744546_section7861618121914"></a>**
 
-[Table 1](#en-us_topic_0000002228744546___d0e1171)  lists the hardware requirements.
+[**Table  1**  Hardware requirements](#hardware_requirements)  lists the hardware requirements.
 
-**Table  1**  Hardware requirements
+**Table  1**  Hardware requirements<a id="hardware_requirements"></a>
 
 |Item|Node|
 |--|--|
 |Processor|New Kunpeng 920 processor model|
 |Memory size|384 GB (12 x 32 GB)|
 |Memory frequency|2666MHz|
-|Network|Service network: 10GEManagement network: 1GE|
-|Drive|System drive: 1 x RAID 0 (1 x 1.2 TB SAS HDD)Data drive: 12 x RAID 0 (12 x 8 TB SATA HDD)|
+|Network|Service network: 10GE</br>Management network: 1GE|
+|Drive|System drive: 1 x RAID 0 (1 x 1.2 TB SAS HDD)</br>Data drive: 12 x RAID 0 (12 x 8 TB SATA HDD)|
 |RAID controller card|LSI SAS3508|
 
 
 **OS and Software Requirements<a name="en-us_topic_0000002228744546_section412511315357"></a>**
 
-[Table 2](#en-us_topic_0000002228744546_table18573173415423)  lists the OS and software requirements.
+[**Table 2** OS and software requirements](#os_and_software_requirements) lists the OS and software requirements.
 
-**Table  2**  OS and software requirements
+**Table 2** OS and software requirements<a id="os_and_software_requirements"></a>
 
 |Item| Version                                                 | Description                                                                                                                                                                                 |
 |--|---------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -54,20 +54,20 @@ Before installing OmniStream, prepare the hardware and software environments to 
 |nlohmann json| [3.11.3](https://github.com/nlohmann/json/tree/v3.11.3)                                              | Use it to provide the header file used for UDF translation.                                                                                                                                 |
 
 
-**Obtaining the Software Packages<a name="en-us_topic_0000002228744546_section189181357102011"></a>**
+**Obtaining the Software Packages<a name="software"></a>**
 
-[Table 3](#en-us_topic_0000002228744546__table677mcpsimp)  describes the OmniStream software packages and how to obtain them.
+[**Table  3** OmniStream software packages](#software_packages) describes the OmniStream software packages and how to obtain them.
 
-**Table  3**  OmniStream software packages
+**Table  3** OmniStream software packages<a id="software_packages"></a>
 
 |Software Name| Package Name                                     |Release Type|Description| How to Obtain                                                                                                                                                                                                                                                        |
 |--|--------------------------------------------------|--|--|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-|OmniStream package| BoostKit-omniruntime-omnistream-1.2.0.zip        |Open source|OmniStream software installation package.| [Link](https://atomgit.com/openeuler/OmniStream/releases/download/tag_BoostKit_26.0.RC1.B031_001/BoostKit-omniruntime-omnistream-1.2.0.zip)                                                                                                                              |
+|OmniStream package| BoostKit-omniruntime-omnistream-1.2.0.zip        |Open source|OmniStream software installation package.| [Link](https://gitcode.com/openeuler/OmniStream/releases/download/tag_BoostKit_26.0.RC1.B031_001/BoostKit-omniruntime-omnistream-1.2.0.zip)                                                                                                                              |
 |UDF translator| UNT-1.0-35.noarch.rpm                            |Open source|UDF translator RPM package. After the installation is complete, the UDF translator is added to the /opt directory.| [Link](https://eur.openeuler.openatom.cn/results/cutie-deng/UNT/openeuler-22.03_LTS_SP4-aarch64/00110412-UNT/UNT-1.0-35.noarch.rpm)                                                                                                                                  |
 |AI4C| AI4C-1.0.4-8.aarch64.rpm                         |Open source|A framework that allows the compiler to integrate machine learning–driven optimization technologies. Install the RPM package.| [Link](https://gitee.com/kunpengcompute/boostkit-bigdata/releases/download/25.1.RC1-OmniStream-release/AI4C-1.0.4-8.aarch64.rpm)                                                                                                                                     |
-|KACC_JSON| BoostKit-kaccjson_1.1.0.zip                      |Closed source|Self-developed C++ implementation package used to replace GSON in UDF translation. This ZIP package contains the adaptation layer and KACC_JSON implementation, and also contains header files and a static library. Obtain the **Dependency_library_OmniStream.zip** file and decompress it.| [Link](https://atomgit.com/openeuler/OmniStream/releases/download/tag_BoostKit_25.3.B032_001/Dependency_library_OmniStream.zip)                                                                                                                                      |
+|KACC_JSON| BoostKit-kaccjson_1.1.0.zip                      |Closed source|Self-developed C++ implementation package used to replace GSON in UDF translation. This ZIP package contains the adaptation layer and KACC_JSON implementation, and also contains header files and a static library. Obtain the **Dependency_library_OmniStream.zip** file and decompress it.| [Link](https://gitcode.com/openeuler/OmniStream/releases/download/tag_BoostKit_26.0.RC1.B031_001/Dependency_library_OmniStream.zip)                                                                                                                                      |
 |KSL| BoostKit-ksl_2.5.1.zip                           |Closed source|Regular expression acceleration library, which contains the ReplaceAll function for optimizing the basic string library and contains header files and a static library.| [Contact Huawei technical support.](https://www.hikunpeng.com/boostkit/library/system?subtab=Hyperscan&version=2.5.1)                                                                                                                                                |
-|Dependency_library| Dependency_library.zip<br>Dependency_library.z01 |Open source|Library file on which OmniStream depends. The file is compressed into several volumes. Download all the volumes.| [Link 1](https://gitee.com/kunpengcompute/boostkit-bigdata/releases/download/25.1.RC1-OmniStream-release/Dependency_library.zip)<br>[Link 2](https://gitee.com/kunpengcompute/boostkit-bigdata/releases/download/25.1.RC1-OmniStream-release/Dependency_library.z01) |
+|Dependency Library| Dependency_library_Default |Open source|Library file on which OmniStream depends. Obtain the **Dependency_library_OmniStream.zip** file and decompress it. | [Link 1](https://gitcode.com/openeuler/OmniStream/releases/download/tag_BoostKit_26.0.RC1.B031_001/Dependency_library_OmniStream.zip)|
 
 
 **Verifying the Software Package Integrity<a name="en-us_topic_0000002228744546_section156811729327"></a>**
@@ -436,11 +436,11 @@ Install other software packages on which the feature depends.
     ```
 
 3. Install other dependency packages.
-    1. Obtain the dependency packages  **Dependency\_library.zip**  and  **Dependency\_library.z01**  obtained from  [Table 3](environment-requirements.md#en-us_topic_0000002228744546__table677mcpsimp)  and extract them to the  **/opt**  directory.
+    1. Obtain the dependency packages  **Dependency_library_OmniStream.zip** obtained from  [**Table  3** OmniStream software packages](#software_packages)  and extract it to the  **/opt**  directory.
 
         ```bash
-        zip -F Dependency_library.zip --out Dependency_library_complete.zip
-        unzip Dependency_library_complete.zip -d /opt
+        unzip Dependency_library_OmniStream.zip -d /opt
+        cp /opt/Dependency_library_Default /opt/Dependency_library  
         chmod -R 550 /opt/Dependency_library/*
         ```
 
@@ -461,7 +461,7 @@ In independent deployment mode, you can install the precompiled OmniStream binar
 
 1. Create the  **/usr/local/OmniStream**  directory on the physical machine to store OmniStream binary files.
 
-    Extract the  **BoostKit-omniruntime-omnistream-1.2.0.zip**  installation package obtained from  [Table 3](environment-requirements.md#en-us_topic_0000002228744546__table677mcpsimp)  to the  **/usr/local/OmniStream**  directory.
+    Extract the  **BoostKit-omniruntime-omnistream-1.2.0.zip**  installation package obtained from  [**Table  3** OmniStream software packages](#software_packages)  to the  **/usr/local/OmniStream**  directory.
 
     ```bash
     unzip BoostKit-omniruntime-omnistream-1.2.0.zip
@@ -530,7 +530,7 @@ In independent deployment mode, you can install the precompiled OmniStream binar
 
 **Installing the UDF Translator RPM Package<a name="section5466185845817"></a>**
 
-1. Obtain the UDF translator RPM package from  [Table 3](environment-requirements.md#en-us_topic_0000002228744546__table677mcpsimp)  and upload it to the  **/opt**  directory on the physical machine.
+1. Obtain the UDF translator RPM package from [**Table  3** OmniStream software packages](#software_packages) and upload it to the  **/opt**  directory on the physical machine.
 2. Install the RPM package in the  **flink\_jm\_8c32g**  container. The default installation path is  **/opt**.
 
     ```bash
@@ -545,7 +545,7 @@ In independent deployment mode, you can install the precompiled OmniStream binar
     >mkdir /opt/udf-trans-opt
     >```
 
-3. Copy the basic library directory installed in  [Installing OmniStream](installing-omnistream.md)  to the  **/opt/udf-trans-opt**  directory.
+3. Copy the basic library directory installed in  [Installing OmniStream](#installing-omnistream)  to the  **/opt/udf-trans-opt**  directory.
 
     ```bash
     docker cp /usr/local/OmniStream/libbasictypes flink_jm_8c32g:/opt/udf-trans-opt
@@ -553,9 +553,9 @@ In independent deployment mode, you can install the precompiled OmniStream binar
 
 **Installing UDF Dependencies<a name="section1041811513598"></a>**
 
-1. Upload and extract KACC\_JSON.
+1. Upload and extract KACC\_JSONUpload and decompress the KACC\_JSON package on the physical machine..
 
-    Obtain the  **BoostKit-kacccjson_1.1.0.zip**  package from  [Table 3](environment-requirements.md#en-us_topic_0000002228744546__table677mcpsimp), upload it to the  **/opt**  directory on the physical machine, and extract it.
+    Obtain the  **BoostKit-kacccjson_1.1.0.zip**  package from  [**Table  3** OmniStream software packages](#software_packages), upload it to the  **/opt**  directory on the physical machine, and extract it.
 
     ```bash
     cd /opt/
@@ -573,7 +573,7 @@ In independent deployment mode, you can install the precompiled OmniStream binar
     ```
 
 3. Download and extract the KSL installation package.
-    1. Obtain the  **BoostKit-ksl\_2.5.1.zip**  package from  [Table 3](environment-requirements.md#en-us_topic_0000002228744546__table677mcpsimp), upload it to the  **/opt**  directory on the physical machine, extract it, and copy it to the  **flink\_jm\_8c32g**  container.
+    1. Obtain the  **BoostKit-ksl\_2.5.1.zip**  package from  [**Table  3** OmniStream software packages](#software_packages), upload it to the  **/opt**  directory on the physical machine, extract it, and copy it to the  **flink\_jm\_8c32g**  container.
 
         ```bash
         cd /opt
@@ -589,8 +589,8 @@ In independent deployment mode, you can install the precompiled OmniStream binar
         rpm -ivh boostkit-ksl-2.5.1-1.aarch64.rpm
         ```
 
-4. Install the OmniStream dependency header files.
-    1. Extract the  **depend.zip**  package obtained from  [Table 3](environment-requirements.md#en-us_topic_0000002228744546__table677mcpsimp)  to the  **/usr/local/OmniStream/depend**  directory.
+4. Install the OmniStream dependency header files on the physical machine.
+    1. Extract the  **depend.zip**  package obtained from  [**Table  3** OmniStream software packages](#software_packages)  to the  **/usr/local/OmniStream/depend**  directory.
 
         ```bash
         mkdir -p /usr/local/OmniStream/depend/
@@ -603,11 +603,30 @@ In independent deployment mode, you can install the precompiled OmniStream binar
         docker cp /usr/local/OmniStream/libbasictypes/include/third_party flink_jm_8c32g:/opt/udf-trans-opt/libbasictypes/include/
         ```
 
-    2. Install jemalloc by following instructions in section "Installing Dependencies \(by Compiling and Installing Source Code for SparkExtension and Gluten\)" in the [OmniOperator Operator Acceleration Feature Guide](https://gitcode.com/openeuler/OmniOperator/blob/master/docs/en/installation_guide.md). After the installation is complete, copy  **jemalloc.h**  to the header file reference directory of the container UDF tool.
+    2. Install jemalloc.
+        1. Download [jemalloc-5.3.0.tar.gz](https://github.com/jemalloc/jemalloc/archive/refs/tags/5.3.0.tar.gz) and upload it to the management node.
 
-        ```bash
-        docker cp /opt/omni-operator/jemalloc/include/jemalloc/jemalloc.h flink_jm_8c32g:/opt/udf-trans-opt/libbasictypes/include/
-        ```
+           ```bash
+           cd /opt/omni-operator/
+           tar zxvf jemalloc-5.3.0.tar.gz
+           mv jemalloc-5.3.0 jemalloc
+           ```
+
+           >![](public_sys-resources/icon-note.gif) **NOTE:**
+           >The **/opt/omni-operator/jemalloc** directory can be customized.
+        2. Go to the **jemalloc** directory, run the script, and install the generated file.
+
+            ```bash
+            cd jemalloc
+            ./autogen.sh --disable-initial-exec-tls
+            make -j2
+            ```
+          
+        3. Copy **/opt/omni-operator/jemalloc/lib/libjemalloc.so.2** to the **/opt/omni-operator/lib** directory.
+
+            ```bash
+            cp /opt/omni-operator/jemalloc/lib/libjemalloc.so.2 /opt/omni-operator/lib/
+            ```
 
     3. Download OmniOperator and copy all the OmniOperator source code to the header file reference directory of the container UDF tool.
 
@@ -644,7 +663,7 @@ In independent deployment mode, you can install the precompiled OmniStream binar
         exit
         ```
 
-    2. Copy the  **include**  directory installed in  [Installing OmniStream](installing-omnistream.md)  to the  **/opt/udf-trans-opt/libbasictypes/include/libboundscheck**  directory in the  **flink\_jm\_8c32g**  container.
+    2. Copy the  **include**  directory installed in  [Installing OmniStream](#installing-omnistream)  to the  **/opt/udf-trans-opt/libbasictypes/include/libboundscheck**  directory in the  **flink\_jm\_8c32g**  container.
 
         ```bash
         docker cp /usr/local/OmniStream/include flink_jm_8c32g:/opt/udf-trans-opt/libbasictypes/include/libboundscheck
@@ -653,7 +672,7 @@ In independent deployment mode, you can install the precompiled OmniStream binar
 
 ### Installing AI4C<a name="EN-US_TOPIC_0000002517344924"></a>
 
-Upload the dependency package  **AI4C-1.0.4-8.aarch64.rpm**  obtained from  [Table 3](environment-requirements.md#en-us_topic_0000002228744546__table677mcpsimp)  to the  **/opt**  directory in the  **flink\_jm\_8c32g**  container.
+Upload the dependency package  **AI4C-1.0.4-8.aarch64.rpm**  obtained from  [**Table  3** OmniStream software packages](#software_packages)  to the  **/opt**  directory in the  **flink\_jm\_8c32g**  container.
 
 ```bash
 docker cp AI4C-1.0.4-8.aarch64.rpm flink_jm_8c32g:/opt
@@ -665,7 +684,7 @@ rpm -ivh --nodeps AI4C-1.0.4-8.aarch64.rpm
 
 ### Deploying into Containers<a name="EN-US_TOPIC_0000002549064715"></a>
 
-After installing and configuring basic software on the physical machine, complete  [Installing the Basic Environment](installing-the-basic-environment.md)  and  [Installing OmniStream](installing-omnistream.md)  to containerize the feature.
+After installing and configuring basic software on the physical machine, complete  [Installing the Basic Environment](#environment-requirements)  and  [Installing OmniStream](#installing-omnistream)  to containerize the feature.
 
 1. Copy the directories of Nexmark, JDK, Flink, third-party dependencies, and OmniStream to all containers.
 
