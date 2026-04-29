@@ -150,7 +150,7 @@ namespace omnistream {
             std::shared_ptr<CheckpointOptions> checkpointOptions);
         StreamPartitionerV2<StreamRecord> *createPartitionerFromDesc(StreamPartitionerPOD partitioner);
 
-        datastream::StreamPartitioner<IOReadableWritable> *createPartitionerFromDesc(const StreamEdgePOD &edge);
+        datastream::StreamPartitioner<IOReadableWritable> *createPartitionerFromDesc(const StreamEdgePOD &edge, bool recover = false);
         ProcessingTimeService* createProcessingTimeService();
     protected:
         std::shared_ptr<RuntimeEnvironmentV2> env_;

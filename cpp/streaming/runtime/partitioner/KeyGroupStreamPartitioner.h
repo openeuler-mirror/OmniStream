@@ -33,7 +33,7 @@ namespace omnistream::datastream {
     template<typename T, typename K>
     class KeyGroupStreamPartitioner : public StreamPartitioner<T> {
     public:
-        KeyGroupStreamPartitioner(nlohmann::json config, int targetId, int maxParallelism)
+        KeyGroupStreamPartitioner(nlohmann::json config, int targetId, int maxParallelism, bool recover = false)
             : config(config), targetId(targetId), maxParallelism(maxParallelism)
         {
             std::string udfObj = config["udf_obj"];
@@ -41,7 +41,7 @@ namespace omnistream::datastream {
             std::string udfSoPath = config["udf_so"];
 
             // 算子非对齐input buffer恢复取process算子的input 处理器
-            if(targetId == 7){
+            if (recover) {
                 nlohmann::json udfObjJson = nlohmann::json::parse(udfObj);
                 std::string keySoName = config["key_so"][0];
                 std::string keySoPath1 = keySelectorPath + keySoName;
@@ -51,7 +51,7 @@ namespace omnistream::datastream {
                 }
                 keySelector = keySelectorSymbol1(udfObjJson).release();
 
-            }else{
+            } else {
                 std::string keySelectorName = config["hash_so"][std::to_string(targetId)];
                 std::string path = keySelectorPath + keySelectorName;
                 nlohmann::json udfObjJson = nlohmann::json::parse(udfObj);

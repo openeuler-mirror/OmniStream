@@ -497,7 +497,7 @@ void OmniStreamTask::processInput(MailboxDefaultAction::Controller *controller)
         }
     }
 
-    datastream::StreamPartitioner<IOReadableWritable>* OmniStreamTask::createPartitionerFromDesc(const StreamEdgePOD& edge)
+    datastream::StreamPartitioner<IOReadableWritable>* OmniStreamTask::createPartitionerFromDesc(const StreamEdgePOD& edge, bool recover)
     {
         const auto& partitioner = edge.getPartitioner();
 
@@ -513,13 +513,13 @@ void OmniStreamTask::processInput(MailboxDefaultAction::Controller *controller)
             auto taskInfo = env_->taskConfiguration();
             std::unordered_map<int, StreamConfigPOD> configMap = taskInfo.getChainedConfigMap();
             auto description = configMap[sourceId].getOperatorDescription().getDescription();
-            if(description.empty()){
+            if(recover){
                 // 可能是非对齐input buffer恢复在fiter时使用
                 description = configMap[targetId].getOperatorDescription().getDescription();
             }
             nlohmann::json config = nlohmann::json::parse(description);
             int32_t maxParallelism = env_->taskConfiguration().getMaxNumberOfSubtasks();
-            return new datastream::KeyGroupStreamPartitioner<IOReadableWritable, Object>(config, targetId, maxParallelism);
+            return new datastream::KeyGroupStreamPartitioner<IOReadableWritable, Object>(config, targetId, maxParallelism, recover);
         } else if (partitioner.getPartitionerName() == StreamPartitionerPOD::NONE) {
             throw std::invalid_argument("Invalid partitioner!");
         } else {
