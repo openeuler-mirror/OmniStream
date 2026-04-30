@@ -54,6 +54,7 @@ public:
                 }
                 case DataTypeId::OMNI_LONG:
                 case DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:
+                case DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE:
                 case DataTypeId::OMNI_TIMESTAMP: {
                     auto* longVectorA = static_cast<omniruntime::vec::Vector<int64_t>*>(vectorBatch_->Get(colId));
                     auto* longVectorB = static_cast<omniruntime::vec::Vector<int64_t>*>(other.vectorBatch_->Get(colId));

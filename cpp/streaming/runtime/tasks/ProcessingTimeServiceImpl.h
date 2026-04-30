@@ -18,14 +18,22 @@
 
 class ProcessingTimeServiceImpl : public ProcessingTimeService {
 public:
-    ProcessingTimeServiceImpl(omnistream::runtime::TimerService *timerService) : timerService(timerService) {};
-    int64_t getCurrentProcessingTime() override { return timerService->getCurrentProcessingTime(); };
-    void registerTimer(int64_t timestamp, ProcessingTimeCallback *target) override
+    using ProcessingTimeCallbackWrapper = std::function<ProcessingTimeCallback *(ProcessingTimeCallback *)>;
+
+    ProcessingTimeServiceImpl(ProcessingTimeService *timerService, ProcessingTimeCallbackWrapper processingTimeCallbackWrapper) :
+        timerService_(timerService), processingTimeCallbackWrapper_(std::move(processingTimeCallbackWrapper)) {};
+
+    int64_t getCurrentProcessingTime() override {
+        return timerService_->getCurrentProcessingTime();
+    };
+
+    ScheduledFutureTask *registerTimer(int64_t timestamp, ProcessingTimeCallback *target) override
     {
-        timerService->registerTimer(timestamp, target);
+        return timerService_->registerTimer(timestamp, processingTimeCallbackWrapper_(target));
     }
 private:
-    omnistream::runtime::TimerService *timerService;
+    std::shared_ptr<ProcessingTimeService> timerService_;
+    ProcessingTimeCallbackWrapper processingTimeCallbackWrapper_;
     bool quiescend;
 };
 #endif // FLINK_TNEL_PROCESSINGTIMESERVICEIMPL_H

@@ -465,6 +465,67 @@ TEST(StreamCalcBatchTest, Q12ProctimeTest) {
     EXPECT_NO_THROW(ProcessAndGetOutput(desc, vb));
 }
 
+TEST(StreamCalcBatchTest, ProctimeMaterializeDateFormatTest) {
+    std::string desc = R"DELIM({
+            "originDescription": "[2]:Calc(select=[id, DATE_FORMAT(PROCTIME_MATERIALIZE(PROCTIME()), 'yyyy-MM-dd') AS pt_day])",
+            "inputTypes": [
+                "INTEGER"
+            ],
+            "outputTypes": [
+                "INTEGER",
+                "VARCHAR(2147483647)"
+            ],
+            "indices": [
+                {
+                    "exprType": "FIELD_REFERENCE",
+                    "dataType": 1,
+                    "colVal": 0
+                },
+                {
+                    "exprType": "FUNCTION",
+                    "returnType": 15,
+                    "width": 10,
+                    "function_name": "from_unixtime_with_tz",
+                    "arguments": [
+                        {
+                            "exprType": "PROCTIME",
+                            "returnType": 24,
+                            "dataType": 2
+                        },
+                        {
+                            "exprType": "LITERAL",
+                            "dataType": 15,
+                            "width": 10,
+                            "isNull": false,
+                            "value": "%Y-%m-%d"
+                        },
+                        {
+                            "exprType": "LITERAL",
+                            "dataType": 2,
+                            "isNull": false,
+                            "value": 28800
+                        }
+                    ]
+                }
+            ],
+            "condition": null
+            }
+            )DELIM";
+
+    omnistream::VectorBatch *vb = new omnistream::VectorBatch(1);
+    vb->Append(omniruntime::TestUtil::CreateVector<int32_t>(1, new int32_t(1)));
+
+    auto outputRecord = ProcessAndGetOutput(desc, vb);
+    auto outcol = reinterpret_cast<omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>> *>(outputRecord->Get(1));
+    auto value = outcol->GetValue(0);
+
+    EXPECT_EQ(outputRecord->GetRowCount(), 1);
+    EXPECT_EQ(outputRecord->GetVectorCount(), 2);
+    EXPECT_EQ(value.size(), 10);
+    EXPECT_EQ(value[4], '-');
+    EXPECT_EQ(value[7], '-');
+}
+
 TEST(StreamCalcBatchTest, Q21RegexpExtractTest) {
 std::string desc = R"DELIM(
 {"originDescription":null,

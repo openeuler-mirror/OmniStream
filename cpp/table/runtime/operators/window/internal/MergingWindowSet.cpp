@@ -12,30 +12,34 @@
 #include "MergingWindowSet.h"
 
 template<typename W>
-MergingWindowSet<W>::MergingWindowSet(AssignerPtr windowAssigner, MapState<W, W>* mapping): mapping(mapping),
-    cachedSortedWindows(MAPPING_CACHE_SIZE), sortedWindows(new std::set<W>()), windowAssigner(windowAssigner) {}
+MergingWindowSet<W>::MergingWindowSet(AssignerPtr windowAssigner, MapState<W, W> *mapping): mapping(mapping),
+    sortedWindows(new std::set<W>()), windowAssigner(windowAssigner) {}
 
 template<typename W>
-void MergingWindowSet<W>::InitializeCache(BinaryRowData key)
+void MergingWindowSet<W>::InitializeCache(BinaryRowData *key)
 {
-    auto it = cachedSortedWindows.find(key);
-    if (it == cachedSortedWindows.end()) {
-        sortedWindows = new std::set<W>();
+    auto cache = cachedSortedWindows.get(key);
+    if (!cache) {
+        sortedWindows = new std::set<W>;
         if (mapping->entries() != nullptr) {
-            for (auto &i: *mapping->entries()) {
+            for (const auto& i: *mapping->entries()) {
                 sortedWindows->emplace(i.first);
             }
         }
-        cachedSortedWindows.emplace(key, sortedWindows);
+        cachedSortedWindows.put(key, sortedWindows);
     } else {
-        sortedWindows = it->second;
+        sortedWindows = cache.value();
     }
 }
 
 template<typename W>
 W MergingWindowSet<W>::GetStateWindow(const W &window)
 {
-    return mapping->get(window).value();
+    const auto &optionalRes = mapping->get(window);
+    if (optionalRes.has_value()) {
+        return optionalRes.value();
+    }
+    THROW_RUNTIME_ERROR("Cannot find the state of window, startTime:" + std::to_string(window.getStart()) + ", endTime: " + std::to_string(window.getEnd()))
 }
 
 template<typename W>
@@ -70,7 +74,7 @@ W MergingWindowSet<W>::AddWindow(const W &newWindow, const MergeFunction &mergeF
         if (mergedWindows.empty()) {
             continue;
         }
-        W mergedStateNamespace = mapping->get(*mergedWindows.begin()).value();
+        W mergedStateNamespace = GetStateWindow(*mergedWindows.begin());
 
         std::vector<W> mergedStateWindows;
         for (const auto &mergedWindow: mergedWindows) {

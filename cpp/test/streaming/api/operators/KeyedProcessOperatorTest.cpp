@@ -113,6 +113,104 @@ TEST(KeyedProcessOperatorTest, ProcessElementWithMockedUserFunction)
     delete record;
 }
 
+TEST(KeyedProcessOperatorTest, DISABLED_GroupAggFailsWhenAggregateCallMissingFilterArg)
+{
+    std::string desc = R"delim({
+    "originDescription": null,
+    "inputTypes": ["BIGINT", "BIGINT"],
+    "outputTypes": ["BIGINT", "BIGINT"],
+    "grouping": [0],
+    "distinctInfos": [],
+    "aggInfoList": {
+        "aggregateCalls": [
+            {"name":"SUM($1)", "aggregationFunction":"LongSumAggFunction", "argIndexes":[1], "consumeRetraction":"false"}
+        ],
+        "accTypes": ["BIGINT"],
+        "aggValueTypes": ["BIGINT"],
+        "indexOfCountStar": -1
+    }
+})delim";
+    json config = json::parse(desc);
+
+    auto* groupAgg = new GroupAggFunction(1L, config);
+    KeyedProcessOperator<RowData*, RowData*, RowData*> keyedProcessOperator(groupAgg, new OutputTest(), config);
+    keyedProcessOperator.setup();
+
+    auto* env2 = new omnistream::RuntimeEnvironmentV2();
+    auto* taskInfo = new TaskInformationPOD();
+    taskInfo->setStateBackend("HashMapStateBackend");
+    env2->setTaskConfiguration(*taskInfo);
+    auto* initializer = new StreamTaskStateInitializerImpl(env2);
+    auto* typeInfo = new std::vector<omnistream::RowField>({
+        RowField("k", BasicLogicalType::BIGINT),
+        RowField("v", BasicLogicalType::BIGINT)
+    });
+    TypeSerializer* ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
+    keyedProcessOperator.initializeState(initializer, ser);
+
+    ASSERT_THROW(keyedProcessOperator.open(), std::runtime_error);
+}
+
+TEST(KeyedProcessOperatorTest, DISABLED_GroupAggFailsWhenSharedDistinctExceeds64)
+{
+    json config = {
+        {"originDescription", nullptr},
+        {"inputTypes", {"BIGINT", "BIGINT"}},
+        {"outputTypes", {"BIGINT"}},
+        {"grouping", {0}},
+        {"distinctInfos", json::array()},
+        {"aggInfoList", {
+            {"aggregateCalls", json::array()},
+            {"accTypes", json::array()},
+            {"aggValueTypes", json::array()},
+            {"indexOfCountStar", -1}
+        }}
+    };
+
+    const int distinctCount = 65;
+    json filterArgs = json::array();
+    json argIndexes = json::array();
+    json aggIndexes = json::array();
+    for (int i = 0; i < distinctCount; ++i) {
+        config["aggInfoList"]["aggregateCalls"].push_back({
+            {"name", "COUNT($1)"},
+            {"aggregationFunction", "CountAggFunction"},
+            {"argIndexes", {1}},
+            {"consumeRetraction", "false"},
+            {"filterArg", -1}
+        });
+        config["aggInfoList"]["accTypes"].push_back("BIGINT");
+        config["aggInfoList"]["aggValueTypes"].push_back("BIGINT");
+        filterArgs.push_back(-1);
+        argIndexes.push_back(1);
+        aggIndexes.push_back(i);
+        config["outputTypes"].push_back("BIGINT");
+    }
+    config["distinctInfos"].push_back({
+        {"filterArgs", filterArgs},
+        {"argIndexes", argIndexes},
+        {"aggIndexes", aggIndexes}
+    });
+
+    auto* groupAgg = new GroupAggFunction(1L, config);
+    KeyedProcessOperator<RowData*, RowData*, RowData*> keyedProcessOperator(groupAgg, new OutputTest(), config);
+    keyedProcessOperator.setup();
+
+    auto* env2 = new omnistream::RuntimeEnvironmentV2();
+    auto* taskInfo = new TaskInformationPOD();
+    taskInfo->setStateBackend("HashMapStateBackend");
+    env2->setTaskConfiguration(*taskInfo);
+    auto* initializer = new StreamTaskStateInitializerImpl(env2);
+    auto* typeInfo = new std::vector<omnistream::RowField>({
+        RowField("k", BasicLogicalType::BIGINT),
+        RowField("d", BasicLogicalType::BIGINT)
+    });
+    TypeSerializer* ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
+    keyedProcessOperator.initializeState(initializer, ser);
+
+    ASSERT_THROW(keyedProcessOperator.open(), std::runtime_error);
+}
+
 TEST(KeyedProcessOperatorTest, FastTop1FunctionTest)
 {
     std::string desc = R"delim({

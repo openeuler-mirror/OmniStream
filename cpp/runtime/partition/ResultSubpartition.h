@@ -34,7 +34,7 @@ namespace omnistream {
         };
         int getSubPartitionIndex() const
         {
-            return this->subpartitionInfo.getPartitionIdx();
+            return this->subpartitionInfo.getSubPartitionIdx();
         };
         void onConsumedSubpartition()
         {

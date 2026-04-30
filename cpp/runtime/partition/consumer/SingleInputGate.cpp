@@ -587,7 +587,6 @@ BufferOrEvent* SingleInputGate::getNextBufferOrEvent(bool blocking)
     if (!inputWithData) {
         return nullptr;
     }
-
     auto bufferOrEvent = transformToBufferOrEvent(inputWithData->data.buffer, inputWithData->moreAvailable, inputWithData->input, inputWithData->morePriorityEvents);
     delete inputWithData;
     return bufferOrEvent;

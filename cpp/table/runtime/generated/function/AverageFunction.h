@@ -17,7 +17,8 @@
 using namespace omniruntime::type;
 class AverageFunction : public AggsHandleFunction {
 public:
-    AverageFunction(int aggIdx, std::string inputType, int accIndexSum, int accIndexCount0, int valueIndex, int filterIndex = -1);
+    AverageFunction(int aggIdx, std::string inputType, int accIndexSum = -1, int accIndexCount0 = -1,
+                    int valueIndex = -1, int filterIndex = -1);
     void accumulate(RowData *accInput) override;
     void accumulate(omnistream::VectorBatch *input, const std::vector<int>& indices) override;
     void retract(RowData *retractInput) override;
@@ -33,6 +34,14 @@ public:
     void getAccumulators(BinaryRowData *accumulators) override;
     void getValue(BinaryRowData *aggValue) override;
     bool equaliser(BinaryRowData *r1, BinaryRowData *r2) override;
+    void bindAccValueIndex(int accStartIndex, int valueStartIndex) override
+    {
+        accIndexSum = accStartIndex;
+        accIndexCount0 = accStartIndex + 1;
+        valueIndex = valueStartIndex;
+    }
+    int accumulatorSlots() const override { return 2; }
+    bool hasAggOutput() const override { return valueIndex >= 0; }
 
 private:
     long sum = 0;

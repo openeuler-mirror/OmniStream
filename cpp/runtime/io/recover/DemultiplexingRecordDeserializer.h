@@ -42,7 +42,7 @@ public:
         std::shared_ptr<RecordDeserializer> deserializer;
         std::function<bool(StreamRecord &)> recordFilter;
         Watermark lastWatermark = Watermark::UNINITIALIZED;
-        WatermarkStatus *watermarkStatus = WatermarkStatus::active;
+        WatermarkStatus *watermarkStatus = WatermarkStatus::active();
         DeserializationResult *lastResult;
 
         VirtualChannel(std::shared_ptr<RecordDeserializer> deser, std::function<bool(StreamRecord &)> filter)
@@ -173,7 +173,7 @@ public:
                     // duplicate statuses are filtered in StatusWatermarkValve
                     for (const auto &pair : channels) {
                         if (pair.second->watermarkStatus->IsActive()) {
-                            delegate->setInstance(WatermarkStatus::active);
+                            delegate->setInstance(WatermarkStatus::active());
                             break;
                         }
                     }

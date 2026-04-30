@@ -43,19 +43,27 @@ private:
     void parseLine(const std::string &line, const CsvSchema &schema)
     {
         char delimiter = schema.getColumnSeparator();
+        char quoteChar = schema.getQuoteChar();
         std::string field;
         bool insideQuotes = false;
 
         int idx = 0;
         for (size_t i = 0; i < line.size(); ++i) {
             char c = line[i];
-            if (c == '"') {
-                // Toggle quote mode, or handle escaped quotes
-                if (insideQuotes && i + 1 < line.size() && line[i + 1] == '"') {
-                    field += '"';  // Escaped quote
-                    ++i;
+            if (c == quoteChar) {
+                if (insideQuotes) {
+                    if (i + 1 < line.size() && line[i + 1] == quoteChar) {
+                        field += quoteChar;
+                        ++i;
+                    } else if (i + 1 == line.size() || line[i + 1] == delimiter) {
+                        insideQuotes = false;
+                    } else {
+                        field += c;
+                    }
+                } else if (field.empty()) {
+                    insideQuotes = true;
                 } else {
-                    insideQuotes = !insideQuotes;
+                    field += c;
                 }
             } else if (c == delimiter && !insideQuotes) {
                 nodes_.emplace_back(std::make_shared<CsvNode>(field, schema.getTypeAtIdx(idx++)));

@@ -145,7 +145,7 @@ namespace std {
                 result = 31 * result + reinterpret_cast<Object*>(key)->hashCode();
             }
             if constexpr (std::is_same_v<N, TimeWindow>) {
-                result = 31 * result + nameSpace.HashCode();
+                result = 31 * result + nameSpace.hashCode();
             } else if constexpr (std::is_same_v<N, VoidNamespace>) {
                 result = 31 * result + ((VoidNamespace)nameSpace).hashCode();
             } else {

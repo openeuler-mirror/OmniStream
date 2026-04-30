@@ -13,6 +13,7 @@
 #include <emhash7.hpp>
 #include <map>
 #include "common.h"
+#include <vector>
 #include "AbstractKeyedStateBackend.h"
 #include "InternalKeyContext.h"
 #include "core/typeutils/TypeSerializer.h"
@@ -35,6 +36,7 @@
 #include "runtime/state/SavepointResources.h"
 #include "runtime/state/CompositeKeySerializationUtils.h"
 #include "runtime/state/bridge/OmniTaskBridge.h"
+#include <set>
 
 using namespace omniruntime::type;
 /*
@@ -70,6 +72,9 @@ public:
             if (desc->getType() == StateDescriptor::Type::MAP) {
                 auto keyId = desc->getKeyDataId();
                 auto valueId = desc->getValueDataId();
+                INFO_RELEASE("~HeapKeyedStateBackend(), desc->getType():" << static_cast<int>(desc->getType()) <<
+                        ", desc->getKeyDataId():" << static_cast<int>(keyId) <<
+                        ", desc->getValueDataId():" << static_cast<int>(valueId));
                 if (keyId == BackendDataType::XXHASH128_BK && valueId == BackendDataType::TUPLE_INT32_INT64) {
                     auto stateTable = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace,
                         emhash7::HashMap<XXH128_hash_t, std::tuple<int32_t, int64_t>>*>*>(stateTablePtr);
@@ -95,11 +100,17 @@ public:
                     auto stateTable = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace,
                             emhash7::HashMap<RowData*, std::vector<RowData*>*> *> *>(stateTablePtr);
                     delete stateTable;
+                } else if (keyId == BackendDataType::TIME_WINDOW_BK && valueId == BackendDataType::TIME_WINDOW_BK) {
+                    auto stateTable = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace,
+                            emhash7::HashMap<TimeWindow, TimeWindow> *> *>(stateTablePtr);
+                    delete stateTable;
                 } else {
                     NOT_IMPL_EXCEPTION;
                 }
             } else if (desc->getType() == StateDescriptor::Type::VALUE) {
                 auto dataId = desc->getBackendId();
+                INFO_RELEASE("~HeapKeyedStateBackend(), desc->getType():" << static_cast<int>(desc->getType()) <<
+                        ", desc->getBackendId():" << static_cast<int>(dataId));
                 if (dataId == BackendDataType::OBJECT_BK || dataId == BackendDataType::POJO_BK
                     || dataId == BackendDataType::TUPLE_OBJ_OBJ_BK) {
                     auto stateTable = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, Object*> *>(stateTablePtr);
@@ -110,11 +121,16 @@ public:
                 } else if (dataId == BackendDataType::ROW_BK) {
                     auto stateTable = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, RowData *> *>(stateTablePtr);
                     delete stateTable;
+                } else if (dataId == BackendDataType::SET_LONG) {
+                    auto stateTable = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, std::vector<long> *> *>(stateTablePtr);
+                    delete stateTable;
                 } else {
                     NOT_IMPL_EXCEPTION;
                 }
             } else if (desc->getType() == StateDescriptor::Type::LIST) {
                 auto dataId = desc->getBackendId();
+                INFO_RELEASE("~HeapKeyedStateBackend(), desc->getType():" << static_cast<int>(desc->getType()) <<
+                        ", desc->getBackendId():" << static_cast<int>(dataId));
                 if (dataId == BackendDataType::BIGINT_BK) {
                     auto stateTable = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, std::vector<int64_t>*> *>(stateTablePtr);
                     delete stateTable;
@@ -271,6 +287,8 @@ uintptr_t HeapKeyedStateBackend<K>::createOrUpdateInternalState(TypeSerializer *
         } else if (dataId == BackendDataType::TUPLE_OBJ_OBJ_BK) {
             // Tuple2/TupleN 是 Object 子类，与 OBJECT_BK 共用 state table 类型
             return (uintptr_t) createOrUpdateInternalValueState<VoidNamespace, Object*>(namespaceSerializer, stateDesc);
+        } else if (dataId == BackendDataType::SET_LONG) {
+            return (uintptr_t) createOrUpdateInternalValueState<VoidNamespace,std::vector<long>*>(namespaceSerializer, stateDesc);
         } else {
             NOT_IMPL_EXCEPTION;
         }

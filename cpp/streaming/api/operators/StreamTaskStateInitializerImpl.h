@@ -122,8 +122,7 @@ protected:
     CheckpointableKeyedStateBackend<K> *keyedStatedBackend(
         TypeSerializer *keySerializer,
         std::string operatorIdentifierText,
-        MetricGroup *metricGroup,
-        double managedMemoryFraction);
+        MetricGroup *metricGroup);
 
 private:
     KeyGroupRange *computeKeyGroupRangeForOperatorIndex(
@@ -147,7 +146,7 @@ AbstractKeyedStateBackend<K> *StreamTaskStateInitializerImpl::keyedStatedBackend
     int end = ((operatorIndex + 1) * maxParallelism - 1) / parallelism;
     KeyGroupRange *keyGroupRange = new KeyGroupRange(start, end);
 
-    LOG("operatorIndex " << operatorIndex << " maxParallelism " << maxParallelism << " parallelism " << parallelism << " start " << start << " end " << end);
+    INFO_RELEASE("operatorIndex " << operatorIndex << " maxParallelism " << maxParallelism << " parallelism " << parallelism << " start " << start << " end " << end);
     // Not sure about maxParallelism being the input here
     InternalKeyContextImpl<K> *keyContext = new InternalKeyContextImpl<K>(keyGroupRange, maxParallelism);
     keyContext->setCurrentKeyGroupIndex(start);
@@ -168,7 +167,7 @@ AbstractKeyedStateBackend<K> *StreamTaskStateInitializerImpl::keyedStatedBackend
     int end = ((operatorIndex + 1) * maxParallelism - 1) / parallelism;
     KeyGroupRange *keyGroupRange = new KeyGroupRange(start, end);
 
-    LOG("operatorIndex " << operatorIndex << " maxParallelism " << maxParallelism << " parallelism " <<
+    INFO_RELEASE("operatorIndex " << operatorIndex << " maxParallelism " << maxParallelism << " parallelism " <<
     parallelism << " start " << start << " end " << end);
     // Not sure about maxParallelism being the input here
     InternalKeyContextImpl<K> *keyContext = new InternalKeyContextImpl<K>(keyGroupRange, maxParallelism);
@@ -238,8 +237,7 @@ AbstractKeyedStateBackend<K> *StreamTaskStateInitializerImpl::keyedStatedBackend
         std::string operatorIdentifierText = UUID::randomUUID().ToString();
         return static_cast<AbstractKeyedStateBackend<K> *>(keyedStatedBackend<K>(keySerializer,
                                                                                  operatorIdentifierText,
-                                                                                 nullptr,
-                                                                                 0));
+                                                                                 nullptr));
     }
 #ifdef WITH_OMNISTATESTORE
     if (backendType == "EmbeddedOckStateBackend") {
@@ -251,7 +249,7 @@ AbstractKeyedStateBackend<K> *StreamTaskStateInitializerImpl::keyedStatedBackend
 }
 
 template <typename K>
-inline CheckpointableKeyedStateBackend<K> *StreamTaskStateInitializerImpl::keyedStatedBackend(TypeSerializer *keySerializer, std::string operatorIdentifierText, MetricGroup *metricGroup, double managedMemoryFraction)
+inline CheckpointableKeyedStateBackend<K> *StreamTaskStateInitializerImpl::keyedStatedBackend(TypeSerializer *keySerializer, std::string operatorIdentifierText, MetricGroup *metricGroup)
 {
     if (keySerializer == nullptr) {
         return nullptr;
@@ -276,7 +274,10 @@ inline CheckpointableKeyedStateBackend<K> *StreamTaskStateInitializerImpl::keyed
         new BackendRestorerProcedure<CheckpointableKeyedStateBackend<K> *, std::shared_ptr<KeyedStateHandle>>(
             [this, operatorIdentifierText, keyGroupRange, keySerializer, taskInfo](std::set<std::shared_ptr<KeyedStateHandle>> stateHandles,
                                                                                    int alternativeIdx) {
-                auto rocksdbStateBackend = dynamic_cast<RocksDBStateBackend*>(this->stateBackend);
+                auto rocksdbStateBackend = dynamic_cast<EmbeddedRocksDBStateBackend*>(this->stateBackend);
+                if (rocksdbStateBackend == nullptr) {
+                    THROW_RUNTIME_ERROR("stateBackend is not EmbeddedRocksDBStateBackend.")
+                }
                 return reinterpret_cast<CheckpointableKeyedStateBackend<K> *>(
                     rocksdbStateBackend->template createKeyedStateBackend<K>(
                         env,

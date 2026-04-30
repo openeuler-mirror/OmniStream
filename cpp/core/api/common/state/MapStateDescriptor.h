@@ -52,7 +52,11 @@ public:
     ~MapStateDescriptor() override
     {
         delete userKeySerializer;
-        delete valueSerializer;
+        if (valueSerializer != userKeySerializer) {
+            delete valueSerializer;
+        }
+        userKeySerializer = nullptr;
+        valueSerializer = nullptr;
     }
 
     TypeSerializer *GetUserKeySerializer()

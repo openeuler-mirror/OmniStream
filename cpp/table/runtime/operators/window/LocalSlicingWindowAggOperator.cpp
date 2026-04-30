@@ -104,20 +104,10 @@ void LocalSlicingWindowAggOperator::processBatch(StreamRecord *record)
     for (int64_t i = 0; i < input->GetRowCount(); i++) {
         sliceEndArr[i] = sliceAssigner->assignSliceEnd(input, i, clock);
     }
-    if (currentWatermark == 0) {
-        currentWatermark = sliceEndArr[0];
-    }
+    
     for (int64_t row = 0; row < rowCount; ++row) {
         // 获取key列索引，key列数据类型
         long rowTime = sliceEndArr[row];
-        if (rowTime < currentWatermark) {
-            continue;
-        }
-        long currentProgress = sliceAssigner->GetCurrentTimeStamp(input, row, clock, rowtimeIndexVal);
-        if (currentProgress < tmpMaxProgress) {
-            continue;
-        }
-        tmpMaxProgress = currentProgress;
         RowData *keyRow = keySelector->getKey(input, row);
         RowData *currentRow = input->extractRowData(row);
         WindowKey* windowKey = new WindowKey(rowTime, keyRow);
@@ -140,6 +130,7 @@ void LocalSlicingWindowAggOperator::ProcessWatermark(Watermark *mark)
         currentWatermark = mark->getTimestamp();
         if (currentWatermark >= nextTriggerWatermark && bundle.size() > 0) {
             if (!SendAccResults(mark)) {
+                output->emitWatermark(mark);
                 return;
             }
         }
@@ -180,7 +171,6 @@ bool LocalSlicingWindowAggOperator::SendAccResults(Watermark *mark)
     invertOrder.clear();
     resultRows.clear();
     nextTriggerWatermark = getNextTriggerWatermark(currentWatermark, windowInterval);
-    output->emitWatermark(mark);
     return true;
 }
 

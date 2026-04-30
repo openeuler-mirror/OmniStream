@@ -85,7 +85,7 @@ std::vector<std::string> GroupAggFunction::handleInputTypes()
         } else if (typeId == DataTypeId::OMNI_LONG) {
             equalisers.push_back(LongEqualiser);
         } else if (typeId == DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE ||
-                   typeId == DataTypeId::OMNI_TIMESTAMP) {
+                    typeId == DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE) {
             equalisers.push_back(TimestampEqualiser);
         } else {
             equalisers.push_back(nullptr);

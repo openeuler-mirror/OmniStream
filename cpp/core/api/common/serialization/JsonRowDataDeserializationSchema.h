@@ -30,6 +30,14 @@ public:
     {
     }
 
+    void deserialize(const uint8_t* message, size_t length, Collector* out) override
+    {
+        auto* vectorBatch = deserializeSingleRecord(message, length);
+        if (vectorBatch != nullptr) {
+            out->collect(vectorBatch);
+        }
+    }
+
     void* deserialize(std::vector<const uint8_t*>& messageVec, std::vector<size_t>& lengthVec) override
     {
         int rowSize = static_cast<int>(messageVec.size());
@@ -50,22 +58,37 @@ public:
     {
         auto& type = fieldTypes[colIndex];
         auto& name = fieldNames[colIndex];
+        auto fieldIt = node.find(name);
+        if (fieldIt == node.end() || fieldIt->is_null()) {
+            vectorBatch->Get(colIndex)->SetNull(rowIndex);
+            return;
+        }
+
         switch (type) {
+            case omniruntime::type::DataTypeId::OMNI_INT:{
+                vectorBatch->SetValueAt(colIndex, rowIndex, fieldIt->get<int32_t>());
+                break;
+            }
             case omniruntime::type::DataTypeId::OMNI_LONG:{
-                vectorBatch->SetValueAt(colIndex, rowIndex, node[name].get<int64_t>());
+                vectorBatch->SetValueAt(colIndex, rowIndex, fieldIt->get<int64_t>());
                 break;
             }
             case omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:
             case omniruntime::type::DataTypeId::OMNI_TIMESTAMP:{
                 vectorBatch->SetValueAt(colIndex, rowIndex,
-                                        TimestampData::fromString(node[name].get<std::string>())->getMillisecond());
+                                        TimestampData::fromString(fieldIt->get<std::string>())->getMillisecond());
+                break;
+            }
+            case (omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE) : {
+                vectorBatch->SetValueAt(colIndex, rowIndex,
+                                        TimestampData::fromLocalTimeString(fieldIt->get<std::string>())->getMillisecond());
                 break;
             }
             case omniruntime::type::DataTypeId::OMNI_CHAR:
             case omniruntime::type::DataTypeId::OMNI_VARCHAR: {
                 auto stringVec = reinterpret_cast<omniruntime::vec::Vector<
                         omniruntime::vec::LargeStringContainer<std::string_view>> *>(vectorBatch->Get(colIndex));
-                auto value = node[name].get<std::string>();
+                auto value = fieldIt->get<std::string>();
                 std::string_view strView(value.data(), value.size());
                 stringVec->SetValue(rowIndex, strView);
                 break;
@@ -81,6 +104,13 @@ public:
     }
 
 private:
+    omnistream::VectorBatch* deserializeSingleRecord(const uint8_t* message, size_t length)
+    {
+        std::vector<const uint8_t*> messageVec{message};
+        std::vector<size_t> lengthVec{length};
+        return reinterpret_cast<omnistream::VectorBatch*>(deserialize(messageVec, lengthVec));
+    }
+
     std::vector<std::string> fieldNames;
     std::vector<omniruntime::type::DataTypeId> fieldTypes;
 };

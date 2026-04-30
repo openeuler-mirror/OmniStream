@@ -30,7 +30,8 @@ enum class BackendDataType {
     LONG_BK,
     ROW_LIST_BK,
     INVALID_BK,
-    POJO_BK
+    POJO_BK,
+    SET_LONG
 };
 
 inline std::ostream& operator<<(std::ostream& os, const BackendDataType& type) {
@@ -94,6 +95,7 @@ public:
     {
         if (reuseBuffer != nullptr) {
             reuseBuffer->putRefCount();
+            reuseBuffer = nullptr;
         }
     }
 

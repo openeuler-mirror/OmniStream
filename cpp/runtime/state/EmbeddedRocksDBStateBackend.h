@@ -13,13 +13,12 @@
 #define OMNISTREAM_EMBEDDEDROCKSDBSTATEBACKEND
 
 #include <nlohmann/json.hpp>
-#include <regex>
 #include "UUID.h"
 #include "runtime/executiongraph/JobIDPOD.h"
 #include "runtime/state/StateBackend.h"
 #include "runtime/execution/OmniEnvironment.h"
-#include "RocksdbKeyedStateBackend.h"
 #include "RocksDBKeyedStateBackendBuilder.h"
+#include "RocksDBMemoryControllerUtils.h"
 
 using json = nlohmann::json;
 
@@ -80,14 +79,16 @@ public:
         uint64_t uUpper = std::stoull(upperHex, nullptr, 16);
         auto operatorId = std::make_shared<OperatorID>(uUpper, uLower);
 
+        auto sharedResources = RocksDBMemoryControllerUtils::allocateRocksDBSharedResources(env->taskConfiguration());
+
         auto resourceContainer = std::make_unique<RocksDBResourceContainer>(
+                sharedResources,
                 instanceBasePath,
                 false);
 
         std::vector<std::shared_ptr<KeyedStateHandle>> stateVec(
-            stateHandles.begin(),
-            stateHandles.end()
-        );
+                stateHandles.begin(),
+                stateHandles.end());
 
         RocksDBKeyedStateBackendBuilder<K> builder(
                 operatorIdentifier,
@@ -229,11 +230,9 @@ private:
 
     void configureOtherParameters(TaskInformationPOD taskConfiguration)
     {
-        auto threadNum = taskConfiguration.getCheckpointConfig().getRocksdbCheckpointTransferThreadNum();
-        if (threadNum <= 0) {
-            throw std::invalid_argument("Invalid number of transfer threads");
-        } else {
-            numberOfTransferThreads = threadNum;
+        numberOfTransferThreads = taskConfiguration.getNumberOfTransferThreads();
+        if (numberOfTransferThreads <= 0) {
+            THROW_LOGIC_EXCEPTION("Invalid number of transfer threads");
         }
         writeBatchSize = 2 * 1024 * 1024;
         overlapFractionThreshold = 0.0;

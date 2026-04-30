@@ -20,7 +20,7 @@ namespace omnistream {
     class EnvironmentV2 {
     public:
         virtual std::shared_ptr<TaskStateManager> getTaskStateManager() = 0;
-        virtual TaskInformationPOD taskConfiguration() const = 0;
+        virtual const TaskInformationPOD& taskConfiguration() const = 0;
     };
 }
 

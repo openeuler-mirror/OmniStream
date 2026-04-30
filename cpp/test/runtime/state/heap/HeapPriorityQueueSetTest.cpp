@@ -52,7 +52,7 @@ namespace std
 
 struct Comparator
 {
-    bool operator()(IntType *a, IntType *b) { return a->getKey() > b->getKey(); }
+    bool operator()(IntType *a, IntType *b) const { return a->getKey() > b->getKey(); }
 };
 
 TEST(HeapPriorityQueueSetTest, Initialization)

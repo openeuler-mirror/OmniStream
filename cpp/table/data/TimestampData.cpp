@@ -12,7 +12,9 @@
 #include <chrono>
 #include <iomanip>
 #include <ctime>
+#include <charconv>
 #include "TimestampData.h"
+#include "common.h"
 
 TimestampData::TimestampData(long millisecond, int nanoOfMillisecond): millisecond(millisecond), nanoOfMillisecond(nanoOfMillisecond)
 {
@@ -46,53 +48,86 @@ bool TimestampData::isCompact(int percision)
     return percision <= 3;
 }
 
-
-long TimestampData::stringToEpochMillis(std::string str)
+/**
+ * Convert string to milliseconds since Unix Epoch
+ * @param str Support formats like "2025-02-07 12:00:00.000" and "1989-03-04 08:00:00"
+ * @return
+ */
+long TimestampData::stringToEpochMillis(const std::string& str)
 {
-    // Support formats like "2025-02-07 12:00:00.000" and "1989-03-04 08:00:00"
-    auto start = str.find_first_not_of(' ');
-    auto end = str.find_last_not_of(' ');
-    std::string datetime = str.substr(start, end - start + 1);
-
-    std::tm t = {};
-    int milliseconds = 0;
-
-    std::istringstream ss(datetime);
-    ss >> std::get_time(&t, "%Y-%m-%d %H:%M:%S");
-    if (ss.fail()) {
-        throw std::runtime_error("Failed to parse datetime string");
+    const char* start = str.data();
+    const char* end = str.data() + str.size();
+    while (start < end && *start == ' ') ++start;
+    while (end > start && *(end - 1) == ' ') --end;
+    if (start >= end) {
+        THROW_RUNTIME_ERROR("Empty datetime string after trimming spaces")
+    }
+    const char* dotPtr = nullptr;
+    const char* tempPtr = start;
+    // Find the first pointer of '.', and ignore '.' in the end
+    while (tempPtr < end - 1) {
+        if (*tempPtr == '.') {
+            dotPtr = tempPtr;
+            break;
+        }
+        ++tempPtr;
     }
 
-    // Check if there is a '.' for milliseconds
-    if (ss.peek() == '.') {
-        char dot;
-        ss >> dot >> milliseconds;
-        if (ss.fail()) {
-            throw std::runtime_error("Failed to parse milliseconds in datetime string");
+    const char* datetimeEnd = dotPtr ? dotPtr : end;
+
+    std::tm t = {};
+    int parse_count = sscanf(
+            start,
+            "%d-%d-%d %d:%d:%d",
+            &t.tm_year, &t.tm_mon, &t.tm_mday,
+            &t.tm_hour, &t.tm_min, &t.tm_sec
+    );
+    if (parse_count != 6) {
+        THROW_RUNTIME_ERROR("Failed to parse datetime string"+ std::string(start, datetimeEnd))
+    }
+    // tm_year starts from 1900, tm_mon starts from 0
+    t.tm_year -= 1900;
+    t.tm_mon -= 1;
+
+    int milliseconds = 0;
+
+    // Calculate milliseconds
+    if (dotPtr != nullptr) {
+        const char* msStart = dotPtr + 1;
+        const char* msEnd = end - msStart > 3 ? msStart + 3 : end;
+        int msInt = 0;
+        std::from_chars_result res = std::from_chars(msStart, msEnd, msInt);
+        if (res.ec != std::errc{}) {
+            THROW_RUNTIME_ERROR("Failed to parse milliseconds: " + std::string(msStart, msEnd));
+        }
+        // Obtain actual milliseconds
+        size_t msDigits = res.ptr - msStart;
+        if (msDigits == 1) {
+            milliseconds = msInt * 100;  // .1 → 1 * 100 = 100ms
+        } else if (msDigits == 2) {
+            milliseconds = msInt * 10;   // .12 → 12 * 10 = 120ms, .01 -> 1 * 10 = 10ms, .10 -> 10 * 10 = 100ms
+        } else if (msDigits == 3) {
+            milliseconds = msInt;        // .120 → 120 = 120ms, .012 -> 12 = 12ms, .001 -> 1 = 1ms
         }
     }
 
     // Convert std::tm to time_t (seconds since epoch)
-    // std::time_t time_since_epoch = std::mktime(&t);
     std::time_t time_since_epoch = timegm(&t);
 
     // Convert to milliseconds
     return static_cast<long>(time_since_epoch) * 1000 + milliseconds;
-
-    /*
-    std::istringstream ss(datetime);
-    date::sys_time<std::chrono::milliseconds> tp;
-
-    ss >> date::parse("%Y-%m-%d %H:%M:%S.%OS", tp);
-    if (!ss.fail()) {
-        return std::chrono::duration_cast<std::chrono::milliseconds>(tp.time_since_epoch()).count() + millis;
-    } else {
-        throw std::runtime_error("Failed to parse datetime format |" + datetime + "|");
-    {
-    */
 }
 
-TimestampData* TimestampData::fromString(std::string str)
+TimestampData* TimestampData::fromString(const std::string& str)
 {
     return new TimestampData(stringToEpochMillis(str), 0);
+}
+
+TimestampData* TimestampData::fromLocalTimeString(const std::string& str)
+{
+    size_t pos = str.find_last_of('Z');
+    if (pos == std::string::npos) {
+        throw std::invalid_argument("Invalid timestamp_with_lzt string");
+    }
+    return new TimestampData(stringToEpochMillis(str.substr(0, pos)), 0);
 }

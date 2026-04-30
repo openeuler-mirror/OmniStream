@@ -63,11 +63,11 @@ protected:
     int64_t currentWatermark = std::numeric_limits<int64_t>::min();
 
 private:
-    SlicingWindowProcessor<W> *windowProcessor;
-    int64_t lastTriggeredProcessingTime;
-    ListState<int64_t> *watermarkState;
+    SlicingWindowProcessor<W> *windowProcessor = nullptr;
+    int64_t lastTriggeredProcessingTime = std::numeric_limits<int64_t>::min();
+    ListState<int64_t> *watermarkState = nullptr;
     nlohmann::json description;
-    InternalTimerServiceImpl<K, int64_t> *internalTimerService;
+    InternalTimerServiceImpl<K, int64_t> *internalTimerService = nullptr;
     Output* output;
 };
 
@@ -103,7 +103,6 @@ void SlicingWindowOperator<K, W>::open()
 {
     TableStreamOperator<RowData*>::open();
     StreamingRuntimeContext<K> *runtimeCtx = getRuntimeContext();
-    lastTriggeredProcessingTime = std::numeric_limits<int64_t>::min();
     auto backState = this->stateHandler->getKeyedStateBackend();
     TypeSerializer *windowSerializer = LongSerializer::INSTANCE;
     internalTimerService =

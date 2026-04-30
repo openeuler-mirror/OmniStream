@@ -38,7 +38,7 @@ public:
     RecordsWindowBuffer(const nlohmann::json& config, WindowValueState<RowData*, int64_t, RowData*> *state, Output* output, SliceAssigner* sliceAssigner, InternalTimerServiceImpl<RowData*, int64_t>* internalTimerService);
     void CreateFunctions(SliceAssigner *sliceAssigner, const string &AGGCALLSNAME, vector<std::string> &types);
     void InitializeKeySelectorAndTypes(const nlohmann::json& config);
-    void addVectorBatch(omnistream::VectorBatch *elementBatch, int64_t *sliceEndArr);
+    void addVectorBatch(omnistream::VectorBatch *elementBatch, int64_t *sliceEndArr, bool* dropArr);
     void addVectorBatch(omnistream::VectorBatch *elementBatch, omnistream::VectorBatch *binaryRowKeySelector, int64_t *sliceEndArr);
     void advanceProgress(StreamOperatorStateHandler<RowData*> *stateHandler, long currentProgress);
     RowData* getEntireRow(omnistream::VectorBatch *batch, int rowId);
@@ -70,15 +70,15 @@ private:
     BinaryRowData* reUseNewAggValue{};
     std::vector<int32_t> keyedIndex;
     std::vector<int32_t> keyedTypes;
-    KeySelector<RowData*> *keySelector;
+    std::unique_ptr<KeySelector<RowData*>> keySelector;
     int accumulatorArity = 0;
-    std::vector<NamespaceAggsHandleFunction<int64_t>*> localFunctions;
-    std::vector<NamespaceAggsHandleFunction<int64_t>*> globalFunctions;
+    std::vector<std::unique_ptr<NamespaceAggsHandleFunction<int64_t>>> localFunctions;
+    std::vector<std::unique_ptr<NamespaceAggsHandleFunction<int64_t>>> globalFunctions;
     int aggregateCallsCount = 0;
     BinaryRowData* reUseAggValue;
     GenericRowData* windowRow;
     JoinedRowData* accWindowRow;
-    JoinedRowData* resultRow = nullptr;
+    std::unique_ptr<JoinedRowData> resultRow;
     omnistream::VectorBatch* resultBatch = nullptr;
     TimestampedCollector* collector;
     std::vector<std::string> accTypes;
@@ -87,10 +87,11 @@ private:
     WindowValueState<RowData *, int64_t, RowData *> *accState;
     Output* output;
     InternalTimerServiceImpl<RowData*, int64_t>* internalTimerService;
-    bool isWindwoAgg;
+     bool isWindowAgg;
     std::mutex bufferMutex;
     SliceAssigner* sliceAssigner;
     const int emptyAggFuncNum = 1;
+    int64_t minSliceEnd = INT64_MAX;
 };
 
 

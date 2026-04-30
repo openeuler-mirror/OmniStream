@@ -14,10 +14,9 @@
 
 #include "rocksdb/db.h"
 #include "rocksdb/options.h"
-#include "rocksdb/status.h"
 
 #include "core/fs/CloseableRegistry.h"
-#include "streaming/runtime/metrics/MetricGroup.h"
+
 #include "state/RocksDBWriteBatchWrapper.h"
 #include "core/typeutils/TypeSerializer.h"
 #include "runtime/state/rocksdb/util/ResourceGuard.h"
@@ -27,7 +26,6 @@
 #include "runtime/state/LocalRecoveryConfig.h"
 #include "runtime/state/CompositeKeySerializationUtils.h"
 #include "runtime/state/RocksDbKvStateInfo.h"
-#include "runtime/state/HeapKeyedStateBackend.h"
 #include "runtime/state/RocksdbKeyedStateBackend.h"
 #include "runtime/state/RocksDBResourceContainer.h"
 #include "runtime/state/restore/RocksDBRestoreOperation.h"

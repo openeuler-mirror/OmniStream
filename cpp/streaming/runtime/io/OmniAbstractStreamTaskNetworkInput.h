@@ -32,6 +32,7 @@
 #include "runtime/io/checkpointing/CheckpointedInputGate.h"
 #include "runtime/event/EndOfChannelStateEvent.h"
 #include "table/typeutils/BinaryRowDataSerializer.h"
+#include "runtime/watermark/StatusWatermarkValve.h"
 
 namespace omnistream {
 class OmniAbstractStreamTaskNetworkInput : public OmniStreamTaskInput {
@@ -44,9 +45,10 @@ public:
           inputGate(std::move(inputGate)),
           taskType(taskType),
           currentRecordDeserializer(nullptr),
-          output_(nullptr)
-
+          output_(nullptr),
+          statusWatermarkValve_(this->inputGate->GetNumberOfInputChannels())
     {
+        INFO_RELEASE("create OmniAbstractStreamTaskNetworkInput, task type is:" << taskType);
         inSerializer = inputSerializer;
         deserializationDelegate_ =
             std::make_unique<NonReusingDeserializationDelegate>(new datastream::StreamElementSerializer(inputSerializer));
@@ -62,8 +64,8 @@ public:
           inputGate(std::move(inputGate)),
           taskType(taskType),
           currentRecordDeserializer(nullptr),
-          output_(nullptr)
-
+          output_(nullptr),
+          statusWatermarkValve_(this->inputGate->GetNumberOfInputChannels())
     {
         INFO_RELEASE("create OmniAbstractStreamTaskNetworkInput, task type is:" << taskType);
         inSerializer = inputSerializer;
@@ -163,6 +165,7 @@ public:
         LOG(">>>>> bufferOrEventOpt bufferOrEvent" + std::to_string(reinterpret_cast<int64_t>(bufferOrEvent)))
         if (bufferOrEvent->isBuffer()) {
             auto buff = reinterpret_cast<ObjectBuffer*>(bufferOrEvent->getBuffer());
+            lastChannel_ = bufferOrEvent->getChannelInfo();
 
             auto size = buff->GetSize();
             auto objSegment = buff->GetObjectSegment();
@@ -173,7 +176,8 @@ public:
             LOG("===================start output=======================")
             for (int64_t index = offset; index < offset + size; index++) {
                 StreamElement *object = objSegment->getObject(index);
-                LOG("OmniAbstractStreamTaskNetworkInput tag: " << static_cast<int>(object->getTag()))
+                int tag = static_cast<int>(object->getTag());
+                LOG("OmniAbstractStreamTaskNetworkInput tag: " << tag << " channelIndex: " << lastChannel_.getInputChannelIdx())
                 if (object->getTag() == StreamElementTag::TAG_REC_WITH_TIMESTAMP ||
                     object->getTag() == StreamElementTag::TAG_REC_WITHOUT_TIMESTAMP) {
                     auto record = static_cast<StreamRecord *>(object);
@@ -183,7 +187,15 @@ public:
 
                     output->emitRecord(reinterpret_cast<StreamRecord *>(object));
                 } else if (object->getTag() == StreamElementTag::TAG_WATERMARK) {
-                    output->emitWatermark(reinterpret_cast<Watermark *>(object));
+                    statusWatermarkValve_.inputWatermark(reinterpret_cast<Watermark *>(object),
+                                     lastChannel_.getInputChannelIdx(),
+                                     output);
+                } else if (object->getTag() == StreamElementTag::TAG_STREAM_STATUS) {
+                    statusWatermarkValve_.inputWatermarkStatus(reinterpret_cast<WatermarkStatus *>(object),
+                                                               lastChannel_.getInputChannelIdx(),
+                                                               output);
+                } else {
+                    LOG("Bypass the tag for now: " << tag)
                 }
             }
             // more avaiable means there could be more data come in
@@ -396,6 +408,7 @@ public:
             switch (inputRowType->at(colIndex)) {
                 case DataTypeId::OMNI_LONG:
                 case DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:
+                case omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE:
                 case DataTypeId::OMNI_TIMESTAMP: {
                     setLong(outputBatch, numRows, colIndex, collectedRows);
                     break;
@@ -654,6 +667,10 @@ protected:
     // List of BinaryRowData to be accumulated, only init in SQLFromOriginal case
     std::vector<BinaryRowData *> rowList;
     std::chrono::steady_clock::time_point batchStartTime;
+
+    // Valve that controls how watermarks and watermark statuses are forwarded.
+    StatusWatermarkValve<OmniPushingAsyncDataInput::OmniDataOutput> statusWatermarkValve_;
+    InputChannelInfo lastChannel_;
 
     // timerThread相关
     std::atomic<bool> running_{false};
