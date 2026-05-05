@@ -484,6 +484,8 @@ inline OperatorStateBackend* StreamTaskStateInitializerImpl::operatorStateBacken
     auto backendRestorer = new BackendRestorerProcedure<OperatorStateBackend*, std::shared_ptr<OperatorStateHandle>>(
             [this, operatorIdentifierText](std::set<std::shared_ptr<OperatorStateHandle>> stateHandles, int alternativeIdx) {
                 INFO_RELEASE("h30082497 StreamOperatorStateContextImpl::operatorStateBackend backendRestorer create 1");
+                INFO_RELEASE("savepoint: operatorStateBackend stateBackend type: " << typeid(*this->stateBackend).name()
+                    << ", isNull: " << std::string(this->stateBackend == nullptr ? "true" : "false"));
                 auto rocksdbStateBackend = dynamic_cast<RocksDBStateBackend*>(this->stateBackend);
                 if (rocksdbStateBackend == nullptr) {
                     INFO_RELEASE("savepoint: StreamOperatorStateContextImpl::operatorStateBackend backendRestorer rocksdbStateBackend null");
@@ -506,6 +508,7 @@ inline OperatorStateBackend* StreamTaskStateInitializerImpl::operatorStateBacken
                             operatorIdentifierText,
                             stateHandles));
                 }
+                INFO_RELEASE("savepoint: operatorStateBackend backendRestorer no match for stateBackend type, returning nullptr");
             },
             logDescription);
 
