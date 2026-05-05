@@ -484,8 +484,13 @@ inline OperatorStateBackend* StreamTaskStateInitializerImpl::operatorStateBacken
     auto backendRestorer = new BackendRestorerProcedure<OperatorStateBackend*, std::shared_ptr<OperatorStateHandle>>(
             [this, operatorIdentifierText](std::set<std::shared_ptr<OperatorStateHandle>> stateHandles, int alternativeIdx) {
                 INFO_RELEASE("h30082497 StreamOperatorStateContextImpl::operatorStateBackend backendRestorer create 1");
-                INFO_RELEASE("savepoint: operatorStateBackend stateBackend type: " << typeid(*this->stateBackend).name()
-                    << ", isNull: " << std::string(this->stateBackend == nullptr ? "true" : "false"));
+                bool isStateBackendNull = (this->stateBackend == nullptr);
+                INFO_RELEASE("savepoint: operatorStateBackend stateBackend isNull: " << std::string(isStateBackendNull ? "true" : "false")
+                    << ", type: " << (isStateBackendNull ? "null" : typeid(*this->stateBackend).name()));
+                if (isStateBackendNull) {
+                    INFO_RELEASE("savepoint: operatorStateBackend backendRestorer stateBackend is null, returning nullptr");
+                    return nullptr;
+                }
                 auto rocksdbStateBackend = dynamic_cast<RocksDBStateBackend*>(this->stateBackend);
                 if (rocksdbStateBackend == nullptr) {
                     INFO_RELEASE("savepoint: StreamOperatorStateContextImpl::operatorStateBackend backendRestorer rocksdbStateBackend null");
@@ -493,6 +498,18 @@ inline OperatorStateBackend* StreamTaskStateInitializerImpl::operatorStateBacken
                     INFO_RELEASE("savepoint: StreamOperatorStateContextImpl::operatorStateBackend backendRestorer rocksdbStateBackend not null");
                     return reinterpret_cast<OperatorStateBackend*>(
                         rocksdbStateBackend->createOperatorStateBackend(
+                            env,
+                            operatorIdentifierText,
+                            stateHandles));
+                }
+
+                auto embeddedOckStateBackend = dynamic_cast<EmbeddedOckStateBackend*>(this->stateBackend);
+                if (embeddedOckStateBackend == nullptr) {
+                    INFO_RELEASE("savepoint: StreamOperatorStateContextImpl::operatorStateBackend backendRestorer embeddedOckStateBackend null");
+                }else{
+                    INFO_RELEASE("savepoint: StreamOperatorStateContextImpl::operatorStateBackend backendRestorer embeddedOckStateBackend not null");
+                    return reinterpret_cast<OperatorStateBackend*>(
+                        embeddedOckStateBackend->createOperatorStateBackend(
                             env,
                             operatorIdentifierText,
                             stateHandles));

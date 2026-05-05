@@ -180,7 +180,9 @@ private:
 
     template<typename S>
     std::shared_ptr<ListState<S>> getListState(ListStateDescriptor<S>* stateDescriptor, OperatorStateHandle::Mode mode) {
-        INFO_RELEASE("h30082497 DefaultOperatorStateBackend::getListState 1 ==========" <<registeredOperatorStates->size());
+        INFO_RELEASE("h30082497 DefaultOperatorStateBackend::getListState 1 =========="
+            << "registeredOperatorStates isNull: " << std::string(registeredOperatorStates == nullptr ? "true" : "false")
+            << ", size: " << (registeredOperatorStates == nullptr ? 0 : registeredOperatorStates->size()));
 
         std::string name = stateDescriptor->getName();
         INFO_RELEASE("savepoint: DefaultOperatorStateBackend::getListState 1 name :" <<name);
