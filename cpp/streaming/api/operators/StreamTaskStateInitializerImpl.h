@@ -487,10 +487,6 @@ inline OperatorStateBackend* StreamTaskStateInitializerImpl::operatorStateBacken
                 bool isStateBackendNull = (this->stateBackend == nullptr);
                 INFO_RELEASE("savepoint: operatorStateBackend stateBackend isNull: " << std::string(isStateBackendNull ? "true" : "false")
                     << ", type: " << (isStateBackendNull ? "null" : typeid(*this->stateBackend).name()));
-                if (isStateBackendNull) {
-                    INFO_RELEASE("savepoint: operatorStateBackend backendRestorer stateBackend is null, returning nullptr");
-                    return nullptr;
-                }
                 auto rocksdbStateBackend = dynamic_cast<RocksDBStateBackend*>(this->stateBackend);
                 if (rocksdbStateBackend == nullptr) {
                     INFO_RELEASE("savepoint: StreamOperatorStateContextImpl::operatorStateBackend backendRestorer rocksdbStateBackend null");
