@@ -503,13 +503,13 @@ inline OperatorStateBackend* StreamTaskStateInitializerImpl::operatorStateBacken
                             stateHandles));
                 }
 
-                auto embeddedOckStateBackend = dynamic_cast<EmbeddedOckStateBackend*>(this->stateBackend);
-                if (embeddedOckStateBackend == nullptr) {
-                    INFO_RELEASE("savepoint: StreamOperatorStateContextImpl::operatorStateBackend backendRestorer embeddedOckStateBackend null");
+                auto embeddedRocksDBStateBackend = dynamic_cast<EmbeddedRocksDBStateBackend*>(this->stateBackend);
+                if (embeddedRocksDBStateBackend == nullptr) {
+                    INFO_RELEASE("savepoint: StreamOperatorStateContextImpl::operatorStateBackend backendRestorer embeddedRocksDBStateBackend null");
                 }else{
-                    INFO_RELEASE("savepoint: StreamOperatorStateContextImpl::operatorStateBackend backendRestorer embeddedOckStateBackend not null");
+                    INFO_RELEASE("savepoint: StreamOperatorStateContextImpl::operatorStateBackend backendRestorer embeddedRocksDBStateBackend not null");
                     return reinterpret_cast<OperatorStateBackend*>(
-                        embeddedOckStateBackend->createOperatorStateBackend(
+                        embeddedRocksDBStateBackend->createOperatorStateBackend(
                             env,
                             operatorIdentifierText,
                             stateHandles));
