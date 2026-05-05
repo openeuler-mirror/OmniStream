@@ -153,6 +153,7 @@ public:
 
     void notifyCheckpointComplete(long completedCheckpointId)
     {
+        INFO_RELEASE("savepoint: rocksdbKeyedStateBackend notifyCheckpointComplete");
         if (strategy) {
             strategy->notifyCheckpointComplete(completedCheckpointId);
         }
@@ -342,6 +343,11 @@ void RocksdbKeyedStateBackend<K>::flushFalconCacheBeforeCheckpoint()
     // Note that, in current version, falcon cache is always enabled. But for sql cases, omniStream will revert to raw
     // Flink. Thus, this function will always be called in dataStream case, which means K and V are all Object* type,
     // and N is VoidNamespace type.
+
+    if constexpr (!std::is_same_v<K, Object*>) {
+        return;
+    }
+
     for (auto &entry : falconKvState) {
         auto* state = reinterpret_cast<RocksdbValueState<Object *, VoidNamespace, Object *> *>(entry.second);
         if (state != nullptr && state->stateCache != nullptr) {

@@ -19,6 +19,7 @@
 #include "runtime/execution/OmniEnvironment.h"
 #include "RocksDBKeyedStateBackendBuilder.h"
 #include "RocksDBMemoryControllerUtils.h"
+#include "DefaultOperatorStateBackendBuilder.h"
 
 using json = nlohmann::json;
 
@@ -109,6 +110,27 @@ public:
                 .setNumberOfTransferringThreads(numberOfTransferThreads)
                 .setWriteBatchSize(writeBatchSize);
 
+        return builder.build();
+    }
+
+    OperatorStateBackend* createOperatorStateBackend(
+        omnistream::EnvironmentV2* env_,
+        std::string operatorIdentifier_,
+        std::set<std::shared_ptr<OperatorStateHandle>> stateHandles_) {
+        INFO_RELEASE("h30082497 EmbeddedRocksDBStateBackend:createOperatorStateBackend 1");
+        std::vector<std::shared_ptr<OperatorStateHandle>> stateVector(stateHandles_.begin(), stateHandles_.end());
+        auto bridge = env_->getTaskStateManager()->getTaskStateManagerBridge();
+        auto omniTaskBridge = env_->getTaskStateManager()->getOmniTaskBridge();
+
+        const bool asynchronousSnapshots = true;
+        DefaultOperatorStateBackendBuilder builder(
+            asynchronousSnapshots,
+            operatorIdentifier_,
+            stateVector,
+            bridge,
+            omniTaskBridge);
+
+        INFO_RELEASE("h30082497 EmbeddedRocksDBStateBackend:createOperatorStateBackend end");
         return builder.build();
     }
 

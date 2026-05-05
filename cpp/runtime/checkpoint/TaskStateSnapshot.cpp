@@ -8,7 +8,7 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-
+#include <typeinfo>
 #include "TaskStateSnapshot.h"
 // Static member initialization
 const std::shared_ptr<TaskStateSnapshot> TaskStateSnapshot::finishedOnRestore = std::make_shared<TaskStateSnapshot>
@@ -169,8 +169,10 @@ std::string TaskStateSnapshot::ToString() const
     for (const auto& pair : subtaskStatesByOperatorID) {
         // Use the hex string of the OperatorID as the key.
         std::string operatorIdHex = pair.first.toString();
+        INFO_RELEASE("savepoint: TaskStateSnapshot::ToString  operatorIdHex:" << operatorIdHex);
 
         if (pair.second != nullptr) {
+            INFO_RELEASE("savepoint: TaskStateSnapshot::ToString  pair.second type:" << typeid(*pair.second.get()).name());
             subtask_states_map[operatorIdHex] = nlohmann::json::parse(pair.second->ToString());
         } else {
             subtask_states_map[operatorIdHex] = nullptr;

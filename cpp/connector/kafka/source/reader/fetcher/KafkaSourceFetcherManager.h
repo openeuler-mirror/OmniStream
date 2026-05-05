@@ -22,13 +22,25 @@
 #include <condition_variable>
 #include <thread>
 #include "SingleThreadFetcherManager.h"
+#include "connector/kafka/source/reader/RdKafkaConsumer.h"
 
+using OffsetCommitCallback = std::function<void(const std::map<std::shared_ptr<RdKafka::TopicPartition>, int64_t>&, const std::exception_ptr&)>;
 
 class KafkaSourceFetcherManager : public SingleThreadFetcherManager<RdKafka::Message, KafkaPartitionSplit> {
 public:
     KafkaSourceFetcherManager(
             FutureCompletingBlockingQueue<RdKafka::Message>* elementsQueue,
             std::function<SplitReader<RdKafka::Message, KafkaPartitionSplit>*()>& splitReaderSupplier);
+
+    void commitOffsets(
+        const std::map<std::shared_ptr<RdKafka::TopicPartition>, int64_t>& offsetsToCommit,
+        OffsetCommitCallback callback);
+
+private:
+    void enqueueOffsetsCommitTask(
+        SplitFetcher<RdKafka::Message, KafkaPartitionSplit>* splitFetcher,
+        const std::map<std::shared_ptr<RdKafka::TopicPartition>, int64_t>& offsetsToCommit,
+        OffsetCommitCallback callback);
 };
 
 

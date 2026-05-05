@@ -46,7 +46,7 @@ std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<KeyedStateHand
     return keyedStateCheckpointClosingFuture;
 }
 
-std::shared_ptr<std::packaged_task<SnapshotResult<OperatorStateHandle>>> StateSnapshotContextSynchronousImpl::getOperatorStateStreamFuture()
+std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<OperatorStateHandle>>()>> StateSnapshotContextSynchronousImpl::getOperatorStateStreamFuture()
 {
     if (operatorStateCheckpointClosingFuture == nullptr) {
         // TTODO

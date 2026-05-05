@@ -17,6 +17,7 @@
 #include <semaphore.h>
 #include <atomic>
 #include <thread>
+#include "core/include/common.h"
 using namespace std::chrono;
 
 
@@ -49,7 +50,7 @@ void AsyncCheckpointRunnable::Run()
                 snapshotFinalizeResult->localTaskOperatorSubtaskStates,
                 asyncDurationMillis);
         } else {
-            LOG("asyncCheckpointState is not COMPLETED.");
+            INFO_RELEASE("asyncCheckpointState is not COMPLETED.");
         }
         finishedFuture.Complete();
     }
@@ -120,7 +121,7 @@ SnapshotsFinalizeResult *AsyncCheckpointRunnable::FinalizedFinishedSnapshots()
 void AsyncCheckpointRunnable::ReportCompletedSnapshotStates(std::shared_ptr<TaskStateSnapshot> acknowledgedTaskStateSnapshot,
     std::shared_ptr<TaskStateSnapshot> localTaskStateSnapshot, long asyncDurationMillis)
 {
-    LOG(">>>>>>> start ReportCompletedSnapshotStates")
+    INFO_RELEASE(">>>>>>> start ReportCompletedSnapshotStates")
     bool hasAckState = acknowledgedTaskStateSnapshot->HasState();
     bool hasLocalState = localTaskStateSnapshot->HasState();
     if (!(hasAckState || !hasLocalState)) {
@@ -130,17 +131,20 @@ void AsyncCheckpointRunnable::ReportCompletedSnapshotStates(std::shared_ptr<Task
     }
 
     auto checkpointedSize = acknowledgedTaskStateSnapshot->GetCheckpointedSize();
+    INFO_RELEASE("h30082497 ReportCompletedSnapshotStates  checkpointedSize " + std::to_string(checkpointedSize));
     auto stateSize = acknowledgedTaskStateSnapshot->GetStateSize();
+    INFO_RELEASE("h30082497 ReportCompletedSnapshotStates  stateSize " + std::to_string(stateSize));
     auto checkpointMetrics = checkpointMetric
             .SetBytesPersistedOfThisCheckpoint(checkpointedSize)
             ->SetTotalBytesPersisted(stateSize)
             ->Build();
+    INFO_RELEASE("h30082497 ReportCompletedSnapshotStates  after checkpointMetrics " );
     taskEnvironment->getTaskStateManager()->ReportTaskStateSnapshotsV2(
         &checkpointMetaData,
         checkpointMetrics,
         hasAckState ? acknowledgedTaskStateSnapshot : nullptr,
         hasLocalState ? localTaskStateSnapshot : nullptr);
-    LOG(">>>>>>> end ReportCompletedSnapshotStates")
+    INFO_RELEASE(">>>>>>> end ReportCompletedSnapshotStates")
     delete checkpointMetrics;
 }
 
@@ -200,7 +204,7 @@ void AsyncCheckpointRunnable::HandleExecutionException(std::__exception_ptr::exc
     }
 
     if (!didCleanup) {
-        LOG("Caught followup exception from a failed checkpoint thread. This can be ignored.");
+        INFO_RELEASE("Caught followup exception from a failed checkpoint thread. This can be ignored.");
     }
 }
 

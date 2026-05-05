@@ -10,6 +10,7 @@
  */
 #ifndef OMNISTREAM_OPERATORSNAPSHOTFINALIZER_H
 #define OMNISTREAM_OPERATORSNAPSHOTFINALIZER_H
+#include <typeinfo>
 #include "OperatorSnapshotFutures.h"
 #include "runtime/state/KeyedStateHandle.h"
 #include "runtime/state/OperatorStateHandle.h"
@@ -22,9 +23,14 @@ class OperatorSnapshotFinalizer {
 public:
     explicit OperatorSnapshotFinalizer(OperatorSnapshotFutures *snapshotFutures)
     {
+        INFO_RELEASE("h30082497 OperatorSnapshotFinalizer 1");
         LOG(">>>>>>> start OperatorSnapshotFinalizer")
         auto keyedStateManaged = FutureUtils::runIfNotDoneAndGet(snapshotFutures->getKeyedStateManagedFuture());
         auto KeyedStateRaw = FutureUtils::runIfNotDoneAndGet(snapshotFutures->getKeyedStateRawFuture());
+
+        auto operatorStateManaged = FutureUtils::runIfNotDoneAndGet(snapshotFutures->getOperatorStateManagedFuture());
+        auto operatorStateRaw = FutureUtils::runIfNotDoneAndGet(snapshotFutures->getOperatorStateRawFuture());
+
         std::shared_ptr<SnapshotResult<StateObjectCollection<InputChannelStateHandle>>> inputChannelState =
                 FutureUtils::runIfNotDoneAndGet(snapshotFutures->getInputChannelStateFuture());
         std::shared_ptr<SnapshotResult<StateObjectCollection<ResultSubpartitionStateHandle>>> resultPartitionState =
@@ -53,9 +59,39 @@ public:
             taskLocalRaw = StateObjectCollection<KeyedStateHandle>::SingletonOrEmpty(nullptr);
         }
 
+        std::shared_ptr<StateObjectCollection<OperatorStateHandle>> jobManagerOwnedOperatorManaged;
+        std::shared_ptr<StateObjectCollection<OperatorStateHandle>> taskLocalOperatorManaged;
+        if (operatorStateManaged) {
+            if(operatorStateManaged->GetJobManagerOwnedSnapshot() == nullptr) {
+                INFO_RELEASE("savepoint:  OperatorSnapshotFinalizer operatorStateManaged jobManagerOwnedSnapshot is nullptr");
+            }else{
+                auto op1 = operatorStateManaged->GetJobManagerOwnedSnapshot();
+                INFO_RELEASE("savepoint:  OperatorSnapshotFinalizer operatorStateManaged jobManagerOwnedSnapshot type: " << typeid(*op1.get()).name());
+            }
+            jobManagerOwnedOperatorManaged = StateObjectCollection<OperatorStateHandle>::SingletonOrEmpty(
+                operatorStateManaged->GetJobManagerOwnedSnapshot());
+            taskLocalOperatorManaged = StateObjectCollection<OperatorStateHandle>::SingletonOrEmpty(
+                operatorStateManaged->GetTaskLocalSnapshot());
+        } else {
+            jobManagerOwnedOperatorManaged = StateObjectCollection<OperatorStateHandle>::SingletonOrEmpty(nullptr);
+            taskLocalOperatorManaged = StateObjectCollection<OperatorStateHandle>::SingletonOrEmpty(nullptr);
+        }
+
+        std::shared_ptr<StateObjectCollection<OperatorStateHandle>> jobManagerOwnedOperatorRaw;
+        std::shared_ptr<StateObjectCollection<OperatorStateHandle>> taskLocalOperatorRaw;
+        if (operatorStateRaw) {
+            jobManagerOwnedOperatorRaw = StateObjectCollection<OperatorStateHandle>::SingletonOrEmpty(
+                operatorStateRaw->GetJobManagerOwnedSnapshot());
+            taskLocalOperatorRaw = StateObjectCollection<OperatorStateHandle>::SingletonOrEmpty(
+                operatorStateRaw->GetTaskLocalSnapshot());
+        } else {
+            jobManagerOwnedOperatorRaw = StateObjectCollection<OperatorStateHandle>::SingletonOrEmpty(nullptr);
+            taskLocalOperatorRaw = StateObjectCollection<OperatorStateHandle>::SingletonOrEmpty(nullptr);
+        }
+
         JobManagerOwnedState = std::make_shared<OperatorSubtaskState>(
-            *StateObjectCollection<OperatorStateHandle>::SingletonOrEmpty(nullptr),
-            *StateObjectCollection<OperatorStateHandle>::SingletonOrEmpty(nullptr),
+            *jobManagerOwnedOperatorManaged,
+            *jobManagerOwnedOperatorRaw,
             *jobManagerOwnedManaged,
             *jobManagerOwnedRaw,
             inputChannelState == nullptr ? *StateObjectCollection<InputChannelStateHandle>::Empty() :
@@ -63,14 +99,20 @@ public:
             resultPartitionState == nullptr ? *StateObjectCollection<ResultSubpartitionStateHandle>::Empty() :
                 *resultPartitionState->GetJobManagerOwnedSnapshot());
         taskLocalState = std::make_shared<OperatorSubtaskState>(
-            *StateObjectCollection<OperatorStateHandle>::SingletonOrEmpty(nullptr),
-            *StateObjectCollection<OperatorStateHandle>::SingletonOrEmpty(nullptr),
+            *taskLocalOperatorManaged,
+            *taskLocalOperatorRaw,
             *taskLocalManaged,
             *taskLocalRaw,
             inputChannelState == nullptr ? *StateObjectCollection<InputChannelStateHandle>::Empty() :
                 *inputChannelState->GetJobManagerOwnedSnapshot(),
             resultPartitionState == nullptr ? *StateObjectCollection<ResultSubpartitionStateHandle>::Empty() :
                 *resultPartitionState->GetJobManagerOwnedSnapshot());
+        if(operatorStateManaged) {
+            INFO_RELEASE("savepoint:  OperatorSnapshotFinalizer operatorStateManaged end: ");
+        }else{
+            INFO_RELEASE("savepoint:  OperatorSnapshotFinalizer operatorStateManaged is nullptr");
+        }
+        INFO_RELEASE("h30082497 OperatorSnapshotFinalizer end");
         LOG(">>>>>>> end OperatorSnapshotFinalizer")
     };
 

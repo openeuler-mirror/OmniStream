@@ -719,6 +719,7 @@ StreamOperator* StreamOperatorFactory::CreateSinkWriterOp(omnistream::OperatorPO
     LOG("topic:" + topic)
     auto kafkaSink = new KafkaSink(deliveryGuarantee, kafkaProducerConfig, transactionalIdPrefix,
         topic, opDescriptionJSON, maxPushRecords);
+        // todo 确认模板参数问题
     return static_cast<OneInputStreamOperator *>(new SinkWriterOperator(kafkaSink, opDescriptionJSON));
 }
 }

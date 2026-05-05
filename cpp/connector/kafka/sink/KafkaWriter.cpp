@@ -44,7 +44,7 @@ KafkaWriter::KafkaWriter(DeliveryGuarantee deliveryGuarantee,
     rd_topic1 = RdKafka::Topic::create(currentProducer1->getKafkaProducer(), topic, tconf, errstr);
     rd_topic2 = RdKafka::Topic::create(currentProducer2->getKafkaProducer(), topic, tconf, errstr);
     partitionNum = rd_topic1->get_partition_num();
-
+    kafkaWriterState = new KafkaWriterState(transactionalIdPrefix);
     taskId = omnistream::TimerThreadPool::GetTimerThreadPoolInstance()->addPeriodicTask(5000, [](KafkaWriter* kafkaWriter) {
         kafkaWriter->timer_thread();
     }, this);
@@ -57,6 +57,7 @@ KafkaWriter::~KafkaWriter()
     delete rd_topic1;
     delete rd_topic2;
     delete recordSerializer;
+    delete kafkaWriterState;
 
     stop_flag.store(true);
     cv.notify_all();
@@ -230,4 +231,12 @@ void KafkaWriter::produce(RdKafka::Producer* kafkaProducer,
     }
 
     kafkaProducer->poll(0);
+}
+
+std::vector<KafkaWriterState> KafkaWriter::snapshotState(long checkpointId) {
+    if (deliveryGuarantee == DeliveryGuarantee::EXACTLY_ONCE) {
+        auto currentProducer = getTransactionalProducer(checkpointId + 1);
+        currentProducer->BeginTransaction();
+    }
+    return {*kafkaWriterState};
 }

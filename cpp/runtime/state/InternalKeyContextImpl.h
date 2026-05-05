@@ -55,6 +55,7 @@ public:
                 reinterpret_cast<Object*>(this->currentKey)->putRefCount();
             }
         }
+
         this->currentKey = currentKey;
         setCurrentKeyGroupIndex(KeyGroupRangeAssignment<K>::assignToKeyGroup(this->currentKey, getNumberOfKeyGroups()));
     };

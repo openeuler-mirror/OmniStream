@@ -110,6 +110,7 @@ namespace omnistream::runtime {
         omnistream::OperatorChainV2 *operatorChain,
         std::shared_ptr<omnistream::Supplier<bool>> isRunning)
     {
+        INFO_RELEASE("savepoint: SubtaskCheckpointCoordinatorImpl::takeSnapshotSync");
         LOG(">>>>>>>>>")
         if (operatorChain->IsClosed()) {
             THROW_RUNTIME_ERROR("OperatorChain and Task should never be closed at this point");
@@ -211,11 +212,14 @@ namespace omnistream::runtime {
             } catch (const std::exception &e) {
                 LogError("Exception in async checkpoint: %s", e.what());
             }
-            delete asyncCheckpointRunnable;
-            delete operatorSnapshotsInProgress;
-            delete metadata;
-            delete metrics;
-            delete options;
+
+            /* h30082497 规避：先不删除 */
+            // delete asyncCheckpointRunnable;
+            // delete operatorSnapshotsInProgress;
+            // delete metadata;
+            // delete metrics;
+            // delete options;
+            INFO_RELEASE("h30082497 special deal ============================ SubtaskCheckpointCoordinatorImpl::finishAndReportAsync");
         });
         LOG(">>>>> Done")
     }
@@ -394,6 +398,7 @@ namespace omnistream::runtime {
             cache[checkpointId] = factory;
             return factory;
         } catch (const std::exception &e) {
+            INFO_RELEASE("Exception during resolveCheckpointStorageLocation: " + std::string(e.what()));
             throw std::runtime_error(e.what());
         }
     }

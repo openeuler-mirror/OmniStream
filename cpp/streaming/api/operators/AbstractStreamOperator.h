@@ -31,6 +31,7 @@
 #include "table/typeutils/RowDataSerializer.h"
 #include "runtime/metrics/groups/TaskMetricGroup.h"
 #include "streaming/runtime/tasks/omni/OmniStreamTask.h"
+#include "runtime/state/StateInitializationContextImpl.h"
 
 /**
  * K: such as Object*
@@ -132,18 +133,26 @@ public:
         return new BinaryRowDataSerializer(1);
     };
 
+    void initializeState(StateInitializationContextImpl<K> *context)  override {
+        INFO_RELEASE("h30082497 AbstractStreamOperator::initializeState 1");
+    }
+
     // KeySerializer should be retrieved from description.getStateKeySerializer(getUserCodeClassloader()),
     // but we're just passing it through this function for now
     void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) override
     {
+        INFO_RELEASE("h30082497 AbstractStreamOperator::initializeState 2 1");
         LOG("abstractStreamOperator::initializeState")
         StreamOperatorStateContextImpl<K> *context =
             initializer->streamOperatorStateContext<K>(keySerializer, this, processingTimeService);
         stateHandler = new StreamOperatorStateHandler<K>(context);
         auto stateStore = stateHandler->getKeyedStateStore();
-        runtimeContext->setKeyedStateStore(stateStore);
-        runtimeContext->setEnvironment(initializer->getEnvironment());
+        if (runtimeContext != nullptr) {
+            runtimeContext->setKeyedStateStore(stateStore);
+            runtimeContext->setEnvironment(initializer->getEnvironment());
+        }
         timeServiceManager = context->getInternalTimeServiceManager();
+        stateHandler->initializeOperatorState(this);
     }
     StreamingRuntimeContext<K> *getRuntimeContext() const
     {
@@ -229,6 +238,12 @@ public:
     void notifyCheckpointComplete(long checkpointId)
     {
         stateHandler->notifyCheckpointComplete(checkpointId);
+    }
+
+    void NotifyCheckpointAborted(long checkpointId) override
+    {
+        INFO_RELEASE("abstractStreamOperator::NotifyCheckpointAborted checkpointId: " << checkpointId);
+        stateHandler->notifyCheckpointAborted(checkpointId);
     }
 
 protected:

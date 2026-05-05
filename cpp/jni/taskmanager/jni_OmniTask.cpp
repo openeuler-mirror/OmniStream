@@ -10,6 +10,7 @@
  */
 
 #include <stdexcept>
+#include <thread>
 #include <taskmanager/OmniTask.h>
 #include "common.h"
 #include <bridge/OmniTaskBridgeImpl2.h>
@@ -73,8 +74,18 @@ JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_Om
 JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_doDeleteNativeTask
         (JNIEnv *, jobject, jlong nativeTask)
 {
+    std::thread::id tid = std::this_thread::get_id();
+    INFO_RELEASE("DOUBLE_FREE_DEBUG: doDeleteNativeTask JNI | nativeTask="
+            << nativeTask
+            << " | thread_id=" << tid);
     auto task = reinterpret_cast<omnistream::OmniTask *>(nativeTask);
+    INFO_RELEASE("DOUBLE_FREE_DEBUG: doDeleteNativeTask JNI calling delete task | task="
+            << static_cast<void*>(task)
+            << " | thread_id=" << tid);
     delete task;
+    INFO_RELEASE("DOUBLE_FREE_DEBUG: doDeleteNativeTask JNI delete task returned | nativeTask="
+            << nativeTask
+            << " | thread_id=" << tid);
     return 1;
 }
 
@@ -128,8 +139,15 @@ JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_Om
 JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_cancelTask
         (JNIEnv *, jobject, jlong nativeTask)
 {
+    std::thread::id tid = std::this_thread::get_id();
+    INFO_RELEASE("DOUBLE_FREE_DEBUG: cancelTask JNI | nativeTask="
+            << nativeTask
+            << " | thread_id=" << tid);
     auto task = reinterpret_cast<omnistream::OmniTask *>(nativeTask);
     task->cancel();
+    INFO_RELEASE("DOUBLE_FREE_DEBUG: cancelTask JNI returned | nativeTask="
+            << nativeTask
+            << " | thread_id=" << tid);
     return reinterpret_cast<long>(0L);
 }
 
@@ -148,13 +166,14 @@ JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_Omn
     nlohmann::json checkpointoptionJsonStr = json::parse(checkpointStr);
     jniEnv->ReleaseStringUTFChars(checkpointoptionJson, checkpointStr);
     CheckpointOptions *configuredOptions = CheckpointOptions::FromJson(checkpointoptionJsonStr);
-    CheckpointOptions *runtimeOptions = configuredOptions->ToRuntimeAlignedNoTimeout();
-    task->triggerCheckpointBarrier(checkpointID, checkpointTimestamp, runtimeOptions);
+    // CheckpointOptions *runtimeOptions = configuredOptions->ToRuntimeAlignedNoTimeout();
+    task->triggerCheckpointBarrier(checkpointID, checkpointTimestamp, configuredOptions);
 }
 
 JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_abortCpp
   (JNIEnv *, jobject, jlong nativeTask, jlong checkpointId, jlong latestCompletedCheckpointId)
 {
+    INFO_RELEASE("savepoint: abortCpp notifyCheckpointAborted: " << checkpointId);
     auto task = reinterpret_cast<omnistream::OmniTask *>(nativeTask);
     task->notifyCheckpointAborted(checkpointId, latestCompletedCheckpointId);
 }
@@ -162,6 +181,11 @@ JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_Omn
 JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_completeCpp
   (JNIEnv *, jobject, jlong nativeTask, jlong checkpointId, jlong inputState)
 {
+    std::thread::id tid = std::this_thread::get_id();
+    INFO_RELEASE("savepoint: completeCpp notifyCheckpointComplete: " << checkpointId
+            << " | nativeTask=" << nativeTask
+            << " | inputState=" << inputState
+            << " | thread_id=" << tid);
     auto task = reinterpret_cast<omnistream::OmniTask *>(nativeTask);
     task->notifyCheckpointComplete(checkpointId, inputState);
 }
@@ -173,6 +197,7 @@ JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_Omn
  */
 JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_subsumedCpp
   (JNIEnv *, jobject, jlong checkpointId, jlong latestCompletedCheckpointId) {
+    INFO_RELEASE("savepoint: subsumedCpp notifyCheckpointSubsumed: " << checkpointId);
     auto task = reinterpret_cast<omnistream::OmniTask *>(checkpointId);
     task->notifyCheckpointSubsumed(latestCompletedCheckpointId);
 }

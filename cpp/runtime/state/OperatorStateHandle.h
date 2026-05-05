@@ -11,19 +11,33 @@
 
 #ifndef OMNISTREAM_OPERATORSTATEHANDLE_H
 #define OMNISTREAM_OPERATORSTATEHANDLE_H
-#include "runtime/state/StateObject.h"
-#include "StreamStateHandle.h"
-#include "core/fs/FSDataInputStream.h"
+
 #include <vector>
 #include <unordered_map>
 
-class OperatorStateHandle : public StateObject {
+#include "core/fs/FSDataInputStream.h"
+
+#include "StreamStateHandle.h"
+
+class OperatorStateHandle : public StreamStateHandle {
 public:
     enum class Mode {
         SPLIT_DISTRIBUTE,
         UNION,
         BROADCAST
     };
+
+    static Mode StrToMode(const std::string& mode) {
+        static std::unordered_map<std::string, Mode> strToMode = {
+            {"SPLIT_DISTRIBUTE", Mode::SPLIT_DISTRIBUTE},
+            {"UNION", Mode::UNION},
+            {"BROADCAST", Mode::BROADCAST}};
+        if (strToMode.find(mode) != strToMode.end()) {
+            return strToMode[mode];
+        }
+
+        throw std::invalid_argument("Unknown OperatorStateHandle::Mode : " + mode);
+    }
 
     class StateMetaInfo {
     public:
@@ -38,7 +52,6 @@ public:
     };
 
     virtual std::unordered_map<std::string, StateMetaInfo> getStateNameToPartitionOffsets() const = 0;
-    virtual FSDataInputStream *openInputStream() = 0;
     virtual StreamStateHandle *getDelegateStateHandle() = 0;
 };
 #endif // OMNISTREAM_OPERATORSTATEHANDLE_H

@@ -64,8 +64,10 @@ public:
     std::vector<KafkaWriterState> recoveredStates;
     RdKafka::Conf* kafkaProducerConfig;
     std::string topic;
+    KafkaWriterState *kafkaWriterState = nullptr;
 
     void SetSubTaskIdx(int32_t subtaskIdx);
+    std::vector<KafkaWriterState> snapshotState(long checkpointId);
 
 private:
     static constexpr const char* KAFKA_PRODUCER_METRIC_NAME = "KafkaProducer";

@@ -30,9 +30,8 @@ KafkaCommittable *KafkaSink::CreateCommitter()
     return nullptr;
 }
 
-
-KafkaWriter *KafkaSink::CreateWriter()
+KafkaCommittableSerializer *KafkaSink::getCommittableSerializer()
 {
-    return new KafkaWriter(deliveryGuarantee, kafkaProducerConfig, transactionalIdPrefix, topic, description,
-                           maxPushRecords);
+    return new KafkaCommittableSerializer();
 }
+

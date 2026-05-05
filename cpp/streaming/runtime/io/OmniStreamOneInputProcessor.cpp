@@ -11,6 +11,7 @@
 
 #include "OmniStreamOneInputProcessor.h"
 #include "io/recover/OmniRescalingStreamTaskNetworkInput.h"
+#include <thread>
 
 namespace omnistream {
     OmniStreamOneInputProcessor::OmniStreamOneInputProcessor(OmniStreamTaskInput *input,
@@ -19,14 +20,29 @@ namespace omnistream {
     }
 
     OmniStreamOneInputProcessor::~OmniStreamOneInputProcessor() {
+        std::thread::id tid = std::this_thread::get_id();
+        INFO_RELEASE("DOUBLE_FREE_DEBUG: ~OmniStreamOneInputProcessor() START | this="
+                << static_cast<void*>(this)
+                << " | input=" << static_cast<void*>(input)
+                << " | output=" << static_cast<void*>(output)
+                << " | thread_id=" << tid);
         if (input != nullptr) {
+            INFO_RELEASE("DOUBLE_FREE_DEBUG: ~OmniStreamOneInputProcessor() deleting input="
+                    << static_cast<void*>(input)
+                    << " | thread_id=" << tid);
             delete input;
             input = nullptr;
         }
         if (output != nullptr) {
+            INFO_RELEASE("DOUBLE_FREE_DEBUG: ~OmniStreamOneInputProcessor() deleting output="
+                    << static_cast<void*>(output)
+                    << " | thread_id=" << tid);
             delete output;
             output = nullptr;
         }
+        INFO_RELEASE("DOUBLE_FREE_DEBUG: ~OmniStreamOneInputProcessor() END | this="
+                << static_cast<void*>(this)
+                << " | thread_id=" << tid);
     }
 
     DataInputStatus OmniStreamOneInputProcessor::processInput()
@@ -63,11 +79,32 @@ namespace omnistream {
 
     void OmniStreamOneInputProcessor::close()
     {
+        std::thread::id tid = std::this_thread::get_id();
+        INFO_RELEASE("DOUBLE_FREE_DEBUG: OmniStreamOneInputProcessor::close() START | this="
+                << static_cast<void*>(this)
+                << " | input=" << static_cast<void*>(input)
+                << " | output=" << static_cast<void*>(output)
+                << " | thread_id=" << tid);
         if (input != nullptr) {
+            INFO_RELEASE("DOUBLE_FREE_DEBUG: OmniStreamOneInputProcessor::close() calling input->close() | input="
+                    << static_cast<void*>(input)
+                    << " | thread_id=" << tid);
             input->close();
+            INFO_RELEASE("DOUBLE_FREE_DEBUG: OmniStreamOneInputProcessor::close() input->close() DONE | input="
+                    << static_cast<void*>(input)
+                    << " | thread_id=" << tid);
         }
         if (output != nullptr) {
+            INFO_RELEASE("DOUBLE_FREE_DEBUG: OmniStreamOneInputProcessor::close() calling output->close() | output="
+                    << static_cast<void*>(output)
+                    << " | thread_id=" << tid);
             output->close();
+            INFO_RELEASE("DOUBLE_FREE_DEBUG: OmniStreamOneInputProcessor::close() output->close() DONE | output="
+                    << static_cast<void*>(output)
+                    << " | thread_id=" << tid);
         }
+        INFO_RELEASE("DOUBLE_FREE_DEBUG: OmniStreamOneInputProcessor::close() END | this="
+                << static_cast<void*>(this)
+                << " | thread_id=" << tid);
     }
 }

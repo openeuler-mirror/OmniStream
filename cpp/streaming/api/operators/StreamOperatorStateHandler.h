@@ -11,6 +11,7 @@
 #ifndef FLINK_TNEL_STREAMOPERATORSTATEHANDLER_H
 #define FLINK_TNEL_STREAMOPERATORSTATEHANDLER_H
 
+#include "typeinfo"
 #include <string>
 #include <iostream>
 #include "runtime/state/AbstractKeyedStateBackend.h"
@@ -31,6 +32,12 @@
 #include "runtime/state/SnapshotStrategyRunner.h"
 #include "bridge/OmniTaskBridgeImpl2.h"
 #include "state/SavepointSnapshotStrategy.h"
+#include "runtime/state/StateInitializationContextImpl.h"
+#include "runtime/state/KeyGroupStatePartitionStreamProvider.h"
+#include "core/utils/Iterator.h"
+
+using omnistream::utils::Iterable;
+using omnistream::utils::Iterator;
 
 
 template<typename K>
@@ -40,12 +47,13 @@ public:
     {
         this->context = context;
         this->keyedStateBackend = context->keyedStateBackend();
-        this->operatorStateBackend = context->operatorStateBackend();
+        this->operatorStateBackend = context->getOperatorStateBackend();
         if (keyedStateBackend != nullptr) {
             keyedStateStore = new DefaultKeyedStateStore<K>(dynamic_cast<AbstractKeyedStateBackend<K> *>(keyedStateBackend));
         } else {
             keyedStateStore = nullptr;
         }
+        INFO_RELEASE("h30082497 StreamOperatorStateHandler end");
     };
 
     ~StreamOperatorStateHandler()
@@ -84,6 +92,9 @@ public:
         if (keyedStateBackend != nullptr) {
             keyedStateBackend->dispose();
         }
+        if (operatorStateBackend != nullptr) {
+            operatorStateBackend->dispose();
+        }
     }
 
     OperatorSnapshotFutures *snapshotState();
@@ -96,11 +107,46 @@ public:
         }
     }
 
+    void notifyCheckpointAborted(long checkpointId)
+    {
+        // TODO 需要补充heap的逻辑
+        auto backend = dynamic_cast<RocksdbKeyedStateBackend<K>*>(keyedStateBackend);
+        if (backend) {
+            backend->notifyCheckpointAborted(checkpointId);
+        }
+    }
+
     class CheckpointedStreamOperator {
     public:
-        virtual void snapshotState() {}
-        virtual void initializeState() {}
+        virtual void snapshotState(StateSnapshotContextSynchronousImpl *context) {}
+        virtual void initializeState(StateInitializationContextImpl<K> *context) {}
     };
+
+    void initializeOperatorState(CheckpointedStreamOperator *streamOperator)
+    {
+        INFO_RELEASE("h30082497 StreamOperatorStateHandler::initializeOperatorState");
+        try {
+            // Get restored checkpoint id from context
+            std::optional<uint64_t> checkpointId = context->getRestoredCheckpointId();
+
+            // Get raw state inputs from context
+            std::shared_ptr<Iterable<std::shared_ptr<KeyGroupStatePartitionStreamProvider>>> rawKeyedStateInputs = context->getRawKeyedStateInputs();
+            std::shared_ptr<Iterable<std::shared_ptr<StatePartitionStreamProvider>>> rawOperatorStateInputs = context->getRawOperatorStateInputs();
+
+            // Create StateInitializationContextImpl with correct template parameter
+            StateInitializationContextImpl<K> *initializationContext = new StateInitializationContextImpl<K>(
+                checkpointId,
+                this->operatorStateBackend, // access to operator state backend
+                this->keyedStateStore,      // access to keyed state store
+                rawKeyedStateInputs,        // access to keyed state stream
+                rawOperatorStateInputs);    // access to operator state stream
+            streamOperator->initializeState(initializationContext);
+            delete initializationContext; // 释放内存，避免泄漏
+        } catch (const std::exception& e) {
+            INFO_RELEASE("Error in initializeOperatorState: " << e.what());
+            throw; // 重新抛出异常
+        }
+    }
 
     OperatorSnapshotFutures *SnapshotState(
         CheckpointedStreamOperator *streamOperator,
@@ -114,6 +160,11 @@ public:
         const std::shared_ptr<OmniTaskBridge>& bridge)
     {
         KeyGroupRange *keyGroupRange = KeyGroupRange::EMPTY_KEY_GROUP_RANGE();
+        if (this != nullptr) {
+            INFO_RELEASE("StreamOperatorStateHandler OperatorSnapshotFutures SnapshotState this is not nullptr streamOperator type: " << typeid(*streamOperator).name());
+        }else{
+            INFO_RELEASE("StreamOperatorStateHandler OperatorSnapshotFutures SnapshotState this is nullptr streamOperator type: " << typeid(*streamOperator).name());
+        }
         if (keyedStateBackend != nullptr) {
             keyGroupRange = keyedStateBackend->getKeyGroupRange();
         }
@@ -176,18 +227,20 @@ public:
                     timeServiceManager->snapshotToRawKeyedState(snapshotContext->getRawKeyedOperatorStateOutput(), operatorName);
                 }
             }
-            
-            streamOperator->snapshotState();
+            INFO_RELEASE("StreamOperatorStateHandler snapshotState streamOperator type: " << typeid(*streamOperator).name());
+            streamOperator->snapshotState(snapshotContext);
             snapshotInProgress->setKeyedStateRawFuture(snapshotContext->getKeyedStateStreamFuture());
             snapshotInProgress->setOperatorStateRawFuture(snapshotContext->getOperatorStateStreamFuture());
 
             if (operatorStateBackend) {
+                INFO_RELEASE("h30082497 StreamOperatorStateHandler::snapshotState operatorStateBackend");
                 snapshotInProgress->setOperatorStateManagedFuture(
                     operatorStateBackend->snapshot(checkpointId, timestamp, checkpointStreamFactory, checkpointOptions)
                 );
             }
 
             if (keyedStateBackend) {
+                INFO_RELEASE("h30082497 StreamOperatorStateHandler::snapshotState keyedStateBackend 1");
                 // Set bridge on Heap backend for checkpoint (RocksDB gets it via constructor)
                 auto heapBackend = dynamic_cast<HeapKeyedStateBackend<K>*>(keyedStateBackend);
                 if (heapBackend && bridge) {
@@ -196,6 +249,7 @@ public:
 
                 auto keySerializer = keyedStateBackend->getKeySerializer();
                 if (isCanonicalSavepoint(checkpointOptions->GetCheckpointType())) {
+                    INFO_RELEASE("h30082497 StreamOperatorStateHandler::snapshotState keyedStateBackend 2");
                     // TTODO
                     // Create a snapshot runner with prepareCanonicalSavepoint()
                     // and set the snapshot as keyedStateManagedFuture
@@ -209,6 +263,7 @@ public:
                             bridge,
                             keySerializer->toJson()));
                 } else {
+                    INFO_RELEASE("h30082497 StreamOperatorStateHandler::snapshotState keyedStateBackend 3");
                     snapshotInProgress->setKeyedStateManagedFuture(
                         keyedStateBackend->snapshot(checkpointId, timestamp, checkpointStreamFactory, checkpointOptions)
                     );

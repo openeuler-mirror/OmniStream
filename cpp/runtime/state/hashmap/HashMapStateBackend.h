@@ -14,6 +14,7 @@
 
 #include <set>
 #include "runtime/state/StateBackend.h"
+#include "runtime/state/DefaultOperatorStateBackendBuilder.h"
 
 class HashMapStateBackend : public StateBackend {
 public:
@@ -26,6 +27,11 @@ public:
         KeyGroupRange *keyGroupRange,
         TypeSerializer *keySerializer,
         int numberOfKeyGroups);
+
+    OperatorStateBackend* createOperatorStateBackend(
+            omnistream::EnvironmentV2* env_,
+            std::string operatorIdentifier_,
+            std::set<std::shared_ptr<OperatorStateHandle>> stateHandles_);
 
 private:
     void restoreState();

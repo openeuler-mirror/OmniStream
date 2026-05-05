@@ -26,3 +26,14 @@ AbstractKeyedStateBackend<K> *StateBackend::createKeyedStateBackend(
     }
     return nullptr;
 }
+
+OperatorStateBackend* StateBackend::createOperatorStateBackend(
+        omnistream::EnvironmentV2* env_,
+        std::string operatorIdentifier_,
+        std::set<std::shared_ptr<OperatorStateHandle>> stateHandles_) {
+    HashMapStateBackend* hashMapCasted = dynamic_cast<HashMapStateBackend*>(this);
+    if (hashMapCasted) {
+        return hashMapCasted->createOperatorStateBackend(env_, operatorIdentifier_, stateHandles_);
+    }
+    return nullptr;
+}

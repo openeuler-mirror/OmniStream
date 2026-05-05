@@ -11,22 +11,22 @@
 #ifndef OMNISTREAM_OPERATORSTATEBACKEND
 #define OMNISTREAM_OPERATORSTATEBACKEND
 
+#include "runtime/checkpoint/CheckpointOptions.h"
+#include "core/api/common/state/OperatorStateStore.h"
+
 #include "SnapshotResult.h"
 #include "OperatorStateHandle.h"
-#include "runtime/checkpoint/CheckpointOptions.h"
 #include "CheckpointStreamFactory.h"
 
-class OperatorStateBackend {
+class OperatorStateBackend : public OperatorStateStore {
 public:
-    std::shared_ptr<std::packaged_task<SnapshotResult<OperatorStateHandle>>> snapshot(
+    virtual std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<OperatorStateHandle>>()>> snapshot(
         long checkpointId,
         long timestamp,
         CheckpointStreamFactory *streamFactory,
-        CheckpointOptions *checkpointOptions)
-    {
-        // TTODO
-        return nullptr;
-    };
+        CheckpointOptions *checkpointOptions) = 0;
+
+    virtual void dispose() = 0;
 };
 
 #endif // OMNISTREAM_OPERATORSTATEBACKEND

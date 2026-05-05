@@ -68,9 +68,13 @@ std::shared_ptr<SnapshotResultSupplier<KeyedStateHandle>> RocksNativeFullSnapsho
             keySerializer_));
 }
 
-void RocksNativeFullSnapshotStrategy::notifyCheckpointComplete(int64_t completedCheckpointId) {}
+void RocksNativeFullSnapshotStrategy::notifyCheckpointComplete(int64_t completedCheckpointId) {
+    INFO_RELEASE("RocksNativeFullSnapshotStrategy::notifyCheckpointComplete completedCheckpointId: " << completedCheckpointId);
+}
 
-void RocksNativeFullSnapshotStrategy::notifyCheckpointAborted(int64_t abortedCheckpointId) {}
+void RocksNativeFullSnapshotStrategy::notifyCheckpointAborted(int64_t abortedCheckpointId) {
+    INFO_RELEASE("RocksNativeFullSnapshotStrategy::notifyCheckpointAborted abortedCheckpointId: " << abortedCheckpointId);
+}
 
 void RocksNativeFullSnapshotStrategy::close() {}
 

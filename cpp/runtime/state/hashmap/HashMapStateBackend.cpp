@@ -25,6 +25,29 @@ AbstractKeyedStateBackend<K> *HashMapStateBackend::createKeyedStateBackend(
     return builder.build();
 }
 
+OperatorStateBackend* HashMapStateBackend::createOperatorStateBackend(
+    omnistream::EnvironmentV2* env_,
+    std::string operatorIdentifier_,
+    std::set<std::shared_ptr<OperatorStateHandle>> stateHandles_) {
+    INFO_RELEASE("h30082497 HashMapStateBackend:createOperatorStateBackend 1");
+    std::vector<std::shared_ptr<OperatorStateHandle>> stateVector(stateHandles_.begin(), stateHandles_.end());
+    INFO_RELEASE("h30082497 HashMapStateBackend:createOperatorStateBackend 2");
+    auto bridge = env_->getTaskStateManager()->getTaskStateManagerBridge();
+    INFO_RELEASE("h30082497 HashMapStateBackend:createOperatorStateBackend 3");
+    auto omniTaskBridge = env_->getTaskStateManager()->getOmniTaskBridge();
+    INFO_RELEASE("h30082497 HashMapStateBackend:createOperatorStateBackend 4");
+
+    const bool asynchronousSnapshots = true;
+    DefaultOperatorStateBackendBuilder builder(
+        asynchronousSnapshots,
+        operatorIdentifier_,
+        stateVector,
+        bridge,
+        omniTaskBridge);
+    INFO_RELEASE("h30082497 HashMapStateBackend:createOperatorStateBackend end");
+    return builder.build();
+}
+
 void HashMapStateBackend::restoreState()
 {
     // restore states

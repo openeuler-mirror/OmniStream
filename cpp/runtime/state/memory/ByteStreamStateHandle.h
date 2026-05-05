@@ -24,7 +24,9 @@
 class ByteStateHandleInputStream : public FSDataInputStream {
 public:
     explicit ByteStateHandleInputStream(const std::vector<uint8_t>& data)
-        : data_(data), index_(0) {}
+        : data_(data), index_(0) {
+            INFO_RELEASE("savepoint: ByteStateHandleInputStream constructor")
+        }
 
     /**
      * Seek to the given offset from the start of the data.
@@ -35,6 +37,7 @@ public:
      */
     void Seek(std::streampos desired) override
     {
+        INFO_RELEASE("savepoint: ByteStateHandleInputStream Seek")
         if (desired < 0 || static_cast<size_t>(desired) > data_.size()) {
             throw std::ios_base::failure("Seek position out of bounds");
         }
@@ -46,6 +49,7 @@ public:
      */
     std::streampos GetPos() const override
     {
+        INFO_RELEASE("savepoint: ByteStateHandleInputStream GetPos")
         return static_cast<std::streampos>(index_);
     }
 
@@ -56,6 +60,7 @@ public:
      */
     int Read() override
     {
+        INFO_RELEASE("savepoint: ByteStateHandleInputStream Read")
         return index_ < data_.size() ? data_[index_++] & 0xFF : -1;
     }
 
@@ -68,6 +73,7 @@ public:
      */
     int Read(std::vector<uint8_t>& buffer, int off, int len) override
     {
+        INFO_RELEASE("savepoint: ByteStateHandleInputStream Read")
         if (off < 0 || len < 0 || static_cast<size_t>(off + len) > buffer.size()) {
             throw std::out_of_range("Invalid buffer offset or length");
         }
@@ -89,6 +95,16 @@ public:
 
         index_ += bytesToCopy;
         return static_cast<int>(bytesToCopy);
+    }
+
+    /**
+     * Closes the stream. Since this is an in-memory stream,
+     * there are no resources to release.
+     */
+    void Close() override
+    {
+        INFO_RELEASE("savepoint: ByteStreamStateHandle Close")
+        // No resources to release for in-memory stream
     }
 
 private:

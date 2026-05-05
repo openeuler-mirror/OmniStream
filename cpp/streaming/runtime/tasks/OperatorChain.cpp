@@ -26,6 +26,21 @@
 #include "streaming/api/operators/OperatorSnapshotFutures.h"
 #include "runtime/checkpoint/channel/ChannelStateWriter.h"
 
+namespace {
+void AssignConfiguredOperatorId(StreamOperator *op, const omnistream::OperatorPOD &opDesc)
+{
+    if (op == nullptr) {
+        return;
+    }
+    const std::string operatorId = opDesc.getOperatorId();
+    if (!operatorId.empty()) {
+        op->SetOperatorID(operatorId);
+        INFO_RELEASE("savepoint: OperatorChainV2 assign operatorId=" << operatorId
+            << " name=" << opDesc.getName() << " id=" << opDesc.getId());
+    }
+}
+}
+
 namespace omnistream {
 
 WatermarkGaugeExposingOutput* OperatorChainV2::wrapOperatorIntoOutput(StreamOperator *op,
@@ -58,6 +73,7 @@ WatermarkGaugeExposingOutput* OperatorChainV2::createOperatorChain(
 
     auto opDesc = operatorConfig[0].getOperatorDescription();
     auto chainedOperator = StreamOperatorFactory::createOperatorAndCollector(opDesc, chainedOperatorOutput, streamTask);
+    AssignConfiguredOperatorId(chainedOperator, opDesc);
 
     auto operatorWrapper = new StreamOperatorWrapper(chainedOperator, false);
     allOperatorWrappers.emplace_back(operatorWrapper);
@@ -75,6 +91,7 @@ WatermarkGaugeExposingOutput *OperatorChainV2::createDataStreamOperatorChain(Str
 
     auto opDesc = operatorConfig.getOperatorDescription();
     auto chainedOperator = StreamOperatorFactory::createOperatorAndCollector(opDesc, chainedOperatorOutput, nullptr);
+    AssignConfiguredOperatorId(chainedOperator, opDesc);
 
     registerHandler(opDesc, chainedOperator);
 
@@ -183,6 +200,7 @@ OperatorChainV2::OperatorChainV2(
         auto opDesc = configuration.getOperatorDescription();
         auto chainedOperator = StreamOperatorFactory::createOperatorAndCollector(opDesc, mainOperatorOutput,
                                                                                  streamTask);
+        AssignConfiguredOperatorId(chainedOperator, opDesc);
         registerHandler(opDesc, chainedOperator);
         auto operatorWrapper = new StreamOperatorWrapper(chainedOperator, false);
         this->mainOperatorWrapper = operatorWrapper;
@@ -332,6 +350,7 @@ StreamOperator *OperatorChainV2::createMainOperatorAndCollector(
     }
 
     StreamOperator *op = StreamOperatorFactory::createOperatorAndCollector(opDesc, chainOutput, nullptr);
+    AssignConfiguredOperatorId(op, opDesc);
     tailOperatorWrapper = new StreamOperatorWrapper(op, false);
 
     // Connect the operators in reverse order
@@ -346,6 +365,7 @@ StreamOperator *OperatorChainV2::createMainOperatorAndCollector(
         if (opDesc.getId() == "org.apache.flink.table.runtime.operators.sink.ConstraintEnforcer")
             continue;
         op = StreamOperatorFactory::createOperatorAndCollector(opDesc, chainingOutput, nullptr);
+        AssignConfiguredOperatorId(op, opDesc);
         auto OpWrapper = new StreamOperatorWrapper(op, false);
         OpWrapper->setNext(nextOpWrapper);
         nextOpWrapper->setPrevious(OpWrapper);
@@ -405,6 +425,8 @@ void OperatorChainV2::initializeStateAndOpenOperators(StreamTaskStateInitializer
         streamOperator->open();
     }
 
+    INFO_RELEASE("h30082497 OperatorChainV2::initializeStateAndOpenOperators end");
+
     LOG("OperatorChainV2::initializeStateAndOpenOperators end")
 }
 
@@ -440,9 +462,7 @@ void OperatorChainV2::NotifyCheckpointComplete(long checkpointId)
         // The original Flink has a fancy catch throw which might contain extra logic.
         try {
             auto op = iter.next()->getStreamOperator();
-            if (auto kop = dynamic_cast<AbstractStreamOperator<Object*> *>(op)) {
-                kop->notifyCheckpointComplete(checkpointId);
-            }
+            op->notifyCheckpointComplete(checkpointId);
         } catch (...) {
             throw std::runtime_error("notifyCheckpointComplete failed");
         }
@@ -526,6 +546,11 @@ OperatorSnapshotFutures *OperatorChainV2::CheckpointStreamOperator(StreamOperato
             return sop->SnapshotState(checkpointMetaData.GetCheckpointId(), checkpointMetaData.GetTimestamp(),
                                       checkpointOptions, storageLocation, bridge);
         }
+        /* h30082497 规避：增加其他处理 */
+        INFO_RELEASE("h30082497 OperatorChainV2::CheckpointStreamOperator typeName : " << op->getTypeName());
+        INFO_RELEASE("h30082497 special deal ============================ OperatorChainV2::CheckpointStreamOperator");
+        return op->SnapshotState(checkpointMetaData.GetCheckpointId(), checkpointMetaData.GetTimestamp(),
+                                      checkpointOptions, storageLocation, bridge);
         throw std::runtime_error("checkpointStreamOperator failed");
     } catch (...) {
         throw std::runtime_error("checkpointStreamOperator failed");
