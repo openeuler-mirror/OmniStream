@@ -8,8 +8,8 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef FLINK_TNEL_HEAPKEYEDSTATEBACKENDBUILDER_H
-#define FLINK_TNEL_HEAPKEYEDSTATEBACKENDBUILDER_H
+#pragma once
+
 #include <emhash7.hpp>
 #include "runtime/state/KeyGroupRange.h"
 #include "runtime/state/HeapKeyedStateBackend.h"
@@ -27,9 +27,7 @@ protected:
 };
 
 template <typename K>
-HeapKeyedStateBackend<K> *HeapKeyedStateBackendBuilder<K>::build()
-{
+HeapKeyedStateBackend<K> *HeapKeyedStateBackendBuilder<K>::build() {
     auto *keyContext = new InternalKeyContext<K>(keyGroupRange, numberOfKeyGroups);
     return new HeapKeyedStateBackend<K>(keySerializer, keyContext);
 }
-#endif // FLINK_TNEL_HEAPKEYEDSTATEBACKENDBUILDER_H

@@ -8,8 +8,8 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef FLINK_TNEL_WINDOWJOINOPERATOR_H
-#define FLINK_TNEL_WINDOWJOINOPERATOR_H
+
+#pragma once
 #include <set>
 #include <vector>
 #include "table/runtime/operators/join/AbstractStreamingJoinOperator.h"
@@ -54,7 +54,7 @@ public:
         LOG(">>>>>>>>>>")
         if (this->combinedWatermark->UpdateWatermark(0, watermark->getTimestamp())) {
             if (this->timeServiceManager != nullptr) {
-                this->timeServiceManager->template advanceWatermark<int64_t>(new Watermark(this->combinedWatermark->GetCombinedWatermark()));
+                this->timeServiceManager->advanceWatermark(new Watermark(this->combinedWatermark->GetCombinedWatermark()));
             }
             this->output->emitWatermark(new Watermark(this->combinedWatermark->GetCombinedWatermark()));
         }
@@ -64,7 +64,7 @@ public:
         LOG(">>>>>>>>>>")
         if (this->combinedWatermark->UpdateWatermark(1, watermark->getTimestamp())) {
             if (this->timeServiceManager != nullptr) {
-                this->timeServiceManager->template advanceWatermark<int64_t>(new Watermark(this->combinedWatermark->GetCombinedWatermark()));
+                this->timeServiceManager->advanceWatermark(new Watermark(this->combinedWatermark->GetCombinedWatermark()));
             }
             this->output->emitWatermark(new Watermark(this->combinedWatermark->GetCombinedWatermark()));
         }
@@ -795,5 +795,4 @@ bool WindowJoinOperator<KeyType>::filter(VectorBatchId leftElement, VectorBatchI
         return true;
     }
 }
-#endif
 

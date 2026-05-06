@@ -8,8 +8,8 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef OMNISTREAM_ROCKSDBRESOURCECONTAINER_H
-#define OMNISTREAM_ROCKSDBRESOURCECONTAINER_H
+
+#pragma once
 
 #include "RocksDBSharedResources.h"
 
@@ -49,6 +49,18 @@ public:
         return columnFamilyOptions;
     }
 
+    std::shared_ptr<rocksdb::ReadOptions> getReadOptions() {
+        auto readOptions = std::make_shared<rocksdb::ReadOptions>();
+        return readOptions;
+    }
+
+    int64_t getWriteBufferManagerCapacity() {
+        if (sharedResources_ == nullptr) {
+            return -1;
+        }
+        return sharedResources_->getWriteBufferManagerCapacity();
+    }
+
 private:
     std::shared_ptr<RocksDBSharedResources> sharedResources_;
     std::optional<fs::path> instanceRocksDBPath_;
@@ -68,5 +80,3 @@ private:
         return opt;
     }
 };
-
-#endif // OMNISTREAM_ROCKSDBRESOURCECONTAINER_H

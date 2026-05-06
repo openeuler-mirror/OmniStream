@@ -9,9 +9,9 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef OMNISTREAM_ROCKSDBKEYEDSTATEBACKENDBUILDER_H
-#define OMNISTREAM_ROCKSDBKEYEDSTATEBACKENDBUILDER_H
+#pragma once
 
+#include "PriorityQueueSetFactory.h"
 #include "rocksdb/db.h"
 #include "rocksdb/options.h"
 
@@ -45,7 +45,7 @@ public:
     RocksDBKeyedStateBackendBuilder(
         std::string operatorIdentifier_,
         fs::path instanceBasePath_,
-        std::unique_ptr<RocksDBResourceContainer> optionsContainer_,
+        std::shared_ptr<RocksDBResourceContainer> optionsContainer_,
         TypeSerializer *keySerializer_,
         int numberOfKeyGroups_,
         KeyGroupRange *keyGroupRange_,
@@ -58,7 +58,7 @@ public:
         : keySerializer(keySerializer_),
         operatorIdentifier(operatorIdentifier_),
         instanceBasePath(instanceBasePath_),
-        optionsContainer(std::move(optionsContainer_)),
+        optionsContainer(optionsContainer_),
         numberOfKeyGroups(numberOfKeyGroups_),
         keyGroupRange(keyGroupRange_),
         localRecoveryConfig(localRecoveryConfig_),
@@ -98,12 +98,17 @@ public:
         return *this;
     }
 
+    enum class PriorityQueueStateType {
+        HEAP,
+        ROCKSDB
+    };
+
 private:
     const std::shared_ptr<CloseableRegistry> cancelStreamRegistry;
     static constexpr const char* DB_INSTANCE_DIR_STRING = "db";
     std::string operatorIdentifier;
     std::filesystem::path instanceBasePath;
-    std::unique_ptr<RocksDBResourceContainer> optionsContainer;
+    std::shared_ptr<RocksDBResourceContainer> optionsContainer;
     int numberOfKeyGroups;
     KeyGroupRange* keyGroupRange;
     std::shared_ptr<LocalRecoveryConfig> localRecoveryConfig;
@@ -118,6 +123,10 @@ private:
     std::shared_ptr<OmniTaskBridge> omniTaskBridge;
     std::shared_ptr<OperatorID> operatorId_;
     int alternativeIdx_;
+
+    // default priority queue state type is ROCKSDB
+    // todo: this should be configurable
+    PriorityQueueStateType priorityQueueStateType = PriorityQueueStateType::HEAP;
 
     static void checkAndCreateDirectory(const fs::path& directory)
     {
@@ -147,8 +156,9 @@ private:
     }
 
     std::shared_ptr<RocksDBRestoreOperation> getRocksDBRestoreOperation(
-        int keyGroupPrefixBytes,
-        std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>> *kvStateInformation)
+            int keyGroupPrefixBytes,
+            std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>> *kvStateInformation,
+            std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapperBase>>> registeredPQStates)
     {
         auto dbOptions = optionsContainer->getDbOptions();
         if (restoreStateHandles.empty()) {
@@ -233,20 +243,29 @@ private:
 
         return checkpointSnapshotStrategy;
     }
+
+    std::shared_ptr<PriorityQueueSetFactory> initPriorityQueueFactory(
+            int32_t keyGroupPrefixBytes,
+            std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>> *kvStateInformation,
+            rocksdb::DB* db,
+            std::shared_ptr<RocksDBWriteBatchWrapper> writeBatchWrapper
+    );
 };
 
 template <typename K>
-RocksdbKeyedStateBackend<K> *RocksDBKeyedStateBackendBuilder<K>::build()
-{
+RocksdbKeyedStateBackend<K> *RocksDBKeyedStateBackendBuilder<K>::build() {
+    // todo: Memory Management?
     auto kvStateInformation = new std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>();
+    auto registeredPQStates = std::make_shared<std::unordered_map<std::string, std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapperBase>>>();
     rocksdb::DB* db;
     std::shared_ptr<RocksDBRestoreOperation> restoreOperation;
 
     int keyGroupPrefixBytes =
         CompositeKeySerializationUtils::computeRequiredBytesInKeyGroupPrefix(numberOfKeyGroups);
 
-    columnFamilyOptionsFactory = [this](const std::string& name) -> rocksdb::ColumnFamilyOptions {
-        auto optPtr = optionsContainer->getColumnOptions();
+    auto capturedOptionsContainer = this->optionsContainer;
+    columnFamilyOptionsFactory = [capturedOptionsContainer](const std::string& name) -> rocksdb::ColumnFamilyOptions {
+        auto optPtr = capturedOptionsContainer->getColumnOptions();
         return *optPtr;
     };
 
@@ -257,7 +276,7 @@ RocksdbKeyedStateBackend<K> *RocksDBKeyedStateBackendBuilder<K>::build()
         auto rocksDBResourceGuard = std::make_shared<ResourceGuard>();
 
         prepareDirectories();
-        restoreOperation = getRocksDBRestoreOperation(keyGroupPrefixBytes, kvStateInformation);
+        restoreOperation = getRocksDBRestoreOperation(keyGroupPrefixBytes, kvStateInformation, registeredPQStates);
         auto restoreResult = restoreOperation->restore();
         db = restoreResult->getDb();
 
@@ -275,8 +294,14 @@ RocksdbKeyedStateBackend<K> *RocksDBKeyedStateBackendBuilder<K>::build()
             backendUID,
             materializedSstFiles,
             lastCompletedCheckpointId);
-        
+
         auto writeBatchWrapper = std::make_shared<RocksDBWriteBatchWrapper>(db, writeBatchSize);
+
+        auto priorityQueueSetFactory = initPriorityQueueFactory(
+                keyGroupPrefixBytes,
+                kvStateInformation,
+                db,
+                writeBatchWrapper);
 
         auto keyContext = new InternalKeyContextImpl<K>(keyGroupRange, numberOfKeyGroups);
 
@@ -287,13 +312,51 @@ RocksdbKeyedStateBackend<K> *RocksDBKeyedStateBackendBuilder<K>::build()
             strategy,
             keyGroupRange,
             kvStateInformation,
+            registeredPQStates,
             rocksDBResourceGuard,
             keyGroupPrefixBytes,
             writeBatchWrapper,
+            priorityQueueSetFactory,
             bridge,
             omniTaskBridge);
     } catch (const std::exception& e) {
         throw std::runtime_error("build failed." + std::string(e.what()));
     }
 }
-#endif // OMNISTREAM_ROCKSDBKEYEDSTATEBACKENDBUILDER_H
+
+template <typename K>
+std::shared_ptr<PriorityQueueSetFactory> RocksDBKeyedStateBackendBuilder<K>::initPriorityQueueFactory(
+        int32_t keyGroupPrefixBytes,
+        std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation,
+        rocksdb::DB* db,
+        std::shared_ptr<RocksDBWriteBatchWrapper> writeBatchWrapper) {
+    const char* env = std::getenv("PriorityQueueStateType");
+    std::string type = env ? std::string(env) : "";
+
+    // TODO: the conf should be gotten from Adapter
+    if (type == "HEAP") {
+        priorityQueueStateType = PriorityQueueStateType::HEAP;
+    } else {
+        priorityQueueStateType = PriorityQueueStateType::ROCKSDB;
+    }
+
+    if (priorityQueueStateType == PriorityQueueStateType::HEAP) {
+        INFO_RELEASE("The priority queue type of rocksDB backend is HEAP.");
+        return std::make_shared<HeapPriorityQueueSetFactory>(keyGroupRange, numberOfKeyGroups, 128);
+    }
+
+    if (priorityQueueStateType == PriorityQueueStateType::ROCKSDB) {
+        INFO_RELEASE("The priority queue type of rocksDB backend is ROCKSDB.");
+        return std::make_shared<RocksDBPriorityQueueSetFactory>(
+            keyGroupRange,
+            keyGroupPrefixBytes,
+            numberOfKeyGroups,
+            kvStateInformation,
+            db,
+            optionsContainer->getReadOptions(),
+            writeBatchWrapper,
+            columnFamilyOptionsFactory,
+            optionsContainer->getWriteBufferManagerCapacity());
+    }
+    THROW_LOGIC_EXCEPTION("Unsupported priority queue state type: " + static_cast<int>(priorityQueueStateType));
+}

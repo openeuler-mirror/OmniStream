@@ -9,8 +9,8 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef FLINK_TNEL_STREAMINGJOINOPERATOR_H
-#define FLINK_TNEL_STREAMINGJOINOPERATOR_H
+#pragma once
+
 #include "AbstractStreamingJoinOperator.h"
 #include "table/data/JoinedRowData.h"
 #include "table/runtime/keyselector/KeySelector.h"
@@ -78,7 +78,7 @@ public:
         LOG(">>>>>>>>>>")
         if (this->combinedWatermark->UpdateWatermark(0, watermark->getTimestamp())) {
             if (this->timeServiceManager != nullptr) {
-                this->timeServiceManager->template advanceWatermark<int64_t>(new Watermark(this->combinedWatermark->GetCombinedWatermark()));
+                this->timeServiceManager->advanceWatermark(new Watermark(this->combinedWatermark->GetCombinedWatermark()));
             }
             this->output->emitWatermark(new Watermark(this->combinedWatermark->GetCombinedWatermark()));
         }
@@ -88,7 +88,7 @@ public:
         LOG(">>>>>>>>>>")
         if (this->combinedWatermark->UpdateWatermark(1, watermark->getTimestamp())) {
             if (this->timeServiceManager != nullptr) {
-                this->timeServiceManager->template advanceWatermark<int64_t>(new Watermark(this->combinedWatermark->GetCombinedWatermark()));
+                this->timeServiceManager->advanceWatermark(new Watermark(this->combinedWatermark->GetCombinedWatermark()));
             }
             this->output->emitWatermark(new Watermark(this->combinedWatermark->GetCombinedWatermark()));
         }
@@ -196,4 +196,3 @@ private:
         JoinRecordStateView<K> *otherSideStateView, omniruntime::vec::Vector<S>*& inputCol,
         omniruntime::vec::Vector<T>*& outputCol);
 };
-#endif

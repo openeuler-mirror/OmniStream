@@ -8,12 +8,14 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef FLINK_TNEL_KEYGROUPRANGE_H
-#define FLINK_TNEL_KEYGROUPRANGE_H
+
+#pragma once
 
 #include <stdexcept>
 #include <nlohmann/json.hpp>
 #include "core/utils/Iterator.h"
+
+// todo: pointer is not necessary
 class KeyGroupRange {
 public:
     KeyGroupRange()
@@ -144,5 +146,3 @@ private:
     int startKeyGroup;
     int endKeyGroup;
 };
-
-#endif // FLINK_TNEL_KEYGROUPRANGE_H

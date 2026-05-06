@@ -31,6 +31,10 @@ public:
         return cache_;
     }
 
+    int64_t getWriteBufferManagerCapacity() {
+        return writeBufferManagerCapacity_;
+    }
+
 private:
     std::shared_ptr<ROCKSDB_NAMESPACE::Cache> cache_;
     std::shared_ptr<ROCKSDB_NAMESPACE::WriteBufferManager> writeBufferManager_;

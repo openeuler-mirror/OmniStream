@@ -8,13 +8,15 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef FLINK_TNEL_HEAPKEYEDSTATEBACKEND_H
-#define FLINK_TNEL_HEAPKEYEDSTATEBACKEND_H
+
+#pragma once
+
 #include <emhash7.hpp>
 #include <map>
 #include "common.h"
 #include <vector>
 #include "AbstractKeyedStateBackend.h"
+#include "HeapPriorityQueuesManager.h"
 #include "InternalKeyContext.h"
 #include "core/typeutils/TypeSerializer.h"
 #include "heap/StateTable.h"
@@ -42,7 +44,16 @@ using namespace omniruntime::type;
 template <typename K>
 class HeapKeyedStateBackend : public AbstractKeyedStateBackend<K> {
 public:
-    HeapKeyedStateBackend(TypeSerializer *keySerializer, InternalKeyContext<K> *context) : AbstractKeyedStateBackend<K>(keySerializer, context) {};
+    HeapKeyedStateBackend(TypeSerializer *keySerializer, InternalKeyContext<K> *context) : AbstractKeyedStateBackend<K>(keySerializer, context) {
+        auto registeredPQStates = std::make_shared<std::unordered_map<std::string, std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapperBase>>>();
+        auto priorityQueueSetFactory = std::make_shared<HeapPriorityQueueSetFactory>(context->getKeyGroupRange(), context->getNumberOfKeyGroups(), 128);
+        priorityQueuesManager_ = std::make_shared<HeapPriorityQueuesManager>(
+                registeredPQStates,
+                priorityQueueSetFactory,
+                context->getKeyGroupRange(),
+                context->getNumberOfKeyGroups());
+    };
+
     // Originally used to create an internal state, not necessary here
     uintptr_t createOrUpdateInternalState(TypeSerializer *namespaceSerializer, StateDescriptor *stateDesc) override;
 
@@ -137,6 +148,21 @@ public:
         NOT_IMPL_EXCEPTION;
     }
 
+    template <typename T, typename Comparator>
+    std::shared_ptr<KeyGroupedInternalPriorityQueue<T>> create(
+            std::string stateName,
+            TypeSerializer* byteOrderedElementSerializer) {
+        return priorityQueuesManager_->createOrUpdate<K, T, Comparator>(stateName, byteOrderedElementSerializer);
+    }
+
+    template <typename T, typename Comparator>
+    std::shared_ptr<KeyGroupedInternalPriorityQueue<T>> create(
+            std::string stateName,
+            TypeSerializer* byteOrderedElementSerializer,
+            bool allowFutureMetadataUpdates) {
+        return priorityQueuesManager_->createOrUpdate<K, T, Comparator>(stateName, byteOrderedElementSerializer, allowFutureMetadataUpdates);
+    }
+
 private:
     template<typename N, typename S>
     StateTable<K, N, S> *tryRegisterStateTable(TypeSerializer *namespaceSerializer, StateDescriptor *stateDesc);
@@ -144,6 +170,7 @@ private:
     emhash7::HashMap<std::string, std::tuple<uintptr_t, StateDescriptor*>> registeredKvStates;
     // pointer to intervalKvState
     emhash7::HashMap<std::string, uintptr_t> createdKvState;
+    std::shared_ptr<HeapPriorityQueuesManager> priorityQueuesManager_;
 
     template<typename N, typename UK, typename UV>
     HeapMapState<K, N, UK, UV>* createOrUpdateInternalMapState(TypeSerializer *namespaceSerializer, StateDescriptor *stateDesc);
@@ -315,4 +342,3 @@ HeapMapState<K, N, UK, UV>* HeapKeyedStateBackend<K>::createOrUpdateInternalMapS
     createdKvState[stateDesc->getName()] = reinterpret_cast<uintptr_t>(createdState);
     return createdState;
 }
-#endif // FLINK_TNEL_HEAPKEYEDSTATEBACKEND_H

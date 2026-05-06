@@ -8,16 +8,16 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef OMNISTREAM_ROCKSDBWRITEBATCHWRAPPER_H
-#define OMNISTREAM_ROCKSDBWRITEBATCHWRAPPER_H
+
+#pragma once
 
 #include <memory>
 #include <utility>
 #include <stdexcept>
-
 #include <rocksdb/db.h>
 #include <rocksdb/write_batch.h>
 #include <rocksdb/options.h>
+#include <atomic>
 
 class RocksDBWriteBatchWrapper {
 public:
@@ -89,16 +89,21 @@ public:
         return options_;
     }
 
-    ~RocksDBWriteBatchWrapper()
-    {
-        if (batch_->Count() != 0) {
-            try {
+    void close() {
+        if (!closed_.exchange(true)) {
+            if (batch_->Count() != 0) {
                 Flush();
-            } catch (...) {
-                // do nothing
             }
+            batch_->Clear();
         }
-        batch_->Clear();
+    }
+
+    ~RocksDBWriteBatchWrapper() {
+        try {
+            close();
+        } catch (...) {
+            // do nothing
+        }
     }
 
 private:
@@ -112,6 +117,7 @@ private:
     std::unique_ptr<rocksdb::WriteBatch> batch_;
     uint32_t capacity_;
     long batch_size_;
+    std::atomic<bool> closed_ = false;
 
     void FlushIfNeeded()
     {
@@ -127,5 +133,3 @@ private:
         return batch_->GetDataSize();
     }
 };
-
-#endif // OMNISTREAM_ROCKSDBWRITEBATCHWRAPPER_H

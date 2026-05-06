@@ -8,8 +8,8 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef TIMEWINDOW_H
-#define TIMEWINDOW_H
+
+#pragma once
 
 #include <iostream>
 #include <cmath>
@@ -109,13 +109,13 @@ public:
 
         int getLength() const;
 
-        void serialize(void *record, DataOutputSerializer &target);
+        void serialize(void *record, DataOutputSerializer &target) override;
 
-        void *deserialize(DataInputView &source);
+        void *deserialize(DataInputView &source) override;
 
         void copy(DataInputView *source, DataOutputSerializer *target) const;
 
-        BackendDataType getBackendId() const;
+        BackendDataType getBackendId() const override;
     };
 private:
     long start{};
@@ -142,5 +142,3 @@ namespace std {
         }
     };
 }
-
-#endif // TIMEWINDOW_H

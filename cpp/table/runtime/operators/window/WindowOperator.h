@@ -118,7 +118,7 @@ public:
     void ProcessWatermark(Watermark *watermark) override
     {
         if (AbstractStreamOperator<K>::timeServiceManager != nullptr) {
-            AbstractStreamOperator<K>::timeServiceManager->template advanceWatermark<TimeWindow>(watermark);
+            AbstractStreamOperator<K>::timeServiceManager->advanceWatermark(watermark);
         }
         AbstractStreamOperator<K>::output->emitWatermark(watermark);
     }

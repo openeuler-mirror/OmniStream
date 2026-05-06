@@ -8,8 +8,9 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef FLINK_TNEL_KEYEDSTATEBACKEND_H
-#define FLINK_TNEL_KEYEDSTATEBACKEND_H
+
+#pragma once
+#include "PriorityQueueSetFactory.h"
 #include "core/api/common/state/State.h"
 #include "core/api/common/state/StateDescriptor.h"
 #include "internal/InternalKvState.h"
@@ -17,7 +18,7 @@
 #include "runtime/state/VoidNamespace.h"
 
 template <typename K>
-class KeyedStateBackend {
+class KeyedStateBackend : public PriorityQueueSetFactory {
 public:
     virtual void setCurrentKey(K key) = 0;
     virtual K getCurrentKey() = 0;
@@ -27,5 +28,3 @@ public:
 
     virtual ~KeyedStateBackend() = default;
 };
-
-#endif // FLINK_TNEL_KEYEDSTATEBACKEND_H
