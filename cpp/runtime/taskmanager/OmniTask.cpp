@@ -231,14 +231,13 @@ namespace omnistream {
 
             this->invokable_->invoke();
         } catch (const PartitionNotFoundException &e) {
-            GErrorLog("PartitionNotFoundException causes the task to stop and will do cleanup");
+            INFO_RELEASE("Error:PartitionNotFoundException causes the task to stop and will do cleanup");
              throw;
         } catch (const std::exception &e) {
-            GErrorLog(std::string("std::exception during restore or invoke, taskName=")
-                       + ", what=" + e.what());
+            INFO_RELEASE("Error:std::exception during restore or invoke"<< e.what());
             throw;
         } catch (...) {
-            GErrorLog(std::string("unknown exception during restore or invoke, taskName="));
+            INFO_RELEASE("Error:unknown exception during restore or invoke, taskName=");
             throw;
         }
 
@@ -631,13 +630,13 @@ namespace omnistream {
                 checkpointableTask->triggerCheckpointAsync(checkpointMetaData, checkpoint_options);
                 // TTODO
             } catch (const OmniException& ex) {
-                LOG("triggerCheckpointBarrier caught OmniException for cp " << checkpointid
+                INFO_RELEASE("Error:triggerCheckpointBarrier caught OmniException for cp " << checkpointid
                     << ": " << ex.what());
                 std::runtime_error wrapped(std::string("OmniException: ") + ex.what());
                 this->declineCheckpoint(checkpointid,
                     CheckpointFailureReason::CHECKPOINT_DECLINED_TASK_CLOSING, &wrapped);
             } catch (const std::exception& t) {
-                LOG("triggerCheckpointBarrier caught std::exception for cp " << checkpointid
+                INFO_RELEASE("Error:triggerCheckpointBarrier caught std::exception for cp " << checkpointid
                     << ": " << t.what());
                 std::runtime_error wrapped(std::string("std::exception: ") + t.what());
                 this->declineCheckpoint(checkpointid,

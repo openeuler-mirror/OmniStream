@@ -120,8 +120,6 @@ std::optional<omnistream::BufferAndAvailability> RecoveredInputChannel::getNextR
         LOG("Recovered input channel end of event!");
         stateConsumedFuture->Complete();
         stateConsumedFuture1.store(true);
-        INFO_RELEASE("RecoveredInputChannel consumed EndOfChannelStateEvent, channel="
-            << channelInfo.toString());
         return omnistream::BufferAndAvailability{next, nextDataType, 0, sequenceNumber++};
     } else {
         return omnistream::BufferAndAvailability{next, nextDataType, 0, sequenceNumber++};

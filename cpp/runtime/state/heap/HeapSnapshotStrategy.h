@@ -41,10 +41,7 @@ public:
 
     std::shared_ptr<FullSnapshotResources> syncPrepareResources(long checkpointId) override
     {
-        INFO_RELEASE("HeapSnapshotStrategy: syncPrepareResources for checkpoint " << checkpointId);
         auto snapshotResources = snapshotResourceFactory_->createSnapshotResources(checkpointId);
-        INFO_RELEASE("HeapSnapshotStrategy: syncPrepareResources finished for checkpoint " << checkpointId
-            << ", metaInfoCount=" << snapshotResources->getMetaInfoSnapshots().size());
         return snapshotResources;
     }
 
@@ -58,7 +55,7 @@ public:
         std::string keySerializer = "") override
     {
         if (snapshotResources->getMetaInfoSnapshots().empty()) {
-            INFO_RELEASE("HeapSnapshotStrategy: no states to snapshot, returning empty");
+            INFO_RELEASE("Error:HeapSnapshotStrategy: no states to snapshot, returning empty");
             struct EmptySnapshotResultSupplier
                 : public SnapshotResultSupplier<KeyedStateHandle> {
                 std::shared_ptr<SnapshotResult<KeyedStateHandle>>
@@ -70,8 +67,6 @@ public:
             return std::make_shared<EmptySnapshotResultSupplier>();
         }
 
-        INFO_RELEASE("HeapSnapshotStrategy: creating FullSnapshotAsyncWriter for checkpoint " << checkpointId
-            << ", metaInfoCount=" << snapshotResources->getMetaInfoSnapshots().size());
         return std::make_shared<FullSnapshotAsyncWriter>(
             CheckpointType::FULL_CHECKPOINT,
             checkpointOptions,

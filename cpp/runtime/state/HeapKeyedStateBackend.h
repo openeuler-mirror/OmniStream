@@ -64,11 +64,9 @@ public:
 
     virtual  ~HeapKeyedStateBackend() override
     {
-        STD_LOG("Join backend");
         for (const auto& pair : registeredKvStates) {
             StateDescriptor* desc = std::get<1>(pair.second);
             uintptr_t stateTablePtr = std::get<0>(pair.second);
-            STD_LOG (" Join Heapkeyed Backend first " << pair.first   << "StateTable ptr " << stateTablePtr);
             if (desc->getType() == StateDescriptor::Type::MAP) {
                 auto keyId = desc->getKeyDataId();
                 auto valueId = desc->getValueDataId();
@@ -152,10 +150,6 @@ public:
             CheckpointStreamFactory *streamFactory,
             CheckpointOptions *checkpointOptions)
     {
-        INFO_RELEASE("HeapKeyedStateBackend: snapshot checkpoint " << checkpointId
-            << ", registeredKvStates=" << registeredKvStates.size()
-            << ", createdKvState=" << createdKvState.size()
-            << ", hasBridge=" << (omniTaskBridge_ != nullptr));
         auto snapshotRunner = std::make_unique<SnapshotStrategyRunner<KeyedStateHandle, FullSnapshotResources>>(
             "Heap full snapshot",
             checkpointStrategy_.get(),
@@ -166,7 +160,6 @@ public:
 
     std::shared_ptr<SavepointResources> savepoint() override
     {
-        INFO_RELEASE("HeapKeyedStateBackend: savepoint");
         auto snapshotResources = snapshotResourceFactory_->createSnapshotResources(-1L);
         return std::make_shared<SavepointResources>(snapshotResources, SnapshotExecutionType::ASYNCHRONOUS);
     }
@@ -389,6 +382,4 @@ HeapMapState<K, N, UK, UV>* HeapKeyedStateBackend<K>::createOrUpdateInternalMapS
     createdKvState[stateDesc->getName()] = reinterpret_cast<uintptr_t>(createdState);
     return createdState;
 }
-
-
 #endif // FLINK_TNEL_HEAPKEYEDSTATEBACKEND_H

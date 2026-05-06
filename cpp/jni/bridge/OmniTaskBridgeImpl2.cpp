@@ -1297,11 +1297,10 @@ long OmniTaskBridgeImpl2::GetSavepointOutputStreamPos(jobject provider)
     if (env->ExceptionCheck()) {
         env->ExceptionDescribe();
         env->ExceptionClear();
+        env->DeleteGlobalRef(provider);
         INFO_RELEASE("Error: Failed to call GetSavepointOutputStreamPos");
         throw std::runtime_error("Failed to call GetSavepointOutputStreamPos");
     }
-    // 不要在这里释放 provider —— 它的生命周期由 CheckpointStateOutputStreamProxy
-    // 通过 CloseSavepointOutputStream 统一管理。
     return pos;
 }
 

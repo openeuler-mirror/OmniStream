@@ -369,7 +369,7 @@ void OperatorChainV2::initializeStateAndOpenOperators(StreamTaskStateInitializer
     const TaskInformationPOD& taskConfiguration_)
 {
     // call operators' initializeState() and open() in a reverse order.
-    INFO_RELEASE("OperatorChainV2::initializeStateAndOpenOperators start")
+    LOG("OperatorChainV2::initializeStateAndOpenOperators start")
     std::vector<StreamConfigPOD> chainedConfig = taskConfiguration_.getChainedConfig();
     int index = 0;
     auto allOperators = getAllOperators(false); // positive sequence
@@ -405,7 +405,7 @@ void OperatorChainV2::initializeStateAndOpenOperators(StreamTaskStateInitializer
         streamOperator->open();
     }
 
-    INFO_RELEASE("OperatorChainV2::initializeStateAndOpenOperators end")
+    LOG("OperatorChainV2::initializeStateAndOpenOperators end")
 }
 
 void OperatorChainV2::DispatchOperatorEvent(const std::string& operatorIdString, const std::string& eventString)

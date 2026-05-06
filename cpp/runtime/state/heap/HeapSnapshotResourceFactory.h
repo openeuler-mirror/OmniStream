@@ -72,14 +72,7 @@ public:
 
     std::shared_ptr<HeapFullSnapshotResources> createSnapshotResources(long checkpointId)
     {
-        INFO_RELEASE("HeapSnapshotResourceFactory: start sync snapshot preparation, checkpointId="
-            << checkpointId << ", registeredKvStates=" << registeredKvStates_->size());
-
         PreparedHeapSnapshotData preparedData = prepareSnapshotData(checkpointId);
-
-        INFO_RELEASE("HeapSnapshotResourceFactory: sync snapshot preparation finished, checkpointId="
-            << checkpointId << ", frozenStateCount=" << preparedData.metaInfoSnapshots.size());
-
         return std::make_shared<HeapFullSnapshotResources>(
             std::move(preparedData.metaInfoSnapshots),
             std::move(preparedData.stateIterators),
@@ -122,205 +115,193 @@ private:
             uintptr_t stateTablePtr = std::get<0>(pair.second);
             auto nsBackendId = std::get<2>(pair.second);
             try {
-                INFO_RELEASE("HeapSnapshotResourceFactory: checkpointId=" << checkpointId
-                    << ", preparing stateName=" << desc->getName()
-                    << ", kvStateId=" << kvStateId
-                    << ", stateType=" << static_cast<int>(desc->getType())
-                    << ", namespaceBackendId=" << static_cast<int>(nsBackendId)
-                    << ", stateBackendId=" << describeStateBackendId(desc)
-                    << ", stateTablePtr=" << stateTablePtr);
                 if (desc->getType() == StateDescriptor::Type::VALUE) {
-                auto dataId = desc->getBackendId();
-                if (nsBackendId == BackendDataType::BIGINT_BK && dataId == BackendDataType::ROW_BK) {
-                    auto *table = reinterpret_cast<CopyOnWriteStateTable<K, int64_t, RowData *> *>(stateTablePtr);
-                    preparedData.metaInfoSnapshots.push_back(table->getMetaInfo()->snapshot());
-                    preparedData.stateIterators.push_back(
-                        std::make_unique<HeapSingleStateIterator<K, int64_t, RowData *>>(
-                            table,
-                            kvStateId,
-                            preparedData.keyGroupPrefixBytes));
-                } else if (nsBackendId == BackendDataType::TIME_WINDOW_BK && dataId == BackendDataType::ROW_BK) {
-                    auto *table = reinterpret_cast<CopyOnWriteStateTable<K, TimeWindow, RowData *> *>(stateTablePtr);
-                    preparedData.metaInfoSnapshots.push_back(table->getMetaInfo()->snapshot());
-                    preparedData.stateIterators.push_back(
-                        std::make_unique<HeapSingleStateIterator<K, TimeWindow, RowData *>>(
-                            table,
-                            kvStateId,
-                            preparedData.keyGroupPrefixBytes));
-                } else if (dataId == BackendDataType::OBJECT_BK || dataId == BackendDataType::POJO_BK
-                           || dataId == BackendDataType::TUPLE_OBJ_OBJ_BK) {
-                    auto *table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, Object *> *>(stateTablePtr);
-                    preparedData.metaInfoSnapshots.push_back(table->getMetaInfo()->snapshot());
-                    preparedData.stateIterators.push_back(
-                        std::make_unique<HeapSingleStateIterator<K, VoidNamespace, Object *>>(
-                            table,
-                            kvStateId,
-                            preparedData.keyGroupPrefixBytes));
-                } else if (dataId == BackendDataType::INT_BK) {
-                    auto *table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, int> *>(stateTablePtr);
-                    preparedData.metaInfoSnapshots.push_back(table->getMetaInfo()->snapshot());
-                    preparedData.stateIterators.push_back(
-                        std::make_unique<HeapSingleStateIterator<K, VoidNamespace, int>>(
-                            table,
-                            kvStateId,
-                            preparedData.keyGroupPrefixBytes));
-                } else if (dataId == BackendDataType::BIGINT_BK) {
-                    auto *table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, int64_t> *>(stateTablePtr);
-                    preparedData.metaInfoSnapshots.push_back(table->getMetaInfo()->snapshot());
-                    preparedData.stateIterators.push_back(
-                        std::make_unique<HeapSingleStateIterator<K, VoidNamespace, int64_t>>(
-                            table,
-                            kvStateId,
-                            preparedData.keyGroupPrefixBytes));
-                } else if (dataId == BackendDataType::ROW_BK) {
-                    auto *table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, RowData *> *>(stateTablePtr);
-                    preparedData.metaInfoSnapshots.push_back(table->getMetaInfo()->snapshot());
-                    preparedData.stateIterators.push_back(
-                        std::make_unique<HeapSingleStateIterator<K, VoidNamespace, RowData *>>(
-                            table,
-                            kvStateId,
-                            preparedData.keyGroupPrefixBytes));
+                    auto dataId = desc->getBackendId();
+                    if (nsBackendId == BackendDataType::BIGINT_BK && dataId == BackendDataType::ROW_BK) {
+                        auto *table = reinterpret_cast<CopyOnWriteStateTable<K, int64_t, RowData *> *>(stateTablePtr);
+                        preparedData.metaInfoSnapshots.push_back(table->getMetaInfo()->snapshot());
+                        preparedData.stateIterators.push_back(
+                            std::make_unique<HeapSingleStateIterator<K, int64_t, RowData *>>(
+                                table,
+                                kvStateId,
+                                preparedData.keyGroupPrefixBytes));
+                    } else if (nsBackendId == BackendDataType::TIME_WINDOW_BK && dataId == BackendDataType::ROW_BK) {
+                        auto *table = reinterpret_cast<CopyOnWriteStateTable<K, TimeWindow, RowData *> *>(stateTablePtr);
+                        preparedData.metaInfoSnapshots.push_back(table->getMetaInfo()->snapshot());
+                        preparedData.stateIterators.push_back(
+                            std::make_unique<HeapSingleStateIterator<K, TimeWindow, RowData *>>(
+                                table,
+                                kvStateId,
+                                preparedData.keyGroupPrefixBytes));
+                    } else if (dataId == BackendDataType::OBJECT_BK || dataId == BackendDataType::POJO_BK
+                            || dataId == BackendDataType::TUPLE_OBJ_OBJ_BK) {
+                        auto *table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, Object *> *>(stateTablePtr);
+                        preparedData.metaInfoSnapshots.push_back(table->getMetaInfo()->snapshot());
+                        preparedData.stateIterators.push_back(
+                            std::make_unique<HeapSingleStateIterator<K, VoidNamespace, Object *>>(
+                                table,
+                                kvStateId,
+                                preparedData.keyGroupPrefixBytes));
+                    } else if (dataId == BackendDataType::INT_BK) {
+                        auto *table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, int> *>(stateTablePtr);
+                        preparedData.metaInfoSnapshots.push_back(table->getMetaInfo()->snapshot());
+                        preparedData.stateIterators.push_back(
+                            std::make_unique<HeapSingleStateIterator<K, VoidNamespace, int>>(
+                                table,
+                                kvStateId,
+                                preparedData.keyGroupPrefixBytes));
+                    } else if (dataId == BackendDataType::BIGINT_BK) {
+                        auto *table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, int64_t> *>(stateTablePtr);
+                        preparedData.metaInfoSnapshots.push_back(table->getMetaInfo()->snapshot());
+                        preparedData.stateIterators.push_back(
+                            std::make_unique<HeapSingleStateIterator<K, VoidNamespace, int64_t>>(
+                                table,
+                                kvStateId,
+                                preparedData.keyGroupPrefixBytes));
+                    } else if (dataId == BackendDataType::ROW_BK) {
+                        auto *table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, RowData *> *>(stateTablePtr);
+                        preparedData.metaInfoSnapshots.push_back(table->getMetaInfo()->snapshot());
+                        preparedData.stateIterators.push_back(
+                            std::make_unique<HeapSingleStateIterator<K, VoidNamespace, RowData *>>(
+                                table,
+                                kvStateId,
+                                preparedData.keyGroupPrefixBytes));
+                    } else {
+                        INFO_RELEASE("Error:HeapSnapshotResourceFactory: unsupported VALUE type " << dataId
+                            << " for snapshot, skipping state=" << desc->getName());
+                    }
+                } else if (desc->getType() == StateDescriptor::Type::LIST) {
+                    auto dataId = desc->getBackendId();
+                    if (nsBackendId == BackendDataType::BIGINT_BK && dataId == BackendDataType::BIGINT_BK) {
+                        auto *table = reinterpret_cast<CopyOnWriteStateTable<K, int64_t, std::vector<int64_t> *> *>(stateTablePtr);
+                        preparedData.metaInfoSnapshots.push_back(table->getMetaInfo()->snapshot());
+                        preparedData.stateIterators.push_back(
+                            std::make_unique<HeapSingleStateIterator<K, int64_t, std::vector<int64_t> *>>(
+                                table,
+                                kvStateId,
+                                preparedData.keyGroupPrefixBytes));
+                    } else if (dataId == BackendDataType::BIGINT_BK) {
+                        auto *table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, std::vector<int64_t> *> *>(stateTablePtr);
+                        preparedData.metaInfoSnapshots.push_back(table->getMetaInfo()->snapshot());
+                        preparedData.stateIterators.push_back(
+                            std::make_unique<HeapSingleStateIterator<K, VoidNamespace, std::vector<int64_t> *>>(
+                                table,
+                                kvStateId,
+                                preparedData.keyGroupPrefixBytes));
+                    } else {
+                        INFO_RELEASE("Error:HeapSnapshotResourceFactory: unsupported LIST type " << dataId
+                            << " for snapshot, skipping state=" << desc->getName());
+                    }
+                } else if (desc->getType() == StateDescriptor::Type::MAP) {
+                    auto keyId = desc->getKeyDataId();
+                    auto valueId = desc->getValueDataId();
+                    if (keyId == BackendDataType::INT_BK && valueId == BackendDataType::INT_BK) {
+                        using S = emhash7::HashMap<int, int> *;
+                        auto *table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, S> *>(stateTablePtr);
+                        preparedData.metaInfoSnapshots.push_back(table->getMetaInfo()->snapshot());
+                        preparedData.stateIterators.push_back(
+                            std::make_unique<HeapSingleStateIterator<K, VoidNamespace, S>>(
+                                table,
+                                kvStateId,
+                                preparedData.keyGroupPrefixBytes));
+                    } else if (keyId == BackendDataType::BIGINT_BK && valueId == BackendDataType::BIGINT_BK) {
+                        using S = emhash7::HashMap<int64_t, int64_t> *;
+                        auto *table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, S> *>(stateTablePtr);
+                        preparedData.metaInfoSnapshots.push_back(table->getMetaInfo()->snapshot());
+                        preparedData.stateIterators.push_back(
+                            std::make_unique<HeapSingleStateIterator<K, VoidNamespace, S>>(
+                                table,
+                                kvStateId,
+                                preparedData.keyGroupPrefixBytes));
+                    } else if (keyId == BackendDataType::VARCHAR_BK && valueId == BackendDataType::INT_BK) {
+                        using S = emhash7::HashMap<std::string, int> *;
+                        auto *table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, S> *>(stateTablePtr);
+                        preparedData.metaInfoSnapshots.push_back(table->getMetaInfo()->snapshot());
+                        preparedData.stateIterators.push_back(
+                            std::make_unique<HeapSingleStateIterator<K, VoidNamespace, S>>(
+                                table,
+                                kvStateId,
+                                preparedData.keyGroupPrefixBytes));
+                    } else if (keyId == BackendDataType::ROW_BK && valueId == BackendDataType::INT_BK) {
+                        using S = emhash7::HashMap<RowData *, int32_t> *;
+                        auto *table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, S> *>(stateTablePtr);
+                        preparedData.metaInfoSnapshots.push_back(table->getMetaInfo()->snapshot());
+                        preparedData.stateIterators.push_back(
+                            std::make_unique<HeapSingleStateIterator<K, VoidNamespace, S>>(
+                                table,
+                                kvStateId,
+                                preparedData.keyGroupPrefixBytes));
+                    } else if (keyId == BackendDataType::ROW_BK && valueId == BackendDataType::ROW_BK) {
+                        using S = emhash7::HashMap<RowData *, RowData *> *;
+                        auto *table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, S> *>(stateTablePtr);
+                        preparedData.metaInfoSnapshots.push_back(table->getMetaInfo()->snapshot());
+                        preparedData.stateIterators.push_back(
+                            std::make_unique<HeapSingleStateIterator<K, VoidNamespace, S>>(
+                                table,
+                                kvStateId,
+                                preparedData.keyGroupPrefixBytes));
+                    } else if (keyId == BackendDataType::XXHASH128_BK && valueId == BackendDataType::TUPLE_INT32_INT64) {
+                        using S = emhash7::HashMap<XXH128_hash_t, std::tuple<int32_t, int64_t>> *;
+                        auto *table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, S> *>(stateTablePtr);
+                        preparedData.metaInfoSnapshots.push_back(table->getMetaInfo()->snapshot());
+                        preparedData.stateIterators.push_back(
+                            std::make_unique<HeapSingleStateIterator<K, VoidNamespace, S>>(
+                                table,
+                                kvStateId,
+                                preparedData.keyGroupPrefixBytes));
+                    } else if (keyId == BackendDataType::XXHASH128_BK && valueId == BackendDataType::TUPLE_INT32_INT32_INT64) {
+                        using S = emhash7::HashMap<XXH128_hash_t, std::tuple<int32_t, int32_t, int64_t>> *;
+                        auto *table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, S> *>(stateTablePtr);
+                        preparedData.metaInfoSnapshots.push_back(table->getMetaInfo()->snapshot());
+                        preparedData.stateIterators.push_back(
+                            std::make_unique<HeapSingleStateIterator<K, VoidNamespace, S>>(
+                                table,
+                                kvStateId,
+                                preparedData.keyGroupPrefixBytes));
+                    } else if (keyId == BackendDataType::TIME_WINDOW_BK && valueId == BackendDataType::TIME_WINDOW_BK) {
+                        using S = emhash7::HashMap<TimeWindow, TimeWindow> *;
+                        auto *table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, S> *>(stateTablePtr);
+                        preparedData.metaInfoSnapshots.push_back(table->getMetaInfo()->snapshot());
+                        preparedData.stateIterators.push_back(
+                            std::make_unique<HeapSingleStateIterator<K, VoidNamespace, S>>(
+                                table,
+                                kvStateId,
+                                preparedData.keyGroupPrefixBytes));
+                    } else if (keyId == BackendDataType::ROW_BK && valueId == BackendDataType::ROW_LIST_BK) {
+                        using S = emhash7::HashMap<RowData *, std::vector<RowData *> *> *;
+                        auto *table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, S> *>(stateTablePtr);
+                        preparedData.metaInfoSnapshots.push_back(table->getMetaInfo()->snapshot());
+                        preparedData.stateIterators.push_back(
+                            std::make_unique<HeapSingleStateIterator<K, VoidNamespace, S>>(
+                                table,
+                                kvStateId,
+                                preparedData.keyGroupPrefixBytes));
+                    } else if ((keyId == BackendDataType::OBJECT_BK || keyId == BackendDataType::POJO_BK) &&
+                            (valueId == BackendDataType::OBJECT_BK || valueId == BackendDataType::POJO_BK)) {
+                        using S = emhash7::HashMap<Object *, Object *> *;
+                        auto *table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, S> *>(stateTablePtr);
+                        preparedData.metaInfoSnapshots.push_back(table->getMetaInfo()->snapshot());
+                        preparedData.stateIterators.push_back(
+                            std::make_unique<HeapSingleStateIterator<K, VoidNamespace, S>>(
+                                table,
+                                kvStateId,
+                                preparedData.keyGroupPrefixBytes));
+                    } else {
+                        INFO_RELEASE("Error:HeapSnapshotResourceFactory: unsupported MAP type key=" << keyId
+                            << " value=" << valueId << " for snapshot, skipping state=" << desc->getName());
+                    }
                 } else {
-                    INFO_RELEASE("HeapSnapshotResourceFactory: unsupported VALUE type " << dataId
-                        << " for snapshot, skipping state=" << desc->getName());
+                    INFO_RELEASE("Error:HeapSnapshotResourceFactory: unsupported state type for snapshot, skipping state="
+                        << desc->getName());
                 }
-            } else if (desc->getType() == StateDescriptor::Type::LIST) {
-                auto dataId = desc->getBackendId();
-                if (nsBackendId == BackendDataType::BIGINT_BK && dataId == BackendDataType::BIGINT_BK) {
-                    auto *table = reinterpret_cast<CopyOnWriteStateTable<K, int64_t, std::vector<int64_t> *> *>(stateTablePtr);
-                    preparedData.metaInfoSnapshots.push_back(table->getMetaInfo()->snapshot());
-                    preparedData.stateIterators.push_back(
-                        std::make_unique<HeapSingleStateIterator<K, int64_t, std::vector<int64_t> *>>(
-                            table,
-                            kvStateId,
-                            preparedData.keyGroupPrefixBytes));
-                } else if (dataId == BackendDataType::BIGINT_BK) {
-                    auto *table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, std::vector<int64_t> *> *>(stateTablePtr);
-                    preparedData.metaInfoSnapshots.push_back(table->getMetaInfo()->snapshot());
-                    preparedData.stateIterators.push_back(
-                        std::make_unique<HeapSingleStateIterator<K, VoidNamespace, std::vector<int64_t> *>>(
-                            table,
-                            kvStateId,
-                            preparedData.keyGroupPrefixBytes));
-                } else {
-                    INFO_RELEASE("HeapSnapshotResourceFactory: unsupported LIST type " << dataId
-                        << " for snapshot, skipping state=" << desc->getName());
-                }
-            } else if (desc->getType() == StateDescriptor::Type::MAP) {
-                auto keyId = desc->getKeyDataId();
-                auto valueId = desc->getValueDataId();
-                if (keyId == BackendDataType::INT_BK && valueId == BackendDataType::INT_BK) {
-                    using S = emhash7::HashMap<int, int> *;
-                    auto *table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, S> *>(stateTablePtr);
-                    preparedData.metaInfoSnapshots.push_back(table->getMetaInfo()->snapshot());
-                    preparedData.stateIterators.push_back(
-                        std::make_unique<HeapSingleStateIterator<K, VoidNamespace, S>>(
-                            table,
-                            kvStateId,
-                            preparedData.keyGroupPrefixBytes));
-                } else if (keyId == BackendDataType::BIGINT_BK && valueId == BackendDataType::BIGINT_BK) {
-                    using S = emhash7::HashMap<int64_t, int64_t> *;
-                    auto *table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, S> *>(stateTablePtr);
-                    preparedData.metaInfoSnapshots.push_back(table->getMetaInfo()->snapshot());
-                    preparedData.stateIterators.push_back(
-                        std::make_unique<HeapSingleStateIterator<K, VoidNamespace, S>>(
-                            table,
-                            kvStateId,
-                            preparedData.keyGroupPrefixBytes));
-                } else if (keyId == BackendDataType::VARCHAR_BK && valueId == BackendDataType::INT_BK) {
-                    using S = emhash7::HashMap<std::string, int> *;
-                    auto *table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, S> *>(stateTablePtr);
-                    preparedData.metaInfoSnapshots.push_back(table->getMetaInfo()->snapshot());
-                    preparedData.stateIterators.push_back(
-                        std::make_unique<HeapSingleStateIterator<K, VoidNamespace, S>>(
-                            table,
-                            kvStateId,
-                            preparedData.keyGroupPrefixBytes));
-                } else if (keyId == BackendDataType::ROW_BK && valueId == BackendDataType::INT_BK) {
-                    using S = emhash7::HashMap<RowData *, int32_t> *;
-                    auto *table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, S> *>(stateTablePtr);
-                    preparedData.metaInfoSnapshots.push_back(table->getMetaInfo()->snapshot());
-                    preparedData.stateIterators.push_back(
-                        std::make_unique<HeapSingleStateIterator<K, VoidNamespace, S>>(
-                            table,
-                            kvStateId,
-                            preparedData.keyGroupPrefixBytes));
-                } else if (keyId == BackendDataType::ROW_BK && valueId == BackendDataType::ROW_BK) {
-                    using S = emhash7::HashMap<RowData *, RowData *> *;
-                    auto *table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, S> *>(stateTablePtr);
-                    preparedData.metaInfoSnapshots.push_back(table->getMetaInfo()->snapshot());
-                    preparedData.stateIterators.push_back(
-                        std::make_unique<HeapSingleStateIterator<K, VoidNamespace, S>>(
-                            table,
-                            kvStateId,
-                            preparedData.keyGroupPrefixBytes));
-                } else if (keyId == BackendDataType::XXHASH128_BK && valueId == BackendDataType::TUPLE_INT32_INT64) {
-                    using S = emhash7::HashMap<XXH128_hash_t, std::tuple<int32_t, int64_t>> *;
-                    auto *table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, S> *>(stateTablePtr);
-                    preparedData.metaInfoSnapshots.push_back(table->getMetaInfo()->snapshot());
-                    preparedData.stateIterators.push_back(
-                        std::make_unique<HeapSingleStateIterator<K, VoidNamespace, S>>(
-                            table,
-                            kvStateId,
-                            preparedData.keyGroupPrefixBytes));
-                } else if (keyId == BackendDataType::XXHASH128_BK && valueId == BackendDataType::TUPLE_INT32_INT32_INT64) {
-                    using S = emhash7::HashMap<XXH128_hash_t, std::tuple<int32_t, int32_t, int64_t>> *;
-                    auto *table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, S> *>(stateTablePtr);
-                    preparedData.metaInfoSnapshots.push_back(table->getMetaInfo()->snapshot());
-                    preparedData.stateIterators.push_back(
-                        std::make_unique<HeapSingleStateIterator<K, VoidNamespace, S>>(
-                            table,
-                            kvStateId,
-                            preparedData.keyGroupPrefixBytes));
-                } else if (keyId == BackendDataType::TIME_WINDOW_BK && valueId == BackendDataType::TIME_WINDOW_BK) {
-                    using S = emhash7::HashMap<TimeWindow, TimeWindow> *;
-                    auto *table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, S> *>(stateTablePtr);
-                    preparedData.metaInfoSnapshots.push_back(table->getMetaInfo()->snapshot());
-                    preparedData.stateIterators.push_back(
-                        std::make_unique<HeapSingleStateIterator<K, VoidNamespace, S>>(
-                            table,
-                            kvStateId,
-                            preparedData.keyGroupPrefixBytes));
-                } else if (keyId == BackendDataType::ROW_BK && valueId == BackendDataType::ROW_LIST_BK) {
-                    using S = emhash7::HashMap<RowData *, std::vector<RowData *> *> *;
-                    auto *table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, S> *>(stateTablePtr);
-                    preparedData.metaInfoSnapshots.push_back(table->getMetaInfo()->snapshot());
-                    preparedData.stateIterators.push_back(
-                        std::make_unique<HeapSingleStateIterator<K, VoidNamespace, S>>(
-                            table,
-                            kvStateId,
-                            preparedData.keyGroupPrefixBytes));
-                } else if ((keyId == BackendDataType::OBJECT_BK || keyId == BackendDataType::POJO_BK) &&
-                           (valueId == BackendDataType::OBJECT_BK || valueId == BackendDataType::POJO_BK)) {
-                    using S = emhash7::HashMap<Object *, Object *> *;
-                    auto *table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, S> *>(stateTablePtr);
-                    preparedData.metaInfoSnapshots.push_back(table->getMetaInfo()->snapshot());
-                    preparedData.stateIterators.push_back(
-                        std::make_unique<HeapSingleStateIterator<K, VoidNamespace, S>>(
-                            table,
-                            kvStateId,
-                            preparedData.keyGroupPrefixBytes));
-                } else {
-                    INFO_RELEASE("HeapSnapshotResourceFactory: unsupported MAP type key=" << keyId
-                        << " value=" << valueId << " for snapshot, skipping state=" << desc->getName());
-                }
-            } else {
-                INFO_RELEASE("HeapSnapshotResourceFactory: unsupported state type for snapshot, skipping state="
-                    << desc->getName());
-            }
-                INFO_RELEASE("HeapSnapshotResourceFactory: checkpointId=" << checkpointId
-                    << ", prepared stateName=" << desc->getName()
-                    << ", kvStateId=" << kvStateId
-                    << ", accumulatedMetaInfoCount=" << preparedData.metaInfoSnapshots.size()
-                    << ", accumulatedIteratorCount=" << preparedData.stateIterators.size());
             } catch (const std::exception &e) {
-                INFO_RELEASE("HeapSnapshotResourceFactory: checkpointId=" << checkpointId
+                INFO_RELEASE("Error:HeapSnapshotResourceFactory: checkpointId=" << checkpointId
                     << ", failed while preparing stateName=" << desc->getName()
                     << ", kvStateId=" << kvStateId
                     << ", exception=" << e.what());
                 throw;
             } catch (...) {
-                INFO_RELEASE("HeapSnapshotResourceFactory: checkpointId=" << checkpointId
+                INFO_RELEASE("Error:HeapSnapshotResourceFactory: checkpointId=" << checkpointId
                     << ", failed while preparing stateName=" << desc->getName()
                     << ", kvStateId=" << kvStateId
                     << ", exception=unknown");

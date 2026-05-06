@@ -54,7 +54,7 @@ void AsyncCheckpointRunnable::Run()
         finishedFuture.Complete();
     }
     catch (std::exception& e) {
-        INFO_RELEASE("AsyncCheckpointRunnable cp="
+        INFO_RELEASE("Error:AsyncCheckpointRunnable cp="
             << checkpointMetaData.GetCheckpointId()
             << " task=" << taskName << " async error: " << e.what());
         std::this_thread::sleep_for(100ms);
@@ -170,7 +170,7 @@ void AsyncCheckpointRunnable::HandleExecutionException(std::__exception_ptr::exc
                 } catch (...) {
                     reasonMsg = "unknown non-std exception";
                 }
-                INFO_RELEASE("AsyncCheckpointRunnable cp="
+                INFO_RELEASE("Error:AsyncCheckpointRunnable cp="
                     << checkpointMetaData.GetCheckpointId()
                     << " task=" << taskName
                     << " declining after async failure: " << reasonMsg);
@@ -178,18 +178,18 @@ void AsyncCheckpointRunnable::HandleExecutionException(std::__exception_ptr::exc
                     dynamic_cast<omnistream::RuntimeEnvironmentV2*>(taskEnvironment.get());
                 if (runtimeEnv != nullptr && runtimeEnv->omniTask() != nullptr) {
                     std::runtime_error wrapped(
-                        std::string("AsyncCheckpointRunnable failed: ") + reasonMsg);
+                        std::string("Error:AsyncCheckpointRunnable failed: ") + reasonMsg);
                     runtimeEnv->omniTask()->declineCheckpoint(
                         checkpointMetaData.GetCheckpointId(),
                         CheckpointFailureReason::CHECKPOINT_DECLINED,
                         &wrapped);
                 } else {
-                    INFO_RELEASE("AsyncCheckpointRunnable cp="
+                    INFO_RELEASE("Error:AsyncCheckpointRunnable cp="
                         << checkpointMetaData.GetCheckpointId()
                         << " could not decline: env is not RuntimeEnvironmentV2 or omniTask null");
                 }
             } else {
-                INFO_RELEASE("AsyncCheckpointRunnable cp="
+                INFO_RELEASE("Error:AsyncCheckpointRunnable cp="
                     << checkpointMetaData.GetCheckpointId()
                     << " ignored decline: task is not running anymore");
             }

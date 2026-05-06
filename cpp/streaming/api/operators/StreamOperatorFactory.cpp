@@ -627,11 +627,8 @@ StreamOperator *StreamOperatorFactory::CreateReduceOp(omnistream::OperatorPOD &o
         TypeSerializer *valueSerializer = nullptr;
         try {
             const auto &inputs = opConfig.getInputs();
-            INFO_RELEASE("CreateReduceOp: opConfig has " << inputs.size() << " input(s)");
             if (!inputs.empty()) {
                 const auto &inputType = inputs[0];
-                INFO_RELEASE("CreateReduceOp: inputs[0].kind=" << inputType.kind
-                    << ", type=" << inputType.type);
                 TypeInformation *typeInfo = nullptr;
                 if (inputType.kind == "basic") {
                     typeInfo = TypeInfoFactory::createTypeInfo(inputType.type.c_str());
@@ -639,22 +636,22 @@ StreamOperator *StreamOperatorFactory::CreateReduceOp(omnistream::OperatorPOD &o
                     auto fieldType = nlohmann::json::parse(inputType.type);
                     typeInfo = TypeInfoFactory::createTupleTypeInfo(fieldType);
                 } else {
-                    INFO_RELEASE("CreateReduceOp: unsupported input kind '" << inputType.kind
+                    INFO_RELEASE("Error:CreateReduceOp: unsupported input kind '" << inputType.kind
                         << "', falling back to ObjectSerializer");
                 }
                 if (typeInfo != nullptr) {
                     valueSerializer = typeInfo->getTypeSerializer();
                     delete typeInfo;
-                    INFO_RELEASE("CreateReduceOp: built valueSerializer="
+                    INFO_RELEASE("Error:CreateReduceOp: built valueSerializer="
                         << (valueSerializer ? valueSerializer->getName() : "null"));
                 }
             }
         } catch (const std::exception &e) {
-            INFO_RELEASE("CreateReduceOp: exception while building valueSerializer: " << e.what()
+            INFO_RELEASE("Error:CreateReduceOp: exception while building valueSerializer: " << e.what()
                 << ", falling back to ObjectSerializer");
             valueSerializer = nullptr;
         } catch (...) {
-            INFO_RELEASE("CreateReduceOp: unknown exception while building valueSerializer, falling back");
+            INFO_RELEASE("Error:CreateReduceOp: unknown exception while building valueSerializer, falling back");
             valueSerializer = nullptr;
         }
         auto *op = new datastream::StreamGroupedReduceOperator<Object>(chainOutput, opDescriptionJSON, true,

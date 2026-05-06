@@ -290,7 +290,7 @@ public:
     void put(const N &nameSpace, const UK &userKey, const UV &state)
     {
         // 存入
-        LOG("RocksDB put111")
+        LOG("RocksDB put")
         // outputSerializer free need after Put called
         DataOutputSerializer outputSerializer;
         OutputBufferStatus outputBufferStatus;

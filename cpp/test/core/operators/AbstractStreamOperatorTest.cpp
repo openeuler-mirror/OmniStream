@@ -8,6 +8,7 @@
 #include "core/api/common/TaskInfoImpl.h"
 #include "runtime/state/VoidNamespace.h"
 #include "table/data/binary/BinaryRowData.h"
+#include "runtime/state/TaskStateManager.h"
 
 #include <gtest/gtest.h>
 
@@ -18,7 +19,15 @@ TEST(AbstractStreamOperatorTest, InitTest)
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
     taskInfo->setStateBackend("HashMapStateBackend");
+    {
+        auto configPOD = taskInfo->getStreamConfigPOD();
+        auto operatorDesc = configPOD.getOperatorDescription();
+        operatorDesc.setOperatorId("deadbeefdeadbeefdeadbeefdeadbeef");
+        configPOD.setOperatorDescription(operatorDesc);
+        taskInfo->setStreamConfigPOD(configPOD);
+    }
     env2->setTaskConfiguration(*taskInfo);
+    env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     ASSERT_NO_THROW((op->setOutput(new OutputTest())));
     ASSERT_NO_THROW((op->open()));
     ASSERT_NO_THROW((op->initializeState(new StreamTaskStateInitializerImpl(env2), new IntSerializer())));
@@ -33,7 +42,15 @@ TEST(AbstractStreamOperatorTest, setAndGetCurrentKey)
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
     taskInfo->setStateBackend("HashMapStateBackend");
+    {
+        auto configPOD = taskInfo->getStreamConfigPOD();
+        auto operatorDesc = configPOD.getOperatorDescription();
+        operatorDesc.setOperatorId("deadbeefdeadbeefdeadbeefdeadbeef");
+        configPOD.setOperatorDescription(operatorDesc);
+        taskInfo->setStreamConfigPOD(configPOD);
+    }
     env2->setTaskConfiguration(*taskInfo);
+    env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     op->initializeState(new StreamTaskStateInitializerImpl(env2), new IntSerializer());
 
     BinaryRowData *row = BinaryRowData::createBinaryRowDataWithMem(2);
@@ -55,7 +72,15 @@ TEST(AbstractStreamOperatorTest, compositeKeys)
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
     taskInfo->setStateBackend("HashMapStateBackend");
+    {
+        auto configPOD = taskInfo->getStreamConfigPOD();
+        auto operatorDesc = configPOD.getOperatorDescription();
+        operatorDesc.setOperatorId("deadbeefdeadbeefdeadbeefdeadbeef");
+        configPOD.setOperatorDescription(operatorDesc);
+        taskInfo->setStreamConfigPOD(configPOD);
+    }
     env2->setTaskConfiguration(*taskInfo);
+    env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     op->initializeState(new StreamTaskStateInitializerImpl(env2), new IntSerializer());
 
     BinaryRowData *row = BinaryRowData::createBinaryRowDataWithMem(2);

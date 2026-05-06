@@ -133,7 +133,6 @@ namespace omnistream {
 
     void CheckpointBarrierHandler::AddProcessedBytes(int bytes)
     {
-//      INFO_RELEASE("Add processed bytes: " << bytes);
         if (IsDuringAlignment()) {
             bytesProcessedDuringAlignment += bytes;
         }

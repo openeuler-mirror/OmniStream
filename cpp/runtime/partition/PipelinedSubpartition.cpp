@@ -12,8 +12,6 @@
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
-#include <atomic>
-#include <atomic>
 
 #include "io/network/api/serialization/EventSerializer.h"
 #include "PipelinedSubpartition.h"
@@ -417,11 +415,7 @@ int PipelinedSubpartition::add(std::shared_ptr<BufferConsumer> bufferConsumer, i
             return -1;
         }
 
-        static std::atomic<uint64_t> addLogCounter{0};
-        uint64_t c = ++addLogCounter;
-        if ((c % 10000) == 0) {
-            INFO_RELEASE("PipelinedSubpartition::add hot path, task=" << parent->getOwningTaskName() << ", queuedBuffers=" << buffers.size() << ", buffersInBacklog=" << buffersInBacklog);
-        }
+        INFO_RELEASE("before add buffer ")
         if (addBuffer(bufferConsumer, partialRecordLength)) {
             prioritySequenceNumber = sequenceNumber;
         }

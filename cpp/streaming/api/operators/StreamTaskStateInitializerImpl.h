@@ -203,19 +203,11 @@ AbstractKeyedStateBackend<K> *StreamTaskStateInitializerImpl::keyedStatedBackend
         // 诊断：把 handleVector 的层级数量、每层 handle 数（含 null 与非 null）、最终筛出的 stateHandles 数量都打出来。
         // OS-CP→OS-restore 看不到 "restoring from N state handle(s)" 时，最可能就是这里 handleVector 是空，
         // 或所有 collection 里全是 null —— 据此能判断丢点在 JM→TM 还是 TM-Java→TM-C++。
-        INFO_RELEASE("[OS-CP-restore] operatorId=" << operatorIdStr
-            << " handleVector.size=" << handleVector.size());
-        size_t altIdx = 0;
         for (const auto& collection : handleVector) {
             int nonNullCount = 0;
             for (const auto& handle : collection) {
                 if (handle) nonNullCount++;
             }
-            INFO_RELEASE("[OS-CP-restore] operatorId=" << operatorIdStr
-                << " alternative=" << altIdx
-                << " collection.size=" << collection.Size()
-                << " nonNullHandles=" << nonNullCount);
-            altIdx++;
         }
         if (!handleVector.empty()) {
             // Use the first (highest priority) alternative
@@ -231,7 +223,6 @@ AbstractKeyedStateBackend<K> *StreamTaskStateInitializerImpl::keyedStatedBackend
                 }
             }
             if (!stateHandles.empty()) {
-                INFO_RELEASE("HashMapStateBackend: restoring from " << stateHandles.size() << " state handle(s)");
                 builder.setStateHandles(stateHandles);
             } else {
                 INFO_RELEASE("[OS-CP-restore] operatorId=" << operatorIdStr

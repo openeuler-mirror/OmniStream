@@ -275,7 +275,7 @@ namespace omnistream::runtime {
         bool isTaskFinished,
         std::shared_ptr<omnistream::Supplier<bool>> isRunning)
     {
-        INFO_RELEASE(">>>>>>> isTaskFinished? " << isTaskFinished)
+        LOG_DEBUG(">>>>>>> isTaskFinished? " << isTaskFinished)
         if (!options || !metrics) {
             THROW_LOGIC_EXCEPTION("CheckpointOptions or CheckpointMetricsBuilder is null");
         }

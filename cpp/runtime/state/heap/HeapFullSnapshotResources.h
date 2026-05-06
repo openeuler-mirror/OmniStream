@@ -48,10 +48,6 @@ public:
           keySerializer_(keySerializer),
           keyGroupPrefixBytes_(keyGroupPrefixBytes)
     {
-        INFO_RELEASE("HeapFullSnapshotResources created with "
-            << stateMetaInfoSnapshots_.size() << " state(s), keyGroupRange ["
-            << keyGroupRange_->getStartKeyGroup() << ", "
-            << keyGroupRange_->getEndKeyGroup() << "]");
     }
 
     ~HeapFullSnapshotResources() override = default;
@@ -89,9 +85,6 @@ public:
         }
         stateIterators_.clear();
 
-        INFO_RELEASE("HeapFullSnapshotResources: createKVStateIterator from frozen iterators, iteratorCount="
-            << heapIterators.size());
-
         return std::make_shared<RocksStatesPerKeyGroupMergeIterator>(
             std::move(closeableRegistry),
             emptyRocksIterators,
@@ -102,7 +95,6 @@ public:
     void cleanup() override
     {
         stateIterators_.clear();
-        INFO_RELEASE("HeapFullSnapshotResources cleanup done");
     }
 
 private:

@@ -44,15 +44,9 @@ public:
         std::string keySerializer)
     {
         try {
-            INFO_RELEASE("SnapshotStrategyRunner[" << description_
-                << "]: start syncPrepareResources, checkpointId=" << checkpointId);
             auto snapshotResources = snapshotStrategy_->syncPrepareResources(checkpointId);
-            INFO_RELEASE("SnapshotStrategyRunner[" << description_
-                << "] syncPrepareResources finished, checkpointId=" << checkpointId);
             auto asyncSnapshot = snapshotStrategy_->asyncSnapshot(snapshotResources, checkpointId, timestamp, streamFactory,
                                                                   checkpointOptions, keySerializer);
-            INFO_RELEASE("SnapshotStrategyRunner[" << description_
-                << "]: asyncSnapshot supplier created, checkpointId=" << checkpointId);
             auto task = std::make_shared<std::packaged_task<std::shared_ptr<SnapshotResult<KeyedStateHandle>>()>>(
                 [=]() {
                     return asyncSnapshot->get(bridge);
@@ -66,12 +60,12 @@ public:
             }
             return task;
         } catch (const std::exception &e) {
-            INFO_RELEASE("SnapshotStrategyRunner[" << description_
+            INFO_RELEASE("Error:SnapshotStrategyRunner[" << description_
                 << "]: snapshot pipeline failed during preparation, checkpointId=" << checkpointId
                 << ", exception=" << e.what());
             throw;
         } catch (...) {
-            INFO_RELEASE("SnapshotStrategyRunner[" << description_
+            INFO_RELEASE("Error:SnapshotStrategyRunner[" << description_
                 << "]: snapshot pipeline failed during preparation, checkpointId=" << checkpointId
                 << ", exception=unknown");
             throw;

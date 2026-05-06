@@ -161,7 +161,7 @@ OmniStreamTask::OmniStreamTask(std::shared_ptr<RuntimeEnvironmentV2> &env,
 
     void OmniStreamTask::restoreInternal()
     {
-        INFO_RELEASE("ZZT Initializing {}." << getName());
+        LOG("Initializing {}." << getName());
 
         this->operatorChain =
              std::make_unique<RegularOperatorChain>(std::weak_ptr<OmniStreamTask>(shared_from_this()), this->recordWriter_);
@@ -182,7 +182,6 @@ OmniStreamTask::OmniStreamTask(std::shared_ptr<RuntimeEnvironmentV2> &env,
         // and inside restoregate does not use mailbox loop.
         // we assume the new inputgate is alreay restore.
         restoreGates();
-        INFO_RELEASE("ZZT Restore finish")
         isRunning = true;
     }
 

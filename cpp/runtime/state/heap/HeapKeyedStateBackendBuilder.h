@@ -211,9 +211,6 @@ HeapKeyedStateBackend<K> *HeapKeyedStateBackendBuilder<K>::build()
 
     // Restore from state handles if available
     if (!restoreStateHandles.empty() && omniTaskBridge) {
-        INFO_RELEASE("HeapKeyedStateBackendBuilder: restoring from "
-            << restoreStateHandles.size() << " state handle(s)");
-
         int keyGroupPrefixBytes =
             CompositeKeySerializationUtils::computeRequiredBytesInKeyGroupPrefix(numberOfKeyGroups);
 
@@ -229,9 +226,6 @@ HeapKeyedStateBackend<K> *HeapKeyedStateBackendBuilder<K>::build()
             auto restoreResult = restoreIterator->next();
             auto &metaInfos = restoreResult->getStateMetaInfoSnapshots();
             auto keyGroupIterator = restoreResult->getKeyGroupIterator();
-
-            INFO_RELEASE("HeapKeyedStateBackendBuilder: restoring "
-                << metaInfos.size() << " state meta info(s)");
 
             // Phase 1: For each StateMetaInfoSnapshot, create state table via createOrUpdateInternalState()
             std::vector<RestoreStateInfo> stateInfos;
@@ -256,11 +250,6 @@ HeapKeyedStateBackend<K> *HeapKeyedStateBackendBuilder<K>::build()
 
                 StateDescriptor *desc = createRestoreDescriptor(metaInfo, stateType, nsSerializer, valSerializer);
 
-                INFO_RELEASE("HeapKeyedStateBackendBuilder: restoring state '" << metaInfo.getName()
-                    << "' type=" << stateTypeStr
-                    << " nsBackendId=" << nsSerializer->getBackendId()
-                    << " valBackendId=" << valSerializer->getBackendId());
-
                 // Create the state table via the existing type dispatch mechanism
                 backend->createOrUpdateInternalState(nsSerializer, desc);
 
@@ -284,7 +273,7 @@ HeapKeyedStateBackend<K> *HeapKeyedStateBackendBuilder<K>::build()
                     int kvStateId = entry->getKvStateId();
 
                     if (kvStateId < 0 || kvStateId >= static_cast<int>(stateInfos.size())) {
-                        INFO_RELEASE("HeapKeyedStateBackendBuilder: invalid kvStateId "
+                        INFO_RELEASE("Error:HeapKeyedStateBackendBuilder: invalid kvStateId "
                             << kvStateId << ", skipping entry");
                         totalSkippedInvalidKvStateId++;
                         continue;
@@ -300,19 +289,12 @@ HeapKeyedStateBackend<K> *HeapKeyedStateBackendBuilder<K>::build()
                                        entry->getKey(), entry->getValue());
                     kgEntryCount++;
                     totalEntriesRestored++;
-                    if (totalEntriesRestored % 10000 == 0) {
-                        INFO_RELEASE("[OS-CP-restore] restored " << totalEntriesRestored << " entries so far");
-                    }
+                    // if (totalEntriesRestored % 10000 == 0) {
+                    //     INFO_RELEASE("[OS-CP-restore] restored " << totalEntriesRestored << " entries so far");
+                    // }
                 }
-                INFO_RELEASE("[OS-CP-restore] keyGroup=" << keyGroupId << " restored entries=" << kgEntryCount);
             }
-            INFO_RELEASE("[OS-CP-restore] phase2 done: keyGroups=" << totalKeyGroups
-                << " totalEntriesRestored=" << totalEntriesRestored
-                << " skippedInvalidKvStateId=" << totalSkippedInvalidKvStateId
-                << " skippedNullStateDesc=" << totalSkippedNullStateDesc);
         }
-
-        INFO_RELEASE("HeapKeyedStateBackendBuilder: restore complete");
     }
 
     return backend;
@@ -369,7 +351,7 @@ void HeapKeyedStateBackendBuilder<K>::restoreEntryToHeap(
     uintptr_t stateTablePtr = backend->getStateTablePtr(desc->getName());
 
     if (stateTablePtr == 0) {
-        INFO_RELEASE("HeapKeyedStateBackendBuilder: state table not found for '"
+        INFO_RELEASE("Error:HeapKeyedStateBackendBuilder: state table not found for '"
             << desc->getName() << "', skipping entry");
         delete static_cast<K *>(rawKey);
         delete static_cast<VoidNamespace *>(rawNs);
@@ -428,7 +410,7 @@ void HeapKeyedStateBackendBuilder<K>::restoreEntryToHeap(
             delete static_cast<K *>(rawKey);
             delete static_cast<VoidNamespace *>(rawNs);
         } else {
-            INFO_RELEASE("HeapKeyedStateBackendBuilder: unsupported VALUE restore type " << dataId);
+            INFO_RELEASE("Error:HeapKeyedStateBackendBuilder: unsupported VALUE restore type " << dataId);
             delete static_cast<K *>(rawKey);
             if (nsBackendId == BackendDataType::VOID_NAMESPACE_BK) {
                 delete static_cast<VoidNamespace *>(rawNs);
@@ -443,7 +425,7 @@ void HeapKeyedStateBackendBuilder<K>::restoreEntryToHeap(
         TypeSerializer *elemSer = listSer ? listSer->getElementSerializer() : nullptr;
 
         if (elemSer == nullptr) {
-            INFO_RELEASE("HeapKeyedStateBackendBuilder: LIST state serializer is not ListSerializer, skipping");
+            INFO_RELEASE("Error:HeapKeyedStateBackendBuilder: LIST state serializer is not ListSerializer, skipping");
             delete static_cast<K *>(rawKey);
             if (nsBackendId == BackendDataType::VOID_NAMESPACE_BK) {
                 delete static_cast<VoidNamespace *>(rawNs);
@@ -464,7 +446,7 @@ void HeapKeyedStateBackendBuilder<K>::restoreEntryToHeap(
             delete static_cast<K *>(rawKey);
             delete static_cast<VoidNamespace *>(rawNs);
         } else {
-            INFO_RELEASE("HeapKeyedStateBackendBuilder: unsupported LIST restore type " << dataId);
+            INFO_RELEASE("Error:HeapKeyedStateBackendBuilder: unsupported LIST restore type " << dataId);
             delete static_cast<K *>(rawKey);
             delete static_cast<VoidNamespace *>(rawNs);
         }
@@ -477,7 +459,7 @@ void HeapKeyedStateBackendBuilder<K>::restoreEntryToHeap(
         // and deserialize the emhash7::HashMap directly using sub-serializers.
         auto *mapSer = dynamic_cast<MapSerializer *>(info.valueSerializer);
         if (!mapSer) {
-            INFO_RELEASE("HeapKeyedStateBackendBuilder: MAP state serializer is not MapSerializer, skipping");
+            INFO_RELEASE("Error:HeapKeyedStateBackendBuilder: MAP state serializer is not MapSerializer, skipping");
             delete static_cast<K *>(rawKey);
             delete static_cast<VoidNamespace *>(rawNs);
             return;
@@ -527,7 +509,7 @@ void HeapKeyedStateBackendBuilder<K>::restoreEntryToHeap(
             auto *table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<RowData *, std::vector<RowData *> *> *> *>(stateTablePtr);
             table->put(*static_cast<K *>(rawKey), keyGroupId, *static_cast<VoidNamespace *>(rawNs), mapVal);
         } else {
-            INFO_RELEASE("HeapKeyedStateBackendBuilder: unsupported MAP restore type key="
+            INFO_RELEASE("Error:HeapKeyedStateBackendBuilder: unsupported MAP restore type key="
                 << mapKeyId << " value=" << mapValId);
         }
 
@@ -535,7 +517,7 @@ void HeapKeyedStateBackendBuilder<K>::restoreEntryToHeap(
         delete static_cast<VoidNamespace *>(rawNs);
 
     } else {
-        INFO_RELEASE("HeapKeyedStateBackendBuilder: unsupported state type for restore, skipping");
+        INFO_RELEASE("Error:HeapKeyedStateBackendBuilder: unsupported state type for restore, skipping");
         delete static_cast<K *>(rawKey);
         delete static_cast<VoidNamespace *>(rawNs);
     }

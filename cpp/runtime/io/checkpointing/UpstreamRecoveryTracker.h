@@ -41,21 +41,16 @@ public:
     void handleEndOfRecovery(const InputChannelInfo& channelInfo) override
     {
         if (numUnrestoredChannels_ > 0) {
-            INFO_RELEASE("handleEndOfRecovery before, channel=" << channelInfo.toString()
-                << ", remaining=" << numUnrestoredChannels_);
             auto result = restoredChannels_.insert(channelInfo);
             if (!result.second) {
                 INFO_RELEASE("Channel already restored:" << channelInfo.toString());
                 throw std::runtime_error("Channel already restored: " + channelInfo.toString());
             }
             --numUnrestoredChannels_;
-            INFO_RELEASE("handleEndOfRecovery after, channel=" << channelInfo.toString()
-                << ", remaining=" << numUnrestoredChannels_);
             if (numUnrestoredChannels_ == 0) {
 //                for (const auto& info : inputGate_->getChannelInfos()) {
 //                    inputGate_->ResumeConsumption(info);
 //                }
-                INFO_RELEASE("allChannelsRecovered=true");
                 restoredChannels_.clear();
             }
         }

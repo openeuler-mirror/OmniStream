@@ -55,10 +55,6 @@ public:
         collectAndSerializeEntries();
         currentIndex_ = 0;
         valid_ = !entries_.empty();
-        INFO_RELEASE("HeapSingleStateIterator: stateName=" << stateTable_->getMetaInfo()->getName()
-            << ", kvStateId=" << kvStateId_
-            << ", entryCount=" << entries_.size()
-            << ", valid=" << valid_);
     }
 
     void next() override
@@ -179,15 +175,13 @@ private:
                                                    keySerializer, namespaceSerializer);
                 entry.serializedValue = serializeValue(raw.value, stateSerializer);
             } catch (const std::exception &e) {
-                INFO_RELEASE("HeapSingleStateIterator: serializeStateMap EXCEPTION at keyGroup="
+                INFO_RELEASE("Error:HeapSingleStateIterator: serializeStateMap EXCEPTION at keyGroup="
                     << keyGroup << ", entryIndex=" << mapEntryCount << ", error=" << e.what());
                 throw;
             }
             entries_.push_back(std::move(entry));
             mapEntryCount++;
         }
-        INFO_RELEASE("HeapSingleStateIterator: serializeStateMap keyGroup=" << keyGroup
-            << ", entries=" << mapEntryCount);
     }
 
     std::vector<int8_t> serializeKey(
@@ -255,7 +249,7 @@ private:
             // Serialize key
             if constexpr (std::is_same_v<UK, Object *>) {
                 if (pair.first == nullptr) {
-                    INFO_RELEASE("serializeEmhashMap: WARNING null Object* key at index=" << idx);
+                    INFO_RELEASE("Error:serializeEmhashMap: WARNING null Object* key at index=" << idx);
                 }
                 keySer->serialize(const_cast<Object *>(pair.first), out);
             } else if constexpr (std::is_pointer_v<UK>) {
