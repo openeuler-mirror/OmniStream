@@ -80,8 +80,9 @@ public:
                 break;
             }
             case (omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE) : {
-                vectorBatch->SetValueAt(colIndex, rowIndex,
-                                        TimestampData::fromLocalTimeString(fieldIt->get<std::string>())->getMillisecond());
+                const TimestampData *timeString = TimestampData::fromLocalTimeString(fieldIt->get<std::string>());
+                vectorBatch->SetValueAt(colIndex, rowIndex,timeString->getMillisecond());
+                delete timeString;
                 break;
             }
             case omniruntime::type::DataTypeId::OMNI_CHAR:
