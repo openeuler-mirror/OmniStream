@@ -4,3 +4,4 @@
 - [安装指南](installation_guide.md)
 - [使用指南](user_guide.md)
 - [常见问题](faq.md)
+- [修订记录](change_history.md)

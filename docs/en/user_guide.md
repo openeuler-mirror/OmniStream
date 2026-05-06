@@ -6,15 +6,15 @@
 
 This section describes the scope, restrictions, and usage rules of SQL operators and expressions \(including data types\) supported by the OmniStream Flink Native feature in Flink versions 1.16.3, 1.17.1, and 1.20.0.
 
-[Table 2](#table158332034445)  and  [Table 3](#table161274333443)  list the operators, expressions, and functions supported by OmniStream. Symbols are used to indicate whether the operators and expressions are supported. For details about the symbols, see  [Table 1](#table86091491368).
+[**Table  2**  Supported operators](#supported_operators)  and  [**Table  3**  Supported expressions](#supported_expressions)  list the operators, expressions, and functions supported by OmniStream. Symbols are used to indicate whether the operators and expressions are supported. For details about the symbols, see  [**Table  1**  Meanings of symbols in the operator and expression support tables](#symbols).
 
 >![](public_sys-resources/icon-notice.gif) **NOTICE:** 
->-   [Table 2](#table158332034445)  and  [Table 3](#table161274333443)  display the data types supported by or involved in OmniStream. The data types that are not displayed in the two tables are not supported by OmniStream.
+>-   [**Table  2**  Supported operators](#supported_operators)  and  [**Table  3**  Supported expressions](#supported_expressions)  display the data types supported by or involved in OmniStream. The data types that are not displayed in the two tables are not supported by OmniStream.
 >-   If you use operators and expressions that are not supported by OmniStream, the execution plan will be rolled back to native execution, which deteriorates the performance.
 >-   When you use the SQL Client interactive user interface to execute SQL statements, you are advised to export the execution result to the data table whose connector is  **blackhole**. For details, see the execution mode of Nexmark Q0.
 >-   Due to memory restrictions, only the Calc and LookupJoin operators are supported by default. To support other operators, set export  **FLINK\_PERFORMANCE**  to  **false**  to enable environment variables.
 
-**Table  1**  Meanings of symbols in the operator and expression support tables
+**Table  1**  Meanings of symbols in the operator and expression support tables<a id="symbols"></a>
 
 |Symbol| Description                                                                                                                                                             |
 |--|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -25,7 +25,7 @@ This section describes the scope, restrictions, and usage rules of SQL operators
 |[Blank Cell]| Indicates a scenario that is irrelevant or needs to be confirmed.                                                                                                       |
 
 
-**Table  2**  Supported operators
+**Table  2**  Supported operators<a id="supported_operators"></a>
 
 |Operator|BIGINT|VARCHAR|TIMESTAMP(3)|
 |--|--|--|--|
@@ -50,7 +50,7 @@ This section describes the scope, restrictions, and usage rules of SQL operators
 |Rank|PS|PS|PS|
 
 
-**Table  3**  Supported expressions
+**Table  3**  Supported expressions<a id="supported_expressions"></a>
 
 |Expression|Function Type|BIGINT|VARCHAR|NULL|TIMESTAMP(3)|
 |--|--|--|--|--|--|
@@ -80,7 +80,7 @@ This section describes the scope of support, restrictions, and performance impac
 
 The supported data transfer objects include Long, String, and Tuple2<String, Long\>.
 
-[Table 1](#table108991738122316)  lists the supported dependency classes and APIs. For other restrictions, contact Huawei technical support. The supported expressions may vary depending on the environment configuration. If you have any questions, contact local Huawei technical support.
+[**Table  1**  Meanings of symbols in the operator and expression support tables](#symbols)  lists the supported dependency classes and APIs. For other restrictions, contact Huawei technical support. The supported expressions may vary depending on the environment configuration. If you have any questions, contact local Huawei technical support.
 
 **Table  1**  Supported expressions
 
