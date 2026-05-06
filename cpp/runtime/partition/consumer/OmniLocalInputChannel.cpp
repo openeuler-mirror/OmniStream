@@ -15,6 +15,7 @@
 
 #include "buffer/NetworkBuffer.h"
 #include "buffer/ReadOnlySlicedNetworkBuffer.h"
+#include "core/include/omni_const.h"
 
 namespace omnistream {
     OmniLocalInputChannel::OmniLocalInputChannel(std::shared_ptr<SingleInputGate> inputGate, int channelIndex,
@@ -36,6 +37,10 @@ namespace omnistream {
                                                             int sequenceNumber,
                                                             int memorySegmentOffset, int bufferType)
     {
+        if(bufferLength > IO_SIZE_512M){
+            INFO_RELEASE("Error: invalid buffer size:" << bufferLength);
+            return;
+        }
         MemorySegment *memorySegment = new MemorySegment(
             reinterpret_cast<uint8_t *>(bufferAddress), bufferLength, this);
         datastream::NetworkBuffer *networkBuffer = new datastream::NetworkBuffer(
@@ -150,6 +155,10 @@ namespace omnistream {
                 auto buffer = readOnlyBuffer->GetNetWorkBuffer();
                 int offset = readOnlyBuffer->GetMemorySegmentOffset();
                 int bufferLength = buffer->GetSize();
+                if(bufferLength > IO_SIZE_512M){
+                    INFO_RELEASE("Error: invalid buffer size:" << bufferLength);
+                    continue;
+                }
                 uint8_t *bufferAddress = (uint8_t *)malloc(bufferLength);
                 MemorySegment* memorySegment = new MemorySegment(bufferAddress, bufferLength);
                 auto oldmemorySegment = dynamic_cast<MemorySegment*>(buffer->GetSegment());

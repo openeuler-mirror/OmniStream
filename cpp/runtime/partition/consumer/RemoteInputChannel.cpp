@@ -14,6 +14,7 @@
 #include "runtime/buffer/NetworkBuffer.h"
 #include "runtime/io/checkpointing/CheckpointBarrierHandler.h"
 #include <buffer/ReadOnlySlicedNetworkBuffer.h>
+#include "core/include/omni_const.h"
 
 namespace omnistream {
     RemoteInputChannel::RemoteInputChannel(std::shared_ptr<SingleInputGate> inputGate, int channelIndex,
@@ -128,6 +129,10 @@ namespace omnistream {
                                                                        originalNetworkBufferRecycler, bool isBuffer,
                                                                        int bufferType)
     {
+        if(bufferLength > IO_SIZE_512M){
+            INFO_RELEASE("Error: invalid buffer size:" << bufferLength);
+            return;
+        }
         LOG("notifyRemoteDataAvailableForDataStream bufferAddress: " << bufferAddress
             << " bufferLength: " << bufferLength << " sequenceNumber: " << sequenceNumber);
         MemorySegment *memorySegment = new MemorySegment(
@@ -237,6 +242,10 @@ namespace omnistream {
                 int offset = readOnlyBuffer->GetMemorySegmentOffset();
                 int bufferLength = buffer->GetSize();
                 uint8_t *bufferAddress = (uint8_t *)malloc(bufferLength);
+                if(bufferLength > IO_SIZE_512M){
+                    INFO_RELEASE("Error: invalid buffer size:" << bufferLength);
+                    continue;
+                }
                 MemorySegment* memorySegment = new MemorySegment(bufferAddress, bufferLength);
                 auto oldmemorySegment = dynamic_cast<MemorySegment*>(buffer->GetSegment());
                 memorySegment->put(0, oldmemorySegment->getData(), offset, bufferLength);
