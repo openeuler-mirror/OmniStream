@@ -174,19 +174,29 @@ AbstractKeyedStateBackend<K> *StreamTaskStateInitializerImpl::keyedStatedBackend
     keyContext->setCurrentKeyGroupIndex(start);
 
     if (backendType == "HashMapStateBackend") {
+        delete keyContext;  // builder creates its own InternalKeyContext
+
+        HeapKeyedStateBackendBuilder<K> builder(keySerializer, maxParallelism, keyGroupRange);
+        auto taskStateManager = env == nullptr ? nullptr : env->getTaskStateManager();
+        if (taskStateManager == nullptr) {
+            INFO_RELEASE("HashMapStateBackend: no TaskStateManager, starting with empty heap state");
+            return builder.build();
+        }
+
+        auto omniTaskBridge = taskStateManager->getOmniTaskBridge();
+        if (omniTaskBridge) {
+            builder.setOmniTaskBridge(omniTaskBridge);
+        }
+        if (!taskStateManager->hasJobManagerTaskRestore()) {
+            INFO_RELEASE("HashMapStateBackend: no JobManagerTaskRestore, starting with empty heap state");
+            return builder.build();
+        }
+
         // Retrieve state handles from checkpoint for restore
         auto operatorIdStr = env->taskConfiguration().getStreamConfigPOD().getOperatorDescription().getOperatorId();
         auto operatorId = TaskStateSnapshotDeserializer::HexStringToOperatorId<OperatorID>(operatorIdStr);
         PrioritizedOperatorSubtaskState prioritizedOperatorSubtaskStates =
-            env->getTaskStateManager()->prioritizedOperatorState(operatorId);
-        auto omniTaskBridge = env->getTaskStateManager()->getOmniTaskBridge();
-
-        delete keyContext;  // builder creates its own InternalKeyContext
-
-        HeapKeyedStateBackendBuilder<K> builder(keySerializer, maxParallelism, keyGroupRange);
-        if (omniTaskBridge) {
-            builder.setOmniTaskBridge(omniTaskBridge);
-        }
+            taskStateManager->prioritizedOperatorState(operatorId);
 
         // Extract keyed state handles for restore
         auto handleVector = prioritizedOperatorSubtaskStates.getPrioritizedManagedKeyedState();
