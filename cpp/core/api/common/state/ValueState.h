@@ -8,8 +8,9 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef FLINK_TNEL_VALUESTATE_H
-#define FLINK_TNEL_VALUESTATE_H
+
+#pragma once
+
 #include "State.h"
 
 /**
@@ -25,5 +26,3 @@ public:
 };
 
 using DataStreamValueState = ValueState<Object*>;
-
-#endif // FLINK_TNEL_VALUESTATE_H
