@@ -11,8 +11,17 @@
 
 #pragma once
 
+#include <nlohmann/json.hpp>
+
 class RocksDBMemoryConfiguration {
 public:
+    RocksDBMemoryConfiguration()
+        : usingManagedMemory(true),
+          writeBufferRatio(0.5),
+          highPriorityPoolRatio(0.1),
+          usingPartitionedIndexFilters(false),
+          usingFixedMemoryPerSlot(false) {}
+
     bool isUsingManagedMemory() const {
         return usingManagedMemory;
     }
@@ -33,7 +42,26 @@ public:
         return usingFixedMemoryPerSlot;
     }
 
-    NLOHMANN_DEFINE_TYPE_INTRUSIVE(RocksDBMemoryConfiguration, usingManagedMemory, writeBufferRatio, highPriorityPoolRatio, usingPartitionedIndexFilters, usingFixedMemoryPerSlot)
+    friend void to_json(nlohmann::json& json, const RocksDBMemoryConfiguration& config)
+    {
+        json = nlohmann::json{
+            {"usingManagedMemory", config.usingManagedMemory},
+            {"writeBufferRatio", config.writeBufferRatio},
+            {"highPriorityPoolRatio", config.highPriorityPoolRatio},
+            {"usingPartitionedIndexFilters", config.usingPartitionedIndexFilters},
+            {"usingFixedMemoryPerSlot", config.usingFixedMemoryPerSlot}
+        };
+    }
+
+    friend void from_json(const nlohmann::json& json, RocksDBMemoryConfiguration& config)
+    {
+        config.usingManagedMemory = json.value("usingManagedMemory", true);
+        config.writeBufferRatio = json.value("writeBufferRatio", 0.5);
+        config.highPriorityPoolRatio = json.value("highPriorityPoolRatio", 0.1);
+        config.usingPartitionedIndexFilters = json.value("usingPartitionedIndexFilters", false);
+        config.usingFixedMemoryPerSlot = json.value("usingFixedMemoryPerSlot", false);
+    }
+
 private:
     bool usingManagedMemory;
     // todo: MemorySize fixedMemoryPerSlot

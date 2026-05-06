@@ -14,6 +14,7 @@
 
 #include <string>
 #include <filesystem>
+#include <cstdint>
 #include <nlohmann/json.hpp>
 #include "StreamConfigPOD.h"
 #include "CheckpointConfigPOD.h"
@@ -25,10 +26,15 @@ namespace omnistream {
 
 class TaskInformationPOD {
 public:
+    static constexpr uint64_t DEFAULT_ROCKSDB_MANAGED_MEMORY_SIZE = 64ULL * 1024ULL * 1024ULL;
+
     TaskInformationPOD()
         : taskName(""), numberOfSubtasks(1), maxNumberOfSubtasks(1), indexOfSubtask(0),
           streamConfig(StreamConfigPOD()), chainedConfig(), stateBackend(""),
-          rocksdbStorePaths(), taskType(1), checkpointConfig(CheckpointConfigPOD()),
+          rocksdbStorePaths(), stateBackendManagedMemoryFraction(0.0),
+          stateBackendManagedMemorySize(DEFAULT_ROCKSDB_MANAGED_MEMORY_SIZE), numberOfTransferThreads(4),
+          rocksDBMemoryConfiguration(), cacheAddr(0), writeBufferManagerAddr(0),
+          taskType(1), checkpointConfig(CheckpointConfigPOD()),
           executionCheckpointConfig(ExecutionCheckpointConfigPOD()), localRecoveryConfig(""),
           tmpWorkingDirectory("/tmp") {}
 
@@ -37,7 +43,12 @@ public:
                        const std::vector<StreamConfigPOD> &chainedConfig_, const int taskType = 1)
         : taskName(taskName), numberOfSubtasks(numberOfSubtasks), maxNumberOfSubtasks(maxNumberOfSubtasks),
           indexOfSubtask(indexOfSubtask), streamConfig(streamConfigPOD), chainedConfig(chainedConfig_),
-          taskType(taskType) {
+          stateBackend(""), rocksdbStorePaths(), stateBackendManagedMemoryFraction(0.0),
+          stateBackendManagedMemorySize(DEFAULT_ROCKSDB_MANAGED_MEMORY_SIZE), numberOfTransferThreads(4),
+          rocksDBMemoryConfiguration(), cacheAddr(0), writeBufferManagerAddr(0),
+          taskType(taskType), checkpointConfig(CheckpointConfigPOD()),
+          executionCheckpointConfig(ExecutionCheckpointConfigPOD()), localRecoveryConfig(""),
+          tmpWorkingDirectory("/tmp") {
     }
 
     TaskInformationPOD(const std::string &taskName, int numberOfSubtasks, int maxNumberOfSubtasks, int indexOfSubtask,
@@ -46,7 +57,12 @@ public:
                        std::vector<std::string> rocksdbStorePaths)
         : taskName(taskName), numberOfSubtasks(numberOfSubtasks), maxNumberOfSubtasks(maxNumberOfSubtasks),
         indexOfSubtask(indexOfSubtask), streamConfig(streamConfigPOD), chainedConfig(chainedConfig_),
-        stateBackend(stateBackend), rocksdbStorePaths(rocksdbStorePaths)
+        stateBackend(stateBackend), rocksdbStorePaths(rocksdbStorePaths),
+        stateBackendManagedMemoryFraction(0.0), stateBackendManagedMemorySize(DEFAULT_ROCKSDB_MANAGED_MEMORY_SIZE),
+        numberOfTransferThreads(4), rocksDBMemoryConfiguration(), cacheAddr(0),
+        writeBufferManagerAddr(0), taskType(1), checkpointConfig(CheckpointConfigPOD()),
+        executionCheckpointConfig(ExecutionCheckpointConfigPOD()), localRecoveryConfig(""),
+        tmpWorkingDirectory("/tmp")
     {}
 
     TaskInformationPOD &operator=(const TaskInformationPOD&) = default;
@@ -237,10 +253,64 @@ public:
         return tmpWorkingDirectory;
     }
 
-    NLOHMANN_DEFINE_TYPE_INTRUSIVE(
-        TaskInformationPOD, taskName, numberOfSubtasks, maxNumberOfSubtasks, indexOfSubtask, stateBackend,
-        rocksdbStorePaths, stateBackendManagedMemoryFraction, stateBackendManagedMemorySize, cacheAddr, writeBufferManagerAddr, numberOfTransferThreads, rocksDBMemoryConfiguration, streamConfig,
-        chainedConfig, taskType, checkpointConfig, executionCheckpointConfig, localRecoveryConfig, tmpWorkingDirectory)
+    friend void to_json(nlohmann::json& json, const TaskInformationPOD& taskInfo)
+    {
+        json = nlohmann::json{
+            {"taskName", taskInfo.taskName},
+            {"numberOfSubtasks", taskInfo.numberOfSubtasks},
+            {"maxNumberOfSubtasks", taskInfo.maxNumberOfSubtasks},
+            {"indexOfSubtask", taskInfo.indexOfSubtask},
+            {"stateBackend", taskInfo.stateBackend},
+            {"rocksdbStorePaths", taskInfo.rocksdbStorePaths},
+            {"stateBackendManagedMemoryFraction", taskInfo.stateBackendManagedMemoryFraction},
+            {"stateBackendManagedMemorySize", taskInfo.stateBackendManagedMemorySize},
+            {"cacheAddr", taskInfo.cacheAddr},
+            {"writeBufferManagerAddr", taskInfo.writeBufferManagerAddr},
+            {"numberOfTransferThreads", taskInfo.numberOfTransferThreads},
+            {"rocksDBMemoryConfiguration", taskInfo.rocksDBMemoryConfiguration},
+            {"streamConfig", taskInfo.streamConfig},
+            {"chainedConfig", taskInfo.chainedConfig},
+            {"taskType", taskInfo.taskType},
+            {"checkpointConfig", taskInfo.checkpointConfig},
+            {"executionCheckpointConfig", taskInfo.executionCheckpointConfig},
+            {"localRecoveryConfig", taskInfo.localRecoveryConfig},
+            {"tmpWorkingDirectory", taskInfo.tmpWorkingDirectory}
+        };
+    }
+
+    friend void from_json(const nlohmann::json& json, TaskInformationPOD& taskInfo)
+    {
+        taskInfo.taskName = json.value("taskName", "");
+        taskInfo.numberOfSubtasks = json.value("numberOfSubtasks", 1);
+        taskInfo.maxNumberOfSubtasks = json.value("maxNumberOfSubtasks", 1);
+        taskInfo.indexOfSubtask = json.value("indexOfSubtask", 0);
+        taskInfo.stateBackend = json.value("stateBackend", "");
+        taskInfo.rocksdbStorePaths = json.value("rocksdbStorePaths", std::vector<std::string>());
+        taskInfo.stateBackendManagedMemoryFraction = json.value("stateBackendManagedMemoryFraction", 0.0);
+        taskInfo.stateBackendManagedMemorySize =
+            json.value("stateBackendManagedMemorySize", TaskInformationPOD::DEFAULT_ROCKSDB_MANAGED_MEMORY_SIZE);
+        taskInfo.cacheAddr = json.value("cacheAddr", static_cast<uint64_t>(0));
+        taskInfo.writeBufferManagerAddr = json.value("writeBufferManagerAddr", static_cast<uint64_t>(0));
+        taskInfo.numberOfTransferThreads = json.value("numberOfTransferThreads", static_cast<uint32_t>(4));
+        taskInfo.rocksDBMemoryConfiguration = json.contains("rocksDBMemoryConfiguration") &&
+                !json.at("rocksDBMemoryConfiguration").is_null()
+            ? json.at("rocksDBMemoryConfiguration").get<RocksDBMemoryConfiguration>()
+            : RocksDBMemoryConfiguration();
+        taskInfo.streamConfig = json.contains("streamConfig") && !json.at("streamConfig").is_null()
+            ? json.at("streamConfig").get<StreamConfigPOD>()
+            : StreamConfigPOD();
+        taskInfo.chainedConfig = json.value("chainedConfig", std::vector<StreamConfigPOD>());
+        taskInfo.taskType = json.value("taskType", 1);
+        taskInfo.checkpointConfig = json.contains("checkpointConfig") && !json.at("checkpointConfig").is_null()
+            ? json.at("checkpointConfig").get<CheckpointConfigPOD>()
+            : CheckpointConfigPOD();
+        taskInfo.executionCheckpointConfig =
+            json.contains("executionCheckpointConfig") && !json.at("executionCheckpointConfig").is_null()
+                ? json.at("executionCheckpointConfig").get<ExecutionCheckpointConfigPOD>()
+                : ExecutionCheckpointConfigPOD();
+        taskInfo.localRecoveryConfig = json.value("localRecoveryConfig", "");
+        taskInfo.tmpWorkingDirectory = json.value("tmpWorkingDirectory", std::string("/tmp"));
+    }
 private:
     std::string taskName;
     int numberOfSubtasks;
