@@ -73,7 +73,7 @@ public:
     {
         auto event = bufferOrEvent->getEvent();
         if (auto subtaskConnDesc = dynamic_cast<SubtaskConnectionDescriptor *>(event.get())) {
-            INFO_RELEASE(
+            LOG_DEBUG(
                 "process SubtaskConnectionDescriptor event, channelInfo:" << bufferOrEvent->getChannelInfo().toString() << ","<<subtaskConnDesc->toString()<<",this:" << this);
             auto channelId = bufferOrEvent->getChannelInfo().getComplexId();
             auto serializer = dynamic_cast<DemultiplexingRecordDeserializer *>(getActiveSerializer(channelId));

@@ -677,7 +677,6 @@ BufferOrEvent* SingleInputGate::transformToBufferOrEvent(Buffer* buffer,
         if (buffer->isBuffer()) {
             return transformBuffer(buffer, moreAvailable, currentChannel, morePriorityEvents);
         } else {
-            INFO_RELEASE("transformEvent")
             return transformEvent(buffer, moreAvailable, currentChannel, morePriorityEvents);
         }
 }

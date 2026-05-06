@@ -151,6 +151,7 @@ public:
     virtual RecordDeserializer *getActiveSerializer(long channelInfo) {
         auto it = recordDeserializers->find(channelInfo);
         if (it == recordDeserializers->end()) {
+            INFO_RELEASE("Error: ChannelInfo not found in recordDeserializers:" << channelInfo);
             THROW_RUNTIME_ERROR("ChannelInfo not found in recordDeserializers:" + std::to_string(channelInfo));
         }
         return it->second.get();

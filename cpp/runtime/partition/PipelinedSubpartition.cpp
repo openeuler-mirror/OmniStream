@@ -380,9 +380,7 @@ void PipelinedSubpartition::addRecovered(std::shared_ptr<BufferConsumer> bufferC
 
 void PipelinedSubpartition::finishReadRecoveredState(bool notifyAndBlockOnCompletion)
 {
-    INFO_RELEASE("PipelinedSubpartition::finishReadRecoveredState 111")
     if (notifyAndBlockOnCompletion) {
-        INFO_RELEASE("PipelinedSubpartition::finishReadRecoveredState 222")
         auto bufferConsumer = EventSerializer::ToBufferConsumer(EndOfChannelStateEvent::getInstance(), false);
         add(bufferConsumer, 0, false);
     }
@@ -443,7 +441,7 @@ int PipelinedSubpartition::add(std::shared_ptr<BufferConsumer> bufferConsumer, i
 
 bool PipelinedSubpartition::addBuffer(std::shared_ptr<BufferConsumer> bufferConsumer, int partialRecordLength)
 {
-    INFO_RELEASE("buffer consumer added to buffers" << (bufferConsumer->isBuffer() ? "buffer": "event"))
+    LOG_DEBUG("buffer consumer added to buffers" << (bufferConsumer->isBuffer() ? "buffer": "event"))
     if (bufferConsumer->getDataType().hasPriority()) {
         auto barrier = ParseCheckpointBarrier(bufferConsumer);
         return ProcessPriorityBuffer(bufferConsumer, partialRecordLength, barrier);

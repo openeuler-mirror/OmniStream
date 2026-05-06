@@ -47,6 +47,7 @@ namespace omnistream::datastream {
                 std::string keySoPath1 = keySelectorPath + keySoName;
                 auto *keySelectorSymbol1 = udfLoader.LoadKeySelectFunction(keySoPath1);
                 if (keySelectorSymbol1 == nullptr) {
+                    INFO_RELEASE("Error:null pointer when load:" << keySoPath1);
                     throw std::out_of_range("null pointer when load " + keySoPath1);
                 }
                 keySelector = keySelectorSymbol1(udfObjJson).release();
