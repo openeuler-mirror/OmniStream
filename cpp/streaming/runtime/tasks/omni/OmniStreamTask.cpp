@@ -273,7 +273,7 @@ OmniStreamTask::OmniStreamTask(std::shared_ptr<RuntimeEnvironmentV2> &env,
 
             INFO_RELEASE("restoreGates complete!");
         } catch (...) {
-            INFO_RELEASE("Error: restoreGates failed, unable to read channel state:" << e.what());
+            INFO_RELEASE("Error: restoreGates failed, unable to read channel state");
             throw std::runtime_error("restoreGates failed, unable to read channel state");
         }
     }
