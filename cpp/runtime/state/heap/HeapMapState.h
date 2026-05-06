@@ -65,7 +65,8 @@ public:
         emhash7::HashMap<UK, UV> *userMap = stateTable->get(currentNamespace);
         if (userMap != nullptr) {
             if constexpr (std::is_same_v<UK, Object*> && std::is_same_v<UV, Object*>) {
-                // Decrement refcounts for all Object* entries before destroying the map
+                // Decrement refcounts for all Object* entries before the state table removes
+                // the owning HashMap pointer.
                 for (auto &pair : *userMap) {
                     Object *key = static_cast<Object*>(pair.first);
                     Object *value = static_cast<Object*>(pair.second);
@@ -77,7 +78,6 @@ public:
                     }
                 }
             }
-            delete userMap;
         }
         stateTable->remove(currentNamespace);
     };
