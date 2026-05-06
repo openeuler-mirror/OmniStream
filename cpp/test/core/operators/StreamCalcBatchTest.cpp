@@ -104,6 +104,16 @@ TEST(StreamCalcBatchTest, VectorbatchExpressionAdd
     }
 }
 
+TEST(StreamCalcBatchTest, OpenThrowsForUnsupportedProjectionExpr) {
+    std::string desc = R"DELIM({"originDescription":"[21]:Calc(select=[unsupported])","inputTypes":["BIGINT"],"outputTypes":["BIGINT"],"indices":[{"exprType":"FUNCTION","returnType":2,"function_name":"not_supported_fn","arguments":[{"exprType":"FIELD_REFERENCE","dataType":2,"colVal":0}]}],"condition":null})DELIM";
+    json parsedJson = json::parse(desc);
+
+    OutputTestVectorBatch output;
+    StreamCalcBatch streamCalcBatchOp(parsedJson, &output);
+
+    EXPECT_THROW(streamCalcBatchOp.open(), std::runtime_error);
+}
+
 TEST(StreamCalcBatchTest, DISABLED_VectorbatchExpressionCountChar) {
 // OMNI_INT = 1, input [varchar, char], CountChar(col1, 'a')
 // Counts the number of 'a' in each row of the column
