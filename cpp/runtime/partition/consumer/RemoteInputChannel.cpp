@@ -241,11 +241,11 @@ namespace omnistream {
                 auto buffer = readOnlyBuffer->GetNetWorkBuffer();
                 int offset = readOnlyBuffer->GetMemorySegmentOffset();
                 int bufferLength = buffer->GetSize();
-                uint8_t *bufferAddress = (uint8_t *)malloc(bufferLength);
                 if(bufferLength > IO_SIZE_512M){
                     INFO_RELEASE("Error: invalid buffer size:" << bufferLength);
                     continue;
                 }
+                uint8_t *bufferAddress = (uint8_t *)malloc(bufferLength);
                 MemorySegment* memorySegment = new MemorySegment(bufferAddress, bufferLength);
                 auto oldmemorySegment = dynamic_cast<MemorySegment*>(buffer->GetSegment());
                 memorySegment->put(0, oldmemorySegment->getData(), offset, bufferLength);
