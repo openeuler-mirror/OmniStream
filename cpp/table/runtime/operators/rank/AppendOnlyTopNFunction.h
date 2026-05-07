@@ -91,15 +91,14 @@ public:
             long currentComId = VectorBatchUtil::getComboId(curentBatchId, i);
 
             // check whether the sortKey is in the topN range
-            bool isUpdate = false;
-            if (this->addCurrentToTargetBuffer(currentComId,inputBatch, topN, buffer, &isUpdate)) {
+            if (this->addCurrentToTargetBuffer(currentComId,inputBatch, topN, buffer)) {
                 changedKeysInThisBatch.insert(partitionKey);
                 if (this->outputRankNumber || this->hasOffset()) {
                     // the without-number-algorithm can't handle topN with offset,
                     // so use the with-number-algorithm to handle offset
-                    processElementWithRowNumber2(currentComId, isUpdate, &out);
+                    processElementWithRowNumber2(currentComId, &out);
             } else {
-                    processElementWithoutRowNumber2(currentComId, isUpdate,&out);
+                    processElementWithoutRowNumber2(currentComId, &out);
             }
         }
         }
@@ -184,7 +183,7 @@ public:
     }
 
 
-    bool addCurrentToTargetBuffer(long currentComId,omnistream::VectorBatch* currentVb,long topN, BufferT* buffer, bool isUpdate) {
+    bool addCurrentToTargetBuffer(long currentComId,omnistream::VectorBatch* currentVb,long topN, BufferT* buffer) {
         if (buffer->GetSize()< topN) {
             return buffer->AddElement(currentComId);
         }else {
@@ -196,15 +195,16 @@ public:
 
             bool inRange = CompareRowData(currentVb,crowId,GetVectorBatch(pbatchId),prowId);
             if (inRange) {
-                isUpdate = true;
-                if (this->outputRankNumber || this->hasOffset()) {
-                    collectedIds.push_back(smallestComId);
-                    collectedRanks.push_back(topN);
-                    this->collectedRowKinds.push_back(RowKind::UPDATE_BEFORE);
-                } else {
-                    collectedIds.push_back(smallestComId);
-                    collectedRanks.push_back(-1);
-                    this->collectedRowKinds.push_back(RowKind::DELETE);
+                if (this->generateUpdateBefore) {
+                    if (this->outputRankNumber || this->hasOffset()) {
+                        collectedIds.push_back(smallestComId);
+                        collectedRanks.push_back(topN);
+                        this->collectedRowKinds.push_back(RowKind::UPDATE_BEFORE);
+                    } else {
+                        collectedIds.push_back(smallestComId);
+                        collectedRanks.push_back(-1);
+                        this->collectedRowKinds.push_back(RowKind::DELETE);
+                    }
                 }
                 buffer->RemoveSmallestElement();
                 return buffer->AddElement(currentComId);
@@ -418,7 +418,7 @@ private:
     }
 
 
-    void processElementWithRowNumber2(long currentComId, bool isUpdate, TimestampedCollector* out)
+    void processElementWithRowNumber2(long currentComId, TimestampedCollector* out)
     {
         //find current comid position in buffer, and the record behind it should be updated with rank number
         // Create an iterator over buffer entries.
@@ -438,11 +438,11 @@ private:
             }
             if (findTarget) {
                 previous = record;
-
-                collectedIds.push_back(previous);
-                collectedRanks.push_back(currentRank);
-                this->collectedRowKinds.push_back(RowKind::UPDATE_BEFORE);
-
+                if (this->generateUpdateBefore) {
+                    collectedIds.push_back(previous);
+                    collectedRanks.push_back(currentRank);
+                    this->collectedRowKinds.push_back(RowKind::UPDATE_BEFORE);
+                }
                 collectedIds.push_back(current);
                 collectedRanks.push_back(currentRank);
                 this->collectedRowKinds.push_back(RowKind::UPDATE_AFTER);
@@ -450,18 +450,17 @@ private:
                 currentRank++;
             }else {
                 currentRank++;
+            }
         }
-        }
-        if (this->isInRankEnd(currentRank) && !isUpdate) {
+        if (this->isInRankEnd(currentRank)) {
             collectedIds.push_back(current);
             this->collectedRowKinds.push_back(RowKind::INSERT);
             collectedRanks.push_back(currentRank);
-    }
         }
+    }
 
-    void processElementWithoutRowNumber2(long currentComId, bool isUpdate, TimestampedCollector* out)
-                    {
-        INFO_RELEASE("do 2 WithRowNumber")
+    void processElementWithoutRowNumber2(long currentComId, TimestampedCollector* out)
+    {
         collectedIds.push_back(currentComId);
         this->collectedRowKinds.push_back(RowKind::INSERT);
     }
