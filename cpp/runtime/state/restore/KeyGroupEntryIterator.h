@@ -37,7 +37,7 @@ public:
         if (currentIndex_ < entries_.size()) {
             return true;
         }
-        if ((0 != offset_) && (END_OF_KEY_GROUP_MARK & currentKvStateId_ != END_OF_KEY_GROUP_MARK)) {
+        if ((offset_ != 0) && ((END_OF_KEY_GROUP_MARK & currentKvStateId_) != END_OF_KEY_GROUP_MARK)) {
             if (currentIndex_ >= entries_.size()) {
                 // jni read
                 currentIndex_ = 0;
