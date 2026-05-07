@@ -609,9 +609,10 @@ protected:
                 return DataInputStatus::END_OF_INPUT;
             }
         } else if (dynamic_cast<EndOfChannelStateEvent *>(event.get())) {
-            INFO_RELEASE("received a end of recovery event start");
+            INFO_RELEASE("received EndOfChannelStateEvent start, inputIndex=" << inputIndex
+                << ", channel=" << bufferOrEvent->getChannelInfo().toString());
             if (inputGate->AllChannelsRecovered()) {
-                INFO_RELEASE("received a end of recovery event end");
+                INFO_RELEASE("received EndOfChannelStateEvent end, inputIndex=" << inputIndex);
                 return DataInputStatus::END_OF_RECOVERY;
             }
         }

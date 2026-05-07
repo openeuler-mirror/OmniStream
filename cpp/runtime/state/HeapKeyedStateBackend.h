@@ -28,6 +28,14 @@
 #include "table/data/RowData.h"
 
 #include "table/runtime/operators/window/TimeWindow.h"
+#include "heap/HeapSingleStateIterator.h"
+#include "heap/HeapFullSnapshotResources.h"
+#include "heap/HeapSnapshotResourceFactory.h"
+#include "heap/HeapSnapshotStrategy.h"
+#include "runtime/state/SnapshotStrategyRunner.h"
+#include "runtime/state/SavepointResources.h"
+#include "runtime/state/CompositeKeySerializationUtils.h"
+#include "runtime/state/bridge/OmniTaskBridge.h"
 #include <set>
 
 using namespace omniruntime::type;
@@ -42,11 +50,20 @@ using namespace omniruntime::type;
 template <typename K>
 class HeapKeyedStateBackend : public AbstractKeyedStateBackend<K> {
 public:
-    HeapKeyedStateBackend(TypeSerializer *keySerializer, InternalKeyContext<K> *context) : AbstractKeyedStateBackend<K>(keySerializer, context) {};
+    HeapKeyedStateBackend(TypeSerializer *keySerializer, InternalKeyContext<K> *context)
+        : AbstractKeyedStateBackend<K>(keySerializer, context)
+    {
+        snapshotResourceFactory_ = std::make_shared<HeapSnapshotResourceFactory<K>>(
+            this->keySerializer,
+            this->context,
+            &registeredKvStates);
+        checkpointStrategy_ = std::make_shared<HeapSnapshotStrategy<K>>(snapshotResourceFactory_);
+    };
     // Originally used to create an internal state, not necessary here
     uintptr_t createOrUpdateInternalState(TypeSerializer *namespaceSerializer, StateDescriptor *stateDesc) override;
 
-    ~HeapKeyedStateBackend() override {
+    virtual  ~HeapKeyedStateBackend() override
+    {
         for (const auto& pair : registeredKvStates) {
             StateDescriptor* desc = std::get<1>(pair.second);
             uintptr_t stateTablePtr = std::get<0>(pair.second);
@@ -55,7 +72,7 @@ public:
                 auto valueId = desc->getValueDataId();
                 INFO_RELEASE("~HeapKeyedStateBackend(), desc->getType():" << static_cast<int>(desc->getType()) <<
                         ", desc->getKeyDataId():" << static_cast<int>(keyId) <<
-                        ", desc->getValueDataId():" << static_cast<int>(valueId))
+                        ", desc->getValueDataId():" << static_cast<int>(valueId));
                 if (keyId == BackendDataType::XXHASH128_BK && valueId == BackendDataType::TUPLE_INT32_INT64) {
                     auto stateTable = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace,
                         emhash7::HashMap<XXH128_hash_t, std::tuple<int32_t, int64_t>>*>*>(stateTablePtr);
@@ -86,13 +103,14 @@ public:
                             emhash7::HashMap<TimeWindow, TimeWindow> *> *>(stateTablePtr);
                     delete stateTable;
                 } else {
-                    NOT_IMPL_EXCEPTION
+                    NOT_IMPL_EXCEPTION;
                 }
             } else if (desc->getType() == StateDescriptor::Type::VALUE) {
                 auto dataId = desc->getBackendId();
                 INFO_RELEASE("~HeapKeyedStateBackend(), desc->getType():" << static_cast<int>(desc->getType()) <<
-                        ", desc->getBackendId():" << static_cast<int>(dataId))
-                if (dataId == BackendDataType::OBJECT_BK || dataId == BackendDataType::POJO_BK) {
+                        ", desc->getBackendId():" << static_cast<int>(dataId));
+                if (dataId == BackendDataType::OBJECT_BK || dataId == BackendDataType::POJO_BK
+                    || dataId == BackendDataType::TUPLE_OBJ_OBJ_BK) {
                     auto stateTable = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, Object*> *>(stateTablePtr);
                     delete stateTable;
                 } else if (dataId == BackendDataType::INT_BK) {
@@ -105,12 +123,12 @@ public:
                     auto stateTable = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, std::vector<long> *> *>(stateTablePtr);
                     delete stateTable;
                 } else {
-                    NOT_IMPL_EXCEPTION
+                    NOT_IMPL_EXCEPTION;
                 }
             } else if (desc->getType() == StateDescriptor::Type::LIST) {
                 auto dataId = desc->getBackendId();
                 INFO_RELEASE("~HeapKeyedStateBackend(), desc->getType():" << static_cast<int>(desc->getType()) <<
-                        ", desc->getBackendId():" << static_cast<int>(dataId))
+                        ", desc->getBackendId():" << static_cast<int>(dataId));
                 if (dataId == BackendDataType::BIGINT_BK) {
                     auto stateTable = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, std::vector<int64_t>*> *>(stateTablePtr);
                     delete stateTable;
@@ -130,20 +148,63 @@ public:
             long checkpointId,
             long timestamp,
             CheckpointStreamFactory *streamFactory,
-            CheckpointOptions *checkpointOptions) { return nullptr;}
+            CheckpointOptions *checkpointOptions)
+    {
+        auto snapshotRunner = std::make_unique<SnapshotStrategyRunner<KeyedStateHandle, FullSnapshotResources>>(
+            "Heap full snapshot",
+            checkpointStrategy_.get(),
+            SnapshotExecutionType::ASYNCHRONOUS);
+        return snapshotRunner->snapshot(checkpointId, timestamp, streamFactory, checkpointOptions,
+                                        omniTaskBridge_, this->keySerializer->toJson());
+    }
 
     std::shared_ptr<SavepointResources> savepoint() override
     {
-        NOT_IMPL_EXCEPTION;
+        auto snapshotResources = snapshotResourceFactory_->createSnapshotResources(-1L);
+        return std::make_shared<SavepointResources>(snapshotResources, SnapshotExecutionType::ASYNCHRONOUS);
+    }
+
+    void setOmniTaskBridge(const std::shared_ptr<omnistream::OmniTaskBridge> &bridge)
+    {
+        omniTaskBridge_ = bridge;
+    }
+
+    /**
+     * Returns the type-erased state table pointer for a given state name.
+     * Returns 0 if the state name is not found.
+     */
+    uintptr_t getStateTablePtr(const std::string &stateName) const
+    {
+        auto it = registeredKvStates.find(stateName);
+        if (it != registeredKvStates.end()) {
+            return std::get<0>(it->second);
+        }
+        return 0;
+    }
+
+    /**
+     * Returns the registered state descriptor and namespace BackendDataType for a given state name.
+     * Returns nullptr if not found.
+     */
+    std::tuple<uintptr_t, StateDescriptor*, BackendDataType>* getRegisteredState(const std::string &stateName)
+    {
+        auto it = registeredKvStates.find(stateName);
+        if (it != registeredKvStates.end()) {
+            return &(it->second);
+        }
+        return nullptr;
     }
 
 private:
     template<typename N, typename S>
     StateTable<K, N, S> *tryRegisterStateTable(TypeSerializer *namespaceSerializer, StateDescriptor *stateDesc);
-    // pointer to StateTable<K, N, V>
-    emhash7::HashMap<std::string, std::tuple<uintptr_t, StateDescriptor*>> registeredKvStates;
+    // pointer to StateTable<K, N, V>, StateDescriptor, namespace BackendDataType
+    emhash7::HashMap<std::string, std::tuple<uintptr_t, StateDescriptor*, BackendDataType>> registeredKvStates;
     // pointer to intervalKvState
     emhash7::HashMap<std::string, uintptr_t> createdKvState;
+    std::shared_ptr<omnistream::OmniTaskBridge> omniTaskBridge_;
+    std::shared_ptr<HeapSnapshotResourceFactory<K>> snapshotResourceFactory_;
+    std::shared_ptr<HeapSnapshotStrategy<K>> checkpointStrategy_;
 
     template<typename N, typename UK, typename UV>
     HeapMapState<K, N, UK, UV>* createOrUpdateInternalMapState(TypeSerializer *namespaceSerializer, StateDescriptor *stateDesc);
@@ -162,7 +223,7 @@ uintptr_t HeapKeyedStateBackend<K>::createOrUpdateInternalState(TypeSerializer *
         auto keyId = stateDesc->getKeyDataId();
         auto valueId = stateDesc -> getValueDataId();
 
-        STD_LOG ("stateType_ is StateDescriptor::Type::MAP "  <<   ", keyId " << keyId_  << " , value id " << valueId_)
+        STD_LOG ("stateType_ is StateDescriptor::Type::MAP "  <<   ", keyId " << keyId_  << " , value id " << valueId_);
 
         if (namespaceSerializer->getBackendId() != BackendDataType::VOID_NAMESPACE_BK) {
             NOT_IMPL_EXCEPTION;
@@ -196,7 +257,7 @@ uintptr_t HeapKeyedStateBackend<K>::createOrUpdateInternalState(TypeSerializer *
         } else if (keyId == BackendDataType::OBJECT_BK && valueId == BackendDataType::OBJECT_BK) {
             return (uintptr_t) createOrUpdateInternalMapState<VoidNamespace,
                 Object*, Object*>(namespaceSerializer, stateDesc);
-        }else {
+        } else {
             NOT_IMPL_EXCEPTION;
         }
     } else if (stateDesc->getType() == StateDescriptor::Type::VALUE) {
@@ -215,6 +276,9 @@ uintptr_t HeapKeyedStateBackend<K>::createOrUpdateInternalState(TypeSerializer *
         } else if (dataId == BackendDataType::OBJECT_BK) {
             return (uintptr_t) createOrUpdateInternalValueState<VoidNamespace, Object*>(namespaceSerializer, stateDesc);
         } else if (dataId == BackendDataType::POJO_BK) {
+            return (uintptr_t) createOrUpdateInternalValueState<VoidNamespace, Object*>(namespaceSerializer, stateDesc);
+        } else if (dataId == BackendDataType::TUPLE_OBJ_OBJ_BK) {
+            // Tuple2/TupleN 是 Object 子类，与 OBJECT_BK 共用 state table 类型
             return (uintptr_t) createOrUpdateInternalValueState<VoidNamespace, Object*>(namespaceSerializer, stateDesc);
         } else if (dataId == BackendDataType::SET_LONG) {
             return (uintptr_t) createOrUpdateInternalValueState<VoidNamespace,std::vector<long>*>(namespaceSerializer, stateDesc);
@@ -249,10 +313,13 @@ StateTable<K, N, S> *HeapKeyedStateBackend<K>::tryRegisterStateTable(TypeSeriali
         stateTable->setMetaInfo(restoredKvMetaInfo);
         return stateTable;
     } else {
+        // 必须显式传 stateType，否则会走到 3 参构造内部默认填 Type::UNKNOWN，
+        // CP 元数据里 KEYED_STATE_TYPE 永远是 0，restore 时 dispatch 落到 NOT_IMPL。
         RegisteredKeyValueStateBackendMetaInfo *newMetaInfo =
-            new RegisteredKeyValueStateBackendMetaInfo(stateDesc->getName(), namespaceSerializer, newStateSerializer);
+            new RegisteredKeyValueStateBackendMetaInfo(
+                stateDesc->getType(), stateDesc->getName(), namespaceSerializer, newStateSerializer);
         StateTable<K, N, S> *stateTable = new CopyOnWriteStateTable<K, N, S>(this->context, newMetaInfo, this->keySerializer);
-        std::tuple tuple(reinterpret_cast<uintptr_t>(stateTable), stateDesc);
+        std::tuple tuple(reinterpret_cast<uintptr_t>(stateTable), stateDesc, namespaceSerializer->getBackendId());
         registeredKvStates[stateDesc->getName()] = tuple;
         return stateTable;
     }

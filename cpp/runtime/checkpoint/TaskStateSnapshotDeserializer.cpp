@@ -14,12 +14,16 @@ std::shared_ptr<TaskStateSnapshot> TaskStateSnapshotDeserializer::Deserialize(co
 {
     const json j = json::parse(jsonString);
     auto snapshot = std::make_shared<TaskStateSnapshot>();
-    if (j.contains("taskDeployedAsFinished")) {
-        // Assuming a setter exists on your TaskStateSnapshot class
+    // Accept both field name variants: Java serializer uses "isTaskDeployedAsFinished",
+    // while some code paths use "taskDeployedAsFinished"
+    if (j.contains("isTaskDeployedAsFinished")) {
+        snapshot->SetIsTaskDeployedAsFinished(j.at("isTaskDeployedAsFinished").get<bool>());
+    } else if (j.contains("taskDeployedAsFinished")) {
         snapshot->SetIsTaskDeployedAsFinished(j.at("taskDeployedAsFinished").get<bool>());
     }
-    if (j.contains("taskFinished")) {
-        // Assuming a setter exists on your TaskStateSnapshot class
+    if (j.contains("isTaskFinished")) {
+        snapshot->SetIsTaskFinished(j.at("isTaskFinished").get<bool>());
+    } else if (j.contains("taskFinished")) {
         snapshot->SetIsTaskFinished(j.at("taskFinished").get<bool>());
     }
     const json &subtask_states_json = j.at("subtaskStatesByOperatorID");
@@ -52,6 +56,10 @@ std::shared_ptr<KeyedStateHandle> TaskStateSnapshotDeserializer::ParseKeyedState
     }
     if (className.find("KeyGroupsSavepointStateHandle") != std::string::npos) {
         return ParseKeyGroupsSavepointStateHandle(j);
+    }
+    // KeyGroupsStateHandle is used by Flink's native HashMapStateBackend for checkpoint
+    if (className.find("KeyGroupsStateHandle") != std::string::npos) {
+        return ParseKeyGroupsStateHandle(j);
     }
 
     throw std::runtime_error("Unsupported or unknown KeyedStateHandle type: " + className);
@@ -206,18 +214,31 @@ std::shared_ptr<InflightDataRescalingDescriptor> TaskStateSnapshotDeserializer::
 
 std::shared_ptr<OperatorSubtaskState> TaskStateSnapshotDeserializer::ParseOperatorSubtaskState(const json &j)
 {
-    auto managedKeyedStateCol = ParseStateObjectCollection<KeyedStateHandle>(
-        j.at("managedKeyedState"), &ParseKeyedStateHandle);
-    auto inputChannelStateCol = ParseStateObjectCollection<InputChannelStateHandle>(
-        j.at("inputChannelState"), &ParseInputStateHandle);
-    auto resultSubpartitionStateCol = ParseStateObjectCollection<ResultSubpartitionStateHandle>(
-        j.at("resultSubpartitionState"), &ParseResultStateHandle);
-    auto inputRescalingDescriptorCol = ParseInflightDataRescalingDescriptor(j.at("inputRescalingDescriptor"));
+    auto managedKeyedStateCol = j.contains("managedKeyedState")
+        ? ParseStateObjectCollection<KeyedStateHandle>(j.at("managedKeyedState"), &ParseKeyedStateHandle)
+        : std::make_shared<StateObjectCollection<KeyedStateHandle>>();
+
+    auto inputChannelStateCol = j.contains("inputChannelState")
+        ? ParseStateObjectCollection<InputChannelStateHandle>(j.at("inputChannelState"), &ParseInputStateHandle)
+        : std::make_shared<StateObjectCollection<InputChannelStateHandle>>();
+
+    auto resultSubpartitionStateCol = j.contains("resultSubpartitionState")
+        ? ParseStateObjectCollection<ResultSubpartitionStateHandle>(j.at("resultSubpartitionState"), &ParseResultStateHandle)
+        : std::make_shared<StateObjectCollection<ResultSubpartitionStateHandle>>();
+
+    std::shared_ptr<InflightDataRescalingDescriptor> inputRescalingDescriptorCol;
+    if (j.contains("inputRescalingDescriptor")) {
+        inputRescalingDescriptorCol = ParseInflightDataRescalingDescriptor(j.at("inputRescalingDescriptor"));
+    }
     if (inputRescalingDescriptorCol == nullptr) {
         inputRescalingDescriptorCol = std::make_shared<NoRescalingDescriptor>();
     }
     LOG("Input rescaling descriptor: " << inputRescalingDescriptorCol->ToString());
-    auto outputRescalingDescriptorCol = ParseInflightDataRescalingDescriptor(j.at("outputRescalingDescriptor"));
+
+    std::shared_ptr<InflightDataRescalingDescriptor> outputRescalingDescriptorCol;
+    if (j.contains("outputRescalingDescriptor")) {
+        outputRescalingDescriptorCol = ParseInflightDataRescalingDescriptor(j.at("outputRescalingDescriptor"));
+    }
     if (outputRescalingDescriptorCol == nullptr) {
         outputRescalingDescriptorCol = std::make_shared<NoRescalingDescriptor>();
     }

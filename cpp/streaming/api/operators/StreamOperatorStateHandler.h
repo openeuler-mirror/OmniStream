@@ -188,6 +188,12 @@ public:
             }
 
             if (keyedStateBackend) {
+                // Set bridge on Heap backend for checkpoint (RocksDB gets it via constructor)
+                auto heapBackend = dynamic_cast<HeapKeyedStateBackend<K>*>(keyedStateBackend);
+                if (heapBackend && bridge) {
+                    heapBackend->setOmniTaskBridge(bridge);
+                }
+
                 auto keySerializer = keyedStateBackend->getKeySerializer();
                 if (isCanonicalSavepoint(checkpointOptions->GetCheckpointType())) {
                     // TTODO
@@ -208,7 +214,32 @@ public:
                     );
                 }
             }
+        } catch (const std::exception &e) {
+            INFO_RELEASE("Error:StreamOperatorStateHandler::snapshotState operator=" << operatorName
+                << ", checkpointId=" << checkpointId
+                << ", exception=" << e.what());
+            try {
+                snapshotInProgress->cancel();
+            } catch (...) {
+                // Do nothing
+            }
+            std::string snapshotFailMessage = "Could not complete snapshot "
+                            + std::to_string(checkpointId)
+                            + " for operator "
+                            + operatorName
+                            + ". Root cause: "
+                            + e.what();
+
+            try {
+                snapshotContext->closeExceptionally();
+            } catch (...) {
+                // Do nothing
+            }
+            THROW_LOGIC_EXCEPTION(snapshotFailMessage);
         } catch (...) {
+            INFO_RELEASE("Error:StreamOperatorStateHandler::snapshotState operator=" << operatorName
+                << ", checkpointId=" << checkpointId
+                << ", exception=unknown");
             try {
                 snapshotInProgress->cancel();
             } catch (...) {

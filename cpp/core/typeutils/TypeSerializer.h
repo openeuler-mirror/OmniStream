@@ -34,6 +34,27 @@ enum class BackendDataType {
     SET_LONG
 };
 
+inline std::ostream& operator<<(std::ostream& os, const BackendDataType& type) {
+    switch (type) {
+        case BackendDataType::BIGINT_BK: return os << "BIGINT_BK";
+        case BackendDataType::INT_BK: return os << "INT_BK";
+        case BackendDataType::XXHASH128_BK: return os << "XXHASH128_BK";
+        case BackendDataType::TUPLE_INT32_INT64: return os << "TUPLE_INT32_INT64";
+        case BackendDataType::TUPLE_INT32_INT32_INT64: return os << "TUPLE_INT32_INT32_INT64";
+        case BackendDataType::VOID_NAMESPACE_BK: return os << "VOID_NAMESPACE_BK";
+        case BackendDataType::VARCHAR_BK: return os << "VARCHAR_BK";
+        case BackendDataType::TIME_WINDOW_BK: return os << "TIME_WINDOW_BK";
+        case BackendDataType::ROW_BK: return os << "ROW_BK";
+        case BackendDataType::TUPLE_OBJ_OBJ_BK: return os << "TUPLE_OBJ_OBJ_BK";
+        case BackendDataType::OBJECT_BK: return os << "OBJECT_BK";
+        case BackendDataType::LONG_BK: return os << "LONG_BK";
+        case BackendDataType::ROW_LIST_BK: return os << "ROW_LIST_BK";
+        case BackendDataType::INVALID_BK: return os << "INVALID_BK";
+        case BackendDataType::POJO_BK: return os << "POJO_BK";
+        default: return os << "UNKNOWN_BK";
+    }
+}
+
 class TypeSerializer {
 public:
 

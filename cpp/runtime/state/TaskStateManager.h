@@ -102,6 +102,11 @@ public:
         return omniTaskBridge_;
     }
 
+    bool hasJobManagerTaskRestore() const
+    {
+        return jobManagerTaskRestore_ != nullptr;
+    }
+
     std::shared_ptr<InflightDataRescalingDescriptor> getInputRescalingDescriptor()
     {
         if (jobManagerTaskRestore_ != nullptr) {

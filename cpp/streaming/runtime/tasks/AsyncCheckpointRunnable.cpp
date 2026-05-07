@@ -9,6 +9,10 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "AsyncCheckpointRunnable.h"
+#include "runtime/taskmanager/OmniRuntimeEnvironment.h"
+#include "runtime/taskmanager/OmniTask.h"
+#include "runtime/io/checkpointing/CheckpointException.h"
+#include "core/include/common.h"
 #include <chrono>
 #include <semaphore.h>
 #include <atomic>
@@ -50,7 +54,9 @@ void AsyncCheckpointRunnable::Run()
         finishedFuture.Complete();
     }
     catch (std::exception& e) {
-        LOG(std::string("savepoint: AsyncCheckpointRunnable error ")+e.what());
+        INFO_RELEASE("Error:AsyncCheckpointRunnable cp="
+            << checkpointMetaData.GetCheckpointId()
+            << " task=" << taskName << " async error: " << e.what());
         std::this_thread::sleep_for(100ms);
         HandleExecutionException(std::current_exception());
     }
@@ -154,11 +160,38 @@ void AsyncCheckpointRunnable::HandleExecutionException(std::__exception_ptr::exc
             }
 
             if (isTaskRunning->get()) {
+                std::string reasonMsg = "unknown";
+                try {
+                    if (e) {
+                        std::rethrow_exception(e);
+                    }
+                } catch (const std::exception& rethrown) {
+                    reasonMsg = rethrown.what();
+                } catch (...) {
+                    reasonMsg = "unknown non-std exception";
+                }
+                INFO_RELEASE("Error:AsyncCheckpointRunnable cp="
+                    << checkpointMetaData.GetCheckpointId()
+                    << " task=" << taskName
+                    << " declining after async failure: " << reasonMsg);
+                auto *runtimeEnv =
+                    dynamic_cast<omnistream::RuntimeEnvironmentV2*>(taskEnvironment.get());
+                if (runtimeEnv != nullptr && runtimeEnv->omniTask() != nullptr) {
+                    std::runtime_error wrapped(
+                        std::string("Error:AsyncCheckpointRunnable failed: ") + reasonMsg);
+                    runtimeEnv->omniTask()->declineCheckpoint(
+                        checkpointMetaData.GetCheckpointId(),
+                        CheckpointFailureReason::CHECKPOINT_DECLINED,
+                        &wrapped);
+                } else {
+                    INFO_RELEASE("Error:AsyncCheckpointRunnable cp="
+                        << checkpointMetaData.GetCheckpointId()
+                        << " could not decline: env is not RuntimeEnvironmentV2 or omniTask null");
+                }
             } else {
-                LOG("Ignore decline of checkpoint " +
-                    std::to_string(checkpointMetaData.GetCheckpointId()) +
-                    " as task is not running anymore."
-                );
+                INFO_RELEASE("Error:AsyncCheckpointRunnable cp="
+                    << checkpointMetaData.GetCheckpointId()
+                    << " ignored decline: task is not running anymore");
             }
             currentState = AsyncCheckpointState::DSICARDED;
         } else {

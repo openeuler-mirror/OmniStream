@@ -46,6 +46,9 @@ public:
     BackendDataType getBackendId() const override { return BackendDataType::OBJECT_BK;};
     const char* getName() const override {return "MapSerializer"; };
 
+    TypeSerializer* getKeySerializer() const { return keySerializer; }
+    TypeSerializer* getValueSerializer() const { return valueSerializer; }
+
     void setSubBufferReusable(bool bufferReusable_) override;
 
     Object* GetBuffer() override;

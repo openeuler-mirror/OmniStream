@@ -231,11 +231,14 @@ namespace omnistream {
 
             this->invokable_->invoke();
         } catch (const PartitionNotFoundException &e) {
-            GErrorLog("PartitionNotFoundException causes the task to stop and will do cleanup");
+            INFO_RELEASE("Error:PartitionNotFoundException causes the task to stop and will do cleanup");
+             throw;
         } catch (const std::exception &e) {
-            GErrorLog(std::string("std::exception during restore or invoke: ") + e.what());
+            INFO_RELEASE("Error:std::exception during restore or invoke"<< e.what());
+            throw;
         } catch (...) {
-            GErrorLog("exception  during restore or invoke, and the task is stopped and will do cleanup");
+            INFO_RELEASE("Error:unknown exception during restore or invoke, taskName=");
+            throw;
         }
 
         // ----------------------------------------------------------------
@@ -627,9 +630,17 @@ namespace omnistream {
                 checkpointableTask->triggerCheckpointAsync(checkpointMetaData, checkpoint_options);
                 // TTODO
             } catch (const OmniException& ex) {
-                this->declineCheckpoint(checkpointid, CheckpointFailureReason::CHECKPOINT_DECLINED_TASK_CLOSING);
+                INFO_RELEASE("Error:triggerCheckpointBarrier caught OmniException for cp " << checkpointid
+                    << ": " << ex.what());
+                std::runtime_error wrapped(std::string("OmniException: ") + ex.what());
+                this->declineCheckpoint(checkpointid,
+                    CheckpointFailureReason::CHECKPOINT_DECLINED_TASK_CLOSING, &wrapped);
             } catch (const std::exception& t) {
-                // TTODO
+                INFO_RELEASE("Error:triggerCheckpointBarrier caught std::exception for cp " << checkpointid
+                    << ": " << t.what());
+                std::runtime_error wrapped(std::string("std::exception: ") + t.what());
+                this->declineCheckpoint(checkpointid,
+                    CheckpointFailureReason::CHECKPOINT_DECLINED, &wrapped);
             }
         } else {
             this->declineCheckpoint(checkpointid, CheckpointFailureReason::CHECKPOINT_DECLINED_TASK_NOT_READY);

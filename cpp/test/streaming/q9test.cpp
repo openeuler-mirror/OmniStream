@@ -2,6 +2,7 @@
 
 #include "../../streaming/api/operators/StreamCalcBatch.cpp"
 #include "../../runtime/taskmanager/OmniRuntimeEnvironment.h"
+#include "../../runtime/state/TaskStateManager.h"
 #include "../../streaming/api/operators/KeyedProcessOperator.h"
 #include "../../table/runtime/operators/join/StreamingJoinOperator.h"
 #include "../../table/runtime/operators/join/window/WindowJoinOperator.h"
@@ -118,6 +119,14 @@ TEST(q9, test) {
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
     taskInfo->setStateBackend("HashMapStateBackend");
+    {
+        auto configPOD = taskInfo->getStreamConfigPOD();
+        auto operatorDesc = configPOD.getOperatorDescription();
+        operatorDesc.setOperatorId("deadbeefdeadbeefdeadbeefdeadbeef");
+        configPOD.setOperatorDescription(operatorDesc);
+        taskInfo->setStreamConfigPOD(configPOD);
+    }
+    env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
     StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
 

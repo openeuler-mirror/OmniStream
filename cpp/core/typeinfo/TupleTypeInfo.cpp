@@ -40,5 +40,13 @@ BackendDataType TupleTypeInfo::getBackendId() const
 
 TypeSerializer *TupleTypeInfo::getTypeSerializer()
 {
+    // TupleTypeInfo 有两种构造路径：
+    //   1) of(json)  → 在构造时直接传入构造好的 Tuple2Serializer，typeSerializer 已设置
+    //   2) (vector<TypeInformation*>) → 仅记录字段类型，typeSerializer 为 null，需要 lazy init。
+    // restore 路径走的是 (2)（createDataStreamTypeInfo 解析 fieldSerializers 后 new TupleTypeInfo(types)），
+    // 这里若不 lazy 创建，HeapKeyedStateBackendBuilder 会拿到 null serializer 把 state 全跳过。
+    if (typeSerializer == nullptr && !types.empty()) {
+        return createTypeSerializer();
+    }
     return typeSerializer;
 }
