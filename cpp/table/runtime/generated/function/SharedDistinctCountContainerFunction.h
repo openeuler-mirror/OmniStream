@@ -76,20 +76,20 @@ private:
         int aggIdx = -1;
         omniruntime::type::DataTypeId typeId = omniruntime::type::DataTypeId::OMNI_LONG;
         std::string stateName;
-        std::vector<DistinctEntry> groupEntries;
+        std::vector<DistinctEntry*> groupEntries;
         KeyedStateMapViewWithKeysNullable<VoidNamespace, long, long>* distinctMapView = nullptr;
         PendingDistinctUpdates pendingDistinctUpdates;
     };
 
 
-    bool shouldAccumulateForEntry(const DistinctEntry& entry, RowData* inputRow) const;
+    bool shouldAccumulateForEntry(DistinctEntry* entry, RowData* inputRow) const;
     std::uint64_t collectCandidateMask(RowData* inputRow, const DistinctGroup& group) const;
     void applyMaskDelta(std::size_t groupIndex, std::uint64_t deltaMask);
     long getRowFieldValue(RowData* row, int aggIdx, omniruntime::type::DataTypeId typeId, bool& isNull) const;
-    void getOrCreateGroup( DistinctEntry& entry);
+    void getOrCreateGroup( DistinctEntry* entry);
 
     std::string stateName_;
-    std::vector<DistinctEntry> entries_;
+    std::vector<DistinctEntry*> entries_;
     std::vector<DistinctGroup> groups_;
     std::unordered_map<int, int> entryIndexToAggFuncIndex;
     std::unordered_map<int, int> distinctGroupMap;

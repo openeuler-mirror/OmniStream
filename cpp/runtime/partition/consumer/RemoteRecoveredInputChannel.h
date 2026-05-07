@@ -29,7 +29,6 @@ public:
             throw std::runtime_error("ERROR: RemoteRecoveredInputChannel.h stateWriter is null.");
         }
 
-        std::cout <<"convert to RemoteInputChannel"<<std::endl;
         return std::make_shared<omnistream::RemoteInputChannel>(inputGate, getChannelIndex(), partitionId,
                                                                 partitionManager, initialBackoff, maxBackoff,
                                                                 getNetworkBuffersPerChannel(), numBytesIn,
