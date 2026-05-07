@@ -150,8 +150,11 @@ public:
     void deleteMaps()
     {
         for (int index = keyGroupRange->getStartKeyGroup(); index <= keyGroupRange->getEndKeyGroup(); index++) {
-            delete keyGroupedStateMaps[index];
-            keyGroupedStateMaps[index] = nullptr;
+            int pos = indexToOffset(index);
+            if (pos >= 0 && pos < static_cast<int>(keyGroupedStateMaps.size())) {
+                delete keyGroupedStateMaps[pos];
+                keyGroupedStateMaps[pos] = nullptr;
+            }
         }
     };
 
@@ -203,7 +206,7 @@ protected:
 
     S removeAndGetOld(const K &key, int keyGroupIndex, const N &nameSpace)
     {
-        getMapForKeyGroup(keyGroupIndex)->removeAndGetOld(key, nameSpace);
+        return getMapForKeyGroup(keyGroupIndex)->removeAndGetOld(key, nameSpace);
     };
 
     // Access to maps

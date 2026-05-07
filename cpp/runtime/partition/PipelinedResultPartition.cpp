@@ -148,7 +148,6 @@ void PipelinedResultPartition::decrementNumberOfUsers(int subpartitionIndex)
 //        }
         
         if (subpartitionIndex != PIPELINED_RESULT_PARTITION_ITSELF) {
-            std::cout << "we are here  subpartitionIndex != PIPELINED_RESULT_PARTITION_ITSELF"<<std::endl;
             if (consumedSubpartitions[subpartitionIndex]) {
                 return;
             }

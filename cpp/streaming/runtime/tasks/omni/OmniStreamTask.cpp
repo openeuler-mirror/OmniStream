@@ -235,7 +235,9 @@ OmniStreamTask::OmniStreamTask(std::shared_ptr<RuntimeEnvironmentV2> &env,
                 return;
             }
             auto reader = env_->getTaskStateManager()->getSequentialChannelStateReader();
+            INFO_RELEASE("restoreGates before readOutputData, task=" << taskName_);
             reader->readOutputData(env_->getAllWriters(), false);
+            INFO_RELEASE("restoreGates after readOutputData, task=" << taskName_);
 
             std::vector<std::shared_ptr<InputGate>> inputGateVec;
             inputGateVec.reserve(indexedInputGates.size());
@@ -245,9 +247,9 @@ OmniStreamTask::OmniStreamTask(std::shared_ptr<RuntimeEnvironmentV2> &env,
 
             reader->readInputData(inputGateVec);
 
-            LOG("restoreGates before recovery mailbox loop");
+            INFO_RELEASE("restoreGates before recovery mailbox loop");
             mailboxProcessor_->runMailboxLoop();
-            LOG("restoreGates after recovery mailbox loop");
+            INFO_RELEASE("restoreGates after recovery mailbox loop");
 
             for (const auto& inputGate : inputGateVec) {
                 auto recoveredFlags = inputGate->getStateConsumedFuture1();
@@ -355,13 +357,12 @@ void OmniStreamTask::processInput(MailboxDefaultAction::Controller *controller)
             return;
     }
     std::shared_ptr<CompletableFuture> resumeFuture;
-    // if (!recordWriter_->isAvailable()) {
-    //     resumeFuture = recordWriter_->GetAvailableFuture();
-    //     INFO_RELEASE("recordWriter is not available, wait for it")
-    // } else
-    if (!inputProcessor_->isAvailable()) {
+    if (!recordWriter_->isAvailable()) {
+        resumeFuture = recordWriter_->GetAvailableFuture();
+        INFO_RELEASE("recordWriter is not available, wait for it, task=" << taskName_);
+    } else if (!inputProcessor_->isAvailable()) {
         resumeFuture = inputProcessor_->GetAvailableFuture();
-        LOG("inputProcessor is not available, wait for it")
+        LOG("inputProcessor is not available, wait for it");
     } else {
         return;
     }

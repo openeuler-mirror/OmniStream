@@ -129,10 +129,18 @@ public:
 
     std::string ToString() const override
     {
+        // Java 侧 TaskStateSnapshotDeser.parseManagedKeyedStateArray 读取的字段：
+        //   stateHandleName、groupRangeOffsets(含 keyGroupRange 和 offsets)、streamStateHandle。
+        // 与 KeyGroupsSavepointStateHandle::ToString 的输出保持对称。
         nlohmann::json json;
         json["stateHandleName"] = "KeyGroupsStateHandle";
         json["stateHandleId"] = nlohmann::json::parse(stateHandleId_.ToString());
-        json["keyGroupRangeOffsets"] = nlohmann::json::parse(keyGroupRangeOffsets_.ToString());
+        json["groupRangeOffsets"] = nlohmann::json::parse(keyGroupRangeOffsets_.ToString());
+        if (stateHandle_ != nullptr) {
+            json["streamStateHandle"] = nlohmann::json::parse(stateHandle_->ToString());
+        } else {
+            json["streamStateHandle"] = nullptr;
+        }
         return json.dump();
     }
 

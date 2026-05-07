@@ -28,6 +28,7 @@
 #include "KeyGroupRange.h"
 #include "StateHandleID.h"
 #include <vector>
+#include <stdexcept>
 #include <nlohmann/json.hpp>
 #include "StreamStateHandleFactory.h"
 
@@ -95,28 +96,28 @@ public:
     explicit IncrementalRemoteKeyedStateHandle(const nlohmann::json &description)
         : stateHandleId_("")
     {
-        backendIdentifier_ = UUID::FromString(description["backendIdentifier"].get<std::string>());
+        backendIdentifier_ = UUID::FromString(description.at("backendIdentifier").get<std::string>());
         keyGroupRange_ = KeyGroupRange(
-            description["keyGroupRange"]["startKeyGroup"].get<int>(),
-            description["keyGroupRange"]["endKeyGroup"].get<int>());
-        checkpointId_ = description["checkpointId"].get<int64_t>();
-        for (const auto &item : description["sharedState"][1]) {
+            description.at("keyGroupRange").at("startKeyGroup").get<int>(),
+            description.at("keyGroupRange").at("endKeyGroup").get<int>());
+        checkpointId_ = description.at("checkpointId").get<int64_t>();
+        for (const auto &item : GetHandleAndLocalPathItems(description, "sharedState")) {
             if (item.contains("handle")) {
-                auto handle = StreamStateHandleFactory::from_json(item["handle"]);
-                auto localPath = item["localPath"].get<std::string>();
+                auto handle = StreamStateHandleFactory::from_json(item.at("handle"));
+                auto localPath = item.at("localPath").get<std::string>();
                 sharedState_.emplace_back(HandleAndLocalPath::of(handle, localPath));
             }
         }
-        for (const auto &item : description["privateState"][1]) {
+        for (const auto &item : GetHandleAndLocalPathItems(description, "privateState")) {
             if (item.contains("handle")) {
-                auto handle = StreamStateHandleFactory::from_json(item["handle"]);
-                auto localPath = item["localPath"].get<std::string>();
+                auto handle = StreamStateHandleFactory::from_json(item.at("handle"));
+                auto localPath = item.at("localPath").get<std::string>();
                 privateState_.emplace_back(HandleAndLocalPath::of(handle, localPath));
             }
         }
-        metaStateHandle_ = StreamStateHandleFactory::from_json(description["metaStateHandle"]);
-        persistedSizeOfThisCheckpoint_ = description["persistedSizeOfThisCheckpoint"].get<long>();
-        stateHandleId_ = StateHandleID(description["stateHandleId"]["keyString"].get<std::string>());
+        metaStateHandle_ = StreamStateHandleFactory::from_json(description.at("metaStateHandle"));
+        persistedSizeOfThisCheckpoint_ = description.at("persistedSizeOfThisCheckpoint").get<long>();
+        stateHandleId_ = StateHandleID(description.at("stateHandleId").at("keyString").get<std::string>());
     };
 
     long GetStateSize() const override;
@@ -138,6 +139,26 @@ public:
     std::string ToString() const override;
 
 private:
+    static const nlohmann::json& GetHandleAndLocalPathItems(
+        const nlohmann::json& description,
+        const char* fieldName)
+    {
+        static const nlohmann::json emptyArray = nlohmann::json::array();
+        if (!description.contains(fieldName) || description.at(fieldName).is_null()) {
+            return emptyArray;
+        }
+
+        const auto& collection = description.at(fieldName);
+        if (!collection.is_array()) {
+            throw std::invalid_argument(std::string(fieldName) + " must be an array");
+        }
+
+        if (collection.size() == 2 && collection.at(0).is_string() && collection.at(1).is_array()) {
+            return collection.at(1);
+        }
+        return collection;
+    }
+
     UUID backendIdentifier_;
     KeyGroupRange keyGroupRange_;
     int64_t checkpointId_;

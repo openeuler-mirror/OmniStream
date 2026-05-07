@@ -47,6 +47,10 @@ public:
 
     Object* GetBuffer() override;
 
+    // 元数据 round-trip 用：输出 {type:13, element_type, fieldSerializers:[...]}，
+    // 与 OmniAdaptor 的 OmniNativeSerializerJsonInfo / OmniParseFactory 对齐。
+    std::string toJson() override;
+
 private:
     std::vector<TypeSerializer *> fieldSerializers;
     uint16_t arity = 0;
