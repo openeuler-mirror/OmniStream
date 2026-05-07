@@ -72,6 +72,7 @@ namespace omnistream {
 
         auto buffer = this->dataQueue.front();
         this->dataQueue.pop();
+        datastream::ReadOnlySlicedNetworkBuffer *readOnlyBuffer = (datastream::ReadOnlySlicedNetworkBuffer*)buffer;
         ObjectBufferDataType dataType = ObjectBufferDataType::NONE;
         outsize += buffer->GetSize();
         int backlogSize = static_cast<int>(this->dataQueue.size());
@@ -147,7 +148,10 @@ namespace omnistream {
         if (readOnlyBuffer != nullptr) {
             insize += bufferLength;
             this->dataQueue.push(readOnlyBuffer);
-            if ((stateSize != 0 && isNeedPersistence_) && (readOnlyBuffer->isBuffer()) && (insize > stateSize)) {
+            if (isNeedExpansion && (sequenceNumber > lastSequenceNumber)) {
+                isNeedExpansion = false;
+            }
+            if ((isNeedPersistence_ && (readOnlyBuffer->isBuffer())) || (isNeedExpansion && (readOnlyBuffer->isBuffer()))) {
                 uint8_t *newbufferAddress = (uint8_t *)malloc(bufferLength);
                 MemorySegment* newmemorySegment = new MemorySegment(newbufferAddress, bufferLength);
                 newmemorySegment->put(0, reinterpret_cast<uint8_t*>(bufferAddress), readIndex, bufferLength);
@@ -162,7 +166,14 @@ namespace omnistream {
                 if (event->GetEventClassName() == "CheckpointBarrier") {
                     startSize_ = insize;
                     isNeedPersistence_ = false;
+                    if (sequenceNumber > lastSequenceNumber + 1) {
+                        isNeedExpansion = true;
+                        lastSequenceNumber = sequenceNumber;
+                    }
                 }
+            }
+            if (!isNeedExpansion) {
+                lastSequenceNumber = sequenceNumber;
             }
         }
         lock.unlock();
@@ -202,7 +213,7 @@ namespace omnistream {
             SetChannelStateWriter(channelStateWriter);
         }
         std::vector<Buffer*> knownBuffers;
-        if (isNeedPersistence_) {
+        if (IsNeedPersistence()) {
             knownBuffers = GetInflightBuffersUnsafe(barrier.GetId());
         }
         channelStatePersister->StartPersisting(barrier.GetId(), knownBuffers);
@@ -215,6 +226,7 @@ namespace omnistream {
         if (lastBarrierId_ == checkpointId) {
             ResetLastBarrier();
         }
+        startSize_ = 0;
     }
 
     void RemoteInputChannel::AddInputData(long checkpointId, const omnistream::InputChannelInfo& info)
@@ -227,27 +239,23 @@ namespace omnistream {
         std::lock_guard<std::recursive_mutex> lock(queueMutex);
         std::vector<Buffer*> inflightBuffers;
         std::queue<Buffer*> tmpQueue = dataQueue;
-        stateSize = insize;
-        if (startSize_ == 0) {
-            isNeedPersistence_ = true;
-        }
         while (!tmpQueue.empty()) {
             datastream::ReadOnlySlicedNetworkBuffer *readOnlyBuffer = static_cast<datastream::ReadOnlySlicedNetworkBuffer *>(tmpQueue.front());
             if (readOnlyBuffer == nullptr) {
                 tmpQueue.pop();
                 continue;
             }
+            auto buffer = readOnlyBuffer->GetNetWorkBuffer();
+            int offset = readOnlyBuffer->GetMemorySegmentOffset();
+            int bufferLength = buffer->GetSize();
+            auto oldmemorySegment = dynamic_cast<MemorySegment*>(buffer->GetSegment());
             if (readOnlyBuffer->isBuffer()) {
-                auto buffer = readOnlyBuffer->GetNetWorkBuffer();
-                int offset = readOnlyBuffer->GetMemorySegmentOffset();
-                int bufferLength = buffer->GetSize();
                 if(bufferLength > IO_SIZE_512M){
                     INFO_RELEASE("Error: invalid buffer size:" << bufferLength);
                     continue;
                 }
                 uint8_t *bufferAddress = (uint8_t *)malloc(bufferLength);
                 MemorySegment* memorySegment = new MemorySegment(bufferAddress, bufferLength);
-                auto oldmemorySegment = dynamic_cast<MemorySegment*>(buffer->GetSegment());
                 memorySegment->put(0, oldmemorySegment->getData(), offset, bufferLength);
                 ::datastream::NetworkBuffer* networkBuffer = new ::datastream::NetworkBuffer(
                 memorySegment, bufferLength, 0, std::make_shared<OriginalNetworkBufferRecycler>(),
@@ -257,11 +265,10 @@ namespace omnistream {
                 tmpQueue.pop();
                 continue;
             }
-            if (startSize_) {
+            if (startSize_ != 0) {
                 std::shared_ptr<AbstractEvent> event = EventSerializer::fromBufferNotRecycle(readOnlyBuffer);
                 if (event->GetEventClassName() == "CheckpointBarrier") {
                     isNeedPersistence_ = false;
-                    startSize_ = 0;
                     break;
                 }
             }

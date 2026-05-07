@@ -55,16 +55,18 @@ namespace omnistream {
         void SetPersistenceFlag(bool flag) {
             isNeedPersistence_ = flag;
         }
-        void SetstartSize(size_t startSize) {
-            startSize_ = startSize;
-        }
         bool IsNeedPersistence()
         {
-            return outsize < startSize_;
+            if (startSize_ != 0) {
+                return outsize < startSize_;
+            }
+            return true;
         }
         void AddInputData(long checkpointId, const omnistream::InputChannelInfo& info);
     private:
         std::queue<Buffer*> dataQueue;
+        Buffer *delayData = nullptr;
+        int lastSequenceNumber = 0;
         int expectSequenceNumber = 0;
         int initialCredit;
         std::recursive_mutex queueMutex;
@@ -72,9 +74,9 @@ namespace omnistream {
         long lastBarrierId_ = -1;
         size_t insize = 0;
         size_t outsize = 0;
-        size_t stateSize = 0;
         size_t startSize_ = 0;
-        bool isNeedPersistence_ = true;
+        bool isNeedPersistence_ = false;
+        bool isNeedExpansion = false;
         std::vector<Buffer*> inflightBuffers_;
     };
 };

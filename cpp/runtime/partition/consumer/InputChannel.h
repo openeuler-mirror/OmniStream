@@ -63,7 +63,6 @@ public:
     virtual int getBuffersInUseCount() = 0;
     virtual void SetChannelStateWriter(std::shared_ptr<ChannelStateWriter> channelStateWriter) = 0;
     virtual void SetPersistenceFlag(bool flag) = 0;
-    virtual void SetstartSize(size_t startSize) = 0;
     virtual bool IsNeedPersistence() = 0;
     virtual void AddInputData(long checkpointId, const omnistream::InputChannelInfo& info) = 0;
 public:

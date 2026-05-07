@@ -156,9 +156,6 @@ public:
     {
 
     }
-    void SetstartSize(size_t startSize)
-    {
-    }
 
     void AddInputData(long checkpointId, const omnistream::InputChannelInfo& info)
     {

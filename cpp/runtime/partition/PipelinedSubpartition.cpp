@@ -483,8 +483,9 @@ bool PipelinedSubpartition::ProcessPriorityBuffer(std::shared_ptr<BufferConsumer
             auto buffer = current->getBufferConsumer();
             if (buffer->isBuffer()) {
                 Buffer *inflightbuffer = buffer->buildForPeek();
-                if (inflightbuffer == nullptr) {
+                if (inflightbuffer == nullptr || inflightbuffer->GetSize() == 0) {
                     LOG("writeOutput buffers is null ");
+                    continue;
                 }
                 
                 inflightBuffers.push_back(inflightbuffer);

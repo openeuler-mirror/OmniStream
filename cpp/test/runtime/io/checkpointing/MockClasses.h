@@ -127,7 +127,6 @@ public:
     std::string toString() override { return "DummyInputChannel"; }
     void SetPersistenceFlag(bool flag) override {};
     bool IsNeedPersistence() override {};
-    void SetstartSize(size_t startSize) override {};
     void AddInputData(long checkpointId, const omnistream::InputChannelInfo& info) override {};
 
 private:

@@ -59,9 +59,6 @@ bool LocalInputChannel::IsNeedPersistence()
 {
     return false;
 }
-void LocalInputChannel::SetstartSize(size_t startSize)
-{
-}
 
 void LocalInputChannel::AddInputData(long checkpointId, const omnistream::InputChannelInfo& info)
 {

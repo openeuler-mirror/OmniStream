@@ -21,7 +21,6 @@ namespace omnistream {
                 getChannel(i)->SetPersistenceFlag(true);
             } else {
                 getChannel(i)->SetPersistenceFlag(false);
-                getChannel(i)->SetstartSize(0);
             }
             getChannel(i)->CheckpointStarted(barrier, channelStateWriter_);
         }

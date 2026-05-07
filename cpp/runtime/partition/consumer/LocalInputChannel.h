@@ -66,7 +66,6 @@ public:
     void notifyBufferAvailable(int subpartitionId) override;
     void SetChannelStateWriter(std::shared_ptr<ChannelStateWriter> channelStateWriter) override;
     void SetPersistenceFlag(bool flag) override;
-    void SetstartSize(size_t startSize) override;
     bool IsNeedPersistence() override;
     void AddInputData(long checkpointId, const omnistream::InputChannelInfo& info) override;
 public:

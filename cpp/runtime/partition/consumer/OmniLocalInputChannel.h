@@ -37,6 +37,8 @@ namespace omnistream {
         void SetOmniLocalInputChannelBridge(std::shared_ptr<OmniLocalInputChannelBridge> omniLocalInputChannelBridge);
 
         void CheckpointStarted(const CheckpointBarrier& barrier, std::shared_ptr<ChannelStateWriter> channelStateWriter);
+        
+        void CheckpointStopped(long checkpointId);
 
         std::vector<Buffer*> GetInflightBuffersUnsafe(long checkpointId);
 
@@ -44,21 +46,19 @@ namespace omnistream {
         {
             isNeedPersistence_ = flag;
         }
-        void SetstartSize(size_t startSize)
-        {
-            startSize_ = startSize;
-        }
         bool IsNeedPersistence()
         {
-            return outsize < startSize_;
+            if (startSize_ != 0) {
+                return outsize < startSize_;
+            }
+            return true;
         }
         void AddInputData(long checkpointId, const omnistream::InputChannelInfo& info);
     private:
         size_t insize = 0;
         size_t outsize = 0;
-        size_t stateSize = 0;
         size_t startSize_ = 0;
-        bool isNeedPersistence_ = true;
+        bool isNeedPersistence_ = false;
         int expectSequenceNumber = 0;
         int initialCredit;
         std::recursive_mutex queueMutex;

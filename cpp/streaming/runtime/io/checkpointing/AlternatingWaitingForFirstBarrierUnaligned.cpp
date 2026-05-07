@@ -34,6 +34,8 @@ BarrierHandlerState* AlternatingWaitingForFirstBarrierUnaligned::BarrierReceived
         omnistream::IndexedInputGate *inputGate = dynamic_cast<omnistream::IndexedInputGate *>(input);
         if (inputGate) {
             inputGate->CheckpointStarted(*unalignedBarrier);
+        } else {
+            input->CheckpointStarted(*unalignedBarrier);
         }
     }
     controller->TriggerGlobalCheckpoint(*unalignedBarrier);
