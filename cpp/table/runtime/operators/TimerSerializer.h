@@ -127,7 +127,7 @@ void TimerSerializer<K, N>::deserialize(Object* buffer, DataInputView& source) {
         keySerializer_->deserialize(keyBuffer, source);
         timer->setKey(keyBuffer);
         keyBuffer->putRefCount();
-    } else if constexpr (std::is_same_v<K, RowData*> || std::is_same_v<N, BinaryRowData*>) {
+    } else if constexpr (std::is_same_v<K, RowData*> || std::is_same_v<K, BinaryRowData*>) {
         auto keyBuffer = static_cast<K>(keySerializer_->deserialize(source));
         // todo: How to manage the memory
         timer->setKey(keyBuffer->copy());

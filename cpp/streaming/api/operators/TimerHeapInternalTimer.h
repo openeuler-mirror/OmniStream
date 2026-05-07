@@ -90,10 +90,14 @@ public:
     ~TimerHeapInternalTimer()
     {
         if constexpr (std::is_same_v<K, Object*>) {
-            reinterpret_cast<Object*>(key)->putRefCount();
+            if (key != nullptr) {
+                reinterpret_cast<Object*>(key)->putRefCount();
+            }
         }
         if constexpr (std::is_same_v<N, Object*>) {
-            reinterpret_cast<Object*>(nameSpace)->putRefCount();
+            if (nameSpace != nullptr) {
+                reinterpret_cast<Object*>(nameSpace)->putRefCount();
+            }
         }
     }
 

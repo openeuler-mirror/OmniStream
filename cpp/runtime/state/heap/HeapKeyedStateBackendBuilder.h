@@ -522,5 +522,3 @@ void HeapKeyedStateBackendBuilder<K>::restoreEntryToHeap(
         delete static_cast<VoidNamespace *>(rawNs);
     }
 }
-
-#endif // FLINK_TNEL_HEAPKEYEDSTATEBACKENDBUILDER_H
