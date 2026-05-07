@@ -41,6 +41,7 @@ public:
     void merge(const std::vector<T>& other) override;
     void addAll(const std::vector<T>& values) override;
     void clear() override;
+    std::vector<T*>* getPtr();
 };
 
 // SimpleVersionedListState构造函数实现
@@ -60,7 +61,6 @@ SimpleVersionedListState<T>::SimpleVersionedListState(
 // serialize辅助方法实现
 template <typename T>
 std::vector<uint8_t> SimpleVersionedListState<T>::serialize(const T& value) const {
-    INFO_RELEASE("h30082497 SimpleVersionedListState:serialize 1");
     return SimpleVersionedSerialization::writeVersionAndSerialize(*serializer, value);
 }
 
@@ -127,6 +127,28 @@ std::vector<T>* SimpleVersionedListState<T>::get() {
     for (auto ptr : *ptrValues) {
         values->push_back(*ptr);
         delete ptr;
+    }
+    
+    delete ptrValues;
+    return values;
+}
+
+// getP方法实现
+template <typename T>
+std::vector<T*>* SimpleVersionedListState<T>::getPtr() {
+    auto rawValues = rawState->get();
+    auto ptrValues = deserializeAll(rawValues);
+    
+    if (ptrValues == nullptr) {
+        return nullptr;
+    }
+    
+    auto values = new std::vector<T*>();
+    values->reserve(ptrValues->size());
+    
+    for (auto ptr : *ptrValues) {
+        values->push_back(ptr);
+        // delete ptr;
     }
     
     delete ptrValues;

@@ -20,7 +20,9 @@ KafkaWriter::KafkaWriter(DeliveryGuarantee deliveryGuarantee,
                          std::string &transactionalIdPrefix,
                          std::string &topic,
                          const nlohmann::json& description,
-                         int64_t maxPushRecords)
+                         int64_t maxPushRecords,
+                         InitContextImpl<void*>* initContext,
+                         const std::vector<KafkaWriterState>& states)
     : kafkaProducerConfig(kafkaProducerConfig),
     topic(topic),
     deliveryGuarantee(deliveryGuarantee),
@@ -34,10 +36,19 @@ KafkaWriter::KafkaWriter(DeliveryGuarantee deliveryGuarantee,
         recordSerializer = new DynamicKafkaRecordSerializationSchema(inputFields, inputTypes);
     }
 
+    if (initContext != nullptr && initContext->getRestoredCheckpointId().has_value()) {
+        lastCheckpointId = initContext->getRestoredCheckpointId().value();
+    }
+
+    if (deliveryGuarantee == DeliveryGuarantee::EXACTLY_ONCE) {
+        // 释放之前的事务，因为之前主流程未见到kafka开启事务相关操作，此处仅做关闭不做开启操作
+        abortLingeringTransactions(states, lastCheckpointId);
+    }
+
     currentProducer1 =
-            std::make_shared<FlinkKafkaInternalProducer>(kafkaProducerConfig, std::to_string(producerIndexOne));
+            std::make_shared<FlinkKafkaInternalProducer>(kafkaProducerConfig, std::to_string(lastCheckpointId + 1));
     currentProducer2 =
-            std::make_shared<FlinkKafkaInternalProducer>(kafkaProducerConfig, std::to_string(producerIndexTwo));
+            std::make_shared<FlinkKafkaInternalProducer>(kafkaProducerConfig, std::to_string(lastCheckpointId + 2));
     RdKafka::Conf *tconf = RdKafka::Conf::create(RdKafka::Conf::CONF_TOPIC);
     std::string errstr;
     this->kafkaProducerConfig->set("default_topic_conf", tconf, errstr);

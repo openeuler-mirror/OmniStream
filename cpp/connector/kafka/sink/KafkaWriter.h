@@ -39,6 +39,7 @@
 #include "include/common.h"
 #include "../bind_core_manager.h"
 #include "api/common/TimerThreadPool.h"
+#include "streaming/api/operators/sink/InitContextImpl.h"
 
 class KafkaWriter {
 public:
@@ -47,7 +48,9 @@ public:
                 std::string& transactionalIdPrefix,
                 std::string& topic,
                 const nlohmann::json& description,
-                int64_t maxPushRecords);
+                int64_t maxPushRecords,
+                InitContextImpl<void*>* initContext,
+                const std::vector<KafkaWriterState>& states);
     ~KafkaWriter();
 
     void write(String *element);
@@ -64,7 +67,7 @@ public:
     std::vector<KafkaWriterState> recoveredStates;
     RdKafka::Conf* kafkaProducerConfig;
     std::string topic;
-    KafkaWriterState *kafkaWriterState = nullptr;
+    KafkaWriterState* kafkaWriterState = nullptr;
 
     void SetSubTaskIdx(int32_t subtaskIdx);
     std::vector<KafkaWriterState> snapshotState(long checkpointId);

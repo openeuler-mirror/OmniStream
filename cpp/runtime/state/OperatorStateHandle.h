@@ -14,9 +14,7 @@
 
 #include <vector>
 #include <unordered_map>
-
 #include "core/fs/FSDataInputStream.h"
-
 #include "StreamStateHandle.h"
 
 class OperatorStateHandle : public StreamStateHandle {
@@ -41,6 +39,7 @@ public:
 
     class StateMetaInfo {
     public:
+        StateMetaInfo() = default;
         StateMetaInfo(std::vector<long> offsets, OperatorStateHandle::Mode distributionMode);
         std::vector<long> getOffsets();
         OperatorStateHandle::Mode getDistributionMode();
@@ -52,6 +51,6 @@ public:
     };
 
     virtual std::unordered_map<std::string, StateMetaInfo> getStateNameToPartitionOffsets() const = 0;
-    virtual StreamStateHandle *getDelegateStateHandle() = 0;
+    virtual std::shared_ptr<StreamStateHandle> getDelegateStateHandle() = 0;
 };
 #endif // OMNISTREAM_OPERATORSTATEHANDLE_H

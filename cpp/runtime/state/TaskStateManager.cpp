@@ -82,19 +82,10 @@ void TaskStateManager::ReportTaskStateSnapshots(CheckpointMetaData *checkpointMe
 void TaskStateManager::ReportTaskStateSnapshotsV2(CheckpointMetaData *checkpointMetaData,
     CheckpointMetrics *checkpointMetrics, std::shared_ptr<TaskStateSnapshot> acknowledgedState, std::shared_ptr<TaskStateSnapshot> localState)
 {
-    INFO_RELEASE("savepoint: TaskStateManager ReportTaskStateSnapshotsV2: " << checkpointMetaData->GetCheckpointId());
     std::string checkpointMetaDataJson = checkpointMetaData->ToString();
-        INFO_RELEASE("savepoint: TaskStateManager ReportTaskStateSnapshotsV2 checkpointMetaDataJson size: " << checkpointMetaDataJson.size());
-    INFO_RELEASE("savepoint: TaskStateManager ReportTaskStateSnapshotsV2 checkpointMetaDataJson: " << checkpointMetaDataJson);
     std::string checkpointMetricsJson = checkpointMetrics->ToString();
-        INFO_RELEASE("savepoint: TaskStateManager ReportTaskStateSnapshotsV2 checkpointMetricsJson size: " << checkpointMetricsJson.size());
-    INFO_RELEASE("savepoint: TaskStateManager ReportTaskStateSnapshotsV2 checkpointMetricsJson: " << checkpointMetricsJson);
     std::string acknowledgedStateJson = acknowledgedState == nullptr ? "" : acknowledgedState->ToString();
-        INFO_RELEASE("savepoint: TaskStateManager ReportTaskStateSnapshotsV2 acknowledgedStateJson size: " << acknowledgedStateJson.size());
-    INFO_RELEASE("savepoint: TaskStateManager ReportTaskStateSnapshotsV2 acknowledgedStateJson: " << acknowledgedStateJson);    
     std::string localStateJson = localState == nullptr ? "" : localState->ToString();
-        INFO_RELEASE("savepoint: TaskStateManager ReportTaskStateSnapshotsV2 localStateJson size: " << localStateJson.size());
-    INFO_RELEASE("savepoint: TaskStateManager ReportTaskStateSnapshotsV2 localStateJson: " << localStateJson);
     if (bridge_!=nullptr) {
         bridge_->ReportTaskStateSnapshots(checkpointMetaDataJson, checkpointMetricsJson, acknowledgedStateJson, localStateJson);
     }

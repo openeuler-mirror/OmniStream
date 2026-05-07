@@ -33,6 +33,10 @@ public:
 
     std::vector<StateMetaInfoSnapshot> readMetaData(const std::string &metaStateHandle) override;
 
+    std::vector<StateMetaInfoSnapshot> readOperatorMetaData(const std::string &metaStateHandle) override;
+
+    std::string restoreOperatorStreamState(const std::string &metaStateHandle) override;
+
     void getKeyGroupEntries(jobject inputStream,
         int &currentKvStateId, bool isUsingKeyGroupCompression, std::vector<KeyGroupEntry> &entries) override;
 

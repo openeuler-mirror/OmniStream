@@ -9,21 +9,20 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef FLINK_BENCHMARK_KAFKACOMMITTABLESERIALIZER_H
-#define FLINK_BENCHMARK_KAFKACOMMITTABLESERIALIZER_H
+#ifndef OMNISTREAM_SINKV1COMMITTABLEDESERIALIZER_H
+#define OMNISTREAM_SINKV1COMMITTABLEDESERIALIZER_H
 
-#include <vector>
-#include <string>
-#include <iostream>
-#include <sstream>
-#include "KafkaCommittable.h"
+#include "core/memory/DataInputDeserializer.h"
 #include "core/io/SimpleVersionedSerializer.h"
 
-class KafkaCommittableSerializer : public SimpleVersionedSerializer<KafkaCommittable> {
+class SinkV1CommittableDeserializer{
 public:
-    int getVersion() const override;
-    std::vector<uint8_t> serialize(const KafkaCommittable& obj) override;
-    KafkaCommittable* deserialize(int version, std::vector<uint8_t>& serialized) override;
+    static constexpr int MAGIC_NUMBER = 0xb91f252c;
+    template <typename T>
+    static std::vector<T>* readVersionAndDeserializeList(
+        std::shared_ptr<SimpleVersionedSerializer<T>>& serializer, DataInputDeserializer& in);
+private:
+    static void validateMagicNumber(DataInputDeserializer& in);
 };
 
-#endif // FLINK_BENCHMARK_KAFKACOMMITTABLESERIALIZER_H
+#endif // OMNISTREAM_SINKV1COMMITTABLEDESERIALIZER_H

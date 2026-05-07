@@ -34,4 +34,3 @@ KafkaCommittableSerializer *KafkaSink::getCommittableSerializer()
 {
     return new KafkaCommittableSerializer();
 }
-

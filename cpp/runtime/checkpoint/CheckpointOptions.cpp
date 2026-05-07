@@ -108,9 +108,7 @@ CheckpointOptions *CheckpointOptions::ForceAligned(
 }
 CheckpointOptions *CheckpointOptions::FromJson(nlohmann::json &config)
 {
-    INFO_RELEASE("h30082497 CheckpointOptions::FromJson config : " << config.dump());
     auto alignmentTypeStr = config["alignment"].get<std::string>();
-    INFO_RELEASE("h30082497 CheckpointOptions::FromJson alignmentType : " << alignmentTypeStr);
     AlignmentType alignmentType;
     if (alignmentTypeStr == "AT_LEAST_ONCE") {
         alignmentType = AlignmentType::AT_LEAST_ONCE;
@@ -145,7 +143,6 @@ CheckpointOptions *CheckpointOptions::FromJson(nlohmann::json &config)
     bool isSavepoint = config["checkpointType"]["name"].get<std::string>().find("Savepoint") != std::string::npos;
     if (isSavepoint){
         auto savepointFormatTypeStr = config["checkpointType"]["formatType"].get<std::string>();
-        INFO_RELEASE("h30082497 CheckpointOptions::FromJson savepointFormatTypeStr : " << savepointFormatTypeStr);
         SavepointType *savepointType;
         SavepointFormatType savepointFormatType;
         if (savepointFormatTypeStr == "CANONICAL") {
@@ -157,9 +154,7 @@ CheckpointOptions *CheckpointOptions::FromJson(nlohmann::json &config)
             throw std::invalid_argument("Unknown savepoint formatType : " + savepointFormatTypeStr);
         }
 
-
         auto savepointTypeStr = config["checkpointType"]["name"].get<std::string>();
-        INFO_RELEASE("h30082497 CheckpointOptions::FromJson savepointTypeStr : " << savepointTypeStr);
         if (savepointTypeStr == "Savepoint") {
             savepointType = SavepointType::savepoint(savepointFormatType);
         } else if (savepointTypeStr == "Terminate Savepoint") {
@@ -173,7 +168,6 @@ CheckpointOptions *CheckpointOptions::FromJson(nlohmann::json &config)
         return new CheckpointOptions(savepointType, targetLocation, alignmentType, alignedCheckpointTimeout);
     } else {
         auto checkpointTypeStr = config["checkpointType"]["name"].get<std::string>();
-        INFO_RELEASE("h30082497 CheckpointOptions::FromJson checkpointTypeStr : " << checkpointTypeStr);
         CheckpointType *checkpointType;
         if (checkpointTypeStr == "Checkpoint") {
             checkpointType = CheckpointType::CHECKPOINT;

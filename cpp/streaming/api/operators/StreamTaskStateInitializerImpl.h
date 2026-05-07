@@ -75,16 +75,13 @@ public:
         }
     }
 
-    AbstractKeyedStateBackend<K> *keyedStateBackend()
+    AbstractKeyedStateBackend<K>* getKeyedStateBackend()
     {
         return backend;
     }
 
-    AbstractKeyedStateBackend<K>* getKeyedStateBackend() {
-        return backend;
-    }
-
-    OperatorStateBackend* getOperatorStateBackend() {
+    OperatorStateBackend* getOperatorStateBackend()
+    {
         return osBackend;
     }
 
@@ -137,7 +134,8 @@ public:
     }
 
     template <typename K>
-    StreamOperatorStateContextImpl<K> *streamOperatorStateContext(TypeSerializer *keySerializer, KeyContext<K>* keyContext, ProcessingTimeService *processingTimeService)
+    StreamOperatorStateContextImpl<K> *streamOperatorStateContext(TypeSerializer *keySerializer, KeyContext<K>* keyContext,
+        ProcessingTimeService *processingTimeService, OperatorID *operatorID = nullptr)
     {
         INFO_RELEASE("h30082497 StreamOperatorStateContextImpl::streamOperatorStateContext 1");
         AbstractKeyedStateBackend<K> *backend = nullptr;
@@ -163,7 +161,7 @@ public:
         backend = keyedStatedBackend<K>(keySerializer, taskInfo.getMaxNumberOfSubtasks(),
                                         taskInfo.getNumberOfSubtasks(), taskInfo.getIndexOfSubtask(),
                                         taskInfo.getStateBackend(), operatorIdentifierText);
-        osBackend = operatorStateBackend(operatorIdentifierText);
+        osBackend = operatorStateBackend(operatorIdentifierText, operatorID);
 
 
         InternalTimeServiceManager<K> *timeServiceManager = nullptr;
@@ -211,7 +209,7 @@ protected:
     std::shared_ptr<Iterable<std::shared_ptr<StatePartitionStreamProvider>>> rawOperatorStateInputs(
         std::unique_ptr<Iterator<std::shared_ptr<StateObjectCollection<OperatorStateHandle>>>> restoreStateAlternatives);
 
-    OperatorStateBackend* operatorStateBackend(std::string operatorIdentifierText);
+    OperatorStateBackend* operatorStateBackend(std::string operatorIdentifierText, OperatorID *operatorID);
 
     std::string getOperatorSubtaskDescriptionText() { return UUID::randomUUID().ToString(); }
 
@@ -477,7 +475,7 @@ inline std::shared_ptr<Iterable<std::shared_ptr<StatePartitionStreamProvider>>> 
     return emptyIterable<std::shared_ptr<StatePartitionStreamProvider>>();
 }
 
-inline OperatorStateBackend* StreamTaskStateInitializerImpl::operatorStateBackend(std::string operatorIdentifierText) {
+inline OperatorStateBackend* StreamTaskStateInitializerImpl::operatorStateBackend(std::string operatorIdentifierText, OperatorID *operatorID) {
     INFO_RELEASE("h30082497 StreamOperatorStateContextImpl::operatorStateBackend 1");
     std::string logDescription = "operator state backend for " + operatorIdentifierText;
 
@@ -526,7 +524,12 @@ inline OperatorStateBackend* StreamTaskStateInitializerImpl::operatorStateBacken
             logDescription);
 
     try {
-        PrioritizedOperatorSubtaskState prioritizedOperatorSubtaskStates = getPrioritizedOperatorSubtaskStates();
+        PrioritizedOperatorSubtaskState prioritizedOperatorSubtaskStates;
+        if (operatorID) {
+            prioritizedOperatorSubtaskStates = env->getTaskStateManager()->prioritizedOperatorState(*operatorID);
+        } else {
+            prioritizedOperatorSubtaskStates = getPrioritizedOperatorSubtaskStates();
+        }
         std::vector<StateObjectCollection<OperatorStateHandle>> handleVector = prioritizedOperatorSubtaskStates.getPrioritizedManagedOperatorState();
         std::vector<std::set<std::shared_ptr<OperatorStateHandle>>> handleSet;
         handleSet.reserve(handleVector.size());

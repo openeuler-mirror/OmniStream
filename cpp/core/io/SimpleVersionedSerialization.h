@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <memory>
 #include "SimpleVersionedSerializer.h"
+#include "core/io/SimpleVersionedSerializer.h"
 
 class SimpleVersionedSerialization {
 public:
@@ -56,15 +57,45 @@ public:
         if (bytes.size() < 4) {
             throw std::runtime_error("Insufficient data for version deserialization");
         }
-
+        
         // 读取版本号（大端序）
         int version = (bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3];
+        
+        int length = (bytes[4] << 24) | (bytes[5] << 16) | (bytes[6] << 8) | bytes[7];
 
         // 提取序列化数据部分
-        std::vector<uint8_t> serializedData(bytes.begin() + 4, bytes.end());
-
+        std::vector<uint8_t> serializedData(bytes.begin() + 8, bytes.end());
+        
         // 反序列化对象
         return serializer.deserialize(version, serializedData);
+    }
+
+    // 读取版本号并反序列化列表 (使用DataInputView)
+    template <typename T>
+    static std::vector<T>* readVersionAndDeserializeList(
+        SimpleVersionedSerializer<T>& serializer, DataInputDeserializer& in) {
+        // 读取版本号
+        int serializerVersion = in.readInt();
+
+        // 读取列表大小
+        int dataSize = in.readInt();
+
+        std::vector<T>* data = new std::vector<T>();
+        data->reserve(dataSize);
+
+        for (int ignored = 0; ignored < dataSize; ++ignored) {
+            // 读取元素大小
+            int datumSize = in.readInt();
+
+            // 读取元素数据
+            std::vector<uint8_t> datum(datumSize);
+            in.readFully(datum.data(), datumSize, 0, datumSize);
+
+            // 反序列化元素
+            T* element = serializer.deserialize(serializerVersion, datum);
+            data->push_back(std::move(*element));
+        }
+        return data;
     }
 };
 

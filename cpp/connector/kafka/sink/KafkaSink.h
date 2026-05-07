@@ -30,24 +30,19 @@ public:
 
     KafkaCommittable *CreateCommitter();
     KafkaCommittableSerializer *getCommittableSerializer();
+
     template <typename K>
     KafkaWriter *CreateWriter(InitContextImpl<K>* initContext = nullptr)
     {
-    // todo: 使用initContext 创建KafkaWriter
         return new KafkaWriter(deliveryGuarantee, kafkaProducerConfig, transactionalIdPrefix, topic, description,
-                               maxPushRecords);
+                               maxPushRecords, initContext, {});
     }
+
     template <typename K>
     KafkaWriter *RestoreWriter(InitContextImpl<K>* initContext, const std::vector<KafkaWriterState>& states)
     {
-        // todo: 使用initContext 创建KafkaWriter
-        KafkaWriter* writer = CreateWriter(initContext);
-        if (writer != nullptr) {
-            for (const auto& state : states) {
-                writer->recoveredStates.push_back(state);
-            }
-        }
-        return writer;
+        return new KafkaWriter(deliveryGuarantee, kafkaProducerConfig, transactionalIdPrefix, topic, description,
+                               maxPushRecords, initContext, states);
     }
 
 private:

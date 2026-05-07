@@ -55,7 +55,6 @@ public:
           registeredBroadcastStates(registeredBroadcastStates_),
           accessedStatesByName(accessedStatesByName_),
           accessedBroadcastStatesByName(accessedBroadcastStatesByName_) {
-        INFO_RELEASE("h30082497 DefaultOperatorStateBackend");
     }
 
     std::unordered_set<std::string> getRegisteredStateNames() override {
@@ -77,7 +76,7 @@ public:
     void close() {}
 
     void dispose() override {
-        INFO_RELEASE("h30082497 DefaultOperatorStateBackend dispose");
+        INFO_RELEASE("DefaultOperatorStateBackend dispose");
         if (!registeredOperatorStates->empty()) {
             registeredOperatorStates->clear();
         }
@@ -139,12 +138,10 @@ public:
 
     template<typename S>
     std::shared_ptr<ListState<S>> getListState(ListStateDescriptor<S>* stateDescriptor)  {
-        INFO_RELEASE("h30082497 DefaultOperatorStateBackend::getListState");
         return getListState(stateDescriptor, OperatorStateHandle::Mode::SPLIT_DISTRIBUTE);
     }
     template<typename S>
     std::shared_ptr<ListState<S>> getUnionListState(ListStateDescriptor<S>* stateDescriptor){
-        INFO_RELEASE("h30082497 DefaultOperatorStateBackend::getUnionListState");
         return getListState(stateDescriptor, OperatorStateHandle::Mode::UNION);
     }
 
@@ -153,13 +150,11 @@ public:
         long timestamp,
         CheckpointStreamFactory* streamFactory,
         CheckpointOptions* checkpointOptions) override {
-        INFO_RELEASE("h30082497 DefaultOperatorStateBackend::snapshot 1");
         auto snapshotStrategyRunner = std::make_unique<SnapshotStrategyRunner<OperatorStateHandle, DefaultOperatorStateBackendSnapshotResources>>(
                 "DefaultOperatorStateBackend snapshot",
                 snapshotStrategy,
                 asynchronousSnapshots ? ASYNCHRONOUS : SYNCHRONOUS);
 
-        INFO_RELEASE("h30082497 DefaultOperatorStateBackend::snapshot end");
         return snapshotStrategyRunner->snapshot(checkpointId,
                                                 timestamp,
                                                 streamFactory,
@@ -180,12 +175,8 @@ private:
 
     template<typename S>
     std::shared_ptr<ListState<S>> getListState(ListStateDescriptor<S>* stateDescriptor, OperatorStateHandle::Mode mode) {
-        INFO_RELEASE("h30082497 DefaultOperatorStateBackend::getListState 1 =========="
-            << "registeredOperatorStates isNull: " << std::string(registeredOperatorStates == nullptr ? "true" : "false")
-            << ", size: " << (registeredOperatorStates == nullptr ? 0 : registeredOperatorStates->size()));
-
         std::string name = stateDescriptor->getName();
-        INFO_RELEASE("savepoint: DefaultOperatorStateBackend::getListState 1 name :" <<name);
+        INFO_RELEASE("savepoint: DefaultOperatorStateBackend::getListState name :" <<name);
         auto accessedIterator = accessedStatesByName->find(name);
         if (accessedIterator != accessedStatesByName->end()) {
             auto state = std::dynamic_pointer_cast<PartitionableListState<S>>(accessedIterator->second);
@@ -194,7 +185,7 @@ private:
 
         std::shared_ptr<PartitionableListState<S>> resultState ;
         auto* operatorStateSerializer = stateDescriptor->getStateSerializer();
-        INFO_RELEASE("savepoint: DefaultOperatorStateBackend::getListState 1 type :" <<typeid(*operatorStateSerializer).name());
+        INFO_RELEASE("savepoint: DefaultOperatorStateBackend::getListState type :" <<typeid(*operatorStateSerializer).name());
         auto registeredIterator = registeredOperatorStates->find(name);
 
         if (registeredIterator == registeredOperatorStates->end()) {
@@ -203,8 +194,8 @@ private:
             resultState = std::make_shared<PartitionableListState<S>>(stateMetaInfo);
             (*registeredOperatorStates)[name] = resultState;
         } else {
-                        INFO_RELEASE("savepoint: DefaultOperatorStateBackend::getListState found");
-            auto resultState = std::dynamic_pointer_cast<PartitionableListState<S>>(registeredIterator->second);
+            INFO_RELEASE("savepoint: DefaultOperatorStateBackend::getListState found");
+            resultState = std::dynamic_pointer_cast<PartitionableListState<S>>(registeredIterator->second);
             resultState->getStateMetaInfo()->updateStateSerializer(operatorStateSerializer);
         }
         (*accessedStatesByName)[name] = resultState;

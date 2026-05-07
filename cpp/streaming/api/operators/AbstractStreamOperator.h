@@ -133,18 +133,19 @@ public:
         return new BinaryRowDataSerializer(1);
     };
 
-    void initializeState(StateInitializationContextImpl<K> *context)  override {
-        INFO_RELEASE("h30082497 AbstractStreamOperator::initializeState 1");
+    void initializeState(StateInitializationContextImpl<K> *context)  override 
+    {
+        // do nothing
     }
 
     // KeySerializer should be retrieved from description.getStateKeySerializer(getUserCodeClassloader()),
     // but we're just passing it through this function for now
     void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) override
     {
-        INFO_RELEASE("h30082497 AbstractStreamOperator::initializeState 2 1");
         LOG("abstractStreamOperator::initializeState")
+        auto operatorID = this->GetOperatorID();
         StreamOperatorStateContextImpl<K> *context =
-            initializer->streamOperatorStateContext<K>(keySerializer, this, processingTimeService);
+            initializer->streamOperatorStateContext<K>(keySerializer, this, processingTimeService, &operatorID);
         stateHandler = new StreamOperatorStateHandler<K>(context);
         auto stateStore = stateHandler->getKeyedStateStore();
         if (runtimeContext != nullptr) {
@@ -154,6 +155,7 @@ public:
         timeServiceManager = context->getInternalTimeServiceManager();
         stateHandler->initializeOperatorState(this);
     }
+
     StreamingRuntimeContext<K> *getRuntimeContext() const
     {
         return runtimeContext;

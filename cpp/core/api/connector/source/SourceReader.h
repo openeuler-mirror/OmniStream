@@ -50,7 +50,9 @@ public:
     }
 
     // 通知检查点完成
-    virtual void notifyCheckpointComplete(long checkpointId) = 0;
+    virtual void notifyCheckpointComplete(long checkpointId) {
+        // 默认实现为空
+    }
 
     // 关闭读取器，继承自 AutoCloseable 功能的体现
     virtual void close() = 0;

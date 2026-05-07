@@ -11,13 +11,14 @@
 #ifndef OMNISTREAM_OPERATORSTATERESTOREOPERATION_H
 #define OMNISTREAM_OPERATORSTATERESTOREOPERATION_H
 
-#include <nlohmann/json.hpp>
 #include <unordered_map>
+#include <set>
 #include <vector>
+#include <string>
+#include <nlohmann/json.hpp>
 #include "PartitionableListState.h"
-// #include "RegisteredBroadcastStateBackendMetaInfo.h"
+#include "RegisteredBroadcastStateBackendMetaInfo.h"
 #include "state/bridge/OmniTaskBridge.h"
-// #include "OperatorStateHandle.h"
 #include "OperatorStreamStateHandle.h"
 #include "runtime/checkpoint/TaskStateSnapshotSerializer.h"
 #include "RegisteredOperatorStateBackendMetaInfo.h"
@@ -25,14 +26,15 @@
 class OperatorStateRestoreOperation {
 public:
     OperatorStateRestoreOperation(
-        std::unordered_map<std::string, std::shared_ptr<PartitionableListState<>>>& registeredOperatorStates,
+        std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> registeredOperatorStates,
         // 暂时不涉及广播状态
-        // std::unordered_map<std::string, std::shared_ptr<BackendWritableBroadcastState<K, V>>* registeredBroadcastStates,
+        std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<BackendWritableBroadcastState<>>>> registeredBroadcastStates,
         const std::vector<std::shared_ptr<OperatorStateHandle>>& stateHandles,
         std::shared_ptr<OmniTaskBridge> omniTaskBridge)
         : registeredOperatorStates_(registeredOperatorStates),
-          stateHandles_(stateHandles),
-          omniTaskBridge_(omniTaskBridge) {}
+            registeredBroadcastStates_(registeredBroadcastStates),
+            stateHandles_(stateHandles),
+            omniTaskBridge_(omniTaskBridge) {}
 
     ~OperatorStateRestoreOperation() = default;
     
@@ -45,50 +47,58 @@ public:
             auto streamStateHandle = std::dynamic_pointer_cast<OperatorStreamStateHandle>(stateHandle);
             if (streamStateHandle) {
                 auto json = TaskStateSnapshotSerializer::parseOperatorStreamStateHandle(streamStateHandle);
-
                 auto stateMetaInfoSnapshots = omniTaskBridge_->readOperatorMetaData(to_string(json));
-                auto metaInfo = std::make_shared<RegisteredOperatorStateBackendMetaInfo>(stateMetaInfoSnapshots[0]);
-
                 auto cppResult = omniTaskBridge_->restoreOperatorStreamState(to_string(json));
-                convertResult(cppResult, metaInfo);
+                convertResult(cppResult, stateMetaInfoSnapshots);
             }
         }
     }
     
     void convertResult(const std::string& cppResult,
-        std::shared_ptr<RegisteredOperatorStateBackendMetaInfo> metaDataInfo)
+        std::vector<StateMetaInfoSnapshot>& stateMetaInfoSnapshots)
     {
+        INFO_RELEASE("xuhb_test OperatorStateRestoreOperation restore cppResult=" << cppResult)
         nlohmann::json parsed = nlohmann::json::parse(cppResult);
         
         std::string stateName;
         nlohmann::json value;
-        
-        if (parsed.contains("writer_raw_states")) {
-            stateName = "writer_raw_states";
-        } else if (parsed.contains("SourceReaderState")) {
-            stateName = "SourceReaderState";
-        } else {
-            throw std::runtime_error("Unknown state name");
-        }
-        value = parsed[stateName];
 
-        auto stateMetaInfo = value["stateMetaInfo"];
-        auto name = stateMetaInfo["name"].get<std::string>();
-        auto internalList = value["internalList"];
-        auto listState = std::make_shared<PartitionableListState<>>(metaDataInfo);
+        for (auto& snapshot : stateMetaInfoSnapshots) {
+            auto metaInfo = std::make_shared<RegisteredOperatorStateBackendMetaInfo>(snapshot);
+            if (parsed.contains(snapshot.getName())) {
+                stateName = snapshot.getName();
+                value = parsed[stateName];
+            
+                // 根据 stateName 判断属于什么类型的数据
+                if (typeByteStateNames.find(stateName) != typeByteStateNames.end()) {
+                    auto stateMetaInfo = value["stateMetaInfo"];
+                    auto name = stateMetaInfo["name"].get<std::string>();
+                    auto internalList = value["internalList"];
+                    auto listState = std::make_shared<PartitionableListState<std::vector<uint8_t>>>(metaInfo);
 
-        for (const auto& item : internalList) {
-            std::vector<uint8_t> decodedData = Base64_decode(item.get<std::string>());
-            listState->add(decodedData);
+                    for (const auto& item : internalList) {
+                        std::vector<uint8_t> decodedData = Base64_decode(item.get<std::string>());
+                        listState->add(decodedData);
+                    }
+                    registeredOperatorStates_->emplace(name, listState);
+                    continue;
+                }
+                // 更多类型进行判断
+            }
         }
-        registeredOperatorStates_.emplace(name, listState);
     }
 
-   private:
-    std::unordered_map<std::string, std::shared_ptr<PartitionableListState<>>>& registeredOperatorStates_;
-    //std::unordered_map<std::string, std::shared_ptr<BackendWritableBroadcastState<K, V>>* registeredBroadcastStates_;
+private:
+    std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> registeredOperatorStates_;
+    std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<BackendWritableBroadcastState<>>>> registeredBroadcastStates_;
     std::vector<std::shared_ptr<OperatorStateHandle>> stateHandles_;
     std::shared_ptr<OmniTaskBridge> omniTaskBridge_;
+
+    inline static std::set<std::string> typeByteStateNames = {
+        "SourceReaderState",
+        "writer_raw_states",
+        "streaming_committer_raw_states"
+    };
 };
 
 #endif // OMNISTREAM_OPERATORSTATERESTOREOPERATION_H

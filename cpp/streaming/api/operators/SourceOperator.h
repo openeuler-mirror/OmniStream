@@ -21,7 +21,6 @@
 
 #ifndef FLINK_TNEL_SOURCEOPERATOR_H
 #define FLINK_TNEL_SOURCEOPERATOR_H
-#include "../../../core/include/common.h"
 
 #ifdef ASSERT
 #undef ASSERT
@@ -197,6 +196,19 @@ public:
         } else {
             eventTimeLogic = TimestampsAndWatermarks::CreateNoOpEventTimeLogic(watermarkStrategy);
         }
+
+        std::vector<SplitT*> splits = *readerState_->getPtr();
+        if (!splits.empty()) {
+            sourceReader->addSplits(splits);
+            for (auto split : splits) {
+                INFO_RELEASE("SourceOperator open: topic " << split->getTopic() << " partition " << split->getPartition() << " startOffset " << split->getStartingOffset())
+                // delete split;
+                // split = nullptr;
+            }
+        }
+        INFO_RELEASE("SourceOperator open: addSplits done ")
+        
+        registerReader();
         
         INFO_RELEASE("savepoint: SourceOperator open === calling sourceReader->start()");
         sourceReader->start();
@@ -345,7 +357,8 @@ public:
         return sourceReader;
     }
 
-    std::shared_ptr<ListState<SplitT>> getReaderState() {
+    std::shared_ptr<ListState<SplitT>> getReaderState()
+    {
         return readerState_;
     }
 
@@ -447,6 +460,10 @@ private:
         if (eventTimeLogic != nullptr) {
             eventTimeLogic->StopPeriodicWatermarkEmits();
         }
+    }
+
+    void registerReader()
+    {
     }
 
     DataInputStatus emitNextNotReading(OmniDataOutputPtr output)

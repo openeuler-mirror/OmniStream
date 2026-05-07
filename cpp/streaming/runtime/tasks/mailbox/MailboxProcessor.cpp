@@ -118,7 +118,7 @@ void MailboxProcessor::runMailboxLoop()
 
         // 阻塞的 `processMail` 调用将不会返回，直到有默认操作可用为止。
         processMail(mailbox_, false);
-        if (isNextLoopPossible()) {;
+        if (isNextLoopPossible()) {
             LOG(">>>before runDefaultAction")
             mailboxDefaultAction->runDefaultAction(mailboxController);
         }

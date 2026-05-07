@@ -51,7 +51,6 @@ public:
 
     void initializeState(StateInitializationContextImpl<void*>* context) override;
 
-
     void snapshotState(StateSnapshotContextSynchronousImpl* context) override;
 
     void open() override;

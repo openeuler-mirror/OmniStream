@@ -166,61 +166,42 @@ std::shared_ptr<SnapshotResult<OperatorStateHandle>> OmniTaskBridgeImpl2::CallMa
     CheckpointOptions* checkpointOptions_,
     std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& operatorStateMetaInfoSnapshots_,
     std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& broadcastStateMetaInfoSnapshots_) {
-    INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::CallMaterializeOperatorMetaData 1");
-    INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::CallMaterializeOperatorMetaData 2");
-    INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::CallMaterializeOperatorMetaData ==================== operatorStateMetaInfoSnapshots " + std::to_string(operatorStateMetaInfoSnapshots_.size()));
-    INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::CallMaterializeOperatorMetaData ==================== broadcastStateMetaInfoSnapshots " + std::to_string(broadcastStateMetaInfoSnapshots_.size()));
 
     if (m_globalOmniTaskRef == nullptr) {
         GErrorLog("StreamTask is not registered in TaskStateManagerBridgeImpl::CallMaterializeOperatorMetaData");
         return nullptr;
     }
 
-    INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::CallMaterializeOperatorMetaData 3");
     JNIEnv* env;
     jint res = g_OmniStreamJVM->AttachCurrentThread(reinterpret_cast<void**>(&env), nullptr);
     if (res != JNI_OK) {
         GErrorLog("Failed to attach C++ thread to JVM inside TaskStateManagerBridgeImpl::CallMaterializeOperatorMetaData");
         return nullptr;
     }
-    INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::CallMaterializeOperatorMetaData 4");
     if (checkpointOptions_ == nullptr) {
         GErrorLog("checkpointOptions is nullptr in TaskStateManagerBridgeImpl::CallMaterializeOperatorMetaData");
         return nullptr;
     }
-    INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::CallMaterializeOperatorMetaData 5");
     nlohmann::json operatorStateMetaInfoJson = nlohmann::json::array();
     nlohmann::json broadcastStateMetaInfoJson = nlohmann::json::array();
-    INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::CallMaterializeOperatorMetaData 6");
     for (const auto& snapshot : operatorStateMetaInfoSnapshots_) {
         try {
             if (snapshot == nullptr) {
-                INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::CallMaterializeOperatorMetaData 6 1 snapshot is null");
                 continue;
             }
-        INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::CallMaterializeOperatorMetaData 6 1 ====== " + snapshot->getName());
-        nlohmann::json jsonObj;
-        INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::CallMaterializeOperatorMetaData 6 2");
-        jsonObj["name"] = snapshot->getName();
-        INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::CallMaterializeOperatorMetaData 6 3");
-        jsonObj["backendStateType"] = static_cast<int>(StateMetaInfoSnapshot::getCode(snapshot->getBackendStateType()));
-        INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::CallMaterializeOperatorMetaData 6 4");
-        jsonObj["options"] = snapshot->getOptionsImmutable();
-        INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::CallMaterializeOperatorMetaData 6 5");
-        INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::CallMaterializeOperatorMetaData 6 5 ====== " + snapshot->getName());
-        INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::CallMaterializeOperatorMetaData 6 5 ====== " + snapshot->getTypeSerializer("stateSerializer")->toJson());
-        jsonObj["serializer"] = snapshot->getSerializerJson();
-        INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::CallMaterializeOperatorMetaData 6 6");
-        operatorStateMetaInfoJson.push_back(std::move(jsonObj));
+        
+            nlohmann::json jsonObj;
+            jsonObj["name"] = snapshot->getName();
+            jsonObj["backendStateType"] = static_cast<int>(StateMetaInfoSnapshot::getCode(snapshot->getBackendStateType()));
+            jsonObj["options"] = snapshot->getOptionsImmutable();
+            jsonObj["serializer"] = snapshot->getSerializerJson();
+            operatorStateMetaInfoJson.push_back(std::move(jsonObj));
         } catch (const std::exception& e) {
-            GErrorLog("h30082497 OmniTaskBridgeImpl2::CallMaterializeOperatorMetaData 6 error " + std::string(e.what()));
+            GErrorLog("OmniTaskBridgeImpl2::CallMaterializeOperatorMetaData error " + std::string(e.what()));
         }
-        INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::CallMaterializeOperatorMetaData 6 end");
     }
-    INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::CallMaterializeOperatorMetaData 7");
     for (const auto& snapshot : broadcastStateMetaInfoSnapshots_) {
         if (snapshot == nullptr) {
-            INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::CallMaterializeOperatorMetaData 7 1 snapshot is null");
             continue;
         }
         nlohmann::json jsonObj;
@@ -230,28 +211,21 @@ std::shared_ptr<SnapshotResult<OperatorStateHandle>> OmniTaskBridgeImpl2::CallMa
         jsonObj["serializer"] = snapshot->getSerializerJson();
         broadcastStateMetaInfoJson.push_back(std::move(jsonObj));
     }
-    INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::CallMaterializeOperatorMetaData 8");
     std::string operatorStateMetaInfoStr = operatorStateMetaInfoJson.dump();
     std::string broadcastStateMetaInfoStr = broadcastStateMetaInfoJson.dump();
-    INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::CallMaterializeOperatorMetaData 9");
 
     nlohmann::json jCheckpointOptions = checkpointOptions_->ToJson();
     std::string checkpointOptionsStr = jCheckpointOptions.dump();
-    INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::CallMaterializeOperatorMetaData 10");
     jclass cls = env->GetObjectClass(m_globalOmniTaskRef);
-    INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::CallMaterializeOperatorMetaData 11");
     jmethodID mid = env->GetMethodID(
         cls,
         "materializeOperatorMetaData",
         "(JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lorg/apache/flink/runtime/state/SnapshotResult;"
     );
-    INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::CallMaterializeOperatorMetaData 12");
     jstring jOperatorStateMetaInfoStr = env->NewStringUTF(operatorStateMetaInfoStr.c_str());
     jstring jBroadcastStateMetaInfoStr = env->NewStringUTF(broadcastStateMetaInfoStr.c_str());
     jstring jCheckpointOptionsStr = env->NewStringUTF(checkpointOptionsStr.c_str());
-    INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::CallMaterializeOperatorMetaData 13");
     jobject resultObj = env->CallObjectMethod(m_globalOmniTaskRef, mid, checkpointId_, jCheckpointOptionsStr, jOperatorStateMetaInfoStr, jBroadcastStateMetaInfoStr);
-    INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::CallMaterializeOperatorMetaData 14");
     if (env->ExceptionCheck()) {
         env->ExceptionDescribe();
         env->ExceptionClear();
@@ -261,17 +235,13 @@ std::shared_ptr<SnapshotResult<OperatorStateHandle>> OmniTaskBridgeImpl2::CallMa
         env->DeleteLocalRef(jCheckpointOptionsStr);
         throw std::runtime_error("Failed to call materializeOperatorMetaData");
     }
-    INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::CallMaterializeOperatorMetaData 15");
     env->DeleteLocalRef(jOperatorStateMetaInfoStr);
     env->DeleteLocalRef(jBroadcastStateMetaInfoStr);
     env->DeleteLocalRef(cls);
     env->DeleteLocalRef(jCheckpointOptionsStr);
 
-    INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::CallMaterializeOperatorMetaData 16");
     std::shared_ptr<SnapshotResult<StreamStateHandle>> resultHandle = helper.ConvertSnapshotResult(env, resultObj);
-    INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::CallMaterializeOperatorMetaData 17");
     std::shared_ptr<SnapshotResult<OperatorStateHandle>> operatorStateHandle = std::dynamic_pointer_cast<SnapshotResult<OperatorStateHandle>>(resultHandle);
-    INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::CallMaterializeOperatorMetaData end");
 
     return operatorStateHandle;
 }
@@ -388,6 +358,105 @@ std::vector<StateMetaInfoSnapshot> OmniTaskBridgeImpl2::readMetaData(const std::
     } else {
         GErrorLog("Error: Could not get TaskStateManagerWrapper class for JNI call");
         return {};
+    }
+}
+
+std::vector<StateMetaInfoSnapshot> OmniTaskBridgeImpl2::readOperatorMetaData(const std::string &metaStateHandle)
+{
+    JNIEnv* env;
+    jint res = g_OmniStreamJVM->AttachCurrentThread(reinterpret_cast<void**>(&env), nullptr);
+    if (res != JNI_OK) {
+        return {};
+    }
+
+    if (m_globalOmniTaskRef != nullptr) {
+        jclass omniTaskWrapperClass = env->GetObjectClass(m_globalOmniTaskRef);
+        if (omniTaskWrapperClass == nullptr) {
+            g_OmniStreamJVM->DetachCurrentThread();
+            return {};
+        }
+
+        jmethodID readMetaMethodId = env->GetMethodID(omniTaskWrapperClass, "readOperatorMetaData",
+                                                      "(Ljava/lang/String;)Ljava/lang/String;");
+        if (readMetaMethodId == nullptr) {
+            env->DeleteLocalRef(omniTaskWrapperClass); // Clean up local ref
+            g_OmniStreamJVM->DetachCurrentThread();
+            return {};
+        }
+
+        jstring msHandle = env->NewStringUTF(metaStateHandle.c_str());
+
+        // Invoke the Java method
+        jstring result = (jstring) env->CallObjectMethod(m_globalOmniTaskRef, readMetaMethodId, msHandle);
+
+        if (env->ExceptionCheck()) {
+            env->ExceptionDescribe(); // Print exception details to stderr
+            env->ExceptionClear();    // Clear the exception
+        }
+
+        // Convert jstring to std::string
+        const char* strChars = env->GetStringUTFChars(result, nullptr);
+        std::string cppResult(strChars);
+        env->ReleaseStringUTFChars(result, strChars);
+        g_OmniStreamJVM->DetachCurrentThread();
+
+        return helper.convertResult(cppResult);
+    } else {
+        GErrorLog("Error: Could not get TaskStateManagerWrapper class for JNI call");
+        return {};
+    }
+}
+
+std::string OmniTaskBridgeImpl2::restoreOperatorStreamState(const std::string &stateHandle)
+{
+    JNIEnv* env;
+    jint res = g_OmniStreamJVM->AttachCurrentThread(reinterpret_cast<void**>(&env), nullptr);
+    if (res != JNI_OK) {
+        GErrorLog("Error: Could not AttachCurrentThread for JNI call");
+        return "";
+    }
+
+    if (m_globalOmniTaskRef != nullptr) {
+        jclass omniTaskWrapperClass = env->GetObjectClass(m_globalOmniTaskRef);
+        if (omniTaskWrapperClass == nullptr) {
+            GErrorLog("Error: Could not get TaskStateManagerWrapper class for JNI call");
+            g_OmniStreamJVM->DetachCurrentThread();
+            return "";
+        }
+
+        jmethodID stateRestoreMethodId = env->GetMethodID(omniTaskWrapperClass, "operatorStateRestore",
+                                                      "(Ljava/lang/String;)Ljava/lang/String;");
+        if (stateRestoreMethodId == nullptr) {
+            GErrorLog("Error: Could not get operatorStateRestore method for JNI call");
+            env->DeleteLocalRef(omniTaskWrapperClass); // Clean up local ref
+            g_OmniStreamJVM->DetachCurrentThread();
+            return "";
+        }
+
+        jstring msHandle = env->NewStringUTF(stateHandle.c_str());
+
+        // Invoke the Java method
+        jstring result = (jstring) env->CallObjectMethod(m_globalOmniTaskRef, stateRestoreMethodId, msHandle);
+
+        if (env->ExceptionCheck()) {
+            GErrorLog("Error: operatorStateRestore method threw an exception");
+            env->ExceptionDescribe(); // Print exception details to stderr
+            env->ExceptionClear();    // Clear the exception
+            g_OmniStreamJVM->DetachCurrentThread();
+            return "";
+        }
+
+        // Convert jstring to std::string
+        const char* strChars = env->GetStringUTFChars(result, nullptr);
+        std::string cppResult(strChars);
+        INFO_RELEASE("operatorStateRestore result: " << cppResult);
+        
+        env->ReleaseStringUTFChars(result, strChars);
+        g_OmniStreamJVM->DetachCurrentThread();
+        return cppResult;
+    } else {
+        GErrorLog("Error: Could not get TaskStateManagerWrapper class for JNI call");
+        return "";
     }
 }
 
@@ -714,7 +783,7 @@ std::shared_ptr<SnapshotResult<StreamStateHandle>> OmniTaskBridgeImpl2::CloseSav
         INFO_RELEASE("Error: Failed to call CloseSavepointOutputStream");
         throw std::runtime_error("Failed to call CloseSavepointOutputStream");
     }
-    auto res = helper.ConvertSnapshotResult(env, javaResult);
+    auto res =  helper.ConvertSnapshotResult(env, javaResult);
     env->DeleteGlobalRef(provider);
     return res;
 }
@@ -791,8 +860,6 @@ void OmniTaskBridgeImpl2::WriteOperatorMetaData(
     jobject provider,
     const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& operatorStateMetaInfoSnapshots_,
     const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& broadcastStateMetaInfoSnapshots_) {
-    INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::WriteOperatorMetaData ==================== operatorStateMetaInfoSnapshots " + std::to_string(operatorStateMetaInfoSnapshots_.size()));
-    INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::WriteOperatorMetaData ==================== broadcastStateMetaInfoSnapshots " + std::to_string(broadcastStateMetaInfoSnapshots_.size()));
 
     JNIEnv* env = nullptr;
     jint ret = g_OmniStreamJVM->GetEnv(reinterpret_cast<void **>(&env), JNI_VERSION_1_8);
@@ -807,32 +874,24 @@ void OmniTaskBridgeImpl2::WriteOperatorMetaData(
 
     nlohmann::json operatorStateMetaInfoJson = nlohmann::json::array();
     nlohmann::json broadcastStateMetaInfoJson = nlohmann::json::array();
-    INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::WriteOperatorMetaData 6");
     for (const auto& snapshot : operatorStateMetaInfoSnapshots_) {
         try {
             if (snapshot == nullptr) {
-                INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::WriteOperatorMetaData 6 1 snapshot is null");
                 continue;
             }
-        INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::WriteOperatorMetaData  snapshot->getName()" + snapshot->getName());
-        nlohmann::json jsonObj;
-        jsonObj["name"] = snapshot->getName();
-        jsonObj["backendStateType"] = static_cast<int>(StateMetaInfoSnapshot::getCode(snapshot->getBackendStateType()));
-        jsonObj["options"] = snapshot->getOptionsImmutable();
-        INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::WriteOperatorMetaData  snapshot->getName()" + snapshot->getName());
-        INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::WriteOperatorMetaData  snapshot->getTypeSerializer(stateSerializer)->toJson()" + snapshot->getTypeSerializer("stateSerializer")->toJson());
-        jsonObj["serializer"] = snapshot->getSerializerJson();
-        operatorStateMetaInfoJson.push_back(std::move(jsonObj));
+            nlohmann::json jsonObj;
+            jsonObj["name"] = snapshot->getName();
+            jsonObj["backendStateType"] = static_cast<int>(StateMetaInfoSnapshot::getCode(snapshot->getBackendStateType()));
+            jsonObj["options"] = snapshot->getOptionsImmutable();
+            jsonObj["serializer"] = snapshot->getSerializerJson();
+            operatorStateMetaInfoJson.push_back(std::move(jsonObj));
         } catch (const std::exception& e) {
-            INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::WriteOperatorMetaData 6 error " + std::string(e.what()));
+            INFO_RELEASE("OmniTaskBridgeImpl2::WriteOperatorMetaData error " + std::string(e.what()));
                     throw std::runtime_error("Failed to WriteOperatorMetaData");
         }
-        INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::WriteOperatorMetaData 6 end");
     }
-    INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::WriteOperatorMetaData 7");
     for (const auto& snapshot : broadcastStateMetaInfoSnapshots_) {
         if (snapshot == nullptr) {
-            INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::WriteOperatorMetaData 7 1 snapshot is null");
             continue;
         }
         nlohmann::json jsonObj;
@@ -842,24 +901,18 @@ void OmniTaskBridgeImpl2::WriteOperatorMetaData(
         jsonObj["serializer"] = snapshot->getSerializerJson();
         broadcastStateMetaInfoJson.push_back(std::move(jsonObj));
     }
-    INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::WriteOperatorMetaData 8");
     std::string operatorStateMetaInfoStr = operatorStateMetaInfoJson.dump();
     std::string broadcastStateMetaInfoStr = broadcastStateMetaInfoJson.dump();
-    INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::WriteOperatorMetaData 9");
 
-    INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::WriteOperatorMetaData 10");
     jclass cls = env->GetObjectClass(m_globalOmniTaskRef);
-    INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::WriteOperatorMetaData 11");
     jmethodID mid = env->GetMethodID(
         cls,
         "writeOperatorMetaData",
         "(Lorg/apache/flink/runtime/state/CheckpointStreamWithResultProvider;Ljava/lang/String;Ljava/lang/String;)V"
     );
 
-    INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::WriteOperatorMetaData 12");
     jstring jOperatorStateMetaInfoStr = env->NewStringUTF(operatorStateMetaInfoStr.c_str());
     jstring jBroadcastStateMetaInfoStr = env->NewStringUTF(broadcastStateMetaInfoStr.c_str());
-    INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::WriteOperatorMetaData 13");
     env->CallObjectMethod(m_globalOmniTaskRef, mid, provider, jOperatorStateMetaInfoStr, jBroadcastStateMetaInfoStr);
     if (env->ExceptionCheck()) {
         env->ExceptionDescribe();
@@ -891,7 +944,7 @@ long OmniTaskBridgeImpl2::GetSavepointOutputStreamPos(jobject provider)
     if (env->ExceptionCheck()) {
         env->ExceptionDescribe();
         env->ExceptionClear();
-        env->DeleteGlobalRef(provider);
+        //env->DeleteLocalRef(provider);
         INFO_RELEASE("Error: Failed to call GetSavepointOutputStreamPos");
         throw std::runtime_error("Failed to call GetSavepointOutputStreamPos");
     }

@@ -12,7 +12,6 @@
 #ifndef OMNISTREAM_STATEOBJECTCOLLECTION_H
 #define OMNISTREAM_STATEOBJECTCOLLECTION_H
 
-#include <typeinfo>
 #include <vector>
 #include <list>
 #include <memory>
@@ -224,7 +223,6 @@ public:
 
         for (const auto& obj : stateObjects) {
             if (obj) {
-                INFO_RELEASE("h30082497 StateObjectCollection::ToString  obj type:" << typeid(*obj.get()).name());
                 auto derived = std::dynamic_pointer_cast<BridgeKeyedStateHandle>(obj);
                 if (derived != nullptr && derived->handle != nullptr) {
                     std::string jsonStr = derived->handle->ToString();

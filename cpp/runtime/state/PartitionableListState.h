@@ -25,35 +25,28 @@
 
 #include "RegisteredOperatorStateBackendMetaInfo.h"
 
-class IListState {
-    public:
-        virtual ~IListState() = default;
-        virtual const std::type_info& getType() const = 0;
-        virtual std::shared_ptr<RegisteredOperatorStateBackendMetaInfo> getStateMetaInfo();
-        virtual std::vector<long> write(DataOutputSerializer& out);
-};
-
 template<typename S>
 class PartitionableListState : public ListState<S> {
 public:
-    PartitionableListState(const std::shared_ptr<RegisteredOperatorStateBackendMetaInfo>& stateMetaInfo_,
-                           const std::shared_ptr<std::vector<S>>& internalList_,
-                           const std::shared_ptr<ListSerializer>& internalListCopySerializer_)
+    PartitionableListState(const std::shared_ptr<RegisteredOperatorStateBackendMetaInfo> stateMetaInfo_,
+                           const std::shared_ptr<std::vector<S>> internalList_,
+                           const std::shared_ptr<ListSerializer> internalListCopySerializer_)
         : stateMetaInfo(stateMetaInfo_),
           internalList(internalList_),
           internalListCopySerializer(internalListCopySerializer_) {}
 
-    PartitionableListState(const std::shared_ptr<RegisteredOperatorStateBackendMetaInfo>& stateMetaInfo_,
-                           const std::shared_ptr<ListSerializer>& internalListCopySerializer_)
+    PartitionableListState(const std::shared_ptr<RegisteredOperatorStateBackendMetaInfo> stateMetaInfo_,
+                           const std::shared_ptr<ListSerializer> internalListCopySerializer_)
         : stateMetaInfo(stateMetaInfo_),
           internalListCopySerializer(internalListCopySerializer_) {
         initInternalList();
     }
 
-    PartitionableListState(const std::shared_ptr<RegisteredOperatorStateBackendMetaInfo>& stateMetaInfo_)
+    PartitionableListState(const std::shared_ptr<RegisteredOperatorStateBackendMetaInfo> stateMetaInfo_)
         : PartitionableListState(stateMetaInfo_, std::make_shared<ListSerializer>(stateMetaInfo_->getStateSerializer())) {}
 
-    void setStateMetaInfo(const std::shared_ptr<RegisteredOperatorStateBackendMetaInfo>& stateMetaInfo_) {
+    void setStateMetaInfo(const std::shared_ptr<RegisteredOperatorStateBackendMetaInfo> stateMetaInfo_) {
+        initInternalList();
         internalListCopySerializer = std::make_shared<ListSerializer>(stateMetaInfo_->getStateSerializer());
         stateMetaInfo = stateMetaInfo_;
     }
@@ -61,21 +54,6 @@ public:
     std::shared_ptr<RegisteredOperatorStateBackendMetaInfo> getStateMetaInfo() {
         return stateMetaInfo;
     }
-
-    // template<typename ST>
-    // void setAndConvertInternalList(const std::shared_ptr<std::vector<ST>>& internalList_) {
-    //     if (internalList == nullptr) {
-    //         initInternalList();
-    //     }
-    //     INFO_RELEASE("h30082497 PartitionableListState::setAndConvertInternalList other_ size: " + std::to_string(internalList_->size()));
-    //     INFO_RELEASE("h30082497 PartitionableListState::setAndConvertInternalList size: b " + std::to_string(internalList->size()));
-    //     for (auto& v : *internalList_) {
-    //         if (std::holds_alternative<S>(v)) {
-    //             add(std::get<S>(v));
-    //         }
-    //     }
-    //     INFO_RELEASE("h30082497 PartitionableListState::setAndConvertInternalList size: a " + std::to_string(internalList->size()));
-    // }
 
     void initInternalList() {
         internalList = std::make_shared<std::vector<S>>();
@@ -134,21 +112,16 @@ public:
     }
 
     void merge(const std::vector<S>& other_) override {
-        // INFO_RELEASE("h30082497 PartitionableListState::merge");
-        // if (other_.empty()) {
-        //     INFO_RELEASE("h30082497 PartitionableListState::merge other_ is empty");
-        //     return;
-        // }
-        // INFO_RELEASE("h30082497 PartitionableListState::merge other_ size: " + std::to_string(other_.size()));
-        // INFO_RELEASE("h30082497 PartitionableListState::merge size: b " + std::to_string(internalList->size()));
-        // std::set<S> existSet(internalList->begin(), internalList->end());
-        // for (const S& element: other_) {
-        //     if (existSet.find(element) == existSet.end()) {
-        //         existSet.insert(element);
-        //         internalList->push_back(element);
-        //     }
-        // }
-        // INFO_RELEASE("h30082497 PartitionableListState::merge size: a " + std::to_string(internalList->size()));
+        if (other_.empty()) {
+            return;
+        }
+        std::set<S> existSet(internalList->begin(), internalList->end());
+        for (const S& element: other_) {
+            if (existSet.find(element) == existSet.end()) {
+                existSet.insert(element);
+                internalList->push_back(element);
+            }
+        }
     }
 
     void addAll(const std::vector<S>& values_) override {

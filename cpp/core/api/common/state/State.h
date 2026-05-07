@@ -11,7 +11,6 @@
 #ifndef FLINK_TNEL_STATE_H
 #define FLINK_TNEL_STATE_H
 
-#include <unordered_map>
 #include "table/data/vectorbatch/VectorBatch.h"
 
 class State {
@@ -28,7 +27,6 @@ public:
     {
         vectorBatches.push_back(vectorBatch);
     };
-
     const std::vector<omnistream::VectorBatch *> &getVectorBatches() const
     {
         return vectorBatches;

@@ -46,14 +46,13 @@ public:
     StreamOperatorStateHandler(StreamOperatorStateContextImpl<K> *context)
     {
         this->context = context;
-        this->keyedStateBackend = context->keyedStateBackend();
+        this->keyedStateBackend = context->getKeyedStateBackend();
         this->operatorStateBackend = context->getOperatorStateBackend();
         if (keyedStateBackend != nullptr) {
             keyedStateStore = new DefaultKeyedStateStore<K>(dynamic_cast<AbstractKeyedStateBackend<K> *>(keyedStateBackend));
         } else {
             keyedStateStore = nullptr;
         }
-        INFO_RELEASE("h30082497 StreamOperatorStateHandler end");
     };
 
     ~StreamOperatorStateHandler()
@@ -233,14 +232,13 @@ public:
             snapshotInProgress->setOperatorStateRawFuture(snapshotContext->getOperatorStateStreamFuture());
 
             if (operatorStateBackend) {
-                INFO_RELEASE("h30082497 StreamOperatorStateHandler::snapshotState operatorStateBackend");
+                INFO_RELEASE("h30082497 StreamOperatorStateHandler::snapshotState operatorStateBackend 2");
                 snapshotInProgress->setOperatorStateManagedFuture(
                     operatorStateBackend->snapshot(checkpointId, timestamp, checkpointStreamFactory, checkpointOptions)
                 );
             }
 
             if (keyedStateBackend) {
-                INFO_RELEASE("h30082497 StreamOperatorStateHandler::snapshotState keyedStateBackend 1");
                 // Set bridge on Heap backend for checkpoint (RocksDB gets it via constructor)
                 auto heapBackend = dynamic_cast<HeapKeyedStateBackend<K>*>(keyedStateBackend);
                 if (heapBackend && bridge) {

@@ -23,6 +23,7 @@
 #include "DefaultOperatorStateBackendSnapshotStrategy.h"
 #include "OperatorStateHandle.h"
 #include "PartitionableListState.h"
+#include "OperatorStateRestoreOperation.h"
 
 class DefaultOperatorStateBackendBuilder {
 public:
@@ -35,12 +36,9 @@ public:
           operatorIdentifier(operatorIdentifier_),
           restoreStateHandles(stateHandles_),
           bridge(bridge_),
-          omniTaskBridge(omniTaskBridge_){
-        INFO_RELEASE("h30082497 DefaultOperatorStateBackendBuilder");
-    }
+          omniTaskBridge(omniTaskBridge_){}
 
     OperatorStateBackend* build() {
-        INFO_RELEASE("h30082497 DefaultOperatorStateBackendBuilder::build 1");
         auto registeredOperatorStates = std::make_shared<std::unordered_map<std::string, std::shared_ptr<State>>>();
         auto registeredBroadcastStates = std::make_shared<std::unordered_map<std::string, std::shared_ptr<BackendWritableBroadcastState<>>>>();
         auto accessedStatesByName = std::make_shared<std::unordered_map<std::string, std::shared_ptr<State>>>();
@@ -48,20 +46,16 @@ public:
 
         auto snapshotStrategy = new DefaultOperatorStateBackendSnapshotStrategy(registeredOperatorStates, registeredBroadcastStates);
 
-        INFO_RELEASE("h30082497 DefaultOperatorStateBackendBuilder::build ======================== OperatorStateRestoreOperation not impl");
-
-        /*
-        OperatorStateRestoreOperation restoreOperation(
+        auto restoreOperation = std::make_shared<OperatorStateRestoreOperation>(
             registeredOperatorStates,
-            // registeredBroadcastStates,
+            registeredBroadcastStates,
             restoreStateHandles,
             omniTaskBridge);
-
         try {
-            restoreOperation.restore();
+            restoreOperation->restore();
         } catch (const std::exception& e) {
             throw std::runtime_error("Failed when trying to restore operator state backend"+ std::string(e.what()));
-        }*/
+        }
 
         INFO_RELEASE("h30082497 DefaultOperatorStateBackendBuilder::build end");
         return new DefaultOperatorStateBackend(

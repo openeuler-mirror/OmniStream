@@ -35,9 +35,20 @@ public:
     OperatorStreamStateHandle(
         std::unordered_map<std::string, StateMetaInfo>& stateNameToPartitionOffsets_,
         std::shared_ptr<StreamStateHandle> delegateStateHandle_)
-        : stateNameToPartitionOffsets(std::move(stateNameToPartitionOffsets_)),
-          delegateStateHandle(delegateStateHandle_) {
-            INFO_RELEASE("h30082497 OperatorStreamStateHandle delegateStateHandle type: "<<typeid(*delegateStateHandle_.get()).name());
+        : stateNameToPartitionOffsets(stateNameToPartitionOffsets_),
+          delegateStateHandle(delegateStateHandle_) {}
+
+    explicit OperatorStreamStateHandle(const nlohmann::json &description) {
+        delegateStateHandle = StreamStateHandleFactory::from_json(description["delegateStateHandle"]);
+        const nlohmann::json &offsetsJson = description["stateNameToPartitionOffsets"];
+        for (auto &el: offsetsJson.items()) {
+            if (el.key() == "@class") {
+                continue;
+            }
+            std::string stateName = el.key();
+            StateMetaInfo stateMetaInfo = parseStateMetaInfo(el.value());
+            stateNameToPartitionOffsets[stateName] = stateMetaInfo;
+        }
     }
 
     void DiscardState() override {
@@ -69,8 +80,8 @@ public:
         return stateNameToPartitionOffsets;
     }
 
-    StreamStateHandle* getDelegateStateHandle() override {
-        return delegateStateHandle.get();
+    std::shared_ptr<StreamStateHandle> getDelegateStateHandle() override {
+        return delegateStateHandle;
     }
 
     bool operator==(const StreamStateHandle& other_) const override {
@@ -126,6 +137,12 @@ public:
 private:
     std::unordered_map<std::string, StateMetaInfo> stateNameToPartitionOffsets;
     std::shared_ptr<StreamStateHandle> delegateStateHandle;
+
+    StateMetaInfo parseStateMetaInfo(const nlohmann::json &j) {
+        auto mode = OperatorStateHandle::StrToMode(j["distributionMode"].get<std::string>());
+        auto offset = j["offsets"].get<std::vector<long>>();
+        return StateMetaInfo(offset, mode);
+    }
 };
 
 #endif //OMNISTREAM_OPERATORSTREAMSTATEHANDLE_H

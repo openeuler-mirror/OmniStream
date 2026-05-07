@@ -61,23 +61,23 @@ public:
 
     template <typename K1, typename K2>
     KafkaWriter* createWriter(InitContextImpl<K1>* initContext, StateInitializationContextImpl<K2>* context) {
-        // auto rawState = context->getOperatorStateBackend()->getListState(&WRITER_RAW_STATES_DESC);
+        auto* operatorStateBackend = static_cast<DefaultOperatorStateBackend*>(context->getOperatorStateBackend());
+        auto rawState = operatorStateBackend->getListState(&WRITER_RAW_STATES_DESC);
 
-        // writerState = std::make_shared<SimpleVersionedListState<KafkaWriterState>>(
-        //     std::shared_ptr<ListState<std::vector<uint8_t>>>(rawState),
-        //     writerStateSerializer);
+        writerState = std::make_shared<SimpleVersionedListState<KafkaWriterState>>(
+            rawState,
+            writerStateSerializer);
 
-        // if (context->isRestored()) {
-        //     auto states = writerState->get();
-        //     std::vector<KafkaWriterState> statesList;
-        //     if (states) {
-        //         statesList = *states;
-        //     }
-        //     kafkaWriter = sink->RestoreWriter(initContext, statesList);
-        // } else {
+        if (context->isRestored()) {
+            auto states = writerState->get();
+            std::vector<KafkaWriterState> statesList;
+            if (states) {
+                statesList = *states;
+            }
+            kafkaWriter = sink->RestoreWriter(initContext, statesList);
+        } else {
             kafkaWriter = sink->CreateWriter(initContext);
-        // }
-
+        }
         return kafkaWriter;
     }
 

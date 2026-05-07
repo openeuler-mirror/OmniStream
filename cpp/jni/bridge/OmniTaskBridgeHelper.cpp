@@ -87,166 +87,99 @@ std::string OmniTaskBridgeHelper::FlinkPathToString(JNIEnv* env, jobject flinkPa
     return result;
 }
 
-std::unordered_map<std::string, OperatorStateHandle::StateMetaInfo> OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap(JNIEnv* env, jobject jMap) {
+std::unordered_map<std::string, OperatorStateHandle::StateMetaInfo> OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap(JNIEnv* env, jobject jMap)
+{
 
-    INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 1");
     std::unordered_map<std::string, OperatorStateHandle::StateMetaInfo> result;
-    INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 2");
 
     if (!env || !jMap) {
-    INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 2 end");
         return result;
     }
 
-    INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 3");
     jclass mapClass = env->GetObjectClass(jMap);
-    INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 4");
     if (!mapClass) {
-    INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 4 end");
         return result;
     }
 
-    INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 5");
     jmethodID entrySetMethod = env->GetMethodID(mapClass, "entrySet", "()Ljava/util/Set;");
-    INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 6");
     if (!entrySetMethod) {
-        INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 6 if");
         env->DeleteLocalRef(mapClass);
-        INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 6 end");
         return result;
     }
 
-    INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 7");
     jobject entrySet = env->CallObjectMethod(jMap, entrySetMethod);
-    INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 8");
     if (!entrySet) {
-    INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 8 if");
         env->DeleteLocalRef(mapClass);
-        INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 8 end");
         return result;
     }
 
-    INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 9");
     jclass setClass = env->GetObjectClass(entrySet);
-    INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 11");
     jmethodID iteratorMethod = env->GetMethodID(setClass, "iterator", "()Ljava/util/Iterator;");
-    INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 12");
     jobject iterator = env->CallObjectMethod(entrySet, iteratorMethod);
 
-    INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 13");
     jclass iteratorClass = env->GetObjectClass(iterator);
-    INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 14");
     jmethodID hasNextMethod = env->GetMethodID(iteratorClass, "hasNext", "()Z");
-    INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 15");
     jmethodID nextMethod = env->GetMethodID(iteratorClass, "next", "()Ljava/lang/Object;");
-    INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 16");
 
     jclass entryClass = env->FindClass("java/util/Map$Entry");
-    INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 16");
     jmethodID getKeyMethod = env->GetMethodID(entryClass, "getKey", "()Ljava/lang/Object;");
-    INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 17");
     jmethodID getValueMethod = env->GetMethodID(entryClass, "getValue", "()Ljava/lang/Object;");
-    INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 18");
 
     const char* stateMetaInfoClassPath = "org/apache/flink/runtime/state/OperatorStateHandle$StateMetaInfo";
-    INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 19");
     jclass stateMetaInfoClass = env->FindClass(stateMetaInfoClassPath);
-    INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 20");
     jmethodID getOffsetsMethod = env->GetMethodID(stateMetaInfoClass, "getOffsets", "()[J");
-    INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 21");
     jmethodID getDistributionModeMethod = env->GetMethodID(
         stateMetaInfoClass, "getDistributionMode",
         "()Lorg/apache/flink/runtime/state/OperatorStateHandle$Mode;");
-    INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 22");
 
     const char* modeClassPath = "org/apache/flink/runtime/state/OperatorStateHandle$Mode";
-    INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 23");
     jclass modeClass = env->FindClass(modeClassPath);
-    INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 24");
     jmethodID nameMethod = env->GetMethodID(modeClass, "name", "()Ljava/lang/String;");
-    INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 25");
 
     while (env->CallBooleanMethod(iterator, hasNextMethod)) {
-        INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 25 while 1");
         jobject entry = env->CallObjectMethod(iterator, nextMethod);
-        INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 25 while 2");
 
         jstring key = static_cast<jstring>(env->CallObjectMethod(entry, getKeyMethod));
-        INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 25 while 3");
         jobject value = env->CallObjectMethod(entry, getValueMethod);
-        INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 25 while 4");
 
         std::string keyStr = JstringToString(env, key);
-        INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 25 while 5");
 
         jlongArray offsetsArray = static_cast<jlongArray>(env->CallObjectMethod(value, getOffsetsMethod));
-        INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 25 while 6");
         std::vector<long> offsets;
-        INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 25 while 7");
         if (offsetsArray) {
-            INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 25 while 7 if 1");
             jsize len = env->GetArrayLength(offsetsArray);
-            INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 25 while 7 if 2");
             jlong* elems = env->GetLongArrayElements(offsetsArray, nullptr);
-            INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 25 while 7 if 3");
             if (elems) {
-                INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 25 while 7 if 3 if 1");
                 offsets.assign(elems, elems + len);
-                INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 25 while 7 if 3 if 2");
                 env->ReleaseLongArrayElements(offsetsArray, elems, JNI_ABORT);
-                INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 25 while 7 if 3 if end");
             }
-            INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 25 while 7 if 4");
             env->DeleteLocalRef(offsetsArray);
-            INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 25 while 7 if end");
         }
 
-        INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 26");
         jobject modeObj = env->CallObjectMethod(value, getDistributionModeMethod);
-        INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 27");
         OperatorStateHandle::Mode distributionMode = OperatorStateHandle::Mode::SPLIT_DISTRIBUTE;
-        INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 28");
         if (modeObj) {
-            INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 29 if 1");
             jstring modeName = static_cast<jstring>(env->CallObjectMethod(modeObj, nameMethod));
-            INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 29 if 1");
             std::string modeStr = JstringToString(env, modeName);
-            INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 29 if 2");
             if (!modeStr.empty()) {
-                INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 29 if 2 if 1");
                 distributionMode = OperatorStateHandle::StrToMode(modeStr);
-                INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 29 if 2 if end");
             }
-            INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 29 if 3");
             if (modeName) {
-                INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 29 if 3 if 1");
                 env->DeleteLocalRef(modeName);
-                INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 29 if 3 if end");
             }
-            INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 29 if 4");
             env->DeleteLocalRef(modeObj);
-            INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 29 if 5");
         }
 
-        INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 30");
         result.emplace(keyStr, OperatorStateHandle::StateMetaInfo(offsets, distributionMode));
-        INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 31");
 
         if (key) {
-        INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 31 if 1");
             env->DeleteLocalRef(key);
-        INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 31 if end");
         }
-        INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 32");
         if (value) {
-        INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 32 if 1");
             env->DeleteLocalRef(value);
-        INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 32 if end");
         }
-        INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 33");
 
         env->DeleteLocalRef(entry);
-        INFO_RELEASE("h30082497 OmniTaskBridgeHelper::OperatorPartitionOffsetsToMap 34");
     }
 
     env->DeleteLocalRef(iterator);
@@ -444,22 +377,16 @@ std::shared_ptr<StreamStateHandle> OmniTaskBridgeHelper::CreateOperatorStreamSta
     std::shared_ptr<StreamStateHandle> delegateStateHandle = nullptr;
 
     if (jStateNameToPartitionOffsets) {
-        INFO_RELEASE("h30082497 OmniTaskBridgeHelper::CreateOperatorStreamStateHandle 7777");
         stateNameToPartitionOffsets = OperatorPartitionOffsetsToMap(env, jStateNameToPartitionOffsets);
-        INFO_RELEASE("h30082497 OmniTaskBridgeHelper::CreateOperatorStreamStateHandle 7777");
     }
     if (jDelegateStateHandle) {
-        INFO_RELEASE("h30082497 OmniTaskBridgeHelper::CreateOperatorStreamStateHandle 11111");
         delegateStateHandle = GetStreamStateHandle(env, jDelegateStateHandle);
-        INFO_RELEASE("h30082497 OmniTaskBridgeHelper::CreateOperatorStreamStateHandle 2222");
     }
 
-    INFO_RELEASE("h30082497 OmniTaskBridgeHelper::CreateOperatorStreamStateHandle 333");
     env->DeleteLocalRef(jStateNameToPartitionOffsets);
     env->DeleteLocalRef(jDelegateStateHandle);
     env->DeleteLocalRef(handleClass);
 
-    INFO_RELEASE("h30082497 OmniTaskBridgeHelper::CreateOperatorStreamStateHandle end");
     return std::make_shared<OperatorStreamStateHandle>(stateNameToPartitionOffsets, delegateStateHandle);
 }
 

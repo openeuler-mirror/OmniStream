@@ -265,8 +265,10 @@ inline void NonSpanningWrapper::readFully(uint8_t *buffer, int capacity, int off
 inline std::string NonSpanningWrapper::readUTF()
 {
     auto utflen = readUnsignedShort();
-    byteArr.reserve(utflen);
-    charArr.reserve(utflen);
+    byteArr.clear();
+    byteArr.resize(utflen);
+    charArr.clear();
+    charArr.resize(utflen);
 
     int c;
     int char2;

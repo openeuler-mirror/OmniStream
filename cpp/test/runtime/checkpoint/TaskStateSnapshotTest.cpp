@@ -39,7 +39,7 @@ public:
     {
         return std::unordered_map<std::string, StateMetaInfo>();
     };
-    StreamStateHandle *getDelegateStateHandle() override
+    std::shared_ptr<StreamStateHandle> getDelegateStateHandle() override
     {
         return nullptr;
     };

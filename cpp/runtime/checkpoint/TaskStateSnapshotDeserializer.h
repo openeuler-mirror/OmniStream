@@ -24,6 +24,7 @@
 #include "runtime/state/KeyGroupsSavepointStateHandle.h"
 #include "runtime/state/filesystem/RelativeFileStateHandle.h"
 #include "runtime/state/DirectoryKeyedStateHandle.h"
+#include "runtime/state/OperatorStreamStateHandle.h"
 using json = nlohmann::json;
 
 class TaskStateSnapshotDeserializer {
@@ -107,6 +108,8 @@ private:
     // --- Master "Dispatcher" Parser ---
     // Reads '@class' and calls the correct specific parser below.
     static std::shared_ptr<KeyedStateHandle> ParseKeyedStateHandle(const json &j);
+
+    static std::shared_ptr<OperatorStateHandle> ParseOperatorStateHandle(const json &j);
 
     static std::shared_ptr<ResultSubpartitionStateHandle> ParseResultStateHandle(const json &j);
 
