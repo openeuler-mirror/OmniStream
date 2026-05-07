@@ -62,16 +62,6 @@ Java_org_apache_flink_runtime_io_network_netty_OmniCreditBasedSequenceNumberingV
 }
 
 JNIEXPORT void JNICALL
-Java_org_apache_flink_runtime_io_network_netty_OmniCreditBasedSequenceNumberingViewReader_destroyNativeNettyBufferPool
-(JNIEnv* jniEnv, jobject input, jlong creditBasedSequenceNumberingViewReaderRef)
-{
-    // it is possible OmniCreditBasedSequenceNumberingViewReader is destroyed already
-    auto task = reinterpret_cast<omnistream::OmniCreditBasedSequenceNumberingViewReader*>(
-        creditBasedSequenceNumberingViewReaderRef);
-    task->DestroyNettyBufferPool();
-}
-
-JNIEXPORT void JNICALL
 Java_org_apache_flink_runtime_io_network_netty_OmniCreditBasedSequenceNumberingViewReader_resumeConsumption
 (JNIEnv* jniEnv, jobject input, jlong creditBasedSequenceNumberingViewReaderRef)
 {

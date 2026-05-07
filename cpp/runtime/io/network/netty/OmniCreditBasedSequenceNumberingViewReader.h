@@ -67,7 +67,6 @@ namespace omnistream {
                 VectorBatchBuffer* vectorBatchBuffer);
         void SerializeVectorBatchBuffer(
                 VectorBatchBuffer* vectorBatchBuffer);
-        void DestroyNettyBufferPool() ;
         void RecycleNetworkBuffer(int64_t address);
 
         void ResumeConsumption() ;
