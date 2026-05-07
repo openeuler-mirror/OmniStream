@@ -11,6 +11,7 @@
 
 #include "RdKafkaConsumer.h"
 #include <thread>
+#include "core/include/common.h"
 
 ConsumerRecords* ConsumerRecords::EMPTY = new ConsumerRecords();
 
@@ -116,6 +117,8 @@ void RdKafkaConsumer::seek(std::unordered_map<std::shared_ptr<RdKafka::TopicPart
     partitionsStartingFromSpecifiedOffsets)
 {
     for (const auto& pair : partitionsStartingFromSpecifiedOffsets) {
+        INFO_RELEASE("RdKafkaConsumer::seek topic" << pair.first->topic() << " partition" << pair.first->partition
+            << " offset " << pair.second)
         pair.first->set_offset(pair.second);
         seek(*(pair.first));
     }
