@@ -12,5 +12,5 @@ TEST(StreamOperatorStateHandlerTest, Init)
     omnistream::EnvironmentV2* env = new omnistream::RuntimeEnvironmentV2();
     StreamTaskStateInitializerImpl initializer(env);
     StreamOperatorStateContextImpl<int> *context = initializer.streamOperatorStateContext<int>(new IntSerializer(), nullptr, nullptr);
-    ASSERT_NO_THROW(context->getKeyedStateBackend());
+    ASSERT_NO_THROW(context->keyedStateBackend());
 }

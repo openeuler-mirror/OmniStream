@@ -75,12 +75,12 @@ public:
         }
     }
 
-    AbstractKeyedStateBackend<K>* getKeyedStateBackend()
+    AbstractKeyedStateBackend<K>* keyedStateBackend()
     {
         return backend;
     }
 
-    OperatorStateBackend* getOperatorStateBackend()
+    OperatorStateBackend* operatorStateBackend()
     {
         return osBackend;
     }

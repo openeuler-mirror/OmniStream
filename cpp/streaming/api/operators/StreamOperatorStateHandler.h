@@ -46,8 +46,8 @@ public:
     StreamOperatorStateHandler(StreamOperatorStateContextImpl<K> *context)
     {
         this->context = context;
-        this->keyedStateBackend = context->getKeyedStateBackend();
-        this->operatorStateBackend = context->getOperatorStateBackend();
+        this->keyedStateBackend = context->keyedStateBackend();
+        this->operatorStateBackend = context->operatorStateBackend();
         if (keyedStateBackend != nullptr) {
             keyedStateStore = new DefaultKeyedStateStore<K>(dynamic_cast<AbstractKeyedStateBackend<K> *>(keyedStateBackend));
         } else {
