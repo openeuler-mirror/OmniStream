@@ -93,12 +93,12 @@ InternalTimerServiceImpl<K, N>::InternalTimerServiceImpl(
 }
 
 template <typename K, typename N>
-InternalTimerServiceImpl<K, N>::~InternalTimerServiceImpl()
-{
-    if (namespaceSerializer != nullptr) {
-        delete namespaceSerializer;
-        namespaceSerializer = nullptr;
-    }
+InternalTimerServiceImpl<K, N>::~InternalTimerServiceImpl() {
+    // TODO: Serializer::INSTANCE cannot be deleted here
+    // if (namespaceSerializer != nullptr) {
+    //     delete namespaceSerializer;
+    //     namespaceSerializer = nullptr;
+    // }
 }
 
 template <typename K, typename N>
