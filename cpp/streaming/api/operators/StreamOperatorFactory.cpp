@@ -169,7 +169,7 @@ StreamOperator *StreamOperatorFactory::createOperatorAndCollector(omnistream::Op
     WatermarkGaugeExposingOutput *chainOutput, std::shared_ptr<OmniStreamTask> task)
 {
     auto operatorID = opDesc.getId();
-    LOG("getID  :" << operatorID)
+    INFO_RELEASE("savepoint: createOperatorAndCollector: operatorID  :" << operatorID)
 
     if (operatorID == OPERATOR_NAME_STREAM_CALC) {
         return CreateStreamCalcOp(opDesc, chainOutput, task);
@@ -212,10 +212,13 @@ StreamOperator *StreamOperatorFactory::createOperatorAndCollector(omnistream::Op
     } else if (operatorID == OPERATOR_NAME_FILTER) {
         return CreateFilterOp(opDesc, chainOutput, task);
     } else if (operatorID == OPERATOR_NAME_SINK_WRITER) {
+        auto processingTimeService = task->createProcessingTimeService();
         return CreateSinkWriterOp(opDesc, chainOutput, task);
     } else if (operatorID == OPERATOR_NAME_COMMIT_OPERATOR) {
         auto description = opDesc.getDescription();
         nlohmann::json opDescriptionJSON = nlohmann::json::parse(description);
+        INFO_RELEASE("savepoint: CreateCommitOperator: opDescriptionJSON :" << opDescriptionJSON.dump());
+        auto processingTimeService = task->createProcessingTimeService();
         auto committerOperator = new CommitterOperator(opDescriptionJSON["batch"]);
         return static_cast<OneInputStreamOperator *>(committerOperator);
     } else if (operatorID == OPERATOR_NAME_STREAMING_FILE_WRITER) {
@@ -720,6 +723,7 @@ StreamOperator* StreamOperatorFactory::CreateSinkWriterOp(omnistream::OperatorPO
     auto kafkaSink = new KafkaSink(deliveryGuarantee, kafkaProducerConfig, transactionalIdPrefix,
         topic, opDescriptionJSON, maxPushRecords);
         // todo 确认模板参数问题
+    INFO_RELEASE("savepoint: CreateSinkWriterOp: opDescriptionJSON :" << opDescriptionJSON.dump());
     return static_cast<OneInputStreamOperator *>(new SinkWriterOperator(kafkaSink, opDescriptionJSON));
 }
 }

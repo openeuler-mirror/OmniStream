@@ -57,8 +57,8 @@ public:
 
     void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) override
     {
-        INFO_RELEASE("h30082497 StreamCalcBatch::initializeState");
-        // AbstractStreamOperator<int>::initializeState(initializer, keySerializer);
+        LOG("StreamCalc initializeState()")
+        // Do Nothing
     }
 
     void ProcessWatermark(Watermark *watermark) override

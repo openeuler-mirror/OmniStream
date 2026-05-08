@@ -72,12 +72,6 @@ public:
 
     void setKeyedStateManagedFuture(std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<KeyedStateHandle>>()>> future)
     {
-        bool isNull = (future == nullptr);
-        bool isValid = (!isNull && future->valid());
-        INFO_RELEASE("savepoint: OperatorSnapshotFutures::setKeyedStateManagedFuture"
-            << ", future isNull: " << std::string(isNull ? "true" : "false")
-            << ", future isValid: " << std::string(isValid ? "true" : "false")
-            << ", future addr: " << future.get());
         keyedStateManagedFuture = future;
     }
 
@@ -98,12 +92,6 @@ public:
 
     void setOperatorStateManagedFuture(std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<OperatorStateHandle>>()>> future)
     {
-        bool isNull = (future == nullptr);
-        bool isValid = (!isNull && future->valid());
-        INFO_RELEASE("savepoint: OperatorSnapshotFutures::setOperatorStateManagedFuture"
-            << ", future isNull: " << std::string(isNull ? "true" : "false")
-            << ", future isValid: " << std::string(isValid ? "true" : "false")
-            << ", future addr: " << future.get());
         operatorStateManagedFuture = future;
     }
 

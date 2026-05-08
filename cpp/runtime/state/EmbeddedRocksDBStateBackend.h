@@ -117,7 +117,7 @@ public:
         omnistream::EnvironmentV2* env,
         std::string operatorIdentifier,
         std::set<std::shared_ptr<OperatorStateHandle>> stateHandles) {
-        INFO_RELEASE("h30082497 EmbeddedRocksDBStateBackend:createOperatorStateBackend 1");
+        INFO_RELEASE("h30082497 EmbeddedRocksDBStateBackend:createOperatorStateBacken");
         std::vector<std::shared_ptr<OperatorStateHandle>> stateVector(stateHandles.begin(), stateHandles.end());
         auto bridge = env->getTaskStateManager()->getTaskStateManagerBridge();
         auto omniTaskBridge = env->getTaskStateManager()->getOmniTaskBridge();

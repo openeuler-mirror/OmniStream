@@ -62,23 +62,15 @@ public:
     }
 
     void initializeState(StateInitializationContextImpl<K> *context)  override {
-        INFO_RELEASE("h30082497 AbstractUdfStreamOperator::initializeState 1 2");
         AbstractStreamOperator<K>::initializeState(context);
-        INFO_RELEASE("h30082497 AbstractUdfStreamOperator::initializeState 1 end");
-        // TODO 这里可以添加用户函数相关的状态快照逻辑
     }
 
     void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) override {
-        INFO_RELEASE("h30082497 AbstractUdfStreamOperator::initializeState 2 1");
         AbstractStreamOperator<K>::initializeState(initializer, keySerializer);
-        INFO_RELEASE("h30082497 AbstractUdfStreamOperator::initializeState 2 end");
     }
 
     void snapshotState(StateSnapshotContextSynchronousImpl *context) override {
-        INFO_RELEASE("h30082497 AbstractUdfStreamOperator::snapshotState 1");
         AbstractStreamOperator<K>::snapshotState(context);
-        INFO_RELEASE("h30082497 AbstractUdfStreamOperator::snapshotState end");
-        // TODO 这里可以添加用户函数相关的状态快照逻辑
     }
 protected:
     F* userFunction = nullptr;

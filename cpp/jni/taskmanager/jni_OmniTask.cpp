@@ -74,18 +74,8 @@ JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_Om
 JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_doDeleteNativeTask
         (JNIEnv *, jobject, jlong nativeTask)
 {
-    std::thread::id tid = std::this_thread::get_id();
-    INFO_RELEASE("DOUBLE_FREE_DEBUG: doDeleteNativeTask JNI | nativeTask="
-            << nativeTask
-            << " | thread_id=" << tid);
     auto task = reinterpret_cast<omnistream::OmniTask *>(nativeTask);
-    INFO_RELEASE("DOUBLE_FREE_DEBUG: doDeleteNativeTask JNI calling delete task | task="
-            << static_cast<void*>(task)
-            << " | thread_id=" << tid);
     delete task;
-    INFO_RELEASE("DOUBLE_FREE_DEBUG: doDeleteNativeTask JNI delete task returned | nativeTask="
-            << nativeTask
-            << " | thread_id=" << tid);
     return 1;
 }
 
@@ -139,15 +129,8 @@ JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_Om
 JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_cancelTask
         (JNIEnv *, jobject, jlong nativeTask)
 {
-    std::thread::id tid = std::this_thread::get_id();
-    INFO_RELEASE("DOUBLE_FREE_DEBUG: cancelTask JNI | nativeTask="
-            << nativeTask
-            << " | thread_id=" << tid);
     auto task = reinterpret_cast<omnistream::OmniTask *>(nativeTask);
     task->cancel();
-    INFO_RELEASE("DOUBLE_FREE_DEBUG: cancelTask JNI returned | nativeTask="
-            << nativeTask
-            << " | thread_id=" << tid);
     return reinterpret_cast<long>(0L);
 }
 

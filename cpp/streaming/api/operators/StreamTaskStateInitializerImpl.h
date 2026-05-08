@@ -123,15 +123,11 @@ public:
         : stateBackend(env && env->taskConfiguration().getStateBackend() == "HashMapStateBackend" ?
             (new HashMapStateBackend()) : nullptr),
           env(env)
-    {
-        INFO_RELEASE("h30082497 StreamTaskStateInitializerImpl 1");
-    }
+    {}
 
     explicit StreamTaskStateInitializerImpl(StateBackend *stateBackend,
                                             omnistream::EnvironmentV2 *env)
-        : stateBackend(stateBackend), env(env) {
-        INFO_RELEASE("h30082497 StreamTaskStateInitializerImpl 2");
-    }
+        : stateBackend(stateBackend), env(env) {};
 
     template <typename K>
     StreamOperatorStateContextImpl<K> *streamOperatorStateContext(TypeSerializer *keySerializer, KeyContext<K>* keyContext,
@@ -485,17 +481,6 @@ inline OperatorStateBackend* StreamTaskStateInitializerImpl::operatorStateBacken
                 bool isStateBackendNull = (this->stateBackend == nullptr);
                 INFO_RELEASE("savepoint: operatorStateBackend stateBackend isNull: " << std::string(isStateBackendNull ? "true" : "false")
                     << ", type: " << (isStateBackendNull ? "null" : typeid(*this->stateBackend).name()));
-                auto rocksdbStateBackend = dynamic_cast<RocksDBStateBackend*>(this->stateBackend);
-                if (rocksdbStateBackend == nullptr) {
-                    INFO_RELEASE("savepoint: StreamOperatorStateContextImpl::operatorStateBackend backendRestorer rocksdbStateBackend null");
-                }else{
-                    INFO_RELEASE("savepoint: StreamOperatorStateContextImpl::operatorStateBackend backendRestorer rocksdbStateBackend not null");
-                    return reinterpret_cast<OperatorStateBackend*>(
-                        rocksdbStateBackend->createOperatorStateBackend(
-                            env,
-                            operatorIdentifierText,
-                            stateHandles));
-                }
 
                 auto embeddedRocksDBStateBackend = dynamic_cast<EmbeddedRocksDBStateBackend*>(this->stateBackend);
                 if (embeddedRocksDBStateBackend == nullptr) {

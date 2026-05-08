@@ -119,6 +119,7 @@ CheckpointOptions *CheckpointOptions::FromJson(nlohmann::json &config)
     } else if (alignmentTypeStr == "FORCED_ALIGNED") {
         alignmentType = AlignmentType::FORCED_ALIGNED;
     } else {
+        INFO_RELEASE("Error:Unknown alignment type : " << alignmentTypeStr);
         throw std::invalid_argument("Unknown alignment type : " + alignmentTypeStr);
     }
 
@@ -131,13 +132,11 @@ CheckpointOptions *CheckpointOptions::FromJson(nlohmann::json &config)
     } else {
         auto encodedReference = Base64_decode(reference.get<std::string>());
         auto referenceBytes = std::make_shared<std::vector<uint8_t>>(encodedReference.begin(), encodedReference.end());
-        /* h30082497 规避：增加空逻辑处理 */
         if (referenceBytes == nullptr || referenceBytes->empty()){
             targetLocation = CheckpointStorageLocationReference::GetDefault();
         } else {
             targetLocation = std::make_shared<CheckpointStorageLocationReference>(referenceBytes);
         }
-        INFO_RELEASE("h30082497 special deal ============================ CheckpointOptions::FromJson");
     }
     
     bool isSavepoint = config["checkpointType"]["name"].get<std::string>().find("Savepoint") != std::string::npos;
@@ -150,7 +149,7 @@ CheckpointOptions *CheckpointOptions::FromJson(nlohmann::json &config)
         } else if (savepointFormatTypeStr == "NATIVE") {
             savepointFormatType = SavepointFormatType::NATIVE;
         } else {
-            INFO_RELEASE("Error: Unknown savepoint formatType");
+            INFO_RELEASE("Error: Unknown savepoint formatType:"<<savepointFormatTypeStr);
             throw std::invalid_argument("Unknown savepoint formatType : " + savepointFormatTypeStr);
         }
 
@@ -162,7 +161,7 @@ CheckpointOptions *CheckpointOptions::FromJson(nlohmann::json &config)
         } else if (savepointTypeStr == "Suspend Savepoint") {
             savepointType = SavepointType::suspend(savepointFormatType);
         } else {
-            INFO_RELEASE("Error: Unknown savepoint type");
+            INFO_RELEASE("Error: Unknown savepoint type: "<<savepointTypeStr);
             throw std::invalid_argument("Unknown savepoint type : " + savepointTypeStr);
         }
         return new CheckpointOptions(savepointType, targetLocation, alignmentType, alignedCheckpointTimeout);
@@ -171,12 +170,10 @@ CheckpointOptions *CheckpointOptions::FromJson(nlohmann::json &config)
         CheckpointType *checkpointType;
         if (checkpointTypeStr == "Checkpoint") {
             checkpointType = CheckpointType::CHECKPOINT;
-        } else if (checkpointTypeStr == "FullCheckpoint" || checkpointTypeStr == "Full Checkpoint") {
-            /* h30082497 规避：增加判断 checkpointTypeStr == "Full Checkpoint" */
+        } else if (checkpointTypeStr == "Full Checkpoint") {
             checkpointType = CheckpointType::FULL_CHECKPOINT;
-            INFO_RELEASE("h30082497 special deal ============================ CheckpointOptions::FromJson");
         } else {
-            INFO_RELEASE("Error: Unknown checkpoint type");
+            INFO_RELEASE("Error: Unknown checkpoint type: "<<checkpointTypeStr);
             throw std::invalid_argument("Unknown checkpoint type : " + checkpointTypeStr);
         }
         return new CheckpointOptions(checkpointType, targetLocation, alignmentType, alignedCheckpointTimeout);

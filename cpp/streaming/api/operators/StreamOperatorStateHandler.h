@@ -18,6 +18,7 @@
 #include "StreamOperatorStateContext.h"
 #include "runtime/state/DefaultKeyedStateStore.h"
 #include "StreamTaskStateInitializerImpl.h"
+#include "../../../core/include/common.h"
 #include "state/CheckpointableKeyedStateBackend.h"
 #include "state/FullSnapshotResources.h"
 #include "state/SnapshotStrategy.h"
@@ -108,7 +109,7 @@ public:
 
     void notifyCheckpointAborted(long checkpointId)
     {
-        // TODO 需要补充heap的逻辑
+        INFO_RELEASE("notifyCheckpointAborted");
         auto backend = dynamic_cast<RocksdbKeyedStateBackend<K>*>(keyedStateBackend);
         if (backend) {
             backend->notifyCheckpointAborted(checkpointId);

@@ -9,8 +9,8 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef FLINK_BENCHMARK_KAFKACOMMITTABLESERIALIZER_H
-#define FLINK_BENCHMARK_KAFKACOMMITTABLESERIALIZER_H
+#ifndef OMNIFLINK_KAFKACOMMITTABLESERIALIZER_H
+#define OMNIFLINK_KAFKACOMMITTABLESERIALIZER_H
 
 #include <vector>
 #include <string>
@@ -26,4 +26,4 @@ public:
     KafkaCommittable* deserialize(int version, std::vector<uint8_t>& serialized) override;
 };
 
-#endif // FLINK_BENCHMARK_KAFKACOMMITTABLESERIALIZER_H
+#endif // OMNIFLINK_KAFKACOMMITTABLESERIALIZER_H

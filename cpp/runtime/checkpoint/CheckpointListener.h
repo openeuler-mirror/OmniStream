@@ -14,13 +14,9 @@
 
 class CheckpointListener {
 public:
-    virtual void notifyCheckpointComplete(long checkpointId) {
-        INFO_RELEASE("notifyCheckpointComplete, checkpointId: "<<checkpointId);
-    };
+    virtual void notifyCheckpointComplete(long checkpointId) {};
 
-    virtual void notifyCheckpointAborted(long checkpointId) {
-        INFO_RELEASE("notifyCheckpointAborted, checkpointId: "<<checkpointId);
-    };
+    virtual void notifyCheckpointAborted(long checkpointId) {};
 };
 
 #endif // OMNISTREAM_CHECKPOINTLISTENER_H

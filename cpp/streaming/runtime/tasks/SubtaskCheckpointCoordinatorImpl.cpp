@@ -110,7 +110,6 @@ namespace omnistream::runtime {
         omnistream::OperatorChainV2 *operatorChain,
         std::shared_ptr<omnistream::Supplier<bool>> isRunning)
     {
-        INFO_RELEASE("savepoint: SubtaskCheckpointCoordinatorImpl::takeSnapshotSync");
         LOG(">>>>>>>>>")
         if (operatorChain->IsClosed()) {
             THROW_RUNTIME_ERROR("OperatorChain and Task should never be closed at this point");

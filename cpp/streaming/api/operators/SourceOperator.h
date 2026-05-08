@@ -185,12 +185,8 @@ public:
     void open() override
     {
         INFO_RELEASE("savepoint: SourceOperator open start");
-        
-        INFO_RELEASE("savepoint: SourceOperator open === calling initReader");
         initReader();
-        
         INFO_RELEASE("savepoint: SourceOperator open === sourceReader: " + std::string(sourceReader != nullptr ? "not null" : "null"));
-        
         if (emitProgressiveWatermarks) {
             eventTimeLogic = TimestampsAndWatermarks::CreateProgressiveEventTimeLogic(watermarkStrategy, getProcessingTimeService(), getRuntimeContext()->getAutoWatermarkInterval());
         } else {
@@ -259,7 +255,6 @@ public:
 
     void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) override
     {
-        INFO_RELEASE("savepoint: SourceOperator initializeState")
         AbstractStreamOperator<void*>::initializeState(initializer, keySerializer);
     }
 

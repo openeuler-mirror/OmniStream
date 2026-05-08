@@ -133,10 +133,7 @@ public:
     }
 
     // 通知检查点完成
-    void notifyCheckpointComplete(long checkpointId)  override
-    {
-        INFO_RELEASE("savepoint: SourceReaderBase notifyCheckpointComplete " << checkpointId);
-    }
+    void notifyCheckpointComplete(long checkpointId)  override {}
 
     // 添加拆分
     void addSplits(std::vector<SplitT*>& splits) override
