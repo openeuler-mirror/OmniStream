@@ -40,9 +40,9 @@ public:
             int alternativeIdx) {};
 
     OperatorStateBackend* createOperatorStateBackend(
-            omnistream::EnvironmentV2* env_,
-            std::string operatorIdentifier_,
-            std::set<std::shared_ptr<OperatorStateHandle>> stateHandles_);
+            omnistream::EnvironmentV2* env,
+            std::string operatorIdentifier,
+            std::set<std::shared_ptr<OperatorStateHandle>> stateHandles);
 };
 
 #endif // OMNISTREAM_STATEBACKEND

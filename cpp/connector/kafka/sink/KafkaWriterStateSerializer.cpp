@@ -10,18 +10,23 @@
  */
 
 #include <string>
-#include "core/memory/DataInputDeserializer.h"
 #include "KafkaWriterStateSerializer.h"
 #include <sstream>
+
+#include "core/include/common.h"
+#include "core/memory/DataOutputSerializer.h"
+#include "core/memory/DataInputDeserializer.h"
 
 int KafkaWriterStateSerializer::getVersion() const
 {
     return 1;
 }
 
-std::vector<uint8_t> KafkaWriterStateSerializer::serialize(const KafkaWriterState& obj)
-{
-    return {};
+std::vector<uint8_t> KafkaWriterStateSerializer::serialize(const KafkaWriterState& obj) {
+    INFO_RELEASE("h30082497 KafkaWriterStateSerializer::serialize getTransactionalIdPrefix : " + obj.getTransactionalIdPrefix());
+    DataOutputSerializer out;
+    out.writeUTF(obj.getTransactionalIdPrefix());
+    return std::vector<uint8_t>(out.getData(), out.getData() + out.length());
 }
 
 KafkaWriterState* KafkaWriterStateSerializer::deserialize(int version, std::vector<uint8_t>& serialized)

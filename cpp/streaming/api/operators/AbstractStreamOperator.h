@@ -133,9 +133,8 @@ public:
         return new BinaryRowDataSerializer(1);
     };
 
-    void initializeState(StateInitializationContextImpl<K> *context)  override 
-    {
-        // do nothing
+    void initializeState(StateInitializationContextImpl<K> *context)  override {
+        INFO_RELEASE("h30082497 AbstractStreamOperator::initializeState 1");
     }
 
     // KeySerializer should be retrieved from description.getStateKeySerializer(getUserCodeClassloader()),

@@ -124,20 +124,20 @@ public:
             (new HashMapStateBackend()) : nullptr),
           env(env)
     {
-        INFO_RELEASE("h30082497 StreamOperatorStateContextImpl 1");
+        INFO_RELEASE("h30082497 StreamTaskStateInitializerImpl 1");
     }
 
     explicit StreamTaskStateInitializerImpl(StateBackend *stateBackend,
                                             omnistream::EnvironmentV2 *env)
         : stateBackend(stateBackend), env(env) {
-        INFO_RELEASE("h30082497 StreamOperatorStateContextImpl 2");
+        INFO_RELEASE("h30082497 StreamTaskStateInitializerImpl 2");
     }
 
     template <typename K>
     StreamOperatorStateContextImpl<K> *streamOperatorStateContext(TypeSerializer *keySerializer, KeyContext<K>* keyContext,
         ProcessingTimeService *processingTimeService, OperatorID *operatorID = nullptr)
     {
-        INFO_RELEASE("h30082497 StreamOperatorStateContextImpl::streamOperatorStateContext 1");
+        INFO_RELEASE("h30082497 StreamTaskStateInitializerImpl::streamOperatorStateContext 1");
         AbstractKeyedStateBackend<K> *backend = nullptr;
         OperatorStateBackend* osBackend = nullptr;
 

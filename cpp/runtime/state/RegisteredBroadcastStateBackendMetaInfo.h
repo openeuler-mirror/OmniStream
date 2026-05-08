@@ -26,31 +26,31 @@
 class RegisteredBroadcastStateBackendMetaInfo : public RegisteredStateMetaInfoBase {
 public:
     RegisteredBroadcastStateBackendMetaInfo(
-        const std::string& name_,
-        OperatorStateHandle::Mode assignmentMode_,
-        TypeSerializer* keySerializer_,
-        TypeSerializer* valueSerializer_);
+        const std::string& name,
+        OperatorStateHandle::Mode assignmentMode,
+        TypeSerializer* keySerializer,
+        TypeSerializer* valueSerializer);
 
-    explicit RegisteredBroadcastStateBackendMetaInfo(const StateMetaInfoSnapshot& snapshot_);
+    explicit RegisteredBroadcastStateBackendMetaInfo(const StateMetaInfoSnapshot& snapshot);
 
     std::shared_ptr<StateMetaInfoSnapshot> snapshot() override { return computeSnapshot(); }
 
-    OperatorStateHandle::Mode getAssignmentMode() { return assignmentMode; }
+    OperatorStateHandle::Mode getAssignmentMode() { return assignmentMode_; }
 
-    void updateAssignmentMode(OperatorStateHandle::Mode assignmentMode_) { assignmentMode = assignmentMode_; }
+    void updateAssignmentMode(OperatorStateHandle::Mode assignmentMode) { assignmentMode_ = assignmentMode; }
 
-    TypeSerializer* getKeySerializer() { return keySerializer; }
+    TypeSerializer* getKeySerializer() { return keySerializer_; }
 
-    void updateKeySerializer(TypeSerializer* keySerializer_) { keySerializer = keySerializer_; }
+    void updateKeySerializer(TypeSerializer* keySerializer) { keySerializer_ = keySerializer; }
 
-    TypeSerializer* getValueSerializer() { return valueSerializer; }
+    TypeSerializer* getValueSerializer() { return valueSerializer_; }
 
-    void updateValueSerializer(TypeSerializer* valueSerializer_) { valueSerializer = valueSerializer_; }
+    void updateValueSerializer(TypeSerializer* valueSerializer) { valueSerializer_ = valueSerializer; }
 
 private:
-    OperatorStateHandle::Mode assignmentMode;
-    TypeSerializer* keySerializer;
-    TypeSerializer* valueSerializer;
+    OperatorStateHandle::Mode assignmentMode_;
+    TypeSerializer* keySerializer_;
+    TypeSerializer* valueSerializer_;
 
     std::shared_ptr<StateMetaInfoSnapshot> computeSnapshot();
 };

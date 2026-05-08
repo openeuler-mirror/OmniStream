@@ -63,7 +63,6 @@ public:
     void writeOperatorMetaData(const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& operatorStateMetaInfoSnapshots,
                                const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& broadcastStateMetaInfoSnapshots){
         if (provider_ == nullptr) {
-            INFO_RELEASE("h30082497 CheckpointStateOutputStreamProxy::writeOperatorMetaData is null");
             return;
         }
         bridge_->WriteOperatorMetaData(provider_, operatorStateMetaInfoSnapshots, broadcastStateMetaInfoSnapshots);

@@ -27,14 +27,13 @@ class OperatorStateRestoreOperation {
 public:
     OperatorStateRestoreOperation(
         std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> registeredOperatorStates,
-        // 暂时不涉及广播状态
-        std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<BackendWritableBroadcastState<>>>> registeredBroadcastStates,
+        std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> registeredBroadcastStates,
         const std::vector<std::shared_ptr<OperatorStateHandle>>& stateHandles,
         std::shared_ptr<OmniTaskBridge> omniTaskBridge)
         : registeredOperatorStates_(registeredOperatorStates),
-            registeredBroadcastStates_(registeredBroadcastStates),
-            stateHandles_(stateHandles),
-            omniTaskBridge_(omniTaskBridge) {}
+          registeredBroadcastStates_(registeredBroadcastStates),
+          stateHandles_(stateHandles),
+          omniTaskBridge_(omniTaskBridge) {}
 
     ~OperatorStateRestoreOperation() = default;
     
@@ -90,7 +89,7 @@ public:
 
 private:
     std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> registeredOperatorStates_;
-    std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<BackendWritableBroadcastState<>>>> registeredBroadcastStates_;
+    std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> registeredBroadcastStates_;
     std::vector<std::shared_ptr<OperatorStateHandle>> stateHandles_;
     std::shared_ptr<OmniTaskBridge> omniTaskBridge_;
 

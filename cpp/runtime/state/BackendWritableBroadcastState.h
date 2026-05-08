@@ -18,14 +18,14 @@
 #include "runtime/state/CheckpointStreamFactory.h"
 #include "runtime/state/RegisteredBroadcastStateBackendMetaInfo.h"
 
-template <typename K = STATE_MV, typename V = STATE_MV>
+template <typename K = BS_K_MV, typename V = BS_V_MV>
 class BackendWritableBroadcastState : public BroadcastState<K, V> {
 public:
     virtual ~BackendWritableBroadcastState() = default;
 
     virtual std::shared_ptr<BackendWritableBroadcastState<K, V>> deepCopy() = 0;
 
-    virtual long write(DataOutputSerializer& out) = 0;
+    virtual long write(long startPos, DataOutputSerializer& out) = 0;
 
     virtual void setStateMetaInfo(const std::shared_ptr<RegisteredBroadcastStateBackendMetaInfo>& stateMetaInfo) = 0;
 

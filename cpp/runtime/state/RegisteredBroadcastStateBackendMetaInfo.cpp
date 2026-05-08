@@ -12,23 +12,23 @@
 #include "RegisteredBroadcastStateBackendMetaInfo.h"
 
 RegisteredBroadcastStateBackendMetaInfo::RegisteredBroadcastStateBackendMetaInfo(
-    const std::string& name_, OperatorStateHandle::Mode assignmentMode_, TypeSerializer* keySerializer_, TypeSerializer* valueSerializer_)
-    : RegisteredStateMetaInfoBase(name_), assignmentMode(assignmentMode_), keySerializer(keySerializer_), valueSerializer(valueSerializer_) {
+    const std::string& name, OperatorStateHandle::Mode assignmentMode, TypeSerializer* keySerializer, TypeSerializer* valueSerializer)
+    : RegisteredStateMetaInfoBase(name), assignmentMode_(assignmentMode), keySerializer_(keySerializer), valueSerializer_(valueSerializer) {
     INFO_RELEASE("h30082497 RegisteredBroadcastStateBackendMetaInfo 1");
 }
 
-RegisteredBroadcastStateBackendMetaInfo::RegisteredBroadcastStateBackendMetaInfo(const StateMetaInfoSnapshot& snapshot_)
-    : RegisteredStateMetaInfoBase(snapshot_.getName()) {
+RegisteredBroadcastStateBackendMetaInfo::RegisteredBroadcastStateBackendMetaInfo(const StateMetaInfoSnapshot& snapshot)
+    : RegisteredStateMetaInfoBase(snapshot.getName()) {
     INFO_RELEASE("h30082497 RegisteredBroadcastStateBackendMetaInfo 2 1 ");
 
-    auto assignmentModeStr = snapshot_.getOption(StateMetaInfoSnapshot::CommonOptionsKeys::OPERATOR_STATE_DISTRIBUTION_MODE);
-    assignmentMode = OperatorStateHandle::StrToMode(assignmentModeStr);
+    auto assignmentModeStr = snapshot.getOption(StateMetaInfoSnapshot::CommonOptionsKeys::OPERATOR_STATE_DISTRIBUTION_MODE);
+    assignmentMode_ = OperatorStateHandle::StrToMode(assignmentModeStr);
 
     std::string keySerializerKey = StateMetaInfoSnapshot::commonSerializerKeyToString(StateMetaInfoSnapshot::CommonSerializerKeys::KEY_SERIALIZER);
     std::string valueSerializerKey = StateMetaInfoSnapshot::commonSerializerKeyToString(StateMetaInfoSnapshot::CommonSerializerKeys::VALUE_SERIALIZER);
 
-    keySerializer = snapshot_.getTypeSerializer(keySerializerKey);
-    valueSerializer = snapshot_.getTypeSerializer(valueSerializerKey);
+    keySerializer_ = snapshot.getTypeSerializer(keySerializerKey);
+    valueSerializer_ = snapshot.getTypeSerializer(valueSerializerKey);
     INFO_RELEASE("h30082497 RegisteredBroadcastStateBackendMetaInfo 2 end ");
 }
 

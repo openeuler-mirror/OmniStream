@@ -16,7 +16,6 @@
 #include <string>
 #include <vector>
 #include <set>
-#include <typeinfo>
 
 #include "core/memory/DataOutputSerializer.h"
 #include "core/api/common/variants/CustomVariant.h"
@@ -25,120 +24,138 @@
 
 #include "RegisteredOperatorStateBackendMetaInfo.h"
 
+
 template<typename S>
 class PartitionableListState : public ListState<S> {
 public:
-    PartitionableListState(const std::shared_ptr<RegisteredOperatorStateBackendMetaInfo> stateMetaInfo_,
-                           const std::shared_ptr<std::vector<S>> internalList_,
-                           const std::shared_ptr<ListSerializer> internalListCopySerializer_)
-        : stateMetaInfo(stateMetaInfo_),
-          internalList(internalList_),
-          internalListCopySerializer(internalListCopySerializer_) {}
+    PartitionableListState(const std::shared_ptr<RegisteredOperatorStateBackendMetaInfo>& stateMetaInfo,
+                           const std::shared_ptr<std::vector<S>>& internalList)
+        : stateMetaInfo_(stateMetaInfo),
+          internalList_(internalList),
+          internalListCopySerializer_(std::make_shared<ListSerializer>(stateMetaInfo->getStateSerializer())) {}
 
-    PartitionableListState(const std::shared_ptr<RegisteredOperatorStateBackendMetaInfo> stateMetaInfo_,
-                           const std::shared_ptr<ListSerializer> internalListCopySerializer_)
-        : stateMetaInfo(stateMetaInfo_),
-          internalListCopySerializer(internalListCopySerializer_) {
+    PartitionableListState(const std::shared_ptr<RegisteredOperatorStateBackendMetaInfo>& stateMetaInfo,
+                           const std::shared_ptr<ListSerializer>& internalListCopySerializer)
+        : stateMetaInfo_(stateMetaInfo),
+          internalListCopySerializer_(internalListCopySerializer) {
         initInternalList();
     }
 
-    PartitionableListState(const std::shared_ptr<RegisteredOperatorStateBackendMetaInfo> stateMetaInfo_)
-        : PartitionableListState(stateMetaInfo_, std::make_shared<ListSerializer>(stateMetaInfo_->getStateSerializer())) {}
+    PartitionableListState(const std::shared_ptr<RegisteredOperatorStateBackendMetaInfo>& stateMetaInfo)
+        : PartitionableListState(stateMetaInfo, std::make_shared<ListSerializer>(stateMetaInfo->getStateSerializer())) {}
 
-    void setStateMetaInfo(const std::shared_ptr<RegisteredOperatorStateBackendMetaInfo> stateMetaInfo_) {
-        initInternalList();
-        internalListCopySerializer = std::make_shared<ListSerializer>(stateMetaInfo_->getStateSerializer());
-        stateMetaInfo = stateMetaInfo_;
+    void setStateMetaInfo(const std::shared_ptr<RegisteredOperatorStateBackendMetaInfo>& stateMetaInfo) {
+        internalListCopySerializer_ = std::make_shared<ListSerializer>(stateMetaInfo->getStateSerializer());
+        stateMetaInfo_ = stateMetaInfo;
     }
 
     std::shared_ptr<RegisteredOperatorStateBackendMetaInfo> getStateMetaInfo() {
-        return stateMetaInfo;
+        return stateMetaInfo_;
     }
 
     void initInternalList() {
-        internalList = std::make_shared<std::vector<S>>();
+            INFO_RELEASE("h30082497 PartitionableListState::initInternalList");
+        internalList_ = std::make_shared<std::vector<S>>();
     }
 
-    void setInternalList(const std::shared_ptr<std::vector<S>>& internalList_) {
-        internalList = internalList_;
+    void setInternalList(const std::shared_ptr<std::vector<S>>& internalList) {
+        internalList_ = internalList;
     }
 
     std::shared_ptr<std::vector<S>> getInternalList() {
-        return internalList;
+        return internalList_;
     }
 
     std::shared_ptr<ListSerializer> getInternalListCopySerializer() {
-        return internalListCopySerializer;
+        return internalListCopySerializer_;
     }
 
     std::shared_ptr<PartitionableListState<S>> deepCopy() {
-        return std::make_shared<PartitionableListState<S>>(std::make_shared<RegisteredOperatorStateBackendMetaInfo>(*this->stateMetaInfo),
-                                                           std::make_shared<std::vector<S>>(*this->internalList),
-                                                           std::make_shared<ListSerializer>(*this->internalListCopySerializer));
+        return std::make_shared<PartitionableListState<S>>(std::make_shared<RegisteredOperatorStateBackendMetaInfo>(*this->stateMetaInfo_),
+                                                           std::make_shared<std::vector<S>>(*this->internalList_),
+                                                           std::make_shared<ListSerializer>(*this->internalListCopySerializer_));
     }
 
-    void add(const S& value_) override {
-        internalList->push_back(value_);
+    void add(const S& value) override {
+        INFO_RELEASE("h30082497 PartitionableListState::add size: b " + std::to_string(internalList_->size()));
+        internalList_->push_back(value);
+        INFO_RELEASE("h30082497 PartitionableListState::add size: a " + std::to_string(internalList_->size()));
     }
 
-    std::vector<long> write(DataOutputSerializer& out, long basePos = 0) {
-        INFO_RELEASE("savepoint:  PartitionableListState::write");
-        if (internalList == nullptr) {
-            initInternalList();
-            INFO_RELEASE("savepoint:  PartitionableListState::initInternalList");
-        }
-        std::vector<long> offsets(internalList->size());
-        INFO_RELEASE("savepoint:  PartitionableListState::write internalList->size()= "<<internalList->size());
-        for (size_t i = 0; i < internalList->size(); ++i) {
-            offsets[i] = out.getPosition() + basePos;
-        INFO_RELEASE("savepoint:  PartitionableListState::write i= "<<i<<"offsets[i]= "<< offsets[i]);
-            auto element = (*internalList)[i];
-            stateMetaInfo->getStateSerializer()->serialize(&element, out);
+    std::vector<long> write(long startPos, DataOutputSerializer& out) {
+        INFO_RELEASE("h30082497 PartitionableListState::write 1 internalList addr: " + std::to_string(reinterpret_cast<uintptr_t>(internalList_.get())));
+        INFO_RELEASE("h30082497 PartitionableListState::write size: a " + std::to_string((*internalList_).size()));
+        INFO_RELEASE("h30082497 PartitionableListState::write 2");
+        std::vector<long> offsets;
+        INFO_RELEASE("h30082497 PartitionableListState::write 3");
+
+        for (size_t i = 0; i < internalList_->size(); i++) {
+            INFO_RELEASE("h30082497 PartitionableListState::write 5 i = " + std::to_string(i));
+            auto element = (*internalList_)[i];
+            INFO_RELEASE("h30082497 PartitionableListState::write 5 element addr: " + std::to_string(reinterpret_cast<uintptr_t>(&element)));
+            offsets.push_back(startPos + out.getPosition());
+            INFO_RELEASE("h30082497 PartitionableListState::write 6");
+            getStateMetaInfo()->getStateSerializer()->serialize(&element, out);
+            INFO_RELEASE("h30082497 PartitionableListState::write 7");
         }
 
         INFO_RELEASE("h30082497 PartitionableListState::write end");
         return offsets;
     }
 
-    void update(const std::vector<S>& values_) override {
-        INFO_RELEASE("savepoint:  PartitionableListState::update values_ size: "<<values_.size());
-        internalList->clear();
-        addAll(values_);
-        INFO_RELEASE("savepoint:  PartitionableListState::update internalList->size()= "<<internalList->size());
+    void update(const std::vector<S>& values) override {
+        INFO_RELEASE("h30082497 PartitionableListState::update");
+        clear();
+        addAll(values);
     }
 
     std::vector<S>* get() override {
-        return internalList.get();
+        return internalList_.get();
     }
 
-    void merge(const std::vector<S>& other_) override {
-        if (other_.empty()) {
+    void merge(const std::vector<S>& other) override {
+        INFO_RELEASE("h30082497 PartitionableListState::merge");
+        if (other.empty()) {
+            INFO_RELEASE("h30082497 PartitionableListState::merge other is empty");
             return;
         }
-        std::set<S> existSet(internalList->begin(), internalList->end());
-        for (const S& element: other_) {
+        INFO_RELEASE("h30082497 PartitionableListState::merge other size: " + std::to_string(other.size()));
+        INFO_RELEASE("h30082497 PartitionableListState::merge size: b " + std::to_string(internalList_->size()));
+        std::set<S> existSet(internalList_->begin(), internalList_->end());
+        for (const S& element: other) {
             if (existSet.find(element) == existSet.end()) {
                 existSet.insert(element);
-                internalList->push_back(element);
+                internalList_->push_back(element);
             }
         }
+        INFO_RELEASE("h30082497 PartitionableListState::merge size: a " + std::to_string(internalList_->size()));
     }
 
-    void addAll(const std::vector<S>& values_) override {
-        if (values_.empty()) {
+    void addAll(const std::vector<S>& values) override {
+        INFO_RELEASE("h30082497 PartitionableListState::addAll");
+        if (values.empty()) {
             return;
         }
-        internalList->insert(internalList->end(), values_.begin(), values_.end());
+        INFO_RELEASE("h30082497 PartitionableListState::addAll size: cc " + std::to_string(internalList_->size()));
+        internalList_->reserve(internalList_->size() + values.size());
+        INFO_RELEASE("h30082497 PartitionableListState::addAll values size: " + std::to_string(values.size()));
+        INFO_RELEASE("h30082497 PartitionableListState::addAll size: b " + std::to_string(internalList_->size()));
+        internalList_->insert(internalList_->end(), values.begin(), values.end());
+
+        INFO_RELEASE("h30082497 PartitionableListState::addAll size: a " + std::to_string(internalList_->size()));
     }
 
     void clear() override {
-        internalList->clear();
+        INFO_RELEASE("h30082497 PartitionableListState::clear");
+        INFO_RELEASE("h30082497 PartitionableListState::clear size: b " + std::to_string(internalList_->size()));
+        internalList_->clear();
+        INFO_RELEASE("h30082497 PartitionableListState::clear size: a " + std::to_string(internalList_->size()));
     }
 
 private:
-    std::shared_ptr<RegisteredOperatorStateBackendMetaInfo> stateMetaInfo;
-    std::shared_ptr<std::vector<S>> internalList;
-    std::shared_ptr<ListSerializer> internalListCopySerializer;
+    std::shared_ptr<RegisteredOperatorStateBackendMetaInfo> stateMetaInfo_;
+    std::shared_ptr<std::vector<S>> internalList_;
+    std::shared_ptr<ListSerializer> internalListCopySerializer_;
 };
 
 #endif //OMNISTREAM_PARTITIONABLELISTSTATE_H

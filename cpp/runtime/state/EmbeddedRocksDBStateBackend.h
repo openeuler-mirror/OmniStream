@@ -114,18 +114,18 @@ public:
     }
 
     OperatorStateBackend* createOperatorStateBackend(
-        omnistream::EnvironmentV2* env_,
-        std::string operatorIdentifier_,
-        std::set<std::shared_ptr<OperatorStateHandle>> stateHandles_) {
+        omnistream::EnvironmentV2* env,
+        std::string operatorIdentifier,
+        std::set<std::shared_ptr<OperatorStateHandle>> stateHandles) {
         INFO_RELEASE("h30082497 EmbeddedRocksDBStateBackend:createOperatorStateBackend 1");
-        std::vector<std::shared_ptr<OperatorStateHandle>> stateVector(stateHandles_.begin(), stateHandles_.end());
-        auto bridge = env_->getTaskStateManager()->getTaskStateManagerBridge();
-        auto omniTaskBridge = env_->getTaskStateManager()->getOmniTaskBridge();
+        std::vector<std::shared_ptr<OperatorStateHandle>> stateVector(stateHandles.begin(), stateHandles.end());
+        auto bridge = env->getTaskStateManager()->getTaskStateManagerBridge();
+        auto omniTaskBridge = env->getTaskStateManager()->getOmniTaskBridge();
 
         const bool asynchronousSnapshots = true;
         DefaultOperatorStateBackendBuilder builder(
             asynchronousSnapshots,
-            operatorIdentifier_,
+            operatorIdentifier,
             stateVector,
             bridge,
             omniTaskBridge);

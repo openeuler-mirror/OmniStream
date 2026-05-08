@@ -25,23 +25,23 @@
 
 class RegisteredOperatorStateBackendMetaInfo : public RegisteredStateMetaInfoBase {
 public:
-    RegisteredOperatorStateBackendMetaInfo(const std::string& name_, OperatorStateHandle::Mode assignmentMode_, TypeSerializer* stateSerializer_);
+    RegisteredOperatorStateBackendMetaInfo(const std::string& name, OperatorStateHandle::Mode assignmentMode, TypeSerializer* stateSerializer);
 
-    explicit RegisteredOperatorStateBackendMetaInfo(const StateMetaInfoSnapshot& snapshot_);
+    explicit RegisteredOperatorStateBackendMetaInfo(const StateMetaInfoSnapshot& snapshot);
 
     std::shared_ptr<StateMetaInfoSnapshot> snapshot() override { return computeSnapshot(); }
 
-    OperatorStateHandle::Mode getAssignmentMode() { return assignmentMode; }
+    OperatorStateHandle::Mode getAssignmentMode() { return assignmentMode_; }
 
-    void updateAssignmentMode(OperatorStateHandle::Mode assignmentMode_) { assignmentMode = assignmentMode_; }
+    void updateAssignmentMode(OperatorStateHandle::Mode assignmentMode) { assignmentMode_ = assignmentMode; }
 
-    TypeSerializer* getStateSerializer() { return stateSerializer; }
+    TypeSerializer* getStateSerializer() { return stateSerializer_; }
 
-    void updateStateSerializer(TypeSerializer* stateSerializer_) { stateSerializer = stateSerializer_; }
+    void updateStateSerializer(TypeSerializer* stateSerializer) { stateSerializer_ = stateSerializer; }
 
 private:
-    OperatorStateHandle::Mode assignmentMode;
-    TypeSerializer* stateSerializer;
+    OperatorStateHandle::Mode assignmentMode_;
+    TypeSerializer* stateSerializer_;
 
     std::shared_ptr<StateMetaInfoSnapshot> computeSnapshot();
 };

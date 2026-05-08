@@ -31,147 +31,86 @@
 #include "SnapshotResult.h"
 #include "SnapshotResources.h"
 #include "CheckpointStreamFactory.h"
-#include "CheckpointStateOutputStreamProxy.h"
 #include "OperatorStreamStateHandle.h"
-
-class DefaultOperatorStateBackendSnapshotResources : public SnapshotResources {
-public:
-    DefaultOperatorStateBackendSnapshotResources(
-    std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> registeredOperatorStatesDeepCopies_,
-    std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<BackendWritableBroadcastState<>>>> registeredBroadcastStatesDeepCopies_,
-        std::vector<std::shared_ptr<StateMetaInfoSnapshot>> operatorStateMetaInfoSnapshots_,
-        std::vector<std::shared_ptr<StateMetaInfoSnapshot>> broadcastStateMetaInfoSnapshots_)
-        : registeredOperatorStatesDeepCopies(registeredOperatorStatesDeepCopies_),
-          registeredBroadcastStatesDeepCopies(registeredBroadcastStatesDeepCopies_),
-          operatorStateMetaInfoSnapshots(std::move(operatorStateMetaInfoSnapshots_)),
-          broadcastStateMetaInfoSnapshots(std::move(broadcastStateMetaInfoSnapshots_)) {
-        INFO_RELEASE("h30082497 DefaultOperatorStateBackendSnapshotResources");
-    }
-
-    std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> getRegisteredOperatorStatesDeepCopies() { return registeredOperatorStatesDeepCopies; }
-
-    std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<BackendWritableBroadcastState<>>>> getRegisteredBroadcastStatesDeepCopies() { return registeredBroadcastStatesDeepCopies; }
-
-    std::vector<std::shared_ptr<StateMetaInfoSnapshot>> getOperatorStateMetaInfoSnapshots() { return operatorStateMetaInfoSnapshots; }
-
-    std::vector<std::shared_ptr<StateMetaInfoSnapshot>> getBroadcastStateMetaInfoSnapshots() { return broadcastStateMetaInfoSnapshots; }
-
-private:
-    std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> registeredOperatorStatesDeepCopies;
-    std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<BackendWritableBroadcastState<>>>> registeredBroadcastStatesDeepCopies;
-    std::vector<std::shared_ptr<StateMetaInfoSnapshot>> operatorStateMetaInfoSnapshots;
-    std::vector<std::shared_ptr<StateMetaInfoSnapshot>> broadcastStateMetaInfoSnapshots;
-};
-
-
-
+#include "DefaultOperatorSnapshotOperation.h"
+#include "DefaultOperatorStateBackendSnapshotResources.h"
 
 class DefaultOperatorStateBackendSnapshotStrategy
-    : public SnapshotStrategy<OperatorStateHandle, DefaultOperatorStateBackendSnapshotResources> {
+    : public SnapshotStrategy<OperatorStateHandle, SnapshotResources> {
 public:
     DefaultOperatorStateBackendSnapshotStrategy(
-        std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> registeredOperatorStates_,
-        std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<BackendWritableBroadcastState<>>>> registeredBroadcastStates_)
-        : registeredOperatorStates(std::move(registeredOperatorStates_)),
-          registeredBroadcastStates(std::move(registeredBroadcastStates_)) {
+        std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> registeredOperatorStates,
+        std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> registeredBroadcastStates)
+        : registeredOperatorStates_(std::move(registeredOperatorStates)),
+          registeredBroadcastStates_(std::move(registeredBroadcastStates)) {
             INFO_RELEASE("h30082497 DefaultOperatorStateBackendSnapshotStrategy");
     }
 
-    std::shared_ptr<DefaultOperatorStateBackendSnapshotResources> syncPrepareResources(long checkpointId_) override;
+    ~DefaultOperatorStateBackendSnapshotStrategy() = default;
+
+    std::shared_ptr<SnapshotResources> syncPrepareResources(long checkpointId) override {
+        INFO_RELEASE("h30082497 DefaultOperatorStateBackendSnapshotStrategy::syncPrepareResources 1");
+        auto operatorStateMetaInfoSnapshots = std::vector<std::shared_ptr<StateMetaInfoSnapshot>>();
+        auto broadcastStateMetaInfoSnapshots = std::vector<std::shared_ptr<StateMetaInfoSnapshot>>();
+
+        if (registeredOperatorStates_->empty() && registeredBroadcastStates_->empty()) {
+            INFO_RELEASE("h30082497 DefaultOperatorStateBackendSnapshotStrategy::syncPrepareResources is empty");
+            return std::make_shared<DefaultOperatorStateBackendSnapshotResources>(
+                registeredOperatorStates_,
+                registeredBroadcastStates_,
+                operatorStateMetaInfoSnapshots,
+                broadcastStateMetaInfoSnapshots);
+        }
+
+        if (!registeredOperatorStates_->empty()) {
+            for (auto& entry : *registeredOperatorStates_) {
+                if (entry.second != nullptr) {
+                    auto state = std::dynamic_pointer_cast<PartitionableListState<std::vector<uint8_t>>>(entry.second);
+                    INFO_RELEASE("h30082497 DefaultOperatorStateBackendSnapshotStrategy::syncPrepareResources for registeredOperatorStates");
+                    // INFO_RELEASE("h30082497 DefaultOperatorStateBackendSnapshotStrategy::syncPrepareResources for size :" + std::to_string(state->getInternalList()->size()));
+                    operatorStateMetaInfoSnapshots.push_back(state->getStateMetaInfo()->snapshot());
+                }
+            }
+        }
+
+        if (!registeredBroadcastStates_->empty()) {
+            for (auto& entry : *registeredBroadcastStates_) {
+                if (entry.second !=  nullptr) {
+                    // TODO h0082497 具体类型
+                    auto state = std::dynamic_pointer_cast<HeapBroadcastState<std::vector<uint8_t>, std::vector<uint8_t>>>(entry.second);
+                    INFO_RELEASE("h30082497 DefaultOperatorStateBackendSnapshotStrategy::syncPrepareResources for registeredBroadcastStates");
+                    broadcastStateMetaInfoSnapshots.push_back(state->getStateMetaInfo()->snapshot());
+                }
+            }
+        }
+        INFO_RELEASE("h30082497 DefaultOperatorStateBackendSnapshotStrategy::syncPrepareResources end");
+
+        return std::make_shared<DefaultOperatorStateBackendSnapshotResources>(
+            registeredOperatorStates_,
+            registeredBroadcastStates_,
+            operatorStateMetaInfoSnapshots,
+            broadcastStateMetaInfoSnapshots);
+    }
 
     std::shared_ptr<SnapshotResultSupplier<OperatorStateHandle>> asyncSnapshot(
-        const std::shared_ptr<DefaultOperatorStateBackendSnapshotResources>& snapshotResources_,
-        long checkpointId_,
-        long timestamp_, /* not used */
-        CheckpointStreamFactory* streamFactory_,
-        CheckpointOptions* checkpointOptions_,
-        std::string keySerializer = "") override;
+        const std::shared_ptr<SnapshotResources>& snapshotResources,
+        long checkpointId,
+        long timestamp, /* not used */
+        CheckpointStreamFactory* streamFactory,
+        CheckpointOptions* checkpointOptions,
+        std::string keySerializer_ = "") override {
 
-    std::shared_ptr<SnapshotResult<OperatorStateHandle>> CallMaterializeOperatorMetaData(
-        std::shared_ptr<omnistream::OmniTaskBridge> bridge_,
-        long checkpointId_,
-        CheckpointOptions* checkpointOptions_,
-        std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& operatorStateMetaInfoSnapshots_,
-        std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& broadcastStateMetaInfoSnapshots_) {
-        INFO_RELEASE("h30082497 DefaultOperatorStateBackendSnapshotStrategy::CallMaterializeOperatorMetaData");
-        return bridge_->CallMaterializeOperatorMetaData(
-            checkpointId_,
-            checkpointOptions_,
-            operatorStateMetaInfoSnapshots_,
-            broadcastStateMetaInfoSnapshots_);
+        auto operatorSnapshotResources = std::dynamic_pointer_cast<DefaultOperatorStateBackendSnapshotResources>(snapshotResources);
+
+        return std::make_shared<DefaultOperatorSnapshotOperation>(checkpointId,
+                                                                           checkpointOptions,
+                                                                           streamFactory,
+                                                                           operatorSnapshotResources);
     }
 
 private:
-    std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> registeredOperatorStates;
-    std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<BackendWritableBroadcastState<>>>> registeredBroadcastStates;
-};
-
-
-
-
-class DefaultOperatorSnapshotOperation : public SnapshotResultSupplier<OperatorStateHandle> {
-public:
-    DefaultOperatorSnapshotOperation(
-        DefaultOperatorStateBackendSnapshotStrategy* parent_,
-        long checkpointId_,
-        CheckpointOptions* checkpointOptions_,
-        CheckpointStreamFactory* streamFactory_,
-        std::vector<std::shared_ptr<StateMetaInfoSnapshot>> operatorStateMetaInfoSnapshots_,
-        std::vector<std::shared_ptr<StateMetaInfoSnapshot>> broadcastStateMetaInfoSnapshots_)
-        : parent(parent_),
-          checkpointId(checkpointId_),
-          checkpointOptions(checkpointOptions_),
-          streamFactory(streamFactory_),
-          operatorStateMetaInfoSnapshots(operatorStateMetaInfoSnapshots_),
-          broadcastStateMetaInfoSnapshots(broadcastStateMetaInfoSnapshots_) {
-        INFO_RELEASE("h30082497 DefaultOperatorSnapshotOperation 1");
-    }
-
-    DefaultOperatorSnapshotOperation(
-        DefaultOperatorStateBackendSnapshotStrategy* parent_,
-        long checkpointId_,
-        CheckpointOptions* checkpointOptions_,
-        CheckpointStreamFactory* streamFactory_,
-        std::shared_ptr<DefaultOperatorStateBackendSnapshotResources> snapshotResources_)
-        : parent(parent_),
-          checkpointId(checkpointId_),
-          checkpointOptions(checkpointOptions_),
-          streamFactory(streamFactory_),
-          snapshotResources(snapshotResources_) {
-        INFO_RELEASE("h30082497 DefaultOperatorSnapshotOperation 2");
-    }
-
-    DefaultOperatorSnapshotOperation(
-        DefaultOperatorStateBackendSnapshotStrategy* parent_,
-        long checkpointId_,
-        CheckpointOptions* checkpointOptions_,
-        CheckpointStreamFactory* streamFactory_,
-        std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> registeredOperatorStatesDeepCopies_,
-        std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<BackendWritableBroadcastState<>>>> registeredBroadcastStatesDeepCopies_)
-        : parent(parent_),
-          checkpointId(checkpointId_),
-          checkpointOptions(checkpointOptions_),
-          streamFactory(streamFactory_),
-          registeredOperatorStatesDeepCopies(registeredOperatorStatesDeepCopies_),
-          registeredBroadcastStatesDeepCopies(registeredBroadcastStatesDeepCopies_) {
-        INFO_RELEASE("h30082497 DefaultOperatorSnapshotOperation 2");
-    }
-
-
-    virtual ~DefaultOperatorSnapshotOperation() = default;
-
-    std::shared_ptr<SnapshotResult<OperatorStateHandle>> get(std::shared_ptr<omnistream::OmniTaskBridge> bridge) override;
-
-protected:
-    DefaultOperatorStateBackendSnapshotStrategy* parent;
-    long checkpointId;
-    CheckpointOptions* checkpointOptions;
-    CheckpointStreamFactory* streamFactory;
-    std::shared_ptr<DefaultOperatorStateBackendSnapshotResources> snapshotResources;
-    std::vector<std::shared_ptr<StateMetaInfoSnapshot>> operatorStateMetaInfoSnapshots;
-    std::vector<std::shared_ptr<StateMetaInfoSnapshot>> broadcastStateMetaInfoSnapshots;
-    std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> registeredOperatorStatesDeepCopies;
-    std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<BackendWritableBroadcastState<>>>> registeredBroadcastStatesDeepCopies;
+    std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> registeredOperatorStates_;
+    std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> registeredBroadcastStates_;
 };
 
 #endif //OMNISTREAM_DEFAULTOPERATORSTATEBACKENDSNAPSHOTSTRATEGY_H

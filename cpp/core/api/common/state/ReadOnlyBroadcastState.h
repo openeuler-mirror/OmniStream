@@ -20,7 +20,7 @@
 
 #include "State.h"
 
-template <typename K = STATE_MV, typename V = STATE_MV>
+template <typename K = BS_K_MV, typename V = BS_V_MV>
 class ReadOnlyBroadcastState : public State {
 public:
     virtual ~ReadOnlyBroadcastState() = default;

@@ -33,7 +33,7 @@
 // 静态常量定义
 static std::string streamingCommitterRawStatesName = "streaming_committer_raw_states";
 
-class SinkWriterOperator : public OneInputStreamOperator, AbstractStreamOperator<void *> {
+class SinkWriterOperator : public OneInputStreamOperator, public AbstractStreamOperator<void *> {
 public:
     static ListStateDescriptor<std::vector<uint8_t>> STREAMING_COMMITTER_RAW_STATES_DESC;
 
@@ -46,8 +46,6 @@ public:
         delete sinkWriter;
         delete writerStateHandler;
     }
-
-    void initializeState();
 
     void initializeState(StateInitializationContextImpl<void*>* context) override;
 
@@ -73,6 +71,8 @@ public:
     {
         return isDataStream;
     }
+
+    std::string getTypeName() override;
 
 private:
     template<typename K>

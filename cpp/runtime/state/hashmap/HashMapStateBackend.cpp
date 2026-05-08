@@ -26,21 +26,21 @@ AbstractKeyedStateBackend<K> *HashMapStateBackend::createKeyedStateBackend(
 }
 
 OperatorStateBackend* HashMapStateBackend::createOperatorStateBackend(
-    omnistream::EnvironmentV2* env_,
-    std::string operatorIdentifier_,
-    std::set<std::shared_ptr<OperatorStateHandle>> stateHandles_) {
+    omnistream::EnvironmentV2* env,
+    std::string operatorIdentifier,
+    std::set<std::shared_ptr<OperatorStateHandle>> stateHandles) {
     INFO_RELEASE("h30082497 HashMapStateBackend:createOperatorStateBackend 1");
-    std::vector<std::shared_ptr<OperatorStateHandle>> stateVector(stateHandles_.begin(), stateHandles_.end());
+    std::vector<std::shared_ptr<OperatorStateHandle>> stateVector(stateHandles.begin(), stateHandles.end());
     INFO_RELEASE("h30082497 HashMapStateBackend:createOperatorStateBackend 2");
-    auto bridge = env_->getTaskStateManager()->getTaskStateManagerBridge();
+    auto bridge = env->getTaskStateManager()->getTaskStateManagerBridge();
     INFO_RELEASE("h30082497 HashMapStateBackend:createOperatorStateBackend 3");
-    auto omniTaskBridge = env_->getTaskStateManager()->getOmniTaskBridge();
+    auto omniTaskBridge = env->getTaskStateManager()->getOmniTaskBridge();
     INFO_RELEASE("h30082497 HashMapStateBackend:createOperatorStateBackend 4");
 
     const bool asynchronousSnapshots = true;
     DefaultOperatorStateBackendBuilder builder(
         asynchronousSnapshots,
-        operatorIdentifier_,
+        operatorIdentifier,
         stateVector,
         bridge,
         omniTaskBridge);

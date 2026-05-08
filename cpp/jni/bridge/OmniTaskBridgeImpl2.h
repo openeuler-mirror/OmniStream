@@ -20,7 +20,6 @@
 #include "runtime/state/restore/KeyGroupEntry.h"
 #include "state/LocalRecoveryConfig.h"
 #include "runtime/checkpoint/CheckpointOptions.h"
-#include "OmniTaskBridgeHelper.h"
 
 class OmniTaskBridgeImpl2 : public omnistream::OmniTaskBridge {
 public:
@@ -54,12 +53,6 @@ public:
             std::shared_ptr<LocalRecoveryConfig> localRecoveryConfig,
             CheckpointOptions *checkpointOptions, std::string keySerializer) override;
 
-    std::shared_ptr<SnapshotResult<OperatorStateHandle>> CallMaterializeOperatorMetaData(
-            jlong checkpointId_,
-            CheckpointOptions* checkpointOptions_,
-            std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& operatorStateMetaInfoSnapshots_,
-            std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& broadcastStateMetaInfoSnapshots_) override;
-
     jobject CallUploadFilesToCheckpointFs(const std::vector<Path>& filePaths,
                                           int numberOfSnapshottingThreads) override;
 
@@ -71,11 +64,12 @@ public:
     void WriteSavepointMetadata(jobject provider, const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& snapshots,
                                 std::string keySerializer) override;
 
-    void WriteOperatorMetaData(jobject provider_,
-                               const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& operatorStateMetaInfoSnapshots_,
-                               const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& broadcastStateMetaInfoSnapshots_) override;
+    void WriteOperatorMetaData(jobject provider,
+                               const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& operatorStateMetaInfoSnapshots,
+                               const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& broadcastStateMetaInfoSnapshots) override;
 
     long GetSavepointOutputStreamPos(jobject provider) override;
+
     /**
      * @brief Download a remote file to the local file system.
      *
@@ -87,6 +81,5 @@ public:
 
 public:
     jobject m_globalOmniTaskRef;
-    OmniTaskBridgeHelper helper;
 };
 #endif // OMNITASKBRIDGEIMPL2_H

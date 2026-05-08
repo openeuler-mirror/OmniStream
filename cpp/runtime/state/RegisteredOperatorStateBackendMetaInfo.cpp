@@ -12,21 +12,21 @@
 #include "RegisteredOperatorStateBackendMetaInfo.h"
 
 RegisteredOperatorStateBackendMetaInfo::RegisteredOperatorStateBackendMetaInfo(
-    const std::string& name_, OperatorStateHandle::Mode assignmentMode_, TypeSerializer* stateSerializer_)
-    : RegisteredStateMetaInfoBase(name_), assignmentMode(assignmentMode_), stateSerializer(stateSerializer_) {
+    const std::string& name, OperatorStateHandle::Mode assignmentMode, TypeSerializer* stateSerializer)
+    : RegisteredStateMetaInfoBase(name), assignmentMode_(assignmentMode), stateSerializer_(stateSerializer) {
     INFO_RELEASE("h30082497 RegisteredOperatorStateBackendMetaInfo 1");
 }
 
-RegisteredOperatorStateBackendMetaInfo::RegisteredOperatorStateBackendMetaInfo(const StateMetaInfoSnapshot& snapshot_)
-    : RegisteredStateMetaInfoBase(snapshot_.getName()) {
+RegisteredOperatorStateBackendMetaInfo::RegisteredOperatorStateBackendMetaInfo(const StateMetaInfoSnapshot& snapshot)
+    : RegisteredStateMetaInfoBase(snapshot.getName()) {
     INFO_RELEASE("h30082497 RegisteredOperatorStateBackendMetaInfo 2 1 ");
 
-    auto assignmentModeStr = snapshot_.getOption(StateMetaInfoSnapshot::CommonOptionsKeys::OPERATOR_STATE_DISTRIBUTION_MODE);
-    assignmentMode = OperatorStateHandle::StrToMode(assignmentModeStr);
+    auto assignmentModeStr = snapshot.getOption(StateMetaInfoSnapshot::CommonOptionsKeys::OPERATOR_STATE_DISTRIBUTION_MODE);
+    assignmentMode_ = OperatorStateHandle::StrToMode(assignmentModeStr);
 
     std::string stateSerializerKey = StateMetaInfoSnapshot::commonSerializerKeyToString(StateMetaInfoSnapshot::CommonSerializerKeys::VALUE_SERIALIZER);
 
-    stateSerializer = snapshot_.getTypeSerializer(stateSerializerKey);
+    stateSerializer_ = snapshot.getTypeSerializer(stateSerializerKey);
     INFO_RELEASE("h30082497 RegisteredOperatorStateBackendMetaInfo 2 end ");
 }
 

@@ -35,7 +35,7 @@ SinkWriterOperator::SinkWriterOperator(KafkaSink* kafkaSink,
     if (config["batch"]) {
         inputTypes = config["inputTypes"].get<std::vector<std::basic_string<char>>>();
     }
-    initializeState();
+
     isDataStream = !description["batch"];
 
     // statefulSink初始化状态处理句柄
@@ -45,12 +45,6 @@ SinkWriterOperator::SinkWriterOperator(KafkaSink* kafkaSink,
     emitDownstream = true;
     committableSerializer = kafkaSink->getCommittableSerializer();
 
-}
-
-void SinkWriterOperator::initializeState()
-{
-    // 迁移到initializeState(StateInitializationContext* context)
-    // this->sinkWriter = kafkaSink->CreateWriter();
 }
 
 void SinkWriterOperator::open() {
@@ -203,6 +197,15 @@ void SinkWriterOperator::snapshotState(StateSnapshotContextSynchronousImpl* cont
     // 快照状态
     writerStateHandler->snapshotState(context->getCheckpointId());
 }
+
+std::string SinkWriterOperator::getTypeName()
+{
+    std::string typeName = "SinkWriterOperator";
+    typeName.append(__PRETTY_FUNCTION__);
+    return typeName;
+}
+
+
 
 // 显式实例化模板
 template void SinkWriterOperator::emitCommittables<KafkaCommittable>(std::int64_t checkpointId);

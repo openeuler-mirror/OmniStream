@@ -22,64 +22,51 @@
 #include "BackendWritableBroadcastState.h"
 #include "RegisteredBroadcastStateBackendMetaInfo.h"
 
-template <typename K = STATE_MV, typename V = STATE_MV>
+template <typename K, typename V>
 class HeapBroadcastState : public BackendWritableBroadcastState<K, V> {
 public:
-    HeapBroadcastState(const std::shared_ptr<RegisteredBroadcastStateBackendMetaInfo>& stateMetaInfo_,
-                       const std::shared_ptr<std::map<K, V>>& internalMap_,
-                       const std::shared_ptr<MapSerializer>& internalMapCopySerializer_)
-        : stateMetaInfo(stateMetaInfo_),
-          internalMap(internalMap_),
-          internalMapCopySerializer(internalMapCopySerializer_) {}
+    HeapBroadcastState(const std::shared_ptr<RegisteredBroadcastStateBackendMetaInfo>& stateMetaInfo,
+                       const std::shared_ptr<std::map<K, V>>& internalMap)
+        : stateMetaInfo_(stateMetaInfo),
+          internalMap_(internalMap),
+          internalMapCopySerializer_(std::make_shared<MapSerializer>(stateMetaInfo->getKeySerializer(), stateMetaInfo->getValueSerializer())) {}
 
-    HeapBroadcastState(const std::shared_ptr<RegisteredBroadcastStateBackendMetaInfo>& stateMetaInfo_,
-                       const std::shared_ptr<MapSerializer>& internalMapCopySerializer_)
-        : stateMetaInfo(stateMetaInfo_),
-          internalMapCopySerializer(internalMapCopySerializer_) {
+    HeapBroadcastState(const std::shared_ptr<RegisteredBroadcastStateBackendMetaInfo>& stateMetaInfo,
+                       const std::shared_ptr<MapSerializer>& internalMapCopySerializer)
+        : stateMetaInfo_(stateMetaInfo),
+          internalMapCopySerializer_(internalMapCopySerializer) {
         initInternalMap();
     }
 
-    HeapBroadcastState(const std::shared_ptr<RegisteredBroadcastStateBackendMetaInfo>& stateMetaInfo_)
-        : HeapBroadcastState(stateMetaInfo_,
-                             std::make_shared<MapSerializer>(stateMetaInfo_->getKeySerializer(), stateMetaInfo_->getValueSerializer())) {}
+    HeapBroadcastState(const std::shared_ptr<RegisteredBroadcastStateBackendMetaInfo>& stateMetaInfo)
+        : HeapBroadcastState(stateMetaInfo,
+                             std::make_shared<MapSerializer>(stateMetaInfo->getKeySerializer(), stateMetaInfo->getValueSerializer())) {}
 
-    void setStateMetaInfo(const std::shared_ptr<RegisteredBroadcastStateBackendMetaInfo>& stateMetaInfo_) override  {
-        internalMapCopySerializer = std::make_shared<MapSerializer>(
-            stateMetaInfo_->getKeySerializer(),
-            stateMetaInfo_->getValueSerializer());
-        stateMetaInfo = stateMetaInfo_;
+    void setStateMetaInfo(const std::shared_ptr<RegisteredBroadcastStateBackendMetaInfo>& stateMetaInfo) override  {
+        internalMapCopySerializer_ = std::make_shared<MapSerializer>(
+            stateMetaInfo->getKeySerializer(),
+            stateMetaInfo->getValueSerializer());
+        stateMetaInfo_ = stateMetaInfo;
     }
 
     std::shared_ptr<RegisteredBroadcastStateBackendMetaInfo> getStateMetaInfo() const override {
-        return stateMetaInfo;
-    }
-
-    template<typename SK, typename SV>
-    void setAndConvertInternalMap(const std::shared_ptr<std::map<SK, SV>>& internalMap_) {
-        if (internalMap == nullptr) {
-            initInternalMap();
-        }
-        for (auto& entry : *internalMap_) {
-            if (std::holds_alternative<K>(entry.first) && std::holds_alternative<V>(entry.second)) {
-                put(std::get<K>(entry.first), std::get<V>(entry.second));
-            }
-        }
+        return stateMetaInfo_;
     }
 
     void initInternalMap() {
-        internalMap = std::shared_ptr<std::map<K, V>>();
+        internalMap_ = std::shared_ptr<std::map<K, V>>();
     }
 
-    void setInternalMap(const std::shared_ptr<std::map<K, V>>& internalMap_) {
-        internalMap = internalMap_;
+    void setInternalMap(const std::shared_ptr<std::map<K, V>>& internalMap) {
+        internalMap_ = internalMap;
     }
 
     std::shared_ptr<std::map<K, V>> getInternalMap() {
-        return internalMap;
+        return internalMap_;
     }
 
     std::shared_ptr<MapSerializer> getInternalMapCopySerializer() {
-        return internalMapCopySerializer;
+        return internalMapCopySerializer_;
     }
 
     std::shared_ptr<BackendWritableBroadcastState<K, V>> deepCopy() override {
@@ -87,31 +74,47 @@ public:
     }
 
     std::shared_ptr<HeapBroadcastState<K, V>> copy() {
-        return std::make_shared<HeapBroadcastState<K, V>>(std::make_shared<RegisteredBroadcastStateBackendMetaInfo>(*this->stateMetaInfo),
-                                                          std::make_shared<std::map<K, V>>(*this->internalMap),
-                                                          std::make_shared<MapSerializer>(*this->internalMapCopySerializer));
+        return std::make_shared<HeapBroadcastState<K, V>>(std::make_shared<RegisteredBroadcastStateBackendMetaInfo>(*this->stateMetaInfo_),
+                                                          std::make_shared<std::map<K, V>>(*this->internalMap_),
+                                                          std::make_shared<MapSerializer>(*this->internalMapCopySerializer_));
     }
 
-    long write(DataOutputSerializer& out) override {
+    long write(long startPos, DataOutputSerializer& out) override {
         INFO_RELEASE("h30082497 HeapBroadcastState::write 1");
-        if (internalMap == nullptr) {
-        INFO_RELEASE("h30082497 HeapBroadcastState::write 1 if 1");
-            initInternalMap();
-        INFO_RELEASE("h30082497 HeapBroadcastState::write 1 if end");
-        }
-        INFO_RELEASE("h30082497 HeapBroadcastState::write 2");
-        long offset = out.getPosition();
-        INFO_RELEASE("h30082497 HeapBroadcastState::write 3");
+        long offset = startPos + out.getPosition();
+        INFO_RELEASE("h30082497 HeapBroadcastState::write 2 offset : " + std::to_string(offset));
 
-        out.writeInt(internalMap->size());
+        out.writeInt(internalMap_->size());
         INFO_RELEASE("h30082497 HeapBroadcastState::write 4");
 
-        for (const auto& entry : *internalMap) {
-        INFO_RELEASE("h30082497 HeapBroadcastState::write 4 for 1");
-            getStateMetaInfo()->getKeySerializer()->serialize(variantToObject(entry.first), out);
-        INFO_RELEASE("h30082497 HeapBroadcastState::write 4 for 2");
-            getStateMetaInfo()->getValueSerializer()->serialize(variantToObject(entry.second), out);
-        INFO_RELEASE("h30082497 HeapBroadcastState::write 4 for end");
+        /*
+        int i = 0;
+        INFO_RELEASE("h30082497 HeapBroadcastState::write 4");
+        for (const auto& entry: *internalMap_) {
+            INFO_RELEASE("h30082497 HeapBroadcastState::write 5 i = " + std::to_string(i++));
+            INFO_RELEASE("h30082497 HeapBroadcastState::write 5 element addr: " + std::to_string(reinterpret_cast<uintptr_t>(&entry)));
+            INFO_RELEASE("h30082497 HeapBroadcastState::write 6");
+            Object* kObj = CustomVariant::BS_K_MVToObject(entry.first);
+            Object* vObj = CustomVariant::BS_V_MVToObject(entry.second);
+            INFO_RELEASE("h30082497 HeapBroadcastState::write 7");
+            getStateMetaInfo()->getKeySerializer()->serialize(kObj, out);
+            getStateMetaInfo()->getValueSerializer()->serialize(vObj, out);
+            INFO_RELEASE("h30082497 HeapBroadcastState::write 8");
+            kObj->putRefCount();
+            vObj->putRefCount();
+            INFO_RELEASE("h30082497 HeapBroadcastState::write 9");
+        }
+        */
+
+        int i = 0;
+        INFO_RELEASE("h30082497 HeapBroadcastState::write 4");
+        for (const auto& entry: *internalMap_) {
+            INFO_RELEASE("h30082497 HeapBroadcastState::write 5 i = " + std::to_string(i++));
+            INFO_RELEASE("h30082497 HeapBroadcastState::write 5 element addr: " + std::to_string(reinterpret_cast<uintptr_t>(&entry)));
+            INFO_RELEASE("h30082497 HeapBroadcastState::write 6");
+            getStateMetaInfo()->getKeySerializer()->serialize(&entry.first, out);
+            getStateMetaInfo()->getValueSerializer()->serialize(&entry.second, out);
+            INFO_RELEASE("h30082497 HeapBroadcastState::write 7");
         }
         INFO_RELEASE("h30082497 HeapBroadcastState::write end");
 
@@ -119,36 +122,36 @@ public:
 
     }
 
-    void put(const K& key_, const V& value_) override {
-        (*internalMap)[key_] = value_;
+    void put(const K& key, const V& value) override {
+        (*internalMap_)[key] = value;
     }
 
-    void putAll(const std::map<K, V>& map_) override {
-        for (const auto& entry : map_) {
-            (*internalMap)[entry.first] = entry.second;
+    void putAll(const std::map<K, V>& map) override {
+        for (const auto& entry : map) {
+            (*internalMap_)[entry.first] = entry.second;
         }
     }
 
-    void remove(const K& key_) override {
-        internalMap->erase(key_);
+    void remove(const K& key) override {
+        internalMap_->erase(key);
     }
 
-    std::optional<V> get(const K& key_) const override {
-        auto iterator = internalMap->find(key_);
-        if (iterator != internalMap->end()) {
+    std::optional<V> get(const K& key) const override {
+        auto iterator = internalMap_->find(key);
+        if (iterator != internalMap_->end()) {
             return iterator->second;
         }
         return std::optional<V>{};
     }
 
-    bool contains(const K& key_) const override {
-        return internalMap->find(key_) != internalMap->end();
+    bool contains(const K& key) const override {
+        return internalMap_->find(key) != internalMap_->end();
     }
 
     std::vector<std::pair<K, V>> entries() override {
         std::vector<std::pair<K, V>> result;
-        result.reserve(internalMap->size());
-        for (auto& entry : *internalMap) {
+        result.reserve(internalMap_->size());
+        for (auto& entry : *internalMap_) {
             result.emplace_back(entry.first, entry.second);
         }
         return result;
@@ -156,21 +159,21 @@ public:
 
     std::vector<std::pair<K, V>> immutableEntries() const override {
         std::vector<std::pair<K, V>> result;
-        result.reserve(internalMap->size());
-        for (const auto& entry : *internalMap) {
+        result.reserve(internalMap_->size());
+        for (const auto& entry : *internalMap_) {
             result.emplace_back(entry.first, entry.second);
         }
         return result;
     }
 
     void clear() override {
-        internalMap->clear();
+        internalMap_->clear();
     }
 
 private:
-    std::shared_ptr<RegisteredBroadcastStateBackendMetaInfo> stateMetaInfo;
-    std::shared_ptr<std::map<K, V>> internalMap;
-    std::shared_ptr<MapSerializer> internalMapCopySerializer;
+    std::shared_ptr<RegisteredBroadcastStateBackendMetaInfo> stateMetaInfo_;
+    std::shared_ptr<std::map<K, V>> internalMap_;
+    std::shared_ptr<MapSerializer> internalMapCopySerializer_;
 };
 
 #endif //OMNISTREAM_HEAPBROADCASTSTATE_H
