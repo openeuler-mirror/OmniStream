@@ -67,7 +67,9 @@ public:
                 V lruVal = cacheList.back().second;
                 cacheMap.erase(lruKey);
                 cacheList.pop_back();
-                delete lruKey;
+                if constexpr (std::is_pointer_v<K>) {
+                    delete lruKey;
+                }
                 // Only free the evicted value when the cache is its sole owner.
                 // For the heap state backend, the state still holds the same ptr.
                 if (ownsValues) {
