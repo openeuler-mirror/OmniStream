@@ -77,6 +77,7 @@ public:
      * @param[out] iterable Output parameter to store the iterable pointer
      */
     std::shared_ptr<Iterable<std::shared_ptr<StatePartitionStreamProvider>>> getRawOperatorStateInputs() const {
+        INFO_RELEASE("StateInitializationContextImpl getRawOperatorStateInputs");
         return rawOperatorStateInputs;
     }
     
@@ -86,6 +87,7 @@ public:
      * @param[out] iterable Output parameter to store the iterable pointer
      */
     std::shared_ptr<Iterable<std::shared_ptr<KeyGroupStatePartitionStreamProvider>>> getRawKeyedStateInputs() const {
+        INFO_RELEASE("StateInitializationContextImpl getRawKeyedStateInputs");
         return rawKeyedStateInputs;
     }
     
