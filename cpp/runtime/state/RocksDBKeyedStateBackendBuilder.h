@@ -42,6 +42,11 @@ namespace fs = std::filesystem;
 template <typename K>
 class RocksDBKeyedStateBackendBuilder {
 public:
+    enum class PriorityQueueStateType {
+        HEAP,
+        ROCKSDB
+    };
+
     RocksDBKeyedStateBackendBuilder(
         std::string operatorIdentifier_,
         fs::path instanceBasePath_,
@@ -50,6 +55,7 @@ public:
         int numberOfKeyGroups_,
         KeyGroupRange *keyGroupRange_,
         std::shared_ptr<LocalRecoveryConfig> localRecoveryConfig_,
+        PriorityQueueStateType priorityQueueStateType,
         std::vector<std::shared_ptr<KeyedStateHandle>> stateHandles_,
         std::shared_ptr<TaskStateManagerBridge> bridge_,
         std::shared_ptr<OmniTaskBridge> omniTaskBridge_,
@@ -62,6 +68,7 @@ public:
         numberOfKeyGroups(numberOfKeyGroups_),
         keyGroupRange(keyGroupRange_),
         localRecoveryConfig(localRecoveryConfig_),
+        priorityQueueStateType_(priorityQueueStateType),
         restoreStateHandles(stateHandles_),
         bridge(bridge_),
         omniTaskBridge(omniTaskBridge_),
@@ -98,11 +105,6 @@ public:
         return *this;
     }
 
-    enum class PriorityQueueStateType {
-        HEAP,
-        ROCKSDB
-    };
-
 private:
     const std::shared_ptr<CloseableRegistry> cancelStreamRegistry;
     static constexpr const char* DB_INSTANCE_DIR_STRING = "db";
@@ -112,6 +114,7 @@ private:
     int numberOfKeyGroups;
     KeyGroupRange* keyGroupRange;
     std::shared_ptr<LocalRecoveryConfig> localRecoveryConfig;
+    PriorityQueueStateType priorityQueueStateType_ = PriorityQueueStateType::ROCKSDB;
     std::vector<std::shared_ptr<KeyedStateHandle>> restoreStateHandles;
     std::function<rocksdb::ColumnFamilyOptions(const std::string&)> columnFamilyOptionsFactory;
     std::filesystem::path instanceRocksDBPath;
@@ -123,10 +126,6 @@ private:
     std::shared_ptr<OmniTaskBridge> omniTaskBridge;
     std::shared_ptr<OperatorID> operatorId_;
     int alternativeIdx_;
-
-    // default priority queue state type is ROCKSDB
-    // todo: this should be configurable
-    PriorityQueueStateType priorityQueueStateType = PriorityQueueStateType::HEAP;
 
     static void checkAndCreateDirectory(const fs::path& directory)
     {
@@ -330,22 +329,12 @@ std::shared_ptr<PriorityQueueSetFactory> RocksDBKeyedStateBackendBuilder<K>::ini
         std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation,
         rocksdb::DB* db,
         std::shared_ptr<RocksDBWriteBatchWrapper> writeBatchWrapper) {
-    const char* env = std::getenv("PriorityQueueStateType");
-    std::string type = env ? std::string(env) : "";
-
-    // TODO: the conf should be gotten from Adapter
-    if (type == "HEAP") {
-        priorityQueueStateType = PriorityQueueStateType::HEAP;
-    } else {
-        priorityQueueStateType = PriorityQueueStateType::ROCKSDB;
-    }
-
-    if (priorityQueueStateType == PriorityQueueStateType::HEAP) {
+    if (priorityQueueStateType_ == PriorityQueueStateType::HEAP) {
         INFO_RELEASE("The priority queue type of rocksDB backend is HEAP.");
         return std::make_shared<HeapPriorityQueueSetFactory>(keyGroupRange, numberOfKeyGroups, 128);
     }
 
-    if (priorityQueueStateType == PriorityQueueStateType::ROCKSDB) {
+    if (priorityQueueStateType_ == PriorityQueueStateType::ROCKSDB) {
         INFO_RELEASE("The priority queue type of rocksDB backend is ROCKSDB.");
         return std::make_shared<RocksDBPriorityQueueSetFactory>(
             keyGroupRange,
@@ -358,5 +347,5 @@ std::shared_ptr<PriorityQueueSetFactory> RocksDBKeyedStateBackendBuilder<K>::ini
             columnFamilyOptionsFactory,
             optionsContainer->getWriteBufferManagerCapacity());
     }
-    THROW_LOGIC_EXCEPTION("Unsupported priority queue state type: " + static_cast<int>(priorityQueueStateType));
+    THROW_LOGIC_EXCEPTION("Unsupported priority queue state type: " + static_cast<int>(priorityQueueStateType_));
 }

@@ -89,6 +89,12 @@ public:
                 stateHandles.begin(),
                 stateHandles.end());
 
+        auto priorityQueueStateType = RocksDBKeyedStateBackendBuilder<K>::PriorityQueueStateType::HEAP;
+        // TODO: Enable rocksDB priority queue when Nexmark q5 is fixed
+        // auto priorityQueueStateType = env->taskConfiguration().getPriorityQueueStateType() == "ROCKSDB" ?
+        //         RocksDBKeyedStateBackendBuilder<K>::PriorityQueueStateType::ROCKSDB :
+        //         RocksDBKeyedStateBackendBuilder<K>::PriorityQueueStateType::HEAP;
+
         RocksDBKeyedStateBackendBuilder<K> builder(
                 operatorIdentifier,
                 instanceBasePath,
@@ -97,6 +103,7 @@ public:
                 numberOfKeyGroups,
                 keyGroupRange,
                 localRecoveryConfig,
+                priorityQueueStateType,
                 stateVec,
                 bridge,
                 omniTaskBridge,
