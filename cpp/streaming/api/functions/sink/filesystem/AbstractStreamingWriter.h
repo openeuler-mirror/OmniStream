@@ -9,8 +9,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef OMNISTREAM_ABSTRACT_STREAMING_WRITER_H
-#define OMNISTREAM_ABSTRACT_STREAMING_WRITER_H
+#pragma once
 
 #include <memory>
 #include "streaming/api/operators/AbstractStreamOperator.h"
@@ -44,7 +43,7 @@ public:
     void processWatermark(Watermark *mark)
     {
         if (this->timeServiceManager != nullptr) {
-            this->timeServiceManager->template advanceWatermark<int64_t>(mark);
+            this->timeServiceManager->advanceWatermark(mark);
         }
         this->output->emitWatermark(mark);
         currentWatermark = mark->getTimestamp();
@@ -104,5 +103,3 @@ private:
     StreamingFileSinkHelper<IN> *helper;
     long currentWatermark;
 };
-
-#endif // OMNISTREAM_ABSTRACT_STREAMING_WRITER_H

@@ -246,7 +246,7 @@ void GroupAggFunction::processElement(RowData* input, Context* ctx, TimestampedC
             binRowAcc->setNullAt(i);
         }
         // Flink don't do update here, it updates it in if (!recordCounter->recordCountIsZero(accumulators)){} line 146
-        static_cast<HeapValueState<RowData*, VoidNamespace, RowData*> *>(accState)->update(accumulators);
+        accState->update(accumulators);
     } else {
         firstRow = false;
     }

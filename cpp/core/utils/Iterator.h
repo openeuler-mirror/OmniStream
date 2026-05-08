@@ -8,8 +8,9 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef FLINK_TNEL_ITERATOR_H
-#define FLINK_TNEL_ITERATOR_H
+#pragma once
+
+#include "common.h"
 
 #include <memory>
 
@@ -21,7 +22,7 @@ namespace omnistream::utils {
  */
 template <typename E>
 class Iterator {
-public: 
+public:
     virtual ~Iterator() = default;
     virtual bool hasNext() = 0;
     virtual E next() = 0;
@@ -36,7 +37,7 @@ template <typename T>
 class Iterable {
 public:
     virtual ~Iterable() = default;
-    
+
     /**
      * Returns an iterator over the elements of type T.
      */
@@ -55,22 +56,22 @@ public:
     VectorIterator(const std::vector<std::shared_ptr<T>>& vector)
         : vector_(vector),
           current_(0) {}
-    
+
     bool hasNext() override {
         return current_ < vector_.size();
     }
-    
+
     std::shared_ptr<T> next() override {
         if (!hasNext()) {
             return nullptr;
         }
         return vector_[current_++];
     }
-    
+
     void remove() override {
         // Remove is not supported for VectorIterator
     }
-    
+
 private:
     const std::vector<std::shared_ptr<T>>& vector_;
     size_t current_;
@@ -99,4 +100,3 @@ std::shared_ptr<Iterable<T>> emptyIterable() {
 
 } // namespace omnistream::utils
 
-#endif // FLINK_TNEL_ITERATOR_H

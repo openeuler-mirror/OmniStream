@@ -9,22 +9,18 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef OMNISTREAM_ROCKSDBVALUESTATE_H
-#define OMNISTREAM_ROCKSDBVALUESTATE_H
-
-#include "core/typeutils/TypeSerializer.h"
-#include "../internal/InternalKvState.h"
-#include "core/api/common/state/ValueState.h"
-#include "../AbstractKeyedStateBackend.h"
-#include "RocksdbStateTable.h"
-
-#include "rocksdb/db.h"
-#include "state/RocksDbKvStateInfo.h"
+#pragma once
 
 #include <unordered_map>
+
+#include "core/typeutils/TypeSerializer.h"
+#include "../AbstractKeyedStateBackend.h"
+#include "RocksdbStateTable.h"
+#include "state/RocksDbKvStateInfo.h"
 #include "runtime/state/rocksdb/falcon/ValueStateFalconKey.h"
 #include "runtime/state/rocksdb/falcon/FalconValue.h"
 #include "runtime/state/rocksdb/falcon/ValueStateCache.h"
+#include "runtime/state/internal/InternalValueState.h"
 
 const float CACHE_SIZE_UPPER_LIMIT = 1.2;
 
@@ -32,7 +28,7 @@ template <typename K, typename N, typename V>
 class ValueStateLRUCache;
 
 template <typename K, typename N, typename V>
-class RocksdbValueState : public ValueState<V>, public InternalKvState<K, N, V> {
+class RocksdbValueState : public InternalValueState<K, N, V> {
 public:
     TypeSerializer *getKeySerializer()
     {
@@ -478,6 +474,3 @@ void RocksdbValueState<K, N, V>::updateByBatch(std::unordered_map<K, V>& pending
 {
     stateTable->putByBatch(currentNamespace,pendingUpdates);
 }
-
-
-#endif // OMNISTREAM_ROCKSDBVALUESTATE_H

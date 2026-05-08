@@ -9,8 +9,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef OMNISTREAM_ROCKSDBKEYEDSTATEBACKEND_H
-#define OMNISTREAM_ROCKSDBKEYEDSTATEBACKEND_H
+#pragma once
 
 #include <emhash7.hpp>
 #include <map>
@@ -43,8 +42,13 @@
 #include "rocksdb/options.h"
 #include "rocksdb/status.h"
 #include "DefaultConfigurableOptionsFactory.h"
+#include "HeapPriorityQueuesManager.h"
+#include "PriorityQueueSetFactory.h"
 #include "snapshot/RocksDBSnapshotStrategyBase.h"
 #include "RegisteredStateMetaInfoBase.h"
+#include "heap/HeapPriorityQueueSetFactory.h"
+#include "heap/HeapPriorityQueueSnapshotRestoreWrapper.h"
+#include "rocksdb/RocksDBPriorityQueueSetFactory.h"
 #include "runtime/state/SnapshotResult.h"
 #include "runtime/state/KeyedStateHandle.h"
 #include "runtime/state/bridge/OmniTaskBridge.h"
@@ -66,38 +70,6 @@ using namespace omniruntime::type;
 template <typename K>
 class RocksdbKeyedStateBackend : public AbstractKeyedStateBackend<K> {
 public:
-    RocksdbKeyedStateBackend(
-            TypeSerializer *keySerializer, InternalKeyContext<K> *context, int startGroup, int endGroup,
-            int maxParallelism, std::string backendHome)
-        : AbstractKeyedStateBackend<K>(keySerializer, context), startGroup_(startGroup), endGroup_(endGroup),
-          maxParallelism_(maxParallelism)
-    {
-        // this constructor has been deprecated
-        // 持有db实例
-        kDBPath = backendHome;
-        if (!(fs::exists(fs::path(kDBPath)) && fs::is_directory(fs::path(kDBPath)))) {
-            fs::create_directories(fs::path(kDBPath));
-        }
-        std::ostringstream thread_id_stream;
-        thread_id_stream << std::this_thread::get_id();
-        std::string thread_id = thread_id_stream.str();
-
-        auto now = std::chrono::system_clock::now();
-        auto microseconds = std::chrono::duration_cast<std::chrono::microseconds>(
-                now.time_since_epoch()
-        ).count();
-        kDBPath = kDBPath + "/" + thread_id + "_" + std::to_string(microseconds);
-
-        ROCKSDB_NAMESPACE::Options options;
-        ROCKSDB_NAMESPACE::BlockBasedTableOptions blockBasedTableOptions;
-        options.create_if_missing = true;
-        DefaultConfigurableOptionsFactory::createColumnOptions(options, blockBasedTableOptions);
-        DefaultConfigurableOptionsFactory::createDBOptions(options);
-        ROCKSDB_NAMESPACE::Status s = ROCKSDB_NAMESPACE::DB::Open(options, kDBPath, &db);
-        if (!s.ok()) {
-            throw std::runtime_error("rocksdb open error");
-        }
-    };
     // Originally used to create an internal state, not necessary here
     uintptr_t createOrUpdateInternalState(TypeSerializer *namespaceSerializer, StateDescriptor *stateDesc) override;
 
@@ -107,32 +79,41 @@ public:
     };
 
     RocksdbKeyedStateBackend(
-        TypeSerializer *keySerializer,
-        InternalKeyContext<K> *context,
-        rocksdb::DB *rocksdb,
-        RocksDBSnapshotStrategyBase *rocksdbStrategy,
-        KeyGroupRange *keyGroupRange,
-        std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>> *kvStateInformation,
-        std::shared_ptr<ResourceGuard> rocksDBResourceGuard,
-        int keyGroupPrefixBytes,
-        std::shared_ptr<RocksDBWriteBatchWrapper> writeBatchWrapper,
-        std::shared_ptr<TaskStateManagerBridge> bridge,
-        std::shared_ptr<omnistream::OmniTaskBridge> omniTaskBridge)
-        : AbstractKeyedStateBackend<K>(keySerializer, context),
-        db(rocksdb),
-        strategy(rocksdbStrategy),
-        kvStateInformation_(kvStateInformation),
-        rocksDBResourceGuard_(rocksDBResourceGuard),
-        keyGroupRange_(keyGroupRange),
-        keySerializer_(keySerializer),
-        keyGroupPrefixBytes_(keyGroupPrefixBytes),
-        writeBatchWrapper_(writeBatchWrapper),
-        bridge_(bridge),
-        omniTaskBridge_(omniTaskBridge)
-    {
+            TypeSerializer* keySerializer,
+            InternalKeyContext<K>* context,
+            rocksdb::DB* rocksdb,
+            RocksDBSnapshotStrategyBase* rocksdbStrategy,
+            KeyGroupRange* keyGroupRange,
+            std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation,
+            std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapperBase>>> registeredPQStates,
+            std::shared_ptr<ResourceGuard> rocksDBResourceGuard,
+            int keyGroupPrefixBytes,
+            std::shared_ptr<RocksDBWriteBatchWrapper> writeBatchWrapper,
+            std::shared_ptr<PriorityQueueSetFactory> priorityQueueSetFactory,
+            std::shared_ptr<TaskStateManagerBridge> bridge,
+            std::shared_ptr<omnistream::OmniTaskBridge> omniTaskBridge)
+            : AbstractKeyedStateBackend<K>(keySerializer, context),
+            db(rocksdb),
+            strategy(rocksdbStrategy),
+            kvStateInformation_(kvStateInformation),
+            rocksDBResourceGuard_(rocksDBResourceGuard),
+            keyGroupRange_(keyGroupRange),
+            keySerializer_(keySerializer),
+            keyGroupPrefixBytes_(keyGroupPrefixBytes),
+            writeBatchWrapper_(writeBatchWrapper),
+            priorityQueueSetFactory_(priorityQueueSetFactory),
+            bridge_(bridge),
+            omniTaskBridge_(omniTaskBridge) {
         startGroup_ = keyGroupRange->getStartKeyGroup();
         endGroup_ = keyGroupRange->getEndKeyGroup();
         maxParallelism_ = keyGroupRange->getNumberOfKeyGroups();
+        if (auto factory = std::dynamic_pointer_cast<HeapPriorityQueueSetFactory>(priorityQueueSetFactory)) {
+            heapPriorityQueuesManager_ = std::make_shared<HeapPriorityQueuesManager>(
+                    registeredPQStates,
+                    factory,
+                    context->getKeyGroupRange(),
+                    context->getNumberOfKeyGroups());
+        }
     }
 
     std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<KeyedStateHandle>>()>> snapshot(
@@ -182,6 +163,12 @@ public:
         rocksDBResourceGuard_->close();
 
         if (db != nullptr) {
+            try {
+                writeBatchWrapper_->close();
+            } catch (...) {
+                // do nothing
+            }
+
             for (const auto& pair : registeredKvStates) {
                 StateDescriptor* desc = std::get<1>(pair.second);
                 uintptr_t stateTablePtr = std::get<0>(pair.second);
@@ -278,6 +265,29 @@ public:
         disposed_ = true;
     }
 
+    template <typename T, typename Comparator>
+    std::shared_ptr<KeyGroupedInternalPriorityQueue<T>> create(
+            std::string stateName,
+            TypeSerializer* byteOrderedElementSerializer) {
+        return this->create<T, Comparator>(stateName, byteOrderedElementSerializer, false);
+    }
+
+    template <typename T, typename Comparator>
+    std::shared_ptr<KeyGroupedInternalPriorityQueue<T>> create(
+            std::string stateName,
+            TypeSerializer* byteOrderedElementSerializer,
+            bool allowFutureMetadataUpdates) {
+        if (heapPriorityQueuesManager_ != nullptr) {
+            return heapPriorityQueuesManager_->createOrUpdate<K, T, Comparator>(
+                    stateName, byteOrderedElementSerializer, allowFutureMetadataUpdates);
+        }
+
+        if (auto factory = dynamic_pointer_cast<RocksDBPriorityQueueSetFactory>(priorityQueueSetFactory_)) {
+            return factory->create<K, T, Comparator>(stateName, byteOrderedElementSerializer, allowFutureMetadataUpdates);
+        }
+        THROW_LOGIC_EXCEPTION("RocksdbKeyedStateBackend failed to create priority queue.")
+    }
+
 private:
     int startGroup_;
     int endGroup_;
@@ -292,6 +302,8 @@ private:
     KeyGroupRange* keyGroupRange_ = nullptr;
     TypeSerializer* keySerializer_ = nullptr;
     int keyGroupPrefixBytes_;
+    std::shared_ptr<HeapPriorityQueuesManager> heapPriorityQueuesManager_;
+    std::shared_ptr<PriorityQueueSetFactory> priorityQueueSetFactory_;
     std::shared_ptr<TaskStateManagerBridge> bridge_;
     std::shared_ptr<omnistream::OmniTaskBridge> omniTaskBridge_;
 	
@@ -650,6 +662,3 @@ void RocksdbKeyedStateBackend<K>::registerKvStateInformation(StateDescriptor *st
         kvStateInformation_->emplace(stateWithVb, rocksDbKvStateInfo);
     }
 }
-
-
-#endif // OMNISTREAM_ROCKSDBKEYEDSTATEBACKEND_H

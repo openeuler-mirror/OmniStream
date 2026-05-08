@@ -8,13 +8,15 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef FLINK_TNEL_HEAPKEYEDSTATEBACKEND_H
-#define FLINK_TNEL_HEAPKEYEDSTATEBACKEND_H
+
+#pragma once
+
 #include <emhash7.hpp>
 #include <map>
 #include "common.h"
 #include <vector>
 #include "AbstractKeyedStateBackend.h"
+#include "HeapPriorityQueuesManager.h"
 #include "InternalKeyContext.h"
 #include "core/typeutils/TypeSerializer.h"
 #include "heap/StateTable.h"
@@ -51,19 +53,26 @@ template <typename K>
 class HeapKeyedStateBackend : public AbstractKeyedStateBackend<K> {
 public:
     HeapKeyedStateBackend(TypeSerializer *keySerializer, InternalKeyContext<K> *context)
-        : AbstractKeyedStateBackend<K>(keySerializer, context)
-    {
+            : AbstractKeyedStateBackend<K>(keySerializer, context) {
+        auto registeredPQStates = std::make_shared<std::unordered_map<std::string, std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapperBase>>>();
+        auto priorityQueueSetFactory = std::make_shared<HeapPriorityQueueSetFactory>(context->getKeyGroupRange(), context->getNumberOfKeyGroups(), 128);
+        priorityQueuesManager_ = std::make_shared<HeapPriorityQueuesManager>(
+                registeredPQStates,
+                priorityQueueSetFactory,
+                context->getKeyGroupRange(),
+                context->getNumberOfKeyGroups());
+
         snapshotResourceFactory_ = std::make_shared<HeapSnapshotResourceFactory<K>>(
             this->keySerializer,
             this->context,
             &registeredKvStates);
         checkpointStrategy_ = std::make_shared<HeapSnapshotStrategy<K>>(snapshotResourceFactory_);
-    };
+    }
+
     // Originally used to create an internal state, not necessary here
     uintptr_t createOrUpdateInternalState(TypeSerializer *namespaceSerializer, StateDescriptor *stateDesc) override;
 
-    virtual  ~HeapKeyedStateBackend() override
-    {
+    ~HeapKeyedStateBackend() override {
         for (const auto& pair : registeredKvStates) {
             StateDescriptor* desc = std::get<1>(pair.second);
             uintptr_t stateTablePtr = std::get<0>(pair.second);
@@ -72,7 +81,7 @@ public:
                 auto valueId = desc->getValueDataId();
                 INFO_RELEASE("~HeapKeyedStateBackend(), desc->getType():" << static_cast<int>(desc->getType()) <<
                         ", desc->getKeyDataId():" << static_cast<int>(keyId) <<
-                        ", desc->getValueDataId():" << static_cast<int>(valueId));
+                        ", desc->getValueDataId():" << static_cast<int>(valueId))
                 if (keyId == BackendDataType::XXHASH128_BK && valueId == BackendDataType::TUPLE_INT32_INT64) {
                     auto stateTable = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace,
                         emhash7::HashMap<XXH128_hash_t, std::tuple<int32_t, int64_t>>*>*>(stateTablePtr);
@@ -103,14 +112,14 @@ public:
                             emhash7::HashMap<TimeWindow, TimeWindow> *> *>(stateTablePtr);
                     delete stateTable;
                 } else {
-                    NOT_IMPL_EXCEPTION;
+                    NOT_IMPL_EXCEPTION
                 }
             } else if (desc->getType() == StateDescriptor::Type::VALUE) {
                 auto dataId = desc->getBackendId();
                 INFO_RELEASE("~HeapKeyedStateBackend(), desc->getType():" << static_cast<int>(desc->getType()) <<
-                        ", desc->getBackendId():" << static_cast<int>(dataId));
+                        ", desc->getBackendId():" << static_cast<int>(dataId))
                 if (dataId == BackendDataType::OBJECT_BK || dataId == BackendDataType::POJO_BK
-                    || dataId == BackendDataType::TUPLE_OBJ_OBJ_BK) {
+                        || dataId == BackendDataType::TUPLE_OBJ_OBJ_BK) {
                     auto stateTable = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, Object*> *>(stateTablePtr);
                     delete stateTable;
                 } else if (dataId == BackendDataType::INT_BK) {
@@ -123,12 +132,12 @@ public:
                     auto stateTable = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, std::vector<long> *> *>(stateTablePtr);
                     delete stateTable;
                 } else {
-                    NOT_IMPL_EXCEPTION;
+                    NOT_IMPL_EXCEPTION
                 }
             } else if (desc->getType() == StateDescriptor::Type::LIST) {
                 auto dataId = desc->getBackendId();
                 INFO_RELEASE("~HeapKeyedStateBackend(), desc->getType():" << static_cast<int>(desc->getType()) <<
-                        ", desc->getBackendId():" << static_cast<int>(dataId));
+                        ", desc->getBackendId():" << static_cast<int>(dataId))
                 if (dataId == BackendDataType::BIGINT_BK) {
                     auto stateTable = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, std::vector<int64_t>*> *>(stateTablePtr);
                     delete stateTable;
@@ -195,6 +204,21 @@ public:
         return nullptr;
     }
 
+    template <typename T, typename Comparator>
+    std::shared_ptr<KeyGroupedInternalPriorityQueue<T>> create(
+            std::string stateName,
+            TypeSerializer* byteOrderedElementSerializer) {
+        return priorityQueuesManager_->createOrUpdate<K, T, Comparator>(stateName, byteOrderedElementSerializer);
+    }
+
+    template <typename T, typename Comparator>
+    std::shared_ptr<KeyGroupedInternalPriorityQueue<T>> create(
+            std::string stateName,
+            TypeSerializer* byteOrderedElementSerializer,
+            bool allowFutureMetadataUpdates) {
+        return priorityQueuesManager_->createOrUpdate<K, T, Comparator>(stateName, byteOrderedElementSerializer, allowFutureMetadataUpdates);
+    }
+
 private:
     template<typename N, typename S>
     StateTable<K, N, S> *tryRegisterStateTable(TypeSerializer *namespaceSerializer, StateDescriptor *stateDesc);
@@ -202,6 +226,7 @@ private:
     emhash7::HashMap<std::string, std::tuple<uintptr_t, StateDescriptor*, BackendDataType>> registeredKvStates;
     // pointer to intervalKvState
     emhash7::HashMap<std::string, uintptr_t> createdKvState;
+    std::shared_ptr<HeapPriorityQueuesManager> priorityQueuesManager_;
     std::shared_ptr<omnistream::OmniTaskBridge> omniTaskBridge_;
     std::shared_ptr<HeapSnapshotResourceFactory<K>> snapshotResourceFactory_;
     std::shared_ptr<HeapSnapshotStrategy<K>> checkpointStrategy_;
@@ -223,7 +248,7 @@ uintptr_t HeapKeyedStateBackend<K>::createOrUpdateInternalState(TypeSerializer *
         auto keyId = stateDesc->getKeyDataId();
         auto valueId = stateDesc -> getValueDataId();
 
-        STD_LOG ("stateType_ is StateDescriptor::Type::MAP "  <<   ", keyId " << keyId_  << " , value id " << valueId_);
+        STD_LOG ("stateType_ is StateDescriptor::Type::MAP "  <<   ", keyId " << keyId_  << " , value id " << valueId_)
 
         if (namespaceSerializer->getBackendId() != BackendDataType::VOID_NAMESPACE_BK) {
             NOT_IMPL_EXCEPTION;
@@ -382,4 +407,3 @@ HeapMapState<K, N, UK, UV>* HeapKeyedStateBackend<K>::createOrUpdateInternalMapS
     createdKvState[stateDesc->getName()] = reinterpret_cast<uintptr_t>(createdState);
     return createdState;
 }
-#endif // FLINK_TNEL_HEAPKEYEDSTATEBACKEND_H

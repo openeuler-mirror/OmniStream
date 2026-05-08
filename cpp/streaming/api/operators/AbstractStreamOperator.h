@@ -8,8 +8,8 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef FLINK_TNEL_ABSTRACTSTREAMOPERATOR_H
-#define FLINK_TNEL_ABSTRACTSTREAMOPERATOR_H
+
+#pragma once
 
 #include <type_traits>
 #include <nlohmann/json.hpp>
@@ -189,7 +189,7 @@ public:
     virtual void ProcessWatermark(Watermark* mark)
     {
         if (timeServiceManager != nullptr) {
-            timeServiceManager->template advanceWatermark<VoidNamespace>(mark);
+            timeServiceManager->advanceWatermark(mark);
         }
         output->emitWatermark(mark);
     }
@@ -274,4 +274,3 @@ private:
         }
     }
 };
-#endif // FLINK_TNEL_ABSTRACTSTREAMOPERATOR_H

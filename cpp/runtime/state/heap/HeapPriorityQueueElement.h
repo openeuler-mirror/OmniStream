@@ -10,10 +10,22 @@
  */
 
 #pragma once
+#include <cstdint>
 
-#include "InternalKvState.h"
-#include "core/api/common/state/ValueState.h"
+class HeapPriorityQueueElement {
+public:
+    static constexpr int32_t NOT_CONTAINED = INT32_MIN;
 
-template <typename K, typename N, typename T>
-class InternalValueState : public InternalKvState<K, N, T>, public ValueState<T> {
+    virtual ~HeapPriorityQueueElement() = default;
+
+    virtual int32_t getInternalIndex() {
+        return internalIndex_;
+    }
+
+    virtual void setInternalIndex(int32_t index) {
+        internalIndex_ = index;
+    }
+
+private:
+    int32_t internalIndex_ = NOT_CONTAINED;
 };

@@ -44,7 +44,6 @@ std::vector<W> MergingWindowProcessFunction<K, W>::AssignStateNamespace(RowData 
         // clear registered timers
         for (W m: mergedWindows) {
             this->ctx->ClearTrigger(m);
-            // todo 已实现删除eventTimeQueue元素功能, 待测试
             this->ctx->DeleteCleanupTimer(m);
         }
 

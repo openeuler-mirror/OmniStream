@@ -9,16 +9,12 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef AUTOCLOSEABLE_H
-#define AUTOCLOSEABLE_H
+#pragma once
 
 namespace omnistream {
     class AutoCloseable {
     public:
         virtual ~AutoCloseable() = default;
-        virtual  void close() = 0 ;
+        virtual void close() = 0 ;
     };
 }
-
-
-#endif

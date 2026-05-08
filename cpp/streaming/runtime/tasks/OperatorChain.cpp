@@ -406,7 +406,13 @@ void OperatorChainV2::initializeStateAndOpenOperators(StreamTaskStateInitializer
                 break;
             case Type_o::SQL: // SQL
                 // key default use BinaryRowDataSerializer in sql scenarios
-                streamOperator->initializeState(initializer, new BinaryRowDataSerializer(1));
+                {
+                    int keyArity = 0;
+                    if (description.contains("grouping") && !description["grouping"].empty()) {
+                        keyArity = description["grouping"].get<std::vector<int32_t>>().size();
+                    }
+                    streamOperator->initializeState(initializer, new BinaryRowDataSerializer(keyArity));
+                }
                 break;
             case Type_o::STREAM: // STREAM
                 if (!description.contains("stateKeyTypes") || description["stateKeyTypes"].empty()) {

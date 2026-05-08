@@ -9,19 +9,75 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef FLINK_TNEL_TMERHEAPINTERNALTIMER_H
-#define FLINK_TNEL_TMERHEAPINTERNALTIMER_H
+#pragma once
+
 #include "InternalTimer.h"
 #include "data/RowData.h"
 #include "table/runtime/operators/window/TimeWindow.h"
 #include "runtime/state/VoidNamespace.h"
 #include "basictypes/Object.h"
+#include "state/heap/HeapPriorityQueueElement.h"
 
 template <typename K, typename N>
-class TimerHeapInternalTimer : public InternalTimer<K, N>, public Object {
+class TimerHeapInternalTimer : public InternalTimer<K, N>, public Object, public HeapPriorityQueueElement {
 public:
-    TimerHeapInternalTimer(long timestamp, K key, N nameSpace)
-        : key(key), nameSpace(nameSpace), timestamp(timestamp), timerHeapIndex(0)
+    struct MinHeapComparator {
+        bool operator()(const std::shared_ptr<TimerHeapInternalTimer>& a, const std::shared_ptr<TimerHeapInternalTimer>& b) const {
+            // less timestamp has higher priority
+            return a->getTimestamp() < b->getTimestamp();
+        }
+    };
+
+    struct SharedPtrHash {
+        size_t operator()(const std::shared_ptr<TimerHeapInternalTimer>& timer) const {
+            auto timestamp = timer->getTimestamp();
+            auto key = timer->getKey();
+            auto nameSpace = timer->getNamespace();
+            int result = static_cast<int>(timestamp ^ (timestamp >> 32));
+            if constexpr (std::is_same_v<K, RowData *>) {
+                result = 31 * result + key->hashCode();
+            } else if constexpr (std::is_same_v<K, Object *>) {
+                result = 31 * result + reinterpret_cast<Object*>(key)->hashCode();
+            }
+            if constexpr (std::is_same_v<N, TimeWindow>) {
+                result = 31 * result + nameSpace.hashCode();
+            } else if constexpr (std::is_same_v<N, VoidNamespace>) {
+                result = 31 * result + ((VoidNamespace)nameSpace).hashCode();
+            } else {
+                result = 31 * result + nameSpace;
+            }
+            return result;
+        }
+    };
+
+    struct SharedPtrEqual {
+        bool operator()(const std::shared_ptr<TimerHeapInternalTimer>& lhs, const std::shared_ptr<TimerHeapInternalTimer>& rhs) const {
+            if constexpr (std::is_same_v<K, RowData *>) {
+                return *lhs->getKey() == *rhs->getKey() &&
+                        lhs->getTimestamp() == rhs->getTimestamp() &&
+                        lhs->getNamespace() == rhs->getNamespace();
+            } else if constexpr (std::is_same_v<K, Object *>) {
+                auto lkey = reinterpret_cast<Object*>(lhs->getKey());
+                auto rkey = reinterpret_cast<Object*>(rhs->getKey());
+                if (lkey == nullptr && rkey == nullptr) {
+                    return true;
+                } else if (lkey == nullptr || rkey == nullptr) {
+                    return false;
+                }
+                auto res = lkey->equals(rkey) &&
+                           lhs->getTimestamp() == rhs->getTimestamp() &&
+                           lhs->getNamespace() == rhs->getNamespace();
+                return res;
+            } else {
+                return lhs->getKey() == rhs->getKey() &&
+                        lhs->getTimestamp() == rhs->getTimestamp() &&
+                        lhs->getNamespace() == rhs->getNamespace();
+            }
+        }
+    };
+
+    TimerHeapInternalTimer() = default;
+    TimerHeapInternalTimer(long timestamp, K key, N nameSpace) : key(key), nameSpace(nameSpace), timestamp(timestamp)
     {
         if constexpr (std::is_same_v<K, Object*>) {
             reinterpret_cast<Object*>(key)->getRefCount();
@@ -34,28 +90,22 @@ public:
     ~TimerHeapInternalTimer()
     {
         if constexpr (std::is_same_v<K, Object*>) {
-            reinterpret_cast<Object*>(key)->putRefCount();
+            if (key != nullptr) {
+                reinterpret_cast<Object*>(key)->putRefCount();
+            }
         }
         if constexpr (std::is_same_v<N, Object*>) {
-            reinterpret_cast<Object*>(nameSpace)->putRefCount();
+            if (nameSpace != nullptr) {
+                reinterpret_cast<Object*>(nameSpace)->putRefCount();
+            }
         }
     }
 
-    K getKey() override
-    {
-        return key;
-    }
-    N getNamespace() override { return nameSpace; }
-    long getTimestamp() override { return timestamp; }
+    K getKey() const override { return key; }
 
-    int getInternalIndex()
-    {
-        return timerHeapIndex;
-    }
-    void setInternalIndex(int newIndex)
-    {
-        timerHeapIndex = newIndex;
-    }
+    N getNamespace() const override { return nameSpace; }
+
+    long getTimestamp() const override { return timestamp; }
 
     bool operator==(TimerHeapInternalTimer &other) const
     {
@@ -82,7 +132,9 @@ public:
 
 	inline void setKey(K key_) {
         if constexpr (std::is_same_v<K, Object*>) {
-            reinterpret_cast<Object*>(key)->putRefCount();
+            if (key != nullptr) {
+                reinterpret_cast<Object*>(key)->putRefCount();
+            }
         }
         key = key_;
         if constexpr (std::is_same_v<K, Object*>) {
@@ -92,7 +144,9 @@ public:
 
     inline void setNamespace(N nameSpace_) {
         if constexpr (std::is_same_v<N, Object*>) {
-            reinterpret_cast<Object*>(nameSpace)->putRefCount();
+            if (nameSpace != nullptr) {
+                reinterpret_cast<Object*>(nameSpace)->putRefCount();
+            }
         }
         nameSpace = nameSpace_;
         if constexpr (std::is_same_v<N, Object*>) {
@@ -116,72 +170,7 @@ public:
     }
 
 private:
-    K key;
-    N nameSpace;
+    K key{};
+    N nameSpace{};
     long timestamp = 0L;
-    int timerHeapIndex;
 };
-
-template <typename K, typename N>
-struct MinHeapComparator {
-    bool operator()(TimerHeapInternalTimer<K, N> *a, TimerHeapInternalTimer<K, N> *b)
-    {
-        return a->getTimestamp() > b->getTimestamp();
-    }
-};
-
-namespace std {
-    template <typename K, typename N>
-    struct hash<TimerHeapInternalTimer<K, N> *> {
-        size_t operator()(TimerHeapInternalTimer<K, N> *timer) const
-        {
-            auto timestamp = timer->getTimestamp();
-            auto key = timer->getKey();
-            auto nameSpace = timer->getNamespace();
-            int result = static_cast<int>(timestamp ^ (timestamp >> 32));
-            if constexpr (std::is_same_v<K, RowData *>) {
-                result = 31 * result + key->hashCode();
-            } else if constexpr (std::is_same_v<K, Object *>) {
-                result = 31 * result + reinterpret_cast<Object*>(key)->hashCode();
-            }
-            if constexpr (std::is_same_v<N, TimeWindow>) {
-                result = 31 * result + nameSpace.hashCode();
-            } else if constexpr (std::is_same_v<N, VoidNamespace>) {
-                result = 31 * result + ((VoidNamespace)nameSpace).hashCode();
-            } else {
-                result = 31 * result + nameSpace;
-            }
-            return result;
-        }
-    };
-
-    template <typename K, typename N>
-    struct equal_to<TimerHeapInternalTimer<K, N> *> {
-        bool operator()(TimerHeapInternalTimer<K, N> *lhs, TimerHeapInternalTimer<K, N> *rhs) const
-        {
-            if constexpr (std::is_same_v<K, RowData *>) {
-                return *lhs->getKey() == *rhs->getKey() &&
-                        lhs->getTimestamp() == rhs->getTimestamp() &&
-                        lhs->getNamespace() == rhs->getNamespace();
-            } else if constexpr (std::is_same_v<K, Object *>) {
-                auto lkey = reinterpret_cast<Object*>(lhs->getKey());
-                auto rkey = reinterpret_cast<Object*>(rhs->getKey());
-                if (lkey == nullptr && rkey == nullptr) {
-                    return true;
-                } else if (lkey == nullptr || rkey == nullptr) {
-                    return false;
-                }
-                auto res = lkey->equals(rkey) &&
-                           lhs->getTimestamp() == rhs->getTimestamp() &&
-                           lhs->getNamespace() == rhs->getNamespace();
-                return res;
-            } else {
-                return lhs->getKey() == rhs->getKey() &&
-                        lhs->getTimestamp() == rhs->getTimestamp() &&
-                        lhs->getNamespace() == rhs->getNamespace();
-            }
-        }
-    };
-}
-
-#endif // FLINK_TNEL_TMERHEAPINTERNALTIMER_H

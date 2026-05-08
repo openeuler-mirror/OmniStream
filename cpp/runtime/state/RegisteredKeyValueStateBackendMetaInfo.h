@@ -8,8 +8,8 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef FLINK_TNEL_REGISTEREDKEYVALUESTATEBACKENDMETAINFO_H
-#define FLINK_TNEL_REGISTEREDKEYVALUESTATEBACKENDMETAINFO_H
+
+#pragma once
 
 #include <string>
 #include "RegisteredStateMetaInfoBase.h"
@@ -87,4 +87,3 @@ private:
     // @Nonnull
     std::shared_ptr<StateMetaInfoSnapshot> computeSnapshot();
 };
-#endif // FLINK_TNEL_REGISTEREDKEYVALUESTATEBACKENDMETAINFO_H

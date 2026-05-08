@@ -8,8 +8,8 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef FLINK_TNEL_STREAMTASKSTATEINITIALIZERIMPL_H
-#define FLINK_TNEL_STREAMTASKSTATEINITIALIZERIMPL_H
+
+#pragma once
 #include "StreamOperatorStateContext.h"
 #include "runtime/state/KeyGroupRange.h"
 #include "runtime/state/InternalKeyContextImpl.h"
@@ -19,6 +19,7 @@
 #include "KeyContext.h"
 #include "runtime/state/OperatorStateBackend.h"
 #include "BackendRestorerProcedure.h"
+#include "../../../core/include/common.h"
 #include "streaming/runtime/metrics/MetricGroup.h"
 #include "runtime/state/hashmap/HashMapStateBackend.h"
 #ifdef WITH_OMNISTATESTORE
@@ -134,7 +135,7 @@ public:
         ProcessingTimeService *processingTimeService, OperatorID *operatorID = nullptr)
     {
         INFO_RELEASE("h30082497 StreamTaskStateInitializerImpl::streamOperatorStateContext 1");
-        AbstractKeyedStateBackend<K> *backend = nullptr;
+        CheckpointableKeyedStateBackend<K>* keyedStatedBackend = nullptr;
         OperatorStateBackend* osBackend = nullptr;
 
         PrioritizedOperatorSubtaskState prioritizedOperatorSubtaskStates = getPrioritizedOperatorSubtaskStates();
@@ -154,20 +155,24 @@ public:
         auto taskInfo = env->taskConfiguration();
 
         // This KeyedStateBackend is a function name, not the base class. See function below.
-        backend = keyedStatedBackend<K>(keySerializer, taskInfo.getMaxNumberOfSubtasks(),
+        keyedStatedBackend = this->keyedStatedBackend<K>(keySerializer, taskInfo.getMaxNumberOfSubtasks(),
                                         taskInfo.getNumberOfSubtasks(), taskInfo.getIndexOfSubtask(),
                                         taskInfo.getStateBackend(), operatorIdentifierText);
         osBackend = operatorStateBackend(operatorIdentifierText, operatorID);
 
-
         InternalTimeServiceManager<K> *timeServiceManager = nullptr;
-        if (backend != nullptr) {
+        if (keyedStatedBackend != nullptr) {
             int maxNumberOfSubtasks = taskInfo.getMaxNumberOfSubtasks();
-            timeServiceManager = new InternalTimeServiceManager<K>(backend->getKeyGroupRange(), keyContext, processingTimeService, maxNumberOfSubtasks);
+            timeServiceManager = new InternalTimeServiceManager<K>(
+                    keyedStatedBackend->getKeyGroupRange(),
+                    keyContext,
+                    keyedStatedBackend,
+                    processingTimeService,
+                    maxNumberOfSubtasks);
         }
         INFO_RELEASE("h30082497 StreamOperatorStateContextImpl::streamOperatorStateContext end");
         return new StreamOperatorStateContextImpl<K>(restoreCheckpointId,
-                                                     backend,
+                                                     keyedStatedBackend,
                                                      osBackend,
                                                      timeServiceManager);
     }
@@ -358,7 +363,7 @@ inline CheckpointableKeyedStateBackend<K> *StreamTaskStateInitializerImpl::keyed
         taskInfo.getIndexOfSubtask());
 
     auto backendRestorer =
-        new BackendRestorerProcedure<CheckpointableKeyedStateBackend<K> *, std::shared_ptr<KeyedStateHandle>>(
+        BackendRestorerProcedure<CheckpointableKeyedStateBackend<K> *, std::shared_ptr<KeyedStateHandle>>(
             [this, operatorIdentifierText, keyGroupRange, keySerializer, taskInfo](std::set<std::shared_ptr<KeyedStateHandle>> stateHandles,
                                                                                    int alternativeIdx) {
                 auto rocksdbStateBackend = dynamic_cast<EmbeddedRocksDBStateBackend*>(this->stateBackend);
@@ -394,10 +399,10 @@ inline CheckpointableKeyedStateBackend<K> *StreamTaskStateInitializerImpl::keyed
 
             handleSet.push_back(std::move(set));
         }
-        return backendRestorer->createAndRestore(handleSet);
+        return backendRestorer.createAndRestore(handleSet);
     } catch (const std::exception& ex) {
-        GErrorLog("create OperatorStateHandle exception : " + std::string(ex.what()));
-        throw std::runtime_error("create keyedStatedBackend failed.");
+        INFO_RELEASE("Error:create keyedStatedBackend failed: " + std::string(ex.what()))
+        THROW_RUNTIME_ERROR("create keyedStatedBackend failed: " + std::string(ex.what()));
     }
 }
 

@@ -11,9 +11,20 @@
 
 #pragma once
 
-#include "InternalKvState.h"
-#include "core/api/common/state/ValueState.h"
+#include <unordered_set>
+#include <cstdint>
 
-template <typename K, typename N, typename T>
-class InternalValueState : public InternalKvState<K, N, T>, public ValueState<T> {
+#include "InternalPriorityQueue.h"
+
+
+template <typename T>
+class KeyGroupedInternalPriorityQueue : virtual public InternalPriorityQueue<T> {
+public:
+    static_assert(is_shared_ptr_v<T>, "T should be shared ptr.");
+    using InnerType = typename T::element_type;
+    using DedupSet = std::unordered_set<T, typename InnerType::SharedPtrHash, typename InnerType::SharedPtrEqual>;
+    virtual std::shared_ptr<DedupSet> getSubsetForKeyGroup(int32_t keyGroupId) = 0;
 };
+
+
+
