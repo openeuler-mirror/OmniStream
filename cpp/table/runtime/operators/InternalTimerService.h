@@ -8,8 +8,6 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef INTERNALTIMERSERVICE_H
-#define INTERNALTIMERSERVICE_H
 
 #pragma once
 
@@ -42,5 +40,3 @@ public:
     // this function should to be deleted when RocksDBCachingPriorityQueueSet is implemented in the future
     virtual void deleteFirstEventTimeTimer() = 0;
 };
-
-#endif

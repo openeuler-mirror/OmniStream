@@ -8,8 +8,8 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef FLINK_TNEL_STREAMTASKSTATEINITIALIZERIMPL_H
-#define FLINK_TNEL_STREAMTASKSTATEINITIALIZERIMPL_H
+
+#pragma once
 #include "StreamOperatorStateContext.h"
 #include "runtime/state/KeyGroupRange.h"
 #include "runtime/state/InternalKeyContextImpl.h"
@@ -91,20 +91,24 @@ public:
     template <typename K>
     StreamOperatorStateContextImpl<K> *streamOperatorStateContext(TypeSerializer *keySerializer, KeyContext<K>* keyContext, ProcessingTimeService *processingTimeService)
     {
-        AbstractKeyedStateBackend<K> *backend = nullptr;
+        CheckpointableKeyedStateBackend<K>* keyedStatedBackend = nullptr;
 
         auto taskInfo = env->taskConfiguration();
 
-        // This KeyedStateBackend is a function name, not the base class. See function below.
-        backend = keyedStatedBackend<K>(keySerializer, taskInfo.getMaxNumberOfSubtasks(),
+        keyedStatedBackend = this->keyedStatedBackend<K>(keySerializer, taskInfo.getMaxNumberOfSubtasks(),
                                         taskInfo.getNumberOfSubtasks(), taskInfo.getIndexOfSubtask(),
                                         taskInfo.getStateBackend());
-        InternalTimeServiceManager<K> *timeServiceManager = nullptr;
-        if (backend != nullptr) {
+        InternalTimeServiceManager<K>* timeServiceManager = nullptr;
+        if (keyedStatedBackend != nullptr) {
             int maxNumberOfSubtasks = taskInfo.getMaxNumberOfSubtasks();
-            timeServiceManager = new InternalTimeServiceManager<K>(backend->getKeyGroupRange(), keyContext, processingTimeService, maxNumberOfSubtasks);
+            timeServiceManager = new InternalTimeServiceManager<K>(
+                    keyedStatedBackend->getKeyGroupRange(),
+                    keyContext,
+                    keyedStatedBackend,
+                    processingTimeService,
+                    maxNumberOfSubtasks);
         }
-        return new StreamOperatorStateContextImpl<K>(backend, timeServiceManager);
+        return new StreamOperatorStateContextImpl<K>(keyedStatedBackend, timeServiceManager);
     }
 
 protected:
@@ -272,7 +276,7 @@ inline CheckpointableKeyedStateBackend<K> *StreamTaskStateInitializerImpl::keyed
         taskInfo.getIndexOfSubtask());
 
     auto backendRestorer =
-        new BackendRestorerProcedure<CheckpointableKeyedStateBackend<K> *, std::shared_ptr<KeyedStateHandle>>(
+        BackendRestorerProcedure<CheckpointableKeyedStateBackend<K> *, std::shared_ptr<KeyedStateHandle>>(
             [this, operatorIdentifierText, keyGroupRange, keySerializer, taskInfo](std::set<std::shared_ptr<KeyedStateHandle>> stateHandles,
                                                                                    int alternativeIdx) {
                 auto rocksdbStateBackend = dynamic_cast<EmbeddedRocksDBStateBackend*>(this->stateBackend);
@@ -308,10 +312,8 @@ inline CheckpointableKeyedStateBackend<K> *StreamTaskStateInitializerImpl::keyed
 
             handleSet.push_back(std::move(set));
         }
-        return backendRestorer->createAndRestore(handleSet);
+        return backendRestorer.createAndRestore(handleSet);
     } catch (const std::exception& ex) {
-        throw std::runtime_error("create keyedStatedBackend failed.");
+        THROW_RUNTIME_ERROR("create keyedStatedBackend failed: " + std::string(ex.what()));
     }
 }
-
-#endif // FLINK_TNEL_STREAMTASKSTATEINITIALIZERIMPL_H

@@ -9,8 +9,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef OMNISTREAM_INTERNALTIMER_H
-#define OMNISTREAM_INTERNALTIMER_H
+#pragma once
 /**
  * K: such as Object*
  * N: such as VoidNamespace*
@@ -21,9 +20,7 @@ template<typename K, typename N>
 class InternalTimer {
 public:
     virtual ~InternalTimer() = default;
-    virtual int64_t getTimestamp() = 0;
-    virtual K getKey() = 0;
-    virtual N getNamespace() = 0;
+    virtual int64_t getTimestamp() const = 0;
+    virtual K getKey() const = 0;
+    virtual N getNamespace() const = 0;
 };
-
-#endif // OMNISTREAM_INTERNALTIMER_H

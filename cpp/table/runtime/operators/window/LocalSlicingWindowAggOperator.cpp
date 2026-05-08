@@ -137,7 +137,7 @@ void LocalSlicingWindowAggOperator::ProcessWatermark(Watermark *mark)
     }
     LOG("LocalSlicingWindowAggOperator::processWatermark end: " << mark->getTimestamp())
     if (timeServiceManager != nullptr) {
-        timeServiceManager->template advanceWatermark<int64_t>(mark);
+        timeServiceManager->advanceWatermark(mark);
     }
     output->emitWatermark(mark);
 }

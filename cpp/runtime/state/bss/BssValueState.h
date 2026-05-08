@@ -9,17 +9,16 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef OMNISTREAM_BSSVALUESTATE_H
-#define OMNISTREAM_BSSVALUESTATE_H
+#pragma once
+
 #ifdef WITH_OMNISTATESTORE
 
-#include "runtime/state/internal/InternalKvState.h"
-#include "api/common/state/ValueState.h"
+#include "runtime/state/internal/InternalValueState.h"
 #include "BssStateTable.h"
 #include "api/common/state/StateDescriptor.h"
 
 template <typename K, typename N, typename V>
-class BssValueState : public ValueState<V>, public InternalKvState<K, N, V> {
+class BssValueState : public InternalValueState<K, N, V> {
 public:
     TypeSerializer *getKeySerializer()
     {
@@ -126,5 +125,4 @@ private:
     N currentNamespace;
 };
 
-#endif // OMNISTREAM_BSSVALUESTATE_H
 #endif

@@ -8,8 +8,8 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef FLINK_TNEL_HEAPKEYEDSTATEBACKENDBUILDER_H
-#define FLINK_TNEL_HEAPKEYEDSTATEBACKENDBUILDER_H
+#pragma once
+
 #include <emhash7.hpp>
 #include <set>
 #include <memory>
@@ -522,5 +522,3 @@ void HeapKeyedStateBackendBuilder<K>::restoreEntryToHeap(
         delete static_cast<VoidNamespace *>(rawNs);
     }
 }
-
-#endif // FLINK_TNEL_HEAPKEYEDSTATEBACKENDBUILDER_H

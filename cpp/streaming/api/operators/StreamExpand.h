@@ -9,8 +9,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef CPP_STREAMEXPAND_H
-#define CPP_STREAMEXPAND_H
+#pragma once
 
 
 #include <functional>
@@ -53,7 +52,7 @@ public:
     void ProcessWatermark(Watermark *watermark) override
     {
         if (timeServiceManager != nullptr) {
-            timeServiceManager->template advanceWatermark<int64_t>(watermark);
+            timeServiceManager->advanceWatermark(watermark);
         }
         output->emitWatermark(watermark);
     }
@@ -72,6 +71,3 @@ public:
 private:
     nlohmann::json description_;
 };
-
-
-#endif

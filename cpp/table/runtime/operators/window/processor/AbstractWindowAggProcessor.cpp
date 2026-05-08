@@ -124,8 +124,8 @@ void AbstractWindowAggProcessor::open(AbstractKeyedStateBackend<RowData*> *keyed
     BinaryRowDataSerializer *binaryRowDataSerializer = new BinaryRowDataSerializer(1);
     // init WindowValueState
     std::string aggName = "window-aggs";
-    ValueStateDescriptor<RowData*> *accDesc = new ValueStateDescriptor<RowData*>(aggName, binaryRowDataSerializer);
-    using S = HeapValueState<RowData*, int64_t, RowData*>;
+    auto* accDesc = new ValueStateDescriptor<RowData*>(aggName, binaryRowDataSerializer);
+    using S = InternalValueState<RowData*, int64_t, RowData*>;
     S* state = keyedStateBackend->template getOrCreateKeyedState<RowData*, S, RowData*>(new LongSerializer(), accDesc);
     windowState = std::make_unique<WindowValueState<RowData*, int64_t, RowData*>>(state);
     windowBuffer =std::make_unique<RecordsWindowBuffer>(config, windowState.get(), output, sliceAssigner, internalTimerService);

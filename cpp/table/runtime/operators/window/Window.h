@@ -8,8 +8,8 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef WINDOW_H
-#define WINDOW_H
+
+#pragma once
 
 class Window {
 public:
@@ -26,5 +26,3 @@ protected:
     Window(Window&&) = default;
     Window& operator=(Window&&) = default;
 };
-
-#endif

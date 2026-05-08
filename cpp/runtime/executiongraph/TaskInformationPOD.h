@@ -173,8 +173,13 @@ public:
     uint64_t getCacheAddr() const {
         return cacheAddr;
     }
+
     uint64_t getWriteBufferManagerAddr() const {
         return writeBufferManagerAddr;
+    }
+
+    std::string getPriorityQueueStateType() const {
+        return priorityQueueStateType;
     }
 
     std::string toString() const
@@ -266,6 +271,7 @@ public:
             {"stateBackendManagedMemorySize", taskInfo.stateBackendManagedMemorySize},
             {"cacheAddr", taskInfo.cacheAddr},
             {"writeBufferManagerAddr", taskInfo.writeBufferManagerAddr},
+            {"priorityQueueStateType", taskInfo.priorityQueueStateType},
             {"numberOfTransferThreads", taskInfo.numberOfTransferThreads},
             {"rocksDBMemoryConfiguration", taskInfo.rocksDBMemoryConfiguration},
             {"streamConfig", taskInfo.streamConfig},
@@ -291,6 +297,7 @@ public:
             json.value("stateBackendManagedMemorySize", TaskInformationPOD::DEFAULT_ROCKSDB_MANAGED_MEMORY_SIZE);
         taskInfo.cacheAddr = json.value("cacheAddr", static_cast<uint64_t>(0));
         taskInfo.writeBufferManagerAddr = json.value("writeBufferManagerAddr", static_cast<uint64_t>(0));
+        taskInfo.priorityQueueStateType = json.value("priorityQueueStateType", "HEAP");
         taskInfo.numberOfTransferThreads = json.value("numberOfTransferThreads", static_cast<uint32_t>(4));
         taskInfo.rocksDBMemoryConfiguration = json.contains("rocksDBMemoryConfiguration") &&
                 !json.at("rocksDBMemoryConfiguration").is_null()
@@ -329,6 +336,7 @@ private:
     RocksDBMemoryConfiguration rocksDBMemoryConfiguration;
     uint64_t cacheAddr;
     uint64_t writeBufferManagerAddr;
+    std::string priorityQueueStateType;
 
     std::unordered_map<int, StreamConfigPOD> chainedConfigMap;
     int taskType;

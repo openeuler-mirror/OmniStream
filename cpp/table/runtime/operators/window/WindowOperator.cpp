@@ -31,7 +31,7 @@ void WindowOperator<K, W>::open()
     BinaryRowDataSerializer *binaryRowDataSerializer = new BinaryRowDataSerializer(1);
     std::string aggName = "window-aggs";
     auto *valueStateDescriptor = new ValueStateDescriptor<RowData*>(aggName, binaryRowDataSerializer);
-    using S = HeapValueState<RowData *, TimeWindow, RowData *>;
+    using S = InternalValueState<RowData *, TimeWindow, RowData *>;
     auto keyedStateBackend = this->stateHandler->getKeyedStateBackend();
     S *state = keyedStateBackend->template getOrCreateKeyedState<TimeWindow, S, RowData *>(
         new TimeWindow::Serializer(), valueStateDescriptor);

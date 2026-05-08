@@ -364,15 +364,6 @@ namespace omnistream {
         }
     }
 
-    void OmniCreditBasedSequenceNumberingViewReader::DestroyNettyBufferPool()
-    {
-        INFO_RELEASE(
-            "------- destroyNettyBufferPool, delete nettyBufferPool = ")
-        if (nettyBufferPool != nullptr) {
-            nettyBufferPool.reset();
-        }
-    }
-
     void OmniCreditBasedSequenceNumberingViewReader::RecycleNetworkBuffer(int64_t address)
     {
         std::lock_guard<std::recursive_mutex> lock(recycleNetworkBufferMutex);

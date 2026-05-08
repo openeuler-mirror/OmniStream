@@ -9,8 +9,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef OMNISTREAM_EMBEDDEDROCKSDBSTATEBACKEND
-#define OMNISTREAM_EMBEDDEDROCKSDBSTATEBACKEND
+#pragma once
 
 #include <nlohmann/json.hpp>
 #include "UUID.h"
@@ -81,7 +80,7 @@ public:
 
         auto sharedResources = RocksDBMemoryControllerUtils::allocateRocksDBSharedResources(env->taskConfiguration());
 
-        auto resourceContainer = std::make_unique<RocksDBResourceContainer>(
+        auto resourceContainer = std::make_shared<RocksDBResourceContainer>(
                 sharedResources,
                 instanceBasePath,
                 false);
@@ -90,14 +89,21 @@ public:
                 stateHandles.begin(),
                 stateHandles.end());
 
+        auto priorityQueueStateType = RocksDBKeyedStateBackendBuilder<K>::PriorityQueueStateType::HEAP;
+        // TODO: Enable rocksDB priority queue when Nexmark q5 is fixed
+        // auto priorityQueueStateType = env->taskConfiguration().getPriorityQueueStateType() == "ROCKSDB" ?
+        //         RocksDBKeyedStateBackendBuilder<K>::PriorityQueueStateType::ROCKSDB :
+        //         RocksDBKeyedStateBackendBuilder<K>::PriorityQueueStateType::HEAP;
+
         RocksDBKeyedStateBackendBuilder<K> builder(
                 operatorIdentifier,
                 instanceBasePath,
-                std::move(resourceContainer),
+                resourceContainer,
                 keySerializer,
                 numberOfKeyGroups,
                 keyGroupRange,
                 localRecoveryConfig,
+                priorityQueueStateType,
                 stateVec,
                 bridge,
                 omniTaskBridge,
@@ -258,5 +264,3 @@ private:
     std::once_flag rocksdb_init_flag_;
     bool rocksDbInitialized_ = false;
 };
-
-#endif // OMNISTREAM_EMBEDDEDROCKSDBSTATEBACKEND

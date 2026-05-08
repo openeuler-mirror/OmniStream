@@ -8,16 +8,24 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
+
 #pragma once
+#include <cstdint>
 
-#include "common.h"
+class HeapPriorityQueueElement {
+public:
+    static constexpr int32_t NOT_CONTAINED = INT32_MIN;
 
-namespace omnistream::utils {
-    template <typename E> class Iterator {
-    public:
-        virtual ~Iterator() = default;
-        virtual bool hasNext() = 0;
-        virtual E next() = 0;
-        virtual void remove() { NOT_IMPL_EXCEPTION }
-    };
-}
+    virtual ~HeapPriorityQueueElement() = default;
+
+    virtual int32_t getInternalIndex() {
+        return internalIndex_;
+    }
+
+    virtual void setInternalIndex(int32_t index) {
+        internalIndex_ = index;
+    }
+
+private:
+    int32_t internalIndex_ = NOT_CONTAINED;
+};

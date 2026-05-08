@@ -10,8 +10,7 @@
  */
 
 
-#ifndef FLINK_TNEL_DATAOUTPUTSERIALIZER_H
-#define FLINK_TNEL_DATAOUTPUTSERIALIZER_H
+# pragma once
 #include <securec.h>
 #include <vector>
 #include <cstddef>
@@ -53,6 +52,8 @@ public:
 
     inline void write(uint32_t var1) ;
 
+    inline void write(std::vector<uint8_t>& var);
+
     // todo: need to use int32_t
     inline void writeInt(uint32_t value);
 
@@ -67,6 +68,10 @@ public:
 
     inline uint8_t* getData();
     inline int getPosition();
+
+    std::vector<uint8_t>* getCopyOfBuffer() {
+        return new std::vector<uint8_t>(data_, data_ + position_);
+    }
 
 private:
     uint8_t* data_ = nullptr;
@@ -145,6 +150,10 @@ inline void DataOutputSerializer::writeByte(uint32_t var)
 inline void DataOutputSerializer::write(uint32_t value)
 {
     writeByte(value);
+}
+
+inline void DataOutputSerializer::write(std::vector<uint8_t>& var) {
+    write(var.data(), var.size(), 0, var.size());
 }
 
 inline void DataOutputSerializer::writeInt(uint32_t value)
@@ -280,5 +289,3 @@ inline void DataOutputSerializer::writeBoolean(bool var)
 {
     write(var ? 1 : 0);
 }
-
-#endif  // FLINK_TNEL_DATAOUTPUTSERIALIZER_H
