@@ -538,5 +538,3 @@ inline OperatorStateBackend* StreamTaskStateInitializerImpl::operatorStateBacken
         throw std::runtime_error("create OperatorStateHandle failed.");
     }
 }
-
-#endif // FLINK_TNEL_STREAMTASKSTATEINITIALIZERIMPL_H
