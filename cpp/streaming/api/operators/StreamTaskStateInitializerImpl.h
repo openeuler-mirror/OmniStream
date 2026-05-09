@@ -357,11 +357,6 @@ inline CheckpointableKeyedStateBackend<K> *StreamTaskStateInitializerImpl::keyed
     }
 }
 
-    }
-
-    return keyGroupsStateHandles;
-}
-
 inline OperatorStateBackend* StreamTaskStateInitializerImpl::operatorStateBackend(std::string operatorIdentifierText, OperatorID *operatorID) {
     std::string logDescription = "operator state backend for " + operatorIdentifierText;
 
