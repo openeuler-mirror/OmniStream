@@ -37,7 +37,9 @@ public:
         if (currentIndex_ < entries_.size()) {
             return true;
         }
-        if ((offset_ != 0) && ((END_OF_KEY_GROUP_MARK & currentKvStateId_) != END_OF_KEY_GROUP_MARK)) {
+        bool shouldReadNextBatch = currentKvStateId_ == -1 ||
+            ((END_OF_KEY_GROUP_MARK & currentKvStateId_) != END_OF_KEY_GROUP_MARK);
+        if ((offset_ != 0) && shouldReadNextBatch) {
             if (currentIndex_ >= entries_.size()) {
                 // jni read
                 currentIndex_ = 0;
