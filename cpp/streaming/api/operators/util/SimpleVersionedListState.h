@@ -73,7 +73,6 @@ std::vector<std::vector<uint8_t>>* SimpleVersionedListState<T>::serializeAll(con
     for (const auto& value : values) {
         rawValues->push_back(serialize(value));
     }
-    INFO_RELEASE("h30082497 SimpleVersionedListState:serializeAll rawValues->size() " + std::to_string(rawValues->size()));
     return rawValues;
 }
 
@@ -98,7 +97,6 @@ std::vector<T*>* SimpleVersionedListState<T>::deserializeAll(const std::vector<s
 template <typename T>
 void SimpleVersionedListState<T>::add(const T& value) {
     auto serialized = serialize(value);
-    INFO_RELEASE("h30082497 SimpleVersionedListState:add  serialized:size " + std::to_string(serialized.size()));
     rawState->add(serialized);
 }
 
@@ -108,7 +106,6 @@ void SimpleVersionedListState<T>::update(const std::vector<T>& values) {
     auto rawValues = serializeAll(values);
     rawState->update(*rawValues);
     delete rawValues;
-    INFO_RELEASE("h30082497 SimpleVersionedListState:update  rawState:size " + std::to_string(rawState->get()->size()));
 }
 
 // get方法实现
@@ -159,8 +156,6 @@ std::vector<T*>* SimpleVersionedListState<T>::getPtr() {
 template <typename T>
 void SimpleVersionedListState<T>::merge(const std::vector<T>& other) {
     auto rawValues = serializeAll(other);
-    INFO_RELEASE("h30082497 SimpleVersionedListState:merge  other:size " + std::to_string(other.size()));
-    INFO_RELEASE("h30082497 SimpleVersionedListState:merge  rawValues:size " + std::to_string(rawValues->size()));
     rawState->merge(*rawValues);
     delete rawValues;
 }
@@ -169,8 +164,6 @@ void SimpleVersionedListState<T>::merge(const std::vector<T>& other) {
 template <typename T>
 void SimpleVersionedListState<T>::addAll(const std::vector<T>& values) {
     auto rawValues = serializeAll(values);
-    INFO_RELEASE("h30082497 SimpleVersionedListState:addAll  values:size " + std::to_string(values.size()));
-    INFO_RELEASE("h30082497 SimpleVersionedListState:addAll  rawValues:size " + std::to_string(rawValues->size()));
     rawState->addAll(*rawValues);
     delete rawValues;
 }

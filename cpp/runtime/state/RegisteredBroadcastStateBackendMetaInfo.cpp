@@ -14,12 +14,10 @@
 RegisteredBroadcastStateBackendMetaInfo::RegisteredBroadcastStateBackendMetaInfo(
     const std::string& name, OperatorStateHandle::Mode assignmentMode, TypeSerializer* keySerializer, TypeSerializer* valueSerializer)
     : RegisteredStateMetaInfoBase(name), assignmentMode_(assignmentMode), keySerializer_(keySerializer), valueSerializer_(valueSerializer) {
-    INFO_RELEASE("h30082497 RegisteredBroadcastStateBackendMetaInfo 1");
 }
 
 RegisteredBroadcastStateBackendMetaInfo::RegisteredBroadcastStateBackendMetaInfo(const StateMetaInfoSnapshot& snapshot)
     : RegisteredStateMetaInfoBase(snapshot.getName()) {
-    INFO_RELEASE("h30082497 RegisteredBroadcastStateBackendMetaInfo 2 1 ");
 
     auto assignmentModeStr = snapshot.getOption(StateMetaInfoSnapshot::CommonOptionsKeys::OPERATOR_STATE_DISTRIBUTION_MODE);
     assignmentMode_ = OperatorStateHandle::StrToMode(assignmentModeStr);
@@ -29,11 +27,9 @@ RegisteredBroadcastStateBackendMetaInfo::RegisteredBroadcastStateBackendMetaInfo
 
     keySerializer_ = snapshot.getTypeSerializer(keySerializerKey);
     valueSerializer_ = snapshot.getTypeSerializer(valueSerializerKey);
-    INFO_RELEASE("h30082497 RegisteredBroadcastStateBackendMetaInfo 2 end ");
 }
 
 std::shared_ptr<StateMetaInfoSnapshot> RegisteredBroadcastStateBackendMetaInfo::computeSnapshot() {
-    INFO_RELEASE("h30082497 RegisteredBroadcastStateBackendMetaInfo::computeSnapshot 1");
     std::unordered_map<std::string, std::string> optionsMap;
     std::unordered_map<std::string, TypeSerializer*> serializerMap;
     std::unordered_map<std::string, std::shared_ptr<TypeSerializerSnapshot>> serializerConfigSnapshotsMap;
@@ -43,7 +39,6 @@ std::shared_ptr<StateMetaInfoSnapshot> RegisteredBroadcastStateBackendMetaInfo::
 
     serializerMap.emplace("keySerializer", getKeySerializer());
     serializerMap.emplace("stateSerializer", getValueSerializer());
-    INFO_RELEASE("h30082497 RegisteredBroadcastStateBackendMetaInfo::computeSnapshot end");
 
     return std::make_shared<StateMetaInfoSnapshot>(
         name,

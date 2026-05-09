@@ -80,43 +80,27 @@ public:
     }
 
     long write(long startPos, DataOutputSerializer& out) override {
-        INFO_RELEASE("h30082497 HeapBroadcastState::write 1");
         long offset = startPos + out.getPosition();
-        INFO_RELEASE("h30082497 HeapBroadcastState::write 2 offset : " + std::to_string(offset));
 
         out.writeInt(internalMap_->size());
-        INFO_RELEASE("h30082497 HeapBroadcastState::write 4");
 
         /*
         int i = 0;
-        INFO_RELEASE("h30082497 HeapBroadcastState::write 4");
         for (const auto& entry: *internalMap_) {
-            INFO_RELEASE("h30082497 HeapBroadcastState::write 5 i = " + std::to_string(i++));
-            INFO_RELEASE("h30082497 HeapBroadcastState::write 5 element addr: " + std::to_string(reinterpret_cast<uintptr_t>(&entry)));
-            INFO_RELEASE("h30082497 HeapBroadcastState::write 6");
             Object* kObj = CustomVariant::BS_K_MVToObject(entry.first);
             Object* vObj = CustomVariant::BS_V_MVToObject(entry.second);
-            INFO_RELEASE("h30082497 HeapBroadcastState::write 7");
             getStateMetaInfo()->getKeySerializer()->serialize(kObj, out);
             getStateMetaInfo()->getValueSerializer()->serialize(vObj, out);
-            INFO_RELEASE("h30082497 HeapBroadcastState::write 8");
             kObj->putRefCount();
             vObj->putRefCount();
-            INFO_RELEASE("h30082497 HeapBroadcastState::write 9");
         }
         */
 
         int i = 0;
-        INFO_RELEASE("h30082497 HeapBroadcastState::write 4");
         for (const auto& entry: *internalMap_) {
-            INFO_RELEASE("h30082497 HeapBroadcastState::write 5 i = " + std::to_string(i++));
-            INFO_RELEASE("h30082497 HeapBroadcastState::write 5 element addr: " + std::to_string(reinterpret_cast<uintptr_t>(&entry)));
-            INFO_RELEASE("h30082497 HeapBroadcastState::write 6");
             getStateMetaInfo()->getKeySerializer()->serialize(&entry.first, out);
             getStateMetaInfo()->getValueSerializer()->serialize(&entry.second, out);
-            INFO_RELEASE("h30082497 HeapBroadcastState::write 7");
         }
-        INFO_RELEASE("h30082497 HeapBroadcastState::write end");
 
         return offset;
 

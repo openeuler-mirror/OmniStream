@@ -40,7 +40,6 @@ OperatorStateBackend* HashMapStateBackend::createOperatorStateBackend(
         stateVector,
         bridge,
         omniTaskBridge);
-    INFO_RELEASE("h30082497 HashMapStateBackend:createOperatorStateBackend end");
     return builder.build();
 }
 

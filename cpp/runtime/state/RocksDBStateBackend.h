@@ -62,9 +62,6 @@ public:
         omnistream::EnvironmentV2* env_,
         std::string operatorIdentifier_,
         std::set<std::shared_ptr<OperatorStateHandle>> stateHandles_) {
-        INFO_RELEASE("h30082497 RocksDBStateBackend:createOperatorStateBackend");
-        INFO_RELEASE("h30082497 RocksDBStateBackend:createOperatorStateBackend: operatorIdentifier_ === " + operatorIdentifier_);
-        INFO_RELEASE("h30082497 RocksDBStateBackend:createOperatorStateBackend: stateHandles_ === " + std::to_string(stateHandles_.size()));
 
         return rocksDbStateBackend->createOperatorStateBackend(
             env_,

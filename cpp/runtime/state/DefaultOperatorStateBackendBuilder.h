@@ -37,11 +37,9 @@ public:
           restoreStateHandles_(stateHandles),
           bridge_(bridge),
           omniTaskBridge_(omniTaskBridge){
-        INFO_RELEASE("h30082497 DefaultOperatorStateBackendBuilder");
     }
 
     OperatorStateBackend* build() {
-        INFO_RELEASE("h30082497 DefaultOperatorStateBackendBuilder::build 1");
         auto registeredOperatorStates = std::make_shared<std::unordered_map<std::string, std::shared_ptr<State>>>();
         auto registeredBroadcastStates = std::make_shared<std::unordered_map<std::string, std::shared_ptr<State>>>();
         auto accessedStatesByName = std::make_shared<std::unordered_map<std::string, std::shared_ptr<State>>>();
@@ -49,7 +47,6 @@ public:
 
         auto snapshotStrategy = new DefaultOperatorStateBackendSnapshotStrategy(registeredOperatorStates, registeredBroadcastStates);
 
-        INFO_RELEASE("h30082497 DefaultOperatorStateBackendBuilder::build ======================== OperatorStateRestoreOperation not impl");
 
         auto restoreOperation = std::make_shared<OperatorStateRestoreOperation>(
             registeredOperatorStates,
@@ -62,7 +59,6 @@ public:
             throw std::runtime_error("Failed when trying to restore operator state backend"+ std::string(e.what()));
         }
 
-        INFO_RELEASE("h30082497 DefaultOperatorStateBackendBuilder::build end");
         return new DefaultOperatorStateBackend(
             asynchronousSnapshots_,
             bridge_,

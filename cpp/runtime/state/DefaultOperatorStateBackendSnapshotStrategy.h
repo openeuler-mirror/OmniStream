@@ -43,18 +43,15 @@ public:
         std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> registeredBroadcastStates)
         : registeredOperatorStates_(std::move(registeredOperatorStates)),
           registeredBroadcastStates_(std::move(registeredBroadcastStates)) {
-            INFO_RELEASE("h30082497 DefaultOperatorStateBackendSnapshotStrategy");
     }
 
     ~DefaultOperatorStateBackendSnapshotStrategy() = default;
 
     std::shared_ptr<SnapshotResources> syncPrepareResources(long checkpointId) override {
-        INFO_RELEASE("h30082497 DefaultOperatorStateBackendSnapshotStrategy::syncPrepareResources 1");
         auto operatorStateMetaInfoSnapshots = std::vector<std::shared_ptr<StateMetaInfoSnapshot>>();
         auto broadcastStateMetaInfoSnapshots = std::vector<std::shared_ptr<StateMetaInfoSnapshot>>();
 
         if (registeredOperatorStates_->empty() && registeredBroadcastStates_->empty()) {
-            INFO_RELEASE("h30082497 DefaultOperatorStateBackendSnapshotStrategy::syncPrepareResources is empty");
             return std::make_shared<DefaultOperatorStateBackendSnapshotResources>(
                 registeredOperatorStates_,
                 registeredBroadcastStates_,
@@ -66,7 +63,6 @@ public:
             for (auto& entry : *registeredOperatorStates_) {
                 if (entry.second != nullptr) {
                     auto state = std::dynamic_pointer_cast<PartitionableListState<std::vector<uint8_t>>>(entry.second);
-                    INFO_RELEASE("h30082497 DefaultOperatorStateBackendSnapshotStrategy::syncPrepareResources for registeredOperatorStates");
                     // INFO_RELEASE("h30082497 DefaultOperatorStateBackendSnapshotStrategy::syncPrepareResources for size :" + std::to_string(state->getInternalList()->size()));
                     operatorStateMetaInfoSnapshots.push_back(state->getStateMetaInfo()->snapshot());
                 }
@@ -78,12 +74,10 @@ public:
                 if (entry.second !=  nullptr) {
                     // TODO h0082497 具体类型
                     auto state = std::dynamic_pointer_cast<HeapBroadcastState<std::vector<uint8_t>, std::vector<uint8_t>>>(entry.second);
-                    INFO_RELEASE("h30082497 DefaultOperatorStateBackendSnapshotStrategy::syncPrepareResources for registeredBroadcastStates");
                     broadcastStateMetaInfoSnapshots.push_back(state->getStateMetaInfo()->snapshot());
                 }
             }
         }
-        INFO_RELEASE("h30082497 DefaultOperatorStateBackendSnapshotStrategy::syncPrepareResources end");
 
         return std::make_shared<DefaultOperatorStateBackendSnapshotResources>(
             registeredOperatorStates_,

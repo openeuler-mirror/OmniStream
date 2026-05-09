@@ -124,7 +124,6 @@ public:
 
     void initializeOperatorState(CheckpointedStreamOperator *streamOperator)
     {
-        INFO_RELEASE("h30082497 StreamOperatorStateHandler::initializeOperatorState");
         try {
             // Get restored checkpoint id from context
             std::optional<uint64_t> checkpointId = context->getRestoredCheckpointId();
@@ -233,7 +232,6 @@ public:
             snapshotInProgress->setOperatorStateRawFuture(snapshotContext->getOperatorStateStreamFuture());
 
             if (operatorStateBackend) {
-                INFO_RELEASE("h30082497 StreamOperatorStateHandler::snapshotState operatorStateBackend 2");
                 snapshotInProgress->setOperatorStateManagedFuture(
                     operatorStateBackend->snapshot(checkpointId, timestamp, checkpointStreamFactory, checkpointOptions)
                 );
@@ -248,7 +246,6 @@ public:
 
                 auto keySerializer = keyedStateBackend->getKeySerializer();
                 if (isCanonicalSavepoint(checkpointOptions->GetCheckpointType())) {
-                    INFO_RELEASE("h30082497 StreamOperatorStateHandler::snapshotState keyedStateBackend 2");
                     // TTODO
                     // Create a snapshot runner with prepareCanonicalSavepoint()
                     // and set the snapshot as keyedStateManagedFuture
@@ -262,7 +259,6 @@ public:
                             bridge,
                             keySerializer->toJson()));
                 } else {
-                    INFO_RELEASE("h30082497 StreamOperatorStateHandler::snapshotState keyedStateBackend 3");
                     snapshotInProgress->setKeyedStateManagedFuture(
                         keyedStateBackend->snapshot(checkpointId, timestamp, checkpointStreamFactory, checkpointOptions)
                     );

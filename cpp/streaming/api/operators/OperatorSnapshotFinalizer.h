@@ -23,7 +23,6 @@ class OperatorSnapshotFinalizer {
 public:
     explicit OperatorSnapshotFinalizer(OperatorSnapshotFutures *snapshotFutures)
     {
-        INFO_RELEASE("h30082497 OperatorSnapshotFinalizer");
         LOG(">>>>>>> start OperatorSnapshotFinalizer")
         auto keyedStateManaged = FutureUtils::runIfNotDoneAndGet(snapshotFutures->getKeyedStateManagedFuture());
         auto KeyedStateRaw = FutureUtils::runIfNotDoneAndGet(snapshotFutures->getKeyedStateRawFuture());
@@ -112,7 +111,6 @@ public:
         }else{
             INFO_RELEASE("savepoint:  OperatorSnapshotFinalizer operatorStateManaged is nullptr");
         }
-        INFO_RELEASE("h30082497 OperatorSnapshotFinalizer end");
         LOG(">>>>>>> end OperatorSnapshotFinalizer")
     };
 

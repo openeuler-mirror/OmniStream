@@ -57,7 +57,6 @@ public:
           registeredBroadcastStates_(std::move(registeredBroadcastStates)),
           accessedStatesByName_(std::move(accessedStatesByName)),
           accessedBroadcastStatesByName_(std::move(accessedBroadcastStatesByName)) {
-        INFO_RELEASE("h30082497 DefaultOperatorStateBackend");
     }
 
     std::unordered_set<std::string> getRegisteredStateNames() override {
@@ -79,7 +78,6 @@ public:
     void close() {}
 
     void dispose() override {
-        INFO_RELEASE("h30082497 DefaultOperatorStateBackend dispose");
         if (!registeredOperatorStates_->empty()) {
             registeredOperatorStates_->clear();
         }
@@ -96,69 +94,48 @@ public:
 
     template<typename K, typename V>
     std::shared_ptr<HeapBroadcastState<K, V>> getBroadcastState(MapStateDescriptor<K, V>* stateDescriptor) {
-        INFO_RELEASE("h30082497 DefaultOperatorStateBackend::getBroadcastState 1");
         std::string name = stateDescriptor->getName();
         auto accessedIterator = accessedBroadcastStatesByName_->find(name);
-        INFO_RELEASE("h30082497 DefaultOperatorStateBackend::getBroadcastState 2");
         if (accessedIterator != accessedBroadcastStatesByName_->end()) {
             std::shared_ptr<HeapBroadcastState<K, V>> state = std::dynamic_pointer_cast<HeapBroadcastState<K, V>>(accessedIterator->second);
-            INFO_RELEASE("h30082497 DefaultOperatorStateBackend::getBroadcastState 2 a if internalList addr: " + std::to_string(reinterpret_cast<uintptr_t>(state->getInternalMap().get())));
-            INFO_RELEASE("h30082497 DefaultOperatorStateBackend::getBroadcastState 1 a size :" + std::to_string(state->getInternalMap()->size()));
             return std::dynamic_pointer_cast<HeapBroadcastState<K, V>>(accessedIterator->second);
         }
 
-        INFO_RELEASE("h30082497 DefaultOperatorStateBackend::getBroadcastState 3");
         std::shared_ptr<HeapBroadcastState<K, V>> resultState = nullptr;
         auto* broadcastStateKeySerializer = stateDescriptor->GetUserKeySerializer();
         auto* broadcastStateValueSerializer = stateDescriptor->GetValueSerializer();
 
-        INFO_RELEASE("h30082497 DefaultOperatorStateBackend::getBroadcastState 4");
         auto registeredIterator = registeredBroadcastStates_->find(name);
 
-        INFO_RELEASE("h30082497 DefaultOperatorStateBackend::getBroadcastState 5");
         if (registeredIterator == registeredBroadcastStates_->end()) {
-            INFO_RELEASE("h30082497 DefaultOperatorStateBackend::getBroadcastState 5 if 1 1");
             auto stateMetaInfo = std::make_shared<RegisteredBroadcastStateBackendMetaInfo>(
                     name,
                     OperatorStateHandle::Mode::BROADCAST,
                     broadcastStateKeySerializer,
                     broadcastStateValueSerializer);
             auto internalMap = std::shared_ptr<std::map<K, V>>();
-            INFO_RELEASE("h30082497 DefaultOperatorStateBackend::getBroadcastState 5 if 1 2");
             resultState = std::make_shared<HeapBroadcastState<K, V>>(stateMetaInfo, internalMap);
-            INFO_RELEASE("h30082497 DefaultOperatorStateBackend::getBroadcastState 5 if 1 3");
             registeredBroadcastStates_->emplace(name, resultState);
-            INFO_RELEASE("h30082497 DefaultOperatorStateBackend::getBroadcastState 5 if 1 end");
         } else {
-            INFO_RELEASE("h30082497 DefaultOperatorStateBackend::getBroadcastState 5 if 2 1");
             resultState = std::dynamic_pointer_cast<HeapBroadcastState<K, V>>(registeredIterator->second);
-            INFO_RELEASE("h30082497 DefaultOperatorStateBackend::getBroadcastState 5 if 2 2");
             auto stateMetaInfo = resultState->getStateMetaInfo();
-            INFO_RELEASE("h30082497 DefaultOperatorStateBackend::getBroadcastState 5 if 2 3");
             stateMetaInfo->updateKeySerializer(broadcastStateKeySerializer);
-            INFO_RELEASE("h30082497 DefaultOperatorStateBackend::getBroadcastState 5 if 2 4");
             stateMetaInfo->updateValueSerializer(broadcastStateValueSerializer);
-            INFO_RELEASE("h30082497 DefaultOperatorStateBackend::getBroadcastState 5 if 2 5");
             resultState->setStateMetaInfo(stateMetaInfo);
-            INFO_RELEASE("h30082497 DefaultOperatorStateBackend::getBroadcastState 5 if 2 end");
         }
 
-        INFO_RELEASE("h30082497 DefaultOperatorStateBackend::getBroadcastState 6");
         accessedBroadcastStatesByName_->emplace(name, (*registeredBroadcastStates_)[name]);
-        INFO_RELEASE("h30082497 DefaultOperatorStateBackend::getBroadcastState end");
 
         return resultState;
     }
 
     template<typename S>
     std::shared_ptr<ListState<S>> getListState(ListStateDescriptor<S>* stateDescriptor)  {
-        INFO_RELEASE("h30082497 DefaultOperatorStateBackend::getListState");
         return getListState(stateDescriptor, OperatorStateHandle::Mode::SPLIT_DISTRIBUTE);
     }
 
     template<typename S>
     std::shared_ptr<ListState<S>> getUnionListState(ListStateDescriptor<S>* stateDescriptor){
-        INFO_RELEASE("h30082497 DefaultOperatorStateBackend::getUnionListState");
         return getListState(stateDescriptor, OperatorStateHandle::Mode::UNION);
     }
 
@@ -167,12 +144,10 @@ public:
         long timestamp,
         CheckpointStreamFactory* streamFactory,
         CheckpointOptions* checkpointOptions) override {
-        INFO_RELEASE("h30082497 DefaultOperatorStateBackend::snapshot 1");
         auto snapshotStrategyRunner = std::make_unique<SnapshotStrategyRunner<OperatorStateHandle, SnapshotResources>>(
                 "DefaultOperatorStateBackend snapshot",
                 snapshotStrategy_,
                 asynchronousSnapshots_ ? ASYNCHRONOUS : SYNCHRONOUS);
-        INFO_RELEASE("h30082497 DefaultOperatorStateBackend::snapshot 2");
 
         return snapshotStrategyRunner->snapshot(checkpointId,
                                                 timestamp,
@@ -194,15 +169,12 @@ private:
 
     template<typename S>
     std::shared_ptr<ListState<S>> getListState(ListStateDescriptor<S>* stateDescriptor, OperatorStateHandle::Mode mode) {
-        INFO_RELEASE("h30082497 DefaultOperatorStateBackend::getListState 1 ==========" + std::to_string(registeredOperatorStates_->size()));
 
         std::string name = stateDescriptor->getName();
 
         auto accessedIterator = accessedStatesByName_->find(name);
         if (accessedIterator != accessedStatesByName_->end()) {
             auto state = std::dynamic_pointer_cast<PartitionableListState<S>>(accessedIterator->second);
-            INFO_RELEASE("h30082497 DefaultOperatorStateBackend::getListState 2 a if internalList addr: " + std::to_string(reinterpret_cast<uintptr_t>(state->getInternalList().get())));
-            INFO_RELEASE("h30082497 DefaultOperatorStateBackend::getListState 1 a size :" + std::to_string(state->getInternalList()->size()));
             return std::dynamic_pointer_cast<PartitionableListState<S>>(accessedIterator->second);
         }
 
@@ -215,19 +187,14 @@ private:
             auto internalList = std::make_shared<std::vector<S>>();
             resultState = std::make_shared<PartitionableListState<S>>(stateMetaInfo, internalList);
             registeredOperatorStates_->emplace(name, resultState);
-            INFO_RELEASE("h30082497 DefaultOperatorStateBackend::getListState 2 a if internalList addr: " + std::to_string(reinterpret_cast<uintptr_t>(resultState->getInternalList().get())));
-            INFO_RELEASE("h30082497 DefaultOperatorStateBackend::getListState 2 a if size :" + std::to_string(resultState->getInternalList()->size()));
         } else {
             resultState = std::dynamic_pointer_cast<PartitionableListState<S>>(registeredIterator->second);
             auto stateMetaInfo = resultState->getStateMetaInfo();
             stateMetaInfo->updateStateSerializer(operatorStateSerializer);
             resultState->setStateMetaInfo(stateMetaInfo);
-            INFO_RELEASE("h30082497 DefaultOperatorStateBackend::getListState 3 0 if internalList addr: " + std::to_string(reinterpret_cast<uintptr_t>(resultState->getInternalList().get())));
-            INFO_RELEASE("h30082497 DefaultOperatorStateBackend::getListState 3 a if size :" + std::to_string(resultState->getInternalList()->size()));
         }
 
         accessedStatesByName_->emplace(name, (*registeredOperatorStates_)[name]);
-        INFO_RELEASE("h30082497 DefaultOperatorStateBackend::getListState end ========" + std::to_string(registeredOperatorStates_->size()));
         return resultState;
     }
 };

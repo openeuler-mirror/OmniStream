@@ -55,7 +55,6 @@ public:
           backend(backend_),
           osBackend(osBackend_),
           internalTimeServiceManager(internalTimeServiceManager_) {
-        INFO_RELEASE("h30082497 StreamOperatorStateContextImpl 2");
     }
 
     ~StreamOperatorStateContextImpl()
@@ -134,7 +133,6 @@ public:
     StreamOperatorStateContextImpl<K> *streamOperatorStateContext(TypeSerializer *keySerializer, KeyContext<K>* keyContext,
         ProcessingTimeService *processingTimeService, OperatorID *operatorID = nullptr)
     {
-        INFO_RELEASE("h30082497 StreamTaskStateInitializerImpl::streamOperatorStateContext 1");
         CheckpointableKeyedStateBackend<K>* keyedStatedBackend = nullptr;
         OperatorStateBackend* osBackend = nullptr;
 
@@ -170,7 +168,6 @@ public:
                     processingTimeService,
                     maxNumberOfSubtasks);
         }
-        INFO_RELEASE("h30082497 StreamOperatorStateContextImpl::streamOperatorStateContext end");
         return new StreamOperatorStateContextImpl<K>(restoreCheckpointId,
                                                      keyedStatedBackend,
                                                      osBackend,
@@ -477,12 +474,10 @@ inline std::shared_ptr<Iterable<std::shared_ptr<StatePartitionStreamProvider>>> 
 }
 
 inline OperatorStateBackend* StreamTaskStateInitializerImpl::operatorStateBackend(std::string operatorIdentifierText, OperatorID *operatorID) {
-    INFO_RELEASE("h30082497 StreamOperatorStateContextImpl::operatorStateBackend 1");
     std::string logDescription = "operator state backend for " + operatorIdentifierText;
 
     auto backendRestorer = new BackendRestorerProcedure<OperatorStateBackend*, std::shared_ptr<OperatorStateHandle>>(
             [this, operatorIdentifierText](std::set<std::shared_ptr<OperatorStateHandle>> stateHandles, int alternativeIdx) {
-                INFO_RELEASE("h30082497 StreamOperatorStateContextImpl::operatorStateBackend backendRestorer create 1");
                 bool isStateBackendNull = (this->stateBackend == nullptr);
                 INFO_RELEASE("savepoint: operatorStateBackend stateBackend isNull: " << std::string(isStateBackendNull ? "true" : "false")
                     << ", type: " << (isStateBackendNull ? "null" : typeid(*this->stateBackend).name()));
@@ -500,7 +495,6 @@ inline OperatorStateBackend* StreamTaskStateInitializerImpl::operatorStateBacken
                 }
                 auto hashMapStateBackend = dynamic_cast<HashMapStateBackend*>(this->stateBackend);
                 if (hashMapStateBackend == nullptr) {
-                    INFO_RELEASE("h30082497 StreamOperatorStateContextImpl::operatorStateBackend backendRestorer hashMapStateBackend null");
                 }else{
                     INFO_RELEASE("savepoint: StreamOperatorStateContextImpl::operatorStateBackend backendRestorer hashMapStateBackend not null");
                     return reinterpret_cast<OperatorStateBackend*>(
@@ -531,7 +525,6 @@ inline OperatorStateBackend* StreamTaskStateInitializerImpl::operatorStateBacken
 
             handleSet.push_back(std::move(set));
         }
-        INFO_RELEASE("h30082497 StreamOperatorStateContextImpl::operatorStateBackend end");
         return backendRestorer->createAndRestore(handleSet);
     } catch (const std::exception& e) {
         GErrorLog("create OperatorStateHandle exception : " + std::string(e.what()));

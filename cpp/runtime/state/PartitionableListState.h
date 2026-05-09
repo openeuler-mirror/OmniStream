@@ -54,7 +54,6 @@ public:
     }
 
     void initInternalList() {
-            INFO_RELEASE("h30082497 PartitionableListState::initInternalList");
         internalList_ = std::make_shared<std::vector<S>>();
     }
 
@@ -77,34 +76,22 @@ public:
     }
 
     void add(const S& value) override {
-        INFO_RELEASE("h30082497 PartitionableListState::add size: b " + std::to_string(internalList_->size()));
         internalList_->push_back(value);
-        INFO_RELEASE("h30082497 PartitionableListState::add size: a " + std::to_string(internalList_->size()));
     }
 
     std::vector<long> write(long startPos, DataOutputSerializer& out) {
-        INFO_RELEASE("h30082497 PartitionableListState::write 1 internalList addr: " + std::to_string(reinterpret_cast<uintptr_t>(internalList_.get())));
-        INFO_RELEASE("h30082497 PartitionableListState::write size: a " + std::to_string((*internalList_).size()));
-        INFO_RELEASE("h30082497 PartitionableListState::write 2");
         std::vector<long> offsets;
-        INFO_RELEASE("h30082497 PartitionableListState::write 3");
 
         for (size_t i = 0; i < internalList_->size(); i++) {
-            INFO_RELEASE("h30082497 PartitionableListState::write 5 i = " + std::to_string(i));
             auto element = (*internalList_)[i];
-            INFO_RELEASE("h30082497 PartitionableListState::write 5 element addr: " + std::to_string(reinterpret_cast<uintptr_t>(&element)));
             offsets.push_back(startPos + out.getPosition());
-            INFO_RELEASE("h30082497 PartitionableListState::write 6");
             getStateMetaInfo()->getStateSerializer()->serialize(&element, out);
-            INFO_RELEASE("h30082497 PartitionableListState::write 7");
         }
 
-        INFO_RELEASE("h30082497 PartitionableListState::write end");
         return offsets;
     }
 
     void update(const std::vector<S>& values) override {
-        INFO_RELEASE("h30082497 PartitionableListState::update");
         clear();
         addAll(values);
     }
@@ -114,13 +101,9 @@ public:
     }
 
     void merge(const std::vector<S>& other) override {
-        INFO_RELEASE("h30082497 PartitionableListState::merge");
         if (other.empty()) {
-            INFO_RELEASE("h30082497 PartitionableListState::merge other is empty");
             return;
         }
-        INFO_RELEASE("h30082497 PartitionableListState::merge other size: " + std::to_string(other.size()));
-        INFO_RELEASE("h30082497 PartitionableListState::merge size: b " + std::to_string(internalList_->size()));
         std::set<S> existSet(internalList_->begin(), internalList_->end());
         for (const S& element: other) {
             if (existSet.find(element) == existSet.end()) {
@@ -128,28 +111,19 @@ public:
                 internalList_->push_back(element);
             }
         }
-        INFO_RELEASE("h30082497 PartitionableListState::merge size: a " + std::to_string(internalList_->size()));
     }
 
     void addAll(const std::vector<S>& values) override {
-        INFO_RELEASE("h30082497 PartitionableListState::addAll");
         if (values.empty()) {
             return;
         }
-        INFO_RELEASE("h30082497 PartitionableListState::addAll size: cc " + std::to_string(internalList_->size()));
         internalList_->reserve(internalList_->size() + values.size());
-        INFO_RELEASE("h30082497 PartitionableListState::addAll values size: " + std::to_string(values.size()));
-        INFO_RELEASE("h30082497 PartitionableListState::addAll size: b " + std::to_string(internalList_->size()));
         internalList_->insert(internalList_->end(), values.begin(), values.end());
 
-        INFO_RELEASE("h30082497 PartitionableListState::addAll size: a " + std::to_string(internalList_->size()));
     }
 
     void clear() override {
-        INFO_RELEASE("h30082497 PartitionableListState::clear");
-        INFO_RELEASE("h30082497 PartitionableListState::clear size: b " + std::to_string(internalList_->size()));
         internalList_->clear();
-        INFO_RELEASE("h30082497 PartitionableListState::clear size: a " + std::to_string(internalList_->size()));
     }
 
 private:

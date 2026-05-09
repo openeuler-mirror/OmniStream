@@ -1399,7 +1399,6 @@ void OmniTaskBridgeImpl2::WriteOperatorMetaData(
 
     for (const auto& snapshot : operatorStateMetaInfoSnapshots) {
         if (snapshot == nullptr) {
-            INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::WriteOperatorMetaData 6 1 snapshot is null");
             continue;
         }
         nlohmann::json jsonObj;
@@ -1412,7 +1411,6 @@ void OmniTaskBridgeImpl2::WriteOperatorMetaData(
 
     for (const auto& snapshot : broadcastStateMetaInfoSnapshots) {
         if (snapshot == nullptr) {
-            INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::WriteOperatorMetaData 7 1 snapshot is null");
             continue;
         }
         nlohmann::json jsonObj;

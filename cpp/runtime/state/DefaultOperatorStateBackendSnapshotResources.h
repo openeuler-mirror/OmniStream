@@ -35,7 +35,6 @@ public:
           registeredBroadcastStatesDeepCopies_(std::move(registeredBroadcastStatesDeepCopies)),
           operatorStateMetaInfoSnapshots_(std::move(operatorStateMetaInfoSnapshots)),
           broadcastStateMetaInfoSnapshots_(std::move(broadcastStateMetaInfoSnapshots)) {
-        INFO_RELEASE("h30082497 DefaultOperatorStateBackendSnapshotResources");
     }
 
     void cleanup() {}

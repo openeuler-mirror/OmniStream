@@ -134,7 +134,6 @@ public:
     };
 
     void initializeState(StateInitializationContextImpl<K> *context)  override {
-        INFO_RELEASE("h30082497 AbstractStreamOperator::initializeState 1");
     }
 
     // KeySerializer should be retrieved from description.getStateKeySerializer(getUserCodeClassloader()),

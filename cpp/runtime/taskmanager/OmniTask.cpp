@@ -667,7 +667,6 @@ namespace omnistream {
         std::chrono::system_clock::now().time_since_epoch().count());
         /* h30082497 规避：默认设置为 RUNNING 状态 */
         executionState = ExecutionState::RUNNING;
-        INFO_RELEASE("h30082497 special deal ============================ OmniTask::triggerCheckpointBarrier");
         if (executionState == ExecutionState::RUNNING) {
             if (checkpointableTask == nullptr) {
                 throw std::runtime_error("invokable is not checkpointable");

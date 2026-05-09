@@ -431,7 +431,6 @@ void OperatorChainV2::initializeStateAndOpenOperators(StreamTaskStateInitializer
         streamOperator->open();
     }
 
-    INFO_RELEASE("h30082497 OperatorChainV2::initializeStateAndOpenOperators end");
 
     LOG("OperatorChainV2::initializeStateAndOpenOperators end")
 }
@@ -553,16 +552,12 @@ OperatorSnapshotFutures *OperatorChainV2::CheckpointStreamOperator(StreamOperato
                                       checkpointOptions, storageLocation, bridge);
         }
         /* h30082497 部分算子存在菱形继承问题，需要特殊处理，例如：SinkWriterOperator [OneInputStreamOperator, AbstractStreamOperator] -> StreamOperator */
-        INFO_RELEASE("h30082497 OperatorChainV2::CheckpointStreamOperator typeName : " << op->getTypeName());
-        INFO_RELEASE("h30082497 OperatorChainV2::CheckpointStreamOperator type : " << typeid(op).name());
         auto vop = dynamic_cast<AbstractStreamOperator<void*>*>(op);
         if (vop) {
-            INFO_RELEASE("h30082497 special deal ============================ OperatorChainV2::CheckpointStreamOperator void");
             return vop->SnapshotState(checkpointMetaData.GetCheckpointId(), checkpointMetaData.GetTimestamp(),
                                       checkpointOptions, storageLocation, bridge);
         }
         /* h30082497 规避：增加其他处理 */
-        INFO_RELEASE("h30082497 special deal ============================ OperatorChainV2::CheckpointStreamOperator other");
         return op->SnapshotState(checkpointMetaData.GetCheckpointId(), checkpointMetaData.GetTimestamp(),
                                       checkpointOptions, storageLocation, bridge);
         throw std::runtime_error("checkpointStreamOperator failed");

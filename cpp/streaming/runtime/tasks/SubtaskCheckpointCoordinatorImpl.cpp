@@ -218,7 +218,6 @@ namespace omnistream::runtime {
             // delete metadata;
             // delete metrics;
             // delete options;
-            INFO_RELEASE("h30082497 special deal ============================ SubtaskCheckpointCoordinatorImpl::finishAndReportAsync");
         });
         LOG(">>>>> Done")
     }

@@ -56,7 +56,6 @@ public:
     }
 
     long GetStateSize() const override {
-        INFO_RELEASE("h30082497 OperatorStreamStateHandle GetStateSize "<<delegateStateHandle->GetStateSize());
         return delegateStateHandle->GetStateSize();
     }
 
