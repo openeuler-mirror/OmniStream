@@ -106,6 +106,12 @@ void KafkaWriter::write(RowData *element)
     ProduceRecord(record);
 }
 
+void KafkaWriter::write(omnistream::VectorBatch *input, int rowIndex)
+{
+    auto record = recordSerializer->Serialize(input, rowIndex);
+    ProduceRecord(record);
+}
+
 void KafkaWriter::Flush(bool endOfInput)
 {
     if (deliveryGuarantee != DeliveryGuarantee::NONE || endOfInput) {

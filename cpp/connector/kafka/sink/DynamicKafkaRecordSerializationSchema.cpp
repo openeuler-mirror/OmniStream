@@ -10,6 +10,7 @@
  */
 
 #include "DynamicKafkaRecordSerializationSchema.h"
+#include "data/vectorbatch/VectorBatch.h"
 #include <algorithm>
 
 DynamicKafkaRecordSerializationSchema::
@@ -58,10 +59,68 @@ void DynamicKafkaRecordSerializationSchema::RowToJson(RowData* row)
     }
 }
 
+void DynamicKafkaRecordSerializationSchema::RowToJson(omnistream::VectorBatch *input, int rowIndex)
+{
+    for (size_t i = 0; i < inputTypes_.size(); ++i) {
+        if (inputTypes_[i] == "BIGINT") {
+            auto val = reinterpret_cast<omniruntime::vec::Vector<int64_t> *>(input->Get(i))->GetValue(
+                    rowIndex);
+            j[inputFields_[i]] = val;
+        } else if (inputTypes_[i].find("TIMESTAMP") != std::string::npos) {
+            oss.str("");
+            oss.clear();
+            timeBuffer[0] = '\0';
+            auto millis = reinterpret_cast<omniruntime::vec::Vector<int64_t> *>(input->Get(i))->GetValue(
+                    rowIndex);
+            int milliseconds = millis % 1000;
+            time_t seconds = millis / 1000;
+            // 转换为 tm 结构体（UTC时间）
+            struct tm timeinfo;
+            gmtime_r(&seconds, &timeinfo);
+            strftime(timeBuffer, sizeof(timeBuffer), "%Y-%m-%d %H:%M:%S", &timeinfo);
+            oss << timeBuffer
+                << "."
+                << std::setw(3) << std::setfill('0')  // 强制3位宽度，不足补零
+                << milliseconds;
+            j[inputFields_[i]] = oss.str();
+        } else if (inputTypes_[i] == "INTEGER") {
+            auto val = reinterpret_cast<omniruntime::vec::Vector<int32_t> *>(input->Get(i))->GetValue(
+                    rowIndex);
+            j[inputFields_[i]] = val;
+        } else if (inputTypes_[i] == "DOUBLE") {
+            auto val = reinterpret_cast<omniruntime::vec::Vector<int64_t> *>(input->Get(i))->GetValue(
+                    rowIndex);
+            j[inputFields_[i]] = val;
+        } else if (inputTypes_[i] == "BOOLEAN") {
+            auto val = reinterpret_cast<omniruntime::vec::Vector<int32_t> *>(input->Get(i))->GetValue(
+                    rowIndex);
+            j[inputFields_[i]] = val;
+        } else if (inputTypes_[i] == "STRING"
+                   || inputTypes_[i] == "VARCHAR"
+                   || inputTypes_[i] == "VARCHAR(2147483647)") {
+            auto casted = reinterpret_cast<omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>> *>(input->Get(i));
+            auto val = casted->GetValue(rowIndex);
+            std::string strValue(val.begin(), val.end());
+            j[inputFields_[i]] = strValue;
+        } else {
+            LOG("Data type not supported: " << inputTypes_[i])
+            throw std::runtime_error("Data type not supported");
+        };
+    }
+}
+
 KeyValueByteContainer DynamicKafkaRecordSerializationSchema::Serialize(RowData *consumedRow)
 {
     j.clear();
     RowToJson(consumedRow);
+    std::string jsonStr = j.dump();
+    return {nullptr, jsonStr.data()};
+}
+
+KeyValueByteContainer DynamicKafkaRecordSerializationSchema::Serialize(omnistream::VectorBatch *input, int rowIndex)
+{
+    j.clear();
+    RowToJson(input, rowIndex);
     std::string jsonStr = j.dump();
     return {nullptr, jsonStr.data()};
 }

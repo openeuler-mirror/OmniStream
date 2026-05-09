@@ -56,6 +56,7 @@ public:
     void write(String *element);
     void write(Row *element);
     void write(RowData *element);
+    void write(omnistream::VectorBatch *input, int rowIndex);
 
     void produce(RdKafka::Producer* kafkaProducer,
                  RdKafka::Topic *rd_topic,
