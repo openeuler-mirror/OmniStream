@@ -6,12 +6,6 @@
 #include <stdexcept>
 #include "runtime/state/OperatorStateBackend.h"
 #include "runtime/state/DefaultKeyedStateStore.h"
-// Forward declarations of dependencies
-#include "runtime/state/KeyGroupStatePartitionStreamProvider.h"
-#include "core/utils/Iterator.h"
-
-using omnistream::utils::Iterable;
-using omnistream::utils::Iterator;
 
 /** 
  * StateInitializationContextImpl 类整合了所有状态初始化相关的功能
@@ -27,30 +21,20 @@ private:
     
     DefaultKeyedStateStore<K> *keyedStateStore;
     
-    std::shared_ptr<Iterable<std::shared_ptr<KeyGroupStatePartitionStreamProvider>>> rawKeyedStateInputs;
-    
-    std::shared_ptr<Iterable<std::shared_ptr<StatePartitionStreamProvider>>> rawOperatorStateInputs;
-    
 public:
     /**
      * 构造函数
      * @param restoredCheckpointId 恢复的检查点ID
      * @param operatorStateBackend 操作符状态后端
      * @param keyedStateStore 键控状态存储
-     * @param rawKeyedStateInputs 键控状态输入流的可迭代对象
-     * @param rawOperatorStateInputs 操作符状态输入流的可迭代对象
      */
     StateInitializationContextImpl(
         std::optional<uint64_t> restoredCheckpointId,
         OperatorStateBackend *operatorStateBackend,
-        DefaultKeyedStateStore<K> *keyedStateStore,
-        std::shared_ptr<Iterable<std::shared_ptr<KeyGroupStatePartitionStreamProvider>>> rawKeyedStateInputs = nullptr,
-        std::shared_ptr<Iterable<std::shared_ptr<StatePartitionStreamProvider>>> rawOperatorStateInputs = nullptr)
+        DefaultKeyedStateStore<K> *keyedStateStore)
         : restoredCheckpointId(restoredCheckpointId),
           operatorStateBackend(operatorStateBackend),
-          keyedStateStore(keyedStateStore),
-          rawKeyedStateInputs(rawKeyedStateInputs),
-          rawOperatorStateInputs(rawOperatorStateInputs) {
+          keyedStateStore(keyedStateStore) {
         // No additional initialization needed
     }
     
@@ -69,26 +53,6 @@ public:
      */
     std::optional<uint64_t> getRestoredCheckpointId() const {
         return restoredCheckpointId;
-    }
-    
-    /**
-     * Returns an iterable to obtain input streams for previously stored operator state partitions that
-     * are assigned to this operator.
-     * @param[out] iterable Output parameter to store the iterable pointer
-     */
-    std::shared_ptr<Iterable<std::shared_ptr<StatePartitionStreamProvider>>> getRawOperatorStateInputs() const {
-        INFO_RELEASE("StateInitializationContextImpl getRawOperatorStateInputs");
-        return rawOperatorStateInputs;
-    }
-    
-    /**
-     * Returns an iterable to obtain input streams for previously stored keyed state partitions that
-     * are assigned to this operator.
-     * @param[out] iterable Output parameter to store the iterable pointer
-     */
-    std::shared_ptr<Iterable<std::shared_ptr<KeyGroupStatePartitionStreamProvider>>> getRawKeyedStateInputs() const {
-        INFO_RELEASE("StateInitializationContextImpl getRawKeyedStateInputs");
-        return rawKeyedStateInputs;
     }
     
     /**

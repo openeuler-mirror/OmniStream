@@ -29,20 +29,6 @@
 #include "runtime/state/UUID.h"
 #include "runtime/checkpoint/StateObjectCollection.h"
 #include "runtime/state/KeyGroupsStateHandle.h"
-// Include necessary header files
-#include "runtime/state/KeyGroupStatePartitionStreamProvider.h"
-#include "core/utils/Iterator.h"
-#include "KeyGroupStreamIterator.h"
-#include "KeyedStateHandlesIterator.h"
-#include "RawKeyedStateInputsIterable.h"
-#include "RawOperatorStateInputsIterable.h"
-#include "OperatorStateHandleIterator.h"
-
-using omnistream::utils::Iterable;
-using omnistream::utils::Iterator;
-
-
-// Impl class for StreamOperatorStateContext
 // We want to ultimately return this
 template <typename K>
 class StreamOperatorStateContextImpl {
@@ -95,15 +81,7 @@ public:
         return restoredCheckpointId;
     }
 
-     std::shared_ptr<Iterable<std::shared_ptr<KeyGroupStatePartitionStreamProvider>>> getRawKeyedStateInputs() const
-    {
-        return nullptr;
-    }
 
-     std::shared_ptr<Iterable<std::shared_ptr<StatePartitionStreamProvider>>> getRawOperatorStateInputs() const
-    {
-        return nullptr;
-    }
 
 private:
     std::optional<uint64_t> restoredCheckpointId;
@@ -139,14 +117,6 @@ public:
         PrioritizedOperatorSubtaskState prioritizedOperatorSubtaskStates = getPrioritizedOperatorSubtaskStates();
         auto restoreCheckpointId = prioritizedOperatorSubtaskStates.getRestoredCheckpointId();
 
-        /* TODO h30082497 先注释
-        // Get keyed state handles and create an iterator for them
-        // Using getPrioritizedRawKeyedState() which returns a vector of StateObjectCollection<KeyedStateHandle>
-        const auto& prioritizedRawKeyedState = prioritizedOperatorSubtaskStates.getPrioritizedRawKeyedState();
-        localRawKeyedStateInputs = rawKeyedStateInputs(std::make_unique<KeyedStateHandlesIterator>(prioritizedRawKeyedState));
-        const auto& prioritizedRawOperatorState = prioritizedOperatorSubtaskStates.getPrioritizedRawOperatorState();
-        localRawOperatorStateInputs =  rawOperatorStateInputs(std::make_unique<OperatorStateHandleIterator>(prioritizedRawOperatorState));
-        */
 
         std::string operatorIdentifierText = getOperatorSubtaskDescriptionText();
 
@@ -190,22 +160,6 @@ protected:
         TypeSerializer *keySerializer,
         std::string operatorIdentifierText,
         MetricGroup *metricGroup);
-
-    /**
-     * Creates an Iterable of KeyGroupStatePartitionStreamProvider from the given restore state alternatives.
-     * @param restoreStateAlternatives Iterator of StateObjectCollection<KeyedStateHandle>
-     * @return Iterable of KeyGroupStatePartitionStreamProvider
-     */
-    std::shared_ptr<Iterable<std::shared_ptr<KeyGroupStatePartitionStreamProvider>>> rawKeyedStateInputs(
-        std::unique_ptr<Iterator<std::shared_ptr<StateObjectCollection<KeyedStateHandle>>>> restoreStateAlternatives);
-
-    /**
-     * Creates an Iterable of StatePartitionStreamProvider from the given restore state alternatives.
-     * @param restoreStateAlternatives Iterator of StateObjectCollection<OperatorStateHandle>
-     * @return Iterable of StatePartitionStreamProvider
-     */
-    std::shared_ptr<Iterable<std::shared_ptr<StatePartitionStreamProvider>>> rawOperatorStateInputs(
-        std::unique_ptr<Iterator<std::shared_ptr<StateObjectCollection<OperatorStateHandle>>>> restoreStateAlternatives);
 
     OperatorStateBackend* operatorStateBackend(std::string operatorIdentifierText, OperatorID *operatorID);
 
@@ -403,74 +357,9 @@ inline CheckpointableKeyedStateBackend<K> *StreamTaskStateInitializerImpl::keyed
     }
 }
 
-// Helper function to transform KeyedStateHandle to KeyGroupsStateHandle
-inline std::vector<std::shared_ptr<KeyGroupsStateHandle>> transformToKeyGroupsStateHandles(const std::vector<std::shared_ptr<KeyedStateHandle>>& rawKeyedState) {
-    std::vector<std::shared_ptr<KeyGroupsStateHandle>> keyGroupsStateHandles;
-
-    for (const auto& handle : rawKeyedState) {
-        auto keyGroupsHandle = std::dynamic_pointer_cast<KeyGroupsStateHandle>(handle);
-        if (keyGroupsHandle != nullptr) {
-            keyGroupsStateHandles.push_back(keyGroupsHandle);
-        }
     }
 
     return keyGroupsStateHandles;
-}
-
-// Implementation of rawKeyedStateInputs method
-inline std::shared_ptr<Iterable<std::shared_ptr<KeyGroupStatePartitionStreamProvider>>> StreamTaskStateInitializerImpl::rawKeyedStateInputs(
-    std::unique_ptr<Iterator<std::shared_ptr<StateObjectCollection<KeyedStateHandle>>>> restoreStateAlternatives) {
-
-    if (restoreStateAlternatives != nullptr && restoreStateAlternatives->hasNext()) {
-        auto rawKeyedStateCollection = restoreStateAlternatives->next();
-
-        // Check that there is only one state alternative (no local recovery)
-        if (restoreStateAlternatives->hasNext()) {
-            throw std::runtime_error("Local recovery is currently not implemented for raw keyed state, but found state alternative.");
-        }
-
-        if (rawKeyedStateCollection != nullptr) {
-            // Get all KeyedStateHandles from the collection
-            auto rawKeyedState = rawKeyedStateCollection->ToArray();
-
-            // Transform KeyedStateHandle to KeyGroupsStateHandle
-            auto keyGroupsStateHandles = transformToKeyGroupsStateHandles(rawKeyedState);
-
-            // Use the standalone RawKeyedStateInputsIterable class
-            return std::make_shared<RawKeyedStateInputsIterable>(keyGroupsStateHandles);
-        }
-    }
-
-    // Return empty Iterable if no state to restore
-    return emptyIterable<std::shared_ptr<KeyGroupStatePartitionStreamProvider>>();
-}
-
-// Implementation of rawOperatorStateInputs method
-inline std::shared_ptr<Iterable<std::shared_ptr<StatePartitionStreamProvider>>> StreamTaskStateInitializerImpl::rawOperatorStateInputs(
-    std::unique_ptr<Iterator<std::shared_ptr<StateObjectCollection<OperatorStateHandle>>>> restoreStateAlternatives) {
-
-    if (restoreStateAlternatives != nullptr && restoreStateAlternatives->hasNext()) {
-        auto rawOperatorStateCollection = restoreStateAlternatives->next();
-
-        // Check that there is only one state alternative (no local recovery)
-        if (restoreStateAlternatives->hasNext()) {
-            throw std::runtime_error("Local recovery is currently not implemented for raw operator state, but found state alternative.");
-        }
-
-        if (rawOperatorStateCollection != nullptr) {
-            // Get all OperatorStateHandles from the collection
-            auto rawOperatorState = rawOperatorStateCollection->ToArray();
-
-            // Use the standalone RawOperatorStateInputsIterable class
-            // Use a default operator state name
-            return std::make_shared<RawOperatorStateInputsIterable>(
-                "defaultOperatorState",
-                rawOperatorState);
-        }
-    }
-
-    // Return empty Iterable if no state to restore
-    return emptyIterable<std::shared_ptr<StatePartitionStreamProvider>>();
 }
 
 inline OperatorStateBackend* StreamTaskStateInitializerImpl::operatorStateBackend(std::string operatorIdentifierText, OperatorID *operatorID) {

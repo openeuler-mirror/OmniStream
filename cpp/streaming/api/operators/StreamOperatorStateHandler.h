@@ -34,12 +34,6 @@
 #include "bridge/OmniTaskBridgeImpl2.h"
 #include "state/SavepointSnapshotStrategy.h"
 #include "runtime/state/StateInitializationContextImpl.h"
-#include "runtime/state/KeyGroupStatePartitionStreamProvider.h"
-#include "core/utils/Iterator.h"
-
-using omnistream::utils::Iterable;
-using omnistream::utils::Iterator;
-
 
 template<typename K>
 class StreamOperatorStateHandler {
@@ -128,17 +122,13 @@ public:
             // Get restored checkpoint id from context
             std::optional<uint64_t> checkpointId = context->getRestoredCheckpointId();
 
-            // Get raw state inputs from context
-            std::shared_ptr<Iterable<std::shared_ptr<KeyGroupStatePartitionStreamProvider>>> rawKeyedStateInputs = context->getRawKeyedStateInputs();
-            std::shared_ptr<Iterable<std::shared_ptr<StatePartitionStreamProvider>>> rawOperatorStateInputs = context->getRawOperatorStateInputs();
 
             // Create StateInitializationContextImpl with correct template parameter
             StateInitializationContextImpl<K> *initializationContext = new StateInitializationContextImpl<K>(
                 checkpointId,
                 this->operatorStateBackend, // access to operator state backend
                 this->keyedStateStore,      // access to keyed state store
-                rawKeyedStateInputs,        // access to keyed state stream
-                rawOperatorStateInputs);    // access to operator state stream
+                );
             streamOperator->initializeState(initializationContext);
             delete initializationContext; // 释放内存，避免泄漏
         } catch (const std::exception& e) {
