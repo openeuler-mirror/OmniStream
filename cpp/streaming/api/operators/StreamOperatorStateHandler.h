@@ -127,7 +127,7 @@ public:
             StateInitializationContextImpl<K> *initializationContext = new StateInitializationContextImpl<K>(
                 checkpointId,
                 this->operatorStateBackend, // access to operator state backend
-                this->keyedStateStore,      // access to keyed state store
+                this->keyedStateStore      // access to keyed state store
                 );
             streamOperator->initializeState(initializationContext);
             delete initializationContext; // 释放内存，避免泄漏
