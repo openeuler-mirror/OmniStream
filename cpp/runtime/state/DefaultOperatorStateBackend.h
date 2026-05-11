@@ -53,10 +53,10 @@ public:
           bridge_(bridge),
           omniTaskBridge_(omniTaskBridge),
           snapshotStrategy_(snapshotStrategy),
-          registeredOperatorStates_(std::move(registeredOperatorStates)),
-          registeredBroadcastStates_(std::move(registeredBroadcastStates)),
-          accessedStatesByName_(std::move(accessedStatesByName)),
-          accessedBroadcastStatesByName_(std::move(accessedBroadcastStatesByName)) {
+          registeredOperatorStates_(registeredOperatorStates),
+          registeredBroadcastStates_(registeredBroadcastStates),
+          accessedStatesByName_(accessedStatesByName),
+          accessedBroadcastStatesByName_(accessedBroadcastStatesByName) {
     }
 
     std::unordered_set<std::string> getRegisteredStateNames() override {

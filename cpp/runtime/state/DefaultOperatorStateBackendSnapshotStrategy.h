@@ -41,8 +41,8 @@ public:
     DefaultOperatorStateBackendSnapshotStrategy(
         std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> registeredOperatorStates,
         std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> registeredBroadcastStates)
-        : registeredOperatorStates_(std::move(registeredOperatorStates)),
-          registeredBroadcastStates_(std::move(registeredBroadcastStates)) {
+        : registeredOperatorStates_(registeredOperatorStates),
+          registeredBroadcastStates_(registeredBroadcastStates) {
     }
 
     ~DefaultOperatorStateBackendSnapshotStrategy() = default;
