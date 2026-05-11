@@ -903,9 +903,7 @@ std::vector<StateMetaInfoSnapshot> OmniTaskBridgeImpl2::readOperatorMetaData(con
             env->ExceptionClear();    // Clear the exception
             INFO_RELEASE("Error: Could not call readOperatorMetaData method for JNI call");
             return {};
-        } else {
-            INFO_RELEASE("savepoint: OmniTaskBridgeImpl2::readOperatorMetaData result len: " + std::to_string(cppResult.size()));
-        }
+        } 
 
         // Convert jstring to std::string
         const char* strChars = env->GetStringUTFChars(result, nullptr);
