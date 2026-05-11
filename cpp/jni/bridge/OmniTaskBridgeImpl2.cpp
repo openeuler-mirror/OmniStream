@@ -801,6 +801,7 @@ std::vector<StateMetaInfoSnapshot> convertResult(const std::string& cppResult)
         // Currently we don't take snapshot of serializers
         StateMetaInfoSnapshot::BackendStateType bst;
         auto backendStateTypeStr = oneSnapshot["backendStateType"].get<std::string>();
+        INFO_RELEASE("savepoint: OmniTaskBridgeImpl2::readOperatorMetaData backendStateType: " + backendStateTypeStr);
         if (backendStateTypeStr == "KEY_VALUE") {
             bst = StateMetaInfoSnapshot::BackendStateType::KEY_VALUE;
         } else if (backendStateTypeStr == "PRIORITY_QUEUE") {
@@ -808,8 +809,7 @@ std::vector<StateMetaInfoSnapshot> convertResult(const std::string& cppResult)
         } else if (backendStateTypeStr == "OPERATOR") {
             bst = StateMetaInfoSnapshot::BackendStateType::OPERATOR;
         }else if (backendStateTypeStr == "BROADCAST") {
-            LOG("Unsupport BackendStateType.")
-            continue;
+            bst = StateMetaInfoSnapshot::BackendStateType::BROADCAST;
         } else {
             throw std::runtime_error("Unknown BackendStateType.");
         }
