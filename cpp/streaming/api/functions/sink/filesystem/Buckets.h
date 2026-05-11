@@ -14,6 +14,7 @@
 
 #include <map>
 #include <string>
+#include <vector>
 #include "Bucket.h"
 #include "BucketFactory.h"
 #include "BucketAssigner.h"
@@ -97,6 +98,42 @@ public:
         for (auto &entry : activeBuckets) {
             delete entry.second;
         }
+    }
+
+    long getMaxPartCounter() const
+    {
+        return maxPartCounter;
+    }
+
+    void setMaxPartCounter(long counter)
+    {
+        maxPartCounter = counter;
+    }
+
+    void commitUpToCheckpoint(long checkpointId)
+    {
+        for (auto &entry : activeBuckets) {
+            entry.second->onProcessingTime(LONG_MAX);
+        }
+    }
+
+    std::map<BucketID, long> snapshotState()
+    {
+        std::map<BucketID, long> state;
+        for (auto &entry : activeBuckets) {
+            state[entry.first] = entry.second->getPartCounter();
+        }
+        return state;
+    }
+
+    void notifyCheckpointComplete(long checkpointId)
+    {
+        LOG("Buckets::notifyCheckpointComplete checkpointId=" << checkpointId)
+    }
+
+    std::string getBasePath() const
+    {
+        return basePath;
     }
 
 private:

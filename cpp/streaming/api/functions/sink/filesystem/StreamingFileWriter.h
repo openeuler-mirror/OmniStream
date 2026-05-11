@@ -14,6 +14,7 @@
 
 #include <vector>
 #include <string>
+#include <map>
 #include "AbstractStreamingWriter.h"
 
 template <typename IN>
@@ -35,7 +36,10 @@ public:
         return "StreamingFileWriter";
     }
 
-    void processElement(StreamRecord *element) override {}
+    void processElement(StreamRecord *element) override
+    {
+        AbstractStreamingWriter<IN, int>::processBatch(element);
+    }
 
     void ProcessWatermark(Watermark *mark) override
     {
@@ -47,8 +51,16 @@ public:
         AbstractStreamingWriter<IN, int>::processBatch(element);
     }
 
+    void snapshotState(long checkpointId)
+    {
+        AbstractStreamingWriter<IN, int>::snapshotState(checkpointId);
+    }
+
 protected:
-    void processWatermarkStatus(WatermarkStatus *watermarkStatus) override {}
+    void processWatermarkStatus(WatermarkStatus *watermarkStatus) override
+    {
+        AbstractStreamOperator<int>::processWatermarkStatus(watermarkStatus);
+    }
 };
 
 #endif // STREAMING_FILE_WRITER_H

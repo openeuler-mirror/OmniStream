@@ -595,7 +595,12 @@ StreamOperator *StreamOperatorFactory::CreateStreamingFileWriterOp(OperatorPOD &
 StreamOperator *StreamOperatorFactory::CreatePartitionCommitterOp(OperatorPOD &opConfig,
     WatermarkGaugeExposingOutput *chainOutput, std::shared_ptr<omnistream::OmniStreamTask> task)
 {
-    auto *op = new PartitionCommitter();
+    auto description = opConfig.getDescription();
+    nlohmann::json opDescriptionJSON = nlohmann::json::parse(description);
+
+    auto *op = new PartitionCommitter(opDescriptionJSON);
+    op->setOutput(chainOutput);
+    op->setup();
 
     LOG("Operator PartitionCommitter address " + std::to_string(reinterpret_cast<long>(op)));
     return static_cast<OneInputStreamOperator *>(op);
