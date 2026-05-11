@@ -64,19 +64,24 @@ KafkaWriter::KafkaWriter(DeliveryGuarantee deliveryGuarantee,
 KafkaWriter::~KafkaWriter()
 {
     omnistream::TimerThreadPool::GetTimerThreadPoolInstance()->cancel(taskId);
-    delete kafkaProducerConfig;
-    delete rd_topic1;
-    delete rd_topic2;
-    delete recordSerializer;
-    delete kafkaWriterState;
 
     stop_flag.store(true);
     cv.notify_all();
 
-    // 等待线程结束
     if (worker_thread.joinable()) {
         worker_thread.join();
     }
+
+    delete kafkaWriterState;
+    kafkaWriterState = nullptr;
+    delete recordSerializer;
+    recordSerializer = nullptr;
+    delete rd_topic1;
+    rd_topic1 = nullptr;
+    delete rd_topic2;
+    rd_topic2 = nullptr;
+    delete kafkaProducerConfig;
+    kafkaProducerConfig = nullptr;
 
     timer_worker_thread_flag.store(false);
 }

@@ -41,10 +41,17 @@ public:
 
     ~SinkWriterOperator()
     {
-        EndInput();
-        delete kafkaSink;
-        delete sinkWriter;
+        if (!endOfInput) {
+            EndInput();
+        }
         delete writerStateHandler;
+        writerStateHandler = nullptr;
+        delete sinkWriter;
+        sinkWriter = nullptr;
+        delete committableSerializer;
+        committableSerializer = nullptr;
+        delete kafkaSink;
+        kafkaSink = nullptr;
     }
 
     void initializeState(StateInitializationContextImpl<void*>* context) override;
