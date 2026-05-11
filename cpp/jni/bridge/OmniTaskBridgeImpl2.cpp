@@ -910,7 +910,7 @@ std::vector<StateMetaInfoSnapshot> OmniTaskBridgeImpl2::readOperatorMetaData(con
         std::string cppResult(strChars);
         env->ReleaseStringUTFChars(result, strChars);
         g_OmniStreamJVM->DetachCurrentThread();
-
+        INFO_RELEASE("savepoint: OmniTaskBridgeImpl2 readMetaData, result=" << cppResult);
         return convertResult(cppResult);
     } else {
         INFO_RELEASE("Error: Could not get TaskStateManagerWrapper class for JNI call");
