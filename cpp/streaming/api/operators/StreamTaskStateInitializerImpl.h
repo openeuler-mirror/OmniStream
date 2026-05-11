@@ -399,6 +399,8 @@ inline OperatorStateBackend* StreamTaskStateInitializerImpl::operatorStateBacken
             prioritizedOperatorSubtaskStates = getPrioritizedOperatorSubtaskStates();
         }
         std::vector<StateObjectCollection<OperatorStateHandle>> handleVector = prioritizedOperatorSubtaskStates.getPrioritizedManagedOperatorState();
+        INFO_RELEASE("savepoint: operatorStateBackend handleVector size: " + std::to_string(handleVector.size())
+            + ", operatorIdentifierText: " + operatorIdentifierText);
         std::vector<std::set<std::shared_ptr<OperatorStateHandle>>> handleSet;
         handleSet.reserve(handleVector.size());
         for (const auto& collection : handleVector) {

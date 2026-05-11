@@ -158,6 +158,9 @@ public:
         readerState_ = std::make_shared<SimpleVersionedListState<SplitT>>(rawState, splitSerializer);
         
         // 日志：检查初始状态
+        INFO_RELEASE("savepoint: SourceOperator initializeState isRestored: "
+            << std::string(context->isRestored() ? "true" : "false")
+            << ", restoredCheckpointId: " << (context->isRestored() ? std::to_string(*context->getRestoredCheckpointId()) : "none"));
         if (readerState_ != nullptr) {
             auto initialState = readerState_->get();
             INFO_RELEASE("savepoint: SourceOperator initializeState === initial readerState_ size: " + std::to_string(initialState->size()));

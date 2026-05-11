@@ -92,11 +92,16 @@ public:
     }
 
     void update(const std::vector<S>& values) override {
+        INFO_RELEASE("savepoint: PartitionableListState::update values size: " + std::to_string(values.size())
+            + ", internalList addr: " << internalList_.get());
         clear();
         addAll(values);
+        INFO_RELEASE("savepoint: PartitionableListState::update end size: " + std::to_string(internalList_->size()));
     }
 
     std::vector<S>* get() override {
+        INFO_RELEASE("savepoint: PartitionableListState::get internalList addr: " << internalList_.get()
+            << ", size: " << (internalList_ == nullptr ? 0 : internalList_->size()));
         return internalList_.get();
     }
 

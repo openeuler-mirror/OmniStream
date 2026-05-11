@@ -185,16 +185,25 @@ private:
         if (registeredIterator == registeredOperatorStates_->end()) {
             auto stateMetaInfo = std::make_shared<RegisteredOperatorStateBackendMetaInfo>(name, mode, operatorStateSerializer);
             auto internalList = std::make_shared<std::vector<S>>();
+            INFO_RELEASE("savepoint: DefaultOperatorStateBackend::getListState create new state name: " + name
+                + ", internalList addr: " << internalList.get()
+                + ", size: " + std::to_string(internalList->size()));
             resultState = std::make_shared<PartitionableListState<S>>(stateMetaInfo, internalList);
             registeredOperatorStates_->emplace(name, resultState);
         } else {
             resultState = std::dynamic_pointer_cast<PartitionableListState<S>>(registeredIterator->second);
             auto stateMetaInfo = resultState->getStateMetaInfo();
+            INFO_RELEASE("savepoint: DefaultOperatorStateBackend::getListState reuse existing state name: " + name
+                + ", internalList addr: " << resultState->getInternalList().get()
+                + ", size: " + std::to_string(resultState->getInternalList()->size()));
             stateMetaInfo->updateStateSerializer(operatorStateSerializer);
             resultState->setStateMetaInfo(stateMetaInfo);
         }
 
         accessedStatesByName_->emplace(name, (*registeredOperatorStates_)[name]);
+        INFO_RELEASE("savepoint: DefaultOperatorStateBackend::getListState return name: " + name
+            + ", registeredOperatorStates size: " + std::to_string(registeredOperatorStates_->size())
+            + ", accessedStatesByName size: " + std::to_string(accessedStatesByName_->size()));
         return resultState;
     }
 };
