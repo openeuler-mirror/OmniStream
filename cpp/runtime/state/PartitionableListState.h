@@ -92,8 +92,8 @@ public:
     }
 
     void update(const std::vector<S>& values) override {
-        INFO_RELEASE("savepoint: PartitionableListState::update values size: " + std::to_string(values.size())
-            + ", internalList addr: " << internalList_.get());
+        INFO_RELEASE("savepoint: PartitionableListState::update values size: " << values.size()
+            << ", internalList addr: " << internalList_.get());
         clear();
         addAll(values);
         INFO_RELEASE("savepoint: PartitionableListState::update end size: " + std::to_string(internalList_->size()));
