@@ -163,9 +163,8 @@ void SinkWriterOperator::initializeState(StateInitializationContextImpl<void*>* 
             auto rawState = operatorStateBackend->getListState(&SinkWriterOperator::STREAMING_COMMITTER_RAW_STATES_DESC);
             if (rawState == nullptr) {
                 INFO_RELEASE("savepoint: SinkWriterOperator initializeState, rawState is nullptr")
-                continue;
             }else {
-                INFO_RELEASE("savepoint: SinkWriterOperator initializeState, rawState size: " << rawState->size())
+                INFO_RELEASE("savepoint: SinkWriterOperator initializeState, rawState is  not nullptr: ")
             }
             // 创建版本化列表状态 - 使用 KafkaCommittable 类型
             // SimpleVersionedListState<KafkaCommittable> legacyCommitterState(
