@@ -143,6 +143,7 @@ void SinkWriterOperator::initializeState(StreamTaskStateInitializerImpl *initial
 // initializeState方法实现
 void SinkWriterOperator::initializeState(StateInitializationContextImpl<void*>* context) {
     // 调用父类方法
+    INFO_RELEASE("savepoint: SinkWriterOperator initializeState")
     AbstractStreamOperator<void*>::initializeState(context);
     
     // 获取恢复的检查点ID
@@ -160,7 +161,12 @@ void SinkWriterOperator::initializeState(StateInitializationContextImpl<void*>* 
             
             // 获取原始状态
             auto rawState = operatorStateBackend->getListState(&SinkWriterOperator::STREAMING_COMMITTER_RAW_STATES_DESC);
-            
+            if (rawState == nullptr) {
+                INFO_RELEASE("savepoint: SinkWriterOperator initializeState, rawState is nullptr")
+                continue;
+            }else {
+                INFO_RELEASE("savepoint: SinkWriterOperator initializeState, rawState size: " << rawState->size())
+            }
             // 创建版本化列表状态 - 使用 KafkaCommittable 类型
             // SimpleVersionedListState<KafkaCommittable> legacyCommitterState(
             //         std::shared_ptr<ListState<std::vector<uint8_t>>>(rawState),

@@ -61,6 +61,7 @@ public:
 
     template <typename K1, typename K2>
     KafkaWriter* createWriter(InitContextImpl<K1>* initContext, StateInitializationContextImpl<K2>* context) {
+        INFO_RELEASE("savepoint: KafkaSinkWriterStateHandler createWriter")
         auto* operatorStateBackend = static_cast<DefaultOperatorStateBackend*>(context->getOperatorStateBackend());
         auto rawState = operatorStateBackend->getListState(&WRITER_RAW_STATES_DESC);
 
@@ -74,8 +75,10 @@ public:
             if (states) {
                 statesList = *states;
             }
+            INFO_RELEASE("savepoint: KafkaSinkWriterStateHandler createWriter, statesList size: " << statesList.size())
             kafkaWriter = sink->RestoreWriter(initContext, statesList);
         } else {
+            INFO_RELEASE("savepoint: KafkaSinkWriterStateHandler createWriter, create new KafkaWriter")
             kafkaWriter = sink->CreateWriter(initContext);
         }
         return kafkaWriter;
