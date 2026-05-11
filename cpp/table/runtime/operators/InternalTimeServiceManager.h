@@ -248,6 +248,7 @@ void InternalTimeServiceManager<K>::restoreRawKeyedState(
 
         auto keyGroupsStateHandle = std::dynamic_pointer_cast<KeyGroupsStateHandle>(intersection);
         if (keyGroupsStateHandle == nullptr) {
+            INFO_RELEASE("Error: restoreRawKeyedState Raw keyed timer restore only supports KeyGroupsStateHandle.");
             THROW_LOGIC_EXCEPTION("Raw keyed timer restore only supports KeyGroupsStateHandle.")
         }
 
@@ -300,6 +301,7 @@ InternalTimeServiceManager<K>::inferNamespaceKind(
         return TimerNamespaceKind::INT64;
     }
 
+    INFO_RELEASE("Error: inferNamespaceKind Unsupported timer namespace serializer snapshot class: " << className);
     THROW_LOGIC_EXCEPTION("Unsupported timer namespace serializer snapshot class: " << className)
 }
 
@@ -378,6 +380,7 @@ inline void InternalTimeServiceManager<K>::snapshotToRawKeyedState(
     std::string operatorName)
 {
     if (stateCheckpointOutputStream == nullptr) {
+        INFO_RELEASE("Error: snapshotToRawKeyedState Raw keyed state output stream is null for operator " << operatorName);
         THROW_LOGIC_EXCEPTION("Raw keyed state output stream is null for operator " << operatorName)
     }
 
@@ -388,6 +391,8 @@ inline void InternalTimeServiceManager<K>::snapshotToRawKeyedState(
             proxy.write(stateCheckpointOutputStream);
         }
     } catch (const std::exception &e) {
+        INFO_RELEASE("Error: snapshotToRawKeyedState Could not write timer service of operator "
+            << operatorName << " to raw keyed checkpoint state stream.");
         THROW_LOGIC_EXCEPTION("Could not write timer service of operator " << operatorName
             << " to raw keyed checkpoint state stream. Root cause: " << e.what())
     }

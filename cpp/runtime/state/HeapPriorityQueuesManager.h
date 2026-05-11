@@ -65,6 +65,8 @@ public:
                 return restoredState->getHeapPriorityQueueSet();
             }
 
+            INFO_RELEASE(
+                "Error: createOrUpdate Priority queue type is not supported for restored HEAP PQ state:" << stateName);
             THROW_LOGIC_EXCEPTION("Priority queue type is not supported for restored HEAP PQ state: " << stateName)
         }
         auto metaInfo = std::make_shared<RegisteredPriorityQueueStateBackendMetaInfo>(stateName, byteOrderedElementSerializer);

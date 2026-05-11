@@ -141,13 +141,13 @@ private:
                     << ", accumulatedMetaInfoCount=" << preparedData.metaInfoSnapshots.size()
                     << ", accumulatedIteratorCount=" << preparedData.stateIterators.size());
             } catch (const std::exception &e) {
-                INFO_RELEASE("HeapSnapshotResourceFactory: checkpointId=" << checkpointId
+                INFO_RELEASE("Error: HeapSnapshotResourceFactory: checkpointId=" << checkpointId
                     << ", failed while preparing PQ stateName=" << stateName
                     << ", pqStateId=" << pqStateId
                     << ", exception=" << e.what());
                 throw;
             } catch (...) {
-                INFO_RELEASE("HeapSnapshotResourceFactory: checkpointId=" << checkpointId
+                INFO_RELEASE("Error: HeapSnapshotResourceFactory: checkpointId=" << checkpointId
                     << ", failed while preparing PQ stateName=" << stateName
                     << ", pqStateId=" << pqStateId
                     << ", exception=unknown");

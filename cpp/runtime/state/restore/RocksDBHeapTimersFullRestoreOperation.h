@@ -246,6 +246,7 @@ void RocksDBHeapTimersFullRestoreOperation<K>::restoreKVStateData(
                 continue;
             }
 
+            INFO_RELEASE("Error: restoreKVStateData Unknown savepoint state id during RocksDB heap timers restore: " << kvStateId);
             THROW_LOGIC_EXCEPTION("Unknown savepoint state id during RocksDB heap timers restore: " << kvStateId)
         }
     }

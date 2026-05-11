@@ -1069,6 +1069,7 @@ int OmniTaskBridgeImpl2::ReadSavepointInputStream(jobject inputStream, int8_t *c
     if (len > static_cast<size_t>(std::numeric_limits<jint>::max())) {
         env->DeleteLocalRef(omniTaskWrapperClass);
         g_OmniStreamJVM->DetachCurrentThread();
+        INFO_RELEASE("Error: ReadSavepointInputStream chunk too large.");
         THROW_LOGIC_EXCEPTION("ReadSavepointInputStream chunk too large: " << len)
     }
 
@@ -1076,6 +1077,7 @@ int OmniTaskBridgeImpl2::ReadSavepointInputStream(jobject inputStream, int8_t *c
     if (byteArray == nullptr) {
         env->DeleteLocalRef(omniTaskWrapperClass);
         g_OmniStreamJVM->DetachCurrentThread();
+        INFO_RELEASE("Error: ReadSavepointInputStream failed to allocate byte array.");
         throw std::runtime_error("ReadSavepointInputStream failed to allocate byte array");
     }
 
@@ -1098,6 +1100,7 @@ int OmniTaskBridgeImpl2::ReadSavepointInputStream(jobject inputStream, int8_t *c
             env->DeleteLocalRef(byteArray);
             env->DeleteLocalRef(omniTaskWrapperClass);
             g_OmniStreamJVM->DetachCurrentThread();
+            INFO_RELEASE("Error: ReadSavepointInputStream failed to copy byte array.");
             throw std::runtime_error("ReadSavepointInputStream failed to copy byte array");
         }
     }

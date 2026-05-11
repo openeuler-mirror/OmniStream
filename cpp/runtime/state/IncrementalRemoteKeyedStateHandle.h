@@ -163,6 +163,9 @@ private:
             return result;
         }
         if (!stateList->is_array()) {
+            INFO_RELEASE(
+                "Error: ParseHandleAndLocalPathList IncrementalRemoteKeyedStateHandle field '" << fieldName <<
+                "' is not an array.");
             throw std::runtime_error("IncrementalRemoteKeyedStateHandle field '" + fieldName + "' must be an array.");
         }
         for (const auto& item : *stateList) {
@@ -171,10 +174,16 @@ private:
             }
             auto handle = StreamStateHandleFactory::from_json(item.at("handle"));
             if (handle == nullptr) {
+                INFO_RELEASE(
+                    "Error: ParseHandleAndLocalPathList Unsupported stream state handle in IncrementalRemoteKeyedStateHandle "
+                    << fieldName);
                 throw std::runtime_error("Unsupported stream state handle in IncrementalRemoteKeyedStateHandle " + fieldName);
             }
             std::string localPath = item.contains("localPath") ? item.at("localPath").get<std::string>() : "";
             if (localPath.empty()) {
+                INFO_RELEASE(
+                    "Error: ParseHandleAndLocalPathList IncrementalRemoteKeyedStateHandle " << fieldName <<
+                    " entry is missing localPath.");
                 throw std::runtime_error("IncrementalRemoteKeyedStateHandle " + fieldName + " entry is missing localPath.");
             }
             result.emplace_back(HandleAndLocalPath::of(handle, localPath));
@@ -190,6 +199,8 @@ private:
         if (description.contains("metaDataState") && !description.at("metaDataState").is_null()) {
             return StreamStateHandleFactory::from_json(description.at("metaDataState"));
         }
+        INFO_RELEASE(
+            "Error: ParseMetaStateHandle IncrementalRemoteKeyedStateHandle missing metaStateHandle/metaDataState.");
         throw std::runtime_error("IncrementalRemoteKeyedStateHandle missing metaStateHandle/metaDataState.");
     }
 

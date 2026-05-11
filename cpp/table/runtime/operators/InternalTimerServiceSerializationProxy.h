@@ -63,6 +63,9 @@ public:
         for (uint8_t expected : VERSIONED_IDENTIFIER) {
             uint8_t actual = in->readByte();
             if (actual != expected) {
+                INFO_RELEASE(
+                    "Error: read Invalid Flink timer service serialization header. expected byte="
+                    << static_cast<int>(expected) << ", actual byte=" << static_cast<int>(actual));
                 THROW_LOGIC_EXCEPTION("Invalid Flink timer service serialization header. expected byte="
                     << static_cast<int>(expected) << ", actual byte=" << static_cast<int>(actual))
             }
@@ -70,6 +73,7 @@ public:
 
         int32_t version = in->readInt();
         if (version != VERSION) {
+            INFO_RELEASE("Error: read Unsupported timer service serialization version: " << version);
             THROW_LOGIC_EXCEPTION("Unsupported timer service serialization version: " << version)
         }
         timerServicesManager_->readTimersForKeyGroup(in, keyGroupIdx_, version);

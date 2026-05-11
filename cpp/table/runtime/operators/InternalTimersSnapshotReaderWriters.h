@@ -79,6 +79,8 @@ public:
         descriptor.className = in->readUTF();
         descriptor.version = in->readInt();
         if (descriptor.version != SIMPLE_TYPE_SERIALIZER_SNAPSHOT_VERSION) {
+            INFO_RELEASE("Error: readVersionedSnapshot Unsupported Flink timer serializer snapshot version: "
+                << descriptor.version << ", className=" << descriptor.className);
             THROW_LOGIC_EXCEPTION("Unsupported Flink timer serializer snapshot version: "
                 << descriptor.version << ", className=" << descriptor.className)
         }
@@ -109,6 +111,8 @@ public:
         if (fallback != nullptr) {
             return fallback;
         }
+        INFO_RELEASE(
+            "Error: restoreSerializer Unsupported Flink timer serializer snapshot class: " << descriptor.className);
         THROW_LOGIC_EXCEPTION("Unsupported Flink timer serializer snapshot class: " << descriptor.className)
     }
 
@@ -116,6 +120,8 @@ private:
     static const char *snapshotClassNameForSerializer(TypeSerializer *serializer)
     {
         if (serializer == nullptr) {
+            INFO_RELEASE(
+                "Error: snapshotClassNameForSerializer Timer serializer is null, cannot write Flink serializer snapshot.");
             THROW_LOGIC_EXCEPTION("Timer serializer is null, cannot write Flink serializer snapshot.")
         }
 
@@ -151,7 +157,9 @@ private:
         if (name.find("TimeWindow") != std::string::npos) {
             return TIME_WINDOW_SERIALIZER_SNAPSHOT;
         }
-
+        INFO_RELEASE(
+            "Error: snapshotClassNameForSerializer Unsupported timer serializer for Flink 1.16.3 CP format. serializerName="
+            << name << ", backendId=" << serializer->getBackendId());
         THROW_LOGIC_EXCEPTION("Unsupported timer serializer for Flink 1.16.3 CP format. serializerName=" << name
             << ", backendId=" << serializer->getBackendId())
     }
@@ -187,6 +195,7 @@ private:
     void writeValue(TypeSerializer *serializer, T value, KeyedStateCheckpointOutputStream *out)
     {
         if (serializer == nullptr) {
+            INFO_RELEASE("Error: writeValue Timer serializer is null.");
             THROW_LOGIC_EXCEPTION("Timer serializer is null.")
         }
 
@@ -235,21 +244,25 @@ private:
             return result;
         } else if constexpr (std::is_same_v<T, Object *>) {
             if (serializer == nullptr) {
+                INFO_RELEASE("Error: readValue Cannot deserialize Object* timer key without serializer.");
                 THROW_LOGIC_EXCEPTION("Cannot deserialize Object* timer key without serializer.")
             }
             Object *buffer = serializer->GetBuffer();
             if (buffer == nullptr) {
+                INFO_RELEASE("Error: readValue Cannot deserialize Object* timer key because serializer returned null buffer.");
                 THROW_LOGIC_EXCEPTION("Cannot deserialize Object* timer key because serializer returned null buffer.")
             }
             serializer->deserialize(buffer, *in);
             return buffer;
         } else if constexpr (std::is_pointer_v<T>) {
             if (serializer == nullptr) {
+                INFO_RELEASE("Error: readValue Cannot deserialize pointer timer value without serializer.");
                 THROW_LOGIC_EXCEPTION("Cannot deserialize pointer timer value without serializer.")
             }
             return static_cast<T>(serializer->deserialize(*in));
         } else {
             if (serializer == nullptr) {
+                INFO_RELEASE("Error: readValue Cannot deserialize timer value without serializer.");
                 THROW_LOGIC_EXCEPTION("Cannot deserialize timer value without serializer.")
             }
             auto *value = static_cast<T *>(serializer->deserialize(*in));
@@ -393,6 +406,7 @@ public:
         TypeSerializer *namespaceSerializer)
     {
         if (version != VERSION) {
+            INFO_RELEASE("Error: getWriterForVersion Unsupported timer snapshot writer version: " << version);
             THROW_LOGIC_EXCEPTION("Unsupported timer snapshot writer version: " << version)
         }
         return std::make_unique<InternalTimersSnapshotWriterV2<K, N>>(
@@ -406,6 +420,7 @@ public:
         TypeSerializer *fallbackKeySerializer)
     {
         if (version != VERSION) {
+            INFO_RELEASE("Error: getReaderForVersion Unsupported timer snapshot reader version: " << version);
             THROW_LOGIC_EXCEPTION("Unsupported timer snapshot reader version: " << version)
         }
         return std::make_unique<InternalTimersSnapshotReaderV2<K, N>>(

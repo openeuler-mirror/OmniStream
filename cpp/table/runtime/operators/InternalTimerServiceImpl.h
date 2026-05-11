@@ -162,11 +162,13 @@ void InternalTimerServiceImpl<K, N>::startTimerService(
             if (restoredKeySerializer != nullptr &&
                 restoredKeySerializer->getBackendId() != BackendDataType::INVALID_BK &&
                 restoredKeySerializer->getBackendId() != keySerializer->getBackendId()) {
+                INFO_RELEASE("Error: startTimerService Restored timer key serializer is incompatible with requested timer service.");
                 THROW_LOGIC_EXCEPTION("Restored timer key serializer is incompatible with requested timer service.")
             }
             if (restoredNamespaceSerializer != nullptr &&
                 restoredNamespaceSerializer->getBackendId() != BackendDataType::INVALID_BK &&
                 restoredNamespaceSerializer->getBackendId() != namespaceSerializer->getBackendId()) {
+                INFO_RELEASE("Error: startTimerService Restored timer namespace serializer is incompatible with requested timer service");
                 THROW_LOGIC_EXCEPTION("Restored timer namespace serializer is incompatible with requested timer service.")
             }
         }
@@ -268,6 +270,9 @@ void InternalTimerServiceImpl<K, N>::restoreTimersForKeyGroup(
     int32_t keyGroupId)
 {
     if (localKeyGroupRange != nullptr && !localKeyGroupRange->contains(keyGroupId)) {
+        INFO_RELEASE(
+            "Error: restoreTimersForKeyGroup Timer key-group " << keyGroupId << " is outside local key-group range "
+            << localKeyGroupRange->ToString());
         THROW_LOGIC_EXCEPTION("Timer key-group " << keyGroupId << " is outside local key-group range "
             << localKeyGroupRange->ToString())
     }

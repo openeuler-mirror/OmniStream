@@ -74,6 +74,8 @@ public:
             throw KeyGroupRangeOffsets::newIllegalKeyGroupException(keyGroupId, keyGroupRange_);
         }
         if (keyGroupRangeOffsets_.getKeyGroupOffset(keyGroupId) != NO_OFFSET_SET) {
+            INFO_RELEASE(
+                "Error: startNewKeyGroup Key group already registered in raw keyed stream, keyGroupId:" << keyGroupId);
             THROW_LOGIC_EXCEPTION("Key group already registered in raw keyed stream: " << keyGroupId)
         }
         keyGroupRangeOffsets_.setKeyGroupOffset(keyGroupId, static_cast<int64_t>(delegate_->getPos()));

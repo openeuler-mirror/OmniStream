@@ -60,12 +60,15 @@ public:
         }
         if (keyGroupPrefixBytes < 0 ||
             static_cast<size_t>(keyGroupPrefixBytes) > serializedKey.size()) {
+            INFO_RELEASE("Error: restoreSerializedElement Invalid PRIORITY_QUEUE serialized key prefix length");
             THROW_LOGIC_EXCEPTION("Invalid PRIORITY_QUEUE serialized key prefix length")
         }
         if (metaInfo_ == nullptr || metaInfo_->getElementSerializer() == nullptr) {
+            INFO_RELEASE("Error: restoreSerializedElement Priority queue element serializer is null during restore");
             THROW_LOGIC_EXCEPTION("Priority queue element serializer is null during restore")
         }
         if (heapPriorityQueueSet_ == nullptr) {
+            INFO_RELEASE("Error: restoreSerializedElement Priority queue set is null during restore");
             THROW_LOGIC_EXCEPTION("Priority queue set is null during restore")
         }
 

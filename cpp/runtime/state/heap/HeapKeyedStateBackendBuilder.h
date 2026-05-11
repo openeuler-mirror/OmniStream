@@ -251,7 +251,10 @@ HeapKeyedStateBackend<K> *HeapKeyedStateBackendBuilder<K>::build()
                     INFO_RELEASE("HeapKeyedStateBackendBuilder: skipping unsupported backend state type for state '"
                         << metaInfo.getName() << "'");
                     stateInfos.push_back({backendStateType, metaInfo.getName(), nullptr, nullptr, nullptr});
-                    continue;
+                    THROW_LOGIC_EXCEPTION("Unsupported backend state type in heap keyed state restore. state='"
+                        << metaInfo.getName()
+                        << "', kvStateId=" << i
+                        << ", backendStateType=" << static_cast<int>(backendStateType))
                 }
 
                 std::string stateTypeStr = metaInfo.getOption(

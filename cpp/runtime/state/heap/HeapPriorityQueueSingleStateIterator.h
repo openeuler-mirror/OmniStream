@@ -133,7 +133,7 @@ private:
             try {
                 entry.serializedKey = serializeKey(keyGroup, element);
             } catch (const std::exception &e) {
-                INFO_RELEASE("HeapPriorityQueueSingleStateIterator: serialize EXCEPTION at keyGroup="
+                INFO_RELEASE("Error: HeapPriorityQueueSingleStateIterator: serialize EXCEPTION at keyGroup="
                     << keyGroup << ", entryIndex=" << entryIndex << ", error=" << e.what());
                 throw;
             }
@@ -187,6 +187,7 @@ private:
     void serializeElement(const T &element, DataOutputSerializer &outputSerializer)
     {
         if (elementSerializer_ == nullptr) {
+            INFO_RELEASE("Error: serializeElement Priority queue element serializer is null");
             THROW_LOGIC_EXCEPTION("Priority queue element serializer is null")
         }
 

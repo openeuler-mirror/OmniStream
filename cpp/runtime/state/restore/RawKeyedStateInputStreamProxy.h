@@ -50,6 +50,7 @@ public:
         : omniTaskBridge_(std::move(omniTaskBridge))
     {
         if (keyGroupsStateHandle == nullptr) {
+            INFO_RELEASE("Error: RawKeyedStateInputStreamProxy Raw keyed state handle is null.");
             THROW_LOGIC_EXCEPTION("Raw keyed state handle is null.")
         }
 
@@ -61,12 +62,16 @@ public:
         }
 
         if (omniTaskBridge_ == nullptr) {
+            INFO_RELEASE(
+                "Error: RawKeyedStateInputStreamProxy Cannot restore raw keyed state without OmniTaskBridge for remote state handle.");
             THROW_LOGIC_EXCEPTION("Cannot restore raw keyed state without OmniTaskBridge for remote state handle.")
         }
 
         auto handleJson = TaskStateSnapshotSerializer::parseKeyGroupsStateHandle(keyGroupsStateHandle);
         inputStream_ = omniTaskBridge_->getSavepointInputStream(to_string(handleJson));
         if (inputStream_ == nullptr) {
+            INFO_RELEASE(
+                "Error: RawKeyedStateInputStreamProxy Failed to open raw keyed state input stream through OmniTaskBridge.");
             THROW_LOGIC_EXCEPTION("Failed to open raw keyed state input stream through OmniTaskBridge.")
         }
 
@@ -82,6 +87,7 @@ public:
     void seek(int64_t offset)
     {
         if (offset < 0 || static_cast<size_t>(offset) > data_.size()) {
+            INFO_RELEASE("Error: seek Invalid raw keyed state seek offset: " << offset << ", dataSize=" << data_.size());
             THROW_LOGIC_EXCEPTION("Invalid raw keyed state seek offset: " << offset
                 << ", dataSize=" << data_.size())
         }
@@ -130,6 +136,7 @@ public:
 
     double readDouble() override
     {
+        INFO_RELEASE("Error: Raw keyed state timer restore does not support readDouble.");
         THROW_LOGIC_EXCEPTION("Raw keyed state timer restore does not support readDouble.")
     }
 
@@ -141,6 +148,7 @@ public:
     void readFully(uint8_t *buffer, int capacity, int offset, int length) override
     {
         if (buffer == nullptr || offset < 0 || length < 0 || offset + length > capacity) {
+            INFO_RELEASE("Error: readFully Invalid readFully bounds for raw keyed state.");
             THROW_LOGIC_EXCEPTION("Invalid readFully bounds for raw keyed state.")
         }
         ensureAvailable(static_cast<size_t>(length), "readFully");
@@ -180,6 +188,8 @@ public:
     void setPosition(size_t position) override
     {
         if (position > data_.size()) {
+            INFO_RELEASE("Error: setPosition Invalid raw keyed state position: "
+                << position << ", dataSize=" << data_.size());
             THROW_LOGIC_EXCEPTION("Invalid raw keyed state position: " << position
                 << ", dataSize=" << data_.size())
         }
@@ -192,6 +202,8 @@ private:
     void ensureAvailable(size_t bytes, const std::string &operation)
     {
         if (position_ > data_.size() || bytes > data_.size() - position_) {
+            INFO_RELEASE("Error: ensureAvailable EOF while " << operation << " raw keyed state. position="
+                << position_ << ", required=" << bytes << ", dataSize=" << data_.size());
             THROW_LOGIC_EXCEPTION("EOF while " << operation << " raw keyed state. position="
                 << position_ << ", required=" << bytes << ", dataSize=" << data_.size())
         }
@@ -200,6 +212,7 @@ private:
     void loadFromFsInputStream(std::shared_ptr<FSDataInputStream> inputStream)
     {
         if (inputStream == nullptr) {
+            INFO_RELEASE("Error: loadFromFsInputStream Raw keyed state input stream is null.");
             THROW_LOGIC_EXCEPTION("Raw keyed state input stream is null.")
         }
 

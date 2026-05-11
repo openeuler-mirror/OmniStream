@@ -129,6 +129,7 @@ public:
         int keyGroupPrefixBytes)
     {
         if (target == nullptr) {
+            INFO_RELEASE("Error: drainTo Cannot drain restored priority queue entries to null target");
             THROW_LOGIC_EXCEPTION("Cannot drain restored priority queue entries to null target")
         }
 
