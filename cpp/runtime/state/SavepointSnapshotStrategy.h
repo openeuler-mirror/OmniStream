@@ -47,6 +47,7 @@ public:
                     return SnapshotResult<KeyedStateHandle>::Empty();
                 }
             };
+            return std::make_shared<EmptySnapshotResourceSupplier>();
         }
         return std::make_shared<FullSnapshotAsyncWriter>(
             SavepointType::savepoint(SavepointFormatType::CANONICAL),

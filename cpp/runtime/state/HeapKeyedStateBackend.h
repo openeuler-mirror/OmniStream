@@ -103,6 +103,10 @@ public:
                     auto stateTable = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace,
                             emhash7::HashMap<int, int> *> *>(stateTablePtr);
                     delete stateTable;
+                } else if (keyId == BackendDataType::BIGINT_BK && valueId == BackendDataType::BIGINT_BK) {
+                    auto stateTable = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace,
+                            emhash7::HashMap<int64_t, int64_t> *> *>(stateTablePtr);
+                    delete stateTable;
                 } else if (keyId == BackendDataType::ROW_BK && valueId == BackendDataType::ROW_LIST_BK) {
                     auto stateTable = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace,
                             emhash7::HashMap<RowData*, std::vector<RowData*>*> *> *>(stateTablePtr);
@@ -124,6 +128,9 @@ public:
                     delete stateTable;
                 } else if (dataId == BackendDataType::INT_BK) {
                     auto stateTable = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, int> *>(stateTablePtr);
+                    delete stateTable;
+                } else if (dataId == BackendDataType::BIGINT_BK) {
+                    auto stateTable = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, int64_t> *>(stateTablePtr);
                     delete stateTable;
                 } else if (dataId == BackendDataType::ROW_BK) {
                     auto stateTable = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, RowData *> *>(stateTablePtr);

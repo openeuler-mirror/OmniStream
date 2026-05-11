@@ -415,7 +415,6 @@ int PipelinedSubpartition::add(std::shared_ptr<BufferConsumer> bufferConsumer, i
             return -1;
         }
 
-        INFO_RELEASE("before add buffer ")
         if (addBuffer(bufferConsumer, partialRecordLength)) {
             prioritySequenceNumber = sequenceNumber;
         }
