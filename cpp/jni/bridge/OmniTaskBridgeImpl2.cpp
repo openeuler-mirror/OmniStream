@@ -815,7 +815,6 @@ std::vector<StateMetaInfoSnapshot> convertResult(const std::string& cppResult)
         }
         toReturn.push_back(StateMetaInfoSnapshot(oneSnapshot["name"].get<std::string>(), bst, tmpOptions, {}, tmpSerializers));
     }
-    INFO_RELEASE("savepoint: OmniTaskBridgeImpl2::readOperatorMetaData result len: " + std::to_string(cppResult.size()));
     INFO_RELEASE("savepoint: OmniTaskBridgeImpl2::readOperatorMetaData result count: " + std::to_string(toReturn.size()));
     return toReturn;
 }
