@@ -72,9 +72,25 @@ public:
         std::vector<StateMetaInfoSnapshot>& stateMetaInfoSnapshots)
     {
         INFO_RELEASE("xuhb_test OperatorStateRestoreOperation restore cppResult=" << cppResult)
-        INFO_RELEASE("savepoint: OperatorStateRestoreOperation::convertResult cppResult len: " + std::to_string(cppResult.size())
-            + ", snapshots count: " + std::to_string(stateMetaInfoSnapshots.size()));
+        INFO_RELEASE("savepoint: OperatorStateRestoreOperation::convertResult cppResult.len=" << cppResult.size()
+            << ", snapshots.count=" << stateMetaInfoSnapshots.size());
         nlohmann::json parsed = nlohmann::json::parse(cppResult);
+        
+        // 打印 parsed JSON 中所有的顶层 key
+        std::string parsedKeys;
+        for (auto it = parsed.begin(); it != parsed.end(); ++it) {
+            if (!parsedKeys.empty()) parsedKeys += ", ";
+            parsedKeys += it.key();
+        }
+        INFO_RELEASE("savepoint: OperatorStateRestoreOperation::convertResult parsed top-level keys: [" << parsedKeys << "]");
+        
+        // 打印 typeByteStateNames
+        std::string whitelistNames;
+        for (auto& wn : typeByteStateNames) {
+            if (!whitelistNames.empty()) whitelistNames += ", ";
+            whitelistNames += wn;
+        }
+        INFO_RELEASE("savepoint: OperatorStateRestoreOperation::convertResult typeByteStateNames: [" << whitelistNames << "]");
         
         std::string stateName;
         nlohmann::json value;
@@ -92,6 +108,8 @@ public:
                 if (typeByteStateNames.find(stateName) != typeByteStateNames.end()) {
                     auto stateMetaInfo = value["stateMetaInfo"];
                     auto name = stateMetaInfo["name"].get<std::string>();
+                    INFO_RELEASE("savepoint: OperatorStateRestoreOperation::convertResult emplace key from stateMetaInfo.name: " << name
+                        << ", snapshot.getName: " << snapshot.getName());
                     auto internalList = value["internalList"];
                     auto listState = std::make_shared<PartitionableListState<std::vector<uint8_t>>>(metaInfo);
 

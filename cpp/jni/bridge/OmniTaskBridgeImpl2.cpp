@@ -813,6 +813,8 @@ std::vector<StateMetaInfoSnapshot> convertResult(const std::string& cppResult)
         }
         toReturn.push_back(StateMetaInfoSnapshot(oneSnapshot["name"].get<std::string>(), bst, tmpOptions, {}, tmpSerializers));
     }
+    INFO_RELEASE("savepoint: OmniTaskBridgeImpl2::readOperatorMetaData result len: " + std::to_string(cppResult.size()));
+    INFO_RELEASE("savepoint: OmniTaskBridgeImpl2::readOperatorMetaData result count: " + std::to_string(toReturn.size()));
     return toReturn;
 }
 
@@ -855,6 +857,7 @@ std::vector<StateMetaInfoSnapshot> OmniTaskBridgeImpl2::readMetaData(const std::
         env->ReleaseStringUTFChars(result, strChars);
         g_OmniStreamJVM->DetachCurrentThread();
 
+        INFO_RELEASE("savepoint: OmniTaskBridgeImpl2::readOperatorMetaData result len: " + std::to_string(cppResult.size()));
         return convertResult(cppResult);
     } else {
         GErrorLog("Error: Could not get TaskStateManagerWrapper class for JNI call");
@@ -864,6 +867,8 @@ std::vector<StateMetaInfoSnapshot> OmniTaskBridgeImpl2::readMetaData(const std::
 
 std::vector<StateMetaInfoSnapshot> OmniTaskBridgeImpl2::readOperatorMetaData(const std::string &metaStateHandle)
 {
+    INFO_RELEASE("savepoint: OmniTaskBridgeImpl2::readOperatorMetaData input len: " + std::to_string(metaStateHandle.size())
+        + ", m_globalOmniTaskRef isNull: " + std::string(m_globalOmniTaskRef == nullptr ? "true" : "false"));
     JNIEnv* env;
     jint res = g_OmniStreamJVM->AttachCurrentThread(reinterpret_cast<void**>(&env), nullptr);
     if (res != JNI_OK) {
@@ -873,6 +878,7 @@ std::vector<StateMetaInfoSnapshot> OmniTaskBridgeImpl2::readOperatorMetaData(con
     if (m_globalOmniTaskRef != nullptr) {
         jclass omniTaskWrapperClass = env->GetObjectClass(m_globalOmniTaskRef);
         if (omniTaskWrapperClass == nullptr) {
+            INFO_RELEASE("Error: Could not get TaskStateManagerWrapper class for JNI call 879");
             g_OmniStreamJVM->DetachCurrentThread();
             return {};
         }
@@ -880,6 +886,7 @@ std::vector<StateMetaInfoSnapshot> OmniTaskBridgeImpl2::readOperatorMetaData(con
         jmethodID readMetaMethodId = env->GetMethodID(omniTaskWrapperClass, "readOperatorMetaData",
                                                       "(Ljava/lang/String;)Ljava/lang/String;");
         if (readMetaMethodId == nullptr) {
+            GErrorLog("Error: Could not get readOperatorMetaData method for JNI call");
             env->DeleteLocalRef(omniTaskWrapperClass); // Clean up local ref
             g_OmniStreamJVM->DetachCurrentThread();
             return {};
@@ -893,6 +900,10 @@ std::vector<StateMetaInfoSnapshot> OmniTaskBridgeImpl2::readOperatorMetaData(con
         if (env->ExceptionCheck()) {
             env->ExceptionDescribe(); // Print exception details to stderr
             env->ExceptionClear();    // Clear the exception
+            INFO_RELEASE("Error: Could not call readOperatorMetaData method for JNI call");
+            return {};
+        } else {
+            INFO_RELEASE("savepoint: OmniTaskBridgeImpl2::readOperatorMetaData result len: " + std::to_string(cppResult.size()));
         }
 
         // Convert jstring to std::string
@@ -903,13 +914,15 @@ std::vector<StateMetaInfoSnapshot> OmniTaskBridgeImpl2::readOperatorMetaData(con
 
         return convertResult(cppResult);
     } else {
-        GErrorLog("Error: Could not get TaskStateManagerWrapper class for JNI call");
+        INFO_RELEASE("Error: Could not get TaskStateManagerWrapper class for JNI call");
         return {};
     }
 }
 
 std::string OmniTaskBridgeImpl2::restoreOperatorStreamState(const std::string &stateHandle)
 {
+    INFO_RELEASE("savepoint: OmniTaskBridgeImpl2::restoreOperatorStreamState input len: " + std::to_string(stateHandle.size())
+        + ", m_globalOmniTaskRef isNull: " + std::string(m_globalOmniTaskRef == nullptr ? "true" : "false"));
     JNIEnv* env;
     jint res = g_OmniStreamJVM->AttachCurrentThread(reinterpret_cast<void**>(&env), nullptr);
     if (res != JNI_OK) {

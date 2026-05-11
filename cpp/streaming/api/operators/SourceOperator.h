@@ -154,6 +154,7 @@ public:
         INFO_RELEASE("savepoint: SourceOperator initializeState start");
         AbstractStreamOperator<void*>::initializeState(context);
         auto* stateBackend = static_cast<DefaultOperatorStateBackend*>(context->getOperatorStateBackend());
+        INFO_RELEASE("savepoint: SourceOperator initializeState SPLITS_STATE_DESC name: " << SPLITS_STATE_DESC.getName());
         auto rawState = stateBackend->template getListState<std::vector<uint8_t>>(&SPLITS_STATE_DESC);
         readerState_ = std::make_shared<SimpleVersionedListState<SplitT>>(rawState, splitSerializer);
         

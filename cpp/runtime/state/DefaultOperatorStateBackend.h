@@ -182,6 +182,16 @@ private:
         auto* operatorStateSerializer = stateDescriptor->getStateSerializer();
         auto registeredIterator = registeredOperatorStates_->find(name);
 
+        // 打印当前 registeredOperatorStates_ 中所有的 key，以及本次查询的 name
+        std::string registeredKeys;
+        for (auto& entry : *registeredOperatorStates_) {
+            if (!registeredKeys.empty()) registeredKeys += ", ";
+            registeredKeys += entry.first;
+        }
+        INFO_RELEASE("savepoint: DefaultOperatorStateBackend::getListState lookup name: " << name
+            << ", registeredOperatorStates keys: [" << registeredKeys << "]"
+            << ", total size: " << registeredOperatorStates_->size());
+
         if (registeredIterator == registeredOperatorStates_->end()) {
             auto stateMetaInfo = std::make_shared<RegisteredOperatorStateBackendMetaInfo>(name, mode, operatorStateSerializer);
             auto internalList = std::make_shared<std::vector<S>>();
