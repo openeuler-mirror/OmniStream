@@ -806,7 +806,7 @@ std::vector<StateMetaInfoSnapshot> convertResult(const std::string& cppResult)
         } else if (backendStateTypeStr == "PRIORITY_QUEUE") {
             bst = StateMetaInfoSnapshot::BackendStateType::PRIORITY_QUEUE;
         } else if (backendStateTypeStr == "OPERATOR") {
-            bst = StateMetaInfoSnapshot::BackendStateType::PRIORITY_QUEUE;
+            bst = StateMetaInfoSnapshot::BackendStateType::OPERATOR;
         }else if (backendStateTypeStr == "BROADCAST") {
             LOG("Unsupport BackendStateType.")
             continue;
