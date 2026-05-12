@@ -33,18 +33,6 @@ public:
         result.push_back(length & 0xFF);
 
         result.insert(result.end(), serialized.begin(), serialized.end());
-        std::stringstream ss;
-        ss << "SimpleVersionedSerialization::writeVersionAndSerialize | version=" << version
-            << " | length=" << length
-            << " | serialized.size()=" << serialized.size()
-            << std::endl;
-        INFO_RELEASE(ss.str());
-
-        std::stringstream dd;
-        for (auto byte : result) {
-            dd << (int)(byte) << ", ";
-        }
-        INFO_RELEASE("SimpleVersionedSerialization::writeVersionAndSerialize | bytes=[" << dd.str() << "]");
 
         return result;
     }

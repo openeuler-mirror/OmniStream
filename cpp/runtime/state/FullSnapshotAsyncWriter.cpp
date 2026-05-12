@@ -54,11 +54,11 @@ std::shared_ptr<SnapshotResult<KeyedStateHandle>> FullSnapshotAsyncWriter::get(
             stream.writeShort(mergeIterator->kvStateId());
             previousKey = mergeIterator->key();
             previousValue = mergeIterator->value();
-            INFO_RELEASE("savepoint: FullSnapshotAsyncWriter entry " << entryIdx
-                << " kg=" << mergeIterator->keyGroup()
-                << " kvId=" << mergeIterator->kvStateId()
-                << " key=" << hexStr(previousKey)
-                << " val=" << hexStr(previousValue));
+            // INFO_RELEASE("savepoint: FullSnapshotAsyncWriter entry " << entryIdx
+            //     << " kg=" << mergeIterator->keyGroup()
+            //     << " kvId=" << mergeIterator->kvStateId()
+            //     << " key=" << hexStr(previousKey)
+            //     << " val=" << hexStr(previousValue));
             entryIdx++;
             mergeIterator->next();
         }
@@ -66,12 +66,12 @@ std::shared_ptr<SnapshotResult<KeyedStateHandle>> FullSnapshotAsyncWriter::get(
             if (mergeIterator->isNewKeyGroup() || mergeIterator->isNewKeyValueState()) {
                 previousKey[0] |= FIRST_BIT_IN_BYTE_MASK;
             }
-            INFO_RELEASE("savepoint: FullSnapshotAsyncWriter entry " << entryIdx
-                << " kg=" << mergeIterator->keyGroup()
-                << " newKG=" << (mergeIterator->isNewKeyGroup() ? 1 : 0)
-                << " newKVS=" << (mergeIterator->isNewKeyValueState() ? 1 : 0)
-                << " prevKey=" << hexStr(previousKey)
-                << " prevVal=" << hexStr(previousValue));
+            // INFO_RELEASE("savepoint: FullSnapshotAsyncWriter entry " << entryIdx
+            //     << " kg=" << mergeIterator->keyGroup()
+            //     << " newKG=" << (mergeIterator->isNewKeyGroup() ? 1 : 0)
+            //     << " newKVS=" << (mergeIterator->isNewKeyValueState() ? 1 : 0)
+            //     << " prevKey=" << hexStr(previousKey)
+            //     << " prevVal=" << hexStr(previousValue));
             entryIdx++;
             stream.writeInt(previousKey.size());
             stream.writeBytes(previousKey.data(), previousKey.size());
@@ -90,9 +90,9 @@ std::shared_ptr<SnapshotResult<KeyedStateHandle>> FullSnapshotAsyncWriter::get(
         }
         if (!previousKey.empty()) {
             previousKey[0] |= FIRST_BIT_IN_BYTE_MASK;
-            INFO_RELEASE("savepoint: FullSnapshotAsyncWriter final entry " << entryIdx
-                << " prevKey=" << hexStr(previousKey)
-                << " prevVal=" << hexStr(previousValue));
+            // INFO_RELEASE("savepoint: FullSnapshotAsyncWriter final entry " << entryIdx
+            //     << " prevKey=" << hexStr(previousKey)
+            //     << " prevVal=" << hexStr(previousValue));
             stream.writeInt(previousKey.size());
             stream.writeBytes(previousKey.data(), previousKey.size());
             stream.writeInt(previousValue.size());

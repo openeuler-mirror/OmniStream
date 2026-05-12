@@ -32,17 +32,19 @@ std::vector<KafkaPartitionSplit> KafkaSourceReader::snapshotState(long checkpoin
 {
     INFO_RELEASE("savepoint: KafkaSourceReader snapshotState")
     std::vector<KafkaPartitionSplit> splits = SourceReaderBase::snapshotState(checkpointId);
-    if (!commitOffsetsOnCheckpoint_) {
-        return splits;
-    }
     for (const auto& split : splits) {
         INFO_RELEASE("savepoint: KafkaSourceReader::snapshotState 1.1 ======== split.getTopic() : " << split.getTopic() << " | split.getPartition() : " << split.getPartition() << " | split.getStartingOffset() : " << split.getStartingOffset());
     }
+    if (!commitOffsetsOnCheckpoint_) {
+        return splits;
+    }
 
     if (splits.empty() && offsetsOfFinishedSplits.empty()) {
+        INFO_RELEASE("savepoint: KafkaSourceReader::snapshotState 2.1 ======== splits.empty() && offsetsOfFinishedSplits.empty()  ");
         std::lock_guard<std::mutex> lock(mutex_);
         offsetsToCommit_[checkpointId] = std::unordered_map<std::shared_ptr<RdKafka::TopicPartition>, long>();
     } else {
+        INFO_RELEASE("savepoint: KafkaSourceReader::snapshotState 2.2  ");
         std::lock_guard<std::mutex> lock(mutex_);
         auto& offsetsMap = offsetsToCommit_[checkpointId];
 
@@ -55,10 +57,6 @@ std::vector<KafkaPartitionSplit> KafkaSourceReader::snapshotState(long checkpoin
         for (const auto& [tp, offset] : offsetsOfFinishedSplits) {
             offsetsMap[tp] = offset;
         }
-    }
-
-    for (const auto& split : splits) {
-        INFO_RELEASE("savepoint: KafkaSourceReader::snapshotState 1.2 ======== split.getTopic() : " << split.getTopic() << " | split.getPartition() : " << split.getPartition() << " | split.getStartingOffset() : " << split.getStartingOffset());
     }
     return splits;
 }
