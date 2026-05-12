@@ -45,6 +45,10 @@ KafkaWriter::KafkaWriter(DeliveryGuarantee deliveryGuarantee,
         abortLingeringTransactions(states, lastCheckpointId);
     }
 
+    for (auto state : states) {
+        INFO_RELEASE("KafkaWriter state transactionalIdPrefix=" << state.getTransactionalIdPrefix())
+    }
+
     currentProducer1 =
             std::make_shared<FlinkKafkaInternalProducer>(kafkaProducerConfig, std::to_string(lastCheckpointId + 1));
     currentProducer2 =

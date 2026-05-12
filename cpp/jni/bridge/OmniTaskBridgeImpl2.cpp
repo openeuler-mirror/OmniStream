@@ -809,8 +809,9 @@ std::vector<StateMetaInfoSnapshot> convertResult(const std::string& cppResult)
             bst = StateMetaInfoSnapshot::BackendStateType::PRIORITY_QUEUE;
         } else if (backendStateTypeStr == "OPERATOR") {
             bst = StateMetaInfoSnapshot::BackendStateType::OPERATOR;
-        }else if (backendStateTypeStr == "BROADCAST") {
-            bst = StateMetaInfoSnapshot::BackendStateType::BROADCAST;
+        } else if (backendStateTypeStr == "BROADCAST") {
+            LOG("Unsupport BackendStateType.")
+            continue;
         } else {
             throw std::runtime_error("Unknown BackendStateType.");
         }
@@ -904,14 +905,14 @@ std::vector<StateMetaInfoSnapshot> OmniTaskBridgeImpl2::readOperatorMetaData(con
             env->ExceptionClear();    // Clear the exception
             INFO_RELEASE("Error: Could not call readOperatorMetaData method for JNI call");
             return {};
-        } 
+        }
 
         // Convert jstring to std::string
         const char* strChars = env->GetStringUTFChars(result, nullptr);
         std::string cppResult(strChars);
         env->ReleaseStringUTFChars(result, strChars);
         g_OmniStreamJVM->DetachCurrentThread();
-        INFO_RELEASE("savepoint: OmniTaskBridgeImpl2 readMetaData, result=" << cppResult);
+        INFO_RELEASE("savepoint: OmniTaskBridgeImpl2 readOperatorMetaData, result=" << cppResult);
         return convertResult(cppResult);
     } else {
         INFO_RELEASE("Error: Could not get TaskStateManagerWrapper class for JNI call");
@@ -1499,6 +1500,7 @@ void OmniTaskBridgeImpl2::WriteOperatorMetaData(
 
     for (const auto& snapshot : operatorStateMetaInfoSnapshots) {
         if (snapshot == nullptr) {
+            INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::WriteOperatorMetaData 6 1 snapshot is null");
             continue;
         }
         nlohmann::json jsonObj;
@@ -1511,6 +1513,7 @@ void OmniTaskBridgeImpl2::WriteOperatorMetaData(
 
     for (const auto& snapshot : broadcastStateMetaInfoSnapshots) {
         if (snapshot == nullptr) {
+            INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::WriteOperatorMetaData 7 1 snapshot is null");
             continue;
         }
         nlohmann::json jsonObj;

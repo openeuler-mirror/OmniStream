@@ -54,7 +54,7 @@ public:
         throw std::invalid_argument("Invalid version : " + std::to_string(version));
     }
 
-    void serializeV2(const CommittableCollector<CommT>& committableCollector, DataOutputSerializer& out){
+    void serializeV2(const CommittableCollector<CommT>& committableCollector, DataOutputSerializer& out) {
         auto chkComs = committableCollector.getChkCom();
 
         std::vector<CheckpointCommittableManagerImpl<CommT>> list;
@@ -84,7 +84,7 @@ public:
 
         CheckpointSimpleVersionedSerializer<CommT> checkpointSerializer(committableSerializer_, subtaskId_, numberOfSubtasks_);
 
-        std::vector<CheckpointCommittableManagerImpl<CommT>>* list = SimpleVersionedSerialization::readVersionAndDeserializeList<CheckpointCommittableManagerImpl<CommT>>(checkpointSerializer, input);
+        auto* list = SimpleVersionedSerialization::readVersionAndDeserializeList(checkpointSerializer, input);
         INFO_RELEASE("h30082497 CommittableCollectorSerializer::deserializeV2 1 === list size : " + std::to_string(list->size()));
 
         typename CommittableCollector<CommT>::CheckpointCommittableMap checkpointCommittables;

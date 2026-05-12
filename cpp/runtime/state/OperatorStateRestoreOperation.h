@@ -39,97 +39,49 @@ public:
     
     void restore() 
     {
-        INFO_RELEASE("savepoint: OperatorStateRestoreOperation::restore stateHandles_ size: " + std::to_string(stateHandles_.size()));
         if (stateHandles_.empty()) {
-            INFO_RELEASE("savepoint: OperatorStateRestoreOperation::restore stateHandles_ is empty, skip restore");
             return;
         }
-        int handleIdx = 0;
         for (auto& stateHandle : stateHandles_) {
-            INFO_RELEASE("savepoint: OperatorStateRestoreOperation::restore handleIdx: " + std::to_string(handleIdx)
-                + ", handle ptr: " + std::to_string(reinterpret_cast<uintptr_t>(stateHandle.get())));
             auto streamStateHandle = std::dynamic_pointer_cast<OperatorStreamStateHandle>(stateHandle);
             if (streamStateHandle) {
-                INFO_RELEASE("savepoint: OperatorStateRestoreOperation::restore streamStateHandle cast OK, omniTaskBridge isNull: "
-                    + std::string(omniTaskBridge_ == nullptr ? "true" : "false"));
                 auto json = TaskStateSnapshotSerializer::parseOperatorStreamStateHandle(streamStateHandle);
                 auto stateMetaInfoSnapshots = omniTaskBridge_->readOperatorMetaData(to_string(json));
-                INFO_RELEASE("savepoint: OperatorStateRestoreOperation::restore stateMetaInfoSnapshots count: "
-                    + std::to_string(stateMetaInfoSnapshots.size()));
                 auto cppResult = omniTaskBridge_->restoreOperatorStreamState(to_string(json));
                 convertResult(cppResult, stateMetaInfoSnapshots);
-                INFO_RELEASE("savepoint: OperatorStateRestoreOperation::restore after convertResult registeredOperatorStates size: "
-                    + std::to_string(registeredOperatorStates_->size()));
-            } else {
-                INFO_RELEASE("savepoint: OperatorStateRestoreOperation::restore streamStateHandle cast FAILED, handle type: "
-                    + std::string(typeid(*stateHandle).name()));
             }
-            handleIdx++;
         }
     }
     
     void convertResult(const std::string& cppResult,
         std::vector<StateMetaInfoSnapshot>& stateMetaInfoSnapshots)
     {
-        INFO_RELEASE("xuhb_test OperatorStateRestoreOperation restore cppResult=" << cppResult)
-        INFO_RELEASE("savepoint: OperatorStateRestoreOperation::convertResult cppResult.len=" << cppResult.size()
-            << ", snapshots.count=" << stateMetaInfoSnapshots.size());
         nlohmann::json parsed = nlohmann::json::parse(cppResult);
-        
-        // 打印 parsed JSON 中所有的顶层 key
-        std::string parsedKeys;
-        for (auto it = parsed.begin(); it != parsed.end(); ++it) {
-            if (!parsedKeys.empty()) parsedKeys += ", ";
-            parsedKeys += it.key();
-        }
-        INFO_RELEASE("savepoint: OperatorStateRestoreOperation::convertResult parsed top-level keys: [" << parsedKeys << "]");
-        
-        // 打印 typeByteStateNames
-        std::string whitelistNames;
-        for (auto& wn : typeByteStateNames) {
-            if (!whitelistNames.empty()) whitelistNames += ", ";
-            whitelistNames += wn;
-        }
-        INFO_RELEASE("savepoint: OperatorStateRestoreOperation::convertResult typeByteStateNames: [" << whitelistNames << "]");
         
         std::string stateName;
         nlohmann::json value;
 
         for (auto& snapshot : stateMetaInfoSnapshots) {
-            INFO_RELEASE("savepoint: OperatorStateRestoreOperation::convertResult snapshot name: " + snapshot.getName());
             auto metaInfo = std::make_shared<RegisteredOperatorStateBackendMetaInfo>(snapshot);
             if (parsed.contains(snapshot.getName())) {
                 stateName = snapshot.getName();
                 value = parsed[stateName];
-                INFO_RELEASE("savepoint: OperatorStateRestoreOperation::convertResult found stateName in parsed: " + stateName
-                    + ", in typeByteStateNames: " + std::string(typeByteStateNames.find(stateName) != typeByteStateNames.end() ? "true" : "false"));
             
                 // 根据 stateName 判断属于什么类型的数据
                 if (typeByteStateNames.find(stateName) != typeByteStateNames.end()) {
                     auto stateMetaInfo = value["stateMetaInfo"];
                     auto name = stateMetaInfo["name"].get<std::string>();
-                    INFO_RELEASE("savepoint: OperatorStateRestoreOperation::convertResult emplace key from stateMetaInfo.name: " << name
-                        << ", snapshot.getName: " << snapshot.getName());
                     auto internalList = value["internalList"];
                     auto listState = std::make_shared<PartitionableListState<std::vector<uint8_t>>>(metaInfo);
 
-                    int itemCount = 0;
                     for (const auto& item : internalList) {
                         std::vector<uint8_t> decodedData = Base64_decode(item.get<std::string>());
                         listState->add(decodedData);
-                        itemCount++;
                     }
-                    INFO_RELEASE("savepoint: OperatorStateRestoreOperation::convertResult stateName: " + name
-                        + ", restored itemCount: " + std::to_string(itemCount));
                     registeredOperatorStates_->emplace(name, listState);
                     continue;
                 }
-                INFO_RELEASE("savepoint: OperatorStateRestoreOperation::convertResult stateName: " + stateName
-                    + " NOT in typeByteStateNames, skip");
                 // 更多类型进行判断
-            } else {
-                INFO_RELEASE("savepoint: OperatorStateRestoreOperation::convertResult snapshot name: " + snapshot.getName()
-                    + " NOT found in parsed cppResult");
             }
         }
     }

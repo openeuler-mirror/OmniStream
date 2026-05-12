@@ -77,7 +77,8 @@ private:
     static StreamOperator* CreateReduceOp(omnistream::OperatorPOD &opConfig,
                                            WatermarkGaugeExposingOutput* chainOutput, std::shared_ptr<omnistream::OmniStreamTask> task);
     static StreamOperator* CreateSinkWriterOp(omnistream::OperatorPOD &opConfig,
-    WatermarkGaugeExposingOutput* chainOutput, std::shared_ptr<omnistream::OmniStreamTask> task, ProcessingTimeService* processingTimeService);
+        WatermarkGaugeExposingOutput* chainOutput, std::shared_ptr<omnistream::OmniStreamTask> task,
+        ProcessingTimeService* processingTimeService);
 
     static StreamOperator* CreateCommitOp(omnistream::OperatorPOD& opConfig,
                                           WatermarkGaugeExposingOutput* chainOutput,

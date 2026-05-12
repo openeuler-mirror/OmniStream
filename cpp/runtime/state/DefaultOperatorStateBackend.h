@@ -57,6 +57,7 @@ public:
           registeredBroadcastStates_(registeredBroadcastStates),
           accessedStatesByName_(accessedStatesByName),
           accessedBroadcastStatesByName_(accessedBroadcastStatesByName) {
+        INFO_RELEASE("h30082497 DefaultOperatorStateBackend");
     }
 
     std::unordered_set<std::string> getRegisteredStateNames() override {
@@ -78,6 +79,7 @@ public:
     void close() {}
 
     void dispose() override {
+        INFO_RELEASE("h30082497 DefaultOperatorStateBackend dispose");
         if (!registeredOperatorStates_->empty()) {
             registeredOperatorStates_->clear();
         }

@@ -12,6 +12,7 @@
 #include "KafkaCommittableSerializer.h"
 #include "core/memory/DataInputDeserializer.h"
 #include "core/memory/DataOutputSerializer.h"
+#include "core/include/common.h"
 
 int KafkaCommittableSerializer::getVersion() const
 {
@@ -31,5 +32,6 @@ KafkaCommittable* KafkaCommittableSerializer::deserialize(int version, std::vect
     short epoch = deserializer.readUnsignedShort();
     long producerId = deserializer.readLong();
     std::string transactionalId = deserializer.readUTF();
+    INFO_RELEASE("KafkaCommittableSerializer deserialize epoch=" << epoch  <<" producerId=" << producerId << " transactionalId=" << transactionalId)
     return new KafkaCommittable(producerId, epoch, transactionalId, nullptr);
 }

@@ -19,8 +19,10 @@ void KafkaCommitter::Commit(std::vector<std::shared_ptr<CommitRequest<KafkaCommi
     for (auto& request : requests) {
         const KafkaCommittable& committable = request->GetCommittable();
         const std::string& transactionalId = committable.GetTransactionalId();
-        auto recyclable = committable.GetProducer().value().get();
-        FlinkKafkaInternalProducer *producer = recyclable->GetObject();
+        auto recyclable = committable.GetProducer().has_value() ?
+            committable.GetProducer().value() : nullptr;
+        FlinkKafkaInternalProducer *producer = recyclable ?
+            recyclable->GetObject() : GetRecoveryProducer(committable).get();
         try {
             producer->CommitTransaction();
             producer->Flush();
@@ -41,4 +43,15 @@ void KafkaCommitter::Close()
     if (recoveryProducer) {
         recoveryProducer->Close();
     }
+}
+
+std::shared_ptr<FlinkKafkaInternalProducer> KafkaCommitter::GetRecoveryProducer(KafkaCommittable committable)
+{
+    if (recoveryProducer == nullptr) {
+        recoveryProducer = std::make_shared<FlinkKafkaInternalProducer>(kafkaProducerConfig, committable.GetTransactionalId());
+    } else {
+        recoveryProducer->setTransactionId(committable.GetTransactionalId());
+    }
+    recoveryProducer->resumeTransaction(committable.GetProducerId(), committable.GetEpoch());
+    return recoveryProducer;
 }

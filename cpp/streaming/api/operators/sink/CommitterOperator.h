@@ -47,8 +47,12 @@ class CommitterOperator : public OneInputStreamOperator, public AbstractStreamOp
 public:
     static constexpr long RETRY_DELAY = 1000;
 
-    CommitterOperator(ProcessingTimeService *processingTimeService, bool isBatchMode, bool isCheckpointingEnabled)
-        : OneInputStreamOperator(), AbstractStreamOperator<void*>(), isBatchMode(isBatchMode), isCheckpointingEnabled(isCheckpointingEnabled) {
+    CommitterOperator(
+        ProcessingTimeService *processingTimeService,
+        bool isBatchMode,
+        bool isCheckpointingEnabled)
+        : isBatchMode(isBatchMode),
+          isCheckpointingEnabled(isCheckpointingEnabled) {
         INFO_RELEASE("savepoint: CommitterOperator constructor with processingTimeService");
         setProcessingTimeService(processingTimeService);
         isDataStream = false;
@@ -63,9 +67,7 @@ public:
             bool emitDownstream,
             bool isBatchMode,
             bool isCheckpointingEnabled)
-        : OneInputStreamOperator(),
-          AbstractStreamOperator<void*>(),
-          emitDownstream(emitDownstream),
+        : emitDownstream(emitDownstream),
           isBatchMode(isBatchMode),
           isCheckpointingEnabled(isCheckpointingEnabled) {
         INFO_RELEASE("savepoint: CommitterOperator constructor");
@@ -77,9 +79,7 @@ public:
     }
 
     explicit CommitterOperator(bool isBatch)
-        : OneInputStreamOperator(),
-          AbstractStreamOperator<void*>(),
-          isDataStream(!isBatch) {
+        : isDataStream(!isBatch) {
         INFO_RELEASE("savepoint: CommitterOperator constructor isBatch: "<< isBatch);
         endOfInput = false;
         isBatchMode = false;
@@ -100,6 +100,7 @@ public:
 
     void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) override {
         INFO_RELEASE("savepoint: CommitterOperator initializeState with initializer");
+        AbstractStreamOperator<void*>::SetOperatorID(OneInputStreamOperator::GetOperatorID().toString());
         AbstractStreamOperator<void*>::initializeState(initializer, keySerializer);
     }
 
@@ -110,10 +111,12 @@ public:
         auto* stateBackend = static_cast<DefaultOperatorStateBackend*>(context->getOperatorStateBackend());
         if (stateBackend != nullptr && committableSerializer != nullptr) {
             auto rawState = stateBackend->getListState<std::vector<uint8_t>>(&STREAMING_COMMITTER_RAW_STATES_DESC);
-            auto committableCollectorSerializer = std::make_shared<CommittableCollectorSerializer<CommT>>(committableSerializer,
-                                                                                                          getRuntimeContext()->getIndexOfThisSubtask(),
-                                                                                                          getRuntimeContext()->getNumberOfParallelSubtasks());
-            committableCollectorState_ = std::make_shared<SimpleVersionedListState<CommittableCollector<CommT>>>(rawState, committableCollectorSerializer);
+            auto committableCollectorSerializer = std::make_shared<CommittableCollectorSerializer<CommT>>(
+                committableSerializer,
+                getRuntimeContext()->getIndexOfThisSubtask(),
+                getRuntimeContext()->getNumberOfParallelSubtasks());
+            committableCollectorState_ = std::make_shared<SimpleVersionedListState<CommittableCollector<CommT>>>(
+                rawState, committableCollectorSerializer);
         }
 
         if (context->isRestored()) {
@@ -233,8 +236,7 @@ public:
         auto kafkaCommittableSerializer = std::shared_ptr<KafkaCommittableSerializer>(kafkaSink_->getCommittableSerializer());
         committableSerializer = std::dynamic_pointer_cast<SimpleVersionedSerializer<CommT>>(kafkaCommittableSerializer);
 
-        auto committer_ = std::shared_ptr<Committer<CommT>>(kafkaSink_->CreateCommitter());
-        committer = std::dynamic_pointer_cast<Committer<CommT>>(committer_);
+        committer = std::shared_ptr<Committer<CommT>>(kafkaSink_->CreateCommitter());
 
         emitDownstream = false;
     }

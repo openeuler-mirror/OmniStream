@@ -29,6 +29,7 @@ public:
 private:
     RdKafka::Conf* kafkaProducerConfig;
     std::shared_ptr<FlinkKafkaInternalProducer> recoveryProducer;
+    std::shared_ptr<FlinkKafkaInternalProducer> GetRecoveryProducer(KafkaCommittable committable);
 };
 
 #endif // OMNIFLINK_KAFKACOMMITTER_H

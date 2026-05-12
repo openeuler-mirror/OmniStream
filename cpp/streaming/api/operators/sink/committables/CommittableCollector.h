@@ -101,7 +101,15 @@ public:
     void Merge(const CommittableCollector<CommT>& cc)
     {
         for (const auto& entry : cc.checkpointCommittables) {
-            checkpointCommittables.insert({entry.first, entry.second});
+            long checkpointId = entry.first;
+            const auto& otherManager = entry.second;
+            
+            auto it = checkpointCommittables.find(checkpointId);
+            if (it != checkpointCommittables.end()) {
+                it->second->Merge(*otherManager);
+            } else {
+                checkpointCommittables[checkpointId] = otherManager;
+            }
         }
     }
 
@@ -119,7 +127,8 @@ public:
     {
         CheckpointCommittableMap newCheckpointCommittables;
         for (const auto& entry : checkpointCommittables) {
-            newCheckpointCommittables[entry.first] = std::make_shared<CheckpointCommittableManagerImpl<CommT>>(entry.second->Copy());
+            newCheckpointCommittables[entry.first] =
+                std::make_shared<CheckpointCommittableManagerImpl<CommT>>(entry.second->Copy());
         }
         return CommittableCollector<CommT>(newCheckpointCommittables, subtaskId, numberOfSubtasks);
     }

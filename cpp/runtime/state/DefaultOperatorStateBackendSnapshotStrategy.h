@@ -43,6 +43,7 @@ public:
         std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> registeredBroadcastStates)
         : registeredOperatorStates_(registeredOperatorStates),
           registeredBroadcastStates_(registeredBroadcastStates) {
+            INFO_RELEASE("h30082497 DefaultOperatorStateBackendSnapshotStrategy");
     }
 
     ~DefaultOperatorStateBackendSnapshotStrategy() = default;
