@@ -13,36 +13,35 @@
 #define MAILBOX_PROCESSOR_H
 
 #include <memory>
+#include <utility>
 #include <vector>
-#include <optional>
 #include <string>
-#include <sstream>
 #include "TaskMailbox.h"
 #include "MailboxDefaultAction.h"
 #include "StreamTaskActionExecutor.h"
-#include "Mail.h"
 #include "MailboxExecutor.h"
 #include "PeriodTimer.h"
 
 
 namespace omnistream {
-    class MailboxProcessor : public std::enable_shared_from_this<MailboxProcessor> {
+    class MailboxProcessor {
     public:
         MailboxProcessor();
-        explicit MailboxProcessor(std::shared_ptr<MailboxDefaultAction> mailboxDefaultAction);
-        MailboxProcessor(std::shared_ptr<MailboxDefaultAction> mailboxDefaultAction,
+        explicit MailboxProcessor(std::unique_ptr<MailboxDefaultAction> mailboxDefaultAction);
+        MailboxProcessor(std::unique_ptr<MailboxDefaultAction> mailboxDefaultAction,
                          std::shared_ptr<StreamTaskActionExecutor> actionExecutor);
-        MailboxProcessor(std::shared_ptr<MailboxDefaultAction> mailboxDefaultAction,
-                         std::shared_ptr<TaskMailbox> mailbox,
+        MailboxProcessor(std::unique_ptr<MailboxDefaultAction> mailboxDefaultAction,
+                         TaskMailbox* mailbox,
                          std::shared_ptr<StreamTaskActionExecutor> actionExecutor);
         ~MailboxProcessor();
 
         std::shared_ptr<MailboxExecutor> getMainMailboxExecutor();
         std::shared_ptr<MailboxExecutor> getMailboxExecutor(int priority);
 
-        void prepareClose();
+        inline void prepareClose();
         void close();
-        void drain() ;
+        inline void drain();
+
         void runMailboxLoop() ;
         void suspend();
         bool runMailboxStep() ;
@@ -50,7 +49,9 @@ namespace omnistream {
         void reportThrowable(std::exception_ptr throwable);
         void allActionsCompleted();
 
-        bool isDefaultActionAvailable();
+        bool isDefaultActionAvailable() {
+            return suspendedDefaultAction == nullptr;
+        }
         bool isMailboxLoopRunning();
         bool hasMail();
 
@@ -60,36 +61,38 @@ namespace omnistream {
         void sendPoisonMail(std::shared_ptr<ThrowingRunnable> mail,  const std::string& descriptionFormat);
         void sendControlMail(std::shared_ptr<ThrowingRunnable> mail, const std::string& descriptionFormat,
                              const std::vector<std::string>& descriptionArgs = {});
-        bool processMail(std::shared_ptr<TaskMailbox> mailbox, bool singleStep) ;
+        bool processMail(TaskMailbox* mailbox, bool singleStep) ;
         bool processMailsWhenDefaultActionUnavailable() ;
         bool processMailsNonBlocking(bool singleStep) ;
         void maybePauseIdleTimer();
         void maybeRestartIdleTimer();
         std::shared_ptr<MailboxDefaultAction::Suspension> suspendDefaultAction(
             std::shared_ptr<PeriodTimer> suspensionTimer);
-        bool isNextLoopPossible();
+        bool isNextLoopPossible() const {
+            return !suspended;
+        }
 
         class DefaultActionSuspension : public MailboxDefaultAction::Suspension {
         public:
-            explicit DefaultActionSuspension(std::shared_ptr<PeriodTimer> suspensionTimer) : suspensionTimer(
-                suspensionTimer) {
-            };
-            ~DefaultActionSuspension() override;
+            explicit DefaultActionSuspension(MailboxProcessor* mailboxProcessor, std::shared_ptr<PeriodTimer> suspensionTimer) :
+                mailboxProcessor_(mailboxProcessor), suspensionTimer_(std::move(suspensionTimer)) {}
+
             void resume() override;
             std::shared_ptr<PeriodTimer> getSuspensionTimer()
             {
-                return suspensionTimer;
+                return suspensionTimer_;
             };
 
         private:
-            void resumeInternal() {};
-            std::shared_ptr<PeriodTimer> suspensionTimer;
+            MailboxProcessor* mailboxProcessor_;
+            std::shared_ptr<PeriodTimer> suspensionTimer_;
+
         };
 
         class lambdaHelper {
         public:
-            explicit lambdaHelper(std::shared_ptr<MailboxProcessor> mailbox_processor) :processor_(mailbox_processor){};
-            std::shared_ptr<MailboxProcessor> processor_;
+            explicit lambdaHelper(MailboxProcessor* mailbox_processor) :processor_(mailbox_processor){};
+            MailboxProcessor* processor_;
             void suspended(bool suspended)
             {
                 processor_->suspended = suspended;
@@ -100,20 +103,24 @@ namespace omnistream {
                 processor_->mailboxLoopRunning = mailboxLoopRunning;
             }
 
-            std::shared_ptr<TaskMailbox> getMailbox()
+            void resume() {
+                processor_->suspendedDefaultAction = nullptr;
+            }
+
+            TaskMailbox* getMailbox()
             {
                 return processor_->mailbox_;
             }
 
-            std::shared_ptr<MailboxProcessor> getOwner()
+            MailboxProcessor* getOwner()
             {
                 return processor_;
             }
         };
     private:
         // inner class forward declaration
-        std::shared_ptr<TaskMailbox> mailbox_;
-        std::shared_ptr<MailboxDefaultAction> mailboxDefaultAction;
+        TaskMailbox* mailbox_ = nullptr;
+        std::unique_ptr<MailboxDefaultAction> mailboxDefaultAction;
         bool suspended;
         bool mailboxLoopRunning;
         std::shared_ptr<DefaultActionSuspension> suspendedDefaultAction;

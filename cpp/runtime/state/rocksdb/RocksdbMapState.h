@@ -23,6 +23,9 @@
 #include "runtime/state/RocksDbKvStateInfo.h"
 #include "RocksdbMapStateTable.h"
 #include "state/RocksDbKvStateInfo.h"
+#include "state/RocksIteratorWrapper.h"
+#include "state/RocksDBWriteBatchWrapper.h"
+#include "RocksDbOperationUtils.h"
 
 // The state is a map. in the InternalKvState, the state is stored as a pointer to emhash7
 template<typename K, typename N, typename UK, typename UV>
@@ -53,7 +56,10 @@ public:
     void put(const UK &userKey, const UV &userValue) override;
     void putByBatch(const K &key,const std::unordered_map<UK,UV> &dataToAdd);
     void putByBatch(std::unordered_map<K,std::unordered_map<UK,UV>> &dataToAdd);
+    void putByBatch(std::unordered_map<K, std::vector<std::tuple<UK, UV>>> &dataToAdd);
     void putByBatch(std::vector<std::shared_ptr<std::tuple<K,UK,std::shared_ptr<std::string>>>> &dataToAdd);
+    void putByBatch(std::vector<std::shared_ptr<std::tuple<K,UK,UV>>> &dataToAdd);
+    void putByBatch(std::vector<std::tuple<K,UK,UV>> &dataToAdd);
 
     void remove(const UK &userKey) override;
     void removeByBatch(std::unordered_map<K,std::unordered_set<UK>> &dataToRemove);
@@ -64,7 +70,7 @@ public:
 
     void setCurrentNamespace(N nameSpace) override;
 
-    void clear() override {};
+    void clear() override;
     void clearEntriesCache();
     static RocksdbMapState<K, N, UK, UV> *
     create(StateDescriptor *stateDesc, RocksdbMapStateTable<K, N, UK, UV> *stateTable,
@@ -89,13 +95,50 @@ public:
                      std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>> *kvStateInformation);
     std::shared_ptr<std::string> getRawBytes(UK& uk);
 
+    void setMaxParallelism(const int32_t maxParallelism) {
+        maxParallelism_ = maxParallelism;
+    }
+
 private:
     RocksdbMapStateTable<K, N, UK, UV> *stateTable;
     TypeSerializer *keySerializer;
     TypeSerializer *valueSerializer;
     TypeSerializer *namespaceSerializer;
     N currentNamespace;
+    int32_t maxParallelism_;
 };
+
+template<typename K, typename N, typename UK, typename UV>
+void RocksdbMapState<K, N, UK, UV>::clear() {
+    std::unique_ptr<RocksIteratorWrapper> iterator = RocksDbOperationUtils::getRocksIterator(
+                    stateTable->getRocksDB(), stateTable->getColumnFamily(), stateTable->getReadOptions());
+
+    auto batchSizeObj = reinterpret_cast<String*>(Configuration::TM_CONFIG->getValue(RocksDBConfigurableOptions::WRITE_BATCH_SIZE));
+    auto batchSize = MemorySize::parseBytes(batchSizeObj->getData());
+    if (batchSizeObj != nullptr) {
+        delete batchSizeObj;
+    }
+    RocksDBWriteBatchWrapper rocksDBWriteBatchWrapper(
+            stateTable->getRocksDB(),
+            std::shared_ptr<rocksdb::WriteOptions>(stateTable->getWriteOptions()),
+            500,
+            batchSize);
+    DataOutputSerializer outputSerializer;
+    OutputBufferStatus outputBufferStatus;
+    outputSerializer.setBackendBuffer(&outputBufferStatus);
+    ROCKSDB_NAMESPACE::Slice keyPrefixBytes = stateTable->GetKeyNameSpaceSlice(outputSerializer, currentNamespace);
+    iterator->seek(keyPrefixBytes);
+
+    while (iterator->isValid()) {
+        ROCKSDB_NAMESPACE::Slice keyBytes = iterator->key();
+        if (keyBytes.starts_with(keyPrefixBytes)) {
+            rocksDBWriteBatchWrapper.Delete(stateTable->getColumnFamily(), keyBytes);
+        } else {
+            break;
+        }
+        iterator->next();
+    }
+}
 
 template<typename K, typename N, typename UK, typename UV>
 emhash7::HashMap<UK, UV> *RocksdbMapState<K, N, UK, UV>::entries()
@@ -113,7 +156,7 @@ template<typename K, typename N, typename UK, typename UV>
 java_util_Iterator* RocksdbMapState<K, N, UK, UV>::iterator()
 {
     if constexpr (std::is_same_v<UK, Object*> && std::is_same_v<UV, Object*>) {
-        return stateTable->iterator();
+        return stateTable->iterator(currentNamespace);
     } else {
         THROW_LOGIC_EXCEPTION("type is not Object in RocksdbMapState::iterator()")
     }
@@ -165,7 +208,7 @@ void RocksdbMapState<K, N, UK, UV>::GetByBatch(std::unordered_map<K,std::unorder
     if (stateTable == nullptr) {
         throw std::runtime_error("RocksdbMapStateTable is not initialized.");
     }
-    stateTable->GetByBatch(dataToGet,result);
+    stateTable->GetByBatch(currentNamespace, dataToGet,result);
 }
 
 template<typename K, typename N, typename UK, typename UV>
@@ -190,20 +233,38 @@ void RocksdbMapState<K, N, UK, UV>::put(const UK &userKey, const UV &userValue)
 template<typename K, typename N, typename UK, typename UV>
 void RocksdbMapState<K, N, UK, UV>::putByBatch(const K &key,const std::unordered_map<UK,UV> &dataToAdd)
 {
-    stateTable->putByBatch(key, dataToAdd);
+    stateTable->putByBatch(currentNamespace, key, dataToAdd);
 }
 
 
 template<typename K, typename N, typename UK, typename UV>
 void RocksdbMapState<K, N, UK, UV>::putByBatch(std::unordered_map<K,std::unordered_map<UK,UV>> &dataToAdd)
 {
-    stateTable->putByBatch(dataToAdd);
+    stateTable->putByBatch(currentNamespace, dataToAdd);
+}
+
+template<typename K, typename N, typename UK, typename UV>
+void RocksdbMapState<K, N, UK, UV>::putByBatch(std::unordered_map<K, std::vector<std::tuple<UK, UV>>> &dataToAdd)
+{
+    stateTable->putByBatch(currentNamespace,dataToAdd);
 }
 
 template<typename K, typename N, typename UK, typename UV>
 void RocksdbMapState<K, N, UK, UV>::putByBatch(std::vector<std::shared_ptr<std::tuple<K,UK,std::shared_ptr<std::string>>>> &dataToAdd)
 {
-    stateTable->putByBatch(dataToAdd);
+    stateTable->putByBatch(currentNamespace, dataToAdd);
+}
+
+template<typename K, typename N, typename UK, typename UV>
+void RocksdbMapState<K, N, UK, UV>::putByBatch(std::vector<std::shared_ptr<std::tuple<K,UK,UV>>> &dataToAdd)
+{
+    stateTable->putByBatch(currentNamespace,dataToAdd);
+}
+
+template<typename K, typename N, typename UK, typename UV>
+void RocksdbMapState<K, N, UK, UV>::putByBatch(std::vector<std::tuple<K,UK,UV>> &dataToAdd)
+{
+    stateTable->putByBatch(currentNamespace,dataToAdd);
 }
 
 template<typename K, typename N, typename UK, typename UV>
@@ -214,12 +275,12 @@ void RocksdbMapState<K, N, UK, UV>::remove(const UK &userKey)
 template<typename K, typename N, typename UK, typename UV>
 void RocksdbMapState<K, N, UK, UV>::removeByBatch(std::unordered_map<K,std::unordered_set<UK>> &dataToRemove)
 {
-    stateTable->removeByBatch(dataToRemove);
+    stateTable->removeByBatch(currentNamespace, dataToRemove);
 }
 template<typename K, typename N, typename UK, typename UV>
 bool RocksdbMapState<K, N, UK, UV>::contains(const UK &userKey)
 {
-    return stateTable->contains(userKey);
+    return stateTable->contains(currentNamespace, userKey);
 }
 
 template <typename K, typename N, typename UK, typename UV>

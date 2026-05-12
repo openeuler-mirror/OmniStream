@@ -28,6 +28,7 @@
 #include "table/typeutils/RowDataSerializer.h"
 #include "streaming/api/operators/TimerHeapInternalTimer.h"
 #include "runtime/state/HeapKeyedStateBackend.h"
+#include "state/internal/InternalValueState.h"
 #include "table/runtime/operators/aggregate/handler/GroupingWindowAggsCountHandler.h"
 #include "table/runtime/operators/aggregate/handler/GroupingOnlyWindowHandler.h"
 #include "table/runtime/generated/NamespaceAggsHandleFunction.h"
@@ -77,6 +78,7 @@ public:
             throw std::runtime_error("Unsupported aggregate type: " + aggTypeStr);
         }
         windowAggregator = globalFunction;
+        // TODO: There should be different serializer for different window operator
         windowSerializer = new TimeWindow::Serializer();
     }
 
@@ -116,7 +118,7 @@ public:
     void ProcessWatermark(Watermark *watermark) override
     {
         if (AbstractStreamOperator<K>::timeServiceManager != nullptr) {
-            AbstractStreamOperator<K>::timeServiceManager->template advanceWatermark<TimeWindow>(watermark);
+            AbstractStreamOperator<K>::timeServiceManager->advanceWatermark(watermark);
         }
         AbstractStreamOperator<K>::output->emitWatermark(watermark);
     }
@@ -275,6 +277,7 @@ public:
             {
                 outerOpertor->triggerContext->window = newWindow;
                 outerOpertor->triggerContext->mergedWindows = mergedWindows;
+                outerOpertor->triggerContext->OnMerge();
             }
 
     private:
@@ -290,7 +293,7 @@ public:
     std::vector<std::string> keyedTypes;
     std::vector<int32_t> keyedIndex;
     int accumulatorArity = 0;
-    HeapValueState<RowData *, TimeWindow, RowData *> *windowState;
+    InternalValueState<RowData *, TimeWindow, RowData *> *windowState;
     InternalWindowProcessFunction<K, W> *windowFunction;
     InternalTimerService<W> *internalTimerService;
     NamespaceAggsHandleFunctionBase<W> *windowAggregator;

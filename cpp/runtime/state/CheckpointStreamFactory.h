@@ -25,12 +25,13 @@ public:
     virtual void Flush() = 0;
     virtual void Sync() = 0;
     virtual void Close() = 0;
+    virtual void Write(const void *data, size_t length) = 0;
     virtual ~FSDataOutputStream() = default;
 };
 
 class CheckpointStateOutputStream : public FSDataOutputStream {
 public:
-    virtual StreamStateHandle *CloseAndGetHandle() = 0;
+    virtual std::shared_ptr<StreamStateHandle> CloseAndGetHandle() = 0;
     void Close() override = 0;
 };
 

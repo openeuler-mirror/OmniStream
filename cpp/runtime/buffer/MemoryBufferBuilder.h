@@ -19,26 +19,35 @@
 #include "NetworkBuffer.h"
 #include "BufferBuilder.h"
 #include "MemoryBufferConsumer.h"
+#include "api/common/TimerThreadPool.h"
 
-namespace datastream {
+namespace omnistream::datastream {
 
-
+// check
 class MemoryBufferBuilder : public BufferBuilder {
 public:
-    MemoryBufferBuilder(std::shared_ptr<MemorySegment> memorySegment, std::shared_ptr<BufferRecycler> recycler);
-    ~MemoryBufferBuilder() override = default;
+    MemoryBufferBuilder(MemorySegment *memorySegment, std::shared_ptr<BufferRecycler> recycler);
+    // delete in BufferWritingResultPartition
+    ~MemoryBufferBuilder() override;
 
-    int append(void *source) override;
+    int appendAndCommit(void* source) override;
 
-    using BufferBuilder::createBufferConsumer;
+    int append(void *source);
+
+    int appendRawBytes(const uint8_t* source, int length);
+
+    // using BufferBuilder::createBufferConsumer;
     std::shared_ptr<BufferConsumer> createBufferConsumerFromBeginning() override;
     std::shared_ptr<BufferConsumer> createBufferConsumer(int currentReaderPosition) override;
 
     std::string toString() override;
+    Segment* GetSegment() override;
 
 private:
-    std::shared_ptr<MemorySegment> memorySegment;
-    bool bufferConsumerCreated;
+    MemorySegment *memorySegment;
+    int commitCount = 0;
+    TimerThreadPool::TaskId taskId;
+    const int MAX_COMMIT_COUNT = 1000;
 };
 
 }

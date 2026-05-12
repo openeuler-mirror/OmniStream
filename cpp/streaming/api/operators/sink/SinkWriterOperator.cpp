@@ -68,14 +68,15 @@ void SinkWriterOperator::processBatch(StreamRecord *record)
     if (record->hasExternalRow()) {
         Row *row_input = reinterpret_cast<Row *>(record->getValue());
         sinkWriter->write(row_input);
+        delete row_input;
     } else {
         // vectorbatch convert to rowdata
         omnistream::VectorBatch *input = reinterpret_cast<omnistream::VectorBatch *>(record->getValue());
         int rowCount = input->GetRowCount();
         for (int row = 0; row < rowCount; ++row) {
-            RowData *currentRow = getOutputEntireRow(input, row);
-            sinkWriter->write(currentRow);
+            sinkWriter->write(input,row);
         }
+        delete input;
     }
 }
 

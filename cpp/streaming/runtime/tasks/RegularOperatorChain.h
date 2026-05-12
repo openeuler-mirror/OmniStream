@@ -18,10 +18,12 @@
 namespace omnistream {
     class RegularOperatorChain : public OperatorChainV2 {
     public:
-            RegularOperatorChain(const std::weak_ptr<OmniStreamTask> &containingTask,
-                std::shared_ptr<RecordWriterDelegateV2> recordWriterDelegate)
-                : OperatorChainV2(containingTask, recordWriterDelegate) {
-            }
+        RegularOperatorChain(const std::weak_ptr<OmniStreamTask> &containingTask,
+            std::shared_ptr<RecordWriterDelegateV2> recordWriterDelegate)
+            : OperatorChainV2(containingTask, recordWriterDelegate) {
+        }
+
+        void CloseAllOperators() override;
     };
 }
 #endif // REGULAROPERATORCHAIN_H

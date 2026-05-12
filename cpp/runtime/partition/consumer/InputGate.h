@@ -25,20 +25,25 @@
 #include "InputChannel.h"
 
 #include "InputChannelInfo.h"
+#include "partition/ChannelStateHolder.h"
 #include <event/TaskEvent.h>
+#include "core/utils/threads/CompletableFutureV2.h"
 
-
+// check
 namespace omnistream {
 
-class InputGate : public PullingAsyncDataInput<BufferOrEvent> {
+class InputGate : public PullingAsyncDataInput<BufferOrEvent>, public ChannelStateHolder {
 public:
+    InputGate() = default;
     virtual ~InputGate() = default;
+
+    void setChannelStateWriter(std::shared_ptr<ChannelStateWriter> channelStateWriter) override;
 
     virtual int GetNumberOfInputChannels() = 0;
     virtual bool IsFinished() = 0;
     virtual bool HasReceivedEndOfData() = 0;
-    virtual  std::optional<std::shared_ptr<BufferOrEvent>> GetNext() = 0;
-    std::optional<std::shared_ptr<BufferOrEvent>> PollNext() override = 0;
+    virtual BufferOrEvent* GetNext() = 0;
+    // BufferOrEvent* PollNext() override = 0;
     virtual void sendTaskEvent(const std::shared_ptr<TaskEvent>& event) = 0;
 
     std::shared_ptr<CompletableFuture> GetAvailableFuture() override;
@@ -54,7 +59,8 @@ public:
 
     virtual void setup() = 0;
     virtual void RequestPartitions() = 0;
-    virtual std::shared_ptr<CompletableFuture> getStateConsumedFuture() = 0;
+    virtual std::shared_ptr<CompletableFutureV2<void>> getStateConsumedFuture() = 0;
+    virtual std::vector<bool> getStateConsumedFuture1() = 0;
     virtual void FinishReadRecoveredState() = 0;
 
 protected:

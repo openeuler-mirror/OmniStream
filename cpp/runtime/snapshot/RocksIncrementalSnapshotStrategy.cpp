@@ -47,7 +47,8 @@ std::shared_ptr<SnapshotResultSupplier<KeyedStateHandle>> RocksIncrementalSnapsh
     long checkpointId,
     long timestamp,
     CheckpointStreamFactory* checkpointStreamFactory,
-    CheckpointOptions* checkpointOptions)
+    CheckpointOptions* checkpointOptions,
+    std::string keySerializer)
 {
     auto rocksdbSnapshotResources = static_cast<NativeRocksDBSnapshotResources*>(snapshotResources.get());
 
@@ -78,7 +79,9 @@ std::shared_ptr<SnapshotResultSupplier<KeyedStateHandle>> RocksIncrementalSnapsh
             snapshotDirectory,
             previousSnapshot,
             sharingStrategy,
-            stateMetaInfoSnapshots);
+            stateMetaInfoSnapshots,
+            checkpointOptions,
+            keySerializer_);
 }
 
 void RocksIncrementalSnapshotStrategy::notifyCheckpointComplete(long completedCheckpointId)
@@ -137,15 +140,19 @@ RocksIncrementalSnapshotStrategy::RocksDBIncrementalSnapshotOperation::RocksDBIn
     std::shared_ptr<SnapshotDirectory> localBackupDirectory,
     std::shared_ptr<PreviousSnapshot> previousSnapshot,
     SnapshotType::SharingFilesStrategy sharingFilesStrategy,
-    std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& stateMetaInfoSnapshots)
+    std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& stateMetaInfoSnapshots,
+    CheckpointOptions *checkpointOptions,
+    std::shared_ptr<TypeSerializer> keySerializer)
     : RocksDBSnapshotOperation(
     checkpointId,
     checkpointStreamFactory,
     localBackupDirectory,
-    stateMetaInfoSnapshots),
+    stateMetaInfoSnapshots,
+    keySerializer),
     parent_(parent),
     previousSnapshot_(previousSnapshot),
-    sharingFilesStrategy_(sharingFilesStrategy) {}
+    sharingFilesStrategy_(sharingFilesStrategy),
+    checkpointOptions_(checkpointOptions) {}
 
 std::shared_ptr<SnapshotResult<KeyedStateHandle>> RocksIncrementalSnapshotStrategy::RocksDBIncrementalSnapshotOperation::get(
     std::shared_ptr<omnistream::OmniTaskBridge> bridge)
@@ -160,7 +167,9 @@ std::shared_ptr<SnapshotResult<KeyedStateHandle>> RocksIncrementalSnapshotStrate
         metaStateHandle = parent_->materializeMetaData(
             stateMetaInfoSnapshots,
             checkpointId,
-            bridge);
+            checkpointOptions_,
+            bridge,
+            keySerializer->toJson());
 
         // 2. 上传文件
         long uploadedSize = uploadSnapshotFiles(

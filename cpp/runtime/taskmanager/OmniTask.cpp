@@ -63,7 +63,7 @@ namespace omnistream {
         LOG_INFO_IMP(">>>> Task Init")
         LOG_INFO_IMP(">>>> Shuffle Env address" << reinterpret_cast<long>(shuffleEnv_.get()))
 
-        this->taskNameWithSubtask_ = taskInfo.getTaskName(); // need to be confirrm
+        this->taskNameWithSubtask_ = taskInfo.getTaskName() + "#" + std::to_string(taskInfo.getIndexOfSubtask());
         this->executionId_ = ExecutionAttemptIDPOD();        // need to be know where to get it.
         this->allocationId_ = AbstractIDPOD();               //// need to be know where to get it.
         this->taskType = taskInfo.GetTaskType();
@@ -102,9 +102,8 @@ namespace omnistream {
         for (auto &gate : this->inputGates) {
             input_gates.push_back(gate);
         }
-        auto self = std::shared_ptr<OmniTask>(this);
         runtimeEnv = std::make_shared<RuntimeEnvironmentV2>(shuffleEnv_, taskInfo_, jobInfo_, taskPlainInfo,
-            executionId_, writers, input_gates, self, taskMetricGroup, taskStateManagerBridge_,
+            executionId_, writers, input_gates, this, taskMetricGroup, taskStateManagerBridge_,
             taskOperatorEventGatewayBridge_, omni_task_bridge, taskDeploymentDescriptor_);
 
         // only for datastream to bind core
@@ -122,7 +121,9 @@ namespace omnistream {
     {
         if (invokable_ != nullptr) {
             invokable_->cancel();
-            invokable_->input_processor()->close();
+            if (invokable_->input_processor() != nullptr) {
+                invokable_->input_processor()->close();
+            }
         }
     }
 
@@ -183,7 +184,7 @@ namespace omnistream {
 
     void OmniTask::DoRunRestore(long streamTaskAddress)
     {
-        INFO_RELEASE(" doRun starting: " << taskNameWithSubtask_)
+        INFO_RELEASE(" DoRunRestore starting: " << taskNameWithSubtask_)
 
         LOG_INFO_IMP("doRun.... ")
         LOG("now oper is :" << taskNameWithSubtask_)
@@ -192,8 +193,12 @@ namespace omnistream {
         setupPartitionsAndGates(consumableNotifyingPartitionWriters, inputGates);
 
         try {
-            LOG_INFO_IMP("Invokable restore")
+            INFO_RELEASE(" OmniTask::DoRunRestore Invokable restore before")
             this->invokable_->restore();
+            INFO_RELEASE(" OmniTask::DoRunRestore Invokable restore after")
+            flag.store(true);
+            INFO_RELEASE("find OmniTask initialized, task name: " << taskNameWithSubtask_)
+
             // init remote fetcher here because, the channels have been created and restored
             if (remoteDataFetcherBridge_ != nullptr) {
                 remoteDataFetcherBridge_->InitCppRemoteInputChannel(this->inputGates);
@@ -209,8 +214,8 @@ namespace omnistream {
 
     void OmniTask::doRun(long streamTaskAddress)
     {
-        INFO_RELEASE("welcome to native")
-        INFO_RELEASE(" doRun starting: " << taskNameWithSubtask_)
+        INFO_RELEASE(" OmniTask::doRun welcome to native")
+        INFO_RELEASE("doRun starting, taskNameWithSubtask: " << taskNameWithSubtask_)
 
         LOG_INFO_IMP("doRun.... ")
         LOG("now oper is :" << taskNameWithSubtask_)
@@ -219,18 +224,21 @@ namespace omnistream {
         setupPartitionsAndGates(consumableNotifyingPartitionWriters, inputGates);
 
         try {
-            LOG_INFO_IMP("Invokable restore")
+            INFO_RELEASE("OmniTask::doRun Invokable restore")
             this->invokable_->restore();
 
-            LOG_INFO_IMP("Invokable Invoke")
+            LOG_INFO_IMP("OmniTask::doRun Invokable Invoke")
 
             this->invokable_->invoke();
         } catch (const PartitionNotFoundException &e) {
-            GErrorLog("PartitionNotFoundException causes the task to stop and will do cleanup");
+            INFO_RELEASE("Error:PartitionNotFoundException causes the task to stop and will do cleanup");
+             throw;
         } catch (const std::exception &e) {
-            GErrorLog(std::string("std::exception during restore or invoke: ") + e.what());
+            INFO_RELEASE("Error:std::exception during restore or invoke"<< e.what());
+            throw;
         } catch (...) {
-            GErrorLog("exception  during restore or invoke, and the task is stopped and will do cleanup");
+            INFO_RELEASE("Error:unknown exception during restore or invoke, taskName=");
+            throw;
         }
 
         // ----------------------------------------------------------------
@@ -260,8 +268,19 @@ namespace omnistream {
 
     void OmniTask::DoRunInvoke(long streamTaskAddress)
     {
+        int count = 0;
+
+        while (!flag.load()) {
+            INFO_RELEASE("find OmniTask still uninitialzed, tasm name : " << taskNameWithSubtask_)
+            count++;
+            if (count > 5) {
+                break;
+            }
+            sleep(5);
+        }
+
         try {
-            INFO_RELEASE("welcome to native")
+            INFO_RELEASE("OmniTask::DoRunInvoke welcome to native")
             LOG_INFO_IMP("Invokable Invoke")
             this->invokable_->invoke();
         } catch (const PartitionNotFoundException &e) {
@@ -292,12 +311,8 @@ namespace omnistream {
 
         LOG_INFO_IMP("Invokable Invoke")
         this->invokable_->cleanup();
-        this->invokable_ = nullptr;
         this->ReleaseResources();
         originalNetworkBufferRecycler_->stop();
-
-        // sleep for a while
-        // std::this_thread::sleep_for(std::chrono::milliseconds(200));
     }
 
 
@@ -345,8 +360,7 @@ namespace omnistream {
 
     void OmniTask::CloseAllInputGates()
     {
-        std::shared_ptr<OmniStreamTask> invoke=this->invokable_;
-        if (invoke==nullptr||invokable_->IsUsingNonBlockingInput()==false) {
+        if (invokable_ == nullptr || invokable_->IsUsingNonBlockingInput() == false) {
             for (auto &inputGate : inputGates) {
                 try {
                     inputGate->close();
@@ -367,6 +381,7 @@ namespace omnistream {
         if (auto remoteChannel = std::dynamic_pointer_cast<RemoteInputChannel>(channel)) {
             if (taskType == 1 && isBuffer) {
                 remoteChannel->notifyRemoteDataAvailableForVectorBatch(bufferAddress, bufferLength, sequenceNumber);
+                originalNetworkBufferRecycler_->recycle(bufferAddress);
             } else {
                 remoteChannel->notifyRemoteDataAvailableForNetworkBuffer(
                     bufferAddress, bufferLength, readIndex, sequenceNumber,
@@ -392,8 +407,9 @@ namespace omnistream {
         }
         std::shared_ptr<ResultPartitionManager> resultPartitionManager = omniShuffleEnv->getResultPartitionManager();
 
-        auto reader = std::make_shared<OmniCreditBasedSequenceNumberingViewReader>(partitionId,
+        auto reader = std::make_unique<OmniCreditBasedSequenceNumberingViewReader>(partitionId,
             subPartitionId, resultBufferAddress);
+        auto readerAddr = reinterpret_cast<long>(reader.get());
 
         int retryCount = 0;
         while (true) {
@@ -401,6 +417,7 @@ namespace omnistream {
                 reader->requestSubpartitionView(resultPartitionManager, partitionId, subPartitionId);
                 break; // Exit loop if successful
             } catch (...) {
+                INFO_RELEASE("OmniTask 1 sleep time: " << std::to_string(200))
                 std::this_thread::sleep_for(std::chrono::milliseconds(200));
             }
             if (++retryCount >= 3) {
@@ -410,7 +427,8 @@ namespace omnistream {
                 return -1;
             }
         }
-        return reinterpret_cast<long>(reader.get());
+        omniCreditBasedSequenceNumberingViewReaders.push_back(std::move(reader));
+        return readerAddr;
     }
 
     std::shared_ptr<TaskMetricGroup> OmniTask::getTaskMetricGroup()
@@ -433,10 +451,9 @@ namespace omnistream {
     }
     void OmniTask::notifyCheckpointComplete(long checkpointID, long inputState)
     {
-        std::shared_ptr<OmniStreamTask> invokable = invokable_;
-        if (inputState == 3 && invokable != nullptr) {
+        if (inputState == 3 && invokable_ != nullptr) {
             try {
-                invokable->notifyCheckpointCompleteAsync(checkpointID);
+                invokable_->notifyCheckpointCompleteAsync(checkpointID);
             } catch (const std::exception& e) {
                 throw;
             }
@@ -455,18 +472,17 @@ namespace omnistream {
                                     long latestCompletedCheckpointId,
                                     OmniTask::NotifyCheckpointOperation notifyCheckpointOperation)
     {
-        std::shared_ptr<OmniStreamTask> invokable = invokable_;
-        if (executionState == ExecutionState::RUNNING && invokable != nullptr) {
+        if (executionState == ExecutionState::RUNNING && invokable_ != nullptr) {
             try {
                 switch (notifyCheckpointOperation) {
                     case OmniTask::NotifyCheckpointOperation::ABORT:
-                        invokable->notifyCheckpointAbortAsync(checkpointId, latestCompletedCheckpointId);
+                        invokable_->notifyCheckpointAbortAsync(checkpointId, latestCompletedCheckpointId);
                         break;
                     case OmniTask::NotifyCheckpointOperation::COMPLETE:
-                        invokable->notifyCheckpointCompleteAsync(checkpointId);
+                        invokable_->notifyCheckpointCompleteAsync(checkpointId);
                         break;
                     case OmniTask::NotifyCheckpointOperation::SUBSUME:
-                        invokable->notifyCheckpointSubsumedAsync(checkpointId);
+                        invokable_->notifyCheckpointSubsumedAsync(checkpointId);
                         break;
                 }
             } catch (const std::exception& e) {
@@ -499,8 +515,9 @@ namespace omnistream {
         }
         std::shared_ptr<ResultPartitionManager> resultPartitionManager = omniShuffleEnv->getResultPartitionManager();
 
-        auto reader = std::make_shared<OmniLocalChannelReader>(partitionId,
+        auto reader = std::make_unique<OmniLocalChannelReader>(partitionId,
                                                                subPartitionId, returnDataAddress, taskNameWithSubtask_);
+        auto readerAddr = reinterpret_cast<long>(reader.get());
 
         int retryCount = 0;
         while (true) {
@@ -509,6 +526,7 @@ namespace omnistream {
                 break; // Exit loop if successful
             }
             catch (...) {
+                INFO_RELEASE("OmniTask 2 sleep time: " << std::to_string(200))
                 std::this_thread::sleep_for(std::chrono::milliseconds(200));
             }
             if (++retryCount >= 3) {
@@ -518,8 +536,8 @@ namespace omnistream {
                 return -1;
             }
         }
-        omniLocalInputChannelReaders.push_back(reader);
-        return reinterpret_cast<long>(reader.get());
+        omniLocalInputChannelReaders.push_back(std::move(reader));
+        return readerAddr;
     }
 
     long OmniTask::changeLocalInputChannelToOriginal(ResultPartitionIDPOD partitionId)
@@ -532,18 +550,51 @@ namespace omnistream {
             if (it != inputChannelMap.end()) {
                 // Partition exists in the map
                 std::shared_ptr<InputChannel> channel = it->second;
+                std::shared_ptr<InputChannel> inputChannel = channel;
+                LOG("changeLocalInputChannelToOriginal invoke!")
+                if(auto local2 = std::dynamic_pointer_cast<OmniLocalInputChannel>(inputChannel)){
+                    LOG("changeLocalInputChannelToOriginal instance of OmniLocalInputChannel!");
+                } else  if(auto local1 = std::dynamic_pointer_cast<LocalInputChannel>(inputChannel)){
+                    LOG("changeLocalInputChannelToOriginal instance of LocalInputChannel!");
+                } else if(auto remote1 = std::dynamic_pointer_cast<RemoteInputChannel>(inputChannel)){
+                    LOG("changeLocalInputChannelToOriginal instance of RemoteInputChannel!");
+                } else{
+                    LOG("changeLocalInputChannelToOriginal unKnown channel type!");
+                }
+
                 // create omniLocalInputChannel
                 auto omniShuffleEnv = std::dynamic_pointer_cast<OmniShuffleEnvironment>(this->shuffleEnv_);
                 std::shared_ptr<SingleInputGateFactory> singleInputGateFactory = omniShuffleEnv->
                     getSingleInputGateFactory();
                 shared_ptr<OmniLocalInputChannel> originalInputChannel = singleInputGateFactory->
                         createOriginalInputChannel(singleInputGate, channel->getChannelIndex(), partitionId);
+                originalInputChannel->SetForwardResumeToJava(singleInputGate->GetForwardResumeToJava());
                 inputChannelMap[irp] = originalInputChannel;
                 singleInputGate->changeLocalInputChannelToOriginal(channel->getChannelIndex(), originalInputChannel);
                 return reinterpret_cast<long>(originalInputChannel.get());
             }
         }
         return -1;
+    }
+
+    void OmniTask::notifyChannelToOmni(const ResultPartitionIDPOD &partitionId)
+    {
+        const IntermediateResultPartitionIDPOD& irp = partitionId.getPartitionId();
+        for (const std::shared_ptr<SingleInputGate>& singleInputGate : this->inputGates) {
+            std::unordered_map<IntermediateResultPartitionIDPOD, std::shared_ptr<InputChannel>>& inputChannelMap =
+                singleInputGate->getInputChannels();
+            auto it = inputChannelMap.find(irp);
+            if (it == inputChannelMap.end()) {
+                continue;
+            }
+            auto channel = it->second;
+            if (auto inputChannel = std::dynamic_pointer_cast<RecoveredInputChannel>(channel)) {
+                inputChannel->SetIsOmniChannel(true);
+                INFO_RELEASE("Successfully notify native local input channel to omni. "
+                    << channel->getChannelInfo().toString());
+            }
+            return;
+        }
     }
 
     int OmniTask::GetTaskType()
@@ -566,7 +617,7 @@ namespace omnistream {
 
     void OmniTask::triggerCheckpointBarrier(long checkpointid, long checkpointtimestamp, CheckpointOptions *checkpoint_options)
     {
-        std::shared_ptr<OmniStreamTask> checkpointableTask=this->invokable_;
+        OmniStreamTask *checkpointableTask = this->invokable_.get();
         CheckpointMetaData *checkpointMetaData = new CheckpointMetaData(
         checkpointid,
         checkpointtimestamp,
@@ -579,9 +630,17 @@ namespace omnistream {
                 checkpointableTask->triggerCheckpointAsync(checkpointMetaData, checkpoint_options);
                 // TTODO
             } catch (const OmniException& ex) {
-                this->declineCheckpoint(checkpointid, CheckpointFailureReason::CHECKPOINT_DECLINED_TASK_CLOSING);
+                INFO_RELEASE("Error:triggerCheckpointBarrier caught OmniException for cp " << checkpointid
+                    << ": " << ex.what());
+                std::runtime_error wrapped(std::string("OmniException: ") + ex.what());
+                this->declineCheckpoint(checkpointid,
+                    CheckpointFailureReason::CHECKPOINT_DECLINED_TASK_CLOSING, &wrapped);
             } catch (const std::exception& t) {
-                // TTODO
+                INFO_RELEASE("Error:triggerCheckpointBarrier caught std::exception for cp " << checkpointid
+                    << ": " << t.what());
+                std::runtime_error wrapped(std::string("std::exception: ") + t.what());
+                this->declineCheckpoint(checkpointid,
+                    CheckpointFailureReason::CHECKPOINT_DECLINED, &wrapped);
             }
         } else {
             this->declineCheckpoint(checkpointid, CheckpointFailureReason::CHECKPOINT_DECLINED_TASK_NOT_READY);

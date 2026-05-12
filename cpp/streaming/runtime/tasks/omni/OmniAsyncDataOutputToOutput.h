@@ -28,7 +28,7 @@ namespace omnistream {
         ~OmniAsyncDataOutputToOutput() override = default;
 
     private:
-        Output *output;
+        Output *output = nullptr;
         bool isDataStream;
     };
 };

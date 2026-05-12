@@ -46,7 +46,8 @@ public:
         long checkpointId,
         long timestamp,
         CheckpointStreamFactory* checkpointStreamFactory,
-        CheckpointOptions* checkpointOptions) override;
+        CheckpointOptions* checkpointOptions,
+        std::string keySerializer = "") override;
 
     void notifyCheckpointComplete(int64_t completedCheckpointId);
     void notifyCheckpointAborted(int64_t abortedCheckpointId);
@@ -69,7 +70,9 @@ private:
             std::vector<std::shared_ptr<StateMetaInfoSnapshot>> stateMetaInfoSnapshots,
             UUID backendUID,
             KeyGroupRange keyGroupRange,
-            RocksNativeFullSnapshotStrategy* outerStrategy);
+            RocksNativeFullSnapshotStrategy* outerStrategy,
+            CheckpointOptions *checkpointOptions,
+            std::shared_ptr<TypeSerializer> keySerializer);
 
         std::shared_ptr<SnapshotResult<KeyedStateHandle>> get(std::shared_ptr<omnistream::OmniTaskBridge> bridge) override;
 
@@ -81,6 +84,7 @@ private:
         UUID backendUID_;
         KeyGroupRange keyGroupRange_;
         RocksNativeFullSnapshotStrategy* outerStrategy_;
+        CheckpointOptions *checkpointOptions_;
     };
 };
 

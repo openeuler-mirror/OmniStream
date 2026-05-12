@@ -17,6 +17,10 @@ TypeSerializer* PojoTypeInfo::createTypeSerializer()
     fieldSerializers.reserve(fields.size());
     std::vector<std::string> reflectiveFields;
     reflectiveFields.reserve(fields.size());
+    std::sort(fields.begin(), fields.end(),
+        [](const PojoField* a, const PojoField* b) {
+            return a->getField().compare(b->getField()) < 0;
+        });
     for (const auto &item: fields) {
         fieldSerializers.push_back(item->getTypeInformation()->createTypeSerializer());
         reflectiveFields.push_back(item->getField());

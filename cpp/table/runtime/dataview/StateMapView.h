@@ -11,13 +11,14 @@
 #ifndef FLINK_TNEL_STATEMAPVIEW_H
 #define FLINK_TNEL_STATEMAPVIEW_H
 
-#include <nlohmann/json.hpp>
+#include <unordered_map>
+#include <tuple>
+#include <stdexcept>
 #include "MapView.h"
 #include "StateDataView.h"
 #include "core/api/common/state/ValueState.h"
 #include "core/api/common/state/MapState.h"
 #include "../runtime/state/rocksdb/RocksdbMapState.h"
-using json = nlohmann::json;
 
 
 
@@ -41,7 +42,13 @@ public:
     std::optional<EV> get(const std::optional<EK>& key) override { return key == std::nullopt ? getNullState()->value() : getMapState()->get(*key); };
     void put(const std::optional<EK>& key, const EV& value) override { key == std::nullopt ? getNullState()->update(value) : getMapState()->put(*key, value); };
     void remove(const std::optional<EK>& key) { key == std::nullopt ? getNullState()->clear() : getMapState()->remove(*key); };
-    void contains(const std::optional<EK>& key) { return key == std::nullopt ? getNullState()->value() != nullptr : getMapState()->contains(*key); };
+    bool contains(const std::optional<EK>& key)
+    {
+        if (key == std::nullopt) {
+            return this->get(key).has_value();
+        }
+        return getMapState()->contains(*key);
+    };
     emhash7::HashMap<EK, EV> *entries()
     {
         return getMapState()->entries();
@@ -54,19 +61,77 @@ public:
         }
     }
 
-    std::shared_ptr<json> getInnerMap(EK& ek)
+    void putByBatch(std::vector<std::shared_ptr<std::tuple<RowData*, EK, EV>>> &batchData)
+    {
+        if (batchData.empty()) {
+            return;
+        }
+
+        auto rocksDBMap = dynamic_cast<RocksdbMapState<RowData*, N, EK, EV> *>(getMapState());
+        if (rocksDBMap) {
+            rocksDBMap->putByBatch(batchData);
+            return;
+        }
+
+        for (const auto& item : batchData) {
+            getMapState()->put(std::get<1>(*item), std::get<2>(*item));
+        }
+    }
+
+    void putByBatch(std::vector<std::tuple<RowData*, EK, EV>> &batchData)
+    {
+        if (batchData.empty()) {
+            return;
+        }
+
+        auto rocksDBMap = dynamic_cast<RocksdbMapState<RowData*, N, EK, EV> *>(getMapState());
+        if (rocksDBMap) {
+            rocksDBMap->putByBatch(batchData);
+            return;
+        }
+
+        for (const auto& item : batchData) {
+            getMapState()->put(std::get<1>(item), std::get<2>(item));
+        }
+    }
+
+    void putByBatch(std::unordered_map<RowData*, std::vector<std::tuple<EK, EV>>> &batchData)
+    {
+        if (batchData.empty()) {
+            return;
+        }
+
+        auto rocksDBMap = dynamic_cast<RocksdbMapState<RowData*, N, EK, EV> *>(getMapState());
+        if (rocksDBMap) {
+            rocksDBMap->putByBatch(batchData);
+            return;
+        }
+
+        throw std::runtime_error("putByBatch(grouped by key) requires RocksDB map state backend.");
+    }
+
+    void putByBatch(RowData* key, const std::unordered_map<EK, EV>& batchData)
+    {
+        if (batchData.empty()) {
+            return;
+        }
+
+        auto rocksDBMap = dynamic_cast<RocksdbMapState<RowData*, N, EK, EV> *>(getMapState());
+        if (rocksDBMap) {
+            rocksDBMap->putByBatch(key, batchData);
+            return;
+        }
+
+        for (const auto& item : batchData) {
+            getMapState()->put(item.first, item.second);
+        }
+    }
+
+    std::shared_ptr<std::string> getRawBytes(EK& ek)
     {
         auto rocksDBMap = dynamic_cast<RocksdbMapState<RowData*,N,EK,EV> *>(getMapState());
         if (rocksDBMap) {
-            std::shared_ptr<std::string> rawString= rocksDBMap->getRawBytes(ek);
-            try {
-                if (rawString == nullptr || rawString->empty()) {
-                    return nullptr;
-                }
-                return std::make_shared<json>(json::parse(*rawString));
-            } catch (const json::parse_error& e) {
-               LOG("parse json error............");
-            }
+            return rocksDBMap->getRawBytes(ek);
         }
         return nullptr;
     }

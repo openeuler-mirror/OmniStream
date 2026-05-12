@@ -37,18 +37,27 @@ public:
         if (currentIndex_ < entries_.size()) {
             return true;
         }
-        return (0 != offset_) && (END_OF_KEY_GROUP_MARK & currentKvStateId_ != END_OF_KEY_GROUP_MARK);
+        bool shouldReadNextBatch = currentKvStateId_ == -1 ||
+            ((END_OF_KEY_GROUP_MARK & currentKvStateId_) != END_OF_KEY_GROUP_MARK);
+        if ((offset_ != 0) && shouldReadNextBatch) {
+            if (currentIndex_ >= entries_.size()) {
+                // jni read
+                currentIndex_ = 0;
+                omniTaskBridge_->getKeyGroupEntries(inputStream_, currentKvStateId_, isUsingKeyGroupCompression_, entries_);
+                // if entries_ is empty, it means jni has exceptions, return false to forbidden coredump
+                if (entries_.size() == 0) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        return false;
     }
 
     std::unique_ptr<KeyGroupEntry> next()
     {
         if (!hasNext()) {
             throw std::out_of_range("No more elements in KeyGroupEntryIterator");
-        }
-        if (currentIndex_ >= entries_.size()) {
-            // jni read
-            currentIndex_ = 0;
-            omniTaskBridge_->getKeyGroupEntries(inputStream_, currentKvStateId_, isUsingKeyGroupCompression_, entries_);
         }
         return std::make_unique<KeyGroupEntry>(entries_[currentIndex_++]);
     }

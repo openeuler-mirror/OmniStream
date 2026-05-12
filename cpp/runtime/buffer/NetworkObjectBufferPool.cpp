@@ -35,7 +35,7 @@ NetworkObjectBufferPool::NetworkObjectBufferPool(
 
         totalNumberOfObjectSegments = numberOfSegmentsToAllocate;
 
-        availableObjectSegments = std::deque<std::shared_ptr<ObjectSegment>>();
+        availableObjectSegments = std::deque<ObjectSegment *>();
     } catch (const std::bad_alloc &) {
         throw std::bad_alloc();
     }
@@ -62,22 +62,25 @@ NetworkObjectBufferPool::NetworkObjectBufferPool(
 
 NetworkObjectBufferPool::~NetworkObjectBufferPool()
 {
+    for (auto objectSegment : availableObjectSegments) {
+        delete objectSegment;
+    }
     availableObjectSegments.clear();
 }
 
-std::shared_ptr<ObjectSegment> NetworkObjectBufferPool::requestPooledObjectSegment()
+ObjectSegment *NetworkObjectBufferPool::requestPooledObjectSegment()
 {
     std::lock_guard<std::recursive_mutex> lock(availableObjSegMutex);
     return internalRequestObjectSegment();
 }
 
-std::vector<std::shared_ptr<ObjectSegment>> NetworkObjectBufferPool::requestPooledObjectSegmentsBlocking(
+std::vector<ObjectSegment *> NetworkObjectBufferPool::requestPooledObjectSegmentsBlocking(
     int numberOfSegmentsToRequest)
 {
     return internalRequestObjectSegments(numberOfSegmentsToRequest);
 }
 
-void NetworkObjectBufferPool::recyclePooledObjectSegment(const std::shared_ptr<ObjectSegment> &segment)
+void NetworkObjectBufferPool::recyclePooledObjectSegment(ObjectSegment *segment)
 {
     if (!segment) {
         throw std::invalid_argument("Segment cannot be null.");
@@ -85,7 +88,7 @@ void NetworkObjectBufferPool::recyclePooledObjectSegment(const std::shared_ptr<O
     internalRecycleObjectSegments({segment});
 }
 
-std::vector<std::shared_ptr<ObjectSegment>> NetworkObjectBufferPool::requestUnpooledObjectSegments(
+std::vector<ObjectSegment *> NetworkObjectBufferPool::requestUnpooledObjectSegments(
     int numberOfSegmentsToRequest)
 {
     if (numberOfSegmentsToRequest < 0) {
@@ -108,10 +111,10 @@ std::vector<std::shared_ptr<ObjectSegment>> NetworkObjectBufferPool::requestUnpo
     }
 }
 
-std::vector<std::shared_ptr<ObjectSegment>> NetworkObjectBufferPool::internalRequestObjectSegments(
+std::vector<ObjectSegment *> NetworkObjectBufferPool::internalRequestObjectSegments(
     int numberOfSegmentsToRequest)
 {
-    std::vector<std::shared_ptr<ObjectSegment>> segments;
+    std::vector<ObjectSegment *> segments;
     auto deadline = std::chrono::steady_clock::now() + requestSegmentsTimeout;
     try {
         while (true) {
@@ -119,7 +122,7 @@ std::vector<std::shared_ptr<ObjectSegment>> NetworkObjectBufferPool::internalReq
                 throw std::runtime_error("Buffer pool is destroyed.");
             }
 
-            std::shared_ptr<ObjectSegment> segment;
+            ObjectSegment *segment;
             {
                 // std::lock_guard<std::mutex> lock(availableObjectSegmentsMutex);
                 std::lock_guard<std::recursive_mutex> lock(availableObjSegMutex);
@@ -149,7 +152,7 @@ std::vector<std::shared_ptr<ObjectSegment>> NetworkObjectBufferPool::internalReq
     return segments;
 }
 
-std::shared_ptr<ObjectSegment> NetworkObjectBufferPool::internalRequestObjectSegment()
+ObjectSegment *NetworkObjectBufferPool::internalRequestObjectSegment()
 {
     std::lock_guard<std::recursive_mutex> lock(availableObjSegMutex);
     LOG("availableObjectSegments size : " << std::to_string(availableObjectSegments.size()))
@@ -165,7 +168,7 @@ std::shared_ptr<ObjectSegment> NetworkObjectBufferPool::internalRequestObjectSeg
     return segment;
 }
 
-void NetworkObjectBufferPool::recycleUnpooledObjectSegments(const std::vector<std::shared_ptr<ObjectSegment>> &segments)
+void NetworkObjectBufferPool::recycleUnpooledObjectSegments(const std::vector<ObjectSegment *> &segments)
 {
     internalRecycleObjectSegments(segments);
     revertRequiredBuffers(segments.size());
@@ -180,7 +183,7 @@ void NetworkObjectBufferPool::revertRequiredBuffers(int size)
 }
 
 // void NetworkObjectBufferPool::internalRecycleObjectSegments(const std::vector<std::shared_ptr<ObjectSegment>> &segments)
-void NetworkObjectBufferPool::internalRecycleObjectSegments(const std::vector<std::shared_ptr<ObjectSegment>> &segments)
+void NetworkObjectBufferPool::internalRecycleObjectSegments(const std::vector<ObjectSegment *> &segments)
 {
     LOG("internalRecycleObjectSegments running")
     std::shared_ptr<CompletableFuture> toNotify = nullptr;
@@ -195,7 +198,7 @@ void NetworkObjectBufferPool::internalRecycleObjectSegments(const std::vector<st
         }
         cv.notify_all();
         if (toNotify != nullptr) {
-            toNotify->setCompleted();
+            toNotify->complete();
         }
     }
 }

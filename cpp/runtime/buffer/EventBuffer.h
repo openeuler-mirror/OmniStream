@@ -17,7 +17,7 @@
 
 
 namespace omnistream {
-    class EventBuffer : public ObjectBuffer, public std::enable_shared_from_this<EventBuffer> {
+    class EventBuffer : public ObjectBuffer {
     public:
         explicit EventBuffer(int event): event_(event)
         {
@@ -45,22 +45,22 @@ namespace omnistream {
             return true;
         }
 
-        std::shared_ptr<Buffer> RetainBuffer() override
+        Buffer* RetainBuffer() override
         {
             LOG("EventBuffer::RetainBuffer");
-            return shared_from_this();
+            return this;
         }
 
-        std::shared_ptr<Buffer> ReadOnlySlice() override
+        Buffer* ReadOnlySlice() override
         {
             LOG("EventBuffer::ReadOnlySlice");
-            return shared_from_this();
+            return this;
         }
 
-        std::shared_ptr<Buffer> ReadOnlySlice(int index, int length) override
+        Buffer* ReadOnlySlice(int index, int length) override
         {
             LOG(">>>>")
-            return std::make_shared<EventBuffer>(event_);
+            return new EventBuffer(event_);
         }
 
         int GetMaxCapacity() const override
@@ -128,7 +128,7 @@ namespace omnistream {
             return {};
         };
 
-        std::shared_ptr<ObjectSegment> GetObjectSegment() override
+        ObjectSegment *GetObjectSegment() override
         {
             NOT_IMPL_EXCEPTION
         };

@@ -43,7 +43,7 @@ namespace omnistream {
     void OutputFlusher::run()
     {
         try {
-            LOG_INFO_IMP("OutputFlusher::run starting" << taskName << " timeout " << timeout << "runnning " << running);
+            INFO_RELEASE("OutputFlusher::run starting" << taskName << " timeout " << timeout << "runnning " << running);
             while (running) {
                 counter++;
                 try {

@@ -8,8 +8,8 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef FLINK_TNEL_WINDOWJOINOPERATOR_H
-#define FLINK_TNEL_WINDOWJOINOPERATOR_H
+
+#pragma once
 #include <set>
 #include <vector>
 #include "table/runtime/operators/join/AbstractStreamingJoinOperator.h"
@@ -28,6 +28,7 @@
 #include "OmniOperatorJIT/core/src/codegen/simple_filter_codegen.h"
 #include "OmniOperatorJIT/core/src/vector/unsafe_vector.h"
 #include "OmniOperatorJIT/core/src/operator/execution_context.h"
+#include "table/runtime/keyselector/KeySelector.h"
 
 #include <arm_sve.h>
 
@@ -53,7 +54,7 @@ public:
         LOG(">>>>>>>>>>")
         if (this->combinedWatermark->UpdateWatermark(0, watermark->getTimestamp())) {
             if (this->timeServiceManager != nullptr) {
-                this->timeServiceManager->template advanceWatermark<int64_t>(new Watermark(this->combinedWatermark->GetCombinedWatermark()));
+                this->timeServiceManager->advanceWatermark(new Watermark(this->combinedWatermark->GetCombinedWatermark()));
             }
             this->output->emitWatermark(new Watermark(this->combinedWatermark->GetCombinedWatermark()));
         }
@@ -63,7 +64,7 @@ public:
         LOG(">>>>>>>>>>")
         if (this->combinedWatermark->UpdateWatermark(1, watermark->getTimestamp())) {
             if (this->timeServiceManager != nullptr) {
-                this->timeServiceManager->template advanceWatermark<int64_t>(new Watermark(this->combinedWatermark->GetCombinedWatermark()));
+                this->timeServiceManager->advanceWatermark(new Watermark(this->combinedWatermark->GetCombinedWatermark()));
             }
             this->output->emitWatermark(new Watermark(this->combinedWatermark->GetCombinedWatermark()));
         }
@@ -91,8 +92,8 @@ protected:
     WindowListState<KeyType, int64_t, VectorBatchId> *rightWindowState;
     ::FilterFunc generatedFilter; // Use global scope resolution to avoid ambiguity
     bool hasKey;
-    int leftKeyCol;
-    int rightKeyCol;
+    std::vector<int32_t> leftKeyIndex;
+    std::vector<int32_t> rightKeyIndex;
     void buildInner(
         std::vector<VectorBatchId> *leftElements, std::vector<VectorBatchId> *rightElements, omnistream::VectorBatch *outputBatch);
     void buildRightNull(std::vector<VectorBatchId> *leftElements, omnistream::VectorBatch *outputBatch);
@@ -102,6 +103,8 @@ protected:
     bool filter(VectorBatchId leftElement, VectorBatchId rightElement);
     InternalTimerServiceImpl<KeyType, int64_t> *internalTimerService;
     bool isNonEquiCondition;
+    KeySelector<KeyType>* keySelectorLeft = nullptr;
+    KeySelector<KeyType>* keySelectorRight = nullptr;
 
 private:
     TypeSerializer *leftSerializer;
@@ -141,8 +144,6 @@ WindowJoinOperator<KeyType>::WindowJoinOperator(
     const nlohmann::json &config, Output *output, TypeSerializer *leftSerializer, TypeSerializer *rightSerializer)
     : TableStreamOperator<KeyType>(new TimestampedCollector(output)),
       hasKey(config["leftJoinKey"].size() != 0),
-      leftKeyCol(hasKey ? (config["leftJoinKey"].size() == 0 ? 0 : static_cast<int>(config["leftJoinKey"][0])) : (-1)),
-      rightKeyCol(hasKey ? (config["rightJoinKey"].size() == 0 ? 0 : static_cast<int>(config["rightJoinKey"][0])) : (-1)),
       isNonEquiCondition(config.contains("nonEquiCondition") && !config["nonEquiCondition"].is_null()),
       leftSerializer(leftSerializer), rightSerializer(rightSerializer),
       leftWindowEndIndex(config["leftWindowEndIndex"]), rightWindowEndIndex(config["rightWindowEndIndex"]),
@@ -151,6 +152,8 @@ WindowJoinOperator<KeyType>::WindowJoinOperator(
 {
     auto leftTypeStr = config["leftInputTypes"].get<std::vector<std::string>>();
     auto rightTypeStr = config["rightInputTypes"].get<std::vector<std::string>>();
+    rightKeyIndex = description["rightJoinKey"].get<std::vector<int32_t>>();
+    leftKeyIndex = description["leftJoinKey"].get<std::vector<int32_t>>();
     for (const auto& i : leftTypeStr) {
         leftTypes.push_back(LogicalType::flinkTypeToOmniTypeId(i));
     }
@@ -166,6 +169,12 @@ template <typename KeyType>
 WindowJoinOperator<KeyType>::~WindowJoinOperator()
 {
     delete collector;
+    if(hasKey){
+        delete keySelectorLeft;
+        keySelectorLeft = nullptr;
+        delete keySelectorRight;
+        keySelectorRight = nullptr;
+    }
 }
 
 template <typename KeyType>
@@ -190,11 +199,32 @@ void WindowJoinOperator<KeyType>::open()
     rightWindowState = new WindowListState<KeyType, int64_t, VectorBatchId>(
         keyedStateBackend->template getOrCreateKeyedState<int64_t, S, std::vector<VectorBatchId>*>(
             new LongSerializer(), rightDescriptor));
-    // Just in case there's no key. give it a default value
-    if constexpr (std::is_same_v<KeyType, int64_t>) {
-        this->setCurrentKey(0);
-    } else if constexpr (std::is_pointer_v<KeyType>) {
-        this->setCurrentKey(nullptr);
+    if (hasKey) {
+            // Allocate the selectors only if we are in Keyed Mode
+            std::vector<int> leftKeyTypes;
+            std::vector<int> rightKeyTypes;
+            for (auto kIndex: this->leftKeyIndex) {
+                leftKeyTypes.push_back(this->leftTypes[kIndex]);
+            }
+            for (auto kIndex : this->rightKeyIndex) {
+                rightKeyTypes.push_back(this->rightTypes[kIndex]);
+            }
+            // make sure the key types are the same
+            if (leftKeyTypes != rightKeyTypes) {
+                throw std::runtime_error("Left key types do not match right key types");
+            }   
+            this->keySelectorLeft = new KeySelector<KeyType>(leftKeyTypes, this->leftKeyIndex);
+            this->keySelectorRight = new KeySelector<KeyType>(rightKeyTypes, this->rightKeyIndex);
+            LOG("WindowJoinOperator opened in KEYED mode.") 
+    } else {
+           LOG("WindowJoinOperator opened with no key")
+            //If a windowJoin has no key, the parallelism is restricted to 1(ignore the conf set). 
+           //Using a default key is a valid workaround, but it will fail if optimization allows parallelism > 1. 
+           if constexpr (std::is_same_v<KeyType, int64_t>) {
+                 this->setCurrentKey(0);
+            } else if constexpr (std::is_pointer_v<KeyType>) {
+                this->setCurrentKey(nullptr);
+            }
     }
     generatedFilter = generateJoinCondition();
     getAllColRefs(description["nonEquiCondition"]);
@@ -325,6 +355,7 @@ template <typename KeyType> void WindowJoinOperator<KeyType>::BuildInnerLeft(std
             case omniruntime::type::DataTypeId::OMNI_LONG:
             case omniruntime::type::DataTypeId::OMNI_TIMESTAMP:
             case omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:
+            case omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE:
                 insertLeft<int64_t>(colIdx, leftElements, rightElements, outputBatch, true);
                 break;
             case omniruntime::type::DataTypeId::OMNI_DOUBLE:
@@ -363,6 +394,7 @@ template <typename KeyType> void WindowJoinOperator<KeyType>::BuildInnerRight(st
             case omniruntime::type::DataTypeId::OMNI_LONG:
             case omniruntime::type::DataTypeId::OMNI_TIMESTAMP:
             case omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:
+            case omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE:
                 insertRight<int64_t>(colIdx, leftElements, rightElements, outputBatch, true);
                 break;
             case omniruntime::type::DataTypeId::OMNI_DOUBLE:
@@ -487,15 +519,14 @@ void WindowJoinOperator<KeyType>::processBatch(omnistream::VectorBatch *batch, i
     batch->setMaxTimestamp(isLeftSide ? leftWindowEndIndex : rightWindowEndIndex);
     int batchID = recordState->getCurrentBatchId();
     recordState->addVectorBatch(batch);
-    omniruntime::vec::Vector<KeyType> *keyCol;
+    KeySelector<KeyType>* keySelector = nullptr;
     if (hasKey) {
-        keyCol =
-            reinterpret_cast<omniruntime::vec::Vector<KeyType> *>(batch->Get(isLeftSide ? leftKeyCol : rightKeyCol));
+       keySelector = isLeftSide ? this->keySelectorLeft : this->keySelectorRight;
     }
 
     for (int i = 0; i < batch->GetRowCount(); i++) {
         if (hasKey) {
-            KeyType key = keyCol->GetValue(i);
+            auto key = keySelector->getKey(batch, i);
             this->setCurrentKey(key);
         }
         int64_t windowEndTime =
@@ -756,13 +787,12 @@ bool WindowJoinOperator<KeyType>::filter(VectorBatchId leftElement, VectorBatchI
 
         auto result = generatedFilter(vals, nulls, nullptr, resultBool, nullptr, (int64_t)(&context));
 
-        delete vals;
-        delete nulls;
+        delete[] vals;
+        delete[] nulls;
         delete resultBool;
         return result;
     } else {
         return true;
     }
 }
-#endif
 

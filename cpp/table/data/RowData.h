@@ -122,7 +122,6 @@ namespace std {
     struct hash<RowData*> {
         std::size_t operator()(const RowData* nsPtr) const noexcept
         {
-            // std::cout<<"RowData::hash "<<nsPtr->hashCode()<<std::endl;
             return nsPtr->hashCodeFast();
         }
     };
@@ -131,7 +130,6 @@ namespace std {
     struct equal_to<RowData*> {
         bool operator()(const RowData* lhs, const RowData* rhs) const noexcept
         {
-            // std::cout<<"RowData::Equal? "<<(*lhs == *rhs)<<std::endl;
             return *lhs == *rhs;
         }
     };

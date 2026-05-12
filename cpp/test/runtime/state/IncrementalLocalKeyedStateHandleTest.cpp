@@ -23,7 +23,7 @@ public:
     }
     std::size_t hashCode() const { return std::hash<std::string>()(value_); }
 
-    std::unique_ptr<FSDataInputStream> OpenInputStream() const override {
+    std::shared_ptr<FSDataInputStream> OpenInputStream() const override {
         return nullptr;
     }
 
@@ -252,7 +252,7 @@ TEST(IncrementalLocalKeyedStateHandleTest, JSONConstructorAndToString) {
     EXPECT_EQ(parsed["stateHandleName"], "IncrementalLocalKeyedStateHandle");
     EXPECT_EQ(parsed["checkpointId"], 1234);
     EXPECT_EQ(parsed["backendIdentifier"], "01234567-89ab-cdef-0123-456789abcdef");
-    EXPECT_EQ(parsed["metaDataState"]["stateHandleName"], "FileStateHandle");
+    EXPECT_EQ(parsed["metaDataState"]["@class"], "org.apache.flink.runtime.state.filesystem.FileStateHandle");
     EXPECT_EQ(parsed["metaDataState"]["filePath"], metaPath.toString());
     EXPECT_EQ(parsed["metaDataState"]["stateSize"], metaStateSize);
     EXPECT_EQ(parsed["directoryStateHandle"]["directory"], path.toString());
@@ -260,7 +260,7 @@ TEST(IncrementalLocalKeyedStateHandleTest, JSONConstructorAndToString) {
     EXPECT_EQ(parsed["keyGroupRange"]["endKeyGroup"], 9);
 
     ASSERT_EQ(parsed["sharedState"].size(), 2);
-    EXPECT_EQ(parsed["sharedState"][0]["handle"]["stateHandleName"], "FileStateHandle");
+    EXPECT_EQ(parsed["sharedState"][0]["handle"]["@class"], "org.apache.flink.runtime.state.filesystem.FileStateHandle");
     EXPECT_EQ(parsed["sharedState"][0]["localPath"], "/local/path/1");
     EXPECT_TRUE(parsed["sharedState"][1]["handle"].is_null());
     EXPECT_EQ(parsed["sharedState"][1]["localPath"], "/local/path/2");

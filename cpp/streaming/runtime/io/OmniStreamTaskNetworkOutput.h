@@ -22,7 +22,7 @@
 namespace omnistream {
     class OmniStreamTaskNetworkOutput : public OmniPushingAsyncDataInput::OmniDataOutput {
     public:
-        explicit OmniStreamTaskNetworkOutput(Input* operator_,
+        explicit OmniStreamTaskNetworkOutput(OneInputStreamOperator* operator_,
                                              std::shared_ptr<omnistream::SimpleCounter> &numRecordsIn);
 
         void emitRecord(StreamRecord* streamRecord) override
@@ -37,9 +37,9 @@ namespace omnistream {
             if (taskType == 1) {
                 operator_->processBatch(streamRecord);
             } else if (taskType == 2) {
-                auto currentOperator = dynamic_cast<OneInputStreamOperator *>(operator_);
-                if (currentOperator->isSetKeyContextElement()) {
-                    currentOperator->setKeyContextElement(streamRecord);
+                // auto currentOperator = dynamic_cast<OneInputStreamOperator *>(operator_);
+                if (operator_->isSetKeyContextElement()) {
+                    operator_->setKeyContextElement(streamRecord);
                 }
                 operator_->processElement(streamRecord);
             }
@@ -57,14 +57,14 @@ namespace omnistream {
             operator_->processWatermarkStatus(watermarkStatus);
         }
 
-        void setTaskType(int taskType_)
+        void setTaskType(int taskType_) override
         {
             this->taskType = taskType_;
         }
 
         ~OmniStreamTaskNetworkOutput() override = default;
     private:
-        Input* operator_;
+        OneInputStreamOperator* operator_;
         std::shared_ptr<omnistream::SimpleCounter> numRecordsIn;
         int taskType;
     };

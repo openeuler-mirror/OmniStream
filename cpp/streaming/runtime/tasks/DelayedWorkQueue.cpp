@@ -10,9 +10,13 @@
  */
 
 #include "DelayedWorkQueue.h"
+#include "common.h"
 
 void DelayedWorkQueue::Offer(ScheduledFutureTask* task)
 {
+    if (task == nullptr) {
+        THROW_RUNTIME_ERROR("DelayedWorkQueue::Offer, task is nullptr");
+    }
     std::lock_guard<std::mutex> lock(queueMutex);
     queue.push(task);
     condition.notify_one();
@@ -21,25 +25,39 @@ void DelayedWorkQueue::Offer(ScheduledFutureTask* task)
 ScheduledFutureTask* DelayedWorkQueue::Take()
 {
     std::unique_lock<std::mutex> lock(queueMutex);
-    if (queue.empty()) {
+
+    while (!stop) {
         condition.wait(lock, [this] { return stop || !queue.empty(); });
+
+        if (stop) {
+            break;
+        }
+
+        ScheduledFutureTask* task = queue.top();
+        long delay = task->GetDelay();
+        if (delay <= 0) {
+            queue.pop();
+            return task;
+        }
+
+        condition.wait_for(
+                lock,
+                std::chrono::milliseconds(delay),
+                [this, task] {
+                    return stop || queue.empty() || queue.top() != task || task->GetDelay() <= 0;
+                });
     }
-    // if shutdown, we're not allowed to execute any task, so return null here
-    if (stop) {
-        return nullptr;
-    }
-    ScheduledFutureTask* task = queue.top();
-    long delay = task->GetDelay();
-    if (delay > 0) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(delay));
-    }
-    queue.pop();
-    return task;
+
+    return nullptr;
 }
 
 void DelayedWorkQueue::Shutdown()
 {
-    stop = true;
+    {
+        std::lock_guard<std::mutex> lock(queueMutex);
+        stop = true;
+    }
+    condition.notify_all();
 }
 
 void DelayedWorkQueue::NotifyAll()

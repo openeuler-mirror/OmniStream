@@ -193,9 +193,9 @@ if(ENABLE_ORT_1_7)
     set(ORT_CODEGEN_SO boostkit-omniop-codegen-1.7.0-aarch64)
     set(ORT_OP_SO boostkit-omniop-operator-1.7.0-aarch64)
 else ()
-    set(ORT_VEC_SO boostkit-omniop-vector-2.0.0-aarch64)
-    set(ORT_CODEGEN_SO boostkit-omniop-codegen-2.0.0-aarch64)
-    set(ORT_OP_SO boostkit-omniop-operator-2.0.0-aarch64)    
+    set(ORT_VEC_SO boostkit-omniop-vector-2.1.0-aarch64)
+    set(ORT_CODEGEN_SO boostkit-omniop-codegen-2.1.0-aarch64)
+    set(ORT_OP_SO boostkit-omniop-operator-2.1.0-aarch64)
 endif()
 
 option(ENABLE_TSHOOT "Enable trouble shooting macro" OFF)
@@ -233,7 +233,3 @@ endif ()
 enable_testing()
 
 message(STATUS "Compiler options: ${CMAKE_CXX_FLAGS}")
-
-
-
-

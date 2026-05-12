@@ -37,6 +37,7 @@ namespace omnistream {
 
     class ChannelStateWriteRequest {
     public:
+        ChannelStateWriteRequest() = default;
         ChannelStateWriteRequest(JobVertexID jobVertexID, int subtaskIndex, long checkpointId, const std::string &name);
         virtual ~ChannelStateWriteRequest() = default;
 
@@ -47,49 +48,49 @@ namespace omnistream {
 
         virtual std::shared_ptr<CompletableFutureV2<void>> getReadyFuture();
         virtual void cancel(const std::exception_ptr &cause) = 0;
-        virtual void execute(ChannelStateCheckpointWriter &writer) = 0;
+        virtual void execute(std::shared_ptr<ChannelStateCheckpointWriter> writer) = 0;
 
-        static std::unique_ptr<ChannelStateWriteRequest> completeInput(
+        static std::shared_ptr<ChannelStateWriteRequest> completeInput(
             JobVertexID jobVertexID, int subtaskIndex, long checkpointId);
 
-        static std::unique_ptr<ChannelStateWriteRequest> completeOutput(
+        static std::shared_ptr<ChannelStateWriteRequest> completeOutput(
             JobVertexID jobVertexID, int subtaskIndex, long checkpointId);
 
-        static std::unique_ptr<ChannelStateWriteRequest> writeInput(
+        static std::shared_ptr<ChannelStateWriteRequest> writeInput(
             JobVertexID jobVertexID,
             int subtaskIndex,
             long checkpointId,
             InputChannelInfo info,
-            std::vector<ObjectBuffer *> buffers);
+            std::vector<Buffer*> buffers);
 
-        static std::unique_ptr<ChannelStateWriteRequest> writeOutput(
+        static std::shared_ptr<ChannelStateWriteRequest> writeOutput(
             JobVertexID jobVertexID,
             int subtaskIndex,
             long checkpointId,
             ResultSubpartitionInfoPOD info,
-            std::vector<ObjectBuffer *> buffers);
+            std::vector<Buffer*> buffers);
 
-        static std::unique_ptr<ChannelStateWriteRequest> writeOutputFuture(
+        static std::shared_ptr<ChannelStateWriteRequest> writeOutputFuture(
             JobVertexID jobVertexID,
             int subtaskIndex,
             long checkpointId,
             ResultSubpartitionInfoPOD info,
-            std::shared_ptr<CompletableFutureV2<std::vector<ObjectBuffer *>>> dataFuture);
+            std::shared_ptr<CompletableFutureV2<std::vector<Buffer*>>> dataFuture);
 
-        static std::unique_ptr<ChannelStateWriteRequest> start(
+        static std::shared_ptr<ChannelStateWriteRequest> start(
             JobVertexID jobVertexID,
             int subtaskIndex,
             long checkpointId,
-            ChannelStateWriter::ChannelStateWriteResult &targetResult,
-            CheckpointStorageLocationReference locationReference);
+            std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> targetResult,
+            const std::string name);
 
-        static std::unique_ptr<ChannelStateWriteRequest> terminate(
+        static std::shared_ptr<ChannelStateWriteRequest> terminate(
             JobVertexID jobVertexID, int subtaskIndex, long checkpointId, const std::exception_ptr &cause);
 
-        static std::unique_ptr<ChannelStateWriteRequest> registerSubtask(
+        static std::shared_ptr<ChannelStateWriteRequest> registerSubtask(
             JobVertexID jobVertexID, int subtaskIndex);
 
-        static std::unique_ptr<ChannelStateWriteRequest> releaseSubtask(
+        static std::shared_ptr<ChannelStateWriteRequest> releaseSubtask(
             JobVertexID jobVertexID, int subtaskIndex);
 
     private:
@@ -101,27 +102,29 @@ namespace omnistream {
 
     class CheckpointStartRequest : public ChannelStateWriteRequest {
     public:
+        CheckpointStartRequest() = default;
+        virtual ~CheckpointStartRequest() = default;
         CheckpointStartRequest(
             JobVertexID jobVertexID,
             int subtaskIndex,
             long checkpointId,
-            ChannelStateWriter::ChannelStateWriteResult &targetResult,
-            CheckpointStorageLocationReference locationReference);
+            std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> targetResult,
+            std::shared_ptr<CheckpointStorageLocationReference> locationReference);
 
-        ChannelStateWriter::ChannelStateWriteResult &getTargetResult();
-        CheckpointStorageLocationReference &getLocationReference();
+        std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> getTargetResult();
+        std::shared_ptr<CheckpointStorageLocationReference> getLocationReference();
 
         void cancel(const std::exception_ptr &cause) override;
-        void execute(ChannelStateCheckpointWriter &writer) override;
+        void execute(std::shared_ptr<ChannelStateCheckpointWriter> writer) override;
 
     private:
-        ChannelStateWriter::ChannelStateWriteResult &targetResult_;
-        CheckpointStorageLocationReference locationReference_;
+        std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> targetResult_;
+        std::shared_ptr<CheckpointStorageLocationReference> locationReference_;
     };
 
     class CheckpointInProgressRequest : public ChannelStateWriteRequest {
     public:
-        using Action = std::function<void(ChannelStateCheckpointWriter &)>;
+        using Action = std::function<void(std::shared_ptr<ChannelStateCheckpointWriter> &)>;
         using DiscardAction = std::function<void(const std::exception_ptr &)>;
 
         CheckpointInProgressRequest(
@@ -151,7 +154,7 @@ namespace omnistream {
 
         std::shared_ptr<CompletableFutureV2<void>> getReadyFuture() override;
         void cancel(const std::exception_ptr &cause) override;
-        void execute(ChannelStateCheckpointWriter &writer) override;
+        void execute(std::shared_ptr<ChannelStateCheckpointWriter> writer) override;
 
     private:
         Action action_;
@@ -171,7 +174,7 @@ namespace omnistream {
 
         const std::exception_ptr &getCause() const;
         void cancel(const std::exception_ptr &) override;
-        void execute(ChannelStateCheckpointWriter &writer) override;
+        void execute(std::shared_ptr<ChannelStateCheckpointWriter> writer) override;
 
     private:
         std::exception_ptr cause_;
@@ -181,14 +184,14 @@ namespace omnistream {
     public:
         SubtaskRegisterRequest(JobVertexID jobVertexID, int subtaskIndex);
         void cancel(const std::exception_ptr &) override;
-        void execute(ChannelStateCheckpointWriter &writer) override;
+        void execute(std::shared_ptr<ChannelStateCheckpointWriter> writer) override;
     };
 
     class SubtaskReleaseRequest : public ChannelStateWriteRequest {
     public:
         SubtaskReleaseRequest(JobVertexID jobVertexID, int subtaskIndex);
         void cancel(const std::exception_ptr &) override;
-        void execute(ChannelStateCheckpointWriter &writer) override;
+        void execute(std::shared_ptr<ChannelStateCheckpointWriter> writer) override;
     };
 
 } // namespace omnistream

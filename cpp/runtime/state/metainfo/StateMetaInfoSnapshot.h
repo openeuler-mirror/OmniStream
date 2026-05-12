@@ -171,6 +171,19 @@ public:
                 return "";
         }
     }
+
+    std::string getSerializerJson() const {
+        nlohmann::json mapJson;
+        for (auto it = serializers.begin(); it != serializers.end(); it++) {
+            auto serializer = it->second;
+            if (serializer == nullptr) {
+                continue;
+            }
+           mapJson[it->first] = serializer->toJson();
+        }
+        return mapJson.dump();
+    }
+
 private:
     /** The name of the state. */
     const std::string name;

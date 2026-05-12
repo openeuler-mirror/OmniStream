@@ -20,7 +20,7 @@ template <typename E, typename SplitT>
 class AddSplitsTask : public SplitFetcherTask {
 public:
     AddSplitsTask(
-            std::shared_ptr<SplitReader<E, SplitT>> splitReader,
+            SplitReader<RdKafka::Message, KafkaPartitionSplit> *splitReader,
             std::vector<KafkaPartitionSplit*>& splitsToAdd,
             std::unordered_map<std::string, KafkaPartitionSplit*>& assignedSplits): splitReader(splitReader),
                                                                                     splitsToAdd(splitsToAdd),
@@ -60,7 +60,7 @@ public:
         return result;
     }
 private:
-    std::shared_ptr<SplitReader<E, SplitT>> splitReader;
+    SplitReader<E, SplitT>* splitReader;
     std::vector<SplitT*> splitsToAdd;
     std::unordered_map<std::string, SplitT*>& assignedSplits;
 };

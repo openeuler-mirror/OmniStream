@@ -39,7 +39,8 @@ namespace omnistream {
                     delete row;
                     delete streamRecord;
                 } else {
-                    output->collect(StreamRecordHelper::deepCopyVectorBatch(streamRecord));
+                    StreamRecord *copyRecord = StreamRecordHelper::deepCopyVectorBatch(streamRecord);
+                    output->collect(copyRecord);
                 }
             }
             if (!outputs.empty()) {
@@ -86,7 +87,9 @@ namespace omnistream::datastream {
 
             for (size_t i = 0; i < outputs.size() - 1; i++) {
                 auto streamRecord = reinterpret_cast<StreamRecord*>(record);
-                outputs[i]->collect(StreamRecordHelper::deepCopyObject(streamRecord));
+                StreamRecord *copyRecord = StreamRecordHelper::deepCopyObject(streamRecord);
+                outputs[i]->collect(copyRecord);
+                delete copyRecord;
             }
 
             if (!outputs.empty()) {

@@ -32,7 +32,7 @@ namespace omnistream  {
     ResultPartitionFactory::ResultPartitionFactory(
         std::shared_ptr<ResultPartitionManager> partitionManager,
         std::shared_ptr<NetworkObjectBufferPool> objectBufferPoolFactory,
-        std::shared_ptr<::datastream::NetworkMemoryBufferPool> memoryBufferPoolFactory,
+        std::shared_ptr<datastream::NetworkMemoryBufferPool> memoryBufferPoolFactory,
         int networkBufferSize) : partitionManager(partitionManager),
                                  objectBufferPoolFactory(objectBufferPoolFactory),
                                  memoryBufferPoolFactory(memoryBufferPoolFactory),
@@ -86,16 +86,16 @@ namespace omnistream  {
                 bufferPoolFactory,
                 taskType);
 
-            std::vector<std::shared_ptr<ResultSubpartition>> resultPartitionns;
+            std::vector<std::shared_ptr<ResultSubpartition>> resultSubPartitions;
             LOG_PART("Just before sub partition creation. numberOfSubpartitions is  "  << std::to_string(numberOfSubpartitions))
             for (auto i = 0; i < numberOfSubpartitions; i++) {
                 LOG_PART("Inside sub partition creation. index is  " << std::to_string(i))
                 int configuredNetworkBuffersPerChannel = config->getNetworkBuffersPerChannel();
                 auto subPartition = std::make_shared<PipelinedSubpartition>(
                     i, configuredNetworkBuffersPerChannel, pipelinedPartition);
-                resultPartitionns.push_back(subPartition);
+                resultSubPartitions.push_back(subPartition);
             }
-            pipelinedPartition->setSubpartitions(resultPartitionns);
+            pipelinedPartition->setSubpartitions(resultSubPartitions);
             return pipelinedPartition;
         } else {
             THROW_LOGIC_EXCEPTION("only support pipelined result partition")
@@ -106,12 +106,12 @@ namespace omnistream  {
     public:
         BufferPoolFactoryLambda(const std::shared_ptr<BufferPoolFactory> &factory,
                                 int leftNumRequiredBuffers, int rightMaxUsedBuffers, int numberOfSubpartitions,
-                                int resultPartitionType, std::shared_ptr<OmniShuffleEnvironmentConfiguration> config)
+                                int maxBuffersPerChannel, std::shared_ptr<OmniShuffleEnvironmentConfiguration> config)
             : factory_(factory),
               Left_numRequiredBuffers(leftNumRequiredBuffers),
               Right_maxUsedBuffers(rightMaxUsedBuffers),
               numberOfSubpartitions(numberOfSubpartitions),
-              resultPartitionType(resultPartitionType),
+              maxBuffersPerChannel(maxBuffersPerChannel),
               config(config) {
         }
 
@@ -119,7 +119,7 @@ namespace omnistream  {
         {
             LOG("BufferPoolFactoryLambda get")
             return factory_->createBufferPool(Left_numRequiredBuffers, Right_maxUsedBuffers, numberOfSubpartitions,
-                                              config->getNetworkBuffersPerChannel());
+                                              maxBuffersPerChannel);
         };
 
         std::string toString() const override
@@ -133,7 +133,7 @@ namespace omnistream  {
         int Left_numRequiredBuffers;
         int Right_maxUsedBuffers;
         int numberOfSubpartitions;
-        int resultPartitionType;
+        int maxBuffersPerChannel;
         std::shared_ptr<OmniShuffleEnvironmentConfiguration> config;
     };
 
@@ -143,21 +143,22 @@ namespace omnistream  {
         LOG_PART("Beginning of createBufferPoolFactory")
         bool isSortShuffle = (resultPartitionType == ResultPartitionType::BLOCKING_PERSISTENT ||
              resultPartitionType==ResultPartitionType::BLOCKING) &&
-             numberOfSubpartitions>=config->GetsortShuffleMinParallelism();
-        int min_val = isSortShuffle? config->GetsortShuffleMinBuffers():numberOfSubpartitions+1;
+             numberOfSubpartitions >= config->GetsortShuffleMinParallelism();
+        int min_val = isSortShuffle? config->GetsortShuffleMinBuffers() : numberOfSubpartitions + 1;
 
         bool isbounded = (resultPartitionType == ResultPartitionType::PIPELINED_BOUNDED ||
              resultPartitionType == ResultPartitionType::PIPELINED_APPROXIMATE);
 
         int max_val = isbounded?
-            (numberOfSubpartitions*config->getNetworkBuffersPerChannel()+config->getFloatingNetworkBuffersPerGate()):
-            (isSortShuffle? std::max(min_val, 4*numberOfSubpartitions):INT_MAX);
+            (numberOfSubpartitions * config->getNetworkBuffersPerChannel() + config->getFloatingNetworkBuffersPerGate()):
+            (isSortShuffle? std::max(min_val, 4 * numberOfSubpartitions) : INT_MAX);
         std::pair<int, int> pairs = std::make_pair(min_val, std::max(min_val, max_val));
 
         int leftNumRequiredBuffers = pairs.first;
 
         int rightMaxUsedBuffers = pairs.second;
 
+        int maxBuffersPerChannel = config->GetmaxBuffersPerChannel();
         if (taskType == 1) {
             LOG_PART("end  of createBufferPoolFactory")
             return std::make_shared<BufferPoolFactoryLambda>(objectBufferPoolFactory,
@@ -171,7 +172,7 @@ namespace omnistream  {
                 leftNumRequiredBuffers,
                 rightMaxUsedBuffers,
                 numberOfSubpartitions,
-                resultPartitionType,
+                maxBuffersPerChannel,
                 config);
         } else {
             // todo: throw out exception

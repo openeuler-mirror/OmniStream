@@ -40,22 +40,36 @@ public:
         long timestamp,
         CheckpointStreamFactory* streamFactory,
         CheckpointOptions* checkpointOptions,
-        std::shared_ptr<omnistream::OmniTaskBridge> bridge)
+        std::shared_ptr<omnistream::OmniTaskBridge> bridge,
+        std::string keySerializer)
     {
-        auto snapshotResources = snapshotStrategy_->syncPrepareResources(checkpointId);
-        auto asyncSnapshot = snapshotStrategy_->asyncSnapshot(snapshotResources, checkpointId, timestamp, streamFactory, checkpointOptions);
-        auto task = std::make_shared<std::packaged_task<std::shared_ptr<SnapshotResult<KeyedStateHandle>>()>>(
-            [=]() {
-                return asyncSnapshot->get(bridge);
-        });
+        try {
+            auto snapshotResources = snapshotStrategy_->syncPrepareResources(checkpointId);
+            auto asyncSnapshot = snapshotStrategy_->asyncSnapshot(snapshotResources, checkpointId, timestamp, streamFactory,
+                                                                  checkpointOptions, keySerializer);
+            auto task = std::make_shared<std::packaged_task<std::shared_ptr<SnapshotResult<KeyedStateHandle>>()>>(
+                [=]() {
+                    return asyncSnapshot->get(bridge);
+            });
 
-        if (executionType_ == SnapshotExecutionType::SYNCHRONOUS) {
-            auto res = asyncSnapshot->get(bridge);
-            if (res) {
-                LOG("native rocksdb checkpoint has been finished.");
+            if (executionType_ == SnapshotExecutionType::SYNCHRONOUS) {
+                auto res = asyncSnapshot->get(bridge);
+                if (res) {
+                    LOG("native rocksdb checkpoint has been finished.");
+                }
             }
+            return task;
+        } catch (const std::exception &e) {
+            INFO_RELEASE("Error:SnapshotStrategyRunner[" << description_
+                << "]: snapshot pipeline failed during preparation, checkpointId=" << checkpointId
+                << ", exception=" << e.what());
+            throw;
+        } catch (...) {
+            INFO_RELEASE("Error:SnapshotStrategyRunner[" << description_
+                << "]: snapshot pipeline failed during preparation, checkpointId=" << checkpointId
+                << ", exception=unknown");
+            throw;
         }
-        return task;
     }
 
 private:

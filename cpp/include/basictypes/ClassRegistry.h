@@ -27,9 +27,11 @@ public:
 
     Class* getClass(const std::string& name);
 
+    Class* newClass(const std::string& name);
+
     bool hasRegistry(const std::string& name);
 
 private:
-    emhash7::HashMap<std::string, Class*> classes_;
+    std::unordered_map<std::string, Class*> classes_;
 };
 #endif // OMNISTREAM_CLASSREGISTRY_H

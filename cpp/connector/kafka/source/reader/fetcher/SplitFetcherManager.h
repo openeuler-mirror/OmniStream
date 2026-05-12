@@ -35,8 +35,8 @@
 template <typename E, typename SplitT>
 class SplitFetcherManager {
 public:
-    SplitFetcherManager(std::shared_ptr<FutureCompletingBlockingQueue<E>>& elementsQueue,
-        std::function<std::shared_ptr<SplitReader<E, SplitT>>()>& splitReaderFactory)
+    SplitFetcherManager(FutureCompletingBlockingQueue<E>* elementsQueue,
+        std::function<SplitReader<E, SplitT>*()>& splitReaderFactory)
         : elementsQueue(elementsQueue), splitReaderFactory(splitReaderFactory)
     {
         errorHandler = [this, elementsQueue](const std::exception_ptr& e) {
@@ -58,11 +58,16 @@ public:
         };
     }
 
+    virtual ~SplitFetcherManager()
+    {
+        close(0);
+    }
+
     // 抽象方法，派生类需要实现
     virtual void addSplits(std::vector<SplitT*>& splitsToAdd) = 0;
 
     // 启动一个 fetcher
-    void startFetcher(const std::shared_ptr<SplitFetcher<E, SplitT>>& fetcher)
+    void startFetcher(SplitFetcher<E, SplitT>* fetcher)
     {
         executorThreads.emplace_back([fetcher]() {
             fetcher->run();
@@ -70,18 +75,20 @@ public:
     }
 
     // 创建一个新的 split fetcher
-    std::shared_ptr<SplitFetcher<E, SplitT>> createSplitFetcher()
+    SplitFetcher<E, SplitT>* createSplitFetcher()
     {
         std::lock_guard<std::mutex> lock(fetchersMutex);
-        if (closed) {
+        if (closed.load()) {
             throw std::runtime_error("The split fetcher manager has closed.");
         }
-        std::shared_ptr<SplitReader<E, SplitT>> splitReader = splitReaderFactory();
+        SplitReader<E, SplitT>* splitReader = splitReaderFactory();
         int fetcherId = fetcherIdGenerator.fetch_add(1);
-        auto fetcher = std::make_shared<SplitFetcher<E, SplitT>>(
+        auto fetcher = new SplitFetcher<E, SplitT>(
             fetcherId, elementsQueue, splitReader, errorHandler,
             [this, fetcherId]() {
                 std::lock_guard<std::mutex> lock(fetchersMutex);
+                auto fetcher = fetchers[fetcherId];
+                delete fetcher;
                 fetchers.erase(fetcherId);
                 elementsQueue->notifyAvailable();
             });
@@ -110,11 +117,19 @@ public:
     // 关闭 split fetcher manager
     void close(long timeoutMs)
     {
+        (void) timeoutMs;
+        {
             std::lock_guard<std::mutex> lock(fetchersMutex);
             closed = true;
             for (const auto& fetcher : fetchers) {
-                fetcher.second->shutdown();
+                if (fetcher.second != nullptr) {
+                    fetcher.second->shutdown();
+                }
             }
+        }
+
+        joinExecutorThreads();
+        cleanupFetchers();
     }
 
     void checkErrors()
@@ -136,12 +151,31 @@ public:
         return static_cast<int>(fetchers.size());
     }
 protected:
-    std::map<int, std::shared_ptr<SplitFetcher<E, SplitT>>> fetchers;
+    std::map<int, SplitFetcher<E, SplitT>*> fetchers;
 private:
+    void joinExecutorThreads()
+    {
+        for (auto& executorThread : executorThreads) {
+            if (executorThread.joinable()) {
+                executorThread.join();
+            }
+        }
+        executorThreads.clear();
+    }
+
+    void cleanupFetchers()
+    {
+        std::lock_guard<std::mutex> lock(fetchersMutex);
+        for (auto [fetcherId, fetcher] : fetchers) {
+            delete fetcher;
+        }
+        fetchers.clear();
+    }
+
     std::function<void(const std::exception_ptr&)> errorHandler;
     std::atomic<int> fetcherIdGenerator{0};
-    std::shared_ptr<FutureCompletingBlockingQueue<E>> elementsQueue;
-    std::function<std::shared_ptr<SplitReader<E, SplitT>>()> splitReaderFactory;
+    FutureCompletingBlockingQueue<E>* elementsQueue;
+    std::function<SplitReader<E, SplitT>*()> splitReaderFactory;
     std::exception_ptr uncaughtFetcherException;
     std::mutex exceptionMutex;
     std::vector<std::thread> executorThreads;

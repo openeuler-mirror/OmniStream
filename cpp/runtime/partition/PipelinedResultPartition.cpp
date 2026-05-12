@@ -26,6 +26,7 @@
 
 #include "ResultPartitionType.h"
 #include "event/EndOfData.h"
+#include "PipelinedSubpartition.h"
 
 namespace omnistream {
 
@@ -37,7 +38,7 @@ PipelinedResultPartition::PipelinedResultPartition(
     std::vector<std::shared_ptr<ResultSubpartition> > subpartitions,
     int numTargetKeyGroups,
     std::shared_ptr<ResultPartitionManager> partitionManager,
-    std::shared_ptr<Supplier<BufferPool>> bufferPool)
+    std::shared_ptr<Supplier<BufferPool>> bufferPoolFactory)
     : BufferWritingResultPartition(owningTaskName,
                                    partitionIndex,
                                    partitionId,
@@ -45,7 +46,7 @@ PipelinedResultPartition::PipelinedResultPartition(
                                    subpartitions,
                                    numTargetKeyGroups,
                                    partitionManager,
-                                   bufferPool),
+                                   bufferPoolFactory),
       allRecordsProcessedSubpartitions(subpartitions.size(), false),
       numNotAllRecordsProcessedSubpartitions(subpartitions.size()),
       hasNotifiedEndOfUserRecords(false),
@@ -55,7 +56,7 @@ PipelinedResultPartition::PipelinedResultPartition(
 
 PipelinedResultPartition::PipelinedResultPartition(const std::string& owningTaskName, int partitionIndex,
     const ResultPartitionIDPOD& partitionId, int partitionType, int numSubpartitions, int numTargetKeyGroups,
-    std::shared_ptr<ResultPartitionManager> partitionManager, std::shared_ptr<Supplier<BufferPool>> bufferPool, int taskType)
+    std::shared_ptr<ResultPartitionManager> partitionManager, std::shared_ptr<Supplier<BufferPool>> bufferPoolFactory, int taskType)
     :BufferWritingResultPartition(owningTaskName,
         partitionIndex,
         partitionId,
@@ -63,7 +64,7 @@ PipelinedResultPartition::PipelinedResultPartition(const std::string& owningTask
         numSubpartitions,
         numTargetKeyGroups,
         partitionManager,
-        bufferPool, taskType),
+        bufferPoolFactory, taskType),
     allRecordsProcessedSubpartitions(numSubpartitions, false),
     numNotAllRecordsProcessedSubpartitions(numSubpartitions),
     hasNotifiedEndOfUserRecords(false),
@@ -75,6 +76,56 @@ PipelinedResultPartition::PipelinedResultPartition(const std::string& owningTask
 }
 
 
+void PipelinedResultPartition::setChannelStateWriter(std::shared_ptr<ChannelStateWriter> channelStateWriter)
+{
+    for (const auto& subpartition : subpartitions_) {
+        auto pipelinedSubpartition =
+                std::dynamic_pointer_cast<PipelinedSubpartition>(subpartition);
+        if (pipelinedSubpartition) {
+            pipelinedSubpartition->setChannelStateWriter(channelStateWriter);
+        }
+    }
+}
+
+//std::shared_ptr<CheckpointedResultSubpartition> PipelinedResultPartition::getCheckpointedSubpartition(int subpartitionIndex) {
+//    return std::reinterpret_pointer_cast<CheckpointedResultSubpartition>(subpartitions_[subpartitionIndex]);
+//}
+
+std::shared_ptr<CheckpointedResultSubpartition>
+PipelinedResultPartition::getCheckpointedSubpartition(int subpartitionIndex)
+{
+    auto pipelinedSubpartition =
+            std::dynamic_pointer_cast<PipelinedSubpartition>(subpartitions_[subpartitionIndex]);
+    if (!pipelinedSubpartition) {
+        throw std::runtime_error(
+                "subpartition is not a PipelinedSubpartition, subpartitionIndex=" +
+                std::to_string(subpartitionIndex));
+    }
+    return std::static_pointer_cast<CheckpointedResultSubpartition>(pipelinedSubpartition);
+}
+
+//void PipelinedResultPartition::finishReadRecoveredState(bool notifyAndBlockOnCompletion) {
+//        for (auto subpartition : subpartitions_) {
+//            std::reinterpret_pointer_cast<CheckpointedResultSubpartition>(subpartition)->finishReadRecoveredState(notifyAndBlockOnCompletion);
+//        }
+//}
+
+void PipelinedResultPartition::finishReadRecoveredState(bool notifyAndBlockOnCompletion)
+{
+    for (const auto& subpartition : subpartitions_) {
+        auto pipelinedSubpartition =
+                std::dynamic_pointer_cast<PipelinedSubpartition>(subpartition);
+        if (!pipelinedSubpartition) {
+            throw std::runtime_error("subpartition is not a PipelinedSubpartition");
+        }
+        pipelinedSubpartition->finishReadRecoveredState(notifyAndBlockOnCompletion);
+    }
+}
+
+/**
+ * The pipelined partition releases automatically once all subpartition readers are released.
+ * That is because pipelined partitions cannot be consumed multiple times, or reconnect.
+ */
 void PipelinedResultPartition::OnConsumedSubpartition(int subpartitionIndex)
 {
     // std::cout<<"you are in PipelinedResultPartition::OnConsumedSubpartition"<<std::endl;
@@ -91,13 +142,12 @@ void PipelinedResultPartition::decrementNumberOfUsers(int subpartitionIndex)
 
     {
         std::lock_guard<std::recursive_mutex> lockGuard(lock);
-        if (subpartitionIndex < -1 || subpartitionIndex >= static_cast<int>(consumedSubpartitions.size())) {
-            throw std::runtime_error("Invalid subpartition index received in consume notification: " +
-                                     std::to_string(subpartitionIndex));
-        }
+//        if (subpartitionIndex < -1 || subpartitionIndex >= static_cast<int>(consumedSubpartitions.size())) {
+//            throw std::runtime_error("Invalid subpartition index received in consume notification: " +
+//                                     std::to_string(subpartitionIndex));
+//        }
         
         if (subpartitionIndex != PIPELINED_RESULT_PARTITION_ITSELF) {
-            std::cout << "we are here  subpartitionIndex != PIPELINED_RESULT_PARTITION_ITSELF"<<std::endl;
             if (consumedSubpartitions[subpartitionIndex]) {
                 return;
             }
@@ -109,7 +159,7 @@ void PipelinedResultPartition::decrementNumberOfUsers(int subpartitionIndex)
     // std::cout << "PipelinedResultPartition: Received consumed notification for subpartition: " << subpartitionIndex <<" "<<remainingUnconsumed<< std::endl;
 
     if (remainingUnconsumed == 0) {
-        partitionManager->onConsumedPartition(ResultPartition::shared_from_this());
+        partitionManager->onConsumedPartition(shared_from_this());
     } else if (remainingUnconsumed < 0) {
         throw std::runtime_error("Received consume notification even though all subpartitions are already consumed.");
     }
@@ -151,7 +201,7 @@ void PipelinedResultPartition::onSubpartitionAllDataProcessed(int subpartition)
     numNotAllRecordsProcessedSubpartitions--;
 
     if (numNotAllRecordsProcessedSubpartitions == 0) {
-        allRecordsProcessedFuture->setCompleted();
+        allRecordsProcessedFuture->complete();
     }
 }
 
@@ -168,24 +218,10 @@ int PipelinedResultPartition::checkResultPartitionType(int type)
     return type;
 }
 
-void PipelinedResultPartition::releaseInternal() {
-}
-
-    /**
-void PipelinedResultPartition::FinishReadRecoveredState(bool notifyAndBlockOnCompletion) {
-    for (const auto& subpartition : subpartitions) {
-        if (auto checkpointedSubpartition = std::dynamic_pointer_cast<CheckpointedResultSubpartition>(subpartition)) {
-            checkpointedSubpartition->FinishReadRecoveredState(notifyAndBlockOnCompletion);
-        }
-    }
-}
-
-*/
-
 void PipelinedResultPartition::close()
 {
     decrementNumberOfUsers(PIPELINED_RESULT_PARTITION_ITSELF);
-    ResultPartition::close();
+    BufferWritingResultPartition::close();
 }
 
 } // namespace omnistream

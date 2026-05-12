@@ -23,7 +23,8 @@ namespace omnistream {
 
     class MailboxController : public MailboxDefaultAction::Controller {
     public:
-        explicit MailboxController(std::shared_ptr<MailboxProcessor> mailboxProcessor);
+        explicit MailboxController(MailboxProcessor* mailboxProcessor);
+
         ~MailboxController() override;
 
         void allActionsCompleted() override;
@@ -33,7 +34,7 @@ namespace omnistream {
         std::string toString() const;
 
     private:
-        std::shared_ptr<MailboxProcessor> mailboxProcessor_;
+        MailboxProcessor* mailboxProcessor_;
     };
 
 } // namespace omnistream

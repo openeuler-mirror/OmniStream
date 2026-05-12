@@ -43,7 +43,8 @@ std::shared_ptr<SnapshotResultSupplier<KeyedStateHandle>> RocksNativeFullSnapsho
     long checkpointId,
     long timestamp,
     CheckpointStreamFactory* checkpointStreamFactory,
-    CheckpointOptions* checkpointOptions)
+    CheckpointOptions* checkpointOptions,
+    std::string keySerializer)
 {
     LOG("RocksNativeFullSnapshotStrategy::asyncSnapshot");
     auto rocksdbSnapshotResources = static_cast<NativeRocksDBSnapshotResources*>(snapshotResources.get());
@@ -62,7 +63,9 @@ std::shared_ptr<SnapshotResultSupplier<KeyedStateHandle>> RocksNativeFullSnapsho
             stateMetaInfoSnapshots,
             backendUID_,
             keyGroupRange_,
-            this));
+            this,
+            checkpointOptions,
+            keySerializer_));
 }
 
 void RocksNativeFullSnapshotStrategy::notifyCheckpointComplete(int64_t completedCheckpointId) {}
@@ -90,15 +93,19 @@ RocksNativeFullSnapshotStrategy::RocksDBNativeFullSnapshotOperation::RocksDBNati
     std::vector<std::shared_ptr<StateMetaInfoSnapshot>> stateMetaInfoSnapshots,
     UUID backendUID,
     KeyGroupRange keyGroupRange,
-    RocksNativeFullSnapshotStrategy* outerStrategy)
+    RocksNativeFullSnapshotStrategy* outerStrategy,
+    CheckpointOptions *checkpointOptions,
+    std::shared_ptr<TypeSerializer> keySerializer)
     : RocksDBSnapshotOperation(
         checkpointId,
         checkpointStreamFactory,
         localBackupDirectory,
-        stateMetaInfoSnapshots),
+        stateMetaInfoSnapshots,
+        keySerializer),
     backendUID_(backendUID),
     keyGroupRange_(keyGroupRange),
-    outerStrategy_(outerStrategy) {}
+    outerStrategy_(outerStrategy),
+    checkpointOptions_(checkpointOptions) {}
 
 std::shared_ptr<SnapshotResult<KeyedStateHandle>>RocksNativeFullSnapshotStrategy::RocksDBNativeFullSnapshotOperation::get(
     std::shared_ptr<omnistream::OmniTaskBridge> bridge)
@@ -111,7 +118,9 @@ std::shared_ptr<SnapshotResult<KeyedStateHandle>>RocksNativeFullSnapshotStrategy
         metaStateHandle = outerStrategy_->materializeMetaData(
             stateMetaInfoSnapshots,
             checkpointId,
-            bridge);
+            checkpointOptions_,
+            bridge,
+            keySerializer->toJson());
 
         int64_t checkpointedSize = metaStateHandle->GetStateSize();
         checkpointedSize += uploadSnapshotFiles(privateFiles, bridge);

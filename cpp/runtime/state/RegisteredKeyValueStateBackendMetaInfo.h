@@ -8,8 +8,8 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef FLINK_TNEL_REGISTEREDKEYVALUESTATEBACKENDMETAINFO_H
-#define FLINK_TNEL_REGISTEREDKEYVALUESTATEBACKENDMETAINFO_H
+
+#pragma once
 
 #include <string>
 #include "RegisteredStateMetaInfoBase.h"
@@ -71,8 +71,8 @@ private:
     // Instead of using serializer provider, straight up use serializer
     // Might change later if needed
     StateDescriptor::Type stateType;
-    TypeSerializer* namespaceSerializer;
-    TypeSerializer* stateSerializer;
+    TypeSerializer* namespaceSerializer = nullptr;
+    TypeSerializer* stateSerializer = nullptr;
 
     static StateDescriptor::Type parseStateType(const std::string& typeStr)
     {
@@ -87,4 +87,3 @@ private:
     // @Nonnull
     std::shared_ptr<StateMetaInfoSnapshot> computeSnapshot();
 };
-#endif // FLINK_TNEL_REGISTEREDKEYVALUESTATEBACKENDMETAINFO_H

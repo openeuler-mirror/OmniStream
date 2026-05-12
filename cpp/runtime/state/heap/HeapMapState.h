@@ -60,7 +60,27 @@ public:
 
     void setCurrentNamespace(N nameSpace) override;
 
-    void clear() override { stateTable->remove(currentNamespace); };
+    void clear() override
+    {
+        emhash7::HashMap<UK, UV> *userMap = stateTable->get(currentNamespace);
+        if (userMap != nullptr) {
+            if constexpr (std::is_same_v<UK, Object*> && std::is_same_v<UV, Object*>) {
+                // Decrement refcounts for all Object* entries before the state table removes
+                // the owning HashMap pointer.
+                for (auto &pair : *userMap) {
+                    Object *key = static_cast<Object*>(pair.first);
+                    Object *value = static_cast<Object*>(pair.second);
+                    if (key != nullptr) {
+                        key->putRefCount();
+                    }
+                    if (value != nullptr) {
+                        value->putRefCount();
+                    }
+                }
+            }
+        }
+        stateTable->remove(currentNamespace);
+    };
 
     static HeapMapState<K, N, UK, UV> *
     create(StateDescriptor *stateDesc, StateTable<K, N, emhash7::HashMap<UK, UV>* > *stateTable,
@@ -235,7 +255,22 @@ void HeapMapState<K, N, UK, UV>::remove(const UK &userKey)
         return;
     }
 
-    userMap->erase(userKey);
+    if constexpr (std::is_same_v<UK, Object*> && std::is_same_v<UV, Object*>) {
+        auto it = userMap->find(userKey);
+        if (it != userMap->end()) {
+            Object *oldKey = static_cast<Object*>(it->first);
+            Object *oldValue = static_cast<Object*>(it->second);
+            userMap->erase(it);
+            if (oldKey != nullptr) {
+                oldKey->putRefCount();
+            }
+            if (oldValue != nullptr) {
+                oldValue->putRefCount();
+            }
+        }
+    } else {
+        userMap->erase(userKey);
+    }
 
     if (userMap->empty()) {
         clear();
@@ -257,7 +292,22 @@ inline void HeapMapState<K, N, UK, UV>::update(const UK &userKey, const UV &user
         throw std::runtime_error("User map is null");
     }
     auto it = userMap->find(userKey);
-    it->second = userValue;
+    if (it == userMap->end()) {
+        return;
+    }
+    if constexpr (std::is_same_v<UK, Object*> && std::is_same_v<UV, Object*>) {
+        Object *oldValue = static_cast<Object*>(it->second);
+        Object *newValue = static_cast<Object*>(userValue);
+        it->second = userValue;
+        if (newValue != nullptr) {
+            newValue->getRefCount();
+        }
+        if (oldValue != nullptr) {
+            oldValue->putRefCount();
+        }
+    } else {
+        it->second = userValue;
+    }
 }
 
 template<typename K, typename N, typename UK, typename UV>

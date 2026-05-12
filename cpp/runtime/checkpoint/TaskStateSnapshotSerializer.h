@@ -20,6 +20,7 @@
 #include "runtime/state/filesystem/FileStateHandle.h"
 #include "runtime/checkpoint/InflightDataRescalingDescriptor.h"
 #include "runtime/state/KeyGroupsStateHandle.h"
+#include "runtime/state/KeyGroupsSavepointStateHandle.h"
 
 class TaskStateSnapshotSerializer {
 public:
@@ -56,7 +57,7 @@ public:
     static nlohmann::json parseDirectoryStateHandle(DirectoryStateHandle* directoryStateHandle);
 
     static nlohmann::json parseInflightDataRescalingDescriptor(
-        const InflightDataRescalingDescriptor& rescalingDescriptor);
+        const std::shared_ptr<InflightDataRescalingDescriptor> rescalingDescriptor);
 };
 
 #endif // OMNISTREAM_TASKSTATESNAPSHOTSERIALIZER_H

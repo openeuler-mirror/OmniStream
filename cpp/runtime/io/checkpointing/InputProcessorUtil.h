@@ -18,11 +18,13 @@
 #include <stdexcept>
 #include <string>
 #include <numeric>
+
 #include "runtime/io/checkpointing/CheckpointedInputGate.h"
 #include "runtime/io/checkpointing/SingleCheckpointBarrierHandler.h"
 #include "runtime/io/checkpointing/BarrierAlignmentUtil.h"
 #include "streaming/runtime/tasks/SystemProcessingTimeService.h"
 #include "streaming/runtime/io/OmniStreamTaskSourceInput.h"
+#include "partition/consumer/RemoteInputChannel.h"
 #include "metrics/SystemClock.h"
 
 namespace omnistream {
@@ -34,7 +36,7 @@ public:
             const std::vector<std::vector<std::shared_ptr<IndexedInputGate>>> &inputGateGroups,
             const std::shared_ptr<CheckpointBarrierHandler> &barrierHandler,
             bool graphContainsLoops = false)
-            {
+    {
         std::vector<std::shared_ptr<CheckpointedInputGate>> checkpointedInputGates;
 
         // 1. Flatten groups into a single vector
@@ -66,10 +68,22 @@ public:
         const std::vector<std::vector<std::shared_ptr<IndexedInputGate>>> &inputGateGroups,
         const std::vector<std::shared_ptr<OmniStreamTaskSourceInput>> &sourceInputs,
         bool enableUnaligned,
+        std::int64_t alignedCheckpointTimeoutMillis,
         bool enableCheckpointAfterTasksFinish)
     {
-        LOG(">>>>>>>>>>>")
         std::vector<CheckpointableInput *> allInputs;
+        const bool isPureUnalignedConfigured =
+                    enableUnaligned && alignedCheckpointTimeoutMillis == 0;
+        const bool forwardResumeToJava = !isPureUnalignedConfigured;
+        for (const auto &group: inputGateGroups) {
+            for (const auto &input: group) {
+                auto singleInputGate = std::dynamic_pointer_cast<SingleInputGate>(input);
+                if (singleInputGate == nullptr) {
+                    continue;
+                }
+                singleInputGate->SetForwardResumeToJava(forwardResumeToJava);
+            }
+        }
 
         for (const auto &group: inputGateGroups) {
             for (const auto &input: group) {
@@ -91,17 +105,52 @@ public:
             totalChannels += static_cast<int>(input->GetChannelInfos().size());
         }
 
-        auto timerCallback = runtime::BarrierAlignmentUtil::createRegisterTimerCallback<std::function<void()>>(
+        // timer callback
+        auto timerCallback =
+            runtime::BarrierAlignmentUtil::createRegisterTimerCallback<std::function<void()>>(
                 mailboxExecutor.get(), timerService.get());
-        return enableUnaligned
-            ? runtime::SingleCheckpointBarrierHandler::alternating(
-                taskName, toNotifyOnCheckpoint, coordinator.get(),
-                SystemClock::GetInstance(), totalChannels,
+
+        // Force aligned
+        enableUnaligned = false;
+        if (!enableUnaligned) {
+			LOG("creates a aligned barrier handler");
+            return runtime::SingleCheckpointBarrierHandler::aligned(
+                taskName,
+                toNotifyOnCheckpoint,
+                SystemClock::GetInstance(),
+                totalChannels,
                 timerCallback,
-                enableCheckpointAfterTasksFinish, allInputs)
-            : runtime::SingleCheckpointBarrierHandler::aligned(
-                taskName, toNotifyOnCheckpoint, SystemClock::GetInstance(),
-                totalChannels, timerCallback, enableCheckpointAfterTasksFinish, allInputs);
+                enableCheckpointAfterTasksFinish,
+                allInputs);
+        }
+
+        // Flink 1.16.3 behavior:
+        //  - aligned-checkpoint-timeout == 0  => Always Unaligned (no alignment attempt)
+        //  - aligned-checkpoint-timeout > 0   => Aligned attempt + timeout => Unaligned
+        alignedCheckpointTimeoutMillis = 60;
+        if (alignedCheckpointTimeoutMillis == 0) {
+			LOG("creates a unaligned barrier handler");
+            return runtime::SingleCheckpointBarrierHandler::unaligned(
+                taskName,
+                toNotifyOnCheckpoint,
+                coordinator.get(),
+                SystemClock::GetInstance(),
+                totalChannels,
+                timerCallback,
+                enableCheckpointAfterTasksFinish,
+                allInputs);
+        }
+
+		LOG("creates a alternating barrier handler");
+        return runtime::SingleCheckpointBarrierHandler::alternating(
+            taskName,
+            toNotifyOnCheckpoint,
+            coordinator.get(),
+            SystemClock::GetInstance(),
+            totalChannels,
+            timerCallback,
+            enableCheckpointAfterTasksFinish,
+            allInputs);
     }
 };
 } // namespace omnistream

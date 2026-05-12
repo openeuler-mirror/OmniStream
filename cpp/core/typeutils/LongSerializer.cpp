@@ -26,7 +26,7 @@ void LongSerializer::deserialize(Object *buffer, DataInputView &source)
 void LongSerializer::serialize(Object *buffer, DataOutputSerializer &target)
 {
     LOG("LongSerializer::serialize change start +++ value : ");
-    int64_t value = reinterpret_cast<Long *>(buffer)->getValue();
+    const int64_t value = reinterpret_cast<Long *>(buffer)->getValue();
     target.writeLong(value);
     LOG("LongSerializer::serialize change end +++")
 }
@@ -42,12 +42,12 @@ LongSerializer::LongSerializerCleaner LongSerializer::cleaner;
 
 void *IntSerializer::deserialize(DataInputView &source)
 {
-    NOT_IMPL_EXCEPTION;
+    return reinterpret_cast<void *>(new int(source.readInt()));
 }
 
 void IntSerializer::serialize(void *record, DataOutputSerializer &target)
 {
-    NOT_IMPL_EXCEPTION;
+    target.writeInt(*(int *)record);
 }
 
 void IntSerializer::deserialize(Object *buffer, DataInputView& source)

@@ -13,9 +13,15 @@
 #include "NonReusingDeserializationDelegate.h"
 
 
-NonReusingDeserializationDelegate::NonReusingDeserializationDelegate(std::unique_ptr<TypeSerializer>serializer)
-    : serializer_(std::move(serializer)), instance_(nullptr) {}
+NonReusingDeserializationDelegate::NonReusingDeserializationDelegate(omnistream::datastream::StreamElementSerializer *serializer)
+    : serializer_(serializer), instance_(nullptr) {}
 
+NonReusingDeserializationDelegate::~NonReusingDeserializationDelegate() {
+    if (serializer_ != nullptr) {
+        delete serializer_;
+        serializer_ = nullptr;
+    }
+}
 
 void *NonReusingDeserializationDelegate::getInstance()
 {

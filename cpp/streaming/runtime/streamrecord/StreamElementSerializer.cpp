@@ -16,10 +16,15 @@
 
 namespace omnistream::datastream {
     StreamElementSerializer::StreamElementSerializer(TypeSerializer *typeSerializer)
-        : typeSerializer_(typeSerializer), reUsableRecord_(nullptr), reUsableWatermark_(nullptr)
+        : typeSerializer_(typeSerializer)
     {
         reUsableRecord_ = new StreamRecord();
         reUsableWatermark_ = new Watermark(0);
+        if (!typeSerializer || (strcmp(typeSerializer_->getName(), "BinaryRowDataSerializer") == 0)) {
+            isDatastream = false;
+        } else {
+            isDatastream = true;
+        }
     }
 
     void *StreamElementSerializer::deserialize(DataInputView &source)
@@ -35,7 +40,7 @@ namespace omnistream::datastream {
             LOG("typeSerializer_: is kind of  " << typeSerializer_->getName());
 #endif
             // Check the typeSerializer_
-            if (strcmp(typeSerializer_->getName(), "BinaryRowDataSerializer") == 0) {
+            if (!isDatastream) {
                 auto binaryRowData = typeSerializer_->deserialize(source);
                 reUsableRecord_->setValue(binaryRowData);
                 reUsableRecord_->setTag(StreamElementTag::TAG_REC_WITH_TIMESTAMP);
@@ -54,7 +59,7 @@ namespace omnistream::datastream {
 #ifdef DEBUG
             LOG("typeSerializer_: is kind of  " << typeSerializer_->getName());
 #endif
-            if (strcmp(typeSerializer_->getName(), "BinaryRowDataSerializer") == 0) {
+            if (!isDatastream) {
                 auto binaryRowData = typeSerializer_->deserialize(source);
                 reUsableRecord_->setValue(binaryRowData);
             } else {

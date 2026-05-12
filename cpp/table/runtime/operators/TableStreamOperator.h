@@ -9,8 +9,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef FLINK_TNEL_TABLESTREAMOPERATOR_H
-#define FLINK_TNEL_TABLESTREAMOPERATOR_H
+#pragma once
 
 #include "streaming/api/operators/AbstractStreamOperator.h"
 
@@ -29,7 +28,7 @@ public:
     void ProcessWatermark(Watermark *mark) override
     {
         if (this->timeServiceManager != nullptr) {
-            this->timeServiceManager->template advanceWatermark<int64_t>(mark);
+            this->timeServiceManager->advanceWatermark(mark);
         }
         this->output->emitWatermark(mark);
         currentWatermark = mark->getTimestamp();
@@ -57,5 +56,3 @@ protected:
     ContextImpl *ctx;
     int64_t currentWatermark = INT64_MIN;
 };
-
-#endif // FLINK_TNEL_TABLESTREAMOPERATOR_H

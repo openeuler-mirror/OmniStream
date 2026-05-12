@@ -13,9 +13,9 @@
 #include "table/data/vectorbatch/VectorBatch.h"
 
 namespace omnistream {
-    std::shared_ptr<ObjectSegment> omnistream::ObjectSegmentFactory::allocateUnpooledSegment(int segmentSize)
+    ObjectSegment *omnistream::ObjectSegmentFactory::allocateUnpooledSegment(int segmentSize)
     {
-        return std::make_shared<ObjectSegment>(segmentSize);
+        return new ObjectSegment(segmentSize);
     }
 }
 

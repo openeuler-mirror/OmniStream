@@ -11,6 +11,7 @@
 
 #include "ResultSubpartitionInfoPOD.h"
 #include <sstream>
+#include <nlohmann/json.hpp>
 
 namespace omnistream {
 
@@ -64,10 +65,11 @@ namespace omnistream {
 
     std::string ResultSubpartitionInfoPOD::toString() const
     {
-        std::stringstream ss;
-        ss << "ResultSubpartitionInfoPOD{partitionIdx=" << partitionIdx
-           << ", subPartitionIdx=" << subPartitionIdx << "}";
-        return ss.str();
+        nlohmann::json info;
+        info["@class"] = "org.apache.flink.runtime.checkpoint.channel.ResultSubpartitionInfo";
+        info["partitionIdx"] = partitionIdx;
+        info["subPartitionIdx"] = subPartitionIdx;
+        return info.dump();
     }
 
 } // namespace omnistream

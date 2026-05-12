@@ -23,8 +23,6 @@
 #include "../../io/OmniStreamTaskNetworkOutput.h"
 
 namespace omnistream {
-
-
     // temporary set parameter type is int
     OmniPushingAsyncDataInput::OmniDataOutput *OmniOneInputStreamTask::createDataOutput(
         std::shared_ptr<omnistream::SimpleCounter> & numRecordsIn)
@@ -34,6 +32,10 @@ namespace omnistream {
 
     OmniStreamTaskInput* OmniOneInputStreamTask::CreateTaskInput(std::shared_ptr<CheckpointedInputGate> inputGate)
     {
+        auto inputRescalingDescriptor = env_->getTaskStateManager()->getInputRescalingDescriptor();
+        auto edges = taskConfiguration_.getStreamConfigPOD().getOutEdgesInOrder();
+        auto getPartitionerFunction = std::function<StreamPartitioner<IOReadableWritable>*(int)>(
+        [this, edges](int i) { return this->createPartitionerFromDesc(edges[i]); });
         // initialize TypeInformation and channelInfos
         if (taskType == 1) {
             // todo: fix it later
@@ -59,7 +61,9 @@ namespace omnistream {
             } else {
                 typeList = descriptionJson["inputTypes"].get<std::vector<std::string>>();
             }
-            return OmniStreamTaskNetworkInputFactory::create(0, inputGate, taskType, new BinaryRowDataSerializer(typeList.size(), typeList), channelInfoIndex);
+            return OmniStreamTaskNetworkInputFactory::create(0, inputGate, taskType,
+                                                         new BinaryRowDataSerializer(typeList.size(), typeList),
+                                                         channelInfoIndex, inputRescalingDescriptor,getPartitionerFunction, &taskConfiguration_);
         } else if (taskType == 2) {
             auto operatorPod = this->taskConfiguration_.getStreamConfigPOD().getOperatorDescription();
 
@@ -89,8 +93,10 @@ namespace omnistream {
             }
 
             TypeSerializer *inputSerializer = typeInfo->getTypeSerializer();
+            inputSerializer->setSelfBufferReusable(true);
 
-            return OmniStreamTaskNetworkInputFactory::create(0, inputGate, taskType, inputSerializer, channel_array);
+            return OmniStreamTaskNetworkInputFactory::create(0, inputGate, taskType, inputSerializer, channel_array,
+                                                             inputRescalingDescriptor,getPartitionerFunction,&taskConfiguration_);
         } else {
             THROW_LOGIC_EXCEPTION("Unknown taskType " + taskType)
         }
@@ -106,10 +112,10 @@ namespace omnistream {
         auto output = createDataOutput(reinterpret_cast<std::shared_ptr<omnistream::SimpleCounter> &>(counter));
         auto input = CreateTaskInput(inputGate);
 
-        inputProcessor_ = std::make_shared<OmniStreamOneInputProcessor>(input, output, operatorChain);
+        inputProcessor_ = new OmniStreamOneInputProcessor(input, output, operatorChain.get());
     }
 
-    void OmniOneInputStreamTask::processInput(std::shared_ptr<MailboxDefaultAction::Controller> controller)
+    void OmniOneInputStreamTask::processInput(MailboxDefaultAction::Controller *controller)
     {
         // LOG(">>>>OmniOneInputStreamTask::processInput")
         OmniStreamTask::processInput(controller);
@@ -128,6 +134,7 @@ namespace omnistream {
 
     void OmniOneInputStreamTask::cleanup()
     {
+        LOG_DEBUG("Find cleanup inputProcessor_")
         OmniStreamTask::cleanup();
         inputProcessor_->close();
     }
@@ -139,6 +146,9 @@ namespace omnistream {
 
         taskConfiguration_ = env_->taskConfiguration();
         auto checkpointExecutionConfig = taskConfiguration_.getExecutionCheckpointConfig();
+        const std::int64_t alignedCheckpointTimeoutMillis =
+            checkpointExecutionConfig.getAlignedCheckpointTimeoutSecond() * 1000 +
+            checkpointExecutionConfig.getAlignedCheckpointTimeoutNano() / 1000000;
         auto checkpointBarrierHandler = InputProcessorUtil::CreateCheckpointBarrierHandler(
             this,
             getName(),
@@ -148,12 +158,13 @@ namespace omnistream {
             {checkpointableInputs},
             emptySourceInputs,
             checkpointExecutionConfig.getUnalignedCheckpointsEnabled(),
+            alignedCheckpointTimeoutMillis,
             checkpointExecutionConfig.getCheckpointAfterTasksFinishEnabled());
 
         auto checkpointedInputGates = InputProcessorUtil::CreateCheckpointedMultipleInputGate(
             mainMailboxExecutor_,
             {checkpointableInputs}, checkpointBarrierHandler);
-
+        
         return checkpointedInputGates[0];
     }
 }

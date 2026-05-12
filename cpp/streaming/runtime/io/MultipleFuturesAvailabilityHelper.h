@@ -41,6 +41,7 @@ namespace omnistream {
     private:
         std::vector<std::shared_ptr<CompletableFuture>> futuresToCombine;
         std::shared_ptr<CompletableFuture> availableFuture = std::make_shared<CompletableFuture>();
+        std::recursive_mutex availableFutureMutex;
 
         void notifyCompletion();
     };

@@ -33,7 +33,7 @@ public:
      * @return unique_ptr to FSDataInputStream
      * @throws std::ios_base::failure if stream opening fails
      */
-    virtual std::unique_ptr<FSDataInputStream> OpenInputStream() const = 0;
+    virtual std::shared_ptr<FSDataInputStream> OpenInputStream() const = 0;
 
     /**
      * @return Content of this handle as a byte array if it is already in memory.
@@ -46,5 +46,11 @@ public:
     virtual PhysicalStateHandleID GetStreamStateHandleID() const = 0;
 
     virtual bool operator==(const StreamStateHandle& other) const = 0;
+
+    virtual void DiscardState() = 0;
+
+private:
+    int bufferSize_;
+    std::string filePath;
 };
 #endif // FLINK_TNEL_STREAMSTATEHANDLE_H

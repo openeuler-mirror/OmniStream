@@ -61,34 +61,34 @@ namespace omnistream {
     std::shared_ptr<CompletableFuture> GetAvailableFuture()  override;
 
     std::shared_ptr<Buffer> requestBuffer() override;
-    std::shared_ptr<BufferBuilder> requestBufferBuilder() override;
-    std::shared_ptr<BufferBuilder> requestBufferBuilder(int targetChannel) override;
-    std::shared_ptr<BufferBuilder> requestBufferBuilderBlocking() override;
-    std::shared_ptr<BufferBuilder> requestBufferBuilderBlocking(int targetChannel) override;
+    BufferBuilder *requestBufferBuilder() override;
+    BufferBuilder *requestBufferBuilder(int targetChannel) override;
+    BufferBuilder *requestBufferBuilderBlocking() override;
+    BufferBuilder *requestBufferBuilderBlocking(int targetChannel) override;
 
     std::shared_ptr<ObjectBuffer> requestObjectBuffer();
-    std::shared_ptr<ObjectBufferBuilder> requestObjectBufferBuilder();
-    std::shared_ptr<ObjectBufferBuilder> requestObjectBufferBuilder(int targetChannel);
-    std::shared_ptr<ObjectBufferBuilder> requestObjectBufferBuilderBlocking();
-    std::shared_ptr<ObjectBufferBuilder> requestObjectBufferBuilderBlocking(int targetChannel);
+    ObjectBufferBuilder *requestObjectBufferBuilder();
+    ObjectBufferBuilder *requestObjectBufferBuilder(int targetChannel);
+    ObjectBufferBuilder *requestObjectBufferBuilderBlocking();
+    ObjectBufferBuilder *requestObjectBufferBuilderBlocking(int targetChannel);
 
-    std::shared_ptr<Segment> requestSegment() override;
-    std::shared_ptr<Segment> requestSegment(int targetChannel) override;
-    std::shared_ptr<Segment> requestSegmentBlocking() override;
-    std::shared_ptr<Segment> requestSegmentBlocking(int targetChannel) override;
+    Segment *requestSegment() override;
+    Segment *requestSegment(int targetChannel) override;
+    Segment *requestSegmentBlocking() override;
+    Segment *requestSegmentBlocking(int targetChannel) override;
 
-    std::shared_ptr<ObjectSegment> requestObjectSegment();
-    std::shared_ptr<ObjectSegment> requestObjectSegment(int targetChannel);
-    std::shared_ptr<ObjectSegment> requestObjectSegmentBlocking();
-    std::shared_ptr<ObjectSegment> requestObjectSegmentBlocking(int targetChannel);
+    ObjectSegment *requestObjectSegment();
+    ObjectSegment *requestObjectSegment(int targetChannel);
+    ObjectSegment *requestObjectSegmentBlocking();
+    ObjectSegment *requestObjectSegmentBlocking(int targetChannel);
 
-    std::shared_ptr<ObjectBuffer> toObjectBuffer(std::shared_ptr<ObjectSegment> segment);
-    std::shared_ptr<ObjectBufferBuilder> toObjectBufferBuilder(std::shared_ptr<ObjectSegment> segment, int targetChannel);
+    std::shared_ptr<ObjectBuffer> toObjectBuffer(ObjectSegment *segment);
+    ObjectBufferBuilder *toObjectBufferBuilder(ObjectSegment *segment, int targetChannel);
 
     std::string toString() const override;
 
-    void returnSegment(std::shared_ptr<Segment> segment) override;
-    void returnObjectSegment(std::shared_ptr<ObjectSegment> segment);
+    void returnSegment(Segment *segment) override;
+    void returnObjectSegment(ObjectSegment *segment);
 
     void returnExcessSegments() override;
     void returnExcessObjectSegments();
@@ -103,7 +103,7 @@ namespace omnistream {
     class SubpartitionBufferRecycler : public ObjectBufferRecycler {
     public:
         SubpartitionBufferRecycler(int channel,  std::shared_ptr<LocalBufferPool> bufferPool);
-        void recycle(std::shared_ptr<Segment> segment) override;
+        void recycle(Segment *segment) override;
     protected:
         int channel_;
         std::shared_ptr<LocalBufferPool> bufferPool_;
@@ -112,8 +112,8 @@ namespace omnistream {
     std::shared_ptr<NetworkObjectBufferPool> networkObjBufferPool_;
 
     /** The minimum number of required segments for this pool. */
-    // std::recursive_mutex recursiveMutex;
-    std::deque<std::shared_ptr<ObjectSegment>> availableObjectSegments_;
+    // std::recursive_mutex availableSegmentsLock;
+    std::deque<ObjectSegment *> availableObjectSegments_; // not use
     std::mutex availableObjectSegmentsMutex;
 
     // std::deque<std::shared_ptr<ObjectBufferListener>> registeredListeners_;

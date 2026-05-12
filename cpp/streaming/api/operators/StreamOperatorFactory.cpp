@@ -87,7 +87,8 @@ if (uniqueName == OPERATOR_NAME_STREAM_EXPAND) {
     auto *watermarkAssignerOperator = new WatermarkAssignerOperator(chainOutput,
         opConfig.getDescription()["rowtimeFieldIndex"],
         4000,
-        opConfig.getDescription()["idleTimeout"]);
+        opConfig.getDescription()["idleTimeout"],
+        nullptr);
     watermarkAssignerOperator->setup();
     return static_cast<OneInputStreamOperator *>(watermarkAssignerOperator);
 } else if (uniqueName == OPERATOR_NAME_KEYED_PROCESS_OPERATOR) {
@@ -152,7 +153,7 @@ if (uniqueName == OPERATOR_NAME_STREAM_EXPAND) {
         LOG("Operator AggregateWindowOperator address " + std::to_string(reinterpret_cast<long>(op)))
         return static_cast<OneInputStreamOperator *>(op);
     } else if (uniqueName == OPERATOR_NAME_WINDOW_INNER_JOIN) {
-        auto op = new InnerJoinOperator<int64_t>(opConfig.getDescription(), chainOutput, nullptr, nullptr);
+        auto op = new InnerJoinOperator<BinaryRowData*>(opConfig.getDescription(), chainOutput, nullptr, nullptr);
         op->setup();
         LOG("Operator WindowJoinOperator address " + std::to_string(reinterpret_cast<long>(op)));
         return static_cast<TwoInputStreamOperator *>(op);
@@ -179,10 +180,12 @@ StreamOperator *StreamOperatorFactory::createOperatorAndCollector(omnistream::Op
     } else if (operatorID == OPERATOR_NAME_GLOBAL_WINDOW_AGG) {
         return CreateGlobalWindowAggOp(opDesc, chainOutput, task);
     } else if (operatorID == OPERATOR_NAME_GROUP_WINDOW_AGG) {
-        return CreateGroupAggOp(opDesc, chainOutput, task);
+        auto processingTimeService = task->createProcessingTimeService();
+        return CreateGroupWindowAggOp(opDesc, chainOutput, task, processingTimeService);
     } else if (operatorID == OPERATOR_NAME_WATERMARK_ASSIGNER) {
+        auto processingTimeService = task->createProcessingTimeService();
         // Idle timeout is currently set to 0, but might change depending on the config
-        return CreateWatermarkAssignerOp(opDesc, chainOutput, task);
+        return CreateWatermarkAssignerOp(opDesc, chainOutput, task, processingTimeService);
     } else if (operatorID == OPERATOR_NAME_KEYED_PROCESS_OPERATOR) {
         return CreateKeyedProcessOp(opDesc, chainOutput, task);
     } else if (operatorID == OPERATOR_NAME_SINK || operatorID == OPERATOR_NAME_COLLECT_SINK
@@ -272,24 +275,31 @@ StreamOperator* StreamOperatorFactory::CreateGlobalWindowAggOp(OperatorPOD &opCo
     return static_cast<OneInputStreamOperator *>(op);
 }
 
-StreamOperator* StreamOperatorFactory::CreateGroupAggOp(OperatorPOD &opConfig,
-    WatermarkGaugeExposingOutput *chainOutput, std::shared_ptr<omnistream::OmniStreamTask> task)
+StreamOperator* StreamOperatorFactory::CreateGroupWindowAggOp(OperatorPOD &opConfig, WatermarkGaugeExposingOutput *chainOutput,
+                                                              std::shared_ptr<omnistream::OmniStreamTask> task,
+                                                              ProcessingTimeService *processingTimeService)
 {
     auto description = opConfig.getDescription();
     nlohmann::json opDescriptionJSON = nlohmann::json::parse(description);
     auto *op = new AggregateWindowOperator<RowData*, TimeWindow>(opDescriptionJSON, chainOutput);
+    op->setProcessingTimeService(processingTimeService);
     op->setup(std::move(task));
     LOG("Operator AggregateWindowOperator address " + std::to_string(reinterpret_cast<long>(op)))
     return static_cast<OneInputStreamOperator *>(op);
 }
 
 StreamOperator* StreamOperatorFactory::CreateWatermarkAssignerOp(OperatorPOD &opConfig,
-    WatermarkGaugeExposingOutput *chainOutput, std::shared_ptr<omnistream::OmniStreamTask> task)
+                                                                 WatermarkGaugeExposingOutput *chainOutput,
+                                                                 std::shared_ptr<omnistream::OmniStreamTask> task,
+                                                                 ProcessingTimeService *processingTimeService)
 {
     auto description = opConfig.getDescription();
     nlohmann::json opDescriptionJSON = nlohmann::json::parse(description);
-    auto *watermarkAssignerOperator = new WatermarkAssignerOperator(chainOutput, opDescriptionJSON["rowtimeFieldIndex"],
-                                                                    opDescriptionJSON["intervalSecond"], 0);
+    auto *watermarkAssignerOperator = new WatermarkAssignerOperator(chainOutput,
+                                                                    opDescriptionJSON["rowtimeFieldIndex"],
+                                                                    opDescriptionJSON["intervalSecond"],
+                                                                    0,
+                                                                    processingTimeService);
     return static_cast<OneInputStreamOperator *>(watermarkAssignerOperator);
 }
 
@@ -380,6 +390,9 @@ StreamOperator* StreamOperatorFactory::CreateSourceOp(OperatorPOD &opConfig,
                 fields.push_back(LogicalType::flinkTypeToOmniTypeId(field["type"]));
             }
             omnistream::csv::CsvSchema schema(fields);
+            if (opDescriptionJSON.contains("nullValue") && !opDescriptionJSON["nullValue"].is_null()) {
+                schema.setNullValue(opDescriptionJSON["nullValue"]);
+            }
 
             std::vector<int> csvSelectFieldToProjectFieldMapping =
                     opDescriptionJSON["csvSelectFieldToProjectFieldMapping"];
@@ -496,7 +509,7 @@ StreamOperator* StreamOperatorFactory::CreateWindowInnerJoinOp(OperatorPOD &opCo
 {
     auto description = opConfig.getDescription();
     nlohmann::json opDescriptionJSON = nlohmann::json::parse(description);
-    auto op = new InnerJoinOperator<int64_t>(opDescriptionJSON, chainOutput, nullptr, nullptr);
+    auto op = new InnerJoinOperator<BinaryRowData*>(opDescriptionJSON, chainOutput, nullptr, nullptr);
     op->setup(std::move(task));
     LOG("Operator WindowJoinOperator address " + std::to_string(reinterpret_cast<long>(op)));
     return static_cast<TwoInputStreamOperator *>(op);
@@ -613,9 +626,49 @@ StreamOperator *StreamOperatorFactory::CreateReduceOp(omnistream::OperatorPOD &o
     nlohmann::json opDescriptionJSON = nlohmann::json::parse(description);
     auto operatorType = opConfig.getOperatorType(); // 0(NULL), 1(SQL), 2(STREAM)
     if (operatorType == Type_o::STREAM) {
-        auto *op = new datastream::StreamGroupedReduceOperator<Object>(chainOutput, opDescriptionJSON, true);
+        // 从 opConfig.getInputs()[0] 推导 Tuple/Pojo serializer，作为 reduce 的 ValueState
+        // serializer。否则会落到 ObjectSerializer，CP 写入触发 NOT_IMPL_EXCEPTION。
+        // 任何解析失败都不应阻塞 operator 构造，回退到 nullptr → operator 内退化为旧路径。
+        TypeSerializer *valueSerializer = nullptr;
+        try {
+            const auto &inputs = opConfig.getInputs();
+            if (!inputs.empty()) {
+                const auto &inputType = inputs[0];
+                TypeInformation *typeInfo = nullptr;
+                if (inputType.kind == "basic") {
+                    typeInfo = TypeInfoFactory::createTypeInfo(inputType.type.c_str());
+                } else if (inputType.kind == "Tuple") {
+                    auto fieldType = nlohmann::json::parse(inputType.type);
+                    typeInfo = TypeInfoFactory::createTupleTypeInfo(fieldType);
+                } else {
+                    INFO_RELEASE("Error:CreateReduceOp: unsupported input kind '" << inputType.kind
+                        << "', falling back to ObjectSerializer");
+                }
+                if (typeInfo != nullptr) {
+                    valueSerializer = typeInfo->getTypeSerializer();
+                    delete typeInfo;
+                    INFO_RELEASE("Error:CreateReduceOp: built valueSerializer="
+                        << (valueSerializer ? valueSerializer->getName() : "null"));
+                }
+            }
+        } catch (const std::exception &e) {
+            INFO_RELEASE("Error:CreateReduceOp: exception while building valueSerializer: " << e.what()
+                << ", falling back to ObjectSerializer");
+            valueSerializer = nullptr;
+        } catch (...) {
+            INFO_RELEASE("Error:CreateReduceOp: unknown exception while building valueSerializer, falling back");
+            valueSerializer = nullptr;
+        }
+        auto *op = new datastream::StreamGroupedReduceOperator<Object>(chainOutput, opDescriptionJSON, true,
+                                                                        valueSerializer);
         op->setup(std::move(task));
-        return static_cast<OneInputStreamOperator *>(op);
+        // 关键：必须把 operator ID 设到 op 上，否则 CP 时 op->GetOperatorID() 返回默认 OperatorID，
+        // JM 把 state 存在那个错误 key 下，restore 用真实 operator ID 查就找不到 → 状态全丢。
+        // StreamGroupedReduceOperator 同时继承 AbstractUdfStreamOperator 与 OneInputStreamOperator，
+        // 两条路径都看得到 StreamOperator::SetOperatorID（diamond），直接调会 ambiguous，先 cast 一下。
+        auto *oneInputOp = static_cast<OneInputStreamOperator *>(op);
+        oneInputOp->SetOperatorID(opConfig.getOperatorId());
+        return oneInputOp;
     } else if (operatorType == Type_o::SQL) {
         // operatorType == "sql"
         NOT_IMPL_EXCEPTION

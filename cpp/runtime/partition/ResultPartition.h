@@ -72,7 +72,7 @@ namespace omnistream {
     void release(std::optional<std::exception_ptr> cause) override;
 
     void close() override;
-            void closeBufferPool();
+    void closeBufferPool();
     void fail(std::optional<std::exception_ptr>  throwable) override;
     std::optional<std::exception_ptr>  getFailureCause() ;
 

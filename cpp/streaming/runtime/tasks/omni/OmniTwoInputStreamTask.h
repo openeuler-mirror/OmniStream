@@ -26,7 +26,9 @@ namespace omnistream {
         const shared_ptr<CheckpointBarrierHandler> &GetCheckpointBarrierHandler() const;
     protected:
         void createInputProcessor(std::vector<std::shared_ptr<IndexedInputGate>> inputGates1,
-            std::vector<std::shared_ptr<IndexedInputGate>> inputGates2, const json &inputTypes);
+                                  std::vector<std::shared_ptr<IndexedInputGate>> inputGates2, const json &inputTypes,
+                                  std::function<StreamPartitioner<IOReadableWritable>*(int)> getPartitionerFunction);
+
     private:
         std::shared_ptr<CheckpointBarrierHandler> checkpointBarrierHandler;
     };

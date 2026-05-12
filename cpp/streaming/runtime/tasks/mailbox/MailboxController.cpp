@@ -17,10 +17,10 @@
 
 namespace omnistream {
 
-    MailboxController::MailboxController(std::shared_ptr<MailboxProcessor> mailboxProcessor)
+    MailboxController::MailboxController(MailboxProcessor* mailboxProcessor)
         : mailboxProcessor_(mailboxProcessor) {}
 
-    MailboxController::~MailboxController() {}
+    MailboxController::~MailboxController() = default;
 
     void MailboxController::allActionsCompleted()
     {

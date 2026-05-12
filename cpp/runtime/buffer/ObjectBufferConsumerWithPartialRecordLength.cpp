@@ -39,9 +39,9 @@ namespace omnistream {
         return partialRecordLength;
     }
 
-    std::shared_ptr<VectorBatchBuffer> ObjectBufferConsumerWithPartialRecordLength::build()
+    VectorBatchBuffer* ObjectBufferConsumerWithPartialRecordLength::build()
     {
-        return std::dynamic_pointer_cast<VectorBatchBuffer>(bufferConsumer->build());
+        return dynamic_cast<VectorBatchBuffer*>(bufferConsumer->build());
     }
 
     bool ObjectBufferConsumerWithPartialRecordLength::cleanupPartialRecord()

@@ -27,13 +27,14 @@ namespace omnistream {
 
     class PipelinedSubpartitionView : public ResultSubpartitionView {
     public:
-        PipelinedSubpartitionView(std::shared_ptr<PipelinedSubpartition> parent, std::shared_ptr<BufferAvailabilityListener> listener);
+        PipelinedSubpartitionView(std::shared_ptr<PipelinedSubpartition> parent, BufferAvailabilityListener* listener);
         PipelinedSubpartitionView();
         ~PipelinedSubpartitionView() override;
 
-        std::shared_ptr<BufferAndBacklog> getNextBuffer() override;
+        BufferAndBacklog* getNextBuffer() override;
         void notifyDataAvailable() override;
         void notifyPriorityEvent(int priorityBufferNumber) override;
+        void ConvertToPriorityEvent(int sequenceNumber) override;
         void releaseAllResources() override;
         bool isReleased() override;
         void resumeConsumption() override;
@@ -48,7 +49,7 @@ namespace omnistream {
 
     private:
         std::shared_ptr<PipelinedSubpartition> parent;
-        std::shared_ptr<BufferAvailabilityListener> availabilityListener;
+        BufferAvailabilityListener* availabilityListener;
         std::atomic<bool> isReleased_;
     };
 

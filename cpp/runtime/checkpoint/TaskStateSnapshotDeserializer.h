@@ -20,6 +20,7 @@
 #include "TaskStateSnapshot.h"
 #include "runtime/state/IncrementalRemoteKeyedStateHandle.h"
 #include "runtime/state/IncrementalLocalKeyedStateHandle.h"
+#include "runtime/state/KeyGroupsStateHandle.h"
 #include "runtime/state/KeyGroupsSavepointStateHandle.h"
 #include "runtime/state/filesystem/RelativeFileStateHandle.h"
 #include "runtime/state/DirectoryKeyedStateHandle.h"
@@ -107,6 +108,11 @@ private:
     // Reads '@class' and calls the correct specific parser below.
     static std::shared_ptr<KeyedStateHandle> ParseKeyedStateHandle(const json &j);
 
+    static std::shared_ptr<ResultSubpartitionStateHandle> ParseResultStateHandle(const json &j);
+
+    static std::shared_ptr<InputChannelStateHandle> ParseInputStateHandle(const json &j);
+
+    static std::shared_ptr<InflightDataRescalingDescriptor> ParseInflightDataRescalingDescriptor(const json &j);
     // --- Specific Handle Parsers ---
     static std::shared_ptr<IncrementalRemoteKeyedStateHandle> ParseRemoteStateHandle(const json &j)
     {
@@ -138,6 +144,11 @@ private:
     static std::shared_ptr<KeyGroupsSavepointStateHandle> ParseKeyGroupsSavepointStateHandle(const json &j)
     {
         return std::make_shared<KeyGroupsSavepointStateHandle>(j);
+    }
+
+    static std::shared_ptr<KeyGroupsStateHandle> ParseKeyGroupsStateHandle(const json &j)
+    {
+        return std::make_shared<KeyGroupsStateHandle>(j);
     }
 
     static std::shared_ptr<IncrementalLocalKeyedStateHandle> ParseLocalStateHandle(const json &j)

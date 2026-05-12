@@ -19,6 +19,7 @@
 #include <boost/uuid/uuid_io.hpp>
 #include <boost/uuid/uuid_generators.hpp>
 #include <nlohmann/json.hpp>
+#include <stdexcept>
 
 class KeyGroupsStateHandle : public StreamStateHandle, public KeyedStateHandle {
 public:
@@ -34,17 +35,15 @@ public:
         stateHandleId_(stateHandleId)
     {}
 
-    explicit KeyGroupsStateHandle(const nlohmann::json &description):
-        keyGroupRangeOffsets_(description["keyGroupRange"]["startKeyGroup"].get<int>(),
-            description["keyGroupRange"]["endKeyGroup"].get<int>(),
-            description["groupRangeOffsets"]["offsets"].get<std::vector<int64_t>>()),
-        stateHandle_(StreamStateHandleFactory::from_json(description["stateHandle"])),
-        stateHandleId_(StateHandleID(description["stateHandleId"]["keyString"].get<std::string>()))
+    explicit KeyGroupsStateHandle(const nlohmann::json &description)
+        : stateHandle_(ParseDelegateStateHandle(description)),
+          keyGroupRangeOffsets_(ParseKeyGroupRangeOffsets(description)),
+          stateHandleId_(ParseStateHandleId(description))
     {}
 
     ~KeyGroupsStateHandle() noexcept(true) override = default;
 
-    std::unique_ptr<FSDataInputStream> OpenInputStream() const override {return stateHandle_->OpenInputStream();}
+    std::shared_ptr<FSDataInputStream> OpenInputStream() const override {return stateHandle_->OpenInputStream();}
 
     std::shared_ptr<KeyedStateHandle> GetIntersection(
         const KeyGroupRange& keyGroupRange) const override
@@ -129,16 +128,84 @@ public:
 
     std::string ToString() const override
     {
+        // Java 侧 TaskStateSnapshotDeser.parseManagedKeyedStateArray 读取的字段：
+        //   stateHandleName、groupRangeOffsets(含 keyGroupRange 和 offsets)、streamStateHandle。
+        // 与 KeyGroupsSavepointStateHandle::ToString 的输出保持对称。
         nlohmann::json json;
         json["stateHandleName"] = "KeyGroupsStateHandle";
         json["stateHandleId"] = nlohmann::json::parse(stateHandleId_.ToString());
-        json["keyGroupRangeOffsets"] = nlohmann::json::parse(keyGroupRangeOffsets_.ToString());
+        json["groupRangeOffsets"] = nlohmann::json::parse(keyGroupRangeOffsets_.ToString());
+        if (stateHandle_ != nullptr) {
+            json["streamStateHandle"] = nlohmann::json::parse(stateHandle_->ToString());
+        } else {
+            json["streamStateHandle"] = nullptr;
+        }
         return json.dump();
     }
 
     std::optional<std::vector<uint8_t>> AsBytesIfInMemory() const override {return stateHandle_->AsBytesIfInMemory();}
 
 private:
+    static KeyGroupRange ParseKeyGroupRangeJson(const nlohmann::json& rangeJson)
+    {
+        return KeyGroupRange(
+            rangeJson.at("startKeyGroup").get<int>(),
+            rangeJson.at("endKeyGroup").get<int>());
+    }
+
+    static std::vector<int64_t> ParseOffsets(const nlohmann::json& offsetsJson)
+    {
+        if (offsetsJson.is_array() && offsetsJson.size() == 2 && offsetsJson.at(0).is_string()
+            && offsetsJson.at(1).is_array()) {
+            return offsetsJson.at(1).get<std::vector<int64_t>>();
+        }
+        return offsetsJson.get<std::vector<int64_t>>();
+    }
+
+    static KeyGroupRangeOffsets ParseKeyGroupRangeOffsets(const nlohmann::json& description)
+    {
+        const nlohmann::json& offsetsRoot = description.contains("groupRangeOffsets")
+            ? description.at("groupRangeOffsets")
+            : description;
+        const nlohmann::json& rangeJson = offsetsRoot.contains("keyGroupRange")
+            ? offsetsRoot.at("keyGroupRange")
+            : description.at("keyGroupRange");
+        KeyGroupRange keyGroupRange = ParseKeyGroupRangeJson(rangeJson);
+
+        if (offsetsRoot.contains("offsets")) {
+            return KeyGroupRangeOffsets(keyGroupRange, ParseOffsets(offsetsRoot.at("offsets")));
+        }
+        return KeyGroupRangeOffsets(keyGroupRange,
+            std::vector<int64_t>(static_cast<size_t>(keyGroupRange.getNumberOfKeyGroups()), 0));
+    }
+
+    static std::shared_ptr<StreamStateHandle> ParseDelegateStateHandle(const nlohmann::json& description)
+    {
+        if (description.contains("stateHandle") && !description.at("stateHandle").is_null()) {
+            return StreamStateHandleFactory::from_json(description.at("stateHandle"));
+        }
+        if (description.contains("streamStateHandle") && !description.at("streamStateHandle").is_null()) {
+            return StreamStateHandleFactory::from_json(description.at("streamStateHandle"));
+        }
+        if (description.contains("metaDataState") && !description.at("metaDataState").is_null()) {
+            return StreamStateHandleFactory::from_json(description.at("metaDataState"));
+        }
+        throw std::runtime_error("KeyGroupsStateHandle missing stateHandle/streamStateHandle/metaDataState.");
+    }
+
+    static StateHandleID ParseStateHandleId(const nlohmann::json& description)
+    {
+        if (description.contains("stateHandleId") && description.at("stateHandleId").is_object()
+            && description.at("stateHandleId").contains("keyString")) {
+            return StateHandleID(description.at("stateHandleId").at("keyString").get<std::string>());
+        }
+        if (description.contains("stateHandleID") && description.at("stateHandleID").is_object()
+            && description.at("stateHandleID").contains("keyString")) {
+            return StateHandleID(description.at("stateHandleID").at("keyString").get<std::string>());
+        }
+        return StateHandleID(boost::uuids::to_string(boost::uuids::random_generator()()));
+    }
+
     std::shared_ptr<StreamStateHandle> stateHandle_;
     KeyGroupRangeOffsets keyGroupRangeOffsets_;
     StateHandleID stateHandleId_;

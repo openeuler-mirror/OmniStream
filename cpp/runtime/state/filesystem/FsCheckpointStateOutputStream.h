@@ -26,15 +26,18 @@ public:
                                     int localStateThreshold,
                                     bool allowRelativePaths = false);
 
-    ~FsCheckpointStateOutputStream() = default;
+    ~FsCheckpointStateOutputStream()
+    {
+        delete outStream_;
+    }
 
-    void Write(const void* data, size_t length);
+    void Write(const void* data, size_t length) override;
 
     void Flush();
 
     void Close();
 
-    StreamStateHandle* CloseAndGetHandle();
+    std::shared_ptr<StreamStateHandle> CloseAndGetHandle();
 
     bool IsClosed();
 
@@ -46,14 +49,15 @@ private:
     Path basePath_;
     int fs_;
     int bufferSize_;
+    int fileSize = 0;
     int localStateThreshold_;
     bool allowRelativePaths_;
     bool closed_;
-
+    bool isSync = true;
     std::string relativeStatePath_;
     std::string tempPath_;
     std::string finalPath_;
-
+    std::shared_ptr<StreamStateHandle> handle;
     std::ostream* outStream_;
 };
 

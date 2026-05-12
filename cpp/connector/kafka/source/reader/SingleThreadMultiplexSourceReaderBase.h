@@ -21,10 +21,10 @@
 template <typename E, typename SplitT, typename SplitStateT>
 class SingleThreadMultiplexSourceReaderBase : public SourceReaderBase<E, SplitT, SplitStateT> {
 public:
-    SingleThreadMultiplexSourceReaderBase(std::shared_ptr<FutureCompletingBlockingQueue<E>>& elementsQueue,
-        std::shared_ptr<SingleThreadFetcherManager<E, SplitT>>& splitFetcherManager,
-        std::shared_ptr<RecordEmitter<E, SplitStateT>>& recordEmitter,
-        const std::shared_ptr<SourceReaderContext>& context, bool isBatch)
+    SingleThreadMultiplexSourceReaderBase(FutureCompletingBlockingQueue<E>* elementsQueue,
+        SingleThreadFetcherManager<E, SplitT>* splitFetcherManager,
+        RecordEmitter<E, SplitStateT>* recordEmitter,
+        SourceReaderContext* context, bool isBatch)
         : SourceReaderBase<E, SplitT, SplitStateT>(elementsQueue,
             splitFetcherManager, recordEmitter, context, isBatch) {}
 };

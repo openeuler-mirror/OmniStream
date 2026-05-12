@@ -26,6 +26,18 @@ namespace ds = ::datastream;
 namespace omnistream {
     using ::datastream::NetworkBuffer;
 
+    struct LongHash {
+        size_t operator()(int64_t key) const {
+            return std::hash<int64_t>{}(key);
+        }
+    };
+
+    struct LongEqual {
+        bool operator()(int64_t a, int64_t b) const {
+            return a == b;
+        }
+    };
+
     class OmniCreditBasedSequenceNumberingViewReader
         : public BufferAvailabilityListener {
     public:
@@ -50,13 +62,12 @@ namespace omnistream {
         bool DoSerializeWaterMark(long timestamp,
                                   std::shared_ptr<NettyBufferInfo> bufferInfo);
         void SerializeBufferAndBacklog(
-            std::shared_ptr<VectorBatchBuffer> vectorBatchBuffer);
+                VectorBatchBuffer* vectorBatchBuffer);
         void SerializeEvent(
-            std::shared_ptr<VectorBatchBuffer> vectorBatchBuffer);
+                VectorBatchBuffer* vectorBatchBuffer);
         void SerializeVectorBatchBuffer(
-            std::shared_ptr<VectorBatchBuffer> vectorBatchBuffer);
-        void DestroyNettyBufferPool() ;
-        void RecycleNetworkBuffer(long address);
+                VectorBatchBuffer* vectorBatchBuffer);
+        void RecycleNetworkBuffer(int64_t address);
 
         void ResumeConsumption() ;
 
@@ -66,14 +77,14 @@ namespace omnistream {
         OutputBufferStatus* outputBufferStatus;
         std::recursive_mutex queueMutex;
         int nextDataAvailable = 0;
-        NettyBufferPool* nettyBufferPool = nullptr;
+        std::unique_ptr<NettyBufferPool> nettyBufferPool;
         int bufferPoolSize = 100;
         // 32k
         int bufferSize = 32 * 1024;
         std::recursive_mutex fetchingDataMutex;
         int requestNextBufferWaitingTime = 10;
         int noBufferPrintCount = 200;
-        std::unordered_map<long, std::shared_ptr<NetworkBuffer>> networkBufferPendingRecycling;
+        std::unordered_map<int64_t, NetworkBuffer*> networkBufferPendingRecycling;
         std::recursive_mutex recycleNetworkBufferMutex;
     };
 } // namespace omnistream

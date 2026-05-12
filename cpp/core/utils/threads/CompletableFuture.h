@@ -35,7 +35,7 @@ public:
     // for extension such as logging
 class Task : public Runnable {
 public:
-    explicit Task(Runnable* runnable) : target(runnable) {}
+    explicit Task(std::shared_ptr<Runnable> runnable) : target(std::move(runnable)) {}
 
     void run() override
     {
@@ -44,7 +44,7 @@ public:
         }
     }
 private:
-    Runnable* target;
+    std::shared_ptr<Runnable> target;
 };
 
 enum class FutureState {
@@ -55,9 +55,10 @@ enum class FutureState {
     CANCELLED
 };
 
-class CompletableFuture {
+class CompletableFuture : public std::enable_shared_from_this<CompletableFuture> {
 public:
     CompletableFuture();
+    CompletableFuture(bool done, FutureState futureState = FutureState::COMPLETED);
     ~CompletableFuture();
 
     // Prevent copying
@@ -69,13 +70,13 @@ public:
     CompletableFuture& operator=(CompletableFuture&&) noexcept;
 
     // Submit a task to run synchronously
-    void runAs(Runnable* task);
+    void runAs(std::shared_ptr<Runnable> task);
 
     // Run a task asynchronously and return a new CompletableFuture
-    static std::shared_ptr<CompletableFuture> runAsync(Runnable* task);
+    static std::shared_ptr<CompletableFuture> runAsync(std::shared_ptr<Runnable> task);
 
     // Chain a task to run after this one completes
-    std::shared_ptr<CompletableFuture> thenRun(Runnable* task);
+    std::shared_ptr<CompletableFuture> thenRun(std::shared_ptr<Runnable> task);
 
     // Check the current state
     FutureState getState() ;
@@ -102,6 +103,7 @@ public:
     void setCompleted() ;
 
     std::string toString() const;
+    void complete();
 
 private:
     FutureState state;
@@ -110,9 +112,9 @@ private:
     std::mutex mtx;
     std::condition_variable cv;
     std::thread worker;
+    std::shared_ptr<CompletableFuture> self;
 
-    // Static method for thread execution
-    static void executeTask(CompletableFuture* future, Runnable* task);
+    static void executeTask(std::shared_ptr<CompletableFuture> future, std::shared_ptr<Runnable> task);
 };
 
 } // namespace omnistream

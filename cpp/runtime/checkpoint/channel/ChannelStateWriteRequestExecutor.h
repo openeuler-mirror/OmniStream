@@ -23,8 +23,8 @@ namespace omnistream {
         virtual ~ChannelStateWriteRequestExecutor() = default;
 
         virtual void start() = 0;
-        virtual void submit(std::unique_ptr<ChannelStateWriteRequest> request) = 0;
-        virtual void submitPriority(std::unique_ptr<ChannelStateWriteRequest> request) = 0;
+        virtual void submit(std::shared_ptr<ChannelStateWriteRequest> request) = 0;
+        virtual void submitPriority(std::shared_ptr<ChannelStateWriteRequest> request) = 0;
         virtual void registerSubtask(const JobVertexID &jobVertexID, int subtaskIndex) = 0;
         virtual void releaseSubtask(const JobVertexID &jobVertexID, int subtaskIndex) = 0;
         virtual void shutdown() = 0;

@@ -14,11 +14,20 @@
 #include "ObjectBuffer.h"
 
 namespace omnistream {
-class VectorBatchBuffer : public ObjectBuffer, public std::enable_shared_from_this<VectorBatchBuffer> {
+class VectorBatchBuffer : public ObjectBuffer {
 public:
-    VectorBatchBuffer(std::shared_ptr<ObjectSegment> segment, std::shared_ptr<BufferRecycler> recycler);
+    VectorBatchBuffer(ObjectSegment *segment, std::shared_ptr<BufferRecycler> recycler);
 
-    explicit VectorBatchBuffer(std::shared_ptr<ObjectSegment> segment) : objectSegment(segment), recycler(nullptr)
+    explicit VectorBatchBuffer(ObjectSegment *segment) : objectSegment(segment), recycler(nullptr)
+    {
+        bufferType = 0;
+        event_type = -1;
+        readerIndex_ = -1;
+        isCompressed_ = false;
+    }
+
+    explicit VectorBatchBuffer(std::shared_ptr<ObjectSegment> segment)
+            : objectSegment(segment.get()), recycler(nullptr), ownedSegment_(std::move(segment))
     {
         bufferType = 0;
         event_type = -1;
@@ -71,7 +80,7 @@ public:
         return isRecycled_;
     }
 
-    std::shared_ptr<Buffer> RetainBuffer() override
+    Buffer* RetainBuffer() override
     {
         LOG_TRACE("retain ")
         LOG_PART(
@@ -79,16 +88,16 @@ public:
                                        << (refCount.load() + 1)
         )
         refCount++;
-        return shared_from_this();
+        return this;
     }
 
-    std::shared_ptr<Buffer> ReadOnlySlice() override
+    Buffer* ReadOnlySlice() override
     {
         LOG_TRACE("ReadOnlySlice  ")
-        return shared_from_this();
+        return this;
     }
 
-    std::shared_ptr<Buffer> ReadOnlySlice(int index, int length) override;
+    Buffer* ReadOnlySlice(int index, int length) override;
 
     int GetMaxCapacity() const override
     {
@@ -153,7 +162,7 @@ public:
         return ss.str();
     };
 
-    std::shared_ptr<ObjectSegment> GetObjectSegment() override;
+    ObjectSegment *GetObjectSegment() override;
     std::shared_ptr<BufferRecycler> GetRecycler() override;
 
     std::pair<uint8_t*, size_t> GetBytes() override
@@ -166,21 +175,14 @@ public:
         return event_type;
     }
 
-    static std::shared_ptr<VectorBatchBuffer> EmptyBuffer()
-    {
-        std::shared_ptr<ObjectSegment> segment_ = std::make_shared<ObjectSegment>(0);
-        auto res                                = std::make_shared<VectorBatchBuffer>(segment_);
-        res->SetSize(0);
-        return res;
-    }
-
     int GetBufferType() override
     {
         return bufferType;
     }
 
 private:
-    std::shared_ptr<ObjectSegment> objectSegment;
+    ObjectSegment *objectSegment;
+    std::shared_ptr<ObjectSegment> ownedSegment_; // 共享指针包装，保证ObjectSegment生命周期
     std::shared_ptr<BufferRecycler> recycler;
     // ObjectBufferDataType dataType;
     int bufferType;  // 0 vectorbatch, 1. event  for now

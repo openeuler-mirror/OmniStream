@@ -34,12 +34,12 @@ protected:
         return new Path(baseDirectory, std::string(CHECKPOINT_DIR_PREFIX) + std::to_string(checkpointId));
     };
 
-    static Path *decodePathFromReference(const CheckpointStorageLocationReference &reference)
+    static Path *decodePathFromReference(std::shared_ptr<CheckpointStorageLocationReference> reference)
     {
-        if (reference.IsDefaultReference()) {
+        if (reference->IsDefaultReference()) {
             THROW_LOGIC_EXCEPTION("Cannot decode default reference")
         }
-        auto bytes = reference.GetReferenceBytes();
+        auto bytes = reference->GetReferenceBytes();
         size_t headerLen = 4;
 
         if (bytes->size() > headerLen) {

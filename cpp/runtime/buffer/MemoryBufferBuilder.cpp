@@ -14,11 +14,31 @@
 #include <streaming/runtime/streamrecord/StreamRecord.h>
 
 
-namespace datastream {
-    MemoryBufferBuilder::MemoryBufferBuilder(std::shared_ptr<MemorySegment> memorySegment,
-                                             std::shared_ptr<BufferRecycler> recycler)
-        : BufferBuilder(std::make_shared<NetworkBuffer>(memorySegment, recycler)), memorySegment(memorySegment),
-          bufferConsumerCreated(false) {
+namespace omnistream::datastream {
+    MemoryBufferBuilder::MemoryBufferBuilder(MemorySegment *memorySegment,
+                                                 std::shared_ptr<BufferRecycler> recycler)
+            : BufferBuilder(new NetworkBuffer(memorySegment, recycler)), memorySegment(memorySegment) {
+        positionMarker->addRef();
+        auto* marker = positionMarker;
+        taskId = TimerThreadPool::GetTimerThreadPoolInstance()->addPeriodicTask(200,[marker]() {
+            marker->commit();
+        });
+    }
+
+    MemoryBufferBuilder::~MemoryBufferBuilder() {
+        TimerThreadPool::GetTimerThreadPoolInstance()->cancel(taskId);
+        positionMarker->release();
+    }
+
+    int MemoryBufferBuilder::appendAndCommit(void *source)
+    {
+        int writtenBytes = append(source);
+        commitCount++;
+        if (commitCount > MAX_COMMIT_COUNT) {
+            commit();
+            commitCount = 0;
+        }
+        return writtenBytes;
     }
 
     int MemoryBufferBuilder::append(void *source)
@@ -32,19 +52,47 @@ namespace datastream {
         auto value = reinterpret_cast<ByteBuffer*>(record->getValue());
 
         int needed = value->remaining();
-        int available = getMaxCapacity() - positionMarker->getCached();
+        int maxCapacity = getMaxCapacity();
+        int cached = positionMarker->getCached();
+        int available = maxCapacity - cached;
         int toCopy = std::min(needed, available);
 
         LOG("put source to memorySegment")
-        memorySegment->put(positionMarker->getCached(), value->getValue(), value->position(), toCopy);
-        value->setPosition(value->position() + toCopy);
+        int position_ = value->position();
+        memorySegment->put(cached, value->getValue(), position_, toCopy);
+        value->setPosition(position_ + toCopy);
 
         LOG("toCopy is " << toCopy << " current mark is " << positionMarker->getCached() << " value position is " << value->position())
         positionMarker->move(toCopy);
-
         return toCopy;
     }
 
+    int MemoryBufferBuilder::appendRawBytes(const uint8_t* source, int length)
+    {
+        if (isFinished()) {
+            throw std::runtime_error("BufferBuilder is finished");
+        }
+        if (length < 0) {
+            throw std::invalid_argument("length must be non-negative");
+        }
+        if (length == 0) {
+            return 0;
+        }
+        if (source == nullptr) {
+            throw std::invalid_argument("source must not be null when length > 0");
+        }
+
+        int available = getMaxCapacity() - positionMarker->getCached();
+        int toCopy = std::min(length, available);
+        if (toCopy <= 0) {
+            return 0;
+        }
+
+        memorySegment->put(positionMarker->getCached(), source, 0, toCopy);
+        positionMarker->move(toCopy);
+        commit();
+        return toCopy;
+    }
 
     std::shared_ptr<BufferConsumer> MemoryBufferBuilder::createBufferConsumerFromBeginning()
     {
@@ -57,7 +105,8 @@ namespace datastream {
             throw std::runtime_error("Two BufferConsumer shouldn't exist for one BufferBuilder");
         }
         bufferConsumerCreated = true;
-        return std::make_shared<MemoryBufferConsumer>(std::dynamic_pointer_cast<NetworkBuffer>(buffer->RetainBuffer()), positionMarker, currentReaderPosition);
+        positionMarker->addRef();
+        return std::make_shared<MemoryBufferConsumer>(reinterpret_cast<NetworkBuffer*>(buffer->RetainBuffer()), positionMarker, currentReaderPosition);
     }
 
 
@@ -69,5 +118,8 @@ namespace datastream {
            << ", finished=" << isFinished() << "}";
         return ss.str();
     }
-
+    Segment* MemoryBufferBuilder::GetSegment()
+    {
+        return memorySegment;
+    }
 }

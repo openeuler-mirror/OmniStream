@@ -11,9 +11,9 @@
 
 #include "MemoryBufferConsumer.h"
 
-namespace datastream {
-    MemoryBufferConsumer::MemoryBufferConsumer(std::shared_ptr<NetworkBuffer> buffer, int size)
-        : MemoryBufferConsumer(buffer, std::make_shared<FixedSizePositionMarker>(-size), 0)
+namespace omnistream::datastream {
+    MemoryBufferConsumer::MemoryBufferConsumer(NetworkBuffer* buffer, int size)
+        : MemoryBufferConsumer(buffer, new FixedSizePositionMarker(-size), 0)
     {
         LOG_TRACE("inside constructor two parameter")
         if (!isFinished()) {
@@ -22,11 +22,11 @@ namespace datastream {
     }
 
 
-    MemoryBufferConsumer::MemoryBufferConsumer(std::shared_ptr<NetworkBuffer> buffer_, std::shared_ptr<PositionMarker> currentWriterPosition, int currentReaderPosition)
+    MemoryBufferConsumer::MemoryBufferConsumer(NetworkBuffer* buffer_, PositionMarker *currentWriterPosition, int currentReaderPosition)
         : BufferConsumer(buffer_, currentWriterPosition, currentReaderPosition)
     {
         LOG("ObjectBufferConsumer init will running")
-        if (currentReaderPosition > this->writerPosition.getCached()) {
+        if (currentReaderPosition > this->writerPosition->getCached()) {
             THROW_LOGIC_EXCEPTION("Reader position larger than writer position");
         }
     }
@@ -34,24 +34,28 @@ namespace datastream {
     std::shared_ptr<BufferConsumer> MemoryBufferConsumer::copy()
     {
         NOT_IMPL_EXCEPTION
+//        std::shared_ptr<NetworkBuffer> networkBuffer = std::reinterpret_pointer_cast<NetworkBuffer>(buffer->RetainBuffer());
+//        return std::make_shared<MemoryBufferConsumer>(networkBuffer, writerPosition->getInnerPositionMarker(), currentReaderPosition);
     }
 
     std::shared_ptr<BufferConsumer> MemoryBufferConsumer::copyWithReaderPosition(int readerPosition)
     {
         NOT_IMPL_EXCEPTION
+//        std::shared_ptr<NetworkBuffer> networkBuffer = std::reinterpret_pointer_cast<NetworkBuffer>(buffer->RetainBuffer());
+//        return std::make_shared<MemoryBufferConsumer>(networkBuffer, writerPosition->getInnerPositionMarker(), readerPosition);
     }
 
-    std::shared_ptr<Buffer> MemoryBufferConsumer::build()
+    Buffer *MemoryBufferConsumer::build()
     {
         return buildNetworkBuffer();
     }
 
-    std::shared_ptr<NetworkBuffer> MemoryBufferConsumer::buildNetworkBuffer()
+    NetworkBuffer *MemoryBufferConsumer::buildNetworkBuffer()
     {
         LOG_TRACE("Starting Build...")
-        std::shared_ptr<NetworkBuffer> networkBuffer = std::dynamic_pointer_cast<NetworkBuffer>(buffer);
-        writerPosition.update();
-        int cachedWriterPosition = writerPosition.getCached();
+        NetworkBuffer* networkBuffer = reinterpret_cast<NetworkBuffer*>(buffer);
+        writerPosition->update();
+        int cachedWriterPosition = writerPosition->getCached();
         LOG("ObjectBufferConsumer::build() before get slice")
         LOG("buffer " << (networkBuffer->isBuffer()? "buffer" : "event"))
 
@@ -60,8 +64,7 @@ namespace datastream {
         currentReaderPosition = cachedWriterPosition;
         slice->RetainBuffer();
 
-        std::shared_ptr<NetworkBuffer> vbslice= std::dynamic_pointer_cast<NetworkBuffer>(slice);
-        return vbslice;
+        return reinterpret_cast<NetworkBuffer*>(slice);
     }
 
 bool MemoryBufferConsumer::isStartOfDataBuffer() const
@@ -72,10 +75,10 @@ bool MemoryBufferConsumer::isStartOfDataBuffer() const
 
 std::string MemoryBufferConsumer::toDebugString(bool includeHash)
 {
-    std::shared_ptr<NetworkBuffer> tempBuffer;
+    NetworkBuffer* tempBuffer;
     try {
         std::shared_ptr<MemoryBufferConsumer> copiedBufferConsumer = std::dynamic_pointer_cast<MemoryBufferConsumer>(copy());
-        tempBuffer = std::dynamic_pointer_cast<NetworkBuffer>(copiedBufferConsumer->build());
+        tempBuffer = dynamic_cast<NetworkBuffer*>(copiedBufferConsumer->build());
         if (!copiedBufferConsumer->isFinished()) {
             throw std::runtime_error("copiedBufferConsumer is not finished");
         }
@@ -92,9 +95,8 @@ std::string MemoryBufferConsumer::toDebugString(bool includeHash)
 {
     std::stringstream ss;
     ss << "BufferConsumer{buffer=" << (buffer ? "present" : "nullptr")
-       << "buffer count"  << std::to_string(buffer.use_count())
-       << "buffer address"  << buffer.get()
-       << ", writerPosition=" << writerPosition.getCached() << ", currentReaderPosition=" << currentReaderPosition
+       << "buffer address"  << buffer
+       << ", writerPosition=" << writerPosition->getCached() << ", currentReaderPosition=" << currentReaderPosition
        << "}";
     return ss.str();
 }

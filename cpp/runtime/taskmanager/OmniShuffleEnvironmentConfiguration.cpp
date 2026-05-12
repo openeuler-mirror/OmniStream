@@ -21,14 +21,15 @@ namespace omnistream {
         int partitionRequestMaxBackoff,
         int floatingNetworkBuffersPerGate,
         int sortShuffleMinBuffers,
-        int sortShuffleMinParallelism)
+        int sortShuffleMinParallelism,
+        int maxBuffersPerChannel)
     {
         auto configuration = std::make_shared<omnistream::OmniShuffleEnvironmentConfiguration>(
             numNetworkBuffers,
             networkBufferSize, requestSegmentsTimeoutMillis,
             networkBuffersPerChannel, partitionRequestInitialBackoff,
             partitionRequestMaxBackoff, floatingNetworkBuffersPerGate,
-            sortShuffleMinBuffers, sortShuffleMinParallelism);
+            sortShuffleMinBuffers, sortShuffleMinParallelism, maxBuffersPerChannel);
         return configuration;
     }
 }

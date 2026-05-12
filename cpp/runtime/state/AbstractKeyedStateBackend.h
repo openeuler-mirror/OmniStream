@@ -29,6 +29,7 @@ public:
     {
         LOG("AbstractKeyedStateBackend");
         delete keySerializer;
+        keySerializer = nullptr;
     }
 
     AbstractKeyedStateBackend(TypeSerializer *keySerializer, InternalKeyContext<K> *context) :context(context), keySerializer(keySerializer) {};
@@ -54,14 +55,14 @@ public:
 
     void dispose() override;
 
-    bool requiresLegacySynchronousTimerSnapshots(SnapshotType *checkpointType)
+    virtual bool requiresLegacySynchronousTimerSnapshots(SnapshotType *checkpointType)
     {
         return false;
     }
 
 protected:
     InternalKeyContext<K> *context;
-    TypeSerializer *keySerializer;
+    TypeSerializer * keySerializer = nullptr;
     std::string lastName;
     // This state is InternalKvState
     uintptr_t lastState;

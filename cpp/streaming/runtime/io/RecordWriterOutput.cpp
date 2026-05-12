@@ -18,7 +18,7 @@ namespace omnistream::datastream {
     {
         LOG(">>>>>")
         if (outSerializer != nullptr) {
-            serializationDelegate_ = new SerializationDelegate(std::make_unique<StreamElementSerializer>(outSerializer));
+            serializationDelegate_ = new SerializationDelegate(new StreamElementSerializer(outSerializer));
         }
     }
 

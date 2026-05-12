@@ -22,8 +22,8 @@ namespace omnistream {
                                                                int taskType): RecordWriterV2(
         writer, timeout, taskName, taskType)
     {
-        this->channelSelector = channelSelector;
-        this->partitioner = partitioner;
+        this->channelSelector = channelSelector; // for sql
+        this->partitioner = partitioner; // for datastream, it needs to be combined
 
         if (this->channelSelector != nullptr) {
             // check null before use
@@ -66,9 +66,9 @@ namespace omnistream {
 
             record->setValue(byteBuffer);
             emit(record, channel);
-            if (byteBuffer) {
+            /*if (byteBuffer) {
                 delete byteBuffer;
-            }
+            }*/
             if (value) {
                 value->putRefCount();
             }
@@ -93,6 +93,9 @@ namespace omnistream {
         LOG(">>> before emit  targetSubpartition " << std::to_string(targetSubpartitionIndex) << "  record is " <<
             reinterpret_cast<long>(record))
         this->targetPartitionWriter_->emitRecord(record, targetSubpartitionIndex);
+        if (flushAlways) {
+            targetPartitionWriter_->flush(targetSubpartitionIndex);
+        }
     }
 
     void SimpleSelectorRecordWriterV2::broadcastEmit(Watermark *watermark)
@@ -104,7 +107,9 @@ namespace omnistream {
         }
         LOG(">>> before broadcast watermark " << std::to_string(watermark->getTimestamp()))
         for (int i = 0; i < numberOfChannels; i++) {
-            this->targetPartitionWriter_->emitRecord(reinterpret_cast<void*>(watermark), i);
+            //todo: delete new watermark ptr properly.
+            Watermark* new_wm = new Watermark(*watermark);
+            this->targetPartitionWriter_->emitRecord(reinterpret_cast<void*>(new_wm), i);
         }
     }
 }

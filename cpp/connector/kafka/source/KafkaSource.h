@@ -28,7 +28,7 @@ public:
     explicit KafkaSource(nlohmann::json& opDescriptionJSON, bool isBatch);
     ~KafkaSource() {}
     SourceReader<KafkaPartitionSplit>* createReader(
-            const std::shared_ptr<SourceReaderContext>& readerContext) const;
+            SourceReaderContext* readerContext) const;
     KafkaPartitionSplitSerializer* getSplitSerializer() const;
 
 private:

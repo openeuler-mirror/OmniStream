@@ -19,6 +19,7 @@
 #include "runtime/state/StreamStateHandle.h"
 #include "runtime/state/restore/KeyGroupEntry.h"
 #include "state/LocalRecoveryConfig.h"
+#include "runtime/checkpoint/CheckpointOptions.h"
 
 class OmniTaskBridgeImpl2 : public omnistream::OmniTaskBridge {
 public:
@@ -38,6 +39,8 @@ public:
 
     void setSavepointInputStreamOffset(jobject inputStream, int64_t offset) override;
 
+    int ReadSavepointInputStream(jobject inputStream, int8_t *chunk, size_t offset, size_t len) override;
+
     bool isUsingKeyGroupCompression(jobject inputStream) override;
 
     void closeSavepointInputStream(jobject inputStream) override;
@@ -45,18 +48,29 @@ public:
     std::shared_ptr<SnapshotResult<StreamStateHandle>> CallMaterializeMetaData(
             jlong checkpointId,
             std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& snapshots,
-            std::shared_ptr<LocalRecoveryConfig> localRecoveryConfig) override;
+            std::shared_ptr<LocalRecoveryConfig> localRecoveryConfig,
+            CheckpointOptions *checkpointOptions, std::string keySerializer) override;
 
     jobject CallUploadFilesToCheckpointFs(const std::vector<Path>& filePaths,
                                           int numberOfSnapshottingThreads) override;
 
     JNIEnv* getJNIEnv() override;
 
-    jobject AcquireSavepointOutputStream(long checkpointId) override;
+    jobject AcquireSavepointOutputStream(long checkpointId, CheckpointOptions *checkpointOptions) override;
     std::shared_ptr<SnapshotResult<StreamStateHandle>> CloseSavepointOutputStream(jobject provider) override;
     void WriteSavepointOutputStream(jobject provider, const int8_t *chunk, size_t offset, size_t len) override;
-    void WriteSavepointMetadata(jobject provider, const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& snapshots) override;
+    void WriteSavepointMetadata(jobject provider, const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& snapshots,
+                                std::string keySerializer) override;
     long GetSavepointOutputStreamPos(jobject provider) override;
+
+    /**
+     * @brief Download a remote file to the local file system.
+     *
+     * @param cppHandle The handle of the remote file (StreamStateHandle object).
+     * @param restoreInstancePath The destination local file path where the downloaded file will be stored.
+     * @return true if the file is successfully downloaded and saved; false otherwise.
+     */
+    bool CallDownloadFileToLocal(const StreamStateHandle &cppHandle, const std::string &restoreInstancePath) override;
 
 public:
     jobject m_globalOmniTaskRef;

@@ -11,9 +11,11 @@
 #include "EndOfChannelStateEvent.h"
  
 namespace omnistream {
-    EndOfChannelStateEvent& EndOfChannelStateEvent::getInstance()
+   std::shared_ptr<EndOfChannelStateEvent> EndOfChannelStateEvent::getInstance()
     {
-        static EndOfChannelStateEvent instance;
+        static std::shared_ptr<EndOfChannelStateEvent> instance =
+                std::make_shared<EndOfChannelStateEvent>();
+
         return instance;
     }
 } // namespace omnistream

@@ -16,10 +16,11 @@
 #include "BufferAvailabilityListener.h"
 #include "ResultSubpartition.h"
 #include "AvailabilityWithBacklog.h"
+#include "core/include/common.h"
 
 namespace omnistream {
 
-PipelinedSubpartitionView::PipelinedSubpartitionView(std::shared_ptr<PipelinedSubpartition> parent, std::shared_ptr<BufferAvailabilityListener> listener)
+PipelinedSubpartitionView::PipelinedSubpartitionView(std::shared_ptr<PipelinedSubpartition> parent, BufferAvailabilityListener* listener)
     : parent(parent), availabilityListener(listener), isReleased_(false)
 {
     if (!parent || !listener) {
@@ -31,7 +32,7 @@ PipelinedSubpartitionView::PipelinedSubpartitionView() : parent(nullptr), availa
 
 PipelinedSubpartitionView::~PipelinedSubpartitionView() {}
 
-std::shared_ptr<BufferAndBacklog> PipelinedSubpartitionView::getNextBuffer()
+BufferAndBacklog* PipelinedSubpartitionView::getNextBuffer()
 {
     // LOG_TRACE(">>> beginnning of get NextBuffer")
     return parent->pollBuffer();
@@ -39,12 +40,21 @@ std::shared_ptr<BufferAndBacklog> PipelinedSubpartitionView::getNextBuffer()
 
 void PipelinedSubpartitionView::notifyDataAvailable()
 {
+    LOG("PipelinedSubpartitionView notifyDataAvailable invoke!");
     availabilityListener->notifyDataAvailable();
 }
 
 void PipelinedSubpartitionView::notifyPriorityEvent(int priorityBufferNumber)
 {
     availabilityListener->notifyPriorityEvent(priorityBufferNumber);
+}
+
+void PipelinedSubpartitionView::ConvertToPriorityEvent(int sequenceNumber)
+{
+    if (!parent) {
+        return;
+    }
+    parent->ConvertToPriorityEvent(sequenceNumber);
 }
 
 void PipelinedSubpartitionView::releaseAllResources()

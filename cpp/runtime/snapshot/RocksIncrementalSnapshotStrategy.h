@@ -58,7 +58,8 @@ public:
         long checkpointId,
         long timestamp,
         CheckpointStreamFactory* checkpointStreamFactory,
-        CheckpointOptions* checkpointOptions) override;
+        CheckpointOptions* checkpointOptions,
+        std::string keySerializer = "") override;
 
     void notifyCheckpointComplete(long completedCheckpointId);
     void notifyCheckpointAborted(long abortedCheckpointId);
@@ -78,7 +79,9 @@ protected:
             std::shared_ptr<SnapshotDirectory> localBackupDirectory,
             std::shared_ptr<PreviousSnapshot> previousSnapshot,
             SnapshotType::SharingFilesStrategy sharingFilesStrategy,
-            std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& stateMetaInfoSnapshots);
+            std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& stateMetaInfoSnapshots,
+            CheckpointOptions *checkpointOptions,
+            std::shared_ptr<TypeSerializer> keySerializer);
 
         std::shared_ptr<SnapshotResult<KeyedStateHandle>> get(std::shared_ptr<omnistream::OmniTaskBridge> bridge) override;
 
@@ -97,6 +100,7 @@ protected:
         RocksIncrementalSnapshotStrategy* parent_;
         std::shared_ptr<PreviousSnapshot> previousSnapshot_;
         SnapshotType::SharingFilesStrategy sharingFilesStrategy_;
+        CheckpointOptions *checkpointOptions_;
     };
 
 private:

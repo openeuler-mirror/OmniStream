@@ -17,7 +17,7 @@
 
 #include "ResultSubpartitionView.h"
 #include "BufferAvailabilityListener.h"
-
+// check
 namespace omnistream {
 
     class ResultPartitionProvider {
@@ -27,7 +27,7 @@ namespace omnistream {
         virtual std::shared_ptr<ResultSubpartitionView> createSubpartitionView(
             const ResultPartitionIDPOD& partitionId,
             int index,
-            std::shared_ptr<BufferAvailabilityListener> availabilityListener) = 0;
+            BufferAvailabilityListener* availabilityListener) = 0;
     };
 
 } // namespace omnistream

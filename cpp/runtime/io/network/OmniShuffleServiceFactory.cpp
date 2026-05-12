@@ -36,7 +36,7 @@ namespace omnistream {
             context->getNumberofSegmentsGlobal(), context->getSegmentSize(), context->getRequestSegmentsTimeoutMillis(),
             context->getNetworkBuffersPerChannel(), context->getPartitionRequestInitialBackoff(),
             context->getPartitionRequestMaxBackoff(), context->getFloatingNetworkBuffersPerGate(),
-            context->getsortShuffleMinBuffers(), context->getsortShuffleMinParallelism());
+            context->getsortShuffleMinBuffers(), context->getsortShuffleMinParallelism(), context->getmaxBuffersPerChannel());
         LOG_PART("networkObjectBufferPool will create")
 
         auto shuffleEnv =  createOmniShuffleEnvironmentWithConfig(config, context->getResourceID());

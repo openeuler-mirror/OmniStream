@@ -28,6 +28,9 @@ namespace omnistream {
             virtual void close() {};
 
             virtual ~OmniDataOutput() = default;
+
+            // temp fix for taskType, should be removed in the future (taskType should not be set in Runtime)
+            virtual void setTaskType(int taskType) {}
         };
 
         virtual DataInputStatus emitNext(OmniDataOutput* output) = 0;

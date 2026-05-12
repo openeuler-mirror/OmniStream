@@ -25,9 +25,18 @@ namespace omnistream::datastream {
 
         ~StreamElementSerializer() override
         {
-            delete reUsableRecord_;
-            delete reUsableWatermark_;
-            delete typeSerializer_;
+            if (reUsableRecord_ != nullptr) {
+                delete reUsableRecord_;
+                reUsableRecord_ = nullptr;
+            }
+            if (reUsableWatermark_ != nullptr) {
+                delete reUsableWatermark_;
+                reUsableWatermark_ = nullptr;
+            }
+            if (typeSerializer_ != nullptr) {
+                delete typeSerializer_;
+                typeSerializer_ = nullptr;
+            }
         }
 
         void *deserialize(DataInputView& source) override;
@@ -44,8 +53,9 @@ namespace omnistream::datastream {
 
     private:
         TypeSerializer *typeSerializer_;
-        StreamRecord *reUsableRecord_{};
-        Watermark *reUsableWatermark_{};
+        bool isDatastream;
+        StreamRecord *reUsableRecord_ = nullptr;
+        Watermark *reUsableWatermark_ = nullptr;
     };
 }
 #endif

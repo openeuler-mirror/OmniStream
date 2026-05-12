@@ -85,7 +85,7 @@ std::vector<std::string> GroupAggFunction::handleInputTypes()
         } else if (typeId == DataTypeId::OMNI_LONG) {
             equalisers.push_back(LongEqualiser);
         } else if (typeId == DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE ||
-                   typeId == DataTypeId::OMNI_TIMESTAMP) {
+                    typeId == DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE) {
             equalisers.push_back(TimestampEqualiser);
         } else {
             equalisers.push_back(nullptr);
@@ -246,7 +246,7 @@ void GroupAggFunction::processElement(RowData* input, Context* ctx, TimestampedC
             binRowAcc->setNullAt(i);
         }
         // Flink don't do update here, it updates it in if (!recordCounter->recordCountIsZero(accumulators)){} line 146
-        static_cast<HeapValueState<RowData*, VoidNamespace, RowData*> *>(accState)->update(accumulators);
+        accState->update(accumulators);
     } else {
         firstRow = false;
     }

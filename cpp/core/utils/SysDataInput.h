@@ -30,6 +30,10 @@ public:
     // from the input stream read into the buffer of  capacity, beginning at offset of buffer,
     // and read length bytes
     virtual void readFully(uint8_t* buffer, int capacity, int offset, int length) = 0;
+
+    virtual const uint8_t* getData() = 0;
+    virtual size_t getPosition() = 0;
+    virtual void setPosition(size_t) = 0;
 };
 
 

@@ -17,7 +17,7 @@
 namespace omnistream {
     class OmniStreamMultipleInputProcessorFactory {
     public:
-        static std::shared_ptr<OmniStreamMultipleInputProcessor> create()
+        static OmniStreamMultipleInputProcessor* create()
         {
             return nullptr;
         }

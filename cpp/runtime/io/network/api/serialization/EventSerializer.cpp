@@ -11,6 +11,8 @@
 
 #include "EventSerializer.h"
 
+#include "io/network/api/EventAnnouncement.h"
+
 #include <vector>
 #include <cstring>
 #include <buffer/EventBuffer.h>
@@ -23,6 +25,10 @@
 
 #include "buffer/MemoryBufferConsumer.h"
 #include "runtime/checkpoint/SavepointType.h"
+#include "runtime/event/EndOfChannelStateEvent.h"
+#include "runtime/event/EndOfSegmentEvent.h"
+#include "runtime/io/network/api/CancelCheckpointMarker.h"
+#include "runtime/event/SubtaskConnectionDescriptor.h"
 
 namespace omnistream {
     const int EventSerializer::INVALID_EVENT = -1;
@@ -36,13 +42,16 @@ namespace omnistream {
     const int EventSerializer::VIRTUAL_CHANNEL_SELECTOR_EVENT = 7;
     const int EventSerializer::END_OF_USER_RECORDS_EVENT = 8;
 
-    std::shared_ptr<::datastream::NetworkBuffer> EventSerializer::toBuffer(
+    datastream::NetworkBuffer* EventSerializer::toBuffer(
         std::shared_ptr<AbstractEvent> event, bool hasPriority)
     {
-        std::shared_ptr<MemorySegment> res = ToSerializedEvent(event);
+        MemorySegment *res = ToSerializedEvent(event);
+        if (res == nullptr) {
+            return nullptr;
+        }
         ObjectBufferDataType dataType = ObjectBufferDataType::GetDataBufferType(hasPriority, event);
-        std::shared_ptr<NetworkBuffer> networkBuffer = std::make_shared<NetworkBuffer>(
-            res, res->getSize(), 0, EventDataBufferRecycler::GetInstance(), dataType);
+        NetworkBuffer* networkBuffer = new NetworkBuffer(
+            res, res->getSize(), 0, EventDataBufferRecycler::GetInstance(), dataType, true);
         networkBuffer->SetReaderIndex(0);
 
         return networkBuffer;
@@ -51,7 +60,10 @@ namespace omnistream {
     std::shared_ptr<BufferConsumer> EventSerializer::ToBufferConsumer(std::shared_ptr<AbstractEvent> event,
                                                                       bool hasPriority)
     {
-        std::shared_ptr<NetworkBuffer> buffer = toBuffer(event, hasPriority);
+        NetworkBuffer *buffer = toBuffer(event, hasPriority);
+        if (buffer == nullptr) {
+            return nullptr;
+        }
         int eventSize = buffer->getMemorySegment()->getSize();
         std::shared_ptr<BufferConsumer> bufferConsumer = std::make_shared<datastream::MemoryBufferConsumer>(
             buffer, eventSize);
@@ -60,66 +72,195 @@ namespace omnistream {
     }
 
 
-    std::shared_ptr<AbstractEvent> EventSerializer::fromBuffer(const std::shared_ptr<Buffer>& buffer)
+    std::shared_ptr<AbstractEvent> EventSerializer::fromBuffer(Buffer* buffer)
     {
         return fromSerializedEvent(buffer);
     }
 
-    std::shared_ptr<MemorySegment> EventSerializer::ToSerializedEvent(std::shared_ptr<AbstractEvent> event)
+    std::shared_ptr<AbstractEvent> EventSerializer::fromBufferNotRecycle(Buffer* buffer)
     {
-        std::shared_ptr<MemorySegment> memorySegment = nullptr;
+        return fromSerializedEvent(buffer, false);
+    }
+
+    std::shared_ptr<AbstractEvent> EventSerializer::fromBuffer_V2(const std::shared_ptr<Buffer>& buffer)
+    {
+        return fromSerializedEvent_V2(buffer);
+    }
+
+    MemorySegment *EventSerializer::ToSerializedEvent(std::shared_ptr<AbstractEvent> event)
+    {
+        MemorySegment *memorySegment = nullptr;
         uint8_t* data = nullptr;
         if (dynamic_cast<EndOfPartitionEvent*>(event.get())) {
             data = new uint8_t[4]{0, 0, 0, END_OF_PARTITION_EVENT};
-            memorySegment = std::make_shared<MemorySegment>(data, 4);
+            memorySegment = new MemorySegment(data, 4);
             return memorySegment;
         } else if (dynamic_cast<EndOfData*>(event.get())) {
             EndOfData* endEvent = dynamic_cast<EndOfData*>(event.get());
             uint8_t ordinal = static_cast<int>(endEvent->getStopMode());
             data = new uint8_t[5]{0, 0, 0, END_OF_USER_RECORDS_EVENT, ordinal};
-            memorySegment = std::make_shared<MemorySegment>(data, 5);
+            memorySegment = new MemorySegment(data, 5);
             return memorySegment;
         } else if (dynamic_cast<CheckpointBarrier*>(event.get())) {
             memorySegment = SerializeCheckpointBarrier(std::dynamic_pointer_cast<CheckpointBarrier>(event));
+            return memorySegment;
+        } else if (dynamic_cast<EventAnnouncement*>(event.get())) {
+            auto ann = std::dynamic_pointer_cast<EventAnnouncement>(event);
+            if (!ann) {
+
+                throw std::runtime_error("Failed to cast event to EventAnnouncement.");
+            }
+
+            // Serialize the announced event (currently we only support announced CheckpointBarrier).
+            MemorySegment* announcedSeg = ToSerializedEvent(ann->GetAnnouncedEvent());
+            int byteSize = 4 /*type*/ + 4 /*sequenceNumber*/ + announcedSeg->getSize();
+
+            ByteBuffer byteBuffer = ByteBuffer(byteSize);
+
+            byteBuffer.putInt(ANNOUNCEMENT_EVENT);
+            byteBuffer.putInt(ann->GetSequenceNumber());
+            byteBuffer.putBytes(announcedSeg->getData(), announcedSeg->getSize());
+
+            uint8_t* arr = new uint8_t[byteSize];
+            memcpy_s(arr, byteSize, byteBuffer.getValue(), byteSize);
+            memorySegment = new MemorySegment(arr, byteSize);
+            return memorySegment;
+
+        } else if (dynamic_cast<EndOfChannelStateEvent*>(event.get())) {
+            data = new uint8_t[4]{0, 0, 0, END_OF_CHANNEL_STATE_EVENT};
+            memorySegment = new MemorySegment(data, 4);
+            return memorySegment;
+        }else if(dynamic_cast<SubtaskConnectionDescriptor*>(event.get())){
+            auto selector = dynamic_cast<SubtaskConnectionDescriptor*>(event.get());
+            ByteBuffer byteBuffer = ByteBuffer(12);
+            byteBuffer.putInt(VIRTUAL_CHANNEL_SELECTOR_EVENT);
+            byteBuffer.putInt(selector->getInputSubtaskIndex());
+            byteBuffer.putInt(selector->getOutputSubtaskIndex());
+            byteBuffer.flip();
+            uint8_t* arr = new uint8_t[12];
+            memcpy_s(arr, 12, byteBuffer.getValue(), 12);
+            memorySegment = new MemorySegment(arr, 12);
             return memorySegment;
         }
         throw std::runtime_error("Unsupported event type");
     }
 
-    std::shared_ptr<AbstractEvent> EventSerializer::fromSerializedEvent(std::shared_ptr<Buffer> buffer)
+    std::shared_ptr<AbstractEvent> EventSerializer::fromSerializedEvent(Buffer* buffer, bool recycleEvent)
     {
+        LOG_DEBUG("fromSerializedEvent V1 !")
         if (buffer == nullptr || buffer->GetSize() < 4) {
             throw std::runtime_error("Buffer is null or too small to contain an event");
         }
 
-        auto networkBuffer = std::dynamic_pointer_cast<datastream::NetworkBuffer>(buffer);
+        auto networkBuffer = dynamic_cast<datastream::NetworkBuffer*>(buffer);
         if (!networkBuffer) {
+            LOG_DEBUG("find a cast error!")
             throw std::runtime_error("it is not netwokrk buffer, so it can not be converted to event.");
         }
         uint8_t* rawData = networkBuffer->getMemorySegment()->getData();
         ByteBuffer byteBuffer = ByteBuffer(rawData, networkBuffer->GetSize());
         int eventType = byteBuffer.getIntFromValue();
         if (eventType == END_OF_PARTITION_EVENT) {
-            buffer->RecycleBuffer();
+            if (recycleEvent) {
+                buffer->RecycleBuffer();
+            }
+            // delete buffer;
             return EndOfPartitionEvent::getInstance();
         } else if (eventType == END_OF_USER_RECORDS_EVENT) {
-            buffer->RecycleBuffer();
+            if (recycleEvent) {
+                buffer->RecycleBuffer();
+            }
+            // delete buffer;
             return std::make_shared<EndOfData>(StopMode::DRAIN);
         } else if (eventType == CHECKPOINT_BARRIER_EVENT) {
             std::shared_ptr<CheckpointBarrier> checkpointBarrier = DeserializeCheckpointBarrier(byteBuffer);
-            buffer->RecycleBuffer();
+            if (recycleEvent) {
+                buffer->RecycleBuffer();
+            }
+            // delete buffer;
             return checkpointBarrier;
+        } else if (eventType == ANNOUNCEMENT_EVENT) {
+            int seq = byteBuffer.getIntFromValue();
+            int announcedType = byteBuffer.getIntFromValue();
+
+            std::shared_ptr<AbstractEvent> announced;
+            if (announcedType == CHECKPOINT_BARRIER_EVENT) {
+                announced = DeserializeCheckpointBarrier(byteBuffer);
+            } else {
+                throw std::runtime_error("Unsupported announced event type in EventAnnouncement.");
+            }
+            if (recycleEvent) {
+                buffer->RecycleBuffer();
+            }
+            return std::make_shared<EventAnnouncement>(announced, seq);
+        } else if (eventType == END_OF_CHANNEL_STATE_EVENT) {
+            if (recycleEvent) {
+                buffer->RecycleBuffer();
+            }
+            return EndOfChannelStateEvent::getInstance();
+        }else if(eventType == VIRTUAL_CHANNEL_SELECTOR_EVENT){
+            auto des = std::make_shared<SubtaskConnectionDescriptor>(byteBuffer.getIntFromValue(),byteBuffer.getIntFromValue());
+            if (recycleEvent) {
+                buffer->RecycleBuffer();
+            }
+            return des;
         } else {
+            if (recycleEvent) {
+                buffer->RecycleBuffer();
+            }
             return nullptr;
         }
     }
 
-    std::shared_ptr<MemorySegment> EventSerializer::SerializeCheckpointBarrier(
+        std::shared_ptr<AbstractEvent> EventSerializer::fromSerializedEvent_V2(std::shared_ptr<Buffer> buffer)
+    {
+        LOG_DEBUG("fromSerializedEvent V2 !")
+        if (buffer == nullptr || buffer->GetSize() < 4) {
+            throw std::runtime_error("Buffer is null or too small to contain an event");
+        }
+
+        auto networkBuffer = std::dynamic_pointer_cast<datastream::NetworkBuffer>(buffer);
+        if (!networkBuffer) {
+            LOG_DEBUG("find a cast error!")
+            throw std::runtime_error("it is not netwokrk buffer, so it can not be converted to event.");
+        }
+        uint8_t* rawData = networkBuffer->getMemorySegment()->getData();
+        ByteBuffer byteBuffer = ByteBuffer(rawData, networkBuffer->GetSize());
+        int eventType = byteBuffer.getIntFromValue();
+        if (eventType == END_OF_PARTITION_EVENT) {
+//            buffer->RecycleBuffer();
+            return EndOfPartitionEvent::getInstance();
+        } else if (eventType == END_OF_USER_RECORDS_EVENT) {
+//            buffer->RecycleBuffer();
+            return std::make_shared<EndOfData>(StopMode::DRAIN);
+        } else if (eventType == CHECKPOINT_BARRIER_EVENT) {
+            std::shared_ptr<CheckpointBarrier> checkpointBarrier = DeserializeCheckpointBarrier(byteBuffer);
+//            buffer->RecycleBuffer();
+            return checkpointBarrier;
+        } else if (eventType == ANNOUNCEMENT_EVENT) {
+            int seq = byteBuffer.getIntFromValue();
+            int announcedType = byteBuffer.getIntFromValue();
+
+            std::shared_ptr<AbstractEvent> announced;
+            if (announcedType == CHECKPOINT_BARRIER_EVENT) {
+                announced = DeserializeCheckpointBarrier(byteBuffer);
+            } else {
+                throw std::runtime_error("Unsupported announced event type in EventAnnouncement.");
+            }
+//            buffer->RecycleBuffer();
+            return std::make_shared<EventAnnouncement>(announced, seq);
+        } else {
+            LOG_DEBUG("find no support event type!")
+            return nullptr;
+        }
+    }
+
+    MemorySegment *EventSerializer::SerializeCheckpointBarrier(
         std::shared_ptr<CheckpointBarrier> checkpointBarrier)
     {
         int byteSize = 38;
         CheckpointOptions* checkpointOptions = checkpointBarrier->GetCheckpointOptions();
-        std::vector<uint8_t>* reference =
+        std::shared_ptr<std::vector<uint8_t>> reference =
             checkpointOptions->GetTargetLocation()->IsDefaultReference()
                 ? nullptr
                 : checkpointOptions->GetTargetLocation()->GetReferenceBytes();
@@ -152,7 +293,7 @@ namespace omnistream {
         byteBuffer.putLong(checkpointOptions->GetAlignedCheckpointTimeout());
         uint8_t* arr = new uint8_t[byteSize];
         memcpy_s(arr, byteSize, byteBuffer.getValue(), byteSize);
-        return std::make_shared<MemorySegment>(arr, byteSize);
+        return new MemorySegment(arr, byteSize);
     }
 
     void EventSerializer::EncodeSavepointType(SavepointType* savepointType, ByteBuffer& byteBuffer)
@@ -206,13 +347,13 @@ namespace omnistream {
 
         // Read the location reference
         int locationRefLen = buffer.getIntBigEndian();
-        CheckpointStorageLocationReference* locationRef = nullptr;
+        std::shared_ptr<CheckpointStorageLocationReference> locationRef = nullptr;
         if (locationRefLen == -1) {
             locationRef = CheckpointStorageLocationReference::GetDefault();
         } else {
-            std::vector<uint8_t>* bytes = new std::vector<uint8_t>(locationRefLen);
+            std::shared_ptr<std::vector<uint8_t>> bytes = std::make_shared<std::vector<uint8_t>>(locationRefLen);
             buffer.getBytes(bytes->data(), locationRefLen);
-            locationRef = new CheckpointStorageLocationReference(bytes);
+            locationRef = std::make_shared<CheckpointStorageLocationReference>(bytes);
         }
         // Read the alignment type ordinal and convert it to the enum type
         uint8_t alignmentOrdinal = buffer.getByte();
@@ -221,9 +362,10 @@ namespace omnistream {
         // Read the alignment timeout
         int64_t alignmentTimeout = buffer.getLong();
         // Build the CheckpointOptions instance
-        CheckpointOptions* options = new CheckpointOptions(snapshotType, locationRef, alignmentType, alignmentTimeout);
+        CheckpointOptions* parsedOptions = new CheckpointOptions(snapshotType, locationRef, alignmentType, alignmentTimeout);
+        CheckpointOptions* runtimeOptions = parsedOptions->ToRuntimeAlignedNoTimeout();
         // Construct and return the CheckpointBarrier
-        return std::make_shared<CheckpointBarrier>(id, timestamp, options);
+        return std::make_shared<CheckpointBarrier>(id, timestamp, runtimeOptions);
     }
 
     SnapshotType* EventSerializer::DecodeSavepointType(uint8_t checkpointTypeCode, ByteBuffer& buffer)

@@ -13,8 +13,8 @@
 
 namespace omnistream {
 
-    RescaleMappings RescaleMappings::SYMMETRIC_IDENTITY =
-        IdentityRescaleMappings(std::numeric_limits<int>::max(), std::numeric_limits<int>::max());
+    std::shared_ptr<RescaleMappings> RescaleMappings::SYMMETRIC_IDENTITY =
+        std::make_shared<IdentityRescaleMappings>(std::numeric_limits<int>::max(), std::numeric_limits<int>::max());
 
     RescaleMappings RescaleMappings::of(const std::vector<std::vector<int> > &mappedTargets, int numberOfTargets_)
     {
@@ -43,7 +43,8 @@ namespace omnistream {
     std::string RescaleMappings::ToString() const
     {
         std::ostringstream oss;
-        oss << "RescaleMappings{mappings=[";
+        oss << "RescaleMappings{numberOfSources=" << numberOfSources << ", numberOfTargets=" << numberOfTargets;
+        oss <<", mappings=[";
         for (size_t i = 0; i < mappings.size(); ++i) {
             if (i > 0) {
                 oss << ", ";
@@ -94,6 +95,21 @@ namespace omnistream {
             }
         }
         return true;
+    }
+
+    RescaleMappings RescaleMappings::invert()
+    {
+        std::vector<std::vector<int>> inverted(numberOfTargets);
+        for (int source = 0; source < mappings.size(); ++source) {
+            const auto& targets = mappings[source];
+            for (int target : targets) {
+                inverted[target].push_back(source);
+            }
+        }
+        for (auto& sources : inverted) {
+            std::sort(sources.begin(), sources.end());
+        }
+        return of(std::move(inverted), numberOfSources);
     }
 
 }

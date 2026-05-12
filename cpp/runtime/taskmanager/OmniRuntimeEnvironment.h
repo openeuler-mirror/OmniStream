@@ -42,7 +42,7 @@ namespace omnistream {
             const TaskPlainInfoPOD& taskPlainInfoPod,
             const ExecutionAttemptIDPOD& attemptIdpod,
             const std::vector<std::shared_ptr<ResultPartitionWriter>>& writers,
-            const std::vector<std::shared_ptr<IndexedInputGate>>& inputGates,  std::shared_ptr<OmniTask> omniTask,
+            const std::vector<std::shared_ptr<IndexedInputGate>>& inputGates,  OmniTask* omniTask,
             std::shared_ptr<TaskMetricGroup> &taskMetricGroup,
             std::shared_ptr<TaskStateManagerBridge> taskStateManagerBridge,
             std::shared_ptr<TaskOperatorEventGatewayBridge> taskOperatorEventGatewayBridge,
@@ -94,8 +94,7 @@ namespace omnistream {
             return omniShuffleEnvironment_;
         }
 
-        [[nodiscard]] TaskInformationPOD taskConfiguration() const override
-        {
+        const TaskInformationPOD& taskConfiguration() const override {
             return taskConfiguration_;
         }
 
@@ -142,7 +141,7 @@ namespace omnistream {
             return inputGates;
         }
 
-        [[nodiscard]] std::shared_ptr<OmniTask> omniTask() const
+        [[nodiscard]] OmniTask* omniTask() const
         {
             return omniTask_;
         }
@@ -186,6 +185,11 @@ namespace omnistream {
             localRecoveryConfig = std::move(config);
             taskStateManager_->setLocalRecoveryConfig(localRecoveryConfig);
         }
+
+        std::vector<std::shared_ptr<ResultPartitionWriter>> getAllWriters()
+        {
+            return writers_;
+        }
     private:
         std::shared_ptr<ShuffleEnvironment> omniShuffleEnvironment_;
         TaskInformationPOD taskConfiguration_;
@@ -197,7 +201,7 @@ namespace omnistream {
          */
         std::vector<std::shared_ptr<ResultPartitionWriter>> writers_;
         std::vector<std::shared_ptr<IndexedInputGate>> inputGates;
-        std::shared_ptr<OmniTask> omniTask_;
+        OmniTask* omniTask_ = nullptr;
         std::shared_ptr<TaskMetricGroup> taskMetricGroup_;
         std::shared_ptr<TaskOperatorEventGateway> operatorEventGateway;
         std::shared_ptr<TaskStateManager> taskStateManager_;

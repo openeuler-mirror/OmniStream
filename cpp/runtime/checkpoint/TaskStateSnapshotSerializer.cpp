@@ -103,17 +103,14 @@ nlohmann::json TaskStateSnapshotSerializer::parseKeyedState(StateObjectCollectio
     for (auto handle : keyedState.ToArray()) {
         nlohmann::json handleJson;
         if (auto kh = std::dynamic_pointer_cast<IncrementalRemoteKeyedStateHandle>(handle)) {
-            handleJson["@class"] = "org.apache.flink.runtime.state.IncrementalLocalKeyedStateHandle";
-            handleJson["keyGroupRange"] = parseKeyGroupRange(kh->GetKeyGroupRange());
-            handleJson["stateHandleId"] = parseStateHandleId(kh->GetStateHandleId());
-            handleJson["checkpointId"] = kh->GetCheckpointId();
-            handleJson["backendIdentifier"] = kh->GetBackendIdentifier().ToString();
-            handleJson["metaDataState"] = parseMetaDataState(kh->GetMetaDataStateHandle());
-            handleJson["sharedState"] = parseSharedState(kh->GetSharedState());
-            handleJson["sharedStateHandles"] = parseSharedState(kh->GetSharedStateHandles());
-            handleJson["stateSize"] = kh->GetStateSize();
-            handleJson["checkpointedSize"] = kh->GetCheckpointedSize();
+            keyedStateArray.push_back(parseIncrementalRemoteKeyedStateHandle(kh));
+        } else if (auto kh = std::dynamic_pointer_cast<KeyGroupsSavepointStateHandle>(handle)) {
+            handleJson = parseKeyGroupsStateHandle(kh);
+            handleJson["@class"] = "org.apache.flink.runtime.state.KeyGroupsSavepointStateHandle";
+            handleJson["stateHandleName"] = "KeyGroupsSavepointStateHandle";
             keyedStateArray.push_back(handleJson);
+        } else if (auto kh = std::dynamic_pointer_cast<KeyGroupsStateHandle>(handle)) {
+            keyedStateArray.push_back(parseKeyGroupsStateHandle(kh));
         } else if (auto kh = std::dynamic_pointer_cast<DirectoryKeyedStateHandle>(handle)) {
             handleJson["@class"] = "org.apache.flink.runtime.state.DirectoryKeyedStateHandle";
             handleJson["directoryStateHandle"] = parseDirectoryStateHandle(kh->getDirectoryStateHandle());
@@ -156,10 +153,14 @@ nlohmann::json TaskStateSnapshotSerializer::parseIncrementalRemoteKeyedStateHand
     handleJson["stateHandleId"] = parseStateHandleId(kh->GetStateHandleId());
     handleJson["checkpointId"] = kh->GetCheckpointId();
     handleJson["backendIdentifier"] = kh->GetBackendIdentifier().ToString();
-    handleJson["metaDataState"] = parseMetaDataState(kh->GetMetaDataStateHandle());
+    handleJson["metaStateHandle"] = parseMetaDataState(kh->GetMetaDataStateHandle());
+    // Keep the old OmniStream spelling for compatibility with existing restore JSONs.
+    handleJson["metaDataState"] = handleJson["metaStateHandle"];
     handleJson["sharedState"] = parseSharedState(kh->GetSharedStateHandles());
     handleJson["privateState"] = parseSharedState(kh->GetPrivateState());
     handleJson["persistedSizeOfThisCheckpoint"] = kh->GetCheckpointedSize();
+    handleJson["checkpointedSize"] = kh->GetCheckpointedSize();
+    handleJson["stateSize"] = kh->GetStateSize();
     return handleJson;
 }
 
@@ -167,9 +168,16 @@ nlohmann::json TaskStateSnapshotSerializer::parseKeyGroupsStateHandle(std::share
 {
     nlohmann::json handleJson;
     handleJson["@class"] = "org.apache.flink.runtime.state.KeyGroupsStateHandle";
+    handleJson["stateHandleName"] = "KeyGroupsStateHandle";
     handleJson["keyGroupRange"] = parseKeyGroupRange(kh->GetKeyGroupRange());
-    handleJson["metaDataState"] = parseMetaDataState(kh->getDelegateStateHandle());
+    handleJson["groupRangeOffsets"] = nlohmann::json::parse(kh->getGroupRangeOffsets().ToString());
+    handleJson["streamStateHandle"] = parseMetaDataState(kh->getDelegateStateHandle());
+    // Some old C++ paths expect the delegate under stateHandle/metaDataState.
+    handleJson["stateHandle"] = handleJson["streamStateHandle"];
+    handleJson["metaDataState"] = handleJson["streamStateHandle"];
     handleJson["stateHandleId"] = parseStateHandleId(kh->GetStateHandleId());
+    handleJson["stateSize"] = kh->GetStateSize();
+    handleJson["checkpointedSize"] = kh->GetCheckpointedSize();
     return handleJson;
 }
 
@@ -273,7 +281,7 @@ nlohmann::json TaskStateSnapshotSerializer::parseSharedState(
 }
 
 nlohmann::json TaskStateSnapshotSerializer::parseInflightDataRescalingDescriptor(
-    const InflightDataRescalingDescriptor& rescalingDescriptor)
+    const std::shared_ptr<InflightDataRescalingDescriptor> rescalingDescriptor)
 {
     // TTODO: Now we assume it is empty
     nlohmann::json inputRescalingDesc;

@@ -51,29 +51,29 @@ public:
     void ProcessHopResult(RowData* result);
     void ProcessNonHopResult(RowData* result);
 protected:
-    RecordsWindowBuffer *windowBuffer;
+    std::unique_ptr<RecordsWindowBuffer> windowBuffer;
     int64_t currentProgress = INT64_MIN;
     int64_t nextTriggerProgress = INT64_MIN;
-    int64_t windowInterval;
-    SliceAssigner* sliceAssigner;
+    int64_t windowInterval = 0;
+    SliceAssigner* sliceAssigner = nullptr;
     int indexOfCountStar = -1;
     bool isEventTime;
     std::vector<NamespaceAggsHandleFunction<int64_t>*> aggregator;
-    WindowValueState<RowData*, int64_t, RowData*>* windowState;
+    std::unique_ptr<WindowValueState<RowData*, int64_t, RowData*>> windowState;
     Output* output;
     int accumulatorArity = 0;
-    AbstractKeyedStateBackend<RowData*> *stateBackend;
+    AbstractKeyedStateBackend<RowData*> *stateBackend = nullptr;
     JoinedRowData* resultRow = new JoinedRowData();
     omnistream::VectorBatch* resultBatch = nullptr;
-    TimestampedCollector* collector;
+    std::unique_ptr<TimestampedCollector> collector;
     std::vector<std::string> outputTypes;
     std::vector<int32_t> outputTypeIds;
     ClockService *clockService = new ClockService();
-    InternalTimerServiceImpl<RowData*, int64_t> *internalTimerService;
+    InternalTimerServiceImpl<RowData*, int64_t> *internalTimerService = nullptr;
     std::vector<std::string> inputTypes;
     std::vector<int32_t> keyedIndex;
     std::vector<int32_t> keyedTypes;
-    KeySelector<RowData*> *keySelector;
+    std::unique_ptr<KeySelector<RowData*>> keySelector;
     BinaryRowData* emptyRow = new BinaryRowData(0);
 
 private:

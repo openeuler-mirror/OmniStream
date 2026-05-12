@@ -14,14 +14,14 @@
 #include <utility>
 
 KafkaPartitionSplitReader::KafkaPartitionSplitReader(
-    const std::unordered_map<std::string, std::string>& props, std::shared_ptr<SourceReaderContext> context)
+    const std::unordered_map<std::string, std::string>& props, SourceReaderContext* context)
     : subtaskId(context->getSubTaskIndex())
 {
     std::unordered_map<std::string, std::string> consumerProps = props;
     consumerProps["client.id"] = createConsumerClientId(props);
 
     std::string errstr;
-    consumer = std::make_unique<RdKafkaConsumer>(consumerProps);
+    consumer = new RdKafkaConsumer(consumerProps);
     // std::this_thread::sleep_for(std::chrono::seconds(2));
     if (!consumer) {
         throw std::runtime_error("Failed to create Kafka consumer: " + errstr);
@@ -31,6 +31,7 @@ KafkaPartitionSplitReader::KafkaPartitionSplitReader(
 KafkaPartitionSplitReader::~KafkaPartitionSplitReader()
 {
     close();
+    delete consumer;
 }
 
 RecordsWithSplitIds<RdKafka::Message>* KafkaPartitionSplitReader::fetch()

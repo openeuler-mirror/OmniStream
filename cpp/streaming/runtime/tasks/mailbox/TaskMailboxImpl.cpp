@@ -29,7 +29,7 @@ namespace omnistream {
 
     bool TaskMailboxImpl::hasMail() const
     {
-        checkIsMailboxThread();
+        // checkIsMailboxThread();
         return !batch.empty() || hasNewMail.load();
     }
 
@@ -39,36 +39,37 @@ namespace omnistream {
         return static_cast<int>(batch.size() + queue.size());
     }
 
-    std::optional<std::shared_ptr<Mail>> TaskMailboxImpl::tryTake(int priority)
+    Mail* TaskMailboxImpl::tryTake(int priority)
     {
-        checkIsMailboxThread();
+        // checkIsMailboxThread();
         checkTakeStateConditions();
-        std::shared_ptr<Mail> head = takeOrNull(batch, priority);
+        Mail* head = takeOrNull(batch, priority);
         if (head) {
             return head;
         }
         if (!hasNewMail.load()) {
-            return std::nullopt;
+            return nullptr;
         }
         std::lock_guard<std::recursive_mutex> lockGuard(lock);
         head = takeOrNull(queue, priority);
         if (!head) {
-            return std::nullopt;
+            return nullptr;
         }
         hasNewMail.store(!queue.empty());
         return head;
     }
 
-    std::shared_ptr<Mail> TaskMailboxImpl::take(int priority)
+    Mail* TaskMailboxImpl::take(int priority)
     {
-        checkIsMailboxThread();
+        // checkIsMailboxThread();
         checkTakeStateConditions();
-        std::shared_ptr<Mail> head = takeOrNull(batch, priority);
+        Mail* head = takeOrNull(batch, priority);
         if (head) {
             return head;
         }
-        std::lock_guard<std::recursive_mutex> lockGuard(lock);
+        std::unique_lock<std::recursive_mutex> lockGuard(lock);
         while (!(head = takeOrNull(queue, priority))) {
+            notEmpty.wait_for(lockGuard, std::chrono::milliseconds(1000));
         }
         hasNewMail.store(!queue.empty());
         return head;
@@ -76,15 +77,14 @@ namespace omnistream {
 
     bool TaskMailboxImpl::createBatch()
     {
-        checkIsMailboxThread();
+        // checkIsMailboxThread();
         if (!hasNewMail.load()) {
             return !batch.empty();
         }
         std::lock_guard<std::recursive_mutex> lockGuard(lock);
-        auto mail = std::make_shared<Mail>();
 
         while (!queue.empty()) {
-            mail = queue.front();
+            Mail *mail = queue.front();
             queue.pop_front();
             batch.push_back(mail);
         }
@@ -92,19 +92,19 @@ namespace omnistream {
         return !batch.empty();
     }
 
-    std::optional<std::shared_ptr<Mail>> TaskMailboxImpl::tryTakeFromBatch()
+    Mail* TaskMailboxImpl::tryTakeFromBatch()
     {
-        checkIsMailboxThread();
+        // checkIsMailboxThread();
         checkTakeStateConditions();
         if (batch.empty()) {
-            return std::nullopt;
+            return nullptr;
         }
-        std::shared_ptr<Mail> mail = batch.front();
+        Mail* mail = batch.front();
         batch.pop_front();
         return mail;
     }
 
-    void TaskMailboxImpl::put(std::shared_ptr<Mail>& mail)
+    void TaskMailboxImpl::put(Mail* mail)
     {
         std::lock_guard<std::recursive_mutex> lockGuard(lock);
         checkPutStateConditions();
@@ -113,7 +113,7 @@ namespace omnistream {
         notEmpty.notify_one();
     }
 
-    void TaskMailboxImpl::putFirst(std::shared_ptr<Mail>& mail)
+    void TaskMailboxImpl::putFirst(Mail* mail)
     {
         LOG("putFirst running")
         if (isMailboxThread()) {
@@ -132,22 +132,22 @@ namespace omnistream {
         }
     }
 
-    std::shared_ptr<Mail> TaskMailboxImpl::takeOrNull(std::deque<std::shared_ptr<Mail>>& queue, int priority)
+    Mail* TaskMailboxImpl::takeOrNull(std::deque<Mail*> &queue, int priority)
     {
-        auto it = std::find_if(queue.begin(), queue.end(), [priority](const std::shared_ptr<Mail> &mail) {
+        auto it = std::find_if(queue.begin(), queue.end(), [priority](Mail* mail) {
             return mail->getPriority() >= priority;
         });
         if (it != queue.end()) {
-            std::shared_ptr<Mail> mail = *it;
+            Mail* mail = *it;
             queue.erase(it);
             return mail;
         }
         return nullptr;
     }
 
-    std::vector<std::shared_ptr<Mail>> TaskMailboxImpl::drain()
+    std::vector<Mail*> TaskMailboxImpl::drain()
     {
-        std::vector<std::shared_ptr<Mail>> drainedMails(batch.begin(), batch.end());
+        std::vector<Mail*> drainedMails(batch.begin(), batch.end());
         batch.clear();
         std::lock_guard<std::recursive_mutex> lockGuard(lock);
         drainedMails.insert(drainedMails.end(), queue.begin(), queue.end());
@@ -185,21 +185,21 @@ namespace omnistream {
 
     void TaskMailboxImpl::quiesce()
     {
-        checkIsMailboxThread();
+        // checkIsMailboxThread();
         std::lock_guard<std::recursive_mutex> lockGuard(lock);
         if (state == State::OPEN) {
             state = State::QUIESCED;
         }
     }
 
-    std::vector<std::shared_ptr<Mail>> TaskMailboxImpl::close()
+    std::vector<Mail*> TaskMailboxImpl::close()
     {
-        checkIsMailboxThread();
+        // checkIsMailboxThread();
         std::lock_guard<std::recursive_mutex> lockGuard(lock);
         if (state == State::CLOSED) {
             return {};
         }
-        std::vector<std::shared_ptr<Mail> > droppedMails = drain();
+        std::vector<Mail*> droppedMails = drain();
         state = State::CLOSED;
         notEmpty.notify_all();
         return droppedMails;

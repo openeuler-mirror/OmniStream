@@ -33,6 +33,12 @@ public:
     {
         return BackendDataType::OBJECT_BK;
     }
+    std::string toJson() override
+    {
+        SerializerJsonInfo typeJson = {SerializerType::DOUBLE};
+        return typeJson.toJson();
+    }
+
     static DoubleSerializer* INSTANCE;
     void deserialize(Object* buffer, DataInputView &source) override;
     void serialize(Object* buffer, DataOutputSerializer &target) override;

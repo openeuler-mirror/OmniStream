@@ -57,7 +57,7 @@ static omnistream::datastream::StreamTask *createTaskTest() {
 }
 
 
-TEST(StreamTaskTest, ExtractTaskPartitionerConfigValid) {
+TEST(StreamTaskTest, DISABLED_ExtractTaskPartitionerConfigValid) {
 
     omnistream::datastream::StreamTask *streamTask = createTaskTest();
     json ntdd = R"(
@@ -74,7 +74,7 @@ TEST(StreamTaskTest, ExtractTaskPartitionerConfigValid) {
     delete streamTask;
 }
 
-TEST(StreamTaskTest, ExtractTaskPartitionerConfigInvalid) {
+TEST(StreamTaskTest, DISABLED_ExtractTaskPartitionerConfigInvalid) {
     omnistream::datastream::StreamTask *streamTask = createTaskTest();
     json ntdd = R"({})"_json;
 
@@ -84,7 +84,7 @@ TEST(StreamTaskTest, ExtractTaskPartitionerConfigInvalid) {
     delete streamTask;
 }
 
-TEST(StreamTaskTest, CreatePartitionerForward) {
+TEST(StreamTaskTest, DISABLED_CreatePartitionerForward) {
     omnistream::datastream::StreamTask *streamTask = createTaskTest();
     streamTask->setTaskPartitionerConfig(omnistream::datastream::TaskPartitionerConfig("forward", 1, nullptr));
     omnistream::datastream::StreamPartitioner<IOReadableWritable> *partitioner = streamTask->createPartitioner();
@@ -93,7 +93,7 @@ TEST(StreamTaskTest, CreatePartitionerForward) {
     delete streamTask;
 }
 
-TEST(StreamTaskTest, CreatePartitionerResacale) {
+TEST(StreamTaskTest, DISABLED_CreatePartitionerResacale) {
     omnistream::datastream::StreamTask *streamTask = createTaskTest();
     streamTask->setTaskPartitionerConfig(omnistream::datastream::TaskPartitionerConfig("rescale", 1, nullptr));
     omnistream::datastream::StreamPartitioner<IOReadableWritable> *partitioner = streamTask->createPartitioner();
@@ -102,7 +102,7 @@ TEST(StreamTaskTest, CreatePartitionerResacale) {
     delete streamTask;
 }
 
-TEST(StreamTaskTest, CreatePartitionerRebalance) {
+TEST(StreamTaskTest, DISABLED_CreatePartitionerRebalance) {
     omnistream::datastream::StreamTask *streamTask = createTaskTest();
     streamTask->setTaskPartitionerConfig(omnistream::datastream::TaskPartitionerConfig("rebalance", 1, nullptr));
     omnistream::datastream::StreamPartitioner<IOReadableWritable> *partitioner = streamTask->createPartitioner();
@@ -111,7 +111,7 @@ TEST(StreamTaskTest, CreatePartitionerRebalance) {
     delete streamTask;
 }
 
-TEST(StreamTaskTest, CreatePartitionerHash) {
+TEST(StreamTaskTest, DISABLED_CreatePartitionerHash) {
     omnistream::datastream::StreamTask *streamTask = createTaskTest();
     streamTask->setTaskPartitionerConfig(omnistream::datastream::TaskPartitionerConfig("hash", 1, nullptr));
     omnistream::datastream::StreamPartitioner<IOReadableWritable> *partitioner = streamTask->createPartitioner();

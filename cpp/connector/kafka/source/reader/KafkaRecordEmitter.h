@@ -28,10 +28,10 @@ public:
     explicit KafkaRecordEmitter(KafkaRecordDeserializationSchema* deserializationSchema);
 
     void emitRecord(RdKafka::Message* consumerRecord, SourceOutput* output,
-        std::shared_ptr<KafkaPartitionSplitState>& splitState) override;
+                    KafkaPartitionSplitState* splitState) override;
 
     void emitBatchRecord(const std::vector<RdKafka::Message*>& messageVec, SourceOutput* output,
-        std::shared_ptr<KafkaPartitionSplitState>& splitState) override;
+                         KafkaPartitionSplitState* splitState) override;
 private:
     class SourceOutputWrapper : public Collector {
     public:

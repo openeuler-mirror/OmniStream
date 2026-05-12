@@ -30,7 +30,8 @@ namespace omnistream {
                            ResultPartitionIDPOD partitionId,
                            std::shared_ptr<ResultPartitionManager> partitionManager,
                            int initialBackoff, int maxBackoff, int networkBuffersPerChannel,
-                           std::shared_ptr<Counter> numBytesIn, std::shared_ptr<Counter> numBuffersIn
+                           std::shared_ptr<Counter> numBytesIn, std::shared_ptr<Counter> numBuffersIn,
+                           std::shared_ptr<ChannelStateWriter> stateWriter
         );
         void requestSubpartition(int subpartitionIndex) override;
         void notifyRemoteDataAvailableForVectorBatch(long bufferAddress, int bufferLength, int sequenceNumber);
@@ -43,11 +44,28 @@ namespace omnistream {
 
         void SetRemoteDataFetcherBridge(std::shared_ptr<RemoteDataFetcherBridge> remoteDataFetcherBridge);
         void resumeConsumption() override;
+        void CheckpointStarted(const CheckpointBarrier& barrier) override;
+        void CheckpointStopped(long checkpointId) override;
+        std::vector<Buffer*> GetInflightBuffersUnsafe(long checkpointId);
+
+        void ResetLastBarrier()
+        {
+            lastBarrierId_ = 1;
+        }
+
+        void SetForwardResumeToJava(bool forwardResumeToJava)
+        {
+            forwardResumeToJava_ = forwardResumeToJava;
+        }
+
     private:
-        std::queue<std::shared_ptr<Buffer>> dataQueue;
+        std::queue<Buffer*> dataQueue;
         int expectSequenceNumber = 0;
         int initialCredit;
         std::recursive_mutex queueMutex;
         std::shared_ptr<RemoteDataFetcherBridge> remoteDataFetcherBridge;
+        long lastBarrierId_ = -1;
+        bool forwardResumeToJava_ = true;
+
     };
 };

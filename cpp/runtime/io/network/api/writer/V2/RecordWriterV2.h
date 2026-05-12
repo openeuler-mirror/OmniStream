@@ -20,7 +20,7 @@ class SerializationDelegate;
 
 namespace omnistream {
 
-    class RecordWriterV2 : public std::enable_shared_from_this<RecordWriterV2> {
+    class RecordWriterV2 : public AvailabilityProvider , public std::enable_shared_from_this<RecordWriterV2> {
     public:
         static const std::string DEFAULT_OUTPUT_FLUSH_THREAD_NAME;
 
@@ -57,21 +57,24 @@ namespace omnistream {
 
         void broadcastEvent(std::shared_ptr<AbstractEvent> event, bool isPriority);
 
+        std::shared_ptr<CompletableFuture> GetAvailableFuture() override;
+
     protected:
         virtual void emit(StreamRecord *record, int targetSubpartition) = 0;
 
-        SerializationDelegate* serializationDelegate;
+        SerializationDelegate* serializationDelegate = nullptr;
 
         std::shared_ptr<ResultPartitionWriter> targetPartitionWriter_;
+        int numberOfChannels;
+
         std::string taskName;
 
-        bool flushAlways;
+        bool flushAlways = false;
         std::shared_ptr<OutputFlusher> outputFlusher;
 
         // 1 native sql task, 2 native datastream task. 3 future - hybrid java+cpp source task
         int taskType;
-        int numberOfChannels;
-        int timeout;
+        int timeout = 100; // todo: it needs to be assigned a value.
 
         int32_t counter_ {0};
     };

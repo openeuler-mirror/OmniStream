@@ -70,6 +70,14 @@ JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_Om
     return 1;
 }
 
+JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_doDeleteNativeTask
+        (JNIEnv *, jobject, jlong nativeTask)
+{
+    auto task = reinterpret_cast<omnistream::OmniTask *>(nativeTask);
+    delete task;
+    return 1;
+}
+
 JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_dispatchOperatorEvent
 (JNIEnv * env, jobject, jlong nativeTask, jstring operatorId, jstring eventDesc)
 {
@@ -84,6 +92,19 @@ JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_Omn
     (env)->ReleaseStringUTFChars(operatorId, operatorIdCharArray);
 
     task->dispatchOperatorEvent(operatorIdString, eventString);
+}
+
+JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_notifyChannelToOmni
+(JNIEnv * env, jobject, jlong nativeTaskRef, jstring partitionIdJson)
+{
+    const char* paritionIdChars = (env)->GetStringUTFChars(partitionIdJson, nullptr);
+    std::string paritionIdStr(paritionIdChars);
+    (env)->ReleaseStringUTFChars(partitionIdJson, paritionIdChars);
+
+    nlohmann::json partitionId = nlohmann::json::parse(paritionIdStr);
+    omnistream::ResultPartitionIDPOD partitionIdPOD = partitionId;
+    auto task = reinterpret_cast<omnistream::OmniTask*>(nativeTaskRef);
+    task->notifyChannelToOmni(partitionIdPOD);
 }
 
 JNIEXPORT void JNICALL
@@ -126,8 +147,9 @@ JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_Omn
     const char* checkpointStr = jniEnv->GetStringUTFChars(checkpointoptionJson, nullptr);
     nlohmann::json checkpointoptionJsonStr = json::parse(checkpointStr);
     jniEnv->ReleaseStringUTFChars(checkpointoptionJson, checkpointStr);
-    CheckpointOptions * checkpoint_options = CheckpointOptions::FromJson(checkpointoptionJsonStr);
-    task->triggerCheckpointBarrier(checkpointID, checkpointTimestamp, checkpoint_options);
+    CheckpointOptions *configuredOptions = CheckpointOptions::FromJson(checkpointoptionJsonStr);
+    CheckpointOptions *runtimeOptions = configuredOptions->ToRuntimeAlignedNoTimeout();
+    task->triggerCheckpointBarrier(checkpointID, checkpointTimestamp, runtimeOptions);
 }
 
 JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_abortCpp

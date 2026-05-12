@@ -17,7 +17,7 @@
 namespace omnistream {
     class ObjectSegmentFactory {
     public:
-        static std::shared_ptr<ObjectSegment> allocateUnpooledSegment(int segmentSize);
+        static ObjectSegment *allocateUnpooledSegment(int segmentSize);
     };
 }
 

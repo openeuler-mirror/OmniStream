@@ -13,17 +13,8 @@
 namespace omnistream {
 
     ChannelStateWriteRequestExecutorImpl::ChannelStateWriteRequestExecutorImpl(
-        ChannelStateWriteRequestDispatcher *dispatcher,
-        int maxSubtasks,
-        std::function<void(ChannelStateWriteRequestExecutor *)> onRegistered,
-        std::mutex &registerLock)
-        : dispatcher(dispatcher),
-          maxSubtasks(maxSubtasks),
-          onRegistered(std::move(onRegistered)),
-          registerLock(registerLock),
-          isRegistering(true),
-          stopped(false),
-          started(false) {}
+        std::shared_ptr<ChannelStateWriteRequestDispatcher> dispatcher)
+        : dispatcher(dispatcher) {}
 
     ChannelStateWriteRequestExecutorImpl::~ChannelStateWriteRequestExecutorImpl()
     {
@@ -40,19 +31,19 @@ namespace omnistream {
         }
     }
 
-    void ChannelStateWriteRequestExecutorImpl::submit(std::unique_ptr<ChannelStateWriteRequest> req)
+    void ChannelStateWriteRequestExecutorImpl::submit(std::shared_ptr<ChannelStateWriteRequest> req)
     {
         std::lock_guard<std::mutex> lock(mutex);
         if (!stopped) {
-            enqueue(std::move(req), false);
+            enqueue(req, false);
         }
     }
 
-    void ChannelStateWriteRequestExecutorImpl::submitPriority(std::unique_ptr<ChannelStateWriteRequest> req)
+    void ChannelStateWriteRequestExecutorImpl::submitPriority(std::shared_ptr<ChannelStateWriteRequest> req)
     {
         std::lock_guard<std::mutex> lock(mutex);
         if (!stopped) {
-            enqueue(std::move(req), true);
+            enqueue(req, true);
         }
     }
 
@@ -66,7 +57,7 @@ namespace omnistream {
 
         SubtaskID sid = SubtaskID::Of(jvid, idx);
         subtasks.insert(sid);
-        unreadyQueues.emplace(sid, std::queue<std::unique_ptr<ChannelStateWriteRequest>>());
+        unreadyQueues.emplace(sid, std::queue<std::shared_ptr<ChannelStateWriteRequest>>());
 
         enqueue(ChannelStateWriteRequest::registerSubtask(jvid, idx), false);
 
@@ -114,53 +105,47 @@ namespace omnistream {
         while (true) {
             auto req = take();
             if (!req) {
-                return;
+                continue;
             }
-
-            if (dynamic_cast<CheckpointStartRequest *>(req.get())) {
-                std::lock_guard<std::mutex> regLock(registerLock);
-                if (isRegistering.exchange(false)) {
-                    onRegistered(this);
-                }
-            }
-
-            dispatcher->dispatch(*req);
+            dispatcher->dispatch(req);
         }
     }
 
-    std::unique_ptr<ChannelStateWriteRequest> ChannelStateWriteRequestExecutorImpl::take()
+    std::shared_ptr<ChannelStateWriteRequest> ChannelStateWriteRequestExecutorImpl::take()
     {
         std::unique_lock<std::mutex> lock(mutex);
         cv.wait(lock, [&]() { return stopped || !readyQueue.empty(); });
         if (readyQueue.empty()) {
             return nullptr;
         }
-        std::unique_ptr<ChannelStateWriteRequest> req = std::move(readyQueue.front());
+        std::shared_ptr<ChannelStateWriteRequest> req = std::move(readyQueue.front());
         readyQueue.pop_front();
         return req;
     }
 
-    void ChannelStateWriteRequestExecutorImpl::enqueue(std::unique_ptr<ChannelStateWriteRequest> req, bool priority)
+    void ChannelStateWriteRequestExecutorImpl::enqueue(std::shared_ptr<ChannelStateWriteRequest> req, bool priority)
     {
         SubtaskID sid = SubtaskID::Of(req->getJobVertexID(), req->getSubtaskIndex());
         auto &queue = unreadyQueues[sid];
 
         if (!queue.empty() || !req->getReadyFuture()->IsDone()) {
-            ChannelStateWriteRequest *raw = req.get();
-            queue.push(std::move(req));
+            std::shared_ptr<ChannelStateWriteRequest> raw = req;
+            {
+                queue.push(req);
+            }
 
             registerCallback(raw, sid);
         } else {
             if (priority) {
-                readyQueue.push_front(std::move(req));
+                readyQueue.push_front(req);
             } else {
-                readyQueue.push_back(std::move(req));
+                readyQueue.push_back(req);
             }
             cv.notify_all();
         }
     }
 
-    void ChannelStateWriteRequestExecutorImpl::registerCallback(ChannelStateWriteRequest *first, SubtaskID sid)
+    void ChannelStateWriteRequestExecutorImpl::registerCallback(std::shared_ptr<ChannelStateWriteRequest> first, SubtaskID sid)
     {
         auto future = first->getReadyFuture();
         future->ThenRun([this, first, sid, future]() {
@@ -172,11 +157,11 @@ namespace omnistream {
             auto& q = it->second;
 
             while (!q.empty() && q.front()->getReadyFuture()->IsDone()) {
-                readyQueue.push_back(std::move(q.front()));
+                readyQueue.push_back(q.front());
                 q.pop();
             }
             if (!q.empty()) {
-                registerCallback(q.front().get(), sid);
+                registerCallback(q.front(), sid);
             }
             cv.notify_all();
         });
@@ -184,7 +169,7 @@ namespace omnistream {
 
     void ChannelStateWriteRequestExecutorImpl::cleanup()
     {
-        std::vector<std::unique_ptr<ChannelStateWriteRequest>> all;
+        std::vector<std::shared_ptr<ChannelStateWriteRequest>> all;
         {
             std::lock_guard<std::mutex> lock(mutex);
 

@@ -204,18 +204,18 @@ TEST(AggregateWindowOperatorTest, TimeWindowTest)
     const std::vector<TimeWindow> assignStateNamespace = windowAggOperator->windowFunction->AssignStateNamespace(
         inputRow, 1742625633598);
     ASSERT_EQ(assignStateNamespace.size(), 1);
-    ASSERT_EQ(assignStateNamespace[0].start, 1742625633598);
+    ASSERT_EQ(assignStateNamespace[0].getStart(), 1742625633598);
     ASSERT_EQ(assignStateNamespace.size(), 1);
-    ASSERT_EQ(assignStateNamespace[0].end, 1742625643598);
+    ASSERT_EQ(assignStateNamespace[0].getEnd(), 1742625643598);
 
     BinaryRowData *inputRow1 = BinaryRowData::createBinaryRowDataWithMem(2);
     inputRow->setLong(0, 10);
     const std::vector<TimeWindow> assignStateNamespace1 = windowAggOperator->windowFunction->AssignStateNamespace(
         inputRow1, 1742625634598);
     ASSERT_EQ(assignStateNamespace1.size(), 1);
-    ASSERT_EQ(assignStateNamespace1[0].start, 1742625633598);
+    ASSERT_EQ(assignStateNamespace1[0].getStart(), 1742625633598);
     ASSERT_EQ(assignStateNamespace1.size(), 1);
-    ASSERT_EQ(assignStateNamespace1[0].end, 1742625643598);
+    ASSERT_EQ(assignStateNamespace1[0].getEnd(), 1742625643598);
 }
 
 TEST(AggregateWindowOperatorTest, JsonTest)

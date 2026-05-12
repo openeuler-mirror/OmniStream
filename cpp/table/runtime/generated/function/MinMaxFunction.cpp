@@ -117,6 +117,7 @@ void MinMaxFunction::accumulateLong(omniruntime::vec::BaseVector *columnData, in
             ? limit
             : dynamic_cast<omniruntime::vec::Vector<long>*>(columnData)->GetValue(rowIndex);
     if (isFieldNull) {
+        //?? why:  we need to set aggValue when fieldValue is null, and why we set it to limit?
         aggValue = valueIsNull ? limit : aggValue;
     } else {
         toUpdate = !valueIsNull

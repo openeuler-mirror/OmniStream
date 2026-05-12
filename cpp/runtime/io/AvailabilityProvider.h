@@ -30,10 +30,10 @@ namespace omnistream {
         static std::shared_ptr<CompletableFuture> and_(std::shared_ptr<CompletableFuture> first, std::shared_ptr<CompletableFuture> second);
         static std::shared_ptr<CompletableFuture> or_(std::shared_ptr<CompletableFuture> first, std::shared_ptr<CompletableFuture> second);
 
-        bool isAvailable()
+        virtual bool isAvailable()
         {
             auto future = GetAvailableFuture();
-            return future && (future == AVAILABLE || future->isDone());
+            return future == AVAILABLE || future->isDone();
         }
 
         bool isApproximatelyAvailable()

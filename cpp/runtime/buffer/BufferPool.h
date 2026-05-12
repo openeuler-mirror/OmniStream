@@ -30,11 +30,11 @@ namespace omnistream {
         virtual int getNumberOfAvailableSegments()  = 0;
         virtual int bestEffortGetNumOfUsedBuffers() const = 0;
 
-        virtual std::shared_ptr<Segment> requestSegment() = 0;
-        virtual std::shared_ptr<Segment> requestSegment(int targetChannel) = 0;
+        virtual Segment *requestSegment() = 0;
+        virtual Segment *requestSegment(int targetChannel) = 0;
 
-        virtual std::shared_ptr<Segment> requestSegmentBlocking() = 0;
-        virtual std::shared_ptr<Segment> requestSegmentBlocking(int targetChannel) = 0;
+        virtual Segment *requestSegmentBlocking() = 0;
+        virtual Segment *requestSegmentBlocking(int targetChannel) = 0;
     };
 }
 

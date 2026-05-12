@@ -14,6 +14,8 @@
 #include "event/EndOfData.h"
 #include "event/EndOfPartitionEvent.h"
 #include "event/EndOfChannelStateEvent.h"
+#include "io/network/api/EventAnnouncement.h"
+#include "iostream"
 
 namespace omnistream {
 
@@ -23,7 +25,7 @@ CheckpointedInputGate::CheckpointedInputGate(std::shared_ptr<InputGate> inputGat
     : inputGate_(std::move(inputGate)),
     barrierHandler_(std::move(barrierHandler)),
     mailboxExecutor_(std::move(mailboxExecutor)),
-    upstreamRecoveryTracker_(UpstreamRecoveryTracker::NO_OP()),
+    upstreamRecoveryTracker_(std::make_shared<UpstreamRecoveryTrackerImpl>(inputGate_)),
     isFinished_(false) {}
 
 CheckpointedInputGate::CheckpointedInputGate(std::shared_ptr<InputGate> inputGate,
@@ -46,35 +48,58 @@ std::shared_ptr<CompletableFuture> CheckpointedInputGate::GetAvailableFuture()
     return inputGate_->GetAvailableFuture();
 }
 
-std::optional<std::shared_ptr<BufferOrEvent>> CheckpointedInputGate::PollNext()
+BufferOrEvent* CheckpointedInputGate::PollNext()
 {
-    auto next = inputGate_->PollNext();
-    if (!next.has_value()) {
+    auto bufferOrEvent = inputGate_->PollNext();
+    if (!bufferOrEvent) {
         return HandleEmptyBuffer();
     }
 
-    auto bufferOrEvent  = next.value();
-    if (!bufferOrEvent) {
-        return std::nullopt;  // defensive: in case shared_ptr is null
-    }
     if (bufferOrEvent->isEvent()) {
         return HandleEvent(bufferOrEvent);
-    } else if (next.value()->isBuffer()) {
+    } else if (bufferOrEvent->isBuffer()) {
         barrierHandler_->AddProcessedBytes(bufferOrEvent->getSize());
         return bufferOrEvent;
     }
-    return std::nullopt;
+    return nullptr;
 }
 
-std::optional<std::shared_ptr<BufferOrEvent>> CheckpointedInputGate::HandleEvent(
-    const std::shared_ptr<BufferOrEvent>& bufferOrEvent)
+BufferOrEvent* CheckpointedInputGate::HandleEvent(
+        BufferOrEvent* bufferOrEvent)
 {
+    auto eventClassName = bufferOrEvent->getEvent()->GetEventClassName();
+    INFO_RELEASE("Start to handle event, eventClassName: " << eventClassName)
+
     if (bufferOrEvent->getEvent()->GetEventClassName() == "CheckpointBarrier") {
         auto checkpointBarrier = std::dynamic_pointer_cast<CheckpointBarrier>(bufferOrEvent->getEvent());
         if (!checkpointBarrier) {
+            INFO_RELEASE("CheckpointedInputGate::HandleEvent checkpointBarrier is nullptr")
             throw std::runtime_error("Failed to cast event to CheckpointBarrier");
         }
-        barrierHandler_->ProcessBarrier(*checkpointBarrier, bufferOrEvent->getChannelInfo(), false);
+        barrierHandler_->ProcessBarrier(*checkpointBarrier,
+                                        bufferOrEvent->getChannelInfo(),
+                                        false);
+    } else if (bufferOrEvent->getEvent()->GetEventClassName() == "EventAnnouncement") {
+        INFO_RELEASE("CheckpointedInputGate::HandleEvent received an announcement event.")
+        auto ann = std::dynamic_pointer_cast<EventAnnouncement>(bufferOrEvent->getEvent());
+        if (!ann) {
+            INFO_RELEASE("CheckpointedInputGate::HandleEvent ann is nullptr!")
+            throw std::runtime_error("Failed to cast event to EventAnnouncement");
+        }
+
+        auto announced = ann->GetAnnouncedEvent();
+        // announcements are used to announce timeoutable aligned checkpoint barriers.
+        if (announced && announced->GetEventClassName() == "CheckpointBarrier") {
+            INFO_RELEASE("CheckpointedInputGate::HandleEvent event class name is CheckpointBarrier.")
+            auto announcedBarrier = std::dynamic_pointer_cast<CheckpointBarrier>(announced);
+            if (!announcedBarrier) {
+                INFO_RELEASE("CheckpointedInputGate::HandleEvent announcedBarrier is nullptr!")
+                throw std::runtime_error("Failed to cast announced event to CheckpointBarrier");
+            }
+            barrierHandler_->ProcessBarrierAnnouncement(*announcedBarrier,
+                                                        ann->GetSequenceNumber(),
+                                                        bufferOrEvent->getChannelInfo());
+        }
     } else if (bufferOrEvent->getEvent()->GetEventClassName() == "CancelCheckpointMarker") {
         barrierHandler_->ProcessCancellationBarrier(
             *std::dynamic_pointer_cast<CancelCheckpointMarker>(bufferOrEvent->getEvent()),
@@ -82,6 +107,7 @@ std::optional<std::shared_ptr<BufferOrEvent>> CheckpointedInputGate::HandleEvent
     } else if (bufferOrEvent->getEvent()->GetEventClassName() == "EndOfPartitionEvent") {
         barrierHandler_->ProcessEndOfPartition(bufferOrEvent->getChannelInfo());
     } else if (bufferOrEvent->getEvent()->GetEventClassName() == "EndOfChannelStateEvent") {
+        INFO_RELEASE("CheckpointedInputGate::HandleEvent received an EndOfChannelStateEvent.");
         upstreamRecoveryTracker_->handleEndOfRecovery(bufferOrEvent->getChannelInfo());
     } else {
     }
@@ -89,15 +115,15 @@ std::optional<std::shared_ptr<BufferOrEvent>> CheckpointedInputGate::HandleEvent
     return bufferOrEvent;
 }
 
-std::optional<std::shared_ptr<BufferOrEvent>> CheckpointedInputGate::HandleEmptyBuffer()
+BufferOrEvent* CheckpointedInputGate::HandleEmptyBuffer()
 {
     if (inputGate_->IsFinished()) {
         isFinished_ = true;
     }
-    return std::nullopt;
+    return nullptr;
 }
 
-CompletableFutureV2<void>& CheckpointedInputGate::GetAllBarriersReceivedFuture(long checkpointId)
+std::shared_ptr<CompletableFutureV2<void>> CheckpointedInputGate::GetAllBarriersReceivedFuture(long checkpointId)
 {
     return barrierHandler_->GetAllBarriersReceivedFuture(checkpointId);
 }

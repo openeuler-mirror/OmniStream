@@ -17,7 +17,7 @@
 #include "LocalBufferPool.h"
 #include "NetworkMemoryBufferPool.h"
 
-namespace datastream {
+namespace omnistream::datastream {
     class LocalMemoryBufferPool : public LocalBufferPool {
     public:
         LocalMemoryBufferPool(std::shared_ptr<NetworkMemoryBufferPool> networkBufferPool,
@@ -57,53 +57,56 @@ namespace datastream {
 
         std::shared_ptr<Buffer> requestBuffer() override;
 
-        std::shared_ptr<BufferBuilder> requestBufferBuilder() override;
+        BufferBuilder *requestBufferBuilder() override;
 
-        std::shared_ptr<BufferBuilder> requestBufferBuilder(int targetChannel) override;
+        BufferBuilder *requestBufferBuilder(int targetChannel) override;
 
-        std::shared_ptr<BufferBuilder> requestBufferBuilderBlocking() override;
+        BufferBuilder *requestBufferBuilderBlocking() override;
 
-        std::shared_ptr<BufferBuilder> requestBufferBuilderBlocking(int targetChannel) override;
+        BufferBuilder *requestBufferBuilderBlocking(int targetChannel) override;
 
         std::shared_ptr<NetworkBuffer> requestNetworkBuffer();
 
-        std::shared_ptr<MemoryBufferBuilder> requestMemoryBufferBuilder();
+        MemoryBufferBuilder *requestMemoryBufferBuilder();
 
-        std::shared_ptr<MemoryBufferBuilder> requestMemoryBufferBuilder(int targetChannel);
+        MemoryBufferBuilder *requestMemoryBufferBuilder(int targetChannel);
 
-        std::shared_ptr<MemoryBufferBuilder> requestMemoryBufferBuilderBlocking();
+        MemoryBufferBuilder *requestMemoryBufferBuilderBlocking();
 
-        std::shared_ptr<MemoryBufferBuilder> requestMemoryBufferBuilderBlocking(int targetChannel);
+        MemoryBufferBuilder *requestMemoryBufferBuilderBlocking(int targetChannel);
 
-        std::shared_ptr<Segment> requestSegment() override;
+        Segment *requestSegment() override;
 
-        std::shared_ptr<Segment> requestSegment(int targetChannel) override;
+        Segment *requestSegment(int targetChannel) override;
 
-        std::shared_ptr<Segment> requestSegmentBlocking() override;
+        Segment *requestSegmentBlocking() override;
 
-        std::shared_ptr<Segment> requestSegmentBlocking(int targetChannel) override;
+        Segment *requestSegmentBlocking(int targetChannel) override;
 
-        std::shared_ptr<MemorySegment> requestMemorySegment();
+        MemorySegment *requestPooledMemorySegment();
 
-        std::shared_ptr<MemorySegment> requestMemorySegment(int targetChannel);
+        MemorySegment *requestOverdraftMemorySegmentFromGlobal();
 
-        std::shared_ptr<MemorySegment> requestMemorySegmentBlocking();
+        MemorySegment *requestMemorySegment();
 
-        std::shared_ptr<MemorySegment> requestMemorySegmentBlocking(int targetChannel);
+        MemorySegment *requestMemorySegment(int targetChannel);
 
-        std::shared_ptr<NetworkBuffer> toNetworkBuffer(std::shared_ptr<MemorySegment> memorySegment);
+        MemorySegment *requestMemorySegmentBlocking();
 
-        std::shared_ptr<MemoryBufferBuilder> toMemoryBufferBuilder(std::shared_ptr<MemorySegment> memorySegment,
-                                                                   int targetChannel);
+        MemorySegment *requestMemorySegmentBlocking(int targetChannel);
+
+        std::shared_ptr<NetworkBuffer> toNetworkBuffer(MemorySegment *memorySegment);
+
+        MemoryBufferBuilder *toMemoryBufferBuilder(MemorySegment *memorySegment, int targetChannel);
 
         std::string toString() const override;
 
     private:
         bool requestSegmentFromGlobal() override;
 
-        void returnSegment(std::shared_ptr<Segment> segment) override;
+        void returnSegment(Segment *segment) override;
 
-        void returnMemorySegment(std::shared_ptr<MemorySegment> segment);
+        void returnMemorySegment(MemorySegment *segment);
 
         void returnExcessSegments() override;
 
@@ -113,31 +116,9 @@ namespace datastream {
 
         bool isRequestedSizeReached() override;
 
-        class SubpartitionBufferRecycler : public BufferRecycler {
-        public:
-            SubpartitionBufferRecycler(int channel, std::shared_ptr<LocalBufferPool> bufferPool);
-
-            void recycle(std::shared_ptr<Segment> segment) override;
-
-            std::string toString() const override
-            {
-                return "MemoryBufferRecycler";
-            };
-
-        protected:
-            int channel_;
-            std::shared_ptr<LocalBufferPool> bufferPool_;
-        };
-
         std::shared_ptr<NetworkMemoryBufferPool> networkMemoryBufferPool;
-        /** The minimum number of required segments for this pool. */
-        int numberOfRequiredMemorySegments;
-        std::recursive_mutex recursiveMutex;
-        std::mutex availableObjectSegmentsMutex;
 
         std::deque<std::shared_ptr<BufferListener> > registeredListeners_;
-        int maxNumberOfObjectSegments_;
-        int currentPoolSize_;
 
         /**
          * Number of all memory segments, which have been requested from the network buffer pool and are
@@ -146,9 +127,7 @@ namespace datastream {
          */
         int numberOfRequestedMemorySegments;
         std::vector<std::shared_ptr<BufferRecycler> > subpartitionBufferRecyclers_;
-        int unavailableSubpartitionsCount = 0;
         bool isDestroyed_ = false;
-        bool requestingWhenAvailable_ = false;
     };
 
 }

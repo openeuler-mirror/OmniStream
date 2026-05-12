@@ -18,7 +18,7 @@
 #include "virtual_enable_shared_from_this_base.h"
 
 namespace omnistream {
-
+// check
 class BufferAvailabilityListener : public virtual_enable_shared_from_this<BufferAvailabilityListener> {
 public:
     ~BufferAvailabilityListener() override = default;
@@ -27,11 +27,6 @@ public:
 
     virtual void notifyPriorityEvent(int prioritySequenceNumber)
     {}
-
-    virtual std::shared_ptr<BufferAvailabilityListener> shared_from_BAListener()
-    {
-        return shared_from_this();
-    }
 
     virtual std::string toString() const
     {

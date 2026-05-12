@@ -14,6 +14,7 @@
 
 #include <stdexcept>
 #include "DataInputStatus.h"
+#include "common.h"
 
 namespace omnistream {
 
@@ -29,10 +30,15 @@ namespace omnistream {
 
     DataInputStatus updateStatusAndSelection(DataInputStatus inputStatus, int inputIndex)
     {
+        if (inputStatus == DataInputStatus::END_OF_RECOVERY ){
+            return DataInputStatus::END_OF_RECOVERY;
+        }
                 switch (inputStatus) {
                     case DataInputStatus::MORE_AVAILABLE:
                         nextSelection();
-                        checkBitMask(availableInputsMask, inputIndex);
+                        if (!checkBitMask(availableInputsMask, inputIndex)) {
+                            THROW_RUNTIME_ERROR("input " << std::to_string(inputIndex) << " is not available")
+                        }
                         return DataInputStatus::MORE_AVAILABLE;
                     case DataInputStatus::NOTHING_AVAILABLE:
                         availableInputsMask = unsetBitMask(availableInputsMask, inputIndex);
@@ -103,6 +109,16 @@ namespace omnistream {
             uint64_t unotFinishedInputsMask = static_cast<uint64_t>(notFinishedInputsMask);
             uint64_t uavailableInputsMask = static_cast<uint64_t>(availableInputsMask);
             return (uselectedInputsMask & uavailableInputsMask & unotFinishedInputsMask) != 0;
+        }
+
+        inline bool isInputSelected(int inputIndex)
+        {
+            return checkBitMask(selectedInputsMask, inputIndex);
+        }
+
+        inline bool isInputFinished(int inputIndex)
+        {
+            return !checkBitMask(notFinishedInputsMask, inputIndex);
         }
 
         void nextSelection()

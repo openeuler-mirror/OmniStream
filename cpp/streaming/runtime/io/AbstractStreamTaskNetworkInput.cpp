@@ -23,8 +23,7 @@ namespace omnistream::datastream {
                                                                    std::unique_ptr<std::unordered_map<long, RecordDeserializer *>> &&recordDeserializers)
         : currentRecordDeserializer_(nullptr), recordDeserializers_(std::move(recordDeserializers))
     {
-        deserializationDelegate_ = new NonReusingDeserializationDelegate(
-                std::make_unique<StreamElementSerializer>(inputSerializer));
+        deserializationDelegate_ = new NonReusingDeserializationDelegate(new StreamElementSerializer(inputSerializer));
         rawRecordDeserializers_ = recordDeserializers_.get();
     }
 

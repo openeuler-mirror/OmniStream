@@ -31,29 +31,31 @@ public:
     static constexpr long NO_ALIGNED_CHECKPOINT_TIME_OUT =
         std::numeric_limits<long>::max();
     CheckpointOptions(SnapshotType *checkpointType,
-                      CheckpointStorageLocationReference *targetLocation,
+                      std::shared_ptr<CheckpointStorageLocationReference> targetLocation,
                       AlignmentType alignmentType,
                       long alignedCheckpointTimeout);
 
     CheckpointOptions(SnapshotType *checkpointType,
-                      CheckpointStorageLocationReference *targetLocation);
-
+                      std::shared_ptr<CheckpointStorageLocationReference> targetLocation);
+    
+    CheckpointOptions *ToRuntimeAlignedNoTimeout() const;
+    
     static CheckpointOptions *NotExactlyOnce(
-        SnapshotType &type, CheckpointStorageLocationReference *location);
+        SnapshotType &type, std::shared_ptr<CheckpointStorageLocationReference> location);
 
     static CheckpointOptions *AlignedNoTimeout(
-        SnapshotType &type, CheckpointStorageLocationReference *location);
+        SnapshotType &type, std::shared_ptr<CheckpointStorageLocationReference> location);
 
     static CheckpointOptions *Unaligned(
-        SnapshotType &type, CheckpointStorageLocationReference *location);
+        SnapshotType &type, std::shared_ptr<CheckpointStorageLocationReference> location);
 
     static CheckpointOptions *AlignedWithTimeout(
-        SnapshotType &type, CheckpointStorageLocationReference *location,
+        SnapshotType &type, std::shared_ptr<CheckpointStorageLocationReference> location,
         long alignedCheckpointTimeout);
 
     static CheckpointOptions *ForConfig(
         SnapshotType &checkpointType,
-        CheckpointStorageLocationReference *locationReference,
+        std::shared_ptr<CheckpointStorageLocationReference> locationReference,
         bool isExactlyOnceMode, bool isUnalignedEnabled,
         long alignedCheckpointTimeout);
 
@@ -62,7 +64,7 @@ public:
     bool NeedsAlignment() const;
     bool IsTimeoutable() const;
     SnapshotType *GetCheckpointType() const;
-    CheckpointStorageLocationReference *GetTargetLocation() const;
+    std::shared_ptr<CheckpointStorageLocationReference> GetTargetLocation() const;
 
     bool IsExactlyOnceMode() const;
     bool IsUnalignedCheckpoint() const;
@@ -74,16 +76,17 @@ public:
     bool operator==(const CheckpointOptions &other) const;
     bool operator!=(const CheckpointOptions &other) const;
     std::string ToString() const;
+    nlohmann::json ToJson() const;
     CheckpointOptions *ToUnaligned() const;
     static CheckpointOptions *ForCheckpointWithDefaultLocation();
 
 private:
     static CheckpointOptions *ForceAligned(
-        SnapshotType &type, CheckpointStorageLocationReference *location,
+        SnapshotType &type, std::shared_ptr<CheckpointStorageLocationReference> location,
         long alignedCheckpointTimeout);
 
     SnapshotType *checkpointType_;
-    CheckpointStorageLocationReference *targetLocation_;
+    std::shared_ptr<CheckpointStorageLocationReference> targetLocation_;
     const AlignmentType alignmentType_;
     const long alignedCheckpointTimeout_;
     static CheckpointOptions *CHECKPOINT_AT_DEFAULT_LOCATION;

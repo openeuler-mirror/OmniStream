@@ -14,7 +14,7 @@
 
 namespace omnistream {
     OmniStreamTaskNetworkOutput::OmniStreamTaskNetworkOutput(
-        Input* operator_,
+            OneInputStreamOperator* operator_,
         std::shared_ptr<omnistream::SimpleCounter> & numRecordsIn)
         : operator_(operator_), numRecordsIn(numRecordsIn) {
     }

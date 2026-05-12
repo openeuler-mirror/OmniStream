@@ -24,10 +24,10 @@ namespace omnistream {
     class BufferAndBacklog {
     public:
         BufferAndBacklog();
-        BufferAndBacklog(std::shared_ptr<Buffer> buffer, int buffersInBacklog, ObjectBufferDataType nextDataType, int sequenceNumber);
+        BufferAndBacklog(Buffer *buffer, int buffersInBacklog, const ObjectBufferDataType& nextDataType, int sequenceNumber);
         ~BufferAndBacklog();
 
-        std::shared_ptr<Buffer> getBuffer() const;
+        Buffer *getBuffer() const;
         int getBuffersInBacklog() const;
         ObjectBufferDataType getNextDataType() const;
         int getSequenceNumber() const;
@@ -35,11 +35,11 @@ namespace omnistream {
         bool isDataAvailable() const;
         bool isEventAvailable() const;
 
-        static BufferAndBacklog fromBufferAndLookahead(std::shared_ptr<Buffer> current, ObjectBufferDataType nextDataType, int backlog, int sequenceNumber_);
+        static BufferAndBacklog fromBufferAndLookahead(Buffer *current, const ObjectBufferDataType& nextDataType, int backlog, int sequenceNumber_);
 
         std::string toString() const;
     private:
-        std::shared_ptr<Buffer> buffer;
+        Buffer *buffer;
         int buffersInBacklog;
         ObjectBufferDataType nextDataType;
         int sequenceNumber;

@@ -8,8 +8,6 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef INTERNALTIMERSERVICE_H
-#define INTERNALTIMERSERVICE_H
 
 #pragma once
 
@@ -37,6 +35,8 @@ public:
     virtual void deleteEventTimeTimer(N nameSpace, long time) = 0;
 
     virtual void advanceWatermark(long time) = 0;
-};
 
-#endif
+    // temp fix for too many timers in priority queue
+    // this function should to be deleted when RocksDBCachingPriorityQueueSet is implemented in the future
+    virtual void deleteFirstEventTimeTimer() = 0;
+};

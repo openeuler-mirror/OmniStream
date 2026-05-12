@@ -15,13 +15,13 @@ namespace omnistream {
 
     bool BufferConsumer::isFinished() const
     {
-        return writerPosition.isFinished();
+        return writerPosition->isFinished();
     }
 
     void BufferConsumer::skip(int bytesToSkip)
     {
-        writerPosition.update();
-        int cachedWriterPosition = writerPosition.getCached();
+        writerPosition->update();
+        int cachedWriterPosition = writerPosition->getCached();
         int bytesReadable = cachedWriterPosition - currentReaderPosition;
         if (bytesToSkip > bytesReadable) {
             throw std::runtime_error("bytes to skip beyond readable range");
@@ -32,7 +32,7 @@ namespace omnistream {
 
     int BufferConsumer::getWrittenBytes()
     {
-        return writerPosition.getCached();
+        return writerPosition->getCached();
     }
 
     int BufferConsumer::getCurrentReaderPosition() const
@@ -42,7 +42,7 @@ namespace omnistream {
 
     bool BufferConsumer::isDataAvailable()
     {
-        return currentReaderPosition < writerPosition.getLatest();
+        return currentReaderPosition < writerPosition->getLatest();
     }
 
     int BufferConsumer::getBufferType()
@@ -62,7 +62,6 @@ namespace omnistream {
 
     void BufferConsumer::close()
     {
-        LOG_TRACE("before buffer recycle")
         if (!buffer->IsRecycled()) {
             buffer->RecycleBuffer();
         }
@@ -76,6 +75,11 @@ namespace omnistream {
     ObjectBufferDataType BufferConsumer::getDataType() const
     {
         return buffer->GetDataType();
+    }
+
+    void BufferConsumer::SetDataType(const ObjectBufferDataType& dataType)
+    {
+        buffer->SetDataType(dataType);
     }
 
 }

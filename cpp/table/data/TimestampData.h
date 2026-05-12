@@ -27,8 +27,9 @@ public:
     static TimestampData *fromEpochMillis(long milliseconds);
     static TimestampData *fromEpochMillis(long milliseconds, int nanosOfMillisecond);
 
-    static long stringToEpochMillis(std::string str);
-    static TimestampData* fromString(std::string str);
+    static long stringToEpochMillis(const std::string& str);
+    static TimestampData* fromString(const std::string& str);
+    static TimestampData* fromLocalTimeString(const std::string& str);
 
     static bool isCompact(int percision);
 

@@ -23,6 +23,9 @@
 #include "RemoteInputChannel.h"
 #include "event/EndOfData.h"
 #include "event/EndOfPartitionEvent.h"
+#include "LocalRecoveredInputChannel.h"
+#include "RemoteRecoveredInputChannel.h"
+#include "OmniLocalInputChannel.h"
 
 namespace omnistream {
 
@@ -30,11 +33,11 @@ SingleInputGate::SingleInputGate(const std::string &owningTaskName, int gateInde
     const IntermediateDataSetIDPOD &consumedResultId, const int consumedPartitionType, int consumedSubpartitionIndex,
     int numberOfInputChannels, std::shared_ptr<PartitionProducerStateProvider> partitionProducerStateProvider,
     std::function<std::shared_ptr<BufferPool>()> bufferPoolFactory,
-    std::shared_ptr<ObjectSegmentProvider> objectSegmentProvider, int segmentSize)
+    std::shared_ptr<SegmentProvider> segmentProvider, int segmentSize)
     : owningTaskName(owningTaskName), gateIndex(gateIndex), consumedResultId(consumedResultId),
       consumedPartitionType(consumedPartitionType), consumedSubpartitionIndex(consumedSubpartitionIndex),
       numberOfInputChannels(numberOfInputChannels), partitionProducerStateProvider(partitionProducerStateProvider),
-      bufferPoolFactory(bufferPoolFactory), objectSegmentProvider(objectSegmentProvider),
+      bufferPoolFactory(bufferPoolFactory), segmentProvider(segmentProvider),
       hasReceivedAllEndOfPartitionEvents(false), hasReceivedEndOfData_(false), requestedPartitionsFlag(false),
       numberOfUninitializedChannels(0), closeFuture(std::make_shared<CompletableFuture>())
 {
@@ -55,7 +58,7 @@ SingleInputGate::SingleInputGate(const std::string &owningTaskName, int gateInde
     channels.resize(numberOfInputChannels);
     lastPrioritySequenceNumber.resize(numberOfInputChannels, INT_MIN);
 
-    unpooledSegment = ObjectSegmentFactory::allocateUnpooledSegment(segmentSize);
+    // unpooledSegment = ObjectSegmentFactory::allocateUnpooledSegment(segmentSize);
 
     enqueuedInputChannelsWithData.resize(numberOfInputChannels, 0);
     channelsWithEndOfPartitionEvents.resize(numberOfInputChannels, 0);
@@ -80,34 +83,53 @@ void SingleInputGate::setup()
     LOG("after setupChannels")
 }
 
-std::shared_ptr<CompletableFuture> SingleInputGate::getStateConsumedFuture()
+std::shared_ptr<CompletableFutureV2<void>> SingleInputGate::getStateConsumedFuture()
+{
+    // LOCK_BEFORE()
+    std::unique_lock<std::recursive_mutex> lock(requestLock);
+    // LOCK_AFTER()
+
+    std::vector<std::shared_ptr<CompletableFutureV2<void>>> futures;
+    for (const auto &entry : inputChannels) {
+        auto inputChannel = entry.second;
+        //  orginal begin
+
+        auto recoveredChannel = std::dynamic_pointer_cast<RecoveredInputChannel>(inputChannel);
+        if (recoveredChannel) {
+            futures.push_back(recoveredChannel->getStateConsumedFuture());
+        }
+
+        // orignal end
+    }
+    return CompletableFutureV2<void>::AllOf(futures);
+}
+
+std::vector<bool> SingleInputGate::getStateConsumedFuture1()
 {
     LOCK_BEFORE()
     std::lock_guard<std::recursive_mutex> lock(requestLock);
     LOCK_AFTER()
 
-    std::vector<std::shared_ptr<CompletableFuture>> futures;
+    std::vector<bool> futures;
     for (const auto &entry : inputChannels) {
         auto inputChannel = entry.second;
         //  orginal begin
-        /**
-         auto recoveredChannel = std::dynamic_pointer_cast<RecoveredInputChannel>(inputChannel);
+        auto recoveredChannel = std::dynamic_pointer_cast<RecoveredInputChannel>(inputChannel);
         if (recoveredChannel) {
-            futures.push_back(recoveredChannel->getStateConsumedFuture());
+            futures.push_back(recoveredChannel->getStateConsumedFuture1());
         }
-        */
         // orignal end
     }
-    return CompletableFuture::allOf(futures);
+    return futures;
 }
 
 void SingleInputGate::RequestPartitions()
 {
-    LOCK_BEFORE()
-    std::lock_guard<std::recursive_mutex> lock(requestLock);
-    LOCK_AFTER()
+    //LOCK_BEFORE()
+    std::unique_lock<std::recursive_mutex> lock(requestLock);
+    //LOCK_AFTER()
 
-    LOG_PART("beginning ")
+    // LOG_PART("beginning ")
     if (!requestedPartitionsFlag) {
         if (closeFuture->isDone()) {
             THROW_RUNTIME_ERROR("Already released.")
@@ -125,7 +147,7 @@ void SingleInputGate::RequestPartitions()
 
         convertRecoveredInputChannels();
 
-        LOG_PART("before intneral request partions ")
+        // LOG_PART("before intneral request partions ")
         internalRequestPartitions();
     }
 
@@ -134,27 +156,97 @@ void SingleInputGate::RequestPartitions()
 
 void SingleInputGate::convertRecoveredInputChannels()
 {
+    LOG("covert recovered input channels (" << numberOfInputChannels << " channels, inputChannels.size:"<<inputChannels.size());
+    for (auto &entry : inputChannels) {
+        std::shared_ptr<InputChannel> inputChannel = entry.second;
+        if(auto local = std::dynamic_pointer_cast<LocalRecoveredInputChannel>(inputChannel)){
+            LOG("before instance of LocalRecoveredInputChannel, to convert to normal channel!");
+        } else if(auto remote = std::dynamic_pointer_cast<RemoteRecoveredInputChannel>(inputChannel)) {
+            LOG("before instance of RemoteRecoveredInputChannel, to convert to normal channel!");
+        } else if(auto local2 = std::dynamic_pointer_cast<OmniLocalInputChannel>(inputChannel)){
+            LOG("before instance of OmniLocalInputChannel!");
+        } else if(auto remote1 = std::dynamic_pointer_cast<RemoteInputChannel>(inputChannel)){
+            LOG("before instance of RemoteInputChannel!");
+        } else  if(auto local1 = std::dynamic_pointer_cast<LocalInputChannel>(inputChannel)){
+            LOG("before instance of LocalInputChannel!");
+        } else{
+            LOG("before unKnown channel type!");
+        }
+    }
+    for (auto &entry : inputChannels) {
+        std::shared_ptr<InputChannel> inputChannel = entry.second;
+        IntermediateResultPartitionIDPOD key = entry.first;
+        auto recoveredChannel = std::dynamic_pointer_cast<RecoveredInputChannel>(inputChannel);
+        if (recoveredChannel) {
+            LOG("instance of RecoveredInputChannel, to convert to normal channel!");
+            if(auto local = std::dynamic_pointer_cast<LocalRecoveredInputChannel>(inputChannel)){
+                LOG("instance of LocalRecoveredInputChannel, to convert to normal channel!");
+            } else if(auto remote = std::dynamic_pointer_cast<RemoteRecoveredInputChannel>(inputChannel)){
+                LOG("instance of RemoteRecoveredInputChannel, to convert to normal channel!");
+            } else {
+                LOG("unKnown recover channel type!");
+            }
+            std::shared_ptr<omnistream::InputChannel> realChannel = recoveredChannel->toInputChannel();
+            recoveredChannel->releaseAllResources();
+            if(auto remote = std::dynamic_pointer_cast<RemoteInputChannel>(realChannel)){
+                LOG("realChannel of RemoteRecoveredInputChannel, convert to normal channel!");
+            } else if(auto omniLocal = std::dynamic_pointer_cast<OmniLocalInputChannel>(realChannel)){
+                LOG("realChannel of OmniLocalInputChannel, convert to normal channel!");
+            } else if(auto local = std::dynamic_pointer_cast<LocalInputChannel>(realChannel)){
+                LOG("realChannel of LocalRecoveredInputChannel, convert to normal channel!");
+            } else {
+                LOG("unKnown realChannel recover channel type!");
+            }
+            inputChannels[key] = realChannel;
+            channels[recoveredChannel->getChannelIndex()] = realChannel;
+        } else {
+            LOG("channel is not a recover type!");
+            if(auto remote = std::dynamic_pointer_cast<RemoteInputChannel>(inputChannel)){
+                LOG("instance of RemoteInputChannel!");
+            } else if(auto omniLocal = std::dynamic_pointer_cast<OmniLocalInputChannel>(inputChannel)){
+                LOG("realChannel of OmniLocalInputChannel,  convert to normal channel!");
+            } else if(auto local = std::dynamic_pointer_cast<LocalInputChannel>(inputChannel)){
+                LOG("instance of LocalInputChannel!");
+            } else{
+                LOG("unKnown channel type!");
+            }
+        }
+    }
+
+    for (auto &entry : inputChannels) {
+        std::shared_ptr<InputChannel> inputChannel = entry.second;
+        if(auto local = std::dynamic_pointer_cast<LocalRecoveredInputChannel>(inputChannel)){
+            LOG("after instance of LocalRecoveredInputChannel, to convert to normal channel!");
+        } else if(auto remote = std::dynamic_pointer_cast<RemoteRecoveredInputChannel>(inputChannel)) {
+            LOG("after instance of RemoteRecoveredInputChannel, to convert to normal channel!");
+        } else if(auto local2 = std::dynamic_pointer_cast<OmniLocalInputChannel>(inputChannel)){
+            LOG("after instance of OmniLocalInputChannel!");
+        } else  if(auto local1 = std::dynamic_pointer_cast<LocalInputChannel>(inputChannel)){
+            LOG("after instance of LocalInputChannel!");
+        } else if(auto remote1 = std::dynamic_pointer_cast<RemoteInputChannel>(inputChannel)){
+            LOG("after instance of RemoteInputChannel!");
+        } else{
+            LOG("after unKnown channel type!");
+        }
+    }
 }
 
 void SingleInputGate::internalRequestPartitions()
 {
     for (auto &entry : inputChannels) {
         auto &inputChannel = entry.second;
-            inputChannel->requestSubpartition(consumedSubpartitionIndex);
-       // }
+        inputChannel->requestSubpartition(consumedSubpartitionIndex);
     }
 }
 
 void SingleInputGate::FinishReadRecoveredState()
 {
-    /**
+    LOG("single input gate FinishReadRecoveredState!");
     for (auto& channel : channels) {
-        auto recoveredChannel = std::dynamic_pointer_cast<RecoveredInputChannel>(channel);
-        if (recoveredChannel) {
+        if (auto recoveredChannel = std::dynamic_pointer_cast<RecoveredInputChannel>(channel)) {
             recoveredChannel->finishReadRecoveredState();
         }
     }
-    */
 }
 
 int SingleInputGate::GetNumberOfInputChannels()
@@ -174,7 +266,7 @@ std::vector<InputChannelInfo> SingleInputGate::getUnfinishedChannels()
     unfinishedChannels.reserve(numberOfInputChannels - count);
 
     LOCK_BEFORE()
-    std::lock_guard<std::recursive_mutex> lock(inputChannelsWithDataMutex);
+    std::unique_lock<std::recursive_mutex> lock(inputChannelsWithDataMutex);
     LOCK_AFTER()
     ///
     ///
@@ -222,9 +314,9 @@ std::shared_ptr<BufferPool> SingleInputGate::getBufferPool()
     return bufferPool;
 }
 
-std::shared_ptr<ObjectSegmentProvider> SingleInputGate::getMemorySegmentProvider()
+std::shared_ptr<SegmentProvider> SingleInputGate::getSegmentProvider()
 {
-    return objectSegmentProvider;
+    return segmentProvider;
 }
 
 std::string SingleInputGate::getOwningTaskName()
@@ -280,7 +372,7 @@ void SingleInputGate::setupChannels()
 
     // Allocate the exclusive buffers per channel
     LOCK_BEFORE()
-    std::lock_guard<std::recursive_mutex> lock(requestLock);
+    std::unique_lock<std::recursive_mutex> lock(requestLock);
     LOCK_AFTER()
 
     LOG("entry.second->setup() will running")
@@ -300,27 +392,41 @@ void SingleInputGate::setInputChannels(std::vector<std::shared_ptr<InputChannel>
     }
 
     LOCK_BEFORE()
-    std::lock_guard<std::recursive_mutex> lock(requestLock);
+    std::unique_lock<std::recursive_mutex> lock(requestLock);
     LOCK_AFTER()
 
     std::copy(newChannels.begin(), newChannels.end(), channels.begin());
 
     for (auto &inputChannel : newChannels) {
         IntermediateResultPartitionIDPOD partitionId = inputChannel->getPartitionId().getPartitionId();
-        inputChannels.insert({partitionId, inputChannel});
-        /**
-        if (result.second && std::dynamic_pointer_cast<UnknownInputChannel>(inputChannel)) {
+        if(auto local = std::dynamic_pointer_cast<LocalRecoveredInputChannel>(inputChannel)){
+            LOG_PART("setupChannel instance of LocalRecoveredInputChannel, to convert to normal channel!");
+        } else if(auto remote = std::dynamic_pointer_cast<RemoteRecoveredInputChannel>(inputChannel)) {
+            LOG_PART("setupChannel instance of RemoteRecoveredInputChannel, to convert to normal channel!");
+        } else  if(auto local1 = std::dynamic_pointer_cast<LocalInputChannel>(inputChannel)){
+            LOG_PART("setupChannel instance of LocalInputChannel!");
+        } else if(auto remote1 = std::dynamic_pointer_cast<RemoteInputChannel>(inputChannel)){
+            LOG_PART("setupChannel instance of RemoteInputChannel!");
+        } else{
+            LOG_PART("setupChannel unKnown channel type!");
+        }
+        auto result = inputChannels.insert({partitionId, inputChannel});
+
+//        if (result.second && std::dynamic_pointer_cast<UnknownInputChannel>(inputChannel)) {
+//            numberOfUninitializedChannels++;
+//        }
+        if (result.second) {
             numberOfUninitializedChannels++;
         }
-        **/
     }
 }
 
+// todo: need realization
 void SingleInputGate::updateInputChannel(
     const ResourceIDPOD &localLocation, const ShuffleDescriptorPOD &shuffleDescriptor)
 {
     LOCK_BEFORE()
-    std::lock_guard<std::recursive_mutex> lock(requestLock);
+    std::unique_lock<std::recursive_mutex> lock(requestLock);
     LOCK_AFTER()
 
     if (closeFuture->isDone()) {
@@ -367,7 +473,7 @@ void SingleInputGate::retriggerPartitionRequest(const IntermediateResultPartitio
     LOG("beginnig of retriggerPartitionRequest ")
 
     LOCK_BEFORE()
-    std::lock_guard<std::recursive_mutex> lock(requestLock);
+    std::unique_lock<std::recursive_mutex> lock(requestLock);
     LOCK_AFTER()
 
     if (!closeFuture->isDone()) {
@@ -405,7 +511,7 @@ void SingleInputGate::close()
     std::cout<<"you are in SingleInputGate::close()"<<std::endl;
     {
         LOCK_BEFORE()
-        std::lock_guard<std::recursive_mutex> lock(requestLock);
+        std::unique_lock<std::recursive_mutex> lock(requestLock);
         LOCK_AFTER()
 
         if (!closeFuture->isDone()) {
@@ -430,12 +536,13 @@ void SingleInputGate::close()
             }
 
             released = true;
-            closeFuture->setCompleted();
+            closeFuture->complete();
         }
     }
 
     if (released) {
-        // std::lock_guard<std::recursive_mutex> lock(inputChannelsWithDataMutex);
+        std::unique_lock<std::recursive_mutex> lock(inputChannelsWithDataMutex);
+        cv.notify_all();
     }
 }
 
@@ -449,24 +556,24 @@ bool SingleInputGate::HasReceivedEndOfData()
     return hasReceivedEndOfData_;
 }
 
-std::optional<std::shared_ptr<BufferOrEvent>> SingleInputGate::GetNext()
+BufferOrEvent* SingleInputGate::GetNext()
 {
     return getNextBufferOrEvent(true);
 }
 
-std::optional<std::shared_ptr<BufferOrEvent>> SingleInputGate::PollNext()
+BufferOrEvent* SingleInputGate::PollNext()
 {
     // LOG_PART(">>>>")
     // LOG_PART("<<<<<" << toString())
-
+    LOG_PART("single input gate poll next");
     return getNextBufferOrEvent(false);
 }
 
-std::optional<std::shared_ptr<BufferOrEvent>> SingleInputGate::getNextBufferOrEvent(bool blocking)
+BufferOrEvent* SingleInputGate::getNextBufferOrEvent(bool blocking)
 {
     if (hasReceivedAllEndOfPartitionEvents) {
        // THROW_LOGIC_EXCEPTION("hasReceivedAllEndOfPartitionEvents is true.")
-        return std::nullopt;
+        return nullptr;
     }
 
     if (closeFuture->isDone()) {
@@ -475,32 +582,36 @@ std::optional<std::shared_ptr<BufferOrEvent>> SingleInputGate::getNextBufferOrEv
 
     // LOG_PART("before waitAndGetNextData")
 
-    auto next = waitAndGetNextData(blocking);
+    auto inputWithData = waitAndGetNextData(blocking);
     // LOG_PART("after  waitAndGetNextData: " << next.has_value())
-    if (!next) {
-        return std::nullopt;
+    if (!inputWithData) {
+        return nullptr;
     }
-    LOG_PART("after  waitAndGetNextData: " << next.has_value())
-
-    auto &inputWithData = *next;
-    auto bufferOrEvent = transformToBufferOrEvent(inputWithData.data.buffer, inputWithData.moreAvailable, inputWithData.input, inputWithData.morePriorityEvents);
+    auto bufferOrEvent = transformToBufferOrEvent(inputWithData->data.buffer, inputWithData->moreAvailable, inputWithData->input, inputWithData->morePriorityEvents);
+    delete inputWithData;
     return bufferOrEvent;
 }
 
-std::optional<SingleInputGate::InputWithData<BufferAndAvailability>> SingleInputGate::waitAndGetNextData(bool blocking)
+SingleInputGate::InputWithData<BufferAndAvailability>* SingleInputGate::waitAndGetNextData(bool blocking)
 {
     // LOG_PART("begining of waitAndGetNextData")
     while (true) {
-        auto inputChannelOpt = getChannel(blocking);
+        std::unique_lock<std::recursive_mutex> lock(inputChannelsWithDataMutex);
+        auto inputChannelOpt = getChannel(blocking, lock);
         // LOG(">>>>inputChannelOpt  " << inputChannelOpt.has_value())
         if (!inputChannelOpt) {
-            const int sleepTime = 100;
-            std::this_thread::sleep_for(std::chrono::microseconds(sleepTime)); // sleep使inputChannelsWithDataMutex读写分配均匀
-            return std::nullopt;
+            // INFO_RELEASE("---- channel not have data ---- ")
+            // const int sleepTime = getWaitSizeFromEnv();
+            // std::this_thread::sleep_for(std::chrono::microseconds(sleepTime)); // sleep使inputChannelsWithDataMutex读写分配均匀
+            return nullptr;
         }
         LOG(">>>>>>>inputChannelOpt.value(): " << inputChannelOpt.value())
         auto inputChannel = inputChannelOpt.value();
         LOG("inputChannel->getNextBuffer()" << inputChannel.get())
+
+        if (auto ca = std::dynamic_pointer_cast<RecoveredInputChannel>(inputChannel)){
+            LOG("the channel is recover input channel !");
+        }
 
         auto bufferAndAvailabilityOpt = inputChannel->getNextBuffer();
         if (!bufferAndAvailabilityOpt) {
@@ -518,26 +629,25 @@ std::optional<SingleInputGate::InputWithData<BufferAndAvailability>> SingleInput
             // let us show what is inside the buffer
             LOG_TRACE(" bufferAndAvailability.moreAvailable() is false")
             auto buffer = bufferAndAvailability.buffer;
-            LOG_TRACE(" bufferAndAvailability.moreAvailable(): buffer " << buffer.get())
+            LOG_TRACE(" bufferAndAvailability.moreAvailable(): buffer " << buffer)
             if (buffer) {
                 LOG_TRACE(" bufferAndAvailability.moreAvailable(): buffer size"   << buffer->GetSize()
                 <<  "datatype  is data "  << (buffer->GetDataType() == ObjectBufferDataType::DATA_BUFFER)
                 << "datatype is event " << (buffer->GetDataType() == ObjectBufferDataType::EVENT_BUFFER))
             }
         }
-        std::lock_guard<std::recursive_mutex> lock(inputChannelsWithDataMutex);
 
         bool morePriorityEvents = inputChannelsWithData.getNumPriorityElements() > 0;
         if (bufferAndAvailability.hasPriority()) {
             lastPrioritySequenceNumber[inputChannel->getChannelIndex()] = bufferAndAvailability.sequenceNumber;
             if (!morePriorityEvents) {
-                // priorityAvailabilityHelper.resetUnavailable(); - Logic would go here
+                priorityAvailabilityHelper.resetUnavailable(); // - Logic would go here
             }
         }
 
         checkUnavailability();
 
-        return InputWithData<BufferAndAvailability>(
+        return new InputWithData<BufferAndAvailability>(
             inputChannel, bufferAndAvailability, !inputChannelsWithData.isEmpty(), morePriorityEvents);
     }
 }
@@ -545,11 +655,12 @@ std::optional<SingleInputGate::InputWithData<BufferAndAvailability>> SingleInput
 void SingleInputGate::checkUnavailability()
 {
     if (inputChannelsWithData.isEmpty()) {
+        availabilityHelper.resetUnavailable();
         // availabilityHelper.resetUnavailable(); - Logic would go here
     }
 }
 
-std::shared_ptr<BufferOrEvent> SingleInputGate::transformToBufferOrEvent(std::shared_ptr<Buffer> buffer,
+BufferOrEvent* SingleInputGate::transformToBufferOrEvent(Buffer* buffer,
     bool moreAvailable, std::shared_ptr<InputChannel> currentChannel, bool morePriorityEvents)
 {
         if (buffer->isBuffer()) {
@@ -560,22 +671,24 @@ std::shared_ptr<BufferOrEvent> SingleInputGate::transformToBufferOrEvent(std::sh
         }
 }
 
-std::shared_ptr<BufferOrEvent> SingleInputGate::transformBuffer(std::shared_ptr<Buffer> buffer,
+BufferOrEvent* SingleInputGate::transformBuffer(Buffer* buffer,
     bool moreAvailable, std::shared_ptr<InputChannel> currentChannel, bool morePriorityEvents)
 {
-    return std::make_shared<BufferOrEvent>(
+    return new BufferOrEvent(
         decompressBufferIfNeeded(buffer), currentChannel->getChannelInfo(), moreAvailable, morePriorityEvents);
 }
 
-std::shared_ptr<BufferOrEvent> SingleInputGate::transformEvent(std::shared_ptr<Buffer> buffer, bool moreAvailable,
+BufferOrEvent* SingleInputGate::transformEvent(Buffer* buffer, bool moreAvailable,
     std::shared_ptr<InputChannel> currentChannel, bool morePriorityEvents)
 {
+    bool hasPriority = buffer->GetDataType().hasPriority();
+    int size = buffer->GetSize();
     std::shared_ptr<AbstractEvent> event = EventSerializer::fromBuffer(buffer);
 
     if (dynamic_cast<EndOfPartitionEvent *>(event.get())) {
         INFO_RELEASE("END_OF_PARTITION_EVENT received by channel :" << currentChannel->getChannelIndex()
             << " of Task :" << owningTaskName)
-        std::lock_guard<std::recursive_mutex> lock(inputChannelsWithDataMutex);
+        std::unique_lock<std::recursive_mutex> lock(inputChannelsWithDataMutex);
         if (channelsWithEndOfPartitionEvents[currentChannel->getChannelIndex()]) {
             throw std::runtime_error("Received more than one EndOfPartitionEvent from the same channel.");
         }
@@ -589,16 +702,20 @@ std::shared_ptr<BufferOrEvent> SingleInputGate::transformEvent(std::shared_ptr<B
                 return channel == currentChannel;
             });
         }
-
+        lock.unlock();
         if (hasReceivedAllEndOfPartitionEvents) {
             LOG_TRACE("hasReceivedAllEndOfPartitionEvents")
             // Because of race condition between:
             // 1. releasing inputChannelsWithData lock in this method and reaching this place
             // 2. empty data notification that re-enqueues a channel we can end up with
             // moreAvailable flag set to true, while we expect no more data.
-            if (moreAvailable && PollNext().has_value()) {
+            BufferOrEvent* bufferOrEvent = PollNext();
+            if (moreAvailable && bufferOrEvent) {
+                delete bufferOrEvent;
                 throw std::runtime_error("Bug in input gate logic: moreAvailable flag is true when all "
                                       "EndOfPartitionEvents have been received.");
+            } else if (bufferOrEvent) {
+                delete bufferOrEvent;
             }
             moreAvailable = false;
             markAvailable();
@@ -609,7 +726,7 @@ std::shared_ptr<BufferOrEvent> SingleInputGate::transformEvent(std::shared_ptr<B
     } else if (dynamic_cast<EndOfData *>(event.get())) {
         INFO_RELEASE("END_OF_USER_RECORDS_EVENT received by channel :" << currentChannel->getChannelIndex()
             << " of Task :" << owningTaskName)
-        std::lock_guard<std::recursive_mutex> lock(inputChannelsWithDataMutex);
+        std::unique_lock<std::recursive_mutex> lock(inputChannelsWithDataMutex);
         if (channelsWithEndOfUserRecords[currentChannel->getChannelIndex()]) {
             throw std::runtime_error("Received more than one EndOfData from the same channel.");
         }
@@ -619,16 +736,16 @@ std::shared_ptr<BufferOrEvent> SingleInputGate::transformEvent(std::shared_ptr<B
         hasReceivedEndOfData_ = count == static_cast<long>(numberOfInputChannels);
     }
 
-    return std::make_shared<BufferOrEvent>(
+    return new BufferOrEvent(
             event,
-            buffer->GetDataType().hasPriority(),
+            hasPriority,
             currentChannel->getChannelInfo(),
             moreAvailable,
-            buffer->GetSize(),
+            size,
             morePriorityEvents);
 }
 
-std::shared_ptr<Buffer> SingleInputGate::decompressBufferIfNeeded(std::shared_ptr<Buffer> buffer)
+Buffer* SingleInputGate::decompressBufferIfNeeded(Buffer* buffer)
 {
     return buffer;
 }
@@ -638,18 +755,18 @@ void SingleInputGate::markAvailable()
     std::shared_ptr<CompletableFuture> toNotify;
     {
         LOCK_BEFORE()
-        std::lock_guard<std::recursive_mutex> lock(inputChannelsWithDataMutex);
+        std::unique_lock<std::recursive_mutex> lock(inputChannelsWithDataMutex);
         LOCK_AFTER()
 
         toNotify = availabilityHelper.getUnavailableToResetAvailable();
     }
-    toNotify->setCompleted();
+    toNotify->complete();
 }
 
 void SingleInputGate::sendTaskEvent(const std::shared_ptr<TaskEvent> &event)
 {
     LOCK_BEFORE()
-    std::lock_guard<std::recursive_mutex> lock(requestLock);
+    std::unique_lock<std::recursive_mutex> lock(requestLock);
     LOCK_AFTER()
 
     for (auto &entry : inputChannels) {
@@ -706,7 +823,7 @@ void SingleInputGate::notifyChannelNonEmpty(std::shared_ptr<InputChannel> channe
  */
 void SingleInputGate::notifyPriorityEvent(std::shared_ptr<InputChannel> inputChannel, int prioritySequenceNumber)
 {
-    if (inputChannel) {
+    if (!inputChannel) {
         throw std::invalid_argument("Input channel is null.");
     }
     queueChannel(inputChannel, prioritySequenceNumber, false);
@@ -748,52 +865,56 @@ void SingleInputGate::queueChannel(
     // Using RAII-style notification helper (equivalent to Java's try-with-resources)
     class GateNotificationHelper {
     public:
-        GateNotificationHelper(SingleInputGate *gate, PrioritizedDeque<InputChannel> &channels)
-            : gate(gate), channels(channels), notifyPriorityFlag(false), notifyDataAvailableFlag(false){ }
+        GateNotificationHelper(SingleInputGate *gate, std::condition_variable_any &cv)
+            : inputGate(gate), cv_self(&cv) { }
 
         ~GateNotificationHelper()
         {
-            if (notifyPriorityFlag) {
-                // Implement priority notification logic
+            if (toNotifyPriority != nullptr) {
+                toNotifyPriority->complete();
             }
-            if (notifyDataAvailableFlag) {
-                // Implement data availability notification logic
+            if (toNotify != nullptr) {
+                toNotify->complete();
             }
         }
 
         void notifyPriority()
         {
-            notifyPriorityFlag = true;
+            toNotifyPriority = inputGate->priorityAvailabilityHelper.getUnavailableToResetAvailable();
         }
         void notifyDataAvailable()
         {
-            notifyDataAvailableFlag = true;
+            cv_self->notify_all();
+            toNotify = inputGate->availabilityHelper.getUnavailableToResetAvailable();
         }
 
     private:
-        SingleInputGate *gate;
-        PrioritizedDeque<InputChannel> &channels;
-        bool notifyPriorityFlag;
-        bool notifyDataAvailableFlag;
+        SingleInputGate *inputGate = nullptr;
+        std::condition_variable_any *cv_self;
+        std::shared_ptr<CompletableFuture> toNotifyPriority = nullptr;
+        std::shared_ptr<CompletableFuture> toNotify = nullptr;
     };
 
-    GateNotificationHelper notification(this, inputChannelsWithData);
+    GateNotificationHelper notification(this, cv);
+
     {
+        // INFO_RELEASE("notification start")
         std::unique_lock<std::recursive_mutex> lock(inputChannelsWithDataMutex);
+        // INFO_RELEASE("notification get lock")
         bool priority = prioritySequenceNumber.has_value() || forcePriority;
         const int sleepTime = 100;
         if (!forcePriority && priority && prioritySequenceNumber.has_value() &&
             isOutdated(prioritySequenceNumber.value(), lastPrioritySequenceNumber[channel->getChannelIndex()])) {
             // priority event at the given offset already polled (notification is not atomic
             // in respect to buffer enqueuing), so just ignore the notification
-            lock.unlock();
-            std::this_thread::sleep_for(std::chrono::microseconds(sleepTime)); // sleep使inputChannelsWithDataMutex读写分配均匀
+            INFO_RELEASE("notify data buffer sleep1")
+            // std::this_thread::sleep_for(std::chrono::microseconds(sleepTime)); // sleep使inputChannelsWithDataMutex读写分配均匀
             return;
         }
 
         if (!queueChannelUnsafe(channel, priority)) {
-            lock.unlock();
-            std::this_thread::sleep_for(std::chrono::microseconds(sleepTime)); // sleep使inputChannelsWithDataMutex读写分配均匀
+            // INFO_RELEASE("data exist")
+//            std::this_thread::sleep_for(std::chrono::microseconds(sleepTime)); // sleep使inputChannelsWithDataMutex读写分配均匀
             return;
         }
 
@@ -803,6 +924,7 @@ void SingleInputGate::queueChannel(
         if (inputChannelsWithData.size() == 1) {
             notification.notifyDataAvailable();
         }
+        // INFO_RELEASE("notification release lock")
     }
 }
 
@@ -822,19 +944,17 @@ bool SingleInputGate::isOutdated(int sequenceNumber, int lastSequenceNumber)
  *
  * @return true iff it has been enqueued/prioritized = some change to inputChannelsWithData happened
  */
-bool SingleInputGate::queueChannelUnsafe(std::shared_ptr<InputChannel> channel, bool priority)
+bool SingleInputGate::queueChannelUnsafe(const std::shared_ptr<InputChannel>& channel, bool priority)
 {
     if (channelsWithEndOfPartitionEvents[channel->getChannelIndex()]) {
+        INFO_RELEASE("singleInputGate error")
         return false;
     }
-
-    LOCK_BEFORE()
-    std::lock_guard<std::recursive_mutex> lock(inputChannelsWithDataMutex);
-    LOCK_AFTER()
 
     const bool alreadyEnqueued = enqueuedInputChannelsWithData[channel->getChannelIndex()];
     if (alreadyEnqueued && (!priority || inputChannelsWithData.containsPriorityElement(channel))) {
         // already notified / prioritized (double notification), ignore
+        // INFO_RELEASE("channel exist, alreadyEnqueued: " + std::to_string(alreadyEnqueued) + ", priority: " + std::to_string(priority) + ", contains: " + std::to_string(inputChannelsWithData.containsPriorityElement(channel)))
         return false;
     }
 
@@ -845,22 +965,18 @@ bool SingleInputGate::queueChannelUnsafe(std::shared_ptr<InputChannel> channel, 
     return true;
 }
 
-std::optional<std::shared_ptr<InputChannel>> SingleInputGate::getChannel(bool blocking)
+std::optional<std::shared_ptr<InputChannel>> SingleInputGate::getChannel(bool blocking, std::unique_lock<std::recursive_mutex> &lock)
 {
-    std::lock_guard<std::recursive_mutex> lock(inputChannelsWithDataMutex);
-
     while (inputChannelsWithData.isEmpty()) {
         if (closeFuture->isDone()) {
             throw std::runtime_error("Released");
         }
 
-        if (!blocking) {
-            if (inputChannelsWithData.isEmpty()) {
-                availabilityHelper.resetUnavailable();
-                return std::nullopt;
-            } else {
-                break; // continue normal process
-            }
+        if (blocking) {
+            cv.wait(lock, [this] {return !inputChannelsWithData.isEmpty();});
+        } else {
+            availabilityHelper.resetUnavailable();
+            return std::nullopt;
         }
     }
 
@@ -945,8 +1061,7 @@ std::string SingleInputGate::toString()
     ss << "  closeFuture: " << (closeFuture ? "present" : "nullptr") << ","
        << std::endl;  // No good way to show future data
 
-    ss << "  objectSegmentProvider: " << (objectSegmentProvider ? "present" : "nullptr") << "," << std::endl;
-    ss << "  unpooledSegment: " << (unpooledSegment ? "present" : "nullptr") << "," << std::endl;
+    ss << "  objectSegmentProvider: " << (segmentProvider ? "present" : "nullptr") << "," << std::endl;
 
     ss << "}";
     return ss.str();

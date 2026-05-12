@@ -10,6 +10,8 @@
  */
 #include "FsCheckpointStateOutputStream.h"
 #include <fstream>
+#include <thread>
+#include "FileStateHandle.h"
 
 FsCheckpointStateOutputStream::FsCheckpointStateOutputStream(
     Path basePath, int fs,
@@ -22,7 +24,7 @@ FsCheckpointStateOutputStream::FsCheckpointStateOutputStream(
       closed_(false) {
     tempPath_ = Path(basePath_, relativeStatePath_ + ".tmp").toString(); // relativeStatePath_ is UUID
     finalPath_ = Path(basePath_, relativeStatePath_).toString();
-
+    handle = nullptr;
     outStream_ = new std::ofstream(tempPath_, std::ios::binary);
     if (!static_cast<std::ofstream*>(outStream_)->is_open()) {
         throw std::runtime_error("Failed to open temp file for checkpoint output: " + tempPath_);
@@ -32,11 +34,18 @@ FsCheckpointStateOutputStream::FsCheckpointStateOutputStream(
 void FsCheckpointStateOutputStream::Write(const void* data, size_t length)
 {
     static_cast<std::ofstream*>(outStream_)->write(reinterpret_cast<const char*>(data), length);
+    fileSize += length;
 }
 
 void FsCheckpointStateOutputStream::Flush()
 {
-    static_cast<std::ofstream*>(outStream_)->flush();
+    if (isSync) {
+        static_cast<std::ofstream*>(this->outStream_)->flush();
+    } else {
+        std::thread([this]() {
+            static_cast<std::ofstream*>(this->outStream_)->flush();
+        }).detach();
+    }
 }
 
 long FsCheckpointStateOutputStream::GetPos()
@@ -59,12 +68,18 @@ void FsCheckpointStateOutputStream::Sync()
 
 void FsCheckpointStateOutputStream::Close()
 {
-    NOT_IMPL_EXCEPTION
+    if (outStream_) {
+        outStream_ = nullptr;
+        closed_ = true;
+    }
 }
 
-StreamStateHandle* FsCheckpointStateOutputStream::CloseAndGetHandle()
+std::shared_ptr<StreamStateHandle> FsCheckpointStateOutputStream::CloseAndGetHandle()
 {
-    NOT_IMPL_EXCEPTION
+    if (handle == nullptr) {
+        handle = std::make_shared<FileStateHandle>(tempPath_, fileSize);
+    }
+    return handle;
 }
 
 bool FsCheckpointStateOutputStream::IsClosed()

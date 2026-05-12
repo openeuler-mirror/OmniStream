@@ -32,19 +32,19 @@
 namespace omnistream {
 class ObjectBuffer : public Buffer {
 public:
-    virtual ~ObjectBuffer() = default;
+    ~ObjectBuffer() override = default;
 
     int EventType() const override
     {
         return 0;
     };
 
-    std::shared_ptr<Segment> GetSegment() override
+    Segment *GetSegment() override
     {
         return GetObjectSegment();
     }
 
-    virtual std::shared_ptr<ObjectSegment> GetObjectSegment() = 0;
+    virtual ObjectSegment *GetObjectSegment() = 0;
     virtual std::pair<uint8_t *, size_t> GetBytes() = 0;
 
     int GetOffset() const override

@@ -54,6 +54,7 @@ omnistream::RowType::RowType(bool isNull, const std::vector<std::string> &typeNa
                 fields_.emplace_back(name, BasicLogicalType::BIGINT, "");
                 break;
             case DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:
+            case DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE:
             case DataTypeId::OMNI_TIMESTAMP:
                 fields_.emplace_back(name, BasicLogicalType::TIMESTAMP_WITHOUT_TIME_ZONE, "");
             default:

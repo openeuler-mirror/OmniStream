@@ -29,8 +29,8 @@
 
 namespace omnistream {
 
-ObjectBufferBuilder::ObjectBufferBuilder(std::shared_ptr<ObjectSegment> objSegment, std::shared_ptr<BufferRecycler> recycler)
-    : BufferBuilder(std::make_shared<VectorBatchBuffer>(objSegment, recycler)), objSegment(objSegment), bufferConsumerCreated(false) {
+ObjectBufferBuilder::ObjectBufferBuilder(ObjectSegment *objSegment, std::shared_ptr<BufferRecycler> recycler)
+    : BufferBuilder(new VectorBatchBuffer(objSegment, recycler)), objSegment(objSegment) {
 }
 
 std::shared_ptr<BufferConsumer> ObjectBufferBuilder::createBufferConsumerFromBeginning()
@@ -44,9 +44,16 @@ std::shared_ptr<BufferConsumer> ObjectBufferBuilder::createBufferConsumer(int cu
         throw std::runtime_error("Two BufferConsumer shouldn't exist for one BufferBuilder");
     }
     bufferConsumerCreated = true;
-    return std::make_shared<ObjectBufferConsumer>(std::dynamic_pointer_cast<VectorBatchBuffer>(buffer->RetainBuffer()), positionMarker, currentReaderPosition);
+    positionMarker->addRef();
+    return std::make_shared<ObjectBufferConsumer>(dynamic_cast<VectorBatchBuffer*>(buffer->RetainBuffer()), positionMarker, currentReaderPosition);
 }
 
+int ObjectBufferBuilder::appendAndCommit(void *source)
+{
+    int writtenBytes = append(source);
+    commit();
+    return writtenBytes;
+}
 
 int ObjectBufferBuilder::append(void *source)
 {
@@ -76,4 +83,8 @@ std::string ObjectBufferBuilder::toString()
     return ss.str();
 }
 
+Segment* ObjectBufferBuilder::GetSegment()
+{
+    return objSegment;
+}
 } // namespace omnistream

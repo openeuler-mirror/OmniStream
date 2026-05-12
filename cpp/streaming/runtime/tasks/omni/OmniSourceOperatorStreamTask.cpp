@@ -25,10 +25,10 @@ namespace omnistream {
         auto output = createDataOutput();
         auto input = createTaskInput();
 
-        inputProcessor_ = std::make_shared<OmniStreamOneInputProcessor>(input, output, operatorChain);
+        inputProcessor_ = new OmniStreamOneInputProcessor(input, output, operatorChain.get());
     }
 
-    void omnistream::OmniSourceOperatorStreamTask::processInput(std::shared_ptr<MailboxDefaultAction::Controller> controller)
+    void omnistream::OmniSourceOperatorStreamTask::processInput(MailboxDefaultAction::Controller *controller)
     {
         OmniStreamTask::processInput(controller);
     }

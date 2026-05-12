@@ -12,6 +12,7 @@
 #include "table/utils/VectorBatchDeserializationUtils.h"
 #include "common.h"
 #include "runtime/buffer/NetworkBuffer.h"
+#include "runtime/io/checkpointing/CheckpointBarrierHandler.h"
 #include <buffer/ReadOnlySlicedNetworkBuffer.h>
 
 namespace omnistream {
@@ -20,9 +21,11 @@ namespace omnistream {
                                            std::shared_ptr<ResultPartitionManager> partitionManager,
                                            int initialBackoff, int maxBackoff, int networkBuffersPerChannel,
                                            std::shared_ptr<Counter> numBytesIn,
-                                           std::shared_ptr<Counter> numBuffersIn) : LocalInputChannel(
-            inputGate, channelIndex, partitionId, partitionManager, initialBackoff, maxBackoff, numBytesIn,
-                                                                                    numBuffersIn), initialCredit(networkBuffersPerChannel)
+                                           std::shared_ptr<Counter> numBuffersIn,
+                                           std::shared_ptr<ChannelStateWriter> stateWriter) :
+       LocalInputChannel(inputGate, channelIndex, partitionId, partitionManager, initialBackoff, maxBackoff,
+           numBytesIn, numBuffersIn, stateWriter),
+       initialCredit(networkBuffersPerChannel)
     {
     }
 
@@ -39,18 +42,22 @@ namespace omnistream {
             int eventType = bufferLength;
             LOG("remote got an event data:::: event type: " << eventType)
             INFO_RELEASE("remote got an event data:::: event type: " << eventType)
-            auto eventData = std::make_shared<VectorBatchBuffer>(eventType);
+            auto eventData = new VectorBatchBuffer(eventType);
             std::lock_guard<std::recursive_mutex> lock(queueMutex);
-            this->dataQueue.push(eventData);
+            if (eventData != nullptr) {
+                this->dataQueue.push(eventData);
+            }
         } else {
             uint8_t* buffer = reinterpret_cast<uint8_t*>(bufferAddress);
             // do data deserialization
             std::shared_ptr<ObjectSegment> objectSegment = this->DoDataDeserializationResult(buffer, bufferLength);
-            auto vectorBatchBuffer = std::make_shared<VectorBatchBuffer>(objectSegment);
-            vectorBatchBuffer->SetSize(objectSegment->getSize());
-            std::lock_guard<std::recursive_mutex> lock(queueMutex);
-            this->dataQueue.push(vectorBatchBuffer);
-            LOG("remote got an buffer  "<< vectorBatchBuffer->ToDebugString(true));
+            auto vectorBatchBuffer = new VectorBatchBuffer(objectSegment);
+            if (vectorBatchBuffer != nullptr) {
+                vectorBatchBuffer->SetSize(objectSegment->getSize());
+                std::lock_guard<std::recursive_mutex> lock(queueMutex);
+                this->dataQueue.push(vectorBatchBuffer);
+                LOG("remote got an buffer  "<< vectorBatchBuffer->ToDebugString(true));
+            }
         }
         this->notifyDataAvailable();
     }
@@ -124,17 +131,23 @@ namespace omnistream {
     {
         LOG("notifyRemoteDataAvailableForDataStream bufferAddress: " << bufferAddress
             << " bufferLength: " << bufferLength << " sequenceNumber: " << sequenceNumber);
-        std::shared_ptr<MemorySegment> memorySegment = std::make_shared<MemorySegment>(
+        MemorySegment *memorySegment = new MemorySegment(
             reinterpret_cast<uint8_t*>(bufferAddress), bufferLength, this);
-        std::shared_ptr<::datastream::NetworkBuffer> networkBuffer = std::make_shared<::datastream::NetworkBuffer>(
-            memorySegment, bufferLength, readIndex, originalNetworkBufferRecycler, bufferType);
-        std::shared_ptr<::datastream::ReadOnlySlicedNetworkBuffer> readOnlyBuffer =
-            std::make_shared<::datastream::ReadOnlySlicedNetworkBuffer>(networkBuffer, readIndex,
-                                                                        bufferLength);
+        datastream::NetworkBuffer *networkBuffer = new datastream::NetworkBuffer(
+            memorySegment, bufferLength, readIndex, originalNetworkBufferRecycler, bufferType, true);
+        datastream::ReadOnlySlicedNetworkBuffer* readOnlyBuffer =
+            new datastream::ReadOnlySlicedNetworkBuffer(networkBuffer, readIndex, bufferLength);
 
-        std::lock_guard<std::recursive_mutex> lock(queueMutex);
-        this->dataQueue.push(readOnlyBuffer);
-        this->notifyDataAvailable();
+        std::unique_lock<std::recursive_mutex> lock(queueMutex);
+        bool wasEmpty = this->dataQueue.empty();
+        if (readOnlyBuffer != nullptr) {
+            this->dataQueue.push(readOnlyBuffer);
+        }
+        lock.unlock();
+
+        if (wasEmpty) {
+            this->notifyDataAvailable();
+        }
     }
 
     void RemoteInputChannel::SetRemoteDataFetcherBridge(
@@ -145,6 +158,10 @@ namespace omnistream {
 
     void RemoteInputChannel::resumeConsumption()
     {
+        if (!forwardResumeToJava_) {
+            return;
+        }
+
         if (this->remoteDataFetcherBridge == nullptr) {
             LOG("RemoteInputChannel::resumeConsumption: remoteDataFetcherBridge is null");
             return;
@@ -152,6 +169,45 @@ namespace omnistream {
         int gateIndex = this->getChannelInfo().getGateIdx();
         int channelIndex = this->getChannelInfo().getInputChannelIdx();
         this->remoteDataFetcherBridge->InvokeJavaRemoteDataFetcherResumeConsumption(gateIndex, channelIndex);
+    }
+
+    void RemoteInputChannel::CheckpointStarted(const CheckpointBarrier &barrier)
+    {
+        std::lock_guard<std::recursive_mutex> lock(queueMutex);
+        if (barrier.GetId() < lastBarrierId_) {
+            LOG("Barrier id is too small");
+            return;
+        } else if (barrier.GetId() > lastBarrierId_) {
+            ResetLastBarrier();
+        }
+        channelStatePersister->StartPersisting(barrier.GetId(), GetInflightBuffersUnsafe(barrier.GetId()));
+    }
+
+    void RemoteInputChannel::CheckpointStopped(long checkpointId)
+    {
+        std::lock_guard<std::recursive_mutex> lock(queueMutex);
+        channelStatePersister->StopPersisting(checkpointId);
+        if (lastBarrierId_ == checkpointId) {
+            ResetLastBarrier();
+        }
+    }
+
+    std::vector<Buffer*> RemoteInputChannel::GetInflightBuffersUnsafe(long checkpointId)
+    {
+        std::lock_guard<std::recursive_mutex> lock(queueMutex);
+        std::vector<Buffer*> inflightBuffers;
+        std::queue<Buffer*> tmpQueue = dataQueue;
+
+        while (!tmpQueue.empty()) {
+            Buffer* buffer = tmpQueue.front();
+            if ((buffer != nullptr) && (buffer->isBuffer())) {
+                inflightBuffers.push_back(buffer->RetainBuffer());
+            }
+            tmpQueue.pop();
+        }
+        LOG("RemoteInputChannel get inflight buffers success, buffer num:" << inflightBuffers.size()
+            << ", checkpointId: " << checkpointId);
+        return inflightBuffers;
     }
 
 } // namespace omnistream

@@ -17,6 +17,7 @@
 #include "core/typeutils/LongSerializer.h"
 #include "core/typeutils/BigIntSerializer.h"
 #include "core/typeutils/DoubleSerializer.h"
+#include "typeutils/VoidSerializer.h"
 
 class BasicTypeInfo : public TypeInformation {
 public:
@@ -36,6 +37,8 @@ public:
             serializer = new LongSerializer();
         } else if (typeName == TYPE_NAME_DOUBLE_SERIALIZER) {
             serializer = new DoubleSerializer();
+        }else if(typeName == TYPE_NAME_VOID_SERIALIZER){
+            serializer = new VoidSerializer();
         }
         return serializer;
     }

@@ -59,6 +59,19 @@ public:
         }
     }
     double readDouble() override;
+
+    const uint8_t* getData() override {
+        return buffer_;
+    }
+
+    size_t getPosition() override {
+        return position_;
+    }
+
+    void setPosition(size_t position) override {
+        position_ = position;
+    }
+
 private:
     const uint8_t *buffer_;
     int end_ = 0;

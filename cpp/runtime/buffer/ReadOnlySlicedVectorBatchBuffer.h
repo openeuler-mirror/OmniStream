@@ -11,7 +11,7 @@
 namespace omnistream {
 class ReadOnlySlicedVectorBatchBuffer : public VectorBatchBuffer {
 public:
-    ReadOnlySlicedVectorBatchBuffer(std::shared_ptr<VectorBatchBuffer> parent, int index, int length)
+    ReadOnlySlicedVectorBatchBuffer(VectorBatchBuffer* parent, int index, int length)
         : VectorBatchBuffer(parent->GetObjectSegment(), parent->GetRecycler()),
           parent_(parent),
           index_(index),
@@ -20,55 +20,59 @@ public:
         SetSize(length);
     }
 
+    ~ReadOnlySlicedVectorBatchBuffer() override {
+        //delete parent_;
+    }
+
     std::shared_ptr<BufferRecycler> GetRecycler() override
     {
         return parent_->GetRecycler();
-    };
+    }
 
     void RecycleBuffer() override
     {
         LOG_TRACE("Calling RecycleBuffer() from ReadOnlySlicedVectorBatchBuffer")
         parent_->RecycleBuffer();
-    };
+    }
 
     bool IsRecycled() const override
     {
         return parent_->IsRecycled();
-    };
+    }
 
-    std::shared_ptr<Buffer> RetainBuffer() override
+    Buffer* RetainBuffer() override
     {
         LOG_TRACE("Calling RetainBuffer() from ReadOnlySlicedVectorBatchBuffer")
         return parent_->RetainBuffer();
-    };
+    }
 
-    std::shared_ptr<Buffer> ReadOnlySlice() override
+    Buffer* ReadOnlySlice() override
     {
         throw std::runtime_error("ReadOnlySlicedVectorBatchBuffer does not support ReadOnlySlice");
-    };
+    }
 
-    std::shared_ptr<Buffer> ReadOnlySlice(int index, int length) override
+    Buffer* ReadOnlySlice(int index, int length) override
     {
         throw std::runtime_error("ReadOnlySlicedVectorBatchBuffer does not support ReadOnlySlice");
-    };
+    }
 
     int GetMaxCapacity() const override
     {
         return parent_->GetMaxCapacity();
-    };
+    }
 
     int GetReaderIndex() const override
     {
         return parent_->GetReaderIndex() + index_;
-    };
+    }
 
     int GetOffset() const override
     {
         return index_;
-    };
+    }
 
 private:
-    std::shared_ptr<VectorBatchBuffer> parent_;
+    VectorBatchBuffer* parent_ = nullptr;
     int index_;
     int length_;
 };

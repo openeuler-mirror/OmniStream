@@ -211,10 +211,10 @@ void StreamCalcBatch::manuallyAddNewVectors(omnistream::VectorBatch *vb) const
             vb->Append(vec);
         } else if (obj["exprType"] == "PROCTIME" && obj["returnType"] == DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE) {
             auto curTime = std::chrono::system_clock::now();
-            auto curTimeNs = std::chrono::duration_cast<std::chrono::nanoseconds>(curTime.time_since_epoch()).count();
+            auto curTimeMs = std::chrono::duration_cast<std::chrono::milliseconds>(curTime.time_since_epoch()).count();
             auto vec = new omniruntime::vec::Vector<int64_t>(row);
             for (int i = 0; i < row; i++) {
-                vec->SetValue(i, curTimeNs);
+                vec->SetValue(i, curTimeMs);
             }
             vb->Append(vec);
         } else {

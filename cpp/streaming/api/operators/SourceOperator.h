@@ -77,7 +77,7 @@ public:
         operatingMode(OperatingMode::OUTPUT_NOT_INITIALIZED)
         {
         readerFactory =
-            [source](const std::shared_ptr<SourceReaderContext>& context) {
+            [source](SourceReaderContext* context) {
                 return source->createReader(context);
             };
         std::string strategy = opDescriptionJSON["watermarkStrategy"];
@@ -94,11 +94,10 @@ public:
         emitProgressiveWatermarks = opDescriptionJSON["emitProgressiveWatermarks"];
 
         finished = std::make_shared<omnistream::CompletableFuture>();
-        waitingForAlignmentFuture = std::make_shared<omnistream::CompletableFuture>();
+        waitingForAlignmentFuture = std::make_shared<omnistream::CompletableFuture>(true);
         setProcessingTimeService(timeService);
         output = chainOutput;
         dataStreamOutput = new omnistream::OmniAsyncDataOutputToOutput(output, true);
-        waitingForAlignmentFuture->setCompleted();
 //    availabilityHelper = std::make_shared<SourceOperator::AvailabilityHelper>();
     }
 
@@ -124,7 +123,7 @@ public:
             return;
         }
         int subtaskIndex = getRuntimeContext()->getIndexOfThisSubtask();
-        auto context = std::make_shared<SourceReaderContext>(subtaskIndex);
+        auto context = new SourceReaderContext(subtaskIndex);
         sourceReader = readerFactory(context);
     }
 
@@ -143,7 +142,7 @@ public:
     void finish()
     {
         stopInternalServices();
-        finished->setCompleted();
+        finished->complete();
     }
 
     void close()
@@ -273,7 +272,7 @@ public:
         return isDataStream;
     }
 private:
-    std::function<SourceReader<SplitT>*(std::shared_ptr<SourceReaderContext>)> readerFactory;
+    std::function<SourceReader<SplitT>*(SourceReaderContext*)> readerFactory;
     SimpleVersionedSerializer<SplitT>* splitSerializer;
     bool emitProgressiveWatermarks;
     SourceReader<SplitT> *sourceReader = nullptr;
@@ -375,7 +374,7 @@ private:
                 return convertToInternalStatus(InputStatus::NOTHING_AVAILABLE);
             case OperatingMode::READING:
             default:
-                throw std::invalid_argument("Unknown operating mode: " + static_cast<int>(operatingMode));
+                throw std::invalid_argument("Unknown operating mode: " + std::to_string(static_cast<int>(operatingMode)));
         }
     }
 
@@ -432,7 +431,7 @@ private:
 
         void forceStop()
         {
-            forcedStopFuture->setCompleted();
+            forcedStopFuture->complete();
         }
     private:
         std::shared_ptr<omnistream::CompletableFuture> forcedStopFuture = std::make_shared<omnistream::CompletableFuture>();

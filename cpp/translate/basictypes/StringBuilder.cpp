@@ -34,7 +34,7 @@ StringBuilder::~StringBuilder()
 StringBuilder* StringBuilder::append(String *input)
 {
     if (input == nullptr) {
-        return this;
+        return append("null");
     }
     const auto val = input->getValue();
     if (val.empty()) return this; // No need to append empty data
@@ -81,8 +81,11 @@ StringBuilder* StringBuilder::deleteCharAt(int32_t idx)
 
 StringBuilder* StringBuilder::append(Object *input)
 {
-    auto value = String::valueOf(input);
-    return this->append(value.get());
+    if (input == nullptr) {
+        return append("null");
+    }
+    auto value = input->toString();
+    return this->append(value);
 }
 
 StringBuilder* StringBuilder::append(const std::string &input)

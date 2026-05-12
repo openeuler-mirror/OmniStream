@@ -13,9 +13,13 @@
 
 #include <streaming/runtime/streamrecord/StreamRecord.h>
 
+#include "PipelinedSubpartition.h"
 #include "io/network/api/serialization/EventSerializer.h"
-
+#include "runtime/buffer/MemoryBufferBuilder.h"
+// check
+// broadcast ability miss
 namespace omnistream {
+    // origin realization
     BufferWritingResultPartition::BufferWritingResultPartition(
         const std::string &owningTaskName,
         int partitionIndex,
@@ -32,6 +36,7 @@ namespace omnistream {
           broadcastBufferBuilder(nullptr) {
     };
 
+    // omni use, then set subpartitions
     BufferWritingResultPartition::BufferWritingResultPartition(
         const std::string& owningTaskName,
         int partitionIndex,
@@ -40,7 +45,6 @@ namespace omnistream {
         int numSubpartitions,
         int numTargetKeyGroups,
         std::shared_ptr<ResultPartitionManager> partitionManager,
-        // std::shared_ptr<Supplier<ObjectBufferPool>> bufferPoolFactory)
         std::shared_ptr<Supplier<BufferPool>> bufferPoolFactory,
         int taskType)
         : ResultPartition(owningTaskName, partitionIndex, partitionId, partitionType, numSubpartitions,
@@ -65,6 +69,16 @@ namespace omnistream {
     std::vector<std::shared_ptr<ResultSubpartition>> BufferWritingResultPartition::getAllPartitions()
     {
         return subpartitions_;
+    }
+
+    void BufferWritingResultPartition::SetChannelStateWriter(
+        const std::shared_ptr<ChannelStateWriter> &channelStateWriter)
+    {
+        for (auto subpartition : subpartitions_) {
+            if (auto subpartitionChild = std::dynamic_pointer_cast<PipelinedSubpartition>(subpartition)) {
+                subpartitionChild->setChannelStateWriter(channelStateWriter);
+            }
+        }
     }
 
     void BufferWritingResultPartition::setup()
@@ -123,6 +137,7 @@ namespace omnistream {
         if (taskType == 2) {
             auto streamRecord = reinterpret_cast<StreamRecord*>(record);
             auto value = reinterpret_cast<ByteBuffer*>(streamRecord->getValue());
+            totalWrittenBytes += value->remaining();
             while (value->hasRemaining()) {
                 finishUnicastBufferBuilder(targetSubpartition);
                 buffer = appendUnicastDataForRecordContinuation(streamRecord, targetSubpartition);
@@ -135,12 +150,12 @@ namespace omnistream {
         }
     }
 
-    std::shared_ptr<BufferBuilder> BufferWritingResultPartition::appendUnicastDataForRecordContinuation(void *record, int targetSubpartition)
+    BufferBuilder *BufferWritingResultPartition::appendUnicastDataForRecordContinuation(void *record, int targetSubpartition)
     {
         auto bufferBuilder = requestNewUnicastBufferBuilder(targetSubpartition);
 
         int partialRecordBytes = bufferBuilder->appendAndCommit(record);
-        addToSubpartition(bufferBuilder, targetSubpartition, partialRecordBytes);
+        addToSubpartition(bufferBuilder, targetSubpartition, partialRecordBytes, partialRecordBytes);
 
         return bufferBuilder;
     }
@@ -158,16 +173,22 @@ namespace omnistream {
 
         for (const auto& subpartition : subpartitions_) {
             auto eventBufferConsumer = EventSerializer::ToBufferConsumer(event, isPriorityEvent);
+            if (eventBufferConsumer == nullptr) {
+                INFO_RELEASE("eventBufferConsumer is null ");
+                throw std::runtime_error("eventBufferConsumer is null.");
+            }
             auto subPartitionInfo = subpartition->getSubpartitionInfo();
             auto index = subpartition->getSubPartitionIndex();
             subpartition->add(eventBufferConsumer, 0);
-            INFO_RELEASE(" Send " << event->GetEventClassName() << " to subPartition " << subPartitionInfo.toString()
-                << ", index : " << index)
+//            INFO_DEBUG(" Send " << event->GetEventClassName() << " to subPartition " << subPartitionInfo.toString() << ", index : " << index)
+            LOG_DEBUG("[RP=" << (void *) this << "]Send " << event->GetEventClassName()
+                                << " to subPartition " << subPartitionInfo.toString()
+                                << ", index : " << index)
         }
     }
 
     std::shared_ptr<ResultSubpartitionView> BufferWritingResultPartition::createSubpartitionView(
-        int subpartitionIndex, std::shared_ptr<BufferAvailabilityListener> availabilityListener)
+        int subpartitionIndex, BufferAvailabilityListener* availabilityListener)
     {
         LOG_PART("Beginning")
         if (subpartitionIndex < 0 || subpartitionIndex >= numSubpartitions) {
@@ -207,9 +228,11 @@ namespace omnistream {
         for (auto& builder : unicastBufferBuilders) {
             if (builder) {
                 builder->close();
+                delete builder;
                 builder = nullptr;
             }
         }
+        unicastBufferBuilders.clear();
         ResultPartition::close();
     }
 
@@ -221,7 +244,7 @@ namespace omnistream {
     */
 
 
-    std::shared_ptr<BufferBuilder> BufferWritingResultPartition::appendUnicastDataForNewRecord(void *record,
+    BufferBuilder *BufferWritingResultPartition::appendUnicastDataForNewRecord(void *record,
         int targetSubpartition)
     {
         LOG_PART(this->getOwningTaskName() << " appending data   " << std::to_string(reinterpret_cast<long>(record))
@@ -230,19 +253,35 @@ namespace omnistream {
         if (targetSubpartition < 0 || static_cast<size_t>(targetSubpartition) >= unicastBufferBuilders.size()) {
             throw std::out_of_range("targetSubpartition out of range");
         }
-        std::shared_ptr<BufferBuilder> buffer = unicastBufferBuilders[targetSubpartition];
+        BufferBuilder *buffer = unicastBufferBuilders[targetSubpartition];
+        if (taskType == 1) {
+            if (buffer == nullptr) {
+                buffer = requestNewUnicastBufferBuilder(targetSubpartition);
+                LOG_PART("Add bufferbuilder: " << buffer << " to subparition" << targetSubpartition)
+                addToSubpartition(buffer, targetSubpartition, 0);
+            }
+            auto objectBuffer = reinterpret_cast<ObjectBufferBuilder*>(buffer);
+            // LOG("buffer->appendAndCommit will running")
+            objectBuffer->appendAndCommit(record);
+        } else if (taskType == 2) {
+            if (buffer == nullptr) {
+                buffer = requestNewUnicastBufferBuilder(targetSubpartition);
+                LOG_PART("Add bufferbuilder: " << buffer << " to subparition" << targetSubpartition)
 
-        if (buffer == nullptr) {
-            buffer = requestNewUnicastBufferBuilder(targetSubpartition);
-            LOG_PART("Add bufferbuilder: " << buffer.get() << " to subparition" << targetSubpartition)
-            addToSubpartition(buffer, targetSubpartition, 0);
+                auto streamRecord = reinterpret_cast<StreamRecord*>(record);
+                auto value = reinterpret_cast<ByteBuffer*>(streamRecord->getValue());
+                addToSubpartition(buffer, targetSubpartition, 0, value->remaining());
+            }
+            auto memoryBuffer = reinterpret_cast<datastream::MemoryBufferBuilder*>(buffer);
+            // LOG("buffer->appendAndCommit will running")
+            memoryBuffer->appendAndCommit(record);
+        } else {
+            THROW_LOGIC_EXCEPTION("NOT IMPLEMENT")
         }
-        // LOG("buffer->appendAndCommit will running")
-        buffer->appendAndCommit(record);
         return buffer;
     }
 
-    void BufferWritingResultPartition::addToSubpartition(std::shared_ptr<BufferBuilder> buffer,
+    void BufferWritingResultPartition::addToSubpartition(BufferBuilder *buffer,
                                                          int targetSubpartition, int partialRecordLength)
     {
         LOG("addToSubpartition running , createBufferConsumerFromBeginning")
@@ -250,6 +289,24 @@ namespace omnistream {
             buffer->createBufferConsumerFromBeginning(), partialRecordLength);
         if (desirableBufferSize > 0) {
             buffer->trim(desirableBufferSize);
+        }
+    }
+
+    // for datastream, likely vanilla flink
+    void BufferWritingResultPartition::addToSubpartition(BufferBuilder *buffer,
+                                                         int targetSubpartition, int partialRecordLength, int minDesirableBufferSize)
+    {
+        LOG("addToSubpartition running , createBufferConsumerFromBeginning")
+        int desirableBufferSize = subpartitions_[targetSubpartition]->add(
+                buffer->createBufferConsumerFromBeginning(), partialRecordLength);
+
+        resizeBuffer(buffer, desirableBufferSize, minDesirableBufferSize);
+    }
+
+    void BufferWritingResultPartition::resizeBuffer(BufferBuilder *buffer, int desirableBufferSize, int minDesirableBufferSize)
+    {
+        if (desirableBufferSize > 0) {
+            buffer->trim(std::max(desirableBufferSize, minDesirableBufferSize));
         }
     }
 
@@ -330,32 +387,32 @@ namespace omnistream {
         }
     }
 
-    std::shared_ptr<BufferBuilder> BufferWritingResultPartition::requestNewUnicastBufferBuilder(
+    BufferBuilder *BufferWritingResultPartition::requestNewUnicastBufferBuilder(
         int targetSubpartition)
     {
         checkInProduceState();
         ensureUnicastMode();
-        std::shared_ptr<BufferBuilder> bufferBuilder = requestNewBufferBuilderFromPool(targetSubpartition);
+        BufferBuilder *bufferBuilder = requestNewBufferBuilderFromPool(targetSubpartition);
         unicastBufferBuilders[targetSubpartition] = bufferBuilder;
         LOG("set bufferBuilder to unicastBufferBuilders, targetSubpartition: "<< std::to_string(targetSubpartition))
         return bufferBuilder;
     }
 
-    std::shared_ptr<BufferBuilder> BufferWritingResultPartition::requestNewBroadcastBufferBuilder()
+    BufferBuilder *BufferWritingResultPartition::requestNewBroadcastBufferBuilder()
     {
         checkInProduceState();
         ensureBroadcastMode();
 
-        std::shared_ptr<BufferBuilder> bufferBuilder = requestNewBufferBuilderFromPool(0);
+        BufferBuilder *bufferBuilder = requestNewBufferBuilderFromPool(0);
         broadcastBufferBuilder = bufferBuilder;
         return bufferBuilder;
     }
 
-    std::shared_ptr<BufferBuilder> BufferWritingResultPartition::requestNewBufferBuilderFromPool(
+    BufferBuilder *BufferWritingResultPartition::requestNewBufferBuilderFromPool(
         int targetSubpartition)
     {
         LOG("bufferPool->requestObjectBufferBuilder will running")
-        std::shared_ptr<BufferBuilder> bufferBuilder = bufferPool->requestBufferBuilder(targetSubpartition);
+        BufferBuilder *bufferBuilder = bufferPool->requestBufferBuilder(targetSubpartition);
         if (bufferBuilder) {
             return bufferBuilder;
         }
@@ -371,14 +428,15 @@ namespace omnistream {
 
     void BufferWritingResultPartition::finishUnicastBufferBuilder(int targetSubpartition)
     {
-        std::shared_ptr<BufferBuilder> bufferBuilder = unicastBufferBuilders[targetSubpartition];
-        LOG_PART("Finish the bufferbuilder " << bufferBuilder.get()  << "  of targetSubpartition " << targetSubpartition)
+        BufferBuilder *bufferBuilder = unicastBufferBuilders[targetSubpartition];
+        LOG_PART("Finish the bufferbuilder " << bufferBuilder  << "  of targetSubpartition " << targetSubpartition)
 
         if (bufferBuilder) {
             numBytesOut->Inc(bufferBuilder->finish());
             numBuffersOut->Inc();
-            unicastBufferBuilders[targetSubpartition] = nullptr;
             bufferBuilder->close();
+            delete bufferBuilder;
+            unicastBufferBuilders[targetSubpartition] = nullptr;
         }
     }
 
@@ -395,6 +453,7 @@ namespace omnistream {
             numBytesOut->Inc(broadcastBufferBuilder->finish() * numSubpartitions);
             numBuffersOut->Inc(numSubpartitions);
             broadcastBufferBuilder->close();
+            broadcastBufferBuilder = nullptr;
         }
     }
 
@@ -406,5 +465,16 @@ namespace omnistream {
     void BufferWritingResultPartition::ensureBroadcastMode()
     {
         finishUnicastBufferBuilders();
+    }
+
+    void BufferWritingResultPartition::releaseInternal()
+    {
+        for (auto subPartition : subpartitions_) {
+            try {
+                subPartition->release();
+            } catch (const std::exception &e) {
+                throw std::runtime_error("subpartition release error in class BufferWritingResultPartition");
+            }
+        }
     }
 } // namespace omnistream

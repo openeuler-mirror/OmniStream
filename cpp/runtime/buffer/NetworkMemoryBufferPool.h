@@ -19,35 +19,48 @@
 
 #include <climits>
 #include <memory/MemorySegment.h>
+#include "runtime/buffer/ObjectSegment.h"
 
 #include "io/AvailabilityHelper.h"
 #include "BufferPool.h"
-#include "BufferPoolFactory.h"
+#include "NetworkBufferPool.h"
 
-namespace datastream {
+namespace omnistream::datastream {
     class LocalMemoryBufferPool;
 }
 
 
-namespace datastream {
+namespace omnistream::datastream {
 
 using namespace omnistream;
 
-class NetworkMemoryBufferPool : public BufferPoolFactory, public AvailabilityProvider,
+class NetworkMemoryBufferPool : public NetworkBufferPool,
         public std::enable_shared_from_this<NetworkMemoryBufferPool> {
 public:
     NetworkMemoryBufferPool(int numberOfSegmentsToAllocate, int segmentSize)
         :NetworkMemoryBufferPool(numberOfSegmentsToAllocate, segmentSize,
                                  std::chrono::milliseconds(INT_MAX)) {}
     NetworkMemoryBufferPool(int numberOfSegmentsToAllocate, int segmentSize, std::chrono::milliseconds requestSegmentsTimeout);
-    ~NetworkMemoryBufferPool() override = default;
+    ~NetworkMemoryBufferPool() override {
+        for (auto segment : availableMemorySegments) {
+            delete segment;
+        }
+        availableMemorySegments.clear();
+    }
 
-    std::shared_ptr<MemorySegment> requestPooledMemorySegment();
-    std::vector<std::shared_ptr<MemorySegment>> requestPooledMemorySegmentsBlocking(int numberOfSegmentsToRequest);
-    void recyclePooledMemorySegment(const std::shared_ptr<MemorySegment>& segment);
+    MemorySegment *requestPooledMemorySegment();
+    std::vector<MemorySegment *> requestPooledMemorySegmentsBlocking(int numberOfSegmentsToRequest);
+    void recyclePooledMemorySegment(MemorySegment *segment);
 
-    std::vector<std::shared_ptr<MemorySegment>> requestUnpooledMemorySegments(int numberOfSegmentsToRequest);
-    void recycleUnpooledMemorySegments(const std::vector<std::shared_ptr<MemorySegment>>& segments);
+    std::vector<MemorySegment *> requestUnpooledMemorySegments(int numberOfSegmentsToRequest) override;
+    void recycleUnpooledMemorySegments(const std::vector<MemorySegment *>& segments) override;
+    std::vector<ObjectSegment *> requestUnpooledObjectSegments(int numberOfSegmentsToRequest) override {
+        THROW_LOGIC_EXCEPTION("error")
+    }
+
+    void recycleUnpooledObjectSegments(const std::vector<ObjectSegment *> &segments) override {
+        THROW_LOGIC_EXCEPTION("error")
+    }
     void destroy();
     bool isDestroyed() const;
     int getTotalNumberOfMemorySegments() const;
@@ -68,10 +81,10 @@ public:
     std::string toString() const override;
 
 private:
-    std::vector<std::shared_ptr<MemorySegment>> internalRequestMemorySegments(int numberOfSegmentsToRequest);
-    std::shared_ptr<MemorySegment> internalRequestMemorySegment();
+    std::vector<MemorySegment *> internalRequestMemorySegments(int numberOfSegmentsToRequest);
+    MemorySegment *internalRequestMemorySegment();
     void revertRequiredBuffers(int size);
-    void internalRecycleMemorySegments(const std::vector<std::shared_ptr<MemorySegment>>& segments);
+    void internalRecycleMemorySegments(const std::vector<MemorySegment *>& segments);
     std::shared_ptr<LocalMemoryBufferPool> internalCreateMemoryBufferPool(int numRequiredBuffers, int maxUsedBuffers,
                                                                           int numSubpartitions,
                                                                           int maxBuffersPerChannel);
@@ -81,14 +94,15 @@ private:
 
     std::shared_ptr<AvailabilityHelper>  availabilityHelper;
     int totalNumberOfMemorySegments;
-    std::deque<std::shared_ptr<MemorySegment>> availableMemorySegments;
+    std::deque<MemorySegment*> availableMemorySegments;
     std::recursive_mutex availableMemorySegmentMutex;
     bool isDestroyed_ = false;
     std::recursive_mutex factoryLock;
     std::set<std::shared_ptr<LocalMemoryBufferPool>> allMemoryBufferPools;
+    std::set<std::shared_ptr<LocalMemoryBufferPool>> resizableBufferPools;
     int numTotalRequiredBuffers {};
     std::chrono::milliseconds requestSegmentsTimeout {};
-    std::condition_variable cv;
+    std::condition_variable_any cv;
     int segmentSize;
 };
 }

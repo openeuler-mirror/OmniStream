@@ -8,7 +8,7 @@
 #include "RecordWriterV2.h"
 namespace omnistream {
 
-class RecordWriterDelegateV2 {
+class RecordWriterDelegateV2  : public AvailabilityProvider {
 public:
     virtual RecordWriterV2*  getRecordWriter(int outputIndex) = 0;
 

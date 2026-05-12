@@ -15,17 +15,21 @@
 #include "state/FullSnapshotResources.h"
 #include "state/KeyGroupRange.h"
 #include "state/KeyValueStateIterator.h"
+#include "state/heap/HeapPriorityQueueSnapshotRestoreWrapperBase.h"
 #include "state/RocksIteratorWrapper.h"
 #include "state/RocksDbKvStateInfo.h"
 #include "state/StateSnapshotTransformer.h"
 #include "state/metainfo/StateMetaInfoSnapshot.h"
 #include "state/rocksdb/util/ResourceGuard.h"
+#include "state/rocksdb/iterator/SingleStateIterator.h"
 #include "typeutils/TypeSerializer.h"
 #include <memory>
 #include <rocksdb/db.h>
 #include <rocksdb/snapshot.h>
 #include <vector>
 #include <cstdint>
+#include <string>
+#include <unordered_map>
 class RocksDBFullSnapshotResources : public FullSnapshotResources {
 private:
     struct MetaData {
@@ -48,6 +52,7 @@ private:
     int keyGroupPrefixBytes_;
     KeyGroupRange* keyGroupRange_;
     TypeSerializer* keySerializer_;
+    std::vector<std::unique_ptr<SingleStateIterator>> heapPriorityQueueIterators_;
 public:
     const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>&
     getMetaInfoSnapshots() override;
@@ -71,14 +76,20 @@ public:
         const rocksdb::Snapshot* snapshot,
         const std::vector<std::shared_ptr<RocksDbKvStateInfo>>& metaDataCopy,
         const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& stateMetaInfoSnapshots,
+        std::vector<std::unique_ptr<SingleStateIterator>> heapPriorityQueueIterators,
         rocksdb::DB* db,
         int keyGroupPrefixBytes,
         KeyGroupRange* keyGroupRange,
         TypeSerializer* keySerializer);
         
+    ~RocksDBFullSnapshotResources();
+    
+    void cleanup() override;
+        
     static std::shared_ptr<RocksDBFullSnapshotResources>
     create(
         const std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>& kvStateInformation,
+        const std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapperBase>>>& registeredPQStates,
         rocksdb::DB* db,
         const std::shared_ptr<ResourceGuard>& rocksDBResourceGuard,
         KeyGroupRange* keyGroupRange,

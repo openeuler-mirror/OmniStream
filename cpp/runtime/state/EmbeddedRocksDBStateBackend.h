@@ -9,17 +9,15 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef OMNISTREAM_EMBEDDEDROCKSDBSTATEBACKEND
-#define OMNISTREAM_EMBEDDEDROCKSDBSTATEBACKEND
+#pragma once
 
 #include <nlohmann/json.hpp>
-#include <regex>
 #include "UUID.h"
 #include "runtime/executiongraph/JobIDPOD.h"
 #include "runtime/state/StateBackend.h"
 #include "runtime/execution/OmniEnvironment.h"
-#include "RocksdbKeyedStateBackend.h"
 #include "RocksDBKeyedStateBackendBuilder.h"
+#include "RocksDBMemoryControllerUtils.h"
 
 using json = nlohmann::json;
 
@@ -80,23 +78,30 @@ public:
         uint64_t uUpper = std::stoull(upperHex, nullptr, 16);
         auto operatorId = std::make_shared<OperatorID>(uUpper, uLower);
 
-        auto resourceContainer = std::make_unique<RocksDBResourceContainer>(
+        auto sharedResources = RocksDBMemoryControllerUtils::allocateRocksDBSharedResources(env->taskConfiguration());
+
+        auto resourceContainer = std::make_shared<RocksDBResourceContainer>(
+                sharedResources,
                 instanceBasePath,
                 false);
 
         std::vector<std::shared_ptr<KeyedStateHandle>> stateVec(
-            stateHandles.begin(),
-            stateHandles.end()
-        );
+                stateHandles.begin(),
+                stateHandles.end());
+
+        auto priorityQueueStateType = env->taskConfiguration().getPriorityQueueStateType() == "ROCKSDB" ?
+                RocksDBKeyedStateBackendBuilder<K>::PriorityQueueStateType::ROCKSDB :
+                RocksDBKeyedStateBackendBuilder<K>::PriorityQueueStateType::HEAP;
 
         RocksDBKeyedStateBackendBuilder<K> builder(
                 operatorIdentifier,
                 instanceBasePath,
-                std::move(resourceContainer),
+                resourceContainer,
                 keySerializer,
                 numberOfKeyGroups,
                 keyGroupRange,
                 localRecoveryConfig,
+                priorityQueueStateType,
                 stateVec,
                 bridge,
                 omniTaskBridge,
@@ -229,11 +234,9 @@ private:
 
     void configureOtherParameters(TaskInformationPOD taskConfiguration)
     {
-        auto threadNum = taskConfiguration.getCheckpointConfig().getRocksdbCheckpointTransferThreadNum();
-        if (threadNum <= 0) {
-            throw std::invalid_argument("Invalid number of transfer threads");
-        } else {
-            numberOfTransferThreads = threadNum;
+        numberOfTransferThreads = taskConfiguration.getNumberOfTransferThreads();
+        if (numberOfTransferThreads <= 0) {
+            THROW_LOGIC_EXCEPTION("Invalid number of transfer threads");
         }
         writeBatchSize = 2 * 1024 * 1024;
         overlapFractionThreshold = 0.0;
@@ -259,5 +262,3 @@ private:
     std::once_flag rocksdb_init_flag_;
     bool rocksDbInitialized_ = false;
 };
-
-#endif // OMNISTREAM_EMBEDDEDROCKSDBSTATEBACKEND

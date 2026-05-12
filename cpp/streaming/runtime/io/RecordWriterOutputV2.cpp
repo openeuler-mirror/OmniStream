@@ -22,7 +22,7 @@ namespace omnistream {
     {
         LOG(">>>>>")
         if (outSerializer != nullptr) {
-            serializationDelegate_ = new SerializationDelegate(std::make_unique<datastream::StreamElementSerializer>(outSerializer));
+            serializationDelegate_ = new SerializationDelegate(new datastream::StreamElementSerializer(outSerializer));
             this->recordWriter_->setSerializationDelegate(serializationDelegate_);
         }
     }
@@ -80,8 +80,12 @@ namespace omnistream {
 
     void RecordWriterOutputV2::broadcastEvent(std::shared_ptr<AbstractEvent> event, bool isPriorityEvent)
     {
+        auto barrier = std::dynamic_pointer_cast<CheckpointBarrier>(event);
+        if (barrier != nullptr) {
+            LOG_DEBUG("Barrier Iddd: " << barrier->GetId() << ", supportsUnalignedCheckpoints_" << supportsUnalignedCheckpoints_ << ", isPriorityEvent: " << isPriorityEvent)
+        }
+
         if (isPriorityEvent && !supportsUnalignedCheckpoints_) {
-            auto barrier = std::dynamic_pointer_cast<CheckpointBarrier>(event);
             if (barrier != nullptr) {
                 CheckpointOptions* newOptions = barrier->GetCheckpointOptions()->WithUnalignedUnsupported();
                 CheckpointBarrier* newBarrier = barrier->WithOptions(newOptions);

@@ -32,8 +32,8 @@ template <typename E, typename SplitT>
 class FetchTask : public SplitFetcherTask {
 public:
     FetchTask(
-            const std::shared_ptr<SplitReader<E, SplitT>>& splitReader,
-            const std::shared_ptr<FutureCompletingBlockingQueue<E>>& elementsQueue,
+            SplitReader<E, SplitT>* splitReader,
+            FutureCompletingBlockingQueue<E>* elementsQueue,
             std::function<void(const std::set<std::string>&)> splitFinishedCallback,
             int fetcherIndex): splitReader(splitReader),
                                elementsQueue(elementsQueue),
@@ -98,8 +98,8 @@ public:
         return "FetchTask";
     }
 private:
-    const std::shared_ptr<SplitReader<E, SplitT>> splitReader;
-    const std::shared_ptr<FutureCompletingBlockingQueue<E>> elementsQueue;
+    SplitReader<E, SplitT>* splitReader;
+    FutureCompletingBlockingQueue<E>* elementsQueue;
     const std::function<void(const std::set<std::string>&)> splitFinishedCallback;
     const int fetcherIndex;
     RecordsWithSplitIds<E>* lastRecords;

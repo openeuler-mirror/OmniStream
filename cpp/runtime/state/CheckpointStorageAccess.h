@@ -26,7 +26,7 @@ namespace omnistream {
         
         virtual bool hasDefaultSavepointLocation() = 0;
         
-        virtual CheckpointStreamFactory* resolveCheckpointStorageLocation(int64_t checkpointId, CheckpointStorageLocationReference &reference) = 0;
+        virtual CheckpointStreamFactory* resolveCheckpointStorageLocation(int64_t checkpointId, std::shared_ptr<CheckpointStorageLocationReference> reference) = 0;
         virtual CheckpointStreamFactory* resolveCheckpointStorageLocation(long checkpointId) = 0;
         virtual void initializeBaseLocations() = 0;
     };

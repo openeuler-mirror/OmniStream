@@ -11,7 +11,9 @@
 
 
 #include "DefaultConfigurableOptionsFactory.h"
-void DefaultConfigurableOptionsFactory::createColumnOptions(ROCKSDB_NAMESPACE::ColumnFamilyOptions &currentOptions)
+void DefaultConfigurableOptionsFactory::createColumnOptions(
+        ROCKSDB_NAMESPACE::ColumnFamilyOptions& currentOptions,
+        ROCKSDB_NAMESPACE::BlockBasedTableOptions& blockBasedTableOptions)
 {
     auto compactionStyle = reinterpret_cast<Integer*>(Configuration::TM_CONFIG
             ->getValue(RocksDBConfigurableOptions::COMPACTION_STYLE));
@@ -55,8 +57,6 @@ void DefaultConfigurableOptionsFactory::createColumnOptions(ROCKSDB_NAMESPACE::C
         minWriteBufferNumberToMerge->putRefCount();
     }
 
-    ROCKSDB_NAMESPACE::BlockBasedTableOptions blockBasedTableOptions;
-
     auto blockSize = reinterpret_cast<String*>(Configuration::TM_CONFIG
             ->getValue(RocksDBConfigurableOptions::BLOCK_SIZE));
     if (blockSize != nullptr) {
@@ -71,12 +71,26 @@ void DefaultConfigurableOptionsFactory::createColumnOptions(ROCKSDB_NAMESPACE::C
         metadataBlockSize->putRefCount();
     }
 
-    auto blockCacheSize = reinterpret_cast<String*>(Configuration::TM_CONFIG
-            ->getValue(RocksDBConfigurableOptions::BLOCK_CACHE_SIZE));
-    if (blockCacheSize != nullptr) {
-        auto blockCache = ROCKSDB_NAMESPACE::NewLRUCache(MemorySize::parseBytes(blockCacheSize->getData()));
-        blockBasedTableOptions.block_cache = blockCache;
-        blockCacheSize->putRefCount();
+    auto checksumType = reinterpret_cast<String*>(Configuration::TM_CONFIG
+            ->getValue(RocksDBConfigurableOptions::CHECKSUM_TYPE));
+    if (checksumType != nullptr) {
+        ROCKSDB_NAMESPACE::ChecksumType checksum = ROCKSDB_NAMESPACE::ChecksumType::kxxHash64;
+        std::string checksumName = checksumType->toString();
+        if (checksumName == "kNoChecksum") {
+            checksum = ROCKSDB_NAMESPACE::ChecksumType::kNoChecksum;
+        } else if (checksumName == "kCRC32c") {
+            checksum = ROCKSDB_NAMESPACE::ChecksumType::kCRC32c;
+        } else if (checksumName == "kxxHash") {
+            checksum = ROCKSDB_NAMESPACE::ChecksumType::kxxHash;
+        } else if (checksumName == "kxxHash64") {
+            checksum = ROCKSDB_NAMESPACE::ChecksumType::kxxHash64;
+        } else if (checksumName == "kXXH3") {
+            checksum = ROCKSDB_NAMESPACE::ChecksumType::kXXH3;
+        } else {
+        	GErrorLog("Invalid checksum type : " + checksumName + ", use default value : kxxHash64.");
+        }
+        blockBasedTableOptions.checksum = checksum;
+        checksumType->putRefCount();
     }
 
     auto useBloomFilter = reinterpret_cast<Boolean*>(Configuration::TM_CONFIG
@@ -98,6 +112,11 @@ void DefaultConfigurableOptionsFactory::createColumnOptions(ROCKSDB_NAMESPACE::C
         useBloomFilter->putRefCount();
         bitsPerKey->putRefCount();
         blockBasedMode->putRefCount();
+
+        // [FALCON] enable filter parameters
+        blockBasedTableOptions.partition_filters = true;
+        blockBasedTableOptions.index_type = ROCKSDB_NAMESPACE::BlockBasedTableOptions::kTwoLevelIndexSearch;
+        INFO_RELEASE("[FALCON] enable partition filter.")
     }
     currentOptions.table_factory.reset(NewBlockBasedTableFactory(blockBasedTableOptions));
 }
@@ -144,5 +163,9 @@ void DefaultConfigurableOptionsFactory::createDBOptions(rocksdb::DBOptions &curr
         currentOptions.keep_log_file_num = logFileNum->value;
         logFileNum->putRefCount();
     }
+
+    // [FALCON] set allow_concurrent_memtable_write as false for hash memTable
+    // currentOptions.allow_concurrent_memtable_write = false;
+    // INFO_RELEASE("[FALCON] successfully set allow_concurrent_memtable_write as false for hash memTable.")
 }
 

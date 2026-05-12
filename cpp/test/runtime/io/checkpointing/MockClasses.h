@@ -123,6 +123,7 @@ public:
     void releaseAllResources() override {}
     void announceBufferSize(int) override {}
     int getBuffersInUseCount() override { return 0; }
+    void SetChannelStateWriter(std::shared_ptr<ChannelStateWriter> channelStateWriter) override {}
     std::string toString() override { return "DummyInputChannel"; }
 
 private:
@@ -136,7 +137,7 @@ public:
             "dummyTask", idx, IntermediateDataSetIDPOD(), 0, 0, 1, nullptr, std::function<std::shared_ptr<BufferPool>()>(), nullptr, 1024)) {
                 dummyChannel_ = std::make_shared<DummyInputChannel>(singleGate_, InputChannelInfo(0, 0));
         }
-    std::optional<std::shared_ptr<BufferOrEvent>> PollNext() override
+    BufferOrEvent* PollNext() override
     {
         return GetNext();
     }
@@ -161,11 +162,11 @@ public:
         singleGate_->announceBufferSize(bufferSize);
     }
 
-    std::optional<std::shared_ptr<BufferOrEvent>> GetNext() override
+    BufferOrEvent* GetNext() override
     {
         if (emitted_) {
             finished_ = true;
-            return std::nullopt;
+            return nullptr;
         }
 
         // Create a dummy checkpoint barrier event
@@ -177,7 +178,7 @@ public:
         auto boe = std::make_shared<BufferOrEvent>(barrier, InputChannelInfo(0, 0));
 
         emitted_ = true;
-        return std::make_optional(boe);
+        return boe.get();
     }
 
     int GetNumberOfInputChannels() override
@@ -220,9 +221,14 @@ public:
 
     void RequestPartitions() override {}
 
-    std::shared_ptr<CompletableFuture> getStateConsumedFuture() override
+    std::shared_ptr<CompletableFutureV2<void>> getStateConsumedFuture() override
     {
-        return std::make_shared<CompletableFuture>();
+        return std::make_shared<CompletableFutureV2<void>>();
+    }
+
+    std::vector<bool> getStateConsumedFuture1() override
+    {
+        return {};
     }
 
     void FinishReadRecoveredState() override {}
@@ -248,7 +254,7 @@ public:
                 }
         }
 
-    std::optional<std::shared_ptr<BufferOrEvent>> PollNext() override {
+    BufferOrEvent* PollNext() override {
         return GetNext();
     }
 
@@ -264,7 +270,7 @@ public:
         return channels_.at(idx);
     }
 
-    std::optional<std::shared_ptr<BufferOrEvent>> GetNext() override { return std::nullopt; }
+    BufferOrEvent* GetNext() override { return nullptr; }
     std::shared_ptr<CompletableFuture> GetAvailableFuture() override { return {}; }
     bool IsFinished() override { return false; }
     bool HasReceivedEndOfData() override { return false; }
@@ -273,7 +279,8 @@ public:
     void acknowledgeAllRecordsProcessed(const InputChannelInfo&) override {}
     void setup() override {}
     void RequestPartitions() override {}
-    std::shared_ptr<CompletableFuture> getStateConsumedFuture() override { return {}; }
+    std::shared_ptr<CompletableFutureV2<void>> getStateConsumedFuture() override { return {}; }
+    std::vector<bool> getStateConsumedFuture1() override{return {};}
     void FinishReadRecoveredState() override {}
 
 private:

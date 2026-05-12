@@ -27,11 +27,13 @@ namespace omnistream {
 
     class ChannelStateWriterImpl : public ChannelStateWriter {
     public:
+        ChannelStateWriterImpl() = default;
         ChannelStateWriterImpl(
             const JobVertexID &jobVertexID,
             const std::string &taskName,
             int subtaskIndex,
-            CheckpointStorage *checkpointStorage,
+            std::shared_ptr<CheckpointStorage> checkpointStorage,
+            std::shared_ptr<CheckpointStorageWorkerView> streamFactoryResolver,
             int maxCheckpoints = 1000,
             int maxSubtasksPerChannelStateFile = 10);
 
@@ -40,22 +42,23 @@ namespace omnistream {
             long checkpointId,
             const InputChannelInfo &info,
             int startSeqNum,
-            std::vector<ObjectBuffer *> data) override;
+            std::vector<Buffer*> data) override;
         void AddOutputData(
             long checkpointId,
             const ResultSubpartitionInfoPOD &info,
             int startSeqNum,
-            std::vector<ObjectBuffer *> &data) override;
+            std::vector<Buffer*> &data) override;
         void AddOutputDataFuture(
             long checkpointId,
             const ResultSubpartitionInfoPOD &info,
             int startSeqNum,
-            std::shared_ptr<CompletableFutureV2<std::vector<ObjectBuffer *>>> data) override;
+            std::shared_ptr<CompletableFutureV2<std::vector<Buffer*>>> data) override;
         void FinishInput(long checkpointId) override;
         void FinishOutput(long checkpointId) override;
         void Abort(long checkpointId, const std::exception_ptr &cause, bool cleanup) override;
-        ChannelStateWriter::ChannelStateWriteResult GetAndRemoveWriteResult(long checkpointId) override;
+        std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> GetAndRemoveWriteResult(long checkpointId) override;
         void Close();
+        void open() override;
 
     private:
         JobVertexID jobVertexID_;
@@ -64,12 +67,12 @@ namespace omnistream {
         int maxCheckpoints_;
         std::atomic<bool> wasClosed_;
         std::mutex resultsMutex_;
-        std::unique_ptr<ChannelStateWriteRequestExecutor> executor_;
-        std::map<long, ChannelStateWriteResult> results_;
-        std::unique_ptr<ChannelStateSerializer> serializer_;
+        std::shared_ptr<ChannelStateWriteRequestExecutor> executor_;
+        std::map<long, std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult>> results_;
+        std::shared_ptr<ChannelStateSerializer> serializer_;
 
         void validateCheckpointId(long checkpointId);
-        void enqueue(std::unique_ptr<ChannelStateWriteRequest> request, bool priority);
+        void enqueue(std::shared_ptr<ChannelStateWriteRequest> request, bool priority);
     };
 
 } // namespace omnistream

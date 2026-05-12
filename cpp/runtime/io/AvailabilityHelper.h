@@ -37,6 +37,8 @@ namespace omnistream {
 
     private:
         std::shared_ptr<CompletableFuture> availableFuture;
+    protected:
+        std::recursive_mutex availableFutureMutex;
     };
 
 } // namespace omnistream

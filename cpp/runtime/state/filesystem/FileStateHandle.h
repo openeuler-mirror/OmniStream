@@ -46,7 +46,7 @@ public:
         return filePath_;
     }
 
-    std::unique_ptr<FSDataInputStream> OpenInputStream() const override
+    std::shared_ptr<FSDataInputStream> OpenInputStream() const override
     {
         return nullptr;
     }
@@ -88,12 +88,13 @@ public:
 
     std::string ToString() const override
     {
-        nlohmann::json json;
-        json["stateHandleName"] = "FileStateHandle";
-        json["filePath"] = filePath_.toString();
-        json["stateSize"] = stateSize_;
-        json["streamStateHandleID"] = nlohmann::json::parse(GetStreamStateHandleID().ToString());
-        return json.dump();
+        nlohmann::json j;
+        j["@class"] = "org.apache.flink.runtime.state.filesystem.FileStateHandle";
+        j["filePath"] = filePath_.toString();
+        j["stateSize"] = stateSize_;
+        j["relativePath"] = filePath_.toString();
+        j["streamStateHandleID"] = nlohmann::json::parse(GetStreamStateHandleID().ToString());
+        return j.dump();
     }
 
     bool operator==(const StreamStateHandle& other) const override
@@ -106,6 +107,7 @@ public:
 private:
     Path filePath_;
     long stateSize_;
+    std::string relativePath;
 };
 
 #endif // OMNISTREAM_FILESTATEHANDLE_H

@@ -10,8 +10,7 @@
  */
 
 
-#ifndef FLINK_TNEL_DATAOUTPUTSERIALIZER_H
-#define FLINK_TNEL_DATAOUTPUTSERIALIZER_H
+# pragma once
 #include <securec.h>
 #include <vector>
 #include <cstddef>
@@ -35,44 +34,51 @@ public:
         }
     }
 
-    void setBackendBuffer(uint8_t* address, int32_t capacity);
-    void setBackendBuffer(OutputBufferStatus* outputBufferStatus);
-    void clear();
+    inline void setBackendBuffer(uint8_t* address, int32_t capacity);
+    inline void setBackendBuffer(OutputBufferStatus* outputBufferStatus);
+    inline void clear();
 
-    void setPosition(int position);
-    void setPositionUnsafe(int position);
-    void writeIntUnsafe(uint32_t value, int pos);
-    int length() const;
-    void writeLong(int64_t value) ;
+    inline void setPosition(int position);
+    inline void setPositionUnsafe(int position);
+    inline void writeIntUnsafe(uint32_t value, int pos);
+    inline int length() const;
+    inline void writeLong(int64_t value) ;
 
-    void writeRecordTimestamp(uint64_t value);
+    inline void writeRecordTimestamp(uint64_t value);
 
-    void writeByte(uint32_t var) ;
+    inline void writeByte(uint32_t var) ;
 
-    void writeUTF(std::string str) ;
+    inline void writeUTF(std::string str) ;
 
-    void write(uint32_t var1) ;
+    inline void write(uint32_t var1) ;
+
+    inline void write(std::vector<uint8_t>& var);
 
     // todo: need to use int32_t
-    void writeInt(uint32_t value);
+    inline void writeInt(uint32_t value);
 
-    void writeBoolean(bool var);
+    inline void writeBoolean(bool var);
 
-    void writeDouble(double value);
+    inline void writeDouble(double value);
 
-    void write(uint8_t *buffer, int bufferSize, int dstOffset, int length);
-    void expandDataBuffer(int requiredSize);
+    inline void write(uint8_t *buffer, int bufferSize, int dstOffset, int length);
+    inline void expandDataBuffer(int requiredSize);
 
-    ByteBuffer* wrapAsByteBuffer();
+    inline ByteBuffer* wrapAsByteBuffer();
 
-    uint8_t* getData();
-    int getPosition() ;
+    inline uint8_t* getData();
+    inline int getPosition();
+
+    std::vector<uint8_t>* getCopyOfBuffer() {
+        return new std::vector<uint8_t>(data_, data_ + position_);
+    }
 
 private:
     uint8_t* data_ = nullptr;
     int position_ = 0;
     int capacity_ = 0;
     OutputBufferStatus *outputBufferStatus = nullptr;
+    ByteBuffer reusedWrapper;
 };
 
 inline DataOutputSerializer::DataOutputSerializer(int size)
@@ -82,7 +88,9 @@ inline DataOutputSerializer::DataOutputSerializer(int size)
 
 inline ByteBuffer* DataOutputSerializer::wrapAsByteBuffer()
 {
-    return ByteBuffer::wrap(data_, 0, position_);
+    ByteBuffer *byteBuffer = reusedWrapper.wrapOpt(data_, 0,  position_);
+    return byteBuffer;
+    // return ByteBuffer::wrap(data_, 0, position_);
 }
 
 inline uint8_t* DataOutputSerializer::getData()
@@ -117,13 +125,13 @@ inline void DataOutputSerializer::setPosition(int position)
     position_ = position;
 }
 
-inline  void DataOutputSerializer::setPositionUnsafe(int position)
+inline void DataOutputSerializer::setPositionUnsafe(int position)
 {
     position_ = position;
 }
 
 // flink buffer should be big endian. assume native byte order is little endian
-inline  void DataOutputSerializer::writeIntUnsafe(uint32_t value, int pos)
+inline void DataOutputSerializer::writeIntUnsafe(uint32_t value, int pos)
 {
     *reinterpret_cast<uint32_t*>(data_ + pos) = __builtin_bswap32(value);
 }
@@ -142,6 +150,10 @@ inline void DataOutputSerializer::writeByte(uint32_t var)
 inline void DataOutputSerializer::write(uint32_t value)
 {
     writeByte(value);
+}
+
+inline void DataOutputSerializer::write(std::vector<uint8_t>& var) {
+    write(var.data(), var.size(), 0, var.size());
 }
 
 inline void DataOutputSerializer::writeInt(uint32_t value)
@@ -180,7 +192,7 @@ inline void DataOutputSerializer::writeRecordTimestamp(uint64_t value)
     position_ += 8;
 }
 
-inline  void DataOutputSerializer::write(uint8_t *buffer, int bufferSize, int dstOffset, int length)
+inline void DataOutputSerializer::write(uint8_t *buffer, int bufferSize, int dstOffset, int length)
 {
     expandDataBuffer(length);
     std::copy(buffer + dstOffset, buffer + dstOffset + length, data_ + position_);
@@ -191,7 +203,7 @@ inline void DataOutputSerializer::expandDataBuffer(int requiredSize)
 {
     if (unlikely(position_ + requiredSize > capacity_)) {
         LOG("******************output buffer is full, expand the buffer****************************************");
-        capacity_ = (position_ + requiredSize) * 2;
+        capacity_ = (position_ + requiredSize) * 4;
         uint8_t *newData = new uint8_t[capacity_];
         // when data_ is nullptr, memcpy_s return not EOK, will cause exception
         if (likely(data_ != nullptr)) {
@@ -277,5 +289,3 @@ inline void DataOutputSerializer::writeBoolean(bool var)
 {
     write(var ? 1 : 0);
 }
-
-#endif  // FLINK_TNEL_DATAOUTPUTSERIALIZER_H

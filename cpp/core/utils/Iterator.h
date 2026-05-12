@@ -8,17 +8,16 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef FLINK_TNEL_ITERATOR_H
-#define FLINK_TNEL_ITERATOR_H
+#pragma once
+
+#include "common.h"
 
 namespace omnistream::utils {
-template <typename E>
-class Iterator {
-    virtual bool hasNext() = 0;
-    virtual E next() = 0;
-    virtual void remove() {};
-};
+    template <typename E> class Iterator {
+    public:
+        virtual ~Iterator() = default;
+        virtual bool hasNext() = 0;
+        virtual E next() = 0;
+        virtual void remove() { NOT_IMPL_EXCEPTION }
+    };
 }
-
-
-#endif // FLINK_TNEL_COPYONWRITESTATEMAP_H

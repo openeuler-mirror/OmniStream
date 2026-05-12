@@ -102,10 +102,58 @@ of resizing granularity. Ignoring variance, the expected occurrences of list siz
 #include <functional>
 #include <iterator>
 #include <algorithm>
+#include <emhash7.hpp>
 #include "StateMap.h"
 #include "core/typeutils/TypeSerializer.h"
 #include "../internal/InternalKvState.h"
 #include "table/data/binary/BinaryRowData.h"
+
+namespace cowstatemap_detail {
+// Type trait to detect emhash7::HashMap pointer types
+template<typename T> struct IsEmhashMapPtrType : std::false_type {};
+template<typename UK, typename UV>
+struct IsEmhashMapPtrType<emhash7::HashMap<UK, UV>*> : std::true_type {};
+
+// Helper to check if a type is emhash7::HashMap<Object*, ...>*
+template<typename T> struct HasObjectKeyInMap : std::false_type {};
+template<typename UV>
+struct HasObjectKeyInMap<emhash7::HashMap<Object*, UV>*> : std::true_type {};
+
+template<typename T> struct HasObjectValueInMap : std::false_type {};
+template<typename UK>
+struct HasObjectValueInMap<emhash7::HashMap<UK, Object*>*> : std::true_type {};
+
+/**
+ * Clean up Object* entries inside an inner emhash7::HashMap before deleting it.
+ * This handles the case where HeapMapState<K, N, Object*, Object*>'s inner
+ * HashMap is destroyed — the emhash7 destructor doesn't call putRefCount.
+ */
+template<typename V>
+inline void cleanupInnerMapAndDelete(V mapPtr)
+{
+    if (mapPtr == nullptr) return;
+    if constexpr (IsEmhashMapPtrType<V>::value) {
+        if constexpr (HasObjectKeyInMap<V>::value || HasObjectValueInMap<V>::value) {
+            for (auto &entry : *mapPtr) {
+                if constexpr (HasObjectKeyInMap<V>::value) {
+                    Object *key = static_cast<Object*>(entry.first);
+                    if (key != nullptr) {
+                        key->putRefCount();
+                    }
+                }
+                if constexpr (HasObjectValueInMap<V>::value) {
+                    Object *value = static_cast<Object*>(entry.second);
+                    if (value != nullptr) {
+                        value->putRefCount();
+                    }
+                }
+            }
+            mapPtr->clear();
+        }
+    }
+    delete mapPtr;
+}
+} // namespace cowstatemap_detail
 #if EMH_WY_HASH
 #include "wyhash.h"
 #endif
@@ -282,6 +330,13 @@ namespace omnistream {
         template<typename K, typename N>
         size_t operator()(const K &_key1, const K &_key2, const N &_nmspace1, const N &_nmspace2) const
         {
+            if constexpr (std::is_pointer_v<K>) {
+ 	                if (_key1 == nullptr && _key2 == nullptr) {
+ 	                     return std::equal_to<N>{}(_nmspace1, _nmspace2);
+ 	                }else if (_key1 == nullptr || _key2 == nullptr){
+ 	                     return  false;
+ 	                }
+ 	        }
             return std::equal_to<K>{}(_key1, _key2) && std::equal_to<N>{}(_nmspace1, _nmspace2);
         }
     };
@@ -476,21 +531,32 @@ namespace omnistream {
             if (isempty) {
                 if constexpr (NeedClone<KeyT>::value) {
                     if constexpr (std::is_same<KeyT, Object*>::value) {
-                        Object *cloned = reinterpret_cast<Object *>(key)->clone();
+                        Object *cloned = (key != nullptr) ? reinterpret_cast<Object *>(key)->clone() : nullptr;
                         EMH_NEW(cloned, std::move(ValueT()), nmspace, bucket, stateMapVersion);
                     }
 
                     if constexpr (std::is_same<KeyT, BinaryRowData*>::value || std::is_same<KeyT, RowData*>::value) {
-                        BinaryRowData *cloned = reinterpret_cast<BinaryRowData*>
-                            (reinterpret_cast<BinaryRowData *>(key)->copy());
+                        BinaryRowData *cloned = (key != nullptr) ? reinterpret_cast<BinaryRowData*>
+ 	                             (reinterpret_cast<BinaryRowData *>(key)->copy()) : nullptr;
                         EMH_NEW(cloned, std::move(ValueT()), nmspace, bucket, stateMapVersion);
                     }
                 } else {
                     EMH_NEW(key, std::move(ValueT()), nmspace, bucket, stateMapVersion);
                 }
             }
-
+            if constexpr (std::is_same_v<ValueT, Object*>) {
+                Object *oldValue = static_cast<Object*>(EMH_VAL(_pairs, bucket));
+                if (oldValue != nullptr) {
+                    oldValue->putRefCount();
+                }
+            }
             EMH_VAL(_pairs, bucket) = value;
+            if constexpr (std::is_same_v<ValueT, Object*>) {
+                Object *newValue = static_cast<Object*>(EMH_VAL(_pairs, bucket));
+                if (newValue != nullptr) {
+                    newValue->getRefCount();
+                }
+            }
         }
 
         void put(KeyT&& key, N&& nmspace, ValueT&& value) noexcept override
@@ -504,9 +570,47 @@ namespace omnistream {
             }
             EMH_VAL(_pairs, bucket) = std::move(value);
         }
-        // todo: implement these
-        ValueT putAndGetOld(const KeyT &key, const N &nameSpace, const ValueT &state) override { return {}; }
-        ValueT removeAndGetOld(const KeyT &key, const N &nameSpace) override { return {}; }
+        ValueT putAndGetOld(const KeyT &key, const N &nameSpace, const ValueT &state) override
+        {
+            const auto bucket = find_filled_bucket(key, nameSpace);
+            if (bucket == _num_buckets) {
+                put(key, nameSpace, state);
+                if constexpr (std::is_pointer_v<ValueT>) {
+                    return nullptr;
+                } else {
+                    return {};
+                }
+            }
+            ValueT oldValue = EMH_VAL(_pairs, bucket);
+            // Use put() which handles refcounting properly
+            put(key, nameSpace, state);
+            return oldValue;
+        }
+        ValueT removeAndGetOld(const KeyT &key, const N &nameSpace) override
+        {
+            const auto bucket = find_filled_bucket(key, nameSpace);
+            if (bucket == _num_buckets) {
+                if constexpr (std::is_pointer_v<ValueT>) {
+                    return nullptr;
+                } else {
+                    return {};
+                }
+            }
+            // Save key and value before erase_key may move data around
+            KeyT savedKey = EMH_KEY(_pairs, bucket);
+            ValueT savedValue = EMH_VAL(_pairs, bucket);
+            const auto erased = erase_key(key, nameSpace);
+            clear_bucket(erased);
+            // Clean up the key (caller takes ownership of the value, so no cleanup for it)
+            if constexpr (std::is_same_v<KeyT, Object*>) {
+                if (savedKey != nullptr) {
+                    static_cast<Object*>(savedKey)->putRefCount();
+                }
+            } else if constexpr (NeedClone<KeyT>::value && std::is_pointer_v<KeyT>) {
+                delete savedKey;
+            }
+            return savedValue;
+        }
 
         // If key exist, return it. If not, create one with default value
         std::pair<iterator, bool> do_insert(KeyT&& key, N&& nmspace, ValueT&& defaultV)
@@ -521,19 +625,36 @@ namespace omnistream {
 
         void remove(const KeyT& key, const N& nmspace) override
         {
-            const auto bucket = erase_key(key, nmspace);
-            clear_bucket(bucket);
+            const auto bucket = find_filled_bucket(key, nmspace);
+            if (bucket == _num_buckets) {
+                return;
+            }
+            // Save pointers for cleanup BEFORE erase_key moves data around
+            KeyT savedKey = EMH_KEY(_pairs, bucket);
+            ValueT savedValue = EMH_VAL(_pairs, bucket);
+            const auto erased = erase_key(key, nmspace);
+            clear_bucket(erased);
+            // Now clean up the saved Object* refs after the entry is fully erased
+            cleanupSavedRefs(savedKey, savedValue);
         }
 
         /// Erase an element from the hash table.
         /// return 0 if element was not found
         size_type erase(const KeyT& key, const N& nmspace)
         {
-            const auto bucket = erase_key(key, nmspace);
-            if (bucket == INACTIVE)
+            const auto bucket = find_filled_bucket(key, nmspace);
+            if (bucket == _num_buckets)
+                return 0;
+            // Save pointers for cleanup BEFORE erase_key moves data around
+            KeyT savedKey = EMH_KEY(_pairs, bucket);
+            ValueT savedValue = EMH_VAL(_pairs, bucket);
+            const auto erased = erase_key(key, nmspace);
+            if (erased == INACTIVE)
                 return 0;
 
-            clear_bucket(bucket);
+            clear_bucket(erased);
+            // Now clean up the saved Object* refs after the entry is fully erased
+            cleanupSavedRefs(savedKey, savedValue);
             return 1;
         }
 
@@ -574,6 +695,9 @@ namespace omnistream {
                     }
                     if constexpr (std::is_same_v<ValueT, Object*>) {
                         static_cast<Object*>(it->second)->putRefCount();
+                    } else if constexpr (cowstatemap_detail::IsEmhashMapPtrType<ValueT>::value) {
+                        // For inner HashMap values: clean up Object* entries before deleting
+                        cowstatemap_detail::cleanupInnerMapAndDelete(it->second);
                     } else if constexpr (std::is_pointer_v<ValueT>) {
                         delete it->second;
                     }
@@ -849,6 +973,33 @@ namespace omnistream {
             _num_filled--;
             if (is_triviall_destructable())
                 _pairs[bucket].~PairT();
+        }
+
+        /**
+         * Clean up saved key/value refs AFTER the entry has been erased from the table.
+         * This handles refcounting for Object* and ownership for cloned pointer keys.
+         * For inner HashMap values (e.g. emhash7::HashMap<Object*, Object*>*), only
+         * deletes the HashMap structure — inner entry refcounting is HeapMapState's
+         * responsibility (its clear()/remove() already handle that before calling
+         * stateTable->remove()). cleanupInnerMapAndDelete is only used in the
+         * destructor for final shutdown cleanup.
+         */
+        void cleanupSavedRefs(const KeyT &savedKey, const ValueT &savedValue)
+        {
+            if constexpr (std::is_same_v<KeyT, Object*>) {
+                if (savedKey != nullptr) {
+                    static_cast<Object*>(savedKey)->putRefCount();
+                }
+            } else if constexpr (NeedClone<KeyT>::value && std::is_pointer_v<KeyT>) {
+                delete savedKey;
+            }
+            if constexpr (std::is_same_v<ValueT, Object*>) {
+                if (savedValue != nullptr) {
+                    static_cast<Object*>(savedValue)->putRefCount();
+                }
+            } else if constexpr (std::is_pointer_v<ValueT>) {
+                delete savedValue;
+            }
         }
 
         // Find the bucket with this key, or return bucket size

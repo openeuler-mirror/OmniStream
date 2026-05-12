@@ -14,7 +14,7 @@
 #include <unordered_set>
 
 TimeWindow SessionWindowAssigner::MergeWindow(TimeWindow &curWindow, const TimeWindow &other,
-    std::unordered_set<TimeWindow, MyKeyHash> &mergedWindow)
+    std::unordered_set<TimeWindow> &mergedWindow)
 {
     if (curWindow.intersects(other)) {
         mergedWindow.emplace(other);
@@ -39,7 +39,7 @@ void SessionWindowAssigner::MergeWindows(const TimeWindow &newWindow, std::set<T
     // upper_bound功能与java set的floor还不一致
     auto floor = sortedWindows->upper_bound(newWindow);
 
-    std::unordered_set<TimeWindow, MyKeyHash> mergedWindows;
+    std::unordered_set<TimeWindow> mergedWindows;
     TimeWindow mergeResult = newWindow;
     if (ceiling != sortedWindows->end()) {
         mergeResult = MergeWindow(mergeResult, *ceiling, mergedWindows);

@@ -8,16 +8,16 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef FLINK_TNEL_HEAPVALUESTATE_H
-#define FLINK_TNEL_HEAPVALUESTATE_H
+
+#pragma once
+
 #include "core/typeutils/TypeSerializer.h"
-#include "core/api/common/state/ValueState.h"
-#include "state/VoidNamespace.h"
 #include "StateTable.h"
 #include "core/api/common/state/StateDescriptor.h"
+#include "state/internal/InternalValueState.h"
 
 template <typename K, typename N, typename V>
-class HeapValueState : public ValueState<V>, public InternalKvState<K, N, V> {
+class HeapValueState : public InternalValueState<K, N, V> {
 public:
     HeapValueState(StateTable<K, N, V> *stateTable, TypeSerializer *keySerializer, TypeSerializer *valueSerializer,
         TypeSerializer *namespaceSerializer, V defaultValue);
@@ -86,14 +86,14 @@ void HeapValueState<K, N, V>::update(const V &value, bool copyKey)
         stateTable->copyCurrentKey();
     }
     if constexpr (std::is_same_v<V, Object*>) {
-        auto oldValue = static_cast<Object*>(stateTable->get(currentNamespace));
+        /*auto oldValue = static_cast<Object*>(stateTable->get(currentNamespace));
         if (oldValue != nullptr) {
             oldValue->putRefCount();
-        }
+        }*/
         if (value != nullptr) {
             auto newValue = static_cast<Object*>(value);
-            stateTable->put(currentNamespace, newValue);
-            newValue->getRefCount();
+            stateTable->put(currentNamespace, newValue); // oldValue handle putRefCount, newValue handle getRefCount in inner
+            // newValue->getRefCount();
         }
     } else {
         stateTable->put(currentNamespace, value);
@@ -132,4 +132,3 @@ V HeapValueState<K, N, V>::value()
         return result == std::numeric_limits<V>::max() ? defaultValue : result;
     }
 }
-#endif  // FLINK_TNEL_HEAPVALUESTATE_H

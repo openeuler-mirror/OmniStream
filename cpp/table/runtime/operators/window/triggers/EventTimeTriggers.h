@@ -142,7 +142,6 @@ public:
                 // if the watermark is already past the window fire immediately
                 return true;
             } else {
-                // todo 方法未实现？
                 this->ctx->RegisterEventTimeTimer(this->TriggerTime(window));
                 return false;
             }
@@ -160,8 +159,11 @@ public:
 
         void Clear(W window) override
         {
-            // todo 没有实现清理internalTimerService对应event队列元素功能
             this->ctx->DeleteEventTimeTimer(this->TriggerTime(window));
+        }
+
+        void OnMerge(W window, OnMergeContext<W> *mergeContext) override {
+            this->ctx->RegisterEventTimeTimer(this->TriggerTime(window));
         }
     };
 };

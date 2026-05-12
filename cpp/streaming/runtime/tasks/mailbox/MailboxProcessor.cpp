@@ -24,24 +24,29 @@ namespace omnistream {
 MailboxProcessor::MailboxProcessor() : suspended(false), mailboxLoopRunning(false)
 {}
 
-MailboxProcessor::MailboxProcessor(std::shared_ptr<MailboxDefaultAction> mailboxDefaultAction)
-    : MailboxProcessor(mailboxDefaultAction, StreamTaskActionExecutor::IMMEDIATE)
+MailboxProcessor::MailboxProcessor(std::unique_ptr<MailboxDefaultAction> mailboxDefaultAction)
+    : MailboxProcessor(std::move(mailboxDefaultAction), StreamTaskActionExecutor::IMMEDIATE)
 {}
 
-MailboxProcessor::MailboxProcessor(std::shared_ptr<MailboxDefaultAction> mailboxDefaultAction,
+MailboxProcessor::MailboxProcessor(std::unique_ptr<MailboxDefaultAction> mailboxDefaultAction,
     std::shared_ptr<StreamTaskActionExecutor> actionExecutor)
     : MailboxProcessor(
-          mailboxDefaultAction, std::make_shared<TaskMailboxImpl>(std::this_thread::get_id()), actionExecutor)
+          std::move(mailboxDefaultAction), new TaskMailboxImpl(std::this_thread::get_id()), actionExecutor)
 {}
 
-MailboxProcessor::MailboxProcessor(std::shared_ptr<MailboxDefaultAction> mailboxDefaultAction,
-    std::shared_ptr<TaskMailbox> mailbox, std::shared_ptr<StreamTaskActionExecutor> actionExecutor)
-    : mailbox_(mailbox), mailboxDefaultAction(mailboxDefaultAction), suspended(false), mailboxLoopRunning(true),
+MailboxProcessor::MailboxProcessor(std::unique_ptr<MailboxDefaultAction> mailboxDefaultAction,
+    TaskMailbox* mailbox, std::shared_ptr<StreamTaskActionExecutor> actionExecutor)
+    : mailbox_(mailbox), mailboxDefaultAction(std::move(mailboxDefaultAction)), suspended(false),
+      mailboxLoopRunning(true),
       suspendedDefaultAction(nullptr), actionExecutor(actionExecutor)
 {}
 
 MailboxProcessor::~MailboxProcessor()
-{}
+{
+    if (mailbox_) {
+        delete mailbox_;
+    }
+}
 
 std::shared_ptr<MailboxExecutor> MailboxProcessor::getMainMailboxExecutor()
 {
@@ -50,7 +55,7 @@ std::shared_ptr<MailboxExecutor> MailboxProcessor::getMainMailboxExecutor()
 
 std::shared_ptr<MailboxExecutor> MailboxProcessor::getMailboxExecutor(int priority)
 {
-    return std::make_shared<MailboxExecutorImpl>(mailbox_, priority, actionExecutor, shared_from_this());
+    return std::make_shared<MailboxExecutorImpl>(mailbox_, priority, actionExecutor, this);
 }
 
 void MailboxProcessor::prepareClose()
@@ -103,25 +108,28 @@ void MailboxProcessor::runMailboxLoop()
         throw std::runtime_error("Mailbox must be opened!");
     }
     LOG(">>>before isNextLoopPossible")
+    MailboxController *mailboxController = new MailboxController(this);
     while (isNextLoopPossible()) {
         // LOG(">>>before procsiyessMail")
         // workaround
-        workaround++;
+        // workaround++;
         // LOG_TRACE( "Round number " << workaround)
         // LOG("The current mailbox_ before processMail :" << mailbox_->toString())
 
+        // 阻塞的 `processMail` 调用将不会返回，直到有默认操作可用为止。
         processMail(mailbox_, false);
         if (isNextLoopPossible()) {
-            // LOG(">>>before runDefaultAction")
-            mailboxDefaultAction->runDefaultAction(std::make_shared<MailboxController>(shared_from_this()));
+            LOG(">>>before runDefaultAction")
+            mailboxDefaultAction->runDefaultAction(mailboxController);
         }
     }
-    LOG(">>>after isNextLoopPossible")
+    delete mailboxController;
+    INFO_RELEASE(">>>after isNextLoopPossible")
 }
 
 class LambdaSuspend : public MailboxProcessor::lambdaHelper {
 public:
-    explicit LambdaSuspend(std::shared_ptr<MailboxProcessor> obj1) : lambdaHelper(obj1){};
+    explicit LambdaSuspend(MailboxProcessor* obj1) : lambdaHelper(obj1){};
 
     void lambda()
     {
@@ -131,7 +139,7 @@ public:
 void MailboxProcessor::suspend()
 {
     auto runnable = std::make_shared<MemberFunctionRunnable<LambdaSuspend>>(
-        std::make_shared<LambdaSuspend>(shared_from_this()), &LambdaSuspend::lambda, "Suspend");
+        std::make_shared<LambdaSuspend>(this), &LambdaSuspend::lambda, "Suspend");
     sendPoisonMail(runnable);
 }
 
@@ -143,7 +151,9 @@ bool MailboxProcessor::runMailboxStep()
         return true;
     }
     if (isDefaultActionAvailable() && isNextLoopPossible()) {
-        mailboxDefaultAction->runDefaultAction(std::make_shared<MailboxController>(shared_from_this()));
+        auto controller = new MailboxController(this);
+        mailboxDefaultAction->runDefaultAction(controller);
+        delete controller;
         return true;
     }
     return false;
@@ -173,7 +183,7 @@ void MailboxProcessor::reportThrowable(std::exception_ptr throwable)
 
 class LambdaAllActionCompleted : public MailboxProcessor::lambdaHelper {
 public:
-    explicit LambdaAllActionCompleted(std::shared_ptr<MailboxProcessor> obj1) : lambdaHelper(obj1){};
+    explicit LambdaAllActionCompleted(MailboxProcessor* obj1) : lambdaHelper(obj1){};
     void lambda()
     {
         lambdaHelper::suspended(true);
@@ -184,13 +194,8 @@ public:
 void MailboxProcessor::allActionsCompleted()
 {
     auto runnable = std::make_shared<MemberFunctionRunnable<LambdaAllActionCompleted>>(
-        std::make_shared<LambdaAllActionCompleted>(shared_from_this()), &LambdaAllActionCompleted::lambda);
+        std::make_shared<LambdaAllActionCompleted>(this), &LambdaAllActionCompleted::lambda);
     sendPoisonMail(runnable);
-}
-
-bool MailboxProcessor::isDefaultActionAvailable()
-{
-    return suspendedDefaultAction == nullptr;
 }
 
 bool MailboxProcessor::isMailboxLoopRunning()
@@ -212,7 +217,7 @@ std::string MailboxProcessor::toString() const
 
 class LambdaSendPoisonMail : public MailboxProcessor::lambdaHelper {
 public:
-    LambdaSendPoisonMail(std::shared_ptr<MailboxProcessor> processor, std::shared_ptr<ThrowingRunnable> runnableMail)
+    LambdaSendPoisonMail(MailboxProcessor* processor, std::shared_ptr<ThrowingRunnable> runnableMail)
         : lambdaHelper(processor), runnableMail_(runnableMail){};
     void lambda()
     {
@@ -228,19 +233,20 @@ public:
 void MailboxProcessor::sendPoisonMail(std::shared_ptr<ThrowingRunnable> runnableMail)
 {
     auto runnable = std::make_shared<MemberFunctionRunnable<LambdaSendPoisonMail>>(
-        std::make_shared<LambdaSendPoisonMail>(shared_from_this(), runnableMail), &LambdaSendPoisonMail::lambda);
+        std::make_shared<LambdaSendPoisonMail>(this, runnableMail), &LambdaSendPoisonMail::lambda);
     mailbox_->runExclusively(runnable);
 }
 
 void MailboxProcessor::sendControlMail(std::shared_ptr<ThrowingRunnable> runnable, const std::string &descriptionFormat,
     const std::vector<std::string> &descriptionArgs)
 {
-    auto mail = std::make_shared<Mail>(runnable, INT_MAX, descriptionFormat, descriptionArgs);
+    auto mail = new Mail(runnable, INT_MAX, descriptionFormat, descriptionArgs);
     mailbox_->putFirst(mail);
     LOG("MailboxProcessor::sendControlMail after putFirst " << mailbox_->toString());
 }
 
-bool MailboxProcessor::processMail(std::shared_ptr<TaskMailbox> mailbox, bool singleStep)
+// 处理 MailBox 中的 mail, 如果没有 mail 要处理，这里直接返回; MailBox 中当前现存的 mail 全部处理完.
+bool MailboxProcessor::processMail(TaskMailbox* mailbox, bool singleStep)
 {
     bool isBatchAvailable = mailbox->createBatch();
     bool processed = isBatchAvailable && processMailsNonBlocking(singleStep);
@@ -254,14 +260,15 @@ bool MailboxProcessor::processMail(std::shared_ptr<TaskMailbox> mailbox, bool si
 bool MailboxProcessor::processMailsWhenDefaultActionUnavailable()
 {
     bool processedSomething = false;
-    std::optional<std::shared_ptr<Mail>> maybeMail;
+    Mail* maybeMail = nullptr;
     while (!isDefaultActionAvailable() && isNextLoopPossible()) {
         maybeMail = mailbox_->tryTake(TaskMailbox::MIN_PRIORITY);
         if (!maybeMail) {
             maybeMail = mailbox_->take(TaskMailbox::MIN_PRIORITY);
         }
         maybePauseIdleTimer();
-        maybeMail.value()->run();
+        maybeMail->run();
+        delete maybeMail;
         maybeRestartIdleTimer();
         processedSomething = true;
     }
@@ -271,13 +278,14 @@ bool MailboxProcessor::processMailsWhenDefaultActionUnavailable()
 bool MailboxProcessor::processMailsNonBlocking(bool singleStep)
 {
     long processedMails = 0;
-    std::optional<std::shared_ptr<Mail>> maybeMail;
+    Mail *maybeMail = nullptr;
 
     while (isNextLoopPossible() && (maybeMail = mailbox_->tryTakeFromBatch())) {
         if (processedMails++ == 0) {
             maybePauseIdleTimer();
         }
-        maybeMail.value()->run();
+        maybeMail->run();
+        delete maybeMail;
         if (singleStep) {
             break;
         }
@@ -304,9 +312,7 @@ void MailboxProcessor::maybeRestartIdleTimer()
     }
 }
 
-std::shared_ptr<MailboxDefaultAction::Suspension> MailboxProcessor::suspendDefaultAction(
-    std::shared_ptr<PeriodTimer> suspensionTimer)
-{
+std::shared_ptr<MailboxDefaultAction::Suspension> MailboxProcessor::suspendDefaultAction(std::shared_ptr<PeriodTimer> suspensionTimer) {
     if (!mailbox_->isMailboxThread()) {
         throw std::runtime_error("Suspending must only be called from the mailbox thread!");
     }
@@ -315,32 +321,40 @@ std::shared_ptr<MailboxDefaultAction::Suspension> MailboxProcessor::suspendDefau
         throw std::runtime_error("Default action has already been suspended");
     }
     if (!suspendedDefaultAction) {
-        suspendedDefaultAction = std::make_shared<DefaultActionSuspension>(suspensionTimer);
+        suspendedDefaultAction = std::make_shared<DefaultActionSuspension>(this, suspensionTimer);
     }
 
-    maybeRestartIdleTimer();
     return suspendedDefaultAction;
-}
-
-bool MailboxProcessor::isNextLoopPossible()
-{
-    return !suspended;
 }
 
 void MailboxProcessor::sendPoisonMail(std::shared_ptr<ThrowingRunnable> mail, const std::string &descriptionFormat)
 {
     auto runnable = std::make_shared<MemberFunctionRunnable<LambdaSendPoisonMail>>(
-        std::make_shared<LambdaSendPoisonMail>(shared_from_this(), mail), &LambdaSendPoisonMail::lambda);
+        std::make_shared<LambdaSendPoisonMail>(this, mail), &LambdaSendPoisonMail::lambda);
     mailbox_->runExclusively(runnable);
 }
 
-MailboxProcessor::DefaultActionSuspension::~DefaultActionSuspension() {
-}
+class LambdaResume : public MailboxProcessor::lambdaHelper {
+public:
+    LambdaResume(MailboxProcessor* processor) : lambdaHelper(processor) {}
+    void lambda() {
+        resume();
+    }
+};
 
 void MailboxProcessor::DefaultActionSuspension::resume() {
+    if (this->mailboxProcessor_->isMailboxThread()) {
+        this->mailboxProcessor_->suspendedDefaultAction = nullptr;
+        return;
+    }
+
+    try {
+        auto runnable = std::make_shared<MemberFunctionRunnable<LambdaResume>>(
+            std::make_shared<LambdaResume>(this->mailboxProcessor_), &LambdaResume::lambda);
+        this->mailboxProcessor_->sendControlMail(runnable, "resume default action");
+    } catch (...) {
+        GErrorLog("Something wrong happen, but ignore it");
+    }
 }
 
 }  // namespace omnistream
-
-// MailboxProcessor::MailboxController::MailboxController(MailboxProcessor* mailboxProcessor) :
-// mailboxProcessor(mailboxProcessor

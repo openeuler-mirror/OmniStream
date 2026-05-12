@@ -38,6 +38,7 @@
 #include "table/data/vectorbatch/VectorBatch.h"
 #include "include/common.h"
 #include "../bind_core_manager.h"
+#include "api/common/TimerThreadPool.h"
 
 class KafkaWriter {
 public:
@@ -52,6 +53,7 @@ public:
     void write(String *element);
     void write(Row *element);
     void write(RowData *element);
+    void write(omnistream::VectorBatch *input, int rowIndex);
 
     void produce(RdKafka::Producer* kafkaProducer,
                  RdKafka::Topic *rd_topic,
@@ -102,13 +104,12 @@ private:
     std::queue<std::function<void()>> tasks; // 任务队列
     std::atomic<bool> stop_flag{false};      // 停止标志
 
-    std::recursive_mutex gMtx;
+    std::mutex gMtx;
+    std::condition_variable gcv;
     timespec start;
     timespec end;
 
-    std::thread time_worker_thread;
     std::atomic<bool> timer_worker_thread_flag{true};
-    std::vector<KeyValueByteContainer> records;
 
     void AbortCurrentProducer();
     void abortLingeringTransactions(const std::vector<KafkaWriterState>& recoveredStates, long startCheckpointId);
@@ -124,30 +125,19 @@ private:
     int producerIndexTwo = 2;
     int32_t bindCore = -1;
     bool binded = false;
+    omnistream::TimerThreadPool::TaskId taskId;
 
     void  Init()
     {
         instanceId = getInstanceId();
         values.reserve(limit);
         valuesLens.reserve(limit);
-        records.reserve(limit);
     };
 
     void timer_thread()
     {
-        const int SLEEP_TIME = 5;
-        while (timer_worker_thread_flag.load()) {
-            clock_gettime(CLOCK_MONOTONIC, &end);
-            // 计算时间差
-            uint64_t ns = (end.tv_sec - start.tv_sec) * 1000000000L + (end.tv_nsec - start.tv_nsec);
-            if (ns >= 5000000000L) {
-                handleRecord();
-                start = end;
-            }
-
-            // 降低CPU占用，每秒检查一次
-            std::this_thread::sleep_for(std::chrono::seconds(SLEEP_TIME));
-        }
+        std::unique_lock<std::mutex> gLock(gMtx);
+        handleRecord();
     }
 
     void WorkerThreadFunc()

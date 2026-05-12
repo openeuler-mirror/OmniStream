@@ -21,6 +21,7 @@ namespace omnistream::datastream {
         DeserializationResult &result = readNextRecord(target);
         if (currentBuffer && result.isBufferConsumed()) {
             currentBuffer->RecycleBuffer();
+            delete currentBuffer; // this is ReadOnlySlicedNetworkBuffer, so we directly delete it
             currentBuffer = nullptr;
         }
         return result;
@@ -105,10 +106,10 @@ namespace omnistream::datastream {
     {
         return "SpillingAdaptiveSpanningRecordDeserializer";
     }
-    void SpillingAdaptiveSpanningRecordDeserializer::SetNextBuffer(std::shared_ptr<ReadOnlySlicedNetworkBuffer> buffer)
+    void SpillingAdaptiveSpanningRecordDeserializer::SetNextBuffer(ReadOnlySlicedNetworkBuffer* buffer)
     {
         currentBuffer = buffer;
-        std::shared_ptr<MemorySegment>  memorySegment = buffer->getMemorySegment();
+        auto memorySegment = buffer->getMemorySegment();
         int offset = buffer->GetMemorySegmentOffset();
         int numBytes = buffer->GetSize();
         const uint8_t *data = memorySegment->getData();
@@ -119,6 +120,20 @@ namespace omnistream::datastream {
         } else {
             nonSpanningWrapper->InitializeFromMemoryBuffer(data, offset, numBytes + offset);
         }
+    }
+
+    std::vector<omnistream::Buffer*> SpillingAdaptiveSpanningRecordDeserializer::GetUnconsumedBuffer()
+    {
+        auto buffer = nonSpanningWrapper->hasRemaining() ?
+            nonSpanningWrapper->GetUnconsumedSegment() :
+            spanningWrapper->GetUnconsumedSegment();
+        std::vector<omnistream::Buffer*> buffers;
+        if (buffer != nullptr) {
+            buffers.push_back(buffer);
+            return buffers;
+        }
+        LOG_DEBUG(" buffers is null  ");
+        return buffers;
     }
 
     SpillingAdaptiveSpanningRecordDeserializer::~SpillingAdaptiveSpanningRecordDeserializer()

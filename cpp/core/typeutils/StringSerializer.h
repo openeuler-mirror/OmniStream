@@ -50,7 +50,13 @@ public:
 
     Object* GetBuffer() override;
 
+    std::string toJson() override
+    {
+        SerializerJsonInfo typeJson = {SerializerType::STRING_T};
+        return typeJson.toJson();
+    }
+
 private:
-    StringSerializer* reuseSerializer;
+    StringSerializer* reuseSerializer = nullptr;
 };
 #endif

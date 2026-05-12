@@ -9,7 +9,13 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include "WatermarkStatus.h"
-
-WatermarkStatus* WatermarkStatus::idle = new WatermarkStatus(WatermarkStatus::idleStatus);
-WatermarkStatus* WatermarkStatus::active = new WatermarkStatus(WatermarkStatus::activeStatus);
+#ifndef OMNISTREAM_CHANNELSTATEHOLDER_H
+#define OMNISTREAM_CHANNELSTATEHOLDER_H
+#include "runtime/checkpoint/channel/ChannelStateWriter.h"
+namespace omnistream {
+    class ChannelStateHolder {
+        public:
+        virtual void setChannelStateWriter(std::shared_ptr<ChannelStateWriter> channelStateWriter) = 0;
+    };
+}
+#endif //OMNISTREAM_CHANNELSTATEHOLDER_H

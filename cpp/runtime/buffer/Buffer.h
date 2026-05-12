@@ -20,16 +20,17 @@
 namespace omnistream {
     class Buffer {
     public:
-        // virtual ~Buffer() = 0;
+        virtual ~Buffer() = default;
 
         virtual bool isBuffer() const = 0;
         virtual std::shared_ptr<BufferRecycler> GetRecycler() = 0;
         virtual void RecycleBuffer() = 0;
 
         virtual bool IsRecycled() const = 0;
-        virtual std::shared_ptr<Buffer> RetainBuffer() = 0;
-        virtual std::shared_ptr<Buffer> ReadOnlySlice() = 0;
-        virtual std::shared_ptr<Buffer> ReadOnlySlice(int index, int length) = 0;
+        virtual bool ShouldBeDeleted() { return false; }
+        virtual Buffer* RetainBuffer() = 0;
+        virtual Buffer* ReadOnlySlice() = 0;
+        virtual Buffer* ReadOnlySlice(int index, int length) = 0;
         virtual int GetMaxCapacity() const = 0;
         virtual int GetReaderIndex() const = 0;
         virtual void SetReaderIndex(int readerIndex) = 0;
@@ -47,7 +48,7 @@ namespace omnistream {
 
         // temp added
         virtual int EventType() const = 0;
-        virtual std::shared_ptr<Segment> GetSegment() = 0;
+        virtual Segment *GetSegment() = 0;
         virtual int GetOffset() const = 0;
     };
 }

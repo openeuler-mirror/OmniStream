@@ -12,13 +12,12 @@
 #define WINDOWVALUESTATE_H
 
 #include "WindowState.h"
-#include "table/data/RowData.h"
-#include "runtime/state/heap/HeapValueState.h"
+#include "state/internal/InternalValueState.h"
 
 template<typename KeyType, typename W, typename ValType>
 class WindowValueState : public WindowState<W> {
 public:
-    WindowValueState(HeapValueState<KeyType, W, ValType> *windowState) : windowState(windowState) {};
+    WindowValueState(InternalValueState<KeyType, W, ValType> *windowState) : windowState(windowState) {};
 
     void clear(W window) override
     {
@@ -58,7 +57,7 @@ public:
         return windowState->getVectorBatchesSize();
     };
 private:
-    HeapValueState<KeyType, W, ValType> *windowState;
+    InternalValueState<KeyType, W, ValType>* windowState;
 };
 
 #endif

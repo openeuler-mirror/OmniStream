@@ -13,64 +13,71 @@
 namespace omnistream {
 
     ChannelStateWriteRequestDispatcherImpl::ChannelStateWriteRequestDispatcherImpl(
-        CheckpointStorage *checkpointStorage,
+        std::shared_ptr<CheckpointStorage> checkpointStorage,
         const JobIDPOD &jobID,
-        ChannelStateSerializer *serializer)
+        std::shared_ptr<ChannelStateSerializer> serializer,
+        std::shared_ptr<CheckpointStorageWorkerView> streamFactoryResolver)
         : checkpointStorage(checkpointStorage),
           jobID(jobID),
           serializer(serializer),
           ongoingCheckpointId(-1),
           maxAbortedCheckpointId(-1),
           abortedSubtaskID(JobVertexID(-1, -1), -1),
-          streamFactoryResolver(nullptr) {}
+          streamFactoryResolver(streamFactoryResolver) {}
 
-    void ChannelStateWriteRequestDispatcherImpl::dispatch(ChannelStateWriteRequest &request)
+    void ChannelStateWriteRequestDispatcherImpl::dispatch(std::shared_ptr<ChannelStateWriteRequest> request)
     {
         try {
             dispatchInternal(request);
         } catch (...) {
-            request.cancel(std::current_exception());
+            request->cancel(std::current_exception());
         }
     }
 
     void ChannelStateWriteRequestDispatcherImpl::fail(const std::exception_ptr &cause)
     {
         std::lock_guard<std::mutex> lock(mutex);
+        std::shared_ptr<ChannelStateCheckpointWriter> writer = nullptr;
+        auto it = writers.find(ongoingCheckpointId);
+        if (it != writers.end()) {
+            writer = it->second;
+        }
         if (writer) {
-            writer->Fail(cause);
+            // writer->Fail(cause);
             writer.reset();
         }
     }
 
-    void ChannelStateWriteRequestDispatcherImpl::dispatchInternal(ChannelStateWriteRequest &request)
+    void ChannelStateWriteRequestDispatcherImpl::dispatchInternal(std::shared_ptr<ChannelStateWriteRequest> request)
     {
         std::lock_guard<std::mutex> lock(mutex);
-
-        if (auto *req = dynamic_cast<SubtaskRegisterRequest *>(&request)) {
-            SubtaskID subtaskID = SubtaskID::Of(req->getJobVertexID(), req->getSubtaskIndex());
-            registeredSubtasks.insert(subtaskID);
-            return;
+        std::shared_ptr<ChannelStateCheckpointWriter> writer = nullptr;
+        auto it = writers.find(request->getCheckpointId());
+        LOG_DEBUG(" dispatchInternal " << request->getName() << " checkpoint " << request->getCheckpointId() << " ongoingCheckpointId " << ongoingCheckpointId);
+        if (it != writers.end()) {
+            writer = it->second;
         }
-
-        if (auto *req = dynamic_cast<SubtaskReleaseRequest *>(&request)) {
-            SubtaskID subtaskID = SubtaskID::Of(req->getJobVertexID(), req->getSubtaskIndex());
-            registeredSubtasks.erase(subtaskID);
-            if (writer) {
-                writer->ReleaseSubtask(subtaskID);
+        if (auto req = std::dynamic_pointer_cast<CheckpointStartRequest>(request)) {
+            handleCheckpointStartRequest(req);
+        } else if (auto req = std::dynamic_pointer_cast<CheckpointInProgressRequest>(request)) {
+            if (writer && ongoingCheckpointId == request->getCheckpointId()) {
+                LOG_DEBUG(" dispatchInternal " << request->getName() << " checkpoint " << request->getCheckpointId());
+                req->execute(writer);
             }
-            return;
-        }
-
-        if (isAbortedCheckpoint(request.getCheckpointId())) {
-            handleAbortedRequest(request);
-        } else if (auto *startReq = dynamic_cast<CheckpointStartRequest *>(&request)) {
-            handleCheckpointStartRequest(*startReq);
-        } else if (auto *inProgressReq = dynamic_cast<CheckpointInProgressRequest *>(&request)) {
-            handleCheckpointInProgressRequest(*inProgressReq);
-        } else if (auto *abortReq = dynamic_cast<CheckpointAbortRequest *>(&request)) {
-            handleCheckpointAbortRequest(*abortReq);
+        }else if (auto req = std::dynamic_pointer_cast<SubtaskReleaseRequest>(request)) {
+            SubtaskID sid = SubtaskID::Of(req->getJobVertexID(), req->getSubtaskIndex());
+            registeredSubtasks.erase(sid);
+            if (writer) {
+                req->execute(writer);
+            }
         } else {
+            LOG_DEBUG("ChannelStateWriteRequestDispatcherImpl::dispatchInternal")
             throw std::invalid_argument("Unknown request type");
+        }
+        if (isAbortedCheckpoint(request->getCheckpointId())) {
+            handleAbortedRequest(request);
+        } else if (auto req = std::dynamic_pointer_cast<CheckpointAbortRequest>(request)) {
+            handleCheckpointAbortRequest(req);
         }
     }
 
@@ -79,101 +86,133 @@ namespace omnistream {
         return checkpointId < ongoingCheckpointId || checkpointId <= maxAbortedCheckpointId;
     }
 
-    void ChannelStateWriteRequestDispatcherImpl::handleAbortedRequest(ChannelStateWriteRequest &request)
+    void ChannelStateWriteRequestDispatcherImpl::handleAbortedRequest(std::shared_ptr<ChannelStateWriteRequest> request)
     {
-        if (request.getCheckpointId() != maxAbortedCheckpointId) {
-            request.cancel(std::make_exception_ptr(CheckpointException(CheckpointFailureReason::CHECKPOINT_DECLINED_SUBSUMED)));
+        if (request->getCheckpointId() != maxAbortedCheckpointId) {
+            request->cancel(std::make_exception_ptr(CheckpointException(CheckpointFailureReason::CHECKPOINT_DECLINED_SUBSUMED)));
             return;
         }
 
-        if (SubtaskID::Of(request.getJobVertexID(), request.getSubtaskIndex()) == abortedSubtaskID) {
-            request.cancel(std::make_exception_ptr(abortedCause));
+        if (SubtaskID::Of(request->getJobVertexID(), request->getSubtaskIndex()) == abortedSubtaskID) {
+            request->cancel(std::make_exception_ptr(abortedCause));
         } else {
-            request.cancel(std::make_exception_ptr(
+            request->cancel(std::make_exception_ptr(
                 CheckpointException(
                     CheckpointFailureReason::CHANNEL_STATE_SHARED_STREAM_EXCEPTION,
                     std::runtime_error("Aborted by another subtask"))));
         }
     }
 
-    void ChannelStateWriteRequestDispatcherImpl::handleCheckpointStartRequest(CheckpointStartRequest &request)
+    void ChannelStateWriteRequestDispatcherImpl::handleCheckpointStartRequest(std::shared_ptr<CheckpointStartRequest> request)
     {
-        if (request.getCheckpointId() < ongoingCheckpointId) {
-            throw std::logic_error("Checkpoint ID must be incremental. Ongoing: " + std::to_string(ongoingCheckpointId) + ", Requested: " + std::to_string(request.getCheckpointId()));
+        if (request->getCheckpointId() < ongoingCheckpointId) {
+            throw std::logic_error("Checkpoint ID must be incremental. Ongoing: " + std::to_string(ongoingCheckpointId) + ", Requested: " + std::to_string(request->getCheckpointId()));
         }
 
-        if (request.getCheckpointId() > ongoingCheckpointId) {
+        if (request->getCheckpointId() > ongoingCheckpointId) {
             failAndClearWriter(std::make_exception_ptr(CheckpointException(CheckpointFailureReason::CHECKPOINT_DECLINED_SUBSUMED)));
         }
 
+        std::shared_ptr<ChannelStateCheckpointWriter> writer = nullptr;
+        auto it = writers.find(request->getCheckpointId());
+        if (it != writers.end()) {
+            writer = it->second;
+        }
         if (!writer) {
             writer = buildWriter(request);
-            ongoingCheckpointId = request.getCheckpointId();
+            if (writer) {
+                writers[request->getCheckpointId()] = writer;
+            }
+            ongoingCheckpointId = request->getCheckpointId();
         }
 
         writer->RegisterSubtaskResult(
-            SubtaskID::Of(request.getJobVertexID(), request.getSubtaskIndex()),
-            request.getTargetResult());
+            SubtaskID::Of(request->getJobVertexID(), request->getSubtaskIndex()),
+            request->getTargetResult());
     }
 
-    void ChannelStateWriteRequestDispatcherImpl::handleCheckpointInProgressRequest(CheckpointInProgressRequest &request)
+    void ChannelStateWriteRequestDispatcherImpl::handleCheckpointInProgressRequest(std::shared_ptr<CheckpointInProgressRequest> request)
     {
-        if (!writer || ongoingCheckpointId != request.getCheckpointId()) {
+        std::shared_ptr<ChannelStateCheckpointWriter> writer = nullptr;
+        auto it = writers.find(request->getCheckpointId());
+        if (it != writers.end()) {
+            writer = it->second;
+        }
+        if (!writer || ongoingCheckpointId != request->getCheckpointId()) {
             throw std::logic_error("Writer not found for request");
         }
-        request.execute(*writer);
+        request->execute(writer);
     }
 
-    void ChannelStateWriteRequestDispatcherImpl::handleCheckpointAbortRequest(CheckpointAbortRequest &request)
+    void ChannelStateWriteRequestDispatcherImpl::handleCheckpointAbortRequest(std::shared_ptr<CheckpointAbortRequest> request)
     {
-        if (request.getCheckpointId() > maxAbortedCheckpointId) {
-            maxAbortedCheckpointId = request.getCheckpointId();
-            abortedCause = request.getCause();
+        if (request->getCheckpointId() > maxAbortedCheckpointId) {
+            maxAbortedCheckpointId = request->getCheckpointId();
+            abortedCause = request->getCause();
             abortedSubtaskID = SubtaskID::Of(
-                request.getJobVertexID(), request.getSubtaskIndex());
+                request->getJobVertexID(), request->getSubtaskIndex());
         }
 
-        if (request.getCheckpointId() == ongoingCheckpointId) {
+        if (request->getCheckpointId() == ongoingCheckpointId) {
             try {
-                std::rethrow_exception(request.getCause());
+                std::rethrow_exception(request->getCause());
             } catch (const std::exception &e) {
                 failAndClearWriter(
-                    request.getJobVertexID(),
-                    request.getSubtaskIndex(),
-                    request.getCause());
+                    request->getJobVertexID(),
+                    request->getSubtaskIndex(),
+                    request->getCause());
             }
-        } else if (request.getCheckpointId() > ongoingCheckpointId) {
+        } else if (request->getCheckpointId() > ongoingCheckpointId) {
             failAndClearWriter(std::make_exception_ptr(CheckpointException(CheckpointFailureReason::CHECKPOINT_DECLINED_SUBSUMED)));
         }
     }
 
     void ChannelStateWriteRequestDispatcherImpl::failAndClearWriter(const std::exception_ptr &e)
     {
+        std::shared_ptr<ChannelStateCheckpointWriter> writer = nullptr;
+        auto it = writers.find(ongoingCheckpointId);
+        if (it != writers.end()) {
+            writer = it->second;
+        }
         if (writer) {
-            writer->Fail(e);
-            writer.reset();
+            // writer->Fail(e);
+            writer->Reset();
+        } else {
+            registeredSubtasks.clear();
         }
     }
 
     void ChannelStateWriteRequestDispatcherImpl::failAndClearWriter(const JobVertexID &jvid, int idx, const std::exception_ptr &e)
     {
+        std::shared_ptr<ChannelStateCheckpointWriter> writer = nullptr;
+        auto it = writers.find(idx);
+        if (it != writers.end()) {
+            writer = it->second;
+        }
         if (writer) {
-            writer->Fail(jvid, idx, e);
-            writer.reset();
+            // writer->Fail(jvid, idx, e);
+            writer->Reset();
         }
     }
 
-    std::unique_ptr<ChannelStateCheckpointWriter> ChannelStateWriteRequestDispatcherImpl::buildWriter(CheckpointStartRequest &request)
+    std::shared_ptr<ChannelStateCheckpointWriter> ChannelStateWriteRequestDispatcherImpl::buildWriter(std::shared_ptr<CheckpointStartRequest> request)
     {
-        return std::make_unique<ChannelStateCheckpointWriter>(
+        long id = request->getCheckpointId();
+        auto it = writers.find(id);
+        if (it != writers.end()) {
+            return nullptr;
+        }
+        SubtaskID sid = SubtaskID::Of(request->getJobVertexID(), request->getSubtaskIndex());
+        registeredSubtasks.insert(sid);
+        return std::make_shared<ChannelStateCheckpointWriter>(
             registeredSubtasks,
-            request.getCheckpointId(),
-            getStreamFactoryResolver()->resolveCheckpointStorageLocation(request.getCheckpointId(), request.getLocationReference()),
+            id,
+            getStreamFactoryResolver()->resolveCheckpointStorageLocation(id, request->getLocationReference()),
             serializer,
-            [this]() { writer.reset(); });
+            [this, id]() { this->RemoveWriter(id); });
     }
 
-    CheckpointStorageWorkerView *ChannelStateWriteRequestDispatcherImpl::getStreamFactoryResolver()
+    std::shared_ptr<CheckpointStorageWorkerView> ChannelStateWriteRequestDispatcherImpl::getStreamFactoryResolver()
     {
         if (!streamFactoryResolver) {
             streamFactoryResolver = checkpointStorage->createCheckpointStorage(jobID);

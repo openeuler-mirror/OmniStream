@@ -34,7 +34,7 @@ namespace omnistream {
             virtual ~Controller() = default;
         };
 
-        virtual void runDefaultAction(std::shared_ptr<Controller> controller) = 0;
+        virtual void runDefaultAction(Controller *controller) = 0;
         virtual ~MailboxDefaultAction() = default;
     };
 

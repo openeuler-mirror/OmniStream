@@ -28,7 +28,7 @@ namespace omnistream {
                               int networkbuffersPerChannel, int partitionRequestInitialBackoff,
                               int partitionRequestMaxBackoff, int floatingNetworkbuffersPerGate,
                               int segmentSize, int numberofSegmentsGlobal, int sortShuffleMinBuffers,
-                              int sortShuffleMinParallelism
+                              int sortShuffleMinParallelism, int maxBuffersPerChannel
     ) : resourceID(resourceID), memorySize(memorySize), pageSize(pageSize),
         requestSegmentsTimeoutMillis(requestSegmentsTimeoutMillis),
         networkbuffersPerChannel(networkbuffersPerChannel),
@@ -36,7 +36,7 @@ namespace omnistream {
         partitionRequestMaxBackoff(partitionRequestMaxBackoff),
         floatingNetworkbuffersPerGate(floatingNetworkbuffersPerGate),
         segmentSize(segmentSize), numberofSegmentsGlobal(numberofSegmentsGlobal),
-        sortShuffleMinBuffers(sortShuffleMinBuffers), sortShuffleMinParallelism(sortShuffleMinParallelism) {
+        sortShuffleMinBuffers(sortShuffleMinBuffers), sortShuffleMinParallelism(sortShuffleMinParallelism), maxBuffersPerChannel(maxBuffersPerChannel) {
     }
 
     // Copy constructor
@@ -46,7 +46,8 @@ namespace omnistream {
         pageSize(other.pageSize),
         requestSegmentsTimeoutMillis(other.requestSegmentsTimeoutMillis),
         sortShuffleMinBuffers(other.sortShuffleMinBuffers),
-        sortShuffleMinParallelism(other.sortShuffleMinParallelism) {}
+        sortShuffleMinParallelism(other.sortShuffleMinParallelism),
+         maxBuffersPerChannel(other.maxBuffersPerChannel) {}
 
     ShuffleEnvironmentContext& operator=(const ShuffleEnvironmentContext& other)
     {
@@ -56,6 +57,7 @@ namespace omnistream {
         requestSegmentsTimeoutMillis = other.partitionRequestMaxBackoff;
         sortShuffleMinBuffers = other.sortShuffleMinBuffers;
         sortShuffleMinParallelism = other.sortShuffleMinParallelism;
+        maxBuffersPerChannel = other.maxBuffersPerChannel;
         return *this;
     }
 
@@ -73,6 +75,7 @@ namespace omnistream {
     int getNumberofSegmentsGlobal() const { return numberofSegmentsGlobal; }
     int getsortShuffleMinBuffers() const { return sortShuffleMinBuffers; }
     int getsortShuffleMinParallelism() const { return sortShuffleMinParallelism; }
+        int getmaxBuffersPerChannel() const { return  maxBuffersPerChannel; }
 
     // Setters
 
@@ -87,6 +90,11 @@ namespace omnistream {
     void setsortShuffleMinBuffers(int sortShuffleMinBuffers_)
     {
         this->sortShuffleMinBuffers = sortShuffleMinBuffers_;
+    }
+
+    void setmaxBuffersPerChannel(int maxBuffersPerChannel)
+    {
+        this->maxBuffersPerChannel = maxBuffersPerChannel;
     }
 
     // toString method
@@ -105,7 +113,7 @@ namespace omnistream {
                                     partitionRequestMaxBackoff,
                                     floatingNetworkbuffersPerGate,
                                     segmentSize, numberofSegmentsGlobal,
-                                    sortShuffleMinBuffers, sortShuffleMinParallelism)
+                                    sortShuffleMinBuffers, sortShuffleMinParallelism, maxBuffersPerChannel)
     private:
     ResourceIDPOD resourceID;
     long memorySize;
@@ -121,6 +129,8 @@ namespace omnistream {
 
     int sortShuffleMinBuffers;
     int sortShuffleMinParallelism;
+
+    int maxBuffersPerChannel;
 };
 
 }

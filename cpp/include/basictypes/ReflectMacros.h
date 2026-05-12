@@ -43,13 +43,15 @@ Class* className::clazz_ = []() { \
             return static_cast<cls*>(obj)->fieldName; \
         }, \
         [](Object* obj, Object* value) { \
-            if (likely(static_cast<cls*>(obj)->fieldName != nullptr)) {      \
-                static_cast<cls*>(obj)->fieldName->putRefCount();     \
-            }                                                         \
-            static_cast<cls*>(obj)->fieldName = static_cast<fieldType>(value); \
-            if (likely(static_cast<cls*>(obj)->fieldName != nullptr)) {        \
-                static_cast<cls*>(obj)->fieldName->getRefCount();  \
-            }                                                       \
+            if (unlikely(static_cast<cls*>(obj)->fieldName != value)) { \
+                if (likely(static_cast<fieldType>(value) != nullptr)) {        \
+                    value->getRefCount();  \
+                }                            \
+                if (likely(static_cast<cls*>(obj)->fieldName != nullptr)) {      \
+                    static_cast<cls*>(obj)->fieldName->putRefCount();     \
+                }                                                         \
+                static_cast<cls*>(obj)->fieldName = static_cast<fieldType>(value); \
+            }                                \
         });
 
 #define REGISTER_PRIMITIVE_FIELD(cls, fieldName, WrapperType, typeStr) \
@@ -60,6 +62,5 @@ Class* className::clazz_ = []() { \
         }, \
         [](Object* obj, Object* value) { \
             static_cast<cls*>(obj)->fieldName = static_cast<WrapperType*>(value)->value; \
-            static_cast<WrapperType*>(value)->putRefCount();                             \
         });
 #endif // OMNISTREAM_REFLECTMACROS_H

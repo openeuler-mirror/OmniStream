@@ -32,8 +32,8 @@ public:
 
     bool IsPeriodic() const;
 
-    bool operator<(const ScheduledFutureTask& other) const
-    {
+    bool operator<(const ScheduledFutureTask& other) const {
+        // smaller time has higher priority
         return time > other.time;
     }
 private:

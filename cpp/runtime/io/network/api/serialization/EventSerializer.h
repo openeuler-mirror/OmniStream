@@ -27,24 +27,27 @@ namespace omnistream {
 
     class EventSerializer {
     public:
-        static std::shared_ptr<NetworkBuffer> toBuffer(std::shared_ptr<AbstractEvent> event, bool hasPriority);
+        static NetworkBuffer* toBuffer(std::shared_ptr<AbstractEvent> event, bool hasPriority);
         // static std::shared_ptr<ObjectBufferConsumer> toBufferConsumer(const int event, bool hasPriority) ;
         static std::shared_ptr<BufferConsumer> ToBufferConsumer(std::shared_ptr<AbstractEvent> event,
                                                                 bool hasPriority);
-        static std::shared_ptr<AbstractEvent> fromBuffer(const std::shared_ptr<Buffer>& buffer);
+        static std::shared_ptr<AbstractEvent> fromBuffer(Buffer* buffer);
+        static std::shared_ptr<AbstractEvent> fromBufferNotRecycle(Buffer* buffer);
+        static std::shared_ptr<AbstractEvent> fromBuffer_V2(const std::shared_ptr<Buffer>& buffer);
 
-        static std::shared_ptr<MemorySegment> ToSerializedEvent(std::shared_ptr<AbstractEvent> event);
-        static std::shared_ptr<AbstractEvent> fromSerializedEvent(std::shared_ptr<Buffer> buffer);
+        static MemorySegment *ToSerializedEvent(std::shared_ptr<AbstractEvent> event);
+        static std::shared_ptr<AbstractEvent> fromSerializedEvent(Buffer* buffer, bool recycleEvent = true);
+        static std::shared_ptr<AbstractEvent> fromSerializedEvent_V2(std::shared_ptr<Buffer> buffer);
 
-        static std::shared_ptr<BufferOrEvent> fromNetworkBuffer(
-            std::shared_ptr<::datastream::NetworkBuffer> networkBuffer,
-            std::shared_ptr<Buffer> buffer,
-            bool moreAvailable,
-            std::shared_ptr<InputChannel> currentChannel,
-            bool morePriorityEvents);
+//        static std::shared_ptr<BufferOrEvent> fromNetworkBuffer(
+//            std::shared_ptr<::datastream::NetworkBuffer> networkBuffer,
+//            std::shared_ptr<Buffer> buffer,
+//            bool moreAvailable,
+//            std::shared_ptr<InputChannel> currentChannel,
+//            bool morePriorityEvents);
 
         // static std::shared_ptr<CheckpointBarrier> deserializeBarrier(std::shared_ptr<ByteBuffer> buffer);
-        static std::shared_ptr<MemorySegment> SerializeCheckpointBarrier(
+        static MemorySegment *SerializeCheckpointBarrier(
             std::shared_ptr<CheckpointBarrier> checkpointBarrier);
         static void EncodeSavepointType(
             SavepointType* savepointType, ByteBuffer& buffer);

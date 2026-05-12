@@ -14,11 +14,13 @@
 namespace omnistream {
 
     void MultipleFuturesAvailabilityHelper::notifyCompletion() {
+        // This lock is to ensure that the availableFuture won't be changed or deleted by the mailBox thread (resetToUnAvailable).
+        std::lock_guard<std::recursive_mutex> lock(availableFutureMutex);
+        availableFuture->complete();
     }
 
-    MultipleFuturesAvailabilityHelper::MultipleFuturesAvailabilityHelper(int size)
-    {
-        futuresToCombine.reserve(size);
+    MultipleFuturesAvailabilityHelper::MultipleFuturesAvailabilityHelper(int size) {
+        futuresToCombine.resize(size);
     }
 
     std::shared_ptr<CompletableFuture> MultipleFuturesAvailabilityHelper::getAvailableFuture()
@@ -28,6 +30,7 @@ namespace omnistream {
 
     void MultipleFuturesAvailabilityHelper::resetToUnAvailable()
     {
+        std::lock_guard<std::recursive_mutex> lock(availableFutureMutex);
         if (availableFuture->isDone()) {
             availableFuture = std::make_shared<CompletableFuture>();
         }
@@ -37,7 +40,8 @@ namespace omnistream {
     {
         if (futuresToCombine[idx] == nullptr || futuresToCombine[idx]->isDone()) {
             futuresToCombine[idx] = availabilityFuture;
-            availabilityFuture->thenRun(new InnerRunnable(this));
+            auto inner = std::make_shared<InnerRunnable>(this);
+            availabilityFuture->thenRun(inner);
         }
     }
 

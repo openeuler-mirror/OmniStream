@@ -16,6 +16,8 @@
 #include "TypeSerializerSingleton.h"
 #include "basictypes/Class.h"
 #include "basictypes/ClassRegistry.h"
+#include "SerializerJsonInfo.h"
+
 class PojoSerializer : public TypeSerializerSingleton {
 public:
     PojoSerializer(std::string clazz,
@@ -59,6 +61,12 @@ public:
     void setSubBufferReusable(bool bufferReusable_) override;
 
     Object* GetBuffer() override;
+
+    std::string toJson() override
+    {
+        SerializerJsonInfo typeJson = {SerializerType::POJO, clazz, nullptr, nullptr, nullptr, registeredSerializers, fields};
+        return typeJson.toJson();
+    }
 
 private:
     TypeSerializer* getSubclassSerializer(const std::string& subclass);

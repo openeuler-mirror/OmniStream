@@ -8,13 +8,11 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef OMNISTREAM_ROCKSDBOPERATIONUTILS_H
-#define OMNISTREAM_ROCKSDBOPERATIONUTILS_H
 #pragma once
 
 #include <string>
-#include <filesystem>
 
+#include "executiongraph/TaskInformationPOD.h"
 #include "runtime/state/RocksDbKvStateInfo.h"
 #include "runtime/state/RegisteredStateMetaInfoBase.h"
 #include "runtime/state/RocksIteratorWrapper.h"
@@ -125,5 +123,3 @@ public:
         return handle;
     }
 };
-
-#endif // OMNISTREAM_ROCKSDBOPERATIONUTILS_H

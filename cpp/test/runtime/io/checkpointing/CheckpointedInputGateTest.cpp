@@ -24,16 +24,16 @@ using namespace omnistream;
 using namespace omnistream::runtime;
 class DummyInputGate : public InputGate {
 public:
-    std::optional<std::shared_ptr<BufferOrEvent>> PollNext() override
+    BufferOrEvent* PollNext() override
     {
         return GetNext();
     }
 
-    std::optional<std::shared_ptr<BufferOrEvent>> GetNext() override
+    BufferOrEvent* GetNext() override
     {
         if (emitted_) {
             finished_ = true;
-            return std::nullopt;
+            return nullptr;
         }
 
         // Create a dummy checkpoint barrier event
@@ -45,7 +45,7 @@ public:
         auto boe = std::make_shared<BufferOrEvent>(barrier, InputChannelInfo(0, 0));
 
         emitted_ = true;
-        return std::make_optional(boe);
+        return boe.get();
     }
 
     int GetNumberOfInputChannels() override
@@ -88,9 +88,14 @@ public:
 
     void RequestPartitions() override {}
 
-    std::shared_ptr<CompletableFuture> getStateConsumedFuture() override
+    std::shared_ptr<CompletableFutureV2<void>> getStateConsumedFuture() override
     {
-        return std::make_shared<CompletableFuture>();
+        return std::make_shared<CompletableFutureV2<void>>();
+    }
+
+    std::vector<bool> getStateConsumedFuture1() override
+    {
+        return {};
     }
 
     void FinishReadRecoveredState() override {}
@@ -111,6 +116,7 @@ public:
 class DummyCoordinator : public SubtaskCheckpointCoordinator {
 public:
     void InitInputsCheckpoint(long, CheckpointOptions*) override {}
+    std::shared_ptr<ChannelStateWriter> getChannelStateWriter() override {}
 };
 
 
@@ -136,9 +142,11 @@ TEST(CheckpointedInputGateTest, DISABLED_PollNext_ProcessesCheckpointBarrierEven
     CheckpointedInputGate *gate = new CheckpointedInputGate(inputGate, handler, mailbox);
 
     auto result = gate->PollNext();
-    ASSERT_TRUE(result.has_value());
-    EXPECT_TRUE(result.value()->isEvent());
-    EXPECT_EQ(result.value()->getEvent()->GetEventClassName(), "CheckpointBarrier");
+    ASSERT_TRUE(result);
+    EXPECT_TRUE(result->isEvent());
+    EXPECT_EQ(result->getEvent()->GetEventClassName(), "CheckpointBarrier");
     EXPECT_EQ(gate->GetLatestCheckpointId(), 1);
     EXPECT_EQ(gate->AllChannelsRecovered(), true);
+    delete result;
+    delete gate;
 }

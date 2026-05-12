@@ -13,10 +13,10 @@
 #include "core/memory/MemorySegment.h"
 
 namespace omnistream {
-    void EventDataBufferRecycler::recycle(std::shared_ptr<Segment> segment)
+    void EventDataBufferRecycler::recycle(Segment *segment)
     {
         // Ensure the segment is of type ObjectSegment
-        auto toRecycledSegment = std::dynamic_pointer_cast<MemorySegment>(segment);
+        auto toRecycledSegment = dynamic_cast<MemorySegment*>(segment);
         if (toRecycledSegment) {
             LOG_PART("EventDataBufferRecycler recycled " << toRecycledSegment->getData())
             // since memorysegment has a destructor that deletes the data, we do not need to delete it here

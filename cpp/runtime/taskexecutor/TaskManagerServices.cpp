@@ -30,7 +30,7 @@ namespace omnistream {
             taskMSConf.getNetworkBuffersPerChannel(), taskMSConf.getPartitionRequestInitialBackoff(),
             taskMSConf.getPartitionRequestMaxBackoff(), taskMSConf.getFloatingNetworkBuffersPerGate(),
             taskMSConf.getSegmentSize(), taskMSConf.getNumberofSegmentsGlobal(),
-            taskMSConf.getsortShuffleMinBuffers(), taskMSConf.getsortShuffleMinParallelism()
+            taskMSConf.getsortShuffleMinBuffers(), taskMSConf.getsortShuffleMinParallelism(), taskMSConf.getmaxBuffersPerChannel()
             );
         LOG_PART("taskMSConf will create")
 

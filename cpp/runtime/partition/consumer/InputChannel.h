@@ -21,10 +21,12 @@
 #include <metrics/Counter.h>
 
 #include "BufferAndAvailability.h"
-#include <executiongraph/descriptor/ResultPartitionIDPOD.h>
+#include "executiongraph/descriptor/ResultPartitionIDPOD.h"
 #include "InputChannelInfo.h"
 #include "partition/virtual_enable_shared_from_this_base.h"
 #include "runtime/io/network/api/CheckpointBarrier.h"
+#include "event/TaskEvent.h"
+#include "checkpoint/channel/ChannelStateWriter.h"
 
 namespace omnistream {
 class SingleInputGate;
@@ -58,7 +60,7 @@ public:
     virtual void releaseAllResources() = 0;
     virtual void announceBufferSize(int newBufferSize) = 0;
     virtual int getBuffersInUseCount() = 0;
-
+    virtual void SetChannelStateWriter(std::shared_ptr<ChannelStateWriter> channelStateWriter) = 0;
 public:
     void checkError();
     void setError(std::exception_ptr cause);
@@ -66,13 +68,28 @@ public:
     int getCurrentBackoff() const;
     bool increaseBackoff();
 
+    void setConsumedSubpartitionIndex(int index)
+    {
+        consumedSubpartitionIndex = index;
+    }
+
+
+    std::shared_ptr<SingleInputGate> getInputGate()
+    {
+        return inputGate;
+    }
+
 public:
     virtual int unsynchronizedGetNumberOfQueuedBuffers()
     {
         return 0;
     }
+    virtual int unsynchronizedGetSizeOfQueuedBuffers()
+    {
+        return 0;
+    }
     virtual void setup(){};
-    virtual std::string toString() = 0;
+    virtual std::string toString(){};
     static const int initBackoffConstant = 100;
     static const int maxBackoffConstant = 1000;
 protected:
@@ -89,10 +106,11 @@ protected:
     std::shared_ptr<Counter> numBytesIn;
     std::shared_ptr<Counter> numBuffersIn;
     int currentBackoff;
+    int consumedSubpartitionIndex;
 
 protected:
     void notifyChannelNonEmpty();
-    void notifyPriorityEvent(int priorityBufferNumber);
+    void NotifyPriorityEvent(int priorityBufferNumber);
     virtual void notifyBufferAvailable(int numAvailableBuffers)
     {}
 };

@@ -21,8 +21,8 @@ namespace omnistream {
         if (isDataStream) {
             output->collect(streamRecord);
         } else {
-            auto newRecord = new StreamRecord(streamRecord->getValue(), streamRecord->getTimestamp());
-            output->collect(newRecord);
+             auto newRecord = new StreamRecord(streamRecord->getValue(), streamRecord->getTimestamp());	 
+             output->collect(newRecord);
         }
     }
 

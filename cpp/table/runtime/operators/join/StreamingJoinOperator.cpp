@@ -142,6 +142,7 @@ void StreamingJoinOperator<K>::AssembleFisrtTime(omnistream::VectorBatch* input,
                 break;
             case DataTypeId::OMNI_TIMESTAMP:
             case DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:
+            case DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE:
                 outputVB->SetVector(outCol, buildInputSideColumn<int64_t, int64_t>(input, icol, inputIsOuter));
                 break;
             case DataTypeId::OMNI_VARCHAR:
@@ -179,6 +180,7 @@ void StreamingJoinOperator<K>::AssembleSecondTime(omnistream::VectorBatch* input
                 break;
             case DataTypeId::OMNI_TIMESTAMP:
             case DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:
+            case DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE:
                 outputVB->SetVector(outCol, buildOtherSideColumn<int64_t, int64_t>(input, otherSideStateView,
                                                                                    icol, inputIsOuter));
                 break;
@@ -400,6 +402,7 @@ void StreamingJoinOperator<K>::setOutPutValueInput(omnistream::VectorBatch *inpu
                 break;
             case DataTypeId::OMNI_TIMESTAMP:
             case DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:
+            case DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE:
                 outputVB->SetVector(outCol, buildInputSideColumn<int64_t, int64_t>(input, icol, inputIsOuter));
                 break;
             case DataTypeId::OMNI_VARCHAR:
@@ -436,6 +439,7 @@ void StreamingJoinOperator<K>::setOutPutValueOther(omnistream::VectorBatch *inpu
                 break;
             case DataTypeId::OMNI_TIMESTAMP:
             case DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:
+            case DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE:
                 outputVB->SetVector(outCol, buildOtherSideColumn<int64_t, int64_t>(input, otherSideStateView, icol,
                                                                                    inputIsOuter));
                 break;

@@ -12,26 +12,43 @@
 #ifndef OMNISTREAM_RESULTSUBPARTITIONSTATEHANDLE_H
 #define OMNISTREAM_RESULTSUBPARTITIONSTATEHANDLE_H
 #include "runtime/state/StateObject.h"
-class ResultSubpartitionStateHandle : public StateObject {
+#include "AbstractChannelStateHandle.h"
+#include "core/include/common.h"
+#include "runtime/partition/ResultSubpartitionInfoPOD.h"
+class ResultSubpartitionStateHandle : public omnistream::AbstractChannelStateHandle<omnistream::ResultSubpartitionInfoPOD> {
 public:
+    ResultSubpartitionStateHandle(int subTaskIndex,
+                                  omnistream::ResultSubpartitionInfoPOD info,
+                                  std::shared_ptr<StreamStateHandle> delegate,
+                                  StateContentMetaInfo contentMetaInfo)
+            : omnistream::AbstractChannelStateHandle<omnistream::ResultSubpartitionInfoPOD>(subTaskIndex, info,
+                                                                                            delegate,
+                                                                                            contentMetaInfo.GetOffsets(),
+                                                                                            contentMetaInfo.GetSize()) {}
+
+
     // This class should be a template with InputChannelInfo, and info should be of class InputChannelInfo
     // This is a temporary place holder for checkpointing's PioritizedOperatorSubtaskState
-    std::string getInfo() const
-    {
-        return info;
-    }
     void DiscardState() override {}
-
-    long GetStateSize() const override
-    {
-        return 0;
-    };
 
     std::string ToString() const override
     {
-        return "ResultSubpartitionStateHandle";
+        nlohmann::json j;
+        nlohmann::json state_offset_vec = nlohmann::json::array();
+        for (const auto& offset : offsets) {
+            state_offset_vec.push_back(offset);
+        }
+        nlohmann::json state_offset_array = nlohmann::json::array();
+        state_offset_array.push_back("java.util.Collections$UnmodifiableRandomAccessList");
+        state_offset_array.push_back(state_offset_vec);
+        j["@class"] = "org.apache.flink.runtime.state.ResultSubpartitionStateHandle";
+        j["info"] = nlohmann::json::parse(info.toString());
+        j["delegate"] = nlohmann::json::parse(delegate->ToString());
+        j["offsets"] = state_offset_array;
+        j["size"] = size;
+        j["subtaskIndex"] = GetSubtaskIndex();
+        j["stateSize"] = size;
+        return j.dump();
     };
-private:
-    std::string info = "ResultSubpartitionStateHandle";
 };
 #endif // OMNISTREAM_RESULTSUBPARTITIONSTATEHANDLE_H

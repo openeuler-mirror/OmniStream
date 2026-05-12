@@ -15,7 +15,7 @@
 #include "LocalMemoryBufferPool.h"
 
 
-namespace datastream {
+namespace omnistream::datastream {
 
 NetworkMemoryBufferPool::NetworkMemoryBufferPool(
     int numberOfSegmentsToAllocate, int segmentSize, std::chrono::milliseconds requestSegmentsTimeout)
@@ -24,23 +24,20 @@ NetworkMemoryBufferPool::NetworkMemoryBufferPool(
     if (requestSegmentsTimeout.count() <= 0) {
         throw std::invalid_argument("The timeout for requesting exclusive buffers should be positive.");
     }
-    LOG_INFO_IMP("numberOfSegmentsToAllocate: " << numberOfSegmentsToAllocate
+    INFO_RELEASE("numberOfSegmentsToAllocate: " << numberOfSegmentsToAllocate
         << "  segmentSize  is  :" << segmentSize  << " requestSegmentsTimeout: " << requestSegmentsTimeout.count())
+    totalNumberOfMemorySegments = numberOfSegmentsToAllocate;
 
     try {
-        LOG("availableMemorySegments alloc numberOfSegmentsToAllocate :" << numberOfSegmentsToAllocate)
-
-        totalNumberOfMemorySegments = numberOfSegmentsToAllocate;
-
-        availableMemorySegments = std::deque<std::shared_ptr<MemorySegment>>();
+        availableMemorySegments = std::deque<MemorySegment*>();
     } catch (const std::bad_alloc &) {
         throw std::bad_alloc();
     }
 
     try {
-        if (segmentSize <= 0) {
-            this->segmentSize = 1024 << 10;
-        }
+//        if (segmentSize <= 0) {
+//            this->segmentSize = 1024 << 10;
+//        }
 
         for (int i = 0; i < numberOfSegmentsToAllocate; ++i) {
             availableMemorySegments.push_back(MemorySegmentFactory::wrap(segmentSize));
@@ -58,44 +55,42 @@ NetworkMemoryBufferPool::NetworkMemoryBufferPool(
     availabilityHelper->resetAvailable();
 }
 
-std::shared_ptr<MemorySegment> NetworkMemoryBufferPool::requestPooledMemorySegment()
+MemorySegment *NetworkMemoryBufferPool::requestPooledMemorySegment()
 {
     std::lock_guard<std::recursive_mutex> lock(availableMemorySegmentMutex);
     return internalRequestMemorySegment();
 }
 
-std::vector<std::shared_ptr<MemorySegment>> NetworkMemoryBufferPool::requestPooledMemorySegmentsBlocking(
+std::vector<MemorySegment *> NetworkMemoryBufferPool::requestPooledMemorySegmentsBlocking(
     int numberOfSegmentsToRequest)
 {
     return internalRequestMemorySegments(numberOfSegmentsToRequest);
 }
 
-void NetworkMemoryBufferPool::recyclePooledMemorySegment(const std::shared_ptr<MemorySegment> &segment)
+void NetworkMemoryBufferPool::recyclePooledMemorySegment(MemorySegment *segment)
 {
-    if (!segment) {
-        throw std::invalid_argument("Segment cannot be null.");
-    }
     internalRecycleMemorySegments({segment});
 }
 
-// void NetworkMemoryBufferPool::recyclePooledObjectSegment(const std::shared_ptr<ObjectSegment> &segment)
 
 
-std::vector<std::shared_ptr<MemorySegment>> NetworkMemoryBufferPool::requestUnpooledMemorySegments(
+std::vector<MemorySegment *> NetworkMemoryBufferPool::requestUnpooledMemorySegments(
     int numberOfSegmentsToRequest)
 {
     if (numberOfSegmentsToRequest < 0) {
         throw std::invalid_argument("Number of buffers to request must be non - negative.");
     }
-    // std::lock_guard<std::mutex> lock(factoryLock);
-    std::lock_guard<std::recursive_mutex> lock(factoryLock);
-    if (isDestroyed_) {
-        throw std::runtime_error("Network buffer pool has already been destroyed.");
+    {
+        std::lock_guard<std::recursive_mutex> lock(factoryLock);
+        if (isDestroyed_) {
+            throw std::runtime_error("Network buffer pool has already been destroyed.");
+        }
+        if (numberOfSegmentsToRequest == 0) {
+            return {};
+        }
+        tryRedistributeBuffers(numberOfSegmentsToRequest);
     }
-    if (numberOfSegmentsToRequest == 0) {
-        return {};
-    }
-    tryRedistributeBuffers(numberOfSegmentsToRequest);
+
     try {
         return internalRequestMemorySegments(numberOfSegmentsToRequest);
     } catch (const std::exception &exception) {
@@ -104,10 +99,10 @@ std::vector<std::shared_ptr<MemorySegment>> NetworkMemoryBufferPool::requestUnpo
     }
 }
 
-std::vector<std::shared_ptr<MemorySegment>> NetworkMemoryBufferPool::internalRequestMemorySegments(
+std::vector<MemorySegment *> NetworkMemoryBufferPool::internalRequestMemorySegments(
     int numberOfSegmentsToRequest)
 {
-    std::vector<std::shared_ptr<MemorySegment>> segments;
+    std::vector<MemorySegment *> segments;
     auto deadline = std::chrono::steady_clock::now() + requestSegmentsTimeout;
     try {
         while (true) {
@@ -115,12 +110,15 @@ std::vector<std::shared_ptr<MemorySegment>> NetworkMemoryBufferPool::internalReq
                 throw std::runtime_error("Buffer pool is destroyed.");
             }
 
-            std::shared_ptr<MemorySegment> segment;
+            MemorySegment *segment;
             {
                 // std::lock_guard<std::mutex> lock(availableObjectSegmentsMutex);
-                std::lock_guard<std::recursive_mutex> lock(availableMemorySegmentMutex);
+                std::unique_lock<std::recursive_mutex> lock(availableMemorySegmentMutex);
                 if (!(segment = internalRequestMemorySegment())) {
-                    std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+                    INFO_RELEASE("NetworkMemoryBufferPool sleep time: " << std::to_string(2000))
+                    // todo: java实现可以被提前唤醒
+                    // std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+                    cv.wait_for(lock, std::chrono::milliseconds(2000));
                 }
             }
             if (segment) {
@@ -145,9 +143,8 @@ std::vector<std::shared_ptr<MemorySegment>> NetworkMemoryBufferPool::internalReq
     return segments;
 }
 
-std::shared_ptr<MemorySegment> NetworkMemoryBufferPool::internalRequestMemorySegment()
+MemorySegment *NetworkMemoryBufferPool::internalRequestMemorySegment()
 {
-    std::lock_guard<std::recursive_mutex> lock(availableMemorySegmentMutex);
     LOG("availableMemorySegments size : " << std::to_string(availableMemorySegments.size()))
     LOG("availableMemorySegments.empty() : " << std::to_string(availableMemorySegments.empty()))
     if (availableMemorySegments.empty()) {
@@ -159,10 +156,10 @@ std::shared_ptr<MemorySegment> NetworkMemoryBufferPool::internalRequestMemorySeg
     if (availableMemorySegments.empty() && segment) {
         availabilityHelper->resetUnavailable();
     }
-    return std::dynamic_pointer_cast<MemorySegment>(segment);
+    return segment;
 }
 
-void NetworkMemoryBufferPool::recycleUnpooledMemorySegments(const std::vector<std::shared_ptr<MemorySegment>> &segments)
+void NetworkMemoryBufferPool::recycleUnpooledMemorySegments(const std::vector<MemorySegment *> &segments)
 {
     internalRecycleMemorySegments(segments);
     revertRequiredBuffers(segments.size());
@@ -176,12 +173,11 @@ void NetworkMemoryBufferPool::revertRequiredBuffers(int size)
     redistributeBuffers();
 }
 
-void NetworkMemoryBufferPool::internalRecycleMemorySegments(const std::vector<std::shared_ptr<MemorySegment>> &segments)
+void NetworkMemoryBufferPool::internalRecycleMemorySegments(const std::vector<MemorySegment *> &segments)
 {
     LOG("internalRecycleObjectSegments running")
     std::shared_ptr<CompletableFuture> toNotify = nullptr;
     {
-        // std::lock_guard<std::mutex> lock(availableObjectSegmentsMutex);
         std::lock_guard<std::recursive_mutex> lock(availableMemorySegmentMutex);
 
         if (availableMemorySegments.empty() && !segments.empty()) {
@@ -192,11 +188,10 @@ void NetworkMemoryBufferPool::internalRecycleMemorySegments(const std::vector<st
         }
         cv.notify_all();
         if (toNotify != nullptr) {
-            toNotify->setCompleted();
+            toNotify->complete();
         }
     }
 }
-// void NetworkMemoryBufferPool::internalRecycleObjectSegments(const std::vector<std::shared_ptr<ObjectSegment>> &segments)
 
 void NetworkMemoryBufferPool::destroy()
 {
@@ -212,6 +207,7 @@ void NetworkMemoryBufferPool::destroy()
         while (!availableMemorySegments.empty()) {
             auto segment = availableMemorySegments.front();
             availableMemorySegments.pop_front();
+            // segment->free();
         }
     }
 }
@@ -323,6 +319,9 @@ std::shared_ptr<LocalMemoryBufferPool> NetworkMemoryBufferPool::internalCreateMe
 
     LOG_PART("After make shared postConstruct")
     allMemoryBufferPools.insert(localMemoryBufferPool);
+    if (numRequiredBuffers < maxUsedBuffers) {
+        resizableBufferPools.insert(localMemoryBufferPool);
+    }
     redistributeBuffers();
     LOG_PART("redistributeBuffers end")
     return localMemoryBufferPool;
@@ -330,7 +329,7 @@ std::shared_ptr<LocalMemoryBufferPool> NetworkMemoryBufferPool::internalCreateMe
 
 void NetworkMemoryBufferPool::destroyBufferPool(std::shared_ptr<BufferPool> bufferPool)
 {
-    auto localMemoryBufferPool = std::dynamic_pointer_cast<LocalMemoryBufferPool>(bufferPool);
+    auto localMemoryBufferPool = std::reinterpret_pointer_cast<LocalMemoryBufferPool>(bufferPool);
     if (!localMemoryBufferPool) {
         throw std::invalid_argument("bufferPool is no LocalBufferPool");
     }
@@ -338,6 +337,8 @@ void NetworkMemoryBufferPool::destroyBufferPool(std::shared_ptr<BufferPool> buff
     std::lock_guard<std::recursive_mutex> lock(factoryLock);
     if (allMemoryBufferPools.erase(localMemoryBufferPool) > 0) {
         numTotalRequiredBuffers -= localMemoryBufferPool->getNumberOfRequiredSegments();
+        resizableBufferPools.erase(localMemoryBufferPool);
+
         redistributeBuffers();
     }
 }
@@ -349,15 +350,13 @@ void NetworkMemoryBufferPool::destroyAllBufferPools()
     for (const auto &pool : poolsCopy) {
         pool->lazyDestroy();
     }
-    if (!allMemoryBufferPools.empty() || numTotalRequiredBuffers > 0) {
+    if (!allMemoryBufferPools.empty() || numTotalRequiredBuffers > 0 || resizableBufferPools.size() > 0) {
         throw std::runtime_error("NetworkBufferPool is not empty after destroying all LocalBufferPools");
     }
 }
 
 void NetworkMemoryBufferPool::tryRedistributeBuffers(int numberOfSegmentsToRequest)
 {
-    std::lock_guard<std::recursive_mutex> lock(factoryLock);
-
     LOG("numTotalRequiredBuffers=" << std::to_string(numTotalRequiredBuffers)
                                    << " totalNumberOfObjectSegments=" << std::to_string(totalNumberOfMemorySegments));
     if (numTotalRequiredBuffers + numberOfSegmentsToRequest > totalNumberOfMemorySegments) {
@@ -373,24 +372,26 @@ void NetworkMemoryBufferPool::tryRedistributeBuffers(int numberOfSegmentsToReque
     } catch (const std::exception &t) {
         numTotalRequiredBuffers -= numberOfSegmentsToRequest;
         redistributeBuffers();
-        throw;
+        throw t;
     }
 }
 
 void NetworkMemoryBufferPool::redistributeBuffers()
 {
-    std::lock_guard<std::recursive_mutex> lock(factoryLock);
+    if (resizableBufferPools.empty()) {
+        return;
+    }
     int numAvailableMemorySegment = totalNumberOfMemorySegments - numTotalRequiredBuffers;
 
     if (numAvailableMemorySegment == 0) {
-        for (const auto &bufferPool : allMemoryBufferPools) {
+        for (const auto &bufferPool : resizableBufferPools) {
             bufferPool->setNumBuffers(bufferPool->getNumberOfRequiredSegments());
         }
         return;
     }
 
     long totalCapacity = 0;
-    for (const auto &bufferPool : allMemoryBufferPools) {
+    for (const auto &bufferPool : resizableBufferPools) {
         int excessMax = bufferPool->getMaxNumberOfSegments() - bufferPool->getNumberOfRequiredSegments();
         totalCapacity += std::min(numAvailableMemorySegment, excessMax);
     }
@@ -402,7 +403,7 @@ void NetworkMemoryBufferPool::redistributeBuffers()
     int memorySegmentsToDistribute = std::min(numAvailableMemorySegment, static_cast<int>(totalCapacity));
     long totalPartsUsed = 0;
     int numDistributedMemorySegment = 0;
-    for (const auto &bufferPool : allMemoryBufferPools) {
+    for (const auto &bufferPool : resizableBufferPools) {
         int excessMax = bufferPool->getMaxNumberOfSegments() - bufferPool->getNumberOfRequiredSegments();
         if (excessMax == 0) {
             continue;

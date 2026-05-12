@@ -46,6 +46,9 @@ public:
     BackendDataType getBackendId() const override { return BackendDataType::OBJECT_BK;};
     const char* getName() const override {return "MapSerializer"; };
 
+    TypeSerializer* getKeySerializer() const { return keySerializer; }
+    TypeSerializer* getValueSerializer() const { return valueSerializer; }
+
     void setSubBufferReusable(bool bufferReusable_) override;
 
     Object* GetBuffer() override;
@@ -58,6 +61,13 @@ public:
         // to-Do
         return nullptr;
     };
+
+    std::string toJson() override
+    {
+        SerializerJsonInfo typeJson = {SerializerType::MAP, "", keySerializer, valueSerializer};
+        return typeJson.toJson();
+    }
+
 private:
     TypeSerializer *keySerializer;
     TypeSerializer *valueSerializer;

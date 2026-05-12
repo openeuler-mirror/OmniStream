@@ -26,9 +26,13 @@ class ResultSubpartitionView {
 public:
     virtual ~ResultSubpartitionView() = default;
 
-    virtual std::shared_ptr<BufferAndBacklog> getNextBuffer() = 0;
+    virtual BufferAndBacklog* getNextBuffer() = 0;
     virtual void notifyDataAvailable() = 0;
     virtual void notifyPriorityEvent(int priorityBufferNumber) {}
+    // Best-effort hook for 'aligned attempt + timeout -> UC' to overtake an announced event.
+    // Local views (e.g. PipelinedSubpartitionView) override this to reprioritize the corresponding
+    // buffer/event on the producer side.
+    virtual void ConvertToPriorityEvent(int sequenceNumber) {}
     virtual void releaseAllResources() = 0;
     virtual bool isReleased() = 0;
     virtual void resumeConsumption() = 0;

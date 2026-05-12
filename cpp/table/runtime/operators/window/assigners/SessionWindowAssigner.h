@@ -37,7 +37,7 @@ public:
 
 private:
     static TimeWindow MergeWindow(TimeWindow &curWindow, const TimeWindow &other,
-        std::unordered_set<TimeWindow, MyKeyHash> &mergedWindow);
+        std::unordered_set<TimeWindow> &mergedWindow);
 
     const long sessionGap;
     const bool eventTime;

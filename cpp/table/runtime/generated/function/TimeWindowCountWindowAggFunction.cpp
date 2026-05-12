@@ -82,13 +82,13 @@ RowData* TimeWindowCountWindowAggFunction::getValue(TimeWindow ns)
     } else {
         result->setLong(0, nullptr);
     }
-    result->setLong(1, namespaceVal.start);
-    result->setLong(2, namespaceVal.end);
+    result->setLong(1, namespaceVal.getStart());
+    result->setLong(2, namespaceVal.getEnd());
 
     if (false) {
         result->setLong(3, nullptr);
     } else {
-        result->setLong(3, namespaceVal.end - 1);
+        result->setLong(3, namespaceVal.getEnd() - 1);
     }
     if (true) {
         result->setLong(4, nullptr);

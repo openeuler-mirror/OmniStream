@@ -38,7 +38,7 @@ namespace omnistream {
           resultPartitionFactory(resultPartitionFactory),
           singleInputGateFactory(singleInputGateFactory),
           isClosed_(false) {
-        inputGatesById = std::make_shared<std::map<InputGateID, std::shared_ptr<SingleInputGate> > >();
+        inputGatesById = std::make_shared<std::map<std::shared_ptr<InputGateID>, std::shared_ptr<SingleInputGate> > >();
     }
 
     ~OmniShuffleEnvironment() override = default;
@@ -118,7 +118,7 @@ namespace omnistream {
     std::shared_ptr<ResultPartitionManager> resultPartitionManager;
     std::shared_ptr<ResultPartitionFactory> resultPartitionFactory;
     std::shared_ptr<SingleInputGateFactory> singleInputGateFactory;
-    std::shared_ptr<std::map<InputGateID, std::shared_ptr<SingleInputGate>>> inputGatesById;
+    std::shared_ptr<std::map<std::shared_ptr<InputGateID>, std::shared_ptr<SingleInputGate>>> inputGatesById;
     bool isClosed_;
 
     // functionality assistant

@@ -17,17 +17,23 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <memory>
+#include "nlohmann/json.hpp"
 
 class CheckpointStorageLocationReference {
 public:
-    explicit CheckpointStorageLocationReference(std::vector<uint8_t> *encodedReference);
+    explicit CheckpointStorageLocationReference(std::shared_ptr<std::vector<uint8_t>> encodedReference);
     CheckpointStorageLocationReference();
 
-    bool operator==(const CheckpointStorageLocationReference &other) const
+    bool operator==(const CheckpointStorageLocationReference& other) const
     {
-        if (this->encodedReference_ == nullptr ||
-            other.encodedReference_ == nullptr) {
-            return this->encodedReference_ == other.encodedReference_;
+
+        if (!this->encodedReference_ && !other.encodedReference_) {
+            return true;
+        }
+
+        if (!this->encodedReference_ || !other.encodedReference_) {
+            return false;
         }
         return *(this->encodedReference_) == *(other.encodedReference_);
     }
@@ -35,14 +41,14 @@ public:
     ~CheckpointStorageLocationReference();
 
     int HashCode() const;
-    std::vector<uint8_t> *GetReferenceBytes() const;
+    std::shared_ptr<std::vector<uint8_t>> GetReferenceBytes() const;
     bool IsDefaultReference() const;
-    static CheckpointStorageLocationReference *DEFAULT;
-    static CheckpointStorageLocationReference *GetDefault() { return DEFAULT; }
+    static std::shared_ptr<CheckpointStorageLocationReference> DEFAULT;
+    static std::shared_ptr<CheckpointStorageLocationReference> GetDefault() { return DEFAULT; }
     std::string ToString() const;
-
+    nlohmann::json ToJson() const;
 private:
-    std::vector<uint8_t> *encodedReference_;
+    std::shared_ptr<std::vector<uint8_t>> encodedReference_;
 };
 
 namespace std {

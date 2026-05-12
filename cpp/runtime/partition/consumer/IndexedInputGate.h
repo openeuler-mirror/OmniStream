@@ -15,13 +15,14 @@
 #include <memory>
 #include <vector>
 #include <string>
-#include "InputGate.h"
+#include <iostream>
 
 #include "InputChannelInfo.h"
 #include "runtime/io/network/partition/consumer/CheckpointableInput.h"
 #include "InputChannel.h"
-#include <iostream>
-
+#include "InputGate.h"
+#include "checkpoint/channel/ChannelStateWriter.h"
+// check
 namespace omnistream {
 
     class IndexedInputGate : public InputGate, public CheckpointableInput {
@@ -36,7 +37,7 @@ namespace omnistream {
         void CheckpointStarted(const CheckpointBarrier& barrier) override;
         void CheckpointStopped(long checkpointId) override;
         std::vector<InputChannelInfo> GetChannelInfos() override;
-
+        void SetChannelStateWriter(std::shared_ptr<ChannelStateWriter> channelStateWriter);
         void BlockConsumption(const InputChannelInfo& channelInfo) override {   // checkinto related , do it ilater
         }
         void ConvertToPriorityEvent(int channelIndex, int sequenceNumber)  {   // checkinto related , do it ilater

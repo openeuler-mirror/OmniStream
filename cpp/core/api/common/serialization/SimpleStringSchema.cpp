@@ -42,8 +42,7 @@ std::string_view SimpleStringSchema::getCharset() const
 Object *SimpleStringSchema::deserialize(const uint8_t* message, size_t length)
 {
     buffer->getRefCount();
-    buffer->setData((char *)(message));
-    buffer->setSize(length);
+    buffer->setValue((char *)(message), length);
     return buffer;
 }
 

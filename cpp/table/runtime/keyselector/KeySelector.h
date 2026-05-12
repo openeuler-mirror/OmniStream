@@ -104,6 +104,7 @@ K KeySelector<K>::getKey(omnistream::VectorBatch *inputBatch, int row, bool enab
         }
         switch (keyColTypeIds[0]) {
             case OMNI_LONG:
+            case OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE:
             case OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:
             case OMNI_TIMESTAMP:
                 return reinterpret_cast<vec::Vector<int64_t>*>(inputBatch->Get(keyColIndices[0]))->GetValue(row);
@@ -128,6 +129,7 @@ K KeySelector<K>::getKey(RowData* input)
         for (size_t i = 0; i < keyColIndices.size(); ++i) {
             switch (keyColTypeIds[i]) {
                 case OMNI_LONG:
+                case OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE:
                 case OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:
                 case OMNI_TIMESTAMP:
                     key->setLong(i, input->getLong(keyColIndices[i]));
@@ -151,6 +153,7 @@ K KeySelector<K>::getKey(RowData* input)
         }
         switch (keyColTypeIds[0]) {
             case OMNI_LONG:
+            case OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE:
             case OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:
             case OMNI_TIMESTAMP:
                 return *input->getLong(keyColIndices[0]);
@@ -186,14 +189,15 @@ KeySelector<K>::KeySelector(const std::vector<int32_t> &keyColTypeIds, const std
                 // varchar and char has the possibility of being a dictionary vector due to StreamCalc filter
                 serializers.push_back(this->VarcharSerializer);
                 deserializers.push_back(omniruntime::op::vectorDeSerializerCenter[typeId]);
+            } else if (typeId == omniruntime::type::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE
+                || typeId == omniruntime::type::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE) {
+                serializers.push_back(omniruntime::op::vectorSerializerCenter[omniruntime::type::OMNI_LONG]);
+                deserializers.push_back(omniruntime::op::vectorDeSerializerCenter[omniruntime::type::OMNI_LONG]);
             } else if (typeId < omniruntime::type::OMNI_INVALID) {
                 // If it is one of the old omniruntime types
                 serializers.push_back(omniruntime::op::vectorSerializerCenter[typeId]);
                 deserializers.push_back(omniruntime::op::vectorDeSerializerCenter[typeId]);
-            } else if (typeId == omniruntime::type::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE) {
-                serializers.push_back(omniruntime::op::vectorSerializerCenter[omniruntime::type::OMNI_LONG]);
-                deserializers.push_back(omniruntime::op::vectorDeSerializerCenter[omniruntime::type::OMNI_LONG]);
-            } else {
+	    } else {
                 throw std::runtime_error("Key type not supported!");
             }
         }
@@ -209,7 +213,8 @@ KeySelector<K>::KeySelector(const std::vector<int32_t> &keyColTypeIds, const std
                 // If it is one of the old omniruntime types
                 rowSerializers.push_back(rowSerializerCenter[typeId]);
                 rowDeserializers.push_back(rowDeserializerCenter[typeId]);
-            } else if (typeId == omniruntime::type::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE) {
+            } else if (typeId == omniruntime::type::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE
+                || typeId == omniruntime::type::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE) {
                 rowSerializers.push_back(rowSerializerCenter[omniruntime::type::OMNI_LONG]);
                 rowDeserializers.push_back(rowDeserializerCenter[omniruntime::type::OMNI_LONG]);
             } else {

@@ -31,6 +31,9 @@
 #include "rocksdb/db.h"
 #include "rocksdb/options.h"
 #include "core/include/emhash7.hpp"
+#include "rocksdb/slice_transform.h"
+#include "rocksdb/table.h"
+#include "rocksdb/filter_policy.h"
 
 #include "../../../core/utils/MathUtils.h"
 #include "basictypes/java_util_Iterator.h"
@@ -42,6 +45,7 @@
 #include "common.h"
 #include <sstream>
 
+const int FALCON_RANGE_FILTER_PARAM = 13; // default set as 13 to maximize read performance
 
 /* S is the value used in the State,
  * like RowData* for HeapValueState,
@@ -68,7 +72,16 @@ public:
         LOG("create MapState column family")
         this->rocksDb = db;
         ROCKSDB_NAMESPACE::ColumnFamilyOptions familyOptions;
-        DefaultConfigurableOptionsFactory::createColumnOptions(familyOptions);
+        ROCKSDB_NAMESPACE::BlockBasedTableOptions blockBasedTableOptions;
+
+        // [FALCON]-----------------------------------------------------------------------------------------------
+        // familyOptions.memtable_factory.reset(ROCKSDB_NAMESPACE::NewHashLinkListRepFactory());
+        familyOptions.prefix_extractor.reset(ROCKSDB_NAMESPACE::NewCappedPrefixTransform(FALCON_RANGE_FILTER_PARAM));
+        // familyOptions.compression = ROCKSDB_NAMESPACE::CompressionType::kZlibCompression;
+        INFO_RELEASE("[FALCON] enable prefix for mapState.")
+        // [FALCON]-----------------------------------------------------------------------------------------------
+
+        DefaultConfigurableOptionsFactory::createColumnOptions(familyOptions, blockBasedTableOptions);
 
         ROCKSDB_NAMESPACE::Status s;
         auto it1 = kvStateInformation->find(cfName);
@@ -101,10 +114,13 @@ public:
         OutputBufferStatus outputBufferStatus;
         outputSerializer.setBackendBuffer(&outputBufferStatus);
 
-        ROCKSDB_NAMESPACE::Slice sliceKey = serializerKeyAndUserKey(outputSerializer, userKey);
+        ROCKSDB_NAMESPACE::Slice sliceKey = serializerKeyAndUserKey(outputSerializer, userKey, nameSpace);
 
         std::string valueInTable;
         ROCKSDB_NAMESPACE::Status s = rocksDb->Get(readOptions, table, sliceKey, &valueInTable);
+        if (!s.ok() && valueInTable.length() != 0) {
+            THROW_RUNTIME_ERROR("rocksdb map state table get failed, status is << " << s.ToString());
+        }
         if (!s.ok() || valueInTable.length() == 0) {
             if constexpr (std::is_pointer_v<UV>) {
                 return nullptr;
@@ -115,6 +131,14 @@ public:
 
         DataInputDeserializer serializedData(reinterpret_cast<const uint8_t *>(valueInTable.data()),
                                              static_cast<int>(valueInTable.length()), 0);
+        bool isNull = serializedData.readBoolean();
+        if(isNull){
+            if constexpr (std::is_pointer_v<UV>) {
+                return nullptr;
+            } else {
+                return std::numeric_limits<UV>::max();
+            }
+        }
         if constexpr (std::is_same_v<UV, Object*>) {
             auto stateSerializer = getStateSerializer();
             auto buffer = stateSerializer->GetBuffer();
@@ -139,7 +163,7 @@ public:
         OutputBufferStatus outputBufferStatus;
         outputSerializer.setBackendBuffer(&outputBufferStatus);
 
-        ROCKSDB_NAMESPACE::Slice sliceKey = serializerKeyAndUserKey(outputSerializer,uk);
+        ROCKSDB_NAMESPACE::Slice sliceKey = serializerKeyAndUserKey(outputSerializer, uk, nameSpace);
 
         ROCKSDB_NAMESPACE::PinnableSlice pinSlice;
         ROCKSDB_NAMESPACE::Status s = rocksDb->Get(readOptions, table, sliceKey, &pinSlice);
@@ -149,7 +173,7 @@ public:
         return std::make_shared<std::string>(pinSlice.data(), pinSlice.size());
     };
 
-    void GetByBatch(std::unordered_map<K,std::unordered_set<XXH128_hash_t>> &dataToGet,std::unordered_map<std::pair<K,XXH128_hash_t>,UV> &result)
+    void GetByBatch(const N &nameSpace, std::unordered_map<K,std::unordered_set<XXH128_hash_t>> &dataToGet,std::unordered_map<std::pair<K,XXH128_hash_t>,UV> &result)
     {
 
         std::vector<std::pair<K,XXH128_hash_t>> kvpairs;
@@ -163,7 +187,7 @@ public:
                 DataOutputSerializer outputSerializer;
                 OutputBufferStatus outputBufferStatus;
                 outputSerializer.setBackendBuffer(&outputBufferStatus);
-                ROCKSDB_NAMESPACE::Slice sliceKey = serializerKeyAndUserKey(outputSerializer, (UK)userKey);
+                ROCKSDB_NAMESPACE::Slice sliceKey = serializerKeyAndUserKey(outputSerializer, (UK)userKey, nameSpace);
                 key_strings.emplace_back(sliceKey.data(),sliceKey.size());
                 kvpairs.push_back({currentKey,userKey} );
             }
@@ -209,7 +233,14 @@ public:
 
         // Your serializer:
         auto* stateSerializer = getStateSerializer();
-
+        bool isNull = in.readBoolean();
+        if(isNull){
+            if constexpr (std::is_pointer_v<UV>) {
+                return nullptr;
+            } else {
+                return std::numeric_limits<UV>::max();
+            }
+        }
         if constexpr (std::is_same_v<UV, Object*>) {
             // Special path that deserializes into an existing "buffer" the serializer owns.
             auto buffer = stateSerializer->GetBuffer();
@@ -232,7 +263,29 @@ public:
         }
     }
 
+    ROCKSDB_NAMESPACE::Slice GetKeyNameSpaceSlice(DataOutputSerializer &outputSerializer, N &nameSpace)
+    {
+        auto currentKey = keyContext->getCurrentKey();
+        outputSerializer.writeByte(static_cast<uint32_t>(keyContext->getCurrentKeyGroupIndex()));
 
+        if constexpr (std::is_same_v<K, int64_t> || std::is_same_v<K, int32_t>) {
+            LongSerializer::INSTANCE->serialize(&currentKey, outputSerializer);
+        } else if constexpr (std::is_pointer_v<K>) {
+            getKeySerializer()->serialize(currentKey, outputSerializer);
+        } else {
+            getKeySerializer()->serialize(&currentKey, outputSerializer);
+        }
+
+        // serializer namespace
+        if constexpr (std::is_pointer_v<N>) {
+            getNamespaceSerializer()->serialize(nameSpace, outputSerializer);
+        } else {
+            getNamespaceSerializer()->serialize(&nameSpace, outputSerializer);
+        }
+
+        return ROCKSDB_NAMESPACE::Slice(reinterpret_cast<const char *>(outputSerializer.getData()),
+                                        outputSerializer.length());
+    }
 
     void put(const N &nameSpace, const UK &userKey, const UV &state)
     {
@@ -242,17 +295,20 @@ public:
         DataOutputSerializer outputSerializer;
         OutputBufferStatus outputBufferStatus;
         outputSerializer.setBackendBuffer(&outputBufferStatus);
-        ROCKSDB_NAMESPACE::Slice sliceKey = serializerKeyAndUserKey(outputSerializer, userKey);
+        ROCKSDB_NAMESPACE::Slice sliceKey = serializerKeyAndUserKey(outputSerializer, userKey, nameSpace);
 
         // valueOutputSerializer free need after Put called
         DataOutputSerializer valueOutputSerializer;
         OutputBufferStatus valueOutputBufferStatus;
         valueOutputSerializer.setBackendBuffer(&valueOutputBufferStatus);
         ROCKSDB_NAMESPACE::Slice sliceValue = serializerValue(valueOutputSerializer, state);
-        rocksDb->Put(writeOptions, table, sliceKey, sliceValue);
+        auto s = rocksDb->Put(writeOptions, table, sliceKey, sliceValue);
+        if (!s.ok()) {
+            THROW_RUNTIME_ERROR("rocksdb map state table put failed, status is << " << s.ToString());
+        }
     };
 
-    void putByBatch(const K &key,const std::unordered_map<UK,UV> &dataToAdd)
+    void putByBatch(const N &nameSpace, const K &key,const std::unordered_map<UK,UV> &dataToAdd)
     {
         keyContext->setCurrentKey(key);
         ROCKSDB_NAMESPACE::WriteBatch putBatch;
@@ -263,7 +319,7 @@ public:
             DataOutputSerializer outputSerializer;
             OutputBufferStatus outputBufferStatus;
             outputSerializer.setBackendBuffer(&outputBufferStatus);
-            ROCKSDB_NAMESPACE::Slice sliceKey = serializerKeyAndUserKey(outputSerializer, (UK)userKey);
+            ROCKSDB_NAMESPACE::Slice sliceKey = serializerKeyAndUserKey(outputSerializer, (UK)userKey, nameSpace);
 
             // valueOutputSerializer free need after Put called
             DataOutputSerializer valueOutputSerializer;
@@ -276,7 +332,7 @@ public:
 
     }
 
-    void putByBatch(std::unordered_map<K, std::unordered_map<UK,UV>> &dataToAdd)
+    void putByBatch(const N &nameSpace, std::unordered_map<K, std::unordered_map<UK,UV>> &dataToAdd)
     {
         ROCKSDB_NAMESPACE::WriteBatch putBatch;
         for (auto &item : dataToAdd)
@@ -291,7 +347,7 @@ public:
                 DataOutputSerializer outputSerializer;
                 OutputBufferStatus outputBufferStatus;
                 outputSerializer.setBackendBuffer(&outputBufferStatus);
-                ROCKSDB_NAMESPACE::Slice sliceKey = serializerKeyAndUserKey(outputSerializer, (UK)userKey);
+                ROCKSDB_NAMESPACE::Slice sliceKey = serializerKeyAndUserKey(outputSerializer, (UK)userKey, nameSpace);
 
                 // valueOutputSerializer free need after Put called
                 DataOutputSerializer valueOutputSerializer;
@@ -305,25 +361,137 @@ public:
         auto ret = rocksDb->Write(writeOptions, &putBatch);
     }
 
-    void putByBatch(std::vector<std::shared_ptr<std::tuple<K,UK,std::shared_ptr<std::string>>>>& dataToAdd)
+    void putByBatch(const N &nameSpace, std::vector<std::shared_ptr<std::tuple<K,UK,std::shared_ptr<std::string>>>>& dataToAdd)
     {
         ROCKSDB_NAMESPACE::WriteBatch putBatch;
         for (auto& item : dataToAdd) {
             K key = std::get<0>(*item);
-            keyContext->setCurrentKey(key);
             UK ukey = std::get<1>(*item);
             std::shared_ptr<std::string> strPtr = std::get<2>(*item);
             // outputSerializer free need after Put called
+            keyContext->setCurrentKey(key);
             DataOutputSerializer outputSerializer;
             OutputBufferStatus outputBufferStatus;
             outputSerializer.setBackendBuffer(&outputBufferStatus);
-            ROCKSDB_NAMESPACE::Slice sliceKey = serializerKeyAndUserKey(outputSerializer,ukey);
+            ROCKSDB_NAMESPACE::Slice sliceKey = serializerKeyAndUserKey(outputSerializer, ukey, nameSpace);
 
             // valueOutputSerializer free need after Put called
             DataOutputSerializer valueOutputSerializer;
             OutputBufferStatus valueOutputBufferStatus;
             valueOutputSerializer.setBackendBuffer(&valueOutputBufferStatus);
+            // Write exact byte length instead of relying on C-string termination.
             ROCKSDB_NAMESPACE::Slice sliceValue(strPtr->data(), strPtr->size());
+            putBatch.Put(table, sliceKey, sliceValue);
+        }
+        writeOptions.memtable_insert_hint_per_batch = true;
+        auto ret = rocksDb->Write(writeOptions, &putBatch);
+    }
+
+    void putByBatch(const N &nameSpace,std::vector<std::shared_ptr<std::tuple<K,UK,UV>>>& dataToAdd)
+    {
+        ROCKSDB_NAMESPACE::WriteBatch putBatch;
+        for (auto& item : dataToAdd) {
+            K key = std::get<0>(*item);
+            UK ukey = std::get<1>(*item);
+            UV value = std::get<2>(*item);
+            keyContext->setCurrentKey(key);
+
+            DataOutputSerializer outputSerializer;
+            OutputBufferStatus outputBufferStatus;
+            outputSerializer.setBackendBuffer(&outputBufferStatus);
+            ROCKSDB_NAMESPACE::Slice sliceKey = serializerKeyAndUserKey(outputSerializer, ukey, nameSpace);
+
+            DataOutputSerializer valueOutputSerializer;
+            OutputBufferStatus valueOutputBufferStatus;
+            valueOutputSerializer.setBackendBuffer(&valueOutputBufferStatus);
+            ROCKSDB_NAMESPACE::Slice sliceValue = serializerValue(valueOutputSerializer, value);
+            putBatch.Put(table, sliceKey, sliceValue);
+        }
+        writeOptions.memtable_insert_hint_per_batch = true;
+        auto ret = rocksDb->Write(writeOptions, &putBatch);
+    }
+
+    void putByBatch(const N &nameSpace,std::unordered_map<K, std::vector<std::tuple<UK, UV>>> &dataToAdd)
+    {
+        ROCKSDB_NAMESPACE::WriteBatch putBatch;
+
+        DataOutputSerializer keyPrefixOutputSerializer;
+        OutputBufferStatus keyPrefixOutputBufferStatus;
+        keyPrefixOutputSerializer.setBackendBuffer(&keyPrefixOutputBufferStatus);
+
+        DataOutputSerializer keyOutputSerializer;
+        OutputBufferStatus keyOutputBufferStatus;
+        keyOutputSerializer.setBackendBuffer(&keyOutputBufferStatus);
+
+        DataOutputSerializer valueOutputSerializer;
+        OutputBufferStatus valueOutputBufferStatus;
+        valueOutputSerializer.setBackendBuffer(&valueOutputBufferStatus);
+
+        for (auto &item : dataToAdd) {
+            const K& key = item.first;
+            auto& userKeyValues = item.second;
+            if (userKeyValues.empty()) {
+                continue;
+            }
+            keyContext->setCurrentKey(key);
+
+            keyPrefixOutputSerializer.clear();
+            serializerKeyAndNamespace(keyPrefixOutputSerializer,nameSpace);
+            const int keyPrefixLength = keyPrefixOutputSerializer.length();
+
+            keyOutputSerializer.clear();
+            keyOutputSerializer.write(
+                keyPrefixOutputSerializer.getData(),
+                keyPrefixLength,
+                0,
+                keyPrefixLength);
+
+            for (const auto& keyValue : userKeyValues) {
+                const UK& userKey = std::get<0>(keyValue);
+                const UV& value = std::get<1>(keyValue);
+
+                keyOutputSerializer.setPosition(keyPrefixLength);
+                if constexpr (std::is_pointer_v<UK>) {
+                    getUserKeySerializer()->serialize(userKey, keyOutputSerializer);
+                } else {
+                    UK mutableUserKey = userKey;
+                    getUserKeySerializer()->serialize(&mutableUserKey, keyOutputSerializer);
+                }
+                ROCKSDB_NAMESPACE::Slice sliceKey(
+                    reinterpret_cast<const char *>(keyOutputSerializer.getData()),
+                    keyOutputSerializer.length());
+
+                valueOutputSerializer.clear();
+                ROCKSDB_NAMESPACE::Slice sliceValue = serializerValue(valueOutputSerializer, value);
+                putBatch.Put(table, sliceKey, sliceValue);
+            }
+        }
+        writeOptions.memtable_insert_hint_per_batch = true;
+        auto ret = rocksDb->Write(writeOptions, &putBatch);
+    }
+
+    void putByBatch(const N &nameSpace,std::vector<std::tuple<K,UK,UV>>& dataToAdd)
+    {
+        ROCKSDB_NAMESPACE::WriteBatch putBatch;
+        DataOutputSerializer outputSerializer;
+        OutputBufferStatus outputBufferStatus;
+        outputSerializer.setBackendBuffer(&outputBufferStatus);
+
+        DataOutputSerializer valueOutputSerializer;
+        OutputBufferStatus valueOutputBufferStatus;
+        valueOutputSerializer.setBackendBuffer(&valueOutputBufferStatus);
+
+        for (auto& item : dataToAdd) {
+            K key = std::get<0>(item);
+            UK ukey = std::get<1>(item);
+            UV value = std::get<2>(item);
+            keyContext->setCurrentKey(key);
+
+            outputSerializer.clear();
+            ROCKSDB_NAMESPACE::Slice sliceKey = serializerKeyAndUserKey(outputSerializer, ukey,nameSpace);
+
+            valueOutputSerializer.clear();
+            ROCKSDB_NAMESPACE::Slice sliceValue = serializerValue(valueOutputSerializer, value);
             putBatch.Put(table, sliceKey, sliceValue);
         }
         writeOptions.memtable_insert_hint_per_batch = true;
@@ -337,11 +505,14 @@ public:
         DataOutputSerializer outputSerializer;
         OutputBufferStatus outputBufferStatus;
         outputSerializer.setBackendBuffer(&outputBufferStatus);
-        ROCKSDB_NAMESPACE::Slice sliceKey = serializerKeyAndUserKey(outputSerializer, userKey);
-        rocksDb->Delete(writeOptions, table, sliceKey);
+        ROCKSDB_NAMESPACE::Slice sliceKey = serializerKeyAndUserKey(outputSerializer, userKey, nameSpace);
+        auto s = rocksDb->Delete(writeOptions, table, sliceKey);
+        if (!s.ok()) {
+            THROW_RUNTIME_ERROR("rocksdb map state table remove failed, status is << " << s.ToString());
+        }
     };
 
-    void removeByBatch(std::unordered_map<K,std::unordered_set<UK>> &dataToRemove)
+    void removeByBatch(const N &nameSpace, std::unordered_map<K,std::unordered_set<UK>> &dataToRemove)
     {
         ROCKSDB_NAMESPACE::WriteBatch deleteBatch;
         for (auto &item : dataToRemove) {
@@ -353,14 +524,14 @@ public:
                 DataOutputSerializer outputSerializer;
                 OutputBufferStatus outputBufferStatus;
                 outputSerializer.setBackendBuffer(&outputBufferStatus);
-                ROCKSDB_NAMESPACE::Slice sliceKey = serializerKeyAndUserKey(outputSerializer, userKey);
+                ROCKSDB_NAMESPACE::Slice sliceKey = serializerKeyAndUserKey(outputSerializer, userKey, nameSpace);
                 deleteBatch.Delete(table,sliceKey);
             }
         }
          auto ret = rocksDb->Write(writeOptions, &deleteBatch);
     }
 
-    void addByBatch(std::unordered_map<K,std::unordered_set<RowData*>> &dataToAdd)
+    void addByBatch(const N &nameSpace, std::unordered_map<K,std::unordered_set<RowData*>> &dataToAdd)
     {
         ROCKSDB_NAMESPACE::WriteBatch putBatch;
         for (auto &item : dataToAdd) {
@@ -372,7 +543,7 @@ public:
                 DataOutputSerializer outputSerializer;
                 OutputBufferStatus outputBufferStatus;
                 outputSerializer.setBackendBuffer(&outputBufferStatus);
-                ROCKSDB_NAMESPACE::Slice sliceKey = serializerKeyAndUserKey(outputSerializer, (UK)userKey);
+                ROCKSDB_NAMESPACE::Slice sliceKey = serializerKeyAndUserKey(outputSerializer, (UK)userKey, nameSpace);
 
                 // valueOutputSerializer free need after Put called
                 DataOutputSerializer valueOutputSerializer;
@@ -386,7 +557,7 @@ public:
         auto ret = rocksDb->Write(writeOptions, &putBatch);
     }
 
-    bool contains(const UK &userKey)
+    bool contains(const N &nameSpace, const UK &userKey)
     {
         // 和Rocksdb交互的时候要try catch
         LOG("RocksdbMapStateTable value contains")
@@ -394,7 +565,7 @@ public:
         DataOutputSerializer outputSerializer;
         OutputBufferStatus outputBufferStatus;
         outputSerializer.setBackendBuffer(&outputBufferStatus);
-        ROCKSDB_NAMESPACE::Slice sliceKey = serializerKeyAndUserKey(outputSerializer, userKey);
+        ROCKSDB_NAMESPACE::Slice sliceKey = serializerKeyAndUserKey(outputSerializer, userKey, nameSpace);
 
         std::string valueInTable;
         ROCKSDB_NAMESPACE::Status s = rocksDb->Get(readOptions, table, sliceKey, &valueInTable);
@@ -419,16 +590,34 @@ public:
         DataOutputSerializer keyOutputSerializer;
         OutputBufferStatus outputBufferStatus;
         keyOutputSerializer.setBackendBuffer(&outputBufferStatus);
-
+        keyOutputSerializer.writeByte(static_cast<uint32_t>(keyContext->getCurrentKeyGroupIndex()));
         if constexpr (std::is_pointer_v<K>) {
             getKeySerializer()->serialize(currentKey, keyOutputSerializer);
         } else {
             getKeySerializer()->serialize(&currentKey, keyOutputSerializer);
         }
+        // serializer namespace
+        if constexpr (std::is_pointer_v<N>) {
+            getNamespaceSerializer()->serialize(nameSpace, keyOutputSerializer);
+        } else {
+            getNamespaceSerializer()->serialize(&nameSpace, keyOutputSerializer);
+        }
 
         ROCKSDB_NAMESPACE::Slice sliceKey(reinterpret_cast<const char *>(keyOutputSerializer.getData()),
                                           keyOutputSerializer.length());
-        ROCKSDB_NAMESPACE::Iterator* iterator = rocksDb->NewIterator(ROCKSDB_NAMESPACE::ReadOptions(), table);
+
+        // [FALCON]------------------------------------------------------------------------------------------------
+        ROCKSDB_NAMESPACE::ReadOptions readOption;
+        if (sliceKey.size() < FALCON_RANGE_FILTER_PARAM) {
+            readOption.total_order_seek = true;
+        } else {
+            readOption.total_order_seek = false;
+        }
+        // INFO_RELEASE("[FALCON] performing prefix length check.") // avoid too much log print
+
+        ROCKSDB_NAMESPACE::Iterator* iterator = rocksDb->NewIterator(readOption, table);
+        // [FALCON]------------------------------------------------------------------------------------------------
+
         if (iterator == nullptr) {
             THROW_LOGIC_EXCEPTION("iterator from db is null")
         }
@@ -465,19 +654,27 @@ public:
             }
 
             serializedData = DataInputDeserializer(reinterpret_cast<const uint8_t *>(value.data()), value.size(), 0);
-
-            if constexpr (std::is_same_v<UV, Object*>) {
-                auto stateSerializer = getStateSerializer();
-                auto buffer = stateSerializer->GetBuffer();
-                stateSerializer->deserialize(buffer, serializedData);
-                entryValue = buffer;
-            } else {
-                void *resPtr = getStateSerializer()->deserialize(serializedData);
+            bool isNull = serializedData.readBoolean();
+            if(isNull){
                 if constexpr (std::is_pointer_v<UV>) {
-                    entryValue = (UV)resPtr;
+                    entryValue = nullptr;
                 } else {
-                    entryValue = *(UV *)resPtr;
-                    delete resPtr;
+                    entryValue = std::numeric_limits<UV>::max();
+                }
+            } else {
+                if constexpr (std::is_same_v<UV, Object*>) {
+                    auto stateSerializer = getStateSerializer();
+                    auto buffer = stateSerializer->GetBuffer();
+                    stateSerializer->deserialize(buffer, serializedData);
+                    entryValue = buffer;
+                } else {
+                    void *resPtr = getStateSerializer()->deserialize(serializedData);
+                    if constexpr (std::is_pointer_v<UV>) {
+                        entryValue = (UV)resPtr;
+                    } else {
+                        entryValue = *(UV *)resPtr;
+                        delete resPtr;
+                    }
                 }
             }
             resultMap.emplace(std::move(entryKey), std::move(entryValue));
@@ -489,9 +686,9 @@ public:
         return it->second.size() >0 ? &it->second: nullptr;
     }
 
-    java_util_Iterator *iterator()
+    java_util_Iterator *iterator(const N &nameSpace)
     {
-        auto it = new RocksDBMapIterator(this);
+        auto it = new RocksDBMapIterator(this, nameSpace);
         return it;
     }
 
@@ -616,7 +813,10 @@ public:
         {
             deleted = true;
             ROCKSDB_NAMESPACE::Slice sliceKey(key.data(), key.size());
-            stateTable->rocksDb->Delete(stateTable->writeOptions, stateTable->table, sliceKey);
+            auto s = stateTable->rocksDb->Delete(stateTable->writeOptions, stateTable->table, sliceKey);
+            if (!s.ok()) {
+                THROW_RUNTIME_ERROR("rocksdb map state table remove failed, status is << " << s.ToString());
+            }
         }
 
         UK getKey() override
@@ -649,7 +849,14 @@ public:
             } else {
                 if (userValue == nullptr) {
                     DataInputDeserializer serializedData = DataInputDeserializer(reinterpret_cast<const uint8_t *>(value.data()), value.size(), 0);
-
+                bool isNull = serializedData.readBoolean();
+                if(isNull){
+                    if constexpr (std::is_pointer_v<UV>) {
+                        return nullptr;
+                    } else {
+                        return std::numeric_limits<UV>::max();
+                    }
+                }
                     if constexpr (std::is_same_v<UV, Object*>) {
                         auto stateSerializer = stateTable->getStateSerializer();
                         auto buffer = stateSerializer->GetBuffer();
@@ -674,8 +881,13 @@ public:
                 THROW_LOGIC_EXCEPTION("setValue IllegalStateException: The value has already been deleted.")
             }
 
-            userValue = val;
             val->getRefCount();
+            if constexpr (std::is_same_v<UV, Object*>) {
+                if (userValue != nullptr) {
+                    static_cast<Object*>(userValue)->putRefCount();
+                }
+            }
+            userValue = val;
             DataOutputSerializer valueOutputSerializer;
             OutputBufferStatus valueOutputBufferStatus;
             valueOutputSerializer.setBackendBuffer(&valueOutputBufferStatus);
@@ -696,9 +908,41 @@ public:
 
     class RocksDBMapIterator : public java_util_Iterator {
     public:
-        explicit RocksDBMapIterator(RocksdbMapStateTable<K, N, UK, UV> *stateTable)
+        explicit RocksDBMapIterator(RocksdbMapStateTable<K, N, UK, UV> *stateTable, const N &nameSpace)
         {
             this->stateTable = stateTable;
+            this->nameSpace = nameSpace;
+            auto currentKey = stateTable->keyContext->getCurrentKey();
+
+            // 序列化key
+            keyOutputSerializer.setBackendBuffer(&outputBufferStatus);
+            keyOutputSerializer.writeByte(static_cast<uint32_t>(stateTable->keyContext->getCurrentKeyGroupIndex()));
+            if constexpr (std::is_pointer_v<K>) {
+                stateTable->getKeySerializer()->serialize(currentKey, keyOutputSerializer);
+            } else {
+                stateTable->getKeySerializer()->serialize(&currentKey, keyOutputSerializer);
+            }
+
+            // serializer namespace
+            if constexpr (std::is_pointer_v<N>) {
+                stateTable->getNamespaceSerializer()->serialize(nameSpace, keyOutputSerializer);
+            } else {
+                stateTable->getNamespaceSerializer()->serialize(&nameSpace, keyOutputSerializer);
+            }
+
+            keyPrefixBytes = ROCKSDB_NAMESPACE::Slice(reinterpret_cast<const char *>(keyOutputSerializer.getData()),
+                                                      keyOutputSerializer.length());
+
+            // [FALCON]------------------------------------------------------------------------------------------------
+            ROCKSDB_NAMESPACE::ReadOptions readOption = stateTable->readOptions;
+            if (keyPrefixBytes.size() < FALCON_RANGE_FILTER_PARAM || currentEntry != nullptr) {
+                readOption.total_order_seek = true;
+            } else {
+                readOption.total_order_seek = false;
+            }
+            // [FALCON]------------------------------------------------------------------------------------------------
+
+            internalTableIterator = stateTable->rocksDb->NewIterator(readOption, stateTable->table);
         }
 
         ~RocksDBMapIterator() override
@@ -707,6 +951,7 @@ public:
                 delete cacheEntries[i];
             }
             cacheEntries.clear();
+            delete internalTableIterator;
         }
 
         bool hasNext() override
@@ -760,27 +1005,9 @@ public:
                 return;
             }
 
-            auto currentKey = stateTable->keyContext->getCurrentKey();
+            ROCKSDB_NAMESPACE::Slice sliceKey = currentEntry != nullptr ? ROCKSDB_NAMESPACE::Slice(currentEntry->key.data(), currentEntry->key.size()) : keyPrefixBytes;
 
-            // 序列化key
-            DataOutputSerializer keyOutputSerializer;
-            OutputBufferStatus outputBufferStatus;
-            keyOutputSerializer.setBackendBuffer(&outputBufferStatus);
-            keyOutputSerializer.writeByte(static_cast<uint32_t>(stateTable->keyContext->getCurrentKeyGroupIndex()));
-            if constexpr (std::is_pointer_v<K>) {
-                stateTable->getKeySerializer()->serialize(currentKey, keyOutputSerializer);
-            } else {
-                stateTable->getKeySerializer()->serialize(&currentKey, keyOutputSerializer);
-            }
-
-            ROCKSDB_NAMESPACE::Slice sliceKey(reinterpret_cast<const char *>(keyOutputSerializer.getData()),
-                                              keyOutputSerializer.length());
-            ROCKSDB_NAMESPACE::Iterator* iterator = stateTable->rocksDb->NewIterator(stateTable->readOptions, stateTable->table);
-            if (iterator == nullptr) {
-                expired = true;
-                return;
-            }
-            iterator->Seek(sliceKey);
+            internalTableIterator->Seek(sliceKey);
 
             // free memory
             for (size_t i = 0; i < cacheEntries.size(); ++i) {
@@ -794,11 +1021,11 @@ public:
              * new iterating. Skip it to avoid redundant access in such cases.
              */
             if (currentEntry != nullptr && !currentEntry->deleted) {
-                iterator->Next();
+                internalTableIterator->Next();
             }
 
             while (true) {
-                if (!iterator->Valid() || !iterator->key().starts_with(sliceKey)) {
+                if (!internalTableIterator->Valid() || !internalTableIterator->key().starts_with(keyPrefixBytes)) {
                     expired = true;
                     break;
                 }
@@ -807,14 +1034,12 @@ public:
                     break;
                 }
 
-                size_t keyPrefixLen = sliceKey.size();
-                ROCKSDB_NAMESPACE::Slice key = iterator->key();
-                ROCKSDB_NAMESPACE::Slice value = iterator->value();
-                auto *entry = new RocksDBMapEntry(stateTable, keyPrefixLen, key, value);
+                ROCKSDB_NAMESPACE::Slice key = internalTableIterator->key();
+                ROCKSDB_NAMESPACE::Slice value = internalTableIterator->value();
+                auto *entry = new RocksDBMapEntry(stateTable, keyPrefixBytes.size(), key, value);
                 cacheEntries.push_back(entry);
-                iterator->Next();
+                internalTableIterator->Next();
             }
-            delete iterator;
         }
 
     protected:
@@ -824,6 +1049,11 @@ public:
         std::vector<RocksDBMapEntry*> cacheEntries;
         size_t cacheIndex = 0;
         RocksDBMapEntry *currentEntry = nullptr;
+        const N &nameSpace;
+        ROCKSDB_NAMESPACE::Slice keyPrefixBytes;
+        DataOutputSerializer keyOutputSerializer;
+        OutputBufferStatus outputBufferStatus;
+        ROCKSDB_NAMESPACE::Iterator *internalTableIterator = nullptr;
     };
 
     class StateEntryIterator : public InternalKvState<K, N, UV>::StateIncrementalVisitor {
@@ -845,6 +1075,22 @@ public:
         void init();
     };
 
+    ROCKSDB_NAMESPACE::ColumnFamilyHandle* getColumnFamily() {
+        return table;
+    }
+
+    ROCKSDB_NAMESPACE::DB* getRocksDB() {
+        return rocksDb;
+    }
+
+    ROCKSDB_NAMESPACE::ReadOptions& getReadOptions() {
+        return readOptions;
+    }
+
+    ROCKSDB_NAMESPACE::WriteOptions* getWriteOptions() {
+        return &writeOptions;
+    };
+
 protected:
     // Variables
     InternalKeyContext<K> *keyContext;
@@ -860,7 +1106,7 @@ protected:
     ROCKSDB_NAMESPACE::ReadOptions readOptions;
     ROCKSDB_NAMESPACE::WriteOptions writeOptions;
 
-    ROCKSDB_NAMESPACE::Slice serializerKeyAndUserKey(DataOutputSerializer &outputSerializer, UK userKey)
+    ROCKSDB_NAMESPACE::Slice serializerKeyAndUserKey(DataOutputSerializer &outputSerializer, UK userKey, const N &nameSpace)
     {
         auto currentKey = keyContext->getCurrentKey();
 
@@ -870,6 +1116,12 @@ protected:
             getKeySerializer()->serialize(currentKey, outputSerializer);
         } else {
             getKeySerializer()->serialize(&currentKey, outputSerializer);
+        }
+        // serializer namespace
+        if constexpr (std::is_pointer_v<N>) {
+            getNamespaceSerializer()->serialize(nameSpace, outputSerializer);
+        } else {
+            getNamespaceSerializer()->serialize(&nameSpace, outputSerializer);
         }
 
         if constexpr (std::is_pointer_v<UK>) {
@@ -885,7 +1137,7 @@ protected:
     ROCKSDB_NAMESPACE::Slice serializerKey(DataOutputSerializer &outputSerializer)
     {
         auto currentKey = keyContext->getCurrentKey();
-        
+
         // 序列化key, userKey
         outputSerializer.writeByte(static_cast<uint32_t>(keyContext->getCurrentKeyGroupIndex()));
         if constexpr (std::is_pointer_v<K>) {
@@ -898,14 +1150,38 @@ protected:
                                 outputSerializer.length());
     }
 
+    ROCKSDB_NAMESPACE::Slice serializerKeyAndNamespace(DataOutputSerializer &outputSerializer,const N &nameSpace)
+    {
+        auto currentKey = keyContext->getCurrentKey();
+
+        // 序列化key, userKey
+        outputSerializer.writeByte(static_cast<uint32_t>(keyContext->getCurrentKeyGroupIndex()));
+        if constexpr (std::is_pointer_v<K>) {
+            getKeySerializer()->serialize(currentKey, outputSerializer);
+        } else {
+            getKeySerializer()->serialize(&currentKey, outputSerializer);
+        }
+        // serializer namespace
+        if constexpr (std::is_pointer_v<N>) {
+            getNamespaceSerializer()->serialize(nameSpace, outputSerializer);
+        } else {
+            getNamespaceSerializer()->serialize(&nameSpace, outputSerializer);
+        }
+
+        return ROCKSDB_NAMESPACE::Slice(reinterpret_cast<const char *>(outputSerializer.getData()),
+                                outputSerializer.length());
+    }
+
     ROCKSDB_NAMESPACE::Slice serializerValue(DataOutputSerializer &valueOutputSerializer, UV userValue)
     {
         // value序列化
         TypeSerializer *vSerializer = getStateSerializer();
 
         if constexpr (std::is_pointer_v<UV>) {
+            valueOutputSerializer.writeBoolean(userValue == nullptr);
             vSerializer->serialize(userValue, valueOutputSerializer);
         } else {
+            valueOutputSerializer.writeBoolean(&userValue == nullptr);
             vSerializer->serialize(&userValue, valueOutputSerializer);
         }
 

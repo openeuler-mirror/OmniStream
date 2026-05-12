@@ -10,6 +10,7 @@
  */
 
 #include "OmniStreamOneInputProcessor.h"
+#include "io/recover/OmniRescalingStreamTaskNetworkInput.h"
 
 namespace omnistream {
     OmniStreamOneInputProcessor::OmniStreamOneInputProcessor(OmniStreamTaskInput *input,
@@ -17,11 +18,29 @@ namespace omnistream {
         : input(input), output(output), endOfInputAware(operatorChain) {
     }
 
+    OmniStreamOneInputProcessor::~OmniStreamOneInputProcessor() {
+        if (input != nullptr) {
+            delete input;
+            input = nullptr;
+        }
+        if (output != nullptr) {
+            delete output;
+            output = nullptr;
+        }
+    }
+
     DataInputStatus OmniStreamOneInputProcessor::processInput()
     {
         // LOG(">>>process Input")
         DataInputStatus status = input->emitNext(output);
-        // LOG_TRACE(" Return status  "  << DataInputStatusHelper::mapToInt(status))
+        if(status == DataInputStatus::END_OF_RECOVERY){
+            auto recoverInput = dynamic_cast<OmniRescalingStreamTaskNetworkInput *>(input);
+            if(recoverInput){
+                input = recoverInput->finishRecover();
+            }
+            return status;
+        }
+        LOG("emitNext return status: "  << DataInputStatusHelper::mapToInt(status))
         return status;
     }
 
@@ -34,10 +53,21 @@ namespace omnistream {
     {
         return input;
     }
-    void OmniStreamOneInputProcessor::close()
+
+    std::shared_ptr<CompletableFutureV2<void>> OmniStreamOneInputProcessor::PrepareSnapshot(std::shared_ptr<ChannelStateWriter> writer,
+            long checkpointID)
     {
-        input->close();
-        output->close();
+        LOG("OneInput prepare snapshot, checkpointID: " << checkpointID);
+        return input->PrepareSnapshot(writer, checkpointID);
     }
 
+    void OmniStreamOneInputProcessor::close()
+    {
+        if (input != nullptr) {
+            input->close();
+        }
+        if (output != nullptr) {
+            output->close();
+        }
+    }
 }

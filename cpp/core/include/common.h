@@ -9,8 +9,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef FLINK_TNEL_COMMON_H
-#define FLINK_TNEL_COMMON_H
+#pragma once
 
 #include <iostream>
 #include <chrono>
@@ -19,6 +18,8 @@
 #include <vector>
 #include <mutex>
 #include <thread>
+#include <type_traits>
+#include <memory>
 
 inline std::mutex global_mutex;
 
@@ -82,6 +83,7 @@ std::cout.flush();  \
 **/
 
 #define LOG(msg)         LOG_TRACE(msg)
+#define LOG_DEBUG(msg)   LOG_INFO_IMP(msg)
 #define LOG_TRACE(msg)   LOG_INTERNAL("[______TRACE_____]",  msg)
 #define LOG_PART(msg)     LOG_INTERNAL("[___PARTITION____]", msg)
 #define LOG_INFO_IMP(msg) LOG_INTERNAL("[____INFO____]", msg)
@@ -105,6 +107,7 @@ std::cout.flush();  \
 
 
 #else
+#define LOG_DEBUG(msg)
 #define LOG(msg)
 #define LOG_TRACE(msg)
 #define LOG_PART(msg)
@@ -149,5 +152,23 @@ std::cout.flush();  \
 
 void GErrorLog(std::string msg);
 
+template <typename T>
+struct is_shared_ptr : std::false_type {};
 
-#endif
+template <typename T>
+struct is_shared_ptr<std::shared_ptr<T>> : std::true_type {};
+
+// is_shared_ptr_v<T> return true if T is std::shared_ptr<*>, otherwise return false
+template <typename T>
+constexpr bool is_shared_ptr_v =
+    is_shared_ptr<typename std::remove_cv_t<typename std::remove_reference_t<T>>>::value;
+
+template <typename T, typename E>
+struct is_shared_ptr_of : std::false_type {};
+
+template <typename T>
+struct is_shared_ptr_of<std::shared_ptr<T>, T> : std::true_type {};
+
+// is_shared_ptr_of_v<T, E> return true if T is std::shared_ptr<E>, otherwise return false
+template <typename T, typename E>
+constexpr bool is_shared_ptr_of_v = is_shared_ptr_of<typename std::remove_cv_t<typename std::remove_reference_t<T>>, E>::value;

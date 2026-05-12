@@ -19,17 +19,14 @@
 #include <vector>
 #include <filesystem>
 #include <iostream>
-#include <fstream>
 
 #include "runtime/state/RegisteredStateMetaInfoBase.h"
 #include "runtime/state/rocksdb/RocksDbOperationUtils.h"
 #include "runtime/state/metainfo/StateMetaInfoSnapshot.h"
 #include "runtime/state/RocksDbKvStateInfo.h"
-#include "streaming/runtime/metrics/MetricGroup.h"
 
 #include "rocksdb/db.h"
 #include "rocksdb/options.h"
-#include "rocksdb/status.h"
 
 namespace fs = std::filesystem;
 

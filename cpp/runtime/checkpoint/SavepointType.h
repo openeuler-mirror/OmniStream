@@ -99,12 +99,21 @@ public:
 
     std::string ToString() override
     {
-        return "SavepointType{name='" + name_ +
-               "', postCheckpointAction=" + std::to_string(static_cast<int>(postCheckpointAction_)) +
-               ", formatType=" + std::to_string(static_cast<int>(formatType_)) +
-               "}";
+        nlohmann::json json;
+        json["name"] = name_;
+        json["postCheckpointAction"] = postCheckpointAction_;
+        json["formatType"] = formatType_;
+        return json.dump();
     }
 
+    nlohmann::json ToJson() override
+    {
+        nlohmann::json json;
+        json["name"] = name_;
+        json["postCheckpointAction"] = postCheckpointAction_;
+        json["formatType"] = formatType_;
+        return json;
+    }
 private:
     SavepointType(
         std::string name,

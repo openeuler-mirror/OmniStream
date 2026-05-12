@@ -32,8 +32,6 @@ InputChannel::InputChannel(std::shared_ptr<SingleInputGate> inputGate, int chann
     if (channelIndex < 0) {
         throw std::invalid_argument("channelIndex must be non-negative");
     }
-    initialBackoff = initBackoffConstant;
-    maxBackoff = maxBackoffConstant;
     if (initialBackoff < 0 || initialBackoff > maxBackoff) {
         throw std::invalid_argument("initialBackoff must be non-negative and less than or equal to maxBackoff");
     }
@@ -64,7 +62,7 @@ void InputChannel::notifyChannelNonEmpty()
     inputGate->notifyChannelNonEmpty(shared_from_this());
 }
 
-void InputChannel::notifyPriorityEvent(int priorityBufferNumber)
+void InputChannel::NotifyPriorityEvent(int priorityBufferNumber)
 {
     inputGate->notifyPriorityEvent(shared_from_this(), priorityBufferNumber);
 }

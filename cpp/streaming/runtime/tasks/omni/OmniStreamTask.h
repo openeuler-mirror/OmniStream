@@ -27,10 +27,8 @@
 #include "streaming/runtime/io/OmniStreamInputProcessor.h"
 #include "io/network/api/StopMode.h"
 #include "streaming/runtime/tasks/SubtaskCheckpointCoordinatorImpl.h"
-#include "streaming/runtime/tasks/TimerService.h"
 #include "runtime/state/CheckpointStorage.h"
 #include "runtime/io/checkpointing/CheckpointBarrierHandler.h"
-#include "runtime/state/hashmap/HashMapStateBackend.h"
 #include "streaming/runtime/tasks/SystemProcessingTimeService.h"
 #include "table/runtime/keyselector/KeySelector.h"
 
@@ -45,10 +43,16 @@ namespace omnistream {
                        int taskType);
         OmniStreamTask(std::shared_ptr<RuntimeEnvironmentV2>& env,
                        std::shared_ptr<StreamTaskActionExecutor> actionExecutor,
-                       std::shared_ptr<TaskMailbox> mailbox,
+                       TaskMailbox* mailbox,
                        int taskType);
 
-        virtual ~OmniStreamTask() = default;
+        virtual ~OmniStreamTask()
+        {
+            if (inputProcessor_ != nullptr) {
+                delete inputProcessor_;
+                inputProcessor_ = nullptr;
+            }
+        }
 
         // getter
         virtual const std::string getName() const;
@@ -62,6 +66,8 @@ namespace omnistream {
         // life cycle
         // in the most cases, it does not to be overridden
         void restore();
+
+        void InjectChannelStateWriterIntoChannels();
 
         // in the most cases, it does not to be overridden
         void restoreInternal();
@@ -100,15 +106,15 @@ namespace omnistream {
             }
         };
 
-        std::shared_ptr<OmniStreamInputProcessor> input_processor() const {
+        OmniStreamInputProcessor* input_processor() const {
             return inputProcessor_;
         }
 
-        void abortCheckpointOnBarrier(long checkpointId, CheckpointException cause) override {};
+        void abortCheckpointOnBarrier(long checkpointId, CheckpointException cause) override;
 
         bool IsUsingNonBlockingInput();
         // stream task specific
-        virtual void processInput(std::shared_ptr<MailboxDefaultAction::Controller> controller);
+        virtual void processInput(MailboxDefaultAction::Controller *controller);
 
         void dispatchOperatorEvent(const std::string& operatorIdString, const std::string& eventString);
 
@@ -121,6 +127,12 @@ namespace omnistream {
         {
             return isRunning;
         }
+
+        int getTaskType()
+        {
+            return taskType;
+        }
+
         bool isCurrentSyncSavepoint(long checkpointId);
         void notifyCheckpointComplete(long checkpointId);
         std::shared_ptr<CompletableFutureV2<void>> notifyCheckpointCompleteAsync(long checkpointid);
@@ -128,17 +140,21 @@ namespace omnistream {
         std::shared_ptr<CompletableFutureV2<void>> notifyCheckpointAbortAsync(long checkpointid, long latestCompletedCheckpointId);
         std::shared_ptr<CompletableFutureV2<bool>> triggerCheckpointAsync(CheckpointMetaData* checkpointMetaData,
             CheckpointOptions* checkpointOptions);
+        StreamPartitionerV2<StreamRecord> *createPartitionerFromDesc(StreamPartitionerPOD partitioner);
+
+        datastream::StreamPartitioner<IOReadableWritable> *createPartitionerFromDesc(const StreamEdgePOD &edge);
+        ProcessingTimeService* createProcessingTimeService();
     protected:
         std::shared_ptr<RuntimeEnvironmentV2> env_;
         std::vector<OperatorConfig> operatorChainConfig_;
 
         // operator chain
-        omnistream::OperatorChainV2* operatorChain = nullptr;
+        std::unique_ptr<OperatorChainV2> operatorChain;
         std::shared_ptr<RecordWriterDelegateV2> recordWriter_;
-        StreamOperator* mainOperator_;
-        std::shared_ptr<OmniStreamInputProcessor> inputProcessor_;
+        StreamOperator* mainOperator_ = nullptr;
+        OmniStreamInputProcessor* inputProcessor_ = nullptr;
 
-
+        static ProcessingTimeCallback* deferCallbackToMailBox(shared_ptr<MailboxExecutor> mailboxExecutor, ProcessingTimeCallback *callback);
 
     protected:
         /**
@@ -153,9 +169,10 @@ namespace omnistream {
         std::shared_ptr<StreamTaskActionExecutor> actionExecutor_;
 
         // mailbox loop
-        std::shared_ptr<TaskMailbox> mailbox_;
-        std::shared_ptr<MailboxProcessor> mailboxProcessor_;
-        std::shared_ptr<MailboxExecutor> mainMailboxExecutor_;
+        TaskMailbox* mailbox_; // 负责存储相应 task 任务（也就是 mail），它支持多写单读，单线程读取并处理, delete by MailboxProcessor
+        std::unique_ptr<MailboxProcessor> mailboxProcessor_; // MailBox 的核心处理线程，MailboxDefaultAction 是其默认的 action 实现
+        std::shared_ptr<MailboxExecutor> mainMailboxExecutor_; // 它负责向 MailBox 提交 task 任务
+        std::shared_ptr<ProcessingTimeService> timerService;
         std::shared_ptr<SystemProcessingTimeService> systemTimerService;
 
         TaskInformationPOD taskConfiguration_;
@@ -210,16 +227,13 @@ namespace omnistream {
 
         template<typename K> KeySelector<K>* buildKeySelector(std::vector<KeyFieldInfoPOD>& keyFields);
 
-        // partitioner
-        StreamPartitionerV2<StreamRecord> *createPartitionerFromDesc(StreamPartitionerPOD partitioner);
-
-        datastream::StreamPartitioner<IOReadableWritable> *createPartitionerFromDesc(const StreamEdgePOD &edge);
-
         // mailbox
         void runMailboxLoop();
 
         /** Flags indicating the finished method of all the operators are called. */
         bool finishedOperators {false};
+        // Flags indicating the close method of all the operators are called
+        bool closedOperators_ {false};
 
         std::atomic<bool> endOfDataReceived {false};
 
@@ -229,8 +243,8 @@ namespace omnistream {
         std::shared_ptr<CheckpointStorage> checkpointStorage;
         bool isRunning;
 
-        CompletableFutureV2<void> *prepareInputSnapshot(
-            ChannelStateWriter *channelStateWriter,
+        std::shared_ptr<CompletableFutureV2<void>> prepareInputSnapshot(
+            std::shared_ptr<ChannelStateWriter> channelStateWriter,
             long checkpointID
         );
 
@@ -260,15 +274,37 @@ namespace omnistream {
 
     class StreamTaskAction : public MailboxDefaultAction {
     public:
-        explicit StreamTaskAction(std::shared_ptr<OmniStreamTask> task) : task_(task) {};
+        explicit StreamTaskAction(OmniStreamTask* task) : task_(task) {};
         ~StreamTaskAction() override = default;
-        void runDefaultAction(std::shared_ptr<Controller> controller) override
+        void runDefaultAction(Controller *controller) override
         {
             task_->processInput(controller);
         };
 
     private:
-        std::shared_ptr<OmniStreamTask> task_;
+        OmniStreamTask* task_;
+    };
+
+    class ResumeWrapper : public Runnable {
+    public:
+        ResumeWrapper(std::shared_ptr<MailboxDefaultAction::Suspension> suspendedDefaultAction, std::shared_ptr<PeriodTimer> timer)
+            : suspendedDefaultAction(std::move(suspendedDefaultAction)), timer(std::move(timer)) {
+            if (timer != nullptr) {
+                timer->markStart();
+            }
+        }
+
+        void run() override
+        {
+            if (timer != nullptr) {
+                timer->markEnd();
+            }
+            suspendedDefaultAction->resume();
+        }
+    private:
+        std::shared_ptr<MailboxDefaultAction::Suspension> suspendedDefaultAction;
+        std::shared_ptr<PeriodTimer> timer;
+
     };
 }
 

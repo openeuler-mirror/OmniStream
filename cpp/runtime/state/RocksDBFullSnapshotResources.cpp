@@ -2,6 +2,7 @@
 #include "state/rocksdb/iterator/SingleStateIterator.h"
 #include "state/rocksdb/iterator/RocksStatesPerKeyGroupMergeIterator.h"
 #include "state/rocksdb/iterator/RocksTransformingIteratorWrapper.h"
+#include <algorithm>
 const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>&
 RocksDBFullSnapshotResources::getMetaInfoSnapshots()
 {
@@ -26,11 +27,10 @@ std::shared_ptr<KeyValueStateIterator> RocksDBFullSnapshotResources::createKVSta
     std::vector<std::pair<std::unique_ptr<RocksIteratorWrapper>, int>>
         kvStateIterators = 
             createKVStateIterators(closeableRegistry, readOptions);
-    std::vector<std::unique_ptr<SingleStateIterator>> heapPriorityQueueIterators;
     return std::make_shared<RocksStatesPerKeyGroupMergeIterator>(
         std::move(closeableRegistry),
         kvStateIterators,
-        heapPriorityQueueIterators,
+        heapPriorityQueueIterators_,
         keyGroupPrefixBytes_);
 }
 
@@ -81,6 +81,7 @@ RocksDBFullSnapshotResources::RocksDBFullSnapshotResources(
     const rocksdb::Snapshot* snapshot,
     const std::vector<std::shared_ptr<RocksDbKvStateInfo>>& metaDataCopy,
     const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& stateMetaInfoSnapshots,
+    std::vector<std::unique_ptr<SingleStateIterator>> heapPriorityQueueIterators,
     rocksdb::DB* db,
     int keyGroupPrefixBytes,
     KeyGroupRange* keyGroupRange,
@@ -91,7 +92,8 @@ RocksDBFullSnapshotResources::RocksDBFullSnapshotResources(
     db_(db),
     keyGroupPrefixBytes_(keyGroupPrefixBytes),
     keyGroupRange_(keyGroupRange),
-    keySerializer_(keySerializer)
+    keySerializer_(keySerializer),
+    heapPriorityQueueIterators_(std::move(heapPriorityQueueIterators))
 {
     for (auto& info : metaDataCopy) {
         metaData_.push_back(std::make_shared<MetaData>(info, nullptr));
@@ -101,6 +103,7 @@ RocksDBFullSnapshotResources::RocksDBFullSnapshotResources(
 std::shared_ptr<RocksDBFullSnapshotResources>
 RocksDBFullSnapshotResources::create(
     const std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>& kvStateInformation,
+    const std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapperBase>>>& registeredPQStates,
     rocksdb::DB* db,
     const std::shared_ptr<ResourceGuard>& rocksDBResourceGuard,
     KeyGroupRange* keyGroupRange,
@@ -113,6 +116,38 @@ RocksDBFullSnapshotResources::create(
         stateMetaInfoSnapshots.push_back(stateInfo->metaInfo_->snapshot());
         metaDataCopy.push_back(stateInfo);
     }
+
+    std::vector<std::unique_ptr<SingleStateIterator>> heapPriorityQueueIterators;
+    int pqStateId = static_cast<int>(metaDataCopy.size());
+
+    if (registeredPQStates != nullptr && !registeredPQStates->empty()) {
+        std::vector<std::string> pqStateNames;
+        pqStateNames.reserve(registeredPQStates->size());
+        for (const auto& entry : *registeredPQStates) {
+            pqStateNames.push_back(entry.first);
+        }
+        std::sort(pqStateNames.begin(), pqStateNames.end());
+
+        for (const auto& stateName : pqStateNames) {
+            auto iter = registeredPQStates->find(stateName);
+            if (iter == registeredPQStates->end() || iter->second == nullptr) {
+                continue;
+            }
+
+            auto& wrapper = iter->second;
+            stateMetaInfoSnapshots.push_back(wrapper->snapshotMetaInfo());
+
+            auto pqIterator = wrapper->createSnapshotIterator(
+                pqStateId,
+                keyGroupPrefixBytes);
+            if (pqIterator != nullptr) {
+                heapPriorityQueueIterators.push_back(std::move(pqIterator));
+            }
+
+            ++pqStateId;
+        }
+    }
+
     auto lease = rocksDBResourceGuard->acquireResource();
     auto snapshot = db->GetSnapshot();
     return std::make_shared<RocksDBFullSnapshotResources>(
@@ -120,8 +155,31 @@ RocksDBFullSnapshotResources::create(
         snapshot,
         metaDataCopy,
         stateMetaInfoSnapshots,
+        std::move(heapPriorityQueueIterators),
         db,
         keyGroupPrefixBytes,
         keyGroupRange,
         keySerializer);
+}
+
+RocksDBFullSnapshotResources::~RocksDBFullSnapshotResources() {
+    if (db_ != nullptr && snapshot_ != nullptr) {
+        db_->ReleaseSnapshot(snapshot_);
+    }
+    if (lease_ != nullptr) {
+        lease_->close();
+        delete lease_;
+    }
+}
+
+void RocksDBFullSnapshotResources::cleanup() {
+    if (db_ != nullptr && snapshot_ != nullptr) {
+        db_->ReleaseSnapshot(snapshot_);
+        snapshot_ = nullptr;
+    }
+    if (lease_ != nullptr) {
+        lease_->close();
+        delete lease_;
+        lease_ = nullptr;
+    }
 }

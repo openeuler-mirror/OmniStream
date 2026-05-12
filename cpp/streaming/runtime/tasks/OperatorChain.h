@@ -112,18 +112,9 @@ namespace omnistream {
 
         ~OperatorChainV2()
         {
-            auto opWrap = mainOperatorWrapper;
-            while (opWrap != nullptr) {
-                auto op = opWrap->getStreamOperator();
-                delete op;
-                opWrap = opWrap->getNext();
-            }
             delete mainOperatorWrapper;
             mainOperatorWrapper = nullptr;
-            if (tailOperatorWrapper) {
-                delete tailOperatorWrapper;
-                tailOperatorWrapper = nullptr;
-            }
+            tailOperatorWrapper = nullptr;
         }
 
     void finishOperators(StreamTaskActionExecutor *actionExecutor);
@@ -131,7 +122,7 @@ namespace omnistream {
         StreamOperator *createMainOperatorAndCollector(OperatorChainPOD &opChainConfig,
                                                        RecordWriterOutputV2 *chainOutput);
 
-    void initializeStateAndOpenOperators(StreamTaskStateInitializerImpl *initializer, TaskInformationPOD taskConfiguration_);
+    void initializeStateAndOpenOperators(StreamTaskStateInitializerImpl *initializer, const TaskInformationPOD& taskConfiguration_);
 
         [[nodiscard]] StreamOperator *getMainOperator() const
         {
@@ -148,7 +139,7 @@ namespace omnistream {
             return isClosed_;
         }
 
-        void CloseAllOperators()
+        virtual void CloseAllOperators()
         {
             isClosed_ = true;
         }
@@ -160,7 +151,7 @@ namespace omnistream {
 
         void broadcastEvent(std::shared_ptr<AbstractEvent> event, bool isPriorityEvent)
         {
-            LOG(">>>>>>")
+            LOG_DEBUG("broadcastEvent")
             for (RecordWriterOutputV2* streamOutput : streamOutputs) {
                 streamOutput->broadcastEvent(event, isPriorityEvent);
             }
@@ -184,9 +175,9 @@ namespace omnistream {
     void NotifyCheckpointComplete(long checkpointId);
     void NotifyCheckpointAborted(long checkpointId);
     void NotifyCheckpointSubsumed(long checkpointId);
-    void SnapshotState(std::unordered_map<OperatorID, OperatorSnapshotFutures *>& operatorSnapshotsInProgress,
+    void SnapshotState(std::unordered_map<OperatorID, OperatorSnapshotFutures *> *operatorSnapshotsInProgress,
         CheckpointMetaData &checkpointMetaData, CheckpointOptions *checkpointOptions, std::shared_ptr<Supplier<bool>> isRunning,
-        ChannelStateWriter::ChannelStateWriteResult& channelStateWriteResult, CheckpointStreamFactory* storage,
+        std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> channelStateWriteResult, CheckpointStreamFactory* storage,
         const std::shared_ptr<OmniTaskBridge>& bridge);
     bool IsTaskDeployedAsFinished()
     {
@@ -205,15 +196,21 @@ namespace omnistream {
 
         std::vector<RecordWriterOutputV2*> streamOutputs;
 
-    // weak ref,
-    StreamOperatorWrapper *tailOperatorWrapper;
+        // weak ref,
+        StreamOperatorWrapper *tailOperatorWrapper;
 
-    OperatorEventDispatcherImpl* operatorEventDispatcher;
+        OperatorEventDispatcherImpl* operatorEventDispatcher;
 
-    void SnapshotChannelStates(StreamOperator* op, ChannelStateWriter::ChannelStateWriteResult& channelStateWriteResult,
-        OperatorSnapshotFutures& snapshotInProgress);
+        void SnapshotChannelStates(StreamOperator* op, std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> channelStateWriteResult,
+            OperatorSnapshotFutures* snapshotInProgress);
 
-    void SendAcknowledgeCheckpointEvent(long checkpointId);
+        void SendAcknowledgeCheckpointEvent(long checkpointId);
+
+        ReadIterator getAllOperators(bool reverse) {
+            return reverse
+                       ? ReadIterator(tailOperatorWrapper, true)
+                       : ReadIterator(mainOperatorWrapper, false);
+        }
 
     private:
     // future the following function should be private and the logic will be refactory
@@ -254,13 +251,6 @@ namespace omnistream {
             std::unordered_map<int, datastream::RecordWriterOutput *> &recordWriterOutputs,
             std::vector<StreamOperatorWrapper *> &allOperatorWrappers);
 
-        ReadIterator getAllOperators(bool reverse)
-        {
-            return reverse
-                       ? ReadIterator(tailOperatorWrapper, true)
-                       : ReadIterator(mainOperatorWrapper, false);
-        }
-
         void registerHandler(OperatorPOD &opDesc, StreamOperator *streamOperator)
         {
             auto id = opDesc.getId();
@@ -278,7 +268,7 @@ namespace omnistream {
         CheckpointOptions *checkpointOptions,
         StreamOperator *op,
         std::shared_ptr<Supplier<bool>> isRunning,
-        ChannelStateWriter::ChannelStateWriteResult &channelStateWriteResult,
+        std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> channelStateWriteResult,
         CheckpointStreamFactory *storage,
         const std::shared_ptr<OmniTaskBridge>& bridge);
 

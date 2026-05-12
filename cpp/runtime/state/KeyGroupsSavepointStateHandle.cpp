@@ -29,8 +29,15 @@ std::string KeyGroupsSavepointStateHandle::ToString() const
 {
     nlohmann::json json;
     json["stateHandleName"] = "KeyGroupsSavepointStateHandle";
-    json["streamStateHandle"] = nlohmann::json::parse(getDelegateStateHandle()->ToString());
-    json["stateHandleID"] = nlohmann::json::parse(GetStreamStateHandleID().ToString());
+    json["stateHandleId"] = nlohmann::json::parse(GetStateHandleId().ToString());
     json["groupRangeOffsets"] = nlohmann::json::parse(getGroupRangeOffsets().ToString());
+    if (getDelegateStateHandle() != nullptr) {
+        nlohmann::json streamStateHandle = nlohmann::json::parse(getDelegateStateHandle()->ToString());
+        json["streamStateHandle"] = streamStateHandle;
+        json["stateHandle"] = streamStateHandle;
+    } else {
+        json["streamStateHandle"] = nullptr;
+        json["stateHandle"] = nullptr;
+    }
     return json.dump();
 }

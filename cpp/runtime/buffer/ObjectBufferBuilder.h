@@ -23,10 +23,11 @@ namespace omnistream {
 
 class ObjectBufferBuilder : public BufferBuilder {
 public:
-    ObjectBufferBuilder(std::shared_ptr<ObjectSegment> objSegment, std::shared_ptr<BufferRecycler> recycler);
+    ObjectBufferBuilder(ObjectSegment *objSegment, std::shared_ptr<BufferRecycler> recycler);
     ~ObjectBufferBuilder() override = default;
 
-    int append(void *source) override;
+    int appendAndCommit(void* source) override;
+    int append(void *source);
 
     using BufferBuilder::createBufferConsumer;
     std::shared_ptr<BufferConsumer> createBufferConsumerFromBeginning() override;
@@ -36,10 +37,10 @@ public:
 
     // for test
     StreamElement* getObject(int index);
+    Segment* GetSegment() override;
 private:
 
-    std::shared_ptr<ObjectSegment> objSegment;
-    bool bufferConsumerCreated;
+    ObjectSegment *objSegment;
 };
 
 } // namespace omnistream

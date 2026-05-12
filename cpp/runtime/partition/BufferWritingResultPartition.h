@@ -20,6 +20,7 @@
 
 #include "BufferAvailabilityListener.h"
 #include "ResultSubpartitionView.h"
+#include "checkpoint/channel/ChannelStateWriter.h"
 
 #include <iostream>
 
@@ -49,16 +50,29 @@ public:
         std::shared_ptr<Supplier<BufferPool>> bufferPoolFactory,
         int taskType);
 
+    ~BufferWritingResultPartition() {
+        for (auto bufferBuilder : unicastBufferBuilders) {
+            if (bufferBuilder) {
+                bufferBuilder->close();
+                delete bufferBuilder;
+            }
+        }
+        unicastBufferBuilders.clear();
+        if (broadcastBufferBuilder) {
+            delete broadcastBufferBuilder;
+        }
+    }
+
     void setup() override;
     int getNumberOfQueuedBuffers() override;
     int getNumberOfQueuedBuffers(int targetSubpartition) override;
     void emitRecord(void* record, int targetSubpartition) override;
     void broadcastRecord(void* record) override;
     void broadcastEvent(std::shared_ptr<AbstractEvent> event, bool isPriorityEvent) override;
-    std::shared_ptr<BufferBuilder> appendUnicastDataForRecordContinuation(void *record, int targetSubpartition);
+    BufferBuilder *appendUnicastDataForRecordContinuation(void *record, int targetSubpartition);
 
     std::shared_ptr<ResultSubpartitionView> createSubpartitionView(
-        int subpartitionIndex, std::shared_ptr<BufferAvailabilityListener> availabilityListener) override;
+        int subpartitionIndex, BufferAvailabilityListener* availabilityListener) override;
     void finish() override;
     void cancel() override;
     void close() override;
@@ -66,17 +80,22 @@ public:
     virtual void setSubpartitions(const std::vector<std::shared_ptr<ResultSubpartition>>& subpartitions);
 
     std::vector<std::shared_ptr<ResultSubpartition>> getAllPartitions();
-
+    void SetChannelStateWriter(const std::shared_ptr<ChannelStateWriter> &channelStateWriter);
 protected:
-    void releaseInternal() override = 0;
+    void releaseInternal() override;
     void flushSubpartition(int targetSubpartition, bool finishProducers);
     void flushAllSubpartitions(bool finishProducers);
 
+    // The subpartitions of this partition. At least one.
     std::vector<std::shared_ptr<ResultSubpartition>> subpartitions_;
 
-    std::vector<std::shared_ptr<BufferBuilder>> unicastBufferBuilders;
+    // For non-broadcast mode, each subpartition maintains a separate BufferBuilder which might be null.
+    std::vector<BufferBuilder*> unicastBufferBuilders;
 
-    std::shared_ptr<BufferBuilder> broadcastBufferBuilder;
+    // For broadcast mode, a single BufferBuilder is shared by all subpartitions
+    BufferBuilder *broadcastBufferBuilder = nullptr;
+
+    int64_t totalWrittenBytes;
 
     void createBroadcastBufferConsumers(std::shared_ptr<ObjectBufferBuilder> buffer, int partialRecordBytes);
 
@@ -91,15 +110,19 @@ protected:
     void ensureBroadcastMode();
 
 private:
-    std::shared_ptr<BufferBuilder> requestNewUnicastBufferBuilder(int targetSubpartition);
+    BufferBuilder *requestNewUnicastBufferBuilder(int targetSubpartition);
 
-    std::shared_ptr<BufferBuilder> requestNewBroadcastBufferBuilder();
+    BufferBuilder *requestNewBroadcastBufferBuilder();
 
-    std::shared_ptr<BufferBuilder> requestNewBufferBuilderFromPool(int targetSubpartition);
+    BufferBuilder *requestNewBufferBuilderFromPool(int targetSubpartition);
 
-    void addToSubpartition(std::shared_ptr<BufferBuilder> buffer, int targetSubpartition, int i);
+    void addToSubpartition(BufferBuilder *buffer, int targetSubpartition, int i);
 
-    std::shared_ptr<BufferBuilder> appendUnicastDataForNewRecord(void* record, int targetSubpartition);
+    void addToSubpartition(BufferBuilder *buffer, int targetSubpartition, int partialRecordLength, int minDesirableBufferSize);
+
+    void resizeBuffer(BufferBuilder *buffer, int desirableBufferSize, int minDesirableBufferSize);
+
+    BufferBuilder *appendUnicastDataForNewRecord(void* record, int targetSubpartition);
 };
 
 } // namespace omnistream

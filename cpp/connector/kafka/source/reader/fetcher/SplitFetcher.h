@@ -90,8 +90,8 @@ private:
 template <typename E, typename SplitT>
 class SplitFetcher {
 public:
-    SplitFetcher(int id, const std::shared_ptr<FutureCompletingBlockingQueue<E>>& elementsQueue,
-        const std::shared_ptr<SplitReader<E, SplitT>>& splitReader,
+    SplitFetcher(int id, FutureCompletingBlockingQueue<E>* elementsQueue,
+                 SplitReader<E, SplitT>* splitReader,
         std::function<void(const std::exception_ptr &)> errorHandler, std::function<void()> shutdownHook)
         : id(id), elementsQueue(elementsQueue), splitReader(splitReader), errorHandler(errorHandler),
         shutdownHook(shutdownHook)
@@ -104,6 +104,11 @@ public:
                 }
             },
             id);
+    }
+
+    ~SplitFetcher()
+    {
+        delete splitReader;
     }
 
     void run()
@@ -169,7 +174,7 @@ public:
         idle = false;
     }
 
-    std::shared_ptr<KafkaPartitionSplitReader> getSplitReader()
+    KafkaPartitionSplitReader* getSplitReader()
     {
         return splitReader;
     }
@@ -239,8 +244,8 @@ private:
     int id;
     BlockingDeque taskQueue;
     std::unordered_map<std::string, SplitT*> assignedSplitsMap;
-    std::shared_ptr<FutureCompletingBlockingQueue<E>> elementsQueue;
-    std::shared_ptr<SplitReader<E, SplitT>> splitReader;
+    FutureCompletingBlockingQueue<E>* elementsQueue;
+    SplitReader<E, SplitT>* splitReader;
     std::function<void(const std::exception_ptr &)> errorHandler;
     std::function<void()> shutdownHook;
     std::atomic<bool> wakeUp{false};

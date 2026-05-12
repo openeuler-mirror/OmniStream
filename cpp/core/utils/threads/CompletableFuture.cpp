@@ -9,18 +9,15 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "CompletableFuture.h"
-#include <iostream>
 
 namespace omnistream {
-
-CompletableFuture::CompletableFuture()
-    : state(FutureState::NOT_STARTED), done(false) {
-}
+CompletableFuture::CompletableFuture() : state(FutureState::NOT_STARTED), done(false) {}
+CompletableFuture::CompletableFuture(bool flag, FutureState futureState) : state(futureState), done(flag) {}
 
 CompletableFuture::~CompletableFuture()
 {
     if (worker.joinable()) {
-        worker.join();
+        worker.detach();
     }
 }
 
@@ -50,7 +47,7 @@ CompletableFuture& CompletableFuture::operator=(CompletableFuture&& other) noexc
     return *this;
 }
 
-void CompletableFuture::executeTask(CompletableFuture* future, Runnable* task)
+void CompletableFuture::executeTask(std::shared_ptr<CompletableFuture> future, std::shared_ptr<Runnable> task)
 {
     try {
         {
@@ -72,9 +69,10 @@ void CompletableFuture::executeTask(CompletableFuture* future, Runnable* task)
 
     future->done.store(true);
     future->cv.notify_all();
+    future->self.reset();
 }
 
-void CompletableFuture::runAs(Runnable* task)
+void CompletableFuture::runAs(std::shared_ptr<Runnable> task)
 {
     if (isDone()) {
         throw std::runtime_error("Future already completed");
@@ -87,22 +85,23 @@ void CompletableFuture::runAs(Runnable* task)
         }
     }
 
-    worker = std::thread(executeTask, this, task);
+    self = shared_from_this();
+    worker = std::thread(executeTask, self, task);
 }
 
-std::shared_ptr<CompletableFuture> CompletableFuture::runAsync(Runnable* task)
+std::shared_ptr<CompletableFuture> CompletableFuture::runAsync(std::shared_ptr<Runnable> task)
 {
     std::shared_ptr<CompletableFuture> future = std::make_shared<CompletableFuture>();
     future->runAs(task);
     return future;
 }
 
-std::shared_ptr<CompletableFuture> CompletableFuture::thenRun(Runnable* task)
+std::shared_ptr<CompletableFuture> CompletableFuture::thenRun(std::shared_ptr<Runnable> task)
 {
     class ChainedTask : public Runnable {
     public:
-        ChainedTask(CompletableFuture* parentFuture, Runnable* nextTask)
-            : parent(parentFuture), next(nextTask) {}
+        ChainedTask(std::shared_ptr<CompletableFuture> parentFuture, std::shared_ptr<Runnable> nextTask)
+            : parent(parentFuture), next(std::move(nextTask)) {}
 
         void run() override
         {
@@ -113,11 +112,11 @@ std::shared_ptr<CompletableFuture> CompletableFuture::thenRun(Runnable* task)
             next->run();
         }
     private:
-        CompletableFuture* parent;
-        Runnable* next;
+        std::shared_ptr<CompletableFuture> parent;
+        std::shared_ptr<Runnable> next;
     };
 
-    ChainedTask* chainedTask = new ChainedTask(this, task);
+    auto chainedTask = std::make_shared<ChainedTask>(shared_from_this(), task);
     return runAsync(chainedTask);
 }
 
@@ -165,7 +164,7 @@ std::shared_ptr<CompletableFuture> CompletableFuture::allOf(const std::vector<st
         std::vector<std::shared_ptr<CompletableFuture>> allFutures;
     };
 
-    AllOfTask* allOfTask = new AllOfTask(futures);
+    auto allOfTask = std::make_shared<AllOfTask>(futures);
     return runAsync(allOfTask);
 }
 
@@ -208,7 +207,7 @@ std::shared_ptr<CompletableFuture> CompletableFuture::anyOf(const std::vector<st
         std::vector<std::shared_ptr<CompletableFuture>> anyFutures;
     };
 
-    AnyOfTask* anyOfTask = new AnyOfTask(futures);
+    auto anyOfTask = std::make_shared<AnyOfTask>(futures);
     return runAsync(anyOfTask);
 }
 
@@ -242,6 +241,14 @@ void CompletableFuture::setCompleted()
 {
     std::lock_guard<std::mutex> lock(mtx);
     state = FutureState::COMPLETED;
+}
+
+void CompletableFuture::complete()
+{
+    std::lock_guard<std::mutex> lock(mtx);
+    state = FutureState::COMPLETED;
+    done.store(true);
+    cv.notify_all();
 }
 
 std::string CompletableFuture::toString() const
