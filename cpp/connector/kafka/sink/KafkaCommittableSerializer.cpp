@@ -11,18 +11,23 @@
 
 #include "KafkaCommittableSerializer.h"
 #include "core/memory/DataInputDeserializer.h"
+#include "core/memory/DataOutputSerializer.h"
 
 int KafkaCommittableSerializer::getVersion() const
 {
     return 1;
 }
 
-std::vector<uint8_t> KafkaCommittableSerializer::serialize(const KafkaCommittable&  obj ) { return {}; }
+std::vector<uint8_t> KafkaCommittableSerializer::serialize(const KafkaCommittable& state) {
+    DataOutputSerializer out;
+    out.writeShort(state.GetEpoch());
+    out.writeLong(state.GetProducerId());
+    out.writeUTF(state.GetTransactionalId());
+    return std::vector<uint8_t>(out.getData(), out.getData() + out.length());
+}
 
-KafkaCommittable* KafkaCommittableSerializer::deserialize(int version, std::vector<uint8_t>&  serialized)
-{
-    DataInputDeserializer deserializer;
-    deserializer.setBuffer(serialized.data(), serialized.size(), 0, serialized.size());
+KafkaCommittable* KafkaCommittableSerializer::deserialize(int version, std::vector<uint8_t>& serialized) {
+    DataInputDeserializer deserializer(serialized.data(), serialized.size(), 0);
     short epoch = deserializer.readUnsignedShort();
     long producerId = deserializer.readLong();
     std::string transactionalId = deserializer.readUTF();

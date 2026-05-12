@@ -21,12 +21,7 @@ template <typename CommT>
 class CommittableWithLineage : public CommittableMessage<CommT> {
 public:
     CommittableWithLineage(CommT committable, std::optional<long> checkpointId, int subtaskId)
-        : committable(std::move(committable)), checkpointId(checkpointId), subtaskId(subtaskId)
-    {
-        if (!committable) {
-            throw std::invalid_argument("committable must not be null");
-        }
-    }
+        : committable(std::move(committable)), checkpointId(checkpointId), subtaskId(subtaskId) {}
 
     CommT GetCommittable() const
     {

@@ -18,6 +18,8 @@
 #include <typeinfo/TypeInfoFactory.h>
 #include "core/typeutils/LongSerializer.h"
 #include "WatermarkGaugeExposingOutput.h"
+#include "streaming/api/operators/sink/SinkWriterOperator.h"
+#include "streaming/api/operators/sink/CommitterOperator.h"
 #include "state/bridge/OmniTaskBridge.h"
 #include "streaming/api/operators/AbstractStreamOperator.h"
 #include "omni/OmniStreamTask.h"
@@ -207,6 +209,8 @@ OperatorChainV2::OperatorChainV2(
         allOperatorWrappers.emplace_back(operatorWrapper);
         this->tailOperatorWrapper = allOperatorWrappers[0];
         linkOperatorWrappers(allOperatorWrappers);
+
+        operatorDependenciesDeal();
     } else {
         THROW_LOGIC_EXCEPTION("Object has been deleted!\n")
     }
@@ -381,6 +385,8 @@ StreamOperator *OperatorChainV2::createMainOperatorAndCollector(
     } else {
         mainOperatorOutput = chainOutput;
     }
+
+    operatorDependenciesDeal();
 
     return op;
 }
@@ -626,6 +632,48 @@ void OperatorChainV2::SnapshotChannelStates(StreamOperator *op,
                     snapshotInProgress->OperatorSemPost();
                 }
         );
+    }
+}
+
+void OperatorChainV2::operatorDependenciesDeal() {
+    if (this->mainOperatorWrapper == nullptr) {
+        GErrorLog("OperatorDependenciesDeal mainOperatorWrapper is nullptr");
+        return;
+    }
+    std::unordered_map<std::string_view, StreamOperator*> opMap;
+    StreamOperatorWrapper* current = this->mainOperatorWrapper;
+    while (current != nullptr) {
+        StreamOperator* op = current->getStreamOperator();
+        if (dynamic_cast<CommitterOperator<>*>(op) != nullptr) {
+            opMap.emplace(OPERATOR_NAME_COMMIT_OPERATOR, op);
+        }
+        if (dynamic_cast<SinkWriterOperator*>(op) != nullptr) {
+            opMap.emplace(OPERATOR_NAME_SINK_WRITER, op);
+        }
+        current = current->getNext();
+    }
+    if (opMap.empty()) {
+        INFO_RELEASE("OperatorDependenciesDeal opMap empty");
+        return;
+    }
+    if (opMap.find(OPERATOR_NAME_COMMIT_OPERATOR) != opMap.end()) {
+        if (opMap.find(OPERATOR_NAME_SINK_WRITER) == opMap.end()) {
+            GErrorLog("OperatorDependenciesDeal CommiterOperator dependy SinkWriterOperator");
+            return;
+        }
+        CommitterOperator<>* committerOperator = dynamic_cast<CommitterOperator<>*>(opMap[OPERATOR_NAME_COMMIT_OPERATOR]);
+        if (committerOperator == nullptr) {
+            GErrorLog("OperatorDependenciesDeal CommiterOperator not CommitterOperator");
+            return;
+        }
+        SinkWriterOperator* sinkWriterOperator = dynamic_cast<SinkWriterOperator*>(opMap[OPERATOR_NAME_SINK_WRITER]);
+        if (sinkWriterOperator == nullptr) {
+            GErrorLog("OperatorDependenciesDeal CommiterOperator not CommitterOperator");
+            return;
+        }
+        committerOperator->initFromKafkaSink(sinkWriterOperator->getKafkaSink());
+    } else {
+        INFO_RELEASE("OperatorDependenciesDeal not need deal");
     }
 }
 }  // namespace omnistream

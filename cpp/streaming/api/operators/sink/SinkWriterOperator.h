@@ -81,6 +81,8 @@ public:
 
     std::string getTypeName() override;
 
+    KafkaSink* getKafkaSink() { return kafkaSink; }
+
 private:
     template<typename K>
     InitContextImpl<K>* createInitContext(std::optional<uint64_t> restoredCheckpointId);

@@ -158,14 +158,10 @@ void SinkWriterOperator::initializeState(StateInitializationContextImpl<void*>* 
         if (committableSerializer != nullptr) {
             // 获取操作符状态存储
             auto *operatorStateBackend = static_cast<DefaultOperatorStateBackend*>(context->getOperatorStateBackend());
-            
+
             // 获取原始状态
-            auto rawState = operatorStateBackend->getListState(&SinkWriterOperator::STREAMING_COMMITTER_RAW_STATES_DESC);
-            if (rawState == nullptr) {
-                INFO_RELEASE("savepoint: SinkWriterOperator initializeState, rawState is nullptr")
-            }else {
-                INFO_RELEASE("savepoint: SinkWriterOperator initializeState, rawState is  not nullptr: ")
-            }
+            auto rawState = operatorStateBackend->getListState<std::vector<uint8_t>>(&SinkWriterOperator::STREAMING_COMMITTER_RAW_STATES_DESC);
+            
             // 创建版本化列表状态 - 使用 KafkaCommittable 类型
             // SimpleVersionedListState<KafkaCommittable> legacyCommitterState(
             //         std::shared_ptr<ListState<std::vector<uint8_t>>>(rawState),

@@ -21,11 +21,10 @@
 #include "Recyclable.h"
 #include "streaming/api/operators/sink/committables/Committer.h"
 
-template <typename CommT>
-class KafkaCommitter : public Committer<CommT> {
+class KafkaCommitter : public Committer<KafkaCommittable> {
 public:
     explicit KafkaCommitter(const RdKafka::Conf* kafkaProducerConfig);
-    void Commit(std::vector<CommitRequest<KafkaCommittable>>& requests);
+    void Commit(std::vector<std::shared_ptr<CommitRequest<KafkaCommittable>>>& requests);
     void Close();
 private:
     RdKafka::Conf* kafkaProducerConfig;

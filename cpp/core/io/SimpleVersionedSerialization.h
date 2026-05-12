@@ -4,11 +4,38 @@
 #include <vector>
 #include <stdexcept>
 #include <memory>
-#include "SimpleVersionedSerializer.h"
+
+#include "core/include/common.h"
+#include "core/memory/DataOutputSerializer.h"
 #include "core/io/SimpleVersionedSerializer.h"
+
+#include "SimpleVersionedSerializer.h"
 
 class SimpleVersionedSerialization {
 public:
+    template <typename T>
+    static void writeVersionAndSerialize(SimpleVersionedSerializer<T>& serializer,
+                                                         const T& obj,
+                                                         DataOutputSerializer& out) {
+        std::vector<uint8_t> serialized = serializer.serialize(obj);
+        out.writeInt(serializer.getVersion());
+        out.writeInt(serialized.size());
+        out.write(serialized.data(), serialized.size(), 0, serialized.size());
+    }
+
+    template <typename T>
+    static void writeVersionAndSerializeList(SimpleVersionedSerializer<T>& serializer,
+                                                             const std::vector<T>& objList,
+                                                             DataOutputSerializer& out) {
+        out.writeInt(serializer.getVersion());
+        out.writeInt(objList.size());
+        for (const T& obj : objList) {
+            std::vector<uint8_t> serialized = serializer.serialize(obj);
+            out.writeInt(serialized.size());
+            out.write(serialized.data(), serialized.size(), 0, serialized.size());
+        }
+    }
+
     // 写入版本号并序列化对象
     template <typename T>
     static std::vector<uint8_t> writeVersionAndSerialize(
@@ -56,6 +83,22 @@ public:
         
         // 反序列化对象
         return serializer.deserialize(version, serializedData);
+    }
+
+    template <typename T>
+    static T* readVersionAndDeSerialize(SimpleVersionedSerializer<T>& serializer, DataInputDeserializer& input) {
+        // 读取版本号
+        int version = input.readInt();
+
+        // 读取列表大小
+        int dataSize = input.readInt();
+
+        std::vector<uint8_t> data(dataSize);
+
+        input.readFully(data.data(), dataSize, 0, dataSize);
+
+        // 反序列化对象
+        return serializer.deserialize(version, data);
     }
 
     // 读取版本号并反序列化列表 (使用DataInputView)

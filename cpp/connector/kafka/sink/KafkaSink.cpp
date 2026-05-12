@@ -25,9 +25,9 @@ KafkaSink::KafkaSink(DeliveryGuarantee deliveryGuarantee,
     maxPushRecords(maxPushRecords) {}
 
 
-KafkaCommittable *KafkaSink::CreateCommitter()
+Committer<KafkaCommittable>* KafkaSink::CreateCommitter()
 {
-    return nullptr;
+    return new KafkaCommitter(kafkaProducerConfig);
 }
 
 KafkaCommittableSerializer *KafkaSink::getCommittableSerializer()
