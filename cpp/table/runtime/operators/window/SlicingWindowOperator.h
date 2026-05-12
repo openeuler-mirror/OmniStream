@@ -76,7 +76,7 @@ class WindowProcessorContext {
 public:
     omniruntime::mem::MemoryManager *getMemoryManager();
     int64_t getMemorySize();
-    AbstractKeyedStateBackend<omnistream::VectorBatch> *getKeyedStateBackend();
+    HeapKeyedStateBackend<omnistream::VectorBatch> *getKeyedStateBackend();
     InternalTimerService<W> *getTimerService();
     void setBackend();
 
@@ -85,7 +85,7 @@ private:
     omniruntime::mem::MemoryManager *memoryManager;
     int64_t memorySize;
     InternalTimerService<W> *timerService;
-    AbstractKeyedStateBackend<omnistream::VectorBatch> *keyedStateBackend;
+    HeapKeyedStateBackend<omnistream::VectorBatch> *keyedStateBackend;
     Output *collector;
     RuntimeContext *runtimeContext;
 };
@@ -179,7 +179,7 @@ void SlicingWindowOperator<K, W>::prepareSnapshotPreBarrier(int64_t checkpointId
 }
 
 template <typename W>
-AbstractKeyedStateBackend<omnistream::VectorBatch> *WindowProcessorContext<W>::getKeyedStateBackend()
+HeapKeyedStateBackend<omnistream::VectorBatch> *WindowProcessorContext<W>::getKeyedStateBackend()
 {
     return keyedStateBackend;
 }
