@@ -188,7 +188,7 @@ void StreamingFileWriter<IN>::closePartFileForPartitions()
         ctx.partition = partition;
         ctx.createProcTime = creationTime;
         ctx.currentProcTime = currentProcTime;
-        ctx.currentWatermark = currentWatermark;
+        ctx.currentWatermark = this->currentWatermark;
 
         if (partitionCommitPredicate_->isPartitionCommittable(ctx)) {
             if (this->buckets) {
