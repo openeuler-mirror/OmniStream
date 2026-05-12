@@ -136,12 +136,27 @@ public:
         return typeName;
     }
 
-private:
-    long bucketCheckInterval;
-    BulkFormatBuilder<IN, std::string> *bucketsBuilder;
+protected:
     Buckets<IN, std::string> *buckets;
     StreamingFileSinkHelper<IN> *helper;
     long currentWatermark;
+
+    virtual void partitionCreated(const std::string &partition) {}
+
+    virtual void partitionInactive(const std::string &partition) {}
+
+    virtual void onPartFileOpened(const std::string &partition, const std::string &newPath) {}
+
+    virtual void commitUpToCheckpoint(long checkpointId)
+    {
+        if (helper) {
+            helper->commitUpToCheckpoint(checkpointId);
+        }
+    }
+
+private:
+    long bucketCheckInterval;
+    BulkFormatBuilder<IN, std::string> *bucketsBuilder;
 };
 
 #endif // OMNISTREAM_ABSTRACT_STREAMING_WRITER_H

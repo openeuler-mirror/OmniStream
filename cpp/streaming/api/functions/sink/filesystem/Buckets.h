@@ -136,6 +136,15 @@ public:
         return basePath;
     }
 
+    void closePartFileForBucket(BucketID bucketId)
+    {
+        auto it = activeBuckets.find(bucketId);
+        if (it != activeBuckets.end()) {
+            it->second->onProcessingTime(LONG_MAX);
+            LOG("Buckets::closePartFileForBucket bucket=" << bucketId)
+        }
+    }
+
 private:
     std::string basePath;
     BucketFactory<IN, BucketID> *bucketFactory;
