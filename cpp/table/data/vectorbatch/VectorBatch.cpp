@@ -132,11 +132,36 @@ namespace omnistream {
         }
     }
 
-    std::string VectorBatch::TransformTime(int vectorID, int rowID, long zoneOffsetSeconds) const
+    std::string VectorBatch::TransformTimeWithTimeZone(int vectorID, int rowID, const std::string& tzStr) const
     {
         auto millis = reinterpret_cast<omniruntime::vec::Vector<int64_t> *>(vectors[vectorID])->GetValue(rowID);
         int64_t adjusted_seconds = (millis >= 0) ? (millis / 1000) : ((millis - 999) / 1000);
-        adjusted_seconds += zoneOffsetSeconds;
+        int milliseconds = millis % 1000;
+        if (milliseconds < 0) {
+            const int addTime = 1000;
+            milliseconds += addTime; // 确保毫秒非负（如-1234ms → -2秒 + 766ms）
+        }
+        setenv("TZ", tzStr.c_str(), 1);
+        tzset();
+        struct tm timeinfo;
+        localtime_r(&adjusted_seconds, &timeinfo);
+        // 格式化为字符串
+        char buffer[80];
+        strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", &timeinfo);
+        std::ostringstream oss;
+        oss << buffer
+            << "."
+            << std::setw(3) << std::setfill('0')  // 强制3位宽度，不足补零
+            << milliseconds;
+
+        std::string result = oss.str();
+        return result;
+    }
+
+    std::string VectorBatch::TransformTime(int vectorID, int rowID) const
+    {
+        auto millis = reinterpret_cast<omniruntime::vec::Vector<int64_t> *>(vectors[vectorID])->GetValue(rowID);
+        int64_t adjusted_seconds = (millis >= 0) ? (millis / 1000) : ((millis - 999) / 1000);
         int milliseconds = millis % 1000;
         if (milliseconds < 0) {
             const int addTime = 1000;
@@ -225,7 +250,7 @@ namespace omnistream {
     void VectorBatch::WriteToFileInternal(int vectorID, int rowID,
                                           std::ofstream& file,
                                           std::vector<std::pair<int32_t, int32_t>> decimalInfo,
-                                          std::vector<std::string> inputTypes, long zoneOffsetSeconds) const
+                                          std::vector<std::string> inputTypes, const std::string& tzStr) const
     {
         int dataId = vectors[vectorID]->GetTypeId();
         switch (dataId) {
@@ -234,11 +259,11 @@ namespace omnistream {
             case omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE:
             case omniruntime::type::DataTypeId::OMNI_LONG:
                 LOG("vb writefile inputType is " << inputTypes[vectorID])
-                if (inputTypes[vectorID] == "TIMESTAMP_WITH_LOCAL_TIME_ZONE") {
-                    auto result = TransformTime(vectorID, rowID, zoneOffsetSeconds);
+                if (inputTypes[vectorID].substr(0, 30) == "TIMESTAMP_WITH_LOCAL_TIME_ZONE") {
+                    auto result = TransformTimeWithTimeZone(vectorID, rowID, tzStr);
                     file << result;
                 } else if (inputTypes[vectorID].substr(0, 9) == "TIMESTAMP") {
-                    auto result = TransformTime(vectorID, rowID, 0);
+                    auto result = TransformTime(vectorID, rowID);
                     file << result;
                 } else {
                     file << reinterpret_cast<omniruntime::vec::Vector<int64_t> *>(vectors[vectorID])->GetValue(rowID);
@@ -274,7 +299,7 @@ namespace omnistream {
 
     void VectorBatch::writeToFile(std::string &filename, std::ios_base::openmode mode,
                                   std::vector<std::pair<int32_t, int32_t>> decimalInfo,
-                                  std::vector<std::string> inputTypes, long zoneOffsetSeconds) const
+                                  std::vector<std::string> inputTypes, const std::string& tzStr) const
     {
         std::ofstream file;
         if (!normalizeAndValidatePath(filename)) {
@@ -297,7 +322,7 @@ namespace omnistream {
                 if (vectors[j]->IsNull(i)) {
                     file << "NULL";
                 } else {
-                    WriteToFileInternal(j, i, file, decimalInfo, inputTypes, zoneOffsetSeconds);
+                    WriteToFileInternal(j, i, file, decimalInfo, inputTypes, tzStr);
                 }
             }
             file << "\n";

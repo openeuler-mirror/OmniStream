@@ -34,8 +34,8 @@ public:
                 }
             }
         }
-        if (sinkDescription.contains("zoneOffsetSeconds")) {
-            zoneOffsetSeconds = sinkDescription.value("zoneOffsetSeconds", 0l);
+        if (sinkDescription.contains("timeZone")) {
+            timeZone = sinkDescription.value("timeZone", "Asia/Shanghai");
         }
     };
 
@@ -51,7 +51,7 @@ public:
                 return;
             }
             auto vb = reinterpret_cast<omnistream::VectorBatch*>(data->getValue());
-            vb->writeToFile(outfile, std::ios::app, decimalInfo, inputTypes, zoneOffsetSeconds);
+            vb->writeToFile(outfile, std::ios::app, decimalInfo, inputTypes, timeZone);
 
             delete static_cast<omnistream::VectorBatch*>(data->getValue());
             delete data;
@@ -66,7 +66,7 @@ private:
     std::vector<std::string> inputTypes;
     std::string outfile;
     std::vector<std::pair<int32_t, int32_t>> decimalInfo; // precision, scale
-    long zoneOffsetSeconds = 0l;
+    std::string timeZone = "Asia/Shanghai";
 };
 
 #endif  // FLINK_TNEL_DISCARDINGSINK_H
