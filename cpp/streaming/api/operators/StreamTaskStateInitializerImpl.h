@@ -131,12 +131,18 @@ public:
         InternalTimeServiceManager<K> *timeServiceManager = nullptr;
         if (keyedStatedBackend != nullptr) {
             int maxNumberOfSubtasks = taskInfo.getMaxNumberOfSubtasks();
+            auto rawKeyedStateHandles = collectRawKeyedStateHandles();
+            auto omniTaskBridge = env != nullptr && env->getTaskStateManager() != nullptr
+                ? env->getTaskStateManager()->getOmniTaskBridge()
+                : nullptr;
             timeServiceManager = new InternalTimeServiceManager<K>(
                     keyedStatedBackend->getKeyGroupRange(),
                     keyContext,
                     keyedStatedBackend,
                     processingTimeService,
-                    maxNumberOfSubtasks);
+                    maxNumberOfSubtasks,
+                    rawKeyedStateHandles,
+                    omniTaskBridge);
         }
         return new StreamOperatorStateContextImpl<K>(restoreCheckpointId,
                                                      keyedStatedBackend,
@@ -177,9 +183,41 @@ private:
         int parallelism,
         int operatorIndex);
 
+    std::vector<std::shared_ptr<KeyedStateHandle>> collectRawKeyedStateHandles();
+
     StateBackend *stateBackend;
     omnistream::EnvironmentV2 *env;
 };
+
+inline std::vector<std::shared_ptr<KeyedStateHandle>>
+StreamTaskStateInitializerImpl::collectRawKeyedStateHandles()
+{
+    std::vector<std::shared_ptr<KeyedStateHandle>> result;
+    if (env == nullptr || env->getTaskStateManager() == nullptr) {
+        return result;
+    }
+
+    auto operatorIdStr = env->taskConfiguration().getStreamConfigPOD().getOperatorDescription().getOperatorId();
+    auto operatorId = TaskStateSnapshotDeserializer::HexStringToOperatorId<OperatorID>(operatorIdStr);
+    PrioritizedOperatorSubtaskState prioritizedOperatorSubtaskStates =
+        env->getTaskStateManager()->prioritizedOperatorState(operatorId);
+
+    const auto &handleVector = prioritizedOperatorSubtaskStates.getPrioritizedRawKeyedState();
+    for (const auto &collection : handleVector) {
+        for (const auto &handle : collection) {
+            if (handle != nullptr) {
+                result.push_back(handle);
+            }
+        }
+        if (!result.empty()) {
+            break;
+        }
+    }
+
+    INFO_RELEASE("[RocksDB-HEAP-PQ-CP-restore] operatorId=" << operatorIdStr
+        << " rawKeyedStateHandles=" << result.size());
+    return result;
+}
 
 template <typename K>
 AbstractKeyedStateBackend<K> *StreamTaskStateInitializerImpl::keyedStatedBackend(TypeSerializer *keySerializer, int maxParallelism, int parallelism, int operatorIndex)

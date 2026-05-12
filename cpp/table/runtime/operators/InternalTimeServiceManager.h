@@ -18,7 +18,16 @@
 #include "streaming/api/operators/KeyContext.h"
 #include "TimerSerializer.h"
 #include "streaming/runtime/tasks/ProcessingTimeService.h"
+#include "runtime/state/AbstractKeyedStateBackend.h"
 #include "runtime/state/KeyedStateCheckpointOutputStream.h"
+#include "runtime/state/KeyGroupsStateHandle.h"
+#include "runtime/state/restore/RawKeyedStateInputStreamProxy.h"
+#include "runtime/state/bridge/OmniTaskBridge.h"
+#include "InternalTimerServiceSerializationProxy.h"
+#include "InternalTimersSnapshotReaderWriters.h"
+#include <memory>
+#include <vector>
+#include <utility>
 
 template <typename K>
 class InternalTimeServiceManager {
@@ -32,14 +41,20 @@ public:
             KeyContext<K>* keyContext,
             PriorityQueueSetFactory* priorityQueueSetFactory,
             ProcessingTimeService* processingTimeService,
-            int maxNumberOfSubtasks)
+            int maxNumberOfSubtasks,
+            const std::vector<std::shared_ptr<KeyedStateHandle>> &rawKeyedStateHandles = {},
+            std::shared_ptr<omnistream::OmniTaskBridge> omniTaskBridge = nullptr)
             :
             localKeyGroupRange(localKeyGroupRange),
             keyContext(keyContext),
             priorityQueueSetFactory(priorityQueueSetFactory),
             processingTimeService(processingTimeService),
-            maxNumberOfSubtasks(maxNumberOfSubtasks) {
-        // todo: rawKeyedStates and restoreStateForKeyGroup
+            maxNumberOfSubtasks(maxNumberOfSubtasks),
+            omniTaskBridge(std::move(omniTaskBridge)) {
+        if (auto keyedBackend = dynamic_cast<AbstractKeyedStateBackend<K>*>(priorityQueueSetFactory)) {
+            keySerializerForRestore = keyedBackend->getKeySerializer();
+        }
+        restoreRawKeyedState(rawKeyedStateHandles);
     }
 
     ~InternalTimeServiceManager() {
@@ -69,7 +84,18 @@ public:
     void advanceWatermark(Watermark *watermark);
 
     void snapshotToRawKeyedState(KeyedStateCheckpointOutputStream *stateCheckpointOutputStream, std::string operatorName);
+
+    int32_t getRegisteredTimerServiceCount() const;
+
+    void writeTimersForKeyGroup(KeyedStateCheckpointOutputStream *out, int32_t keyGroupIdx);
+
+    void readTimersForKeyGroup(RawKeyedStateInputStreamProxy *in, int32_t keyGroupIdx, int32_t version);
 private:
+    enum class TimerNamespaceKind {
+        INT64,
+        TIME_WINDOW,
+        VOID_NAMESPACE
+    };
     emhash7::HashMap<std::string, InternalTimerService<int64_t>*> timerServicesInt64;
     emhash7::HashMap<std::string, InternalTimerService<TimeWindow>*> timerServicesWindow;
     emhash7::HashMap<std::string, InternalTimerService<VoidNamespace>*> timerServicesVoidNameSpace;
@@ -78,10 +104,41 @@ private:
     PriorityQueueSetFactory* priorityQueueSetFactory;
     ProcessingTimeService* processingTimeService;
     int maxNumberOfSubtasks;
+    std::shared_ptr<omnistream::OmniTaskBridge> omniTaskBridge;
+    TypeSerializer *keySerializerForRestore = nullptr;
     static constexpr int MIN_CAPACITY_OF_TIMER_QUEUE = 128;
 
     template <typename N>
     InternalTimerServiceImpl<K, N>* registerOrGetTimerService(std::string name, TimerSerializer<K, N>* timerSerializer);
+
+    template <typename N>
+    InternalTimerServiceImpl<K, N>* registerOrGetTimerServiceForRestore(
+        const std::string &name,
+        TypeSerializer *keySerializer,
+        TypeSerializer *namespaceSerializer);
+
+    template <typename N>
+    void writeTimerServiceMap(KeyedStateCheckpointOutputStream *out,
+        emhash7::HashMap<std::string, InternalTimerService<N>*> &services,
+        int32_t keyGroupIdx);
+
+    void restoreRawKeyedState(const std::vector<std::shared_ptr<KeyedStateHandle>> &rawKeyedStateHandles);
+
+    void restoreRawKeyGroupState(const std::shared_ptr<KeyGroupsStateHandle> &keyGroupsStateHandle);
+
+    void restoreStateForKeyGroup(RawKeyedStateInputStreamProxy *in, int32_t keyGroupIdx);
+
+    TimerNamespaceKind inferNamespaceKind(
+        const FlinkTimerSerializerSnapshots::SnapshotDescriptor &namespaceSerializerSnapshot);
+
+    template <typename N>
+    void readTimerServiceForNamespace(
+        RawKeyedStateInputStreamProxy *in,
+        const std::string &serviceName,
+        FlinkTimerSerializerSnapshots::SnapshotDescriptor keySerializerSnapshot,
+        FlinkTimerSerializerSnapshots::SnapshotDescriptor namespaceSerializerSnapshot,
+        int32_t keyGroupIdx,
+        int32_t version);
 };
 
 template <typename K>
@@ -161,8 +218,226 @@ InternalTimerServiceImpl<K, N> *InternalTimeServiceManager<K>::registerOrGetTime
 }
 
 template <typename K>
-inline void InternalTimeServiceManager<K>::snapshotToRawKeyedState(KeyedStateCheckpointOutputStream *stateCheckpointOutputStream, std::string operatorName)
+template <typename N>
+InternalTimerServiceImpl<K, N>* InternalTimeServiceManager<K>::registerOrGetTimerServiceForRestore(
+    const std::string &name,
+    TypeSerializer *keySerializer,
+    TypeSerializer *namespaceSerializer)
 {
-    // TTODO
+    auto timerSerializer = new TimerSerializer<K, N>(keySerializer, namespaceSerializer);
+    return this->template registerOrGetTimerService<N>(name, timerSerializer);
 }
 
+template <typename K>
+void InternalTimeServiceManager<K>::restoreRawKeyedState(
+    const std::vector<std::shared_ptr<KeyedStateHandle>> &rawKeyedStateHandles)
+{
+    if (rawKeyedStateHandles.empty()) {
+        return;
+    }
+
+    for (const auto &handle : rawKeyedStateHandles) {
+        if (handle == nullptr) {
+            continue;
+        }
+
+        auto intersection = handle->GetIntersection(*localKeyGroupRange);
+        if (intersection == nullptr) {
+            continue;
+        }
+
+        auto keyGroupsStateHandle = std::dynamic_pointer_cast<KeyGroupsStateHandle>(intersection);
+        if (keyGroupsStateHandle == nullptr) {
+            INFO_RELEASE("Error: restoreRawKeyedState Raw keyed timer restore only supports KeyGroupsStateHandle.");
+            THROW_LOGIC_EXCEPTION("Raw keyed timer restore only supports KeyGroupsStateHandle.")
+        }
+
+        restoreRawKeyGroupState(keyGroupsStateHandle);
+    }
+}
+
+template <typename K>
+void InternalTimeServiceManager<K>::restoreRawKeyGroupState(
+    const std::shared_ptr<KeyGroupsStateHandle> &keyGroupsStateHandle)
+{
+    KeyGroupRange keyGroupRange = keyGroupsStateHandle->GetKeyGroupRange();
+    RawKeyedStateInputStreamProxy input(omniTaskBridge, keyGroupsStateHandle);
+
+    for (int32_t keyGroupIdx = keyGroupRange.getStartKeyGroup();
+         keyGroupIdx <= keyGroupRange.getEndKeyGroup();
+         ++keyGroupIdx) {
+        int64_t offset = keyGroupsStateHandle->getOffsetForKeyGroup(keyGroupIdx);
+        if (offset < 0) {
+            continue;
+        }
+
+        input.seek(offset);
+        restoreStateForKeyGroup(&input, keyGroupIdx);
+    }
+}
+
+template <typename K>
+void InternalTimeServiceManager<K>::restoreStateForKeyGroup(
+    RawKeyedStateInputStreamProxy *in,
+    int32_t keyGroupIdx)
+{
+    InternalTimerServiceSerializationProxy<K> proxy(this, keyGroupIdx);
+    proxy.read(in);
+}
+
+template <typename K>
+typename InternalTimeServiceManager<K>::TimerNamespaceKind
+InternalTimeServiceManager<K>::inferNamespaceKind(
+    const FlinkTimerSerializerSnapshots::SnapshotDescriptor &namespaceSerializerSnapshot)
+{
+    const std::string &className = namespaceSerializerSnapshot.className;
+    if (className == FlinkTimerSerializerSnapshots::VOID_NAMESPACE_SERIALIZER_SNAPSHOT) {
+        return TimerNamespaceKind::VOID_NAMESPACE;
+    }
+    if (className == FlinkTimerSerializerSnapshots::TIME_WINDOW_SERIALIZER_SNAPSHOT) {
+        return TimerNamespaceKind::TIME_WINDOW;
+    }
+    if (className == FlinkTimerSerializerSnapshots::LONG_SERIALIZER_SNAPSHOT) {
+        return TimerNamespaceKind::INT64;
+    }
+
+    INFO_RELEASE("Error: inferNamespaceKind Unsupported timer namespace serializer snapshot class: " << className);
+    THROW_LOGIC_EXCEPTION("Unsupported timer namespace serializer snapshot class: " << className)
+}
+
+template <typename K>
+void InternalTimeServiceManager<K>::readTimersForKeyGroup(
+    RawKeyedStateInputStreamProxy *in,
+    int32_t keyGroupIdx,
+    int32_t version)
+{
+    int32_t serviceCount = in->readInt();
+
+    for (int32_t i = 0; i < serviceCount; ++i) {
+        std::string serviceName = in->readUTF();
+        auto keySerializerSnapshot = FlinkTimerSerializerSnapshots::readVersionedSnapshot(in);
+        auto namespaceSerializerSnapshot = FlinkTimerSerializerSnapshots::readVersionedSnapshot(in);
+
+        switch (inferNamespaceKind(namespaceSerializerSnapshot)) {
+            case TimerNamespaceKind::INT64:
+                readTimerServiceForNamespace<int64_t>(
+                    in,
+                    serviceName,
+                    std::move(keySerializerSnapshot),
+                    std::move(namespaceSerializerSnapshot),
+                    keyGroupIdx,
+                    version);
+                break;
+            case TimerNamespaceKind::TIME_WINDOW:
+                readTimerServiceForNamespace<TimeWindow>(
+                    in,
+                    serviceName,
+                    std::move(keySerializerSnapshot),
+                    std::move(namespaceSerializerSnapshot),
+                    keyGroupIdx,
+                    version);
+                break;
+            case TimerNamespaceKind::VOID_NAMESPACE:
+                readTimerServiceForNamespace<VoidNamespace>(
+                    in,
+                    serviceName,
+                    std::move(keySerializerSnapshot),
+                    std::move(namespaceSerializerSnapshot),
+                    keyGroupIdx,
+                    version);
+                break;
+        }
+    }
+}
+
+template <typename K>
+template <typename N>
+void InternalTimeServiceManager<K>::readTimerServiceForNamespace(
+    RawKeyedStateInputStreamProxy *in,
+    const std::string &serviceName,
+    FlinkTimerSerializerSnapshots::SnapshotDescriptor keySerializerSnapshot,
+    FlinkTimerSerializerSnapshots::SnapshotDescriptor namespaceSerializerSnapshot,
+    int32_t keyGroupIdx,
+    int32_t version)
+{
+    auto reader = InternalTimersSnapshotReaderWriters<K, N>::getReaderForVersion(
+        version,
+        std::move(keySerializerSnapshot),
+        std::move(namespaceSerializerSnapshot),
+        keySerializerForRestore);
+    InternalTimersSnapshot<K, N> timersSnapshot = reader->readTimersSnapshot(in);
+
+    auto *timerService = registerOrGetTimerServiceForRestore<N>(
+        serviceName,
+        timersSnapshot.getKeySerializer(),
+        timersSnapshot.getNamespaceSerializer());
+    timerService->restoreTimersForKeyGroup(timersSnapshot, keyGroupIdx);
+}
+
+template <typename K>
+inline void InternalTimeServiceManager<K>::snapshotToRawKeyedState(
+    KeyedStateCheckpointOutputStream *stateCheckpointOutputStream,
+    std::string operatorName)
+{
+    if (stateCheckpointOutputStream == nullptr) {
+        INFO_RELEASE("Error: snapshotToRawKeyedState Raw keyed state output stream is null for operator " << operatorName);
+        THROW_LOGIC_EXCEPTION("Raw keyed state output stream is null for operator " << operatorName)
+    }
+
+    try {
+        for (int32_t keyGroupIdx : stateCheckpointOutputStream->getKeyGroupList()) {
+            stateCheckpointOutputStream->startNewKeyGroup(keyGroupIdx);
+            InternalTimerServiceSerializationProxy<K> proxy(this, keyGroupIdx);
+            proxy.write(stateCheckpointOutputStream);
+        }
+    } catch (const std::exception &e) {
+        INFO_RELEASE("Error: snapshotToRawKeyedState Could not write timer service of operator "
+            << operatorName << " to raw keyed checkpoint state stream.");
+        THROW_LOGIC_EXCEPTION("Could not write timer service of operator " << operatorName
+            << " to raw keyed checkpoint state stream. Root cause: " << e.what())
+    }
+
+    stateCheckpointOutputStream->close();
+}
+
+
+template <typename K>
+inline int32_t InternalTimeServiceManager<K>::getRegisteredTimerServiceCount() const
+{
+    return static_cast<int32_t>(timerServicesInt64.size()
+        + timerServicesWindow.size()
+        + timerServicesVoidNameSpace.size());
+}
+
+template <typename K>
+inline void InternalTimeServiceManager<K>::writeTimersForKeyGroup(
+    KeyedStateCheckpointOutputStream *out,
+    int32_t keyGroupIdx)
+{
+    out->writeInt(getRegisteredTimerServiceCount());
+    writeTimerServiceMap<int64_t>(out, timerServicesInt64, keyGroupIdx);
+    writeTimerServiceMap<TimeWindow>(out, timerServicesWindow, keyGroupIdx);
+    writeTimerServiceMap<VoidNamespace>(out, timerServicesVoidNameSpace, keyGroupIdx);
+}
+
+template <typename K>
+template <typename N>
+inline void InternalTimeServiceManager<K>::writeTimerServiceMap(
+    KeyedStateCheckpointOutputStream *out,
+    emhash7::HashMap<std::string, InternalTimerService<N>*> &services,
+    int32_t keyGroupIdx)
+{
+    for (auto &entry : services) {
+        const std::string &serviceName = entry.first;
+        auto *timerService = static_cast<InternalTimerServiceImpl<K, N>*>(entry.second);
+        out->writeUTF(serviceName);
+
+        auto timersSnapshot = timerService->snapshotTimersForKeyGroup(keyGroupIdx);
+        auto writer = InternalTimersSnapshotReaderWriters<K, N>::getWriterForVersion(
+            InternalTimerServiceSerializationProxy<K>::VERSION,
+            std::move(timersSnapshot),
+            timerService->getKeySerializer(),
+            timerService->getNamespaceSerializer());
+        writer->writeTimersSnapshot(out);
+    }
+}

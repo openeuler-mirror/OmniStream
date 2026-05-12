@@ -20,6 +20,7 @@
 #include "runtime/state/filesystem/FileStateHandle.h"
 #include "runtime/checkpoint/InflightDataRescalingDescriptor.h"
 #include "runtime/state/KeyGroupsStateHandle.h"
+#include "runtime/state/KeyGroupsSavepointStateHandle.h"
 #include "runtime/state/OperatorStreamStateHandle.h"
 
 class TaskStateSnapshotSerializer {

@@ -17,6 +17,7 @@
 #include "KeyGroupRange.h"
 #include "heap/HeapPriorityQueueSetFactory.h"
 #include "heap/HeapPriorityQueueSnapshotRestoreWrapper.h"
+#include "heap/RestoredHeapPriorityQueueSnapshotRestoreWrapper.h"
 
 class HeapPriorityQueuesManager {
 public:
@@ -46,16 +47,32 @@ public:
         auto iter = registeredPQStates_->find(stateName);
         if (iter != registeredPQStates_->end()) {
             auto existingState = std::dynamic_pointer_cast<HeapPriorityQueueSnapshotRestoreWrapper<K, T, Comparator>>(iter->second);
-            if (existingState == nullptr) {
-                THROW_LOGIC_EXCEPTION("Priority queue type is not HeapPriorityQueueSnapshotRestoreWrapper")
+            if (existingState != nullptr) {
+                // todo: TypeSerializerSchemaCompatibility
+                return existingState->getHeapPriorityQueueSet();
             }
-            // todo: TypeSerializerSchemaCompatibility
-            return existingState->getHeapPriorityQueueSet();
+
+            auto pendingRestoredState = std::dynamic_pointer_cast<RestoredHeapPriorityQueueSnapshotRestoreWrapper>(iter->second);
+            if (pendingRestoredState != nullptr) {
+                auto metaInfo = std::make_shared<RegisteredPriorityQueueStateBackendMetaInfo>(
+                    stateName,
+                    byteOrderedElementSerializer);
+                auto restoredState = createInternal<K, T, Comparator>(metaInfo);
+                const size_t pendingEntryCount = pendingRestoredState->size();
+                pendingRestoredState->template drainTo<K, T, Comparator>(restoredState, getKeyGroupPrefixBytes());
+                INFO_RELEASE("HeapPriorityQueuesManager: drained " << pendingEntryCount
+                    << " pending restored entries for priority queue state '" << stateName << "'");
+                return restoredState->getHeapPriorityQueueSet();
+            }
+
+            INFO_RELEASE(
+                "Error: createOrUpdate Priority queue type is not supported for restored HEAP PQ state:" << stateName);
+            THROW_LOGIC_EXCEPTION("Priority queue type is not supported for restored HEAP PQ state: " << stateName)
         }
         auto metaInfo = std::make_shared<RegisteredPriorityQueueStateBackendMetaInfo>(stateName, byteOrderedElementSerializer);
 
         // todo: withSerializerUpgradesAllowed
-        return createInternal<K, T, Comparator>(metaInfo);
+        return createInternal<K, T, Comparator>(metaInfo)->getHeapPriorityQueueSet();
     }
 
     std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapperBase>>> getRegisteredPQStates() {
@@ -63,8 +80,13 @@ public:
     }
 
 private:
+    int getKeyGroupPrefixBytes() const
+    {
+        return numberOfKeyGroups_ > 128 ? 2 : 1;
+    }
+
     template <typename K, typename T, typename Comparator>
-    std::shared_ptr<KeyGroupedInternalPriorityQueue<T>> createInternal(
+    std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapper<K, T, Comparator>> createInternal(
             std::shared_ptr<RegisteredPriorityQueueStateBackendMetaInfo> metaInfo) {
         const std::string& stateName = metaInfo->getName();
 
@@ -79,9 +101,9 @@ private:
             numberOfKeyGroups_
         );
 
-        registeredPQStates_->emplace(stateName, wrapper);
+        (*registeredPQStates_)[stateName] = wrapper;
 
-        return priorityQueue;
+        return wrapper;
     }
 
     std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapperBase>>> registeredPQStates_;

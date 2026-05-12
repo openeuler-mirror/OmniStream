@@ -69,6 +69,8 @@ namespace omnistream {
 
         virtual void setSavepointInputStreamOffset(jobject inputStream, int64_t offset) = 0;
 
+        virtual int ReadSavepointInputStream(jobject inputStream, int8_t *chunk, size_t offset, size_t len) = 0;
+
         virtual bool isUsingKeyGroupCompression(jobject inputStream) = 0;
 
         virtual void closeSavepointInputStream(jobject inputStream) = 0;
