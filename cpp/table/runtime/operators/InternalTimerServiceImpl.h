@@ -56,6 +56,20 @@ public:
     // temp fix for too many timers in priority queue
     // this function should to be deleted when RocksDBCachingPriorityQueueSet is implemented in the future
     void deleteFirstEventTimeTimer();
+
+    InternalTimersSnapshot<K, N> snapshotTimersForKeyGroup(int32_t keyGroupId);
+
+    void restoreTimersForKeyGroup(const InternalTimersSnapshot<K, N> &timersSnapshot, int32_t keyGroupId);
+
+    TypeSerializer *getKeySerializer()
+    {
+        return keySerializer;
+    }
+
+    TypeSerializer *getNamespaceSerializer()
+    {
+        return namespaceSerializer;
+    }
 private:
     KeyContext<K> *keyContext = nullptr;
     ProcessingTimeService *processingTimeService = nullptr;
@@ -64,6 +78,7 @@ private:
     std::shared_ptr<EventTimeTimersQueueType> eventTimeTimersQueue;
 
     InternalTimersSnapshot<K, N> restoredTimersSnapshot;
+    bool hasRestoredTimersSnapshot = false;
     int localKeyGroupRangeStartIndex{};
     long currentWatermarkValue = LONG_MIN;
 
@@ -141,9 +156,31 @@ void InternalTimerServiceImpl<K, N>::startTimerService(
             THROW_LOGIC_EXCEPTION("The TimersService has already been initialized.");
         }
 
+        if (hasRestoredTimersSnapshot) {
+            auto restoredKeySerializer = restoredTimersSnapshot.getKeySerializer();
+            auto restoredNamespaceSerializer = restoredTimersSnapshot.getNamespaceSerializer();
+            if (restoredKeySerializer != nullptr &&
+                restoredKeySerializer->getBackendId() != BackendDataType::INVALID_BK &&
+                restoredKeySerializer->getBackendId() != keySerializer->getBackendId()) {
+                INFO_RELEASE("Error: startTimerService Restored timer key serializer is incompatible with requested timer service.");
+                THROW_LOGIC_EXCEPTION("Restored timer key serializer is incompatible with requested timer service.")
+            }
+            if (restoredNamespaceSerializer != nullptr &&
+                restoredNamespaceSerializer->getBackendId() != BackendDataType::INVALID_BK &&
+                restoredNamespaceSerializer->getBackendId() != namespaceSerializer->getBackendId()) {
+                INFO_RELEASE("Error: startTimerService Restored timer namespace serializer is incompatible with requested timer service");
+                THROW_LOGIC_EXCEPTION("Restored timer namespace serializer is incompatible with requested timer service.")
+            }
+        }
+
         this->keySerializer = keySerializer;
         this->namespaceSerializer = namespaceSerializer;
         this->triggerTarget = triggerTarget;
+
+        auto headTimer = processingTimeTimersQueue->peek();
+        if (headTimer != nullptr) {
+            processingTimeService->registerTimer(headTimer->getTimestamp(), this);
+        }
 
         this->isInitialized = true;
     }
@@ -202,4 +239,52 @@ void InternalTimerServiceImpl<K, N>::deleteFirstEventTimeTimer()
 {
     auto timer = eventTimeTimersQueue->peek();
     eventTimeTimersQueue->poll();
+}
+template <typename K, typename N>
+InternalTimersSnapshot<K, N> InternalTimerServiceImpl<K, N>::snapshotTimersForKeyGroup(int32_t keyGroupId)
+{
+    InternalTimersSnapshot<K, N> snapshot;
+    snapshot.setKeySerializer(keySerializer);
+    snapshot.setNamespaceSerializer(namespaceSerializer);
+
+    auto eventSubset = eventTimeTimersQueue->getSubsetForKeyGroup(keyGroupId);
+    if (eventSubset != nullptr) {
+        for (const auto &timer : *eventSubset) {
+            snapshot.addEventTimeTimer(timer);
+        }
+    }
+
+    auto processingSubset = processingTimeTimersQueue->getSubsetForKeyGroup(keyGroupId);
+    if (processingSubset != nullptr) {
+        for (const auto &timer : *processingSubset) {
+            snapshot.addProcessingTimeTimer(timer);
+        }
+    }
+
+    return snapshot;
+}
+
+template <typename K, typename N>
+void InternalTimerServiceImpl<K, N>::restoreTimersForKeyGroup(
+    const InternalTimersSnapshot<K, N> &timersSnapshot,
+    int32_t keyGroupId)
+{
+    if (localKeyGroupRange != nullptr && !localKeyGroupRange->contains(keyGroupId)) {
+        INFO_RELEASE(
+            "Error: restoreTimersForKeyGroup Timer key-group " << keyGroupId << " is outside local key-group range "
+            << localKeyGroupRange->ToString());
+        THROW_LOGIC_EXCEPTION("Timer key-group " << keyGroupId << " is outside local key-group range "
+            << localKeyGroupRange->ToString())
+    }
+
+    restoredTimersSnapshot = timersSnapshot;
+    hasRestoredTimersSnapshot = true;
+
+    for (const auto &timer : timersSnapshot.getEventTimeTimers()) {
+        eventTimeTimersQueue->add(timer);
+    }
+
+    for (const auto &timer : timersSnapshot.getProcessingTimeTimers()) {
+        processingTimeTimersQueue->add(timer);
+    }
 }

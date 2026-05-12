@@ -13,8 +13,15 @@
 
 RegisteredPriorityQueueStateBackendMetaInfo::RegisteredPriorityQueueStateBackendMetaInfo(const StateMetaInfoSnapshot &snapshot)
     : RegisteredStateMetaInfoBase(snapshot.getName()) {
-    auto valueSerializerKey = StateMetaInfoSnapshot::CommonSerializerKeys::VALUE_SERIALIZER;
-    elementSerializer = snapshot.getTypeSerializer(StateMetaInfoSnapshot::commonSerializerKeyToString(valueSerializerKey));
+    // C++ snapshot metadata writes PQ element serializer with Flink's historical
+    // "stateSerializer" key, while the JNI metadata reader normalizes it to
+    // VALUE_SERIALIZER. Accept both to keep checkpoint/savepoint restore tolerant.
+    elementSerializer = snapshot.getTypeSerializer("stateSerializer");
+    if (elementSerializer == nullptr) {
+        auto valueSerializerKey = StateMetaInfoSnapshot::CommonSerializerKeys::VALUE_SERIALIZER;
+        elementSerializer = snapshot.getTypeSerializer(
+            StateMetaInfoSnapshot::commonSerializerKeyToString(valueSerializerKey));
+    }
 }
 
 std::shared_ptr<StateMetaInfoSnapshot> RegisteredPriorityQueueStateBackendMetaInfo::computeSnapshot() {

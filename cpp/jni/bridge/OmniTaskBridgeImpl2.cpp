@@ -7,6 +7,7 @@
 #include "state/memory/ByteStreamStateHandle.h"
 #include "state/filesystem/RelativeFileStateHandle.h"
 #include "typeinfo/TypeInfoFactory.h"
+#include <limits>
 
 enum class StreamStateHandleType {
     Unknown,
@@ -999,28 +1000,115 @@ jobject OmniTaskBridgeImpl2::getSavepointInputStream(const std::string &metaStat
         jmethodID mid = env->GetMethodID(omniTaskWrapperClass, "getSavepointInputStream",
             "(Ljava/lang/String;)Lorg/apache/flink/core/fs/FSDataInputStream;");
         if (mid == nullptr) {
-            env->DeleteLocalRef(omniTaskWrapperClass); // Clean up local ref
+            env->DeleteLocalRef(omniTaskWrapperClass);
             g_OmniStreamJVM->DetachCurrentThread();
             INFO_RELEASE("Error: getSavepointInputStream could not get methodID for JNI call");
             throw std::runtime_error("getSavepointInputStream could not get methodID for JNI call");
         }
         jstring msHandle = env->NewStringUTF(metaStateHandle.c_str());
-        inputStream = env->CallObjectMethod(m_globalOmniTaskRef, mid, msHandle);
+        jobject localInputStream = env->CallObjectMethod(m_globalOmniTaskRef, mid, msHandle);
         if (env->ExceptionCheck()) {
             env->ExceptionDescribe();
             env->ExceptionClear();
+            env->DeleteLocalRef(msHandle);
+            env->DeleteLocalRef(omniTaskWrapperClass);
             g_OmniStreamJVM->DetachCurrentThread();
             INFO_RELEASE("Error: Failed to call SavepointInputStream get method");
             throw std::runtime_error("Failed to call SavepointInputStream get method");
+        }
+        if (localInputStream != nullptr) {
+            inputStream = env->NewGlobalRef(localInputStream);
+            env->DeleteLocalRef(localInputStream);
         }
         env->DeleteLocalRef(msHandle);
         env->DeleteLocalRef(omniTaskWrapperClass);
     } else {
         INFO_RELEASE("Error: Could not get TaskStateManagerWrapper class for JNI call");
+        g_OmniStreamJVM->DetachCurrentThread();
         throw std::runtime_error("Could not get TaskStateManagerWrapper class for JNI call");
     }
     g_OmniStreamJVM->DetachCurrentThread();
     return inputStream;
+}
+
+int OmniTaskBridgeImpl2::ReadSavepointInputStream(jobject inputStream, int8_t *chunk, size_t offset, size_t len)
+{
+    if (inputStream == nullptr || chunk == nullptr || len == 0) {
+        return 0;
+    }
+
+    JNIEnv* env;
+    jint res = g_OmniStreamJVM->AttachCurrentThread(reinterpret_cast<void**>(&env), nullptr);
+    if (res != JNI_OK) {
+        INFO_RELEASE("Error: ReadSavepointInputStream could not AttachCurrentThread for JNI call");
+        throw std::runtime_error("ReadSavepointInputStream could not AttachCurrentThread for JNI call");
+    }
+
+    if (m_globalOmniTaskRef == nullptr) {
+        g_OmniStreamJVM->DetachCurrentThread();
+        INFO_RELEASE("Error: ReadSavepointInputStream could not get OmniTask wrapper");
+        throw std::runtime_error("ReadSavepointInputStream could not get OmniTask wrapper");
+    }
+
+    jclass omniTaskWrapperClass = env->GetObjectClass(m_globalOmniTaskRef);
+    if (omniTaskWrapperClass == nullptr) {
+        g_OmniStreamJVM->DetachCurrentThread();
+        INFO_RELEASE("Error: ReadSavepointInputStream could not GetObjectClass for JNI call");
+        throw std::runtime_error("ReadSavepointInputStream could not GetObjectClass for JNI call");
+    }
+
+    jmethodID mid = env->GetMethodID(omniTaskWrapperClass, "readSavepointInputStream",
+        "(Lorg/apache/flink/core/fs/FSDataInputStream;[BII)I");
+    if (mid == nullptr) {
+        env->DeleteLocalRef(omniTaskWrapperClass);
+        g_OmniStreamJVM->DetachCurrentThread();
+        INFO_RELEASE("Error: ReadSavepointInputStream could not GetMethodID for JNI call");
+        throw std::runtime_error("ReadSavepointInputStream could not GetMethodID for JNI call");
+    }
+
+    if (len > static_cast<size_t>(std::numeric_limits<jint>::max())) {
+        env->DeleteLocalRef(omniTaskWrapperClass);
+        g_OmniStreamJVM->DetachCurrentThread();
+        INFO_RELEASE("Error: ReadSavepointInputStream chunk too large.");
+        THROW_LOGIC_EXCEPTION("ReadSavepointInputStream chunk too large: " << len)
+    }
+
+    jbyteArray byteArray = env->NewByteArray(static_cast<jsize>(len));
+    if (byteArray == nullptr) {
+        env->DeleteLocalRef(omniTaskWrapperClass);
+        g_OmniStreamJVM->DetachCurrentThread();
+        INFO_RELEASE("Error: ReadSavepointInputStream failed to allocate byte array.");
+        throw std::runtime_error("ReadSavepointInputStream failed to allocate byte array");
+    }
+
+    jint read = env->CallIntMethod(m_globalOmniTaskRef, mid, inputStream, byteArray, 0, static_cast<jint>(len));
+    if (env->ExceptionCheck()) {
+        env->ExceptionDescribe();
+        env->ExceptionClear();
+        env->DeleteLocalRef(byteArray);
+        env->DeleteLocalRef(omniTaskWrapperClass);
+        g_OmniStreamJVM->DetachCurrentThread();
+        INFO_RELEASE("Error: Failed to call SavepointInputStream read method");
+        throw std::runtime_error("Failed to call SavepointInputStream read method");
+    }
+
+    if (read > 0) {
+        env->GetByteArrayRegion(byteArray, 0, read, reinterpret_cast<jbyte *>(chunk + offset));
+        if (env->ExceptionCheck()) {
+            env->ExceptionDescribe();
+            env->ExceptionClear();
+            env->DeleteLocalRef(byteArray);
+            env->DeleteLocalRef(omniTaskWrapperClass);
+            g_OmniStreamJVM->DetachCurrentThread();
+            INFO_RELEASE("Error: ReadSavepointInputStream failed to copy byte array.");
+            throw std::runtime_error("ReadSavepointInputStream failed to copy byte array");
+        }
+    }
+
+    env->DeleteLocalRef(byteArray);
+    env->DeleteLocalRef(omniTaskWrapperClass);
+    g_OmniStreamJVM->DetachCurrentThread();
+    return read;
 }
 
 bool OmniTaskBridgeImpl2::isUsingKeyGroupCompression(jobject inputStream)
@@ -1129,13 +1217,13 @@ void OmniTaskBridgeImpl2::closeSavepointInputStream(jobject inputStream)
         if (env->ExceptionCheck()) {
             env->ExceptionDescribe();
             env->ExceptionClear();
-            env->DeleteLocalRef(inputStream);
+            env->DeleteGlobalRef(inputStream);
             g_OmniStreamJVM->DetachCurrentThread();
             INFO_RELEASE("Error: Failed to call SavepointInputStream close method");
             throw std::runtime_error("Failed to call SavepointInputStream close method");
         }
         env->DeleteLocalRef(omniTaskWrapperClass);
-        env->DeleteLocalRef(inputStream);
+        env->DeleteGlobalRef(inputStream);
     } else {
         INFO_RELEASE("Error: Could not get TaskStateManagerWrapper class for JNI call");
         throw std::runtime_error("Could not get TaskStateManagerWrapper class for JNI call");

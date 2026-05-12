@@ -94,30 +94,23 @@ public:
         StateHandleID stateHandleId);
 
     explicit IncrementalRemoteKeyedStateHandle(const nlohmann::json &description)
-        : stateHandleId_("")
+        : stateHandleId_(StateHandleID::randomStateHandleId())
     {
-        backendIdentifier_ = UUID::FromString(description.at("backendIdentifier").get<std::string>());
+        backendIdentifier_ = UUID::FromString(description["backendIdentifier"].get<std::string>());
         keyGroupRange_ = KeyGroupRange(
             description.at("keyGroupRange").at("startKeyGroup").get<int>(),
             description.at("keyGroupRange").at("endKeyGroup").get<int>());
         checkpointId_ = description.at("checkpointId").get<int64_t>();
-        for (const auto &item : GetHandleAndLocalPathItems(description, "sharedState")) {
-            if (item.contains("handle")) {
-                auto handle = StreamStateHandleFactory::from_json(item.at("handle"));
-                auto localPath = item.at("localPath").get<std::string>();
-                sharedState_.emplace_back(HandleAndLocalPath::of(handle, localPath));
-            }
+
+        sharedState_ = ParseHandleAndLocalPathList(description, "sharedState");
+        privateState_ = ParseHandleAndLocalPathList(description, "privateState");
+        metaStateHandle_ = ParseMetaStateHandle(description);
+
+        persistedSizeOfThisCheckpoint_ = ParseSizeField(description);
+        if (persistedSizeOfThisCheckpoint_ == unkownCheckpointSize) {
+            persistedSizeOfThisCheckpoint_ = GetStateSize();
         }
-        for (const auto &item : GetHandleAndLocalPathItems(description, "privateState")) {
-            if (item.contains("handle")) {
-                auto handle = StreamStateHandleFactory::from_json(item.at("handle"));
-                auto localPath = item.at("localPath").get<std::string>();
-                privateState_.emplace_back(HandleAndLocalPath::of(handle, localPath));
-            }
-        }
-        metaStateHandle_ = StreamStateHandleFactory::from_json(description.at("metaStateHandle"));
-        persistedSizeOfThisCheckpoint_ = description.at("persistedSizeOfThisCheckpoint").get<long>();
-        stateHandleId_ = StateHandleID(description.at("stateHandleId").at("keyString").get<std::string>());
+        stateHandleId_ = ParseStateHandleId(description);
     };
 
     long GetStateSize() const override;
@@ -139,6 +132,105 @@ public:
     std::string ToString() const override;
 
 private:
+    static const nlohmann::json* UnwrapStateList(const nlohmann::json* listJson)
+    {
+        if (listJson == nullptr || listJson->is_null()) {
+            return nullptr;
+        }
+        // Flink/Jackson often serializes StateObjectCollection as
+        // ["org.apache.flink.runtime.checkpoint.StateObjectCollection", [ ... ]].
+        if (listJson->is_array() && listJson->size() == 2
+            && listJson->at(0).is_string() && listJson->at(1).is_array()) {
+            return &listJson->at(1);
+        }
+        // Some OmniAdaptor paths serialize the collection as a plain object.
+        if (listJson->is_object() && listJson->contains("stateObjects")
+            && listJson->at("stateObjects").is_array()) {
+            return &listJson->at("stateObjects");
+        }
+        return listJson;
+    }
+
+    static std::vector<HandleAndLocalPath> ParseHandleAndLocalPathList(
+        const nlohmann::json& description, const std::string& fieldName)
+    {
+        std::vector<HandleAndLocalPath> result;
+        if (!description.contains(fieldName) || description.at(fieldName).is_null()) {
+            return result;
+        }
+        const nlohmann::json* stateList = UnwrapStateList(&description.at(fieldName));
+        if (stateList == nullptr) {
+            return result;
+        }
+        if (!stateList->is_array()) {
+            INFO_RELEASE(
+                "Error: ParseHandleAndLocalPathList IncrementalRemoteKeyedStateHandle field '" << fieldName <<
+                "' is not an array.");
+            throw std::runtime_error("IncrementalRemoteKeyedStateHandle field '" + fieldName + "' must be an array.");
+        }
+        for (const auto& item : *stateList) {
+            if (!item.is_object() || !item.contains("handle") || item.at("handle").is_null()) {
+                continue;
+            }
+            auto handle = StreamStateHandleFactory::from_json(item.at("handle"));
+            if (handle == nullptr) {
+                INFO_RELEASE(
+                    "Error: ParseHandleAndLocalPathList Unsupported stream state handle in IncrementalRemoteKeyedStateHandle "
+                    << fieldName);
+                throw std::runtime_error("Unsupported stream state handle in IncrementalRemoteKeyedStateHandle " + fieldName);
+            }
+            std::string localPath = item.contains("localPath") ? item.at("localPath").get<std::string>() : "";
+            if (localPath.empty()) {
+                INFO_RELEASE(
+                    "Error: ParseHandleAndLocalPathList IncrementalRemoteKeyedStateHandle " << fieldName <<
+                    " entry is missing localPath.");
+                throw std::runtime_error("IncrementalRemoteKeyedStateHandle " + fieldName + " entry is missing localPath.");
+            }
+            result.emplace_back(HandleAndLocalPath::of(handle, localPath));
+        }
+        return result;
+    }
+
+    static std::shared_ptr<StreamStateHandle> ParseMetaStateHandle(const nlohmann::json& description)
+    {
+        if (description.contains("metaStateHandle") && !description.at("metaStateHandle").is_null()) {
+            return StreamStateHandleFactory::from_json(description.at("metaStateHandle"));
+        }
+        if (description.contains("metaDataState") && !description.at("metaDataState").is_null()) {
+            return StreamStateHandleFactory::from_json(description.at("metaDataState"));
+        }
+        INFO_RELEASE(
+            "Error: ParseMetaStateHandle IncrementalRemoteKeyedStateHandle missing metaStateHandle/metaDataState.");
+        throw std::runtime_error("IncrementalRemoteKeyedStateHandle missing metaStateHandle/metaDataState.");
+    }
+
+    static long ParseSizeField(const nlohmann::json& description)
+    {
+        if (description.contains("persistedSizeOfThisCheckpoint")) {
+            return description.at("persistedSizeOfThisCheckpoint").get<long>();
+        }
+        if (description.contains("checkpointedSize")) {
+            return description.at("checkpointedSize").get<long>();
+        }
+        if (description.contains("stateSize")) {
+            return description.at("stateSize").get<long>();
+        }
+        return unkownCheckpointSize;
+    }
+
+    static StateHandleID ParseStateHandleId(const nlohmann::json& description)
+    {
+        if (description.contains("stateHandleId") && description.at("stateHandleId").is_object()
+            && description.at("stateHandleId").contains("keyString")) {
+            return StateHandleID(description.at("stateHandleId").at("keyString").get<std::string>());
+        }
+        if (description.contains("stateHandleID") && description.at("stateHandleID").is_object()
+            && description.at("stateHandleID").contains("keyString")) {
+            return StateHandleID(description.at("stateHandleID").at("keyString").get<std::string>());
+        }
+        return StateHandleID::randomStateHandleId();
+    }
+
     static const nlohmann::json& GetHandleAndLocalPathItems(
         const nlohmann::json& description,
         const char* fieldName)

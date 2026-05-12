@@ -90,7 +90,7 @@ public:
     }
 
     std::shared_ptr<DedupSet> getSubsetForKeyGroup(int32_t keyGroupId) override {
-        return deduplicationSetsByKeyGroup[keyGroupId];
+        return getDedupSetForKeyGroup(keyGroupId);
     }
 
 private:

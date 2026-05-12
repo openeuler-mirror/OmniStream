@@ -32,6 +32,7 @@
 #include "runtime/state/restore/RocksDBNoneRestoreOperation.h"
 #include "runtime/state/restore/RocksDBIncrementalRestoreOperation.h"
 #include "runtime/state/restore/RocksDBFullRestoreOperation.h"
+#include "runtime/state/restore/RocksDBHeapTimersFullRestoreOperation.h"
 #include "runtime/snapshot/RocksDBSnapshotStrategyBase.h"
 #include "runtime/snapshot/RocksNativeFullSnapshotStrategy.h"
 #include "runtime/snapshot/RocksIncrementalSnapshotStrategy.h"
@@ -186,6 +187,21 @@ private:
                     operatorId_,
                     alternativeIdx_);
         } else {
+            if (priorityQueueStateType_ == PriorityQueueStateType::HEAP) {
+                return std::make_shared<RocksDBHeapTimersFullRestoreOperation<K>>(
+                        keyGroupRange,
+                        numberOfKeyGroups,
+                        keySerializer,
+                        kvStateInformation,
+                        registeredPQStates,
+                        instanceRocksDBPath,
+                        dbOptions,
+                        columnFamilyOptionsFactory,
+                        restoreStateHandles,
+                        writeBatchSize,
+                        omniTaskBridge);
+            }
+
             return std::make_shared<RocksDBFullRestoreOperation<K>>(
                     keyGroupRange,
                     keySerializer,

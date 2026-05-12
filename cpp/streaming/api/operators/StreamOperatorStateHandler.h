@@ -32,6 +32,8 @@
 #include "bridge/OmniTaskBridgeImpl2.h"
 #include "state/SavepointSnapshotStrategy.h"
 
+using omnistream::OmniTaskBridge;
+
 
 template<typename K>
 class StreamOperatorStateHandler {
@@ -123,7 +125,9 @@ public:
         auto snapshotContext = new StateSnapshotContextSynchronousImpl(checkpointId,
             timestamp,
             checkpointStreamFactory,
-            keyGroupRange);
+            keyGroupRange,
+            bridge,
+            checkpointOptions);
 
         snapshotState(streamOperator,
             timeServiceManager,
