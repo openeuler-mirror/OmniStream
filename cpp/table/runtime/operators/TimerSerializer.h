@@ -79,7 +79,6 @@ private:
     TypeSerializer* namespaceSerializer_ = nullptr;
     Class* keyClazz_ = nullptr;
     Class* namespaceClazz_ = nullptr;
-    bool keyIsNull_ = false;
 };
 
 template <typename K, typename N>
@@ -99,11 +98,9 @@ void TimerSerializer<K, N>::serialize(Object* buffer, DataOutputSerializer& targ
         keySerializer_->serialize(tempObj, target);
         tempObj->putRefCount();
     } else {
-         if(timer->getKey()==nullptr){
-            keyIsNull_ = true;
-        }else{
-            keySerializer_->serialize(timer->getKey(), target);
-        }
+       
+        keySerializer_->serialize(timer->getKey(), target);
+        
     }
 
     if constexpr (std::is_same_v<N, Object*>) {
@@ -128,22 +125,14 @@ void TimerSerializer<K, N>::deserialize(Object* buffer, DataInputView& source) {
 
     // deserialize key
     if constexpr (std::is_same_v<K, Object*>) {
-        if (keyIsNull_ == true){
-            timer->setKey(nullptr);
-        }else{
-            auto keyBuffer = keySerializer_->GetBuffer();
-            keySerializer_->deserialize(keyBuffer, source);
-            timer->setKey(keyBuffer);
-            keyBuffer->putRefCount();
-        }
+        auto keyBuffer = keySerializer_->GetBuffer();
+        keySerializer_->deserialize(keyBuffer, source);
+        timer->setKey(keyBuffer);
+        keyBuffer->putRefCount();
     } else if constexpr (std::is_same_v<K, RowData*> || std::is_same_v<K, BinaryRowData*>) {
-        if (keyIsNull_ == true){
-            timer->setKey(nullptr);
-        }else{
-            auto keyBuffer = static_cast<K>(keySerializer_->deserialize(source));
-            // todo: How to manage the memory
-            timer->setKey(keyBuffer->copy());
-        }
+        auto keyBuffer = static_cast<K>(keySerializer_->deserialize(source));
+        // todo: How to manage the memory
+        timer->setKey(keyBuffer->copy());
     } else if constexpr (std::is_same_v<K, int64_t> || std::is_same_v<K, int32_t>) {
         auto keyBuffer = [this, &source]() {
             if constexpr (std::is_same_v<K, int64_t>) {
