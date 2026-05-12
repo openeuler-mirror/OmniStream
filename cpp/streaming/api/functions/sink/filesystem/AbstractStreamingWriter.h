@@ -47,7 +47,7 @@ public:
     void processWatermark(Watermark *mark)
     {
         if (this->timeServiceManager != nullptr) {
-            this->timeServiceManager->template advanceWatermark<int64_t>(mark);
+            this->timeServiceManager->advanceWatermark(mark);
         }
         this->output->emitWatermark(mark);
         currentWatermark = mark->getTimestamp();
