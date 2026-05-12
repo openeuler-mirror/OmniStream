@@ -125,7 +125,7 @@ else ()
     set(DEBUG_COMPILE_LEVEL "-O0")
 endif ()
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fpermissive")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fpermissive -w")
 if(CMAKE_BUILD_TYPE MATCHES Debug)
     message(STATUS "Building with Debug Mode")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${DEBUG_COMPILE_LEVEL} -DDEBUG")
