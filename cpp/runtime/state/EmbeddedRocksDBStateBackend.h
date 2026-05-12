@@ -90,10 +90,9 @@ public:
                 stateHandles.begin(),
                 stateHandles.end());
 
-            auto priorityQueueStateType =  RocksDBKeyedStateBackendBuilder<K>::PriorityQueueStateType::ROCKSDB;
-        // auto priorityQueueStateType = env->taskConfiguration().getPriorityQueueStateType() == "ROCKSDB" ?
-        //         RocksDBKeyedStateBackendBuilder<K>::PriorityQueueStateType::ROCKSDB :
-        //         RocksDBKeyedStateBackendBuilder<K>::PriorityQueueStateType::HEAP;
+        auto priorityQueueStateType = env->taskConfiguration().getPriorityQueueStateType() == "ROCKSDB" ?
+                RocksDBKeyedStateBackendBuilder<K>::PriorityQueueStateType::ROCKSDB :
+                RocksDBKeyedStateBackendBuilder<K>::PriorityQueueStateType::HEAP;
 
         RocksDBKeyedStateBackendBuilder<K> builder(
                 operatorIdentifier,
