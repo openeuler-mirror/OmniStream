@@ -30,6 +30,11 @@ public:
         }
     }
 
+    // Tell the cache whether it is the sole owner of stored V pointers.
+    // Only safe to set true when the caller guarantees no one else references
+    // the pointers (e.g. rocksdb backend which stores a byte-copy, not the ptr).
+    void setOwnsValues(bool owns) { ownsValues = owns; }
+
     V get(const K& key)
     {
         if (cacheMap.find(key) == cacheMap.end()) {
@@ -59,8 +64,19 @@ public:
         } else {
             if (cacheList.size() == capacity) {
                 K lruKey = cacheList.back().first;
+                V lruVal = cacheList.back().second;
                 cacheMap.erase(lruKey);
                 cacheList.pop_back();
+                if constexpr (std::is_pointer_v<K>) {
+                    delete lruKey;
+                }
+                // Only free the evicted value when the cache is its sole owner.
+                // For the heap state backend, the state still holds the same ptr.
+                if (ownsValues) {
+                    if constexpr (std::is_pointer<V>::value) {
+                        delete lruVal;
+                    }
+                }
             }
             // Insert new element at front
             cacheList.push_front({key, value});
@@ -79,6 +95,7 @@ public:
     }
 private:
     size_t capacity = 1024;
+    bool ownsValues = false; // if true, cache is sole owner of V pointers and frees them on eviction
     std::list<std::pair<K, V>> cacheList; // Stores key-value pairs
     std::unordered_map<K, typename std::list<std::pair<K, V>>::iterator> cacheMap;
     std::vector<V> oldValues;

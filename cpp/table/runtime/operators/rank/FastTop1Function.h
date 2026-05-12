@@ -7,6 +7,7 @@
 #include "AbstractTopNFunction.h"
 #include "table/data/vectorbatch/VectorBatch.h"
 #include "runtime/state/heap/HeapValueState.h"
+#include "runtime/state/rocksdb/RocksdbValueState.h"
 #include "rank_range.h"
 #include "Top1Comparator.h"
 #include "types/logical/RowType.h"
@@ -45,6 +46,7 @@ private:
     ValueState<RowData*> *stateStore = nullptr;
     Top1Comparator<KeyType> *comparator = nullptr;
     SortedKVCache<KeyType, RowData*> kvCache;
+    int backendType = 0; // 0-> mem 1-> bss 2-> rocksdb
     int compareRows(BinaryRowData *inputRow, BinaryRowData *previousRow);
     int compareRowsV2(omnistream::VectorBatch* vectorBatch,int rowId, BinaryRowData *previousRow);
 };
@@ -57,6 +59,17 @@ void FastTop1Function<KeyType>::open(const Configuration& context)
     ValueStateDescriptor<RowData*>* recordStateDesc = new ValueStateDescriptor<RowData*>(name, rankRowTypeInfo);
     recordStateDesc->SetStateSerializer(rankRowTypeInfo->getTypeSerializer());
     this->stateStore = static_cast<StreamingRuntimeContext<KeyType> *>(this->getRuntimeContext())->template getState<RowData*>(recordStateDesc);
+    // Decide backendType by probing the concrete state implementation.
+    if (dynamic_cast<RocksdbValueState<KeyType, VoidNamespace, RowData*> *>(this->stateStore)) {
+        INFO_RELEASE("FastTop1Function backend is rocksdb")
+        this->backendType = 2;
+        // RocksDB stores a byte-copy in the DB, not the ptr — cache is sole owner
+        // of its V pointers, so it's safe to free them on LRU eviction.
+        kvCache.setOwnsValues(true);
+    } else {
+        INFO_RELEASE("FastTop1Function backend is mem")
+        this->backendType = 0;
+    }
     comparator = new Top1Comparator<KeyType>(this->partitionKeyTypeIds, this->partitionKeyIndices,
                 this->sortKeyIndices, this->sortOrder);
 }
@@ -78,6 +91,7 @@ void FastTop1Function<KeyType>::processBatch(omnistream::VectorBatch* inputBatch
         ctx.setCurrentKey(mutableKey);
         // Retrieve the top row for the partition key.
         RowData* previousRow = kvCache.get(mutableKey);
+        bool fromCache = previousRow != nullptr;
         if (previousRow == nullptr) {
             previousRow = stateStore->value();
         }
@@ -98,8 +112,24 @@ void FastTop1Function<KeyType>::processBatch(omnistream::VectorBatch* inputBatch
                 this->collectUpdateAfter(inputRow, 1, timestamp);
                 stateStore->update(inputRow, false);
                 kvCache.put(mutableKey, inputRow);
+                if (!fromCache)
+                {
+                    rowToDel.insert(previousRow);
+                }
             } else {
-                freeKeyInCache(mutableKey);
+                // Case B2: retain existing state value.
+                // If previousRow came from stateStore->value() on rocksdb, it is
+                // a fresh copy we own. Rather than discard, warm the cache with it
+                // so a future lookup for this partition can skip a rocksdb read.
+                // Cache takes ownership of both mutableKey and previousRow; LRU
+                // eviction (with ownsValues=true) will free them later.
+                // For heap backend, previousRow is still owned by the state —
+                // cannot hand it to the cache, just free the local key copy.
+                if (!fromCache && this->backendType == 2) {
+                    kvCache.put(mutableKey, previousRow);
+                } else {
+                    freeKeyInCache(mutableKey);
+                }
             }
         }
     }
@@ -107,6 +137,10 @@ void FastTop1Function<KeyType>::processBatch(omnistream::VectorBatch* inputBatch
     delete inputBatch;
     omnistream::VectorBatch *outputBatch = this->createOutputBatch();
     this->collectOutputBatch(out, outputBatch);
+    // Drain previousRow pointers we became sole owners of (see per-case comments).
+    for (RowData* r : rowToDel) {
+        delete r;
+    }
     // Explicitly clear the `top1RowIds` map to release memory.
     kvCache.clearOldValues();
 }
