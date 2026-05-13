@@ -10,11 +10,20 @@
  */
 
 #include <regex>
+#include <stdexcept>
 #include <string>
 #include "table/data/vectorbatch/temp_batch_function.h"
 #include "StreamCalcBatch.h"
 
 using json = nlohmann::json;
+
+namespace {
+[[noreturn]] void ThrowUnsupportedCalcExpr(const json& expr)
+{
+    throw std::runtime_error("Unsupported calc expression for native codegen: " + expr.dump());
+}
+}
+
 static bool checkAllFieldReference(const json& jsonDesc)
 {
     // check all the field references
@@ -104,12 +113,22 @@ void StreamCalcBatch::open()
         if (description_.contains("indices")) {
             for (auto &index : description_["indices"]) {
                 auto expr = parser.ParseJSON(index);
+                if (expr == nullptr) {
+                    omniruntime::expressions::Expr::DeleteExprs(projExprs);
+                    projExprs.clear();
+                    ThrowUnsupportedCalcExpr(index);
+                }
                 projExprs.push_back(expr);
             }
         }
         
         if (hasFilter) {
             filterCondition = parser.ParseJSON(description_["condition"]);
+            if (filterCondition == nullptr) {
+                omniruntime::expressions::Expr::DeleteExprs(projExprs);
+                projExprs.clear();
+                ThrowUnsupportedCalcExpr(description_["condition"]);
+            }
         }
         // todo: ofConfig is empty now. Is it needed?
         auto ofConfig = new omniruntime::op::OverflowConfig();

@@ -104,6 +104,16 @@ TEST(StreamCalcBatchTest, VectorbatchExpressionAdd
     }
 }
 
+TEST(StreamCalcBatchTest, OpenThrowsForUnsupportedProjectionExpr) {
+    std::string desc = R"DELIM({"originDescription":"[21]:Calc(select=[unsupported])","inputTypes":["BIGINT"],"outputTypes":["BIGINT"],"indices":[{"exprType":"FUNCTION","returnType":2,"function_name":"not_supported_fn","arguments":[{"exprType":"FIELD_REFERENCE","dataType":2,"colVal":0}]}],"condition":null})DELIM";
+    json parsedJson = json::parse(desc);
+
+    OutputTestVectorBatch output;
+    StreamCalcBatch streamCalcBatchOp(parsedJson, &output);
+
+    EXPECT_THROW(streamCalcBatchOp.open(), std::runtime_error);
+}
+
 TEST(StreamCalcBatchTest, DISABLED_VectorbatchExpressionCountChar) {
 // OMNI_INT = 1, input [varchar, char], CountChar(col1, 'a')
 // Counts the number of 'a' in each row of the column
@@ -485,7 +495,7 @@ TEST(StreamCalcBatchTest, ProctimeMaterializeDateFormatTest) {
                     "exprType": "FUNCTION",
                     "returnType": 15,
                     "width": 10,
-                    "function_name": "from_unixtime_with_tz",
+                    "function_name": "from_unixtime_without_tz",
                     "arguments": [
                         {
                             "exprType": "PROCTIME",
@@ -498,12 +508,6 @@ TEST(StreamCalcBatchTest, ProctimeMaterializeDateFormatTest) {
                             "width": 10,
                             "isNull": false,
                             "value": "%Y-%m-%d"
-                        },
-                        {
-                            "exprType": "LITERAL",
-                            "dataType": 2,
-                            "isNull": false,
-                            "value": 28800
                         }
                     ]
                 }
@@ -524,6 +528,198 @@ TEST(StreamCalcBatchTest, ProctimeMaterializeDateFormatTest) {
     EXPECT_EQ(value.size(), 10);
     EXPECT_EQ(value[4], '-');
     EXPECT_EQ(value[7], '-');
+}
+
+TEST(StreamCalcBatchTest, JsonValueProjectionTest) {
+    std::string desc = R"DELIM({
+            "originDescription": "[2]:Calc(select=[JSON_VALUE(c_json_data, '$.id') AS id, JSON_VALUE(c_json_data, '$.user.name') AS name, JSON_VALUE(c_json_data, '$.user.age') AS age, JSON_VALUE(c_json_data, '$.user.tags[2]') AS tags, JSON_VALUE(c_json_data, '$.scores[0]') AS scores, JSON_VALUE(c_json_data, '$.metadata.version') AS version, JSON_VALUE(c_json_data, '$.metadata.source') AS source])",
+            "inputTypes": [
+                "VARCHAR(2147483647)"
+            ],
+            "outputTypes": [
+                "VARCHAR(2147483647)",
+                "VARCHAR(2147483647)",
+                "VARCHAR(2147483647)",
+                "VARCHAR(2147483647)",
+                "VARCHAR(2147483647)",
+                "VARCHAR(2147483647)",
+                "VARCHAR(2147483647)"
+            ],
+            "indices": [
+                {
+                    "exprType": "FUNCTION",
+                    "function_name": "json_value",
+                    "width": 2147483647,
+                    "arguments": [
+                        {
+                            "exprType": "FIELD_REFERENCE",
+                            "dataType": 15,
+                            "width": 2147483647,
+                            "colVal": 0
+                        },
+                        {
+                            "exprType": "LITERAL",
+                            "dataType": 16,
+                            "isNull": false,
+                            "width": 5,
+                            "value": "$.id"
+                        }
+                    ],
+                    "returnType": 15
+                },
+                {
+                    "exprType": "FUNCTION",
+                    "function_name": "json_value",
+                    "width": 2147483647,
+                    "arguments": [
+                        {
+                            "exprType": "FIELD_REFERENCE",
+                            "dataType": 15,
+                            "width": 2147483647,
+                            "colVal": 0
+                        },
+                        {
+                            "exprType": "LITERAL",
+                            "dataType": 16,
+                            "isNull": false,
+                            "width": 12,
+                            "value": "$.user.name"
+                        }
+                    ],
+                    "returnType": 15
+                },
+                {
+                    "exprType": "FUNCTION",
+                    "function_name": "json_value",
+                    "width": 2147483647,
+                    "arguments": [
+                        {
+                            "exprType": "FIELD_REFERENCE",
+                            "dataType": 15,
+                            "width": 2147483647,
+                            "colVal": 0
+                        },
+                        {
+                            "exprType": "LITERAL",
+                            "dataType": 16,
+                            "isNull": false,
+                            "width": 11,
+                            "value": "$.user.age"
+                        }
+                    ],
+                    "returnType": 15
+                },
+                {
+                    "exprType": "FUNCTION",
+                    "function_name": "json_value",
+                    "width": 2147483647,
+                    "arguments": [
+                        {
+                            "exprType": "FIELD_REFERENCE",
+                            "dataType": 15,
+                            "width": 2147483647,
+                            "colVal": 0
+                        },
+                        {
+                            "exprType": "LITERAL",
+                            "dataType": 16,
+                            "isNull": false,
+                            "width": 14,
+                            "value": "$.user.tags[2]"
+                        }
+                    ],
+                    "returnType": 15
+                },
+                {
+                    "exprType": "FUNCTION",
+                    "function_name": "json_value",
+                    "width": 2147483647,
+                    "arguments": [
+                        {
+                            "exprType": "FIELD_REFERENCE",
+                            "dataType": 15,
+                            "width": 2147483647,
+                            "colVal": 0
+                        },
+                        {
+                            "exprType": "LITERAL",
+                            "dataType": 16,
+                            "isNull": false,
+                            "width": 11,
+                            "value": "$.scores[0]"
+                        }
+                    ],
+                    "returnType": 15
+                },
+                {
+                    "exprType": "FUNCTION",
+                    "function_name": "json_value",
+                    "width": 2147483647,
+                    "arguments": [
+                        {
+                            "exprType": "FIELD_REFERENCE",
+                            "dataType": 15,
+                            "width": 2147483647,
+                            "colVal": 0
+                        },
+                        {
+                            "exprType": "LITERAL",
+                            "dataType": 16,
+                            "isNull": false,
+                            "width": 18,
+                            "value": "$.metadata.version"
+                        }
+                    ],
+                    "returnType": 15
+                },
+                {
+                    "exprType": "FUNCTION",
+                    "function_name": "json_value",
+                    "width": 2147483647,
+                    "arguments": [
+                        {
+                            "exprType": "FIELD_REFERENCE",
+                            "dataType": 15,
+                            "width": 2147483647,
+                            "colVal": 0
+                        },
+                        {
+                            "exprType": "LITERAL",
+                            "dataType": 16,
+                            "isNull": false,
+                            "width": 17,
+                            "value": "$.metadata.source"
+                        }
+                    ],
+                    "returnType": 15
+                }
+            ],
+            "condition": null
+            })DELIM";
+
+    std::string inputJson = R"({"id":721,"user":{"name":"Alice","age":53,"tags":["tag0","tag1","tag2"]},"scores":[79.39,86.38,71.8],"metadata":{"version":"1.0","source":"web"}})";
+    auto vb = BuildStringVectorBatch(&inputJson, 1);
+
+    auto outputRecord = ProcessAndGetOutput(desc, vb);
+    EXPECT_EQ(outputRecord->GetRowCount(), 1);
+    EXPECT_EQ(outputRecord->GetVectorCount(), 7);
+
+    using VarcharVector = omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>;
+    auto out0 = reinterpret_cast<VarcharVector *>(outputRecord->Get(0));
+    auto out1 = reinterpret_cast<VarcharVector *>(outputRecord->Get(1));
+    auto out2 = reinterpret_cast<VarcharVector *>(outputRecord->Get(2));
+    auto out3 = reinterpret_cast<VarcharVector *>(outputRecord->Get(3));
+    auto out4 = reinterpret_cast<VarcharVector *>(outputRecord->Get(4));
+    auto out5 = reinterpret_cast<VarcharVector *>(outputRecord->Get(5));
+    auto out6 = reinterpret_cast<VarcharVector *>(outputRecord->Get(6));
+
+    EXPECT_EQ(out0->GetValue(0), "721");
+    EXPECT_EQ(out1->GetValue(0), "Alice");
+    EXPECT_EQ(out2->GetValue(0), "53");
+    EXPECT_EQ(out3->GetValue(0), "tag2");
+    EXPECT_EQ(out4->GetValue(0), "79.39");
+    EXPECT_EQ(out5->GetValue(0), "1.0");
+    EXPECT_EQ(out6->GetValue(0), "web");
 }
 
 TEST(StreamCalcBatchTest, Q21RegexpExtractTest) {
