@@ -27,10 +27,6 @@ BarrierHandlerState* AlternatingCollectingBarriersUnaligned::BarrierReceived(
     if (markChannelBlocked && !barrier->GetCheckpointOptions()->IsUnalignedCheckpoint()) {
         state_.BlockChannel(channelInfo);
     }
-    if (alternating_) {
-        state_.BlockChannel(channelInfo);
-        state_.UnblockAllChannels();
-    }
     for (auto* input : state_.getInputs()) {
         omnistream::IndexedInputGate *inputGate = dynamic_cast<omnistream::IndexedInputGate *>(input);
         if (inputGate) {

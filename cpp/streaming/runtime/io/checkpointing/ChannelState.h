@@ -26,8 +26,10 @@ public:
 
     void BlockChannel(InputChannelInfo channelInfo)
     {
-        inputs[channelInfo.getGateIdx()]->BlockConsumption(channelInfo);
-        blockedChannels.insert(channelInfo);
+        if (blockedChannels.count(channelInfo) == 0) {
+            inputs[channelInfo.getGateIdx()]->BlockConsumption(channelInfo);
+            blockedChannels.insert(channelInfo);
+        }
     }
 
     void ChannelFinished(InputChannelInfo channelInfo)

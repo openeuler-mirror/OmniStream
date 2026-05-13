@@ -23,6 +23,9 @@ BarrierHandlerState* AlternatingCollectingBarriers::AlignedCheckpointTimeout(
     controller->InitInputsCheckpoint(*unalignedBarrier);
 
     for (CheckpointableInput* input : state.getInputs()) {
+        for (InputChannelInfo channelInfo: input->GetChannelInfos()) {
+            state.BlockChannel(channelInfo);
+        }
         input->CheckpointStarted(*unalignedBarrier);
     }
 

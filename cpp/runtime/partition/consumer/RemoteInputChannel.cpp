@@ -227,6 +227,7 @@ namespace omnistream {
             ResetLastBarrier();
         }
         startSize_ = 0;
+        inflightBuffers_.clear();
     }
 
     void RemoteInputChannel::AddInputData(long checkpointId, const omnistream::InputChannelInfo& info)

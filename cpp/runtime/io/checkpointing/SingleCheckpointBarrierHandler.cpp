@@ -148,6 +148,13 @@ namespace omnistream::runtime {
             }
         }
 
+        if (alternating_ && currentCheckpointUnaligned_) {
+            if (targetChannelCount_ == 1) {
+                MarkAlignmentStartAndEnd(barrier.GetId(), barrier.GetTimestamp());
+            } else {
+                MarkAlignmentStart(barrier.GetId(), barrier.GetTimestamp());
+            }
+        }
         // We must mark alignment end before calling currentState.barrierReceived which might
         // trigger a checkpoint with unfinished future for alignment duration
         if (alignedChannels_.size() == (unsigned int)targetChannelCount_ && shouldTrackAlignment) {

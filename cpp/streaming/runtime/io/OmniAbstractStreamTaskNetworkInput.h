@@ -572,8 +572,6 @@ public:
             try {
                 std::vector<omnistream::Buffer*> buffers = (pair.second)->GetUnconsumedBuffer();
                 int bufferSize = buffers.size();
-
-
                 if (bufferSize > 0) {
                     writer->AddInputData(
                         checkpointId,

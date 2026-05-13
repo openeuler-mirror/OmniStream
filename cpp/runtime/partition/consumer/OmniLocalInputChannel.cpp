@@ -134,6 +134,7 @@ namespace omnistream {
     void OmniLocalInputChannel::CheckpointStopped(long checkpointId)
     {
         startSize_ = 0;
+        inflightBuffers_.clear();
         channelStatePersister->StopPersisting(checkpointId);
     }
     void OmniLocalInputChannel::AddInputData(long checkpointId, const omnistream::InputChannelInfo& info)
