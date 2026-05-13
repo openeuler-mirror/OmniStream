@@ -52,6 +52,8 @@ public:
 
     inline void write(uint32_t var1) ;
 
+    inline void writeShort(uint16_t value);
+
     inline void write(std::vector<uint8_t>& var);
 
     // todo: need to use int32_t
@@ -150,6 +152,16 @@ inline void DataOutputSerializer::writeByte(uint32_t var)
 inline void DataOutputSerializer::write(uint32_t value)
 {
     writeByte(value);
+}
+
+inline void DataOutputSerializer::writeShort(uint16_t value)
+{
+    expandDataBuffer(2);
+    if (data_ == nullptr) {
+        throw std::runtime_error("Data buffer is null");
+    }
+    *reinterpret_cast<uint16_t*>(data_ + position_) = __builtin_bswap16(value);
+    position_ += 2;
 }
 
 inline void DataOutputSerializer::write(std::vector<uint8_t>& var) {

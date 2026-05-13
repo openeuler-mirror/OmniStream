@@ -73,11 +73,16 @@ namespace omnistream::datastream {
 
         void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) override
         {
+            AbstractStreamOperator<K>::initializeState(initializer, keySerializer);
             auto taskId = initializer->getEnvironment()->taskConfiguration().getIndexOfSubtask();
             auto& bindCore = omnistream::BindCoreManager::GetInstance();
             if (bindCore->NeedBindOp()) {
                 coreId = omnistream::BindCoreManager::GetInstance()->GetOpCore(taskId);
             }
+        }
+        void initializeState(StateInitializationContextImpl<K> *context) override
+        {
+            AbstractStreamOperator<K>::initializeState(context);
         }
 
         void ProcessWatermark(Watermark *watermark) override

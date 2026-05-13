@@ -129,6 +129,7 @@ public:
     void handleSplitsChanges(const std::vector<KafkaPartitionSplit*>& splitsChange);
     void wakeUp();
     void close();
+    void commitOffsets(const std::map<std::shared_ptr<RdKafka::TopicPartition>, int64_t>& offsets);
 
 private:
     inline static const long POLL_TIMEOUT = 10000L;

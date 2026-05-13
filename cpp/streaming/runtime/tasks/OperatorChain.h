@@ -75,6 +75,8 @@ namespace omnistream {
             }
             linkOperatorWrappers(allOperatorWrappers);
 
+            operatorDependenciesDeal();
+
             operatorEventDispatcher = new OperatorEventDispatcherImpl(
                     env->getOperatorCoordinatorEventGateway());
         }
@@ -211,6 +213,8 @@ namespace omnistream {
                        ? ReadIterator(tailOperatorWrapper, true)
                        : ReadIterator(mainOperatorWrapper, false);
         }
+
+        void operatorDependenciesDeal();
 
     private:
     // future the following function should be private and the logic will be refactory

@@ -119,54 +119,62 @@ CheckpointOptions *CheckpointOptions::FromJson(nlohmann::json &config)
     } else if (alignmentTypeStr == "FORCED_ALIGNED") {
         alignmentType = AlignmentType::FORCED_ALIGNED;
     } else {
-        throw std::invalid_argument("Unknown alignment type: " + alignmentTypeStr);
+        INFO_RELEASE("Error:Unknown alignment type : " << alignmentTypeStr);
+        throw std::invalid_argument("Unknown alignment type : " + alignmentTypeStr);
     }
 
     auto alignedCheckpointTimeout = config["alignedCheckpointTimeout"].get<long>();
 
     std::shared_ptr<CheckpointStorageLocationReference> targetLocation = nullptr;
-    if (config["targetLocation"]["referenceBytes"].is_null()) {
+    auto reference = config["targetLocation"]["referenceBytes"];
+    if (reference.is_null()) {
         targetLocation = CheckpointStorageLocationReference::GetDefault();
     } else {
-        auto encodedReference = config["targetLocation"]["referenceBytes"].get<std::string>();
+        auto encodedReference = Base64_decode(reference.get<std::string>());
         auto referenceBytes = std::make_shared<std::vector<uint8_t>>(encodedReference.begin(), encodedReference.end());
-        targetLocation = std::make_shared<CheckpointStorageLocationReference>(referenceBytes);
+        if (referenceBytes == nullptr || referenceBytes->empty()){
+            targetLocation = CheckpointStorageLocationReference::GetDefault();
+        } else {
+            targetLocation = std::make_shared<CheckpointStorageLocationReference>(referenceBytes);
+        }
     }
     
     bool isSavepoint = config["checkpointType"]["name"].get<std::string>().find("Savepoint") != std::string::npos;
     if (isSavepoint){
+        auto savepointFormatTypeStr = config["checkpointType"]["formatType"].get<std::string>();
         SavepointType *savepointType;
         SavepointFormatType savepointFormatType;
-        if (config["checkpointType"]["formatType"].get<std::string>() == "CANONICAL") {
+        if (savepointFormatTypeStr == "CANONICAL") {
             savepointFormatType = SavepointFormatType::CANONICAL;
-        } else if (config["checkpointType"]["formatType"].get<std::string>() == "NATIVE") {
+        } else if (savepointFormatTypeStr == "NATIVE") {
             savepointFormatType = SavepointFormatType::NATIVE;
         } else {
-            INFO_RELEASE("Error: Unknown savepoint formatType");
-            throw std::invalid_argument("Unknown savepoint formatType");
+            INFO_RELEASE("Error: Unknown savepoint formatType:"<<savepointFormatTypeStr);
+            throw std::invalid_argument("Unknown savepoint formatType : " + savepointFormatTypeStr);
         }
 
-
-        if (config["checkpointType"]["name"].get<std::string>() == "Savepoint") {
+        auto savepointTypeStr = config["checkpointType"]["name"].get<std::string>();
+        if (savepointTypeStr == "Savepoint") {
             savepointType = SavepointType::savepoint(savepointFormatType);
-        } else if (config["checkpointType"]["name"].get<std::string>() == "Terminate Savepoint") {
+        } else if (savepointTypeStr == "Terminate Savepoint") {
             savepointType = SavepointType::terminate(savepointFormatType);
-        } else if (config["checkpointType"]["name"].get<std::string>() == "Suspend Savepoint") {
+        } else if (savepointTypeStr == "Suspend Savepoint") {
             savepointType = SavepointType::suspend(savepointFormatType);
         } else {
-            INFO_RELEASE("Error: Unknown savepoint type");
-            throw std::invalid_argument("Unknown savepoint type");
+            INFO_RELEASE("Error: Unknown savepoint type: "<<savepointTypeStr);
+            throw std::invalid_argument("Unknown savepoint type : " + savepointTypeStr);
         }
         return new CheckpointOptions(savepointType, targetLocation, alignmentType, alignedCheckpointTimeout);
     } else {
+        auto checkpointTypeStr = config["checkpointType"]["name"].get<std::string>();
         CheckpointType *checkpointType;
-        if (config["checkpointType"]["name"].get<std::string>() == "Checkpoint") {
+        if (checkpointTypeStr == "Checkpoint") {
             checkpointType = CheckpointType::CHECKPOINT;
-        } else if (config["checkpointType"]["name"].get<std::string>() == "FullCheckpoint") {
+        } else if (checkpointTypeStr == "Full Checkpoint") {
             checkpointType = CheckpointType::FULL_CHECKPOINT;
         } else {
-            INFO_RELEASE("Error: Unknown checkpoint type");
-            throw std::invalid_argument("Unknown checkpoint type");
+            INFO_RELEASE("Error: Unknown checkpoint type: "<<checkpointTypeStr);
+            throw std::invalid_argument("Unknown checkpoint type : " + checkpointTypeStr);
         }
         return new CheckpointOptions(checkpointType, targetLocation, alignmentType, alignedCheckpointTimeout);
     }

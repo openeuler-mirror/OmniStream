@@ -41,3 +41,6 @@ const char* TYPE_NAME_TIMER = "TimerHeapInternalTimer";
 const char* TYPE_NAME_TIMER_CLASS = "org.apache.flink.streaming.api.operators.TimerHeapInternalTimer";
 const char* TYPE_NAME_TIMER_CLASS_LINE = "org_apache_flink_streaming_api_operators_TimerHeapInternalTimer";
 const char* TYPE_NAME_TIMER_SERIALIZER = "org.apache.flink.streaming.api.operators.TimerSerializer";
+
+const char* TYPE_NAME_BYTE_PRIMITIVE_ARRAY_SERIALIZER =
+    "org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer";

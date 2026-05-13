@@ -55,3 +55,5 @@ template class JavaArray<char>;
 template class JavaArray<float>;
 template class JavaArray<double>;
 template class JavaArray<bool>;
+template class JavaArray<unsigned char>;
+template class JavaArray<uint8_t>;

@@ -43,22 +43,26 @@ TaskStateManager::~TaskStateManager()
 }
     void TaskStateManager::NotifyCheckpointCompleteV2(long checkpointId)
     {
+        INFO_RELEASE("savepoint: TaskStateManager NotifyCheckpointCompleteV2: " << checkpointId);
         std::string checkpointIdstr = std::to_string(checkpointId);
         bridge_->NotifyCheckpointComplete(checkpointIdstr);
     }
     void TaskStateManager::NotifyCheckpointAbortedV2(long checkpointId)
     {
+        INFO_RELEASE("savepoint: TaskStateManager NotifyCheckpointAbortedV2: " << checkpointId);
         std::string checkpointIdstr = std::to_string(checkpointId);
         bridge_->notifyCheckpointAborted(checkpointIdstr);
     }
 
 void TaskStateManager::NotifyCheckpointComplete(long checkpointId)
 {
+    INFO_RELEASE("savepoint: TaskStateManager NotifyCheckpointComplete: " << checkpointId);
     localStateStore_->confirmCheckpoint(checkpointId);
 }
 
 void TaskStateManager::NotifyCheckpointAborted(long checkpointId)
 {
+    INFO_RELEASE("savepoint: TaskStateManager NotifyCheckpointAborted: " << checkpointId);
     localStateStore_->abortCheckpoint(checkpointId);
 }
 
@@ -66,6 +70,7 @@ void TaskStateManager::ReportTaskStateSnapshots(CheckpointMetaData *checkpointMe
     CheckpointMetrics *checkpointMetrics, std::shared_ptr<TaskStateSnapshot> acknowledgedState,
     std::shared_ptr<TaskStateSnapshot> localState)
 {
+    INFO_RELEASE("savepoint: TaskStateManager ReportTaskStateSnapshots: " << checkpointMetaData->GetCheckpointId());
     long checkpointId = checkpointMetaData->GetCheckpointId();
 
     localStateStore_->storeLocalState(checkpointId, localState);

@@ -44,4 +44,6 @@ extern const char* TYPE_NAME_TIMER_CLASS;
 extern const char* TYPE_NAME_TIMER_CLASS_LINE;
 extern const char* TYPE_NAME_TIMER_SERIALIZER;
 
+extern const char* TYPE_NAME_BYTE_PRIMITIVE_ARRAY_SERIALIZER;
+
 #endif  // FLINK_TNEL_TYPECONSTANTS_H

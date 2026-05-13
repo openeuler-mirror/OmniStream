@@ -25,7 +25,10 @@ public:
 
     void open() override;
     const char *getName() override;
-    void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) override{};
+    void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) override {
+        INFO_RELEASE("SinkOperator::initializeState");
+        // AbstractStreamOperator<int>::initializeState(initializer, keySerializer);
+    }
 
     void processBatch(StreamRecord *record) override;
     void processElement(StreamRecord *record) override;

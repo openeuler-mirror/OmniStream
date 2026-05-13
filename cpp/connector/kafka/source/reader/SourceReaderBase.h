@@ -78,6 +78,11 @@ public:
     {
         auto currentSplitStoppingOffset = recordsWithSplitId->getSplitStoppingOffset();
         for (RdKafka::Message* record : records) {
+            if (cancelled_.load())
+            {
+                INFO_RELEASE("SourceReader cancelled")
+                break;
+            }
             if (record->offset() >= currentSplitStoppingOffset) {
                 break;
             }
@@ -122,8 +127,18 @@ public:
     // 对拆分状态进行快照
     std::vector<KafkaPartitionSplit> snapshotState(long checkpointId)  override
     {
-        return {};
+        INFO_RELEASE("savepoint: SourceReaderBase snapshotState")
+        std::vector<KafkaPartitionSplit> splits;
+        for (const auto& [splitId, splitContext] : this->splitStates) {
+            if (splitContext->state->getCurrentOffset() >= 0) {
+                splits.push_back(splitContext->state->toKafkaPartitionSplit());
+            }
+        }
+        return splits;
     }
+
+    // 通知检查点完成
+    void notifyCheckpointComplete(long checkpointId)  override {}
 
     // 添加拆分
     void addSplits(std::vector<SplitT*>& splits) override
@@ -164,6 +179,11 @@ public:
         splitFetcherManager->close(30000);
     }
 
+    void cancel()
+    {
+        cancelled_ = true;
+    }
+
     // 获取当前分配的拆分数量
     int getNumberOfCurrentlyAssignedSplits() const
     {
@@ -175,12 +195,13 @@ protected:
     virtual KafkaPartitionSplitState* initializedState(KafkaPartitionSplit* split) = 0;
 
     virtual void onSplitFinished(const std::unordered_map<std::string, KafkaPartitionSplitState*>& finishedSplitIds) {};
+    SplitFetcherManager<E, SplitT>* splitFetcherManager;
 private:
+    std::atomic<bool> cancelled_{false};
     bool isBatch;
     FutureCompletingBlockingQueue<E>* elementsQueue;
     std::unordered_map<std::string, SplitContext*> splitStates;
     RecordEmitter<E, SplitStateT>* recordEmitter;
-    SplitFetcherManager<E, SplitT>* splitFetcherManager;
     SourceReaderContext* context;
     // 最新从拆分读取器提取的按拆分的记录批次
     RecordsWithSplitIds<E>* currentFetch = nullptr;

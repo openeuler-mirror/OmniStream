@@ -22,6 +22,7 @@
 #include "core/typeinfo/PojoTypeInfo.h"
 #include "core/typeinfo/MapTypeInfo.h"
 #include "core/typeinfo/ListTypeInfo.h"
+#include "core/typeinfo/BytePrimitiveArrayTypeInfo.h"
 #include "LongTypeInfo.h"
 #include "CommittableMessageInfo.h"
 #include "PojoField.h"
@@ -287,7 +288,9 @@ TypeInformation *TypeInfoFactory::createDataStreamTypeInfo(const json &serialize
 				namespaceTypeInfo,
 				ClassRegistry::instance().newClass(keyInstanceClass),
  				ClassRegistry::instance().newClass(namespaceInstanceClass));
-	} else {
+    } else if (serializerName == TYPE_NAME_BYTE_PRIMITIVE_ARRAY_SERIALIZER) {
+        typeInformation = new BytePrimitiveArrayTypeInfo();
+    } else {
         THROW_RUNTIME_ERROR("invalid serializerName " + serializerName)
     }
     return typeInformation;

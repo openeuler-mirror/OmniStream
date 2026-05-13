@@ -231,6 +231,8 @@ public:
 
     void commitAsync();
 
+    void commitOffsets(const std::map<std::shared_ptr<RdKafka::TopicPartition>, int64_t>& offsets);
+
 private:
     RdKafka::KafkaConsumer* consumer_;
     std::string topic_;

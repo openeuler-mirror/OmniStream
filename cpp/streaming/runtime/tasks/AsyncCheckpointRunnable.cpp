@@ -49,7 +49,7 @@ void AsyncCheckpointRunnable::Run()
                 snapshotFinalizeResult->localTaskOperatorSubtaskStates,
                 asyncDurationMillis);
         } else {
-            LOG("asyncCheckpointState is not COMPLETED.");
+            INFO_RELEASE("asyncCheckpointState is not COMPLETED.");
         }
         finishedFuture.Complete();
     }
@@ -200,7 +200,7 @@ void AsyncCheckpointRunnable::HandleExecutionException(std::__exception_ptr::exc
     }
 
     if (!didCleanup) {
-        LOG("Caught followup exception from a failed checkpoint thread. This can be ignored.");
+        INFO_RELEASE("Caught followup exception from a failed checkpoint thread. This can be ignored.");
     }
 }
 

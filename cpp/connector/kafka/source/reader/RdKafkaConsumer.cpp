@@ -11,6 +11,7 @@
 
 #include "RdKafkaConsumer.h"
 #include <thread>
+#include "core/include/common.h"
 
 ConsumerRecords* ConsumerRecords::EMPTY = new ConsumerRecords();
 
@@ -116,6 +117,8 @@ void RdKafkaConsumer::seek(std::unordered_map<std::shared_ptr<RdKafka::TopicPart
     partitionsStartingFromSpecifiedOffsets)
 {
     for (const auto& pair : partitionsStartingFromSpecifiedOffsets) {
+        INFO_RELEASE("RdKafkaConsumer::seek topic" << pair.first->topic() << " partition" << pair.first->partition()
+            << " offset " << pair.second)
         pair.first->set_offset(pair.second);
         seek(*(pair.first));
     }
@@ -171,4 +174,25 @@ void RdKafkaConsumer::close()
 
 void RdKafkaConsumer::commitAsync()
 {
+}
+
+void RdKafkaConsumer::commitOffsets(const std::map<std::shared_ptr<RdKafka::TopicPartition>, int64_t>& offsets)
+{
+    std::vector<RdKafka::TopicPartition*> partitions;
+
+    for (const auto& entry : offsets) {
+        auto tp = RdKafka::TopicPartition::create(entry.first->topic(), entry.first->partition());
+        tp->set_offset(entry.second);
+        partitions.push_back(tp);
+    }
+
+    RdKafka::ErrorCode resp = consumer_->commitSync(partitions);
+    if (resp != RdKafka::ERR_NO_ERROR) {
+        std::cerr << "% commitOffsets failed: " << RdKafka::err2str(resp) << std::endl;
+        throw std::runtime_error("Failed to commit offsets: " + RdKafka::err2str(resp));
+    }
+
+    for (auto tp : partitions) {
+        delete tp;
+    }
 }
