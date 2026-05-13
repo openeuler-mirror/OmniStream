@@ -13,6 +13,7 @@
 #include <fstream>
 #include "data/binary/BinaryRowData.h"
 #include "table/data/rowdata_marshaller.h"
+#include "OmniOperatorJIT/core/src/codegen/time_util.h"
 namespace omnistream {
     VectorBatch::VectorBatch(size_t rowCnt)
         : omniruntime::vec::VectorBatch(rowCnt), timestamps(nullptr), rowKinds(nullptr), maxTimestamp(INT64_MIN)
@@ -141,7 +142,7 @@ namespace omnistream {
             const int addTime = 1000;
             milliseconds += addTime; // 确保毫秒非负（如-1234ms → -2秒 + 766ms）
         }
-        setenv("TZ", tzStr.c_str(), 1);
+        setenv("TZ", omniruntime::codegen::function::TimeZoneUtil::GetTZ(tzStr.c_str()), 1);
         tzset();
         struct tm timeinfo;
         localtime_r(&adjusted_seconds, &timeinfo);
