@@ -41,8 +41,6 @@
 #include "state/RocksDbKvStateInfo.h"
 #include "../RocksDBConfigurableOptions.h"
 
-const int FALCON_HASH_PARAM = 13;
-
 /* S is the value used in the State,
  * like RowData* for HeapValueState,
  * emhash7<RowData*, int>* for HeapMapState,
@@ -77,14 +75,22 @@ public:
         // [FALCON] -----------------------------------------------------------------------------------------------
         auto useHashMemTable = reinterpret_cast<Boolean*>(Configuration::TM_CONFIG
             ->getValue(RocksDBConfigurableOptions::USE_HASH_MEMTABLE));
+        auto prefixExtractorLength = reinterpret_cast<Integer*>(Configuration::TM_CONFIG
+            ->getValue(RocksDBConfigurableOptions::PREFIX_EXTRACTOR_LENGTH));
+
+        int prefixLen = 13;
+        if (prefixExtractorLength != nullptr) {
+            prefixLen = prefixExtractorLength->value;
+            prefixExtractorLength->putRefCount();
+        }
 
         if (useHashMemTable != nullptr && useHashMemTable->value) {
             if (metaInfo->getStateType() == StateDescriptor::Type::VALUE) {
                 // modify columnFamily option and read option for current columnFamily
                 // familyOptions.memtable_factory.reset(ROCKSDB_NAMESPACE::NewHashLinkListRepFactory());
-                // familyOptions.prefix_extractor.reset(ROCKSDB_NAMESPACE::NewCappedPrefixTransform(FALCON_HASH_PARAM));
+                // familyOptions.prefix_extractor.reset(ROCKSDB_NAMESPACE::NewCappedPrefixTransform(prefixLen));
                 readOptions.total_order_seek = false;
-                INFO_RELEASE("[FALCON] enable hash memTable for valueState.")
+                INFO_RELEASE("[FALCON] enable hash memTable for valueState, prefix length is " << prefixLen << ".")
             }
         }
 

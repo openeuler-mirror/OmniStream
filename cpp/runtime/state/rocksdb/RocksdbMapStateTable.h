@@ -46,8 +46,6 @@
 #include "common.h"
 #include <sstream>
 
-const int FALCON_RANGE_FILTER_PARAM = 13; // default set as 13 to maximize read performance
-
 /* S is the value used in the State,
  * like RowData* for HeapValueState,
  * emhash7<RowData*, int>* for HeapMapState,
@@ -78,12 +76,20 @@ public:
         // [FALCON]-----------------------------------------------------------------------------------------------
         auto useRangeFilter = reinterpret_cast<Boolean*>(Configuration::TM_CONFIG
                 ->getValue(RocksDBConfigurableOptions::USE_RANGE_FILTER));
+        auto prefixExtractorLength = reinterpret_cast<Integer*>(Configuration::TM_CONFIG
+                ->getValue(RocksDBConfigurableOptions::PREFIX_EXTRACTOR_LENGTH));
+
+        int prefixLen = 13;
+        if (prefixExtractorLength != nullptr) {
+            prefixLen = prefixExtractorLength->value;
+            prefixExtractorLength->putRefCount();
+        }
 
         if (useRangeFilter != nullptr && useRangeFilter->value) {
             // familyOptions.memtable_factory.reset(ROCKSDB_NAMESPACE::NewHashLinkListRepFactory());
-            familyOptions.prefix_extractor.reset(ROCKSDB_NAMESPACE::NewCappedPrefixTransform(FALCON_RANGE_FILTER_PARAM));
+            familyOptions.prefix_extractor.reset(ROCKSDB_NAMESPACE::NewCappedPrefixTransform(prefixLen));
             // familyOptions.compression = ROCKSDB_NAMESPACE::CompressionType::kZlibCompression;
-            INFO_RELEASE("[FALCON] enable prefix for mapState.")
+            INFO_RELEASE("[FALCON] enable prefix for mapState, prefix length is " << prefixLen << ".")
         }
 
         if (useRangeFilter != nullptr) { useRangeFilter->putRefCount(); }
@@ -618,10 +624,18 @@ public:
         ROCKSDB_NAMESPACE::Iterator* iterator = nullptr;
         auto useRangeFilter = reinterpret_cast<Boolean*>(Configuration::TM_CONFIG
                 ->getValue(RocksDBConfigurableOptions::USE_RANGE_FILTER));
+        auto prefixExtractorLength = reinterpret_cast<Integer*>(Configuration::TM_CONFIG
+                ->getValue(RocksDBConfigurableOptions::PREFIX_EXTRACTOR_LENGTH));
+
+        int prefixLen = 13;
+        if (prefixExtractorLength != nullptr) {
+            prefixLen = prefixExtractorLength->value;
+            prefixExtractorLength->putRefCount();
+        }
 
         if (useRangeFilter != nullptr && useRangeFilter->value) {
             ROCKSDB_NAMESPACE::ReadOptions readOption;
-            if (sliceKey.size() < FALCON_RANGE_FILTER_PARAM) {
+            if (sliceKey.size() < prefixLen) {
                 readOption.total_order_seek = true;
             } else {
                 readOption.total_order_seek = false;
@@ -955,18 +969,25 @@ public:
             internalTableIterator = nullptr;
             auto useRangeFilter = reinterpret_cast<Boolean*>(Configuration::TM_CONFIG
                     ->getValue(RocksDBConfigurableOptions::USE_RANGE_FILTER));
+            auto prefixExtractorLength = reinterpret_cast<Integer*>(Configuration::TM_CONFIG
+                    ->getValue(RocksDBConfigurableOptions::PREFIX_EXTRACTOR_LENGTH));
+
+            int prefixLen = 13;
+            if (prefixExtractorLength != nullptr) {
+                prefixLen = prefixExtractorLength->value;
+                prefixExtractorLength->putRefCount();
+            }
 
             if (useRangeFilter != nullptr && useRangeFilter->value) {
                 ROCKSDB_NAMESPACE::ReadOptions readOption = stateTable->readOptions;
-                if (keyPrefixBytes.size() < FALCON_RANGE_FILTER_PARAM || currentEntry != nullptr) {
+                if (keyPrefixBytes.size() < prefixLen || currentEntry != nullptr) {
                     readOption.total_order_seek = true;
                 } else {
                     readOption.total_order_seek = false;
                 }
                 internalTableIterator = stateTable->rocksDb->NewIterator(readOption, stateTable->table);
             } else {
-                internalTableIterator = stateTable->rocksDb->NewIterator(ROCKSDB_NAMESPACE::ReadOptions(),
-                                                                         stateTable->table);
+                internalTableIterator = stateTable->rocksDb->NewIterator(stateTable->readOptions, stateTable->table);
             }
 
             if (useRangeFilter != nullptr) { useRangeFilter->putRefCount(); }

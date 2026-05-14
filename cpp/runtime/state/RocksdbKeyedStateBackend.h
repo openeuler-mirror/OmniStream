@@ -592,6 +592,14 @@ RocksdbValueState<K, N, V> *RocksdbKeyedStateBackend<K>::createOrUpdateInternalV
     // [FALCON] -------------------------------------------------------------------------------------------
     auto useStateCache = reinterpret_cast<Boolean*>(Configuration::TM_CONFIG
             ->getValue(RocksDBConfigurableOptions::USE_STATE_CACHE));
+    auto cacheSizeLimit = reinterpret_cast<Integer*>(Configuration::TM_CONFIG
+            ->getValue(RocksDBConfigurableOptions::STATE_CACHE_SIZE_LIMIT));
+
+    int cacheSize = 3000;
+    if (cacheSizeLimit != nullptr) {
+        cacheSize = cacheSizeLimit->value;
+        cacheSizeLimit->putRefCount();
+    }
 
     if (useStateCache != nullptr && useStateCache->value) {
         // todo: ttl state is not implemented in omniStream, thus falcon does not check it
@@ -599,7 +607,7 @@ RocksdbValueState<K, N, V> *RocksdbKeyedStateBackend<K>::createOrUpdateInternalV
         falconKvState[stateDesc->getName()] = reinterpret_cast<uintptr_t>(createdState);
         INFO_RELEASE("[FALCON] <" << stateDesc->getName() << ", ValueState> enable falcon cache.\n")
         // after this state is created, update cache size limit for all the created states who use falcon cache.
-        int newCacheSize = 3000 / falconKvState.size();
+        int newCacheSize = cacheSize / falconKvState.size();
         INFO_RELEASE("[FALCON] update falcon cache size to " << newCacheSize << ".\n")
         for (auto &entry : falconKvState) {
             auto* state = reinterpret_cast<RocksdbValueState<K, N, V> *>(entry.second);
