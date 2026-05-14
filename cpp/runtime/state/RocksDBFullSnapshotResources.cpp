@@ -4,6 +4,8 @@
 #include "state/rocksdb/iterator/RocksTransformingIteratorWrapper.h"
 #include <algorithm>
 #include "RocksDBConfigurableOptions.h"
+#include "../../include/functions/Configuration.h"
+
 const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>&
 RocksDBFullSnapshotResources::getMetaInfoSnapshots()
 {
