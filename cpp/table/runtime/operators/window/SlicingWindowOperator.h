@@ -31,6 +31,10 @@ class SlicingWindowProcessor;
 #include "test/core/operators/OutputTest.h"
 #include "table/runtime/operators/window/processor/AbstractWindowAggProcessor.h"
 #include "streaming/runtime/tasks/SystemProcessingTimeService.h"
+#include "runtime/state/DefaultOperatorStateBackend.h"
+#include "runtime/state/StateInitializationContextImpl.h"
+#include "runtime/state/StateSnapshotContextSynchronousImpl.h"
+#include "core/api/common/state/ListStateDescriptor.h"
 #include <ctime>
 
 using namespace omniruntime::type;
@@ -41,13 +45,46 @@ class SlicingWindowOperator : public TableStreamOperator<RowData*>, public OneIn
 , public Triggerable<K, W> {
 public:
     SlicingWindowOperator(SlicingWindowProcessor<W> *windowProcessor, const nlohmann::json config);
-    ~SlicingWindowOperator() override { delete watermarkState; };
+    ~SlicingWindowOperator() override = default;
     void open() override;
     void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) override
     {
-        AbstractStreamOperator::initializeState(initializer, keySerializer);
+        AbstractStreamOperator<RowData*>::initializeState(initializer, keySerializer);
     };
-    void snapshotState() {};
+
+    void initializeState(StateInitializationContextImpl<RowData*> *context) override
+    {
+        TableStreamOperator<RowData*>::initializeState(context);
+
+        auto *watermarkStateDesc = new ListStateDescriptor<int64_t>("watermark", LongSerializer::INSTANCE);
+        auto *stateBackend = static_cast<DefaultOperatorStateBackend*>(context->getOperatorStateBackend());
+        auto rawState = stateBackend->getUnionListState<int64_t>(watermarkStateDesc);
+        this->watermarkState = rawState;
+
+        if (context->isRestored()) {
+            auto *watermarks = this->watermarkState->get();
+            if (watermarks != nullptr && !watermarks->empty()) {
+                int64_t minWatermark = std::numeric_limits<int64_t>::max();
+                for (int64_t wm : *watermarks) {
+                    if (wm < minWatermark) {
+                        minWatermark = wm;
+                    }
+                }
+                if (minWatermark != std::numeric_limits<int64_t>::max()) {
+                    this->currentWatermark = minWatermark;
+                }
+            }
+        }
+    };
+
+    void snapshotState(StateSnapshotContextSynchronousImpl *context) override
+    {
+        TableStreamOperator<RowData*>::snapshotState(context);
+        if (this->watermarkState != nullptr) {
+            this->watermarkState->clear();
+            this->watermarkState->add(currentWatermark);
+        }
+    };
     void close();
     void processBatch(omnistream::VectorBatch *batch);
     void processBatch(StreamRecord *record) override;
@@ -65,7 +102,7 @@ protected:
 private:
     SlicingWindowProcessor<W> *windowProcessor = nullptr;
     int64_t lastTriggeredProcessingTime = std::numeric_limits<int64_t>::min();
-    ListState<int64_t> *watermarkState = nullptr;
+    std::shared_ptr<ListState<int64_t>> watermarkState;
     nlohmann::json description;
     InternalTimerServiceImpl<K, int64_t> *internalTimerService = nullptr;
     Output* output;
