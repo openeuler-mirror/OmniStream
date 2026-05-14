@@ -56,7 +56,8 @@ public:
     {
         TableStreamOperator<RowData*>::initializeState(context);
 
-        auto *watermarkStateDesc = new ListStateDescriptor<int64_t>("watermark", LongSerializer::INSTANCE);
+        std::string watermarkStateName = "watermark";
+        auto *watermarkStateDesc = new ListStateDescriptor<int64_t>(watermarkStateName, LongSerializer::INSTANCE);
         auto *stateBackend = static_cast<DefaultOperatorStateBackend*>(context->getOperatorStateBackend());
         auto rawState = stateBackend->getUnionListState<int64_t>(watermarkStateDesc);
         this->watermarkState = rawState;
