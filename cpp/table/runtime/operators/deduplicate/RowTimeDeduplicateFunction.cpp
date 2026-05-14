@@ -221,7 +221,7 @@ omnistream::VectorBatch* RowTimeDeduplicateFunction::ProcessUpdateRecord(omnistr
 
 omnistream::VectorBatch* RowTimeDeduplicateFunction::GetVectorBatchById(int32_t batchId)
 {
-    LOG("batchis is " << batchId <<  ", rowid is " << rowId)
+    // LOG("batchis is " << batchId <<  ", rowid is " << rowId)
     auto it = vectorBatchCacheMap.find(batchId);
     if (it != vectorBatchCacheMap.end()) {
         return it->second;

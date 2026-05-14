@@ -102,7 +102,7 @@ public:
                      std::vector<std::pair<int32_t, int32_t>> decimalInfo = {},
                      std::vector<std::string> inputTypes = {}, long zoneOffsetSeconds = 0) const;
 
-    std::string TransformTime(int vectorID, int rowID, long zoneOffsetSeconds) const;
+    std::string TransformTime(int vectorID, int rowID, long zoneOffsetSeconds, int precision = 3) const;
     std::string transformDecimal128(
                     int vectorID, int rowID, std::vector<std::pair<int32_t, int32_t>>& decimalInfo) const;
     std::string transformDecimal64(

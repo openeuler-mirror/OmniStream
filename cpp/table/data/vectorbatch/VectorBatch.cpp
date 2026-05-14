@@ -132,7 +132,7 @@ namespace omnistream {
         }
     }
 
-    std::string VectorBatch::TransformTime(int vectorID, int rowID, long zoneOffsetSeconds) const
+    std::string VectorBatch::TransformTime(int vectorID, int rowID, long zoneOffsetSeconds, int precision) const
     {
         auto millis = reinterpret_cast<omniruntime::vec::Vector<int64_t> *>(vectors[vectorID])->GetValue(rowID);
         int64_t adjusted_seconds = (millis >= 0) ? (millis / 1000) : ((millis - 999) / 1000);
@@ -151,10 +151,23 @@ namespace omnistream {
         strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", &timeinfo);
 
         std::ostringstream oss;
-        oss << buffer
-            << "."
-            << std::setw(3) << std::setfill('0')  // 强制3位宽度，不足补零
-            << milliseconds;
+        oss << buffer << ".";
+        
+        if (precision <= 3) {
+            // precision <= 3时，补齐到3位（毫秒精度）
+            oss << std::setw(3) << std::setfill('0')  // 强制3位宽度，不足补零
+                << milliseconds;
+        } else if (precision <= 9) {
+            // 3 < precision <= 9时，输出毫秒部分并补0到precision位数
+            oss << std::setw(3) << std::setfill('0')  // 强制3位宽度，不足补零
+                << milliseconds
+                << std::string(precision - 3, '0');
+        } else {
+            // precision > 9时，截断到9位
+            oss << std::setw(3) << std::setfill('0')  // 强制3位宽度，不足补零
+                << milliseconds
+                << std::string(6, '0');  // 补0到9位
+        }
 
         std::string result = oss.str();
         return result;
@@ -235,10 +248,19 @@ namespace omnistream {
             case omniruntime::type::DataTypeId::OMNI_LONG:
                 LOG("vb writefile inputType is " << inputTypes[vectorID])
                 if (inputTypes[vectorID] == "TIMESTAMP_WITH_LOCAL_TIME_ZONE") {
-                    auto result = TransformTime(vectorID, rowID, zoneOffsetSeconds);
+                    auto result = TransformTime(vectorID, rowID, zoneOffsetSeconds, 3);
                     file << result;
                 } else if (inputTypes[vectorID].substr(0, 9) == "TIMESTAMP") {
-                    auto result = TransformTime(vectorID, rowID, 0);
+                    int precision = 3;
+                    size_t parenPos = inputTypes[vectorID].find('(');
+                    if (parenPos != std::string::npos) {
+                        size_t endParen = inputTypes[vectorID].find(')', parenPos);
+                        if (endParen != std::string::npos) {
+                            std::string precisionStr = inputTypes[vectorID].substr(parenPos + 1, endParen - parenPos - 1);
+                            precision = std::stoi(precisionStr);
+                        }
+                    }
+                    auto result = TransformTime(vectorID, rowID, 0, precision);
                     file << result;
                 } else {
                     file << reinterpret_cast<omniruntime::vec::Vector<int64_t> *>(vectors[vectorID])->GetValue(rowID);
