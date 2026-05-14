@@ -41,7 +41,7 @@ public:
     {
         return vectorBatches[batchId];
     }
-    void clearVectors(int64_t currentTimestamp)
+    virtual void clearVectors(int64_t currentTimestamp)
     {
         for (size_t i = 0; i < vectorBatches.size(); ++i) {
             if (vectorBatches[i] && vectorBatches[i]->isEmpty(currentTimestamp)) {

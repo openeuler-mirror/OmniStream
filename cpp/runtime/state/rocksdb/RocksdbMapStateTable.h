@@ -782,6 +782,33 @@ public:
     {
         return vectorBatchId;
     }
+    
+    void clearVectors(int64_t currentTimestamp)
+    {
+        ROCKSDB_NAMESPACE::WriteBatch batchToDelete;
+        std::unique_ptr<ROCKSDB_NAMESPACE::Iterator> it(rocksDb->NewIterator(readOptions, VBTable));
+        for (it->SeekToFirst(); it->Valid(); it->Next()) {
+            ROCKSDB_NAMESPACE::Slice valueSlice = it->value();
+            uint8_t* address = reinterpret_cast<uint8_t*>(const_cast<char*>(valueSlice.data())) + sizeof(int8_t);
+            auto batch = omnistream::VectorBatchDeserializationUtils::deserializeVectorBatch(address);
+            
+            if (batch) {
+                if (batch->isEmpty(currentTimestamp)) {
+                    batchToDelete.Delete(VBTable, it->key());
+                }
+                delete batch; 
+            }
+        }
+        
+        if (!it->status().ok()) {
+            INFO_RELEASE("ROCKSDB WARNING: Delete iterator error: " << it->status().ToString())
+        }
+        
+        auto status = rocksDb->Write(writeOptions, &batchToDelete);
+        if (!status.ok()) {
+            INFO_RELEASE( "ROCKSDB WARNING: Failed to delete batches: " << status.ToString());
+        }
+    }
 
     class RocksDBMapEntry : public MapEntry {
     public:
