@@ -114,9 +114,16 @@ void DefaultConfigurableOptionsFactory::createColumnOptions(
         blockBasedMode->putRefCount();
 
         // [FALCON] enable filter parameters
-        blockBasedTableOptions.partition_filters = true;
-        blockBasedTableOptions.index_type = ROCKSDB_NAMESPACE::BlockBasedTableOptions::kTwoLevelIndexSearch;
-        INFO_RELEASE("[FALCON] enable partition filter.")
+        auto usePartitionFilter = reinterpret_cast<Boolean*>(Configuration::TM_CONFIG
+                ->getValue(RocksDBConfigurableOptions::USE_PARTITION_FILTER));
+
+        if (usePartitionFilter != nullptr && usePartitionFilter->value) {
+            blockBasedTableOptions.partition_filters = true;
+            blockBasedTableOptions.index_type = ROCKSDB_NAMESPACE::BlockBasedTableOptions::kTwoLevelIndexSearch;
+            INFO_RELEASE("[FALCON] enable partition filter.")
+        }
+
+        if (usePartitionFilter != nullptr) { usePartitionFilter->putRefCount(); }
     }
     currentOptions.table_factory.reset(NewBlockBasedTableFactory(blockBasedTableOptions));
 }
@@ -165,7 +172,14 @@ void DefaultConfigurableOptionsFactory::createDBOptions(rocksdb::DBOptions &curr
     }
 
     // [FALCON] set allow_concurrent_memtable_write as false for hash memTable
-    // currentOptions.allow_concurrent_memtable_write = false;
-    // INFO_RELEASE("[FALCON] successfully set allow_concurrent_memtable_write as false for hash memTable.")
+    auto useHashMemTable = reinterpret_cast<Boolean*>(Configuration::TM_CONFIG
+            ->getValue(RocksDBConfigurableOptions::USE_HASH_MEMTABLE));
+
+    if (useHashMemTable != nullptr && useHashMemTable->value) {
+        // currentOptions.allow_concurrent_memtable_write = false;
+        // INFO_RELEASE("[FALCON] successfully set allow_concurrent_memtable_write as false for hash memTable.")
+    }
+
+    if (useHashMemTable != nullptr) { useHashMemTable->putRefCount(); }
 }
 

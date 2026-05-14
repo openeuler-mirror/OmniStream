@@ -37,6 +37,7 @@
 #include "RegisteredKeyValueStateBackendMetaInfo.h"
 #include "table/data/RowData.h"
 #include "table/runtime/operators/window/TimeWindow.h"
+#include "RocksDBConfigurableOptions.h"
 
 #include "rocksdb/db.h"
 #include "rocksdb/options.h"
@@ -589,19 +590,26 @@ RocksdbValueState<K, N, V> *RocksdbKeyedStateBackend<K>::createOrUpdateInternalV
     createdState->createTable(db, stateDesc->getName(), kvStateInformation_);
 
     // [FALCON] -------------------------------------------------------------------------------------------
-    // todo: ttl state is not implemented in omniStream, thus falcon does not check it
-    // store the reference of all the created value states, all of them enable falcon cache
-    falconKvState[stateDesc->getName()] = reinterpret_cast<uintptr_t>(createdState);
-    INFO_RELEASE("[FALCON] <" << stateDesc->getName() << ", ValueState> enable falcon cache.\n")
-    // after this state is created, update cache size limit for all the created states who use falcon cache.
-    int newCacheSize = 3000 / falconKvState.size();
-    INFO_RELEASE("[FALCON] update falcon cache size to " << newCacheSize << ".\n")
-    for (auto &entry : falconKvState) {
-        auto* state = reinterpret_cast<RocksdbValueState<K, N, V> *>(entry.second);
-        if (state != nullptr && state->stateCache != nullptr) {
-            state->stateCache->updateSizeLimit(newCacheSize);
+    auto useStateCache = reinterpret_cast<Boolean*>(Configuration::TM_CONFIG
+            ->getValue(RocksDBConfigurableOptions::USE_STATE_CACHE));
+
+    if (useStateCache != nullptr && useStateCache->value) {
+        // todo: ttl state is not implemented in omniStream, thus falcon does not check it
+        // store the reference of all the created value states, all of them enable falcon cache
+        falconKvState[stateDesc->getName()] = reinterpret_cast<uintptr_t>(createdState);
+        INFO_RELEASE("[FALCON] <" << stateDesc->getName() << ", ValueState> enable falcon cache.\n")
+        // after this state is created, update cache size limit for all the created states who use falcon cache.
+        int newCacheSize = 3000 / falconKvState.size();
+        INFO_RELEASE("[FALCON] update falcon cache size to " << newCacheSize << ".\n")
+        for (auto &entry : falconKvState) {
+            auto* state = reinterpret_cast<RocksdbValueState<K, N, V> *>(entry.second);
+            if (state != nullptr && state->stateCache != nullptr) {
+                state->stateCache->updateSizeLimit(newCacheSize);
+            }
         }
     }
+
+    if (useStateCache != nullptr) { useStateCache->putRefCount(); }
     // [FALCON] -------------------------------------------------------------------------------------------
 
     return createdState;
