@@ -176,8 +176,8 @@ void DefaultConfigurableOptionsFactory::createDBOptions(rocksdb::DBOptions &curr
             ->getValue(RocksDBConfigurableOptions::USE_HASH_MEMTABLE));
 
     if (useHashMemTable != nullptr && useHashMemTable->value) {
-        // currentOptions.allow_concurrent_memtable_write = false;
-        // INFO_RELEASE("[FALCON] successfully set allow_concurrent_memtable_write as false for hash memTable.")
+        currentOptions.allow_concurrent_memtable_write = false;
+        INFO_RELEASE("[FALCON] successfully set allow_concurrent_memtable_write as false for hash memTable.")
     }
 
     if (useHashMemTable != nullptr) { useHashMemTable->putRefCount(); }

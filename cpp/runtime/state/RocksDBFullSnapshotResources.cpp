@@ -3,6 +3,7 @@
 #include "state/rocksdb/iterator/RocksStatesPerKeyGroupMergeIterator.h"
 #include "state/rocksdb/iterator/RocksTransformingIteratorWrapper.h"
 #include <algorithm>
+#include "RocksDBConfigurableOptions.h"
 const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>&
 RocksDBFullSnapshotResources::getMetaInfoSnapshots()
 {
@@ -23,6 +24,18 @@ std::shared_ptr<KeyValueStateIterator> RocksDBFullSnapshotResources::createKVSta
 {
     auto closeableRegistry = std::make_unique<CloseableRegistry>();
     rocksdb::ReadOptions readOptions = {};
+
+    // [FALCON] -----------------------------------------------------------------------------------------------
+    auto useHashMemTable = reinterpret_cast<Boolean*>(Configuration::TM_CONFIG
+            ->getValue(RocksDBConfigurableOptions::USE_HASH_MEMTABLE));
+
+    if (useHashMemTable != nullptr && useHashMemTable->value) {
+        readOptions.total_order_seek = true;
+    }
+
+    if (useHashMemTable != nullptr) { useHashMemTable->putRefCount(); }
+    // [FALCON] -----------------------------------------------------------------------------------------------
+
     readOptions.snapshot = snapshot_;
     std::vector<std::pair<std::unique_ptr<RocksIteratorWrapper>, int>>
         kvStateIterators = 
