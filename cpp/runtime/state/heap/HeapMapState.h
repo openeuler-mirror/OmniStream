@@ -8,22 +8,21 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef FLINK_TNEL_HEAPMAPSTATE_H
-#define FLINK_TNEL_HEAPMAPSTATE_H
+
+#pragma once
 
 #include <emhash7.hpp>
 #include "core/typeutils/TypeSerializer.h"
 #include "core/api/common/state/MapState.h"
-#include "../VoidNamespace.h"
 #include "core/api/common/state/StateDescriptor.h"
 #include "StateTable.h"
-#include "table/data/binary/BinaryRowData.h"
 #include "table/data/vectorbatch/VectorBatch.h"
 #include "basictypes/java_util_HashMap.h"
+#include "runtime/state/internal/InternalMapState.h"
 
 // The state is a map. in the InternalKvState, the state is stored as a pointer to emhash7
 template<typename K, typename N, typename UK, typename UV>
-class HeapMapState : public MapState<UK, UV>, public InternalKvState<K, N, emhash7::HashMap<UK, UV> *> {
+class HeapMapState : public InternalMapState<K, N, UK, UV> {
 public:
     HeapMapState(StateTable<K, N, emhash7::HashMap<UK, UV>* > *stateTable, TypeSerializer *keySerializer,
                  TypeSerializer *valueSerializer, TypeSerializer *namespaceSerializer);
@@ -342,4 +341,3 @@ void HeapMapState<K, N, UK, UV>::addVectorBatch(omnistream::VectorBatch *vectorB
 {
     this->vectorBatches.push_back(vectorBatch);
 }
-#endif // FLINK_TNEL_HEAPMAPSTATE_H

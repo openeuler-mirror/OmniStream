@@ -9,17 +9,16 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef OMNISTREAM_BSSMAPSTATE_H
-#define OMNISTREAM_BSSMAPSTATE_H
+# pragma once
 #ifdef WITH_OMNISTATESTORE
 
 #include "api/common/state/MapState.h"
-#include "state/internal/InternalKvState.h"
+#include "runtime/state/internal/InternalMapState.h"
 #include "BssMapStateTable.h"
 #include "api/common/state/StateDescriptor.h"
 
 template<typename K, typename N, typename UK, typename UV>
-class BssMapState : public MapState<UK, UV>, public InternalKvState<K, N, emhash7::HashMap<UK, UV> *> {
+class BssMapState : public InternalMapState<K, N, UK, UV> {
 public:
     BssMapState(BssMapStateTable<K, N, UK, UV> *stateTable, TypeSerializer *keySerializer,
         TypeSerializer *valueSerializer, TypeSerializer *namespaceSerializer) : stateTable(stateTable),
@@ -147,5 +146,4 @@ private:
     N currentNamespace;
 };
 
-#endif // OMNISTREAM_BSSMAPSTATE_H
 #endif

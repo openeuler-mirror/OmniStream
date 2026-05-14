@@ -203,17 +203,32 @@ public:
     public:
             WindowContext() = default;
 
-            explicit WindowContext(WindowOperator *outerOpertor) : outerOpertor(outerOpertor) {}
+            explicit WindowContext(WindowOperator *outerOperator) : outerOpertor(outerOperator) {}
 
-            MapState<W, W>* GetPartitionedState(StateDescriptor *stateDescriptor)
-            {
+            MapState<W, W>* GetPartitionedState(StateDescriptor* stateDescriptor) {
                 if (!stateDescriptor) {
                     throw std::invalid_argument("The state properties must not be null");
                 }
-                using S = HeapMapState<RowData *, VoidNamespace, TimeWindow, TimeWindow>;
-                S* state = outerOpertor->getKeyedStateBackend()->template getPartitionedState<VoidNamespace, S, TimeWindow>(
-                    VoidNamespace(), new VoidNamespaceSerializer(), stateDescriptor);
-                return state;
+
+                auto keyedStateBackend = outerOpertor->getKeyedStateBackend();
+                if (dynamic_cast<RocksdbKeyedStateBackend<K>*>(keyedStateBackend) != nullptr) {
+                    using S = RocksdbMapState<K, VoidNamespace, W, W>;
+                    S* state = keyedStateBackend->template getPartitionedState<VoidNamespace, S, emhash7::HashMap<W, W>*>(
+                            VoidNamespace(), new VoidNamespaceSerializer(), stateDescriptor);
+                    return state;
+                } else if (dynamic_cast<HeapKeyedStateBackend<K>*>(keyedStateBackend) != nullptr) {
+                    using S = HeapMapState<K, VoidNamespace, W, W>;
+                    S* state = keyedStateBackend->template getPartitionedState<VoidNamespace, S, emhash7::HashMap<W, W>*>(
+                            VoidNamespace(), new VoidNamespaceSerializer(), stateDescriptor);
+                    return state;
+                } else if (dynamic_cast<BssKeyedStateBackend<K>*>(keyedStateBackend) != nullptr) {
+                    using S = BssMapState<K, VoidNamespace, W, W>;
+                    S* state = keyedStateBackend->template getPartitionedState<VoidNamespace, S, emhash7::HashMap<W, W>*>(
+                            VoidNamespace(), new VoidNamespaceSerializer(), stateDescriptor);
+                    return state;
+                } else {
+                    THROW_LOGIC_EXCEPTION("The keyedStateBackend is not supported");
+                }
             }
 
             K CurrentKey() override
