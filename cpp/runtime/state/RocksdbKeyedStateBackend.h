@@ -605,10 +605,10 @@ RocksdbValueState<K, N, V> *RocksdbKeyedStateBackend<K>::createOrUpdateInternalV
         // todo: ttl state is not implemented in omniStream, thus falcon does not check it
         // store the reference of all the created value states, all of them enable falcon cache
         falconKvState[stateDesc->getName()] = reinterpret_cast<uintptr_t>(createdState);
-        INFO_RELEASE("[FALCON] <" << stateDesc->getName() << ", ValueState> enable falcon cache.\n")
+        INFO_RELEASE("[FALCON] <" << stateDesc->getName() << ", ValueState> enable falcon cache.")
         // after this state is created, update cache size limit for all the created states who use falcon cache.
         int newCacheSize = cacheSize / falconKvState.size();
-        INFO_RELEASE("[FALCON] update falcon cache size to " << newCacheSize << ".\n")
+        INFO_RELEASE("[FALCON] update falcon cache size to " << newCacheSize << ".")
         for (auto &entry : falconKvState) {
             auto* state = reinterpret_cast<RocksdbValueState<K, N, V> *>(entry.second);
             if (state != nullptr && state->stateCache != nullptr) {
