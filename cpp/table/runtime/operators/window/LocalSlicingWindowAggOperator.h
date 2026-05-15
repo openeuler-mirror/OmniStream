@@ -116,7 +116,7 @@ private:
     JoinedRowData* resultRow;
     BinaryRowData* reUseAggValue;
     BinaryRowData* reUseAccumulator;
-    std::unordered_map<WindowKey*, std::vector<RowData*>> bundle;
+    std::unordered_map<WindowKey, std::vector<RowData*>> bundle;
     std::vector<std::string> inputTypes;
     std::vector<std::string> outputTypes;
     std::vector<int32_t> outputTypeIds;
@@ -138,7 +138,7 @@ private:
     bool SendAccResults(Watermark *mark);
     void SetLong(omniruntime::vec::VectorBatch* outputBatch, int numRows, int colIndex, std::vector<RowData*> vec);
     void SetInt(omniruntime::vec::VectorBatch* outputBatch, int numRows, int colIndex, std::vector<RowData*> vec);
-    std::vector<WindowKey*> invertOrder;
+    std::vector<WindowKey> invertOrder;
     int rowtimeIndexVal;
     ClockService* clock;
     void ExtractFunction();
