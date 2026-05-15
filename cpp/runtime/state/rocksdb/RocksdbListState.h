@@ -157,7 +157,6 @@ long RocksdbListState<K, N, UV>::getVectorBatchesSize()
 
 template <typename K, typename N, typename UV>
 void  RocksdbListState<K, N, UV>::clearVectors(int64_t currentTimestamp){
-    INFO_RELEASE("Jojo: RocksdbListState clearVectors")
     return stateTable->clearVectors(currentTimestamp);
 }
 
