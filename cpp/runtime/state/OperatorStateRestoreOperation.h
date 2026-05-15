@@ -66,20 +66,24 @@ public:
             if (parsed.contains(snapshot.getName())) {
                 stateName = snapshot.getName();
                 value = parsed[stateName];
-            
+                auto stateMetaInfo = value["stateMetaInfo"];
+                auto name = stateMetaInfo["name"].get<std::string>();
+                auto internalList = value["internalList"];
                 // 根据 stateName 判断属于什么类型的数据
                 if (typeByteStateNames.find(stateName) != typeByteStateNames.end()) {
-                    auto stateMetaInfo = value["stateMetaInfo"];
-                    auto name = stateMetaInfo["name"].get<std::string>();
-                    auto internalList = value["internalList"];
                     auto listState = std::make_shared<PartitionableListState<std::vector<uint8_t>>>(metaInfo);
-
                     for (const auto& item : internalList) {
                         std::vector<uint8_t> decodedData = Base64_decode(item.get<std::string>());
                         listState->add(decodedData);
                     }
                     registeredOperatorStates_->emplace(name, listState);
-                    continue;
+                }else if (typeLongStateNames.find(stateName) != typeLongStateNames.end()) {
+                    auto listState = std::make_shared<PartitionableListState<long>>(metaInfo);
+                    for (const auto& item : internalList) {
+                        auto decodedData = item.get<long>();
+                        listState->add(decodedData);
+                    }
+                    registeredOperatorStates_->emplace(name, listState);
                 }
                 // 更多类型进行判断
             }
@@ -96,6 +100,11 @@ private:
         "SourceReaderState",
         "writer_raw_states",
         "streaming_committer_raw_states"
+    };
+
+
+    inline static std::set<std::string> typeLongStateNames = {
+       "watermark"
     };
 };
 
