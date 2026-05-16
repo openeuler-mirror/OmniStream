@@ -54,6 +54,7 @@ public:
 
     void initializeState(StateInitializationContextImpl<RowData*> *context) override
     {
+        INFO_RELEASE("SlicingWindowOperator initializeState");
         TableStreamOperator<RowData*>::initializeState(context);
 
         std::string watermarkStateName = "watermark";
@@ -80,6 +81,7 @@ public:
 
     void snapshotState(StateSnapshotContextSynchronousImpl *context) override
     {
+        INFO_RELEASE("SlicingWindowOperator snapshotState");
         TableStreamOperator<RowData*>::snapshotState(context);
         if (this->watermarkState != nullptr) {
             this->watermarkState->clear();
