@@ -32,6 +32,7 @@ std::shared_ptr<TaskStateSnapshot> TaskStateSnapshotDeserializer::Deserialize(co
             continue;
         }
         OperatorID id = HexStringToOperatorId<OperatorID>(el.key());
+        INFO_RELEASE("savepoint: Deserialize subtask state for operatorID=" << id.toString());
         snapshot->PutSubtaskStateByOperatorID(id, ParseOperatorSubtaskState(el.value()));
     }
 
@@ -40,7 +41,7 @@ std::shared_ptr<TaskStateSnapshot> TaskStateSnapshotDeserializer::Deserialize(co
 
 std::shared_ptr<KeyedStateHandle> TaskStateSnapshotDeserializer::ParseKeyedStateHandle(const json &j)
 {
-    LOG("savepoint: ParseKeyedStateHandle: " << j.dump());
+    INFO_RELEASE("savepoint: ParseKeyedStateHandle: " << j.dump());
     if (!j.contains("@class")) {
         throw std::runtime_error("State handle JSON is missing the '@class' field.");
     }
@@ -68,7 +69,7 @@ std::shared_ptr<KeyedStateHandle> TaskStateSnapshotDeserializer::ParseKeyedState
 
 std::shared_ptr<OperatorStateHandle> TaskStateSnapshotDeserializer::ParseOperatorStateHandle(const json &j)
 {
-    LOG("ParseOperatorStateHandle: " << j.dump());
+    INFO_RELEASE("ParseOperatorStateHandle: " << j.dump());
     if (!j.contains("@class")) {
         throw std::runtime_error("State handle JSON is missing the '@class' field.");
     }

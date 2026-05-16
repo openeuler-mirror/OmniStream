@@ -43,19 +43,26 @@ public:
 
     KafkaPartitionSplitState* initializedState(KafkaPartitionSplit* split) override;
 
+    std::vector<KafkaPartitionSplit> snapshotState(long checkpointId) override;
+
+    // 通知检查点完成
+    void notifyCheckpointComplete(long checkpointId) override;
+
+    // 通知拆分完成
     void onSplitFinished(
         const std::unordered_map<std::string, KafkaPartitionSplitState*>& finishedSplitIds) override
     {
-        for (auto& [ignored, splitState]: finishedSplitIds) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        for (const auto& [ignored, splitState]: finishedSplitIds) {
             if (splitState->getCurrentOffset() >= 0) {
-                // offsetsOfFinishedSplits.put(splitState->getTopicPartition(),
-                // new OffsetAndMetadata(splitState.getCurrentOffset()));
+                offsetsOfFinishedSplits[splitState->getTopicPartition()] = splitState->getCurrentOffset();
             }
         }
     }
 private:
     std::shared_ptr<KafkaSourceReaderMetrics> kafkaSourceReaderMetrics_;
-    std::unordered_map<void*, void*> offsetsOfFinishedSplits;
+    std::unordered_map<std::shared_ptr<RdKafka::TopicPartition>, long> offsetsOfFinishedSplits;
+    std::unordered_map<long, std::unordered_map<std::shared_ptr<RdKafka::TopicPartition>, long>> offsetsToCommit_;
     bool commitOffsetsOnCheckpoint_;
 
     mutable std::mutex mutex_;

@@ -21,6 +21,7 @@
 
 #include "OmniStreamTask.h"
 #include <iostream>
+#include <thread>
 
 #include <streaming/runtime/partitioner/V2/StreamPartitionerV2.h>
 #include "runtime/io/network/api/writer/V2/RecordWriterDelegateV2.h"

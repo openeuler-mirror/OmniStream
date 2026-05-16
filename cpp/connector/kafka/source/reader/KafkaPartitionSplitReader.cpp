@@ -241,3 +241,8 @@ long KafkaPartitionSplitReader::getStoppingOffset(RdKafka::TopicPartition* tp)
     auto it = stoppingOffsets.find(tp);
     return (it != stoppingOffsets.end()) ? it->second : std::numeric_limits<long>::max();
 }
+
+void KafkaPartitionSplitReader::commitOffsets(const std::map<std::shared_ptr<RdKafka::TopicPartition>, int64_t>& offsets)
+{
+    consumer->commitOffsets(offsets);
+}

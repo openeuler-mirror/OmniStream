@@ -32,6 +32,8 @@ public:
     void open();
 
     void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) override {
+        INFO_RELEASE("OutputConversionOperator initializeState()")
+        // Do Nothing
     }
 
     void processElement(StreamRecord *record) override;
