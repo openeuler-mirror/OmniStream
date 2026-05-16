@@ -133,7 +133,7 @@ namespace omnistream {
         }
     }
 
-    std::string VectorBatch::TransformTimeWithTimeZone(int vectorID, int rowID, const std::string& tzStr) const
+    std::string VectorBatch::TransformTimeWithTimeZone(int vectorID, int rowID, const std::string& tzStr, int precision) const
     {
         auto millis = reinterpret_cast<omniruntime::vec::Vector<int64_t> *>(vectors[vectorID])->GetValue(rowID);
         int64_t adjusted_seconds = (millis >= 0) ? (millis / 1000) : ((millis - 999) / 1000);
@@ -146,14 +146,18 @@ namespace omnistream {
         tzset();
         struct tm timeinfo;
         localtime_r(&adjusted_seconds, &timeinfo);
-        // 格式化为字符串
         char buffer[80];
         strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", &timeinfo);
         std::ostringstream oss;
-        oss << buffer
-            << "."
-            << std::setw(3) << std::setfill('0')  // 强制3位宽度，不足补零
-            << milliseconds;
+        oss << buffer << ".";
+        
+        if (precision <= 3) {
+            oss << std::setw(3) << std::setfill('0') << milliseconds; // 强制3位宽度，不足补零
+        } else if (precision <= 9) {
+            oss << std::setw(3) << std::setfill('0') << milliseconds << std::string(precision - 3, '0');
+        } else {
+            oss << std::setw(3) << std::setfill('0') << milliseconds << std::string(6, '0');
+        }
 
         std::string result = oss.str();
         return result;
@@ -286,7 +290,7 @@ namespace omnistream {
                             precision = std::stoi(precisionStr);
                         }
                     }
-                    auto result = TransformTime(vectorID, rowID, 0, precision);
+                    auto result = TransformTime(vectorID, rowID, precision);
                     file << result;
                 } else {
                     file << reinterpret_cast<omniruntime::vec::Vector<int64_t> *>(vectors[vectorID])->GetValue(rowID);
