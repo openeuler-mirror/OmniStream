@@ -40,6 +40,7 @@ std::shared_ptr<TaskStateSnapshot> TaskStateSnapshotDeserializer::Deserialize(co
 
 std::shared_ptr<KeyedStateHandle> TaskStateSnapshotDeserializer::ParseKeyedStateHandle(const json &j)
 {
+    LOG("savepoint: ParseKeyedStateHandle: " << j.dump());
     if (!j.contains("@class")) {
         throw std::runtime_error("State handle JSON is missing the '@class' field.");
     }
@@ -65,6 +66,19 @@ std::shared_ptr<KeyedStateHandle> TaskStateSnapshotDeserializer::ParseKeyedState
     throw std::runtime_error("Unsupported or unknown KeyedStateHandle type: " + className);
 }
 
+std::shared_ptr<OperatorStateHandle> TaskStateSnapshotDeserializer::ParseOperatorStateHandle(const json &j)
+{
+    LOG("ParseOperatorStateHandle: " << j.dump());
+    if (!j.contains("@class")) {
+        throw std::runtime_error("State handle JSON is missing the '@class' field.");
+    }
+    const std::string className = j.at("@class").get<std::string>();
+    if (className.find("OperatorStreamStateHandle") == std::string::npos) {
+       LOG("ERROR: State handle JSON is error, className: " << className);
+       throw std::runtime_error("State handle JSON is error, className: " + className);
+    };
+    return std::make_shared<OperatorStreamStateHandle>(j);
+}
 
 std::shared_ptr<ResultSubpartitionStateHandle> TaskStateSnapshotDeserializer::ParseResultStateHandle(const json &j)
 {
@@ -217,6 +231,10 @@ std::shared_ptr<OperatorSubtaskState> TaskStateSnapshotDeserializer::ParseOperat
     auto managedKeyedStateCol = j.contains("managedKeyedState")
         ? ParseStateObjectCollection<KeyedStateHandle>(j.at("managedKeyedState"), &ParseKeyedStateHandle)
         : std::make_shared<StateObjectCollection<KeyedStateHandle>>();
+    
+    auto managedOperatorStateCol = j.contains("managedOperatorState")
+        ? ParseStateObjectCollection<OperatorStateHandle>(j.at("managedOperatorState"), &ParseOperatorStateHandle)
+        : std::make_shared<StateObjectCollection<OperatorStateHandle>>();
 
     auto rawKeyedStateCol = j.contains("rawKeyedState")
         ? ParseStateObjectCollection<KeyedStateHandle>(j.at("rawKeyedState"), &ParseKeyedStateHandle)
@@ -252,6 +270,11 @@ std::shared_ptr<OperatorSubtaskState> TaskStateSnapshotDeserializer::ParseOperat
         // This calls a constructor of StateObjectCollection
         managedKeyedStateHandles = StateObjectCollection<KeyedStateHandle>(managedKeyedStateCol->ToArray());
     }
+    StateObjectCollection<OperatorStateHandle> managedOperatorState;
+    if (managedOperatorStateCol) {
+        // This calls a constructor of StateObjectCollection
+        managedOperatorState = StateObjectCollection<OperatorStateHandle>(managedOperatorStateCol->ToArray());
+    }
     StateObjectCollection<InputChannelStateHandle> inputChannelStates;
     if (inputChannelStateCol) {
         // This calls a constructor of StateObjectCollection
@@ -263,7 +286,6 @@ std::shared_ptr<OperatorSubtaskState> TaskStateSnapshotDeserializer::ParseOperat
         resultSubpartitionStates = StateObjectCollection<ResultSubpartitionStateHandle>(resultSubpartitionStateCol->ToArray());
     }
 
-    StateObjectCollection<OperatorStateHandle> managedOperatorState; // Empty lvalue
     StateObjectCollection<OperatorStateHandle> rawOperatorState;     // Empty lvalue
     StateObjectCollection<KeyedStateHandle> rawKeyedState;
     if (rawKeyedStateCol) {

@@ -20,7 +20,9 @@ KafkaWriter::KafkaWriter(DeliveryGuarantee deliveryGuarantee,
                          std::string &transactionalIdPrefix,
                          std::string &topic,
                          const nlohmann::json& description,
-                         int64_t maxPushRecords)
+                         int64_t maxPushRecords,
+                         InitContextImpl<void*>* initContext,
+                         const std::vector<KafkaWriterState>& states)
     : kafkaProducerConfig(kafkaProducerConfig),
     topic(topic),
     deliveryGuarantee(deliveryGuarantee),
@@ -34,6 +36,15 @@ KafkaWriter::KafkaWriter(DeliveryGuarantee deliveryGuarantee,
         recordSerializer = new DynamicKafkaRecordSerializationSchema(inputFields, inputTypes);
     }
 
+    if (initContext != nullptr && initContext->getRestoredCheckpointId().has_value()) {
+        lastCheckpointId = initContext->getRestoredCheckpointId().value();
+    }
+
+    if (deliveryGuarantee == DeliveryGuarantee::EXACTLY_ONCE) {
+        // 释放之前的事务，因为之前主流程未见到kafka开启事务相关操作，此处仅做关闭不做开启操作
+        abortLingeringTransactions(states, lastCheckpointId);
+    }
+
     currentProducer1 =
             std::make_shared<FlinkKafkaInternalProducer>(kafkaProducerConfig, std::to_string(producerIndexOne));
     currentProducer2 =
@@ -44,7 +55,7 @@ KafkaWriter::KafkaWriter(DeliveryGuarantee deliveryGuarantee,
     rd_topic1 = RdKafka::Topic::create(currentProducer1->getKafkaProducer(), topic, tconf, errstr);
     rd_topic2 = RdKafka::Topic::create(currentProducer2->getKafkaProducer(), topic, tconf, errstr);
     partitionNum = rd_topic1->get_partition_num();
-
+    kafkaWriterState = new KafkaWriterState(transactionalIdPrefix);
     taskId = omnistream::TimerThreadPool::GetTimerThreadPoolInstance()->addPeriodicTask(5000, [](KafkaWriter* kafkaWriter) {
         kafkaWriter->timer_thread();
     }, this);
@@ -53,18 +64,24 @@ KafkaWriter::KafkaWriter(DeliveryGuarantee deliveryGuarantee,
 KafkaWriter::~KafkaWriter()
 {
     omnistream::TimerThreadPool::GetTimerThreadPoolInstance()->cancel(taskId);
-    delete kafkaProducerConfig;
-    delete rd_topic1;
-    delete rd_topic2;
-    delete recordSerializer;
 
     stop_flag.store(true);
     cv.notify_all();
 
-    // 等待线程结束
     if (worker_thread.joinable()) {
         worker_thread.join();
     }
+
+    delete kafkaWriterState;
+    kafkaWriterState = nullptr;
+    delete recordSerializer;
+    recordSerializer = nullptr;
+    delete rd_topic1;
+    rd_topic1 = nullptr;
+    delete rd_topic2;
+    rd_topic2 = nullptr;
+    delete kafkaProducerConfig;
+    kafkaProducerConfig = nullptr;
 
     timer_worker_thread_flag.store(false);
 }
@@ -236,4 +253,12 @@ void KafkaWriter::produce(RdKafka::Producer* kafkaProducer,
     }
 
     kafkaProducer->poll(0);
+}
+
+std::vector<KafkaWriterState> KafkaWriter::snapshotState(long checkpointId) {
+    if (deliveryGuarantee == DeliveryGuarantee::EXACTLY_ONCE) {
+        auto currentProducer = getTransactionalProducer(checkpointId + 1);
+        currentProducer->BeginTransaction();
+    }
+    return {*kafkaWriterState};
 }

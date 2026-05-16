@@ -868,6 +868,58 @@ std::vector<StateMetaInfoSnapshot> OmniTaskBridgeImpl2::readMetaData(const std::
     }
 }
 
+std::vector<StateMetaInfoSnapshot> OmniTaskBridgeImpl2::readOperatorMetaData(const std::string &metaStateHandle)
+{
+    INFO_RELEASE("savepoint: OmniTaskBridgeImpl2::readOperatorMetaData input len: " + std::to_string(metaStateHandle.size())
+        + ", m_globalOmniTaskRef isNull: " + std::string(m_globalOmniTaskRef == nullptr ? "true" : "false"));
+    JNIEnv* env;
+    jint res = g_OmniStreamJVM->AttachCurrentThread(reinterpret_cast<void**>(&env), nullptr);
+    if (res != JNI_OK) {
+        return {};
+    }
+
+    if (m_globalOmniTaskRef != nullptr) {
+        jclass omniTaskWrapperClass = env->GetObjectClass(m_globalOmniTaskRef);
+        if (omniTaskWrapperClass == nullptr) {
+            INFO_RELEASE("Error: Could not get TaskStateManagerWrapper class for JNI call 879");
+            g_OmniStreamJVM->DetachCurrentThread();
+            return {};
+        }
+
+        jmethodID readMetaMethodId = env->GetMethodID(omniTaskWrapperClass, "readOperatorMetaData",
+                                                      "(Ljava/lang/String;)Ljava/lang/String;");
+        if (readMetaMethodId == nullptr) {
+            GErrorLog("Error: Could not get readOperatorMetaData method for JNI call");
+            env->DeleteLocalRef(omniTaskWrapperClass); // Clean up local ref
+            g_OmniStreamJVM->DetachCurrentThread();
+            return {};
+        }
+
+        jstring msHandle = env->NewStringUTF(metaStateHandle.c_str());
+
+        // Invoke the Java method
+        jstring result = (jstring) env->CallObjectMethod(m_globalOmniTaskRef, readMetaMethodId, msHandle);
+
+        if (env->ExceptionCheck()) {
+            env->ExceptionDescribe(); // Print exception details to stderr
+            env->ExceptionClear();    // Clear the exception
+            INFO_RELEASE("Error: Could not call readOperatorMetaData method for JNI call");
+            return {};
+        }
+
+        // Convert jstring to std::string
+        const char* strChars = env->GetStringUTFChars(result, nullptr);
+        std::string cppResult(strChars);
+        env->ReleaseStringUTFChars(result, strChars);
+        g_OmniStreamJVM->DetachCurrentThread();
+        INFO_RELEASE("savepoint: OmniTaskBridgeImpl2 readOperatorMetaData, result=" << cppResult);
+        return convertResult(cppResult);
+    } else {
+        INFO_RELEASE("Error: Could not get TaskStateManagerWrapper class for JNI call");
+        return {};
+    }
+}
+
 std::vector<int8_t> jbyteArrayToVector(JNIEnv* env, jbyteArray byteArray)
 {
     std::vector<int8_t> result;

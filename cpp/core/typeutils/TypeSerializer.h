@@ -31,7 +31,8 @@ enum class BackendDataType {
     ROW_LIST_BK,
     INVALID_BK,
     POJO_BK,
-    SET_LONG
+    SET_LONG,
+    BYTE_ARRAY_BK
 };
 
 inline std::ostream& operator<<(std::ostream& os, const BackendDataType& type) {
