@@ -60,7 +60,9 @@ public:
 
     virtual ~SplitFetcherManager()
     {
-        close(0);
+        for (auto [fetcherId, fetcher] : fetchers) {
+            delete fetcher;
+        }
     }
 
     // 抽象方法，派生类需要实现
@@ -117,19 +119,11 @@ public:
     // 关闭 split fetcher manager
     void close(long timeoutMs)
     {
-        (void) timeoutMs;
-        {
             std::lock_guard<std::mutex> lock(fetchersMutex);
             closed = true;
             for (const auto& fetcher : fetchers) {
-                if (fetcher.second != nullptr) {
-                    fetcher.second->shutdown();
-                }
+                fetcher.second->shutdown();
             }
-        }
-
-        joinExecutorThreads();
-        cleanupFetchers();
     }
 
     void checkErrors()
@@ -153,25 +147,6 @@ public:
 protected:
     std::map<int, SplitFetcher<E, SplitT>*> fetchers;
 private:
-    void joinExecutorThreads()
-    {
-        for (auto& executorThread : executorThreads) {
-            if (executorThread.joinable()) {
-                executorThread.join();
-            }
-        }
-        executorThreads.clear();
-    }
-
-    void cleanupFetchers()
-    {
-        std::lock_guard<std::mutex> lock(fetchersMutex);
-        for (auto [fetcherId, fetcher] : fetchers) {
-            delete fetcher;
-        }
-        fetchers.clear();
-    }
-
     std::function<void(const std::exception_ptr&)> errorHandler;
     std::atomic<int> fetcherIdGenerator{0};
     FutureCompletingBlockingQueue<E>* elementsQueue;
