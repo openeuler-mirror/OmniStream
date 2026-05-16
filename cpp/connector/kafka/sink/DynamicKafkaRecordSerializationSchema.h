@@ -48,6 +48,7 @@ private:
     bool upsertMode_;
     std::vector<std::string> inputFields_;
     std::vector<std::string> inputTypes_;
+    std::vector<std::pair<int32_t, int32_t>> decimalInfo;
     nlohmann::ordered_json j;
     std::ostringstream oss;
     char timeBuffer[80];
