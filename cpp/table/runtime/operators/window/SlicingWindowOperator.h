@@ -142,12 +142,14 @@ template <typename K, typename W>
 void SlicingWindowOperator<K, W>::open()
 {
     TableStreamOperator<RowData*>::open();
+    lastTriggeredProcessingTime = std::numeric_limits<int64_t>::min();
     StreamingRuntimeContext<K> *runtimeCtx = getRuntimeContext();
     auto backState = this->stateHandler->getKeyedStateBackend();
-    TypeSerializer *windowSerializer = LongSerializer::INSTANCE;
+    TypeSerializer *windowSerializer = windowProcessor->createWindowSerializer();
     internalTimerService =
             AbstractStreamOperator<K>::getInternalTimerService("window-timers", windowSerializer, this);
     windowProcessor->open(backState, description, runtimeCtx, internalTimerService);
+    windowProcessor->initializeWatermark(currentWatermark);
 }
 
 template <typename K, typename W>
