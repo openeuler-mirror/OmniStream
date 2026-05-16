@@ -16,11 +16,9 @@
 #include <vector>
 #include <utility>
 
-#include "core/api/common/variants/CustomVariant.h"
-
 #include "State.h"
 
-template <typename K = BS_K_MV, typename V = BS_V_MV>
+template <typename K, typename V>
 class ReadOnlyBroadcastState : public State {
 public:
     virtual ~ReadOnlyBroadcastState() = default;

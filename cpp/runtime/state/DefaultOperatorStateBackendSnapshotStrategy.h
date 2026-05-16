@@ -43,7 +43,6 @@ public:
         std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> registeredBroadcastStates)
         : registeredOperatorStates_(registeredOperatorStates),
           registeredBroadcastStates_(registeredBroadcastStates) {
-            INFO_RELEASE("h30082497 DefaultOperatorStateBackendSnapshotStrategy");
     }
 
     ~DefaultOperatorStateBackendSnapshotStrategy() = default;
@@ -64,7 +63,6 @@ public:
             for (auto& entry : *registeredOperatorStates_) {
                 if (entry.second != nullptr) {
                     auto state = std::dynamic_pointer_cast<PartitionableListState<std::vector<uint8_t>>>(entry.second);
-                    // INFO_RELEASE("h30082497 DefaultOperatorStateBackendSnapshotStrategy::syncPrepareResources for size :" + std::to_string(state->getInternalList()->size()));
                     operatorStateMetaInfoSnapshots.push_back(state->getStateMetaInfo()->snapshot());
                 }
             }
@@ -73,7 +71,7 @@ public:
         if (!registeredBroadcastStates_->empty()) {
             for (auto& entry : *registeredBroadcastStates_) {
                 if (entry.second !=  nullptr) {
-                    // TODO h0082497 具体类型
+                    // TODO  需使用broadcast具体类型
                     auto state = std::dynamic_pointer_cast<HeapBroadcastState<std::vector<uint8_t>, std::vector<uint8_t>>>(entry.second);
                     broadcastStateMetaInfoSnapshots.push_back(state->getStateMetaInfo()->snapshot());
                 }

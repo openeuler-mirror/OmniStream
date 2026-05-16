@@ -665,7 +665,7 @@ namespace omnistream {
         checkpointid,
         checkpointtimestamp,
         std::chrono::system_clock::now().time_since_epoch().count());
-        /* h30082497 规避：默认设置为 RUNNING 状态 */
+        /* TODO 规避：默认设置为 RUNNING 状态, 后续根据实际情况调整 */
         executionState = ExecutionState::RUNNING;
         if (executionState == ExecutionState::RUNNING) {
             if (checkpointableTask == nullptr) {

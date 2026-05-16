@@ -63,8 +63,6 @@ public:
             list.push_back(item->Copy());
         }
 
-        INFO_RELEASE("h30082497 CommittableCollectorSerializer::serializeV2 1 === list size : " + std::to_string(list.size()));
-
         auto* checkpointSerializer = new CheckpointSimpleVersionedSerializer<CommT>(committableSerializer_, subtaskId_, numberOfSubtasks_);
 
         SimpleVersionedSerialization::writeVersionAndSerializeList(*checkpointSerializer, list, out);
@@ -72,10 +70,7 @@ public:
 
     CommittableCollector<CommT>* deserializeV1(DataInputDeserializer& input) {
         validateMagicNumber(input);
-
         auto* list = SimpleVersionedSerialization::readVersionAndDeserializeList<CommT>(*committableSerializer_, input);
-        INFO_RELEASE("h30082497 CommittableCollectorSerializer::deserializeV1 1 === list size : " + std::to_string(list->size()));
-
         return new CommittableCollector<CommT>(CommittableCollector<CommT>::ofLegacy(*list));
     }
 
@@ -85,14 +80,12 @@ public:
         CheckpointSimpleVersionedSerializer<CommT> checkpointSerializer(committableSerializer_, subtaskId_, numberOfSubtasks_);
 
         auto* list = SimpleVersionedSerialization::readVersionAndDeserializeList(checkpointSerializer, input);
-        INFO_RELEASE("h30082497 CommittableCollectorSerializer::deserializeV2 1 === list size : " + std::to_string(list->size()));
 
         typename CommittableCollector<CommT>::CheckpointCommittableMap checkpointCommittables;
         for (auto& item : *list) {
             long checkpointId = item.GetCheckpointId();
             checkpointCommittables.emplace(checkpointId, std::make_shared<CheckpointCommittableManagerImpl<CommT>>(std::move(item)));
         }
-        INFO_RELEASE("h30082497 CommittableCollectorSerializer::deserializeV2 2 === checkpointCommittables size : " + std::to_string(checkpointCommittables.size()));
 
         return new CommittableCollector<CommT>(checkpointCommittables, subtaskId_, numberOfSubtasks_);
     }

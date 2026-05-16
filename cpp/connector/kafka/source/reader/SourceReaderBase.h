@@ -127,7 +127,6 @@ public:
     // 对拆分状态进行快照
     std::vector<KafkaPartitionSplit> snapshotState(long checkpointId)  override
     {
-        INFO_RELEASE("savepoint: SourceReaderBase snapshotState")
         std::vector<KafkaPartitionSplit> splits;
         for (const auto& [splitId, splitContext] : this->splitStates) {
             if (splitContext->state->getCurrentOffset() >= 0) {

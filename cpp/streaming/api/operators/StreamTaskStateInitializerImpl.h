@@ -355,7 +355,6 @@ inline CheckpointableKeyedStateBackend<K> *StreamTaskStateInitializerImpl::keyed
 
     PrioritizedOperatorSubtaskState prioritizedOperatorSubtaskStates;
     if (operatorID) {
-        INFO_RELEASE("savepoint: keyedStatedBackend: operatorID=" << operatorID->toString());
         prioritizedOperatorSubtaskStates = env->getTaskStateManager()->prioritizedOperatorState(*operatorID);
     } else {
         prioritizedOperatorSubtaskStates = getPrioritizedOperatorSubtaskStates();
@@ -416,13 +415,9 @@ inline OperatorStateBackend* StreamTaskStateInitializerImpl::operatorStateBacken
     auto backendRestorer = new BackendRestorerProcedure<OperatorStateBackend*, std::shared_ptr<OperatorStateHandle>>(
             [this, operatorIdentifierText](std::set<std::shared_ptr<OperatorStateHandle>> stateHandles, int alternativeIdx) {
                 bool isStateBackendNull = (this->stateBackend == nullptr);
-                INFO_RELEASE("savepoint: operatorStateBackend stateBackend isNull: " << std::string(isStateBackendNull ? "true" : "false")
-                    << ", type: " << (isStateBackendNull ? "null" : typeid(*this->stateBackend).name()));
 
                 auto embeddedRocksDBStateBackend = dynamic_cast<EmbeddedRocksDBStateBackend*>(this->stateBackend);
-                if (embeddedRocksDBStateBackend == nullptr) {
-                    INFO_RELEASE("savepoint: StreamOperatorStateContextImpl::operatorStateBackend backendRestorer embeddedRocksDBStateBackend null");
-                }else{
+                if (embeddedRocksDBStateBackend) {
                     INFO_RELEASE("savepoint: StreamOperatorStateContextImpl::operatorStateBackend backendRestorer embeddedRocksDBStateBackend not null");
                     return reinterpret_cast<OperatorStateBackend*>(
                         embeddedRocksDBStateBackend->createOperatorStateBackend(
@@ -432,15 +427,12 @@ inline OperatorStateBackend* StreamTaskStateInitializerImpl::operatorStateBacken
                 }
                 auto hashMapStateBackend = dynamic_cast<HashMapStateBackend*>(this->stateBackend);
                 if (hashMapStateBackend == nullptr) {
-                }else{
-                    INFO_RELEASE("savepoint: StreamOperatorStateContextImpl::operatorStateBackend backendRestorer hashMapStateBackend not null");
                     return reinterpret_cast<OperatorStateBackend*>(
                         hashMapStateBackend->createOperatorStateBackend(
                             env,
                             operatorIdentifierText,
                             stateHandles));
                 }
-                INFO_RELEASE("savepoint: operatorStateBackend backendRestorer no match for stateBackend type, returning nullptr");
             },
             logDescription);
 
@@ -452,8 +444,6 @@ inline OperatorStateBackend* StreamTaskStateInitializerImpl::operatorStateBacken
             prioritizedOperatorSubtaskStates = getPrioritizedOperatorSubtaskStates();
         }
         std::vector<StateObjectCollection<OperatorStateHandle>> handleVector = prioritizedOperatorSubtaskStates.getPrioritizedManagedOperatorState();
-        INFO_RELEASE("savepoint: operatorStateBackend handleVector size: " + std::to_string(handleVector.size())
-            + ", operatorIdentifierText: " + operatorIdentifierText);
         std::vector<std::set<std::shared_ptr<OperatorStateHandle>>> handleSet;
         handleSet.reserve(handleVector.size());
         for (const auto& collection : handleVector) {
