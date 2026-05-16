@@ -39,6 +39,8 @@ public:
 
     void setSavepointInputStreamOffset(jobject inputStream, int64_t offset) override;
 
+    int ReadSavepointInputStream(jobject inputStream, int8_t *chunk, size_t offset, size_t len) override;
+
     bool isUsingKeyGroupCompression(jobject inputStream) override;
 
     void closeSavepointInputStream(jobject inputStream) override;

@@ -17,6 +17,7 @@
 #include "state/StreamStateHandle.h"
 #include "state/bridge/OmniTaskBridge.h"
 #include "runtime/checkpoint/CheckpointOptions.h"
+#include "core/memory/DataOutputSerializer.h"
 #include <jni.h>
 #include <stdexcept>
 
@@ -69,6 +70,11 @@ public:
         offset_ = 0;
     }
 
+    void writeByte(uint8_t data)
+    {
+        writeBytes(&data, sizeof(data));
+    }
+
     void writeShort(int16_t data)
     {
         int8_t bytes[2];
@@ -85,6 +91,27 @@ public:
         bytes[2] = static_cast<int8_t>((data >> 8) & 0xFF);
         bytes[3] = static_cast<int8_t>(data & 0xFF);
         writeBytes(bytes, sizeof(bytes));
+    }
+
+    void writeLong(int64_t data)
+    {
+        int8_t bytes[8];
+        bytes[0] = static_cast<int8_t>((data >> 56) & 0xFF);
+        bytes[1] = static_cast<int8_t>((data >> 48) & 0xFF);
+        bytes[2] = static_cast<int8_t>((data >> 40) & 0xFF);
+        bytes[3] = static_cast<int8_t>((data >> 32) & 0xFF);
+        bytes[4] = static_cast<int8_t>((data >> 24) & 0xFF);
+        bytes[5] = static_cast<int8_t>((data >> 16) & 0xFF);
+        bytes[6] = static_cast<int8_t>((data >> 8) & 0xFF);
+        bytes[7] = static_cast<int8_t>(data & 0xFF);
+        writeBytes(bytes, sizeof(bytes));
+    }
+
+    void writeUTF(const std::string &data)
+    {
+        DataOutputSerializer tmp(static_cast<int>(data.size() * 3 + 2));
+        tmp.writeUTF(data);
+        writeBytes(tmp.getData(), tmp.getPosition());
     }
 
     void writeBytes(const void *data, size_t len)

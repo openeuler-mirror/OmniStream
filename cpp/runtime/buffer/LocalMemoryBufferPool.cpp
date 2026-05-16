@@ -337,15 +337,18 @@ namespace omnistream::datastream {
         LOG_PART(" Back Pressure possible happens, current segment in pool is " << availableSegments.size())
         while (!(segment = requestMemorySegment(targetChannel))) {
             // INFO_RELEASE(" Back Pressure happens, current segment in pool is " << availableSegments.size() << "for channel "<< targetChannel)
-            if (cancelled_.load()) {
-                throw std::runtime_error("task has been cancelled");
-            }
+
             // workaround sleep for a while
             // INFO_RELEASE("sleep requestMemorySegmentBlocking")
             //INFO_RELEASE("LocalMemoryBufferPool sleep time: " << std::to_string(1))
 //            int sleep_time = getWaitSizeFromEnv();
 //            std::this_thread::sleep_for(std::chrono::microseconds(sleep_time));
-             this->GetAvailableFuture()->get();
+             this->GetAvailableFuture()->get(2000);
+            if (cancelled_.load()) {
+                // todo: temp fix, check if cancelled every 2 second, if receive cancel signal, return directly
+                INFO_RELEASE("LocalMemoryBufferPool cancelled.")
+                return new MemorySegment(1);
+            }
             // std::cout << "LocalMemoryBufferPool has requested segement" << std::endl;
 
         }

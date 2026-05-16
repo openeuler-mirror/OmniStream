@@ -15,6 +15,9 @@
 #include <map>
 #include "common.h"
 #include <vector>
+#include <set>
+#include <unordered_map>
+
 #include "AbstractKeyedStateBackend.h"
 #include "HeapPriorityQueuesManager.h"
 #include "InternalKeyContext.h"
@@ -38,7 +41,6 @@
 #include "runtime/state/SavepointResources.h"
 #include "runtime/state/CompositeKeySerializationUtils.h"
 #include "runtime/state/bridge/OmniTaskBridge.h"
-#include <set>
 
 using namespace omniruntime::type;
 /*
@@ -52,12 +54,11 @@ using namespace omniruntime::type;
 template <typename K>
 class HeapKeyedStateBackend : public AbstractKeyedStateBackend<K> {
 public:
-    HeapKeyedStateBackend(TypeSerializer *keySerializer, InternalKeyContext<K> *context)
-            : AbstractKeyedStateBackend<K>(keySerializer, context) {
-        auto registeredPQStates = std::make_shared<std::unordered_map<std::string, std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapperBase>>>();
+    HeapKeyedStateBackend(TypeSerializer *keySerializer, InternalKeyContext<K> *context) : AbstractKeyedStateBackend<K>(keySerializer, context) {
+        registeredPQStates_ = std::make_shared<std::unordered_map<std::string, std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapperBase>>>();
         auto priorityQueueSetFactory = std::make_shared<HeapPriorityQueueSetFactory>(context->getKeyGroupRange(), context->getNumberOfKeyGroups(), 128);
         priorityQueuesManager_ = std::make_shared<HeapPriorityQueuesManager>(
-                registeredPQStates,
+                registeredPQStates_,
                 priorityQueueSetFactory,
                 context->getKeyGroupRange(),
                 context->getNumberOfKeyGroups());
@@ -65,7 +66,8 @@ public:
         snapshotResourceFactory_ = std::make_shared<HeapSnapshotResourceFactory<K>>(
             this->keySerializer,
             this->context,
-            &registeredKvStates);
+            &registeredKvStates,
+            registeredPQStates_);
         checkpointStrategy_ = std::make_shared<HeapSnapshotStrategy<K>>(snapshotResourceFactory_);
     }
 
@@ -215,7 +217,9 @@ public:
     std::shared_ptr<KeyGroupedInternalPriorityQueue<T>> create(
             std::string stateName,
             TypeSerializer* byteOrderedElementSerializer) {
-        return priorityQueuesManager_->createOrUpdate<K, T, Comparator>(stateName, byteOrderedElementSerializer);
+        auto queue = priorityQueuesManager_->createOrUpdate<K, T, Comparator>(stateName, byteOrderedElementSerializer);
+        restorePendingPriorityQueueEntries(stateName);
+        return queue;
     }
 
     template <typename T, typename Comparator>
@@ -223,16 +227,66 @@ public:
             std::string stateName,
             TypeSerializer* byteOrderedElementSerializer,
             bool allowFutureMetadataUpdates) {
-        return priorityQueuesManager_->createOrUpdate<K, T, Comparator>(stateName, byteOrderedElementSerializer, allowFutureMetadataUpdates);
+        auto queue = priorityQueuesManager_->createOrUpdate<K, T, Comparator>(
+            stateName, byteOrderedElementSerializer, allowFutureMetadataUpdates);
+        restorePendingPriorityQueueEntries(stateName);
+        return queue;
+    }
+
+    void addRestoredPriorityQueueEntry(
+            const std::string &stateName,
+            const std::vector<int8_t> &serializedKey,
+            int keyGroupPrefixBytes) {
+        auto wrapperIt = registeredPQStates_->find(stateName);
+        if (wrapperIt != registeredPQStates_->end() && wrapperIt->second != nullptr) {
+            wrapperIt->second->restoreSerializedElement(serializedKey, keyGroupPrefixBytes);
+            return;
+        }
+
+        pendingRestoredPQEntries_[stateName].push_back(
+            PendingPriorityQueueEntry{serializedKey, keyGroupPrefixBytes});
+    }
+
+    size_t getPendingPriorityQueueRestoreEntryCount(const std::string &stateName) const {
+        auto it = pendingRestoredPQEntries_.find(stateName);
+        return it == pendingRestoredPQEntries_.end() ? 0 : it->second.size();
     }
 
 private:
+    struct PendingPriorityQueueEntry {
+        std::vector<int8_t> serializedKey;
+        int keyGroupPrefixBytes;
+    };
+
+    void restorePendingPriorityQueueEntries(const std::string &stateName) {
+        auto pendingIt = pendingRestoredPQEntries_.find(stateName);
+        if (pendingIt == pendingRestoredPQEntries_.end()) {
+            return;
+        }
+
+        auto wrapperIt = registeredPQStates_->find(stateName);
+        if (wrapperIt == registeredPQStates_->end() || wrapperIt->second == nullptr) {
+            return;
+        }
+
+        size_t restoredCount = 0;
+        for (const auto &entry : pendingIt->second) {
+            wrapperIt->second->restoreSerializedElement(entry.serializedKey, entry.keyGroupPrefixBytes);
+            restoredCount++;
+        }
+        INFO_RELEASE("HeapKeyedStateBackend: restored pending PRIORITY_QUEUE state='"
+            << stateName << "' entries=" << restoredCount);
+        pendingRestoredPQEntries_.erase(pendingIt);
+    }
+
     template<typename N, typename S>
     StateTable<K, N, S> *tryRegisterStateTable(TypeSerializer *namespaceSerializer, StateDescriptor *stateDesc);
     // pointer to StateTable<K, N, V>, StateDescriptor, namespace BackendDataType
     emhash7::HashMap<std::string, std::tuple<uintptr_t, StateDescriptor*, BackendDataType>> registeredKvStates;
     // pointer to intervalKvState
     emhash7::HashMap<std::string, uintptr_t> createdKvState;
+    std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapperBase>>> registeredPQStates_;
+    std::unordered_map<std::string, std::vector<PendingPriorityQueueEntry>> pendingRestoredPQEntries_;
     std::shared_ptr<HeapPriorityQueuesManager> priorityQueuesManager_;
     std::shared_ptr<omnistream::OmniTaskBridge> omniTaskBridge_;
     std::shared_ptr<HeapSnapshotResourceFactory<K>> snapshotResourceFactory_;

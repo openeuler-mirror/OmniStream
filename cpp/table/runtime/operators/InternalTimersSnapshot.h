@@ -14,47 +14,85 @@
 
 #pragma once
 
-// not used
+#include <memory>
+#include <vector>
+#include <utility>
+
+#include "core/typeutils/TypeSerializer.h"
+#include "streaming/api/operators/TimerHeapInternalTimer.h"
+
+/**
+ * Per key-group snapshot of one InternalTimerService.
+ *
+ * Flink's InternalTimersSnapshot carries serializers plus event-time and
+ * processing-time timers for one timer service and one key-group.  This class is
+ * currently only used by the CP raw keyed write path; restore readers are added
+ * but not wired in this patch.
+ */
 template<typename K, typename N>
 class InternalTimersSnapshot {
 public:
-    /** Empty constructor used when restoring the timers. */
+    using TimerPtr = std::shared_ptr<TimerHeapInternalTimer<K, N>>;
+
     InternalTimersSnapshot() = default;
 
-    /** Constructor to use when snapshotting the timers. */
     InternalTimersSnapshot(
         TypeSerializer *keySerializer,
         TypeSerializer *namespaceSerializer,
-        std::vector<TimerHeapInternalTimer<K, N>> &eventTimeTimers,
-        std::vector<TimerHeapInternalTimer<K, N>> &processingTimeTimers)
+        std::vector<TimerPtr> eventTimeTimers,
+        std::vector<TimerPtr> processingTimeTimers)
+        : keySerializer_(keySerializer),
+          namespaceSerializer_(namespaceSerializer),
+          eventTimeTimers_(std::move(eventTimeTimers)),
+          processingTimeTimers_(std::move(processingTimeTimers))
     {
-        this->eventTimeTimers = eventTimeTimers;
-        this->processingTimeTimers = processingTimeTimers;
     }
 
-    std::vector<TimerHeapInternalTimer<K, N>> GetEventTimeTimers()
+    TypeSerializer *getKeySerializer() const
     {
-        return eventTimeTimers;
+        return keySerializer_;
     }
 
-    void SetEventTimeTimers(std::vector<TimerHeapInternalTimer<K, N>> eventTimeTimers)
+    void setKeySerializer(TypeSerializer *keySerializer)
     {
-        this->eventTimeTimers = eventTimeTimers;
+        keySerializer_ = keySerializer;
     }
 
-    std::vector<TimerHeapInternalTimer<K, N>> GetProcessingTimeTimers()
+    TypeSerializer *getNamespaceSerializer() const
     {
-        return processingTimeTimers;
+        return namespaceSerializer_;
     }
 
-    void SetProcessingTimeTimers(std::vector<TimerHeapInternalTimer<K, N>> processingTimeTimers)
+    void setNamespaceSerializer(TypeSerializer *namespaceSerializer)
     {
-        this->processingTimeTimers = processingTimeTimers;
+        namespaceSerializer_ = namespaceSerializer;
+    }
+
+    const std::vector<TimerPtr> &getEventTimeTimers() const
+    {
+        return eventTimeTimers_;
+    }
+
+    void addEventTimeTimer(const TimerPtr &timer)
+    {
+        eventTimeTimers_.push_back(timer);
+    }
+
+    const std::vector<TimerPtr> &getProcessingTimeTimers() const
+    {
+        return processingTimeTimers_;
+    }
+
+    void addProcessingTimeTimer(const TimerPtr &timer)
+    {
+        processingTimeTimers_.push_back(timer);
     }
 
 private:
-    std::vector<TimerHeapInternalTimer<K, N>> eventTimeTimers;
-    std::vector<TimerHeapInternalTimer<K, N>> processingTimeTimers;
+    TypeSerializer *keySerializer_ = nullptr;
+    TypeSerializer *namespaceSerializer_ = nullptr;
+    std::vector<TimerPtr> eventTimeTimers_;
+    std::vector<TimerPtr> processingTimeTimers_;
 };
 
 #endif

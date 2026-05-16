@@ -13,8 +13,59 @@
 
 RegisteredPriorityQueueStateBackendMetaInfo::RegisteredPriorityQueueStateBackendMetaInfo(const StateMetaInfoSnapshot &snapshot)
     : RegisteredStateMetaInfoBase(snapshot.getName()) {
-    auto valueSerializerKey = StateMetaInfoSnapshot::CommonSerializerKeys::VALUE_SERIALIZER;
-    elementSerializer = snapshot.getTypeSerializer(StateMetaInfoSnapshot::commonSerializerKeyToString(valueSerializerKey));
+    // C++ snapshot metadata writes PQ element serializer with Flink's historical
+    // "stateSerializer" key, while the JNI metadata reader normalizes it to
+    // VALUE_SERIALIZER. Accept both to keep checkpoint/savepoint restore tolerant.
+    elementSerializer = snapshot.getTypeSerializer("stateSerializer");
+    if (elementSerializer == nullptr) {
+        auto valueSerializerKey = StateMetaInfoSnapshot::CommonSerializerKeys::VALUE_SERIALIZER;
+        elementSerializer = snapshot.getTypeSerializer(
+            StateMetaInfoSnapshot::commonSerializerKeyToString(valueSerializerKey));
+    }
+    previousElementSerializer = elementSerializer;
+}
+
+TypeSerializer* RegisteredPriorityQueueStateBackendMetaInfo::getPreviousElementSerializer()
+{
+    return previousElementSerializer != nullptr ? previousElementSerializer : elementSerializer;
+}
+
+TypeSerializerSchemaCompatibility RegisteredPriorityQueueStateBackendMetaInfo::updateElementSerializer(
+    TypeSerializer* serializer)
+{
+    if (serializer == nullptr) {
+        return TypeSerializerSchemaCompatibility::incompatible();
+    }
+
+    TypeSerializer* previousSerializer = getPreviousElementSerializer();
+    if (previousSerializer == nullptr) {
+        previousElementSerializer = elementSerializer;
+        elementSerializer = serializer;
+        return TypeSerializerSchemaCompatibility::compatibleAfterMigration();
+    }
+
+    if (previousSerializer == serializer) {
+        elementSerializer = serializer;
+        return TypeSerializerSchemaCompatibility::compatibleAsIs();
+    }
+
+    const BackendDataType previousBackendId = previousSerializer->getBackendId();
+    const BackendDataType newBackendId = serializer->getBackendId();
+    const char* previousName = previousSerializer->getName();
+    const char* newName = serializer->getName();
+    const bool sameBackendId = previousBackendId != BackendDataType::INVALID_BK
+        && previousBackendId == newBackendId;
+    const bool sameSerializerName = previousName != nullptr
+        && newName != nullptr
+        && std::string(previousName) == std::string(newName);
+
+    if (sameBackendId || sameSerializerName || serializerUpdatesAllowed) {
+        previousElementSerializer = previousSerializer;
+        elementSerializer = serializer;
+        return TypeSerializerSchemaCompatibility::compatibleAsIs();
+    }
+
+    return TypeSerializerSchemaCompatibility::incompatible();
 }
 
 std::shared_ptr<StateMetaInfoSnapshot> RegisteredPriorityQueueStateBackendMetaInfo::computeSnapshot() {

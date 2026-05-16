@@ -252,7 +252,7 @@ private:
         size_t inLen = std::min({a.size(), b.size(), static_cast<size_t>(len)});
 
         for (int i = 0; i < inLen; ++i) {
-            int diff = static_cast<int>(a[i]) - static_cast<int>(b[i]);
+            int diff = static_cast<int>(static_cast<uint8_t>(a[i])) - static_cast<int>(static_cast<uint8_t>(b[i]));
             if (diff != 0) {
                 return diff;
             }

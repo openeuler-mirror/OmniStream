@@ -277,3 +277,27 @@ TEST(CsvConversionTest, CsvFileVectorBatchConversionWithSelectiveMapping) {
         EXPECT_EQ(batch->GetValueAt<int64_t>(2, i), 1);
     }
 }
+
+TEST(CsvConversionTest, CsvVecBatchMissingProjectedFieldBecomesNull) {
+    omnistream::csv::CsvSchema schema({OMNI_VARCHAR_TYPE, OMNI_TIMESTAMP_TYPE, OMNI_TIMESTAMP_TYPE});
+    std::vector<omnistream::csv::CsvRow> csvRows;
+    csvRows.emplace_back("prefix,2025-02-07 00:00:00.000,2025-02-07 16:33:20.111", schema);
+    csvRows.emplace_back("prefix,2025-02-07 00:00:00.000,2025-02-07 16:33:20.111", schema);
+    csvRows.emplace_back("prefix,NULL", schema);
+    csvRows.emplace_back("prefix,2025-02-07 00:00:00.000,2025-02-07 16:33:20.111", schema);
+
+    std::vector<int> mapping = {1, 2};
+    omnistream::VectorBatch *batch = omnistream::csv::CsvConverter::convert(csvRows, mapping);
+    auto *firstTimestamp = reinterpret_cast<omniruntime::vec::Vector<int64_t> *>(batch->Get(0));
+    auto *secondTimestamp = reinterpret_cast<omniruntime::vec::Vector<int64_t> *>(batch->Get(1));
+
+    ASSERT_EQ(batch->GetRowCount(), 4);
+    EXPECT_EQ(batch->GetValueAt<int64_t>(0, 0), 1738886400000);
+    EXPECT_EQ(batch->GetValueAt<int64_t>(1, 0), 1738946000111);
+    EXPECT_EQ(batch->GetValueAt<int64_t>(0, 1), 1738886400000);
+    EXPECT_EQ(batch->GetValueAt<int64_t>(1, 1), 1738946000111);
+    EXPECT_TRUE(firstTimestamp->IsNull(2));
+    EXPECT_TRUE(secondTimestamp->IsNull(2));
+    EXPECT_EQ(batch->GetValueAt<int64_t>(0, 3), 1738886400000);
+    EXPECT_EQ(batch->GetValueAt<int64_t>(1, 3), 1738946000111);
+}

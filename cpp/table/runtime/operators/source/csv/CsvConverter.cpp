@@ -22,6 +22,16 @@ bool isDefaultNullLiteral(const std::string& value)
     return value == "null";
 }
 
+CsvNode* getProjectedNodeOrNull(const CsvRow& csvRow, int csvFieldIndex)
+{
+    const auto& nodes = csvRow.getNodes();
+    if (csvFieldIndex < 0 || static_cast<size_t>(csvFieldIndex) >= nodes.size()) {
+        return nullptr;
+    }
+
+    return nodes[csvFieldIndex].get();
+}
+
 bool isCsvNullValue(const std::string& value, const CsvSchema& schema)
 {
     if (schema.hasNullValue()) {
@@ -127,7 +137,14 @@ omnistream::VectorBatch* CsvConverter::convert(std::vector<CsvRow> &csvRows, std
         const CsvSchema schema = csvRow.getSchema();
         for (size_t colIndex = 0; colIndex < oneMap.size(); colIndex++) {
             int csvFieldIndex = oneMap[colIndex];
-            CsvNode *node = csvRow.getNodes()[csvFieldIndex].get();
+            CsvNode *node = getProjectedNodeOrNull(csvRow, csvFieldIndex);
+            if (node == nullptr) {
+                LOG("CsvConverter: Missing projected CSV field " << csvFieldIndex << " for column " << colIndex
+                    << " in row " << rowIndex << ", setting it as null in VectorBatch.");
+                vectorBatch->Get(colIndex)->SetNull(rowIndex);
+                continue;
+            }
+
             omniruntime::type::DataTypeId nodeType = node->getType();
             std::string nodeValue = node->getValue();
             if (nodeType != targetTypes[csvFieldIndex]) {

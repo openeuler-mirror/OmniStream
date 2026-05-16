@@ -98,7 +98,9 @@ void TimerSerializer<K, N>::serialize(Object* buffer, DataOutputSerializer& targ
         keySerializer_->serialize(tempObj, target);
         tempObj->putRefCount();
     } else {
+       
         keySerializer_->serialize(timer->getKey(), target);
+        
     }
 
     if constexpr (std::is_same_v<N, Object*>) {

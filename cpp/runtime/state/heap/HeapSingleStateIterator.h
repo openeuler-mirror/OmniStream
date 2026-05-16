@@ -127,8 +127,8 @@ private:
             [this](const SerializedEntry &a, const SerializedEntry &b) -> bool {
                 for (int i = 0; i < keyGroupPrefixBytes_ && i < static_cast<int>(a.serializedKey.size())
                      && i < static_cast<int>(b.serializedKey.size()); i++) {
-                    if (a.serializedKey[i] != b.serializedKey[i]) {
-                        return a.serializedKey[i] < b.serializedKey[i];
+                    if (static_cast<uint8_t>(a.serializedKey[i]) != static_cast<uint8_t>(b.serializedKey[i])) {
+                        return static_cast<uint8_t>(a.serializedKey[i]) < static_cast<uint8_t>(b.serializedKey[i]);
                     }
                 }
                 return false;

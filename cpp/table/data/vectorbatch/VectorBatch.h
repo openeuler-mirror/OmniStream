@@ -98,19 +98,19 @@ public:
         reinterpret_cast<omniruntime::vec::Vector<Type> *>(this->Get(column))->SetValue(row, value);
     }
    // write to file. The default mode is to open a new one
-    void writeToFile(std::string& filename, std::ios_base::openmode mode = std::ios::out,
+    void writeToFile(std::string &filename, std::ios_base::openmode mode = std::ios::out,
                      std::vector<std::pair<int32_t, int32_t>> decimalInfo = {},
-                     std::vector<std::string> inputTypes = {}, long zoneOffsetSeconds = 0) const;
-
-    std::string TransformTime(int vectorID, int rowID, long zoneOffsetSeconds, int precision = 3) const;
+                     std::vector<std::string> inputTypes = {}, const std::string &tzStr = "Asia/Shanghai") const;
+    std::string TransformTime(int vectorID, int rowID, int precision = 3) const;
+    std::string TransformTimeWithTimeZone(int vectorID, int rowID, const std::string &tzStr, int precision = 3) const;
     std::string transformDecimal128(
                     int vectorID, int rowID, std::vector<std::pair<int32_t, int32_t>>& decimalInfo) const;
     std::string transformDecimal64(
                 int vectorID, int rowID, std::vector<std::pair<int32_t, int32_t>>& decimalInfo) const;
     void WriteToFileInternal(int vectorID, int rowID,
-                             std::ofstream& file,
+                             std::ofstream &file,
                              std::vector<std::pair<int32_t, int32_t>> decimalInfo,
-                             std::vector<std::string> inputTypes, long zoneOffsetSeconds) const;
+                             std::vector<std::string> inputTypes, const std::string &tzStr) const;
     void WriteString(std::ofstream& file, int vectorID, int rowID) const;
     VectorBatch* copy()
     {
