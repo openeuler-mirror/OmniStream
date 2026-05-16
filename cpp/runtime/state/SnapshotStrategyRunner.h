@@ -35,7 +35,7 @@ public:
         {}
     ~SnapshotStrategyRunner() {};
 
-    std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<KeyedStateHandle>>()>> snapshot(
+    std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<T>>()>> snapshot(
         long checkpointId,
         long timestamp,
         CheckpointStreamFactory* streamFactory,
@@ -47,7 +47,7 @@ public:
             auto snapshotResources = snapshotStrategy_->syncPrepareResources(checkpointId);
             auto asyncSnapshot = snapshotStrategy_->asyncSnapshot(snapshotResources, checkpointId, timestamp, streamFactory,
                                                                   checkpointOptions, keySerializer);
-            auto task = std::make_shared<std::packaged_task<std::shared_ptr<SnapshotResult<KeyedStateHandle>>()>>(
+            auto task = std::make_shared<std::packaged_task<std::shared_ptr<SnapshotResult<T>>()>>(
                 [=]() {
                     return asyncSnapshot->get(bridge);
             });

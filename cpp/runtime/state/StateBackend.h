@@ -13,6 +13,7 @@
 #define OMNISTREAM_STATEBACKEND
 
 #include "AbstractKeyedStateBackend.h"
+#include "OperatorStateBackend.h"
 #include "runtime/state/heap/HeapKeyedStateBackendBuilder.h"
 #include "runtime/execution/OmniEnvironment.h"
 
@@ -37,6 +38,11 @@ public:
             TypeSerializer *keySerializer,
             int numberOfKeyGroups,
             int alternativeIdx) {};
+
+    OperatorStateBackend* createOperatorStateBackend(
+            omnistream::EnvironmentV2* env,
+            std::string operatorIdentifier,
+            std::set<std::shared_ptr<OperatorStateHandle>> stateHandles);
 };
 
 #endif // OMNISTREAM_STATEBACKEND

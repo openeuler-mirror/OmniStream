@@ -36,12 +36,20 @@ public:
     BinaryRowData* toBinaryRow(RowData* row);
 
     BackendDataType getBackendId() const override { return BackendDataType::ROW_BK;};
+
+    std::string toJson() override {
+        SerializerJsonInfo typeJson = { SerializerType::ROW };
+        typeJson.logicalType = rowType_;
+
+        return typeJson.toJson();
+    }
     
 private:
     BinaryRowDataSerializer binarySerializer_;
     std::vector<LogicalType *> types_;
     std::vector<TypeSerializer*> fieldSerializers_;
     std::vector<FieldGetter*> fieldGetters_;
+    omnistream::RowType* rowType_;
 
     BinaryRowData* reuseRow_;
     BinaryRowWriter* reuseWriter_;

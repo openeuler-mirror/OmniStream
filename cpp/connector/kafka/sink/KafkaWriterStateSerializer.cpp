@@ -9,20 +9,29 @@
  * See the Mulan PSL v2 for more details.
  */
 
+#include <string>
 #include "KafkaWriterStateSerializer.h"
 #include <sstream>
 
-int KafkaWriterStateSerializer::GetVersion() const
+#include "core/include/common.h"
+#include "core/memory/DataOutputSerializer.h"
+#include "core/memory/DataInputDeserializer.h"
+
+int KafkaWriterStateSerializer::getVersion() const
 {
     return 1;
 }
 
-std::vector<char> KafkaWriterStateSerializer::serialize(const KafkaWriterState& /* state */) const
-{
-    return {};
+std::vector<uint8_t> KafkaWriterStateSerializer::serialize(const KafkaWriterState& obj) {
+    DataOutputSerializer out;
+    out.writeUTF(obj.getTransactionalIdPrefix());
+    return std::vector<uint8_t>(out.getData(), out.getData() + out.length());
 }
 
-KafkaWriterState KafkaWriterStateSerializer::deserialize(int /* version */, const std::vector<char>& /* serialized */) const
+KafkaWriterState* KafkaWriterStateSerializer::deserialize(int version, std::vector<uint8_t>& serialized)
 {
-    return KafkaWriterState({});
+    DataInputDeserializer deserializer;
+    deserializer.setBuffer(serialized.data(), serialized.size(), 0, serialized.size());
+    std::string transactionalIdPrefix = deserializer.readUTF();
+    return new KafkaWriterState(transactionalIdPrefix);
 }

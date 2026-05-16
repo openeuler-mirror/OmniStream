@@ -61,6 +61,11 @@ public:
     void WriteSavepointOutputStream(jobject provider, const int8_t *chunk, size_t offset, size_t len) override;
     void WriteSavepointMetadata(jobject provider, const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& snapshots,
                                 std::string keySerializer) override;
+
+    void WriteOperatorMetaData(jobject provider,
+                               const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& operatorStateMetaInfoSnapshots,
+                               const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& broadcastStateMetaInfoSnapshots) override;
+
     long GetSavepointOutputStreamPos(jobject provider) override;
 
     /**

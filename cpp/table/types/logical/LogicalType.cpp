@@ -12,12 +12,16 @@
 #include <algorithm>
 #include <mutex>
 #include "LogicalType.h"
+#include "VarCharType.h"
 
 using namespace omniruntime::type;
 
 LogicalType::LogicalType(int typeId, bool isNullable) : isNullable_(isNullable), typeId_(typeId)
 {
 }
+
+LogicalType::LogicalType(bool isNullable, int typeId, const std::string& typeName)
+    : isNullable_(isNullable), typeId_(typeId), typeName_(typeName) {}
 
 int LogicalType::getTypeId() const
 {
@@ -27,6 +31,14 @@ int LogicalType::getTypeId() const
 bool LogicalType::isNullable() const
 {
     return isNullable_;
+}
+
+nlohmann::json LogicalType::toJson() const {
+    nlohmann::json result;
+    result["nullable"] = isNullable_;
+    result["type"] = typeName_;
+
+    return result;
 }
 
 std::unordered_map<std::string, omniruntime::type::DataTypeId> LogicalType::nameToIdMap;
@@ -146,18 +158,19 @@ void LogicalType::buildNameToIdMap()
     });
 }
 
-BasicLogicalType* BasicLogicalType::BOOLEAN = new BasicLogicalType(DataTypeId::OMNI_BOOLEAN, true);
-BasicLogicalType* BasicLogicalType::INTEGER = new BasicLogicalType(DataTypeId::OMNI_INT, true);
-BasicLogicalType* BasicLogicalType::BIGINT = new BasicLogicalType(DataTypeId::OMNI_LONG, true);
-BasicLogicalType* BasicLogicalType::DATE = new BasicLogicalType(DataTypeId::OMNI_DATE32, true);
+BasicLogicalType* BasicLogicalType::BOOLEAN = new BasicLogicalType(true, DataTypeId::OMNI_BOOLEAN, "BOOLEAN");
+BasicLogicalType* BasicLogicalType::INTEGER = new BasicLogicalType(true, DataTypeId::OMNI_INT, "INTEGER");
+BasicLogicalType* BasicLogicalType::BIGINT = new BasicLogicalType(true, DataTypeId::OMNI_LONG, "BIGINT");
+BasicLogicalType* BasicLogicalType::DATE = new BasicLogicalType(true, DataTypeId::OMNI_DATE32, "DATE");
 BasicLogicalType* BasicLogicalType::TIMESTAMP_WITHOUT_TIME_ZONE =
-    new BasicLogicalType(DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE, true);
+    new BasicLogicalType(true, DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE, "TIMESTAMP_WITHOUT_TIME_ZONE");
 BasicLogicalType* BasicLogicalType::TIME_WITHOUT_TIME_ZONE =
-    new BasicLogicalType(DataTypeId::OMNI_TIME_WITHOUT_TIME_ZONE, true);
+    new BasicLogicalType(true, DataTypeId::OMNI_TIME_WITHOUT_TIME_ZONE, "TIME_WITHOUT_TIME_ZONE");
 BasicLogicalType* BasicLogicalType::TIMESTAMP_WITH_TIME_ZONE =
-    new BasicLogicalType(DataTypeId::OMNI_TIMESTAMP_WITH_TIME_ZONE, true);
+    new BasicLogicalType(true, DataTypeId::OMNI_TIMESTAMP_WITH_TIME_ZONE, "TIMESTAMP_WITH_TIME_ZONE");
 BasicLogicalType* BasicLogicalType::TIMESTAMP_WITH_LOCAL_TIME_ZONE =
-    new BasicLogicalType(DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE, true);
-BasicLogicalType* BasicLogicalType::INVALID_TYPE = new BasicLogicalType(DataTypeId::OMNI_INVALID, true);
-BasicLogicalType* BasicLogicalType::DOUBLE = new BasicLogicalType(DataTypeId::OMNI_DOUBLE, true);
-BasicLogicalType* BasicLogicalType::VARCHAR = new BasicLogicalType(DataTypeId::OMNI_VARCHAR, true);
+    new BasicLogicalType(true, DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE, "TIMESTAMP_WITH_LOCAL_TIME_ZONE");
+BasicLogicalType* BasicLogicalType::INVALID_TYPE = new BasicLogicalType(true, DataTypeId::OMNI_INVALID, "UNRESOLVED");
+BasicLogicalType* BasicLogicalType::DOUBLE = new BasicLogicalType(true, DataTypeId::OMNI_DOUBLE, "DOUBLE");
+// BasicLogicalType* BasicLogicalType::VARCHAR = new BasicLogicalType(true, DataTypeId::OMNI_VARCHAR, "VARCHAR");
+BasicLogicalType* BasicLogicalType::VARCHAR = new VarCharType(true, std::numeric_limits<int>::max());

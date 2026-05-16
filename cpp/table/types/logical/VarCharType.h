@@ -15,11 +15,13 @@
 
 #include "LogicalType.h"
 
-class VarCharType : public LogicalType {
+class VarCharType : public BasicLogicalType {
 public:
     explicit VarCharType(bool isNull, int length);
 
     std::vector<LogicalType *> getChildren() override;
+
+    nlohmann::json toJson() const override;
 
 private:
     int length;

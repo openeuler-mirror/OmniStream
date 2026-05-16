@@ -17,12 +17,13 @@
 #include <stdexcept>
 
 #include "KafkaWriterState.h"
+#include "core/io/SimpleVersionedSerializer.h"
 
-class KafkaWriterStateSerializer {
+class KafkaWriterStateSerializer : public SimpleVersionedSerializer<KafkaWriterState> {
 public:
-    int GetVersion() const;
-    std::vector<char> serialize(const KafkaWriterState& state) const;
-    KafkaWriterState deserialize(int version, const std::vector<char>& serialized) const;
+    int getVersion() const override;
+    std::vector<uint8_t> serialize(const KafkaWriterState& obj) override;
+    KafkaWriterState* deserialize(int version, std::vector<uint8_t>& serialized) override;
 };
 
 #endif // FLINK_BENCHMARK_KAFKAWRITERSTATESERIALIZER_H
