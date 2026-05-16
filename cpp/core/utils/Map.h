@@ -11,14 +11,17 @@
 
 #pragma once
 
-#include "common.h"
-
 namespace omnistream::utils {
-    template <typename E> class Iterator {
+    template <typename K, typename V> class Map {
     public:
-        virtual ~Iterator() = default;
-        virtual bool hasNext() = 0;
-        virtual E next() = 0;
-        virtual void remove() { NOT_IMPL_EXCEPTION }
+        virtual ~Map() = default;
+
+        class Entry {
+        public:
+            virtual ~Entry() = default;
+            virtual std::optional<K> getKey() = 0;
+            virtual std::optional<V> getValue() = 0;
+            virtual void setValue(std::optional<V> value) = 0;
+        };
     };
 }

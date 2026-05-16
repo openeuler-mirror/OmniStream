@@ -25,8 +25,6 @@ public:
 
     TimeWindow(long start, long end);
 
-    TimeWindow(const TimeWindow&) = default;
-
     long getStart() const {
         return start;
     }
@@ -55,10 +53,6 @@ public:
         return remainder < 0L ? timestamp - (remainder + windowSize) : timestamp - remainder;
     }
 
-    bool Equals(const TimeWindow &window) const {
-        return end == window.end && start == window.start;
-    }
-
     size_t hashCode() const {
         int32_t endTransformed = static_cast<int32_t>((end << 1) + 1);
         return static_cast<size_t>(start + modInverse(endTransformed));
@@ -80,14 +74,6 @@ public:
 
     bool operator==(const TimeWindow &other) const {
         return start == other.start && end == other.end;
-    }
-
-    TimeWindow &operator=(const TimeWindow &other) {
-        if (this != &other) {
-            start = other.start;
-            end = other.end;
-        }
-        return *this;
     }
 
     friend std::ostream &operator<<(std::ostream &os, const TimeWindow &obj) {

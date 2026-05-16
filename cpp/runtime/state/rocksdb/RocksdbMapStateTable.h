@@ -9,16 +9,13 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef OMNISTREAM_ROCKSDBMAPSTATETABLE_H
-#define OMNISTREAM_ROCKSDBMAPSTATETABLE_H
+# pragma once
 
 #include <vector>
 #include <unordered_set>
 #include <type_traits>
 #include <tuple>
-#include <functional>  // for std::hash
 #include "core/typeutils/TypeSerializer.h"
-#include "../StateTransformationFunction.h"
 #include "../internal/InternalKvState.h"
 #include "../InternalKeyContext.h"
 #include "../KeyGroupRange.h"
@@ -33,9 +30,7 @@
 #include "core/include/emhash7.hpp"
 #include "rocksdb/slice_transform.h"
 #include "rocksdb/table.h"
-#include "rocksdb/filter_policy.h"
 
-#include "../../../core/utils/MathUtils.h"
 #include "basictypes/java_util_Iterator.h"
 #include "basictypes/java_util_Map_Entry.h"
 #include "utils/VectorBatchDeserializationUtils.h"
@@ -44,6 +39,8 @@
 #include "runtime/state/DefaultConfigurableOptionsFactory.h"
 #include "common.h"
 #include <sstream>
+
+#include "RocksDbOperationUtils.h"
 
 const int FALCON_RANGE_FILTER_PARAM = 13; // default set as 13 to maximize read performance
 
@@ -576,6 +573,9 @@ public:
     }
 
     std::unordered_map<K, emhash7::HashMap<UK, UV>> entriesCache;
+    // WARNING:
+    // This function returns cached data but not fresh data (same data for the same key).
+    // If you want to get fresh data, you MUST call `clearEntriesCache()` manually before calling this method again.
     emhash7::HashMap<UK, UV>* entries(const N &nameSpace)
     {
         // auto* resultMap = new emhash7::HashMap<UK, UV>();
@@ -686,10 +686,15 @@ public:
         return it->second.size() >0 ? &it->second: nullptr;
     }
 
-    java_util_Iterator *iterator(const N &nameSpace)
-    {
+    java_util_Iterator *iterator(const N &nameSpace) {
         auto it = new RocksDBMapIterator(this, nameSpace);
         return it;
+    }
+
+    std::unique_ptr<typename MapState<UK, UV>::IteratorV2> iteratorV2(const N &nameSpace) {
+        auto keyPrefixBytes = serializeCurrentKeyWithGroupAndNamespace(nameSpace);
+        auto dataInputView = std::make_unique<DataInputDeserializer>();
+        return std::make_unique<RocksDBMapIteratorV2>(this, keyPrefixBytes, std::move(dataInputView));
     }
 
     typename InternalKvState<K, N, UV>::StateIncrementalVisitor *getStateIncrementalVisitor(
@@ -909,10 +914,8 @@ public:
     class RocksDBMapIterator : public java_util_Iterator {
     public:
         explicit RocksDBMapIterator(RocksdbMapStateTable<K, N, UK, UV> *stateTable, const N &nameSpace)
-        {
-            this->stateTable = stateTable;
-            this->nameSpace = nameSpace;
-            auto currentKey = stateTable->keyContext->getCurrentKey();
+                : nameSpace_(nameSpace), stateTable_(stateTable){
+            auto currentKey = stateTable_->keyContext->getCurrentKey();
 
             // 序列化key
             keyOutputSerializer.setBackendBuffer(&outputBufferStatus);
@@ -925,16 +928,16 @@ public:
 
             // serializer namespace
             if constexpr (std::is_pointer_v<N>) {
-                stateTable->getNamespaceSerializer()->serialize(nameSpace, keyOutputSerializer);
+                stateTable->getNamespaceSerializer()->serialize(nameSpace_, keyOutputSerializer);
             } else {
-                stateTable->getNamespaceSerializer()->serialize(&nameSpace, keyOutputSerializer);
+                stateTable->getNamespaceSerializer()->serialize(&nameSpace_, keyOutputSerializer);
             }
 
             keyPrefixBytes = ROCKSDB_NAMESPACE::Slice(reinterpret_cast<const char *>(keyOutputSerializer.getData()),
                                                       keyOutputSerializer.length());
 
             // [FALCON]------------------------------------------------------------------------------------------------
-            ROCKSDB_NAMESPACE::ReadOptions readOption = stateTable->readOptions;
+            ROCKSDB_NAMESPACE::ReadOptions readOption = stateTable_->readOptions;
             if (keyPrefixBytes.size() < FALCON_RANGE_FILTER_PARAM || currentEntry != nullptr) {
                 readOption.total_order_seek = true;
             } else {
@@ -942,7 +945,7 @@ public:
             }
             // [FALCON]------------------------------------------------------------------------------------------------
 
-            internalTableIterator = stateTable->rocksDb->NewIterator(readOption, stateTable->table);
+            internalTableIterator = stateTable_->rocksDb->NewIterator(readOption, stateTable_->table);
         }
 
         ~RocksDBMapIterator() override
@@ -1036,7 +1039,7 @@ public:
 
                 ROCKSDB_NAMESPACE::Slice key = internalTableIterator->key();
                 ROCKSDB_NAMESPACE::Slice value = internalTableIterator->value();
-                auto *entry = new RocksDBMapEntry(stateTable, keyPrefixBytes.size(), key, value);
+                auto *entry = new RocksDBMapEntry(stateTable_, keyPrefixBytes.size(), key, value);
                 cacheEntries.push_back(entry);
                 internalTableIterator->Next();
             }
@@ -1044,16 +1047,243 @@ public:
 
     protected:
         size_t CACHE_SIZE_LIMIT = 128;
-        RocksdbMapStateTable<K, N, UK, UV> *stateTable;
+        RocksdbMapStateTable<K, N, UK, UV>* stateTable_;
         bool expired = false;
         std::vector<RocksDBMapEntry*> cacheEntries;
         size_t cacheIndex = 0;
         RocksDBMapEntry *currentEntry = nullptr;
-        const N &nameSpace;
+        const N &nameSpace_;
         ROCKSDB_NAMESPACE::Slice keyPrefixBytes;
         DataOutputSerializer keyOutputSerializer;
         OutputBufferStatus outputBufferStatus;
         ROCKSDB_NAMESPACE::Iterator *internalTableIterator = nullptr;
+    };
+
+    class RocksDBMapIteratorV2;
+    class RocksDBMapEntryV2 : public omnistream::utils::Map<UK, UV>::Entry {
+        friend class RocksDBMapIteratorV2;
+    public:
+        explicit RocksDBMapEntryV2(
+                RocksdbMapStateTable<K, N, UK, UV>* stateTable,
+                const int32_t userKeyOffset,
+                std::unique_ptr<std::vector<uint8_t>> rawKeyBytes,
+                std::unique_ptr<std::vector<uint8_t>> rawValueBytes,
+                DataInputDeserializer* const dataInputView)
+                :
+                stateTable_(stateTable),
+                userKeyOffset_(userKeyOffset),
+                rawKeyBytes_(std::move(rawKeyBytes)),
+                rawValueBytes_(std::move(rawValueBytes)),
+                dataInputView_(dataInputView) {}
+
+        ~RocksDBMapEntryV2() override {
+            if constexpr (std::is_pointer_v<UK>) {
+                if (userKey_.has_value()) {
+                    delete userKey_.value();
+                }
+            }
+            if constexpr (std::is_pointer_v<UV>) {
+                if (userValue_.has_value()) {
+                    delete userValue_.value();
+                }
+            }
+        }
+
+        void remove() {
+            deleted_ = true;
+            ROCKSDB_NAMESPACE::Slice sliceKey(reinterpret_cast<const char*>(rawKeyBytes_->data()), rawKeyBytes_->size());
+            auto s = stateTable_->rocksDb->Delete(stateTable_->writeOptions, stateTable_->table, sliceKey);
+            if (!s.ok()) {
+                THROW_RUNTIME_ERROR("Error while removing data from RocksDB, status: " << s.ToString());
+            }
+        }
+
+        std::optional<UK> getKey() override {
+            if (!userKey_.has_value()) {
+                try {
+                    userKey_ = deserializeUserKey(dataInputView_, userKeyOffset_, *rawKeyBytes_, stateTable_->getUserKeySerializer());
+                } catch (const std::exception& e) {
+                    THROW_RUNTIME_ERROR("Error while deserializing the user key, error: " << e.what());
+                }
+            }
+            return userKey_;
+        }
+
+        std::optional<UV> getValue() override {
+            if (deleted_) {
+                return std::nullopt;
+            }
+
+            if (!userValue_.has_value()) {
+                try {
+                    userValue_ = deserializeUserValue(dataInputView_, *rawValueBytes_, stateTable_->getStateSerializer());
+                } catch (const std::exception& e) {
+                    THROW_RUNTIME_ERROR("Error while deserializing the user value, error: " << e.what());
+                }
+            }
+            return userValue_;
+        }
+
+        void setValue(std::optional<UV> value) override {
+            if (deleted_) {
+                THROW_RUNTIME_ERROR("The value has already been deleted.")
+            }
+            try {
+                userValue_ = value;
+                stateTable_->outputView_.clear();
+                stateTable_->outputView_.writeBoolean(userValue_.has_value());
+                if (userValue_.has_value()) {
+                    if constexpr (std::is_pointer_v<UV>) {
+                        stateTable_->getStateSerializer()->serialize(userValue_.value(), stateTable_->outputView_);
+                    } else {
+                        stateTable_->getStateSerializer()->serialize(&userValue_.value(), stateTable_->outputView_);
+                    }
+                }
+                rawValueBytes_ = std::unique_ptr<std::vector<uint8_t>>(stateTable_->outputView_.getCopyOfBuffer());
+
+                ROCKSDB_NAMESPACE::Slice sliceKey(reinterpret_cast<const char*>(rawKeyBytes_->data()), rawKeyBytes_->size());
+                ROCKSDB_NAMESPACE::Slice sliceValue(reinterpret_cast<const char*>(rawValueBytes_->data()), rawValueBytes_->size());
+                auto s = stateTable_->rocksDb->Put(stateTable_->writeOptions, stateTable_->table, sliceKey, sliceValue);
+                if (!s.ok()) {
+                    THROW_RUNTIME_ERROR("Error while putting data into RocksDB, status: " << s.ToString());
+                }
+            } catch (const std::exception& e) {
+                THROW_RUNTIME_ERROR("Error while setting value into RocksDB, error: " << e.what());
+            }
+        }
+
+    private:
+        RocksdbMapStateTable<K, N, UK, UV>* const stateTable_{};
+        const int32_t userKeyOffset_;
+        std::unique_ptr<std::vector<uint8_t>> rawKeyBytes_{};
+        std::unique_ptr<std::vector<uint8_t>> rawValueBytes_{};
+        bool deleted_ = false;
+        std::optional<UK> userKey_{};
+        std::optional<UV> userValue_{};
+        DataInputDeserializer* const dataInputView_;
+    };
+
+    class RocksDBMapIteratorV2 : public MapState<UK, UV>::IteratorV2 {
+    public:
+        explicit RocksDBMapIteratorV2(
+                RocksdbMapStateTable<K, N, UK, UV>* stateTable,
+                const std::vector<uint8_t>* const keyPrefixBytes,
+                std::unique_ptr<DataInputDeserializer> dataInputView)
+                :
+                stateTable_(stateTable),
+                keyPrefixBytes_(keyPrefixBytes),
+                keyPrefixSlice_(reinterpret_cast<const char*>(keyPrefixBytes_->data()), keyPrefixBytes_->size()),
+                dataInputView_(std::move(dataInputView)) {}
+
+        ~RocksDBMapIteratorV2() override {
+            for (size_t i = 0; i < cacheEntries_.size(); ++i) {
+                delete cacheEntries_[i];
+            }
+            delete keyPrefixBytes_;
+        }
+
+        bool hasNext() override {
+            loadCache();
+            return cacheIndex_ < cacheEntries_.size();
+        }
+
+        RocksDBMapEntryV2& next() override {
+            RocksDBMapEntryV2* entry = nextEntry();
+            return *entry;
+        }
+
+        void remove() override {
+            if (currentEntry_ == nullptr || currentEntry_->deleted_) {
+                THROW_RUNTIME_ERROR("The remove operation must be called after a valid next operation.")
+            }
+            currentEntry_->remove();
+        }
+
+        RocksDBMapEntryV2* nextEntry() {
+            loadCache();
+            if (cacheIndex_ == cacheEntries_.size()) {
+                if (!expired_) {
+                    THROW_RUNTIME_ERROR("Error while loading cache, cache is not expired but has no more cache entry.")
+                }
+                return nullptr;
+            }
+
+            currentEntry_ = cacheEntries_[cacheIndex_];
+            cacheIndex_++;
+            return currentEntry_;
+        }
+
+        void loadCache() {
+            if (cacheIndex_ > cacheEntries_.size()) {
+                THROW_RUNTIME_ERROR("Error while loading cache, cacheIndex_ > cacheEntries_.size()")
+            }
+
+            // Load cache entries only when the cache is empty and there still exist unread entries
+            if (cacheIndex_ < cacheEntries_.size() || expired_) {
+                return;
+            }
+
+            auto iterator = RocksDbOperationUtils::getRocksIterator(
+                    stateTable_->rocksDb, stateTable_->table, stateTable_->readOptions);
+
+            /*
+             * The iteration starts from the prefix bytes at the first loading. After #nextEntry() is called,
+             * the currentEntry points to the last returned entry, and at that time, we will start
+             * the iterating from currentEntry if reloading cache is needed.
+             */
+            auto* startBytes = currentEntry_ == nullptr ? keyPrefixBytes_ : currentEntry_->rawKeyBytes_.get();
+            for (size_t i = 0; i < cacheEntries_.size(); ++i) {
+                delete cacheEntries_[i];
+            }
+            cacheEntries_.clear();
+            cacheIndex_ = 0;
+
+            ROCKSDB_NAMESPACE::Slice sliceKey = ROCKSDB_NAMESPACE::Slice(reinterpret_cast<const char*>(startBytes->data()), startBytes->size());
+            iterator->seek(sliceKey);
+
+            /*
+             * If the entry pointing to the current position is not removed, it will be the first entry in the
+             * new iterating. Skip it to avoid redundant access in such cases.
+             */
+            if (currentEntry_ != nullptr && !currentEntry_->deleted_) {
+                iterator->next();
+            }
+
+            while (true) {
+                if (!iterator->isValid() || !iterator->keySlice().starts_with(keyPrefixSlice_)) {
+                    expired_ = true;
+                    break;
+                }
+
+                if (cacheEntries_.size() >= CACHE_SIZE_LIMIT) {
+                    break;
+                }
+
+                ROCKSDB_NAMESPACE::Slice key = iterator->keySlice();
+                ROCKSDB_NAMESPACE::Slice value = iterator->valueSlice();
+                auto keyBytes = std::make_unique<std::vector<uint8_t>>(key.data(), key.data() + key.size());
+                auto valueBytes = std::make_unique<std::vector<uint8_t>>(value.data(), value.data() + value.size());
+                auto* entry = new RocksDBMapEntryV2(
+                        stateTable_,
+                        keyPrefixBytes_->size(),
+                        std::move(keyBytes),
+                        std::move(valueBytes),
+                        dataInputView_.get());
+                cacheEntries_.push_back(entry);
+                iterator->next();
+            }
+        }
+
+    protected:
+        size_t CACHE_SIZE_LIMIT = 128;
+        RocksdbMapStateTable<K, N, UK, UV>* const stateTable_{};
+        const std::vector<uint8_t>* const keyPrefixBytes_{};
+        const ROCKSDB_NAMESPACE::Slice keyPrefixSlice_{};
+        bool expired_ = false;
+        std::vector<RocksDBMapEntryV2*> cacheEntries_{};
+        size_t cacheIndex_ = 0;
+        RocksDBMapEntryV2* currentEntry_{};
+        std::unique_ptr<DataInputDeserializer> dataInputView_;
     };
 
     class StateEntryIterator : public InternalKvState<K, N, UV>::StateIncrementalVisitor {
@@ -1091,7 +1321,7 @@ public:
         return &writeOptions;
     };
 
-protected:
+private:
     // Variables
     InternalKeyContext<K> *keyContext;
     TypeSerializer *keySerializer;
@@ -1105,6 +1335,7 @@ protected:
     ROCKSDB_NAMESPACE::DB* rocksDb;
     ROCKSDB_NAMESPACE::ReadOptions readOptions;
     ROCKSDB_NAMESPACE::WriteOptions writeOptions;
+    DataOutputSerializer outputView_ = DataOutputSerializer(128);
 
     ROCKSDB_NAMESPACE::Slice serializerKeyAndUserKey(DataOutputSerializer &outputSerializer, UK userKey, const N &nameSpace)
     {
@@ -1188,17 +1419,87 @@ protected:
         return ROCKSDB_NAMESPACE::Slice(reinterpret_cast<const char *>(valueOutputSerializer.getData()),
                                         valueOutputSerializer.length());
     }
+
+    static std::optional<UK> deserializeUserKey(
+        DataInputDeserializer* dataInputView,
+        int userKeyOffset,
+        const std::vector<uint8_t>& rawKeyBytes,
+        TypeSerializer* keySerializer) {
+        dataInputView->setBuffer(
+                rawKeyBytes.data(),
+                static_cast<int>(rawKeyBytes.size()),
+                userKeyOffset,
+                static_cast<int>(rawKeyBytes.size() - userKeyOffset));
+        if constexpr (std::is_pointer_v<UK>) {
+            auto userKey = static_cast<UK>(keySerializer->deserialize(*dataInputView));
+            return userKey;
+        } else {
+            UK* userKeyPtr = static_cast<UK*>(keySerializer->deserialize(*dataInputView));
+            UK userKey = std::move(*userKeyPtr);
+            if (!keySerializer->isReusable()) {
+                delete userKeyPtr;
+            }
+            return userKey;
+        }
+    }
+
+    static std::optional<UV> deserializeUserValue(
+            DataInputDeserializer* dataInputView,
+            const std::vector<uint8_t>& rawValueBytes,
+            TypeSerializer* valueSerializer) {
+        dataInputView->setBuffer(
+                rawValueBytes.data(),
+                static_cast<int>(rawValueBytes.size()),
+                0,
+                static_cast<int>(rawValueBytes.size()));
+        if (dataInputView->readBoolean()) {
+            return std::nullopt;
+        }
+
+        if constexpr (std::is_pointer_v<UV>) {
+            auto userValue = static_cast<UV>(valueSerializer->deserialize(*dataInputView));
+            return userValue;
+        } else {
+            UV* userValuePtr = static_cast<UV*>(valueSerializer->deserialize(*dataInputView));
+            UV userValue = *userValuePtr;
+            if (!valueSerializer->isReusable()) {
+                delete userValuePtr;
+            }
+            return userValue;
+        }
+    }
+
+    std::vector<uint8_t>* serializeCurrentKeyWithGroupAndNamespace(const N &nameSpace) {
+        // todo: This function differs from original Flink and may need to be modified
+        auto currentKey = keyContext->getCurrentKey();
+        outputView_.clear();
+        outputView_.writeByte(static_cast<uint32_t>(keyContext->getCurrentKeyGroupIndex()));
+        if constexpr (std::is_pointer_v<K>) {
+            getKeySerializer()->serialize(currentKey, outputView_);
+        } else {
+            getKeySerializer()->serialize(&currentKey, outputView_);
+        }
+        if constexpr (std::is_pointer_v<N>) {
+            getNamespaceSerializer()->serialize(nameSpace, outputView_);
+        } else {
+            getNamespaceSerializer()->serialize(&nameSpace, outputView_);
+        }
+
+        return outputView_.getCopyOfBuffer();
+    }
 };
 
 template<typename K, typename N, typename UK, typename UV>
-RocksdbMapStateTable<K, N, UK, UV>::RocksdbMapStateTable(InternalKeyContext<K> *keyContext,
-    std::unique_ptr<RegisteredKeyValueStateBackendMetaInfo> metaInfo,
-    TypeSerializer *keySerializer, TypeSerializer *userKeySerializer)
-{
-    this->keyContext = keyContext;
-    this->metaInfo = std::move(metaInfo);
-    this->keySerializer = keySerializer;
-    this->userKeySerializer = userKeySerializer;
+RocksdbMapStateTable<K, N, UK, UV>::RocksdbMapStateTable(
+        InternalKeyContext<K> *keyContext,
+        std::unique_ptr<RegisteredKeyValueStateBackendMetaInfo> metaInfo,
+        TypeSerializer *keySerializer,
+        TypeSerializer *userKeySerializer)
+        :
+        keyContext(keyContext),
+        metaInfo(std::move(metaInfo)),
+        keySerializer(keySerializer),
+        userKeySerializer(userKeySerializer){
     writeOptions.disableWAL = true;
 }
 
@@ -1220,5 +1521,3 @@ std::vector<std::tuple<K, N>> *RocksdbMapStateTable<K, N, UK, UV>::getKeysAndNam
 {
     return nullptr;
 }
-
-#endif // OMNISTREAM_ROCKSDBMAPSTATETABLE_H

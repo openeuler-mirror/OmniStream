@@ -82,6 +82,9 @@ public:
     // for DataStream used.
     java_util_Iterator* iterator() override;
 
+    // for common scenario
+    std::unique_ptr<typename MapState<UK, UV>::IteratorV2> iteratorV2() override;
+
     void addVectorBatch(omnistream::VectorBatch* vectorBatch) override;
     omnistream::VectorBatch *getVectorBatch(int batchId) override;
     long getVectorBatchesSize() override;
@@ -154,6 +157,11 @@ java_util_Iterator* RocksdbMapState<K, N, UK, UV>::iterator() {
     } else {
         THROW_LOGIC_EXCEPTION("type is not Object in RocksdbMapState::iterator()")
     }
+}
+
+template<typename K, typename N, typename UK, typename UV>
+std::unique_ptr<typename MapState<UK, UV>::IteratorV2> RocksdbMapState<K, N, UK, UV>::iteratorV2() {
+    return stateTable->iteratorV2(currentNamespace);
 }
 
 template<typename K, typename N, typename UK, typename UV>

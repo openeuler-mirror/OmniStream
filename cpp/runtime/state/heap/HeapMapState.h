@@ -95,6 +95,11 @@ public:
     // for DataStream used
     java_util_Iterator* iterator() override;
 
+    // for common scenario
+    class HeapMapEntryV2;
+    class HeapMapIteratorV2;
+    std::unique_ptr<typename MapState<UK, UV>::IteratorV2> iteratorV2() override;
+
     void addVectorBatch(omnistream::VectorBatch* vectorBatch) override;
 
 private:
@@ -145,6 +150,61 @@ java_util_Iterator* HeapMapState<K, N, UK, UV>::iterator()
     } else {
         THROW_LOGIC_EXCEPTION("type is not Object in HeapMapState::iterator()")
     }
+}
+
+template<typename K, typename N, typename UK, typename UV>
+class HeapMapState<K, N, UK, UV>::HeapMapEntryV2 : public MapState<UK, UV>::MapEntryV2 {
+    friend class HeapMapIteratorV2;
+public:
+    HeapMapEntryV2() = default;
+    explicit HeapMapEntryV2(typename emhash7::HashMap<UK, UV>::Iterator iter) : currentIterator_(iter) {}
+
+    std::optional<UK> getKey() override { return currentIterator_->first; }
+    std::optional<UV> getValue() override { return currentIterator_->second; }
+
+    void setValue(std::optional<UV> value) override {
+        if (value.has_value()) {
+            currentIterator_->second = value.value();
+        } else {
+            THROW_RUNTIME_ERROR("setValue() called with empty value.")
+        }
+    }
+
+private:
+    typename emhash7::HashMap<UK, UV>::Iterator currentIterator_;
+};
+
+template<typename K, typename N, typename UK, typename UV>
+class HeapMapState<K, N, UK, UV>::HeapMapIteratorV2 : public MapState<UK, UV>::IteratorV2 {
+public:
+    explicit HeapMapIteratorV2(emhash7::HashMap<UK, UV>* userMap) :
+            userMap_(userMap),
+            currentIterator_(userMap_ != nullptr ? userMap_->begin() : typename emhash7::HashMap<UK, UV>::Iterator()) {}
+
+    bool hasNext() override {
+        return userMap_ && currentIterator_ != userMap_->end();
+    }
+
+    HeapMapEntryV2& next() override {
+        if (!hasNext()) {
+            THROW_RUNTIME_ERROR("No more elements in the iterator.");
+        }
+        cacheEntry_ = HeapMapEntryV2(currentIterator_);
+        ++currentIterator_;
+        return cacheEntry_;
+    }
+
+private:
+    emhash7::HashMap<UK, UV>* userMap_{};
+    typename emhash7::HashMap<UK, UV>::Iterator currentIterator_{};
+    HeapMapEntryV2 cacheEntry_{};
+};
+
+template<typename K, typename N, typename UK, typename UV>
+std::unique_ptr<typename MapState<UK, UV>::IteratorV2> HeapMapState<K, N, UK, UV>::iteratorV2() {
+    auto *userMap = stateTable->get(currentNamespace);
+    auto iterator = std::make_unique<HeapMapIteratorV2>(userMap);
+    return iterator;
 }
 
 template<typename K, typename N, typename UK, typename UV>

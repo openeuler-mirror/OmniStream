@@ -21,9 +21,13 @@ void MergingWindowSet<K, W>::InitializeCache(const K& key) {
     auto cache = cachedSortedWindows.get(key);
     if (!cache) {
         sortedWindows = new std::set<W>;
-        if (mapping->entries() != nullptr) {
-            for (const auto& i: *mapping->entries()) {
-                sortedWindows->emplace(i.first);
+        auto iter = mapping->iteratorV2();
+        while (iter->hasNext()) {
+            auto& entry = iter->next();
+            if (entry.getKey().has_value()) {
+                sortedWindows->emplace(entry.getKey().value());
+            } else {
+                THROW_RUNTIME_ERROR("Iterator return an entry with empty key.")
             }
         }
         cachedSortedWindows.put(key, sortedWindows);
