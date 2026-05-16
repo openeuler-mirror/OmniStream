@@ -101,6 +101,9 @@ public:
     void writeToFile(std::string &filename, std::ios_base::openmode mode = std::ios::out,
                      std::vector<std::pair<int32_t, int32_t>> decimalInfo = {},
                      std::vector<std::string> inputTypes = {}, const std::string &tzStr = "Asia/Shanghai") const;
+    void convertToJson(nlohmann::ordered_json &j, int rowIndex, std::vector<std::pair<int32_t, int32_t>> decimalInfo,
+                                    std::vector<std::string> inputTypes, std::vector<std::string> inputFields) const;
+
     std::string TransformTime(int vectorID, int rowID, int precision = 3) const;
     std::string TransformTimeWithTimeZone(int vectorID, int rowID, const std::string &tzStr, int precision = 3) const;
     std::string transformDecimal128(
