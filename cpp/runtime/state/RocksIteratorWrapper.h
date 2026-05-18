@@ -163,12 +163,27 @@ public:
     }
 
     /**
+    * 获取当前键
+    * @return Slice
+    */
+    rocksdb::Slice keySlice() {
+        return iterator->key();
+    }
+
+    /**
      * 获取当前值
      * @return 字符串视图（拷贝）
      */
-    std::string value()
-    {
+    std::string value() {
         return iterator->value().ToString();
+    }
+
+    /**
+     * 获取当前值
+     * @return Slice
+     */
+    rocksdb::Slice valueSlice() {
+        return iterator->value();
     }
 
     /**

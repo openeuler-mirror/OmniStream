@@ -9,13 +9,13 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef OMNISTREAM_LRUMAP_H
-#define OMNISTREAM_LRUMAP_H
+#pragma once
+
 #include <list>
 #include <optional>
 #include <emhash7.hpp>
 
-template <typename K, typename V>
+template <typename K, typename V, typename KHash=std::hash<K>, typename KEqual=std::equal_to<K>>
 class LRUMap {
 public:
     LRUMap() {
@@ -28,8 +28,7 @@ public:
         }
     }
 
-    std::optional<V> get(const K& key)
-    {
+    std::optional<V> get(const K& key) {
         auto mapIt = cacheMap_.find(key);
         if (mapIt == cacheMap_.end()) {
             return std::nullopt;
@@ -38,8 +37,7 @@ public:
         return mapIt->second.second;
     }
 
-    void put(const K& key, const V& value)
-    {
+    void put(const K& key, const V& value) {
         auto mapIt = cacheMap_.find(key);
         if (mapIt != cacheMap_.end()) {
             cacheList_.splice(cacheList_.begin(), cacheList_, mapIt->second.first);
@@ -47,8 +45,16 @@ public:
         } else {
             if (cacheList_.size() >= capacity_) {
                 // delete least recently used element in the end
-                K lruKey = cacheList_.back();
-                cacheMap_.erase(lruKey);
+                auto& lruKey = cacheList_.back();
+                auto lruMapIt = cacheMap_.find(lruKey);
+                if (lruMapIt != cacheMap_.end()) {
+                    if constexpr (std::is_pointer_v<V>) {
+                        delete lruMapIt->second.second;
+                    }
+                    cacheMap_.erase(lruMapIt);
+                } else {
+                    THROW_RUNTIME_ERROR("LRU key not found in cache map")
+                }
                 cacheList_.pop_back();
             }
             // insert new element at front
@@ -60,7 +66,5 @@ public:
 private:
     size_t capacity_ = 1024;
     std::list<K> cacheList_;
-    emhash7::HashMap<K, std::pair<typename std::list<K>::iterator, V>> cacheMap_;
+    emhash7::HashMap<K, std::pair<typename std::list<K>::iterator, V>, KHash, KEqual> cacheMap_;
 };
-
-#endif
