@@ -141,6 +141,7 @@ SlicingWindowOperator<K, W>::SlicingWindowOperator(SlicingWindowProcessor<W> *wi
 template <typename K, typename W>
 void SlicingWindowOperator<K, W>::open()
 {
+    INFO_RELEASE("SlicingWindowOperator open");
     TableStreamOperator<RowData*>::open();
     lastTriggeredProcessingTime = std::numeric_limits<int64_t>::min();
     StreamingRuntimeContext<K> *runtimeCtx = getRuntimeContext();
