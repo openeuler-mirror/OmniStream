@@ -13,12 +13,12 @@
 #ifdef WITH_OMNISTATESTORE
 
 #include "api/common/state/MapState.h"
-#include "runtime/state/internal/InternalMapState.h"
 #include "BssMapStateTable.h"
 #include "api/common/state/StateDescriptor.h"
+#include "state/internal/InternalKvState.h"
 
 template<typename K, typename N, typename UK, typename UV>
-class BssMapState : public InternalMapState<K, N, UK, UV> {
+class BssMapState : public MapState<UK, UV>, public InternalKvState<K, N, emhash7::HashMap<UK, UV> *> {
 public:
     BssMapState(BssMapStateTable<K, N, UK, UV> *stateTable, TypeSerializer *keySerializer,
         TypeSerializer *valueSerializer, TypeSerializer *namespaceSerializer) : stateTable(stateTable),

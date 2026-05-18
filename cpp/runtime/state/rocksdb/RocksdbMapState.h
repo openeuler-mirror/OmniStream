@@ -20,11 +20,10 @@
 #include "state/RocksIteratorWrapper.h"
 #include "state/RocksDBWriteBatchWrapper.h"
 #include "RocksDbOperationUtils.h"
-#include "runtime/state/internal/InternalMapState.h"
 
 // The state is a map. in the InternalKvState, the state is stored as a pointer to emhash7
 template<typename K, typename N, typename UK, typename UV>
-class RocksdbMapState : public InternalMapState<K, N, UK, UV> {
+class RocksdbMapState : public MapState<UK, UV>, public InternalKvState<K, N, emhash7::HashMap<UK, UV> *> {
 public:
     RocksdbMapState(RocksdbMapStateTable<K, N, UK, UV> *stateTable, TypeSerializer *keySerializer,
             TypeSerializer *valueSerializer, TypeSerializer *namespaceSerializer);

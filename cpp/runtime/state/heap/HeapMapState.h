@@ -18,11 +18,10 @@
 #include "StateTable.h"
 #include "table/data/vectorbatch/VectorBatch.h"
 #include "basictypes/java_util_HashMap.h"
-#include "runtime/state/internal/InternalMapState.h"
 
 // The state is a map. in the InternalKvState, the state is stored as a pointer to emhash7
 template<typename K, typename N, typename UK, typename UV>
-class HeapMapState : public InternalMapState<K, N, UK, UV> {
+class HeapMapState : public MapState<UK, UV>, public InternalKvState<K, N, emhash7::HashMap<UK, UV> *> {
 public:
     HeapMapState(StateTable<K, N, emhash7::HashMap<UK, UV>* > *stateTable, TypeSerializer *keySerializer,
                  TypeSerializer *valueSerializer, TypeSerializer *namespaceSerializer);
