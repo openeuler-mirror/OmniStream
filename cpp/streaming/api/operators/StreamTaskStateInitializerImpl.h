@@ -131,7 +131,7 @@ public:
         InternalTimeServiceManager<K> *timeServiceManager = nullptr;
         if (keyedStatedBackend != nullptr) {
             int maxNumberOfSubtasks = taskInfo.getMaxNumberOfSubtasks();
-            auto rawKeyedStateHandles = collectRawKeyedStateHandles();
+            auto rawKeyedStateHandles = collectRawKeyedStateHandles(operatorID);
             auto omniTaskBridge = env != nullptr && env->getTaskStateManager() != nullptr
                 ? env->getTaskStateManager()->getOmniTaskBridge()
                 : nullptr;
@@ -184,24 +184,30 @@ private:
         int parallelism,
         int operatorIndex);
 
-    std::vector<std::shared_ptr<KeyedStateHandle>> collectRawKeyedStateHandles();
+    std::vector<std::shared_ptr<KeyedStateHandle>> collectRawKeyedStateHandles(OperatorID *operatorID = nullptr);
 
     StateBackend *stateBackend;
     omnistream::EnvironmentV2 *env;
 };
 
 inline std::vector<std::shared_ptr<KeyedStateHandle>>
-StreamTaskStateInitializerImpl::collectRawKeyedStateHandles()
+StreamTaskStateInitializerImpl::collectRawKeyedStateHandles(OperatorID *operatorID)
 {
     std::vector<std::shared_ptr<KeyedStateHandle>> result;
     if (env == nullptr || env->getTaskStateManager() == nullptr) {
         return result;
     }
 
-    auto operatorIdStr = env->taskConfiguration().getStreamConfigPOD().getOperatorDescription().getOperatorId();
-    auto operatorId = TaskStateSnapshotDeserializer::HexStringToOperatorId<OperatorID>(operatorIdStr);
-    PrioritizedOperatorSubtaskState prioritizedOperatorSubtaskStates =
-        env->getTaskStateManager()->prioritizedOperatorState(operatorId);
+    PrioritizedOperatorSubtaskState prioritizedOperatorSubtaskStates;
+    std::string operatorIdStr;
+    if (operatorID) {
+        operatorIdStr = operatorID->toString();
+        prioritizedOperatorSubtaskStates = env->getTaskStateManager()->prioritizedOperatorState(*operatorID);
+    } else {
+        operatorIdStr = env->taskConfiguration().getStreamConfigPOD().getOperatorDescription().getOperatorId();
+        auto operatorId = TaskStateSnapshotDeserializer::HexStringToOperatorId<OperatorID>(operatorIdStr);
+        prioritizedOperatorSubtaskStates = env->getTaskStateManager()->prioritizedOperatorState(operatorId);
+    }
 
     const auto &handleVector = prioritizedOperatorSubtaskStates.getPrioritizedRawKeyedState();
     for (const auto &collection : handleVector) {
