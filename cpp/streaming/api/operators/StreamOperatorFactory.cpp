@@ -65,7 +65,7 @@ StreamOperator *StreamOperatorFactory::createOperatorAndCollector(omnistream::Op
 {
     // NOT_IMPL_EXCEPTION
     auto uniqueName = opConfig.getUniqueName();
-    LOG("getUniqueName :" + uniqueName)
+    INFO_RELEASE("getUniqueName :" + uniqueName)
 
 if (uniqueName == OPERATOR_NAME_STREAM_EXPAND) {
     auto *execExpand = new StreamExpand(opConfig.getDescription(), chainOutput);
@@ -145,7 +145,7 @@ if (uniqueName == OPERATOR_NAME_STREAM_EXPAND) {
         auto *processor = new AbstractWindowAggProcessor(opConfig.getDescription(), chainOutput);
         auto *op = new SlicingWindowOperator<RowData *, int64_t>(processor, opConfig.getDescription());
         op->setup();
-        LOG("Operator SlicingWindowOperator address " + std::to_string(reinterpret_cast<long>(op)));
+        INFO_RELEASE("Operator SlicingWindowOperator address " + std::to_string(reinterpret_cast<long>(op)));
         return static_cast<OneInputStreamOperator *>(op);
     } else if (opConfig.getUniqueName() == OPERATOR_NAME_GROUP_WINDOW_AGG) {
         auto *op = new AggregateWindowOperator<RowData*, TimeWindow>(opConfig.getDescription(), chainOutput);
