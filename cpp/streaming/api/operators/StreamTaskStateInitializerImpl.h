@@ -426,7 +426,7 @@ inline OperatorStateBackend* StreamTaskStateInitializerImpl::operatorStateBacken
                             stateHandles));
                 }
                 auto hashMapStateBackend = dynamic_cast<HashMapStateBackend*>(this->stateBackend);
-                if (hashMapStateBackend == nullptr) {
+                if (hashMapStateBackend) {
                     return reinterpret_cast<OperatorStateBackend*>(
                         hashMapStateBackend->createOperatorStateBackend(
                             env,
