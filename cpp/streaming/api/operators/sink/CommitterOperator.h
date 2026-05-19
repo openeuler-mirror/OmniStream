@@ -53,7 +53,6 @@ public:
         bool isCheckpointingEnabled)
         : isBatchMode(isBatchMode),
           isCheckpointingEnabled(isCheckpointingEnabled) {
-        INFO_RELEASE("savepoint: CommitterOperator constructor with processingTimeService");
         setProcessingTimeService(processingTimeService);
         isDataStream = false;
         endOfInput = false;
@@ -70,7 +69,6 @@ public:
         : emitDownstream(emitDownstream),
           isBatchMode(isBatchMode),
           isCheckpointingEnabled(isCheckpointingEnabled) {
-        INFO_RELEASE("savepoint: CommitterOperator constructor");
         isDataStream = false;
         endOfInput = false;
         committableCollectorState_ = nullptr;
@@ -80,7 +78,6 @@ public:
 
     explicit CommitterOperator(bool isBatch)
         : isDataStream(!isBatch) {
-        INFO_RELEASE("savepoint: CommitterOperator constructor isBatch: "<< isBatch);
         endOfInput = false;
         isBatchMode = false;
         isCheckpointingEnabled = false;
@@ -89,7 +86,6 @@ public:
     }
 
     void setup(std::shared_ptr<omnistream::OmniStreamTask> task) {
-        INFO_RELEASE("savepoint: CommitterOperator setup");
         AbstractStreamOperator<void*>::setup(task);
         if (task != nullptr && task->env() != nullptr) {
             int subtaskId = task->env()->taskConfiguration().getIndexOfSubtask();
@@ -99,13 +95,12 @@ public:
     }
 
     void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) override {
-        INFO_RELEASE("savepoint: CommitterOperator initializeState with initializer");
+        INFO_RELEASE("savepoint: CommitterOperator initializeState with initializer, operatorID: "<< OneInputStreamOperator::GetOperatorID().toString());
         AbstractStreamOperator<void*>::SetOperatorID(OneInputStreamOperator::GetOperatorID().toString());
         AbstractStreamOperator<void*>::initializeState(initializer, keySerializer);
     }
 
     void initializeState(StateInitializationContextImpl<void*>* context) override {
-        INFO_RELEASE("savepoint: CommitterOperator initializeState with context, isRestored: " << context->isRestored());
         AbstractStreamOperator<void*>::initializeState(context);
 
         auto* stateBackend = static_cast<DefaultOperatorStateBackend*>(context->getOperatorStateBackend());
@@ -133,13 +128,11 @@ public:
             if (restoredCheckpointId.has_value()) {
                 lastCompletedCheckpointId = static_cast<long>(restoredCheckpointId.value());
             }
-            INFO_RELEASE("savepoint: CommitterOperator restored from checkpoint: " << lastCompletedCheckpointId);
             commitAndEmitCheckpoints();
         }
     }
 
     void snapshotState(StateSnapshotContextSynchronousImpl* context) override {
-        INFO_RELEASE("savepoint: CommitterOperator snapshotState checkpointId: " << context->getCheckpointId());
         AbstractStreamOperator<void*>::snapshotState(context);
 
         if (committableCollectorState_ != nullptr) {
@@ -148,7 +141,6 @@ public:
     }
 
     void EndInput() {
-        INFO_RELEASE("savepoint: CommitterOperator EndInput");
         endOfInput = true;
         if (!isCheckpointingEnabled || isBatchMode) {
             notifyCheckpointComplete(std::numeric_limits<long>::max());
@@ -156,7 +148,6 @@ public:
     }
 
     void notifyCheckpointComplete(long checkpointId) override {
-        INFO_RELEASE("savepoint: CommitterOperator notifyCheckpointComplete checkpointId: " << checkpointId);
         AbstractStreamOperator<void*>::notifyCheckpointComplete(checkpointId);
 
         if (endOfInput) {
@@ -168,7 +159,6 @@ public:
     }
 
     void processElement(StreamRecord &element) {
-        INFO_RELEASE("savepoint: CommitterOperator processElement");
         auto message = reinterpret_cast<CommittableMessage<CommT>*>(element.getValue());
         committableCollector->AddMessage(*message);
 
@@ -179,7 +169,6 @@ public:
     }
 
     void processElement(StreamRecord *record) override {
-        INFO_RELEASE("savepoint: CommitterOperator processElement record");
         if (record == nullptr) {
             return;
         }
@@ -193,7 +182,6 @@ public:
     }
 
     void processBatch(StreamRecord *record) override {
-        INFO_RELEASE("savepoint: CommitterOperator processBatch record");
     }
 
     const char* getName() override {
@@ -201,19 +189,18 @@ public:
     }
 
     void ProcessWatermark(Watermark *watermark) override {
-        INFO_RELEASE("savepoint: CommitterOperator ProcessWatermark watermark: ");
     }
 
     void processWatermarkStatus(WatermarkStatus *watermarkStatus) override {
-        INFO_RELEASE("savepoint: CommitterOperator processWatermarkStatus watermarkStatus: ");
     }
 
     void close() override {
-        INFO_RELEASE("savepoint: CommitterOperator close");
+
         if (committer != nullptr) {
             committer->Close();
         }
-        AbstractStreamOperator<void*>::close();
+        //todo 补全close逻辑
+        // AbstractStreamOperator<void*>::close();
     }
 
     void OnProcessingTime(int64_t timestamp) override {
@@ -243,8 +230,6 @@ public:
 
 private:
     void commitAndEmitCheckpoints() {
-        INFO_RELEASE("savepoint: CommitterOperator commitAndEmitCheckpoints, lastCompletedCheckpointId: " << lastCompletedCheckpointId);
-
         bool committed = false;
         do {
             auto managers = committableCollector->getChkComUp(lastCompletedCheckpointId);
@@ -265,8 +250,6 @@ private:
     }
 
     void commitAndEmit(std::shared_ptr<CheckpointCommittableManager<CommT>> committableManager, bool fullyReceived) {
-        INFO_RELEASE("savepoint: CommitterOperator commitAndEmit, checkpointId: " << committableManager->GetCheckpointId()
-                  << ", fullyReceived: " << fullyReceived);
 
         auto committables = committableManager->commit(fullyReceived, *committer);
 
@@ -282,8 +265,6 @@ private:
     }
 
     void retryWithDelay() {
-        INFO_RELEASE("savepoint: CommitterOperator retryWithDelay");
-
         ProcessingTimeService* service = getProcessingTimeService();
         long scheduledTime = service->getCurrentProcessingTime() + RETRY_DELAY;
         service->registerTimer(scheduledTime, this);

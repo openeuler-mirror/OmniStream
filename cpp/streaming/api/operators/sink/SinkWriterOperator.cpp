@@ -12,6 +12,11 @@
 #include "SinkWriterOperator.h"
 #include "streaming/api/operators/sink/SinkV1WriterCommittableSerializer.h"
 
+namespace {
+    std::string streamingCommitterRawStatesName = "streaming_committer_raw_states";
+    BytePrimitiveArraySerializer* byteArraySerializer = new BytePrimitiveArraySerializer(nullptr);
+}
+
 // 静态成员初始化
 ListStateDescriptor<std::vector<uint8_t>> SinkWriterOperator::STREAMING_COMMITTER_RAW_STATES_DESC(
         streamingCommitterRawStatesName, new BytePrimitiveArraySerializer(nullptr));
@@ -48,6 +53,22 @@ SinkWriterOperator::SinkWriterOperator(KafkaSink* kafkaSink,
 }
 
 void SinkWriterOperator::open() {
+}
+
+void SinkWriterOperator::close() {
+    INFO_RELEASE("savepoint: SinkWriterOperator close START");
+    if (!endOfInput) {
+        EndInput();
+    }
+    delete writerStateHandler;
+    writerStateHandler = nullptr;
+    delete committableSerializer;
+    committableSerializer = nullptr;
+    delete kafkaSink;
+    kafkaSink = nullptr;
+    // todo 补全close逻辑
+    // AbstractStreamOperator<void*>::close();
+    INFO_RELEASE("savepoint: SinkWriterOperator close END");
 }
 
 RowData* SinkWriterOperator::getOutputEntireRow(omnistream::VectorBatch *vecBatch, int rowId)
@@ -134,6 +155,7 @@ void SinkWriterOperator::processWatermarkStatus(WatermarkStatus *watermarkStatus
 
 void SinkWriterOperator::initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer)
 {
+    INFO_RELEASE("savepoint: SinkWriterOperator initializeState with initializer, operatorID: " << OneInputStreamOperator::GetOperatorID().toString());
     AbstractStreamOperator::SetOperatorID(OneInputStreamOperator::GetOperatorID().toString());
     AbstractStreamOperator<void*>::initializeState(initializer, keySerializer);
     subtaskIndex = initializer->getEnvironment()->taskConfiguration().getIndexOfSubtask();
@@ -143,7 +165,6 @@ void SinkWriterOperator::initializeState(StreamTaskStateInitializerImpl *initial
 // initializeState方法实现
 void SinkWriterOperator::initializeState(StateInitializationContextImpl<void*>* context) {
     // 调用父类方法
-    INFO_RELEASE("savepoint: SinkWriterOperator initializeState")
     AbstractStreamOperator<void*>::initializeState(context);
     
     // 获取恢复的检查点ID
@@ -161,11 +182,6 @@ void SinkWriterOperator::initializeState(StateInitializationContextImpl<void*>* 
 
             // 获取原始状态
             auto rawState = operatorStateBackend->getListState<std::vector<uint8_t>>(&SinkWriterOperator::STREAMING_COMMITTER_RAW_STATES_DESC);
-            
-            // 创建版本化列表状态 - 使用 KafkaCommittable 类型
-            // SimpleVersionedListState<KafkaCommittable> legacyCommitterState(
-            //         std::shared_ptr<ListState<std::vector<uint8_t>>>(rawState),
-            //         std::shared_ptr<SimpleVersionedSerializer<KafkaCommittable>>(committableSerializer, [](SimpleVersionedSerializer<KafkaCommittable>*){}));
 
             auto sinkV1 = std::make_shared<SinkV1WriterCommittableSerializer<KafkaCommittable>>(
                 std::shared_ptr<SimpleVersionedSerializer<KafkaCommittable>>(committableSerializer));

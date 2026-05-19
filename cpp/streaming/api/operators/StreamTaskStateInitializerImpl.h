@@ -125,7 +125,7 @@ public:
         // This KeyedStateBackend is a function name, not the base class. See function below.
         keyedStatedBackend = this->keyedStatedBackend<K>(keySerializer, taskInfo.getMaxNumberOfSubtasks(),
                                         taskInfo.getNumberOfSubtasks(), taskInfo.getIndexOfSubtask(),
-                                        taskInfo.getStateBackend(), operatorIdentifierText);
+                                        taskInfo.getStateBackend(), operatorIdentifierText, operatorID);
         osBackend = operatorStateBackend(operatorIdentifierText, operatorID);
 
         InternalTimeServiceManager<K> *timeServiceManager = nullptr;
@@ -158,14 +158,15 @@ protected:
     template<typename K>
     AbstractKeyedStateBackend<K> *
     keyedStatedBackend(TypeSerializer *keySerializer, int maxParallelism, int parallelism, int operatorIndex,
-                       std::string backendType, std::string operatorIdentifierText);
+                       std::string backendType, std::string operatorIdentifierText, OperatorID *operatorID);
 
     // This is the one for restore
     template <typename K>
     CheckpointableKeyedStateBackend<K> *keyedStatedBackend(
         TypeSerializer *keySerializer,
         std::string operatorIdentifierText,
-        MetricGroup *metricGroup);
+        MetricGroup *metricGroup,
+        OperatorID *operatorID);
 
     OperatorStateBackend* operatorStateBackend(std::string operatorIdentifierText, OperatorID *operatorID);
 
@@ -241,7 +242,8 @@ AbstractKeyedStateBackend<K> *StreamTaskStateInitializerImpl::keyedStatedBackend
 
 template<typename K>
 AbstractKeyedStateBackend<K> *StreamTaskStateInitializerImpl::keyedStatedBackend(TypeSerializer *keySerializer,
-    int maxParallelism, int parallelism, int operatorIndex, std::string backendType, std::string operatorIdentifierText)
+    int maxParallelism, int parallelism, int operatorIndex, std::string backendType, std::string operatorIdentifierText,
+    OperatorID *operatorID)
 {
     if (keySerializer == nullptr) {
         return nullptr;
@@ -278,11 +280,16 @@ AbstractKeyedStateBackend<K> *StreamTaskStateInitializerImpl::keyedStatedBackend
         }
 
         // Retrieve state handles from checkpoint for restore
-        auto operatorIdStr = env->taskConfiguration().getStreamConfigPOD().getOperatorDescription().getOperatorId();
-        auto operatorId = TaskStateSnapshotDeserializer::HexStringToOperatorId<OperatorID>(operatorIdStr);
-        PrioritizedOperatorSubtaskState prioritizedOperatorSubtaskStates =
-            taskStateManager->prioritizedOperatorState(operatorId);
-
+        PrioritizedOperatorSubtaskState prioritizedOperatorSubtaskStates;
+        std::string operatorIdStr;
+        if (operatorID) {
+            operatorIdStr = operatorID->toString();
+            prioritizedOperatorSubtaskStates = taskStateManager->prioritizedOperatorState(*operatorID);
+        } else {
+            operatorIdStr = env->taskConfiguration().getStreamConfigPOD().getOperatorDescription().getOperatorId();
+            auto operatorId = TaskStateSnapshotDeserializer::HexStringToOperatorId<OperatorID>(operatorIdStr);
+            prioritizedOperatorSubtaskStates = taskStateManager->prioritizedOperatorState(operatorId);
+        }
         // Extract keyed state handles for restore
         auto handleVector = prioritizedOperatorSubtaskStates.getPrioritizedManagedKeyedState();
         // 诊断：把 handleVector 的层级数量、每层 handle 数（含 null 与非 null）、最终筛出的 stateHandles 数量都打出来。
@@ -322,7 +329,8 @@ AbstractKeyedStateBackend<K> *StreamTaskStateInitializerImpl::keyedStatedBackend
     } else if (backendType == "EmbeddedRocksDBStateBackend") {
         return static_cast<AbstractKeyedStateBackend<K> *>(keyedStatedBackend<K>(keySerializer,
                                                                                  operatorIdentifierText,
-                                                                                 nullptr));
+                                                                                 nullptr,
+                                                                                 operatorID));
     }
 #ifdef WITH_OMNISTATESTORE
     if (backendType == "EmbeddedOckStateBackend") {
@@ -334,7 +342,8 @@ AbstractKeyedStateBackend<K> *StreamTaskStateInitializerImpl::keyedStatedBackend
 }
 
 template <typename K>
-inline CheckpointableKeyedStateBackend<K> *StreamTaskStateInitializerImpl::keyedStatedBackend(TypeSerializer *keySerializer, std::string operatorIdentifierText, MetricGroup *metricGroup)
+inline CheckpointableKeyedStateBackend<K> *StreamTaskStateInitializerImpl::keyedStatedBackend(
+    TypeSerializer *keySerializer, std::string operatorIdentifierText, MetricGroup *metricGroup, OperatorID *operatorID)
 {
     if (keySerializer == nullptr) {
         return nullptr;
@@ -344,7 +353,12 @@ inline CheckpointableKeyedStateBackend<K> *StreamTaskStateInitializerImpl::keyed
 
     auto taskInfo = env->taskConfiguration();
 
-    PrioritizedOperatorSubtaskState prioritizedOperatorSubtaskStates = getPrioritizedOperatorSubtaskStates();
+    PrioritizedOperatorSubtaskState prioritizedOperatorSubtaskStates;
+    if (operatorID) {
+        prioritizedOperatorSubtaskStates = env->getTaskStateManager()->prioritizedOperatorState(*operatorID);
+    } else {
+        prioritizedOperatorSubtaskStates = getPrioritizedOperatorSubtaskStates();
+    }
 
     KeyGroupRange *keyGroupRange = computeKeyGroupRangeForOperatorIndex(
         taskInfo.getMaxNumberOfSubtasks(),
@@ -401,13 +415,9 @@ inline OperatorStateBackend* StreamTaskStateInitializerImpl::operatorStateBacken
     auto backendRestorer = new BackendRestorerProcedure<OperatorStateBackend*, std::shared_ptr<OperatorStateHandle>>(
             [this, operatorIdentifierText](std::set<std::shared_ptr<OperatorStateHandle>> stateHandles, int alternativeIdx) {
                 bool isStateBackendNull = (this->stateBackend == nullptr);
-                INFO_RELEASE("savepoint: operatorStateBackend stateBackend isNull: " << std::string(isStateBackendNull ? "true" : "false")
-                    << ", type: " << (isStateBackendNull ? "null" : typeid(*this->stateBackend).name()));
 
                 auto embeddedRocksDBStateBackend = dynamic_cast<EmbeddedRocksDBStateBackend*>(this->stateBackend);
-                if (embeddedRocksDBStateBackend == nullptr) {
-                    INFO_RELEASE("savepoint: StreamOperatorStateContextImpl::operatorStateBackend backendRestorer embeddedRocksDBStateBackend null");
-                }else{
+                if (embeddedRocksDBStateBackend) {
                     INFO_RELEASE("savepoint: StreamOperatorStateContextImpl::operatorStateBackend backendRestorer embeddedRocksDBStateBackend not null");
                     return reinterpret_cast<OperatorStateBackend*>(
                         embeddedRocksDBStateBackend->createOperatorStateBackend(
@@ -416,16 +426,13 @@ inline OperatorStateBackend* StreamTaskStateInitializerImpl::operatorStateBacken
                             stateHandles));
                 }
                 auto hashMapStateBackend = dynamic_cast<HashMapStateBackend*>(this->stateBackend);
-                if (hashMapStateBackend == nullptr) {
-                }else{
-                    INFO_RELEASE("savepoint: StreamOperatorStateContextImpl::operatorStateBackend backendRestorer hashMapStateBackend not null");
+                if (hashMapStateBackend) {
                     return reinterpret_cast<OperatorStateBackend*>(
                         hashMapStateBackend->createOperatorStateBackend(
                             env,
                             operatorIdentifierText,
                             stateHandles));
                 }
-                INFO_RELEASE("savepoint: operatorStateBackend backendRestorer no match for stateBackend type, returning nullptr");
             },
             logDescription);
 
@@ -437,8 +444,6 @@ inline OperatorStateBackend* StreamTaskStateInitializerImpl::operatorStateBacken
             prioritizedOperatorSubtaskStates = getPrioritizedOperatorSubtaskStates();
         }
         std::vector<StateObjectCollection<OperatorStateHandle>> handleVector = prioritizedOperatorSubtaskStates.getPrioritizedManagedOperatorState();
-        INFO_RELEASE("savepoint: operatorStateBackend handleVector size: " + std::to_string(handleVector.size())
-            + ", operatorIdentifierText: " + operatorIdentifierText);
         std::vector<std::set<std::shared_ptr<OperatorStateHandle>>> handleSet;
         handleSet.reserve(handleVector.size());
         for (const auto& collection : handleVector) {

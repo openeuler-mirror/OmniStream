@@ -18,7 +18,6 @@
 #include <set>
 
 #include "core/memory/DataOutputSerializer.h"
-#include "core/api/common/variants/CustomVariant.h"
 #include "core/api/common/state/ListState.h"
 #include "core/typeutils/ListSerializer.h"
 
@@ -92,16 +91,11 @@ public:
     }
 
     void update(const std::vector<S>& values) override {
-        INFO_RELEASE("savepoint: PartitionableListState::update values size: " << values.size()
-            << ", internalList addr: " << internalList_.get());
         clear();
         addAll(values);
-        INFO_RELEASE("savepoint: PartitionableListState::update end size: " + std::to_string(internalList_->size()));
     }
 
     std::vector<S>* get() override {
-        INFO_RELEASE("savepoint: PartitionableListState::get internalList addr: " << internalList_.get()
-            << ", size: " << (internalList_ == nullptr ? 0 : internalList_->size()));
         return internalList_.get();
     }
 

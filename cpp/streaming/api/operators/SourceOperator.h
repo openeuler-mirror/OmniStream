@@ -124,51 +124,16 @@ public:
 
     void snapshotState(StateSnapshotContextSynchronousImpl *context) override
     {
-        INFO_RELEASE("savepoint: SourceOperator snapshotState")
         long checkpointId = context->getCheckpointId();
-        
-        // 日志：检查 sourceReader 和 readerState_ 是否为空
-        if (sourceReader == nullptr) {
-            INFO_RELEASE("savepoint: SourceOperator snapshotState WARNING - sourceReader is null, checkpointId: " + std::to_string(checkpointId));
-            return;
-        }
-        if (readerState_ == nullptr) {
-            INFO_RELEASE("savepoint: SourceOperator snapshotState WARNING - readerState_ is null, checkpointId: " + std::to_string(checkpointId));
-            return;
-        }
-        
-        // 日志：获取要写入的状态数据
-        auto stateData = sourceReader->snapshotState(checkpointId);
-        INFO_RELEASE("savepoint: SourceOperator snapshotState === checkpointId: " + std::to_string(checkpointId) 
-            + ", stateData size: " + std::to_string(stateData.size()));
-        
-        readerState_->update(stateData);
-        
-        // 日志：验证写入后状态
-        auto updatedState = readerState_->get();
-        INFO_RELEASE("savepoint: SourceOperator snapshotState === after update, readerState_ size: " + std::to_string(updatedState->size()));
+        readerState_->update(sourceReader->snapshotState(checkpointId));
     }
 
     void initializeState(StateInitializationContextImpl<void*> *context) override
     {
-        INFO_RELEASE("savepoint: SourceOperator initializeState start");
         AbstractStreamOperator<void*>::initializeState(context);
         auto* stateBackend = static_cast<DefaultOperatorStateBackend*>(context->getOperatorStateBackend());
-        INFO_RELEASE("savepoint: SourceOperator initializeState SPLITS_STATE_DESC name: " << SPLITS_STATE_DESC.getName());
         auto rawState = stateBackend->template getListState<std::vector<uint8_t>>(&SPLITS_STATE_DESC);
         readerState_ = std::make_shared<SimpleVersionedListState<SplitT>>(rawState, splitSerializer);
-        
-        // 日志：检查初始状态
-        INFO_RELEASE("savepoint: SourceOperator initializeState isRestored: "
-            << std::string(context->isRestored() ? "true" : "false")
-            << ", restoredCheckpointId: " << (context->isRestored() ? std::to_string(*context->getRestoredCheckpointId()) : "none"));
-        if (readerState_ != nullptr) {
-            auto initialState = readerState_->get();
-            INFO_RELEASE("savepoint: SourceOperator initializeState === initial readerState_ size: " + std::to_string(initialState->size()));
-        } else {
-            INFO_RELEASE("savepoint: SourceOperator initializeState WARNING - readerState_ is null after creation");
-        }
-        INFO_RELEASE("savepoint: SourceOperator initializeState end");
     }
 
     OmniDataOutputPtr getDataStreamOutput()
@@ -188,9 +153,7 @@ public:
 
     void open() override
     {
-        INFO_RELEASE("savepoint: SourceOperator open start");
         initReader();
-        INFO_RELEASE("savepoint: SourceOperator open === sourceReader: " + std::string(sourceReader != nullptr ? "not null" : "null"));
         if (emitProgressiveWatermarks) {
             eventTimeLogic = TimestampsAndWatermarks::CreateProgressiveEventTimeLogic(watermarkStrategy, getProcessingTimeService(), getRuntimeContext()->getAutoWatermarkInterval());
         } else {
@@ -200,21 +163,11 @@ public:
         std::vector<SplitT*> splits = *readerState_->getPtr();
         if (!splits.empty()) {
             sourceReader->addSplits(splits);
-            for (auto split : splits) {
-                INFO_RELEASE("SourceOperator open: topic " << split->getTopic() << " partition " << split->getPartition() << " startOffset " << split->getStartingOffset())
-                // delete split;
-                // split = nullptr;
-            }
         }
-        INFO_RELEASE("SourceOperator open: addSplits done ")
         
-        registerReader();
-        
-        INFO_RELEASE("savepoint: SourceOperator open === calling sourceReader->start()");
         sourceReader->start();
         eventTimeLogic->StartPeriodicWatermarkEmits();
         
-        INFO_RELEASE("savepoint: SourceOperator open end");
     }
 
     void finish()
@@ -228,7 +181,8 @@ public:
         if (sourceReader != nullptr) {
             sourceReader->close();
         }
-        AbstractStreamOperator<void*>::close();
+        // TODO 当前执行sp后 停止作业会卡在每个算子的状态后端dispose方法，先保证功能可用，后续优化卡住逻辑
+        // AbstractStreamOperator<void*>::close();
     }
 
     void cancel() {
@@ -304,32 +258,23 @@ public:
 
     void handleOperatorEvent(AddSplitEvent<SplitT>& event)
     {
-        INFO_RELEASE("savepoint: SourceOperator handleOperatorEvent AddSplitEvent start");
         try {
             std::vector<SplitT*> newSplits = event.splits(splitSerializer.get());
-            INFO_RELEASE("savepoint: SourceOperator handleOperatorEvent AddSplitEvent === received splits count: " + std::to_string(newSplits.size())
-                + ", operatingMode: " + std::to_string(static_cast<int>(operatingMode)));
-            
             if (operatingMode == OperatingMode::OUTPUT_NOT_INITIALIZED) {
                 // For splits arrived before the main output is initialized, store them into the
                 // pending list. Outputs of these splits will be created once the main output is
                 // ready.
-                INFO_RELEASE("savepoint: SourceOperator handleOperatorEvent AddSplitEvent === storing splits to pending list, pending before: " + std::to_string(outputPendingSplits.size()));
                 for (const auto &split: newSplits) {
                     outputPendingSplits.push_back(split);
                 }
-                INFO_RELEASE("savepoint: SourceOperator handleOperatorEvent AddSplitEvent === pending after: " + std::to_string(outputPendingSplits.size()));
             } else {
                 // Create output directly for new splits if the main output is already initialized.
-                INFO_RELEASE("savepoint: SourceOperator handleOperatorEvent AddSplitEvent === creating output for splits");
                 createOutputForSplits(newSplits);
             }
             
-            INFO_RELEASE("savepoint: SourceOperator handleOperatorEvent AddSplitEvent === calling sourceReader->addSplits");
             sourceReader->addSplits(newSplits);
-            INFO_RELEASE("savepoint: SourceOperator handleOperatorEvent AddSplitEvent end");
         } catch (const std::exception& e) {
-            INFO_RELEASE("savepoint: SourceOperator handleOperatorEvent AddSplitEvent ERROR - " + std::string(e.what()));
+            INFO_RELEASE("Error: SourceOperator handleOperatorEvent AddSplitEvent ERROR - " + std::string(e.what()));
             throw std::runtime_error("Failed to deserialize the splits. " + std::string(e.what()));
         }
     }
@@ -465,10 +410,6 @@ private:
         if (eventTimeLogic != nullptr) {
             eventTimeLogic->StopPeriodicWatermarkEmits();
         }
-    }
-
-    void registerReader()
-    {
     }
 
     DataInputStatus emitNextNotReading(OmniDataOutputPtr output)

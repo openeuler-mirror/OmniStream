@@ -32,6 +32,5 @@ KafkaCommittable* KafkaCommittableSerializer::deserialize(int version, std::vect
     short epoch = deserializer.readUnsignedShort();
     long producerId = deserializer.readLong();
     std::string transactionalId = deserializer.readUTF();
-    INFO_RELEASE("KafkaCommittableSerializer deserialize epoch=" << epoch  <<" producerId=" << producerId << " transactionalId=" << transactionalId)
     return new KafkaCommittable(producerId, epoch, transactionalId, nullptr);
 }

@@ -66,11 +66,12 @@ public:
 
         auto* list = SimpleVersionedSerialization::readVersionAndDeserializeList(requestSerializer, input);
 
-        std::vector<std::shared_ptr<CommitRequestImpl<CommT>>> requests(list->size());
-        for (const auto& item : *list) {
-            requests.push_back(item.Copy());
+        std::vector<std::shared_ptr<CommitRequestImpl<CommT>>> requests;
+        requests.reserve(list->size());
+        for (auto& item : *list) {
+            requests.push_back(std::make_shared<CommitRequestImpl<CommT>>(std::move(item)));
         }
-
+        delete list;
         return new SubtaskCommittableManager<CommT>(requests,
                                                     input.readInt(),
                                                     input.readInt(),

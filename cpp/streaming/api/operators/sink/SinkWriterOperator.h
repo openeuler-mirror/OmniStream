@@ -30,9 +30,6 @@
 #include "streaming/api/operators/sink/KafkaSinkWriterStateHandler.h"
 #include "streaming/api/operators/sink/InitContextImpl.h"
 
-// 静态常量定义
-static std::string streamingCommitterRawStatesName = "streaming_committer_raw_states";
-
 class SinkWriterOperator : public OneInputStreamOperator, public AbstractStreamOperator<void *> {
 public:
     static ListStateDescriptor<std::vector<uint8_t>> STREAMING_COMMITTER_RAW_STATES_DESC;
@@ -46,8 +43,6 @@ public:
         }
         delete writerStateHandler;
         writerStateHandler = nullptr;
-        delete sinkWriter;
-        sinkWriter = nullptr;
         delete committableSerializer;
         committableSerializer = nullptr;
         delete kafkaSink;
@@ -59,6 +54,8 @@ public:
     void snapshotState(StateSnapshotContextSynchronousImpl* context) override;
 
     void open() override;
+
+    void close() override;
 
     RowData* getOutputEntireRow(omnistream::VectorBatch *batch, int rowId);
 

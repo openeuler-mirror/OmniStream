@@ -37,6 +37,11 @@ const char* TYPE_NAME_VOID_NAMESPACE_CLASS = "org.apache.flink.runtime.state.Voi
 const char* TYPE_NAME_VOID_NAMESPACE_CLASS_LINE = "org_apache_flink_runtime_state_VoidNamespace";
 const char* TYPE_NAME_VOID_NAMESPACE_SERIALIZER = "org.apache.flink.runtime.state.VoidNamespaceSerializer";
 
+const char* TYPE_NAME_ROW_DATA = "RowData";
+const char* TYPE_NAME_ROW_DATA_CLASS = "org.apache.flink.table.data.RowData";
+const char* TYPE_NAME_ROW_DATA_CLASS_LINE = "org_apache_flink_table_data_RowData";
+const char* TYPE_NAME_ROW_DATA_SERIALIZER = "org.apache.flink.table.runtime.typeutils.RowDataSerializer";
+
 const char* TYPE_NAME_TIMER = "TimerHeapInternalTimer";
 const char* TYPE_NAME_TIMER_CLASS = "org.apache.flink.streaming.api.operators.TimerHeapInternalTimer";
 const char* TYPE_NAME_TIMER_CLASS_LINE = "org_apache_flink_streaming_api_operators_TimerHeapInternalTimer";

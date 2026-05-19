@@ -40,6 +40,7 @@ std::shared_ptr<TaskStateSnapshot> TaskStateSnapshotDeserializer::Deserialize(co
 
 std::shared_ptr<KeyedStateHandle> TaskStateSnapshotDeserializer::ParseKeyedStateHandle(const json &j)
 {
+    LOG("savepoint: ParseKeyedStateHandle: " << j.dump());
     if (!j.contains("@class")) {
         throw std::runtime_error("State handle JSON is missing the '@class' field.");
     }
@@ -67,7 +68,7 @@ std::shared_ptr<KeyedStateHandle> TaskStateSnapshotDeserializer::ParseKeyedState
 
 std::shared_ptr<OperatorStateHandle> TaskStateSnapshotDeserializer::ParseOperatorStateHandle(const json &j)
 {
-    INFO_RELEASE("ParseOperatorStateHandle: " << j.dump());
+    LOG("ParseOperatorStateHandle: " << j.dump());
     if (!j.contains("@class")) {
         throw std::runtime_error("State handle JSON is missing the '@class' field.");
     }

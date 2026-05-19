@@ -39,6 +39,11 @@ extern const char* TYPE_NAME_VOID_NAMESPACE_CLASS;
 extern const char* TYPE_NAME_VOID_NAMESPACE_CLASS_LINE;
 extern const char* TYPE_NAME_VOID_NAMESPACE_SERIALIZER;
 
+extern const char* TYPE_NAME_ROW_DATA;
+extern const char* TYPE_NAME_ROW_DATA_CLASS;
+extern const char* TYPE_NAME_ROW_DATA_CLASS_LINE;
+extern const char* TYPE_NAME_ROW_DATA_SERIALIZER;
+
 extern const char* TYPE_NAME_TIMER;
 extern const char* TYPE_NAME_TIMER_CLASS;
 extern const char* TYPE_NAME_TIMER_CLASS_LINE;

@@ -212,7 +212,7 @@ namespace omnistream::runtime {
                 LogError("Exception in async checkpoint: %s", e.what());
             }
 
-            /* h30082497 规避：先不删除 */
+            /* TODO 规避：先不删除 */
             // delete asyncCheckpointRunnable;
             // delete operatorSnapshotsInProgress;
             // delete metadata;

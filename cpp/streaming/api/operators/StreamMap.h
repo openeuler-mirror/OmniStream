@@ -73,6 +73,9 @@ namespace omnistream::datastream {
 
         void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) override
         {
+
+            INFO_RELEASE("StreamMap initializeState with initializer, operatorID: " << OneInputStreamOperator::GetOperatorID().toString());
+            AbstractStreamOperator<K>::SetOperatorID(OneInputStreamOperator::GetOperatorID().toString());
             AbstractStreamOperator<K>::initializeState(initializer, keySerializer);
             auto taskId = initializer->getEnvironment()->taskConfiguration().getIndexOfSubtask();
             auto& bindCore = omnistream::BindCoreManager::GetInstance();

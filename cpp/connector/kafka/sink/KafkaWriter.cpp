@@ -45,14 +45,10 @@ KafkaWriter::KafkaWriter(DeliveryGuarantee deliveryGuarantee,
         abortLingeringTransactions(states, lastCheckpointId);
     }
 
-    for (auto state : states) {
-        INFO_RELEASE("KafkaWriter state transactionalIdPrefix=" << state.getTransactionalIdPrefix())
-    }
-
     currentProducer1 =
-            std::make_shared<FlinkKafkaInternalProducer>(kafkaProducerConfig, std::to_string(lastCheckpointId + 1));
+            std::make_shared<FlinkKafkaInternalProducer>(kafkaProducerConfig, std::to_string(producerIndexOne));
     currentProducer2 =
-            std::make_shared<FlinkKafkaInternalProducer>(kafkaProducerConfig, std::to_string(lastCheckpointId + 2));
+            std::make_shared<FlinkKafkaInternalProducer>(kafkaProducerConfig, std::to_string(producerIndexTwo));
     RdKafka::Conf *tconf = RdKafka::Conf::create(RdKafka::Conf::CONF_TOPIC);
     std::string errstr;
     this->kafkaProducerConfig->set("default_topic_conf", tconf, errstr);

@@ -20,7 +20,8 @@ KafkaSourceReader::KafkaSourceReader(
     : SingleThreadMultiplexSourceReaderBase<RdKafka::Message, KafkaPartitionSplit, KafkaPartitionSplitState>(
     elementsQueue, splitFetcherManager, recordEmitter, context, isBatch)
 {
-    commitOffsetsOnCheckpoint_ = true;
+    //todo 修改为读取配置的形式
+    commitOffsetsOnCheckpoint_ = false;
 }
 
 KafkaPartitionSplitState* KafkaSourceReader::initializedState(KafkaPartitionSplit* split)
@@ -30,21 +31,15 @@ KafkaPartitionSplitState* KafkaSourceReader::initializedState(KafkaPartitionSpli
 
 std::vector<KafkaPartitionSplit> KafkaSourceReader::snapshotState(long checkpointId)
 {
-    INFO_RELEASE("savepoint: KafkaSourceReader snapshotState")
     std::vector<KafkaPartitionSplit> splits = SourceReaderBase::snapshotState(checkpointId);
-    for (const auto& split : splits) {
-        INFO_RELEASE("savepoint: KafkaSourceReader::snapshotState 1.1 ======== split.getTopic() : " << split.getTopic() << " | split.getPartition() : " << split.getPartition() << " | split.getStartingOffset() : " << split.getStartingOffset());
-    }
     if (!commitOffsetsOnCheckpoint_) {
         return splits;
     }
 
     if (splits.empty() && offsetsOfFinishedSplits.empty()) {
-        INFO_RELEASE("savepoint: KafkaSourceReader::snapshotState 2.1 ======== splits.empty() && offsetsOfFinishedSplits.empty()  ");
         std::lock_guard<std::mutex> lock(mutex_);
         offsetsToCommit_[checkpointId] = std::unordered_map<std::shared_ptr<RdKafka::TopicPartition>, long>();
     } else {
-        INFO_RELEASE("savepoint: KafkaSourceReader::snapshotState 2.2  ");
         std::lock_guard<std::mutex> lock(mutex_);
         auto& offsetsMap = offsetsToCommit_[checkpointId];
 
@@ -64,7 +59,6 @@ std::vector<KafkaPartitionSplit> KafkaSourceReader::snapshotState(long checkpoin
 // 通知检查点完成
 void KafkaSourceReader::notifyCheckpointComplete(long checkpointId)
 {
-    INFO_RELEASE("savepoint: KafkaSourceReader notifyCheckpointComplete " << checkpointId);
     if (!commitOffsetsOnCheckpoint_) {
         return;
     }
@@ -75,8 +69,6 @@ void KafkaSourceReader::notifyCheckpointComplete(long checkpointId)
         std::lock_guard<std::mutex> lock(mutex_);
         auto it = offsetsToCommit_.find(checkpointId);
         if (it == offsetsToCommit_.end()) {
-            INFO_RELEASE(
-                    "Offsets for checkpoint:"<<checkpointId<<" either do not exist or have already been committed.");
             return;
         }
         // 直接使用 unordered_map 的内容，不需要转换
@@ -93,18 +85,11 @@ void KafkaSourceReader::notifyCheckpointComplete(long checkpointId)
             // The offset commit here is needed by the external monitoring. It won't
             // break Flink job's correctness if we fail to commit the offset here.
             if (e != nullptr) {
-                // kafkaSourceReaderMetrics_->recordFailedCommit();
                 INFO_RELEASE(
-                        "Failed to commit consumer offsets for checkpoint:"<<checkpointId<<", error: ");
+                        "Error:Failed to commit consumer offsets for checkpoint:"<<checkpointId<<", error: ");
             } else {
                 INFO_RELEASE(
                         "Successfully committed offsets for checkpoint:"<<checkpointId);
-                // kafkaSourceReaderMetrics_->recordSucceededCommit();
-
-                // 如果已完成的主题分区已被提交，则从已完成分割的偏移量映射中移除
-                // for (const auto& entry : *committedPartitions) {
-                //     kafkaSourceReaderMetrics_->recordCommittedOffset(entry.first, entry.second);
-                // }
 
                 std::lock_guard<std::mutex> lock(mutex_);
                 // 从 offsetsOfFinishedSplits 中移除已提交的分区

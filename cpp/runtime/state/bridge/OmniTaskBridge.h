@@ -45,8 +45,6 @@ namespace omnistream {
 
         virtual std::vector<StateMetaInfoSnapshot> readOperatorMetaData(const std::string &metaStateHandle) = 0;
 
-        virtual std::string restoreOperatorStreamState(const std::string &metaStateHandle) = 0;
-
         virtual jobject AcquireSavepointOutputStream(long checkpointId, CheckpointOptions *checkpointOptions) = 0;
 
         virtual std::shared_ptr<SnapshotResult<StreamStateHandle>> CloseSavepointOutputStream(jobject provider) = 0;

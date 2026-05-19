@@ -290,6 +290,15 @@ TypeInformation *TypeInfoFactory::createDataStreamTypeInfo(const json &serialize
  				ClassRegistry::instance().newClass(namespaceInstanceClass));
     } else if (serializerName == TYPE_NAME_BYTE_PRIMITIVE_ARRAY_SERIALIZER) {
         typeInformation = new BytePrimitiveArrayTypeInfo();
+    }  else if (serializerName == TYPE_NAME_ROW_DATA_SERIALIZER) {
+        const json& logicalType = serializerInfo["logicalType"];
+        json types = json::array();
+        if(logicalType.contains("fields") && logicalType["fields"].is_array()) {
+            for(const auto& field : logicalType["fields"]) {
+                types.push_back(field["fieldType"]);
+            }
+        }
+        typeInformation = TypeInfoFactory::createInternalTypeInfo(types);
     } else {
         THROW_RUNTIME_ERROR("invalid serializerName " + serializerName)
     }

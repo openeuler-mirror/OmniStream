@@ -23,24 +23,28 @@ public:
     explicit RegisteredPriorityQueueStateBackendMetaInfo(const StateMetaInfoSnapshot &snapshot);
 
     RegisteredPriorityQueueStateBackendMetaInfo( const std::string& name, TypeSerializer* elementSerializer)
-        : RegisteredStateMetaInfoBase(name), elementSerializer(elementSerializer) {}
+        : RegisteredStateMetaInfoBase(name),
+          elementSerializer(elementSerializer),
+          previousElementSerializer(elementSerializer) {}
 
     std::shared_ptr<StateMetaInfoSnapshot> snapshot() override { return computeSnapshot(); }
 
     TypeSerializer* getElementSerializer() { return elementSerializer; }
 
-    TypeSerializer* getPreviousElementSerializer() { NOT_IMPL_EXCEPTION }
+    TypeSerializer* getPreviousElementSerializer();
 
     std::shared_ptr<RegisteredPriorityQueueStateBackendMetaInfo> withSerializerUpgradesAllowed() {
-        return std::make_shared<RegisteredPriorityQueueStateBackendMetaInfo>(*snapshot());
+        auto copy = std::make_shared<RegisteredPriorityQueueStateBackendMetaInfo>(*this);
+        copy->serializerUpdatesAllowed = true;
+        return copy;
     }
 
-    TypeSerializerSchemaCompatibility updateElementSerializer(TypeSerializer* serializer) {
-        NOT_IMPL_EXCEPTION
-    }
+    TypeSerializerSchemaCompatibility updateElementSerializer(TypeSerializer* serializer);
 
 private:
     TypeSerializer* elementSerializer;
+    TypeSerializer* previousElementSerializer = nullptr;
+    bool serializerUpdatesAllowed = false;
 
     std::shared_ptr<StateMetaInfoSnapshot> computeSnapshot();
 };

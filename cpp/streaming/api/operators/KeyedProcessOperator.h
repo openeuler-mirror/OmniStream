@@ -83,7 +83,8 @@ public:
     }
 
     void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) override {
-        // First do the shared initialization step
+        INFO_RELEASE("savepoint: KeyedProcessOperator initializeState with initializer, operatorID: " << OneInputStreamOperator::GetOperatorID().toString());
+        AbstractStreamOperator<K>::SetOperatorID(OneInputStreamOperator::GetOperatorID().toString());
         AbstractStreamOperator<K>::initializeState(initializer, keySerializer);
         // Operator specifig initialization
     }

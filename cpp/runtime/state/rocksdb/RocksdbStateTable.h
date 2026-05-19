@@ -39,6 +39,8 @@
 
 #include "../../../core/utils/MathUtils.h"
 #include "state/RocksDbKvStateInfo.h"
+#include "runtime/state/RocksIteratorWrapper.h"
+#include "RocksDbOperationUtils.h"
 
 const int FALCON_HASH_PARAM = 13;
 
@@ -97,6 +99,15 @@ public:
         auto it2 = kvStateInformation->find(cfName + "vb");
         if (it2 != kvStateInformation->end() && it2->second->columnFamilyHandle_) {
             VBTable = it2->second->columnFamilyHandle_;
+            std::unique_ptr<RocksIteratorWrapper> iterator = RocksDbOperationUtils::getRocksIterator(
+                db, VBTable, readOptions);
+            iterator->seekToLast();
+            if (iterator->isValid()) {
+                std::string key = iterator->key();
+                DataInputDeserializer in(key.data(), key.size(), 0);
+                vectorBatchId = (long) in.readLong();
+                vectorBatchId ++;
+            }
         } else {
             s = db->CreateColumnFamily(familyOptions, cfName + "vb", &VBTable);
             if (it2 != kvStateInformation->end()) {

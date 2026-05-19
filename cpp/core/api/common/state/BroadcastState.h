@@ -19,7 +19,7 @@
 
 #include "ReadOnlyBroadcastState.h"
 
-template <typename K = BS_K_MV, typename V = BS_V_MV>
+template <typename K, typename V>
 class BroadcastState : public ReadOnlyBroadcastState<K, V> {
 public:
     virtual ~BroadcastState() = default;

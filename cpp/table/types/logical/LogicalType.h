@@ -17,14 +17,21 @@
 #include <unordered_map>
 #include <string>
 #include "OmniOperatorJIT/core/src/type/data_type.h"
+#include <nlohmann/json.hpp>
+#include "core/include/common.h"
 
 class LogicalType {
 public:
     LogicalType(int typeId, bool isNullable);
+
+    LogicalType(bool isNullable, int typeId, const std::string& typeName);
+
     int getTypeId() const;
 
     bool isNullable() const;
     virtual std::vector<LogicalType*> getChildren() = 0;
+
+    virtual nlohmann::json toJson() const;
 
     static omniruntime::type::DataTypeId flinkTypeToOmniTypeId(const std::string& flinkType);
 
@@ -34,17 +41,35 @@ public:
 protected:
     bool isNullable_;
     int typeId_;
+    std::string typeName_;
 };
 
 class BasicLogicalType : public LogicalType {
 public:
     BasicLogicalType(int typeId, bool isNullable) : LogicalType(typeId, isNullable){};
 
+    BasicLogicalType(bool isNullable, int typeId, const std::string& typeName)
+        : LogicalType(isNullable, typeId, typeName){};
+
     // Basic type has no children
     std::vector<LogicalType*> getChildren()
     {
         return emptyChildren;
     }
+
+    nlohmann::json toJson() const override {
+        nlohmann::json result = LogicalType::toJson();
+        nlohmann::json types = nlohmann::json::array();
+        for (const auto& item: emptyChildren) {
+            types.push_back(item->toJson());
+        }
+        if (types.size() > 0) {
+            result["emptyChildren"] = types;
+        }
+
+        return result;
+    }
+
     static BasicLogicalType* BOOLEAN;
     static BasicLogicalType* INTEGER;
     static BasicLogicalType* BIGINT;

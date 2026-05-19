@@ -137,6 +137,7 @@ public:
 
     void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer)
     {
+        AbstractStreamOperator<K>::SetOperatorID(OneInputStreamOperator::GetOperatorID().toString());
         AbstractStreamOperator<K>::initializeState(initializer, keySerializer);
     };
 

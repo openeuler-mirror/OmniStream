@@ -31,7 +31,6 @@
 #include "table/typeutils/RowDataSerializer.h"
 #include "runtime/metrics/groups/TaskMetricGroup.h"
 #include "streaming/runtime/tasks/omni/OmniStreamTask.h"
-#include "runtime/state/StateInitializationContextImpl.h"
 
 /**
  * K: such as Object*
@@ -132,9 +131,6 @@ public:
     {
         return new BinaryRowDataSerializer(1);
     };
-
-    void initializeState(StateInitializationContextImpl<K> *context)  override {
-    }
 
     // KeySerializer should be retrieved from description.getStateKeySerializer(getUserCodeClassloader()),
     // but we're just passing it through this function for now

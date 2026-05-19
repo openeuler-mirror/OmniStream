@@ -35,8 +35,12 @@ public:
     
     void* deserialize(DataInputView &source) override
     {
-        NOT_IMPL_EXCEPTION
+        int size = source.readInt();
+        std::vector<uint8_t>* array = new std::vector<uint8_t>(size);
+        source.readFully(array->data(), size, 0, size);
+        return static_cast<void*>(array);
     }
+
     void serialize(void* record, DataOutputSerializer &target) override
     {
         std::vector<uint8_t>* array = static_cast<std::vector<uint8_t>*>(record);

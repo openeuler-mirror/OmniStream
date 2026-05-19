@@ -189,6 +189,7 @@ void RdKafkaConsumer::commitOffsets(const std::map<std::shared_ptr<RdKafka::Topi
     RdKafka::ErrorCode resp = consumer_->commitSync(partitions);
     if (resp != RdKafka::ERR_NO_ERROR) {
         std::cerr << "% commitOffsets failed: " << RdKafka::err2str(resp) << std::endl;
+        INFO_RELEASE("Error:Failed to commit offsets: " <<RdKafka::err2str(resp));
         throw std::runtime_error("Failed to commit offsets: " + RdKafka::err2str(resp));
     }
 

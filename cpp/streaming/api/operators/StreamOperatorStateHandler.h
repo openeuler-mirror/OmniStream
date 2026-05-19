@@ -11,14 +11,12 @@
 #ifndef FLINK_TNEL_STREAMOPERATORSTATEHANDLER_H
 #define FLINK_TNEL_STREAMOPERATORSTATEHANDLER_H
 
-#include "typeinfo"
 #include <string>
 #include <iostream>
 #include "runtime/state/AbstractKeyedStateBackend.h"
 #include "StreamOperatorStateContext.h"
 #include "runtime/state/DefaultKeyedStateStore.h"
 #include "StreamTaskStateInitializerImpl.h"
-#include "../../../core/include/common.h"
 #include "state/CheckpointableKeyedStateBackend.h"
 #include "state/FullSnapshotResources.h"
 #include "state/SnapshotStrategy.h"
@@ -152,11 +150,6 @@ public:
         const std::shared_ptr<OmniTaskBridge>& bridge)
     {
         KeyGroupRange *keyGroupRange = KeyGroupRange::EMPTY_KEY_GROUP_RANGE();
-        if (this != nullptr) {
-            INFO_RELEASE("StreamOperatorStateHandler OperatorSnapshotFutures SnapshotState this is not nullptr streamOperator type: " << typeid(*streamOperator).name());
-        }else{
-            INFO_RELEASE("StreamOperatorStateHandler OperatorSnapshotFutures SnapshotState this is nullptr streamOperator type: " << typeid(*streamOperator).name());
-        }
         if (keyedStateBackend != nullptr) {
             keyGroupRange = keyedStateBackend->getKeyGroupRange();
         }
@@ -221,7 +214,6 @@ public:
                     timeServiceManager->snapshotToRawKeyedState(snapshotContext->getRawKeyedOperatorStateOutput(), operatorName);
                 }
             }
-            INFO_RELEASE("StreamOperatorStateHandler snapshotState streamOperator type: " << typeid(*streamOperator).name());
             streamOperator->snapshotState(snapshotContext);
             snapshotInProgress->setKeyedStateRawFuture(snapshotContext->getKeyedStateStreamFuture());
             snapshotInProgress->setOperatorStateRawFuture(snapshotContext->getOperatorStateStreamFuture());

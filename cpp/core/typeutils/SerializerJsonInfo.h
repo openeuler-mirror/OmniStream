@@ -11,25 +11,28 @@
 #ifndef OMNISTREAM_SERIALIZERJSONINFO_H
 #define OMNISTREAM_SERIALIZERJSONINFO_H
 
+#include "table/types/logical/LogicalType.h"
+
 #include "TypeSerializer.h"
 
 enum class SerializerType {
     UNKNOWN = 0,
-    LIST = 1,
-    BIG_INT = 2,
-    LONG = 3,
-    INT = 4,
-    DOUBLE = 5,
-    MAP = 6,
-    POJO = 7,
-    STRING_T = 8,
-    BOOLEAN = 9,
-    VOID = 10,
-    VOID_NAMESPACE = 11,
-    TIMER = 12,
+    LIST = 1, /* use fields [type, valueSerializer] */
+    BIG_INT = 2, /* use fields [type] */
+    LONG = 3, /* use fields [type] */
+    INT = 4, /* use fields [type] */
+    DOUBLE = 5, /* use fields [type] */
+    MAP = 6, /* use fields [type, keySerializer, valueSerializer] */
+    POJO = 7, /* use fields [type, fieldNames, fieldSerializers] */
+    STRING_T = 8, /* use fields [type] */
+    BOOLEAN = 9, /* use fields [type] */
+    VOID = 10, /* use fields [type] */
+    VOID_NAMESPACE = 11, /* use fields [type] */
+    TIMER = 12, /* use fields [type, keySerializer, namespaceSerializer] */
     // TUPLE = 13 与 OmniAdaptor Java 端 OmniSerializerType.TUPLE 的 code 必须保持一致
-    TUPLE = 13,
-    BYTE_PRIMITIVE_ARRAY = 14,
+    TUPLE = 13,/* use fields [type, elementType, fieldSerializers] */
+    BYTE_PRIMITIVE_ARRAY = 14, /* use fields [type, valueSerializer] */
+    ROW = 15, /* use fields [type, logicalType] */
 };
 
 struct SerializerJsonInfo {
@@ -46,6 +49,7 @@ struct SerializerJsonInfo {
     // fieldSerializers和fieldNames pojo使用
     std::vector<TypeSerializer *> fieldSerializers;
     std::vector <std::string> fieldNames;
+    LogicalType* logicalType;
 
 public:
     std::string toJson() {
@@ -60,6 +64,9 @@ public:
         }
         if (namespaceSerializer != nullptr) {
             jsonObj["namespaceSerializer"] = namespaceSerializer->toJson();
+        }
+        if (logicalType != nullptr) {
+            jsonObj["logicalType"] = logicalType->toJson();
         }
         if (fieldSerializers.size() != fieldNames.size()) {
             return jsonObj.dump();

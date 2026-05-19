@@ -98,17 +98,30 @@ private:
         } else {
             stateInfo = iter->second;
             auto castedMetaInfo = std::dynamic_pointer_cast<RegisteredPriorityQueueStateBackendMetaInfo>(stateInfo->metaInfo_);
+            if (castedMetaInfo == nullptr) {
+                INFO_RELEASE(
+                    "Error >>> tryRegisterPriorityQueueMetaInfo Restored priority queue state meta info type mismatch. stateName="
+                    << stateName);
+                THROW_RUNTIME_ERROR("Restored priority queue state meta info type mismatch. stateName=" + stateName)
+            }
             auto previousElementSerializer = castedMetaInfo->getPreviousElementSerializer();
             if (previousElementSerializer != byteOrderedElementSerializer) {
                 auto compatibilityResult = castedMetaInfo->updateElementSerializer(byteOrderedElementSerializer);
                 if (compatibilityResult.isIncompatible()) {
-                    THROW_RUNTIME_ERROR("The new priority queue serializer must not be incompatible.")
+                    INFO_RELEASE(
+                        "Error >>> tryRegisterPriorityQueueMetaInfo The new priority queue serializer must not be incompatible. stateName="
+                        << stateName << ", compatibility=" << compatibilityResult.toString());
+                    THROW_RUNTIME_ERROR("The new priority queue serializer must not be incompatible. stateName=" + stateName
+                        + ", compatibility=" + compatibilityResult.toString())
                 }
                 auto metaInfo = std::make_shared<RegisteredPriorityQueueStateBackendMetaInfo>(
                         stateName, byteOrderedElementSerializer);
                 metaInfo = allowFutureMetadataUpdates ? metaInfo->withSerializerUpgradesAllowed() : metaInfo;
                 stateInfo = std::make_shared<RocksDbKvStateInfo>(stateInfo->columnFamilyHandle_, metaInfo);
-                kvStateInformation_->emplace(stateName, stateInfo);
+                (*kvStateInformation_)[stateName] = stateInfo;
+                INFO_RELEASE("RocksDBPriorityQueueSetFactory: updated restored priority queue serializer"
+                    << ", stateName=" << stateName
+                    << ", compatibility=" << compatibilityResult.toString())
             }
         }
         return stateInfo;
