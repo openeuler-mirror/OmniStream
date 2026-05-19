@@ -134,6 +134,8 @@ public:
 
     // KeySerializer should be retrieved from description.getStateKeySerializer(getUserCodeClassloader()),
     // but we're just passing it through this function for now
+    void initializeState(StateInitializationContextImpl<K> *context) override {}
+
     void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) override
     {
         LOG("abstractStreamOperator::initializeState")

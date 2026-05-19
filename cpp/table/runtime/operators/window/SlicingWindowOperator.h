@@ -61,7 +61,7 @@ public:
     void initializeState(StateInitializationContextImpl<RowData*> *context) override
     {
         INFO_RELEASE("SlicingWindowOperator initializeState");
-        TableStreamOperator<RowData*>::initializeState(context);
+        AbstractStreamOperator<RowData*>::initializeState(context);
 
         std::string watermarkStateName = "watermark";
         auto *watermarkStateDesc = new ListStateDescriptor<int64_t>(watermarkStateName, LongSerializer::INSTANCE);
