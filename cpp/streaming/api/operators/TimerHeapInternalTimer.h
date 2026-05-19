@@ -31,12 +31,12 @@ public:
     struct SharedPtrHash {
         size_t operator()(const std::shared_ptr<TimerHeapInternalTimer>& timer) const {
             auto timestamp = timer->getTimestamp();
-            auto key = timer->getKey();
-            auto nameSpace = timer->getNamespace();
+            auto const& key = timer->getKey();
+            auto const& nameSpace = timer->getNamespace();
             int result = static_cast<int>(timestamp ^ (timestamp >> 32));
-            if constexpr (std::is_same_v<K, RowData *>) {
+            if constexpr (std::is_same_v<K, RowData*>) {
                 result = 31 * result + key->hashCode();
-            } else if constexpr (std::is_same_v<K, Object *>) {
+            } else if constexpr (std::is_same_v<K, Object*>) {
                 result = 31 * result + reinterpret_cast<Object*>(key)->hashCode();
             }
             if constexpr (std::is_same_v<N, TimeWindow>) {
@@ -52,11 +52,12 @@ public:
 
     struct SharedPtrEqual {
         bool operator()(const std::shared_ptr<TimerHeapInternalTimer>& lhs, const std::shared_ptr<TimerHeapInternalTimer>& rhs) const {
-            if constexpr (std::is_same_v<K, RowData *>) {
-                return *lhs->getKey() == *rhs->getKey() &&
-                        lhs->getTimestamp() == rhs->getTimestamp() &&
-                        lhs->getNamespace() == rhs->getNamespace();
-            } else if constexpr (std::is_same_v<K, Object *>) {
+            if constexpr (std::is_same_v<K, RowData*>) {
+                auto res = lhs->getTimestamp() == rhs->getTimestamp() &&
+                        lhs->getNamespace() == rhs->getNamespace() &&
+                        *lhs->getKey() == *rhs->getKey();
+                return res;
+            } else if constexpr (std::is_same_v<K, Object*>) {
                 auto lkey = reinterpret_cast<Object*>(lhs->getKey());
                 auto rkey = reinterpret_cast<Object*>(rhs->getKey());
                 if (lkey == nullptr && rkey == nullptr) {
@@ -64,14 +65,15 @@ public:
                 } else if (lkey == nullptr || rkey == nullptr) {
                     return false;
                 }
-                auto res = lkey->equals(rkey) &&
-                           lhs->getTimestamp() == rhs->getTimestamp() &&
-                           lhs->getNamespace() == rhs->getNamespace();
+                auto res = lhs->getTimestamp() == rhs->getTimestamp() &&
+                        lhs->getNamespace() == rhs->getNamespace() &&
+                        lkey->equals(rkey);
                 return res;
             } else {
-                return lhs->getKey() == rhs->getKey() &&
-                        lhs->getTimestamp() == rhs->getTimestamp() &&
-                        lhs->getNamespace() == rhs->getNamespace();
+                auto res = lhs->getTimestamp() == rhs->getTimestamp() &&
+                        lhs->getNamespace() == rhs->getNamespace() &&
+                        lhs->getKey() == rhs->getKey();
+                return res;
             }
         }
     };

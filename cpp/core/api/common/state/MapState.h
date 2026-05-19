@@ -8,17 +8,24 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef FLINK_TNEL_MAPSTATE_H
-#define FLINK_TNEL_MAPSTATE_H
+
+#pragma once
+
 #include <optional>
 #include "State.h"
 #include "emhash7.hpp"
 #include "basictypes/java_util_Iterator.h"
+#include "utils/Iterator.h"
+#include "utils/Map.h"
 
 template <typename UK, typename UV>
 class MapState : virtual public State {
 public:
     using ValueTransformFuncPtr = UV (*) (UV& oldValue);
+    using DataStreamMapState = MapState<Object*, Object*>;
+    using MapEntryV2 = typename omnistream::utils::Map<UK, UV>::Entry;
+    using IteratorV2 = typename omnistream::utils::Iterator<MapEntryV2&>;
+
     virtual ~MapState() override = default;
     // for DataStream used
     virtual Object* Get(Object* key) = 0;
@@ -46,11 +53,8 @@ public:
     virtual void update(const UK &key, const UV &value) = 0;
 
     virtual typename emhash7::HashMap<UK, UV> *entries() = 0;
-
-    virtual java_util_Iterator* iterator() = 0;
     virtual void clearEntriesCache(){}
+
+    virtual java_util_Iterator* iterator() = 0; // For datastream
+    virtual std::unique_ptr<IteratorV2> iteratorV2() { NOT_IMPL_EXCEPTION } // For common scenario
 };
-
-using DataStreamMapState = MapState<Object*, Object*>;
-
-#endif // FLINK_TNEL_MAPSTATE_H
