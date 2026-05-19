@@ -180,12 +180,10 @@ StreamOperator *StreamOperatorFactory::createOperatorAndCollector(omnistream::Op
     } else if (operatorID == OPERATOR_NAME_GLOBAL_WINDOW_AGG) {
         return CreateGlobalWindowAggOp(opDesc, chainOutput, task);
     } else if (operatorID == OPERATOR_NAME_GROUP_WINDOW_AGG) {
-        auto processingTimeService = task->createProcessingTimeService();
-        return CreateGroupWindowAggOp(opDesc, chainOutput, task, processingTimeService);
+        return CreateGroupWindowAggOp(opDesc, chainOutput, task);
     } else if (operatorID == OPERATOR_NAME_WATERMARK_ASSIGNER) {
-        auto processingTimeService = task->createProcessingTimeService();
-        // Idle timeout is currently set to 0, but might change depending on the config
-        return CreateWatermarkAssignerOp(opDesc, chainOutput, task, processingTimeService);
+        // TODO: Idle timeout is currently set to 0, but might change depending on the config
+        return CreateWatermarkAssignerOp(opDesc, chainOutput, task);
     } else if (operatorID == OPERATOR_NAME_KEYED_PROCESS_OPERATOR) {
         return CreateKeyedProcessOp(opDesc, chainOutput, task);
     } else if (operatorID == OPERATOR_NAME_SINK || operatorID == OPERATOR_NAME_COLLECT_SINK
@@ -276,12 +274,11 @@ StreamOperator* StreamOperatorFactory::CreateGlobalWindowAggOp(OperatorPOD &opCo
 }
 
 StreamOperator* StreamOperatorFactory::CreateGroupWindowAggOp(OperatorPOD &opConfig, WatermarkGaugeExposingOutput *chainOutput,
-                                                              std::shared_ptr<omnistream::OmniStreamTask> task,
-                                                              ProcessingTimeService *processingTimeService)
-{
+                                                              std::shared_ptr<omnistream::OmniStreamTask> task) {
     auto description = opConfig.getDescription();
     nlohmann::json opDescriptionJSON = nlohmann::json::parse(description);
     auto *op = new AggregateWindowOperator<RowData*, TimeWindow>(opDescriptionJSON, chainOutput);
+    auto processingTimeService = task->createProcessingTimeService();
     op->setProcessingTimeService(processingTimeService);
     op->setup(std::move(task));
     LOG("Operator AggregateWindowOperator address " + std::to_string(reinterpret_cast<long>(op)))
@@ -290,11 +287,10 @@ StreamOperator* StreamOperatorFactory::CreateGroupWindowAggOp(OperatorPOD &opCon
 
 StreamOperator* StreamOperatorFactory::CreateWatermarkAssignerOp(OperatorPOD &opConfig,
                                                                  WatermarkGaugeExposingOutput *chainOutput,
-                                                                 std::shared_ptr<omnistream::OmniStreamTask> task,
-                                                                 ProcessingTimeService *processingTimeService)
-{
+                                                                 std::shared_ptr<omnistream::OmniStreamTask> task) {
     auto description = opConfig.getDescription();
     nlohmann::json opDescriptionJSON = nlohmann::json::parse(description);
+    auto processingTimeService = task->createProcessingTimeService();
     auto *watermarkAssignerOperator = new WatermarkAssignerOperator(chainOutput,
                                                                     opDescriptionJSON["rowtimeFieldIndex"],
                                                                     opDescriptionJSON["intervalSecond"],
@@ -438,7 +434,7 @@ StreamOperator* StreamOperatorFactory::CreateSourceOp(OperatorPOD &opConfig,
             nlohmann::json opDescriptionJSON = nlohmann::json::parse(description);
             // create kafka source
             std::shared_ptr<KafkaSource> source = std::make_shared<KafkaSource>(opDescriptionJSON, true);
-            ProcessingTimeService* timeService = new SystemProcessingTimeService();
+            ProcessingTimeService* timeService = task->createProcessingTimeService();
             auto *op = new SourceOperator(chainOutput, opDescriptionJSON, source, timeService);
             op->setup(std::move(task));
             LOG("Operator SourceOperator address " + std::to_string(reinterpret_cast<long>(op)));
