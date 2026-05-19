@@ -53,13 +53,10 @@ public:
             registeredBroadcastStates,
             restoreStateHandles_,
             omniTaskBridge_);
-        INFO_RELEASE("savepoint: DefaultOperatorStateBackendBuilder::build restoreStateHandles size: "
-            + std::to_string(restoreStateHandles_.size()));
         try {
             restoreOperation->restore();
-            INFO_RELEASE("savepoint: DefaultOperatorStateBackendBuilder::build restore done, registeredOperatorStates size: "
-                + std::to_string(registeredOperatorStates->size()));
         } catch (const std::exception& e) {
+            INFO_RELEASE("Error:Failed when trying to restore operator state backend"<< e.what());
             throw std::runtime_error("Failed when trying to restore operator state backend"+ std::string(e.what()));
         }
 

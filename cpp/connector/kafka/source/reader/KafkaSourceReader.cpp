@@ -20,7 +20,8 @@ KafkaSourceReader::KafkaSourceReader(
     : SingleThreadMultiplexSourceReaderBase<RdKafka::Message, KafkaPartitionSplit, KafkaPartitionSplitState>(
     elementsQueue, splitFetcherManager, recordEmitter, context, isBatch)
 {
-    commitOffsetsOnCheckpoint_ = true;
+    //todo 修改为读取配置的形式
+    commitOffsetsOnCheckpoint_ = false;
 }
 
 KafkaPartitionSplitState* KafkaSourceReader::initializedState(KafkaPartitionSplit* split)
@@ -85,7 +86,7 @@ void KafkaSourceReader::notifyCheckpointComplete(long checkpointId)
             // break Flink job's correctness if we fail to commit the offset here.
             if (e != nullptr) {
                 INFO_RELEASE(
-                        "Failed to commit consumer offsets for checkpoint:"<<checkpointId<<", error: ");
+                        "Error:Failed to commit consumer offsets for checkpoint:"<<checkpointId<<", error: ");
             } else {
                 INFO_RELEASE(
                         "Successfully committed offsets for checkpoint:"<<checkpointId);

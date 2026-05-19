@@ -56,8 +56,7 @@ public:
 
             for (auto& entry : *registeredOperatorStatesDeepCopies) {
                 std::string name = entry.first;
-        // INFO_RELEASE("h30082497 DefaultOperatorSnapshotOperation::get 1 internalList addr: " + std::to_string(reinterpret_cast<uintptr_t>(entry.second.get())));
-                    auto state = std::dynamic_pointer_cast<PartitionableListState<std::vector<uint8_t>>>(entry.second);
+                auto state = std::dynamic_pointer_cast<PartitionableListState<std::vector<uint8_t>>>(entry.second);
                 if (state != nullptr) {
                     if (state->getInternalList() == nullptr) {
                     }        

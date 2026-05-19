@@ -565,7 +565,6 @@ OperatorSnapshotFutures *OperatorChainV2::CheckpointStreamOperator(StreamOperato
         /* 规避：增加其他处理 */
         return op->SnapshotState(checkpointMetaData.GetCheckpointId(), checkpointMetaData.GetTimestamp(),
                                       checkpointOptions, storageLocation, bridge);
-        throw std::runtime_error("checkpointStreamOperator failed");
     } catch (...) {
         throw std::runtime_error("checkpointStreamOperator failed");
     }

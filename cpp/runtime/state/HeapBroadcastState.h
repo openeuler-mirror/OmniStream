@@ -84,18 +84,6 @@ public:
 
         out.writeInt(internalMap_->size());
 
-        /*
-        int i = 0;
-        for (const auto& entry: *internalMap_) {
-            Object* kObj = CustomVariant::BS_K_MVToObject(entry.first);
-            Object* vObj = CustomVariant::BS_V_MVToObject(entry.second);
-            getStateMetaInfo()->getKeySerializer()->serialize(kObj, out);
-            getStateMetaInfo()->getValueSerializer()->serialize(vObj, out);
-            kObj->putRefCount();
-            vObj->putRefCount();
-        }
-        */
-
         int i = 0;
         for (const auto& entry: *internalMap_) {
             getStateMetaInfo()->getKeySerializer()->serialize(&entry.first, out);

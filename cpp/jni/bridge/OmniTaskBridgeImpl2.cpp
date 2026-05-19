@@ -802,7 +802,6 @@ std::vector<StateMetaInfoSnapshot> convertResult(const std::string& cppResult)
         // Currently we don't take snapshot of serializers
         StateMetaInfoSnapshot::BackendStateType bst;
         auto backendStateTypeStr = oneSnapshot["backendStateType"].get<std::string>();
-        INFO_RELEASE("savepoint: OmniTaskBridgeImpl2::readOperatorMetaData backendStateType: " + backendStateTypeStr);
         if (backendStateTypeStr == "KEY_VALUE") {
             bst = StateMetaInfoSnapshot::BackendStateType::KEY_VALUE;
         } else if (backendStateTypeStr == "PRIORITY_QUEUE") {
@@ -810,14 +809,13 @@ std::vector<StateMetaInfoSnapshot> convertResult(const std::string& cppResult)
         } else if (backendStateTypeStr == "OPERATOR") {
             bst = StateMetaInfoSnapshot::BackendStateType::OPERATOR;
         } else if (backendStateTypeStr == "BROADCAST") {
-            LOG("Unsupport BackendStateType.")
+            INFO_RELEASE("Unsupport BackendStateType.")
             continue;
         } else {
             throw std::runtime_error("Unknown BackendStateType.");
         }
         toReturn.push_back(StateMetaInfoSnapshot(oneSnapshot["name"].get<std::string>(), bst, tmpOptions, {}, tmpSerializers));
     }
-    INFO_RELEASE("savepoint: OmniTaskBridgeImpl2::readOperatorMetaData result count: " + std::to_string(toReturn.size()));
     return toReturn;
 }
 
@@ -859,8 +857,6 @@ std::vector<StateMetaInfoSnapshot> OmniTaskBridgeImpl2::readMetaData(const std::
         std::string cppResult(strChars);
         env->ReleaseStringUTFChars(result, strChars);
         g_OmniStreamJVM->DetachCurrentThread();
-
-        INFO_RELEASE("savepoint: OmniTaskBridgeImpl2::readOperatorMetaData result len: " + std::to_string(cppResult.size()));
         return convertResult(cppResult);
     } else {
         GErrorLog("Error: Could not get TaskStateManagerWrapper class for JNI call");
@@ -870,8 +866,6 @@ std::vector<StateMetaInfoSnapshot> OmniTaskBridgeImpl2::readMetaData(const std::
 
 std::vector<StateMetaInfoSnapshot> OmniTaskBridgeImpl2::readOperatorMetaData(const std::string &metaStateHandle)
 {
-    INFO_RELEASE("savepoint: OmniTaskBridgeImpl2::readOperatorMetaData input len: " + std::to_string(metaStateHandle.size())
-        + ", m_globalOmniTaskRef isNull: " + std::string(m_globalOmniTaskRef == nullptr ? "true" : "false"));
     JNIEnv* env;
     jint res = g_OmniStreamJVM->AttachCurrentThread(reinterpret_cast<void**>(&env), nullptr);
     if (res != JNI_OK) {
@@ -881,7 +875,7 @@ std::vector<StateMetaInfoSnapshot> OmniTaskBridgeImpl2::readOperatorMetaData(con
     if (m_globalOmniTaskRef != nullptr) {
         jclass omniTaskWrapperClass = env->GetObjectClass(m_globalOmniTaskRef);
         if (omniTaskWrapperClass == nullptr) {
-            INFO_RELEASE("Error: Could not get TaskStateManagerWrapper class for JNI call 879");
+            INFO_RELEASE("Error: Could not get TaskStateManagerWrapper class for JNI call");
             g_OmniStreamJVM->DetachCurrentThread();
             return {};
         }
@@ -912,7 +906,6 @@ std::vector<StateMetaInfoSnapshot> OmniTaskBridgeImpl2::readOperatorMetaData(con
         std::string cppResult(strChars);
         env->ReleaseStringUTFChars(result, strChars);
         g_OmniStreamJVM->DetachCurrentThread();
-        INFO_RELEASE("savepoint: OmniTaskBridgeImpl2 readOperatorMetaData, result=" << cppResult);
         return convertResult(cppResult);
     } else {
         INFO_RELEASE("Error: Could not get TaskStateManagerWrapper class for JNI call");

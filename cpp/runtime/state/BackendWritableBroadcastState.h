@@ -18,7 +18,7 @@
 #include "runtime/state/CheckpointStreamFactory.h"
 #include "runtime/state/RegisteredBroadcastStateBackendMetaInfo.h"
 
-template <typename K = BS_K_MV, typename V = BS_V_MV>
+template <typename K, typename V>
 class BackendWritableBroadcastState : public BroadcastState<K, V> {
 public:
     virtual ~BackendWritableBroadcastState() = default;

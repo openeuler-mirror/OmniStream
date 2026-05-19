@@ -117,8 +117,8 @@ void RdKafkaConsumer::seek(std::unordered_map<std::shared_ptr<RdKafka::TopicPart
     partitionsStartingFromSpecifiedOffsets)
 {
     for (const auto& pair : partitionsStartingFromSpecifiedOffsets) {
-        // INFO_RELEASE("RdKafkaConsumer::seek topic" << pair.first->topic() << " partition" << pair.first->partition()
-        //     << " offset " << pair.second)
+        INFO_RELEASE("RdKafkaConsumer::seek topic" << pair.first->topic() << " partition" << pair.first->partition()
+            << " offset " << pair.second)
         pair.first->set_offset(pair.second);
         seek(*(pair.first));
     }
@@ -189,6 +189,7 @@ void RdKafkaConsumer::commitOffsets(const std::map<std::shared_ptr<RdKafka::Topi
     RdKafka::ErrorCode resp = consumer_->commitSync(partitions);
     if (resp != RdKafka::ERR_NO_ERROR) {
         std::cerr << "% commitOffsets failed: " << RdKafka::err2str(resp) << std::endl;
+        INFO_RELEASE("Error:Failed to commit offsets: " <<RdKafka::err2str(resp));
         throw std::runtime_error("Failed to commit offsets: " + RdKafka::err2str(resp));
     }
 

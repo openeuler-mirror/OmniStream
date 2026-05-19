@@ -1,3 +1,13 @@
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
 #pragma once
 
 #include <memory>
@@ -57,8 +67,6 @@ SimpleVersionedListState<T>::SimpleVersionedListState(
         throw std::invalid_argument("serializer cannot be null");
     }
     auto internal = rawState->get();
-    INFO_RELEASE("savepoint: SimpleVersionedListState ctor rawState internal ptr: " << static_cast<void*>(internal)
-        << ", size: " << (internal == nullptr ? 0 : internal->size()));
 }
 
 // serialize辅助方法实现
@@ -106,21 +114,15 @@ void SimpleVersionedListState<T>::add(const T& value) {
 // update方法实现
 template <typename T>
 void SimpleVersionedListState<T>::update(const std::vector<T>& values) {
-    INFO_RELEASE("savepoint: SimpleVersionedListState::update values size: " + std::to_string(values.size()));
     auto rawValues = serializeAll(values);
-    INFO_RELEASE("savepoint: SimpleVersionedListState::update rawValues size: " + std::to_string(rawValues->size()));
     rawState->update(*rawValues);
     delete rawValues;
-    INFO_RELEASE("savepoint: SimpleVersionedListState::update end");
 }
 
 // get方法实现
 template <typename T>
 std::vector<T>* SimpleVersionedListState<T>::get() {
     auto rawValues = rawState->get();
-    INFO_RELEASE("savepoint: SimpleVersionedListState::get rawValues isNull: "
-        << std::string(rawValues == nullptr ? "true" : "false")
-        << ", size: " << (rawValues == nullptr ? 0 : rawValues->size()));
     auto ptrValues = deserializeAll(rawValues);
     
     if (ptrValues == nullptr) {

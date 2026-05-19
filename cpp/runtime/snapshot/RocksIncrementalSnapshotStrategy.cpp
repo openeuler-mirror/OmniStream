@@ -86,7 +86,6 @@ std::shared_ptr<SnapshotResultSupplier<KeyedStateHandle>> RocksIncrementalSnapsh
 
 void RocksIncrementalSnapshotStrategy::notifyCheckpointComplete(long completedCheckpointId)
 {
-    INFO_RELEASE("RocksIncrementalSnapshotStrategy::notifyCheckpointComplete completedCheckpointId: " << completedCheckpointId);
     std::lock_guard<std::mutex> lock(uploadedSstFilesMutex_);
     if (completedCheckpointId > lastCompletedCheckpointId_ &&
         uploadedSstFiles_.find(completedCheckpointId) != uploadedSstFiles_.end()) {
@@ -104,7 +103,6 @@ void RocksIncrementalSnapshotStrategy::notifyCheckpointComplete(long completedCh
 
 void RocksIncrementalSnapshotStrategy::notifyCheckpointAborted(long abortedCheckpointId)
 {
-    INFO_RELEASE("RocksIncrementalSnapshotStrategy::notifyCheckpointAborted abortedCheckpointId: " << abortedCheckpointId);
     std::lock_guard<std::mutex> lock(uploadedSstFilesMutex_);
     uploadedSstFiles_.erase(abortedCheckpointId);
 }

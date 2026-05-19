@@ -169,7 +169,7 @@ StreamOperator *StreamOperatorFactory::createOperatorAndCollector(omnistream::Op
     WatermarkGaugeExposingOutput *chainOutput, std::shared_ptr<OmniStreamTask> task)
 {
     auto operatorID = opDesc.getId();
-    INFO_RELEASE("savapoint: StreamOperatorFactory operatorID  :" << operatorID)
+    INFO_RELEASE("StreamOperatorFactory operatorID  :" << operatorID)
 
     if (operatorID == OPERATOR_NAME_STREAM_CALC) {
         return CreateStreamCalcOp(opDesc, chainOutput, task);

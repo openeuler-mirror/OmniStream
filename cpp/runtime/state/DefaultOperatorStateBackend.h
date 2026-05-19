@@ -57,7 +57,6 @@ public:
           registeredBroadcastStates_(registeredBroadcastStates),
           accessedStatesByName_(accessedStatesByName),
           accessedBroadcastStatesByName_(accessedBroadcastStatesByName) {
-        INFO_RELEASE("h30082497 DefaultOperatorStateBackend");
     }
 
     std::unordered_set<std::string> getRegisteredStateNames() override {
@@ -79,7 +78,7 @@ public:
     void close() {}
 
     void dispose() override {
-        INFO_RELEASE("h30082497 DefaultOperatorStateBackend dispose");
+        LOG(" DefaultOperatorStateBackend dispose");
         if (!registeredOperatorStates_->empty()) {
             registeredOperatorStates_->clear();
         }
@@ -190,32 +189,20 @@ private:
             if (!registeredKeys.empty()) registeredKeys += ", ";
             registeredKeys += entry.first;
         }
-        INFO_RELEASE("savepoint: DefaultOperatorStateBackend::getListState lookup name: " << name
-            << ", registeredOperatorStates keys: [" << registeredKeys << "]"
-            << ", total size: " << registeredOperatorStates_->size());
 
         if (registeredIterator == registeredOperatorStates_->end()) {
             auto stateMetaInfo = std::make_shared<RegisteredOperatorStateBackendMetaInfo>(name, mode, operatorStateSerializer);
             auto internalList = std::make_shared<std::vector<S>>();
-            INFO_RELEASE("savepoint: DefaultOperatorStateBackend::getListState create new state name: " << name
-                << ", internalList addr: " << internalList.get()
-                << ", size: " << internalList->size());
             resultState = std::make_shared<PartitionableListState<S>>(stateMetaInfo, internalList);
             registeredOperatorStates_->emplace(name, resultState);
         } else {
             resultState = std::dynamic_pointer_cast<PartitionableListState<S>>(registeredIterator->second);
             auto stateMetaInfo = resultState->getStateMetaInfo();
-            INFO_RELEASE("savepoint: DefaultOperatorStateBackend::getListState reuse existing state name: " << name
-                << ", internalList addr: " << resultState->getInternalList().get()
-                << ", size: " << resultState->getInternalList()->size());
             stateMetaInfo->updateStateSerializer(operatorStateSerializer);
             resultState->setStateMetaInfo(stateMetaInfo);
         }
 
         accessedStatesByName_->emplace(name, (*registeredOperatorStates_)[name]);
-        INFO_RELEASE("savepoint: DefaultOperatorStateBackend::getListState return name: " + name
-            + ", registeredOperatorStates size: " + std::to_string(registeredOperatorStates_->size())
-            + ", accessedStatesByName size: " + std::to_string(accessedStatesByName_->size()));
         return resultState;
     }
 };

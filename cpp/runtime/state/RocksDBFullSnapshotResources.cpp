@@ -43,9 +43,6 @@ RocksDBFullSnapshotResources::createKVStateIterators(
         kvStateIterators;
     int kvStateId = 0;
     for (auto& metaDataEntry : metaData_) {
-        INFO_RELEASE("RocksDBFullSnapshotResources::createKVStateIterators kvStateId: " << kvStateId
-            << ", stateName: " << metaDataEntry->rocksDbKvStateInfo->metaInfo_->getName()
-            << ", cfName: " << metaDataEntry->rocksDbKvStateInfo->columnFamilyHandle_->GetName());
         auto rocksIteratorWrapper = createRocksIteratorWrapper(
             db_,
             metaDataEntry->rocksDbKvStateInfo->columnFamilyHandle_,
