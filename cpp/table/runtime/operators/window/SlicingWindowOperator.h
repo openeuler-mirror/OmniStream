@@ -36,6 +36,8 @@ class SlicingWindowProcessor;
 #include "runtime/state/StateSnapshotContextSynchronousImpl.h"
 #include "core/api/common/state/ListStateDescriptor.h"
 #include <ctime>
+#include <limits>
+#include <string>
 
 using namespace omniruntime::type;
 using json = nlohmann::json;
@@ -49,10 +51,10 @@ public:
     void open() override;
     void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) override
     {
-        // First do the shared initialization step
-        INFO_RELEASE("SlicingWindowOperator initializeState with initializer, operatorID: " << OneInputStreamOperator::GetOperatorID().toString());
-        AbstractStreamOperator::SetOperatorID(OneInputStreamOperator::GetOperatorID().toString());
-        AbstractStreamOperator::initializeState(initializer, keySerializer);
+        INFO_RELEASE("SlicingWindowOperator initializeState with initializer, operatorID: "
+            << AbstractStreamOperator<RowData*>::GetOperatorID().toString());
+        AbstractStreamOperator<RowData*>::SetOperatorID(
+            AbstractStreamOperator<RowData*>::GetOperatorID().toString());
         AbstractStreamOperator<RowData*>::initializeState(initializer, keySerializer);
     };
 
@@ -148,11 +150,12 @@ void SlicingWindowOperator<K, W>::open()
     INFO_RELEASE("SlicingWindowOperator open");
     TableStreamOperator<RowData*>::open();
     lastTriggeredProcessingTime = std::numeric_limits<int64_t>::min();
-    StreamingRuntimeContext<K> *runtimeCtx = getRuntimeContext();
+    auto *runtimeCtx = AbstractStreamOperator<RowData*>::getRuntimeContext();
     auto backState = this->stateHandler->getKeyedStateBackend();
     TypeSerializer *windowSerializer = windowProcessor->createWindowSerializer();
     internalTimerService =
-            AbstractStreamOperator<K>::getInternalTimerService("window-timers", windowSerializer, this);
+            AbstractStreamOperator<RowData*>::template getInternalTimerService<int64_t>(
+                "window-timers", windowSerializer, this);
     windowProcessor->open(backState, description, runtimeCtx, internalTimerService);
     windowProcessor->initializeWatermark(currentWatermark);
 }
@@ -185,9 +188,9 @@ void SlicingWindowOperator<K, W>::ProcessWatermark(Watermark *mark)
         LOG("watermark > current watermark")
         windowProcessor->advanceProgress(this->stateHandler, mark->getTimestamp());
         LOG("after advance")
-        TableStreamOperator::ProcessWatermark(mark);
+        TableStreamOperator<RowData*>::ProcessWatermark(mark);
     } else {
-        TableStreamOperator::ProcessWatermark(new Watermark(currentWatermark));
+        TableStreamOperator<RowData*>::ProcessWatermark(new Watermark(currentWatermark));
     }
     currentWatermark = mark->getTimestamp();
 }

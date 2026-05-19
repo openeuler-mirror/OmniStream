@@ -79,7 +79,7 @@ public:
 
     std::shared_ptr<omnistream::TaskMetricGroup> GetMectrics() override
     {
-        return AbstractStreamOperator::GetMectrics();
+        return AbstractStreamOperator<int>::GetMectrics();
     }
 
     // For testing
