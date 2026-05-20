@@ -66,7 +66,7 @@ public:
     void Flush(bool endOfInput);
     std::vector<KafkaCommittable> prepareCommit();
     std::vector<KafkaWriterState> recoveredStates;
-    RdKafka::Conf* kafkaProducerConfig;
+    RdKafka::Conf* kafkaProducerConfig = nullptr;
     std::string topic;
     KafkaWriterState* kafkaWriterState = nullptr;
 
@@ -83,7 +83,7 @@ private:
 
     DeliveryGuarantee deliveryGuarantee;
     std::string transactionalIdPrefix = "kafka-sink";
-    DynamicKafkaRecordSerializationSchema *recordSerializer;
+    DynamicKafkaRecordSerializationSchema *recordSerializer = nullptr;
     std::exception_ptr asyncProducerException;
     nlohmann::json description;
     std::vector<std::string> inputFields;
@@ -122,8 +122,8 @@ private:
     std::shared_ptr<FlinkKafkaInternalProducer> getOrCreateTransactionalProducer(const std::string& transactionalId);
     void ProduceRecord(KeyValueByteContainer &record);
     void handleRecord();
-    RdKafka::Topic *rd_topic1;
-    RdKafka::Topic *rd_topic2;
+    RdKafka::Topic *rd_topic1 = nullptr;
+    RdKafka::Topic *rd_topic2 = nullptr;
     int32_t partitionNum = 0;
     int32_t instanceId = 0;
     int producerIndexOne = 1;
@@ -141,7 +141,13 @@ private:
 
     void timer_thread()
     {
+        if (!timer_worker_thread_flag.load()) {
+            return;
+        }
         std::unique_lock<std::mutex> gLock(gMtx);
+        if (!timer_worker_thread_flag.load()) {
+            return;
+        }
         handleRecord();
     }
 

@@ -63,7 +63,13 @@ KafkaWriter::KafkaWriter(DeliveryGuarantee deliveryGuarantee,
 
 KafkaWriter::~KafkaWriter()
 {
+    timer_worker_thread_flag.store(false);
+
     omnistream::TimerThreadPool::GetTimerThreadPoolInstance()->cancel(taskId);
+
+    {
+        std::lock_guard<std::mutex> lock(gMtx);
+    }
 
     stop_flag.store(true);
     cv.notify_all();
@@ -80,10 +86,6 @@ KafkaWriter::~KafkaWriter()
     rd_topic1 = nullptr;
     delete rd_topic2;
     rd_topic2 = nullptr;
-    delete kafkaProducerConfig;
-    kafkaProducerConfig = nullptr;
-
-    timer_worker_thread_flag.store(false);
 }
 
 void KafkaWriter::write(String *element)
