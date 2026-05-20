@@ -56,12 +56,17 @@ void SinkWriterOperator::open() {
 }
 
 void SinkWriterOperator::close() {
+    if (closed_) {
+        return;
+    }
+    closed_ = true;
     INFO_RELEASE("savepoint: SinkWriterOperator close START");
-    if (!endOfInput) {
+    if (!endOfInput && sinkWriter != nullptr) {
         EndInput();
     }
     delete writerStateHandler;
     writerStateHandler = nullptr;
+    sinkWriter = nullptr;
     delete committableSerializer;
     committableSerializer = nullptr;
     delete kafkaSink;
@@ -184,7 +189,8 @@ void SinkWriterOperator::initializeState(StateInitializationContextImpl<void*>* 
             auto rawState = operatorStateBackend->getListState<std::vector<uint8_t>>(&SinkWriterOperator::STREAMING_COMMITTER_RAW_STATES_DESC);
 
             auto sinkV1 = std::make_shared<SinkV1WriterCommittableSerializer<KafkaCommittable>>(
-                std::shared_ptr<SimpleVersionedSerializer<KafkaCommittable>>(committableSerializer));
+                std::shared_ptr<SimpleVersionedSerializer<KafkaCommittable>>(
+                    committableSerializer, [](SimpleVersionedSerializer<KafkaCommittable>*) {}));
             
             SimpleVersionedListState<std::vector<KafkaCommittable>> legacyCommitterState(rawState, sinkV1);
 
