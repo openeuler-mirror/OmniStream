@@ -24,9 +24,8 @@ template<typename K, typename W>
 class MergingWindowSet {
 public:
     using MergeFunction = std::function<void(W&, std::unordered_set<W>&, W&, std::vector<W>&)>;
-    using AssignerPtr = std::shared_ptr<MergingWindowAssigner<W>>;
 
-    MergingWindowSet(AssignerPtr windowAssigner, MapState<W, W> *mapping) : mapping(mapping), windowAssigner(windowAssigner) {}
+    MergingWindowSet(MergingWindowAssigner<W>* windowAssigner, MapState<W, W> *mapping) : mapping(mapping), windowAssigner(windowAssigner) {}
 
     ~MergingWindowSet() = default;
 
@@ -44,5 +43,5 @@ private:
     MapState<W, W>* mapping;
     LRUMap<K, std::set<W>*> cachedSortedWindows{MAPPING_CACHE_SIZE};
     std::set<W>* sortedWindows = nullptr;
-    AssignerPtr windowAssigner;
+    MergingWindowAssigner<W>* windowAssigner;
 };

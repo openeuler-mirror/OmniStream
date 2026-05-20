@@ -8,17 +8,16 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef NAMESPACEAGGSHANDLEFUNCTION_H
-#define NAMESPACEAGGSHANDLEFUNCTION_H
+
+#pragma once
 
 #include "NamespaceAggsHandleFunctionBase.h"
 
 template<typename N>
 class NamespaceAggsHandleFunction : public NamespaceAggsHandleFunctionBase<N> {
 public:
-    virtual RowData *getValue(N namespaceVal) = 0;
+    // Gets the result of the aggregation from the current accumulators and namespace properties
+    virtual RowData* getValue(N namespaceVal) = 0;
 
     ~NamespaceAggsHandleFunction() override = default;
 };
-
-#endif

@@ -17,12 +17,11 @@ template<typename K, typename W>
 void MergingWindowProcessFunction<K, W>::Open(Context<K, W> *ctx)
 {
     InternalWindowProcessFunction<K, W>::Open(ctx);
-    auto assigner = std::shared_ptr<MergingWindowAssigner<W>>(windowAssigner);
 
     // init windowState
     MapStateDescriptor<W, W> *mapStateDescriptor = new MapStateDescriptor<W, W>("session-window-mapping", windowSerializer, windowSerializer);
     MapState<W, W>* mapState = dynamic_cast<typename WindowOperator<K, W>::WindowContext*>(ctx)->GetPartitionedState(mapStateDescriptor);
-    mergingWindows = std::make_unique<MergingWindowSet<K, W>>(assigner, mapState);
+    mergingWindows = std::make_unique<MergingWindowSet<K, W>>(windowAssigner, mapState);
 }
 
 template<typename K, typename W>
@@ -52,7 +51,7 @@ std::vector<W> MergingWindowProcessFunction<K, W>::AssignStateNamespace(RowData 
         if (!stateWindowsToBeMerged.empty()) {
             RowData *targetAcc = this->ctx->GetWindowAccumulators(stateWindowResult);
             if (targetAcc == nullptr) {
-                targetAcc = this->windowAggregator->createAccumulators(0);
+                targetAcc = this->windowAggregator->createAccumulators(accumulatorArity_);
             }
             this->windowAggregator->setAccumulators(stateWindowResult, targetAcc);
             for (W w: stateWindowsToBeMerged) {
@@ -102,7 +101,7 @@ void MergingWindowProcessFunction<K, W>::PrepareAggregateAccumulatorForEmit(W &w
     W stateWindow = mergingWindows->GetStateWindow(window);
     RowData *acc = this->ctx->GetWindowAccumulators(stateWindow);
     if (acc == nullptr) {
-        acc = InternalWindowProcessFunction<K, W>::windowAggregator->createAccumulators(1);
+        acc = InternalWindowProcessFunction<K, W>::windowAggregator->createAccumulators(accumulatorArity_);
     }
     InternalWindowProcessFunction<K, W>::windowAggregator->setAccumulators(stateWindow, acc);
 }
