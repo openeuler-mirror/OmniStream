@@ -216,19 +216,15 @@ public:
                     S* state = keyedStateBackend->template getPartitionedState<VoidNamespace, S, emhash7::HashMap<W, W>*>(
                             VoidNamespace(), new VoidNamespaceSerializer(), stateDescriptor);
                     return state;
-                } else if (dynamic_cast<HeapKeyedStateBackend<K>*>(keyedStateBackend) != nullptr) {
+                }
+                if (dynamic_cast<HeapKeyedStateBackend<K>*>(keyedStateBackend) != nullptr) {
                     using S = HeapMapState<K, VoidNamespace, W, W>;
                     S* state = keyedStateBackend->template getPartitionedState<VoidNamespace, S, emhash7::HashMap<W, W>*>(
                             VoidNamespace(), new VoidNamespaceSerializer(), stateDescriptor);
                     return state;
-                } else if (dynamic_cast<BssKeyedStateBackend<K>*>(keyedStateBackend) != nullptr) {
-                    using S = BssMapState<K, VoidNamespace, W, W>;
-                    S* state = keyedStateBackend->template getPartitionedState<VoidNamespace, S, emhash7::HashMap<W, W>*>(
-                            VoidNamespace(), new VoidNamespaceSerializer(), stateDescriptor);
-                    return state;
-                } else {
-                    THROW_LOGIC_EXCEPTION("The keyedStateBackend is not supported");
                 }
+
+                THROW_LOGIC_EXCEPTION("The keyedStateBackend is not supported");
             }
 
             K CurrentKey() override
