@@ -31,6 +31,7 @@
 #include "runtime/state/SnapshotStrategyRunner.h"
 #include "bridge/OmniTaskBridgeImpl2.h"
 #include "state/SavepointSnapshotStrategy.h"
+#include "runtime/state/StateInitializationContextImpl.h"
 
 using omnistream::OmniTaskBridge;
 
@@ -86,6 +87,9 @@ public:
         if (keyedStateBackend != nullptr) {
             keyedStateBackend->dispose();
         }
+        if (operatorStateBackend != nullptr) {
+            operatorStateBackend->dispose();
+        }
     }
 
     OperatorSnapshotFutures *snapshotState();
@@ -98,11 +102,41 @@ public:
         }
     }
 
+    void notifyCheckpointAborted(long checkpointId)
+    {
+        INFO_RELEASE("notifyCheckpointAborted");
+        auto backend = dynamic_cast<RocksdbKeyedStateBackend<K>*>(keyedStateBackend);
+        if (backend) {
+            backend->notifyCheckpointAborted(checkpointId);
+        }
+    }
+
     class CheckpointedStreamOperator {
     public:
-        virtual void snapshotState() {}
-        virtual void initializeState() {}
+        virtual void snapshotState(StateSnapshotContextSynchronousImpl *context) {}
+        virtual void initializeState(StateInitializationContextImpl<K> *context) {}
     };
+
+    void initializeOperatorState(CheckpointedStreamOperator *streamOperator)
+    {
+        try {
+            // Get restored checkpoint id from context
+            std::optional<uint64_t> checkpointId = context->getRestoredCheckpointId();
+
+
+            // Create StateInitializationContextImpl with correct template parameter
+            StateInitializationContextImpl<K> *initializationContext = new StateInitializationContextImpl<K>(
+                checkpointId,
+                this->operatorStateBackend, // access to operator state backend
+                this->keyedStateStore      // access to keyed state store
+                );
+            streamOperator->initializeState(initializationContext);
+            delete initializationContext; // 释放内存，避免泄漏
+        } catch (const std::exception& e) {
+            INFO_RELEASE("Error in initializeOperatorState: " << e.what());
+            throw; // 重新抛出异常
+        }
+    }
 
     OperatorSnapshotFutures *SnapshotState(
         CheckpointedStreamOperator *streamOperator,
@@ -180,8 +214,7 @@ public:
                     timeServiceManager->snapshotToRawKeyedState(snapshotContext->getRawKeyedOperatorStateOutput(), operatorName);
                 }
             }
-            
-            streamOperator->snapshotState();
+            streamOperator->snapshotState(snapshotContext);
             snapshotInProgress->setKeyedStateRawFuture(snapshotContext->getKeyedStateStreamFuture());
             snapshotInProgress->setOperatorStateRawFuture(snapshotContext->getOperatorStateStreamFuture());
 

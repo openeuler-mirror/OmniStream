@@ -18,6 +18,7 @@
 #include "runtime/execution/OmniEnvironment.h"
 #include "RocksDBKeyedStateBackendBuilder.h"
 #include "RocksDBMemoryControllerUtils.h"
+#include "DefaultOperatorStateBackendBuilder.h"
 
 using json = nlohmann::json;
 
@@ -112,6 +113,25 @@ public:
         builder.setEnableIncrementalCheckpointing(incrementalCheckpointing)
                 .setNumberOfTransferringThreads(numberOfTransferThreads)
                 .setWriteBatchSize(writeBatchSize);
+
+        return builder.build();
+    }
+
+    OperatorStateBackend* createOperatorStateBackend(
+        omnistream::EnvironmentV2* env,
+        std::string operatorIdentifier,
+        std::set<std::shared_ptr<OperatorStateHandle>> stateHandles) {
+        std::vector<std::shared_ptr<OperatorStateHandle>> stateVector(stateHandles.begin(), stateHandles.end());
+        auto bridge = env->getTaskStateManager()->getTaskStateManagerBridge();
+        auto omniTaskBridge = env->getTaskStateManager()->getOmniTaskBridge();
+
+        const bool asynchronousSnapshots = true;
+        DefaultOperatorStateBackendBuilder builder(
+            asynchronousSnapshots,
+            operatorIdentifier,
+            stateVector,
+            bridge,
+            omniTaskBridge);
 
         return builder.build();
     }

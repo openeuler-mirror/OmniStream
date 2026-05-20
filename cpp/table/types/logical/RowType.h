@@ -26,6 +26,10 @@ namespace omnistream {
 
             [[nodiscard]] LogicalType *getType() const;
 
+            std::string getName() const;
+
+            nlohmann::json toJson() const;
+
         private:
             string name_;
             LogicalType *type_;
@@ -37,6 +41,8 @@ namespace omnistream {
             RowType(bool isNull, const std::vector<RowField> &fields);
             RowType(bool isNull, const std::vector<std::string> &typeName);
             std::vector<LogicalType *> getChildren() override;
+
+            nlohmann::json toJson() const override;
 
         private:
             std::vector<RowField> fields_;

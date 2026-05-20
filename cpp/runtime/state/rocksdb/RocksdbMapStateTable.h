@@ -39,6 +39,9 @@
 #include "runtime/state/DefaultConfigurableOptionsFactory.h"
 #include "common.h"
 #include <sstream>
+#include "runtime/state/RocksIteratorWrapper.h"
+#include "RocksDbOperationUtils.h"
+#include <iomanip>
 
 #include "RocksDbOperationUtils.h"
 
@@ -93,6 +96,15 @@ public:
         auto it2 = kvStateInformation->find(cfName + "vb");
         if (it2 != kvStateInformation->end() && it2->second->columnFamilyHandle_) {
             VBTable = it2->second->columnFamilyHandle_;
+            std::unique_ptr<RocksIteratorWrapper> iterator = RocksDbOperationUtils::getRocksIterator(
+                db, VBTable, readOptions);
+            iterator->seekToLast();
+            if (iterator->isValid()) {
+                std::string key = iterator->key();
+                DataInputDeserializer in(key.data(), key.size(), 0);
+                vectorBatchId = (long) in.readLong();
+                vectorBatchId ++;
+            }
         } else {
             s = db->CreateColumnFamily(familyOptions, cfName + "vb", &VBTable);
             if (it2 != kvStateInformation->end()) {

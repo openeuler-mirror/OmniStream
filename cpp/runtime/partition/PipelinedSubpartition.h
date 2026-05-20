@@ -80,7 +80,7 @@ private:
     int receiverExclusiveBuffersPerChannel;
     // PrioritizedDeque<ObjectBufferConsumerWithPartialRecordLength> buffers;
     PrioritizedDeque<BufferConsumerWithPartialRecordLength> buffers;
-    std::mutex buffersMutex;
+    std::recursive_mutex buffersMutex;
     std::shared_ptr<CompletableFutureV2<std::vector<Buffer*>>> channelStateFuture_;
     long channelStateCheckpointId_ = 0;
 

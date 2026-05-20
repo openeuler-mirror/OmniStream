@@ -13,6 +13,7 @@
 #define OMNISTREAM_ROCKSDBSTATEBACKEND
 
 #include "EmbeddedRocksDBStateBackend.h"
+#include "OperatorStateBackend.h"
 #include <set>
 #include "runtime/state/StateBackend.h"
 
@@ -56,6 +57,17 @@ public:
             numberOfKeyGroups,
             alternativeIdx);
     };
+
+    OperatorStateBackend* createOperatorStateBackend(
+        omnistream::EnvironmentV2* env_,
+        std::string operatorIdentifier_,
+        std::set<std::shared_ptr<OperatorStateHandle>> stateHandles_) {
+
+        return rocksDbStateBackend->createOperatorStateBackend(
+            env_,
+            operatorIdentifier_,
+            stateHandles_);
+    }
 
 private:
     EmbeddedRocksDBStateBackend *rocksDbStateBackend;

@@ -139,6 +139,14 @@ TEST(GroupAggFunctionTest, OneKeyOneMaxAggBigIntTest){
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
     taskInfo->setStateBackend("HashMapStateBackend");
+    {
+        auto configPOD = taskInfo->getStreamConfigPOD();
+        auto operatorDesc = configPOD.getOperatorDescription();
+        operatorDesc.setOperatorId("deadbeefdeadbeefdeadbeefdeadbeef");
+        configPOD.setOperatorDescription(operatorDesc);
+        taskInfo->setStreamConfigPOD(configPOD);
+    }
+    env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
     StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
     std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::BIGINT)});
@@ -274,6 +282,14 @@ TEST(GroupAggFunctionTest, TwoKeysOneMaxAggBigInt){
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
     taskInfo->setStateBackend("HashMapStateBackend");
+    {
+        auto configPOD = taskInfo->getStreamConfigPOD();
+        auto operatorDesc = configPOD.getOperatorDescription();
+        operatorDesc.setOperatorId("deadbeefdeadbeefdeadbeefdeadbeef");
+        configPOD.setOperatorDescription(operatorDesc);
+        taskInfo->setStreamConfigPOD(configPOD);
+    }
+    env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
     StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
     std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::BIGINT)});
@@ -407,6 +423,14 @@ TEST(GroupAggFunctionTest, TwoKeyTwoAggMaxAndAvg){
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
     taskInfo->setStateBackend("HashMapStateBackend");
+    {
+        auto configPOD = taskInfo->getStreamConfigPOD();
+        auto operatorDesc = configPOD.getOperatorDescription();
+        operatorDesc.setOperatorId("deadbeefdeadbeefdeadbeefdeadbeef");
+        configPOD.setOperatorDescription(operatorDesc);
+        taskInfo->setStreamConfigPOD(configPOD);
+    }
+    env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
     StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
     std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::BIGINT)});
@@ -524,6 +548,14 @@ TEST(GroupAggFunctionTest, OneKeyOneMaxAggCompactTimestampTest){
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
     taskInfo->setStateBackend("HashMapStateBackend");
+    {
+        auto configPOD = taskInfo->getStreamConfigPOD();
+        auto operatorDesc = configPOD.getOperatorDescription();
+        operatorDesc.setOperatorId("deadbeefdeadbeefdeadbeefdeadbeef");
+        configPOD.setOperatorDescription(operatorDesc);
+        taskInfo->setStreamConfigPOD(configPOD);
+    }
+    env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
     StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
     std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::TIMESTAMP_WITHOUT_TIME_ZONE)});
@@ -627,6 +659,14 @@ TEST(GroupAggFunctionTest, OneKeyOneAggCountTest){
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
     taskInfo->setStateBackend("HashMapStateBackend");
+    {
+        auto configPOD = taskInfo->getStreamConfigPOD();
+        auto operatorDesc = configPOD.getOperatorDescription();
+        operatorDesc.setOperatorId("deadbeefdeadbeefdeadbeefdeadbeef");
+        configPOD.setOperatorDescription(operatorDesc);
+        taskInfo->setStreamConfigPOD(configPOD);
+    }
+    env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
     StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
     std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::BIGINT)});
@@ -732,6 +772,14 @@ TEST(GroupAggFunctionTest, OneKeyOneAggCountAndAvgTest){
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
     taskInfo->setStateBackend("HashMapStateBackend");
+    {
+        auto configPOD = taskInfo->getStreamConfigPOD();
+        auto operatorDesc = configPOD.getOperatorDescription();
+        operatorDesc.setOperatorId("deadbeefdeadbeefdeadbeefdeadbeef");
+        configPOD.setOperatorDescription(operatorDesc);
+        taskInfo->setStreamConfigPOD(configPOD);
+    }
+    env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
     StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
     std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::BIGINT), omnistream::RowField("col3", BasicLogicalType::BIGINT)});
@@ -840,6 +888,14 @@ TEST(GroupAggFunctionTest, DISABLED_OneKeyOneMaxAggNonCompactTimestampTest){
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
     taskInfo->setStateBackend("HashMapStateBackend");
+    {
+        auto configPOD = taskInfo->getStreamConfigPOD();
+        auto operatorDesc = configPOD.getOperatorDescription();
+        operatorDesc.setOperatorId("deadbeefdeadbeefdeadbeefdeadbeef");
+        configPOD.setOperatorDescription(operatorDesc);
+        taskInfo->setStreamConfigPOD(configPOD);
+    }
+    env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
     StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
     std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::TIMESTAMP_WITHOUT_TIME_ZONE)});
@@ -962,6 +1018,14 @@ TEST(GroupAggFunctionTest, VectorBatch_Q17Agg)
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
     taskInfo->setStateBackend("HashMapStateBackend");
+    {
+        auto configPOD = taskInfo->getStreamConfigPOD();
+        auto operatorDesc = configPOD.getOperatorDescription();
+        operatorDesc.setOperatorId("deadbeefdeadbeefdeadbeefdeadbeef");
+        configPOD.setOperatorDescription(operatorDesc);
+        taskInfo->setStreamConfigPOD(configPOD);
+    }
+    env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
     StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
     std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::BIGINT)});
@@ -1141,6 +1205,14 @@ TEST(GroupAggFunctionTest, VectorBatch_OneKeyMaxAggTest)
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
     taskInfo->setStateBackend("HashMapStateBackend");
+    {
+        auto configPOD = taskInfo->getStreamConfigPOD();
+        auto operatorDesc = configPOD.getOperatorDescription();
+        operatorDesc.setOperatorId("deadbeefdeadbeefdeadbeefdeadbeef");
+        configPOD.setOperatorDescription(operatorDesc);
+        taskInfo->setStreamConfigPOD(configPOD);
+    }
+    env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
     StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
     std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::BIGINT)});
@@ -1265,6 +1337,14 @@ TEST(GroupAggFunctionTest, VectorBatch_OneKeyAvgAggTest)
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
     taskInfo->setStateBackend("HashMapStateBackend");
+    {
+        auto configPOD = taskInfo->getStreamConfigPOD();
+        auto operatorDesc = configPOD.getOperatorDescription();
+        operatorDesc.setOperatorId("deadbeefdeadbeefdeadbeefdeadbeef");
+        configPOD.setOperatorDescription(operatorDesc);
+        taskInfo->setStreamConfigPOD(configPOD);
+    }
+    env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
     StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
     std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::BIGINT)});
@@ -1412,6 +1492,14 @@ TEST(GroupAggFunctionTest, VectorBatch_Q17Agg_Benchmark)
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
     taskInfo->setStateBackend("HashMapStateBackend");
+    {
+        auto configPOD = taskInfo->getStreamConfigPOD();
+        auto operatorDesc = configPOD.getOperatorDescription();
+        operatorDesc.setOperatorId("deadbeefdeadbeefdeadbeefdeadbeef");
+        configPOD.setOperatorDescription(operatorDesc);
+        taskInfo->setStreamConfigPOD(configPOD);
+    }
+    env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
     StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
     std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::BIGINT)});

@@ -78,6 +78,14 @@ TEST(GlobalWindowAggTest, DISABLED_OnTimerTest) {
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
     taskInfo->setStateBackend("HashMapStateBackend");
+    {
+        auto configPOD = taskInfo->getStreamConfigPOD();
+        auto operatorDesc = configPOD.getOperatorDescription();
+        operatorDesc.setOperatorId("deadbeefdeadbeefdeadbeefdeadbeef");
+        configPOD.setOperatorDescription(operatorDesc);
+        taskInfo->setStreamConfigPOD(configPOD);
+    }
+    env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
     StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
     operators->setup();
@@ -128,6 +136,14 @@ TEST(GlobalWindowAggTest, DISABLED_TUMBLETest) {
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
     taskInfo->setStateBackend("HashMapStateBackend");
+    {
+        auto configPOD = taskInfo->getStreamConfigPOD();
+        auto operatorDesc = configPOD.getOperatorDescription();
+        operatorDesc.setOperatorId("deadbeefdeadbeefdeadbeefdeadbeef");
+        configPOD.setOperatorDescription(operatorDesc);
+        taskInfo->setStreamConfigPOD(configPOD);
+    }
+    env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
     StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
     operators->setup();
@@ -174,6 +190,14 @@ TEST(GlobalWindowAggTest, DISABLED_HOPTest1) {
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
     taskInfo->setStateBackend("HashMapStateBackend");
+    {
+        auto configPOD = taskInfo->getStreamConfigPOD();
+        auto operatorDesc = configPOD.getOperatorDescription();
+        operatorDesc.setOperatorId("deadbeefdeadbeefdeadbeefdeadbeef");
+        configPOD.setOperatorDescription(operatorDesc);
+        taskInfo->setStreamConfigPOD(configPOD);
+    }
+    env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
     StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
     slicingWindowOperator->setup();

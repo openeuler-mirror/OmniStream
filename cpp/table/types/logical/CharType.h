@@ -20,6 +20,8 @@ public:
 
     std::vector<LogicalType *> getChildren() override;
 
+    nlohmann::json toJson() const override;
+
 private:
     int length;
 };

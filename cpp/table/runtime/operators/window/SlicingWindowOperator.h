@@ -45,6 +45,9 @@ public:
     void open() override;
     void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) override
     {
+        // First do the shared initialization step
+        INFO_RELEASE("SlicingWindowOperator initializeState with initializer, operatorID: " << OneInputStreamOperator::GetOperatorID().toString());
+        AbstractStreamOperator::SetOperatorID(OneInputStreamOperator::GetOperatorID().toString());
         AbstractStreamOperator::initializeState(initializer, keySerializer);
     };
     void snapshotState() {};

@@ -263,6 +263,9 @@ void WindowJoinOperator<KeyType>::processBatch2(StreamRecord* element)
 template <typename KeyType>
 inline void WindowJoinOperator<KeyType>::initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer)
 {
+    // First do the shared initialization step
+    INFO_RELEASE("WindowJoinOperator initializeState with initializer, operatorID: " << TwoInputStreamOperator::GetOperatorID().toString());
+    AbstractStreamOperator<KeyType>::SetOperatorID(TwoInputStreamOperator::GetOperatorID().toString());
     AbstractStreamOperator<KeyType>::initializeState(initializer, keySerializer);
 }
 

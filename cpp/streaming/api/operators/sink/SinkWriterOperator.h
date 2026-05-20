@@ -22,26 +22,40 @@
 #include "core/include/common.h"
 #include "connector/kafka/sink/KafkaSink.h"
 #include "connector/kafka/sink/KafkaWriter.h"
+#include "connector/kafka/sink/KafkaCommittable.h"
 #include "connector/kafka/sink/KafkaCommittableSerializer.h"
 #include "streaming/runtime/streamrecord/StreamRecord.h"
 #include "streaming/api/operators/OneInputStreamOperator.h"
 #include "streaming/api/operators/AbstractStreamOperator.h"
+#include "streaming/api/operators/sink/KafkaSinkWriterStateHandler.h"
+#include "streaming/api/operators/sink/InitContextImpl.h"
 
-class SinkWriterOperator : public OneInputStreamOperator, AbstractStreamOperator<void *> {
+class SinkWriterOperator : public OneInputStreamOperator, public AbstractStreamOperator<void *> {
 public:
+    static ListStateDescriptor<std::vector<uint8_t>> STREAMING_COMMITTER_RAW_STATES_DESC;
 
     SinkWriterOperator(KafkaSink *kafkaSink, const nlohmann::json& config);
 
     ~SinkWriterOperator()
     {
-        EndInput();
+        if (!endOfInput) {
+            EndInput();
+        }
+        delete writerStateHandler;
+        writerStateHandler = nullptr;
+        delete committableSerializer;
+        committableSerializer = nullptr;
         delete kafkaSink;
-        delete sinkWriter;
+        kafkaSink = nullptr;
     }
 
-    void initializeState();
+    void initializeState(StateInitializationContextImpl<void*>* context) override;
+
+    void snapshotState(StateSnapshotContextSynchronousImpl* context) override;
 
     void open() override;
+
+    void close() override;
 
     RowData* getOutputEntireRow(omnistream::VectorBatch *batch, int rowId);
 
@@ -62,7 +76,13 @@ public:
         return isDataStream;
     }
 
+    std::string getTypeName() override;
+
+    KafkaSink* getKafkaSink() { return kafkaSink; }
+
 private:
+    template<typename K>
+    InitContextImpl<K>* createInitContext(std::optional<uint64_t> restoredCheckpointId);
     template<typename CommT>
     void emitCommittables(std::int64_t checkpointId);
     template<typename CommT>
@@ -76,6 +96,10 @@ private:
     bool endOfInput;
     nlohmann::json description;
     std::vector<std::string> inputTypes;
+
+    ProcessingTimeServiceImpl* processingTimeService;
+    KafkaSinkWriterStateHandler* writerStateHandler;
+    std::vector<KafkaCommittable> legacyCommittables;
     bool isDataStream;
     int32_t subtaskIndex;
 };

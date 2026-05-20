@@ -39,16 +39,21 @@ public:
     {
         return std::unordered_map<std::string, StateMetaInfo>();
     };
-    FSDataInputStream *openInputStream() override
+    std::shared_ptr<StreamStateHandle> getDelegateStateHandle() override
     {
         return nullptr;
     };
-    StreamStateHandle *getDelegateStateHandle() override
-    {
-        return nullptr;
-    };
-    std::string ToString() const override{return "";}
+    std::string ToString() const override{ return ""; }
 
+    PhysicalStateHandleID getStreamStateHandleID() { return GetStreamStateHandleID(); }
+
+    std::shared_ptr<FSDataInputStream> OpenInputStream() const override { return nullptr; }
+
+    std::optional<std::vector<uint8_t>> AsBytesIfInMemory() const override { return std::optional<std::vector<uint8_t>>(); }
+
+    PhysicalStateHandleID GetStreamStateHandleID() const override { PhysicalStateHandleID id(""); return id;; }
+
+    bool operator==(const StreamStateHandle& other_) const override { return false; }
 };
 TEST(TaskStateSnapshotTest, putGetSubtaskStateByOperatorID) {
     TaskStateSnapshot taskStateSnapshot;

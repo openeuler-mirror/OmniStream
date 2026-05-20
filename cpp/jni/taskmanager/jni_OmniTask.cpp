@@ -10,6 +10,7 @@
  */
 
 #include <stdexcept>
+#include <thread>
 #include <taskmanager/OmniTask.h>
 #include "common.h"
 #include <bridge/OmniTaskBridgeImpl2.h>
@@ -148,8 +149,7 @@ JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_Omn
     nlohmann::json checkpointoptionJsonStr = json::parse(checkpointStr);
     jniEnv->ReleaseStringUTFChars(checkpointoptionJson, checkpointStr);
     CheckpointOptions *configuredOptions = CheckpointOptions::FromJson(checkpointoptionJsonStr);
-    CheckpointOptions *runtimeOptions = configuredOptions->ToRuntimeAlignedNoTimeout();
-    task->triggerCheckpointBarrier(checkpointID, checkpointTimestamp, runtimeOptions);
+    task->triggerCheckpointBarrier(checkpointID, checkpointTimestamp, configuredOptions);
 }
 
 JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_abortCpp

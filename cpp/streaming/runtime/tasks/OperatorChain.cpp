@@ -18,6 +18,8 @@
 #include <typeinfo/TypeInfoFactory.h>
 #include "core/typeutils/LongSerializer.h"
 #include "WatermarkGaugeExposingOutput.h"
+#include "streaming/api/operators/sink/SinkWriterOperator.h"
+#include "streaming/api/operators/sink/CommitterOperator.h"
 #include "state/bridge/OmniTaskBridge.h"
 #include "streaming/api/operators/AbstractStreamOperator.h"
 #include "omni/OmniStreamTask.h"
@@ -25,6 +27,21 @@
 #include "taskmanager/OmniRuntimeEnvironment.h"
 #include "streaming/api/operators/OperatorSnapshotFutures.h"
 #include "runtime/checkpoint/channel/ChannelStateWriter.h"
+
+namespace {
+void AssignConfiguredOperatorId(StreamOperator *op, const omnistream::OperatorPOD &opDesc)
+{
+    if (op == nullptr) {
+        return;
+    }
+    const std::string operatorId = opDesc.getOperatorId();
+    if (!operatorId.empty()) {
+        op->SetOperatorID(operatorId);
+        INFO_RELEASE("savepoint: OperatorChainV2 assign operatorId=" << operatorId
+            << " name=" << opDesc.getName() << " id=" << opDesc.getId());
+    }
+}
+}
 
 namespace omnistream {
 
@@ -58,6 +75,7 @@ WatermarkGaugeExposingOutput* OperatorChainV2::createOperatorChain(
 
     auto opDesc = operatorConfig[0].getOperatorDescription();
     auto chainedOperator = StreamOperatorFactory::createOperatorAndCollector(opDesc, chainedOperatorOutput, streamTask);
+    AssignConfiguredOperatorId(chainedOperator, opDesc);
 
     auto operatorWrapper = new StreamOperatorWrapper(chainedOperator, false);
     allOperatorWrappers.emplace_back(operatorWrapper);
@@ -75,6 +93,7 @@ WatermarkGaugeExposingOutput *OperatorChainV2::createDataStreamOperatorChain(Str
 
     auto opDesc = operatorConfig.getOperatorDescription();
     auto chainedOperator = StreamOperatorFactory::createOperatorAndCollector(opDesc, chainedOperatorOutput, nullptr);
+    AssignConfiguredOperatorId(chainedOperator, opDesc);
 
     registerHandler(opDesc, chainedOperator);
 
@@ -183,12 +202,15 @@ OperatorChainV2::OperatorChainV2(
         auto opDesc = configuration.getOperatorDescription();
         auto chainedOperator = StreamOperatorFactory::createOperatorAndCollector(opDesc, mainOperatorOutput,
                                                                                  streamTask);
+        AssignConfiguredOperatorId(chainedOperator, opDesc);
         registerHandler(opDesc, chainedOperator);
         auto operatorWrapper = new StreamOperatorWrapper(chainedOperator, false);
         this->mainOperatorWrapper = operatorWrapper;
         allOperatorWrappers.emplace_back(operatorWrapper);
         this->tailOperatorWrapper = allOperatorWrappers[0];
         linkOperatorWrappers(allOperatorWrappers);
+
+        operatorDependenciesDeal();
     } else {
         THROW_LOGIC_EXCEPTION("Object has been deleted!\n")
     }
@@ -332,6 +354,7 @@ StreamOperator *OperatorChainV2::createMainOperatorAndCollector(
     }
 
     StreamOperator *op = StreamOperatorFactory::createOperatorAndCollector(opDesc, chainOutput, nullptr);
+    AssignConfiguredOperatorId(op, opDesc);
     tailOperatorWrapper = new StreamOperatorWrapper(op, false);
 
     // Connect the operators in reverse order
@@ -346,6 +369,7 @@ StreamOperator *OperatorChainV2::createMainOperatorAndCollector(
         if (opDesc.getId() == "org.apache.flink.table.runtime.operators.sink.ConstraintEnforcer")
             continue;
         op = StreamOperatorFactory::createOperatorAndCollector(opDesc, chainingOutput, nullptr);
+        AssignConfiguredOperatorId(op, opDesc);
         auto OpWrapper = new StreamOperatorWrapper(op, false);
         OpWrapper->setNext(nextOpWrapper);
         nextOpWrapper->setPrevious(OpWrapper);
@@ -361,6 +385,8 @@ StreamOperator *OperatorChainV2::createMainOperatorAndCollector(
     } else {
         mainOperatorOutput = chainOutput;
     }
+
+    operatorDependenciesDeal();
 
     return op;
 }
@@ -446,9 +472,7 @@ void OperatorChainV2::NotifyCheckpointComplete(long checkpointId)
         // The original Flink has a fancy catch throw which might contain extra logic.
         try {
             auto op = iter.next()->getStreamOperator();
-            if (auto kop = dynamic_cast<AbstractStreamOperator<Object*> *>(op)) {
-                kop->notifyCheckpointComplete(checkpointId);
-            }
+            op->notifyCheckpointComplete(checkpointId);
         } catch (...) {
             throw std::runtime_error("notifyCheckpointComplete failed");
         }
@@ -532,7 +556,15 @@ OperatorSnapshotFutures *OperatorChainV2::CheckpointStreamOperator(StreamOperato
             return sop->SnapshotState(checkpointMetaData.GetCheckpointId(), checkpointMetaData.GetTimestamp(),
                                       checkpointOptions, storageLocation, bridge);
         }
-        throw std::runtime_error("checkpointStreamOperator failed");
+        /* 部分算子存在菱形继承问题，需要特殊处理，例如：SinkWriterOperator [OneInputStreamOperator, AbstractStreamOperator] -> StreamOperator */
+        auto vop = dynamic_cast<AbstractStreamOperator<void*>*>(op);
+        if (vop) {
+            return vop->SnapshotState(checkpointMetaData.GetCheckpointId(), checkpointMetaData.GetTimestamp(),
+                                      checkpointOptions, storageLocation, bridge);
+        }
+        /* 规避：增加其他处理 */
+        return op->SnapshotState(checkpointMetaData.GetCheckpointId(), checkpointMetaData.GetTimestamp(),
+                                      checkpointOptions, storageLocation, bridge);
     } catch (...) {
         throw std::runtime_error("checkpointStreamOperator failed");
     }
@@ -598,6 +630,48 @@ void OperatorChainV2::SnapshotChannelStates(StreamOperator *op,
                     snapshotInProgress->OperatorSemPost();
                 }
         );
+    }
+}
+
+void OperatorChainV2::operatorDependenciesDeal() {
+    if (this->mainOperatorWrapper == nullptr) {
+        GErrorLog("OperatorDependenciesDeal mainOperatorWrapper is nullptr");
+        return;
+    }
+    std::unordered_map<std::string_view, StreamOperator*> opMap;
+    StreamOperatorWrapper* current = this->mainOperatorWrapper;
+    while (current != nullptr) {
+        StreamOperator* op = current->getStreamOperator();
+        if (dynamic_cast<CommitterOperator<>*>(op) != nullptr) {
+            opMap.emplace(OPERATOR_NAME_COMMIT_OPERATOR, op);
+        }
+        if (dynamic_cast<SinkWriterOperator*>(op) != nullptr) {
+            opMap.emplace(OPERATOR_NAME_SINK_WRITER, op);
+        }
+        current = current->getNext();
+    }
+    if (opMap.empty()) {
+        INFO_RELEASE("OperatorDependenciesDeal opMap empty");
+        return;
+    }
+    if (opMap.find(OPERATOR_NAME_COMMIT_OPERATOR) != opMap.end()) {
+        if (opMap.find(OPERATOR_NAME_SINK_WRITER) == opMap.end()) {
+            GErrorLog("OperatorDependenciesDeal CommiterOperator dependy SinkWriterOperator");
+            return;
+        }
+        CommitterOperator<>* committerOperator = dynamic_cast<CommitterOperator<>*>(opMap[OPERATOR_NAME_COMMIT_OPERATOR]);
+        if (committerOperator == nullptr) {
+            GErrorLog("OperatorDependenciesDeal CommiterOperator not CommitterOperator");
+            return;
+        }
+        SinkWriterOperator* sinkWriterOperator = dynamic_cast<SinkWriterOperator*>(opMap[OPERATOR_NAME_SINK_WRITER]);
+        if (sinkWriterOperator == nullptr) {
+            GErrorLog("OperatorDependenciesDeal CommiterOperator not CommitterOperator");
+            return;
+        }
+        committerOperator->initFromKafkaSink(sinkWriterOperator->getKafkaSink());
+    } else {
+        INFO_RELEASE("OperatorDependenciesDeal not need deal");
     }
 }
 }  // namespace omnistream

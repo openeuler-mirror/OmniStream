@@ -60,6 +60,18 @@ public:
         AbstractStreamOperator<K>::close();
         // todo: should the udf be closed?
     }
+
+    void initializeState(StateInitializationContextImpl<K> *context)  override {
+        AbstractStreamOperator<K>::initializeState(context);
+    }
+
+    void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) override {
+        AbstractStreamOperator<K>::initializeState(initializer, keySerializer);
+    }
+
+    void snapshotState(StateSnapshotContextSynchronousImpl *context) override {
+        AbstractStreamOperator<K>::snapshotState(context);
+    }
 protected:
     F* userFunction = nullptr;
 };

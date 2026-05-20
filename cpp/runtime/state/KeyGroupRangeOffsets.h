@@ -62,6 +62,8 @@ public:
 
     const KeyGroupRange getKeyGroupRange() const {return keyGroupRange_;}
 
+    const std::vector<int64_t>& getOffsets() const {return offsets_;}
+
     KeyGroupRangeOffsets getIntersection(const KeyGroupRange& keyGroupRange) const
     {
         std::unique_ptr<KeyGroupRange> ptr(keyGroupRange_.getIntersection(keyGroupRange));
