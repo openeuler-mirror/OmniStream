@@ -52,8 +52,11 @@ public:
                 reinterpret_cast<Object*>(this->key)->getRefCount();
             }
         } else if constexpr (std::is_same_v<K, RowData*>) {
-            // deep copy key. todo: GenericRowData* and JoinedRowData* do not implement copy method
-            this->key = reinterpret_cast<RowData*>(K())->copy();
+            K key = K();
+            if (key != nullptr) {
+                // deep copy key. todo: GenericRowData* and JoinedRowData* do not implement copy method
+                this->key = reinterpret_cast<RowData*>(key)->copy();
+            }
         } else {
             this->key = K();  // int32_t and int64_t type do not need deepcopy
         }
