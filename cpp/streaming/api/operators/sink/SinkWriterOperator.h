@@ -38,15 +38,7 @@ public:
 
     ~SinkWriterOperator()
     {
-        if (!endOfInput) {
-            EndInput();
-        }
-        delete writerStateHandler;
-        writerStateHandler = nullptr;
-        delete committableSerializer;
-        committableSerializer = nullptr;
-        delete kafkaSink;
-        kafkaSink = nullptr;
+        close();
     }
 
     void initializeState(StateInitializationContextImpl<void*>* context) override;
@@ -91,16 +83,17 @@ private:
     KafkaCommittableSerializer *committableSerializer{};
     bool emitDownstream{};
     std::int64_t currentWatermark{};
-    KafkaSink *kafkaSink;
-    KafkaWriter *sinkWriter;
-    bool endOfInput;
+    KafkaSink *kafkaSink = nullptr;
+    KafkaWriter *sinkWriter = nullptr;
+    bool endOfInput = false;
     nlohmann::json description;
     std::vector<std::string> inputTypes;
 
-    ProcessingTimeServiceImpl* processingTimeService;
-    KafkaSinkWriterStateHandler* writerStateHandler;
+    ProcessingTimeServiceImpl* processingTimeService = nullptr;
+    KafkaSinkWriterStateHandler* writerStateHandler = nullptr;
     std::vector<KafkaCommittable> legacyCommittables;
     bool isDataStream;
+    bool closed_ = false;
     int32_t subtaskIndex;
 };
 #endif // OMNIFLINK_SINKWRITEROPERATOR_H

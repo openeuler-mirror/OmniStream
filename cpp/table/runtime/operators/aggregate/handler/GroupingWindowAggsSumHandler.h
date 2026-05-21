@@ -12,13 +12,12 @@
 #pragma once
 
 #include "common.h"
-#include "table/data/GenericRowData.h"
 #include "table/runtime/generated/NamespaceAggsHandleFunction.h"
 
 template<typename N>
-class GroupingWindowAggsCountHandler : public NamespaceAggsHandleFunction<N> {
+class GroupingWindowAggsSumHandler : public NamespaceAggsHandleFunction<N> {
 public:
-    explicit GroupingWindowAggsCountHandler(
+    explicit GroupingWindowAggsSumHandler(
             int32_t aggIndex,
             int32_t aggDataType,
             int32_t accIndex,
@@ -36,13 +35,11 @@ public:
     }
 
     void accumulate(RowData* accInput) override {
-        if (aggIndex_ < 0) {
-            count_++;
+        if (accInput->isNullAt(aggIndex_)) {
             return;
         }
-        if (!accInput->isNullAt(aggIndex_)) {
-            count_++;
-        }
+        long fieldValue = *accInput->getLong(aggIndex_);
+        sum_ += fieldValue;
     }
 
     void retract(RowData* retractInput) override {
@@ -51,21 +48,21 @@ public:
 
     void merge(N ns, RowData* otherAcc) override {
         if (!otherAcc->isNullAt(accIndex_)) {
-            count_ = count_ + *otherAcc->getLong(accIndex_);
+            sum_ = sum_ + *otherAcc->getLong(accIndex_);
         }
     }
 
     void setAccumulators(N ns, RowData* acc) override {
         currentAcc_ = acc;
-        if (!currentAcc_->isNullAt(accIndex_)) {
-            count_ = *currentAcc_->getLong(accIndex_);
+        if (currentAcc_->isNullAt(accIndex_)) {
+            sum_ = 0L;
         } else {
-            count_ = 0L;
+            sum_ = *currentAcc_->getLong(accIndex_);
         }
     }
 
     RowData* getAccumulators() override {
-        currentAcc_->setLong(accIndex_, count_);
+        currentAcc_->setLong(accIndex_, sum_);
         return currentAcc_;
     }
 
@@ -76,7 +73,7 @@ public:
     }
 
     RowData* getValue(N ns) override {
-        currentAcc_->setLong(valueIndex_, count_);
+        currentAcc_->setLong(valueIndex_, sum_);
         return currentAcc_;
     }
 
@@ -91,7 +88,8 @@ private:
     int32_t valueIndex_ = -1;
     int32_t filterIndex_ = -1;
 
-    long count_ = 0L;
+    long sum_ = 0L;
+    bool sumIsNull_ = true;
     StateDataViewStore* store_{};
     RowData* currentAcc_{};
 };

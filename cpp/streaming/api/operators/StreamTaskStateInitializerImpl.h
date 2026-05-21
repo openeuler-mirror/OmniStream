@@ -34,7 +34,7 @@ template <typename K>
 class StreamOperatorStateContextImpl {
 public:
     StreamOperatorStateContextImpl(std::optional<uint64_t> restoredCheckpointId_,
-                                   AbstractKeyedStateBackend<K>* backend_,
+                                   CheckpointableKeyedStateBackend<K>* backend_,
                                    OperatorStateBackend* osBackend_,
                                    InternalTimeServiceManager<K>* internalTimeServiceManager_)
         : restoredCheckpointId(restoredCheckpointId_),
@@ -61,7 +61,7 @@ public:
         }
     }
 
-    AbstractKeyedStateBackend<K>* keyedStateBackend()
+    CheckpointableKeyedStateBackend<K>* keyedStateBackend()
     {
         return backend;
     }
@@ -85,7 +85,7 @@ public:
 
 private:
     std::optional<uint64_t> restoredCheckpointId;
-    AbstractKeyedStateBackend<K> *backend = nullptr;
+    CheckpointableKeyedStateBackend<K>* backend = nullptr;
     OperatorStateBackend* osBackend = nullptr;
     InternalTimeServiceManager<K> *internalTimeServiceManager = nullptr;
 };
