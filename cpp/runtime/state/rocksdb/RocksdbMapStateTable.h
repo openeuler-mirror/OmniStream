@@ -810,6 +810,38 @@ public:
         }
     }
 
+    void clearVectors(std::vector<size_t>& indicesToDelete)
+    {
+        if (indicesToDelete.empty()) {
+            return;
+        }
+ 
+        ROCKSDB_NAMESPACE::WriteBatch batchToDelete;
+        LongSerializer longSerializer;
+ 
+        for (size_t index : indicesToDelete) {
+            long batchId = static_cast<long>(index);
+ 
+            // Recreate serializers inside the loop to ensure clean buffers for each key
+            DataOutputSerializer keyOutputSerializer;
+            OutputBufferStatus outputBufferStatus;
+            keyOutputSerializer.setBackendBuffer(&outputBufferStatus);
+            
+            longSerializer.serialize(&batchId, keyOutputSerializer);
+ 
+            ROCKSDB_NAMESPACE::Slice key(reinterpret_cast<const char *>(keyOutputSerializer.getData()),
+                                        (int32_t) (keyOutputSerializer.getPosition()));
+ 
+            batchToDelete.Delete(VBTable, key);
+        }
+ 
+        auto status = rocksDb->Write(writeOptions, &batchToDelete);
+        if (!status.ok()) {
+            INFO_RELEASE("ROCKSDB WARNING: Failed to batch delete vectors: " << status.ToString());
+        }
+    
+    }
+    
     class RocksDBMapEntry : public MapEntry {
     public:
         explicit RocksDBMapEntry(RocksdbMapStateTable<K, N, UK, UV> *stateTable, int32_t userKeyOffset,

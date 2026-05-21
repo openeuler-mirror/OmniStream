@@ -32,6 +32,7 @@ public:
     const std::vector<omnistream::VectorBatch *> &getVectorBatches();
     int getCurrentBatchId();
     void clearVectors(int64_t currentTimestamp) { windowState->clearVectors(currentTimestamp); };
+    void clearVectors(std::vector<size_t>& indicesToDelete){ windowState->clearVectors(indicesToDelete);};
     omnistream::VectorBatch *getVectorBatch(int batchId);
 private:
     InternalListState<KeyType, W, ValType> *windowState;

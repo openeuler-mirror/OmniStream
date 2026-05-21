@@ -116,6 +116,8 @@ private:
     // Vector, rowId, colId, valAddressPtr, isNullPtr
     std::vector<void (*)(omniruntime::vec::BaseVector *, int32_t, int32_t, int64_t *, bool *)> filterFuncPtrs;
     std::vector<bool> filterNullKeys;
+    std::vector<int64_t> leftMaxTimestamps;
+    std::vector<int64_t> rightMaxTimestamps;
 
     template <typename TYPE>
     void insertLeft(int colIdx, std::vector<VectorBatchId> *leftElements, std::vector<VectorBatchId> *rightElements,
@@ -294,8 +296,26 @@ void WindowJoinOperator<KeyType>::onEventTime(TimerHeapInternalTimer<KeyType, in
         rightWindowState->clear(window);
     }
 
-    leftWindowState->clearVectors(window);
-    rightWindowState->clearVectors(window);
+    std::vector<size_t> leftIndicesToDelete;
+    std::vector<size_t> rightIndicesToDelete;
+    for (size_t i = 0; i < leftMaxTimestamps.size(); ++i) {
+        if (window > leftMaxTimestamps[i] && leftMaxTimestamps[i]!= INT64_MIN ) {
+            leftIndicesToDelete.push_back(i);
+            leftMaxTimestamps[i] = INT64_MAX; 
+        }
+    }
+    if (!leftIndicesToDelete.empty()) {
+        leftWindowState->clearVectors(leftIndicesToDelete);
+    }
+    for (size_t i = 0; i < rightMaxTimestamps.size(); ++i) {
+        if (window > rightMaxTimestamps[i] && rightMaxTimestamps[i]!= INT64_MIN) {
+            rightIndicesToDelete.push_back(i);
+            rightMaxTimestamps[i] = INT64_MAX; 
+        }
+    }
+    if (!rightIndicesToDelete.empty()) {
+        rightWindowState->clearVectors(rightIndicesToDelete);
+    }
 }
 
 template <typename KeyType>
@@ -503,7 +523,12 @@ template <typename KeyType>
 void WindowJoinOperator<KeyType>::processBatch(omnistream::VectorBatch *batch, int windowEndIndex,
     WindowListState<KeyType, int64_t, VectorBatchId> *recordState, bool isLeftSide)
 {
-    batch->setMaxTimestamp(isLeftSide ? leftWindowEndIndex : rightWindowEndIndex);
+    auto maxTimeStamp = batch->setMaxTimestamp(isLeftSide ? leftWindowEndIndex : rightWindowEndIndex);
+    if(isLeftSide){
+        leftMaxTimestamps.push_back(maxTimeStamp);
+    }else{
+        rightMaxTimestamps.push_back(maxTimeStamp);
+    }
     int batchID = recordState->getCurrentBatchId();
     recordState->addVectorBatch(batch);
     KeySelector<KeyType>* keySelector = nullptr;

@@ -42,12 +42,13 @@ namespace omnistream {
         this->timestamps = timestamps;
         this->maxTimestamp = INT64_MIN;
     }
-    void VectorBatch::setMaxTimestamp(int colIdx)
+    int64_t  VectorBatch::setMaxTimestamp(int colIdx)
     {
         omniruntime::vec::Vector<int64_t>* col = reinterpret_cast<omniruntime::vec::Vector<int64_t>* >(this->Get(colIdx));
         for (int i = 0; i < this->GetRowCount(); i++) {
             maxTimestamp = std::max(maxTimestamp, col->GetValue(i));
         }
+        return maxTimestamp;
     }
 
     void VectorBatch::RearrangeColumns(std::vector<int32_t> &inputIndices)

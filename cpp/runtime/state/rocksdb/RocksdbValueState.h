@@ -89,6 +89,7 @@ public:
     long getVectorBatchesSize() override;
     void updateByBatch(std::unordered_map<K, V>& pendingUpdates);
     void clearVectors(int64_t currentTimestamp) override;
+    void clearVectors(std::vector<size_t>& indicesToDelete) override;
     // [FALCON] -------------------------------------------------------------------------------------------
     // function to get defaultValue, get currentNamespace and set currentKey & namespace
     V getDefaultValue() { return defaultValue; };
@@ -478,4 +479,9 @@ void RocksdbValueState<K, N, V>::updateByBatch(std::unordered_map<K, V>& pending
 template <typename K, typename N, typename V>
 void  RocksdbValueState<K, N, V>::clearVectors(int64_t currentTimestamp){
     return stateTable->clearVectors(currentTimestamp);
+}
+
+template <typename K, typename N, typename V>
+void  RocksdbValueState<K, N, V>::clearVectors(std::vector<size_t>& indicesToDelete){
+    return stateTable->clearVectors(indicesToDelete);
 }

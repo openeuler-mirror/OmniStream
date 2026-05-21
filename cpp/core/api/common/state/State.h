@@ -51,6 +51,16 @@ public:
         }
     }
 
+    virtual void clearVectors(std::vector<size_t>& indicesToDelete)
+    {
+        for (size_t index : indicesToDelete) {
+            if (index < vectorBatches.size() && vectorBatches[index]) {
+                delete vectorBatches[index];
+                vectorBatches[index] = nullptr;
+            }
+        }
+    }
+
 protected:
     std::vector<omnistream::VectorBatch *> vectorBatches;
 };
