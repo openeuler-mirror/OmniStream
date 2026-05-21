@@ -35,9 +35,13 @@ public:
             }
         } else if constexpr (std::is_same_v<V, RowData*>) {
             // deep copy value. todo: GenericRowData* and JoinedRowData* do not implement copy method
-            this->value = reinterpret_cast<RowData*>(value)->copy();
+            if (value != nullptr) {
+                this->value = reinterpret_cast<RowData*>(value)->copy();
+            }
         } else if constexpr (std::is_same_v<V, std::vector<long>*>) {
-            this->value = new std::vector<long>(*value); // deep copy value using new
+            if (value != nullptr) {
+                this->value = new std::vector<long>(*value); // deep copy value using new
+            }
         } else {
             this->value = value;  // int32_t and int64_t type do not need deepcopy
         }
