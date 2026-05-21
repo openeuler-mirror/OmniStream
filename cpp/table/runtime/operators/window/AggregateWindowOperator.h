@@ -13,6 +13,7 @@
 #include <stdexcept>
 #include <utility>
 #include <vector>
+#include "table/data/vectorbatch/VectorBatch.h"
 #include "table/data/RowData.h"
 #include "table/data/RowKind.h"
 #include "table/runtime/generated/NamespaceAggsHandleFunction.h"
