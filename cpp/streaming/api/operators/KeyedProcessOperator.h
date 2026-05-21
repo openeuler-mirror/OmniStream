@@ -88,6 +88,11 @@ public:
         AbstractStreamOperator<K>::initializeState(initializer, keySerializer);
         // Operator specifig initialization
     }
+
+    void notifyCheckpointComplete(long checkpointId) override {
+        AbstractUdfStreamOperator<F, K>::notifyCheckpointComplete(checkpointId);
+    }
+
     bool isSetKeyContextElement() override {
         return true;
     }

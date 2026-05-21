@@ -167,6 +167,10 @@ void SinkWriterOperator::initializeState(StreamTaskStateInitializerImpl *initial
     this->sinkWriter->SetSubTaskIdx(subtaskIndex);
 }
 
+void SinkWriterOperator::notifyCheckpointComplete(long checkpointId) {
+    AbstractStreamOperator<void*>::notifyCheckpointComplete(checkpointId);
+}
+
 // initializeState方法实现
 void SinkWriterOperator::initializeState(StateInitializationContextImpl<void*>* context) {
     // 调用父类方法
