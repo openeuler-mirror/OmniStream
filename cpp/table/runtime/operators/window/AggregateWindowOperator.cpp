@@ -15,8 +15,6 @@
 #include "table/runtime/operators/aggregate/handler/GroupingWindowAggsCompositeHandler.h"
 #include "table/runtime/operators/aggregate/handler/GroupingWindowAggsSumHandler.h"
 
-template class AggregateWindowOperator<RowData*, TimeWindow>;
-
 template<typename K, typename W>
 std::unique_ptr<NamespaceAggsHandleFunction<W>> AggregateWindowOperator<K, W>::initNamespaceAggsHandleFunctions(const nlohmann::json &aggInfoList) {
     // TODO: namespace is unused in functions, causing WindowOperator only supports session window(each key corresponds to only one window)
@@ -157,3 +155,5 @@ omnistream::VectorBatch* AggregateWindowOperator<K, W>::createOutputBatch(const 
     }
     return outputBatch;
 }
+
+template class AggregateWindowOperator<RowData*, TimeWindow>;
