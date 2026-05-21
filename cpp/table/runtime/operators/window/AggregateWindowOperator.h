@@ -19,6 +19,7 @@
 #include "core/typeutils/TypeSerializer.h"
 #include "table/types/logical/LogicalType.h"
 #include "table/data/JoinedRowData.h"
+#include "table/typeutils/BinaryRowDataSerializer.h"
 #include "table/runtime/operators/window/WindowOperator.h"
 #include "streaming/api/operators/AbstractStreamOperator.h"
 
