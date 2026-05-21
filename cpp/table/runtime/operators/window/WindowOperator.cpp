@@ -95,14 +95,15 @@ void WindowOperator<K, W>::onEventTime(TimerHeapInternalTimer<K, W> *timer)
     if (triggerContext->OnEventTime(timer->getTimestamp())) {
         emitWindowResult(triggerContext->window);
     }
-    // TODO: Enable window cleaning when the Window operator is adapted for RocksDB
-    // if (windowAssigner->IsEventTime()) {
-    //     windowFunction->CleanWindowIfNeeded(triggerContext->window, timer->getTimestamp());
-    // }
+    if (windowAssigner->IsEventTime()) {
+        windowFunction->CleanWindowIfNeeded(triggerContext->window, timer->getTimestamp());
+    }
 }
 
 template<typename K, typename W>
-void WindowOperator<K, W>::onProcessingTime(TimerHeapInternalTimer<K, W> *timer) {}
+void WindowOperator<K, W>::onProcessingTime(TimerHeapInternalTimer<K, W> *timer) {
+    NOT_IMPL_EXCEPTION
+}
 
 template<typename K, typename W>
 void WindowOperator<K, W>::processWatermarkStatus(WatermarkStatus *watermarkStatus)
@@ -136,6 +137,7 @@ void WindowOperator<K, W>::processElement(RowData *inputRow)
     if (windowAssigner->IsEventTime()) {
         timestamp = *inputRow->getLong(rowtimeIndex);
     } else {
+        THROW_LOGIC_EXCEPTION("Processing time window is not supported yet!")
     }
 
     // the windows which the input row should be placed into

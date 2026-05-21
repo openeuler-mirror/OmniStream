@@ -121,29 +121,13 @@ namespace omnistream {
     void OmniTask::cancel()
     {
         std::thread::id tid = std::this_thread::get_id();
-        INFO_RELEASE("DOUBLE_FREE_DEBUG: OmniTask::cancel() START | this="
-                << static_cast<void*>(this)
-                << " | invokable_=" << static_cast<void*>(invokable_.get())
-                << " | thread_id=" << tid);
         if (invokable_ != nullptr) {
             auto* inputProc = invokable_->input_processor();
-            INFO_RELEASE("DOUBLE_FREE_DEBUG: OmniTask::cancel() calling invokable_->cancel() | inputProcessor="
-                    << static_cast<void*>(inputProc)
-                    << " | thread_id=" << tid);
             invokable_->cancel();
             if (inputProc != nullptr) {
-                INFO_RELEASE("DOUBLE_FREE_DEBUG: OmniTask::cancel() calling inputProcessor->close() | inputProcessor="
-                        << static_cast<void*>(inputProc)
-                        << " | thread_id=" << tid);
                 inputProc->close();
-                INFO_RELEASE("DOUBLE_FREE_DEBUG: OmniTask::cancel() inputProcessor->close() DONE | inputProcessor="
-                        << static_cast<void*>(inputProc)
-                        << " | thread_id=" << tid);
             }
         }
-        INFO_RELEASE("DOUBLE_FREE_DEBUG: OmniTask::cancel() END | this="
-                << static_cast<void*>(this)
-                << " | thread_id=" << tid);
     }
 
     uintptr_t OmniTask::setupStreamTask(std::string streamClassName)
@@ -288,13 +272,6 @@ namespace omnistream {
     void OmniTask::DoRunInvoke(long streamTaskAddress)
     {
         int count = 0;
-
-        std::thread::id tid = std::this_thread::get_id();
-        INFO_RELEASE("DOUBLE_FREE_DEBUG: OmniTask::DoRunInvoke() START | this="
-                << static_cast<void*>(this)
-                << " | invokable_=" << static_cast<void*>(invokable_.get())
-                << " | thread_id=" << tid);
-
         while (!flag.load()) {
             INFO_RELEASE("find OmniTask still uninitialzed, tasm name : " << taskNameWithSubtask_)
             count++;
@@ -316,8 +293,6 @@ namespace omnistream {
             GErrorLog("exception  during restore or invoke, and the task is stopped and will do cleanup");
         }
 
-        INFO_RELEASE("DOUBLE_FREE_DEBUG: OmniTask::DoRunInvoke() invoke() returned | thread_id=" << tid);
-
         // ----------------------------------------------------------------
         //  finalization of a successful execution
         // ----------------------------------------------------------------
@@ -337,16 +312,9 @@ namespace omnistream {
         INFO_RELEASE(" doRun ending: " << taskNameWithSubtask_)
 
         LOG_INFO_IMP("Invokable Invoke")
-        INFO_RELEASE("DOUBLE_FREE_DEBUG: OmniTask::DoRunInvoke() calling invokable_->cleanup() | thread_id=" << tid);
         this->invokable_->cleanup();
-        INFO_RELEASE("DOUBLE_FREE_DEBUG: OmniTask::DoRunInvoke() invokable_->cleanup() DONE | thread_id=" << tid);
-        INFO_RELEASE("DOUBLE_FREE_DEBUG: OmniTask::DoRunInvoke() calling ReleaseResources() | thread_id=" << tid);
         this->ReleaseResources();
-        INFO_RELEASE("DOUBLE_FREE_DEBUG: OmniTask::DoRunInvoke() ReleaseResources() DONE | thread_id=" << tid);
         originalNetworkBufferRecycler_->stop();
-        INFO_RELEASE("DOUBLE_FREE_DEBUG: OmniTask::DoRunInvoke() END | this="
-                << static_cast<void*>(this)
-                << " | thread_id=" << tid);
     }
 
 
@@ -365,16 +333,11 @@ namespace omnistream {
 
     void OmniTask::ReleaseResources()
     {
-        INFO_RELEASE("DOUBLE_FREE_DEBUG: OmniTask::ReleaseResources() | this="
-                << static_cast<void*>(this)
-                << " | executionState=" << static_cast<int>(executionState));
         if (this->IsCanceledOrFailed()) {
             FailAllResultPartitions();
         }
         CloseAllResultPartitions();
         CloseAllInputGates();
-        INFO_RELEASE("DOUBLE_FREE_DEBUG: OmniTask::ReleaseResources() DONE | this="
-                << static_cast<void*>(this));
     }
 
     void OmniTask::FailAllResultPartitions() {}
