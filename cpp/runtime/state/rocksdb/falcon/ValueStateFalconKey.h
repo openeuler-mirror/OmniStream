@@ -11,7 +11,7 @@
 #include <utility>
 #include <functional>
 #include "basictypes/Object.h"
-#include "table/data/binary/BinaryRowData.h"
+#include "table/data/RowData.h"
 
 /**
  * Falcon key of RocksDBValueState, which is composed deserialized key, namespace and columnFamily.
@@ -23,63 +23,60 @@ class ValueStateFalconKey {
 public:
     ValueStateFalconKey(const K& key, const N& ns)
     {
-        // todo: check if we do not deep copy key here, whether hash code will be miscalculate
-        this->key = key;
-        this->ns = ns;
-        // [refcount] when key is create and insert into cache, increase its refcount; when key is delete and remove
-        // from cache, decrease its refcount. In this way, key's refcount is controlled by falcon itself.
+        // K type can be Object*, RowData*(BinaryRowData*, GenericRowData* or JoinedRowData*), int32_t or int64_t.
         if constexpr (std::is_same_v<K, Object*>) {
-			if (this->key != nullptr) {
-				reinterpret_cast<Object*>(this->key)->getRefCount();
-			}
+            this->key = key;
+            // [refcount] when key is create and insert into cache, increase its refcount; when key is delete and remove
+            // from cache, decrease its refcount. In this way, key's refcount is controlled by falcon itself.
+            if (this->key != nullptr) {
+                reinterpret_cast<Object*>(this->key)->getRefCount();
+            }
+        } else if constexpr (std::is_same_v<K, RowData*>) {
+            // deep copy key. todo: GenericRowData* and JoinedRowData* do not implement copy method
+            if (key != nullptr) {
+                this->key = reinterpret_cast<RowData*>(key)->copy();
+            }
+        } else {
+            this->key = key;  // int32_t and int64_t type do not need deepcopy
         }
-        if constexpr (std::is_same_v<N, Object*>) {
-			if (this->ns != nullptr) {
-            	reinterpret_cast<Object*>(this->ns)->getRefCount();
-			}
-        }
+        this->ns = ns;  // N type can be int64_t, TimeWindow ot VoidNamespace, do not need deepcopy.
     }
-
-    // used for LinkedHashMap to initialize link head and link tail
     ValueStateFalconKey()
     {
-        this->key = K();
-        this->ns = N();
+        // K type can be Object*, RowData*(BinaryRowData*, GenericRowData* or JoinedRowData*), int32_t or int64_t.
         if constexpr (std::is_same_v<K, Object*>) {
-			if (this->key != nullptr) {
-				reinterpret_cast<Object*>(this->key)->getRefCount();
+            this->key = K();
+            // [refcount] when key is create and insert into cache, increase its refcount; when key is delete and remove
+            // from cache, decrease its refcount. In this way, key's refcount is controlled by falcon itself.
+            if (this->key != nullptr) {
+                reinterpret_cast<Object*>(this->key)->getRefCount();
             }
+        } else if constexpr (std::is_same_v<K, RowData*>) {
+            K key = K();
+            if (key != nullptr) {
+                // deep copy key. todo: GenericRowData* and JoinedRowData* do not implement copy method
+                this->key = reinterpret_cast<RowData*>(key)->copy();
+            }
+        } else {
+            this->key = K();  // int32_t and int64_t type do not need deepcopy
         }
-        if constexpr (std::is_same_v<N, Object*>) {
-			if (this->ns != nullptr) {
-            	reinterpret_cast<Object*>(this->ns)->getRefCount();
-			}
-        }
+        this->ns = N();  // N type can be int64_t, TimeWindow ot VoidNamespace, do not need deepcopy.
     }
-
     ~ValueStateFalconKey()
     {
-        if constexpr (std::is_pointer_v<K>) {
-			if (key != nullptr) {
-            	// [refcount] when falconKey is removed from cache, key's ref count should -1 to avoid memory leak.
-            	if constexpr (std::is_same_v<K, Object*>) {
-                	reinterpret_cast<Object*>(key)->putRefCount();
-            	} else {
-                	delete key;
-            	}
-            	key = nullptr;
-			}
-        }
-        if constexpr (std::is_pointer_v<N>) {
-			if (ns != nullptr) {
-            	// [refcount] when falconKey is removed from cache, key's ref count should -1 to avoid memory leak.
-            	if constexpr (std::is_same_v<N, Object*>) {
-                	reinterpret_cast<Object*>(ns)->putRefCount();
-            	} else {
-                	delete ns;
-            	}
-            	ns = nullptr;
-			}
+        if constexpr (std::is_same_v<K, Object*>) { // if K is Object*, putRefCount
+            // [refcount] when falconKey is removed from cache, key's ref count should -1 to avoid memory leak.
+            if (key != nullptr) {
+                reinterpret_cast<Object*>(key)->putRefCount();
+                key = nullptr;
+            }
+        } else if constexpr (std::is_same_v<K, RowData*>) { // if K is RowData*, delete if needed
+            if (key != nullptr) {
+                delete key;
+                key = nullptr;
+            }
+        } else {
+            // if K is int type, do nothing
         }
     }
 
@@ -89,7 +86,7 @@ public:
     // equals function for ValueStateFalconKey
     bool operator==(const ValueStateFalconKey& other) const
     {
-        if constexpr (std::is_same_v<K, Object*>) {  // DataStream case
+        if constexpr (std::is_same_v<K, Object*>) {  // if K is Object*, use equals to compare
             if (key == nullptr && other.key == nullptr) {
                 return ns == other.ns;
             } else if (key != nullptr && other.key != nullptr) {
@@ -97,7 +94,7 @@ public:
             } else {
                 return false;
             }
-        } else {  // SQL case(BinaryRowData or int16_t) and other case, use == directly
+        } else { // if K is RowData* or int type, use == to compare. todo: GenericRowData == is not implemented
             return key == other.key && ns == other.ns;
         }
     }
@@ -114,11 +111,12 @@ namespace std {
         size_t operator()(const ValueStateFalconKey<K, N>& v) const
         {
             size_t keyHash;
-            if constexpr (std::is_same_v<K, Object*>) {  // DataStream case
+            if constexpr (std::is_same_v<K, Object*>) {
                 keyHash = static_cast<size_t>(reinterpret_cast<Object*>(v.getKey())->hashCode());
-            } else if constexpr (std::is_same_v<K, BinaryRowData*>) {  // SQL case1
-                keyHash = static_cast<size_t>(reinterpret_cast<BinaryRowData*>(v.getKey())->hashCode());
-            } else {  // SQL case2(int16_t) and other case
+            } else if constexpr (std::is_same_v<K, RowData*>) {
+                // todo: GenericRowData* hash method is not implemented
+                keyHash = static_cast<size_t>(reinterpret_cast<RowData*>(v.getKey())->hashCode());
+            } else {
                 keyHash = std::hash<K>()(v.getKey());
             }
             size_t nsHash = std::hash<N>()(v.getNamespace()) << 1;

@@ -89,3 +89,22 @@ std::unique_ptr<ConfigOption> RocksDBConfigurableOptions::WRITE_BUFFER_RATIO =
 std::unique_ptr<ConfigOption> RocksDBConfigurableOptions::USE_PARTITIONED_INDEX_FILTERS =
         std::make_unique<ConfigOption>(new String("state.backend.rocksdb.memory.partitioned-index-filters"),
                          new Boolean(false));
+// FALCON PARAMETERS
+std::unique_ptr<ConfigOption> RocksDBConfigurableOptions::USE_PARTITION_FILTER =
+        std::make_unique<ConfigOption>(new String("state.backend.rocksdb.falcon.use-partition-filter"),
+                        new Boolean(false));
+std::unique_ptr<ConfigOption> RocksDBConfigurableOptions::USE_HASH_MEMTABLE =
+        std::make_unique<ConfigOption>(new String("state.backend.rocksdb.falcon.use-hash-memtable"),
+                        new Boolean(false));
+std::unique_ptr<ConfigOption> RocksDBConfigurableOptions::USE_RANGE_FILTER =
+        std::make_unique<ConfigOption>(new String("state.backend.rocksdb.falcon.use-range-filter"),
+                        new Boolean(false));
+std::unique_ptr<ConfigOption> RocksDBConfigurableOptions::USE_STATE_CACHE =
+        std::make_unique<ConfigOption>(new String("state.backend.rocksdb.falcon.use-state-cache"),
+                        new Boolean(false));
+std::unique_ptr<ConfigOption> RocksDBConfigurableOptions::STATE_CACHE_SIZE_LIMIT =
+     std::make_unique<ConfigOption>(new String("state.backend.rocksdb.falcon.state-cache-sizeLimit"),
+                     new Integer(3000));
+std::unique_ptr<ConfigOption> RocksDBConfigurableOptions::PREFIX_EXTRACTOR_LENGTH =
+     std::make_unique<ConfigOption>(new String("state.backend.rocksdb.falcon.prefix-extractor.length"),
+                     new Integer(13));
