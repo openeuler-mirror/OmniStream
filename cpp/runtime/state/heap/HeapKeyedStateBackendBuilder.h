@@ -361,6 +361,12 @@ void HeapKeyedStateBackendBuilder<K>::restoreEntryToHeap(
         keyObjForObjectKBackend = keySerializer->GetBuffer();
         keySerializer->deserialize(keyObjForObjectKBackend, keyInput);
         rawKey = new Object *(keyObjForObjectKBackend);  // K = Object*; new Object*(value)
+    } else if constexpr (std::is_pointer_v<K>) {
+        // 非 Object* 的指针 key（如 RowData*）：serializer 的 void* deserialize 返回的
+        // 直接是对象指针本身（K），而非 K*。这里包一层 K*，使下游统一的
+        // *static_cast<K*>(rawKey) 取值与 delete static_cast<K*>(rawKey) 释放都成立。
+        // 对象本体由 serializer 的复用缓冲持有、put() 内部会 copy() 克隆，故不能在此 delete。
+        rawKey = new K(static_cast<K>(keySerializer->deserialize(keyInput)));
     } else {
         rawKey = keySerializer->deserialize(keyInput);
     }
@@ -397,17 +403,20 @@ void HeapKeyedStateBackendBuilder<K>::restoreEntryToHeap(
         auto dataId = desc->getBackendId();
 
         if (nsBackendId == BackendDataType::BIGINT_BK && dataId == BackendDataType::ROW_BK) {
+            // valueSerializer 返回的是共享复用缓冲，状态表对 RowData* 值不克隆而是直接持有指针，
+            // 故必须在存入前 copy() 一份独立副本，否则所有 entry 会别名到同一块缓冲。
             void *rawVal = info.valueSerializer->deserialize(valInput);
             auto *table = reinterpret_cast<CopyOnWriteStateTable<K, int64_t, RowData *> *>(stateTablePtr);
             table->put(*static_cast<K *>(rawKey), keyGroupId, *static_cast<int64_t *>(rawNs),
-                       static_cast<RowData *>(rawVal));
+                       static_cast<RowData *>(rawVal)->copy());
             delete static_cast<K *>(rawKey);
             delete static_cast<int64_t *>(rawNs);
         } else if (nsBackendId == BackendDataType::TIME_WINDOW_BK && dataId == BackendDataType::ROW_BK) {
+            // 同上：必须 copy() 一份，避免别名到 valueSerializer 的共享复用缓冲。
             void *rawVal = info.valueSerializer->deserialize(valInput);
             auto *table = reinterpret_cast<CopyOnWriteStateTable<K, TimeWindow, RowData *> *>(stateTablePtr);
             table->put(*static_cast<K *>(rawKey), keyGroupId, *static_cast<TimeWindow *>(rawNs),
-                       static_cast<RowData *>(rawVal));
+                       static_cast<RowData *>(rawVal)->copy());
             delete static_cast<K *>(rawKey);
             delete static_cast<TimeWindow *>(rawNs);
         } else if (dataId == BackendDataType::OBJECT_BK || dataId == BackendDataType::POJO_BK
@@ -436,10 +445,11 @@ void HeapKeyedStateBackendBuilder<K>::restoreEntryToHeap(
             delete static_cast<VoidNamespace *>(rawNs);
             delete static_cast<int64_t *>(rawVal);
         } else if (dataId == BackendDataType::ROW_BK) {
+            // 同上：必须 copy() 一份，避免别名到 valueSerializer 的共享复用缓冲。
             void *rawVal = info.valueSerializer->deserialize(valInput);
             auto *table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, RowData *> *>(stateTablePtr);
             table->put(*static_cast<K *>(rawKey), keyGroupId, *static_cast<VoidNamespace *>(rawNs),
-                       static_cast<RowData *>(rawVal));
+                       static_cast<RowData *>(rawVal)->copy());
             delete static_cast<K *>(rawKey);
             delete static_cast<VoidNamespace *>(rawNs);
         } else {
