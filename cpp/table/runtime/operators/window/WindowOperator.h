@@ -11,6 +11,7 @@
 #pragma once
 
 #include <regex>
+#include <memory>
 #include "runtime/operators/window/assigners/SessionWindowAssigner.h"
 #include "table/runtime/operators/window/assigners/WindowAssigner.h"
 #include "table/runtime/operators/window/internal/InternalWindowProcessFunction.h"
@@ -29,8 +30,6 @@
 #include "streaming/api/operators/TimerHeapInternalTimer.h"
 #include "runtime/state/HeapKeyedStateBackend.h"
 #include "state/internal/InternalValueState.h"
-#include "table/runtime/operators/aggregate/handler/GroupingWindowAggsCountHandler.h"
-#include "table/runtime/operators/aggregate/handler/GroupingOnlyWindowHandler.h"
 #include "table/runtime/generated/NamespaceAggsHandleFunction.h"
 #include "table/runtime/keyselector/KeySelector.h"
 
@@ -44,11 +43,20 @@ public:
             inputTypesId.push_back(LogicalType::flinkTypeToOmniTypeId(typeStr));
         }
         outputTypes = description["outputTypes"].get<std::vector<std::string>>();
+        for (const auto &typeStr : outputTypes) {
+            outputTypesId.push_back(LogicalType::flinkTypeToOmniTypeId(typeStr));
+        }
+        windowPropertyTypes = description["windowPropertyTypes"].get<std::vector<std::string>>();
+        for (const auto &typeStr : windowPropertyTypes) {
+            windowPropertyTypesId.push_back(LogicalType::flinkTypeToOmniTypeId(typeStr));
+        }
+        if (windowPropertyTypesId.size() != 4) {
+            THROW_LOGIC_EXCEPTION("The size of field 'windowPropertyTypesId' must be 4.");
+        }
         keyedIndex = description["grouping"].get<std::vector<int32_t>>();
         trigger = new EventTimeTriggers<TimeWindow>::AfterEndOfWindow();
         rowtimeIndex = description["inputTimeFieldIndex"];
-        // todo 需要根据json动态生成
-        windowAssigner = getSessionWindowAssigner(description["windowType"].get<std::string>());
+        windowAssigner = getWindowAssigner(description["windowType"].get<std::string>());
         getKeyedTypes();
 
         std::vector<int> keyTypes;
@@ -64,20 +72,6 @@ public:
             accTypes.end());
         accumulatorArity = static_cast<int>(accTypes.size());
 
-        const auto &aggCall = description["aggInfoList"]["aggregateCalls"][0];
-        std::string aggTypeStr = aggCall.contains("name") ? aggCall["name"] : "";
-        std::string aggType = extractAggFunction(aggTypeStr);
-        NamespaceAggsHandleFunction<TimeWindow> *globalFunction;
-        if (aggType == "COUNT") {
-            LOG("count function")
-            globalFunction = new GroupingWindowAggsCountHandler<TimeWindow>();
-        } else if (aggType == "NONE") {
-            LOG("empty function")
-            globalFunction = new GroupingOnlyWindowHandler<TimeWindow>();
-        } else {
-            throw std::runtime_error("Unsupported aggregate type: " + aggTypeStr);
-        }
-        windowAggregator = globalFunction;
         // TODO: There should be different serializer for different window operator
         windowSerializer = new TimeWindow::Serializer();
     }
@@ -88,15 +82,23 @@ public:
 
     void close() override;
 
-    static std::string extractAggFunction(const std::string &input)
-    {
+    static std::string extractAggFunction(const std::string &input) {
         std::regex aggRegex(R"((?:MAX|COUNT|SUM|MIN|AVG))", std::regex_constants::icase);
         std::smatch match;
         if (std::regex_search(input, match, aggRegex)) {
-            return match.str();
-        } else {
-            return "NONE";
+            std::string aggType = match.str();
+            std::transform(aggType.begin(), aggType.end(), aggType.begin(),
+                [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
+            return aggType;
         }
+        return "NONE";
+    }
+
+    static int32_t getSingleArgIndex(const nlohmann::json &aggCall) {
+        if (!aggCall.contains("argIndexes") || !aggCall["argIndexes"].is_array() || aggCall["argIndexes"].size() > 1) {
+            THROW_LOGIC_EXCEPTION("argIndexes supports only zero or one argument.");
+        }
+        return aggCall["argIndexes"].empty() ? -1 : aggCall["argIndexes"][0].get<int32_t>();
     }
 
     void processBatch(StreamRecord *record) override;
@@ -122,7 +124,6 @@ public:
         }
         AbstractStreamOperator<K>::output->emitWatermark(watermark);
     }
-    virtual void emitWindowResult(W &window) {};
 
     class TriggerContext : public OnMergeContext<W> {
     public:
@@ -203,17 +204,28 @@ public:
     public:
             WindowContext() = default;
 
-            explicit WindowContext(WindowOperator *outerOpertor) : outerOpertor(outerOpertor) {}
+            explicit WindowContext(WindowOperator *outerOperator) : outerOpertor(outerOperator) {}
 
-            MapState<W, W>* GetPartitionedState(StateDescriptor *stateDescriptor)
-            {
+            MapState<W, W>* GetPartitionedState(StateDescriptor* stateDescriptor) {
                 if (!stateDescriptor) {
                     throw std::invalid_argument("The state properties must not be null");
                 }
-                using S = HeapMapState<RowData *, VoidNamespace, TimeWindow, TimeWindow>;
-                S* state = outerOpertor->getKeyedStateBackend()->template getPartitionedState<VoidNamespace, S, TimeWindow>(
-                    VoidNamespace(), new VoidNamespaceSerializer(), stateDescriptor);
-                return state;
+
+                auto keyedStateBackend = outerOpertor->getKeyedStateBackend();
+                if (dynamic_cast<RocksdbKeyedStateBackend<K>*>(keyedStateBackend) != nullptr) {
+                    using S = RocksdbMapState<K, VoidNamespace, W, W>;
+                    S* state = keyedStateBackend->template getPartitionedState<VoidNamespace, S, emhash7::HashMap<W, W>*>(
+                            VoidNamespace(), new VoidNamespaceSerializer(), stateDescriptor);
+                    return state;
+                }
+                if (dynamic_cast<HeapKeyedStateBackend<K>*>(keyedStateBackend) != nullptr) {
+                    using S = HeapMapState<K, VoidNamespace, W, W>;
+                    S* state = keyedStateBackend->template getPartitionedState<VoidNamespace, S, emhash7::HashMap<W, W>*>(
+                            VoidNamespace(), new VoidNamespaceSerializer(), stateDescriptor);
+                    return state;
+                }
+
+                THROW_LOGIC_EXCEPTION("The keyedStateBackend is not supported");
             }
 
             K CurrentKey() override
@@ -285,22 +297,29 @@ public:
     };
 
     Trigger<W> *trigger;
-    bool produceUpdates;
     std::unique_ptr<RecordCounter> recordCounter;
+    int accumulatorArity = 0;
+    InternalValueState<RowData *, TimeWindow, RowData *> *windowState{};
+    std::unique_ptr<InternalWindowProcessFunction<K, W>> windowFunction;
+    InternalTimerService<W> *internalTimerService;
+
+protected:
+    virtual void emitWindowResult(W &window) = 0;
+
+    TimestampedCollector* collector{};
+    TriggerContext* triggerContext;
+    // TODO: windowAggregator here is currently unused, see @aggWindowAggregator
+    std::unique_ptr<NamespaceAggsHandleFunction<W>> windowAggregator;
+    bool produceUpdates = false;
+
     std::vector<std::string> inputTypes;
     std::vector<int32_t> inputTypesId;
     std::vector<std::string> outputTypes;
+    std::vector<int32_t> outputTypesId;
+    std::vector<std::string> windowPropertyTypes;
+    std::vector<int32_t> windowPropertyTypesId;
     std::vector<std::string> keyedTypes;
     std::vector<int32_t> keyedIndex;
-    int accumulatorArity = 0;
-    InternalValueState<RowData *, TimeWindow, RowData *> *windowState;
-    InternalWindowProcessFunction<K, W> *windowFunction;
-    InternalTimerService<W> *internalTimerService;
-    NamespaceAggsHandleFunctionBase<W> *windowAggregator;
-
-protected:
-    TimestampedCollector *collector;
-    TriggerContext *triggerContext;
 
 private:
     void processElement(RowData *record);
@@ -318,23 +337,21 @@ private:
         }
     }
 
-    WindowAssigner<W>* getSessionWindowAssigner(const std::string& windowType)
-    {
-        constexpr int CHARACTER_NUM = 2;
-        unsigned long start = windowType.rfind(',');
-        unsigned long end = windowType.rfind(')');
-        if (end <= start + CHARACTER_NUM) {
-            throw std::invalid_argument("getSessionWindowAssigner sessionGap init failed!");
+    std::unique_ptr<WindowAssigner<W>> getWindowAssigner(const std::string& windowType) {
+        if (windowType.find("SessionGroupWindow") != std::string::npos) {
+            constexpr int CHARACTER_NUM = 2;
+            unsigned long start = windowType.rfind(',');
+            unsigned long end = windowType.rfind(')');
+            if (end <= start + CHARACTER_NUM) {
+                THROW_LOGIC_EXCEPTION("getWindowAssigner sessionGap init failed!");
+            }
+            auto sessionGap = std::stol(windowType.substr(start + CHARACTER_NUM, end - start - CHARACTER_NUM));
+            return std::make_unique<SessionWindowAssigner>(sessionGap, true);
         }
-        long sessionGap = std::stol(windowType.substr(start + CHARACTER_NUM, end - start - CHARACTER_NUM));
-        return new SessionWindowAssigner(sessionGap, true);
+        THROW_LOGIC_EXCEPTION("getWindowAssigner not support, windowType: " << windowType);
     }
 
-    WindowAssigner<W> *windowAssigner;
-    std::vector<LogicalType *> inputFieldTypes;
-    std::vector<LogicalType *> accumulatorTypes;
-    std::vector<LogicalType *> aggResultTypes;
-    std::vector<LogicalType *> windowPropertyTypes;
+    std::unique_ptr<WindowAssigner<W>> windowAssigner;
     std::string shiftTimeZone;
     int rowtimeIndex;
     long allowedLateness = 0;

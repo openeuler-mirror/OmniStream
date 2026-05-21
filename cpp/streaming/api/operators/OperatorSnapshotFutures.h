@@ -52,8 +52,8 @@ public:
     OperatorSnapshotFutures(
         std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<KeyedStateHandle>>()>> keyedStateManagedFuture,
         std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<KeyedStateHandle>>()>> keyedStateRawFuture,
-        std::shared_ptr<std::packaged_task<SnapshotResult<OperatorStateHandle>>> operatorStateManagedFuture,
-        std::shared_ptr<std::packaged_task<SnapshotResult<OperatorStateHandle>>> operatorStateRawFuture,
+        std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<OperatorStateHandle>>()>> operatorStateManagedFuture,
+        std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<OperatorStateHandle>>()>> operatorStateRawFuture,
         std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<StateObjectCollection
             <InputChannelStateHandle>>>()>> inputChannelStateFuture,
         std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<StateObjectCollection
@@ -85,22 +85,22 @@ public:
         keyedStateRawFuture = future;
     }
 
-    std::shared_ptr<std::packaged_task<SnapshotResult<OperatorStateHandle>>> getOperatorStateManagedFuture() const
+    std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<OperatorStateHandle>>()>> getOperatorStateManagedFuture() const
     {
         return operatorStateManagedFuture;
     }
 
-    void setOperatorStateManagedFuture(std::shared_ptr<std::packaged_task<SnapshotResult<OperatorStateHandle>>> future)
+    void setOperatorStateManagedFuture(std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<OperatorStateHandle>>()>> future)
     {
         operatorStateManagedFuture = future;
     }
 
-    std::shared_ptr<std::packaged_task<SnapshotResult<OperatorStateHandle>>> getOperatorStateRawFuture() const
+    std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<OperatorStateHandle>>()>> getOperatorStateRawFuture() const
     {
         return operatorStateRawFuture;
     }
 
-    void setOperatorStateRawFuture(std::shared_ptr<std::packaged_task<SnapshotResult<OperatorStateHandle>>> future)
+    void setOperatorStateRawFuture(std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<OperatorStateHandle>>()>> future)
     {
         operatorStateRawFuture = future;
     }
@@ -155,8 +155,8 @@ public:
 private:
     std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<KeyedStateHandle>>()>> keyedStateManagedFuture;
     std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<KeyedStateHandle>>()>> keyedStateRawFuture;
-    std::shared_ptr<std::packaged_task<SnapshotResult<OperatorStateHandle>>> operatorStateManagedFuture;
-    std::shared_ptr<std::packaged_task<SnapshotResult<OperatorStateHandle>>> operatorStateRawFuture;
+    std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<OperatorStateHandle>>()>> operatorStateManagedFuture;
+    std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<OperatorStateHandle>>()>> operatorStateRawFuture;
     std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<StateObjectCollection<InputChannelStateHandle>>>()>>
         inputChannelStateFuture;
     std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<StateObjectCollection<ResultSubpartitionStateHandle>>>()>>

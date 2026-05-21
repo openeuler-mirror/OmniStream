@@ -17,7 +17,8 @@
 
 RowDataSerializer::RowDataSerializer(omnistream::RowType *rowType) :binarySerializer_(static_cast<int>(rowType->getChildren().size())), reuseRow_(nullptr), reuseWriter_(nullptr)
 {
-    auto types = rowType->getChildren();
+    rowType_ = new omnistream::RowType(*rowType);
+    auto types = rowType_->getChildren();
     types_ = types;
 
     for (size_t i = 0; i<types.size(); i++) {
@@ -32,6 +33,7 @@ RowDataSerializer::~RowDataSerializer()
 {
     delete reuseRow_;
     delete reuseWriter_;
+    delete rowType_;
 }
 
 void *RowDataSerializer::deserialize(DataInputView &source)

@@ -10,7 +10,11 @@
  */
 
 #include "RegisteredStateMetaInfoBase.h"
+
+#include "RegisteredOperatorStateBackendMetaInfo.h"
 #include "runtime/state/RegisteredKeyValueStateBackendMetaInfo.h"
+#include "runtime/state/RegisteredOperatorStateBackendMetaInfo.h"
+#include "runtime/state/RegisteredBroadcastStateBackendMetaInfo.h"
 #include "runtime/state/RegisteredPriorityQueueStateBackendMetaInfo.h"
 
 std::unique_ptr<RegisteredStateMetaInfoBase> RegisteredStateMetaInfoBase::fromMetaInfoSnapshot(const
@@ -21,10 +25,12 @@ std::unique_ptr<RegisteredStateMetaInfoBase> RegisteredStateMetaInfoBase::fromMe
     switch (backendStateType) {
         case StateMetaInfoSnapshot::BackendStateType::KEY_VALUE:
             return std::make_unique<RegisteredKeyValueStateBackendMetaInfo>(snapshot);
+        case StateMetaInfoSnapshot::BackendStateType::OPERATOR:
+            return std::make_unique<RegisteredOperatorStateBackendMetaInfo>(snapshot);
+        case StateMetaInfoSnapshot::BackendStateType::BROADCAST:
+            return std::make_unique<RegisteredBroadcastStateBackendMetaInfo>(snapshot);
         case StateMetaInfoSnapshot::BackendStateType::PRIORITY_QUEUE:
             return std::make_unique<RegisteredPriorityQueueStateBackendMetaInfo>(snapshot);
-        case StateMetaInfoSnapshot::BackendStateType::OPERATOR:
-        case StateMetaInfoSnapshot::BackendStateType::BROADCAST:
         default:
             LOG("Unsupport backend state type: + std::to_string(static_cast<int>(backendStateType))")
             return nullptr;

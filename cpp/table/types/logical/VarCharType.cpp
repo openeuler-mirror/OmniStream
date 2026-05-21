@@ -14,10 +14,18 @@
 
 using namespace omniruntime::type;
 
-VarCharType::VarCharType(bool isNull, int length) : LogicalType(DataTypeId::OMNI_VARCHAR, isNull), length(length) {}
+VarCharType::VarCharType(bool isNull, int length)
+    : BasicLogicalType(isNull, DataTypeId::OMNI_VARCHAR, "VARCHAR"), length(length) {}
 
 
 std::vector<LogicalType *> VarCharType::getChildren()
 {
     NOT_IMPL_EXCEPTION
+}
+
+nlohmann::json VarCharType::toJson() const {
+    nlohmann::json result = LogicalType::toJson();
+    result["length"] = length;
+
+    return result;
 }

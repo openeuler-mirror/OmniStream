@@ -48,6 +48,13 @@ public:
     static std::unique_ptr<ConfigOption> HIGH_PRIORITY_POOL_RATIO;
     static std::unique_ptr<ConfigOption> WRITE_BUFFER_RATIO;
     static std::unique_ptr<ConfigOption> USE_PARTITIONED_INDEX_FILTERS;
+    // FALCON PARAMETERS
+    static std::unique_ptr<ConfigOption> USE_PARTITION_FILTER;
+    static std::unique_ptr<ConfigOption> USE_HASH_MEMTABLE;
+    static std::unique_ptr<ConfigOption> USE_RANGE_FILTER;
+    static std::unique_ptr<ConfigOption> USE_STATE_CACHE;
+    static std::unique_ptr<ConfigOption> STATE_CACHE_SIZE_LIMIT;
+    static std::unique_ptr<ConfigOption> PREFIX_EXTRACTOR_LENGTH;
 };
 
 

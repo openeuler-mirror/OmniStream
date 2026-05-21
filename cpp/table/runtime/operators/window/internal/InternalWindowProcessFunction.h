@@ -52,10 +52,7 @@ class InternalWindowProcessFunction {
     static_assert(std::is_base_of_v<Window, W>, "typename W must inherit from Window");
 
 public:
-    using AssignerPtr = std::shared_ptr<WindowAssigner<W>>;
-    using FunctionBasePtr = std::shared_ptr<NamespaceAggsHandleFunctionBase<W>>;
-
-    InternalWindowProcessFunction(AssignerPtr windowAssigner, FunctionBasePtr windowAggregator,
+    InternalWindowProcessFunction(WindowAssigner<W>* windowAssigner, NamespaceAggsHandleFunctionBase<W>* windowAggregator,
         long allowedLateness): windowAssigner(windowAssigner), windowAggregator(windowAggregator),
         allowedLateness(allowedLateness) {}
 
@@ -78,8 +75,8 @@ public:
     }
 
 protected:
-    std::shared_ptr<WindowAssigner<W>> windowAssigner;
-    std::shared_ptr<NamespaceAggsHandleFunctionBase<W>> windowAggregator;
+    WindowAssigner<W>* windowAssigner;
+    NamespaceAggsHandleFunctionBase<W>* windowAggregator;
     long allowedLateness;
     std::shared_ptr<Context<K, W>> ctx;
 

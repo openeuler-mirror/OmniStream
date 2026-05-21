@@ -90,6 +90,11 @@ void KafkaPartitionSplitReader::handleSplitsChanges(const std::vector<KafkaParti
     consumer->assignment(currentAssignment);
     newPartitionAssignments.insert(newPartitionAssignments.end(), currentAssignment.begin(), currentAssignment.end());
     consumer->assign(newPartitionAssignments);
+
+    seekToStartingOffsets(
+        partitionsStartingFromEarliest,
+        partitionsStartingFromLatest,
+        partitionsStartingFromSpecifiedOffsets);
     acquireAndSetStoppingOffsets(partitionsStoppingAtLatest, partitionsStoppingAtCommitted);
     removeEmptySplits();
 
@@ -235,4 +240,9 @@ long KafkaPartitionSplitReader::getStoppingOffset(RdKafka::TopicPartition* tp)
 {
     auto it = stoppingOffsets.find(tp);
     return (it != stoppingOffsets.end()) ? it->second : std::numeric_limits<long>::max();
+}
+
+void KafkaPartitionSplitReader::commitOffsets(const std::map<std::shared_ptr<RdKafka::TopicPartition>, int64_t>& offsets)
+{
+    consumer->commitOffsets(offsets);
 }

@@ -33,6 +33,7 @@ void KafkaRecordEmitter::emitRecord(RdKafka::Message* consumerRecord, SourceOutp
         deserializationSchema->deserialize(consumerRecord, sourceOutputWrapper);
         splitState->setCurrentOffset(consumerRecord->offset() + 1);
     } catch (const std::exception& e) {
+        INFO_RELEASE("Error: Failed to deserialize consumer record due to: " <<e.what());
         throw std::runtime_error("Failed to deserialize consumer record due to: " + std::string(e.what()));
     }
 }
@@ -47,6 +48,7 @@ void KafkaRecordEmitter::emitBatchRecord(
         deserializationSchema->deserialize(messageVec, sourceOutputWrapper);
         splitState->setCurrentOffset(messageVec.back()->offset() + 1);
     } catch (const std::exception& e) {
-        throw std::runtime_error("Failed to deserialize consumer record due to: " + std::string(e.what()));
+        INFO_RELEASE("Error: Failed to deserialize consumer batch record due to: " <<e.what());
+        throw std::runtime_error("Failed to deserialize consumer batch record due to: " + std::string(e.what()));
     }
 }

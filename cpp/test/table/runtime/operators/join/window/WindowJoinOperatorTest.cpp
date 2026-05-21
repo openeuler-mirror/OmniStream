@@ -179,6 +179,14 @@ TEST(WindowJoinOperatorTest, DISABLED_InnerJoinTest)
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
     taskInfo->setStateBackend("HashMapStateBackend");
+    {
+        auto configPOD = taskInfo->getStreamConfigPOD();
+        auto operatorDesc = configPOD.getOperatorDescription();
+        operatorDesc.setOperatorId("deadbeefdeadbeefdeadbeefdeadbeef");
+        configPOD.setOperatorDescription(operatorDesc);
+        taskInfo->setStreamConfigPOD(configPOD);
+    }
+    env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
     StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
     op->setup();
@@ -271,6 +279,14 @@ TEST(WindowJoinOperatorTest, DISABLED_InnerJoinTest_BinaryRowDataKey)
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
     taskInfo->setStateBackend("HashMapStateBackend");
+    {
+        auto configPOD = taskInfo->getStreamConfigPOD();
+        auto operatorDesc = configPOD.getOperatorDescription();
+        operatorDesc.setOperatorId("deadbeefdeadbeefdeadbeefdeadbeef");
+        configPOD.setOperatorDescription(operatorDesc);
+        taskInfo->setStreamConfigPOD(configPOD);
+    }
+    env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
     StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
     op->setup();
@@ -363,6 +379,14 @@ TEST(WindowJoinOperatorTest, DISABLED_LeftOuterJoinTest)
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
     taskInfo->setStateBackend("HashMapStateBackend");
+    {
+        auto configPOD = taskInfo->getStreamConfigPOD();
+        auto operatorDesc = configPOD.getOperatorDescription();
+        operatorDesc.setOperatorId("deadbeefdeadbeefdeadbeefdeadbeef");
+        configPOD.setOperatorDescription(operatorDesc);
+        taskInfo->setStreamConfigPOD(configPOD);
+    }
+    env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
     StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
     op->setup();
@@ -483,6 +507,14 @@ TEST(WindowJoinOperatorTest, DISABLED_RightOuterJoinTest)
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
     taskInfo->setStateBackend("HashMapStateBackend");
+    {
+        auto configPOD = taskInfo->getStreamConfigPOD();
+        auto operatorDesc = configPOD.getOperatorDescription();
+        operatorDesc.setOperatorId("deadbeefdeadbeefdeadbeefdeadbeef");
+        configPOD.setOperatorDescription(operatorDesc);
+        taskInfo->setStreamConfigPOD(configPOD);
+    }
+    env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
     StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
     op->setup();
@@ -603,6 +635,14 @@ TEST(WindowJoinOperatorTest, DISABLED_FullOuterJoinTest)
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
     taskInfo->setStateBackend("HashMapStateBackend");
+    {
+        auto configPOD = taskInfo->getStreamConfigPOD();
+        auto operatorDesc = configPOD.getOperatorDescription();
+        operatorDesc.setOperatorId("deadbeefdeadbeefdeadbeefdeadbeef");
+        configPOD.setOperatorDescription(operatorDesc);
+        taskInfo->setStreamConfigPOD(configPOD);
+    }
+    env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
     StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
     op->setup();
@@ -797,6 +837,14 @@ TEST(WindowJoinOperatorTest, WindowSeparationTest)
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
     taskInfo->setStateBackend("HashMapStateBackend");
+    {
+        auto configPOD = taskInfo->getStreamConfigPOD();
+        auto operatorDesc = configPOD.getOperatorDescription();
+        operatorDesc.setOperatorId("deadbeefdeadbeefdeadbeefdeadbeef");
+        configPOD.setOperatorDescription(operatorDesc);
+        taskInfo->setStreamConfigPOD(configPOD);
+    }
+    env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
     StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
     op->setup();
@@ -933,6 +981,14 @@ TEST(WindowJoinOperatorTest, DISABLED_WindowSeparationWithRocksdbTest)
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
     taskInfo->setStateBackend("HashMapStateBackend");
+    {
+        auto configPOD = taskInfo->getStreamConfigPOD();
+        auto operatorDesc = configPOD.getOperatorDescription();
+        operatorDesc.setOperatorId("deadbeefdeadbeefdeadbeefdeadbeef");
+        configPOD.setOperatorDescription(operatorDesc);
+        taskInfo->setStreamConfigPOD(configPOD);
+    }
+    env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
     StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
     op->setup();
@@ -1022,6 +1078,14 @@ TEST(WindowJoinOperatorTest, DISABLED_SemiJoinTest)
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
     taskInfo->setStateBackend("HashMapStateBackend");
+    {
+        auto configPOD = taskInfo->getStreamConfigPOD();
+        auto operatorDesc = configPOD.getOperatorDescription();
+        operatorDesc.setOperatorId("deadbeefdeadbeefdeadbeefdeadbeef");
+        configPOD.setOperatorDescription(operatorDesc);
+        taskInfo->setStreamConfigPOD(configPOD);
+    }
+    env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
     StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
 
@@ -1142,6 +1206,14 @@ TEST(WindowJoinOperatorTest, DISABLED_InnerJoinNonEquiTest)
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
     taskInfo->setStateBackend("HashMapStateBackend");
+    {
+        auto configPOD = taskInfo->getStreamConfigPOD();
+        auto operatorDesc = configPOD.getOperatorDescription();
+        operatorDesc.setOperatorId("deadbeefdeadbeefdeadbeefdeadbeef");
+        configPOD.setOperatorDescription(operatorDesc);
+        taskInfo->setStreamConfigPOD(configPOD);
+    }
+    env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
     StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
     op->setup();
@@ -1270,6 +1342,14 @@ TEST(WindowJoinOperatorTest, DISABLED_NoKeyJoinTest)
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
     taskInfo->setStateBackend("HashMapStateBackend");
+    {
+        auto configPOD = taskInfo->getStreamConfigPOD();
+        auto operatorDesc = configPOD.getOperatorDescription();
+        operatorDesc.setOperatorId("deadbeefdeadbeefdeadbeefdeadbeef");
+        configPOD.setOperatorDescription(operatorDesc);
+        taskInfo->setStreamConfigPOD(configPOD);
+    }
+    env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
     StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
     op->setup();

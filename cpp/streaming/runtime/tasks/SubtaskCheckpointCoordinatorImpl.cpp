@@ -211,11 +211,13 @@ namespace omnistream::runtime {
             } catch (const std::exception &e) {
                 LogError("Exception in async checkpoint: %s", e.what());
             }
-            delete asyncCheckpointRunnable;
-            delete operatorSnapshotsInProgress;
-            delete metadata;
-            delete metrics;
-            delete options;
+
+            /* TODO 规避：先不删除 */
+            // delete asyncCheckpointRunnable;
+            // delete operatorSnapshotsInProgress;
+            // delete metadata;
+            // delete metrics;
+            // delete options;
         });
         LOG(">>>>> Done")
     }
@@ -394,6 +396,7 @@ namespace omnistream::runtime {
             cache[checkpointId] = factory;
             return factory;
         } catch (const std::exception &e) {
+            INFO_RELEASE("Exception during resolveCheckpointStorageLocation: " + std::string(e.what()));
             throw std::runtime_error(e.what());
         }
     }

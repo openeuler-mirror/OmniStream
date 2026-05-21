@@ -4,6 +4,7 @@ build
 cmake_build_*/
 conf/
 3rdparty/
+.idea
 # Compiled Object files
 *.slo
 *.lo

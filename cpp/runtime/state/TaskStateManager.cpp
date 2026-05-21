@@ -54,12 +54,12 @@ TaskStateManager::~TaskStateManager()
 
 void TaskStateManager::NotifyCheckpointComplete(long checkpointId)
 {
-    localStateStore_->confirmCheckpoint(checkpointId);
+        localStateStore_->confirmCheckpoint(checkpointId);
 }
 
 void TaskStateManager::NotifyCheckpointAborted(long checkpointId)
 {
-    localStateStore_->abortCheckpoint(checkpointId);
+        localStateStore_->abortCheckpoint(checkpointId);
 }
 
 void TaskStateManager::ReportTaskStateSnapshots(CheckpointMetaData *checkpointMetaData,

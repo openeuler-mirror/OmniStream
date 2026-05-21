@@ -37,6 +37,7 @@
 #include "RegisteredKeyValueStateBackendMetaInfo.h"
 #include "table/data/RowData.h"
 #include "table/runtime/operators/window/TimeWindow.h"
+#include "RocksDBConfigurableOptions.h"
 
 #include "rocksdb/db.h"
 #include "rocksdb/options.h"
@@ -134,6 +135,7 @@ public:
 
     void notifyCheckpointComplete(long completedCheckpointId)
     {
+        INFO_RELEASE("savepoint: rocksdbKeyedStateBackend notifyCheckpointComplete");
         if (strategy) {
             strategy->notifyCheckpointComplete(completedCheckpointId);
         }
@@ -330,7 +332,9 @@ private:
     // pointer to intervalKvState
     emhash7::HashMap<std::string, uintptr_t> createdKvState;
     // [FALCON] pointer to intervalKvState that enable falcon cache
-    emhash7::HashMap<std::string, uintptr_t> falconKvState = {};
+    emhash7::HashMap<std::string, uintptr_t> falconKvState;
+    // [FALCON] namespace and value type info of each falconKvState
+    emhash7::HashMap<std::string, std::pair<BackendDataType, BackendDataType>> falconNvInfo;
 
     // [FALCON] flush falcon cache before savepoint and snapshot
     void flushFalconCacheBeforeCheckpoint();
@@ -364,14 +368,55 @@ template <typename K>
 void RocksdbKeyedStateBackend<K>::flushFalconCacheBeforeCheckpoint()
 {
     // If falcon cache is disabled, falconKvState is empty, this function will do nothing.
-    // Note that, in current version, falcon cache is always enabled. But for sql cases, omniStream will revert to raw
-    // Flink. Thus, this function will always be called in dataStream case, which means K and V are all Object* type,
-    // and N is VoidNamespace type.
     for (auto &entry : falconKvState) {
-        auto* state = reinterpret_cast<RocksdbValueState<Object *, VoidNamespace, Object *> *>(entry.second);
-        if (state != nullptr && state->stateCache != nullptr) {
-            state->stateCache->flush();
-            state->stateCache->clearAll();
+        // get namespace info and value info of current state
+        auto namespaceId = falconNvInfo[entry.first].first;
+        auto dataId = falconNvInfo[entry.first].second;
+        // for each namespace type and value type, reinterpret_cast type and flush falcon cache
+        if (namespaceId == BackendDataType::BIGINT_BK && dataId == BackendDataType::ROW_BK) {
+            auto* state = reinterpret_cast<RocksdbValueState<K, int64_t, RowData *> *>(entry.second);
+            if (state != nullptr && state->stateCache != nullptr) {
+                state->stateCache->flush();
+                state->stateCache->clearAll();
+            }
+        } else if (namespaceId == BackendDataType::TIME_WINDOW_BK && dataId == BackendDataType::ROW_BK) {
+            auto* state = reinterpret_cast<RocksdbValueState<K, TimeWindow, RowData *> *>(entry.second);
+            if (state != nullptr && state->stateCache != nullptr) {
+                state->stateCache->flush();
+                state->stateCache->clearAll();
+            }
+        } else if (dataId == BackendDataType::ROW_BK) {
+            auto* state = reinterpret_cast<RocksdbValueState<K, VoidNamespace, RowData *> *>(entry.second);
+            if (state != nullptr && state->stateCache != nullptr) {
+                state->stateCache->flush();
+                state->stateCache->clearAll();
+            }
+        } else if (dataId == BackendDataType::INT_BK) {
+            auto* state = reinterpret_cast<RocksdbValueState<K, VoidNamespace, int32_t> *>(entry.second);
+            if (state != nullptr && state->stateCache != nullptr) {
+                state->stateCache->flush();
+                state->stateCache->clearAll();
+            }
+        } else if (dataId == BackendDataType::BIGINT_BK) {
+            auto* state = reinterpret_cast<RocksdbValueState<K, VoidNamespace, int64_t> *>(entry.second);
+            if (state != nullptr && state->stateCache != nullptr) {
+                state->stateCache->flush();
+                state->stateCache->clearAll();
+            }
+        } else if (dataId == BackendDataType::POJO_BK || dataId == BackendDataType::OBJECT_BK) {
+            auto* state = reinterpret_cast<RocksdbValueState<K, VoidNamespace, Object *> *>(entry.second);
+            if (state != nullptr && state->stateCache != nullptr) {
+                state->stateCache->flush();
+                state->stateCache->clearAll();
+            }
+        } else if (dataId == BackendDataType::SET_LONG) {
+            auto* state = reinterpret_cast<RocksdbValueState<K, VoidNamespace, std::vector<long>*> *>(entry.second);
+            if (state != nullptr && state->stateCache != nullptr) {
+                state->stateCache->flush();
+                state->stateCache->clearAll();
+            }
+        } else {
+            NOT_IMPL_EXCEPTION
         }
     }
 }
@@ -589,19 +634,36 @@ RocksdbValueState<K, N, V> *RocksdbKeyedStateBackend<K>::createOrUpdateInternalV
     createdState->createTable(db, stateDesc->getName(), kvStateInformation_);
 
     // [FALCON] -------------------------------------------------------------------------------------------
-    // todo: ttl state is not implemented in omniStream, thus falcon does not check it
-    // store the reference of all the created value states, all of them enable falcon cache
-    falconKvState[stateDesc->getName()] = reinterpret_cast<uintptr_t>(createdState);
-    INFO_RELEASE("[FALCON] <" << stateDesc->getName() << ", ValueState> enable falcon cache.\n")
-    // after this state is created, update cache size limit for all the created states who use falcon cache.
-    int newCacheSize = 3000 / falconKvState.size();
-    INFO_RELEASE("[FALCON] update falcon cache size to " << newCacheSize << ".\n")
-    for (auto &entry : falconKvState) {
-        auto* state = reinterpret_cast<RocksdbValueState<K, N, V> *>(entry.second);
-        if (state != nullptr && state->stateCache != nullptr) {
-            state->stateCache->updateSizeLimit(newCacheSize);
+    auto useStateCache = reinterpret_cast<Boolean*>(Configuration::TM_CONFIG
+            ->getValue(RocksDBConfigurableOptions::USE_STATE_CACHE));
+    auto cacheSizeLimit = reinterpret_cast<Integer*>(Configuration::TM_CONFIG
+            ->getValue(RocksDBConfigurableOptions::STATE_CACHE_SIZE_LIMIT));
+
+    int cacheSize = 3000;
+    if (cacheSizeLimit != nullptr) {
+        cacheSize = cacheSizeLimit->value;
+        cacheSizeLimit->putRefCount();
+    }
+
+    if (useStateCache != nullptr && useStateCache->value) {
+        // todo: ttl state is not implemented in omniStream, thus falcon does not check it
+        // store the reference of all the created value states, all of them enable falcon cache
+        falconKvState[stateDesc->getName()] = reinterpret_cast<uintptr_t>(createdState);
+        falconNvInfo[stateDesc->getName()] = std::pair<BackendDataType, BackendDataType>(
+            namespaceSerializer->getBackendId(), stateDesc->getBackendId());
+        // after this state is created, update cache size limit for all the created states who use falcon cache.
+        int newCacheSize = cacheSize / falconKvState.size();
+        INFO_RELEASE("[FALCON] <" << stateDesc->getName() << ", ValueState> enable falcon cache, and update cache size "
+                     "to " << newCacheSize << ".")
+        for (auto &entry : falconKvState) {
+            auto* state = reinterpret_cast<RocksdbValueState<K, N, V> *>(entry.second);
+            if (state != nullptr && state->stateCache != nullptr) {
+                state->stateCache->updateSizeLimit(newCacheSize);
+            }
         }
     }
+
+    if (useStateCache != nullptr) { useStateCache->putRefCount(); }
     // [FALCON] -------------------------------------------------------------------------------------------
 
     return createdState;

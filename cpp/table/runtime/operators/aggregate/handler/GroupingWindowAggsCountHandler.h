@@ -11,95 +11,87 @@
 
 #pragma once
 
+#include "common.h"
 #include "table/data/GenericRowData.h"
 #include "table/runtime/generated/NamespaceAggsHandleFunction.h"
 
 template<typename N>
 class GroupingWindowAggsCountHandler : public NamespaceAggsHandleFunction<N> {
 public:
-    GroupingWindowAggsCountHandler() = default;
+    explicit GroupingWindowAggsCountHandler(
+            int32_t aggIndex,
+            int32_t aggDataType,
+            int32_t accIndex,
+            int32_t valueIndex,
+            int32_t filterIndex)
+            :
+            aggIndex_(aggIndex),
+            aggDataType_(aggDataType),
+            accIndex_(accIndex),
+            valueIndex_(valueIndex),
+            filterIndex_(filterIndex) {}
 
-    void open(StateDataViewStore *store) override
-    {
-        this->store = store;
+    void open(StateDataViewStore* store) override {
+        this->store_ = store;
     }
 
-    void accumulate(RowData *accInput) override
-    {
-        if (!isNulll) {
-            count++;
+    void accumulate(RowData* accInput) override {
+        if (aggIndex_ < 0) {
+            count_++;
+            return;
+        }
+        if (!accInput->isNullAt(aggIndex_)) {
+            count_++;
         }
     }
 
-    void retract(RowData *retractInput) override
-    {
-        throw std::runtime_error("This function not require retract method, but the retract method is called.");
+    void retract(RowData* retractInput) override {
+        NOT_IMPL_EXCEPTION
     }
 
-    void merge(N ns, RowData *otherAcc) override
-    {
-        isNulll = isNulll || otherAcc->isNullAt(0);
-        if (!isNulll) {
-            count = count + *otherAcc->getLong(0);
+    void merge(N ns, RowData* otherAcc) override {
+        if (!otherAcc->isNullAt(accIndex_)) {
+            count_ = count_ + *otherAcc->getLong(accIndex_);
+        }
+    }
+
+    void setAccumulators(N ns, RowData* acc) override {
+        currentAcc_ = acc;
+        if (!currentAcc_->isNullAt(accIndex_)) {
+            count_ = *currentAcc_->getLong(accIndex_);
         } else {
-            count = -1;
+            count_ = 0L;
         }
     }
 
-    void setAccumulators(N ns, RowData *acc) override
-    {
-        if (!acc->isNullAt(0)) {
-            count = *acc->getLong(0);
-        } else {
-            count = -1;
-        }
+    RowData* getAccumulators() override {
+        currentAcc_->setLong(accIndex_, count_);
+        return currentAcc_;
     }
 
-    RowData *getAccumulators() override
-    {
-        acc10 = BinaryRowData::createBinaryRowDataWithMem(1);
-        if (isNulll) {
-            acc10->setLong(0, -1);
-        } else {
-            acc10->setLong(0, count);
-        }
-        return acc10;
+    RowData* createAccumulators(int accumulatorArity) override {
+        auto* newAcc = BinaryRowData::createBinaryRowDataWithMem(accumulatorArity);
+        newAcc->setLong(accIndex_, 0L);
+        return newAcc;
     }
 
-    RowData *createAccumulators(int x) override
-    {
-        acc9 = BinaryRowData::createBinaryRowDataWithMem(1);
-        acc9->setLong(0, 0L);
-        return acc9;
+    RowData* getValue(N ns) override {
+        currentAcc_->setLong(valueIndex_, count_);
+        return currentAcc_;
     }
 
-    RowData *getValue(TimeWindow ns)
-    {
-        aggValue = BinaryRowData::createBinaryRowDataWithMem(5);
-        if (isNulll) {
-            aggValue->setLong(0, -1);
-        } else {
-            aggValue->setLong(0, count);
-        }
-
-        aggValue->setLong(1, ns.getStart());
-        aggValue->setLong(2, ns.getEnd());
-        aggValue->setLong(3, ns.getEnd() - 1);
-        aggValue->setLong(4, -1);
-
-        return aggValue;
-    }
-
-    void Cleanup(TimeWindow ns) override {}
+    void Cleanup(N ns) override {}
 
     void close() override {}
 
 private:
-    long count{};
-    bool isNulll{};
-    BinaryRowData *acc9 = BinaryRowData::createBinaryRowDataWithMem(1);
-    BinaryRowData *acc10 = BinaryRowData::createBinaryRowDataWithMem(1);
-    BinaryRowData *aggValue = BinaryRowData::createBinaryRowDataWithMem(5);
-    StateDataViewStore *store{};
-    TimeWindow ns;
+    int32_t aggIndex_ = -1;
+    int32_t aggDataType_ = DataTypeId::OMNI_NONE;
+    int32_t accIndex_ = -1;
+    int32_t valueIndex_ = -1;
+    int32_t filterIndex_ = -1;
+
+    long count_ = 0L;
+    StateDataViewStore* store_{};
+    RowData* currentAcc_{};
 };

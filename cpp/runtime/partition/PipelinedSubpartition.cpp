@@ -63,7 +63,7 @@ void PipelinedSubpartition::release()
 {
     std::shared_ptr<PipelinedSubpartitionView> view;
 
-    std::lock_guard<std::mutex> lock(buffersMutex);
+    std::lock_guard<std::recursive_mutex> lock(buffersMutex);
     if (isReleased_) {
         return;
     }
@@ -89,7 +89,7 @@ void PipelinedSubpartition::release()
 
 BufferAndBacklog* PipelinedSubpartition::pollBuffer()
 {
-    std::lock_guard<std::mutex> buffersLock(buffersMutex);
+    std::lock_guard<std::recursive_mutex> buffersLock(buffersMutex);
     LOG(">>>>>>buffers.peek() is " << buffers.peek() << " buffers.size()" << buffers.size() << " buffers address" << &buffers);
     // When blocked by an aligned checkpoint barrier, priority events (e.g., timeout->UC) must still overtake.
     if (isBlocked) {
@@ -180,7 +180,7 @@ BufferAndBacklog* PipelinedSubpartition::pollBuffer()
 
 void PipelinedSubpartition::resumeConsumption()
 {
-    std::lock_guard<std::mutex> lock(buffersMutex);
+    std::lock_guard<std::recursive_mutex> lock(buffersMutex);
     isBlocked = false;
 }
 
@@ -197,7 +197,7 @@ bool PipelinedSubpartition::isReleased()
 std::shared_ptr<ResultSubpartitionView> PipelinedSubpartition::createReadView(
     BufferAvailabilityListener* availabilityListener)
 {
-    std::lock_guard<std::mutex> lock(buffersMutex);
+    std::lock_guard<std::recursive_mutex> lock(buffersMutex);
     if (readView == nullptr) {
         // todo: 循环引用
         readView = std::make_shared<PipelinedSubpartitionView>(shared_from_this(), availabilityListener);
@@ -207,7 +207,7 @@ std::shared_ptr<ResultSubpartitionView> PipelinedSubpartition::createReadView(
 
 AvailabilityWithBacklog PipelinedSubpartition::getAvailabilityAndBacklog(int numCreditsAvailable)
 {
-    std::lock_guard<std::mutex> lock(buffersMutex);
+    std::lock_guard<std::recursive_mutex> lock(buffersMutex);
     bool isAvailable;
     if (numCreditsAvailable > 0) {
         isAvailable = isDataAvailableUnsafe();
@@ -230,13 +230,13 @@ ObjectBufferDataType PipelinedSubpartition::getNextBufferTypeUnsafe()
 
 int PipelinedSubpartition::getNumberOfQueuedBuffers()
 {
-    std::lock_guard<std::mutex> lock(buffersMutex);
+    std::lock_guard<std::recursive_mutex> lock(buffersMutex);
     return buffers.size();
 }
 
 void PipelinedSubpartition::bufferSize(int desirableNewBufferSize)
 {
-    std::lock_guard<std::mutex> lock(buffersMutex);
+    std::lock_guard<std::recursive_mutex> lock(buffersMutex);
     bufferSize_ = desirableNewBufferSize;
 }
 
@@ -255,7 +255,7 @@ void PipelinedSubpartition::flush()
 {
     bool notifyDataAvailable_;
     {
-        std::lock_guard<std::mutex> lock(buffersMutex);
+        std::lock_guard<std::recursive_mutex> lock(buffersMutex);
         LOG(" buffers.isEmpty() " << std::to_string(buffers.isEmpty()));
         LOG("flushRequested : " << flushRequested)
         if (buffers.isEmpty() || flushRequested) {
@@ -409,7 +409,7 @@ int PipelinedSubpartition::add(std::shared_ptr<BufferConsumer> bufferConsumer, i
     int newBufferSize = 0;
 
     {
-        std::lock_guard<std::mutex> lock(buffersMutex);
+        std::lock_guard<std::recursive_mutex> lock(buffersMutex);
         if (isFinished || isReleased_) {
             bufferConsumer->close();
             return -1;
@@ -506,7 +506,7 @@ void PipelinedSubpartition::ConvertToPriorityEvent(int announcedSequenceNumber)
     bool completedFuture = false;
 
     {
-        std::lock_guard<std::mutex> lock(buffersMutex);
+        std::lock_guard<std::recursive_mutex> lock(buffersMutex);
 
         auto elements = buffers.asUnmodifiableCollection();
         for (int i = 0; i < static_cast<int>(elements.size()); ++i) {

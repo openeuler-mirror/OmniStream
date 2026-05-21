@@ -5,6 +5,7 @@
 #include "KeyGroupsSavepointStateHandle.h"
 #include "KeyGroupsStateHandle.h"
 #include <sstream>
+#include <iomanip>
 #include "common.h"
 FullSnapshotAsyncWriter::FullSnapshotAsyncWriter(
     SnapshotType *snapshotType,
@@ -21,6 +22,7 @@ FullSnapshotAsyncWriter::FullSnapshotAsyncWriter(
 }
 static constexpr int END_OF_KEY_GROUP_MASK = 0xffff;
 static constexpr int FIRST_BIT_IN_BYTE_MASK = 0x80;
+
 std::shared_ptr<SnapshotResult<KeyedStateHandle>> FullSnapshotAsyncWriter::get(
     std::shared_ptr<omnistream::OmniTaskBridge> bridge)
 {

@@ -61,6 +61,15 @@ public:
         pos_ = bridge_->GetSavepointOutputStreamPos(provider_);
     }
 
+    void writeOperatorMetaData(const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& operatorStateMetaInfoSnapshots,
+                               const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& broadcastStateMetaInfoSnapshots){
+        if (provider_ == nullptr) {
+            return;
+        }
+        bridge_->WriteOperatorMetaData(provider_, operatorStateMetaInfoSnapshots, broadcastStateMetaInfoSnapshots);
+        pos_ = bridge_->GetSavepointOutputStreamPos(provider_);
+    }
+
     void flush()
     {
         if (!provider_) {
