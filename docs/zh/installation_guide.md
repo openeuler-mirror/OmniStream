@@ -616,7 +616,7 @@ rpm -ivh yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
 
            >![](public_sys-resources/icon-note.gif)**说明：**
            >`/opt/omni-operator/jemalloc`目录用户可自行定义。
-      
+
        2. 进入`jemalloc`目录，运行脚本并安装。
 
           ```bash
@@ -624,7 +624,7 @@ rpm -ivh yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
           ./autogen.sh --disable-initial-exec-tls
           make -j2
           ```
-          
+
       3. 拷贝`/opt/omni-operator/jemalloc/lib/libjemalloc.so.2`到`/opt/omni-operator/lib`目录下。
 
          ```bash
