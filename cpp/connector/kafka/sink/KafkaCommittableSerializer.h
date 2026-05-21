@@ -17,12 +17,13 @@
 #include <iostream>
 #include <sstream>
 #include "KafkaCommittable.h"
+#include "core/io/SimpleVersionedSerializer.h"
 
-class KafkaCommittableSerializer {
+class KafkaCommittableSerializer : public SimpleVersionedSerializer<KafkaCommittable> {
 public:
-    int GetVersion();
-    std::vector<char> serialize(KafkaCommittable* state);
-    KafkaCommittable* deserialize(int version, const std::vector<char>& serialized);
+    int getVersion() const override;
+    std::vector<uint8_t> serialize(const KafkaCommittable& obj) override;
+    KafkaCommittable* deserialize(int version, std::vector<uint8_t>& serialized) override;
 };
 
 #endif // OMNIFLINK_KAFKACOMMITTABLESERIALIZER_H

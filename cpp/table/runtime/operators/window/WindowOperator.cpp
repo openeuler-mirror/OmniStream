@@ -8,11 +8,14 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
+
 #include "WindowOperator.h"
 #include "assigners/MergingWindowAssigner.h"
 #include "data/util/RowDataUtil.h"
 #include "internal/MergingWindowProcessFunction.h"
-#include "type/data_types.h"
+
+// TODO: IDE may notice an error from TimerSerializer, ignore it
+template class WindowOperator<RowData*, TimeWindow>;
 
 template<typename K, typename W>
 WindowOperator<K, W>::~WindowOperator()
@@ -28,7 +31,7 @@ void WindowOperator<K, W>::open()
     triggerContext->Open();
 
     // init windowState
-    BinaryRowDataSerializer *binaryRowDataSerializer = new BinaryRowDataSerializer(1);
+    auto* binaryRowDataSerializer = new BinaryRowDataSerializer(accumulatorArity);
     std::string aggName = "window-aggs";
     auto *valueStateDescriptor = new ValueStateDescriptor<RowData*>(aggName, binaryRowDataSerializer);
     using S = InternalValueState<RowData *, TimeWindow, RowData *>;
@@ -38,24 +41,25 @@ void WindowOperator<K, W>::open()
     windowState = state;
 
     auto *windowContext = new WindowContext(this);
-    if (dynamic_cast<MergingWindowAssigner<W> *>(windowAssigner)) {
+    auto* mergingWindowAssigner = dynamic_cast<MergingWindowAssigner<W>*>(windowAssigner.get());
+    if (mergingWindowAssigner != nullptr) {
         this->windowFunction =
-                new MergingWindowProcessFunction<K, W>(
-                    dynamic_cast<MergingWindowAssigner<W> *>(windowAssigner),
-                    windowAggregator,
+                std::make_unique<MergingWindowProcessFunction<K, W>>(
+                    mergingWindowAssigner,
+                    windowAggregator.get(),
                     windowSerializer,
-                    allowedLateness);
+                    allowedLateness,
+                    accumulatorArity);
     } else {
-        throw std::runtime_error("Not support windowAssigner type!");
+        THROW_RUNTIME_ERROR("Not support windowAssigner type!");
     }
     windowFunction->Open(windowContext);
 }
 
 template<typename K, typename W>
-void WindowOperator<K, W>::close()
-{
-    // Cleanup logic
-    std::cout << "WindowOperator closed" << std::endl;
+void WindowOperator<K, W>::close() {
+    AbstractStreamOperator<K>::close();
+    INFO_RELEASE("WindowOperator closed");
 }
 
 template<typename K, typename W>
@@ -95,14 +99,15 @@ void WindowOperator<K, W>::onEventTime(TimerHeapInternalTimer<K, W> *timer)
     if (triggerContext->OnEventTime(timer->getTimestamp())) {
         emitWindowResult(triggerContext->window);
     }
-    // TODO: Enable window cleaning when the Window operator is adapted for RocksDB
-    // if (windowAssigner->IsEventTime()) {
-    //     windowFunction->CleanWindowIfNeeded(triggerContext->window, timer->getTimestamp());
-    // }
+    if (windowAssigner->IsEventTime()) {
+        windowFunction->CleanWindowIfNeeded(triggerContext->window, timer->getTimestamp());
+    }
 }
 
 template<typename K, typename W>
-void WindowOperator<K, W>::onProcessingTime(TimerHeapInternalTimer<K, W> *timer) {}
+void WindowOperator<K, W>::onProcessingTime(TimerHeapInternalTimer<K, W> *timer) {
+    NOT_IMPL_EXCEPTION
+}
 
 template<typename K, typename W>
 void WindowOperator<K, W>::processWatermarkStatus(WatermarkStatus *watermarkStatus)
@@ -136,6 +141,7 @@ void WindowOperator<K, W>::processElement(RowData *inputRow)
     if (windowAssigner->IsEventTime()) {
         timestamp = *inputRow->getLong(rowtimeIndex);
     } else {
+        THROW_LOGIC_EXCEPTION("Processing time window is not supported yet!")
     }
 
     // the windows which the input row should be placed into
@@ -144,7 +150,7 @@ void WindowOperator<K, W>::processElement(RowData *inputRow)
         windowState->setCurrentNamespace(window);
         auto acc = reinterpret_cast<RowData *>(windowState->value());
         if (acc == nullptr) {
-            acc = windowAggregator->createAccumulators(1);
+            acc = windowAggregator->createAccumulators(accumulatorArity);
         }
         windowAggregator->setAccumulators(window, acc);
 

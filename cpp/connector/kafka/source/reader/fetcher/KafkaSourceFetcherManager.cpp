@@ -10,8 +10,39 @@
  */
 
 #include "KafkaSourceFetcherManager.h"
+#include "CommitOffsetsTask.h"
+#include "SplitFetcher.h"
+#include <iostream>
 
 KafkaSourceFetcherManager::KafkaSourceFetcherManager(
     FutureCompletingBlockingQueue<RdKafka::Message>* elementsQueue,
     std::function<SplitReader<RdKafka::Message, KafkaPartitionSplit>*()>& splitReaderSupplier)
     : SingleThreadFetcherManager<RdKafka::Message, KafkaPartitionSplit>(elementsQueue, splitReaderSupplier) {}
+
+void KafkaSourceFetcherManager::commitOffsets(
+    const std::map<std::shared_ptr<RdKafka::TopicPartition>, int64_t>& offsetsToCommit,
+    OffsetCommitCallback callback)
+{
+    if (offsetsToCommit.empty()) {
+        return;
+    }
+
+    auto splitFetcher = getRunningFetcher();
+    if (splitFetcher != nullptr) {
+        enqueueOffsetsCommitTask(splitFetcher, offsetsToCommit, callback);
+    } else {
+        splitFetcher = createSplitFetcher();
+        enqueueOffsetsCommitTask(splitFetcher, offsetsToCommit, callback);
+        startFetcher(splitFetcher);
+    }
+}
+
+void KafkaSourceFetcherManager::enqueueOffsetsCommitTask(
+    SplitFetcher<RdKafka::Message, KafkaPartitionSplit>* splitFetcher,
+    const std::map<std::shared_ptr<RdKafka::TopicPartition>, int64_t>& offsetsToCommit,
+    OffsetCommitCallback callback)
+{
+    auto commitTask = std::make_shared<CommitOffsetsTask>(
+        splitFetcher->getSplitReader(), offsetsToCommit, callback);
+    splitFetcher->enqueueTask(commitTask);
+}

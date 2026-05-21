@@ -39,7 +39,9 @@
 
 #include "../../../core/utils/MathUtils.h"
 #include "state/RocksDbKvStateInfo.h"
+#include "RocksDbOperationUtils.h"
 #include "../RocksDBConfigurableOptions.h"
+#include "runtime/state/RocksIteratorWrapper.h"
 
 /* S is the value used in the State,
  * like RowData* for HeapValueState,
@@ -111,6 +113,23 @@ public:
         auto it2 = kvStateInformation->find(cfName + "vb");
         if (it2 != kvStateInformation->end() && it2->second->columnFamilyHandle_) {
             VBTable = it2->second->columnFamilyHandle_;
+                        std::string estimatedKeysStr1;
+            if (db->GetProperty(VBTable, "rocksdb.estimate-num-keys", &estimatedKeysStr1)) {
+                INFO_RELEASE("rocksdbStateTable createTable cfName=" << cfName << "vb"
+                    << " estimatedNumKeys=" << estimatedKeysStr1);
+            }   
+            auto iterStart = std::chrono::steady_clock::now();
+            std::unique_ptr<RocksIteratorWrapper> iterator = RocksDbOperationUtils::getRocksIterator(
+                db, VBTable, readOptions);
+            iterator->seekToFirst();
+            while (iterator->isValid()) {
+                vectorBatchId++;
+                iterator->next();
+            }
+            auto iterEnd = std::chrono::steady_clock::now();
+            auto iterMs = std::chrono::duration_cast<std::chrono::milliseconds>(iterEnd - iterStart).count();
+            INFO_RELEASE("rocksdbStateTable createTable iterMs=" << iterMs
+                << " cfName=" << cfName<<"vb vectorBatchId=" << vectorBatchId);
         } else {
             s = db->CreateColumnFamily(familyOptions, cfName + "vb", &VBTable);
             if (it2 != kvStateInformation->end()) {
@@ -397,6 +416,10 @@ public:
         DataOutputSerializer keyOutputSerializer;
         OutputBufferStatus outputBufferStatus;
         keyOutputSerializer.setBackendBuffer(&outputBufferStatus);
+
+        int keyGroup = computeKeyGroup(vectorBatchId);
+        keyOutputSerializer.writeByte(static_cast<uint32_t>(keyGroup));
+
         LongSerializer longSerializer;
         longSerializer.serialize(&vectorBatchId, keyOutputSerializer);
 
@@ -419,6 +442,10 @@ public:
         DataOutputSerializer keyOutputSerializer;
         OutputBufferStatus outputBufferStatus;
         keyOutputSerializer.setBackendBuffer(&outputBufferStatus);
+        
+        int keyGroup = computeKeyGroup(vbId);
+        keyOutputSerializer.writeByte(static_cast<uint32_t>(keyGroup));
+        
         LongSerializer longSerializer;
         longSerializer.serialize(&vbId, keyOutputSerializer);
 
@@ -446,6 +473,10 @@ public:
             DataOutputSerializer keyOutputSerializer;
             OutputBufferStatus outputBufferStatus;
             keyOutputSerializer.setBackendBuffer(&outputBufferStatus);
+            
+            int keyGroup = computeKeyGroup(vbId);
+            keyOutputSerializer.writeByte(static_cast<uint32_t>(keyGroup));
+            
             LongSerializer longSerializer;
             longSerializer.serialize(&vbId, keyOutputSerializer);
 
@@ -473,6 +504,10 @@ public:
         DataOutputSerializer keyOutputSerializer;
         OutputBufferStatus outputBufferStatus;
         keyOutputSerializer.setBackendBuffer(&outputBufferStatus);
+        
+        int keyGroup = computeKeyGroup(batchId);
+        keyOutputSerializer.writeByte(static_cast<uint32_t>(keyGroup));
+        
         LongSerializer longSerializer;
         longSerializer.serialize(&batchId, keyOutputSerializer);
 
@@ -519,6 +554,15 @@ public:
 protected:
     // Variables
     InternalKeyContext<K> *keyContext;
+
+    template<typename T>
+    int computeKeyGroup(T id) const
+    {
+        int keyGroup = MathUtils::murmurHash(std::hash<T>{}(id)) % keyContext->getNumberOfKeyGroups();
+        int rangeSize = keyContext->getKeyGroupRange()->getEndKeyGroup() -
+                        keyContext->getKeyGroupRange()->getStartKeyGroup() + 1;
+        return (keyGroup % rangeSize) + keyContext->getKeyGroupRange()->getStartKeyGroup();
+    }
     TypeSerializer *keySerializer;
     // KeyGroupRange *keyGroupRange;
     ROCKSDB_NAMESPACE::ColumnFamilyHandle *table; // 是不是编程columnsFamily

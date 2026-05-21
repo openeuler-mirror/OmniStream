@@ -104,7 +104,9 @@ namespace omnistream::datastream {
 
         void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) override
         {
-            LOG("-----StreamGroupedReduceOperator::initializeState")
+            // First do the shared initialization step
+            INFO_RELEASE("StreamGroupedReduceOperator initializeState with initializer, operatorID: " << OneInputStreamOperator::GetOperatorID().toString());
+            AbstractStreamOperator<K*>::SetOperatorID(OneInputStreamOperator::GetOperatorID().toString());
             AbstractStreamOperator<K*>::initializeState(initializer, keySerializer);
             auto taskId = initializer->getEnvironment()->taskConfiguration().getIndexOfSubtask();
             auto& instance = omnistream::BindCoreManager::GetInstance();

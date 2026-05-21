@@ -13,9 +13,13 @@
 #define OMNIFLINK_KAFKASINK_H
 
 #include "KafkaWriterState.h"
+#include "KafkaCommitter.h"
 #include "KafkaCommittable.h"
+#include "KafkaCommittableSerializer.h"
 #include "KafkaRecordSerializationSchema.h"
 #include "KafkaWriter.h"
+#include "streaming/api/operators/sink/InitContextImpl.h"
+#include "streaming/api/operators/sink/committables/Committer.h"
 
 class KafkaSink {
 public:
@@ -26,8 +30,22 @@ public:
               const nlohmann::json& opDescriptionJSON,
               int64_t maxPushRecords);
 
-    KafkaCommittable *CreateCommitter();
-    KafkaWriter *CreateWriter();
+    Committer<KafkaCommittable>* CreateCommitter();
+    KafkaCommittableSerializer *getCommittableSerializer();
+
+    template <typename K>
+    KafkaWriter *CreateWriter(InitContextImpl<K>* initContext = nullptr)
+    {
+        return new KafkaWriter(deliveryGuarantee, kafkaProducerConfig, transactionalIdPrefix, topic, description,
+                               maxPushRecords, initContext, {});
+    }
+
+    template <typename K>
+    KafkaWriter *RestoreWriter(InitContextImpl<K>* initContext, const std::vector<KafkaWriterState>& states)
+    {
+        return new KafkaWriter(deliveryGuarantee, kafkaProducerConfig, transactionalIdPrefix, topic, description,
+                               maxPushRecords, initContext, states);
+    }
 
 private:
     DeliveryGuarantee deliveryGuarantee;

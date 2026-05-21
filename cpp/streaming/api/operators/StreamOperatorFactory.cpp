@@ -169,7 +169,7 @@ StreamOperator *StreamOperatorFactory::createOperatorAndCollector(omnistream::Op
     WatermarkGaugeExposingOutput *chainOutput, std::shared_ptr<OmniStreamTask> task)
 {
     auto operatorID = opDesc.getId();
-    LOG("getID  :" << operatorID)
+    INFO_RELEASE("StreamOperatorFactory operatorID  :" << operatorID)
 
     if (operatorID == OPERATOR_NAME_STREAM_CALC) {
         return CreateStreamCalcOp(opDesc, chainOutput, task);
@@ -180,12 +180,10 @@ StreamOperator *StreamOperatorFactory::createOperatorAndCollector(omnistream::Op
     } else if (operatorID == OPERATOR_NAME_GLOBAL_WINDOW_AGG) {
         return CreateGlobalWindowAggOp(opDesc, chainOutput, task);
     } else if (operatorID == OPERATOR_NAME_GROUP_WINDOW_AGG) {
-        auto processingTimeService = task->createProcessingTimeService();
-        return CreateGroupWindowAggOp(opDesc, chainOutput, task, processingTimeService);
+        return CreateGroupWindowAggOp(opDesc, chainOutput, task);
     } else if (operatorID == OPERATOR_NAME_WATERMARK_ASSIGNER) {
-        auto processingTimeService = task->createProcessingTimeService();
-        // Idle timeout is currently set to 0, but might change depending on the config
-        return CreateWatermarkAssignerOp(opDesc, chainOutput, task, processingTimeService);
+        // TODO: Idle timeout is currently set to 0, but might change depending on the config
+        return CreateWatermarkAssignerOp(opDesc, chainOutput, task);
     } else if (operatorID == OPERATOR_NAME_KEYED_PROCESS_OPERATOR) {
         return CreateKeyedProcessOp(opDesc, chainOutput, task);
     } else if (operatorID == OPERATOR_NAME_SINK || operatorID == OPERATOR_NAME_COLLECT_SINK
@@ -212,12 +210,11 @@ StreamOperator *StreamOperatorFactory::createOperatorAndCollector(omnistream::Op
     } else if (operatorID == OPERATOR_NAME_FILTER) {
         return CreateFilterOp(opDesc, chainOutput, task);
     } else if (operatorID == OPERATOR_NAME_SINK_WRITER) {
-        return CreateSinkWriterOp(opDesc, chainOutput, task);
+        auto processingTimeService = task->createProcessingTimeService();
+        return CreateSinkWriterOp(opDesc, chainOutput, task, processingTimeService);
     } else if (operatorID == OPERATOR_NAME_COMMIT_OPERATOR) {
-        auto description = opDesc.getDescription();
-        nlohmann::json opDescriptionJSON = nlohmann::json::parse(description);
-        auto committerOperator = new CommitterOperator(opDescriptionJSON["batch"]);
-        return static_cast<OneInputStreamOperator *>(committerOperator);
+        auto processingTimeService = task->createProcessingTimeService();
+        return CreateCommitOp(opDesc, chainOutput, task, processingTimeService);
     } else if (operatorID == OPERATOR_NAME_STREAMING_FILE_WRITER) {
         return CreateStreamingFileWriterOp(opDesc, chainOutput, task);
     } else if (operatorID == OPERATOR_NAME_PARTITION_COMMITTER) {
@@ -276,12 +273,11 @@ StreamOperator* StreamOperatorFactory::CreateGlobalWindowAggOp(OperatorPOD &opCo
 }
 
 StreamOperator* StreamOperatorFactory::CreateGroupWindowAggOp(OperatorPOD &opConfig, WatermarkGaugeExposingOutput *chainOutput,
-                                                              std::shared_ptr<omnistream::OmniStreamTask> task,
-                                                              ProcessingTimeService *processingTimeService)
-{
+                                                              std::shared_ptr<omnistream::OmniStreamTask> task) {
     auto description = opConfig.getDescription();
     nlohmann::json opDescriptionJSON = nlohmann::json::parse(description);
     auto *op = new AggregateWindowOperator<RowData*, TimeWindow>(opDescriptionJSON, chainOutput);
+    auto processingTimeService = task->createProcessingTimeService();
     op->setProcessingTimeService(processingTimeService);
     op->setup(std::move(task));
     LOG("Operator AggregateWindowOperator address " + std::to_string(reinterpret_cast<long>(op)))
@@ -290,11 +286,10 @@ StreamOperator* StreamOperatorFactory::CreateGroupWindowAggOp(OperatorPOD &opCon
 
 StreamOperator* StreamOperatorFactory::CreateWatermarkAssignerOp(OperatorPOD &opConfig,
                                                                  WatermarkGaugeExposingOutput *chainOutput,
-                                                                 std::shared_ptr<omnistream::OmniStreamTask> task,
-                                                                 ProcessingTimeService *processingTimeService)
-{
+                                                                 std::shared_ptr<omnistream::OmniStreamTask> task) {
     auto description = opConfig.getDescription();
     nlohmann::json opDescriptionJSON = nlohmann::json::parse(description);
+    auto processingTimeService = task->createProcessingTimeService();
     auto *watermarkAssignerOperator = new WatermarkAssignerOperator(chainOutput,
                                                                     opDescriptionJSON["rowtimeFieldIndex"],
                                                                     opDescriptionJSON["intervalSecond"],
@@ -438,7 +433,7 @@ StreamOperator* StreamOperatorFactory::CreateSourceOp(OperatorPOD &opConfig,
             nlohmann::json opDescriptionJSON = nlohmann::json::parse(description);
             // create kafka source
             std::shared_ptr<KafkaSource> source = std::make_shared<KafkaSource>(opDescriptionJSON, true);
-            ProcessingTimeService* timeService = new SystemProcessingTimeService();
+            ProcessingTimeService* timeService = task->createProcessingTimeService();
             auto *op = new SourceOperator(chainOutput, opDescriptionJSON, source, timeService);
             op->setup(std::move(task));
             LOG("Operator SourceOperator address " + std::to_string(reinterpret_cast<long>(op)));
@@ -673,8 +668,9 @@ StreamOperator *StreamOperatorFactory::CreateReduceOp(omnistream::OperatorPOD &o
 }
 
 StreamOperator* StreamOperatorFactory::CreateSinkWriterOp(omnistream::OperatorPOD &opConfig,
-    WatermarkGaugeExposingOutput* chainOutput, std::shared_ptr<omnistream::OmniStreamTask> task)
-{
+                                                          WatermarkGaugeExposingOutput* chainOutput,
+                                                          std::shared_ptr<omnistream::OmniStreamTask> task,
+                                                          ProcessingTimeService* processingTimeService) {
     DeliveryGuarantee deliveryGuarantee;
     auto description = opConfig.getDescription();
     nlohmann::json opDescriptionJSON = nlohmann::json::parse(description);
@@ -719,6 +715,26 @@ StreamOperator* StreamOperatorFactory::CreateSinkWriterOp(omnistream::OperatorPO
     LOG("topic:" + topic)
     auto kafkaSink = new KafkaSink(deliveryGuarantee, kafkaProducerConfig, transactionalIdPrefix,
         topic, opDescriptionJSON, maxPushRecords);
-    return static_cast<OneInputStreamOperator *>(new SinkWriterOperator(kafkaSink, opDescriptionJSON));
+
+
+    auto* op = new SinkWriterOperator(kafkaSink, opDescriptionJSON);
+    op->setProcessingTimeService(processingTimeService);
+        // todo 确认模板参数问题
+    return static_cast<OneInputStreamOperator *>(op);
+}
+
+StreamOperator* StreamOperatorFactory::CreateCommitOp(omnistream::OperatorPOD& opConfig,
+                                                      WatermarkGaugeExposingOutput* chainOutput,
+                                                      std::shared_ptr<omnistream::OmniStreamTask> task,
+                                                      ProcessingTimeService* processingTimeService) {
+    auto description = opConfig.getDescription();
+    nlohmann::json opDescriptionJSON = nlohmann::json::parse(description);
+    bool isBatch = opDescriptionJSON["batch"];
+    std::string hashPath = opDescriptionJSON["hash_path"];
+
+    auto* op = new CommitterOperator(processingTimeService, isBatch, true);
+    op->setup(std::move(task));
+
+    return static_cast<OneInputStreamOperator *>(op);
 }
 }

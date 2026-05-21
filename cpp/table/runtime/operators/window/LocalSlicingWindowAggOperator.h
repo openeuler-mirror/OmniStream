@@ -88,7 +88,9 @@ public:
 
     void initializeState(StreamTaskStateInitializerImpl* initializer, TypeSerializer* keySerializer) override
     {
-        LOG("LocalSlicingWindowAggOperator initializeState()")
+        // First do the shared initialization step
+        INFO_RELEASE("LocalSlicingWindowAggOperator initializeState with initializer, operatorID: " << OneInputStreamOperator::GetOperatorID().toString());
+        AbstractStreamOperator<long>::SetOperatorID(OneInputStreamOperator::GetOperatorID().toString());
         AbstractStreamOperator<long>::initializeState(initializer, keySerializer);
     }
 

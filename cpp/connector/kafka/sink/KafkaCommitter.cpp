@@ -11,18 +11,18 @@
 
 #include "KafkaCommitter.h"
 
-template <typename CommT>
-KafkaCommitter<CommT>::KafkaCommitter(const RdKafka::Conf* kafkaProducerConfig)
+KafkaCommitter::KafkaCommitter(const RdKafka::Conf* kafkaProducerConfig)
     : kafkaProducerConfig(const_cast<RdKafka::Conf*>(kafkaProducerConfig)), recoveryProducer(nullptr) {}
 
-template <typename CommT>
-void KafkaCommitter<CommT>::Commit(std::vector<CommitRequest<KafkaCommittable>>& requests)
+void KafkaCommitter::Commit(std::vector<std::shared_ptr<CommitRequest<KafkaCommittable>>>& requests)
 {
     for (auto& request : requests) {
-        const KafkaCommittable& committable = request.GetCommittable();
+        const KafkaCommittable& committable = request->GetCommittable();
         const std::string& transactionalId = committable.GetTransactionalId();
-        auto recyclable = committable.GetProducer().value().get();
-        FlinkKafkaInternalProducer *producer = recyclable->GetObject();
+        auto recyclable = committable.GetProducer().has_value() ?
+            committable.GetProducer().value() : nullptr;
+        FlinkKafkaInternalProducer *producer = recyclable ?
+            recyclable->GetObject() : GetRecoveryProducer(committable).get();
         try {
             producer->CommitTransaction();
             producer->Flush();
@@ -33,15 +33,25 @@ void KafkaCommitter<CommT>::Commit(std::vector<CommitRequest<KafkaCommittable>>&
             if (recyclable) {
                 recyclable->Close();
             }
-            request.signalFailedWithUnknownReason(e);
+            request->signalFailedWithUnknownReason(e);
         }
     }
 }
 
-template <typename CommT>
-void KafkaCommitter<CommT>::Close()
+void KafkaCommitter::Close()
 {
     if (recoveryProducer) {
         recoveryProducer->Close();
     }
+}
+
+std::shared_ptr<FlinkKafkaInternalProducer> KafkaCommitter::GetRecoveryProducer(KafkaCommittable committable)
+{
+    if (recoveryProducer == nullptr) {
+        recoveryProducer = std::make_shared<FlinkKafkaInternalProducer>(kafkaProducerConfig, committable.GetTransactionalId());
+    } else {
+        recoveryProducer->setTransactionId(committable.GetTransactionalId());
+    }
+    recoveryProducer->resumeTransaction(committable.GetProducerId(), committable.GetEpoch());
+    return recoveryProducer;
 }

@@ -25,6 +25,10 @@ public:
         LOG(">>>>>>> start OperatorSnapshotFinalizer")
         auto keyedStateManaged = FutureUtils::runIfNotDoneAndGet(snapshotFutures->getKeyedStateManagedFuture());
         auto KeyedStateRaw = FutureUtils::runIfNotDoneAndGet(snapshotFutures->getKeyedStateRawFuture());
+
+        auto operatorStateManaged = FutureUtils::runIfNotDoneAndGet(snapshotFutures->getOperatorStateManagedFuture());
+        auto operatorStateRaw = FutureUtils::runIfNotDoneAndGet(snapshotFutures->getOperatorStateRawFuture());
+
         std::shared_ptr<SnapshotResult<StateObjectCollection<InputChannelStateHandle>>> inputChannelState =
                 FutureUtils::runIfNotDoneAndGet(snapshotFutures->getInputChannelStateFuture());
         std::shared_ptr<SnapshotResult<StateObjectCollection<ResultSubpartitionStateHandle>>> resultPartitionState =
@@ -53,9 +57,33 @@ public:
             taskLocalRaw = StateObjectCollection<KeyedStateHandle>::SingletonOrEmpty(nullptr);
         }
 
+        std::shared_ptr<StateObjectCollection<OperatorStateHandle>> jobManagerOwnedOperatorManaged;
+        std::shared_ptr<StateObjectCollection<OperatorStateHandle>> taskLocalOperatorManaged;
+        if (operatorStateManaged) {
+            jobManagerOwnedOperatorManaged = StateObjectCollection<OperatorStateHandle>::SingletonOrEmpty(
+                operatorStateManaged->GetJobManagerOwnedSnapshot());
+            taskLocalOperatorManaged = StateObjectCollection<OperatorStateHandle>::SingletonOrEmpty(
+                operatorStateManaged->GetTaskLocalSnapshot());
+        } else {
+            jobManagerOwnedOperatorManaged = StateObjectCollection<OperatorStateHandle>::SingletonOrEmpty(nullptr);
+            taskLocalOperatorManaged = StateObjectCollection<OperatorStateHandle>::SingletonOrEmpty(nullptr);
+        }
+
+        std::shared_ptr<StateObjectCollection<OperatorStateHandle>> jobManagerOwnedOperatorRaw;
+        std::shared_ptr<StateObjectCollection<OperatorStateHandle>> taskLocalOperatorRaw;
+        if (operatorStateRaw) {
+            jobManagerOwnedOperatorRaw = StateObjectCollection<OperatorStateHandle>::SingletonOrEmpty(
+                operatorStateRaw->GetJobManagerOwnedSnapshot());
+            taskLocalOperatorRaw = StateObjectCollection<OperatorStateHandle>::SingletonOrEmpty(
+                operatorStateRaw->GetTaskLocalSnapshot());
+        } else {
+            jobManagerOwnedOperatorRaw = StateObjectCollection<OperatorStateHandle>::SingletonOrEmpty(nullptr);
+            taskLocalOperatorRaw = StateObjectCollection<OperatorStateHandle>::SingletonOrEmpty(nullptr);
+        }
+
         JobManagerOwnedState = std::make_shared<OperatorSubtaskState>(
-            *StateObjectCollection<OperatorStateHandle>::SingletonOrEmpty(nullptr),
-            *StateObjectCollection<OperatorStateHandle>::SingletonOrEmpty(nullptr),
+            *jobManagerOwnedOperatorManaged,
+            *jobManagerOwnedOperatorRaw,
             *jobManagerOwnedManaged,
             *jobManagerOwnedRaw,
             inputChannelState == nullptr ? *StateObjectCollection<InputChannelStateHandle>::Empty() :
@@ -63,8 +91,8 @@ public:
             resultPartitionState == nullptr ? *StateObjectCollection<ResultSubpartitionStateHandle>::Empty() :
                 *resultPartitionState->GetJobManagerOwnedSnapshot());
         taskLocalState = std::make_shared<OperatorSubtaskState>(
-            *StateObjectCollection<OperatorStateHandle>::SingletonOrEmpty(nullptr),
-            *StateObjectCollection<OperatorStateHandle>::SingletonOrEmpty(nullptr),
+            *taskLocalOperatorManaged,
+            *taskLocalOperatorRaw,
             *taskLocalManaged,
             *taskLocalRaw,
             inputChannelState == nullptr ? *StateObjectCollection<InputChannelStateHandle>::Empty() :

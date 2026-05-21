@@ -9,24 +9,22 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "OmniCreditBasedSequenceNumberingViewReader.h"
-
-#include <buffer/ReadOnlySlicedNetworkBuffer.h>
+#include "runtime/buffer/ReadOnlySlicedNetworkBuffer.h"
 
 namespace omnistream {
     OmniCreditBasedSequenceNumberingViewReader::
-    OmniCreditBasedSequenceNumberingViewReader(ResultPartitionIDPOD partitionId,
-                                               int subPartitionIndex,
-                                               long outputBufferStatus)
-        : outputBufferStatus(
-            reinterpret_cast<OutputBufferStatus *>(outputBufferStatus))
-    {
+    OmniCreditBasedSequenceNumberingViewReader(ResultPartitionIDPOD partitionId, int subPartitionIndex,
+            long outputBufferStatus) : outputBufferStatus(reinterpret_cast<OutputBufferStatus *>(outputBufferStatus)) {
+        nettyBufferPool = std::make_unique<NettyBufferPool>(bufferPoolSize, bufferSize);
         LOG_TRACE("create OmniCreditBasedSequenceNumberingViewReader "
             << reinterpret_cast<long>(this))
-        nettyBufferPool = std::make_unique<NettyBufferPool>(bufferPoolSize, bufferSize);
     }
 
     OmniCreditBasedSequenceNumberingViewReader::~OmniCreditBasedSequenceNumberingViewReader() {
-        INFO_RELEASE("When OmniCreditBasedSequenceNumberingViewReader is destroyed, "
+        if (networkBufferPendingRecycling.empty()) {
+            return;
+        }
+        GErrorLog("When OmniCreditBasedSequenceNumberingViewReader is destroyed, "
             "there are still " + std::to_string(networkBufferPendingRecycling.size()) + " network buffers not recycled");
         for (auto it = networkBufferPendingRecycling.begin(); it != networkBufferPendingRecycling.end();) {
             it->second->RecycleBuffer();
@@ -57,8 +55,6 @@ namespace omnistream {
 
     int OmniCreditBasedSequenceNumberingViewReader::getAvailabilityAndBacklog()
     {
-        // std::lock_guard<std::mutex> lock(queueMutex);
-        // todo should invoke this to check if data is available
         auto queueSize = 0;
         {
             std::lock_guard<std::recursive_mutex> lock(queueMutex);
@@ -123,38 +119,41 @@ namespace omnistream {
     int OmniCreditBasedSequenceNumberingViewReader::getNextBuffer()
     {
         int readElementNumber = 0;
-        if (this->serializedBatchQueue.size() > 0) {
+        {
             std::lock_guard<std::recursive_mutex> lock(queueMutex);
-            size_t dataSize = this->serializedBatchQueue.size();
-            readElementNumber = dataSize > 10 ? 10 : dataSize;
-            uintptr_t dataResultContainer = this->outputBufferStatus->outputBuffer_;
-            unsigned int position = 0;
-            for (int i = 0; i < readElementNumber; i++) {
-                std::shared_ptr<SerializedBatchInfo> serializedBatchInfo =
-                        this->serializedBatchQueue.front();
-                this->serializedBatchQueue.pop();
-                long bufferAddress = 0;
-                int bufferLength = 0;
-                if (serializedBatchInfo->event != -1) {
-                    bufferAddress = -1;
-                    bufferLength = serializedBatchInfo->event;
-                    INFO_RELEASE(">>>OmniCreditBasedSequenceNumberingViewReader pop an event from queue type"
-                        <<serializedBatchInfo->event << "from subpartitionView for "
-                        << reinterpret_cast<long>(this))
-                } else {
-                    bufferAddress = reinterpret_cast<long>(serializedBatchInfo->buffer);
-                    bufferLength = serializedBatchInfo->size;
+            if (!this->serializedBatchQueue.empty()) {
+                size_t dataSize = this->serializedBatchQueue.size();
+                readElementNumber = dataSize > 10 ? 10 : dataSize;
+                uintptr_t dataResultContainer = this->outputBufferStatus->outputBuffer_;
+                unsigned int position = 0;
+                for (int i = 0; i < readElementNumber; i++) {
+                    std::shared_ptr<SerializedBatchInfo> serializedBatchInfo =
+                            this->serializedBatchQueue.front();
+                    this->serializedBatchQueue.pop();
+                    long bufferAddress = 0;
+                    int bufferLength = 0;
+                    if (serializedBatchInfo->event != -1) {
+                        bufferAddress = -1;
+                        bufferLength = serializedBatchInfo->event;
+                        INFO_RELEASE(">>>OmniCreditBasedSequenceNumberingViewReader pop an event from queue type"
+                            <<serializedBatchInfo->event << "from subpartitionView for "
+                            << reinterpret_cast<long>(this))
+                    } else {
+                        bufferAddress = reinterpret_cast<long>(serializedBatchInfo->buffer);
+                        bufferLength = serializedBatchInfo->size;
+                    }
+                    LOG("bufferAddress: " << bufferAddress << " bufferLength: " << bufferLength)
+                    * reinterpret_cast<uint64_t *>(dataResultContainer + position) = bufferAddress;
+                    position += 8;
+                    *reinterpret_cast<uint32_t *>(dataResultContainer + position) = bufferLength;
+                    position += 4;
+                    *reinterpret_cast<uint32_t *>(dataResultContainer + position) =
+                            serializedBatchInfo->bufferType;
+                    position += 4;
                 }
-                LOG("bufferAddress: " << bufferAddress << " bufferLength: " << bufferLength)
-                * reinterpret_cast<uint64_t *>(dataResultContainer + position) = bufferAddress;
-                position += 8;
-                *reinterpret_cast<uint32_t *>(dataResultContainer + position) = bufferLength;
-                position += 4;
-                *reinterpret_cast<uint32_t *>(dataResultContainer + position) =
-                        serializedBatchInfo->bufferType;
-                position += 4;
             }
         }
+
         this->outputBufferStatus->numberElement = static_cast<int32_t>(readElementNumber);
         return readElementNumber;
     }
@@ -268,6 +267,7 @@ namespace omnistream {
             if (!bufferInfo) {
                 count++;
                 if (count % noBufferPrintCount == 0) {
+                    std::lock_guard<std::recursive_mutex> queueLock(queueMutex);
                     LOG("NO BUFFER AVAILABLE, waiting for 100 ms serializedBatchQueue:: " <<serializedBatchQueue.size())
                     INFO_RELEASE("NO BUFFER AVAILABLE, waiting for "
                         << requestNextBufferWaitingTime*noBufferPrintCount <<

@@ -9,20 +9,14 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef OMNISTREAM_ROCKSDBMAPSTATE_H
-#define OMNISTREAM_ROCKSDBMAPSTATE_H
+# pragma once
 
 #include <emhash7.hpp>
 #include "core/typeutils/TypeSerializer.h"
-#include "core/api/common/state/MapState.h"
-#include "../VoidNamespace.h"
 #include "core/api/common/state/StateDescriptor.h"
-#include "table/data/binary/BinaryRowData.h"
 #include "table/data/vectorbatch/VectorBatch.h"
-#include "runtime/state/internal/InternalKvState.h"
 #include "runtime/state/RocksDbKvStateInfo.h"
 #include "RocksdbMapStateTable.h"
-#include "state/RocksDbKvStateInfo.h"
 #include "state/RocksIteratorWrapper.h"
 #include "state/RocksDBWriteBatchWrapper.h"
 #include "RocksDbOperationUtils.h"
@@ -86,6 +80,9 @@ public:
 
     // for DataStream used.
     java_util_Iterator* iterator() override;
+
+    // for common scenario
+    std::unique_ptr<typename MapState<UK, UV>::IteratorV2> iteratorV2() override;
 
     void addVectorBatch(omnistream::VectorBatch* vectorBatch) override;
     omnistream::VectorBatch *getVectorBatch(int batchId) override;
@@ -153,13 +150,17 @@ void RocksdbMapState<K, N, UK, UV>::clearEntriesCache()
 }
 
 template<typename K, typename N, typename UK, typename UV>
-java_util_Iterator* RocksdbMapState<K, N, UK, UV>::iterator()
-{
+java_util_Iterator* RocksdbMapState<K, N, UK, UV>::iterator() {
     if constexpr (std::is_same_v<UK, Object*> && std::is_same_v<UV, Object*>) {
         return stateTable->iterator(currentNamespace);
     } else {
         THROW_LOGIC_EXCEPTION("type is not Object in RocksdbMapState::iterator()")
     }
+}
+
+template<typename K, typename N, typename UK, typename UV>
+std::unique_ptr<typename MapState<UK, UV>::IteratorV2> RocksdbMapState<K, N, UK, UV>::iteratorV2() {
+    return stateTable->iteratorV2(currentNamespace);
 }
 
 template<typename K, typename N, typename UK, typename UV>
@@ -225,8 +226,6 @@ RocksdbMapState<K, N, UK, UV>::RocksdbMapState(RocksdbMapStateTable<K, N, UK, UV
 template<typename K, typename N, typename UK, typename UV>
 void RocksdbMapState<K, N, UK, UV>::put(const UK &userKey, const UV &userValue)
 {
-    LOG_PRINTF("RocksdbMapState::put\\n\\t\\t this=%p, stateTable=%p\n", this, stateTable);
-
     stateTable->put(currentNamespace, userKey, userValue);
 }
 
@@ -337,5 +336,3 @@ long RocksdbMapState<K, N, UK, UV>::getVectorBatchesSize()
 {
     return stateTable->getVectorBatchesSize();
 };
-
-#endif // OMNISTREAM_ROCKSDBMAPSTATE_H

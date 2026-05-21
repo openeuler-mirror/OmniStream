@@ -172,8 +172,10 @@ inline int DataInputDeserializer::readUnsignedByte()
 inline std::string DataInputDeserializer::readUTF()
 {
     auto utflen = readUnsignedShort();
-    byteArr.reserve(utflen);
-    charArr.reserve(utflen);
+    byteArr.clear();
+    byteArr.resize(utflen);
+    charArr.clear();
+    charArr.resize(utflen);
 
     int c;
     int char2;

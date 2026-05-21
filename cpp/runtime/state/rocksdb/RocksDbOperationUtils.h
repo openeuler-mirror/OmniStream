@@ -66,8 +66,7 @@ public:
     static std::unique_ptr<RocksIteratorWrapper> getRocksIterator(
             rocksdb::DB* db,
             rocksdb::ColumnFamilyHandle* columnFamilyHandle,
-            rocksdb::ReadOptions readOptions)
-    {
+            const rocksdb::ReadOptions& readOptions) {
         auto itPtr = db->NewIterator(readOptions, columnFamilyHandle);
         std::unique_ptr<rocksdb::Iterator> itUniqueptr(itPtr);
         return std::make_unique<RocksIteratorWrapper>(std::move(itUniqueptr));

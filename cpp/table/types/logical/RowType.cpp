@@ -12,6 +12,7 @@
 #include "RowType.h"
 
 #include <utility>
+#include <set>
 
 using namespace omniruntime::type;
 
@@ -26,10 +27,23 @@ LogicalType *omnistream::RowField::getType() const
     return type_;
 }
 
+std::string omnistream::RowField::getName() const {
+    return name_;
+}
+
+nlohmann::json omnistream::RowField::toJson() const {
+    nlohmann::json result;
+    result["name"] = name_;
+    result["fieldType"] = type_->toJson();
+    result["description"] = description_;
+
+    return result;
+}
+
 //////////////////Row Type
 
-omnistream::RowType::RowType(bool isNull, const std::vector<RowField> &fields) : LogicalType(DataTypeId::OMNI_CONTAINER, isNull),
-                                                                     fields_(fields) {
+omnistream::RowType::RowType(bool isNull, const std::vector<RowField> &fields)
+    : LogicalType(isNull, DataTypeId::OMNI_CONTAINER, "ROW"), fields_(fields) {
 }
 
 std::vector<LogicalType *> omnistream::RowType::getChildren()
@@ -44,21 +58,42 @@ std::vector<LogicalType *> omnistream::RowType::getChildren()
     return types;
 }
 
+nlohmann::json omnistream::RowType::toJson() const {
+    nlohmann::json result = LogicalType::toJson();
+    nlohmann::json fields = nlohmann::json::array();
+    std::set<std::string> fileNameSet;
+    for (const auto& item: fields_) {
+        // 去重，flink 侧会校验 fileName 不允许重复
+        if (fileNameSet.count(item.getName()) > 0) {
+            continue;
+        }
+        fileNameSet.insert(item.getName());
+        fields.push_back(item.toJson());
+    }
+    result["fields"] = fields;
+
+    return result;
+}
+
 omnistream::RowType::RowType(bool isNull, const std::vector<std::string> &typeName)
-    :LogicalType(DataTypeId::OMNI_CONTAINER, isNull)
+    : LogicalType(isNull, DataTypeId::OMNI_CONTAINER, "ROW")
 {
-    for (auto name: typeName) {
+    for (const auto& name: typeName) {
         auto typeId = LogicalType::flinkTypeToOmniTypeId(name);
         switch (typeId) {
             case DataTypeId::OMNI_LONG:
                 fields_.emplace_back(name, BasicLogicalType::BIGINT, "");
                 break;
+            case DataTypeId::OMNI_VARCHAR:
+                fields_.emplace_back(name, BasicLogicalType::VARCHAR, "");
+                break;
             case DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:
             case DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE:
             case DataTypeId::OMNI_TIMESTAMP:
                 fields_.emplace_back(name, BasicLogicalType::TIMESTAMP_WITHOUT_TIME_ZONE, "");
+                break;
             default:
-                std::runtime_error("RowType does not support" + name);
+                throw std::runtime_error("RowType does not support type : " + name);
         }
     }
 }

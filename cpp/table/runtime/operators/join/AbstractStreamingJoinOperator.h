@@ -221,6 +221,7 @@ template <typename K>
 void AbstractStreamingJoinOperator<K>::initializeState(
     StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer)
 {
+    AbstractStreamOperator<K>::SetOperatorID(TwoInputStreamOperator::GetOperatorID().toString());
     AbstractStreamOperator<K>::initializeState(initializer, keySerializer);
 }
 

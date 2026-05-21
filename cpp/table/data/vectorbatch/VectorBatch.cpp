@@ -13,6 +13,7 @@
 #include <fstream>
 #include "data/binary/BinaryRowData.h"
 #include "table/data/rowdata_marshaller.h"
+#include "OmniOperatorJIT/core/src/codegen/time_util.h"
 namespace omnistream {
     VectorBatch::VectorBatch(size_t rowCnt)
         : omniruntime::vec::VectorBatch(rowCnt), timestamps(nullptr), rowKinds(nullptr), maxTimestamp(INT64_MIN)
@@ -93,7 +94,7 @@ namespace omnistream {
                 typeId == omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE) {
                 rowSerializerCenter[OMNI_LONG](col, rowIndex, outRow, colIndex);
             } else {
-                throw std::runtime_error("Data type not supported");
+                throw std::runtime_error("extractRowData Data type not supported");
             }
         }
         // Set the row kind using the row kinds stored in the batch.
@@ -141,7 +142,7 @@ namespace omnistream {
             const int addTime = 1000;
             milliseconds += addTime; // 确保毫秒非负（如-1234ms → -2秒 + 766ms）
         }
-        setenv("TZ", tzStr.c_str(), 1);
+        setenv("TZ", omniruntime::codegen::function::TimeZoneUtil::GetTZ(tzStr.c_str()), 1);
         tzset();
         struct tm timeinfo;
         localtime_r(&adjusted_seconds, &timeinfo);
@@ -293,7 +294,7 @@ namespace omnistream {
                 break;
             }
             default:
-                std::runtime_error("data type not supported");
+                std::runtime_error("WriteToFileInternal data type not supported");
         }
     }
 
@@ -330,6 +331,78 @@ namespace omnistream {
         file.close();
         LOG("write file finish")
     }
+
+
+    void VectorBatch::convertToJson(nlohmann::ordered_json &j, int rowIndex, std::vector<std::pair<int32_t, int32_t>> decimalInfo,
+                                    std::vector<std::string> inputTypes, std::vector<std::string> inputFields) const
+    {
+        for (size_t colIndex = 0; colIndex < vectors.size(); ++colIndex) {
+            int dataId = vectors[colIndex]->GetTypeId();
+            switch (dataId) {
+                case omniruntime::type::DataTypeId::OMNI_TIMESTAMP:
+                case omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:
+                case omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+                case omniruntime::type::DataTypeId::OMNI_LONG: {
+                    if (inputTypes[colIndex].substr(0, 9) == "TIMESTAMP") {
+                        auto result = TransformTime(colIndex, rowIndex);
+                        j[inputFields[colIndex]] = result;
+                    } else {
+                        auto result = reinterpret_cast<omniruntime::vec::Vector<int64_t> *>(vectors[colIndex])->GetValue(
+                                rowIndex);
+                        j[inputFields[colIndex]] = result;
+                    }
+                    break;
+                }
+                case omniruntime::type::DataTypeId::OMNI_VARCHAR:
+                case omniruntime::type::DataTypeId::OMNI_CHAR: {
+                    if (vectors[colIndex]->GetEncoding() == omniruntime::vec::OMNI_FLAT) {
+                        auto casted = reinterpret_cast<omniruntime::vec::Vector
+                                <omniruntime::vec::LargeStringContainer<std::string_view>> *>(vectors[colIndex]);
+                        j[inputFields[colIndex]] = casted->GetValue(rowIndex);
+                    } else { // DICTIONARY
+                        auto casted =
+                                reinterpret_cast<omniruntime::vec::Vector<omniruntime::vec::DictionaryContainer<
+                                        std::string_view, omniruntime::vec::LargeStringContainer>> *>(vectors[colIndex]);
+                        j[inputFields[colIndex]] = casted->GetValue(rowIndex);
+                    }
+                    break;
+                }
+                case omniruntime::type::DataTypeId::OMNI_DOUBLE: {
+                    auto result = reinterpret_cast<omniruntime::vec::Vector<double> *>(vectors[colIndex])->GetValue(
+                            rowIndex);
+                    j[inputFields[colIndex]] = result;
+                    break;
+                }
+                case omniruntime::type::DataTypeId::OMNI_INT: {
+                    auto result = reinterpret_cast<omniruntime::vec::Vector<int32_t> *>(vectors[colIndex])->GetValue(
+                            rowIndex);
+                    j[inputFields[colIndex]] = result;
+                    break;
+                }
+                case omniruntime::type::DataTypeId::OMNI_BOOLEAN: {
+                    auto result = reinterpret_cast<omniruntime::vec::Vector<bool> *>(vectors[colIndex])->GetValue(
+                            rowIndex);
+                    j[inputFields[colIndex]] = result;
+                    break;
+                }
+
+                case omniruntime::type::DataTypeId::OMNI_DECIMAL64: {
+                    auto valueStr = transformDecimal64(colIndex, rowIndex, decimalInfo);
+                    j[inputFields[colIndex]] = valueStr;
+                    break;
+                }
+                case omniruntime::type::DataTypeId::OMNI_DECIMAL128: {
+                    auto valueStr = transformDecimal128(colIndex, rowIndex, decimalInfo);
+                    j[inputFields[colIndex]] = valueStr;
+                    break;
+                }
+                default:
+                    std::runtime_error("convertToJson data type not supported");
+            }
+        }
+        LOG("convertToJson finish")
+    }
+
 
     std::vector<XXH128_hash_t> VectorBatch::getXXH128s()
     {

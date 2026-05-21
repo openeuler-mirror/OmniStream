@@ -31,6 +31,7 @@
 #include "table/typeutils/RowDataSerializer.h"
 #include "runtime/metrics/groups/TaskMetricGroup.h"
 #include "streaming/runtime/tasks/omni/OmniStreamTask.h"
+#include "runtime/state/StateInitializationContextImpl.h"
 
 /**
  * K: such as Object*
@@ -132,18 +133,23 @@ public:
         return new BinaryRowDataSerializer(1);
     };
 
+    void initializeState(StateInitializationContextImpl<K> *context)  override {}
     // KeySerializer should be retrieved from description.getStateKeySerializer(getUserCodeClassloader()),
     // but we're just passing it through this function for now
     void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) override
     {
         LOG("abstractStreamOperator::initializeState")
+        auto operatorID = this->GetOperatorID();
         StreamOperatorStateContextImpl<K> *context =
-            initializer->streamOperatorStateContext<K>(keySerializer, this, processingTimeService);
+            initializer->streamOperatorStateContext<K>(keySerializer, this, processingTimeService, &operatorID);
         stateHandler = new StreamOperatorStateHandler<K>(context);
         auto stateStore = stateHandler->getKeyedStateStore();
-        runtimeContext->setKeyedStateStore(stateStore);
-        runtimeContext->setEnvironment(initializer->getEnvironment());
+        if (runtimeContext != nullptr) {
+            runtimeContext->setKeyedStateStore(stateStore);
+            runtimeContext->setEnvironment(initializer->getEnvironment());
+        }
         timeServiceManager = context->getInternalTimeServiceManager();
+        stateHandler->initializeOperatorState(this);
     }
     StreamingRuntimeContext<K> *getRuntimeContext() const
     {
@@ -231,6 +237,10 @@ public:
         stateHandler->notifyCheckpointComplete(checkpointId);
     }
 
+    void NotifyCheckpointAborted(long checkpointId) override
+    {
+        stateHandler->notifyCheckpointAborted(checkpointId);
+    }
 protected:
     // own  and  own the backend through stateHandler
     StreamOperatorStateHandler<K> *stateHandler = nullptr;

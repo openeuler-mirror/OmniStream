@@ -48,7 +48,7 @@ nlohmann::json TaskStateSnapshotSerializer::Serialize(const std::shared_ptr<Task
 
         // 这里operatorId bytesToHex?
         subtaskStatesJson[operatorId.toString()] = subtaskStateJson;
-//            subtaskStatesJson[operatorId.getBytesToString()] = subtaskStateJson;
+        // subtaskStatesJson[operatorId.getBytesToString()] = subtaskStateJson;
     }
 
     j["subtaskStatesByOperatorID"] = nlohmann::json::object({
@@ -178,6 +178,15 @@ nlohmann::json TaskStateSnapshotSerializer::parseKeyGroupsStateHandle(std::share
     handleJson["stateHandleId"] = parseStateHandleId(kh->GetStateHandleId());
     handleJson["stateSize"] = kh->GetStateSize();
     handleJson["checkpointedSize"] = kh->GetCheckpointedSize();
+    return handleJson;
+}
+
+nlohmann::json TaskStateSnapshotSerializer::parseOperatorStreamStateHandle(std::shared_ptr<OperatorStreamStateHandle> kh)
+{
+    nlohmann::json handleJson;
+    handleJson["@class"] = "org.apache.flink.runtime.state.OperatorStreamStateHandle";
+    handleJson["metaDataState"] = parseMetaDataState(kh->getDelegateStateHandle());
+    handleJson["stateNameToPartitionOffsets"] = kh->toJson();
     return handleJson;
 }
 

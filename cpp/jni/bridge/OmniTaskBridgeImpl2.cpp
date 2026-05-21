@@ -806,8 +806,10 @@ std::vector<StateMetaInfoSnapshot> convertResult(const std::string& cppResult)
             bst = StateMetaInfoSnapshot::BackendStateType::KEY_VALUE;
         } else if (backendStateTypeStr == "PRIORITY_QUEUE") {
             bst = StateMetaInfoSnapshot::BackendStateType::PRIORITY_QUEUE;
-        } else if (backendStateTypeStr == "OPERATOR" || backendStateTypeStr == "BROADCAST") {
-            LOG("Unsupport BackendStateType.")
+        } else if (backendStateTypeStr == "OPERATOR") {
+            bst = StateMetaInfoSnapshot::BackendStateType::OPERATOR;
+        } else if (backendStateTypeStr == "BROADCAST") {
+            INFO_RELEASE("Unsupport BackendStateType.")
             continue;
         } else {
             throw std::runtime_error("Unknown BackendStateType.");
@@ -855,10 +857,58 @@ std::vector<StateMetaInfoSnapshot> OmniTaskBridgeImpl2::readMetaData(const std::
         std::string cppResult(strChars);
         env->ReleaseStringUTFChars(result, strChars);
         g_OmniStreamJVM->DetachCurrentThread();
-
         return convertResult(cppResult);
     } else {
         GErrorLog("Error: Could not get TaskStateManagerWrapper class for JNI call");
+        return {};
+    }
+}
+
+std::vector<StateMetaInfoSnapshot> OmniTaskBridgeImpl2::readOperatorMetaData(const std::string &metaStateHandle)
+{
+    JNIEnv* env;
+    jint res = g_OmniStreamJVM->AttachCurrentThread(reinterpret_cast<void**>(&env), nullptr);
+    if (res != JNI_OK) {
+        return {};
+    }
+
+    if (m_globalOmniTaskRef != nullptr) {
+        jclass omniTaskWrapperClass = env->GetObjectClass(m_globalOmniTaskRef);
+        if (omniTaskWrapperClass == nullptr) {
+            INFO_RELEASE("Error: Could not get TaskStateManagerWrapper class for JNI call");
+            g_OmniStreamJVM->DetachCurrentThread();
+            return {};
+        }
+
+        jmethodID readMetaMethodId = env->GetMethodID(omniTaskWrapperClass, "readOperatorMetaData",
+                                                      "(Ljava/lang/String;)Ljava/lang/String;");
+        if (readMetaMethodId == nullptr) {
+            GErrorLog("Error: Could not get readOperatorMetaData method for JNI call");
+            env->DeleteLocalRef(omniTaskWrapperClass); // Clean up local ref
+            g_OmniStreamJVM->DetachCurrentThread();
+            return {};
+        }
+
+        jstring msHandle = env->NewStringUTF(metaStateHandle.c_str());
+
+        // Invoke the Java method
+        jstring result = (jstring) env->CallObjectMethod(m_globalOmniTaskRef, readMetaMethodId, msHandle);
+
+        if (env->ExceptionCheck()) {
+            env->ExceptionDescribe(); // Print exception details to stderr
+            env->ExceptionClear();    // Clear the exception
+            INFO_RELEASE("Error: Could not call readOperatorMetaData method for JNI call");
+            return {};
+        }
+
+        // Convert jstring to std::string
+        const char* strChars = env->GetStringUTFChars(result, nullptr);
+        std::string cppResult(strChars);
+        env->ReleaseStringUTFChars(result, strChars);
+        g_OmniStreamJVM->DetachCurrentThread();
+        return convertResult(cppResult);
+    } else {
+        INFO_RELEASE("Error: Could not get TaskStateManagerWrapper class for JNI call");
         return {};
     }
 }
@@ -1365,6 +1415,77 @@ void OmniTaskBridgeImpl2::WriteSavepointMetadata(jobject provider, const std::ve
         throw std::runtime_error("Failed to call WriteSavepointMetadata");
     }
     env->DeleteLocalRef(jStateMetaInfoStr);
+}
+
+void OmniTaskBridgeImpl2::WriteOperatorMetaData(
+    jobject provider,
+    const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& operatorStateMetaInfoSnapshots,
+    const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& broadcastStateMetaInfoSnapshots) {
+
+    JNIEnv* env = nullptr;
+    jint ret = g_OmniStreamJVM->GetEnv(reinterpret_cast<void **>(&env), JNI_VERSION_1_8);
+    jint attachRes = 0;
+    if (ret == JNI_EDETACHED) {
+        attachRes = g_OmniStreamJVM->AttachCurrentThread(reinterpret_cast<void **>(&env), nullptr);
+    }
+    if (attachRes != JNI_OK || env == nullptr) {
+        INFO_RELEASE("Error: Failed to attach C++ thread to JVM inside WriteOperatorMetaData");
+        throw std::runtime_error("Failed to attach C++ thread to JVM inside WriteOperatorMetaData");
+    }
+
+    nlohmann::json operatorStateMetaInfoJson = nlohmann::json::array();
+    nlohmann::json broadcastStateMetaInfoJson = nlohmann::json::array();
+
+    for (const auto& snapshot : operatorStateMetaInfoSnapshots) {
+        if (snapshot == nullptr) {
+            INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::WriteOperatorMetaData 6 1 snapshot is null");
+            continue;
+        }
+        nlohmann::json jsonObj;
+        jsonObj["name"] = snapshot->getName();
+        jsonObj["backendStateType"] = static_cast<int>(StateMetaInfoSnapshot::getCode(snapshot->getBackendStateType()));
+        jsonObj["options"] = snapshot->getOptionsImmutable();
+        jsonObj["serializer"] = snapshot->getSerializerJson();
+        operatorStateMetaInfoJson.push_back(std::move(jsonObj));
+    }
+
+    for (const auto& snapshot : broadcastStateMetaInfoSnapshots) {
+        if (snapshot == nullptr) {
+            INFO_RELEASE("h30082497 OmniTaskBridgeImpl2::WriteOperatorMetaData 7 1 snapshot is null");
+            continue;
+        }
+        nlohmann::json jsonObj;
+        jsonObj["name"] = snapshot->getName();
+        jsonObj["backendStateType"] = static_cast<int>(StateMetaInfoSnapshot::getCode(snapshot->getBackendStateType()));
+        jsonObj["options"] = snapshot->getOptionsImmutable();
+        jsonObj["serializer"] = snapshot->getSerializerJson();
+        broadcastStateMetaInfoJson.push_back(std::move(jsonObj));
+    }
+
+    std::string operatorStateMetaInfoStr = operatorStateMetaInfoJson.dump();
+    std::string broadcastStateMetaInfoStr = broadcastStateMetaInfoJson.dump();
+
+    jclass cls = env->GetObjectClass(m_globalOmniTaskRef);
+    jmethodID mid = env->GetMethodID(
+        cls,
+        "writeOperatorMetaData",
+        "(Lorg/apache/flink/runtime/state/CheckpointStreamWithResultProvider;Ljava/lang/String;Ljava/lang/String;)V"
+    );
+
+    jstring jOperatorStateMetaInfoStr = env->NewStringUTF(operatorStateMetaInfoStr.c_str());
+    jstring jBroadcastStateMetaInfoStr = env->NewStringUTF(broadcastStateMetaInfoStr.c_str());
+
+    env->CallObjectMethod(m_globalOmniTaskRef, mid, provider, jOperatorStateMetaInfoStr, jBroadcastStateMetaInfoStr);
+    if (env->ExceptionCheck()) {
+        env->ExceptionDescribe();
+        env->ExceptionClear();
+        env->DeleteLocalRef(jOperatorStateMetaInfoStr);
+        env->DeleteLocalRef(jBroadcastStateMetaInfoStr);
+        INFO_RELEASE("Error: Failed to call WriteOperatorMetaData");
+        throw std::runtime_error("Failed to call WriteOperatorMetaData");
+    }
+    env->DeleteLocalRef(jOperatorStateMetaInfoStr);
+    env->DeleteLocalRef(jBroadcastStateMetaInfoStr);
 }
 
 long OmniTaskBridgeImpl2::GetSavepointOutputStreamPos(jobject provider)

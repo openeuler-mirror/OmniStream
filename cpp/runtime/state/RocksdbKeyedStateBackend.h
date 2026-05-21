@@ -135,6 +135,7 @@ public:
 
     void notifyCheckpointComplete(long completedCheckpointId)
     {
+        INFO_RELEASE("savepoint: rocksdbKeyedStateBackend notifyCheckpointComplete");
         if (strategy) {
             strategy->notifyCheckpointComplete(completedCheckpointId);
         }

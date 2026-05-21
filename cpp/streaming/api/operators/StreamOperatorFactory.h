@@ -38,12 +38,10 @@ private:
         WatermarkGaugeExposingOutput* chainOutput, std::shared_ptr<omnistream::OmniStreamTask> task);
     static StreamOperator* CreateGroupWindowAggOp(OperatorPOD &opConfig,
                                                   WatermarkGaugeExposingOutput* chainOutput,
-                                                  std::shared_ptr<omnistream::OmniStreamTask> task,
-                                                   ProcessingTimeService* processingTimeService);
+                                                  std::shared_ptr<omnistream::OmniStreamTask> task);
     static StreamOperator* CreateWatermarkAssignerOp(omnistream::OperatorPOD &opConfig,
                                                      WatermarkGaugeExposingOutput* chainOutput,
-                                                     std::shared_ptr<omnistream::OmniStreamTask> task,
-                                                     ProcessingTimeService* processingTimeService);
+                                                     std::shared_ptr<omnistream::OmniStreamTask> task);
     static StreamOperator* CreateKeyedProcessOp(omnistream::OperatorPOD &opConfig,
         WatermarkGaugeExposingOutput* chainOutput, std::shared_ptr<omnistream::OmniStreamTask> task);
     static StreamOperator* CreateSinkOp(omnistream::OperatorPOD &opConfig,
@@ -77,7 +75,14 @@ private:
     static StreamOperator* CreateReduceOp(omnistream::OperatorPOD &opConfig,
                                            WatermarkGaugeExposingOutput* chainOutput, std::shared_ptr<omnistream::OmniStreamTask> task);
     static StreamOperator* CreateSinkWriterOp(omnistream::OperatorPOD &opConfig,
-        WatermarkGaugeExposingOutput* chainOutput, std::shared_ptr<omnistream::OmniStreamTask> task);
+        WatermarkGaugeExposingOutput* chainOutput, std::shared_ptr<omnistream::OmniStreamTask> task,
+        ProcessingTimeService* processingTimeService);
+
+    static StreamOperator* CreateCommitOp(omnistream::OperatorPOD& opConfig,
+                                          WatermarkGaugeExposingOutput* chainOutput,
+                                          std::shared_ptr<omnistream::OmniStreamTask> task,
+                                          ProcessingTimeService* processingTimeService);
+
     static StreamOperator* CreateKeyedCoProcessOp(omnistream::OperatorPOD &opConfig,
                           WatermarkGaugeExposingOutput* chainOutput, std::shared_ptr<omnistream::OmniStreamTask> task);
 };

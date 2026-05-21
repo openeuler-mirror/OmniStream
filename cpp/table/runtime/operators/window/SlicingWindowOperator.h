@@ -45,6 +45,9 @@ public:
     void open() override;
     void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) override
     {
+        // First do the shared initialization step
+        INFO_RELEASE("SlicingWindowOperator initializeState with initializer, operatorID: " << OneInputStreamOperator::GetOperatorID().toString());
+        AbstractStreamOperator::SetOperatorID(OneInputStreamOperator::GetOperatorID().toString());
         AbstractStreamOperator::initializeState(initializer, keySerializer);
     };
     void snapshotState() {};
@@ -76,7 +79,7 @@ class WindowProcessorContext {
 public:
     omniruntime::mem::MemoryManager *getMemoryManager();
     int64_t getMemorySize();
-    HeapKeyedStateBackend<omnistream::VectorBatch> *getKeyedStateBackend();
+    AbstractKeyedStateBackend<omnistream::VectorBatch> *getKeyedStateBackend();
     InternalTimerService<W> *getTimerService();
     void setBackend();
 
@@ -85,7 +88,7 @@ private:
     omniruntime::mem::MemoryManager *memoryManager;
     int64_t memorySize;
     InternalTimerService<W> *timerService;
-    HeapKeyedStateBackend<omnistream::VectorBatch> *keyedStateBackend;
+    AbstractKeyedStateBackend<omnistream::VectorBatch> *keyedStateBackend;
     Output *collector;
     RuntimeContext *runtimeContext;
 };
@@ -179,7 +182,7 @@ void SlicingWindowOperator<K, W>::prepareSnapshotPreBarrier(int64_t checkpointId
 }
 
 template <typename W>
-HeapKeyedStateBackend<omnistream::VectorBatch> *WindowProcessorContext<W>::getKeyedStateBackend()
+AbstractKeyedStateBackend<omnistream::VectorBatch> *WindowProcessorContext<W>::getKeyedStateBackend()
 {
     return keyedStateBackend;
 }

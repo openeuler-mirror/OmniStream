@@ -117,6 +117,10 @@ BinaryRowData* BinaryRowDataSerializer::joinedRowToBinaryRow(JoinedRowData *row,
         }
     }
     for (int i = 0; i < newRow->getArity(); i++) {
+        if (row->isNullAt(i)) {
+            newRow->setNullAt(i);
+            continue;
+        }
         if (typeId.empty() || typeId[i] == omniruntime::type::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE ||
             typeId[i] == omniruntime::type::OMNI_LONG || typeId[i] == omniruntime::type::OMNI_TIMESTAMP ||
             typeId[i] == omniruntime::type::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE) {
