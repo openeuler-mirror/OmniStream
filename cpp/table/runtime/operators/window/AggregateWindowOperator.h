@@ -23,6 +23,9 @@
 #include "table/typeutils/BinaryRowDataSerializer.h"
 #include "table/runtime/operators/window/WindowOperator.h"
 #include "streaming/api/operators/AbstractStreamOperator.h"
+#include "table/runtime/operators/aggregate/handler/GroupingWindowAggsCountHandler.h"
+#include "table/runtime/operators/aggregate/handler/GroupingWindowAggsCompositeHandler.h"
+#include "table/runtime/operators/aggregate/handler/GroupingWindowAggsSumHandler.h"
 
 template<typename K, typename W>
 class AggregateWindowOperator : public WindowOperator<K, W> {

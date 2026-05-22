@@ -11,8 +11,6 @@
 
 #include <memory>
 #include "AggregateWindowOperator.h"
-#include "table/runtime/operators/aggregate/handler/GroupingWindowAggsCountHandler.h"
-#include "table/runtime/operators/aggregate/handler/GroupingWindowAggsCompositeHandler.h"
-#include "table/runtime/operators/aggregate/handler/GroupingWindowAggsSumHandler.h"
+
 
 
