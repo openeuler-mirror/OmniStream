@@ -267,6 +267,8 @@ StreamOperator* StreamOperatorFactory::CreateGlobalWindowAggOp(OperatorPOD &opCo
     nlohmann::json opDescriptionJSON = nlohmann::json::parse(description);
     auto *processor = new AbstractWindowAggProcessor(opDescriptionJSON, chainOutput);
     auto *op = new SlicingWindowOperator<RowData *, int64_t>(processor, opDescriptionJSON);
+    auto processingTimeService = task->createProcessingTimeService();
+    op->setProcessingTimeService(processingTimeService);
     op->setup(std::move(task));
     LOG("Operator SlicingWindowOperator address " + std::to_string(reinterpret_cast<long>(op)));
     return static_cast<OneInputStreamOperator *>(op);
