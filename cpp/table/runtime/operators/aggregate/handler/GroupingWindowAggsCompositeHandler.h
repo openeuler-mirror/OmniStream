@@ -86,6 +86,9 @@ public:
             windowPropertyTypesValue->setLong(3, -1);
         }
 
+        if (currentAcc == nullptr) {
+            return windowPropertyTypesValue;
+        }
         auto tempValue = new JoinedRowData();
         tempValue->replace(currentAcc, windowPropertyTypesValue);
         auto* value = BinaryRowDataSerializer::joinedRowToBinaryRow(tempValue, outputTypesId_);
