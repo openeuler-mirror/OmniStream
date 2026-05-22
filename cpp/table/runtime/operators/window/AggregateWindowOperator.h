@@ -79,6 +79,7 @@ public:
     }
 
 private:
+    omnistream::VectorBatch* AggregateWindowOperator<K, W>::createOutputBatch(const std::vector<RowData*>& collectedRows);
     void collect(RowKind rowKind, RowData* key, std::unique_ptr<RowData> aggResult) {
         std::vector<RowData*> resultRows;
         reuseOutput->replace(key, aggResult.get());
@@ -93,8 +94,6 @@ private:
     void collectOutputBatch(TimestampedCollector* out, omnistream::VectorBatch* outputBatch) {
         out->collect(outputBatch);
     }
-
-
 
     Output* output;
     TimestampedCollector* collector;
