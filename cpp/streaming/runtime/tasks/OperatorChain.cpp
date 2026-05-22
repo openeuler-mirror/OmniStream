@@ -545,7 +545,7 @@ OperatorSnapshotFutures *OperatorChainV2::CheckpointStreamOperator(StreamOperato
     CheckpointStreamFactory* storageLocation, std::shared_ptr<Supplier<bool>> isRunning,
     const std::shared_ptr<OmniTaskBridge>& bridge)
 {
-    INFO_RELEASE("aaa  CheckpointStreamOperator 111")
+    INFO_RELEASE("aaa  op type:" << typeid(*op).name());
     try {
         auto aop = dynamic_cast<AbstractStreamOperator<RowData *>*>(op);
         if (aop) {
