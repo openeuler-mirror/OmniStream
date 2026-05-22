@@ -27,6 +27,16 @@
 template<typename K, typename W>
 class AggregateWindowOperator : public WindowOperator<K, W> {
 public:
+    std::unique_ptr<NamespaceAggsHandleFunction<W>> initNamespaceAggsHandleFunctions(const nlohmann::json &aggInfoList);
+
+    Output* output;
+    TimestampedCollector* collector;
+    std::unique_ptr<NamespaceAggsHandleFunction<W>> aggWindowAggregator;
+    JoinedRowData* reuseOutput;
+    std::vector<int32_t> outputTypeIds;
+
+};
+
     AggregateWindowOperator(nlohmann::json description, Output* output) : WindowOperator<K, W>(description, output) {
         this->output = output;
         this->collector = new TimestampedCollector(output);
@@ -94,15 +104,7 @@ private:
         out->collect(outputBatch);
     }
 
-    std::unique_ptr<NamespaceAggsHandleFunction<W>> initNamespaceAggsHandleFunctions(const nlohmann::json &aggInfoList);
 
-    Output* output;
-    TimestampedCollector* collector;
-    std::unique_ptr<NamespaceAggsHandleFunction<W>> aggWindowAggregator;
-    JoinedRowData* reuseOutput;
-    std::vector<int32_t> outputTypeIds;
-
-};
 
 template<typename K, typename W>
 omnistream::VectorBatch* AggregateWindowOperator<K, W>::createOutputBatch(const std::vector<RowData*>& collectedRows) {
