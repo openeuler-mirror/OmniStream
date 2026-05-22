@@ -39,10 +39,9 @@
 
 #include "../../../core/utils/MathUtils.h"
 #include "state/RocksDbKvStateInfo.h"
-#include "runtime/state/RocksIteratorWrapper.h"
 #include "RocksDbOperationUtils.h"
-
-const int FALCON_HASH_PARAM = 13;
+#include "../RocksDBConfigurableOptions.h"
+#include "runtime/state/RocksIteratorWrapper.h"
 
 /* S is the value used in the State,
  * like RowData* for HeapValueState,
@@ -76,13 +75,28 @@ public:
         ROCKSDB_NAMESPACE::BlockBasedTableOptions blockBasedTableOptions;
 
         // [FALCON] -----------------------------------------------------------------------------------------------
-        if (metaInfo->getStateType() == StateDescriptor::Type::VALUE) {
-			// modify columnFamily option and read option for current columnFamily
-            // familyOptions.memtable_factory.reset(ROCKSDB_NAMESPACE::NewHashLinkListRepFactory());
-            // familyOptions.prefix_extractor.reset(ROCKSDB_NAMESPACE::NewCappedPrefixTransform(FALCON_HASH_PARAM));
-			readOptions.total_order_seek = false;
-            INFO_RELEASE("[FALCON] enable hash memTable for valueState.")
+        auto useHashMemTable = reinterpret_cast<Boolean*>(Configuration::TM_CONFIG
+            ->getValue(RocksDBConfigurableOptions::USE_HASH_MEMTABLE));
+        auto prefixExtractorLength = reinterpret_cast<Integer*>(Configuration::TM_CONFIG
+            ->getValue(RocksDBConfigurableOptions::PREFIX_EXTRACTOR_LENGTH));
+
+        int prefixLen = 13;
+        if (prefixExtractorLength != nullptr) {
+            prefixLen = prefixExtractorLength->value;
+            prefixExtractorLength->putRefCount();
         }
+
+        if (useHashMemTable != nullptr && useHashMemTable->value) {
+            if (metaInfo->getStateType() == StateDescriptor::Type::VALUE) {
+                // modify columnFamily option and read option for current columnFamily
+                familyOptions.memtable_factory.reset(ROCKSDB_NAMESPACE::NewHashLinkListRepFactory());
+                familyOptions.prefix_extractor.reset(ROCKSDB_NAMESPACE::NewCappedPrefixTransform(prefixLen));
+                readOptions.total_order_seek = true;
+                INFO_RELEASE("[FALCON] enable hash memTable for valueState, prefix length is " << prefixLen << ".")
+            }
+        }
+
+        if (useHashMemTable != nullptr) { useHashMemTable->putRefCount(); }
         // [FALCON] -----------------------------------------------------------------------------------------------
 
         DefaultConfigurableOptionsFactory::createColumnOptions(familyOptions, blockBasedTableOptions);

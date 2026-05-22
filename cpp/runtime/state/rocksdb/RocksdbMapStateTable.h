@@ -30,6 +30,8 @@
 #include "core/include/emhash7.hpp"
 #include "rocksdb/slice_transform.h"
 #include "rocksdb/table.h"
+#include "rocksdb/filter_policy.h"
+#include "../RocksDBConfigurableOptions.h"
 
 #include "basictypes/java_util_Iterator.h"
 #include "basictypes/java_util_Map_Entry.h"
@@ -44,8 +46,6 @@
 #include <iomanip>
 
 #include "RocksDbOperationUtils.h"
-
-const int FALCON_RANGE_FILTER_PARAM = 13; // default set as 13 to maximize read performance
 
 /* S is the value used in the State,
  * like RowData* for HeapValueState,
@@ -75,10 +75,25 @@ public:
         ROCKSDB_NAMESPACE::BlockBasedTableOptions blockBasedTableOptions;
 
         // [FALCON]-----------------------------------------------------------------------------------------------
-        // familyOptions.memtable_factory.reset(ROCKSDB_NAMESPACE::NewHashLinkListRepFactory());
-        familyOptions.prefix_extractor.reset(ROCKSDB_NAMESPACE::NewCappedPrefixTransform(FALCON_RANGE_FILTER_PARAM));
-        // familyOptions.compression = ROCKSDB_NAMESPACE::CompressionType::kZlibCompression;
-        INFO_RELEASE("[FALCON] enable prefix for mapState.")
+        auto useRangeFilter = reinterpret_cast<Boolean*>(Configuration::TM_CONFIG
+                ->getValue(RocksDBConfigurableOptions::USE_RANGE_FILTER));
+        auto prefixExtractorLength = reinterpret_cast<Integer*>(Configuration::TM_CONFIG
+                ->getValue(RocksDBConfigurableOptions::PREFIX_EXTRACTOR_LENGTH));
+
+        int prefixLen = 13;
+        if (prefixExtractorLength != nullptr) {
+            prefixLen = prefixExtractorLength->value;
+            prefixExtractorLength->putRefCount();
+        }
+
+        if (useRangeFilter != nullptr && useRangeFilter->value) {
+            // familyOptions.memtable_factory.reset(ROCKSDB_NAMESPACE::NewHashLinkListRepFactory());
+            familyOptions.prefix_extractor.reset(ROCKSDB_NAMESPACE::NewCappedPrefixTransform(prefixLen));
+            // familyOptions.compression = ROCKSDB_NAMESPACE::CompressionType::kZlibCompression;
+            INFO_RELEASE("[FALCON] enable prefix for mapState, prefix length is " << prefixLen << ".")
+        }
+
+        if (useRangeFilter != nullptr) { useRangeFilter->putRefCount(); }
         // [FALCON]-----------------------------------------------------------------------------------------------
 
         DefaultConfigurableOptionsFactory::createColumnOptions(familyOptions, blockBasedTableOptions);
@@ -627,15 +642,33 @@ public:
                                           keyOutputSerializer.length());
 
         // [FALCON]------------------------------------------------------------------------------------------------
-        ROCKSDB_NAMESPACE::ReadOptions readOption;
-        if (sliceKey.size() < FALCON_RANGE_FILTER_PARAM) {
-            readOption.total_order_seek = true;
-        } else {
-            readOption.total_order_seek = false;
-        }
-        // INFO_RELEASE("[FALCON] performing prefix length check.") // avoid too much log print
+        ROCKSDB_NAMESPACE::Iterator* iterator = nullptr;
+        auto useRangeFilter = reinterpret_cast<Boolean*>(Configuration::TM_CONFIG
+                ->getValue(RocksDBConfigurableOptions::USE_RANGE_FILTER));
+        auto prefixExtractorLength = reinterpret_cast<Integer*>(Configuration::TM_CONFIG
+                ->getValue(RocksDBConfigurableOptions::PREFIX_EXTRACTOR_LENGTH));
 
-        ROCKSDB_NAMESPACE::Iterator* iterator = rocksDb->NewIterator(readOption, table);
+        int prefixLen = 13;
+        if (prefixExtractorLength != nullptr) {
+            prefixLen = prefixExtractorLength->value;
+            prefixExtractorLength->putRefCount();
+        }
+
+        if (useRangeFilter != nullptr && useRangeFilter->value) {
+            ROCKSDB_NAMESPACE::ReadOptions readOption;
+            if (sliceKey.size() < prefixLen) {
+                readOption.total_order_seek = true;
+            } else {
+                readOption.total_order_seek = false;
+            }
+            // INFO_RELEASE("[FALCON] performing prefix length check.") // avoid too much log print
+
+            iterator = rocksDb->NewIterator(readOption, table);
+        } else {
+            iterator = rocksDb->NewIterator(ROCKSDB_NAMESPACE::ReadOptions(), table);
+        }
+
+        if (useRangeFilter != nullptr) { useRangeFilter->putRefCount(); }
         // [FALCON]------------------------------------------------------------------------------------------------
 
         if (iterator == nullptr) {
@@ -965,15 +998,32 @@ public:
                                                       keyOutputSerializer.length());
 
             // [FALCON]------------------------------------------------------------------------------------------------
-            ROCKSDB_NAMESPACE::ReadOptions readOption = stateTable_->readOptions;
-            if (keyPrefixBytes.size() < FALCON_RANGE_FILTER_PARAM || currentEntry != nullptr) {
-                readOption.total_order_seek = true;
-            } else {
-                readOption.total_order_seek = false;
-            }
-            // [FALCON]------------------------------------------------------------------------------------------------
+            internalTableIterator = nullptr;
+            auto useRangeFilter = reinterpret_cast<Boolean*>(Configuration::TM_CONFIG
+                    ->getValue(RocksDBConfigurableOptions::USE_RANGE_FILTER));
+            auto prefixExtractorLength = reinterpret_cast<Integer*>(Configuration::TM_CONFIG
+                    ->getValue(RocksDBConfigurableOptions::PREFIX_EXTRACTOR_LENGTH));
 
-            internalTableIterator = stateTable_->rocksDb->NewIterator(readOption, stateTable_->table);
+            int prefixLen = 13;
+            if (prefixExtractorLength != nullptr) {
+                prefixLen = prefixExtractorLength->value;
+                prefixExtractorLength->putRefCount();
+            }
+
+            if (useRangeFilter != nullptr && useRangeFilter->value) {
+                ROCKSDB_NAMESPACE::ReadOptions readOption = stateTable_->readOptions;
+                if (keyPrefixBytes.size() < prefixLen || currentEntry != nullptr) {
+                    readOption.total_order_seek = true;
+                } else {
+                    readOption.total_order_seek = false;
+                }
+                internalTableIterator = stateTable_->rocksDb->NewIterator(readOption, stateTable_->table);
+            } else {
+                internalTableIterator = stateTable_->rocksDb->NewIterator(stateTable_->readOptions, stateTable_->table);
+            }
+
+            if (useRangeFilter != nullptr) { useRangeFilter->putRefCount(); }
+            // [FALCON]------------------------------------------------------------------------------------------------
         }
 
         ~RocksDBMapIterator() override
