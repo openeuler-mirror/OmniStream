@@ -61,6 +61,8 @@ public:
 
     void notifyCheckpointComplete(long checkpointId) override;
 
+    void notifyCheckpointAborted(long checkpointId) override;
+
     void ProcessWatermark(Watermark *watermark) override;
 
     void processWatermarkStatus(WatermarkStatus *watermarkStatus) override;

@@ -95,6 +95,10 @@ public:
         AbstractUdfStreamOperator<ProcessFunction<IN, OUT>, OUT>::notifyCheckpointComplete(checkpointId);
     }
 
+    void notifyCheckpointAborted(long checkpointId) override {
+        AbstractUdfStreamOperator<ProcessFunction<IN, OUT>, OUT>::notifyCheckpointAborted(checkpointId);
+    }
+
     void ProcessWatermark(Watermark* mark) override
     {
         AbstractStreamOperator<OUT>::ProcessWatermark(mark);

@@ -56,6 +56,14 @@ public:
         }
     }
 
+    void notifyCheckpointAborted(long checkpointId)
+    {
+        AbstractStreamOperator<K>::notifyCheckpointAborted(checkpointId);
+        if (auto uf = dynamic_cast<CheckpointListener*>(userFunction)) {
+            uf->notifyCheckpointAborted(checkpointId);
+        }
+    }
+
     void close() override {
         AbstractStreamOperator<K>::close();
         // todo: should the udf be closed?

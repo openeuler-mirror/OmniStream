@@ -232,12 +232,12 @@ public:
             bridge);
     }
 
-    void notifyCheckpointComplete(long checkpointId)
+    void notifyCheckpointComplete(long checkpointId) override
     {
         stateHandler->notifyCheckpointComplete(checkpointId);
     }
 
-    void NotifyCheckpointAborted(long checkpointId) override
+    void notifyCheckpointAborted(long checkpointId) override
     {
         stateHandler->notifyCheckpointAborted(checkpointId);
     }

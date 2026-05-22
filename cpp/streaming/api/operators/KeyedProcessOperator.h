@@ -93,6 +93,10 @@ public:
         AbstractUdfStreamOperator<F, K>::notifyCheckpointComplete(checkpointId);
     }
 
+    void notifyCheckpointAborted(long checkpointId) override {
+        AbstractUdfStreamOperator<F, K>::notifyCheckpointAborted(checkpointId);
+    }
+
     bool isSetKeyContextElement() override {
         return true;
     }

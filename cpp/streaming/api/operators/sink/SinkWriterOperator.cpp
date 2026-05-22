@@ -171,6 +171,10 @@ void SinkWriterOperator::notifyCheckpointComplete(long checkpointId) {
     AbstractStreamOperator<void*>::notifyCheckpointComplete(checkpointId);
 }
 
+void SinkWriterOperator::notifyCheckpointAborted(long checkpointId) {
+    AbstractStreamOperator<void*>::notifyCheckpointAborted(checkpointId);
+}
+
 // initializeState方法实现
 void SinkWriterOperator::initializeState(StateInitializationContextImpl<void*>* context) {
     // 调用父类方法
