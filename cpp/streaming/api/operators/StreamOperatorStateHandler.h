@@ -214,7 +214,7 @@ public:
                     timeServiceManager->snapshotToRawKeyedState(snapshotContext->getRawKeyedOperatorStateOutput(), operatorName);
                 }
             }
-            INFO_RELEASE("zzz stram snapshot:"<< typeid(streamOperator).name());
+            INFO_RELEASE("zzz stram snapshot:"<< typeid(*streamOperator).name());
             streamOperator->snapshotState(snapshotContext);
             snapshotInProgress->setKeyedStateRawFuture(snapshotContext->getKeyedStateStreamFuture());
             snapshotInProgress->setOperatorStateRawFuture(snapshotContext->getOperatorStateStreamFuture());
