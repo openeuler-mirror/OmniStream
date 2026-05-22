@@ -10,6 +10,7 @@
  */
 #ifndef SLICINGWINDOWOPERATOR_H
 #define SLICINGWINDOWOPERATOR_H
+#include "../../../../core/include/common.h"
 
 template <typename Keytype>
 class SlicingWindowProcessor;
@@ -169,7 +170,7 @@ void SlicingWindowOperator<K, W>::close()
 template <typename K, typename W>
 void SlicingWindowOperator<K, W>::processBatch(StreamRecord *record)
 {
-    LOG("SlicingWindowOperator  processBatch  start!!!!!!!!!!!!!!!");
+    INFO_RELEASE("SlicingWindowOperator  processBatch  start!!!!!!!!!!!!!!!");
     omnistream::VectorBatch *input = reinterpret_cast<omnistream::VectorBatch*>(record->getValue());
     this->processBatch(input);
     LOG("SlicingWindowOperator  processBatch  end!!!!!!!!!!!!!!!");
@@ -185,7 +186,7 @@ template <typename K, typename W>
 void SlicingWindowOperator<K, W>::ProcessWatermark(Watermark *mark)
 {
     if (mark->getTimestamp() > currentWatermark) {
-        LOG("watermark > current watermark")
+        INFO_RELEASE("watermark > current watermark")
         windowProcessor->advanceProgress(this->stateHandler, mark->getTimestamp());
         LOG("after advance")
         TableStreamOperator<RowData*>::ProcessWatermark(mark);
@@ -225,6 +226,7 @@ void SlicingWindowOperator<K, W>::onTimer(TimerHeapInternalTimer<K, W> *timer)
 template <typename K, typename W>
 void SlicingWindowOperator<K, W>::prepareSnapshotPreBarrier(int64_t checkpointId)
 {
+    INFO_RELEASE("SlicingWindowOperator prepareSnapshotPreBarrier:" << checkpointId)
     windowProcessor->prepareCheckpoint();
 }
 
