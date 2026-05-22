@@ -79,7 +79,6 @@ public:
     }
 
 private:
-    template<typename K, typename W>
     omnistream::VectorBatch* AggregateWindowOperator<K, W>::createOutputBatch(const std::vector<RowData*>& collectedRows);
     void collect(RowKind rowKind, RowData* key, std::unique_ptr<RowData> aggResult) {
         std::vector<RowData*> resultRows;
@@ -104,7 +103,6 @@ private:
 
 };
 
-template<typename K, typename W>
 omnistream::VectorBatch* AggregateWindowOperator<K, W>::createOutputBatch(const std::vector<RowData*>& collectedRows) {
     int numColumns = WindowOperator<K, W>::outputTypes.size();
     const int numRows = static_cast<int>(collectedRows.size());
