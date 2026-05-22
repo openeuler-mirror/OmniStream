@@ -486,7 +486,7 @@ void OperatorChainV2::NotifyCheckpointAborted(long checkpointId)
         // The original Flink has a fancy catch throw which might contain extra logic.
         try {
             auto op = iter.next()->getStreamOperator();
-            op->NotifyCheckpointAborted(checkpointId);
+            op->notifyCheckpointAborted(checkpointId);
         } catch (...) {
             throw std::runtime_error("notifyCheckpointAborted failed");
         }
@@ -500,7 +500,7 @@ void OperatorChainV2::NotifyCheckpointSubsumed(long checkpointId)
         // The original Flink has a fancy catch throw which might contain extra logic.
         try {
             auto op = iter.next()->getStreamOperator();
-            op->NotifyCheckpointSubsumed(checkpointId);
+            op->notifyCheckpointSubsumed(checkpointId);
         } catch (...) {
             throw std::runtime_error("notifyCheckpointSubsumed failed");
         }

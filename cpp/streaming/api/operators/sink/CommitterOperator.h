@@ -158,6 +158,10 @@ public:
         commitAndEmitCheckpoints();
     }
 
+    void notifyCheckpointAborted(long checkpointId) override {
+        AbstractStreamOperator<void*>::notifyCheckpointAborted(checkpointId);
+    }
+
     void processElement(StreamRecord &element) {
         auto message = reinterpret_cast<CommittableMessage<CommT>*>(element.getValue());
         committableCollector->AddMessage(*message);
