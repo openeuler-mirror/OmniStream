@@ -29,14 +29,6 @@ class AggregateWindowOperator : public WindowOperator<K, W> {
 public:
     std::unique_ptr<NamespaceAggsHandleFunction<W>> initNamespaceAggsHandleFunctions(const nlohmann::json &aggInfoList);
 
-    Output* output;
-    TimestampedCollector* collector;
-    std::unique_ptr<NamespaceAggsHandleFunction<W>> aggWindowAggregator;
-    JoinedRowData* reuseOutput;
-    std::vector<int32_t> outputTypeIds;
-    return aggWindowAggregator;
-};
-
     AggregateWindowOperator(nlohmann::json description, Output* output) : WindowOperator<K, W>(description, output) {
         this->output = output;
         this->collector = new TimestampedCollector(output);
@@ -87,8 +79,6 @@ public:
     }
 
 private:
-    omnistream::VectorBatch* createOutputBatch(const std::vector<RowData*>& collectedRows);
-
     void collect(RowKind rowKind, RowData* key, std::unique_ptr<RowData> aggResult) {
         std::vector<RowData*> resultRows;
         reuseOutput->replace(key, aggResult.get());
@@ -100,97 +90,19 @@ private:
         collectOutputBatch(collector, resultBatch);
     }
 
-
-    omnistream::VectorBatch* createOutputBatch(const std::vector<RowData*>& collectedRows)
-    {
-        int numColumns = WindowOperator<K, W>::outputTypes.size();
-        const int numRows = static_cast<int>(collectedRows.size());
-
-        auto* outputBatch = new omnistream::VectorBatch(numRows);
-
-        for (int colIndex = 0; colIndex < numColumns; ++colIndex) {
-            switch (outputTypeIds[colIndex]) {
-                case OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE:
-                case OMNI_TIMESTAMP:
-                case OMNI_LONG: {
-                    auto* vector = new omniruntime::vec::Vector<int64_t>(numRows);
-                    for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
-                        if (collectedRows[rowIndex]->isNullAt(colIndex)) {
-                            vector->SetNull(rowIndex);
-                        } else {
-                            vector->SetValue(rowIndex, *collectedRows[rowIndex]->getLong(colIndex));
-                        }
-                    }
-                    outputBatch->Append(vector);
-                    break;
-                }
-                case OMNI_INT: {
-                    auto* vector = new omniruntime::vec::Vector<int32_t>(numRows);
-                    for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
-                        if (collectedRows[rowIndex]->isNullAt(colIndex)) {
-                            vector->SetNull(rowIndex);
-                        } else {
-                            vector->SetValue(rowIndex, *collectedRows[rowIndex]->getInt(colIndex));
-                        }
-                    }
-                    outputBatch->Append(vector);
-                    break;
-                }
-                case OMNI_DOUBLE: {
-                    auto* vector = new omniruntime::vec::Vector<double>(numRows);
-                    for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
-                        if (collectedRows[rowIndex]->isNullAt(colIndex)) {
-                            vector->SetNull(rowIndex);
-                        } else {
-                            vector->SetValue(rowIndex, *collectedRows[rowIndex]->getLong(colIndex));
-                        }
-                    }
-                    outputBatch->Append(vector);
-                    break;
-                }
-                case OMNI_BOOLEAN: {
-                    auto* vector = new omniruntime::vec::Vector<bool>(numRows);
-                    for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
-                        if (collectedRows[rowIndex]->isNullAt(colIndex)) {
-                            vector->SetNull(rowIndex);
-                        } else {
-                            vector->SetValue(rowIndex, *collectedRows[rowIndex]->getInt(colIndex));
-                        }
-                    }
-                    outputBatch->Append(vector);
-                    break;
-                }
-                case OMNI_VARCHAR: {
-                    auto* vector = new omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<
-                        std::string_view>>(numRows);
-                    for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
-                        if (collectedRows[rowIndex]->isNullAt(colIndex)) {
-                            vector->SetNull(rowIndex);
-                        } else {
-                            std::string_view strView = collectedRows[rowIndex]->getStringView(colIndex);
-                            vector->SetValue(rowIndex, strView);
-                        }
-                    }
-                    outputBatch->Append(vector);
-                    break;
-                }
-                default: {
-                    THROW_RUNTIME_ERROR("Unsupported column type in inputRow");
-                }
-            }
-        }
-
-        for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
-            outputBatch->setRowKind(rowIndex, collectedRows[rowIndex]->getRowKind());
-        }
-        return outputBatch;
-    }
-
     void collectOutputBatch(TimestampedCollector* out, omnistream::VectorBatch* outputBatch) {
         out->collect(outputBatch);
     }
 
 
+
+    Output* output;
+    TimestampedCollector* collector;
+    std::unique_ptr<NamespaceAggsHandleFunction<W>> aggWindowAggregator;
+    JoinedRowData* reuseOutput;
+    std::vector<int32_t> outputTypeIds;
+
+};
 
 template<typename K, typename W>
 omnistream::VectorBatch* AggregateWindowOperator<K, W>::createOutputBatch(const std::vector<RowData*>& collectedRows) {
