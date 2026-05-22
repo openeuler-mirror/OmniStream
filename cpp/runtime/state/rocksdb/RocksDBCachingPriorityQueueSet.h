@@ -379,7 +379,7 @@ private:
             rocksdb::Slice slice(reinterpret_cast<const char*>(toAddBytes.data()), toAddBytes.size());
             batchWrapper_->Put(columnFamilyHandle_, slice, rocksdb::Slice());
         } catch (const std::exception& e) {
-            THROW_RUNTIME_ERROR("Failed to add data to RocksDB: " + std::string(e.what()))
+            // THROW_RUNTIME_ERROR("Failed to add data to RocksDB: " + std::string(e.what()))
         }
     }
 
