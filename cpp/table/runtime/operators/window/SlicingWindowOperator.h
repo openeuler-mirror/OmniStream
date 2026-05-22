@@ -179,12 +179,14 @@ void SlicingWindowOperator<K, W>::processBatch(StreamRecord *record)
 template <typename K, typename W>
 void SlicingWindowOperator<K, W>::processBatch(omnistream::VectorBatch *batch)
 {
+    INFO_RELEASE("SlicingWindowOperator  processBatch  start!!!!!!!!!!!!!!!");
     this->windowProcessor->processBatch(batch);
 }
 
 template <typename K, typename W>
 void SlicingWindowOperator<K, W>::ProcessWatermark(Watermark *mark)
 {
+    INFO_RELEASE("SlicingWindowOperator watermark > current watermark")
     if (mark->getTimestamp() > currentWatermark) {
         INFO_RELEASE("watermark > current watermark")
         windowProcessor->advanceProgress(this->stateHandler, mark->getTimestamp());
@@ -199,13 +201,14 @@ void SlicingWindowOperator<K, W>::ProcessWatermark(Watermark *mark)
 template <typename K, typename W>
 void SlicingWindowOperator<K, W>::onEventTime(TimerHeapInternalTimer<K, W> *timer)
 {
-    LOG("trigger onEventTime")
+    INFO_RELEASE("SlicingWindowOperator trigger onEventTime")
     onTimer(timer);
 }
 
 template <typename K, typename W>
 void SlicingWindowOperator<K, W>::onProcessingTime(TimerHeapInternalTimer<K, W> *timer)
 {
+    INFO_RELEASE("SlicingWindowOperator onProcessingTime")
     if (timer->getTimestamp() > lastTriggeredProcessingTime) {
         lastTriggeredProcessingTime = timer->getTimestamp();
         windowProcessor->advanceProgress(this->stateHandler, timer->getTimestamp());
@@ -239,6 +242,7 @@ AbstractKeyedStateBackend<omnistream::VectorBatch> *WindowProcessorContext<W>::g
 template <typename K, typename W>
 Output*  SlicingWindowOperator<K, W>::getOutput()
 {
+    INFO_RELEASE("SlicingWindowOperator getOutput")
     return windowProcessor->getOutput();
 }
 
