@@ -67,5 +67,3 @@ std::unique_ptr<NamespaceAggsHandleFunction<W>> AggregateWindowOperator<K, W>::i
             this->windowPropertyTypesId,
             std::move(valueOutputTypeIds));
 }
-
-template class AggregateWindowOperator<RowData*, TimeWindow>;
