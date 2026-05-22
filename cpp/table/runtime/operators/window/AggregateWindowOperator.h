@@ -34,7 +34,7 @@ public:
     std::unique_ptr<NamespaceAggsHandleFunction<W>> aggWindowAggregator;
     JoinedRowData* reuseOutput;
     std::vector<int32_t> outputTypeIds;
-
+    return aggWindowAggregator;
 };
 
     AggregateWindowOperator(nlohmann::json description, Output* output) : WindowOperator<K, W>(description, output) {
