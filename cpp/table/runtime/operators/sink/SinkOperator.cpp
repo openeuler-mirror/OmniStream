@@ -22,6 +22,14 @@ const char *SinkOperator::getName()
     return "SinkOperator";
 }
 
+void SinkOperator::notifyCheckpointComplete(long checkpointId) {
+    AbstractUdfStreamOperator<SinkFunction<StreamRecord *>, int>::notifyCheckpointComplete(checkpointId);
+}
+
+void SinkOperator::notifyCheckpointAborted(long checkpointId) {
+    AbstractUdfStreamOperator<SinkFunction<StreamRecord *>, int>::notifyCheckpointAborted(checkpointId);
+}
+
 void SinkOperator::processElement(StreamRecord *record)
 {
     LOG("SinkOperator::processElement(StreamRecord *record)")

@@ -30,6 +30,10 @@ public:
         // AbstractStreamOperator<int>::initializeState(initializer, keySerializer);
     }
 
+    void notifyCheckpointComplete(long checkpointId) override;
+
+    void notifyCheckpointAborted(long checkpointId) override;
+
     void processBatch(StreamRecord *record) override;
     void processElement(StreamRecord *record) override;
 

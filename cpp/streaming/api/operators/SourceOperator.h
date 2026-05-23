@@ -325,6 +325,16 @@ public:
             sourceReader->notifyCheckpointComplete(checkpointId);
         }
     }
+
+    void notifyCheckpointAborted(long checkpointId) override
+    {
+        INFO_RELEASE("savepoint: SourceOperator notifyCheckpointAborted " << checkpointId);
+        AbstractStreamOperator<void*>::notifyCheckpointAborted(checkpointId);
+        if (sourceReader != nullptr) {
+            sourceReader->notifyCheckpointAborted(checkpointId);
+        }
+    }
+
 private:
     std::function<SourceReader<SplitT>*(SourceReaderContext*)> readerFactory;
     std::shared_ptr<SimpleVersionedSerializer<SplitT>> splitSerializer;

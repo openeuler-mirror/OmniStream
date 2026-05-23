@@ -137,7 +137,14 @@ public:
     }
 
     // 通知检查点完成
-    void notifyCheckpointComplete(long checkpointId)  override {}
+    void notifyCheckpointComplete(long checkpointId)  override {
+        LOG("SourceReaderBase::notifyCheckpointComplete not impl, checkpointId : " << checkpointId);
+    }
+
+    // 通知检查点完成
+    void notifyCheckpointAborted(long checkpointId)  override {
+        LOG("SourceReaderBase::notifyCheckpointAborted not impl, checkpointId : " << checkpointId);
+    }
 
     // 添加拆分
     void addSplits(std::vector<SplitT*>& splits) override

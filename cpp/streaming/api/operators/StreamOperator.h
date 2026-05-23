@@ -92,16 +92,16 @@ public:
 
     virtual void notifyCheckpointComplete(long checkpointId)
     {
-        LOG("checkpointID " << checkpointId)
+        LOG("notifyCheckpointComplete checkpointId " << checkpointId)
     }
 
-    virtual void NotifyCheckpointAborted(long checkpointId)
+    virtual void notifyCheckpointAborted(long checkpointId)
     {
-        LOG("checkpointID " << checkpointId)
+        LOG("notifyCheckpointAborted checkpointId " << checkpointId)
     }
-    virtual void NotifyCheckpointSubsumed(long checkpointId)
+    virtual void notifyCheckpointSubsumed(long checkpointId)
     {
-        LOG("checkpointID " << checkpointId)
+        LOG("notifyCheckpointSubsumed checkpointId " << checkpointId)
     }
     virtual void SetOperatorID(const std::string& operatorId_)
     {

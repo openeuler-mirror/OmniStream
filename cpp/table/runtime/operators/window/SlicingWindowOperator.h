@@ -142,7 +142,6 @@ SlicingWindowOperator<K, W>::SlicingWindowOperator(SlicingWindowProcessor<W> *wi
     :TableStreamOperator<RowData *>(windowProcessor->getOutput()), windowProcessor(windowProcessor), description(config)
 {
     this->output = windowProcessor->getOutput();
-    this->setProcessingTimeService(new SystemProcessingTimeService());
 }
 
 template <typename K, typename W>
