@@ -17,10 +17,16 @@
 #include "core/api/common/state/ListState.h"
 #include "runtime/state/VoidNamespace.h"
 #include "StateTable.h"
+#include "CopyOnWriteStateTable.h"
 #include "core/api/common/state/StateDescriptor.h"
 #include "table/data/binary/BinaryRowData.h"
 #include "table/data/vectorbatch/VectorBatch.h"
+#include "table/typeutils/VectorBatchSerializer.h"
 #include "runtime/state/internal/InternalListState.h"
+#include "runtime/state/VoidNamespaceSerializer.h"
+#include "runtime/state/InternalKeyContextImpl.h"
+#include "runtime/state/RegisteredKeyValueStateBackendMetaInfo.h"
+#include "core/typeutils/LongSerializer.h"
 
 // The state is a list. In the InternalKvState, the state is stored as a pointer to a std::vector
 template<typename K, typename N, typename UV>
@@ -52,7 +58,11 @@ public:
 
     void setCurrentNamespace(N nameSpace) override;
 
-    void clear() override { stateTable->remove(currentNamespace); };
+    void clear() override;
+
+    void addVectorBatch(omnistream::VectorBatch *vectorBatch) override;
+    omnistream::VectorBatch *getVectorBatch(int batchId) override;
+    long getVectorBatchesSize() override;
 
     static HeapListState<K, N, UV> *
     create(StateDescriptor *stateDesc, StateTable<K, N, std::vector<UV>*> *stateTable, TypeSerializer *keySerializer);
@@ -61,7 +71,13 @@ public:
     update(StateDescriptor *stateDesc, StateTable<K, N, std::vector<UV>*> *stateTable,
            HeapListState<K, N, UV> *existingState);
 private:
+    void initVectorBatchStateTable(StateDescriptor *stateDesc, StateTable<K, N, std::vector<UV> *> *stateTable);
+    void clearVectorBatchStateTable();
+
     StateTable<K, N, std::vector<UV>*> *stateTable;
+    StateTable<int, VoidNamespace, omnistream::VectorBatch *> *vectorBatchStateTable = nullptr;
+    InternalKeyContext<int> *vectorBatchKeyContext = nullptr;
+    int nextVectorBatchId = 0;
     TypeSerializer *valueSerializer;
     TypeSerializer *namespaceSerializer;
     N currentNamespace;
@@ -79,7 +95,72 @@ HeapListState<K, N, UV>::HeapListState(StateTable<K, N, std::vector<UV>*> *state
 
 template <typename K, typename N, typename UV>
 HeapListState<K, N, UV>::~HeapListState()
-{}
+{
+    delete vectorBatchStateTable;
+    delete vectorBatchKeyContext;
+}
+
+template<typename K, typename N, typename UV>
+void HeapListState<K, N, UV>::initVectorBatchStateTable(StateDescriptor *stateDesc,
+    StateTable<K, N, std::vector<UV> *> *table)
+{
+    vectorBatchKeyContext = new InternalKeyContextImpl<int>(
+        table->getKeyGroupRange(), table->getNumberOfKeyGroups());
+    RegisteredKeyValueStateBackendMetaInfo *metaInfo = new RegisteredKeyValueStateBackendMetaInfo(
+        StateDescriptor::Type::LIST,
+        stateDesc->getName() + "_vector_batch",
+        new VoidNamespaceSerializer(),
+        new VectorBatchSerializer());
+    vectorBatchStateTable = new CopyOnWriteStateTable<int, VoidNamespace, omnistream::VectorBatch *>(
+        vectorBatchKeyContext, metaInfo, new IntSerializer());
+}
+
+template<typename K, typename N, typename UV>
+void HeapListState<K, N, UV>::clearVectorBatchStateTable()
+{
+    if (vectorBatchStateTable == nullptr) {
+        return;
+    }
+    vectorBatchStateTable->deleteMaps();
+    nextVectorBatchId = 0;
+}
+
+template<typename K, typename N, typename UV>
+void HeapListState<K, N, UV>::clear()
+{
+    stateTable->remove(currentNamespace);
+    clearVectorBatchStateTable();
+}
+
+template<typename K, typename N, typename UV>
+void HeapListState<K, N, UV>::addVectorBatch(omnistream::VectorBatch *vectorBatch)
+{
+    if (vectorBatchStateTable == nullptr) {
+        return;
+    }
+    int batchId = nextVectorBatchId++;
+    VoidNamespace nameSpace;
+    auto *table = static_cast<CopyOnWriteStateTable<int, VoidNamespace, omnistream::VectorBatch *> *>(
+        vectorBatchStateTable);
+    int keyGroup = table->computeKeyGroupForKeyHash(batchId);
+    table->put(batchId, keyGroup, nameSpace, vectorBatch);
+}
+
+template<typename K, typename N, typename UV>
+omnistream::VectorBatch *HeapListState<K, N, UV>::getVectorBatch(int batchId)
+{
+    if (vectorBatchStateTable == nullptr) {
+        return nullptr;
+    }
+    VoidNamespace nameSpace;
+    return vectorBatchStateTable->get(batchId, nameSpace);
+}
+
+template<typename K, typename N, typename UV>
+long HeapListState<K, N, UV>::getVectorBatchesSize()
+{
+    return nextVectorBatchId;
+}
 
 template<typename K, typename N, typename UV>
 void HeapListState<K, N, UV>::add(const UV &value)
@@ -145,9 +226,11 @@ HeapListState<K, N, UV> *HeapListState<K, N, UV>::create(StateDescriptor *stateD
                                                          StateTable<K, N, std::vector<UV> *> *stateTable,
                                                          TypeSerializer *keySerializer)
 {
-    return new HeapListState<K, N, UV>(stateTable,
-                                       stateTable->getStateSerializer(),
-                                       stateTable->getNamespaceSerializer());
+    auto *createdState = new HeapListState<K, N, UV>(stateTable,
+        stateTable->getStateSerializer(),
+        stateTable->getNamespaceSerializer());
+    createdState->initVectorBatchStateTable(stateDesc, stateTable);
+    return createdState;
 }
 
 template<typename K, typename N, typename UV>
@@ -157,6 +240,9 @@ HeapListState<K, N, UV> *HeapListState<K, N, UV>::update(StateDescriptor *stateD
 {
     existingState->setNamespaceSerializer(stateTable->getNamespaceSerializer());
     existingState->setValueSerializer(stateTable->getStateSerializer());
+    if (existingState->vectorBatchStateTable == nullptr) {
+        existingState->initVectorBatchStateTable(stateDesc, stateTable);
+    }
     return existingState;
 }
 

@@ -31,6 +31,7 @@
 #include "runtime/state/heap/HeapListState.h"
 #include "RegisteredKeyValueStateBackendMetaInfo.h"
 #include "table/data/RowData.h"
+#include "table/data/vectorbatch/VectorBatch.h"
 
 #include "table/runtime/operators/window/TimeWindow.h"
 #include "heap/HeapSingleStateIterator.h"
@@ -139,6 +140,9 @@ public:
                     delete stateTable;
                 } else if (dataId == BackendDataType::SET_LONG) {
                     auto stateTable = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, std::vector<long> *> *>(stateTablePtr);
+                    delete stateTable;
+                } else if (dataId == BackendDataType::VECTOR_BATCH_BK) {
+                    auto stateTable = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, omnistream::VectorBatch *> *>(stateTablePtr);
                     delete stateTable;
                 } else {
                     NOT_IMPL_EXCEPTION
@@ -368,6 +372,8 @@ uintptr_t HeapKeyedStateBackend<K>::createOrUpdateInternalState(TypeSerializer *
             return (uintptr_t) createOrUpdateInternalValueState<VoidNamespace, Object*>(namespaceSerializer, stateDesc);
         } else if (dataId == BackendDataType::SET_LONG) {
             return (uintptr_t) createOrUpdateInternalValueState<VoidNamespace,std::vector<long>*>(namespaceSerializer, stateDesc);
+        } else if (dataId == BackendDataType::VECTOR_BATCH_BK) {
+            return (uintptr_t) createOrUpdateInternalValueState<VoidNamespace, omnistream::VectorBatch*>(namespaceSerializer, stateDesc);
         } else {
             NOT_IMPL_EXCEPTION;
         }

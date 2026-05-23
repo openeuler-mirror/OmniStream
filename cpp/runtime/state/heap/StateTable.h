@@ -92,6 +92,16 @@ public:
         return metaInfo;
     }
 
+    KeyGroupRange *getKeyGroupRange()
+    {
+        return keyGroupRange;
+    }
+
+    int getNumberOfKeyGroups()
+    {
+        return keyContext->getNumberOfKeyGroups();
+    }
+
     void setMetaInfo(RegisteredKeyValueStateBackendMetaInfo *newMetaInfo)
     {
         metaInfo = newMetaInfo;
