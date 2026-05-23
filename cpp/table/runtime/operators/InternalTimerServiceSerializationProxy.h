@@ -54,13 +54,9 @@ public:
         // Keep the wire format identical to Flink 1.16.3:
         // PostVersionedIOReadableWritable.write() first emits VERSIONED_IDENTIFIER,
         // then VersionedIOReadableWritable.write() emits getVersion().
-        INFO_RELEASE("aaa proxy write 111")
         out->writeBytes(VERSIONED_IDENTIFIER.data(), VERSIONED_IDENTIFIER.size());
-        INFO_RELEASE("aaa proxy write 222")
         out->writeInt(VERSION);
-        INFO_RELEASE("aaa proxy write 333")
         timerServicesManager_->writeTimersForKeyGroup(out, keyGroupIdx_);
-        INFO_RELEASE("aaa proxy write 444")
     }
 
     void read(RawKeyedStateInputStreamProxy *in)

@@ -387,12 +387,10 @@ inline void InternalTimeServiceManager<K>::snapshotToRawKeyedState(
     }
     try {
         for (int32_t keyGroupIdx : stateCheckpointOutputStream->getKeyGroupList()) {
-            INFO_RELEASE("aaa snapshotToRawKeyedState 333")
             stateCheckpointOutputStream->startNewKeyGroup(keyGroupIdx);
             InternalTimerServiceSerializationProxy<K> proxy(this, keyGroupIdx);
             proxy.write(stateCheckpointOutputStream);
         }
-        INFO_RELEASE("aaa snapshotToRawKeyedState 444")
     } catch (const std::exception &e) {
         INFO_RELEASE("Error: snapshotToRawKeyedState Could not write timer service of operator "
             << operatorName << " to raw keyed checkpoint state stream.");
