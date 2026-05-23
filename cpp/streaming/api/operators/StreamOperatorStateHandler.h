@@ -218,6 +218,7 @@ public:
                     }
                     INFO_RELEASE("aaa handle snapshotState 666")
                     timeServiceManager->snapshotToRawKeyedState(snapshotContext->getRawKeyedOperatorStateOutput(), operatorName);
+                    INFO_RELEASE("aaa handle snapshotState 777")
                 }
             }
             INFO_RELEASE("aaa stram snapshot:"<< typeid(*streamOperator).name());
