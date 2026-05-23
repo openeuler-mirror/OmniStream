@@ -149,6 +149,7 @@ public:
         bool isUsingCustomRawKeyedState,
         const std::shared_ptr<OmniTaskBridge>& bridge)
     {
+        INFO_RELEASE("aaa handle SnapshotState")
         KeyGroupRange *keyGroupRange = KeyGroupRange::EMPTY_KEY_GROUP_RANGE();
         if (keyedStateBackend != nullptr) {
             keyGroupRange = keyedStateBackend->getKeyGroupRange();
@@ -195,6 +196,7 @@ public:
         bool isUsingCustomRawKeyedState,
         const std::shared_ptr<OmniTaskBridge>& bridge)
     {
+        INFO_RELEASE("aaa handle snapshotState 222")
         try {
             if (timeServiceManager != nullptr) {
                 if (keyedStateBackend == nullptr) {
@@ -214,7 +216,7 @@ public:
                     timeServiceManager->snapshotToRawKeyedState(snapshotContext->getRawKeyedOperatorStateOutput(), operatorName);
                 }
             }
-            INFO_RELEASE("zzz stram snapshot:"<< typeid(*streamOperator).name());
+            INFO_RELEASE("aaa stram snapshot:"<< typeid(*streamOperator).name());
             streamOperator->snapshotState(snapshotContext);
             snapshotInProgress->setKeyedStateRawFuture(snapshotContext->getKeyedStateStreamFuture());
             snapshotInProgress->setOperatorStateRawFuture(snapshotContext->getOperatorStateStreamFuture());

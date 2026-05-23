@@ -221,6 +221,7 @@ public:
         CheckpointStreamFactory* storageLocation,
         const std::shared_ptr<OmniTaskBridge>& bridge) override
     {
+        INFO_RELEASE("aaa SnapshotState")
         return stateHandler->SnapshotState(
             this,
             timeServiceManager,
