@@ -559,6 +559,12 @@ OperatorSnapshotFutures *OperatorChainV2::CheckpointStreamOperator(StreamOperato
             return sop->SnapshotState(checkpointMetaData.GetCheckpointId(), checkpointMetaData.GetTimestamp(),
                                       checkpointOptions, storageLocation, bridge);
         }
+        auto lop = dynamic_cast<AbstractStreamOperator<long> *>(op);
+        if (lop) {
+            INFO_RELEASE("aaa  CheckpointStreamOperator 444")
+            return lop->SnapshotState(checkpointMetaData.GetCheckpointId(), checkpointMetaData.GetTimestamp(),
+                                      checkpointOptions, storageLocation, bridge);
+        }
         /* 部分算子存在菱形继承问题，需要特殊处理，例如：SinkWriterOperator [OneInputStreamOperator, AbstractStreamOperator] -> StreamOperator */
         auto vop = dynamic_cast<AbstractStreamOperator<void*>*>(op);
         if (vop) {
