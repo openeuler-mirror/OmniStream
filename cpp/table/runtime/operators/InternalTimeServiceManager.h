@@ -381,12 +381,10 @@ inline void InternalTimeServiceManager<K>::snapshotToRawKeyedState(
     KeyedStateCheckpointOutputStream *stateCheckpointOutputStream,
     std::string operatorName)
 {
-    INFO_RELEASE("aaa snapshotToRawKeyedState 111")
     if (stateCheckpointOutputStream == nullptr) {
         INFO_RELEASE("Error: snapshotToRawKeyedState Raw keyed state output stream is null for operator " << operatorName);
         THROW_LOGIC_EXCEPTION("Raw keyed state output stream is null for operator " << operatorName)
     }
-    INFO_RELEASE("aaa snapshotToRawKeyedState 222")
     try {
         for (int32_t keyGroupIdx : stateCheckpointOutputStream->getKeyGroupList()) {
             INFO_RELEASE("aaa snapshotToRawKeyedState 333")
