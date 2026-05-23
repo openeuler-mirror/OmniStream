@@ -200,6 +200,7 @@ public:
         try {
             if (timeServiceManager != nullptr) {
                 if (keyedStateBackend == nullptr) {
+                    INFO_RELEASE("aaa keyedStateBackend should be available")
                     THROW_LOGIC_EXCEPTION("keyedStateBackend should be available with timeServiceManager");
                 }
 
@@ -210,6 +211,7 @@ public:
                     abstractBackend && abstractBackend->requiresLegacySynchronousTimerSnapshots(checkpointOptions->GetCheckpointType());
                 if (requiresLegacyRawKeyedStateSnapshots) {
                     if (isUsingCustomRawKeyedState) {
+                        INFO_RELEASE("aaa Attempting to snapshot timers to raw keyed state")
                         THROW_LOGIC_EXCEPTION("Attempting to snapshot timers to raw keyed state, but this operator has custom raw keyed state to write.");
                     }
 
