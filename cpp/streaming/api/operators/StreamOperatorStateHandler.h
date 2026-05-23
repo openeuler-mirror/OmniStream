@@ -198,23 +198,25 @@ public:
     {
         INFO_RELEASE("aaa handle snapshotState 222")
         try {
+            INFO_RELEASE("aaa handle snapshotState 333")
             if (timeServiceManager != nullptr) {
                 if (keyedStateBackend == nullptr) {
                     INFO_RELEASE("aaa keyedStateBackend should be available")
                     THROW_LOGIC_EXCEPTION("keyedStateBackend should be available with timeServiceManager");
                 }
-
+                INFO_RELEASE("aaa handle snapshotState 444")
                 AbstractKeyedStateBackend<K>* abstractBackend =
                     dynamic_cast<AbstractKeyedStateBackend<K>*>(keyedStateBackend);
 
                 bool requiresLegacyRawKeyedStateSnapshots =
                     abstractBackend && abstractBackend->requiresLegacySynchronousTimerSnapshots(checkpointOptions->GetCheckpointType());
+                INFO_RELEASE("aaa handle snapshotState 555")
                 if (requiresLegacyRawKeyedStateSnapshots) {
                     if (isUsingCustomRawKeyedState) {
                         INFO_RELEASE("aaa Attempting to snapshot timers to raw keyed state")
                         THROW_LOGIC_EXCEPTION("Attempting to snapshot timers to raw keyed state, but this operator has custom raw keyed state to write.");
                     }
-
+                    INFO_RELEASE("aaa handle snapshotState 666")
                     timeServiceManager->snapshotToRawKeyedState(snapshotContext->getRawKeyedOperatorStateOutput(), operatorName);
                 }
             }
