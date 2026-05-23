@@ -29,6 +29,8 @@
 #include <vector>
 #include <utility>
 
+#include "../../../core/include/common.h"
+
 template <typename K>
 class InternalTimeServiceManager {
 public:
@@ -379,17 +381,20 @@ inline void InternalTimeServiceManager<K>::snapshotToRawKeyedState(
     KeyedStateCheckpointOutputStream *stateCheckpointOutputStream,
     std::string operatorName)
 {
+    INFO_RELEASE("aaa snapshotToRawKeyedState 111")
     if (stateCheckpointOutputStream == nullptr) {
         INFO_RELEASE("Error: snapshotToRawKeyedState Raw keyed state output stream is null for operator " << operatorName);
         THROW_LOGIC_EXCEPTION("Raw keyed state output stream is null for operator " << operatorName)
     }
-
+    INFO_RELEASE("aaa snapshotToRawKeyedState 222")
     try {
         for (int32_t keyGroupIdx : stateCheckpointOutputStream->getKeyGroupList()) {
+            INFO_RELEASE("aaa snapshotToRawKeyedState 333")
             stateCheckpointOutputStream->startNewKeyGroup(keyGroupIdx);
             InternalTimerServiceSerializationProxy<K> proxy(this, keyGroupIdx);
             proxy.write(stateCheckpointOutputStream);
         }
+        INFO_RELEASE("aaa snapshotToRawKeyedState 444")
     } catch (const std::exception &e) {
         INFO_RELEASE("Error: snapshotToRawKeyedState Could not write timer service of operator "
             << operatorName << " to raw keyed checkpoint state stream.");
