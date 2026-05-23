@@ -69,10 +69,10 @@ public:
                         operatorStateMetaInfoSnapshots.push_back(state->getStateMetaInfo()->snapshot());
                         continue;
                     }
-                    state = std::dynamic_pointer_cast<PartitionableListState<std::vector<uint64_t>>>(entry.second);
-                    if (state){
+                    auto state1 = std::dynamic_pointer_cast<PartitionableListState<std::vector<uint64_t>>>(entry.second);
+                    if (state1){
                         INFO_RELEASE("aaa second type 222");
-                        operatorStateMetaInfoSnapshots.push_back(state->getStateMetaInfo()->snapshot());
+                        operatorStateMetaInfoSnapshots.push_back(state1->getStateMetaInfo()->snapshot());
                         continue;
                     }
                     INFO_RELEASE("aaa not PartitionableListState")
