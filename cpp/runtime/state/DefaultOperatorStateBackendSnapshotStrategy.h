@@ -34,6 +34,7 @@
 #include "OperatorStreamStateHandle.h"
 #include "DefaultOperatorSnapshotOperation.h"
 #include "DefaultOperatorStateBackendSnapshotResources.h"
+#include "../../core/include/common.h"
 
 class DefaultOperatorStateBackendSnapshotStrategy
     : public SnapshotStrategy<OperatorStateHandle, SnapshotResources> {
@@ -62,8 +63,14 @@ public:
         if (!registeredOperatorStates_->empty()) {
             for (auto& entry : *registeredOperatorStates_) {
                 if (entry.second != nullptr) {
+                    INFO_RELEASE("aaa second type:"<< typeid(*(entry.second)).name());
                     auto state = std::dynamic_pointer_cast<PartitionableListState<std::vector<uint8_t>>>(entry.second);
-                    operatorStateMetaInfoSnapshots.push_back(state->getStateMetaInfo()->snapshot());
+                    if (state) {
+                        operatorStateMetaInfoSnapshots.push_back(state->getStateMetaInfo()->snapshot());
+                    }else {
+                        INFO_RELEASE("aaa not PartitionableListState")
+                    }
+
                 }
             }
         }
