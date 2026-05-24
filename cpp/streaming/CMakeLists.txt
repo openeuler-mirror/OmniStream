@@ -13,7 +13,6 @@ add_library(streaming STATIC  ${SOURCES})
 target_sources(streaming
         PRIVATE
         ${SOURCES}
-        ../core/common.cpp
 )
 
 target_include_directories(streaming PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../)
