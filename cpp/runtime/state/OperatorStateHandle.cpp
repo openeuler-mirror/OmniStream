@@ -18,12 +18,12 @@ OperatorStateHandle::StateMetaInfo::StateMetaInfo(
 {
 }
 
-std::vector<long> OperatorStateHandle::StateMetaInfo::getOffsets()
+std::vector<long> OperatorStateHandle::StateMetaInfo::getOffsets() const
 {
     return offsets_;
 }
 
-OperatorStateHandle::Mode OperatorStateHandle::StateMetaInfo::getDistributionMode()
+OperatorStateHandle::Mode OperatorStateHandle::StateMetaInfo::getDistributionMode() const
 {
     return distributionMode_;
 }

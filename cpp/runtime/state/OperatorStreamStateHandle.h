@@ -59,7 +59,7 @@ public:
         return delegateStateHandle->GetStateSize();
     }
 
-    PhysicalStateHandleID getStreamStateHandleID()  {
+    PhysicalStateHandleID getStreamStateHandleID() const {
         return delegateStateHandle->GetStreamStateHandleID();
     }
 
@@ -79,7 +79,7 @@ public:
         return stateNameToPartitionOffsets;
     }
 
-    std::shared_ptr<StreamStateHandle> getDelegateStateHandle() override {
+    std::shared_ptr<StreamStateHandle> getDelegateStateHandle() const override {
         return delegateStateHandle;
     }
 

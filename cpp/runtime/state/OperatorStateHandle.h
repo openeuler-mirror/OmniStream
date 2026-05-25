@@ -41,8 +41,8 @@ public:
     public:
         StateMetaInfo() = default;
         StateMetaInfo(std::vector<long> offsets, OperatorStateHandle::Mode distributionMode);
-        std::vector<long> getOffsets();
-        OperatorStateHandle::Mode getDistributionMode();
+        std::vector<long> getOffsets() const;
+        OperatorStateHandle::Mode getDistributionMode() const;
 
         bool operator==(const StateMetaInfo &other) const;
     private:
@@ -51,6 +51,6 @@ public:
     };
 
     virtual std::unordered_map<std::string, StateMetaInfo> getStateNameToPartitionOffsets() const = 0;
-    virtual std::shared_ptr<StreamStateHandle> getDelegateStateHandle() = 0;
+    virtual std::shared_ptr<StreamStateHandle> getDelegateStateHandle() const = 0;
 };
 #endif // OMNISTREAM_OPERATORSTATEHANDLE_H
