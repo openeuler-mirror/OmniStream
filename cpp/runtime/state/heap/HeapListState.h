@@ -138,12 +138,12 @@ void HeapListState<K, N, UV>::addVectorBatch(omnistream::VectorBatch *vectorBatc
     if (vectorBatchStateTable == nullptr) {
         return;
     }
-    int batchId = nextVectorBatchId++;
     VoidNamespace nameSpace;
     auto *table = static_cast<CopyOnWriteStateTable<int, VoidNamespace, omnistream::VectorBatch *> *>(
         vectorBatchStateTable);
-    int keyGroup = table->computeKeyGroupForKeyHash(batchId);
-    table->put(batchId, keyGroup, nameSpace, vectorBatch);
+    int keyGroup = table->computeKeyGroupForKeyHash(nextVectorBatchId);
+    table->put(nextVectorBatchId, keyGroup, nameSpace, vectorBatch);
+    nextVectorBatchId++;
 }
 
 template<typename K, typename N, typename UV>

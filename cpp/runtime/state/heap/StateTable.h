@@ -14,6 +14,7 @@
 #include <vector>
 #include <type_traits>
 #include <tuple>
+#include <limits>
 #include <functional> // for std::hash
 #include "StateMap.h"
 #include "core/typeutils/TypeSerializer.h"
@@ -201,7 +202,15 @@ protected:
     // Internal interactions with cowMap
     S get(const K &key, int keyGroupIndex, const N &nameSpace)
     {
-        return getMapForKeyGroup(keyGroupIndex)->get(key, nameSpace);
+        StateMap<K, N, S> *stateMap = getMapForKeyGroup(keyGroupIndex);
+        if (stateMap == nullptr) {
+            if constexpr (std::is_pointer_v<S>) {
+                return nullptr;
+            } else {
+                return std::numeric_limits<S>::max();
+            }
+        }
+        return stateMap->get(key, nameSpace);
     };
 
     bool containsKey(const K &key, int keyGroupIndex, const N &nameSpace)
