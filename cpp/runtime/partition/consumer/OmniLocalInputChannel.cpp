@@ -41,10 +41,15 @@ namespace omnistream {
             INFO_RELEASE("Error: invalid buffer size:" << bufferLength);
             return;
         }
+        int type = bufferType;
+        if (bufferType == 2) {
+            isUnlock = true;
+            type = 1;
+        }
         MemorySegment *memorySegment = new MemorySegment(
             reinterpret_cast<uint8_t *>(bufferAddress), bufferLength, this);
         datastream::NetworkBuffer *networkBuffer = new datastream::NetworkBuffer(
-            memorySegment, bufferLength, readIndex, originalNetworkBufferRecycler_, bufferType, true);
+            memorySegment, bufferLength, readIndex, originalNetworkBufferRecycler_, type, true);
         datastream::ReadOnlySlicedNetworkBuffer* readOnlyBuffer =
                 new datastream::ReadOnlySlicedNetworkBuffer(
                     networkBuffer, readIndex + memorySegmentOffset,
@@ -111,7 +116,10 @@ namespace omnistream {
 
     void OmniLocalInputChannel::resumeConsumption()
     {
-        omniLocalInputChannelBridge->InvokeDoResumeConsumption();
+        if (isUnlock) {
+            omniLocalInputChannelBridge->InvokeDoResumeConsumption();
+            isUnlock = false;
+        }
     }
 
     void OmniLocalInputChannel::SetOmniLocalInputChannelBridge(std::shared_ptr<OmniLocalInputChannelBridge> bridge)

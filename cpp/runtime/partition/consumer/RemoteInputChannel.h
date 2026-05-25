@@ -76,6 +76,7 @@ namespace omnistream {
         size_t outsize = 0;
         size_t startSize_ = 0;
         bool isNeedPersistence_ = false;
+        bool isUnlock = false;
         bool isNeedExpansion = false;
         std::vector<Buffer*> inflightBuffers_;
     };

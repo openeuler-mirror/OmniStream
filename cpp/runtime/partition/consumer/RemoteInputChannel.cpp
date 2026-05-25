@@ -134,12 +134,17 @@ namespace omnistream {
             INFO_RELEASE("Error: invalid buffer size:" << bufferLength);
             return;
         }
+        int type = bufferType;
+        if (bufferType == 2) {
+            isUnlock = true;
+            type = 1;
+        }
         LOG("notifyRemoteDataAvailableForDataStream bufferAddress: " << bufferAddress
             << " bufferLength: " << bufferLength << " sequenceNumber: " << sequenceNumber);
         MemorySegment *memorySegment = new MemorySegment(
             reinterpret_cast<uint8_t*>(bufferAddress), bufferLength, this);
         datastream::NetworkBuffer *networkBuffer = new datastream::NetworkBuffer(
-            memorySegment, bufferLength, readIndex, originalNetworkBufferRecycler, bufferType, true);
+            memorySegment, bufferLength, readIndex, originalNetworkBufferRecycler, type, true);
         datastream::ReadOnlySlicedNetworkBuffer* readOnlyBuffer =
             new datastream::ReadOnlySlicedNetworkBuffer(networkBuffer, readIndex, bufferLength);
 
@@ -197,7 +202,10 @@ namespace omnistream {
         }
         int gateIndex = this->getChannelInfo().getGateIdx();
         int channelIndex = this->getChannelInfo().getInputChannelIdx();
-        this->remoteDataFetcherBridge->InvokeJavaRemoteDataFetcherResumeConsumption(gateIndex, channelIndex);
+        if (isUnlock) {
+            this->remoteDataFetcherBridge->InvokeJavaRemoteDataFetcherResumeConsumption(gateIndex, channelIndex);
+            isUnlock = false;
+        }
     }
 
     void RemoteInputChannel::CheckpointStarted(const CheckpointBarrier &barrier, std::shared_ptr<ChannelStateWriter> channelStateWriter)

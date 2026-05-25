@@ -140,7 +140,7 @@ namespace omnistream::runtime {
             }
         }
 
-        if (alignedChannels_.size() == 1 && shouldTrackAlignment) {
+        if (alignedChannels_.size() == 1 && alternating_) {
             if (targetChannelCount_ == 1) {
                 MarkAlignmentStartAndEnd(barrier.GetId(), barrier.GetTimestamp());
             } else {
@@ -148,24 +148,16 @@ namespace omnistream::runtime {
             }
         }
 
-        if (alternating_ && currentCheckpointUnaligned_) {
-            if (targetChannelCount_ == 1) {
-                MarkAlignmentStartAndEnd(barrier.GetId(), barrier.GetTimestamp());
-            } else {
-                MarkAlignmentStart(barrier.GetId(), barrier.GetTimestamp());
-            }
-        }
         // We must mark alignment end before calling currentState.barrierReceived which might
         // trigger a checkpoint with unfinished future for alignment duration
-        if (alignedChannels_.size() == (unsigned int)targetChannelCount_ && shouldTrackAlignment) {
+        if (alternating_ && alignedChannels_.size() == (unsigned int)targetChannelCount_) {
             if (targetChannelCount_ > 1) {
                 MarkAlignmentEnd();
             }
-        }
-        if (alternating_ && alignedChannels_.size() == (unsigned int)targetChannelCount_ && currentCheckpointUnaligned_) {
-            MarkAlignmentEnd();
             if (!allBarriersReceivedFuture_V2->IsDone()) {
-                ResetAlignmentTimer();
+                if (barrier.IsCheckpoint()) {
+                    ResetAlignmentTimer();
+                }
                 allBarriersReceivedFuture_V2->Complete();
             }
         }
@@ -186,7 +178,7 @@ namespace omnistream::runtime {
 
         // Register the alignment timeout timer on the first barrier of a timeoutable aligned checkpoint.
         // This follows Flink 1.16.3 semantics: delay = timeout - (now - barrier.timestamp), clamped to 0.
-        if (alternating_ && shouldTrackAlignment &&
+        if (alternating_ && barrier.IsCheckpoint() && shouldTrackAlignment &&
             alignedChannels_.size() == 1 &&
             targetChannelCount_ > 1 &&
             barrier.GetCheckpointOptions()->IsTimeoutable()) {
@@ -197,8 +189,9 @@ namespace omnistream::runtime {
             alignedChannels_.clear();
             lastCancelledOrCompletedCheckpointId_ = currentCheckpointId_;
             LOG_DEBUG(taskName_ + ": All the channels are aligned for checkpoint " + std::to_string(currentCheckpointId_))
-
-            ResetAlignmentTimer();
+            if (barrier.IsCheckpoint()) {
+                ResetAlignmentTimer();
+            }
             if (!allBarriersReceivedFuture_V2->IsDone()) {
                 allBarriersReceivedFuture_V2->Complete();
             }

@@ -59,6 +59,7 @@ namespace omnistream {
         size_t outsize = 0;
         size_t startSize_ = 0;
         bool isNeedPersistence_ = false;
+        bool isUnlock = false;
         int expectSequenceNumber = 0;
         int initialCredit;
         std::recursive_mutex queueMutex;
