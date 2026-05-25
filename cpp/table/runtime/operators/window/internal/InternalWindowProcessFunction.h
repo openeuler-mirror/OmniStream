@@ -32,19 +32,19 @@ public:
 
     virtual long CurrentWatermark() = 0;
 
-    virtual RowData *GetWindowAccumulators(W &window) = 0;
+    virtual RowData *GetWindowAccumulators(const W& window) = 0;
 
-    virtual void SetWindowAccumulators(W &window, RowData *accumulators) = 0;
+    virtual void SetWindowAccumulators(const W& window, RowData *accumulators) = 0;
 
-    virtual void ClearWindowState(W &window) = 0;
+    virtual void ClearWindowState(const W& window) = 0;
 
-    virtual void ClearPreviousState(W window) = 0;
+    virtual void ClearPreviousState(const W& window) = 0;
 
-    virtual void ClearTrigger(W &window) = 0;
+    virtual void ClearTrigger(const W& window) = 0;
 
-    virtual void OnMerge(W &window, std::vector<W> &windows) = 0;
+    virtual void OnMerge(const W& window, std::vector<W> &windows) = 0;
 
-    virtual void DeleteCleanupTimer(W &window) = 0;
+    virtual void DeleteCleanupTimer(const W& window) = 0;
 };
 
 template<typename K, typename W>
@@ -62,14 +62,14 @@ public:
 
     virtual std::vector<W> AssignActualWindows(RowData *inputRow, long timestamp) = 0;
 
-    virtual void PrepareAggregateAccumulatorForEmit(W &window) = 0;
+    virtual void PrepareAggregateAccumulatorForEmit(const W& window) = 0;
 
-    virtual void CleanWindowIfNeeded(W &window, long currentTime) = 0;
+    virtual void CleanWindowIfNeeded(const W& window, long currentTime) = 0;
 
     virtual void Close() {}
 
-    virtual void Open(Context<K, W> *ctx_)
-    {
+    // the input raw pointer will be managed by unique_ptr
+    virtual void Open(Context<K, W> *ctx_) {
         this->ctx = std::unique_ptr<Context<K, W>>(ctx_);
         windowAssigner->Open();
     }
@@ -78,20 +78,20 @@ protected:
     WindowAssigner<W>* windowAssigner;
     NamespaceAggsHandleFunctionBase<W>* windowAggregator;
     long allowedLateness;
-    std::shared_ptr<Context<K, W>> ctx;
+    std::unique_ptr<Context<K, W>> ctx;
 
-    bool IsCleanupTime(W &window, long time) const
+    bool IsCleanupTime(const W& window, long time) const
     {
         return time == CleanupTime(window);
     }
 
-    bool IsWindowLate(W &window) const
+    bool IsWindowLate(const W& window) const
     {
         return windowAssigner->IsEventTime() && CleanupTime(window) <= ctx->CurrentWatermark();
     }
 
 private:
-    long CleanupTime(W &window) const
+    long CleanupTime(const W& window) const
     {
         if (windowAssigner->IsEventTime()) {
             long cleanupTime = window.maxTimestamp() + allowedLateness;

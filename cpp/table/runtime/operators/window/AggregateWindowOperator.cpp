@@ -15,8 +15,6 @@
 #include "table/runtime/operators/aggregate/handler/GroupingWindowAggsCompositeHandler.h"
 #include "table/runtime/operators/aggregate/handler/GroupingWindowAggsSumHandler.h"
 
-template class AggregateWindowOperator<RowData*, TimeWindow>;
-
 template<typename K, typename W>
 std::unique_ptr<NamespaceAggsHandleFunction<W>> AggregateWindowOperator<K, W>::initNamespaceAggsHandleFunctions(const nlohmann::json &aggInfoList) {
     // TODO: namespace is unused in functions, causing WindowOperator only supports session window(each key corresponds to only one window)
@@ -26,7 +24,7 @@ std::unique_ptr<NamespaceAggsHandleFunction<W>> AggregateWindowOperator<K, W>::i
     auto indexOfCountStar = aggInfoList["indexOfCountStar"].get<int>();
 
     // TODO: namespace currently only supports TimeWindow
-    std::vector<std::unique_ptr<NamespaceAggsHandleFunction<TimeWindow>>> functions;
+    std::vector<std::unique_ptr<NamespaceAggsHandleFunction<W>>> functions;
     auto accStartIndex = 0;
     auto valueStartIndex = 0;
     for (int i = 0; i < aggregateCalls.size(); ++i) {
@@ -45,11 +43,11 @@ std::unique_ptr<NamespaceAggsHandleFunction<W>> AggregateWindowOperator<K, W>::i
         // accIndex -> agg function value index in Intermediate results row (accumulators)
         // valueIndex -> agg function value index in results row (output)
         if (aggType == "COUNT") {
-            auto function = std::make_unique<GroupingWindowAggsCountHandler<TimeWindow>>(
+            auto function = std::make_unique<GroupingWindowAggsCountHandler<W>>(
                     aggIndex, aggDataType, accStartIndex, valueStartIndex, filterIndex);
             functions.push_back(std::move(function));
         } else if (aggType == "SUM") {
-            auto function = std::make_unique<GroupingWindowAggsSumHandler<TimeWindow>>(
+            auto function = std::make_unique<GroupingWindowAggsSumHandler<W>>(
                     aggIndex, aggDataType, accStartIndex, valueStartIndex, filterIndex);
             functions.push_back(std::move(function));
         } else {
@@ -64,7 +62,7 @@ std::unique_ptr<NamespaceAggsHandleFunction<W>> AggregateWindowOperator<K, W>::i
         THROW_LOGIC_EXCEPTION("The size of key fields must not exceed output type fields.");
     }
     std::vector<int32_t> valueOutputTypeIds(fullOutputTypeIds.begin() + keyArity, fullOutputTypeIds.end());
-    return std::make_unique<GroupingWindowAggsCompositeHandler<TimeWindow>>(
+    return std::make_unique<GroupingWindowAggsCompositeHandler<W>>(
             std::move(functions),
             this->windowPropertyTypesId,
             std::move(valueOutputTypeIds));
@@ -157,3 +155,26 @@ omnistream::VectorBatch* AggregateWindowOperator<K, W>::createOutputBatch(const 
     }
     return outputBatch;
 }
+
+template<typename K, typename W>
+void AggregateWindowOperator<K, W>::emitWindowResult(const W& window) {
+    this->windowFunction->PrepareAggregateAccumulatorForEmit(window);
+    auto aggResult = std::unique_ptr<RowData>(this->windowAggregator->getValue(window));
+
+    if (this->produceUpdates) {
+        NOT_IMPL_EXCEPTION
+    } else {
+        if (aggResult != nullptr) {
+            // send INSERT
+            if constexpr (KeySelector<K>::isSharedRowKey_) {
+                collect(RowKind::INSERT, this->stateHandler->getCurrentKey().get(), std::move(aggResult));
+            } else {
+                NOT_IMPL_EXCEPTION
+            }
+        }
+        // if the counter is zero, no need to send accumulate
+        // there is no possible skip `if` branch when `produceUpdates` is false
+    }
+}
+
+template class AggregateWindowOperator<std::shared_ptr<RowData>, TimeWindow>;

@@ -15,6 +15,7 @@
 #include "state/KeyGroupRange.h"
 #include "state/rocksdb/RocksDBCachingPriorityQueueSet.h"
 #include "runtime/state/KeyGroupRangeAssignment.h"
+#include "core/utils/type_traits_ext.h"
 
 template <typename K, typename T, typename Comparator>
 class KeyGroupPartitionedPriorityQueue : public KeyGroupedInternalPriorityQueue<T> {

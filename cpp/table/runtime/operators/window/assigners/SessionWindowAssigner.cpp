@@ -14,8 +14,7 @@
 #include <unordered_set>
 
 TimeWindow SessionWindowAssigner::MergeWindow(TimeWindow &curWindow, const TimeWindow &other,
-    std::unordered_set<TimeWindow> &mergedWindow)
-{
+        std::unordered_set<TimeWindow> &mergedWindow) {
     if (curWindow.intersects(other)) {
         mergedWindow.emplace(other);
         return curWindow.cover(other);
@@ -33,31 +32,29 @@ SessionWindowAssigner::SessionWindowAssigner(long sessionGap, bool eventTime)
 }
 
 void SessionWindowAssigner::MergeWindows(const TimeWindow &newWindow, std::set<TimeWindow> *sortedWindows,
-    MergeResultCollector &callback)
-{
+    MergeResultCollector &callback) {
     auto ceiling = sortedWindows->lower_bound(newWindow);
     // upper_bound功能与java set的floor还不一致
     auto floor = sortedWindows->upper_bound(newWindow);
 
-    std::unordered_set<TimeWindow> mergedWindows;
+    reuseMergedWindows->clear();
     TimeWindow mergeResult = newWindow;
     if (ceiling != sortedWindows->end()) {
-        mergeResult = MergeWindow(mergeResult, *ceiling, mergedWindows);
+        mergeResult = MergeWindow(mergeResult, *ceiling, *reuseMergedWindows);
     }
 
     if (floor != sortedWindows->begin()) {
         floor = std::prev(floor);
-        mergeResult = MergeWindow(mergeResult, *floor, mergedWindows);
+        mergeResult = MergeWindow(mergeResult, *floor, *reuseMergedWindows);
     }
 
-    if (!mergedWindows.empty()) {
-        mergedWindows.emplace(newWindow);
-        callback.emplace(mergeResult, std::move(mergedWindows));
+    if (!reuseMergedWindows->empty()) {
+        reuseMergedWindows->emplace(newWindow);
+        callback.emplace(mergeResult, reuseMergedWindows.get());
     }
 }
 
-std::vector<TimeWindow> SessionWindowAssigner::AssignWindows(const RowData *element, long timestamp)
-{
+std::vector<TimeWindow> SessionWindowAssigner::AssignWindows(const RowData *element, long timestamp) {
     return {TimeWindow(timestamp, timestamp + sessionGap)};
 }
 

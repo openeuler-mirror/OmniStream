@@ -28,6 +28,14 @@ public:
         }
     }
 
+    ~LRUMap() {
+        if constexpr (std::is_pointer_v<V>) {
+            for (auto it = cacheMap_.begin(); it != cacheMap_.end(); ++it) {
+                delete it->second.second;
+            }
+        }
+    }
+
     std::optional<V> get(const K& key) {
         auto mapIt = cacheMap_.find(key);
         if (mapIt == cacheMap_.end()) {

@@ -148,7 +148,7 @@ if (uniqueName == OPERATOR_NAME_STREAM_EXPAND) {
         LOG("Operator SlicingWindowOperator address " + std::to_string(reinterpret_cast<long>(op)));
         return static_cast<OneInputStreamOperator *>(op);
     } else if (opConfig.getUniqueName() == OPERATOR_NAME_GROUP_WINDOW_AGG) {
-        auto *op = new AggregateWindowOperator<RowData*, TimeWindow>(opConfig.getDescription(), chainOutput);
+        auto *op = new AggregateWindowOperator<std::shared_ptr<RowData>, TimeWindow>(opConfig.getDescription(), chainOutput);
         op->setup();
         LOG("Operator AggregateWindowOperator address " + std::to_string(reinterpret_cast<long>(op)))
         return static_cast<OneInputStreamOperator *>(op);
@@ -278,7 +278,7 @@ StreamOperator* StreamOperatorFactory::CreateGroupWindowAggOp(OperatorPOD &opCon
                                                               std::shared_ptr<omnistream::OmniStreamTask> task) {
     auto description = opConfig.getDescription();
     nlohmann::json opDescriptionJSON = nlohmann::json::parse(description);
-    auto *op = new AggregateWindowOperator<RowData*, TimeWindow>(opDescriptionJSON, chainOutput);
+    auto *op = new AggregateWindowOperator<std::shared_ptr<RowData>, TimeWindow>(opDescriptionJSON, chainOutput);
     auto processingTimeService = task->createProcessingTimeService();
     op->setProcessingTimeService(processingTimeService);
     op->setup(std::move(task));

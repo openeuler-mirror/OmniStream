@@ -8,16 +8,15 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef FLINK_TNEL_KEYGROUPRANGEASSIGNMENT_H
-#define FLINK_TNEL_KEYGROUPRANGEASSIGNMENT_H
 
-#include <stddef.h>
+#pragma once
 
 #include <thread>
-
+#include "runtime/keyselector/KeySelector.h"
 #include "../../table/data/RowData.h"
 #include "../../core/utils/MathUtils.h"
 #include "data/binary/BinaryRowData.h"
+
 
 template <typename K>
 class KeyGroupRangeAssignment {
@@ -27,13 +26,9 @@ public:
 
     static inline int assignToKeyGroup(K key, int maxParallelism)
     {
-        if constexpr (std::is_same_v<K, RowData*>) {
+        if constexpr (KeySelector<K>::isRowKey_ || KeySelector<K>::isSharedRowKey_) {
             // std::hash<RowData*> uses a simpler hasher. But here we need to keep it same as java
-            int hashCode = key ?  key->hashCode():0;
-            return MathUtils::murmurHash(hashCode) % maxParallelism;
-        }
-        if constexpr (std::is_same_v<K, BinaryRowData*>) {
-            int hashCode = key ?  key->hashCode():0;
+            int hashCode = key ? key->hashCode() : 0;
             return MathUtils::murmurHash(hashCode) % maxParallelism;
         }
         if constexpr (std::is_same_v<K, Object*>) {
@@ -58,6 +53,3 @@ public:
         return result;
     }
 };
-
-
-#endif  // FLINK_TNEL_KEYGROUPRANGEASSIGNMENT_H

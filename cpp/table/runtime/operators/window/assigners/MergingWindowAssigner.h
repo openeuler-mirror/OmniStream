@@ -21,7 +21,7 @@
 template<typename W>
 class MergingWindowAssigner : public WindowAssigner<W> {
 public:
-    using MergeResultCollector = std::unordered_map<W, std::unordered_set<W>>;
+    using MergeResultCollector = std::unordered_map<W, std::unordered_set<W>*>;
 
     virtual void MergeWindows(const W &newWindow, std::set<W> *sortedWindows, MergeResultCollector &callback) = 0;
 };

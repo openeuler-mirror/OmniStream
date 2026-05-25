@@ -304,6 +304,8 @@ public:
             LongSerializer::INSTANCE->serialize(&currentKey, outputSerializer);
         } else if constexpr (std::is_pointer_v<K>) {
             getKeySerializer()->serialize(currentKey, outputSerializer);
+        } else if constexpr (is_shared_ptr_v<K>) {
+            getKeySerializer()->serialize(currentKey.get(), outputSerializer);
         } else {
             getKeySerializer()->serialize(&currentKey, outputSerializer);
         }
@@ -628,6 +630,8 @@ public:
         keyOutputSerializer.writeByte(static_cast<uint32_t>(keyContext->getCurrentKeyGroupIndex()));
         if constexpr (std::is_pointer_v<K>) {
             getKeySerializer()->serialize(currentKey, keyOutputSerializer);
+        } else if constexpr (is_shared_ptr_v<K>) {
+            getKeySerializer()->serialize(currentKey.get(), keyOutputSerializer);
         } else {
             getKeySerializer()->serialize(&currentKey, keyOutputSerializer);
         }
@@ -1042,6 +1046,8 @@ public:
             keyOutputSerializer.writeByte(static_cast<uint32_t>(stateTable->keyContext->getCurrentKeyGroupIndex()));
             if constexpr (std::is_pointer_v<K>) {
                 stateTable->getKeySerializer()->serialize(currentKey, keyOutputSerializer);
+            } else if constexpr (is_shared_ptr_v<K>) {
+                stateTable->getKeySerializer()->serialize(currentKey.get(), keyOutputSerializer);
             } else {
                 stateTable->getKeySerializer()->serialize(&currentKey, keyOutputSerializer);
             }
@@ -1491,6 +1497,8 @@ private:
         outputSerializer.writeByte(static_cast<uint32_t>(keyContext->getCurrentKeyGroupIndex()));
         if constexpr (std::is_pointer_v<K>) {
             getKeySerializer()->serialize(currentKey, outputSerializer);
+        } else if constexpr (is_shared_ptr_v<K>) {
+            getKeySerializer()->serialize(currentKey.get(), outputSerializer);
         } else {
             getKeySerializer()->serialize(&currentKey, outputSerializer);
         }
@@ -1519,6 +1527,8 @@ private:
         outputSerializer.writeByte(static_cast<uint32_t>(keyContext->getCurrentKeyGroupIndex()));
         if constexpr (std::is_pointer_v<K>) {
             getKeySerializer()->serialize(currentKey, outputSerializer);
+        } else if constexpr (is_shared_ptr_v<K>) {
+            getKeySerializer()->serialize(currentKey.get(), outputSerializer);
         } else {
             getKeySerializer()->serialize(&currentKey, outputSerializer);
         }
@@ -1535,6 +1545,8 @@ private:
         outputSerializer.writeByte(static_cast<uint32_t>(keyContext->getCurrentKeyGroupIndex()));
         if constexpr (std::is_pointer_v<K>) {
             getKeySerializer()->serialize(currentKey, outputSerializer);
+        } else if constexpr (is_shared_ptr_v<K>) {
+            getKeySerializer()->serialize(currentKey.get(), outputSerializer);
         } else {
             getKeySerializer()->serialize(&currentKey, outputSerializer);
         }
@@ -1622,9 +1634,12 @@ private:
         outputView_.writeByte(static_cast<uint32_t>(keyContext->getCurrentKeyGroupIndex()));
         if constexpr (std::is_pointer_v<K>) {
             getKeySerializer()->serialize(currentKey, outputView_);
+        } else if constexpr (is_shared_ptr_v<K>) {
+            getKeySerializer()->serialize(currentKey.get(), outputView_);
         } else {
             getKeySerializer()->serialize(&currentKey, outputView_);
         }
+
         if constexpr (std::is_pointer_v<N>) {
             getNamespaceSerializer()->serialize(nameSpace, outputView_);
         } else {

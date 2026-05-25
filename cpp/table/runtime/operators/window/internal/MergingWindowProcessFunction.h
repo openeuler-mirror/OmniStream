@@ -39,9 +39,9 @@ public:
 
     std::vector<W> AssignActualWindows(RowData *inputRow, long timestamp) override;
 
-    void PrepareAggregateAccumulatorForEmit(W &window) override;
+    void PrepareAggregateAccumulatorForEmit(const W& window) override;
 
-    void CleanWindowIfNeeded(W &window, long currentTime) override;
+    void CleanWindowIfNeeded(const W& window, long currentTime) override;
 
 private:
     MergingWindowAssigner<W>* windowAssigner{};

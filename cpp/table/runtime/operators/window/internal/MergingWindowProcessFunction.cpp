@@ -11,25 +11,23 @@
 
 #include "MergingWindowProcessFunction.h"
 
-template class MergingWindowProcessFunction<RowData*, TimeWindow>;
-
 template<typename K, typename W>
 void MergingWindowProcessFunction<K, W>::Open(Context<K, W> *ctx)
 {
     InternalWindowProcessFunction<K, W>::Open(ctx);
 
     // init windowState
-    MapStateDescriptor<W, W> *mapStateDescriptor = new MapStateDescriptor<W, W>("session-window-mapping", windowSerializer, windowSerializer);
+    auto* mapStateDescriptor = new MapStateDescriptor<W, W>("session-window-mapping", windowSerializer, windowSerializer);
     MapState<W, W>* mapState = dynamic_cast<typename WindowOperator<K, W>::WindowContext*>(ctx)->GetPartitionedState(mapStateDescriptor);
     mergingWindows = std::make_unique<MergingWindowSet<K, W>>(windowAssigner, mapState);
 }
 
 template<typename K, typename W>
-std::vector<W> MergingWindowProcessFunction<K, W>::AssignStateNamespace(RowData *keyRowData, long timestamp)
+std::vector<W> MergingWindowProcessFunction<K, W>::AssignStateNamespace(RowData* inputRow, long timestamp)
 {
-    std::vector<W> elementWindows = windowAssigner->AssignWindows(keyRowData, timestamp);
-    mergingWindows->InitializeCache(keyRowData);
-    reuseActualWindows = std::vector<W>();
+    std::vector<W> elementWindows = windowAssigner->AssignWindows(inputRow, timestamp);
+    mergingWindows->InitializeCache(this->ctx->CurrentKey());
+    reuseActualWindows.clear();
 
     auto MergingFunction = [this](W &mergeResult, std::unordered_set<W> &mergedWindows, W &stateWindowResult,
         std::vector<W> &stateWindowsToBeMerged) {
@@ -42,7 +40,7 @@ std::vector<W> MergingWindowProcessFunction<K, W>::AssignStateNamespace(RowData 
         this->ctx->OnMerge(mergeResult, stateWindowsToBeMerged);
 
         // clear registered timers
-        for (W m: mergedWindows) {
+        for (const auto& m: mergedWindows) {
             this->ctx->ClearTrigger(m);
             this->ctx->DeleteCleanupTimer(m);
         }
@@ -54,7 +52,7 @@ std::vector<W> MergingWindowProcessFunction<K, W>::AssignStateNamespace(RowData 
                 targetAcc = this->windowAggregator->createAccumulators(accumulatorArity_);
             }
             this->windowAggregator->setAccumulators(stateWindowResult, targetAcc);
-            for (W w: stateWindowsToBeMerged) {
+            for (const auto& w: stateWindowsToBeMerged) {
                 RowData *acc = this->ctx->GetWindowAccumulators(w);
                 if (acc != nullptr) {
                     this->windowAggregator->merge(w, acc);
@@ -96,7 +94,7 @@ std::vector<W> MergingWindowProcessFunction<K, W>::AssignActualWindows(RowData *
 }
 
 template<typename K, typename W>
-void MergingWindowProcessFunction<K, W>::PrepareAggregateAccumulatorForEmit(W &window)
+void MergingWindowProcessFunction<K, W>::PrepareAggregateAccumulatorForEmit(const W& window)
 {
     W stateWindow = mergingWindows->GetStateWindow(window);
     RowData *acc = this->ctx->GetWindowAccumulators(stateWindow);
@@ -107,7 +105,7 @@ void MergingWindowProcessFunction<K, W>::PrepareAggregateAccumulatorForEmit(W &w
 }
 
 template<typename K, typename W>
-void MergingWindowProcessFunction<K, W>::CleanWindowIfNeeded(W &window, long currentTime)
+void MergingWindowProcessFunction<K, W>::CleanWindowIfNeeded(const W& window, long currentTime)
 {
     if (this->IsCleanupTime(window, currentTime)) {
         this->ctx->ClearTrigger(window);
@@ -119,3 +117,5 @@ void MergingWindowProcessFunction<K, W>::CleanWindowIfNeeded(W &window, long cur
         // do not need to clear previous state, previous state is disabled in session window
     }
 }
+
+template class MergingWindowProcessFunction<shared_ptr<RowData>, TimeWindow>;

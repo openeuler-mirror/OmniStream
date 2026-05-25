@@ -119,7 +119,7 @@ TEST(AggregateWindowOperatorTest, WindowStateTest)
     );
 
     auto *output = new BatchOutputTest();
-    auto *windowAggOperator = dynamic_cast<AggregateWindowOperator<RowData *, TimeWindow> *>(
+    auto *windowAggOperator = dynamic_cast<AggregateWindowOperator<std::shared_ptr<RowData>, TimeWindow> *>(
         omnistream::StreamOperatorFactory::createOperatorAndCollector(opConfig, output));
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
@@ -137,7 +137,7 @@ TEST(AggregateWindowOperatorTest, WindowStateTest)
     windowAggOperator->initializeState(initializer, new LongSerializer());
     windowAggOperator->open();
     // KeyRowData 10, TimeWindow(1742625620000, 1742625630000), Value 1
-    BinaryRowData *bidIdRow = BinaryRowData::createBinaryRowDataWithMem(1);
+    auto bidIdRow = std::shared_ptr<BinaryRowData>(BinaryRowData::createBinaryRowDataWithMem(1));
     bidIdRow->setLong(0, 10);
     TimeWindow timeWindow(1742625620000, 1742625630000);
     windowAggOperator->setCurrentKey(bidIdRow);
@@ -156,7 +156,7 @@ TEST(AggregateWindowOperatorTest, WindowStateTest)
     ASSERT_EQ(windowResult->getArity(), 1);
     ASSERT_EQ(*windowResult->getLong(0), 2);
     // update KeyRowData 20. KeyRowData 20, TimeWindow(1742625620000, 1742625630000), Value 2
-    bidIdRow = BinaryRowData::createBinaryRowDataWithMem(1);
+    bidIdRow = std::shared_ptr<BinaryRowData>(BinaryRowData::createBinaryRowDataWithMem(1));
     bidIdRow->setLong(0, 20);
     windowAggOperator->setCurrentKey(bidIdRow);
     windowResult = windowAggOperator->windowState->value();
@@ -194,7 +194,7 @@ TEST(AggregateWindowOperatorTest, TimeWindowTest)
     );
 
     auto *output = new BatchOutputTest();
-    auto *windowAggOperator = dynamic_cast<AggregateWindowOperator<RowData *, TimeWindow> *>(
+    auto *windowAggOperator = dynamic_cast<AggregateWindowOperator<std::shared_ptr<RowData>, TimeWindow> *>(
         omnistream::StreamOperatorFactory::createOperatorAndCollector(opConfig, output));
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
@@ -212,7 +212,7 @@ TEST(AggregateWindowOperatorTest, TimeWindowTest)
     windowAggOperator->initializeState(initializer, new LongSerializer());
     windowAggOperator->open();
 
-    BinaryRowData *key = BinaryRowData::createBinaryRowDataWithMem(1);
+    auto key = std::shared_ptr<BinaryRowData>(BinaryRowData::createBinaryRowDataWithMem(1));
     key->setLong(0, 2);
     windowAggOperator->setCurrentKey(key);
     BinaryRowData *inputRow = BinaryRowData::createBinaryRowDataWithMem(2);
@@ -248,7 +248,7 @@ TEST(AggregateWindowOperatorTest, JsonTest)
     );
 
     auto *output = new BatchOutputTest();
-    auto *windowAggOperator = dynamic_cast<AggregateWindowOperator<RowData *, TimeWindow> *>(
+    auto *windowAggOperator = dynamic_cast<AggregateWindowOperator<std::shared_ptr<RowData>, TimeWindow> *>(
         omnistream::StreamOperatorFactory::createOperatorAndCollector(opConfig, output));
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();

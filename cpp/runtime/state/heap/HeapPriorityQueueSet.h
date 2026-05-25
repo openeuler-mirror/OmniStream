@@ -13,11 +13,13 @@
 #include <climits>
 #include <vector>
 #include <unordered_set>
+
 #include "HeapPriorityQueue.h"
 #include "runtime/state/KeyGroupRange.h"
 #include "runtime/state/KeyGroupRangeAssignment.h"
 #include "state/KeyGroupedInternalPriorityQueue.h"
 #include "state/restore/KeyGroupEntryIterator.h"
+#include "core/utils/type_traits_ext.h"
 
 /**
  *

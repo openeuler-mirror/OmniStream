@@ -41,4 +41,6 @@ private:
 
     const long sessionGap;
     const bool eventTime;
+
+    std::unique_ptr<std::unordered_set<TimeWindow>> reuseMergedWindows = std::make_unique<std::unordered_set<TimeWindow>>();
 };

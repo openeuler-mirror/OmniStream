@@ -13,7 +13,6 @@
 
 #include <set>
 #include <vector>
-#include <memory>
 #include <functional>
 
 #include "table/runtime/operators/window/assigners/MergingWindowAssigner.h"
@@ -44,4 +43,5 @@ private:
     LRUMap<K, std::set<W>*> cachedSortedWindows{MAPPING_CACHE_SIZE};
     std::set<W>* sortedWindows = nullptr;
     MergingWindowAssigner<W>* windowAssigner;
+    typename MergingWindowAssigner<W>::MergeResultCollector reuseCollector_;
 };

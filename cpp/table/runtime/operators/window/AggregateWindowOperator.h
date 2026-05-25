@@ -45,15 +45,14 @@ public:
             this->windowAggregator = std::move(aggWindowAggregator);
         }
         WindowOperator<K, W>::open();
-        reuseOutput = new JoinedRowData();
+        reuseOutput_ = new JoinedRowData();
     }
 
-    void setCurrentKey(K key) override
-    {
+    void setCurrentKey(K key) override {
         this->stateHandler->setCurrentKey(key);
     }
 
-    void initializeState(StreamTaskStateInitializerImpl* initializer, TypeSerializer* keySerializer) {
+    void initializeState(StreamTaskStateInitializerImpl* initializer, TypeSerializer* keySerializer) override {
         AbstractStreamOperator<K>::SetOperatorID(OneInputStreamOperator::GetOperatorID().toString());
         AbstractStreamOperator<K>::initializeState(initializer, keySerializer);
     };
@@ -66,31 +65,18 @@ public:
         AbstractStreamOperator<K>::notifyCheckpointAborted(checkpointId);
     }
 
-    void emitWindowResult(W &window) override {
-        this->windowFunction->PrepareAggregateAccumulatorForEmit(window);
-        auto aggResult = std::unique_ptr<RowData>(this->windowAggregator->getValue(window));
-
-        if (this->produceUpdates) {
-            NOT_IMPL_EXCEPTION
-        } else {
-            if (aggResult != nullptr) {
-                // send INSERT
-                collect(RowKind::INSERT, this->stateHandler->getCurrentKey(), std::move(aggResult));
-            }
-            // if the counter is zero, no need to send accumulate
-            // there is no possible skip `if` branch when `produceUpdates` is false
-        }
-    }
+protected:
+    void emitWindowResult(const W& window) override;
 
 private:
     void collect(RowKind rowKind, RowData* key, std::unique_ptr<RowData> aggResult) {
-        std::vector<RowData*> resultRows;
-        reuseOutput->replace(key, aggResult.get());
-        reuseOutput->setRowKind(rowKind);
+        reuseResultRows_.clear();
+        reuseOutput_->replace(key, aggResult.get());
+        reuseOutput_->setRowKind(rowKind);
         auto resultRow = std::unique_ptr<BinaryRowData>(BinaryRowDataSerializer::joinedRowToBinaryRow(
-            reuseOutput, outputTypeIds));
-        resultRows.push_back(resultRow.get());
-        auto resultBatch = createOutputBatch(resultRows);
+            reuseOutput_, outputTypeIds));
+        reuseResultRows_.push_back(resultRow.get());
+        auto resultBatch = createOutputBatch(reuseResultRows_);
         collectOutputBatch(collector, resultBatch);
     }
 
@@ -105,6 +91,7 @@ private:
     Output* output;
     TimestampedCollector* collector;
     std::unique_ptr<NamespaceAggsHandleFunction<W>> aggWindowAggregator;
-    JoinedRowData* reuseOutput;
+    JoinedRowData* reuseOutput_;
+    std::vector<RowData*> reuseResultRows_;
     std::vector<int32_t> outputTypeIds;
 };
