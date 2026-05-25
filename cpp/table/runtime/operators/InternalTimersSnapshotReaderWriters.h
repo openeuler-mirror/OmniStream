@@ -32,6 +32,8 @@
 #include "runtime/state/restore/RawKeyedStateInputStreamProxy.h"
 #include "table/runtime/operators/InternalTimersSnapshot.h"
 #include "table/runtime/operators/window/TimeWindow.h"
+#include "table/typeutils/BinaryRowDataSerializer.h"
+#include "table/typeutils/RowDataSerializer.h"
 
 /**
  * C++ counterpart of Flink's InternalTimersSnapshotReaderWriters.
@@ -50,6 +52,7 @@ public:
     struct SnapshotDescriptor {
         std::string className;
         int32_t version = 0;
+        int32_t binaryRowNumFields = -1;
     };
 
     static constexpr int32_t SIMPLE_TYPE_SERIALIZER_SNAPSHOT_VERSION = 3;
@@ -65,13 +68,16 @@ public:
     static constexpr const char *TIME_WINDOW_SERIALIZER_SNAPSHOT =
         "org.apache.flink.streaming.api.windowing.windows.TimeWindow$Serializer$TimeWindowSerializerSnapshot";
     static constexpr const char *BINARY_ROW_DATA_SERIALIZER_SNAPSHOT =
-    "org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer$BinaryRowDataSerializerSnapshot";
+        "org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer$BinaryRowDataSerializerSnapshot";
 
     static void writeVersionedSnapshot(KeyedStateCheckpointOutputStream *out, TypeSerializer *serializer)
     {
         const char *snapshotClassName = snapshotClassNameForSerializer(serializer);
         out->writeUTF(snapshotClassName);
         out->writeInt(SIMPLE_TYPE_SERIALIZER_SNAPSHOT_VERSION);
+        if (isBinaryRowDataSerializerSnapshot(snapshotClassName)) {
+            out->writeInt(getBinaryRowSerializerArity(serializer));
+        }
         // Flink SimpleTypeSerializerSnapshot version 3 has an empty payload.
     }
 
@@ -85,6 +91,9 @@ public:
                 << descriptor.version << ", className=" << descriptor.className);
             THROW_LOGIC_EXCEPTION("Unsupported Flink timer serializer snapshot version: "
                 << descriptor.version << ", className=" << descriptor.className)
+        }
+        if (isBinaryRowDataSerializerSnapshot(descriptor.className)) {
+            descriptor.binaryRowNumFields = in->readInt();
         }
         // Flink SimpleTypeSerializerSnapshot version 3 has an empty payload.
         return descriptor;
@@ -109,6 +118,14 @@ public:
         if (descriptor.className == TIME_WINDOW_SERIALIZER_SNAPSHOT) {
             static TimeWindow::Serializer serializer;
             return &serializer;
+        }
+        if (descriptor.className == BINARY_ROW_DATA_SERIALIZER_SNAPSHOT) {
+            if (fallback != nullptr && fallback->getBackendId() == BackendDataType::ROW_BK) {
+                return fallback;
+            }
+            if (descriptor.binaryRowNumFields >= 0) {
+                return new BinaryRowDataSerializer(descriptor.binaryRowNumFields);
+            }
         }
         if (fallback != nullptr) {
             return fallback;
@@ -139,6 +156,8 @@ private:
                 return VOID_NAMESPACE_SERIALIZER_SNAPSHOT;
             case BackendDataType::TIME_WINDOW_BK:
                 return TIME_WINDOW_SERIALIZER_SNAPSHOT;
+            case BackendDataType::ROW_BK:
+                return BINARY_ROW_DATA_SERIALIZER_SNAPSHOT;
             default:
                 break;
         }
@@ -159,7 +178,8 @@ private:
         if (name.find("TimeWindow") != std::string::npos) {
             return TIME_WINDOW_SERIALIZER_SNAPSHOT;
         }
-        if (name.find("BinaryRowDataSerializer")!=std::string::npos) {
+        if (name.find("BinaryRowDataSerializer") != std::string::npos
+            || name.find("RowDataSerializer") != std::string::npos) {
             return BINARY_ROW_DATA_SERIALIZER_SNAPSHOT;
         }
         INFO_RELEASE(
@@ -167,6 +187,30 @@ private:
             << name << ", backendId=" << serializer->getBackendId());
         THROW_LOGIC_EXCEPTION("Unsupported timer serializer for Flink 1.16.3 CP format. serializerName=" << name
             << ", backendId=" << serializer->getBackendId())
+    }
+
+    static bool isBinaryRowDataSerializerSnapshot(const std::string &className)
+    {
+        return className == BINARY_ROW_DATA_SERIALIZER_SNAPSHOT;
+    }
+
+    static bool isBinaryRowDataSerializerSnapshot(const char *className)
+    {
+        return className != nullptr && std::string(className) == BINARY_ROW_DATA_SERIALIZER_SNAPSHOT;
+    }
+
+    static int32_t getBinaryRowSerializerArity(TypeSerializer *serializer)
+    {
+        if (auto *binaryRowSerializer = dynamic_cast<BinaryRowDataSerializer *>(serializer)) {
+            return binaryRowSerializer->getNumFields();
+        }
+        if (auto *rowSerializer = dynamic_cast<RowDataSerializer *>(serializer)) {
+            return rowSerializer->getArity();
+        }
+
+        INFO_RELEASE("Error: getBinaryRowSerializerArity Cannot determine BinaryRowDataSerializer arity. serializerName="
+            << (serializer == nullptr || serializer->getName() == nullptr ? "" : serializer->getName()));
+        THROW_LOGIC_EXCEPTION("Cannot determine BinaryRowDataSerializer arity for Flink timer snapshot.")
     }
 };
 
@@ -264,7 +308,12 @@ private:
                 INFO_RELEASE("Error: readValue Cannot deserialize pointer timer value without serializer.");
                 THROW_LOGIC_EXCEPTION("Cannot deserialize pointer timer value without serializer.")
             }
-            return static_cast<T>(serializer->deserialize(*in));
+            auto *value = static_cast<T>(serializer->deserialize(*in));
+            if constexpr (std::is_base_of_v<RowData, std::remove_pointer_t<T>>) {
+                return value == nullptr ? nullptr : static_cast<T>(value->copy());
+            } else {
+                return value;
+            }
         } else {
             if (serializer == nullptr) {
                 INFO_RELEASE("Error: readValue Cannot deserialize timer value without serializer.");

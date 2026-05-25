@@ -26,6 +26,9 @@
 #include "InternalTimerServiceSerializationProxy.h"
 #include "InternalTimersSnapshotReaderWriters.h"
 #include <memory>
+#include <string>
+#include <type_traits>
+#include <unordered_map>
 #include <vector>
 #include <utility>
 
@@ -83,7 +86,10 @@ public:
 
     void advanceWatermark(Watermark *watermark);
 
-    void snapshotToRawKeyedState(KeyedStateCheckpointOutputStream *stateCheckpointOutputStream, std::string operatorName);
+    void snapshotToRawKeyedState(
+        KeyedStateCheckpointOutputStream *stateCheckpointOutputStream,
+        std::string operatorName,
+        int64_t checkpointId = -1);
 
     int32_t getRegisteredTimerServiceCount() const;
 
@@ -106,6 +112,19 @@ private:
     int maxNumberOfSubtasks;
     std::shared_ptr<omnistream::OmniTaskBridge> omniTaskBridge;
     TypeSerializer *keySerializerForRestore = nullptr;
+    int64_t activeSnapshotCheckpointId = -1;
+    int64_t snapshotEventTimerCount = 0;
+    int64_t snapshotProcessingTimerCount = 0;
+    int32_t snapshotWrittenKeyGroupCount = 0;
+    int32_t snapshotNonEmptyKeyGroupCount = 0;
+    int32_t snapshotNonEmptyServiceKeyGroupCount = 0;
+    int64_t restoreEventTimerCount = 0;
+    int64_t restoreProcessingTimerCount = 0;
+    int32_t restoreReadKeyGroupCount = 0;
+    int32_t restoreNonEmptyKeyGroupCount = 0;
+    int32_t restoreNonEmptyServiceKeyGroupCount = 0;
+    int32_t restoreSkippedHandleCount = 0;
+    int32_t activeSnapshotKeyGroupId = -1;
     static constexpr int MIN_CAPACITY_OF_TIMER_QUEUE = 128;
 
     template <typename N>
@@ -139,6 +158,7 @@ private:
         FlinkTimerSerializerSnapshots::SnapshotDescriptor namespaceSerializerSnapshot,
         int32_t keyGroupIdx,
         int32_t version);
+
 };
 
 template <typename K>
@@ -197,6 +217,13 @@ InternalTimerServiceImpl<K, N> *InternalTimeServiceManager<K>::registerOrGetTime
 
             timerService = new InternalTimerServiceImpl<K, N>(localKeyGroupRange, keyContext, processingTimeService, processingTimerQueue, eventTimerQueue);
             timerServicesMap.emplace(name, timerService);
+            INFO_RELEASE("TIMER_CP_QUEUE_CREATE backend=HEAP_KEYED"
+                << ", managerPtr=" << reinterpret_cast<uintptr_t>(this)
+                << ", timerServicePtr=" << reinterpret_cast<uintptr_t>(timerService)
+                << ", timerServiceName=" << name
+                << ", processingStateName=" << PROCESSING_TIMER_PREFIX + name
+                << ", eventStateName=" << EVENT_TIMER_PREFIX + name
+                << ", registeredTimerServiceCountNow=" << getRegisteredTimerServiceCount());
         } else if (auto factory = dynamic_cast<RocksdbKeyedStateBackend<K>*>(priorityQueueSetFactory)) {
             auto processingTimerQueue = factory->template create<std::shared_ptr<TimerType>, TimerComparator>(
                     PROCESSING_TIMER_PREFIX + name,
@@ -207,13 +234,19 @@ InternalTimerServiceImpl<K, N> *InternalTimeServiceManager<K>::registerOrGetTime
 
             timerService = new InternalTimerServiceImpl<K, N>(localKeyGroupRange, keyContext, processingTimeService, processingTimerQueue, eventTimerQueue);
             timerServicesMap.emplace(name, timerService);
+            INFO_RELEASE("TIMER_CP_QUEUE_CREATE backend=ROCKSDB_KEYED"
+                << ", managerPtr=" << reinterpret_cast<uintptr_t>(this)
+                << ", timerServicePtr=" << reinterpret_cast<uintptr_t>(timerService)
+                << ", timerServiceName=" << name
+                << ", processingStateName=" << PROCESSING_TIMER_PREFIX + name
+                << ", eventStateName=" << EVENT_TIMER_PREFIX + name
+                << ", registeredTimerServiceCountNow=" << getRegisteredTimerServiceCount());
         } else {
             THROW_LOGIC_EXCEPTION("Unsupported priorityQueueSetFactory")
         }
     } else {
         timerService = static_cast<InternalTimerServiceImpl<K, N>*>(it->second);
     }
-    INFO_RELEASE("Successfully register or get timerService, timerService name: " << name)
     return timerService;
 }
 
@@ -232,17 +265,36 @@ template <typename K>
 void InternalTimeServiceManager<K>::restoreRawKeyedState(
     const std::vector<std::shared_ptr<KeyedStateHandle>> &rawKeyedStateHandles)
 {
+    restoreEventTimerCount = 0;
+    restoreProcessingTimerCount = 0;
+    restoreReadKeyGroupCount = 0;
+    restoreNonEmptyKeyGroupCount = 0;
+    restoreNonEmptyServiceKeyGroupCount = 0;
+    restoreSkippedHandleCount = 0;
+
     if (rawKeyedStateHandles.empty()) {
+        INFO_RELEASE("TIMER_CP_RESTORE_SUMMARY rawHandleCount=0"
+            << ", managerPtr=" << reinterpret_cast<uintptr_t>(this)
+            << ", skippedHandleCount=0"
+            << ", restoredKeyGroupCount=0"
+            << ", nonEmptyKeyGroupCount=0"
+            << ", nonEmptyServiceKeyGroupCount=0"
+            << ", eventTimerCount=0"
+            << ", processingTimerCount=0"
+            << ", totalTimerCount=0"
+            << ", localKeyGroupRange=" << localKeyGroupRange->ToString());
         return;
     }
 
     for (const auto &handle : rawKeyedStateHandles) {
         if (handle == nullptr) {
+            ++restoreSkippedHandleCount;
             continue;
         }
 
         auto intersection = handle->GetIntersection(*localKeyGroupRange);
         if (intersection == nullptr) {
+            ++restoreSkippedHandleCount;
             continue;
         }
 
@@ -254,6 +306,17 @@ void InternalTimeServiceManager<K>::restoreRawKeyedState(
 
         restoreRawKeyGroupState(keyGroupsStateHandle);
     }
+
+    INFO_RELEASE("TIMER_CP_RESTORE_SUMMARY rawHandleCount=" << rawKeyedStateHandles.size()
+        << ", managerPtr=" << reinterpret_cast<uintptr_t>(this)
+        << ", skippedHandleCount=" << restoreSkippedHandleCount
+        << ", restoredKeyGroupCount=" << restoreReadKeyGroupCount
+        << ", nonEmptyKeyGroupCount=" << restoreNonEmptyKeyGroupCount
+        << ", nonEmptyServiceKeyGroupCount=" << restoreNonEmptyServiceKeyGroupCount
+        << ", eventTimerCount=" << restoreEventTimerCount
+        << ", processingTimerCount=" << restoreProcessingTimerCount
+        << ", totalTimerCount=" << (restoreEventTimerCount + restoreProcessingTimerCount)
+        << ", localKeyGroupRange=" << localKeyGroupRange->ToString());
 }
 
 template <typename K>
@@ -312,6 +375,9 @@ void InternalTimeServiceManager<K>::readTimersForKeyGroup(
     int32_t version)
 {
     int32_t serviceCount = in->readInt();
+    ++restoreReadKeyGroupCount;
+    int64_t keyGroupEventTimerCountBefore = restoreEventTimerCount;
+    int64_t keyGroupProcessingTimerCountBefore = restoreProcessingTimerCount;
 
     for (int32_t i = 0; i < serviceCount; ++i) {
         std::string serviceName = in->readUTF();
@@ -348,6 +414,12 @@ void InternalTimeServiceManager<K>::readTimersForKeyGroup(
                 break;
         }
     }
+
+    int64_t keyGroupEventTimerCount = restoreEventTimerCount - keyGroupEventTimerCountBefore;
+    int64_t keyGroupProcessingTimerCount = restoreProcessingTimerCount - keyGroupProcessingTimerCountBefore;
+    if (keyGroupEventTimerCount + keyGroupProcessingTimerCount > 0) {
+        ++restoreNonEmptyKeyGroupCount;
+    }
 }
 
 template <typename K>
@@ -366,6 +438,13 @@ void InternalTimeServiceManager<K>::readTimerServiceForNamespace(
         std::move(namespaceSerializerSnapshot),
         keySerializerForRestore);
     InternalTimersSnapshot<K, N> timersSnapshot = reader->readTimersSnapshot(in);
+    int64_t eventTimerCount = static_cast<int64_t>(timersSnapshot.getEventTimeTimers().size());
+    int64_t processingTimerCount = static_cast<int64_t>(timersSnapshot.getProcessingTimeTimers().size());
+    restoreEventTimerCount += eventTimerCount;
+    restoreProcessingTimerCount += processingTimerCount;
+    if (eventTimerCount + processingTimerCount > 0) {
+        ++restoreNonEmptyServiceKeyGroupCount;
+    }
 
     auto *timerService = registerOrGetTimerServiceForRestore<N>(
         serviceName,
@@ -377,7 +456,8 @@ void InternalTimeServiceManager<K>::readTimerServiceForNamespace(
 template <typename K>
 inline void InternalTimeServiceManager<K>::snapshotToRawKeyedState(
     KeyedStateCheckpointOutputStream *stateCheckpointOutputStream,
-    std::string operatorName)
+    std::string operatorName,
+    int64_t checkpointId)
 {
     if (stateCheckpointOutputStream == nullptr) {
         INFO_RELEASE("Error: snapshotToRawKeyedState Raw keyed state output stream is null for operator " << operatorName);
@@ -385,19 +465,71 @@ inline void InternalTimeServiceManager<K>::snapshotToRawKeyedState(
     }
 
     try {
+        activeSnapshotCheckpointId = checkpointId;
+        snapshotEventTimerCount = 0;
+        snapshotProcessingTimerCount = 0;
+        snapshotWrittenKeyGroupCount = 0;
+        snapshotNonEmptyKeyGroupCount = 0;
+        snapshotNonEmptyServiceKeyGroupCount = 0;
         for (int32_t keyGroupIdx : stateCheckpointOutputStream->getKeyGroupList()) {
+            activeSnapshotKeyGroupId = keyGroupIdx;
             stateCheckpointOutputStream->startNewKeyGroup(keyGroupIdx);
             InternalTimerServiceSerializationProxy<K> proxy(this, keyGroupIdx);
             proxy.write(stateCheckpointOutputStream);
         }
     } catch (const std::exception &e) {
+        INFO_RELEASE("TIMER_CP_SNAPSHOT_ABORT checkpointId=" << checkpointId
+            << ", managerPtr=" << reinterpret_cast<uintptr_t>(this)
+            << ", operatorName=" << operatorName
+            << ", phase=writeKeyGroups"
+            << ", activeKeyGroupId=" << activeSnapshotKeyGroupId
+            << ", writtenKeyGroupCount=" << snapshotWrittenKeyGroupCount
+            << ", registeredTimerServiceCount=" << getRegisteredTimerServiceCount()
+            << ", int64TimerServiceCount=" << timerServicesInt64.size()
+            << ", windowTimerServiceCount=" << timerServicesWindow.size()
+            << ", voidTimerServiceCount=" << timerServicesVoidNameSpace.size()
+            << ", error=" << e.what());
+        activeSnapshotCheckpointId = -1;
+        activeSnapshotKeyGroupId = -1;
         INFO_RELEASE("Error: snapshotToRawKeyedState Could not write timer service of operator "
             << operatorName << " to raw keyed checkpoint state stream.");
         THROW_LOGIC_EXCEPTION("Could not write timer service of operator " << operatorName
             << " to raw keyed checkpoint state stream. Root cause: " << e.what())
     }
 
-    stateCheckpointOutputStream->close();
+    try {
+        stateCheckpointOutputStream->close();
+    } catch (const std::exception &e) {
+        INFO_RELEASE("TIMER_CP_SNAPSHOT_ABORT checkpointId=" << checkpointId
+            << ", managerPtr=" << reinterpret_cast<uintptr_t>(this)
+            << ", operatorName=" << operatorName
+            << ", phase=closeRawKeyedStateStream"
+            << ", activeKeyGroupId=" << activeSnapshotKeyGroupId
+            << ", writtenKeyGroupCount=" << snapshotWrittenKeyGroupCount
+            << ", registeredTimerServiceCount=" << getRegisteredTimerServiceCount()
+            << ", int64TimerServiceCount=" << timerServicesInt64.size()
+            << ", windowTimerServiceCount=" << timerServicesWindow.size()
+            << ", voidTimerServiceCount=" << timerServicesVoidNameSpace.size()
+            << ", error=" << e.what());
+        activeSnapshotCheckpointId = -1;
+        activeSnapshotKeyGroupId = -1;
+        throw;
+    }
+    INFO_RELEASE("TIMER_CP_SNAPSHOT_SUMMARY checkpointId=" << checkpointId
+        << ", managerPtr=" << reinterpret_cast<uintptr_t>(this)
+        << ", operatorName=" << operatorName
+        << ", keyGroupCount=" << snapshotWrittenKeyGroupCount
+        << ", nonEmptyKeyGroupCount=" << snapshotNonEmptyKeyGroupCount
+        << ", registeredTimerServiceCount=" << getRegisteredTimerServiceCount()
+        << ", int64TimerServiceCount=" << timerServicesInt64.size()
+        << ", windowTimerServiceCount=" << timerServicesWindow.size()
+        << ", voidTimerServiceCount=" << timerServicesVoidNameSpace.size()
+        << ", nonEmptyServiceKeyGroupCount=" << snapshotNonEmptyServiceKeyGroupCount
+        << ", eventTimerCount=" << snapshotEventTimerCount
+        << ", processingTimerCount=" << snapshotProcessingTimerCount
+        << ", totalTimerCount=" << (snapshotEventTimerCount + snapshotProcessingTimerCount));
+    activeSnapshotCheckpointId = -1;
+    activeSnapshotKeyGroupId = -1;
 }
 
 
@@ -414,10 +546,20 @@ inline void InternalTimeServiceManager<K>::writeTimersForKeyGroup(
     KeyedStateCheckpointOutputStream *out,
     int32_t keyGroupIdx)
 {
+    ++snapshotWrittenKeyGroupCount;
+    int64_t keyGroupEventTimerCountBefore = snapshotEventTimerCount;
+    int64_t keyGroupProcessingTimerCountBefore = snapshotProcessingTimerCount;
+
     out->writeInt(getRegisteredTimerServiceCount());
     writeTimerServiceMap<int64_t>(out, timerServicesInt64, keyGroupIdx);
     writeTimerServiceMap<TimeWindow>(out, timerServicesWindow, keyGroupIdx);
     writeTimerServiceMap<VoidNamespace>(out, timerServicesVoidNameSpace, keyGroupIdx);
+
+    int64_t keyGroupEventTimerCount = snapshotEventTimerCount - keyGroupEventTimerCountBefore;
+    int64_t keyGroupProcessingTimerCount = snapshotProcessingTimerCount - keyGroupProcessingTimerCountBefore;
+    if (keyGroupEventTimerCount + keyGroupProcessingTimerCount > 0) {
+        ++snapshotNonEmptyKeyGroupCount;
+    }
 }
 
 template <typename K>
@@ -433,6 +575,13 @@ inline void InternalTimeServiceManager<K>::writeTimerServiceMap(
         out->writeUTF(serviceName);
 
         auto timersSnapshot = timerService->snapshotTimersForKeyGroup(keyGroupIdx);
+        int64_t eventTimerCount = static_cast<int64_t>(timersSnapshot.getEventTimeTimers().size());
+        int64_t processingTimerCount = static_cast<int64_t>(timersSnapshot.getProcessingTimeTimers().size());
+        snapshotEventTimerCount += eventTimerCount;
+        snapshotProcessingTimerCount += processingTimerCount;
+        if (eventTimerCount + processingTimerCount > 0) {
+            ++snapshotNonEmptyServiceKeyGroupCount;
+        }
         auto writer = InternalTimersSnapshotReaderWriters<K, N>::getWriterForVersion(
             InternalTimerServiceSerializationProxy<K>::VERSION,
             std::move(timersSnapshot),

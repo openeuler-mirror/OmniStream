@@ -13,6 +13,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "runtime/state/metainfo/StateMetaInfoSnapshot.h"
@@ -23,6 +24,12 @@ public:
     virtual ~HeapPriorityQueueSnapshotRestoreWrapperBase() = default;
 
     virtual std::shared_ptr<StateMetaInfoSnapshot> snapshotMetaInfo() = 0;
+
+    virtual const std::string &getStateName() const
+    {
+        static const std::string emptyName;
+        return emptyName;
+    }
 
     virtual std::unique_ptr<SingleStateIterator> createSnapshotIterator(
         int kvStateId,

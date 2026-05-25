@@ -142,9 +142,10 @@ public:
     }
     bool requiresLegacySynchronousTimerSnapshots(SnapshotType *checkpointType) override
     {
-        return heapPriorityQueuesManager_ != nullptr
+        bool requiresLegacy = heapPriorityQueuesManager_ != nullptr
             && checkpointType != nullptr
             && !checkpointType->IsSavepoint();
+        return requiresLegacy;
     }
 
     std::shared_ptr<SavepointResources> savepoint() override
@@ -292,11 +293,19 @@ public:
             TypeSerializer* byteOrderedElementSerializer,
             bool allowFutureMetadataUpdates) {
         if (heapPriorityQueuesManager_ != nullptr) {
+            INFO_RELEASE("TIMER_PQ_CREATE backend=ROCKSDB_KEYED"
+                << ", pqStorage=HEAP"
+                << ", backendPtr=" << reinterpret_cast<uintptr_t>(this)
+                << ", stateName=" << stateName);
             return heapPriorityQueuesManager_->createOrUpdate<K, T, Comparator>(
                     stateName, byteOrderedElementSerializer, allowFutureMetadataUpdates);
         }
 
         if (auto factory = dynamic_pointer_cast<RocksDBPriorityQueueSetFactory>(priorityQueueSetFactory_)) {
+            INFO_RELEASE("TIMER_PQ_CREATE backend=ROCKSDB_KEYED"
+                << ", pqStorage=ROCKSDB"
+                << ", backendPtr=" << reinterpret_cast<uintptr_t>(this)
+                << ", stateName=" << stateName);
             return factory->create<K, T, Comparator>(stateName, byteOrderedElementSerializer, allowFutureMetadataUpdates);
         }
         THROW_LOGIC_EXCEPTION("RocksdbKeyedStateBackend failed to create priority queue.")

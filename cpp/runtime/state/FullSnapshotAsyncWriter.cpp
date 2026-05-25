@@ -4,8 +4,6 @@
 #include "KeyGroupRangeOffsets.h"
 #include "KeyGroupsSavepointStateHandle.h"
 #include "KeyGroupsStateHandle.h"
-#include <sstream>
-#include <iomanip>
 #include "common.h"
 FullSnapshotAsyncWriter::FullSnapshotAsyncWriter(
     SnapshotType *snapshotType,
@@ -31,7 +29,9 @@ std::shared_ptr<SnapshotResult<KeyedStateHandle>> FullSnapshotAsyncWriter::get(
         auto *kgRange = snapshotResources_->getKeyGroupRange();
         auto keyGroupRangeOffsets = std::make_shared<KeyGroupRangeOffsets>(*kgRange);
         CheckpointStateOutputStreamProxy stream(bridge, checkpointId_, checkpointOptions_);
-        stream.writeMetadata(snapshotResources_->getMetaInfoSnapshots(), keySerializer_);
+        const auto &metaInfoSnapshots = snapshotResources_->getMetaInfoSnapshots();
+        stream.writeMetadata(metaInfoSnapshots, keySerializer_);
+
         std::vector<int8_t> previousKey;
         std::vector<int8_t> previousValue;
         mergeIterator = snapshotResources_->createKVStateIterator();

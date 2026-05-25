@@ -117,7 +117,7 @@ public:
         return serializedKeys_.size();
     }
 
-    const std::string &getStateName() const
+    const std::string &getStateName() const override
     {
         static const std::string emptyName;
         return metaInfo_ == nullptr ? emptyName : metaInfo_->getName();

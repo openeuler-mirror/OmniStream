@@ -186,7 +186,9 @@ template <typename K, typename N>
 void InternalTimerServiceImpl<K, N>::registerProcessingTimeTimer(N nameSpace, int64_t time)
 {
     auto oldHead = processingTimeTimersQueue->peek();
-    if (processingTimeTimersQueue->add(std::make_shared<TimerHeapInternalTimer<K, N>>(time, keyContext->getCurrentKey(), nameSpace))) {
+    bool newHead = processingTimeTimersQueue->add(
+        std::make_shared<TimerHeapInternalTimer<K, N>>(time, keyContext->getCurrentKey(), nameSpace));
+    if (newHead) {
         int64_t nextTriggerTime = oldHead != nullptr ? oldHead->getTimestamp() : INT64_MAX;
         if (time < nextTriggerTime) {
             processingTimeService->registerTimer(time, this);
@@ -220,7 +222,8 @@ void InternalTimerServiceImpl<K, N>::deleteProcessingTimeTimer(N nameSpace, int6
 template <typename K, typename N>
 void InternalTimerServiceImpl<K, N>::registerEventTimeTimer(N nameSpace, int64_t time)
 {
-    eventTimeTimersQueue->add(std::make_shared<TimerHeapInternalTimer<K, N>>(time, keyContext->getCurrentKey(), nameSpace));
+    eventTimeTimersQueue->add(
+        std::make_shared<TimerHeapInternalTimer<K, N>>(time, keyContext->getCurrentKey(), nameSpace));
 }
 
 template <typename K, typename N>
@@ -233,7 +236,6 @@ void InternalTimerServiceImpl<K, N>::deleteEventTimeTimer(N nameSpace, int64_t t
 template <typename K, typename N>
 void InternalTimerServiceImpl<K, N>::deleteFirstEventTimeTimer()
 {
-    auto timer = eventTimeTimersQueue->peek();
     eventTimeTimersQueue->poll();
 }
 template <typename K, typename N>
