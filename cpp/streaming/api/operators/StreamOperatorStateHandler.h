@@ -149,7 +149,6 @@ public:
         bool isUsingCustomRawKeyedState,
         const std::shared_ptr<OmniTaskBridge>& bridge)
     {
-        INFO_RELEASE("aaa handle SnapshotState")
         KeyGroupRange *keyGroupRange = KeyGroupRange::EMPTY_KEY_GROUP_RANGE();
         if (keyedStateBackend != nullptr) {
             keyGroupRange = keyedStateBackend->getKeyGroupRange();
@@ -199,7 +198,6 @@ public:
         try {
             if (timeServiceManager != nullptr) {
                 if (keyedStateBackend == nullptr) {
-                    INFO_RELEASE("aaa keyedStateBackend should be available")
                     THROW_LOGIC_EXCEPTION("keyedStateBackend should be available with timeServiceManager");
                 }
                 AbstractKeyedStateBackend<K>* abstractBackend =
@@ -209,13 +207,11 @@ public:
                     abstractBackend && abstractBackend->requiresLegacySynchronousTimerSnapshots(checkpointOptions->GetCheckpointType());
                 if (requiresLegacyRawKeyedStateSnapshots) {
                     if (isUsingCustomRawKeyedState) {
-                        INFO_RELEASE("aaa Attempting to snapshot timers to raw keyed state")
                         THROW_LOGIC_EXCEPTION("Attempting to snapshot timers to raw keyed state, but this operator has custom raw keyed state to write.");
                     }
                     timeServiceManager->snapshotToRawKeyedState(snapshotContext->getRawKeyedOperatorStateOutput(), operatorName);
                 }
             }
-            INFO_RELEASE("aaa stram snapshot:"<< typeid(*streamOperator).name());
             streamOperator->snapshotState(snapshotContext);
             snapshotInProgress->setKeyedStateRawFuture(snapshotContext->getKeyedStateStreamFuture());
             snapshotInProgress->setOperatorStateRawFuture(snapshotContext->getOperatorStateStreamFuture());

@@ -545,35 +545,29 @@ OperatorSnapshotFutures *OperatorChainV2::CheckpointStreamOperator(StreamOperato
     CheckpointStreamFactory* storageLocation, std::shared_ptr<Supplier<bool>> isRunning,
     const std::shared_ptr<OmniTaskBridge>& bridge)
 {
-    INFO_RELEASE("aaa  op type:" << typeid(*op).name());
     try {
         auto aop = dynamic_cast<AbstractStreamOperator<RowData *>*>(op);
         if (aop) {
-            INFO_RELEASE("aaa  CheckpointStreamOperator 222")
             return aop->SnapshotState(checkpointMetaData.GetCheckpointId(), checkpointMetaData.GetTimestamp(),
                                       checkpointOptions, storageLocation, bridge);
         }
         auto sop = dynamic_cast<AbstractStreamOperator<Object *>*>(op);
         if (sop) {
-            INFO_RELEASE("aaa  CheckpointStreamOperator 333")
             return sop->SnapshotState(checkpointMetaData.GetCheckpointId(), checkpointMetaData.GetTimestamp(),
                                       checkpointOptions, storageLocation, bridge);
         }
         auto lop = dynamic_cast<AbstractStreamOperator<long> *>(op);
         if (lop) {
-            INFO_RELEASE("aaa  CheckpointStreamOperator 444")
             return lop->SnapshotState(checkpointMetaData.GetCheckpointId(), checkpointMetaData.GetTimestamp(),
                                       checkpointOptions, storageLocation, bridge);
         }
         /* 部分算子存在菱形继承问题，需要特殊处理，例如：SinkWriterOperator [OneInputStreamOperator, AbstractStreamOperator] -> StreamOperator */
         auto vop = dynamic_cast<AbstractStreamOperator<void*>*>(op);
         if (vop) {
-            INFO_RELEASE("aaa  CheckpointStreamOperator 333")
             return vop->SnapshotState(checkpointMetaData.GetCheckpointId(), checkpointMetaData.GetTimestamp(),
                                       checkpointOptions, storageLocation, bridge);
         }
         /* 规避：增加其他处理 */
-        INFO_RELEASE("aaa  CheckpointStreamOperator 444")
         return op->SnapshotState(checkpointMetaData.GetCheckpointId(), checkpointMetaData.GetTimestamp(),
                                       checkpointOptions, storageLocation, bridge);
     } catch (...) {
