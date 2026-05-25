@@ -18,7 +18,6 @@
 
 #include <array>
 
-#include "../../../core/include/common.h"
 #include "runtime/state/KeyedStateCheckpointOutputStream.h"
 #include "runtime/state/restore/RawKeyedStateInputStreamProxy.h"
 

@@ -29,8 +29,6 @@
 #include <vector>
 #include <utility>
 
-#include "../../../core/include/common.h"
-
 template <typename K>
 class InternalTimeServiceManager {
 public:
@@ -385,6 +383,7 @@ inline void InternalTimeServiceManager<K>::snapshotToRawKeyedState(
         INFO_RELEASE("Error: snapshotToRawKeyedState Raw keyed state output stream is null for operator " << operatorName);
         THROW_LOGIC_EXCEPTION("Raw keyed state output stream is null for operator " << operatorName)
     }
+
     try {
         for (int32_t keyGroupIdx : stateCheckpointOutputStream->getKeyGroupList()) {
             stateCheckpointOutputStream->startNewKeyGroup(keyGroupIdx);

@@ -26,11 +26,6 @@ public:
     virtual ~FSDataInputStream() = default;
 
     /**
-     * Closes the stream and releases any system resources.
-     */
-    virtual void Close() = 0;
-
-    /**
      * Seek to the given offset from the start of the file. The next read()
      * will be from that location. Can't seek past the end of the stream.
      *

@@ -46,7 +46,13 @@ namespace omnistream {
                        TaskMailbox* mailbox,
                        int taskType);
 
-        virtual ~OmniStreamTask();
+        virtual ~OmniStreamTask()
+        {
+            if (inputProcessor_ != nullptr) {
+                delete inputProcessor_;
+                inputProcessor_ = nullptr;
+            }
+        }
 
         // getter
         virtual const std::string getName() const;

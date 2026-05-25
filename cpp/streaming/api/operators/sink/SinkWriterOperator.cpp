@@ -161,7 +161,7 @@ void SinkWriterOperator::processWatermarkStatus(WatermarkStatus *watermarkStatus
 void SinkWriterOperator::initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer)
 {
     INFO_RELEASE("savepoint: SinkWriterOperator initializeState with initializer, operatorID: " << OneInputStreamOperator::GetOperatorID().toString());
-    AbstractStreamOperator<void*>::SetOperatorID(OneInputStreamOperator::GetOperatorID().toString());
+    AbstractStreamOperator::SetOperatorID(OneInputStreamOperator::GetOperatorID().toString());
     AbstractStreamOperator<void*>::initializeState(initializer, keySerializer);
     subtaskIndex = initializer->getEnvironment()->taskConfiguration().getIndexOfSubtask();
     this->sinkWriter->SetSubTaskIdx(subtaskIndex);
@@ -224,7 +224,7 @@ void SinkWriterOperator::initializeState(StateInitializationContextImpl<void*>* 
 // snapshotState方法实现
 void SinkWriterOperator::snapshotState(StateSnapshotContextSynchronousImpl* context) {
     // 调用父类方法
-    AbstractStreamOperator<void*>::snapshotState(context);
+    AbstractStreamOperator::snapshotState(context);
 
     // 快照状态
     writerStateHandler->snapshotState(context->getCheckpointId());

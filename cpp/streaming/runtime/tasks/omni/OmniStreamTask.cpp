@@ -293,45 +293,16 @@ OmniStreamTask::OmniStreamTask(std::shared_ptr<RuntimeEnvironmentV2> &env,
         mailboxProcessor_->suspend();
     }
 
-    OmniStreamTask::~OmniStreamTask()
-    {
-        std::thread::id tid = std::this_thread::get_id();
-        INFO_RELEASE("DOUBLE_FREE_DEBUG: ~OmniStreamTask() START | this="
-                << static_cast<void*>(this)
-                << " | inputProcessor_=" << static_cast<void*>(inputProcessor_)
-                << " | thread_id=" << tid);
-        if (inputProcessor_ != nullptr) {
-            INFO_RELEASE("DOUBLE_FREE_DEBUG: ~OmniStreamTask() deleting inputProcessor_="
-                    << static_cast<void*>(inputProcessor_)
-                    << " | thread_id=" << tid);
-            delete inputProcessor_;
-            inputProcessor_ = nullptr;
-            INFO_RELEASE("DOUBLE_FREE_DEBUG: ~OmniStreamTask() inputProcessor_ deleted | thread_id=" << tid);
-        }
-        INFO_RELEASE("DOUBLE_FREE_DEBUG: ~OmniStreamTask() END | this="
-                << static_cast<void*>(this)
-                << " | thread_id=" << tid);
-    }
-
     void OmniStreamTask::cleanup()
     {
-        std::thread::id tid = std::this_thread::get_id();
-        INFO_RELEASE("DOUBLE_FREE_DEBUG: OmniStreamTask::cleanup() START | this="
-                << static_cast<void*>(this)
-                << " | thread_id=" << tid);
         LOG_INFO_IMP("Stream Task Clean up")
         // clean up operator chain and record writer
         releaseOutputResource();
 
         if (operatorChain != nullptr && !closedOperators_) {
             closedOperators_ = true;
-            INFO_RELEASE("DOUBLE_FREE_DEBUG: OmniStreamTask::cleanup() calling operatorChain->CloseAllOperators() | thread_id=" << tid);
             operatorChain->CloseAllOperators();
-            INFO_RELEASE("DOUBLE_FREE_DEBUG: OmniStreamTask::cleanup() operatorChain->CloseAllOperators() DONE | thread_id=" << tid);
         }
-        INFO_RELEASE("DOUBLE_FREE_DEBUG: OmniStreamTask::cleanup() END | this="
-                << static_cast<void*>(this)
-                << " | thread_id=" << tid);
     }
 
     void OmniStreamTask::releaseOutputResource()

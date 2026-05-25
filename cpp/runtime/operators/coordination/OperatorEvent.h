@@ -95,26 +95,4 @@ class NoMoreSplitsEvent : public OperatorEvent {
     }
 };
 
-class ReadRegistrationEvent : public OperatorEvent {
-public:
-    ReadRegistrationEvent() = default;
-    ReadRegistrationEvent(int subtaskId, std::string location) 
-        : subtaskId_(subtaskId),
-        location_(location) {}
-    
-    int subtaskId() const { return subtaskId_; }
-    std::string location() const { return location_; }
-
-    std::string toString() override
-    {
-        nlohmann::json j;
-        j["event"] = "ReadRegistrationEvent";
-        j["subtaskId"] = subtaskId_;
-        j["location"] = location_;
-        return j.dump();
-    }
-private:
-    int subtaskId_;
-    std::string location_;
-};
 #endif // FLINK_TNEL_OPERATOREVENT_H

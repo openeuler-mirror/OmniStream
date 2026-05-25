@@ -200,6 +200,7 @@ public:
                 if (keyedStateBackend == nullptr) {
                     THROW_LOGIC_EXCEPTION("keyedStateBackend should be available with timeServiceManager");
                 }
+
                 AbstractKeyedStateBackend<K>* abstractBackend =
                     dynamic_cast<AbstractKeyedStateBackend<K>*>(keyedStateBackend);
 
@@ -209,6 +210,7 @@ public:
                     if (isUsingCustomRawKeyedState) {
                         THROW_LOGIC_EXCEPTION("Attempting to snapshot timers to raw keyed state, but this operator has custom raw keyed state to write.");
                     }
+
                     timeServiceManager->snapshotToRawKeyedState(snapshotContext->getRawKeyedOperatorStateOutput(), operatorName);
                 }
             }

@@ -31,6 +31,7 @@
 #include "table/typeutils/RowDataSerializer.h"
 #include "runtime/metrics/groups/TaskMetricGroup.h"
 #include "streaming/runtime/tasks/omni/OmniStreamTask.h"
+#include "runtime/state/StateInitializationContextImpl.h"
 
 /**
  * K: such as Object*
@@ -132,10 +133,9 @@ public:
         return new BinaryRowDataSerializer(1);
     };
 
+    void initializeState(StateInitializationContextImpl<K> *context)  override {}
     // KeySerializer should be retrieved from description.getStateKeySerializer(getUserCodeClassloader()),
     // but we're just passing it through this function for now
-    void initializeState(StateInitializationContextImpl<K> *context) override {}
-
     void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) override
     {
         LOG("abstractStreamOperator::initializeState")
@@ -151,7 +151,6 @@ public:
         timeServiceManager = context->getInternalTimeServiceManager();
         stateHandler->initializeOperatorState(this);
     }
-
     StreamingRuntimeContext<K> *getRuntimeContext() const
     {
         return runtimeContext;
@@ -240,10 +239,8 @@ public:
 
     void notifyCheckpointAborted(long checkpointId) override
     {
-        INFO_RELEASE("abstractStreamOperator::NotifyCheckpointAborted checkpointId: " << checkpointId);
         stateHandler->notifyCheckpointAborted(checkpointId);
     }
-
 protected:
     // own  and  own the backend through stateHandler
     StreamOperatorStateHandler<K> *stateHandler = nullptr;

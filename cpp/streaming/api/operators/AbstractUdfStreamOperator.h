@@ -13,7 +13,6 @@
 
 #include "streaming/api/operators/AbstractStreamOperator.h"
 #include "functions/AbstractRichFunction.h"
-#include "runtime/checkpoint/CheckpointListener.h"
 
 // Class should also contain the following if needed
 // <OUT, F extends Function>

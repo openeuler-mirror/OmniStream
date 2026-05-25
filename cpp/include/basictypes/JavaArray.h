@@ -61,7 +61,7 @@ public:
 
     ~JavaArray() override
     {
-        delete[] data_;
+        delete data_;
     }
 
     JavaArray(const JavaArray& other) : JavaArray(other.length)
@@ -219,7 +219,7 @@ public:
 
     bool operator!=(const JavaArray& other) const
     {
-        return !(*this == other);
+        return *this != other;
     }
 
     bool equals(Object *obj) override;
