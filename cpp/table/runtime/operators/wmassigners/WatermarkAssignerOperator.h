@@ -36,6 +36,14 @@ public:
     void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) override
     {}
 
+    void notifyCheckpointComplete(long checkpointId) override {
+        AbstractStreamOperator<int>::notifyCheckpointComplete(checkpointId);
+    }
+
+    void notifyCheckpointAborted(long checkpointId) override {
+        AbstractStreamOperator<int>::notifyCheckpointAborted(checkpointId);
+    }
+
     // Setup and closing operations
     void open() override;
     void finish() override;

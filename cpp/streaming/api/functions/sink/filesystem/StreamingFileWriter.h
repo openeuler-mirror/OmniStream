@@ -30,6 +30,14 @@ public:
         AbstractStreamingWriter<IN, int>::initializeState(initializer, keySerializer);
     }
 
+    void notifyCheckpointComplete(long checkpointId) override {
+        AbstractStreamOperator<int>::notifyCheckpointComplete(checkpointId);
+    }
+
+    void notifyCheckpointAborted(long checkpointId) override {
+        AbstractStreamOperator<int>::notifyCheckpointAborted(checkpointId);
+    }
+
     std::string getTypeName() override
     {
         return "StreamingFileWriter";

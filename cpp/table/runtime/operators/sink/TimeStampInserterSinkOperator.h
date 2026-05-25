@@ -31,6 +31,14 @@ public:
     const char *getName() override;
     void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) override{};
 
+    void notifyCheckpointComplete(long checkpointId) override {
+        AbstractUdfStreamOperator<SinkFunction<StreamRecord *>, int>::notifyCheckpointComplete(checkpointId);
+    }
+
+    void notifyCheckpointAborted(long checkpointId) override {
+        AbstractUdfStreamOperator<SinkFunction<StreamRecord *>, int>::notifyCheckpointAborted(checkpointId);
+    }
+
     void processBatch(StreamRecord *record) override;
     void processElement(StreamRecord *record) override;
     void ProcessWatermark(Watermark *watermark) override
