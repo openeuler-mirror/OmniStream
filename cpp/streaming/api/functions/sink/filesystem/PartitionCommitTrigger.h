@@ -219,20 +219,7 @@ private:
 /**
  * Factory to create the appropriate PartitionCommitTrigger based on config.
  */
-static PartitionCommitTrigger *createPartitionCommitTrigger(const std::string &triggerType,
-                                                             long commitDelayMs)
-{
-    PartitionCommitPredicate *predicate = nullptr;
-    if (triggerType == "partition-time") {
-        predicate = new PartitionTimeCommitPredicate(commitDelayMs);
-        return new PartitionTimeCommitTrigger(predicate);
-    } else if (triggerType == "processing-time") {
-        predicate = new ProcTimeCommitPredicate(commitDelayMs);
-        return new ProcTimeCommitTrigger(predicate);
-    }
-    // default: partition-time
-    predicate = new PartitionTimeCommitPredicate(commitDelayMs);
-    return new PartitionTimeCommitTrigger(predicate);
-}
+PartitionCommitTrigger *createPartitionCommitTrigger(const std::string &triggerType,
+                                                       long commitDelayMs);
 
 #endif // PARTITION_COMMIT_TRIGGER_H

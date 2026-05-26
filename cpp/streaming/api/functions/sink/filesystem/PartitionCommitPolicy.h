@@ -101,47 +101,11 @@ public:
     }
 };
 
-static void addPolicy(std::vector<std::unique_ptr<PartitionCommitPolicy>> &policies,
-                       const std::string &kind)
-{
-    std::string trimmed = kind;
-    trimmed.erase(0, trimmed.find_first_not_of(" \t"));
-    trimmed.erase(trimmed.find_last_not_of(" \t") + 1);
-
-    if (trimmed == "success-file") {
-        policies.push_back(std::make_unique<SuccessFileCommitPolicy>());
-    } else if (trimmed == "metastore") {
-        policies.push_back(std::make_unique<MetastoreCommitPolicy>());
-    }
-}
-
 /**
  * Creates a chain of commit policies from the policy kind string.
  * Supported kinds (comma-separated): "success-file", "metastore", "custom"
  */
-static std::vector<std::unique_ptr<PartitionCommitPolicy>> createPolicyChain(const std::string &policyKind)
-{
-    std::vector<std::unique_ptr<PartitionCommitPolicy>> policies;
-
-    if (policyKind.empty()) {
-        policies.push_back(std::make_unique<SuccessFileCommitPolicy>());
-        return policies;
-    }
-
-    std::string kinds = policyKind;
-    size_t pos = 0;
-    while ((pos = kinds.find(',')) != std::string::npos) {
-        std::string kind = kinds.substr(0, pos);
-        addPolicy(policies, kind);
-        kinds.erase(0, pos + 1);
-    }
-    addPolicy(policies, kinds);
-
-    if (policies.empty()) {
-        policies.push_back(std::make_unique<SuccessFileCommitPolicy>());
-    }
-    return policies;
-}
+std::vector<std::unique_ptr<PartitionCommitPolicy>> createPolicyChain(const std::string &policyKind);
 
 
 
