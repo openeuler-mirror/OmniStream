@@ -15,6 +15,7 @@
 #include "runtime/state/KeyedStateHandle.h"
 #include "runtime/state/FullSnapshotResources.h"
 #include "runtime/state/FullSnapshotAsyncWriter.h"
+#include "runtime/checkpoint/SavepointType.h"
 #include "runtime/checkpoint/CheckpointType.h"
 #include "runtime/state/heap/HeapSnapshotResourceFactory.h"
 #include "common.h"
@@ -28,6 +29,18 @@
  * The strategy is long-lived and owns the sync/async split of the heap snapshot
  * pipeline: syncPrepareResources() freezes a point-in-time resource view through
  * HeapSnapshotResourceFactory, and asyncSnapshot() wraps it in a FullSnapshotAsyncWriter.
+
+ * Why SavepointType (canonical) is used here even for regular checkpoints:
+ * FullSnapshotAsyncWriter always emits the canonical savepoint binary format
+ * (END_OF_KEY_GROUP_MASK / FIRST_BIT_IN_BYTE_MASK framing). Flink's
+ * HeapKeyedStateBackendBuilder routes restore via HeapSavepointRestoreOperation
+ * (-> FullSnapshotRestoreOperation, which understands that format) only when
+ * the handle implements SavepointKeyedStateHandle. Tagging the produced handle
+ * with a SavepointType makes FullSnapshotAsyncWriter wrap the result in a
+ * KeyGroupsSavepointStateHandle, so Flink-native restore from an OmniStream
+ * heap checkpoint dispatches to the right reader instead of HeapRestoreOperation
+ * (which expects the heap-specific per-key-group [int keyGroupId][short stateId]...
+ * framing and would otherwise throw "Unexpected key-group in restore").
  */
 template <typename K>
 class HeapSnapshotStrategy
@@ -68,7 +81,7 @@ public:
         }
 
         return std::make_shared<FullSnapshotAsyncWriter>(
-            CheckpointType::FULL_CHECKPOINT,
+            SavepointType::savepoint(SavepointFormatType::CANONICAL),
             checkpointOptions,
             checkpointId,
             snapshotResources,
