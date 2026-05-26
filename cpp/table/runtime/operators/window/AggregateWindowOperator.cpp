@@ -13,6 +13,8 @@
 #include "AggregateWindowOperator.h"
 #include "table/runtime/operators/aggregate/handler/GroupingWindowAggsCountHandler.h"
 #include "table/runtime/operators/aggregate/handler/GroupingWindowAggsCompositeHandler.h"
+#include "table/runtime/operators/aggregate/handler/GroupingWindowAggsMaxHandler.h"
+#include "table/runtime/operators/aggregate/handler/GroupingWindowAggsMinHandler.h"
 #include "table/runtime/operators/aggregate/handler/GroupingWindowAggsSumHandler.h"
 
 template<typename K, typename W>
@@ -48,6 +50,14 @@ std::unique_ptr<NamespaceAggsHandleFunction<W>> AggregateWindowOperator<K, W>::i
             functions.push_back(std::move(function));
         } else if (aggType == "SUM") {
             auto function = std::make_unique<GroupingWindowAggsSumHandler<W>>(
+                    aggIndex, aggDataType, accStartIndex, valueStartIndex, filterIndex);
+            functions.push_back(std::move(function));
+        } else if (aggType == "MAX") {
+            auto function = std::make_unique<GroupingWindowAggsMaxHandler<W>>(
+                    aggIndex, aggDataType, accStartIndex, valueStartIndex, filterIndex);
+            functions.push_back(std::move(function));
+        } else if (aggType == "MIN") {
+            auto function = std::make_unique<GroupingWindowAggsMinHandler<W>>(
                     aggIndex, aggDataType, accStartIndex, valueStartIndex, filterIndex);
             functions.push_back(std::move(function));
         } else {
