@@ -85,6 +85,8 @@ public:
 
     S get(const K &key, const N &nameSpace);
 
+    S get(const K &key, int keyGroupIndex, const N &nameSpace);
+
     typename InternalKvState<K, N, S>::StateIncrementalVisitor *
     getStateIncrementalVisitor(int recommendedMaxNumberOfReturnedRecords);
 
@@ -199,20 +201,6 @@ protected:
     // Abstract Functions
     virtual StateMap<K, N, S> *createStateMap() = 0;
 
-    // Internal interactions with cowMap
-    S get(const K &key, int keyGroupIndex, const N &nameSpace)
-    {
-        StateMap<K, N, S> *stateMap = getMapForKeyGroup(keyGroupIndex);
-        if (stateMap == nullptr) {
-            if constexpr (std::is_pointer_v<S>) {
-                return nullptr;
-            } else {
-                return std::numeric_limits<S>::max();
-            }
-        }
-        return stateMap->get(key, nameSpace);
-    };
-
     bool containsKey(const K &key, int keyGroupIndex, const N &nameSpace)
     {
         return getMapForKeyGroup(keyGroupIndex)->containsKey(key, nameSpace);
@@ -275,6 +263,21 @@ S StateTable<K, N, S>::get(const K &key, const N &nameSpace)
     int keyGroup = keyHash(key) % keyContext->getNumberOfKeyGroups();
     return get(key, keyGroup, nameSpace);
 }
+
+// Internal interactions with cowMap
+template<typename K, typename N, typename S>
+S StateTable<K, N, S>::get(const K &key, int keyGroupIndex, const N &nameSpace)
+{
+    StateMap<K, N, S> *stateMap = getMapForKeyGroup(keyGroupIndex);
+    if (stateMap == nullptr) {
+        if constexpr (std::is_pointer_v<S>) {
+            return nullptr;
+        } else {
+            return std::numeric_limits<S>::max();
+        }
+    }
+    return stateMap->get(key, nameSpace);
+};
 
 template<typename K, typename N, typename S>
 std::vector<K> *StateTable<K, N, S>::getKeys(const N &nameSpace)

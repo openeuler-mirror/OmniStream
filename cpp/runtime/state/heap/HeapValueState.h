@@ -107,8 +107,12 @@ HeapValueState<K, N, V>::~HeapValueState()
 template <typename K, typename N, typename V>
 void HeapValueState<K, N, V>::initVectorBatchStateTable(StateDescriptor *stateDesc, StateTable<K, N, V> *table)
 {
-    vectorBatchKeyContext = new InternalKeyContextImpl<int>(
-        table->getKeyGroupRange(), table->getNumberOfKeyGroups());
+    // VectorBatch batchId is a subtask-local sequence, not a globally sharded key.
+    // Always store under this subtask's first owned key group (parallelism=1 used to
+    // mask the bug because the subtask then owns all key groups).
+    int startKeyGroup = table->getKeyGroupRange()->getStartKeyGroup();
+    auto *vbKeyGroupRange = new KeyGroupRange(startKeyGroup, startKeyGroup);
+    vectorBatchKeyContext = new InternalKeyContextImpl<int>(vbKeyGroupRange, 1);
     RegisteredKeyValueStateBackendMetaInfo *metaInfo = new RegisteredKeyValueStateBackendMetaInfo(
         StateDescriptor::Type::VALUE,
         stateDesc->getName() + "_vector_batch",
@@ -160,7 +164,7 @@ void HeapValueState<K, N, V>::addVectorBatch(omnistream::VectorBatch *vectorBatc
     VoidNamespace nameSpace;
     auto *table = static_cast<CopyOnWriteStateTable<int, VoidNamespace, omnistream::VectorBatch *> *>(
         vectorBatchStateTable);
-    int keyGroup = table->computeKeyGroupForKeyHash(nextVectorBatchId);
+    int keyGroup = table->getKeyGroupRange()->getStartKeyGroup();
     table->put(nextVectorBatchId, keyGroup, nameSpace, vectorBatch);
     nextVectorBatchId++;
 }
@@ -172,7 +176,8 @@ omnistream::VectorBatch *HeapValueState<K, N, V>::getVectorBatch(int batchId)
         return nullptr;
     }
     VoidNamespace nameSpace;
-    return vectorBatchStateTable->get(batchId, nameSpace);
+    int keyGroup = vectorBatchStateTable->getKeyGroupRange()->getStartKeyGroup();
+    return vectorBatchStateTable->get(batchId, keyGroup, nameSpace);
 }
 
 template <typename K, typename N, typename V>

@@ -104,8 +104,9 @@ template<typename K, typename N, typename UV>
 void HeapListState<K, N, UV>::initVectorBatchStateTable(StateDescriptor *stateDesc,
     StateTable<K, N, std::vector<UV> *> *table)
 {
-    vectorBatchKeyContext = new InternalKeyContextImpl<int>(
-        table->getKeyGroupRange(), table->getNumberOfKeyGroups());
+    int startKeyGroup = table->getKeyGroupRange()->getStartKeyGroup();
+    auto *vbKeyGroupRange = new KeyGroupRange(startKeyGroup, startKeyGroup);
+    vectorBatchKeyContext = new InternalKeyContextImpl<int>(vbKeyGroupRange, 1);
     RegisteredKeyValueStateBackendMetaInfo *metaInfo = new RegisteredKeyValueStateBackendMetaInfo(
         StateDescriptor::Type::LIST,
         stateDesc->getName() + "_vector_batch",
@@ -141,7 +142,7 @@ void HeapListState<K, N, UV>::addVectorBatch(omnistream::VectorBatch *vectorBatc
     VoidNamespace nameSpace;
     auto *table = static_cast<CopyOnWriteStateTable<int, VoidNamespace, omnistream::VectorBatch *> *>(
         vectorBatchStateTable);
-    int keyGroup = table->computeKeyGroupForKeyHash(nextVectorBatchId);
+    int keyGroup = table->getKeyGroupRange()->getStartKeyGroup();
     table->put(nextVectorBatchId, keyGroup, nameSpace, vectorBatch);
     nextVectorBatchId++;
 }
@@ -149,11 +150,12 @@ void HeapListState<K, N, UV>::addVectorBatch(omnistream::VectorBatch *vectorBatc
 template<typename K, typename N, typename UV>
 omnistream::VectorBatch *HeapListState<K, N, UV>::getVectorBatch(int batchId)
 {
-    if (vectorBatchStateTable == nullptr) {
+    if (vectorBatchStateTable == nullptr || batchId < 0 || batchId >= nextVectorBatchId) {
         return nullptr;
     }
     VoidNamespace nameSpace;
-    return vectorBatchStateTable->get(batchId, nameSpace);
+    int keyGroup = vectorBatchStateTable->getKeyGroupRange()->getStartKeyGroup();
+    return vectorBatchStateTable->get(batchId, keyGroup, nameSpace);
 }
 
 template<typename K, typename N, typename UV>
