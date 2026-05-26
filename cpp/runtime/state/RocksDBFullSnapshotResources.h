@@ -30,6 +30,7 @@
 #include <cstdint>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 class RocksDBFullSnapshotResources : public FullSnapshotResources {
 private:
     struct MetaData {
@@ -53,12 +54,15 @@ private:
     KeyGroupRange* keyGroupRange_;
     TypeSerializer* keySerializer_;
     std::vector<std::unique_ptr<SingleStateIterator>> heapPriorityQueueIterators_;
+    std::unordered_set<int> heapPriorityQueueStateIds_;
 public:
     const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>&
     getMetaInfoSnapshots() override;
     KeyGroupRange* getKeyGroupRange() override;
     TypeSerializer* getKeySerializer() override;
     std::shared_ptr<KeyValueStateIterator> createKVStateIterator() override;
+    bool isHeapPriorityQueueStateId(int kvStateId) const override;
+    int getKeyGroupPrefixBytes() const override { return keyGroupPrefixBytes_; }
     std::vector<std::pair<std::unique_ptr<RocksIteratorWrapper>, int>>
     createKVStateIterators(
         std::unique_ptr<CloseableRegistry>& closeableRegistry,
@@ -77,6 +81,7 @@ public:
         const std::vector<std::shared_ptr<RocksDbKvStateInfo>>& metaDataCopy,
         const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& stateMetaInfoSnapshots,
         std::vector<std::unique_ptr<SingleStateIterator>> heapPriorityQueueIterators,
+        std::unordered_set<int> heapPriorityQueueStateIds,
         rocksdb::DB* db,
         int keyGroupPrefixBytes,
         KeyGroupRange* keyGroupRange,

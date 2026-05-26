@@ -15,6 +15,7 @@
 #include <unordered_map>
 
 #include "KeyGroupRange.h"
+#include "heap/HeapPriorityQueueDataDigest.h"
 #include "heap/HeapPriorityQueueSetFactory.h"
 #include "heap/HeapPriorityQueueSnapshotRestoreWrapper.h"
 #include "heap/RestoredHeapPriorityQueueSnapshotRestoreWrapper.h"
@@ -60,6 +61,7 @@ public:
                 auto restoredState = createInternal<K, T, Comparator>(metaInfo);
                 const size_t pendingEntryCount = pendingRestoredState->size();
                 pendingRestoredState->template drainTo<K, T, Comparator>(restoredState, getKeyGroupPrefixBytes());
+                logRestoredQueueDigest<K, T, Comparator>(stateName, restoredState);
                 INFO_RELEASE("HeapPriorityQueuesManager: drained " << pendingEntryCount
                     << " pending restored entries for priority queue state '" << stateName << "'");
                 return restoredState->getHeapPriorityQueueSet();
@@ -104,6 +106,35 @@ private:
         (*registeredPQStates_)[stateName] = wrapper;
 
         return wrapper;
+    }
+
+    template <typename K, typename T, typename Comparator>
+    void logRestoredQueueDigest(
+            const std::string &stateName,
+            const std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapper<K, T, Comparator>> &wrapper)
+    {
+        auto summary = HeapPriorityQueueDataDigest::createSummary(
+            "restore",
+            -1,
+            stateName,
+            keyGroupRange_ == nullptr ? numberOfKeyGroups_ : keyGroupRange_->getNumberOfKeyGroups());
+
+        if (wrapper != nullptr) {
+            auto iterator = wrapper->createSnapshotIterator(-1, getKeyGroupPrefixBytes());
+            while (iterator != nullptr && iterator->isValid()) {
+                HeapPriorityQueueDataDigest::addSerializedEntry(
+                    summary,
+                    iterator->key(),
+                    iterator->value(),
+                    getKeyGroupPrefixBytes());
+                iterator->next();
+            }
+            if (iterator != nullptr) {
+                iterator->close();
+            }
+        }
+
+        HeapPriorityQueueDataDigest::logSummary(summary);
     }
 
     std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapperBase>>> registeredPQStates_;

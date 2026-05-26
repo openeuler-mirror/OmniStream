@@ -4,6 +4,10 @@
 #include "KeyGroupRangeOffsets.h"
 #include "KeyGroupsSavepointStateHandle.h"
 #include "KeyGroupsStateHandle.h"
+#include "state/heap/HeapPriorityQueueDataDigest.h"
+#include <map>
+#include <sstream>
+#include <iomanip>
 #include "common.h"
 FullSnapshotAsyncWriter::FullSnapshotAsyncWriter(
     SnapshotType *snapshotType,
@@ -32,17 +36,55 @@ std::shared_ptr<SnapshotResult<KeyedStateHandle>> FullSnapshotAsyncWriter::get(
         const auto &metaInfoSnapshots = snapshotResources_->getMetaInfoSnapshots();
         stream.writeMetadata(metaInfoSnapshots, keySerializer_);
 
+        std::map<int, HeapPriorityQueueDataDigest::Summary> heapPqDigests;
+        const bool shouldDigestHeapPq = snapshotType_ != nullptr && snapshotType_->IsSavepoint();
+        if (shouldDigestHeapPq) {
+            for (size_t i = 0; i < metaInfoSnapshots.size(); i++) {
+                const int kvStateId = static_cast<int>(i);
+                if (!snapshotResources_->isHeapPriorityQueueStateId(kvStateId)) {
+                    continue;
+                }
+                const std::string stateName =
+                    metaInfoSnapshots[i] == nullptr ? "" : metaInfoSnapshots[i]->getName();
+                heapPqDigests.emplace(
+                    kvStateId,
+                    HeapPriorityQueueDataDigest::createSummary(
+                        "snapshot",
+                        checkpointId_,
+                        stateName,
+                        kgRange == nullptr ? 0 : kgRange->getNumberOfKeyGroups()));
+            }
+        }
+
+        const int keyGroupPrefixBytes = snapshotResources_->getKeyGroupPrefixBytes();
+        auto recordHeapPqEntry = [&](int kvStateId,
+                                     const std::vector<int8_t> &key,
+                                     const std::vector<int8_t> &value) {
+            auto digest = heapPqDigests.find(kvStateId);
+            if (digest == heapPqDigests.end()) {
+                return;
+            }
+            HeapPriorityQueueDataDigest::addSerializedEntry(
+                digest->second,
+                key,
+                value,
+                keyGroupPrefixBytes);
+        };
+
         std::vector<int8_t> previousKey;
         std::vector<int8_t> previousValue;
+        int previousKvStateId = -1;
         mergeIterator = snapshotResources_->createKVStateIterator();
         if (mergeIterator->isValid()) {
             keyGroupRangeOffsets->setKeyGroupOffset(mergeIterator->keyGroup(), stream.getPos());
             stream.writeShort(mergeIterator->kvStateId());
             previousKey = mergeIterator->key();
             previousValue = mergeIterator->value();
+            previousKvStateId = mergeIterator->kvStateId();
             mergeIterator->next();
         }
         while (mergeIterator->isValid()) {
+            recordHeapPqEntry(previousKvStateId, previousKey, previousValue);
             if (mergeIterator->isNewKeyGroup() || mergeIterator->isNewKeyValueState()) {
                 previousKey[0] |= FIRST_BIT_IN_BYTE_MASK;
             }
@@ -59,9 +101,11 @@ std::shared_ptr<SnapshotResult<KeyedStateHandle>> FullSnapshotAsyncWriter::get(
             }
             previousKey = mergeIterator->key();
             previousValue = mergeIterator->value();
+            previousKvStateId = mergeIterator->kvStateId();
             mergeIterator->next();
         }
         if (!previousKey.empty()) {
+            recordHeapPqEntry(previousKvStateId, previousKey, previousValue);
             previousKey[0] |= FIRST_BIT_IN_BYTE_MASK;
             stream.writeInt(previousKey.size());
             stream.writeBytes(previousKey.data(), previousKey.size());
@@ -82,8 +126,14 @@ std::shared_ptr<SnapshotResult<KeyedStateHandle>> FullSnapshotAsyncWriter::get(
                 jmKeyedState = std::make_shared<KeyGroupsStateHandle>(
                     *keyGroupRangeOffsets.get(), jobManagerOwnedSnapshot);
             }
+            for (const auto &digest : heapPqDigests) {
+                HeapPriorityQueueDataDigest::logSummary(digest.second);
+            }
             snapshotResources_->cleanup();
             return SnapshotResult<KeyedStateHandle>::Of(jmKeyedState);
+        }
+        for (const auto &digest : heapPqDigests) {
+            HeapPriorityQueueDataDigest::logSummary(digest.second);
         }
         snapshotResources_->cleanup();
         return SnapshotResult<KeyedStateHandle>::Empty();

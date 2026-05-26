@@ -22,6 +22,8 @@ public:
     virtual KeyGroupRange *getKeyGroupRange() = 0;
     virtual TypeSerializer *getKeySerializer() = 0;
     virtual std::shared_ptr<KeyValueStateIterator> createKVStateIterator() = 0;
+    virtual bool isHeapPriorityQueueStateId(int /*kvStateId*/) const { return false; }
+    virtual int getKeyGroupPrefixBytes() const { return 1; }
     virtual void cleanup() = 0;
 };
 #endif
