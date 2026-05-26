@@ -40,15 +40,10 @@ public:
     std::string getTypeName() override;
 
     void processElement(StreamRecord *element) override;
-    void notifyCheckpointComplete(long checkpointId) override {
-        AbstractStreamOperator<int>::notifyCheckpointComplete(checkpointId);
-    }
 
     void notifyCheckpointAborted(long checkpointId) override {
         AbstractStreamOperator<int>::notifyCheckpointAborted(checkpointId);
     }
-
-    std::string getTypeName() override;
 
     void ProcessWatermark(Watermark *mark) override;
 
