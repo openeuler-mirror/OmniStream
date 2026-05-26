@@ -96,8 +96,6 @@ class MetastoreCommitPolicy : public PartitionCommitPolicy {
 public:
     void commit(const PolicyContext &context) override
     {
-        LOG("MetastoreCommitPolicy: partition committed to metastore, path="
-            << context.partitionPath())
     }
 };
 
