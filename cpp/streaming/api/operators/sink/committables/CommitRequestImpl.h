@@ -19,6 +19,7 @@
 #include <sstream>
 #include <string>
 #include "Committer.h"
+#include "core/include/common.h"
 
 enum class CommitRequestState {
     RECEIVED,
@@ -74,8 +75,8 @@ public:
         state = CommitRequestState::FAILED;
         std::ostringstream oss;
         // oss << "FAILED to Commit " << committable;
-        oss << "FAILED to Commit " << t.what();
-        throw std::runtime_error(oss.str());
+        oss << "FAILED to Commit " << committable.toString() << " with exception: " << t.what();
+        GErrorLog(oss.str());
     }
 
     void RetryLater() {
