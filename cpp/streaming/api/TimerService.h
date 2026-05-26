@@ -11,6 +11,9 @@
 
 #ifndef OMNISTREAM_TIMERSERVICE_H
 #define OMNISTREAM_TIMERSERVICE_H
+
+#include <cstdint>
+
 namespace omnistream::streaming {
 class TimerService {
 public:
@@ -21,10 +24,10 @@ public:
     const std::string UNSUPPORTED_DELETE_TIMER_MSG = "Deleting timers is only supported on a keyed streams.";
 
     /** Returns the current processing time. */
-    virtual long currentProcessingTime() = 0;
+    virtual int64_t currentProcessingTime() = 0;
 
     /** Returns the current event-time watermark. */
-    virtual long currentWatermark() = 0;
+    virtual int64_t currentWatermark() = 0;
 
     /**
      * Registers a timer to be fired when processing time passes the given time.
@@ -34,7 +37,7 @@ public:
      * org.apache.flink.streaming.api.datastream.KeyedStream} then that context will also be active
      * when you receive the timer notification.
      */
-    virtual void registerProcessingTimeTimer(long time) = 0;
+    virtual void registerProcessingTimeTimer(int64_t time) = 0;
 
     /**
      * Registers a timer to be fired when the event time watermark passes the given time.
@@ -44,7 +47,7 @@ public:
      * org.apache.flink.streaming.api.datastream.KeyedStream} then that context will also be active
      * when you receive the timer notification.
      */
-    virtual void registerEventTimeTimer(long time) = 0;
+    virtual void registerEventTimeTimer(int64_t time) = 0;
 
     /**
      * Deletes the processing-time timer with the given trigger time. This method has only an effect
@@ -53,7 +56,7 @@ public:
      * <p>Timers can internally be scoped to keys and/or windows. When you delete a timer, it is
      * removed from the current keyed context.
      */
-    virtual void deleteProcessingTimeTimer(long time) = 0;
+    virtual void deleteProcessingTimeTimer(int64_t time) = 0;
 
     /**
      * Deletes the event-time timer with the given trigger time. This method has only an effect if
@@ -62,7 +65,7 @@ public:
      * <p>Timers can internally be scoped to keys and/or windows. When you delete a timer, it is
      * removed from the current keyed context.
      */
-    virtual void deleteEventTimeTimer(long time) = 0;
+    virtual void deleteEventTimeTimer(int64_t time) = 0;
 };
 }
 #endif // OMNISTREAM_TIMERSERVICE_H

@@ -13,7 +13,7 @@
 
 #include <unordered_set>
 
-TimeWindow SessionWindowAssigner::MergeWindow(TimeWindow &curWindow, const TimeWindow &other,
+TimeWindow SessionWindowAssigner::mergeWindow(TimeWindow &curWindow, const TimeWindow &other,
         std::unordered_set<TimeWindow> &mergedWindow) {
     if (curWindow.intersects(other)) {
         mergedWindow.emplace(other);
@@ -22,58 +22,56 @@ TimeWindow SessionWindowAssigner::MergeWindow(TimeWindow &curWindow, const TimeW
     return curWindow;
 }
 
-SessionWindowAssigner::SessionWindowAssigner(long sessionGap, bool eventTime)
-    : sessionGap(sessionGap), eventTime(eventTime)
-{
+SessionWindowAssigner::SessionWindowAssigner(int64_t sessionGap, bool eventTime)
+        : sessionGap_(sessionGap), eventTime_(eventTime) {
     if (sessionGap <= 0) {
-        throw std::invalid_argument(
-            "SessionWindowAssigner parameters must satisfy 0 < size");
+        THROW_LOGIC_EXCEPTION("SessionWindowAssigner parameters must satisfy 0 < size");
     }
 }
 
-void SessionWindowAssigner::MergeWindows(const TimeWindow &newWindow, std::set<TimeWindow> *sortedWindows,
+void SessionWindowAssigner::mergeWindows(const TimeWindow &newWindow, std::set<TimeWindow> *sortedWindows,
     MergeResultCollector &callback) {
     auto ceiling = sortedWindows->lower_bound(newWindow);
     // upper_bound功能与java set的floor还不一致
     auto floor = sortedWindows->upper_bound(newWindow);
 
-    reuseMergedWindows->clear();
+    reuseMergedWindows_->clear();
     TimeWindow mergeResult = newWindow;
     if (ceiling != sortedWindows->end()) {
-        mergeResult = MergeWindow(mergeResult, *ceiling, *reuseMergedWindows);
+        mergeResult = mergeWindow(mergeResult, *ceiling, *reuseMergedWindows_);
     }
 
     if (floor != sortedWindows->begin()) {
         floor = std::prev(floor);
-        mergeResult = MergeWindow(mergeResult, *floor, *reuseMergedWindows);
+        mergeResult = mergeWindow(mergeResult, *floor, *reuseMergedWindows_);
     }
 
-    if (!reuseMergedWindows->empty()) {
-        reuseMergedWindows->emplace(newWindow);
-        callback.emplace(mergeResult, reuseMergedWindows.get());
+    if (!reuseMergedWindows_->empty()) {
+        reuseMergedWindows_->emplace(newWindow);
+        callback.emplace(mergeResult, reuseMergedWindows_.get());
     }
 }
 
-std::vector<TimeWindow> SessionWindowAssigner::AssignWindows(const RowData *element, long timestamp) {
-    return {TimeWindow(timestamp, timestamp + sessionGap)};
+std::vector<TimeWindow> SessionWindowAssigner::assignWindows(const RowData* element, int64_t timestamp) {
+    return {TimeWindow(timestamp, timestamp + sessionGap_)};
 }
 
-bool SessionWindowAssigner::IsEventTime() const
+bool SessionWindowAssigner::isEventTime() const
 {
-    return eventTime;
+    return eventTime_;
 }
 
-SessionWindowAssigner *SessionWindowAssigner::WithEventTime()
+SessionWindowAssigner* SessionWindowAssigner::withEventTime()
 {
-    return new SessionWindowAssigner(sessionGap, true);
+    return new SessionWindowAssigner(sessionGap_, true);
 }
 
-SessionWindowAssigner *SessionWindowAssigner::WithProcessingTime()
+SessionWindowAssigner* SessionWindowAssigner::withProcessingTime()
 {
-    return new SessionWindowAssigner(sessionGap, false);
+    return new SessionWindowAssigner(sessionGap_, false);
 }
 
-SessionWindowAssigner *SessionWindowAssigner::WithGap(long size)
+SessionWindowAssigner* SessionWindowAssigner::withGap(int64_t size)
 {
     return new SessionWindowAssigner(size, false);
 }

@@ -71,7 +71,7 @@ std::string nexmarkQ12Description = R"DELIM({
                 "windowType": "SessionGroupWindow('w$, dateTime, 10000)",
                 "countType": "time",
                 "timeType": "event",
-                "actualSize": 10000,
+                "windowSize": 10000,
                 "inputTimeFieldIndex": 1
             },
 		"id": "org.apache.flink.table.runtime.operators.window.AggregateWindowOperator"
@@ -217,7 +217,7 @@ TEST(AggregateWindowOperatorTest, TimeWindowTest)
     windowAggOperator->setCurrentKey(key);
     BinaryRowData *inputRow = BinaryRowData::createBinaryRowDataWithMem(2);
     inputRow->setLong(0, 10);
-    const std::vector<TimeWindow> assignStateNamespace = windowAggOperator->windowFunction->AssignStateNamespace(
+    const std::vector<TimeWindow> assignStateNamespace = windowAggOperator->windowFunction->assignStateNamespace(
         inputRow, 1742625633598);
     ASSERT_EQ(assignStateNamespace.size(), 1);
     ASSERT_EQ(assignStateNamespace[0].getStart(), 1742625633598);
@@ -226,7 +226,7 @@ TEST(AggregateWindowOperatorTest, TimeWindowTest)
 
     BinaryRowData *inputRow1 = BinaryRowData::createBinaryRowDataWithMem(2);
     inputRow->setLong(0, 10);
-    const std::vector<TimeWindow> assignStateNamespace1 = windowAggOperator->windowFunction->AssignStateNamespace(
+    const std::vector<TimeWindow> assignStateNamespace1 = windowAggOperator->windowFunction->assignStateNamespace(
         inputRow1, 1742625634598);
     ASSERT_EQ(assignStateNamespace1.size(), 1);
     ASSERT_EQ(assignStateNamespace1[0].getStart(), 1742625633598);

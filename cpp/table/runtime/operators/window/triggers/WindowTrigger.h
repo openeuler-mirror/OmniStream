@@ -8,14 +8,10 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef WINDOWTRIGGER_H
-#define WINDOWTRIGGER_H
 
 #pragma once
 
-#include <iostream>
-#include <chrono>
-#include <memory>
+#include <cstdint>
 
 #include "Trigger.h"
 
@@ -26,13 +22,10 @@ public:
 
     ~WindowTrigger() override = default;
 
-    long TriggerTime(const W &window)
-    {
+    int64_t triggerTime(const W& window) {
         return window.maxTimestamp();
     }
 
 protected:
     typename Trigger<W>::TriggerContext *ctx;
 };
-
-#endif

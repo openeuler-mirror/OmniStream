@@ -15,7 +15,7 @@
 #include "runtime/operators/window/TimeWindow.h"
 
 template<typename K, typename W>
-void MergingWindowSet<K, W>::InitializeCache(const K& key) {
+void MergingWindowSet<K, W>::initializeCache(const K& key) {
     auto cache = cachedSortedWindows.get(key);
     if (!cache) {
         sortedWindows = new std::set<W>;
@@ -35,8 +35,7 @@ void MergingWindowSet<K, W>::InitializeCache(const K& key) {
 }
 
 template<typename K, typename W>
-W MergingWindowSet<K, W>::GetStateWindow(const W &window)
-{
+W MergingWindowSet<K, W>::getStateWindow(const W &window) {
     const auto &optionalRes = mapping->get(window);
     if (optionalRes.has_value()) {
         return optionalRes.value();
@@ -45,8 +44,7 @@ W MergingWindowSet<K, W>::GetStateWindow(const W &window)
 }
 
 template<typename K, typename W>
-void MergingWindowSet<K, W>::RetireWindow(const W &window)
-{
+void MergingWindowSet<K, W>::retireWindow(const W &window) {
     mapping->remove(window);
     auto it = sortedWindows->find(window);
     if (it == sortedWindows->end()) {
@@ -56,9 +54,9 @@ void MergingWindowSet<K, W>::RetireWindow(const W &window)
 }
 
 template<typename K, typename W>
-W MergingWindowSet<K, W>::AddWindow(const W &newWindow, const MergeFunction &mergeFunction) {
+W MergingWindowSet<K, W>::addWindow(const W &newWindow, const MergeFunction &mergeFunction) {
     reuseCollector_.clear();
-    windowAssigner->MergeWindows(newWindow, sortedWindows,  reuseCollector_);
+    windowAssigner->mergeWindows(newWindow, sortedWindows,  reuseCollector_);
 
     W resultWindow = newWindow;
     bool isNewWindowMerged = false;
@@ -75,7 +73,7 @@ W MergingWindowSet<K, W>::AddWindow(const W &newWindow, const MergeFunction &mer
         if (mergedWindows->empty()) {
             continue;
         }
-        W mergedStateNamespace = GetStateWindow(*mergedWindows->begin());
+        W mergedStateNamespace = getStateWindow(*mergedWindows->begin());
 
         std::vector<W> mergedStateWindows;
         for (const auto &mergedWindow: *mergedWindows) {

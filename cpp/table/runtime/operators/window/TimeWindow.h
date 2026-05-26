@@ -11,6 +11,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <iostream>
 #include <cmath>
 
@@ -23,17 +24,17 @@ class TimeWindow : public Window {
 public:
     TimeWindow();
 
-    TimeWindow(long start, long end);
+    TimeWindow(int64_t start, int64_t end);
 
-    long getStart() const {
+    int64_t getStart() const {
         return start;
     }
 
-    long getEnd() const {
+    int64_t getEnd() const {
         return end;
     }
 
-    long maxTimestamp() const override {
+    int64_t maxTimestamp() const override {
         return end - 1;
     }
 
@@ -45,11 +46,11 @@ public:
         return {std::min(this->start, other.start), std::max(this->end, other.end)};
     }
 
-    static long getWindowStartWithOffset(long timestamp, long offset, long windowSize) {
+    static int64_t getWindowStartWithOffset(int64_t timestamp, int64_t offset, int64_t windowSize) {
         if (windowSize <= 0) {
             THROW_RUNTIME_ERROR("windowSize should be larger than 0.")
         }
-        long remainder = (timestamp - offset) % windowSize;
+        int64_t remainder = (timestamp - offset) % windowSize;
         return remainder < 0L ? timestamp - (remainder + windowSize) : timestamp - remainder;
     }
 
@@ -93,7 +94,7 @@ public:
 
         TimeWindow *copy(TimeWindow *from, TimeWindow *reuse) const;
 
-        int getLength() const;
+        int32_t getLength() const;
 
         void serialize(void *record, DataOutputSerializer &target) override;
 
@@ -104,8 +105,8 @@ public:
         BackendDataType getBackendId() const override;
     };
 private:
-    long start{};
-    long end{};
+    int64_t start{};
+    int64_t end{};
 
     int32_t modInverse(int32_t x) const {
         uint32_t ux = static_cast<uint32_t>(x);

@@ -11,30 +11,32 @@
 
 #pragma once
 
+#include <cstdint>
+
 template<typename N>
 class InternalTimerService {
 public:
     virtual ~InternalTimerService() = default;
 
-    virtual long currentProcessingTime() = 0;
+    virtual int64_t currentProcessingTime() = 0;
 
     /** Returns the current event-time watermark. */
-    virtual long currentWatermark() = 0;
+    virtual int64_t currentWatermark() = 0;
 
     /**
      * Registers a timer to be fired when processing time passes the given time. The nameSpace you
      * pass here will be provided when the timer fires.
      */
-    virtual void registerProcessingTimeTimer(N nameSpace, long time) = 0;
+    virtual void registerProcessingTimeTimer(N nameSpace, int64_t time) = 0;
 
     /** Deletes the timer for the given key and nameSpace. */
-    virtual void deleteProcessingTimeTimer(N nameSpace, long time) = 0;
+    virtual void deleteProcessingTimeTimer(N nameSpace, int64_t time) = 0;
 
-    virtual void registerEventTimeTimer(N nameSpace, long time) = 0;
+    virtual void registerEventTimeTimer(N nameSpace, int64_t time) = 0;
 
-    virtual void deleteEventTimeTimer(N nameSpace, long time) = 0;
+    virtual void deleteEventTimeTimer(N nameSpace, int64_t time) = 0;
 
-    virtual void advanceWatermark(long time) = 0;
+    virtual void advanceWatermark(int64_t time) = 0;
 
     // temp fix for too many timers in priority queue
     // this function should to be deleted when RocksDBCachingPriorityQueueSet is implemented in the future

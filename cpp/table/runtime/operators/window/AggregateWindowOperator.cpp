@@ -158,10 +158,10 @@ omnistream::VectorBatch* AggregateWindowOperator<K, W>::createOutputBatch(const 
 
 template<typename K, typename W>
 void AggregateWindowOperator<K, W>::emitWindowResult(const W& window) {
-    this->windowFunction->PrepareAggregateAccumulatorForEmit(window);
+    this->windowFunction->prepareAggregateAccumulatorForEmit(window);
     auto aggResult = std::unique_ptr<RowData>(this->windowAggregator->getValue(window));
 
-    if (this->produceUpdates) {
+    if (this->produceUpdates_) {
         NOT_IMPL_EXCEPTION
     } else {
         if (aggResult != nullptr) {
