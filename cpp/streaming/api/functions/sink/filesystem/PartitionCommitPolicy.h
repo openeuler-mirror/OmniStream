@@ -84,7 +84,6 @@ public:
     void commit(const PolicyContext &context) override
     {
         FileSystemCommitter::createSuccessFile(context.partitionPath());
-        LOG("Committed partition with success file: " << context.partitionPath())
     }
 };
 
