@@ -60,6 +60,15 @@ public:
         windowInterval = sliceAssigner->getSliceEndInterval();
     }
     void open() override;
+
+    void notifyCheckpointComplete(long checkpointId) override {
+        AbstractStreamOperator<long>::notifyCheckpointComplete(checkpointId);
+    }
+
+    void notifyCheckpointAborted(long checkpointId) override {
+        AbstractStreamOperator<long>::notifyCheckpointAborted(checkpointId);
+    }
+
     const char* getName() override;
     void close() override;
     void processBatch(StreamRecord* record) override;

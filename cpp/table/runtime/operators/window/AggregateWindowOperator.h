@@ -58,6 +58,14 @@ public:
         AbstractStreamOperator<K>::initializeState(initializer, keySerializer);
     };
 
+    void notifyCheckpointComplete(long checkpointId) override {
+        AbstractStreamOperator<K>::notifyCheckpointComplete(checkpointId);
+    }
+
+    void notifyCheckpointAborted(long checkpointId) override {
+        AbstractStreamOperator<K>::notifyCheckpointAborted(checkpointId);
+    }
+
     void emitWindowResult(W &window) override {
         this->windowFunction->PrepareAggregateAccumulatorForEmit(window);
         auto aggResult = std::unique_ptr<RowData>(this->windowAggregator->getValue(window));

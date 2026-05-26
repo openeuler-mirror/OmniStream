@@ -50,6 +50,15 @@ public:
         AbstractStreamOperator::SetOperatorID(OneInputStreamOperator::GetOperatorID().toString());
         AbstractStreamOperator::initializeState(initializer, keySerializer);
     };
+
+    void notifyCheckpointComplete(long checkpointId) override {
+        AbstractStreamOperator<RowData*>::notifyCheckpointComplete(checkpointId);
+    }
+
+    void notifyCheckpointAborted(long checkpointId) override {
+        AbstractStreamOperator<RowData*>::notifyCheckpointAborted(checkpointId);
+    }
+
     void snapshotState() {};
     void close();
     void processBatch(omnistream::VectorBatch *batch);
