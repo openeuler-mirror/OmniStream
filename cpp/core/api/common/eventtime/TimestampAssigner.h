@@ -9,25 +9,35 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef FLINK_TNEL_TIMESTAMPASSIGNER_H
-#define FLINK_TNEL_TIMESTAMPASSIGNER_H
+#pragma once
 
-
-#include <limits>
+#include <cstdint>
 
 class TimestampAssigner {
 public:
-    static constexpr long NO_TIMESTAMP = std::numeric_limits<long>::min();
+    static constexpr int64_t NO_TIMESTAMP = INT64_MIN;
 
     virtual ~TimestampAssigner() = default;
 
-    virtual long ExtractTimestamp(const void* element, long recordTimestamp) = 0;
+    virtual long ExtractTimestamp(void* element, long recordTimestamp) = 0;
+
+    virtual int32_t getRowtimeFieldIndex() const = 0;
 };
 
 class RecordTimestampAssigner : public TimestampAssigner {
-    long ExtractTimestamp(const void* element, long recordTimestamp) override
-    {
+public:
+    RecordTimestampAssigner() = default;
+
+    explicit RecordTimestampAssigner(int32_t rowtimeFieldIndex): rowtimeFieldIndex(rowtimeFieldIndex) {}
+
+    long ExtractTimestamp(void* element, long recordTimestamp) override {
+        // TODO: directly return recordTimestamp is not correct
         return recordTimestamp;
     }
+
+    int32_t getRowtimeFieldIndex() const override {
+        return rowtimeFieldIndex;
+    }
+private:
+    int32_t rowtimeFieldIndex = -1;
 };
-#endif // FLINK_TNEL_TIMESTAMPASSIGNER_H
