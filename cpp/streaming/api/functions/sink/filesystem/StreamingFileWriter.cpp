@@ -9,7 +9,8 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifdef STREAMING_FILE_WRITER_H
+
+#include "StreamingFileWriter.h"
 
 template <typename IN>
 StreamingFileWriter<IN>::StreamingFileWriter(
@@ -200,5 +201,3 @@ void StreamingFileWriter<IN>::closePartFileForPartitions()
         }
     }
 }
-
-#endif // STREAMING_FILE_WRITER_H

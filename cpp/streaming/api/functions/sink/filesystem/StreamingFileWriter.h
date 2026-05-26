@@ -48,10 +48,7 @@ public:
         AbstractStreamOperator<int>::notifyCheckpointAborted(checkpointId);
     }
 
-    std::string getTypeName() override
-    {
-        return "StreamingFileWriter";
-    }
+    std::string getTypeName() override;
 
     void ProcessWatermark(Watermark *mark) override;
 
