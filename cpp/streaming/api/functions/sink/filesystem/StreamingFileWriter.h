@@ -29,6 +29,11 @@ class StreamingFileWriter : public AbstractStreamingWriter<IN, void *>
 {
 public:
     StreamingFileWriter(
+      long bucketCheckInterval,
+      BulkFormatBuilder<IN, std::string> *bucketsBuilder)
+      : AbstractStreamingWriter<IN, int>(bucketCheckInterval, bucketsBuilder) {}
+
+    StreamingFileWriter(
         long bucketCheckInterval,
         BulkFormatBuilder<IN, std::string> *bucketsBuilder,
         std::vector<std::string> partitionKeys = {},
