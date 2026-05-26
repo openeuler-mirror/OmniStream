@@ -24,11 +24,11 @@ class BucketerContext : public BucketAssignerContext {
     long currentWatermark;
     long currentProcessingTime;
 public:
-    void update(long elementTimestamp, long watermark, long processingTime)
+    void update(long timestamp, long watermark1, long processingTime1)
     {
-        this->elementTimestamp = elementTimestamp;
-        this->currentWatermark = watermark;
-        this->currentProcessingTime = processingTime;
+        this->elementTimestamp = timestamp;
+        this->currentWatermark = watermark1;
+        this->currentProcessingTime = processingTime1;
     }
 
     long getCurrentProcessingTime() const override
