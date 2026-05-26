@@ -31,7 +31,7 @@ public:
     StreamingFileWriter(
       long bucketCheckInterval,
       BulkFormatBuilder<IN, std::string> *bucketsBuilder)
-      : AbstractStreamingWriter<IN, int>(bucketCheckInterval, bucketsBuilder) {}
+      : AbstractStreamingWriter<IN, void *>(bucketCheckInterval, bucketsBuilder) {}
 
     StreamingFileWriter(
         long bucketCheckInterval,
