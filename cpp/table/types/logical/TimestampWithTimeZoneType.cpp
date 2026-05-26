@@ -10,12 +10,11 @@
  */
 
 #include "TimestampWithTimeZoneType.h"
-#include "../../../core/include/common.h"
 
 using namespace omniruntime::type;
 
 TimestampWithTimeZoneType::TimestampWithTimeZoneType(bool isNull, int32_t precision)
-    : LogicalType(isNull, DataTypeId::OMNI_TIMESTAMP_WITH_TIME_ZONE, "TIMESTAMP_WITH_TIME_ZONE"), precision(precision) {}
+    : BasicLogicalType(isNull, DataTypeId::OMNI_TIMESTAMP_WITH_TIME_ZONE, "TIMESTAMP_WITH_TIME_ZONE"), precision(precision) {}
 
 std::vector<LogicalType *> TimestampWithTimeZoneType::getChildren()
 {

@@ -10,10 +10,13 @@
  */
 #ifndef SLICINGWINDOWOPERATOR_H
 #define SLICINGWINDOWOPERATOR_H
-#include "../../../../core/include/common.h"
 
 template <typename Keytype>
 class SlicingWindowProcessor;
+
+#include <ctime>
+#include <limits>
+#include <string>
 
 #include "nlohmann/json.hpp"
 #include "streaming/api/watermark/Watermark.h"
@@ -36,9 +39,7 @@ class SlicingWindowProcessor;
 #include "runtime/state/StateInitializationContextImpl.h"
 #include "runtime/state/StateSnapshotContextSynchronousImpl.h"
 #include "core/api/common/state/ListStateDescriptor.h"
-#include <ctime>
-#include <limits>
-#include <string>
+
 
 using namespace omniruntime::type;
 using json = nlohmann::json;
@@ -95,6 +96,16 @@ public:
             this->watermarkState->add(currentWatermark);
         }
     };
+
+    void notifyCheckpointComplete(long checkpointId) override {
+        AbstractStreamOperator<RowData*>::notifyCheckpointComplete(checkpointId);
+    }
+
+    void notifyCheckpointAborted(long checkpointId) override {
+        AbstractStreamOperator<RowData*>::notifyCheckpointAborted(checkpointId);
+    }
+
+    void snapshotState() {};
     void close();
     void processBatch(omnistream::VectorBatch *batch);
     void processBatch(StreamRecord *record) override;
@@ -169,7 +180,7 @@ void SlicingWindowOperator<K, W>::close()
 template <typename K, typename W>
 void SlicingWindowOperator<K, W>::processBatch(StreamRecord *record)
 {
-    INFO_RELEASE("SlicingWindowOperator  processBatch  start!!!!!!!!!!!!!!!");
+    LOG("SlicingWindowOperator  processBatch  start!!!!!!!!!!!!!!!");
     omnistream::VectorBatch *input = reinterpret_cast<omnistream::VectorBatch*>(record->getValue());
     this->processBatch(input);
     LOG("SlicingWindowOperator  processBatch  end!!!!!!!!!!!!!!!");
@@ -178,16 +189,14 @@ void SlicingWindowOperator<K, W>::processBatch(StreamRecord *record)
 template <typename K, typename W>
 void SlicingWindowOperator<K, W>::processBatch(omnistream::VectorBatch *batch)
 {
-    INFO_RELEASE("SlicingWindowOperator  processBatch  start!!!!!!!!!!!!!!!");
     this->windowProcessor->processBatch(batch);
 }
 
 template <typename K, typename W>
 void SlicingWindowOperator<K, W>::ProcessWatermark(Watermark *mark)
 {
-    INFO_RELEASE("SlicingWindowOperator watermark > current watermark")
     if (mark->getTimestamp() > currentWatermark) {
-        INFO_RELEASE("watermark > current watermark")
+        LOG("watermark > current watermark")
         windowProcessor->advanceProgress(this->stateHandler, mark->getTimestamp());
         LOG("after advance")
         TableStreamOperator<RowData*>::ProcessWatermark(mark);
@@ -200,14 +209,13 @@ void SlicingWindowOperator<K, W>::ProcessWatermark(Watermark *mark)
 template <typename K, typename W>
 void SlicingWindowOperator<K, W>::onEventTime(TimerHeapInternalTimer<K, W> *timer)
 {
-    INFO_RELEASE("SlicingWindowOperator trigger onEventTime")
+    LOG("trigger onEventTime")
     onTimer(timer);
 }
 
 template <typename K, typename W>
 void SlicingWindowOperator<K, W>::onProcessingTime(TimerHeapInternalTimer<K, W> *timer)
 {
-    INFO_RELEASE("SlicingWindowOperator onProcessingTime")
     if (timer->getTimestamp() > lastTriggeredProcessingTime) {
         lastTriggeredProcessingTime = timer->getTimestamp();
         windowProcessor->advanceProgress(this->stateHandler, timer->getTimestamp());
@@ -241,7 +249,6 @@ AbstractKeyedStateBackend<omnistream::VectorBatch> *WindowProcessorContext<W>::g
 template <typename K, typename W>
 Output*  SlicingWindowOperator<K, W>::getOutput()
 {
-    INFO_RELEASE("SlicingWindowOperator getOutput")
     return windowProcessor->getOutput();
 }
 

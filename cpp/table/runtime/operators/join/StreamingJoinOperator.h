@@ -47,6 +47,14 @@ public:
 
     void open() override;
 
+    void notifyCheckpointComplete(long checkpointId) override {
+        AbstractStreamOperator<K>::notifyCheckpointComplete(checkpointId);
+    }
+
+    void notifyCheckpointAborted(long checkpointId) override {
+        AbstractStreamOperator<K>::notifyCheckpointAborted(checkpointId);
+    }
+
     void processElement1(StreamRecord* element) override
     {
         NOT_IMPL_EXCEPTION

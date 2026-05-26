@@ -15,7 +15,7 @@
 #include "LogicalType.h"
 
 
-class TimeWithoutTimeZoneType : public LogicalType {
+class TimeWithoutTimeZoneType : public BasicLogicalType {
 public:
     explicit TimeWithoutTimeZoneType(bool isNull, int precision = 0);
     int32_t getPrecision();

@@ -40,6 +40,18 @@ public:
     std::string getTypeName() override;
 
     void processElement(StreamRecord *element) override;
+    void notifyCheckpointComplete(long checkpointId) override {
+        AbstractStreamOperator<int>::notifyCheckpointComplete(checkpointId);
+    }
+
+    void notifyCheckpointAborted(long checkpointId) override {
+        AbstractStreamOperator<int>::notifyCheckpointAborted(checkpointId);
+    }
+
+    std::string getTypeName() override
+    {
+        return "StreamingFileWriter";
+    }
 
     void ProcessWatermark(Watermark *mark) override;
 
@@ -75,7 +87,5 @@ private:
 
     void closePartFileForPartitions();
 };
-
-#include "StreamingFileWriter.cpp"
 
 #endif // STREAMING_FILE_WRITER_H

@@ -546,6 +546,8 @@ OperatorSnapshotFutures *OperatorChainV2::CheckpointStreamOperator(StreamOperato
     const std::shared_ptr<OmniTaskBridge>& bridge)
 {
     try {
+        INFO_RELEASE("savepoint: OperatorChainV2::CheckpointStreamOperator op type=" << typeid(*op).name());
+        /* 部分算子存在菱形继承问题，需要转成 AbstractStreamOperator ，例如：SinkWriterOperator [OneInputStreamOperator, AbstractStreamOperator] -> StreamOperator */
         auto aop = dynamic_cast<AbstractStreamOperator<RowData *>*>(op);
         if (aop) {
             return aop->SnapshotState(checkpointMetaData.GetCheckpointId(), checkpointMetaData.GetTimestamp(),
@@ -556,18 +558,18 @@ OperatorSnapshotFutures *OperatorChainV2::CheckpointStreamOperator(StreamOperato
             return sop->SnapshotState(checkpointMetaData.GetCheckpointId(), checkpointMetaData.GetTimestamp(),
                                       checkpointOptions, storageLocation, bridge);
         }
-        auto lop = dynamic_cast<AbstractStreamOperator<long> *>(op);
+        auto lop = dynamic_cast<AbstractStreamOperator<long>*>(op);
         if (lop) {
             return lop->SnapshotState(checkpointMetaData.GetCheckpointId(), checkpointMetaData.GetTimestamp(),
                                       checkpointOptions, storageLocation, bridge);
         }
-        /* 部分算子存在菱形继承问题，需要特殊处理，例如：SinkWriterOperator [OneInputStreamOperator, AbstractStreamOperator] -> StreamOperator */
         auto vop = dynamic_cast<AbstractStreamOperator<void*>*>(op);
         if (vop) {
             return vop->SnapshotState(checkpointMetaData.GetCheckpointId(), checkpointMetaData.GetTimestamp(),
                                       checkpointOptions, storageLocation, bridge);
         }
-        /* 规避：增加其他处理 */
+        INFO_RELEASE("savepoint: OperatorChainV2::CheckpointStreamOperator StreamOperator::SnapshotState");
+        /* 规避：增加其他处理，不转换直接调用 StreamOperator 的 SnapshotState 什么也没做 */
         return op->SnapshotState(checkpointMetaData.GetCheckpointId(), checkpointMetaData.GetTimestamp(),
                                       checkpointOptions, storageLocation, bridge);
     } catch (...) {
