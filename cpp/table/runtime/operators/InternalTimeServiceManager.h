@@ -21,6 +21,7 @@
 #include "runtime/state/AbstractKeyedStateBackend.h"
 #include "runtime/state/KeyedStateCheckpointOutputStream.h"
 #include "runtime/state/KeyGroupsStateHandle.h"
+#include "runtime/state/TimerConsistencyCheckControl.h"
 #include "runtime/state/restore/RawKeyedStateInputStreamProxy.h"
 #include "runtime/state/bridge/OmniTaskBridge.h"
 #include "InternalTimerServiceSerializationProxy.h"
@@ -529,7 +530,9 @@ void InternalTimeServiceManager<K>::restoreRawKeyedState(
         << ", processingTimerCount=" << restoreProcessingTimerCount
         << ", totalTimerCount=" << (restoreEventTimerCount + restoreProcessingTimerCount)
         << ", localKeyGroupRange=" << localKeyGroupRange->ToString());
-    logTimerDataDigests("restore", "", -1, restoreTimerDataDigests);
+    if (TimerConsistencyCheckControl::timerConsistencyCheckEnabled) {
+        logTimerDataDigests("restore", "", -1, restoreTimerDataDigests);
+    }
 }
 
 template <typename K>
@@ -658,17 +661,19 @@ void InternalTimeServiceManager<K>::readTimerServiceForNamespace(
     if (eventTimerCount + processingTimerCount > 0) {
         ++restoreNonEmptyServiceKeyGroupCount;
     }
-    TimerNamespaceKind namespaceKind = []() {
-        if constexpr (std::is_same_v<N, int64_t>) {
-            return TimerNamespaceKind::INT64;
-        } else if constexpr (std::is_same_v<N, TimeWindow>) {
-            return TimerNamespaceKind::TIME_WINDOW;
-        } else {
-            return TimerNamespaceKind::VOID_NAMESPACE;
-        }
-    }();
-    TimerDataDigest keyGroupDigest = buildTimerDataDigest<N>(timersSnapshot);
-    mergeTimerDataDigest(restoreTimerDataDigests, serviceName, namespaceKind, keyGroupIdx, keyGroupDigest);
+    if (TimerConsistencyCheckControl::timerConsistencyCheckEnabled) {
+        TimerNamespaceKind namespaceKind = []() {
+            if constexpr (std::is_same_v<N, int64_t>) {
+                return TimerNamespaceKind::INT64;
+            } else if constexpr (std::is_same_v<N, TimeWindow>) {
+                return TimerNamespaceKind::TIME_WINDOW;
+            } else {
+                return TimerNamespaceKind::VOID_NAMESPACE;
+            }
+        }();
+        TimerDataDigest keyGroupDigest = buildTimerDataDigest<N>(timersSnapshot);
+        mergeTimerDataDigest(restoreTimerDataDigests, serviceName, namespaceKind, keyGroupIdx, keyGroupDigest);
+    }
 
     auto *timerService = registerOrGetTimerServiceForRestore<N>(
         serviceName,
@@ -753,7 +758,9 @@ inline void InternalTimeServiceManager<K>::snapshotToRawKeyedState(
         << ", eventTimerCount=" << snapshotEventTimerCount
         << ", processingTimerCount=" << snapshotProcessingTimerCount
         << ", totalTimerCount=" << (snapshotEventTimerCount + snapshotProcessingTimerCount));
-    logTimerDataDigests("snapshot", operatorName, checkpointId, snapshotTimerDataDigests);
+    if (TimerConsistencyCheckControl::timerConsistencyCheckEnabled) {
+        logTimerDataDigests("snapshot", operatorName, checkpointId, snapshotTimerDataDigests);
+    }
     activeSnapshotCheckpointId = -1;
     activeSnapshotKeyGroupId = -1;
 }
@@ -808,17 +815,19 @@ inline void InternalTimeServiceManager<K>::writeTimerServiceMap(
         if (eventTimerCount + processingTimerCount > 0) {
             ++snapshotNonEmptyServiceKeyGroupCount;
         }
-        TimerNamespaceKind namespaceKind = [&]() {
-            if constexpr (std::is_same_v<N, int64_t>) {
-                return TimerNamespaceKind::INT64;
-            } else if constexpr (std::is_same_v<N, TimeWindow>) {
-                return TimerNamespaceKind::TIME_WINDOW;
-            } else {
-                return TimerNamespaceKind::VOID_NAMESPACE;
-            }
-        }();
-        TimerDataDigest keyGroupDigest = buildTimerDataDigest<N>(timersSnapshot);
-        mergeTimerDataDigest(snapshotTimerDataDigests, serviceName, namespaceKind, keyGroupIdx, keyGroupDigest);
+        if (TimerConsistencyCheckControl::timerConsistencyCheckEnabled) {
+            TimerNamespaceKind namespaceKind = [&]() {
+                if constexpr (std::is_same_v<N, int64_t>) {
+                    return TimerNamespaceKind::INT64;
+                } else if constexpr (std::is_same_v<N, TimeWindow>) {
+                    return TimerNamespaceKind::TIME_WINDOW;
+                } else {
+                    return TimerNamespaceKind::VOID_NAMESPACE;
+                }
+            }();
+            TimerDataDigest keyGroupDigest = buildTimerDataDigest<N>(timersSnapshot);
+            mergeTimerDataDigest(snapshotTimerDataDigests, serviceName, namespaceKind, keyGroupIdx, keyGroupDigest);
+        }
         auto writer = InternalTimersSnapshotReaderWriters<K, N>::getWriterForVersion(
             InternalTimerServiceSerializationProxy<K>::VERSION,
             std::move(timersSnapshot),
@@ -1046,8 +1055,10 @@ void InternalTimeServiceManager<K>::logTimerDataDigest(
     TimerNamespaceKind namespaceKind,
     const TimerDataDigest &digest)
 {
-    INFO_RELEASE("TIMER_DATA_DIGEST phase=" << phase
+    INFO_RELEASE("TIMER_CP_HEAP_PQ_DATA_DIGEST phase=" << phase
         << ", checkpointId=" << checkpointId
+        << ", backend=ROCKSDB_KEYED"
+        << ", pqStorage=HEAP"
         << ", managerPtr=" << reinterpret_cast<uintptr_t>(this)
         << ", operatorName=" << operatorName
         << ", serviceName=" << serviceName
@@ -1085,8 +1096,10 @@ void InternalTimeServiceManager<K>::logTimerDataDigests(
         std::string namespaceKind = separator == std::string::npos ? "UNKNOWN" : key.substr(0, separator);
         std::string serviceName = separator == std::string::npos ? key : key.substr(separator + 1);
         const TimerDataDigest &digest = entry.second;
-        INFO_RELEASE("TIMER_DATA_DIGEST phase=" << phase
+        INFO_RELEASE("TIMER_CP_HEAP_PQ_DATA_DIGEST phase=" << phase
             << ", checkpointId=" << checkpointId
+            << ", backend=ROCKSDB_KEYED"
+            << ", pqStorage=HEAP"
             << ", managerPtr=" << reinterpret_cast<uintptr_t>(this)
             << ", operatorName=" << operatorName
             << ", serviceName=" << serviceName
@@ -1124,8 +1137,10 @@ void InternalTimeServiceManager<K>::logTimerDataSample(
     if (!digest.sample.present) {
         return;
     }
-    INFO_RELEASE("TIMER_DATA_SAMPLE phase=" << phase
+    INFO_RELEASE("TIMER_CP_HEAP_PQ_DATA_SAMPLE phase=" << phase
         << ", checkpointId=" << checkpointId
+        << ", backend=ROCKSDB_KEYED"
+        << ", pqStorage=HEAP"
         << ", managerPtr=" << reinterpret_cast<uintptr_t>(this)
         << ", operatorName=" << operatorName
         << ", serviceName=" << serviceName

@@ -15,6 +15,7 @@
 #include <unordered_map>
 
 #include "KeyGroupRange.h"
+#include "TimerConsistencyCheckControl.h"
 #include "heap/HeapPriorityQueueDataDigest.h"
 #include "heap/HeapPriorityQueueSetFactory.h"
 #include "heap/HeapPriorityQueueSnapshotRestoreWrapper.h"
@@ -61,7 +62,9 @@ public:
                 auto restoredState = createInternal<K, T, Comparator>(metaInfo);
                 const size_t pendingEntryCount = pendingRestoredState->size();
                 pendingRestoredState->template drainTo<K, T, Comparator>(restoredState, getKeyGroupPrefixBytes());
-                logRestoredQueueDigest<K, T, Comparator>(stateName, restoredState);
+                if (TimerConsistencyCheckControl::timerConsistencyCheckEnabled) {
+                    logRestoredQueueDigest<K, T, Comparator>(stateName, restoredState);
+                }
                 INFO_RELEASE("HeapPriorityQueuesManager: drained " << pendingEntryCount
                     << " pending restored entries for priority queue state '" << stateName << "'");
                 return restoredState->getHeapPriorityQueueSet();

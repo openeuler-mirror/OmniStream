@@ -4,6 +4,7 @@
 #include "KeyGroupRangeOffsets.h"
 #include "KeyGroupsSavepointStateHandle.h"
 #include "KeyGroupsStateHandle.h"
+#include "TimerConsistencyCheckControl.h"
 #include "state/heap/HeapPriorityQueueDataDigest.h"
 #include <map>
 #include <sstream>
@@ -37,7 +38,9 @@ std::shared_ptr<SnapshotResult<KeyedStateHandle>> FullSnapshotAsyncWriter::get(
         stream.writeMetadata(metaInfoSnapshots, keySerializer_);
 
         std::map<int, HeapPriorityQueueDataDigest::Summary> heapPqDigests;
-        const bool shouldDigestHeapPq = snapshotType_ != nullptr && snapshotType_->IsSavepoint();
+        const bool shouldDigestHeapPq = snapshotType_ != nullptr
+            && snapshotType_->IsSavepoint()
+            && TimerConsistencyCheckControl::timerConsistencyCheckEnabled;
         if (shouldDigestHeapPq) {
             for (size_t i = 0; i < metaInfoSnapshots.size(); i++) {
                 const int kvStateId = static_cast<int>(i);
@@ -84,7 +87,9 @@ std::shared_ptr<SnapshotResult<KeyedStateHandle>> FullSnapshotAsyncWriter::get(
             mergeIterator->next();
         }
         while (mergeIterator->isValid()) {
-            recordHeapPqEntry(previousKvStateId, previousKey, previousValue);
+            if (shouldDigestHeapPq) {
+                recordHeapPqEntry(previousKvStateId, previousKey, previousValue);
+            }
             if (mergeIterator->isNewKeyGroup() || mergeIterator->isNewKeyValueState()) {
                 previousKey[0] |= FIRST_BIT_IN_BYTE_MASK;
             }
@@ -105,7 +110,9 @@ std::shared_ptr<SnapshotResult<KeyedStateHandle>> FullSnapshotAsyncWriter::get(
             mergeIterator->next();
         }
         if (!previousKey.empty()) {
-            recordHeapPqEntry(previousKvStateId, previousKey, previousValue);
+            if (shouldDigestHeapPq) {
+                recordHeapPqEntry(previousKvStateId, previousKey, previousValue);
+            }
             previousKey[0] |= FIRST_BIT_IN_BYTE_MASK;
             stream.writeInt(previousKey.size());
             stream.writeBytes(previousKey.data(), previousKey.size());
