@@ -110,7 +110,7 @@ void LocalSlicingWindowAggOperator::processBatch(StreamRecord *record)
         long rowTime = sliceEndArr[row];
         RowData *keyRow = keySelector->getKey(input, row);
         RowData *currentRow = input->extractRowData(row);
-        WindowKey* windowKey = new WindowKey(rowTime, keyRow);
+        WindowKey windowKey(rowTime, keyRow);
         auto it = bundle.find(windowKey);
         if (it != bundle.end()) {
             it->second.push_back(currentRow);
@@ -146,11 +146,11 @@ bool LocalSlicingWindowAggOperator::SendAccResults(Watermark *mark)
 {
     std::vector<RowData*> resultRows;
     // 开始遍历每一个key
-    for (WindowKey* currentKey : invertOrder) {
+    for (const WindowKey& currentKey : invertOrder) {
         std::vector<RowData *>& entireRows = bundle[currentKey];
         eraseMsg(entireRows);
         if (entireRows.empty()) {
-            return false;
+            continue;
         }
         RowData* accumulators = BinaryRowData::createBinaryRowDataWithMem(accumulatorArity);
         for (auto& func : functions) {
@@ -160,10 +160,11 @@ bool LocalSlicingWindowAggOperator::SendAccResults(Watermark *mark)
             func->setAccumulators(accumulators);
         }
         AccumulateOrRetract(entireRows);
-        windowRow->setField(0, currentKey->getWindow());
+        windowRow->setField(0, currentKey.getWindow());
         accWindowRow->replace(reUseAccumulator, windowRow);
-        resultRow->replace(currentKey->getKey(), accWindowRow);
+        resultRow->replace(currentKey.getKey(), accWindowRow);
         resultRows.push_back(BinaryRowDataSerializer::joinedRowToBinaryRow(resultRow, outputTypeIds));
+        delete accumulators;
     }
     resultBatch = createOutputBatch(resultRows);
     collectOutputBatch(collector, resultBatch);

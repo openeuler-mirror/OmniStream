@@ -30,6 +30,9 @@ RowData* WindowKey::getKey() const
 
 long WindowKey::hash() const
 {
-    long hashResult = this->window * this->key->hashCode();
+    size_t h1 = std::hash<long>{}(window);
+    size_t h2 = key->hashCode();
+
+    long hashResult = h1 ^ (h2 + 0x9e3779b9 + (h1 << 6) + (h1 >> 2));
     return hashResult;
 }
