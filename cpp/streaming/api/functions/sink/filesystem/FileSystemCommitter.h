@@ -18,6 +18,8 @@
 #include <vector>
 #include <sys/stat.h>
 
+#include "core/include/common.h"
+
 namespace fs = std::filesystem;
 
 class FileSystemCommitter {
