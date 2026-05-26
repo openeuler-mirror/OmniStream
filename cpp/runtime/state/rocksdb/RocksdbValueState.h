@@ -82,13 +82,14 @@ public:
     void createTable(ROCKSDB_NAMESPACE::DB* db, std::string cfName,
                     std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>> *kvStateInformation);
 
-    void clearVectors(int64_t currentTimestamp) {}
+   
     void clear() override;
     void addVectorBatch(omnistream::VectorBatch *vectorBatch) override;
     omnistream::VectorBatch *getVectorBatch(int batchId) override;
     long getVectorBatchesSize() override;
     void updateByBatch(std::unordered_map<K, V>& pendingUpdates);
-
+    void clearVectors(int64_t currentTimestamp) override;
+    void clearVectors(std::vector<size_t>& indicesToDelete) override;
     // [FALCON] -------------------------------------------------------------------------------------------
     // function to get defaultValue, get currentNamespace and set currentKey & namespace
     V getDefaultValue() { return defaultValue; };
@@ -460,4 +461,14 @@ template<typename K, typename N, typename V>
 void RocksdbValueState<K, N, V>::updateByBatch(std::unordered_map<K, V>& pendingUpdates)
 {
     stateTable->putByBatch(currentNamespace,pendingUpdates);
+}
+
+template <typename K, typename N, typename V>
+void  RocksdbValueState<K, N, V>::clearVectors(int64_t currentTimestamp){
+    return stateTable->clearVectors(currentTimestamp);
+}
+
+template <typename K, typename N, typename V>
+void  RocksdbValueState<K, N, V>::clearVectors(std::vector<size_t>& indicesToDelete){
+    return stateTable->clearVectors(indicesToDelete);
 }

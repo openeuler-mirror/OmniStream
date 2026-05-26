@@ -87,6 +87,8 @@ public:
     void addVectorBatch(omnistream::VectorBatch* vectorBatch) override;
     omnistream::VectorBatch *getVectorBatch(int batchId) override;
     long getVectorBatchesSize() override;
+    void clearVectors(int64_t currentTimestamp) override;
+    void clearVectors(std::vector<size_t>& indicesToDelete) override;
 
     void createTable(ROCKSDB_NAMESPACE::DB* db, std::string cfName,
                      std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>> *kvStateInformation);
@@ -336,3 +338,17 @@ long RocksdbMapState<K, N, UK, UV>::getVectorBatchesSize()
 {
     return stateTable->getVectorBatchesSize();
 };
+
+template<typename K, typename N, typename UK, typename UV>
+void  RocksdbMapState<K, N, UK, UV>::clearVectors(int64_t currentTimestamp){
+   
+    return stateTable->clearVectors(currentTimestamp);
+}
+
+template<typename K, typename N, typename UK, typename UV>
+void  RocksdbMapState<K, N, UK, UV>::clearVectors(std::vector<size_t>& indicesToDelete){
+   
+    return stateTable->clearVectors(indicesToDelete);
+}
+
+

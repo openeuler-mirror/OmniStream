@@ -81,7 +81,7 @@ public:
         return maxTimestamp != INT64_MIN && currentTimestamp > maxTimestamp;
     }
 
-    void setMaxTimestamp(int col);
+    int64_t setMaxTimestamp(int col);
 
     // adjust the position of columns, achieving a simple column projection
     void RearrangeColumns(std::vector<int32_t>& inputIndices);

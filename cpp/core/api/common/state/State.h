@@ -41,12 +41,22 @@ public:
     {
         return vectorBatches[batchId];
     }
-    void clearVectors(int64_t currentTimestamp)
+    virtual void clearVectors(int64_t currentTimestamp)
     {
         for (size_t i = 0; i < vectorBatches.size(); ++i) {
             if (vectorBatches[i] && vectorBatches[i]->isEmpty(currentTimestamp)) {
                 delete vectorBatches[i];
                 vectorBatches[i] = nullptr;
+            }
+        }
+    }
+
+    virtual void clearVectors(std::vector<size_t>& indicesToDelete)
+    {
+        for (size_t index : indicesToDelete) {
+            if (index < vectorBatches.size() && vectorBatches[index]) {
+                delete vectorBatches[index];
+                vectorBatches[index] = nullptr;
             }
         }
     }

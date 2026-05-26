@@ -71,6 +71,7 @@ public:
     void addVectorBatch(omnistream::VectorBatch *vectorBatch) override;
     omnistream::VectorBatch *getVectorBatch(int batchId) override;
     long getVectorBatchesSize() override;
+    void clearVectors(int64_t currentTimestamp) override;
 
 private:
     RocksdbStateTable<K, N, UV> *stateTable;
@@ -151,6 +152,12 @@ template <typename K, typename N, typename UV>
 long RocksdbListState<K, N, UV>::getVectorBatchesSize()
 {
     return stateTable->getVectorBatchesSize();
+}
+
+
+template <typename K, typename N, typename UV>
+void  RocksdbListState<K, N, UV>::clearVectors(int64_t currentTimestamp){
+    return stateTable->clearVectors(currentTimestamp);
 }
 
 #endif // OMNISTREAM_ROCKSDBLISTSTATE_H
