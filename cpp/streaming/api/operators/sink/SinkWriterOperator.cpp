@@ -60,6 +60,9 @@ void SinkWriterOperator::open() {
 
 void SinkWriterOperator::close() {
     INFO_RELEASE("savepoint: SinkWriterOperator close START");
+    if (!endOfInput) {
+        EndInput();
+    }
     // 会阻塞，先注释掉
     // if (sinkWriter != nullptr) {
     //     sinkWriter->close();
