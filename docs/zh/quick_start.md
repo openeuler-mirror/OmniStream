@@ -1,5 +1,5 @@
 # 快速上手
-
+    
 ## 源码编译
 
 ### 依赖组件
@@ -97,7 +97,7 @@
 2.  OmniStream编译命令如下。
 
     ```bash
-    cd OmniSteam/cpp
+    cd OmniStream/cpp
     mkdir build
     cd build
     cmake ..

@@ -444,16 +444,6 @@ rpm -ivh yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
         chmod -R 550 /opt/Dependency_library/*
         ```
 
-    2. 从Dependency\_library中获取nexmark-flink-0.3-SNAPSHOT.jar，复制到`flink/lib`目录中，并替换`nexmark/lib`下的nexmark-flink-0.2-SNAPSHOT.jar。
-
-        ```bash
-        cp /opt/Dependency_library/nexmark-flink-0.3-SNAPSHOT.jar /usr/local/flink/lib
-        rm -rf /opt/nexmark/lib/nexmark-flink-0.2-SNAPSHOT.jar
-        cp /opt/Dependency_library/nexmark-flink-0.3-SNAPSHOT.jar /opt/nexmark/lib/
-        ```
-
-        以上操作完成后，Flink在启动时将自动扫描`flink/lib`目录并加载该依赖包，无需执行额外的安装命令。
-
 
 
 ### 安装OmniStream<a name="ZH-CN_TOPIC_0000002549064711"></a>
@@ -557,11 +547,11 @@ rpm -ivh yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
 
 1. 在物理机上传并解压KACC\_JSON。
 
-    从[**表 3** 软件获取列表](#软件获取列表)中获取BoostKit-kacccjson\_1.0.0.zip，上传该压缩包至物理机的`/opt`目录，并解压。
+    从[**表 3** 软件获取列表](#软件获取列表)中获取BoostKit-kaccjson\_1.1.0.zip，上传该压缩包至物理机的`/opt`目录，并解压。
 
     ```bash
     cd /opt/
-    unzip BoostKit-kacccjson_1.1.0.zip
+    unzip BoostKit-kaccjson_1.1.0.zip
     ```
 
 2. 将KACC\_JSON头文件和静态库复制到flink\_jm\_8c32g容器中的UDF翻译工具路径`/opt/udf-trans-opt/libbasictypes`。
@@ -592,11 +582,9 @@ rpm -ivh yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
         ```
 
 4. 在物理机安装OmniStream依赖头文件。
-    1. 将从[**表 3** 软件获取列表](#软件获取列表)中获取的depend.zip安装包解压到`/usr/local/OmniStream/depend`目录下。
+    1. 将依赖头文件拷贝到flink_jm_8c32g:/opt/udf-trans-opt/libbasictypes/include/目录下。
 
         ```bash
-        mkdir -p /usr/local/OmniStream/depend/
-        unzip depend.zip -d /usr/local/OmniStream/depend/
         docker cp /usr/local/OmniStream/libbasictypes/OmniStream flink_jm_8c32g:/opt/udf-trans-opt/libbasictypes/include/
         docker cp /usr/local/OmniStream/libbasictypes/include/core flink_jm_8c32g:/opt/udf-trans-opt/libbasictypes/include/
         docker cp /usr/local/OmniStream/libbasictypes/include/runtime flink_jm_8c32g:/opt/udf-trans-opt/libbasictypes/include/
@@ -616,7 +604,7 @@ rpm -ivh yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
 
            >![](public_sys-resources/icon-note.gif)**说明：**
            >`/opt/omni-operator/jemalloc`目录用户可自行定义。
-      
+
        2. 进入`jemalloc`目录，运行脚本并安装。
 
           ```bash
@@ -624,7 +612,7 @@ rpm -ivh yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
           ./autogen.sh --disable-initial-exec-tls
           make -j2
           ```
-          
+
       3. 拷贝`/opt/omni-operator/jemalloc/lib/libjemalloc.so.2`到`/opt/omni-operator/lib`目录下。
 
          ```bash
@@ -652,7 +640,7 @@ rpm -ivh yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
        cd /usr/local/OmniStream/depend/
        git clone https://github.com/Cyan4973/xxHash.git
        cd xxHash && git checkout tags/v0.8.2
-       docker cp /usr/local/OmniStream/depend/xxhash.h flink_jm_8c32g:/opt/udf-trans-opt/libbasictypes/include/
+       docker cp /usr/local/OmniStream/depend/xxHash/xxhash.h flink_jm_8c32g:/opt/udf-trans-opt/libbasictypes/include/
        ```
 
    6. 下载nlohmann json，将本地代码中的include/nlohmann目录拷贝到容器UDF工具的头文件引用目录中。
@@ -660,7 +648,7 @@ rpm -ivh yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
        ```bash
        cd /usr/local/OmniStream/depend/
        git clone https://github.com/nlohmann/json.git -b v3.11.3
-       docker cp /usr/local/OmniStream/depend/nlohmann/include/nlohmann flink_jm_8c32g:/opt/udf-trans-opt/libbasictypes/include/
+       docker cp /usr/local/OmniStream/depend/json/include/nlohmann flink_jm_8c32g:/opt/udf-trans-opt/libbasictypes/include/
        ```
 
 5. 安装libboundscheck头文件`/opt/udf-trans-opt/libbasictypes`。
