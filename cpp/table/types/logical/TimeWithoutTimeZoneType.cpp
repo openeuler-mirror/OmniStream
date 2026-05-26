@@ -10,12 +10,11 @@
  */
 
 #include "TimeWithoutTimeZoneType.h"
-#include "../../../core/include/common.h"
 
 using namespace omniruntime::type;
 
 TimeWithoutTimeZoneType::TimeWithoutTimeZoneType(bool isNull, int precision)
-    : LogicalType( isNull, DataTypeId::OMNI_TIME_WITHOUT_TIME_ZONE,"TIME_WITHOUT_TIME_ZONE"), precision(precision) {}
+    : BasicLogicalType( isNull, DataTypeId::OMNI_TIME_WITHOUT_TIME_ZONE,"TIME_WITHOUT_TIME_ZONE"), precision(precision) {}
 
 std::vector<LogicalType *> TimeWithoutTimeZoneType::getChildren()
 {
