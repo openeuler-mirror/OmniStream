@@ -32,7 +32,6 @@ void addPolicy(std::vector<std::unique_ptr<PartitionCommitPolicy>> &policies,
 std::vector<std::unique_ptr<PartitionCommitPolicy>> createPolicyChain(const std::string &policyKind)
 {
     std::vector<std::unique_ptr<PartitionCommitPolicy>> policies;
-
     if (policyKind.empty()) {
         policies.push_back(std::make_unique<SuccessFileCommitPolicy>());
         return policies;
