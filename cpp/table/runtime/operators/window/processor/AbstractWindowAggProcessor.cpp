@@ -12,6 +12,7 @@
 #include "AbstractWindowAggProcessor.h"
 #include "runtime/generated/function/CountWindowAggFunction.h"
 #include "runtime/generated/function/MinMaxWindowAggFunction.h"
+#include "runtime/generated/function/SumWindowAggFunction.h"
 #include "table/runtime/generated/function/GlobalEmptyNamespaceFunction.h"
 #include "runtime/operators/VectorBatchUtils.h"
 
@@ -61,6 +62,8 @@ AbstractWindowAggProcessor::AbstractWindowAggProcessor(const nlohmann::json desc
             globalFunction = new MinMaxWindowAggFunction(0, 0, 0, MAX_FUNC, sliceAssigner);
         } else if (aggType == "MIN") {
            globalFunction = new MinMaxWindowAggFunction(0, 0, 0, MIN_FUNC, sliceAssigner);
+        }else if (aggType == "SUM"){
+            globalFunction = new SumWindowAggFunction(0, 0, 0, sliceAssigner);
         } else {
             throw std::runtime_error("Unsupported aggregate type: " + aggTypeStr);
         }

@@ -16,6 +16,7 @@
 #include "table/typeutils/BinaryRowDataSerializer.h"
 #include "table/runtime/generated/function/GlobalEmptyNamespaceFunction.h"
 #include "runtime/generated/function/CountWindowAggFunction.h"
+#include "runtime/generated/function/SumWindowAggFunction.h"
 #include "table/runtime/operators/VectorBatchUtils.h"
 
 RecordsWindowBuffer::RecordsWindowBuffer(const nlohmann::json& config, WindowValueState<RowData*, int64_t, RowData*>* state,
@@ -103,6 +104,8 @@ void RecordsWindowBuffer::CreateFunctions(SliceAssigner *sliceAssigner,
                                                         aggValueIndex, MIN_FUNC, sliceAssigner);
             globalFunction =  std::make_unique<MinMaxWindowAggFunction>(0, 0, 0, MIN_FUNC, sliceAssigner);
         } else if (aggType == "SUM") {
+            localFunction = std::make_unique<SumWindowAggFunction>(keyedIndex.size(), accStartingIndex, aggValueIndex, sliceAssigner);
+            globalFunction =  std::make_unique<SumWindowAggFunction>(0, 0, 0, sliceAssigner);
         } else {
             throw std::runtime_error("Unsupported aggregate type: " + aggTypeStr);
         }
