@@ -89,15 +89,11 @@ public:
             auto handle = outputStreamProxy.close();
             if (handle) {
                 auto jobManagerOwnedSnapshot = handle->GetJobManagerOwnedSnapshot();
-                snapshotResources_->cleanup();
                 auto stateHandle = std::make_shared<OperatorStreamStateHandle>(writtenStatesMetaData, jobManagerOwnedSnapshot);
-
                 return SnapshotResult<OperatorStateHandle>::WithLocalState(stateHandle, nullptr);
             }
-            snapshotResources_->cleanup();
-                return SnapshotResult<OperatorStateHandle>::Empty();
+            return SnapshotResult<OperatorStateHandle>::Empty();
         } catch (const std::exception &e) {
-            snapshotResources_->cleanup();
             GErrorLog("DefaultOperatorSnapshotOperation get exception : " + std::string(e.what()));
             throw std::runtime_error("DefaultOperatorSnapshotOperation get failed.");
         }

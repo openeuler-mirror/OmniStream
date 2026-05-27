@@ -38,7 +38,14 @@ public:
 
     ~SinkWriterOperator()
     {
-        close();
+        delete writerStateHandler;
+        writerStateHandler = nullptr;
+        // sinkWriter会在别的地方释放，此处仅制空
+        sinkWriter = nullptr;
+        delete committableSerializer;
+        committableSerializer = nullptr;
+        delete kafkaSink;
+        kafkaSink = nullptr;
     }
 
     void initializeState(StateInitializationContextImpl<void*>* context) override;
@@ -75,6 +82,8 @@ public:
     std::string getTypeName() override;
 
     KafkaSink* getKafkaSink() { return kafkaSink; }
+
+    void PrepareSnapshotPreBarrier(long checkpointId) override;
 
 private:
     template<typename K>

@@ -663,19 +663,11 @@ void OperatorChainV2::operatorDependenciesDeal() {
     }
     if (opMap.find(OPERATOR_NAME_COMMIT_OPERATOR) != opMap.end()) {
         if (opMap.find(OPERATOR_NAME_SINK_WRITER) == opMap.end()) {
-            GErrorLog("OperatorDependenciesDeal CommiterOperator dependy SinkWriterOperator");
+            GErrorLog("OperatorDependenciesDeal CommitterOperator dependy SinkWriterOperator");
             return;
         }
         CommitterOperator<>* committerOperator = dynamic_cast<CommitterOperator<>*>(opMap[OPERATOR_NAME_COMMIT_OPERATOR]);
-        if (committerOperator == nullptr) {
-            GErrorLog("OperatorDependenciesDeal CommiterOperator not CommitterOperator");
-            return;
-        }
         SinkWriterOperator* sinkWriterOperator = dynamic_cast<SinkWriterOperator*>(opMap[OPERATOR_NAME_SINK_WRITER]);
-        if (sinkWriterOperator == nullptr) {
-            GErrorLog("OperatorDependenciesDeal CommiterOperator not CommitterOperator");
-            return;
-        }
         committerOperator->initFromKafkaSink(sinkWriterOperator->getKafkaSink());
     } else {
         INFO_RELEASE("OperatorDependenciesDeal not need deal");
