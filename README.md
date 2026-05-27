@@ -87,7 +87,7 @@ OmniStream Flink Native化的配置限制包括数据类型、算子支持、状
 - LookupJoin算子的外部表数据源仅支持CSV文件。
 - 状态后端只支持内存和RocksDB。
 - Flink会将状态存储在内存状态后端中，内存使用会随时间和处理数据量增长，OmniStream使用列式向量化架构优化性能，状态存储跟原生行为一致，处理速度比原生Flink更快，使用内存增长速度比原生快，提升性能的同时对于空间的需求也增大，因此当前Nexmark基准测试用例输入数据量最大只支持5千万数据。
-- SQL场景暂不支持创建Checkpoint/Savepoint快照。
+- SQL场景支持创建Checkpoint/Savepoint快照，相关配置项及命令与社区Flink保持一致。
 - SQL场景下，若使用KAFKA作为数据源，暂不支持以多并行度模式运行。
 
 **DataStream<a name="zh-cn_topic_0000002512242608_section14862183194614"></a>**
@@ -97,8 +97,7 @@ OmniStream Flink Native化的配置限制包括数据类型、算子支持、状
 - Source和Sink目前只支持Kafka数据源。
 - 支持的算子有限：Map、FlatMap、GroupReduce、Filter、Source、Sink。
 - Filter算子目前只支持RichFilterFunction。
-- 仅支持使用RocksDB状态后端的场景下创建Checkpoint/Savepoint快照，相关配置项及命令与社区Flink保持一致。
-- 暂不支持将Flink定时器（PriorityQueue）中的数据保存到Checkpoint/Savepoint快照中。
+- 仅支持使用内存和RocksDB状态后端的场景下创建Checkpoint/Savepoint快照，相关配置项及命令与社区Flink保持一致。
 
 **OmniStateStore<a name="zh-cn_topic_0000002512242608_section14862183194614"></a>**
 
