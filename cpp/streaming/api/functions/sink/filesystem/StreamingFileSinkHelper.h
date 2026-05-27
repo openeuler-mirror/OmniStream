@@ -34,7 +34,9 @@ public:
 
     void commitUpToCheckpoint(long checkpointId)
     {
-        buckets->commitUpToCheckpoint(checkpointId);
+        if (buckets) {
+            buckets->commitUpToCheckpoint(checkpointId);
+        }
     }
 
     void OnProcessingTime(int64_t timestamp) override
@@ -52,7 +54,9 @@ public:
 
     void close()
     {
-        buckets->close();
+        if (buckets) {
+            buckets->commitUpToCheckpoint(-1);
+        }
     }
 private:
     const long bucketCheckInterval;

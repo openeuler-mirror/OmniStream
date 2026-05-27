@@ -34,6 +34,7 @@
 #include "OperatorStreamStateHandle.h"
 #include "DefaultOperatorSnapshotOperation.h"
 #include "DefaultOperatorStateBackendSnapshotResources.h"
+#include "../../core/include/common.h"
 
 class DefaultOperatorStateBackendSnapshotStrategy
     : public SnapshotStrategy<OperatorStateHandle, SnapshotResources> {
@@ -63,7 +64,15 @@ public:
             for (auto& entry : *registeredOperatorStates_) {
                 if (entry.second != nullptr) {
                     auto state = std::dynamic_pointer_cast<PartitionableListState<std::vector<uint8_t>>>(entry.second);
-                    operatorStateMetaInfoSnapshots.push_back(state->getStateMetaInfo()->snapshot());
+                    if (state) {
+                        operatorStateMetaInfoSnapshots.push_back(state->getStateMetaInfo()->snapshot());
+                        continue;
+                    }
+                    auto state1 = std::dynamic_pointer_cast<PartitionableListState<long>>(entry.second);
+                    if (state1){
+                        operatorStateMetaInfoSnapshots.push_back(state1->getStateMetaInfo()->snapshot());
+                        continue;
+                    }
                 }
             }
         }

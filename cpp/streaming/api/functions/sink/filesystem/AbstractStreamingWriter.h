@@ -9,9 +9,11 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#pragma once
+#ifndef OMNISTREAM_ABSTRACT_STREAMING_WRITER_H
+#define OMNISTREAM_ABSTRACT_STREAMING_WRITER_H
 
 #include <memory>
+#include <map>
 #include "streaming/api/operators/AbstractStreamOperator.h"
 #include "Buckets.h"
 #include "StreamingFileSinkHelper.h"
@@ -19,6 +21,8 @@
 #include "streaming/api/operators/OneInputStreamOperator.h"
 #include "streaming/runtime/tasks/SystemProcessingTimeService.h"
 #include "core/fs/Path.h"
+#include "streaming/api/operators/OperatorSnapshotFutures.h"
+#include "runtime/checkpoint/CheckpointOptions.h"
 
 template <typename IN, typename OUT>
 class AbstractStreamingWriter : public AbstractStreamOperator<OUT>, public OneInputStreamOperator {
@@ -68,6 +72,42 @@ public:
     void endInput()
     {
         buckets->onProcessingTime(LONG_MAX);
+        helper->close();
+    }
+
+    void snapshotState(long checkpointId)
+    {
+        buckets->snapshotState();
+        LOG("AbstractStreamingWriter::snapshotState checkpointId=" << checkpointId)
+    }
+
+    void notifyCheckpointComplete(long checkpointId) override
+    {
+        AbstractStreamOperator<OUT>::notifyCheckpointComplete(checkpointId);
+        if (buckets) {
+            buckets->notifyCheckpointComplete(checkpointId);
+        }
+    }
+
+    OperatorSnapshotFutures *SnapshotState(long checkpointId,
+        long timestamp,
+        CheckpointOptions *checkpointOptions,
+        CheckpointStreamFactory* storageLocation,
+        const std::shared_ptr<OmniTaskBridge>& bridge) override
+    {
+        auto result = AbstractStreamOperator<OUT>::SnapshotState(
+            checkpointId, timestamp, checkpointOptions, storageLocation, bridge);
+        if (buckets) {
+            buckets->snapshotState();
+        }
+        return result;
+    }
+
+    void PrepareSnapshotPreBarrier(long checkpointId) override
+    {
+        if (buckets) {
+            buckets->onProcessingTime(LONG_MAX);
+        }
     }
 
     void open() override {};
@@ -96,10 +136,27 @@ public:
         return typeName;
     }
 
-private:
-    long bucketCheckInterval;
-    BulkFormatBuilder<IN, std::string> *bucketsBuilder;
+protected:
     Buckets<IN, std::string> *buckets;
     StreamingFileSinkHelper<IN> *helper;
     long currentWatermark;
+
+    virtual void partitionCreated(const std::string &partition) {}
+
+    virtual void partitionInactive(const std::string &partition) {}
+
+    virtual void onPartFileOpened(const std::string &partition, const std::string &newPath) {}
+
+    virtual void commitUpToCheckpoint(long checkpointId)
+    {
+        if (helper) {
+            helper->commitUpToCheckpoint(checkpointId);
+        }
+    }
+
+private:
+    long bucketCheckInterval;
+    BulkFormatBuilder<IN, std::string> *bucketsBuilder;
 };
+
+#endif // OMNISTREAM_ABSTRACT_STREAMING_WRITER_H

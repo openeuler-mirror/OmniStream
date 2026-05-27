@@ -14,6 +14,10 @@
 template <typename Keytype>
 class SlicingWindowProcessor;
 
+#include <ctime>
+#include <limits>
+#include <string>
+
 #include "nlohmann/json.hpp"
 #include "streaming/api/watermark/Watermark.h"
 #include "streaming/api/operators/TimerHeapInternalTimer.h"
@@ -31,7 +35,11 @@ class SlicingWindowProcessor;
 #include "test/core/operators/OutputTest.h"
 #include "table/runtime/operators/window/processor/AbstractWindowAggProcessor.h"
 #include "streaming/runtime/tasks/SystemProcessingTimeService.h"
-#include <ctime>
+#include "runtime/state/DefaultOperatorStateBackend.h"
+#include "runtime/state/StateInitializationContextImpl.h"
+#include "runtime/state/StateSnapshotContextSynchronousImpl.h"
+#include "core/api/common/state/ListStateDescriptor.h"
+
 
 using namespace omniruntime::type;
 using json = nlohmann::json;
@@ -41,14 +49,52 @@ class SlicingWindowOperator : public TableStreamOperator<RowData*>, public OneIn
 , public Triggerable<K, W> {
 public:
     SlicingWindowOperator(SlicingWindowProcessor<W> *windowProcessor, const nlohmann::json config);
-    ~SlicingWindowOperator() override { delete watermarkState; };
+    ~SlicingWindowOperator() override = default;
     void open() override;
     void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) override
     {
-        // First do the shared initialization step
-        INFO_RELEASE("SlicingWindowOperator initializeState with initializer, operatorID: " << OneInputStreamOperator::GetOperatorID().toString());
-        AbstractStreamOperator::SetOperatorID(OneInputStreamOperator::GetOperatorID().toString());
-        AbstractStreamOperator::initializeState(initializer, keySerializer);
+        INFO_RELEASE("SlicingWindowOperator initializeState with initializer, operatorID: "
+            << AbstractStreamOperator<RowData*>::GetOperatorID().toString());
+        AbstractStreamOperator<RowData*>::SetOperatorID(
+            AbstractStreamOperator<RowData*>::GetOperatorID().toString());
+        AbstractStreamOperator<RowData*>::initializeState(initializer, keySerializer);
+    };
+
+    void initializeState(StateInitializationContextImpl<RowData*> *context) override
+    {
+        INFO_RELEASE("SlicingWindowOperator initializeState");
+        AbstractStreamOperator<RowData*>::initializeState(context);
+
+        std::string watermarkStateName = "watermark";
+        auto *watermarkStateDesc = new ListStateDescriptor<int64_t>(watermarkStateName, LongSerializer::INSTANCE);
+        auto *stateBackend = static_cast<DefaultOperatorStateBackend*>(context->getOperatorStateBackend());
+        auto rawState = stateBackend->getUnionListState<int64_t>(watermarkStateDesc);
+        this->watermarkState = rawState;
+
+        if (context->isRestored()) {
+            auto *watermarks = this->watermarkState->get();
+            if (watermarks != nullptr && !watermarks->empty()) {
+                int64_t minWatermark = std::numeric_limits<int64_t>::max();
+                for (int64_t wm : *watermarks) {
+                    if (wm < minWatermark) {
+                        minWatermark = wm;
+                    }
+                }
+                if (minWatermark != std::numeric_limits<int64_t>::max()) {
+                    this->currentWatermark = minWatermark;
+                }
+            }
+        }
+    };
+
+    void snapshotState(StateSnapshotContextSynchronousImpl *context) override
+    {
+        INFO_RELEASE("SlicingWindowOperator snapshotState");
+        TableStreamOperator<RowData*>::snapshotState(context);
+        if (this->watermarkState != nullptr) {
+            this->watermarkState->clear();
+            this->watermarkState->add(currentWatermark);
+        }
     };
 
     void notifyCheckpointComplete(long checkpointId) override {
@@ -77,7 +123,7 @@ protected:
 private:
     SlicingWindowProcessor<W> *windowProcessor = nullptr;
     int64_t lastTriggeredProcessingTime = std::numeric_limits<int64_t>::min();
-    ListState<int64_t> *watermarkState = nullptr;
+    std::shared_ptr<ListState<int64_t>> watermarkState;
     nlohmann::json description;
     InternalTimerServiceImpl<K, int64_t> *internalTimerService = nullptr;
     Output* output;
@@ -112,13 +158,17 @@ SlicingWindowOperator<K, W>::SlicingWindowOperator(SlicingWindowProcessor<W> *wi
 template <typename K, typename W>
 void SlicingWindowOperator<K, W>::open()
 {
+    INFO_RELEASE("SlicingWindowOperator open");
     TableStreamOperator<RowData*>::open();
-    StreamingRuntimeContext<K> *runtimeCtx = getRuntimeContext();
+    lastTriggeredProcessingTime = std::numeric_limits<int64_t>::min();
+    auto *runtimeCtx = AbstractStreamOperator<RowData*>::getRuntimeContext();
     auto backState = this->stateHandler->getKeyedStateBackend();
-    TypeSerializer *windowSerializer = LongSerializer::INSTANCE;
+    TypeSerializer *windowSerializer = windowProcessor->createWindowSerializer();
     internalTimerService =
-            AbstractStreamOperator<K>::getInternalTimerService("window-timers", windowSerializer, this);
+            AbstractStreamOperator<RowData*>::template getInternalTimerService<int64_t>(
+                "window-timers", windowSerializer, this);
     windowProcessor->open(backState, description, runtimeCtx, internalTimerService);
+    windowProcessor->initializeWatermark(currentWatermark);
 }
 
 template <typename K, typename W>
@@ -149,9 +199,9 @@ void SlicingWindowOperator<K, W>::ProcessWatermark(Watermark *mark)
         LOG("watermark > current watermark")
         windowProcessor->advanceProgress(this->stateHandler, mark->getTimestamp());
         LOG("after advance")
-        TableStreamOperator::ProcessWatermark(mark);
+        TableStreamOperator<RowData*>::ProcessWatermark(mark);
     } else {
-        TableStreamOperator::ProcessWatermark(new Watermark(currentWatermark));
+        TableStreamOperator<RowData*>::ProcessWatermark(new Watermark(currentWatermark));
     }
     currentWatermark = mark->getTimestamp();
 }
@@ -186,6 +236,7 @@ void SlicingWindowOperator<K, W>::onTimer(TimerHeapInternalTimer<K, W> *timer)
 template <typename K, typename W>
 void SlicingWindowOperator<K, W>::prepareSnapshotPreBarrier(int64_t checkpointId)
 {
+    INFO_RELEASE("SlicingWindowOperator prepareSnapshotPreBarrier:" << checkpointId)
     windowProcessor->prepareCheckpoint();
 }
 

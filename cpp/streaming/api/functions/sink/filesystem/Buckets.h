@@ -14,6 +14,7 @@
 
 #include <map>
 #include <string>
+#include <vector>
 #include "Bucket.h"
 #include "BucketFactory.h"
 #include "BucketAssigner.h"
@@ -23,11 +24,11 @@ class BucketerContext : public BucketAssignerContext {
     long currentWatermark;
     long currentProcessingTime;
 public:
-    void update(long elementTimestamp, long watermark, long processingTime)
+    void update(long timestamp, long watermark1, long processingTime1)
     {
-        this->elementTimestamp = elementTimestamp;
-        this->currentWatermark = watermark;
-        this->currentProcessingTime = processingTime;
+        this->elementTimestamp = timestamp;
+        this->currentWatermark = watermark1;
+        this->currentProcessingTime = processingTime1;
     }
 
     long getCurrentProcessingTime() const override
@@ -96,6 +97,51 @@ public:
     {
         for (auto &entry : activeBuckets) {
             delete entry.second;
+        }
+    }
+
+    long getMaxPartCounter() const
+    {
+        return maxPartCounter;
+    }
+
+    void setMaxPartCounter(long counter)
+    {
+        maxPartCounter = counter;
+    }
+
+    void commitUpToCheckpoint(long checkpointId)
+    {
+        for (auto &entry : activeBuckets) {
+            entry.second->onProcessingTime(LONG_MAX);
+        }
+    }
+
+    std::map<BucketID, long> snapshotState()
+    {
+        std::map<BucketID, long> state;
+        for (auto &entry : activeBuckets) {
+            state[entry.first] = entry.second->getPartCounter();
+        }
+        return state;
+    }
+
+    void notifyCheckpointComplete(long checkpointId)
+    {
+        LOG("Buckets::notifyCheckpointComplete checkpointId=" << checkpointId)
+    }
+
+    std::string getBasePath() const
+    {
+        return basePath;
+    }
+
+    void closePartFileForBucket(BucketID bucketId)
+    {
+        auto it = activeBuckets.find(bucketId);
+        if (it != activeBuckets.end()) {
+            it->second->onProcessingTime(LONG_MAX);
+            LOG("Buckets::closePartFileForBucket bucket=" << bucketId)
         }
     }
 
