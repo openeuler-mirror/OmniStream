@@ -55,14 +55,6 @@ namespace omnistream {
 
     void OmniSourceOperatorStreamTask::cancel()
     {
-        INFO_RELEASE("OmniSourceOperatorStreamTask cancel called for task: " << taskName_);
-        if (mainOperator_ != nullptr) {
-            auto sourceOp = dynamic_cast<SourceOperator<>*>(mainOperator_);
-            if (sourceOp != nullptr) {
-                sourceOp->cancel();
-            }
-        }
-
         OmniStreamTask::cancel();
         // avoid back pressure
         recordWriter_->cancel();
