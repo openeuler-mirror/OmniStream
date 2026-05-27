@@ -47,8 +47,8 @@ private:
     int aggIdx;
     int accIndex;
     int valueIndex;
-    long limit;
-    long aggValue = 0;
+    long limit = std::numeric_limits<long>::min();
+    long aggValue = std::numeric_limits<long>::min();
     long aggCountValue;
     bool countIsNull;
     const int countIdx = 1;

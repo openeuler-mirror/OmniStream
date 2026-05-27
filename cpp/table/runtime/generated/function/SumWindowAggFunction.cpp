@@ -91,7 +91,7 @@ RowData* SumWindowAggFunction::getAccumulators()
 RowData* SumWindowAggFunction::createAccumulators(int accumulatorArity)
 {
     LOG("create createAccumulators")
-    BinaryRowData *currentAcc = BinaryRowData::createBinaryRowDataWithMem(accumulatorArity);
+    BinaryRowData *currentAcc = BinaryRowData::createBinaryRowDataWithMem(accumulatorArity + 1);
     currentAcc->setNullAt(0); 
     currentAcc->setLong(countIdx, static_cast<long>(0));
     return currentAcc;
