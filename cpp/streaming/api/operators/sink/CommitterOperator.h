@@ -85,13 +85,6 @@ public:
         committableCollectorState_ = nullptr;
     }
 
-    ~CommitterOperator() override {
-        if (kafkaSink_ != nullptr) {
-            delete kafkaSink_;
-            kafkaSink_ = nullptr;
-        }
-    }
-
     void setup(std::shared_ptr<omnistream::OmniStreamTask> task) {
         AbstractStreamOperator<void*>::setup(task);
         if (task != nullptr && task->env() != nullptr) {
@@ -206,11 +199,12 @@ public:
     }
 
     void close() override {
+
         if (committer != nullptr) {
             committer->Close();
         }
-        // 调用基类close方法
-        AbstractStreamOperator<void*>::close();
+        //todo 补全close逻辑
+        // AbstractStreamOperator<void*>::close();
     }
 
     void OnProcessingTime(int64_t timestamp) override {

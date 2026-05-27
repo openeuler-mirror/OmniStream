@@ -49,26 +49,13 @@ public:
                                                                   checkpointOptions, keySerializer);
             auto task = std::make_shared<std::packaged_task<std::shared_ptr<SnapshotResult<T>>()>>(
                 [=]() {
-                    try {
-                        auto res = asyncSnapshot->get(bridge);
-                        snapshotResources->cleanup();
-                        return res;
-                    } catch (const std::exception &e) {
-                        snapshotResources->cleanup();
-                        throw e;
-                    }
+                    return asyncSnapshot->get(bridge);
             });
 
             if (executionType_ == SnapshotExecutionType::SYNCHRONOUS) {
-                try {
-                    auto res = asyncSnapshot->get(bridge);
-                    snapshotResources->cleanup();
-                    if (res) {
-                        LOG("native rocksdb checkpoint has been finished.");
-                    }
-                } catch (const std::exception &e) {
-                    snapshotResources->cleanup();
-                    throw e;
+                auto res = asyncSnapshot->get(bridge);
+                if (res) {
+                    LOG("native rocksdb checkpoint has been finished.");
                 }
             }
             return task;

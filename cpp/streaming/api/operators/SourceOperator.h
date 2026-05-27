@@ -115,15 +115,11 @@ public:
     ~SourceOperator()
     {
         delete sourceReader;
-        sourceReader = nullptr;
         delete currentMainOutput;
-        currentMainOutput = nullptr;
         delete dataStreamOutput;
-        dataStreamOutput = nullptr;
         for (auto split : outputPendingSplits) {
             delete split;
         }
-        outputPendingSplits.clear();
     }
 
     void snapshotState(StateSnapshotContextSynchronousImpl *context) override
@@ -180,13 +176,13 @@ public:
         finished->complete();
     }
 
-    void close() override
+    void close()
     {
         if (sourceReader != nullptr) {
             sourceReader->close();
         }
-        // 调用基类close方法
-        AbstractStreamOperator<void*>::close();
+        // TODO 当前执行sp后 停止作业会卡在每个算子的状态后端dispose方法，先保证功能可用，后续优化卡住逻辑
+        // AbstractStreamOperator<void*>::close();
     }
 
     void cancel() {
