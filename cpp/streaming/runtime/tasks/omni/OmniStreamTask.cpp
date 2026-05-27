@@ -874,7 +874,7 @@ void OmniStreamTask::processInput(MailboxDefaultAction::Controller *controller)
         ProcessingTimeServiceImpl::ProcessingTimeCallbackWrapper processingTimeCallbackWrapper = [this](ProcessingTimeCallback *callback) {
             return deferCallbackToMailBox(this->mainMailboxExecutor_, callback);
         };
-        return new ProcessingTimeServiceImpl(this->timerService.get(), std::move(processingTimeCallbackWrapper));
+        return new ProcessingTimeServiceImpl(this->timerService, std::move(processingTimeCallbackWrapper));
     }
 
     ProcessingTimeCallback* OmniStreamTask::deferCallbackToMailBox(std::shared_ptr<MailboxExecutor> mailboxExecutor, ProcessingTimeCallback* callback) {

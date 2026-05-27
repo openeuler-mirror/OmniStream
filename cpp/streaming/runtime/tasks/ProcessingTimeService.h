@@ -9,23 +9,17 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef FLINK_TNEL_PROCESSINGTIMESERVICE_H
-#define FLINK_TNEL_PROCESSINGTIMESERVICE_H
+#pragma once
 
 #include <cstdint>
-#include <functional>
 #include "ProcessingTimeCallback.h"
-#include "ProcessingTimeServiceUtil.h"
 #include "ScheduledFutureTask.h"
 
 class ProcessingTimeService {
 public:
     virtual ~ProcessingTimeService() = default;
-    // needs to return ScheduledFuture, not implemented yet
-//    virtual void registerTimer(int64_t timestamp, std::function<void(int64_t)> func) = 0;
     virtual ScheduledFutureTask* registerTimer(int64_t timestamp, ProcessingTimeCallback *target) = 0;
     virtual int64_t getCurrentProcessingTime() = 0;
-    virtual ScheduledFutureTask* scheduleWithFixedDelay(ProcessingTimeCallback* callback,
-        long initialDelay, long period) { return nullptr; };
+    virtual ScheduledFutureTask* scheduleWithFixedDelay(
+            ProcessingTimeCallback* callback, long initialDelay, long period) = 0;
 };
-#endif // FLINK_TNEL_PROCESSINGTIMESERVICE_H

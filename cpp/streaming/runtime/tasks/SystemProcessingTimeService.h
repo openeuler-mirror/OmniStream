@@ -9,15 +9,14 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef FLINK_TNEL_SYSTEMPROCESSINGTIMESERVICE_H
-#define FLINK_TNEL_SYSTEMPROCESSINGTIMESERVICE_H
+#pragma once
 
 #include <chrono>
 #include <atomic>
 #include "TimerService.h"
 #include "core/utils/threads/CompletableFuture.h"
 #include "ScheduledTaskExecutor.h"
-#include "streaming/runtime/tasks/ScheduledTaskExecutor.h"
+#include "ProcessingTimeServiceUtil.h"
 
 class SystemProcessingTimeService : public omnistream::runtime::TimerService {
 public:
@@ -119,4 +118,3 @@ private:
         }
     }
 };
-#endif // FLINK_TNEL_SYSTEMPROCESSINGTIMESERVICE_H

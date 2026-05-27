@@ -9,31 +9,36 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef FLINK_TNEL_PROCESSINGTIMESERVICEIMPL_H
-#define FLINK_TNEL_PROCESSINGTIMESERVICEIMPL_H
+#pragma once
 
-#include <atomic>
 #include "ProcessingTimeService.h"
-#include "TimerService.h"
 
 class ProcessingTimeServiceImpl : public ProcessingTimeService {
 public:
     using ProcessingTimeCallbackWrapper = std::function<ProcessingTimeCallback *(ProcessingTimeCallback *)>;
 
-    ProcessingTimeServiceImpl(ProcessingTimeService *timerService, ProcessingTimeCallbackWrapper processingTimeCallbackWrapper) :
-        timerService_(timerService), processingTimeCallbackWrapper_(std::move(processingTimeCallbackWrapper)) {};
+    ProcessingTimeServiceImpl(
+            std::shared_ptr<ProcessingTimeService> timerService,
+            ProcessingTimeCallbackWrapper processingTimeCallbackWrapper)
+            :
+            timerService_(timerService),
+            processingTimeCallbackWrapper_(std::move(processingTimeCallbackWrapper)) {}
 
     int64_t getCurrentProcessingTime() override {
         return timerService_->getCurrentProcessingTime();
     };
 
-    ScheduledFutureTask *registerTimer(int64_t timestamp, ProcessingTimeCallback *target) override
-    {
+    ScheduledFutureTask *registerTimer(int64_t timestamp, ProcessingTimeCallback *target) override {
         return timerService_->registerTimer(timestamp, processingTimeCallbackWrapper_(target));
+    }
+
+    ScheduledFutureTask *scheduleWithFixedDelay(
+            ProcessingTimeCallback* callback, long initialDelay, long period) override {
+        return timerService_->scheduleWithFixedDelay(
+                processingTimeCallbackWrapper_(callback), initialDelay, period);
     }
 private:
     std::shared_ptr<ProcessingTimeService> timerService_;
     ProcessingTimeCallbackWrapper processingTimeCallbackWrapper_;
     bool quiescend;
 };
-#endif // FLINK_TNEL_PROCESSINGTIMESERVICEIMPL_H
