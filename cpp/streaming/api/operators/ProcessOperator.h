@@ -89,14 +89,16 @@ public:
                                          collector);
     }
 
-    void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) override {}
+    void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) override {
+        INFO_RELEASE("ProcessOperator::initializeState not impl initializeState");
+    }
 
     void notifyCheckpointComplete(long checkpointId) override {
-        AbstractUdfStreamOperator<ProcessFunction<IN, OUT>, OUT>::notifyCheckpointComplete(checkpointId);
+        INFO_RELEASE("ProcessOperator::notifyCheckpointComplete not impl checkpointId : " << checkpointId);
     }
 
     void notifyCheckpointAborted(long checkpointId) override {
-        AbstractUdfStreamOperator<ProcessFunction<IN, OUT>, OUT>::notifyCheckpointAborted(checkpointId);
+        INFO_RELEASE("ProcessOperator::notifyCheckpointAborted not impl  checkpointId : " << checkpointId);
     }
 
     void ProcessWatermark(Watermark* mark) override

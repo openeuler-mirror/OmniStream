@@ -26,13 +26,17 @@ public:
     void open() override;
     const char *getName() override;
     void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) override {
-        INFO_RELEASE("SinkOperator::initializeState");
+        INFO_RELEASE("SinkOperator::initializeState not impl");
         // AbstractStreamOperator<int>::initializeState(initializer, keySerializer);
     }
 
-    void notifyCheckpointComplete(long checkpointId) override;
+    void notifyCheckpointComplete(long checkpointId) override {
+        INFO_RELEASE("SinkOperator::notifyCheckpointComplete not impl, checkpointId : " << checkpointId);
+    }
 
-    void notifyCheckpointAborted(long checkpointId) override;
+    void notifyCheckpointAborted(long checkpointId) override {
+        INFO_RELEASE("SinkOperator::notifyCheckpointAborted not impl, checkpointId : " << checkpointId);
+    }
 
     void processBatch(StreamRecord *record) override;
     void processElement(StreamRecord *record) override;
