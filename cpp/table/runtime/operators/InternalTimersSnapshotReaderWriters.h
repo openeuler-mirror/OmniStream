@@ -64,6 +64,8 @@ public:
         "org.apache.flink.runtime.state.VoidNamespaceSerializer$VoidNamespaceSerializerSnapshot";
     static constexpr const char *TIME_WINDOW_SERIALIZER_SNAPSHOT =
         "org.apache.flink.streaming.api.windowing.windows.TimeWindow$Serializer$TimeWindowSerializerSnapshot";
+    static constexpr const char *BINARY_ROW_DATA_SERIALIZER_SNAPSHOT =
+    "org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer$BinaryRowDataSerializerSnapshot";
 
     static void writeVersionedSnapshot(KeyedStateCheckpointOutputStream *out, TypeSerializer *serializer)
     {
@@ -156,6 +158,9 @@ private:
         }
         if (name.find("TimeWindow") != std::string::npos) {
             return TIME_WINDOW_SERIALIZER_SNAPSHOT;
+        }
+        if (name.find("BinaryRowDataSerializer")!=std::string::npos) {
+            return BINARY_ROW_DATA_SERIALIZER_SNAPSHOT;
         }
         INFO_RELEASE(
             "Error: snapshotClassNameForSerializer Unsupported timer serializer for Flink 1.16.3 CP format. serializerName="
