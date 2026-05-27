@@ -33,15 +33,16 @@ public:
     void processBatch(StreamRecord *element) override;
     void processElement(StreamRecord *element) override;
     void ProcessWatermark(Watermark *mark) override;
-    void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) override
-    {}
+    void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) override {
+        INFO_RELEASE("WatermarkAssignerOperator::initializeState not impl");
+    }
 
     void notifyCheckpointComplete(long checkpointId) override {
-        AbstractStreamOperator<int>::notifyCheckpointComplete(checkpointId);
+        INFO_RELEASE("WatermarkAssignerOperator::notifyCheckpointComplete not impl checkpointId : " << checkpointId);
     }
 
     void notifyCheckpointAborted(long checkpointId) override {
-        AbstractStreamOperator<int>::notifyCheckpointAborted(checkpointId);
+        INFO_RELEASE("WatermarkAssignerOperator::notifyCheckpointAborted not impl checkpointId : " << checkpointId);
     }
 
     // Setup and closing operations

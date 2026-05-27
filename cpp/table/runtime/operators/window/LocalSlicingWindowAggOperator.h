@@ -61,14 +61,6 @@ public:
     }
     void open() override;
 
-    void notifyCheckpointComplete(long checkpointId) override {
-        AbstractStreamOperator<long>::notifyCheckpointComplete(checkpointId);
-    }
-
-    void notifyCheckpointAborted(long checkpointId) override {
-        AbstractStreamOperator<long>::notifyCheckpointAborted(checkpointId);
-    }
-
     const char* getName() override;
     void close() override;
     void processBatch(StreamRecord* record) override;
@@ -101,6 +93,14 @@ public:
         INFO_RELEASE("LocalSlicingWindowAggOperator initializeState with initializer, operatorID: " << OneInputStreamOperator::GetOperatorID().toString());
         AbstractStreamOperator<long>::SetOperatorID(OneInputStreamOperator::GetOperatorID().toString());
         AbstractStreamOperator<long>::initializeState(initializer, keySerializer);
+    }
+
+    void notifyCheckpointComplete(long checkpointId) override {
+        AbstractStreamOperator<long>::notifyCheckpointComplete(checkpointId);
+    }
+
+    void notifyCheckpointAborted(long checkpointId) override {
+        AbstractStreamOperator<long>::notifyCheckpointAborted(checkpointId);
     }
 
     static std::string extractAggFunction(const std::string& input)

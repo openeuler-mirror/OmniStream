@@ -71,6 +71,10 @@ public:
     void setKeyContextElement2(StreamRecord *record) override;
     void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) override;
 
+    void notifyCheckpointComplete(long checkpointId) override;
+
+    void notifyCheckpointAborted(long checkpointId) override;
+
     bool isSetKeyContextElement1() override
     {
         return true;
@@ -223,6 +227,16 @@ void AbstractStreamingJoinOperator<K>::initializeState(
 {
     AbstractStreamOperator<K>::SetOperatorID(TwoInputStreamOperator::GetOperatorID().toString());
     AbstractStreamOperator<K>::initializeState(initializer, keySerializer);
+}
+
+template <typename K>
+void AbstractStreamingJoinOperator<K>::notifyCheckpointComplete(long checkpointId) {
+    AbstractStreamOperator<K>::notifyCheckpointComplete(checkpointId);
+}
+
+template <typename K>
+void AbstractStreamingJoinOperator<K>::notifyCheckpointAborted(long checkpointId) {
+    AbstractStreamOperator<K>::notifyCheckpointAborted(checkpointId);
 }
 
 template <typename K>
