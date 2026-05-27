@@ -42,7 +42,7 @@ public:
     void processElement(StreamRecord *element) override;
 
     void notifyCheckpointAborted(long checkpointId) override {
-        AbstractStreamOperator<int>::notifyCheckpointAborted(checkpointId);
+        AbstractStreamOperator<void *>::notifyCheckpointAborted(checkpointId);
     }
 
     void ProcessWatermark(Watermark *mark) override;
