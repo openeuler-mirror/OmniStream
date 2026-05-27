@@ -264,11 +264,3 @@ std::vector<KafkaWriterState> KafkaWriter::snapshotState(long checkpointId) {
     }
     return {*kafkaWriterState};
 }
-
-void KafkaWriter::close() {
-    closed = true;
-    // 未开启事务，直接关闭
-    currentProducer1->Close();
-    currentProducer2->Close();
-    producerPool.clear();
-}

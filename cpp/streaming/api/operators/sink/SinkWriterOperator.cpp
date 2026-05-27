@@ -10,10 +10,7 @@
  */
 
 #include "SinkWriterOperator.h"
-#include "SinkV1WriterCommittableSerializer.h"
-#include "streaming/runtime/streamrecord/StreamRecord.h"
-#include "committables/CommittableSummary.h"
-#include "committables/CommittableWithLineage.h"
+#include "streaming/api/operators/sink/SinkV1WriterCommittableSerializer.h"
 
 namespace {
     std::string streamingCommitterRawStatesName = "streaming_committer_raw_states";
@@ -59,16 +56,23 @@ void SinkWriterOperator::open() {
 }
 
 void SinkWriterOperator::close() {
+    if (closed_) {
+        return;
+    }
+    closed_ = true;
     INFO_RELEASE("savepoint: SinkWriterOperator close START");
-    if (!endOfInput) {
+    if (!endOfInput && sinkWriter != nullptr) {
         EndInput();
     }
-    // 会阻塞，先注释掉
-    // if (sinkWriter != nullptr) {
-    //     sinkWriter->close();
-    // }
-    // 调用基类close方法
-    AbstractStreamOperator<void*>::close();
+    delete writerStateHandler;
+    writerStateHandler = nullptr;
+    sinkWriter = nullptr;
+    delete committableSerializer;
+    committableSerializer = nullptr;
+    delete kafkaSink;
+    kafkaSink = nullptr;
+    // todo 补全close逻辑
+    // AbstractStreamOperator<void*>::close();
     INFO_RELEASE("savepoint: SinkWriterOperator close END");
 }
 
@@ -138,12 +142,9 @@ template <typename CommT>
 void SinkWriterOperator::emitCommittables(std::int64_t checkpointId)
 {
     std::vector<CommT> committables = sinkWriter->prepareCommit();
-    int indexOfThisSubtask = getRuntimeContext()->getIndexOfThisSubtask();
-    int numberOfParallelSubtasks = getRuntimeContext()->getNumberOfParallelSubtasks();
-    if (!legacyCommittables.empty()) {
-        emit(indexOfThisSubtask, numberOfParallelSubtasks, 1L, legacyCommittables);
-        legacyCommittables.clear();
-    }
+    int indexOfThisSubtask = 0;
+    int numberOfParallelSubtasks = 1;
+
     emit(indexOfThisSubtask, numberOfParallelSubtasks, checkpointId, committables);
 }
 
@@ -151,27 +152,7 @@ template <typename CommT>
 void SinkWriterOperator::emit(int indexOfThisSubtask,
                               int numberOfParallelSubtasks,
                               std::int64_t checkpointId,
-                              const std::vector<CommT>& committables)
-{
-    if (output != nullptr) {
-        output->collect(
-            new StreamRecord(
-                new CommittableSummary<CommT>(
-                    indexOfThisSubtask,
-                    numberOfParallelSubtasks,
-                    checkpointId,
-                    committables.size(),
-                    committables.size(),
-                    0)));
-
-        for (const auto& committable : committables) {
-            output->collect(
-                new StreamRecord(
-                    new CommittableWithLineage<CommT>(
-                        committable, checkpointId, indexOfThisSubtask)));
-        }
-    }
-}
+                              const std::vector<CommT>& committables) {}
 
 void SinkWriterOperator::ProcessWatermark(Watermark *watermark) {}
 
@@ -256,14 +237,7 @@ std::string SinkWriterOperator::getTypeName()
     return typeName;
 }
 
-void SinkWriterOperator::PrepareSnapshotPreBarrier(long checkpointId)
-{
-    AbstractStreamOperator::PrepareSnapshotPreBarrier(checkpointId);
-    if (!endOfInput) {
-        sinkWriter->Flush(false);
-        emitCommittables<KafkaCommittable>(checkpointId);
-    }
-}
+
 
 // 显式实例化模板
 template void SinkWriterOperator::emitCommittables<KafkaCommittable>(std::int64_t checkpointId);

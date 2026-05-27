@@ -82,13 +82,16 @@ std::shared_ptr<SnapshotResult<KeyedStateHandle>> FullSnapshotAsyncWriter::get(
                 jmKeyedState = std::make_shared<KeyGroupsStateHandle>(
                     *keyGroupRangeOffsets.get(), jobManagerOwnedSnapshot);
             }
+            snapshotResources_->cleanup();
             return SnapshotResult<KeyedStateHandle>::Of(jmKeyedState);
         }
+        snapshotResources_->cleanup();
         return SnapshotResult<KeyedStateHandle>::Empty();
     }catch(std::exception& e){
         if(mergeIterator) {
             mergeIterator->close();
         }
+        snapshotResources_->cleanup();
         INFO_RELEASE("Error:FullSnapshotAsyncWriter::get cp=" << checkpointId_
             << " exception: " << e.what());
         throw;

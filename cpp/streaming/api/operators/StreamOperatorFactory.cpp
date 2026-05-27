@@ -720,10 +720,8 @@ StreamOperator* StreamOperatorFactory::CreateSinkWriterOp(omnistream::OperatorPO
 
 
     auto* op = new SinkWriterOperator(kafkaSink, opDescriptionJSON);
-    op->setOutput(chainOutput);
     op->setProcessingTimeService(processingTimeService);
-    op->setup();
-    // todo 确认模板参数问题
+        // todo 确认模板参数问题
     return static_cast<OneInputStreamOperator *>(op);
 }
 
@@ -737,7 +735,6 @@ StreamOperator* StreamOperatorFactory::CreateCommitOp(omnistream::OperatorPOD& o
     std::string hashPath = opDescriptionJSON["hash_path"];
 
     auto* op = new CommitterOperator(processingTimeService, isBatch, true);
-    op->setOutput(chainOutput);
     op->setup(std::move(task));
 
     return static_cast<OneInputStreamOperator *>(op);
