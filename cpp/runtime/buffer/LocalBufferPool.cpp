@@ -227,6 +227,12 @@ namespace omnistream {
     void LocalBufferPool::cancel()
     {
         cancelled_ = true;
+        std::shared_ptr<CompletableFuture> toNotify = nullptr;
+        {
+            std::lock_guard<std::recursive_mutex> lock(availableSegmentsLock);
+            toNotify = availabilityHelper_->getUnavailableToResetAvailable();
+        }
+        mayNotifyAvailable(toNotify);
     }
 
     LocalBufferPool::SubpartitionBufferRecycler::SubpartitionBufferRecycler(int channel,
