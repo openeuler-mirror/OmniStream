@@ -7,6 +7,10 @@
   </tr>
   </thead>
   <tbody>
+    <tr>
+    <td>2026-06-30</td>
+    <td>第四次正式发布。</br>发布发布OmniStream 1.3.0：</br>在SQL场景中，支持WindowAgg、WindowJoin算子，Calc算子支持UDF函数注册，Calc算子支持JSON_VALUE、JSON_QUERY、COALESCE、PROCTIME_MATERIALIZE、CHAR_LENGTH、TO_TIMESTAMP_LTZ内置函数，Calc算子支持INTEGER、TIMESTAMP_WITH_LOCAL_TIMEZONE(3)数据类型。</td>
+  </tr>
   <tr>
     <td>2026-03-30</td>
     <td>第三次正式发布。</br>发布发布OmniStream 1.2.0：</br>增加UDF翻译工具所使用依赖的头文件安装内容，在有状态场景下使能OmniStateStore加速特性。</td>
