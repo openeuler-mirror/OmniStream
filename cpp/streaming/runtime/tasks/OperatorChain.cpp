@@ -22,6 +22,9 @@
 #include "streaming/api/operators/sink/CommitterOperator.h"
 #include "state/bridge/OmniTaskBridge.h"
 #include "streaming/api/operators/AbstractStreamOperator.h"
+#include "streaming/api/operators/OneInputStreamOperator.h"
+#include "streaming/api/operators/TwoInputStreamOperator.h"
+#include "basictypes/Object.h"
 #include "omni/OmniStreamTask.h"
 #include "runtime/io/network/api/writer/RecordWriterDelegate.h"
 #include "taskmanager/OmniRuntimeEnvironment.h"
@@ -37,6 +40,24 @@ void AssignConfiguredOperatorId(StreamOperator *op, const omnistream::OperatorPO
     const std::string operatorId = opDesc.getOperatorId();
     if (!operatorId.empty()) {
         op->SetOperatorID(operatorId);
+        if (auto *oneInput = dynamic_cast<OneInputStreamOperator *>(op)) {
+            oneInput->SetOperatorID(operatorId);
+        }
+        if (auto *twoInput = dynamic_cast<TwoInputStreamOperator *>(op)) {
+            twoInput->SetOperatorID(operatorId);
+        }
+        if (auto *rowDataOp = dynamic_cast<AbstractStreamOperator<RowData *> *>(op)) {
+            rowDataOp->SetOperatorID(operatorId);
+        }
+        if (auto *objectOp = dynamic_cast<AbstractStreamOperator<Object *> *>(op)) {
+            objectOp->SetOperatorID(operatorId);
+        }
+        if (auto *longOp = dynamic_cast<AbstractStreamOperator<long> *>(op)) {
+            longOp->SetOperatorID(operatorId);
+        }
+        if (auto *voidOp = dynamic_cast<AbstractStreamOperator<void *> *>(op)) {
+            voidOp->SetOperatorID(operatorId);
+        }
         INFO_RELEASE("savepoint: OperatorChainV2 assign operatorId=" << operatorId
             << " name=" << opDesc.getName() << " id=" << opDesc.getId());
     }
@@ -517,7 +538,16 @@ void OperatorChainV2::SnapshotState(
         auto iter = getAllOperators(true);
         while (iter.hasNext()) {
             auto op = iter.next()->getStreamOperator();
-            (*operatorSnapshotsInProgress)[op->GetOperatorID()]
+            auto operatorId = op->GetOperatorID();
+            if (operatorSnapshotsInProgress->find(operatorId) != operatorSnapshotsInProgress->end()) {
+                INFO_RELEASE("Error: OperatorChainV2::SnapshotState duplicate operatorId="
+                    << operatorId.toString()
+                    << ", opType=" << typeid(*op).name()
+                    << ". Duplicate operator IDs would overwrite checkpoint state.");
+                THROW_LOGIC_EXCEPTION("Duplicate operatorId in OperatorChainV2::SnapshotState: "
+                    << operatorId.toString())
+            }
+            (*operatorSnapshotsInProgress)[operatorId]
             = BuildOperatorSnapshotFutures(checkpointMetaData, checkpointOptions, op, isRunning,
                 channelStateWriteResult, storage, bridge);
         }

@@ -211,7 +211,10 @@ public:
                         THROW_LOGIC_EXCEPTION("Attempting to snapshot timers to raw keyed state, but this operator has custom raw keyed state to write.");
                     }
 
-                    timeServiceManager->snapshotToRawKeyedState(snapshotContext->getRawKeyedOperatorStateOutput(), operatorName);
+                    timeServiceManager->snapshotToRawKeyedState(
+                        snapshotContext->getRawKeyedOperatorStateOutput(),
+                        operatorName,
+                        checkpointId);
                 }
             }
             INFO_RELEASE("savepoint: StreamOperatorStateHandler::snapshotState streamOperator type=" << typeid(*streamOperator).name());

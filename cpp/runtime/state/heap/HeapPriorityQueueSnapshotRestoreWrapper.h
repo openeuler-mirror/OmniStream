@@ -41,6 +41,12 @@ public:
         return metaInfo_->snapshot();
     }
 
+    const std::string &getStateName() const override
+    {
+        static const std::string emptyName;
+        return metaInfo_ == nullptr ? emptyName : metaInfo_->getName();
+    }
+
     std::unique_ptr<SingleStateIterator> createSnapshotIterator(
             int kvStateId,
             int keyGroupPrefixBytes) override {

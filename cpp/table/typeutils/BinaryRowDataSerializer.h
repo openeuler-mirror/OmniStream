@@ -37,6 +37,8 @@ public:
 
     BackendDataType getBackendId() const override { return BackendDataType::ROW_BK;};
 
+    int getNumFields() const { return numFields_; }
+
     const std::vector<std::string>& getInputTypes() const;
 private:
     // Add JoinedRowDataSerializer, then pass the unconverted JoinedRowData to

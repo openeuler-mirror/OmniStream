@@ -37,6 +37,8 @@ public:
 
     BackendDataType getBackendId() const override { return BackendDataType::ROW_BK;};
 
+    int getArity() const { return static_cast<int>(types_.size()); }
+
     std::string toJson() override {
         SerializerJsonInfo typeJson = { SerializerType::ROW };
         typeJson.logicalType = rowType_;
