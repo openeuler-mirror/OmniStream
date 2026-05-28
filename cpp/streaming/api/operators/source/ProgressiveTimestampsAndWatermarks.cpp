@@ -41,9 +41,9 @@ ReaderOutput* ProgressiveTimestampsAndWatermarks::CreateMainOutput(
     idlenessManager = new IdlenessManager(watermarkOutput);
     WatermarkGenerator* watermarkGenerator = watermarksFactory->CreateWatermarkGenerator();
     currentPerSplitOutputs = new SplitLocalOutputs(output, idlenessManager->GetSplitLocalOutput(),
-        timestampAssigner, watermarksFactory);
+        timestampAssigner, watermarksFactory, periodicWatermarkInterval);
     currentMainOutput = new StreamingReaderOutput(output, idlenessManager->GetMainOutput(), timestampAssigner,
-                                                  watermarkGenerator, currentPerSplitOutputs);
+                                                  watermarkGenerator, currentPerSplitOutputs, periodicWatermarkInterval);
     return currentMainOutput;
 }
 

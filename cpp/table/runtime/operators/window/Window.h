@@ -11,13 +11,15 @@
 
 #pragma once
 
+#include <cstdint>
+
 class Window {
 public:
     Window() = default;
 
     virtual ~Window() = default;
 
-    virtual long maxTimestamp() const = 0;
+    virtual int64_t maxTimestamp() const = 0;
 
 protected:
     // Copy constructor and assignment operator are protected to prevent object slicing

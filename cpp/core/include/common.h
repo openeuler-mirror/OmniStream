@@ -18,8 +18,6 @@
 #include <vector>
 #include <mutex>
 #include <thread>
-#include <type_traits>
-#include <memory>
 
 inline std::mutex global_mutex;
 
@@ -151,24 +149,3 @@ std::cout.flush();  \
                 } while (false);
 
 void GErrorLog(std::string msg);
-
-template <typename T>
-struct is_shared_ptr : std::false_type {};
-
-template <typename T>
-struct is_shared_ptr<std::shared_ptr<T>> : std::true_type {};
-
-// is_shared_ptr_v<T> return true if T is std::shared_ptr<*>, otherwise return false
-template <typename T>
-constexpr bool is_shared_ptr_v =
-    is_shared_ptr<typename std::remove_cv_t<typename std::remove_reference_t<T>>>::value;
-
-template <typename T, typename E>
-struct is_shared_ptr_of : std::false_type {};
-
-template <typename T>
-struct is_shared_ptr_of<std::shared_ptr<T>, T> : std::true_type {};
-
-// is_shared_ptr_of_v<T, E> return true if T is std::shared_ptr<E>, otherwise return false
-template <typename T, typename E>
-constexpr bool is_shared_ptr_of_v = is_shared_ptr_of<typename std::remove_cv_t<typename std::remove_reference_t<T>>, E>::value;

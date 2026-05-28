@@ -96,7 +96,18 @@ public:
             watermarkStrategy = WatermarkStrategy::NoWatermarks();
         } else if (strategy == "bounded") {
             long outOfOrdernessMillis = opDescriptionJSON["outOfOrdernessMillis"];
-            watermarkStrategy = WatermarkStrategy::ForBoundedOutOfOrderness(outOfOrdernessMillis);
+            if (!isDataStream) {
+                if (!opDescriptionJSON.contains("rowtimeFieldIndex")) {
+                    THROW_LOGIC_EXCEPTION("rowtimeFieldIndex is not specified when watermarkStrategy is bounded");
+                }
+                int32_t rowtimeFieldIndex = opDescriptionJSON["rowtimeFieldIndex"];
+                watermarkStrategy = WatermarkStrategy::ForBoundedOutOfOrderness(rowtimeFieldIndex, outOfOrdernessMillis);
+            } else {
+                // TODO: How to know which field is event time in Datastream?
+                // TODO：Currently, the watermark in Datastream is not correct.
+                watermarkStrategy = WatermarkStrategy::ForBoundedOutOfOrderness(-1, outOfOrdernessMillis);
+            }
+
         } else if (strategy == "ascending") {
             watermarkStrategy = WatermarkStrategy::ForMonotonousTimestamps();
         } else {

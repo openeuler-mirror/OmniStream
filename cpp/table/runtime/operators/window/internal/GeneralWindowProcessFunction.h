@@ -4,39 +4,34 @@
  * You may obtain a copy of Mulan PSL v2 at:
  *          http://license.coscl.org.cn/MulanPSL2
  * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
- * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
- * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT.
  * See the Mulan PSL v2 for more details.
  */
 
 #pragma once
+
 #include <cstdint>
 #include <type_traits>
+#include <vector>
+
 #include "InternalWindowProcessFunction.h"
-#include "MergingWindowSet.h"
-#include "core/api/common/state/MapStateDescriptor.h"
-#include "table/runtime/operators/window/WindowOperator.h"
 
 template<typename K, typename W>
-class MergingWindowProcessFunction : public InternalWindowProcessFunction<K, W> {
+class GeneralWindowProcessFunction : public InternalWindowProcessFunction<K, W> {
     static_assert(std::is_base_of_v<Window, W>, "W must inherit from Window");
 
 public:
-    MergingWindowProcessFunction(
-            MergingWindowAssigner<W> *windowAssigner,
+    GeneralWindowProcessFunction(
+            WindowAssigner<W> *windowAssigner,
             NamespaceAggsHandleFunctionBase<W> *windowAggregator,
-            TypeSerializer *windowSerializer,
             int64_t allowedLateness,
             int32_t accumulatorArity)
             :
             InternalWindowProcessFunction<K, W>(windowAssigner, windowAggregator, allowedLateness),
             windowAssigner(windowAssigner),
-            windowSerializer(windowSerializer),
-            accumulatorArity_(accumulatorArity){}
+            accumulatorArity_(accumulatorArity) {}
 
-    void open(Context<K, W> *ctx) override;
-
-    std::vector<W> assignStateNamespace(RowData *keyRowData, int64_t timestamp) override;
+    std::vector<W> assignStateNamespace(RowData *inputRow, int64_t timestamp) override;
 
     std::vector<W> assignActualWindows(RowData *inputRow, int64_t timestamp) override;
 
@@ -45,9 +40,7 @@ public:
     void cleanWindowIfNeeded(const W& window, int64_t currentTime) override;
 
 private:
-    MergingWindowAssigner<W>* windowAssigner{};
-    std::unique_ptr<MergingWindowSet<K, W>> mergingWindows;
-    TypeSerializer* windowSerializer{};
-    std::vector<W> reuseActualWindows;
+    WindowAssigner<W>* windowAssigner{};
+    std::vector<W> reuseAffectedWindows;
     int32_t accumulatorArity_ = -1;
 };

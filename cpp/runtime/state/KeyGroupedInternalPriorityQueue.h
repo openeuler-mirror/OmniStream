@@ -15,6 +15,7 @@
 #include <cstdint>
 
 #include "InternalPriorityQueue.h"
+#include "core/utils/type_traits_ext.h"
 
 
 template <typename T>

@@ -14,6 +14,12 @@
 #include "InternalKvState.h"
 #include "core/api/common/state/ValueState.h"
 
+/**
+ *
+ * @tparam K Key type
+ * @tparam N Namespace type
+ * @tparam T Value type
+ */
 template <typename K, typename N, typename T>
 class InternalValueState : public InternalKvState<K, N, T>, public ValueState<T> {
 };

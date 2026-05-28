@@ -137,6 +137,21 @@ namespace std {
             return *lhs == *rhs;
         }
     };
+    template <>
+    struct hash<std::shared_ptr<BinaryRowData>> {
+        std::size_t operator()(const std::shared_ptr<BinaryRowData> &nsPtr) const noexcept {
+            return nsPtr ? nsPtr->hashCodeFast() : 0;
+        }
+    };
+    // Attention: Be very careful when using this! It does not compare the address. but the content
+    template <>
+    struct equal_to<std::shared_ptr<BinaryRowData>> {
+        bool operator()(const std::shared_ptr<BinaryRowData> &lhs, const std::shared_ptr<BinaryRowData> &rhs) const noexcept {
+            if (lhs == rhs) return true;
+            if (!lhs || !rhs) return false;
+            return *lhs == *rhs;
+        }
+    };
 }
 
 

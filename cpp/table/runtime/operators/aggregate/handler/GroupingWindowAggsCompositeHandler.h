@@ -61,6 +61,9 @@ public:
 
     RowData* createAccumulators(int accumulatorArity) override {
         auto* accumulators = BinaryRowData::createBinaryRowDataWithMem(accumulatorArity);
+        for (int i = 0; i < accumulatorArity; ++i) {
+            accumulators->setNullAt(i);
+        }
         return accumulators;
     }
 

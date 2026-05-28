@@ -11,13 +11,16 @@
 
 #pragma once
 
+#include <limits>
+
 #include "common.h"
+#include "table/data/binary/BinaryRowData.h"
 #include "table/runtime/generated/NamespaceAggsHandleFunction.h"
 
 template<typename N>
-class GroupingWindowAggsSumHandler : public NamespaceAggsHandleFunction<N> {
+class GroupingWindowAggsMinHandler : public NamespaceAggsHandleFunction<N> {
 public:
-    explicit GroupingWindowAggsSumHandler(
+    explicit GroupingWindowAggsMinHandler(
             int32_t aggIndex,
             int32_t aggDataType,
             int32_t accIndex,
@@ -38,10 +41,11 @@ public:
         if (accInput->isNullAt(aggIndex_)) {
             return;
         }
-
-        sumIsNull_ = false;
         long fieldValue = *accInput->getLong(aggIndex_);
-        sum_ += fieldValue;
+        if (minIsNull_ || fieldValue < min_) {
+            min_ = fieldValue;
+            minIsNull_ = false;
+        }
     }
 
     void retract(RowData* retractInput) override {
@@ -52,27 +56,28 @@ public:
         if (otherAcc->isNullAt(accIndex_)) {
             return;
         }
-
-        sumIsNull_ = false;
-        sum_ = sum_ + *otherAcc->getLong(accIndex_);
+        long otherMin = *otherAcc->getLong(accIndex_);
+        if (minIsNull_ || otherMin < min_) {
+            min_ = otherMin;
+            minIsNull_ = false;
+        }
     }
 
     void setAccumulators(N ns, RowData* acc) override {
         currentAcc_ = acc;
         if (currentAcc_->isNullAt(accIndex_)) {
-            sumIsNull_ = true;
-            sum_ = 0;
+            minIsNull_ = true;
         } else {
-            sumIsNull_ = false;
-            sum_ = *currentAcc_->getLong(accIndex_);
+            min_ = *currentAcc_->getLong(accIndex_);
+            minIsNull_ = false;
         }
     }
 
     RowData* getAccumulators() override {
-        if (sumIsNull_) {
+        if (minIsNull_) {
             reinterpret_cast<BinaryRowData*>(currentAcc_)->setNullAt(accIndex_);
         } else {
-            currentAcc_->setLong(accIndex_, sum_);
+            currentAcc_->setLong(accIndex_, min_);
         }
         return currentAcc_;
     }
@@ -84,10 +89,10 @@ public:
     }
 
     RowData* getValue(N ns) override {
-        if (sumIsNull_) {
+        if (minIsNull_) {
             reinterpret_cast<BinaryRowData*>(currentAcc_)->setNullAt(valueIndex_);
         } else {
-            currentAcc_->setLong(valueIndex_, sum_);
+            currentAcc_->setLong(valueIndex_, min_);
         }
         return currentAcc_;
     }
@@ -103,8 +108,8 @@ private:
     int32_t valueIndex_ = -1;
     int32_t filterIndex_ = -1;
 
-    int64_t sum_ = 0;
-    bool sumIsNull_ = true;
+    int64_t min_ = INT64_MAX;
+    bool minIsNull_ = true;
     StateDataViewStore* store_{};
     RowData* currentAcc_{};
 };

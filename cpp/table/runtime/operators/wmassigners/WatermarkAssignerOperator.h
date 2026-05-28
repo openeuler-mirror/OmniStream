@@ -8,8 +8,8 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef FLINK_TNEL_WATERMARKASSIGNEROPERATOR_H
-#define FLINK_TNEL_WATERMARKASSIGNEROPERATOR_H
+
+#pragma once
 
 #include <chrono>
 #include <regex>
@@ -54,7 +54,6 @@ public:
 
     std::string getTypeName() override;
     void processWatermarkStatus(WatermarkStatus *watermarkStatus) override;
-    omnistream::VectorBatch *sliceVecBatch(omnistream::VectorBatch *batch, int32_t offset, int32_t newRowCnt);
 
 private:
     int rowtimeIndex_;
@@ -76,5 +75,3 @@ private:
     void advanceWatermark();
     void emitWatermarkStatus(WatermarkStatus *watermarkStatus);
 };
-
-#endif  // FLINK_TNEL_WATERMARKASSIGNEROPERATOR_H

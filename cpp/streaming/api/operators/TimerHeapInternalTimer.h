@@ -11,9 +11,11 @@
 
 #pragma once
 
+#include <cstdint>
+
 #include "InternalTimer.h"
-#include "data/RowData.h"
 #include "table/runtime/operators/window/TimeWindow.h"
+#include "runtime/keyselector/KeySelector.h"
 #include "runtime/state/VoidNamespace.h"
 #include "basictypes/Object.h"
 #include "state/heap/HeapPriorityQueueElement.h"
@@ -33,8 +35,8 @@ public:
             auto timestamp = timer->getTimestamp();
             auto const& key = timer->getKey();
             auto const& nameSpace = timer->getNamespace();
-            int result = static_cast<int>(timestamp ^ (timestamp >> 32));
-            if constexpr (std::is_same_v<K, RowData*>) {
+            int32_t result = static_cast<int32_t>(timestamp ^ (timestamp >> 32));
+            if constexpr (KeySelector<K>::isRowKey_ || KeySelector<K>::isSharedRowKey_) {
                 result = 31 * result + key->hashCode();
             } else if constexpr (std::is_same_v<K, Object*>) {
                 result = 31 * result + reinterpret_cast<Object*>(key)->hashCode();
@@ -52,7 +54,7 @@ public:
 
     struct SharedPtrEqual {
         bool operator()(const std::shared_ptr<TimerHeapInternalTimer>& lhs, const std::shared_ptr<TimerHeapInternalTimer>& rhs) const {
-            if constexpr (std::is_same_v<K, RowData*>) {
+            if constexpr (KeySelector<K>::isRowKey_ || KeySelector<K>::isSharedRowKey_) {
                 auto res = lhs->getTimestamp() == rhs->getTimestamp() &&
                         lhs->getNamespace() == rhs->getNamespace() &&
                         *lhs->getKey() == *rhs->getKey();
@@ -79,7 +81,7 @@ public:
     };
 
     TimerHeapInternalTimer() = default;
-    TimerHeapInternalTimer(long timestamp, K key, N nameSpace) : key(key), nameSpace(nameSpace), timestamp(timestamp)
+    TimerHeapInternalTimer(int64_t timestamp, K key, N nameSpace) : key(key), nameSpace(nameSpace), timestamp(timestamp)
     {
         if constexpr (std::is_same_v<K, Object*>) {
             reinterpret_cast<Object*>(key)->getRefCount();
@@ -107,11 +109,11 @@ public:
 
     N getNamespace() const override { return nameSpace; }
 
-    long getTimestamp() const override { return timestamp; }
+    int64_t getTimestamp() const override { return timestamp; }
 
     bool operator==(TimerHeapInternalTimer &other) const
     {
-        if constexpr (std::is_same_v<K, RowData *>) {
+        if constexpr (KeySelector<K>::isRowKey_ || KeySelector<K>::isSharedRowKey_) {
             return this->timestamp == other.timestamp && *this->key == *other.key && this->nameSpace == other.nameSpace;
         } else if constexpr (std::is_same_v<K, Object *>) {
             auto lkey = reinterpret_cast<Object*>(this->key);
@@ -156,7 +158,7 @@ public:
         }
 	}
 
-	inline void setTimestamp(long timestamp_) {
+	inline void setTimestamp(int64_t timestamp_) {
 		timestamp = timestamp_;
     }
 
@@ -174,5 +176,5 @@ public:
 private:
     K key{};
     N nameSpace{};
-    long timestamp = 0L;
+    int64_t timestamp = 0L;
 };

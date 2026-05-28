@@ -13,6 +13,8 @@
 
 #pragma once
 
+#include <cstdint>
+
 template<typename W>
 class OnMergeContext;
 
@@ -25,38 +27,38 @@ public:
     public:
         virtual ~TriggerContext() = default;
 
-        virtual long GetCurrentProcessingTime() = 0;
+        virtual int64_t getCurrentProcessingTime() = 0;
 
-        virtual long GetCurrentWatermark() = 0;
+        virtual int64_t getCurrentWatermark() = 0;
 
-        virtual void RegisterProcessingTimeTimer(long time) = 0;
+        virtual void registerProcessingTimeTimer(int64_t time) = 0;
 
-        virtual void RegisterEventTimeTimer(long time) = 0;
+        virtual void registerEventTimeTimer(int64_t time) = 0;
 
-        virtual void DeleteProcessingTimeTimer(long time) = 0;
+        virtual void deleteProcessingTimeTimer(int64_t time) = 0;
 
-        virtual void DeleteEventTimeTimer(long time) = 0;
+        virtual void deleteEventTimeTimer(int64_t time) = 0;
     };
 
-    virtual void Open(TriggerContext *ctx) = 0;
+    virtual void open(TriggerContext *ctx) = 0;
 
-    virtual bool OnElement(RowData *element, long timestamp, W window) = 0;
+    virtual bool onElement(RowData *element, int64_t timestamp, W window) = 0;
 
-    virtual bool OnProcessingTime(long time, W window) = 0;
+    virtual bool onProcessingTime(int64_t time, W window) = 0;
 
-    virtual bool OnEventTime(long time, W window) = 0;
+    virtual bool onEventTime(int64_t time, W window) = 0;
 
-    virtual bool CanMerge()
+    virtual bool canMerge()
     {
         return false;
     }
 
-    virtual void OnMerge(W window, OnMergeContext<W> *mergeContext)
+    virtual void onMerge(W window, OnMergeContext<W> *mergeContext)
     {
         throw std::runtime_error("This trigger does not support merging.");
     }
 
-    virtual void Clear(W window) = 0;
+    virtual void clear(W window) = 0;
 };
 
 template<typename W>

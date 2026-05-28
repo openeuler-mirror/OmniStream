@@ -11,18 +11,15 @@
 
 #pragma once
 
-#include <type_traits>
 #include <nlohmann/json.hpp>
 #include "StreamOperator.h"
 #include "AbstractStreamOperator.h"
 #include "StreamOperatorStateHandler.h"
 #include "Output.h"
-#include "streaming/runtime/streamrecord/StreamRecord.h"
 #include "StreamingRuntimeContext.h"
 #include "StreamTaskStateInitializerImpl.h"
 #include "ChainingStrategy.h"
 #include "Input.h"
-#include "data/binary/BinaryRowData.h"
 #include "table/runtime/operators/InternalTimerServiceImpl.h"
 #include "table/runtime/operators/InternalTimeServiceManager.h"
 #include "KeyContext.h"

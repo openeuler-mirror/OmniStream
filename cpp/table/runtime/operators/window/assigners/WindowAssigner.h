@@ -12,6 +12,8 @@
 #define WINDOWASSIGNER_H
 
 #pragma once
+#include <cstdint>
+
 #include "table/data/RowData.h"
 
 template<typename W>
@@ -21,11 +23,11 @@ public:
 
     virtual ~WindowAssigner() = default;
 
-    virtual void Open() {}
+    virtual void open() {}
 
-    virtual std::vector<W> AssignWindows(const RowData *rowData, long timestamp) = 0;
+    virtual std::vector<W> assignWindows(const RowData* rowData, int64_t timestamp) = 0;
 
-    virtual bool IsEventTime() const = 0;
+    virtual bool isEventTime() const = 0;
 };
 
 #endif
