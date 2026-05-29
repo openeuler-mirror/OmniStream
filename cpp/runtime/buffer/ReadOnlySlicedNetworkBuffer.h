@@ -79,6 +79,14 @@ namespace omnistream::datastream {
             return memorySegmentOffset;
         }
 
+        void SetBufferType(int type)
+        {
+            bufferType = type;
+        }
+        int GetBufferType() const
+        {
+            return bufferType;
+        }
     private:
         NetworkBuffer* parent_ = nullptr;
         int index_;

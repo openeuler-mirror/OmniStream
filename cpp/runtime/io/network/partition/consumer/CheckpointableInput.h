@@ -29,6 +29,8 @@ public:
     virtual void CheckpointStarted(const CheckpointBarrier& barrier) = 0;
 
     virtual void CheckpointStopped(long cancelledCheckpointId) = 0;
+
+    virtual void notifyDataAvailable() = 0;
     
     virtual int GetInputGateIndex() = 0;
     

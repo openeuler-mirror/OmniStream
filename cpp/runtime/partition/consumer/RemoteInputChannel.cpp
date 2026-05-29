@@ -79,7 +79,11 @@ namespace omnistream {
         if (backlogSize > 0) {
             dataType = ObjectBufferDataType::DATA_BUFFER;
         }
+        if (readOnlyBuffer->GetBufferType() == 3) {
+            dataType = ObjectBufferDataType::ALIGNED_CHECKPOINT_BARRIER;
+            readOnlyBuffer->SetBufferType(1);
 
+        }
         // std::shared_ptr<ObjectBuffer> data = std::shared_ptr<ObjectBuffer>(vectorBatchBuffer);
 
         return BufferAndAvailability{buffer, dataType, backlogSize, expectSequenceNumber++};
@@ -135,7 +139,7 @@ namespace omnistream {
             return;
         }
         int type = bufferType;
-        if (bufferType == 2) {
+        if (bufferType > 1) {
             isUnlock = true;
             type = 1;
         }
@@ -150,6 +154,9 @@ namespace omnistream {
 
         std::unique_lock<std::recursive_mutex> lock(queueMutex);
         bool wasEmpty = this->dataQueue.empty();
+        if (bufferType == 3) {
+            readOnlyBuffer->SetBufferType(bufferType);
+        }
         if (readOnlyBuffer != nullptr) {
             insize += bufferLength;
             this->dataQueue.push(readOnlyBuffer);

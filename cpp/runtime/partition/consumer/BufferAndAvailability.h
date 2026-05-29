@@ -29,7 +29,13 @@ namespace omnistream {
             : buffer(buffer), nextDataType(nextDataType), buffersInBacklog_(buffersInBacklog),
               sequenceNumber(sequenceNumber) {}
         Buffer* GetBuffer() { return buffer; }
-        bool moreAvailable() const { return nextDataType != ObjectBufferDataType::NONE; }
+        bool moreAvailable() const
+        {
+            if (nextDataType == ObjectBufferDataType::NONE  || nextDataType == ObjectBufferDataType::ALIGNED_CHECKPOINT_BARRIER) {
+                return false;
+            }
+            return true; 
+        }
         bool morePriorityEvents() const { return nextDataType.hasPriority(); }
         int buffersInBacklog() const { return buffersInBacklog_; }
         bool hasPriority() const { return buffer->GetDataType().hasPriority(); }

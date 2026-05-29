@@ -42,7 +42,7 @@ namespace omnistream {
             return;
         }
         int type = bufferType;
-        if (bufferType == 2) {
+        if (bufferType > 1) {
             isUnlock = true;
             type = 1;
         }
@@ -55,8 +55,12 @@ namespace omnistream {
                     networkBuffer, readIndex + memorySegmentOffset,
                     bufferLength);
         std::unique_lock<std::recursive_mutex> lock(queueMutex);
+        ObjectBufferDataType dataType = ObjectBufferDataType::DATA_BUFFER;
+        if (bufferType == 3) {
+            dataType = ObjectBufferDataType::ALIGNED_CHECKPOINT_BARRIER;
+        }
         std::shared_ptr<BufferAndAvailability> data = std::make_shared<BufferAndAvailability>(readOnlyBuffer,
-            ObjectBufferDataType::DATA_BUFFER, dataQueue.size(), sequenceNumber);
+            dataType, dataQueue.size(), sequenceNumber);
         if (data != nullptr) {
             dataQueue.push(data);
             insize += bufferLength;

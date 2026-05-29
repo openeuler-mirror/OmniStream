@@ -55,5 +55,8 @@ BarrierHandlerState* AbstractAlternatingAlignedBarrierHandlerState::Announcement
 BarrierHandlerState* AbstractAlternatingAlignedBarrierHandlerState::FinishCheckpoint()
 {
     state.UnblockAllChannels();
+    for (auto* input : state.getInputs()) {
+        input->notifyDataAvailable();
+    }
     return new AlternatingWaitingForFirstBarrier(state.EmptyState());
 }

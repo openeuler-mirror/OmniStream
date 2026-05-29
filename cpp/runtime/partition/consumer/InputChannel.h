@@ -52,6 +52,7 @@ public:
     virtual void CheckpointStarted(const CheckpointBarrier& barrier, std::shared_ptr<ChannelStateWriter> channelStateWriter) {}
     virtual void CheckpointStopped(long checkpointId)
     {}
+    virtual void notifyDataAvailable() {}
     virtual void ConvertToPriorityEvent(int sequenceNumber)
     {}
 

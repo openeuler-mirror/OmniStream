@@ -13,6 +13,7 @@ public:
     int GetNumberOfInputChannels() { return 1; }
     void CheckpointStarted(const CheckpointBarrier&) override { started = true; }
     void CheckpointStopped(long) override { stopped = true; }
+    void notifyDataAvailable() override {}
     int GetInputGateIndex() override { return 0; }
     bool blocked = false;
     bool resumed = false;

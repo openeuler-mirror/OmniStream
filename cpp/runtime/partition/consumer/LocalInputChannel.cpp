@@ -200,7 +200,7 @@ std::optional<BufferAndAvailability> LocalInputChannel::getNextBuffer()
     // LOG("after LocalInputChannel::next->getBuffer() 1")
     LOG("after LocalInputChannel::next->getBuffer() 2")
     channelStatePersister->CheckForBarrier(buffer);
-    channelStatePersister->MaybePersist(buffer);
+    // channelStatePersister->MaybePersist(buffer);
 
     if (next->getNextDataType().isEvent()) {
         LOG_TRACE("event buffer " << buffer->ToDebugString(false))

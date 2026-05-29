@@ -57,6 +57,8 @@ public:
         stopped = true;
     }
 
+    void notifyDataAvailable() override {}
+    
     int GetInputGateIndex() override {
         return inputGateIndex_;
     }

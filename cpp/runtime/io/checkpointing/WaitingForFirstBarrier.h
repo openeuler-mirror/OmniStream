@@ -40,6 +40,7 @@ public:
         CheckpointBarrier* barrier) override;
 
     BarrierHandlerState* FinishCheckpoint() override;
+    BarrierHandlerState* FinishSavepoint();
 
 private:
     ChannelState state_;

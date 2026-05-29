@@ -76,6 +76,8 @@ namespace omnistream {
 
         void CheckpointStopped(long checkpointId) override {};
 
+        void notifyDataAvailable() override {};
+
         std::vector<InputChannelInfo> GetChannelInfos() override
         {
             return inputChannelInfos;

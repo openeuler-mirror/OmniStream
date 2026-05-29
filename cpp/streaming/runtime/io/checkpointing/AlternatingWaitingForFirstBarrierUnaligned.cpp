@@ -12,6 +12,7 @@
 #include "AlternatingCollectingBarriersUnaligned.h"
 #include "AlternatingWaitingForFirstBarrier.h"
 #include "partition/consumer/IndexedInputGate.h"
+#include "streaming/runtime/io/checkpointing/AlternatingCollectingBarriers.h"
 
 AlternatingWaitingForFirstBarrierUnaligned::AlternatingWaitingForFirstBarrierUnaligned(
     bool alternating, ChannelState state)
@@ -23,6 +24,10 @@ BarrierHandlerState* AlternatingWaitingForFirstBarrierUnaligned::BarrierReceived
     CheckpointBarrier* barrier,
     bool markChannelBlocked)
 {
+    if (!barrier->IsCheckpoint()) {
+        state_.BlockChannel(channelInfo);
+        return new AlternatingCollectingBarriers(std::move(state_));
+    }
     LOG_DEBUG("AlternatingWaitingForFirstBarrierUnaligned::BarrierReceived")
     if (markChannelBlocked && !barrier->GetCheckpointOptions()->IsUnalignedCheckpoint()) {
         state_.BlockChannel(channelInfo);

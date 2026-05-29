@@ -45,6 +45,14 @@ namespace omnistream {
         }
     }
 
+    void IndexedInputGate::notifyDataAvailable()
+    {
+        int num = GetNumberOfInputChannels();
+        for (int i = 0; i < num; ++i) {
+            getChannel(i)->notifyDataAvailable();
+        }
+    }
+
     int IndexedInputGate::GetInputGateIndex()
     {
         return GetGateIndex();

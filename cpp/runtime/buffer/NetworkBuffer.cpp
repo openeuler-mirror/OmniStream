@@ -68,6 +68,7 @@ namespace omnistream::datastream {
         this->currentSize = bufferLength;
         this->readerIndex_ = readIndex;
         refCount_.store(1);
+        isRecycled_.store(false);
         this->segmentOwner = segmentOwner;
     }
 

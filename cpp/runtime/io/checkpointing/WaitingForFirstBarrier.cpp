@@ -12,7 +12,7 @@
 #include "WaitingForFirstBarrier.h"
 
 #include <stdexcept>
-
+#include "streaming/runtime/io/checkpointing/AlternatingWaitingForFirstBarrierUnaligned.h"
 namespace {
 
 /**
@@ -86,7 +86,7 @@ BarrierHandlerState* WaitingForFirstBarrier::BarrierReceived(
         bool markChannelBlocked)
 {
     // In the aligned-only handler we should never receive an explicitly unaligned barrier.
-    if (barrier->GetCheckpointOptions()->IsUnalignedCheckpoint()) {
+    if (barrier->IsCheckpoint() && barrier->GetCheckpointOptions()->IsUnalignedCheckpoint()) {
         throw std::runtime_error(
             "Aligned-only barrier handler received an unaligned checkpoint barrier.");
     }
@@ -100,7 +100,10 @@ BarrierHandlerState* WaitingForFirstBarrier::BarrierReceived(
     if (controller->AllBarriersReceived()) {
         controller->InitInputsCheckpoint(*barrier);
         controller->TriggerGlobalCheckpoint(*barrier);
-        return FinishCheckpoint();
+        if (barrier->IsCheckpoint()) {
+            return FinishCheckpoint();
+        }
+        return FinishSavepoint();
     }
 
     return new CollectingBarriers(std::move(state_));
@@ -117,8 +120,21 @@ BarrierHandlerState* WaitingForFirstBarrier::AlignedCheckpointTimeout(
 BarrierHandlerState* WaitingForFirstBarrier::FinishCheckpoint()
 {
     state_.UnblockAllChannels();
-
+    for (auto* input : state_.getInputs()) {
+        input->notifyDataAvailable();
+    }
     ChannelState next = std::move(state_);
     next.EmptyState();
     return new WaitingForFirstBarrier(std::move(next));
+}
+
+BarrierHandlerState* WaitingForFirstBarrier::FinishSavepoint()
+{
+    state_.UnblockAllChannels();
+    for (auto* input : state_.getInputs()) {
+        input->notifyDataAvailable();
+    }
+    ChannelState next = std::move(state_);
+    next.EmptyState();
+    return new AlternatingWaitingForFirstBarrierUnaligned(false, next);
 }

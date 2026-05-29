@@ -36,6 +36,7 @@ namespace omnistream {
         int GetInputGateIndex() override;
         void CheckpointStarted(const CheckpointBarrier& barrier) override;
         void CheckpointStopped(long checkpointId) override;
+        void notifyDataAvailable() override;
         std::vector<InputChannelInfo> GetChannelInfos() override;
         void SetChannelStateWriter(std::shared_ptr<ChannelStateWriter> channelStateWriter);
         void BlockConsumption(const InputChannelInfo& channelInfo) override {   // checkinto related , do it ilater
