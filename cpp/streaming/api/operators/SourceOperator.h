@@ -196,12 +196,6 @@ public:
         // AbstractStreamOperator<void*>::close();
     }
 
-    void cancel() {
-        if (sourceReader != nullptr) {
-            sourceReader->cancel();
-        }
-    }
-
     DataInputStatus emitNext(OmniDataOutputPtr output)
     {
         ASSERT(lastInvokedOutput == output || lastInvokedOutput == nullptr || operatingMode == OperatingMode::DATA_FINISHED);

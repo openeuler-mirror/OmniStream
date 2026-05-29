@@ -61,7 +61,5 @@ public:
 
     // 关闭读取器，继承自 AutoCloseable 功能的体现
     virtual void close() = 0;
-
-    virtual void cancel() = 0;
 };
 #endif

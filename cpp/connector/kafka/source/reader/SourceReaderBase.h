@@ -78,11 +78,6 @@ public:
     {
         auto currentSplitStoppingOffset = recordsWithSplitId->getSplitStoppingOffset();
         for (RdKafka::Message* record : records) {
-            if (cancelled_.load())
-            {
-                INFO_RELEASE("SourceReader cancelled")
-                break;
-            }
             if (record->offset() >= currentSplitStoppingOffset) {
                 break;
             }
@@ -185,11 +180,6 @@ public:
         splitFetcherManager->close(30000);
     }
 
-    void cancel()
-    {
-        cancelled_ = true;
-    }
-
     // 获取当前分配的拆分数量
     int getNumberOfCurrentlyAssignedSplits() const
     {
@@ -203,7 +193,6 @@ protected:
     virtual void onSplitFinished(const std::unordered_map<std::string, KafkaPartitionSplitState*>& finishedSplitIds) {};
     SplitFetcherManager<E, SplitT>* splitFetcherManager;
 private:
-    std::atomic<bool> cancelled_{false};
     bool isBatch;
     FutureCompletingBlockingQueue<E>* elementsQueue;
     std::unordered_map<std::string, SplitContext*> splitStates;
