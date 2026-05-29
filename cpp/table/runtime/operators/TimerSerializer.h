@@ -15,7 +15,7 @@
 #include "streaming/api/operators/TimerHeapInternalTimer.h"
 #include "basictypes/Class.h"
 #include "basictypes/Integer.h"
-#include "runtime/keyselector/KeySelector.h"
+#include "core/utils/key_type_traits.h"
 
 template <typename K, typename N>
 class TimerSerializer : public TypeSerializer {
@@ -130,7 +130,7 @@ void TimerSerializer<K, N>::deserialize(Object* buffer, DataInputView& source) {
         keySerializer_->deserialize(keyBuffer, source);
         timer->setKey(keyBuffer);
         keyBuffer->putRefCount();
-    } else if constexpr (KeySelector<K>::isRowKey_) {
+    } else if constexpr (KeyTypeTraits<K>::isRowKey) {
         auto keyBuffer = static_cast<K>(keySerializer_->deserialize(source));
         // todo: the memory is hard to be managed, suggest using std::shared_ptr below
         timer->setKey(keyBuffer->copy());

@@ -12,7 +12,7 @@
 #pragma once
 
 #include <thread>
-#include "runtime/keyselector/KeySelector.h"
+#include "core/utils/key_type_traits.h"
 #include "../../table/data/RowData.h"
 #include "../../core/utils/MathUtils.h"
 #include "data/binary/BinaryRowData.h"
@@ -26,7 +26,7 @@ public:
 
     static inline int assignToKeyGroup(K key, int maxParallelism)
     {
-        if constexpr (KeySelector<K>::isRowKey_ || KeySelector<K>::isSharedRowKey_) {
+        if constexpr (KeyTypeTraits<K>::isRowKey || KeyTypeTraits<K>::isSharedRowKey) {
             // std::hash<RowData*> uses a simpler hasher. But here we need to keep it same as java
             int hashCode = key ? key->hashCode() : 0;
             return MathUtils::murmurHash(hashCode) % maxParallelism;
