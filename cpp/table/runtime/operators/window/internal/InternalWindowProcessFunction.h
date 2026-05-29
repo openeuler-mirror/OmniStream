@@ -15,12 +15,14 @@
 
 #include <cstdint>
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "table/runtime/operators/window/assigners/WindowAssigner.h"
 #include "table/runtime/operators/window/Window.h"
 #include "table/runtime/generated/NamespaceAggsHandleFunctionBase.h"
 #include "table/data/RowData.h"
+#include "table/utils/TimeWindowUtil.h"
 
 template<typename K, typename W>
 class Context {
@@ -46,6 +48,12 @@ public:
     virtual void onMerge(const W& window, std::vector<W> &windows) = 0;
 
     virtual void deleteCleanupTimer(const W& window) = 0;
+
+    virtual const std::string& getShiftTimeZone() const
+    {
+        static const std::string utc = "UTC";
+        return utc;
+    }
 };
 
 template<typename K, typename W>
@@ -92,8 +100,8 @@ protected:
 private:
     int64_t cleanupTime(const W& window) const {
         if (windowAssigner->isEventTime()) {
-            int64_t cleanupTime = window.maxTimestamp() + allowedLateness;
-            return cleanupTime >= window.maxTimestamp() ? cleanupTime : std::numeric_limits<int64_t>::max();
+            return TimeWindowUtil::toCleanupTimerMills(window.maxTimestamp(), allowedLateness,
+                                                       ctx->getShiftTimeZone());
         }
         return window.maxTimestamp();
     }

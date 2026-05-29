@@ -10,6 +10,7 @@
 #include "core/graph/OperatorConfig.h"
 #include "test/core/operators/OutputTest.h"
 #include "streaming/api/operators/StreamOperatorFactory.h"
+#include "table/utils/TimeWindowUtil.h"
 
 using json = nlohmann::json;
 
@@ -284,4 +285,129 @@ TEST(AggregateWindowOperatorTest, JsonTest)
 //        std::cout << to_string(resultBatch->getRowKind(i)) << std::endl;
 //    }
 //    std::cout << "LocalWindowAggTest  NexmarkQ12Test1" << std::endl;
+}
+
+TEST(AggregateWindowOperatorTest, TimestampLtzWindowBoundaryUsesShiftTimezone)
+{
+    std::string ltzDescription = R"DELIM({
+    "partition": {
+        "partitionName": "none",
+        "channelNumber": 1
+    },
+    "operators": [{
+        "output": {
+            "kind": "Row",
+            "type": [{
+                "kind": "logical",
+                "isNull": true,
+                "type": "BIGINT"
+            }]
+        },
+        "inputs": [{
+            "kind": "Row",
+            "type": [{
+                "kind": "logical",
+                "isNull": true,
+                "type": "BIGINT"
+            },
+            {
+                "kind": "logical",
+                "isNull": true,
+                "precision": 3,
+                "type": "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+                "timestampKind": 1
+            }]
+        }],
+        "name": "GroupWindowAggregate(groupBy=[id], window=[TumblingGroupWindow('w$, event_time_ltz, 3600000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[id, COUNT(*) AS cnt, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])",
+        "description": {
+            "originDescription": null,
+            "inputTypes": ["BIGINT", "TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)"],
+            "outputTypes": ["BIGINT", "BIGINT", "TIMESTAMP_WITHOUT_TIME_ZONE(3)", "TIMESTAMP_WITHOUT_TIME_ZONE(3)", "TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)", "TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)"],
+            "windowPropertyTypes": ["TIMESTAMP(3) NOT NULL", "TIMESTAMP(3) NOT NULL", "TIMESTAMP_LTZ(3) *ROWTIME*", "TIMESTAMP_LTZ(3) *PROCTIME*"],
+            "grouping": [0],
+            "aggInfoList": {
+                "aggregateCalls": [{
+                    "name": "COUNT()",
+                    "aggregationFunction": "Count1AggFunction",
+                    "argIndexes": [],
+                    "consumeRetraction": "false",
+                    "filterArg": -1
+                }],
+                "AccTypes": ["BIGINT"],
+                "aggValueTypes": ["BIGINT"],
+                "indexOfCountStar": -1
+            },
+            "generateUpdateBefore": false,
+            "allowedLateness": 0,
+            "windowType": "TumblingGroupWindow('w$, event_time_ltz, 3600000)",
+            "countType": "time",
+            "timeType": "event",
+            "windowSize": 3600000,
+            "inputTimeFieldIndex": 1,
+            "shiftTimeZone": "Asia/Shanghai"
+        },
+        "id": "org.apache.flink.table.runtime.operators.window.AggregateWindowOperator"
+    }]
+})DELIM";
+
+    std::string uniqueName = "org.apache.flink.table.runtime.operators.window.AggregateWindowOperator";
+    json parsedJson = json::parse(ltzDescription);
+    omnistream::OperatorConfig opConfig(
+        uniqueName,
+        "LocalWindowAgg_Ltz",
+        parsedJson["operators"][0]["inputTypes"],
+        parsedJson["operators"][0]["outputTypes"],
+        parsedJson["operators"][0]["description"]
+    );
+
+    auto *output = new BatchOutputTest();
+    auto *windowAggOperator = dynamic_cast<AggregateWindowOperator<std::shared_ptr<RowData>, TimeWindow> *>(
+        omnistream::StreamOperatorFactory::createOperatorAndCollector(opConfig, output));
+    auto env2 = new omnistream::RuntimeEnvironmentV2();
+    auto taskInfo = new TaskInformationPOD();
+    taskInfo->setStateBackend("HashMapStateBackend");
+    {
+        auto configPOD = taskInfo->getStreamConfigPOD();
+        auto operatorDesc = configPOD.getOperatorDescription();
+        operatorDesc.setOperatorId("deadbeefdeadbeefdeadbeefdeadbeef");
+        configPOD.setOperatorDescription(operatorDesc);
+        taskInfo->setStreamConfigPOD(configPOD);
+    }
+    env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
+    env2->setTaskConfiguration(*taskInfo);
+    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
+    windowAggOperator->initializeState(initializer, new LongSerializer());
+    windowAggOperator->open();
+
+    auto key = std::shared_ptr<BinaryRowData>(BinaryRowData::createBinaryRowDataWithMem(1));
+    key->setLong(0, 1);
+    windowAggOperator->setCurrentKey(key);
+
+    BinaryRowData *inputRow = BinaryRowData::createBinaryRowDataWithMem(2);
+    inputRow->setLong(0, 1);
+    inputRow->setLong(1, 1704067205388L);
+    const auto windows = windowAggOperator->windowFunction->assignStateNamespace(inputRow, 1704096005388L);
+    ASSERT_EQ(windows.size(), 1);
+    ASSERT_EQ(windows[0].getStart(), 1704096000000L);
+    ASSERT_EQ(windows[0].getEnd(), 1704099600000L);
+}
+
+TEST(AggregateWindowOperatorTest, WindowCleanupTimerUsesShiftTimezone)
+{
+    EXPECT_EQ(TimeWindowUtil::toCleanupTimerMills(1704099599999L, 0, "Asia/Shanghai"), 1704070799999L);
+    EXPECT_EQ(TimeWindowUtil::toCleanupTimerMills(1704099599999L, 0, "UTC"), 1704099599999L);
+}
+
+TEST(AggregateWindowOperatorTest, TimestampLtzTimeConversionUsesFastPath)
+{
+    constexpr int64_t shanghaiEpochMillis = 1704067205388L;
+    constexpr int64_t utcWallClockMillis = 1704096005388L;
+    constexpr int64_t windowEndUtcMillis = 1704099600000L;
+
+    EXPECT_EQ(TimeWindowUtil::toUtcTimestampMills(shanghaiEpochMillis, "Asia/Shanghai"), utcWallClockMillis);
+    EXPECT_EQ(TimeWindowUtil::toUtcTimestampMills(shanghaiEpochMillis, "GMT+08:00"), utcWallClockMillis);
+    EXPECT_EQ(TimeWindowUtil::toEpochMills(utcWallClockMillis, "Asia/Shanghai"), shanghaiEpochMillis);
+    EXPECT_EQ(TimeWindowUtil::toEpochMills(utcWallClockMillis, "GMT+08:00"), shanghaiEpochMillis);
+    EXPECT_TRUE(TimeWindowUtil::isWindowFired(windowEndUtcMillis, 1704070799999L, "Asia/Shanghai"));
+    EXPECT_FALSE(TimeWindowUtil::isWindowFired(windowEndUtcMillis, 1704070799998L, "Asia/Shanghai"));
 }
