@@ -9,86 +9,77 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef OMNISTREAM_SCHEDULEDTASKEXECUTOR_H
-#define OMNISTREAM_SCHEDULEDTASKEXECUTOR_H
+# pragma once
 
-#include <functional>
-#include <chrono>
 #include <mutex>
 #include <condition_variable>
-#include "streaming/runtime/tasks/ProcessingTimeCallback.h"
+#include <atomic>
 #include "DelayedWorkQueue.h"
 #include "common.h"
 
 class ScheduledTaskExecutor {
 public:
-    explicit ScheduledTaskExecutor(size_t numThreads)
-    {
+    explicit ScheduledTaskExecutor(size_t numThreads) {
         workQueue = new DelayedWorkQueue();
         initWorks(numThreads);
     }
 
-    void WorkerThreadProc()
-    {
+    void WorkerThreadProc() {
         ScheduledFutureTask* task;
-        while (!stop) {
+        while (!stop.load()) {
             task = workQueue->Take();
             if (task == nullptr) {
                 continue;
             }
             task->Run();
-            if (task->IsPeriodic()) {
+            if (!stop.load() && task->IsPeriodic()) {
                 task->SetNextRuntime();
                 workQueue->Offer(task);
             }
         }
     }
 
-    void initWorks(size_t numThreads)
-    {
+    void initWorks(size_t numThreads) {
         for (size_t i = 0; i < numThreads; ++i) {
             workers.emplace_back([this] {WorkerThreadProc();});
         }
     }
 
-    void Shutdown()
-    {
-        stop = true;
+    void Shutdown() {
+        if (stop.exchange(true)) {
+            return;
+        }
         workQueue->Shutdown();
         workQueue->NotifyAll();
         for (std::thread& worker : workers) {
-            worker.join();
+            if (worker.joinable()) {
+                worker.join();
+            }
         }
     }
 
-    ScheduledFutureTask* Schedule(omnistream::Runnable* task, long initialDelay)
-    {
+    ScheduledFutureTask* Schedule(omnistream::Runnable* task, long initialDelay) {
         auto* futureTask = new ScheduledFutureTask(initialDelay, task);
         workQueue->Offer(futureTask);
         return futureTask;
     }
 
-    ScheduledFutureTask* ScheduleWithFixedDelay(omnistream::Runnable* task, long initialDelay, long period)
-    {
+    ScheduledFutureTask* ScheduleWithFixedDelay(omnistream::Runnable* task, long initialDelay, long period) {
         ScheduledFutureTask* futureTask = new ScheduledFutureTask(initialDelay, period, task);
         workQueue->Offer(futureTask);
         return futureTask;
     }
 
-    ScheduledFutureTask* ScheduleAtFixedRate(omnistream::Runnable* task, long initialDelay, long period)
-    {
+    ScheduledFutureTask* ScheduleAtFixedRate(omnistream::Runnable* task, long initialDelay, long period) {
         NOT_IMPL_EXCEPTION;
     }
 
-    ~ScheduledTaskExecutor()
-    {
+    ~ScheduledTaskExecutor() {
         Shutdown();
         delete workQueue;
     }
 private:
     std::vector<std::thread> workers;
-    bool stop = false;
+    std::atomic<bool> stop = false;
     DelayedWorkQueue* workQueue = nullptr;
 };
-
-#endif // OMNISTREAM_SCHEDULEDTASKEXECUTOR_H
