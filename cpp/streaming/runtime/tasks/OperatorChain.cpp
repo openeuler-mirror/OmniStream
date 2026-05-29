@@ -49,6 +49,9 @@ void AssignConfiguredOperatorId(StreamOperator *op, const omnistream::OperatorPO
         if (auto *rowDataOp = dynamic_cast<AbstractStreamOperator<RowData *> *>(op)) {
             rowDataOp->SetOperatorID(operatorId);
         }
+        if (auto *rdRowDataOp = dynamic_cast<AbstractStreamOperator<std::shared_ptr<RowData>> *>(op)) {
+            rdRowDataOp->SetOperatorID(operatorId);
+        }
         if (auto *objectOp = dynamic_cast<AbstractStreamOperator<Object *> *>(op)) {
             objectOp->SetOperatorID(operatorId);
         }
@@ -581,6 +584,11 @@ OperatorSnapshotFutures *OperatorChainV2::CheckpointStreamOperator(StreamOperato
         auto aop = dynamic_cast<AbstractStreamOperator<RowData *>*>(op);
         if (aop) {
             return aop->SnapshotState(checkpointMetaData.GetCheckpointId(), checkpointMetaData.GetTimestamp(),
+                                      checkpointOptions, storageLocation, bridge);
+        }
+        auto rd_aop = dynamic_cast<AbstractStreamOperator<std::shared_ptr<RowData>>*>(op);
+        if (rd_aop) {
+            return rd_aop->SnapshotState(checkpointMetaData.GetCheckpointId(), checkpointMetaData.GetTimestamp(),
                                       checkpointOptions, storageLocation, bridge);
         }
         auto sop = dynamic_cast<AbstractStreamOperator<Object *>*>(op);
