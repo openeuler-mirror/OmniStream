@@ -21,8 +21,7 @@
 #include "table/typeutils/VectorBatchSerializer.h"
 #include "runtime/state/VoidNamespace.h"
 #include "runtime/state/VoidNamespaceSerializer.h"
-#include "runtime/state/InternalKeyContextImpl.h"
-#include "runtime/state/RegisteredKeyValueStateBackendMetaInfo.h"
+#include "runtime/state/heap/VectorBatchSideTableRegistration.h"
 #include "basictypes/java_util_HashMap.h"
 #include "core/typeutils/LongSerializer.h"
 
@@ -90,11 +89,11 @@ public:
 
     static HeapMapState<K, N, UK, UV> *
     create(StateDescriptor *stateDesc, StateTable<K, N, emhash7::HashMap<UK, UV>* > *stateTable,
-           TypeSerializer *keySerializer);
+           TypeSerializer *keySerializer, const VectorBatchSideTableRegistration &vectorBatchRegistration);
 
     static HeapMapState<K, N, UK, UV> *
     update(StateDescriptor *stateDesc, StateTable<K, N, emhash7::HashMap<UK, UV>* > *stateTable,
-           HeapMapState<K, N, UK, UV> *existingState);
+           HeapMapState<K, N, UK, UV> *existingState, const VectorBatchSideTableRegistration &vectorBatchRegistration);
 
     // This gets the pointer to the actual map (a value for state), like Join's emhash<RowData*, int> with currentNamespace and currentKey
     typename emhash7::HashMap<UK, UV>* entries() override;
@@ -112,13 +111,12 @@ public:
     long getVectorBatchesSize() override;
 
 private:
-    void initVectorBatchStateTable(StateDescriptor *stateDesc, StateTable<K, N, emhash7::HashMap<UK, UV> *> *stateTable);
+    void attachVectorBatchSideTable(const VectorBatchSideTableRegistration &vectorBatchRegistration);
     void clearVectorBatchStateTable();
 
     StateTable<K, N, emhash7::HashMap<UK, UV>* > *stateTable;
     StateTable<int, VoidNamespace, omnistream::VectorBatch *> *vectorBatchStateTable = nullptr;
-    InternalKeyContext<int> *vectorBatchKeyContext = nullptr;
-    int nextVectorBatchId = 0;
+    int *nextVectorBatchIdRef = nullptr;
     TypeSerializer *keySerializer;
     TypeSerializer *valueSerializer;
     TypeSerializer *namespaceSerializer;
@@ -269,24 +267,14 @@ Object* HeapMapState<K, N, UK, UV>::Get(Object* userKey)
 template<typename K, typename N, typename UK, typename UV>
 HeapMapState<K, N, UK, UV>::~HeapMapState()
 {
-    delete vectorBatchStateTable;
-    delete vectorBatchKeyContext;
 }
 
 template<typename K, typename N, typename UK, typename UV>
-void HeapMapState<K, N, UK, UV>::initVectorBatchStateTable(StateDescriptor *stateDesc,
-    StateTable<K, N, emhash7::HashMap<UK, UV> *> *table)
+void HeapMapState<K, N, UK, UV>::attachVectorBatchSideTable(
+    const VectorBatchSideTableRegistration &vectorBatchRegistration)
 {
-    int startKeyGroup = table->getKeyGroupRange()->getStartKeyGroup();
-    auto *vbKeyGroupRange = new KeyGroupRange(startKeyGroup, startKeyGroup);
-    vectorBatchKeyContext = new InternalKeyContextImpl<int>(vbKeyGroupRange, 1);
-    RegisteredKeyValueStateBackendMetaInfo *metaInfo = new RegisteredKeyValueStateBackendMetaInfo(
-        StateDescriptor::Type::MAP,
-        stateDesc->getName() + "_vector_batch",
-        new VoidNamespaceSerializer(),
-        new VectorBatchSerializer());
-    vectorBatchStateTable = new CopyOnWriteStateTable<int, VoidNamespace, omnistream::VectorBatch *>(
-        vectorBatchKeyContext, metaInfo, new IntSerializer());
+    vectorBatchStateTable = vectorBatchRegistration.table;
+    nextVectorBatchIdRef = vectorBatchRegistration.nextBatchId;
 }
 
 template<typename K, typename N, typename UK, typename UV>
@@ -296,27 +284,28 @@ void HeapMapState<K, N, UK, UV>::clearVectorBatchStateTable()
         return;
     }
     vectorBatchStateTable->deleteMaps();
-    nextVectorBatchId = 0;
+    if (nextVectorBatchIdRef != nullptr) {
+        *nextVectorBatchIdRef = 0;
+    }
 }
 
 template<typename K, typename N, typename UK, typename UV>
 void HeapMapState<K, N, UK, UV>::addVectorBatch(omnistream::VectorBatch *vectorBatch)
 {
-    if (vectorBatchStateTable == nullptr) {
+    if (vectorBatchStateTable == nullptr || nextVectorBatchIdRef == nullptr) {
         return;
     }
     VoidNamespace nameSpace;
-    auto *table = static_cast<CopyOnWriteStateTable<int, VoidNamespace, omnistream::VectorBatch *> *>(
-        vectorBatchStateTable);
-    int keyGroup = table->getKeyGroupRange()->getStartKeyGroup();
-    table->put(nextVectorBatchId, keyGroup, nameSpace, vectorBatch);
-    nextVectorBatchId++;
+    int keyGroup = vectorBatchStateTable->getKeyGroupRange()->getStartKeyGroup();
+    vectorBatchStateTable->put(*nextVectorBatchIdRef, keyGroup, nameSpace, vectorBatch);
+    (*nextVectorBatchIdRef)++;
 }
 
 template<typename K, typename N, typename UK, typename UV>
 omnistream::VectorBatch *HeapMapState<K, N, UK, UV>::getVectorBatch(int batchId)
 {
-    if (vectorBatchStateTable == nullptr || batchId < 0 || batchId >= nextVectorBatchId) {
+    if (vectorBatchStateTable == nullptr || nextVectorBatchIdRef == nullptr
+        || batchId < 0 || batchId >= *nextVectorBatchIdRef) {
         return nullptr;
     }
     VoidNamespace nameSpace;
@@ -327,7 +316,7 @@ omnistream::VectorBatch *HeapMapState<K, N, UK, UV>::getVectorBatch(int batchId)
 template<typename K, typename N, typename UK, typename UV>
 long HeapMapState<K, N, UK, UV>::getVectorBatchesSize()
 {
-    return nextVectorBatchId;
+    return nextVectorBatchIdRef != nullptr ? *nextVectorBatchIdRef : 0;
 }
 
 template<typename K, typename N, typename UK, typename UV>
@@ -457,25 +446,25 @@ void HeapMapState<K, N, UK, UV>::setCurrentNamespace(N nameSpace)
 template<typename K, typename N, typename UK, typename UV>
 HeapMapState<K, N, UK, UV> *HeapMapState<K, N, UK, UV>::create(StateDescriptor *stateDesc,
                                                                StateTable<K, N, emhash7::HashMap<UK, UV> *> *stateTable,
-                                                               TypeSerializer *keySerializer)
+                                                               TypeSerializer *keySerializer,
+                                                               const VectorBatchSideTableRegistration &vectorBatchRegistration)
 {
     auto *createdState = new HeapMapState<K, N, UK, UV>(stateTable,
         keySerializer,
         stateTable->getStateSerializer(),
         stateTable->getNamespaceSerializer());
-    createdState->initVectorBatchStateTable(stateDesc, stateTable);
+    createdState->attachVectorBatchSideTable(vectorBatchRegistration);
     return createdState;
 }
 
 template<typename K, typename N, typename UK, typename UV>
 HeapMapState<K, N, UK, UV> *HeapMapState<K, N, UK, UV>::update(StateDescriptor *stateDesc,
                                                                StateTable<K, N, emhash7::HashMap<UK, UV> *> *stateTable,
-                                                               HeapMapState<K, N, UK, UV> *existingState)
+                                                               HeapMapState<K, N, UK, UV> *existingState,
+                                                               const VectorBatchSideTableRegistration &vectorBatchRegistration)
 {
     existingState->setNamespaceSerializer(stateTable->getNamespaceSerializer());
     existingState->setValueSerializer(stateTable->getStateSerializer());
-    if (existingState->vectorBatchStateTable == nullptr) {
-        existingState->initVectorBatchStateTable(stateDesc, stateTable);
-    }
+    existingState->attachVectorBatchSideTable(vectorBatchRegistration);
     return existingState;
 }

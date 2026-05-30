@@ -19,10 +19,7 @@
 #include "state/internal/InternalValueState.h"
 #include "runtime/state/VoidNamespace.h"
 #include "runtime/state/VoidNamespaceSerializer.h"
-#include "runtime/state/InternalKeyContextImpl.h"
-#include "runtime/state/RegisteredKeyValueStateBackendMetaInfo.h"
-#include "table/data/vectorbatch/VectorBatch.h"
-#include "table/typeutils/VectorBatchSerializer.h"
+#include "runtime/state/heap/VectorBatchSideTableRegistration.h"
 #include "core/typeutils/LongSerializer.h"
 
 template <typename K, typename N, typename V>
@@ -70,18 +67,19 @@ public:
     long getVectorBatchesSize() override;
 
     static HeapValueState<K, N, V> *create(
-        StateDescriptor *stateDesc, StateTable<K, N, V> *stateTable, TypeSerializer *keySerializer);
+        StateDescriptor *stateDesc, StateTable<K, N, V> *stateTable, TypeSerializer *keySerializer,
+        const VectorBatchSideTableRegistration &vectorBatchRegistration);
     static HeapValueState<K, N, V> *update(
-        StateDescriptor *stateDesc, StateTable<K, N, V> *stateTable, HeapValueState<K, N, V> *existingState);
+        StateDescriptor *stateDesc, StateTable<K, N, V> *stateTable, HeapValueState<K, N, V> *existingState,
+        const VectorBatchSideTableRegistration &vectorBatchRegistration);
 
 private:
-    void initVectorBatchStateTable(StateDescriptor *stateDesc, StateTable<K, N, V> *stateTable);
+    void attachVectorBatchSideTable(const VectorBatchSideTableRegistration &vectorBatchRegistration);
     void clearVectorBatchStateTable();
 
     StateTable<K, N, V> *stateTable;
     StateTable<int, VoidNamespace, omnistream::VectorBatch *> *vectorBatchStateTable = nullptr;
-    InternalKeyContext<int> *vectorBatchKeyContext = nullptr;
-    int nextVectorBatchId = 0;
+    int *nextVectorBatchIdRef = nullptr;
     TypeSerializer *keySerializer;
     TypeSerializer *valueSerializer;
     TypeSerializer *namespaceSerializer;
@@ -100,26 +98,14 @@ HeapValueState<K, N, V>::HeapValueState(StateTable<K, N, V> *stateTable, TypeSer
 template <typename K, typename N, typename V>
 HeapValueState<K, N, V>::~HeapValueState()
 {
-    delete vectorBatchStateTable;
-    delete vectorBatchKeyContext;
 }
 
 template <typename K, typename N, typename V>
-void HeapValueState<K, N, V>::initVectorBatchStateTable(StateDescriptor *stateDesc, StateTable<K, N, V> *table)
+void HeapValueState<K, N, V>::attachVectorBatchSideTable(
+    const VectorBatchSideTableRegistration &vectorBatchRegistration)
 {
-    // VectorBatch batchId is a subtask-local sequence, not a globally sharded key.
-    // Always store under this subtask's first owned key group (parallelism=1 used to
-    // mask the bug because the subtask then owns all key groups).
-    int startKeyGroup = table->getKeyGroupRange()->getStartKeyGroup();
-    auto *vbKeyGroupRange = new KeyGroupRange(startKeyGroup, startKeyGroup);
-    vectorBatchKeyContext = new InternalKeyContextImpl<int>(vbKeyGroupRange, 1);
-    RegisteredKeyValueStateBackendMetaInfo *metaInfo = new RegisteredKeyValueStateBackendMetaInfo(
-        StateDescriptor::Type::VALUE,
-        stateDesc->getName() + "_vector_batch",
-        new VoidNamespaceSerializer(),
-        new VectorBatchSerializer());
-    vectorBatchStateTable = new CopyOnWriteStateTable<int, VoidNamespace, omnistream::VectorBatch *>(
-        vectorBatchKeyContext, metaInfo, new IntSerializer());
+    vectorBatchStateTable = vectorBatchRegistration.table;
+    nextVectorBatchIdRef = vectorBatchRegistration.nextBatchId;
 }
 
 template <typename K, typename N, typename V>
@@ -129,7 +115,9 @@ void HeapValueState<K, N, V>::clearVectorBatchStateTable()
         return;
     }
     vectorBatchStateTable->deleteMaps();
-    nextVectorBatchId = 0;
+    if (nextVectorBatchIdRef != nullptr) {
+        *nextVectorBatchIdRef = 0;
+    }
 }
 
 template <typename K, typename N, typename V>
@@ -158,21 +146,22 @@ void HeapValueState<K, N, V>::clear()
 template <typename K, typename N, typename V>
 void HeapValueState<K, N, V>::addVectorBatch(omnistream::VectorBatch *vectorBatch)
 {
-    if (vectorBatchStateTable == nullptr) {
+    if (vectorBatchStateTable == nullptr || nextVectorBatchIdRef == nullptr) {
         return;
     }
     VoidNamespace nameSpace;
     auto *table = static_cast<CopyOnWriteStateTable<int, VoidNamespace, omnistream::VectorBatch *> *>(
         vectorBatchStateTable);
     int keyGroup = table->getKeyGroupRange()->getStartKeyGroup();
-    table->put(nextVectorBatchId, keyGroup, nameSpace, vectorBatch);
-    nextVectorBatchId++;
+    table->put(*nextVectorBatchIdRef, keyGroup, nameSpace, vectorBatch);
+    (*nextVectorBatchIdRef)++;
 }
 
 template <typename K, typename N, typename V>
 omnistream::VectorBatch *HeapValueState<K, N, V>::getVectorBatch(int batchId)
 {
-    if (vectorBatchStateTable == nullptr || batchId < 0 || batchId >= nextVectorBatchId) {
+    if (vectorBatchStateTable == nullptr || nextVectorBatchIdRef == nullptr
+        || batchId < 0 || batchId >= *nextVectorBatchIdRef) {
         return nullptr;
     }
     VoidNamespace nameSpace;
@@ -183,28 +172,28 @@ omnistream::VectorBatch *HeapValueState<K, N, V>::getVectorBatch(int batchId)
 template <typename K, typename N, typename V>
 long HeapValueState<K, N, V>::getVectorBatchesSize()
 {
-    return nextVectorBatchId;
+    return nextVectorBatchIdRef != nullptr ? *nextVectorBatchIdRef : 0;
 }
 
 template <typename K, typename N, typename V>
 HeapValueState<K, N, V> *HeapValueState<K, N, V>::create(
-    StateDescriptor *stateDesc, StateTable<K, N, V> *stateTable, TypeSerializer *keySerializer)
+    StateDescriptor *stateDesc, StateTable<K, N, V> *stateTable, TypeSerializer *keySerializer,
+    const VectorBatchSideTableRegistration &vectorBatchRegistration)
 {
     auto *createdState = new HeapValueState<K, N, V>(
         stateTable, keySerializer, stateTable->getStateSerializer(), stateTable->getNamespaceSerializer(), V());
-    createdState->initVectorBatchStateTable(stateDesc, stateTable);
+    createdState->attachVectorBatchSideTable(vectorBatchRegistration);
     return createdState;
 }
 
 template <typename K, typename N, typename V>
 HeapValueState<K, N, V> *HeapValueState<K, N, V>::update(
-    StateDescriptor *stateDesc, StateTable<K, N, V> *stateTable, HeapValueState<K, N, V> *existingState)
+    StateDescriptor *stateDesc, StateTable<K, N, V> *stateTable, HeapValueState<K, N, V> *existingState,
+    const VectorBatchSideTableRegistration &vectorBatchRegistration)
 {
     existingState->setNamespaceSerializer(stateTable->getNamespaceSerializer());
     existingState->setValueSerializer(stateTable->getStateSerializer());
-    if (existingState->vectorBatchStateTable == nullptr) {
-        existingState->initVectorBatchStateTable(stateDesc, stateTable);
-    }
+    existingState->attachVectorBatchSideTable(vectorBatchRegistration);
     return existingState;
 }
 
