@@ -16,6 +16,7 @@
 #include "../../data/binary/BinaryRowData.h"
 #include "typeinfo/TypeInformation.h"
 #include "table/data/rowdata_marshaller.h"
+#include "core/utils/key_type_traits.h"
 #include "core/utils/type_traits_ext.h"
 #include "table/data/StringRefUtil.h"
 #include "OmniOperatorJIT/core/src/operator/hashmap/vector_marshaller.h"
@@ -53,8 +54,8 @@ public:
 
     bool canReuseKey();
 
-    static constexpr bool isRowKey_ = std::is_same_v<K, BinaryRowData*> || std::is_same_v<K, RowData*>;
-    static constexpr bool isSharedRowKey_ = is_shared_ptr_of_v<K, BinaryRowData> || is_shared_ptr_of_v<K, RowData>;
+    static constexpr bool isRowKey_ = KeyTypeTraits<K>::isRowKey;
+    static constexpr bool isSharedRowKey_ = KeyTypeTraits<K>::isSharedRowKey;
 
 private:
     omniruntime::mem::SimpleArenaAllocator arenaAllocator;

@@ -15,7 +15,7 @@
 
 #include "InternalTimer.h"
 #include "table/runtime/operators/window/TimeWindow.h"
-#include "runtime/keyselector/KeySelector.h"
+#include "core/utils/key_type_traits.h"
 #include "runtime/state/VoidNamespace.h"
 #include "basictypes/Object.h"
 #include "state/heap/HeapPriorityQueueElement.h"
@@ -36,7 +36,7 @@ public:
             auto const& key = timer->getKey();
             auto const& nameSpace = timer->getNamespace();
             int32_t result = static_cast<int32_t>(timestamp ^ (timestamp >> 32));
-            if constexpr (KeySelector<K>::isRowKey_ || KeySelector<K>::isSharedRowKey_) {
+            if constexpr (KeyTypeTraits<K>::isRowKey || KeyTypeTraits<K>::isSharedRowKey) {
                 result = 31 * result + key->hashCode();
             } else if constexpr (std::is_same_v<K, Object*>) {
                 result = 31 * result + reinterpret_cast<Object*>(key)->hashCode();
@@ -54,7 +54,7 @@ public:
 
     struct SharedPtrEqual {
         bool operator()(const std::shared_ptr<TimerHeapInternalTimer>& lhs, const std::shared_ptr<TimerHeapInternalTimer>& rhs) const {
-            if constexpr (KeySelector<K>::isRowKey_ || KeySelector<K>::isSharedRowKey_) {
+            if constexpr (KeyTypeTraits<K>::isRowKey || KeyTypeTraits<K>::isSharedRowKey) {
                 auto res = lhs->getTimestamp() == rhs->getTimestamp() &&
                         lhs->getNamespace() == rhs->getNamespace() &&
                         *lhs->getKey() == *rhs->getKey();
@@ -113,7 +113,7 @@ public:
 
     bool operator==(TimerHeapInternalTimer &other) const
     {
-        if constexpr (KeySelector<K>::isRowKey_ || KeySelector<K>::isSharedRowKey_) {
+        if constexpr (KeyTypeTraits<K>::isRowKey || KeyTypeTraits<K>::isSharedRowKey) {
             return this->timestamp == other.timestamp && *this->key == *other.key && this->nameSpace == other.nameSpace;
         } else if constexpr (std::is_same_v<K, Object *>) {
             auto lkey = reinterpret_cast<Object*>(this->key);
