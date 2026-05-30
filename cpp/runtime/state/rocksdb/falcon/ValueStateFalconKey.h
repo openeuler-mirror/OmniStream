@@ -1,17 +1,22 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
-//
-// Created by w00850971 on 2025/6/23.
-//
 
-#ifndef OMNISTREAM_VALUESTATEFALCONKEY_H
-#define OMNISTREAM_VALUESTATEFALCONKEY_H
+#pragma once
+
 
 #include <utility>
 #include <functional>
 #include "basictypes/Object.h"
 #include "table/data/RowData.h"
+#include "core/utils/key_type_traits.h"
 
 /**
  * Falcon key of RocksDBValueState, which is composed deserialized key, namespace and columnFamily.
@@ -31,10 +36,15 @@ public:
             if (this->key != nullptr) {
                 reinterpret_cast<Object*>(this->key)->getRefCount();
             }
-        } else if constexpr (std::is_same_v<K, RowData*>) {
+        } else if constexpr (KeyTypeTraits<K>::isRowKey) {
             // deep copy key. todo: GenericRowData* and JoinedRowData* do not implement copy method
             if (key != nullptr) {
-                this->key = reinterpret_cast<RowData*>(key)->copy();
+                this->key = static_cast<RowData*>(key)->copy();
+            }
+        } else if constexpr (KeyTypeTraits<K>::isSharedRowKey) {
+            if (key != nullptr) {
+                using KeyBaseType = unwrap_shared_ptr_t<K>;
+                this->key = std::shared_ptr<KeyBaseType>(static_cast<KeyBaseType*>(key->copy()));
             }
         } else {
             this->key = key;  // int32_t and int64_t type do not need deepcopy
@@ -51,12 +61,14 @@ public:
             if (this->key != nullptr) {
                 reinterpret_cast<Object*>(this->key)->getRefCount();
             }
-        } else if constexpr (std::is_same_v<K, RowData*>) {
+        } else if constexpr (KeyTypeTraits<K>::isRowKey) {
             K key = K();
             if (key != nullptr) {
                 // deep copy key. todo: GenericRowData* and JoinedRowData* do not implement copy method
-                this->key = reinterpret_cast<RowData*>(key)->copy();
+                this->key = static_cast<RowData*>(key)->copy();
             }
+        } else if constexpr (KeyTypeTraits<K>::isSharedRowKey) {
+            this->key = K(); // default sharedRowKey is empty
         } else {
             this->key = K();  // int32_t and int64_t type do not need deepcopy
         }
@@ -70,11 +82,13 @@ public:
                 reinterpret_cast<Object*>(key)->putRefCount();
                 key = nullptr;
             }
-        } else if constexpr (std::is_same_v<K, RowData*>) { // if K is RowData*, delete if needed
+        } else if constexpr (KeyTypeTraits<K>::isRowKey) { // if K is RowData*, delete if needed
             if (key != nullptr) {
                 delete key;
                 key = nullptr;
             }
+        } else if constexpr (KeyTypeTraits<K>::isSharedRowKey) {
+            key.reset();
         } else {
             // if K is int type, do nothing
         }
@@ -91,6 +105,14 @@ public:
                 return ns == other.ns;
             } else if (key != nullptr && other.key != nullptr) {
                 return reinterpret_cast<Object*>(key)->equals(other.key) && ns == other.ns;
+            } else {
+                return false;
+            }
+        } else if constexpr (KeyTypeTraits<K>::isSharedRowKey) { // if K is std::shared<RowData>, compare after dereferencing
+            if (key == nullptr && other.key == nullptr) {
+                return ns == other.ns;
+            } else if (key != nullptr && other.key != nullptr) {
+                return *key == *other.key && ns == other.ns;
             } else {
                 return false;
             }
@@ -113,9 +135,11 @@ namespace std {
             size_t keyHash;
             if constexpr (std::is_same_v<K, Object*>) {
                 keyHash = static_cast<size_t>(reinterpret_cast<Object*>(v.getKey())->hashCode());
-            } else if constexpr (std::is_same_v<K, RowData*>) {
+            } else if constexpr (KeyTypeTraits<K>::isRowKey) {
                 // todo: GenericRowData* hash method is not implemented
-                keyHash = static_cast<size_t>(reinterpret_cast<RowData*>(v.getKey())->hashCode());
+                keyHash = static_cast<size_t>(v.getKey()->hashCode());
+            } else if constexpr (KeyTypeTraits<K>::isSharedRowKey) {
+                keyHash = v.getKey() == nullptr ? 0 : static_cast<size_t>(v.getKey()->hashCode());
             } else {
                 keyHash = std::hash<K>()(v.getKey());
             }
@@ -148,5 +172,3 @@ namespace std {
         }
     };
 }
-
-#endif // OMNISTREAM_VALUESTATEFALCONKEY_H
