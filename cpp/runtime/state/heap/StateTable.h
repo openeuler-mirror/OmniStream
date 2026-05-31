@@ -171,6 +171,22 @@ public:
         }
     };
 
+    void resetMapsInRange()
+    {
+        for (int index = keyGroupRange->getStartKeyGroup(); index <= keyGroupRange->getEndKeyGroup(); index++) {
+            int pos = indexToOffset(index);
+            if (pos >= 0 && pos < static_cast<int>(keyGroupedStateMaps.size())) {
+                delete keyGroupedStateMaps[pos];
+                keyGroupedStateMaps[pos] = createStateMap();
+            }
+        }
+    }
+
+    InternalKeyContext<K> *getKeyContext()
+    {
+        return keyContext;
+    }
+
     class StateEntryIterator : public InternalKvState<K, N, S>::StateIncrementalVisitor {
     public:
         S nextEntries() override;
@@ -250,7 +266,9 @@ int StateTable<K, N, S>::size()
 {
     int count = 0;
     for (int i = 0; i < keyGroupedStateMaps.size(); i++) {
-        count += keyGroupedStateMaps[i]->size();
+        if (keyGroupedStateMaps[i] != nullptr) {
+            count += keyGroupedStateMaps[i]->size();
+        }
     }
     return count;
 }

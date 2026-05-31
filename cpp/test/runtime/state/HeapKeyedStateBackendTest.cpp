@@ -223,7 +223,7 @@ TEST(HeapKeyedStateBackendTest, VectorBatchSideTableMultiStateStability)
         return reinterpret_cast<HeapValueState<int, VoidNamespace, VectorBatch *> *>(stateHandle);
     };
 
-    // Register many side tables to trigger emhash7 rehash while earlier states keep using nextBatchIdRef.
+    // Register many side tables; the first state should still allocate batch ids via table size().
     std::vector<HeapValueState<int, VoidNamespace, VectorBatch *> *> states;
     for (int i = 0; i < 32; ++i) {
         states.push_back(createValueState("VectorBatchValueState_" + std::to_string(i)));
