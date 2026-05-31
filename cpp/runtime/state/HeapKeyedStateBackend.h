@@ -174,6 +174,7 @@ public:
             delete reinterpret_cast<InternalKeyContext<int> *>(std::get<1>(pair.second));
             delete reinterpret_cast<CopyOnWriteStateTable<int, VoidNamespace, omnistream::VectorBatch *> *>(
                 std::get<0>(pair.second));
+            delete std::get<2>(pair.second);
         }
     };
 
@@ -302,10 +303,8 @@ private:
 
     // pointer to StateTable<K, N, V>, StateDescriptor, namespace BackendDataType
     emhash7::HashMap<std::string, std::tuple<uintptr_t, StateDescriptor*, BackendDataType>> registeredKvStates;
-    // pointer to vector-batch side table, InternalKeyContext<int>*
-    emhash7::HashMap<std::string, std::tuple<uintptr_t, uintptr_t>> registeredVectorBatchStates;
-    // todo 做cp时这个是不是也能持久化
-    emhash7::HashMap<std::string, int> vectorBatchNextIds_;
+    // pointer to vector-batch side table, InternalKeyContext<int>*, heap-allocated nextBatchId*
+    emhash7::HashMap<std::string, std::tuple<uintptr_t, uintptr_t, int *>> registeredVectorBatchStates;
     // pointer to intervalKvState
     emhash7::HashMap<std::string, uintptr_t> createdKvState;
     std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapperBase>>> registeredPQStates_;
@@ -447,7 +446,7 @@ VectorBatchSideTableRegistration HeapKeyedStateBackend<K>::tryRegisterVectorBatc
         return {
             reinterpret_cast<CopyOnWriteStateTable<int, VoidNamespace, omnistream::VectorBatch *> *>(
                 std::get<0>(it->second)),
-            &vectorBatchNextIds_[logicalStateName]
+            std::get<2>(it->second)
         };
     }
 
@@ -463,12 +462,12 @@ VectorBatchSideTableRegistration HeapKeyedStateBackend<K>::tryRegisterVectorBatc
         new VectorBatchSerializer());
     auto *vectorBatchStateTable = new CopyOnWriteStateTable<int, VoidNamespace, omnistream::VectorBatch *>(
         vectorBatchKeyContext, metaInfo, new IntSerializer());
+    int *nextBatchId = new int(0);
     registeredVectorBatchStates[vbName] = std::make_tuple(
         reinterpret_cast<uintptr_t>(vectorBatchStateTable),
-        // todo vectorBatchKeyContext应该能在vectorBatchStateTable中获取到, 可以不用单独存储吧
-        reinterpret_cast<uintptr_t>(vectorBatchKeyContext));
-    vectorBatchNextIds_[logicalStateName] = 0;
-    return {vectorBatchStateTable, &vectorBatchNextIds_[logicalStateName]};
+        reinterpret_cast<uintptr_t>(vectorBatchKeyContext),
+        nextBatchId);
+    return {vectorBatchStateTable, nextBatchId};
 }
 
 template<typename K>

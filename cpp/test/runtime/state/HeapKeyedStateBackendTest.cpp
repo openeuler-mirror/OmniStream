@@ -208,3 +208,33 @@ TEST(HeapKeyedStateBackendTest, VectorBatchTest2)
     delete context;
     delete backend;
 }
+
+TEST(HeapKeyedStateBackendTest, VectorBatchSideTableMultiStateStability)
+{
+    KeyGroupRange *range = new KeyGroupRange(0, 10);
+    InternalKeyContextImpl<int> *context = new InternalKeyContextImpl<int>(range, 10);
+    context->setCurrentKey(1);
+
+    HeapKeyedStateBackend<int> *backend = new HeapKeyedStateBackend<int>(new IntSerializer(), context);
+
+    auto createValueState = [&](const std::string &stateName) {
+        auto *descriptor = new ValueStateDescriptor<VectorBatch *>(stateName, new VectorBatchSerializer());
+        auto stateHandle = backend->createOrUpdateInternalState(new VoidNamespaceSerializer(), descriptor);
+        return reinterpret_cast<HeapValueState<int, VoidNamespace, VectorBatch *> *>(stateHandle);
+    };
+
+    // Register many side tables to trigger emhash7 rehash while earlier states keep using nextBatchIdRef.
+    std::vector<HeapValueState<int, VoidNamespace, VectorBatch *> *> states;
+    for (int i = 0; i < 32; ++i) {
+        states.push_back(createValueState("VectorBatchValueState_" + std::to_string(i)));
+    }
+
+    VectorBatch *storedBatch = CreateTestVectorBatch(500);
+    states.front()->addVectorBatch(storedBatch);
+    EXPECT_EQ(states.front()->getVectorBatchesSize(), 1);
+    EXPECT_EQ(states.front()->getVectorBatch(0), storedBatch);
+
+    delete range;
+    delete context;
+    delete backend;
+}
