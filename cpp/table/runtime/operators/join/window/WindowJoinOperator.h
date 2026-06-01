@@ -29,6 +29,7 @@
 #include "OmniOperatorJIT/core/src/vector/unsafe_vector.h"
 #include "OmniOperatorJIT/core/src/operator/execution_context.h"
 #include "table/runtime/keyselector/KeySelector.h"
+#include "table/utils/TimeWindowUtil.h"
 
 #include <arm_sve.h>
 
@@ -118,6 +119,7 @@ private:
     std::vector<bool> filterNullKeys;
     std::vector<int64_t> leftMaxTimestamps;
     std::vector<int64_t> rightMaxTimestamps;
+    std::string shiftTimeZone = "UTC";
 
     template <typename TYPE>
     void insertLeft(int colIdx, std::vector<VectorBatchId> *leftElements, std::vector<VectorBatchId> *rightElements,
@@ -160,6 +162,9 @@ WindowJoinOperator<KeyType>::WindowJoinOperator(
 
     for (const auto& i : rightTypeStr) {
         rightTypes.push_back(LogicalType::flinkTypeToOmniTypeId(i));
+    }
+    if (config.contains("shiftTimeZone")) {
+        shiftTimeZone = config["shiftTimeZone"].get<std::string>();
     }
     outputTypes.insert(outputTypes.end(), this->leftTypes.begin(), this->leftTypes.end());
     outputTypes.insert(outputTypes.end(), this->rightTypes.begin(), this->rightTypes.end());
@@ -543,8 +548,12 @@ void WindowJoinOperator<KeyType>::processBatch(omnistream::VectorBatch *batch, i
        
         int64_t windowEndTime =
             reinterpret_cast<omniruntime::vec::Vector<int64_t> *>(batch->Get(windowEndIndex))->GetValue(i);
+        if (TimeWindowUtil::isWindowFired(windowEndTime, internalTimerService->currentWatermark(), shiftTimeZone)) {
+            continue;
+        }
         recordState->add(windowEndTime, VectorBatchUtil::getComboId(batchID, i));
-        internalTimerService->registerEventTimeTimer(windowEndTime, windowEndTime - 1);
+        internalTimerService->registerEventTimeTimer(
+            windowEndTime, TimeWindowUtil::toEpochMillsForTimer(windowEndTime - 1, shiftTimeZone));
     }
 }
 

@@ -13,6 +13,7 @@
 #include <cstdint>
 #include <regex>
 #include <memory>
+#include <string>
 #include "runtime/operators/window/assigners/SessionWindowAssigner.h"
 #include "table/runtime/operators/window/assigners/SlidingWindowAssigner.h"
 #include "table/runtime/operators/window/assigners/TumblingWindowAssigner.h"
@@ -59,6 +60,9 @@ public:
         keyedIndex = description["grouping"].get<std::vector<int32_t>>();
         trigger = std::make_unique<typename EventTimeTriggers<W>::AfterEndOfWindow>();
         rowtimeIndex = description["inputTimeFieldIndex"];
+        if (description.contains("shiftTimeZone")) {
+            shiftTimeZone = description["shiftTimeZone"].get<std::string>();
+        }
         windowAssigner = getWindowAssigner(description);
         getKeyedTypes();
 
@@ -183,6 +187,10 @@ public:
             internalTimerService->deleteEventTimeTimer(window, time);
         }
 
+        const std::string &getShiftTimeZone() const override {
+            return outer->shiftTimeZone;
+        }
+
         W window;
         WindowOperator* outer{};
         Trigger<W>* trigger{};
@@ -269,6 +277,11 @@ public:
             }
         }
 
+        const std::string& getShiftTimeZone() const override
+        {
+            return outerOperator->shiftTimeZone;
+        }
+
         void onMerge(const W& newWindow, std::vector<W>& mergedWindows) override {
             outerOperator->triggerContext_->window = newWindow;
             outerOperator->triggerContext_->mergedWindows = &mergedWindows;
@@ -304,6 +317,7 @@ protected:
     std::vector<int32_t> windowPropertyTypesId;
     std::vector<std::string> keyedTypes;
     std::vector<int32_t> keyedIndex;
+    std::string shiftTimeZone;
 
 private:
     void processElement(RowData* inputRow);
@@ -340,7 +354,6 @@ private:
     }
 
     std::unique_ptr<WindowAssigner<W>> windowAssigner;
-    std::string shiftTimeZone;
     int32_t rowtimeIndex;
     int64_t allowedLateness = 0;
     std::unique_ptr<TypeSerializer> windowSerializer_;

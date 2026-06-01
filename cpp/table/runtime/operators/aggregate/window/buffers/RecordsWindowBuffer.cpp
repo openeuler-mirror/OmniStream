@@ -24,6 +24,7 @@ RecordsWindowBuffer::RecordsWindowBuffer(const nlohmann::json& config, WindowVal
 {
     this->description = config;
     this->sliceAssigner = sliceAssigner;
+    shiftTimeZone = ResolveShiftTimeZoneId(sliceAssigner);
     inputTypes = config["inputTypes"].get<std::vector<std::string>>();
     outputTypes = config["outputTypes"].get<std::vector<std::string>>();
     for (const auto &typeStr : outputTypes) {
@@ -176,7 +177,7 @@ void RecordsWindowBuffer::addVectorBatch(omnistream::VectorBatch *input, int64_t
 
 void RecordsWindowBuffer::advanceProgress(StreamOperatorStateHandler<RowData*> *stateHandler, long currentProgress)
 {
-    if (!TimeWindowUtil::isWindowFired(minSliceEnd, currentProgress)){
+    if (!TimeWindowUtil::isWindowFired(minSliceEnd, currentProgress, shiftTimeZone)){
         LOG("no windows in record buffer is fired.")
         return;
     }
@@ -219,17 +220,21 @@ void RecordsWindowBuffer::WindowAggProcess(WindowKey currentKey, std::vector<Row
     if (isWindowAgg) {
         winAggProcess(currentKey, entireRows, stateHandler);
         if (sliceAssigner->isEventTime()) {
-            if (!TimeWindowUtil::isWindowFired(currentKey.getWindow(), internalTimerService->currentWatermark())) {
+            if (!TimeWindowUtil::isWindowFired(currentKey.getWindow(), internalTimerService->currentWatermark(), shiftTimeZone)) {
                 LOG("register event timer")
-                internalTimerService->registerEventTimeTimer(currentKey.getWindow(), currentKey.getWindow() - 1);
+                internalTimerService->registerEventTimeTimer(
+                    currentKey.getWindow(),
+                    TimeWindowUtil::toEpochMillsForTimer(currentKey.getWindow() - 1, shiftTimeZone));
                 LOG("end register event timer")
             }
         }
     } else {
         globalWinAggProcess(currentKey, entireRows, stateHandler);
-        if (!TimeWindowUtil::isWindowFired(currentKey.getWindow(), internalTimerService->currentWatermark())) {
+        if (!TimeWindowUtil::isWindowFired(currentKey.getWindow(), internalTimerService->currentWatermark(), shiftTimeZone)) {
             LOG("register event timer")
-            internalTimerService->registerEventTimeTimer(currentKey.getWindow(), currentKey.getWindow() - 1);
+            internalTimerService->registerEventTimeTimer(
+                currentKey.getWindow(),
+                TimeWindowUtil::toEpochMillsForTimer(currentKey.getWindow() - 1, shiftTimeZone));
             LOG("end register event timer")
         }
     }

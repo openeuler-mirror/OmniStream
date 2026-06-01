@@ -16,6 +16,7 @@
 #include "internal/GeneralWindowProcessFunction.h"
 #include "internal/MergingWindowProcessFunction.h"
 #include "internal/PanedWindowProcessFunction.h"
+#include "table/utils/TimeWindowUtil.h"
 
 template<typename K, typename W>
 WindowOperator<K, W>::~WindowOperator() {
@@ -74,8 +75,7 @@ template<typename K, typename W>
 int64_t WindowOperator<K, W>::cleanupTime(const W& window)
 {
     if (windowAssigner->isEventTime()) {
-        int64_t cleanupTime = std::max<int64_t>(0, window.maxTimestamp() + allowedLateness);
-        return cleanupTime >= window.maxTimestamp() ? cleanupTime : INT64_MAX;
+        return TimeWindowUtil::toCleanupTimerMills(window.maxTimestamp(), allowedLateness, shiftTimeZone);
     }
     return std::max<int64_t>(0, window.maxTimestamp());
 }
@@ -85,7 +85,6 @@ void WindowOperator<K, W>::registerCleanupTimer(const W& window)
 {
     int64_t cleanupTime = this->cleanupTime(window);
     if (cleanupTime != INT64_MAX) {
-        // Use int64_t max to represent Long.MAX_VALUE in C++
         if (windowAssigner->isEventTime()) {
             triggerContext_->registerEventTimeTimer(cleanupTime);
         } else {
@@ -148,6 +147,7 @@ void WindowOperator<K, W>::processElement(RowData *inputRow) {
     } else {
         THROW_LOGIC_EXCEPTION("Processing time window is not supported yet!")
     }
+    timestamp = TimeWindowUtil::toUtcTimestampMills(timestamp, shiftTimeZone);
 
     // the windows which the input row should be placed into
     std::vector<W> affectedWindows = windowFunction->assignStateNamespace(inputRow, timestamp);

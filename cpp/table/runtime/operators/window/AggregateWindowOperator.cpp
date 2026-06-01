@@ -75,7 +75,8 @@ std::unique_ptr<NamespaceAggsHandleFunction<W>> AggregateWindowOperator<K, W>::i
     return std::make_unique<GroupingWindowAggsCompositeHandler<W>>(
             std::move(functions),
             this->windowPropertyTypesId,
-            std::move(valueOutputTypeIds));
+            std::move(valueOutputTypeIds),
+            this->shiftTimeZone);
 }
 
 template<typename K, typename W>

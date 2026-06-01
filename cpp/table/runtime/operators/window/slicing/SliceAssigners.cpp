@@ -9,6 +9,7 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "SliceAssigners.h"
+#include "table/utils/TimeWindowUtil.h"
 
 int64_t TimeWindow1::getWindowStartWithOffset(int64_t timestamp, int64_t offset, int64_t size)
 {
@@ -64,6 +65,14 @@ bool AbstractSliceAssigner::isEventTime()
     return isEventTimeBool;
 };
 
+std::string AbstractSliceAssigner::getShiftTimeZoneId() const
+{
+    if (shiftTimeZone == nullptr) {
+        return "UTC";
+    }
+    return shiftTimeZone->getId();
+}
+
 int64_t AbstractSliceAssigner::assignSliceEnd(omnistream::VectorBatch *element, int rowId, ClockService *clock)
 {
     long timestamp;
@@ -72,6 +81,7 @@ int64_t AbstractSliceAssigner::assignSliceEnd(omnistream::VectorBatch *element, 
     } else {
         timestamp = duration_cast<milliseconds>(clock->currentProcessingTime().time_since_epoch()).count();
     }
+    timestamp = TimeWindowUtil::toUtcTimestampMills(timestamp, getShiftTimeZoneId());
     return assignSliceEnd(timestamp);
 };
 
@@ -440,7 +450,11 @@ SliceAssigner* AssignerAtt::createSliceAssigner(const nlohmann::json parsedJson)
         nlohmann::json rowtimeIndex = parsedJson["timeAttributeIndex"];
         rowtimeIndexVal = rowtimeIndex.get<long>();
     }
-    auto zonePtr = new omnistream::ZoneId();
+    std::string shiftTz = "UTC";
+    if (parsedJson.contains("shiftTimeZone")) {
+        shiftTz = parsedJson["shiftTimeZone"].get<std::string>();
+    }
+    auto zonePtr = new omnistream::ZoneId(shiftTz);
     size_t windowTypeIndex = windowMsgStr.find('(');
     auto windowTypeStr = windowMsgStr.substr(0, windowTypeIndex);
     std::string tempStr;

@@ -14,6 +14,7 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 
 template<typename W>
 class OnMergeContext;
@@ -38,6 +39,12 @@ public:
         virtual void deleteProcessingTimeTimer(int64_t time) = 0;
 
         virtual void deleteEventTimeTimer(int64_t time) = 0;
+
+        virtual const std::string &getShiftTimeZone() const
+        {
+            static const std::string utc = "UTC";
+            return utc;
+        }
     };
 
     virtual void open(TriggerContext *ctx) = 0;
