@@ -61,6 +61,7 @@ public:
     void addVectorBatch(omnistream::VectorBatch *vectorBatch) override;
     omnistream::VectorBatch *getVectorBatch(int batchId) override;
     long getVectorBatchesSize() override;
+    void clearVectors(int64_t currentTimestamp) override;
 
     static HeapListState<K, N, UV> *
     create(StateDescriptor *stateDesc, StateTable<K, N, std::vector<UV>*> *stateTable, TypeSerializer *keySerializer,
@@ -71,8 +72,6 @@ public:
            HeapListState<K, N, UV> *existingState,
            StateTable<int, VoidNamespace, omnistream::VectorBatch *> *vectorBatchStateTable);
 private:
-    void clearVectorBatchStateTable();
-
     StateTable<K, N, std::vector<UV>*> *stateTable;
     StateTable<int, VoidNamespace, omnistream::VectorBatch *> *vectorBatchStateTable = nullptr;
     TypeSerializer *valueSerializer;
@@ -96,19 +95,30 @@ HeapListState<K, N, UV>::~HeapListState()
 }
 
 template<typename K, typename N, typename UV>
-void HeapListState<K, N, UV>::clearVectorBatchStateTable()
-{
-    if (vectorBatchStateTable == nullptr) {
-        return;
-    }
-    vectorBatchStateTable->resetMapsInRange();
-}
-
-template<typename K, typename N, typename UV>
 void HeapListState<K, N, UV>::clear()
 {
     stateTable->remove(currentNamespace);
-    clearVectorBatchStateTable();
+}
+
+template<typename K, typename N, typename UV>
+void HeapListState<K, N, UV>::clearVectors(int64_t currentTimestamp)
+{
+    if (vectorBatchStateTable == nullptr) {
+        State::clearVectors(currentTimestamp);
+        return;
+    }
+    VoidNamespace nameSpace;
+    auto *table = static_cast<CopyOnWriteStateTable<int, VoidNamespace, omnistream::VectorBatch *> *>(
+        vectorBatchStateTable);
+    int keyGroup = table->getKeyGroupRange()->getStartKeyGroup();
+    const int batchCount = vectorBatchStateTable->size();
+    for (int batchId = 0; batchId < batchCount; ++batchId) {
+        omnistream::VectorBatch *batch = vectorBatchStateTable->get(batchId, keyGroup, nameSpace);
+        if (batch != nullptr && batch->isEmpty(currentTimestamp)) {
+            delete batch;
+            table->put(batchId, keyGroup, nameSpace, static_cast<omnistream::VectorBatch *>(nullptr));
+        }
+    }
 }
 
 template<typename K, typename N, typename UV>

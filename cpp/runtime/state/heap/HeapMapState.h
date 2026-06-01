@@ -83,7 +83,6 @@ public:
             }
         }
         stateTable->remove(currentNamespace);
-        clearVectorBatchStateTable();
     };
 
     static HeapMapState<K, N, UK, UV> *
@@ -112,8 +111,6 @@ public:
     long getVectorBatchesSize() override;
 
 private:
-    void clearVectorBatchStateTable();
-
     StateTable<K, N, emhash7::HashMap<UK, UV>* > *stateTable;
     StateTable<int, VoidNamespace, omnistream::VectorBatch *> *vectorBatchStateTable = nullptr;
     TypeSerializer *keySerializer;
@@ -266,15 +263,6 @@ Object* HeapMapState<K, N, UK, UV>::Get(Object* userKey)
 template<typename K, typename N, typename UK, typename UV>
 HeapMapState<K, N, UK, UV>::~HeapMapState()
 {
-}
-
-template<typename K, typename N, typename UK, typename UV>
-void HeapMapState<K, N, UK, UV>::clearVectorBatchStateTable()
-{
-    if (vectorBatchStateTable == nullptr) {
-        return;
-    }
-    vectorBatchStateTable->resetMapsInRange();
 }
 
 template<typename K, typename N, typename UK, typename UV>

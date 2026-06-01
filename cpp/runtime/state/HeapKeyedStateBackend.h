@@ -155,9 +155,6 @@ public:
                 } else if (dataId == BackendDataType::SET_LONG) {
                     auto stateTable = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, std::vector<long> *> *>(stateTablePtr);
                     delete stateTable;
-                } else if (dataId == BackendDataType::VECTOR_BATCH_BK) {
-                    auto stateTable = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, omnistream::VectorBatch *> *>(stateTablePtr);
-                    delete stateTable;
                 } else {
                     NOT_IMPL_EXCEPTION
                 }
@@ -305,12 +302,12 @@ private:
 
     static std::string vectorBatchSideTableName(const std::string &logicalStateName)
     {
-        return logicalStateName + "_vb";
+        return logicalStateName + "vb";
     }
 
     static bool isVectorBatchSideTableName(const std::string &stateName)
     {
-        const std::string suffix = "_vb";
+        const std::string suffix = "vb";
         return stateName.size() >= suffix.size()
             && stateName.compare(stateName.size() - suffix.size(), suffix.size(), suffix) == 0;
     }
@@ -402,8 +399,6 @@ uintptr_t HeapKeyedStateBackend<K>::createOrUpdateInternalState(TypeSerializer *
             return (uintptr_t) createOrUpdateInternalValueState<VoidNamespace, Object*>(namespaceSerializer, stateDesc);
         } else if (dataId == BackendDataType::SET_LONG) {
             return (uintptr_t) createOrUpdateInternalValueState<VoidNamespace,std::vector<long>*>(namespaceSerializer, stateDesc);
-        } else if (dataId == BackendDataType::VECTOR_BATCH_BK) {
-            return (uintptr_t) createOrUpdateInternalValueState<VoidNamespace, omnistream::VectorBatch*>(namespaceSerializer, stateDesc);
         } else {
             NOT_IMPL_EXCEPTION;
         }

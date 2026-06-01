@@ -73,8 +73,6 @@ public:
         StateTable<int, VoidNamespace, omnistream::VectorBatch *> *vectorBatchStateTable);
 
 private:
-    void clearVectorBatchStateTable();
-
     StateTable<K, N, V> *stateTable;
     StateTable<int, VoidNamespace, omnistream::VectorBatch *> *vectorBatchStateTable = nullptr;
     TypeSerializer *keySerializer;
@@ -98,15 +96,6 @@ HeapValueState<K, N, V>::~HeapValueState()
 }
 
 template <typename K, typename N, typename V>
-void HeapValueState<K, N, V>::clearVectorBatchStateTable()
-{
-    if (vectorBatchStateTable == nullptr) {
-        return;
-    }
-    vectorBatchStateTable->resetMapsInRange();
-}
-
-template <typename K, typename N, typename V>
 void HeapValueState<K, N, V>::update(const V &value, bool copyKey)
 {
     if (copyKey) {
@@ -126,7 +115,6 @@ template <typename K, typename N, typename V>
 void HeapValueState<K, N, V>::clear()
 {
     stateTable->remove(currentNamespace);
-    clearVectorBatchStateTable();
 }
 
 template <typename K, typename N, typename V>
