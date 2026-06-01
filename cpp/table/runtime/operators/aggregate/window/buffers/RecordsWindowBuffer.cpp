@@ -43,7 +43,6 @@ RecordsWindowBuffer::RecordsWindowBuffer(const nlohmann::json& config, WindowVal
     for (const std::string& inputType : description["inputTypes"]) {
         types.push_back(inputType);
     }
-    resultRow = std::make_unique<JoinedRowData>();
     aggregateCallsCount = description["aggInfoList"][AGGCALLSNAME].size();
     if (aggregateCallsCount == 0) {
         localFunctions.emplace_back(std::make_unique<GlobalEmptyNamespaceFunction>(0, 0, 0, sliceAssigner));
@@ -155,6 +154,7 @@ void RecordsWindowBuffer::addVectorBatch(omnistream::VectorBatch *input, int64_t
 {
     auto rowCount = input->GetRowCount();
     if (rowCount < 0) {
+        return;
     }
     std::lock_guard<std::mutex> lock(bufferMutex);
     for (int row = 0; row < rowCount; ++row) {
@@ -181,7 +181,6 @@ void RecordsWindowBuffer::advanceProgress(StreamOperatorStateHandler<RowData*> *
         LOG("no windows in record buffer is fired.")
         return;
     }
-    std::vector<RowData*> resultRows;
     std::lock_guard<std::mutex> lock(bufferMutex);
     // 开始遍历每一个key
     for (auto& pair : recordsBuffer) {
@@ -206,10 +205,8 @@ void RecordsWindowBuffer::advanceProgress(StreamOperatorStateHandler<RowData*> *
         }
 
         WindowAggProcess(currentKey, entireRows, stateHandler);
-        resultRows.push_back(BinaryRowDataSerializer::joinedRowToBinaryRow(resultRow.get(), outputTypeIds));
     }
     recordsBuffer.clear();
-    resultRows.clear();
     minSliceEnd = INT64_MAX;
     LOG("end RecordsWindowBuffer::advanceProgress")
 }
@@ -246,7 +243,6 @@ void RecordsWindowBuffer::winAggProcess(WindowKey currentWindowKey, std::vector<
     stateHandler->setCurrentKey(currentWindowKey.getKey());
     long window = currentWindowKey.getWindow();
     RowData* stateVal = accState->value(window);
-    RowData* resultRowTemp = nullptr;
     if (stateVal == nullptr) {
         // If the accumulator does not exist, traverse functions to create the accumulators.
         for (auto& func : localFunctions) {
@@ -265,17 +261,14 @@ void RecordsWindowBuffer::winAggProcess(WindowKey currentWindowKey, std::vector<
             }
         }
         stateVal = localFunctions[i]->getAccumulators(); // todo : 多个function的时候会把前一个function的结果给覆盖，导致聚合数据丢失！！！！
-        resultRowTemp = localFunctions[i]->getValue(window);
     }
     accState->update(window, stateVal);
-    resultRow->replace(currentWindowKey.getKey(), resultRowTemp);
 }
 
 
 void RecordsWindowBuffer::globalWinAggProcess(WindowKey currentWindowKey, std::vector<RowData *>&  entireRows, StreamOperatorStateHandler<RowData*> *stateHandler)
 {
     LOG(">>>GlobalWindowAgg process")
-    RowData *tempVal = nullptr;
     RowData* accumulators = nullptr;
     for (auto& func : localFunctions) {
         accumulators = func->createAccumulators(accumulatorArity);
@@ -292,8 +285,7 @@ void RecordsWindowBuffer::globalWinAggProcess(WindowKey currentWindowKey, std::v
         }
         accumulators = localFunctions[i]->getAccumulators();
     }
-    tempVal = combineAccumulator(currentWindowKey, accumulators, stateHandler);  // todo 3/9 eve put result in out
-    resultRow->replace(currentWindowKey.getKey(), tempVal);
+    combineAccumulator(currentWindowKey, accumulators, stateHandler);  // todo 3/9 eve put result in out
     LOG(">>>GlobalWindowAgg process end")
 }
 
@@ -319,7 +311,6 @@ RowData* RecordsWindowBuffer::combineAccumulator(WindowKey windowKey, RowData* a
         globalFunctions[i]->merge(window, acc);
         LOG("getAccumulators in RecordsWindowBuffer::combineAccumulator")
         stateVal = globalFunctions[i]->getAccumulators();
-        result = globalFunctions[i]->getValue(window); // 可以删除
     }
     accState->update(window, stateVal);
 
