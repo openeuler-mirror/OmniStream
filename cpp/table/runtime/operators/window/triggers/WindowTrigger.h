@@ -14,6 +14,7 @@
 #include <cstdint>
 
 #include "Trigger.h"
+#include "table/utils/TimeWindowUtil.h"
 
 template<typename W>
 class WindowTrigger : public Trigger<W> {
@@ -23,7 +24,7 @@ public:
     ~WindowTrigger() override = default;
 
     int64_t triggerTime(const W& window) {
-        return window.maxTimestamp();
+        return TimeWindowUtil::toEpochMillsForTimer(window.maxTimestamp(), ctx->getShiftTimeZone());
     }
 
 protected:

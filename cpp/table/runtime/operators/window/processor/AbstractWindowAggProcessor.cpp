@@ -10,6 +10,7 @@
  */
 
 #include "AbstractWindowAggProcessor.h"
+#include "table/utils/TimeWindowUtil.h"
 #include "runtime/generated/function/CountWindowAggFunction.h"
 #include "runtime/generated/function/MinMaxWindowAggFunction.h"
 #include "runtime/generated/function/SumWindowAggFunction.h"
@@ -73,13 +74,12 @@ AbstractWindowAggProcessor::AbstractWindowAggProcessor(const nlohmann::json desc
 
 bool AbstractWindowAggProcessor::processBatch(omnistream::VectorBatch* vectorbatch)
 {
+    const std::string shiftTimeZone = ResolveShiftTimeZoneId(sliceAssigner);
     std::vector<int64_t> sliceEndArr(vectorbatch->GetRowCount());
     std::vector<int8_t> dropArr(vectorbatch->GetRowCount());
     for (int i = 0; i < vectorbatch->GetRowCount(); i++) {
         int64_t sliceEnd = sliceAssigner->assignSliceEnd(vectorbatch, i, clockService);
         sliceEndArr[i] = sliceEnd;
-        // ZoneId is supposed to be UTC
-        // todo support other ZoneId
         auto currentKey = keySelector->getKey(vectorbatch, i);
         if (!isEventTime) {
             auto temp =std::make_unique<WindowKey>(sliceEnd, currentKey);
@@ -90,14 +90,14 @@ bool AbstractWindowAggProcessor::processBatch(omnistream::VectorBatch* vectorbat
             }
             dropArr[i] = false;
         }
-        if (isEventTime && TimeWindowUtil::isWindowFired(sliceEnd, currentProgress)){
+        if (isEventTime && TimeWindowUtil::isWindowFired(sliceEnd, currentProgress, shiftTimeZone)){
             WindowedSliceAssigner* windowedSliceAssigner = dynamic_cast<WindowedSliceAssigner*>(sliceAssigner);
             SliceAssigner* assigner = windowedSliceAssigner->GetInnerAssigner();
             if (assigner == nullptr ){
                 throw std::runtime_error("assigner is nullptr");
             }
             long lastWindowEnd = assigner->getLastWindowEnd(sliceEnd);
-            if (TimeWindowUtil::isWindowFired(lastWindowEnd, currentProgress)) {
+            if (TimeWindowUtil::isWindowFired(lastWindowEnd, currentProgress, shiftTimeZone)) {
                 // the last window has been triggered, so the element can be dropped now
               LOG("drop element sliceEnd: " << sliceEnd)
               dropArr[i] = true;
@@ -105,11 +105,12 @@ bool AbstractWindowAggProcessor::processBatch(omnistream::VectorBatch* vectorbat
             } else {
                 //register elements;
                 int64_t unfiredFirstWindow = sliceEnd;
-                while (TimeWindowUtil::isWindowFired(unfiredFirstWindow, currentProgress)) {
+                while (TimeWindowUtil::isWindowFired(unfiredFirstWindow, currentProgress, shiftTimeZone)) {
                     unfiredFirstWindow += windowInterval;
                 }
                 stateBackend->setCurrentKey(currentKey);
-                internalTimerService->registerEventTimeTimer(unfiredFirstWindow, unfiredFirstWindow - 1);
+                internalTimerService->registerEventTimeTimer(
+                    unfiredFirstWindow, TimeWindowUtil::toEpochMillsForTimer(unfiredFirstWindow - 1, shiftTimeZone));
                 dropArr[i] = false;
             }
         }
@@ -247,8 +248,10 @@ RowData* AbstractWindowAggProcessor::GetNonHopResult(int64_t windowEnd)
 void AbstractWindowAggProcessor::NextWindowEndProcess(int64_t nextWindowEnd, SliceAssigner *assigner)
 {
     if (nextWindowEnd != 0) {
+        const std::string shiftTimeZone = ResolveShiftTimeZoneId(sliceAssigner);
         if (assigner->isEventTime()) {
-            internalTimerService->registerEventTimeTimer(nextWindowEnd, nextWindowEnd - 1);
+            internalTimerService->registerEventTimeTimer(
+                nextWindowEnd, TimeWindowUtil::toEpochMillsForTimer(nextWindowEnd - 1, shiftTimeZone));
         } else {
             internalTimerService->registerProcessingTimeTimer(nextWindowEnd, nextWindowEnd - 1);
         }

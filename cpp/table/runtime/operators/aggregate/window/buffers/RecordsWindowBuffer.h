@@ -90,6 +90,7 @@ private:
      bool isWindowAgg;
     std::mutex bufferMutex;
     SliceAssigner* sliceAssigner;
+    std::string shiftTimeZone;
     const int emptyAggFuncNum = 1;
     int64_t minSliceEnd = INT64_MAX;
 };
