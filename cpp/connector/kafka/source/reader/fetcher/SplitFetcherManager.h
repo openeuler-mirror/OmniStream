@@ -60,6 +60,12 @@ public:
 
     virtual ~SplitFetcherManager()
     {
+        close(0);
+        for (auto &t : executorThreads) {
+            if (t.joinable()) {
+                t.join();
+            }
+        }
         for (auto [fetcherId, fetcher] : fetchers) {
             delete fetcher;
         }
