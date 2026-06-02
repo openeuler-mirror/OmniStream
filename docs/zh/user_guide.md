@@ -64,6 +64,12 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
 |COUNT_CHAR|Scalar Functions|NA|S|NA|NA|
 |HOUR|Scalar Functions|S|NA|NS|S|
 |REGEX_EXTRACT|Scalar Functions|NA|S|NS|NA|
+| JSON_VALUE | Scalar Functions | NA | S | S | NA |
+| JSON_QUERY | Scalar Functions | NA | S | S | NA |
+| COALESCE | Scalar Functions | S | S | S | S |
+| PROCTIME_MATERIALIZE | Scalar Functions | NA | NA | NA | S |
+| CHAR_LENGTH | Scalar Functions | NA | S | NA | NA |
+| TO_TIMESTAMP_LTZ | Scalar Functions | S | NA | S | NA |
 
 
 ### DataStream算子和UDF支持情况<a name="ZH-CN_TOPIC_0000002517961054"></a>

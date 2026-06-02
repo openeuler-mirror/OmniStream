@@ -78,7 +78,6 @@ private:
     BinaryRowData* reUseAggValue;
     GenericRowData* windowRow;
     JoinedRowData* accWindowRow;
-    std::unique_ptr<JoinedRowData> resultRow;
     omnistream::VectorBatch* resultBatch = nullptr;
     TimestampedCollector* collector;
     std::vector<std::string> accTypes;
