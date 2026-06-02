@@ -100,7 +100,7 @@ public:
         AbstractStreamOperator<void*>::initializeState(initializer, keySerializer);
     }
 
-    void initializeState(StateInitializationContextImpl<void*>* context) override {
+    void initializeState(StateInitializationContextImpl* context) override {
         AbstractStreamOperator<void*>::initializeState(context);
 
         auto* stateBackend = static_cast<DefaultOperatorStateBackend*>(context->getOperatorStateBackend());

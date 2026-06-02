@@ -130,7 +130,7 @@ public:
         return new BinaryRowDataSerializer(1);
     };
 
-    void initializeState(StateInitializationContextImpl<K> *context)  override {}
+    void initializeState(StateInitializationContextImpl *context)  override {}
     // KeySerializer should be retrieved from description.getStateKeySerializer(getUserCodeClassloader()),
     // but we're just passing it through this function for now
     void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) override
@@ -156,6 +156,11 @@ public:
     AbstractKeyedStateBackend<K> *getKeyedStateBackend() const
     {
         return stateHandler->getKeyedStateBackend();
+    }
+
+    OperatorStateBackend *getOperatorStateBackend()
+    {
+        return stateHandler->getOperatorStateBackend();
     }
 
     std::string getTypeName() override

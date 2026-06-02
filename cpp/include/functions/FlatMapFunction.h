@@ -15,9 +15,10 @@
 #include <memory>
 #include "Collector.h"
 #include "basictypes/Object.h"
+#include "Function.h"
 
 template<typename T>
-class FlatMapFunction {
+class FlatMapFunction : public omnistream::Function {
 public:
     virtual ~FlatMapFunction()  = default;
     virtual void flatMap(T* value, Collector* out) = 0;

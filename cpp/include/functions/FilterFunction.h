@@ -16,11 +16,13 @@
 #include <vector>
 #include "basictypes/Object.h"
 #include "common.h"
+#include "Function.h"
+
 /**
  * T: such as Object, VectorBatch
  * */
 template<typename T>
-class FilterFunction {
+class FilterFunction : public omnistream::Function {
 public:
     virtual ~FilterFunction() = default;
 
