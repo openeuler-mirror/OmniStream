@@ -102,6 +102,10 @@ private:
 
         collectKeyValueStateSnapshots(preparedData, checkpointId);
         collectPriorityQueueStateSnapshots(preparedData, checkpointId);
+        INFO_RELEASE("[OS-CP-heap-snapshot] checkpointId=" << checkpointId
+            << ", metaInfoCount=" << preparedData.metaInfoSnapshots.size()
+            << ", iteratorCount=" << preparedData.stateIterators.size()
+            << ", keyGroupPrefixBytes=" << preparedData.keyGroupPrefixBytes);
         return preparedData;
     }
 
