@@ -8,13 +8,14 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#include "RowTimeDeduplicateFunction.h"
+
 #include <iostream>
 #include <vector>
 #include <string_view>
 #include <memory>
 
-using namespace std;
+#include "RowTimeDeduplicateFunction.h"
+#include "data/util/VectorBatchUtil.h"
 
 void RowTimeDeduplicateFunction::initOutputVector(omnistream::VectorBatch *out, omnistream::VectorBatch *inputVB,
     int rowCount)
@@ -80,11 +81,11 @@ void RowTimeDeduplicateFunction::open(const Configuration &config)
     if (dynamic_cast<RocksdbValueState<RowData *, VoidNamespace, int64_t> *>(recordStateVB)) {
         static_cast<RocksdbValueState<RowData *, VoidNamespace, int64_t> *>(this->recordStateVB)->setDefaultValue(-1);
         INFO_RELEASE("RowTimeDeduplicateFunction backend is rocksdb")
-        backendType = 1;
+        backendType_ = omnistream::StateType::ROCKSDB;
     } else {
         static_cast<HeapValueState<RowData *, VoidNamespace, int64_t> *>(this->recordStateVB)->setDefaultValue(-1);
         INFO_RELEASE("RowTimeDeduplicateFunction backend is mem")
-        backendType = 0;
+        backendType_ = omnistream::StateType::HEAP;
     }
     LOG("RowTimeDeduplicateFunction open finish")
 }
@@ -104,7 +105,7 @@ std::vector<int32_t> RowTimeDeduplicateFunction::getKeyedTypes(const std::vector
 void RowTimeDeduplicateFunction::freeDelBatch()
 {
     vectorBatchCacheMap.clear();
-    if (backendType == 0) {
+    if (backendType_ == omnistream::StateType::HEAP) {
         delVb.clear();
         return;
     }
@@ -235,7 +236,7 @@ omnistream::VectorBatch* RowTimeDeduplicateFunction::GetVectorBatchById(int32_t 
 
 void RowTimeDeduplicateFunction::UpdateStateBackend(std::vector<std::tuple<long,long,RowData*>> &updateRecords,Context& ctx)
 {
-    if (backendType == 0) {
+    if (backendType_ == omnistream::StateType::HEAP) {
         // mem backend
         for (auto record : updateRecords) {
             long curCombineId = std::get<1>(record);

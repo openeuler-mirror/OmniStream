@@ -8,12 +8,18 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef FLINK_TNEL_STATE_H
-#define FLINK_TNEL_STATE_H
 
-#include <unordered_map>
+#pragma once
+
+#include <vector>
 #include "table/data/vectorbatch/VectorBatch.h"
-
+namespace omnistream {
+    enum class StateType {
+        HEAP = 0,
+        ROCKSDB = 1,
+        BSS = 2
+    };
+}
 class State {
 public:
     State() : vectorBatches(){};
@@ -64,5 +70,3 @@ public:
 protected:
     std::vector<omnistream::VectorBatch *> vectorBatches;
 };
-
-#endif  // FLINK_TNEL_STATE_H

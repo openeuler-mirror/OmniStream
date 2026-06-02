@@ -46,7 +46,7 @@ private:
     ValueState<RowData*> *stateStore = nullptr;
     Top1Comparator<KeyType> *comparator = nullptr;
     SortedKVCache<KeyType, RowData*> kvCache;
-    int backendType = 0; // 0-> mem 1-> bss 2-> rocksdb
+    omnistream::StateType backendType_ = omnistream::StateType::HEAP;
     int compareRows(BinaryRowData *inputRow, BinaryRowData *previousRow);
     int compareRowsV2(omnistream::VectorBatch* vectorBatch,int rowId, BinaryRowData *previousRow);
 };
@@ -62,13 +62,13 @@ void FastTop1Function<KeyType>::open(const Configuration& context)
     // Decide backendType by probing the concrete state implementation.
     if (dynamic_cast<RocksdbValueState<KeyType, VoidNamespace, RowData*> *>(this->stateStore)) {
         INFO_RELEASE("FastTop1Function backend is rocksdb")
-        this->backendType = 2;
+        this->backendType_ = omnistream::StateType::ROCKSDB;
         // RocksDB stores a byte-copy in the DB, not the ptr — cache is sole owner
         // of its V pointers, so it's safe to free them on LRU eviction.
         kvCache.setOwnsValues(true);
     } else {
         INFO_RELEASE("FastTop1Function backend is mem")
-        this->backendType = 0;
+        this->backendType_ = omnistream::StateType::HEAP;
     }
     comparator = new Top1Comparator<KeyType>(this->partitionKeyTypeIds, this->partitionKeyIndices,
                 this->sortKeyIndices, this->sortOrder);
@@ -125,7 +125,7 @@ void FastTop1Function<KeyType>::processBatch(omnistream::VectorBatch* inputBatch
                 // eviction (with ownsValues=true) will free them later.
                 // For heap backend, previousRow is still owned by the state —
                 // cannot hand it to the cache, just free the local key copy.
-                if (!fromCache && this->backendType == 2) {
+                if (!fromCache && this->backendType_ == omnistream::StateType::ROCKSDB) {
                     kvCache.put(mutableKey, previousRow);
                 } else {
                     freeKeyInCache(mutableKey);
