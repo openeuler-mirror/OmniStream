@@ -12,6 +12,7 @@
 #ifndef FLINK_TNEL_LOCALSLICINGWINDOWAGGOPERATOR_H
 #define FLINK_TNEL_LOCALSLICINGWINDOWAGGOPERATOR_H
 
+#include <memory>
 #include <regex>
 #include "streaming/api/operators/AbstractStreamOperator.h"
 #include "table/data/JoinedRowData.h"
@@ -45,7 +46,7 @@ public:
                 keyedTypes.push_back(LogicalType::flinkTypeToOmniTypeId(inputTypes[index]));
             }
         }
-        keySelector = new KeySelector<RowData*>(keyedTypes, keyedIndex);
+        keySelector = new KeySelector<std::shared_ptr<RowData>>(keyedTypes, keyedIndex);
         windowRow = new GenericRowData(1);
         accWindowRow = new JoinedRowData();
         resultRow = new JoinedRowData();
@@ -63,7 +64,7 @@ public:
 
     const char* getName() override;
     void close() override;
-    void processBatch(StreamRecord* record) override;
+    void processBatch(StreamRecord* input) override;
     std::string getTypeName() override;
 
     void ProcessWatermark(Watermark* mark) override;
@@ -113,7 +114,7 @@ public:
             return "NONE";
         }
     }
-    void eraseMsg(std::vector<RowData *>& entireRows);
+    void eraseMsg(std::vector<std::unique_ptr<RowData>>& entireRows);
 
 private:
     nlohmann::json description;
@@ -127,13 +128,13 @@ private:
     JoinedRowData* resultRow;
     BinaryRowData* reUseAggValue;
     BinaryRowData* reUseAccumulator;
-    std::unordered_map<WindowKey, std::vector<RowData*>> bundle;
+    std::unordered_map<WindowKey, std::vector<std::unique_ptr<RowData>>> bundle;
     std::vector<std::string> inputTypes;
     std::vector<std::string> outputTypeStr;//todo: remove from variables
     std::vector<omniruntime::type::DataTypeId> outputTypes;
 
     std::vector<int32_t> keyedTypes;
-    KeySelector<RowData*> *keySelector;
+    KeySelector<std::shared_ptr<RowData>> *keySelector;
     std::vector<int32_t> keyedIndex;
     SliceAssigner* sliceAssigner;
     long currentWatermark = 0;
@@ -142,9 +143,8 @@ private:
 
     TimestampedCollector* collector;
     omnistream::VectorBatch* resultBatch = nullptr;
-    //omnistream::VectorBatch* createOutputBatch(std::vector<RowData*> collectedRows);
-    //void collectOutputBatch(TimestampedCollector* out, omnistream::VectorBatch* outputBatch);
-    void AccumulateOrRetract(const std::vector<RowData *>& entireRows);
+
+    void AccumulateOrRetract(const std::vector<std::unique_ptr<RowData>>& entireRows);
     bool SendAccResults(Watermark *mark);
 
     void SetLong(omniruntime::vec::VectorBatch* outputBatch, int rowIndex, int colIndex,  RowData* collectedRow);

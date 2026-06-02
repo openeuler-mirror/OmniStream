@@ -98,8 +98,8 @@ const char *BinaryRowDataSerializer::getName() const
     return "BinaryRowDataSerializer";
 }
 
-BinaryRowData* BinaryRowDataSerializer::joinedRowToBinaryRow(JoinedRowData *row, const std::vector<int32_t>& typeId)
-{
+// The caller takes ownership of the returned pointer
+BinaryRowData* BinaryRowDataSerializer::joinedRowToBinaryRow(JoinedRowData *row, const std::vector<int32_t>& typeId) {
     if (typeId.empty()) {
         INFO_RELEASE("WARNING: joinedRowToBinaryRow are only meant for testing. It only treat long type!!");
     }

@@ -89,38 +89,38 @@ void LocalSlicingWindowAggOperator::ExtractFunction()
     }
 }
 
-void LocalSlicingWindowAggOperator::processBatch(StreamRecord *record)
-{
-    LOG("LocalSlicingWindowAggOperator  processBatch  start!!!!!!!!!!!!!!!")
-    omnistream::VectorBatch *input = reinterpret_cast<omnistream::VectorBatch*>(record->getValue());
-    if (!input) {
+void LocalSlicingWindowAggOperator::processBatch(StreamRecord *input) {
+    auto record = std::unique_ptr<StreamRecord>(input);
+    auto batch = std::unique_ptr<omnistream::VectorBatch>(
+            reinterpret_cast<omnistream::VectorBatch*>(record->getValue()));
+    if (!batch) {
         return;
     }
-    auto rowCount = input->GetRowCount();
-    if (!input || rowCount < 0) {
+    auto rowCount = batch->GetRowCount();
+    if (!batch || rowCount < 0) {
         return;
     }
     int64_t sliceEndArr[rowCount];
-    for (int64_t i = 0; i < input->GetRowCount(); i++) {
-        sliceEndArr[i] = sliceAssigner->assignSliceEnd(input, i, clock);
+    for (int64_t i = 0; i < batch->GetRowCount(); i++) {
+        sliceEndArr[i] = sliceAssigner->assignSliceEnd(batch.get(), i, clock);
     }
     
     for (int64_t row = 0; row < rowCount; ++row) {
         // 获取key列索引，key列数据类型
         long rowTime = sliceEndArr[row];
-        RowData *keyRow = keySelector->getKey(input, row);
-        RowData *currentRow = input->extractRowData(row);
+        auto keyRow = keySelector->getKey(batch.get(), row);
+        auto currentRow = std::unique_ptr<RowData>(batch->extractRowData(row));
         WindowKey windowKey(rowTime, keyRow);
         auto it = bundle.find(windowKey);
         if (it != bundle.end()) {
-            it->second.push_back(currentRow);
+            it->second.push_back(std::move(currentRow));
         } else {
             invertOrder.push_back(windowKey);
-            bundle[windowKey] = {currentRow};
+            std::vector<std::unique_ptr<RowData>> vec;
+            vec.push_back(std::move(currentRow));
+            bundle.emplace(windowKey, std::move(vec));
         }
     }
-
-    LOG("LocalSlicingWindowAggOperator  processBatch  end!!!!!!!!!!!!!!!")
 }
 
 void LocalSlicingWindowAggOperator::ProcessWatermark(Watermark *mark)
@@ -144,15 +144,14 @@ void LocalSlicingWindowAggOperator::ProcessWatermark(Watermark *mark)
 
 bool LocalSlicingWindowAggOperator::SendAccResults(Watermark *mark)
 {
-    int numRows = invertOrder.size(); 
+    int numRows = invertOrder.size();
     int numColumns = outputTypes.size();
     auto outputBatch = omnistream::VectorBatch::CreateVectorBatch(numRows,outputTypes);
     // 开始遍历每一个key
 
     int currentRowNum = 0;
     for (const WindowKey& currentKey : invertOrder) {
-
-        std::vector<RowData *>& entireRows = bundle[currentKey];
+        auto& entireRows = bundle[currentKey];
         eraseMsg(entireRows);
         if (entireRows.empty()) {
             continue;
@@ -168,7 +167,7 @@ bool LocalSlicingWindowAggOperator::SendAccResults(Watermark *mark)
         windowRow->setField(0, currentKey.getWindow());
         accWindowRow->replace(reUseAccumulator, windowRow);
 
-        resultRow->replace(currentKey.getKey(), accWindowRow);
+        resultRow->replace(currentKey.getKey().get(), accWindowRow);
         for (int colIndex = 0; colIndex < numColumns; ++colIndex){
             switch (outputTypes[colIndex]) {
             case DataTypeId::OMNI_LONG: {
@@ -212,8 +211,7 @@ bool LocalSlicingWindowAggOperator::SendAccResults(Watermark *mark)
     return true;
 }
 
-void LocalSlicingWindowAggOperator::eraseMsg(std::vector<RowData *>& entireRows)
-{
+void LocalSlicingWindowAggOperator::eraseMsg(std::vector<std::unique_ptr<RowData>>& entireRows) {
     auto entireIter = entireRows.begin();
     while (entireIter != entireRows.end()) {
         if (RowDataUtil::isRetractMsg((*entireIter)->getRowKind())) {
@@ -240,25 +238,25 @@ void LocalSlicingWindowAggOperator::close()
 void LocalSlicingWindowAggOperator::SetStringVectorBatch(omnistream::VectorBatch* outputBatch, int rowIndex,
     int colIndex, RowData* collectedRow)
 {
-     
+
     auto vector = static_cast<omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>> *> (outputBatch->Get(colIndex));
     std::string_view strView = collectedRow->getStringView(colIndex);
-    vector->SetValue(rowIndex, strView); 
+    vector->SetValue(rowIndex, strView);
 }
 
 void LocalSlicingWindowAggOperator::SetLong(omniruntime::vec::VectorBatch* outputBatch,
                                             int rowIndex, int colIndex, RowData* collectedRow)
 {
     auto vector = static_cast<omniruntime::vec::Vector<int64_t>*>(outputBatch->Get(colIndex));
-    vector->SetValue(rowIndex, *collectedRow->getLong(colIndex)); 
+    vector->SetValue(rowIndex, *collectedRow->getLong(colIndex));
 }
 
 void LocalSlicingWindowAggOperator::SetInt(omniruntime::vec::VectorBatch* outputBatch,
                                            int rowIndex, int colIndex, RowData* collectedRow)
 {
     auto vector = static_cast<omniruntime::vec::Vector<int64_t>*>(outputBatch->Get(colIndex));
-    vector->SetValue(rowIndex, *collectedRow->getInt(colIndex)); 
-    
+    vector->SetValue(rowIndex, *collectedRow->getInt(colIndex));
+
 }
 
 const char *LocalSlicingWindowAggOperator::getName()
@@ -273,15 +271,15 @@ std::string LocalSlicingWindowAggOperator::getTypeName()
     return typeName;
 }
 
-void LocalSlicingWindowAggOperator::AccumulateOrRetract(const std::vector<RowData *>& entireRows)
+void LocalSlicingWindowAggOperator::AccumulateOrRetract(const std::vector<std::unique_ptr<RowData>>& entireRows)
 {
     // get previous aggregate result
     for (int i = 0; i < aggregateCallsCount; ++i) {
-        for (RowData* entireRow : entireRows) {
+        for (auto& entireRow : entireRows) {
             if (RowDataUtil::isAccumulateMsg(entireRow->getRowKind())) {
-                functions[i]->accumulate(entireRow);
+                functions[i]->accumulate(entireRow.get());
             } else {
-                functions[i]->retract(entireRow);
+                functions[i]->retract(entireRow.get());
             }
         }
         functions[i]->getAccumulators(reUseAccumulator);
