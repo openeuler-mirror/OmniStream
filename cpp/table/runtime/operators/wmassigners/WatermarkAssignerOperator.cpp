@@ -21,16 +21,14 @@ WatermarkAssignerOperator::WatermarkAssignerOperator(
     setProcessingTimeService(processingTimeService);
 }
 
-void WatermarkAssignerOperator::processBatch(StreamRecord *element)
-{
-    LOG("WaterMark process Batch")
-
+void WatermarkAssignerOperator::processBatch(StreamRecord *input) {
+    auto record = std::unique_ptr<StreamRecord>(input);
     if (idleTimeout_ > 0 && currentStatus->Equals(WatermarkStatus::idleStatus)) {
         emitWatermarkStatus(new WatermarkStatus(WatermarkStatus::activeStatus));
         lastRecordTime_ = getProcessingTimeService()->getCurrentProcessingTime();
     }
 
-    omnistream::VectorBatch *batch = reinterpret_cast<omnistream::VectorBatch *>(element->getValue());
+    auto batch = std::unique_ptr<omnistream::VectorBatch>(reinterpret_cast<omnistream::VectorBatch*>(record->getValue()));
     bool splitBatch = false;
     int32_t offset = 0;
 
@@ -42,22 +40,21 @@ void WatermarkAssignerOperator::processBatch(StreamRecord *element)
         if (currentWatermark_ - lastWatermark_ > emissionInterval_){
             splitBatch = true;
             int32_t newRowCnt = i + 1 - offset;
-            omnistream::VectorBatch *pBatch = VectorBatchUtil::sliceVectorBatch(batch, offset, newRowCnt);
+            omnistream::VectorBatch *pBatch = VectorBatchUtil::sliceVectorBatch(batch.get(), offset, newRowCnt);
             output->collect(new StreamRecord(pBatch));
             offset = i + 1;
             advanceWatermark();
         }
     }
-    if (splitBatch){
+    if (splitBatch) {
         int32_t newRowCnt = timeColumn->GetSize()-offset;
         if (newRowCnt > 0){
-            omnistream::VectorBatch *pBatch = VectorBatchUtil::sliceVectorBatch(batch, offset, newRowCnt);
+            omnistream::VectorBatch *pBatch = VectorBatchUtil::sliceVectorBatch(batch.get(), offset, newRowCnt);
             output->collect(new StreamRecord(pBatch));
         }
-        delete element;
-    }else{
-        LOG("no watermark emit, send the original batch")
-        output->collect(element);
+    } else {
+        batch.release();
+        output->collect(record.release());
     }
 }
 

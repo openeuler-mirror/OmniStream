@@ -108,7 +108,7 @@ public:
         return aggCall["argIndexes"].empty() ? -1 : aggCall["argIndexes"][0].get<int32_t>();
     }
 
-    void processBatch(StreamRecord *record) override;
+    void processBatch(StreamRecord *input) override;
 
     void processElement(StreamRecord *element) override {};
     K getCurrentKey() override
@@ -210,13 +210,14 @@ public:
             }
 
             auto keyedStateBackend = outerOperator->getKeyedStateBackend();
-            if (dynamic_cast<RocksdbKeyedStateBackend<K>*>(keyedStateBackend) != nullptr) {
+            if (outerOperator->backendType_ == omnistream::StateType::ROCKSDB) {
                 using S = RocksdbMapState<K, VoidNamespace, W, W>;
                 S* state = keyedStateBackend->template getPartitionedState<VoidNamespace, S, emhash7::HashMap<W, W>*>(
                         VoidNamespace(), new VoidNamespaceSerializer(), stateDescriptor);
                 return state;
             }
-            if (dynamic_cast<HeapKeyedStateBackend<K>*>(keyedStateBackend) != nullptr) {
+
+            if (outerOperator->backendType_ == omnistream::StateType::HEAP) {
                 using S = HeapMapState<K, VoidNamespace, W, W>;
                 S* state = keyedStateBackend->template getPartitionedState<VoidNamespace, S, emhash7::HashMap<W, W>*>(
                         VoidNamespace(), new VoidNamespaceSerializer(), stateDescriptor);
@@ -360,4 +361,5 @@ private:
     std::unique_ptr<BinaryRowDataSerializer> accSerializer_;
     std::unique_ptr<KeySelector<K>> keySelector_;
     int64_t maxTimestamp = INT64_MIN;
+    omnistream::StateType backendType_ = omnistream::StateType::HEAP;
 };

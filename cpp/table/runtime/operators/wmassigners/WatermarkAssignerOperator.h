@@ -30,7 +30,7 @@ public:
     ~WatermarkAssignerOperator() override = default;
 
     // Processing functions
-    void processBatch(StreamRecord *element) override;
+    void processBatch(StreamRecord *input) override;
     void processElement(StreamRecord *element) override;
     void ProcessWatermark(Watermark *mark) override;
     void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) override {
