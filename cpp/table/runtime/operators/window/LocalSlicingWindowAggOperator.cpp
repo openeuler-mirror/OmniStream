@@ -144,9 +144,14 @@ void LocalSlicingWindowAggOperator::ProcessWatermark(Watermark *mark)
 
 bool LocalSlicingWindowAggOperator::SendAccResults(Watermark *mark)
 {
-    std::vector<RowData*> resultRows;
+    int numRows = invertOrder.size(); 
+    int numColumns = outputTypes.size();
+    auto outputBatch = omnistream::VectorBatch::CreateVectorBatch(numRows,outputTypes);
     // 开始遍历每一个key
+
+    int currentRowNum = 0;
     for (const WindowKey& currentKey : invertOrder) {
+
         std::vector<RowData *>& entireRows = bundle[currentKey];
         eraseMsg(entireRows);
         if (entireRows.empty()) {
@@ -162,15 +167,47 @@ bool LocalSlicingWindowAggOperator::SendAccResults(Watermark *mark)
         AccumulateOrRetract(entireRows);
         windowRow->setField(0, currentKey.getWindow());
         accWindowRow->replace(reUseAccumulator, windowRow);
+
         resultRow->replace(currentKey.getKey(), accWindowRow);
-        resultRows.push_back(BinaryRowDataSerializer::joinedRowToBinaryRow(resultRow, outputTypeIds));
+        for (int colIndex = 0; colIndex < numColumns; ++colIndex){
+            switch (outputTypes[colIndex]) {
+            case DataTypeId::OMNI_LONG: {
+                SetLong(outputBatch, currentRowNum, colIndex, resultRow);
+                break;
+            }
+            case DataTypeId::OMNI_TIMESTAMP: {
+                SetLong(outputBatch, currentRowNum, colIndex, resultRow);
+                break;
+            }
+            case DataTypeId::OMNI_INT: {
+                SetInt(outputBatch, currentRowNum, colIndex, resultRow);
+                break;
+            }
+            case DataTypeId::OMNI_DOUBLE: {
+                SetLong(outputBatch, currentRowNum, colIndex, resultRow);
+                break;
+            }
+            case DataTypeId::OMNI_BOOLEAN: {
+                SetInt(outputBatch, currentRowNum, colIndex, resultRow);
+                break;
+            }
+            case DataTypeId::OMNI_VARCHAR: {
+                SetStringVectorBatch(outputBatch, currentRowNum, colIndex, resultRow);
+                break;
+            }
+            default: {
+                throw std::runtime_error("Unsupported column type in inputRow");
+            }
+        }
+        }
+        outputBatch->setRowKind(currentRowNum, resultRow->getRowKind());
+        currentRowNum++;
         delete accumulators;
+
     }
-    resultBatch = createOutputBatch(resultRows);
-    collectOutputBatch(collector, resultBatch);
+    collector->collect(outputBatch);
     bundle.clear();
     invertOrder.clear();
-    resultRows.clear();
     nextTriggerWatermark = getNextTriggerWatermark(currentWatermark, windowInterval);
     return true;
 }
@@ -200,92 +237,28 @@ void LocalSlicingWindowAggOperator::close()
     delete clock;
 }
 
-omnistream::VectorBatch* LocalSlicingWindowAggOperator::createOutputBatch(std::vector<RowData*> collectedRows)
+void LocalSlicingWindowAggOperator::SetStringVectorBatch(omnistream::VectorBatch* outputBatch, int rowIndex,
+    int colIndex, RowData* collectedRow)
 {
-    int numColumns = outputTypes.size();
-    int numRows = collectedRows.size(); // Number of rows collected
-    // Create a new VectorBatch (empty if no rows exist)
-    auto* outputBatch = new omnistream::VectorBatch(numRows);
-    for (int colIndex = 0; colIndex < numColumns; ++colIndex) {
-        switch (outputTypeIds[colIndex]) {
-            case DataTypeId::OMNI_LONG: {
-                SetLong(outputBatch, numRows, colIndex, collectedRows);
-                break;
-            }
-            case DataTypeId::OMNI_TIMESTAMP: {
-                SetLong(outputBatch, numRows, colIndex, collectedRows);
-                break;
-            }
-            case DataTypeId::OMNI_INT: {
-                SetInt(outputBatch, numRows, colIndex, collectedRows);
-                break;
-            }
-            case DataTypeId::OMNI_DOUBLE: {
-                SetLong(outputBatch, numRows, colIndex, collectedRows);
-                break;
-            }
-            case DataTypeId::OMNI_BOOLEAN: {
-                SetInt(outputBatch, numRows, colIndex, collectedRows);
-                break;
-            }
-            case DataTypeId::OMNI_VARCHAR: {
-                SetStringVectorBatch(outputBatch, numRows, colIndex, collectedRows);
-                break;
-            }
-            default: {
-                throw std::runtime_error("Unsupported column type in inputRow");
-            }
-        }
-    }
-
-    // Set row kind for all rows (only if there are rows)
-    for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
-        if (!collectedRows[rowIndex]) {
-            throw std::runtime_error("Null RowData encountered in createOutputBatch");
-        }
-        outputBatch->setRowKind(rowIndex, collectedRows[rowIndex]->getRowKind());
-    }
-    return outputBatch;
-}
-
-void LocalSlicingWindowAggOperator::SetStringVectorBatch(omnistream::VectorBatch* outputBatch, int numRows,
-    int colIndex, const std::vector<RowData*>& collectedRows)
-{
-    auto* vector = new omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>(numRows);
-    for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
-        auto checkedRow = collectedRows[rowIndex];
-        if (!checkedRow) {
-            throw std::runtime_error("Null RowData encountered in createOutputBatch [String column]");
-        }
-        std::string_view strView = checkedRow->getStringView(colIndex);
-        vector->SetValue(rowIndex, strView);
-    }
-    outputBatch->Append(vector);
+     
+    auto vector = static_cast<omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>> *> (outputBatch->Get(colIndex));
+    std::string_view strView = collectedRow->getStringView(colIndex);
+    vector->SetValue(rowIndex, strView); 
 }
 
 void LocalSlicingWindowAggOperator::SetLong(omniruntime::vec::VectorBatch* outputBatch,
-                                            int numRows, int colIndex, std::vector<RowData*> vec)
+                                            int rowIndex, int colIndex, RowData* collectedRow)
 {
-    auto* vector = new omniruntime::vec::Vector<int64_t>(numRows);
-    for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
-        vector->SetValue(rowIndex, *vec[rowIndex]->getLong(colIndex));
-    }
-    outputBatch->Append(vector);
+    auto vector = static_cast<omniruntime::vec::Vector<int64_t>*>(outputBatch->Get(colIndex));
+    vector->SetValue(rowIndex, *collectedRow->getLong(colIndex)); 
 }
 
 void LocalSlicingWindowAggOperator::SetInt(omniruntime::vec::VectorBatch* outputBatch,
-                                           int numRows, int colIndex, std::vector<RowData*> vec)
+                                           int rowIndex, int colIndex, RowData* collectedRow)
 {
-    auto* vector = new omniruntime::vec::Vector<int64_t>(numRows);
-    for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
-        vector->SetValue(rowIndex, *vec[rowIndex]->getInt(colIndex));
-    }
-    outputBatch->Append(vector);
-}
-
-void LocalSlicingWindowAggOperator::collectOutputBatch(TimestampedCollector *out, omnistream::VectorBatch *outputBatch)
-{
-    out->collect(outputBatch);
+    auto vector = static_cast<omniruntime::vec::Vector<int64_t>*>(outputBatch->Get(colIndex));
+    vector->SetValue(rowIndex, *collectedRow->getInt(colIndex)); 
+    
 }
 
 const char *LocalSlicingWindowAggOperator::getName()

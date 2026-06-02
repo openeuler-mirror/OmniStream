@@ -33,10 +33,10 @@ public:
     {
         this->collector = new TimestampedCollector(this->output);
         inputTypes = config["inputTypes"].get<std::vector<std::string>>();
-        outputTypes = config["outputTypes"].get<std::vector<std::string>>();
+        outputTypeStr = config["outputTypes"].get<std::vector<std::string>>();
         clock = new ClockService();
-        for (const auto &typeStr : outputTypes) {
-            outputTypeIds.push_back(LogicalType::flinkTypeToOmniTypeId(typeStr));
+         for (const auto& i : outputTypeStr) {
+            outputTypes.push_back(LogicalType::flinkTypeToOmniTypeId(i));
         }
 
         keyedIndex = config["grouping"].get<std::vector<int32_t>>();
@@ -129,8 +129,8 @@ private:
     BinaryRowData* reUseAccumulator;
     std::unordered_map<WindowKey, std::vector<RowData*>> bundle;
     std::vector<std::string> inputTypes;
-    std::vector<std::string> outputTypes;
-    std::vector<int32_t> outputTypeIds;
+    std::vector<std::string> outputTypeStr;//todo: remove from variables
+    std::vector<omniruntime::type::DataTypeId> outputTypes;
 
     std::vector<int32_t> keyedTypes;
     KeySelector<RowData*> *keySelector;
@@ -142,19 +142,19 @@ private:
 
     TimestampedCollector* collector;
     omnistream::VectorBatch* resultBatch = nullptr;
-
-    void collectOutputBatch(TimestampedCollector* out, omnistream::VectorBatch* outputBatch);
-    omnistream::VectorBatch* createOutputBatch(std::vector<RowData*> collectedRows);
+    //omnistream::VectorBatch* createOutputBatch(std::vector<RowData*> collectedRows);
+    //void collectOutputBatch(TimestampedCollector* out, omnistream::VectorBatch* outputBatch);
     void AccumulateOrRetract(const std::vector<RowData *>& entireRows);
     bool SendAccResults(Watermark *mark);
-    void SetLong(omniruntime::vec::VectorBatch* outputBatch, int numRows, int colIndex, std::vector<RowData*> vec);
-    void SetInt(omniruntime::vec::VectorBatch* outputBatch, int numRows, int colIndex, std::vector<RowData*> vec);
+
+    void SetLong(omniruntime::vec::VectorBatch* outputBatch, int rowIndex, int colIndex,  RowData* collectedRow);
+    void SetInt(omniruntime::vec::VectorBatch* outputBatch, int rowIndex, int colIndex,  RowData* collectedRow);
     std::vector<WindowKey> invertOrder;
     int rowtimeIndexVal;
     ClockService* clock;
     void ExtractFunction();
-    void SetStringVectorBatch(omnistream::VectorBatch* outputBatch, int numRows,
-        int colIndex, const std::vector<RowData*>& collectedRows);
+    void SetStringVectorBatch(omnistream::VectorBatch* outputBatch, int rowIndex,
+        int colIndex, RowData* collectedRow);
 };
 
 #endif
