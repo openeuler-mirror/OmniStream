@@ -74,7 +74,7 @@ public:
         }
         inputStream_.seekg(split->getStartOffset());
         endPosition_ = split->getStartOffset() + split->getLength();
-        std::cout << "End position set to: " << endPosition_ << std::endl;
+        INFO_RELEASE("End position set to: " << endPosition_ )
     }
 
     void close()

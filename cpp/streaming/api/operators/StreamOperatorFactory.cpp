@@ -400,7 +400,7 @@ StreamOperator* StreamOperatorFactory::CreateSourceOp(OperatorPOD &opConfig,
                 oneMap[csvSelectFieldToProjectFieldMapping[i]] = csvSelectFieldToCsvFieldMapping[i];
             }
             // use small batch size for testing
-            constexpr int batchSize = 3;
+            constexpr int batchSize = 1000;
             auto csvInputFormat = new omnistream::csv::CsvInputFormat<omnistream::VectorBatch>(schema, batchSize, oneMap);
             constexpr int fileLength = 100000;
             InputSplit *inputSplit = new InputSplit(opDescriptionJSON["filePath"], 0, fileLength);
