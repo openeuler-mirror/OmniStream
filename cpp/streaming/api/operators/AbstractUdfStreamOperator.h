@@ -13,6 +13,7 @@
 
 #include "streaming/api/operators/AbstractStreamOperator.h"
 #include "functions/AbstractRichFunction.h"
+#include "streaming/util/functions/StreamingFunctionUtils.h"
 
 // Class should also contain the following if needed
 // <OUT, F extends Function>
@@ -31,12 +32,31 @@ public:
     };
 
     F* getUserFunction() { return userFunction; }
+
+    void setup()
+    {
+        AbstractStreamOperator<K>::setup();
+        auto richFunctionPtr = dynamic_cast<RichFunction*>(userFunction);
+        if (richFunctionPtr != nullptr) {
+            richFunctionPtr->setRuntimeContext(this->runtimeContext);
+        }
+    }
+
+    void setup(std::shared_ptr<omnistream::OmniStreamTask> task)
+    {
+        AbstractStreamOperator<K>::setup(std::move(task));
+        auto richFunctionPtr = dynamic_cast<RichFunction*>(userFunction);
+        if (richFunctionPtr != nullptr) {
+            richFunctionPtr->setRuntimeContext(this->runtimeContext);
+        }
+    }
+
+    
     void open() override
     {
         AbstractStreamOperator<K>::open();
         auto richFunctionPtr = dynamic_cast<RichFunction*>(userFunction);
         if (richFunctionPtr != nullptr) {
-            richFunctionPtr->setRuntimeContext(this->runtimeContext);
             richFunctionPtr->open(Configuration());
         }
     }
@@ -69,8 +89,9 @@ public:
         // todo: should the udf be closed?
     }
 
-    void initializeState(StateInitializationContextImpl<K> *context)  override {
+    void initializeState(StateInitializationContextImpl *context)  override {
         AbstractStreamOperator<K>::initializeState(context);
+        StreamingFunctionUtils::restoreFunctionState(context, userFunction);
     }
 
     void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) override {
@@ -79,6 +100,7 @@ public:
 
     void snapshotState(StateSnapshotContextSynchronousImpl *context) override {
         AbstractStreamOperator<K>::snapshotState(context);
+        StreamingFunctionUtils::snapshotFunctionState(context, getOperatorStateBackend(), userFunction);
     }
 protected:
     F* userFunction = nullptr;

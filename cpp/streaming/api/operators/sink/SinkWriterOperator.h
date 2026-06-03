@@ -41,7 +41,7 @@ public:
         close();
     }
 
-    void initializeState(StateInitializationContextImpl<void*>* context) override;
+    void initializeState(StateInitializationContextImpl* context) override;
 
     void snapshotState(StateSnapshotContextSynchronousImpl* context) override;
 
