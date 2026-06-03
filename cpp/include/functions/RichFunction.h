@@ -15,8 +15,9 @@
 #include "IterationRuntimeContext.h"
 #include "OpenContext.h"
 #include "Configuration.h"
+#include "Function.h"
 
-class RichFunction {
+class RichFunction : public omnistream::Function {
 public:
     virtual ~RichFunction();
 

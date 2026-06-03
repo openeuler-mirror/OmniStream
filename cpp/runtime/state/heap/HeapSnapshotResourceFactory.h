@@ -102,6 +102,10 @@ private:
 
         collectKeyValueStateSnapshots(preparedData, checkpointId);
         collectPriorityQueueStateSnapshots(preparedData, checkpointId);
+        INFO_RELEASE("[OS-CP-heap-snapshot] checkpointId=" << checkpointId
+            << ", metaInfoCount=" << preparedData.metaInfoSnapshots.size()
+            << ", iteratorCount=" << preparedData.stateIterators.size()
+            << ", keyGroupPrefixBytes=" << preparedData.keyGroupPrefixBytes);
         return preparedData;
     }
 
@@ -161,6 +165,7 @@ private:
     {
         int kvStateId = 0;
         for (const auto &pair : *registeredKvStates_) {
+            // todo 可以看下是否要对VectorBatchStateTable做处理
             StateDescriptor *desc = std::get<1>(pair.second);
             uintptr_t stateTablePtr = std::get<0>(pair.second);
             auto nsBackendId = std::get<2>(pair.second);

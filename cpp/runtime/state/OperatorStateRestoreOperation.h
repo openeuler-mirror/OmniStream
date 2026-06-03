@@ -115,7 +115,8 @@ private:
     };
 
     inline static std::set<std::string> typeLongStateNames = {
-        "watermark"
+        "watermark",
+        "elements-count-state"
     };
 };
 

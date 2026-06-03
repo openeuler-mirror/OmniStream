@@ -22,8 +22,8 @@ class SinkWriterStateHandler {
 public:
     virtual ~SinkWriterStateHandler() = default;
 
-    template <typename K1, typename K2>
-    KafkaWriter* createWriter(InitContextImpl<K1>* initContext, StateInitializationContextImpl<K2>* context) {
+    template <typename K1>
+    KafkaWriter* createWriter(InitContextImpl<K1>* initContext, StateInitializationContextImpl* context) {
         return nullptr;
     }
     void snapshotState(long checkpointId) {}
@@ -59,8 +59,8 @@ public:
         delete kafkaWriter;
     }
 
-    template <typename K1, typename K2>
-    KafkaWriter* createWriter(InitContextImpl<K1>* initContext, StateInitializationContextImpl<K2>* context) {
+    template <typename K1>
+    KafkaWriter* createWriter(InitContextImpl<K1>* initContext, StateInitializationContextImpl* context) {
         INFO_RELEASE("savepoint: KafkaSinkWriterStateHandler createWriter")
         auto* operatorStateBackend = static_cast<DefaultOperatorStateBackend*>(context->getOperatorStateBackend());
         auto rawState = operatorStateBackend->getListState(&WRITER_RAW_STATES_DESC);

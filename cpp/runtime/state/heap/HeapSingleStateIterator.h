@@ -23,6 +23,7 @@
 #include "StateTable.h"
 #include "CopyOnWriteStateMap.h"
 #include "common.h"
+#include "../../../core/include/common.h"
 
 // Type traits to detect emhash7::HashMap and std::vector pointer types
 template<typename T> struct IsEmhashMapPtr : std::false_type {};
@@ -206,6 +207,11 @@ private:
         // Serialize key
         if constexpr (std::is_pointer_v<K>) {
             keySerializer->serialize(const_cast<K>(key), outputSerializer);
+        }else if constexpr (is_shared_ptr_v<K>) {
+            if (!key) {
+                THROW_LOGIC_EXCEPTION("Heap snapshot cannot serialize a null shared_ptr key")
+            }
+            namespaceSerializer->serialize(key.get(),outputSerializer);
         } else {
             K mutableKey = key;
             keySerializer->serialize(&mutableKey, outputSerializer);
@@ -214,6 +220,11 @@ private:
         // Serialize namespace
         if constexpr (std::is_pointer_v<N>) {
             namespaceSerializer->serialize(const_cast<N>(nmspace), outputSerializer);
+        }else if constexpr (is_shared_ptr_v<N>) {
+            if (!nmspace) {
+                THROW_LOGIC_EXCEPTION("Heap snapshot cannot serialize a null shared_ptr key")
+            }
+            namespaceSerializer->serialize(nmspace.get(),outputSerializer);
         } else {
             N mutableNs = nmspace;
             namespaceSerializer->serialize(&mutableNs, outputSerializer);

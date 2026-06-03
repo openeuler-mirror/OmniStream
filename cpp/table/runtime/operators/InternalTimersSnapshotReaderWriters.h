@@ -26,6 +26,7 @@
 #include "core/typeutils/LongSerializer.h"
 #include "core/typeutils/StringSerializer.h"
 #include "core/typeutils/TypeSerializer.h"
+#include "core/utils/type_traits_ext.h"
 #include "runtime/state/KeyedStateCheckpointOutputStream.h"
 #include "runtime/state/VoidNamespace.h"
 #include "runtime/state/VoidNamespaceSerializer.h"
@@ -257,6 +258,12 @@ private:
             serializer->serialize(&boxed, target);
         } else if constexpr (std::is_same_v<T, Object *>) {
             serializer->serialize(value, target);
+        } else if constexpr (is_shared_ptr_v<T>) {
+            if (value == nullptr) {
+                INFO_RELEASE("Error: writeValue Timer shared_ptr value is null.");
+                THROW_LOGIC_EXCEPTION("Timer shared_ptr value is null.")
+            }
+            serializer->serialize(value.get(), target);
         } else if constexpr (std::is_pointer_v<T>) {
             serializer->serialize(static_cast<void *>(value), target);
         } else {
@@ -313,6 +320,21 @@ private:
                 return value == nullptr ? nullptr : static_cast<T>(value->copy());
             } else {
                 return value;
+            }
+        } else if constexpr (is_shared_ptr_v<T>) {
+            if (serializer == nullptr) {
+                INFO_RELEASE("Error: readValue Cannot deserialize shared_ptr timer value without serializer.");
+                THROW_LOGIC_EXCEPTION("Cannot deserialize shared_ptr timer value without serializer.")
+            }
+            using ElementType = unwrap_shared_ptr_t<T>;
+            auto *value = static_cast<ElementType *>(serializer->deserialize(*in));
+            if (value == nullptr) {
+                return T();
+            }
+            if constexpr (std::is_base_of_v<RowData, ElementType>) {
+                return T(static_cast<ElementType *>(value->copy()));
+            } else {
+                return T(new ElementType(*value));
             }
         } else {
             if (serializer == nullptr) {

@@ -24,6 +24,7 @@
 #include "core/typeutils/ListSerializer.h"
 #include "core/api/common/state/RestoreStateDescriptor.h"
 #include "core/memory/DataInputDeserializer.h"
+#include "core/utils/key_type_traits.h"
 #include "CopyOnWriteStateTable.h"
 #include "table/data/RowData.h"
 #include "runtime/state/InternalKeyContextImpl.h"
@@ -327,6 +328,11 @@ HeapKeyedStateBackend<K> *HeapKeyedStateBackendBuilder<K>::build()
                     // }
                 }
             }
+            INFO_RELEASE("[OS-CP-heap-restore] keyGroups=" << totalKeyGroups
+                << ", entries=" << totalEntriesRestored
+                << ", priorityQueueEntries=" << totalPriorityQueueEntriesRestored
+                << ", skippedInvalidKvStateId=" << totalSkippedInvalidKvStateId
+                << ", skippedNullStateDesc=" << totalSkippedNullStateDesc);
         }
     }
 
@@ -367,6 +373,18 @@ void HeapKeyedStateBackendBuilder<K>::restoreEntryToHeap(
         // *static_cast<K*>(rawKey) 取值与 delete static_cast<K*>(rawKey) 释放都成立。
         // 对象本体由 serializer 的复用缓冲持有、put() 内部会 copy() 克隆，故不能在此 delete。
         rawKey = new K(static_cast<K>(keySerializer->deserialize(keyInput)));
+    } else if constexpr (KeyTypeTraits<K>::isSharedRowKey) {
+        using KeyBaseType = unwrap_shared_ptr_t<K>;
+        auto *keyBuffer = static_cast<KeyBaseType *>(keySerializer->deserialize(keyInput));
+        if (keyBuffer == nullptr) {
+            THROW_LOGIC_EXCEPTION("Heap keyed state restore deserialized a null shared row key")
+        }
+        // BinaryRowDataSerializer reuses its deserialize buffer. Keep an owned copy
+        // before restoring the next entry.
+        rawKey = new K(std::shared_ptr<KeyBaseType>(
+            static_cast<KeyBaseType *>(keyBuffer->copy())));
+    } else if constexpr (is_shared_ptr_v<K>) {
+        NOT_IMPL_EXCEPTION
     } else {
         rawKey = keySerializer->deserialize(keyInput);
     }

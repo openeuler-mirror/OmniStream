@@ -136,19 +136,16 @@ std::shared_ptr<SnapshotResult<KeyedStateHandle>> FullSnapshotAsyncWriter::get(
             for (const auto &digest : heapPqDigests) {
                 HeapPriorityQueueDataDigest::logSummary(digest.second);
             }
-            snapshotResources_->cleanup();
             return SnapshotResult<KeyedStateHandle>::Of(jmKeyedState);
         }
         for (const auto &digest : heapPqDigests) {
             HeapPriorityQueueDataDigest::logSummary(digest.second);
         }
-        snapshotResources_->cleanup();
         return SnapshotResult<KeyedStateHandle>::Empty();
     }catch(std::exception& e){
         if(mergeIterator) {
             mergeIterator->close();
         }
-        snapshotResources_->cleanup();
         INFO_RELEASE("Error:FullSnapshotAsyncWriter::get cp=" << checkpointId_
             << " exception: " << e.what());
         throw;

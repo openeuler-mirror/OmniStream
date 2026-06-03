@@ -56,20 +56,24 @@ public:
 
             for (auto& entry : *registeredOperatorStatesDeepCopies) {
                 std::string name = entry.first;
+                long startPos = outputStreamProxy.getPos();
+                DataOutputSerializer out;
+
                 auto state = std::dynamic_pointer_cast<PartitionableListState<std::vector<uint8_t>>>(entry.second);
                 if (state != nullptr) {
-                    if (state->getInternalList() == nullptr) {
-                    }        
-
-                    if (state->getInternalList()->size() == 0) {
-
-                    }
-                    long startPos = outputStreamProxy.getPos();
-                    DataOutputSerializer out;
                     auto offsets = state->write(startPos, out);
                     outputStreamProxy.writeBytes(out.getData(), out.length());
                     auto distributionMode = state->getStateMetaInfo()->getAssignmentMode();
                     writtenStatesMetaData.emplace(name, OperatorStateHandle::StateMetaInfo(offsets, distributionMode));
+                    continue;
+                }
+                auto lState = std::dynamic_pointer_cast<PartitionableListState<long>>(entry.second);
+                if (lState != nullptr) {
+                    auto offsets = lState->write(startPos, out);
+                    outputStreamProxy.writeBytes(out.getData(), out.length());
+                    auto distributionMode = lState->getStateMetaInfo()->getAssignmentMode();
+                    writtenStatesMetaData.emplace(name, OperatorStateHandle::StateMetaInfo(offsets, distributionMode));
+                    continue;
                 }
             }
 
@@ -89,15 +93,12 @@ public:
             auto handle = outputStreamProxy.close();
             if (handle) {
                 auto jobManagerOwnedSnapshot = handle->GetJobManagerOwnedSnapshot();
-                snapshotResources_->cleanup();
                 auto stateHandle = std::make_shared<OperatorStreamStateHandle>(writtenStatesMetaData, jobManagerOwnedSnapshot);
 
                 return SnapshotResult<OperatorStateHandle>::WithLocalState(stateHandle, nullptr);
             }
-            snapshotResources_->cleanup();
-                return SnapshotResult<OperatorStateHandle>::Empty();
+            return SnapshotResult<OperatorStateHandle>::Empty();
         } catch (const std::exception &e) {
-            snapshotResources_->cleanup();
             GErrorLog("DefaultOperatorSnapshotOperation get exception : " + std::string(e.what()));
             throw std::runtime_error("DefaultOperatorSnapshotOperation get failed.");
         }

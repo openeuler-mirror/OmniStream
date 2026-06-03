@@ -11,7 +11,6 @@
  * StateInitializationContextImpl 类整合了所有状态初始化相关的功能
  * 它合并了原来的 ManagedInitializationContext、FunctionInitializationContext 和 StateInitializationContext 接口的功能
  */
-template <typename K>
 class StateInitializationContextImpl {
 private:
     /** Signal whether any state to restore was found */
@@ -19,7 +18,7 @@ private:
     
     OperatorStateBackend *operatorStateBackend;
     
-    DefaultKeyedStateStore<K> *keyedStateStore;
+    void *keyedStateStore;
     
 public:
     /**
@@ -28,6 +27,7 @@ public:
      * @param operatorStateBackend 操作符状态后端
      * @param keyedStateStore 键控状态存储
      */
+    template <typename K>
     StateInitializationContextImpl(
         std::optional<uint64_t> restoredCheckpointId,
         OperatorStateBackend *operatorStateBackend,
@@ -67,9 +67,13 @@ public:
      * Returns an interface that allows for registering keyed state with the backend.
      * 返回一个允许向后端注册键控状态的接口。
      */
+    template <typename K>
     DefaultKeyedStateStore<K> *getKeyedStateStore() const {
-        return keyedStateStore;
-    }   
+        if (keyedStateStore != nullptr) {
+            return static_cast<DefaultKeyedStateStore<K> *>(keyedStateStore);
+        }
+        return nullptr;
+    }
 };
 
 

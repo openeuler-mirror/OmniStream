@@ -55,12 +55,11 @@ public:
     {
         INFO_RELEASE("SlicingWindowOperator initializeState with initializer, operatorID: "
             << AbstractStreamOperator<K>::GetOperatorID().toString());
-        AbstractStreamOperator<K>::SetOperatorID(
-            AbstractStreamOperator<K>::GetOperatorID().toString());
+        AbstractStreamOperator<K>::SetOperatorID(OneInputStreamOperator::GetOperatorID().toString());
         AbstractStreamOperator<K>::initializeState(initializer, keySerializer);
     };
 
-    void initializeState(StateInitializationContextImpl<K> *context) override
+    void initializeState(StateInitializationContextImpl *context) override
     {
         INFO_RELEASE("SlicingWindowOperator initializeState");
         AbstractStreamOperator<K>::initializeState(context);

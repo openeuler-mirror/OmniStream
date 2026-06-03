@@ -14,9 +14,10 @@
 
 #include <memory>
 #include "basictypes/Object.h"
+#include "Function.h"
 
 template<typename T>
-class MapFunction {
+class MapFunction : public omnistream::Function {
 public:
     virtual ~MapFunction() = default;
     virtual T* map(T *obj) = 0;
