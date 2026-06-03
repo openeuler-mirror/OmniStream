@@ -32,7 +32,8 @@ enum class BackendDataType {
     INVALID_BK,
     POJO_BK,
     SET_LONG,
-    BYTE_ARRAY_BK
+    BYTE_ARRAY_BK,
+    VECTOR_BATCH_BK
 };
 
 inline std::ostream& operator<<(std::ostream& os, const BackendDataType& type) {
@@ -52,6 +53,7 @@ inline std::ostream& operator<<(std::ostream& os, const BackendDataType& type) {
         case BackendDataType::ROW_LIST_BK: return os << "ROW_LIST_BK";
         case BackendDataType::INVALID_BK: return os << "INVALID_BK";
         case BackendDataType::POJO_BK: return os << "POJO_BK";
+        case BackendDataType::VECTOR_BATCH_BK: return os << "VECTOR_BATCH_BK";
         default: return os << "UNKNOWN_BK";
     }
 }

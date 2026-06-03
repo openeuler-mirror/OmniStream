@@ -165,6 +165,7 @@ private:
     {
         int kvStateId = 0;
         for (const auto &pair : *registeredKvStates_) {
+            // todo 可以看下是否要对VectorBatchStateTable做处理
             StateDescriptor *desc = std::get<1>(pair.second);
             uintptr_t stateTablePtr = std::get<0>(pair.second);
             auto nsBackendId = std::get<2>(pair.second);
