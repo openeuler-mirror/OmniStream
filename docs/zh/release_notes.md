@@ -12,12 +12,12 @@
 </tr>
 <tr id="row237mcpsimp"><th class="firstcol" valign="top" width="30%" id="mcps1.1.3.2.1"><p id="p239mcpsimp"><a name="p239mcpsimp"></a><a name="p239mcpsimp"></a>产品版本</p>
 </th>
-<td class="cellrowborder" valign="top" width="70%" headers="mcps1.1.3.2.1 "><p id="p241mcpsimp"><a name="p241mcpsimp"></a><a name="p241mcpsimp"></a>26.0.0</p>
+<td class="cellrowborder" valign="top" width="70%" headers="mcps1.1.3.2.1 "><p id="p241mcpsimp"><a name="p241mcpsimp"></a><a name="p241mcpsimp"></a>26.1.0</p>
 </td>
 </tr>
 <tr id="row242mcpsimp"><th class="firstcol" valign="top" width="30%" id="mcps1.1.3.3.1"><p id="p244mcpsimp"><a name="p244mcpsimp"></a><a name="p244mcpsimp"></a>软件名称和版本</p>
 </th>
-<td class="cellrowborder" valign="top" width="70%" headers="mcps1.1.3.3.1 "><p id="p138515418112"><a name="p138515418112"></a><a name="p138515418112"></a>OmniStream 1.2.0</p>
+<td class="cellrowborder" valign="top" width="70%" headers="mcps1.1.3.3.1 "><p id="p138515418112"><a name="p138515418112"></a><a name="p138515418112"></a>OmniStream 1.3.0</p>
 </td>
 </tr>
 </tbody>
@@ -146,6 +146,34 @@
 
 
 
+## V1.3.0<a name="ZH-CN_TOPIC_0000002518563132"></a>
+
+### 更新说明<a name="ZH-CN_TOPIC_0000002550202869"></a>
+
+鲲鹏BoostKit大数据OmniStream Flink Native化特性通过使用Native Code（C/C++）实现开源软件对应算子，Flink引擎的执行效率得到提升，查询性能随之增强。
+
+**新增特性<a name="section9559165534817"></a>**
+
+- Calc算子支持UDF函数注册，Calc算子支持JSON_VALUE、JSON_QUERY、COALESCE、PROCTIME_MATERIALIZE、CHAR_LENGTH、TO_TIMESTAMP_LTZ内置函数；
+- Calc算子支持INTEGER、TIMESTAMP_WITH_LOCAL_TIMEZONE(3)数据类型；
+- 在SQL场景中，支持WindowAgg、WindowJoin算子；
+
+**修改特性<a name="section299616132492"></a>**
+
+无
+
+**删除特性<a name="section6480241161013"></a>**
+
+无
+
+### 已解决的问题<a name="ZH-CN_TOPIC_0000002518723034"></a>
+
+无
+
+### 遗留问题<a name="ZH-CN_TOPIC_0000002550162875"></a>
+
+无
+
 ## V1.2.0<a name="ZH-CN_TOPIC_0000002518563132"></a>
 
 ### 更新说明<a name="ZH-CN_TOPIC_0000002550202869"></a>
@@ -266,7 +294,7 @@ DataStream
   </thead>
   <tbody>
     <tr>
-      <td style="text-align: left;">《OmniStream 1.2.0 版本说明书》</td>
+      <td style="text-align: left;">《OmniStream版本说明书》</td>
       <td style="text-align: left;">提供OmniStream的版本更新内容与发布说明</td>
       <td style="text-align: left;">开源仓</td>
     </tr>
