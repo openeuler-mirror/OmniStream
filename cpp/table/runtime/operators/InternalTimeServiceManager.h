@@ -26,6 +26,7 @@
 #include "runtime/state/bridge/OmniTaskBridge.h"
 #include "InternalTimerServiceSerializationProxy.h"
 #include "InternalTimersSnapshotReaderWriters.h"
+#include "core/utils/type_traits_ext.h"
 #include <algorithm>
 #include <cstddef>
 #include <limits>
@@ -907,6 +908,12 @@ std::vector<uint8_t> InternalTimeServiceManager<K>::serializeTimerValueForDigest
         serializer->serialize(&boxed, target);
     } else if constexpr (std::is_same_v<T, Object *>) {
         serializer->serialize(value, target);
+    } else if constexpr (is_shared_ptr_v<T>) {
+        if (value == nullptr) {
+            INFO_RELEASE("Error: serializeTimerValueForDigest Timer shared_ptr value is null.");
+            THROW_LOGIC_EXCEPTION("Timer shared_ptr value is null while building timer digest.")
+        }
+        serializer->serialize(value.get(), target);
     } else if constexpr (std::is_pointer_v<T>) {
         serializer->serialize(static_cast<void *>(value), target);
     } else {
