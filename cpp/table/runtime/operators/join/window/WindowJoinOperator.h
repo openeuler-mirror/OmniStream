@@ -840,6 +840,7 @@ bool WindowJoinOperator<KeyType>::filter(VectorBatchId leftElement, VectorBatchI
         int64_t *vals = new int64_t[totalNumOfCols];
         bool *nulls = new bool[totalNumOfCols];
         auto resultBool = new bool(false);
+        auto batches = std::vector<omnistream::VectorBatch*>(totalNumOfCols);
 
         for (auto col : colRefsForNonEquiCondition) {
             omnistream::VectorBatch* batch;
@@ -851,10 +852,8 @@ bool WindowJoinOperator<KeyType>::filter(VectorBatchId leftElement, VectorBatchI
                 batch = rightWindowState->getVectorBatch(rightBatchId);
                 vector = batch->Get(col - leftTypes.size());
             }
+            batches.push_back(batch);
             filterFuncPtrs[col](vector, static_cast<size_t>(col) < leftTypes.size() ? leftRowId : rightRowId, col, vals, nulls);
-            if (backendType_ != omnistream::StateType::HEAP) {
-                delete batch;
-            }
         }
 
         omniruntime::op::ExecutionContext context;
@@ -864,6 +863,13 @@ bool WindowJoinOperator<KeyType>::filter(VectorBatchId leftElement, VectorBatchI
         delete[] vals;
         delete[] nulls;
         delete resultBool;
+        if (backendType_ != omnistream::StateType::HEAP) {
+            // Notice: The logic of the filter seems to compare pointers directly, so the batch memory can only be deleted at the end.
+            for (auto batch_ : batches) {
+                delete batch_;
+                batch_ = nullptr;
+            }
+        }
         return result;
     } else {
         return true;
