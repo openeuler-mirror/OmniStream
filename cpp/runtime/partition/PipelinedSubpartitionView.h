@@ -16,6 +16,7 @@
 #include <memory>
 #include <atomic>
 #include <string>
+#include <mutex>
 
 #include "AvailabilityWithBacklog.h"
 #include "BufferAndBacklog.h"
@@ -51,6 +52,7 @@ namespace omnistream {
         std::shared_ptr<PipelinedSubpartition> parent;
         BufferAvailabilityListener* availabilityListener;
         std::atomic<bool> isReleased_;
+        std::mutex listenerMutex_;
     };
 
 } // namespace omnistream

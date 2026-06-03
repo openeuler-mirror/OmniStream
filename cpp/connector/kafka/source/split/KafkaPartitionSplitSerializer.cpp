@@ -11,10 +11,33 @@
 
 #include "KafkaPartitionSplitSerializer.h"
 
+#include <sstream>
+#include "common.h"
 
 int KafkaPartitionSplitSerializer::getVersion() const
 {
     return CURRENT_VERSION;
+}
+
+namespace {
+void requireAvailable(const std::vector<uint8_t>& serialized, size_t offset, size_t bytes, const std::string& field)
+{
+    if (offset > serialized.size() || bytes > serialized.size() - offset) {
+        std::ostringstream oss;
+        oss << "Corrupt KafkaPartitionSplit bytes: need " << bytes << " byte(s) for " << field
+            << " at offset " << offset << ", totalBytes=" << serialized.size();
+        throw std::runtime_error(oss.str());
+    }
+}
+
+int64_t readBigEndianLong(const std::vector<uint8_t>& serialized, size_t offset)
+{
+    uint64_t value = 0;
+    for (size_t i = 0; i < sizeof(int64_t); ++i) {
+        value = (value << KafkaPartitionSplitSerializer::ONE_BYTE_LENGTH) | serialized[offset + i];
+    }
+    return static_cast<int64_t>(value);
+}
 }
 
 std::vector<uint8_t> KafkaPartitionSplitSerializer::serialize(const KafkaPartitionSplit& split)
@@ -63,35 +86,64 @@ KafkaPartitionSplit* KafkaPartitionSplitSerializer::deserialize(int version, std
         throw std::runtime_error("Unsupported version");
     }
 
-    unsigned int start = 0;
+    size_t start = 0;
+    requireAvailable(serialized, start, sizeof(int16_t), "topic length");
     uint16_t topicSize = (serialized[start] << ONE_BYTE_LENGTH) | serialized[start + 1];
     start += sizeof(int16_t);
+    requireAvailable(serialized, start, topicSize, "topic");
     std::string topic(serialized.begin() + start,
                       serialized.begin() + start + topicSize);
 
     start += topicSize;
-    int32_t partition = (serialized[start] << THREE_BYTE_LENGTH) | (serialized[start + 1] << TWO_BYTE_LENGTH)
-        | (serialized[start + 2] << ONE_BYTE_LENGTH) | serialized[start + 3];
+    requireAvailable(serialized, start, sizeof(int32_t), "partition");
+    int32_t partition = static_cast<int32_t>(
+        (static_cast<uint32_t>(serialized[start]) << THREE_BYTE_LENGTH)
+        | (static_cast<uint32_t>(serialized[start + 1]) << TWO_BYTE_LENGTH)
+        | (static_cast<uint32_t>(serialized[start + 2]) << ONE_BYTE_LENGTH)
+        | static_cast<uint32_t>(serialized[start + 3]));
 
     start += sizeof(int32_t);
-    uint64_t startingOffset = 0;
-    for (size_t i = 0; i < sizeof(int64_t); ++i) {
-        startingOffset = (startingOffset << ONE_BYTE_LENGTH) | serialized[start + i];
-    }
+    requireAvailable(serialized, start, sizeof(int64_t), "startingOffset");
+    int64_t startingOffset = readBigEndianLong(serialized, start);
 
     start += sizeof(int64_t);
-    uint64_t stoppingOffset = 0;
-    for (size_t i = 0; i < sizeof(int64_t); ++i) {
-        stoppingOffset = (stoppingOffset << ONE_BYTE_LENGTH) | serialized[start + i];
+    requireAvailable(serialized, start, sizeof(int64_t), "stoppingOffset");
+    int64_t stoppingOffset = readBigEndianLong(serialized, start);
+
+    if (start + sizeof(int64_t) != serialized.size()) {
+        INFO_RELEASE("[OS-source-split] KafkaPartitionSplit has trailing bytes, totalBytes="
+            << serialized.size() << ", consumedBytes=" << (start + sizeof(int64_t))
+            << ", topic=" << topic << ", partition=" << partition);
     }
 
     std::shared_ptr<RdKafka::TopicPartition> topicPartition;
-    if (static_cast<int64_t>(startingOffset) == KafkaPartitionSplit::COMMITTED_OFFSET) {
+    if (startingOffset < 0) {
         topicPartition = std::shared_ptr<RdKafka::TopicPartition>(
             RdKafka::TopicPartition::create(topic, partition));
     } else {
         topicPartition = std::shared_ptr<RdKafka::TopicPartition>(
-            RdKafka::TopicPartition::create(topic, partition, static_cast<uint64_t>(startingOffset)));
+            RdKafka::TopicPartition::create(topic, partition, startingOffset));
     }
-    return new KafkaPartitionSplit(topicPartition, startingOffset, static_cast<uint64_t>(stoppingOffset));
+    if (!topicPartition) {
+        throw std::runtime_error("Failed to create Kafka TopicPartition for topic=" + topic
+            + ", partition=" + std::to_string(partition));
+    }
+
+    try {
+        auto *split = new KafkaPartitionSplit(topicPartition, startingOffset, stoppingOffset);
+        INFO_RELEASE("[OS-source-split] KafkaPartitionSplit deserialized, topic=" << topic
+            << ", partition=" << partition
+            << ", startingOffset=" << startingOffset
+            << ", stoppingOffset=" << stoppingOffset
+            << ", bytes=" << serialized.size());
+        return split;
+    } catch (const std::exception& e) {
+        INFO_RELEASE("Error:[OS-source-split] KafkaPartitionSplit invalid, topic=" << topic
+            << ", partition=" << partition
+            << ", startingOffset=" << startingOffset
+            << ", stoppingOffset=" << stoppingOffset
+            << ", bytes=" << serialized.size()
+            << ", error=" << e.what());
+        throw;
+    }
 }

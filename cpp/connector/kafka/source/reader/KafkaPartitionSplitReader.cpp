@@ -12,6 +12,17 @@
 #include "KafkaPartitionSplitReader.h"
 #include <thread>
 #include <utility>
+#include <unordered_set>
+
+namespace {
+std::string topicPartitionKey(const RdKafka::TopicPartition* tp)
+{
+    if (tp == nullptr) {
+        return "null";
+    }
+    return tp->topic() + "-" + std::to_string(tp->partition());
+}
+}
 
 KafkaPartitionSplitReader::KafkaPartitionSplitReader(
     const std::unordered_map<std::string, std::string>& props, SourceReaderContext* context)
@@ -80,16 +91,71 @@ void KafkaPartitionSplitReader::handleSplitsChanges(const std::vector<KafkaParti
     std::vector<std::shared_ptr<RdKafka::TopicPartition>> partitionsStoppingAtLatest;
     std::vector<std::shared_ptr<RdKafka::TopicPartition>> partitionsStoppingAtCommitted;
 
+    std::vector<RdKafka::TopicPartition*> currentAssignment;
+    consumer->assignment(currentAssignment);
+
+    std::unordered_set<std::string> assignmentKeys;
+    newPartitionAssignments.reserve(currentAssignment.size() + splitsChange.size());
+    for (auto* tp : currentAssignment) {
+        if (tp == nullptr) {
+            continue;
+        }
+        const std::string splitId = topicPartitionKey(tp);
+        if (assignmentKeys.insert(splitId).second) {
+            newPartitionAssignments.push_back(tp);
+        } else {
+            INFO_RELEASE("[OS-source-split] duplicate current Kafka assignment ignored, splitId=" << splitId);
+        }
+    }
+
+    size_t acceptedNewSplits = 0;
+    size_t duplicateSplits = 0;
+    size_t nullSplits = 0;
     for (const auto& s : splitsChange) {
-        newPartitionAssignments.push_back(s->getTopicPartition().get());
+        if (s == nullptr) {
+            nullSplits++;
+            INFO_RELEASE("Error:[OS-source-split] null split ignored in KafkaPartitionSplitReader");
+            continue;
+        }
+        auto tp = s->getTopicPartition();
+        if (tp == nullptr) {
+            nullSplits++;
+            INFO_RELEASE("Error:[OS-source-split] split has null topic partition, splitId=" << s->splitId());
+            continue;
+        }
+        const std::string splitId = s->splitId();
+        if (!assignmentKeys.insert(splitId).second) {
+            duplicateSplits++;
+            INFO_RELEASE("[OS-source-split] duplicate Kafka assignment ignored, splitId=" << splitId);
+            continue;
+        }
+
+        acceptedNewSplits++;
+        newPartitionAssignments.push_back(tp.get());
         parseStartingOffsets(s, partitionsStartingFromEarliest, partitionsStartingFromLatest,
             partitionsStartingFromSpecifiedOffsets);
         parseStoppingOffsets(s, partitionsStoppingAtLatest, partitionsStoppingAtCommitted);
     }
-    std::vector<RdKafka::TopicPartition*> currentAssignment;
-    consumer->assignment(currentAssignment);
-    newPartitionAssignments.insert(newPartitionAssignments.end(), currentAssignment.begin(), currentAssignment.end());
+
+    INFO_RELEASE("[OS-source-split] handleSplitsChanges prepared, requested=" << splitsChange.size()
+        << ", acceptedNew=" << acceptedNewSplits
+        << ", duplicates=" << duplicateSplits
+        << ", nulls=" << nullSplits
+        << ", currentAssignment=" << currentAssignment.size()
+        << ", assignmentAfter=" << newPartitionAssignments.size());
+
+    if (acceptedNewSplits == 0) {
+        for (auto* tp : currentAssignment) {
+            delete tp;
+        }
+        INFO_RELEASE("[OS-source-split] handleSplitsChanges no new Kafka assignment");
+        return;
+    }
+
     consumer->assign(newPartitionAssignments);
+    for (auto* tp : currentAssignment) {
+        delete tp;
+    }
 
     seekToStartingOffsets(
         partitionsStartingFromEarliest,
@@ -224,16 +290,23 @@ void KafkaPartitionSplitReader::unassignPartitions(const std::vector<RdKafka::To
     std::vector<RdKafka::TopicPartition*> currentAssignment;
     consumer->assignment(currentAssignment);
 
-    std::set<RdKafka::TopicPartition*, TopicPartitionComparator> unassignSet(
-        partitionsToUnassign.begin(), partitionsToUnassign.end());
+    std::unordered_set<std::string> unassignSet;
+    for (auto* tp : partitionsToUnassign) {
+        if (tp != nullptr) {
+            unassignSet.insert(topicPartitionKey(tp));
+        }
+    }
 
     std::vector<RdKafka::TopicPartition*> newAssignment;
     for (auto tp : currentAssignment) {
-        if (unassignSet.find(tp) == unassignSet.end()) {
+        if (tp != nullptr && unassignSet.find(topicPartitionKey(tp)) == unassignSet.end()) {
             newAssignment.push_back(tp);
         }
     }
     consumer->assign(newAssignment);
+    for (auto* tp : currentAssignment) {
+        delete tp;
+    }
 }
 
 long KafkaPartitionSplitReader::getStoppingOffset(RdKafka::TopicPartition* tp)

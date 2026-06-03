@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <memory>
+#include <stdexcept>
 
 #include <nlohmann/json.hpp>
 #include "core/include/common.h"
@@ -39,9 +40,29 @@ public:
           delegateStateHandle(delegateStateHandle_) {}
 
     explicit OperatorStreamStateHandle(const nlohmann::json &description) {
-        delegateStateHandle = StreamStateHandleFactory::from_json(description["delegateStateHandle"]);
-        const nlohmann::json &offsetsJson = description["stateNameToPartitionOffsets"];
-        for (auto &el: offsetsJson.items()) {
+        if (!description.is_object()) {
+            throw std::runtime_error("OperatorStreamStateHandle JSON must be an object.");
+        }
+        const nlohmann::json* delegateJson = FindFirstPresent(
+            description, {"delegateStateHandle", "streamStateHandle", "metaDataState"});
+        if (delegateJson == nullptr) {
+            throw std::runtime_error(
+                "OperatorStreamStateHandle JSON is missing delegateStateHandle/streamStateHandle/metaDataState.");
+        }
+        delegateStateHandle = StreamStateHandleFactory::from_json(*delegateJson);
+        if (delegateStateHandle == nullptr) {
+            throw std::runtime_error("OperatorStreamStateHandle delegate state handle is unsupported.");
+        }
+
+        const nlohmann::json* offsetsJson = FindFirstPresent(description, {"stateNameToPartitionOffsets"});
+        if (offsetsJson == nullptr) {
+            INFO_RELEASE("[OS-operator-state] OperatorStreamStateHandle has no stateNameToPartitionOffsets");
+            return;
+        }
+        if (!offsetsJson->is_object()) {
+            throw std::runtime_error("OperatorStreamStateHandle stateNameToPartitionOffsets must be an object.");
+        }
+        for (auto &el: offsetsJson->items()) {
             if (el.key() == "@class") {
                 continue;
             }
@@ -52,26 +73,44 @@ public:
     }
 
     void DiscardState() override {
+        if (delegateStateHandle == nullptr) {
+            return;
+        }
         delegateStateHandle->DiscardState();
     }
 
     long GetStateSize() const override {
+        if (delegateStateHandle == nullptr) {
+            return 0;
+        }
         return delegateStateHandle->GetStateSize();
     }
 
     PhysicalStateHandleID getStreamStateHandleID() const {
+        if (delegateStateHandle == nullptr) {
+            throw std::runtime_error("OperatorStreamStateHandle delegate state handle is null.");
+        }
         return delegateStateHandle->GetStreamStateHandleID();
     }
 
     std::shared_ptr<FSDataInputStream> OpenInputStream() const override {
+        if (delegateStateHandle == nullptr) {
+            throw std::runtime_error("OperatorStreamStateHandle delegate state handle is null.");
+        }
         return delegateStateHandle->OpenInputStream();
     }
 
     std::optional<std::vector<uint8_t>> AsBytesIfInMemory() const override {
+        if (delegateStateHandle == nullptr) {
+            return std::nullopt;
+        }
         return delegateStateHandle->AsBytesIfInMemory();
     }
 
     PhysicalStateHandleID GetStreamStateHandleID() const override {
+        if (delegateStateHandle == nullptr) {
+            throw std::runtime_error("OperatorStreamStateHandle delegate state handle is null.");
+        }
         return delegateStateHandle->GetStreamStateHandleID();
     }
 
@@ -126,8 +165,13 @@ public:
     std::string ToString() const override { 
         nlohmann::json result;
         result["stateHandleName"] ="OperatorStreamStateHandle";
-        result["streamStateHandle"] = nlohmann::json::parse(getDelegateStateHandle()->ToString());
-        result["stateHandleID"] = nlohmann::json::parse(getStreamStateHandleID().ToString());
+        if (getDelegateStateHandle() != nullptr) {
+            result["streamStateHandle"] = nlohmann::json::parse(getDelegateStateHandle()->ToString());
+            result["stateHandleID"] = nlohmann::json::parse(getStreamStateHandleID().ToString());
+        } else {
+            result["streamStateHandle"] = nullptr;
+            result["stateHandleID"] = nullptr;
+        }
         result["stateNameToPartitionOffsets"] = toJson();
         INFO_RELEASE("savepoint:  OperatorStreamStateHandle ToString "<<result.dump());
         return result.dump(); 
@@ -138,9 +182,42 @@ private:
     std::shared_ptr<StreamStateHandle> delegateStateHandle;
 
     StateMetaInfo parseStateMetaInfo(const nlohmann::json &j) {
-        auto mode = OperatorStateHandle::StrToMode(j["distributionMode"].get<std::string>());
-        auto offset = j["offsets"].get<std::vector<long>>();
-        return StateMetaInfo(offset, mode);
+        if (!j.is_object()) {
+            throw std::runtime_error("Operator state meta info JSON must be an object.");
+        }
+        if (!j.contains("distributionMode") || !j.at("distributionMode").is_string()) {
+            throw std::runtime_error("Operator state meta info is missing string field 'distributionMode'.");
+        }
+        if (!j.contains("offsets") || !j.at("offsets").is_array()) {
+            throw std::runtime_error("Operator state meta info is missing array field 'offsets'.");
+        }
+
+        auto mode = OperatorStateHandle::StrToMode(j.at("distributionMode").get<std::string>());
+        const nlohmann::json* offsetsJson = &j.at("offsets");
+        if (offsetsJson->size() == 2 && offsetsJson->at(0).is_string() && offsetsJson->at(1).is_array()) {
+            offsetsJson = &offsetsJson->at(1);
+        }
+
+        std::vector<long> offsets;
+        offsets.reserve(offsetsJson->size());
+        for (const auto& offset : *offsetsJson) {
+            if (!offset.is_number_integer()) {
+                throw std::runtime_error("Operator state meta info offset must be an integer.");
+            }
+            offsets.push_back(offset.get<long>());
+        }
+        return StateMetaInfo(offsets, mode);
+    }
+
+    static const nlohmann::json* FindFirstPresent(
+        const nlohmann::json& json, const std::vector<std::string>& fields)
+    {
+        for (const auto& field : fields) {
+            if (json.contains(field) && !json.at(field).is_null()) {
+                return &json.at(field);
+            }
+        }
+        return nullptr;
     }
 };
 

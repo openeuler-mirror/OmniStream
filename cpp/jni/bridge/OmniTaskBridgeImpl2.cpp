@@ -766,42 +766,105 @@ bool OmniTaskBridgeImpl2::CallDownloadFileToLocal(const StreamStateHandle &cppHa
     return jResult == JNI_TRUE;
 }
 
-std::vector<StateMetaInfoSnapshot> convertResult(const std::string& cppResult)
+TypeInformation* CreateTypeInfoIfValid(
+    const nlohmann::json& serializerJson,
+    const std::string& stateName,
+    const std::string& serializerKey,
+    bool tolerateUnsupportedSerializer)
+{
+    if (!serializerJson.is_object() ||
+        !serializerJson.contains("serializerName") ||
+        !serializerJson.at("serializerName").is_string()) {
+        std::string error = "serializer json is incomplete, state=" + stateName +
+            ", serializerKey=" + serializerKey;
+        INFO_RELEASE((tolerateUnsupportedSerializer
+            ? "[OS-operator-state] skip unsupported "
+            : "Error:[OS-operator-state] ") << error);
+        if (!tolerateUnsupportedSerializer) {
+            throw std::runtime_error(error);
+        }
+        return nullptr;
+    }
+    try {
+        return TypeInfoFactory::createDataStreamTypeInfo(serializerJson);
+    } catch (const std::exception& e) {
+        INFO_RELEASE((tolerateUnsupportedSerializer
+            ? "[OS-operator-state] skip unsupported "
+            : "Error:[OS-operator-state] ") << "serializer json is unsupported, state="
+            << stateName << ", serializerKey=" << serializerKey << ", error=" << e.what());
+        if (!tolerateUnsupportedSerializer) {
+            throw;
+        }
+        return nullptr;
+    }
+}
+
+std::vector<StateMetaInfoSnapshot> convertResult(const std::string& cppResult, bool tolerateUnsupportedSerializer)
 {
     // reconstruct std::vector<StateMetaInfoSnapshot>
     std::vector<StateMetaInfoSnapshot> toReturn;
     nlohmann::json parsed = nlohmann::json::parse(cppResult);
+    if (!parsed.is_array()) {
+        throw std::runtime_error("snapshot json result must be an array.");
+    }
     for (const auto& oneSnapshot : parsed) {
         std::unordered_map<std::string, std::string> tmpOptions;
         if (!oneSnapshot.contains("backendStateType") ||
-            !oneSnapshot["backendStateType"].is_string() ||
+            !oneSnapshot.at("backendStateType").is_string() ||
             !oneSnapshot.contains("name") ||
-            !oneSnapshot["name"].is_string() ||
-            !oneSnapshot.contains("optionsImmutable")) {
+            !oneSnapshot.at("name").is_string() ||
+            !oneSnapshot.contains("optionsImmutable") ||
+            !oneSnapshot.at("optionsImmutable").is_object()) {
             throw std::runtime_error("snapshot json format invalid.");
         }
-        for (const auto& [key, value] : oneSnapshot["optionsImmutable"].items()) {
-            tmpOptions[key] = value.get<std::string>();
+        for (const auto& [key, value] : oneSnapshot.at("optionsImmutable").items()) {
+            if (value.is_string()) {
+                tmpOptions[key] = value.get<std::string>();
+            }
         }
         std::unordered_map<std::string, TypeSerializer *> tmpSerializers;
-        if(oneSnapshot.contains("serializer")){
-            auto serializers = oneSnapshot["serializer"];
-            if(serializers.contains("namespaceSerializer")){
-                auto namespaceSerializer = TypeInfoFactory::createDataStreamTypeInfo(serializers["namespaceSerializer"]);
+        const std::string stateName = oneSnapshot.at("name").get<std::string>();
+        if (oneSnapshot.contains("serializer") && oneSnapshot.at("serializer").is_object()) {
+            const auto& serializers = oneSnapshot.at("serializer");
+            if (serializers.contains("namespaceSerializer") && serializers.at("namespaceSerializer").is_object()) {
+                auto namespaceSerializer = CreateTypeInfoIfValid(
+                    serializers.at("namespaceSerializer"), stateName, "namespaceSerializer", tolerateUnsupportedSerializer);
                 if(namespaceSerializer != nullptr){
                     tmpSerializers.emplace("NAMESPACE_SERIALIZER", namespaceSerializer->getTypeSerializer());
                 }
+            } else if (serializers.contains("namespaceSerializer")) {
+                std::string error = "namespaceSerializer json is invalid, state=" + stateName;
+                INFO_RELEASE((tolerateUnsupportedSerializer
+                    ? "[OS-operator-state] skip unsupported "
+                    : "Error:[OS-operator-state] ") << error);
+                if (!tolerateUnsupportedSerializer) {
+                    throw std::runtime_error(error);
+                }
             }
-            if(serializers.contains("stateSerializer")){
-                auto stateSerializer = TypeInfoFactory::createDataStreamTypeInfo(serializers["stateSerializer"]);
+            if (serializers.contains("stateSerializer") && serializers.at("stateSerializer").is_object()) {
+                auto stateSerializer = CreateTypeInfoIfValid(
+                    serializers.at("stateSerializer"), stateName, "stateSerializer", tolerateUnsupportedSerializer);
                 if(stateSerializer != nullptr){
                     tmpSerializers.emplace("VALUE_SERIALIZER", stateSerializer->getTypeSerializer());
                 }
+            } else if (serializers.contains("stateSerializer")) {
+                std::string error = "stateSerializer json is invalid, state=" + stateName;
+                INFO_RELEASE((tolerateUnsupportedSerializer
+                    ? "[OS-operator-state] skip unsupported "
+                    : "Error:[OS-operator-state] ") << error);
+                if (!tolerateUnsupportedSerializer) {
+                    throw std::runtime_error(error);
+                }
             }
+        } else {
+            INFO_RELEASE((tolerateUnsupportedSerializer
+                ? "[OS-operator-state] skip unsupported "
+                : "Error:[OS-operator-state] ") << "serializer json is missing, state="
+                << stateName);
         }
         // Currently we don't take snapshot of serializers
         StateMetaInfoSnapshot::BackendStateType bst;
-        auto backendStateTypeStr = oneSnapshot["backendStateType"].get<std::string>();
+        auto backendStateTypeStr = oneSnapshot.at("backendStateType").get<std::string>();
         if (backendStateTypeStr == "KEY_VALUE") {
             bst = StateMetaInfoSnapshot::BackendStateType::KEY_VALUE;
         } else if (backendStateTypeStr == "PRIORITY_QUEUE") {
@@ -814,8 +877,10 @@ std::vector<StateMetaInfoSnapshot> convertResult(const std::string& cppResult)
         } else {
             throw std::runtime_error("Unknown BackendStateType.");
         }
-        toReturn.push_back(StateMetaInfoSnapshot(oneSnapshot["name"].get<std::string>(), bst, tmpOptions, {}, tmpSerializers));
+        toReturn.push_back(StateMetaInfoSnapshot(
+            stateName, bst, tmpOptions, {}, tmpSerializers));
     }
+    INFO_RELEASE("[OS-operator-state] read metadata convert result, snapshotCount=" << toReturn.size());
     return toReturn;
 }
 
@@ -857,7 +922,7 @@ std::vector<StateMetaInfoSnapshot> OmniTaskBridgeImpl2::readMetaData(const std::
         std::string cppResult(strChars);
         env->ReleaseStringUTFChars(result, strChars);
         g_OmniStreamJVM->DetachCurrentThread();
-        return convertResult(cppResult);
+        return convertResult(cppResult, false);
     } else {
         GErrorLog("Error: Could not get TaskStateManagerWrapper class for JNI call");
         return {};
@@ -898,17 +963,44 @@ std::vector<StateMetaInfoSnapshot> OmniTaskBridgeImpl2::readOperatorMetaData(con
             env->ExceptionDescribe(); // Print exception details to stderr
             env->ExceptionClear();    // Clear the exception
             INFO_RELEASE("Error: Could not call readOperatorMetaData method for JNI call");
+            env->DeleteLocalRef(msHandle);
+            env->DeleteLocalRef(omniTaskWrapperClass);
+            g_OmniStreamJVM->DetachCurrentThread();
+            return {};
+        }
+        if (result == nullptr) {
+            INFO_RELEASE("Error:[OS-operator-state] readOperatorMetaData returned null");
+            env->DeleteLocalRef(msHandle);
+            env->DeleteLocalRef(omniTaskWrapperClass);
+            g_OmniStreamJVM->DetachCurrentThread();
             return {};
         }
 
         // Convert jstring to std::string
         const char* strChars = env->GetStringUTFChars(result, nullptr);
+        if (strChars == nullptr) {
+            if (env->ExceptionCheck()) {
+                env->ExceptionDescribe();
+                env->ExceptionClear();
+            }
+            INFO_RELEASE("Error:[OS-operator-state] readOperatorMetaData failed to copy result string");
+            env->DeleteLocalRef(result);
+            env->DeleteLocalRef(msHandle);
+            env->DeleteLocalRef(omniTaskWrapperClass);
+            g_OmniStreamJVM->DetachCurrentThread();
+            return {};
+        }
         std::string cppResult(strChars);
         env->ReleaseStringUTFChars(result, strChars);
+        INFO_RELEASE("[OS-operator-state] readOperatorMetaData JNI done, resultBytes=" << cppResult.size());
+        env->DeleteLocalRef(result);
+        env->DeleteLocalRef(msHandle);
+        env->DeleteLocalRef(omniTaskWrapperClass);
         g_OmniStreamJVM->DetachCurrentThread();
-        return convertResult(cppResult);
+        return convertResult(cppResult, true);
     } else {
         INFO_RELEASE("Error: Could not get TaskStateManagerWrapper class for JNI call");
+        g_OmniStreamJVM->DetachCurrentThread();
         return {};
     }
 }

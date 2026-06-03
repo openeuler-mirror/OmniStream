@@ -22,6 +22,7 @@
 #include "SplitContext.h"
 #include "connector/kafka/source/split/KafkaPartitionSplitState.h"
 #include "connector/kafka/bind_core_manager.h"
+#include "core/include/common.h"
 
 template <typename E, typename SplitT, typename SplitStateT>
 class SourceReaderBase : public SourceReader<SplitT> {
@@ -144,14 +145,54 @@ public:
     // 添加拆分
     void addSplits(std::vector<SplitT*>& splits) override
     {
-        LOG("Adding split(s) to reader");
-        // Initialize the state for each split.
-        for (const auto& s : splits) {
-            const std::string &splitId = s->splitId();
-            splitStates[splitId] = new SplitContext(splitId, initializedState(s));
+        if (splitFetcherManager == nullptr) {
+            THROW_RUNTIME_ERROR("SourceReaderBase addSplits called with null splitFetcherManager.");
         }
-        // Hand over the splits to the split fetcher to start fetch.
-        splitFetcherManager->addSplits(splits);
+
+        INFO_RELEASE("[OS-source-reader] addSplits begin, reader=" << reinterpret_cast<uintptr_t>(this)
+            << ", requested=" << splits.size()
+            << ", statesBefore=" << splitStates.size()
+            << ", fetcherManager=" << reinterpret_cast<uintptr_t>(splitFetcherManager));
+
+        std::vector<SplitT*> splitsToAdd;
+        splitsToAdd.reserve(splits.size());
+        size_t duplicateCount = 0;
+        size_t nullCount = 0;
+
+        // Initialize the state for each new split.
+        for (const auto& s : splits) {
+            if (s == nullptr) {
+                nullCount++;
+                INFO_RELEASE("Error:[OS-source-reader] null split ignored");
+                continue;
+            }
+
+            const std::string splitId = s->splitId();
+            if (splitStates.find(splitId) != splitStates.end()) {
+                duplicateCount++;
+                INFO_RELEASE("[OS-source-reader] duplicate split ignored, splitId=" << splitId
+                    << ", states=" << splitStates.size());
+                continue;
+            }
+
+            splitStates.emplace(splitId, new SplitContext(splitId, initializedState(s)));
+            splitsToAdd.push_back(s);
+        }
+
+        INFO_RELEASE("[OS-source-reader] addSplits prepared, accepted=" << splitsToAdd.size()
+            << ", duplicates=" << duplicateCount
+            << ", nulls=" << nullCount
+            << ", statesAfter=" << splitStates.size());
+
+        // Hand over only new splits to the split fetcher to start fetch.
+        if (!splitsToAdd.empty()) {
+            splitFetcherManager->addSplits(splitsToAdd);
+        } else {
+            INFO_RELEASE("[OS-source-reader] addSplits no new split to fetch");
+        }
+
+        INFO_RELEASE("[OS-source-reader] addSplits end, accepted=" << splitsToAdd.size()
+            << ", statesAfter=" << splitStates.size());
     }
 
     // 通知没有更多拆分

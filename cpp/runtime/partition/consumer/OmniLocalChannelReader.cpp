@@ -23,6 +23,13 @@ namespace omnistream {
     { }
 
     OmniLocalChannelReader::~OmniLocalChannelReader() {
+        INFO_RELEASE("[OS-partition-finish] destroy OmniLocalChannelReader, reader="
+            << reinterpret_cast<uintptr_t>(this)
+            << ", hasView=" << (subpartitionView != nullptr));
+        if (subpartitionView) {
+            subpartitionView->releaseAllResources();
+            subpartitionView.reset();
+        }
         INFO_RELEASE("When OmniLocalChannelReader is destroyed, "
             "there are still " + std::to_string(pendingRecyclingBufferMap.size()) + " network buffers not recycled");
         for (auto it = pendingRecyclingBufferMap.begin(); it != pendingRecyclingBufferMap.end();) {

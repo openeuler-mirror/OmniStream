@@ -88,6 +88,18 @@ namespace omnistream::datastream {
             auto currentValue = reinterpret_cast<Object *>(values->value()); // currentValue already do getRefCount() in inner, so it need putRefCount later
             if (currentValue != nullptr) {
                 Object *out = this->userFunction->reduce(currentValue, input);
+                const bool outputAliasesInput = out != nullptr && out == input;
+                const bool outputAliasesCurrentValue = out != nullptr && out == currentValue;
+                if (outputAliasesInput || outputAliasesCurrentValue) {
+                    out->getRefCount();
+                    if (!outputAliasRetainLogged_) {
+                        INFO_RELEASE("[OS-object-lifetime] StreamGroupedReduceOperator retained output alias, operatorID="
+                            << OneInputStreamOperator::GetOperatorID().toString()
+                            << ", aliasesInput=" << outputAliasesInput
+                            << ", aliasesCurrentValue=" << outputAliasesCurrentValue);
+                        outputAliasRetainLogged_ = true;
+                    }
+                }
                 record->setValue(out);
                 currentValue->putRefCount();
                 values->update(out); // out already do getRefCount() in inner
@@ -178,6 +190,7 @@ namespace omnistream::datastream {
         KeySelect<K>* keySelector = nullptr;
         int32_t coreId = -1;
         bool binded = false;
+        bool outputAliasRetainLogged_ = false;
     };
 }
 

@@ -236,6 +236,19 @@ namespace omnistream {
         LOG("requestObjectSegment loop will running")
         LOG_PART(" Back Pressure possible happens, current segment in pool is " << availableSegments.size())
         while (!(segment = requestObjectSegment(targetChannel))) {
+            {
+                std::lock_guard<std::recursive_mutex> lock(availableSegmentsLock);
+                if (cancelled_) {
+                    INFO_RELEASE("[OS-buffer] stop waiting object segment because pool is cancelled, targetChannel="
+                        << targetChannel << ", pool=" << toString())
+                    throw std::runtime_error("Buffer pool request was cancelled.");
+                }
+                if (isDestroyed_) {
+                    INFO_RELEASE("[OS-buffer] stop waiting object segment because pool is destroyed, targetChannel="
+                        << targetChannel << ", pool=" << toString())
+                    throw std::runtime_error("Buffer pool is destroyed.");
+                }
+            }
             LOG_PART(
                 " Back Pressure happens, current segment in pool is " << availableSegments.size() <<
                 "for channel "<< targetChannel)

@@ -18,6 +18,7 @@
 #include <queue>
 #include <map>
 #include "SplitFetcherManager.h"
+#include "core/include/common.h"
 
 template <typename E, typename SplitT>
 class SingleThreadFetcherManager : public SplitFetcherManager<E, SplitT> {
@@ -29,15 +30,30 @@ public:
 
     void addSplits(std::vector<SplitT*>& splitsToAdd) override
     {
+        INFO_RELEASE("[OS-source-fetcher] manager addSplits begin, manager="
+            << reinterpret_cast<uintptr_t>(this)
+            << ", splits=" << splitsToAdd.size()
+            << ", aliveFetchers=" << this->getNumAliveFetchers());
         auto fetcher = getRunningFetcher();
         if (fetcher == nullptr) {
             fetcher = this->createSplitFetcher();
+            INFO_RELEASE("[OS-source-fetcher] created fetcher, manager="
+                << reinterpret_cast<uintptr_t>(this)
+                << ", fetcher=" << reinterpret_cast<uintptr_t>(fetcher)
+                << ", splits=" << splitsToAdd.size());
             // Add the splits to the fetchers.
             fetcher->addSplits(splitsToAdd);
             this->startFetcher(fetcher);
         } else {
+            INFO_RELEASE("[OS-source-fetcher] reuse fetcher, manager="
+                << reinterpret_cast<uintptr_t>(this)
+                << ", fetcher=" << reinterpret_cast<uintptr_t>(fetcher)
+                << ", splits=" << splitsToAdd.size());
             fetcher->addSplits(splitsToAdd);
         }
+        INFO_RELEASE("[OS-source-fetcher] manager addSplits end, manager="
+            << reinterpret_cast<uintptr_t>(this)
+            << ", splits=" << splitsToAdd.size());
     }
 protected:
     SplitFetcher<E, SplitT>* getRunningFetcher()

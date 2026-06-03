@@ -15,6 +15,7 @@
 #include "SplitFetcherTask.h"
 #include <unordered_map>
 #include "connector/kafka/source/reader/SplitReader.h"
+#include "core/include/common.h"
 
 template <typename E, typename SplitT>
 class AddSplitsTask : public SplitFetcherTask {
@@ -32,11 +33,36 @@ public:
 
     bool Run() override
     {
+        INFO_RELEASE("[OS-source-fetcher] AddSplitsTask run begin, requested=" << splitsToAdd.size()
+            << ", assignedBefore=" << assignedSplits.size());
+        std::vector<SplitT*> acceptedSplits;
+        acceptedSplits.reserve(splitsToAdd.size());
+        size_t duplicateCount = 0;
+        size_t nullCount = 0;
         for (auto& s : splitsToAdd) {
-            // std::cout << "AddSplitsTask splitId:" << s->splitId() << std::endl;
-            assignedSplits.emplace(s->splitId(), s);
+            if (s == nullptr) {
+                nullCount++;
+                INFO_RELEASE("Error:[OS-source-fetcher] null split ignored in AddSplitsTask");
+                continue;
+            }
+            const std::string splitId = s->splitId();
+            if (assignedSplits.find(splitId) != assignedSplits.end()) {
+                duplicateCount++;
+                INFO_RELEASE("[OS-source-fetcher] duplicate assigned split ignored, splitId=" << splitId);
+                continue;
+            }
+            assignedSplits.emplace(splitId, s);
+            acceptedSplits.push_back(s);
         }
-        splitReader->handleSplitsChanges(splitsToAdd);
+        INFO_RELEASE("[OS-source-fetcher] AddSplitsTask prepared, accepted=" << acceptedSplits.size()
+            << ", duplicates=" << duplicateCount
+            << ", nulls=" << nullCount
+            << ", assignedAfter=" << assignedSplits.size());
+        if (!acceptedSplits.empty()) {
+            splitReader->handleSplitsChanges(acceptedSplits);
+        }
+        INFO_RELEASE("[OS-source-fetcher] AddSplitsTask run end, accepted=" << acceptedSplits.size()
+            << ", assignedAfter=" << assignedSplits.size());
         return true;
     }
 

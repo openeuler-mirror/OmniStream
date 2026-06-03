@@ -53,7 +53,8 @@ namespace omnistream::datastream {
     NetworkBuffer *MemoryBufferConsumer::buildNetworkBuffer()
     {
         LOG_TRACE("Starting Build...")
-        NetworkBuffer* networkBuffer = reinterpret_cast<NetworkBuffer*>(buffer);
+        NetworkBuffer* networkBuffer = reinterpret_cast<NetworkBuffer*>(
+            requireBuffer("MemoryBufferConsumer::buildNetworkBuffer"));
         writerPosition->update();
         int cachedWriterPosition = writerPosition->getCached();
         LOG("ObjectBufferConsumer::build() before get slice")

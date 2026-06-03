@@ -296,13 +296,12 @@ OmniStreamTask::OmniStreamTask(std::shared_ptr<RuntimeEnvironmentV2> &env,
     void OmniStreamTask::cleanup()
     {
         LOG_INFO_IMP("Stream Task Clean up")
-        // clean up operator chain and record writer
-        releaseOutputResource();
-
         if (operatorChain != nullptr && !closedOperators_) {
             closedOperators_ = true;
             operatorChain->CloseAllOperators();
         }
+        // clean up operator chain and record writer
+        releaseOutputResource();
     }
 
     void OmniStreamTask::releaseOutputResource()
@@ -546,7 +545,35 @@ void OmniStreamTask::processInput(MailboxDefaultAction::Controller *controller)
 
     void OmniStreamTask::dispatchOperatorEvent(const std::string& operatorIdString, const std::string& eventString)
     {
-        operatorChain->DispatchOperatorEvent(operatorIdString, eventString);
+        auto mailboxRunnable = std::make_shared<VoidFunctionRunnable>(
+            [this, operatorIdString, eventString]() {
+                INFO_RELEASE("[OS-operator-event] run mailbox dispatch, operatorId="
+                    << operatorIdString << ", eventBytes=" << eventString.size());
+                try {
+                    operatorChain->DispatchOperatorEvent(operatorIdString, eventString);
+                } catch (const std::exception& e) {
+                    isRunning = false;
+                    INFO_RELEASE("Error:[OS-operator-event] mailbox dispatch failed, operatorId="
+                        << operatorIdString << ", eventBytes=" << eventString.size()
+                        << ", error=" << e.what());
+                    mailboxProcessor_->suspend();
+                } catch (...) {
+                    isRunning = false;
+                    INFO_RELEASE("Error:[OS-operator-event] mailbox dispatch failed, operatorId="
+                        << operatorIdString << ", eventBytes=" << eventString.size()
+                        << ", error=unknown");
+                    mailboxProcessor_->suspend();
+                }
+            }
+        );
+        try {
+            INFO_RELEASE("[OS-operator-event] enqueue mailbox dispatch, operatorId="
+                << operatorIdString << ", eventBytes=" << eventString.size());
+            mainMailboxExecutor_->execute(mailboxRunnable, "dispatchOperatorEvent");
+        } catch (const std::exception& e) {
+            INFO_RELEASE("[OS-operator-event] dropped, mailbox not running, operatorId="
+                << operatorIdString << ", error=" << e.what());
+        }
     }
 
     std::shared_ptr<CheckpointStorage> OmniStreamTask::createCheckpointStorage(StateBackend* backend)

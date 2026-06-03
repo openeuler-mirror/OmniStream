@@ -11,7 +11,18 @@
 
 #include "BufferConsumer.h"
 
+#include <cstdint>
+
 namespace omnistream {
+    Buffer* BufferConsumer::requireBuffer(const char* method) const
+    {
+        if (buffer == nullptr) {
+            INFO_RELEASE("Error:[OS-buffer] BufferConsumer access after close, method=" << method
+                << ", consumer=" << reinterpret_cast<uintptr_t>(this));
+            throw std::runtime_error("BufferConsumer access after close");
+        }
+        return buffer;
+    }
 
     bool BufferConsumer::isFinished() const
     {
@@ -47,39 +58,43 @@ namespace omnistream {
 
     int BufferConsumer::getBufferType()
     {
-        return buffer->GetBufferType();
+        return requireBuffer("getBufferType")->GetBufferType();
     }
 
     int BufferConsumer::getBufferSize() const
     {
-        return buffer->GetMaxCapacity();
+        return requireBuffer("getBufferSize")->GetMaxCapacity();
     }
 
     bool BufferConsumer::isRecycled() const
     {
-        return buffer->IsRecycled();
+        return buffer == nullptr || buffer->IsRecycled();
     }
 
     void BufferConsumer::close()
     {
+        if (buffer == nullptr) {
+            return;
+        }
         if (!buffer->IsRecycled()) {
             buffer->RecycleBuffer();
         }
+        buffer = nullptr;
     }
 
     bool BufferConsumer::isBuffer() const
     {
-        return buffer->isBuffer();
+        return requireBuffer("isBuffer")->isBuffer();
     }
 
     ObjectBufferDataType BufferConsumer::getDataType() const
     {
-        return buffer->GetDataType();
+        return requireBuffer("getDataType")->GetDataType();
     }
 
     void BufferConsumer::SetDataType(const ObjectBufferDataType& dataType)
     {
-        buffer->SetDataType(dataType);
+        requireBuffer("SetDataType")->SetDataType(dataType);
     }
 
 }

@@ -15,6 +15,7 @@
 #include <set>
 #include <vector>
 #include <string>
+#include <sstream>
 #include <nlohmann/json.hpp>
 #include "PartitionableListState.h"
 #include "RegisteredBroadcastStateBackendMetaInfo.h"
@@ -42,21 +43,56 @@ public:
     void restore() 
     {
         if (stateHandles_.empty()) {
+            INFO_RELEASE("[OS-operator-state] restore skipped, handleCount=0");
             return;
         }
+        INFO_RELEASE("[OS-operator-state] restore start, handleCount=" << stateHandles_.size());
         for (auto& stateHandle : stateHandles_) {
+            if (stateHandle == nullptr) {
+                INFO_RELEASE("Error:[OS-operator-state] skip null operator state handle");
+                continue;
+            }
             auto streamStateHandle = std::dynamic_pointer_cast<OperatorStreamStateHandle>(stateHandle);
             if (streamStateHandle) {
+                auto stateNameToPartitionOffsets = stateHandle->getStateNameToPartitionOffsets();
+                auto delegate = stateHandle->getDelegateStateHandle();
+                INFO_RELEASE("[OS-operator-state] restore handle, stateCount="
+                    << stateNameToPartitionOffsets.size()
+                    << ", states=" << StateNamesToString(stateNameToPartitionOffsets)
+                    << ", delegateType=" << DelegateType(delegate)
+                    << ", delegateSize=" << (delegate ? delegate->GetStateSize() : -1));
                 auto json = TaskStateSnapshotSerializer::parseOperatorStreamStateHandle(streamStateHandle);
-                auto stateMetaInfoSnapshots = omniTaskBridge_->readOperatorMetaData(to_string(json));
+                std::string handleJson = to_string(json);
+                INFO_RELEASE("[OS-operator-state] read metadata begin, handleJsonBytes=" << handleJson.size());
+                auto stateMetaInfoSnapshots = omniTaskBridge_->readOperatorMetaData(handleJson);
+                INFO_RELEASE("[OS-operator-state] read metadata done, snapshotCount=" << stateMetaInfoSnapshots.size());
+                if (stateMetaInfoSnapshots.empty() && !stateNameToPartitionOffsets.empty()) {
+                    INFO_RELEASE("Error:[OS-operator-state] operator metadata is empty, states="
+                        << StateNamesToString(stateNameToPartitionOffsets));
+                }
                 
                 for (auto& snapshot : stateMetaInfoSnapshots) {
+                    const std::string& stateName = snapshot.getName();
+                    if (stateNameToPartitionOffsets.find(stateName) == stateNameToPartitionOffsets.end()) {
+                        continue;
+                    }
+                    if (!isSupportedRestoredState(stateName)) {
+                        INFO_RELEASE("[OS-operator-state] skip unsupported restored operator state, state="
+                            << stateName << ", offsets="
+                            << stateNameToPartitionOffsets[stateName].getOffsets().size());
+                        continue;
+                    }
                     auto metaInfo = std::make_shared<RegisteredOperatorStateBackendMetaInfo>(snapshot);
-                    auto delegate = std::dynamic_pointer_cast<ByteStreamStateHandle>(stateHandle->getDelegateStateHandle());
-                    if (delegate != nullptr) {
-                        deserializeOperatorStateValues(metaInfo, delegate, stateHandle->getStateNameToPartitionOffsets());
+                    auto byteDelegate = std::dynamic_pointer_cast<ByteStreamStateHandle>(delegate);
+                    if (byteDelegate != nullptr) {
+                        deserializeOperatorStateValues(metaInfo, byteDelegate, stateNameToPartitionOffsets);
+                    } else {
+                        INFO_RELEASE("[OS-operator-state] skip value restore for non-memory delegate, state="
+                            << metaInfo->getName() << ", delegateType=" << DelegateType(delegate));
                     }
                 }
+            } else {
+                INFO_RELEASE("Error:[OS-operator-state] unsupported operator state handle type");
             }
         }
     }
@@ -69,7 +105,8 @@ public:
         DataInputDeserializer in(stateHandle->GetData().data(), stateHandle->GetStateSize(), 0);
         TypeSerializer *serializer = metaInfo->getStateSerializer();
         if (serializer == nullptr) {
-            GErrorLog("OperatorStateRestoreOperation gets no serializer");
+            INFO_RELEASE("Error:[OS-operator-state] restored operator state has no serializer, state="
+                << metaInfo->getName());
             return;
         }
         for (auto& entry : stateNameToPartitionOffsets) {
@@ -107,6 +144,47 @@ private:
     std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> registeredBroadcastStates_;
     std::vector<std::shared_ptr<OperatorStateHandle>> stateHandles_;
     std::shared_ptr<OmniTaskBridge> omniTaskBridge_;
+
+    static std::string StateNamesToString(
+        const std::unordered_map<std::string, OperatorStateHandle::StateMetaInfo>& stateNameToPartitionOffsets)
+    {
+        std::ostringstream oss;
+        bool first = true;
+        for (const auto& entry : stateNameToPartitionOffsets) {
+            if (!first) {
+                oss << ",";
+            }
+            first = false;
+            oss << entry.first << ":" << entry.second.getOffsets().size();
+        }
+        return oss.str();
+    }
+
+    static std::string DelegateType(const std::shared_ptr<StreamStateHandle>& delegate)
+    {
+        if (delegate == nullptr) {
+            return "null";
+        }
+        if (std::dynamic_pointer_cast<ByteStreamStateHandle>(delegate)) {
+            return "ByteStreamStateHandle";
+        }
+        if (std::dynamic_pointer_cast<RelativeFileStateHandle>(delegate)) {
+            return "RelativeFileStateHandle";
+        }
+        if (std::dynamic_pointer_cast<FileStateHandle>(delegate)) {
+            return "FileStateHandle";
+        }
+        if (std::dynamic_pointer_cast<PlaceholderStreamStateHandle>(delegate)) {
+            return "PlaceholderStreamStateHandle";
+        }
+        return "unknown";
+    }
+
+    static bool isSupportedRestoredState(const std::string& stateName)
+    {
+        return typeByteStateNames.find(stateName) != typeByteStateNames.end()
+            || typeLongStateNames.find(stateName) != typeLongStateNames.end();
+    }
 
     inline static std::set<std::string> typeByteStateNames = {
         "SourceReaderState",

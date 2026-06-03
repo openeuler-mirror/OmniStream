@@ -13,10 +13,12 @@
 
 #include <chrono>
 #include <atomic>
+#include <exception>
 #include "TimerService.h"
 #include "core/utils/threads/CompletableFuture.h"
 #include "ScheduledTaskExecutor.h"
 #include "ProcessingTimeServiceUtil.h"
+#include "common.h"
 
 class SystemProcessingTimeService : public omnistream::runtime::TimerService {
 public:
@@ -88,8 +90,12 @@ private:
 
             try {
                 callback->OnProcessingTime(nextTimestamp);
+            } catch (const std::exception& e) {
+                INFO_RELEASE("Error:[OS-timer] processing timer callback failed, timestamp="
+                    << nextTimestamp << ", error=" << e.what());
             } catch (...) {
-                //  handle exception
+                INFO_RELEASE("Error:[OS-timer] processing timer callback failed, timestamp="
+                    << nextTimestamp << ", error=unknown");
             }
 
             nextTimestamp += period;

@@ -216,7 +216,13 @@ namespace omnistream {
 
     void BufferWritingResultPartition::cancel()
     {
-        bufferPool->cancel();
+        INFO_RELEASE("[OS-buffer] cancel result partition, task=" << getOwningTaskName()
+            << ", partition=" << getPartitionIndex()
+            << ", released=" << isReleased()
+            << ", finished=" << isFinished())
+        if (bufferPool != nullptr) {
+            bufferPool->cancel();
+        }
     }
 
     void BufferWritingResultPartition::close()
@@ -411,6 +417,16 @@ namespace omnistream {
     BufferBuilder *BufferWritingResultPartition::requestNewBufferBuilderFromPool(
         int targetSubpartition)
     {
+        if (isReleased()) {
+            INFO_RELEASE("Error:[OS-buffer] request buffer from released partition, task=" << getOwningTaskName()
+                << ", targetSubpartition=" << targetSubpartition)
+            throw std::runtime_error("Partition is released.");
+        }
+        if (bufferPool == nullptr) {
+            INFO_RELEASE("Error:[OS-buffer] request buffer without bufferPool, task=" << getOwningTaskName()
+                << ", targetSubpartition=" << targetSubpartition)
+            throw std::runtime_error("Result partition buffer pool is null.");
+        }
         LOG("bufferPool->requestObjectBufferBuilder will running")
         BufferBuilder *bufferBuilder = bufferPool->requestBufferBuilder(targetSubpartition);
         if (bufferBuilder) {
@@ -422,7 +438,12 @@ namespace omnistream {
             bufferBuilder = bufferPool->requestBufferBuilderBlocking(targetSubpartition);
             return bufferBuilder;
         } catch (const std::exception &e) {
-            throw std::runtime_error("Interrupted while waiting for buffer");
+            INFO_RELEASE("Error:[OS-buffer] interrupted while waiting for buffer, task=" << getOwningTaskName()
+                << ", targetSubpartition=" << targetSubpartition
+                << ", released=" << isReleased()
+                << ", finished=" << isFinished()
+                << ", cause=" << e.what())
+            throw std::runtime_error(std::string("Interrupted while waiting for buffer: ") + e.what());
         }
     }
 

@@ -11,6 +11,7 @@
 
 #include "ProgressiveTimestampsAndWatermarks.h"
 #include "WatermarkToDataOutput.h"
+#include "common.h"
 
 
 ProgressiveTimestampsAndWatermarks::ProgressiveTimestampsAndWatermarks(TimestampAssigner* timestampAssigner,
@@ -22,6 +23,13 @@ ProgressiveTimestampsAndWatermarks::ProgressiveTimestampsAndWatermarks(Timestamp
 
 void ProgressiveTimestampsAndWatermarks::TriggerPeriodicEmit(long wallClockTimestamp)
 {
+    if (periodicEmitStopped_.load()) {
+        return;
+    }
+    std::lock_guard<std::mutex> lock(outputMutex_);
+    if (periodicEmitStopped_.load()) {
+        return;
+    }
     if (currentPerSplitOutputs != nullptr) {
         currentPerSplitOutputs->EmitPeriodicWatermark();
     }
@@ -34,6 +42,7 @@ void ProgressiveTimestampsAndWatermarks::TriggerPeriodicEmit(long wallClockTimes
 ReaderOutput* ProgressiveTimestampsAndWatermarks::CreateMainOutput(
     OmniDataOutputPtr output, WatermarkUpdateListener* watermarkCallback)
 {
+    std::lock_guard<std::mutex> lock(outputMutex_);
     if (currentMainOutput != nullptr || currentPerSplitOutputs != nullptr) {
         THROW_RUNTIME_ERROR("already created a main output");
     }
@@ -56,14 +65,21 @@ void ProgressiveTimestampsAndWatermarks::StartPeriodicWatermarkEmits()
         // a value of zero means not activated
         return;
     }
+    periodicEmitStopped_.store(false);
     periodicEmitHandle = timeService->scheduleWithFixedDelay(callback, periodicWatermarkInterval,
         periodicWatermarkInterval);
+    INFO_RELEASE("[OS-watermark] start periodic watermark emit, intervalMs=" << periodicWatermarkInterval
+        << ", handle=" << reinterpret_cast<uintptr_t>(periodicEmitHandle));
 }
 
 void ProgressiveTimestampsAndWatermarks::StopPeriodicWatermarkEmits()
 {
+    bool wasRunning = !periodicEmitStopped_.exchange(true);
     if (periodicEmitHandle != nullptr) {
         periodicEmitHandle->Cancel();
+        INFO_RELEASE("[OS-watermark] stop periodic watermark emit, handle="
+            << reinterpret_cast<uintptr_t>(periodicEmitHandle)
+            << ", wasRunning=" << wasRunning);
         periodicEmitHandle = nullptr;
     }
 }

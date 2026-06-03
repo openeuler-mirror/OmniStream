@@ -369,7 +369,8 @@ StreamOperator* StreamOperatorFactory::CreateSourceOp(OperatorPOD &opConfig,
             nlohmann::json opDescriptionJSON = nlohmann::json::parse(description);
             // create kafka source
             std::shared_ptr<KafkaSource> source = std::make_shared<KafkaSource>(opDescriptionJSON, false);
-            ProcessingTimeService* timeService = new SystemProcessingTimeService();
+            ProcessingTimeService* timeService =
+                task != nullptr ? task->createProcessingTimeService() : new SystemProcessingTimeService();
             auto *op = new SourceOperator(chainOutput, opDescriptionJSON, source, timeService);
             op->setup(std::move(task));
             LOG("Operator SourceOperator address " + std::to_string(reinterpret_cast<long>(op)));

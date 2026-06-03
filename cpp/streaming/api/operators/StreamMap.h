@@ -65,6 +65,14 @@ namespace omnistream::datastream {
             LOG("-----StreamMap processElement start -----");
             Object *input = reinterpret_cast<Object *>(record->getValue());
             Object *out = this->userFunction->map(input);
+            if (out != nullptr && out == input) {
+                out->getRefCount();
+                if (!outputAliasRetainLogged_) {
+                    INFO_RELEASE("[OS-object-lifetime] StreamMap retained output alias of input, operatorID="
+                        << OneInputStreamOperator::GetOperatorID().toString());
+                    outputAliasRetainLogged_ = true;
+                }
+            }
             record->setValue(out);
             this->output->collect(record);
             input->putRefCount();
@@ -120,6 +128,7 @@ namespace omnistream::datastream {
         MapFunctionUnique<F> function;
         int32_t coreId = -1;
         bool binded = false;
+        bool outputAliasRetainLogged_ = false;
     };
 }
 #endif

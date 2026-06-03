@@ -10,6 +10,8 @@
  */
 #include "TaskStateSnapshotSerializer.h"
 
+#include <stdexcept>
+
 nlohmann::json TaskStateSnapshotSerializer::Serialize(const std::shared_ptr<TaskStateSnapshot> &localState)
 {
     nlohmann::json j;
@@ -185,8 +187,16 @@ nlohmann::json TaskStateSnapshotSerializer::parseOperatorStreamStateHandle(std::
 {
     nlohmann::json handleJson;
     handleJson["@class"] = "org.apache.flink.runtime.state.OperatorStreamStateHandle";
-    handleJson["metaDataState"] = parseMetaDataState(kh->getDelegateStateHandle());
-    handleJson["stateNameToPartitionOffsets"] = kh->toJson();
+    nlohmann::json delegateStateHandle = parseMetaDataState(kh->getDelegateStateHandle());
+    handleJson["metaDataState"] = delegateStateHandle;
+    handleJson["delegateStateHandle"] = delegateStateHandle;
+    handleJson["streamStateHandle"] = delegateStateHandle;
+    nlohmann::json stateNameToPartitionOffsets = kh->toJson();
+    handleJson["stateNameToPartitionOffsets"] = stateNameToPartitionOffsets;
+    INFO_RELEASE("[OS-operator-state] prepared OperatorStreamStateHandle metadata, stateCount="
+        << stateNameToPartitionOffsets.size()
+        << ", delegateClass=" << delegateStateHandle.value("@class", std::string("unknown"))
+        << ", delegateSize=" << delegateStateHandle.value("stateSize", static_cast<long>(-1)));
     return handleJson;
 }
 
@@ -194,19 +204,26 @@ nlohmann::json TaskStateSnapshotSerializer::parseMetaDataState(std::shared_ptr<S
 {
     nlohmann::json metaDataStateHandleJson;
 
+    if (metaDataStateHandle == nullptr) {
+        INFO_RELEASE("Error:[OS-operator-state] OperatorStreamStateHandle delegate is null");
+        throw std::runtime_error("OperatorStreamStateHandle delegate is null.");
+    }
     if (auto msh = std::dynamic_pointer_cast<RelativeFileStateHandle>(metaDataStateHandle)) {
         metaDataStateHandleJson["@class"] = "org.apache.flink.runtime.state.filesystem.RelativeFileStateHandle";
+        metaDataStateHandleJson["stateHandleName"] = "RelativeFileStateHandle";
         metaDataStateHandleJson["stateSize"] = msh->GetStateSize();
         metaDataStateHandleJson["filePath"] = msh->GetFilePath().toString();
         metaDataStateHandleJson["relativePath"] = msh->GetRelativePath();
         metaDataStateHandleJson["streamStateHandleID"] = parseStreamStateHandleID(msh->GetStreamStateHandleID());
     } else if (auto msh = std::dynamic_pointer_cast<FileStateHandle>(metaDataStateHandle)) {
         metaDataStateHandleJson["@class"] = "org.apache.flink.runtime.state.filesystem.FileStateHandle";
+        metaDataStateHandleJson["stateHandleName"] = "FileStateHandle";
         metaDataStateHandleJson["stateSize"] = msh->GetStateSize();
         metaDataStateHandleJson["filePath"] = msh->GetFilePath().toString();
         metaDataStateHandleJson["streamStateHandleID"] = parseStreamStateHandleID(msh->GetStreamStateHandleID());
     } else if (auto msh = std::dynamic_pointer_cast<ByteStreamStateHandle>(metaDataStateHandle)) {
         metaDataStateHandleJson["@class"] = "org.apache.flink.runtime.state.memory.ByteStreamStateHandle";
+        metaDataStateHandleJson["stateHandleName"] = "ByteStreamStateHandle";
         metaDataStateHandleJson["handleName"] = msh->GetHandleName();
         auto jobj = nlohmann::json::parse(msh->ToString());
         metaDataStateHandleJson["data"] = jobj["data"];
@@ -214,6 +231,7 @@ nlohmann::json TaskStateSnapshotSerializer::parseMetaDataState(std::shared_ptr<S
         metaDataStateHandleJson["streamStateHandleID"] = parseStreamStateHandleID(msh->GetStreamStateHandleID());
     } else if(auto msh = std::dynamic_pointer_cast<PlaceholderStreamStateHandle>(metaDataStateHandle)){
         metaDataStateHandleJson["@class"] = "org.apache.flink.runtime.state.PlaceholderStreamStateHandle";
+        metaDataStateHandleJson["stateHandleName"] = "PlaceholderStreamStateHandle";
         metaDataStateHandleJson["stateSize"] = msh->GetStateSize();
         nlohmann::json physicalStateHandleIDJson;
         physicalStateHandleIDJson["@class"] = "org.apache.flink.runtime.state.PhysicalStateHandleID";

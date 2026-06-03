@@ -14,12 +14,14 @@
 #include <vector>
 #include <cstdint>
 #include <memory>
+#include <type_traits>
 #include "runtime/state/rocksdb/iterator/SingleStateIterator.h"
 #include "runtime/state/CompositeKeySerializationUtils.h"
 #include "core/memory/DataOutputSerializer.h"
 #include "core/typeutils/TypeSerializer.h"
 #include "core/typeutils/MapSerializer.h"
 #include "core/typeutils/ListSerializer.h"
+#include "basictypes/Object.h"
 #include "StateTable.h"
 #include "CopyOnWriteStateMap.h"
 #include "common.h"
@@ -103,6 +105,8 @@ private:
     int keyGroupPrefixBytes_;
     std::vector<SerializedEntry> entries_;
     size_t currentIndex_ = 0;
+    size_t objectSnapshotKeyGroups_ = 0;
+    size_t objectSnapshotEntries_ = 0;
     bool valid_ = false;
 
     void collectAndSerializeEntries()
@@ -134,15 +138,92 @@ private:
                 }
                 return false;
             });
+
+        if constexpr (std::is_same_v<K, Object*> || std::is_same_v<N, Object*> || std::is_same_v<S, Object*>) {
+            if (objectSnapshotEntries_ > 0) {
+                INFO_RELEASE("[OS-heap-snapshot] Object* state iterator materialized, kvStateId="
+                    << kvStateId_ << ", keyGroups=" << objectSnapshotKeyGroups_
+                    << ", entries=" << objectSnapshotEntries_);
+            }
+        }
     }
 
     // Snapshot entry holding raw (unserialized) copies of key, namespace, and value.
     // Taking a snapshot of all entries BEFORE serializing avoids iterator invalidation
     // if the underlying CopyOnWriteStateMap is rehashed (e.g. by a concurrent put()).
     struct RawSnapshotEntry {
+        RawSnapshotEntry(const K &snapshotKey, const N &snapshotNamespace, const S &snapshotValue)
+            : key(snapshotKey), nmspace(snapshotNamespace), value(snapshotValue), ownsRefs_(true)
+        {
+            retainObjectRef(key);
+            retainObjectRef(nmspace);
+            retainObjectRef(value);
+        }
+
+        RawSnapshotEntry(const RawSnapshotEntry&) = delete;
+        RawSnapshotEntry& operator=(const RawSnapshotEntry&) = delete;
+
+        RawSnapshotEntry(RawSnapshotEntry&& other) noexcept
+            : key(other.key), nmspace(other.nmspace), value(other.value), ownsRefs_(other.ownsRefs_)
+        {
+            other.ownsRefs_ = false;
+        }
+
+        RawSnapshotEntry& operator=(RawSnapshotEntry&& other) noexcept
+        {
+            if (this != &other) {
+                releaseRefs();
+                key = other.key;
+                nmspace = other.nmspace;
+                value = other.value;
+                ownsRefs_ = other.ownsRefs_;
+                other.ownsRefs_ = false;
+            }
+            return *this;
+        }
+
+        ~RawSnapshotEntry()
+        {
+            releaseRefs();
+        }
+
         K key;
         N nmspace;
         S value;
+
+    private:
+        template<typename T>
+        static void retainObjectRef(const T &ptr)
+        {
+            if constexpr (std::is_same_v<std::decay_t<T>, Object*>) {
+                if (ptr != nullptr) {
+                    ptr->getRefCount();
+                }
+            }
+        }
+
+        template<typename T>
+        static void releaseObjectRef(const T &ptr)
+        {
+            if constexpr (std::is_same_v<std::decay_t<T>, Object*>) {
+                if (ptr != nullptr) {
+                    ptr->putRefCount();
+                }
+            }
+        }
+
+        void releaseRefs()
+        {
+            if (!ownsRefs_) {
+                return;
+            }
+            releaseObjectRef(key);
+            releaseObjectRef(nmspace);
+            releaseObjectRef(value);
+            ownsRefs_ = false;
+        }
+
+        bool ownsRefs_;
     };
 
     void serializeStateMap(
@@ -164,7 +245,14 @@ private:
         std::vector<RawSnapshotEntry> snapshot;
         snapshot.reserve(cowMap->size());
         for (auto it = cowMap->begin(); it != cowMap->end(); ++it) {
-            snapshot.push_back({it->first, it->third, it->second});
+            snapshot.emplace_back(it->first, it->third, it->second);
+        }
+
+        if constexpr (std::is_same_v<K, Object*> || std::is_same_v<N, Object*> || std::is_same_v<S, Object*>) {
+            if (!snapshot.empty()) {
+                objectSnapshotKeyGroups_++;
+                objectSnapshotEntries_ += snapshot.size();
+            }
         }
 
         // Phase 2: serialize from the stable local snapshot
@@ -211,7 +299,7 @@ private:
             if (!key) {
                 THROW_LOGIC_EXCEPTION("Heap snapshot cannot serialize a null shared_ptr key")
             }
-            namespaceSerializer->serialize(key.get(),outputSerializer);
+            keySerializer->serialize(key.get(),outputSerializer);
         } else {
             K mutableKey = key;
             keySerializer->serialize(&mutableKey, outputSerializer);
