@@ -37,7 +37,7 @@ public:
     void retract(RowData *input) override;
     void Cleanup(long ns) override;
     void close() override {}
-    bool isWindowEmpty(){ return valueIsNull;}
+    bool isWindowEmpty() override { return aggValue == 0L; }
 
 private:
     SliceAssigner* sliceAssigner; // tumble

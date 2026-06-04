@@ -53,16 +53,7 @@ AbstractWindowAggProcessor::AbstractWindowAggProcessor(const nlohmann::json desc
     if (keyArity > outputTypes.size()) {
         THROW_LOGIC_EXCEPTION("The size of key fields must not exceed output type fields.");
     }
-    std::vector<int32_t> valueOutputTypeIds(outputTypeIds.begin() + keyArity, outputTypeIds.end());
-    if (description["aggInfoList"][AGGCALLSNAME].size() == 0) {
-        auto function = std::make_unique<GlobalEmptyNamespaceFunction>(0, 0, 0, sliceAssigner);
-        globalFunctions.push_back(std::move(function));
-        aggregator = std::make_unique<CompositeWindowAggFunction>(
-            std::move(globalFunctions),
-            std::move(valueOutputTypeIds),
-            sliceAssigner);
-        return;
-    }
+    std::vector<int32_t> valueOutputTypeIds(outputTypeIds.begin() + keyArity, outputTypeIds.end()); // 这里不确定是否正确
 
     auto accStartIndex = 0;
     auto valueStartIndex = 0;
@@ -89,7 +80,6 @@ AbstractWindowAggProcessor::AbstractWindowAggProcessor(const nlohmann::json desc
         }
         accStartIndex++;
         valueStartIndex++;
-
     }
 
     aggregator = std::make_unique<CompositeWindowAggFunction>(
@@ -292,22 +282,20 @@ void AbstractWindowAggProcessor::NextWindowEndProcess(int64_t nextWindowEnd, Sli
 RowData* AbstractWindowAggProcessor::GetHopResult(int64_t windowEnd, int64_t numSlices, int64_t interval)
 {
     int64_t tempWindow = windowEnd;
-    RowData *acc;
-    if (acc == nullptr) {
-        acc = aggregator->createAccumulators(accumulatorArity);
-    }
+    RowData *acc = aggregator->createAccumulators(accumulatorArity);
     aggregator->setAccumulators(windowEnd, acc);
 
     for (int i = 0; i < numSlices; ++i) {
-        RowData *sliceAcc = windowState->value(tempWindow);
+        RowData* sliceAcc = windowState->value(tempWindow);
         if (sliceAcc != nullptr) {
-            aggregator->merge(tempWindow,sliceAcc);
+            aggregator->merge(tempWindow, sliceAcc);
         }
         tempWindow -= interval;
+        if (backendType_ != omnistream::StateType::HEAP) {
+            delete sliceAcc;
+        }
     }
-    RowData* result = nullptr;
-
-    result = aggregator->getValue(windowEnd);
+    RowData* result = aggregator->getValue(windowEnd);
 
     if (backendType_ != omnistream::StateType::HEAP) {
         delete acc;

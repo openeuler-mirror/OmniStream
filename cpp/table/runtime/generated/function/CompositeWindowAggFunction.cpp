@@ -90,11 +90,10 @@ void CompositeWindowAggFunction::close() {
 }
  
 bool CompositeWindowAggFunction::isWindowEmpty(){
+    bool res = true;
     for (auto& func : functions_) {
-        if(func->isWindowEmpty()){
-            return true;
-        }
+        res = res && func->isWindowEmpty();
     }
-    return false;
+    return res;
 } 
 

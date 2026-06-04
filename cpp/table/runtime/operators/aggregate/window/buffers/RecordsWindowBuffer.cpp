@@ -280,7 +280,7 @@ void RecordsWindowBuffer::winAggProcess(
     long window = currentWindowKey.getWindow();
     RowData* stateVal = accState->value(window);
     if (stateVal == nullptr) {
-        localCompositeAggregator->createAccumulators(accumulatorArity);
+        stateVal = localCompositeAggregator->createAccumulators(accumulatorArity);
     }
     localCompositeAggregator->setAccumulators(window, stateVal);
     for (auto& entireRow : entireRows) {

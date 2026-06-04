@@ -45,12 +45,11 @@ private:
     StateDataViewStore* store;
 
     int64_t namespaceVal;
-    bool valueIsNull = true; 
+    bool valueIsNull = true;
     int aggIdx;
     int accIndex;
     int valueIndex;
-    long limit = std::numeric_limits<long>::min();
-    long aggValue = std::numeric_limits<long>::min();
+    long aggValue = 0L;
     long aggCountValue;
     RowData* currentAcc_{};
 };

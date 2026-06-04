@@ -20,7 +20,13 @@ void CountWindowAggFunction::open(StateDataViewStore* store)
 
 void CountWindowAggFunction::accumulate(RowData* accInput)
 {
-    aggValue++;
+    if (aggIdx < 0) {
+        aggValue++;
+        return;
+    }
+    if (!accInput->isNullAt(aggIdx)) {
+        aggValue++;
+    }
 }
 
 void CountWindowAggFunction::retract(RowData* retractInput)
@@ -30,26 +36,19 @@ void CountWindowAggFunction::retract(RowData* retractInput)
 
 void CountWindowAggFunction::merge(int64_t namespaceObj, RowData* otherAcc)
 {
-    // use accIndex, the input is the accumulator, not the input row
-    bool inputIsNull = otherAcc->isNullAt(aggIdx);
-    if (!inputIsNull) {
-        aggValue += *otherAcc->getLong(aggIdx);
-    } else {
-        aggValue = -1;
+    if (!otherAcc->isNullAt(accIndex)) {
+        aggValue = aggValue + *otherAcc->getLong(accIndex);
     }
-    valueIsNull = inputIsNull;
 }
 
 void CountWindowAggFunction::setAccumulators(int64_t namespaceObj, RowData* acc)
 {
-    bool isInputNull = acc->isNullAt(accIndex);
-    if (!isInputNull) {
+    this->currentAcc_ = acc;
+    if (!acc->isNullAt(accIndex)) {
         aggValue = *acc->getLong(accIndex);
     } else {
         aggValue = 0L;
     }
-    valueIsNull = isInputNull;
-    this->currentAcc_ = acc;
 }
 
 RowData* CountWindowAggFunction::getAccumulators()
@@ -67,7 +66,7 @@ RowData* CountWindowAggFunction::createAccumulators(int accumulatorArity)
 
 RowData* CountWindowAggFunction::getValue(int64_t ns)
 {
-    currentAcc_->setLong(accIndex, aggValue);
+    currentAcc_->setLong(valueIndex, aggValue);
     return currentAcc_;
 }
 

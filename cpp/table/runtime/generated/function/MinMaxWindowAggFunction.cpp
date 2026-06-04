@@ -20,40 +20,41 @@ void MinMaxWindowAggFunction::open(StateDataViewStore* store)
 
 void MinMaxWindowAggFunction::accumulate(RowData *accInput)
 {
-    bool inputIsNull = accInput->isNullAt(aggIdx);
-    int64_t fieldVal = inputIsNull ? limit : *(accInput->getLong(aggIdx));
+    if (accInput->isNullAt(aggIdx)) {
+        return;
+    }
 
-    if (inputIsNull) {
-        aggValue = valueIsNull ? limit : aggValue;
-    } else {
-        bool toUpdate = !valueIsNull && (aggOperator == MAX_FUNC ? fieldVal > aggValue : fieldVal < aggValue);
-        if (valueIsNull || toUpdate) {
-            aggValue = fieldVal;
-            valueIsNull = false;
-        }
+    int64_t fieldVal = *(accInput->getLong(aggIdx));
+    bool toUpdate = !valueIsNull && (aggOperator == MAX_FUNC ? fieldVal > aggValue : fieldVal < aggValue);
+    if (valueIsNull || toUpdate) {
+        aggValue = fieldVal;
+        valueIsNull = false;
     }
 }
 
 void MinMaxWindowAggFunction::merge(long ns, RowData *otherAcc)
 {
-    bool inputIsNull = otherAcc->isNullAt(accIndex);
-    int64_t otherField = inputIsNull ? limit : *otherAcc->getLong(accIndex);
-    if (inputIsNull) {
-        aggValue = valueIsNull ? limit : aggValue;
-    } else {
-        bool toUpdate = !valueIsNull && (aggOperator == MAX_FUNC ? otherField > aggValue : otherField < aggValue);
-        if (valueIsNull || toUpdate) {
-            aggValue = otherField;
-            valueIsNull = false;
-        }
+    if (otherAcc->isNullAt(accIndex)) {
+        return;
+    }
+
+    int64_t otherField = *otherAcc->getLong(accIndex);
+    bool toUpdate = !valueIsNull && (aggOperator == MAX_FUNC ? otherField > aggValue : otherField < aggValue);
+    if (valueIsNull || toUpdate) {
+        aggValue = otherField;
+        valueIsNull = false;
     }
 }
 
 void MinMaxWindowAggFunction::setAccumulators(long ns, RowData *acc)
 {
-    valueIsNull = acc->isNullAt(accIndex);
-    aggValue = valueIsNull ? limit : *acc->getLong(accIndex);
     this->currentAcc_ = acc;
+    if (currentAcc_->isNullAt(accIndex)) {
+        valueIsNull = true;
+    } else {
+        valueIsNull = false;
+        aggValue = *currentAcc_->getLong(accIndex);
+    }
 }
 
 RowData *MinMaxWindowAggFunction::getAccumulators()
@@ -80,12 +81,11 @@ RowData *MinMaxWindowAggFunction::createAccumulators(int accumulatorArity)
 RowData *MinMaxWindowAggFunction::getValue(long ns)
 {
     if (valueIsNull) {
-            reinterpret_cast<BinaryRowData*>(currentAcc_)->setNullAt(accIndex);
-        } else {
-            currentAcc_->setLong(accIndex, aggValue);
-        }
+        reinterpret_cast<BinaryRowData*>(currentAcc_)->setNullAt(valueIndex);
+    } else {
+        currentAcc_->setLong(valueIndex, aggValue);
+    }
     return currentAcc_;
-    
 }
 
 // 保持其他方法实现
