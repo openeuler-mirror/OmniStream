@@ -46,7 +46,7 @@ AbstractWindowAggProcessor::AbstractWindowAggProcessor(const nlohmann::json desc
             keyedTypes.push_back(LogicalType::flinkTypeToOmniTypeId(inputTypes[index]));
         }
     }
-    keySelector = std::make_unique<KeySelector<RowData*>>(keyedTypes, keyedIndex);
+    keySelector = std::make_unique<KeySelector<KeyType>>(keyedTypes, keyedIndex);
     LOG("agginfolist size : " <<description["aggInfoList"][AGGCALLSNAME].size())
     if (description["aggInfoList"][AGGCALLSNAME].size() == 0) {
         NamespaceAggsHandleFunction<int64_t> *function = new GlobalEmptyNamespaceFunction(0, 0, 0, sliceAssigner);
@@ -119,30 +119,38 @@ bool AbstractWindowAggProcessor::processBatch(omnistream::VectorBatch* vectorbat
     return false;
 }
 
-void AbstractWindowAggProcessor::open(AbstractKeyedStateBackend<RowData*> *keyedStateBackend,
-                                      const nlohmann::json &config, StreamingRuntimeContext<RowData *> *runtimeCtx,
-                                      InternalTimerServiceImpl<RowData *, int64_t> *internalTimerService)
+void AbstractWindowAggProcessor::open(
+        AbstractKeyedStateBackend<AbstractWindowAggProcessor::KeyType> *keyedStateBackend,
+        const nlohmann::json &config, StreamingRuntimeContext<AbstractWindowAggProcessor::KeyType> *runtimeCtx,
+        InternalTimerServiceImpl<AbstractWindowAggProcessor::KeyType, int64_t>* internalTimerService)
 {
     this->stateBackend = keyedStateBackend;
+    if (dynamic_cast<RocksdbKeyedStateBackend<AbstractWindowAggProcessor::KeyType>*>(keyedStateBackend) != nullptr) {
+        backendType_ = omnistream::StateType::ROCKSDB;
+    } else if (dynamic_cast<HeapKeyedStateBackend<AbstractWindowAggProcessor::KeyType>*>(keyedStateBackend) != nullptr) {
+        backendType_ = omnistream::StateType::HEAP;
+    } else {
+        THROW_LOGIC_EXCEPTION("The keyedStateBackend is not supported");
+    }
     this->internalTimerService = internalTimerService;
     BinaryRowDataSerializer *binaryRowDataSerializer = new BinaryRowDataSerializer(1);
     // init WindowValueState
     std::string aggName = "window-aggs";
     auto* accDesc = new ValueStateDescriptor<RowData*>(aggName, binaryRowDataSerializer);
-    using S = InternalValueState<RowData*, int64_t, RowData*>;
-    S* state = keyedStateBackend->template getOrCreateKeyedState<RowData*, S, RowData*>(new LongSerializer(), accDesc);
-    windowState = std::make_unique<WindowValueState<RowData*, int64_t, RowData*>>(state);
-    windowBuffer =std::make_unique<RecordsWindowBuffer>(config, windowState.get(), output, sliceAssigner, internalTimerService);
+    using S = InternalValueState<KeyType, int64_t, RowData*>;
+    S* state = keyedStateBackend->template getOrCreateKeyedState<int64_t, S, RowData*>(new LongSerializer(), accDesc);
+    windowState = std::make_unique<WindowValueState<KeyType, int64_t, RowData*>>(state);
+    windowBuffer = std::make_unique<RecordsWindowBuffer>(config, windowState.get(), output, sliceAssigner, internalTimerService);
 }
 
 void AbstractWindowAggProcessor::initializeWatermark(int64_t watermark) {
     if (isEventTime) {
- 	        currentProgress = watermark;
- 	    }
+        currentProgress = watermark;
+    }
 }
 
-void AbstractWindowAggProcessor::advanceProgress(StreamOperatorStateHandler<RowData*> *stateHandler, long progress)
-{
+void AbstractWindowAggProcessor::advanceProgress(
+        StreamOperatorStateHandler<AbstractWindowAggProcessor::KeyType> *stateHandler, long progress) {
     if (progress > currentProgress) {
         currentProgress = progress;
         if (currentProgress >= nextTriggerProgress) {
@@ -159,9 +167,7 @@ void AbstractWindowAggProcessor::prepareCheckpoint()
     windowBuffer->flush();
 }
 
-void AbstractWindowAggProcessor::fireWindow(int64_t windowEnd)
-{
-    std::vector<RowData *> resultRows;
+void AbstractWindowAggProcessor::fireWindow(int64_t windowEnd) {
     if (!sliceAssigner->hasSliceEndIndex && !sliceAssigner->hasWindowEndIndex) {
         LOG("get value in the firewindow")
         RowData *result = GetNonHopResult(windowEnd);
@@ -198,12 +204,12 @@ void AbstractWindowAggProcessor::fireWindow(int64_t windowEnd)
 
 void AbstractWindowAggProcessor::ProcessHopResult(RowData* result)
 {
-    resultRow->replace(stateBackend->getCurrentKey(), result);
+    resultRow->replace(stateBackend->getCurrentKey().get(), result);
     if (static_cast<size_t>(resultRow->getArity()) == outputTypes.size()) {
         if (!IsWindowEmpty()) {
             LOG("window not empty")
-            std::vector<RowData *> resultRows;
-            resultRows.push_back(BinaryRowDataSerializer::joinedRowToBinaryRow(resultRow, outputTypeIds));
+            std::vector<std::unique_ptr<RowData>> resultRows;
+            resultRows.emplace_back(BinaryRowDataSerializer::joinedRowToBinaryRow(resultRow, outputTypeIds));
             resultBatch = createOutputBatch(resultRows);
             collectOutputBatch(collector.get(), resultBatch);
         } else {
@@ -216,10 +222,10 @@ void AbstractWindowAggProcessor::ProcessHopResult(RowData* result)
 
 void AbstractWindowAggProcessor::ProcessNonHopResult(RowData* result)
 {
-    resultRow->replace(stateBackend->getCurrentKey(), result);
+    resultRow->replace(stateBackend->getCurrentKey().get(), result);
     if (resultRow->getArity() == static_cast<int>(outputTypes.size())) {
-        std::vector<RowData *> resultRows;
-        resultRows.push_back(BinaryRowDataSerializer::joinedRowToBinaryRow(resultRow, outputTypeIds));
+        std::vector<std::unique_ptr<RowData>> resultRows;
+        resultRows.emplace_back(BinaryRowDataSerializer::joinedRowToBinaryRow(resultRow, outputTypeIds));
         resultBatch = createOutputBatch(resultRows);
         collectOutputBatch(collector.get(), resultBatch);
     } else {
@@ -232,15 +238,21 @@ RowData* AbstractWindowAggProcessor::GetNonHopResult(int64_t windowEnd)
     RowData* acc = windowState->value(windowEnd);
     if (acc == nullptr) {
         for (auto &func: aggregator) {
+            // todo: 这里为什么只取最后一个？aggregator中有多个agg的情况怎么处理？
             acc = func->createAccumulators(accumulatorArity);
         }
     }
     for (auto &func: aggregator) {
+        // todo: 这里为什么只取最后一个？aggregator中有多个agg的情况怎么处理？
         func->setAccumulators(windowEnd, acc);
     }
     RowData *result = nullptr;
     for (size_t i = 0; i < aggregator.size(); ++i) {
+        // todo: 这里为什么只取最后一个？aggregator中有多个agg的情况怎么处理？
         result = aggregator[i]->getValue(windowEnd);
+    }
+    if (backendType_ != omnistream::StateType::HEAP) {
+        delete acc;
     }
     return result;
 }
@@ -263,12 +275,15 @@ RowData* AbstractWindowAggProcessor::GetHopResult(int64_t windowEnd, int64_t num
     int64_t tempWindow = windowEnd;
     RowData *acc;
     for (auto &func: aggregator) {
+        // todo: 这里为什么只取最后一个？aggregator中有多个agg的情况怎么处理？
         acc = func->createAccumulators(accumulatorArity);
     }
     for (auto &func: aggregator) {
+        // todo: 这里为什么只取最后一个？aggregator中有多个agg的情况怎么处理？
         func->setAccumulators(tempWindow, acc);
     }
     for (int i = 0; i < numSlices; ++i) {
+        // todo:
         RowData *sliceAcc = windowState->value(tempWindow);
         if (sliceAcc != nullptr) {
             for (size_t j = 0; j < aggregator.size(); ++j) {
@@ -279,7 +294,11 @@ RowData* AbstractWindowAggProcessor::GetHopResult(int64_t windowEnd, int64_t num
     }
     RowData* result = nullptr;
     for (auto& agg: aggregator) {
+        // todo: 这里为什么只取最后一个？aggregator中有多个agg的情况怎么处理？
         result = agg->getValue(windowEnd);
+    }
+    if (backendType_ != omnistream::StateType::HEAP) {
+        delete acc;
     }
     return result;
 }
@@ -291,6 +310,7 @@ bool AbstractWindowAggProcessor::IsWindowEmpty()
     }
     bool tempRes = false;
     for (size_t i = 0; i < aggregator.size(); ++i) {
+        // todo: 这里内存也没清除
         RowData* acc = aggregator[i]->getAccumulators();
         tempRes = (acc == nullptr) || *acc->getLong(indexOfCountStar) == 0;
         if (!tempRes) {
@@ -302,19 +322,20 @@ bool AbstractWindowAggProcessor::IsWindowEmpty()
     return tempRes;
 }
 
-omnistream::VectorBatch* AbstractWindowAggProcessor::createOutputBatch(std::vector<RowData*> collectedRows)
+omnistream::VectorBatch* AbstractWindowAggProcessor::createOutputBatch(std::vector<std::unique_ptr<RowData>>& collectedRows)
 {
     int numColumns = outputTypes.size();
-    std::vector<omniruntime::type::DataTypeId> *outputRowType = new std::vector<omniruntime::type::DataTypeId>;
+    std::vector<omniruntime::type::DataTypeId> outputRowType = std::vector<omniruntime::type::DataTypeId>();
+    outputRowType.reserve(numColumns);
     for (const auto &typeStr : outputTypes) {
-        outputRowType->push_back(LogicalType::flinkTypeToOmniTypeId(typeStr));
+        outputRowType.push_back(LogicalType::flinkTypeToOmniTypeId(typeStr));
     }
     int numRows = collectedRows.size(); // Number of rows collected
     // Create a new VectorBatch (empty if no rows exist)
     auto* outputBatch = new omnistream::VectorBatch(numRows);
     // Loop through each column and create vectors
     for (int colIndex = 0; colIndex < numColumns; ++colIndex) {
-        switch (outputRowType->at(colIndex)) {
+        switch (outputRowType.at(colIndex)) {
             case DataTypeId::OMNI_LONG: {
                 VectorBatchUtils::AppendLongVectorForInt64(outputBatch, collectedRows, numRows, colIndex);
                 break;
@@ -349,7 +370,6 @@ omnistream::VectorBatch* AbstractWindowAggProcessor::createOutputBatch(std::vect
     for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
         outputBatch->setRowKind(rowIndex, collectedRows[rowIndex]->getRowKind());
     }
-    delete outputRowType;
     return outputBatch;
 }
 
@@ -366,6 +386,7 @@ void AbstractWindowAggProcessor::setClockService(ClockService * newClock)
 }
 
 void AbstractWindowAggProcessor::clearWindow(int64_t windowEnd) {
+    // todo: 空实现？可能导致数据清理不干净
 }
 
 void AbstractWindowAggProcessor::close()

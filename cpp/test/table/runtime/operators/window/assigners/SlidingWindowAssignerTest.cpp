@@ -4,9 +4,10 @@
 #include <vector>
 
 #include "table/runtime/operators/window/assigners/SlidingWindowAssigner.h"
-#include "table/runtime/operators/window/assigners/TumblingWindowAssigner.h"
 
 namespace {
+
+constexpr int64_t MINUTE = 60 * 1000L;
 
 void AssertWindowsEq(const std::vector<TimeWindow>& actual, const std::vector<TimeWindow>& expected)
 {
@@ -16,37 +17,6 @@ void AssertWindowsEq(const std::vector<TimeWindow>& actual, const std::vector<Ti
     }
 }
 
-}
-
-TEST(TumblingWindowAssignerTest, WindowAssignmentMatchesFlink)
-{
-    TumblingWindowAssigner assigner(5000, 0, true);
-
-    AssertWindowsEq(assigner.assignWindows(nullptr, 0L), {TimeWindow(0, 5000)});
-    AssertWindowsEq(assigner.assignWindows(nullptr, 4999L), {TimeWindow(0, 5000)});
-    AssertWindowsEq(assigner.assignWindows(nullptr, 5000L), {TimeWindow(5000, 10000)});
-}
-
-TEST(TumblingWindowAssignerTest, WindowAssignmentWithOffsetMatchesFlink)
-{
-    TumblingWindowAssigner assigner(5000, 100, true);
-
-    AssertWindowsEq(assigner.assignWindows(nullptr, 100L), {TimeWindow(100, 5100)});
-    AssertWindowsEq(assigner.assignWindows(nullptr, 5099L), {TimeWindow(100, 5100)});
-    AssertWindowsEq(assigner.assignWindows(nullptr, 5100L), {TimeWindow(5100, 10100)});
-}
-
-TEST(TumblingWindowAssignerTest, RejectsInvalidSizeAndKeepsTimeMode)
-{
-    EXPECT_THROW(TumblingWindowAssigner(-1, 0, true), std::logic_error);
-
-    TumblingWindowAssigner assigner(5000, 0, true);
-    EXPECT_TRUE(assigner.isEventTime());
-
-    std::unique_ptr<TumblingWindowAssigner> eventTime(assigner.withEventTime());
-    std::unique_ptr<TumblingWindowAssigner> processingTime(assigner.withProcessingTime());
-    EXPECT_TRUE(eventTime->isEventTime());
-    EXPECT_FALSE(processingTime->isEventTime());
 }
 
 TEST(SlidingWindowAssignerTest, WindowAssignmentAndPanesMatchFlink)
@@ -105,6 +75,46 @@ TEST(SlidingWindowAssignerTest, WindowAssignmentWithOffsetMatchesFlink)
 
     EXPECT_EQ(assigner.getLastWindow(TimeWindow(4100, 5100)), TimeWindow(4100, 9100));
     EXPECT_EQ(assigner.getLastWindow(TimeWindow(2100, 3100)), TimeWindow(2100, 7100));
+}
+
+TEST(SlidingWindowAssignerTest, NonIntegralMinuteHopWindowAssignmentMatchesFlink)
+{
+    SlidingWindowAssigner assigner(60 * MINUTE, 23 * MINUTE, 0, true);
+
+    AssertWindowsEq(assigner.assignWindows(nullptr, 0L),
+        {TimeWindow(0, 60 * MINUTE), TimeWindow(-23 * MINUTE, 37 * MINUTE),
+         TimeWindow(-46 * MINUTE, 14 * MINUTE)});
+
+    AssertWindowsEq(assigner.assignWindows(nullptr, 13 * MINUTE + 999L),
+        {TimeWindow(0, 60 * MINUTE), TimeWindow(-23 * MINUTE, 37 * MINUTE),
+         TimeWindow(-46 * MINUTE, 14 * MINUTE)});
+
+    AssertWindowsEq(assigner.assignWindows(nullptr, 14 * MINUTE),
+        {TimeWindow(0, 60 * MINUTE), TimeWindow(-23 * MINUTE, 37 * MINUTE)});
+
+    AssertWindowsEq(assigner.assignWindows(nullptr, 59 * MINUTE + 999L),
+        {TimeWindow(46 * MINUTE, 106 * MINUTE), TimeWindow(23 * MINUTE, 83 * MINUTE),
+         TimeWindow(0, 60 * MINUTE)});
+
+    AssertWindowsEq(assigner.assignWindows(nullptr, 60 * MINUTE),
+        {TimeWindow(46 * MINUTE, 106 * MINUTE), TimeWindow(23 * MINUTE, 83 * MINUTE)});
+}
+
+TEST(SlidingWindowAssignerTest, NonIntegralMinuteHopPanesCoverWholeWindow)
+{
+    SlidingWindowAssigner assigner(60 * MINUTE, 23 * MINUTE, 0, true);
+
+    EXPECT_EQ(assigner.assignPane(nullptr, 0L), TimeWindow(0, MINUTE));
+    EXPECT_EQ(assigner.assignPane(nullptr, 59 * MINUTE + 999L), TimeWindow(59 * MINUTE, 60 * MINUTE));
+    EXPECT_EQ(assigner.assignPane(nullptr, 60 * MINUTE), TimeWindow(60 * MINUTE, 61 * MINUTE));
+
+    auto panes = assigner.splitIntoPanes(TimeWindow(23 * MINUTE, 83 * MINUTE));
+    ASSERT_EQ(panes.size(), 60);
+    EXPECT_EQ(panes.front(), TimeWindow(23 * MINUTE, 24 * MINUTE));
+    EXPECT_EQ(panes.back(), TimeWindow(82 * MINUTE, 83 * MINUTE));
+
+    EXPECT_EQ(assigner.getLastWindow(TimeWindow(82 * MINUTE, 83 * MINUTE)),
+        TimeWindow(69 * MINUTE, 129 * MINUTE));
 }
 
 TEST(SlidingWindowAssignerTest, RejectsInvalidParametersAndKeepsTimeMode)

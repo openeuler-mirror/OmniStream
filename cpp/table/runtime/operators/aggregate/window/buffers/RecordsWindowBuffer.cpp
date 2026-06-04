@@ -19,9 +19,15 @@
 #include "runtime/generated/function/SumWindowAggFunction.h"
 #include "table/runtime/operators/VectorBatchUtils.h"
 
-RecordsWindowBuffer::RecordsWindowBuffer(const nlohmann::json& config, WindowValueState<RowData*, int64_t, RowData*>* state,
-                                         Output* output, SliceAssigner* sliceAssigner, InternalTimerServiceImpl<RowData*, int64_t>* internalTimerService) : output(output), internalTimerService(internalTimerService)
-{
+RecordsWindowBuffer::RecordsWindowBuffer(
+        const nlohmann::json& config,
+        WindowValueState<RecordsWindowBuffer::KeyType, int64_t, RowData*>* state,
+        Output* output,
+        SliceAssigner* sliceAssigner,
+        InternalTimerServiceImpl<RecordsWindowBuffer::KeyType, int64_t>* internalTimerService)
+        :
+        output(output),
+        internalTimerService(internalTimerService) {
     this->description = config;
     this->sliceAssigner = sliceAssigner;
     shiftTimeZone = ResolveShiftTimeZoneId(sliceAssigner);
@@ -70,7 +76,7 @@ void RecordsWindowBuffer::InitializeKeySelectorAndTypes(const nlohmann::json& co
             keyedTypes.push_back(LogicalType::flinkTypeToOmniTypeId(inputTypes[index]));
         }
     }
-    keySelector = std::make_unique<KeySelector<RowData*>>(keyedTypes, keyedIndex);
+    keySelector = std::make_unique<KeySelector<KeyType>>(keyedTypes, keyedIndex);
 }
 
 void RecordsWindowBuffer::CreateFunctions(SliceAssigner *sliceAssigner,
@@ -161,22 +167,23 @@ void RecordsWindowBuffer::addVectorBatch(omnistream::VectorBatch *input, int64_t
         if (dropArr[row] == true){
             continue;
         }
-        RowData *keyRow = keySelector->getKey(input, row);
+        auto keyRow = keySelector->getKey(input, row);
         long rowTime = sliceEndArr[row];
         minSliceEnd = std::min(rowTime, minSliceEnd);
-        RowData *currentRow = input->extractRowData(row);
+        auto currentRow = std::unique_ptr<RowData>(input->extractRowData(row));
         if (currentRow == nullptr) {
             continue;
         }
        
         auto [it, inserted] = recordsBuffer.try_emplace(WindowKey(rowTime, keyRow));
-        it->second.push_back(currentRow);
+        it->second.push_back(std::move(currentRow));
     }
 }
 
 
-void RecordsWindowBuffer::advanceProgress(StreamOperatorStateHandler<RowData*> *stateHandler, long currentProgress)
-{
+void RecordsWindowBuffer::advanceProgress(
+        StreamOperatorStateHandler<RecordsWindowBuffer::KeyType> *stateHandler,
+        long currentProgress) {
     if (!TimeWindowUtil::isWindowFired(minSliceEnd, currentProgress, shiftTimeZone)){
         LOG("no windows in record buffer is fired.")
         return;
@@ -185,16 +192,15 @@ void RecordsWindowBuffer::advanceProgress(StreamOperatorStateHandler<RowData*> *
     // 开始遍历每一个key
     for (auto& pair : recordsBuffer) {
         WindowKey currentKey = pair.first;
-        std::vector<RowData *>& entireRows = pair.second;
+        auto& entireRows = pair.second;
         auto entireIter = entireRows.begin();
         while (entireIter != entireRows.end()) {
-            RowData* tempRow = *entireIter;
+            auto& tempRow = *entireIter;
             if (!tempRow) {
                 entireIter = entireRows.erase(entireIter);
                 continue;
             }
             if (RowDataUtil::isRetractMsg((*entireIter)->getRowKind())) {
-                delete tempRow;
                 entireIter = entireRows.erase(entireIter);
             } else {
                 ++entireIter;
@@ -211,9 +217,10 @@ void RecordsWindowBuffer::advanceProgress(StreamOperatorStateHandler<RowData*> *
     LOG("end RecordsWindowBuffer::advanceProgress")
 }
 
-void RecordsWindowBuffer::WindowAggProcess(WindowKey currentKey, std::vector<RowData *>& entireRows,
-                                           StreamOperatorStateHandler<RowData*> *stateHandler)
-{
+void RecordsWindowBuffer::WindowAggProcess(
+        WindowKey currentKey,
+        std::vector<std::unique_ptr<RowData>>& entireRows,
+        StreamOperatorStateHandler<RecordsWindowBuffer::KeyType> *stateHandler) {
     if (isWindowAgg) {
         winAggProcess(currentKey, entireRows, stateHandler);
         if (sliceAssigner->isEventTime()) {
@@ -237,8 +244,10 @@ void RecordsWindowBuffer::WindowAggProcess(WindowKey currentKey, std::vector<Row
     }
 }
 
-void RecordsWindowBuffer::winAggProcess(WindowKey currentWindowKey, std::vector<RowData *>&  entireRows, StreamOperatorStateHandler<RowData *> *stateHandler)
-{
+void RecordsWindowBuffer::winAggProcess(
+        WindowKey currentWindowKey,
+        std::vector<std::unique_ptr<RowData>>& entireRows,
+        StreamOperatorStateHandler<RecordsWindowBuffer::KeyType> *stateHandler) {
     LOG(">>>WindowAgg process")
     stateHandler->setCurrentKey(currentWindowKey.getKey());
     long window = currentWindowKey.getWindow();
@@ -253,11 +262,11 @@ void RecordsWindowBuffer::winAggProcess(WindowKey currentWindowKey, std::vector<
         func->setAccumulators(window, stateVal);
     }
     for (int i = 0; i < aggregateCallsCount; ++i) {
-        for (RowData* entireRow : entireRows) {
+        for (auto& entireRow : entireRows) {
             if (RowDataUtil::isAccumulateMsg(entireRow->getRowKind())) {
-                localFunctions[i]->accumulate(entireRow);
+                localFunctions[i]->accumulate(entireRow.get());
             } else {
-                localFunctions[i]->retract(entireRow);
+                localFunctions[i]->retract(entireRow.get());
             }
         }
         stateVal = localFunctions[i]->getAccumulators(); // todo : 多个function的时候会把前一个function的结果给覆盖，导致聚合数据丢失！！！！
@@ -266,8 +275,10 @@ void RecordsWindowBuffer::winAggProcess(WindowKey currentWindowKey, std::vector<
 }
 
 
-void RecordsWindowBuffer::globalWinAggProcess(WindowKey currentWindowKey, std::vector<RowData *>&  entireRows, StreamOperatorStateHandler<RowData*> *stateHandler)
-{
+void RecordsWindowBuffer::globalWinAggProcess(
+        WindowKey currentWindowKey,
+        std::vector<std::unique_ptr<RowData>>&  entireRows,
+        StreamOperatorStateHandler<RecordsWindowBuffer::KeyType> *stateHandler) {
     LOG(">>>GlobalWindowAgg process")
     RowData* accumulators = nullptr;
     for (auto& func : localFunctions) {
@@ -278,9 +289,9 @@ void RecordsWindowBuffer::globalWinAggProcess(WindowKey currentWindowKey, std::v
     }
     // get previous aggregate result
     for (int i = 0; i < aggregateCallsCount; ++i) {
-        for (RowData* entireRow : entireRows) {
+        for (auto& entireRow : entireRows) {
             if (RowDataUtil::isAccumulateMsg(entireRow->getRowKind())) {
-                localFunctions[i]->merge(currentWindowKey.getWindow(), entireRow);
+                localFunctions[i]->merge(currentWindowKey.getWindow(), entireRow.get());
             }
         }
         accumulators = localFunctions[i]->getAccumulators();
@@ -289,8 +300,10 @@ void RecordsWindowBuffer::globalWinAggProcess(WindowKey currentWindowKey, std::v
     LOG(">>>GlobalWindowAgg process end")
 }
 
-RowData* RecordsWindowBuffer::combineAccumulator(WindowKey windowKey, RowData* acc, StreamOperatorStateHandler<RowData*> *stateHandler)
-{
+RowData* RecordsWindowBuffer::combineAccumulator(
+        WindowKey windowKey,
+        RowData* acc,
+        StreamOperatorStateHandler<RecordsWindowBuffer::KeyType> *stateHandler) {
     stateHandler->setCurrentKey(windowKey.getKey());
     long window = windowKey.getWindow();
     RowData* stateVal = accState->value(window);
@@ -317,7 +330,7 @@ RowData* RecordsWindowBuffer::combineAccumulator(WindowKey windowKey, RowData* a
     return result;
 }
 
-omnistream::VectorBatch* RecordsWindowBuffer::createOutputBatch(std::vector<RowData*> collectedRows)
+omnistream::VectorBatch* RecordsWindowBuffer::createOutputBatch(std::vector<std::unique_ptr<RowData>>& collectedRows)
 {
     int numColumns = outputTypes.size();
     int numRows = collectedRows.size(); // Number of rows collected

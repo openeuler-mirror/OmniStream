@@ -20,14 +20,18 @@
 #include "functions/RuntimeContext.h"
 #include "streaming/api/operators/StreamingRuntimeContext.h"
 
-template <typename W>
+template <typename K, typename W>
 class SlicingWindowProcessor {
 public:
     SlicingWindowProcessor() {};
-    virtual void open(AbstractKeyedStateBackend<RowData*> *state, const nlohmann::json& config, StreamingRuntimeContext<RowData*> *runtimeCtx, InternalTimerServiceImpl<RowData*, int64_t>* internalTimerService)  = 0;
+    virtual void open(
+            AbstractKeyedStateBackend<K> *state,
+            const nlohmann::json& config,
+            StreamingRuntimeContext<K> *runtimeCtx,
+            InternalTimerServiceImpl<K, int64_t>* internalTimerService)  = 0;
     virtual void initializeWatermark(int64_t watermark)  = 0;
     virtual bool processBatch(omnistream::VectorBatch* vectorbatch)  = 0;
-    virtual void advanceProgress(StreamOperatorStateHandler<RowData*> *stateHandler, long progress) = 0 ;
+    virtual void advanceProgress(StreamOperatorStateHandler<K> *stateHandler, long progress) = 0 ;
     virtual void prepareCheckpoint()  = 0;
     virtual void fireWindow(W window)  = 0;
     virtual void clearWindow(W window)  = 0;

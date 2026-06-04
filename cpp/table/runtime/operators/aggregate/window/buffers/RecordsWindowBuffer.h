@@ -29,40 +29,48 @@
 #include <streaming/api/operators/StreamOperatorStateHandler.h>
 #include <table/runtime/generated/NamespaceAggsHandleFunction.h>
 #include <mutex>
+#include <memory>
 #include "table/utils/TimeWindowUtil.h"
 #include "table/runtime/operators/window/slicing/SliceAssigners.h"
 #include "table/runtime/keyselector/KeySelector.h"
 
 class RecordsWindowBuffer {
 public:
-    RecordsWindowBuffer(const nlohmann::json& config, WindowValueState<RowData*, int64_t, RowData*> *state, Output* output, SliceAssigner* sliceAssigner, InternalTimerServiceImpl<RowData*, int64_t>* internalTimerService);
+    using KeyType = std::shared_ptr<RowData>;
+
+    RecordsWindowBuffer(
+            const nlohmann::json& config,
+            WindowValueState<KeyType, int64_t, RowData*> *state,
+            Output* output,
+            SliceAssigner* sliceAssigner,
+            InternalTimerServiceImpl<KeyType, int64_t>* internalTimerService);
     void CreateFunctions(SliceAssigner *sliceAssigner, const string &AGGCALLSNAME, vector<std::string> &types);
     void InitializeKeySelectorAndTypes(const nlohmann::json& config);
     void addVectorBatch(omnistream::VectorBatch *elementBatch, int64_t *sliceEndArr, bool* dropArr);
     void addVectorBatch(omnistream::VectorBatch *elementBatch, omnistream::VectorBatch *binaryRowKeySelector, int64_t *sliceEndArr);
-    void advanceProgress(StreamOperatorStateHandler<RowData*> *stateHandler, long currentProgress);
+    void advanceProgress(StreamOperatorStateHandler<KeyType> *stateHandler, long currentProgress);
     RowData* getEntireRow(omnistream::VectorBatch *batch, int rowId);
     void flush() {};
     void close() {};
     BinaryRowData* emptyRow;
-    omnistream::VectorBatch* createOutputBatch(std::vector<RowData*> collectedRows);
+    omnistream::VectorBatch* createOutputBatch(std::vector<std::unique_ptr<RowData>>& collectedRows);
     void collectOutputBatch(TimestampedCollector *out, omnistream::VectorBatch *outputBatch);
     std::string extractAggFunction(const std::string& input);
     std::vector<std::string> getKeyedTypes(std::vector<int32_t> keyedIndex, std::vector<std::string> inputTypes);
     Output* getOutput();
-    RowData* combineAccumulator(WindowKey windowKey, RowData* acc, StreamOperatorStateHandler<RowData*> *stateHandler);
+    RowData* combineAccumulator(WindowKey windowKey, RowData* acc, StreamOperatorStateHandler<KeyType> *stateHandler);
     std::vector<NamespaceAggsHandleFunction<int64_t>*> getGlobalFunctions();
-    void globalWinAggProcess(WindowKey currentWindowKey, std::vector<RowData *>&  entireRows, StreamOperatorStateHandler<RowData*> *stateHandler);
-    void winAggProcess(WindowKey currentWindowKey, std::vector<RowData *>&  entireRows, StreamOperatorStateHandler<RowData*> *stateHandler);
+    void globalWinAggProcess(WindowKey currentWindowKey, std::vector<std::unique_ptr<RowData>>&  entireRows, StreamOperatorStateHandler<KeyType> *stateHandler);
+    void winAggProcess(WindowKey currentWindowKey, std::vector<std::unique_ptr<RowData>>&  entireRows, StreamOperatorStateHandler<KeyType> *stateHandler);
     void setStringToRow(omnistream::VectorBatch *batch, int rowIndex, int colIndex, BinaryRowData *row, int dataIndex);
-    void WindowAggProcess(WindowKey currentKey, std::vector<RowData *>& entireRows,
-                          StreamOperatorStateHandler<RowData*> *stateHandler);
+    void WindowAggProcess(WindowKey currentKey, std::vector<std::unique_ptr<RowData>>& entireRows,
+                          StreamOperatorStateHandler<KeyType> *stateHandler);
 
 private:
     static constexpr int AVG_ACCUMULATOR_SLOTS = 2;  // AVG needs sum + count
     static constexpr int DEFAULT_ACCUMULATOR_SLOTS = 1;
     nlohmann::json description;
-    std::unordered_map<WindowKey, std::vector<RowData*>> recordsBuffer;
+    std::unordered_map<WindowKey, std::vector<std::unique_ptr<RowData>>> recordsBuffer;
     std::vector<std::string> inputTypes;
     std::vector<std::string> outputTypes;
     std::vector<int32_t> outputTypeIds;
@@ -70,7 +78,7 @@ private:
     BinaryRowData* reUseNewAggValue{};
     std::vector<int32_t> keyedIndex;
     std::vector<int32_t> keyedTypes;
-    std::unique_ptr<KeySelector<RowData*>> keySelector;
+    std::unique_ptr<KeySelector<KeyType>> keySelector;
     int accumulatorArity = 0;
     std::vector<std::unique_ptr<NamespaceAggsHandleFunction<int64_t>>> localFunctions;
     std::vector<std::unique_ptr<NamespaceAggsHandleFunction<int64_t>>> globalFunctions;
@@ -83,9 +91,9 @@ private:
     std::vector<std::string> accTypes;
     std::vector<std::string> aggValueTypes;
     int rowTimeIndex;
-    WindowValueState<RowData *, int64_t, RowData *> *accState;
+    WindowValueState<KeyType, int64_t, RowData *> *accState;
     Output* output;
-    InternalTimerServiceImpl<RowData*, int64_t>* internalTimerService;
+    InternalTimerServiceImpl<KeyType, int64_t>* internalTimerService;
      bool isWindowAgg;
     std::mutex bufferMutex;
     SliceAssigner* sliceAssigner;

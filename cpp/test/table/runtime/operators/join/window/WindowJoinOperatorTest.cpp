@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <memory>
 #include "table/runtime/operators/join/window/WindowJoinOperator.h"
 #include "table/runtime/operators/join/window/InnerJoinOperator.h"
 #include "runtime/taskmanager/OmniRuntimeEnvironment.h"
@@ -275,7 +276,8 @@ TEST(WindowJoinOperatorTest, DISABLED_InnerJoinTest_BinaryRowDataKey)
     auto vbatchRight = getRightBatch();
  
     auto *out = new OutputTestVectorBatch();
-    auto op = new InnerJoinOperator<BinaryRowData*>(parsedJsonEqui, out, new LongSerializer(), new LongSerializer());
+    auto op = new InnerJoinOperator<std::shared_ptr<RowData>>(
+        parsedJsonEqui, out, new LongSerializer(), new LongSerializer());
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
     taskInfo->setStateBackend("HashMapStateBackend");
