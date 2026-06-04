@@ -37,13 +37,27 @@ public:
 
     BackendDataType getBackendId() const override { return BackendDataType::ROW_BK;};
 
+    std::string toJson() override {
+        std::vector<std::string> fieldNames;
+        if (!inputTypes_.empty()) {
+            fieldNames = inputTypes_;
+        } else {
+            int size = (numFields_ > 0) ? numFields_ : 0;
+            fieldNames.resize(size, "");
+        }
+        SerializerJsonInfo typeJson = {SerializerType::BINARY_ROW};
+        typeJson.fieldNames = fieldNames;
+
+        return typeJson.toJson();
+    }
+
     int getNumFields() const { return numFields_; }
 
     const std::vector<std::string>& getInputTypes() const;
 private:
     // Add JoinedRowDataSerializer, then pass the unconverted JoinedRowData to
     // output collector instead of the converted BinaryRowData
-    int numFields_;
+    int numFields_ = 0;
     int fixedLengthPartSize_;
     BinaryRowData* reUse_;
     std::vector<std::string> inputTypes_;

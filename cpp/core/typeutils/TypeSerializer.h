@@ -53,6 +53,8 @@ inline std::ostream& operator<<(std::ostream& os, const BackendDataType& type) {
         case BackendDataType::ROW_LIST_BK: return os << "ROW_LIST_BK";
         case BackendDataType::INVALID_BK: return os << "INVALID_BK";
         case BackendDataType::POJO_BK: return os << "POJO_BK";
+        case BackendDataType::SET_LONG: return os << "SET_LONG";
+        case BackendDataType::BYTE_ARRAY_BK: return os << "BYTE_ARRAY_BK";
         case BackendDataType::VECTOR_BATCH_BK: return os << "VECTOR_BATCH_BK";
         default: return os << "UNKNOWN_BK";
     }

@@ -11,28 +11,24 @@
 
 #include "XxH128_hashSerializer.h"
 
-void *XxH128_hashSerializer::deserialize(DataInputView &source)
-{
-    auto buffer = reinterpret_cast<int64_t*>(source.GetBuffer());
-    int64_t first = *buffer;
-    buffer += 1;
-    auto bufferSecond = reinterpret_cast<int64_t*>(buffer);
-    int64_t second = *bufferSecond;
-    XXH128_hash_t* res = new XXH128_hash_t();
-    res->low64 = static_cast<uint64_t>(first);
-    res->high64 = static_cast<uint64_t>(second);
+void *XxH128_hashSerializer::deserialize(DataInputView &source) {
+    int64_t low64 = source.readLong();
+    int64_t high64 = source.readLong();
+
+    auto* res = new XXH128_hash_t();
+    res->low64 = static_cast<uint64_t>(low64);
+    res->high64 = static_cast<uint64_t>(high64);
 
     return static_cast<void*>(res);
 }
 
-void XxH128_hashSerializer::serialize(void *record, DataOutputSerializer &target)
-{
-    int64_t first = static_cast<int64_t>(reinterpret_cast<XXH128_hash_t*>(record)->low64);
-    target.writeLong(first);
-    int64_t second = static_cast<int64_t>(reinterpret_cast<XXH128_hash_t*>(record)->high64);
-    target.writeLong(second);
+void XxH128_hashSerializer::serialize(void *record, DataOutputSerializer &target) {
+    auto* obj = static_cast<XXH128_hash_t*>(record);
+    int64_t low64 = static_cast<int64_t>(obj->low64);
+    int64_t high64 = static_cast<int64_t>(obj->high64);
+
+    target.writeLong(low64);
+    target.writeLong(high64);
 }
 
-XxH128_hashSerializer::XxH128_hashSerializer() {};
-
-XxH128_hashSerializer* XxH128_hashSerializer::instance = new XxH128_hashSerializer();
+XxH128_hashSerializer* XxH128_hashSerializer::INSTANCE = new XxH128_hashSerializer();
