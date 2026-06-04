@@ -132,10 +132,9 @@ public:
 
     void initializeState(StateInitializationContextImpl *context) override {
         std::string stateName = "elements-count-state";
-        auto *listStateDescriptor = new ListStateDescriptor<long>(stateName, LongSerializer::INSTANCE);
+        auto *listStateDescriptor = new ListStateDescriptor<long>(stateName, new LongSerializer());
         auto *stateBackend = static_cast<DefaultOperatorStateBackend*>(context->getOperatorStateBackend());
         this->checkpointedState = stateBackend->template getListState<long>(listStateDescriptor);
-        delete listStateDescriptor;
 
         if (context->isRestored()) {
             std::vector<long> retrievedStates;

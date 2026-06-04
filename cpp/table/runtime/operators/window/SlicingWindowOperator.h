@@ -65,7 +65,7 @@ public:
         AbstractStreamOperator<RowData*>::initializeState(context);
 
         std::string watermarkStateName = "watermark";
-        auto *watermarkStateDesc = new ListStateDescriptor<int64_t>(watermarkStateName, LongSerializer::INSTANCE);
+        auto *watermarkStateDesc = new ListStateDescriptor<int64_t>(watermarkStateName, new LongSerializer());
         auto *stateBackend = static_cast<DefaultOperatorStateBackend*>(context->getOperatorStateBackend());
         auto rawState = stateBackend->getUnionListState<int64_t>(watermarkStateDesc);
         this->watermarkState = rawState;
