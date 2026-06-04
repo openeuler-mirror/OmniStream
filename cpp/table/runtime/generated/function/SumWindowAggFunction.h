@@ -18,8 +18,9 @@
 #include "table/runtime/dataview/StateDataViewStore.h"
 #include "table/runtime/generated/NamespaceAggsHandleFunction.h"
 #include "table/data/TimestampData.h"
+#include "table/runtime/generated/function/CompositeWindowAggFunction.h"
 
-class SumWindowAggFunction : public NamespaceAggsHandleFunction<int64_t> {
+class SumWindowAggFunction : public WindowAggHandleFunction {
 public:
     SumWindowAggFunction(int aggIdx, int accIndex, int valueIndex, SliceAssigner* sliceAssigner)
         : sliceAssigner(sliceAssigner),
@@ -37,7 +38,8 @@ public:
     void retract(RowData *input) override;
     void Cleanup(long ns) override;
     void close() override {}
-
+    bool isWindowEmpty(){ return valueIsNull;}
+ 
 private:
     SliceAssigner* sliceAssigner;
     StateDataViewStore* store;
@@ -50,8 +52,7 @@ private:
     long limit = std::numeric_limits<long>::min();
     long aggValue = std::numeric_limits<long>::min();
     long aggCountValue;
-    bool countIsNull;
-    const int countIdx = 1;
+    RowData* currentAcc_{};
 };
 
 #endif // FLINK_TNEL_SUMWINDOWAGGFUNCTION_H

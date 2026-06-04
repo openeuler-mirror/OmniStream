@@ -49,13 +49,25 @@ RecordsWindowBuffer::RecordsWindowBuffer(
     for (const std::string& inputType : description["inputTypes"]) {
         types.push_back(inputType);
     }
+    const auto keyArity = keyedIndex.size();
+    if (keyArity > outputTypes.size()) {
+        THROW_LOGIC_EXCEPTION("The size of key fields must not exceed output type fields.");
+    }
+    std::vector<int32_t> valueOutputTypeIds(outputTypeIds.begin() + keyArity, outputTypeIds.end());
     aggregateCallsCount = description["aggInfoList"][AGGCALLSNAME].size();
     if (aggregateCallsCount == 0) {
         localFunctions.emplace_back(std::make_unique<GlobalEmptyNamespaceFunction>(0, 0, 0, sliceAssigner));
         globalFunctions.emplace_back(std::make_unique<GlobalEmptyNamespaceFunction>(0, 0, 0, sliceAssigner));
         aggregateCallsCount = 1;
         accumulatorArity = emptyAggFuncNum;
-        reUseAggValue = BinaryRowData::createBinaryRowDataWithMem(0);
+        localCompositeAggregator = std::make_unique<CompositeWindowAggFunction>(
+            std::move(localFunctions),
+            std::move(valueOutputTypeIds),
+            sliceAssigner);
+        globalCompositeAggregator = std::make_unique<CompositeWindowAggFunction>(
+            std::move(globalFunctions),
+            std::move(valueOutputTypeIds),
+            sliceAssigner);
         return;
     }
     accTypes = config["aggInfoList"][ACCTYPESNAME].get<std::vector<std::string>>();
@@ -65,7 +77,17 @@ RecordsWindowBuffer::RecordsWindowBuffer(
     aggValueTypes = config["aggInfoList"][AGGVALTYPESNAME].get<std::vector<std::string>>();
     accumulatorArity = accTypes.size();
     CreateFunctions(sliceAssigner, AGGCALLSNAME, types);
-    reUseAggValue = BinaryRowData::createBinaryRowDataWithMem(aggValueTypes.size());
+
+    localCompositeAggregator = std::make_unique<CompositeWindowAggFunction>(
+            std::move(localFunctions),
+            std::move(valueOutputTypeIds),
+            sliceAssigner);
+    if (!isWindowAgg){
+        globalCompositeAggregator = std::make_unique<CompositeWindowAggFunction>(
+            std::move(globalFunctions),
+            std::move(valueOutputTypeIds),
+            sliceAssigner);
+    }
 }
 
 void RecordsWindowBuffer::InitializeKeySelectorAndTypes(const nlohmann::json& config)
@@ -85,6 +107,9 @@ void RecordsWindowBuffer::CreateFunctions(SliceAssigner *sliceAssigner,
     int accStartingIndex = 0;
     int aggValueIndex = 0;
     int aggFuncIndex = 0;
+    int globalAggStartingIndex = 0;
+    int globalAccStartingIndex = 0;
+    int globalValueStartingIndex = 0;
     for (const auto& aggCall : description["aggInfoList"][AGGCALLSNAME]) {
         std::string aggTypeStr = aggCall["name"];
         std::string aggType = extractAggFunction(aggTypeStr);
@@ -94,24 +119,22 @@ void RecordsWindowBuffer::CreateFunctions(SliceAssigner *sliceAssigner,
                             ? -1
                             : aggCall["argIndexes"].get<std::vector<int>>()[0];
         std::string aggDataType = aggIndex == -1 ? "NULL" : types[aggIndex];
-        std::unique_ptr<NamespaceAggsHandleFunction<int64_t>> localFunction;
-        std::unique_ptr<NamespaceAggsHandleFunction<int64_t>> globalFunction;
+        std::unique_ptr<WindowAggHandleFunction> localFunction;
+        std::unique_ptr<WindowAggHandleFunction> globalFunction;
         if (aggType == "AVG") {
         } else if (aggType == "COUNT") {
-            localFunction = std::make_unique<CountWindowAggFunction>(keyedIndex.size(), accStartingIndex, aggValueIndex, sliceAssigner);
-            globalFunction =  std::make_unique<CountWindowAggFunction>(0, 0, 0, sliceAssigner);
- 
+            localFunction = std::make_unique<CountWindowAggFunction>(aggIndex, accStartingIndex, aggValueIndex, sliceAssigner);
+            globalFunction =  std::make_unique<CountWindowAggFunction>(globalAggStartingIndex, globalAccStartingIndex, globalValueStartingIndex, sliceAssigner);
         } else if (aggType == "MAX") {
-            localFunction = std::make_unique<MinMaxWindowAggFunction>(keyedIndex.size(), accStartingIndex, aggValueIndex, MAX_FUNC, sliceAssigner);
-            globalFunction =  std::make_unique<MinMaxWindowAggFunction>(0, 0, 0, MAX_FUNC, sliceAssigner);
- 
+            localFunction = std::make_unique<MinMaxWindowAggFunction>(aggIndex, accStartingIndex, aggValueIndex, MAX_FUNC, sliceAssigner);
+            globalFunction =  std::make_unique<MinMaxWindowAggFunction>(globalAggStartingIndex, globalAccStartingIndex, globalValueStartingIndex, MAX_FUNC, sliceAssigner);
         } else if (aggType == "MIN") {
             localFunction = std::make_unique<MinMaxWindowAggFunction>(aggIndex, accStartingIndex,
                                                         aggValueIndex, MIN_FUNC, sliceAssigner);
-            globalFunction =  std::make_unique<MinMaxWindowAggFunction>(0, 0, 0, MIN_FUNC, sliceAssigner);
+            globalFunction =  std::make_unique<MinMaxWindowAggFunction>(globalAggStartingIndex, globalAccStartingIndex, globalValueStartingIndex, MIN_FUNC, sliceAssigner);
         } else if (aggType == "SUM") {
-            localFunction = std::make_unique<SumWindowAggFunction>(keyedIndex.size(), accStartingIndex, aggValueIndex, sliceAssigner);
-            globalFunction =  std::make_unique<SumWindowAggFunction>(0, 0, 0, sliceAssigner);
+            localFunction = std::make_unique<SumWindowAggFunction>(aggIndex, accStartingIndex, aggValueIndex, sliceAssigner);
+            globalFunction =  std::make_unique<SumWindowAggFunction>(globalAggStartingIndex, globalAccStartingIndex, globalValueStartingIndex, sliceAssigner);
         } else {
             throw std::runtime_error("Unsupported aggregate type: " + aggTypeStr);
         }
@@ -120,6 +143,10 @@ void RecordsWindowBuffer::CreateFunctions(SliceAssigner *sliceAssigner,
         } else {
             localFunctions.push_back(std::move(localFunction));
             globalFunctions.push_back(std::move(globalFunction));
+            globalAggStartingIndex++;
+            globalValueStartingIndex++;
+            globalAccStartingIndex += aggType == "AVG" ? AVG_ACCUMULATOR_SLOTS : DEFAULT_ACCUMULATOR_SLOTS;
+
         }
         accStartingIndex += aggType == "AVG" ? AVG_ACCUMULATOR_SLOTS : DEFAULT_ACCUMULATOR_SLOTS;
         aggValueIndex++;
@@ -253,24 +280,17 @@ void RecordsWindowBuffer::winAggProcess(
     long window = currentWindowKey.getWindow();
     RowData* stateVal = accState->value(window);
     if (stateVal == nullptr) {
-        // If the accumulator does not exist, traverse functions to create the accumulators.
-        for (auto& func : localFunctions) {
-            stateVal = func->createAccumulators(accumulatorArity);
+        localCompositeAggregator->createAccumulators(accumulatorArity);
+    }
+    localCompositeAggregator->setAccumulators(window, stateVal);
+    for (auto& entireRow : entireRows) {
+        if (RowDataUtil::isAccumulateMsg(entireRow->getRowKind())) {
+            localCompositeAggregator->accumulate(entireRow.get());
+        } else {
+            localCompositeAggregator->retract(entireRow.get());
         }
     }
-    for (auto& func : localFunctions) {
-        func->setAccumulators(window, stateVal);
-    }
-    for (int i = 0; i < aggregateCallsCount; ++i) {
-        for (auto& entireRow : entireRows) {
-            if (RowDataUtil::isAccumulateMsg(entireRow->getRowKind())) {
-                localFunctions[i]->accumulate(entireRow.get());
-            } else {
-                localFunctions[i]->retract(entireRow.get());
-            }
-        }
-        stateVal = localFunctions[i]->getAccumulators(); // todo : 多个function的时候会把前一个function的结果给覆盖，导致聚合数据丢失！！！！
-    }
+    stateVal = localCompositeAggregator->getAccumulators();
     accState->update(window, stateVal);
 }
 
@@ -279,25 +299,16 @@ void RecordsWindowBuffer::globalWinAggProcess(
         WindowKey currentWindowKey,
         std::vector<std::unique_ptr<RowData>>&  entireRows,
         StreamOperatorStateHandler<RecordsWindowBuffer::KeyType> *stateHandler) {
-    LOG(">>>GlobalWindowAgg process")
-    RowData* accumulators = nullptr;
-    for (auto& func : localFunctions) {
-        accumulators = func->createAccumulators(accumulatorArity);
-    }
-    for (auto& func : localFunctions) {
-        func->setAccumulators(currentWindowKey.getWindow(), accumulators);
-    }
-    // get previous aggregate result
-    for (int i = 0; i < aggregateCallsCount; ++i) {
-        for (auto& entireRow : entireRows) {
-            if (RowDataUtil::isAccumulateMsg(entireRow->getRowKind())) {
-                localFunctions[i]->merge(currentWindowKey.getWindow(), entireRow.get());
-            }
+    RowData* accumulators = localCompositeAggregator->createAccumulators(accumulatorArity);
+    localCompositeAggregator->setAccumulators(currentWindowKey.getWindow(), accumulators);
+
+    for (auto& entireRow : entireRows) {
+        if (RowDataUtil::isAccumulateMsg(entireRow->getRowKind())) {
+            localCompositeAggregator->merge(currentWindowKey.getWindow(), entireRow.get());
         }
-        accumulators = localFunctions[i]->getAccumulators();
     }
-    combineAccumulator(currentWindowKey, accumulators, stateHandler);  // todo 3/9 eve put result in out
-    LOG(">>>GlobalWindowAgg process end")
+    accumulators = localCompositeAggregator->getAccumulators();
+    combineAccumulator(currentWindowKey, accumulators, stateHandler);
 }
 
 RowData* RecordsWindowBuffer::combineAccumulator(
@@ -310,21 +321,11 @@ RowData* RecordsWindowBuffer::combineAccumulator(
     RowData* result = nullptr;
 
     if (stateVal == nullptr) {
-        // If the accumulator does not exist, traverse functions to create the accumulators.
-        for (auto& func : globalFunctions) {
-            LOG("createAccumulators in RecordsWindowBuffer")
-            stateVal = func->createAccumulators(accumulatorArity);
-        }
+        stateVal = globalCompositeAggregator->createAccumulators(accumulatorArity);
     }
-    for (auto& func : globalFunctions) {
-        LOG("setAccumulators in RecordsWindowBuffer")
-        func->setAccumulators(window, stateVal);
-    }
-    for (size_t i = 0; i < globalFunctions.size(); ++i) {
-        globalFunctions[i]->merge(window, acc);
-        LOG("getAccumulators in RecordsWindowBuffer::combineAccumulator")
-        stateVal = globalFunctions[i]->getAccumulators();
-    }
+    globalCompositeAggregator->setAccumulators(window, stateVal);
+    globalCompositeAggregator->merge(window, acc);
+    globalCompositeAggregator->getAccumulators();
     accState->update(window, stateVal);
 
     return result;
@@ -384,22 +385,4 @@ void RecordsWindowBuffer::collectOutputBatch(TimestampedCollector *out, omnistre
 Output* RecordsWindowBuffer::getOutput()
 {
     return this->output;
-}
-
-std::vector<NamespaceAggsHandleFunction<int64_t>*> RecordsWindowBuffer::getGlobalFunctions()
-{
-    std::vector<NamespaceAggsHandleFunction<int64_t>*> observers;
-    if(isWindowAgg){
-        observers.reserve(localFunctions.size());
-        for (auto& f : localFunctions) {
-            observers.push_back(f.get()); 
-        }
-        return observers;
-    }else{
-        observers.reserve(globalFunctions.size());
-        for (auto& f : globalFunctions) {
-            observers.push_back(f.get()); 
-        }
-        return observers;
-    }
 }

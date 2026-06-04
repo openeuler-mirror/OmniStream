@@ -32,9 +32,6 @@ void MinMaxWindowAggFunction::accumulate(RowData *accInput)
             valueIsNull = false;
         }
     }
-    if (!countIsNull) {
-        aggCountValue++;
-    }
 }
 
 void MinMaxWindowAggFunction::merge(long ns, RowData *otherAcc)
@@ -50,63 +47,45 @@ void MinMaxWindowAggFunction::merge(long ns, RowData *otherAcc)
             valueIsNull = false;
         }
     }
-    long countOther = otherAcc->isNullAt(countIdx) ? -1 : *otherAcc->getLong(countIdx);
-    if (!countIsNull) {
-        aggCountValue += countOther;
-    } else {
-        aggCountValue = -1;
-    }
 }
 
 void MinMaxWindowAggFunction::setAccumulators(long ns, RowData *acc)
 {
     valueIsNull = acc->isNullAt(accIndex);
     aggValue = valueIsNull ? limit : *acc->getLong(accIndex);
-    countIsNull = acc->isNullAt(1);
-    aggCountValue = countIsNull ? -1 : *acc->getLong(countIdx);
+    this->currentAcc_ = acc;
 }
 
 RowData *MinMaxWindowAggFunction::getAccumulators()
 {
     LOG(">>>>Function getAccumulators")
-    BinaryRowData *currentAcc = BinaryRowData::createBinaryRowDataWithMem(2);
+   
     if (valueIsNull) {
-        currentAcc->setNullAt(accIndex);
+        reinterpret_cast<BinaryRowData*>(currentAcc_)->setNullAt(accIndex);
     } else {
-        currentAcc->setLong(accIndex, aggValue);
+        currentAcc_->setLong(accIndex, aggValue);
     }
-    if (countIsNull) {
-        currentAcc->setNullAt(countIdx);
-    } else {
-        currentAcc->setLong(countIdx, aggCountValue);
-    }
-    return currentAcc;
+    
+    return currentAcc_;
 }
 
 RowData *MinMaxWindowAggFunction::createAccumulators(int accumulatorArity)
 {
     LOG(">>>>create Accumulators")
-    BinaryRowData *result = BinaryRowData::createBinaryRowDataWithMem(accumulatorArity + 1);
-    result->setNullAt(0);
-    result->setLong(countIdx, static_cast<long>(0));
+    BinaryRowData *result = BinaryRowData::createBinaryRowDataWithMem(accumulatorArity);
+    result->setNullAt(accIndex);
     return result;
 }
 
 RowData *MinMaxWindowAggFunction::getValue(long ns)
 {
-    BinaryRowData *result;
-    int64_t startTime = sliceAssigner->getWindowStart(ns);
-    int length = 3;
-    result = BinaryRowData::createBinaryRowDataWithMem(length);
-    if (!valueIsNull) {
-        result->setLong(0, aggValue);
-    } else {
-        result->setLong(0, nullptr);
-    }
-    result->setLong(length - 2, startTime);
-    result->setLong(length - 1, ns);
-
-    return result;
+    if (valueIsNull) {
+            reinterpret_cast<BinaryRowData*>(currentAcc_)->setNullAt(accIndex);
+        } else {
+            currentAcc_->setLong(accIndex, aggValue);
+        }
+    return currentAcc_;
+    
 }
 
 // 保持其他方法实现

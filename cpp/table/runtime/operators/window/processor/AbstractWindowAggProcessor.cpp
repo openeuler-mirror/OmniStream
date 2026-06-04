@@ -47,29 +47,56 @@ AbstractWindowAggProcessor::AbstractWindowAggProcessor(const nlohmann::json desc
         }
     }
     keySelector = std::make_unique<KeySelector<KeyType>>(keyedTypes, keyedIndex);
+    std::vector<std::unique_ptr<WindowAggHandleFunction>> globalFunctions;
     LOG("agginfolist size : " <<description["aggInfoList"][AGGCALLSNAME].size())
+    const auto keyArity = keyedIndex.size();
+    if (keyArity > outputTypes.size()) {
+        THROW_LOGIC_EXCEPTION("The size of key fields must not exceed output type fields.");
+    }
+    std::vector<int32_t> valueOutputTypeIds(outputTypeIds.begin() + keyArity, outputTypeIds.end());
     if (description["aggInfoList"][AGGCALLSNAME].size() == 0) {
-        NamespaceAggsHandleFunction<int64_t> *function = new GlobalEmptyNamespaceFunction(0, 0, 0, sliceAssigner);
-        aggregator.push_back(function);
+        auto function = std::make_unique<GlobalEmptyNamespaceFunction>(0, 0, 0, sliceAssigner);
+        globalFunctions.push_back(std::move(function));
+        aggregator = std::make_unique<CompositeWindowAggFunction>(
+            std::move(globalFunctions),
+            std::move(valueOutputTypeIds),
+            sliceAssigner);
         return;
     }
+
+    auto accStartIndex = 0;
+    auto valueStartIndex = 0;
     for (const auto& aggCall : description["aggInfoList"][AGGCALLSNAME]) {
         std::string aggTypeStr = aggCall["name"];
         std::string aggType = LocalSlicingWindowAggOperator::extractAggFunction(aggTypeStr);
-        NamespaceAggsHandleFunction<int64_t> *globalFunction;
+
+        int aggIndex = aggCall["argIndexes"].get<std::vector<int>>().empty() ? -1
+                                                                             : aggCall["argIndexes"].get<std::vector<int>>()[0];  // aggIndex可能为空，这里需要判断
         if (aggType == "COUNT") {
-            globalFunction = new CountWindowAggFunction(0, 0, 0, sliceAssigner);
+            auto globalFunction = std::make_unique<CountWindowAggFunction>(aggIndex, accStartIndex, valueStartIndex, sliceAssigner);
+            globalFunctions.push_back(std::move(globalFunction));
         } else if (aggType == "MAX") {
-            globalFunction = new MinMaxWindowAggFunction(0, 0, 0, MAX_FUNC, sliceAssigner);
+            auto globalFunction = std::make_unique<MinMaxWindowAggFunction>(aggIndex, accStartIndex, valueStartIndex, MAX_FUNC, sliceAssigner);
+            globalFunctions.push_back(std::move(globalFunction));
         } else if (aggType == "MIN") {
-           globalFunction = new MinMaxWindowAggFunction(0, 0, 0, MIN_FUNC, sliceAssigner);
+            auto globalFunction = std::make_unique<MinMaxWindowAggFunction>(aggIndex, accStartIndex, valueStartIndex, MIN_FUNC, sliceAssigner);
+            globalFunctions.push_back(std::move(globalFunction));
         }else if (aggType == "SUM"){
-            globalFunction = new SumWindowAggFunction(0, 0, 0, sliceAssigner);
+            auto globalFunction = std::make_unique<SumWindowAggFunction>(aggIndex, accStartIndex, valueStartIndex, sliceAssigner);
+            globalFunctions.push_back(std::move(globalFunction));
         } else {
             throw std::runtime_error("Unsupported aggregate type: " + aggTypeStr);
         }
-        aggregator.push_back(globalFunction);
+        accStartIndex++;
+        valueStartIndex++;
+
     }
+
+    aggregator = std::make_unique<CompositeWindowAggFunction>(
+            std::move(globalFunctions),
+            std::move(valueOutputTypeIds),
+            sliceAssigner);
+
 }
 
 bool AbstractWindowAggProcessor::processBatch(omnistream::VectorBatch* vectorbatch)
@@ -237,20 +264,12 @@ RowData* AbstractWindowAggProcessor::GetNonHopResult(int64_t windowEnd)
 {
     RowData* acc = windowState->value(windowEnd);
     if (acc == nullptr) {
-        for (auto &func: aggregator) {
-            // todo: 这里为什么只取最后一个？aggregator中有多个agg的情况怎么处理？
-            acc = func->createAccumulators(accumulatorArity);
-        }
+        acc = aggregator->createAccumulators(accumulatorArity);
     }
-    for (auto &func: aggregator) {
-        // todo: 这里为什么只取最后一个？aggregator中有多个agg的情况怎么处理？
-        func->setAccumulators(windowEnd, acc);
-    }
+    aggregator->setAccumulators(windowEnd, acc);
     RowData *result = nullptr;
-    for (size_t i = 0; i < aggregator.size(); ++i) {
-        // todo: 这里为什么只取最后一个？aggregator中有多个agg的情况怎么处理？
-        result = aggregator[i]->getValue(windowEnd);
-    }
+    result = aggregator->getValue(windowEnd);
+
     if (backendType_ != omnistream::StateType::HEAP) {
         delete acc;
     }
@@ -274,29 +293,22 @@ RowData* AbstractWindowAggProcessor::GetHopResult(int64_t windowEnd, int64_t num
 {
     int64_t tempWindow = windowEnd;
     RowData *acc;
-    for (auto &func: aggregator) {
-        // todo: 这里为什么只取最后一个？aggregator中有多个agg的情况怎么处理？
-        acc = func->createAccumulators(accumulatorArity);
+    if (acc == nullptr) {
+        acc = aggregator->createAccumulators(accumulatorArity);
     }
-    for (auto &func: aggregator) {
-        // todo: 这里为什么只取最后一个？aggregator中有多个agg的情况怎么处理？
-        func->setAccumulators(tempWindow, acc);
-    }
+    aggregator->setAccumulators(windowEnd, acc);
+
     for (int i = 0; i < numSlices; ++i) {
-        // todo:
         RowData *sliceAcc = windowState->value(tempWindow);
         if (sliceAcc != nullptr) {
-            for (size_t j = 0; j < aggregator.size(); ++j) {
-                aggregator[j]->merge(tempWindow, sliceAcc);
-            }
+            aggregator->merge(tempWindow,sliceAcc);
         }
         tempWindow -= interval;
     }
     RowData* result = nullptr;
-    for (auto& agg: aggregator) {
-        // todo: 这里为什么只取最后一个？aggregator中有多个agg的情况怎么处理？
-        result = agg->getValue(windowEnd);
-    }
+
+    result = aggregator->getValue(windowEnd);
+
     if (backendType_ != omnistream::StateType::HEAP) {
         delete acc;
     }
@@ -308,17 +320,7 @@ bool AbstractWindowAggProcessor::IsWindowEmpty()
     if (indexOfCountStar < 0) {
         return false;
     }
-    bool tempRes = false;
-    for (size_t i = 0; i < aggregator.size(); ++i) {
-        // todo: 这里内存也没清除
-        RowData* acc = aggregator[i]->getAccumulators();
-        tempRes = (acc == nullptr) || *acc->getLong(indexOfCountStar) == 0;
-        if (!tempRes) {
-            LOG("return in the function loop")
-            return false;
-        }
-    }
-    LOG("return at the end of the loop")
+    bool tempRes = aggregator->isWindowEmpty();
     return tempRes;
 }
 
@@ -386,12 +388,20 @@ void AbstractWindowAggProcessor::setClockService(ClockService * newClock)
 }
 
 void AbstractWindowAggProcessor::clearWindow(int64_t windowEnd) {
-    // todo: 空实现？可能导致数据清理不干净
+    IteratorBase* expiredSlices = sliceAssigner->expiredSlices(windowEnd);
+    while (expiredSlices->hasNext()) {
+        int64_t expiredSliceEnd = expiredSlices->next();
+        windowState->clear(expiredSliceEnd);
+        aggregator->Cleanup(windowEnd);
+    }
 }
 
 void AbstractWindowAggProcessor::close()
 {
-    windowBuffer->close();
+    if (windowBuffer != nullptr){
+        windowBuffer->close();
+    }
+    aggregator->close();
 }
 
 TypeSerializer *AbstractWindowAggProcessor::createWindowSerializer()

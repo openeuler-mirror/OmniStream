@@ -8,8 +8,8 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef FLINK_TNEL_RECORDSWINDOWBUFFER_H
-#define FLINK_TNEL_RECORDSWINDOWBUFFER_H
+
+# pragma once
 
 #include <unordered_map>
 #include <vector>
@@ -33,6 +33,7 @@
 #include "table/utils/TimeWindowUtil.h"
 #include "table/runtime/operators/window/slicing/SliceAssigners.h"
 #include "table/runtime/keyselector/KeySelector.h"
+#include "runtime/generated/function/CompositeWindowAggFunction.h"
 
 class RecordsWindowBuffer {
 public:
@@ -59,7 +60,6 @@ public:
     std::vector<std::string> getKeyedTypes(std::vector<int32_t> keyedIndex, std::vector<std::string> inputTypes);
     Output* getOutput();
     RowData* combineAccumulator(WindowKey windowKey, RowData* acc, StreamOperatorStateHandler<KeyType> *stateHandler);
-    std::vector<NamespaceAggsHandleFunction<int64_t>*> getGlobalFunctions();
     void globalWinAggProcess(WindowKey currentWindowKey, std::vector<std::unique_ptr<RowData>>&  entireRows, StreamOperatorStateHandler<KeyType> *stateHandler);
     void winAggProcess(WindowKey currentWindowKey, std::vector<std::unique_ptr<RowData>>&  entireRows, StreamOperatorStateHandler<KeyType> *stateHandler);
     void setStringToRow(omnistream::VectorBatch *batch, int rowIndex, int colIndex, BinaryRowData *row, int dataIndex);
@@ -80,10 +80,11 @@ private:
     std::vector<int32_t> keyedTypes;
     std::unique_ptr<KeySelector<KeyType>> keySelector;
     int accumulatorArity = 0;
-    std::vector<std::unique_ptr<NamespaceAggsHandleFunction<int64_t>>> localFunctions;
-    std::vector<std::unique_ptr<NamespaceAggsHandleFunction<int64_t>>> globalFunctions;
+    std::vector<std::unique_ptr<WindowAggHandleFunction>> localFunctions;
+    std::vector<std::unique_ptr<WindowAggHandleFunction>> globalFunctions;
+    std::unique_ptr<WindowAggHandleFunction> localCompositeAggregator;
+    std::unique_ptr<WindowAggHandleFunction> globalCompositeAggregator;
     int aggregateCallsCount = 0;
-    BinaryRowData* reUseAggValue;
     GenericRowData* windowRow;
     JoinedRowData* accWindowRow;
     omnistream::VectorBatch* resultBatch = nullptr;
@@ -101,6 +102,3 @@ private:
     const int emptyAggFuncNum = 1;
     int64_t minSliceEnd = INT64_MAX;
 };
-
-
-#endif

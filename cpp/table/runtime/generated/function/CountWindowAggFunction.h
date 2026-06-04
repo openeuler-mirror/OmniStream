@@ -18,8 +18,9 @@
 #include "table/runtime/dataview/StateDataViewStore.h"
 #include "table/runtime/generated/NamespaceAggsHandleFunction.h"
 #include "table/data/TimestampData.h"
+#include "table/runtime/generated/function/CompositeWindowAggFunction.h"
 
-class CountWindowAggFunction : public NamespaceAggsHandleFunction<int64_t> {
+class CountWindowAggFunction : public WindowAggHandleFunction {
 public:
     CountWindowAggFunction(int aggIdx, int accIndex, int valueIndex, SliceAssigner* sliceAssigner)
         :sliceAssigner(sliceAssigner),
@@ -36,17 +37,20 @@ public:
     void retract(RowData *input) override;
     void Cleanup(long ns) override;
     void close() override {}
+    bool isWindowEmpty(){ return valueIsNull;}
+
 private:
     SliceAssigner* sliceAssigner; // tumble
     StateDataViewStore* store;
 
     int64_t namespaceVal;
-    bool valueIsNull = false;
+    bool valueIsNull = true;
     int aggIdx;
     int accIndex;
     int valueIndex;
     long limit;
-    long aggValue;
+    long aggValue = 0;
+    RowData* currentAcc_{};
 };
 
 

@@ -8,8 +8,8 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef ABSTRACTWINDOWAGGPROCESSOR_H
-#define ABSTRACTWINDOWAGGPROCESSOR_H
+
+#pragma once
 
 #include "SlicingWindowProcessor.h"
 #include "table/runtime/operators/window/slicing/SliceAssigners.h"
@@ -27,6 +27,7 @@
 #include <unordered_set>
 #include <cstdint>
 #include <memory>
+#include "runtime/generated/function/CompositeWindowAggFunction.h"
 
 class AbstractWindowAggProcessor : public SlicingWindowProcessor<std::shared_ptr<RowData>, int64_t> {
 public:
@@ -65,7 +66,7 @@ protected:
     SliceAssigner* sliceAssigner = nullptr;
     int indexOfCountStar = -1;
     bool isEventTime;
-    std::vector<NamespaceAggsHandleFunction<int64_t>*> aggregator;
+    std::unique_ptr<WindowAggHandleFunction> aggregator;
     std::unique_ptr<WindowValueState<KeyType, int64_t, RowData*>> windowState;
     Output* output;
 
@@ -89,4 +90,3 @@ private:
     std::unordered_set<int64_t> uniqueData;
     omnistream::StateType backendType_ = omnistream::StateType::HEAP;
 };
-#endif
