@@ -19,9 +19,9 @@
 
 using namespace omnistream;
 
-static VectorBatch *CreateTestVectorBatch(int64_t timestamp)
+static omnistream::VectorBatch *CreateTestVectorBatch(int64_t timestamp)
 {
-    auto *vectorBatch = new VectorBatch(2);
+    auto *vectorBatch = new omnistream::VectorBatch(2);
     vectorBatch->setTimestamp(0, timestamp);
     vectorBatch->setTimestamp(1, timestamp + 1);
     return vectorBatch;
@@ -106,7 +106,7 @@ TEST(HeapKeyedStateBackendTest, VectorBatchTest1)
 
     context->setCurrentKey(keyRowData2);
     int batchId0 = valueState->getVectorBatchesSize();
-    VectorBatch *storedBatch0 = CreateTestVectorBatch(300);
+    omnistream::VectorBatch *storedBatch0 = CreateTestVectorBatch(300);
     valueState->addVectorBatch(storedBatch0);
     EXPECT_EQ(batchId0, 0);
     EXPECT_EQ(valueState->getVectorBatchesSize(), 1);
@@ -115,7 +115,7 @@ TEST(HeapKeyedStateBackendTest, VectorBatchTest1)
     EXPECT_EQ(valueState->getVectorBatch(batchId0)->getTimestamp(1), 301);
 
     int batchId1 = valueState->getVectorBatchesSize();
-    VectorBatch *storedBatch1 = CreateTestVectorBatch(400);
+    omnistream::VectorBatch *storedBatch1 = CreateTestVectorBatch(400);
     valueState->addVectorBatch(storedBatch1);
     EXPECT_EQ(batchId1, 1);
     EXPECT_EQ(valueState->getVectorBatchesSize(), 2);
@@ -186,7 +186,7 @@ TEST(HeapKeyedStateBackendTest, VectorBatchMapStateTest)
 
     context->setCurrentKey(keyRowData2);
     int batchId0 = mapState->getVectorBatchesSize();
-    VectorBatch *storedBatch0 = CreateTestVectorBatch(300);
+    omnistream::VectorBatch *storedBatch0 = CreateTestVectorBatch(300);
     mapState->addVectorBatch(storedBatch0);
     EXPECT_EQ(batchId0, 0);
     EXPECT_EQ(mapState->getVectorBatchesSize(), 1);
@@ -195,7 +195,7 @@ TEST(HeapKeyedStateBackendTest, VectorBatchMapStateTest)
     EXPECT_EQ(mapState->getVectorBatch(batchId0)->getTimestamp(1), 301);
 
     int batchId1 = mapState->getVectorBatchesSize();
-    VectorBatch *storedBatch1 = CreateTestVectorBatch(400);
+    omnistream::VectorBatch *storedBatch1 = CreateTestVectorBatch(400);
     mapState->addVectorBatch(storedBatch1);
     EXPECT_EQ(batchId1, 1);
     EXPECT_EQ(mapState->getVectorBatchesSize(), 2);
@@ -275,7 +275,7 @@ TEST(HeapKeyedStateBackendTest, VectorBatchListStateTest)
 
     context->setCurrentKey(keyRowData2);
     int batchId0 = listState->getVectorBatchesSize();
-    VectorBatch *storedBatch0 = CreateTestVectorBatch(300);
+    omnistream::VectorBatch *storedBatch0 = CreateTestVectorBatch(300);
     listState->addVectorBatch(storedBatch0);
     EXPECT_EQ(batchId0, 0);
     EXPECT_EQ(listState->getVectorBatchesSize(), 1);
@@ -284,7 +284,7 @@ TEST(HeapKeyedStateBackendTest, VectorBatchListStateTest)
     EXPECT_EQ(listState->getVectorBatch(batchId0)->getTimestamp(1), 301);
 
     int batchId1 = listState->getVectorBatchesSize();
-    VectorBatch *storedBatch1 = CreateTestVectorBatch(400);
+    omnistream::VectorBatch *storedBatch1 = CreateTestVectorBatch(400);
     listState->addVectorBatch(storedBatch1);
     EXPECT_EQ(batchId1, 1);
     EXPECT_EQ(listState->getVectorBatchesSize(), 2);
@@ -338,7 +338,7 @@ TEST(HeapKeyedStateBackendTest, VectorBatchSideTableMultiStateStability)
         states.push_back(createValueState("VectorBatchValueState_" + std::to_string(i)));
     }
 
-    VectorBatch *storedBatch = CreateTestVectorBatch(500);
+    omnistream::VectorBatch *storedBatch = CreateTestVectorBatch(500);
     states.front()->addVectorBatch(storedBatch);
     EXPECT_EQ(states.front()->getVectorBatchesSize(), 1);
     EXPECT_EQ(states.front()->getVectorBatch(0), storedBatch);

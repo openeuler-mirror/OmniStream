@@ -33,6 +33,7 @@ enum class SerializerType {
     TUPLE = 13,/* use fields [type, elementType, fieldSerializers] */
     BYTE_PRIMITIVE_ARRAY = 14, /* use fields [type, valueSerializer] */
     ROW = 15, /* use fields [type, logicalType] */
+    BINARY_ROW = 16, /* use fields [type, fieldNames] */
 };
 
 struct SerializerJsonInfo {
@@ -48,7 +49,7 @@ struct SerializerJsonInfo {
     TypeSerializer *namespaceSerializer;
     // fieldSerializers和fieldNames pojo使用
     std::vector<TypeSerializer *> fieldSerializers;
-    std::vector <std::string> fieldNames;
+    std::vector<std::string> fieldNames;
     LogicalType* logicalType;
 
 public:

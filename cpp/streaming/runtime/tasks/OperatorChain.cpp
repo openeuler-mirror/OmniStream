@@ -25,6 +25,7 @@
 #include "streaming/api/operators/OneInputStreamOperator.h"
 #include "streaming/api/operators/TwoInputStreamOperator.h"
 #include "basictypes/Object.h"
+#include "table/data/binary/BinaryRowData.h"
 #include "omni/OmniStreamTask.h"
 #include "runtime/io/network/api/writer/RecordWriterDelegate.h"
 #include "taskmanager/OmniRuntimeEnvironment.h"
@@ -61,6 +62,10 @@ void AssignConfiguredOperatorId(StreamOperator *op, const omnistream::OperatorPO
         if (auto *voidOp = dynamic_cast<AbstractStreamOperator<void *> *>(op)) {
             voidOp->SetOperatorID(operatorId);
         }
+        if (auto *binaryRowDataOp = dynamic_cast<AbstractStreamOperator<BinaryRowData *> *>(op)) {
+            binaryRowDataOp->SetOperatorID(operatorId);
+        }
+
         INFO_RELEASE("savepoint: OperatorChainV2 assign operatorId=" << operatorId
             << " name=" << opDesc.getName() << " id=" << opDesc.getId());
     }
@@ -604,6 +609,11 @@ OperatorSnapshotFutures *OperatorChainV2::CheckpointStreamOperator(StreamOperato
         auto vop = dynamic_cast<AbstractStreamOperator<void*>*>(op);
         if (vop) {
             return vop->SnapshotState(checkpointMetaData.GetCheckpointId(), checkpointMetaData.GetTimestamp(),
+                                      checkpointOptions, storageLocation, bridge);
+        }
+        auto bop = dynamic_cast<AbstractStreamOperator<BinaryRowData *>*>(op);
+        if (bop) {
+            return bop->SnapshotState(checkpointMetaData.GetCheckpointId(), checkpointMetaData.GetTimestamp(),
                                       checkpointOptions, storageLocation, bridge);
         }
         INFO_RELEASE("savepoint: OperatorChainV2::CheckpointStreamOperator StreamOperator::SnapshotState");

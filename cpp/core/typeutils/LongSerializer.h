@@ -98,6 +98,12 @@ public:
     {
         return BackendDataType::INT_BK;
     };
+
+    std::string toJson() override
+    {
+        SerializerJsonInfo typeJson = {SerializerType::INT};
+        return typeJson.toJson();
+    }
 };
 
 #endif
