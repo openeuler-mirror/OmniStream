@@ -70,7 +70,7 @@ TEST(StringTest, SetData) {
     String str;
     char *data = static_cast<char *>(malloc(6));
     std::string s = "hello";
-    std::copy(s.data(), s.data() + s.size(), data);
+    strcpy_s(data, 6, s.c_str());
     str.setData(data);
     std::string res(str.getValue().data(), s.size());
     EXPECT_EQ(res, "hello");

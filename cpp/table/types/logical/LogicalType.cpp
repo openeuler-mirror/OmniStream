@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <mutex>
+
 #include "LogicalType.h"
 #include "VarCharType.h"
 #include "TimestampWithoutTimeZoneType.h"
@@ -165,12 +166,73 @@ void LogicalType::buildNameToIdMap()
 BasicLogicalType* BasicLogicalType::BOOLEAN = new BasicLogicalType(true, DataTypeId::OMNI_BOOLEAN, "BOOLEAN");
 BasicLogicalType* BasicLogicalType::INTEGER = new BasicLogicalType(true, DataTypeId::OMNI_INT, "INTEGER");
 BasicLogicalType* BasicLogicalType::BIGINT = new BasicLogicalType(true, DataTypeId::OMNI_LONG, "BIGINT");
+BasicLogicalType* BasicLogicalType::VARCHAR = new VarCharType(true, std::numeric_limits<int>::max());
+BasicLogicalType* BasicLogicalType::DOUBLE = new BasicLogicalType(true, DataTypeId::OMNI_DOUBLE, "DOUBLE");
 BasicLogicalType* BasicLogicalType::DATE = new BasicLogicalType(true, DataTypeId::OMNI_DATE32, "DATE");
-BasicLogicalType* BasicLogicalType::TIMESTAMP_WITHOUT_TIME_ZONE = new TimestampWithoutTimeZoneType(true);
 BasicLogicalType* BasicLogicalType::TIME_WITHOUT_TIME_ZONE = new TimeWithoutTimeZoneType(true);
+BasicLogicalType* BasicLogicalType::TIMESTAMP_WITHOUT_TIME_ZONE = new TimestampWithoutTimeZoneType(true);
 BasicLogicalType* BasicLogicalType::TIMESTAMP_WITH_TIME_ZONE = new TimestampWithTimeZoneType(true);
 BasicLogicalType* BasicLogicalType::TIMESTAMP_WITH_LOCAL_TIME_ZONE = new TimestampWithLocalTimeZoneType(true);
+BasicLogicalType* BasicLogicalType::TIMESTAMP = new TimestampWithLocalTimeZoneType(true);
 BasicLogicalType* BasicLogicalType::INVALID_TYPE = new BasicLogicalType(true, DataTypeId::OMNI_INVALID, "UNRESOLVED");
-BasicLogicalType* BasicLogicalType::DOUBLE = new BasicLogicalType(true, DataTypeId::OMNI_DOUBLE, "DOUBLE");
-// BasicLogicalType* BasicLogicalType::VARCHAR = new BasicLogicalType(true, DataTypeId::OMNI_VARCHAR, "VARCHAR");
-BasicLogicalType* BasicLogicalType::VARCHAR = new VarCharType(true, std::numeric_limits<int>::max());
+
+
+BasicLogicalType *BasicLogicalType::getTypeBy(DataTypeId typeId, const nlohmann::json& element) {
+    BasicLogicalType *type = nullptr;
+    switch (typeId) {
+        case DataTypeId::OMNI_BOOLEAN: {
+            type = BasicLogicalType::BOOLEAN;
+            break;
+        }
+        case DataTypeId::OMNI_INT: {
+            type = BasicLogicalType::INTEGER;
+            break;
+        }
+        case DataTypeId::OMNI_LONG: {
+            type = BasicLogicalType::BIGINT;
+            break;
+        }
+        case DataTypeId::OMNI_VARCHAR: {
+            type = new VarCharType(true, std::numeric_limits<int>::max());;
+            break;
+        }
+        case DataTypeId::OMNI_DOUBLE: {
+            type = BasicLogicalType::DOUBLE;
+            break;
+        }
+        case DataTypeId::OMNI_DATE32: {
+            type = BasicLogicalType::DATE;
+            break;
+        }
+        case DataTypeId::OMNI_TIME_WITHOUT_TIME_ZONE: {
+            int precision = element.value("precision", 0);
+            type = new TimeWithoutTimeZoneType(true, precision);
+            break;
+        }
+        case DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE: {
+            int precision = element.value("precision", 0);
+            type = new TimestampWithoutTimeZoneType(true, precision);
+            break;
+        }
+        case DataTypeId::OMNI_TIMESTAMP_WITH_TIME_ZONE: {
+            int precision = element.value("precision", 0);
+            type = new TimestampWithTimeZoneType(true, precision);
+            break;
+        }
+        case DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+        case DataTypeId::OMNI_TIMESTAMP: {
+            int precision = element.value("precision", 0);
+            type = new TimestampWithLocalTimeZoneType(true, precision);
+            break;
+        }
+        /*
+        case DataTypeId::OMNI_INVALID:
+            type = BasicLogicalType::INVALID_TYPE;
+            break;
+        */
+        default:
+            THROW_LOGIC_EXCEPTION("Unsupported DataTypeId : " << typeId << " in inputRowType.");
+    }
+
+    return type;
+}

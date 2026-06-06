@@ -84,7 +84,7 @@ public:
             currentAcc = function->getValue(namespaceVal);
         }
 
-        auto* windowPropertyTypesValue = BinaryRowData::createBinaryRowDataWithMem(windowPropertyTypesId_.size());
+        auto windowPropertyTypesValue = std::unique_ptr<RowData>(BinaryRowData::createBinaryRowDataWithMem(windowPropertyTypesId_.size()));
         if constexpr (std::is_same_v<N, TimeWindow>) {
             const int64_t windowStart = static_cast<TimeWindow>(namespaceVal).getStart();
             const int64_t windowEnd = static_cast<TimeWindow>(namespaceVal).getEnd();
@@ -98,11 +98,11 @@ public:
         }
 
         if (currentAcc == nullptr) {
-            return windowPropertyTypesValue;
+            return windowPropertyTypesValue.release();
         }
-        auto tempValue = new JoinedRowData();
-        tempValue->replace(currentAcc, windowPropertyTypesValue);
-        auto* value = BinaryRowDataSerializer::joinedRowToBinaryRow(tempValue, outputTypesId_);
+        auto tempValue = std::make_unique<JoinedRowData>();
+        tempValue->replace(currentAcc, windowPropertyTypesValue.get());
+        auto* value = BinaryRowDataSerializer::joinedRowToBinaryRow(tempValue.get(), outputTypesId_);
         return value;
     }
 

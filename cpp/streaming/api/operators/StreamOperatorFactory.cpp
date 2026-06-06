@@ -143,7 +143,7 @@ if (uniqueName == OPERATOR_NAME_STREAM_EXPAND) {
         return static_cast<OneInputStreamOperator *>(op);
     } else if (uniqueName == OPERATOR_NAME_GLOBAL_WINDOW_AGG) {
         auto *processor = new AbstractWindowAggProcessor(opConfig.getDescription(), chainOutput);
-        auto *op = new SlicingWindowOperator<RowData *, int64_t>(processor, opConfig.getDescription());
+        auto *op = new SlicingWindowOperator<std::shared_ptr<RowData>, int64_t>(processor, opConfig.getDescription());
         op->setup();
         LOG("Operator SlicingWindowOperator address " + std::to_string(reinterpret_cast<long>(op)));
         return static_cast<OneInputStreamOperator *>(op);
@@ -153,7 +153,7 @@ if (uniqueName == OPERATOR_NAME_STREAM_EXPAND) {
         LOG("Operator AggregateWindowOperator address " + std::to_string(reinterpret_cast<long>(op)))
         return static_cast<OneInputStreamOperator *>(op);
     } else if (uniqueName == OPERATOR_NAME_WINDOW_INNER_JOIN) {
-        auto op = new InnerJoinOperator<BinaryRowData*>(opConfig.getDescription(), chainOutput, nullptr, nullptr);
+        auto op = new InnerJoinOperator<std::shared_ptr<RowData>>(opConfig.getDescription(), chainOutput, nullptr, nullptr);
         op->setup();
         LOG("Operator WindowJoinOperator address " + std::to_string(reinterpret_cast<long>(op)));
         return static_cast<TwoInputStreamOperator *>(op);
@@ -266,7 +266,7 @@ StreamOperator* StreamOperatorFactory::CreateGlobalWindowAggOp(OperatorPOD &opCo
     auto description = opConfig.getDescription();
     nlohmann::json opDescriptionJSON = nlohmann::json::parse(description);
     auto *processor = new AbstractWindowAggProcessor(opDescriptionJSON, chainOutput);
-    auto *op = new SlicingWindowOperator<RowData *, int64_t>(processor, opDescriptionJSON);
+    auto *op = new SlicingWindowOperator<std::shared_ptr<RowData>, int64_t>(processor, opDescriptionJSON);
     auto processingTimeService = task->createProcessingTimeService();
     op->setProcessingTimeService(processingTimeService);
     op->setup(std::move(task));
@@ -507,7 +507,7 @@ StreamOperator* StreamOperatorFactory::CreateWindowInnerJoinOp(OperatorPOD &opCo
 {
     auto description = opConfig.getDescription();
     nlohmann::json opDescriptionJSON = nlohmann::json::parse(description);
-    auto op = new InnerJoinOperator<BinaryRowData*>(opDescriptionJSON, chainOutput, nullptr, nullptr);
+    auto op = new InnerJoinOperator<std::shared_ptr<RowData>>(opDescriptionJSON, chainOutput, nullptr, nullptr);
     op->setup(std::move(task));
     LOG("Operator WindowJoinOperator address " + std::to_string(reinterpret_cast<long>(op)));
     return static_cast<TwoInputStreamOperator *>(op);

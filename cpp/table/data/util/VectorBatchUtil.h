@@ -69,8 +69,8 @@ public:
         }
     }
 
-    static omnistream::VectorBatch* sliceVectorBatch(omnistream::VectorBatch* batch, int32_t offset, int32_t newRowCnt)
-    {
+    // The caller takes ownership of the returned pointer
+    static omnistream::VectorBatch* sliceVectorBatch(omnistream::VectorBatch* batch, int32_t offset, int32_t newRowCnt) {
         if (batch == nullptr || newRowCnt <= 0) {
             LOG("Warning: split batch count is not valid.")
             return nullptr;

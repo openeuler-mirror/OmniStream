@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <iostream>
+#include <memory>
 #include <nlohmann/json.hpp>
 #include "table/data/vectorbatch/VectorBatch.h"
 #include <taskmanager/OmniRuntimeEnvironment.h>
@@ -95,7 +96,7 @@ TEST(NEXTMARKTESTQ8, DISABLED_EMPTY) {
             parsedJson["operators"][0]["description"]
     );
     auto *output = new BatchOutputTest();
-    auto* slicingWindowOperator = dynamic_cast<SlicingWindowOperator<RowData*, int64_t>*>(
+    auto* slicingWindowOperator = dynamic_cast<SlicingWindowOperator<std::shared_ptr<RowData>, int64_t>*>(
             StreamOperatorFactory::createOperatorAndCollector(opConfig, output));
 
     auto env2 = new omnistream::RuntimeEnvironmentV2();
@@ -129,7 +130,8 @@ TEST(NEXTMARKTESTQ8, DISABLED_EMPTY) {
     binaryRowData->setLong(0, 1);
     std::string_view str = "A";
     binaryRowData->setStringView(1, str);
-    auto *timer = new TimerHeapInternalTimer<RowData*, int64_t>(-1, binaryRowData, 1000); // todo 传入10时也有结果
+    auto *timer = new TimerHeapInternalTimer<std::shared_ptr<RowData>, int64_t>(
+        -1, std::shared_ptr<RowData>(binaryRowData), 1000); // todo 传入10时也有结果
     slicingWindowOperator->onTimer(timer);
 //    batchOutput = dynamic_cast<BatchOutputTest*>(slicingWindowOperator->getOutput());
 	std::cout << "=========== print result ==========" << std::endl;

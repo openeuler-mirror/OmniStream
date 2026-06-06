@@ -22,12 +22,17 @@
 #include "core/typeutils/TypeSerializer.h"
 #include "core/typeutils/MapSerializer.h"
 #include "core/typeutils/ListSerializer.h"
+#include "core/typeutils/XxH128_hashSerializer.h"
+#include "core/typeutils/JoinTupleSerializer.h"
 #include "core/api/common/state/RestoreStateDescriptor.h"
 #include "core/memory/DataInputDeserializer.h"
 #include "core/utils/key_type_traits.h"
 #include "CopyOnWriteStateTable.h"
 #include "table/data/RowData.h"
 #include "runtime/state/InternalKeyContextImpl.h"
+#include "table/utils/VectorBatchDeserializationUtils.h"
+#include "table/typeutils/SortedVectorLong.h"
+#include "core/utils/MathUtils.h"
 
 template <typename K>
 class HeapKeyedStateBackendBuilder {
@@ -117,6 +122,12 @@ private:
         const RestoreStateInfo &info,
         int keyGroupId,
         int keyGroupPrefixBytes,
+        const std::vector<int8_t> &keyBytes,
+        const std::vector<int8_t> &valueBytes);
+
+    void restoreVbEntryToHeap(
+        HeapKeyedStateBackend<K> *backend,
+        const RestoreStateInfo &info,
         const std::vector<int8_t> &keyBytes,
         const std::vector<int8_t> &valueBytes);
 
@@ -271,6 +282,13 @@ HeapKeyedStateBackend<K> *HeapKeyedStateBackendBuilder<K>::build()
                     stateInfos.push_back({backendStateType, metaInfo.getName(), nullptr, nullptr, nullptr});
                     continue;
                 }
+                auto stateName = metaInfo.getName();
+                if (stateName.size() >= 2 && stateName.compare(stateName.size() - 2, 2, "vb") == 0) {
+                    StateDescriptor *desc = createRestoreDescriptor(metaInfo, stateType, nsSerializer, valSerializer);
+                    stateInfos.push_back({backendStateType, stateName, desc, nsSerializer, valSerializer});
+                    continue;
+                }
+
 
                 StateDescriptor *desc = createRestoreDescriptor(metaInfo, stateType, nsSerializer, valSerializer);
 
@@ -318,14 +336,14 @@ HeapKeyedStateBackend<K> *HeapKeyedStateBackendBuilder<K>::build()
                         totalSkippedNullStateDesc++;
                         continue;  // State was skipped in Phase 1
                     }
-
-                    restoreEntryToHeap(backend, info, keyGroupId, keyGroupPrefixBytes,
-                                       entry->getKey(), entry->getValue());
+                    if (info.stateName.size() >= 2 && info.stateName.substr(info.stateName.size() - 2) == "vb") {
+                        restoreVbEntryToHeap(backend, info, entry->getKey(), entry->getValue());
+                    } else {
+                        restoreEntryToHeap(backend, info, keyGroupId, keyGroupPrefixBytes,
+                                           entry->getKey(), entry->getValue());
+                    }
                     kgEntryCount++;
                     totalEntriesRestored++;
-                    // if (totalEntriesRestored % 10000 == 0) {
-                    //     INFO_RELEASE("[OS-CP-restore] restored " << totalEntriesRestored << " entries so far");
-                    // }
                 }
             }
             INFO_RELEASE("[OS-CP-heap-restore] keyGroups=" << totalKeyGroups
@@ -470,6 +488,13 @@ void HeapKeyedStateBackendBuilder<K>::restoreEntryToHeap(
                        static_cast<RowData *>(rawVal)->copy());
             delete static_cast<K *>(rawKey);
             delete static_cast<VoidNamespace *>(rawNs);
+        } else if (dataId == BackendDataType::SET_LONG) {
+            void *rawVal = info.valueSerializer->deserialize(valInput);
+            auto *table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, std::vector<long> *> *>(stateTablePtr);
+            table->put(*static_cast<K *>(rawKey), keyGroupId, *static_cast<VoidNamespace *>(rawNs),
+                       static_cast<std::vector<long> *>(rawVal));
+            delete static_cast<K *>(rawKey);
+            delete static_cast<VoidNamespace *>(rawNs);
         } else {
             INFO_RELEASE("Error:HeapKeyedStateBackendBuilder: unsupported VALUE restore type " << dataId);
             delete static_cast<K *>(rawKey);
@@ -582,4 +607,46 @@ void HeapKeyedStateBackendBuilder<K>::restoreEntryToHeap(
         delete static_cast<K *>(rawKey);
         delete static_cast<VoidNamespace *>(rawNs);
     }
+}
+
+template <typename K>
+void HeapKeyedStateBackendBuilder<K>::restoreVbEntryToHeap(
+    HeapKeyedStateBackend<K> *backend,
+    const RestoreStateInfo &info,
+    const std::vector<int8_t> &keyBytes,
+    const std::vector<int8_t> &valueBytes)
+{
+    // vb key format: [1 byte keyGroup] + [8 bytes batchId via LongSerializer]
+    int vbKeyGroup = keyBytes.empty() ? 0 : (static_cast<int>(keyBytes[0]) & 0xFF);
+    DataInputDeserializer keyInput(
+        reinterpret_cast<const uint8_t *>(keyBytes.data()),
+        static_cast<int>(keyBytes.size()),
+        1);
+
+    LongSerializer longSerializer;
+    void *rawBatchId = longSerializer.deserialize(keyInput);
+    int64_t batchId = *static_cast<int64_t *>(rawBatchId);
+    delete static_cast<int64_t *>(rawBatchId);
+
+    // Deserialize VectorBatch from value bytes
+    std::vector<uint8_t> valueBuf(valueBytes.size());
+    for (size_t i = 0; i < valueBytes.size(); i++) {
+        valueBuf[i] = static_cast<uint8_t>(valueBytes[i]);
+    }
+    uint8_t *cursor = valueBuf.data() + sizeof(int8_t);
+    auto *vectorBatch = VectorBatchDeserializationUtils::deserializeVectorBatch(cursor);
+
+    uintptr_t vbStateTablePtr = backend->getStateTablePtr(info.stateName);
+    if (vbStateTablePtr == 0) {
+        INFO_RELEASE("Error:HeapKeyedStateBackendBuilder: vb state table not found for '"
+            << info.stateName << "', skipping entry");
+        delete vectorBatch;
+        return;
+    }
+
+    auto *table = reinterpret_cast<CopyOnWriteStateTable<int, VoidNamespace, omnistream::VectorBatch *> *>(
+        vbStateTablePtr);
+    VoidNamespace ns;
+    table->put(static_cast<int>(batchId), vbKeyGroup, ns, vectorBatch);
+
 }

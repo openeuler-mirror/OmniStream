@@ -13,9 +13,10 @@
 #define OMNIFLINK_REDUCEFUNCTION_H
 #include <memory>
 #include "basictypes/Object.h"
+#include "Function.h"
 
 template<typename T>
-class ReduceFunction {
+class ReduceFunction : public omnistream::Function {
 public:
     virtual ~ReduceFunction() = default;
     virtual T* reduce(T* value1, T* value2) = 0;

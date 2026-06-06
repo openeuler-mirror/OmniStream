@@ -20,7 +20,10 @@ public:
 
     ~ListSerializer() override
     {
-        delete elementSerializer;
+        if (elementSerializer != nullptr) {
+            delete elementSerializer;
+            elementSerializer = nullptr;
+        }
     }
 
     void* deserialize(DataInputView &source) override

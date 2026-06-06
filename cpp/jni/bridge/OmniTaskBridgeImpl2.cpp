@@ -920,6 +920,7 @@ std::vector<StateMetaInfoSnapshot> OmniTaskBridgeImpl2::readMetaData(const std::
         // Convert jstring to std::string
         const char* strChars = env->GetStringUTFChars(result, nullptr);
         std::string cppResult(strChars);
+        INFO_RELEASE("savepoint: OmniTaskBridgeImpl2::readMetaData stateMetaInfoStr=" << cppResult);
         env->ReleaseStringUTFChars(result, strChars);
         g_OmniStreamJVM->DetachCurrentThread();
         return convertResult(cppResult, false);
@@ -991,6 +992,7 @@ std::vector<StateMetaInfoSnapshot> OmniTaskBridgeImpl2::readOperatorMetaData(con
             return {};
         }
         std::string cppResult(strChars);
+        INFO_RELEASE("savepoint: OmniTaskBridgeImpl2::readOperatorMetaData stateMetaInfoStr=" << cppResult);
         env->ReleaseStringUTFChars(result, strChars);
         INFO_RELEASE("[OS-operator-state] readOperatorMetaData JNI done, resultBytes=" << cppResult.size());
         env->DeleteLocalRef(result);
@@ -1495,6 +1497,7 @@ void OmniTaskBridgeImpl2::WriteSavepointMetadata(jobject provider, const std::ve
         stateMetaInfoJson.push_back(std::move(jsonObj));
     }
     std::string stateMetaInfoStr = stateMetaInfoJson.dump();
+    INFO_RELEASE("savepoint: OmniTaskBridgeImpl2::WriteSavepointMetadata stateMetaInfoStr=" << stateMetaInfoStr);
     jclass cls = env->GetObjectClass(m_globalOmniTaskRef);
     jmethodID mid = env->GetMethodID(cls, "writeSavepointMetadata", "(Lorg/apache/flink/runtime/state/CheckpointStreamWithResultProvider;Ljava/lang/String;)V");
     jstring jStateMetaInfoStr = env->NewStringUTF(stateMetaInfoStr.c_str());
@@ -1556,6 +1559,8 @@ void OmniTaskBridgeImpl2::WriteOperatorMetaData(
 
     std::string operatorStateMetaInfoStr = operatorStateMetaInfoJson.dump();
     std::string broadcastStateMetaInfoStr = broadcastStateMetaInfoJson.dump();
+    INFO_RELEASE("savepoint: OmniTaskBridgeImpl2::WriteOperatorMetaData operatorStateMetaInfoStr=" << operatorStateMetaInfoStr);
+    INFO_RELEASE("savepoint: OmniTaskBridgeImpl2::WriteOperatorMetaData broadcastStateMetaInfoStr=" << broadcastStateMetaInfoStr);
 
     jclass cls = env->GetObjectClass(m_globalOmniTaskRef);
     jmethodID mid = env->GetMethodID(

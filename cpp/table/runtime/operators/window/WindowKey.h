@@ -15,14 +15,16 @@
 
 #include <iostream>
 #include <functional>
+#include <memory>
+#include <utility>
 #include "table/data/binary/BinaryRowData.h"
 
 class WindowKey {
 public:
-    WindowKey(long window, RowData* key) : window(window), key(key) {}
-    WindowKey replace(long window, RowData* key);
+    WindowKey(long window, std::shared_ptr<RowData> key) : window(window), key(std::move(key)) {}
+    WindowKey replace(long window, std::shared_ptr<RowData> key);
     long getWindow() const;
-    RowData* getKey() const;
+    std::shared_ptr<RowData> getKey() const;
     long hash() const;
     // 重载相等比较运算符
     bool operator==(const WindowKey& other) const
@@ -31,7 +33,7 @@ public:
     }
 private:
     long window;
-    RowData* key;
+    std::shared_ptr<RowData> key;
 };
 
 namespace std {

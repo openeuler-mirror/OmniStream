@@ -530,8 +530,8 @@ public:
         return vectorBatchId;
     }
 
-    void clearVectors(int64_t currentTimestamp)
-    {
+    void clearVectors(int64_t currentTimestamp) {
+        // todo: add和clear的序列化可能逻辑不一致，待确认
         ROCKSDB_NAMESPACE::WriteBatch batchToDelete;
         std::unique_ptr<ROCKSDB_NAMESPACE::Iterator> it(rocksDb->NewIterator(readOptions, VBTable));
         for (it->SeekToFirst(); it->Valid(); it->Next()) {

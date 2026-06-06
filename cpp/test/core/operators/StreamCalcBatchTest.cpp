@@ -379,8 +379,6 @@ TEST(StreamCalcBatchTest, VectorbatchLower) {
     vb->Append(omniruntime::TestUtil::CreateVarcharVector(col0.data(), nrow));
     auto outputRecord = ProcessAndGetOutput(desc, vb);
 
-    auto outcol1 = reinterpret_cast<omniruntime::vec::Vector<int64_t> *>(outputRecord->Get(1));
-
     std::string filename = "/tmp/streamcalc_output.txt";
     outputRecord->writeToFile(filename);
 }

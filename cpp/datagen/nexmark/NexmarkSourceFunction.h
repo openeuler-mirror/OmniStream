@@ -15,6 +15,9 @@
 #include <array>
 #include <list>
 #include <chrono>
+#include <memory>
+#include <vector>
+#include <exception>
 #include "core/api/common/state/ListStateDescriptor.h"
 #include "core/typeinfo/TypeInformation.h"
 #include "core/typeutils/LongSerializer.h"
@@ -25,9 +28,12 @@
 #include "../source/EventDeserializer.h"
 #include "table/runtime/operators/source/InputFormatSourceFunction.h"
 #include "functions/Configuration.h"
+#include "streaming/api/checkpoint/CheckpointedFunction.h"
+#include "core/api/common/state/ListState.h"
+#include "runtime/state/DefaultOperatorStateBackend.h"
 
 template<typename K>
-class NexmarkSourceFunction : public SourceFunction<K>, public AbstractRichFunction {
+class NexmarkSourceFunction : public SourceFunction<K>, public AbstractRichFunction, public CheckpointedFunction {
     // Configuration for generator to use when reading synthetic events. May be split.
     GeneratorConfig config;
 
@@ -45,7 +51,7 @@ class NexmarkSourceFunction : public SourceFunction<K>, public AbstractRichFunct
     volatile bool isRunning;
 
     // Transient checkpointed state.
-    // ListState<long>* checkpointedState;
+    std::shared_ptr<ListState<long>> checkpointedState;
 
 public:
     NexmarkSourceFunction(const GeneratorConfig& config,
@@ -117,6 +123,31 @@ public:
     // Overriding getProducedType method.
     TypeInformation* getProducedType() {
         return resultType;
+    }
+    
+    void snapshotState(StateSnapshotContextSynchronousImpl *context) override {
+        this->checkpointedState->clear();
+        this->checkpointedState->add(const_cast<long&>(numElementsEmitted));
+    }
+
+    void initializeState(StateInitializationContextImpl *context) override {
+        std::string stateName = "elements-count-state";
+        auto *listStateDescriptor = new ListStateDescriptor<long>(stateName, new LongSerializer());
+        auto *stateBackend = static_cast<DefaultOperatorStateBackend*>(context->getOperatorStateBackend());
+        this->checkpointedState = stateBackend->template getListState<long>(listStateDescriptor);
+
+        if (context->isRestored()) {
+            std::vector<long> retrievedStates;
+            for (auto const& entry : *this->checkpointedState->get()) {
+                retrievedStates.push_back(entry);
+            }
+            if (retrievedStates.size() != 1) {
+                throw std::runtime_error("NexmarkSourceFunction retrieve invalid state.");
+            }
+            auto numElementToSkip = retrievedStates[0];
+            INFO_RELEASE("NexmarkSourceFunction::initializeState, numElementToSkip: " << numElementToSkip);
+            this->generator.reset(new NexmarkGenerator(getSubGeneratorConfig(), numElementToSkip, 0));
+        }
     }
 };
 

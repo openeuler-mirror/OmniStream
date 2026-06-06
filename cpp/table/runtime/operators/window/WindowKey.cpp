@@ -11,10 +11,10 @@
 
 #include "WindowKey.h"
 
-WindowKey WindowKey::replace(long window_, RowData* key_)
+WindowKey WindowKey::replace(long window_, std::shared_ptr<RowData> key_)
 {
     this->window = window_;
-    this->key = key_;
+    this->key = std::move(key_);
     return *this;
 }
 
@@ -23,7 +23,7 @@ long WindowKey::getWindow() const
     return this->window;
 }
 
-RowData* WindowKey::getKey() const
+std::shared_ptr<RowData> WindowKey::getKey() const
 {
     return this->key;
 }

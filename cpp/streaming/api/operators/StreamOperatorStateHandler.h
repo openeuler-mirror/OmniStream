@@ -82,6 +82,11 @@ public:
         return keyedStateStore;
     };
 
+    OperatorStateBackend *getOperatorStateBackend()
+    {
+        return operatorStateBackend;
+    }
+
     void dispose()
     {
         if (keyedStateBackend != nullptr) {
@@ -114,7 +119,7 @@ public:
     class CheckpointedStreamOperator {
     public:
         virtual void snapshotState(StateSnapshotContextSynchronousImpl *context) {}
-        virtual void initializeState(StateInitializationContextImpl<K> *context) {}
+        virtual void initializeState(StateInitializationContextImpl *context) {}
     };
 
     void initializeOperatorState(CheckpointedStreamOperator *streamOperator)
@@ -125,7 +130,7 @@ public:
 
 
             // Create StateInitializationContextImpl with correct template parameter
-            StateInitializationContextImpl<K> *initializationContext = new StateInitializationContextImpl<K>(
+            StateInitializationContextImpl *initializationContext = new StateInitializationContextImpl(
                 checkpointId,
                 this->operatorStateBackend, // access to operator state backend
                 this->keyedStateStore      // access to keyed state store

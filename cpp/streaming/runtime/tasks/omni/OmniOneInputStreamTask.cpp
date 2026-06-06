@@ -132,13 +132,6 @@ namespace omnistream {
         return std::string("OmniOneInputStreamTask");
     }
 
-    void OmniOneInputStreamTask::cleanup()
-    {
-        LOG_DEBUG("Find cleanup inputProcessor_")
-        OmniStreamTask::cleanup();
-        inputProcessor_->close();
-    }
-
     std::shared_ptr<CheckpointedInputGate> OmniOneInputStreamTask::CreateCheckpointedInputGate()
     {
         auto checkpointableInputs = env_->GetAllInputGates();

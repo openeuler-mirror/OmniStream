@@ -17,7 +17,7 @@
 class SnapshotResources {
 public:
     virtual ~SnapshotResources() = default;
-    void cleanup();
+    virtual void cleanup() {};
 
     std::vector<StateMetaInfoSnapshot> stateMetaInfoSnapshots;
 };

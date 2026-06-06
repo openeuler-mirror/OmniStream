@@ -44,11 +44,36 @@ extern const char* TYPE_NAME_ROW_DATA_CLASS;
 extern const char* TYPE_NAME_ROW_DATA_CLASS_LINE;
 extern const char* TYPE_NAME_ROW_DATA_SERIALIZER;
 
+extern const char* TYPE_NAME_BINARY_ROW_DATA;
+extern const char* TYPE_NAME_BINARY_ROW_DATA_CLASS;
+extern const char* TYPE_NAME_BINARY_ROW_DATA_CLASS_LINE;
+extern const char* TYPE_NAME_BINARY_ROW_DATA_SERIALIZER;
+
 extern const char* TYPE_NAME_TIMER;
 extern const char* TYPE_NAME_TIMER_CLASS;
 extern const char* TYPE_NAME_TIMER_CLASS_LINE;
 extern const char* TYPE_NAME_TIMER_SERIALIZER;
 
 extern const char* TYPE_NAME_BYTE_PRIMITIVE_ARRAY_SERIALIZER;
+
+extern const char* TYPE_NAME_JOIN_TUPLE;
+extern const char* TYPE_NAME_JOIN_TUPLE_CLASS;
+extern const char* TYPE_NAME_JOIN_TUPLE_CLASS_LINE;
+
+extern const char* TYPE_NAME_JOIN_TUPLE2;
+extern const char* TYPE_NAME_JOIN_TUPLE2_CLASS;
+extern const char* TYPE_NAME_JOIN_TUPLE2_CLASS_LINE;
+
+extern const char* TYPE_NAME_XXH128_HASH;
+extern const char* TYPE_NAME_XXH128_HASH_CLASS;
+extern const char* TYPE_NAME_XXH128_HASH_CLASS_LINE;
+
+extern const char* TYPE_NAME_VECTOR_BATCH;
+extern const char* TYPE_NAME_VECTOR_BATCH_CLASS;
+extern const char* TYPE_NAME_VECTOR_BATCH_CLASS_LINE;
+
+extern const char* TYPE_NAME_SORTED_VECTOR_LONG;
+extern const char* TYPE_NAME_SORTED_VECTOR_LONG_CLASS;
+extern const char* TYPE_NAME_SORTED_VECTOR_LONG_CLASS_LINE;
 
 #endif  // FLINK_TNEL_TYPECONSTANTS_H

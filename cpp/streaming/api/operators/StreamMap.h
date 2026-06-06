@@ -91,7 +91,7 @@ namespace omnistream::datastream {
                 coreId = omnistream::BindCoreManager::GetInstance()->GetOpCore(taskId);
             }
         }
-        void initializeState(StateInitializationContextImpl<K> *context) override
+        void initializeState(StateInitializationContextImpl *context) override
         {
             AbstractStreamOperator<K>::initializeState(context);
         }
