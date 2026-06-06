@@ -68,6 +68,15 @@ public:
         return typeName;
     }
 
+    void parseDescription(nlohmann::json& descriptionJson, int index);
+
+    omnistream::VectorBatch *copyTimestampAndKind(omnistream::VectorBatch *srcVb, omniruntime::vec::VectorBatch *projectedVecs);
 private:
     nlohmann::json description_;
+    std::vector<omniruntime::type::DataTypes> inputTypes;
+    std::vector<omniruntime::codegen::ExpressionEvaluator*> exprEvaluators;
+    std::vector<std::vector<omniruntime::expressions::Expr *>> projExprs;
+    std::unique_ptr<omniruntime::op::ExecutionContext> executionContext;
+    omniruntime::mem::AlignedBuffer<int32_t> selectedRowsBuffer;
+    TimestampedCollector* timestampedCollector_;
 };
