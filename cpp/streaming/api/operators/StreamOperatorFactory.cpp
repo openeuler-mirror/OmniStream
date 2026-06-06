@@ -297,6 +297,9 @@ StreamOperator* StreamOperatorFactory::CreateWatermarkAssignerOp(OperatorPOD &op
                                                                     opDescriptionJSON["intervalSecond"],
                                                                     0,
                                                                     processingTimeService);
+    bool splitWaterMark = task->env()->taskConfiguration().GetSplitWatermark();
+    watermarkAssignerOperator->setSplitWaterMark(splitWaterMark);
+    INFO_RELEASE("should do splitWaterMark : " << splitWaterMark)
     return static_cast<OneInputStreamOperator *>(watermarkAssignerOperator);
 }
 

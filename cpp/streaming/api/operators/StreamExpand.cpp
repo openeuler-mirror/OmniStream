@@ -73,11 +73,13 @@ void StreamExpand::close() {
 omnistream::VectorBatch *StreamExpand::copyTimestampAndKind(omnistream::VectorBatch *srcVb, omniruntime::vec::VectorBatch *projectedVecs)
 {
     int32_t rowCnt = srcVb->GetRowCount();
-    int64_t* srcTimestamps = srcVb->getTimestamps();
-    RowKind* srcRowKinds = srcVb->getRowKinds();
-
+    if (rowCnt <= 0) {
+        return nullptr;
+    }
     int64_t* target_timestamps = new int64_t[rowCnt];
     RowKind* target_rowKinds = new RowKind[rowCnt];
+    int64_t* srcTimestamps = srcVb->getTimestamps();
+    RowKind* srcRowKinds = srcVb->getRowKinds();
     memcpy_s(
             target_timestamps,
             sizeof(int64_t) * rowCnt,
@@ -101,7 +103,9 @@ void StreamExpand::processBatch(StreamRecord* input)
     for(auto expr :exprEvaluators){
         auto projectedVecs = expr->Evaluate(record, executionContext.get(), &selectedRowsBuffer);
         auto outputBatch = copyTimestampAndKind(record, projectedVecs);
-        timestampedCollector_->collect(outputBatch);
+        if (outputBatch) {
+            timestampedCollector_->collect(outputBatch);
+        }
     }
     delete record;
 }
