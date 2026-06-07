@@ -218,8 +218,8 @@ void RocksDBHeapTimersFullRestoreOperation<K>::restoreKVStateData(
         std::unique_ptr<KeyGroup> keyGroup = keyGroups->next();
         std::shared_ptr<KeyGroupEntryIterator> groupEntries = keyGroup->getKeyGroupEntries();
         while (groupEntries->hasNext()) {
-            std::unique_ptr<KeyGroupEntry> groupEntry = groupEntries->next();
-            int kvStateId = groupEntry->getKvStateId();
+            KeyGroupEntry groupEntry = groupEntries->next();
+            int kvStateId = groupEntry.getKvStateId();
 
             if (kvStateId != oldKvStateId) {
                 oldKvStateId = kvStateId;
@@ -231,16 +231,16 @@ void RocksDBHeapTimersFullRestoreOperation<K>::restoreKVStateData(
             }
 
             if (restoredPQ != nullptr) {
-                restoredPQ->restoreSerializedElement(groupEntry->getKey(), keyGroupPrefixBytes_);
+                restoredPQ->restoreSerializedElement(groupEntry.getKey(), keyGroupPrefixBytes_);
                 restoredPQEntries++;
                 continue;
             }
 
             if (handle != nullptr) {
-                rocksdb::Slice key(reinterpret_cast<const char *>(groupEntry->getKey().data()),
-                    groupEntry->getKey().size());
-                rocksdb::Slice value(reinterpret_cast<const char *>(groupEntry->getValue().data()),
-                    groupEntry->getValue().size());
+                rocksdb::Slice key(reinterpret_cast<const char *>(groupEntry.getKey().data()),
+                    groupEntry.getKey().size());
+                rocksdb::Slice value(reinterpret_cast<const char *>(groupEntry.getValue().data()),
+                    groupEntry.getValue().size());
                 rocksDbWriteBatchWrapper->Put(handle, key, value);
                 restoredKvEntries++;
                 continue;
