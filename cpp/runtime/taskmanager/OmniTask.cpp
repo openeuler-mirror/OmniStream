@@ -149,7 +149,7 @@ namespace omnistream {
                 return rawStreamTask_;
             } else if (streamClassName == SOURCE_STREAM_TASK) {
                 LOG("prepare to create SOURCE_STREAM_TASK ")
-                this->invokable_ = std::make_shared<OmniSourceStreamTask>(runtimeEnv, taskType);
+                this->invokable_ = std::make_shared<OmniSourceStreamTask>(runtimeEnv, std::make_unique<Object>(), taskType);
                 this->invokable_->postConstruct();
 
                 LOG("After to create SOURCE_STREAM_TASK ")

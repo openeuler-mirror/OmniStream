@@ -218,7 +218,6 @@ public:
     // Complete without value
     void Complete()
     {
-        std::cout<<"Complete future complete!"<<std::endl;
         std::call_once(flag_, [this]() {
             promise_.set_value();
             completed_ = true;
