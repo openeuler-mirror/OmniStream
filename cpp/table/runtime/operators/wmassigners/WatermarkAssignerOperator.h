@@ -54,9 +54,13 @@ public:
 
     std::string getTypeName() override;
     void processWatermarkStatus(WatermarkStatus *watermarkStatus) override;
+    void setSplitWaterMark(bool doSplitWaterMark);
+    void processBatchSimple(StreamRecord *element);
+    void processBatchWatermark(StreamRecord *element);
 
 private:
     int rowtimeIndex_;
+    bool splitWaterMark = false;
     int64_t outOfOrderTime_ = 4000;
     int64_t idleTimeout_;
 
