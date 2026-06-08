@@ -170,6 +170,12 @@ std::shared_ptr<CompletableFuture> CompletableFuture::allOf(const std::vector<st
 
 std::shared_ptr<CompletableFuture> CompletableFuture::anyOf(const std::vector<std::shared_ptr<CompletableFuture>>& futures)
 {
+    if (futures.empty()) {
+        auto result = std::make_shared<CompletableFuture>();
+        result->complete();
+        return result;
+    }
+
     class AnyOfTask : public Runnable {
     public:
         explicit AnyOfTask(const std::vector<std::shared_ptr<CompletableFuture>>& futures)
