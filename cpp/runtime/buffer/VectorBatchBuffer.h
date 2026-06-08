@@ -51,43 +51,35 @@ public:
         return bufferType == 0;
     }
 
-    void RecycleBuffer() override
-    {
+    void RecycleBuffer() override {
         // data buffer has recyler, event buffer does not
         if (recycler == nullptr) {
             return;
         }
 
         if (IsRecycled()) {
-            throw std::runtime_error("Trying to recycle a VectorBatchBuffer that has already been recycled");
+            GErrorLog("Trying to recycle a VectorBatchBuffer that has already been recycled");
         } else {
-            LOG_PART(
-                "The buffer " << this << " refCount is decremented from " << refCount.load() << " to "
-                              << (refCount.load() - 1)
-            )
-
-            refCount--;
-            if (refCount.load() == 0) {
-                LOG_PART("VectorBatch Buffer recycled " << this)
+            int prev = refCount_.fetch_sub(1);
+            if (prev == 1) {
                 recycler->recycle(this->GetObjectSegment());
-                isRecycled_ = true;
+                isRecycled_.store(true);
             }
         }
     }
 
-    bool IsRecycled() const override
-    {
-        return isRecycled_;
+    bool IsRecycled() const override {
+        return isRecycled_.load();
     }
 
     Buffer* RetainBuffer() override
     {
         LOG_TRACE("retain ")
         LOG_PART(
-            "RetainBuffer The buffer " << this << " refCount is incremented from " << refCount.load() << " to "
-                                       << (refCount.load() + 1)
+            "RetainBuffer The buffer " << this << " refCount is incremented from " << refCount_.load() << " to "
+                                       << (refCount_.load() + 1)
         )
-        refCount++;
+        refCount_++;
         return this;
     }
 
@@ -152,7 +144,7 @@ public:
 
     int RefCount() const override
     {
-        return refCount.load();
+        return refCount_.load();
     }
 
     std::string ToDebugString(bool includeHash) const override
@@ -192,10 +184,10 @@ private:
 
     int currentSize = 0;
     bool isCompressed_;
-    bool isRecycled_ = false;
+    std::atomic<bool> isRecycled_ = false;
     int readerIndex_;
 
-    std::atomic<int> refCount;
+    std::atomic<int> refCount_;
 };
 
 }  // namespace omnistream
