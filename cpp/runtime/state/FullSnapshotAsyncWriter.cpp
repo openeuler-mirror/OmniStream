@@ -77,6 +77,7 @@ std::shared_ptr<SnapshotResult<KeyedStateHandle>> FullSnapshotAsyncWriter::get(
         std::vector<int8_t> previousKey;
         std::vector<int8_t> previousValue;
         int previousKvStateId = -1;
+        size_t writtenEntries = 0;
         mergeIterator = snapshotResources_->createKVStateIterator();
         if (mergeIterator->isValid()) {
             keyGroupRangeOffsets->setKeyGroupOffset(mergeIterator->keyGroup(), stream.getPos());
@@ -97,6 +98,7 @@ std::shared_ptr<SnapshotResult<KeyedStateHandle>> FullSnapshotAsyncWriter::get(
             stream.writeBytes(previousKey.data(), previousKey.size());
             stream.writeInt(previousValue.size());
             stream.writeBytes(previousValue.data(), previousValue.size());
+            writtenEntries++;
             if (mergeIterator->isNewKeyGroup()) {
                 stream.writeShort(END_OF_KEY_GROUP_MASK);
                 keyGroupRangeOffsets->setKeyGroupOffset(mergeIterator->keyGroup(), stream.getPos());
@@ -119,6 +121,7 @@ std::shared_ptr<SnapshotResult<KeyedStateHandle>> FullSnapshotAsyncWriter::get(
             stream.writeInt(previousValue.size());
             stream.writeBytes(previousValue.data(), previousValue.size());
             stream.writeShort(END_OF_KEY_GROUP_MASK);
+            writtenEntries++;
         }
         mergeIterator->close();
         auto handle = stream.close();
@@ -136,11 +139,20 @@ std::shared_ptr<SnapshotResult<KeyedStateHandle>> FullSnapshotAsyncWriter::get(
             for (const auto &digest : heapPqDigests) {
                 HeapPriorityQueueDataDigest::logSummary(digest.second);
             }
+            INFO_RELEASE("[OS-CP-heap-writer] checkpointId=" << checkpointId_
+                << ", metaInfoCount=" << metaInfoSnapshots.size()
+                << ", writtenEntries=" << writtenEntries
+                << ", keyGroupRange=" << (kgRange == nullptr ? "null" : kgRange->ToString())
+                << ", streamPos=" << stream.getPos());
             return SnapshotResult<KeyedStateHandle>::Of(jmKeyedState);
         }
         for (const auto &digest : heapPqDigests) {
             HeapPriorityQueueDataDigest::logSummary(digest.second);
         }
+        INFO_RELEASE("[OS-CP-heap-writer] checkpointId=" << checkpointId_
+            << ", metaInfoCount=" << metaInfoSnapshots.size()
+            << ", writtenEntries=" << writtenEntries
+            << ", result=empty");
         return SnapshotResult<KeyedStateHandle>::Empty();
     }catch(std::exception& e){
         if(mergeIterator) {

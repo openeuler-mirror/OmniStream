@@ -23,6 +23,8 @@
 #include "connector/kafka/source/split/KafkaPartitionSplitState.h"
 #include "connector/kafka/bind_core_manager.h"
 #include "core/include/common.h"
+#include <algorithm>
+#include <climits>
 
 template <typename E, typename SplitT, typename SplitStateT>
 class SourceReaderBase : public SourceReader<SplitT> {
@@ -124,11 +126,31 @@ public:
     std::vector<KafkaPartitionSplit> snapshotState(long checkpointId)  override
     {
         std::vector<KafkaPartitionSplit> splits;
+        long minOffset = LONG_MAX;
+        long maxOffset = LONG_MIN;
+        size_t skippedUninitialized = 0;
+        std::string firstSplit = "none";
         for (const auto& [splitId, splitContext] : this->splitStates) {
             if (splitContext->state->getCurrentOffset() >= 0) {
-                splits.push_back(splitContext->state->toKafkaPartitionSplit());
+                KafkaPartitionSplit split = splitContext->state->toKafkaPartitionSplit();
+                long offset = split.getStartingOffset();
+                minOffset = std::min(minOffset, offset);
+                maxOffset = std::max(maxOffset, offset);
+                if (firstSplit == "none") {
+                    firstSplit = split.splitId() + "@" + std::to_string(offset);
+                }
+                splits.push_back(split);
+            } else {
+                skippedUninitialized++;
             }
         }
+        INFO_RELEASE("[OS-source-snapshot] checkpointId=" << checkpointId
+            << ", assignedSplits=" << splitStates.size()
+            << ", snapshotSplits=" << splits.size()
+            << ", skippedUninitialized=" << skippedUninitialized
+            << ", firstSplit=" << firstSplit
+            << ", minOffset=" << (splits.empty() ? -1 : minOffset)
+            << ", maxOffset=" << (splits.empty() ? -1 : maxOffset));
         return splits;
     }
 

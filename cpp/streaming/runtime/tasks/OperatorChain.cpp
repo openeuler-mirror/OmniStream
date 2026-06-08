@@ -31,6 +31,9 @@
 #include "taskmanager/OmniRuntimeEnvironment.h"
 #include "streaming/api/operators/OperatorSnapshotFutures.h"
 #include "runtime/checkpoint/channel/ChannelStateWriter.h"
+#include "runtime/executiongraph/TaskInformationPOD.h"
+#include <algorithm>
+#include <cctype>
 
 namespace {
 void AssignConfiguredOperatorId(StreamOperator *op, const omnistream::OperatorPOD &opDesc)
@@ -69,6 +72,32 @@ void AssignConfiguredOperatorId(StreamOperator *op, const omnistream::OperatorPO
         INFO_RELEASE("savepoint: OperatorChainV2 assign operatorId=" << operatorId
             << " name=" << opDesc.getName() << " id=" << opDesc.getId());
     }
+}
+
+std::string NormalizeOperatorId(std::string id)
+{
+    std::transform(id.begin(), id.end(), id.begin(), [](unsigned char c) {
+        return static_cast<char>(std::tolower(c));
+    });
+    return id;
+}
+
+const omnistream::StreamConfigPOD *FindStreamConfigByOperatorId(
+    const omnistream::TaskInformationPOD &taskConfiguration,
+    const std::vector<omnistream::StreamConfigPOD> &chainedConfig,
+    const std::string &operatorId)
+{
+    const std::string normalizedOperatorId = NormalizeOperatorId(operatorId);
+    const auto &headConfig = taskConfiguration.getStreamConfigPOD();
+    if (NormalizeOperatorId(headConfig.getOperatorDescription().getOperatorId()) == normalizedOperatorId) {
+        return &headConfig;
+    }
+    for (const auto &streamConfig : chainedConfig) {
+        if (NormalizeOperatorId(streamConfig.getOperatorDescription().getOperatorId()) == normalizedOperatorId) {
+            return &streamConfig;
+        }
+    }
+    return nullptr;
 }
 }
 
@@ -431,10 +460,29 @@ void OperatorChainV2::initializeStateAndOpenOperators(StreamTaskStateInitializer
     while (allOperators.hasNext()) {
         auto operatorWrapper = allOperators.next();
         auto streamOperator = operatorWrapper->getStreamOperator();
-        const StreamConfigPOD& streamConfigPOD =  chainedConfig[index++];
-        const OperatorPOD& operatorPod = streamConfigPOD.getOperatorDescription();
+        const std::string runtimeOperatorId = streamOperator->GetOperatorID().toString();
+        const StreamConfigPOD *streamConfigPOD =
+            FindStreamConfigByOperatorId(taskConfiguration_, chainedConfig, runtimeOperatorId);
+        bool fallbackByIndex = false;
+        if (streamConfigPOD == nullptr && index < static_cast<int>(chainedConfig.size())) {
+            streamConfigPOD = &chainedConfig[index];
+            fallbackByIndex = true;
+        }
+        if (streamConfigPOD == nullptr) {
+            INFO_RELEASE("Error:[OS-chain-init] no StreamConfig for operatorId=" << runtimeOperatorId
+                << ", index=" << index
+                << ", chainedConfigSize=" << chainedConfig.size());
+            THROW_LOGIC_EXCEPTION("no StreamConfig for operatorId=" << runtimeOperatorId)
+        }
+        index++;
+        const OperatorPOD& operatorPod = streamConfigPOD->getOperatorDescription();
         const nlohmann::json& description = nlohmann::json::parse(operatorPod.getDescription());
         int operatorType = operatorPod.getOperatorType();
+        INFO_RELEASE("[OS-chain-init] init operator, runtimeOperatorId=" << runtimeOperatorId
+            << ", configOperatorId=" << operatorPod.getOperatorId()
+            << ", name=" << operatorPod.getName()
+            << ", vertexId=" << operatorPod.getVertexID()
+            << ", fallbackByIndex=" << fallbackByIndex);
         switch (operatorType) {
             case Type_o::INVALID: // NULL
                 THROW_LOGIC_EXCEPTION("invalid operatorType")

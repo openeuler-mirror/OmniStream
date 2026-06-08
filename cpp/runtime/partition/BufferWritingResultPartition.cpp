@@ -168,6 +168,7 @@ namespace omnistream {
     void BufferWritingResultPartition::broadcastEvent(std::shared_ptr<AbstractEvent> event, bool isPriorityEvent)
     {
         checkInProduceState();
+        const std::string eventName = event == nullptr ? "null" : event->GetEventClassName();
         finishBroadcastBufferBuilder();
         finishUnicastBufferBuilders();
 
@@ -184,6 +185,14 @@ namespace omnistream {
             LOG_DEBUG("[RP=" << (void *) this << "]Send " << event->GetEventClassName()
                                 << " to subPartition " << subPartitionInfo.toString()
                                 << ", index : " << index)
+        }
+        flushAllSubpartitions(false);
+        if (eventName.find("CheckpointBarrier") != std::string::npos) {
+            INFO_RELEASE("[OS-checkpoint-boundary] checkpoint barrier broadcast flushed, task="
+                << getOwningTaskName()
+                << ", partition=" << getPartitionIndex()
+                << ", subpartitions=" << numSubpartitions
+                << ", priority=" << isPriorityEvent);
         }
     }
 

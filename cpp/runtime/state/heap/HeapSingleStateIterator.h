@@ -106,6 +106,11 @@ public:
         return kvStateId_;
     }
 
+    size_t getEntryCount() const override
+    {
+        return entries_.size();
+    }
+
     void close() override
     {
         entries_.clear();

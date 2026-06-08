@@ -102,9 +102,16 @@ private:
 
         collectKeyValueStateSnapshots(preparedData, checkpointId);
         collectPriorityQueueStateSnapshots(preparedData, checkpointId);
+        size_t iteratorEntries = 0;
+        for (const auto &iterator : preparedData.stateIterators) {
+            if (iterator != nullptr) {
+                iteratorEntries += iterator->getEntryCount();
+            }
+        }
         INFO_RELEASE("[OS-CP-heap-snapshot] checkpointId=" << checkpointId
             << ", metaInfoCount=" << preparedData.metaInfoSnapshots.size()
             << ", iteratorCount=" << preparedData.stateIterators.size()
+            << ", iteratorEntries=" << iteratorEntries
             << ", keyGroupPrefixBytes=" << preparedData.keyGroupPrefixBytes);
         return preparedData;
     }

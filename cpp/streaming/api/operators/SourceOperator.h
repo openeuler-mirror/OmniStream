@@ -144,7 +144,11 @@ public:
             THROW_RUNTIME_ERROR("SourceOperator snapshotState called before sourceReader is initialized.");
         }
         long checkpointId = context->getCheckpointId();
-        readerState_->update(sourceReader->snapshotState(checkpointId));
+        auto splits = sourceReader->snapshotState(checkpointId);
+        INFO_RELEASE("[OS-source-snapshot] operator snapshot, checkpointId=" << checkpointId
+            << ", splitCount=" << splits.size()
+            << ", sourceReader=" << reinterpret_cast<uintptr_t>(sourceReader));
+        readerState_->update(splits);
     }
 
     void initializeState(StateInitializationContextImpl *context) override
