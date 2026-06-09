@@ -80,12 +80,12 @@ public:
         for (auto i = 0; i < fieldSerializers.size(); i++) {
             nlohmann::json fieldJson;
             auto fieldName = fieldNames[i];
-            auto fieIdSerializer = fieldSerializers[i];
-            if (fieIdSerializer == nullptr) {
+            auto fieldSerializer = fieldSerializers[i];
+            if (fieldSerializer == nullptr) {
                 continue;
             }
-            fieldJson["fieIdInfo:"] = fieldName;
-            fieldJson["fieIdName"] = fieIdSerializer->toJson();
+            fieldJson["fieldName"] = fieldName;
+            fieldJson["fieldSerializer"] = fieldSerializer->toJson();
             fieldTypesJson.push_back(std::move(fieldJson));
         }
         jsonObj["fields"] = fieldTypesJson.dump();

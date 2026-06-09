@@ -31,7 +31,7 @@ VectorBatchBuffer::VectorBatchBuffer(
     this->recycler = recycle;
 
     // Invoking this constructor implies that the caller (bufferBuilder) owns the segment
-    refCount.store(1);
+    refCount_.store(1);
     readerIndex_ = -1;
     event_type = -1;
     isCompressed_ = false;
@@ -52,7 +52,7 @@ Buffer* VectorBatchBuffer::ReadOnlySlice(int index, int length)
     if (bufferType == 0) {
         LOG_TRACE("Beginning VectorBatchBuffer ")
         auto sliceBuffer = new ReadOnlySlicedVectorBatchBuffer(this, index, length);
-        return dynamic_cast<VectorBatchBuffer*>(sliceBuffer);
+        return sliceBuffer;
     } else {
         LOG_TRACE("Event Buffer  ")
         return new VectorBatchBuffer(event_type);

@@ -15,6 +15,7 @@
 #include <iostream>
 #include <cmath>
 
+#include "core/typeinfo/typeconstants.h"
 #include "core/typeutils/TypeSerializerSingleton.h"
 #include "Window.h"
 #include "core/memory/DataInputView.h"
@@ -103,6 +104,13 @@ public:
         void copy(DataInputView *source, DataOutputSerializer *target) const;
 
         BackendDataType getBackendId() const override;
+
+        const char* getName() const override { return "TimeWindow.Serializer"; }
+
+        std::string toJson() override {
+            SerializerJsonInfo typeJson = {SerializerType::POJO, TYPE_NAME_TIME_WINDOW_CLASS};
+            return typeJson.toJson();
+        }
     };
 private:
     int64_t start{};

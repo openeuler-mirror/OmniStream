@@ -74,19 +74,15 @@ namespace omnistream {
         return queueSize;
     }
 
-    void OmniCreditBasedSequenceNumberingViewReader::getNextBufferInternal()
-    {
+    void OmniCreditBasedSequenceNumberingViewReader::getNextBufferInternal() {
         if (!this->subpartitionView) {
-            LOG("must be a bug , at this phase subpartitionView should not be "
-                "null");
-            throw std::runtime_error(
-                "Subpartition view is null--------------------------");
+            THROW_LOGIC_EXCEPTION("must be a bug , at this phase subpartitionView should not be null")
         }
 
         std::lock_guard<std::recursive_mutex> lock(fetchingDataMutex);
         BufferAndBacklog* bufferAndLog = this->subpartitionView->getNextBuffer();
         while (bufferAndLog) {
-            Buffer* buffer = dynamic_cast<Buffer*>(bufferAndLog->getBuffer());
+            Buffer* buffer = bufferAndLog->getBuffer();
             if (auto vectorBatchBuffer = dynamic_cast<VectorBatchBuffer*>(buffer)) {
                 if (vectorBatchBuffer->GetSize() > 0) {
                     // serialize data
@@ -275,15 +271,11 @@ namespace omnistream {
                 count++;
                 if (count % noBufferPrintCount == 0) {
                     std::lock_guard<std::recursive_mutex> queueLock(queueMutex);
-                    LOG("NO BUFFER AVAILABLE, waiting for 100 ms serializedBatchQueue:: " <<serializedBatchQueue.size())
-                    INFO_RELEASE("NO BUFFER AVAILABLE, waiting for "
-                        << requestNextBufferWaitingTime*noBufferPrintCount <<
-                        " ms serializedBatchQueue:: "
-                        <<serializedBatchQueue.size() << "  pointer = "
+                    INFO_RELEASE("NO BUFFER AVAILABLE, the thread has been waiting for " << requestNextBufferWaitingTime * noBufferPrintCount
+                        << " ms, serializedBatchQueue.size(): " << serializedBatchQueue.size() << " pointer = "
                         << reinterpret_cast<long>(this))
                     count = 0;
                 }
-                INFO_RELEASE("OmniCreditBasedSequenceNumberingViewReader sleep time: " << std::to_string(requestNextBufferWaitingTime))
                 std::this_thread::sleep_for(std::chrono::milliseconds(requestNextBufferWaitingTime));
             }
         } while (!bufferInfo);
@@ -356,9 +348,7 @@ namespace omnistream {
                     bufferInfo = RequestNettyBuffer(bufferSize);
                 }
             } else {
-                LOG("Unknown stream element type");
-                throw std::runtime_error(
-                    "Unsupported stream element type");
+                THROW_RUNTIME_ERROR("Unsupported stream element type");
             }
         }
         if (bufferInfo) {
