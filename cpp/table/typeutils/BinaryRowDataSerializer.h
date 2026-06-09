@@ -14,6 +14,7 @@
 
 #include "table/data/binary/BinaryRowData.h"
 #include "core/typeutils/TypeSerializerSingleton.h"
+#include "core/typeutils/StringSerializer.h"
 #include "table/data/JoinedRowData.h"
 
 class BinaryRowDataSerializer : public TypeSerializerSingleton {
@@ -38,15 +39,17 @@ public:
     BackendDataType getBackendId() const override { return BackendDataType::ROW_BK;};
 
     std::string toJson() override {
-        std::vector<std::string> fieldNames;
-        if (!inputTypes_.empty()) {
-            fieldNames = inputTypes_;
-        } else {
-            int size = (numFields_ > 0) ? numFields_ : 0;
-            fieldNames.resize(size, "");
+        if (numFields_ < 0) {
+            INFO_RELEASE("Error BinaryRowDataSerializer::toJson numFields_ : " << numFields_ << " < 0");
+            THROW_LOGIC_EXCEPTION("BinaryRowDataSerializer::toJson numFields_ : " << numFields_ << " < 0");
         }
         SerializerJsonInfo typeJson = {SerializerType::BINARY_ROW};
-        typeJson.fieldNames = fieldNames;
+        if (!inputTypes_.empty()) {
+            typeJson.fieldNames = inputTypes_;
+        } else {
+            typeJson.fieldNames.resize(numFields_, "");
+        }
+        typeJson.fieldSerializers.resize(numFields_, StringSerializer::INSTANCE);
 
         return typeJson.toJson();
     }
@@ -57,7 +60,7 @@ public:
 private:
     // Add JoinedRowDataSerializer, then pass the unconverted JoinedRowData to
     // output collector instead of the converted BinaryRowData
-    int numFields_ = 0;
+    int numFields_;
     int fixedLengthPartSize_;
     BinaryRowData* reUse_;
     std::vector<std::string> inputTypes_;

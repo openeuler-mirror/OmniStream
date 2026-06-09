@@ -277,10 +277,8 @@ HeapKeyedStateBackend<K> *HeapKeyedStateBackendBuilder<K>::build()
                 TypeSerializer *valSerializer = metaInfo.getTypeSerializer("VALUE_SERIALIZER");
 
                 if (nsSerializer == nullptr || valSerializer == nullptr) {
-                    INFO_RELEASE("HeapKeyedStateBackendBuilder: skipping state '"
-                        << metaInfo.getName() << "' — missing serializer(s)");
-                    stateInfos.push_back({backendStateType, metaInfo.getName(), nullptr, nullptr, nullptr});
-                    continue;
+                    INFO_RELEASE("Error HeapKeyedStateBackendBuilder::build skipping state '" << metaInfo.getName() << "' — missing serializer(s)");
+                    THROW_RUNTIME_ERROR("HeapKeyedStateBackendBuilder::build skipping state '" << metaInfo.getName() << "' — missing serializer(s)");
                 }
                 auto stateName = metaInfo.getName();
                 if (stateName.size() >= 2 && stateName.compare(stateName.size() - 2, 2, "vb") == 0) {
