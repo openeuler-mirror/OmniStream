@@ -14,9 +14,7 @@
 #include "common.h"
 
 namespace omnistream {
-
-    StopMode FinishingReasonToStopMode(FinishingReason reason)
-    {
+    StopMode FinishingReasonToStopMode(FinishingReason reason) {
         switch (reason) {
             case FinishingReason::END_OF_DATA:
                 return StopMode::DRAIN;
@@ -30,8 +28,7 @@ namespace omnistream {
     }
 
     // Optional: For easier debugging or logging
-    std::string FinishingReasonToString(FinishingReason reason)
-    {
+    std::string FinishingReasonToString(FinishingReason reason) {
         switch (reason) {
             case FinishingReason::END_OF_DATA:
                 return "END_OF_DATA";
@@ -44,50 +41,80 @@ namespace omnistream {
         }
     }
 
-void OmniSourceStreamTask::init()
-{
-    OmniStreamTask::init();
-}
-
-void OmniSourceStreamTask::processInput(MailboxDefaultAction::Controller *controller)
-{
-    LOG("OmniSourceStreamTask::processInput")
-    if (!dynamic_cast<StreamSource<omnistream::VectorBatch> *>(mainOperator_)) {
-        throw std::runtime_error("mainOperator_ is not of type StreamSource<omnistream::VectorBatch>");
+    OmniSourceStreamTask::OmniSourceStreamTask(std::shared_ptr<RuntimeEnvironmentV2>& env, std::unique_ptr<Object> lockObject, int taskType):
+            OmniStreamTask(env, SynchronizedStreamTaskActionExecutor::synchronizedExecutor(&lockObject->mutex), taskType) {
+        this->lockObject_ = std::move(lockObject);
     }
-    
-    dynamic_cast<StreamSource<omnistream::VectorBatch> *>(mainOperator_)->run();
-    // clean up resources or emit final watermark
-    CompleteProcessing();
 
-    mailboxProcessor_->suspend();
-    LOG_INFO_IMP("Task : " << taskName_ << " suspended");
-}
-
-void OmniSourceStreamTask::CompleteProcessing()
-{
-    // so we need to call it here
-    auto stopMode = FinishingReasonToStopMode(finishingReason);
-    if (stopMode == StopMode::DRAIN) {
-       // reserved for future bound input
+    void OmniSourceStreamTask::init() {
+        OmniStreamTask::init();
     }
-    EndData(stopMode);
-}
 
-void OmniSourceStreamTask::AdvanceToEndOfEventTime()
-{
-    operatorChain->GetMainOperatorOutput()->emitWatermark(new Watermark(LONG_MAX));
-}
+    void OmniSourceStreamTask::processInput(MailboxDefaultAction::Controller *controller) {
+        controller->suspendDefaultAction();
+        sourceThread_ = std::make_unique<std::thread>([this] {
+            runSourceInThread();
+        });
+    }
 
-const std::string OmniSourceStreamTask::getName() const
-{
-    return std::string("OmniSourceStreamTask");
-}
+    void OmniSourceStreamTask::runSourceInThread() {
+        try {
+            auto* mainOperator = dynamic_cast<StreamSource<omnistream::VectorBatch>*>(mainOperator_);
+            if (!mainOperator) {
+                THROW_RUNTIME_ERROR("mainOperator_ is not of type StreamSource<omnistream::VectorBatch>");
+            }
+            mainOperator->run(lockObject_.get());
 
-void OmniSourceStreamTask::cancel()
-{
-    OmniStreamTask::cancel();
-    // avoid back pressure
-    recordWriter_->cancel();
-}
+            CompleteProcessing();
+
+            auto completionMail = std::make_shared<VoidFunctionRunnable>([this]() {
+                mailboxProcessor_->suspend();
+            });
+            mainMailboxExecutor_->execute(completionMail, "Source completion");
+        } catch (const std::exception& e) {
+            auto errorMail = std::make_shared<VoidFunctionRunnable>([this, e]() {
+                mailboxProcessor_->reportThrowable(std::make_exception_ptr(e));
+            });
+            mainMailboxExecutor_->execute(errorMail, "Source error");
+        }
+    }
+
+    void OmniSourceStreamTask::CompleteProcessing() {
+        // so we need to call it here
+        auto stopMode = FinishingReasonToStopMode(finishingReason);
+        if (stopMode == StopMode::DRAIN) {
+           // reserved for future bound input
+        }
+        EndData(stopMode);
+    }
+
+    void OmniSourceStreamTask::AdvanceToEndOfEventTime() {
+        operatorChain->GetMainOperatorOutput()->emitWatermark(new Watermark(LONG_MAX));
+    }
+
+    const std::string OmniSourceStreamTask::getName() const {
+        return std::string("OmniSourceStreamTask");
+    }
+
+    void OmniSourceStreamTask::cancel() {
+        if (mainOperator_) {
+            auto* source = dynamic_cast<StreamSource<omnistream::VectorBatch>*>(mainOperator_);
+            if (source) {
+                source->cancel();
+            }
+        }
+
+        if (sourceThread_ && sourceThread_->joinable()) {
+            sourceThread_->join();
+        }
+        OmniStreamTask::cancel();
+        // avoid back pressure
+        recordWriter_->cancel();
+    }
+
+    OmniSourceStreamTask::~OmniSourceStreamTask() {
+        if (sourceThread_ && sourceThread_->joinable()) {
+            sourceThread_->join();
+        }
+    }
 }

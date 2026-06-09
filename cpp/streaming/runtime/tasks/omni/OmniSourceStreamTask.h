@@ -9,16 +9,13 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef OMNISOURCESTREAMTASK_H
-#define OMNISOURCESTREAMTASK_H
-#include <taskmanager/OmniRuntimeEnvironment.h>
+#pragma once
 
+#include <taskmanager/OmniRuntimeEnvironment.h>
 #include "OmniStreamTask.h"
 #include "streaming/api/operators/StreamSource.h"
 #include "io/network/api/StopMode.h"
 #include <thread>
-#include "OmniAsyncDataOutputToOutput.h"
-#include <limits>
 
 
 namespace omnistream {
@@ -37,24 +34,25 @@ namespace omnistream {
 
     class OmniSourceStreamTask : public OmniStreamTask {
     public:
-        explicit OmniSourceStreamTask(std::shared_ptr<RuntimeEnvironmentV2> &env, int taskType)
-            : OmniStreamTask(env, taskType) {
-        }
+        OmniSourceStreamTask(std::shared_ptr<RuntimeEnvironmentV2>& env, std::unique_ptr<Object> lockObject, int taskType);
+
+        ~OmniSourceStreamTask() override;
 
         void init() override;
 
         void processInput(MailboxDefaultAction::Controller *controller) override;
 
-        ~OmniSourceStreamTask() override = default;
         const std::string getName() const override;
         void AdvanceToEndOfEventTime() override;
         void cancel() override;
 
     private:
         FinishingReason finishingReason = FinishingReason::END_OF_DATA;
+
+        std::unique_ptr<Object> lockObject_;
+        std::unique_ptr<std::thread> sourceThread_;
+
         void CompleteProcessing();
+        void runSourceInThread();
     };
 }
-
-
-#endif // OMNISOURCESTREAMTASK_H

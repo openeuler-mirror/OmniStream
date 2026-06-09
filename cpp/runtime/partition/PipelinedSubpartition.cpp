@@ -217,9 +217,8 @@ AvailabilityWithBacklog PipelinedSubpartition::getAvailabilityAndBacklog(int num
     return AvailabilityWithBacklog(isAvailable, getBuffersInBacklogUnsafe());
 }
 
-bool PipelinedSubpartition::isDataAvailableUnsafe()
-{
-    return !buffers.isEmpty() && (flushRequested || getNumberOfQueuedBuffers() > 0);
+bool PipelinedSubpartition::isDataAvailableUnsafe() {
+    return !isBlocked && (flushRequested || getNumberOfQueuedBuffers() > 0);
 }
 
 ObjectBufferDataType PipelinedSubpartition::getNextBufferTypeUnsafe()
@@ -326,11 +325,9 @@ bool PipelinedSubpartition::shouldNotifyDataAvailable()
            && getNumberOfFinishedBuffers() == 1;
 }
 
-void PipelinedSubpartition::notifyDataAvailable()
-{
-    std::shared_ptr<PipelinedSubpartitionView> view = this->readView;
-    if (view) {
-        view->notifyDataAvailable();
+void PipelinedSubpartition::notifyDataAvailable() {
+    if (readView) {
+        readView->notifyDataAvailable();
     }
 }
 

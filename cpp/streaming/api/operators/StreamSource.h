@@ -85,6 +85,19 @@ public:
         this->userFunction->run(ctx);
     }
 
+    void run(Object* lock) {
+        ctx = StreamSourceContexts::getSourceContext(
+                TimeCharacteristic::ProcessingTime,
+                this->getProcessingTimeService(),
+                lock,
+                this->output,
+                -1,
+                -1,
+                true,
+                this->isStream);
+        this->userFunction->run(ctx);
+    }
+
     void cancel()
     {
         this->userFunction->cancel();
