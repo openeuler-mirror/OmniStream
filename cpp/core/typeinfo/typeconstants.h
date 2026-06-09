@@ -76,4 +76,8 @@ extern const char* TYPE_NAME_SORTED_VECTOR_LONG;
 extern const char* TYPE_NAME_SORTED_VECTOR_LONG_CLASS;
 extern const char* TYPE_NAME_SORTED_VECTOR_LONG_CLASS_LINE;
 
+extern const char* TYPE_NAME_TIME_WINDOW;
+extern const char* TYPE_NAME_TIME_WINDOW_CLASS;
+extern const char* TYPE_NAME_TIME_WINDOW_CLASS_LINE;
+
 #endif  // FLINK_TNEL_TYPECONSTANTS_H

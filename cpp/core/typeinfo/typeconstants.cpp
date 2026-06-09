@@ -75,3 +75,7 @@ const char* TYPE_NAME_VECTOR_BATCH_CLASS_LINE = "com_huawei_omniruntime_flink_ru
 const char* TYPE_NAME_SORTED_VECTOR_LONG = "SortedVectorLong";
 const char* TYPE_NAME_SORTED_VECTOR_LONG_CLASS = "com.huawei.omniruntime.flink.runtime.api.state.serializer.model.info.entity.SortedVectorLong";
 const char* TYPE_NAME_SORTED_VECTOR_LONG_CLASS_LINE = "com_huawei_omniruntime_flink_runtime_api_state_serializer_model_info_entity_SortedVectorLong";
+
+const char* TYPE_NAME_TIME_WINDOW = "TimeWindow";
+const char* TYPE_NAME_TIME_WINDOW_CLASS = "com.huawei.omniruntime.flink.runtime.api.state.serializer.model.info.entity.TimeWindow";
+const char* TYPE_NAME_TIME_WINDOW_CLASS_LINE = "com_huawei_omniruntime_flink_runtime_api_state_serializer_model_info_entity_TimeWindow";

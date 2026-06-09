@@ -15,6 +15,8 @@
 #include "TypeInformation.h"
 #include "typeconstants.h"
 
+#include "table/runtime/operators/window/TimeWindow.h"
+
 #include "core/typeutils/JoinTupleSerializer.h"
 #include "core/typeutils/JoinTupleSerializer2.h"
 #include "core/typeutils/XxH128_hashSerializer.h"
@@ -32,8 +34,10 @@ public:
             typeSerializer_ = new XxH128_hashSerializer();
         } else if (className == TYPE_NAME_VECTOR_BATCH_CLASS || className == TYPE_NAME_VECTOR_BATCH_CLASS_LINE) {
             typeSerializer_ = new VectorBatchSerializer();
-        }  else if (className == TYPE_NAME_SORTED_VECTOR_LONG_CLASS || className == TYPE_NAME_SORTED_VECTOR_LONG_CLASS_LINE) {
+        } else if (className == TYPE_NAME_SORTED_VECTOR_LONG_CLASS || className == TYPE_NAME_SORTED_VECTOR_LONG_CLASS_LINE) {
             typeSerializer_ = new SortedVectorLong();
+        } else if (className == TYPE_NAME_TIME_WINDOW_CLASS || className == TYPE_NAME_TIME_WINDOW_CLASS_LINE) {
+            typeSerializer_ = new TimeWindow::Serializer();
         } else {
             throw new std::runtime_error("unknown className : " + className);
         }
@@ -55,7 +59,9 @@ public:
             || className == TYPE_NAME_VECTOR_BATCH_CLASS
             || className == TYPE_NAME_VECTOR_BATCH_CLASS_LINE
             || className == TYPE_NAME_SORTED_VECTOR_LONG_CLASS
-            || className == TYPE_NAME_SORTED_VECTOR_LONG_CLASS_LINE) {
+            || className == TYPE_NAME_SORTED_VECTOR_LONG_CLASS_LINE
+            || className == TYPE_NAME_TIME_WINDOW_CLASS
+            || className == TYPE_NAME_TIME_WINDOW_CLASS_LINE) {
             return true;
         }
         return false;
