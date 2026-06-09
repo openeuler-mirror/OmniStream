@@ -66,8 +66,20 @@ public:
           isTaskFinished(isTaskFinished),
           isTaskRunning(isTaskRunning),
           asyncCheckpointState(AsyncCheckpointState::RUNNING),
-          finishedFuture()
-    {}
+          finishedFuture() {}
+
+    ~AsyncCheckpointRunnable() {
+        if (operatorSnapshotsInProgress) {
+            Cleanup();
+            delete operatorSnapshotsInProgress;
+        }
+        if (consumer) {
+            delete consumer;
+        }
+        if (asyncExceptionHandler) {
+            delete asyncExceptionHandler;
+        }
+    }
 
     enum class AsyncCheckpointState {
         RUNNING,

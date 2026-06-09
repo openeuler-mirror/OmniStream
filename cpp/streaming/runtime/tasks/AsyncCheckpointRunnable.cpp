@@ -12,10 +12,7 @@
 #include "runtime/taskmanager/OmniRuntimeEnvironment.h"
 #include "runtime/taskmanager/OmniTask.h"
 #include "runtime/io/checkpointing/CheckpointException.h"
-#include "core/include/common.h"
-#include <chrono>
 #include <semaphore.h>
-#include <atomic>
 #include <thread>
 using namespace std::chrono;
 
