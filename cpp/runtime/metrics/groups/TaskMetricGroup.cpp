@@ -35,7 +35,8 @@ namespace omnistream {
     std::shared_ptr<Metric> TaskMetricGroup::GetInternalOperatorIOMetric(
         const std::string& operatorName, const std::string& metricName) const
     {
-        auto it = internalOperatorIOMetricGroup.find(operatorName);
+        std::string subOperatorName = operatorName.length() > 80 ? operatorName.substr(0, 80):operatorName;
+        auto it = internalOperatorIOMetricGroup.find(subOperatorName);
         if (it != internalOperatorIOMetricGroup.end()) {
             auto metricIt = it->second.find(metricName);
             if (metricIt != it->second.end()) {
