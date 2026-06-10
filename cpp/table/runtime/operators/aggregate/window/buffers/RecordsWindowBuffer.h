@@ -15,25 +15,20 @@
 #include <vector>
 #include <streaming/api/operators/TimestampedCollector.h>
 #include <table/data/GenericRowData.h>
-#include <string_view>
 
 #include "table/data/vectorbatch/VectorBatch.h"
 #include "table/runtime/operators/window/WindowKey.h"
 #include "table/runtime/generated/AggsHandleFunction.h"
-#include "common.h"
-#include "table/data/util/RowDataUtil.h"
 #include "table/data/JoinedRowData.h"
 #include "table/runtime/operators/window/state/WindowValueState.h"
 #include "test/core/operators/OutputTest.h"
-#include <regex>
-#include <streaming/api/operators/StreamOperatorStateHandler.h>
-#include <table/runtime/generated/NamespaceAggsHandleFunction.h>
 #include <mutex>
 #include <memory>
-#include "table/utils/TimeWindowUtil.h"
 #include "table/runtime/operators/window/slicing/SliceAssigners.h"
 #include "table/runtime/keyselector/KeySelector.h"
 #include "runtime/generated/function/CompositeWindowAggFunction.h"
+#include "runtime/operators/InternalTimerServiceImpl.h"
+#include "state/KeyedStateBackend.h"
 
 class RecordsWindowBuffer {
 public:
@@ -43,15 +38,14 @@ public:
             const nlohmann::json& config,
             WindowValueState<KeyType, int64_t, RowData*> *state,
             Output* output,
+            KeyedStateBackend<KeyType>* stateBackend_,
             SliceAssigner* sliceAssigner,
             InternalTimerServiceImpl<KeyType, int64_t>* internalTimerService);
     void CreateFunctions(SliceAssigner *sliceAssigner, const string &AGGCALLSNAME, vector<std::string> &types);
     void InitializeKeySelectorAndTypes(const nlohmann::json& config);
-    void addVectorBatch(omnistream::VectorBatch *elementBatch, int64_t *sliceEndArr, bool* dropArr);
-    void addVectorBatch(omnistream::VectorBatch *elementBatch, omnistream::VectorBatch *binaryRowKeySelector, int64_t *sliceEndArr);
-    void advanceProgress(StreamOperatorStateHandler<KeyType> *stateHandler, long currentProgress);
-    RowData* getEntireRow(omnistream::VectorBatch *batch, int rowId);
-    void flush() {};
+    void addVectorBatch(omnistream::VectorBatch *elementBatch, std::vector<int64_t>& sliceEndArr, std::vector<bool>& dropArr);
+    void advanceProgress(long currentProgress);
+    void flush();
     void close() {};
     BinaryRowData* emptyRow;
     omnistream::VectorBatch* createOutputBatch(std::vector<std::unique_ptr<RowData>>& collectedRows);
@@ -59,18 +53,19 @@ public:
     std::string extractAggFunction(const std::string& input);
     std::vector<std::string> getKeyedTypes(std::vector<int32_t> keyedIndex, std::vector<std::string> inputTypes);
     Output* getOutput();
-    RowData* combineAccumulator(WindowKey windowKey, RowData* acc, StreamOperatorStateHandler<KeyType> *stateHandler);
-    void globalWinAggProcess(WindowKey currentWindowKey, std::vector<std::unique_ptr<RowData>>&  entireRows, StreamOperatorStateHandler<KeyType> *stateHandler);
-    void winAggProcess(WindowKey currentWindowKey, std::vector<std::unique_ptr<RowData>>&  entireRows, StreamOperatorStateHandler<KeyType> *stateHandler);
-    void setStringToRow(omnistream::VectorBatch *batch, int rowIndex, int colIndex, BinaryRowData *row, int dataIndex);
-    void WindowAggProcess(WindowKey currentKey, std::vector<std::unique_ptr<RowData>>& entireRows,
-                          StreamOperatorStateHandler<KeyType> *stateHandler);
+    void combineAccumulator(const WindowKey& windowKey, RowData* acc);
+    void globalWinAggProcess(const WindowKey& currentWindowKey, std::vector<std::unique_ptr<RowData>>& sliceResultArr);
+    void winAggProcess(const WindowKey& currentWindowKey, std::vector<std::unique_ptr<RowData>>&  sliceResultArr);
+    void WindowAggProcess(const WindowKey& currentKey, std::vector<std::unique_ptr<RowData>>& sliceResultArr);
 
 private:
     static constexpr int AVG_ACCUMULATOR_SLOTS = 2;  // AVG needs sum + count
     static constexpr int DEFAULT_ACCUMULATOR_SLOTS = 1;
     nlohmann::json description;
     std::unordered_map<WindowKey, std::vector<std::unique_ptr<RowData>>> recordsBuffer;
+    int64_t recordsBufferSize_ = 0; // TODO: this is a temp fix, preventing the recordsBuffer be too large
+    KeyedStateBackend<KeyType>* stateBackend_;
+    omnistream::StateType backendType_ = omnistream::StateType::HEAP;
     std::vector<std::string> inputTypes;
     std::vector<std::string> outputTypes;
     std::vector<int32_t> outputTypeIds;

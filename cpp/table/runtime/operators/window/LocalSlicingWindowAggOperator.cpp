@@ -100,7 +100,7 @@ void LocalSlicingWindowAggOperator::processBatch(StreamRecord *input) {
     if (!batch || rowCount < 0) {
         return;
     }
-    int64_t sliceEndArr[rowCount];
+    std::vector<int64_t> sliceEndArr(rowCount);
     for (int64_t i = 0; i < batch->GetRowCount(); i++) {
         sliceEndArr[i] = sliceAssigner->assignSliceEnd(batch.get(), i, clock);
     }

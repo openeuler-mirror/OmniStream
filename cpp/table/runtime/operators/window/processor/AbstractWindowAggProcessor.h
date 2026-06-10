@@ -14,14 +14,7 @@
 #include "SlicingWindowProcessor.h"
 #include "table/runtime/operators/window/slicing/SliceAssigners.h"
 #include "table/runtime/operators/aggregate/window/buffers/RecordsWindowBuffer.h"
-#include "table/runtime/generated/function/SumFunction.h"
-#include "table/typeutils/RowDataSerializer.h"
-#include "table/typeutils/InternalTypeInfo.h"
-#include "table/types/logical/RowType.h"
 #include "table/runtime/operators/window/state/WindowValueState.h"
-#include "core/api/common/state/ValueStateDescriptor.h"
-#include "runtime/state/internal/InternalValueState.h"
-#include "core/typeutils/LongSerializer.h"
 #include "table/runtime/operators/window/LocalSlicingWindowAggOperator.h"
 #include "table/runtime/keyselector/KeySelector.h"
 #include <unordered_set>
@@ -42,7 +35,7 @@ public:
             InternalTimerServiceImpl<KeyType, int64_t>* internalTimerService) override;
     void initializeWatermark(int64_t watermark) override;
     bool processBatch(omnistream::VectorBatch* key) override;
-    void advanceProgress(StreamOperatorStateHandler<KeyType> *stateHandler, long progress) override;
+    void advanceProgress(long progress) override;
     void prepareCheckpoint() override;
     void fireWindow(int64_t window) override;
     void clearWindow(int64_t window) override;
