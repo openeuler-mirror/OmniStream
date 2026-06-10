@@ -165,7 +165,7 @@ namespace omnistream  {
                 leftNumRequiredBuffers,
                 rightMaxUsedBuffers,
                 numberOfSubpartitions,
-                resultPartitionType,
+                maxBuffersPerChannel,
                 config);
         } else if (taskType == 2) {
             return std::make_shared<BufferPoolFactoryLambda>(memoryBufferPoolFactory,

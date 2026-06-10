@@ -36,15 +36,7 @@ using json = nlohmann::json;
 
 JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_TNELLibrary_initialize(JNIEnv *, jclass)
 {
-    omnistream::MetricManager* metric_manager = omnistream::MetricManager::GetInstance();
-    bool result  = metric_manager->Setup(32768);
-    if (result)
-    {
-        INFO_RELEASE("Shared Memory Metric Manager Loading Succeed!")
-    } else
-    {
-        INFO_RELEASE("Shared Memory Metric Manager Loading Failed!")
-    }
+    INFO_RELEASE("TNELLibrary_initialize call!")
 }
 
 JNIEXPORT void JNICALL Java_org_apache_flink_runtime_taskexecutor_TaskManagerRunner_initTMConfiguration(JNIEnv *env, jclass, jstring configStr)

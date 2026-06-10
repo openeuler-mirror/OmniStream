@@ -49,6 +49,11 @@ std::shared_ptr<KeyValueStateIterator> RocksDBFullSnapshotResources::createKVSta
         keyGroupPrefixBytes_);
 }
 
+bool RocksDBFullSnapshotResources::isHeapPriorityQueueStateId(int kvStateId) const
+{
+    return heapPriorityQueueStateIds_.find(kvStateId) != heapPriorityQueueStateIds_.end();
+}
+
 std::vector<std::pair<std::unique_ptr<RocksIteratorWrapper>, int>>
 RocksDBFullSnapshotResources::createKVStateIterators(
     std::unique_ptr<CloseableRegistry>& closeableRegistry,
@@ -97,6 +102,7 @@ RocksDBFullSnapshotResources::RocksDBFullSnapshotResources(
     const std::vector<std::shared_ptr<RocksDbKvStateInfo>>& metaDataCopy,
     const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& stateMetaInfoSnapshots,
     std::vector<std::unique_ptr<SingleStateIterator>> heapPriorityQueueIterators,
+    std::unordered_set<int> heapPriorityQueueStateIds,
     rocksdb::DB* db,
     int keyGroupPrefixBytes,
     KeyGroupRange* keyGroupRange,
@@ -108,7 +114,8 @@ RocksDBFullSnapshotResources::RocksDBFullSnapshotResources(
     keyGroupPrefixBytes_(keyGroupPrefixBytes),
     keyGroupRange_(keyGroupRange),
     keySerializer_(keySerializer),
-    heapPriorityQueueIterators_(std::move(heapPriorityQueueIterators))
+    heapPriorityQueueIterators_(std::move(heapPriorityQueueIterators)),
+    heapPriorityQueueStateIds_(std::move(heapPriorityQueueStateIds))
 {
     for (auto& info : metaDataCopy) {
         metaData_.push_back(std::make_shared<MetaData>(info, nullptr));
@@ -133,6 +140,7 @@ RocksDBFullSnapshotResources::create(
     }
 
     std::vector<std::unique_ptr<SingleStateIterator>> heapPriorityQueueIterators;
+    std::unordered_set<int> heapPriorityQueueStateIds;
     int pqStateId = static_cast<int>(metaDataCopy.size());
 
     if (registeredPQStates != nullptr && !registeredPQStates->empty()) {
@@ -158,6 +166,7 @@ RocksDBFullSnapshotResources::create(
             if (pqIterator != nullptr) {
                 heapPriorityQueueIterators.push_back(std::move(pqIterator));
             }
+            heapPriorityQueueStateIds.insert(pqStateId);
 
             ++pqStateId;
         }
@@ -171,6 +180,7 @@ RocksDBFullSnapshotResources::create(
         metaDataCopy,
         stateMetaInfoSnapshots,
         std::move(heapPriorityQueueIterators),
+        std::move(heapPriorityQueueStateIds),
         db,
         keyGroupPrefixBytes,
         keyGroupRange,

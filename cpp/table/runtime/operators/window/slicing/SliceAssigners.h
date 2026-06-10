@@ -54,8 +54,12 @@ public:
 namespace omnistream {
     class ZoneId {
     public:
-        ZoneId() {}
+        ZoneId() : id_("UTC") {}
+        explicit ZoneId(const std::string &id) : id_(id.empty() ? "UTC" : id) {}
         ~ZoneId() = default;
+        const std::string &getId() const { return id_; }
+    private:
+        std::string id_;
     };
 }
 
@@ -97,6 +101,7 @@ public:
     ~AbstractSliceAssigner() override = default;
     int64_t assignSliceEnd(omnistream::VectorBatch *element, int rowId, ClockService *clock) override;
     bool isEventTime() override;
+    std::string getShiftTimeZoneId() const;
     virtual int64_t assignSliceEnd(int64_t timestamp) = 0;
 protected:
     int rowtimeIndex;
@@ -383,6 +388,20 @@ public:
         );
     }
 };
+
+inline std::string ResolveShiftTimeZoneId(SliceAssigner *assigner)
+{
+    if (assigner == nullptr) {
+        return "UTC";
+    }
+    if (auto *abstractAssigner = dynamic_cast<AbstractSliceAssigner *>(assigner)) {
+        return abstractAssigner->getShiftTimeZoneId();
+    }
+    if (auto *windowedAssigner = dynamic_cast<WindowedSliceAssigner *>(assigner)) {
+        return ResolveShiftTimeZoneId(windowedAssigner->GetInnerAssigner());
+    }
+    return "UTC";
+}
 
 class AssignerAtt {
 public:

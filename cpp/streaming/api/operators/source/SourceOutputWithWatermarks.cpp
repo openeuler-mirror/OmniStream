@@ -14,8 +14,8 @@
 
 SourceOutputWithWatermarks* SourceOutputWithWatermarks::createWithSeparateOutputs(OmniDataOutputPtr recordsOutput,
     WatermarkOutput* onEventWatermarkOutput, WatermarkOutput* periodicWatermarkOutput,
-    TimestampAssigner* timestampAssigner, WatermarkGenerator* watermarkGenerator)
+    TimestampAssigner* timestampAssigner, WatermarkGenerator* watermarkGenerator, long autoWatermarkInterval)
 {
     return new SourceOutputWithWatermarks(recordsOutput, onEventWatermarkOutput,
-        periodicWatermarkOutput, timestampAssigner, watermarkGenerator);
+        periodicWatermarkOutput, timestampAssigner, watermarkGenerator, autoWatermarkInterval);
 }

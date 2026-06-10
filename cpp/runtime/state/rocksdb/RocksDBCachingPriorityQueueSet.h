@@ -21,6 +21,7 @@
 #include "core/memory/DataInputDeserializer.h"
 #include "runtime/state/RocksIteratorWrapper.h"
 #include "runtime/state/heap/HeapPriorityQueueElement.h"
+#include "core/utils/type_traits_ext.h"
 
 template <typename K, typename T, typename Comparator>
 class RocksDBCachingPriorityQueueSet : public InternalPriorityQueue<T>, public HeapPriorityQueueElement {

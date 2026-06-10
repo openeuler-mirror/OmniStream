@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <iostream>
+#include <memory>
 #include <nlohmann/json.hpp>
 #include <taskmanager/OmniRuntimeEnvironment.h>
  
@@ -73,7 +74,8 @@ TEST(GlobalWindowAggTest, DISABLED_OnTimerTest) {
     std::cout << "================step 02===================" << std::endl;
     AbstractWindowAggProcessor *processor = new AbstractWindowAggProcessor(windowing, output);
     std::cout << "================step 03===================" << std::endl;
-    SlicingWindowOperator<RowData*, int64_t> *operators = new SlicingWindowOperator<RowData*, int64_t>(processor, windowing);
+    SlicingWindowOperator<std::shared_ptr<RowData>, int64_t> *operators =
+        new SlicingWindowOperator<std::shared_ptr<RowData>, int64_t>(processor, windowing);
     std::cout << "================step 04===================" << std::endl;
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
@@ -97,7 +99,8 @@ TEST(GlobalWindowAggTest, DISABLED_OnTimerTest) {
     operators->processBatch(vbatch);
     operators->ProcessWatermark(new Watermark(-1));
     BinaryRowData* binaryRowData = new BinaryRowData(0); // group为空时, 需要设置为new BinaryRowData(0)
-    auto *timer = new TimerHeapInternalTimer<RowData*, int64_t>(-1, binaryRowData, 1731944420000);
+    auto *timer = new TimerHeapInternalTimer<std::shared_ptr<RowData>, int64_t>(
+        -1, std::shared_ptr<RowData>(binaryRowData), 1731944420000);
     operators->onTimer(timer);
     auto* batchOutput = dynamic_cast<BatchOutputTest*>(operators->getOutput());
     auto* resultBatch = reinterpret_cast<omnistream::VectorBatch*> (batchOutput->getVectorBatch());
@@ -131,7 +134,8 @@ TEST(GlobalWindowAggTest, DISABLED_TUMBLETest) {
     std::cout << "================step 02===================" << std::endl;
     AbstractWindowAggProcessor *processor = new AbstractWindowAggProcessor(windowing, output);
     std::cout << "================step 03===================" << std::endl;
-    SlicingWindowOperator<RowData*, int64_t> *operators = new SlicingWindowOperator<RowData*, int64_t>(processor, windowing);
+    SlicingWindowOperator<std::shared_ptr<RowData>, int64_t> *operators =
+        new SlicingWindowOperator<std::shared_ptr<RowData>, int64_t>(processor, windowing);
     std::cout << "================step 04===================" << std::endl;
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
@@ -185,7 +189,7 @@ TEST(GlobalWindowAggTest, DISABLED_HOPTest1) {
             parsedJson["operators"][0]["description"]
     );
     auto *output = new BatchOutputTest();
-    auto* slicingWindowOperator = dynamic_cast<SlicingWindowOperator<RowData*, int64_t>*>(
+    auto* slicingWindowOperator = dynamic_cast<SlicingWindowOperator<std::shared_ptr<RowData>, int64_t>*>(
             StreamOperatorFactory::createOperatorAndCollector(opConfig, output));
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();

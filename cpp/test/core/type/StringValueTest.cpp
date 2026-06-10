@@ -57,26 +57,26 @@ TEST(StringValueTest, WriteAndReadLargeStringTest) {
 }
 
 TEST(StringValueTest, WriteStringTest) {
-    String buffer("Hello, World!", 1024);
+    std::string expectedValue = "Hello, World!";
+    String buffer(expectedValue);
     DataOutputSerializer out{};
-    uint8_t *data = reinterpret_cast<uint8_t *>(malloc(100));
     OutputBufferStatus outputBufferStatus_;
     out.setBackendBuffer(&outputBufferStatus_);
 
     StringValue::writeString(&buffer, out);
-    data = out.getData();
+    uint8_t *data = out.getData();
 
     // 验证写入的数据是否正确
     size_t len = buffer.getValue().size();
     size_t expectedLen = len + 1; // Length is offset by one
 
-    /*// 验证长度
+    // 验证长度
     EXPECT_EQ(data[0], static_cast<uint8_t>(expectedLen));
 
     // 验证内容
     for (size_t i = 0; i < len; ++i) {
         EXPECT_EQ(data[i + 1], static_cast<uint8_t>(buffer.getValue()[i]));
-    }*/
+    }
 }
 
 TEST(StringValueTest, WriteStringLargeTest) {

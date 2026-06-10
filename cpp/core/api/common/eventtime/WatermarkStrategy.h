@@ -9,8 +9,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef OMNISTREAM_WATERMARKSTRATEGY_H
-#define OMNISTREAM_WATERMARKSTRATEGY_H
+#pragma once
 
 #include <memory>
 #include "WatermarkGeneratorSupplier.h"
@@ -23,50 +22,49 @@
 class WatermarkStrategy : public TimestampAssignerSupplier, public WatermarkGeneratorSupplier {
 public:
 
-    TimestampAssigner* CreateTimestampAssigner() override
-    {
+    TimestampAssigner* CreateTimestampAssigner() override {
         return new RecordTimestampAssigner();
     }
 
-    virtual const WatermarkAlignmentParams* GetAlignmentParameters()
-    {
+    virtual const WatermarkAlignmentParams* GetAlignmentParameters() {
         return WatermarkAlignmentParams::watermarkAlignmentDisabled;
     }
 
     static std::shared_ptr<WatermarkStrategy> ForMonotonousTimestamps();
 
-    static std::shared_ptr<WatermarkStrategy> ForBoundedOutOfOrderness(long maxOutOfOrderness);
+    static std::shared_ptr<WatermarkStrategy> ForBoundedOutOfOrderness(int32_t rowtimeFieldIndex, long maxOutOfOrderness);
 
     static std::shared_ptr<WatermarkStrategy> NoWatermarks();
 };
 
 class NoWatermarkStrategy : public WatermarkStrategy {
 public:
-    WatermarkGenerator* CreateWatermarkGenerator() override
-    {
+    WatermarkGenerator* CreateWatermarkGenerator() override {
         return new NoWatermarksGenerator();
     }
 };
 
 class BoundedOutOfOrdernessStrategy : public WatermarkStrategy {
 public:
-    explicit BoundedOutOfOrdernessStrategy(long maxOutOfOrderness) : maxOutOfOrderness(maxOutOfOrderness) {
+    BoundedOutOfOrdernessStrategy(int32_t rowtimeFieldIndex, long maxOutOfOrderness)
+            : rowtimeFieldIndex_(rowtimeFieldIndex), maxOutOfOrderness_(maxOutOfOrderness) {}
+
+    WatermarkGenerator* CreateWatermarkGenerator() override {
+        return new BoundedOutOfOrdernessWatermarks(maxOutOfOrderness_);
     }
 
-    WatermarkGenerator* CreateWatermarkGenerator() override
-    {
-        return new BoundedOutOfOrdernessWatermarks(maxOutOfOrderness);
+    TimestampAssigner* CreateTimestampAssigner() override {
+        return new RecordTimestampAssigner(rowtimeFieldIndex_);
     }
 
 private:
-    long maxOutOfOrderness;
+    int32_t rowtimeFieldIndex_ = -1;
+    long maxOutOfOrderness_;
 };
 
 class MonotonousTimestampsStrategy : public WatermarkStrategy {
 public:
-    WatermarkGenerator* CreateWatermarkGenerator() override
-    {
+    WatermarkGenerator* CreateWatermarkGenerator() override {
         return new AscendingTimestampsWatermarks();
     }
 };
-#endif // OMNISTREAM_WATERMARKSTRATEGY_H

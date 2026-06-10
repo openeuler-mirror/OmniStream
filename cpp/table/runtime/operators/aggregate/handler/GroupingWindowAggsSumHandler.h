@@ -38,6 +38,8 @@ public:
         if (accInput->isNullAt(aggIndex_)) {
             return;
         }
+
+        sumIsNull_ = false;
         long fieldValue = *accInput->getLong(aggIndex_);
         sum_ += fieldValue;
     }
@@ -47,33 +49,46 @@ public:
     }
 
     void merge(N ns, RowData* otherAcc) override {
-        if (!otherAcc->isNullAt(accIndex_)) {
-            sum_ = sum_ + *otherAcc->getLong(accIndex_);
+        if (otherAcc->isNullAt(accIndex_)) {
+            return;
         }
+
+        sumIsNull_ = false;
+        sum_ = sum_ + *otherAcc->getLong(accIndex_);
     }
 
     void setAccumulators(N ns, RowData* acc) override {
         currentAcc_ = acc;
         if (currentAcc_->isNullAt(accIndex_)) {
-            sum_ = 0L;
+            sumIsNull_ = true;
+            sum_ = 0;
         } else {
+            sumIsNull_ = false;
             sum_ = *currentAcc_->getLong(accIndex_);
         }
     }
 
     RowData* getAccumulators() override {
-        currentAcc_->setLong(accIndex_, sum_);
+        if (sumIsNull_) {
+            reinterpret_cast<BinaryRowData*>(currentAcc_)->setNullAt(accIndex_);
+        } else {
+            currentAcc_->setLong(accIndex_, sum_);
+        }
         return currentAcc_;
     }
 
     RowData* createAccumulators(int accumulatorArity) override {
         auto* newAcc = BinaryRowData::createBinaryRowDataWithMem(accumulatorArity);
-        newAcc->setLong(accIndex_, 0L);
+        newAcc->setNullAt(accIndex_);
         return newAcc;
     }
 
     RowData* getValue(N ns) override {
-        currentAcc_->setLong(valueIndex_, sum_);
+        if (sumIsNull_) {
+            reinterpret_cast<BinaryRowData*>(currentAcc_)->setNullAt(valueIndex_);
+        } else {
+            currentAcc_->setLong(valueIndex_, sum_);
+        }
         return currentAcc_;
     }
 
@@ -88,7 +103,7 @@ private:
     int32_t valueIndex_ = -1;
     int32_t filterIndex_ = -1;
 
-    long sum_ = 0L;
+    int64_t sum_ = 0;
     bool sumIsNull_ = true;
     StateDataViewStore* store_{};
     RowData* currentAcc_{};

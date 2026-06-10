@@ -8,9 +8,10 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef EVENT_TIME_TRIGGERS_H
-#define EVENT_TIME_TRIGGERS_H
 
+#pragma once
+
+#include <cstdint>
 #include <string>
 #include "core/api/common/state/ValueStateDescriptor.h"
 #include "WindowTrigger.h"
@@ -24,26 +25,24 @@ public:
         AfterEndOfWindowEarlyAndLate(Trigger<W> *earlyTrigger, Trigger<W> *lateTrigger): earlyTrigger(earlyTrigger),
             lateTrigger(lateTrigger), hasFiredOnTimeStateDesc("eventTime-afterEOW", (TypeSerializer*) nullptr) {}
 
-        void Open(typename Trigger<W>::TriggerContext *ctx) override
-        {
+        void open(typename Trigger<W>::TriggerContext *ctx) override {
             this->ctx = ctx;
             if (earlyTrigger != nullptr) {
-                earlyTrigger->Open(ctx);
+                earlyTrigger->open(ctx);
             }
             if (lateTrigger != nullptr) {
-                lateTrigger->Open(ctx);
+                lateTrigger->open(ctx);
             }
         }
 
-        bool OnElement(RowData *element, long timestamp, W window) override
-        {
-            bool hasFired = this->ctx->GetPartitionedState(hasFiredOnTimeStateDesc).value();
+        bool onElement(RowData *element, int64_t timestamp, W window) override {
+            bool hasFired = this->ctx->getPartitionedState(hasFiredOnTimeStateDesc).value();
             if (hasFired) {
                 // this is to cover the case where we recover from a failure and the watermark
                 // is Long.MIN_VALUE but the window is already in the late phase.
-                return lateTrigger != nullptr && lateTrigger->OnElement(element, timestamp, window);
+                return lateTrigger != nullptr && lateTrigger->onElement(element, timestamp, window);
             } else {
-                if (triggerTime(window) <= this->ctx.getCurrentWatermark()) {
+                if (this->triggerTime(window) <= this->ctx->getCurrentWatermark()) {
                     // we are in the late phase
 
                     // if there is no late trigger then we fire on every late element
@@ -52,73 +51,68 @@ public:
                     return true;
                 } else {
                     // we are in the early phase
-                    this->ctx->RegisterEventTimeTimer(triggerTime(window));
-                    return earlyTrigger != nullptr && earlyTrigger->OnElement(element, timestamp, window);
+                    this->ctx->registerEventTimeTimer(this->triggerTime(window));
+                    return earlyTrigger != nullptr && earlyTrigger->onElement(element, timestamp, window);
                 }
             }
         }
 
-        bool OnProcessingTime(long time, W window) override
-        {
-            bool hasFired = this->ctx->GetPartitionedState(hasFiredOnTimeStateDesc).value();
+        bool onProcessingTime(int64_t time, W window) override {
+            bool hasFired = this->ctx->getPartitionedState(hasFiredOnTimeStateDesc).value();
             if (hasFired) {
                 // late fire
-                return lateTrigger != nullptr && lateTrigger->OnProcessingTime(time, window);
+                return lateTrigger != nullptr && lateTrigger->onProcessingTime(time, window);
             } else {
                 // early fire
-                return earlyTrigger != nullptr && earlyTrigger->OnProcessingTime(time, window);
+                return earlyTrigger != nullptr && earlyTrigger->onProcessingTime(time, window);
             }
         }
 
-        bool OnEventTime(long time, W window)
-        {
-            ValueState<bool> *hasFiredState = this->ctx->GetPartitionedState(hasFiredOnTimeStateDesc);
+        bool onEventTime(int64_t time, W window) {
+            ValueState<bool> *hasFiredState = this->ctx->getPartitionedState(hasFiredOnTimeStateDesc);
             bool hasFired = hasFiredState->value();
             if (hasFired) {
                 // late fire
-                return lateTrigger != nullptr && lateTrigger->OnEventTime(time, window);
+                return lateTrigger != nullptr && lateTrigger->onEventTime(time, window);
             } else {
-                if (time == triggerTime(window)) {
+                if (time == this->triggerTime(window)) {
                     // fire on time and update state
                     hasFiredState->update(true);
                     return true;
                 } else {
                     // early fire
-                    return earlyTrigger != nullptr && earlyTrigger->OnEventTime(time, window);
+                    return earlyTrigger != nullptr && earlyTrigger->onEventTime(time, window);
                 }
             }
         }
 
-        bool CanMerge() override
-        {
-            return (earlyTrigger == nullptr || earlyTrigger->CanMerge())
-                    && (lateTrigger == nullptr || lateTrigger->CanMerge());
+        bool canMerge() override {
+            return (earlyTrigger == nullptr || earlyTrigger->canMerge())
+                    && (lateTrigger == nullptr || lateTrigger->canMerge());
         }
 
-        void OnMerge(W window, OnMergeContext<W> *mergeContext) override
-        {
+        void onMerge(W window, OnMergeContext<W> *mergeContext) override {
             if (earlyTrigger != nullptr) {
-                earlyTrigger->OnMerge(window, mergeContext);
+                earlyTrigger->onMerge(window, mergeContext);
             }
             if (lateTrigger != nullptr) {
-                lateTrigger->OnMerge(window, mergeContext);
+                lateTrigger->onMerge(window, mergeContext);
             }
 
             // we assume that the new merged window has not fired yet its on-time timer.
-            this->ctx->GetPartitionedState(hasFiredOnTimeStateDesc).update(false);
-            this->ctx->RegisterEventTimeTimer(triggerTime(window));
+            this->ctx->getPartitionedState(hasFiredOnTimeStateDesc).update(false);
+            this->ctx->registerEventTimeTimer(this->triggerTime(window));
         }
 
-        void Clear(W window) override
-        {
+        void clear(W window) override {
             if (earlyTrigger != nullptr) {
-                earlyTrigger->Clear(window);
+                earlyTrigger->clear(window);
             }
             if (lateTrigger != nullptr) {
-                lateTrigger->Clear(window);
+                lateTrigger->clear(window);
             }
-            this->ctx->DeleteEventTimeTimer(triggerTime(window));
-            this->ctx->GetPartitionedState(hasFiredOnTimeStateDesc).clear();
+            this->ctx->deleteEventTimeTimer(this->triggerTime(window));
+            this->ctx->getPartitionedState(hasFiredOnTimeStateDesc).clear();
         }
 
     private:
@@ -131,41 +125,34 @@ public:
     public:
         AfterEndOfWindow() = default;
 
-        void Open(typename Trigger<W>::TriggerContext *ctx) override
-        {
+        void open(typename Trigger<W>::TriggerContext *ctx) override {
             this->ctx = ctx;
         }
 
-        bool OnElement(RowData *element, long timestamp, W window)
-        {
-            if (this->TriggerTime(window) <= this->ctx->GetCurrentWatermark()) {
+        bool onElement(RowData *element, int64_t timestamp, W window) {
+            if (this->triggerTime(window) <= this->ctx->getCurrentWatermark()) {
                 // if the watermark is already past the window fire immediately
                 return true;
             } else {
-                this->ctx->RegisterEventTimeTimer(this->TriggerTime(window));
+                this->ctx->registerEventTimeTimer(this->triggerTime(window));
                 return false;
             }
         }
 
-        bool OnProcessingTime(long time, W window) override
-        {
+        bool onProcessingTime(int64_t time, W window) override {
             return false;
         }
 
-        bool OnEventTime(long time, W window) override
-        {
-            return time == this->TriggerTime(window);
+        bool onEventTime(int64_t time, W window) override {
+            return time == this->triggerTime(window);
         }
 
-        void Clear(W window) override
-        {
-            this->ctx->DeleteEventTimeTimer(this->TriggerTime(window));
+        void clear(W window) override {
+            this->ctx->deleteEventTimeTimer(this->triggerTime(window));
         }
 
-        void OnMerge(W window, OnMergeContext<W> *mergeContext) override {
-            this->ctx->RegisterEventTimeTimer(this->TriggerTime(window));
+        void onMerge(W window, OnMergeContext<W> *mergeContext) override {
+            this->ctx->registerEventTimeTimer(this->triggerTime(window));
         }
     };
 };
-
-#endif // EVENT_TIME_TRIGGERS_H

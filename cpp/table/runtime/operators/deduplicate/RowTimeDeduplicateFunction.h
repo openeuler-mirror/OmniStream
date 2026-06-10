@@ -9,32 +9,21 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef DEDUPLICATE_RowTimeDeduplicateFunction_H
-#define DEDUPLICATE_RowTimeDeduplicateFunction_H
+#pragma once
 
 #include <vector>
-#include <iostream>
 #include <fstream>
 #include <unordered_map>
 #include <set>
 
 #include <nlohmann/json.hpp>
-#include "table/data/util/RowDataUtil.h"
 #include "table/data/RowData.h"
-#include "table/types/logical/LogicalType.h"
 #include "table/data/JoinedRowData.h"
-#include "table/typeutils/InternalTypeInfo.h"
 #include "core/api/common/state/ValueState.h"
-#include "core/api/common/state/ValueStateDescriptor.h"
-#include "functions/OpenContext.h"
 #include "streaming/api/functions/KeyedProcessFunction.h"
-#include "functions/RuntimeContext.h"
 #include "streaming/api/operators/StreamingRuntimeContext.h"
 #include "streaming/api/operators/TimestampedCollector.h"
-#include "table/data/util/VectorBatchUtil.h"
 #include "table/runtime/keyselector/KeySelector.h"
-// using StateType = HeapValueState<RowData *, VoidNamespace, int64_t>;
-using StateType = ValueState<int64_t>;
 
 class RowTimeDeduplicateFunction
     : public KeyedProcessFunction<RowData *, omnistream::VectorBatch *, omnistream::VectorBatch *> {
@@ -114,7 +103,7 @@ private:
 
     std::vector<int32_t> keyIndex;  // key index
 
-    StateType *recordStateVB = nullptr;  // 中间这个是什么
+    ValueState<int64_t>* recordStateVB = nullptr;  // 中间这个是什么
 
     KeySelector<RowData*> *groupByKeySelector;
     std::vector<int32_t> keyedTypes;
@@ -122,7 +111,5 @@ private:
     // omnistream::VectorBatch *res = nullptr;
     std::set<omnistream::VectorBatch *> delVb;
     std::unordered_map<int32_t,omnistream::VectorBatch *> vectorBatchCacheMap;
-    int backendType = 0; // 0-> men 1-> rocksdb
+    omnistream::StateType backendType_ = omnistream::StateType::HEAP;
 };
-
-#endif

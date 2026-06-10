@@ -10,9 +10,13 @@
  */
 #pragma once
 
+#include <cstdint>
 #include <regex>
 #include <memory>
+#include <string>
 #include "runtime/operators/window/assigners/SessionWindowAssigner.h"
+#include "table/runtime/operators/window/assigners/SlidingWindowAssigner.h"
+#include "table/runtime/operators/window/assigners/TumblingWindowAssigner.h"
 #include "table/runtime/operators/window/assigners/WindowAssigner.h"
 #include "table/runtime/operators/window/internal/InternalWindowProcessFunction.h"
 #include "table/runtime/operators/InternalTimerService.h"
@@ -54,26 +58,29 @@ public:
             THROW_LOGIC_EXCEPTION("The size of field 'windowPropertyTypesId' must be 4.");
         }
         keyedIndex = description["grouping"].get<std::vector<int32_t>>();
-        trigger = new EventTimeTriggers<TimeWindow>::AfterEndOfWindow();
+        trigger = std::make_unique<typename EventTimeTriggers<W>::AfterEndOfWindow>();
         rowtimeIndex = description["inputTimeFieldIndex"];
-        windowAssigner = getWindowAssigner(description["windowType"].get<std::string>());
+        if (description.contains("shiftTimeZone")) {
+            shiftTimeZone = description["shiftTimeZone"].get<std::string>();
+        }
+        windowAssigner = getWindowAssigner(description);
         getKeyedTypes();
 
-        std::vector<int> keyTypes;
+        std::vector<int32_t> keyTypes;
         for (auto kIndex : this->keyedIndex) {
             keyTypes.push_back(this->inputTypesId[kIndex]);
         }
-        this->keySelector = new KeySelector<BinaryRowData*>(keyTypes, this->keyedIndex);
+        keySelector_ = std::make_unique<KeySelector<K>>(keyTypes, this->keyedIndex);
 
         // agg function init
         std::vector<std::string> accTypes = description["aggInfoList"]["AccTypes"].get<std::vector<std::string>>();
         accTypes.erase(std::remove_if(accTypes.begin(), accTypes.end(),
             [](const std::string &type) { return type.find("RAW") != std::string::npos; }),
             accTypes.end());
-        accumulatorArity = static_cast<int>(accTypes.size());
+        accumulatorArity = static_cast<int32_t>(accTypes.size());
 
         // TODO: There should be different serializer for different window operator
-        windowSerializer = new TimeWindow::Serializer();
+        windowSerializer_ = std::make_unique<TimeWindow::Serializer>();
     }
 
     ~WindowOperator() override;
@@ -101,7 +108,7 @@ public:
         return aggCall["argIndexes"].empty() ? -1 : aggCall["argIndexes"][0].get<int32_t>();
     }
 
-    void processBatch(StreamRecord *record) override;
+    void processBatch(StreamRecord *input) override;
 
     void processElement(StreamRecord *element) override {};
     K getCurrentKey() override
@@ -109,7 +116,7 @@ public:
         return this->stateHandler->getCurrentKey();
     }
 
-    RowData *getEntireRow(omnistream::VectorBatch *batch, int rowId);
+    RowData *getEntireRow(omnistream::VectorBatch *batch, int32_t rowId);
 
     void onEventTime(TimerHeapInternalTimer<K, W> *timer) override;
 
@@ -117,8 +124,7 @@ public:
 
     void processWatermarkStatus(WatermarkStatus *watermarkStatus) override;
 
-    void ProcessWatermark(Watermark *watermark) override
-    {
+    void ProcessWatermark(Watermark *watermark) override {
         if (AbstractStreamOperator<K>::timeServiceManager != nullptr) {
             AbstractStreamOperator<K>::timeServiceManager->advanceWatermark(watermark);
         }
@@ -129,188 +135,180 @@ public:
     public:
         explicit TriggerContext(WindowOperator *outer): outer(outer)
         {
-            trigger = outer->trigger;
+            trigger = outer->trigger.get();
             internalTimerService = outer->internalTimerService;
         }
 
-        void Open()
-        {
-            trigger->Open(this);
+        void open() {
+            trigger->open(this);
         }
 
-        void Clear()
-        {
-            trigger->Clear(window);
+        void clear() {
+            trigger->clear(window);
         }
 
-        bool OnElement(RowData *row, long timestamp)
-        {
-            return trigger->OnElement(row, timestamp, window);
+        bool onElement(RowData *row, int64_t timestamp) {
+            return trigger->onElement(row, timestamp, window);
         }
 
-        bool OnProcessingTime(long time)
-        {
-            return trigger->OnProcessingTime(time, window);
+        bool onProcessingTime(int64_t time) {
+            return trigger->onProcessingTime(time, window);
         }
 
-        bool OnEventTime(long time)
-        {
-            return trigger->OnEventTime(time, window);
+        bool onEventTime(int64_t time) {
+            return trigger->onEventTime(time, window);
         }
 
-        void OnMerge()
-        {
-            trigger->OnMerge(window, this);
+        void onMerge() {
+            trigger->onMerge(window, this);
         }
 
-        long GetCurrentProcessingTime()
-        {
+        int64_t getCurrentProcessingTime() {
             return internalTimerService->currentProcessingTime();
         }
 
-        long GetCurrentWatermark()
-        {
+        int64_t getCurrentWatermark() {
             return internalTimerService->currentWatermark();
         }
 
-        void RegisterProcessingTimeTimer(long time)
-        {
+        void registerProcessingTimeTimer(int64_t time) {
             internalTimerService->registerProcessingTimeTimer(window, time);
         }
 
-        void RegisterEventTimeTimer(long time) override
-        {
+        void registerEventTimeTimer(int64_t time) override {
             internalTimerService->registerEventTimeTimer(window, time);
         }
 
-        void DeleteProcessingTimeTimer(long time)
-        {
+        void deleteProcessingTimeTimer(int64_t time) {
             internalTimerService->deleteProcessingTimeTimer(window, time);
         }
 
-        void DeleteEventTimeTimer(long time)
-        {
+        void deleteEventTimeTimer(int64_t time) {
             internalTimerService->deleteEventTimeTimer(window, time);
         }
 
+        const std::string &getShiftTimeZone() const override {
+            return outer->shiftTimeZone;
+        }
+
         W window;
-        WindowOperator *outer;
-        Trigger<W> *trigger;
-        InternalTimerService<W> *internalTimerService;
-        std::vector<W> mergedWindows;
+        WindowOperator* outer{};
+        Trigger<W>* trigger{};
+        InternalTimerService<W>* internalTimerService;
+        std::vector<W>* mergedWindows{};
     };
 
     class WindowContext : public Context<K, W> {
     public:
-            WindowContext() = default;
+        WindowContext() = default;
 
-            explicit WindowContext(WindowOperator *outerOperator) : outerOpertor(outerOperator) {}
+        explicit WindowContext(WindowOperator *outerOperator) : outerOperator(outerOperator) {}
 
-            MapState<W, W>* GetPartitionedState(StateDescriptor* stateDescriptor) {
-                if (!stateDescriptor) {
-                    throw std::invalid_argument("The state properties must not be null");
-                }
-
-                auto keyedStateBackend = outerOpertor->getKeyedStateBackend();
-                if (dynamic_cast<RocksdbKeyedStateBackend<K>*>(keyedStateBackend) != nullptr) {
-                    using S = RocksdbMapState<K, VoidNamespace, W, W>;
-                    S* state = keyedStateBackend->template getPartitionedState<VoidNamespace, S, emhash7::HashMap<W, W>*>(
-                            VoidNamespace(), new VoidNamespaceSerializer(), stateDescriptor);
-                    return state;
-                }
-                if (dynamic_cast<HeapKeyedStateBackend<K>*>(keyedStateBackend) != nullptr) {
-                    using S = HeapMapState<K, VoidNamespace, W, W>;
-                    S* state = keyedStateBackend->template getPartitionedState<VoidNamespace, S, emhash7::HashMap<W, W>*>(
-                            VoidNamespace(), new VoidNamespaceSerializer(), stateDescriptor);
-                    return state;
-                }
-
-                THROW_LOGIC_EXCEPTION("The keyedStateBackend is not supported");
+        MapState<W, W>* getPartitionedState(StateDescriptor* stateDescriptor) {
+            if (!stateDescriptor) {
+                throw std::invalid_argument("The state properties must not be null");
             }
 
-            K CurrentKey() override
-            {
-                return outerOpertor->getCurrentKey();
+            auto keyedStateBackend = outerOperator->getKeyedStateBackend();
+            if (outerOperator->backendType_ == omnistream::StateType::ROCKSDB) {
+                using S = RocksdbMapState<K, VoidNamespace, W, W>;
+                S* state = keyedStateBackend->template getPartitionedState<VoidNamespace, S, emhash7::HashMap<W, W>*>(
+                        VoidNamespace(), new VoidNamespaceSerializer(), stateDescriptor);
+                return state;
             }
 
-            long CurrentProcessingTime() override
-            {
-                return outerOpertor->internalTimerService->currentProcessingTime();
+            if (outerOperator->backendType_ == omnistream::StateType::HEAP) {
+                using S = HeapMapState<K, VoidNamespace, W, W>;
+                S* state = keyedStateBackend->template getPartitionedState<VoidNamespace, S, emhash7::HashMap<W, W>*>(
+                        VoidNamespace(), new VoidNamespaceSerializer(), stateDescriptor);
+                return state;
             }
 
-            long CurrentWatermark() override
-            {
-                return outerOpertor->internalTimerService->currentWatermark();
-            }
+            THROW_LOGIC_EXCEPTION("The keyedStateBackend is not supported");
+        }
 
-            RowData *GetWindowAccumulators(W &window) override
-            {
-                outerOpertor->windowState->setCurrentNamespace(window);
-                return outerOpertor->windowState->value();
-            }
+        K currentKey() override {
+            return outerOperator->getCurrentKey();
+        }
 
-            void SetWindowAccumulators(W &window, RowData *acc) override
-            {
-                outerOpertor->windowState->setCurrentNamespace(window);
-                outerOpertor->windowState->update(reinterpret_cast<BinaryRowData *>(acc));
-            }
+        int64_t currentProcessingTime() override {
+            return outerOperator->internalTimerService->currentProcessingTime();
+        }
 
-            void ClearWindowState(W &window) override
-            {
-                outerOpertor->windowState->setCurrentNamespace(window);
-                outerOpertor->windowState->clear();
-                outerOpertor->windowAggregator->Cleanup(window);
-            }
+        int64_t currentWatermark() override {
+            return outerOperator->internalTimerService->currentWatermark();
+        }
 
-            void ClearPreviousState(W window) override
-            {
-                throw std::runtime_error("Not support ClearPreviousState!");
-            }
+        RowData *getWindowAccumulators(const W& window) override {
+            outerOperator->windowState->setCurrentNamespace(window);
+            return outerOperator->windowState->value();
+        }
 
-            void ClearTrigger(W &window) override
-            {
-                outerOpertor->triggerContext->window = window;
-                outerOpertor->triggerContext->Clear();
-            }
+        void setWindowAccumulators(const W& window, RowData *acc) override {
+            outerOperator->windowState->setCurrentNamespace(window);
+            outerOperator->windowState->update(reinterpret_cast<BinaryRowData *>(acc));
+        }
 
-            void DeleteCleanupTimer(W &window) override
-            {
-                long cleanupTime = outerOpertor->cleanupTime(window);
-                if (cleanupTime != LONG_MAX) {
-                    if (outerOpertor->windowAssigner->IsEventTime()) {
-                        outerOpertor->triggerContext->DeleteEventTimeTimer(cleanupTime);
-                    } else {
-                        outerOpertor->triggerContext->DeleteProcessingTimeTimer(cleanupTime);
-                    }
+        void clearWindowState(const W& window) override {
+            outerOperator->windowState->setCurrentNamespace(window);
+            outerOperator->windowState->clear();
+            outerOperator->windowAggregator->Cleanup(window);
+        }
+
+        void clearPreviousState(const W& window) override {
+            if (outerOperator->previousState_ != nullptr) {
+                outerOperator->previousState_->setCurrentNamespace(window);
+                outerOperator->previousState_->clear();
+            }
+        }
+
+        void clearTrigger(const W& window) override {
+            outerOperator->triggerContext_->window = window;
+            outerOperator->triggerContext_->clear();
+        }
+
+        void deleteCleanupTimer(const W& window) override {
+            int64_t cleanupTime = outerOperator->cleanupTime(window);
+            if (cleanupTime != INT64_MAX) {
+                if (outerOperator->windowAssigner->isEventTime()) {
+                    outerOperator->triggerContext_->deleteEventTimeTimer(cleanupTime);
+                } else {
+                    outerOperator->triggerContext_->deleteProcessingTimeTimer(cleanupTime);
                 }
             }
+        }
 
-            void OnMerge(W &newWindow, std::vector<W> &mergedWindows) override
-            {
-                outerOpertor->triggerContext->window = newWindow;
-                outerOpertor->triggerContext->mergedWindows = mergedWindows;
-                outerOpertor->triggerContext->OnMerge();
-            }
+        const std::string& getShiftTimeZone() const override
+        {
+            return outerOperator->shiftTimeZone;
+        }
+
+        void onMerge(const W& newWindow, std::vector<W>& mergedWindows) override {
+            outerOperator->triggerContext_->window = newWindow;
+            outerOperator->triggerContext_->mergedWindows = &mergedWindows;
+            outerOperator->triggerContext_->onMerge();
+        }
 
     private:
-            WindowOperator *outerOpertor;
+        WindowOperator *outerOperator;
     };
 
-    Trigger<W> *trigger;
+    std::unique_ptr<Trigger<W>> trigger;
     std::unique_ptr<RecordCounter> recordCounter;
-    int accumulatorArity = 0;
-    InternalValueState<RowData *, TimeWindow, RowData *> *windowState{};
+    int32_t accumulatorArity = 0;
+    InternalValueState<K, W, RowData*>* windowState{};
     std::unique_ptr<InternalWindowProcessFunction<K, W>> windowFunction;
     InternalTimerService<W> *internalTimerService;
 
 protected:
-    virtual void emitWindowResult(W &window) = 0;
+    virtual void emitWindowResult(const W &window) = 0;
 
     TimestampedCollector* collector{};
-    TriggerContext* triggerContext;
+    std::unique_ptr<TriggerContext> triggerContext_;
     // TODO: windowAggregator here is currently unused, see @aggWindowAggregator
     std::unique_ptr<NamespaceAggsHandleFunction<W>> windowAggregator;
-    bool produceUpdates = false;
+    bool produceUpdates_ = false;
+    InternalValueState<K, W, RowData*>* previousState_{};
 
     std::vector<std::string> inputTypes;
     std::vector<int32_t> inputTypesId;
@@ -320,16 +318,16 @@ protected:
     std::vector<int32_t> windowPropertyTypesId;
     std::vector<std::string> keyedTypes;
     std::vector<int32_t> keyedIndex;
+    std::string shiftTimeZone;
 
 private:
-    void processElement(RowData *record);
+    void processElement(RowData* inputRow);
 
-    long cleanupTime(W window);
+    int64_t cleanupTime(const W& window);
 
-    void registerCleanupTimer(W window);
+    void registerCleanupTimer(const W& window);
 
-    void getKeyedTypes()
-    {
+    void getKeyedTypes() {
         for (int32_t index: keyedIndex) {
             if (index >= 0 && static_cast<size_t>(index) < inputTypes.size()) {
                 keyedTypes.push_back(inputTypes[index]);
@@ -337,25 +335,31 @@ private:
         }
     }
 
-    std::unique_ptr<WindowAssigner<W>> getWindowAssigner(const std::string& windowType) {
+    std::unique_ptr<WindowAssigner<W>> getWindowAssigner(const nlohmann::json& description) {
+        const std::string windowType = description["windowType"].get<std::string>();
+        int64_t windowSize = description["windowSize"].get<int64_t>();
+        bool isEventTime = description.contains("timeType") && description["timeType"].get<std::string>() == "event";
         if (windowType.find("SessionGroupWindow") != std::string::npos) {
-            constexpr int CHARACTER_NUM = 2;
-            unsigned long start = windowType.rfind(',');
-            unsigned long end = windowType.rfind(')');
-            if (end <= start + CHARACTER_NUM) {
-                THROW_LOGIC_EXCEPTION("getWindowAssigner sessionGap init failed!");
-            }
-            auto sessionGap = std::stol(windowType.substr(start + CHARACTER_NUM, end - start - CHARACTER_NUM));
-            return std::make_unique<SessionWindowAssigner>(sessionGap, true);
+            return std::make_unique<SessionWindowAssigner>(windowSize, isEventTime);
+        }
+        if (windowType.find("TumblingGroupWindow") != std::string::npos) {
+            // TODO: offset is not supportted now
+            return std::make_unique<TumblingWindowAssigner>(windowSize, 0, isEventTime);
+        }
+        if (windowType.find("SlidingGroupWindow") != std::string::npos) {
+            int64_t windowSlide = description["windowSlide"].get<int64_t>();
+            // TODO: offset is not supportted now
+            return std::make_unique<SlidingWindowAssigner>(windowSize, windowSlide, 0, isEventTime);
         }
         THROW_LOGIC_EXCEPTION("getWindowAssigner not support, windowType: " << windowType);
     }
 
     std::unique_ptr<WindowAssigner<W>> windowAssigner;
-    std::string shiftTimeZone;
-    int rowtimeIndex;
-    long allowedLateness = 0;
-    TypeSerializerSingleton *windowSerializer;
-    KeySelector<BinaryRowData*>* keySelector;
-    long maxTimestamp = LONG_MIN;
+    int32_t rowtimeIndex;
+    int64_t allowedLateness = 0;
+    std::unique_ptr<TypeSerializer> windowSerializer_;
+    std::unique_ptr<BinaryRowDataSerializer> accSerializer_;
+    std::unique_ptr<KeySelector<K>> keySelector_;
+    int64_t maxTimestamp = INT64_MIN;
+    omnistream::StateType backendType_ = omnistream::StateType::HEAP;
 };

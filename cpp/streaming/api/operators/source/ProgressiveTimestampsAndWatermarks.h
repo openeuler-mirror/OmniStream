@@ -96,9 +96,11 @@ public:
     class SplitLocalOutputs {
     public:
         SplitLocalOutputs(OmniDataOutputPtr recordOutput, WatermarkOutput* watermarkOutput,
-            TimestampAssigner* timestampAssigner, std::shared_ptr<WatermarkGeneratorSupplier> watermarksFactory)
-            : recordOutput(recordOutput), timestampAssigner(timestampAssigner), watermarksFactory(watermarksFactory)
-        {
+                TimestampAssigner* timestampAssigner, std::shared_ptr<WatermarkGeneratorSupplier> watermarksFactory,
+                long periodicWatermarkInterval)
+                :
+                recordOutput(recordOutput), timestampAssigner(timestampAssigner), watermarksFactory(watermarksFactory),
+                periodicWatermarkInterval_(periodicWatermarkInterval) {
             watermarkMultiplexer = new WatermarkOutputMultiplexer(watermarkOutput);
         }
 
@@ -132,7 +134,7 @@ public:
             auto watermarks = watermarksFactory->CreateWatermarkGenerator();
 
             auto localOutput = SourceOutputWithWatermarks::createWithSeparateOutputs(recordOutput, onEventOutput,
-                periodicOutput, timestampAssigner, watermarks);
+                    periodicOutput, timestampAssigner, watermarks, periodicWatermarkInterval_);
 
             localOutputs.emplace(splitId, localOutput);
             return localOutput;
@@ -164,14 +166,19 @@ public:
         OmniDataOutputPtr recordOutput;
         TimestampAssigner* timestampAssigner;
         std::shared_ptr<WatermarkGeneratorSupplier> watermarksFactory;
+        long periodicWatermarkInterval_;
     };
 
     class StreamingReaderOutput : public SourceOutputWithWatermarks {
     public:
         StreamingReaderOutput(OmniDataOutputPtr output, WatermarkOutput* watermarkOutput,
-            TimestampAssigner* timestampAssigner, WatermarkGenerator* watermarkGenerator,
-            SplitLocalOutputs* splitLocalOutputs) : SourceOutputWithWatermarks(output, watermarkOutput,
-            watermarkOutput, timestampAssigner, watermarkGenerator), splitLocalOutputs(splitLocalOutputs) {}
+                TimestampAssigner* timestampAssigner, WatermarkGenerator* watermarkGenerator,
+                SplitLocalOutputs* splitLocalOutputs, long periodicWatermarkInterval)
+                :
+                SourceOutputWithWatermarks(
+                        output, watermarkOutput, watermarkOutput,
+                        timestampAssigner, watermarkGenerator, periodicWatermarkInterval),
+                splitLocalOutputs(splitLocalOutputs) {}
 
         SourceOutput& CreateOutputForSplit(const std::string& splitId) override
         {

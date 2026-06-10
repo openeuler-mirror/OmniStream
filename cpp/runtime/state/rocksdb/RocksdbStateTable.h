@@ -158,9 +158,9 @@ public:
         if constexpr (std::is_same_v<K, int64_t> || std::is_same_v<K, int32_t>) {
             LongSerializer::INSTANCE->serialize(&currentKey, outputSerializer);
         } else if constexpr (std::is_pointer_v<K>) {
-            if (currentKey != nullptr){
-              getKeySerializer()->serialize(currentKey, outputSerializer);
-            }
+            getKeySerializer()->serialize(currentKey, outputSerializer);
+        } else if constexpr (is_shared_ptr_v<K>) {
+            getKeySerializer()->serialize(currentKey.get(), outputSerializer);
         } else {
             getKeySerializer()->serialize(&currentKey, outputSerializer);
         }
@@ -530,8 +530,8 @@ public:
         return vectorBatchId;
     }
 
-    void clearVectors(int64_t currentTimestamp)
-    {
+    void clearVectors(int64_t currentTimestamp) {
+        // todo: add和clear的序列化可能逻辑不一致，待确认
         ROCKSDB_NAMESPACE::WriteBatch batchToDelete;
         std::unique_ptr<ROCKSDB_NAMESPACE::Iterator> it(rocksDb->NewIterator(readOptions, VBTable));
         for (it->SeekToFirst(); it->Valid(); it->Next()) {

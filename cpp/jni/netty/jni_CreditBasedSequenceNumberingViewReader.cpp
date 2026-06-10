@@ -38,8 +38,18 @@ JNIEXPORT jint JNICALL Java_org_apache_flink_runtime_io_network_netty_OmniCredit
     if (creditBasedSequenceNumberingViewReaderRef==-1) {
         return 0;
     }
-    auto task = reinterpret_cast<omnistream::OmniCreditBasedSequenceNumberingViewReader *>(creditBasedSequenceNumberingViewReaderRef);
-    return task->getAvailabilityAndBacklog();
+    auto viewReader = reinterpret_cast<omnistream::OmniCreditBasedSequenceNumberingViewReader *>(creditBasedSequenceNumberingViewReaderRef);
+    return viewReader->getAvailabilityAndBacklog();
+}
+
+JNIEXPORT void JNICALL Java_org_apache_flink_runtime_io_network_netty_OmniCreditBasedSequenceNumberingViewReader_releaseNativeViewReader
+        (JNIEnv *jniEnv, jobject input, jlong creditBasedSequenceNumberingViewReaderRef)
+{
+    if (creditBasedSequenceNumberingViewReaderRef==-1) {
+        return ;
+    }
+    auto viewReader = reinterpret_cast<omnistream::OmniCreditBasedSequenceNumberingViewReader *>(creditBasedSequenceNumberingViewReaderRef);
+    delete viewReader;
 }
 
 JNIEXPORT jint JNICALL Java_org_apache_flink_runtime_io_network_netty_OmniCreditBasedSequenceNumberingViewReader_getNextBuffer

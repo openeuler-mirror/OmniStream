@@ -30,8 +30,7 @@ namespace omnistream {
           networkObjBufferPool_(networkObjBufferPool),
           maxNumberOfObjectSegments_(maxNumberOfMemorySegments),
           numberOfRequestedObjectSegments_(0),
-          subpartitionBufferRecyclers_(numberOfSubpartitions),
-          isDestroyed_(false)
+          subpartitionBufferRecyclers_(numberOfSubpartitions)
     {
         LOG_PART("Beginning of constructor")
         LOG_PART(" numberOfRequiredObjectSegments_"  << numberOfRequiredSegments_

@@ -14,10 +14,8 @@
 #include "data/Row.h"
 #include "runtime/operators/window/TimeWindow.h"
 
-template class MergingWindowSet<RowData*, TimeWindow>;
-
 template<typename K, typename W>
-void MergingWindowSet<K, W>::InitializeCache(const K& key) {
+void MergingWindowSet<K, W>::initializeCache(const K& key) {
     auto cache = cachedSortedWindows.get(key);
     if (!cache) {
         sortedWindows = new std::set<W>;
@@ -37,8 +35,7 @@ void MergingWindowSet<K, W>::InitializeCache(const K& key) {
 }
 
 template<typename K, typename W>
-W MergingWindowSet<K, W>::GetStateWindow(const W &window)
-{
+W MergingWindowSet<K, W>::getStateWindow(const W &window) {
     const auto &optionalRes = mapping->get(window);
     if (optionalRes.has_value()) {
         return optionalRes.value();
@@ -47,8 +44,7 @@ W MergingWindowSet<K, W>::GetStateWindow(const W &window)
 }
 
 template<typename K, typename W>
-void MergingWindowSet<K, W>::RetireWindow(const W &window)
-{
+void MergingWindowSet<K, W>::retireWindow(const W &window) {
     mapping->remove(window);
     auto it = sortedWindows->find(window);
     if (it == sortedWindows->end()) {
@@ -58,30 +54,29 @@ void MergingWindowSet<K, W>::RetireWindow(const W &window)
 }
 
 template<typename K, typename W>
-W MergingWindowSet<K, W>::AddWindow(const W &newWindow, const MergeFunction &mergeFunction)
-{
-    typename MergingWindowAssigner<W>::MergeResultCollector collector;
-    windowAssigner->MergeWindows(newWindow, sortedWindows, collector);
+W MergingWindowSet<K, W>::addWindow(const W &newWindow, const MergeFunction &mergeFunction) {
+    reuseCollector_.clear();
+    windowAssigner->mergeWindows(newWindow, sortedWindows,  reuseCollector_);
 
     W resultWindow = newWindow;
     bool isNewWindowMerged = false;
 
-    for (const auto &c: collector) {
+    for (const auto& c:  reuseCollector_) {
         W mergeResult = c.first;
-        auto mergedWindows = c.second;
+        auto* mergedWindows = c.second;
 
-        if (mergedWindows.erase(newWindow)) {
+        if (mergedWindows->erase(newWindow)) {
             isNewWindowMerged = true;
             resultWindow = mergeResult;
         }
 
-        if (mergedWindows.empty()) {
+        if (mergedWindows->empty()) {
             continue;
         }
-        W mergedStateNamespace = GetStateWindow(*mergedWindows.begin());
+        W mergedStateNamespace = getStateWindow(*mergedWindows->begin());
 
         std::vector<W> mergedStateWindows;
-        for (const auto &mergedWindow: mergedWindows) {
+        for (const auto &mergedWindow: *mergedWindows) {
             const std::optional<W>& optionalRes = mapping->get(mergedWindow);
             if (optionalRes.has_value()) {
                 mapping->remove(mergedWindow);
@@ -95,15 +90,18 @@ W MergingWindowSet<K, W>::AddWindow(const W &newWindow, const MergeFunction &mer
         mapping->put(mergeResult, mergedStateNamespace);
         sortedWindows->insert(mergeResult);
 
-        if (!(mergedWindows.find(mergeResult) != mergedWindows.end() && mergedWindows.size() == 1)) {
-            mergeFunction(mergeResult, mergedWindows, mergedStateNamespace, mergedStateWindows);
+        if (!(mergedWindows->find(mergeResult) != mergedWindows->end() && mergedWindows->size() == 1)) {
+            mergeFunction(mergeResult, *mergedWindows, mergedStateNamespace, mergedStateWindows);
         }
     }
 
     // the new window created a new, self-contained window without merging
-    if (collector.empty() || (resultWindow == newWindow && !isNewWindowMerged)) {
+    if (reuseCollector_.empty() || (resultWindow == newWindow && !isNewWindowMerged)) {
         mapping->put(resultWindow, resultWindow);
         sortedWindows->insert(resultWindow);
     }
     return resultWindow;
 }
+
+template class MergingWindowSet<std::shared_ptr<RowData>, TimeWindow>;
+

@@ -24,6 +24,7 @@
 #include "runtime/state/KeyGroupRangeAssignment.h"
 #include "runtime/state/rocksdb/iterator/SingleStateIterator.h"
 #include "runtime/state/heap/HeapPriorityQueueSet.h"
+#include "core/utils/type_traits_ext.h"
 
 /**
  * Sync-phase materialized iterator for Heap priority queue state.

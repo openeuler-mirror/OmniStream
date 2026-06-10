@@ -14,6 +14,7 @@
 #include <vector>
 #include <type_traits>
 #include <tuple>
+#include <limits>
 #include <functional> // for std::hash
 #include "StateMap.h"
 #include "core/typeutils/TypeSerializer.h"
@@ -84,12 +85,24 @@ public:
 
     S get(const K &key, const N &nameSpace);
 
+    S get(const K &key, int keyGroupIndex, const N &nameSpace);
+
     typename InternalKvState<K, N, S>::StateIncrementalVisitor *
     getStateIncrementalVisitor(int recommendedMaxNumberOfReturnedRecords);
 
     RegisteredKeyValueStateBackendMetaInfo *getMetaInfo()
     {
         return metaInfo;
+    }
+
+    KeyGroupRange *getKeyGroupRange()
+    {
+        return keyGroupRange;
+    }
+
+    int getNumberOfKeyGroups()
+    {
+        return keyContext->getNumberOfKeyGroups();
     }
 
     void setMetaInfo(RegisteredKeyValueStateBackendMetaInfo *newMetaInfo)
@@ -158,6 +171,11 @@ public:
         }
     };
 
+    InternalKeyContext<K> *getKeyContext()
+    {
+        return keyContext;
+    }
+
     class StateEntryIterator : public InternalKvState<K, N, S>::StateIncrementalVisitor {
     public:
         S nextEntries() override;
@@ -187,12 +205,6 @@ protected:
 
     // Abstract Functions
     virtual StateMap<K, N, S> *createStateMap() = 0;
-
-    // Internal interactions with cowMap
-    S get(const K &key, int keyGroupIndex, const N &nameSpace)
-    {
-        return getMapForKeyGroup(keyGroupIndex)->get(key, nameSpace);
-    };
 
     bool containsKey(const K &key, int keyGroupIndex, const N &nameSpace)
     {
@@ -243,7 +255,9 @@ int StateTable<K, N, S>::size()
 {
     int count = 0;
     for (int i = 0; i < keyGroupedStateMaps.size(); i++) {
-        count += keyGroupedStateMaps[i]->size();
+        if (keyGroupedStateMaps[i] != nullptr) {
+            count += keyGroupedStateMaps[i]->size();
+        }
     }
     return count;
 }
@@ -256,6 +270,21 @@ S StateTable<K, N, S>::get(const K &key, const N &nameSpace)
     int keyGroup = keyHash(key) % keyContext->getNumberOfKeyGroups();
     return get(key, keyGroup, nameSpace);
 }
+
+// Internal interactions with cowMap
+template<typename K, typename N, typename S>
+S StateTable<K, N, S>::get(const K &key, int keyGroupIndex, const N &nameSpace)
+{
+    StateMap<K, N, S> *stateMap = getMapForKeyGroup(keyGroupIndex);
+    if (stateMap == nullptr) {
+        if constexpr (std::is_pointer_v<S>) {
+            return nullptr;
+        } else {
+            return std::numeric_limits<S>::max();
+        }
+    }
+    return stateMap->get(key, nameSpace);
+};
 
 template<typename K, typename N, typename S>
 std::vector<K> *StateTable<K, N, S>::getKeys(const N &nameSpace)

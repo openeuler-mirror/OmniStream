@@ -22,7 +22,7 @@
 #include "runtime/io/checkpointing/CheckpointedInputGate.h"
 #include "runtime/io/checkpointing/SingleCheckpointBarrierHandler.h"
 #include "runtime/io/checkpointing/BarrierAlignmentUtil.h"
-#include "streaming/runtime/tasks/SystemProcessingTimeService.h"
+#include "streaming/runtime/tasks/TimerService.h"
 #include "streaming/runtime/io/OmniStreamTaskSourceInput.h"
 #include "partition/consumer/RemoteInputChannel.h"
 #include "metrics/SystemClock.h"
@@ -64,7 +64,7 @@ public:
         const std::string &taskName,
         const std::shared_ptr<SubtaskCheckpointCoordinator> &coordinator,
         const std::shared_ptr<MailboxExecutor> &mailboxExecutor,
-        const std::shared_ptr<SystemProcessingTimeService> &timerService,
+        const std::shared_ptr<omnistream::runtime::TimerService> &timerService,
         const std::vector<std::vector<std::shared_ptr<IndexedInputGate>>> &inputGateGroups,
         const std::vector<std::shared_ptr<OmniStreamTaskSourceInput>> &sourceInputs,
         bool enableUnaligned,

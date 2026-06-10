@@ -34,10 +34,10 @@ public:
         this->recordStateVB = ctx->template getMapState<XXH128_hash_t, UV>(recordStateDesc);
         if (auto *backend = dynamic_cast<RocksdbMapState<K, VoidNamespace, XXH128_hash_t, UV> *>(recordStateVB)) {
             INFO_RELEASE("OuterInputSideHasNoUniqueKey backend is rocksdb")
-            this->backendType = 2;
+            this->backendType_ = omnistream::StateType::ROCKSDB;
         } else {
             INFO_RELEASE("OuterInputSideHasNoUniqueKey backend is mem")
-            this->backendType = 0;
+            this->backendType_ = omnistream::StateType::HEAP;
         }
     }
 
@@ -106,7 +106,7 @@ void OuterInputSideHasNoUniqueKey<K>::addOrRectractRecord(omnistream::VectorBatc
     int32_t batchId = getCurrentBatchId();  // vector<vb*>.size(); this need to be called before addVectorBatch(input)
     this->addVectorBatch(input);
     // compress a row into a xxhash128 value.
-    if (this->backendType == 2) {
+    if (this->backendType_ == omnistream::StateType::ROCKSDB) {
         ProcessRockDBRecordsInBatch( input, keySelector, filterNulls, batchId, numAssociates);
         return;
     }

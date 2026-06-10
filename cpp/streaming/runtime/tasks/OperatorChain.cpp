@@ -22,6 +22,10 @@
 #include "streaming/api/operators/sink/CommitterOperator.h"
 #include "state/bridge/OmniTaskBridge.h"
 #include "streaming/api/operators/AbstractStreamOperator.h"
+#include "streaming/api/operators/OneInputStreamOperator.h"
+#include "streaming/api/operators/TwoInputStreamOperator.h"
+#include "basictypes/Object.h"
+#include "table/data/binary/BinaryRowData.h"
 #include "omni/OmniStreamTask.h"
 #include "runtime/io/network/api/writer/RecordWriterDelegate.h"
 #include "taskmanager/OmniRuntimeEnvironment.h"
@@ -37,6 +41,31 @@ void AssignConfiguredOperatorId(StreamOperator *op, const omnistream::OperatorPO
     const std::string operatorId = opDesc.getOperatorId();
     if (!operatorId.empty()) {
         op->SetOperatorID(operatorId);
+        if (auto *oneInput = dynamic_cast<OneInputStreamOperator *>(op)) {
+            oneInput->SetOperatorID(operatorId);
+        }
+        if (auto *twoInput = dynamic_cast<TwoInputStreamOperator *>(op)) {
+            twoInput->SetOperatorID(operatorId);
+        }
+        if (auto *rowDataOp = dynamic_cast<AbstractStreamOperator<RowData *> *>(op)) {
+            rowDataOp->SetOperatorID(operatorId);
+        }
+        if (auto *rdRowDataOp = dynamic_cast<AbstractStreamOperator<std::shared_ptr<RowData>> *>(op)) {
+            rdRowDataOp->SetOperatorID(operatorId);
+        }
+        if (auto *objectOp = dynamic_cast<AbstractStreamOperator<Object *> *>(op)) {
+            objectOp->SetOperatorID(operatorId);
+        }
+        if (auto *longOp = dynamic_cast<AbstractStreamOperator<long> *>(op)) {
+            longOp->SetOperatorID(operatorId);
+        }
+        if (auto *voidOp = dynamic_cast<AbstractStreamOperator<void *> *>(op)) {
+            voidOp->SetOperatorID(operatorId);
+        }
+        if (auto *binaryRowDataOp = dynamic_cast<AbstractStreamOperator<BinaryRowData *> *>(op)) {
+            binaryRowDataOp->SetOperatorID(operatorId);
+        }
+
         INFO_RELEASE("savepoint: OperatorChainV2 assign operatorId=" << operatorId
             << " name=" << opDesc.getName() << " id=" << opDesc.getId());
     }
@@ -53,10 +82,8 @@ WatermarkGaugeExposingOutput* OperatorChainV2::wrapOperatorIntoOutput(StreamOper
         throw std::runtime_error("operator is null");
     }
     if (!op->canBeStreamOperator()) {
-        auto pOperator = reinterpret_cast<AbstractStreamOperator<long> *>(op);
-        auto ptr = op->GetMectrics();
         auto *chainingOutput = new ChainingOutput(dynamic_cast<OneInputStreamOperator *>(op),
-                                                  pOperator->GetMectrics(), opConfig);
+                                                  op->GetMectrics(), opConfig);
         return chainingOutput;
     } else {
         return new datastream::DataStreamChainingOutput(dynamic_cast<OneInputStreamOperator *>(op));
@@ -517,7 +544,16 @@ void OperatorChainV2::SnapshotState(
         auto iter = getAllOperators(true);
         while (iter.hasNext()) {
             auto op = iter.next()->getStreamOperator();
-            (*operatorSnapshotsInProgress)[op->GetOperatorID()]
+            auto operatorId = op->GetOperatorID();
+            if (operatorSnapshotsInProgress->find(operatorId) != operatorSnapshotsInProgress->end()) {
+                INFO_RELEASE("Error: OperatorChainV2::SnapshotState duplicate operatorId="
+                    << operatorId.toString()
+                    << ", opType=" << typeid(*op).name()
+                    << ". Duplicate operator IDs would overwrite checkpoint state.");
+                THROW_LOGIC_EXCEPTION("Duplicate operatorId in OperatorChainV2::SnapshotState: "
+                    << operatorId.toString())
+            }
+            (*operatorSnapshotsInProgress)[operatorId]
             = BuildOperatorSnapshotFutures(checkpointMetaData, checkpointOptions, op, isRunning,
                 channelStateWriteResult, storage, bridge);
         }
@@ -553,6 +589,11 @@ OperatorSnapshotFutures *OperatorChainV2::CheckpointStreamOperator(StreamOperato
             return aop->SnapshotState(checkpointMetaData.GetCheckpointId(), checkpointMetaData.GetTimestamp(),
                                       checkpointOptions, storageLocation, bridge);
         }
+        auto rd_aop = dynamic_cast<AbstractStreamOperator<std::shared_ptr<RowData>>*>(op);
+        if (rd_aop) {
+            return rd_aop->SnapshotState(checkpointMetaData.GetCheckpointId(), checkpointMetaData.GetTimestamp(),
+                                      checkpointOptions, storageLocation, bridge);
+        }
         auto sop = dynamic_cast<AbstractStreamOperator<Object *>*>(op);
         if (sop) {
             return sop->SnapshotState(checkpointMetaData.GetCheckpointId(), checkpointMetaData.GetTimestamp(),
@@ -566,6 +607,11 @@ OperatorSnapshotFutures *OperatorChainV2::CheckpointStreamOperator(StreamOperato
         auto vop = dynamic_cast<AbstractStreamOperator<void*>*>(op);
         if (vop) {
             return vop->SnapshotState(checkpointMetaData.GetCheckpointId(), checkpointMetaData.GetTimestamp(),
+                                      checkpointOptions, storageLocation, bridge);
+        }
+        auto bop = dynamic_cast<AbstractStreamOperator<BinaryRowData *>*>(op);
+        if (bop) {
+            return bop->SnapshotState(checkpointMetaData.GetCheckpointId(), checkpointMetaData.GetTimestamp(),
                                       checkpointOptions, storageLocation, bridge);
         }
         INFO_RELEASE("savepoint: OperatorChainV2::CheckpointStreamOperator StreamOperator::SnapshotState");
@@ -663,11 +709,19 @@ void OperatorChainV2::operatorDependenciesDeal() {
     }
     if (opMap.find(OPERATOR_NAME_COMMIT_OPERATOR) != opMap.end()) {
         if (opMap.find(OPERATOR_NAME_SINK_WRITER) == opMap.end()) {
-            GErrorLog("OperatorDependenciesDeal CommitterOperator dependy SinkWriterOperator");
+            GErrorLog("OperatorDependenciesDeal CommiterOperator dependy SinkWriterOperator");
             return;
         }
         CommitterOperator<>* committerOperator = dynamic_cast<CommitterOperator<>*>(opMap[OPERATOR_NAME_COMMIT_OPERATOR]);
+        if (committerOperator == nullptr) {
+            GErrorLog("OperatorDependenciesDeal CommiterOperator not CommitterOperator");
+            return;
+        }
         SinkWriterOperator* sinkWriterOperator = dynamic_cast<SinkWriterOperator*>(opMap[OPERATOR_NAME_SINK_WRITER]);
+        if (sinkWriterOperator == nullptr) {
+            GErrorLog("OperatorDependenciesDeal CommiterOperator not CommitterOperator");
+            return;
+        }
         committerOperator->initFromKafkaSink(sinkWriterOperator->getKafkaSink());
     } else {
         INFO_RELEASE("OperatorDependenciesDeal not need deal");

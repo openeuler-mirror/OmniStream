@@ -8,8 +8,6 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef INTERNALTIMEWINDOWASSIGNER_H
-#define INTERNALTIMEWINDOWASSIGNER_H
 
 #pragma once
 
@@ -17,9 +15,7 @@ class InternalTimeWindowAssigner {
 public:
     virtual ~InternalTimeWindowAssigner() = default;
 
-    virtual InternalTimeWindowAssigner *WithEventTime() = 0;
+    virtual InternalTimeWindowAssigner* withEventTime() = 0;
 
-    virtual InternalTimeWindowAssigner *WithProcessingTime() = 0;
+    virtual InternalTimeWindowAssigner* withProcessingTime() = 0;
 };
-
-#endif

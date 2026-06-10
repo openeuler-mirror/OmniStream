@@ -70,8 +70,8 @@ namespace omnistream {
         this->vectors = newVectors;
     }
 
-    RowData* VectorBatch::extractRowData(int rowIndex)
-    {
+    // The caller takes ownership of the returned pointer
+    RowData* VectorBatch::extractRowData(int rowIndex) {
         if (rowIndex >= this->GetRowCount()) {
             return nullptr;
         }

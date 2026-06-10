@@ -23,3 +23,5 @@ void SortedVectorLong::serialize(void* record, DataOutputSerializer& target)
         target.writeLong(value);
     }
 }
+
+SortedVectorLong* SortedVectorLong::INSTANCE = new SortedVectorLong();

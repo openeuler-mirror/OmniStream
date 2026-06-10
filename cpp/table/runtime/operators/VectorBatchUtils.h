@@ -17,15 +17,15 @@
 
 class VectorBatchUtils {
 public:
-    static void AppendLongVectorForInt64(omnistream::VectorBatch* outputVB, std::vector<RowData*> collectedRows,
+    static void AppendLongVectorForInt64(omnistream::VectorBatch* outputVB, std::vector<std::unique_ptr<RowData>>& collectedRows,
                                          int numRowsPerVB, int colIndex);
-    static void AppendLongVectorForDouble(omnistream::VectorBatch* outputVB, std::vector<RowData*> collectedRows,
+    static void AppendLongVectorForDouble(omnistream::VectorBatch* outputVB, std::vector<std::unique_ptr<RowData>>& collectedRows,
                                           int numRowsPerVB, int colIndex);
-    static void AppendIntVector(omnistream::VectorBatch* outputVB, std::vector<RowData*> collectedRows,
+    static void AppendIntVector(omnistream::VectorBatch* outputVB, std::vector<std::unique_ptr<RowData>>& collectedRows,
                                 int numRowsPerVB, int colIndex);
-    static void AppendIntVectorForBool(omnistream::VectorBatch* outputVB, std::vector<RowData*> collectedRows,
+    static void AppendIntVectorForBool(omnistream::VectorBatch* outputVB, std::vector<std::unique_ptr<RowData>>& collectedRows,
                                        int numRowsPerVB, int colIndex);
-    static void AppendStringVector(omnistream::VectorBatch* outputVB, std::vector<RowData*> collectedRows,
+    static void AppendStringVector(omnistream::VectorBatch* outputVB, std::vector<std::unique_ptr<RowData>>& collectedRows,
                                    int numRowsPerVB, int colIndex);
 };
 

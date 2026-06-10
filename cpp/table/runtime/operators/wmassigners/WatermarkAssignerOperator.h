@@ -8,8 +8,8 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef FLINK_TNEL_WATERMARKASSIGNEROPERATOR_H
-#define FLINK_TNEL_WATERMARKASSIGNEROPERATOR_H
+
+#pragma once
 
 #include <chrono>
 #include <regex>
@@ -30,7 +30,7 @@ public:
     ~WatermarkAssignerOperator() override = default;
 
     // Processing functions
-    void processBatch(StreamRecord *element) override;
+    void processBatch(StreamRecord *input) override;
     void processElement(StreamRecord *element) override;
     void ProcessWatermark(Watermark *mark) override;
     void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) override {
@@ -54,10 +54,13 @@ public:
 
     std::string getTypeName() override;
     void processWatermarkStatus(WatermarkStatus *watermarkStatus) override;
-    omnistream::VectorBatch *sliceVecBatch(omnistream::VectorBatch *batch, int32_t offset, int32_t newRowCnt);
+    void setSplitWaterMark(bool doSplitWaterMark);
+    void processBatchSimple(StreamRecord *element);
+    void processBatchWatermark(StreamRecord *element);
 
 private:
     int rowtimeIndex_;
+    bool splitWaterMark = false;
     int64_t outOfOrderTime_ = 4000;
     int64_t idleTimeout_;
 
@@ -76,5 +79,3 @@ private:
     void advanceWatermark();
     void emitWatermarkStatus(WatermarkStatus *watermarkStatus);
 };
-
-#endif  // FLINK_TNEL_WATERMARKASSIGNEROPERATOR_H

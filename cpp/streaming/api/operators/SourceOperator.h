@@ -96,7 +96,18 @@ public:
             watermarkStrategy = WatermarkStrategy::NoWatermarks();
         } else if (strategy == "bounded") {
             long outOfOrdernessMillis = opDescriptionJSON["outOfOrdernessMillis"];
-            watermarkStrategy = WatermarkStrategy::ForBoundedOutOfOrderness(outOfOrdernessMillis);
+            if (!isDataStream) {
+                if (!opDescriptionJSON.contains("rowtimeFieldIndex")) {
+                    THROW_LOGIC_EXCEPTION("rowtimeFieldIndex is not specified when watermarkStrategy is bounded");
+                }
+                int32_t rowtimeFieldIndex = opDescriptionJSON["rowtimeFieldIndex"];
+                watermarkStrategy = WatermarkStrategy::ForBoundedOutOfOrderness(rowtimeFieldIndex, outOfOrdernessMillis);
+            } else {
+                // TODO: How to know which field is event time in Datastream?
+                // TODO：Currently, the watermark in Datastream is not correct.
+                watermarkStrategy = WatermarkStrategy::ForBoundedOutOfOrderness(-1, outOfOrdernessMillis);
+            }
+
         } else if (strategy == "ascending") {
             watermarkStrategy = WatermarkStrategy::ForMonotonousTimestamps();
         } else {
@@ -115,15 +126,11 @@ public:
     ~SourceOperator()
     {
         delete sourceReader;
-        sourceReader = nullptr;
         delete currentMainOutput;
-        currentMainOutput = nullptr;
         delete dataStreamOutput;
-        dataStreamOutput = nullptr;
         for (auto split : outputPendingSplits) {
             delete split;
         }
-        outputPendingSplits.clear();
     }
 
     void snapshotState(StateSnapshotContextSynchronousImpl *context) override
@@ -132,7 +139,7 @@ public:
         readerState_->update(sourceReader->snapshotState(checkpointId));
     }
 
-    void initializeState(StateInitializationContextImpl<void*> *context) override
+    void initializeState(StateInitializationContextImpl *context) override
     {
         AbstractStreamOperator<void*>::initializeState(context);
         auto* stateBackend = static_cast<DefaultOperatorStateBackend*>(context->getOperatorStateBackend());
@@ -180,13 +187,13 @@ public:
         finished->complete();
     }
 
-    void close() override
+    void close()
     {
         if (sourceReader != nullptr) {
             sourceReader->close();
         }
-        // 调用基类close方法
-        AbstractStreamOperator<void*>::close();
+        // TODO 当前执行sp后 停止作业会卡在每个算子的状态后端dispose方法，先保证功能可用，后续优化卡住逻辑
+        // AbstractStreamOperator<void*>::close();
     }
 
     DataInputStatus emitNext(OmniDataOutputPtr output)

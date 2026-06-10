@@ -11,11 +11,7 @@
 
 #pragma once
 
-#include <climits>
-#include "streaming/api/watermark/Watermark.h"
 #include "runtime/state/KeyGroupRange.h"
-#include "runtime/state/InternalKeyContextImpl.h"
-#include <queue>
 #include "streaming/api/operators/TimerHeapInternalTimer.h"
 #include "InternalTimerService.h"
 #include "runtime/state/heap/HeapPriorityQueueSet.h"
@@ -43,15 +39,15 @@ public:
             std::shared_ptr<EventTimeTimersQueueType> eventTimeTimersQueue);
 
     ~InternalTimerServiceImpl() override;
-    long currentProcessingTime() override;
-    long currentWatermark() override;
-    void advanceWatermark(long time) override;
+    int64_t currentProcessingTime() override;
+    int64_t currentWatermark() override;
+    void advanceWatermark(int64_t time) override;
     void startTimerService(
         TypeSerializer *keySerializer, TypeSerializer *namespaceSerializer, Triggerable<K, N> *triggerTarget);
-    void registerProcessingTimeTimer(N nameSpace, long time);
-    void deleteProcessingTimeTimer(N nameSpace, long time);
-    void registerEventTimeTimer(N nameSpace, long time);
-    void deleteEventTimeTimer(N nameSpace, long time);
+    void registerProcessingTimeTimer(N nameSpace, int64_t time);
+    void deleteProcessingTimeTimer(N nameSpace, int64_t time);
+    void registerEventTimeTimer(N nameSpace, int64_t time);
+    void deleteEventTimeTimer(N nameSpace, int64_t time);
 
     // temp fix for too many timers in priority queue
     // this function should to be deleted when RocksDBCachingPriorityQueueSet is implemented in the future
@@ -79,8 +75,8 @@ private:
 
     InternalTimersSnapshot<K, N> restoredTimersSnapshot;
     bool hasRestoredTimersSnapshot = false;
-    int localKeyGroupRangeStartIndex{};
-    long currentWatermarkValue = LONG_MIN;
+    int32_t localKeyGroupRangeStartIndex{};
+    int64_t currentWatermarkValue = INT64_MIN;
 
     Triggerable<K, N> *triggerTarget = nullptr;
     TypeSerializer *keySerializer = nullptr;
@@ -117,19 +113,19 @@ InternalTimerServiceImpl<K, N>::~InternalTimerServiceImpl() {
 }
 
 template <typename K, typename N>
-inline long InternalTimerServiceImpl<K, N>::currentProcessingTime()
+inline int64_t InternalTimerServiceImpl<K, N>::currentProcessingTime()
 {
     return processingTimeService->getCurrentProcessingTime();
 }
 
 template <typename K, typename N>
-long InternalTimerServiceImpl<K, N>::currentWatermark()
+int64_t InternalTimerServiceImpl<K, N>::currentWatermark()
 {
     return currentWatermarkValue;
 }
 
 template <typename K, typename N>
-void InternalTimerServiceImpl<K, N>::advanceWatermark(long time)
+void InternalTimerServiceImpl<K, N>::advanceWatermark(int64_t time)
 {
     currentWatermarkValue = time;
 
@@ -187,11 +183,13 @@ void InternalTimerServiceImpl<K, N>::startTimerService(
 }
 
 template <typename K, typename N>
-void InternalTimerServiceImpl<K, N>::registerProcessingTimeTimer(N nameSpace, long time)
+void InternalTimerServiceImpl<K, N>::registerProcessingTimeTimer(N nameSpace, int64_t time)
 {
     auto oldHead = processingTimeTimersQueue->peek();
-    if (processingTimeTimersQueue->add(std::make_shared<TimerHeapInternalTimer<K, N>>(time, keyContext->getCurrentKey(), nameSpace))) {
-        long nextTriggerTime = oldHead != nullptr ? oldHead->getTimestamp() : LONG_MAX;
+    bool newHead = processingTimeTimersQueue->add(
+        std::make_shared<TimerHeapInternalTimer<K, N>>(time, keyContext->getCurrentKey(), nameSpace));
+    if (newHead) {
+        int64_t nextTriggerTime = oldHead != nullptr ? oldHead->getTimestamp() : INT64_MAX;
         if (time < nextTriggerTime) {
             processingTimeService->registerTimer(time, this);
         }
@@ -215,20 +213,21 @@ void InternalTimerServiceImpl<K, N>::OnProcessingTime(int64_t time)
 }
 
 template <typename K, typename N>
-void InternalTimerServiceImpl<K, N>::deleteProcessingTimeTimer(N nameSpace, long time)
+void InternalTimerServiceImpl<K, N>::deleteProcessingTimeTimer(N nameSpace, int64_t time)
 {
     auto toRemove = std::make_shared<TimerHeapInternalTimer<K, N>>(time, keyContext->getCurrentKey(), nameSpace);
     processingTimeTimersQueue->remove(toRemove);
 }
 
 template <typename K, typename N>
-void InternalTimerServiceImpl<K, N>::registerEventTimeTimer(N nameSpace, long time)
+void InternalTimerServiceImpl<K, N>::registerEventTimeTimer(N nameSpace, int64_t time)
 {
-    eventTimeTimersQueue->add(std::make_shared<TimerHeapInternalTimer<K, N>>(time, keyContext->getCurrentKey(), nameSpace));
+    eventTimeTimersQueue->add(
+        std::make_shared<TimerHeapInternalTimer<K, N>>(time, keyContext->getCurrentKey(), nameSpace));
 }
 
 template <typename K, typename N>
-void InternalTimerServiceImpl<K, N>::deleteEventTimeTimer(N nameSpace, long time)
+void InternalTimerServiceImpl<K, N>::deleteEventTimeTimer(N nameSpace, int64_t time)
 {
     auto toRemove = std::make_shared<TimerHeapInternalTimer<K, N>>(time, keyContext->getCurrentKey(), nameSpace);
     eventTimeTimersQueue->remove(toRemove);
@@ -237,7 +236,6 @@ void InternalTimerServiceImpl<K, N>::deleteEventTimeTimer(N nameSpace, long time
 template <typename K, typename N>
 void InternalTimerServiceImpl<K, N>::deleteFirstEventTimeTimer()
 {
-    auto timer = eventTimeTimersQueue->peek();
     eventTimeTimersQueue->poll();
 }
 template <typename K, typename N>

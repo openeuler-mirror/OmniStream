@@ -149,7 +149,7 @@ namespace omnistream {
                 return rawStreamTask_;
             } else if (streamClassName == SOURCE_STREAM_TASK) {
                 LOG("prepare to create SOURCE_STREAM_TASK ")
-                this->invokable_ = std::make_shared<OmniSourceStreamTask>(runtimeEnv, taskType);
+                this->invokable_ = std::make_shared<OmniSourceStreamTask>(runtimeEnv, std::make_unique<Object>(), taskType);
                 this->invokable_->postConstruct();
 
                 LOG("After to create SOURCE_STREAM_TASK ")
@@ -409,10 +409,8 @@ namespace omnistream {
         }
         std::shared_ptr<ResultPartitionManager> resultPartitionManager = omniShuffleEnv->getResultPartitionManager();
 
-        auto reader = std::make_unique<OmniCreditBasedSequenceNumberingViewReader>(partitionId,
-            subPartitionId, resultBufferAddress);
-        auto readerAddr = reinterpret_cast<long>(reader.get());
-
+        auto* reader = new OmniCreditBasedSequenceNumberingViewReader(partitionId,
+                                                               subPartitionId, resultBufferAddress);
         int retryCount = 0;
         while (true) {
             try {
@@ -425,12 +423,11 @@ namespace omnistream {
             if (++retryCount >= 3) {
                 LOG("Failed to request subpartition view after 3 attempts");
                 INFO_RELEASE("!!!!!!!!!!! Fail to create OmniCreditBasedSequenceNumberingViewReader after 3 times ");
-                reader.reset();
+                delete reader;
                 return -1;
             }
         }
-        omniCreditBasedSequenceNumberingViewReaders.push_back(std::move(reader));
-        return readerAddr;
+        return reinterpret_cast<long>(reader);
     }
 
     std::shared_ptr<TaskMetricGroup> OmniTask::getTaskMetricGroup()

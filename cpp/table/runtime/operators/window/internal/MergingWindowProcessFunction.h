@@ -10,6 +10,7 @@
  */
 
 #pragma once
+#include <cstdint>
 #include <type_traits>
 #include "InternalWindowProcessFunction.h"
 #include "MergingWindowSet.h"
@@ -25,7 +26,7 @@ public:
             MergingWindowAssigner<W> *windowAssigner,
             NamespaceAggsHandleFunctionBase<W> *windowAggregator,
             TypeSerializer *windowSerializer,
-            long allowedLateness,
+            int64_t allowedLateness,
             int32_t accumulatorArity)
             :
             InternalWindowProcessFunction<K, W>(windowAssigner, windowAggregator, allowedLateness),
@@ -33,15 +34,15 @@ public:
             windowSerializer(windowSerializer),
             accumulatorArity_(accumulatorArity){}
 
-    void Open(Context<K, W> *ctx) override;
+    void open(Context<K, W> *ctx) override;
 
-    std::vector<W> AssignStateNamespace(RowData *keyRowData, long timestamp) override;
+    std::vector<W> assignStateNamespace(RowData *keyRowData, int64_t timestamp) override;
 
-    std::vector<W> AssignActualWindows(RowData *inputRow, long timestamp) override;
+    std::vector<W> assignActualWindows(RowData *inputRow, int64_t timestamp) override;
 
-    void PrepareAggregateAccumulatorForEmit(W &window) override;
+    void prepareAggregateAccumulatorForEmit(const W& window) override;
 
-    void CleanWindowIfNeeded(W &window, long currentTime) override;
+    void cleanWindowIfNeeded(const W& window, int64_t currentTime) override;
 
 private:
     MergingWindowAssigner<W>* windowAssigner{};

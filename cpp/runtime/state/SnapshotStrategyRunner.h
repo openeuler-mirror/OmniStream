@@ -57,7 +57,7 @@ public:
                         snapshotResources->cleanup();
                         throw e;
                     }
-            });
+                });
 
             if (executionType_ == SnapshotExecutionType::SYNCHRONOUS) {
                 try {

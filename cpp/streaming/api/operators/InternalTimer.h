@@ -14,6 +14,7 @@
  * K: such as Object*
  * N: such as VoidNamespace*
  * */
+#include <cstdint>
 #include <iostream>
 
 template<typename K, typename N>

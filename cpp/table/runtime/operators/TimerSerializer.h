@@ -15,6 +15,7 @@
 #include "streaming/api/operators/TimerHeapInternalTimer.h"
 #include "basictypes/Class.h"
 #include "basictypes/Integer.h"
+#include "core/utils/key_type_traits.h"
 
 template <typename K, typename N>
 class TimerSerializer : public TypeSerializer {
@@ -97,10 +98,10 @@ void TimerSerializer<K, N>::serialize(Object* buffer, DataOutputSerializer& targ
         }();
         keySerializer_->serialize(tempObj, target);
         tempObj->putRefCount();
+    } else if constexpr (is_shared_ptr_v<K>) {
+        keySerializer_->serialize(timer->getKey().get(), target);
     } else {
-       
         keySerializer_->serialize(timer->getKey(), target);
-        
     }
 
     if constexpr (std::is_same_v<N, Object*>) {
@@ -129,10 +130,14 @@ void TimerSerializer<K, N>::deserialize(Object* buffer, DataInputView& source) {
         keySerializer_->deserialize(keyBuffer, source);
         timer->setKey(keyBuffer);
         keyBuffer->putRefCount();
-    } else if constexpr (std::is_same_v<K, RowData*> || std::is_same_v<K, BinaryRowData*>) {
+    } else if constexpr (KeyTypeTraits<K>::isRowKey) {
         auto keyBuffer = static_cast<K>(keySerializer_->deserialize(source));
-        // todo: How to manage the memory
+        // todo: the memory is hard to be managed, suggest using std::shared_ptr below
         timer->setKey(keyBuffer->copy());
+    } else if constexpr (is_shared_ptr_v<K>) {
+        using KeyBaseType = unwrap_shared_ptr_t<K>;
+        auto keyBuffer = static_cast<KeyBaseType*>(keySerializer_->deserialize(source));
+        timer->setKey(std::shared_ptr<KeyBaseType>(keyBuffer->copy()));
     } else if constexpr (std::is_same_v<K, int64_t> || std::is_same_v<K, int32_t>) {
         auto keyBuffer = [this, &source]() {
             if constexpr (std::is_same_v<K, int64_t>) {

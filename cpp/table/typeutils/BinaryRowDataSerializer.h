@@ -14,6 +14,7 @@
 
 #include "table/data/binary/BinaryRowData.h"
 #include "core/typeutils/TypeSerializerSingleton.h"
+#include "core/typeutils/StringSerializer.h"
 #include "table/data/JoinedRowData.h"
 
 class BinaryRowDataSerializer : public TypeSerializerSingleton {
@@ -36,6 +37,24 @@ public:
     static BinaryRowData* joinedRowFromBothBinaryRow(JoinedRowData *row);
 
     BackendDataType getBackendId() const override { return BackendDataType::ROW_BK;};
+
+    std::string toJson() override {
+        if (numFields_ < 0) {
+            INFO_RELEASE("Error BinaryRowDataSerializer::toJson numFields_ : " << numFields_ << " < 0");
+            THROW_LOGIC_EXCEPTION("BinaryRowDataSerializer::toJson numFields_ : " << numFields_ << " < 0");
+        }
+        SerializerJsonInfo typeJson = {SerializerType::BINARY_ROW};
+        if (!inputTypes_.empty()) {
+            typeJson.fieldNames = inputTypes_;
+        } else {
+            typeJson.fieldNames.resize(numFields_, "");
+        }
+        typeJson.fieldSerializers.resize(numFields_, StringSerializer::INSTANCE);
+
+        return typeJson.toJson();
+    }
+
+    int getNumFields() const { return numFields_; }
 
     const std::vector<std::string>& getInputTypes() const;
 private:

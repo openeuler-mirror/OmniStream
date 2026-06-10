@@ -293,9 +293,8 @@ OmniStreamTask::OmniStreamTask(std::shared_ptr<RuntimeEnvironmentV2> &env,
         mailboxProcessor_->suspend();
     }
 
-    void OmniStreamTask::cleanup()
-    {
-        LOG_INFO_IMP("Stream Task Clean up")
+    void OmniStreamTask::cleanup() {
+        INFO_RELEASE("Start cleaning up OmniStreamTask")
         // clean up operator chain and record writer
         releaseOutputResource();
 
@@ -303,6 +302,11 @@ OmniStreamTask::OmniStreamTask(std::shared_ptr<RuntimeEnvironmentV2> &env,
             closedOperators_ = true;
             operatorChain->CloseAllOperators();
         }
+
+        if (inputProcessor_ != nullptr) {
+            inputProcessor_->close();
+        }
+        INFO_RELEASE("Finish cleaning up OmniStreamTask")
     }
 
     void OmniStreamTask::releaseOutputResource()

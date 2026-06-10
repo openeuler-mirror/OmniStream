@@ -14,6 +14,9 @@
 #include "table/data/vectorbatch/VectorBatch.h"
 #include "OmniOperatorJIT/core/src/vector/unsafe_vector.h"
 #include <arm_sve.h>
+#include <cstdint>
+#include <numeric>
+#include <vector>
 
 class VectorBatchUtil {
 public:
@@ -64,6 +67,29 @@ public:
             svint64_t comboIDs = svorr_z(pg, batchData, rowData);
             svst1_s64(pg, result + i, comboIDs);
         }
+    }
+
+    // The caller takes ownership of the returned pointer
+    static omnistream::VectorBatch* sliceVectorBatch(omnistream::VectorBatch* batch, int32_t offset, int32_t newRowCnt) {
+        if (batch == nullptr || newRowCnt <= 0) {
+            LOG("Warning: split batch count is not valid.")
+            return nullptr;
+        }
+
+        auto* slicedBatch = new omnistream::VectorBatch(newRowCnt);
+        std::vector<int> offsets(batch->GetRowCount());
+        std::iota(offsets.begin(), offsets.end(), 0);
+
+        for (int k = 0; k < batch->GetVectorCount(); k++) {
+            slicedBatch->Append(omniruntime::vec::VectorHelper::CopyPositionsVector(
+                batch->Get(k), offsets.data(), offset, newRowCnt));
+        }
+
+        for (int j = 0; j < newRowCnt; j++) {
+            slicedBatch->setTimestamp(j, batch->getTimestamp(j + offset));
+            slicedBatch->setRowKind(j, batch->getRowKind(j + offset));
+        }
+        return slicedBatch;
     }
 
     // To print VectorBatch, use VectorHelper::PrintVecBatch from OmniOperatorJIT/core/src/vector/vector_helper.h

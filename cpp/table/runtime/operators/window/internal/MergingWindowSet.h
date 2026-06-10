@@ -11,9 +11,9 @@
 
 #pragma once
 
+#include <cstdint>
 #include <set>
 #include <vector>
-#include <memory>
 #include <functional>
 
 #include "table/runtime/operators/window/assigners/MergingWindowAssigner.h"
@@ -29,19 +29,20 @@ public:
 
     ~MergingWindowSet() = default;
 
-    void InitializeCache(const K& key);
+    void initializeCache(const K& key);
 
-    W GetStateWindow(const W &window);
+    W getStateWindow(const W &window);
 
-    void RetireWindow(const W &window);
+    void retireWindow(const W &window);
 
-    W AddWindow(const W &newWindow, const MergeFunction &mergeFunction);
+    W addWindow(const W &newWindow, const MergeFunction &mergeFunction);
 
 private:
-    static constexpr int MAPPING_CACHE_SIZE = 10000;
+    static constexpr int32_t MAPPING_CACHE_SIZE = 10000;
 
     MapState<W, W>* mapping;
     LRUMap<K, std::set<W>*> cachedSortedWindows{MAPPING_CACHE_SIZE};
     std::set<W>* sortedWindows = nullptr;
     MergingWindowAssigner<W>* windowAssigner;
+    typename MergingWindowAssigner<W>::MergeResultCollector reuseCollector_;
 };

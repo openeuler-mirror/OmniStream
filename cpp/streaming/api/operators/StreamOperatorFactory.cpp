@@ -143,17 +143,17 @@ if (uniqueName == OPERATOR_NAME_STREAM_EXPAND) {
         return static_cast<OneInputStreamOperator *>(op);
     } else if (uniqueName == OPERATOR_NAME_GLOBAL_WINDOW_AGG) {
         auto *processor = new AbstractWindowAggProcessor(opConfig.getDescription(), chainOutput);
-        auto *op = new SlicingWindowOperator<RowData *, int64_t>(processor, opConfig.getDescription());
+        auto *op = new SlicingWindowOperator<std::shared_ptr<RowData>, int64_t>(processor, opConfig.getDescription());
         op->setup();
         LOG("Operator SlicingWindowOperator address " + std::to_string(reinterpret_cast<long>(op)));
         return static_cast<OneInputStreamOperator *>(op);
     } else if (opConfig.getUniqueName() == OPERATOR_NAME_GROUP_WINDOW_AGG) {
-        auto *op = new AggregateWindowOperator<RowData*, TimeWindow>(opConfig.getDescription(), chainOutput);
+        auto *op = new AggregateWindowOperator<std::shared_ptr<RowData>, TimeWindow>(opConfig.getDescription(), chainOutput);
         op->setup();
         LOG("Operator AggregateWindowOperator address " + std::to_string(reinterpret_cast<long>(op)))
         return static_cast<OneInputStreamOperator *>(op);
     } else if (uniqueName == OPERATOR_NAME_WINDOW_INNER_JOIN) {
-        auto op = new InnerJoinOperator<BinaryRowData*>(opConfig.getDescription(), chainOutput, nullptr, nullptr);
+        auto op = new InnerJoinOperator<std::shared_ptr<RowData>>(opConfig.getDescription(), chainOutput, nullptr, nullptr);
         op->setup();
         LOG("Operator WindowJoinOperator address " + std::to_string(reinterpret_cast<long>(op)));
         return static_cast<TwoInputStreamOperator *>(op);
@@ -266,7 +266,7 @@ StreamOperator* StreamOperatorFactory::CreateGlobalWindowAggOp(OperatorPOD &opCo
     auto description = opConfig.getDescription();
     nlohmann::json opDescriptionJSON = nlohmann::json::parse(description);
     auto *processor = new AbstractWindowAggProcessor(opDescriptionJSON, chainOutput);
-    auto *op = new SlicingWindowOperator<RowData *, int64_t>(processor, opDescriptionJSON);
+    auto *op = new SlicingWindowOperator<std::shared_ptr<RowData>, int64_t>(processor, opDescriptionJSON);
     auto processingTimeService = task->createProcessingTimeService();
     op->setProcessingTimeService(processingTimeService);
     op->setup(std::move(task));
@@ -278,7 +278,7 @@ StreamOperator* StreamOperatorFactory::CreateGroupWindowAggOp(OperatorPOD &opCon
                                                               std::shared_ptr<omnistream::OmniStreamTask> task) {
     auto description = opConfig.getDescription();
     nlohmann::json opDescriptionJSON = nlohmann::json::parse(description);
-    auto *op = new AggregateWindowOperator<RowData*, TimeWindow>(opDescriptionJSON, chainOutput);
+    auto *op = new AggregateWindowOperator<std::shared_ptr<RowData>, TimeWindow>(opDescriptionJSON, chainOutput);
     auto processingTimeService = task->createProcessingTimeService();
     op->setProcessingTimeService(processingTimeService);
     op->setup(std::move(task));
@@ -297,6 +297,9 @@ StreamOperator* StreamOperatorFactory::CreateWatermarkAssignerOp(OperatorPOD &op
                                                                     opDescriptionJSON["intervalSecond"],
                                                                     0,
                                                                     processingTimeService);
+    bool splitWaterMark = task->env()->taskConfiguration().GetSplitWatermark();
+    watermarkAssignerOperator->setSplitWaterMark(splitWaterMark);
+    INFO_RELEASE("should do splitWaterMark : " << splitWaterMark)
     return static_cast<OneInputStreamOperator *>(watermarkAssignerOperator);
 }
 
@@ -400,7 +403,7 @@ StreamOperator* StreamOperatorFactory::CreateSourceOp(OperatorPOD &opConfig,
                 oneMap[csvSelectFieldToProjectFieldMapping[i]] = csvSelectFieldToCsvFieldMapping[i];
             }
             // use small batch size for testing
-            constexpr int batchSize = 3;
+            constexpr int batchSize = 1000;
             auto csvInputFormat = new omnistream::csv::CsvInputFormat<omnistream::VectorBatch>(schema, batchSize, oneMap);
             constexpr int fileLength = 100000;
             InputSplit *inputSplit = new InputSplit(opDescriptionJSON["filePath"], 0, fileLength);
@@ -506,7 +509,7 @@ StreamOperator* StreamOperatorFactory::CreateWindowInnerJoinOp(OperatorPOD &opCo
 {
     auto description = opConfig.getDescription();
     nlohmann::json opDescriptionJSON = nlohmann::json::parse(description);
-    auto op = new InnerJoinOperator<BinaryRowData*>(opDescriptionJSON, chainOutput, nullptr, nullptr);
+    auto op = new InnerJoinOperator<std::shared_ptr<RowData>>(opDescriptionJSON, chainOutput, nullptr, nullptr);
     op->setup(std::move(task));
     LOG("Operator WindowJoinOperator address " + std::to_string(reinterpret_cast<long>(op)));
     return static_cast<TwoInputStreamOperator *>(op);
@@ -720,10 +723,8 @@ StreamOperator* StreamOperatorFactory::CreateSinkWriterOp(omnistream::OperatorPO
 
 
     auto* op = new SinkWriterOperator(kafkaSink, opDescriptionJSON);
-    op->setOutput(chainOutput);
     op->setProcessingTimeService(processingTimeService);
-    op->setup();
-    // todo 确认模板参数问题
+        // todo 确认模板参数问题
     return static_cast<OneInputStreamOperator *>(op);
 }
 
@@ -737,7 +738,6 @@ StreamOperator* StreamOperatorFactory::CreateCommitOp(omnistream::OperatorPOD& o
     std::string hashPath = opDescriptionJSON["hash_path"];
 
     auto* op = new CommitterOperator(processingTimeService, isBatch, true);
-    op->setOutput(chainOutput);
     op->setup(std::move(task));
 
     return static_cast<OneInputStreamOperator *>(op);

@@ -2,6 +2,7 @@
 
 ## 最新消息<a name="ZH-CN_TOPIC_0000002517961774"></a>
 
+- \[2026.06.30\]：发布OmniStream 1.3.0。在SQL场景中，支持WindowAgg、WindowJoin算子，Calc算子支持UDF函数注册，Calc算子支持JSON_VALUE、JSON_QUERY、COALESCE、PROCTIME_MATERIALIZE、CHAR_LENGTH、TO_TIMESTAMP_LTZ内置函数，Calc算子支持INTEGER、TIMESTAMP_WITH_LOCAL_TIMEZONE(3)数据类型。
 - \[2026.03.30\]：发布OmniStream 1.2.0。增加UDF翻译工具所使用依赖的头文件安装内容，在有状态场景下使能OmniStateStore加速特性。
 - \[2025.12.30\]：发布OmniStream 1.1.0。在SQL场景中，新增支持task级别算子回退机制；在DataStream场景中，KeyedCoProcess算子支持checkpoint、restore。
 - \[2025.06.30\]：发布OmniStream 1.0.0。SQL：实现了Calc、GroupAgg、Join、Deduplicate、Rank、Window、Kafka Source/Sink算子加速；实现了高效数据组织方式OmniVec；实现了对内存和RocksDB状态后端的支持。 DataStream：实现了Kafka Source、Kafka Sink、Map、FlatMap、 Reduce、Filter算子加速；实现了UDF基础框架和UDF翻译基础库，支持UDF自动Native化框架成功运行DataStream Wordcount等有状态和无状态用例；实现了对内存状态后端的支持。
@@ -81,9 +82,9 @@ OmniStream Flink Native化的配置限制包括数据类型、算子支持、状
 - Join算子的JoinKey只支持BIGINT类型，操作类型只支持InnerJoin。
 - Deduplicate和Rank算子partition by只支持BIGINT类型，查询表的所有字段需要为支持的数据类型，且只支持ROW\_NUMBER函数。Rank的PARTITION BY仅支持一个字段，且类型为BIGINT。TOPN的ORDER BY支持一个字段BIGINT，并且是DESC。TOP1的ORDER BY支持最多两个字段，类型可以是BIGINT TIMESTAMP\(3\)，排序规则可以是DESC，ASC。
 - Aggregate算子的group by列只支持BIGINT类型。
-- LocalWindowAGG/GlobalWindowAGG算子聚合函数只支持COUNT、MAX函数，GroupWindowAGG算子聚合函数只支持COUNT函数。
+- LocalWindowAGG/GlobalWindowAGG算子聚合函数只支持COUNT、SUM、MIN、MAX函数，GroupWindowAGG算子聚合函数只支持COUNT、SUM、MIN、MAX函数。
 - LocalWindowAGG/GlobalWindowAGG算子只支持滚动窗口TUMBLE、滑动窗口HOP。
-- GroupWindowAGG算子只支持SESSION会话窗口。
+- GroupWindowAGG算子只支持SESSION会话窗口、TUMBLE滚动窗口、HOP滑动窗口。
 - LookupJoin算子的外部表数据源仅支持CSV文件。
 - 状态后端只支持内存和RocksDB。
 - Flink会将状态存储在内存状态后端中，内存使用会随时间和处理数据量增长，OmniStream使用列式向量化架构优化性能，状态存储跟原生行为一致，处理速度比原生Flink更快，使用内存增长速度比原生快，提升性能的同时对于空间的需求也增大，因此当前Nexmark基准测试用例输入数据量最大只支持5千万数据。

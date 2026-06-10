@@ -9,14 +9,15 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef OMNISTREAM_KEYSELECTOR_H
-#define OMNISTREAM_KEYSELECTOR_H
+# pragma once
+
 #include <vector>
 #include "table/data/vectorbatch/VectorBatch.h"
 #include "../../data/binary/BinaryRowData.h"
 #include "typeinfo/TypeInformation.h"
 #include "table/data/rowdata_marshaller.h"
-#include "table/data/writer/BinaryRowWriter.h"
+#include "core/utils/key_type_traits.h"
+#include "core/utils/type_traits_ext.h"
 #include "table/data/StringRefUtil.h"
 #include "OmniOperatorJIT/core/src/operator/hashmap/vector_marshaller.h"
 #include "runtime/plugable/SerializationDelegate.h"
@@ -53,8 +54,10 @@ public:
 
     bool canReuseKey();
 
+    static constexpr bool isRowKey_ = KeyTypeTraits<K>::isRowKey;
+    static constexpr bool isSharedRowKey_ = KeyTypeTraits<K>::isSharedRowKey;
+
 private:
-    static constexpr bool isRowKey = std::is_same_v<K, BinaryRowData*> || std::is_same_v<K, RowData*>;
     omniruntime::mem::SimpleArenaAllocator arenaAllocator;
     std::vector<int32_t> keyColTypeIds;
     std::vector<int32_t> keyColIndices;
@@ -72,7 +75,7 @@ private:
     std::vector<RowToVBDeSerializer> rowDeserializers;
 
     BinaryRowData* reusedKey = nullptr;
-    // Only switches to true when `isRowKey` is true and none of the `keyColTypeIds` is CHAR/VARCHAR
+    // Only switches to true when `isRowKey_` is true and none of the `keyColTypeIds` is CHAR/VARCHAR
     bool m_canReuseKey = false;
 };
 
@@ -86,7 +89,7 @@ K KeySelector<K>::getKey(omnistream::VectorBatch *inputBatch, int row, bool enab
             serializers[i](inputBatch->Get(keyColIndices[i]), row, arenaAllocator, strRef);
         }
         return strRef;
-    } else if constexpr (isRowKey) {
+    } else if constexpr (isRowKey_) {
         BinaryRowData* key;
         if (enableKeyReuse and m_canReuseKey) {
             key = reusedKey;
@@ -96,6 +99,12 @@ K KeySelector<K>::getKey(omnistream::VectorBatch *inputBatch, int row, bool enab
 
         for (size_t i = 0; i < keyColIndices.size(); ++i) {
             rowSerializers[i](inputBatch->Get(keyColIndices[i]), row, key, i);
+        }
+        return key;
+    } else if constexpr (isSharedRowKey_) {
+        auto key = std::shared_ptr<BinaryRowData>(BinaryRowData::createBinaryRowDataWithMem(keyColTypeIds.size()));
+        for (size_t i = 0; i < keyColIndices.size(); ++i) {
+            rowSerializers[i](inputBatch->Get(keyColIndices[i]), row, key.get(), i);
         }
         return key;
     } else {
@@ -124,7 +133,7 @@ K KeySelector<K>::getKey(RowData* input)
 {
     if constexpr (std::is_same_v<StringRef, K>) {
         NOT_IMPL_EXCEPTION;
-    } else if constexpr (isRowKey) {
+    } else if constexpr (isRowKey_) {
         BinaryRowData *key = BinaryRowData::createBinaryRowDataWithMem(keyColTypeIds.size());
         for (size_t i = 0; i < keyColIndices.size(); ++i) {
             switch (keyColTypeIds[i]) {
@@ -201,8 +210,10 @@ KeySelector<K>::KeySelector(const std::vector<int32_t> &keyColTypeIds, const std
                 throw std::runtime_error("Key type not supported!");
             }
         }
-    } else if constexpr (isRowKey) {
-        m_canReuseKey = true;
+    } else if constexpr (isRowKey_ || isSharedRowKey_) {
+        if (isRowKey_) {
+            m_canReuseKey = true;
+        }
         for (size_t i = 0; i < keyColTypeIds.size(); i++) {
             auto typeId = keyColTypeIds[i];
             LOG("Key typeId: " << typeId);
@@ -233,6 +244,7 @@ KeySelector<K>::~KeySelector()
 {
     if (reusedKey != nullptr) {
         delete reusedKey;
+        reusedKey = nullptr;
     }
 }
 
@@ -280,4 +292,3 @@ bool KeySelector<K>::canReuseKey()
 {
     return m_canReuseKey;
 }
-#endif // OMNISTREAM_KEYSELECTOR_H

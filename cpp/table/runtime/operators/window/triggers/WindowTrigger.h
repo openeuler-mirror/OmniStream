@@ -8,16 +8,13 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef WINDOWTRIGGER_H
-#define WINDOWTRIGGER_H
 
 #pragma once
 
-#include <iostream>
-#include <chrono>
-#include <memory>
+#include <cstdint>
 
 #include "Trigger.h"
+#include "table/utils/TimeWindowUtil.h"
 
 template<typename W>
 class WindowTrigger : public Trigger<W> {
@@ -26,13 +23,10 @@ public:
 
     ~WindowTrigger() override = default;
 
-    long TriggerTime(const W &window)
-    {
-        return window.maxTimestamp();
+    int64_t triggerTime(const W& window) {
+        return TimeWindowUtil::toEpochMillsForTimer(window.maxTimestamp(), ctx->getShiftTimeZone());
     }
 
 protected:
     typename Trigger<W>::TriggerContext *ctx;
 };
-
-#endif

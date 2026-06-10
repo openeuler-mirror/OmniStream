@@ -74,13 +74,16 @@ public:
     static BasicLogicalType* INTEGER;
     static BasicLogicalType* BIGINT;
     static BasicLogicalType* VARCHAR;
-    static BasicLogicalType* TIMESTAMP_WITHOUT_TIME_ZONE;
+    static BasicLogicalType* DOUBLE;
+    static BasicLogicalType* DATE;
     static BasicLogicalType* TIME_WITHOUT_TIME_ZONE;
+    static BasicLogicalType* TIMESTAMP_WITHOUT_TIME_ZONE;
     static BasicLogicalType* TIMESTAMP_WITH_TIME_ZONE;
     static BasicLogicalType* TIMESTAMP_WITH_LOCAL_TIME_ZONE;
-    static BasicLogicalType* DATE;
-    static BasicLogicalType* DOUBLE;
+    static BasicLogicalType* TIMESTAMP;
     static BasicLogicalType* INVALID_TYPE;
+
+    static BasicLogicalType* getTypeBy(omniruntime::type::DataTypeId typeId, const nlohmann::json& element);
 
 private:
     std::vector<LogicalType*> emptyChildren;

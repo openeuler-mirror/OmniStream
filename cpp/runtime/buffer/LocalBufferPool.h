@@ -107,7 +107,7 @@ namespace omnistream {
         // used for job cancellation to avoid back pressure
         std::atomic<bool> cancelled_{false};
 
-        bool requestingNotificationOfGlobalPoolAvailable;
+        bool requestingNotificationOfGlobalPoolAvailable = false;
     };
 }
 

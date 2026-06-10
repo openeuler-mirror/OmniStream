@@ -165,20 +165,20 @@ private:
             return op->currentWatermark_;
         }
 
-        void registerProcessingTimeTimer(long time) override {
+        void registerProcessingTimeTimer(int64_t time) override {
             NOT_IMPL_EXCEPTION
         }
-        void registerEventTimeTimer(long time) override
+        void registerEventTimeTimer(int64_t time) override
         {
             NOT_IMPL_EXCEPTION
         }
 
-        void deleteProcessingTimeTimer(long time) override
+        void deleteProcessingTimeTimer(int64_t time) override
         {
             NOT_IMPL_EXCEPTION
         }
 
-        void deleteEventTimeTimer(long time) override
+        void deleteEventTimeTimer(int64_t time) override
         {
             NOT_IMPL_EXCEPTION
         }

@@ -11,6 +11,8 @@
 
 #ifndef OMNISTREAM_SIMPLETIMERSERVICE_H
 #define OMNISTREAM_SIMPLETIMERSERVICE_H
+#include <cstdint>
+
 #include "TimerService.h"
 #include "runtime/state/VoidNamespace.h"
 #include "runtime/operators/InternalTimerService.h"
@@ -23,22 +25,22 @@ public:
 
     ~SimpleTimerService() = default;
 
-    long currentProcessingTime() override
+    int64_t currentProcessingTime() override
     {
         return internalTimerService->currentProcessingTime();
     }
 
-    long currentWatermark() override
+    int64_t currentWatermark() override
     {
         return internalTimerService->currentWatermark();
     }
 
-    void registerProcessingTimeTimer(long time) override
+    void registerProcessingTimeTimer(int64_t time) override
     {
         internalTimerService->registerProcessingTimeTimer(VoidNamespace(), time);
     }
 
-    void registerEventTimeTimer(long time) override
+    void registerEventTimeTimer(int64_t time) override
     {
         if (++timerSize > 10000) {
             internalTimerService->deleteFirstEventTimeTimer();
@@ -46,12 +48,12 @@ public:
         internalTimerService->registerEventTimeTimer(VoidNamespace(), time);
     }
 
-    void deleteProcessingTimeTimer(long time) override
+    void deleteProcessingTimeTimer(int64_t time) override
     {
         internalTimerService->deleteProcessingTimeTimer(VoidNamespace(), time);
     }
 
-    void deleteEventTimeTimer(long time) override
+    void deleteEventTimeTimer(int64_t time) override
     {
         internalTimerService->deleteEventTimeTimer(VoidNamespace(), time);
     }

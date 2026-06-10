@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <iostream>
+#include <memory>
 #include <nlohmann/json.hpp>
 #include "table/data/vectorbatch/VectorBatch.h"
 #include <taskmanager/OmniRuntimeEnvironment.h>
@@ -149,7 +150,7 @@ TEST(NEXTMARKTESTQ12, DISABLED_COUNTTEST) {
             parsedJson["operators"][0]["description"]
     );
     auto *output = new BatchOutputTest();
-    auto* slicingWindowOperator = dynamic_cast<SlicingWindowOperator<RowData*, int64_t>*>(
+    auto* slicingWindowOperator = dynamic_cast<SlicingWindowOperator<std::shared_ptr<RowData>, int64_t>*>(
             StreamOperatorFactory::createOperatorAndCollector(opConfig, output));
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();

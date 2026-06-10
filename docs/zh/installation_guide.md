@@ -452,10 +452,10 @@ rpm -ivh yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
 
 1. 在物理机上创建目录`/usr/local/OmniStream`，用于存放OmniStream Flink Native化的二进制文件。
 
-    将从[**表 3** 软件获取列表](#软件获取列表)中获取的BoostKit-omniruntime-omnistream-1.2.0.zip安装包解压到`/usr/local/OmniStream`目录下。
+    将从[**表 3** 软件获取列表](#软件获取列表)中获取的BoostKit-omniruntime-omnistream-1.3.0.zip安装包解压到`/usr/local/OmniStream`目录下。
 
     ```bash
-    unzip BoostKit-omniruntime-omnistream-1.2.0.zip
+    unzip BoostKit-omniruntime-omnistream-1.3.0.zip
     mkdir -p /usr/local/OmniStream
     cp -r OmniStream_Default/* /usr/local/OmniStream/
     chmod -R 550 /usr/local/OmniStream/*
@@ -473,9 +473,9 @@ rpm -ivh yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
     flink-tnel-0.1-SNAPSHOT.jar
     libtnel.so
     libboundscheck.so
-    libboostkit-omniop-codegen-2.1.0-aarch64.so
-    libboostkit-omniop-operator-2.1.0-aarch64.so
-    libboostkit-omniop-vector-2.1.0-aarch64.so
+    libboostkit-omniop-codegen-2.2.0-aarch64.so
+    libboostkit-omniop-operator-2.2.0-aarch64.so
+    libboostkit-omniop-vector-2.2.0-aarch64.so
     libre2.so.11
     libbasictypes
     include

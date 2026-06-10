@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <iostream>
+#include <memory>
 #include <nlohmann/json.hpp>
 #include <taskmanager/OmniRuntimeEnvironment.h>
 
@@ -361,7 +362,7 @@ omnistream::OperatorConfig opConfig(
         parsedJson["description"]
 );
 auto *output = new BatchOutputTest();
-auto* slicingWindowOperator = dynamic_cast<SlicingWindowOperator<RowData*, int64_t>*>(
+auto* slicingWindowOperator = dynamic_cast<SlicingWindowOperator<std::shared_ptr<RowData>, int64_t>*>(
         StreamOperatorFactory::createOperatorAndCollector(opConfig, output));
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
@@ -416,7 +417,7 @@ omnistream::OperatorConfig opConfig(
         parsedJson["operators"][0]["description"]
 );
 auto *output = new BatchOutputTest();
-auto* slicingWindowOperator = dynamic_cast<SlicingWindowOperator<RowData*, int64_t>*>(
+auto* slicingWindowOperator = dynamic_cast<SlicingWindowOperator<std::shared_ptr<RowData>, int64_t>*>(
         StreamOperatorFactory::createOperatorAndCollector(opConfig, output));
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
@@ -437,7 +438,8 @@ slicingWindowOperator->open();
 slicingWindowOperator->processBatch(vbatch);
 slicingWindowOperator->ProcessWatermark(new Watermark(INT64_MAX));
 //    BatchOutputTest* batchOutput = dynamic_cast<BatchOutputTest*>(slicingWindowOperator->getOutput());
-//    auto *timer = new TimerHeapInternalTimer<RowData*, int64_t>(-1, new BinaryRowData(0), 1010);
+//    auto *timer = new TimerHeapInternalTimer<std::shared_ptr<RowData>, int64_t>(
+//        -1, std::shared_ptr<RowData>(new BinaryRowData(0)), 1010);
 //    slicingWindowOperator->onTimer(timer);
 
 omnistream::VectorBatch* resultBatch = reinterpret_cast<omnistream::VectorBatch*> (output->getVectorBatch());

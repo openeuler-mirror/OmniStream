@@ -13,7 +13,7 @@
 
 TimeWindow::TimeWindow() {}
 
-TimeWindow::TimeWindow(long start, long end) : start(start), end(end) {}
+TimeWindow::TimeWindow(int64_t start, int64_t end) : start(start), end(end) {}
 
 TimeWindow::Serializer::Serializer() {}
 
@@ -37,7 +37,7 @@ TimeWindow *TimeWindow::Serializer::copy(TimeWindow *from, TimeWindow *reuse) co
     return from;
 }
 
-int TimeWindow::Serializer::getLength() const
+int32_t TimeWindow::Serializer::getLength() const
 {
     return sizeof(int64_t) * 2;
 }
@@ -51,8 +51,8 @@ void TimeWindow::Serializer::serialize(void *input, DataOutputSerializer &target
 
 void *TimeWindow::Serializer::deserialize(DataInputView &source)
 {
-    long start1;
-    long end1;
+    int64_t start1;
+    int64_t end1;
     start1 = source.readLong();
     end1 = source.readLong();
     return new TimeWindow(start1, end1);

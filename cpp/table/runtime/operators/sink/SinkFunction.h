@@ -13,12 +13,14 @@
 
 #include "table/data/RowData.h"
 #include "streaming/api/watermark/Watermark.h"
+#include "include/functions/Function.h"
+
 enum SinkInputValueType {
     ROW_DATA = 1,
     VEC_BATCH = 2
 };
 template <typename IN>
-class SinkFunction {
+class SinkFunction : public omnistream::Function {
 public:
     virtual ~SinkFunction() = default;
     virtual void invoke(IN value, SinkInputValueType valueType) = 0;

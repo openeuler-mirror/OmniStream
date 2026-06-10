@@ -72,7 +72,6 @@ public:
 
     void SetSubTaskIdx(int32_t subtaskIdx);
     std::vector<KafkaWriterState> snapshotState(long checkpointId);
-    void close();
 
 private:
     static constexpr const char* KAFKA_PRODUCER_METRIC_NAME = "KafkaProducer";

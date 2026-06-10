@@ -16,12 +16,13 @@
 
 #include "SourceContext.h"
 #include "basictypes/callback.h"
+#include "Function.h"
 
 /**
  * T: such as Object
  * */
 template <typename T>
-class SourceFunction : public Object {
+class SourceFunction : public Object, public omnistream::Function {
 public:
     virtual void run(SourceContext* context) = 0;
     virtual void cancel() = 0;

@@ -102,12 +102,7 @@ void StreamCalcBatch::processBatch(StreamRecord* input)
 
 void StreamCalcBatch::open()
 {
-    LOG("===>>>>>>")
-
-    // If codegen is required
     parseDescription(description_);
-    std::cout << description_ << std::endl;
-
     if (!isSimpleProjection_ || hasFilter) {
         JSONParser parser = JSONParser();
         if (description_.contains("indices")) {

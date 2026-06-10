@@ -127,8 +127,6 @@ namespace omnistream {
      */
     int numberOfRequestedObjectSegments_;
     std::vector<std::shared_ptr<ObjectBufferRecycler>> subpartitionBufferRecyclers_;
-    int unavailableSubpartitionsCount_ = 0;
-    bool isDestroyed_ = false;
 };
 
 } // namespace omnistream
