@@ -363,6 +363,10 @@ namespace omnistream {
     void VectorBatch::convertToJson(nlohmann::ordered_json &j, int rowIndex, std::vector<std::pair<int32_t, int32_t>> decimalInfo,
                                     std::vector<std::string> inputTypes, std::vector<std::string> inputFields) const
     {
+        if (inputTypes.size() < vectors.size() || inputFields.size() < vectors.size()) {
+            THROW_RUNTIME_ERROR("convertToJson input metadata size mismatch: vectors=" << vectors.size()
+                << ", inputTypes=" << inputTypes.size() << ", inputFields=" << inputFields.size());
+        }
         for (size_t colIndex = 0; colIndex < vectors.size(); ++colIndex) {
             int dataId = vectors[colIndex]->GetTypeId();
             switch (dataId) {

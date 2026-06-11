@@ -69,6 +69,7 @@ public:
     }
 
     RowData* getAccumulators() override {
+        ensureCurrentAccumulator();
         if (sumIsNull_) {
             reinterpret_cast<BinaryRowData*>(currentAcc_)->setNullAt(accIndex_);
         } else {
@@ -107,4 +108,14 @@ private:
     bool sumIsNull_ = true;
     StateDataViewStore* store_{};
     RowData* currentAcc_{};
+
+    void ensureCurrentAccumulator() {
+        if (currentAcc_ != nullptr) {
+            return;
+        }
+        currentAcc_ = BinaryRowData::createBinaryRowDataWithMem(accIndex_ + 1);
+        for (int32_t i = 0; i <= accIndex_; ++i) {
+            reinterpret_cast<BinaryRowData*>(currentAcc_)->setNullAt(i);
+        }
+    }
 };
