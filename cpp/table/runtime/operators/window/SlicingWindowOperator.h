@@ -92,7 +92,7 @@ public:
         TableStreamOperator<K>::snapshotState(context);
         if (this->watermarkState != nullptr) {
             this->watermarkState->clear();
-            this->watermarkState->add(currentWatermark);
+            this->watermarkState->add(this->currentWatermark);
         }
     };
 
@@ -116,8 +116,6 @@ public:
     Output* getOutput();
     void processWatermarkStatus(WatermarkStatus *watermarkStatus) override {};
     void onTimer(TimerHeapInternalTimer<K, W> *timer);
-protected:
-    int64_t currentWatermark = std::numeric_limits<int64_t>::min();
 
 private:
     SlicingWindowProcessor<K, W> *windowProcessor = nullptr;
@@ -166,7 +164,7 @@ void SlicingWindowOperator<K, W>::open()
             AbstractStreamOperator<K>::template getInternalTimerService<int64_t>(
                 "window-timers", windowSerializer, this);
     windowProcessor->open(backState, description, runtimeCtx, internalTimerService);
-    windowProcessor->initializeWatermark(currentWatermark);
+    windowProcessor->initializeWatermark(this->currentWatermark);
 }
 
 template <typename K, typename W>
@@ -189,23 +187,17 @@ void SlicingWindowOperator<K, W>::processBatch(omnistream::VectorBatch *batch)
 }
 
 template <typename K, typename W>
-void SlicingWindowOperator<K, W>::ProcessWatermark(Watermark *mark)
-{
-    if (mark->getTimestamp() > currentWatermark) {
-        LOG("watermark > current watermark")
-        windowProcessor->advanceProgress(this->stateHandler, mark->getTimestamp());
-        LOG("after advance")
+void SlicingWindowOperator<K, W>::ProcessWatermark(Watermark *mark) {
+    if (mark->getTimestamp() > this->currentWatermark) {
+        windowProcessor->advanceProgress(mark->getTimestamp());
         TableStreamOperator<K>::ProcessWatermark(mark);
     } else {
-        TableStreamOperator<K>::ProcessWatermark(new Watermark(currentWatermark));
+        TableStreamOperator<K>::ProcessWatermark(new Watermark(this->currentWatermark));
     }
-    currentWatermark = mark->getTimestamp();
 }
 
 template <typename K, typename W>
-void SlicingWindowOperator<K, W>::onEventTime(TimerHeapInternalTimer<K, W> *timer)
-{
-    LOG("trigger onEventTime")
+void SlicingWindowOperator<K, W>::onEventTime(TimerHeapInternalTimer<K, W> *timer) {
     onTimer(timer);
 }
 
@@ -214,7 +206,7 @@ void SlicingWindowOperator<K, W>::onProcessingTime(TimerHeapInternalTimer<K, W> 
 {
     if (timer->getTimestamp() > lastTriggeredProcessingTime) {
         lastTriggeredProcessingTime = timer->getTimestamp();
-        windowProcessor->advanceProgress(this->stateHandler, timer->getTimestamp());
+        windowProcessor->advanceProgress(timer->getTimestamp());
     }
     onTimer(timer);
 }

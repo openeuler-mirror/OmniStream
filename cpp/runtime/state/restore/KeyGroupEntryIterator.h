@@ -54,12 +54,12 @@ public:
         return false;
     }
 
-    std::unique_ptr<KeyGroupEntry> next()
+    KeyGroupEntry next()
     {
         if (!hasNext()) {
             throw std::out_of_range("No more elements in KeyGroupEntryIterator");
         }
-        return std::make_unique<KeyGroupEntry>(entries_[currentIndex_++]);
+        return entries_[currentIndex_++];
     }
 
 private:

@@ -195,16 +195,16 @@ void RocksDBFullRestoreOperation<K>::restoreKVStateData(
         std::shared_ptr<KeyGroupEntryIterator> groupEntries = keyGroup->getKeyGroupEntries();
         int oldKvStateId = -1;
         while (groupEntries->hasNext()) {
-            std::unique_ptr<KeyGroupEntry> groupEntry = groupEntries->next();
-            int kvStateId = groupEntry->getKvStateId();
+            KeyGroupEntry groupEntry = groupEntries->next();
+            int kvStateId = groupEntry.getKvStateId();
             if (kvStateId != oldKvStateId) {
                 oldKvStateId = kvStateId;
                 handle = columnFamilyHandles[kvStateId];
             }
-            rocksdb::Slice key(reinterpret_cast<const char*>(groupEntry->getKey().data()),
-                               groupEntry->getKey().size());
-            rocksdb::Slice value(reinterpret_cast<const char*>(groupEntry->getValue().data()),
-                                 groupEntry->getValue().size());
+            rocksdb::Slice key(reinterpret_cast<const char*>(groupEntry.getKey().data()),
+                               groupEntry.getKey().size());
+            rocksdb::Slice value(reinterpret_cast<const char*>(groupEntry.getValue().data()),
+                                 groupEntry.getValue().size());
             rocksDbWriteBatchWrapper->Put(handle, key, value);
         }
     }

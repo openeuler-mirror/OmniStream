@@ -311,7 +311,7 @@ HeapKeyedStateBackend<K> *HeapKeyedStateBackendBuilder<K>::build()
 
                 while (entryIter->hasNext()) {
                     auto entry = entryIter->next();
-                    int kvStateId = entry->getKvStateId();
+                    int kvStateId = entry.getKvStateId();
 
                     if (kvStateId < 0 || kvStateId >= static_cast<int>(stateInfos.size())) {
                         INFO_RELEASE("Error:HeapKeyedStateBackendBuilder: invalid kvStateId "
@@ -323,7 +323,7 @@ HeapKeyedStateBackend<K> *HeapKeyedStateBackendBuilder<K>::build()
                     auto &info = stateInfos[kvStateId];
                     if (info.backendStateType == StateMetaInfoSnapshot::BackendStateType::PRIORITY_QUEUE) {
                         backend->addRestoredPriorityQueueEntry(
-                            info.stateName, entry->getKey(), keyGroupPrefixBytes);
+                            info.stateName, entry.getKey(), keyGroupPrefixBytes);
                         kgEntryCount++;
                         totalEntriesRestored++;
                         totalPriorityQueueEntriesRestored++;
@@ -335,10 +335,10 @@ HeapKeyedStateBackend<K> *HeapKeyedStateBackendBuilder<K>::build()
                         continue;  // State was skipped in Phase 1
                     }
                     if (info.stateName.size() >= 2 && info.stateName.substr(info.stateName.size() - 2) == "vb") {
-                        restoreVbEntryToHeap(backend, info, entry->getKey(), entry->getValue());
+                        restoreVbEntryToHeap(backend, info, entry.getKey(), entry.getValue());
                     } else {
                         restoreEntryToHeap(backend, info, keyGroupId, keyGroupPrefixBytes,
-                                           entry->getKey(), entry->getValue());
+                                           entry.getKey(), entry.getValue());
                     }
                     kgEntryCount++;
                     totalEntriesRestored++;

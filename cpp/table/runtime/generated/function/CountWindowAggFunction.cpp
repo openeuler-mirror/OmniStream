@@ -20,7 +20,13 @@ void CountWindowAggFunction::open(StateDataViewStore* store)
 
 void CountWindowAggFunction::accumulate(RowData* accInput)
 {
-    aggValue++;
+    if (aggIdx < 0) {
+        aggValue++;
+        return;
+    }
+    if (!accInput->isNullAt(aggIdx)) {
+        aggValue++;
+    }
 }
 
 void CountWindowAggFunction::retract(RowData* retractInput)
@@ -30,62 +36,38 @@ void CountWindowAggFunction::retract(RowData* retractInput)
 
 void CountWindowAggFunction::merge(int64_t namespaceObj, RowData* otherAcc)
 {
-    // use accIndex, the input is the accumulator, not the input row
-    bool inputIsNull = otherAcc->isNullAt(aggIdx);
-    if (!inputIsNull) {
-        aggValue += *otherAcc->getLong(aggIdx);
-    } else {
-        aggValue = -1;
+    if (!otherAcc->isNullAt(accIndex)) {
+        aggValue = aggValue + *otherAcc->getLong(accIndex);
     }
-    valueIsNull = inputIsNull;
 }
 
 void CountWindowAggFunction::setAccumulators(int64_t namespaceObj, RowData* acc)
 {
-    bool isInputNull = acc->isNullAt(accIndex);
-    if (!isInputNull) {
+    this->currentAcc_ = acc;
+    if (!acc->isNullAt(accIndex)) {
         aggValue = *acc->getLong(accIndex);
     } else {
-        aggValue = 0;
+        aggValue = 0L;
     }
-    valueIsNull = isInputNull;
 }
 
 RowData* CountWindowAggFunction::getAccumulators()
 {
-    BinaryRowData *currentAcc = BinaryRowData::createBinaryRowDataWithMem(1);
-    currentAcc->changeOwner(0);
-    if (valueIsNull) {
-        currentAcc->setNullAt(accIndex);
-    } else {
-        currentAcc->setLong(accIndex, aggValue);
-    }
-    return currentAcc;
+    currentAcc_->setLong(accIndex, aggValue);
+    return currentAcc_;
 }
 
 RowData* CountWindowAggFunction::createAccumulators(int accumulatorArity)
 {
     BinaryRowData *currentAcc = BinaryRowData::createBinaryRowDataWithMem(accumulatorArity);
-    currentAcc->changeOwner(0);
     currentAcc->setLong(accIndex, 0L);
     return currentAcc;
 }
 
 RowData* CountWindowAggFunction::getValue(int64_t ns)
 {
-    BinaryRowData *result;
-    int64_t startTime = sliceAssigner->getWindowStart(ns);
-    int length = 3;
-    result = BinaryRowData::createBinaryRowDataWithMem(length);
-    result->changeOwner(0);
-    if (!valueIsNull) {
-        result->setLong(0, aggValue);
-    } else {
-        result->setLong(0, nullptr);
-    }
-    result->setLong(length - 2, startTime);
-    result->setLong(length - 1, ns);
-    return result;
+    currentAcc_->setLong(valueIndex, aggValue);
+    return currentAcc_;
 }
 
 void CountWindowAggFunction::Cleanup(int64_t namespaceObj)
