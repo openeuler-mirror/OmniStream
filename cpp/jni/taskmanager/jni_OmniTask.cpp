@@ -145,10 +145,14 @@ JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_Omn
   (JNIEnv *jniEnv, jobject, jlong nativeTask, jlong checkpointID, jlong checkpointTimestamp, jstring checkpointoptionJson)
 {
     auto task = reinterpret_cast<omnistream::OmniTask *>(nativeTask);
+    if (!task) {
+        INFO_RELEASE("Error OmniTask_triggerCheckpointCpp task is null");
+        THROW_LOGIC_EXCEPTION("OmniTask_triggerCheckpointCpp task is null");
+    }
     const char* checkpointStr = jniEnv->GetStringUTFChars(checkpointoptionJson, nullptr);
     nlohmann::json checkpointoptionJsonStr = json::parse(checkpointStr);
     jniEnv->ReleaseStringUTFChars(checkpointoptionJson, checkpointStr);
-    CheckpointOptions *configuredOptions = CheckpointOptions::FromJson(checkpointoptionJsonStr);
+    std::shared_ptr<CheckpointOptions> configuredOptions(CheckpointOptions::FromJson(checkpointoptionJsonStr));
     task->triggerCheckpointBarrier(checkpointID, checkpointTimestamp, configuredOptions);
 }
 
@@ -172,8 +176,8 @@ JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_Omn
  * Signature: (JJ)V
  */
 JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_subsumedCpp
-  (JNIEnv *, jobject, jlong checkpointId, jlong latestCompletedCheckpointId) {
-    auto task = reinterpret_cast<omnistream::OmniTask *>(checkpointId);
+  (JNIEnv *, jobject, jlong nativeTask, jlong latestCompletedCheckpointId) {
+    auto task = reinterpret_cast<omnistream::OmniTask *>(nativeTask);
     task->notifyCheckpointSubsumed(latestCompletedCheckpointId);
 }
 

@@ -14,7 +14,9 @@
 #include <stdexcept>
 #include <string>
 #include <sstream>
+#include <memory>
 
+#include "core/include/common.h"
 #include "../../../checkpoint/CheckpointOptions.h"
 #include "../../../event/RuntimeEvent.h"
 
@@ -23,9 +25,12 @@ public:
     CheckpointBarrier(long id, long timestamp,
                     CheckpointOptions *checkpointOptions);
 
+    CheckpointBarrier(long id, long timestamp,
+                    std::shared_ptr<CheckpointOptions> checkpointOptions);
+
     ~CheckpointBarrier();
 
-    CheckpointOptions *GetCheckpointOptions() const;
+    std::shared_ptr<CheckpointOptions> GetCheckpointOptions() const;
 
     CheckpointBarrier *WithOptions(CheckpointOptions *checkpointOptions);
 
@@ -45,7 +50,7 @@ public:
 private:
     long id_;
     long timestamp_;
-    CheckpointOptions *checkpointOptions_;
+    std::shared_ptr<CheckpointOptions> checkpointOptions_;
 };
 
 namespace std {

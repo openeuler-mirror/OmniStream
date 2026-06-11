@@ -569,8 +569,8 @@ void OmniStreamTask::processInput(MailboxDefaultAction::Controller *controller)
         return inputProcessor_->PrepareSnapshot(channelStateWriter, checkpointID);
     }
 
-    bool OmniStreamTask::PerformCheckpoint(CheckpointMetaData* checkpointMetaData,
-        CheckpointOptions* checkpointOptions, CheckpointMetricsBuilder* checkpointMetrics)
+    bool OmniStreamTask::PerformCheckpoint(std::shared_ptr<CheckpointMetaData> checkpointMetaData,
+        std::shared_ptr<CheckpointOptions> checkpointOptions, std::shared_ptr<CheckpointMetricsBuilder> checkpointMetrics)
     {
         try {
             SnapshotType* checkpointType = checkpointOptions->GetCheckpointType();
@@ -603,7 +603,7 @@ void OmniStreamTask::processInput(MailboxDefaultAction::Controller *controller)
                 return true;
             } else {
                 VoidFunctionRunnable broadcastRunnable(
-                    [this, &checkpointMetaData]() {
+                    [this, checkpointMetaData]() {
                         // we cannot perform our checkpoint - let the downstream operators know that
                         // they
                         // should not wait for any input from this operator
@@ -782,7 +782,7 @@ void OmniStreamTask::processInput(MailboxDefaultAction::Controller *controller)
     }
 
     std::shared_ptr<CompletableFutureV2<bool>> OmniStreamTask::triggerCheckpointAsync(
-        CheckpointMetaData *checkpointMetaData, CheckpointOptions *checkpointOptions)
+        std::shared_ptr<CheckpointMetaData> checkpointMetaData, std::shared_ptr<CheckpointOptions> checkpointOptions)
     {
         auto result = std::make_shared<CompletableFutureV2<bool>>();
         auto mailboxRunnable = std::make_shared<VoidFunctionRunnable>(
@@ -810,8 +810,8 @@ void OmniStreamTask::processInput(MailboxDefaultAction::Controller *controller)
         return result;
     }
 
-    bool OmniStreamTask::TriggerCheckpointAsyncInMailbox(CheckpointMetaData *checkpointMetaData,
-        CheckpointOptions *checkpointOptions)
+    bool OmniStreamTask::TriggerCheckpointAsyncInMailbox(std::shared_ptr<CheckpointMetaData> checkpointMetaData,
+        std::shared_ptr<CheckpointOptions> checkpointOptions)
     {
         // TTODO: FlinkSecurityManager::monitorUserSystemExitForCurrentThread();
         try {
@@ -822,15 +822,15 @@ void OmniStreamTask::processInput(MailboxDefaultAction::Controller *controller)
                 1000000L * std::max(0L, currentTime - checkpointMetaData->GetTimestamp());
 
             // No alignment if we inject a checkpoint
-            CheckpointMetricsBuilder checkpointMetrics;
-            checkpointMetrics.SetAlignmentDurationNanos(0L);
-            checkpointMetrics.SetBytesProcessedDuringAlignment(0L);
-            checkpointMetrics.SetCheckpointStartDelayNanos(latestAsyncCheckpointStartDelayNanos);
+            auto checkpointMetrics = std::make_shared<CheckpointMetricsBuilder>();
+            checkpointMetrics->SetAlignmentDurationNanos(0L);
+            checkpointMetrics->SetBytesProcessedDuringAlignment(0L);
+            checkpointMetrics->SetCheckpointStartDelayNanos(latestAsyncCheckpointStartDelayNanos);
 
             subtaskCheckpointCoordinator->InitInputsCheckpoint(checkpointMetaData->GetCheckpointId(),
-                checkpointOptions);
+                checkpointOptions.get());
 
-            bool success = PerformCheckpoint(checkpointMetaData, checkpointOptions, &checkpointMetrics);
+            bool success = PerformCheckpoint(checkpointMetaData, checkpointOptions, checkpointMetrics);
             if (!success) {
                 DeclineCheckpoint(checkpointMetaData->GetCheckpointId());
             }
@@ -850,8 +850,8 @@ void OmniStreamTask::processInput(MailboxDefaultAction::Controller *controller)
         // TTODO: FlinkSecurityManager::unmonitorUserSystemExitForCurrentThread();
     }
 
-    bool OmniStreamTask::triggerUnfinishedChannelsCheckpoint(CheckpointMetaData *checkpointMetaData,
-        CheckpointOptions *checkpointOptions)
+    bool OmniStreamTask::triggerUnfinishedChannelsCheckpoint(std::shared_ptr<CheckpointMetaData> checkpointMetaData,
+        std::shared_ptr<CheckpointOptions> checkpointOptions)
     {
         std::optional<CheckpointBarrierHandler*> checkpointBarrierHandler = GetCheckpointBarrierHandler();
         // First make sure the Handler is not empty

@@ -88,7 +88,7 @@ namespace omnistream {
         void CloseAllInputGates();
         void FailAllResultPartitions();
         bool IsCanceledOrFailed();
-        void triggerCheckpointBarrier(long checkpointId, long checkpointTimestamp, CheckpointOptions* checkpoint_options);
+        void triggerCheckpointBarrier(long checkpointId, long checkpointTimestamp, std::shared_ptr<CheckpointOptions> checkpointOptions);
         static constexpr const char* SOURCE_STREAM_TASK =
                 "com.huawei.omniruntime.flink.runtime.tasks.OmniSourceStreamTask";
         static constexpr const char* SOURCE_OPERATOR_STREAM_TASK =
