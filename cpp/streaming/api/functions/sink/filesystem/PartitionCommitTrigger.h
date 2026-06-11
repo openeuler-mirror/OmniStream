@@ -17,16 +17,17 @@
 #include <string>
 #include <vector>
 #include <algorithm>
-#include <ctime>
+#include <chrono>
+#include <cstdint>
 
 /**
  * Context for partition commit predicate evaluation.
  */
 struct PredicateContext {
     std::string partition;
-    long createProcTime = 0;
-    long currentProcTime = 0;
-    long currentWatermark = 0;
+    int64_t createProcTime = 0;
+    int64_t currentProcTime = 0;
+    int64_t currentWatermark = 0;
 };
 
 /**
@@ -44,7 +45,7 @@ public:
  */
 class PartitionTimeCommitPredicate : public PartitionCommitPredicate {
 public:
-    PartitionTimeCommitPredicate(long commitDelayMs) : commitDelayMs_(commitDelayMs) {}
+    PartitionTimeCommitPredicate(int64_t commitDelayMs) : commitDelayMs_(commitDelayMs) {}
 
     bool isPartitionCommittable(const PredicateContext &ctx) override
     {
@@ -52,7 +53,7 @@ public:
     }
 
 private:
-    long commitDelayMs_;
+    int64_t commitDelayMs_;
 };
 
 /**
@@ -61,7 +62,7 @@ private:
  */
 class ProcTimeCommitPredicate : public PartitionCommitPredicate {
 public:
-    ProcTimeCommitPredicate(long commitDelayMs) : commitDelayMs_(commitDelayMs) {}
+    ProcTimeCommitPredicate(int64_t commitDelayMs) : commitDelayMs_(commitDelayMs) {}
 
     bool isPartitionCommittable(const PredicateContext &ctx) override
     {
@@ -72,7 +73,7 @@ public:
     }
 
 private:
-    long commitDelayMs_;
+    int64_t commitDelayMs_;
 };
 
 /**
@@ -174,7 +175,7 @@ public:
     std::vector<std::string> committablePartitions(long /*checkpointId*/) override
     {
         std::vector<std::string> needCommit;
-        long now = currentProcTimeMs();
+        int64_t now = currentProcTimeMs();
         auto it = pendingPartitions_.begin();
         while (it != pendingPartitions_.end()) {
             PredicateContext ctx;
@@ -207,12 +208,13 @@ public:
     }
 
 private:
-    static long currentProcTimeMs()
+    static int64_t currentProcTimeMs()
     {
-        return static_cast<long>(std::time(nullptr)) * 1000;
+        using namespace std::chrono;
+        return duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
     }
 
-    std::map<std::string, long> pendingPartitions_;
+    std::map<std::string, int64_t> pendingPartitions_;
     PartitionCommitPredicate *predicate_;
 };
 
@@ -220,6 +222,6 @@ private:
  * Factory to create the appropriate PartitionCommitTrigger based on config.
  */
 PartitionCommitTrigger *createPartitionCommitTrigger(const std::string &triggerType,
-                                                       long commitDelayMs);
+                                                       int64_t commitDelayMs);
 
 #endif // PARTITION_COMMIT_TRIGGER_H

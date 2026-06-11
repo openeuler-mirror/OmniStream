@@ -17,6 +17,7 @@
 #include <iostream>
 #include <sstream>
 #include <cstdint>
+#include <memory>
 
 #include "core/include/common.h"
 #include "core/memory/DataOutputSerializer.h"
@@ -61,7 +62,8 @@ public:
 
         SubTaskSimpleVersionedSerializer<CommT> subTaskSerializer(committableSerializer_, subtaskId_, numberOfSubtasks_, checkpointId);
 
-        auto* subCMs = SimpleVersionedSerialization::readVersionAndDeserializeList(subTaskSerializer, input);
+        std::unique_ptr<std::vector<SubtaskCommittableManager<CommT>>> subCMs(
+            SimpleVersionedSerialization::readVersionAndDeserializeList(subTaskSerializer, input));
 
         typename CheckpointCommittableManagerImpl<CommT>::SubtaskCommittableManagers managers;
 

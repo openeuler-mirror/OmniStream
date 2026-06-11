@@ -12,7 +12,7 @@
 #include "PartitionCommitTrigger.h"
 
 PartitionCommitTrigger *createPartitionCommitTrigger(const std::string &triggerType,
-                                                      long commitDelayMs)
+                                                      int64_t commitDelayMs)
 {
     PartitionCommitPredicate *predicate = nullptr;
     if (triggerType == "partition-time") {

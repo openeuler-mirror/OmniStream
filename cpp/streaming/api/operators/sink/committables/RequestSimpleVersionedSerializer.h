@@ -17,6 +17,7 @@
 #include <iostream>
 #include <sstream>
 #include <cstdint>
+#include <memory>
 
 #include "core/include/common.h"
 #include "core/memory/DataOutputSerializer.h"
@@ -48,9 +49,13 @@ public:
     CommitRequestImpl<CommT> *deserialize(int version, std::vector<uint8_t>& serialized) override {
         DataInputDeserializer input(serialized.data(), serialized.size(), 0);
 
-        auto* committable = SimpleVersionedSerialization::readVersionAndDeSerialize(*committableSerializer_, input);
+        std::unique_ptr<CommT> committable(
+            SimpleVersionedSerialization::readVersionAndDeSerialize(*committableSerializer_, input));
 
-        return new CommitRequestImpl<CommT>(*committable, input.readInt(), static_cast<CommitRequestState>(input.readInt()));
+        int numberOfRetries = input.readInt();
+        auto state = static_cast<CommitRequestState>(input.readInt());
+
+        return new CommitRequestImpl<CommT>(*committable, numberOfRetries, state);
     }
 
 private:

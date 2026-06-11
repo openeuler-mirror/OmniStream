@@ -111,6 +111,25 @@ void SequentialChannelStateReaderImpl::readSequentiallyByInputChannel(
             LOG("ERROR: Failed to open stream state handle input stream. file path: " << filePath);
             throw std::ios_base::failure("Failed to open stream state handle input stream.");
         }
+        class FileCleanupGuard {
+        public:
+            FileCleanupGuard(std::ifstream& stream, const std::string& path) : stream_(stream), path_(path) {}
+            ~FileCleanupGuard()
+            {
+                try {
+                    if (stream_.is_open()) {
+                        stream_.close();
+                    }
+                    std::filesystem::remove(path_);
+                } catch(...) {
+                    LOG("ERROR: close file failed.");
+                }
+            }
+
+        private:
+            std::ifstream& stream_;
+            const std::string& path_;
+        } fileCleanupGuard(is, tmpPath);
 
         serializer->ReadHeader(is);
 
@@ -126,14 +145,6 @@ void SequentialChannelStateReaderImpl::readSequentiallyByInputChannel(
             LOG("after readChunkByFsForInputChannel");
         }
         LOG("after extractOffsetsSortedByInputChannel");
-        try {
-            if (is.is_open()) {
-                is.close();
-                std::filesystem::remove(tmpPath);
-            }
-        } catch(...) {
-            LOG("ERROR: close file failed.");
-        }
         LOG("readSequentiallyByInputChannel end");
     } else {
         LOG("ERROR: streamStateHandle type is not excepted.");
@@ -264,6 +275,10 @@ std::vector<RescaledOffset<InputChannelInfo>> SequentialChannelStateReaderImpl::
         auto extractedOffsets = extractOffsetsByInputChannel(handle);
         offsets.insert(offsets.end(),extractedOffsets.begin(), extractedOffsets.end());
     }
+    if (offsets.empty()) {
+        LOG("channelStateHandles vec: " << channelStateHandles.size() << ", offsets vec: " << offsets.size());
+        return offsets;
+    }
     LOG("channelStateHandles vec: " << channelStateHandles.size() << ", offsets vec: " << offsets.size()
         << ", start off: " << offsets[0].offset << ", end off: " << offsets[offsets.size() - 1].offset
         << ", info: " << offsets[0].channelInfo.toString());
@@ -282,6 +297,10 @@ std::vector<RescaledOffset<ResultSubpartitionInfoPOD>> SequentialChannelStateRea
     for (const auto& handle : channelStateHandles) {
         auto extractedOffsets = extractOffsetsByResultSubpartition(handle);
         offsets.insert(offsets.end(),extractedOffsets.begin(), extractedOffsets.end());
+    }
+    if (offsets.empty()) {
+        LOG("channelStateHandles vec: " << channelStateHandles.size() << ", offsets vec: " << offsets.size());
+        return offsets;
     }
     LOG("channelStateHandles vec: " << channelStateHandles.size() << ", offsets vec: " << offsets.size()
         << ", start off: " << offsets[0].offset << ", end off: " << offsets[offsets.size() - 1].offset

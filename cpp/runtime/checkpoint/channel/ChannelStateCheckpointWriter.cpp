@@ -8,6 +8,9 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
+#include <cstdlib>
+#include <memory>
+
 #include "ChannelStateCheckpointWriter.h"
 #include "ChannelStateWriter.h"
 #include "state/filesystem/FileStateHandle.h"
@@ -25,16 +28,24 @@ namespace omnistream {
             throw std::invalid_argument("subtasks cannot be empty");
         }
         subtasksToRegister = subtasks;
-        checkpointStream = streamFactory->createCheckpointStateOutputStream(CheckpointedStateScope::EXCLUSIVE);
+        std::unique_ptr<CheckpointStateOutputStream> checkpointStreamGuard(
+            streamFactory->createCheckpointStateOutputStream(CheckpointedStateScope::EXCLUSIVE));
         size_t memSize = 64 * 1024 * 1024;
-        dataStream = (char *)malloc(memSize);
-        (void)memset_s(dataStream, memSize, 0, memSize);
-        serializer->WriteHeader(dataStream);
+        std::unique_ptr<char, void (*)(void *)> dataStreamGuard(
+            static_cast<char *>(std::malloc(memSize)), std::free);
+        if (dataStreamGuard == nullptr) {
+            INFO_RELEASE("Exception: Failed to allocate channel state data stream.");
+            throw std::runtime_error("Failed to allocate channel state data stream");
+        }
+        (void)memset_s(dataStreamGuard.get(), memSize, 0, memSize);
+        serializer->WriteHeader(dataStreamGuard.get());
+        checkpointStream = checkpointStreamGuard.release();
+        dataStream = dataStreamGuard.release();
     }
 
     ChannelStateCheckpointWriter::~ChannelStateCheckpointWriter()
     {
-        delete dataStream;
+        std::free(dataStream);
         delete checkpointStream;
         for (auto &kv : pendingResults) {
             delete kv.second;

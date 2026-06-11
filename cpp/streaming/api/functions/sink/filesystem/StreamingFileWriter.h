@@ -71,7 +71,7 @@ private:
     std::set<std::string> currentNewPartitions_;
     std::map<long, std::set<std::string>> newPartitions_;
     std::set<std::string> committablePartitions_;
-    std::map<std::string, long> inProgressPartitions_;
+    std::map<std::string, int64_t> inProgressPartitions_;
     std::unique_ptr<PartitionCommitPredicate> partitionCommitPredicate_;
     std::unique_ptr<SystemProcessingTimeService> procTimeService_;
 
@@ -97,7 +97,7 @@ void StreamingFileWriter<IN>::initializeState(
 {
     if (isPartitionCommitTriggerEnabled()) {
         std::string triggerType = "partition-time";
-        long commitDelayMs = 0;
+        int64_t commitDelayMs = 0;
         if (conf_.contains("partition-commit")) {
             const auto &pc = conf_["partition-commit"];
             if (pc.contains("trigger")) {
@@ -182,7 +182,7 @@ template <typename IN>
 void StreamingFileWriter<IN>::partitionCreated(const std::string &partition)
 {
     currentNewPartitions_.insert(partition);
-    long currentTime = procTimeService_->getCurrentProcessingTime();
+    int64_t currentTime = procTimeService_->getCurrentProcessingTime();
     if (inProgressPartitions_.find(partition) == inProgressPartitions_.end()) {
         inProgressPartitions_[partition] = currentTime;
     }
@@ -250,8 +250,8 @@ void StreamingFileWriter<IN>::closePartFileForPartitions()
     auto it = inProgressPartitions_.begin();
     while (it != inProgressPartitions_.end()) {
         const std::string &partition = it->first;
-        long creationTime = it->second;
-        long currentProcTime = procTimeService_->getCurrentProcessingTime();
+        int64_t creationTime = it->second;
+        int64_t currentProcTime = procTimeService_->getCurrentProcessingTime();
 
         PredicateContext ctx;
         ctx.partition = partition;
