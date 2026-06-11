@@ -36,8 +36,6 @@ BufferAndBacklog* PipelinedSubpartitionView::getNextBuffer()
 {
     // LOG_TRACE(">>> beginnning of get NextBuffer")
     if (isReleased_.load() || parent == nullptr) {
-        INFO_RELEASE("[OS-partition-finish] getNextBuffer skipped, released view="
-            << reinterpret_cast<uintptr_t>(this));
         return nullptr;
     }
     return parent->pollBuffer();
@@ -47,9 +45,6 @@ void PipelinedSubpartitionView::notifyDataAvailable()
 {
     std::lock_guard<std::mutex> lock(listenerMutex_);
     if (isReleased_.load() || availabilityListener == nullptr) {
-        INFO_RELEASE("[OS-partition-finish] skip notifyDataAvailable, released=" << isReleased_.load()
-            << ", view=" << reinterpret_cast<uintptr_t>(this)
-            << ", listener=" << reinterpret_cast<uintptr_t>(availabilityListener));
         return;
     }
     LOG("PipelinedSubpartitionView notifyDataAvailable invoke!");
@@ -60,10 +55,6 @@ void PipelinedSubpartitionView::notifyPriorityEvent(int priorityBufferNumber)
 {
     std::lock_guard<std::mutex> lock(listenerMutex_);
     if (isReleased_.load() || availabilityListener == nullptr) {
-        INFO_RELEASE("[OS-partition-finish] skip notifyPriorityEvent, released=" << isReleased_.load()
-            << ", view=" << reinterpret_cast<uintptr_t>(this)
-            << ", listener=" << reinterpret_cast<uintptr_t>(availabilityListener)
-            << ", priority=" << priorityBufferNumber);
         return;
     }
     availabilityListener->notifyPriorityEvent(priorityBufferNumber);
@@ -83,9 +74,6 @@ void PipelinedSubpartitionView::releaseAllResources()
     bool expected = false;
     bool desired = true;
     if (isReleased_.compare_exchange_strong(expected, desired)) {
-        INFO_RELEASE("[OS-partition-finish] release subpartition view, view="
-            << reinterpret_cast<uintptr_t>(this)
-            << ", listener=" << reinterpret_cast<uintptr_t>(availabilityListener));
         availabilityListener = nullptr;
         if (parent != nullptr) {
             parent->onConsumedSubpartition();

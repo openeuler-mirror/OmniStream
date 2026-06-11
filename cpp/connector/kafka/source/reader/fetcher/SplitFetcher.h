@@ -162,16 +162,9 @@ public:
 
     void addSplits(std::vector<SplitT*>& splitsToAdd)
     {
-        INFO_RELEASE("[OS-source-fetcher] enqueue AddSplitsTask, fetcherId=" << id
-            << ", splits=" << splitsToAdd.size()
-            << ", assignedBefore=" << assignedSplitsMap.size()
-            << ", taskQueueSize=" << taskQueue.size());
         auto addTask = std::make_shared<AddSplitsTask<E, SplitT>>(splitReader, splitsToAdd, assignedSplitsMap);
         enqueueTask(addTask);
         wake(true);
-        INFO_RELEASE("[OS-source-fetcher] enqueue AddSplitsTask end, fetcherId=" << id
-            << ", splits=" << splitsToAdd.size()
-            << ", taskQueueSize=" << taskQueue.size());
     }
 
     void enqueueTask(const std::shared_ptr <SplitFetcherTask> &task)

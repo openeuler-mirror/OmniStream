@@ -150,8 +150,6 @@ namespace omnistream {
 
     void OmniTask::cancel()
     {
-        INFO_RELEASE("[OS-task-lifecycle] cancel task, task=" << taskNameWithSubtask_
-            << ", previousState=" << TaskExecutionStateToString(executionState))
         executionState = ExecutionState::CANCELED;
         if (invokable_ != nullptr) {
             auto* inputProc = invokable_->input_processor();
@@ -303,11 +301,7 @@ namespace omnistream {
 
     void OmniTask::DoRunInvoke(long streamTaskAddress)
     {
-        int count = 0;
         while (!flag.load()) {
-            INFO_RELEASE("[OS-task-lifecycle] DoRunInvoke waits restore, task=" << taskNameWithSubtask_
-                << ", waitCount=" << count)
-            count++;
             sleep(5);
         }
 
@@ -319,8 +313,6 @@ namespace omnistream {
                 std::runtime_error("Task was canceled before invoke, state=" + state));
         } else {
             try {
-                INFO_RELEASE("[OS-task-lifecycle] DoRunInvoke starts invoke after restore, task=" << taskNameWithSubtask_
-                    << ", waitCount=" << count)
                 executionState = ExecutionState::RUNNING;
                 LOG_INFO_IMP("Invokable Invoke")
                 this->invokable_->invoke();
@@ -349,9 +341,6 @@ namespace omnistream {
             if (executionState != ExecutionState::CANCELED) {
                 executionState = ExecutionState::FAILED;
             }
-            INFO_RELEASE("[OS-task-lifecycle] DoRunInvoke failed, release resources without finishing partitions, task="
-                << taskNameWithSubtask_
-                << ", state=" << TaskExecutionStateToString(executionState))
             FailAllResultPartitions(std::optional<std::exception_ptr>(failureCause));
             CloseAllResultPartitions();
             CloseAllInputGates();
@@ -419,15 +408,13 @@ namespace omnistream {
                 continue;
             }
             try {
-                INFO_RELEASE("[OS-task-lifecycle] fail result partition, task=" << taskNameWithSubtask_
-                    << ", partition=" << partitionWriter->toString())
                 partitionWriter->fail(cause);
                 partitionWriter->release(cause);
             } catch (const std::exception &e) {
-                INFO_RELEASE("Error:[OS-task-lifecycle] failed to fail result partition, task="
+                INFO_RELEASE("Error: failed to fail result partition, task="
                     << taskNameWithSubtask_ << ", error=" << e.what())
             } catch (...) {
-                INFO_RELEASE("Error:[OS-task-lifecycle] failed to fail result partition, task="
+                INFO_RELEASE("Error: failed to fail result partition, task="
                     << taskNameWithSubtask_)
             }
         }
@@ -541,7 +528,6 @@ namespace omnistream {
     }
     void OmniTask::notifyCheckpointComplete(long checkpointID, long inputState)
     {
-        INFO_RELEASE("savepoint: OmniTask notifyCheckpointComplete: " << checkpointID);
         if (inputState == 3 && invokable_ != nullptr) {
             try {
                 invokable_->notifyCheckpointCompleteAsync(checkpointID);
@@ -563,8 +549,6 @@ namespace omnistream {
                                     long latestCompletedCheckpointId,
                                     OmniTask::NotifyCheckpointOperation notifyCheckpointOperation)
     {
-        INFO_RELEASE("savepoint: OmniTask notifyCheckpoint: " << checkpointId);
-        INFO_RELEASE("savepoint: OmniTask notifyCheckpoint: " << latestCompletedCheckpointId);
         if (executionState == ExecutionState::RUNNING && invokable_ != nullptr) {
             try {
                 switch (notifyCheckpointOperation) {
@@ -572,7 +556,6 @@ namespace omnistream {
                         invokable_->notifyCheckpointAbortAsync(checkpointId, latestCompletedCheckpointId);
                         break;
                     case OmniTask::NotifyCheckpointOperation::COMPLETE:
-                        INFO_RELEASE("savepoint: OmniTask notifyCheckpointComplete: " << checkpointId);
                         invokable_->notifyCheckpointCompleteAsync(checkpointId);
                         break;
                     case OmniTask::NotifyCheckpointOperation::SUBSUME:
@@ -731,20 +714,20 @@ namespace omnistream {
                 checkpointableTask->triggerCheckpointAsync(checkpointMetaData, checkpoint_options);
                 // TTODO
             } catch (const OmniException& ex) {
-                INFO_RELEASE("Error:[OS-checkpoint] triggerCheckpointBarrier caught OmniException, task="
+                INFO_RELEASE("Error: triggerCheckpointBarrier caught OmniException, task="
                     << taskNameWithSubtask_ << ", cp=" << checkpointid << ", error=" << ex.what());
                 std::runtime_error wrapped(std::string("OmniException: ") + ex.what());
                 this->declineCheckpoint(checkpointid,
                     CheckpointFailureReason::CHECKPOINT_DECLINED_TASK_CLOSING, &wrapped);
             } catch (const std::exception& t) {
-                INFO_RELEASE("Error:[OS-checkpoint] triggerCheckpointBarrier caught std::exception, task="
+                INFO_RELEASE("Error: triggerCheckpointBarrier caught std::exception, task="
                     << taskNameWithSubtask_ << ", cp=" << checkpointid << ", error=" << t.what());
                 std::runtime_error wrapped(std::string("std::exception: ") + t.what());
                 this->declineCheckpoint(checkpointid,
                     CheckpointFailureReason::CHECKPOINT_DECLINED, &wrapped);
             }
         } else {
-            INFO_RELEASE("Error:[OS-checkpoint] trigger checkpoint declined task not ready, task="
+            INFO_RELEASE("Error: trigger checkpoint declined task not ready, task="
                 << taskNameWithSubtask_ << ", cp=" << checkpointid
                 << ", state=" << TaskExecutionStateToString(executionState))
             this->declineCheckpoint(checkpointid, CheckpointFailureReason::CHECKPOINT_DECLINED_TASK_NOT_READY);
@@ -762,9 +745,6 @@ namespace omnistream {
     {
         std::string checkpointIDStr = to_string(checkpointid);
         std::string failureReasonStr = toString(failureReason);
-        INFO_RELEASE("[OS-checkpoint] decline checkpoint send, task=" << taskNameWithSubtask_
-            << ", cp=" << checkpointid << ", reason=" << failureReasonStr
-            << ", exception=" << (e == nullptr ? "nullptr" : e->what()))
         if (e==nullptr) {
             std::string exceptionStr = "nullptr";
             omni_task_bridge->declineCheckpoint(checkpointIDStr, failureReasonStr, exceptionStr);

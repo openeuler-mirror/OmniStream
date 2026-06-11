@@ -777,9 +777,6 @@ TypeInformation* CreateTypeInfoIfValid(
         !serializerJson.at("serializerName").is_string()) {
         std::string error = "serializer json is incomplete, state=" + stateName +
             ", serializerKey=" + serializerKey;
-        INFO_RELEASE((tolerateUnsupportedSerializer
-            ? "[OS-operator-state] skip unsupported "
-            : "Error:[OS-operator-state] ") << error);
         if (!tolerateUnsupportedSerializer) {
             throw std::runtime_error(error);
         }
@@ -788,10 +785,6 @@ TypeInformation* CreateTypeInfoIfValid(
     try {
         return TypeInfoFactory::createDataStreamTypeInfo(serializerJson);
     } catch (const std::exception& e) {
-        INFO_RELEASE((tolerateUnsupportedSerializer
-            ? "[OS-operator-state] skip unsupported "
-            : "Error:[OS-operator-state] ") << "serializer json is unsupported, state="
-            << stateName << ", serializerKey=" << serializerKey << ", error=" << e.what());
         if (!tolerateUnsupportedSerializer) {
             throw;
         }
@@ -834,9 +827,6 @@ std::vector<StateMetaInfoSnapshot> convertResult(const std::string& cppResult, b
                 }
             } else if (serializers.contains("namespaceSerializer")) {
                 std::string error = "namespaceSerializer json is invalid, state=" + stateName;
-                INFO_RELEASE((tolerateUnsupportedSerializer
-                    ? "[OS-operator-state] skip unsupported "
-                    : "Error:[OS-operator-state] ") << error);
                 if (!tolerateUnsupportedSerializer) {
                     throw std::runtime_error(error);
                 }
@@ -849,18 +839,10 @@ std::vector<StateMetaInfoSnapshot> convertResult(const std::string& cppResult, b
                 }
             } else if (serializers.contains("stateSerializer")) {
                 std::string error = "stateSerializer json is invalid, state=" + stateName;
-                INFO_RELEASE((tolerateUnsupportedSerializer
-                    ? "[OS-operator-state] skip unsupported "
-                    : "Error:[OS-operator-state] ") << error);
                 if (!tolerateUnsupportedSerializer) {
                     throw std::runtime_error(error);
                 }
             }
-        } else {
-            INFO_RELEASE((tolerateUnsupportedSerializer
-                ? "[OS-operator-state] skip unsupported "
-                : "Error:[OS-operator-state] ") << "serializer json is missing, state="
-                << stateName);
         }
         // Currently we don't take snapshot of serializers
         StateMetaInfoSnapshot::BackendStateType bst;
@@ -880,7 +862,6 @@ std::vector<StateMetaInfoSnapshot> convertResult(const std::string& cppResult, b
         toReturn.push_back(StateMetaInfoSnapshot(
             stateName, bst, tmpOptions, {}, tmpSerializers));
     }
-    INFO_RELEASE("[OS-operator-state] read metadata convert result, snapshotCount=" << toReturn.size());
     return toReturn;
 }
 
@@ -920,7 +901,6 @@ std::vector<StateMetaInfoSnapshot> OmniTaskBridgeImpl2::readMetaData(const std::
         // Convert jstring to std::string
         const char* strChars = env->GetStringUTFChars(result, nullptr);
         std::string cppResult(strChars);
-        INFO_RELEASE("savepoint: OmniTaskBridgeImpl2::readMetaData stateMetaInfoStr=" << cppResult);
         env->ReleaseStringUTFChars(result, strChars);
         g_OmniStreamJVM->DetachCurrentThread();
         return convertResult(cppResult, false);
@@ -970,7 +950,7 @@ std::vector<StateMetaInfoSnapshot> OmniTaskBridgeImpl2::readOperatorMetaData(con
             return {};
         }
         if (result == nullptr) {
-            INFO_RELEASE("Error:[OS-operator-state] readOperatorMetaData returned null");
+            INFO_RELEASE("Error: readOperatorMetaData returned null");
             env->DeleteLocalRef(msHandle);
             env->DeleteLocalRef(omniTaskWrapperClass);
             g_OmniStreamJVM->DetachCurrentThread();
@@ -984,7 +964,7 @@ std::vector<StateMetaInfoSnapshot> OmniTaskBridgeImpl2::readOperatorMetaData(con
                 env->ExceptionDescribe();
                 env->ExceptionClear();
             }
-            INFO_RELEASE("Error:[OS-operator-state] readOperatorMetaData failed to copy result string");
+            INFO_RELEASE("Error: readOperatorMetaData failed to copy result string");
             env->DeleteLocalRef(result);
             env->DeleteLocalRef(msHandle);
             env->DeleteLocalRef(omniTaskWrapperClass);
@@ -992,9 +972,7 @@ std::vector<StateMetaInfoSnapshot> OmniTaskBridgeImpl2::readOperatorMetaData(con
             return {};
         }
         std::string cppResult(strChars);
-        INFO_RELEASE("savepoint: OmniTaskBridgeImpl2::readOperatorMetaData stateMetaInfoStr=" << cppResult);
         env->ReleaseStringUTFChars(result, strChars);
-        INFO_RELEASE("[OS-operator-state] readOperatorMetaData JNI done, resultBytes=" << cppResult.size());
         env->DeleteLocalRef(result);
         env->DeleteLocalRef(msHandle);
         env->DeleteLocalRef(omniTaskWrapperClass);
@@ -1497,7 +1475,6 @@ void OmniTaskBridgeImpl2::WriteSavepointMetadata(jobject provider, const std::ve
         stateMetaInfoJson.push_back(std::move(jsonObj));
     }
     std::string stateMetaInfoStr = stateMetaInfoJson.dump();
-    INFO_RELEASE("savepoint: OmniTaskBridgeImpl2::WriteSavepointMetadata stateMetaInfoStr=" << stateMetaInfoStr);
     jclass cls = env->GetObjectClass(m_globalOmniTaskRef);
     jmethodID mid = env->GetMethodID(cls, "writeSavepointMetadata", "(Lorg/apache/flink/runtime/state/CheckpointStreamWithResultProvider;Ljava/lang/String;)V");
     jstring jStateMetaInfoStr = env->NewStringUTF(stateMetaInfoStr.c_str());
@@ -1557,8 +1534,6 @@ void OmniTaskBridgeImpl2::WriteOperatorMetaData(
 
     std::string operatorStateMetaInfoStr = operatorStateMetaInfoJson.dump();
     std::string broadcastStateMetaInfoStr = broadcastStateMetaInfoJson.dump();
-    INFO_RELEASE("savepoint: OmniTaskBridgeImpl2::WriteOperatorMetaData operatorStateMetaInfoStr=" << operatorStateMetaInfoStr);
-    INFO_RELEASE("savepoint: OmniTaskBridgeImpl2::WriteOperatorMetaData broadcastStateMetaInfoStr=" << broadcastStateMetaInfoStr);
 
     jclass cls = env->GetObjectClass(m_globalOmniTaskRef);
     jmethodID mid = env->GetMethodID(

@@ -56,7 +56,6 @@ public:
 
         const nlohmann::json* offsetsJson = FindFirstPresent(description, {"stateNameToPartitionOffsets"});
         if (offsetsJson == nullptr) {
-            INFO_RELEASE("[OS-operator-state] OperatorStreamStateHandle has no stateNameToPartitionOffsets");
             return;
         }
         if (!offsetsJson->is_object()) {
@@ -157,7 +156,6 @@ public:
              stateMetaInfoJson["distributionMode"] = modeStr;
              result[stateName] = stateMetaInfoJson;
         }
-        INFO_RELEASE("savepoint:  OperatorStreamStateHandle ToJson "<<result.dump());
         return result;
     }
 
@@ -173,7 +171,6 @@ public:
             result["stateHandleID"] = nullptr;
         }
         result["stateNameToPartitionOffsets"] = toJson();
-        INFO_RELEASE("savepoint:  OperatorStreamStateHandle ToString "<<result.dump());
         return result.dump(); 
     }
 

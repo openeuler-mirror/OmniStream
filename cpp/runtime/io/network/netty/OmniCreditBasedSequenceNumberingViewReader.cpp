@@ -21,9 +21,6 @@ namespace omnistream {
     }
 
     OmniCreditBasedSequenceNumberingViewReader::~OmniCreditBasedSequenceNumberingViewReader() {
-        INFO_RELEASE("[OS-partition-finish] destroy OmniCreditBasedSequenceNumberingViewReader, reader="
-            << reinterpret_cast<uintptr_t>(this)
-            << ", hasView=" << (subpartitionView != nullptr));
         if (subpartitionView) {
             subpartitionView->releaseAllResources();
             subpartitionView.reset();

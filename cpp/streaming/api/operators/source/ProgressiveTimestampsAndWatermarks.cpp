@@ -68,18 +68,13 @@ void ProgressiveTimestampsAndWatermarks::StartPeriodicWatermarkEmits()
     periodicEmitStopped_.store(false);
     periodicEmitHandle = timeService->scheduleWithFixedDelay(callback, periodicWatermarkInterval,
         periodicWatermarkInterval);
-    INFO_RELEASE("[OS-watermark] start periodic watermark emit, intervalMs=" << periodicWatermarkInterval
-        << ", handle=" << reinterpret_cast<uintptr_t>(periodicEmitHandle));
 }
 
 void ProgressiveTimestampsAndWatermarks::StopPeriodicWatermarkEmits()
 {
-    bool wasRunning = !periodicEmitStopped_.exchange(true);
+    periodicEmitStopped_.store(true);
     if (periodicEmitHandle != nullptr) {
         periodicEmitHandle->Cancel();
-        INFO_RELEASE("[OS-watermark] stop periodic watermark emit, handle="
-            << reinterpret_cast<uintptr_t>(periodicEmitHandle)
-            << ", wasRunning=" << wasRunning);
         periodicEmitHandle = nullptr;
     }
 }

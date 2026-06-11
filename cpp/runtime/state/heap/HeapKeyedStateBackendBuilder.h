@@ -297,17 +297,10 @@ HeapKeyedStateBackend<K> *HeapKeyedStateBackendBuilder<K>::build()
             }
 
             // Phase 2: Iterate KV entries, deserialize, and write into state tables
-            int totalEntriesRestored = 0;
-            int totalKeyGroups = 0;
-            int totalSkippedInvalidKvStateId = 0;
-            int totalSkippedNullStateDesc = 0;
-            int totalPriorityQueueEntriesRestored = 0;
             while (keyGroupIterator->hasNext()) {
                 auto keyGroup = keyGroupIterator->next();
                 int keyGroupId = keyGroup->getKeyGroupId();
                 auto entryIter = keyGroup->getKeyGroupEntries();
-                int kgEntryCount = 0;
-                totalKeyGroups++;
 
                 while (entryIter->hasNext()) {
                     auto entry = entryIter->next();
@@ -316,7 +309,6 @@ HeapKeyedStateBackend<K> *HeapKeyedStateBackendBuilder<K>::build()
                     if (kvStateId < 0 || kvStateId >= static_cast<int>(stateInfos.size())) {
                         INFO_RELEASE("Error:HeapKeyedStateBackendBuilder: invalid kvStateId "
                             << kvStateId << ", skipping entry");
-                        totalSkippedInvalidKvStateId++;
                         continue;
                     }
 
@@ -324,14 +316,10 @@ HeapKeyedStateBackend<K> *HeapKeyedStateBackendBuilder<K>::build()
                     if (info.backendStateType == StateMetaInfoSnapshot::BackendStateType::PRIORITY_QUEUE) {
                         backend->addRestoredPriorityQueueEntry(
                             info.stateName, entry->getKey(), keyGroupPrefixBytes);
-                        kgEntryCount++;
-                        totalEntriesRestored++;
-                        totalPriorityQueueEntriesRestored++;
                         continue;
                     }
 
                     if (info.stateDesc == nullptr) {
-                        totalSkippedNullStateDesc++;
                         continue;  // State was skipped in Phase 1
                     }
                     if (info.stateName.size() >= 2 && info.stateName.substr(info.stateName.size() - 2) == "vb") {
@@ -340,15 +328,8 @@ HeapKeyedStateBackend<K> *HeapKeyedStateBackendBuilder<K>::build()
                         restoreEntryToHeap(backend, info, keyGroupId, keyGroupPrefixBytes,
                                            entry->getKey(), entry->getValue());
                     }
-                    kgEntryCount++;
-                    totalEntriesRestored++;
                 }
             }
-            INFO_RELEASE("[OS-CP-heap-restore] keyGroups=" << totalKeyGroups
-                << ", entries=" << totalEntriesRestored
-                << ", priorityQueueEntries=" << totalPriorityQueueEntriesRestored
-                << ", skippedInvalidKvStateId=" << totalSkippedInvalidKvStateId
-                << ", skippedNullStateDesc=" << totalSkippedNullStateDesc);
         }
     }
 

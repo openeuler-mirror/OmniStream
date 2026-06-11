@@ -110,12 +110,6 @@ KafkaPartitionSplit* KafkaPartitionSplitSerializer::deserialize(int version, std
     requireAvailable(serialized, start, sizeof(int64_t), "stoppingOffset");
     int64_t stoppingOffset = readBigEndianLong(serialized, start);
 
-    if (start + sizeof(int64_t) != serialized.size()) {
-        INFO_RELEASE("[OS-source-split] KafkaPartitionSplit has trailing bytes, totalBytes="
-            << serialized.size() << ", consumedBytes=" << (start + sizeof(int64_t))
-            << ", topic=" << topic << ", partition=" << partition);
-    }
-
     std::shared_ptr<RdKafka::TopicPartition> topicPartition;
     if (startingOffset < 0) {
         topicPartition = std::shared_ptr<RdKafka::TopicPartition>(
@@ -131,14 +125,9 @@ KafkaPartitionSplit* KafkaPartitionSplitSerializer::deserialize(int version, std
 
     try {
         auto *split = new KafkaPartitionSplit(topicPartition, startingOffset, stoppingOffset);
-        INFO_RELEASE("[OS-source-split] KafkaPartitionSplit deserialized, topic=" << topic
-            << ", partition=" << partition
-            << ", startingOffset=" << startingOffset
-            << ", stoppingOffset=" << stoppingOffset
-            << ", bytes=" << serialized.size());
         return split;
     } catch (const std::exception& e) {
-        INFO_RELEASE("Error:[OS-source-split] KafkaPartitionSplit invalid, topic=" << topic
+        INFO_RELEASE("Error: KafkaPartitionSplit invalid, topic=" << topic
             << ", partition=" << partition
             << ", startingOffset=" << startingOffset
             << ", stoppingOffset=" << stoppingOffset

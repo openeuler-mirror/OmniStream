@@ -51,19 +51,9 @@ void PipelinedSubpartition::finish()
 {
     auto bufferConsumer = EventSerializer::ToBufferConsumer(EndOfPartitionEvent::getInstance(), false);
 
-    INFO_RELEASE("[OS-partition-finish] subpartition finish begin, task=" << parent->getOwningTaskName()
-        << ", subpartition=" << subpartitionInfo.toString()
-        << ", isFinished=" << isFinished
-        << ", isReleased=" << isReleased_
-        << ", readView=" << reinterpret_cast<uintptr_t>(readView.get()));
     LOG_TRACE("buffer detail: "  << bufferConsumer->toString()  << "bufferConsumer count " << std::to_string(bufferConsumer.use_count()))
     add(bufferConsumer, 0, true);
     INFO_RELEASE("add EndOfPartition event.  Task :  " << parent->getOwningTaskName() << " Partition : " << subpartitionInfo.toString())
-    INFO_RELEASE("[OS-partition-finish] subpartition finish end, task=" << parent->getOwningTaskName()
-        << ", subpartition=" << subpartitionInfo.toString()
-        << ", isFinished=" << isFinished
-        << ", isReleased=" << isReleased_
-        << ", readView=" << reinterpret_cast<uintptr_t>(readView.get()))
 
     LOG_TRACE("buffer detail: "  << bufferConsumer->toString()  << "bufferConsumer count " << std::to_string(bufferConsumer.use_count()))
     LOG_TRACE(parent->getOwningTaskName().substr(0, 15) << ": Finished ::" << toString() << this->subpartitionInfo.getSubPartitionIdx() << "." << std::endl);
@@ -104,8 +94,6 @@ BufferAndBacklog* PipelinedSubpartition::pollBuffer()
     std::lock_guard<std::recursive_mutex> buffersLock(buffersMutex);
     LOG(">>>>>>buffers.peek() is " << buffers.peek() << " buffers.size()" << buffers.size() << " buffers address" << &buffers);
     if (isReleased_) {
-        INFO_RELEASE("[OS-buffer] pollBuffer skipped released subpartition, task=" << parent->getOwningTaskName()
-            << ", subpartition=" << subpartitionInfo.toString());
         return nullptr;
     }
     // When blocked by an aligned checkpoint barrier, priority events (e.g., timeout->UC) must still overtake.
@@ -129,7 +117,7 @@ BufferAndBacklog* PipelinedSubpartition::pollBuffer()
         LOG_TRACE("PipelinedSubpartition::pollBuffer()  Inside the while "<< parent->getOwningTaskName() << " buffer size " << buffers.size())
         auto bufferConsumerWithPartialRecordLength = buffers.peek();
         if (!bufferConsumerWithPartialRecordLength) {
-            INFO_RELEASE("Error:[OS-buffer] pollBuffer found null queue entry, task=" << parent->getOwningTaskName()
+            INFO_RELEASE("Error: pollBuffer found null queue entry, task=" << parent->getOwningTaskName()
                 << ", subpartition=" << subpartitionInfo.toString()
                 << ", queued=" << buffers.size());
             throw std::runtime_error("PipelinedSubpartition queue contains null entry");
@@ -137,13 +125,13 @@ BufferAndBacklog* PipelinedSubpartition::pollBuffer()
         std::shared_ptr<BufferConsumer> bufferConsumer =
             bufferConsumerWithPartialRecordLength->getBufferConsumer();
         if (!bufferConsumer) {
-            INFO_RELEASE("Error:[OS-buffer] pollBuffer found null BufferConsumer, task=" << parent->getOwningTaskName()
+            INFO_RELEASE("Error: pollBuffer found null BufferConsumer, task=" << parent->getOwningTaskName()
                 << ", subpartition=" << subpartitionInfo.toString()
                 << ", queued=" << buffers.size());
             throw std::runtime_error("PipelinedSubpartition queue contains null BufferConsumer");
         }
         if (bufferConsumer->isRecycled()) {
-            INFO_RELEASE("Error:[OS-buffer] pollBuffer found recycled BufferConsumer, task=" << parent->getOwningTaskName()
+            INFO_RELEASE("Error: pollBuffer found recycled BufferConsumer, task=" << parent->getOwningTaskName()
                 << ", subpartition=" << subpartitionInfo.toString()
                 << ", queued=" << buffers.size());
             throw std::runtime_error("PipelinedSubpartition queue contains recycled BufferConsumer");
@@ -153,7 +141,7 @@ BufferAndBacklog* PipelinedSubpartition::pollBuffer()
         try {
             dataType = bufferConsumer->getDataType();
         } catch (const std::exception &e) {
-            INFO_RELEASE("Error:[OS-buffer] pollBuffer cannot read BufferConsumer data type, task="
+            INFO_RELEASE("Error: pollBuffer cannot read BufferConsumer data type, task="
                 << parent->getOwningTaskName()
                 << ", subpartition=" << subpartitionInfo.toString()
                 << ", queued=" << buffers.size()
@@ -168,7 +156,7 @@ BufferAndBacklog* PipelinedSubpartition::pollBuffer()
         LOG("PipelinedSubpartition::pollBuffer(): buildSliceBuffer"<< parent->getOwningTaskName())
         buffer = buildSliceBuffer(bufferConsumerWithPartialRecordLength);
         if (buffer == nullptr) {
-            INFO_RELEASE("Error:[OS-buffer] pollBuffer buildSliceBuffer returned null, task="
+            INFO_RELEASE("Error: pollBuffer buildSliceBuffer returned null, task="
                 << parent->getOwningTaskName()
                 << ", subpartition=" << subpartitionInfo.toString()
                 << ", queued=" << buffers.size());
@@ -289,7 +277,7 @@ ObjectBufferDataType PipelinedSubpartition::getNextBufferTypeUnsafe()
     try {
         return bufferConsumer->getDataType();
     } catch (const std::exception &e) {
-        INFO_RELEASE("Error:[OS-buffer] getNextBufferTypeUnsafe failed, task=" << parent->getOwningTaskName()
+        INFO_RELEASE("Error: getNextBufferTypeUnsafe failed, task=" << parent->getOwningTaskName()
             << ", subpartition=" << subpartitionInfo.toString()
             << ", queued=" << buffers.size()
             << ", error=" << e.what());
@@ -337,7 +325,7 @@ void PipelinedSubpartition::flush()
         auto first = buffers.peek();
         auto firstConsumer = first != nullptr ? first->getBufferConsumer() : nullptr;
         if (firstConsumer == nullptr || firstConsumer->isRecycled()) {
-            INFO_RELEASE("Error:[OS-buffer] flush found invalid first BufferConsumer, task="
+            INFO_RELEASE("Error: flush found invalid first BufferConsumer, task="
                 << parent->getOwningTaskName()
                 << ", subpartition=" << subpartitionInfo.toString()
                 << ", queued=" << buffers.size());
@@ -418,16 +406,9 @@ void PipelinedSubpartition::notifyDataAvailable()
 {
     std::shared_ptr<PipelinedSubpartitionView> view = this->readView;
     if (view && view->isReleased()) {
-        INFO_RELEASE("[OS-partition-finish] skip notifyDataAvailable for released view, task="
-            << parent->getOwningTaskName()
-            << ", subpartition=" << subpartitionInfo.toString()
-            << ", view=" << reinterpret_cast<uintptr_t>(view.get()));
         return;
     }
     if (view) {
-        INFO_RELEASE("[OS-partition-finish] notifyDataAvailable, task=" << parent->getOwningTaskName()
-            << ", subpartition=" << subpartitionInfo.toString()
-            << ", view=" << reinterpret_cast<uintptr_t>(view.get()));
         view->notifyDataAvailable();
     }
 }
@@ -436,11 +417,6 @@ void PipelinedSubpartition::notifyPriorityEvent(int prioritySequenceNumber)
 {
     std::shared_ptr<PipelinedSubpartitionView> view = this->readView;
     if (view && view->isReleased()) {
-        INFO_RELEASE("[OS-partition-finish] skip notifyPriorityEvent for released view, task="
-            << parent->getOwningTaskName()
-            << ", subpartition=" << subpartitionInfo.toString()
-            << ", view=" << reinterpret_cast<uintptr_t>(view.get())
-            << ", priority=" << prioritySequenceNumber);
         return;
     }
     if (view && prioritySequenceNumber != -1) {
@@ -521,11 +497,6 @@ int PipelinedSubpartition::add(std::shared_ptr<BufferConsumer> bufferConsumer, i
     {
         std::lock_guard<std::recursive_mutex> lock(buffersMutex);
         if (isFinished || isReleased_) {
-            INFO_RELEASE("[OS-partition-finish] add ignored, task=" << parent->getOwningTaskName()
-                << ", subpartition=" << subpartitionInfo.toString()
-                << ", isFinished=" << isFinished
-                << ", isReleased=" << isReleased_
-                << ", finish=" << finish);
             bufferConsumer->close();
             return -1;
         }

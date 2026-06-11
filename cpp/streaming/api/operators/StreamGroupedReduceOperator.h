@@ -92,13 +92,6 @@ namespace omnistream::datastream {
                 const bool outputAliasesCurrentValue = out != nullptr && out == currentValue;
                 if (outputAliasesInput || outputAliasesCurrentValue) {
                     out->getRefCount();
-                    if (!outputAliasRetainLogged_) {
-                        INFO_RELEASE("[OS-object-lifetime] StreamGroupedReduceOperator retained output alias, operatorID="
-                            << OneInputStreamOperator::GetOperatorID().toString()
-                            << ", aliasesInput=" << outputAliasesInput
-                            << ", aliasesCurrentValue=" << outputAliasesCurrentValue);
-                        outputAliasRetainLogged_ = true;
-                    }
                 }
                 record->setValue(out);
                 currentValue->putRefCount();
@@ -190,7 +183,6 @@ namespace omnistream::datastream {
         KeySelect<K>* keySelector = nullptr;
         int32_t coreId = -1;
         bool binded = false;
-        bool outputAliasRetainLogged_ = false;
     };
 }
 

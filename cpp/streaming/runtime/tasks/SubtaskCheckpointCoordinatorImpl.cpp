@@ -122,8 +122,6 @@ namespace omnistream::runtime {
         long started = std::chrono::duration_cast<std::chrono::nanoseconds>(
                 std::chrono::steady_clock::now().time_since_epoch())
                 .count();
-        INFO_RELEASE("[OS-checkpoint] sync snapshot start, task=" << taskName
-            << ", cp=" << checkpointId)
         auto channelStateWriteResult = checkpointOptions->NeedsChannelState()
                                        ? channelStateWriter->GetAndRemoveWriteResult(checkpointId)
                                        : ChannelStateWriter::ChannelStateWriteResult::CreateEmpty();
@@ -143,12 +141,12 @@ namespace omnistream::runtime {
                 storage,
                 env->getTaskStateManager()->getOmniTaskBridge());
         } catch (const std::exception &e) {
-            INFO_RELEASE("Error:[OS-checkpoint] sync snapshot failed, task=" << taskName
+            INFO_RELEASE("Error: sync snapshot failed, task=" << taskName
                 << ", cp=" << checkpointId << ", error=" << e.what())
             checkpointStorage->clearCacheFor(checkpointId);
             throw;
         } catch (...) {
-            INFO_RELEASE("Error:[OS-checkpoint] sync snapshot failed, task=" << taskName
+            INFO_RELEASE("Error: sync snapshot failed, task=" << taskName
                 << ", cp=" << checkpointId << ", error=unknown")
             checkpointStorage->clearCacheFor(checkpointId);
             throw;
@@ -165,9 +163,6 @@ namespace omnistream::runtime {
                 started) /
             nanoToMillis;
         checkpointMetrics->SetSyncDurationMillis(syncDurationMillis);
-        INFO_RELEASE("[OS-checkpoint] sync snapshot done, task=" << taskName
-            << ", cp=" << checkpointId
-            << ", syncDurationMs=" << syncDurationMillis)
         return true;
     }
 
@@ -345,9 +340,6 @@ namespace omnistream::runtime {
                 auto *runtimeEnv = dynamic_cast<omnistream::RuntimeEnvironmentV2 *>(env.get());
                 if (runtimeEnv != nullptr && runtimeEnv->omniTask() != nullptr) {
                     std::runtime_error wrapped("Checkpoint declined before async report");
-                    INFO_RELEASE("Error:[OS-checkpoint] decline checkpoint, task=" << taskName
-                        << ", cp=" << metadata->GetCheckpointId()
-                        << ", reason=CHECKPOINT_DECLINED")
                     runtimeEnv->omniTask()->declineCheckpoint(
                         metadata->GetCheckpointId(),
                         CheckpointFailureReason::CHECKPOINT_DECLINED,
@@ -355,16 +347,13 @@ namespace omnistream::runtime {
                 }
             }
         } catch (const std::exception &e) {
-            INFO_RELEASE("Error:[OS-checkpoint] checkpointState failed, task=" << taskName
+            INFO_RELEASE("Error: checkpointState failed, task=" << taskName
                 << ", cp=" << metadata->GetCheckpointId()
                 << ", error=" << e.what())
             cleanup(snapshotFutures, metadata, metrics, e);
             auto *runtimeEnv = dynamic_cast<omnistream::RuntimeEnvironmentV2 *>(env.get());
             if (runtimeEnv != nullptr && runtimeEnv->omniTask() != nullptr) {
                 std::runtime_error wrapped(std::string("Checkpoint sync failure: ") + e.what());
-                INFO_RELEASE("Error:[OS-checkpoint] decline checkpoint, task=" << taskName
-                    << ", cp=" << metadata->GetCheckpointId()
-                    << ", reason=CHECKPOINT_DECLINED")
                 runtimeEnv->omniTask()->declineCheckpoint(
                     metadata->GetCheckpointId(),
                     CheckpointFailureReason::CHECKPOINT_DECLINED,
@@ -372,16 +361,13 @@ namespace omnistream::runtime {
             }
             throw;
         } catch (...) {
-            INFO_RELEASE("Error:[OS-checkpoint] checkpointState failed, task=" << taskName
+            INFO_RELEASE("Error: checkpointState failed, task=" << taskName
                 << ", cp=" << metadata->GetCheckpointId()
                 << ", error=unknown")
             cleanup(snapshotFutures, metadata, metrics, std::runtime_error("Unknown checkpoint failure"));
             auto *runtimeEnv = dynamic_cast<omnistream::RuntimeEnvironmentV2 *>(env.get());
             if (runtimeEnv != nullptr && runtimeEnv->omniTask() != nullptr) {
                 std::runtime_error wrapped("Unknown checkpoint sync failure");
-                INFO_RELEASE("Error:[OS-checkpoint] decline checkpoint, task=" << taskName
-                    << ", cp=" << metadata->GetCheckpointId()
-                    << ", reason=CHECKPOINT_DECLINED")
                 runtimeEnv->omniTask()->declineCheckpoint(
                     metadata->GetCheckpointId(),
                     CheckpointFailureReason::CHECKPOINT_DECLINED,

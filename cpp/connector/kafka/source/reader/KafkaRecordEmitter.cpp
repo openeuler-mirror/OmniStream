@@ -37,7 +37,7 @@ void KafkaRecordEmitter::emitRecord(RdKafka::Message* consumerRecord, SourceOutp
         if (error.find("Interrupted while waiting for buffer") != std::string::npos ||
             error.find("Buffer pool request was cancelled") != std::string::npos ||
             error.find("Partition is released") != std::string::npos) {
-            INFO_RELEASE("Error:[OS-buffer] failed to emit consumer record due to output backpressure/cancel: "
+            INFO_RELEASE("Error: failed to emit consumer record due to output backpressure/cancel: "
                 << error);
             throw;
         }
@@ -60,7 +60,7 @@ void KafkaRecordEmitter::emitBatchRecord(
         if (error.find("Interrupted while waiting for buffer") != std::string::npos ||
             error.find("Buffer pool request was cancelled") != std::string::npos ||
             error.find("Partition is released") != std::string::npos) {
-            INFO_RELEASE("Error:[OS-buffer] failed to emit consumer batch record due to output backpressure/cancel: "
+            INFO_RELEASE("Error: failed to emit consumer batch record due to output backpressure/cancel: "
                 << error);
             throw;
         }

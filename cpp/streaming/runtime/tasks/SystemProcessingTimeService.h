@@ -91,10 +91,10 @@ private:
             try {
                 callback->OnProcessingTime(nextTimestamp);
             } catch (const std::exception& e) {
-                INFO_RELEASE("Error:[OS-timer] processing timer callback failed, timestamp="
+                INFO_RELEASE("Error: processing timer callback failed, timestamp="
                     << nextTimestamp << ", error=" << e.what());
             } catch (...) {
-                INFO_RELEASE("Error:[OS-timer] processing timer callback failed, timestamp="
+                INFO_RELEASE("Error: processing timer callback failed, timestamp="
                     << nextTimestamp << ", error=unknown");
             }
 

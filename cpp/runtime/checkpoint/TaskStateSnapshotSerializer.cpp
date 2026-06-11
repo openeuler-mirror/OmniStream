@@ -193,10 +193,6 @@ nlohmann::json TaskStateSnapshotSerializer::parseOperatorStreamStateHandle(std::
     handleJson["streamStateHandle"] = delegateStateHandle;
     nlohmann::json stateNameToPartitionOffsets = kh->toJson();
     handleJson["stateNameToPartitionOffsets"] = stateNameToPartitionOffsets;
-    INFO_RELEASE("[OS-operator-state] prepared OperatorStreamStateHandle metadata, stateCount="
-        << stateNameToPartitionOffsets.size()
-        << ", delegateClass=" << delegateStateHandle.value("@class", std::string("unknown"))
-        << ", delegateSize=" << delegateStateHandle.value("stateSize", static_cast<long>(-1)));
     return handleJson;
 }
 
@@ -205,7 +201,6 @@ nlohmann::json TaskStateSnapshotSerializer::parseMetaDataState(std::shared_ptr<S
     nlohmann::json metaDataStateHandleJson;
 
     if (metaDataStateHandle == nullptr) {
-        INFO_RELEASE("Error:[OS-operator-state] OperatorStreamStateHandle delegate is null");
         throw std::runtime_error("OperatorStreamStateHandle delegate is null.");
     }
     if (auto msh = std::dynamic_pointer_cast<RelativeFileStateHandle>(metaDataStateHandle)) {

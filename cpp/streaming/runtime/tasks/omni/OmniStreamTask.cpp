@@ -552,19 +552,17 @@ void OmniStreamTask::processInput(MailboxDefaultAction::Controller *controller)
     {
         auto mailboxRunnable = std::make_shared<VoidFunctionRunnable>(
             [this, operatorIdString, eventString]() {
-                INFO_RELEASE("[OS-operator-event] run mailbox dispatch, operatorId="
-                    << operatorIdString << ", eventBytes=" << eventString.size());
                 try {
                     operatorChain->DispatchOperatorEvent(operatorIdString, eventString);
                 } catch (const std::exception& e) {
                     isRunning = false;
-                    INFO_RELEASE("Error:[OS-operator-event] mailbox dispatch failed, operatorId="
+                    INFO_RELEASE("Error: mailbox dispatch failed, operatorId="
                         << operatorIdString << ", eventBytes=" << eventString.size()
                         << ", error=" << e.what());
                     mailboxProcessor_->suspend();
                 } catch (...) {
                     isRunning = false;
-                    INFO_RELEASE("Error:[OS-operator-event] mailbox dispatch failed, operatorId="
+                    INFO_RELEASE("Error: mailbox dispatch failed, operatorId="
                         << operatorIdString << ", eventBytes=" << eventString.size()
                         << ", error=unknown");
                     mailboxProcessor_->suspend();
@@ -572,11 +570,9 @@ void OmniStreamTask::processInput(MailboxDefaultAction::Controller *controller)
             }
         );
         try {
-            INFO_RELEASE("[OS-operator-event] enqueue mailbox dispatch, operatorId="
-                << operatorIdString << ", eventBytes=" << eventString.size());
             mainMailboxExecutor_->execute(mailboxRunnable, "dispatchOperatorEvent");
         } catch (const std::exception& e) {
-            INFO_RELEASE("[OS-operator-event] dropped, mailbox not running, operatorId="
+            INFO_RELEASE("Error: operator event dropped, mailbox not running, operatorId="
                 << operatorIdString << ", error=" << e.what());
         }
     }

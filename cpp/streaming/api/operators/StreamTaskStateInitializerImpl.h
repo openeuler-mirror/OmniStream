@@ -285,28 +285,16 @@ AbstractKeyedStateBackend<K> *StreamTaskStateInitializerImpl::keyedStatedBackend
             return builder.build();
         }
 
-        // Retrieve state handles from checkpoint for restore
         PrioritizedOperatorSubtaskState prioritizedOperatorSubtaskStates;
-        std::string operatorIdStr;
         if (operatorID) {
-            operatorIdStr = operatorID->toString();
             prioritizedOperatorSubtaskStates = taskStateManager->prioritizedOperatorState(*operatorID);
         } else {
-            operatorIdStr = env->taskConfiguration().getStreamConfigPOD().getOperatorDescription().getOperatorId();
+            auto operatorIdStr = env->taskConfiguration().getStreamConfigPOD().getOperatorDescription().getOperatorId();
             auto operatorId = TaskStateSnapshotDeserializer::HexStringToOperatorId<OperatorID>(operatorIdStr);
             prioritizedOperatorSubtaskStates = taskStateManager->prioritizedOperatorState(operatorId);
         }
-        // Extract keyed state handles for restore
+
         auto handleVector = prioritizedOperatorSubtaskStates.getPrioritizedManagedKeyedState();
-        // 诊断：把 handleVector 的层级数量、每层 handle 数（含 null 与非 null）、最终筛出的 stateHandles 数量都打出来。
-        // OS-CP→OS-restore 看不到 "restoring from N state handle(s)" 时，最可能就是这里 handleVector 是空，
-        // 或所有 collection 里全是 null —— 据此能判断丢点在 JM→TM 还是 TM-Java→TM-C++。
-        for (const auto& collection : handleVector) {
-            int nonNullCount = 0;
-            for (const auto& handle : collection) {
-                if (handle) nonNullCount++;
-            }
-        }
         if (!handleVector.empty()) {
             // Use the first (highest priority) alternative
             std::set<std::shared_ptr<KeyedStateHandle>> stateHandles;
@@ -322,13 +310,7 @@ AbstractKeyedStateBackend<K> *StreamTaskStateInitializerImpl::keyedStatedBackend
             }
             if (!stateHandles.empty()) {
                 builder.setStateHandles(stateHandles);
-            } else {
-                INFO_RELEASE("[OS-CP-restore] operatorId=" << operatorIdStr
-                    << " handleVector non-empty but all collections empty/null → state will start from scratch");
             }
-        } else {
-            INFO_RELEASE("[OS-CP-restore] operatorId=" << operatorIdStr
-                << " handleVector empty → JM didn't deliver any keyed state for this subtask");
         }
 
         return builder.build();
@@ -420,11 +402,8 @@ inline OperatorStateBackend* StreamTaskStateInitializerImpl::operatorStateBacken
 
     auto backendRestorer = new BackendRestorerProcedure<OperatorStateBackend*, std::shared_ptr<OperatorStateHandle>>(
             [this, operatorIdentifierText](std::set<std::shared_ptr<OperatorStateHandle>> stateHandles, int alternativeIdx) {
-                bool isStateBackendNull = (this->stateBackend == nullptr);
-
                 auto embeddedRocksDBStateBackend = dynamic_cast<EmbeddedRocksDBStateBackend*>(this->stateBackend);
                 if (embeddedRocksDBStateBackend) {
-                    INFO_RELEASE("savepoint: StreamOperatorStateContextImpl::operatorStateBackend backendRestorer embeddedRocksDBStateBackend not null");
                     return reinterpret_cast<OperatorStateBackend*>(
                         embeddedRocksDBStateBackend->createOperatorStateBackend(
                             env,

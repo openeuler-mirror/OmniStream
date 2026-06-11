@@ -125,32 +125,14 @@ public:
     // 对拆分状态进行快照
     std::vector<KafkaPartitionSplit> snapshotState(long checkpointId)  override
     {
+        (void)checkpointId;
         std::vector<KafkaPartitionSplit> splits;
-        long minOffset = LONG_MAX;
-        long maxOffset = LONG_MIN;
-        size_t skippedUninitialized = 0;
-        std::string firstSplit = "none";
         for (const auto& [splitId, splitContext] : this->splitStates) {
             if (splitContext->state->getCurrentOffset() >= 0) {
                 KafkaPartitionSplit split = splitContext->state->toKafkaPartitionSplit();
-                long offset = split.getStartingOffset();
-                minOffset = std::min(minOffset, offset);
-                maxOffset = std::max(maxOffset, offset);
-                if (firstSplit == "none") {
-                    firstSplit = split.splitId() + "@" + std::to_string(offset);
-                }
                 splits.push_back(split);
-            } else {
-                skippedUninitialized++;
             }
         }
-        INFO_RELEASE("[OS-source-snapshot] checkpointId=" << checkpointId
-            << ", assignedSplits=" << splitStates.size()
-            << ", snapshotSplits=" << splits.size()
-            << ", skippedUninitialized=" << skippedUninitialized
-            << ", firstSplit=" << firstSplit
-            << ", minOffset=" << (splits.empty() ? -1 : minOffset)
-            << ", maxOffset=" << (splits.empty() ? -1 : maxOffset));
         return splits;
     }
 
@@ -171,29 +153,17 @@ public:
             THROW_RUNTIME_ERROR("SourceReaderBase addSplits called with null splitFetcherManager.");
         }
 
-        INFO_RELEASE("[OS-source-reader] addSplits begin, reader=" << reinterpret_cast<uintptr_t>(this)
-            << ", requested=" << splits.size()
-            << ", statesBefore=" << splitStates.size()
-            << ", fetcherManager=" << reinterpret_cast<uintptr_t>(splitFetcherManager));
-
         std::vector<SplitT*> splitsToAdd;
         splitsToAdd.reserve(splits.size());
-        size_t duplicateCount = 0;
-        size_t nullCount = 0;
 
         // Initialize the state for each new split.
         for (const auto& s : splits) {
             if (s == nullptr) {
-                nullCount++;
-                INFO_RELEASE("Error:[OS-source-reader] null split ignored");
                 continue;
             }
 
             const std::string splitId = s->splitId();
             if (splitStates.find(splitId) != splitStates.end()) {
-                duplicateCount++;
-                INFO_RELEASE("[OS-source-reader] duplicate split ignored, splitId=" << splitId
-                    << ", states=" << splitStates.size());
                 continue;
             }
 
@@ -201,20 +171,10 @@ public:
             splitsToAdd.push_back(s);
         }
 
-        INFO_RELEASE("[OS-source-reader] addSplits prepared, accepted=" << splitsToAdd.size()
-            << ", duplicates=" << duplicateCount
-            << ", nulls=" << nullCount
-            << ", statesAfter=" << splitStates.size());
-
         // Hand over only new splits to the split fetcher to start fetch.
         if (!splitsToAdd.empty()) {
             splitFetcherManager->addSplits(splitsToAdd);
-        } else {
-            INFO_RELEASE("[OS-source-reader] addSplits no new split to fetch");
         }
-
-        INFO_RELEASE("[OS-source-reader] addSplits end, accepted=" << splitsToAdd.size()
-            << ", statesAfter=" << splitStates.size());
     }
 
     // 通知没有更多拆分

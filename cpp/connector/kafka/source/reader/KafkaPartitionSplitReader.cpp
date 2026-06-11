@@ -103,30 +103,20 @@ void KafkaPartitionSplitReader::handleSplitsChanges(const std::vector<KafkaParti
         const std::string splitId = topicPartitionKey(tp);
         if (assignmentKeys.insert(splitId).second) {
             newPartitionAssignments.push_back(tp);
-        } else {
-            INFO_RELEASE("[OS-source-split] duplicate current Kafka assignment ignored, splitId=" << splitId);
         }
     }
 
     size_t acceptedNewSplits = 0;
-    size_t duplicateSplits = 0;
-    size_t nullSplits = 0;
     for (const auto& s : splitsChange) {
         if (s == nullptr) {
-            nullSplits++;
-            INFO_RELEASE("Error:[OS-source-split] null split ignored in KafkaPartitionSplitReader");
             continue;
         }
         auto tp = s->getTopicPartition();
         if (tp == nullptr) {
-            nullSplits++;
-            INFO_RELEASE("Error:[OS-source-split] split has null topic partition, splitId=" << s->splitId());
             continue;
         }
         const std::string splitId = s->splitId();
         if (!assignmentKeys.insert(splitId).second) {
-            duplicateSplits++;
-            INFO_RELEASE("[OS-source-split] duplicate Kafka assignment ignored, splitId=" << splitId);
             continue;
         }
 
@@ -137,18 +127,10 @@ void KafkaPartitionSplitReader::handleSplitsChanges(const std::vector<KafkaParti
         parseStoppingOffsets(s, partitionsStoppingAtLatest, partitionsStoppingAtCommitted);
     }
 
-    INFO_RELEASE("[OS-source-split] handleSplitsChanges prepared, requested=" << splitsChange.size()
-        << ", acceptedNew=" << acceptedNewSplits
-        << ", duplicates=" << duplicateSplits
-        << ", nulls=" << nullSplits
-        << ", currentAssignment=" << currentAssignment.size()
-        << ", assignmentAfter=" << newPartitionAssignments.size());
-
     if (acceptedNewSplits == 0) {
         for (auto* tp : currentAssignment) {
             delete tp;
         }
-        INFO_RELEASE("[OS-source-split] handleSplitsChanges no new Kafka assignment");
         return;
     }
 

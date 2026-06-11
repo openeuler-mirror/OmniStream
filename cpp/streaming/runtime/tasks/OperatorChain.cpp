@@ -463,13 +463,11 @@ void OperatorChainV2::initializeStateAndOpenOperators(StreamTaskStateInitializer
         const std::string runtimeOperatorId = streamOperator->GetOperatorID().toString();
         const StreamConfigPOD *streamConfigPOD =
             FindStreamConfigByOperatorId(taskConfiguration_, chainedConfig, runtimeOperatorId);
-        bool fallbackByIndex = false;
         if (streamConfigPOD == nullptr && index < static_cast<int>(chainedConfig.size())) {
             streamConfigPOD = &chainedConfig[index];
-            fallbackByIndex = true;
         }
         if (streamConfigPOD == nullptr) {
-            INFO_RELEASE("Error:[OS-chain-init] no StreamConfig for operatorId=" << runtimeOperatorId
+            INFO_RELEASE("Error: no StreamConfig for operatorId=" << runtimeOperatorId
                 << ", index=" << index
                 << ", chainedConfigSize=" << chainedConfig.size());
             THROW_LOGIC_EXCEPTION("no StreamConfig for operatorId=" << runtimeOperatorId)
@@ -478,11 +476,6 @@ void OperatorChainV2::initializeStateAndOpenOperators(StreamTaskStateInitializer
         const OperatorPOD& operatorPod = streamConfigPOD->getOperatorDescription();
         const nlohmann::json& description = nlohmann::json::parse(operatorPod.getDescription());
         int operatorType = operatorPod.getOperatorType();
-        INFO_RELEASE("[OS-chain-init] init operator, runtimeOperatorId=" << runtimeOperatorId
-            << ", configOperatorId=" << operatorPod.getOperatorId()
-            << ", name=" << operatorPod.getName()
-            << ", vertexId=" << operatorPod.getVertexID()
-            << ", fallbackByIndex=" << fallbackByIndex);
         switch (operatorType) {
             case Type_o::INVALID: // NULL
                 THROW_LOGIC_EXCEPTION("invalid operatorType")

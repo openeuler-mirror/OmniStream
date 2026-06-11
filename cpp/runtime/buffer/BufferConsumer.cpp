@@ -16,9 +16,8 @@
 namespace omnistream {
     Buffer* BufferConsumer::requireBuffer(const char* method) const
     {
+        (void)method;
         if (buffer == nullptr) {
-            INFO_RELEASE("Error:[OS-buffer] BufferConsumer access after close, method=" << method
-                << ", consumer=" << reinterpret_cast<uintptr_t>(this));
             throw std::runtime_error("BufferConsumer access after close");
         }
         return buffer;

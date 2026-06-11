@@ -23,9 +23,6 @@ namespace omnistream {
     { }
 
     OmniLocalChannelReader::~OmniLocalChannelReader() {
-        INFO_RELEASE("[OS-partition-finish] destroy OmniLocalChannelReader, reader="
-            << reinterpret_cast<uintptr_t>(this)
-            << ", hasView=" << (subpartitionView != nullptr));
         if (subpartitionView) {
             subpartitionView->releaseAllResources();
             subpartitionView.reset();

@@ -128,8 +128,6 @@ private:
     int keyGroupPrefixBytes_;
     std::vector<SerializedEntry> entries_;
     size_t currentIndex_ = 0;
-    size_t objectSnapshotKeyGroups_ = 0;
-    size_t objectSnapshotEntries_ = 0;
     bool valid_ = false;
 
     void collectAndSerializeEntries()
@@ -162,13 +160,6 @@ private:
                 return false;
             });
 
-        if constexpr (std::is_same_v<K, Object*> || std::is_same_v<N, Object*> || std::is_same_v<S, Object*>) {
-            if (objectSnapshotEntries_ > 0) {
-                INFO_RELEASE("[OS-heap-snapshot] Object* state iterator materialized, kvStateId="
-                    << kvStateId_ << ", keyGroups=" << objectSnapshotKeyGroups_
-                    << ", entries=" << objectSnapshotEntries_);
-            }
-        }
     }
 
     void collectVbEntries()
@@ -354,13 +345,6 @@ private:
         snapshot.reserve(cowMap->size());
         for (auto it = cowMap->begin(); it != cowMap->end(); ++it) {
             snapshot.emplace_back(it->first, it->third, it->second);
-        }
-
-        if constexpr (std::is_same_v<K, Object*> || std::is_same_v<N, Object*> || std::is_same_v<S, Object*>) {
-            if (!snapshot.empty()) {
-                objectSnapshotKeyGroups_++;
-                objectSnapshotEntries_ += snapshot.size();
-            }
         }
 
         // Phase 2: serialize from the stable local snapshot

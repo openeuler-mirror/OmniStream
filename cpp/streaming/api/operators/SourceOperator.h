@@ -39,8 +39,6 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <algorithm>
-#include <iomanip>
-#include <sstream>
 #include "streaming/api/operators/AbstractStreamOperator.h"
 #include "connector/kafka/source/split/KafkaPartitionSplitSerializer.h"
 #include "core/api/connector/source/SourceReader.h"
@@ -145,9 +143,6 @@ public:
         }
         long checkpointId = context->getCheckpointId();
         auto splits = sourceReader->snapshotState(checkpointId);
-        INFO_RELEASE("[OS-source-snapshot] operator snapshot, checkpointId=" << checkpointId
-            << ", splitCount=" << splits.size()
-            << ", sourceReader=" << reinterpret_cast<uintptr_t>(sourceReader));
         readerState_->update(splits);
     }
 
@@ -174,7 +169,6 @@ public:
         }
         auto runtimeContext = getRuntimeContext();
         if (runtimeContext == nullptr) {
-            INFO_RELEASE("Error:[OS-source-event] initReader before runtimeContext setup");
             THROW_RUNTIME_ERROR("SourceOperator initReader before runtimeContext setup.");
         }
         int subtaskIndex = runtimeContext->getIndexOfThisSubtask();
@@ -184,8 +178,6 @@ public:
             delete context;
             THROW_RUNTIME_ERROR("SourceOperator readerFactory returned null sourceReader.");
         }
-        INFO_RELEASE("[OS-source-event] initReader, subtask=" << subtaskIndex
-            << ", sourceReader=" << reinterpret_cast<uintptr_t>(sourceReader));
     }
 
     void open() override
@@ -203,8 +195,6 @@ public:
             splits = *restoredSplits;
             delete restoredSplits;
         }
-        INFO_RELEASE("[OS-source-event] open restored reader state, splitCount=" << splits.size()
-            << ", sourceReader=" << reinterpret_cast<uintptr_t>(sourceReader));
         std::vector<SplitT*> restoredSplitsToAdd;
         restoredSplitsToAdd.reserve(splits.size());
         for (const auto& split : splits) {
@@ -215,21 +205,16 @@ public:
             if (registeredSplitIds_.insert(splitId).second) {
                 restoredSplitsToAdd.push_back(split);
             } else {
-                INFO_RELEASE("[OS-source-event] duplicate restored split ignored, splitId=" << splitId);
                 delete split;
             }
         }
         if (!restoredSplitsToAdd.empty()) {
-            INFO_RELEASE("[OS-source-event] open add restored splits, splitCount=" << restoredSplitsToAdd.size());
             sourceReader->addSplits(restoredSplitsToAdd);
         }
         if (!outputPendingSplits.empty()) {
-            INFO_RELEASE("[OS-source-event] open add deferred AddSplitEvent splits, splitCount="
-                << outputPendingSplits.size());
             sourceReader->addSplits(outputPendingSplits);
         }
         if (pendingNoMoreSplits_) {
-            INFO_RELEASE("[OS-source-event] open apply deferred NoMoreSplitsEvent");
             sourceReader->notifyNoMoreSplits();
             pendingNoMoreSplits_ = false;
         }
@@ -258,9 +243,6 @@ public:
     DataInputStatus emitNext(OmniDataOutputPtr output)
     {
         if (sourceReader == nullptr) {
-            INFO_RELEASE("[OS-source-event] emitNext skipped before reader init, pendingCount="
-                << outputPendingSplits.size()
-                << ", mode=" << operatingModeName(operatingMode));
             return DataInputStatus::NOT_PROCESSED;
         }
         ASSERT(lastInvokedOutput == output || lastInvokedOutput == nullptr || operatingMode == OperatingMode::DATA_FINISHED);
@@ -273,14 +255,11 @@ public:
     std::shared_ptr<omnistream::CompletableFuture> GetAvailableFuture() override
     {
         if (availabilityHelper == nullptr) {
-            INFO_RELEASE("[OS-source-event] availabilityHelper was null, recreate it");
             initAvailabilityHelper();
         }
         if (sourceReader == nullptr
             && (operatingMode == OperatingMode::OUTPUT_NOT_INITIALIZED
                 || operatingMode == OperatingMode::READING)) {
-            INFO_RELEASE("Error:[OS-source-event] GetAvailableFuture before sourceReader init, mode="
-                << operatingModeName(operatingMode));
             return AvailabilityProvider::AVAILABLE;
         }
         switch (operatingMode) {
@@ -305,41 +284,28 @@ public:
 
     void handleOperatorEvent(const std::string& eventString) override
     {
-        try {
-            nlohmann::json tdd = nlohmann::json::parse(eventString);
-            std::string eventType = tdd["type"];
-            LOG("receive operator event, type is " + eventType);
-            if (eventType == "WatermarkAlignmentEvent") {
-                long maxWatermark = tdd["field"]["maxWatermark"];
-                WatermarkAlignmentEvent event(maxWatermark);
-                handleOperatorEvent(event);
-            } else if (eventType == "AddSplitEvent") {
-                LOG(tdd["field"]["serializerVersion"])
-                int serializerVersion = tdd["field"]["serializerVersion"];
-                std::vector<std::vector<uint8_t>> splitsVec;
-                if (tdd["field"]["splits"].is_array()) {
-                    for (const auto &element : tdd["field"]["splits"]) {
-                        splitsVec.push_back(SourceOperator::hexStringToByteArray(element));
-                    }
+        nlohmann::json tdd = nlohmann::json::parse(eventString);
+        std::string eventType = tdd["type"];
+        LOG("receive operator event, type is " + eventType);
+        if (eventType == "WatermarkAlignmentEvent") {
+            long maxWatermark = tdd["field"]["maxWatermark"];
+            WatermarkAlignmentEvent event(maxWatermark);
+            handleOperatorEvent(event);
+        } else if (eventType == "AddSplitEvent") {
+            LOG(tdd["field"]["serializerVersion"])
+            int serializerVersion = tdd["field"]["serializerVersion"];
+            std::vector<std::vector<uint8_t>> splitsVec;
+            if (tdd["field"]["splits"].is_array()) {
+                for (const auto &element : tdd["field"]["splits"]) {
+                    splitsVec.push_back(SourceOperator::hexStringToByteArray(element));
                 }
-                INFO_RELEASE("[OS-source-event] handle AddSplitEvent, serializerVersion=" << serializerVersion
-                    << ", splitCount=" << splitsVec.size()
-                    << ", firstSplit=" << summarizeFirstSplit(splitsVec)
-                    << ", eventBytes=" << eventString.size());
-                AddSplitEvent<SplitT> event(serializerVersion, splitsVec);
-                handleOperatorEvent(event);
-            } else if (eventType == "SourceEventWrapper") {
-                INFO_RELEASE("[OS-source-event] SourceEventWrapper ignored, eventBytes=" << eventString.size());
-            } else if (eventType == "NoMoreSplitsEvent") {
-                INFO_RELEASE("[OS-source-event] handle NoMoreSplitsEvent, eventBytes=" << eventString.size());
-                // fix: this is local stack object
-                NoMoreSplitsEvent event;
-                handleOperatorEvent(event);
             }
-        } catch (const std::exception& e) {
-            INFO_RELEASE("Error:[OS-source-event] handleOperatorEvent failed, eventBytes="
-                << eventString.size() << ", error=" << e.what());
-            throw;
+            AddSplitEvent<SplitT> event(serializerVersion, splitsVec);
+            handleOperatorEvent(event);
+        } else if (eventType == "NoMoreSplitsEvent") {
+            // fix: this is local stack object
+            NoMoreSplitsEvent event;
+            handleOperatorEvent(event);
         }
     }
 
@@ -358,41 +324,27 @@ public:
             }
 
             newSplits = event.splits(splitSerializer.get());
-            INFO_RELEASE("[OS-source-event] AddSplitEvent deserialized, splitCount=" << newSplits.size()
-                << ", mode=" << operatingModeName(operatingMode)
-                << ", sourceReader=" << reinterpret_cast<uintptr_t>(sourceReader)
-                << ", currentMainOutput=" << reinterpret_cast<uintptr_t>(currentMainOutput));
             std::vector<SplitT*> acceptedSplits;
             acceptedSplits.reserve(newSplits.size());
-            size_t duplicateSplitCount = 0;
             for (auto* split : newSplits) {
                 if (split == nullptr) {
                     throw std::runtime_error("null split");
                 }
                 const std::string splitId = split->splitId();
                 if (!registeredSplitIds_.insert(splitId).second) {
-                    duplicateSplitCount++;
-                    INFO_RELEASE("[OS-source-event] duplicate AddSplitEvent split ignored, splitId=" << splitId);
                     delete split;
                     continue;
                 }
                 acceptedSplits.push_back(split);
             }
             newSplits.swap(acceptedSplits);
-            INFO_RELEASE("[OS-source-event] AddSplitEvent filtered, accepted=" << newSplits.size()
-                << ", duplicates=" << duplicateSplitCount);
             if (newSplits.empty()) {
-                INFO_RELEASE("[OS-source-event] AddSplitEvent no new split after filtering");
                 return;
             }
             if (sourceReader == nullptr) {
                 for (const auto &split: newSplits) {
                     outputPendingSplits.push_back(split);
                 }
-                INFO_RELEASE("[OS-source-event] AddSplitEvent deferred before reader init, splitCount="
-                    << newSplits.size()
-                    << ", pendingCount=" << outputPendingSplits.size()
-                    << ", mode=" << operatingModeName(operatingMode));
                 return;
             }
             if (operatingMode == OperatingMode::OUTPUT_NOT_INITIALIZED) {
@@ -402,27 +354,13 @@ public:
                 for (const auto &split: newSplits) {
                     outputPendingSplits.push_back(split);
                 }
-                INFO_RELEASE("[OS-source-event] AddSplitEvent pending outputs, pendingCount="
-                    << outputPendingSplits.size());
             } else {
                 // Create output directly for new splits if the main output is already initialized.
-                INFO_RELEASE("[OS-source-event] AddSplitEvent create outputs begin, splitCount="
-                    << newSplits.size());
                 createOutputForSplits(newSplits);
-                INFO_RELEASE("[OS-source-event] AddSplitEvent create outputs end, splitCount="
-                    << newSplits.size());
             }
 
-            INFO_RELEASE("[OS-source-event] AddSplitEvent addSplits begin, splitCount=" << newSplits.size());
             sourceReader->addSplits(newSplits);
-            INFO_RELEASE("[OS-source-event] AddSplitEvent addSplits end, splitCount=" << newSplits.size());
         } catch (const std::exception& e) {
-            INFO_RELEASE("Error:[OS-source-event] AddSplitEvent failed, mode="
-                << operatingModeName(operatingMode)
-                << ", splitCount=" << newSplits.size()
-                << ", sourceReader=" << reinterpret_cast<uintptr_t>(sourceReader)
-                << ", currentMainOutput=" << reinterpret_cast<uintptr_t>(currentMainOutput)
-                << ", error=" << e.what());
             throw std::runtime_error("Failed to deserialize the splits. " + std::string(e.what()));
         }
     }
@@ -431,7 +369,6 @@ public:
     {
         if (sourceReader == nullptr) {
             pendingNoMoreSplits_ = true;
-            INFO_RELEASE("[OS-source-event] NoMoreSplitsEvent deferred before reader init");
             return;
         }
         sourceReader->notifyNoMoreSplits();
@@ -548,13 +485,10 @@ private:
     void createOutputForSplits(const std::vector<SplitT*>& newSplits)
     {
         if (!currentMainOutput) {
-            INFO_RELEASE("Error:[OS-source-event] no main output while creating split outputs, splitCount="
-                << newSplits.size() << ", mode=" << operatingModeName(operatingMode));
             throw std::runtime_error("no main output");
         }
         for (const auto& split : newSplits) {
             if (split == nullptr) {
-                INFO_RELEASE("Error:[OS-source-event] null split while creating split output");
                 throw std::runtime_error("null split");
             }
             currentMainOutput->CreateOutputForSplit(split->splitId());
@@ -634,45 +568,6 @@ private:
             return c - 'A' + 10;
         }
         throw std::invalid_argument("Invalid hex character");
-    }
-
-    inline static std::string summarizeFirstSplit(const std::vector<std::vector<uint8_t>>& splitsVec)
-    {
-        if (splitsVec.empty()) {
-            return "none";
-        }
-        const auto& first = splitsVec[0];
-        std::ostringstream oss;
-        oss << "bytes=" << first.size() << ",prefix=";
-        size_t prefixLen = std::min<size_t>(first.size(), 24);
-        for (size_t i = 0; i < prefixLen; i++) {
-            oss << std::hex << std::setw(2) << std::setfill('0')
-                << static_cast<int>(first[i]);
-        }
-        if (first.size() > prefixLen) {
-            oss << "...";
-        }
-        return oss.str();
-    }
-
-    inline static const char* operatingModeName(OperatingMode mode)
-    {
-        switch (mode) {
-            case OperatingMode::READING:
-                return "READING";
-            case OperatingMode::WAITING_FOR_ALIGNMENT:
-                return "WAITING_FOR_ALIGNMENT";
-            case OperatingMode::OUTPUT_NOT_INITIALIZED:
-                return "OUTPUT_NOT_INITIALIZED";
-            case OperatingMode::SOURCE_DRAINED:
-                return "SOURCE_DRAINED";
-            case OperatingMode::SOURCE_STOPPED:
-                return "SOURCE_STOPPED";
-            case OperatingMode::DATA_FINISHED:
-                return "DATA_FINISHED";
-            default:
-                return "UNKNOWN";
-        }
     }
 
     class SourceOperatorAvailabilityHelper {

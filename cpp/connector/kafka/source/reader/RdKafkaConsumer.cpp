@@ -65,15 +65,12 @@ ConsumerRecords* RdKafkaConsumer::poll(int timeoutMs)
 
 void RdKafkaConsumer::assign(std::vector<RdKafka::TopicPartition*> &partitions)
 {
-    INFO_RELEASE("[OS-source-split] Kafka assign begin, partitions=" << partitions.size());
     RdKafka::ErrorCode resp =  consumer_->assign(partitions);
     if (resp != RdKafka::ERR_NO_ERROR) {
         std::cerr << "% assign failed: " << RdKafka::err2str(resp)
                   << std::endl;
-        INFO_RELEASE("Error:[OS-source-split] Kafka assign failed, partitions=" << partitions.size()
+        INFO_RELEASE("Error: Kafka assign failed, partitions=" << partitions.size()
             << ", error=" << RdKafka::err2str(resp));
-    } else {
-        INFO_RELEASE("[OS-source-split] Kafka assign end, partitions=" << partitions.size());
     }
 }
 

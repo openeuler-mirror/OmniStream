@@ -33,36 +33,22 @@ public:
 
     bool Run() override
     {
-        INFO_RELEASE("[OS-source-fetcher] AddSplitsTask run begin, requested=" << splitsToAdd.size()
-            << ", assignedBefore=" << assignedSplits.size());
         std::vector<SplitT*> acceptedSplits;
         acceptedSplits.reserve(splitsToAdd.size());
-        size_t duplicateCount = 0;
-        size_t nullCount = 0;
         for (auto& s : splitsToAdd) {
             if (s == nullptr) {
-                nullCount++;
-                INFO_RELEASE("Error:[OS-source-fetcher] null split ignored in AddSplitsTask");
                 continue;
             }
             const std::string splitId = s->splitId();
             if (assignedSplits.find(splitId) != assignedSplits.end()) {
-                duplicateCount++;
-                INFO_RELEASE("[OS-source-fetcher] duplicate assigned split ignored, splitId=" << splitId);
                 continue;
             }
             assignedSplits.emplace(splitId, s);
             acceptedSplits.push_back(s);
         }
-        INFO_RELEASE("[OS-source-fetcher] AddSplitsTask prepared, accepted=" << acceptedSplits.size()
-            << ", duplicates=" << duplicateCount
-            << ", nulls=" << nullCount
-            << ", assignedAfter=" << assignedSplits.size());
         if (!acceptedSplits.empty()) {
             splitReader->handleSplitsChanges(acceptedSplits);
         }
-        INFO_RELEASE("[OS-source-fetcher] AddSplitsTask run end, accepted=" << acceptedSplits.size()
-            << ", assignedAfter=" << assignedSplits.size());
         return true;
     }
 
