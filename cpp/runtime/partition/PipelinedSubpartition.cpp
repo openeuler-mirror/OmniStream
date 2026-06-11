@@ -127,17 +127,15 @@ BufferAndBacklog* PipelinedSubpartition::pollBuffer()
         LOG_TRACE("bufferConsumer ref count " << std::to_string(bufferConsumer.use_count()));
         LOG_TRACE("bufferConsumer inside: " << bufferConsumer->toString());
 
-        const bool consumerFinished = bufferConsumer->isFinished();
-        const bool consumerIsBuffer = bufferConsumer->isBuffer();
         if (buffers.size() == 1) {
             flushRequested  = false;
         }
-        if (consumerFinished) {
+        if (bufferConsumer->isFinished()) {
+            decreaseBuffersInBacklogUnsafe(bufferConsumer->isBuffer());
             buffers.poll()->getBufferConsumer()->close();
-            decreaseBuffersInBacklogUnsafe(consumerIsBuffer);
         }
 
-        if (receiverExclusiveBuffersPerChannel == 0 && consumerFinished) {
+        if (receiverExclusiveBuffersPerChannel == 0 && bufferConsumer->isFinished()) {
             break;
         }
 
@@ -153,7 +151,7 @@ BufferAndBacklog* PipelinedSubpartition::pollBuffer()
         buffer->RecycleBuffer();
         delete buffer; // this is ReadOnlySlicedNetworkBuffer in datastream, so we directly delete it (not specified in SQL)
         buffer = nullptr;
-        if (!consumerFinished) {
+        if (!bufferConsumer->isFinished()) {
             break;
         }
     }
