@@ -14,7 +14,6 @@
 #include "runtime/generated/function/CountWindowAggFunction.h"
 #include "runtime/generated/function/MinMaxWindowAggFunction.h"
 #include "runtime/generated/function/SumWindowAggFunction.h"
-#include "table/runtime/generated/function/GlobalEmptyNamespaceFunction.h"
 #include "runtime/operators/VectorBatchUtils.h"
 
 AbstractWindowAggProcessor::AbstractWindowAggProcessor(const nlohmann::json description,
@@ -29,12 +28,8 @@ AbstractWindowAggProcessor::AbstractWindowAggProcessor(const nlohmann::json desc
     // agg function init, multiple function process is to be added
     bool isWindwoAgg = description.contains("isWindowAggregate") && description["isWindowAggregate"].get<bool>();
     std::string const AGGCALLSNAME = isWindwoAgg ? "aggregateCalls" : "globalAggregateCalls";
-    std::string const ACCTYPESNAME = isWindwoAgg ? "AccTypes" : "globalAccTypes";
-    std::vector<std::string> accTypes = description["aggInfoList"][ACCTYPESNAME].get<std::vector<std::string>>();
-    accTypes.erase(std::remove_if(accTypes.begin(), accTypes.end(),
-                                  [](const std::string& type) { return type.find("RAW") != std::string::npos; }),
-                   accTypes.end());
-    accumulatorArity = accTypes.size();
+    // TODO: There is an issue with the calculation method of accumulatorArity, for example, it does not adapt to AVG
+    accumulatorArity = description["aggInfoList"].contains(AGGCALLSNAME) ? description["aggInfoList"][AGGCALLSNAME].size() : -1;
     outputTypes = description["outputTypes"].get<std::vector<std::string>>();
     for (const auto &typeStr : outputTypes) {
         outputTypeIds.push_back(LogicalType::flinkTypeToOmniTypeId(typeStr));
@@ -47,36 +42,61 @@ AbstractWindowAggProcessor::AbstractWindowAggProcessor(const nlohmann::json desc
         }
     }
     keySelector = std::make_unique<KeySelector<KeyType>>(keyedTypes, keyedIndex);
+    std::vector<std::unique_ptr<WindowAggHandleFunction>> globalFunctions;
     LOG("agginfolist size : " <<description["aggInfoList"][AGGCALLSNAME].size())
-    if (description["aggInfoList"][AGGCALLSNAME].size() == 0) {
-        NamespaceAggsHandleFunction<int64_t> *function = new GlobalEmptyNamespaceFunction(0, 0, 0, sliceAssigner);
-        aggregator.push_back(function);
-        return;
+    const auto keyArity = keyedIndex.size();
+    if (keyArity > outputTypes.size()) {
+        THROW_LOGIC_EXCEPTION("The size of key fields must not exceed output type fields.");
     }
+    std::vector<int32_t> valueOutputTypeIds(outputTypeIds.begin() + keyArity, outputTypeIds.end()); // 这里不确定是否正确
+
+    auto accStartIndex = 0;
+    auto valueStartIndex = 0;
     for (const auto& aggCall : description["aggInfoList"][AGGCALLSNAME]) {
         std::string aggTypeStr = aggCall["name"];
         std::string aggType = LocalSlicingWindowAggOperator::extractAggFunction(aggTypeStr);
-        NamespaceAggsHandleFunction<int64_t> *globalFunction;
+
+        // TODO: argIndexes may contains two elements (AVG function)
+        int argIndex = aggCall["argIndexes"].get<std::vector<int>>().empty() ? -1
+                                                         : aggCall["argIndexes"].get<std::vector<int>>()[0];
+        int aggIndex = aggCall["aggIndex"].get<int>();
+        if (!isWindwoAgg && argIndex != -1) {
+            // then the processor is used in GlobalWindowAggregate, the input of the processor is from LocalWindowAggregate,
+            // and the argIndexes may not be usable
+            argIndex = keyArity + aggIndex;
+        }
+
         if (aggType == "COUNT") {
-            globalFunction = new CountWindowAggFunction(0, 0, 0, sliceAssigner);
+            auto globalFunction = std::make_unique<CountWindowAggFunction>(argIndex, accStartIndex, valueStartIndex, sliceAssigner);
+            globalFunctions.push_back(std::move(globalFunction));
         } else if (aggType == "MAX") {
-            globalFunction = new MinMaxWindowAggFunction(0, 0, 0, MAX_FUNC, sliceAssigner);
+            auto globalFunction = std::make_unique<MinMaxWindowAggFunction>(argIndex, accStartIndex, valueStartIndex, MAX_FUNC, sliceAssigner);
+            globalFunctions.push_back(std::move(globalFunction));
         } else if (aggType == "MIN") {
-           globalFunction = new MinMaxWindowAggFunction(0, 0, 0, MIN_FUNC, sliceAssigner);
-        }else if (aggType == "SUM"){
-            globalFunction = new SumWindowAggFunction(0, 0, 0, sliceAssigner);
+            auto globalFunction = std::make_unique<MinMaxWindowAggFunction>(argIndex, accStartIndex, valueStartIndex, MIN_FUNC, sliceAssigner);
+            globalFunctions.push_back(std::move(globalFunction));
+        } else if (aggType == "SUM"){
+            auto globalFunction = std::make_unique<SumWindowAggFunction>(argIndex, accStartIndex, valueStartIndex, sliceAssigner);
+            globalFunctions.push_back(std::move(globalFunction));
         } else {
             throw std::runtime_error("Unsupported aggregate type: " + aggTypeStr);
         }
-        aggregator.push_back(globalFunction);
+        accStartIndex++;
+        valueStartIndex++;
     }
+
+    aggregator = std::make_unique<CompositeWindowAggFunction>(
+            std::move(globalFunctions),
+            std::move(valueOutputTypeIds),
+            sliceAssigner);
+
 }
 
 bool AbstractWindowAggProcessor::processBatch(omnistream::VectorBatch* vectorbatch)
 {
     const std::string shiftTimeZone = ResolveShiftTimeZoneId(sliceAssigner);
     std::vector<int64_t> sliceEndArr(vectorbatch->GetRowCount());
-    std::vector<int8_t> dropArr(vectorbatch->GetRowCount());
+    std::vector<bool> dropArr(vectorbatch->GetRowCount(), false);
     for (int i = 0; i < vectorbatch->GetRowCount(); i++) {
         int64_t sliceEnd = sliceAssigner->assignSliceEnd(vectorbatch, i, clockService);
         sliceEndArr[i] = sliceEnd;
@@ -88,34 +108,30 @@ bool AbstractWindowAggProcessor::processBatch(omnistream::VectorBatch* vectorbat
                 stateBackend->setCurrentKey(currentKey);
                 internalTimerService->registerProcessingTimeTimer(sliceEnd, sliceEnd - 1);
             }
-            dropArr[i] = false;
         }
         if (isEventTime && TimeWindowUtil::isWindowFired(sliceEnd, currentProgress, shiftTimeZone)){
             WindowedSliceAssigner* windowedSliceAssigner = dynamic_cast<WindowedSliceAssigner*>(sliceAssigner);
             SliceAssigner* assigner = windowedSliceAssigner->GetInnerAssigner();
-            if (assigner == nullptr ){
-                throw std::runtime_error("assigner is nullptr");
+            if (assigner == nullptr) {
+                THROW_RUNTIME_ERROR("SliceAssigner is nullptr");
             }
             long lastWindowEnd = assigner->getLastWindowEnd(sliceEnd);
             if (TimeWindowUtil::isWindowFired(lastWindowEnd, currentProgress, shiftTimeZone)) {
                 // the last window has been triggered, so the element can be dropped now
-              LOG("drop element sliceEnd: " << sliceEnd)
-              dropArr[i] = true;
-              continue;
-            } else {
-                //register elements;
-                int64_t unfiredFirstWindow = sliceEnd;
-                while (TimeWindowUtil::isWindowFired(unfiredFirstWindow, currentProgress, shiftTimeZone)) {
-                    unfiredFirstWindow += windowInterval;
-                }
-                stateBackend->setCurrentKey(currentKey);
-                internalTimerService->registerEventTimeTimer(
-                    unfiredFirstWindow, TimeWindowUtil::toEpochMillsForTimer(unfiredFirstWindow - 1, shiftTimeZone));
-                dropArr[i] = false;
+                dropArr[i] = true;
+                continue;
             }
+            //register elements;
+            int64_t unfiredFirstWindow = sliceEnd;
+            while (TimeWindowUtil::isWindowFired(unfiredFirstWindow, currentProgress, shiftTimeZone)) {
+                unfiredFirstWindow += windowInterval;
+            }
+            stateBackend->setCurrentKey(currentKey);
+            internalTimerService->registerEventTimeTimer(
+                unfiredFirstWindow, TimeWindowUtil::toEpochMillsForTimer(unfiredFirstWindow - 1, shiftTimeZone));
         }
     }
-    windowBuffer->addVectorBatch(vectorbatch, sliceEndArr.data(), reinterpret_cast<bool*>(dropArr.data()));
+    windowBuffer->addVectorBatch(vectorbatch, sliceEndArr, dropArr);
     return false;
 }
 
@@ -133,14 +149,14 @@ void AbstractWindowAggProcessor::open(
         THROW_LOGIC_EXCEPTION("The keyedStateBackend is not supported");
     }
     this->internalTimerService = internalTimerService;
-    BinaryRowDataSerializer *binaryRowDataSerializer = new BinaryRowDataSerializer(1);
+    auto* binaryRowDataSerializer = new BinaryRowDataSerializer(accumulatorArity);
     // init WindowValueState
     std::string aggName = "window-aggs";
     auto* accDesc = new ValueStateDescriptor<RowData*>(aggName, binaryRowDataSerializer);
     using S = InternalValueState<KeyType, int64_t, RowData*>;
     S* state = keyedStateBackend->template getOrCreateKeyedState<int64_t, S, RowData*>(new LongSerializer(), accDesc);
     windowState = std::make_unique<WindowValueState<KeyType, int64_t, RowData*>>(state);
-    windowBuffer = std::make_unique<RecordsWindowBuffer>(config, windowState.get(), output, sliceAssigner, internalTimerService);
+    windowBuffer = std::make_unique<RecordsWindowBuffer>(config, windowState.get(), output, this->stateBackend, sliceAssigner, internalTimerService);
 }
 
 void AbstractWindowAggProcessor::initializeWatermark(int64_t watermark) {
@@ -149,12 +165,11 @@ void AbstractWindowAggProcessor::initializeWatermark(int64_t watermark) {
     }
 }
 
-void AbstractWindowAggProcessor::advanceProgress(
-        StreamOperatorStateHandler<AbstractWindowAggProcessor::KeyType> *stateHandler, long progress) {
+void AbstractWindowAggProcessor::advanceProgress(long progress) {
     if (progress > currentProgress) {
         currentProgress = progress;
         if (currentProgress >= nextTriggerProgress) {
-            windowBuffer->advanceProgress(stateHandler, currentProgress);
+            windowBuffer->advanceProgress(currentProgress);
             nextTriggerProgress = LocalSlicingWindowAggOperator::getNextTriggerWatermark(currentProgress,
                                                                                          windowInterval);
         }
@@ -162,8 +177,7 @@ void AbstractWindowAggProcessor::advanceProgress(
     LOG("end AbstractWindowAggProcessor::advanceProgress")
 }
 
-void AbstractWindowAggProcessor::prepareCheckpoint()
-{
+void AbstractWindowAggProcessor::prepareCheckpoint() {
     windowBuffer->flush();
 }
 
@@ -237,20 +251,10 @@ RowData* AbstractWindowAggProcessor::GetNonHopResult(int64_t windowEnd)
 {
     RowData* acc = windowState->value(windowEnd);
     if (acc == nullptr) {
-        for (auto &func: aggregator) {
-            // todo: 这里为什么只取最后一个？aggregator中有多个agg的情况怎么处理？
-            acc = func->createAccumulators(accumulatorArity);
-        }
+        return nullptr;
     }
-    for (auto &func: aggregator) {
-        // todo: 这里为什么只取最后一个？aggregator中有多个agg的情况怎么处理？
-        func->setAccumulators(windowEnd, acc);
-    }
-    RowData *result = nullptr;
-    for (size_t i = 0; i < aggregator.size(); ++i) {
-        // todo: 这里为什么只取最后一个？aggregator中有多个agg的情况怎么处理？
-        result = aggregator[i]->getValue(windowEnd);
-    }
+    aggregator->setAccumulators(windowEnd, acc);
+    RowData *result = aggregator->getValue(windowEnd);
     if (backendType_ != omnistream::StateType::HEAP) {
         delete acc;
     }
@@ -273,33 +277,22 @@ void AbstractWindowAggProcessor::NextWindowEndProcess(int64_t nextWindowEnd, Sli
 RowData* AbstractWindowAggProcessor::GetHopResult(int64_t windowEnd, int64_t numSlices, int64_t interval)
 {
     int64_t tempWindow = windowEnd;
-    RowData *acc;
-    for (auto &func: aggregator) {
-        // todo: 这里为什么只取最后一个？aggregator中有多个agg的情况怎么处理？
-        acc = func->createAccumulators(accumulatorArity);
-    }
-    for (auto &func: aggregator) {
-        // todo: 这里为什么只取最后一个？aggregator中有多个agg的情况怎么处理？
-        func->setAccumulators(tempWindow, acc);
-    }
+    RowData *acc = aggregator->createAccumulators(accumulatorArity);
+    aggregator->setAccumulators(windowEnd, acc);
+
     for (int i = 0; i < numSlices; ++i) {
-        // todo:
-        RowData *sliceAcc = windowState->value(tempWindow);
+        RowData* sliceAcc = windowState->value(tempWindow);
         if (sliceAcc != nullptr) {
-            for (size_t j = 0; j < aggregator.size(); ++j) {
-                aggregator[j]->merge(tempWindow, sliceAcc);
-            }
+            aggregator->merge(tempWindow, sliceAcc);
         }
         tempWindow -= interval;
+        if (backendType_ != omnistream::StateType::HEAP) {
+            delete sliceAcc;
+        }
     }
-    RowData* result = nullptr;
-    for (auto& agg: aggregator) {
-        // todo: 这里为什么只取最后一个？aggregator中有多个agg的情况怎么处理？
-        result = agg->getValue(windowEnd);
-    }
-    if (backendType_ != omnistream::StateType::HEAP) {
-        delete acc;
-    }
+    RowData* result = aggregator->getValue(windowEnd);
+
+    delete acc;
     return result;
 }
 
@@ -308,17 +301,7 @@ bool AbstractWindowAggProcessor::IsWindowEmpty()
     if (indexOfCountStar < 0) {
         return false;
     }
-    bool tempRes = false;
-    for (size_t i = 0; i < aggregator.size(); ++i) {
-        // todo: 这里内存也没清除
-        RowData* acc = aggregator[i]->getAccumulators();
-        tempRes = (acc == nullptr) || *acc->getLong(indexOfCountStar) == 0;
-        if (!tempRes) {
-            LOG("return in the function loop")
-            return false;
-        }
-    }
-    LOG("return at the end of the loop")
+    bool tempRes = aggregator->isWindowEmpty();
     return tempRes;
 }
 
@@ -386,12 +369,22 @@ void AbstractWindowAggProcessor::setClockService(ClockService * newClock)
 }
 
 void AbstractWindowAggProcessor::clearWindow(int64_t windowEnd) {
-    // todo: 空实现？可能导致数据清理不干净
+    WindowedSliceAssigner *windowedSliceAssigner = dynamic_cast<WindowedSliceAssigner *>(sliceAssigner);
+    SliceAssigner *assigner = windowedSliceAssigner->GetInnerAssigner();
+    IteratorBase* expiredSlices = assigner->expiredSlices(windowEnd);
+    while (expiredSlices->hasNext()) {
+        int64_t expiredSliceEnd = expiredSlices->next();
+        windowState->clear(expiredSliceEnd);
+        aggregator->Cleanup(windowEnd);
+    }
 }
 
 void AbstractWindowAggProcessor::close()
 {
-    windowBuffer->close();
+    if (windowBuffer != nullptr){
+        windowBuffer->close();
+    }
+    aggregator->close();
 }
 
 TypeSerializer *AbstractWindowAggProcessor::createWindowSerializer()

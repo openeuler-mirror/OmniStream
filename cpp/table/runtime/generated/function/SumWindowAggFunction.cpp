@@ -18,21 +18,12 @@ void SumWindowAggFunction::open(StateDataViewStore* store)
 
 void SumWindowAggFunction::accumulate(RowData* accInput)
 {
-    bool inputIsNull = accInput->isNullAt(aggIdx);
-    int64_t fieldVal = inputIsNull ? limit : *(accInput->getLong(aggIdx));
-    if (inputIsNull) {
-        aggValue = valueIsNull ? limit : aggValue;
-    }else{
-        if (valueIsNull) {
-            aggValue = fieldVal;
-            valueIsNull = false;
-        } else {
-            aggValue += fieldVal;
-        }
+    if (accInput->isNullAt(aggIdx)) {
+        return;
     }
-    if (!countIsNull) {
-        aggCountValue++;
-    }
+
+    valueIsNull = false;
+    aggValue += *accInput->getLong(aggIdx);
 }
 
 void SumWindowAggFunction::retract(RowData* retractInput)
@@ -42,77 +33,51 @@ void SumWindowAggFunction::retract(RowData* retractInput)
 
 void SumWindowAggFunction::merge(int64_t namespaceObj, RowData* otherAcc)
 {
-    bool inputIsNull = otherAcc->isNullAt(aggIdx);
-    int64_t otherField = inputIsNull ? limit : *otherAcc->getLong(aggIdx);
-    if (inputIsNull){
-         aggValue = valueIsNull ? limit : aggValue;
-    } else{
-        if (valueIsNull) {
-            aggValue = otherField;
-            valueIsNull = false;
-        } else {
-            aggValue += otherField;
-        }
+    if (otherAcc->isNullAt(accIndex)) {
+        return;
     }
-    long countOther = otherAcc->isNullAt(countIdx) ? -1 : *otherAcc->getLong(countIdx);
-    if (!countIsNull) {
-        aggCountValue += countOther;
-    } else {
-        aggCountValue = -1;
-    }
+
+    valueIsNull = false;
+    aggValue += *otherAcc->getLong(accIndex);
 }
 
 void SumWindowAggFunction::setAccumulators(int64_t namespaceObj, RowData* acc)
 {
-    valueIsNull = acc->isNullAt(accIndex);
-    aggValue = valueIsNull ? limit : *acc->getLong(accIndex);
-    countIsNull = acc->isNullAt(1);
-    aggCountValue = countIsNull ? -1 : *acc->getLong(countIdx);
+    currentAcc_ = acc;
+    if (currentAcc_->isNullAt(accIndex)) {
+        valueIsNull = true;
+        aggValue = 0L;
+    } else {
+        valueIsNull = false;
+        aggValue = *currentAcc_->getLong(accIndex);
+    }
 }
 
-RowData* SumWindowAggFunction::getAccumulators()
-{
-    LOG(">>>>Function getAccumulators")
-    BinaryRowData *currentAcc = BinaryRowData::createBinaryRowDataWithMem(2);
-    //currentAcc->changeOwner(0);
+RowData* SumWindowAggFunction::getAccumulators() {
     if (valueIsNull) {
-        currentAcc->setNullAt(accIndex);
+        reinterpret_cast<BinaryRowData*>(currentAcc_)->setNullAt(accIndex);
     } else {
-        currentAcc->setLong(accIndex, aggValue);
+        currentAcc_->setLong(accIndex, aggValue);
     }
-    if (countIsNull) {
-        currentAcc->setNullAt(countIdx);
-    } else {
-        currentAcc->setLong(countIdx, aggCountValue);
-    }
-    return currentAcc;
-}
-
-RowData* SumWindowAggFunction::createAccumulators(int accumulatorArity)
-{
-    LOG("create createAccumulators")
-    BinaryRowData *currentAcc = BinaryRowData::createBinaryRowDataWithMem(accumulatorArity + 1);
-    currentAcc->setNullAt(0); 
-    currentAcc->setLong(countIdx, static_cast<long>(0));
-    return currentAcc;
-}
-
-RowData* SumWindowAggFunction::getValue(int64_t ns)
-{
-    BinaryRowData *result;
-    int64_t startTime = sliceAssigner->getWindowStart(ns);
-    int length = 3;
-    result = BinaryRowData::createBinaryRowDataWithMem(length);
     
+    return currentAcc_;
+}
+
+RowData* SumWindowAggFunction::createAccumulators(int accumulatorArity) {
+    BinaryRowData *currentAcc = BinaryRowData::createBinaryRowDataWithMem(accumulatorArity);
+    currentAcc->setNullAt(accIndex);
+    this->currentAcc_ = currentAcc;
+    return currentAcc;
+}
+
+RowData* SumWindowAggFunction::getValue(int64_t ns) {
     if (!valueIsNull) {
-        result->setLong(0, aggValue);
+        currentAcc_->setLong(valueIndex, aggValue);
     } else {
-        result->setNullAt(0);
+        reinterpret_cast<BinaryRowData*>(currentAcc_)->setNullAt(valueIndex);
     }
-    
-    result->setLong(length - 2, startTime);
-    result->setLong(length - 1, ns);
-    return result;
+
+    return currentAcc_;
 }
 
 void SumWindowAggFunction::Cleanup(int64_t namespaceObj)
