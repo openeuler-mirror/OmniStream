@@ -527,14 +527,16 @@ void OmniStreamTask::processInput(MailboxDefaultAction::Controller *controller)
         std::vector<int> keyTypes;
         for (auto& keyField : keyFields) {
             keyCols.emplace_back(keyField.getFieldIndex());
-            if (keyField.getFieldTypeName().compare("BIGINT") == 0) {
+            if (keyField.getFieldTypeName() == "BIGINT") {
                 keyTypes.emplace_back(omniruntime::type::OMNI_LONG);
-            }
-            if (keyField.getFieldTypeName().compare("VARCHAR") == 0) {
+            } else if (keyField.getFieldTypeName() == "VARCHAR") {
                 keyTypes.emplace_back(omniruntime::type::OMNI_VARCHAR);
-            }
-            if (keyField.getFieldTypeName().compare("INTEGER") == 0) {
+            } else if (keyField.getFieldTypeName() == "INTEGER") {
                 keyTypes.emplace_back(omniruntime::type::OMNI_INT);
+            } else if (keyField.getFieldTypeName() == "OMNI_TIME_WITHOUT_TIME_ZONE") {
+                keyTypes.emplace_back(omniruntime::type::OMNI_TIME_WITHOUT_TIME_ZONE);
+            } else {
+                THROW_LOGIC_EXCEPTION("Not supported field type: " << keyField.getFieldTypeName());
             }
         }
         return new KeySelector<BinaryRowData*>(keyTypes, keyCols);
