@@ -361,11 +361,10 @@ void OmniStreamTask::processInput(MailboxDefaultAction::Controller *controller)
             return;
     }
     std::shared_ptr<CompletableFuture> resumeFuture;
-    // if (!recordWriter_->isAvailable()) {
-    //     resumeFuture = recordWriter_->GetAvailableFuture();
-    //     INFO_RELEASE("recordWriter is not available, wait for it, task=" << taskName_);
-    // } else 
-    if (!inputProcessor_->isAvailable()) {
+    if (!recordWriter_->isAvailable()) {
+        resumeFuture = recordWriter_->GetAvailableFuture();
+        INFO_RELEASE("recordWriter is not available, wait for it, task=" << taskName_);
+    } else if (!inputProcessor_->isAvailable()) {
         resumeFuture = inputProcessor_->GetAvailableFuture();
         LOG("inputProcessor is not available, wait for it");
     } else {

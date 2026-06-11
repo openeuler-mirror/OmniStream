@@ -124,16 +124,10 @@ public:
 
     std::shared_ptr<CompletableFuture> GetAvailableFuture() override
     {
-        // no inputGate no output
-
-        // if (taskType == 1) {
-        //     return AVAILABLE;
-        // } else {
-            if (currentRecordDeserializer != nullptr) {
-                return AVAILABLE;
-            }
-            return inputGate->GetAvailableFuture();
-        // }
+        if (currentRecordDeserializer != nullptr) {
+            return AVAILABLE;
+        }
+        return inputGate->GetAvailableFuture();
     }
     std::unique_ptr<std::unordered_map<long, std::unique_ptr<RecordDeserializer>>> getRecordDeserializers(
         std::vector<long> &channelInfos)
