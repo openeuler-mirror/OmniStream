@@ -467,9 +467,9 @@ void OperatorChainV2::initializeStateAndOpenOperators(StreamTaskStateInitializer
             streamConfigPOD = &chainedConfig[index];
         }
         if (streamConfigPOD == nullptr) {
-            INFO_RELEASE("Error: no StreamConfig for operatorId=" << runtimeOperatorId
+            LOG("Error: no StreamConfig for operatorId=" << runtimeOperatorId
                 << ", index=" << index
-                << ", chainedConfigSize=" << chainedConfig.size());
+                << ", chainedConfigSize=" << chainedConfig.size())
             THROW_LOGIC_EXCEPTION("no StreamConfig for operatorId=" << runtimeOperatorId)
         }
         index++;

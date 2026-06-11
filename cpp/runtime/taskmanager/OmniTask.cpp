@@ -411,10 +411,10 @@ namespace omnistream {
                 partitionWriter->fail(cause);
                 partitionWriter->release(cause);
             } catch (const std::exception &e) {
-                INFO_RELEASE("Error: failed to fail result partition, task="
+                LOG("Error: failed to fail result partition, task="
                     << taskNameWithSubtask_ << ", error=" << e.what())
             } catch (...) {
-                INFO_RELEASE("Error: failed to fail result partition, task="
+                LOG("Error: failed to fail result partition, task="
                     << taskNameWithSubtask_)
             }
         }
@@ -714,20 +714,20 @@ namespace omnistream {
                 checkpointableTask->triggerCheckpointAsync(checkpointMetaData, checkpoint_options);
                 // TTODO
             } catch (const OmniException& ex) {
-                INFO_RELEASE("Error: triggerCheckpointBarrier caught OmniException, task="
+                LOG("Error: triggerCheckpointBarrier caught OmniException, task="
                     << taskNameWithSubtask_ << ", cp=" << checkpointid << ", error=" << ex.what());
                 std::runtime_error wrapped(std::string("OmniException: ") + ex.what());
                 this->declineCheckpoint(checkpointid,
                     CheckpointFailureReason::CHECKPOINT_DECLINED_TASK_CLOSING, &wrapped);
             } catch (const std::exception& t) {
-                INFO_RELEASE("Error: triggerCheckpointBarrier caught std::exception, task="
+                LOG("Error: triggerCheckpointBarrier caught std::exception, task="
                     << taskNameWithSubtask_ << ", cp=" << checkpointid << ", error=" << t.what());
                 std::runtime_error wrapped(std::string("std::exception: ") + t.what());
                 this->declineCheckpoint(checkpointid,
                     CheckpointFailureReason::CHECKPOINT_DECLINED, &wrapped);
             }
         } else {
-            INFO_RELEASE("Error: trigger checkpoint declined task not ready, task="
+            LOG("Error: trigger checkpoint declined task not ready, task="
                 << taskNameWithSubtask_ << ", cp=" << checkpointid
                 << ", state=" << TaskExecutionStateToString(executionState))
             this->declineCheckpoint(checkpointid, CheckpointFailureReason::CHECKPOINT_DECLINED_TASK_NOT_READY);

@@ -950,7 +950,7 @@ std::vector<StateMetaInfoSnapshot> OmniTaskBridgeImpl2::readOperatorMetaData(con
             return {};
         }
         if (result == nullptr) {
-            INFO_RELEASE("Error: readOperatorMetaData returned null");
+            LOG("Error: readOperatorMetaData returned null")
             env->DeleteLocalRef(msHandle);
             env->DeleteLocalRef(omniTaskWrapperClass);
             g_OmniStreamJVM->DetachCurrentThread();
@@ -964,7 +964,7 @@ std::vector<StateMetaInfoSnapshot> OmniTaskBridgeImpl2::readOperatorMetaData(con
                 env->ExceptionDescribe();
                 env->ExceptionClear();
             }
-            INFO_RELEASE("Error: readOperatorMetaData failed to copy result string");
+            LOG("Error: readOperatorMetaData failed to copy result string")
             env->DeleteLocalRef(result);
             env->DeleteLocalRef(msHandle);
             env->DeleteLocalRef(omniTaskWrapperClass);

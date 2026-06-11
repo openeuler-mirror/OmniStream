@@ -91,11 +91,11 @@ private:
             try {
                 callback->OnProcessingTime(nextTimestamp);
             } catch (const std::exception& e) {
-                INFO_RELEASE("Error: processing timer callback failed, timestamp="
-                    << nextTimestamp << ", error=" << e.what());
+                LOG("Error: processing timer callback failed, timestamp="
+                    << nextTimestamp << ", error=" << e.what())
             } catch (...) {
-                INFO_RELEASE("Error: processing timer callback failed, timestamp="
-                    << nextTimestamp << ", error=unknown");
+                LOG("Error: processing timer callback failed, timestamp="
+                    << nextTimestamp << ", error=unknown")
             }
 
             nextTimestamp += period;

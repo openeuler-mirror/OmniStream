@@ -69,8 +69,6 @@ void RdKafkaConsumer::assign(std::vector<RdKafka::TopicPartition*> &partitions)
     if (resp != RdKafka::ERR_NO_ERROR) {
         std::cerr << "% assign failed: " << RdKafka::err2str(resp)
                   << std::endl;
-        INFO_RELEASE("Error: Kafka assign failed, partitions=" << partitions.size()
-            << ", error=" << RdKafka::err2str(resp));
     }
 }
 

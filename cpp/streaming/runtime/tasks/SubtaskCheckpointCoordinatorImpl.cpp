@@ -141,12 +141,12 @@ namespace omnistream::runtime {
                 storage,
                 env->getTaskStateManager()->getOmniTaskBridge());
         } catch (const std::exception &e) {
-            INFO_RELEASE("Error: sync snapshot failed, task=" << taskName
+            LOG("Error: sync snapshot failed, task=" << taskName
                 << ", cp=" << checkpointId << ", error=" << e.what())
             checkpointStorage->clearCacheFor(checkpointId);
             throw;
         } catch (...) {
-            INFO_RELEASE("Error: sync snapshot failed, task=" << taskName
+            LOG("Error: sync snapshot failed, task=" << taskName
                 << ", cp=" << checkpointId << ", error=unknown")
             checkpointStorage->clearCacheFor(checkpointId);
             throw;
@@ -347,7 +347,7 @@ namespace omnistream::runtime {
                 }
             }
         } catch (const std::exception &e) {
-            INFO_RELEASE("Error: checkpointState failed, task=" << taskName
+            LOG("Error: checkpointState failed, task=" << taskName
                 << ", cp=" << metadata->GetCheckpointId()
                 << ", error=" << e.what())
             cleanup(snapshotFutures, metadata, metrics, e);
@@ -361,7 +361,7 @@ namespace omnistream::runtime {
             }
             throw;
         } catch (...) {
-            INFO_RELEASE("Error: checkpointState failed, task=" << taskName
+            LOG("Error: checkpointState failed, task=" << taskName
                 << ", cp=" << metadata->GetCheckpointId()
                 << ", error=unknown")
             cleanup(snapshotFutures, metadata, metrics, std::runtime_error("Unknown checkpoint failure"));

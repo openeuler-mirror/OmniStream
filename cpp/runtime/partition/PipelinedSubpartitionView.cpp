@@ -43,7 +43,6 @@ BufferAndBacklog* PipelinedSubpartitionView::getNextBuffer()
 
 void PipelinedSubpartitionView::notifyDataAvailable()
 {
-    std::lock_guard<std::mutex> lock(listenerMutex_);
     if (isReleased_.load() || availabilityListener == nullptr) {
         return;
     }
@@ -53,7 +52,6 @@ void PipelinedSubpartitionView::notifyDataAvailable()
 
 void PipelinedSubpartitionView::notifyPriorityEvent(int priorityBufferNumber)
 {
-    std::lock_guard<std::mutex> lock(listenerMutex_);
     if (isReleased_.load() || availabilityListener == nullptr) {
         return;
     }
@@ -70,7 +68,6 @@ void PipelinedSubpartitionView::ConvertToPriorityEvent(int sequenceNumber)
 
 void PipelinedSubpartitionView::releaseAllResources()
 {
-    std::lock_guard<std::mutex> lock(listenerMutex_);
     bool expected = false;
     bool desired = true;
     if (isReleased_.compare_exchange_strong(expected, desired)) {

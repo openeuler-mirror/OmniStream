@@ -556,15 +556,15 @@ void OmniStreamTask::processInput(MailboxDefaultAction::Controller *controller)
                     operatorChain->DispatchOperatorEvent(operatorIdString, eventString);
                 } catch (const std::exception& e) {
                     isRunning = false;
-                    INFO_RELEASE("Error: mailbox dispatch failed, operatorId="
+                    LOG("Error: mailbox dispatch failed, operatorId="
                         << operatorIdString << ", eventBytes=" << eventString.size()
-                        << ", error=" << e.what());
+                        << ", error=" << e.what())
                     mailboxProcessor_->suspend();
                 } catch (...) {
                     isRunning = false;
-                    INFO_RELEASE("Error: mailbox dispatch failed, operatorId="
+                    LOG("Error: mailbox dispatch failed, operatorId="
                         << operatorIdString << ", eventBytes=" << eventString.size()
-                        << ", error=unknown");
+                        << ", error=unknown")
                     mailboxProcessor_->suspend();
                 }
             }
@@ -572,8 +572,8 @@ void OmniStreamTask::processInput(MailboxDefaultAction::Controller *controller)
         try {
             mainMailboxExecutor_->execute(mailboxRunnable, "dispatchOperatorEvent");
         } catch (const std::exception& e) {
-            INFO_RELEASE("Error: operator event dropped, mailbox not running, operatorId="
-                << operatorIdString << ", error=" << e.what());
+            LOG("Error: operator event dropped, mailbox not running, operatorId="
+                << operatorIdString << ", error=" << e.what())
         }
     }
 

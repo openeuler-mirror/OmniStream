@@ -13,7 +13,6 @@
 #define OMNISTREAM_PROGRESSIVETIMESTAMPSANDWATERMARKS_H
 
 #include <atomic>
-#include <mutex>
 #include <utility>
 #include "TimestampsAndWatermarks.h"
 #include "core/api/common/eventtime/WatermarkOutputMultiplexer.h"
@@ -239,7 +238,6 @@ private:
 
     ScheduledFutureTask* periodicEmitHandle = nullptr;
     std::atomic<bool> periodicEmitStopped_ = true;
-    std::mutex outputMutex_;
 
     void TriggerPeriodicEmit(long wallClockTimestamp);
 

@@ -127,12 +127,12 @@ KafkaPartitionSplit* KafkaPartitionSplitSerializer::deserialize(int version, std
         auto *split = new KafkaPartitionSplit(topicPartition, startingOffset, stoppingOffset);
         return split;
     } catch (const std::exception& e) {
-        INFO_RELEASE("Error: KafkaPartitionSplit invalid, topic=" << topic
+        LOG("Error: KafkaPartitionSplit invalid, topic=" << topic
             << ", partition=" << partition
             << ", startingOffset=" << startingOffset
             << ", stoppingOffset=" << stoppingOffset
             << ", bytes=" << serialized.size()
-            << ", error=" << e.what());
+            << ", error=" << e.what())
         throw;
     }
 }

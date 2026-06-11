@@ -11,7 +11,6 @@
 
 #include "ProgressiveTimestampsAndWatermarks.h"
 #include "WatermarkToDataOutput.h"
-#include "common.h"
 
 
 ProgressiveTimestampsAndWatermarks::ProgressiveTimestampsAndWatermarks(TimestampAssigner* timestampAssigner,
@@ -23,10 +22,6 @@ ProgressiveTimestampsAndWatermarks::ProgressiveTimestampsAndWatermarks(Timestamp
 
 void ProgressiveTimestampsAndWatermarks::TriggerPeriodicEmit(long wallClockTimestamp)
 {
-    if (periodicEmitStopped_.load()) {
-        return;
-    }
-    std::lock_guard<std::mutex> lock(outputMutex_);
     if (periodicEmitStopped_.load()) {
         return;
     }
@@ -42,7 +37,6 @@ void ProgressiveTimestampsAndWatermarks::TriggerPeriodicEmit(long wallClockTimes
 ReaderOutput* ProgressiveTimestampsAndWatermarks::CreateMainOutput(
     OmniDataOutputPtr output, WatermarkUpdateListener* watermarkCallback)
 {
-    std::lock_guard<std::mutex> lock(outputMutex_);
     if (currentMainOutput != nullptr || currentPerSplitOutputs != nullptr) {
         THROW_RUNTIME_ERROR("already created a main output");
     }
