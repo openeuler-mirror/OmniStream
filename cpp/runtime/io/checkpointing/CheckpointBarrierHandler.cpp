@@ -99,7 +99,7 @@ namespace omnistream {
     {
         const auto i = 1000000;
         latestCheckpointStartDelayNanos = i * std::max(int64_t(0),
-            clock.RelativeTimeMillis() - checkpointCreationTimestamp);
+            clock.AbsoluteTimeMillis() - checkpointCreationTimestamp);
         ResetAlignment();
         startOfAlignmentTimestamp = clock.RelativeTimeNanos();
         startAlignmentCheckpointId = checkpointId;
