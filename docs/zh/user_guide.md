@@ -9,10 +9,10 @@
 OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2** 支持的算子列表](#支持的算子列表)和[**表 3** 支持的表达式列表](#支持的表达式列表)所示，表格中使用符号表示算子和表达式是否支持，符号的含义请参见[**表 1** 算子和表达式支持表格中符号的含义](#算子和表达式支持表格中符号的含义)。
 
 >![](public_sys-resources/icon-notice.gif) **须知：** 
->-   [**表 2** 支持的算子列表](#支持的算子列表)和[**表 3** 支持的表达式列表](#支持的表达式列表)中仅描述了OmniStream Flink Native化特性支持或涉及的数据类型，未展示的数据类型是OmniStream Flink Native化特性不支持的。
->-   如果使用OmniStream Flink Native化特性不支持的算子和表达式，会导致执行计划回退为原生执行，对性能会有影响。
->-   使用sql-client交互式界面执行SQL时，推荐将SQL的结果输出到connector为blackhole的数据表中，具体可参考nexmark Q0的执行方式。
->-   由于内存限制，默认情况下只支持Calc和LookupJoin算子，其他支持的算子需要export FLINK\_PERFORMANCE=false设置环境变量使能。
+>- [**表 2** 支持的算子列表](#支持的算子列表)和[**表 3** 支持的表达式列表](#支持的表达式列表)中仅描述了OmniStream Flink Native化特性支持或涉及的数据类型，未展示的数据类型是OmniStream Flink Native化特性不支持的。
+>- 如果使用OmniStream Flink Native化特性不支持的算子和表达式，会导致执行计划回退为原生执行，对性能会有影响。
+>- 使用sql-client交互式界面执行SQL时，推荐将SQL的结果输出到connector为blackhole的数据表中，具体可参考nexmark Q0的执行方式。
+>- 由于内存限制，默认情况下只支持Calc和LookupJoin算子，其他支持的算子需要export FLINK\_PERFORMANCE=false设置环境变量使能。
 
 **表 1** 算子和表达式支持表格中符号的含义<a id="算子和表达式支持表格中符号的含义"></a>
 
@@ -23,7 +23,6 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
 |NS| 表示不支持该算子或表达式。                                                     |
 |NA| 表示不涉及该算子或表达式。开源版本Flink也没有此输入场景。                                   |
 |[Blank Cell]| 表示不适用或需要确认。                                                       |
-
 
 **表 2** 支持的算子列表<a id="支持的算子列表"></a>
 
@@ -49,7 +48,6 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
 |Expand|PS|PS|PS|
 |Rank|PS|PS|PS|
 
-
 **表 3** 支持的表达式列表<a id="支持的表达式列表"></a>
 
 |表达式|函数类型|BIGINT|VARCHAR|NULL|TIMESTAMP(3)|
@@ -70,7 +68,6 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
 | PROCTIME_MATERIALIZE | Scalar Functions | NA | NA | NA | S |
 | CHAR_LENGTH | Scalar Functions | NA | S | NA | NA |
 | TO_TIMESTAMP_LTZ | Scalar Functions | S | NA | S | NA |
-
 
 ### DataStream算子和UDF支持情况<a name="ZH-CN_TOPIC_0000002517961054"></a>
 
@@ -112,7 +109,6 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
 |JsonPrimitive|boolean getAsBoolean()|
 |JsonElement|JsonObject getAsJsonObject()double getAsDouble()float getAsFloat()int getAsInt()long getAsLong()short getAsShort()boolean getAsBoolean()String getAsString()boolean isJsonNull()String toString()String toString()|
 |JsonArray|Iterator<JsonElement> iterator()|
-
 
 ### （SQL场景）使能OmniStream<a name="ZH-CN_TOPIC_0000002549640821"></a>
 
@@ -259,37 +255,46 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
 
 4. 创建并配置Kafka消费者和生产者配置文件。
     1. 进入flink_tm1_8c32g容器。
-    ```bash
-    docker exec -it flink_tm1_8c32g /bin/bash
-    ```
-    2. 创建`/opt/conf`目录。 <a id="4.2"></a>
-    ```bash
-    mkdir /opt/conf
-    cd /opt/conf
-    ```
-    3. 新增Kafka消费者配置文件kafka\_consumer.conf。
-    ```bash
-    fetch.queue.backoff.ms=20
-    group.id=omni
-    max.poll.records=10000
-    ```
-    4. 新增Kafka生产者配置文件kafka_producer.conf。<a id="4.4"></a>
-    ```bash
-    queue.buffering.max.messages=2000000
-    queue.buffering.max.kbytes=20971520
-    queue.buffering.max.ms=5
-    linger.ms=5
-    batch.num.messages=200000
-    batch.size=3145728
-    max.push.records=10000
-    ```
-   5. 进入flink_tm2_8c32g，执行步骤[4.ii](#4.2)～[4.iv](#4.4)。
 
-   ```bash
-   docker exec -it flink_tm1_8c32g /bin/bash
-   ```
+        ```bash
+        docker exec -it flink_tm1_8c32g /bin/bash
+        ```
+
+    2. 创建`/opt/conf`目录。 <a id="4.2"></a>
+
+        ```bash
+        mkdir /opt/conf
+        cd /opt/conf
+        ```
+
+    3. 新增Kafka消费者配置文件kafka\_consumer.conf。
+
+        ```bash
+        fetch.queue.backoff.ms=20
+        group.id=omni
+        max.poll.records=10000
+        ```
+
+    4. 新增Kafka生产者配置文件kafka_producer.conf。<a id="4.4"></a>
+
+        ```bash
+        queue.buffering.max.messages=2000000
+        queue.buffering.max.kbytes=20971520
+        queue.buffering.max.ms=5
+        linger.ms=5
+        batch.num.messages=200000
+        batch.size=3145728
+        max.push.records=10000
+        ```
+
+    5. 进入flink_tm2_8c32g，执行步骤[4.ii](#4.2)～[4.iv](#4.4)。
+
+        ```bash
+        docker exec -it flink_tm1_8c32g /bin/bash
+        ```
 
 5. 在物理机上启动ZooKeeper和Kafka，详情请参见《[Kafka 部署指南](https://www.hikunpeng.com/document/detail/zh/kunpengbds/ecosystemEnable/Kafka/kunpengkafka_04_0011.html)》。
+
 6. 使用Kafka创建Topic并生成数据。
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
@@ -599,6 +604,7 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
 12. 查看Sink Topic的数据。
   
     消费Kafka数据查看作业是否正常运行。
+
     ```bash
     cd /usr/local/kafka
     bin/kafka-console-consumer.sh --bootstrap-server 服务端的物理机IP地址:9092 --topic result --from-beginning
@@ -616,7 +622,6 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
 
     ![](figures/zh-cn_image_0000002518120980.png)
 
-
 ## 维护特性<a name="ZH-CN_TOPIC_0000002517961044"></a>
 
 升级或卸载OmniStream时请满足操作规范。
@@ -631,8 +636,8 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
 **卸载软件<a name="section1939611410533"></a>**
 
 >![](public_sys-resources/icon-notice.gif) **须知：** 
->-   当前步骤仅供需要卸载OmniStream时参考，不属于部署OmniStream的必要操作步骤。
->-   卸载OmniStream之前，请确保Flink引擎没有处于任务执行的状态。
+>- 当前步骤仅供需要卸载OmniStream时参考，不属于部署OmniStream的必要操作步骤。
+>- 卸载OmniStream之前，请确保Flink引擎没有处于任务执行的状态。
 
 下述卸载过程以安装目录为`/opt/Dependency_library`和`/usr/local/OmniStream`为例进行说明。
 
@@ -644,4 +649,3 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
 3. 修改`$FLINK_HOME/conf`目录下的flink-conf.yaml文件，恢复Flink默认配置。
 
     具体操作为，将[安装指南-安装OmniStream-步骤4](installation_guide.md)中的修改还原至未修改前的状态。
-

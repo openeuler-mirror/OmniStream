@@ -9,10 +9,10 @@ This section describes the scope, restrictions, and usage rules of SQL operators
 [**Table  2**  Supported operators](#supported_operators)  and  [**Table  3**  Supported expressions](#supported_expressions)  list the operators, expressions, and functions supported by OmniStream. Symbols are used to indicate whether the operators and expressions are supported. For details about the symbols, see  [**Table  1**  Meanings of symbols in the operator and expression support tables](#symbols).
 
 >![](public_sys-resources/icon-notice.gif) **NOTICE:** 
->-   [**Table  2**  Supported operators](#supported_operators)  and  [**Table  3**  Supported expressions](#supported_expressions)  display the data types supported by or involved in OmniStream. The data types that are not displayed in the two tables are not supported by OmniStream.
->-   If you use operators and expressions that are not supported by OmniStream, the execution plan will be rolled back to native execution, which deteriorates the performance.
->-   When you use the SQL Client interactive user interface to execute SQL statements, you are advised to export the execution result to the data table whose connector is  **blackhole**. For details, see the execution mode of Nexmark Q0.
->-   Due to memory restrictions, only the Calc and LookupJoin operators are supported by default. To support other operators, set export  **FLINK\_PERFORMANCE**  to  **false**  to enable environment variables.
+>- [**Table  2**  Supported operators](#supported_operators)  and  [**Table  3**  Supported expressions](#supported_expressions) display the data types supported by or involved in OmniStream. The data types that are not displayed in the two tables are not supported by OmniStream.
+>- If you use operators and expressions that are not supported by OmniStream, the execution plan will be rolled back to native execution, which deteriorates the performance.
+>- When you use the SQL Client interactive user interface to execute SQL statements, you are advised to export the execution result to the data table whose connector is  **blackhole**. For details, see the execution mode of Nexmark Q0.
+>- Due to memory restrictions, only the Calc and LookupJoin operators are supported by default. To support other operators, set export  **FLINK\_PERFORMANCE**  to  **false**  to enable environment variables.
 
 **Table  1**  Meanings of symbols in the operator and expression support tables<a id="symbols"></a>
 
@@ -23,7 +23,6 @@ This section describes the scope, restrictions, and usage rules of SQL operators
 |NS| Indicates that the operator or expression is not supported.                                                                                                             |
 |NA| Indicates that the operator or expression is not involved. This scenario does not exist in open source Flink.                                                           |
 |[Blank Cell]| Indicates a scenario that is irrelevant or needs to be confirmed.                                                                                                       |
-
 
 **Table  2**  Supported operators<a id="supported_operators"></a>
 
@@ -49,7 +48,6 @@ This section describes the scope, restrictions, and usage rules of SQL operators
 |Expand|PS|PS|PS|
 |Rank|PS|PS|PS|
 
-
 **Table  3**  Supported expressions<a id="supported_expressions"></a>
 
 |Expression|Function Type|BIGINT|VARCHAR|NULL|TIMESTAMP(3)|
@@ -64,7 +62,6 @@ This section describes the scope, restrictions, and usage rules of SQL operators
 |COUNT_CHAR|Scalar functions|NA|S|NA|NA|
 |HOUR|Scalar functions|S|NA|NS|S|
 |REGEX_EXTRACT|Scalar functions|NA|S|NS|NA|
-
 
 ### Supported DataStream Operators and UDFs<a name="EN-US_TOPIC_0000002517961054"></a>
 
@@ -106,7 +103,6 @@ The supported data transfer objects include Long, String, and Tuple2<String, Lon
 |JsonPrimitive|boolean getAsBoolean()|
 |JsonElement|JsonObject getAsJsonObject()double getAsDouble()float getAsFloat()int getAsInt()long getAsLong()short getAsShort()boolean getAsBoolean()String getAsString()boolean isJsonNull()String toString()String toString()|
 |JsonArray|Iterator<JsonElement> iterator()|
-
 
 ### Enabling OmniStream for SQL<a name="EN-US_TOPIC_0000002549640821"></a>
 
@@ -254,42 +250,42 @@ This section describes how to start a Flink cluster and enable OmniStream in Dat
 4. Create and configure the Kafka consumer and producer configuration files.
     1. Access the  **flink\_tm1\_8c32g**  container.
 
-    ```bash
-    docker exec -it flink_tm1_8c32g /bin/bash
-    ```
+        ```bash
+        docker exec -it flink_tm1_8c32g /bin/bash
+        ```
 
     2. <a name="li71941829175515"></a>Create an  **/opt/conf**  directory.
 
-    ```bash
-    mkdir /opt/conf
-    cd /opt/conf
-    ```
+        ```bash
+        mkdir /opt/conf
+        cd /opt/conf
+        ```
 
-   3. Create the Kafka consumer configuration file  **kafka\_consumer.conf**.
+    3. Create the Kafka consumer configuration file **kafka\_consumer.conf**.
 
-    ```bash
-       fetch.queue.backoff.ms=20
-       group.id=omni
-       max.poll.records=10000
-   ```
+        ```bash
+        fetch.queue.backoff.ms=20
+        group.id=omni
+        max.poll.records=10000
+        ```
 
     4. <a name="li191941296556"></a>Create the Kafka producer configuration file  **kafka\_producer.conf**.
 
-    ```bash
-    queue.buffering.max.messages=2000000
-    queue.buffering.max.kbytes=20971520
-    queue.buffering.max.ms=5
-    linger.ms=5
-    batch.num.messages=200000
-    batch.size=3145728
-    max.push.records=10000
-    ```
+        ```bash
+        queue.buffering.max.messages=2000000
+        queue.buffering.max.kbytes=20971520
+        queue.buffering.max.ms=5
+        linger.ms=5
+        batch.num.messages=200000
+        batch.size=3145728
+        max.push.records=10000
+        ```
 
     5. Access the  **flink\_tm2\_8c32g**  container and perform steps  [4.b](#li71941829175515)  to  [4.d](#li191941296556).
 
-    ```bash
-    docker exec -it flink_tm1_8c32g /bin/bash
-    ```
+        ```bash
+        docker exec -it flink_tm1_8c32g /bin/bash
+        ```
 
 5. Start ZooKeeper and Kafka on the physical machine. For details, see  [Kafka Deployment Guide](https://www.hikunpeng.com/document/detail/en/kunpengbds/ecosystemEnable/Kafka/kunpengkafka_04_0011.html).
 6. Use Kafka to create topics and generate data.
@@ -619,8 +615,6 @@ This section describes how to start a Flink cluster and enable OmniStream in Dat
 
     ![](figures/en-us_image_0000002518120980.png)
 
-
-
 ## Maintaining the Feature<a name="EN-US_TOPIC_0000002517961044"></a>
 
 **Upgrading the Software<a name="section1255684918527"></a>**
@@ -633,18 +627,16 @@ Contact Huawei technical support to download the OmniStream software installatio
 **Uninstalling the Software<a name="section1939611410533"></a>**
 
 >![](public_sys-resources/icon-notice.gif) **NOTICE:** 
->-   This step is optional and is not mandatory for deploying OmniStream.
->-   Before uninstalling OmniStream, ensure that the Flink engine is not executing any tasks.
+>- This step is optional and is not mandatory for deploying OmniStream.
+>- Before uninstalling OmniStream, ensure that the Flink engine is not executing any tasks.
 
 The following steps assume that the installation directories are  **/opt/Dependency\_library**  and  **/usr/local/OmniStream**.
 
 1. Delete software dependency packages from  **/opt/Dependency\_library**  and  **/usr/local/OmniStream**.
 2. Modify the  **config.sh**  file in the  **$FLINK_HOME/bin**  directory to restore the default Flink configuration.
 
-    Specifically, restore the values set in  [Installation Guide-Installing OmniStream-Step3](installation_guide.md#installing-omnistreama-nameen-us_topic_0000002549064711a)  to their original values.
+    Specifically, restore the values set in  [Installation Guide-Installing OmniStream-Step3](installation_guide.md#installing-omnistream)  to their original values.
 
 3. Modify the  **flink-conf.yaml**  file in the  **$FLINK_HOME/conf**  directory to restore the default Flink configuration.
 
-    Specifically, restore the values set in  [Installation Guide-Installing OmniStream-Step4](installation_guide.md#installing-omnistreama-nameen-us_topic_0000002549064711a)  to their original values.
-
-
+    Specifically, restore the values set in  [Installation Guide-Installing OmniStream-Step4](installation_guide.md#installing-omnistream)  to their original values.

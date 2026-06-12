@@ -84,17 +84,16 @@
 </tbody>
 </table>
 
-
 ### 编译命令
 
-1.  编译OmniStream前需要编译OmniAdaptor代码，编译命令如下。
+1. 编译OmniStream前需要编译OmniAdaptor代码，编译命令如下。
 
     ```bash
     cd omnistream/omniop-flink-extension/omni-flink-bundle
     mvn clean package -DskipTests
     ```
 
-2.  OmniStream编译命令如下。
+2. OmniStream编译命令如下。
 
     ```bash
     cd OmniStream/cpp
@@ -130,6 +129,7 @@
     ```bash
     SELECT 'Hello, Flink!';
     ```
+
     可以正常输出结果即安装正常。
 
 # 免责声明

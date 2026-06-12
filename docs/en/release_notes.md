@@ -23,7 +23,6 @@
 </tbody>
 </table>
 
-
 ### Software Version Mapping<a name="EN-US_TOPIC_0000002517493642"></a>
 
 |Item|Version|
@@ -33,8 +32,6 @@
 |Flink|1.16.3|
 |Docker|19.03.15|
 |Nexmark|v0.3.0|
-
-
 
 ### Hardware Version Mapping<a name="EN-US_TOPIC_0000002517493676"></a>
 
@@ -51,7 +48,6 @@
 </tr>
 </tbody>
 </table>
-
 
 ### Virus Scan Results<a name="EN-US_TOPIC_0000002549053513"></a>
 
@@ -144,8 +140,6 @@ The software packages, release documents, and product documents have been scanne
 </tbody>
 </table>
 
-
-
 ## V1.2.0<a name="EN-US_TOPIC_0000002518563132"></a>
 
 ### Change Description<a name="EN-US_TOPIC_0000002550202869"></a>
@@ -164,17 +158,13 @@ None
 
 None
 
-
 ### Resolved Issues<a name="EN-US_TOPIC_0000002518723034"></a>
 
 None
 
-
 ### Known Issues<a name="EN-US_TOPIC_0000002550162875"></a>
 
 None
-
-
 
 ## V1.1.0<a name="EN-US_TOPIC_0000002517493646"></a>
 
@@ -195,17 +185,13 @@ None
 
 None
 
-
 ### Resolved Issues<a name="EN-US_TOPIC_0000002548933533"></a>
 
 None
 
-
 ### Known Issues<a name="EN-US_TOPIC_0000002517493614"></a>
 
 None
-
-
 
 ## V1.0.0<a name="EN-US_TOPIC_0000002549053495"></a>
 
@@ -235,21 +221,18 @@ None
 
 None
 
-
 ### Resolved Issues<a name="EN-US_TOPIC_0000002549053493"></a>
 
 None
-
 
 ### Known Issues<a name="EN-US_TOPIC_0000002517333744"></a>
 
 None
 
-
-
 ## Related Documentation<a name="EN-US_TOPIC_0000002548933523"></a>
 
 ### Related Documentation<a name="EN-US_TOPIC_0000002517333760"></a>
+
 <font size=3>
 <table>
   <thead>
@@ -285,6 +268,3 @@ None
 ### Obtaining Documentation<a name="EN-US_TOPIC_0000002517493604"></a>
 
 Visit [the open source repository](https://gitcode.com/openeuler/OmniStream) to view or download required documents.
-
-
-

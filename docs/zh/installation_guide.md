@@ -30,7 +30,6 @@ OmniStream Flink Native化采用单机容器化部署方案，使用Docker容器
 |硬盘|系统盘：1 * RAID 0（1 * 1.2TB SAS HDD）</br>数据盘：12 * RAID 0（12 * 8TB SATA HDD）|
 |RAID控制卡|LSI SAS3508|
 
-
 **操作系统和软件要求<a name="zh-cn_topic_0000002228744546_section412511315357"></a>**
 
 操作系统和软件要求如[**表 2** 操作系统和软件要求](#操作系统和软件要求)所示。
@@ -53,7 +52,6 @@ OmniStream Flink Native化采用单机容器化部署方案，使用Docker容器
 |Xxhash| [0.8.2](https://github.com/Cyan4973/xxHash/tree/v0.8.2)                                                                                                                                                                                                                                                                                    | 用于提供UDF翻译使用的头文件。                                                                                                                                                  |
 |nlohmann json| [3.11.3](https://github.com/nlohmann/json/tree/v3.11.3)                                                                                                                                                                                                                                                                                   | 用于提供UDF翻译使用的头文件。                                                                                                                                                  |
 
-
 **软件安装包获取<a name="zh-cn_topic_0000002228744546_section189181357102011"></a>**
 
 安装OmniStream Flink Native化特性所需软件安装包及其获取方式如[**表 3** 软件获取列表](#软件获取列表)所示。
@@ -69,7 +67,6 @@ OmniStream Flink Native化采用单机容器化部署方案，使用Docker容器
 |KSL| BoostKit-ksl_2.5.1.zip                           |闭源|正则加速库，该zip包含ReplaceAll用于优化String基础库，内含头文件和1个静态库。| [获取链接](https://www.hikunpeng.com/boostkit/library/system?subtab=Hyperscan&version=2.5.1)                                                                                                                                                                           |
 |依赖库| Dependency_library_Default |开源|OmniStream Flink Native化运行时所依赖的库文件。</br>该文件夹从Dependency_library_OmniStream.zip解压获得。| [获取链接](https://gitcode.com/openeuler/OmniStream/releases/download/tag_BoostKit_26.0.RC1.B031_001/Dependency_library_OmniStream.zip) |
 
-
 **软件安装包完整性校验<a name="zh-cn_topic_0000002228744546_section156811729327"></a>**
 
 从鲲鹏社区获取的软件安装包，下载软件安装包后需要校验软件安装包，确保与网站上的原始软件安装包一致。
@@ -79,7 +76,6 @@ OmniStream Flink Native化采用单机容器化部署方案，使用Docker容器
 1. 获取软件数字证书和软件安装包。
 2. [获取校验工具和校验方法](https://support.huawei.com/enterprise/zh/tool/pgp-verify-TL1000000054)。
 3. 参见上述链接下载的《OpenPGP签名验证指南》进行软件安装包完整性检查。
-
 
 ## 安装特性<a name="ZH-CN_TOPIC_0000002549064703"></a>
 
@@ -408,7 +404,6 @@ rm -rf /usr/bin/python
 ln -s /usr/bin/python3 /usr/bin/python
 ```
 
-
 #### 安装yaml-cpp<a name="ZH-CN_TOPIC_0000002548944719"></a>
 
 在flink\_jm\_8c32g中，通过RPM包安装yaml-cpp。
@@ -417,7 +412,6 @@ ln -s /usr/bin/python3 /usr/bin/python
 wget --no-check-certificate https://repo.openeuler.org/openEuler-preview/openEuler-22.03-LTS-SP4-HP-preview/OS/aarch64/Packages/yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
 rpm -ivh yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
 ```
-
 
 #### 安装必要依赖<a name="ZH-CN_TOPIC_0000002517344930"></a>
 
@@ -443,8 +437,6 @@ rpm -ivh yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
         cp /opt/Dependency_library_Default /opt/Dependency_library        
         chmod -R 550 /opt/Dependency_library/*
         ```
-
-
 
 ### 安装OmniStream<a name="ZH-CN_TOPIC_0000002549064711"></a>
 
@@ -593,8 +585,8 @@ rpm -ivh yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
         docker cp /usr/local/OmniStream/libbasictypes/include/third_party flink_jm_8c32g:/opt/udf-trans-opt/libbasictypes/include/
         ```
 
-   2. 安装jemalloc。
-       1. 下载[jemalloc-5.3.0.tar.gz](https://github.com/jemalloc/jemalloc/archive/refs/tags/5.3.0.tar.gz)，并上传到管理节点。
+    2. 安装jemalloc。
+        1. 下载[jemalloc-5.3.0.tar.gz](https://github.com/jemalloc/jemalloc/archive/refs/tags/5.3.0.tar.gz)，并上传到管理节点。
 
            ```bash
            cd /opt/omni-operator/
@@ -605,51 +597,51 @@ rpm -ivh yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
            >![](public_sys-resources/icon-note.gif)**说明：**
            >`/opt/omni-operator/jemalloc`目录用户可自行定义。
 
-       2. 进入`jemalloc`目录，运行脚本并安装。
+        2. 进入`jemalloc`目录，运行脚本并安装。
 
-          ```bash
-          cd jemalloc
-          ./autogen.sh --disable-initial-exec-tls
-          make -j2
-          ```
+            ```bash
+            cd jemalloc
+            ./autogen.sh --disable-initial-exec-tls
+            make -j2
+            ```
 
-      3. 拷贝`/opt/omni-operator/jemalloc/lib/libjemalloc.so.2`到`/opt/omni-operator/lib`目录下。
+        3. 拷贝`/opt/omni-operator/jemalloc/lib/libjemalloc.so.2`到`/opt/omni-operator/lib`目录下。
 
-         ```bash
-         cp /opt/omni-operator/jemalloc/lib/libjemalloc.so.2 /opt/omni-operator/lib/
-         ```
+            ```bash
+            cp /opt/omni-operator/jemalloc/lib/libjemalloc.so.2 /opt/omni-operator/lib/
+            ```
 
-   3. 复制jemalloc.h到容器UDF工具的头文件引用目录中。
+    3. 复制jemalloc.h到容器UDF工具的头文件引用目录中。
 
-      ```bash
-      docker cp /opt/omni-operator/jemalloc/include/jemalloc/jemalloc.h flink_jm_8c32g:/opt/udf-trans-opt/libbasictypes/include/
-      ```
+        ```bash
+        docker cp /opt/omni-operator/jemalloc/include/jemalloc/jemalloc.h flink_jm_8c32g:/opt/udf-trans-opt/libbasictypes/include/
+        ```
 
-   4. 下载OmniOperator，将OmniOperator源码全部拷贝到容器UDF工具的头文件引用目录中。
+    4. 下载OmniOperator，将OmniOperator源码全部拷贝到容器UDF工具的头文件引用目录中。
 
-       ```bash
-       cd /usr/local/OmniStream/depend/
-       git clone https://atomgit.com/openeuler/OmniOperator.git -b master
-       mv OmniOperator OmniOperatorJIT 
-       docker cp /usr/local/OmniStream/depend/OmniOperatorJIT flink_jm_8c32g:/opt/udf-trans-opt/libbasictypes/include/
-       ```
+        ```bash
+        cd /usr/local/OmniStream/depend/
+        git clone https://atomgit.com/openeuler/OmniOperator.git -b master
+        mv OmniOperator OmniOperatorJIT 
+        docker cp /usr/local/OmniStream/depend/OmniOperatorJIT flink_jm_8c32g:/opt/udf-trans-opt/libbasictypes/include/
+        ```
 
-   5. 下载xxhash，将xxhash.h拷贝到UDF工具的头文件引用目录中。
+    5. 下载xxhash，将xxhash.h拷贝到UDF工具的头文件引用目录中。
 
-       ```bash
-       cd /usr/local/OmniStream/depend/
-       git clone https://github.com/Cyan4973/xxHash.git
-       cd xxHash && git checkout tags/v0.8.2
-       docker cp /usr/local/OmniStream/depend/xxHash/xxhash.h flink_jm_8c32g:/opt/udf-trans-opt/libbasictypes/include/
-       ```
+        ```bash
+        cd /usr/local/OmniStream/depend/
+        git clone https://github.com/Cyan4973/xxHash.git
+        cd xxHash && git checkout tags/v0.8.2
+        docker cp /usr/local/OmniStream/depend/xxHash/xxhash.h flink_jm_8c32g:/opt/udf-trans-opt/libbasictypes/include/
+        ```
 
-   6. 下载nlohmann json，将本地代码中的include/nlohmann目录拷贝到容器UDF工具的头文件引用目录中。
+    6. 下载nlohmann json，将本地代码中的include/nlohmann目录拷贝到容器UDF工具的头文件引用目录中。
 
-       ```bash
-       cd /usr/local/OmniStream/depend/
-       git clone https://github.com/nlohmann/json.git -b v3.11.3
-       docker cp /usr/local/OmniStream/depend/json/include/nlohmann flink_jm_8c32g:/opt/udf-trans-opt/libbasictypes/include/
-       ```
+        ```bash
+        cd /usr/local/OmniStream/depend/
+        git clone https://github.com/nlohmann/json.git -b v3.11.3
+        docker cp /usr/local/OmniStream/depend/json/include/nlohmann flink_jm_8c32g:/opt/udf-trans-opt/libbasictypes/include/
+        ```
 
 5. 安装libboundscheck头文件`/opt/udf-trans-opt/libbasictypes`。
     1. 进入flink\_jm\_8c32g容器创建目录`/opt/udf-trans-opt/libbasictypes/include/libboundscheck`并退出容器。
@@ -666,7 +658,6 @@ rpm -ivh yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
         docker cp /usr/local/OmniStream/include flink_jm_8c32g:/opt/udf-trans-opt/libbasictypes/include/libboundscheck
         ```
 
-
 ### 安装AI4C<a name="ZH-CN_TOPIC_0000002517344924"></a>
 
 从[**表 3** 软件获取列表](#软件获取列表)中获取依赖包AI4C-1.0.4-8.aarch64.rpm，上传到flink\_jm\_8c32g`/opt`路径，并安装。
@@ -677,7 +668,6 @@ docker exec -it flink_jm_8c32g bash
 cd /opt
 rpm -ivh --nodeps AI4C-1.0.4-8.aarch64.rpm
 ```
-
 
 ### 容器化部署<a name="ZH-CN_TOPIC_0000002549064715"></a>
 
@@ -746,6 +736,3 @@ rpm -ivh --nodeps AI4C-1.0.4-8.aarch64.rpm
         ```bash
         exit
         ```
-
-
-

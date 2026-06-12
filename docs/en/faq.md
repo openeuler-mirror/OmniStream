@@ -27,5 +27,3 @@
 - Symptom 1: Submit the task again.
 - Symptom 2: Ignore the message and no action is required.
 - Symptom 3: Restart the entire Flink cluster and submit the task again.
-
-
