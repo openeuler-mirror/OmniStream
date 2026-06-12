@@ -68,12 +68,14 @@ RowData* CompositeWindowAggFunction::getValue(int64_t ns) {
         currentAcc = func->getValue(ns); 
     }
     int64_t startTime = sliceAssigner->getWindowStart(ns);
-    BinaryRowData *windowResult = BinaryRowData::createBinaryRowDataWithMem(2);;
+    auto windowResult = std::unique_ptr<BinaryRowData>(BinaryRowData::createBinaryRowDataWithMem(2));
     windowResult->setLong(0, startTime);
     windowResult->setLong(1, ns);
-    auto tempValue = new JoinedRowData();
-    tempValue->replace(currentAcc, windowResult);
-    auto* value = BinaryRowDataSerializer::joinedRowToBinaryRow(tempValue, outputTypeIds_);
+    if (currentAcc == nullptr) {
+        return windowResult.release();
+    }
+    reusableJoinedRow_->replace(currentAcc, windowResult.get());
+    auto* value = BinaryRowDataSerializer::joinedRowToBinaryRow(reusableJoinedRow_.get(), outputTypeIds_);
     return value;
 }
 
