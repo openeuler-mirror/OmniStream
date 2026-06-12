@@ -32,7 +32,7 @@ public:
                 continue;
             }
             task->Run();
-            if (!stop.load() && task->IsPeriodic()) {
+            if (!stop.load() && task->IsPeriodic() && !task->IsCancelled()) {
                 task->SetNextRuntime();
                 workQueue->Offer(task);
             }

@@ -236,6 +236,12 @@ namespace omnistream {
         LOG("requestObjectSegment loop will running")
         LOG_PART(" Back Pressure possible happens, current segment in pool is " << availableSegments.size())
         while (!(segment = requestObjectSegment(targetChannel))) {
+            if (cancelled_) {
+                throw std::runtime_error("Buffer pool request was cancelled.");
+            }
+            if (isDestroyed_) {
+                throw std::runtime_error("Buffer pool is destroyed.");
+            }
             LOG_PART(
                 " Back Pressure happens, current segment in pool is " << availableSegments.size() <<
                 "for channel "<< targetChannel)

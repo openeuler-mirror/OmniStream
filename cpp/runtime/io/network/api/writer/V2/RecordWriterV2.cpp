@@ -24,8 +24,8 @@ namespace omnistream {
           outputFlusher(nullptr),
           taskType(taskType) {
         this->numberOfChannels = targetPartitionWriter_->getNumberOfSubpartitions();
-        this->flushAlways = (timeout == ExecutionOptions::FLUSH_AFTER_EVERY_RECORD);
         this->timeout = timeout_;
+        this->flushAlways = (this->timeout == ExecutionOptions::FLUSH_AFTER_EVERY_RECORD);
     }
 
     void RecordWriterV2::postConstruct()

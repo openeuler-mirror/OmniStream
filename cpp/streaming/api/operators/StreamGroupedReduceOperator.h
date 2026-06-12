@@ -88,6 +88,11 @@ namespace omnistream::datastream {
             auto currentValue = reinterpret_cast<Object *>(values->value()); // currentValue already do getRefCount() in inner, so it need putRefCount later
             if (currentValue != nullptr) {
                 Object *out = this->userFunction->reduce(currentValue, input);
+                const bool outputAliasesInput = out != nullptr && out == input;
+                const bool outputAliasesCurrentValue = out != nullptr && out == currentValue;
+                if (outputAliasesInput || outputAliasesCurrentValue) {
+                    out->getRefCount();
+                }
                 record->setValue(out);
                 currentValue->putRefCount();
                 values->update(out); // out already do getRefCount() in inner

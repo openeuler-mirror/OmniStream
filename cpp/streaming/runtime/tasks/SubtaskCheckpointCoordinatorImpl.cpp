@@ -10,7 +10,10 @@
  */
 #include <algorithm>
 #include "SubtaskCheckpointCoordinatorImpl.h"
+#include "core/include/common.h"
 #include "runtime/io/network/api/CancelCheckpointMarker.h"
+#include "runtime/taskmanager/OmniRuntimeEnvironment.h"
+#include "runtime/taskmanager/OmniTask.h"
 #include "core/include/common.h"
 
 namespace omnistream::runtime {
@@ -138,20 +141,29 @@ namespace omnistream::runtime {
                 channelStateWriteResult,
                 storage,
                 env->getTaskStateManager()->getOmniTaskBridge());
-        } catch (...) {
+        } catch (const std::exception &e) {
+            LOG("Error: sync snapshot failed, task=" << taskName
+                << ", cp=" << checkpointId << ", error=" << e.what())
             checkpointStorage->clearCacheFor(checkpointId);
+            throw;
+        } catch (...) {
+            LOG("Error: sync snapshot failed, task=" << taskName
+                << ", cp=" << checkpointId << ", error=unknown")
+            checkpointStorage->clearCacheFor(checkpointId);
+            throw;
         }
 
         checkpointStorage->clearCacheFor(checkpointId);
 
         constexpr int nanoToMillis = 1000000;
 
-        checkpointMetrics->SetSyncDurationMillis(
+        long syncDurationMillis =
             (std::chrono::duration_cast<std::chrono::nanoseconds>(
                     std::chrono::steady_clock::now().time_since_epoch())
                         .count() -
                 started) /
-            nanoToMillis);
+            nanoToMillis;
+        checkpointMetrics->SetSyncDurationMillis(syncDurationMillis);
         return true;
     }
 
@@ -325,10 +337,43 @@ namespace omnistream::runtime {
                 LOG_DEBUG("finishAndReportAsync end lastCheckpointId: " << lastCheckpointId)
             } else {
                 cleanup(snapshotFutures, metadata, metrics, std::runtime_error("Checkpoint declined"));
+                auto *runtimeEnv = dynamic_cast<omnistream::RuntimeEnvironmentV2 *>(env.get());
+                if (runtimeEnv != nullptr && runtimeEnv->omniTask() != nullptr) {
+                    std::runtime_error wrapped("Checkpoint declined before async report");
+                    runtimeEnv->omniTask()->declineCheckpoint(
+                        metadata->GetCheckpointId(),
+                        CheckpointFailureReason::CHECKPOINT_DECLINED,
+                        &wrapped);
+                }
             }
         } catch (const std::exception &e) {
-            LOG("Exception during checkpointing: " + std::string(e.what()));
+            LOG("Error: checkpointState failed, task=" << taskName
+                << ", cp=" << metadata->GetCheckpointId()
+                << ", error=" << e.what())
             cleanup(snapshotFutures, metadata, metrics, e);
+            auto *runtimeEnv = dynamic_cast<omnistream::RuntimeEnvironmentV2 *>(env.get());
+            if (runtimeEnv != nullptr && runtimeEnv->omniTask() != nullptr) {
+                std::runtime_error wrapped(std::string("Checkpoint sync failure: ") + e.what());
+                runtimeEnv->omniTask()->declineCheckpoint(
+                    metadata->GetCheckpointId(),
+                    CheckpointFailureReason::CHECKPOINT_DECLINED,
+                    &wrapped);
+            }
+            throw;
+        } catch (...) {
+            LOG("Error: checkpointState failed, task=" << taskName
+                << ", cp=" << metadata->GetCheckpointId()
+                << ", error=unknown")
+            cleanup(snapshotFutures, metadata, metrics, std::runtime_error("Unknown checkpoint failure"));
+            auto *runtimeEnv = dynamic_cast<omnistream::RuntimeEnvironmentV2 *>(env.get());
+            if (runtimeEnv != nullptr && runtimeEnv->omniTask() != nullptr) {
+                std::runtime_error wrapped("Unknown checkpoint sync failure");
+                runtimeEnv->omniTask()->declineCheckpoint(
+                    metadata->GetCheckpointId(),
+                    CheckpointFailureReason::CHECKPOINT_DECLINED,
+                    &wrapped);
+            }
+            throw;
         }
     }
 

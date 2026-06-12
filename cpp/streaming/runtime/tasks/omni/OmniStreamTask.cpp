@@ -552,7 +552,31 @@ void OmniStreamTask::processInput(MailboxDefaultAction::Controller *controller)
 
     void OmniStreamTask::dispatchOperatorEvent(const std::string& operatorIdString, const std::string& eventString)
     {
-        operatorChain->DispatchOperatorEvent(operatorIdString, eventString);
+        auto mailboxRunnable = std::make_shared<VoidFunctionRunnable>(
+            [this, operatorIdString, eventString]() {
+                try {
+                    operatorChain->DispatchOperatorEvent(operatorIdString, eventString);
+                } catch (const std::exception& e) {
+                    isRunning = false;
+                    LOG("Error: mailbox dispatch failed, operatorId="
+                        << operatorIdString << ", eventBytes=" << eventString.size()
+                        << ", error=" << e.what())
+                    mailboxProcessor_->suspend();
+                } catch (...) {
+                    isRunning = false;
+                    LOG("Error: mailbox dispatch failed, operatorId="
+                        << operatorIdString << ", eventBytes=" << eventString.size()
+                        << ", error=unknown")
+                    mailboxProcessor_->suspend();
+                }
+            }
+        );
+        try {
+            mainMailboxExecutor_->execute(mailboxRunnable, "dispatchOperatorEvent");
+        } catch (const std::exception& e) {
+            LOG("Error: operator event dropped, mailbox not running, operatorId="
+                << operatorIdString << ", error=" << e.what())
+        }
     }
 
     std::shared_ptr<CheckpointStorage> OmniStreamTask::createCheckpointStorage(StateBackend* backend)

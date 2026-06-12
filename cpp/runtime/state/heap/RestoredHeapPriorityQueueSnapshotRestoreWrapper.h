@@ -68,6 +68,11 @@ private:
             return kvStateId_;
         }
 
+        size_t getEntryCount() const override
+        {
+            return serializedKeys_.size();
+        }
+
         void close() override
         {
             valid_ = false;
