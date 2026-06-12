@@ -24,6 +24,7 @@
 #include "StreamGroupedReduceOperator.h"
 #include "table/runtime/operators/aggregate/GroupAggFunction.h"
 #include "table/runtime/operators/deduplicate/RowTimeDeduplicateFunction.h"
+#include "table/runtime/operators/correlate/StreamCorrelateOperator.h"
 #include "streaming/api/operators/KeyedProcessOperator.h"
 #include "table/runtime/operators/join/StreamingJoinOperator.h"
 #include "core/typeinfo/TypeInfoFactory.h"
@@ -157,6 +158,11 @@ if (uniqueName == OPERATOR_NAME_STREAM_EXPAND) {
         op->setup();
         LOG("Operator WindowJoinOperator address " + std::to_string(reinterpret_cast<long>(op)));
         return static_cast<TwoInputStreamOperator *>(op);
+    } else if (uniqueName == OPERATOR_NAME_STREAM_CORRELATE) {
+        auto *op = new StreamCorrelateOperator(opConfig.getDescription(), chainOutput);
+        op->setup();
+        LOG("Operator StreamCorrelateOperator address " + std::to_string(reinterpret_cast<long>(op)))
+        return static_cast<OneInputStreamOperator *>(op);
     } else {
         THROW_LOGIC_EXCEPTION("Unknown operator " + uniqueName);
     }
@@ -221,6 +227,8 @@ StreamOperator *StreamOperatorFactory::createOperatorAndCollector(omnistream::Op
         return CreatePartitionCommitterOp(opDesc, chainOutput, task);
     } else if (operatorID == OPERATOR_NAME_KEYED_CO_PROCESS) {
         return CreateKeyedCoProcessOp(opDesc, chainOutput, task);
+    } else if (operatorID == OPERATOR_NAME_STREAM_CORRELATE) {
+        return CreateStreamCorrelateOp(opDesc, chainOutput, task);
     } else {
         return nullptr;
     }
@@ -236,6 +244,17 @@ StreamOperator* StreamOperatorFactory::CreateStreamCalcOp(OperatorPOD &opConfig,
 
     LOG("Operator StreamCalc address  " + std::to_string(reinterpret_cast<long>(execCalc)))
     return static_cast<OneInputStreamOperator *>(execCalc);
+}
+
+StreamOperator* StreamOperatorFactory::CreateStreamCorrelateOp(OperatorPOD &opConfig,
+    WatermarkGaugeExposingOutput *chainOutput, std::shared_ptr<omnistream::OmniStreamTask> task)
+{
+    auto description = opConfig.getDescription();
+    nlohmann::json opDescriptionJSON = nlohmann::json::parse(description);
+    auto *op = new StreamCorrelateOperator(opDescriptionJSON, chainOutput);
+    op->setup(std::move(task));
+    LOG("Operator StreamCorrelateOperator address " + std::to_string(reinterpret_cast<long>(op)))
+    return static_cast<OneInputStreamOperator *>(op);
 }
 
 StreamOperator* StreamOperatorFactory::CreateStreamJoinOp(OperatorPOD &opConfig,
