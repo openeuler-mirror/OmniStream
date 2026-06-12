@@ -123,6 +123,7 @@ public:
         setProcessingTimeService(timeService);
         output = chainOutput;
         dataStreamOutput = new omnistream::OmniAsyncDataOutputToOutput(output, true);
+        availabilityHelper = std::make_shared<SourceOperatorAvailabilityHelper>();
     }
 
     ~SourceOperator()

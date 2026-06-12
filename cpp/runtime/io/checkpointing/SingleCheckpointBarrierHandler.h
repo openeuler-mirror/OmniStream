@@ -182,7 +182,7 @@ namespace omnistream::runtime {
                 }
                 long barrierId = checkpointBarrier.GetId();
                 subTaskCheckpointCoordinator_->InitInputsCheckpoint(barrierId,
-                    checkpointBarrier.GetCheckpointOptions());
+                    checkpointBarrier.GetCheckpointOptions().get());
             }
 
         private:

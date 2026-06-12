@@ -557,7 +557,6 @@ void WindowJoinOperator<KeyType>::processBatch(omnistream::VectorBatch *batch, i
         rightMaxTimestamps.push_back(maxTimeStamp);
     }
     int batchID = recordState->getCurrentBatchId();
-    // TODO： 内存状态后端情况下，是直接存的地址
     recordState->addVectorBatch(batch);
     KeySelector<KeyType>* keySelector = nullptr;
     keySelector = isLeftSide ? this->keySelectorLeft : this->keySelectorRight;

@@ -29,7 +29,8 @@ std::string Q7hopdescription = R"DELIM(
 						0
 					],
 					"aggregationFunction": "LongMaxAggFunction",
-					"consumeRetraction": "false"
+					"consumeRetraction": "false",
+					"aggIndex": 0
 				}
 			],
 			"globalAggValueTypes": [
@@ -44,14 +45,15 @@ std::string Q7hopdescription = R"DELIM(
 						0
 					],
 					"aggregationFunction": "LongMaxAggFunction",
-					"consumeRetraction": "false"
+					"consumeRetraction": "false",
+					"aggIndex": 0
 				}
 			],
 			"globalAccTypes": [
 				"BIGINT"
 			]
 		},
-		"size": 10000,
+		"windowSize": 10000,
 		"sliceEndIndex": 1,
 		"generateUpdateBefore": false,
 		"outputTypes": [

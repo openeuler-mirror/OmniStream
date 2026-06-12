@@ -1080,6 +1080,7 @@ void OmniTaskBridgeImpl2::getKeyGroupEntries(jobject inputStream,
 
         jobjectArray entriesArray = static_cast<jobjectArray>(env->GetObjectField(result, entriesField));
 
+        env->PushLocalFrame(16);
         for (int i = 0; i < count; i++) {
             jobject entry = env->GetObjectArrayElement(entriesArray, i);
             jbyteArray keyArray = static_cast<jbyteArray>(env->GetObjectField(entry, entryKeyField));
@@ -1087,11 +1088,9 @@ void OmniTaskBridgeImpl2::getKeyGroupEntries(jobject inputStream,
 
             entries.emplace_back(KeyGroupEntry(kvStateId, std::move(jbyteArrayToVector(env, keyArray)),
                 std::move(jbyteArrayToVector(env, valueArray))));
-            
-            if (entry) env->DeleteLocalRef(entry);
-            if (keyArray) env->DeleteLocalRef(keyArray);
-            if (valueArray) env->DeleteLocalRef(valueArray);
         }
+        env->PopLocalFrame(nullptr);
+
         env->DeleteLocalRef(entriesArray);
         env->DeleteLocalRef(entryWrapperClass);
         env->DeleteLocalRef(entryClass);

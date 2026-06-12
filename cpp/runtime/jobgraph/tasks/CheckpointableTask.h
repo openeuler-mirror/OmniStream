@@ -34,8 +34,8 @@ namespace omnistream {
          * @param checkpointMetrics Metrics about this checkpoint
          * @throws IOException if checkpoint fails
          */
-        virtual void TriggerCheckpointOnBarrier(CheckpointMetaData* checkpointMetaData,
-            CheckpointOptions* checkpointOptions, CheckpointMetricsBuilder* checkpointMetrics) = 0;
+        virtual void TriggerCheckpointOnBarrier(std::shared_ptr<CheckpointMetaData> checkpointMetaData,
+            std::shared_ptr<CheckpointOptions> checkpointOptions, std::shared_ptr<CheckpointMetricsBuilder> checkpointMetrics) = 0;
 
         /**
          * Aborts checkpoint due to cancellation barrier

@@ -131,7 +131,7 @@ void InternalTimerServiceImpl<K, N>::advanceWatermark(int64_t time)
 
     auto timer = eventTimeTimersQueue->peek();
 
-    while (!eventTimeTimersQueue->isEmpty() && timer->getTimestamp() < time) {
+    while (!eventTimeTimersQueue->isEmpty() && timer->getTimestamp() <= time) {
         eventTimeTimersQueue->poll();
         keyContext->setCurrentKey(timer->getKey());
         triggerTarget->onEventTime(timer.get());

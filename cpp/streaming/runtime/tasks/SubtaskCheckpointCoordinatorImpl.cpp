@@ -14,6 +14,7 @@
 #include "runtime/io/network/api/CancelCheckpointMarker.h"
 #include "runtime/taskmanager/OmniRuntimeEnvironment.h"
 #include "runtime/taskmanager/OmniTask.h"
+#include "core/include/common.h"
 
 namespace omnistream::runtime {
     std::set<long> SubtaskCheckpointCoordinatorImpl::createAbortedCheckpointIds(int maxRecordAbortedCheckpoints)
@@ -107,9 +108,9 @@ namespace omnistream::runtime {
 
     bool SubtaskCheckpointCoordinatorImpl::takeSnapshotSync(
         std::unordered_map<OperatorID, OperatorSnapshotFutures *> *operatorSnapshotsInProgress,
-        CheckpointMetaData *checkpointMetaData,
-        CheckpointMetricsBuilder *checkpointMetrics,
-        CheckpointOptions *checkpointOptions,
+        std::shared_ptr<CheckpointMetaData> checkpointMetaData,
+        std::shared_ptr<CheckpointMetricsBuilder> checkpointMetrics,
+        std::shared_ptr<CheckpointOptions> checkpointOptions,
         omnistream::OperatorChainV2 *operatorChain,
         std::shared_ptr<omnistream::Supplier<bool>> isRunning)
     {
@@ -135,7 +136,7 @@ namespace omnistream::runtime {
             operatorChain->SnapshotState(
                 operatorSnapshotsInProgress,
                 *checkpointMetaData,
-                checkpointOptions,
+                checkpointOptions.get(),
                 isRunning,
                 channelStateWriteResult,
                 storage,
@@ -168,8 +169,8 @@ namespace omnistream::runtime {
 
     void SubtaskCheckpointCoordinatorImpl::cleanup(
         std::unordered_map<OperatorID, OperatorSnapshotFutures *> *operatorSnapshotsInProgress,
-        CheckpointMetaData *metadata,
-        CheckpointMetricsBuilder *operatorChain,
+        std::shared_ptr<CheckpointMetaData> metadata,
+        std::shared_ptr<CheckpointMetricsBuilder> operatorChain,
         std::exception ex)
     {
         channelStateWriter->Abort(metadata->GetCheckpointId(), std::make_exception_ptr(ex), true);
@@ -181,18 +182,20 @@ namespace omnistream::runtime {
                 } catch (const std::exception &e) {
                     LOG("Could not poperly cancel an operator snapshot result. " + std::string(e.what()));
                 }
+                delete operatorSnapshotResult;
+                entry.second = nullptr;
             }
         }
     }
 
     void SubtaskCheckpointCoordinatorImpl::finishAndReportAsync(
         std::unordered_map<OperatorID, OperatorSnapshotFutures *> *operatorSnapshotsInProgress,
-        CheckpointMetaData *metadata,
-        CheckpointMetricsBuilder *metrics,
+        std::shared_ptr<CheckpointMetaData> metadata,
+        std::shared_ptr<CheckpointMetricsBuilder> metrics,
         bool istaskDeployedAsFinished,
         bool isTaskFinished,
         std::shared_ptr<omnistream::Supplier<bool>> isRunning,
-        CheckpointOptions *options)
+        std::shared_ptr<CheckpointOptions> options)
     {
         LOG(">>>>>> isTaskDeployedAsFinished " << istaskDeployedAsFinished << " isTaskFinished " << isTaskFinished);
         AsyncCheckpointRunnable *asyncCheckpointRunnable = new AsyncCheckpointRunnable(
@@ -213,23 +216,16 @@ namespace omnistream::runtime {
                 isTaskFinished,
                 isRunning);
         RegisterAsyncCheckpointRunnable(asyncCheckpointRunnable->GetCheckpointId(), asyncCheckpointRunnable);
-        asyncOperationsThreadPool->Execute([asyncCheckpointRunnable,
-            operatorSnapshotsInProgress,
-            metadata,
-            metrics,
-            options]() {
+        // thread hold options
+        asyncOperationsThreadPool->Execute([asyncCheckpointRunnable, options]() {
             try {
                 asyncCheckpointRunnable->Run();
             } catch (const std::exception &e) {
                 LogError("Exception in async checkpoint: %s", e.what());
             }
-
-            /* TODO 规避：先不删除 */
-            // delete asyncCheckpointRunnable;
-            // delete operatorSnapshotsInProgress;
-            // delete metadata;
-            // delete metrics;
-            // delete options;
+            if (asyncCheckpointRunnable) {
+                delete asyncCheckpointRunnable;
+            }
         });
         LOG(">>>>> Done")
     }
@@ -282,16 +278,17 @@ namespace omnistream::runtime {
     }
 
     void SubtaskCheckpointCoordinatorImpl::checkpointState(
-        CheckpointMetaData *metadata,
-        CheckpointOptions *options,
-        CheckpointMetricsBuilder *metrics,
+        std::shared_ptr<CheckpointMetaData> metadata,
+        std::shared_ptr<CheckpointOptions> options,
+        std::shared_ptr<CheckpointMetricsBuilder> metrics,
         omnistream::OperatorChainV2 *operatorChain,
         bool isTaskFinished,
         std::shared_ptr<omnistream::Supplier<bool>> isRunning)
     {
         LOG_DEBUG(">>>>>>> isTaskFinished? " << isTaskFinished)
-        if (!options || !metrics) {
-            THROW_LOGIC_EXCEPTION("CheckpointOptions or CheckpointMetricsBuilder is null");
+        if (!metadata || !options || !metrics) {
+            INFO_RELEASE("Error CheckpointMetaData or CheckpointOptions or CheckpointMetricsBuilder is null");
+            THROW_LOGIC_EXCEPTION("CheckpointMetaData or CheckpointOptions or CheckpointMetricsBuilder is null");
         }
 
         if (lastCheckpointId >= metadata->GetCheckpointId()) {
@@ -299,7 +296,7 @@ namespace omnistream::runtime {
             return;
         }
 
-        logCheckpointProcessingDelay(metadata);
+        logCheckpointProcessingDelay(metadata.get());
 
         lastCheckpointId = metadata->GetCheckpointId();
         if (CheckAndClearAbortedStatus(metadata->GetCheckpointId())) {
@@ -311,8 +308,11 @@ namespace omnistream::runtime {
         }
 
         if (options->GetAlignment() == CheckpointOptions::AlignmentType::FORCED_ALIGNED) {
-            options = options->WithUnalignedSupported();
-            InitInputsCheckpoint(metadata->GetCheckpointId(), options);
+            CheckpointOptions *unalignedSupportedOptions = options->WithUnalignedSupported();
+            if (unalignedSupportedOptions != options.get()) {
+                options.reset(unalignedSupportedOptions);
+            }
+            InitInputsCheckpoint(metadata->GetCheckpointId(), options.get());
         }
 
         operatorChain->PrepareSnapshotPreBarrier(metadata->GetCheckpointId());

@@ -259,7 +259,7 @@ namespace omnistream {
         std::shared_ptr<CheckpointBarrier> checkpointBarrier)
     {
         int byteSize = 38;
-        CheckpointOptions* checkpointOptions = checkpointBarrier->GetCheckpointOptions();
+        auto checkpointOptions = checkpointBarrier->GetCheckpointOptions();
         std::shared_ptr<std::vector<uint8_t>> reference =
             checkpointOptions->GetTargetLocation()->IsDefaultReference()
                 ? nullptr

@@ -12,10 +12,7 @@
 #include "runtime/taskmanager/OmniRuntimeEnvironment.h"
 #include "runtime/taskmanager/OmniTask.h"
 #include "runtime/io/checkpointing/CheckpointException.h"
-#include "core/include/common.h"
-#include <chrono>
 #include <semaphore.h>
-#include <atomic>
 #include <thread>
 using namespace std::chrono;
 
@@ -38,10 +35,10 @@ void AsyncCheckpointRunnable::Run()
         snapshotFinalizeResult = isTaskDeployedAsFinished ?
             FinalizedFinishedSnapshots() : FinalizeNonFinishedSnapshots();
         long asyncEndNanos = std::chrono::steady_clock::now().time_since_epoch().count();
-        long asyncDurationMillis = (asyncEndNanos - asyncStartNanos) / 1000000;
+        long asyncDurationMillis = (asyncEndNanos - asyncConstructionNanos) / 1000000;
         checkpointMetric.SetBytesPersistedDuringAlignment(
             snapshotFinalizeResult->bytesPersistedDuringAlignment);
-        checkpointMetric.SetAsyncDurationMillis(asyncStartDelayMillis);
+        checkpointMetric.SetAsyncDurationMillis(asyncDurationMillis);
         AsyncCheckpointState expected = AsyncCheckpointState::RUNNING;
         if (asyncCheckpointState.compare_exchange_strong(expected, AsyncCheckpointState::COMPLETED)) {
             ReportCompletedSnapshotStates(

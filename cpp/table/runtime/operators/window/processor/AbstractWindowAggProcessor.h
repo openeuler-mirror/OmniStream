@@ -8,25 +8,19 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef ABSTRACTWINDOWAGGPROCESSOR_H
-#define ABSTRACTWINDOWAGGPROCESSOR_H
+
+#pragma once
 
 #include "SlicingWindowProcessor.h"
 #include "table/runtime/operators/window/slicing/SliceAssigners.h"
 #include "table/runtime/operators/aggregate/window/buffers/RecordsWindowBuffer.h"
-#include "table/runtime/generated/function/SumFunction.h"
-#include "table/typeutils/RowDataSerializer.h"
-#include "table/typeutils/InternalTypeInfo.h"
-#include "table/types/logical/RowType.h"
 #include "table/runtime/operators/window/state/WindowValueState.h"
-#include "core/api/common/state/ValueStateDescriptor.h"
-#include "runtime/state/internal/InternalValueState.h"
-#include "core/typeutils/LongSerializer.h"
 #include "table/runtime/operators/window/LocalSlicingWindowAggOperator.h"
 #include "table/runtime/keyselector/KeySelector.h"
 #include <unordered_set>
 #include <cstdint>
 #include <memory>
+#include "runtime/generated/function/CompositeWindowAggFunction.h"
 
 class AbstractWindowAggProcessor : public SlicingWindowProcessor<std::shared_ptr<RowData>, int64_t> {
 public:
@@ -41,7 +35,7 @@ public:
             InternalTimerServiceImpl<KeyType, int64_t>* internalTimerService) override;
     void initializeWatermark(int64_t watermark) override;
     bool processBatch(omnistream::VectorBatch* key) override;
-    void advanceProgress(StreamOperatorStateHandler<KeyType> *stateHandler, long progress) override;
+    void advanceProgress(long progress) override;
     void prepareCheckpoint() override;
     void fireWindow(int64_t window) override;
     void clearWindow(int64_t window) override;
@@ -65,7 +59,7 @@ protected:
     SliceAssigner* sliceAssigner = nullptr;
     int indexOfCountStar = -1;
     bool isEventTime;
-    std::vector<NamespaceAggsHandleFunction<int64_t>*> aggregator;
+    std::unique_ptr<WindowAggHandleFunction> aggregator;
     std::unique_ptr<WindowValueState<KeyType, int64_t, RowData*>> windowState;
     Output* output;
 
@@ -89,4 +83,3 @@ private:
     std::unordered_set<int64_t> uniqueData;
     omnistream::StateType backendType_ = omnistream::StateType::HEAP;
 };
-#endif

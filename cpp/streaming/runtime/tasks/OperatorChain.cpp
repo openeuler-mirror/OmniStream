@@ -111,10 +111,8 @@ WatermarkGaugeExposingOutput* OperatorChainV2::wrapOperatorIntoOutput(StreamOper
         throw std::runtime_error("operator is null");
     }
     if (!op->canBeStreamOperator()) {
-        auto pOperator = reinterpret_cast<AbstractStreamOperator<long> *>(op);
-        auto ptr = op->GetMectrics();
         auto *chainingOutput = new ChainingOutput(dynamic_cast<OneInputStreamOperator *>(op),
-                                                  pOperator->GetMectrics(), opConfig);
+                                                  op->GetMectrics(), opConfig);
         return chainingOutput;
     } else {
         return new datastream::DataStreamChainingOutput(dynamic_cast<OneInputStreamOperator *>(op));

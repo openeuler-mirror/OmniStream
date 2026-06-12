@@ -72,10 +72,10 @@ TEST(GlobalWindowAggTest, DISABLED_OnTimerTest) {
     std::cout << "================step 01===================" << std::endl;
     auto *output = new BatchOutputTest();
     std::cout << "================step 02===================" << std::endl;
-    AbstractWindowAggProcessor *processor = new AbstractWindowAggProcessor(windowing, output);
+    auto processor = std::make_unique<AbstractWindowAggProcessor>(windowing, output);
     std::cout << "================step 03===================" << std::endl;
     SlicingWindowOperator<std::shared_ptr<RowData>, int64_t> *operators =
-        new SlicingWindowOperator<std::shared_ptr<RowData>, int64_t>(processor, windowing);
+        new SlicingWindowOperator<std::shared_ptr<RowData>, int64_t>(std::move(processor), windowing);
     std::cout << "================step 04===================" << std::endl;
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
@@ -132,10 +132,10 @@ TEST(GlobalWindowAggTest, DISABLED_TUMBLETest) {
     std::cout << "================step 01===================" << std::endl;
     auto *output = new BatchOutputTest();
     std::cout << "================step 02===================" << std::endl;
-    AbstractWindowAggProcessor *processor = new AbstractWindowAggProcessor(windowing, output);
+    auto processor = std::make_unique<AbstractWindowAggProcessor>(windowing, output);
     std::cout << "================step 03===================" << std::endl;
     SlicingWindowOperator<std::shared_ptr<RowData>, int64_t> *operators =
-        new SlicingWindowOperator<std::shared_ptr<RowData>, int64_t>(processor, windowing);
+        new SlicingWindowOperator<std::shared_ptr<RowData>, int64_t>(std::move(processor), windowing);
     std::cout << "================step 04===================" << std::endl;
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();

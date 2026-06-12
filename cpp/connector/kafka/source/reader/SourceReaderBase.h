@@ -115,7 +115,7 @@ public:
 
     std::shared_ptr<omnistream::CompletableFuture> getAvailable() override
     {
-        if (!currentFetch) {
+        if (currentFetch != nullptr) {
             return FutureCompletingBlockingQueue<RdKafka::Message>::AVAILABLE;
         } else {
             return elementsQueue->getAvailabilityFuture();

@@ -16,9 +16,16 @@
 // Constructor
 CheckpointBarrier::CheckpointBarrier(long id, long timestamp,
                                      CheckpointOptions *checkpointOptions)
-    : id_(id), timestamp_(timestamp), checkpointOptions_(checkpointOptions)
+    : CheckpointBarrier(id, timestamp, std::shared_ptr<CheckpointOptions>(checkpointOptions, [](CheckpointOptions*) {}))
 {
-    if (checkpointOptions == nullptr) {
+}
+
+CheckpointBarrier::CheckpointBarrier(long id, long timestamp,
+                                     std::shared_ptr<CheckpointOptions> checkpointOptions)
+    : id_(id), timestamp_(timestamp), checkpointOptions_(std::move(checkpointOptions))
+{
+    if (checkpointOptions_ == nullptr) {
+        INFO_RELEASE("Error checkpointOptions must not be null");
         throw std::invalid_argument("checkpointOptions must not be null");
     }
 }
@@ -27,7 +34,7 @@ CheckpointBarrier::~CheckpointBarrier()
 {
 }
 
-CheckpointOptions *CheckpointBarrier::GetCheckpointOptions() const
+std::shared_ptr<CheckpointOptions> CheckpointBarrier::GetCheckpointOptions() const
 {
     return checkpointOptions_;
 }
@@ -35,7 +42,7 @@ CheckpointOptions *CheckpointBarrier::GetCheckpointOptions() const
 CheckpointBarrier *CheckpointBarrier::WithOptions(
     CheckpointOptions *checkpointOptions)
 {
-    return this->checkpointOptions_ == checkpointOptions
+    return this->checkpointOptions_.get() == checkpointOptions
                ? this
                : new CheckpointBarrier(id_, timestamp_, checkpointOptions);
 }
@@ -61,7 +68,7 @@ CheckpointBarrier *CheckpointBarrier::AsUnaligned()
                ? this
                : new CheckpointBarrier(
                      GetId(), GetTimestamp(),
-                     GetCheckpointOptions()->ToUnaligned());
+                     std::shared_ptr<CheckpointOptions>(GetCheckpointOptions()->ToUnaligned()));
 }
 
 std::string CheckpointBarrier::ToString() const

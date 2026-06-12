@@ -18,8 +18,9 @@
 #include "table/data/GenericRowData.h"
 #include "table/runtime/dataview/StateDataViewStore.h"
 #include "table/runtime/operators/window/slicing/SliceAssigners.h"
+#include "table/runtime/generated/function/CompositeWindowAggFunction.h"
 
-class GlobalEmptyNamespaceFunction : public NamespaceAggsHandleFunction<int64_t> {
+class GlobalEmptyNamespaceFunction : public WindowAggHandleFunction {
 public:
     GlobalEmptyNamespaceFunction(int aggIdx, int accIndex, int valueIndex, SliceAssigner* sliceAssigner)
         :sliceAssigner(sliceAssigner),
@@ -36,12 +37,13 @@ public:
     RowData *getAccumulators() override;
     void Cleanup(int64_t namespace_val) override;
     void close() override {};
+    bool isWindowEmpty(){ return valueIsNull;}
 
 private:
     SliceAssigner* sliceAssigner; // tumble
     StateDataViewStore* store;
     int64_t namespaceVal;
-    bool valueIsNull = false;
+    bool valueIsNull = true;
     int aggIdx;
     int accIndex = 0;
     int valueIndex = 0;

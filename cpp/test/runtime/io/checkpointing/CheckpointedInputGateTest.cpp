@@ -107,8 +107,8 @@ private:
 
 class DummyTask : public CheckpointableTask {
 public:
-    void TriggerCheckpointOnBarrier(CheckpointMetaData* checkpointMetaData,
-        CheckpointOptions* checkpointOptions, CheckpointMetricsBuilder* checkpointMetrics) override {}
+    void TriggerCheckpointOnBarrier(std::shared_ptr<CheckpointMetaData> checkpointMetaData,
+        std::shared_ptr<CheckpointOptions> checkpointOptions, std::shared_ptr<CheckpointMetricsBuilder> checkpointMetrics) override {}
 
     void abortCheckpointOnBarrier(long, CheckpointException) override {}
 };
