@@ -11,71 +11,58 @@
 
 #include <memory>
 #include "AggregateWindowOperator.h"
-#include "table/runtime/operators/aggregate/handler/GroupingWindowAggsCountHandler.h"
-#include "table/runtime/operators/aggregate/handler/GroupingWindowAggsCompositeHandler.h"
-#include "table/runtime/operators/aggregate/handler/GroupingWindowAggsMaxHandler.h"
-#include "table/runtime/operators/aggregate/handler/GroupingWindowAggsMinHandler.h"
-#include "table/runtime/operators/aggregate/handler/GroupingWindowAggsSumHandler.h"
+#include "table/runtime/generated/function/GroupWindowAggsHandleFunction.h"
+#include "table/runtime/generated/NamespaceAggsBasicFunctionFactory.h"
 
 template<typename K, typename W>
-std::unique_ptr<NamespaceAggsHandleFunction<W>> AggregateWindowOperator<K, W>::initNamespaceAggsHandleFunctions(const nlohmann::json &aggInfoList) {
-    // TODO: namespace is unused in functions, causing WindowOperator only supports session window(each key corresponds to only one window)
+std::unique_ptr<NamespaceAggsHandleFunction<W>> AggregateWindowOperator<K, W>::initNamespaceAggsHandleFunction(const nlohmann::json &aggInfoList) {
+    // TODO: namespace is unused in functions, which may cause WindowOperator only supports session window(each key corresponds to only one window)
     auto aggregateCalls = aggInfoList["aggregateCalls"].get<vector<nlohmann::json>>();
     auto accTypes = aggInfoList["AccTypes"].get<vector<std::string>>();
+    accTypes.erase(std::remove_if(accTypes.begin(), accTypes.end(),
+                                  [](const std::string& type) { return type.find("RAW") != std::string::npos; }),
+                   accTypes.end());
+    std::vector<int32_t> accTypeIds;
+    for (const auto& type : accTypes) {
+        accTypeIds.push_back(LogicalType::flinkTypeToOmniTypeId(type));
+    }
     auto aggValueTypes = aggInfoList["aggValueTypes"].get<vector<std::string>>();
-    auto indexOfCountStar = aggInfoList["indexOfCountStar"].get<int>();
+    aggValueTypes.erase(std::remove_if(aggValueTypes.begin(), aggValueTypes.end(),
+                                       [](const std::string& type) { return type.find("RAW") != std::string::npos; }),
+                        aggValueTypes.end());
+    std::vector<int32_t> aggValueTypeIds;
+    for (const auto& type : aggValueTypes) {
+        aggValueTypeIds.push_back(LogicalType::flinkTypeToOmniTypeId(type));
+    }
+    const int32_t indexOfCountStar = aggInfoList["indexOfCountStar"].get<int32_t>();
+    const bool countStarInserted = aggInfoList.value("countStarInserted", false);
 
     // TODO: namespace currently only supports TimeWindow
-    std::vector<std::unique_ptr<NamespaceAggsHandleFunction<W>>> functions;
+    std::vector<std::unique_ptr<NamespaceAggsBasicFunction<W>>> functions;
     auto accStartIndex = 0;
-    auto valueStartIndex = 0;
-    for (int i = 0; i < aggregateCalls.size(); ++i) {
-        auto aggregateCall = aggregateCalls[i];
+    auto aggValueStartIndex = 0;
+    for (const auto& aggregateCall : aggregateCalls) {
         std::string aggTypeStr = aggregateCall["name"];
-        std::string aggregationFunction = aggregateCall["aggregationFunction"];
-        auto aggIndex = WindowOperator<K, W>::getSingleArgIndex(aggregateCall);
-        std::string aggType = WindowOperator<K, W>::extractAggFunction(aggTypeStr);
-        int filterIndex = aggregateCall["filterArg"]; // TODO: not support now
-        std::string consumeRetraction = aggregateCall["consumeRetraction"]; // TODO: not support now
+        const int32_t filterIndex = aggregateCall["filterArg"].get<int32_t>(); // TODO: not support now
+        const std::string consumeRetraction = aggregateCall["consumeRetraction"]; // TODO: not support now
 
-        // when aggIndex is -1, the agg function must be COUNT(*) ?
-        auto aggDataType = aggIndex == -1 ? DataTypeId::OMNI_LONG : this->inputTypesId[aggIndex];
-
-        // aggIndex -> column index in the input row
-        // accIndex -> agg function value index in Intermediate results row (accumulators)
-        // valueIndex -> agg function value index in results row (output)
-        if (aggType == "COUNT") {
-            auto function = std::make_unique<GroupingWindowAggsCountHandler<W>>(
-                    aggIndex, aggDataType, accStartIndex, valueStartIndex, filterIndex);
-            functions.push_back(std::move(function));
-        } else if (aggType == "SUM") {
-            auto function = std::make_unique<GroupingWindowAggsSumHandler<W>>(
-                    aggIndex, aggDataType, accStartIndex, valueStartIndex, filterIndex);
-            functions.push_back(std::move(function));
-        } else if (aggType == "MAX") {
-            auto function = std::make_unique<GroupingWindowAggsMaxHandler<W>>(
-                    aggIndex, aggDataType, accStartIndex, valueStartIndex, filterIndex);
-            functions.push_back(std::move(function));
-        } else if (aggType == "MIN") {
-            auto function = std::make_unique<GroupingWindowAggsMinHandler<W>>(
-                    aggIndex, aggDataType, accStartIndex, valueStartIndex, filterIndex);
-            functions.push_back(std::move(function));
-        } else {
-            THROW_LOGIC_EXCEPTION("Unsupported aggregate type: " + aggType);
-        }
-        accStartIndex++;
-        valueStartIndex++;
+        const auto argIndexes = aggregateCall.value("argIndexes", std::vector<int32_t>{});
+        const bool isInsertedCountStar = countStarInserted && accStartIndex == indexOfCountStar;
+        const int32_t aggValueIndex = isInsertedCountStar ? -1 : aggValueStartIndex;
+        const int32_t aggValueTypeId = isInsertedCountStar ? -1 : aggValueTypeIds[aggValueIndex];
+        auto accIndexes = NamespaceAggsBasicFunctionFactory::getAccIndexes(aggTypeStr, accStartIndex);
+        functions.push_back(NamespaceAggsBasicFunctionFactory::create<W>(
+                aggTypeStr, argIndexes, this->inputTypeIds_, accIndexes, accTypeIds,
+                aggValueIndex, aggValueTypeId));
+        accStartIndex += accIndexes.size();
+        if (!isInsertedCountStar) { aggValueStartIndex++; }
     }
-    const auto &fullOutputTypeIds = WindowOperator<K, W>::outputTypesId;
-    const auto keyArity = WindowOperator<K, W>::keyedIndex.size();
-    if (keyArity > fullOutputTypeIds.size()) {
-        THROW_LOGIC_EXCEPTION("The size of key fields must not exceed output type fields.");
-    }
-    std::vector<int32_t> valueOutputTypeIds(fullOutputTypeIds.begin() + keyArity, fullOutputTypeIds.end());
-    return std::make_unique<GroupingWindowAggsCompositeHandler<W>>(
+    return std::make_unique<GroupWindowAggsHandleFunction<W>>(
             std::move(functions),
-            this->windowPropertyTypesId,
-            std::move(valueOutputTypeIds),
+            std::move(aggValueTypeIds),
+            this->windowPropertyTypeIds_,
+            std::vector<int32_t>(this->outputTypeIds.begin() + this->keyedTypes.size(), this->outputTypeIds.end()),
+            this->accumulatorArity,
             this->shiftTimeZone);
 }
 
@@ -185,6 +172,9 @@ void AggregateWindowOperator<K, W>::emitWindowResult(const W& window) {
         }
         // if the counter is zero, no need to send accumulate
         // there is no possible skip `if` branch when `produceUpdates` is false
+    }
+    if (this->backendType_ != omnistream::StateType::HEAP) {
+        delete this->windowAggregator->getAccumulators();
     }
 }
 

@@ -23,27 +23,24 @@
 #include "table/typeutils/BinaryRowDataSerializer.h"
 #include "table/runtime/operators/window/WindowOperator.h"
 #include "streaming/api/operators/AbstractStreamOperator.h"
-#include "table/runtime/operators/aggregate/handler/GroupingWindowAggsCountHandler.h"
-#include "table/runtime/operators/aggregate/handler/GroupingWindowAggsCompositeHandler.h"
-#include "table/runtime/operators/aggregate/handler/GroupingWindowAggsSumHandler.h"
 
 template<typename K, typename W>
 class AggregateWindowOperator : public WindowOperator<K, W> {
 public:
-    std::unique_ptr<NamespaceAggsHandleFunction<W>> initNamespaceAggsHandleFunctions(const nlohmann::json &aggInfoList);
+    std::unique_ptr<NamespaceAggsHandleFunction<W>> initNamespaceAggsHandleFunction(const nlohmann::json &aggInfoList);
 
     AggregateWindowOperator(nlohmann::json description, Output* output) : WindowOperator<K, W>(description, output) {
         this->output = output;
-        this->collector = new TimestampedCollector(output);
-
-        if (description.contains("aggInfoList") && !description["aggInfoList"].empty()) {
-            aggWindowAggregator = initNamespaceAggsHandleFunctions(description["aggInfoList"]);
-        } else {
-            aggWindowAggregator = nullptr;
-        }
+        this->collector = std::make_unique<TimestampedCollector>(output);
 
         for (const auto &typeStr: WindowOperator<K, W>::outputTypes) {
             outputTypeIds.push_back(LogicalType::flinkTypeToOmniTypeId(typeStr));
+        }
+
+        if (description.contains("aggInfoList") && !description["aggInfoList"].empty()) {
+            aggWindowAggregator = initNamespaceAggsHandleFunction(description["aggInfoList"]);
+        } else {
+            aggWindowAggregator = nullptr;
         }
     }
 
@@ -52,7 +49,7 @@ public:
             this->windowAggregator = std::move(aggWindowAggregator);
         }
         WindowOperator<K, W>::open();
-        reuseOutput_ = new JoinedRowData();
+        reuseOutput_ = std::make_unique<JoinedRowData>();
     }
 
     void setCurrentKey(K key) override {
@@ -83,10 +80,10 @@ private:
         reuseOutput_->replace(key, aggResult.get());
         reuseOutput_->setRowKind(rowKind);
         auto resultRow = std::unique_ptr<BinaryRowData>(BinaryRowDataSerializer::joinedRowToBinaryRow(
-            reuseOutput_, outputTypeIds));
+            reuseOutput_.get(), outputTypeIds));
         reuseResultRows_.push_back(resultRow.get());
         auto resultBatch = createOutputBatch(reuseResultRows_);
-        collectOutputBatch(collector, resultBatch);
+        collectOutputBatch(collector.get(), resultBatch);
     }
 
     void collectOutputBatch(TimestampedCollector* out, omnistream::VectorBatch* outputBatch) {
@@ -94,9 +91,9 @@ private:
     }
 
     Output* output;
-    TimestampedCollector* collector;
+    std::unique_ptr<TimestampedCollector> collector;
     std::unique_ptr<NamespaceAggsHandleFunction<W>> aggWindowAggregator;
-    JoinedRowData* reuseOutput_;
+    std::unique_ptr<JoinedRowData> reuseOutput_{};
     std::vector<RowData*> reuseResultRows_;
     std::vector<int32_t> outputTypeIds;
 

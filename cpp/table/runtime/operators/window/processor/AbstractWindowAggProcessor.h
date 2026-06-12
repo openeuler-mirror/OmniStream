@@ -20,7 +20,7 @@
 #include <unordered_set>
 #include <cstdint>
 #include <memory>
-#include "runtime/generated/function/CompositeWindowAggFunction.h"
+#include "runtime/generated/function/WindowAggsHandleFunction.h"
 
 class AbstractWindowAggProcessor : public SlicingWindowProcessor<std::shared_ptr<RowData>, int64_t> {
 public:
@@ -45,7 +45,7 @@ public:
     omnistream::VectorBatch* createOutputBatch(std::vector<std::unique_ptr<RowData>>& collectedRows);
     void collectOutputBatch(TimestampedCollector *out, omnistream::VectorBatch *outputBatch);
     void setClockService(ClockService* newClock);
-    bool IsWindowEmpty();
+    bool isWindowEmpty();
     RowData* GetHopResult(int64_t windowEnd, int64_t numSlices, int64_t interval);
     void NextWindowEndProcess(int64_t nextWindowEnd, SliceAssigner* assigner);
     RowData* GetNonHopResult(int64_t windowEnd);
@@ -57,29 +57,31 @@ protected:
     int64_t nextTriggerProgress = INT64_MIN;
     int64_t windowInterval = 0;
     SliceAssigner* sliceAssigner = nullptr;
-    int indexOfCountStar = -1;
+    int indexOfCountStar_ = -1;
     bool isEventTime;
-    std::unique_ptr<WindowAggHandleFunction> aggregator;
+    std::unique_ptr<NamespaceAggsHandleFunction<int64_t>> aggregator;
     std::unique_ptr<WindowValueState<KeyType, int64_t, RowData*>> windowState;
     Output* output;
 
 
-    int accumulatorArity = 0;
+    int accumulatorArity_ = 0;
     AbstractKeyedStateBackend<KeyType> *stateBackend = nullptr;
-    JoinedRowData* resultRow = new JoinedRowData();
+    std::unique_ptr<JoinedRowData> resultRow = std::make_unique<JoinedRowData>();
     omnistream::VectorBatch* resultBatch = nullptr;
     std::unique_ptr<TimestampedCollector> collector;
     std::vector<std::string> outputTypes;
     std::vector<int32_t> outputTypeIds;
-    ClockService *clockService = new ClockService();
+    std::unique_ptr<ClockService> clockService = std::make_unique<ClockService>();
     InternalTimerServiceImpl<KeyType, int64_t> *internalTimerService = nullptr;
     std::vector<std::string> inputTypes;
+    std::vector<int32_t> inputTypeIds_;
     std::vector<int32_t> keyedIndex;
     std::vector<int32_t> keyedTypes;
     std::unique_ptr<KeySelector<KeyType>> keySelector;
-    BinaryRowData* emptyRow = new BinaryRowData(0);
-
 private:
     std::unordered_set<int64_t> uniqueData;
     omnistream::StateType backendType_ = omnistream::StateType::HEAP;
+
+    std::unique_ptr<NamespaceAggsHandleFunction<int64_t>> initNamespaceAggsHandleFunction(
+            bool isWindowAgg, const nlohmann::json &aggInfoList);
 };

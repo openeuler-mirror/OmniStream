@@ -47,7 +47,7 @@ std::vector<W> MergingWindowProcessFunction<K, W>::assignStateNamespace(RowData*
         if (!stateWindowsToBeMerged.empty()) {
             RowData *targetAcc = this->ctx->getWindowAccumulators(stateWindowResult);
             if (targetAcc == nullptr) {
-                targetAcc = this->windowAggregator->createAccumulators(accumulatorArity_);
+                targetAcc = this->windowAggregator->createAccumulators();
             }
             this->windowAggregator->setAccumulators(stateWindowResult, targetAcc);
             for (const auto& w: stateWindowsToBeMerged) {
@@ -95,7 +95,7 @@ void MergingWindowProcessFunction<K, W>::prepareAggregateAccumulatorForEmit(cons
     W stateWindow = mergingWindows->getStateWindow(window);
     RowData *acc = this->ctx->getWindowAccumulators(stateWindow);
     if (acc == nullptr) {
-        acc = InternalWindowProcessFunction<K, W>::windowAggregator->createAccumulators(accumulatorArity_);
+        acc = InternalWindowProcessFunction<K, W>::windowAggregator->createAccumulators();
     }
     InternalWindowProcessFunction<K, W>::windowAggregator->setAccumulators(stateWindow, acc);
 }

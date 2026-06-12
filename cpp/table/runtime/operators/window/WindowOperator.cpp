@@ -54,22 +54,19 @@ void WindowOperator<K, W>::open() {
                         static_cast<MergingWindowAssigner<W>*>(windowAssigner.get()),
                         windowAggregator.get(),
                         new TimeWindow::Serializer(),
-                        allowedLateness,
-                        accumulatorArity);
+                        allowedLateness);
     } else if (dynamic_cast<PanedWindowAssigner<W>*>(windowAssigner.get())) {
         this->windowFunction =
                 std::make_unique<PanedWindowProcessFunction<K, W>>(
                         static_cast<PanedWindowAssigner<W>*>(windowAssigner.get()),
                         windowAggregator.get(),
-                        allowedLateness,
-                        accumulatorArity);
+                        allowedLateness);
     } else {
         this->windowFunction =
                 std::make_unique<GeneralWindowProcessFunction<K, W>>(
                     windowAssigner.get(),
                     windowAggregator.get(),
-                    allowedLateness,
-                    accumulatorArity);
+                    allowedLateness);
     }
     windowFunction->open(new WindowContext(this));
 }
@@ -163,7 +160,7 @@ void WindowOperator<K, W>::processElement(RowData *inputRow) {
         windowState->setCurrentNamespace(window);
         auto acc = reinterpret_cast<RowData *>(windowState->value());
         if (acc == nullptr) {
-            acc = windowAggregator->createAccumulators(accumulatorArity);
+            acc = windowAggregator->createAccumulators();
         }
         windowAggregator->setAccumulators(window, acc);
 
