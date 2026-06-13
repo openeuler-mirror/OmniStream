@@ -79,7 +79,6 @@ namespace omnistream {
     {
         if (IsDone()) {
             buffer->RecycleBuffer();
-            delete buffer;
             return;
         }
 
@@ -91,7 +90,6 @@ namespace omnistream {
               "ChannelState#WriteInput");
 
         buffer->RecycleBuffer();
-        delete buffer;
     }
 
     void ChannelStateCheckpointWriter::WriteOutput(const JobVertexID &jvid,

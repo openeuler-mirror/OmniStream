@@ -93,7 +93,6 @@ namespace omnistream {
                 for (auto *buffer : buffers) {
                    if (buffer) {
                        buffer->RecycleBuffer();
-                       delete buffer;
                    }
                 }
             });

@@ -116,24 +116,30 @@ BufferAndBacklog* PipelinedSubpartition::pollBuffer()
         auto bufferConsumerWithPartialRecordLength = buffers.peek();
         std::shared_ptr<BufferConsumer> bufferConsumer =
             bufferConsumerWithPartialRecordLength->getBufferConsumer();
-        if (bufferConsumer->getDataType() == ObjectBufferDataType::TIMEOUTABLE_ALIGNED_CHECKPOINT_BARRIER) {
-            // todo: finsh checkpoint
-            // completeTimeoutableCheckpointBarrier(bufferConsumer);
-        }
-        LOG("PipelinedSubpartition::pollBuffer(): buildSliceBuffer"<< parent->getOwningTaskName())
-        buffer = buildSliceBuffer(bufferConsumerWithPartialRecordLength);
+        if (!bufferConsumer->isClose()) {
+            if (bufferConsumer->getDataType() == ObjectBufferDataType::TIMEOUTABLE_ALIGNED_CHECKPOINT_BARRIER) {
+                // todo: finsh checkpoint
+                // completeTimeoutableCheckpointBarrier(bufferConsumer);
+            }
+            LOG("PipelinedSubpartition::pollBuffer(): buildSliceBuffer"<< parent->getOwningTaskName())
+            buffer = buildSliceBuffer(bufferConsumerWithPartialRecordLength);
 
-        LOG_PART("After buildSliceBuffer buffer raw ponter  " << buffer << " buffer size " << buffer->GetSize())
-        LOG_TRACE("ObjectBufferConsumerWithPartialRecordLength ref count " << std::to_string(bufferConsumerWithPartialRecordLength.use_count()));
-        LOG_TRACE("bufferConsumer ref count " << std::to_string(bufferConsumer.use_count()));
-        LOG_TRACE("bufferConsumer inside: " << bufferConsumer->toString());
+            LOG_PART("After buildSliceBuffer buffer raw ponter  " << buffer << " buffer size " << buffer->GetSize())
+            LOG_TRACE("ObjectBufferConsumerWithPartialRecordLength ref count " << std::to_string(bufferConsumerWithPartialRecordLength.use_count()));
+            LOG_TRACE("bufferConsumer ref count " << std::to_string(bufferConsumer.use_count()));
+            LOG_TRACE("bufferConsumer inside: " << bufferConsumer->toString());
+        }
 
         if (buffers.size() == 1) {
             flushRequested  = false;
         }
         if (bufferConsumer->isFinished()) {
             decreaseBuffersInBacklogUnsafe(bufferConsumer->isBuffer());
-            buffers.poll()->getBufferConsumer()->close();
+            if (!bufferConsumer->isClose()) {
+                buffers.poll()->getBufferConsumer()->close();
+            } else {
+                buffers.poll();
+            }
         }
 
         if (receiverExclusiveBuffersPerChannel == 0 && bufferConsumer->isFinished()) {
@@ -145,9 +151,14 @@ BufferAndBacklog* PipelinedSubpartition::pollBuffer()
                 bufferConsumerWithPartialRecordLength.use_count()));
         LOG_TRACE("bufferConsumer ref count " << std::to_string(bufferConsumer.use_count()));
 
-        if (buffer->GetSize() != 0) {
+        if (buffer == nullptr && buffers.size() > 0) {
+            continue;
+        }
+
+        if ((buffer == nullptr && buffers.size() == 0) || buffer->GetSize() != 0) {
             break;
         }
+
         // buffer is null, not sent to downstream, need to recycle here
         buffer->RecycleBuffer();
         delete buffer; // this is ReadOnlySlicedNetworkBuffer in datastream, so we directly delete it (not specified in SQL)
