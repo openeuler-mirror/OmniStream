@@ -60,14 +60,14 @@ OmniStream Flink Native化采用单机容器化部署方案，使用Docker容器
 
 **表 3** 软件获取列表<a id="软件获取列表"></a>
 
-|名称| 包名                                               |发布类型|说明| 获取地址                                                                                                                                                                                                                                                               |
-|--|--------------------------------------------------|--|--|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-|OmniStream压缩包| BoostKit-omniruntime-omnistream-1.2.0.zip        |开源|OmniStream Flink Native化特性软件安装包。| [获取链接](https://gitcode.com/openeuler/OmniStream/releases/download/tag_BoostKit_26.0.RC1.B031_001/BoostKit-omniruntime-omnistream-1.2.0.zip)                                                                                                                            |
-|UDF翻译工具| UNT-1.0-35.noarch.rpm                            |开源|UDF翻译工具RPM包，安装后在/opt路径下新增UDF翻译工具。| [获取链接](https://eur.openeuler.openatom.cn/results/cutie-deng/UNT/openeuler-22.03_LTS_SP4-aarch64/00110412-UNT/UNT-1.0-35.noarch.rpm)                                                                                                                                |
-|AI4C| AI4C-1.0.4-8.aarch64.rpm                         |开源|支持编译器集成机器学习驱动的优化技术的框架。RPM包直接安装。| [获取链接](https://gitee.com/kunpengcompute/boostkit-bigdata/releases/download/25.1.RC1-OmniStream-release/AI4C-1.0.4-8.aarch64.rpm)                                                                                                                                   |
-|KACC_JSON| BoostKit-kaccjson_1.1.0.zip                      |闭源|自研的用于UDF翻译中替换GSON的C++版实现，该ZIP包含适配层和KACC_JSON核心实现，内含若干头文件和静态库。</br>该文件从Dependency_library_OmniStream.zip解压获得。| [获取链接](https://gitcode.com/openeuler/OmniStream/releases/download/tag_BoostKit_26.0.RC1.B031_001/Dependency_library_OmniStream.zip)                                                                                                                                    |
-|KSL| BoostKit-ksl_2.5.1.zip                           |闭源|正则加速库，该zip包含ReplaceAll用于优化String基础库，内含头文件和1个静态库。| [获取链接](https://www.hikunpeng.com/boostkit/library/system?subtab=Hyperscan&version=2.5.1)                                                                                                                                                                           |
-|依赖库| Dependency_library_Default |开源|OmniStream Flink Native化运行时所依赖的库文件。</br>该文件夹从Dependency_library_OmniStream.zip解压获得。| [获取链接](https://gitcode.com/openeuler/OmniStream/releases/download/tag_BoostKit_26.0.RC1.B031_001/Dependency_library_OmniStream.zip) |
+|名称| 包名                                        |发布类型|说明| 获取地址                                                                                                                                                        |
+|--|-------------------------------------------|--|--|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|OmniStream压缩包| BoostKit-omniruntime-omnistream-1.3.0.zip |开源|OmniStream Flink Native化特性软件安装包。| [获取链接](https://boostkit-bigdata-public.obs.cn-north-4.myhuaweicloud.com/artifact/OmniStream/master/26.1.RC1.B027/BoostKit-omniruntime-omnistream-1.3.0.zip) |
+|UDF翻译工具| UNT-1.0-35.noarch.rpm                     |开源|UDF翻译工具RPM包，安装后在/opt路径下新增UDF翻译工具。| [获取链接](https://eur.openeuler.openatom.cn/results/cutie-deng/UNT/openeuler-22.03_LTS_SP4-aarch64/00110412-UNT/UNT-1.0-35.noarch.rpm)                         |
+|AI4C| AI4C-1.0.4-8.aarch64.rpm                  |开源|支持编译器集成机器学习驱动的优化技术的框架。RPM包直接安装。| [获取链接](https://gitee.com/kunpengcompute/boostkit-bigdata/releases/download/25.1.RC1-OmniStream-release/AI4C-1.0.4-8.aarch64.rpm)                            |
+|KACC_JSON| BoostKit-kaccjson_1.1.0.zip               |闭源|自研的用于UDF翻译中替换GSON的C++版实现，该ZIP包含适配层和KACC_JSON核心实现，内含若干头文件和静态库。</br>该文件从Dependency_library_OmniStream.zip解压获得。| [获取链接](https://gitcode.com/openeuler/OmniStream/releases/download/tag_BoostKit_26.0.RC1.B031_001/Dependency_library_OmniStream.zip)                         |
+|KSL| BoostKit-ksl_2.5.1.zip                    |闭源|正则加速库，该zip包含ReplaceAll用于优化String基础库，内含头文件和1个静态库。| [获取链接](https://www.hikunpeng.com/boostkit/library/system?subtab=Hyperscan&version=2.5.1)                                                                    |
+|依赖库| Dependency_library_Default                |开源|OmniStream Flink Native化运行时所依赖的库文件。</br>该文件夹从Dependency_library_OmniStream.zip解压获得。| [获取链接](https://gitcode.com/openeuler/OmniStream/releases/download/tag_BoostKit_26.0.RC1.B031_001/Dependency_library_OmniStream.zip)                         |
 
 
 **软件安装包完整性校验<a name="zh-cn_topic_0000002228744546_section156811729327"></a>**
@@ -403,7 +403,7 @@ OmniStream Flink Native化采用单机容器化部署方案，使用Docker容器
 
 ```bash
 wget --no-check-certificate https://repo.openeuler.org/openEuler-preview/openEuler-22.03-LTS-SP4-HP-preview/OS/aarch64/Packages/python3-setuptools-59.4.0-5.oe2203sp4.noarch.rpm
-rpm -ivh python3-setuptools-59.4.0-5.oe2203sp4.noarch.rpm
+rpm -ivh python3-setuptools-59.4.0-5.oe2203sp4.noarch.rpm --nodeps
 rm -rf /usr/bin/python
 ln -s /usr/bin/python3 /usr/bin/python
 ```
@@ -440,7 +440,8 @@ rpm -ivh yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
 
         ```bash
         unzip Dependency_library_OmniStream.zip -d /opt
-        cp /opt/Dependency_library_Default /opt/Dependency_library        
+        mkdir -p /opt/Dependency_library
+        cp -r /opt/Dependency_library_Default /opt/Dependency_library        
         chmod -R 550 /opt/Dependency_library/*
         ```
 
@@ -457,13 +458,14 @@ rpm -ivh yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
     ```bash
     unzip BoostKit-omniruntime-omnistream-1.3.0.zip
     mkdir -p /usr/local/OmniStream
-    cp -r OmniStream_Default/* /usr/local/OmniStream/
+    cp -r openEuler22.03_JDK17/OmniStream_Default/* /usr/local/OmniStream/
     chmod -R 550 /usr/local/OmniStream/*
     ```
 
 2. <a name="zh-cn_topic_0000002263584129_li146334222212"></a>查看解压文件。
 
     ```bash
+    cd /usr/local/OmniStream/
     ls
     ```
 
@@ -515,7 +517,26 @@ rpm -ivh yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
         ```bash
         env.java.opts: -Djava.library.path=/usr/local/OmniStream/
         ```
+    3. 如果使用JDK17配套运行需要增加java参数。
 
+       ```bash
+       env.java.opts: -Djava.library.path=/usr/local/OmniStream/ --add-opens java.base/java.lang=ALL-UNNAMED 
+                      --add-opens java.base/java.io=ALL-UNNAMED 
+                      --add-opens java.base/java.util=ALL-UNNAMED 
+                      --add-opens java.base/java.util.concurrent=ALL-UNNAMED 
+                      --add-opens java.base/sun.nio.ch=ALL-UNNAMED   
+                      --add-opens java.base/java.net=ALL-UNNAMED 
+                      --add-opens java.base/sun.security.ssl=ALL-UNNAMED 
+                      --add-exports java.base/sun.net.dns=ALL-UNNAMED
+                      --add-exports java.base/sun.net.util=ALL-UNNAMED
+                      --add-opens=java.base/java.lang=ALL-UNNAMED
+                      --add-opens java.base/java.lang.invoke=ALL-UNNAMED
+                      --add-opens java.base/java.util.concurrent.atomic=ALL-UNNAMED
+                      --add-opens java.base/java.nio=ALL-UNNAMED
+                      --add-opens java.base/java.math=ALL-UNNAMED
+                      --add-opens java.base/java.text=ALL-UNNAMED
+                      --add-opens java.base/java.time=ALL-UNNAMED
+       ```
     3. 按`Esc`键，输入 **:wq!**，按`Enter`保存并退出编辑。
 
 ### 安装UDF翻译工具<a name="ZH-CN_TOPIC_0000002517504824"></a>
@@ -597,6 +618,7 @@ rpm -ivh yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
        1. 下载[jemalloc-5.3.0.tar.gz](https://github.com/jemalloc/jemalloc/archive/refs/tags/5.3.0.tar.gz)，并上传到管理节点。
 
            ```bash
+           mkdir -p /opt/omni-operator/
            cd /opt/omni-operator/
            tar zxvf jemalloc-5.3.0.tar.gz
            mv jemalloc-5.3.0 jemalloc
@@ -616,6 +638,7 @@ rpm -ivh yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
       3. 拷贝`/opt/omni-operator/jemalloc/lib/libjemalloc.so.2`到`/opt/omni-operator/lib`目录下。
 
          ```bash
+         mkdir -p /opt/omni-operator/lib/
          cp /opt/omni-operator/jemalloc/lib/libjemalloc.so.2 /opt/omni-operator/lib/
          ```
 
@@ -628,6 +651,7 @@ rpm -ivh yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
    4. 下载OmniOperator，将OmniOperator源码全部拷贝到容器UDF工具的头文件引用目录中。
 
        ```bash
+       mkdir -p /usr/local/OmniStream/depend/
        cd /usr/local/OmniStream/depend/
        git clone https://atomgit.com/openeuler/OmniOperator.git -b master
        mv OmniOperator OmniOperatorJIT 
