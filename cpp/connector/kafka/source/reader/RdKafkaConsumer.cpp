@@ -195,8 +195,4 @@ void RdKafkaConsumer::commitOffsets(const std::map<std::shared_ptr<RdKafka::Topi
         INFO_RELEASE("Error:Failed to commit offsets: " <<RdKafka::err2str(resp));
         throw std::runtime_error("Failed to commit offsets: " + RdKafka::err2str(resp));
     }
-
-    for (auto tp : partitions) {
-        delete tp;
-    }
 }
