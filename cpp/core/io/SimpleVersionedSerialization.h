@@ -69,7 +69,7 @@ public:
     static T* readVersionAndDeSerialize(
             SimpleVersionedSerializer<T>& serializer, std::vector<uint8_t>& bytes) {
         // 简化实现：先读取版本号（4字节），然后反序列化数据
-        if (bytes.size() < 4) {
+        if (bytes.size() < 8) {
             throw std::runtime_error("Insufficient data for version deserialization");
         }
         
