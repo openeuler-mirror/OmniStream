@@ -18,6 +18,9 @@
 namespace {
 int64_t multiplyDurationMs(int64_t value, int64_t factor)
 {
+    if (factor == 0) {
+        return 0;
+    }
     if ((value > 0 && value > std::numeric_limits<int64_t>::max() / factor) ||
         (value < 0 && value < std::numeric_limits<int64_t>::min() / factor)) {
         throw std::out_of_range("partition commit delay overflows int64_t milliseconds");
