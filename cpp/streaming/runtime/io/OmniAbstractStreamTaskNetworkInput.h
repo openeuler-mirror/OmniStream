@@ -31,6 +31,7 @@
 #include "typeutils/TypeSerializer.h"
 #include "runtime/io/checkpointing/CheckpointedInputGate.h"
 #include "runtime/event/EndOfChannelStateEvent.h"
+#include "runtime/event/InnerRecoverEvent.h"
 #include "table/typeutils/BinaryRowDataSerializer.h"
 #include "runtime/watermark/StatusWatermarkValve.h"
 
@@ -141,7 +142,6 @@ public:
         std::unique_ptr<std::unordered_map<long, std::unique_ptr<RecordDeserializer>>> recordDeserializers =
            std::make_unique<std::unordered_map<long, std::unique_ptr<RecordDeserializer>>>();
         for (size_t i = 0; i < channelInfos.size(); i++) {
-            LOG("getRecordDeserializers channelInfo " << i)
             auto deserializer = std::make_unique<SpillingAdaptiveSpanningRecordDeserializer>();
             recordDeserializers->emplace(channelInfos.at(i), std::move(deserializer));
         }
@@ -151,7 +151,7 @@ public:
     virtual RecordDeserializer *getActiveSerializer(long channelInfo) {
         auto it = recordDeserializers->find(channelInfo);
         if (it == recordDeserializers->end()) {
-            THROW_RUNTIME_ERROR("ChannelInfo not found in recordDeserializers");
+            THROW_RUNTIME_ERROR("ChannelInfo not found in recordDeserializers:" + std::to_string(channelInfo));
         }
         return it->second.get();
     }
@@ -238,8 +238,9 @@ public:
     {
         auto buffer = static_cast<ReadOnlySlicedNetworkBuffer* >(bufferOrEvent->getBuffer());
         auto inputChannelInfo = bufferOrEvent->getChannelInfo();
-        currentRecordDeserializer = getActiveSerializer(inputChannelInfo.getInputChannelIdx());
+        currentRecordDeserializer = getActiveSerializer(inputChannelInfo.getComplexId());
         if (currentRecordDeserializer == nullptr) {
+            INFO_RELEASE("currentRecordDeserializer has already been released")
             THROW_LOGIC_EXCEPTION("currentRecordDeserializer has already been released");
         }
         currentRecordDeserializer->SetNextBuffer(buffer);
@@ -269,6 +270,7 @@ public:
                     }
 
                     if (likely(result.isFullRecord())) {
+                        INFO_RELEASE("result isFullRecord")
                         return processFullRecordForDataStream(output);
                         // continue;
                     }
@@ -562,14 +564,20 @@ public:
     {
         LOG("Network prepare snapshot, checkpointId: " << checkpointId);
         for (const auto &pair : *recordDeserializers) {
-            std::vector<InputChannelInfo> channelInfofos = inputGate->GetChannelInfos(); 
+            std::vector<InputChannelInfo> channelInfofos = inputGate->GetChannelInfos();
+            std::unordered_map<long,InputChannelInfo> map;
+            for (auto &item : channelInfofos){
+                map.emplace(item.getComplexId(),item);
+            }
             try {
                 std::vector<omnistream::Buffer*> buffers = (pair.second)->GetUnconsumedBuffer();
                 int bufferSize = buffers.size();
+
+
                 if (bufferSize > 0) {
                     writer->AddInputData(
                         checkpointId,
-                        channelInfofos[pair.first],
+                        map[pair.first],
                         ChannelStateWriter::sequenceNumberUnknown,
                         buffers);
                 } else {
@@ -614,6 +622,12 @@ protected:
             if (inputGate->AllChannelsRecovered()) {
                 INFO_RELEASE("received EndOfChannelStateEvent end, inputIndex=" << inputIndex);
                 return DataInputStatus::END_OF_RECOVERY;
+            }
+        }else if(dynamic_cast<InnerRecoverEvent *>(event.get())){
+            INFO_RELEASE("received a inner recovery event start");
+            if(inputGate->AllInnerChannelsRecovered()){
+                INFO_RELEASE("received a inner recovery event end");
+                return DataInputStatus::INNER_RECOVER;
             }
         }
         // by default,continue the data processing

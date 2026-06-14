@@ -249,6 +249,17 @@ void SingleInputGate::FinishReadRecoveredState()
     }
 }
 
+void SingleInputGate::FinishInnerRecoveredState()
+{
+    INFO_RELEASE("single input gate FinishInnerRecoveredState!");
+    for (auto& channel : channels) {
+        if (auto recoveredChannel = std::dynamic_pointer_cast<RecoveredInputChannel>(channel)) {
+            recoveredChannel->finishInnerRecoveredState();
+        }
+    }
+}
+
+
 int SingleInputGate::GetNumberOfInputChannels()
 {
     return numberOfInputChannels;
@@ -666,7 +677,7 @@ BufferOrEvent* SingleInputGate::transformToBufferOrEvent(Buffer* buffer,
         if (buffer->isBuffer()) {
             return transformBuffer(buffer, moreAvailable, currentChannel, morePriorityEvents);
         } else {
-            // LOG_TRACE("transformEvent")
+            INFO_RELEASE("transformEvent")
             return transformEvent(buffer, moreAvailable, currentChannel, morePriorityEvents);
         }
 }

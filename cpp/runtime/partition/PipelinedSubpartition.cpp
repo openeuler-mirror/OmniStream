@@ -16,6 +16,7 @@
 #include "io/network/api/serialization/EventSerializer.h"
 #include "PipelinedSubpartition.h"
 #include "event/EndOfPartitionEvent.h"
+#include "event/EndOfChannelStateEvent.h"
 #include "checkpoint/channel/ChannelStateWriter.h"
 #include "runtime/buffer/VectorBatchBuffer.h"
 
@@ -371,6 +372,7 @@ BufferBuilder *PipelinedSubpartition::requestBufferBuilderBlocking()
 
 void PipelinedSubpartition::addRecovered(std::shared_ptr<BufferConsumer> bufferConsumer)
 {
+    INFO_RELEASE("PipelinedSubpartition::addRecovered:"<< bufferConsumer->getBufferType());
     if (add(bufferConsumer, INT_MIN) == -1) {
         THROW_LOGIC_EXCEPTION("Buffer consumer couldn't be added to ResultSubpartition")
     }
@@ -378,8 +380,10 @@ void PipelinedSubpartition::addRecovered(std::shared_ptr<BufferConsumer> bufferC
 
 void PipelinedSubpartition::finishReadRecoveredState(bool notifyAndBlockOnCompletion)
 {
+    INFO_RELEASE("PipelinedSubpartition::finishReadRecoveredState 111")
     if (notifyAndBlockOnCompletion) {
-        auto bufferConsumer = EventSerializer::ToBufferConsumer(EndOfPartitionEvent::getInstance(), false);
+        INFO_RELEASE("PipelinedSubpartition::finishReadRecoveredState 222")
+        auto bufferConsumer = EventSerializer::ToBufferConsumer(EndOfChannelStateEvent::getInstance(), false);
         add(bufferConsumer, 0, false);
     }
 }
@@ -439,7 +443,7 @@ int PipelinedSubpartition::add(std::shared_ptr<BufferConsumer> bufferConsumer, i
 
 bool PipelinedSubpartition::addBuffer(std::shared_ptr<BufferConsumer> bufferConsumer, int partialRecordLength)
 {
-    LOG_DEBUG("buffer consumer added to buffers" << (bufferConsumer->isBuffer() ? "buffer": "event"))
+    INFO_RELEASE("buffer consumer added to buffers" << (bufferConsumer->isBuffer() ? "buffer": "event"))
     if (bufferConsumer->getDataType().hasPriority()) {
         return ProcessPriorityBuffer(bufferConsumer, partialRecordLength);
     } else if (ObjectBufferDataType::TIMEOUTABLE_ALIGNED_CHECKPOINT_BARRIER == bufferConsumer->getDataType()) {

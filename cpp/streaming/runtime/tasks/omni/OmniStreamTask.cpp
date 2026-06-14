@@ -114,7 +114,7 @@ OmniStreamTask::OmniStreamTask(std::shared_ptr<RuntimeEnvironmentV2> &env,
         InjectChannelStateWriterIntoChannels();
         // Reconstruct LocalRecoveryConfig
         std::shared_ptr<LocalRecoveryDirectoryProviderImpl> dirProvider;
-
+        numberOfInnerRecover = env_->getInputGates().size();
     if (taskConfiguration_.getCheckpointConfig().getLocalRecovery()) {
         std::string localRecoveryProviderStr = taskConfiguration_.getLocalRecoveryConfig();
         nlohmann::json localJson = nlohmann::json::parse(localRecoveryProviderStr);
@@ -235,9 +235,8 @@ OmniStreamTask::OmniStreamTask(std::shared_ptr<RuntimeEnvironmentV2> &env,
                 return;
             }
             auto reader = env_->getTaskStateManager()->getSequentialChannelStateReader();
-            INFO_RELEASE("restoreGates before readOutputData, task=" << taskName_);
-            reader->readOutputData(env_->getAllWriters(), false);
-            INFO_RELEASE("restoreGates after readOutputData, task=" << taskName_);
+            
+            reader->readOutputData(env_->getAllWriters(), true);
 
             std::vector<std::shared_ptr<InputGate>> inputGateVec;
             inputGateVec.reserve(indexedInputGates.size());
@@ -249,32 +248,32 @@ OmniStreamTask::OmniStreamTask(std::shared_ptr<RuntimeEnvironmentV2> &env,
 
             INFO_RELEASE("restoreGates before recovery mailbox loop");
             mailboxProcessor_->runMailboxLoop();
-            INFO_RELEASE("restoreGates after recovery mailbox loop");
-
-            for (const auto& inputGate : inputGateVec) {
-                auto recoveredFlags = inputGate->getStateConsumedFuture1();
-
-                bool allRecovered = true;
-                for (bool done : recoveredFlags) {
-                    if (!done) {
-                        allRecovered = false;
-                        break;
+            LOG("restoreGates after recovery mailbox loop");
+            bool allRecovered = true;
+            do {
+                for (const auto &inputGate : inputGateVec) {
+                    auto recoveredFlags = inputGate->getStateConsumedFuture1();
+                    allRecovered = true;
+                    for (bool done : recoveredFlags) {
+                        if (!done) {
+                            allRecovered = false;
+                            break;
+                        }
                     }
-                }
 
-                if (!allRecovered) {
-                    LOG("restoreGates: some recovered channels are not fully consumed yet");
-                    throw std::runtime_error(
-                                                "restoreGates exited but some recovered channels were not fully consumed");
-                }
+                    if (!allRecovered) {
+                        INFO_RELEASE("restoreGates: some recovered channels are not fully consumed yet");
+                        continue;
+                    }
 
-                INFO_RELEASE("restoreGates requestPartitions directly after recovery loop");
-                inputGate->RequestPartitions();
-            }
+                    INFO_RELEASE("restoreGates requestPartitions directly after recovery loop");
+                    inputGate->RequestPartitions();
+                }
+            } while (!allRecovered);
 
             INFO_RELEASE("restoreGates complete!");
-        } catch (...) {
-            INFO_RELEASE("Error: restoreGates failed, unable to read channel state");
+        } catch (const std::exception e) {
+            INFO_RELEASE("Error: restoreGates failed, unable to read channel state:" << e.what());
             throw std::runtime_error("restoreGates failed, unable to read channel state");
         }
     }
@@ -343,9 +342,13 @@ void OmniStreamTask::processInput(MailboxDefaultAction::Controller *controller)
             return;
         case DataInputStatus::NOTHING_AVAILABLE:
             break;
+        case DataInputStatus::INNER_RECOVER:
+            INFO_RELEASE("processInput INNER_RECOVER, stop recovery mail box :" << numberOfInnerRecover);
+            if(--numberOfInnerRecover == 0){
+                mailboxProcessor_->suspend();
+            }
+            return;
         case DataInputStatus::END_OF_RECOVERY:
-            INFO_RELEASE("processInput END_OF_RECOVERY, stop recovery mail box!");
-            mailboxProcessor_->suspend();
             return;
         case DataInputStatus::END_OF_DATA:
             EndData(StopMode::DRAIN);
@@ -510,6 +513,10 @@ void OmniStreamTask::processInput(MailboxDefaultAction::Controller *controller)
             auto taskInfo = env_->taskConfiguration();
             std::unordered_map<int, StreamConfigPOD> configMap = taskInfo.getChainedConfigMap();
             auto description = configMap[sourceId].getOperatorDescription().getDescription();
+            if(description.empty()){
+                // 可能是非对齐input buffer恢复在fiter时使用
+                description = configMap[targetId].getOperatorDescription().getDescription();
+            }
             nlohmann::json config = nlohmann::json::parse(description);
             int32_t maxParallelism = env_->taskConfiguration().getMaxNumberOfSubtasks();
             return new datastream::KeyGroupStreamPartitioner<IOReadableWritable, Object>(config, targetId, maxParallelism);

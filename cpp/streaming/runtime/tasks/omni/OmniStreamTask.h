@@ -175,7 +175,7 @@ namespace omnistream {
         * StreamTaskActionExecutor.SynchronizedStreamTaskActionExecutor
         * SynchronizedStreamTaskActionExecutor} to provide lock to {@link SourceStreamTask}. */
         std::shared_ptr<StreamTaskActionExecutor> actionExecutor_;
-
+        uint32_t numberOfInnerRecover;
         // mailbox loop
         TaskMailbox* mailbox_; // 负责存储相应 task 任务（也就是 mail），它支持多写单读，单线程读取并处理, delete by MailboxProcessor
         std::unique_ptr<MailboxProcessor> mailboxProcessor_; // MailBox 的核心处理线程，MailboxDefaultAction 是其默认的 action 实现

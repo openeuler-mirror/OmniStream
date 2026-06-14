@@ -217,12 +217,12 @@ public:
         for (int subtask : oldSubtaskIndexes) {
             for (int channel : oldChannelIndexes) {
                 SubtaskConnectionDescriptor descriptor = *new SubtaskConnectionDescriptor(subtask, channel);
+                auto isAmbiguous = rescalingDescriptor.IsAmbiguous(channelInfo.getGateIdx(), subtask);
+                INFO_RELEASE("create virtual channel:" <<channelInfo.getGateIdx()<<"--" << channelInfo.getInputChannelIdx() << ",mapping:" << subtask << "--" << channel)
                 virtualChannels[descriptor.getComplexId()] =
                     std::make_shared<VirtualChannel>(deserializerFactory(totalChannels),
-                                                     rescalingDescriptor.IsAmbiguous(channelInfo.getGateIdx(),
-                                                                                     subtask) ?
-                                                         recordFilterFactory(channelInfo) :
-                                                         RecordFilter::all());
+                                                     isAmbiguous ? recordFilterFactory(channelInfo) :
+                                                                   RecordFilter::all());
             }
         }
         INFO_RELEASE("DemultiplexingRecordDeserializer create channel size:" << virtualChannels.size());
@@ -234,6 +234,7 @@ public:
         std::ostringstream oss;
         oss << "DemultiplexingRecordDeserializer{channels=";
         for (const auto &pair : channels) {
+
             oss << pair.first << " ";
         }
         oss << "}";

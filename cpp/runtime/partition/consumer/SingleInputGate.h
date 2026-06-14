@@ -71,6 +71,7 @@ namespace omnistream {
                 std::vector<bool> getStateConsumedFuture1() override;
                 void RequestPartitions() override;
                 void FinishReadRecoveredState() override;
+                void FinishInnerRecoveredState() override;
 
                 int GetNumberOfInputChannels() override;
                 int GetGateIndex() override;

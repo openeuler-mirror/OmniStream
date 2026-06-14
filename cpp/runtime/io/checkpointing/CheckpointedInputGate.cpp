@@ -109,7 +109,9 @@ BufferOrEvent* CheckpointedInputGate::HandleEvent(
     } else if (bufferOrEvent->getEvent()->GetEventClassName() == "EndOfChannelStateEvent") {
         INFO_RELEASE("CheckpointedInputGate::HandleEvent received an EndOfChannelStateEvent.");
         upstreamRecoveryTracker_->handleEndOfRecovery(bufferOrEvent->getChannelInfo());
-    } else {
+    } else if(bufferOrEvent->getEvent()->GetEventClassName() == "InnerRecoverEvent"){
+        INFO_RELEASE("CheckpointedInputGate::HandleEvent received an InnerRecoverEvent.");
+        upstreamRecoveryTracker_->handleInnerRecover(bufferOrEvent->getChannelInfo());
     }
 
     return bufferOrEvent;
@@ -156,6 +158,11 @@ std::vector<InputChannelInfo> CheckpointedInputGate::GetChannelInfos() const
 bool CheckpointedInputGate::AllChannelsRecovered() const
 {
     return upstreamRecoveryTracker_->allChannelsRecovered();
+}
+
+bool CheckpointedInputGate::AllInnerChannelsRecovered() const
+{
+    return upstreamRecoveryTracker_->allInnerRecovered();
 }
 
 long CheckpointedInputGate::GetLatestCheckpointId() const

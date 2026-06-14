@@ -21,7 +21,6 @@ namespace omnistream::datastream {
         DeserializationResult &result = readNextRecord(target);
         if (currentBuffer && result.isBufferConsumed()) {
             currentBuffer->RecycleBuffer();
-            delete currentBuffer; // this is ReadOnlySlicedNetworkBuffer, so we directly delete it
             currentBuffer = nullptr;
         }
         return result;

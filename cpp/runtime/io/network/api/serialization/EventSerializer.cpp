@@ -29,6 +29,7 @@
 #include "runtime/event/EndOfSegmentEvent.h"
 #include "runtime/io/network/api/CancelCheckpointMarker.h"
 #include "runtime/event/SubtaskConnectionDescriptor.h"
+#include "event/InnerRecoverEvent.h"
 
 namespace omnistream {
     const int EventSerializer::INVALID_EVENT = -1;
@@ -41,6 +42,7 @@ namespace omnistream {
     const int EventSerializer::ANNOUNCEMENT_EVENT = 6;
     const int EventSerializer::VIRTUAL_CHANNEL_SELECTOR_EVENT = 7;
     const int EventSerializer::END_OF_USER_RECORDS_EVENT = 8;
+    const int EventSerializer::INNER_RECOVER_EVENT = 9;
 
     datastream::NetworkBuffer* EventSerializer::toBuffer(
         std::shared_ptr<AbstractEvent> event, bool hasPriority)
@@ -130,7 +132,13 @@ namespace omnistream {
             data = new uint8_t[4]{0, 0, 0, END_OF_CHANNEL_STATE_EVENT};
             memorySegment = new MemorySegment(data, 4);
             return memorySegment;
-        }else if(dynamic_cast<SubtaskConnectionDescriptor*>(event.get())){
+        }else if(dynamic_cast<InnerRecoverEvent*>(event.get()))
+        {
+            data = new uint8_t[4]{0, 0, 0, INNER_RECOVER_EVENT};
+            memorySegment = new MemorySegment(data, 4);
+            return memorySegment;
+        }
+        else if(dynamic_cast<SubtaskConnectionDescriptor*>(event.get())){
             auto selector = dynamic_cast<SubtaskConnectionDescriptor*>(event.get());
             ByteBuffer byteBuffer = ByteBuffer(12);
             byteBuffer.putInt(VIRTUAL_CHANNEL_SELECTOR_EVENT);
@@ -147,7 +155,6 @@ namespace omnistream {
 
     std::shared_ptr<AbstractEvent> EventSerializer::fromSerializedEvent(Buffer* buffer, bool recycleEvent)
     {
-        LOG_DEBUG("fromSerializedEvent V1 !")
         if (buffer == nullptr || buffer->GetSize() < 4) {
             throw std::runtime_error("Buffer is null or too small to contain an event");
         }
@@ -204,6 +211,12 @@ namespace omnistream {
                 buffer->RecycleBuffer();
             }
             return des;
+        }else if(eventType == INNER_RECOVER_EVENT){
+            if (recycleEvent) {
+                buffer->RecycleBuffer();
+            }
+            // delete buffer;
+            return InnerRecoverEvent::getInstance();
         } else {
             if (recycleEvent) {
                 buffer->RecycleBuffer();

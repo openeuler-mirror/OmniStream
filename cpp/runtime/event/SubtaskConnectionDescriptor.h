@@ -59,7 +59,7 @@ namespace omnistream{
 
         long getComplexId()
         {
-                return (((long)(inputSubtaskIndex)) << 32) | (outputSubtaskIndex & 0xFFFFFFFFL);
+            return (((long)(inputSubtaskIndex)) << 32) | (outputSubtaskIndex & 0xFFFFFFFFL);
         }
 
     std::string GetEventClassName() override

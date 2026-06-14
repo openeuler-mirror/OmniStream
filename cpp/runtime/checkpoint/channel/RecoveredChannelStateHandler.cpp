@@ -78,7 +78,7 @@ void ResultSubpartitionRecoveredStateHandler::close()
             checkpointedWriter->finishReadRecoveredState(notifyAndBlockOnCompletion_);
         }
     }
-    LOG("Close ResultSubpartitionRecoveredStateHandler, finishReadRecoveredState writers size:" << writers_.size());
+    INFO_RELEASE("Close ResultSubpartitionRecoveredStateHandler, finishReadRecoveredState writers size:" << writers_.size());
 }
 
 std::shared_ptr<CheckpointedResultSubpartition> ResultSubpartitionRecoveredStateHandler::getSubpartition(
@@ -187,12 +187,11 @@ void InputChannelRecoveredStateHandler::recover(const InputChannelInfo &inputCha
             }
 
             for (const auto &item : channels){
-                INFO_RELEASE("send input recover:" << item->getChannelInfo().toString());
                 item->onRecoveredStateBuffer(EventSerializer::toBuffer(std::make_shared<SubtaskConnectionDescriptor>(oldSubtaskIndex,inputChannelInfo.getInputChannelIdx()), false));
                 item->onRecoveredStateBuffer2(buffer);
             }
 
-            INFO_RELEASE("Recovered state for gate " << inputChannelInfo.getGateIdx()
+            LOG_DEBUG("Recovered state for gate " << inputChannelInfo.getGateIdx()
                                             << ", channel " << inputChannelInfo.getInputChannelIdx()
                                             << ", size " << buffer->GetSize()
                                             << ", mappedChannels=" << channels.size());
@@ -207,9 +206,9 @@ void InputChannelRecoveredStateHandler::recover(const InputChannelInfo &inputCha
 void InputChannelRecoveredStateHandler::close()
 {
     for (const auto& inputGate : inputGates) {
-        inputGate->FinishReadRecoveredState();
+        inputGate->FinishInnerRecoveredState();
     }
-    LOG("Close InputChannelRecoveredStateHandler, finishReadRecoveredState inputGate size:" << inputGates.size());
+    INFO_RELEASE("Close InputChannelRecoveredStateHandler, FinishInnerRecoveredState inputGate size:" << inputGates.size());
 }
 
 std::shared_ptr<RecoveredInputChannel> InputChannelRecoveredStateHandler::getChannel(int gateIndex,

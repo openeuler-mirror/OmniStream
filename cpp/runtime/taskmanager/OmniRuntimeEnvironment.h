@@ -190,6 +190,12 @@ namespace omnistream {
         {
             return writers_;
         }
+
+        std::vector<std::shared_ptr<IndexedInputGate>> getInputGates()
+        {
+            return inputGates;
+        }
+
     private:
         std::shared_ptr<ShuffleEnvironment> omniShuffleEnvironment_;
         TaskInformationPOD taskConfiguration_;

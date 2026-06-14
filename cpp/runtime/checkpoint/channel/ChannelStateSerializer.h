@@ -51,8 +51,11 @@ public:
     {
         uint8_t header[4];
         (void)memset_s(header, 4, 0, 4);
+        if (offset.load() != 0) {
+            offset.store(0);
+        }
         int64_t oldOffset = offset.fetch_add(sizeof(header));
-        memcpy_s(dataStream + oldOffset, memSize, reinterpret_cast<const char*>(header), sizeof(header));
+        memcpy_s(dataStream + oldOffset, memSize - oldOffset, reinterpret_cast<const char*>(header), sizeof(header));
     }
 
     void WriteData(char *dataStream, Buffer* buffers, int64_t &oldOffset) override

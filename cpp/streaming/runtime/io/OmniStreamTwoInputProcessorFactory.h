@@ -39,7 +39,7 @@ namespace omnistream {
             auto channelInfos1 = inputGates[0]->GetChannelInfos();
             channelInfoIndex1.reserve(channelInfos1.size());
             for (size_t i = 0; i < channelInfos1.size(); ++i) {
-                channelInfoIndex1.push_back(static_cast<long>(channelInfos1[i].getInputChannelIdx()));
+                channelInfoIndex1.push_back(static_cast<long>(channelInfos1[i].getComplexId()));
             }
 
             std::vector<long> channelInfoIndex2;
@@ -47,7 +47,7 @@ namespace omnistream {
             auto channelInfos2 = inputGates[1]->GetChannelInfos();
             channelInfoIndex2.reserve(channelInfos2.size());
             for (size_t i = 0; i < channelInfos2.size(); ++i) {
-                channelInfoIndex2.push_back(static_cast<long>(channelInfos2[i].getInputChannelIdx()));
+                channelInfoIndex2.push_back(static_cast<long>(channelInfos2[i].getComplexId()));
             }
 
             OmniStreamTaskInput *input1 = nullptr;

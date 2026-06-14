@@ -4,6 +4,7 @@
 
 #include "RecoveredInputChannel.h"
 #include "buffer/ReadOnlySlicedNetworkBuffer.h"
+#include "event/InnerRecoverEvent.h"
 
 std::shared_ptr<omnistream::InputChannel> RecoveredInputChannel::toInputChannel()
 {
@@ -85,6 +86,18 @@ void RecoveredInputChannel::finishReadRecoveredState()
     }
 }
 
+void RecoveredInputChannel::finishInnerRecoveredState()
+{
+    INFO_RELEASE("Recovered input channel finishInnerRecoveredState!");
+    NetworkBuffer* networkBuffer = omnistream::EventSerializer::toBuffer(
+        InnerRecoverEvent::getInstance(), false);
+    if (networkBuffer != nullptr) {
+        onRecoveredStateBuffer(networkBuffer);
+        bufferManager->releaseFloatingBuffers();
+        LOG(inputGate->getOwningTaskName()<<"/"<< channelInfo.toString()<< " finished recovering input!");
+    }
+}
+
 std::optional<omnistream::BufferAndAvailability> RecoveredInputChannel::getNextRecoveredStateBuffer()
 {
     LOG("Recovered input channel get Next record buffer!");
@@ -114,14 +127,18 @@ std::optional<omnistream::BufferAndAvailability> RecoveredInputChannel::getNextR
 
     if (next == nullptr) {
         LOG("Recovered input channel next ele is null! to test, send a end of recover event");
-        finishReadRecoveredState();
+        finishInnerRecoveredState();
         return std::nullopt;
     } else if (isEndOfChannelStateEvent(next)) {
         LOG("Recovered input channel end of event!");
+        return std::nullopt;
+    }else if(isInnerRecoverEvent(next)){
+        INFO_RELEASE("recovered input channel received InnerRecoverEvent!");
         stateConsumedFuture->Complete();
         stateConsumedFuture1.store(true);
         return omnistream::BufferAndAvailability{next, nextDataType, 0, sequenceNumber++};
-    } else {
+    }
+    else {
         return omnistream::BufferAndAvailability{next, nextDataType, 0, sequenceNumber++};
     }
 }
@@ -146,6 +163,20 @@ bool RecoveredInputChannel::isEndOfChannelStateEvent(Buffer *buffer)
     std::shared_ptr<AbstractEvent> event = EventSerializer::fromBufferNotRecycle(buffer);
     buffer->SetReaderIndex(0);
     if (dynamic_cast<EndOfChannelStateEvent*>(event.get())) {
+        return true;
+    }
+    return false;
+}
+
+bool RecoveredInputChannel::isInnerRecoverEvent(Buffer *buffer)
+{
+    if(buffer->isBuffer()){
+        return false;
+    }
+
+    std::shared_ptr<AbstractEvent> event = EventSerializer::fromBufferNotRecycle(buffer);
+    buffer->SetReaderIndex(0);
+    if (dynamic_cast<InnerRecoverEvent*>(event.get())) {
         return true;
     }
     return false;

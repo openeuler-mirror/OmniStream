@@ -33,7 +33,7 @@ public:
     const char *getName() const override;
 
     BackendDataType getBackendId() const override { return BackendDataType::INVALID_BK; };
-    void SetNextBuffer(ReadOnlySlicedNetworkBuffer* buffer);
+    void SetNextBuffer(ReadOnlySlicedNetworkBuffer* buffer) override;
     std::vector<omnistream::Buffer*> GetUnconsumedBuffer() override;
 private:
 

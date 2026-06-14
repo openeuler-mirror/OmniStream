@@ -20,6 +20,8 @@ class UpstreamRecoveryTracker {
 public:
     virtual void handleEndOfRecovery (const InputChannelInfo& channelInfo) = 0;
     virtual bool allChannelsRecovered() const = 0;
+    virtual void handleInnerRecover (const InputChannelInfo& channelInfo){};
+    virtual bool allInnerRecovered() const {return false;}
     static std::shared_ptr<UpstreamRecoveryTracker> forInputGate(std::shared_ptr<InputGate> inputGate);
     static std::shared_ptr<UpstreamRecoveryTracker> NO_OP();
 };
@@ -36,6 +38,7 @@ public:
         : inputGate_(std::move(inputGate))
         {
             numUnrestoredChannels_ = inputGate_->GetNumberOfInputChannels();
+            numUnrestoredInnerChannels_ = inputGate_->GetNumberOfInputChannels();
         }
 
     void handleEndOfRecovery(const InputChannelInfo& channelInfo) override
@@ -48,22 +51,35 @@ public:
             }
             --numUnrestoredChannels_;
             if (numUnrestoredChannels_ == 0) {
-//                for (const auto& info : inputGate_->getChannelInfos()) {
-//                    inputGate_->ResumeConsumption(info);
-//                }
+                for (const auto& info : inputGate_->getChannelInfos()) {
+                    inputGate_->ResumeConsumption(info);
+                }
                 restoredChannels_.clear();
             }
         }
     }
 
+    void handleInnerRecover(const InputChannelInfo &channelInfo) override
+    {
+        --numUnrestoredInnerChannels_;
+    }
+
+    bool allInnerRecovered() const override
+    {
+        INFO_RELEASE("numUnrestoredInnerChannels_:" << numUnrestoredInnerChannels_ << "--" << inputGate_->GetNumberOfInputChannels() << ",this:" << this)
+        return numUnrestoredInnerChannels_ == 0;
+    }
+
     bool allChannelsRecovered() const override
     {
+        INFO_RELEASE("numUnrestoredChannels_:" << numUnrestoredChannels_ << "--" << inputGate_->GetNumberOfInputChannels() << ",this:" << this)
         return numUnrestoredChannels_ == 0;
     }
 
 private:
     std::unordered_set<InputChannelInfo> restoredChannels_;
     int numUnrestoredChannels_;
+    int numUnrestoredInnerChannels_;
     std::shared_ptr<InputGate> inputGate_;
 };
 

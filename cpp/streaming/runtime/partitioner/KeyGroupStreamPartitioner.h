@@ -24,6 +24,7 @@
 #include "table/data/binary/MurmurHashUtils.h"
 #include "core/utils/MathUtils.h"
 #include "runtime/state/KeyGroupRangeAssignment.h"
+#include "streaming/runtime/partitioner/PVMVLogType.h"
 
 using json = nlohmann::json;
 /**
@@ -38,12 +39,26 @@ namespace omnistream::datastream {
         {
             std::string udfObj = config["udf_obj"];
             std::string keySelectorPath = config["hash_path"];
-            std::string keySelectorName = config["hash_so"][std::to_string(targetId)];
-            std::string path = keySelectorPath + keySelectorName;
+            std::string udfSoPath = config["udf_so"];
 
-            nlohmann::json udfObjJson = nlohmann::json::parse(udfObj);
-            auto symbol = udfLoader.LoadKeySelectFunction(path);
-            keySelector = symbol(udfObjJson).release();
+            // 算子非对齐input buffer恢复取process算子的input 处理器
+            if(targetId == 7){
+                nlohmann::json udfObjJson = nlohmann::json::parse(udfObj);
+                std::string keySoName = config["key_so"][0];
+                std::string keySoPath1 = keySelectorPath + keySoName;
+                auto *keySelectorSymbol1 = udfLoader.LoadKeySelectFunction(keySoPath1);
+                if (keySelectorSymbol1 == nullptr) {
+                    throw std::out_of_range("null pointer when load " + keySoPath1);
+                }
+                keySelector = keySelectorSymbol1(udfObjJson).release();
+
+            }else{
+                std::string keySelectorName = config["hash_so"][std::to_string(targetId)];
+                std::string path = keySelectorPath + keySelectorName;
+                nlohmann::json udfObjJson = nlohmann::json::parse(udfObj);
+                auto symbol = udfLoader.LoadKeySelectFunction(path);
+                keySelector = symbol(udfObjJson).release();
+            }
             if (maxParallelism <= 0) {
                 throw std::invalid_argument("Number of key-groups must be > 0!");
             }
@@ -61,19 +76,39 @@ namespace omnistream::datastream {
             return maxParallelism;
         }
 
-        int selectChannel(T* record) override
+        int selectChannel(T *record) override
         {
-            K* key;
+            K *key;
             try {
                 SerializationDelegate *serializationDelegate = reinterpret_cast<SerializationDelegate *>(record);
                 StreamRecord *streamRecord = reinterpret_cast<StreamRecord *>(serializationDelegate->getInstance());
                 // getkey() function maybe call getPutCount().
-                key = keySelector->getKey(static_cast<K*>(streamRecord->getValue()));
-            } catch (const std::exception& e) {
+                key = keySelector->getKey(static_cast<K *>(streamRecord->getValue()));
+            } catch (const std::exception &e) {
                 throw std::runtime_error("Could not extract key from ");
             }
-            int channel = KeyGroupRangeAssignment<K*>::assignKeyToParallelOperator(key, maxParallelism, this->numberOfChannels);
-            static_cast<Object*>(key)->putRefCount();
+            int channel = KeyGroupRangeAssignment<K *>::assignKeyToParallelOperator(key, maxParallelism,
+                                                                                    this->numberOfChannels);
+            static_cast<Object *>(key)->putRefCount();
+            return channel;
+        }
+
+        int selectChannel2(T *record) override
+        {
+            K *key;
+            try {
+                SerializationDelegate *serializationDelegate = reinterpret_cast<SerializationDelegate *>(record);
+                StreamRecord *streamRecord = reinterpret_cast<StreamRecord *>(serializationDelegate->getInstance());
+                // getkey() function maybe call getPutCount().
+                auto *in0 = reinterpret_cast<PVMVLogType *>(streamRecord->getValue());
+                auto sKey = in0->joinKey();
+                key = reinterpret_cast<K *>(sKey);
+            } catch (const std::exception &e) {
+                throw std::runtime_error("Could not extract key from ");
+            }
+            int channel = KeyGroupRangeAssignment<K *>::assignKeyToParallelOperator(key, maxParallelism,
+                                                                                    this->numberOfChannels);
+            static_cast<Object *>(key)->putRefCount();
             return channel;
         }
 

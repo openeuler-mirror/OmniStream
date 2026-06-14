@@ -73,11 +73,11 @@ public:
     {
         auto event = bufferOrEvent->getEvent();
         if (auto subtaskConnDesc = dynamic_cast<SubtaskConnectionDescriptor *>(event.get())) {
+            INFO_RELEASE(
+                "process SubtaskConnectionDescriptor event, channelInfo:" << bufferOrEvent->getChannelInfo().toString() << ","<<subtaskConnDesc->toString()<<",this:" << this);
             auto channelId = bufferOrEvent->getChannelInfo().getComplexId();
             auto serializer = dynamic_cast<DemultiplexingRecordDeserializer *>(getActiveSerializer(channelId));
             serializer->select(subtaskConnDesc);
-            INFO_RELEASE(
-                "process SubtaskConnectionDescriptor event, channelInfo:" << bufferOrEvent->getChannelInfo().toString());
             return DataInputStatus::MORE_AVAILABLE;
         }
         return OmniAbstractStreamTaskNetworkInput::processEvent(bufferOrEvent);
@@ -86,9 +86,10 @@ public:
     OmniStreamTaskInput *finishRecover()
     {
         std::vector<long> channelIds;
-        for (const auto &item : inputGate->GetChannelInfos()) {
-            channelIds.emplace_back(item.getInputChannelIdx());
+        for (auto &item : inputGate->GetChannelInfos()) {
+            channelIds.emplace_back(item.getComplexId());
         }
+        INFO_RELEASE("OmniRescalingStreamTaskNetworkInput finishRecover")
         return new OmniAbstractStreamTaskNetworkInput(inputIndex, inputGate, taskType, inSerializer, channelIds);
     }
 

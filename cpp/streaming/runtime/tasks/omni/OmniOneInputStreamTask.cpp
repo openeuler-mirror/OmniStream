@@ -43,7 +43,7 @@ namespace omnistream {
             auto channelInfos = inputGate->GetChannelInfos();
             channelInfoIndex.reserve(channelInfos.size());
             for (size_t i = 0; i < channelInfos.size(); ++i) {
-                channelInfoIndex.push_back(static_cast<long>(channelInfos[i].getInputChannelIdx()));
+                channelInfoIndex.push_back(static_cast<long>(channelInfos[i].getComplexId()));
             }
             LOG("OperatorDescription " <<  this->taskConfiguration_.getStreamConfigPOD().getOperatorDescription().toString())
             std::vector<std::string> typeList;
@@ -71,10 +71,11 @@ namespace omnistream {
             auto numberOfInputChannels = inputGate->GetNumberOfInputChannels();
             // Create a C++ normal array (vector)
             std::vector<long> channel_array(numberOfInputChannels);
-
+            auto channelInfos = inputGate->GetChannelInfos();
             // Copy elements from JSON array to C++ array
-            for (size_t i = 0; i < numberOfInputChannels; ++i) {
-                channel_array[i] = static_cast<long>(i);
+            uint32_t i=0;
+            for (auto &item : channelInfos){
+                channel_array[i++] = item.getComplexId();
             }
 
             TypeDescriptionPOD inputType;

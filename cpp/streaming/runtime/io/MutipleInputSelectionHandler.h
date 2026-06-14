@@ -33,6 +33,9 @@ namespace omnistream {
         if (inputStatus == DataInputStatus::END_OF_RECOVERY ){
             return DataInputStatus::END_OF_RECOVERY;
         }
+        if (inputStatus == DataInputStatus::INNER_RECOVER ){
+            return DataInputStatus::INNER_RECOVER;
+        }
                 switch (inputStatus) {
                     case DataInputStatus::MORE_AVAILABLE:
                         nextSelection();

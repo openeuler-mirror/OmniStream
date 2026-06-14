@@ -78,11 +78,15 @@ public:
 
     void finishReadRecoveredState();
 
+    void finishInnerRecoveredState();
+
     std::optional<omnistream::BufferAndAvailability>  getNextRecoveredStateBuffer();
 
     omnistream::ObjectBufferDataType peekDataTypeUnsafe();
 
     bool isEndOfChannelStateEvent(Buffer *buffer);
+
+    bool isInnerRecoverEvent(Buffer *buffer);
 
     std::optional<BufferAndAvailability> getNextBuffer() override;
 
