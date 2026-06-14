@@ -52,7 +52,8 @@ namespace omnistream::datastream {
 //                availabilityHelper_->resetAvailable();
 //            }
 //            checkConsistentAvailability();
-            checkAndUpdateAvailability();
+            auto toNotify = checkAndUpdateAvailability();
+            mayNotifyAvailable(toNotify);
         }
         LOG("LocalObjectBufferPool constructor end")
     }
@@ -311,7 +312,8 @@ namespace omnistream::datastream {
                 }
             }
 
-            checkAndUpdateAvailability();
+            auto toNotify = checkAndUpdateAvailability();
+            mayNotifyAvailable(toNotify);
 
             /*if (!checkAvailability()) {
                 availabilityHelper_->resetUnavailable();

@@ -71,7 +71,14 @@ namespace omnistream {
         bool isNextLoopPossible() const {
             return !suspended;
         }
-
+        void SetisCancell(bool flag)
+        {
+            isCancell = flag;
+        }
+        bool IsCancell()
+        {
+            return isCancell;
+        }
         class DefaultActionSuspension : public MailboxDefaultAction::Suspension {
         public:
             explicit DefaultActionSuspension(MailboxProcessor* mailboxProcessor, std::shared_ptr<PeriodTimer> suspensionTimer) :
@@ -122,6 +129,7 @@ namespace omnistream {
         TaskMailbox* mailbox_ = nullptr;
         std::unique_ptr<MailboxDefaultAction> mailboxDefaultAction;
         bool suspended;
+        bool isCancell = false;
         bool mailboxLoopRunning;
         std::shared_ptr<DefaultActionSuspension> suspendedDefaultAction;
         std::shared_ptr<StreamTaskActionExecutor> actionExecutor;

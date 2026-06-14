@@ -31,7 +31,7 @@ namespace omnistream {
         Buffer* GetBuffer() { return buffer; }
         bool moreAvailable() const
         {
-            if (nextDataType == ObjectBufferDataType::NONE  || nextDataType == ObjectBufferDataType::ALIGNED_CHECKPOINT_BARRIER) {
+            if (nextDataType == ObjectBufferDataType::NONE) {
                 return false;
             }
             return true; 

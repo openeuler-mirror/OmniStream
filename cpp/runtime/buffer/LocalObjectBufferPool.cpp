@@ -65,7 +65,8 @@ namespace omnistream {
                 availabilityHelper_->resetAvailable();
             }
             checkConsistentAvailability();*/
-            checkAndUpdateAvailability();
+            auto toNotify = checkAndUpdateAvailability();
+            mayNotifyAvailable(toNotify);
         }
         LOG("LocalObjectBufferPool constructor end")
     }
@@ -333,7 +334,8 @@ namespace omnistream {
 //            }
 //
 //            checkConsistentAvailability();
-            checkAndUpdateAvailability();
+            auto toNotify = checkAndUpdateAvailability();
+            mayNotifyAvailable(toNotify);
             LOG("unlock std::this_thread::get_id()" << std::this_thread::get_id())
         }
         return segment;

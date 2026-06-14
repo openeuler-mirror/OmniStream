@@ -277,10 +277,10 @@ CheckpointOptions *CheckpointOptions::ForCheckpointWithDefaultLocation()
 
 CheckpointOptions *CheckpointOptions::ToUnaligned() const
 {
-    if (alignmentType_ != AlignmentType::ALIGNED) {
+    /* if (alignmentType_ != AlignmentType::ALIGNED) {
         throw std::logic_error(
             "toUnaligned() can only be called on ALIGNED checkpoints");
-    }
+    } */
     return Unaligned(*checkpointType_, targetLocation_);
 }
 

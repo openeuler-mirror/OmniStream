@@ -56,6 +56,14 @@ public:
         blockedChannels.clear();
     }
 
+    void TimeOutUnblockAllChannels()
+    {
+        for (auto& channelInfo : blockedChannels) {
+            inputs[channelInfo.getGateIdx()]->TimeOutResumeConsumption(channelInfo);
+        }
+        blockedChannels.clear();
+    }
+
     ChannelState& EmptyState()
     {
         if (!blockedChannels.empty()) {

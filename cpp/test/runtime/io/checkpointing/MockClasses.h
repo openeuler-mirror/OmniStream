@@ -36,7 +36,9 @@ public:
     void ResumeConsumption(const InputChannelInfo &info) override {
         resumedChannels_.insert(info.getInputChannelIdx());
     }
-
+    void TimeOutResumeConsumption(const InputChannelInfo &info) override {
+        resumedChannels_.insert(info.getInputChannelIdx());
+    }
     void ConvertToPriorityEvent(int, int) override {}
 
     std::vector<InputChannelInfo> GetChannelInfos() override {
@@ -117,6 +119,7 @@ public:
     }
 
     void resumeConsumption() override {}
+    void TimeOutResumeConsumption() override {}
     void acknowledgeAllRecordsProcessed() override {}
     void requestSubpartition(int) override {}
     std::optional<BufferAndAvailability> getNextBuffer() override { return std::nullopt; }

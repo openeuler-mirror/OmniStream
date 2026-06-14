@@ -108,6 +108,7 @@ namespace omnistream {
 
                 void sendTaskEvent(const std::shared_ptr<TaskEvent>& event) override;
                 void ResumeConsumption(const InputChannelInfo& channelInfo) override;
+                void TimeOutResumeConsumption(const InputChannelInfo& channelInfo) override;
                 void acknowledgeAllRecordsProcessed(const InputChannelInfo& channelInfo) override;
 
                 void notifyChannelNonEmpty(std::shared_ptr<InputChannel> channel);

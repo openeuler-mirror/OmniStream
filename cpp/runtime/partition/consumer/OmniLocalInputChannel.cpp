@@ -57,7 +57,7 @@ namespace omnistream {
         std::unique_lock<std::recursive_mutex> lock(queueMutex);
         ObjectBufferDataType dataType = ObjectBufferDataType::DATA_BUFFER;
         if (bufferType == 3) {
-            dataType = ObjectBufferDataType::ALIGNED_CHECKPOINT_BARRIER;
+            dataType = ObjectBufferDataType::NONE;
         }
         std::shared_ptr<BufferAndAvailability> data = std::make_shared<BufferAndAvailability>(readOnlyBuffer,
             dataType, dataQueue.size(), sequenceNumber);
@@ -119,6 +119,11 @@ namespace omnistream {
 
 
     void OmniLocalInputChannel::resumeConsumption()
+    {
+        omniLocalInputChannelBridge->InvokeDoResumeConsumption();
+    }
+
+    void OmniLocalInputChannel::TimeOutResumeConsumption()
     {
         if (isUnlock) {
             omniLocalInputChannelBridge->InvokeDoResumeConsumption();

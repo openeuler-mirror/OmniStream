@@ -55,6 +55,7 @@ public:
     void notifyDataAvailable() override;
     void notifyPriorityEvent(int prioritySequenceNumber) override;
     void resumeConsumption() override;
+    void TimeOutResumeConsumption() override;
     void acknowledgeAllRecordsProcessed() override;
     bool isReleased() override;
     void releaseAllResources() override;
@@ -83,6 +84,11 @@ protected:
     //  std::shared_ptr<TaskEventPublisher> taskEventPublisher;
     std::shared_ptr<ChannelStatePersister> channelStatePersister;
     std::shared_ptr<ResultSubpartitionView> subpartitionView;
+    std::vector<Buffer*> inflightBuffers_;
+    bool isNeedPersistence_ = false;
+    size_t insize = 0;
+    size_t outsize = 0;
+    size_t startSize_ = 0;
     std::atomic<bool> isReleased_{false};
 };
 

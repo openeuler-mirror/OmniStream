@@ -8,6 +8,7 @@ class TestCheckpointableInput : public CheckpointableInput {
 public:
     void BlockConsumption(const InputChannelInfo&) override { blocked = true; }
     void ResumeConsumption(const InputChannelInfo&) override { resumed = true; }
+    void TimeOutResumeConsumption(const InputChannelInfo&) override { resumed = true; }
     void ConvertToPriorityEvent(int, int) override {}
     std::vector<InputChannelInfo> GetChannelInfos() override { return { InputChannelInfo(GetInputGateIndex(), 0) };}
     int GetNumberOfInputChannels() { return 1; }

@@ -801,6 +801,18 @@ void SingleInputGate::ResumeConsumption(const InputChannelInfo &channelInfo)
     channels[channelInfo.getInputChannelIdx()]->resumeConsumption();
 }
 
+void SingleInputGate::TimeOutResumeConsumption(const InputChannelInfo &channelInfo)
+{
+    if (IsFinished()) {
+        throw std::runtime_error("Input gate is already finished.");
+    }
+    
+    // BEWARE: consumption resumption only happens for streaming jobs in which all slots
+    // are allocated together so there should be no UnknownInputChannel. As a result, it
+    // is safe to not synchronize the requestLock here. We will refactor the code to not
+    // rely on this assumption in the future.
+    channels[channelInfo.getInputChannelIdx()]->TimeOutResumeConsumption();
+}
 void SingleInputGate::acknowledgeAllRecordsProcessed(const InputChannelInfo &channelInfo)
 {
     if (IsFinished()) {

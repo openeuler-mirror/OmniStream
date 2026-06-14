@@ -58,6 +58,7 @@ namespace omnistream {
             isBlockedAvailability->resetUnavailable();
         }
 
+        void TimeOutResumeConsumption(const InputChannelInfo& channelInfo) override {};
         void BlockConsumption()
         {
             isBlockedAvailability->resetUnavailable();

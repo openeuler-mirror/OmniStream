@@ -13,7 +13,9 @@
 #include <iostream>
 #include <chrono>
 #include <thread>
+#include "runtime/buffer/OriginalNetworkBufferRecycler.h"
 #include "runtime/partition/PartitionNotFoundException.h"
+#include "runtime/buffer/ReadOnlySlicedNetworkBuffer.h"
 namespace omnistream {
 LocalInputChannel::LocalInputChannel(std::shared_ptr<SingleInputGate> inputGate, int channelIndex,
     ResultPartitionIDPOD partitionId, std::shared_ptr<ResultPartitionManager> _partitionManager,
@@ -49,20 +51,26 @@ LocalInputChannel::LocalInputChannel(std::shared_ptr<SingleInputGate> inputGate,
 void LocalInputChannel::CheckpointStarted(const CheckpointBarrier& barrier, std::shared_ptr<ChannelStateWriter> channelStateWriter)
 {
     std::vector<Buffer*> knownBuffers;
+    if (channelStatePersister == nullptr) {
+        SetChannelStateWriter(channelStateWriter);
+    }
     channelStatePersister->StartPersisting(barrier.GetId(), knownBuffers);
 }
 void LocalInputChannel::SetPersistenceFlag(bool flag)
 {
-
+    isNeedPersistence_ = flag;
 }
 bool LocalInputChannel::IsNeedPersistence()
 {
-    return false;
+    if (startSize_ != 0) {
+        return false;
+    }
+    return true;
 }
 
 void LocalInputChannel::AddInputData(long checkpointId, const omnistream::InputChannelInfo& info)
 {
-    
+    return channelStatePersister->AddInputData(inflightBuffers_, checkpointId, info);
 }
 void LocalInputChannel::SetChannelStateWriter(std::shared_ptr<ChannelStateWriter> channelStateWriter)
 {
@@ -75,6 +83,8 @@ void LocalInputChannel::CheckpointStopped(long checkpointId) {
         return;
     }
     channelStatePersister->StopPersisting(checkpointId);
+    inflightBuffers_.clear();
+    startSize_ = 0;
 }
 
 void LocalInputChannel::requestSubpartition(int subpartitionIndex)
@@ -200,8 +210,32 @@ std::optional<BufferAndAvailability> LocalInputChannel::getNextBuffer()
     // LOG("after LocalInputChannel::next->getBuffer() 1")
     LOG("after LocalInputChannel::next->getBuffer() 2")
     channelStatePersister->CheckForBarrier(buffer);
-    // channelStatePersister->MaybePersist(buffer);
-
+    int bufferLength = buffer->GetSize();
+    insize += bufferLength;
+    if (isNeedPersistence_ && buffer->isBuffer()) {
+        datastream::ReadOnlySlicedNetworkBuffer *readOnlyBuffer = (datastream::ReadOnlySlicedNetworkBuffer*)buffer;
+        int readIndex = readOnlyBuffer->GetMemorySegmentOffset();
+        uint8_t *newbufferAddress = (uint8_t *)malloc(bufferLength);
+        MemorySegment* newmemorySegment = new MemorySegment(newbufferAddress, bufferLength);
+        auto segment = buffer->GetSegment();
+        auto memorySegment = dynamic_cast<MemorySegment*>(segment);
+        if (memorySegment == nullptr) {
+            throw std::runtime_error(
+                    "ChannelStateSerializerImpl::WriteData requires MemorySegment-backed buffer");
+        }
+        newmemorySegment->put(0, reinterpret_cast<uint8_t*>(memorySegment->getData()) + readIndex, 0, bufferLength);
+        ::datastream::NetworkBuffer* newnetworkBuffer = new ::datastream::NetworkBuffer(
+        newmemorySegment, bufferLength, 0, std::make_shared<OriginalNetworkBufferRecycler>(),
+        ObjectBufferDataType::DATA_BUFFER, true);
+        inflightBuffers_.push_back(newnetworkBuffer);
+    }
+    if (!buffer->isBuffer()) {
+        std::shared_ptr<AbstractEvent> event = EventSerializer::fromBufferNotRecycle(buffer);
+        if (event->GetEventClassName() == "CheckpointBarrier") {
+            isNeedPersistence_ = false;
+            startSize_ = insize;
+        }
+    }
     if (next->getNextDataType().isEvent()) {
         LOG_TRACE("event buffer " << buffer->ToDebugString(false))
     }
@@ -257,6 +291,20 @@ std::shared_ptr<ResultSubpartitionView> LocalInputChannel::checkAndWaitForSubpar
 }
 
 void LocalInputChannel::resumeConsumption()
+{
+    if (isReleased_.load()) {
+        throw std::runtime_error("Channel released.");
+    }
+
+    if (subpartitionView) {
+        subpartitionView->resumeConsumption();
+        if (subpartitionView->getAvailabilityAndBacklog(INT_MAX).getIsAvailable()) {
+            notifyChannelNonEmpty();
+        }
+    }
+}
+
+void LocalInputChannel::TimeOutResumeConsumption()
 {
     if (isReleased_.load()) {
         throw std::runtime_error("Channel released.");

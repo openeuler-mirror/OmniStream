@@ -230,14 +230,13 @@ OmniStreamTask::OmniStreamTask(std::shared_ptr<RuntimeEnvironmentV2> &env,
         try {
             INFO_RELEASE("restoreGates begin " << taskName_);
             auto indexedInputGates = env_->GetAllInputGates();
+            auto reader = env_->getTaskStateManager()->getSequentialChannelStateReader();
+
+            reader->readOutputData(env_->getAllWriters(), true);
             if (indexedInputGates.empty()) {
                 INFO_RELEASE("SQL scenarios, do not need to restore the channel.");
                 return;
             }
-            auto reader = env_->getTaskStateManager()->getSequentialChannelStateReader();
-            
-            reader->readOutputData(env_->getAllWriters(), true);
-
             std::vector<std::shared_ptr<InputGate>> inputGateVec;
             inputGateVec.reserve(indexedInputGates.size());
             for (const auto& inputGate : indexedInputGates) {
@@ -289,7 +288,12 @@ OmniStreamTask::OmniStreamTask(std::shared_ptr<RuntimeEnvironmentV2> &env,
 
     void OmniStreamTask::cancel()
     {
-        mailboxProcessor_->suspend();
+        if (mailboxProcessor_->isNextLoopPossible()) {
+            mailboxProcessor_->suspend();
+            mailboxProcessor_->SetisCancell(true);
+            while (mailboxProcessor_->IsCancell()) {
+            }
+        }
     }
 
     void OmniStreamTask::cleanup() {

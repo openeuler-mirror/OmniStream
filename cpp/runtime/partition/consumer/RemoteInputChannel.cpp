@@ -80,7 +80,7 @@ namespace omnistream {
             dataType = ObjectBufferDataType::DATA_BUFFER;
         }
         if (readOnlyBuffer->GetBufferType() == 3) {
-            dataType = ObjectBufferDataType::ALIGNED_CHECKPOINT_BARRIER;
+            dataType = ObjectBufferDataType::NONE;
             readOnlyBuffer->SetBufferType(1);
 
         }
@@ -202,6 +202,17 @@ namespace omnistream {
     }
 
     void RemoteInputChannel::resumeConsumption()
+    {
+        if (this->remoteDataFetcherBridge == nullptr) {
+            LOG("RemoteInputChannel::resumeConsumption: remoteDataFetcherBridge is null");
+            return;
+        }
+        int gateIndex = this->getChannelInfo().getGateIdx();
+        int channelIndex = this->getChannelInfo().getInputChannelIdx();
+        this->remoteDataFetcherBridge->InvokeJavaRemoteDataFetcherResumeConsumption(gateIndex, channelIndex);
+    }
+
+    void RemoteInputChannel::TimeOutResumeConsumption()
     {
         if (this->remoteDataFetcherBridge == nullptr) {
             LOG("RemoteInputChannel::resumeConsumption: remoteDataFetcherBridge is null");

@@ -34,6 +34,8 @@ namespace omnistream {
 
         void resumeConsumption() override;
 
+        void TimeOutResumeConsumption() override;
+
         void SetOmniLocalInputChannelBridge(std::shared_ptr<OmniLocalInputChannelBridge> omniLocalInputChannelBridge);
 
         void CheckpointStarted(const CheckpointBarrier& barrier, std::shared_ptr<ChannelStateWriter> channelStateWriter);

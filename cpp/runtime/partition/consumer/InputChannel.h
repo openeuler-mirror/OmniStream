@@ -43,6 +43,7 @@ public:
     ResultPartitionIDPOD getPartitionId() const;
 
     virtual void resumeConsumption() = 0;
+    virtual void TimeOutResumeConsumption() = 0;
     virtual void acknowledgeAllRecordsProcessed() = 0;
 
 public:

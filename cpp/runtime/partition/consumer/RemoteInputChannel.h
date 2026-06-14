@@ -44,6 +44,7 @@ namespace omnistream {
 
         void SetRemoteDataFetcherBridge(std::shared_ptr<RemoteDataFetcherBridge> remoteDataFetcherBridge);
         void resumeConsumption() override;
+        void TimeOutResumeConsumption() override;
         void CheckpointStarted(const CheckpointBarrier& barrier, std::shared_ptr<ChannelStateWriter> channelStateWriter);
         void CheckpointStopped(long checkpointId) override;
         std::vector<Buffer*> GetInflightBuffersUnsafe(long checkpointId);

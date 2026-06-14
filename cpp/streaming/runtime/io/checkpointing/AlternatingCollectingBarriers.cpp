@@ -23,9 +23,6 @@ BarrierHandlerState* AlternatingCollectingBarriers::AlignedCheckpointTimeout(
     controller->InitInputsCheckpoint(*unalignedBarrier);
 
     for (CheckpointableInput* input : state.getInputs()) {
-        for (InputChannelInfo channelInfo: input->GetChannelInfos()) {
-            state.BlockChannel(channelInfo);
-        }
         input->CheckpointStarted(*unalignedBarrier);
     }
 
@@ -33,7 +30,7 @@ BarrierHandlerState* AlternatingCollectingBarriers::AlignedCheckpointTimeout(
 
     // After switching to UC and letting inputs capture the backlog (CheckpointStarted),
     // stop the ongoing alignment and release blocked channels.
-    state.UnblockAllChannels();
+    state.TimeOutUnblockAllChannels();
     return new AlternatingCollectingBarriersUnaligned(true, std::move(state), unalignedBarrier->GetId());
 }
 

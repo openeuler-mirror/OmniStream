@@ -100,7 +100,10 @@ public:
     {
         throw std::invalid_argument("RecoveredInputChannel should never be blocked.");
     }
+    void TimeOutResumeConsumption() override
+    {
 
+    }
     void acknowledgeAllRecordsProcessed() override
     {
         throw std::invalid_argument("RecoveredInputChannel should not need acknowledge all records processed.");

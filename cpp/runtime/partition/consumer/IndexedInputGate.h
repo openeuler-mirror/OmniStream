@@ -41,6 +41,8 @@ namespace omnistream {
         void SetChannelStateWriter(std::shared_ptr<ChannelStateWriter> channelStateWriter);
         void BlockConsumption(const InputChannelInfo& channelInfo) override {   // checkinto related , do it ilater
         }
+        void TimeOutResumeConsumption(const InputChannelInfo& channelInfo) override {   // checkinto related , do it ilater
+        }
         void ConvertToPriorityEvent(int channelIndex, int sequenceNumber)  {   // checkinto related , do it ilater
             getChannel(channelIndex)->ConvertToPriorityEvent(sequenceNumber);
         }

@@ -29,7 +29,7 @@ BarrierHandlerState* AlternatingCollectingBarriersUnaligned::BarrierReceived(
     }
     if (alternating_) {
         state_.BlockChannel(channelInfo);
-        state_.UnblockAllChannels();
+        state_.TimeOutUnblockAllChannels();
 
     }
     for (auto* input : state_.getInputs()) {
@@ -54,11 +54,12 @@ BarrierHandlerState* AlternatingCollectingBarriersUnaligned::FinishCheckpoint()
     for (auto* input : state_.getInputs()) {
         input->CheckpointStopped(checkpointId_);
     }
-    state_.UnblockAllChannels();
 
     if (alternating_) {
+        state_.TimeOutUnblockAllChannels();
         return new AlternatingWaitingForFirstBarrier(state_.EmptyState());
     } else {
+        state_.UnblockAllChannels();
         return new AlternatingWaitingForFirstBarrierUnaligned(false, state_.EmptyState());
     }
 }
