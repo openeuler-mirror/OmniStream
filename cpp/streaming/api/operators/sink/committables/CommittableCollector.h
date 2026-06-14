@@ -171,10 +171,15 @@ private:
     std::shared_ptr<CheckpointCommittableManagerImpl<CommT>> GetCheckpointCommittables(
         const CommittableMessage<CommT>& committable)
     {
-        auto it = checkpointCommittables.find(committable.GetCheckpointId().value_or(eoi));
+        const long checkpointId = committable.GetCheckpointId().value_or(eoi);
+        auto it = checkpointCommittables.find(checkpointId);
         if (it != checkpointCommittables.end()) {
             return it->second;
         }
+
+        INFO_RELEASE("Exception: Missing committable manager for checkpointId " << checkpointId);
+        throw std::runtime_error(
+            "Exception: Missing committable manager for checkpointId " + std::to_string(checkpointId));
     }
 };
 

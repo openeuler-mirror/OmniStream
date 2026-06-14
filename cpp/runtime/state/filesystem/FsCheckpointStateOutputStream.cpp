@@ -10,7 +10,9 @@
  */
 #include "FsCheckpointStateOutputStream.h"
 #include <fstream>
+#include <memory>
 #include <thread>
+#include <common.h>
 #include "FileStateHandle.h"
 
 FsCheckpointStateOutputStream::FsCheckpointStateOutputStream(
@@ -68,10 +70,22 @@ void FsCheckpointStateOutputStream::Sync()
 
 void FsCheckpointStateOutputStream::Close()
 {
-    if (outStream_) {
-        outStream_ = nullptr;
+    if (!outStream_) {
         closed_ = true;
+        return;
     }
+
+    std::unique_ptr<std::ofstream> stream(static_cast<std::ofstream*>(outStream_));
+    outStream_ = nullptr;
+    if (stream->is_open()) {
+        stream->close();
+        if (stream->fail()) {
+            closed_ = true;
+            INFO_RELEASE("Exception: Failed to close checkpoint output stream.");
+            throw std::runtime_error("Failed to close checkpoint output stream");
+        }
+    }
+    closed_ = true;
 }
 
 std::shared_ptr<StreamStateHandle> FsCheckpointStateOutputStream::CloseAndGetHandle()

@@ -146,6 +146,11 @@ private:
         DataInputDeserializer &input)
     {
         int size = input.readInt();
+        if (size < 0 || size > input.Available()) {
+            INFO_RELEASE("Exception: Invalid emhash map size " << size
+                << ", available bytes " << input.Available());
+            throw std::runtime_error("Invalid emhash map size");
+        }
         auto *map = new emhash7::HashMap<UK, UV>();
         map->reserve(size);
         for (int i = 0; i < size; i++) {

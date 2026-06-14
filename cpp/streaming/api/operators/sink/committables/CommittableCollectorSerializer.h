@@ -17,6 +17,7 @@
 #include <iostream>
 #include <sstream>
 #include <cstdint>
+#include <memory>
 
 #include "core/include/common.h"
 #include "core/memory/DataOutputSerializer.h"
@@ -63,9 +64,10 @@ public:
             list.push_back(item->Copy());
         }
 
-        auto* checkpointSerializer = new CheckpointSimpleVersionedSerializer<CommT>(committableSerializer_, subtaskId_, numberOfSubtasks_);
+        CheckpointSimpleVersionedSerializer<CommT> checkpointSerializer(
+            committableSerializer_, subtaskId_, numberOfSubtasks_);
 
-        SimpleVersionedSerialization::writeVersionAndSerializeList(*checkpointSerializer, list, out);
+        SimpleVersionedSerialization::writeVersionAndSerializeList(checkpointSerializer, list, out);
     }
 
     CommittableCollector<CommT>* deserializeV1(DataInputDeserializer& input) {
@@ -79,7 +81,8 @@ public:
 
         CheckpointSimpleVersionedSerializer<CommT> checkpointSerializer(committableSerializer_, subtaskId_, numberOfSubtasks_);
 
-        auto* list = SimpleVersionedSerialization::readVersionAndDeserializeList(checkpointSerializer, input);
+        std::unique_ptr<std::vector<CheckpointCommittableManagerImpl<CommT>>> list(
+            SimpleVersionedSerialization::readVersionAndDeserializeList(checkpointSerializer, input));
 
         typename CommittableCollector<CommT>::CheckpointCommittableMap checkpointCommittables;
         for (auto& item : *list) {
