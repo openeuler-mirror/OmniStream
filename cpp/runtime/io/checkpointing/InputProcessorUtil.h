@@ -24,7 +24,6 @@
 #include "runtime/io/checkpointing/BarrierAlignmentUtil.h"
 #include "streaming/runtime/tasks/TimerService.h"
 #include "streaming/runtime/io/OmniStreamTaskSourceInput.h"
-#include "partition/consumer/RemoteInputChannel.h"
 #include "metrics/SystemClock.h"
 
 namespace omnistream {
@@ -72,18 +71,6 @@ public:
         bool enableCheckpointAfterTasksFinish)
     {
         std::vector<CheckpointableInput *> allInputs;
-        const bool isPureUnalignedConfigured =
-                    enableUnaligned && alignedCheckpointTimeoutMillis == 0;
-        const bool forwardResumeToJava = !isPureUnalignedConfigured;
-        for (const auto &group: inputGateGroups) {
-            for (const auto &input: group) {
-                auto singleInputGate = std::dynamic_pointer_cast<SingleInputGate>(input);
-                if (singleInputGate == nullptr) {
-                    continue;
-                }
-                singleInputGate->SetForwardResumeToJava(forwardResumeToJava);
-            }
-        }
 
         for (const auto &group: inputGateGroups) {
             for (const auto &input: group) {
@@ -111,7 +98,6 @@ public:
                 mailboxExecutor.get(), timerService.get());
 
         // Force aligned
-        enableUnaligned = false;
         if (!enableUnaligned) {
 			LOG("creates a aligned barrier handler");
             return runtime::SingleCheckpointBarrierHandler::aligned(
@@ -127,7 +113,6 @@ public:
         // Flink 1.16.3 behavior:
         //  - aligned-checkpoint-timeout == 0  => Always Unaligned (no alignment attempt)
         //  - aligned-checkpoint-timeout > 0   => Aligned attempt + timeout => Unaligned
-        alignedCheckpointTimeoutMillis = 60;
         if (alignedCheckpointTimeoutMillis == 0) {
 			LOG("creates a unaligned barrier handler");
             return runtime::SingleCheckpointBarrierHandler::unaligned(

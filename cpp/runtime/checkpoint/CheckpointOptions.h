@@ -37,9 +37,7 @@ public:
 
     CheckpointOptions(SnapshotType *checkpointType,
                       std::shared_ptr<CheckpointStorageLocationReference> targetLocation);
-    
-    CheckpointOptions *ToRuntimeAlignedNoTimeout() const;
-    
+
     static CheckpointOptions *NotExactlyOnce(
         SnapshotType &type, std::shared_ptr<CheckpointStorageLocationReference> location);
 

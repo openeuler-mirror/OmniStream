@@ -86,14 +86,6 @@ namespace omnistream {
 
     void OmniLocalInputChannel::resumeConsumption()
     {
-        if (!forwardResumeToJava_) {
-            return;
-        }
-
-        if (omniLocalInputChannelBridge == nullptr) {
-            return;
-        }
-
         omniLocalInputChannelBridge->InvokeDoResumeConsumption();
     }
 
