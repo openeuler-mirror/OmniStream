@@ -292,18 +292,6 @@ int ChannelStateByteBufferImpl::writeBytes(std::ifstream &input, int bytesToRead
     return memoryBuilder->appendRawBytes(buf_.data(), readBytes);
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
 int ChannelStateByteBufferImpl::writeBytes2(std::shared_ptr<ByteStateHandleInputStream> &input, int bytesToRead) //
 {
     if (!input) {

@@ -12,6 +12,7 @@
 #include "table/utils/VectorBatchDeserializationUtils.h"
 #include "common.h"
 #include "runtime/buffer/NetworkBuffer.h"
+#include "runtime/io/checkpointing/CheckpointBarrierHandler.h"
 #include <buffer/ReadOnlySlicedNetworkBuffer.h>
 
 namespace omnistream {
@@ -70,9 +71,8 @@ namespace omnistream {
 
         auto buffer = this->dataQueue.front();
         this->dataQueue.pop();
-
         ObjectBufferDataType dataType = ObjectBufferDataType::NONE;
-
+        outsize += buffer->GetSize();
         int backlogSize = static_cast<int>(this->dataQueue.size());
         if (backlogSize > 0) {
             dataType = ObjectBufferDataType::DATA_BUFFER;
@@ -140,7 +140,25 @@ namespace omnistream {
         std::unique_lock<std::recursive_mutex> lock(queueMutex);
         bool wasEmpty = this->dataQueue.empty();
         if (readOnlyBuffer != nullptr) {
+            insize += bufferLength;
             this->dataQueue.push(readOnlyBuffer);
+            if ((stateSize != 0 && isNeedPersistence_) && (readOnlyBuffer->isBuffer()) && (insize > stateSize)) {
+                uint8_t *newbufferAddress = (uint8_t *)malloc(bufferLength);
+                MemorySegment* newmemorySegment = new MemorySegment(newbufferAddress, bufferLength);
+                newmemorySegment->put(0, reinterpret_cast<uint8_t*>(bufferAddress), readIndex, bufferLength);
+                ::datastream::NetworkBuffer* newnetworkBuffer = new ::datastream::NetworkBuffer(
+                newmemorySegment, bufferLength, 0, std::make_shared<OriginalNetworkBufferRecycler>(),
+                ObjectBufferDataType::DATA_BUFFER, true);
+                
+                inflightBuffers_.push_back(newnetworkBuffer);
+            }
+            if (!readOnlyBuffer->isBuffer()) {
+                std::shared_ptr<AbstractEvent> event = EventSerializer::fromBufferNotRecycle(readOnlyBuffer);
+                if (event->GetEventClassName() == "CheckpointBarrier") {
+                    startSize_ = insize;
+                    isNeedPersistence_ = false;
+                }
+            }
         }
         lock.unlock();
 
@@ -166,7 +184,7 @@ namespace omnistream {
         this->remoteDataFetcherBridge->InvokeJavaRemoteDataFetcherResumeConsumption(gateIndex, channelIndex);
     }
 
-    void RemoteInputChannel::CheckpointStarted(const CheckpointBarrier &barrier)
+    void RemoteInputChannel::CheckpointStarted(const CheckpointBarrier &barrier, std::shared_ptr<ChannelStateWriter> channelStateWriter)
     {
         std::lock_guard<std::recursive_mutex> lock(queueMutex);
         if (barrier.GetId() < lastBarrierId_) {
@@ -175,7 +193,14 @@ namespace omnistream {
         } else if (barrier.GetId() > lastBarrierId_) {
             ResetLastBarrier();
         }
-        channelStatePersister->StartPersisting(barrier.GetId(), GetInflightBuffersUnsafe(barrier.GetId()));
+        if (channelStatePersister == nullptr) {
+            SetChannelStateWriter(channelStateWriter);
+        }
+        std::vector<Buffer*> knownBuffers;
+        if (isNeedPersistence_) {
+            knownBuffers = GetInflightBuffersUnsafe(barrier.GetId());
+        }
+        channelStatePersister->StartPersisting(barrier.GetId(), knownBuffers);
     }
 
     void RemoteInputChannel::CheckpointStopped(long checkpointId)
@@ -187,16 +212,49 @@ namespace omnistream {
         }
     }
 
+    void RemoteInputChannel::AddInputData(long checkpointId, const omnistream::InputChannelInfo& info)
+    {
+        return channelStatePersister->AddInputData(inflightBuffers_, checkpointId, info);
+    }
+
     std::vector<Buffer*> RemoteInputChannel::GetInflightBuffersUnsafe(long checkpointId)
     {
         std::lock_guard<std::recursive_mutex> lock(queueMutex);
         std::vector<Buffer*> inflightBuffers;
         std::queue<Buffer*> tmpQueue = dataQueue;
-
+        stateSize = insize;
+        if (startSize_ == 0) {
+            isNeedPersistence_ = true;
+        }
         while (!tmpQueue.empty()) {
-            Buffer* buffer = tmpQueue.front();
-            if ((buffer != nullptr) && (buffer->isBuffer())) {
-                inflightBuffers.push_back(buffer->RetainBuffer());
+            datastream::ReadOnlySlicedNetworkBuffer *readOnlyBuffer = static_cast<datastream::ReadOnlySlicedNetworkBuffer *>(tmpQueue.front());
+            if (readOnlyBuffer == nullptr) {
+                tmpQueue.pop();
+                continue;
+            }
+            if (readOnlyBuffer->isBuffer()) {
+                auto buffer = readOnlyBuffer->GetNetWorkBuffer();
+                int offset = readOnlyBuffer->GetMemorySegmentOffset();
+                int bufferLength = buffer->GetSize();
+                uint8_t *bufferAddress = (uint8_t *)malloc(bufferLength);
+                MemorySegment* memorySegment = new MemorySegment(bufferAddress, bufferLength);
+                auto oldmemorySegment = dynamic_cast<MemorySegment*>(buffer->GetSegment());
+                memorySegment->put(0, oldmemorySegment->getData(), offset, bufferLength);
+                ::datastream::NetworkBuffer* networkBuffer = new ::datastream::NetworkBuffer(
+                memorySegment, bufferLength, 0, std::make_shared<OriginalNetworkBufferRecycler>(),
+                ObjectBufferDataType::DATA_BUFFER, true);
+                
+                inflightBuffers.push_back(networkBuffer);
+                tmpQueue.pop();
+                continue;
+            }
+            if (startSize_) {
+                std::shared_ptr<AbstractEvent> event = EventSerializer::fromBufferNotRecycle(readOnlyBuffer);
+                if (event->GetEventClassName() == "CheckpointBarrier") {
+                    isNeedPersistence_ = false;
+                    startSize_ = 0;
+                    break;
+                }
             }
             tmpQueue.pop();
         }

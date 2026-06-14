@@ -211,7 +211,7 @@ namespace omnistream {
         std::shared_ptr<StreamStateHandle> handle = nullptr;
 
         checkpointStream->Flush();
-        handle = checkpointStream->CloseAndGetHandle();
+        handle = checkpointStream->CloseAndGetHandle(dataStream);
 
         if (handle) {
             auto channel = pending->GetInputChannelOffsets();
@@ -236,8 +236,8 @@ namespace omnistream {
 
     void ChannelStateCheckpointWriter::failResultAndCloseStream(const std::exception_ptr &e)
     {
-        // for (auto &kv : pendingResults)
-            // kv.second->Fail(e);
+        for (auto &kv : pendingResults)
+            kv.second->Fail(e);
         try {
             checkpointStream->Close();
         } catch (const std::exception &ex) {

@@ -43,7 +43,7 @@ namespace omnistream {
             writer = it->second;
         }
         if (writer) {
-            // writer->Fail(cause);
+            writer->Fail(cause);
             writer.reset();
         }
     }
@@ -64,7 +64,7 @@ namespace omnistream {
                 LOG_DEBUG(" dispatchInternal " << request->getName() << " checkpoint " << request->getCheckpointId());
                 req->execute(writer);
             }
-        }else if (auto req = std::dynamic_pointer_cast<SubtaskReleaseRequest>(request)) {
+        } else if (auto req = std::dynamic_pointer_cast<SubtaskReleaseRequest>(request)) {
             SubtaskID sid = SubtaskID::Of(req->getJobVertexID(), req->getSubtaskIndex());
             registeredSubtasks.erase(sid);
             if (writer) {
@@ -175,7 +175,7 @@ namespace omnistream {
             writer = it->second;
         }
         if (writer) {
-            // writer->Fail(e);
+            writer->Fail(e);
             writer->Reset();
         } else {
             registeredSubtasks.clear();
@@ -190,7 +190,7 @@ namespace omnistream {
             writer = it->second;
         }
         if (writer) {
-            // writer->Fail(jvid, idx, e);
+            writer->Fail(jvid, idx, e);
             writer->Reset();
         }
     }

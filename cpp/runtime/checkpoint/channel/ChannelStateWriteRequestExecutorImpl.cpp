@@ -127,14 +127,15 @@ namespace omnistream {
     {
         SubtaskID sid = SubtaskID::Of(req->getJobVertexID(), req->getSubtaskIndex());
         auto &queue = unreadyQueues[sid];
-
-        if (!queue.empty() || !req->getReadyFuture()->IsDone()) {
+        bool flag = queue.empty();
+        if (!flag || !req->getReadyFuture()->IsDone()) {
             std::shared_ptr<ChannelStateWriteRequest> raw = req;
             {
                 queue.push(req);
             }
-
-            registerCallback(raw, sid);
+            if (flag) {
+                registerCallback(raw, sid);
+            }
         } else {
             if (priority) {
                 readyQueue.push_front(req);
@@ -149,13 +150,15 @@ namespace omnistream {
     {
         auto future = first->getReadyFuture();
         future->ThenRun([this, first, sid, future]() {
-            std::lock_guard<std::mutex> lock(mutex);
+
             auto it = unreadyQueues.find(sid);
             if (it == unreadyQueues.end()) {
                 return;
             }
             auto& q = it->second;
 
+            q.front()->getReadyFuture()->Get();
+            std::lock_guard<std::mutex> lock(mutex);
             while (!q.empty() && q.front()->getReadyFuture()->IsDone()) {
                 readyQueue.push_back(q.front());
                 q.pop();

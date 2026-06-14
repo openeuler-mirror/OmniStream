@@ -49,7 +49,7 @@ public:
         std::shared_ptr<ChannelStateWriter> stateWriter
     );
 
-    void CheckpointStarted(const CheckpointBarrier& barrier) override;
+    void CheckpointStarted(const CheckpointBarrier& barrier, std::shared_ptr<ChannelStateWriter> channelStateWriter) override;
     void CheckpointStopped(long checkpointId) override;
     void ConvertToPriorityEvent(int sequenceNumber) override;
     void notifyDataAvailable() override;
@@ -65,6 +65,10 @@ public:
     std::shared_ptr<ResultSubpartitionView> getSubpartitionView();
     void notifyBufferAvailable(int subpartitionId) override;
     void SetChannelStateWriter(std::shared_ptr<ChannelStateWriter> channelStateWriter) override;
+    void SetPersistenceFlag(bool flag) override;
+    void SetstartSize(size_t startSize) override;
+    bool IsNeedPersistence() override;
+    void AddInputData(long checkpointId, const omnistream::InputChannelInfo& info) override;
 public:
     void retriggerSubpartitionRequest(
         std::shared_ptr<std::chrono::steady_clock::time_point> timer, int subpartitionIndex);

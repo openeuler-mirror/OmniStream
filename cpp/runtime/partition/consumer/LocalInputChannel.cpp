@@ -38,16 +38,35 @@ LocalInputChannel::LocalInputChannel(std::shared_ptr<SingleInputGate> inputGate,
       partitionManager(_partitionManager)
 // taskEventPublisher(taskEventPublisher),
 {
-    channelStatePersister = std::make_shared<ChannelStatePersister>(stateWriter, getChannelInfo());
+    if (stateWriter == nullptr) {
+        channelStatePersister = nullptr;
+    } else {
+        channelStatePersister = std::make_shared<ChannelStatePersister>(stateWriter, getChannelInfo());
+    }
 }
 
 
-void LocalInputChannel::CheckpointStarted(const CheckpointBarrier& barrier)
+void LocalInputChannel::CheckpointStarted(const CheckpointBarrier& barrier, std::shared_ptr<ChannelStateWriter> channelStateWriter)
 {
     std::vector<Buffer*> knownBuffers;
     channelStatePersister->StartPersisting(barrier.GetId(), knownBuffers);
 }
+void LocalInputChannel::SetPersistenceFlag(bool flag)
+{
 
+}
+bool LocalInputChannel::IsNeedPersistence()
+{
+    return false;
+}
+void LocalInputChannel::SetstartSize(size_t startSize)
+{
+}
+
+void LocalInputChannel::AddInputData(long checkpointId, const omnistream::InputChannelInfo& info)
+{
+    
+}
 void LocalInputChannel::SetChannelStateWriter(std::shared_ptr<ChannelStateWriter> channelStateWriter)
 {
    channelStatePersister = std::make_shared<ChannelStatePersister>(channelStateWriter, getChannelInfo());
@@ -60,7 +79,6 @@ void LocalInputChannel::CheckpointStopped(long checkpointId) {
     }
     channelStatePersister->StopPersisting(checkpointId);
 }
-
 
 void LocalInputChannel::requestSubpartition(int subpartitionIndex)
 {

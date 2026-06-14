@@ -109,7 +109,8 @@ namespace omnistream {
 
     void CheckpointBarrierHandler::MarkAlignmentEnd()
     {
-        MarkAlignmentEnd(clock.RelativeTimeNanos() - startOfAlignmentTimestamp);
+        int64_t end = clock.RelativeTimeNanos();
+        MarkAlignmentEnd(end - startOfAlignmentTimestamp);
     }
 
     void CheckpointBarrierHandler::MarkAlignmentEnd(int64_t alignmentDuration)

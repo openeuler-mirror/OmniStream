@@ -38,7 +38,7 @@ BarrierHandlerState* AbstractAlternatingAlignedBarrierHandlerState::BarrierRecei
         return FinishCheckpoint();
     }
 
-    return TransitionAfterBarrierReceived(state);
+    return TransitionAfterBarrierReceived(std::move(state));
 }
 
 BarrierHandlerState* AbstractAlternatingAlignedBarrierHandlerState::AnnouncementReceived(Controller* /*controller*/,

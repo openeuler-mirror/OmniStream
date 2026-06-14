@@ -137,8 +137,7 @@ std::optional<omnistream::BufferAndAvailability> RecoveredInputChannel::getNextR
         stateConsumedFuture->Complete();
         stateConsumedFuture1.store(true);
         return omnistream::BufferAndAvailability{next, nextDataType, 0, sequenceNumber++};
-    }
-    else {
+    } else {
         return omnistream::BufferAndAvailability{next, nextDataType, 0, sequenceNumber++};
     }
 }

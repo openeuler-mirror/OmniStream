@@ -76,9 +76,10 @@ public:
         }
         oldOffset = offset.fetch_add(sizeof(lenBytes));
         int64_t newOffset = oldOffset;
-        memcpy_s(dataStream + newOffset, memSize, reinterpret_cast<const char*>(lenBytes), sizeof(lenBytes));
+        memcpy_s(dataStream + newOffset, memSize - newOffset, reinterpret_cast<const char*>(lenBytes), sizeof(lenBytes));
         newOffset = offset.fetch_add(size);
-        memcpy_s(dataStream + newOffset, memSize, reinterpret_cast<const char*>(memorySegment->getData()), size);
+        auto memsegoff = buffers->GetOffset();
+        memcpy_s(dataStream + newOffset, memSize - newOffset, reinterpret_cast<const char*>(memorySegment->getData()) + memsegoff, size);
     }
 
     int getSize(Buffer* buffers)

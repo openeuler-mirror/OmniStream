@@ -43,13 +43,14 @@ namespace omnistream {
         void ConvertToPriorityEvent(int channelIndex, int sequenceNumber)  {   // checkinto related , do it ilater
             getChannel(channelIndex)->ConvertToPriorityEvent(sequenceNumber);
         }
-
+        void AddInputData(long checkpointId, const omnistream::InputChannelInfo& info);
         virtual int getBuffersInUseCount()  = 0;
         virtual void announceBufferSize(int bufferSize) = 0;
 
         std::string toString()  override {
             return "IndexedInputGate [gateIndex=" + std::to_string(GetGateIndex()) + "]";
         }
+        std::shared_ptr<ChannelStateWriter> channelStateWriter_ = nullptr;
     };
 
 } // namespace omnistream

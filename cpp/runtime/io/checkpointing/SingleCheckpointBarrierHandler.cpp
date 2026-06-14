@@ -155,7 +155,13 @@ namespace omnistream::runtime {
                 MarkAlignmentEnd();
             }
         }
-
+        if (alternating_ && alignedChannels_.size() == (unsigned int)targetChannelCount_ && currentCheckpointUnaligned_) {
+            MarkAlignmentEnd();
+            if (!allBarriersReceivedFuture_V2->IsDone()) {
+                ResetAlignmentTimer();
+                allBarriersReceivedFuture_V2->Complete();
+            }
+        }
         try {
             auto* old = currentState_;
  	 		auto* next = stateTransformer(old);
@@ -303,20 +309,20 @@ namespace omnistream::runtime {
 
         ResetAlignmentTimer();
 
-        int64_t timerDelay = BarrierAlignmentUtil::getTimerDelay(GetClock().RelativeTimeMillis(), announcedBarrier);
+        int64_t timerDelay = announcedBarrier.GetCheckpointOptions()->GetAlignedCheckpointTimeout();
         const int64_t barrierId = announcedBarrier.GetId();
         currentAlignmentTimerCheckpointId_ = barrierId;
 
         auto timerTask = [this, announcedBarrier, barrierId]() mutable {
             try {
                 // Stale callback protection
-                if (currentAlignmentTimerCheckpointId_ != barrierId) {
+                if (this->currentAlignmentTimerCheckpointId_ != barrierId) {
                     return;
                 }
-                if (currentCheckpointId_ != barrierId || GetAllBarriersReceivedFuture(barrierId)->IsDone()) {
+                if (this->currentCheckpointId_ != barrierId || this->GetAllBarriersReceivedFuture(barrierId)->IsDone()) {
                     return;
                 }
-                if (currentCheckpointUnaligned_) {
+                if (this->currentCheckpointUnaligned_) {
                     return;
                 }
 
@@ -327,15 +333,15 @@ namespace omnistream::runtime {
                 }
 
 				LOG("Timeout, start transition.")
-                currentCheckpointUnaligned_ = true;
-                auto* old = currentState_;
+                this->currentCheckpointUnaligned_ = true;
+                auto* old = this->currentState_;
                 auto* next = old->AlignedCheckpointTimeout(
-                	dynamic_cast<Controller*>(context_),
+                	dynamic_cast<Controller*>(this->context_),
                 	const_cast<CheckpointBarrier*>(&announcedBarrier));
                 if (next != old) {
                 	delete old;
                 }
-                currentState_ = next;
+                this->currentState_ = next;
             } catch (const CheckpointException& ex) {
                 AbortInternal(barrierId, ex);
             } catch (const std::exception& e) {

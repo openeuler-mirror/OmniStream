@@ -11,6 +11,7 @@
 #include "AlternatingCollectingBarriersUnaligned.h"
 #include "AlternatingWaitingForFirstBarrier.h"
 #include "AlternatingWaitingForFirstBarrierUnaligned.h"
+#include "partition/consumer/IndexedInputGate.h"
 
 AlternatingCollectingBarriersUnaligned::AlternatingCollectingBarriersUnaligned(
     bool alternating, ChannelState state, long checkpointId)
@@ -26,7 +27,16 @@ BarrierHandlerState* AlternatingCollectingBarriersUnaligned::BarrierReceived(
     if (markChannelBlocked && !barrier->GetCheckpointOptions()->IsUnalignedCheckpoint()) {
         state_.BlockChannel(channelInfo);
     }
-
+    if (alternating_) {
+        state_.BlockChannel(channelInfo);
+        state_.UnblockAllChannels();
+    }
+    for (auto* input : state_.getInputs()) {
+        omnistream::IndexedInputGate *inputGate = dynamic_cast<omnistream::IndexedInputGate *>(input);
+        if (inputGate) {
+            inputGate->AddInputData(barrier->GetId(), channelInfo);
+        }
+    }
     if (controller->AllBarriersReceived()) {
         return FinishCheckpoint();
     }

@@ -28,7 +28,7 @@ namespace omnistream {
                               int buffersInBacklog, int sequenceNumber)
             : buffer(buffer), nextDataType(nextDataType), buffersInBacklog_(buffersInBacklog),
               sequenceNumber(sequenceNumber) {}
-
+        Buffer* GetBuffer() { return buffer; }
         bool moreAvailable() const { return nextDataType != ObjectBufferDataType::NONE; }
         bool morePriorityEvents() const { return nextDataType.hasPriority(); }
         int buffersInBacklog() const { return buffersInBacklog_; }

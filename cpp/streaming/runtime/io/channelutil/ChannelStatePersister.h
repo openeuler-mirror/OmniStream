@@ -87,6 +87,18 @@ public:
         }
     }
 
+    void AddInputData(std::vector<omnistream::Buffer*> knownBuffers, long checkpointId, const omnistream::InputChannelInfo& info)
+    {
+        if (!knownBuffers.empty()) {
+            channelStateWriter_->AddInputData(
+                checkpointId,
+                info,
+                ChannelStateWriter::sequenceNumberUnknown,
+                knownBuffers
+            );
+        }
+    }
+
     std::optional<int64_t> CheckForBarrier(Buffer* buffer)
     {
         std::lock_guard<std::mutex> persistLock(mutex_);

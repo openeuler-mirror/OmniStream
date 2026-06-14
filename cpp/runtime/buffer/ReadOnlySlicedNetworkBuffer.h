@@ -35,7 +35,10 @@ namespace omnistream::datastream {
             }
             parent_->RecycleBuffer();
         }
-
+        NetworkBuffer *GetNetWorkBuffer()
+        {
+            return parent_;
+        }
         bool IsRecycled() const override
         {
             return parent_->IsRecycled();

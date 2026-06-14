@@ -445,10 +445,12 @@ bool PipelinedSubpartition::addBuffer(std::shared_ptr<BufferConsumer> bufferCons
 {
     INFO_RELEASE("buffer consumer added to buffers" << (bufferConsumer->isBuffer() ? "buffer": "event"))
     if (bufferConsumer->getDataType().hasPriority()) {
-        return ProcessPriorityBuffer(bufferConsumer, partialRecordLength);
+        auto barrier = ParseCheckpointBarrier(bufferConsumer);
+        return ProcessPriorityBuffer(bufferConsumer, partialRecordLength, barrier);
     } else if (ObjectBufferDataType::TIMEOUTABLE_ALIGNED_CHECKPOINT_BARRIER == bufferConsumer->getDataType()) {
+        auto barrier = ParseCheckpointBarrier(bufferConsumer);
         LOG_DEBUG("PipelinedSubpartition::addBuffer");
-        ProcessTimeoutableCheckpointBarrier(bufferConsumer);
+        ProcessTimeoutableCheckpointBarrier(bufferConsumer, barrier);
     }
     buffers.add(std::make_shared<BufferConsumerWithPartialRecordLength>(bufferConsumer, partialRecordLength));
     LOG_DEBUG("buffer priorityqueue size " << std::to_string(buffers.size()) << " first buffer  "
@@ -466,13 +468,12 @@ std::shared_ptr<CheckpointBarrier> PipelinedSubpartition::ParseCheckpointBarrier
     return std::dynamic_pointer_cast<CheckpointBarrier>(event);
 }
 
-bool PipelinedSubpartition::ProcessPriorityBuffer(std::shared_ptr<BufferConsumer> bufferConsumer, int partialRecordLength)
+bool PipelinedSubpartition::ProcessPriorityBuffer(std::shared_ptr<BufferConsumer> bufferConsumer, int partialRecordLength, std::shared_ptr<CheckpointBarrier> barrier)
 {
     buffers.addPriorityElement(std::make_shared<BufferConsumerWithPartialRecordLength>(bufferConsumer,
         partialRecordLength));
     size_t numPriorityElements = buffers.getNumPriorityElements();
 
-    auto barrier = ParseCheckpointBarrier(bufferConsumer);
     if (barrier != nullptr) {
         if (!barrier->GetCheckpointOptions()->IsUnalignedCheckpoint()) {
             LOG("Only unalined checkpoints should be priority events.");
@@ -576,21 +577,17 @@ void PipelinedSubpartition::ConvertToPriorityEvent(int announcedSequenceNumber)
     notifyDataAvailable();
 }
 
-void PipelinedSubpartition::ProcessTimeoutableCheckpointBarrier(std::shared_ptr<BufferConsumer> bufferConsumer)
+void PipelinedSubpartition::ProcessTimeoutableCheckpointBarrier(std::shared_ptr<BufferConsumer> bufferConsumer, std::shared_ptr<CheckpointBarrier> barrier)
 {
-    auto barrier = ParseAndCheckTimeoutableCheckpointBarrier(bufferConsumer);
+    auto checkbarrier = ParseAndCheckTimeoutableCheckpointBarrier(bufferConsumer, barrier);
     std::vector<Buffer*> inflightBuffers;
-    channelStateWriter_->AddOutputDataFuture(
-        barrier->GetId(),
-        subpartitionInfo,
-        ChannelStateWriter::sequenceNumberUnknown,
-        CreateChannelStateFuture(barrier->GetId()));
+    channelStateCheckpointId_ = checkbarrier->GetId();
+
 }
 
 std::shared_ptr<CheckpointBarrier> PipelinedSubpartition::ParseAndCheckTimeoutableCheckpointBarrier(
-    const std::shared_ptr<BufferConsumer> &bufferConsumer)
+    const std::shared_ptr<BufferConsumer> &bufferConsumer, std::shared_ptr<CheckpointBarrier> barrier)
 {
-    auto barrier = ParseCheckpointBarrier(bufferConsumer);
     if (barrier == nullptr) {
         LOG_DEBUG("Find barrier is null!")
         throw std::runtime_error("Parse the timeoutable Checkpoint Barrier failed, barrier is null.");

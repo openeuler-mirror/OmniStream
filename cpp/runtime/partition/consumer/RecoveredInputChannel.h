@@ -131,7 +131,7 @@ public:
 
     std::shared_ptr<omnistream::Buffer> requestBufferBlocking();
 
-    void CheckpointStarted(const CheckpointBarrier& barrier) override
+    void CheckpointStarted(const CheckpointBarrier& barrier, std::shared_ptr<ChannelStateWriter> channelStateWriter) override
     {
         throw std::invalid_argument("Checkpoint was declined (tasks not ready)");
     }
@@ -152,7 +152,22 @@ public:
     {
         return toOmniChannel_;
     }
+    void SetPersistenceFlag(bool flag)
+    {
 
+    }
+    void SetstartSize(size_t startSize)
+    {
+    }
+
+    void AddInputData(long checkpointId, const omnistream::InputChannelInfo& info)
+    {
+        
+    }
+    bool IsNeedPersistence()
+    {
+        return false;
+    }
 private:
     struct RecoveredBufferEntry {
         Buffer* buffer;

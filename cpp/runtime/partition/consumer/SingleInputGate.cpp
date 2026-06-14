@@ -221,10 +221,10 @@ void SingleInputGate::convertRecoveredInputChannels()
             LOG("after instance of RemoteRecoveredInputChannel, to convert to normal channel!");
         } else if(auto local2 = std::dynamic_pointer_cast<OmniLocalInputChannel>(inputChannel)){
             LOG("after instance of OmniLocalInputChannel!");
-        } else  if(auto local1 = std::dynamic_pointer_cast<LocalInputChannel>(inputChannel)){
-            LOG("after instance of LocalInputChannel!");
-        } else if(auto remote1 = std::dynamic_pointer_cast<RemoteInputChannel>(inputChannel)){
+        } else if (auto remote1 = std::dynamic_pointer_cast<RemoteInputChannel>(inputChannel)){
             LOG("after instance of RemoteInputChannel!");
+        } else if (auto local1 = std::dynamic_pointer_cast<LocalInputChannel>(inputChannel)){
+            LOG("after instance of LocalInputChannel!");
         } else{
             LOG("after unKnown channel type!");
         }

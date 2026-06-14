@@ -125,6 +125,10 @@ public:
     int getBuffersInUseCount() override { return 0; }
     void SetChannelStateWriter(std::shared_ptr<ChannelStateWriter> channelStateWriter) override {}
     std::string toString() override { return "DummyInputChannel"; }
+    void SetPersistenceFlag(bool flag) override {};
+    bool IsNeedPersistence() override {};
+    void SetstartSize(size_t startSize) override {};
+    void AddInputData(long checkpointId, const omnistream::InputChannelInfo& info) override {};
 
 private:
     InputChannelInfo info_;

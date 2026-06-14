@@ -44,7 +44,7 @@ namespace omnistream {
 
         void SetRemoteDataFetcherBridge(std::shared_ptr<RemoteDataFetcherBridge> remoteDataFetcherBridge);
         void resumeConsumption() override;
-        void CheckpointStarted(const CheckpointBarrier& barrier) override;
+        void CheckpointStarted(const CheckpointBarrier& barrier, std::shared_ptr<ChannelStateWriter> channelStateWriter);
         void CheckpointStopped(long checkpointId) override;
         std::vector<Buffer*> GetInflightBuffersUnsafe(long checkpointId);
 
@@ -52,6 +52,17 @@ namespace omnistream {
         {
             lastBarrierId_ = 1;
         }
+        void SetPersistenceFlag(bool flag) {
+            isNeedPersistence_ = flag;
+        }
+        void SetstartSize(size_t startSize) {
+            startSize_ = startSize;
+        }
+        bool IsNeedPersistence()
+        {
+            return outsize < startSize_;
+        }
+        void AddInputData(long checkpointId, const omnistream::InputChannelInfo& info);
     private:
         std::queue<Buffer*> dataQueue;
         int expectSequenceNumber = 0;
@@ -59,5 +70,11 @@ namespace omnistream {
         std::recursive_mutex queueMutex;
         std::shared_ptr<RemoteDataFetcherBridge> remoteDataFetcherBridge;
         long lastBarrierId_ = -1;
+        size_t insize = 0;
+        size_t outsize = 0;
+        size_t stateSize = 0;
+        size_t startSize_ = 0;
+        bool isNeedPersistence_ = true;
+        std::vector<Buffer*> inflightBuffers_;
     };
 };

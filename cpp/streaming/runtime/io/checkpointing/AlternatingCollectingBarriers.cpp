@@ -31,7 +31,7 @@ BarrierHandlerState* AlternatingCollectingBarriers::AlignedCheckpointTimeout(
     // After switching to UC and letting inputs capture the backlog (CheckpointStarted),
     // stop the ongoing alignment and release blocked channels.
     state.UnblockAllChannels();
-    return new AlternatingCollectingBarriersUnaligned(true, state, unalignedBarrier->GetId());
+    return new AlternatingCollectingBarriersUnaligned(true, std::move(state), unalignedBarrier->GetId());
 }
 
 BarrierHandlerState* AlternatingCollectingBarriers::endOfPartitionReceived(
