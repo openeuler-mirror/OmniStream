@@ -16,6 +16,7 @@
 #include "runtime/buffer/OriginalNetworkBufferRecycler.h"
 #include "runtime/partition/PartitionNotFoundException.h"
 #include "runtime/buffer/ReadOnlySlicedNetworkBuffer.h"
+#include "core/include/omni_const.h"
 namespace omnistream {
 LocalInputChannel::LocalInputChannel(std::shared_ptr<SingleInputGate> inputGate, int channelIndex,
     ResultPartitionIDPOD partitionId, std::shared_ptr<ResultPartitionManager> _partitionManager,
@@ -211,6 +212,10 @@ std::optional<BufferAndAvailability> LocalInputChannel::getNextBuffer()
     LOG("after LocalInputChannel::next->getBuffer() 2")
     channelStatePersister->CheckForBarrier(buffer);
     int bufferLength = buffer->GetSize();
+    if(bufferLength > IO_SIZE_512M){
+        INFO_RELEASE("Error: invalid buffer size:" << bufferLength);
+        return;
+    }
     insize += bufferLength;
     if (isNeedPersistence_ && buffer->isBuffer()) {
         datastream::ReadOnlySlicedNetworkBuffer *readOnlyBuffer = (datastream::ReadOnlySlicedNetworkBuffer*)buffer;

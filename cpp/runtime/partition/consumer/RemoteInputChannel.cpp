@@ -72,14 +72,14 @@ namespace omnistream {
 
         auto buffer = this->dataQueue.front();
         this->dataQueue.pop();
-        datastream::ReadOnlySlicedNetworkBuffer *readOnlyBuffer = (datastream::ReadOnlySlicedNetworkBuffer*)buffer;
+        datastream::ReadOnlySlicedNetworkBuffer *readOnlyBuffer = dynamic_cast<datastream::ReadOnlySlicedNetworkBuffer*>(buffer);
         ObjectBufferDataType dataType = ObjectBufferDataType::NONE;
         outsize += buffer->GetSize();
         int backlogSize = static_cast<int>(this->dataQueue.size());
         if (backlogSize > 0) {
             dataType = ObjectBufferDataType::DATA_BUFFER;
         }
-        if (readOnlyBuffer->GetBufferType() == 3) {
+        if (readOnlyBuffer != nullptr && readOnlyBuffer->GetBufferType() == 3) {
             dataType = ObjectBufferDataType::NONE;
             readOnlyBuffer->SetBufferType(1);
 
