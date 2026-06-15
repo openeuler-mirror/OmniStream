@@ -127,6 +127,6 @@ public:
 
 protected:
     Object* reuseBuffer = nullptr;
-    bool bufferReusable = false;
+    bool bufferReusable = true;
 };
 #endif
