@@ -33,6 +33,8 @@ public:
 
     virtual ~KeyValueStateIterator() = default;
 
+    virtual void next() = 0;
+
     /** Returns the key-group for the current key. */
     virtual int keyGroup() const = 0;
 
