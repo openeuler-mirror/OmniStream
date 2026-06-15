@@ -11,8 +11,6 @@
 #include "WatermarkAssignerOperator.h"
 #include "table/data/util/VectorBatchUtil.h"
 
-#include <limits>
-
 WatermarkAssignerOperator::WatermarkAssignerOperator(
     Output *output, int rowtimeIndex, int64_t outOfOrderT, int64_t idleTimeout, ProcessingTimeService* processingTimeService)
     : rowtimeIndex_(rowtimeIndex), outOfOrderTime_(outOfOrderT), idleTimeout_(idleTimeout)
@@ -146,9 +144,6 @@ void WatermarkAssignerOperator::OnProcessingTime(int64_t timestamp)
 
 int64_t WatermarkAssignerOperator::currentWatermark(int64_t element_watermark)
 {
-    if (outOfOrderTime_ > 0 && element_watermark < std::numeric_limits<int64_t>::min() + outOfOrderTime_) {
-        return std::numeric_limits<int64_t>::min();
-    }
     return element_watermark - outOfOrderTime_;
 }
 
