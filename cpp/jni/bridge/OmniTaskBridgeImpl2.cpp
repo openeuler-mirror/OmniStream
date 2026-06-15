@@ -1422,6 +1422,12 @@ std::shared_ptr<SnapshotResult<StreamStateHandle>> OmniTaskBridgeImpl2::CloseSav
 
 void OmniTaskBridgeImpl2::WriteSavepointOutputStream(jobject provider, const int8_t *chunk, size_t offset, size_t len)
 {
+    if (len == 0) {
+        return;
+    }
+    if (len > static_cast<size_t>(std::numeric_limits<jsize>::max())) {
+        throw std::runtime_error("Savepoint output chunk is larger than JNI byte array limit");
+    }
     JNIEnv* env = nullptr;
     jint ret = g_OmniStreamJVM->GetEnv(reinterpret_cast<void **>(&env), JNI_VERSION_1_8);
     jint attachRes = 0;
@@ -1432,10 +1438,28 @@ void OmniTaskBridgeImpl2::WriteSavepointOutputStream(jobject provider, const int
         INFO_RELEASE("Error: Failed to attach C++ thread to JVM inside WriteSavepointOutputStream");
         throw std::runtime_error("Failed to attach C++ thread to JVM inside WriteSavepointOutputStream");
     }
-    jclass cls = env->GetObjectClass(m_globalOmniTaskRef);
-    jmethodID mid = env->GetMethodID(cls, "writeSavepointOutputStream", "(Lorg/apache/flink/runtime/state/CheckpointStreamWithResultProvider;[B)V");
-    jbyteArray data = env->NewByteArray(len);
-    env->SetByteArrayRegion(data, offset, len, chunk);
+    static jmethodID mid = nullptr;
+    if (mid == nullptr) {
+        jclass cls = env->GetObjectClass(m_globalOmniTaskRef);
+        mid = env->GetMethodID(cls, "writeSavepointOutputStream", "(Lorg/apache/flink/runtime/state/CheckpointStreamWithResultProvider;[B)V");
+        env->DeleteLocalRef(cls);
+        if (mid == nullptr) {
+            throw std::runtime_error("Failed to find WriteSavepointOutputStream method");
+        }
+    }
+    jbyteArray data = env->NewByteArray(static_cast<jsize>(len));
+    if (data == nullptr || env->ExceptionCheck()) {
+        env->ExceptionDescribe();
+        env->ExceptionClear();
+        throw std::runtime_error("Failed to allocate savepoint output byte array");
+    }
+    env->SetByteArrayRegion(data, 0, static_cast<jsize>(len), reinterpret_cast<const jbyte *>(chunk + offset));
+    if (env->ExceptionCheck()) {
+        env->ExceptionDescribe();
+        env->ExceptionClear();
+        env->DeleteLocalRef(data);
+        throw std::runtime_error("Failed to copy savepoint output byte array");
+    }
     env->CallVoidMethod(m_globalOmniTaskRef, mid, provider, data);
     if (env->ExceptionCheck()) {
         env->ExceptionDescribe();
@@ -1445,6 +1469,105 @@ void OmniTaskBridgeImpl2::WriteSavepointOutputStream(jobject provider, const int
         throw std::runtime_error("Failed to call WriteSavepointOutputStream");
     }
     env->DeleteLocalRef(data);
+}
+
+jobject OmniTaskBridgeImpl2::CreateSavepointOutputDirectBuffer(void* data, size_t capacity)
+{
+    if (data == nullptr || capacity == 0) {
+        return nullptr;
+    }
+    if (capacity > static_cast<size_t>(std::numeric_limits<jlong>::max())) {
+        throw std::runtime_error("Savepoint direct buffer capacity is larger than JNI direct buffer limit");
+    }
+    JNIEnv* env = nullptr;
+    jint ret = g_OmniStreamJVM->GetEnv(reinterpret_cast<void **>(&env), JNI_VERSION_1_8);
+    jint attachRes = 0;
+    if (ret == JNI_EDETACHED) {
+        attachRes = g_OmniStreamJVM->AttachCurrentThread(reinterpret_cast<void **>(&env), nullptr);
+    }
+    if (attachRes != JNI_OK || env == nullptr) {
+        throw std::runtime_error("Failed to attach C++ thread to JVM inside CreateSavepointOutputDirectBuffer");
+    }
+    jobject localBuffer = env->NewDirectByteBuffer(data, static_cast<jlong>(capacity));
+    if (localBuffer == nullptr || env->ExceptionCheck()) {
+        env->ExceptionDescribe();
+        env->ExceptionClear();
+        return nullptr;
+    }
+    jobject globalBuffer = env->NewGlobalRef(localBuffer);
+    env->DeleteLocalRef(localBuffer);
+    if (globalBuffer == nullptr || env->ExceptionCheck()) {
+        env->ExceptionDescribe();
+        env->ExceptionClear();
+        return nullptr;
+    }
+    return globalBuffer;
+}
+
+void OmniTaskBridgeImpl2::ReleaseSavepointOutputDirectBuffer(jobject directBuffer)
+{
+    if (directBuffer == nullptr) {
+        return;
+    }
+    JNIEnv* env = nullptr;
+    jint ret = g_OmniStreamJVM->GetEnv(reinterpret_cast<void **>(&env), JNI_VERSION_1_8);
+    jint attachRes = 0;
+    if (ret == JNI_EDETACHED) {
+        attachRes = g_OmniStreamJVM->AttachCurrentThread(reinterpret_cast<void **>(&env), nullptr);
+    }
+    if (attachRes != JNI_OK || env == nullptr) {
+        return;
+    }
+    env->DeleteGlobalRef(directBuffer);
+}
+
+bool OmniTaskBridgeImpl2::WriteSavepointOutputStreamDirect(jobject provider, jobject directBuffer, size_t len)
+{
+    if (len == 0) {
+        return true;
+    }
+    if (directBuffer == nullptr) {
+        throw std::runtime_error("Savepoint output DirectByteBuffer is null");
+    }
+    if (len > static_cast<size_t>(std::numeric_limits<jint>::max())) {
+        throw std::runtime_error("Savepoint output chunk is larger than Java int limit");
+    }
+    JNIEnv* env = nullptr;
+    jint ret = g_OmniStreamJVM->GetEnv(reinterpret_cast<void **>(&env), JNI_VERSION_1_8);
+    jint attachRes = 0;
+    if (ret == JNI_EDETACHED) {
+        attachRes = g_OmniStreamJVM->AttachCurrentThread(reinterpret_cast<void **>(&env), nullptr);
+    }
+    if (attachRes != JNI_OK || env == nullptr) {
+        throw std::runtime_error("Failed to attach C++ thread to JVM inside WriteSavepointOutputStreamDirect");
+    }
+    static jmethodID mid = nullptr;
+    if (mid == nullptr) {
+        jclass cls = env->GetObjectClass(m_globalOmniTaskRef);
+        mid = env->GetMethodID(cls, "writeSavepointOutputStreamDirect",
+            "(Lorg/apache/flink/runtime/state/CheckpointStreamWithResultProvider;Ljava/nio/ByteBuffer;I)Z");
+        env->DeleteLocalRef(cls);
+        if (mid == nullptr) {
+            if (env->ExceptionCheck()) {
+                env->ExceptionDescribe();
+                env->ExceptionClear();
+            }
+            void* address = env->GetDirectBufferAddress(directBuffer);
+            if (address == nullptr) {
+                throw std::runtime_error("Failed to find WriteSavepointOutputStreamDirect method");
+            }
+            WriteSavepointOutputStream(provider, reinterpret_cast<const int8_t*>(address), 0, len);
+            return false;
+        }
+    }
+    jboolean directWrite = env->CallBooleanMethod(
+        m_globalOmniTaskRef, mid, provider, directBuffer, static_cast<jint>(len));
+    if (env->ExceptionCheck()) {
+        env->ExceptionDescribe();
+        env->ExceptionClear();
+        throw std::runtime_error("Failed to call WriteSavepointOutputStreamDirect");
+    }
+    return directWrite == JNI_TRUE;
 }
 
 void OmniTaskBridgeImpl2::WriteSavepointMetadata(jobject provider, const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& snapshots,
@@ -1535,26 +1658,39 @@ void OmniTaskBridgeImpl2::WriteOperatorMetaData(
     std::string broadcastStateMetaInfoStr = broadcastStateMetaInfoJson.dump();
 
     jclass cls = env->GetObjectClass(m_globalOmniTaskRef);
+    if (cls == nullptr) {
+        INFO_RELEASE("Error: Failed to get OmniTaskWrapper class inside WriteOperatorMetaData");
+        throw std::runtime_error("Failed to get OmniTaskWrapper class inside WriteOperatorMetaData");
+    }
     jmethodID mid = env->GetMethodID(
         cls,
         "writeOperatorMetaData",
         "(Lorg/apache/flink/runtime/state/CheckpointStreamWithResultProvider;Ljava/lang/String;Ljava/lang/String;)V"
     );
+    if (mid == nullptr) {
+        env->ExceptionDescribe();
+        env->ExceptionClear();
+        env->DeleteLocalRef(cls);
+        INFO_RELEASE("Error: Failed to get writeOperatorMetaData method inside WriteOperatorMetaData");
+        throw std::runtime_error("Failed to get writeOperatorMetaData method inside WriteOperatorMetaData");
+    }
 
     jstring jOperatorStateMetaInfoStr = env->NewStringUTF(operatorStateMetaInfoStr.c_str());
     jstring jBroadcastStateMetaInfoStr = env->NewStringUTF(broadcastStateMetaInfoStr.c_str());
 
-    env->CallObjectMethod(m_globalOmniTaskRef, mid, provider, jOperatorStateMetaInfoStr, jBroadcastStateMetaInfoStr);
+    env->CallVoidMethod(m_globalOmniTaskRef, mid, provider, jOperatorStateMetaInfoStr, jBroadcastStateMetaInfoStr);
     if (env->ExceptionCheck()) {
         env->ExceptionDescribe();
         env->ExceptionClear();
         env->DeleteLocalRef(jOperatorStateMetaInfoStr);
         env->DeleteLocalRef(jBroadcastStateMetaInfoStr);
+        env->DeleteLocalRef(cls);
         INFO_RELEASE("Error: Failed to call WriteOperatorMetaData");
         throw std::runtime_error("Failed to call WriteOperatorMetaData");
     }
     env->DeleteLocalRef(jOperatorStateMetaInfoStr);
     env->DeleteLocalRef(jBroadcastStateMetaInfoStr);
+    env->DeleteLocalRef(cls);
 }
 
 long OmniTaskBridgeImpl2::GetSavepointOutputStreamPos(jobject provider)

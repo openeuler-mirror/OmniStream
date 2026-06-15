@@ -51,6 +51,12 @@ namespace omnistream {
 
         virtual void WriteSavepointOutputStream(jobject provider, const int8_t *chunk, size_t offset, size_t len) = 0;
 
+        virtual jobject CreateSavepointOutputDirectBuffer(void* data, size_t capacity) = 0;
+
+        virtual void ReleaseSavepointOutputDirectBuffer(jobject directBuffer) = 0;
+
+        virtual bool WriteSavepointOutputStreamDirect(jobject provider, jobject directBuffer, size_t len) = 0;
+
         virtual void WriteSavepointMetadata(jobject provider, const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& snapshots,
                                             std::string keySerializer) = 0;
 
