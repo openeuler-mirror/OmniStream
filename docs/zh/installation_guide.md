@@ -39,7 +39,7 @@ OmniStream Flink Native化采用单机容器化部署方案，使用Docker容器
 |项目| 版本                                                                                                                                                                                                                                                                                           | 说明                                                                                                                                                                |
 |--|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 |操作系统| [openEuler 22.03 LTS SP4](https://dl-cdn.openeuler.openatom.cn/openEuler-22.03-LTS-SP4/ISO/aarch64/openEuler-22.03-LTS-SP4-everything-debug-aarch64-dvd.iso)                                                                                                                                 | 无特殊要求。                                                                                                                                                            |
-|JDK| [毕昇JDK 1.8（建议使用毕昇JDK 1.8.0_342）](https://mirror.iscas.ac.cn/kunpeng/archive/compiler/bisheng_jdk/bisheng-jdk-8u342-linux-aarch64.tar.gz)                                                                                                                                                     | JDK需要部署到所有容器内。                                                                                                                                                    |
+|JDK| [毕昇JDK 17（建议使用毕昇JDK 17.0.18-b13）](https://mirrors.huaweicloud.com/kunpeng/archive/compiler/bisheng_jdk/bisheng-jdk-17.0.18-b13-linux-aarch64.tar.gz)                                                                                                                                                      | JDK需要部署到所有容器内。                                                                                                                                                    |
 |Flink| [1.16.3](https://archive.apache.org/dist/flink/flink-1.16.3/flink-1.16.3-bin-scala_2.12.tgz)<br>[1.17.1](https://archive.apache.org/dist/flink/flink-1.17.1/flink-1.17.1-bin-scala_2.12.tgz)<br>[1.20.0](https://archive.apache.org/dist/flink/flink-1.20.0/flink-1.20.0-bin-scala_2.12.tgz) | 部署指南请参见[《Flink 部署指南（CentOS&openEuler）》](https://www.hikunpeng.com/document/detail/zh/kunpengbds/ecosystemEnable/Flink/kunpengflink_04_0001.html)。Flink需要部署到所有容器内。 |
 |Docker| [19.03.15](https://www.hikunpeng.com/document/detail/zh/kunpengbds/appAccelFeatures/sqlqueryaccelf/kunpengbds_omniruntime_20_0911.html)                                                                                                                                                      | 无特殊说明。                                                                                                                                                            |
 |Nexmark| [v0.2.0](https://www.hikunpeng.com/document/detail/zh/kunpengbds/appAccelFeatures/sqlqueryaccelf/kunpengbds_omniruntime_20_0914.html)                                                                                                                                                        | 请按照[官网说明](https://github.com/nexmark/nexmark)进行编译，Nexmark需要部署到所有容器内。                                                                                                                                |
@@ -48,9 +48,9 @@ OmniStream Flink Native化采用单机容器化部署方案，使用Docker容器
 |GCC| [10.3.1](https://repo.openeuler.openatom.cn/openEuler-22.03-LTS-SP4/update/aarch64/Packages/gcc-10.3.1-66.oe2203sp4.aarch64.rpm)                                                                                                                                                             | 无特殊说明。                                                                                                                                                            |
 |Maven| [3.8.7](https://archive.apache.org/dist/maven/maven-3/3.8.7/binaries/apache-maven-3.8.7-bin.zip)                                                                                                                                                                                             | 用于生成UDF验证用例JAR包。                                                                                                                                                  |
 |Jemalloc| [5.3.0](https://github.com/jemalloc/jemalloc/archive/refs/tags/5.3.0.tar.gz)                                                                                                                                                                                                                 | 用于提供UDF翻译使用的头文件。                                                                                                                                                  |
-|OmniOperator| [master](https://atomgit.com/openeuler/OmniOperator/tree/master)                                                                                                                                                                                                                                                                      | 用于提供UDF翻译使用的头文件。                                                                                                                                                  |
-|Xxhash| [0.8.2](https://github.com/Cyan4973/xxHash/tree/v0.8.2)                                                                                                                                                                                                                                                                                    | 用于提供UDF翻译使用的头文件。                                                                                                                                                  |
-|nlohmann json| [3.11.3](https://github.com/nlohmann/json/tree/v3.11.3)                                                                                                                                                                                                                                                                                   | 用于提供UDF翻译使用的头文件。                                                                                                                                                  |
+|OmniOperator| [master](https://atomgit.com/openeuler/OmniOperator/tree/master)                                                                                                                                                                                                                             | 用于提供UDF翻译使用的头文件。                                                                                                                                                  |
+|Xxhash| [0.8.2](https://github.com/Cyan4973/xxHash/tree/v0.8.2)                                                                                                                                                                                                                                      | 用于提供UDF翻译使用的头文件。                                                                                                                                                  |
+|nlohmann json| [3.11.3](https://github.com/nlohmann/json/tree/v3.11.3)                                                                                                                                                                                                                                      | 用于提供UDF翻译使用的头文件。                                                                                                                                                  |
 
 **软件安装包获取<a name="zh-cn_topic_0000002228744546_section189181357102011"></a>**
 
@@ -58,14 +58,15 @@ OmniStream Flink Native化采用单机容器化部署方案，使用Docker容器
 
 **表 3** 软件获取列表<a id="软件获取列表"></a>
 
-|名称| 包名                                        |发布类型|说明| 获取地址                                                                                                                                                        |
-|--|-------------------------------------------|--|--|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
-|OmniStream压缩包| BoostKit-omniruntime-omnistream-1.3.0.zip |开源|OmniStream Flink Native化特性软件安装包。| [获取链接](https://boostkit-bigdata-public.obs.cn-north-4.myhuaweicloud.com/artifact/OmniStream/master/26.1.RC1.B027/BoostKit-omniruntime-omnistream-1.3.0.zip) |
-|UDF翻译工具| UNT-1.0-35.noarch.rpm                     |开源|UDF翻译工具RPM包，安装后在/opt路径下新增UDF翻译工具。| [获取链接](https://eur.openeuler.openatom.cn/results/cutie-deng/UNT/openeuler-22.03_LTS_SP4-aarch64/00110412-UNT/UNT-1.0-35.noarch.rpm)                         |
-|AI4C| AI4C-1.0.4-8.aarch64.rpm                  |开源|支持编译器集成机器学习驱动的优化技术的框架。RPM包直接安装。| [获取链接](https://gitee.com/kunpengcompute/boostkit-bigdata/releases/download/25.1.RC1-OmniStream-release/AI4C-1.0.4-8.aarch64.rpm)                            |
-|KACC_JSON| BoostKit-kaccjson_1.1.0.zip               |闭源|自研的用于UDF翻译中替换GSON的C++版实现，该ZIP包含适配层和KACC_JSON核心实现，内含若干头文件和静态库。</br>该文件从Dependency_library_OmniStream.zip解压获得。| [获取链接](https://gitcode.com/openeuler/OmniStream/releases/download/tag_BoostKit_26.0.RC1.B031_001/Dependency_library_OmniStream.zip)                         |
-|KSL| BoostKit-ksl_2.5.1.zip                    |闭源|正则加速库，该zip包含ReplaceAll用于优化String基础库，内含头文件和1个静态库。| [获取链接](https://www.hikunpeng.com/boostkit/library/system?subtab=Hyperscan&version=2.5.1)                                                                    |
-|依赖库| Dependency_library_Default                |开源|OmniStream Flink Native化运行时所依赖的库文件。</br>该文件夹从Dependency_library_OmniStream.zip解压获得。| [获取链接](https://gitcode.com/openeuler/OmniStream/releases/download/tag_BoostKit_26.0.RC1.B031_001/Dependency_library_OmniStream.zip)                         |
+|名称| 包名                                        |发布类型|说明| 获取地址                                                                                                                                                                                                                                                               |
+|--|-------------------------------------------|--|--|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|OmniStream压缩包| BoostKit-omniruntime-omnistream-1.3.0.zip |开源|OmniStream Flink Native化特性软件安装包。| [获取链接](https://boostkit-bigdata-public.obs.cn-north-4.myhuaweicloud.com/artifact/OmniStream/master/26.1.RC1.B027/release/BoostKit-omniruntime-omnistream-1.3.0.zip)                                                                                                                            |
+|UDF翻译工具| UNT-1.0-35.noarch.rpm                     |开源|UDF翻译工具RPM包，安装后在/opt路径下新增UDF翻译工具。| [获取链接](https://eur.openeuler.openatom.cn/results/cutie-deng/UNT/openeuler-22.03_LTS_SP4-aarch64/00110412-UNT/UNT-1.0-35.noarch.rpm)                                                                                                                                |
+|AI4C| AI4C-1.0.4-8.aarch64.rpm                  |开源|支持编译器集成机器学习驱动的优化技术的框架。RPM包直接安装。| [获取链接](https://gitee.com/kunpengcompute/boostkit-bigdata/releases/download/25.1.RC1-OmniStream-release/AI4C-1.0.4-8.aarch64.rpm)                                                                                                                                   |
+|KACC_JSON| BoostKit-kaccjson_1.1.0.zip               |闭源|用于UDF翻译中替换GSON的C++版实现，该ZIP包含适配层和KACC_JSON核心实现，内含若干头文件和静态库。</br>该文件从Dependency_library_OmniStream.zip解压获得。| [获取链接](https://gitcode.com/openeuler/OmniStream/releases/download/tag_BoostKit_26.0.RC1.B031_001/Dependency_library_OmniStream.zip)                                                                                                                                    |
+|KSL| BoostKit-ksl_2.5.1.zip                    |闭源|正则加速库，该zip包含ReplaceAll用于优化String基础库，内含头文件和1个静态库。| [获取链接](https://www.hikunpeng.com/boostkit/library/system?subtab=Hyperscan&version=2.5.1)                                                                                                                                                                           |
+|依赖库| Dependency_library_Default                |开源|OmniStream Flink Native化运行时所依赖的库文件。</br>该文件夹从Dependency_library_OmniStream.zip解压获得。| [获取链接](https://gitcode.com/openeuler/OmniStream/releases/download/tag_BoostKit_26.0.RC1.B031_001/Dependency_library_OmniStream.zip) |
+
 
 **软件安装包完整性校验<a name="zh-cn_topic_0000002228744546_section156811729327"></a>**
 
@@ -185,19 +186,19 @@ OmniStream Flink Native化采用单机容器化部署方案，使用Docker容器
 
 安装并配置毕昇JDK，为运行Flink集群提供运行时环境。
 
-1. 进入物理机的`/usr/local`目录并下载bisheng-jdk-8u342-linux-aarch64.tar.gz。
+1. 进入物理机的`/usr/local`目录并下载bisheng-jdk-17.0.18-b13-linux-aarch64.tar.gz。
 
     ```bash
     cd /usr/local
-    wget --no-check-certificate https://mirror.iscas.ac.cn/kunpeng/archive/compiler/bisheng_jdk/bisheng-jdk-8u342-linux-aarch64.tar.gz
+    wget --no-check-certificate https://mirrors.huaweicloud.com/kunpeng/archive/compiler/bisheng_jdk/bisheng-jdk-17.0.18-b13-linux-aarch64.tar.gz
     ```
 
-2. 进入`/usr/local`目录并解压bisheng-jdk-8u342-linux-aarch64.tar.gz，且将解压后的JDK目录的所属用户、所属用户组变更为`root`。
+2. 进入`/usr/local`目录并解压bisheng-jdk-17.0.18-b13-linux-aarch64.tar.gz，且将解压后的JDK目录的所属用户、所属用户组变更为`root`。
 
     ```bash
-    tar -zxvf bisheng-jdk-8u342-linux-aarch64.tar.gz
-    chown -R root /usr/local/bisheng-jdk1.8.0_342
-    chgrp -R root /usr/local/bisheng-jdk1.8.0_342
+    tar -zxvf bisheng-jdk-17.0.18-b13-linux-aarch64.tar.gz
+    chown -R root /usr/local/bisheng-jdk-17.0.18-b13-linux
+    chgrp -R root /usr/local/bisheng-jdk-17.0.18-b13-linux
     ```
 
 #### 安装Flink<a name="ZH-CN_TOPIC_0000002517504826"></a>
@@ -508,27 +509,23 @@ rpm -ivh yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
 
         ```bash
         env.java.opts: -Djava.library.path=/usr/local/OmniStream/
-        ```
-    3. 如果使用JDK17配套运行需要增加java参数。
-
-       ```bash
-       env.java.opts: -Djava.library.path=/usr/local/OmniStream/ --add-opens java.base/java.lang=ALL-UNNAMED 
+                      --add-opens java.base/java.lang=ALL-UNNAMED
                       --add-opens java.base/java.io=ALL-UNNAMED 
                       --add-opens java.base/java.util=ALL-UNNAMED 
                       --add-opens java.base/java.util.concurrent=ALL-UNNAMED 
-                      --add-opens java.base/sun.nio.ch=ALL-UNNAMED   
+                      --add-opens java.base/sun.nio.ch=ALL-UNNAMED 
                       --add-opens java.base/java.net=ALL-UNNAMED 
                       --add-opens java.base/sun.security.ssl=ALL-UNNAMED 
-                      --add-exports java.base/sun.net.dns=ALL-UNNAMED
-                      --add-exports java.base/sun.net.util=ALL-UNNAMED
-                      --add-opens=java.base/java.lang=ALL-UNNAMED
-                      --add-opens java.base/java.lang.invoke=ALL-UNNAMED
-                      --add-opens java.base/java.util.concurrent.atomic=ALL-UNNAMED
-                      --add-opens java.base/java.nio=ALL-UNNAMED
-                      --add-opens java.base/java.math=ALL-UNNAMED
-                      --add-opens java.base/java.text=ALL-UNNAMED
+                      --add-exports java.base/sun.net.dns=ALL-UNNAMED 
+                      --add-exports java.base/sun.net.util=ALL-UNNAMED 
+                      --add-opens=java.base/java.lang=ALL-UNNAMED 
+                      --add-opens java.base/java.lang.invoke=ALL-UNNAMED 
+                      --add-opens java.base/java.util.concurrent.atomic=ALL-UNNAMED 
+                      --add-opens java.base/java.nio=ALL-UNNAMED 
+                      --add-opens java.base/java.math=ALL-UNNAMED 
+                      --add-opens java.base/java.text=ALL-UNNAMED 
                       --add-opens java.base/java.time=ALL-UNNAMED
-       ```
+        ```
     3. 按`Esc`键，输入 **:wq!**，按`Enter`保存并退出编辑。
 
 ### 安装UDF翻译工具<a name="ZH-CN_TOPIC_0000002517504824"></a>
@@ -703,19 +700,19 @@ rpm -ivh --nodeps AI4C-1.0.4-8.aarch64.rpm
     ```bash
     docker cp /opt/nexmark flink_jm_8c32g:/usr/local/
     docker cp /usr/local/flink-1.16.3 flink_jm_8c32g:/usr/local/
-    docker cp /usr/local/bisheng-jdk1.8.0_342 flink_jm_8c32g:/usr/local/
+    docker cp /usr/local/bisheng-bisheng-jdk-17.0.18-b13 flink_jm_8c32g:/usr/local/
     docker cp /opt/Dependency_library/Dependency_library_Default flink_jm_8c32g:/opt/Dependency_library
     docker cp /usr/local/OmniStream flink_jm_8c32g:/usr/local/
     
     docker cp /opt/nexmark flink_tm1_8c32g:/usr/local/
     docker cp /usr/local/flink-1.16.3 flink_tm1_8c32g:/usr/local/
-    docker cp /usr/local/bisheng-jdk1.8.0_342 flink_tm1_8c32g:/usr/local/
+    docker cp /usr/local/bisheng-bisheng-jdk-17.0.18-b13 flink_tm1_8c32g:/usr/local/
     docker cp /opt/Dependency_library/Dependency_library_Default flink_tm1_8c32g:/opt/Dependency_library
     docker cp /usr/local/OmniStream flink_tm1_8c32g:/usr/local/
     
     docker cp /opt/nexmark flink_tm2_8c32g:/usr/local/
     docker cp /usr/local/flink-1.16.3 flink_tm2_8c32g:/usr/local/
-    docker cp /usr/local/bisheng-jdk1.8.0_342 flink_tm2_8c32g:/usr/local/
+    docker cp /usr/local/bisheng-bisheng-jdk-17.0.18-b13 flink_tm2_8c32g:/usr/local/
     docker cp /opt/Dependency_library/Dependency_library_Default flink_tm2_8c32g:/opt/Dependency_library
     docker cp /usr/local/OmniStream flink_tm2_8c32g:/usr/local/
     ```
@@ -738,7 +735,7 @@ rpm -ivh --nodeps AI4C-1.0.4-8.aarch64.rpm
     2. 按`i`进入编辑模式，添加如下内容。
 
         ```bash
-        export JAVA_HOME=/usr/local/bisheng-jdk1.8.0_342
+        export JAVA_HOME=/usr/local/bisheng-jdk-17.0.18-b13
         export PATH=$JAVA_HOME/bin:$PATH
         export FLINK_HOME=/usr/local/flink-1.16.3
         export PATH=$FLINK_HOME/bin:$PATH
