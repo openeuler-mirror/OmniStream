@@ -242,7 +242,10 @@ public:
         targetCapacity = std::max(targetCapacity, writeBytesTarget);
         targetCapacity = std::min(targetCapacity, MAX_CHUNK_SIZE);
         if (targetCapacity > capacity_) {
-            (void)growBuffer(targetCapacity);
+            if (!growBuffer(targetCapacity)) {
+                INFO_RELEASE("CheckpointStateOutputStreamProxy failed to grow buffer from "
+                    << capacity_ << " to " << targetCapacity << " bytes");
+            }
         }
     }
 
