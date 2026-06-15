@@ -24,6 +24,7 @@
 #include "checkpoint/channel/ChannelStateWriter.h"
 // check
 namespace omnistream {
+class QueueInputGateRunnable;
 
 class IndexedInputGate : public InputGate, public CheckpointableInput {
 public:
@@ -52,12 +53,14 @@ public:
     void AddInputData(long checkpointId, const omnistream::InputChannelInfo& info);
     virtual int getBuffersInUseCount() = 0;
     virtual void announceBufferSize(int bufferSize) = 0;
+    virtual void triggerDebloating() {}
 
     std::string toString() override
     {
         return "IndexedInputGate [gateIndex=" + std::to_string(GetGateIndex()) + "]";
     }
     std::shared_ptr<ChannelStateWriter> channelStateWriter_ = nullptr;
+    friend class QueueInputGateRunnable;
 };
 
 } // namespace omnistream
