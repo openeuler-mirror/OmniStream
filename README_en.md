@@ -6,7 +6,6 @@
 - \[2025-12-30\]: Released OmniStream 1.1.0. Added the task-level operator rollback mechanism in SQL scenarios, and added checkpoint and restore support for KeyedCoProcess in DataStream scenarios.
 - \[2025-06-30\]: Released OmniStream 1.0.0. SQL: Implemented acceleration for the Calc, GroupAgg, Join, Deduplicate, Rank, Window, and Kafka Source/Sink operators; implemented the efficient data organization method OmniVec; added support for memory and RocksDB state backends. DataStream: Implemented acceleration for the Kafka Source, Kafka Sink, Map, FlatMap, Reduce, and filter operators; implemented the UDF basic framework and UDF translation basic library; added support for the UDF automatic native framework to run stateful and stateless cases such as DataStream Wordcount; added support for the memory state backend.
 
-
 ## Introduction to the Project<a name="EN-US_TOPIC_0000002517961778"></a>
 
 ### Overview<a name="EN-US_TOPIC_0000002549641551"></a>
@@ -20,7 +19,6 @@ OmniRuntime  consists of a series of features provided by Kunpeng BoostKit for B
 As a subfeature of OmniRuntime, OmniStream uses native code \(C/C++\) to implement Flink SQL operators to improve query performance. The Flink engine is reconstructed natively for enhanced performance.
 
 It has been adapted to Flink 1.16.3.
-
 
 ### Architecture<a name="EN-US_TOPIC_0000002549521547"></a>
 
@@ -52,7 +50,6 @@ After receiving an input, the DataStream API parses it into an execution plan. T
 **Figure  2**  Architecture of OmniStream Flink DataStream Native<a name="en-us_topic_0000002543922607_fig918683363812"></a><br>
 ![](figures/architecture-of-omnistream-flink-datastream-native.png "architecture-of-omnistream-flink-datastream-native")
 
-
 ### Application Scenarios<a name="EN-US_TOPIC_0000002549521541"></a>
 
 OmniStream improves the processing performance of the Flink engine while preserving existing development practices and architectural compatibility. In large-scale real-time data analysis scenarios, it significantly enhances processing capacity and execution efficiency.
@@ -64,7 +61,6 @@ OmniStream supports Flink 1.16.3. It parses user-submitted SQL statements into a
 ### Related Concepts<a name="EN-US_TOPIC_0000002518121694"></a>
 
 Nexmark: It is a benchmark suite designed for evaluating queries on continuous data streams. It offers fair and comprehensive performance tests for stream processing systems, serving as a tool for both optimization guidance and performance comparison.
-
 
 ## Constraints
 
@@ -100,7 +96,7 @@ For details, see  [Supported DataStream Operators and UDFs](en-us_topic_00000025
 
 The full project directory structure is as follows:
 
-```
+```text
 ├─cpp
 │  ├─conf
 │  ├─connector
@@ -128,21 +124,17 @@ The full project directory structure is as follows:
 └─scriptss
 ```
 
-
 ## Release Notes<a name="EN-US_TOPIC_0000002549521545"></a>
 
 For details about feature changes in each version, see [Release Notes](./docs/en/release_notes.md)
-
 
 ## Environment Deployment<a name="EN-US_TOPIC_0000002518121692"></a>
 
 For details about the environment dependencies and installation methods of OmniStream, see [Installation Guide](./docs/en/installation_guide.md)
 
-
 ## Quick Start<a name="EN-US_TOPIC_0000002517961786"></a>
 
 For instructions on quickly verifying whether OmniStream is active and its performance improvements, see [Quick Start](./docs/en/quick_start.md)
-
 
 ## Helpful Links<a name="EN-US_TOPIC_0000002549641549"></a>
 
@@ -154,20 +146,16 @@ For instructions on quickly verifying whether OmniStream is active and its perfo
 |[User Guide](./docs/en/user_guide.md)|Provides details about how to use OmniStream.|
 |[FAQs](./docs/en/faq.md)|Provides answers to frequently asked questions (FAQs) about installing and using OmniStream.|
 
-
-
 ## Security Statement<a name="EN-US_TOPIC_0000002551517383"></a>
 
 ### Routine Antivirus Software Check<a name="EN-US_TOPIC_0000002520637378"></a>
 
 Periodically scan clusters and Spark components for viruses. This protects clusters from viruses, malicious code, spyware, and malicious programs, reducing risks such as system breakdown and information leakage. Mainstream antivirus software can be recommended for antivirus check.
 
-
 ### Log Control<a name="EN-US_TOPIC_0000002551637367"></a>
 
 - Check whether the system can limit the size of a single log file.
 - Check whether there is a mechanism for clearing logs when the log space is used up.
-
 
 ### Vulnerability Fixing<a name="EN-US_TOPIC_0000002520477388"></a>
 
@@ -197,7 +185,6 @@ To ensure the security of the production environment and reduce the risk of atta
 
     Currently, the vendor has released an upgrade patch to fix the vulnerability. For details, visit  [GitHub](https://github.com/netty/netty/security/advisories/GHSA-9vjp-v76f-g363).
 
-
 ### SSH Hardening<a name="EN-US_TOPIC_0000002551517385"></a>
 
 During the installation and deployment, you need to connect to the server through SSH. The  **root**  user has all the operation permissions. Logging in to the server as the  **root**  user may pose security risks. You are advised to log in to the server as a common user for installation and deployment and disable  **root**  user login using SSH to improve system security. 
@@ -206,7 +193,6 @@ Check the  **PermitRootLogin**  configuration item in  **/etc/ssh/sshd\_config**
 
 - If the value is  no,  **root**  user login using SSH is disabled.
 - If the value is  yes, change it to  no.
-
 
 ### Public Network Address Statement<a name="EN-US_TOPIC_0000002520637380"></a>
 
@@ -252,8 +238,6 @@ Check the  **PermitRootLogin**  configuration item in  **/etc/ssh/sshd\_config**
 </tbody>
 </table>
 
-
-
 ## Disclaimer<a name="EN-US_TOPIC_0000002549641559"></a>
 
 **To OmniStream users**
@@ -270,13 +254,11 @@ Check the  **PermitRootLogin**  configuration item in  **/etc/ssh/sshd\_config**
 
 If you do not want your model or dataset to be mentioned in OmniStream, or if you wish to update its description, please submit an issue on GitCode. We will delete or update your description according to your request. Thank you for your understanding and contribution to OmniStream.
 
-
 ## License<a name="EN-US_TOPIC_0000002518121688"></a>
 
 For details, see the  [License](license.md)  file.
 
 The documents in the  _xxxdocs_  directory are licensed under CC BY 4.0. For details, see the  [License](license.md)  file.
-
 
 ## Contribution Statement<a name="EN-US_TOPIC_0000002549521553"></a>
 
@@ -295,12 +277,9 @@ The documents in the  _xxxdocs_  directory are licensed under CC BY 4.0. For det
     8. After your PR is approved by the required number of reviewers, the committer will conduct the final review.
     9. After your PR is approved and all tests pass, the CI system will merge it into the project's main branch.
 
-
-
 ## Suggestions and Feedback<a name="EN-US_TOPIC_0000002549641561"></a>
 
 You are welcome to contribute to the community. If you have any questions or suggestions, please submit an  [issue](https://gitcode.com/boostkit/omnistream). We will respond as soon as possible. Thank you for your support.
-
 
 ## Acknowledgments<a name="EN-US_TOPIC_0000002549641563"></a>
 
@@ -309,5 +288,3 @@ OmniStream is jointly developed by the following Huawei departments:
 Kunpeng Computing BoostKit Development Dept
 
 Thank you to everyone in the community for your PRs. We warmly welcome contributions to OmniStream!
-
-

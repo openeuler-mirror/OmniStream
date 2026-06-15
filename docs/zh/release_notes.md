@@ -23,7 +23,6 @@
 </tbody>
 </table>
 
-
 ### 软件版本配套说明<a name="ZH-CN_TOPIC_0000002517493642"></a>
 
 |项目|版本|
@@ -33,8 +32,6 @@
 |Flink|1.16.3|
 |Docker|19.03.15|
 |Nexmark|v0.3.0|
-
-
 
 ### 硬件版本配套说明<a name="ZH-CN_TOPIC_0000002517493676"></a>
 
@@ -51,7 +48,6 @@
 </tr>
 </tbody>
 </table>
-
 
 ### 病毒扫描结果<a name="ZH-CN_TOPIC_0000002549053513"></a>
 
@@ -144,8 +140,6 @@
 </tbody>
 </table>
 
-
-
 ## V1.3.0<a name="ZH-CN_TOPIC_0000002518563132"></a>
 
 ### 更新说明<a name="ZH-CN_TOPIC_0000002550202869"></a>
@@ -193,17 +187,13 @@
 
 无
 
-
 ### 已解决的问题<a name="ZH-CN_TOPIC_0000002518723034"></a>
 
 无
 
-
 ### 遗留问题<a name="ZH-CN_TOPIC_0000002550162875"></a>
 
 无
-
-
 
 ## V1.1.0<a name="ZH-CN_TOPIC_0000002517493646"></a>
 
@@ -224,17 +214,13 @@
 
 无
 
-
 ### 已解决的问题<a name="ZH-CN_TOPIC_0000002548933533"></a>
 
 无
 
-
 ### 遗留问题<a name="ZH-CN_TOPIC_0000002517493614"></a>
 
 无
-
-
 
 ## V1.0.0<a name="ZH-CN_TOPIC_0000002549053495"></a>
 
@@ -264,24 +250,22 @@ DataStream
 
 无
 
-
 ### 已解决的问题<a name="ZH-CN_TOPIC_0000002549053493"></a>
 
 无
 
-
 ### 遗留问题<a name="ZH-CN_TOPIC_0000002517333744"></a>
 
 无
-
-
 
 ## 版本配套文档<a name="ZH-CN_TOPIC_0000002548933523"></a>
 
 ### 版本配套文档<a name="ZH-CN_TOPIC_0000002517333760"></a>
 
 ## 1.3 版本配套文档
+
 ### 版本配套文档
+
 <font size=3>
 
 <table>
@@ -321,11 +305,6 @@ DataStream
   </tbody>
 </table>
 
-
-
 ### 获取文档的方法<a name="ZH-CN_TOPIC_0000002517493604"></a>
 
 您可以通过访问[开源仓](https://gitcode.com/openeuler/OmniStream)浏览和获取相关文档。
-
-
-
