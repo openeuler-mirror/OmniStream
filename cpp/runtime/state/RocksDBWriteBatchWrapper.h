@@ -67,6 +67,11 @@ public:
         FlushIfNeeded();
     }
 
+    // disableWAL is set upstream on the shared WriteOptions
+    // (RocksDBResourceContainer::getWriteOptions) and on instance-level
+    // writeOptions members (RocksdbStateTable / RocksdbMapStateTable ctors).
+    // All three call sites use the options-bearing constructor, so
+    // Flush() itself does not need to touch disableWAL.
     void Flush()
     {
         rocksdb::Status status;

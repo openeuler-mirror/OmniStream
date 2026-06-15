@@ -310,7 +310,10 @@ RocksdbKeyedStateBackend<K> *RocksDBKeyedStateBackendBuilder<K>::build() {
             materializedSstFiles,
             lastCompletedCheckpointId);
 
-        auto writeBatchWrapper = std::make_shared<RocksDBWriteBatchWrapper>(db, writeBatchSize);
+        auto writeBatchWrapper = std::make_shared<RocksDBWriteBatchWrapper>(
+            db,
+            optionsContainer->getWriteOptions(),
+            writeBatchSize);
 
         auto priorityQueueSetFactory = initPriorityQueueFactory(
                 keyGroupPrefixBytes,

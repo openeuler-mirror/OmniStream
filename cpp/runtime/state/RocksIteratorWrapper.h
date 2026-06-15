@@ -18,6 +18,8 @@
 #include <rocksdb/iterator.h>
 #include <rocksdb/db.h>
 
+#include "core/utils/ByteView.h"
+
 class RocksIteratorWrapper {
 public:
     /**
@@ -156,10 +158,11 @@ public:
 
     /**
     * 获取当前键
-    * @return 字符串视图
+    * @return 字节视图，仅在下一次移动或关闭 iterator 前有效
     */
-    std::string_view keyView() {
-        return iterator->key().ToStringView();
+    ByteView keyView() {
+        auto slice = iterator->key();
+        return ByteView::fromBuffer(slice.data(), slice.size());
     }
 
     /**
@@ -172,10 +175,19 @@ public:
 
     /**
      * 获取当前值
-     * @return 字符串视图（拷贝）
+     * @return 字符串（拷贝）
      */
     std::string value() {
         return iterator->value().ToString();
+    }
+
+    /**
+     * 获取当前值
+     * @return 字节视图，仅在下一次移动或关闭 iterator 前有效
+     */
+    ByteView valueView() {
+        auto slice = iterator->value();
+        return ByteView::fromBuffer(slice.data(), slice.size());
     }
 
     /**
