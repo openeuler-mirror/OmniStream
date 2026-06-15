@@ -526,26 +526,6 @@ rpm -ivh yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
                       --add-opens java.base/java.text=ALL-UNNAMED 
                       --add-opens java.base/java.time=ALL-UNNAMED
         ```
-    3. 如果使用JDK17配套运行需要增加java参数。
-
-       ```bash
-       env.java.opts: -Djava.library.path=/usr/local/OmniStream/ --add-opens java.base/java.lang=ALL-UNNAMED 
-                      --add-opens java.base/java.io=ALL-UNNAMED 
-                      --add-opens java.base/java.util=ALL-UNNAMED 
-                      --add-opens java.base/java.util.concurrent=ALL-UNNAMED 
-                      --add-opens java.base/sun.nio.ch=ALL-UNNAMED   
-                      --add-opens java.base/java.net=ALL-UNNAMED 
-                      --add-opens java.base/sun.security.ssl=ALL-UNNAMED 
-                      --add-exports java.base/sun.net.dns=ALL-UNNAMED
-                      --add-exports java.base/sun.net.util=ALL-UNNAMED
-                      --add-opens=java.base/java.lang=ALL-UNNAMED
-                      --add-opens java.base/java.lang.invoke=ALL-UNNAMED
-                      --add-opens java.base/java.util.concurrent.atomic=ALL-UNNAMED
-                      --add-opens java.base/java.nio=ALL-UNNAMED
-                      --add-opens java.base/java.math=ALL-UNNAMED
-                      --add-opens java.base/java.text=ALL-UNNAMED
-                      --add-opens java.base/java.time=ALL-UNNAMED
-       ```
     3. 按`Esc`键，输入 **:wq!**，按`Enter`保存并退出编辑。
 
 ### 安装UDF翻译工具<a name="ZH-CN_TOPIC_0000002517504824"></a>
