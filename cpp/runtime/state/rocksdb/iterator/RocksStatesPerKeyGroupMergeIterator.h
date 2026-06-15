@@ -27,26 +27,24 @@
 
 class RocksStatesPerKeyGroupMergeIterator : public KeyValueStateIterator {
 public:
-    // 比较器结构体
+    // Comparator that uses pre-decoded keyGroup integers instead of
+    // byte-level prefix comparison. This replaces an O(prefixBytes) memcmp
+    // with an O(1) integer compare on the merge-heap hot path.
+    // keyGroup() is decoded once per iterator position by refreshKeyGroup().
     struct IteratorComparator {
-        IteratorComparator(int keyGroupPrefixByteCount)
-            : keyGroupPrefixByteCount(keyGroupPrefixByteCount) {}
-
         bool operator()(const std::unique_ptr<SingleStateIterator>& a,
                         const std::unique_ptr<SingleStateIterator>& b) const
         {
-            // 先按键组前缀比较
-            int cmp = compareKeyGroupsForByteArrays(a->key(), b->key(), keyGroupPrefixByteCount);
-            if (cmp != 0) {
+            int aKeyGroup = a->keyGroup();
+            int bKeyGroup = b->keyGroup();
+            if (aKeyGroup != bKeyGroup) {
                 // 最小堆需要反转比较结果
-                return cmp > 0;
+                return aKeyGroup > bKeyGroup;
             }
 
             // 然后按kvStateId比较
             return a->getKvStateId() > b->getKvStateId();
         }
-
-        int keyGroupPrefixByteCount;
     };
 
     RocksStatesPerKeyGroupMergeIterator(
@@ -55,7 +53,6 @@ public:
         std::vector<std::unique_ptr<SingleStateIterator>>& heapPriorityQueueIterators,
         int keyGroupPrefixByteCount)
         : closeableRegistry_(std::move(closeableRegistry)),
-        heap_(IteratorComparator(keyGroupPrefixByteCount)),
         keyGroupPrefixByteCount_(keyGroupPrefixByteCount)
     {
         if (keyGroupPrefixByteCount < 1) {
@@ -76,6 +73,9 @@ public:
 
         newKeyGroup_ = true;
         newKVState_ = true;
+        if (valid_) {
+            refreshCurrentEntry();
+        }
     }
 
     void next() override
@@ -85,15 +85,14 @@ public:
 
         if (!valid_) return;
 
-        // 保存旧键用于比较
-        auto oldKey = currentSubIterator_->key();
+        int oldKeyGroup = current_.keyGroup;
 
         // 推进当前迭代器
         currentSubIterator_->next();
 
         if (currentSubIterator_->isValid()) {
             // 检查键组是否变化
-            if (isDifferentKeyGroup(oldKey, currentSubIterator_->key())) {
+            if (currentSubIterator_->keyGroup() != oldKeyGroup) {
                 SingleStateIterator* oldIteratorPtr = currentSubIterator_.get();
                 auto temp = std::move(currentSubIterator_);
                 heap_.push(std::move(temp));
@@ -101,8 +100,9 @@ public:
                         std::move(const_cast<std::unique_ptr<SingleStateIterator>&>(heap_.top()));
                 heap_.pop();
                 newKVState_ = (currentSubIterator_.get() != oldIteratorPtr);
-                detectNewKeyGroup(oldKey);
+                detectNewKeyGroup(oldKeyGroup);
             }
+            refreshCurrentEntry();
         } else {
             // 迭代器已耗尽，关闭并移除
             if (currentSubIterator_) {
@@ -112,40 +112,40 @@ public:
             if (heap_.empty()) {
                 currentSubIterator_.reset();
                 valid_ = false;
+                refreshCurrentEntry();
             } else {
                 currentSubIterator_ = std::move(const_cast<std::unique_ptr<SingleStateIterator>&>(heap_.top()));
                 heap_.pop();
                 newKVState_ = true;
-                detectNewKeyGroup(oldKey);
+                detectNewKeyGroup(oldKeyGroup);
+                refreshCurrentEntry();
             }
         }
     }
 
     int keyGroup() const override
     {
-        const auto& currentKey = currentSubIterator_->key();
-        int result = 0;
-        // 大端解码
-        for (int i = 0; i < keyGroupPrefixByteCount_; ++i) {
-            result <<= 8;
-            result |= (currentKey[i] & 0xFF);
-        }
-        return result;
+        return current_.keyGroup;
     }
 
-    std::vector<int8_t> key() const
+    ByteView key() const override
     {
-        return currentSubIterator_->key();
+        return current_.key;
     }
 
-    std::vector<int8_t> value() const
+    ByteView value() const override
     {
-        return currentSubIterator_->value();
+        return current_.value;
     }
 
     int kvStateId() const override
     {
-        return currentSubIterator_->getKvStateId();
+        return current_.kvStateId;
+    }
+
+    const CurrentEntry& current() const override
+    {
+        return current_;
     }
 
     bool isNewKeyValueState() const override
@@ -178,6 +178,8 @@ public:
         if (currentSubIterator_) {
             currentSubIterator_.reset();
         }
+        valid_ = false;
+        current_ = CurrentEntry{};
     }
 
     ~RocksStatesPerKeyGroupMergeIterator()
@@ -195,6 +197,7 @@ private:
     bool newKeyGroup_ = false;
     bool newKVState_ = false;
     bool valid_ = false;
+    CurrentEntry current_;
 
     void buildIteratorHeap(
         std::vector<std::pair<std::unique_ptr<RocksIteratorWrapper>, int>>& kvStateIterators,
@@ -208,7 +211,7 @@ private:
             rocksIter->seekToFirst();
             if (rocksIter->isValid()) {
                 auto wrappingIter = std::make_unique<RocksSingleStateIterator>(
-                        std::move(rocksIter), kvStateId);
+                        std::move(rocksIter), kvStateId, keyGroupPrefixByteCount_);
 
                 heap_.push(std::move(wrappingIter));
             } else {
@@ -226,38 +229,25 @@ private:
         }
     }
 
-    bool isDifferentKeyGroup(const std::vector<int8_t>& a, const std::vector<int8_t>& b)
+    void detectNewKeyGroup(int oldKeyGroup)
     {
-        // 优化：使用memcmp进行快速比较
-        if (a.size() < keyGroupPrefixByteCount_ || b.size() < keyGroupPrefixByteCount_) {
-            return true;
-        }
-
-        return std::memcmp(a.data(), b.data(), keyGroupPrefixByteCount_) != 0;
-    }
-
-    void detectNewKeyGroup(const std::vector<int8_t>& oldKey)
-    {
-        if (isDifferentKeyGroup(oldKey, currentSubIterator_->key())) {
+        if (currentSubIterator_->keyGroup() != oldKeyGroup) {
             newKeyGroup_ = true;
         }
     }
 
-    static int compareKeyGroupsForByteArrays(
-        const std::vector<int8_t>& a,
-        const std::vector<int8_t>& b,
-        int len)
+    void refreshCurrentEntry()
     {
-        // 确保有足够的字节进行比较
-        size_t inLen = std::min({a.size(), b.size(), static_cast<size_t>(len)});
-
-        for (int i = 0; i < inLen; ++i) {
-            int diff = static_cast<int>(static_cast<uint8_t>(a[i])) - static_cast<int>(static_cast<uint8_t>(b[i]));
-            if (diff != 0) {
-                return diff;
-            }
+        if (!valid_ || !currentSubIterator_ || !currentSubIterator_->isValid()) {
+            current_ = CurrentEntry{};
+            return;
         }
-        return 0;
+        current_.key = currentSubIterator_->key();
+        current_.value = currentSubIterator_->value();
+        current_.keyGroup = currentSubIterator_->keyGroup();
+        current_.kvStateId = currentSubIterator_->getKvStateId();
+        current_.newKeyGroup = newKeyGroup_;
+        current_.newKeyValueState = newKVState_;
     }
 };
 #endif // OMNISTREAM_ROCKSSTATESPERKEYGROUPMERGEITERATOR_H

@@ -13,25 +13,38 @@
 
 #include <vector>
 #include <cstdint>
+#include "core/utils/ByteView.h"
 
 class KeyValueStateIterator {
 public:
-    virtual ~KeyValueStateIterator() = default;
-
     /**
-     * Advances the iterator. Should only be called if isValid() returned true. Valid flag
-     * can only change after calling next().
+     * Hot-loop aggregation: all per-entry fields returned in a single struct
+     * to avoid repeated virtual dispatch in FullSnapshotAsyncWriter's savepoint
+     * KV write loop.
      */
-    virtual void next() = 0;
+    struct CurrentEntry {
+        ByteView key;
+        ByteView value;
+        int keyGroup = -1;
+        int kvStateId = -1;
+        bool newKeyGroup = false;
+        bool newKeyValueState = false;
+    };
+
+    virtual ~KeyValueStateIterator() = default;
 
     /** Returns the key-group for the current key. */
     virtual int keyGroup() const = 0;
 
-    virtual std::vector<int8_t> key() const = 0;
-    virtual std::vector<int8_t> value() const = 0;
+    // Returned views are only valid until next(), close(), or iterator destruction.
+    virtual ByteView key() const = 0;
+    virtual ByteView value() const = 0;
 
     /** Returns the Id of the K/V state to which the current key belongs. */
     virtual int kvStateId() const = 0;
+
+    /** Returns all hot-loop fields for the current entry in one virtual call. */
+    virtual const CurrentEntry& current() const = 0;
 
     virtual bool isNewKeyValueState() const = 0;
 
