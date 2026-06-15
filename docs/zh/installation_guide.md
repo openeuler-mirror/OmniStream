@@ -26,8 +26,8 @@ OmniStream Flink Native化采用单机容器化部署方案，使用Docker容器
 |处理器|鲲鹏920新型号处理器|
 |内存大小|384GB（12 * 32GB）|
 |内存频率|2666MHz|
-|网络|业务网络10GE</br>管理网络1GE|
-|硬盘|系统盘：1 * RAID 0（1 * 1.2TB SAS HDD）</br>数据盘：12 * RAID 0（12 * 8TB SATA HDD）|
+|网络|业务网络10GE<br>管理网络1GE|
+|硬盘|系统盘：1 \* RAID 0（1 \* 1.2TB SAS HDD）<br>数据盘：12 \* RAID 0（12 \* 8TB SATA HDD）|
 |RAID控制卡|LSI SAS3508|
 
 **操作系统和软件要求<a name="zh-cn_topic_0000002228744546_section412511315357"></a>**
@@ -525,6 +525,7 @@ rpm -ivh yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
     >如果没有创建`/opt/udf-trans-opt`目录，请执行以下命令手动创建。
+    >
     >```bash
     >mkdir /opt/udf-trans-opt
     >```

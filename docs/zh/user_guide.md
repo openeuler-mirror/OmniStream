@@ -1,8 +1,8 @@
 # 用户指南<a name="ZH-CN_TOPIC_0000002549640817"></a>
 
-## 前提条件：
-请参考安装指南完成相应软件的安装。
+## 前提条件
 
+请参考[安装指南](./installation_guide.md)完成相应软件的安装。
 
 ## 使用特性<a name="ZH-CN_TOPIC_0000002549520803"></a>
 
@@ -13,6 +13,7 @@
 OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2** 支持的算子列表](#支持的算子列表)和[**表 3** 支持的表达式列表](#支持的表达式列表)所示，表格中使用符号表示算子和表达式是否支持，符号的含义请参见[**表 1** 算子和表达式支持表格中符号的含义](#算子和表达式支持表格中符号的含义)。
 
 >![](public_sys-resources/icon-notice.gif) **须知：** 
+>
 >- [**表 2** 支持的算子列表](#支持的算子列表)和[**表 3** 支持的表达式列表](#支持的表达式列表)中仅描述了OmniStream Flink Native化特性支持或涉及的数据类型，未展示的数据类型是OmniStream Flink Native化特性不支持的。
 >- 如果使用OmniStream Flink Native化特性不支持的算子和表达式，会导致执行计划回退为原生执行，对性能会有影响。
 >- 使用sql-client交互式界面执行SQL时，推荐将SQL的结果输出到connector为blackhole的数据表中，具体可参考Nexmark Q0的执行方式。
@@ -93,26 +94,26 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
 
 |Java类|Java类接口|
 |--|--|
-|Arrays|static <T> List<T> asList(Array)|
-|HashMap（存取的元素均需要实现hashCode和equals方法）|Object get(Object key)Object put(Object key, Object value)void putAll(HashMap m)boolean containsKey(Object key)int size()boolean remove(Object key)（与Java接口不同，当前不支持使用变量承接返回值。）Set<Map.Entry<Object,Object>> entrySet()Set<Object> keySet()HashMap clone()|
-|Iterator|boolean hasNext()Object next()|
-|ArrayList|Object get(int index)void clear()void add(Object e)Iterator iterator()boolean contains(Object o)int size()boolean isEmpty()|
-|LinkedList|Object getFirst()Object getLast()void addLast(Object e)void addFirst(Object e)|
-|Map.Entry（mapentry中的元素需实现hash和equals方法）|Object getKey()Object getValue()void setValue(Object value)（与Java接口不同，当前不支持使用变量承接返回值。）|
-|HashSet（存取的元素需要实现hash和equals方法）|boolean addAll(ArrayList list)boolean add(Object e)boolean remove(Object o)boolean contains(Object o)int size()void clear()Iterator iterator()|
-|StringBuilder|StringBuilder append(String str)String toString()|
-|数组（当前只支持对象类型一维数组，不支持基本类型数组及多维数组。）|大小取元素存元素（只支持顺序存元素）|
-|Integer|String toString()bool equals(Integer *obj) overrideint intValue()static Integer valueOf(String s)static Integer valueOf(int i)|
-|Boolean|static Boolean valueOf(boolean b)boolean booleanValue()|
-|Long|int hashCode()boolean equals(Long obj)String toString()Long clone()long longValue()static Long valueOf(String s)static Long valueOf(long l)|
-|Object|int hashCode()bool equals(Object *obj)String toString()Object clone()|
-|String|int hashCode()boolean equals(String anObject)String toString()Object clone()String replace(String target, String replacement) String[] split(String regex)（暂时只支持字符串的split，不支持正则表达式。）String replaceAll(String regex, String replacement)int lastIndexOf(String str)int length()String substring(int beginIndex)String substring(int beginIndex, int endIndex)boolean contains(String s)boolean endsWith(String suffix)boolean startsWith(String prefix)|
-|Gson|String toJson(HashMap<String,String> map)Map fromJson(String json, Type typeOf)（只支持将String类型转为Map）|
-|JsonObject|JsonObject getAsJsonObject(String memberName)（只支持String常量）|
-|JsonParser|static JsonObject parseString(String json)|
-|JsonPrimitive|boolean getAsBoolean()|
-|JsonElement|JsonObject getAsJsonObject()double getAsDouble()float getAsFloat()int getAsInt()long getAsLong()short getAsShort()boolean getAsBoolean()String getAsString()boolean isJsonNull()String toString()String toString()|
-|JsonArray|Iterator<JsonElement> iterator()|
+|Arrays|static \<T> List\<T> asList(Array);|
+|HashMap（存取的元素均需要实现hashCode和equals方法）|Object get(Object key);<br> Object put(Object key, Object value);<br> void putAll(HashMap m);<br> boolean containsKey(Object key);<br> int size();<br> boolean remove(Object key)（与Java接口不同，当前不支持使用变量承接返回值。）;<br> Set<Map.Entry<Object,Object>> entrySet();<br> Set\<Object> keySet();<br> HashMap clone();|
+|Iterator|boolean hasNext();<br> Object next();|
+|ArrayList|Object get(int index);<br> void clear();<br> void add(Object e);<br> Iterator iterator();<br> boolean contains(Object o);<br> int size();<br> boolean isEmpty()|
+|LinkedList|Object getFirst();<br> Object getLast();<br> void addLast(Object e);<br> void addFirst(Object e);<br> |
+|Map.Entry（mapentry中的元素需实现hash和equals方法）|Object getKey();<br> Object getValue();<br> void setValue(Object value);（与Java接口不同，当前不支持使用变量承接返回值。）|
+|HashSet（存取的元素需要实现hash和equals方法）|boolean addAll(ArrayList list);<br> boolean add(Object e);<br> boolean remove(Object o);<br> boolean contains(Object o);<br> int size();<br> void clear();<br> Iterator iterator();<br> |
+|StringBuilder|StringBuilder append(String str);<br> String toString();<br> |
+|数组（当前只支持对象类型一维数组，不支持基本类型数组及多维数组。）|大小;<br> 取元素;<br> 存元素（只支持顺序存元素）;|
+|Integer|String toString();<br> bool equals(Integer *obj);<br> overrideint intValue();<br> static Integer valueOf(String s);<br> static Integer valueOf(int i);|
+|Boolean|static Boolean valueOf;<br> (boolean b)boolean booleanValue()|
+|Long|int hashCode();<br> boolean equals(Long obj);<br> String toString();<br> Long clone();<br> long longValue();<br> static Long valueOf(String s);<br> static Long valueOf(long l);<br> |
+|Object|int hashCode();<br> bool equals(Object *obj);<br> String toString();<br> Object clone();<br> |
+|String|int hashCode();<br> boolean equals(String anObject);<br> String toString();<br> Object clone();<br> String replace(String target, String replacement);<br>  String[] split(String regex);（暂时只支持字符串的split，不支持正则表达式。）<br> String replaceAll(String regex, String replacement);<br> int lastIndexOf(String str);<br> int length();<br> String substring(int beginIndex);<br> String substring(int beginIndex, int endIndex);<br> boolean contains(String s);<br> boolean endsWith(String suffix);<br> boolean startsWith(String prefix);<br> |
+|Gson|String toJson(HashMap<String,String> map);<br> Map fromJson(String json, Type typeOf);（只支持将String类型转为Map）|
+|JsonObject|JsonObject getAsJsonObject(String memberName);（只支持String常量）|
+|JsonParser|static JsonObject parseString(String json);|
+|JsonPrimitive|boolean getAsBoolean();|
+|JsonElement|JsonObject getAsJsonObject();<br> double getAsDouble();<br> float getAsFloat();<br> int getAsInt();<br> long getAsLong();<br> short getAsShort();<br> boolean getAsBoolean();<br> String getAsString();<br> boolean isJsonNull();<br> String toString();<br> String toString();<br> |
+|JsonArray|Iterator\<JsonElement> iterator();<br> |
 
 ### （SQL场景）使能OmniStream<a name="ZH-CN_TOPIC_0000002549640821"></a>
 
@@ -640,6 +641,7 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
 **卸载软件<a name="section1939611410533"></a>**
 
 >![](public_sys-resources/icon-notice.gif) **须知：** 
+>
 >- 当前步骤仅供需要卸载OmniStream时参考，不属于部署OmniStream的必要操作步骤。
 >- 卸载OmniStream之前，请确保Flink引擎没有处于任务执行的状态。
 
