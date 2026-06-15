@@ -134,10 +134,10 @@ namespace std {
         {
             size_t keyHash;
             if constexpr (std::is_same_v<K, Object*>) {
-                keyHash = static_cast<size_t>(reinterpret_cast<Object*>(v.getKey())->hashCode());
+                keyHash = v.getKey() == nullptr ? 0 : static_cast<size_t>(reinterpret_cast<Object*>(v.getKey())->hashCode());
             } else if constexpr (KeyTypeTraits<K>::isRowKey) {
                 // todo: GenericRowData* hash method is not implemented
-                keyHash = static_cast<size_t>(v.getKey()->hashCode());
+                keyHash = v.getKey() == nullptr ? 0 : static_cast<size_t>(v.getKey()->hashCode());
             } else if constexpr (KeyTypeTraits<K>::isSharedRowKey) {
                 keyHash = v.getKey() == nullptr ? 0 : static_cast<size_t>(v.getKey()->hashCode());
             } else {
