@@ -49,7 +49,7 @@ namespace omnistream {
             return gateIdx == other.gateIdx && inputChannelIdx == other.inputChannelIdx;
         }
 
-        long getComplexId(){
+        long getComplexId() const {
             return ((long)gateIdx) << 32 | inputChannelIdx;
         }
     private:

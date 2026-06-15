@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <memory>
+#include "streaming/runtime/tasks/omni/OmniOneInputStreamTask.h"
 #include "streaming/runtime/tasks/omni/OmniTwoInputStreamTask.h"
 #include "streaming/runtime/tasks/mailbox/MailboxExecutorImpl.h"
 #include "test/functionaltest/e2e/FrameworkConfig.h"
@@ -51,4 +52,22 @@ TEST_F(OmniTwoInputStreamTaskTest, DISABLED_InitDistributesGatesAndInitializesPr
     // Assertions to ensure proper distribution and processor creation
     ASSERT_NE(task->GetCheckpointBarrierHandler(), nullptr);
 //    ASSERT_NE(task->GetInputProcessor(), nullptr);
+}
+
+TEST(OmniOneInputStreamTaskUnionAllTest, UsesUnionInputGateOnlyForSqlMultipleInputs) {
+    EXPECT_FALSE(OmniOneInputStreamTask::ShouldUseUnionInputGate(1, 0, true));
+    EXPECT_FALSE(OmniOneInputStreamTask::ShouldUseUnionInputGate(1, 1, true));
+    EXPECT_FALSE(OmniOneInputStreamTask::ShouldUseUnionInputGate(1, 2, false));
+    EXPECT_TRUE(OmniOneInputStreamTask::ShouldUseUnionInputGate(1, 2, true));
+    EXPECT_TRUE(OmniOneInputStreamTask::ShouldUseUnionInputGate(1, 3, true));
+
+    EXPECT_FALSE(OmniOneInputStreamTask::ShouldUseUnionInputGate(2, 2, true));
+}
+
+TEST(OmniOneInputStreamTaskUnionAllTest, KeepsLegacyChannelIdsWhenUnionAllIsDisabled) {
+    InputChannelInfo shiftedGateChannel(5, 7);
+
+    EXPECT_EQ(OmniOneInputStreamTask::GetChannelDeserializerId(shiftedGateChannel, false), 7);
+    EXPECT_EQ(OmniOneInputStreamTask::GetChannelDeserializerId(shiftedGateChannel, true),
+              shiftedGateChannel.getComplexId());
 }
