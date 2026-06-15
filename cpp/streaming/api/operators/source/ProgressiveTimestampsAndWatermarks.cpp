@@ -22,6 +22,9 @@ ProgressiveTimestampsAndWatermarks::ProgressiveTimestampsAndWatermarks(Timestamp
 
 void ProgressiveTimestampsAndWatermarks::TriggerPeriodicEmit(long wallClockTimestamp)
 {
+    if (periodicEmitStopped_.load()) {
+        return;
+    }
     if (currentPerSplitOutputs != nullptr) {
         currentPerSplitOutputs->EmitPeriodicWatermark();
     }
@@ -56,12 +59,14 @@ void ProgressiveTimestampsAndWatermarks::StartPeriodicWatermarkEmits()
         // a value of zero means not activated
         return;
     }
+    periodicEmitStopped_.store(false);
     periodicEmitHandle = timeService->scheduleWithFixedDelay(callback, periodicWatermarkInterval,
         periodicWatermarkInterval);
 }
 
 void ProgressiveTimestampsAndWatermarks::StopPeriodicWatermarkEmits()
 {
+    periodicEmitStopped_.store(true);
     if (periodicEmitHandle != nullptr) {
         periodicEmitHandle->Cancel();
         periodicEmitHandle = nullptr;

@@ -26,6 +26,7 @@ std::string Q5MAXdescription1 = R"DELIM(
 			"localAggregateCalls": [
 				{
 					"name": "COUNT()", "filterArg": -1, "argIndexes": [], "aggregationFunction": "Count1AggFunction",
+					"aggIndex": 0,
 					"consumeRetraction": "false"
 				}
 			],
@@ -36,6 +37,7 @@ std::string Q5MAXdescription1 = R"DELIM(
 			"globalAggregateCalls": [
 				{
 					"name": "COUNT()", "filterArg": -1, "argIndexes": [], "aggregationFunction": "Count1AggFunction",
+					"aggIndex": 0,
 					"consumeRetraction": "false"
 				}
 			],
@@ -43,7 +45,7 @@ std::string Q5MAXdescription1 = R"DELIM(
 				"BIGINT"
 			]
 		},
-		"size": 10000, "sliceEndIndex": 2, "slide": 2000, "generateUpdateBefore": false,
+		"windowSize": 10000, "sliceEndIndex": 2, "windowSlide": 2000, "generateUpdateBefore": false,
 		"outputTypes": [
 			"BIGINT", "BIGINT", "TIMESTAMP_WITHOUT_TIME_ZONE(3)", "TIMESTAMP_WITHOUT_TIME_ZONE(3)"
 		],
@@ -167,7 +169,8 @@ std::string Q5COUNTdescription1 =R"DELIM(
                             "argIndexes": [],
                             "consumeRetraction": "false",
                             "filterArg": -1,
-                            "name": "COUNT()"
+                            "name": "COUNT()",
+							"aggIndex": 0,
                         }
                     ],
                     "indexOfCountStar": 0,
@@ -177,7 +180,8 @@ std::string Q5COUNTdescription1 =R"DELIM(
                             "argIndexes": [],
                             "consumeRetraction": "false",
                             "filterArg": -1,
-                            "name": "COUNT()"
+                            "name": "COUNT()",
+							"aggIndex": 0,
                         }
                     ]
                 },
@@ -197,9 +201,9 @@ std::string Q5COUNTdescription1 =R"DELIM(
                     "TIMESTAMP_WITHOUT_TIME_ZONE(3)",
                     "TIMESTAMP_WITHOUT_TIME_ZONE(3)"
                 ],
-                "size": 10000,
+                "windowSize": 10000,
                 "sliceEndIndex": 2,
-                "slide": 2000,
+                "windowSlide": 2000,
                 "timeAttributeIndex": 2147483647,
                 "timeAttributeType": "TIMESTAMP_WITHOUT_TIME_ZONE(3)",
                 "window": "HOP(size=[10 s], slide=[2 s])"

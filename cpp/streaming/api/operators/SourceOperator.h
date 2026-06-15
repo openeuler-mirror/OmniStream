@@ -37,6 +37,8 @@
 #include <future>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
+#include <algorithm>
 #include "streaming/api/operators/AbstractStreamOperator.h"
 #include "connector/kafka/source/split/KafkaPartitionSplitSerializer.h"
 #include "core/api/connector/source/SourceReader.h"
@@ -117,14 +119,16 @@ public:
 
         finished = std::make_shared<omnistream::CompletableFuture>();
         waitingForAlignmentFuture = std::make_shared<omnistream::CompletableFuture>(true);
+        initAvailabilityHelper();
         setProcessingTimeService(timeService);
         output = chainOutput;
         dataStreamOutput = new omnistream::OmniAsyncDataOutputToOutput(output, true);
-//    availabilityHelper = std::make_shared<SourceOperator::AvailabilityHelper>();
+        availabilityHelper = std::make_shared<SourceOperatorAvailabilityHelper>();
     }
 
     ~SourceOperator()
     {
+        stopInternalServices();
         delete sourceReader;
         delete currentMainOutput;
         delete dataStreamOutput;
@@ -135,8 +139,12 @@ public:
 
     void snapshotState(StateSnapshotContextSynchronousImpl *context) override
     {
+        if (sourceReader == nullptr) {
+            THROW_RUNTIME_ERROR("SourceOperator snapshotState called before sourceReader is initialized.");
+        }
         long checkpointId = context->getCheckpointId();
-        readerState_->update(sourceReader->snapshotState(checkpointId));
+        auto splits = sourceReader->snapshotState(checkpointId);
+        readerState_->update(splits);
     }
 
     void initializeState(StateInitializationContextImpl *context) override
@@ -157,9 +165,20 @@ public:
         if (sourceReader != nullptr) {
             return;
         }
-        int subtaskIndex = getRuntimeContext()->getIndexOfThisSubtask();
+        if (readerFactory == nullptr) {
+            THROW_RUNTIME_ERROR("SourceOperator readerFactory is null.");
+        }
+        auto runtimeContext = getRuntimeContext();
+        if (runtimeContext == nullptr) {
+            THROW_RUNTIME_ERROR("SourceOperator initReader before runtimeContext setup.");
+        }
+        int subtaskIndex = runtimeContext->getIndexOfThisSubtask();
         auto context = new SourceReaderContext(subtaskIndex);
         sourceReader = readerFactory(context);
+        if (sourceReader == nullptr) {
+            delete context;
+            THROW_RUNTIME_ERROR("SourceOperator readerFactory returned null sourceReader.");
+        }
     }
 
     void open() override
@@ -171,9 +190,34 @@ public:
             eventTimeLogic = TimestampsAndWatermarks::CreateNoOpEventTimeLogic(watermarkStrategy);
         }
 
-        std::vector<SplitT*> splits = *readerState_->getPtr();
-        if (!splits.empty()) {
-            sourceReader->addSplits(splits);
+        std::vector<SplitT*> splits;
+        auto restoredSplits = readerState_ == nullptr ? nullptr : readerState_->getPtr();
+        if (restoredSplits != nullptr) {
+            splits = *restoredSplits;
+            delete restoredSplits;
+        }
+        std::vector<SplitT*> restoredSplitsToAdd;
+        restoredSplitsToAdd.reserve(splits.size());
+        for (const auto& split : splits) {
+            if (split == nullptr) {
+                continue;
+            }
+            const std::string splitId = split->splitId();
+            if (registeredSplitIds_.insert(splitId).second) {
+                restoredSplitsToAdd.push_back(split);
+            } else {
+                delete split;
+            }
+        }
+        if (!restoredSplitsToAdd.empty()) {
+            sourceReader->addSplits(restoredSplitsToAdd);
+        }
+        if (!outputPendingSplits.empty()) {
+            sourceReader->addSplits(outputPendingSplits);
+        }
+        if (pendingNoMoreSplits_) {
+            sourceReader->notifyNoMoreSplits();
+            pendingNoMoreSplits_ = false;
         }
         
         sourceReader->start();
@@ -189,6 +233,7 @@ public:
 
     void close()
     {
+        stopInternalServices();
         if (sourceReader != nullptr) {
             sourceReader->close();
         }
@@ -198,6 +243,9 @@ public:
 
     DataInputStatus emitNext(OmniDataOutputPtr output)
     {
+        if (sourceReader == nullptr) {
+            return DataInputStatus::NOT_PROCESSED;
+        }
         ASSERT(lastInvokedOutput == output || lastInvokedOutput == nullptr || operatingMode == OperatingMode::DATA_FINISHED);
         if (operatingMode == OperatingMode::READING) {
             return convertToInternalStatus(sourceReader->pollNext(currentMainOutput));
@@ -207,6 +255,14 @@ public:
 
     std::shared_ptr<omnistream::CompletableFuture> GetAvailableFuture() override
     {
+        if (availabilityHelper == nullptr) {
+            initAvailabilityHelper();
+        }
+        if (sourceReader == nullptr
+            && (operatingMode == OperatingMode::OUTPUT_NOT_INITIALIZED
+                || operatingMode == OperatingMode::READING)) {
+            return AvailabilityProvider::AVAILABLE;
+        }
         switch (operatingMode) {
             case OperatingMode::WAITING_FOR_ALIGNMENT:
                 return availabilityHelper->update(waitingForAlignmentFuture);
@@ -247,7 +303,6 @@ public:
             }
             AddSplitEvent<SplitT> event(serializerVersion, splitsVec);
             handleOperatorEvent(event);
-        } else if (eventType == "SourceEventWrapper") {
         } else if (eventType == "NoMoreSplitsEvent") {
             // fix: this is local stack object
             NoMoreSplitsEvent event;
@@ -263,8 +318,36 @@ public:
 
     void handleOperatorEvent(AddSplitEvent<SplitT>& event)
     {
+        std::vector<SplitT*> newSplits;
         try {
-            std::vector<SplitT*> newSplits = event.splits(splitSerializer.get());
+            if (splitSerializer == nullptr) {
+                throw std::runtime_error("splitSerializer is null");
+            }
+
+            newSplits = event.splits(splitSerializer.get());
+            std::vector<SplitT*> acceptedSplits;
+            acceptedSplits.reserve(newSplits.size());
+            for (auto* split : newSplits) {
+                if (split == nullptr) {
+                    throw std::runtime_error("null split");
+                }
+                const std::string splitId = split->splitId();
+                if (!registeredSplitIds_.insert(splitId).second) {
+                    delete split;
+                    continue;
+                }
+                acceptedSplits.push_back(split);
+            }
+            newSplits.swap(acceptedSplits);
+            if (newSplits.empty()) {
+                return;
+            }
+            if (sourceReader == nullptr) {
+                for (const auto &split: newSplits) {
+                    outputPendingSplits.push_back(split);
+                }
+                return;
+            }
             if (operatingMode == OperatingMode::OUTPUT_NOT_INITIALIZED) {
                 // For splits arrived before the main output is initialized, store them into the
                 // pending list. Outputs of these splits will be created once the main output is
@@ -276,16 +359,19 @@ public:
                 // Create output directly for new splits if the main output is already initialized.
                 createOutputForSplits(newSplits);
             }
-            
+
             sourceReader->addSplits(newSplits);
         } catch (const std::exception& e) {
-            INFO_RELEASE("Error: SourceOperator handleOperatorEvent AddSplitEvent ERROR - " + std::string(e.what()));
             throw std::runtime_error("Failed to deserialize the splits. " + std::string(e.what()));
         }
     }
 
     void handleOperatorEvent(NoMoreSplitsEvent& event)
     {
+        if (sourceReader == nullptr) {
+            pendingNoMoreSplits_ = true;
+            return;
+        }
         sourceReader->notifyNoMoreSplits();
     }
 
@@ -351,9 +437,11 @@ private:
     long latestWatermark;
     bool idle;
     bool isDataStream;
+    bool pendingNoMoreSplits_ = false;
     std::shared_ptr<TimestampsAndWatermarks> eventTimeLogic;
     OperatingMode operatingMode;
     std::vector<SplitT*> outputPendingSplits;
+    std::unordered_set<std::string> registeredSplitIds_;
     std::shared_ptr<WatermarkStrategy> watermarkStrategy;
     long currentMaxDesiredWatermark;
     std::shared_ptr<omnistream::CompletableFuture> finished;
@@ -398,10 +486,12 @@ private:
     void createOutputForSplits(const std::vector<SplitT*>& newSplits)
     {
         if (!currentMainOutput) {
-            INFO_RELEASE("no main output")
             throw std::runtime_error("no main output");
         }
         for (const auto& split : newSplits) {
+            if (split == nullptr) {
+                throw std::runtime_error("null split");
+            }
             currentMainOutput->CreateOutputForSplit(split->splitId());
         }
     }
@@ -510,6 +600,11 @@ private:
     };
 
     std::shared_ptr<SourceOperatorAvailabilityHelper> availabilityHelper = nullptr;
+
+    void initAvailabilityHelper()
+    {
+        availabilityHelper = std::make_shared<SourceOperatorAvailabilityHelper>();
+    }
 };
 
 template<typename SplitT>

@@ -33,6 +33,7 @@ enum class SerializerType {
     TUPLE = 13,/* use fields [type, elementType, fieldSerializers] */
     BYTE_PRIMITIVE_ARRAY = 14, /* use fields [type, valueSerializer] */
     ROW = 15, /* use fields [type, logicalType] */
+    BINARY_ROW = 16, /* use fields [type, fieldNames] */
 };
 
 struct SerializerJsonInfo {
@@ -48,7 +49,7 @@ struct SerializerJsonInfo {
     TypeSerializer *namespaceSerializer;
     // fieldSerializers和fieldNames pojo使用
     std::vector<TypeSerializer *> fieldSerializers;
-    std::vector <std::string> fieldNames;
+    std::vector<std::string> fieldNames;
     LogicalType* logicalType;
 
 public:
@@ -79,12 +80,12 @@ public:
         for (auto i = 0; i < fieldSerializers.size(); i++) {
             nlohmann::json fieldJson;
             auto fieldName = fieldNames[i];
-            auto fieIdSerializer = fieldSerializers[i];
-            if (fieIdSerializer == nullptr) {
+            auto fieldSerializer = fieldSerializers[i];
+            if (fieldSerializer == nullptr) {
                 continue;
             }
-            fieldJson["fieIdInfo:"] = fieldName;
-            fieldJson["fieIdName"] = fieIdSerializer->toJson();
+            fieldJson["fieldName"] = fieldName;
+            fieldJson["fieldSerializer"] = fieldSerializer->toJson();
             fieldTypesJson.push_back(std::move(fieldJson));
         }
         jsonObj["fields"] = fieldTypesJson.dump();

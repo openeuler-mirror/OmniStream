@@ -18,6 +18,7 @@
 #include <queue>
 #include <map>
 #include "SplitFetcherManager.h"
+#include "core/include/common.h"
 
 template <typename E, typename SplitT>
 class SingleThreadFetcherManager : public SplitFetcherManager<E, SplitT> {

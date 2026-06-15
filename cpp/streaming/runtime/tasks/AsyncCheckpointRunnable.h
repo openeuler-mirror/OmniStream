@@ -66,8 +66,36 @@ public:
           isTaskFinished(isTaskFinished),
           isTaskRunning(isTaskRunning),
           asyncCheckpointState(AsyncCheckpointState::RUNNING),
-          finishedFuture()
-    {}
+          finishedFuture() {}
+
+    ~AsyncCheckpointRunnable() {
+        if (operatorSnapshotsInProgress) {
+            const bool shouldCancel = asyncCheckpointState.load() == AsyncCheckpointState::RUNNING;
+            for (auto &entry : *operatorSnapshotsInProgress) {
+                if (entry.second == nullptr) {
+                    continue;
+                }
+                if (shouldCancel) {
+                    try {
+                        entry.second->cancel();
+                    } catch (...) {
+                    }
+                }
+                delete entry.second;
+                entry.second = nullptr;
+            }
+            delete operatorSnapshotsInProgress;
+            operatorSnapshotsInProgress = nullptr;
+        }
+        if (consumer) {
+            delete consumer;
+            consumer = nullptr;
+        }
+        if (asyncExceptionHandler) {
+            delete asyncExceptionHandler;
+            asyncExceptionHandler = nullptr;
+        }
+    }
 
     enum class AsyncCheckpointState {
         RUNNING,

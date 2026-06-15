@@ -9,7 +9,6 @@
 #include <nlohmann/json.hpp>
 #include "typeconstants.h"
 #include "StringTypeInfo.h"
-#include "table/types/logical/LogicalType.h"
 #include "table/types/logical/TimeWithoutTimeZoneType.h"
 #include "table/types/logical/TimestampWithoutTimeZoneType.h"
 #include "table/types/logical/TimestampWithTimeZoneType.h"
@@ -17,8 +16,9 @@
 #include "table/types/logical/RowType.h"
 #include "table/typeutils/InternalTypeInfo.h"
 #include "VoidTypeInfo.h"
-#include "types/logical/VarCharType.h"
 #include "TupleTypeInfo.h"
+#include "core/typeinfo/BinaryTypeInfo.h"
+#include "core/typeinfo/CustomTypeInfo.h"
 #include "core/typeinfo/PojoTypeInfo.h"
 #include "core/typeinfo/MapTypeInfo.h"
 #include "core/typeinfo/ListTypeInfo.h"
@@ -100,62 +100,59 @@ TypeInformation *TypeInfoFactory::createCommittableMessageInfo()
  */
 TypeInformation *TypeInfoFactory::createInternalTypeInfo(const json &rowType)
 {
-    using namespace omniruntime::type;
     if (!rowType.is_array()) {
-        THROW_LOGIC_EXCEPTION("Row type is  not JSON Array:" + rowType.dump(2));
+        THROW_LOGIC_EXCEPTION("Row type is not JSON Array:" + rowType.dump(2));
     }
 
     std::vector<omnistream::RowField> fields;
 
     // create RowType from json description
     // Iterate over each element of the array
+    int fieldIndex = 0;
     for (const auto &element : rowType) {
         // Access and process properties of each element
         LOG("type Name: " << element["type"]);
         string typeName = element["type"];
         int typeId = LogicalType::flinkTypeToOmniTypeId(typeName);
         LOG("type Id: " << typeId)
-        switch (typeId) {
-            case DataTypeId::OMNI_LONG:
-                fields.emplace_back("field", BasicLogicalType::BIGINT);
-                break;
-            case DataTypeId::OMNI_TIME_WITHOUT_TIME_ZONE: {
-                auto fieldType = new TimeWithoutTimeZoneType(true, element["precision"]);
-                fields.emplace_back("field", fieldType);
-                break;
-            }
-            case DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE: {
-                auto fieldType = new TimestampWithoutTimeZoneType(true, element["precision"]);
-                fields.emplace_back("field", fieldType);
-                break;
-            }
-            case DataTypeId::OMNI_TIMESTAMP_WITH_TIME_ZONE: {
-                auto fieldType = new TimestampWithTimeZoneType(true, element["precision"]);
-                fields.emplace_back("field", fieldType);
-                break;
-            }
-            case DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE: {
-                auto fieldType = new TimestampWithLocalTimeZoneType(true, element["precision"]);
-                fields.emplace_back("field", fieldType);
-                break;
-            }
-            case DataTypeId::OMNI_TIMESTAMP: {
-                auto fieldType = new TimestampWithLocalTimeZoneType(true, element["precision"]);
-                fields.emplace_back("field", fieldType);
-                break;
-            }
-            case DataTypeId::OMNI_VARCHAR: {
-                auto fieldType = new VarCharType(true, std::numeric_limits<int>::max());
-                fields.emplace_back("field", fieldType);
-                break;
-            }
-            default:
-                THROW_LOGIC_EXCEPTION("Unknown logical type " + typeName);
-        }
+        auto logicalType = BasicLogicalType::getTypeBy(typeId, element);
+        fields.emplace_back("f" + std::to_string(fieldIndex++), logicalType);
     }
     omnistream::RowType type(true, fields);
     auto typeInfo = InternalTypeInfo::ofRowType(&type);
     LOG(">>>> Return createInternalTypeInfo")
+    return typeInfo;
+}
+// rowType json example
+/**
+"fields": [
+      {
+        "description": "",
+        "fieldType": {
+          "nullable": true,
+          "type": "BIGINT"
+        },
+        "name": "col0"
+      }
+    ]
+*/
+TypeInformation *TypeInfoFactory::createInternalTypeInfoOfRow(const json& fields) {
+    if (!fields.is_array()) {
+        THROW_LOGIC_EXCEPTION("fields type is not JSON Array:" + fields.dump(2));
+    }
+    std::vector<omnistream::RowField> rowFields;
+    for (const auto &field : fields) {
+        string name = field["name"];
+        string description = field["description"];
+        const json& fieldType = field["fieldType"];
+        string type = fieldType["type"];
+        int typeId = LogicalType::flinkTypeToOmniTypeId(type);
+        auto logicalType = BasicLogicalType::getTypeBy(typeId, json::object());
+        rowFields.emplace_back(name, logicalType, description);
+    }
+    omnistream::RowType rowType(true, rowFields);
+    auto typeInfo = InternalTypeInfo::ofRowType(&rowType);
+
     return typeInfo;
 }
 
@@ -165,34 +162,8 @@ omnistream::RowType *TypeInfoFactory::createRowType(const std::vector<omniruntim
     std::vector<omnistream::RowField> typeInfo;
     for (size_t i = 0; i < inputRowType->size(); ++i) {
         std::string columnName = "col" + std::to_string(i);
-        BasicLogicalType *columnType;
-
-        switch (inputRowType->at(i)) {
-            case omniruntime::type::DataTypeId::OMNI_LONG:
-                columnType = BasicLogicalType::BIGINT;
-                break;
-            case omniruntime::type::DataTypeId::OMNI_INT:
-                columnType = BasicLogicalType::INTEGER;
-                break;
-            case omniruntime::type::DataTypeId::OMNI_DOUBLE:
-                columnType = BasicLogicalType::DOUBLE;
-                break;
-            case omniruntime::type::DataTypeId::OMNI_BOOLEAN:
-                columnType = BasicLogicalType::BOOLEAN;
-                break;
-            case omniruntime::type::DataTypeId::OMNI_VARCHAR:
-                columnType = BasicLogicalType::VARCHAR;
-                break;
-            case omniruntime::type::DataTypeId::OMNI_TIMESTAMP:
-            case omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE: {
-                columnType = BasicLogicalType::TIMESTAMP_WITHOUT_TIME_ZONE;
-                break;
-            }
-            default:
-                throw std::runtime_error("Unsupported DataTypeId in inputRowType");
-        }
-
-        typeInfo.emplace_back(columnName, columnType);
+        BasicLogicalType *logicalType = BasicLogicalType::getTypeBy(inputRowType->at(i), json::object());
+        typeInfo.emplace_back(columnName, logicalType);
     }
 
     return new omnistream::RowType(true, typeInfo);
@@ -250,16 +221,20 @@ TypeInformation *TypeInfoFactory::createDataStreamTypeInfo(const json &serialize
         }
         typeInformation = new TupleTypeInfo(types);
     } else if (serializerName == TYPE_NAME_POJO_SERIALIZER) {
-        std::vector<PojoField*> pojoFields;
         std::string clazz = serializerInfo["clazz"];
-        std::vector<std::string> fields = serializerInfo["fields"];
-        auto fieldSerializers = serializerInfo["fieldSerializers"];
-        pojoFields.reserve(fieldSerializers.size());
-        for (size_t i = 0; i < fieldSerializers.size(); i++) {
-            auto pojoField = new PojoField(fields[i], createDataStreamTypeInfo(fieldSerializers[i]));
-            pojoFields.push_back(pojoField);
+        if(CustomTypeInfo::isCustomType(clazz)) {
+            typeInformation = CustomTypeInfo::build(clazz);
+        } else {
+            std::vector<PojoField*> pojoFields;
+            std::vector<std::string> fields = serializerInfo["fields"];
+            auto fieldSerializers = serializerInfo["fieldSerializers"];
+            pojoFields.reserve(fieldSerializers.size());
+            for (size_t i = 0; i < fieldSerializers.size(); i++) {
+                auto pojoField = new PojoField(fields[i], createDataStreamTypeInfo(fieldSerializers[i]));
+                pojoFields.push_back(pojoField);
+            }
+            typeInformation = new PojoTypeInfo(clazz, pojoFields);
         }
-        typeInformation = new PojoTypeInfo(clazz, pojoFields);
     } else if (serializerName == TYPE_NAME_MAP_SERIALIZER) {
         auto keyTypeInfo = createDataStreamTypeInfo(serializerInfo["keySerializer"]);
         auto valueTypeInfo = createDataStreamTypeInfo(serializerInfo["valueSerializer"]);
@@ -290,17 +265,14 @@ TypeInformation *TypeInfoFactory::createDataStreamTypeInfo(const json &serialize
  				ClassRegistry::instance().newClass(namespaceInstanceClass));
     } else if (serializerName == TYPE_NAME_BYTE_PRIMITIVE_ARRAY_SERIALIZER) {
         typeInformation = new BytePrimitiveArrayTypeInfo();
-    }  else if (serializerName == TYPE_NAME_ROW_DATA_SERIALIZER) {
+    } else if (serializerName == TYPE_NAME_ROW_DATA_SERIALIZER) {
         const json& logicalType = serializerInfo["logicalType"];
-        json types = json::array();
-        if(logicalType.contains("fields") && logicalType["fields"].is_array()) {
-            for(const auto& field : logicalType["fields"]) {
-                types.push_back(field["fieldType"]);
-            }
-        }
-        typeInformation = TypeInfoFactory::createInternalTypeInfo(types);
+        typeInformation = TypeInfoFactory::createInternalTypeInfoOfRow(logicalType["fields"]);
+    }  else if (serializerName == TYPE_NAME_BINARY_ROW_DATA_SERIALIZER) {
+        std::vector<std::string> fields = serializerInfo["fields"];
+        typeInformation = BinaryTypeInfo::of(fields.size(), fields);
     } else {
-        THROW_RUNTIME_ERROR("invalid serializerName " + serializerName)
+        THROW_RUNTIME_ERROR("invalid serializerName " + serializerName);
     }
     return typeInformation;
 }

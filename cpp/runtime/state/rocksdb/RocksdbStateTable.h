@@ -113,22 +113,18 @@ public:
         auto it2 = kvStateInformation->find(cfName + "vb");
         if (it2 != kvStateInformation->end() && it2->second->columnFamilyHandle_) {
             VBTable = it2->second->columnFamilyHandle_;
-                        std::string estimatedKeysStr1;
-            if (db->GetProperty(VBTable, "rocksdb.estimate-num-keys", &estimatedKeysStr1)) {
-                INFO_RELEASE("rocksdbStateTable createTable cfName=" << cfName << "vb"
-                    << " estimatedNumKeys=" << estimatedKeysStr1);
-            }   
-            auto iterStart = std::chrono::steady_clock::now();
+
             std::unique_ptr<RocksIteratorWrapper> iterator = RocksDbOperationUtils::getRocksIterator(
                 db, VBTable, readOptions);
-            iterator->seekToFirst();
-            while (iterator->isValid()) {
-                vectorBatchId++;
-                iterator->next();
+            iterator->seekToLast();
+            if (iterator->isValid()) {
+                std::string key = iterator->key();
+                DataInputDeserializer in(key.data(), key.size(), 0);
+                in.readByte();
+                vectorBatchId = (long)in.readLong();
+                vectorBatchId ++;
             }
-            auto iterEnd = std::chrono::steady_clock::now();
-            auto iterMs = std::chrono::duration_cast<std::chrono::milliseconds>(iterEnd - iterStart).count();
-            INFO_RELEASE("rocksdbStateTable createTable iterMs=" << iterMs
+            INFO_RELEASE("rocksdbStateTable createTable"
                 << " cfName=" << cfName<<"vb vectorBatchId=" << vectorBatchId);
         } else {
             s = db->CreateColumnFamily(familyOptions, cfName + "vb", &VBTable);
@@ -617,10 +613,7 @@ protected:
     template<typename T>
     int computeKeyGroup(T id) const
     {
-        int keyGroup = MathUtils::murmurHash(std::hash<T>{}(id)) % keyContext->getNumberOfKeyGroups();
-        int rangeSize = keyContext->getKeyGroupRange()->getEndKeyGroup() -
-                        keyContext->getKeyGroupRange()->getStartKeyGroup() + 1;
-        return (keyGroup % rangeSize) + keyContext->getKeyGroupRange()->getStartKeyGroup();
+        return keyContext->getKeyGroupRange()->getStartKeyGroup();
     }
     TypeSerializer *keySerializer;
     // KeyGroupRange *keyGroupRange;

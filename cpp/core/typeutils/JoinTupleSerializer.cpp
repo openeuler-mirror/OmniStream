@@ -11,23 +11,22 @@
 
 #include "JoinTupleSerializer.h"
 
-void *JoinTupleSerializer::deserialize(DataInputView &source)
-{
-    // Use source api to avoid direct data source access for better maintainability and flexibility
-    int32_t first = source.readInt();
-    int64_t second = source.readLong();
-    std::tuple<int32_t, int64_t>* res = new std::tuple<int32_t, int64_t>(first, second);
+void *JoinTupleSerializer::deserialize(DataInputView &source) {
+    int32_t f0 = source.readInt();
+    int64_t f1 = source.readLong();
+
+    auto* res = new std::tuple<int32_t, int64_t>(f0, f1);
+
     return static_cast<void *>(res);
 }
 
-void JoinTupleSerializer::serialize(void *record, DataOutputSerializer &target)
-{
-    int32_t first = std::get<0>(*reinterpret_cast<std::tuple<int32_t, int64_t>*>(record));
-    target.writeInt(first);
-    int64_t second = std::get<1>(*reinterpret_cast<std::tuple<int32_t, int64_t>*>(record));
-    target.writeLong(second);
+void JoinTupleSerializer::serialize(void *record, DataOutputSerializer &target) {
+    auto* obj = reinterpret_cast<std::tuple<int32_t, int64_t>*>(record);
+    int32_t f0 = std::get<0>(*obj);
+    int64_t f1 = std::get<1>(*obj);
+
+    target.writeInt(f0);
+    target.writeLong(f1);
 }
 
-JoinTupleSerializer::JoinTupleSerializer() {};
-
-JoinTupleSerializer* JoinTupleSerializer::instance = new JoinTupleSerializer();
+JoinTupleSerializer* JoinTupleSerializer::INSTANCE = new JoinTupleSerializer();

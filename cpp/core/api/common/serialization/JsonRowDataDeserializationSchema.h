@@ -89,7 +89,12 @@ public:
             case omniruntime::type::DataTypeId::OMNI_VARCHAR: {
                 auto stringVec = reinterpret_cast<omniruntime::vec::Vector<
                         omniruntime::vec::LargeStringContainer<std::string_view>> *>(vectorBatch->Get(colIndex));
-                auto value = fieldIt->get<std::string>();
+                std::string value;
+                if (fieldIt->is_string()) {
+                    value = fieldIt->get<std::string>();
+                } else {
+                    value = fieldIt->dump(); // 支持数值类型隐式转换
+                }
                 std::string_view strView(value.data(), value.size());
                 stringVec->SetValue(rowIndex, strView);
                 break;

@@ -45,6 +45,9 @@ public:
     };
     virtual omnistream::VectorBatch *getVectorBatch(int batchId)
     {
+        if (batchId < 0 || static_cast<size_t>(batchId) >= vectorBatches.size()) {
+            THROW_LOGIC_EXCEPTION("batchId out of bounds: batchId = " << batchId << ", vectorBatches.size() = " << vectorBatches.size())
+        }
         return vectorBatches[batchId];
     }
     virtual void clearVectors(int64_t currentTimestamp)

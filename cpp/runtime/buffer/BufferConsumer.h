@@ -127,6 +127,8 @@ namespace omnistream {
         int getBufferType();
 
     protected:
+        Buffer* requireBuffer(const char* method) const;
+
         Buffer* buffer = nullptr;
         CachedPositionMarker *writerPosition = nullptr;
         int currentReaderPosition;

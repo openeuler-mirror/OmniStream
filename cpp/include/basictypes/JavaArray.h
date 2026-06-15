@@ -112,7 +112,7 @@ public:
 
     reference at(int index)
     {
-        if (index >= length) {
+        if (index < 0 || index >= length) {
             throw std::out_of_range("Index out of range");
         }
         return data_[index];
@@ -120,7 +120,7 @@ public:
 
     const_reference at(int index) const
     {
-        if (index >= length) {
+        if (index < 0 || index >= length) {
             throw std::out_of_range("Index out of range");
         }
         return data_[index];

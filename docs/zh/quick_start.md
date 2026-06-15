@@ -89,14 +89,16 @@
 1. 编译OmniStream前需要编译OmniAdaptor代码，编译命令如下。
 
     ```bash
-    cd omnistream/omniop-flink-extension/omni-flink-bundle
+    mkdir -p /opt/build %% cd /opt/build
+    git clone https://atomgit.com/openeuler/OmniStream.git
+    cd OmniStream/omniop-flink-extension/omni-flink-bundle
     mvn clean package -DskipTests
     ```
 
 2. OmniStream编译命令如下。
 
     ```bash
-    cd OmniStream/cpp
+    cd /opt/build/OmniStream/cpp
     mkdir build
     cd build
     cmake ..

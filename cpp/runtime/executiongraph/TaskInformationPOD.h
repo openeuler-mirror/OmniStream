@@ -219,6 +219,15 @@ public:
                 rocksdbStorePaths == other.rocksdbStorePaths;
     }
 
+    bool GetSplitWatermark() const
+    {
+        return splitWatermark;
+    }
+
+    void SetSplitWatermark(const bool &splitWatermark) {
+        this->splitWatermark = splitWatermark;
+    }
+
     int GetTaskType() const
     {
         return taskType;
@@ -280,7 +289,8 @@ public:
             {"checkpointConfig", taskInfo.checkpointConfig},
             {"executionCheckpointConfig", taskInfo.executionCheckpointConfig},
             {"localRecoveryConfig", taskInfo.localRecoveryConfig},
-            {"tmpWorkingDirectory", taskInfo.tmpWorkingDirectory}
+            {"tmpWorkingDirectory", taskInfo.tmpWorkingDirectory},
+            {"splitWatermark", taskInfo.splitWatermark}
         };
     }
 
@@ -317,6 +327,7 @@ public:
                 : ExecutionCheckpointConfigPOD();
         taskInfo.localRecoveryConfig = json.value("localRecoveryConfig", "");
         taskInfo.tmpWorkingDirectory = json.value("tmpWorkingDirectory", std::string("/tmp"));
+        taskInfo.splitWatermark = json.value("splitWatermark", false);
     }
 private:
     std::string taskName;
@@ -344,6 +355,7 @@ private:
     ExecutionCheckpointConfigPOD executionCheckpointConfig;
     std::string localRecoveryConfig;
     std::string tmpWorkingDirectory;
+    bool splitWatermark;
 };
 
 }  // namespace omnistream

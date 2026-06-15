@@ -9,8 +9,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef STREAM_TASK_ACTION_EXECUTOR_H
-#define STREAM_TASK_ACTION_EXECUTOR_H
+#pragma once
 
 #include <string>
 #include <exception>
@@ -56,19 +55,23 @@ namespace omnistream {
     public:
         SynchronizedStreamTaskActionExecutor() = default;
 
-        explicit SynchronizedStreamTaskActionExecutor(std::shared_ptr<std::mutex> mutex) : mutex_(mutex)
-        {
-        };
+        explicit SynchronizedStreamTaskActionExecutor(std::recursive_mutex* mutex) : mutex_(mutex) {}
         ~SynchronizedStreamTaskActionExecutor() override = default;
 
-        void run(ThrowingRunnable* runnable) override
-        {
-            std::lock_guard<std::mutex> lock(*mutex_);
+        static std::shared_ptr<SynchronizedStreamTaskActionExecutor> synchronizedExecutor() {
+            return std::make_shared<SynchronizedStreamTaskActionExecutor>();
+        }
+
+        static std::shared_ptr<SynchronizedStreamTaskActionExecutor> synchronizedExecutor(std::recursive_mutex* mutex) {
+            return std::make_shared<SynchronizedStreamTaskActionExecutor>(mutex);
+        }
+
+        void run(ThrowingRunnable* runnable) override {
+            std::lock_guard<std::recursive_mutex> lock(*mutex_);
             runnable->Run();
         }
 
-        std::shared_ptr<std::mutex> getMutex()
-        {
+        std::recursive_mutex* getMutex() {
             return mutex_;
         }
 
@@ -80,18 +83,6 @@ namespace omnistream {
         }
 
     private:
-        std::shared_ptr<std::mutex> mutex_;
+        std::recursive_mutex* mutex_;
     };
-
-    inline std::shared_ptr<SynchronizedStreamTaskActionExecutor> synchronizedExecutor()
-    {
-        return std::make_shared<SynchronizedStreamTaskActionExecutor>();
-    }
-
-    inline std::shared_ptr<SynchronizedStreamTaskActionExecutor> synchronizedExecutor(std::shared_ptr<std::mutex> mutex)
-    {
-        return std::make_shared<SynchronizedStreamTaskActionExecutor>(mutex);
-    }
 } // namespace omnistream
-
-#endif // STREAM_TASK_ACTION_EXECUTOR_H

@@ -185,6 +185,7 @@ namespace omnistream {
                                 << " to subPartition " << subPartitionInfo.toString()
                                 << ", index : " << index)
         }
+        flushAllSubpartitions(false);
     }
 
     std::shared_ptr<ResultSubpartitionView> BufferWritingResultPartition::createSubpartitionView(
@@ -216,7 +217,9 @@ namespace omnistream {
 
     void BufferWritingResultPartition::cancel()
     {
-        bufferPool->cancel();
+        if (bufferPool != nullptr) {
+            bufferPool->cancel();
+        }
     }
 
     void BufferWritingResultPartition::close()
@@ -411,6 +414,12 @@ namespace omnistream {
     BufferBuilder *BufferWritingResultPartition::requestNewBufferBuilderFromPool(
         int targetSubpartition)
     {
+        if (isReleased()) {
+            throw std::runtime_error("Partition is released.");
+        }
+        if (bufferPool == nullptr) {
+            throw std::runtime_error("Result partition buffer pool is null.");
+        }
         LOG("bufferPool->requestObjectBufferBuilder will running")
         BufferBuilder *bufferBuilder = bufferPool->requestBufferBuilder(targetSubpartition);
         if (bufferBuilder) {
@@ -422,7 +431,7 @@ namespace omnistream {
             bufferBuilder = bufferPool->requestBufferBuilderBlocking(targetSubpartition);
             return bufferBuilder;
         } catch (const std::exception &e) {
-            throw std::runtime_error("Interrupted while waiting for buffer");
+            throw std::runtime_error(std::string("Interrupted while waiting for buffer: ") + e.what());
         }
     }
 

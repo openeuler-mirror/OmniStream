@@ -441,7 +441,7 @@ SlicedUnsharedSliceAssigner::SlicedUnsharedSliceAssigner(int sliceEndIndex, Slic
 
 int64_t SlicedUnsharedSliceAssigner::getLastWindowEnd(int64_t sliceEnd) { return sliceEnd; }
 
-SliceAssigner* AssignerAtt::createSliceAssigner(const nlohmann::json parsedJson)
+SliceAssigner* AssignerAtt::createSliceAssigner(const nlohmann::json& parsedJson)
 {
     nlohmann::json windowing = parsedJson["window"];
     auto windowMsgStr =  windowing.get<std::string>();
@@ -457,15 +457,14 @@ SliceAssigner* AssignerAtt::createSliceAssigner(const nlohmann::json parsedJson)
     auto zonePtr = new omnistream::ZoneId(shiftTz);
     size_t windowTypeIndex = windowMsgStr.find('(');
     auto windowTypeStr = windowMsgStr.substr(0, windowTypeIndex);
-    std::string tempStr;
 
     SliceAssigner* sliceAssigner = nullptr;
-    if (windowTypeStr.compare("HOP") == 0) {
-        sliceAssigner = CreateHopSliceAssigner(windowMsgStr, rowtimeIndexVal, zonePtr);
-    } else if (windowTypeStr.compare("TUMBLE") == 0) {
-        sliceAssigner = CreateTumbleSliceAssigner(windowMsgStr, rowtimeIndexVal, zonePtr);
-    } else if (windowTypeStr.compare("CUMULATE") == 0) {
-        sliceAssigner = CreateCumlativeSliceAssigner(windowMsgStr, rowtimeIndexVal, zonePtr);
+    if (windowTypeStr == "HOP") {
+        sliceAssigner = CreateHopSliceAssigner(parsedJson, rowtimeIndexVal, zonePtr);
+    } else if (windowTypeStr == "TUMBLE") {
+        sliceAssigner = CreateTumbleSliceAssigner(parsedJson, rowtimeIndexVal, zonePtr);
+    } else if (windowTypeStr == "CUMULATE") {
+        sliceAssigner = CreateCumlativeSliceAssigner(parsedJson, rowtimeIndexVal, zonePtr);
     } else {
         // not support window type
         THROW_LOGIC_EXCEPTION("wrong slice assigner type passed")
@@ -485,87 +484,52 @@ SliceAssigner* AssignerAtt::createSliceAssigner(const nlohmann::json parsedJson)
     return sliceAssigner;
 }
 
-CumulativeSliceAssigner* AssignerAtt::CreateCumlativeSliceAssigner(std::string windowMsgStr, int rowtimeIndexVal,
-                                                                   omnistream::ZoneId* zonePtr)
-{
-    size_t index = windowMsgStr.find("max_size=[");
-    std::string tempStr = windowMsgStr.substr(index + 10);
-    std::string *tempStrptr = &tempStr;
-    auto maxSizeNum = stoll(getContentVal(tempStrptr));
-    index = windowMsgStr.find("step=[");
-    tempStr = windowMsgStr.substr(index + 6);
-    tempStrptr = &tempStr;
-    auto stepNum = stoll(getContentVal(tempStrptr));
-    index = windowMsgStr.find("offset=[");
-    auto offsetIsNull = index == std::string::npos;
+CumulativeSliceAssigner* AssignerAtt::CreateCumlativeSliceAssigner(const nlohmann::json& parsedJson, int rowtimeIndexVal,
+        omnistream::ZoneId* zonePtr) {
+    if (!parsedJson.contains("maxSize") || !parsedJson.contains("step")) {
+        THROW_LOGIC_EXCEPTION("maxSize or step must be specified")
+    }
+    auto maxSizeNum = parsedJson["maxSize"].get<int64_t>();
+    auto stepNum = parsedJson["step"].get<int64_t>();
     CumulativeSliceAssigner* sliceAssigner = SliceAssigners::SliceAssigners::cumulative(rowtimeIndexVal,
                                                                                         zonePtr,
                                                                                         maxSizeNum,
                                                                                         stepNum);
-    long offsetNum;
-    if (!offsetIsNull) {
-        tempStr = windowMsgStr.substr(index + 8);
-        tempStrptr = &tempStr;
-        offsetNum = stoll(getContentVal(tempStrptr));
+    if (parsedJson.contains("windowOffset")) {
+        auto offsetNum = parsedJson["windowOffset"].get<int64_t>();
         sliceAssigner = dynamic_cast<CumulativeSliceAssigner*>(sliceAssigner)->withOffset(offsetNum);
     }
     return sliceAssigner;
 }
 
-TumblingSliceAssigner* AssignerAtt::CreateTumbleSliceAssigner(std::string windowMsgStr, int rowtimeIndexVal,
-                                                              omnistream::ZoneId* zonePtr)
-{
-    size_t index = windowMsgStr.find("size=[");
-    std::string tempStr = windowMsgStr.substr(index + 6);
-    std::string *tempStrptr = &tempStr;
-    auto sizeNum = stoll(getContentVal(tempStrptr)) * (tempStr.find("ms") != std::string::npos ? 1 : 1000);
-    index = windowMsgStr.find("offset=[");
-    auto offsetIsNull = index == std::string::npos;
+TumblingSliceAssigner* AssignerAtt::CreateTumbleSliceAssigner(const nlohmann::json& parsedJson, int rowtimeIndexVal,
+        omnistream::ZoneId* zonePtr) {
+    if (!parsedJson.contains("windowSize")) {
+        THROW_LOGIC_EXCEPTION("windowSize must be specified")
+    }
+    auto sizeNum = parsedJson["windowSize"].get<int64_t>();
     TumblingSliceAssigner* sliceAssigner = SliceAssigners::SliceAssigners::tumbling(rowtimeIndexVal,
                                                                                     zonePtr, sizeNum);
-    long offsetNum;
-    if (!offsetIsNull) {
-        tempStr = windowMsgStr.substr(index + 8);
-        tempStrptr = &tempStr;
-        offsetNum = stoll(getContentVal(tempStrptr)) * (tempStr.find("ms") != std::string::npos ? 1 : 1000);
+    if (parsedJson.contains("windowOffset")) {
+        auto offsetNum = parsedJson["windowOffset"].get<int64_t>();
         sliceAssigner = dynamic_cast<TumblingSliceAssigner*>(sliceAssigner)->withOffset(offsetNum);
     }
     return sliceAssigner;
 }
 
-HoppingSliceAssigner* AssignerAtt::CreateHopSliceAssigner(std::string windowMsgStr, int rowtimeIndexVal,
-                                                          omnistream::ZoneId* zonePtr)
-{
-    size_t index = windowMsgStr.find("size=[");
-    std::string tempStr = windowMsgStr.substr(index + 6);
-    std::string *tempStrptr = &tempStr;
-    auto sizeNum = stoll(getContentVal(tempStrptr)) * (tempStr.find("ms") != std::string::npos ? 1 : 1000);
-    index = windowMsgStr.find("slide=[");
-    tempStr = windowMsgStr.substr(index + 7);
-    tempStrptr = &tempStr;
-    auto slideNum = stoll(getContentVal(tempStrptr)) * (tempStr.find("ms") != std::string::npos ? 1 : 1000);
-    index = windowMsgStr.find("offset=[");
-    auto offsetIsNull = index == std::string::npos;
+HoppingSliceAssigner* AssignerAtt::CreateHopSliceAssigner(const nlohmann::json& parsedJson, int rowtimeIndexVal,
+        omnistream::ZoneId* zonePtr) {
+    if (!parsedJson.contains("windowSize") || !parsedJson.contains("windowSlide")) {
+        THROW_LOGIC_EXCEPTION("windowSize or windowSlide must be specified")
+    }
+    auto sizeNum = parsedJson["windowSize"].get<int64_t>();
+    auto slideNum = parsedJson["windowSlide"].get<int64_t>();
     HoppingSliceAssigner* sliceAssigner = SliceAssigners::hopping(rowtimeIndexVal, zonePtr,
                                                                   sizeNum, slideNum);
-    long offsetNum;
-    if (!offsetIsNull) {
-        tempStr = windowMsgStr.substr(index + 8);
-        tempStrptr = &tempStr;
-        offsetNum = stoll(getContentVal(tempStrptr)) * (tempStr.find("ms") != std::string::npos ? 1 : 1000);
+    if (parsedJson.contains("windowOffset")) {
+        auto offsetNum = parsedJson["windowOffset"].get<int64_t>();
         sliceAssigner = sliceAssigner->withOffset(offsetNum);
     }
     return sliceAssigner;
-}
-
-std::string AssignerAtt::getContentVal(std::string *ptr)
-{
-    if (ptr == nullptr) {
-        return nullptr;
-    }
-    size_t index = ptr->find(" ");
-    auto tempstr = ptr->substr(0, index);
-//    std::cout << "value : " + tempstr << std::endl;
-    return tempstr;
 }
 

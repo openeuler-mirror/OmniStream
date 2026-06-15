@@ -24,7 +24,7 @@ public:
     int getVersion() const override ;
     std::vector<uint8_t> serialize(const KafkaPartitionSplit& split) override;
     KafkaPartitionSplit*  deserialize(int version, std::vector<uint8_t>& serialized) override;
-private:
+
     inline static const int CURRENT_VERSION = 0;
     inline static const int ONE_BYTE_LENGTH = 8;
     inline static const int TWO_BYTE_LENGTH = 16;

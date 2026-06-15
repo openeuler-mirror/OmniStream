@@ -11,6 +11,8 @@
 #ifndef OMNISTREAM_SUBTASKCHECKPOINTCOORDINATOR_H
 #define OMNISTREAM_SUBTASKCHECKPOINTCOORDINATOR_H
 
+#include <memory>
+
 #include "runtime/checkpoint/CheckpointMetaData.h"
 #include "runtime/checkpoint/CheckpointOptions.h"
 #include "runtime/checkpoint/CheckpointMetricsBuilder.h"
@@ -33,9 +35,9 @@ namespace omnistream {
         virtual std::shared_ptr<ChannelStateWriter> getChannelStateWriter() = 0;
 
         virtual void checkpointState(
-                CheckpointMetaData *metadata,
-                CheckpointOptions *options,
-                CheckpointMetricsBuilder *metrics,
+                std::shared_ptr<CheckpointMetaData> metadata,
+                std::shared_ptr<CheckpointOptions> options,
+                std::shared_ptr<CheckpointMetricsBuilder> metrics,
                 omnistream::OperatorChainV2 *operatorChain,
                 bool isTaskFinished,
                 std::shared_ptr<omnistream::Supplier<bool>> isRunning

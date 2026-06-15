@@ -106,7 +106,7 @@ ObjectBufferDataType ObjectBufferDataType::GetDataBufferType(bool hasPriority, s
         return ObjectBufferDataType::EVENT_BUFFER;
     }
 
-    CheckpointOptions *opts = barrier->GetCheckpointOptions();
+    auto opts = barrier->GetCheckpointOptions();
     if (opts->NeedsAlignment()) {
         if (opts->IsTimeoutable()) {
             return ObjectBufferDataType::TIMEOUTABLE_ALIGNED_CHECKPOINT_BARRIER;

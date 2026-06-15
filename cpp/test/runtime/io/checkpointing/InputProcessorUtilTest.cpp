@@ -21,8 +21,8 @@ using namespace omnistream;
 class MockCheckpointableTask : public CheckpointableTask {
 public:
     MOCK_METHOD(void, TriggerCheckpointOnBarrier,
-                (CheckpointMetaData* checkpointMetaData,
-                        CheckpointOptions* checkpointOptions, CheckpointMetricsBuilder* checkpointMetrics), (override));
+                (std::shared_ptr<CheckpointMetaData> checkpointMetaData,
+                        std::shared_ptr<CheckpointOptions> checkpointOptions, std::shared_ptr<CheckpointMetricsBuilder> checkpointMetrics), (override));
 
     MOCK_METHOD(void, abortCheckpointOnBarrier,
                 (long checkpointId, CheckpointException cause), (override));

@@ -20,93 +20,72 @@ void MinMaxWindowAggFunction::open(StateDataViewStore* store)
 
 void MinMaxWindowAggFunction::accumulate(RowData *accInput)
 {
-    bool inputIsNull = accInput->isNullAt(aggIdx);
-    int64_t fieldVal = inputIsNull ? limit : *(accInput->getLong(aggIdx));
-
-    if (inputIsNull) {
-        aggValue = valueIsNull ? limit : aggValue;
-    } else {
-        bool toUpdate = !valueIsNull && (aggOperator == MAX_FUNC ? fieldVal > aggValue : fieldVal < aggValue);
-        if (valueIsNull || toUpdate) {
-            aggValue = fieldVal;
-            valueIsNull = false;
-        }
+    if (accInput->isNullAt(aggIdx)) {
+        return;
     }
-    if (!countIsNull) {
-        aggCountValue++;
+
+    int64_t fieldVal = *(accInput->getLong(aggIdx));
+    bool toUpdate = !valueIsNull && (aggOperator == MAX_FUNC ? fieldVal > aggValue : fieldVal < aggValue);
+    if (valueIsNull || toUpdate) {
+        aggValue = fieldVal;
+        valueIsNull = false;
     }
 }
 
 void MinMaxWindowAggFunction::merge(long ns, RowData *otherAcc)
 {
-    bool inputIsNull = otherAcc->isNullAt(accIndex);
-    int64_t otherField = inputIsNull ? limit : *otherAcc->getLong(accIndex);
-    if (inputIsNull) {
-        aggValue = valueIsNull ? limit : aggValue;
-    } else {
-        bool toUpdate = !valueIsNull && (aggOperator == MAX_FUNC ? otherField > aggValue : otherField < aggValue);
-        if (valueIsNull || toUpdate) {
-            aggValue = otherField;
-            valueIsNull = false;
-        }
+    if (otherAcc->isNullAt(accIndex)) {
+        return;
     }
-    long countOther = otherAcc->isNullAt(countIdx) ? -1 : *otherAcc->getLong(countIdx);
-    if (!countIsNull) {
-        aggCountValue += countOther;
-    } else {
-        aggCountValue = -1;
+
+    int64_t otherField = *otherAcc->getLong(accIndex);
+    bool toUpdate = !valueIsNull && (aggOperator == MAX_FUNC ? otherField > aggValue : otherField < aggValue);
+    if (valueIsNull || toUpdate) {
+        aggValue = otherField;
+        valueIsNull = false;
     }
 }
 
 void MinMaxWindowAggFunction::setAccumulators(long ns, RowData *acc)
 {
-    valueIsNull = acc->isNullAt(accIndex);
-    aggValue = valueIsNull ? limit : *acc->getLong(accIndex);
-    countIsNull = acc->isNullAt(1);
-    aggCountValue = countIsNull ? -1 : *acc->getLong(countIdx);
+    this->currentAcc_ = acc;
+    if (currentAcc_->isNullAt(accIndex)) {
+        valueIsNull = true;
+    } else {
+        valueIsNull = false;
+        aggValue = *currentAcc_->getLong(accIndex);
+    }
 }
 
 RowData *MinMaxWindowAggFunction::getAccumulators()
 {
     LOG(">>>>Function getAccumulators")
-    BinaryRowData *currentAcc = BinaryRowData::createBinaryRowDataWithMem(2);
+   
     if (valueIsNull) {
-        currentAcc->setNullAt(accIndex);
+        reinterpret_cast<BinaryRowData*>(currentAcc_)->setNullAt(accIndex);
     } else {
-        currentAcc->setLong(accIndex, aggValue);
+        currentAcc_->setLong(accIndex, aggValue);
     }
-    if (countIsNull) {
-        currentAcc->setNullAt(countIdx);
-    } else {
-        currentAcc->setLong(countIdx, aggCountValue);
-    }
-    return currentAcc;
+    
+    return currentAcc_;
 }
 
 RowData *MinMaxWindowAggFunction::createAccumulators(int accumulatorArity)
 {
     LOG(">>>>create Accumulators")
-    BinaryRowData *result = BinaryRowData::createBinaryRowDataWithMem(accumulatorArity + 1);
-    result->setNullAt(0);
-    result->setLong(countIdx, static_cast<long>(0));
+    BinaryRowData *result = BinaryRowData::createBinaryRowDataWithMem(accumulatorArity);
+    result->setNullAt(accIndex);
     return result;
 }
 
 RowData *MinMaxWindowAggFunction::getValue(long ns)
 {
-    BinaryRowData *result;
-    int64_t startTime = sliceAssigner->getWindowStart(ns);
-    int length = 3;
-    result = BinaryRowData::createBinaryRowDataWithMem(length);
-    if (!valueIsNull) {
-        result->setLong(0, aggValue);
+    if (valueIsNull) {
+        reinterpret_cast<BinaryRowData*>(currentAcc_)->setNullAt(valueIndex);
     } else {
-        result->setLong(0, nullptr);
+        currentAcc_->setLong(valueIndex, aggValue);
     }
-    result->setLong(length - 2, startTime);
-    result->setLong(length - 1, ns);
-
-    return result;
+    return currentAcc_;
 }
 
 // 保持其他方法实现

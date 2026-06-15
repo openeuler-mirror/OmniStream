@@ -95,7 +95,7 @@ namespace omnistream {
                 typeId == omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE) {
                 rowSerializerCenter[OMNI_LONG](col, rowIndex, outRow, colIndex);
             } else {
-                throw std::runtime_error("extractRowData Data type not supported");
+                THROW_RUNTIME_ERROR("extractRowData Data type not supported: " << typeId);
             }
         }
         // Set the row kind using the row kinds stored in the batch.

@@ -25,6 +25,8 @@ public:
     // internalType  is mapped from java table internal type, which is for sql type
     static TypeInformation *createInternalTypeInfo(const nlohmann::json &rowType);
 
+    static TypeInformation *createInternalTypeInfoOfRow(const nlohmann::json& fields);
+
     // Tuple
     static TypeInformation *createTupleTypeInfo(const nlohmann::json &rowType);
 

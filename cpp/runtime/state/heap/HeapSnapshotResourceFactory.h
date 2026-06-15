@@ -102,10 +102,6 @@ private:
 
         collectKeyValueStateSnapshots(preparedData, checkpointId);
         collectPriorityQueueStateSnapshots(preparedData, checkpointId);
-        INFO_RELEASE("[OS-CP-heap-snapshot] checkpointId=" << checkpointId
-            << ", metaInfoCount=" << preparedData.metaInfoSnapshots.size()
-            << ", iteratorCount=" << preparedData.stateIterators.size()
-            << ", keyGroupPrefixBytes=" << preparedData.keyGroupPrefixBytes);
         return preparedData;
     }
 
@@ -165,10 +161,26 @@ private:
     {
         int kvStateId = 0;
         for (const auto &pair : *registeredKvStates_) {
-            // todo 可以看下是否要对VectorBatchStateTable做处理
+            const auto &stateName = pair.first;
             StateDescriptor *desc = std::get<1>(pair.second);
             uintptr_t stateTablePtr = std::get<0>(pair.second);
             auto nsBackendId = std::get<2>(pair.second);
+            // All vb state tables share the same type, handle uniformly before type dispatch
+            if (stateName.size() >= 2 && stateName.substr(stateName.size() - 2) == "vb") {
+                auto *vbTable = reinterpret_cast<CopyOnWriteStateTable<int, VoidNamespace,
+                    omnistream::VectorBatch *> *>(stateTablePtr);
+                auto *vbMetaInfo = vbTable->getMetaInfo();
+                preparedData.metaInfoSnapshots.push_back(vbMetaInfo->snapshot());
+                preparedData.stateIterators.push_back(
+                    std::make_unique<HeapSingleStateIterator<int, VoidNamespace, omnistream::VectorBatch *>>(
+                        vbTable,
+                        kvStateId,
+                        preparedData.keyGroupPrefixBytes,
+                        HeapSingleStateIterator<int, VoidNamespace, omnistream::VectorBatch *>::VbDataTag{}));
+                kvStateId++;
+                continue;
+            }
+
             try {
                 if (desc->getType() == StateDescriptor::Type::VALUE) {
                     auto dataId = desc->getBackendId();
@@ -218,6 +230,14 @@ private:
                         preparedData.metaInfoSnapshots.push_back(table->getMetaInfo()->snapshot());
                         preparedData.stateIterators.push_back(
                             std::make_unique<HeapSingleStateIterator<K, VoidNamespace, RowData *>>(
+                                table,
+                                kvStateId,
+                                preparedData.keyGroupPrefixBytes));
+                    } else if (dataId == BackendDataType::SET_LONG) {
+                        auto *table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, std::vector<long> *> *>(stateTablePtr);
+                        preparedData.metaInfoSnapshots.push_back(table->getMetaInfo()->snapshot());
+                        preparedData.stateIterators.push_back(
+                            std::make_unique<HeapSingleStateIterator<K, VoidNamespace, std::vector<long> *>>(
                                 table,
                                 kvStateId,
                                 preparedData.keyGroupPrefixBytes));

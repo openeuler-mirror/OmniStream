@@ -73,7 +73,9 @@ void PipelinedSubpartition::release()
     // Release all available buffers
     while (buffers.size() > 0) {
         std::shared_ptr<BufferConsumerWithPartialRecordLength> buffer = buffers.poll();
-        buffer->getBufferConsumer()->close();
+        if (buffer != nullptr && buffer->getBufferConsumer() != nullptr) {
+            buffer->getBufferConsumer()->close();
+        }
     }
     buffers.clear();
 
@@ -129,8 +131,8 @@ BufferAndBacklog* PipelinedSubpartition::pollBuffer()
             flushRequested  = false;
         }
         if (bufferConsumer->isFinished()) {
-            buffers.poll()->getBufferConsumer()->close();
             decreaseBuffersInBacklogUnsafe(bufferConsumer->isBuffer());
+            buffers.poll()->getBufferConsumer()->close();
         }
 
         if (receiverExclusiveBuffersPerChannel == 0 && bufferConsumer->isFinished()) {
@@ -219,7 +221,7 @@ AvailabilityWithBacklog PipelinedSubpartition::getAvailabilityAndBacklog(int num
 
 bool PipelinedSubpartition::isDataAvailableUnsafe()
 {
-    return !buffers.isEmpty() && (flushRequested || getNumberOfQueuedBuffers() > 0);
+    return !isBlocked && (flushRequested || getNumberOfQueuedBuffers() > 0);
 }
 
 ObjectBufferDataType PipelinedSubpartition::getNextBufferTypeUnsafe()
@@ -350,7 +352,8 @@ int PipelinedSubpartition::getNumberOfFinishedBuffers()
         INFO_RELEASE("last buffer is null")
         throw std::runtime_error("last buffer is null");
     }
-    if (numBuffers == 1 && buffers.peekLast()->getBufferConsumer()->isFinished()) {
+    auto bufferConsumer = buffer->getBufferConsumer();
+    if (numBuffers == 1 && bufferConsumer->isFinished()) {
         return 1;
     }
     return std::max(0, numBuffers - 1);
