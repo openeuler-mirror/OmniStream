@@ -26,10 +26,9 @@ Before installing OmniStream, prepare the hardware and software environments to 
 |Processor|New Kunpeng 920 processor model|
 |Memory size|384 GB (12 x 32 GB)|
 |Memory frequency|2666MHz|
-|Network|Service network: 10GE</br>Management network: 1GE|
-|Drive|System drive: 1 x RAID 0 (1 x 1.2 TB SAS HDD)</br>Data drive: 12 x RAID 0 (12 x 8 TB SATA HDD)|
+|Network|Service network: 10GE<br>Management network: 1GE|
+|Drive|System drive: 1 x RAID 0 (1 x 1.2 TB SAS HDD)<br>Data drive: 12 x RAID 0 (12 x 8 TB SATA HDD)|
 |RAID controller card|LSI SAS3508|
-
 
 **OS and Software Requirements<a name="en-us_topic_0000002228744546_section412511315357"></a>**
 
@@ -53,7 +52,6 @@ Before installing OmniStream, prepare the hardware and software environments to 
 |Xxhash| [0.8.2](https://github.com/Cyan4973/xxHash/tree/v0.8.2)                                               | Use it to provide the header file used for UDF translation.                                                                                                                                 |
 |nlohmann json| [3.11.3](https://github.com/nlohmann/json/tree/v3.11.3)                                              | Use it to provide the header file used for UDF translation.                                                                                                                                 |
 
-
 **Obtaining the Software Packages<a name="software"></a>**
 
 [**Table  3** OmniStream software packages](#software_packages) describes the OmniStream software packages and how to obtain them.
@@ -69,7 +67,6 @@ Before installing OmniStream, prepare the hardware and software environments to 
 |KSL| BoostKit-ksl_2.5.1.zip                           |Closed source|Regular expression acceleration library, which contains the ReplaceAll function for optimizing the basic string library and contains header files and a static library.| [Contact Huawei technical support.](https://www.hikunpeng.com/boostkit/library/system?subtab=Hyperscan&version=2.5.1)                                                                                                                                                |
 |Dependency Library| Dependency_library_Default |Open source|Library file on which OmniStream depends. Obtain the **Dependency_library_OmniStream.zip** file and decompress it. | [Link 1](https://gitcode.com/openeuler/OmniStream/releases/download/tag_BoostKit_26.0.RC1.B031_001/Dependency_library_OmniStream.zip)|
 
-
 **Verifying the Software Package Integrity<a name="en-us_topic_0000002228744546_section156811729327"></a>**
 
 After downloading a software package from the Kunpeng community, verify the software package to ensure that it is consistent with the original one on the website.
@@ -80,7 +77,6 @@ Verify a software package as follows:
 2. Obtain the  [verification tool and guide](https://support.huawei.com/enterprise/en/tool/pgp-verify-TL1000000054).
 3. Verify the package integrity by following the procedure described in the  _OpenPGP Signature Verification Guide_  obtained from the URL.
 
-
 ## Installing the Feature<a name="EN-US_TOPIC_0000002549064703"></a>
 
 ### Installing the Basic Environment<a name="EN-US_TOPIC_0000002549064713"></a>
@@ -89,7 +85,7 @@ Verify a software package as follows:
 
 Install Docker and deploy multiple containers to set up the Flink environment. If the server cannot connect to the Internet, configure a local yum repository according to your environment to ensure a smooth installation.
 
-1. Install Docker and import the basic image. For details, see  [Docker Installation Guide \(CentOS & openEuler\) ](https://www.hikunpeng.com/document/detail/en/kunpengcpfs/ecosystemEnable/Docker/kunpengdocker_03_0001.html).
+1. Install Docker and import the basic image. For details, see  [Docker Installation Guide \(CentOS & openEuler\)](https://www.hikunpeng.com/document/detail/en/kunpengcpfs/ecosystemEnable/Docker/kunpengdocker_03_0001.html).
 
     ```bash
     cd /opt
@@ -408,7 +404,6 @@ rm -rf /usr/bin/python
 ln -s /usr/bin/python3 /usr/bin/python
 ```
 
-
 #### Installing yaml-cpp<a name="EN-US_TOPIC_0000002548944719"></a>
 
 Install the yaml-cpp RPM package in the  **flink\_jm\_8c32g**  container.
@@ -417,7 +412,6 @@ Install the yaml-cpp RPM package in the  **flink\_jm\_8c32g**  container.
 wget --no-check-certificate https://repo.openeuler.org/openEuler-preview/openEuler-22.03-LTS-SP4-HP-preview/OS/aarch64/Packages/yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
 rpm -ivh yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
 ```
-
 
 #### Installing Necessary Dependencies<a name="EN-US_TOPIC_0000002517344930"></a>
 
@@ -453,7 +447,6 @@ Install other software packages on which the feature depends.
         ```
 
         After the preceding operations are complete, the  **flink/lib**  directory is scanned and the dependency package is loaded automatically during Flink startup. No additional installation commands are required.
-
 
 ### Installing OmniStream<a name="EN-US_TOPIC_0000002549064711"></a>
 
@@ -540,7 +533,8 @@ In independent deployment mode, you can install the precompiled OmniStream binar
     After the command is executed, the  **/opt/udf-trans-opt**  directory is automatically created.
 
     >![](public_sys-resources/icon-note.gif) **NOTE:** 
-    >If the  **/opt/udf-trans-opt**  directory is not created, run the following command to manually create it:
+    >If the  **/opt/udf-trans-opt**  directory is not created, run the following command to manually create it:    
+    >
     >```bash
     >mkdir /opt/udf-trans-opt
     >```
@@ -669,7 +663,6 @@ In independent deployment mode, you can install the precompiled OmniStream binar
         docker cp /usr/local/OmniStream/include flink_jm_8c32g:/opt/udf-trans-opt/libbasictypes/include/libboundscheck
         ```
 
-
 ### Installing AI4C<a name="EN-US_TOPIC_0000002517344924"></a>
 
 Upload the dependency package  **AI4C-1.0.4-8.aarch64.rpm**  obtained from  [**Table  3** OmniStream software packages](#software_packages)  to the  **/opt**  directory in the  **flink\_jm\_8c32g**  container.
@@ -680,7 +673,6 @@ docker exec -it flink_jm_8c32g bash
 cd /opt
 rpm -ivh --nodeps AI4C-1.0.4-8.aarch64.rpm
 ```
-
 
 ### Deploying into Containers<a name="EN-US_TOPIC_0000002549064715"></a>
 
@@ -749,6 +741,3 @@ After installing and configuring basic software on the physical machine, complet
         ```bash
         exit
         ```
-
-
-

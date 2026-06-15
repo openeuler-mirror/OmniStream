@@ -15,6 +15,7 @@
 #include "SplitFetcherTask.h"
 #include <unordered_map>
 #include "connector/kafka/source/reader/SplitReader.h"
+#include "core/include/common.h"
 
 template <typename E, typename SplitT>
 class AddSplitsTask : public SplitFetcherTask {
@@ -32,11 +33,22 @@ public:
 
     bool Run() override
     {
+        std::vector<SplitT*> acceptedSplits;
+        acceptedSplits.reserve(splitsToAdd.size());
         for (auto& s : splitsToAdd) {
-            // std::cout << "AddSplitsTask splitId:" << s->splitId() << std::endl;
-            assignedSplits.emplace(s->splitId(), s);
+            if (s == nullptr) {
+                continue;
+            }
+            const std::string splitId = s->splitId();
+            if (assignedSplits.find(splitId) != assignedSplits.end()) {
+                continue;
+            }
+            assignedSplits.emplace(splitId, s);
+            acceptedSplits.push_back(s);
         }
-        splitReader->handleSplitsChanges(splitsToAdd);
+        if (!acceptedSplits.empty()) {
+            splitReader->handleSplitsChanges(acceptedSplits);
+        }
         return true;
     }
 

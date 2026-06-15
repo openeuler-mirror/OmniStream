@@ -62,9 +62,9 @@ namespace omnistream {
         LOG(">>>>>>>> startAlignmentCheckpointId "<<startAlignmentCheckpointId)
         auto now = std::chrono::system_clock::now();
         auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
-        auto checkpointMetadata = new CheckpointMetaData(checkpointBarrier.GetId(),
+        auto checkpointMetadata = std::make_shared<CheckpointMetaData>(checkpointBarrier.GetId(),
             checkpointBarrier.GetTimestamp(), ms);
-        CheckpointMetricsBuilder* checkpointMetrics = new CheckpointMetricsBuilder();
+        auto checkpointMetrics = std::make_shared<CheckpointMetricsBuilder>();
         if (checkpointBarrier.GetId() == startAlignmentCheckpointId) {
             checkpointMetrics->SetAlignmentDurationNanos(latestAlignmentDurationNanos);
             checkpointMetrics->SetBytesProcessedDuringAlignment(latestBytesProcessedDuringAlignment);
@@ -75,8 +75,7 @@ namespace omnistream {
             checkpointMetrics->SetCheckpointStartDelayNanos(0);
         }
 
-        toNotifyOnCheckpoint->TriggerCheckpointOnBarrier(checkpointMetadata, checkpointBarrier.GetCheckpointOptions(),
-            checkpointMetrics);
+        toNotifyOnCheckpoint->TriggerCheckpointOnBarrier(checkpointMetadata, checkpointBarrier.GetCheckpointOptions(), checkpointMetrics);
     }
 
     void CheckpointBarrierHandler::NotifyAbortOnCancellationBarrier(int64_t checkpointId)
@@ -100,7 +99,7 @@ namespace omnistream {
     {
         const auto i = 1000000;
         latestCheckpointStartDelayNanos = i * std::max(int64_t(0),
-            clock.RelativeTimeMillis() - checkpointCreationTimestamp);
+            clock.AbsoluteTimeMillis() - checkpointCreationTimestamp);
         ResetAlignment();
         startOfAlignmentTimestamp = clock.RelativeTimeNanos();
         startAlignmentCheckpointId = checkpointId;

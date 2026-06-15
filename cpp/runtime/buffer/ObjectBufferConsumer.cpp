@@ -64,10 +64,11 @@ Buffer* ObjectBufferConsumer::build()
 VectorBatchBuffer* ObjectBufferConsumer::buildVectorBatchBuffer()
 {
     LOG_TRACE("Starting Build...")
-    LOG_TRACE("buffer internal " << buffer->ToDebugString(false))
-    if (buffer->isBuffer()) {
+    Buffer* rawBuffer = requireBuffer("ObjectBufferConsumer::buildVectorBatchBuffer");
+    LOG_TRACE("buffer internal " << rawBuffer->ToDebugString(false))
+    if (rawBuffer->isBuffer()) {
         // vector batch
-        VectorBatchBuffer* vbbuffer = dynamic_cast<VectorBatchBuffer*>(buffer);
+        VectorBatchBuffer* vbbuffer = dynamic_cast<VectorBatchBuffer*>(rawBuffer);
         writerPosition->update();
         int cachedWriterPosition = writerPosition->getCached();
         LOG("ObjectBufferConsumer::build() before get slice")
@@ -83,7 +84,7 @@ VectorBatchBuffer* ObjectBufferConsumer::buildVectorBatchBuffer()
     } else {
          // event buffer
          LOG_TRACE("build event  buffer")
-         auto vbbuffer = dynamic_cast<VectorBatchBuffer*>(buffer);
+         auto vbbuffer = dynamic_cast<VectorBatchBuffer*>(rawBuffer);
          writerPosition->update();
          int cachedWriterPosition = writerPosition->getCached();
          LOG("ObjectBufferConsumer::build() before get slice")
@@ -103,7 +104,8 @@ VectorBatchBuffer* ObjectBufferConsumer::buildVectorBatchBuffer()
 
 bool ObjectBufferConsumer::isStartOfDataBuffer() const
 {
-    return buffer->GetDataType() == ObjectBufferDataType::DATA_BUFFER && currentReaderPosition == 0;
+    return requireBuffer("ObjectBufferConsumer::isStartOfDataBuffer")->GetDataType() ==
+        ObjectBufferDataType::DATA_BUFFER && currentReaderPosition == 0;
 }
 
 

@@ -546,16 +546,16 @@ namespace omnistream {
             }
             if constexpr (std::is_same_v<ValueT, Object*>) {
                 Object *oldValue = static_cast<Object*>(EMH_VAL(_pairs, bucket));
-                if (oldValue != nullptr) {
-                    oldValue->putRefCount();
-                }
-            }
-            EMH_VAL(_pairs, bucket) = value;
-            if constexpr (std::is_same_v<ValueT, Object*>) {
-                Object *newValue = static_cast<Object*>(EMH_VAL(_pairs, bucket));
+                Object *newValue = static_cast<Object*>(value);
                 if (newValue != nullptr) {
                     newValue->getRefCount();
                 }
+                EMH_VAL(_pairs, bucket) = value;
+                if (oldValue != nullptr) {
+                    oldValue->putRefCount();
+                }
+            } else {
+                EMH_VAL(_pairs, bucket) = value;
             }
         }
 
@@ -566,9 +566,34 @@ namespace omnistream {
             bool isempty;
             const auto bucket = find_or_allocate(key, nmspace, isempty);
             if (isempty) {
-                EMH_NEW(std::move(key), std::move(ValueT()), std::move(nmspace), bucket, stateMapVersion);
+                if constexpr (NeedClone<KeyT>::value) {
+                    if constexpr (std::is_same<KeyT, Object*>::value) {
+                        Object *cloned = (key != nullptr) ? reinterpret_cast<Object *>(key)->clone() : nullptr;
+                        EMH_NEW(cloned, std::move(ValueT()), std::move(nmspace), bucket, stateMapVersion);
+                    }
+
+                    if constexpr (std::is_same<KeyT, BinaryRowData*>::value || std::is_same<KeyT, RowData*>::value) {
+                        BinaryRowData *cloned = (key != nullptr) ? reinterpret_cast<BinaryRowData*>
+                            (reinterpret_cast<BinaryRowData *>(key)->copy()) : nullptr;
+                        EMH_NEW(cloned, std::move(ValueT()), std::move(nmspace), bucket, stateMapVersion);
+                    }
+                } else {
+                    EMH_NEW(std::move(key), std::move(ValueT()), std::move(nmspace), bucket, stateMapVersion);
+                }
             }
-            EMH_VAL(_pairs, bucket) = std::move(value);
+            if constexpr (std::is_same_v<ValueT, Object*>) {
+                Object *oldValue = static_cast<Object*>(EMH_VAL(_pairs, bucket));
+                Object *newValue = static_cast<Object*>(value);
+                if (newValue != nullptr) {
+                    newValue->getRefCount();
+                }
+                EMH_VAL(_pairs, bucket) = std::move(value);
+                if (oldValue != nullptr) {
+                    oldValue->putRefCount();
+                }
+            } else {
+                EMH_VAL(_pairs, bucket) = std::move(value);
+            }
         }
         ValueT putAndGetOld(const KeyT &key, const N &nameSpace, const ValueT &state) override
         {

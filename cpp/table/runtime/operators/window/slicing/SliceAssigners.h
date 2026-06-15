@@ -405,13 +405,12 @@ inline std::string ResolveShiftTimeZoneId(SliceAssigner *assigner)
 
 class AssignerAtt {
 public:
-    static SliceAssigner* createSliceAssigner(const nlohmann::json parsedJson);
-    static std::string getContentVal(std::string *ptr);
-    static HoppingSliceAssigner* CreateHopSliceAssigner(std::string windowMsgStr, int rowtimeIndexVal,
+    static SliceAssigner* createSliceAssigner(const nlohmann::json& parsedJson);
+    static HoppingSliceAssigner* CreateHopSliceAssigner(const nlohmann::json& parsedJson, int rowtimeIndexVal,
                                                         omnistream::ZoneId* zonePtr);
-    static TumblingSliceAssigner* CreateTumbleSliceAssigner(std::string windowMsgStr, int rowtimeIndexVal,
+    static TumblingSliceAssigner* CreateTumbleSliceAssigner(const nlohmann::json& parsedJson, int rowtimeIndexVal,
                                                             omnistream::ZoneId* zonePtr);
-    static CumulativeSliceAssigner* CreateCumlativeSliceAssigner(std::string windowMsgStr, int rowtimeIndexVal,
+    static CumulativeSliceAssigner* CreateCumlativeSliceAssigner(const nlohmann::json& parsedJson, int rowtimeIndexVal,
                                                                  omnistream::ZoneId* zonePtr);
 };
 

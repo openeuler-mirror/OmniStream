@@ -35,7 +35,7 @@
 
 namespace fs = std::filesystem;
 
-long parseDurationMs(const std::string &durationStr);
+int64_t parseDurationMs(const std::string &durationStr);
 
 /**
  * Message sent from upstream writer tasks to the PartitionCommitter.
@@ -106,7 +106,7 @@ private:
     std::string basePath;
     std::vector<std::string> partitionKeys;
     std::vector<int> partitionIndexes;
-    long commitDelayMs;
+    int64_t commitDelayMs;
     std::string triggerType;
     std::string policyKind;
     std::string tableName;
@@ -117,7 +117,7 @@ private:
     std::set<std::string> committedPartitions;
 
     // ---- partition-time trigger mode state (legacy) ----
-    std::map<std::string, long> pendingPartitionsLegacy;
+    std::map<std::string, int64_t> pendingPartitionsLegacy;
 
     // ---- Flink-style task coordination ----
     std::unique_ptr<PartitionCommitTrigger> trigger_;
@@ -127,7 +127,7 @@ private:
     // ---- helpers ----
     void parseConfig(const nlohmann::json &config);
     std::string extractPartitionPath(omnistream::VectorBatch *batch, int rowId);
-    long extractPartitionTime(omnistream::VectorBatch *batch, int rowId);
+    int64_t extractPartitionTime(omnistream::VectorBatch *batch, int rowId);
 
     void scanExistingPartitions();
     bool hasPartitionFiles(const std::string &dirPath);

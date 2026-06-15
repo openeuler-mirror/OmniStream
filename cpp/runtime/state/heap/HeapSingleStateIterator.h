@@ -14,6 +14,7 @@
 #include <vector>
 #include <cstdint>
 #include <memory>
+#include <type_traits>
 #include "runtime/state/rocksdb/iterator/SingleStateIterator.h"
 #include "runtime/state/CompositeKeySerializationUtils.h"
 #include "core/memory/DataOutputSerializer.h"
@@ -21,6 +22,7 @@
 #include "core/typeutils/MapSerializer.h"
 #include "core/typeutils/ListSerializer.h"
 #include "core/typeutils/LongSerializer.h"
+#include "basictypes/Object.h"
 #include "StateTable.h"
 #include "CopyOnWriteStateMap.h"
 #include "table/utils/VectorBatchSerializationUtils.h"
@@ -104,6 +106,11 @@ public:
         return kvStateId_;
     }
 
+    size_t getEntryCount() const override
+    {
+        return entries_.size();
+    }
+
     void close() override
     {
         entries_.clear();
@@ -152,6 +159,7 @@ private:
                 }
                 return false;
             });
+
     }
 
     void collectVbEntries()
@@ -243,9 +251,78 @@ private:
     // Taking a snapshot of all entries BEFORE serializing avoids iterator invalidation
     // if the underlying CopyOnWriteStateMap is rehashed (e.g. by a concurrent put()).
     struct RawSnapshotEntry {
+        RawSnapshotEntry(const K &snapshotKey, const N &snapshotNamespace, const S &snapshotValue)
+            : key(snapshotKey), nmspace(snapshotNamespace), value(snapshotValue), ownsRefs_(true)
+        {
+            retainObjectRef(key);
+            retainObjectRef(nmspace);
+            retainObjectRef(value);
+        }
+
+        RawSnapshotEntry(const RawSnapshotEntry&) = delete;
+        RawSnapshotEntry& operator=(const RawSnapshotEntry&) = delete;
+
+        RawSnapshotEntry(RawSnapshotEntry&& other) noexcept
+            : key(other.key), nmspace(other.nmspace), value(other.value), ownsRefs_(other.ownsRefs_)
+        {
+            other.ownsRefs_ = false;
+        }
+
+        RawSnapshotEntry& operator=(RawSnapshotEntry&& other) noexcept
+        {
+            if (this != &other) {
+                releaseRefs();
+                key = other.key;
+                nmspace = other.nmspace;
+                value = other.value;
+                ownsRefs_ = other.ownsRefs_;
+                other.ownsRefs_ = false;
+            }
+            return *this;
+        }
+
+        ~RawSnapshotEntry()
+        {
+            releaseRefs();
+        }
+
         K key;
         N nmspace;
         S value;
+
+    private:
+        template<typename T>
+        static void retainObjectRef(const T &ptr)
+        {
+            if constexpr (std::is_same_v<std::decay_t<T>, Object*>) {
+                if (ptr != nullptr) {
+                    ptr->getRefCount();
+                }
+            }
+        }
+
+        template<typename T>
+        static void releaseObjectRef(const T &ptr)
+        {
+            if constexpr (std::is_same_v<std::decay_t<T>, Object*>) {
+                if (ptr != nullptr) {
+                    ptr->putRefCount();
+                }
+            }
+        }
+
+        void releaseRefs()
+        {
+            if (!ownsRefs_) {
+                return;
+            }
+            releaseObjectRef(key);
+            releaseObjectRef(nmspace);
+            releaseObjectRef(value);
+            ownsRefs_ = false;
+        }
+
+        bool ownsRefs_;
     };
 
     void serializeStateMap(
@@ -267,7 +344,7 @@ private:
         std::vector<RawSnapshotEntry> snapshot;
         snapshot.reserve(cowMap->size());
         for (auto it = cowMap->begin(); it != cowMap->end(); ++it) {
-            snapshot.push_back({it->first, it->third, it->second});
+            snapshot.emplace_back(it->first, it->third, it->second);
         }
 
         // Phase 2: serialize from the stable local snapshot

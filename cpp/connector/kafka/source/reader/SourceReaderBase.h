@@ -22,6 +22,9 @@
 #include "SplitContext.h"
 #include "connector/kafka/source/split/KafkaPartitionSplitState.h"
 #include "connector/kafka/bind_core_manager.h"
+#include "core/include/common.h"
+#include <algorithm>
+#include <climits>
 
 template <typename E, typename SplitT, typename SplitStateT>
 class SourceReaderBase : public SourceReader<SplitT> {
@@ -122,10 +125,12 @@ public:
     // 对拆分状态进行快照
     std::vector<KafkaPartitionSplit> snapshotState(long checkpointId)  override
     {
+        (void)checkpointId;
         std::vector<KafkaPartitionSplit> splits;
         for (const auto& [splitId, splitContext] : this->splitStates) {
             if (splitContext->state->getCurrentOffset() >= 0) {
-                splits.push_back(splitContext->state->toKafkaPartitionSplit());
+                KafkaPartitionSplit split = splitContext->state->toKafkaPartitionSplit();
+                splits.push_back(split);
             }
         }
         return splits;
@@ -144,14 +149,32 @@ public:
     // 添加拆分
     void addSplits(std::vector<SplitT*>& splits) override
     {
-        LOG("Adding split(s) to reader");
-        // Initialize the state for each split.
-        for (const auto& s : splits) {
-            const std::string &splitId = s->splitId();
-            splitStates[splitId] = new SplitContext(splitId, initializedState(s));
+        if (splitFetcherManager == nullptr) {
+            THROW_RUNTIME_ERROR("SourceReaderBase addSplits called with null splitFetcherManager.");
         }
-        // Hand over the splits to the split fetcher to start fetch.
-        splitFetcherManager->addSplits(splits);
+
+        std::vector<SplitT*> splitsToAdd;
+        splitsToAdd.reserve(splits.size());
+
+        // Initialize the state for each new split.
+        for (const auto& s : splits) {
+            if (s == nullptr) {
+                continue;
+            }
+
+            const std::string splitId = s->splitId();
+            if (splitStates.find(splitId) != splitStates.end()) {
+                continue;
+            }
+
+            splitStates.emplace(splitId, new SplitContext(splitId, initializedState(s)));
+            splitsToAdd.push_back(s);
+        }
+
+        // Hand over only new splits to the split fetcher to start fetch.
+        if (!splitsToAdd.empty()) {
+            splitFetcherManager->addSplits(splitsToAdd);
+        }
     }
 
     // 通知没有更多拆分

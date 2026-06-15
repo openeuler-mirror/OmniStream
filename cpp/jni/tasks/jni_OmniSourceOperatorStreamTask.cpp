@@ -10,23 +10,20 @@
  */
 
 #include "com_huawei_omniruntime_flink_runtime_tasks_OmniSourceOperatorStreamTaskV2.h"
-#include "streaming/runtime/tasks/StreamTask.h"
+#include "runtime/taskmanager/OmniTask.h"
 
-#include "streaming/api/operators/SourceOperator.h"
-
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_tasks_OmniSourceOperatorStreamTaskV2_getNativeSourceOperator
-        (JNIEnv *, jclass, jlong omniStreamTaskRef)
+JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_tasks_OmniSourceOperatorStreamTaskV2_dispatchOperatorEvent(
+    JNIEnv *env, jclass, jlong nativeTask, jstring operatorId, jstring eventDesc)
 {
-    auto *pTask = reinterpret_cast<omnistream::datastream::StreamTask *>(omniStreamTaskRef);
-    StreamOperator *sourceOperator = pTask->getMainOperator();
-    return reinterpret_cast<long>(sourceOperator);
-}
+    auto *task = reinterpret_cast<omnistream::OmniTask *>(nativeTask);
 
-JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_tasks_OmniSourceOperatorStreamTaskV2_handleOperatorEvent(JNIEnv *env, jclass, jlong omniSourceOperatorRef, jstring eventDesc)
-{
-    auto *pSource = reinterpret_cast<SourceOperator<>*>(omniSourceOperatorRef);
-    const char *cStrTDD = (env)->GetStringUTFChars(eventDesc, 0);
-    std::string eventString(cStrTDD);
-    pSource->handleOperatorEvent(eventString);
-    (env)->ReleaseStringUTFChars(eventDesc, cStrTDD);
+    const char *eventCharArray = env->GetStringUTFChars(eventDesc, nullptr);
+    std::string eventString(eventCharArray);
+    env->ReleaseStringUTFChars(eventDesc, eventCharArray);
+
+    const char *operatorIdCharArray = env->GetStringUTFChars(operatorId, nullptr);
+    std::string operatorIdString(operatorIdCharArray);
+    env->ReleaseStringUTFChars(operatorId, operatorIdCharArray);
+
+    task->dispatchOperatorEvent(operatorIdString, eventString);
 }

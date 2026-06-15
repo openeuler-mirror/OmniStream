@@ -112,7 +112,7 @@ namespace omnistream {
             }
 
             // Serialize the announced event (currently we only support announced CheckpointBarrier).
-            MemorySegment* announcedSeg = ToSerializedEvent(ann->GetAnnouncedEvent());
+            std::unique_ptr<MemorySegment> announcedSeg(ToSerializedEvent(ann->GetAnnouncedEvent()));
             int byteSize = 4 /*type*/ + 4 /*sequenceNumber*/ + announcedSeg->getSize();
 
             ByteBuffer byteBuffer = ByteBuffer(byteSize);
@@ -259,7 +259,7 @@ namespace omnistream {
         std::shared_ptr<CheckpointBarrier> checkpointBarrier)
     {
         int byteSize = 38;
-        CheckpointOptions* checkpointOptions = checkpointBarrier->GetCheckpointOptions();
+        auto checkpointOptions = checkpointBarrier->GetCheckpointOptions();
         std::shared_ptr<std::vector<uint8_t>> reference =
             checkpointOptions->GetTargetLocation()->IsDefaultReference()
                 ? nullptr
@@ -362,10 +362,14 @@ namespace omnistream {
         // Read the alignment timeout
         int64_t alignmentTimeout = buffer.getLong();
         // Build the CheckpointOptions instance
-        CheckpointOptions* parsedOptions = new CheckpointOptions(snapshotType, locationRef, alignmentType, alignmentTimeout);
+        auto parsedOptions = std::make_shared<CheckpointOptions>(snapshotType, locationRef, alignmentType, alignmentTimeout);
         CheckpointOptions* runtimeOptions = parsedOptions->ToRuntimeAlignedNoTimeout();
+        std::shared_ptr<CheckpointOptions> checkpointOptions =
+            runtimeOptions == parsedOptions.get()
+                ? parsedOptions
+                : std::shared_ptr<CheckpointOptions>(runtimeOptions);
         // Construct and return the CheckpointBarrier
-        return std::make_shared<CheckpointBarrier>(id, timestamp, runtimeOptions);
+        return std::make_shared<CheckpointBarrier>(id, timestamp, checkpointOptions);
     }
 
     SnapshotType* EventSerializer::DecodeSavepointType(uint8_t checkpointTypeCode, ByteBuffer& buffer)

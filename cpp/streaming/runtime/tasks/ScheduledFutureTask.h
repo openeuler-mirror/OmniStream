@@ -14,6 +14,7 @@
 
 
 #include "core/utils/threads/CompletableFuture.h"
+#include <atomic>
 
 class ScheduledFutureTask {
 public:
@@ -32,6 +33,8 @@ public:
 
     bool IsPeriodic() const;
 
+    bool IsCancelled() const;
+
     bool operator<(const ScheduledFutureTask& other) const {
         // smaller time has higher priority
         return time > other.time;
@@ -40,7 +43,7 @@ private:
     long time;
     const long period;
     omnistream::Runnable* outerTask;
-    bool stop = false;
+    std::atomic<bool> stop = false;
 };
 
 

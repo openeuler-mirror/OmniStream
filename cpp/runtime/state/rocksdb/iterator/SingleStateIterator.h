@@ -27,6 +27,7 @@ public:
     virtual std::vector<int8_t> key() const = 0;
     virtual std::vector<int8_t> value() const = 0;
     virtual int getKvStateId() const = 0;
+    virtual size_t getEntryCount() const { return 0; }
     virtual void close() = 0;
 };
 

@@ -103,9 +103,9 @@ namespace omnistream::runtime {
         ~SubtaskCheckpointCoordinatorImpl();
 
         void checkpointState(
-                CheckpointMetaData *metadata,
-                CheckpointOptions *options,
-                CheckpointMetricsBuilder *metrics,
+                std::shared_ptr<CheckpointMetaData> metadata,
+                std::shared_ptr<CheckpointOptions> options,
+                std::shared_ptr<CheckpointMetricsBuilder> metrics,
                 omnistream::OperatorChainV2 *operatorChain,
                 bool isTaskFinished,
                 std::shared_ptr<omnistream::Supplier<bool>> isRunning
@@ -215,17 +215,17 @@ namespace omnistream::runtime {
 
         bool takeSnapshotSync(
                 std::unordered_map<OperatorID, OperatorSnapshotFutures *> *operatorSnapshotsInProgress,
-                CheckpointMetaData *checkpointMetaData,
-                CheckpointMetricsBuilder *checkpointMetrics,
-                CheckpointOptions *checkpointOptions,
+                std::shared_ptr<CheckpointMetaData> checkpointMetaData,
+                std::shared_ptr<CheckpointMetricsBuilder> checkpointMetrics,
+                std::shared_ptr<CheckpointOptions> checkpointOptions,
                 omnistream::OperatorChainV2 *operatorChain,
                 std::shared_ptr<omnistream::Supplier<bool>> isRunning
         );
 
         void cleanup(
                 std::unordered_map<OperatorID, OperatorSnapshotFutures *> *operatorSnapshotsInProgress,
-                CheckpointMetaData *metadata,
-                CheckpointMetricsBuilder *metrics,
+                std::shared_ptr<CheckpointMetaData> metadata,
+                std::shared_ptr<CheckpointMetricsBuilder> metrics,
                 std::exception ex
         );
 
@@ -242,12 +242,12 @@ namespace omnistream::runtime {
 
         void finishAndReportAsync(
                 std::unordered_map<OperatorID, OperatorSnapshotFutures *> *operatorSnapshotsInProgress,
-                CheckpointMetaData *metadata,
-                CheckpointMetricsBuilder *metrics,
+                std::shared_ptr<CheckpointMetaData> metadata,
+                std::shared_ptr<CheckpointMetricsBuilder> metrics,
                 bool istaskDeployedAsFinished,
                 bool isTaskFinished,
                 std::shared_ptr<omnistream::Supplier<bool>> isRunning,
-                CheckpointOptions *options
+                std::shared_ptr<CheckpointOptions> options
         );
 
         static std::shared_ptr<ChannelStateWriter> openChannelStateWriter(

@@ -307,16 +307,20 @@ int ChannelStateByteBufferImpl::writeBytes(std::ifstream &input, int bytesToRead
 int ChannelStateByteBufferImpl::writeBytes2(std::shared_ptr<ByteStateHandleInputStream> &input, int bytesToRead) //
 {
     if (!input) {
-        LOG("zzt ByteStateHandleInputStream is null.")
-        //        throw std::invalid_argument("ByteStateHandleInputStream is null");
+        INFO_RELEASE("Exception: ByteStateHandleInputStream is null.");
+        throw std::invalid_argument("ByteStateHandleInputStream is null");
     }
 
-    //    auto memoryBuilder = std::dynamic_pointer_cast<omnistream::datastream::MemoryBufferBuilder>(bufferBuilder_);
-    auto memoryBuilder = (omnistream::datastream::MemoryBufferBuilder *)(bufferBuilder_);
+    if (!bufferBuilder_) {
+        INFO_RELEASE("Exception: ChannelStateByteBufferImpl buffer builder is null.");
+        throw std::invalid_argument("ChannelStateByteBufferImpl buffer builder is null");
+    }
+
+    auto memoryBuilder = dynamic_cast<omnistream::datastream::MemoryBufferBuilder *>(bufferBuilder_);
     if (!memoryBuilder) {
-        //        throw std::runtime_error(
-        //                "ChannelStateByteBufferImpl only supports MemoryBufferBuilder for byte channel-state restore");
-        LOG("zzt ChannelStateByteBufferImpl only supports MemoryBufferBuilder for byte channel-state restore.")
+        INFO_RELEASE("Exception: ChannelStateByteBufferImpl only supports MemoryBufferBuilder for byte channel-state restore.");
+        throw std::runtime_error(
+                "ChannelStateByteBufferImpl only supports MemoryBufferBuilder for byte channel-state restore");
     }
 
     int toRead = getToRead(bytesToRead);
@@ -326,8 +330,8 @@ int ChannelStateByteBufferImpl::writeBytes2(std::shared_ptr<ByteStateHandleInput
 
     int readBytes = input->Read(buf_, 0, toRead);
     if (readBytes != toRead) {
-        //        throw std::ios_base::failure("Unexpected EOF while reading channel-state data from byte stream");
-        LOG("Unexpected EOF while reading channel-state data from byte stream.")
+        INFO_RELEASE("Exception: Unexpected EOF while reading channel-state data from byte stream.");
+        throw std::ios_base::failure("Unexpected EOF while reading channel-state data from byte stream");
     }
 
     return memoryBuilder->appendRawBytes(buf_.data(), readBytes);
@@ -385,19 +389,19 @@ int ChannelStateByteBufferImpl2::writeBytes(std::ifstream &input, int bytesToRea
 int ChannelStateByteBufferImpl2::writeBytes2(std::shared_ptr<ByteStateHandleInputStream> &input, int bytesToRead)
 {
     if (!input) {
-        LOG("zzt ChannelStateByteBufferImpl2::writeBytes2 ByteStateHandleInputStream is null.")
-        //        throw std::invalid_argument("ByteStateHandleInputStream is null");
+        INFO_RELEASE("Exception: ChannelStateByteBufferImpl2::writeBytes2 ByteStateHandleInputStream is null.");
+        throw std::invalid_argument("ByteStateHandleInputStream is null");
     }
     if (!buffer_) {
-        LOG("zzt ChannelStateByteBufferImpl2::writeBytes2 Buffer is null.")
-        //        throw std::invalid_argument("Buffer is null");
+        INFO_RELEASE("Exception: ChannelStateByteBufferImpl2::writeBytes2 Buffer is null.");
+        throw std::invalid_argument("Buffer is null");
     }
 
     auto memorySegment = (MemorySegment*)(buffer_->GetSegment());
     if (!memorySegment) {
-        //        throw std::runtime_error(
-        //                "ChannelStateByteBufferImpl2 only supports MemorySegment-backed Buffer for byte channel-state restore");
-        LOG("zzt ChannelStateByteBufferImpl2 only supports MemorySegment-backed Buffer for byte channel-state restore.")
+        INFO_RELEASE("Exception: ChannelStateByteBufferImpl2 only supports MemorySegment-backed Buffer for byte channel-state restore.");
+        throw std::runtime_error(
+                "ChannelStateByteBufferImpl2 only supports MemorySegment-backed Buffer for byte channel-state restore");
     }
 
     int writable = buffer_->GetMaxCapacity() - buffer_->GetSize();
@@ -409,8 +413,8 @@ int ChannelStateByteBufferImpl2::writeBytes2(std::shared_ptr<ByteStateHandleInpu
     std::vector<uint8_t> tmp(toRead);
     int readBytes = input->Read(tmp, 0, toRead);
     if (readBytes != toRead) {
-        LOG("zzt Unexpected EOF while reading channel-state data from byte stream.")
-        //        throw std::ios_base::failure("Unexpected EOF while reading channel-state data from byte stream");;;
+        INFO_RELEASE("Exception: Unexpected EOF while reading channel-state data from byte stream.");
+        throw std::ios_base::failure("Unexpected EOF while reading channel-state data from byte stream");
     }
 
     int writeOffset = buffer_->GetOffset() + buffer_->GetSize();

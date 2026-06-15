@@ -12,7 +12,7 @@ TEST(CheckpointBarrierTest, ConstructorTest)
 
     EXPECT_EQ(barrier.GetId(), 1);
     EXPECT_EQ(barrier.GetTimestamp(), 1000);
-    EXPECT_EQ(barrier.GetCheckpointOptions(), options);
+    EXPECT_EQ(barrier.GetCheckpointOptions().get(), options);
 }
 
 TEST(CheckpointBarrierTest, serializeDeserializeTestWithDefaultLocation)

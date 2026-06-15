@@ -16,7 +16,7 @@
 <td class="cellrowborder" valign="top" width="50%" headers="mcps1.1.3.1.2 "><p id="p1447333916113"><a name="p1447333916113"></a><a name="p1447333916113"></a>10.3.1</p>
 </td>
 </tr>
-<tr id="row19473939121120"><td class="cellrowborder" valign="top" width="50%" headers="mcps1.1.3.1.1 "><p id="p847363915116"><a name="p847363915116"></a><a name="p847363915116"></a>CMAKE</p>
+<tr id="row19473939121120"><td class="cellrowborder" valign="top" width="50%" headers="mcps1.1.3.1.1 "><p id="p847363915116"><a name="p847363915116"></a><a name="p847363915116"></a>CMake</p>
 </td>
 <td class="cellrowborder" valign="top" width="50%" headers="mcps1.1.3.1.2 "><p id="p15473239131119"><a name="p15473239131119"></a><a name="p15473239131119"></a>3.22.0</p>
 </td>
@@ -46,7 +46,7 @@
 <td class="cellrowborder" valign="top" width="50%" headers="mcps1.1.3.1.2 "><p id="p18474183919116"><a name="p18474183919116"></a><a name="p18474183919116"></a>5.2.1</p>
 </td>
 </tr>
-<tr id="row1474163919111"><td class="cellrowborder" valign="top" width="50%" headers="mcps1.1.3.1.1 "><p id="p8474039101118"><a name="p8474039101118"></a><a name="p8474039101118"></a>nlomann json</p>
+<tr id="row1474163919111"><td class="cellrowborder" valign="top" width="50%" headers="mcps1.1.3.1.1 "><p id="p8474039101118"><a name="p8474039101118"></a><a name="p8474039101118"></a>nlohmann json</p>
 </td>
 <td class="cellrowborder" valign="top" width="50%" headers="mcps1.1.3.1.2 "><p id="p3474739121110"><a name="p3474739121110"></a><a name="p3474739121110"></a>3.11.3</p>
 </td>
@@ -84,10 +84,9 @@
 </tbody>
 </table>
 
-
 ### 编译命令
 
-1.  编译OmniStream前需要编译OmniAdaptor代码，编译命令如下。
+1. 编译OmniStream前需要编译OmniAdaptor代码，编译命令如下。
 
     ```bash
     mkdir -p /opt/build && cd /opt/build
@@ -95,10 +94,10 @@
     mvn clean package -DskipTests
     ```
 
-2.  OmniStream编译命令如下。
+2. OmniStream编译命令如下。
 
     ```bash
-    cd OmniStream/cpp
+    cd /opt/build/OmniStream/cpp
     mkdir build
     cd build
     cmake ..
@@ -120,7 +119,7 @@
     cd $FLINK_HOME/bin/ && ./start-cluster.sh
     ```
 
-2. 调用sql-client后，进行测试。
+2. 启动sql-client后，进行测试。
 
     ```bash
     ./sql-client.sh
@@ -128,9 +127,10 @@
 
 3. 在命令行中输入以下内容。
 
-    ```bash
+    ```sql
     SELECT 'Hello, Flink!';
     ```
+
     可以正常输出结果即安装正常。
 
 # 免责声明

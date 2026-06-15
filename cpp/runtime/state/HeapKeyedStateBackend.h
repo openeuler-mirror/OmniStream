@@ -460,10 +460,10 @@ StateTable<int, VoidNamespace, omnistream::VectorBatch *> * HeapKeyedStateBacken
         StateDescriptor::Type::VALUE,
         vbName,
         new VoidNamespaceSerializer(),
-        new VectorBatchSerializer());
+        new LongSerializer());
     auto *vectorBatchStateTable = new CopyOnWriteStateTable<int, VoidNamespace, omnistream::VectorBatch *>(
         vectorBatchKeyContext, metaInfo, new IntSerializer());
-    auto *vbDesc = new ValueStateDescriptor<omnistream::VectorBatch *>(vbName, new VectorBatchSerializer());
+    auto *vbDesc = new ValueStateDescriptor<omnistream::VectorBatch *>(vbName, new LongSerializer());
     registeredKvStates[vbName] = std::make_tuple(
         reinterpret_cast<uintptr_t>(vectorBatchStateTable),
         vbDesc,

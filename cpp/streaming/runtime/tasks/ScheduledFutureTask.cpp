@@ -36,12 +36,12 @@ void ScheduledFutureTask::SetNextRuntime()
 
 void ScheduledFutureTask::Cancel()
 {
-    stop = true;
+    stop.store(true);
 }
 
 void ScheduledFutureTask::Run()
 {
-    if (stop) {
+    if (stop.load()) {
         return;
     }
     outerTask->run();
@@ -50,4 +50,9 @@ void ScheduledFutureTask::Run()
 bool ScheduledFutureTask::IsPeriodic() const
 {
     return period != 0;
+}
+
+bool ScheduledFutureTask::IsCancelled() const
+{
+    return stop.load();
 }

@@ -38,6 +38,8 @@ nlohmann::json MakeHourlyTumbleDescription(const char *shiftTimeZone)
 {
     nlohmann::json description = {
         {"window", "TUMBLE(size=[3600 s], offset=[0 s])"},
+        {"windowSize", kHourMillis},
+        {"windowOffset", 0},
         {"timeAttributeIndex", 0},
         {"inputTypes", {"TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)"}},
         {"outputTypes", {"BIGINT"}},

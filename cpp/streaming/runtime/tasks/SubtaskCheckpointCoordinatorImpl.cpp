@@ -10,7 +10,11 @@
  */
 #include <algorithm>
 #include "SubtaskCheckpointCoordinatorImpl.h"
+#include "core/include/common.h"
 #include "runtime/io/network/api/CancelCheckpointMarker.h"
+#include "runtime/taskmanager/OmniRuntimeEnvironment.h"
+#include "runtime/taskmanager/OmniTask.h"
+#include "core/include/common.h"
 
 namespace omnistream::runtime {
     std::set<long> SubtaskCheckpointCoordinatorImpl::createAbortedCheckpointIds(int maxRecordAbortedCheckpoints)
@@ -104,9 +108,9 @@ namespace omnistream::runtime {
 
     bool SubtaskCheckpointCoordinatorImpl::takeSnapshotSync(
         std::unordered_map<OperatorID, OperatorSnapshotFutures *> *operatorSnapshotsInProgress,
-        CheckpointMetaData *checkpointMetaData,
-        CheckpointMetricsBuilder *checkpointMetrics,
-        CheckpointOptions *checkpointOptions,
+        std::shared_ptr<CheckpointMetaData> checkpointMetaData,
+        std::shared_ptr<CheckpointMetricsBuilder> checkpointMetrics,
+        std::shared_ptr<CheckpointOptions> checkpointOptions,
         omnistream::OperatorChainV2 *operatorChain,
         std::shared_ptr<omnistream::Supplier<bool>> isRunning)
     {
@@ -132,35 +136,51 @@ namespace omnistream::runtime {
             operatorChain->SnapshotState(
                 operatorSnapshotsInProgress,
                 *checkpointMetaData,
-                checkpointOptions,
+                checkpointOptions.get(),
                 isRunning,
                 channelStateWriteResult,
                 storage,
                 env->getTaskStateManager()->getOmniTaskBridge());
-        } catch (...) {
+        } catch (const std::exception &e) {
+            LOG("Error: sync snapshot failed, task=" << taskName
+                << ", cp=" << checkpointId << ", error=" << e.what())
             checkpointStorage->clearCacheFor(checkpointId);
+            throw;
+        } catch (...) {
+            LOG("Error: sync snapshot failed, task=" << taskName
+                << ", cp=" << checkpointId << ", error=unknown")
+            checkpointStorage->clearCacheFor(checkpointId);
+            throw;
         }
 
         checkpointStorage->clearCacheFor(checkpointId);
 
         constexpr int nanoToMillis = 1000000;
 
-        checkpointMetrics->SetSyncDurationMillis(
+        long syncDurationMillis =
             (std::chrono::duration_cast<std::chrono::nanoseconds>(
                     std::chrono::steady_clock::now().time_since_epoch())
                         .count() -
                 started) /
-            nanoToMillis);
+            nanoToMillis;
+        checkpointMetrics->SetSyncDurationMillis(syncDurationMillis);
         return true;
     }
 
     void SubtaskCheckpointCoordinatorImpl::cleanup(
         std::unordered_map<OperatorID, OperatorSnapshotFutures *> *operatorSnapshotsInProgress,
-        CheckpointMetaData *metadata,
-        CheckpointMetricsBuilder *operatorChain,
+        std::shared_ptr<CheckpointMetaData> metadata,
+        std::shared_ptr<CheckpointMetricsBuilder> operatorChain,
         std::exception ex)
     {
-        channelStateWriter->Abort(metadata->GetCheckpointId(), std::make_exception_ptr(ex), true);
+        if (operatorSnapshotsInProgress == nullptr) {
+            return;
+        }
+        try {
+            channelStateWriter->Abort(metadata->GetCheckpointId(), std::make_exception_ptr(ex), true);
+        } catch (const std::exception &e) {
+            LOG("Could not properly abort channel state writer. " + std::string(e.what()));
+        }
         for (auto &entry: *operatorSnapshotsInProgress) {
             OperatorSnapshotFutures *operatorSnapshotResult = entry.second;
             if (operatorSnapshotResult) {
@@ -169,56 +189,73 @@ namespace omnistream::runtime {
                 } catch (const std::exception &e) {
                     LOG("Could not poperly cancel an operator snapshot result. " + std::string(e.what()));
                 }
+                delete operatorSnapshotResult;
+                entry.second = nullptr;
             }
         }
+        delete operatorSnapshotsInProgress;
     }
 
     void SubtaskCheckpointCoordinatorImpl::finishAndReportAsync(
         std::unordered_map<OperatorID, OperatorSnapshotFutures *> *operatorSnapshotsInProgress,
-        CheckpointMetaData *metadata,
-        CheckpointMetricsBuilder *metrics,
+        std::shared_ptr<CheckpointMetaData> metadata,
+        std::shared_ptr<CheckpointMetricsBuilder> metrics,
         bool istaskDeployedAsFinished,
         bool isTaskFinished,
         std::shared_ptr<omnistream::Supplier<bool>> isRunning,
-        CheckpointOptions *options)
+        std::shared_ptr<CheckpointOptions> options)
     {
         LOG(">>>>>> isTaskDeployedAsFinished " << istaskDeployedAsFinished << " isTaskFinished " << isTaskFinished);
-        AsyncCheckpointRunnable *asyncCheckpointRunnable = new AsyncCheckpointRunnable(
+        AsyncCheckpointRunnable *asyncCheckpointRunnable = nullptr;
+        try {
+            auto unregister = std::make_unique<std::function<void(AsyncCheckpointRunnable *)>>(
+                [this](AsyncCheckpointRunnable *asyncCheckpointRunnable) {
+                    this->UnregisterAsyncCheckpointRunnable(asyncCheckpointRunnable->GetCheckpointId());
+                });
+            auto asyncExceptionHandler = std::make_unique<std::function<void(std::string, std::exception)>>(
+                [](std::string checkpointTaskName, std::exception e) {
+                    LOG("Async checkpoint exception in task " + checkpointTaskName + ": " + std::string(e.what()));
+                });
+            asyncCheckpointRunnable = new AsyncCheckpointRunnable(
                 operatorSnapshotsInProgress,
                 *metadata,
                 *metrics,
                 std::chrono::duration_cast<std::chrono::nanoseconds>(
                         std::chrono::steady_clock::now().time_since_epoch()).count(),
                 taskName,
-                new std::function([this](AsyncCheckpointRunnable *asyncCheckpointRunnable) {
-                    this->UnregisterAsyncCheckpointRunnable(asyncCheckpointRunnable->GetCheckpointId());
-                }),
+                unregister.get(),
                 env,
-                new std::function([](std::string taskName, std::exception e) {
-                    LOG("Async checkpoint exception in task " + taskName + ": " + std::string(e.what()));
-                }),
+                asyncExceptionHandler.get(),
                 istaskDeployedAsFinished,
                 isTaskFinished,
                 isRunning);
-        RegisterAsyncCheckpointRunnable(asyncCheckpointRunnable->GetCheckpointId(), asyncCheckpointRunnable);
-        asyncOperationsThreadPool->Execute([asyncCheckpointRunnable,
-            operatorSnapshotsInProgress,
-            metadata,
-            metrics,
-            options]() {
-            try {
-                asyncCheckpointRunnable->Run();
-            } catch (const std::exception &e) {
-                LogError("Exception in async checkpoint: %s", e.what());
+            unregister.release();
+            asyncExceptionHandler.release();
+            const auto checkpointId = asyncCheckpointRunnable->GetCheckpointId();
+            RegisterAsyncCheckpointRunnable(checkpointId, asyncCheckpointRunnable);
+            // thread hold options
+            asyncOperationsThreadPool->Execute([this, asyncCheckpointRunnable, checkpointId, options]() {
+                try {
+                    asyncCheckpointRunnable->Run();
+                } catch (const std::exception &e) {
+                    LogError("Exception in async checkpoint: %s", e.what());
+                    this->UnregisterAsyncCheckpointRunnable(checkpointId);
+                } catch (...) {
+                    LogError("Unknown exception in async checkpoint");
+                    this->UnregisterAsyncCheckpointRunnable(checkpointId);
+                }
+                delete asyncCheckpointRunnable;
+            });
+        } catch (...) {
+            if (asyncCheckpointRunnable != nullptr) {
+                UnregisterAsyncCheckpointRunnable(asyncCheckpointRunnable->GetCheckpointId());
+                delete asyncCheckpointRunnable;
+            } else {
+                cleanup(operatorSnapshotsInProgress, metadata, metrics,
+                    std::runtime_error("Failed to create async checkpoint runnable"));
             }
-
-            /* TODO 规避：先不删除 */
-            // delete asyncCheckpointRunnable;
-            // delete operatorSnapshotsInProgress;
-            // delete metadata;
-            // delete metrics;
-            // delete options;
-        });
+            throw;
+        }
         LOG(">>>>> Done")
     }
 
@@ -270,16 +307,17 @@ namespace omnistream::runtime {
     }
 
     void SubtaskCheckpointCoordinatorImpl::checkpointState(
-        CheckpointMetaData *metadata,
-        CheckpointOptions *options,
-        CheckpointMetricsBuilder *metrics,
+        std::shared_ptr<CheckpointMetaData> metadata,
+        std::shared_ptr<CheckpointOptions> options,
+        std::shared_ptr<CheckpointMetricsBuilder> metrics,
         omnistream::OperatorChainV2 *operatorChain,
         bool isTaskFinished,
         std::shared_ptr<omnistream::Supplier<bool>> isRunning)
     {
         LOG_DEBUG(">>>>>>> isTaskFinished? " << isTaskFinished)
-        if (!options || !metrics) {
-            THROW_LOGIC_EXCEPTION("CheckpointOptions or CheckpointMetricsBuilder is null");
+        if (!metadata || !options || !metrics) {
+            INFO_RELEASE("Error CheckpointMetaData or CheckpointOptions or CheckpointMetricsBuilder is null");
+            THROW_LOGIC_EXCEPTION("CheckpointMetaData or CheckpointOptions or CheckpointMetricsBuilder is null");
         }
 
         if (lastCheckpointId >= metadata->GetCheckpointId()) {
@@ -287,7 +325,7 @@ namespace omnistream::runtime {
             return;
         }
 
-        logCheckpointProcessingDelay(metadata);
+        logCheckpointProcessingDelay(metadata.get());
 
         lastCheckpointId = metadata->GetCheckpointId();
         if (CheckAndClearAbortedStatus(metadata->GetCheckpointId())) {
@@ -299,8 +337,11 @@ namespace omnistream::runtime {
         }
 
         if (options->GetAlignment() == CheckpointOptions::AlignmentType::FORCED_ALIGNED) {
-            options = options->WithUnalignedSupported();
-            InitInputsCheckpoint(metadata->GetCheckpointId(), options);
+            CheckpointOptions *unalignedSupportedOptions = options->WithUnalignedSupported();
+            if (unalignedSupportedOptions != options.get()) {
+                options.reset(unalignedSupportedOptions);
+            }
+            InitInputsCheckpoint(metadata->GetCheckpointId(), options.get());
         }
 
         operatorChain->PrepareSnapshotPreBarrier(metadata->GetCheckpointId());
@@ -317,23 +358,65 @@ namespace omnistream::runtime {
 
         std::unordered_map<OperatorID, OperatorSnapshotFutures *> *snapshotFutures =
                 new std::unordered_map<OperatorID, OperatorSnapshotFutures *>();
+        bool snapshotFuturesTransferred = false;
         try {
             if (takeSnapshotSync(snapshotFutures, metadata, metrics, options, operatorChain, isRunning)) {
                 LOG_DEBUG("finishAndReportAsync start lastCheckpointId: " << lastCheckpointId)
+                snapshotFuturesTransferred = true;
                 finishAndReportAsync(snapshotFutures, metadata, metrics,
                     operatorChain->IsTaskDeployedAsFinished(), isTaskFinished, isRunning, options);
                 LOG_DEBUG("finishAndReportAsync end lastCheckpointId: " << lastCheckpointId)
             } else {
                 cleanup(snapshotFutures, metadata, metrics, std::runtime_error("Checkpoint declined"));
+                auto *runtimeEnv = dynamic_cast<omnistream::RuntimeEnvironmentV2 *>(env.get());
+                if (runtimeEnv != nullptr && runtimeEnv->omniTask() != nullptr) {
+                    std::runtime_error wrapped("Checkpoint declined before async report");
+                    runtimeEnv->omniTask()->declineCheckpoint(
+                        metadata->GetCheckpointId(),
+                        CheckpointFailureReason::CHECKPOINT_DECLINED,
+                        &wrapped);
+                }
             }
         } catch (const std::exception &e) {
-            LOG("Exception during checkpointing: " + std::string(e.what()));
-            cleanup(snapshotFutures, metadata, metrics, e);
+            LOG("Error: checkpointState failed, task=" << taskName
+                << ", cp=" << metadata->GetCheckpointId()
+                << ", error=" << e.what());
+            if (!snapshotFuturesTransferred) {
+                cleanup(snapshotFutures, metadata, metrics, e);
+            }
+            auto *runtimeEnv = dynamic_cast<omnistream::RuntimeEnvironmentV2 *>(env.get());
+            if (runtimeEnv != nullptr && runtimeEnv->omniTask() != nullptr) {
+                std::runtime_error wrapped(std::string("Checkpoint sync failure: ") + e.what());
+                runtimeEnv->omniTask()->declineCheckpoint(
+                    metadata->GetCheckpointId(),
+                    CheckpointFailureReason::CHECKPOINT_DECLINED,
+                    &wrapped);
+            }
+            throw;
+        } catch (...) {
+            LOG("Error: checkpointState failed, task=" << taskName
+                << ", cp=" << metadata->GetCheckpointId()
+                << ", error=unknown")
+            if (!snapshotFuturesTransferred) {
+                cleanup(snapshotFutures, metadata, metrics, std::runtime_error("Unknown checkpoint failure"));
+            }
+            auto *runtimeEnv = dynamic_cast<omnistream::RuntimeEnvironmentV2 *>(env.get());
+            if (runtimeEnv != nullptr && runtimeEnv->omniTask() != nullptr) {
+                std::runtime_error wrapped("Unknown checkpoint sync failure");
+                runtimeEnv->omniTask()->declineCheckpoint(
+                    metadata->GetCheckpointId(),
+                    CheckpointFailureReason::CHECKPOINT_DECLINED,
+                    &wrapped);
+            }
+            throw;
         }
     }
 
     SubtaskCheckpointCoordinatorImpl::~SubtaskCheckpointCoordinatorImpl()
     {
+        if (asyncOperationsThreadPool) {
+            asyncOperationsThreadPool.reset();
+        }
         if (alignmentTimer) {
             delete alignmentTimer;
         }
@@ -348,6 +431,7 @@ namespace omnistream::runtime {
                 delete pair.second;
             }
         }
+        checkpoints.clear();
     }
 
     void SubtaskCheckpointCoordinatorImpl::InitInputsCheckpoint(long checkpointId, CheckpointOptions *options)

@@ -53,7 +53,7 @@ std::string Q7hopdescription = R"DELIM(
 				"BIGINT"
 			]
 		},
-		"size": 10000,
+		"windowSize": 10000,
 		"sliceEndIndex": 1,
 		"generateUpdateBefore": false,
 		"outputTypes": [

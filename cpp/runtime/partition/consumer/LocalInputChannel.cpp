@@ -22,7 +22,8 @@ LocalInputChannel::LocalInputChannel(std::shared_ptr<SingleInputGate> inputGate,
     //  std::shared_ptr<ChannelStateWriter> stateWriter
     )
     : InputChannel(inputGate, channelIndex, partitionId, initialBackoff, maxBackoff, numBytesIn, numBuffersIn),
-      partitionManager(_partitionManager)
+      partitionManager(_partitionManager),
+      channelStatePersister(nullptr)
 // taskEventPublisher(taskEventPublisher),
 //   channelStatePersister(stateWriter, getChannelInfo()
 {}
@@ -53,6 +54,10 @@ void LocalInputChannel::SetChannelStateWriter(std::shared_ptr<ChannelStateWriter
 }
 
 void LocalInputChannel::CheckpointStopped(long checkpointId) {
+    if (!channelStatePersister) {
+        INFO_RELEASE("LocalInputChannel::CheckpointStopped skipped because channelStatePersister is not initialized.");
+        return;
+    }
     channelStatePersister->StopPersisting(checkpointId);
 }
 
