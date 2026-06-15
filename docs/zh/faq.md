@@ -12,7 +12,7 @@
 
   ![](figures/zh-cn_image_0000002533273995.png)
 
-- 现象三：连续提交SQL任务并长时间运行NexMark Q9等大状态SQL时，有概率引发Java OOM（out of memory，内存不足）问题。
+- 现象三：连续提交SQL任务并长时间运行Nexmark Q9等大状态SQL时，有概率引发Java OOM（out of memory，内存不足）问题。
 
   ![](figures/zh-cn_image_0000002533313933.png)
 
@@ -20,7 +20,7 @@
 
 - 现象一：Nexmark开源软件存在逻辑缺陷，未正确处理任务释放时序。
 - 现象二：Nexmark开源软件存在逻辑缺陷，OmniStream可以正常完成SQL任务的执行。
-- 现象三：此为原生问题。属Flink原生问题，非OmniStream导致。
+- 现象三：属Flink原生问题，非OmniStream导致。
 
 **结论、解决方案及效果<a name="zh-cn_topic_0000002533267891_section93441811202317"></a>**
 

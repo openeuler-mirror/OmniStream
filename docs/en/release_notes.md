@@ -259,8 +259,8 @@ None
       <td style="text-align: left;">Open source repository</td>
     </tr>
     <tr>
-      <td style="text-align: left;">《OmniStream F&Q》</td>
-      <td style="text-align: left;">ocument potential issues and their solutions encountered during installation, deployment, and usage.</td>
+      <td style="text-align: left;">《OmniStream FAQ》</td>
+      <td style="text-align: left;">Document potential issues and their solutions encountered during installation, deployment, and usage.</td>
       <td style="text-align: left;">Open source repository</td>
     </tr>
 </table>

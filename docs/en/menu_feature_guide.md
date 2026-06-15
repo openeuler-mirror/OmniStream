@@ -4,5 +4,3 @@
 - [User Guide](./user_guide.md)
 - [FAQs](./faq.md)
 - [Change History](change_history.md)
-
-

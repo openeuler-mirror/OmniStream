@@ -1,5 +1,9 @@
 # 用户指南<a name="ZH-CN_TOPIC_0000002549640817"></a>
 
+## 前提条件：
+请参考安装指南完成相应软件的安装。
+
+
 ## 使用特性<a name="ZH-CN_TOPIC_0000002549520803"></a>
 
 ### SQL算子和表达式支持情况<a name="ZH-CN_TOPIC_0000002549640813"></a>
@@ -11,7 +15,7 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
 >![](public_sys-resources/icon-notice.gif) **须知：** 
 >- [**表 2** 支持的算子列表](#支持的算子列表)和[**表 3** 支持的表达式列表](#支持的表达式列表)中仅描述了OmniStream Flink Native化特性支持或涉及的数据类型，未展示的数据类型是OmniStream Flink Native化特性不支持的。
 >- 如果使用OmniStream Flink Native化特性不支持的算子和表达式，会导致执行计划回退为原生执行，对性能会有影响。
->- 使用sql-client交互式界面执行SQL时，推荐将SQL的结果输出到connector为blackhole的数据表中，具体可参考nexmark Q0的执行方式。
+>- 使用sql-client交互式界面执行SQL时，推荐将SQL的结果输出到connector为blackhole的数据表中，具体可参考Nexmark Q0的执行方式。
 >- 由于内存限制，默认情况下只支持Calc和LookupJoin算子，其他支持的算子需要export FLINK\_PERFORMANCE=false设置环境变量使能。
 
 **表 1** 算子和表达式支持表格中符号的含义<a id="算子和表达式支持表格中符号的含义"></a>
@@ -90,7 +94,7 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
 |Java类|Java类接口|
 |--|--|
 |Arrays|static <T> List<T> asList(Array)|
-|HashMap（存取的元素均需要实现hashCode和equals方法）|Object get(Object key)Object put(Object key, Object value)void putAll(HashMap m)boolean containsKey(Object key)int size()bool remove(Object key)（与Java接口不同，当前不支持使用变量承接返回值。）Set<Map.Entry<Object,Object>> entrySet()Set<Object> keySet()HashMap clone()|
+|HashMap（存取的元素均需要实现hashCode和equals方法）|Object get(Object key)Object put(Object key, Object value)void putAll(HashMap m)boolean containsKey(Object key)int size()boolean remove(Object key)（与Java接口不同，当前不支持使用变量承接返回值。）Set<Map.Entry<Object,Object>> entrySet()Set<Object> keySet()HashMap clone()|
 |Iterator|boolean hasNext()Object next()|
 |ArrayList|Object get(int index)void clear()void add(Object e)Iterator iterator()boolean contains(Object o)int size()boolean isEmpty()|
 |LinkedList|Object getFirst()Object getLast()void addLast(Object e)void addFirst(Object e)|
@@ -101,8 +105,8 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
 |Integer|String toString()bool equals(Integer *obj) overrideint intValue()static Integer valueOf(String s)static Integer valueOf(int i)|
 |Boolean|static Boolean valueOf(boolean b)boolean booleanValue()|
 |Long|int hashCode()boolean equals(Long obj)String toString()Long clone()long longValue()static Long valueOf(String s)static Long valueOf(long l)|
-|Object|int hashCode()bool equals(Object *obj)String toString()Object *clone()|
-|String|int hashCode()boolean equals(String anObject)String toString()Object *clone()String replace(String target, String replacement)Array split(String regex)（暂时只支持字符串的split，不支持正则表达式。）String replaceAll(String regex, String replacement)int lastIndexOf(String str)int length()String substring(int beginIndex)String substring(int beginIndex, int endIndex)boolean contains(String s)boolean endsWith(String suffix)boolean startsWith(String prefix)|
+|Object|int hashCode()bool equals(Object *obj)String toString()Object clone()|
+|String|int hashCode()boolean equals(String anObject)String toString()Object clone()String replace(String target, String replacement) String[] split(String regex)（暂时只支持字符串的split，不支持正则表达式。）String replaceAll(String regex, String replacement)int lastIndexOf(String str)int length()String substring(int beginIndex)String substring(int beginIndex, int endIndex)boolean contains(String s)boolean endsWith(String suffix)boolean startsWith(String prefix)|
 |Gson|String toJson(HashMap<String,String> map)Map fromJson(String json, Type typeOf)（只支持将String类型转为Map）|
 |JsonObject|JsonObject getAsJsonObject(String memberName)（只支持String常量）|
 |JsonParser|static JsonObject parseString(String json)|
@@ -202,7 +206,7 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
 
 在DataStream场景下，详细描述从启动Flink集群到完成OmniStream使能的操作步骤。
 
-1. 如果是在多Task Manager场景下运行DataStream任务，需要在flink-conf.yaml文件中添加配置omni.batch: true，以提升多该场景下的shuffle效率，以达到更优性能。
+1. 如果是在多Task Manager场景下运行DataStream任务，需要在flink-conf.yaml文件中添加配置omni.batch: true，以提升该场景下的shuffle效率，以达到更优性能。
     1. 打开`/usr/local/flink/conf/flink-conf.yaml`文件。
 
         ```bash
@@ -290,7 +294,7 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
     5. 进入flink_tm2_8c32g，执行步骤[4.ii](#4.2)～[4.iv](#4.4)。
 
         ```bash
-        docker exec -it flink_tm1_8c32g /bin/bash
+        docker exec -it flink_tm2_8c32g /bin/bash
         ```
 
 5. 在物理机上启动ZooKeeper和Kafka，详情请参见《[Kafka 部署指南](https://www.hikunpeng.com/document/detail/zh/kunpengbds/ecosystemEnable/Kafka/kunpengkafka_04_0011.html)》。
