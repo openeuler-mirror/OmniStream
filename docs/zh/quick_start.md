@@ -90,6 +90,7 @@
 1.  编译OmniStream前需要编译OmniAdaptor代码，编译命令如下。
 
     ```bash
+    mkdir -p /opt/build && cd /opt/build
     cd omnistream/omniop-flink-extension/omni-flink-bundle
     mvn clean package -DskipTests
     ```
