@@ -69,7 +69,6 @@ public:
     }
 
     RowData* getAccumulators() override {
-        ensureCurrentAccumulator();
         if (sumIsNull_) {
             reinterpret_cast<BinaryRowData*>(currentAcc_)->setNullAt(accIndex_);
         } else {
