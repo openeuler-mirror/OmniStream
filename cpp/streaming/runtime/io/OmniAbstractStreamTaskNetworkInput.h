@@ -13,6 +13,7 @@
 #define OMNISTREAM_OMNIABSTRACTSTREAMTASKNETWORKINPUT_H
 
 #include <utility>
+#include <unordered_map>
 #include <runtime/io/network/api/serialization/RecordDeserializer.h>
 #include <runtime/io/network/api/serialization/SpillingAdaptiveSpanningRecordDeserializer.h>
 #include <runtime/plugable/DeserializationDelegate.h>
@@ -55,6 +56,7 @@ public:
         rowCount = 0;
         maxRowCount = 1000;
         timeout = 1000;
+        initializeLogicalChannelIndexMap();
         running_.exchange(true);
     }
 
@@ -72,6 +74,7 @@ public:
         deserializationDelegate_ =
             std::make_unique<NonReusingDeserializationDelegate>(new datastream::StreamElementSerializer(inputSerializer));
         recordDeserializers= getRecordDeserializers(channelInfos);
+        initializeLogicalChannelIndexMap();
         rowCount = 0;
         maxRowCount = 1000;
         timeout = 1000;
@@ -148,8 +151,37 @@ public:
         return recordDeserializers;
     }
 
+    void initializeLogicalChannelIndexMap()
+    {
+        auto channelInfos = inputGate->GetChannelInfos();
+        for (size_t i = 0; i < channelInfos.size(); i++) {
+            logicalChannelIndexByComplexId[channelInfos[i].getComplexId()] = static_cast<int>(i);
+        }
+    }
+
+    int getLogicalChannelIndex(const InputChannelInfo &channelInfo)
+    {
+        auto it = logicalChannelIndexByComplexId.find(channelInfo.getComplexId());
+        if (it == logicalChannelIndexByComplexId.end()) {
+            THROW_RUNTIME_ERROR("ChannelInfo not found in logicalChannelIndexByComplexId");
+        }
+        return it->second;
+    }
+
     virtual RecordDeserializer *getActiveSerializer(long channelInfo) {
         auto it = recordDeserializers->find(channelInfo);
+        if (it == recordDeserializers->end()) {
+            THROW_RUNTIME_ERROR("ChannelInfo not found in recordDeserializers");
+        }
+        return it->second.get();
+    }
+
+    virtual RecordDeserializer *getActiveSerializer(const InputChannelInfo &channelInfo) {
+        auto it = recordDeserializers->find(channelInfo.getComplexId());
+        if (it != recordDeserializers->end()) {
+            return it->second.get();
+        }
+        it = recordDeserializers->find(static_cast<long>(channelInfo.getInputChannelIdx()));
         if (it == recordDeserializers->end()) {
             THROW_RUNTIME_ERROR("ChannelInfo not found in recordDeserializers");
         }
@@ -188,11 +220,11 @@ public:
                     output->emitRecord(reinterpret_cast<StreamRecord *>(object));
                 } else if (object->getTag() == StreamElementTag::TAG_WATERMARK) {
                     statusWatermarkValve_.inputWatermark(reinterpret_cast<Watermark *>(object),
-                                     lastChannel_.getInputChannelIdx(),
+                                     getLogicalChannelIndex(lastChannel_),
                                      output);
                 } else if (object->getTag() == StreamElementTag::TAG_STREAM_STATUS) {
                     statusWatermarkValve_.inputWatermarkStatus(reinterpret_cast<WatermarkStatus *>(object),
-                                                               lastChannel_.getInputChannelIdx(),
+                                                               getLogicalChannelIndex(lastChannel_),
                                                                output);
                 } else {
                     LOG("Bypass the tag for now: " << tag)
@@ -238,7 +270,7 @@ public:
     {
         auto buffer = static_cast<ReadOnlySlicedNetworkBuffer* >(bufferOrEvent->getBuffer());
         auto inputChannelInfo = bufferOrEvent->getChannelInfo();
-        currentRecordDeserializer = getActiveSerializer(inputChannelInfo.getInputChannelIdx());
+        currentRecordDeserializer = getActiveSerializer(inputChannelInfo);
         if (currentRecordDeserializer == nullptr) {
             THROW_LOGIC_EXCEPTION("currentRecordDeserializer has already been released");
         }
@@ -648,6 +680,7 @@ protected:
 
 protected:
     std::unique_ptr<std::unordered_map<long, std::unique_ptr<RecordDeserializer>>> recordDeserializers;
+    std::unordered_map<long, int> logicalChannelIndexByComplexId;
     // for troubleshooting
     int NullValueCount = 0;
     bool isLastValueNull = false;

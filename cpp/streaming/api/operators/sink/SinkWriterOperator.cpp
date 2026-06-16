@@ -14,12 +14,12 @@
 
 namespace {
     std::string streamingCommitterRawStatesName = "streaming_committer_raw_states";
-    BytePrimitiveArraySerializer* byteArraySerializer = new BytePrimitiveArraySerializer(nullptr);
+    BytePrimitiveArraySerializer streamingCommitterRawStatesSerializer(nullptr);
 }
 
 // 静态成员初始化
 ListStateDescriptor<std::vector<uint8_t>> SinkWriterOperator::STREAMING_COMMITTER_RAW_STATES_DESC(
-        streamingCommitterRawStatesName, new BytePrimitiveArraySerializer(nullptr));
+        streamingCommitterRawStatesName, &streamingCommitterRawStatesSerializer);
 
 // createInitContext方法实现
 template <typename K>

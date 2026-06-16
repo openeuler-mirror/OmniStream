@@ -100,9 +100,8 @@ public:
         if (currentAcc == nullptr) {
             return windowPropertyTypesValue.release();
         }
-        auto tempValue = std::make_unique<JoinedRowData>();
-        tempValue->replace(currentAcc, windowPropertyTypesValue.get());
-        auto* value = BinaryRowDataSerializer::joinedRowToBinaryRow(tempValue.get(), outputTypesId_);
+        reusableJoinedRow_->replace(currentAcc, windowPropertyTypesValue.get());
+        auto* value = BinaryRowDataSerializer::joinedRowToBinaryRow(reusableJoinedRow_.get(), outputTypesId_);
         return value;
     }
 
@@ -133,4 +132,5 @@ private:
     std::vector<int32_t> windowPropertyTypesId_;
     std::vector<int32_t> outputTypesId_; // without key
     std::string shiftTimeZone_;
+    std::unique_ptr<JoinedRowData> reusableJoinedRow_ = std::make_unique<JoinedRowData>();
 };

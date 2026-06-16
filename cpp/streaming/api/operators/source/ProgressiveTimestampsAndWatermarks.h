@@ -12,6 +12,7 @@
 #ifndef OMNISTREAM_PROGRESSIVETIMESTAMPSANDWATERMARKS_H
 #define OMNISTREAM_PROGRESSIVETIMESTAMPSANDWATERMARKS_H
 
+#include <atomic>
 #include <utility>
 #include "TimestampsAndWatermarks.h"
 #include "core/api/common/eventtime/WatermarkOutputMultiplexer.h"
@@ -202,22 +203,26 @@ public:
 
         void OnProcessingTime(int64_t timestamp) override
         {
-            eventTimeLogic->TriggerPeriodicEmit(timestamp);
+            auto logic = eventTimeLogic.lock();
+            if (logic == nullptr) {
+                return;
+            }
+            logic->TriggerPeriodicEmit(timestamp);
         }
 
     private:
-        std::shared_ptr<ProgressiveTimestampsAndWatermarks> eventTimeLogic;
+        std::weak_ptr<ProgressiveTimestampsAndWatermarks> eventTimeLogic;
     };
 
     TriggerProcessingTimeCallback* callback = nullptr;
 
     ~ProgressiveTimestampsAndWatermarks() override
     {
+        StopPeriodicWatermarkEmits();
         delete timestampAssigner;
         delete currentPerSplitOutputs;
-        delete currentMainOutput;
         delete idlenessManager;
-        delete callback;
+        // The scheduler stores raw callback pointers; the weak callback is left alive so queued tasks can no-op.
     }
 
     ReaderOutput* CreateMainOutput(
@@ -232,6 +237,7 @@ private:
     long periodicWatermarkInterval;
 
     ScheduledFutureTask* periodicEmitHandle = nullptr;
+    std::atomic<bool> periodicEmitStopped_ = true;
 
     void TriggerPeriodicEmit(long wallClockTimestamp);
 

@@ -49,4 +49,5 @@ private:
     SliceAssigner* sliceAssigner; 
     std::vector<std::unique_ptr<WindowAggHandleFunction>> functions_;
     std::vector<int32_t> outputTypeIds_;//output id without key
+    std::unique_ptr<JoinedRowData> reusableJoinedRow_ = std::make_unique<JoinedRowData>();
 };

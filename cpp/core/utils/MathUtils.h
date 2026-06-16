@@ -57,6 +57,9 @@ public:
 
     static int roundDownToPowerOf2(int value)
     {
+        if (value <= 0) {
+            throw std::invalid_argument("Value must be positive.");
+        }
         return 1 << (31 - __builtin_clz(value));
     }
 

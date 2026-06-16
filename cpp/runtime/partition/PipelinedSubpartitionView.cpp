@@ -35,17 +35,26 @@ PipelinedSubpartitionView::~PipelinedSubpartitionView() {}
 BufferAndBacklog* PipelinedSubpartitionView::getNextBuffer()
 {
     // LOG_TRACE(">>> beginnning of get NextBuffer")
+    if (isReleased_.load() || parent == nullptr) {
+        return nullptr;
+    }
     return parent->pollBuffer();
 }
 
 void PipelinedSubpartitionView::notifyDataAvailable()
 {
+    if (isReleased_.load() || availabilityListener == nullptr) {
+        return;
+    }
     LOG("PipelinedSubpartitionView notifyDataAvailable invoke!");
     availabilityListener->notifyDataAvailable();
 }
 
 void PipelinedSubpartitionView::notifyPriorityEvent(int priorityBufferNumber)
 {
+    if (isReleased_.load() || availabilityListener == nullptr) {
+        return;
+    }
     availabilityListener->notifyPriorityEvent(priorityBufferNumber);
 }
 
@@ -62,13 +71,16 @@ void PipelinedSubpartitionView::releaseAllResources()
     bool expected = false;
     bool desired = true;
     if (isReleased_.compare_exchange_strong(expected, desired)) {
-        parent->onConsumedSubpartition();
+        availabilityListener = nullptr;
+        if (parent != nullptr) {
+            parent->onConsumedSubpartition();
+        }
     }
 }
 
 bool PipelinedSubpartitionView::isReleased()
 {
-    return isReleased_.load() || parent->isReleased();
+    return isReleased_.load() || parent == nullptr || parent->isReleased();
 }
 
 void PipelinedSubpartitionView::resumeConsumption()

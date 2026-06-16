@@ -10,28 +10,46 @@
  */
 
 #include "PartitionCommitter.h"
+#include <cctype>
+#include <cstdint>
+#include <limits>
+#include <stdexcept>
 
-long parseDurationMs(const std::string &durationStr)
+namespace {
+int64_t multiplyDurationMs(int64_t value, int64_t factor)
+{
+    if (factor == 0) {
+        return 0;
+    }
+    if ((value > 0 && value > std::numeric_limits<int64_t>::max() / factor) ||
+        (value < 0 && value < std::numeric_limits<int64_t>::min() / factor)) {
+        throw std::out_of_range("partition commit delay overflows int64_t milliseconds");
+    }
+    return value * factor;
+}
+}
+
+int64_t parseDurationMs(const std::string &durationStr)
 {
     if (durationStr.empty())
         return 0;
     size_t pos = 0;
-    long value = std::stol(durationStr, &pos);
+    int64_t value = std::stoll(durationStr, &pos);
     std::string unit;
-    while (pos < durationStr.size() && std::isspace(durationStr[pos])) {
+    while (pos < durationStr.size() && std::isspace(static_cast<unsigned char>(durationStr[pos]))) {
         pos++;
     }
     for (; pos < durationStr.size(); pos++) {
-        unit += std::tolower(durationStr[pos]);
+        unit += static_cast<char>(std::tolower(static_cast<unsigned char>(durationStr[pos])));
     }
     if (unit.empty() || unit == "ms") {
         return value;
     } else if (unit == "s" || unit == "sec" || unit == "secs") {
-        return value * 1000;
+        return multiplyDurationMs(value, 1000);
     } else if (unit == "m" || unit == "min" || unit == "mins") {
-        return value * 60 * 1000;
+        return multiplyDurationMs(value, 60 * 1000);
     } else if (unit == "h" || unit == "hr" || unit == "hrs") {
-        return value * 60 * 60 * 1000;
+        return multiplyDurationMs(value, 60 * 60 * 1000);
     } else {
         return value;
     }
@@ -137,7 +155,7 @@ void PartitionCommitter::processBatch(StreamRecord *element)
         if (!partitionPath.empty()) {
             auto it = pendingPartitionsLegacy.find(partitionPath);
             if (it == pendingPartitionsLegacy.end()) {
-                long partitionTime = extractPartitionTime(batch, rowId);
+                int64_t partitionTime = extractPartitionTime(batch, rowId);
                 if (partitionTime > 0) {
                     pendingPartitionsLegacy[partitionPath] = partitionTime;
                     LOG("PartitionCommitter: new partition " << partitionPath
@@ -263,7 +281,7 @@ std::string PartitionCommitter::extractPartitionPath(omnistream::VectorBatch *ba
     return basePath + "/" + partitionSubPath;
 }
 
-long PartitionCommitter::extractPartitionTime(omnistream::VectorBatch * /*batch*/, int /*rowId*/)
+int64_t PartitionCommitter::extractPartitionTime(omnistream::VectorBatch * /*batch*/, int /*rowId*/)
 {
     auto now = std::chrono::system_clock::now();
     return std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -284,7 +302,7 @@ void PartitionCommitter::scanExistingPartitions()
                 committedPartitions.insert(dirPath);
             } else {
                 if (hasPartitionFiles(dirPath)) {
-                    long modTime = FileSystemCommitter::getFileModificationTime(dirPath);
+                    int64_t modTime = FileSystemCommitter::getFileModificationTime(dirPath);
                     pendingPartitionsLegacy[dirPath] = modTime;
                 }
             }
@@ -360,8 +378,8 @@ void PartitionCommitter::checkAndCommitPartitionsLegacy()
 
     std::vector<std::string> toCommit;
     for (auto it = pendingPartitionsLegacy.begin(); it != pendingPartitionsLegacy.end(); ) {
-        long partitionTime = it->second;
-        long readyTime = partitionTime + commitDelayMs;
+        int64_t partitionTime = it->second;
+        int64_t readyTime = partitionTime + commitDelayMs;
 
         bool shouldCommit = false;
         if (triggerType == "partition-time") {

@@ -25,6 +25,8 @@
 // check
 namespace omnistream {
 
+    class QueueInputGateRunnable;
+
     class IndexedInputGate : public InputGate, public CheckpointableInput {
     public:
         IndexedInputGate() = default;
@@ -46,10 +48,14 @@ namespace omnistream {
 
         virtual int getBuffersInUseCount()  = 0;
         virtual void announceBufferSize(int bufferSize) = 0;
+        virtual void triggerDebloating() {}
 
         std::string toString()  override {
             return "IndexedInputGate [gateIndex=" + std::to_string(GetGateIndex()) + "]";
         }
+
+    protected:
+        friend class QueueInputGateRunnable;
     };
 
 } // namespace omnistream

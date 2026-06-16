@@ -45,16 +45,29 @@ public:
             return;
         }
         for (auto& stateHandle : stateHandles_) {
+            if (stateHandle == nullptr) {
+                continue;
+            }
             auto streamStateHandle = std::dynamic_pointer_cast<OperatorStreamStateHandle>(stateHandle);
             if (streamStateHandle) {
+                auto stateNameToPartitionOffsets = stateHandle->getStateNameToPartitionOffsets();
+                auto delegate = stateHandle->getDelegateStateHandle();
                 auto json = TaskStateSnapshotSerializer::parseOperatorStreamStateHandle(streamStateHandle);
-                auto stateMetaInfoSnapshots = omniTaskBridge_->readOperatorMetaData(to_string(json));
+                std::string handleJson = to_string(json);
+                auto stateMetaInfoSnapshots = omniTaskBridge_->readOperatorMetaData(handleJson);
                 
                 for (auto& snapshot : stateMetaInfoSnapshots) {
+                    const std::string& stateName = snapshot.getName();
+                    if (stateNameToPartitionOffsets.find(stateName) == stateNameToPartitionOffsets.end()) {
+                        continue;
+                    }
+                    if (!isSupportedRestoredState(stateName)) {
+                        continue;
+                    }
                     auto metaInfo = std::make_shared<RegisteredOperatorStateBackendMetaInfo>(snapshot);
-                    auto delegate = std::dynamic_pointer_cast<ByteStreamStateHandle>(stateHandle->getDelegateStateHandle());
-                    if (delegate != nullptr) {
-                        deserializeOperatorStateValues(metaInfo, delegate, stateHandle->getStateNameToPartitionOffsets());
+                    auto byteDelegate = std::dynamic_pointer_cast<ByteStreamStateHandle>(delegate);
+                    if (byteDelegate != nullptr) {
+                        deserializeOperatorStateValues(metaInfo, byteDelegate, stateNameToPartitionOffsets);
                     }
                 }
             }
@@ -69,7 +82,6 @@ public:
         DataInputDeserializer in(stateHandle->GetData().data(), stateHandle->GetStateSize(), 0);
         TypeSerializer *serializer = metaInfo->getStateSerializer();
         if (serializer == nullptr) {
-            GErrorLog("OperatorStateRestoreOperation gets no serializer");
             return;
         }
         for (auto& entry : stateNameToPartitionOffsets) {
@@ -107,6 +119,12 @@ private:
     std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> registeredBroadcastStates_;
     std::vector<std::shared_ptr<OperatorStateHandle>> stateHandles_;
     std::shared_ptr<OmniTaskBridge> omniTaskBridge_;
+
+    static bool isSupportedRestoredState(const std::string& stateName)
+    {
+        return typeByteStateNames.find(stateName) != typeByteStateNames.end()
+            || typeLongStateNames.find(stateName) != typeLongStateNames.end();
+    }
 
     inline static std::set<std::string> typeByteStateNames = {
         "SourceReaderState",

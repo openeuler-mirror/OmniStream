@@ -527,14 +527,16 @@ void OmniStreamTask::processInput(MailboxDefaultAction::Controller *controller)
         std::vector<int> keyTypes;
         for (auto& keyField : keyFields) {
             keyCols.emplace_back(keyField.getFieldIndex());
-            if (keyField.getFieldTypeName().compare("BIGINT") == 0) {
+            if (keyField.getFieldTypeName() == "BIGINT") {
                 keyTypes.emplace_back(omniruntime::type::OMNI_LONG);
-            }
-            if (keyField.getFieldTypeName().compare("VARCHAR") == 0) {
+            } else if (keyField.getFieldTypeName() == "VARCHAR") {
                 keyTypes.emplace_back(omniruntime::type::OMNI_VARCHAR);
-            }
-            if (keyField.getFieldTypeName().compare("INTEGER") == 0) {
+            } else if (keyField.getFieldTypeName() == "INTEGER") {
                 keyTypes.emplace_back(omniruntime::type::OMNI_INT);
+            } else if (keyField.getFieldTypeName() == "OMNI_TIME_WITHOUT_TIME_ZONE") {
+                keyTypes.emplace_back(omniruntime::type::OMNI_TIME_WITHOUT_TIME_ZONE);
+            } else {
+                THROW_LOGIC_EXCEPTION("Not supported field type: " << keyField.getFieldTypeName());
             }
         }
         return new KeySelector<BinaryRowData*>(keyTypes, keyCols);
@@ -550,7 +552,31 @@ void OmniStreamTask::processInput(MailboxDefaultAction::Controller *controller)
 
     void OmniStreamTask::dispatchOperatorEvent(const std::string& operatorIdString, const std::string& eventString)
     {
-        operatorChain->DispatchOperatorEvent(operatorIdString, eventString);
+        auto mailboxRunnable = std::make_shared<VoidFunctionRunnable>(
+            [this, operatorIdString, eventString]() {
+                try {
+                    operatorChain->DispatchOperatorEvent(operatorIdString, eventString);
+                } catch (const std::exception& e) {
+                    isRunning = false;
+                    LOG("Error: mailbox dispatch failed, operatorId="
+                        << operatorIdString << ", eventBytes=" << eventString.size()
+                        << ", error=" << e.what())
+                    mailboxProcessor_->suspend();
+                } catch (...) {
+                    isRunning = false;
+                    LOG("Error: mailbox dispatch failed, operatorId="
+                        << operatorIdString << ", eventBytes=" << eventString.size()
+                        << ", error=unknown")
+                    mailboxProcessor_->suspend();
+                }
+            }
+        );
+        try {
+            mainMailboxExecutor_->execute(mailboxRunnable, "dispatchOperatorEvent");
+        } catch (const std::exception& e) {
+            LOG("Error: operator event dropped, mailbox not running, operatorId="
+                << operatorIdString << ", error=" << e.what())
+        }
     }
 
     std::shared_ptr<CheckpointStorage> OmniStreamTask::createCheckpointStorage(StateBackend* backend)

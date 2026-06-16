@@ -21,8 +21,15 @@
 #include "streaming/runtime/io/StreamTaskNetworkOutput.h"
 #include "streaming/runtime/io/OmniStreamOneInputProcessor.h"
 #include "../../io/OmniStreamTaskNetworkOutput.h"
+#include "partition/consumer/UnionInputGate.h"
 
 namespace omnistream {
+    namespace {
+        constexpr int SQL_TASK_TYPE = 1;
+        constexpr const char* OMNI_SQL_UNION_ALL_INPUT = "omni.sql.union-all.input";
+        constexpr const char* TRUE_VALUE = "true";
+    }
+
     // temporary set parameter type is int
     OmniPushingAsyncDataInput::OmniDataOutput *OmniOneInputStreamTask::createDataOutput(
         std::shared_ptr<omnistream::SimpleCounter> & numRecordsIn)
@@ -39,11 +46,12 @@ namespace omnistream {
         // initialize TypeInformation and channelInfos
         if (taskType == 1) {
             // todo: fix it later
+            const bool useUnionAllChannelId = HasUnionAllInput();
             std::vector<long> channelInfoIndex;
             auto channelInfos = inputGate->GetChannelInfos();
             channelInfoIndex.reserve(channelInfos.size());
             for (size_t i = 0; i < channelInfos.size(); ++i) {
-                channelInfoIndex.push_back(static_cast<long>(channelInfos[i].getInputChannelIdx()));
+                channelInfoIndex.push_back(GetChannelDeserializerId(channelInfos[i], useUnionAllChannelId));
             }
             LOG("OperatorDescription " <<  this->taskConfiguration_.getStreamConfigPOD().getOperatorDescription().toString())
             std::vector<std::string> typeList;
@@ -72,7 +80,6 @@ namespace omnistream {
             // Create a C++ normal array (vector)
             std::vector<long> channel_array(numberOfInputChannels);
 
-            // Copy elements from JSON array to C++ array
             for (size_t i = 0; i < numberOfInputChannels; ++i) {
                 channel_array[i] = static_cast<long>(i);
             }
@@ -154,10 +161,37 @@ namespace omnistream {
             alignedCheckpointTimeoutMillis,
             checkpointExecutionConfig.getCheckpointAfterTasksFinishEnabled());
 
+        if (ShouldUseUnionInputGate(taskType, checkpointableInputs.size(), HasUnionAllInput())) {
+            std::shared_ptr<InputGate> effectiveGate;
+            effectiveGate = std::make_shared<UnionInputGate>(checkpointableInputs);
+            return std::make_shared<CheckpointedInputGate>(effectiveGate, checkpointBarrierHandler, mainMailboxExecutor_);
+        }
+
         auto checkpointedInputGates = InputProcessorUtil::CreateCheckpointedMultipleInputGate(
             mainMailboxExecutor_,
             {checkpointableInputs}, checkpointBarrierHandler);
-        
+
         return checkpointedInputGates[0];
+    }
+
+    bool OmniOneInputStreamTask::ShouldUseUnionInputGate(int taskType, size_t inputGateCount, bool hasUnionAllInput)
+    {
+        return taskType == SQL_TASK_TYPE && inputGateCount > 1 && hasUnionAllInput;
+    }
+
+    long OmniOneInputStreamTask::GetChannelDeserializerId(
+        const InputChannelInfo& channelInfo, bool useUnionAllChannelId)
+    {
+        if (useUnionAllChannelId) {
+            return channelInfo.getComplexId();
+        }
+        return static_cast<long>(channelInfo.getInputChannelIdx());
+    }
+
+    bool OmniOneInputStreamTask::HasUnionAllInput() const
+    {
+        auto omniConf = taskConfiguration_.getStreamConfigPOD().getOmniConf();
+        auto it = omniConf.find(OMNI_SQL_UNION_ALL_INPUT);
+        return it != omniConf.end() && it->second == TRUE_VALUE;
     }
 }

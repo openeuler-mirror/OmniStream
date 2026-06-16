@@ -21,6 +21,10 @@ namespace omnistream {
     }
 
     OmniCreditBasedSequenceNumberingViewReader::~OmniCreditBasedSequenceNumberingViewReader() {
+        if (subpartitionView) {
+            subpartitionView->releaseAllResources();
+            subpartitionView.reset();
+        }
         if (networkBufferPendingRecycling.empty()) {
             return;
         }

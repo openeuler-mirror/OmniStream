@@ -179,11 +179,16 @@ void RdKafkaConsumer::commitAsync()
 void RdKafkaConsumer::commitOffsets(const std::map<std::shared_ptr<RdKafka::TopicPartition>, int64_t>& offsets)
 {
     std::vector<RdKafka::TopicPartition*> partitions;
+    std::vector<std::unique_ptr<RdKafka::TopicPartition>> ownedPartitions;
+    partitions.reserve(offsets.size());
+    ownedPartitions.reserve(offsets.size());
 
     for (const auto& entry : offsets) {
-        auto tp = RdKafka::TopicPartition::create(entry.first->topic(), entry.first->partition());
+        std::unique_ptr<RdKafka::TopicPartition> tp(
+            RdKafka::TopicPartition::create(entry.first->topic(), entry.first->partition()));
         tp->set_offset(entry.second);
-        partitions.push_back(tp);
+        partitions.push_back(tp.get());
+        ownedPartitions.push_back(std::move(tp));
     }
 
     RdKafka::ErrorCode resp = consumer_->commitSync(partitions);
@@ -193,7 +198,4 @@ void RdKafkaConsumer::commitOffsets(const std::map<std::shared_ptr<RdKafka::Topi
         throw std::runtime_error("Failed to commit offsets: " + RdKafka::err2str(resp));
     }
 
-    for (auto tp : partitions) {
-        delete tp;
-    }
 }

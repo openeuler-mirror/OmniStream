@@ -19,19 +19,11 @@ extern "C" {
 #endif
 /*
  * Class:     com_huawei_omniruntime_flink_runtime_tasks_OmniSourceOperatorStreamTaskV2
- * Method:    getNativeSourceOperator
- * Signature: (J)J
+ * Method:    dispatchOperatorEvent
+ * Signature: (JLjava/lang/String;Ljava/lang/String;)V
  */
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_tasks_OmniSourceOperatorStreamTaskV2_getNativeSourceOperator
-  (JNIEnv *, jclass, jlong);
-
-/*
- * Class:     com_huawei_omniruntime_flink_runtime_tasks_OmniSourceOperatorStreamTaskV2
- * Method:    handleOperatorEvent
- * Signature: (JLjava/lang/String;)V
- */
-JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_tasks_OmniSourceOperatorStreamTaskV2_handleOperatorEvent
-  (JNIEnv *, jclass, jlong, jstring);
+JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_tasks_OmniSourceOperatorStreamTaskV2_dispatchOperatorEvent
+  (JNIEnv *, jclass, jlong, jstring, jstring);
 
 #ifdef __cplusplus
 }
