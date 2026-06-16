@@ -266,8 +266,6 @@ DataStream
 
 ### 版本配套文档
 
-<font size=3>
-
 <table>
   <thead>
     <tr>
