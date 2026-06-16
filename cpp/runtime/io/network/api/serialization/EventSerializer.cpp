@@ -104,6 +104,12 @@ namespace omnistream {
         } else if (dynamic_cast<CheckpointBarrier*>(event.get())) {
             memorySegment = SerializeCheckpointBarrier(std::dynamic_pointer_cast<CheckpointBarrier>(event));
             return memorySegment;
+        } else if (auto cancelMarker = dynamic_cast<CancelCheckpointMarker*>(event.get())) {
+            auto segment = std::make_unique<MemorySegment>(12);
+            ByteBuffer byteBuffer(segment->getData(), segment->getSize());
+            byteBuffer.putInt(CANCEL_CHECKPOINT_MARKER_EVENT);
+            byteBuffer.putLong(cancelMarker->getCheckpointId());
+            return segment.release();
         } else if (dynamic_cast<EventAnnouncement*>(event.get())) {
             auto ann = std::dynamic_pointer_cast<EventAnnouncement>(event);
             if (!ann) {
@@ -167,11 +173,12 @@ namespace omnistream {
             // delete buffer;
             return EndOfPartitionEvent::getInstance();
         } else if (eventType == END_OF_USER_RECORDS_EVENT) {
+            auto stopMode = static_cast<StopMode>(byteBuffer.getByte());
             if (recycleEvent) {
                 buffer->RecycleBuffer();
             }
             // delete buffer;
-            return std::make_shared<EndOfData>(StopMode::DRAIN);
+            return std::make_shared<EndOfData>(stopMode);
         } else if (eventType == CHECKPOINT_BARRIER_EVENT) {
             std::shared_ptr<CheckpointBarrier> checkpointBarrier = DeserializeCheckpointBarrier(byteBuffer);
             if (recycleEvent) {
@@ -193,6 +200,12 @@ namespace omnistream {
                 buffer->RecycleBuffer();
             }
             return std::make_shared<EventAnnouncement>(announced, seq);
+        } else if (eventType == CANCEL_CHECKPOINT_MARKER_EVENT) {
+            auto checkpointId = byteBuffer.getLong();
+            if (recycleEvent) {
+                buffer->RecycleBuffer();
+            }
+            return std::make_shared<CancelCheckpointMarker>(checkpointId);
         } else if (eventType == END_OF_CHANNEL_STATE_EVENT) {
             if (recycleEvent) {
                 buffer->RecycleBuffer();
@@ -231,8 +244,9 @@ namespace omnistream {
 //            buffer->RecycleBuffer();
             return EndOfPartitionEvent::getInstance();
         } else if (eventType == END_OF_USER_RECORDS_EVENT) {
+            auto stopMode = static_cast<StopMode>(byteBuffer.getByte());
 //            buffer->RecycleBuffer();
-            return std::make_shared<EndOfData>(StopMode::DRAIN);
+            return std::make_shared<EndOfData>(stopMode);
         } else if (eventType == CHECKPOINT_BARRIER_EVENT) {
             std::shared_ptr<CheckpointBarrier> checkpointBarrier = DeserializeCheckpointBarrier(byteBuffer);
 //            buffer->RecycleBuffer();
@@ -249,6 +263,10 @@ namespace omnistream {
             }
 //            buffer->RecycleBuffer();
             return std::make_shared<EventAnnouncement>(announced, seq);
+        } else if (eventType == CANCEL_CHECKPOINT_MARKER_EVENT) {
+            auto checkpointId = byteBuffer.getLong();
+//            buffer->RecycleBuffer();
+            return std::make_shared<CancelCheckpointMarker>(checkpointId);
         } else {
             LOG_DEBUG("find no support event type!")
             return nullptr;

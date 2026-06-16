@@ -167,8 +167,15 @@ namespace omnistream::runtime {
             AbortInternal(currentCheckpointId_, e);
             return;
         } catch (const std::exception& e) {
-            // Convert to IOException equivalent
+            CheckpointException checkpointException(
+                CheckpointFailureReason::CHECKPOINT_DECLINED,
+                e);
+            AbortInternal(currentCheckpointId_, checkpointException);
             throw std::runtime_error("Error in state transformation: " + std::string(e.what()));
+        } catch (...) {
+            CheckpointException checkpointException(CheckpointFailureReason::CHECKPOINT_DECLINED);
+            AbortInternal(currentCheckpointId_, checkpointException);
+            throw std::runtime_error("Error in state transformation: unknown exception");
         }
 
         if (alignedChannels_.size() == (unsigned int)targetChannelCount_) {

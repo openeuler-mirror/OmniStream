@@ -179,3 +179,65 @@ TEST(SingleCheckpointBarrierHandlerTest, AlignmentTimeout_SwitchesToUnaligned) {
 
     delete handler;
 }
+
+TEST(SingleCheckpointBarrierHandlerTest, ProcessBarrier_TriggerCheckpointFails_AbortsAndUnblocksChannels) {
+    auto mockTask = std::make_unique<NiceMock<MockCheckpointableTask>>();
+    auto mockCoordinator = std::make_unique<NiceMock<MockSubtaskCheckpointCoordinator>>();
+    Clock& clock = SystemClock::GetInstance();
+
+    auto input0 = std::make_unique<TestInput>(0);
+    auto input1 = std::make_unique<TestInput>(1);
+    std::vector<CheckpointableInput*> inputs = {input0.get(), input1.get()};
+
+    auto executor = std::make_unique<MailboxExecutorTest>();
+    auto timerService = std::make_unique<SystemProcessingTimeService>();
+    auto* delayableTimer = BarrierAlignmentUtil::createRegisterTimerCallback<std::function<void()>>(
+        executor.get(), timerService.get());
+    std::unique_ptr<BarrierAlignmentUtil::DelayableTimer<std::function<void()>>> timerGuard(delayableTimer);
+
+    auto* initialState = new AlternatingWaitingForFirstBarrier(ChannelState(inputs));
+    std::unique_ptr<SingleCheckpointBarrierHandler> handler(new SingleCheckpointBarrierHandler(
+        "JoinTask",
+        mockTask.get(),
+        mockCoordinator.get(),
+        clock,
+        2,
+        initialState,
+        true,
+        delayableTimer,
+        inputs,
+        false));
+
+    auto checkpointType = CheckpointType::CHECKPOINT;
+    auto targetLocation = CheckpointStorageLocationReference::GetDefault();
+    CheckpointOptions options(checkpointType, targetLocation, CheckpointOptions::AlignmentType::ALIGNED, 3000);
+    CheckpointBarrier barrier(7, clock.RelativeTimeMillis(), &options);
+
+    InputChannelInfo ch0(0, 0);
+    InputChannelInfo ch1(1, 0);
+
+    EXPECT_CALL(*mockTask, TriggerCheckpointOnBarrier(_, _, _))
+        .WillOnce([](std::shared_ptr<CheckpointMetaData>,
+                     std::shared_ptr<CheckpointOptions>,
+                     std::shared_ptr<CheckpointMetricsBuilder>) {
+            throw std::runtime_error("snapshot failed");
+        });
+    EXPECT_CALL(*mockTask, abortCheckpointOnBarrier(7, _)).Times(1);
+
+    handler->ProcessBarrier(barrier, ch0, false);
+    ASSERT_TRUE(handler->IsCheckpointPending());
+    ASSERT_FALSE(input0->blockedChannels_.empty());
+
+    try {
+        handler->ProcessBarrier(barrier, ch1, false);
+        FAIL() << "Expected checkpoint trigger failure";
+    } catch (const std::runtime_error& e) {
+        EXPECT_THAT(std::string(e.what()), ::testing::HasSubstr("snapshot failed"));
+    }
+
+    EXPECT_FALSE(handler->IsCheckpointPending());
+    EXPECT_TRUE(input0->resumedChannels_.count(0) > 0);
+    EXPECT_TRUE(input1->resumedChannels_.count(0) > 0);
+
+    timerService->shutdownService();
+}
