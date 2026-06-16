@@ -50,6 +50,7 @@ public:
     void globalWinAggProcess(const WindowKey& currentWindowKey, std::vector<std::unique_ptr<RowData>>& sliceResultArr);
     void winAggProcess(const WindowKey& currentWindowKey, std::vector<std::unique_ptr<RowData>>&  sliceResultArr);
     void WindowAggProcess(const WindowKey& currentKey, std::vector<std::unique_ptr<RowData>>& sliceResultArr);
+    bool shouldDeleteWindowStateValue() const;
 
 private:
     static constexpr int AVG_ACCUMULATOR_SLOTS = 2;  // AVG needs sum + count

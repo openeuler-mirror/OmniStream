@@ -256,7 +256,7 @@ void RecordsWindowBuffer::winAggProcess(
     }
     stateVal = localAggregator->getAccumulators();
     accState->update(window, stateVal);
-    if (backendType_ != omnistream::StateType::HEAP) {
+    if (shouldDeleteWindowStateValue()) {
         delete stateVal;
     }
 }
@@ -295,7 +295,7 @@ void RecordsWindowBuffer::combineAccumulator(
     globalAggregator->merge(window, acc);
     stateVal = globalAggregator->getAccumulators();
     accState->update(window, stateVal);
-    if (backendType_ != omnistream::StateType::HEAP) {
+    if (shouldDeleteWindowStateValue()) {
         delete stateVal;
     }
 
@@ -361,4 +361,8 @@ void RecordsWindowBuffer::collectOutputBatch(TimestampedCollector *out, omnistre
 Output* RecordsWindowBuffer::getOutput()
 {
     return this->output;
+}
+
+bool RecordsWindowBuffer::shouldDeleteWindowStateValue() const {
+    return backendType_ == omnistream::StateType::ROCKSDB && !accState->isFalconEnabled();
 }

@@ -51,6 +51,7 @@ public:
     RowData* GetNonHopResult(int64_t windowEnd);
     void ProcessHopResult(RowData* result);
     void ProcessNonHopResult(RowData* result);
+    bool shouldDeleteWindowStateValue() const;
 protected:
     std::unique_ptr<RecordsWindowBuffer> windowBuffer;
     int64_t currentProgress = INT64_MIN;

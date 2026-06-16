@@ -171,7 +171,7 @@ void WindowOperator<K, W>::processElement(RowData *inputRow) {
         }
         acc = windowAggregator->getAccumulators();
         windowState->update(acc);
-        if (backendType_ != omnistream::StateType::HEAP) {
+        if (shouldDeleteWindowStateValue()) {
             delete acc;
         }
     }

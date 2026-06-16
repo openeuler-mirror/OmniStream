@@ -106,6 +106,8 @@ public:
     void writeValue(const V &value);
     void deleteValue();
 
+    bool isFalconEnabled() const;
+
     ValueStateLRUCache<K, N, V>* stateCache; // falcon cache corresponding to this ValueState
     // [FALCON] -------------------------------------------------------------------------------------------
 
@@ -319,6 +321,11 @@ private:
 };
 
 // [FALCON] -------------------------------------------------------------------------------------------
+template <typename K, typename N, typename V>
+bool RocksdbValueState<K, N, V>::isFalconEnabled() const {
+    return stateCache != nullptr && stateCache->getSizeLimit() != 0;
+}
+
 template <typename K, typename N, typename V>
 V RocksdbValueState<K, N, V>::getValue()
 {

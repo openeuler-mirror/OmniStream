@@ -173,7 +173,7 @@ void AggregateWindowOperator<K, W>::emitWindowResult(const W& window) {
         // if the counter is zero, no need to send accumulate
         // there is no possible skip `if` branch when `produceUpdates` is false
     }
-    if (this->backendType_ != omnistream::StateType::HEAP) {
+    if (this->shouldDeleteWindowStateValue()) {
         delete this->windowAggregator->getAccumulators();
     }
 }

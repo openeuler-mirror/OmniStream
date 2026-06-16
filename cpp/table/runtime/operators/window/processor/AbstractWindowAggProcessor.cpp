@@ -209,7 +209,7 @@ RowData* AbstractWindowAggProcessor::GetNonHopResult(int64_t windowEnd)
     }
     aggregator->setAccumulators(windowEnd, acc);
     RowData *result = aggregator->getValue(windowEnd);
-    if (backendType_ != omnistream::StateType::HEAP) {
+    if (shouldDeleteWindowStateValue()) {
         delete acc;
     }
     return result;
@@ -239,7 +239,7 @@ RowData* AbstractWindowAggProcessor::GetHopResult(int64_t windowEnd, int64_t num
             aggregator->merge(tempWindow, sliceAcc);
         }
         tempWindow -= interval;
-        if (backendType_ != omnistream::StateType::HEAP) {
+        if (shouldDeleteWindowStateValue()) {
             delete sliceAcc;
         }
     }
@@ -254,6 +254,10 @@ bool AbstractWindowAggProcessor::isWindowEmpty() {
     }
     auto acc = aggregator->getAccumulators();
     return acc == nullptr || acc->isNullAt(indexOfCountStar_) || *acc->getLong(indexOfCountStar_) == 0;
+}
+
+bool AbstractWindowAggProcessor::shouldDeleteWindowStateValue() const {
+    return backendType_ == omnistream::StateType::ROCKSDB && !windowState->isFalconEnabled();
 }
 
 omnistream::VectorBatch* AbstractWindowAggProcessor::createOutputBatch(std::vector<std::unique_ptr<RowData>>& collectedRows)

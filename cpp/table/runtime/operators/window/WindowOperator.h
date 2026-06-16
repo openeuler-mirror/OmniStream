@@ -33,6 +33,7 @@
 #include "table/typeutils/RowDataSerializer.h"
 #include "streaming/api/operators/TimerHeapInternalTimer.h"
 #include "runtime/state/HeapKeyedStateBackend.h"
+#include "runtime/state/rocksdb/RocksdbValueState.h"
 #include "state/internal/InternalValueState.h"
 #include "table/runtime/generated/NamespaceAggsHandleFunction.h"
 #include "table/runtime/keyselector/KeySelector.h"
@@ -281,6 +282,11 @@ public:
 
 protected:
     virtual void emitWindowResult(const W &window) = 0;
+
+    bool shouldDeleteWindowStateValue() const {
+        return backendType_ == omnistream::StateType::ROCKSDB
+            && !reinterpret_cast<RocksdbValueState<K, W, RowData*>*>(windowState)->isFalconEnabled();
+    }
 
     TimestampedCollector* collector{};
     std::unique_ptr<TriggerContext> triggerContext_;
