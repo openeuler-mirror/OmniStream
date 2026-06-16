@@ -48,7 +48,7 @@ public:
                                              getRecordDeserializers(inputGate, inputSerializer,
                                                                     *inflightDataRescalingDescriptor,
                                                                     getPartitionerFunction, taskInfo),
-                                            taskInfo->getExecutionCheckpointConfig().getCheckpointInterval())
+                                             taskInfo->getExecutionCheckpointConfig().getCheckpointInterval())
     {
         INFO_RELEASE("create OmniRescalingStreamTaskNetworkInput");
     }
