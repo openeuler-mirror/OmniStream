@@ -13,19 +13,19 @@
 #include <securec.h>
 #include <algorithm>
 #include <cstdint>
-#include <memory>
-#include <vector>
-#include "bridge/OmniTaskBridge.h"
-#include "state/SnapshotResult.h"
-#include "state/StreamStateHandle.h"
-#include "state/bridge/OmniTaskBridge.h"
-#include "runtime/checkpoint/CheckpointOptions.h"
-#include "core/memory/DataOutputSerializer.h"
-#include "core/utils/ByteView.h"
 #include <jni.h>
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <utility>
+#include <vector>
+#include "bridge/OmniTaskBridge.h"
+#include "core/memory/DataOutputSerializer.h"
+#include "core/utils/ByteView.h"
+#include "runtime/checkpoint/CheckpointOptions.h"
+#include "state/SnapshotResult.h"
+#include "state/StreamStateHandle.h"
+#include "state/bridge/OmniTaskBridge.h"
 
 /**
  * Stateful savepoint output stream that combines buffering, DirectByteBuffer
@@ -229,21 +229,21 @@ public:
         requireNoActivePatch("prepareForPatchableKeyValuePair");
         size_t targetCapacity = capacity_;
         if (encodedLen > targetCapacity) {
-            if (encodedLen <= MAX_CHUNK_SIZE / 2) {
-                targetCapacity = std::max(targetCapacity, roundUpPowerOfTwo(encodedLen * 2));
+            if (encodedLen <= (MAX_CHUNK_SIZE >> 1)) {
+                targetCapacity = std::max(targetCapacity, roundUpPowerOfTwo(encodedLen << 1));
             } else if (encodedLen <= MAX_CHUNK_SIZE) {
                 targetCapacity = std::max(targetCapacity, roundUpPowerOfTwo(encodedLen));
             }
         }
         size_t writeBytesTarget = capacity_;
-        while (writeBytesTarget < MAX_CHUNK_SIZE && pos_ >= writeBytesTarget * 2) {
-            writeBytesTarget *= 2;
+        while (writeBytesTarget < MAX_CHUNK_SIZE && pos_ >= (writeBytesTarget << 1)) {
+            writeBytesTarget <<= 1;
         }
         targetCapacity = std::max(targetCapacity, writeBytesTarget);
         targetCapacity = std::min(targetCapacity, MAX_CHUNK_SIZE);
         if (targetCapacity > capacity_) {
             if (!growBuffer(targetCapacity)) {
-                INFO_RELEASE("CheckpointStateOutputStreamProxy failed to grow buffer from "
+                INFO_RELEASE("Error: CheckpointStateOutputStreamProxy failed to grow buffer from "
                     << capacity_ << " to " << targetCapacity << " bytes");
             }
         }
@@ -304,6 +304,7 @@ private:
         try {
             bridge_->ReleaseSavepointOutputDirectBuffer(directBuffer);
         } catch (...) {
+            INFO_RELEASE("Warning: ReleaseSavepointOutputDirectBuffer failed, DirectByteBuffer global ref may leak");
         }
     }
 
@@ -338,6 +339,7 @@ private:
         try {
             newChunk.resize(targetCapacity);
         } catch (...) {
+            INFO_RELEASE("Warning: Failed to resize savepoint output buffer to " << targetCapacity << " bytes");
             return false;
         }
 
@@ -346,6 +348,7 @@ private:
             try {
                 newDirectBuffer = bridge_->CreateSavepointOutputDirectBuffer(newChunk.data(), targetCapacity);
             } catch (...) {
+                INFO_RELEASE("Warning: Failed to create savepoint DirectByteBuffer, capacity=" << targetCapacity);
                 return false;
             }
         }
@@ -383,6 +386,7 @@ private:
     void requireNoActivePatch(const char* operation) const
     {
         if (patchGuardActive_) {
+            INFO_RELEASE("Error: Cannot " << operation << " while a savepoint BytePatch is pending");
             throw std::runtime_error(
                 std::string("Cannot ") + operation + " while a savepoint BytePatch is pending");
         }
@@ -391,12 +395,15 @@ private:
     void requireActivePatch(BytePatch patch, const char* operation) const
     {
         if (!patch.valid) {
+            INFO_RELEASE("Error: Cannot " << operation << " with invalid savepoint BytePatch");
             throw std::runtime_error(std::string("Cannot ") + operation + " with invalid savepoint BytePatch");
         }
         if (!patchGuardActive_) {
+            INFO_RELEASE("Error: Cannot " << operation << " without active savepoint BytePatch guard");
             throw std::runtime_error(std::string("Cannot ") + operation + " without active savepoint BytePatch guard");
         }
         if (patch.flushGeneration != patchGuardGeneration_ || patch.offset != patchGuardOffset_) {
+            INFO_RELEASE("Error: Cannot " << operation << " non-current savepoint BytePatch");
             throw std::runtime_error(std::string("Cannot ") + operation + " non-current savepoint BytePatch");
         }
     }

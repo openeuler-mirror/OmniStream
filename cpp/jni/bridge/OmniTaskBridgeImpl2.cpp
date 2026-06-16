@@ -1426,6 +1426,7 @@ void OmniTaskBridgeImpl2::WriteSavepointOutputStream(jobject provider, const int
         return;
     }
     if (len > static_cast<size_t>(std::numeric_limits<jsize>::max())) {
+        INFO_RELEASE("Error: Savepoint output chunk len=" << len << " exceeds JNI byte array limit");
         throw std::runtime_error("Savepoint output chunk is larger than JNI byte array limit");
     }
     JNIEnv* env = nullptr;
@@ -1444,6 +1445,7 @@ void OmniTaskBridgeImpl2::WriteSavepointOutputStream(jobject provider, const int
         mid = env->GetMethodID(cls, "writeSavepointOutputStream", "(Lorg/apache/flink/runtime/state/CheckpointStreamWithResultProvider;[B)V");
         env->DeleteLocalRef(cls);
         if (mid == nullptr) {
+            INFO_RELEASE("Error: Failed to find writeSavepointOutputStream method in WriteSavepointOutputStream");
             throw std::runtime_error("Failed to find WriteSavepointOutputStream method");
         }
     }
@@ -1451,6 +1453,7 @@ void OmniTaskBridgeImpl2::WriteSavepointOutputStream(jobject provider, const int
     if (data == nullptr || env->ExceptionCheck()) {
         env->ExceptionDescribe();
         env->ExceptionClear();
+        INFO_RELEASE("Error: Failed to allocate savepoint output byte array, len=" << len);
         throw std::runtime_error("Failed to allocate savepoint output byte array");
     }
     env->SetByteArrayRegion(data, 0, static_cast<jsize>(len), reinterpret_cast<const jbyte *>(chunk + offset));
@@ -1458,6 +1461,7 @@ void OmniTaskBridgeImpl2::WriteSavepointOutputStream(jobject provider, const int
         env->ExceptionDescribe();
         env->ExceptionClear();
         env->DeleteLocalRef(data);
+        INFO_RELEASE("Error: Failed to copy savepoint output byte array, len=" << len);
         throw std::runtime_error("Failed to copy savepoint output byte array");
     }
     env->CallVoidMethod(m_globalOmniTaskRef, mid, provider, data);
@@ -1476,7 +1480,13 @@ jobject OmniTaskBridgeImpl2::CreateSavepointOutputDirectBuffer(void* data, size_
     if (data == nullptr || capacity == 0) {
         return nullptr;
     }
+    static constexpr size_t MAX_DIRECT_BUFFER_SIZE = 4 * 1024 * 1024;
+    if (capacity > MAX_DIRECT_BUFFER_SIZE) {
+        INFO_RELEASE("Error: Savepoint direct buffer capacity " << capacity << " exceeds max limit " << MAX_DIRECT_BUFFER_SIZE);
+        throw std::runtime_error("Savepoint direct buffer capacity exceeds maximum allowed limit");
+    }
     if (capacity > static_cast<size_t>(std::numeric_limits<jlong>::max())) {
+        INFO_RELEASE("Error: Savepoint direct buffer capacity " << capacity << " exceeds JNI limit");
         throw std::runtime_error("Savepoint direct buffer capacity is larger than JNI direct buffer limit");
     }
     JNIEnv* env = nullptr;
@@ -1516,6 +1526,7 @@ void OmniTaskBridgeImpl2::ReleaseSavepointOutputDirectBuffer(jobject directBuffe
         attachRes = g_OmniStreamJVM->AttachCurrentThread(reinterpret_cast<void **>(&env), nullptr);
     }
     if (attachRes != JNI_OK || env == nullptr) {
+        INFO_RELEASE("Warning: Failed to attach JNI thread in ReleaseSavepointOutputDirectBuffer, DirectByteBuffer global ref may leak");
         return;
     }
     env->DeleteGlobalRef(directBuffer);
