@@ -363,10 +363,10 @@ void OperatorChainV2::createChainOutputs(std::vector<StreamEdgePOD>& outputsInOr
         const auto& nonChainedOutputs = streamConfig.getOpNonChainedOutputs();
         TypeInformation *chainOutputType = getChainOutputType(streamConfig.getOperatorDescription());
 
-        LOG("TypeInformation is " << chainOutputType->name())
-        auto recordWriterOutput = createStreamOutput(recordWriterDelegate->getRecordWriter(i), *chainOutputType, nonChainedOutputs[i]);
-        streamOutputs[i] = recordWriterOutput;
         int index = indexForSource[sourceId]++;
+        LOG("TypeInformation is " << chainOutputType->name())
+        auto recordWriterOutput = createStreamOutput(recordWriterDelegate->getRecordWriter(i), *chainOutputType, nonChainedOutputs[index]);
+        streamOutputs[i] = recordWriterOutput;
         const auto& nonChainedOutput = nonChainedOutputs[index];
         int key = static_cast<int>(std::hash<omnistream::NonChainedOutputPOD>{}(nonChainedOutput));
         recordWriterOutputs[key] = recordWriterOutput;
