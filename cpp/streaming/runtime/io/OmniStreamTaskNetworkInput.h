@@ -17,8 +17,8 @@
 namespace omnistream {
     class OmniStreamTaskNetworkInput : public OmniAbstractStreamTaskNetworkInput {
     public:
-         OmniStreamTaskNetworkInput(int64_t inputIndex, const std::shared_ptr<CheckpointedInputGate>& inputGate, int taskType, TypeSerializer *inputSerializer, std::vector<long> & channelInfos)
-             : OmniAbstractStreamTaskNetworkInput(inputIndex, inputGate, taskType, inputSerializer, channelInfos) {}
+         OmniStreamTaskNetworkInput(int64_t inputIndex, const std::shared_ptr<CheckpointedInputGate>& inputGate, int taskType, TypeSerializer *inputSerializer, std::vector<long> & channelInfos, int64_t checkpointInterval)
+             : OmniAbstractStreamTaskNetworkInput(inputIndex, inputGate, taskType, inputSerializer, channelInfos, checkpointInterval) {}
     };
 }
 

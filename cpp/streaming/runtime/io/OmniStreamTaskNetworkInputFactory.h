@@ -30,7 +30,8 @@ namespace omnistream {
                 inflightDataRescalingDescriptor == InflightDataRescalingDescriptor::noRescale) {
                 INFO_RELEASE("create OmniStreamTaskNetworkInput");
                 return new OmniStreamTaskNetworkInput(inputIndex, inputGate, taskType,
-                                                      inputSerializer, channelInfos);
+                                                      inputSerializer, channelInfos,
+                                                      taskInfo->getExecutionCheckpointConfig().getCheckpointInterval());
             }
             INFO_RELEASE("create OmniRescalingStreamTaskNetworkInput");
             return new OmniRescalingStreamTaskNetworkInput(inputIndex, inputGate, taskType, inputSerializer,

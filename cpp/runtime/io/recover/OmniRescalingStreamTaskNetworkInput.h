@@ -47,7 +47,8 @@ public:
         : OmniAbstractStreamTaskNetworkInput(inputIndex, inputGate, taskType, inputSerializer, channelInfos,
                                              getRecordDeserializers(inputGate, inputSerializer,
                                                                     *inflightDataRescalingDescriptor,
-                                                                    getPartitionerFunction, taskInfo))
+                                                                    getPartitionerFunction, taskInfo),
+                                            taskInfo->getExecutionCheckpointConfig().getCheckpointInterval())
     {
         INFO_RELEASE("create OmniRescalingStreamTaskNetworkInput");
     }
@@ -89,7 +90,7 @@ public:
         for (const auto &item : inputGate->GetChannelInfos()) {
             channelIds.emplace_back(item.getInputChannelIdx());
         }
-        return new OmniAbstractStreamTaskNetworkInput(inputIndex, inputGate, taskType, inSerializer, channelIds);
+        return new OmniAbstractStreamTaskNetworkInput(inputIndex, inputGate, taskType, inSerializer, channelIds, checkpointInterval);
     }
 
     class RecordFilterFactory {
