@@ -107,10 +107,14 @@ namespace omnistream {
             LOG(">>>>>>")
             try {
                 PerformCheckpoint(checkpointMetaData, std::move(checkpointOptions), checkpointMetrics);
+            } catch (const std::exception& e) {
+                LOG("Operator " << getName() << " failed while performing checkpoint "
+                    << checkpointMetaData->GetCheckpointId() << ": " << e.what());
+                throw;
             } catch (...) {
-                LOG("Operator {} was cancelled while performing checkpoint {}." << getName() <<
-                    checkpointMetaData->GetCheckpointId());
-                throw std::runtime_error("");
+                LOG("Operator " << getName() << " failed while performing checkpoint "
+                    << checkpointMetaData->GetCheckpointId() << ": unknown exception");
+                throw std::runtime_error("Unknown checkpoint failure");
             }
         };
 

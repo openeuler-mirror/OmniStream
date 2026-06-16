@@ -63,6 +63,10 @@ namespace omnistream {
                             const std::exception& cause);
 
         ~CheckpointException() override {};
+        const char* what() const noexcept override
+        {
+            return message_.c_str();
+        }
 
         CheckpointFailureReason GetCheckpointFailureReason() const;
 
