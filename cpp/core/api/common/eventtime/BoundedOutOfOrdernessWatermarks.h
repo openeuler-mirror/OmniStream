@@ -9,8 +9,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef OMNISTREAM_BOUNDEDOUTOFORDERNESSWATERMARKS_H
-#define OMNISTREAM_BOUNDEDOUTOFORDERNESSWATERMARKS_H
+#pragma once
 
 #include "WatermarkGenerator.h"
 
@@ -21,14 +20,17 @@ public:
     {
     }
 
-    void OnEvent(void * event, long eventTimestamp, WatermarkOutput* output) override
-    {
+    void OnEvent(void * event, long eventTimestamp, WatermarkOutput* output) override {
         maxTimestamp = std::max(maxTimestamp, eventTimestamp);
     }
 
-    void OnPeriodicEmit(WatermarkOutput* output) override
-    {
+    void OnPeriodicEmit(WatermarkOutput* output) override {
+        lastEmittedMaxTimestamp_ = maxTimestamp;
         output->emitWatermark(new Watermark(maxTimestamp - outOfOrdernessMillis - 1));
+    }
+
+    int64_t getLastEmittedMaxTimestamp() override {
+        return lastEmittedMaxTimestamp_;
     }
 
     ~BoundedOutOfOrdernessWatermarks() override = default;
@@ -36,7 +38,5 @@ public:
 private:
     long maxTimestamp;
     const long outOfOrdernessMillis;
+    int64_t lastEmittedMaxTimestamp_ = INT64_MIN;
 };
-
-
-#endif // OMNISTREAM_BOUNDEDOUTOFORDERNESSWATERMARKS_H
