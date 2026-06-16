@@ -39,14 +39,16 @@ class OmniAbstractStreamTaskNetworkInput : public OmniStreamTaskInput {
 public:
     OmniAbstractStreamTaskNetworkInput(int64_t inputIndex, std::shared_ptr<CheckpointedInputGate> inputGate,
                                        int taskType, TypeSerializer *inputSerializer, std::vector<long> &channelInfos,
-                                       std::unique_ptr<std::unordered_map<long, std::unique_ptr<RecordDeserializer>>> recordDeserializers)
+                                       std::unique_ptr<std::unordered_map<long, std::unique_ptr<RecordDeserializer>>> recordDeserializers,
+                                       int64_t checkpointInterval)
         : recordDeserializers(std::move(recordDeserializers)),
           inputIndex(inputIndex),
           inputGate(std::move(inputGate)),
           taskType(taskType),
           currentRecordDeserializer(nullptr),
           output_(nullptr),
-          statusWatermarkValve_(this->inputGate->GetNumberOfInputChannels())
+          statusWatermarkValve_(this->inputGate->GetNumberOfInputChannels()),
+          checkpointInterval(checkpointInterval)
     {
         INFO_RELEASE("create OmniAbstractStreamTaskNetworkInput, task type is:" << taskType);
         inSerializer = inputSerializer;
@@ -59,13 +61,15 @@ public:
     }
 
     OmniAbstractStreamTaskNetworkInput(int64_t inputIndex, std::shared_ptr<CheckpointedInputGate> inputGate,
-                                       int taskType, TypeSerializer *inputSerializer, std::vector<long> &channelInfos)
+                                       int taskType, TypeSerializer *inputSerializer, std::vector<long> &channelInfos,
+                                       int64_t checkpointInterval)
         :inputIndex(inputIndex),
           inputGate(std::move(inputGate)),
           taskType(taskType),
           currentRecordDeserializer(nullptr),
           output_(nullptr),
-          statusWatermarkValve_(this->inputGate->GetNumberOfInputChannels())
+          statusWatermarkValve_(this->inputGate->GetNumberOfInputChannels()),
+          checkpointInterval(checkpointInterval)
     {
         INFO_RELEASE("create OmniAbstractStreamTaskNetworkInput, task type is:" << taskType);
         inSerializer = inputSerializer;
@@ -126,7 +130,7 @@ public:
     {
         // no inputGate no output
 
-        if (taskType == 1) {
+        if (taskType == 1 && checkpointInterval == -1) {
             return AVAILABLE;
         } else {
             if (currentRecordDeserializer != nullptr) {
@@ -679,6 +683,8 @@ protected:
     std::thread timer_thread_;   // 定时器线程
     OmniPushingAsyncDataInput::OmniDataOutput *output_;
     bool isStartTimer = false;
+
+    int64_t checkpointInterval = -1;
 };
 }  // namespace omnistream
 
