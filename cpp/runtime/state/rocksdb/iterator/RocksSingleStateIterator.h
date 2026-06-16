@@ -10,7 +10,6 @@
  */
 #ifndef OMNISTREAM_ROCKSSINGLESTATEITERATOR_H
 #define OMNISTREAM_ROCKSSINGLESTATEITERATOR_H
-#include <vector>
 #include <stdexcept>
 #include "SingleStateIterator.h"
 #include "runtime/state/RocksIteratorWrapper.h"
@@ -19,8 +18,8 @@
 #include <string>
 
 /**
- * Wraps a RocksDB iterator to cache its current key and assigns an id for the key/value state.
- * Used by RocksStatesPerKeyGroupMergeIterator.
+ * Wraps a RocksDB iterator and assigns an id for the key/value state.
+ * Returned key/value views are invalidated by next() or close().
  */
 class RocksSingleStateIterator : public SingleStateIterator {
 public:
@@ -30,28 +29,22 @@ public:
      */
     RocksSingleStateIterator(
         std::unique_ptr<RocksIteratorWrapper> iterator,
-        int kvStateId)
+        int kvStateId,
+        int keyGroupPrefixBytes)
         : iterator_(std::move(iterator)),
-        kvStateId_(kvStateId)
+        kvStateId_(kvStateId),
+        keyGroupPrefixBytes_(keyGroupPrefixBytes)
     {
         if (!iterator_) {
             throw std::invalid_argument("RocksIteratorWrapper cannot be null");
         }
-        currentKey_.clear();
-        for(auto& c:iterator_->key()){
-            currentKey_.push_back(c);
-        }
+        refreshKeyGroup();
     }
 
     void next() override
     {
         iterator_->next();
-        if (iterator_->isValid()) {
-            currentKey_.clear();
-            for(auto& c:iterator_->key()){
-                currentKey_.push_back(c);
-            }
-        }
+        refreshKeyGroup();
     }
 
     bool isValid() const override
@@ -59,18 +52,19 @@ public:
         return iterator_ && iterator_->isValid();
     }
 
-    std::vector<int8_t> key() const override
+    ByteView key() const override
     {
-        return currentKey_;
+        return iterator_->keyView();
     }
 
-    std::vector<int8_t> value() const override
+    ByteView value() const override
     {
-        std::vector<int8_t> value;
-        for(auto& c:iterator_->value()) {
-            value.push_back(c);
-        }
-        return value;
+        return iterator_->valueView();
+    }
+
+    int keyGroup() const override
+    {
+        return currentKeyGroup_;
     }
 
     int getKvStateId() const override
@@ -87,7 +81,31 @@ public:
 
 private:
     std::unique_ptr<RocksIteratorWrapper> iterator_;
-    std::vector<int8_t> currentKey_;
     int kvStateId_;
+    int keyGroupPrefixBytes_;
+    int currentKeyGroup_ = -1;
+
+    // Decodes the key-group big-endian prefix once per position to avoid
+    // repeated memcmp in the merge iterator comparator. Duplicated across
+    // iterator subclasses (HeapSingleStateIterator, HeapPriorityQueue...
+    // PendingSingleStateIterator) because each accesses key bytes through
+    // a different member (RocksDB slice, entries_ vector, serializedKeys_).
+    void refreshKeyGroup()
+    {
+        currentKeyGroup_ = -1;
+        if (!iterator_ || !iterator_->isValid()) {
+            return;
+        }
+        ByteView key = iterator_->keyView();
+        if (key.size() < static_cast<size_t>(keyGroupPrefixBytes_)) {
+            return;
+        }
+        int result = 0;
+        for (int i = 0; i < keyGroupPrefixBytes_; ++i) {
+            result <<= 8;
+            result |= static_cast<int>(key[i] & 0xFF);
+        }
+        currentKeyGroup_ = result;
+    }
 };
 #endif // OMNISTREAM_ROCKSSINGLESTATEITERATOR_H

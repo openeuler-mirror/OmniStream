@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "common.h"
+#include "core/utils/ByteView.h"
 
 class HeapPriorityQueueDataDigest {
 public:
@@ -78,6 +79,19 @@ public:
         Summary &summary,
         const std::vector<int8_t> &key,
         const std::vector<int8_t> &value,
+        int keyGroupPrefixBytes)
+    {
+        addSerializedEntry(
+            summary,
+            ByteView::fromBuffer(key.data(), key.size()),
+            ByteView::fromBuffer(value.data(), value.size()),
+            keyGroupPrefixBytes);
+    }
+
+    static void addSerializedEntry(
+        Summary &summary,
+        ByteView key,
+        ByteView value,
         int keyGroupPrefixBytes)
     {
         const int keyGroupId = readKeyGroup(key, keyGroupPrefixBytes);
@@ -170,7 +184,7 @@ public:
     }
 
 private:
-    static int readKeyGroup(const std::vector<int8_t> &key, int keyGroupPrefixBytes)
+    static int readKeyGroup(ByteView key, int keyGroupPrefixBytes)
     {
         if (keyGroupPrefixBytes <= 0 ||
             static_cast<size_t>(keyGroupPrefixBytes) > key.size()) {
@@ -180,20 +194,20 @@ private:
         int keyGroup = 0;
         for (int i = 0; i < keyGroupPrefixBytes; i++) {
             keyGroup <<= 8;
-            keyGroup |= static_cast<uint8_t>(key[i]);
+            keyGroup |= key[i];
         }
         return keyGroup;
     }
 
-    static uint64_t hashBytes(const std::vector<int8_t> &bytes)
+    static uint64_t hashBytes(ByteView bytes)
     {
         if (bytes.empty()) {
             return 0;
         }
 
         uint64_t hash = 1469598103934665603ULL;
-        for (int8_t byte : bytes) {
-            hash ^= static_cast<uint8_t>(byte);
+        for (uint8_t byte : bytes) {
+            hash ^= byte;
             hash *= 1099511628211ULL;
         }
         return hash;
@@ -207,7 +221,7 @@ private:
         return value ^ (value >> 31);
     }
 
-    static std::string bytesPreviewHex(const std::vector<int8_t> &bytes)
+    static std::string bytesPreviewHex(ByteView bytes)
     {
         constexpr size_t maxPreviewBytes = 24;
         const size_t previewBytes = std::min(bytes.size(), maxPreviewBytes);
@@ -215,8 +229,7 @@ private:
         std::ostringstream output;
         output << std::hex << std::setfill('0');
         for (size_t i = 0; i < previewBytes; i++) {
-            output << std::setw(2)
-                << static_cast<int>(static_cast<uint8_t>(bytes[i]));
+            output << std::setw(2) << static_cast<int>(bytes[i]);
         }
         return output.str();
     }
