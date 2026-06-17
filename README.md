@@ -89,7 +89,7 @@ OmniStream Flink Native化的配置限制包括数据类型、算子支持、状
 - Flink会将状态存储在内存状态后端中，内存使用会随时间和处理数据量增长，OmniStream使用列式向量化架构优化性能，状态存储跟原生行为一致，处理速度比原生Flink更快，使用内存增长速度比原生快，提升性能的同时对于空间的需求也增大，因此当前Nexmark基准测试用例输入数据量最大只支持5千万数据。
 - SQL场景支持创建Checkpoint/Savepoint快照，相关配置项及命令与社区Flink保持一致。
 - SQL场景暂不支持Checkpoint/Savepoint的并行度变更。
-- SQL场景下，若使用KAFKA作为数据源，暂不支持以多并行度模式运行。
+- SQL场景下，若使用KAFKA作为数据源，暂不支持以多并行度模式运行; 其他场景下，高并行度暂时只支持无状态算子。
 
 **DataStream<a name="zh-cn_topic_0000002512242608_section14862183194614"></a>**
 
