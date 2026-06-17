@@ -22,6 +22,8 @@ TEST(ByteViewTest, DefaultConstructorEmpty)
     EXPECT_EQ(view.size(), 0);
     EXPECT_TRUE(view.empty());
     EXPECT_EQ(view.data(), nullptr);
+    EXPECT_EQ(view.begin(), nullptr);
+    EXPECT_EQ(view.end(), nullptr);
 }
 
 /**
@@ -147,16 +149,6 @@ TEST(ByteViewTest, SizeofCalculation)
     const int32_t buf[] = {0x01020304};
     ByteView view(buf, 1);
     EXPECT_EQ(view.size(), sizeof(int32_t));
-}
-
-/**
- * 空视图的 begin()/end() 都返回 nullptr。
- */
-TEST(ByteViewTest, BeginEndNullptrForNullData)
-{
-    ByteView view;
-    EXPECT_EQ(view.begin(), nullptr);
-    EXPECT_EQ(view.end(), nullptr);
 }
 
 /**
