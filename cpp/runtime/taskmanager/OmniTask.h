@@ -12,8 +12,6 @@
 #ifndef OMNITASK_H
 #define OMNITASK_H
 #include <memory>
-#include <exception>
-#include <optional>
 #include <executiongraph/JobInformationPOD.h>
 #include <executiongraph/TaskInformationPOD.h>
 #include <executiongraph/descriptor/TaskDeploymentDescriptorPOD.h>
@@ -21,7 +19,6 @@
 #include <state/bridge/TaskStateManagerBridge.h>
 #include <streaming/runtime/tasks/omni/OmniStreamTask.h>
 #include "runtime/executiongraph/descriptor/ResultPartitionIDPOD.h"
-#include "runtime/execution/ExecutionState.h"
 #include "runtime/metrics/groups/TaskMetricGroup.h"
 #include "connector/kafka/bind_core_manager.h"
 #include <state/bridge/OmniTaskBridge.h>
@@ -89,7 +86,7 @@ namespace omnistream {
         void ReleaseResources();
         void CloseAllResultPartitions();
         void CloseAllInputGates();
-        void FailAllResultPartitions(std::optional<std::exception_ptr> cause);
+        void FailAllResultPartitions();
         bool IsCanceledOrFailed();
         void triggerCheckpointBarrier(long checkpointId, long checkpointTimestamp, std::shared_ptr<CheckpointOptions> checkpointOptions);
         static constexpr const char* SOURCE_STREAM_TASK =
