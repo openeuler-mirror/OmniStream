@@ -39,9 +39,9 @@ class SavepointKvStreamWriterTest : public ::testing::Test {
 protected:
     void SetUp() override {
         bridge_ = std::make_shared<NiceMock<MockSavepointBridge>>();
-        auto* savepointType = SavepointType::savepoint(SavepointFormatType::CANONICAL);
+        savepointType_.reset(SavepointType::savepoint(SavepointFormatType::CANONICAL));
         options_ = CheckpointOptions::AlignedNoTimeout(
-            *savepointType, CheckpointStorageLocationReference::GetDefault());
+            *savepointType_, CheckpointStorageLocationReference::GetDefault());
 
         ON_CALL(*bridge_, AcquireSavepointOutputStream(_, _))
             .WillByDefault(Return(kMockProvider));
@@ -67,9 +67,12 @@ protected:
         proxy_.reset();
         kgOffsets_.reset();
         kgRange_.reset();
+        delete options_;
+        options_ = nullptr;
     }
 
     std::shared_ptr<NiceMock<MockSavepointBridge>> bridge_;
+    std::unique_ptr<SavepointType> savepointType_;
     CheckpointOptions* options_ = nullptr;
     std::unique_ptr<KeyGroupRange> kgRange_;
     std::unique_ptr<KeyGroupRangeOffsets> kgOffsets_;
@@ -104,6 +107,7 @@ TEST_F(SavepointKvStreamWriterTest, WriteFirstEmptyKeyThrows) {
 
 /**
  * writeNext 同 keyGroup 同 kvState：不写入头部标记，仅写入 KV 数据。
+ * pos 增量应精确等于编码后的 KV 长度。
  */
 TEST_F(SavepointKvStreamWriterTest, WriteNextSameKeyGroupSameKvState) {
     SavepointKvStreamWriter writer(*proxy_, *kgOffsets_);
@@ -116,7 +120,9 @@ TEST_F(SavepointKvStreamWriterTest, WriteNextSameKeyGroupSameKvState) {
     writer.writeNext(ByteView::fromBuffer(key, 1), ByteView::fromBuffer(value, 1), 5, 1,
                      false, false);
 
-    EXPECT_GT(proxy_->getPos(), posAfterFirst);
+    // 无标记写入，仅追加 encodeLen = sizeof(int32_t) + key.size() + sizeof(int32_t) + value.size()
+    size_t encodedLen = sizeof(int32_t) + 1 + sizeof(int32_t) + 1;
+    EXPECT_EQ(proxy_->getPos(), posAfterFirst + encodedLen);
 }
 
 /**
@@ -132,7 +138,10 @@ TEST_F(SavepointKvStreamWriterTest, WriteNextNewKeyGroup) {
     writer.writeNext(ByteView::fromBuffer(key, 1), ByteView::fromBuffer(value, 1), 5, 1,
                      true, true);
 
-    EXPECT_NE(kgOffsets_->getKeyGroupOffset(1), 0);
+    // 新 keyGroup 偏移量 = writeShort(kvStateId) + encodedLen + writeShort(END_MASK)
+    size_t encodedLen = sizeof(int32_t) + 1 + sizeof(int32_t) + 1;
+    size_t expectedOffset = sizeof(int16_t) + encodedLen + sizeof(int16_t);
+    EXPECT_EQ(kgOffsets_->getKeyGroupOffset(1), expectedOffset);
 }
 
 /**
@@ -149,11 +158,14 @@ TEST_F(SavepointKvStreamWriterTest, WriteNextNewKvStateSameKeyGroup) {
     writer.writeNext(ByteView::fromBuffer(key, 1), ByteView::fromBuffer(value, 1), 6, 0,
                      false, true);
 
-    EXPECT_GT(proxy_->getPos(), posBefore);
+    // 仅写入 kvStateId (writeShort) + 编码后的 KV
+    size_t encodedLen = sizeof(int32_t) + 1 + sizeof(int32_t) + 1;
+    size_t expectedDelta = sizeof(int16_t) + encodedLen;
+    EXPECT_EQ(proxy_->getPos(), posBefore + expectedDelta);
 }
 
 /**
- * 多条目写入后 finish 应正确修补最后一个 pending entry 并追加 END_OF_KEY_GROUP_MASK。
+ * 多条目写入后 finish 应修补最后一个 pending entry 并追加 END_OF_KEY_GROUP_MASK（2 字节）。
  */
 TEST_F(SavepointKvStreamWriterTest, FinishMultiEntry) {
     SavepointKvStreamWriter writer(*proxy_, *kgOffsets_);
@@ -169,7 +181,8 @@ TEST_F(SavepointKvStreamWriterTest, FinishMultiEntry) {
     size_t posBeforeFinish = proxy_->getPos();
     writer.finish();
 
-    EXPECT_GT(proxy_->getPos(), posBeforeFinish);
+    // finish 仅追加 END_OF_KEY_GROUP_MASK (writeShort, 2 字节)
+    EXPECT_EQ(proxy_->getPos(), posBeforeFinish + sizeof(int16_t));
 }
 
 /**
