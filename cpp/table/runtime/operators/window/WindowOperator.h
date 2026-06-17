@@ -33,6 +33,7 @@
 #include "table/typeutils/RowDataSerializer.h"
 #include "streaming/api/operators/TimerHeapInternalTimer.h"
 #include "runtime/state/HeapKeyedStateBackend.h"
+#include "runtime/state/rocksdb/RocksdbValueState.h"
 #include "state/internal/InternalValueState.h"
 #include "table/runtime/generated/NamespaceAggsHandleFunction.h"
 #include "table/runtime/keyselector/KeySelector.h"
@@ -44,17 +45,17 @@ public:
     {
         inputTypes = description["inputTypes"].get<std::vector<std::string>>();
         for (const auto &typeStr : inputTypes) {
-            inputTypesId.push_back(LogicalType::flinkTypeToOmniTypeId(typeStr));
+            inputTypeIds_.push_back(LogicalType::flinkTypeToOmniTypeId(typeStr));
         }
         outputTypes = description["outputTypes"].get<std::vector<std::string>>();
         for (const auto &typeStr : outputTypes) {
-            outputTypesId.push_back(LogicalType::flinkTypeToOmniTypeId(typeStr));
+            outputTypeIds_.push_back(LogicalType::flinkTypeToOmniTypeId(typeStr));
         }
         windowPropertyTypes = description["windowPropertyTypes"].get<std::vector<std::string>>();
         for (const auto &typeStr : windowPropertyTypes) {
-            windowPropertyTypesId.push_back(LogicalType::flinkTypeToOmniTypeId(typeStr));
+            windowPropertyTypeIds_.push_back(LogicalType::flinkTypeToOmniTypeId(typeStr));
         }
-        if (windowPropertyTypesId.size() != 4) {
+        if (windowPropertyTypeIds_.size() != 4) {
             THROW_LOGIC_EXCEPTION("The size of field 'windowPropertyTypesId' must be 4.");
         }
         keyedIndex = description["grouping"].get<std::vector<int32_t>>();
@@ -68,7 +69,7 @@ public:
 
         std::vector<int32_t> keyTypes;
         for (auto kIndex : this->keyedIndex) {
-            keyTypes.push_back(this->inputTypesId[kIndex]);
+            keyTypes.push_back(this->inputTypeIds_[kIndex]);
         }
         keySelector_ = std::make_unique<KeySelector<K>>(keyTypes, this->keyedIndex);
 
@@ -89,34 +90,13 @@ public:
 
     void close() override;
 
-    static std::string extractAggFunction(const std::string &input) {
-        std::regex aggRegex(R"((?:MAX|COUNT|SUM|MIN|AVG))", std::regex_constants::icase);
-        std::smatch match;
-        if (std::regex_search(input, match, aggRegex)) {
-            std::string aggType = match.str();
-            std::transform(aggType.begin(), aggType.end(), aggType.begin(),
-                [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
-            return aggType;
-        }
-        return "NONE";
-    }
-
-    static int32_t getSingleArgIndex(const nlohmann::json &aggCall) {
-        if (!aggCall.contains("argIndexes") || !aggCall["argIndexes"].is_array() || aggCall["argIndexes"].size() > 1) {
-            THROW_LOGIC_EXCEPTION("argIndexes supports only zero or one argument.");
-        }
-        return aggCall["argIndexes"].empty() ? -1 : aggCall["argIndexes"][0].get<int32_t>();
-    }
-
     void processBatch(StreamRecord *input) override;
 
     void processElement(StreamRecord *element) override {};
-    K getCurrentKey() override
-    {
+
+    K getCurrentKey() override {
         return this->stateHandler->getCurrentKey();
     }
-
-    RowData *getEntireRow(omnistream::VectorBatch *batch, int32_t rowId);
 
     void onEventTime(TimerHeapInternalTimer<K, W> *timer) override;
 
@@ -252,7 +232,7 @@ public:
         void clearWindowState(const W& window) override {
             outerOperator->windowState->setCurrentNamespace(window);
             outerOperator->windowState->clear();
-            outerOperator->windowAggregator->Cleanup(window);
+            outerOperator->windowAggregator->cleanup(window);
         }
 
         void clearPreviousState(const W& window) override {
@@ -303,6 +283,11 @@ public:
 protected:
     virtual void emitWindowResult(const W &window) = 0;
 
+    bool shouldDeleteWindowStateValue() const {
+        return backendType_ == omnistream::StateType::ROCKSDB
+            && !reinterpret_cast<RocksdbValueState<K, W, RowData*>*>(windowState)->isFalconEnabled();
+    }
+
     TimestampedCollector* collector{};
     std::unique_ptr<TriggerContext> triggerContext_;
     // TODO: windowAggregator here is currently unused, see @aggWindowAggregator
@@ -311,14 +296,15 @@ protected:
     InternalValueState<K, W, RowData*>* previousState_{};
 
     std::vector<std::string> inputTypes;
-    std::vector<int32_t> inputTypesId;
+    std::vector<int32_t> inputTypeIds_;
     std::vector<std::string> outputTypes;
-    std::vector<int32_t> outputTypesId;
+    std::vector<int32_t> outputTypeIds_;
     std::vector<std::string> windowPropertyTypes;
-    std::vector<int32_t> windowPropertyTypesId;
+    std::vector<int32_t> windowPropertyTypeIds_;
     std::vector<std::string> keyedTypes;
     std::vector<int32_t> keyedIndex;
     std::string shiftTimeZone;
+    omnistream::StateType backendType_ = omnistream::StateType::HEAP;
 
 private:
     void processElement(RowData* inputRow);
@@ -361,5 +347,4 @@ private:
     std::unique_ptr<BinaryRowDataSerializer> accSerializer_;
     std::unique_ptr<KeySelector<K>> keySelector_;
     int64_t maxTimestamp = INT64_MIN;
-    omnistream::StateType backendType_ = omnistream::StateType::HEAP;
 };

@@ -25,12 +25,10 @@ public:
     PanedWindowProcessFunction(
             PanedWindowAssigner<W> *windowAssigner,
             NamespaceAggsHandleFunctionBase<W> *windowAggregator,
-            int64_t allowedLateness,
-            int32_t accumulatorArity)
+            int64_t allowedLateness)
             :
             InternalWindowProcessFunction<K, W>(windowAssigner, windowAggregator, allowedLateness),
-            windowAssigner(windowAssigner),
-            accumulatorArity_(accumulatorArity) {}
+            windowAssigner(windowAssigner) {}
 
     std::vector<W> assignStateNamespace(RowData *inputRow, int64_t timestamp) override;
 
@@ -44,5 +42,4 @@ private:
     bool isPaneLate(const W& pane);
 
     PanedWindowAssigner<W>* windowAssigner{};
-    int32_t accumulatorArity_ = -1;
 };

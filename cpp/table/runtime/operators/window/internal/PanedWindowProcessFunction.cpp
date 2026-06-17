@@ -39,7 +39,7 @@ std::vector<W> PanedWindowProcessFunction<K, W>::assignStateNamespace(RowData *i
 template<typename K, typename W>
 void PanedWindowProcessFunction<K, W>::prepareAggregateAccumulatorForEmit(const W& window) {
     std::vector<W> panes = windowAssigner->splitIntoPanes(window);
-    RowData *acc = this->windowAggregator->createAccumulators(accumulatorArity_);
+    RowData *acc = this->windowAggregator->createAccumulators();
     this->windowAggregator->setAccumulators(window, acc);
     for (const auto& pane : panes) {
         RowData *paneAcc = this->ctx->getWindowAccumulators(pane);

@@ -38,7 +38,7 @@ void GeneralWindowProcessFunction<K, W>::prepareAggregateAccumulatorForEmit(cons
 {
     RowData *acc = this->ctx->getWindowAccumulators(window);
     if (acc == nullptr) {
-        acc = this->windowAggregator->createAccumulators(accumulatorArity_);
+        acc = this->windowAggregator->createAccumulators();
     }
     this->windowAggregator->setAccumulators(window, acc);
 }
