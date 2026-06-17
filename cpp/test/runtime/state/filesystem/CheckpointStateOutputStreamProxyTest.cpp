@@ -72,7 +72,7 @@ protected:
 
 // ---- 构造 / 析构 ----
 
-// Acquire 失败时构造应抛异常
+/** Acquire 失败时构造应抛异常。 */
 TEST_F(CheckpointStateOutputStreamProxyTest, ConstructThrowsWhenAcquireFails) {
     EXPECT_CALL(*mockBridge_, AcquireSavepointOutputStream(_, _))
         .WillOnce(Return(static_cast<jobject>(nullptr)));
@@ -84,7 +84,7 @@ TEST_F(CheckpointStateOutputStreamProxyTest, ConstructThrowsWhenAcquireFails) {
 
 // ---- 位置追踪 ----
 
-// writeByte/writeShort/writeInt/writeLong 写入后 pos 正确递增
+/** writeByte/writeShort/writeInt/writeLong 写入后 pos 正确递增。 */
 TEST_F(CheckpointStateOutputStreamProxyTest, WriteAdvancesPos) {
     ExpectProxyConstruction();
     EXPECT_CALL(*mockBridge_, CreateSavepointOutputDirectBuffer(_, _))
@@ -101,7 +101,7 @@ TEST_F(CheckpointStateOutputStreamProxyTest, WriteAdvancesPos) {
     EXPECT_EQ(proxy.getPos(), 15);
 }
 
-// writeBytes 写入后 pos 与写入长度一致
+/** writeBytes 写入后 pos 与写入长度一致。 */
 TEST_F(CheckpointStateOutputStreamProxyTest, WriteBytesAdvancesPos) {
     ExpectProxyConstruction();
     EXPECT_CALL(*mockBridge_, CreateSavepointOutputDirectBuffer(_, _))
@@ -115,7 +115,7 @@ TEST_F(CheckpointStateOutputStreamProxyTest, WriteBytesAdvancesPos) {
 
 // ---- flush 行为 ----
 
-// DirectBuffer 路径；两次 write+flush 循环验证 offset_ 重置
+/** DirectBuffer 路径；两次 write+flush 循环验证 offset_ 重置。 */
 TEST_F(CheckpointStateOutputStreamProxyTest, FlushTriggersDirectWriteWhenDirectBufferExists) {
     ExpectProxyConstruction();
     EXPECT_CALL(*mockBridge_, CreateSavepointOutputDirectBuffer(_, _))
@@ -136,7 +136,7 @@ TEST_F(CheckpointStateOutputStreamProxyTest, FlushTriggersDirectWriteWhenDirectB
     EXPECT_EQ(proxy.getPos(), 8);
 }
 
-// 无 DirectBuffer 回退路径；两次循环验证 offset_ 重置
+/** 无 DirectBuffer 回退路径；两次循环验证 offset_ 重置。 */
 TEST_F(CheckpointStateOutputStreamProxyTest, FlushUsesFallbackWhenNoDirectBuffer) {
     ExpectProxyConstructionNoDirectBuffer();
 
@@ -162,7 +162,7 @@ TEST_F(CheckpointStateOutputStreamProxyTest, FlushUsesFallbackWhenNoDirectBuffer
 
 // ---- BytePatch 守卫状态机 ----
 
-// tryWrite → patchByte → releasePatch → flush；验证 key 首字节被 0x80 标记
+/** tryWrite → patchByte → releasePatch → flush；验证 key 首字节被 0x80 标记。 */
 TEST_F(CheckpointStateOutputStreamProxyTest, BytePatchPatchAndRelease) {
     ExpectProxyConstructionNoDirectBuffer();
 
@@ -198,7 +198,7 @@ TEST_F(CheckpointStateOutputStreamProxyTest, BytePatchPatchAndRelease) {
     EXPECT_EQ(static_cast<uint8_t>(flushedData[4]), 0x81);
 }
 
-// 两次 tryWrite 无 release 间隔应抛异常
+/** 两次 tryWrite 无 release 间隔应抛异常。 */
 TEST_F(CheckpointStateOutputStreamProxyTest, BytePatchDoubleActivationThrows) {
     ExpectProxyConstruction();
     EXPECT_CALL(*mockBridge_, CreateSavepointOutputDirectBuffer(_, _))
@@ -225,7 +225,7 @@ TEST_F(CheckpointStateOutputStreamProxyTest, BytePatchDoubleActivationThrows) {
         std::runtime_error);
 }
 
-// BytePatch 激活期间 flush 被阻断；release 后 flush 成功；已失效 patch 不再可用
+/** BytePatch 激活期间 flush 被阻断；release 后 flush 成功；已失效 patch 不再可用。 */
 TEST_F(CheckpointStateOutputStreamProxyTest, PatchByteAfterFlushThrows) {
     ExpectProxyConstruction();
     EXPECT_CALL(*mockBridge_, CreateSavepointOutputDirectBuffer(_, _))
@@ -254,9 +254,7 @@ TEST_F(CheckpointStateOutputStreamProxyTest, PatchByteAfterFlushThrows) {
     EXPECT_THROW(proxy.patchByte(patch, 0x80), std::runtime_error);
 }
 
-/**
- * BytePatch 异常路径：无效 patch 抛异常、重复 releasePatch 抛异常、激活期间 writeBytes 被阻塞。
- */
+/** BytePatch 异常路径：无效 patch 抛异常、重复 releasePatch 抛异常、激活期间 writeBytes 被阻塞。 */
 TEST_F(CheckpointStateOutputStreamProxyTest, BytePatchGuardErrorPaths) {
     ExpectProxyConstruction();
     EXPECT_CALL(*mockBridge_, CreateSavepointOutputDirectBuffer(_, _))
