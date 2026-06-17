@@ -55,7 +55,8 @@ protected:
         ON_CALL(*bridge_, GetSavepointOutputStreamPos(_)).WillByDefault(Return(0));
 
         proxy_ = std::make_unique<CheckpointStateOutputStreamProxy>(bridge_, 1L, options_);
-        kgOffsets_ = std::make_unique<KeyGroupRangeOffsets>(KeyGroupRange(0, 2));
+        kgRange_ = std::make_unique<KeyGroupRange>(0, 2);
+        kgOffsets_ = std::make_unique<KeyGroupRangeOffsets>(*kgRange_);
     }
 
     void TearDown() override {
@@ -64,11 +65,13 @@ protected:
         proxy_->close();
         proxy_.reset();
         kgOffsets_.reset();
+        kgRange_.reset();
     }
 
     std::shared_ptr<NiceMock<MockSavepointBridge>> bridge_;
     CheckpointOptions* options_ = nullptr;
     std::unique_ptr<CheckpointStateOutputStreamProxy> proxy_;
+    std::unique_ptr<KeyGroupRange> kgRange_;
     std::unique_ptr<KeyGroupRangeOffsets> kgOffsets_;
 };
 
