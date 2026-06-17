@@ -358,7 +358,7 @@ TEST_F(CheckpointStateOutputStreamProxyTest, CloseFlushesAndReturnsHandle) {
     EXPECT_CALL(*mockBridge_, WriteSavepointOutputStreamDirect(_, _, _)).WillRepeatedly(Return(true));
     EXPECT_CALL(*mockBridge_, ReleaseSavepointOutputDirectBuffer(kMockDirectBuffer)).Times(1);
     EXPECT_CALL(*mockBridge_, CloseSavepointOutputStream(kMockProvider))
-        .WillOnce(Return(std::make_shared<SnapshotResult<StreamStateHandle>>()));
+        .WillOnce(Return(SnapshotResult<StreamStateHandle>::Empty()));
 
     CheckpointStateOutputStreamProxy proxy(mockBridge_, 1L, checkpointOptions_);
     proxy.writeInt(0xDEADBEEF);

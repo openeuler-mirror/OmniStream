@@ -60,7 +60,7 @@ protected:
 
     void TearDown() override {
         ON_CALL(*bridge_, CloseSavepointOutputStream(_))
-            .WillByDefault(Return(std::make_shared<SnapshotResult<StreamStateHandle>>()));
+            .WillByDefault(Return(SnapshotResult<StreamStateHandle>::Empty()));
         proxy_->close();
         proxy_.reset();
         kgOffsets_.reset();
