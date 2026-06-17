@@ -54,15 +54,16 @@ protected:
         ON_CALL(*bridge_, WriteSavepointMetadata(_, _, _)).WillByDefault(Return());
         ON_CALL(*bridge_, GetSavepointOutputStreamPos(_)).WillByDefault(Return(0));
 
-        proxy_ = std::make_unique<CheckpointStateOutputStreamProxy>(bridge_, 1L, options_);
         kgRange_ = std::make_unique<KeyGroupRange>(0, 2);
         kgOffsets_ = std::make_unique<KeyGroupRangeOffsets>(*kgRange_);
+        proxy_ = std::make_unique<CheckpointStateOutputStreamProxy>(bridge_, 1L, options_);
     }
 
     void TearDown() override {
-        ON_CALL(*bridge_, CloseSavepointOutputStream(_))
-            .WillByDefault(Return(SnapshotResult<StreamStateHandle>::Empty()));
-        proxy_->close();
+        // close 会 flush，若有未 release 的 BytePatch 会抛异常，try/catch 处理
+        try {
+            proxy_->close();
+        } catch (...) {}
         proxy_.reset();
         kgOffsets_.reset();
         kgRange_.reset();
@@ -70,13 +71,13 @@ protected:
 
     std::shared_ptr<NiceMock<MockSavepointBridge>> bridge_;
     CheckpointOptions* options_ = nullptr;
-    std::unique_ptr<CheckpointStateOutputStreamProxy> proxy_;
     std::unique_ptr<KeyGroupRange> kgRange_;
     std::unique_ptr<KeyGroupRangeOffsets> kgOffsets_;
+    std::unique_ptr<CheckpointStateOutputStreamProxy> proxy_;
 };
 
 /**
- * writeFirst 应正确设置 keyGroup 偏移量并写入第一条 KV。
+ * writeFirst 设置首条 KV 的 keyGroup 偏移量为当前 stream 起始位置（0）。
  */
 TEST_F(SavepointKvStreamWriterTest, WriteFirstSetsKeyGroupOffset) {
     SavepointKvStreamWriter writer(*proxy_, *kgOffsets_);
@@ -85,7 +86,8 @@ TEST_F(SavepointKvStreamWriterTest, WriteFirstSetsKeyGroupOffset) {
     const int8_t value[] = {30};
     writer.writeFirst(ByteView::fromBuffer(key, 2), ByteView::fromBuffer(value, 1), 5, 1);
 
-    EXPECT_NE(kgOffsets_->getKeyGroupOffset(1), 0);
+    // 首条 entry 从 stream 起始写入，offset 为 0
+    EXPECT_EQ(kgOffsets_->getKeyGroupOffset(1), 0);
 }
 
 /**

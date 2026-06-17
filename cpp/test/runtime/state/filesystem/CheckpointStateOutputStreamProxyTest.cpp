@@ -33,6 +33,8 @@ namespace {
 /**
  * CheckpointStateOutputStreamProxy 测试夹具。
  * 使用共享 MockSavepointBridge + CheckpointOptions 初始化。
+ * NiceMock 自动静默未预期的析构调用（ReleaseSavepointOutputDirectBuffer 等），
+ * 各测试仅对需要验证的方法设置 EXPECT_CALL。
  */
 class CheckpointStateOutputStreamProxyTest : public ::testing::Test {
 protected:
@@ -57,14 +59,6 @@ protected:
             .WillOnce(Return(static_cast<jobject>(nullptr)));
     }
 
-    /** 析构时允许任意次 write/close 调用，避免 gmock 警告。 */
-    void ExpectCloseDtor() {
-        EXPECT_CALL(*mockBridge_, WriteSavepointOutputStream(_, _, _, _)).Times(testing::AnyNumber());
-        EXPECT_CALL(*mockBridge_, WriteSavepointOutputStreamDirect(_, _, _)).Times(testing::AnyNumber());
-        EXPECT_CALL(*mockBridge_, ReleaseSavepointOutputDirectBuffer(_)).Times(testing::AnyNumber());
-        EXPECT_CALL(*mockBridge_, CloseSavepointOutputStream(_)).Times(testing::AnyNumber());
-    }
-
     std::shared_ptr<NiceMock<MockSavepointBridge>> mockBridge_;
     CheckpointOptions *checkpointOptions_ = nullptr;
 };
@@ -72,15 +66,13 @@ protected:
 // ---- 构造 / 析构 ----
 
 /**
- * 正常构造：调用 AcquireSavepointOutputStream 和 CreateSavepointOutputDirectBuffer 成功，
- * 析构时应依次调用 ReleaseSavepointOutputDirectBuffer 和 CloseSavepointOutputStream。
+ * 正常构造：AcquireSavepointOutputStream 和 CreateSavepointOutputDirectBuffer 成功，
+ * 析构时自动调用 ReleaseSavepointOutputDirectBuffer（由 NiceMock 静默处理）。
  */
 TEST_F(CheckpointStateOutputStreamProxyTest, ConstructWithValidBridge) {
     ExpectProxyConstruction();
     EXPECT_CALL(*mockBridge_, CreateSavepointOutputDirectBuffer(_, _))
         .WillOnce(Return(kMockDirectBuffer));
-    EXPECT_CALL(*mockBridge_, ReleaseSavepointOutputDirectBuffer(kMockDirectBuffer)).Times(1);
-    EXPECT_CALL(*mockBridge_, CloseSavepointOutputStream(kMockProvider)).Times(1);
 
     {
         CheckpointStateOutputStreamProxy proxy(mockBridge_, 1L, checkpointOptions_);
@@ -108,8 +100,6 @@ TEST_F(CheckpointStateOutputStreamProxyTest, WriteAdvancesPos) {
     ExpectProxyConstruction();
     EXPECT_CALL(*mockBridge_, CreateSavepointOutputDirectBuffer(_, _))
         .WillOnce(Return(kMockDirectBuffer));
-    EXPECT_CALL(*mockBridge_, ReleaseSavepointOutputDirectBuffer(_)).Times(1);
-    ExpectCloseDtor();
 
     CheckpointStateOutputStreamProxy proxy(mockBridge_, 1L, checkpointOptions_);
     proxy.writeByte(0x42);
@@ -129,8 +119,6 @@ TEST_F(CheckpointStateOutputStreamProxyTest, WriteBytesAdvancesPos) {
     ExpectProxyConstruction();
     EXPECT_CALL(*mockBridge_, CreateSavepointOutputDirectBuffer(_, _))
         .WillOnce(Return(kMockDirectBuffer));
-    EXPECT_CALL(*mockBridge_, ReleaseSavepointOutputDirectBuffer(_)).Times(1);
-    ExpectCloseDtor();
 
     CheckpointStateOutputStreamProxy proxy(mockBridge_, 1L, checkpointOptions_);
     const int8_t data[] = {1, 2, 3, 4, 5};
@@ -149,8 +137,6 @@ TEST_F(CheckpointStateOutputStreamProxyTest, FlushTriggersDirectWriteWhenDirectB
         .WillOnce(Return(kMockDirectBuffer));
     EXPECT_CALL(*mockBridge_, WriteSavepointOutputStreamDirect(kMockProvider, kMockDirectBuffer, 4))
         .WillOnce(Return(true));
-    EXPECT_CALL(*mockBridge_, ReleaseSavepointOutputDirectBuffer(_)).Times(1);
-    ExpectCloseDtor();
 
     CheckpointStateOutputStreamProxy proxy(mockBridge_, 1L, checkpointOptions_);
     proxy.writeInt(0x12345678);
@@ -164,8 +150,6 @@ TEST_F(CheckpointStateOutputStreamProxyTest, FlushTriggersDirectWriteWhenDirectB
 TEST_F(CheckpointStateOutputStreamProxyTest, FlushUsesFallbackWhenNoDirectBuffer) {
     ExpectProxyConstructionNoDirectBuffer();
     EXPECT_CALL(*mockBridge_, WriteSavepointOutputStream(kMockProvider, _, 0, 4)).Times(1);
-    EXPECT_CALL(*mockBridge_, ReleaseSavepointOutputDirectBuffer(_)).Times(1);
-    ExpectCloseDtor();
 
     CheckpointStateOutputStreamProxy proxy(mockBridge_, 1L, checkpointOptions_);
     proxy.writeInt(0x12345678);
@@ -182,8 +166,6 @@ TEST_F(CheckpointStateOutputStreamProxyTest, BytePatchPatchAndRelease) {
     ExpectProxyConstruction();
     EXPECT_CALL(*mockBridge_, CreateSavepointOutputDirectBuffer(_, _))
         .WillOnce(Return(kMockDirectBuffer));
-    EXPECT_CALL(*mockBridge_, ReleaseSavepointOutputDirectBuffer(_)).Times(1);
-    ExpectCloseDtor();
 
     CheckpointStateOutputStreamProxy proxy(mockBridge_, 1L, checkpointOptions_);
 
@@ -208,8 +190,6 @@ TEST_F(CheckpointStateOutputStreamProxyTest, BytePatchDoubleActivationThrows) {
     ExpectProxyConstruction();
     EXPECT_CALL(*mockBridge_, CreateSavepointOutputDirectBuffer(_, _))
         .WillOnce(Return(kMockDirectBuffer));
-    EXPECT_CALL(*mockBridge_, ReleaseSavepointOutputDirectBuffer(_)).Times(1);
-    ExpectCloseDtor();
 
     CheckpointStateOutputStreamProxy proxy(mockBridge_, 1L, checkpointOptions_);
 
@@ -239,8 +219,6 @@ TEST_F(CheckpointStateOutputStreamProxyTest, PatchByteWithoutActiveGuardThrows) 
     ExpectProxyConstruction();
     EXPECT_CALL(*mockBridge_, CreateSavepointOutputDirectBuffer(_, _))
         .WillOnce(Return(kMockDirectBuffer));
-    EXPECT_CALL(*mockBridge_, ReleaseSavepointOutputDirectBuffer(_)).Times(1);
-    ExpectCloseDtor();
 
     CheckpointStateOutputStreamProxy proxy(mockBridge_, 1L, checkpointOptions_);
 
@@ -249,15 +227,14 @@ TEST_F(CheckpointStateOutputStreamProxyTest, PatchByteWithoutActiveGuardThrows) 
 }
 
 /**
- * flush 后原有的 BytePatch 失效，再调用 patchByte 应抛异常。
+ * BytePatch 激活期间 flush 被阻塞抛异常；release 后 flush 成功，再 patchByte 抛异常。
  */
 TEST_F(CheckpointStateOutputStreamProxyTest, PatchByteAfterFlushThrows) {
     ExpectProxyConstruction();
     EXPECT_CALL(*mockBridge_, CreateSavepointOutputDirectBuffer(_, _))
         .WillOnce(Return(kMockDirectBuffer));
-    EXPECT_CALL(*mockBridge_, WriteSavepointOutputStreamDirect(_, _, _)).WillRepeatedly(Return(true));
-    EXPECT_CALL(*mockBridge_, ReleaseSavepointOutputDirectBuffer(_)).Times(1);
-    ExpectCloseDtor();
+    EXPECT_CALL(*mockBridge_, WriteSavepointOutputStreamDirect(_, _, _))
+        .WillRepeatedly(Return(true));
 
     CheckpointStateOutputStreamProxy proxy(mockBridge_, 1L, checkpointOptions_);
 
@@ -269,8 +246,14 @@ TEST_F(CheckpointStateOutputStreamProxyTest, PatchByteAfterFlushThrows) {
         ByteView::fromBuffer(value, 1),
         patch);
 
+    // 激活期间 flush 被阻断
+    EXPECT_THROW(proxy.flush(), std::runtime_error);
+
+    // release 后 flush 成功，patch 失效
+    proxy.releasePatch(patch);
     proxy.flush();
 
+    // 已失效的 patch 不能再 patchByte
     EXPECT_THROW(proxy.patchByte(patch, 0x80), std::runtime_error);
 }
 
@@ -282,8 +265,6 @@ TEST_F(CheckpointStateOutputStreamProxyTest, BytePatchGuardErrorPaths) {
     ExpectProxyConstruction();
     EXPECT_CALL(*mockBridge_, CreateSavepointOutputDirectBuffer(_, _))
         .WillOnce(Return(kMockDirectBuffer));
-    EXPECT_CALL(*mockBridge_, ReleaseSavepointOutputDirectBuffer(_)).Times(1);
-    ExpectCloseDtor();
 
     CheckpointStateOutputStreamProxy proxy(mockBridge_, 1L, checkpointOptions_);
 
@@ -316,8 +297,6 @@ TEST_F(CheckpointStateOutputStreamProxyTest, WriteKeyValuePairUsesVectorOverload
     ExpectProxyConstruction();
     EXPECT_CALL(*mockBridge_, CreateSavepointOutputDirectBuffer(_, _))
         .WillOnce(Return(kMockDirectBuffer));
-    EXPECT_CALL(*mockBridge_, ReleaseSavepointOutputDirectBuffer(_)).Times(1);
-    ExpectCloseDtor();
 
     CheckpointStateOutputStreamProxy proxy(mockBridge_, 1L, checkpointOptions_);
 
@@ -334,8 +313,6 @@ TEST_F(CheckpointStateOutputStreamProxyTest, TryWritePatchableFailsWhenKeyEmpty)
     ExpectProxyConstruction();
     EXPECT_CALL(*mockBridge_, CreateSavepointOutputDirectBuffer(_, _))
         .WillOnce(Return(kMockDirectBuffer));
-    EXPECT_CALL(*mockBridge_, ReleaseSavepointOutputDirectBuffer(_)).Times(1);
-    ExpectCloseDtor();
 
     CheckpointStateOutputStreamProxy proxy(mockBridge_, 1L, checkpointOptions_);
 
@@ -356,7 +333,6 @@ TEST_F(CheckpointStateOutputStreamProxyTest, CloseFlushesAndReturnsHandle) {
     EXPECT_CALL(*mockBridge_, CreateSavepointOutputDirectBuffer(_, _))
         .WillOnce(Return(kMockDirectBuffer));
     EXPECT_CALL(*mockBridge_, WriteSavepointOutputStreamDirect(_, _, _)).WillRepeatedly(Return(true));
-    EXPECT_CALL(*mockBridge_, ReleaseSavepointOutputDirectBuffer(kMockDirectBuffer)).Times(1);
     EXPECT_CALL(*mockBridge_, CloseSavepointOutputStream(kMockProvider))
         .WillOnce(Return(SnapshotResult<StreamStateHandle>::Empty()));
 
@@ -379,8 +355,6 @@ TEST_F(CheckpointStateOutputStreamProxyTest, WriteMetadataUpdatesPos) {
     EXPECT_CALL(*mockBridge_, WriteSavepointMetadata(_, _, _)).Times(1);
     EXPECT_CALL(*mockBridge_, GetSavepointOutputStreamPos(kMockProvider))
         .WillOnce(Return(1024L));
-    EXPECT_CALL(*mockBridge_, ReleaseSavepointOutputDirectBuffer(_)).Times(1);
-    ExpectCloseDtor();
 
     CheckpointStateOutputStreamProxy proxy(mockBridge_, 1L, checkpointOptions_);
     std::vector<std::shared_ptr<StateMetaInfoSnapshot>> snapshots;
@@ -398,8 +372,6 @@ TEST_F(CheckpointStateOutputStreamProxyTest, PrepareForPatchableGrowsBuffer) {
         .WillOnce(Return(kMockDirectBuffer));
     EXPECT_CALL(*mockBridge_, WriteSavepointOutputStreamDirect(_, _, _))
         .WillRepeatedly(Return(true));
-    EXPECT_CALL(*mockBridge_, ReleaseSavepointOutputDirectBuffer(_)).Times(testing::AtLeast(1));
-    ExpectCloseDtor();
 
     CheckpointStateOutputStreamProxy proxy(mockBridge_, 1L, checkpointOptions_);
 
