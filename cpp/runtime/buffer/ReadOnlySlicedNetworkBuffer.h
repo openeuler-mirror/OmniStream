@@ -35,7 +35,7 @@ namespace omnistream::datastream {
             }
             parent_->RecycleBuffer();
 
-            if (parent_->ShouldBeDeleted()) { 
+            if (this->getSleepUs() <= 0 && parent_->ShouldBeDeleted()) {
                 delete parent_; 
                 parent_ = nullptr; 
             }

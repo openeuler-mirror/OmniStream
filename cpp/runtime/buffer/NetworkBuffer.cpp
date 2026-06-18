@@ -36,6 +36,10 @@ namespace omnistream::datastream {
         // Invoking this constructor implies that the caller (bufferBuilder) owns the segment
         refCount_.store(1);
         this->segmentOwner = segmentOwner;
+        const char* env_p = std::getenv("BUFFER_SLEEP_MICRO_S");
+        if (env_p != nullptr) {
+            sleep_us = std::stoi(env_p);
+        }
     }
 
     NetworkBuffer::NetworkBuffer(MemorySegment *memorySegment, int bufferLength, int readIndex,
