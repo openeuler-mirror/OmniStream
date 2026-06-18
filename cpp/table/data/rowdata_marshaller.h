@@ -8,7 +8,7 @@
 #include "table/data/binary/BinaryRowData.h"
 #include "table/data/vectorbatch/VectorBatch.h"
 #include "OmniOperatorJIT/core/src/type/string_ref.h"
-using namespace omniruntime;
+namespace vec = omniruntime::vec;
 
 using VBToRowSerializer = void (*)(vec::BaseVector* baseVector, int32_t rowIdx, BinaryRowData* result, int32_t pos);
 
