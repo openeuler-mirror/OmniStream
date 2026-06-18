@@ -139,23 +139,12 @@ private:
     std::set<std::string> emptySplits;
 
     std::string createConsumerClientId(const std::unordered_map<std::string, std::string>& props);
-    void parseStartingOffsets(
-            KafkaPartitionSplit* split,
-            std::vector<std::shared_ptr<RdKafka::TopicPartition>>& partitionsStartingFromEarliest,
-            std::vector<std::shared_ptr<RdKafka::TopicPartition>>& partitionsStartingFromLatest,
-            std::unordered_map<std::shared_ptr<RdKafka::TopicPartition>, int64_t>&
-            partitionsStartingFromSpecifiedOffsets
-    );
+    void setStartingOffsetForAssignment(KafkaPartitionSplit* split);
     void parseStoppingOffsets(
             KafkaPartitionSplit* split,
             std::vector<std::shared_ptr<RdKafka::TopicPartition>>& partitionsStoppingAtLatest,
             std::vector<std::shared_ptr<RdKafka::TopicPartition>>& partitionsStoppingAtCommitted
     );
-    void seekToStartingOffsets(
-            std::vector<std::shared_ptr<RdKafka::TopicPartition>>& partitionsStartingFromEarliest,
-            std::vector<std::shared_ptr<RdKafka::TopicPartition>>& partitionsStartingFromLatest,
-            std::unordered_map<std::shared_ptr<RdKafka::TopicPartition>, int64_t>&
-            partitionsStartingFromSpecifiedOffsets);
     void acquireAndSetStoppingOffsets(
             std::vector<std::shared_ptr<RdKafka::TopicPartition>>& partitionsStoppingAtLatest,
             std::vector<std::shared_ptr<RdKafka::TopicPartition>>& partitionsStoppingAtCommitted);

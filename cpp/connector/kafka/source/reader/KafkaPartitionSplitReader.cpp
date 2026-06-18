@@ -85,9 +85,6 @@ RecordsWithSplitIds<RdKafka::Message>* KafkaPartitionSplitReader::fetch()
 void KafkaPartitionSplitReader::handleSplitsChanges(const std::vector<KafkaPartitionSplit*>& splitsChange)
 {
     std::vector<RdKafka::TopicPartition*> newPartitionAssignments;
-    std::unordered_map<std::shared_ptr<RdKafka::TopicPartition>, int64_t> partitionsStartingFromSpecifiedOffsets;
-    std::vector<std::shared_ptr<RdKafka::TopicPartition>> partitionsStartingFromEarliest;
-    std::vector<std::shared_ptr<RdKafka::TopicPartition>> partitionsStartingFromLatest;
     std::vector<std::shared_ptr<RdKafka::TopicPartition>> partitionsStoppingAtLatest;
     std::vector<std::shared_ptr<RdKafka::TopicPartition>> partitionsStoppingAtCommitted;
 
@@ -121,9 +118,8 @@ void KafkaPartitionSplitReader::handleSplitsChanges(const std::vector<KafkaParti
         }
 
         acceptedNewSplits++;
+        setStartingOffsetForAssignment(s);
         newPartitionAssignments.push_back(tp.get());
-        parseStartingOffsets(s, partitionsStartingFromEarliest, partitionsStartingFromLatest,
-            partitionsStartingFromSpecifiedOffsets);
         parseStoppingOffsets(s, partitionsStoppingAtLatest, partitionsStoppingAtCommitted);
     }
 
@@ -139,10 +135,6 @@ void KafkaPartitionSplitReader::handleSplitsChanges(const std::vector<KafkaParti
         delete tp;
     }
 
-    seekToStartingOffsets(
-        partitionsStartingFromEarliest,
-        partitionsStartingFromLatest,
-        partitionsStartingFromSpecifiedOffsets);
     acquireAndSetStoppingOffsets(partitionsStoppingAtLatest, partitionsStoppingAtCommitted);
     removeEmptySplits();
 
@@ -176,20 +168,28 @@ std::string KafkaPartitionSplitReader::createConsumerClientId(
     return prefix + "-" + std::to_string(subtaskId);
 }
 
-void KafkaPartitionSplitReader::parseStartingOffsets(
-    KafkaPartitionSplit* split,
-    std::vector<std::shared_ptr<RdKafka::TopicPartition>>& partitionsStartingFromEarliest,
-    std::vector<std::shared_ptr<RdKafka::TopicPartition>>& partitionsStartingFromLatest,
-    std::unordered_map<std::shared_ptr<RdKafka::TopicPartition>, int64_t>& partitionsStartingFromSpecifiedOffsets)
+void KafkaPartitionSplitReader::setStartingOffsetForAssignment(KafkaPartitionSplit* split)
 {
-    const std::shared_ptr<RdKafka::TopicPartition> tp = split->getTopicPartition();
-    if (split->getStartingOffset() == KafkaPartitionSplit::EARLIEST_OFFSET) {
-        partitionsStartingFromEarliest.push_back(tp);
-    } else if (split->getStartingOffset() == KafkaPartitionSplit::LATEST_OFFSET) {
-        partitionsStartingFromLatest.push_back(tp);
-    } else if (split->getStartingOffset() != KafkaPartitionSplit::COMMITTED_OFFSET) {
-        partitionsStartingFromSpecifiedOffsets[tp] = split->getStartingOffset();
+    if (split == nullptr) {
+        return;
     }
+
+    const std::shared_ptr<RdKafka::TopicPartition> tp = split->getTopicPartition();
+    if (!tp) {
+        return;
+    }
+
+    const int64_t startingOffset = split->getStartingOffset();
+    int64_t assignmentOffset = startingOffset;
+    if (startingOffset == KafkaPartitionSplit::EARLIEST_OFFSET) {
+        assignmentOffset = RdKafka::Topic::OFFSET_BEGINNING;
+    } else if (startingOffset == KafkaPartitionSplit::LATEST_OFFSET) {
+        assignmentOffset = RdKafka::Topic::OFFSET_END;
+    } else if (startingOffset == KafkaPartitionSplit::COMMITTED_OFFSET) {
+        assignmentOffset = RdKafka::Topic::OFFSET_STORED;
+    }
+
+    tp->set_offset(assignmentOffset);
 }
 
 void KafkaPartitionSplitReader::parseStoppingOffsets(
@@ -205,22 +205,6 @@ void KafkaPartitionSplitReader::parseStoppingOffsets(
         partitionsStoppingAtLatest.push_back(tp);
     } else if (stoppingOffset == KafkaPartitionSplit::COMMITTED_OFFSET) {
         partitionsStoppingAtCommitted.push_back(tp);
-    }
-}
-
-void KafkaPartitionSplitReader::seekToStartingOffsets(
-    std::vector<std::shared_ptr<RdKafka::TopicPartition>>& partitionsStartingFromEarliest,
-    std::vector<std::shared_ptr<RdKafka::TopicPartition>>& partitionsStartingFromLatest,
-    std::unordered_map<std::shared_ptr<RdKafka::TopicPartition>, int64_t>& partitionsStartingFromSpecifiedOffsets)
-{
-    if (!partitionsStartingFromEarliest.empty()) {
-        consumer->seekToBeginning(partitionsStartingFromEarliest);
-    }
-    if (!partitionsStartingFromLatest.empty()) {
-        consumer->seekToEnd(partitionsStartingFromLatest);
-    }
-    if (!partitionsStartingFromSpecifiedOffsets.empty()) {
-        consumer->seek(partitionsStartingFromSpecifiedOffsets);
     }
 }
 
