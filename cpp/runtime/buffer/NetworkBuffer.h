@@ -15,6 +15,7 @@
 #include <memory>
 #include <stdexcept>
 #include <cstring>
+#include <cstdlib>
 
 #include "Buffer.h"
 #include "ObjectBuffer.h"
@@ -74,6 +75,10 @@ namespace omnistream::datastream {
                 if (prev == 1) {
                     recycler->recycle(this->getMemorySegment());
                     isRecycled_.store(true);
+                    if (sleep_us > 0) {
+                        std::this_thread::sleep_for(std::chrono::microseconds(sleep_us));
+                        delete this;
+                    }
                 }
             }
         }
@@ -205,6 +210,10 @@ namespace omnistream::datastream {
             }
         }
 
+        int32_t getSleepUs() const {
+            return sleep_us;
+        }
+
     private:
         MemorySegment *memorySegment;
         std::shared_ptr<BufferRecycler> recycler;
@@ -220,6 +229,7 @@ namespace omnistream::datastream {
         std::atomic<int> refCount_ = 0;
         ObjectBufferDataType dataType = ObjectBufferDataType::DATA_BUFFER;
         bool segmentOwner = false;
+        int32_t sleep_us = 0;
     };
 
 
