@@ -71,6 +71,31 @@ private:
         TypeSerializer *valueSerializer;
     };
 
+    // Restored objects are stored in heap state, so they must not alias serializer reuse buffers.
+    static Object *copyRestoredObjectForState(Object *value)
+    {
+        return value == nullptr ? nullptr : value->clone();
+    }
+
+    template<typename T>
+    static T copyRestoredPointerForState(T value)
+    {
+        if constexpr (std::is_same_v<T, Object *>) {
+            return static_cast<T>(copyRestoredObjectForState(value));
+        } else if constexpr (KeyTypeTraits<T>::isRowKey) {
+            return value == nullptr ? nullptr : static_cast<T>(value->copy());
+        } else {
+            return value;
+        }
+    }
+
+    static void releaseRestoredObject(Object *value)
+    {
+        if (value != nullptr) {
+            value->putRefCount();
+        }
+    }
+
     /**
      * Creates a RestoreStateDescriptor from a StateMetaInfoSnapshot.
      * For MAP states, extracts key/value BackendDataType from MapSerializer.
@@ -159,9 +184,11 @@ private:
                 // Object* path: PojoSerializer::deserialize(void*) is NOT_IMPL
                 Object *buf = keySer->GetBuffer();
                 keySer->deserialize(buf, input);
-                key = buf;
+                key = copyRestoredPointerForState<UK>(buf);
+                releaseRestoredObject(buf);
             } else if constexpr (std::is_pointer_v<UK>) {
-                key = static_cast<UK>(keySer->deserialize(input));
+                UK rawKey = static_cast<UK>(keySer->deserialize(input));
+                key = copyRestoredPointerForState<UK>(rawKey);
             } else {
                 void *rawK = keySer->deserialize(input);
                 key = *static_cast<UK *>(rawK);
@@ -176,9 +203,11 @@ private:
                     if constexpr (std::is_same_v<UV, Object *>) {
                         Object *buf = valSer->GetBuffer();
                         valSer->deserialize(buf, input);
-                        val = buf;
+                        val = copyRestoredPointerForState<UV>(buf);
+                        releaseRestoredObject(buf);
                     } else {
-                        val = static_cast<UV>(valSer->deserialize(input));
+                        UV rawVal = static_cast<UV>(valSer->deserialize(input));
+                        val = copyRestoredPointerForState<UV>(rawVal);
                     }
                 }
             } else {
@@ -206,8 +235,14 @@ private:
         auto *vec = new std::vector<V>();
         vec->reserve(size);
         for (int i = 0; i < size; i++) {
-            if constexpr (std::is_pointer_v<V>) {
-                vec->push_back(static_cast<V>(elemSer->deserialize(input)));
+            if constexpr (std::is_same_v<V, Object *>) {
+                Object *buf = elemSer->GetBuffer();
+                elemSer->deserialize(buf, input);
+                vec->push_back(copyRestoredPointerForState<V>(buf));
+                releaseRestoredObject(buf);
+            } else if constexpr (std::is_pointer_v<V>) {
+                V raw = static_cast<V>(elemSer->deserialize(input));
+                vec->push_back(copyRestoredPointerForState<V>(raw));
             } else {
                 void *raw = elemSer->deserialize(input);
                 vec->push_back(*static_cast<V *>(raw));
@@ -444,8 +479,11 @@ void HeapKeyedStateBackendBuilder<K>::restoreEntryToHeap(
             // PojoSerializer/Tuple2Serializer::deserialize(void*) is NOT_IMPL, use Object* path
             Object *valObj = info.valueSerializer->GetBuffer();
             info.valueSerializer->deserialize(valObj, valInput);
+            Object *stateVal = copyRestoredObjectForState(valObj);
             auto *table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, Object *> *>(stateTablePtr);
-            table->put(*static_cast<K *>(rawKey), keyGroupId, *static_cast<VoidNamespace *>(rawNs), valObj);
+            table->put(*static_cast<K *>(rawKey), keyGroupId, *static_cast<VoidNamespace *>(rawNs), stateVal);
+            releaseRestoredObject(stateVal);
+            releaseRestoredObject(valObj);
             delete static_cast<K *>(rawKey);
             delete static_cast<VoidNamespace *>(rawNs);
         } else if (dataId == BackendDataType::INT_BK) {

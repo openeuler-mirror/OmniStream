@@ -65,11 +65,6 @@ ConsumerRecords* RdKafkaConsumer::poll(int timeoutMs)
 
 void RdKafkaConsumer::assign(std::vector<RdKafka::TopicPartition*> &partitions)
 {
-    for (auto* tp : partitions) {
-        if (tp == nullptr) {
-            continue;
-        }
-    }
     RdKafka::ErrorCode resp =  consumer_->assign(partitions);
     if (resp != RdKafka::ERR_NO_ERROR) {
         std::cerr << "% assign failed: " << RdKafka::err2str(resp)
