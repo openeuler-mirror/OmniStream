@@ -122,7 +122,10 @@ void KafkaWriter::write(omnistream::VectorBatch *input, int rowIndex)
 void KafkaWriter::Flush(bool endOfInput)
 {
     if (deliveryGuarantee != DeliveryGuarantee::NONE || endOfInput) {
-        handleRecord();
+        {
+            std::unique_lock<std::mutex> gLock(gMtx);
+            handleRecord();
+        }
         currentProducer1->Flush();
         currentProducer2->Flush();
     }
@@ -201,7 +204,19 @@ void KafkaWriter::ProduceRecord(KeyValueByteContainer &record)
 
 void KafkaWriter::handleRecord()
 {
-    const size_t mid = cur / 2;
+    const size_t recordCount = values.size();
+    if (recordCount == 0) {
+        valuesLens.clear();
+        cur = 0;
+        return;
+    }
+    if (recordCount != valuesLens.size()) {
+        INFO_RELEASE("KafkaWriter::handleRecord cached record size mismatch, values size: "
+            << recordCount << ", valuesLens size: " << valuesLens.size() << ", cur: " << cur);
+        return;
+    }
+
+    const size_t mid = recordCount / 2;
     // 分割数据
     std::vector<char*> first_half(values.begin(), values.begin() + mid);
     std::vector<size_t> first_half_lens(valuesLens.begin(), valuesLens.begin() + mid);
