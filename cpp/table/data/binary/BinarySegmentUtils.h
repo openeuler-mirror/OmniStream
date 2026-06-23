@@ -107,7 +107,7 @@ static inline bool bitGet(uint8_t *segment, int segmentSize, int baseOffset, int
  *    - If `mark` is set, the lower 32 bits represent `subOffset` and the higher 32 bits represent `len`. E.g. `variablePartOffsetAndLen` with underlying memory `08 00 00 00 28 00 00 00`, has `subOffset` = 40 and `len` = 8
  *    - If `mark` is not set, the higher 56 bits represent the content and the lowest 4 bits represent `len`. Thus, the variable name "variablePartOffsetAndLen" is not accurate in this case
  *
- * Memory layout of VARCHAR column varies depending on the length of the content. Details of sees this [wiki](https://codehub-y.huawei.com/data-app-lab/OmniFlink/wiki?categoryId=149234&sn=WIKI202410104753613)
+ * Memory layout of VARCHAR column varies depending on the length of the content.
  *
  * Setter sees `setString` in "OmniFlink/cpp/table/data/binary/BinaryRowData.cpp"
  */

@@ -204,9 +204,6 @@ def test_q4_1m(flink_cluster):
     """
     Test flink nexmark benchmark q4.sql
 
-    This test uses file input generated following this wiki:
-    https://codehub-y.huawei.com/data-app-lab/OmniFlink/wiki?categoryId=149234&sn=WIKI202411155116768&title=Run-sql-with-file-input
-
     There are 1000000 rows in the input file.
     
     The query is specified in the file `q4_1m.sql`
@@ -218,9 +215,7 @@ def test_q4_1m(flink_cluster):
             13             29148336
             12             29333115
             11             28682231
-
-    To run this test, following this [wiki](https://codehub-y.huawei.com/data-app-lab/OmniFlink/wiki?categoryId=149234&sn=WIKI202411155116768&title=Run-q4-Benchmark-with-1-Million-Input-Row)
-    """
+        """
     # Get the directory of the current test file
     current_dir = os.path.dirname(os.path.abspath(__file__))
     sql_file_path = os.path.join(current_dir, "q4_1m.sql")
