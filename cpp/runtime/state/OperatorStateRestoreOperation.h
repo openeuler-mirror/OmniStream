@@ -15,7 +15,10 @@
 #include <set>
 #include <vector>
 #include <string>
+#include <memory>
+#include <stdexcept>
 #include <nlohmann/json.hpp>
+#include "core/include/common.h"
 #include "PartitionableListState.h"
 #include "RegisteredBroadcastStateBackendMetaInfo.h"
 #include "state/bridge/OmniTaskBridge.h"
@@ -93,23 +96,35 @@ public:
             auto offsets = entry.second.getOffsets();
             // 根据 stateName 判断属于什么类型的数据
             if (typeByteStateNames.find(name) != typeByteStateNames.end()) {
-                auto listState = std::make_shared<PartitionableListState<std::vector<uint8_t>>>(metaInfo);
+                auto listState = getOrCreateOperatorListState<std::vector<uint8_t>>(name, metaInfo);
                 for (auto& offset : offsets) {
                     in.setPosition(offset);
-                    listState->add(
-                        *static_cast<std::vector<uint8_t>*>(serializer->deserialize(in))
-                    );
+                    auto rawValue = static_cast<std::vector<uint8_t>*>(serializer->deserialize(in));
+                    if (rawValue == nullptr) {
+                        INFO_RELEASE("ERROR: Failed to deserialize operator state: " << name << ", offset="
+                            << std::to_string(offset));
+                        throw std::runtime_error(
+                            "Failed to deserialize operator state: " + name + ", offset=" + std::to_string(offset));
+                    }
+                    std::unique_ptr<std::vector<uint8_t>> value(rawValue);
+                    listState->add(*value);
                 }
-                registeredOperatorStates_->emplace(name, listState);
             }
 
             if (typeLongStateNames.find(name) != typeLongStateNames.end()) {
-                auto listState = std::make_shared<PartitionableListState<long>>(metaInfo);
+                auto listState = getOrCreateOperatorListState<long>(name, metaInfo);
                 for (auto& offset : offsets) {
                     in.setPosition(offset);
-                    listState->add(*static_cast<long*>(serializer->deserialize(in)));
+                    auto rawValue = static_cast<long*>(serializer->deserialize(in));
+                    if (rawValue == nullptr) {
+                        INFO_RELEASE("ERROR: Failed to deserialize operator state: " << name << ", offset="
+                            << std::to_string(offset));
+                        throw std::runtime_error(
+                            "Failed to deserialize operator state: " + name + ", offset=" + std::to_string(offset));
+                    }
+                    std::unique_ptr<long> value(rawValue);
+                    listState->add(*value);
                 }
-                registeredOperatorStates_->emplace(name, listState);
             }
         }
     }
@@ -124,6 +139,53 @@ private:
     {
         return typeByteStateNames.find(stateName) != typeByteStateNames.end()
             || typeLongStateNames.find(stateName) != typeLongStateNames.end();
+    }
+
+    template <typename T>
+    std::shared_ptr<PartitionableListState<T>> getOrCreateOperatorListState(
+        const std::string& stateName,
+        const std::shared_ptr<RegisteredOperatorStateBackendMetaInfo>& metaInfo)
+    {
+        auto existing = registeredOperatorStates_->find(stateName);
+        if (existing != registeredOperatorStates_->end()) {
+            auto listState = std::dynamic_pointer_cast<PartitionableListState<T>>(existing->second);
+            if (listState == nullptr) {
+                throw std::runtime_error("Restored operator state type mismatch for state: " + stateName);
+            }
+            validateOperatorStateMetaInfo(stateName, listState->getStateMetaInfo(), metaInfo);
+            return listState;
+        }
+
+        auto listState = std::make_shared<PartitionableListState<T>>(metaInfo);
+        registeredOperatorStates_->emplace(stateName, listState);
+        return listState;
+    }
+
+    static void validateOperatorStateMetaInfo(
+        const std::string& stateName,
+        const std::shared_ptr<RegisteredOperatorStateBackendMetaInfo>& existingMetaInfo,
+        const std::shared_ptr<RegisteredOperatorStateBackendMetaInfo>& restoredMetaInfo)
+    {
+        if (existingMetaInfo == nullptr || restoredMetaInfo == nullptr) {
+            INFO_RELEASE("ERROR: Restored operator state meta info is null for state: " << stateName);
+            throw std::runtime_error("Restored operator state meta info is null for state: " + stateName);
+        }
+        if (existingMetaInfo->getName() != restoredMetaInfo->getName()
+            || existingMetaInfo->getAssignmentMode() != restoredMetaInfo->getAssignmentMode()) {
+            INFO_RELEASE("ERROR: Restored operator state meta info mismatch for state: " << stateName);
+            throw std::runtime_error("Restored operator state meta info mismatch for state: " + stateName);
+        }
+
+        TypeSerializer* existingSerializer = existingMetaInfo->getStateSerializer();
+        TypeSerializer* restoredSerializer = restoredMetaInfo->getStateSerializer();
+        if (existingSerializer == nullptr || restoredSerializer == nullptr) {
+            INFO_RELEASE("ERROR: Restored operator state serializer is null for state: " << stateName);
+            throw std::runtime_error("Restored operator state serializer is null for state: " + stateName);
+        }
+        if (existingSerializer->getBackendId() != restoredSerializer->getBackendId()) {
+            INFO_RELEASE("ERROR: Restored operator state serializer mismatch for state: " << stateName);
+            throw std::runtime_error("Restored operator state serializer mismatch for state: " + stateName);
+        }
     }
 
     inline static std::set<std::string> typeByteStateNames = {
