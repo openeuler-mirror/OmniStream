@@ -227,7 +227,7 @@ BinaryStringData *BinaryRowData::getString(int pos)
 /**
  * Write VARCHAR column
  *
- * Memory layout of VARCHAR column varies depending on the length of the content. Details of sees this [wiki](https://codehub-y.huawei.com/data-app-lab/OmniFlink/wiki?categoryId=149234&sn=WIKI202410104753613)
+ * Memory layout of VARCHAR column varies depending on the length of the content.
  *
  * Implementation of this function is based on implementation of `writeString` in "/flink/flink-table/flink-table-runtime/src/main/java/org/apache/flink/table/data/writer/AbstractBinaryWriter.java". Implementation of the following utility functions are also based on java implementation in `AbstractBinaryWriter` class
  *
