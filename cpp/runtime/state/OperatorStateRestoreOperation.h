@@ -15,6 +15,8 @@
 #include <set>
 #include <vector>
 #include <string>
+#include <memory>
+#include <stdexcept>
 #include <nlohmann/json.hpp>
 #include "PartitionableListState.h"
 #include "RegisteredBroadcastStateBackendMetaInfo.h"
@@ -93,23 +95,22 @@ public:
             auto offsets = entry.second.getOffsets();
             // 根据 stateName 判断属于什么类型的数据
             if (typeByteStateNames.find(name) != typeByteStateNames.end()) {
-                auto listState = std::make_shared<PartitionableListState<std::vector<uint8_t>>>(metaInfo);
+                auto listState = getOrCreateOperatorListState<std::vector<uint8_t>>(name, metaInfo);
                 for (auto& offset : offsets) {
                     in.setPosition(offset);
-                    listState->add(
-                        *static_cast<std::vector<uint8_t>*>(serializer->deserialize(in))
-                    );
+                    std::unique_ptr<std::vector<uint8_t>> value(
+                        static_cast<std::vector<uint8_t>*>(serializer->deserialize(in)));
+                    listState->add(*value);
                 }
-                registeredOperatorStates_->emplace(name, listState);
             }
 
             if (typeLongStateNames.find(name) != typeLongStateNames.end()) {
-                auto listState = std::make_shared<PartitionableListState<long>>(metaInfo);
+                auto listState = getOrCreateOperatorListState<long>(name, metaInfo);
                 for (auto& offset : offsets) {
                     in.setPosition(offset);
-                    listState->add(*static_cast<long*>(serializer->deserialize(in)));
+                    std::unique_ptr<long> value(static_cast<long*>(serializer->deserialize(in)));
+                    listState->add(*value);
                 }
-                registeredOperatorStates_->emplace(name, listState);
             }
         }
     }
@@ -124,6 +125,26 @@ private:
     {
         return typeByteStateNames.find(stateName) != typeByteStateNames.end()
             || typeLongStateNames.find(stateName) != typeLongStateNames.end();
+    }
+
+    template <typename T>
+    std::shared_ptr<PartitionableListState<T>> getOrCreateOperatorListState(
+        const std::string& stateName,
+        const std::shared_ptr<RegisteredOperatorStateBackendMetaInfo>& metaInfo)
+    {
+        auto existing = registeredOperatorStates_->find(stateName);
+        if (existing != registeredOperatorStates_->end()) {
+            auto listState = std::dynamic_pointer_cast<PartitionableListState<T>>(existing->second);
+            if (listState == nullptr) {
+                throw std::runtime_error("Restored operator state type mismatch for state: " + stateName);
+            }
+            listState->setStateMetaInfo(metaInfo);
+            return listState;
+        }
+
+        auto listState = std::make_shared<PartitionableListState<T>>(metaInfo);
+        registeredOperatorStates_->emplace(stateName, listState);
+        return listState;
     }
 
     inline static std::set<std::string> typeByteStateNames = {
