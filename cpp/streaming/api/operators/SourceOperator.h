@@ -58,6 +58,8 @@
 #include "runtime/operators/coordination/OperatorEventHandler.h"
 #include "streaming/runtime/tasks/omni/OmniAsyncDataOutputToOutput.h"
 #include "runtime/state/DefaultOperatorStateBackend.h"
+#include "runtime/checkpoint/SavepointType.h"
+#include "io/network/api/StopMode.h"
 
 using OmniDataOutputPtr = omnistream::OmniPushingAsyncDataInput::OmniDataOutput*;
 
@@ -128,7 +130,6 @@ public:
 
     ~SourceOperator()
     {
-        stopInternalServices();
         delete sourceReader;
         delete currentMainOutput;
         delete dataStreamOutput;
@@ -225,6 +226,27 @@ public:
         
     }
 
+    void stop(StopMode mode) override {
+        INFO_RELEASE("SourceOperator::stop with mode: " << (mode == StopMode::DRAIN ? "DRAIN" : "NO_DRAIN"));
+        switch (mode) {
+            case StopMode::DRAIN:
+                operatingMode = OperatingMode::SOURCE_DRAINED;
+                break;
+            case StopMode::NO_DRAIN:
+                operatingMode = OperatingMode::SOURCE_STOPPED;
+                break;
+        }
+
+        if (availabilityHelper != nullptr) {
+            availabilityHelper->forceStop();
+        }
+
+        if (operatingMode == OperatingMode::SOURCE_STOPPED) {
+            stopInternalServices();
+            finished->complete();
+        }
+    }
+
     void finish()
     {
         stopInternalServices();
@@ -233,7 +255,6 @@ public:
 
     void close()
     {
-        stopInternalServices();
         if (sourceReader != nullptr) {
             sourceReader->close();
         }
@@ -592,7 +613,9 @@ private:
 
         void forceStop()
         {
-            forcedStopFuture->complete();
+            if (forcedStopFuture) {
+                forcedStopFuture->complete();
+            }
         }
     private:
         std::shared_ptr<omnistream::CompletableFuture> forcedStopFuture = std::make_shared<omnistream::CompletableFuture>();

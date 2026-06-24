@@ -39,6 +39,8 @@
 #include <streaming/runtime/partitioner/V2/RescalePartitionerV2.h>
 #include <streaming/runtime/partitioner/V2/GlobalPartitionerV2.h>
 #include <utils/monitormmap/MetricManager.h>
+
+#include "runtime/checkpoint/SavepointType.h"
 #include "streaming/runtime/tasks/mailbox/TaskMailboxImpl.h"
 #include "core/api/common/TaskInfoImpl.h"
 #include "runtime/io/network/api/writer/V2/MultipleRecordWritersV2.h"
@@ -286,6 +288,18 @@ OmniStreamTask::OmniStreamTask(std::shared_ptr<RuntimeEnvironmentV2> &env,
         // let the task do its work
         LOG("Invoking {}." << getName() << "run mailbox loop");
         runMailboxLoop();
+
+        if (syncSavepoint != INT64_MIN) {
+            INFO_RELEASE("OmniStreamTask::invoke waiting for checkpoint resolution for task " << getName());
+            while (!finalCheckpointCompleted->IsDone()) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            }
+            if (finalCheckpointCompleted->IsDone()) {
+                INFO_RELEASE("OmniStreamTask::invoke checkpoint resolved for task " << getName());
+            } else {
+                INFO_RELEASE("OmniStreamTask::invoke timed out waiting for checkpoint resolution for task " << getName());
+            }
+        }
     }
 
     void OmniStreamTask::cancel()
@@ -700,6 +714,11 @@ void OmniStreamTask::processInput(MailboxDefaultAction::Controller *controller)
 
     std::shared_ptr<CompletableFutureV2<void>> OmniStreamTask::notifyCheckpointCompleteAsync(long checkpointId)
     {
+        if (isCurrentSyncSavepoint(checkpointId)) {
+            INFO_RELEASE("OmniStreamTask::notifyCheckpointCompleteAsync checkpointId " << checkpointId << " completed for task " << getName());
+            finalCheckpointCompleted->Complete();
+        }
+
         std::string description = "checkpoint ";
         description += std::to_string(checkpointId);
         description += " complete";
@@ -731,9 +750,13 @@ void OmniStreamTask::processInput(MailboxDefaultAction::Controller *controller)
             description);
     }
 
-    // TTODO: TO BE COMPELETED
     std::shared_ptr<CompletableFutureV2<void>> OmniStreamTask::notifyCheckpointAbortAsync(long checkpointId, long latestCompletedCheckpointId)
     {
+        if (isCurrentSyncSavepoint(checkpointId)) {
+            INFO_RELEASE("OmniStreamTask::notifyCheckpointAbortAsync checkpointId " << checkpointId << " aborted for task " << getName());
+            finalCheckpointCompleted->Complete();
+        }
+
         std::string description = "checkpoint ";
         description += std::to_string(checkpointId);
         description += " aborted";
@@ -743,7 +766,7 @@ void OmniStreamTask::processInput(MailboxDefaultAction::Controller *controller)
                 notifyCheckpointComplete(latestCompletedCheckpointId);
             }
             if (isCurrentSyncSavepoint(checkpointId)) {
-                // TTODO: throw FlinkRuntimeException("Stop-with-savepoint failed.");
+                throw std::runtime_error("Stop-with-savepoint failed");
             }
             std::shared_ptr<runtime::SubtaskCheckpointCoordinatorImpl> subtaskCheckpointCoordinatorImpl =
                 std::dynamic_pointer_cast<runtime::SubtaskCheckpointCoordinatorImpl>(subtaskCheckpointCoordinator);
@@ -795,7 +818,7 @@ void OmniStreamTask::processInput(MailboxDefaultAction::Controller *controller)
 
         if (isRunning) {
             if (isCurrentSyncSavepoint(checkpointId)) {
-                // finalCheckpointCompleted->();
+                finalCheckpointCompleted->Complete();
             } else if (!syncSavepoint && finalCheckpointMinId != INT64_MIN && checkpointId >= finalCheckpointMinId) {
                 finalCheckpointCompleted->Complete();
             }
@@ -807,6 +830,26 @@ void OmniStreamTask::processInput(MailboxDefaultAction::Controller *controller)
         return syncSavepoint != INT64_MIN && syncSavepoint == checkpointId;
     }
 
+    void OmniStreamTask::triggerStopWithSavepoint(const std::shared_ptr<CheckpointOptions>& checkpointOptions) {
+        if (!checkpointOptions->GetCheckpointType()) {
+            INFO_RELEASE("Error triggerStopWithSavepoint checkpointType is null");
+            throw std::runtime_error("triggerStopWithSavepoint checkpointType is null");
+        }
+        if (!checkpointOptions->GetCheckpointType()->IsSavepoint()) {
+            INFO_RELEASE("Warn triggerStopWithSavepoint checkpointType is not Savepoint");
+            return;
+        }
+        SavepointType* savepointType = dynamic_cast<SavepointType*>(checkpointOptions->GetCheckpointType());
+        if (!savepointType) {
+            INFO_RELEASE("Error triggerStopWithSavepoint savepointType CheckpointType can not cast to SavepointType.");
+            throw std::runtime_error("triggerStopWithSavepoint savepointType CheckpointType can not cast to SavepointType.");
+        }
+        if (!mainOperator_) {
+            INFO_RELEASE("Warn triggerStopWithSavepoint mainOperator is null.");
+            return;
+        }
+        mainOperator_->stop(savepointType->shouldDrain() ? StopMode::DRAIN : StopMode::NO_DRAIN);
+    }
     std::shared_ptr<CompletableFutureV2<bool>> OmniStreamTask::triggerCheckpointAsync(
         std::shared_ptr<CheckpointMetaData> checkpointMetaData, std::shared_ptr<CheckpointOptions> checkpointOptions)
     {
@@ -814,6 +857,9 @@ void OmniStreamTask::processInput(MailboxDefaultAction::Controller *controller)
         auto mailboxRunnable = std::make_shared<VoidFunctionRunnable>(
             [this, result, checkpointMetaData, checkpointOptions]() {
                 try {
+                    if (IsSynchronous(checkpointOptions->GetCheckpointType())) {
+                        triggerStopWithSavepoint(checkpointOptions);
+                    }
                     auto inputGates = env_->GetAllInputGates();
                     bool noUnfinishedInputGates = std::all_of(inputGates.begin(),
                         inputGates.end(), [](const std::shared_ptr<InputGate>& gate) {
