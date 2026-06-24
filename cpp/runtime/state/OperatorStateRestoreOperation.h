@@ -171,6 +171,15 @@ private:
 
         jobject inputStream = nullptr;
         try {
+            long expectedStateSize = stateHandle->GetStateSize();
+            if (expectedStateSize < 0) {
+                INFO_RELEASE("Error: Operator state handle has negative state size: " << expectedStateSize);
+                THROW_LOGIC_EXCEPTION("Operator state handle has negative state size: " << expectedStateSize)
+            }
+            if (expectedStateSize == 0) {
+                return {};
+            }
+
             inputStream = omniTaskBridge_->getSavepointInputStream(handleJson);
             if (inputStream == nullptr) {
                 INFO_RELEASE("Error: Failed to open operator state input stream through OmniTaskBridge.");
@@ -179,23 +188,41 @@ private:
 
             std::vector<uint8_t> data;
             std::vector<uint8_t> chunk(READ_CHUNK_SIZE);
-            while (true) {
+            while (data.size() < static_cast<size_t>(expectedStateSize)) {
+                size_t remaining = static_cast<size_t>(expectedStateSize) - data.size();
+                size_t readLength = remaining < READ_CHUNK_SIZE ? remaining : READ_CHUNK_SIZE;
                 int read = omniTaskBridge_->ReadSavepointInputStream(inputStream,
-                    reinterpret_cast<int8_t *>(chunk.data()), 0, chunk.size());
+                    reinterpret_cast<int8_t *>(chunk.data()), 0, readLength);
                 if (read < 0) {
-                    break;
+                    INFO_RELEASE("Error: Operator state input stream ended before expected size: expected="
+                        << expectedStateSize << ", actual=" << data.size() << ", read=" << read);
+                    THROW_LOGIC_EXCEPTION("Operator state input stream ended before expected size: expected="
+                        << expectedStateSize << ", actual=" << data.size() << ", read=" << read)
                 }
                 if (read == 0) {
-                    break;
+                    INFO_RELEASE("Error: Operator state input stream returned zero bytes before expected size: expected="
+                        << expectedStateSize << ", actual=" << data.size());
+                    THROW_LOGIC_EXCEPTION("Operator state input stream returned zero bytes before expected size: expected="
+                        << expectedStateSize << ", actual=" << data.size())
                 }
                 data.insert(data.end(), chunk.begin(), chunk.begin() + read);
             }
-            omniTaskBridge_->closeSavepointInputStream(inputStream);
+            jobject inputStreamToClose = inputStream;
             inputStream = nullptr;
+            omniTaskBridge_->closeSavepointInputStream(inputStreamToClose);
             return data;
         } catch (...) {
             if (inputStream != nullptr) {
-                omniTaskBridge_->closeSavepointInputStream(inputStream);
+                jobject inputStreamToClose = inputStream;
+                inputStream = nullptr;
+                try {
+                    omniTaskBridge_->closeSavepointInputStream(inputStreamToClose);
+                } catch (const std::exception& e) {
+                    INFO_RELEASE("Error: Failed to close operator state input stream after restore failure: "
+                        << e.what());
+                } catch (...) {
+                    INFO_RELEASE("Error: Failed to close operator state input stream after restore failure.");
+                }
             }
             throw;
         }
@@ -203,7 +230,7 @@ private:
 
     static void validateOffset(const std::string& stateName, long offset, size_t stateSize)
     {
-        if (offset < 0 || static_cast<size_t>(offset) > stateSize) {
+        if (offset < 0 || static_cast<size_t>(offset) >= stateSize) {
             INFO_RELEASE("Error: Invalid operator state offset for state " << stateName
                 << ": offset=" << offset << ", stateSize=" << stateSize);
             THROW_LOGIC_EXCEPTION("Invalid operator state offset for state " << stateName
