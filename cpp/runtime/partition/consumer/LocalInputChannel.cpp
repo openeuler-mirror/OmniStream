@@ -44,6 +44,10 @@ LocalInputChannel::LocalInputChannel(std::shared_ptr<SingleInputGate> inputGate,
 
 void LocalInputChannel::CheckpointStarted(const CheckpointBarrier& barrier)
 {
+    if (!channelStatePersister) {
+        INFO_RELEASE("LocalInputChannel::CheckpointStarted skipped because channelStatePersister is not initialized.");
+        return;
+    }
     std::vector<Buffer*> knownBuffers;
     channelStatePersister->StartPersisting(barrier.GetId(), knownBuffers);
 }
@@ -156,10 +160,15 @@ std::optional<BufferAndAvailability> LocalInputChannel::getNextBuffer()
     }
     LOG("subpartitionViewPtr.get()" << subpartitionViewPtr.get())
     BufferAndBacklog* next = subpartitionViewPtr->getNextBuffer();
-    while (next && next->getBuffer()->GetSize() == 0) {
-        next->getBuffer()->RecycleBuffer();
-        // todo: need free buffer memory?
-        next = subpartitionView->getNextBuffer();
+    while (next) {
+        Buffer* emptyCandidate = next->getBuffer();
+        if (emptyCandidate == nullptr || emptyCandidate->GetSize() != 0) {
+            break;
+        }
+        emptyCandidate->RecycleBuffer();
+        delete emptyCandidate;
+        delete next;
+        next = subpartitionViewPtr->getNextBuffer();
         numBuffersIn->Inc();
     }
     if (!next) {
@@ -174,6 +183,10 @@ std::optional<BufferAndAvailability> LocalInputChannel::getNextBuffer()
 
     // std::shared_ptr<ObjectBuffer> buffer = next->getBuffer();
     Buffer* buffer = next->getBuffer();
+    if (buffer == nullptr) {
+        delete next;
+        return std::nullopt;
+    }
     // todo: need realization
     LOG("after LocalInputChannel::next->getBuffer()")
     /**
@@ -184,8 +197,10 @@ std::optional<BufferAndAvailability> LocalInputChannel::getNextBuffer()
 
     // LOG("after LocalInputChannel::next->getBuffer() 1")
     LOG("after LocalInputChannel::next->getBuffer() 2")
-    channelStatePersister->CheckForBarrier(buffer);
-    channelStatePersister->MaybePersist(buffer);
+    if (channelStatePersister) {
+        channelStatePersister->CheckForBarrier(buffer);
+        channelStatePersister->MaybePersist(buffer);
+    }
 
     if (next->getNextDataType().isEvent()) {
         LOG_TRACE("event buffer " << buffer->ToDebugString(false))
