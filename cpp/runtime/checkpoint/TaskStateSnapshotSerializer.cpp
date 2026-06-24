@@ -169,8 +169,13 @@ nlohmann::json TaskStateSnapshotSerializer::parseIncrementalRemoteKeyedStateHand
 nlohmann::json TaskStateSnapshotSerializer::parseKeyGroupsStateHandle(std::shared_ptr<KeyGroupsStateHandle> kh)
 {
     nlohmann::json handleJson;
-    handleJson["@class"] = "org.apache.flink.runtime.state.KeyGroupsStateHandle";
-    handleJson["stateHandleName"] = "KeyGroupsStateHandle";
+    const bool isSavepointHandle = std::dynamic_pointer_cast<KeyGroupsSavepointStateHandle>(kh) != nullptr;
+    handleJson["@class"] = isSavepointHandle
+        ? "org.apache.flink.runtime.state.KeyGroupsSavepointStateHandle"
+        : "org.apache.flink.runtime.state.KeyGroupsStateHandle";
+    handleJson["stateHandleName"] = isSavepointHandle
+        ? "KeyGroupsSavepointStateHandle"
+        : "KeyGroupsStateHandle";
     handleJson["keyGroupRange"] = parseKeyGroupRange(kh->GetKeyGroupRange());
     handleJson["groupRangeOffsets"] = nlohmann::json::parse(kh->getGroupRangeOffsets().ToString());
     handleJson["streamStateHandle"] = parseMetaDataState(kh->getDelegateStateHandle());
