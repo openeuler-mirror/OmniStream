@@ -73,9 +73,11 @@ namespace omnistream::datastream {
         this->readerIndex_ = readIndex;
         refCount_.store(1);
         this->segmentOwner = segmentOwner;
+        const char* env_p = std::getenv("BUFFER_SLEEP_MICRO_S");
+        if (env_p != nullptr) {
+            sleep_us = std::stoi(env_p);
+        }
     }
-
-
 
     MemorySegment *NetworkBuffer::getMemorySegment()
     {
