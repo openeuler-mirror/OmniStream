@@ -127,6 +127,7 @@ void KafkaWriter::Flush(bool endOfInput)
             std::unique_lock<std::mutex> gLock(gMtx);
             handleRecord();
         }
+        waitForPendingTasks();
         currentProducer1->Flush();
         currentProducer2->Flush();
     }
@@ -241,6 +242,12 @@ void KafkaWriter::handleRecord()
     values.clear();
     valuesLens.clear();
     cur = 0;
+}
+
+void KafkaWriter::waitForPendingTasks()
+{
+    std::unique_lock<std::mutex> lock(queueMutex);
+    tasksDrainedCv.wait(lock, [this]() { return tasks.empty() && inFlightTasks == 0; });
 }
 
 void KafkaWriter::SetSubTaskIdx(int32_t subtaskIdx)

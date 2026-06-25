@@ -111,6 +111,9 @@ private:
     std::queue<std::function<void()>> tasks; // 任务队列
     std::atomic<bool> stop_flag{false};      // 停止标志
 
+    std::condition_variable tasksDrainedCv;
+    size_t inFlightTasks = 0;
+
     std::mutex gMtx;
     std::condition_variable gcv;
     timespec start;
@@ -124,6 +127,7 @@ private:
     std::shared_ptr<FlinkKafkaInternalProducer> getOrCreateTransactionalProducer(const std::string& transactionalId);
     void ProduceRecord(KeyValueByteContainer& record);
     void handleRecord();
+    void waitForPendingTasks();
     RdKafka::Topic* rd_topic1 = nullptr;
     RdKafka::Topic* rd_topic2 = nullptr;
     int32_t partitionNum = 0;
@@ -173,10 +177,24 @@ private:
                 // 取出任务
                 task = std::move(tasks.front());
                 tasks.pop();
+                ++inFlightTasks;
             }
 
             // 执行任务
-            task();
+            auto completeTask = [this]() {
+                std::lock_guard<std::mutex> lock(queueMutex);
+                --inFlightTasks;
+                if (tasks.empty() && inFlightTasks == 0) {
+                    tasksDrainedCv.notify_all();
+                }
+            };
+            try {
+                task();
+            } catch (...) {
+                completeTask();
+                throw;
+            }
+            completeTask();
         }
     }
 
