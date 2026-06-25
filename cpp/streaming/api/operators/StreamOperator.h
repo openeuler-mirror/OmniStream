@@ -20,6 +20,7 @@
 #include "runtime/checkpoint/CheckpointOptions.h"
 #include "runtime/checkpoint/TaskStateSnapshotDeserializer.h"
 #include "runtime/checkpoint/CheckpointListener.h"
+#include "io/network/api/StopMode.h"
 
 class StreamOperator : public CheckpointListener {
 public:
@@ -30,6 +31,7 @@ public:
     }
     virtual void open() { };
     virtual void close() { };
+    virtual void stop(StopMode mode) {}
     virtual void setKeyContextElement(StreamRecord* record){};
     virtual void setKeyContextElement1(StreamRecord* record){};
     virtual void setKeyContextElement2(StreamRecord* record){};

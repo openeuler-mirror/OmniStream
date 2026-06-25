@@ -101,6 +101,8 @@ public:
 
 class TestAggregator : public NamespaceAggsHandleFunctionBase<TimeWindow> {
 public:
+    TestAggregator() : NamespaceAggsHandleFunctionBase<TimeWindow>(1) {}
+
     void open(StateDataViewStore* store) override {}
 
     void setAccumulators(TimeWindow namespaceVal, RowData* accumulators) override
@@ -122,9 +124,9 @@ public:
         currentAccumulators->setLong(0, currentValue + otherValue);
     }
 
-    RowData* createAccumulators(int accumulatorArity) override
+    RowData* createAccumulators() override
     {
-        lastAccumulatorArity = accumulatorArity;
+        lastAccumulatorArity = accumulatorArity_;
         createAccumulatorsCalls++;
         return NewLongRow(0);
     }
@@ -134,7 +136,7 @@ public:
         return currentAccumulators;
     }
 
-    void Cleanup(TimeWindow namespaceVal) override
+    void cleanup(TimeWindow namespaceVal) override
     {
         cleanedNamespaces.push_back(namespaceVal);
     }
@@ -164,7 +166,7 @@ TEST(GeneralWindowProcessFunctionTest, AssignsOnlyNonLateStateNamespaces)
 {
     TumblingWindowAssigner assigner(5000, 0, true);
     TestAggregator aggregator;
-    GeneralWindowProcessFunction<Key, TimeWindow> function(&assigner, &aggregator, 0, 1);
+    GeneralWindowProcessFunction<Key, TimeWindow> function(&assigner, &aggregator, 0);
 
     auto* context = new TestContext(4999);
     function.open(context);
@@ -178,7 +180,7 @@ TEST(GeneralWindowProcessFunctionTest, PreparesExistingAccumulatorAndCleansOnCle
 {
     TumblingWindowAssigner assigner(5000, 0, true);
     TestAggregator aggregator;
-    GeneralWindowProcessFunction<Key, TimeWindow> function(&assigner, &aggregator, 0, 1);
+    GeneralWindowProcessFunction<Key, TimeWindow> function(&assigner, &aggregator, 0);
 
     auto* context = new TestContext(0);
     context->putWindowAccumulator(TimeWindow(0, 5000), 7);
@@ -203,7 +205,7 @@ TEST(PanedWindowProcessFunctionTest, AssignsPanesAndActualWindowsUsingFlinkLateS
 {
     SlidingWindowAssigner assigner(5000, 1000, 0, true);
     TestAggregator aggregator;
-    PanedWindowProcessFunction<Key, TimeWindow> function(&assigner, &aggregator, 0, 1);
+    PanedWindowProcessFunction<Key, TimeWindow> function(&assigner, &aggregator, 0);
 
     auto* context = new TestContext(4999);
     function.open(context);
@@ -214,7 +216,7 @@ TEST(PanedWindowProcessFunctionTest, AssignsPanesAndActualWindowsUsingFlinkLateS
          TimeWindow(1000, 6000)});
 
     auto* lateContext = new TestContext(8999);
-    PanedWindowProcessFunction<Key, TimeWindow> lateFunction(&assigner, &aggregator, 0, 1);
+    PanedWindowProcessFunction<Key, TimeWindow> lateFunction(&assigner, &aggregator, 0);
     lateFunction.open(lateContext);
     EXPECT_TRUE(lateFunction.assignStateNamespace(nullptr, 4999).empty());
 }
@@ -223,7 +225,7 @@ TEST(PanedWindowProcessFunctionTest, MergesPaneAccumulatorsForEmit)
 {
     SlidingWindowAssigner assigner(5000, 1000, 0, true);
     TestAggregator aggregator;
-    PanedWindowProcessFunction<Key, TimeWindow> function(&assigner, &aggregator, 0, 1);
+    PanedWindowProcessFunction<Key, TimeWindow> function(&assigner, &aggregator, 0);
 
     auto* context = new TestContext(0);
     context->putWindowAccumulator(TimeWindow(0, 1000), 1);
@@ -244,7 +246,7 @@ TEST(PanedWindowProcessFunctionTest, CleansPaneStateOnlyWhenWindowIsPaneLastWind
 {
     SlidingWindowAssigner assigner(5000, 1000, 0, true);
     TestAggregator aggregator;
-    PanedWindowProcessFunction<Key, TimeWindow> function(&assigner, &aggregator, 0, 1);
+    PanedWindowProcessFunction<Key, TimeWindow> function(&assigner, &aggregator, 0);
 
     auto* context = new TestContext(0);
     context->putWindowAccumulator(TimeWindow(0, 1000), 1);

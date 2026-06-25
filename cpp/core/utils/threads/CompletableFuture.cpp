@@ -117,7 +117,12 @@ std::shared_ptr<CompletableFuture> CompletableFuture::thenRun(std::shared_ptr<Ru
     };
 
     auto chainedTask = std::make_shared<ChainedTask>(shared_from_this(), task);
-    return runAsync(chainedTask);
+    if (isDone()) {
+        chainedTask->run();
+        return shared_from_this();
+    } else {
+        return runAsync(chainedTask);
+    }
 }
 
 FutureState CompletableFuture::getState()

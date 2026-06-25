@@ -1,8 +1,28 @@
 #include <gtest/gtest.h>
 #include <string>
 #include <memory>
+#include <vector>
 
 #include "runtime/checkpoint/TaskStateSnapshotDeserializer.h"
+#include "runtime/checkpoint/TaskStateSnapshotSerializer.h"
+#include "runtime/state/KeyGroupsSavepointStateHandle.h"
+#include "runtime/state/memory/ByteStreamStateHandle.h"
+
+TEST(SerializerTestSuite, PreservesKeyGroupsSavepointStateHandleType) {
+    KeyGroupRange keyGroupRange(0, 0);
+    KeyGroupRangeOffsets offsets(keyGroupRange, std::vector<int64_t>{0});
+    auto streamHandle = std::make_shared<ByteStreamStateHandle>(
+        "savepoint-handle",
+        std::vector<uint8_t>{});
+    auto savepointHandle = std::make_shared<KeyGroupsSavepointStateHandle>(offsets, streamHandle);
+
+    nlohmann::json handleJson = TaskStateSnapshotSerializer::parseKeyGroupsStateHandle(savepointHandle);
+
+    EXPECT_EQ(
+        handleJson["@class"].get<std::string>(),
+        "org.apache.flink.runtime.state.KeyGroupsSavepointStateHandle");
+    EXPECT_EQ(handleJson["stateHandleName"].get<std::string>(), "KeyGroupsSavepointStateHandle");
+}
 
 TEST(DeserializerTestSuite, DeserializesLocalStateSnapshotFromFile) {
     const std::string json_content = R"({

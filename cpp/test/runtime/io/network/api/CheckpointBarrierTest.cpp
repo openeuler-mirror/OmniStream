@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
 #include "runtime/io/network/api/CheckpointBarrier.h"
+#include "runtime/io/network/api/CancelCheckpointMarker.h"
 #include "runtime/io/network/api/serialization/EventSerializer.h"
+#include "runtime/event/EndOfData.h"
 #include <memory>
 TEST(CheckpointBarrierTest, ConstructorTest)
 {
@@ -216,4 +218,28 @@ TEST(CheckpointBarrierTest, serializeDeserializeTestWithSavePointSuspendNative)
     EXPECT_EQ(*barrier.GetCheckpointOptions(), *desCheckpointBarrier->GetCheckpointOptions());
 
     delete options;
+}
+
+TEST(CheckpointBarrierTest, serializeDeserializeCancelCheckpointMarker)
+{
+    CancelCheckpointMarker marker(12345L);
+
+    auto bufferConsumer = EventSerializer::ToBufferConsumer(std::make_shared<CancelCheckpointMarker>(marker), false);
+    auto deserializedEvent = EventSerializer::fromSerializedEvent(bufferConsumer->build());
+    auto desMarker = std::dynamic_pointer_cast<CancelCheckpointMarker>(deserializedEvent);
+
+    ASSERT_NE(desMarker, nullptr);
+    EXPECT_EQ(marker.getCheckpointId(), desMarker->getCheckpointId());
+}
+
+TEST(CheckpointBarrierTest, serializeDeserializeEndOfDataKeepsStopMode)
+{
+    EndOfData endOfData(StopMode::NO_DRAIN);
+
+    auto bufferConsumer = EventSerializer::ToBufferConsumer(std::make_shared<EndOfData>(endOfData), false);
+    auto deserializedEvent = EventSerializer::fromSerializedEvent(bufferConsumer->build());
+    auto desEndOfData = std::dynamic_pointer_cast<EndOfData>(deserializedEvent);
+
+    ASSERT_NE(desEndOfData, nullptr);
+    EXPECT_EQ(StopMode::NO_DRAIN, desEndOfData->getStopMode());
 }

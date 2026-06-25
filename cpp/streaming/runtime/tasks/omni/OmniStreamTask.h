@@ -33,6 +33,7 @@
 #include "runtime/io/checkpointing/CheckpointBarrierHandler.h"
 #include "streaming/runtime/tasks/SystemProcessingTimeService.h"
 #include "table/runtime/keyselector/KeySelector.h"
+#include "runtime/checkpoint/SavepointType.h"
 
 namespace omnistream {
     class OperatorChainV2;
@@ -107,10 +108,14 @@ namespace omnistream {
             LOG(">>>>>>")
             try {
                 PerformCheckpoint(checkpointMetaData, std::move(checkpointOptions), checkpointMetrics);
+            } catch (const std::exception& e) {
+                LOG("Operator " << getName() << " failed while performing checkpoint "
+                    << checkpointMetaData->GetCheckpointId() << ": " << e.what());
+                throw;
             } catch (...) {
-                LOG("Operator {} was cancelled while performing checkpoint {}." << getName() <<
-                    checkpointMetaData->GetCheckpointId());
-                throw std::runtime_error("");
+                LOG("Operator " << getName() << " failed while performing checkpoint "
+                    << checkpointMetaData->GetCheckpointId() << ": unknown exception");
+                throw std::runtime_error("Unknown checkpoint failure");
             }
         };
 
@@ -146,6 +151,7 @@ namespace omnistream {
         std::shared_ptr<CompletableFutureV2<void>> notifyCheckpointCompleteAsync(long checkpointid);
         std::shared_ptr<CompletableFutureV2<void>> notifyCheckpointSubsumedAsync(long checkpointid);
         std::shared_ptr<CompletableFutureV2<void>> notifyCheckpointAbortAsync(long checkpointid, long latestCompletedCheckpointId);
+        void triggerStopWithSavepoint(const std::shared_ptr<CheckpointOptions>& checkpointOptions);
         std::shared_ptr<CompletableFutureV2<bool>> triggerCheckpointAsync(std::shared_ptr<CheckpointMetaData> checkpointMetaData,
             std::shared_ptr<CheckpointOptions> checkpointOptions);
         StreamPartitionerV2<StreamRecord> *createPartitionerFromDesc(StreamPartitionerPOD partitioner);
@@ -210,6 +216,11 @@ namespace omnistream {
         };
         void SetSynchronousSavepoint(long checkpointId)
         {
+            if (syncSavepoint != INT64_MIN && syncSavepoint != checkpointId) {
+                INFO_RELEASE("Error SetSynchronousSavepoint at most one stop-with-savepoint checkpoint at a time is allowed");
+                throw std::runtime_error("SetSynchronousSavepoint at most one stop-with-savepoint checkpoint at a time is allowed");
+            }
+            syncSavepoint = checkpointId;
         }
         void DeclineCheckpoint(long checkpointId)
         {
@@ -261,10 +272,12 @@ namespace omnistream {
         bool PerformCheckpoint(std::shared_ptr<CheckpointMetaData> checkpointMetaData,
             std::shared_ptr<CheckpointOptions> checkpointOptions, std::shared_ptr<CheckpointMetricsBuilder> checkpointMetrics);
 
-        inline bool IsSynchronous(SnapshotType* checkpointType)
-        {
-            // TTODO: return checkpointType->IsSavepoint() && (dynamic_cast<SavepointType*>(checkpointType)->IsSynchronous());
-            return false;
+        inline bool IsSynchronous(SnapshotType* checkpointType){
+            if ( checkpointType == nullptr) {
+                return false;
+            }
+            auto* savepointType = dynamic_cast<SavepointType*>(checkpointType);
+            return checkpointType->IsSavepoint() && savepointType != nullptr && savepointType->isSynchronous();
         }
 
         std::shared_ptr<CompletableFutureV2<void>> notifyCheckpointOperation(std::function<void()> runnable, const std::string& description);

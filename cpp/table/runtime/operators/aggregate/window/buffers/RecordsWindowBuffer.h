@@ -9,24 +9,20 @@
  * See the Mulan PSL v2 for more details.
  */
 
-# pragma once
+#pragma once
 
 #include <unordered_map>
 #include <vector>
 #include <streaming/api/operators/TimestampedCollector.h>
-#include <table/data/GenericRowData.h>
-
 #include "table/data/vectorbatch/VectorBatch.h"
 #include "table/runtime/operators/window/WindowKey.h"
-#include "table/runtime/generated/AggsHandleFunction.h"
-#include "table/data/JoinedRowData.h"
 #include "table/runtime/operators/window/state/WindowValueState.h"
 #include "test/core/operators/OutputTest.h"
 #include <mutex>
 #include <memory>
 #include "table/runtime/operators/window/slicing/SliceAssigners.h"
 #include "table/runtime/keyselector/KeySelector.h"
-#include "runtime/generated/function/CompositeWindowAggFunction.h"
+#include "runtime/generated/function/WindowAggsHandleFunction.h"
 #include "runtime/operators/InternalTimerServiceImpl.h"
 #include "state/KeyedStateBackend.h"
 
@@ -41,22 +37,20 @@ public:
             KeyedStateBackend<KeyType>* stateBackend_,
             SliceAssigner* sliceAssigner,
             InternalTimerServiceImpl<KeyType, int64_t>* internalTimerService);
-    void CreateFunctions(SliceAssigner *sliceAssigner, const string &AGGCALLSNAME, vector<std::string> &types);
     void InitializeKeySelectorAndTypes(const nlohmann::json& config);
     void addVectorBatch(omnistream::VectorBatch *elementBatch, std::vector<int64_t>& sliceEndArr, std::vector<bool>& dropArr);
     void advanceProgress(long currentProgress);
     void flush();
     void close() {};
-    BinaryRowData* emptyRow;
     omnistream::VectorBatch* createOutputBatch(std::vector<std::unique_ptr<RowData>>& collectedRows);
     void collectOutputBatch(TimestampedCollector *out, omnistream::VectorBatch *outputBatch);
-    std::string extractAggFunction(const std::string& input);
     std::vector<std::string> getKeyedTypes(std::vector<int32_t> keyedIndex, std::vector<std::string> inputTypes);
     Output* getOutput();
     void combineAccumulator(const WindowKey& windowKey, RowData* acc);
     void globalWinAggProcess(const WindowKey& currentWindowKey, std::vector<std::unique_ptr<RowData>>& sliceResultArr);
     void winAggProcess(const WindowKey& currentWindowKey, std::vector<std::unique_ptr<RowData>>&  sliceResultArr);
     void WindowAggProcess(const WindowKey& currentKey, std::vector<std::unique_ptr<RowData>>& sliceResultArr);
+    bool shouldDeleteWindowStateValue() const;
 
 private:
     static constexpr int AVG_ACCUMULATOR_SLOTS = 2;  // AVG needs sum + count
@@ -67,25 +61,20 @@ private:
     KeyedStateBackend<KeyType>* stateBackend_;
     omnistream::StateType backendType_ = omnistream::StateType::HEAP;
     std::vector<std::string> inputTypes;
+    std::vector<int32_t> inputTypeIds_;
     std::vector<std::string> outputTypes;
     std::vector<int32_t> outputTypeIds;
-    AggsHandleFunction* aggsHandleFunction{};
-    BinaryRowData* reUseNewAggValue{};
     std::vector<int32_t> keyedIndex;
     std::vector<int32_t> keyedTypes;
     std::unique_ptr<KeySelector<KeyType>> keySelector;
     int accumulatorArity = 0;
-    std::vector<std::unique_ptr<WindowAggHandleFunction>> localFunctions;
-    std::vector<std::unique_ptr<WindowAggHandleFunction>> globalFunctions;
-    std::unique_ptr<WindowAggHandleFunction> localCompositeAggregator;
-    std::unique_ptr<WindowAggHandleFunction> globalCompositeAggregator;
+    std::vector<std::unique_ptr<NamespaceAggsBasicFunction<int64_t>>> localFunctions;
+    std::vector<std::unique_ptr<NamespaceAggsBasicFunction<int64_t>>> globalFunctions;
+    std::unique_ptr<WindowAggsHandleFunction> localAggregator;
+    std::unique_ptr<WindowAggsHandleFunction> globalAggregator;
     int aggregateCallsCount = 0;
-    GenericRowData* windowRow;
-    JoinedRowData* accWindowRow;
     omnistream::VectorBatch* resultBatch = nullptr;
     TimestampedCollector* collector;
-    std::vector<std::string> accTypes;
-    std::vector<std::string> aggValueTypes;
     int rowTimeIndex;
     WindowValueState<KeyType, int64_t, RowData *> *accState;
     Output* output;
@@ -94,6 +83,7 @@ private:
     std::mutex bufferMutex;
     SliceAssigner* sliceAssigner;
     std::string shiftTimeZone;
-    const int emptyAggFuncNum = 1;
     int64_t minSliceEnd = INT64_MAX;
+
+    void initNamespaceAggsHandleFunction(const nlohmann::json &aggInfoList);
 };

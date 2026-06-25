@@ -26,13 +26,11 @@ public:
             MergingWindowAssigner<W> *windowAssigner,
             NamespaceAggsHandleFunctionBase<W> *windowAggregator,
             TypeSerializer *windowSerializer,
-            int64_t allowedLateness,
-            int32_t accumulatorArity)
+            int64_t allowedLateness)
             :
             InternalWindowProcessFunction<K, W>(windowAssigner, windowAggregator, allowedLateness),
             windowAssigner(windowAssigner),
-            windowSerializer(windowSerializer),
-            accumulatorArity_(accumulatorArity){}
+            windowSerializer(windowSerializer) {}
 
     void open(Context<K, W> *ctx) override;
 
@@ -49,5 +47,4 @@ private:
     std::unique_ptr<MergingWindowSet<K, W>> mergingWindows;
     TypeSerializer* windowSerializer{};
     std::vector<W> reuseActualWindows;
-    int32_t accumulatorArity_ = -1;
 };

@@ -62,6 +62,7 @@ public:
         collectAndSerializeEntries();
         currentIndex_ = 0;
         valid_ = !entries_.empty();
+        refreshKeyGroup();
     }
 
     HeapSingleStateIterator(
@@ -76,6 +77,7 @@ public:
         collectVbEntries();
         currentIndex_ = 0;
         valid_ = !entries_.empty();
+        refreshKeyGroup();
     }
 
     void next() override
@@ -83,6 +85,7 @@ public:
         if (valid_) {
             currentIndex_++;
             valid_ = (currentIndex_ < entries_.size());
+            refreshKeyGroup();
         }
     }
 
@@ -91,14 +94,21 @@ public:
         return valid_;
     }
 
-    std::vector<int8_t> key() const override
+    ByteView key() const override
     {
-        return entries_[currentIndex_].serializedKey;
+        const auto &key = entries_[currentIndex_].serializedKey;
+        return ByteView::fromBuffer(key.data(), key.size());
     }
 
-    std::vector<int8_t> value() const override
+    ByteView value() const override
     {
-        return entries_[currentIndex_].serializedValue;
+        const auto &value = entries_[currentIndex_].serializedValue;
+        return ByteView::fromBuffer(value.data(), value.size());
+    }
+
+    int keyGroup() const override
+    {
+        return currentKeyGroup_;
     }
 
     int getKvStateId() const override
@@ -128,7 +138,27 @@ private:
     int keyGroupPrefixBytes_;
     std::vector<SerializedEntry> entries_;
     size_t currentIndex_ = 0;
+    int currentKeyGroup_ = -1;
     bool valid_ = false;
+
+    // See RocksSingleStateIterator::refreshKeyGroup() for rationale.
+    void refreshKeyGroup()
+    {
+        currentKeyGroup_ = -1;
+        if (!valid_ || currentIndex_ >= entries_.size()) {
+            return;
+        }
+        const auto &key = entries_[currentIndex_].serializedKey;
+        if (key.size() < static_cast<size_t>(keyGroupPrefixBytes_)) {
+            return;
+        }
+        int result = 0;
+        for (int i = 0; i < keyGroupPrefixBytes_; ++i) {
+            result <<= 8;
+            result |= static_cast<int>(static_cast<uint8_t>(key[i]));
+        }
+        currentKeyGroup_ = result;
+    }
 
     void collectAndSerializeEntries()
     {

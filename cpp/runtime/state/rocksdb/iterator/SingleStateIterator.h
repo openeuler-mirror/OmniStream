@@ -14,9 +14,13 @@
 #include <vector>
 #include <cstdint>
 #include <memory>
+#include "core/utils/ByteView.h"
 
 /**
  * An interface for iterating over a single state in a RocksDB state backend.
+ *
+ * Extended with ByteView key/value access (zero-copy) and keyGroup() to
+ * eliminate repeated byte-prefix decoding in the merge iterator comparator.
  */
 class SingleStateIterator {
 public:
@@ -24,8 +28,12 @@ public:
 
     virtual void next() = 0;
     virtual bool isValid() const = 0;
-    virtual std::vector<int8_t> key() const = 0;
-    virtual std::vector<int8_t> value() const = 0;
+    /** Returns a ByteView valid until next(), close(), or destruction. */
+    virtual ByteView key() const = 0;
+    /** Returns a ByteView valid until next(), close(), or destruction. */
+    virtual ByteView value() const = 0;
+    /** Returns the keyGroup prefix decoded from the current key. */
+    virtual int keyGroup() const = 0;
     virtual int getKvStateId() const = 0;
     virtual size_t getEntryCount() const { return 0; }
     virtual void close() = 0;

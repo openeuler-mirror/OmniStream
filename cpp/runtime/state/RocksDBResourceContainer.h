@@ -54,6 +54,12 @@ public:
         return readOptions;
     }
 
+    std::shared_ptr<rocksdb::WriteOptions> getWriteOptions() {
+        auto writeOptions = std::make_shared<rocksdb::WriteOptions>();
+        writeOptions->disableWAL = true;
+        return writeOptions;
+    }
+
     int64_t getWriteBufferManagerCapacity() {
         if (sharedResources_ == nullptr) {
             return -1;

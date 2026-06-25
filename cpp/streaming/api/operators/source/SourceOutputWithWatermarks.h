@@ -131,8 +131,7 @@ private:
 
             const long assignedTimestamp = timeColumn->GetValue(i);
             maxTimestampInBatch = std::max(maxTimestampInBatch, assignedTimestamp);
-            if (assignedTimestamp - observedMaxTimestamp_ > autoWatermarkInterval_) {
-                observedMaxTimestamp_ = assignedTimestamp;
+            if (assignedTimestamp - watermarkGenerator_->getLastEmittedMaxTimestamp() > autoWatermarkInterval_) {
                 splitBatch = true;
                 const int32_t newRowCnt = i + 1 - offset;
                 omnistream::VectorBatch* pBatch = VectorBatchUtil::sliceVectorBatch(vectorBatch, offset, newRowCnt);
@@ -168,7 +167,6 @@ private:
     TimestampAssigner* timestampAssigner_;
     WatermarkGenerator* watermarkGenerator_;
     StreamRecord* reusingRecord_;
-    long observedMaxTimestamp_ = 0;
     long autoWatermarkInterval_;
 };
 

@@ -37,14 +37,24 @@ class RestoredHeapPriorityQueueSnapshotRestoreWrapper : public HeapPriorityQueue
 private:
     class PendingSingleStateIterator : public SingleStateIterator {
     public:
-        PendingSingleStateIterator(int kvStateId, const std::vector<std::vector<int8_t>> &serializedKeys)
-            : kvStateId_(kvStateId), serializedKeys_(serializedKeys), valid_(!serializedKeys_.empty()) {}
+        PendingSingleStateIterator(
+            int kvStateId,
+            int keyGroupPrefixBytes,
+            const std::vector<std::vector<int8_t>> &serializedKeys)
+            : kvStateId_(kvStateId),
+              keyGroupPrefixBytes_(keyGroupPrefixBytes),
+              serializedKeys_(serializedKeys),
+              valid_(!serializedKeys_.empty())
+        {
+            refreshKeyGroup();
+        }
 
         void next() override
         {
             if (valid_) {
                 currentIndex_++;
                 valid_ = currentIndex_ < serializedKeys_.size();
+                refreshKeyGroup();
             }
         }
 
@@ -53,14 +63,20 @@ private:
             return valid_;
         }
 
-        std::vector<int8_t> key() const override
+        ByteView key() const override
         {
-            return serializedKeys_[currentIndex_];
+            const auto &key = serializedKeys_[currentIndex_];
+            return ByteView::fromBuffer(key.data(), key.size());
         }
 
-        std::vector<int8_t> value() const override
+        ByteView value() const override
         {
             return {};
+        }
+
+        int keyGroup() const override
+        {
+            return currentKeyGroup_;
         }
 
         int getKvStateId() const override
@@ -81,9 +97,30 @@ private:
 
     private:
         int kvStateId_;
+        int keyGroupPrefixBytes_;
         std::vector<std::vector<int8_t>> serializedKeys_;
         size_t currentIndex_ = 0;
+        int currentKeyGroup_ = -1;
         bool valid_ = false;
+
+        // See RocksSingleStateIterator::refreshKeyGroup() for rationale.
+        void refreshKeyGroup()
+        {
+            currentKeyGroup_ = -1;
+            if (!valid_ || currentIndex_ >= serializedKeys_.size()) {
+                return;
+            }
+            const auto &key = serializedKeys_[currentIndex_];
+            if (key.size() < static_cast<size_t>(keyGroupPrefixBytes_)) {
+                return;
+            }
+            int result = 0;
+            for (int i = 0; i < keyGroupPrefixBytes_; ++i) {
+                result <<= 8;
+                result |= static_cast<int>(static_cast<uint8_t>(key[i]));
+            }
+            currentKeyGroup_ = result;
+        }
     };
 
 public:
@@ -98,9 +135,9 @@ public:
 
     std::unique_ptr<SingleStateIterator> createSnapshotIterator(
         int kvStateId,
-        int /*keyGroupPrefixBytes*/) override
+        int keyGroupPrefixBytes) override
     {
-        return std::make_unique<PendingSingleStateIterator>(kvStateId, serializedKeys_);
+        return std::make_unique<PendingSingleStateIterator>(kvStateId, keyGroupPrefixBytes, serializedKeys_);
     }
 
     void restoreSerializedElement(

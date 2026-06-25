@@ -34,6 +34,11 @@ namespace omnistream::datastream {
                 THROW_RUNTIME_ERROR("ReadOnlySlicedNetworkBuffer::RecycleBuffer() >>> parent_ is nullptr")
             }
             parent_->RecycleBuffer();
+
+            if (this->getSleepUs() <= 0 && parent_->ShouldBeDeleted()) {
+                delete parent_; 
+                parent_ = nullptr; 
+            }
         }
 
         bool IsRecycled() const override

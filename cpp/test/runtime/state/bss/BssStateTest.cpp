@@ -319,7 +319,6 @@ TEST(BssStateTest, Bss_KListState_put_get)
 
 TEST(BssStateTest, Bss_KListState_add_get)
 {
-    std::string path = "/home/t00510106/bss/bss.log";
     ConfigRef config = std::make_shared<Config>();
     config->Init(NO_0, NO_127, NO_128);
     config->mMemorySegmentSize = IO_SIZE_64M;

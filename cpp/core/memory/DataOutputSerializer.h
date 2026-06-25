@@ -191,7 +191,6 @@ inline void DataOutputSerializer::writeLong(int64_t value)
 
 /**
 * Write timestamp in a record element
-*  To see what a timestamp in a record element looks like, refer to https:  //codehub-y.huawei.com/data-app-lab/OmniFlink/wiki?categoryId=149234&sn=WIKI202410104753613
 *  The timestamp is written in big endian format,  while the rest of the record element is written in little endian format  Thus, we need this specific function
 */
 inline void DataOutputSerializer::writeRecordTimestamp(uint64_t value)

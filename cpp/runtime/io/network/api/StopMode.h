@@ -15,7 +15,7 @@
 
 namespace omnistream {
     enum class StopMode : int {
-        DRAIN = 1,
+        DRAIN,
         NO_DRAIN
     };
 

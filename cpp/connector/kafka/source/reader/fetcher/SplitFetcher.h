@@ -218,9 +218,9 @@ public:
     {
         std::lock_guard <std::mutex> wakeUpLock(wakeUpMutex);
         // 避免重复唤醒
-        wakeUp.store(true);
         auto currentTask = runningTask;
         if (isRunningTask(currentTask)) {
+            wakeUp.store(true);
             currentTask->WakeUp();
         } else if (!taskOnly) {
             taskQueue.offer(WAKEUP_TASK);
