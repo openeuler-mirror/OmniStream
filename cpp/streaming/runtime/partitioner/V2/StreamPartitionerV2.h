@@ -81,7 +81,7 @@ public:
         }
 
         delete vectorBatch;
-
+        delete streamRecord;
         return result;
     }
 
