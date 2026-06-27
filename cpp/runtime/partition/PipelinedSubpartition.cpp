@@ -128,6 +128,17 @@ BufferAndBacklog* PipelinedSubpartition::pollBuffer()
             buffers.poll();
             continue;
         }
+
+        // Align with Flink checkState: unfinished head is only allowed when queue size is 1.
+        if (!bufferConsumer->isFinished() && buffers.size() > 1) {
+            THROW_LOGIC_EXCEPTION(
+                "pollBuffer stall unfinished head "
+                << " isFinished=" << std::boolalpha << bufferConsumer->isFinished()
+                << " dataType=" << bufferConsumer->getDataType().toString()
+                << " remainingQueue=" << buffers.size()
+                << ". When there are multiple buffers, an unfinished bufferConsumer can not be at the head of the buffers queue.");
+        }
+
         if (bufferConsumer->getDataType() == ObjectBufferDataType::TIMEOUTABLE_ALIGNED_CHECKPOINT_BARRIER) {
             // todo: finsh checkpoint
             // completeTimeoutableCheckpointBarrier(bufferConsumer);
@@ -143,6 +154,7 @@ BufferAndBacklog* PipelinedSubpartition::pollBuffer()
             }
             break;
         }
+
 
         LOG_PART("After buildSliceBuffer buffer raw ponter  " << buffer << " buffer size " << buffer->GetSize())
         LOG_TRACE("ObjectBufferConsumerWithPartialRecordLength ref count " << std::to_string(bufferConsumerWithPartialRecordLength.use_count()));

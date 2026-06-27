@@ -12,6 +12,7 @@
 #include "OmniSourceStreamTask.h"
 
 #include "common.h"
+#include "core/utils/threads/CompletableFutureV2.h"
 
 namespace omnistream {
     StopMode FinishingReasonToStopMode(FinishingReason reason) {
@@ -80,12 +81,21 @@ namespace omnistream {
     }
 
     void OmniSourceStreamTask::CompleteProcessing() {
-        // so we need to call it here
         auto stopMode = FinishingReasonToStopMode(finishingReason);
-        if (stopMode == StopMode::DRAIN) {
-           // reserved for future bound input
-        }
-        EndData(stopMode);
+        auto completionFuture = std::make_shared<CompletableFutureV2<void>>();
+        mainMailboxExecutor_->execute(
+            std::make_shared<VoidFunctionRunnable>(
+                [this, stopMode, completionFuture]() {
+                    try {
+                        EndData(stopMode);
+                        completionFuture->Complete();
+                    } catch (...) {
+                        completionFuture->CompleteExceptionally(std::current_exception());
+                    }
+                },
+                "SourceStreamTask finished processing data"),
+            "SourceStreamTask finished processing data");
+        completionFuture->Get();
     }
 
     void OmniSourceStreamTask::AdvanceToEndOfEventTime() {
