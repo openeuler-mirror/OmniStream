@@ -84,6 +84,11 @@ public:
                     vectorBatch->Append(vec);
                     break;
                 }
+                case (omniruntime::type::DataTypeId::OMNI_DOUBLE): {
+                    auto vec = new omniruntime::vec::Vector<double>(size);
+                    vectorBatch->Append(vec);
+                    break;
+                }
                 case (omniruntime::type::DataTypeId::OMNI_CHAR):
                 case (omniruntime::type::DataTypeId::OMNI_VARCHAR): {
                     auto vec =

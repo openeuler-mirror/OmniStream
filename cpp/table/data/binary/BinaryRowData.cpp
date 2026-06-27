@@ -218,6 +218,18 @@ void BinaryRowData::setInt(int pos, int value)
     types[pos] = 1;
 }
 
+double *BinaryRowData::getDouble(int pos)
+{
+    return MemorySegmentUtils::getDouble(memoryBuffer, bufferCapacity, getFieldOffset(pos));
+}
+
+void BinaryRowData::setDouble(int pos, double value)
+{
+    setNotNullAt(pos);
+    MemorySegmentUtils::putDouble(memoryBuffer, bufferCapacity, getFieldOffset(pos), value);
+    types[pos] = 1;
+}
+
 BinaryStringData* BinaryRowData::getString(int pos)
 {
     int fieldOffset = getFieldOffset(pos);

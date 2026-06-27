@@ -72,6 +72,10 @@ public:
                 vectorBatch->SetValueAt(colIndex, rowIndex, fieldIt->get<int64_t>());
                 break;
             }
+            case omniruntime::type::DataTypeId::OMNI_DOUBLE:{
+                vectorBatch->SetValueAt(colIndex, rowIndex, fieldIt->get<double>());
+                break;
+            }
             case omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:
             case omniruntime::type::DataTypeId::OMNI_TIMESTAMP: {
                 vectorBatch->SetValueAt(

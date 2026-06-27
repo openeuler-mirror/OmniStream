@@ -22,6 +22,9 @@ void BinaryWriter::write(BinaryWriter* writer, int pos, void* object, LogicalTyp
         case DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:
             writer->writeLong(pos, reinterpret_cast<TimestampData*>(object)->getMillisecond());
             break;
+        case DataTypeId::OMNI_DOUBLE:
+            writer->writeDouble(pos, *(reinterpret_cast<double *>(object)));
+            break;
         default: THROW_LOGIC_EXCEPTION("Unknown type" + std::to_string(type->getTypeId()));
     }
 }

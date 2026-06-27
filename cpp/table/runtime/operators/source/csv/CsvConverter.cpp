@@ -83,6 +83,17 @@ BinaryRowData* CsvConverter::convert(const CsvRow& csvRow)
                                                  << ", setting it as null.");
                 rowData->setNullAt(i);
             }
+        } else if (type == omniruntime::type::DataTypeId::OMNI_DOUBLE) {
+            LOG("CsvConverter: Converting value '" << value << "' to double for column " << i);
+            try {
+                rowData->setDouble(i, std::stod(value));
+            } catch (const std::invalid_argument& e) {
+                LOG("CsvConverter: Invalid double value '" << value << "' for column " << i << ", setting it as null.");
+                rowData->setNullAt(i);
+            } catch (const std::out_of_range& e) {
+                LOG("CsvConverter: Double value '" << value << "' out of range for column " << i << ", setting it as null.");
+                rowData->setNullAt(i);
+            }
         } else if (type == omniruntime::type::DataTypeId::OMNI_VARCHAR) {
             LOG("CsvConverter: Converting value '" << value << "' to string for column " << i);
             std::string_view sv = value;
@@ -208,6 +219,16 @@ omnistream::VectorBatch* CsvConverter::convert(std::vector<CsvRow>& csvRows, std
                         vectorBatch->SetValueAt(
                             colIndex, rowIndex, TimestampData::fromLocalTimeString(nodeValue).getMillisecond());
                     } catch (...) {
+                        vectorBatch->Get(colIndex)->SetNull(rowIndex);
+                    }
+                    break;
+                }
+                case omniruntime::type::DataTypeId::OMNI_DOUBLE:{
+                    try {
+                        vectorBatch->SetValueAt(colIndex, rowIndex, std::stod(nodeValue));
+                    } catch (const std::invalid_argument& e) {
+                        vectorBatch->Get(colIndex)->SetNull(rowIndex);
+                    } catch (const std::out_of_range& e) {
                         vectorBatch->Get(colIndex)->SetNull(rowIndex);
                     }
                     break;

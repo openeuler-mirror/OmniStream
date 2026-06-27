@@ -22,6 +22,7 @@ public:
     virtual void setNullAt(int pos) = 0;
     virtual void complete() = 0;
     virtual void writeInt(int pos, int value) = 0;
+    virtual void writeDouble(int pos, double value) = 0;
 
     static void write(BinaryWriter* writer, int pos, void* object, LogicalType* type, TypeSerializer* serializer);
 };
