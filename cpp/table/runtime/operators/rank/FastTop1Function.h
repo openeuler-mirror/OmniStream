@@ -1,8 +1,15 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
-#ifndef FLINK_TNEL_FASTTOP1FUNCTION_H
-#define FLINK_TNEL_FASTTOP1FUNCTION_H
+
+#pragma once
 
 #include "AbstractTopNFunction.h"
 #include "table/data/vectorbatch/VectorBatch.h"
@@ -187,13 +194,13 @@ int FastTop1Function<KeyType>::compareRows(BinaryRowData* inputRow,
                 if (!inputRow) {
                     throw std::runtime_error("input row is null, check the data");
                 }
-                TimestampData *inputVal = inputRow->getTimestamp(colId);
-                TimestampData *previousVal = previousRow->getTimestamp(colId);
-                if (inputVal->getMillisecond() == previousVal->getMillisecond()) {
-                    comparisonResult = (inputVal->getNanoOfMillisecond() < previousVal->getNanoOfMillisecond()) ? -1 :
-                                       (inputVal->getNanoOfMillisecond() > previousVal->getNanoOfMillisecond()) ? 1 : 0;
+                TimestampData inputVal = inputRow->getTimestamp(colId);
+                TimestampData previousVal = previousRow->getTimestamp(colId);
+                if (inputVal.getMillisecond() == previousVal.getMillisecond()) {
+                    comparisonResult = (inputVal.getNanoOfMillisecond() < previousVal.getNanoOfMillisecond()) ? -1 :
+                                       (inputVal.getNanoOfMillisecond() > previousVal.getNanoOfMillisecond()) ? 1 : 0;
                 } else {
-                    comparisonResult = (inputVal->getMillisecond() < previousVal->getMillisecond()) ? -1 : 1;
+                    comparisonResult = (inputVal.getMillisecond() < previousVal.getMillisecond()) ? -1 : 1;
                 }
                 break;
             }
@@ -241,13 +248,13 @@ int FastTop1Function<KeyType>::compareRowsV2(omnistream::VectorBatch* originalVb
             case DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE:
             case DataTypeId::OMNI_TIMESTAMP: {
                     int64_t currentMillseconds =reinterpret_cast<vec::Vector<int64_t>*>(originalVb->Get(colId))->GetValue(rowId);
-                TimestampData* inputVal = TimestampData::fromEpochMillis(currentMillseconds);
-                TimestampData *previousVal = previousRow->getTimestamp(colId);
-                if (inputVal->getMillisecond() == previousVal->getMillisecond()) {
-                    comparisonResult = (inputVal->getNanoOfMillisecond() < previousVal->getNanoOfMillisecond()) ? -1 :
-                                       (inputVal->getNanoOfMillisecond() > previousVal->getNanoOfMillisecond()) ? 1 : 0;
+                TimestampData inputVal = TimestampData::fromEpochMillis(currentMillseconds);
+                TimestampData previousVal = previousRow->getTimestamp(colId);
+                if (inputVal.getMillisecond() == previousVal.getMillisecond()) {
+                    comparisonResult = (inputVal.getNanoOfMillisecond() < previousVal.getNanoOfMillisecond()) ? -1 :
+                                       (inputVal.getNanoOfMillisecond() > previousVal.getNanoOfMillisecond()) ? 1 : 0;
                 } else {
-                    comparisonResult = (inputVal->getMillisecond() < previousVal->getMillisecond()) ? -1 : 1;
+                    comparisonResult = (inputVal.getMillisecond() < previousVal.getMillisecond()) ? -1 : 1;
                 }
                 break;
             }
@@ -265,5 +272,3 @@ int FastTop1Function<KeyType>::compareRowsV2(omnistream::VectorBatch* originalVb
     // If all key columns are equal, return 0.
     return 0;
 }
-
-#endif // FLINK_TNEL_FASTTOP1FUNCTION_H

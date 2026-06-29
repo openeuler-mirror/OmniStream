@@ -180,19 +180,19 @@ void BinaryRowData::setNullAt(int pos)
     MemorySegmentUtils::bitSet(memoryBuffer, bufferCapacity, offset_, pos + HEADER_SIZE_IN_BITS);
 }
 
-TimestampData *BinaryRowData::getTimestamp(int pos)
+TimestampData BinaryRowData::getTimestamp(int pos)
 {
     return TimestampData::fromEpochMillis(*(MemorySegmentUtils::getLong(memoryBuffer, bufferCapacity, getFieldOffset(pos))));
 }
 
-TimestampData *BinaryRowData::getTimestampPrecise(int pos)
+TimestampData BinaryRowData::getTimestampPrecise(int pos)
 {
     return TimestampData::fromEpochMillis(
         *(MemorySegmentUtils::getLong(memoryBuffer, bufferCapacity, getFieldOffset(pos))),
         *(MemorySegmentUtils::getInt(memoryBuffer, bufferCapacity, getFieldOffset(pos + 1))));
 }
 
-void BinaryRowData::setTimestamp(int pos, TimestampData &value, int precision)
+void BinaryRowData::setTimestamp(int pos, const TimestampData &value, int precision)
 {
     if (TimestampData::isCompact(precision)) {
         setLong(pos, value.getMillisecond());

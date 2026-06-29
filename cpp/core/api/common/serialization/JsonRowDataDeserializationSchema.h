@@ -9,8 +9,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef OMNISTREAM_JSONROWDATADESERIALIZATIONSCHEMA_H
-#define OMNISTREAM_JSONROWDATADESERIALIZATIONSCHEMA_H
+#pragma once
 
 #include <tuple>
 #include "core/api/common/serialization/DeserializationSchema.h"
@@ -80,9 +79,8 @@ public:
                 break;
             }
             case (omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE) : {
-                const TimestampData *timeString = TimestampData::fromLocalTimeString(fieldIt->get<std::string>());
-                vectorBatch->SetValueAt(colIndex, rowIndex,timeString->getMillisecond());
-                delete timeString;
+                const TimestampData timeString = TimestampData::fromLocalTimeString(fieldIt->get<std::string>());
+                vectorBatch->SetValueAt(colIndex, rowIndex, timeString.getMillisecond());
                 break;
             }
             case omniruntime::type::DataTypeId::OMNI_CHAR:
@@ -120,6 +118,3 @@ private:
     std::vector<std::string> fieldNames;
     std::vector<omniruntime::type::DataTypeId> fieldTypes;
 };
-
-
-#endif // OMNISTREAM_JSONROWDATADESERIALIZATIONSCHEMA_H

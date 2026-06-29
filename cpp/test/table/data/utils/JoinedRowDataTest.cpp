@@ -51,12 +51,12 @@ TEST(JoinedRowDataTest, SetCompactTimestamp) {
     BinaryRowData *row1 = BinaryRowData::createBinaryRowDataWithMem(1);
     BinaryRowData *row2 = BinaryRowData::createBinaryRowDataWithMem(1);
     JoinedRowData joinedRow(row1, row2);
-    TimestampData *timestamp1 = TimestampData::fromEpochMillis(123L, 456);
-    TimestampData *timestamp2 = TimestampData::fromEpochMillis(321L, 654);
+    TimestampData timestamp1 = TimestampData::fromEpochMillis(123L, 456);
+    TimestampData timestamp2 = TimestampData::fromEpochMillis(321L, 654);
     int precision = 3;
 
-    joinedRow.setTimestamp(0, *timestamp1, precision);
-    joinedRow.setTimestamp(1, *timestamp2, precision);
+    joinedRow.setTimestamp(0, timestamp1, precision);
+    joinedRow.setTimestamp(1, timestamp2, precision);
 
     EXPECT_EQ(*(joinedRow.getLong(0)), 123L);
     EXPECT_EQ(*(joinedRow.getLong(1)), 321L);
@@ -66,12 +66,12 @@ TEST(JoinedRowDataTest, SetNonCompactTimestamp) {
     BinaryRowData *row1 = BinaryRowData::createBinaryRowDataWithMem(2);
     BinaryRowData *row2 = BinaryRowData::createBinaryRowDataWithMem(2);
     JoinedRowData joinedRow(row1, row2);
-    TimestampData *timestamp1 = TimestampData::fromEpochMillis(123L, 456);
-    TimestampData *timestamp2 = TimestampData::fromEpochMillis(321L, 654);
+    TimestampData timestamp1 = TimestampData::fromEpochMillis(123L, 456);
+    TimestampData timestamp2 = TimestampData::fromEpochMillis(321L, 654);
     int precision = 4;
 
-    joinedRow.setTimestamp(0, *timestamp1, precision);
-    joinedRow.setTimestamp(2, *timestamp2, precision);
+    joinedRow.setTimestamp(0, timestamp1, precision);
+    joinedRow.setTimestamp(2, timestamp2, precision);
 
     EXPECT_EQ(*(joinedRow.getLong(0)), 123L);
     EXPECT_EQ(*(joinedRow.getInt(1)), 456);
@@ -84,12 +84,12 @@ TEST(JoinedRowDataTest, SetNonCompactTimestampOutOfBoundThrowingException) {
     BinaryRowData *row1 = BinaryRowData::createBinaryRowDataWithMem(1);
     BinaryRowData *row2 = BinaryRowData::createBinaryRowDataWithMem(1);
     JoinedRowData joinedRow(row1, row2);
-    TimestampData *timestamp1 = TimestampData::fromEpochMillis(123L, 456);
-    TimestampData *timestamp2 = TimestampData::fromEpochMillis(321L, 654);
+    TimestampData timestamp1 = TimestampData::fromEpochMillis(123L, 456);
+    TimestampData timestamp2 = TimestampData::fromEpochMillis(321L, 654);
     int precision = 4;
 
-    EXPECT_THROW(joinedRow.setTimestamp(0, *timestamp1, precision), std::logic_error);
-    EXPECT_THROW(joinedRow.setTimestamp(1, *timestamp2, precision), std::logic_error);
+    EXPECT_THROW(joinedRow.setTimestamp(0, timestamp1, precision), std::logic_error);
+    EXPECT_THROW(joinedRow.setTimestamp(1, timestamp2, precision), std::logic_error);
 
 }
 
@@ -100,11 +100,11 @@ TEST(JoinedRowDataTest, GetCompactTimestamp) {
     joinedRow.setLong(0, 123L);
     joinedRow.setLong(1, 321L);
     int precision = 3;
-    TimestampData *timestamp1 = joinedRow.getTimestamp(0);
-    TimestampData *timestamp2 = joinedRow.getTimestamp(1);
+    TimestampData timestamp1 = joinedRow.getTimestamp(0);
+    TimestampData timestamp2 = joinedRow.getTimestamp(1);
 
-    EXPECT_EQ(timestamp1->getMillisecond(), 123L);
-    EXPECT_EQ(timestamp2->getMillisecond(), 321L);
+    EXPECT_EQ(timestamp1.getMillisecond(), 123L);
+    EXPECT_EQ(timestamp2.getMillisecond(), 321L);
 }
 
 TEST(JoinedRowDataTest, GetNonCompactTimestamp) {
@@ -116,11 +116,11 @@ TEST(JoinedRowDataTest, GetNonCompactTimestamp) {
     joinedRow.setLong(2, 321L);
     joinedRow.setInt(3, 654);
     int precision = 4;
-    TimestampData *timestamp1 = joinedRow.getTimestampPrecise(0);
-    TimestampData *timestamp2 = joinedRow.getTimestampPrecise(2);
+    TimestampData timestamp1 = joinedRow.getTimestampPrecise(0);
+    TimestampData timestamp2 = joinedRow.getTimestampPrecise(2);
 
-    EXPECT_EQ(timestamp1->getMillisecond(), 123L);
-    EXPECT_EQ(timestamp1->getNanoOfMillisecond(), 456);
-    EXPECT_EQ(timestamp2->getMillisecond(), 321L);
-    EXPECT_EQ(timestamp2->getNanoOfMillisecond(), 654);
+    EXPECT_EQ(timestamp1.getMillisecond(), 123L);
+    EXPECT_EQ(timestamp1.getNanoOfMillisecond(), 456);
+    EXPECT_EQ(timestamp2.getMillisecond(), 321L);
+    EXPECT_EQ(timestamp2.getNanoOfMillisecond(), 654);
 }

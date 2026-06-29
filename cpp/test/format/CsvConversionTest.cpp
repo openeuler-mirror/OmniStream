@@ -50,9 +50,9 @@ TEST(CsvConversionTest, CsvRowTimestampConversion) {
     omnistream::csv::CsvSchema schema({OMNI_TIMESTAMP_TYPE, OMNI_TIMESTAMP_TYPE, OMNI_TIMESTAMP_TYPE});
     omnistream::csv::CsvRow row = omnistream::csv::CsvRow("2025-02-07 00:00:00.000,2025-02-07 16:33:20.111,2025-02-07 22:00:00.001", schema);
     BinaryRowData *rowData      = omnistream::csv::CsvConverter::convert(row);
-    EXPECT_EQ(rowData->getTimestamp(0)->getMillisecond(), 1738886400000);
-    EXPECT_EQ(rowData->getTimestamp(1)->getMillisecond(), 1738946000111);
-    EXPECT_EQ(rowData->getTimestamp(2)->getMillisecond(), 1738965600001);
+    EXPECT_EQ(rowData->getTimestamp(0).getMillisecond(), 1738886400000);
+    EXPECT_EQ(rowData->getTimestamp(1).getMillisecond(), 1738946000111);
+    EXPECT_EQ(rowData->getTimestamp(2).getMillisecond(), 1738965600001);
 }
 
 TEST(CsvConversionTest, CsvRowMixedTypeConversion) {
@@ -61,7 +61,7 @@ TEST(CsvConversionTest, CsvRowMixedTypeConversion) {
     BinaryRowData *rowData      = omnistream::csv::CsvConverter::convert(row);
     EXPECT_EQ(std::string(rowData->getStringView(0)), "how are you today");
     EXPECT_EQ(*rowData->getLong(1), 1);
-    EXPECT_EQ(rowData->getTimestamp(2)->getMillisecond(), 1738886400000);
+    EXPECT_EQ(rowData->getTimestamp(2).getMillisecond(), 1738886400000);
     EXPECT_EQ(std::string(rowData->getStringView(3)), "hi");
 }
 

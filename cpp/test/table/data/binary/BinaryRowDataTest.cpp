@@ -39,7 +39,7 @@ TEST(BinaryRowDataTest, TimestampLowPercisionTest)
     BinaryRowData *row = BinaryRowData::createBinaryRowDataWithMem(1);
     TimestampData data = TimestampData(1000, 1);
     row->setTimestamp(0, data,1);
-   // EXPECT_EQ(row->getTimestamp(0, 1)->getMillisecond(), 1000);
+   // EXPECT_EQ(row->getTimestamp(0).getMillisecond(), 1000);
     delete row;
 }
 
@@ -50,7 +50,7 @@ TEST(BinaryRowDataTest, TimestampHighPercisionTest)
     BinaryRowData *row = BinaryRowData::createBinaryRowDataWithMem(1);
     TimestampData data = TimestampData(1000, 1000);
     row->setTimestamp(0, data, 1000);
-    EXPECT_EQ(row->getTimestamp(0, 100)->getMillisecond(), 1000);
+    EXPECT_EQ(row->getTimestampPrecise(0).getMillisecond(), 1000);
     delete row;
     */
 }
@@ -332,8 +332,8 @@ TEST(BinaryRowDataTest, TimestampSetCompactTime) {
         int precision = 3;
         int arity = 2;
         BinaryRowData * row = BinaryRowData::createBinaryRowDataWithMem(arity);
-        TimestampData * timestamp = TimestampData::fromEpochMillis(123L, 456);
-        row->setTimestamp(0, *timestamp, precision);
+        TimestampData timestamp = TimestampData::fromEpochMillis(123L, 456);
+        row->setTimestamp(0, timestamp, precision);
         
         // Check values are set correctly
         EXPECT_EQ(*(row->getLong(0)), 123L);
@@ -356,8 +356,8 @@ TEST(BinaryRowDataTest, TimestampSetNonCompactTime) {
         int precision = 4;
         int arity = 2;
         BinaryRowData * row = BinaryRowData::createBinaryRowDataWithMem(arity);
-        TimestampData * timestamp = TimestampData::fromEpochMillis(123L, 456);
-        row->setTimestamp(0, *timestamp, precision);
+        TimestampData timestamp = TimestampData::fromEpochMillis(123L, 456);
+        row->setTimestamp(0, timestamp, precision);
 
         // Check values are set correctly
         EXPECT_EQ(*(row->getLong(0)), 123L);
@@ -382,9 +382,9 @@ TEST(BinaryRowDataTest, TimestampSetOutOfBoundNonCompactTimeThrowsException) {
         int precision = 4;
         int arity = 1;
         BinaryRowData * row = BinaryRowData::createBinaryRowDataWithMem(arity);
-        TimestampData * timestamp = TimestampData::fromEpochMillis(123L, 456);
+        TimestampData timestamp = TimestampData::fromEpochMillis(123L, 456);
 
-        EXPECT_THROW(row->setTimestamp(0, *timestamp, precision), std::logic_error);
+        EXPECT_THROW(row->setTimestamp(0, timestamp, precision), std::logic_error);
 
         // // Free offHeapBuffer
         // delete row->getSegments()[0]->getAll();
@@ -402,10 +402,10 @@ TEST(BinaryRowDataTest, TimestampGetCompactTime) {
     BinaryRowData * row = BinaryRowData::createBinaryRowDataWithMem(arity);
     row->setLong(0, 123L);
 
-    TimestampData *timestamp = row->getTimestamp(0);
+    TimestampData timestamp = row->getTimestamp(0);
 
     // Check values are get correctly
-    EXPECT_EQ(timestamp->getMillisecond(), 123L);
+    EXPECT_EQ(timestamp.getMillisecond(), 123L);
 
     // Free offHeapBuffer
     // delete row->getSegments()[0]->getAll();
@@ -424,11 +424,11 @@ TEST(BinaryRowDataTest, DISABLED_TimestampGetNonCompactTime) {
     row->setLong(0, 123L);
     row->setInt(1, 456);
 
-    TimestampData *timestamp = row->getTimestamp(0);
+    TimestampData timestamp = row->getTimestampPrecise(0);
 
     // Check values are get correctly
-    EXPECT_EQ(timestamp->getMillisecond(), 123L);
-    EXPECT_EQ(timestamp->getNanoOfMillisecond(), 456);
+    EXPECT_EQ(timestamp.getMillisecond(), 123L);
+    EXPECT_EQ(timestamp.getNanoOfMillisecond(), 456);
 
     // Free offHeapBuffer
     // delete row->getSegments()[0]->getAll();

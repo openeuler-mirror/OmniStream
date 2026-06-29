@@ -40,8 +40,8 @@ TEST(GenericRowDataTest, SetFieldTest) {
 TEST(GenericRowDataTest, TimeStampTest){
     std::vector<int> typeIDs({12});
     GenericRowData genericRowData(typeIDs);
-    TimestampData *timeStampData = new TimestampData(1000, 1);
-    genericRowData.setField(0, timeStampData);
+    TimestampData timeStampData(1000, 1);
+    genericRowData.setField(0, &timeStampData);
 
-    EXPECT_EQ(genericRowData.getTimestamp(0)->getMillisecond(), 1000);
+    EXPECT_EQ(genericRowData.getTimestamp(0).getMillisecond(), 1000);
 }

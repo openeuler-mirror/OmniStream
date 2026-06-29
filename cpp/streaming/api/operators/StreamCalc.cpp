@@ -110,11 +110,11 @@ void StreamCalc::open()
                     std::vector<std::string> outputTypes = description_["outputTypes"].get<std::vector<std::string>>();
                     if (extractPrecision(outputTypes[i]) > 3) {
                         projFuncs_.push_back([](RowData *from, int fromIndex, RowData *to, int toIndex) {
-                            to->setTimestamp(toIndex, *from->getTimestampPrecise(fromIndex), 4);
+                            to->setTimestamp(toIndex, from->getTimestampPrecise(fromIndex), 4);
                         });
                     } else {
                     projFuncs_.push_back([](RowData *from, int fromIndex, RowData *to, int toIndex) {
-                        to->setTimestamp(toIndex, *from->getTimestamp(fromIndex), 3);
+                        to->setTimestamp(toIndex, from->getTimestamp(fromIndex), 3);
                     });
                     }
                     break;
