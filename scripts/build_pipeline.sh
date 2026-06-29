@@ -28,10 +28,8 @@ echo "CPP root: $cpp_root"
 echo "Java master directory: $java_master_dir"
 echo "Dependencies source tarball directory: $dependency_root"
 
-num_cpus=16
+num_cpus=${num_cpus:-16}
 echo "Number of CPUs: $num_cpus"
-
-
 
 # Function to show usage
 function show_usage() {
@@ -248,7 +246,7 @@ function build_with_mode() {
     make  -j$num_cpus  || {
               echo Make Failed
               exit 1
-      }    
+      }
 
     cd $cpp_build_dir/
     cmake .. -DCMAKE_BUILD_TYPE=$build_type -DCMAKE_INSTALL_PREFIX=$(pwd)/libbasictypes && cmake --build . --parallel 16 --target basictypes && cmake --install .|| {
@@ -373,4 +371,3 @@ fi
 
 
 #end
-
