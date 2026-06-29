@@ -88,7 +88,7 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
 
 支持的数据传输对象包括Long、String和Tuple2<String, Long\>。
 
-支持的依赖类及接口如[**表 1** 支持的表达式列表](#支持的表达式列表_1)所示，其余约束请参见[UDF翻译工具用户指南](https://gitee.com/openeuler/docs/blob/stable-24.03_LTS_SP2/docs/zh/server/development/unt/unt_guide.md#%E7%BA%A6%E6%9D%9F%E4%B8%8E%E9%99%90%E5%88%B6)。环境配置不同可能会导致支持的表达式略有变化，如有差异，请联系华为一线工程师确认。
+支持的依赖类及接口如[**表 1** 支持的表达式列表](#支持的表达式列表_1)所示，其余约束请参见[UDF翻译工具用户指南](https://gitcode.com/openeuler/docs/blob/stable-24.03_LTS_SP2/docs/zh/server/development/unt/unt_guide.md)。环境配置不同可能会导致支持的表达式略有变化，如有差异，请联系华为一线工程师确认。
 
 **表 1** 支持的表达式列表<a id="支持的表达式列表_1"></a>
 
@@ -210,28 +210,33 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
 1. 如果是在多Task Manager场景下运行DataStream任务，需要在flink-conf.yaml文件中添加配置omni.batch: true，以提升多该场景下的shuffle效率，以达到更优性能。
     1. 进入容器flink_jm_8c32g在flink-conf.yaml文件中添加配置omni.batch: true。
 
-             ```bash
-            docker exec -it flink_jm_8c32g /bin/bash
-           ```
+        ```bash
+        docker exec -it flink_jm_8c32g /bin/bash
+        ```
 
     2. 打开`/usr/local/flink/conf/flink-conf.yaml`文件。
+
          ```bash
-       vi /usr/local/flink/conf/flink-conf.yaml
+        vi /usr/local/flink/conf/flink-conf.yaml
          ```
+
     3. 按`i`进入编辑模式，增加如下配置。
+
          ```bash
-       omni.batch: true
+        omni.batch: true
          ```
+
     4. 按`Esc`键，输入 **:wq!**，按`Enter`保存并退出编辑。
     5. 依次进入容器flink_tm1_8c32g和flink_tm2_8c32g在flink-conf.yaml文件中添加配置omni.batch: true。
+
          ```bash
-       docker exec -it flink_tm1_8c32g /bin/bash
-       vi /usr/local/flink/conf/flink-conf.yaml
-       omni.batch: true
-    
-       docker exec -it flink_tm2_8c32g /bin/bash
-       vi /usr/local/flink/conf/flink-conf.yaml
-       omni.batch: true
+        docker exec -it flink_tm1_8c32g /bin/bash
+        vi /usr/local/flink/conf/flink-conf.yaml
+        omni.batch: true
+        
+        docker exec -it flink_tm2_8c32g /bin/bash
+        vi /usr/local/flink/conf/flink-conf.yaml
+        omni.batch: true
          ```
 
 2. 进入flink\_jm\_8c32g容器，启动Flink集群。
