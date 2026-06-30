@@ -11,6 +11,7 @@
 
 #include "StreamCorrelateOperator.h"
 #include <nlohmann/json.hpp>
+#include <algorithm>
 
 using namespace omniruntime::type;
 using namespace omniruntime::vec;
@@ -18,7 +19,9 @@ using VarcharVector = Vector<LargeStringContainer<std::string_view>>;
 
 StreamCorrelateOperator::StreamCorrelateOperator(
         const nlohmann::json& description, Output* output)
-        : description_(description)
+        : description_(description),
+          selectedRowsBuffer_(1024),
+          executionContext_(std::make_unique<omniruntime::op::ExecutionContext>())
 {
     this->setOutput(output);
     parseDescription(description);
@@ -28,11 +31,53 @@ StreamCorrelateOperator::StreamCorrelateOperator(
 StreamCorrelateOperator::~StreamCorrelateOperator()
 {
     delete timestampedCollector_;
+    delete argEvaluator_;
 }
 
 void StreamCorrelateOperator::open()
 {
     parseDescription(description_);
+
+    // Build expression evaluator only for non-recognized expressions (EVALUATOR mode)
+    if (hasFunctionArgs_ && argEvalMode_ == ArgEvalMode::EVALUATOR) {
+        // Clear any previously parsed expressions (in case open() is called multiple times)
+        if (!argExprs_.empty()) {
+            omniruntime::expressions::Expr::DeleteExprs(argExprs_);
+            argExprs_.clear();
+        }
+        if (argEvaluator_ != nullptr) {
+            delete argEvaluator_;
+            argEvaluator_ = nullptr;
+        }
+        INFO_RELEASE("StreamCorrelateOperator::open building expression evaluator, "
+                     << functionArgsJson_.size() << " expressions, "
+                     << argInputTypes_.GetSize() << " input types")
+        JSONParser parser = JSONParser();
+        for (size_t i = 0; i < functionArgsJson_.size(); i++) {
+            INFO_RELEASE("StreamCorrelateOperator::open parsing functionArg[" << i << "]: "
+                         << functionArgsJson_[i].dump())
+            auto expr = parser.ParseJSON(functionArgsJson_[i]);
+            if (expr == nullptr) {
+                omniruntime::expressions::Expr::DeleteExprs(argExprs_);
+                argExprs_.clear();
+                THROW_LOGIC_EXCEPTION(
+                    "StreamCorrelateOperator: failed to parse functionArgs expression: "
+                    + functionArgsJson_[i].dump());
+            }
+            argExprs_.push_back(expr);
+        }
+        auto ofConfig = new omniruntime::op::OverflowConfig();
+        argEvaluator_ = new omniruntime::codegen::ExpressionEvaluator(
+                argExprs_, argInputTypes_, ofConfig);
+        argEvaluator_->ProjectFuncGeneration();
+        INFO_RELEASE("StreamCorrelateOperator::open expression evaluator built successfully")
+    } else if (hasFunctionArgs_) {
+        INFO_RELEASE("StreamCorrelateOperator::open using manual evaluation mode="
+                     << static_cast<int>(argEvalMode_)
+                     << " colIndex=" << manualArgColIndex_
+                     << " jsonPath=" << manualJsonPath_)
+    }
+
     timestampedCollector_ = new TimestampedCollector(this->output);
 }
 
@@ -50,7 +95,17 @@ void StreamCorrelateOperator::parseDescription(const nlohmann::json& desc)
     joinType_ = desc.at("joinType").get<std::string>();
     isLeftJoin_ = (joinType_ == "LeftOuterJoin");
 
-    functionArgIndices_ = desc.at("functionArgIndices").get<std::vector<int>>();
+    // Parse functionArgs (new path) or functionArgIndices (legacy path)
+    if (desc.contains("functionArgs") && desc["functionArgs"].is_array()
+            && !desc["functionArgs"].empty()) {
+        hasFunctionArgs_ = true;
+        functionArgsJson_ = desc["functionArgs"].get<std::vector<nlohmann::json>>();
+    }
+
+    if (desc.contains("functionArgIndices")) {
+        functionArgIndices_ = desc.at("functionArgIndices").get<std::vector<int>>();
+    }
+
     inputTypes_ = desc.at("inputTypes").get<std::vector<std::string>>();
     outputTypes_ = desc.at("outputTypes").get<std::vector<std::string>>();
     functionResultTypes_ = desc.at("functionResultTypes").get<std::vector<std::string>>();
@@ -59,9 +114,46 @@ void StreamCorrelateOperator::parseDescription(const nlohmann::json& desc)
     outputColumnCount_ = static_cast<int>(outputTypes_.size());
 
     // 预解析输入列的 OmniTypeId
+    inputTypeIds_.clear();
     for (const auto& typeStr : inputTypes_) {
         inputTypeIds_.push_back(LogicalType::flinkTypeToOmniTypeId(typeStr));
     }
+
+    // Detect expression type for manual evaluation (avoids JIT evaluator issues)
+    argEvalMode_ = ArgEvalMode::EVALUATOR;
+    if (hasFunctionArgs_ && functionArgsJson_.size() == 1) {
+        const auto& argJson = functionArgsJson_[0];
+        std::string exprType = argJson.value("exprType", "");
+        if (exprType == "FIELD_REFERENCE" && argJson.contains("colVal")) {
+            argEvalMode_ = ArgEvalMode::FIELD_REF;
+            manualArgColIndex_ = argJson["colVal"].get<int>();
+        } else if (exprType == "FUNCTION") {
+            std::string funcName = argJson.value("function_name", "");
+            if (funcName == "json_query" && argJson.contains("arguments")
+                    && argJson["arguments"].is_array() && argJson["arguments"].size() == 2) {
+                const auto& args = argJson["arguments"];
+                if (args[0].value("exprType", "") == "FIELD_REFERENCE"
+                        && args[0].contains("colVal")
+                        && args[1].value("exprType", "") == "LITERAL"
+                        && args[1].contains("value")) {
+                    argEvalMode_ = ArgEvalMode::JSON_QUERY;
+                    manualArgColIndex_ = args[0]["colVal"].get<int>();
+                    manualJsonPath_ = args[1]["value"].get<std::string>();
+                }
+            }
+        }
+    }
+
+    // Build argInputTypes_ for expression evaluator (only if needed)
+    if (hasFunctionArgs_ && argEvalMode_ == ArgEvalMode::EVALUATOR) {
+        std::vector<omniruntime::type::DataTypePtr> types;
+        for (const auto& typeStr : inputTypes_) {
+            auto omniType = LogicalType::flinkTypeToOmniTypeId(typeStr);
+            types.push_back(std::make_shared<omniruntime::type::DataType>(omniType));
+        }
+        argInputTypes_ = omniruntime::type::DataTypes(types);
+    }
+
     tableFunction_ = NativeTableFunctionFactory::create(functionName_);
     if (!tableFunction_) {
         THROW_LOGIC_EXCEPTION("Unsupported table function class: " + functionClass_ + ", function name: " + functionName_);
@@ -69,6 +161,10 @@ void StreamCorrelateOperator::parseDescription(const nlohmann::json& desc)
 
     INFO_RELEASE("StreamCorrelateOperator parsed: functionName=" << functionName_
                                                         << ", joinType=" << joinType_
+                                                        << ", hasFunctionArgs=" << hasFunctionArgs_
+                                                        << ", argEvalMode=" << static_cast<int>(argEvalMode_)
+                                                        << ", manualArgColIndex=" << manualArgColIndex_
+                                                        << ", manualJsonPath=" << manualJsonPath_
                                                         << ", argIndices=" << functionArgIndices_.size()
                                                         << ", inputCols=" << inputColumnCount_
                                                         << ", outputCols=" << outputColumnCount_
@@ -94,36 +190,147 @@ void StreamCorrelateOperator::processBatch(StreamRecord* input)
     // 记录哪些输入行没有产生输出（用于 LEFT JOIN）
     std::vector<bool> hasOutput(inputRowCount, false);
 
-    // 取 UDTF 参数列（目前 JsonSplit 只有一个 STRING 参数）
-    int argColIndex = functionArgIndices_[0];
-    auto* argVec = inputBatch->Get(argColIndex);
+    // Evaluate UDTF argument per mode
+    omniruntime::vec::VectorBatch* argEvalBatch = nullptr;
 
-    for (int row = 0; row < inputRowCount; row++) {
-        std::string argValue;
-        if (!argVec->IsNull(row)) {
-            // 读取 VARCHAR 列的值
-            if (argVec->GetEncoding() == omniruntime::vec::OMNI_FLAT) {
-                auto* castedVec = reinterpret_cast<VarcharVector*>(argVec);
-                std::string_view sv = castedVec->GetValue(row);
-                argValue = std::string(sv.data(), sv.size());
-            } else {
-                // Dictionary 编码的 VARCHAR
-                using DictVarcharVec = Vector<DictionaryContainer<
-                        std::string_view, LargeStringContainer>>;
-                auto* castedVec = reinterpret_cast<DictVarcharVec*>(argVec);
-                std::string_view sv = castedVec->GetValue(row);
-                argValue = std::string(sv.data(), sv.size());
-            }
+    if (argEvalMode_ == ArgEvalMode::JSON_QUERY) {
+        // Manual json_query evaluation using nlohmann::json (avoids JIT evaluator crash)
+        INFO_RELEASE("StreamCorrelateOperator::processBatch JSON_QUERY manual eval, col="
+                     << manualArgColIndex_ << " path=" << manualJsonPath_
+                     << " rows=" << inputRowCount)
+        BaseVector* srcVec = inputBatch->Get(manualArgColIndex_);
+        // Parse the JSON path: "$.field" → "field", "$.a.b" → navigate nested
+        // Support simple single-level paths like "$.roomRate"
+        std::string pathField;
+        if (manualJsonPath_.size() > 2 && manualJsonPath_.substr(0, 2) == "$.") {
+            pathField = manualJsonPath_.substr(2);
         }
 
-        // 调用 native JsonSplit
-        std::vector<std::string> results = tableFunction_->eval(argValue);
+        for (int row = 0; row < inputRowCount; row++) {
+            std::string argValue;
+            if (!srcVec->IsNull(row)) {
+                std::string_view sv;
+                if (srcVec->GetEncoding() == omniruntime::vec::OMNI_FLAT) {
+                    auto* castedVec = reinterpret_cast<VarcharVector*>(srcVec);
+                    sv = castedVec->GetValue(row);
+                } else {
+                    using DictVarcharVec = Vector<DictionaryContainer<
+                            std::string_view, LargeStringContainer>>;
+                    auto* castedVec = reinterpret_cast<DictVarcharVec*>(srcVec);
+                    sv = castedVec->GetValue(row);
+                }
+                if (sv.data() != nullptr && sv.size() > 0
+                        && sv.size() < static_cast<size_t>(64 * 1024 * 1024)) {
+                    std::string inputStr(sv.data(), sv.size());
+                    try {
+                        auto doc = nlohmann::json::parse(inputStr);
+                        // Navigate path (support dotted paths like "a.b.c")
+                        nlohmann::json* current = &doc;
+                        std::string remaining = pathField;
+                        bool valid = true;
+                        while (!remaining.empty() && current != nullptr) {
+                            size_t dotPos = remaining.find('.');
+                            std::string key = (dotPos == std::string::npos)
+                                ? remaining : remaining.substr(0, dotPos);
+                            remaining = (dotPos == std::string::npos)
+                                ? "" : remaining.substr(dotPos + 1);
+                            if (current->is_object() && current->contains(key)) {
+                                current = &((*current)[key]);
+                            } else {
+                                valid = false;
+                                break;
+                            }
+                        }
+                        if (valid && current != nullptr && !current->is_null()) {
+                            argValue = current->dump();
+                        }
+                    } catch (const nlohmann::json::exception&) {
+                        // Parse error → treat as null (empty argValue)
+                    }
+                }
+            }
 
-        if (!results.empty()) {
-            hasOutput[row] = true;
-            for (auto& r : results) {
-                inputRowIndices.push_back(row);
-                udtfResults.push_back(std::move(r));
+            std::vector<std::string> results = tableFunction_->eval(argValue);
+            if (!results.empty()) {
+                hasOutput[row] = true;
+                for (auto& r : results) {
+                    inputRowIndices.push_back(row);
+                    udtfResults.push_back(std::move(r));
+                }
+            }
+        }
+    } else {
+        // FIELD_REF or EVALUATOR or legacy path: get argVec from the appropriate source
+        omniruntime::vec::BaseVector* argVec = nullptr;
+
+        if (argEvalMode_ == ArgEvalMode::FIELD_REF && manualArgColIndex_ >= 0) {
+            // Direct column reference from parsed expression
+            argVec = inputBatch->Get(manualArgColIndex_);
+        } else if (hasFunctionArgs_ && argEvaluator_ != nullptr) {
+            // JIT expression evaluator path
+            INFO_RELEASE("StreamCorrelateOperator::processBatch evaluating expressions, inputRows="
+                         << inputRowCount)
+            argEvalBatch = argEvaluator_->Evaluate(
+                    inputBatch, executionContext_.get(), &selectedRowsBuffer_);
+            if (argEvalBatch == nullptr || argEvalBatch->GetVectorCount() == 0) {
+                INFO_RELEASE("StreamCorrelateOperator::processBatch Evaluate returned null/empty")
+                delete inputBatch;
+                delete input;
+                delete argEvalBatch;
+                return;
+            }
+            INFO_RELEASE("StreamCorrelateOperator::processBatch Evaluate returned rowCount="
+                         << argEvalBatch->GetRowCount() << " vectorCount="
+                         << argEvalBatch->GetVectorCount())
+            argVec = argEvalBatch->Get(0);
+            if (argVec == nullptr) {
+                INFO_RELEASE("StreamCorrelateOperator::processBatch argVec is null after Get(0)")
+                delete argEvalBatch;
+                delete inputBatch;
+                delete input;
+                return;
+            }
+        } else {
+            // Legacy path: direct column index from functionArgIndices
+            if (functionArgIndices_.empty()) {
+                THROW_LOGIC_EXCEPTION(
+                    "StreamCorrelateOperator: functionArgIndices is empty and no functionArgs provided");
+            }
+            int argColIndex = functionArgIndices_[0];
+            argVec = inputBatch->Get(argColIndex);
+        }
+
+        // Use the evaluated batch's row count to avoid out-of-bounds access
+        int argRowCount = (argEvalBatch != nullptr)
+            ? argEvalBatch->GetRowCount() : inputRowCount;
+        int loopCount = std::min(inputRowCount, argRowCount);
+
+        for (int row = 0; row < loopCount; row++) {
+            std::string argValue;
+            if (!argVec->IsNull(row)) {
+                std::string_view sv;
+                if (argVec->GetEncoding() == omniruntime::vec::OMNI_FLAT) {
+                    auto* castedVec = reinterpret_cast<VarcharVector*>(argVec);
+                    sv = castedVec->GetValue(row);
+                } else {
+                    using DictVarcharVec = Vector<DictionaryContainer<
+                            std::string_view, LargeStringContainer>>;
+                    auto* castedVec = reinterpret_cast<DictVarcharVec*>(argVec);
+                    sv = castedVec->GetValue(row);
+                }
+                if (sv.data() != nullptr && sv.size() > 0
+                        && sv.size() < static_cast<size_t>(64 * 1024 * 1024)) {
+                    argValue = std::string(sv.data(), sv.size());
+                }
+            }
+
+            std::vector<std::string> results = tableFunction_->eval(argValue);
+            if (!results.empty()) {
+                hasOutput[row] = true;
+                for (auto& r : results) {
+                    inputRowIndices.push_back(row);
+                    udtfResults.push_back(std::move(r));
+                }
             }
         }
     }
@@ -143,6 +350,7 @@ void StreamCorrelateOperator::processBatch(StreamRecord* input)
                           + static_cast<int>(leftNullRows.size());
 
     if (totalOutputRows == 0) {
+        delete argEvalBatch;
         delete inputBatch;
         delete input;
         return;
@@ -210,6 +418,7 @@ void StreamCorrelateOperator::processBatch(StreamRecord* input)
     }
 
     // ========== 第四步：输出并清理 ==========
+    delete argEvalBatch;
     delete inputBatch;
     delete input;
 
