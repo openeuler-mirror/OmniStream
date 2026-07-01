@@ -89,7 +89,7 @@ BinaryRowData* CsvConverter::convert(const CsvRow& csvRow)
             LOG("CsvConverter: Converting value '" << value << "' to timestamp for column " << i);
             try {
                 static int milliSec = 3;
-                rowData->setTimestamp(i, *TimestampData::fromString(value), milliSec);
+                rowData->setTimestamp(i, TimestampData::fromString(value), milliSec);
             } catch (...) {
                 rowData->setNullAt(i);
             }
@@ -187,7 +187,7 @@ omnistream::VectorBatch* CsvConverter::convert(std::vector<CsvRow> &csvRows, std
                 case omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:
                 case omniruntime::type::DataTypeId::OMNI_TIMESTAMP:{
                     try {
-                        vectorBatch->SetValueAt(colIndex, rowIndex, TimestampData::fromString(nodeValue)->getMillisecond());
+                        vectorBatch->SetValueAt(colIndex, rowIndex, TimestampData::fromString(nodeValue).getMillisecond());
                     } catch (...) {
                         vectorBatch->Get(colIndex)->SetNull(rowIndex);
                     }
@@ -195,7 +195,8 @@ omnistream::VectorBatch* CsvConverter::convert(std::vector<CsvRow> &csvRows, std
                 }
                 case omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE:{
                     try {
-                        vectorBatch->SetValueAt(colIndex, rowIndex, TimestampData::fromLocalTimeString(nodeValue)->getMillisecond());
+                        vectorBatch->SetValueAt(colIndex, rowIndex,
+                                                TimestampData::fromLocalTimeString(nodeValue).getMillisecond());
                     } catch (...) {
                         vectorBatch->Get(colIndex)->SetNull(rowIndex);
                     }

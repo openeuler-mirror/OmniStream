@@ -8,14 +8,10 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef CPP_TIMESTAMPDATA_H
-#define CPP_TIMESTAMPDATA_H
+
+#pragma once
 
 #include <string>
-#include <iostream>
-#include <chrono>
-#include "third_party/date/date.h"
-#include "third_party/date/tz.h"
 
 class TimestampData {
 public:
@@ -24,12 +20,12 @@ public:
     long getMillisecond() const;
     int getNanoOfMillisecond() const;
 
-    static TimestampData *fromEpochMillis(long milliseconds);
-    static TimestampData *fromEpochMillis(long milliseconds, int nanosOfMillisecond);
+    static TimestampData fromEpochMillis(long milliseconds);
+    static TimestampData fromEpochMillis(long milliseconds, int nanosOfMillisecond);
 
     static long stringToEpochMillis(const std::string& str);
-    static TimestampData* fromString(const std::string& str);
-    static TimestampData* fromLocalTimeString(const std::string& str);
+    static TimestampData fromString(const std::string& str);
+    static TimestampData fromLocalTimeString(const std::string& str);
 
     static bool isCompact(int percision);
 
@@ -38,5 +34,3 @@ private:
     long millisecond;
     int nanoOfMillisecond;
 };
-
-#endif // CPP_TIMESTAMPDATA_H

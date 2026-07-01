@@ -8,8 +8,8 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef FLINK_TNEL_JOINEDROWDATA_H
-#define FLINK_TNEL_JOINEDROWDATA_H
+
+#pragma once
 
 #include "table/data/RowData.h"
 #include "table/data/TimestampData.h"
@@ -32,8 +32,8 @@ public:
     long *getLong(int pos) override;
     bool *getBool(int pos) override;
     int* getInt(int pos) override;
-    TimestampData *getTimestamp(int pos) override;
-    TimestampData *getTimestampPrecise(int pos) override;
+    TimestampData getTimestamp(int pos) override;
+    TimestampData getTimestampPrecise(int pos) override;
     std::string_view getStringView(int pos);
     void setStringView(int pos, std::string_view value);
 
@@ -44,7 +44,7 @@ public:
 
     void setInt(int pos, int value) override;
 
-    void setTimestamp(int pos, TimestampData& value, int precision) override;
+    void setTimestamp(int pos, const TimestampData& value, int precision) override;
 
     void setString(int pos, BinaryStringData* value) override;
 
@@ -57,5 +57,3 @@ private:
     RowData* row1 = nullptr;
     RowData* row2 = nullptr;
 };
-
-#endif // FLINK_TNEL_JOINEDROWDATA_H

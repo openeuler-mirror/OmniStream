@@ -9,8 +9,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef CPP_GENERICROWDATA_H
-#define CPP_GENERICROWDATA_H
+#pragma once
 
 #include <stdarg.h>
 #include <memory>
@@ -57,9 +56,9 @@ public:
         return reinterpret_cast<int *>(fields_.data() + pos);
     }
 
-    TimestampData *getTimestamp(int pos) { return reinterpret_cast<TimestampData *>(fields_[pos]); };
+    TimestampData getTimestamp(int pos) override { return *reinterpret_cast<TimestampData *>(fields_[pos]); };
 
-    TimestampData *getTimestampPrecise(int pos) { return reinterpret_cast<TimestampData *>(fields_[pos]); };
+    TimestampData getTimestampPrecise(int pos) override { return *reinterpret_cast<TimestampData *>(fields_[pos]); };
 
     // non virtual
     [[nodiscard]] int getRowDataTypeId() const
@@ -164,5 +163,3 @@ private:
         curPos++;
     }
 };
-
-#endif

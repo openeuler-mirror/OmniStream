@@ -9,11 +9,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef BINARYROWDATA_H
-#define BINARYROWDATA_H
-
 #pragma once
-
 
 #include <bitset>
 #include "../RowData.h"
@@ -50,9 +46,9 @@ public:
     int *getInt(int pos) override;
     void setInt(int pos, int value) override;
 
-    TimestampData* getTimestamp(int pos) override;
-    TimestampData* getTimestampPrecise(int pos) override;
-    void setTimestamp(int pos, TimestampData& value, int precision) override;
+    TimestampData getTimestamp(int pos) override;
+    TimestampData getTimestampPrecise(int pos) override;
+    void setTimestamp(int pos, const TimestampData& value, int precision) override;
 
     BinaryStringData* getString(int pos) override;
     void setString(int pos, BinaryStringData* value) override;
@@ -168,6 +164,3 @@ namespace std {
         }
     };
 }
-
-
-#endif

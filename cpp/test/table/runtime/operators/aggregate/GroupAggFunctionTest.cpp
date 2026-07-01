@@ -486,18 +486,18 @@ TEST(GroupAggFunctionTest, OneKeyOneMaxAggCompactTimestampTest){
 
     BinaryRowData *input1 = BinaryRowData::createBinaryRowDataWithMem(3);
     input1->setLong(0, keyVal);
-    TimestampData *timestamp1 = TimestampData::fromEpochMillis(2L, 5);
-    input1->setTimestamp(1, *timestamp1, precision);
+    TimestampData timestamp1 = TimestampData::fromEpochMillis(2L, 5);
+    input1->setTimestamp(1, timestamp1, precision);
 
     BinaryRowData *input2 = BinaryRowData::createBinaryRowDataWithMem(3);
     input2->setLong(0, keyVal);
-    TimestampData *timestamp2 = TimestampData::fromEpochMillis(2L, 4);
-    input2->setTimestamp(1, *timestamp2, precision);
+    TimestampData timestamp2 = TimestampData::fromEpochMillis(2L, 4);
+    input2->setTimestamp(1, timestamp2, precision);
     
     BinaryRowData *input3 = BinaryRowData::createBinaryRowDataWithMem(3);
     input3->setLong(0, keyVal);
-    TimestampData *timestamp3 = TimestampData::fromEpochMillis(3L, 3);
-    input3->setTimestamp(1, *timestamp3, precision);
+    TimestampData timestamp3 = TimestampData::fromEpochMillis(3L, 3);
+    input3->setTimestamp(1, timestamp3, precision);
     
 
     //Warp BinaryRowData in StreamRecord
@@ -567,19 +567,19 @@ TEST(GroupAggFunctionTest, OneKeyOneMaxAggCompactTimestampTest){
     keyedOp->setKeyContextElement(record1);
     keyedOp->processElement(record1);
     
-    EXPECT_EQ(out->getTimestamp(1)->getMillisecond(), 2L);
+    EXPECT_EQ(out->getTimestamp(1).getMillisecond(), 2L);
     out->printRow();
 
     keyedOp->setKeyContextElement(record2);
     keyedOp->processElement(record2);
 
-    EXPECT_EQ(out->getTimestamp(1)->getMillisecond(), 2L);
+    EXPECT_EQ(out->getTimestamp(1).getMillisecond(), 2L);
     out->printRow();
 
     keyedOp->setKeyContextElement(record3);
     keyedOp->processElement(record3);
 
-    EXPECT_EQ(out->getTimestamp(1 )->getMillisecond(), 3L);
+    EXPECT_EQ(out->getTimestamp(1).getMillisecond(), 3L);
     out->printRow();
     
     //clean up
@@ -589,9 +589,6 @@ TEST(GroupAggFunctionTest, OneKeyOneMaxAggCompactTimestampTest){
     delete record1;
     delete record2;
     delete record3;
-    delete timestamp1;
-    delete timestamp2;
-    delete timestamp3;
 }
 
 TEST(GroupAggFunctionTest, OneKeyOneAggCountTest){
@@ -826,18 +823,18 @@ TEST(GroupAggFunctionTest, DISABLED_OneKeyOneMaxAggNonCompactTimestampTest){
     int precision = 4;
     BinaryRowData *input1 = BinaryRowData::createBinaryRowDataWithMem(3);
     input1->setLong(0, keyVal);
-    TimestampData *timestamp1 = TimestampData::fromEpochMillis(2L, 5);
-    input1->setTimestamp(1, *timestamp1, precision);   
+    TimestampData timestamp1 = TimestampData::fromEpochMillis(2L, 5);
+    input1->setTimestamp(1, timestamp1, precision);
 
     BinaryRowData *input2 = BinaryRowData::createBinaryRowDataWithMem(3);
     input2->setLong(0, keyVal);
-    TimestampData *timestamp2 = TimestampData::fromEpochMillis(2L, 4);
-    input2->setTimestamp(1, *timestamp2, precision);
+    TimestampData timestamp2 = TimestampData::fromEpochMillis(2L, 4);
+    input2->setTimestamp(1, timestamp2, precision);
     
     BinaryRowData *input3 = BinaryRowData::createBinaryRowDataWithMem(3);
     input3->setLong(0, keyVal);
-    TimestampData *timestamp3 = TimestampData::fromEpochMillis(3L, 3);
-    input3->setTimestamp(1, *timestamp3, precision);
+    TimestampData timestamp3 = TimestampData::fromEpochMillis(3L, 3);
+    input3->setTimestamp(1, timestamp3, precision);
     
 
     //Warp BinaryRowData in StreamRecord
@@ -907,22 +904,22 @@ TEST(GroupAggFunctionTest, DISABLED_OneKeyOneMaxAggNonCompactTimestampTest){
     JoinedRowData* out = keyedOp->getResultRow();
     keyedOp->setKeyContextElement(record1);
     out->printRow();
-    EXPECT_EQ(out->getTimestampPrecise(1)->getMillisecond(), 2L);
-    EXPECT_EQ(out->getTimestampPrecise(1)->getNanoOfMillisecond(), 5);
+    EXPECT_EQ(out->getTimestampPrecise(1).getMillisecond(), 2L);
+    EXPECT_EQ(out->getTimestampPrecise(1).getNanoOfMillisecond(), 5);
     
     out->printRow();
     keyedOp->setKeyContextElement(record2);
     keyedOp->processElement(record2);
 
-    EXPECT_EQ(out->getTimestampPrecise(1)->getMillisecond(), 2L);
-    EXPECT_EQ(out->getTimestampPrecise(1)->getNanoOfMillisecond(), 5);
+    EXPECT_EQ(out->getTimestampPrecise(1).getMillisecond(), 2L);
+    EXPECT_EQ(out->getTimestampPrecise(1).getNanoOfMillisecond(), 5);
 
     out->printRow();
     keyedOp->setKeyContextElement(record3);
     keyedOp->processElement(record3);
 
-    EXPECT_EQ(out->getTimestampPrecise(1)->getMillisecond(), 3L);
-    EXPECT_EQ(out->getTimestampPrecise(1)->getNanoOfMillisecond(), 3);
+    EXPECT_EQ(out->getTimestampPrecise(1).getMillisecond(), 3L);
+    EXPECT_EQ(out->getTimestampPrecise(1).getNanoOfMillisecond(), 3);
     EXPECT_EQ(out->getRow1()->getArity(), out->getRow2()->getArity());
     out->printRow();
     //clean up
@@ -932,9 +929,6 @@ TEST(GroupAggFunctionTest, DISABLED_OneKeyOneMaxAggNonCompactTimestampTest){
     delete record1;
     delete record2;
     delete record3;
-    delete timestamp1;
-    delete timestamp2;
-    delete timestamp3;
 }
 
 omnistream::VectorBatch* newVectorBatchForQ17() {

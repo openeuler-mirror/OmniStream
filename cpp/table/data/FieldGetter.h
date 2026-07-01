@@ -9,8 +9,10 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef FLINK_TNEL_FIELDGETTER_H
-#define FLINK_TNEL_FIELDGETTER_H
+#pragma once
+
+#include <optional>
+#include "TimestampData.h"
 
 class RowData;
 
@@ -19,13 +21,14 @@ using getFieldByPosFn = void* (RowData::*)(int pos);
 class FieldGetter {
 public:
     FieldGetter(int fieldPos, getFieldByPosFn getFieldByPos);
+    FieldGetter(int fieldPos, bool preciseTimestamp);
 
     void* getFieldOrNull(RowData* row);
 
 private:
     int fieldPos_;
-    getFieldByPosFn getFieldByPos_;
+    getFieldByPosFn getFieldByPos_ = nullptr;
+    bool timestampGetter_ = false;
+    bool preciseTimestamp_ = false;
+    std::optional<TimestampData> timestampValue_;
 };
-
-
-#endif // FLINK_TNEL_FIELDGETTER_H

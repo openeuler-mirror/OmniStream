@@ -9,8 +9,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef FLINK_TNEL_ROWDATA_H
-#define FLINK_TNEL_ROWDATA_H
+#pragma once
 
 #include "RowKind.h"
 #include "../types/logical/LogicalType.h"
@@ -60,9 +59,9 @@ public:
 
     virtual RowKind getRowKind() = 0;
 
-    virtual TimestampData* getTimestamp(int pos) = 0;
+    virtual TimestampData getTimestamp(int pos) = 0;
 
-    virtual TimestampData* getTimestampPrecise(int pos) = 0;
+    virtual TimestampData getTimestampPrecise(int pos) = 0;
 
     virtual void setLong(int pos, long value) { NOT_IMPL_EXCEPTION; };
 
@@ -70,7 +69,7 @@ public:
 
     virtual void setInt(int pos, int value) { NOT_IMPL_EXCEPTION; };
 
-    virtual void setTimestamp(int pos, TimestampData& value, int precision) { NOT_IMPL_EXCEPTION; };
+    virtual void setTimestamp(int pos, const TimestampData& value, int precision) { NOT_IMPL_EXCEPTION; };
 
     virtual void setString(int pos, BinaryStringData* value) { NOT_IMPL_EXCEPTION; };
 
@@ -164,6 +163,4 @@ namespace std {
         }
     };
 }
-
-#endif // FLINK_TNEL_ROWDATA_H
 

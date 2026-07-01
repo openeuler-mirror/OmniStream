@@ -106,7 +106,7 @@ RowData *JoinedRowData::getRow2()
     return row2;
 }
 
-TimestampData *JoinedRowData::getTimestamp(int pos)
+TimestampData JoinedRowData::getTimestamp(int pos)
 {
     if (pos < row1->getArity()) {
         return row1->getTimestamp(pos);
@@ -115,7 +115,7 @@ TimestampData *JoinedRowData::getTimestamp(int pos)
     }
 }
 
-TimestampData *JoinedRowData::getTimestampPrecise(int pos)
+TimestampData JoinedRowData::getTimestampPrecise(int pos)
 {
     if (pos < row1->getArity()) {
         return row1->getTimestampPrecise(pos);
@@ -172,7 +172,7 @@ void JoinedRowData::setInt(int pos, int value)
     }
 }
 
-void JoinedRowData::setTimestamp(int pos, TimestampData &value, int precision)
+void JoinedRowData::setTimestamp(int pos, const TimestampData &value, int precision)
 {
     if (pos < row1->getArity()) {
         row1->setTimestamp(pos, value, precision);
