@@ -35,6 +35,7 @@
 #include "OmniOperatorJIT/core/src/operator/execution_context.h"
 #include "OmniOperatorJIT/core/src/operator/config/operator_config.h"
 #include "OmniOperatorJIT/core/src/memory/aligned_buffer.h"
+#include "OmniOperatorJIT/core/src/codegen/functions/stringfunctions.h"
 
 class StreamCorrelateOperator : public OneInputStreamOperator,
                                 public AbstractStreamOperator<int> {
@@ -70,6 +71,22 @@ public:
 
 private:
     void parseDescription(const nlohmann::json& desc);
+
+    // Extract a varchar string_view from a flat or dictionary-encoded vector
+    static std::string_view extractVarchar(omniruntime::vec::BaseVector* vec, int row);
+
+    // Evaluate UDTF for all input rows, collecting per-row results
+    void evaluateUdtfRows(omnistream::VectorBatch* inputBatch, int inputRowCount,
+                          std::vector<int>& inputRowIndices,
+                          std::vector<std::string>& udtfResults,
+                          std::vector<bool>& hasOutput);
+
+    // Build output VectorBatch from UDTF results and LEFT JOIN null padding
+    omnistream::VectorBatch* buildOutputBatch(omnistream::VectorBatch* inputBatch,
+                                              int inputRowCount,
+                                              const std::vector<int>& inputRowIndices,
+                                              const std::vector<std::string>& udtfResults,
+                                              const std::vector<bool>& hasOutput);
 
     // JsonSplit 的 native 实现：解析 JSON 数组字符串，返回各元素
     std::vector<std::string> evalJsonSplit(const std::string& input);
