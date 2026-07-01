@@ -395,6 +395,8 @@ namespace omnistream {
     {
         checkInProduceState();
         ensureUnicastMode();
+        // Finish any in-flight builder before replacing the registry slot.
+        finishUnicastBufferBuilder(targetSubpartition);
         BufferBuilder *bufferBuilder = requestNewBufferBuilderFromPool(targetSubpartition);
         unicastBufferBuilders[targetSubpartition] = bufferBuilder;
         LOG("set bufferBuilder to unicastBufferBuilders, targetSubpartition: "<< std::to_string(targetSubpartition))
