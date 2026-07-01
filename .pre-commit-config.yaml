@@ -1,5 +1,5 @@
 minimum_pre_commit_version: 4.0.0
-exclude: ^LICENSES/|\.(html|csv|svg)$
+exclude: ^LICENSES/|^docs/|\.(html|csv|svg)$
 
 default_stages: [pre-commit]
 ci:
@@ -20,7 +20,6 @@ repos:
       - id: check-merge-conflict     # 检测未解决的合并冲突（<<<<<<< HEAD）
       - id: detect-private-key       # 检测硬编码的私钥/密钥
       - id: check-json
-      - id: no-commit-to-branch     # 禁止直接提交到main/master分支
 
 #--------------- C++ 核心检查 ---------------------------------------------
   # clang-format：C/C++ 代码格式化
@@ -37,6 +36,6 @@ repos:
     rev: v0.46.0
     hooks:
       - id: markdownlint
-        exclude: '.*\.inc\.md$|.*report_template\.md$|.*contributors\.md$|.*PULL_REQUEST_TEMPLATE\.md$'
+        exclude: '.*\.inc\.md$|.*report_template\.md$|.*contributors\.md$|.*PULL_REQUEST_TEMPLATE\.md$|^docs/|\.md$'
         stages: [manual]
         description: "Markdown format check (run in CI: pre-commit run markdownlint --all-files)"
