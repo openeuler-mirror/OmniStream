@@ -67,7 +67,6 @@ OmniStream Flink Native化采用单机容器化部署方案，使用Docker容器
 |KSL| BoostKit-ksl_2.5.1.zip                    |闭源|正则加速库，该zip包含ReplaceAll用于优化String基础库，内含头文件和1个静态库。| [获取链接](https://www.hikunpeng.com/boostkit/library/system?subtab=Hyperscan&version=2.5.1)                                                                                                                                                                           |
 |依赖库| Dependency_library_Default                |开源|OmniStream Flink Native化运行时所依赖的库文件。<br>该文件夹从Dependency_library_OmniStream.zip解压获得。| [获取链接](https://gitcode.com/openeuler/OmniStream/releases/download/tag_BoostKit_26.0.RC1.B031_001/Dependency_library_OmniStream.zip) |
 
-
 **软件安装包完整性校验<a name="zh-cn_topic_0000002228744546_section156811729327"></a>**
 
 从鲲鹏社区获取的软件安装包，下载软件安装包后需要校验软件安装包，确保与网站上的原始软件安装包一致。

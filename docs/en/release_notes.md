@@ -1,8 +1,8 @@
-# Release Notes<a name="EN-US_TOPIC_0000002549054105"></a>
+# Release Notes<a name="ZH-CN_TOPIC_0000002549054105"></a>
 
-## Version Mapping<a name="EN-US_TOPIC_0000002517493640"></a>
+## Version Mapping<a name="ZH-CN_TOPIC_0000002517493640"></a>
 
-### Product Version<a name="EN-US_TOPIC_0000002517333734"></a>
+### Product Version<a name="ZH-CN_TOPIC_0000002517333734"></a>
 
 <a name="table227mcpsimp"></a>
 <table><tbody><tr id="row232mcpsimp"><th class="firstcol" valign="top" width="30%" id="mcps1.1.3.1.1"><p id="p234mcpsimp"><a name="p234mcpsimp"></a><a name="p234mcpsimp"></a>Product Name</p>
@@ -12,18 +12,18 @@
 </tr>
 <tr id="row237mcpsimp"><th class="firstcol" valign="top" width="30%" id="mcps1.1.3.2.1"><p id="p239mcpsimp"><a name="p239mcpsimp"></a><a name="p239mcpsimp"></a>Product Version</p>
 </th>
-<td class="cellrowborder" valign="top" width="70%" headers="mcps1.1.3.2.1 "><p id="p241mcpsimp"><a name="p241mcpsimp"></a><a name="p241mcpsimp"></a>26.0.0</p>
+<td class="cellrowborder" valign="top" width="70%" headers="mcps1.1.3.2.1 "><p id="p241mcpsimp"><a name="p241mcpsimp"></a><a name="p241mcpsimp"></a>26.1.RC1</p>
 </td>
 </tr>
 <tr id="row242mcpsimp"><th class="firstcol" valign="top" width="30%" id="mcps1.1.3.3.1"><p id="p244mcpsimp"><a name="p244mcpsimp"></a><a name="p244mcpsimp"></a>Software Name and Version</p>
 </th>
-<td class="cellrowborder" valign="top" width="70%" headers="mcps1.1.3.3.1 "><p id="p138515418112"><a name="p138515418112"></a><a name="p138515418112"></a>OmniStream 1.2.0</p>
+<td class="cellrowborder" valign="top" width="70%" headers="mcps1.1.3.3.1 "><p id="p138515418112"><a name="p138515418112"></a><a name="p138515418112"></a>OmniStream 1.3.0</p>
 </td>
 </tr>
 </tbody>
 </table>
 
-### Software Version Mapping<a name="EN-US_TOPIC_0000002517493642"></a>
+### Software Versions<a name="ZH-CN_TOPIC_0000002517493642"></a>
 
 |Item|Version|
 |--|--|
@@ -33,7 +33,7 @@
 |Docker|19.03.15|
 |Nexmark|v0.3.0|
 
-### Hardware Version Mapping<a name="EN-US_TOPIC_0000002517493676"></a>
+### Hardware Version<a name="ZH-CN_TOPIC_0000002517493676"></a>
 
 <a name="table305mcpsimp"></a>
 <table><tbody><tr id="row315mcpsimp"><th class="firstcol" valign="top" width="30%" id="mcps1.1.3.1.1"><p id="p317mcpsimp"><a name="p317mcpsimp"></a><a name="p317mcpsimp"></a>Processor</p>
@@ -41,17 +41,17 @@
 <td class="cellrowborder" valign="top" width="70%" headers="mcps1.1.3.1.1 "><p id="p319mcpsimp"><a name="p319mcpsimp"></a><a name="p319mcpsimp"></a>Kunpeng 920</p>
 </td>
 </tr>
-<tr id="row320mcpsimp"><th class="firstcol" valign="top" width="30%" id="mcps1.1.3.2.1"><p id="p322mcpsimp"><a name="p322mcpsimp"></a><a name="p322mcpsimp"></a>Memory</p>
+<tr id="row320mcpsimp"><th class="firstcol" valign="top" width="30%" id="mcps1.1.3.2.1"><p id="p322mcpsimp"><a name="p322mcpsimp"></a><a name="p322mcpsimp"></a>Memory Size</p>
 </th>
-<td class="cellrowborder" valign="top" width="70%" headers="mcps1.1.3.2.1 "><p id="p324mcpsimp"><a name="p324mcpsimp"></a><a name="p324mcpsimp"></a>32 GB or above</p>
+<td class="cellrowborder" valign="top" width="70%" headers="mcps1.1.3.2.1 "><p id="p324mcpsimp"><a name="p324mcpsimp"></a><a name="p324mcpsimp"></a>32 GB or greater</p>
 </td>
 </tr>
 </tbody>
 </table>
 
-### Virus Scan Results<a name="EN-US_TOPIC_0000002549053513"></a>
+### Virus Scan Result<a name="ZH-CN_TOPIC_0000002549053513"></a>
 
-The software packages, release documents, and product documents have been scanned by multiple antivirus software, and no virus is found. The following tables describe the details.
+The software packages, release documents, and product documents have been scanned by multiple antivirus software, and no virus is found.  
 
 <a name="table357mcpsimp"></a>
 <table><tbody><tr id="row362mcpsimp"><th class="firstcol" valign="top" width="30%" id="mcps1.1.3.1.1"><p id="p12130195313518"><a name="p12130195313518"></a><a name="p12130195313518"></a><strong id="b14130553173510"><a name="b14130553173510"></a><a name="b14130553173510"></a>Engine Name</strong></p>
@@ -140,15 +140,17 @@ The software packages, release documents, and product documents have been scanne
 </tbody>
 </table>
 
-## V1.2.0<a name="EN-US_TOPIC_0000002518563132"></a>
+## V1.3.0<a name="ZH-CN_TOPIC_0000002518563132"></a>
 
-### Change Description<a name="EN-US_TOPIC_0000002550202869"></a>
+### Change Description<a name="ZH-CN_TOPIC_0000002550202869"></a>
 
-The OmniStream Flink Native feature of Kunpeng BoostKit for Big Data uses native code \(C/C++\) to implement open source operators, accelerating the Flink engine execution and improving query performance.
+The OmniStream Flink Native feature of Kunpeng BoostKit for Big Data uses native code (C/C++) to implement open-source operators, accelerating the Flink engine execution and improving query performance.
 
 **New Features<a name="section9559165534817"></a>**
 
-- Add the header file installation content for the dependencies used by the UDF translation tool.
+- The Calc operator supports UDF function registration. The Calc operator supports the JSON_VALUE, JSON_QUERY, COALESCE, PROCTIME_MATERIALIZE, CHAR_LENGTH, and TO_TIMESTAMP_LTZ built-in functions.
+- The Calc operator supports the INTEGER and TIMESTAMP_WITH_LOCAL_TIMEZONE(3) data types.
+- In SQL scenarios, the WindowAgg and WindowJoin operators are supported.
 
 **Modified Features<a name="section299616132492"></a>**
 
@@ -158,19 +160,46 @@ None
 
 None
 
-### Resolved Issues<a name="EN-US_TOPIC_0000002518723034"></a>
+### Resolved Issues<a name="ZH-CN_TOPIC_0000002518723034"></a>
 
 None
 
-### Known Issues<a name="EN-US_TOPIC_0000002550162875"></a>
+### Known Issues<a name="ZH-CN_TOPIC_0000002550162875"></a>
 
 None
 
-## V1.1.0<a name="EN-US_TOPIC_0000002517493646"></a>
+## V1.2.0<a name="ZH-CN_TOPIC_0000002518563132"></a>
 
-### Change Description<a name="EN-US_TOPIC_0000002548933521"></a>
+### Change Description<a name="ZH-CN_TOPIC_0000002550202869"></a>
 
-The OmniStream Flink Native feature of Kunpeng BoostKit for Big Data uses native code \(C/C++\) to implement open source operators, accelerating the Flink engine execution and improving query performance.
+The OmniStream Flink Native feature of Kunpeng BoostKit for Big Data uses native code (C/C++) to implement open-source operators, accelerating the Flink engine execution and improving query performance.
+
+**New Features<a name="section9559165534817"></a>**
+
+- The dependency header files are available for the UDF Translator.
+- The OmniStateStore feature has been introduced for stateful scenarios, improving application performance by reducing RocksDB access frequency.
+
+**Modified Features<a name="section299616132492"></a>**
+
+None
+
+**Removed Features<a name="section6480241161013"></a>**
+
+None
+
+### Resolved Issues<a name="ZH-CN_TOPIC_0000002518723034"></a>
+
+None
+
+### Known Issues<a name="ZH-CN_TOPIC_0000002550162875"></a>
+
+None
+
+## V1.1.0<a name="ZH-CN_TOPIC_0000002517493646"></a>
+
+### Change Description<a name="ZH-CN_TOPIC_0000002548933521"></a>
+
+The OmniStream Flink Native feature of Kunpeng BoostKit for Big Data uses native code (C/C++) to implement open-source operators, accelerating the Flink engine execution and improving query performance.
 
 **New Features<a name="section9559165534817"></a>**
 
@@ -185,19 +214,19 @@ None
 
 None
 
-### Resolved Issues<a name="EN-US_TOPIC_0000002548933533"></a>
+### Resolved Issues<a name="ZH-CN_TOPIC_0000002548933533"></a>
 
 None
 
-### Known Issues<a name="EN-US_TOPIC_0000002517493614"></a>
+### Known Issues<a name="ZH-CN_TOPIC_0000002517493614"></a>
 
 None
 
-## V1.0.0<a name="EN-US_TOPIC_0000002549053495"></a>
+## V1.0.0<a name="ZH-CN_TOPIC_0000002549053495"></a>
 
-### Change Description<a name="EN-US_TOPIC_0000002548933491"></a>
+### Change Description<a name="ZH-CN_TOPIC_0000002548933491"></a>
 
-The OmniStream Flink Native feature of Kunpeng BoostKit for Big Data uses native code \(C/C++\) to implement open source operators, accelerating the Flink engine execution and improving query performance.
+The OmniStream Flink Native feature of Kunpeng BoostKit for Big Data uses native code (C/C++) to implement open-source operators, accelerating the Flink engine execution and improving query performance.
 
 **New Features<a name="section9559165534817"></a>**
 
@@ -221,19 +250,22 @@ None
 
 None
 
-### Resolved Issues<a name="EN-US_TOPIC_0000002549053493"></a>
+### Resolved Issues<a name="ZH-CN_TOPIC_0000002549053493"></a>
 
 None
 
-### Known Issues<a name="EN-US_TOPIC_0000002517333744"></a>
+### Known Issues<a name="ZH-CN_TOPIC_0000002517333744"></a>
 
 None
 
-## Related Documentation<a name="EN-US_TOPIC_0000002548933523"></a>
+## Related Documentation<a name="ZH-CN_TOPIC_0000002548933523"></a>
 
-### Related Documentation<a name="EN-US_TOPIC_0000002517333760"></a>
+### Related Documentation<a name="ZH-CN_TOPIC_0000002517333760"></a>
 
-<font size=3>
+## 1.3 Related Documentation
+
+### Related Documentation
+
 <table>
   <thead>
     <tr>
@@ -244,27 +276,33 @@ None
   </thead>
   <tbody>
     <tr>
-      <td style="text-align: left;">《OmniStream 1.2.0 Release Notes》</td>
-      <td style="text-align: left;">Provides the OmniStream version release information.</td>
-      <td style="text-align: left;">Open source repository</td>
+      <td style="text-align: left;">OmniStream Release Notes</td>
+      <td style="text-align: left;">Provides OmniStream version update and release information.</td>
+      <td style="text-align: left;">Open-source repository</td>
     </tr>
     <tr>
-      <td style="text-align: left;">《OmniStream Installation Guide》</td>
-      <td style="text-align: left;">Describes how to install and deploy OmniStream.</td>
-      <td style="text-align: left;">Open source repository</td>
+      <td style="text-align: left;">OmniStream Quick Start</td>
+      <td style="text-align: left;">Provides quick start tutorials to help users quickly understand and use OmniStream.</td>
+      <td style="text-align: left;">Open-source repository</td>
     </tr>
     <tr>
-      <td style="text-align: left;">《OmniStream User Guide》</td>
-      <td style="text-align: left;">Describes how to use OmniStream</td>
-      <td style="text-align: left;">Open source repository</td>
+      <td style="text-align: left;">OmniStream Installation Guide</td>
+      <td style="text-align: left;">Provides guidance on how to install and deploy OmniStream.</td>
+      <td style="text-align: left;">Open-source repository</td>
     </tr>
     <tr>
-      <td style="text-align: left;">《OmniStream FAQ》</td>
-      <td style="text-align: left;">Document potential issues and their solutions encountered during installation, deployment, and usage.</td>
-      <td style="text-align: left;">Open source repository</td>
+      <td style="text-align: left;">OmniStream User Guide</td>
+      <td style="text-align: left;">Provides guidance on how to use OmniStream.</td>
+      <td style="text-align: left;">Open-source repository</td>
     </tr>
+    <tr>
+      <td style="text-align: left;">OmniStream FAQs</td>
+      <td style="text-align: left;">Records the issues that may occur during the installation, deployment, and use and their solutions.</td>
+      <td style="text-align: left;">Open-source repository</td>
+    </tr>
+  </tbody>
 </table>
 
-### Obtaining Documentation<a name="EN-US_TOPIC_0000002517493604"></a>
+### Obtaining Documentation<a name="ZH-CN_TOPIC_0000002517493604"></a>
 
-Visit [the open source repository](https://gitcode.com/openeuler/OmniStream) to view or download required documents.
+Visit the [open-source repository](https://gitcode.com/openeuler/OmniStream) to view or download related documents.
