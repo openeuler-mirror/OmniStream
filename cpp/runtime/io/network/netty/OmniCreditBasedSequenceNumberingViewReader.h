@@ -9,6 +9,7 @@
  * See the Mulan PSL v2 for more details.
  */
 #pragma once
+#include <atomic>
 #include <memory>
 #include <mutex>
 #include <queue>
@@ -72,6 +73,7 @@ namespace omnistream {
         void ResumeConsumption() ;
 
     private:
+        std::atomic<bool> stopped_{false};
         std::shared_ptr<ResultSubpartitionView> subpartitionView;
         std::queue<std::shared_ptr<SerializedBatchInfo>> serializedBatchQueue;
         OutputBufferStatus* outputBufferStatus;

@@ -21,6 +21,7 @@ namespace omnistream {
     }
 
     OmniCreditBasedSequenceNumberingViewReader::~OmniCreditBasedSequenceNumberingViewReader() {
+        stopped_.store(true, std::memory_order_release);
         if (subpartitionView) {
             subpartitionView->releaseAllResources();
             subpartitionView.reset();
@@ -72,6 +73,9 @@ namespace omnistream {
     }
 
     void OmniCreditBasedSequenceNumberingViewReader::getNextBufferInternal() {
+        if (stopped_.load(std::memory_order_acquire)) {
+            return;
+        }
         if (!this->subpartitionView) {
             THROW_LOGIC_EXCEPTION("must be a bug , at this phase subpartitionView should not be null")
         }
