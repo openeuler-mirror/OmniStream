@@ -22,13 +22,13 @@
 class JsonSplitFunction : public NativeTableFunction {
 public:
     std::vector<std::string> eval(const std::string& input) override {
-        INFO_RELEASE("JsonSplitFunction eval start")
+        INFO_RELEASE("JsonSplitFunction eval start, inputLen=" << input.size())
         std::vector<std::string> results;
         if (input.empty()) {
             return results;
         }
         rapidjson::Document doc;
-        doc.Parse(input.c_str());
+        doc.Parse(input.data(), input.size());
         if (doc.HasParseError() || !doc.IsArray()) {
             return results;
         }

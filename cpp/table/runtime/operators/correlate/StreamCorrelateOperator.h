@@ -28,6 +28,15 @@
 #include "core/include/common.h"
 #include "table/runtime/generated/function/tablefunction/NativeTableFunctionFactory.h"
 
+#include "OmniOperatorJIT/core/src/type/data_types.h"
+#include "OmniOperatorJIT/core/src/expression/expressions.h"
+#include "OmniOperatorJIT/core/src/expression/jsonparser/jsonparser.h"
+#include "OmniOperatorJIT/core/src/codegen/expr_evaluator.h"
+#include "OmniOperatorJIT/core/src/operator/execution_context.h"
+#include "OmniOperatorJIT/core/src/operator/config/operator_config.h"
+#include "OmniOperatorJIT/core/src/memory/aligned_buffer.h"
+#include "OmniOperatorJIT/core/src/codegen/functions/stringfunctions.h"
+
 class StreamCorrelateOperator : public OneInputStreamOperator,
                                 public AbstractStreamOperator<int> {
 public:
@@ -63,6 +72,22 @@ public:
 private:
     void parseDescription(const nlohmann::json& desc);
 
+    // Extract a varchar string_view from a flat or dictionary-encoded vector
+    static std::string_view extractVarchar(omniruntime::vec::BaseVector* vec, int row);
+
+    // Evaluate UDTF for all input rows, collecting per-row results
+    void evaluateUdtfRows(omnistream::VectorBatch* inputBatch, int inputRowCount,
+                          std::vector<int>& inputRowIndices,
+                          std::vector<std::string>& udtfResults,
+                          std::vector<bool>& hasOutput);
+
+    // Build output VectorBatch from UDTF results and LEFT JOIN null padding
+    omnistream::VectorBatch* buildOutputBatch(omnistream::VectorBatch* inputBatch,
+                                              int inputRowCount,
+                                              const std::vector<int>& inputRowIndices,
+                                              const std::vector<std::string>& udtfResults,
+                                              const std::vector<bool>& hasOutput);
+
     // JsonSplit 的 native 实现：解析 JSON 数组字符串，返回各元素
     std::vector<std::string> evalJsonSplit(const std::string& input);
 
@@ -84,6 +109,21 @@ private:
 
     // 输入列的 OmniTypeId（用于按行索引复制列）
     std::vector<omniruntime::type::DataTypeId> inputTypeIds_;
+
+    // Expression-based argument evaluation (for nested expressions like JSON_QUERY)
+    bool hasFunctionArgs_ = false;
+    std::vector<nlohmann::json> functionArgsJson_;
+    std::vector<omniruntime::expressions::Expr*> argExprs_;
+    omniruntime::codegen::ExpressionEvaluator* argEvaluator_ = nullptr;
+    omniruntime::type::DataTypes argInputTypes_;
+    std::unique_ptr<omniruntime::op::ExecutionContext> executionContext_;
+    omniruntime::mem::AlignedBuffer<int32_t> selectedRowsBuffer_;
+
+    // Manual evaluation for recognized expressions (avoids JIT evaluator issues)
+    enum class ArgEvalMode { EVALUATOR, FIELD_REF, JSON_QUERY };
+    ArgEvalMode argEvalMode_ = ArgEvalMode::EVALUATOR;
+    int manualArgColIndex_ = -1;
+    std::string manualJsonPath_;
 };
 
 
