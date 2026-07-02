@@ -129,6 +129,13 @@ BufferAndBacklog* PipelinedSubpartition::pollBuffer()
             continue;
         }
 
+        if (bufferConsumer->getDataType() == ObjectBufferDataType::TIMEOUTABLE_ALIGNED_CHECKPOINT_BARRIER) {
+            // todo: finsh checkpoint
+            // completeTimeoutableCheckpointBarrier(bufferConsumer);
+        }
+        LOG("PipelinedSubpartition::pollBuffer(): buildSliceBuffer"<< parent->getOwningTaskName())
+        buffer = buildSliceBuffer(bufferConsumerWithPartialRecordLength);
+
         // Align with Flink checkState: unfinished head is only allowed when queue size is 1.
         if (!bufferConsumer->isFinished() && buffers.size() > 1) {
             THROW_LOGIC_EXCEPTION(
@@ -138,13 +145,7 @@ BufferAndBacklog* PipelinedSubpartition::pollBuffer()
                 << " remainingQueue=" << buffers.size()
                 << ". When there are multiple buffers, an unfinished bufferConsumer can not be at the head of the buffers queue.");
         }
-
-        if (bufferConsumer->getDataType() == ObjectBufferDataType::TIMEOUTABLE_ALIGNED_CHECKPOINT_BARRIER) {
-            // todo: finsh checkpoint
-            // completeTimeoutableCheckpointBarrier(bufferConsumer);
-        }
-        LOG("PipelinedSubpartition::pollBuffer(): buildSliceBuffer"<< parent->getOwningTaskName())
-        buffer = buildSliceBuffer(bufferConsumerWithPartialRecordLength);
+        
         if (buffer == nullptr) {
             if (bufferConsumer->isFinished()) {
                 decreaseBuffersInBacklogUnsafe(bufferConsumer->isBuffer());
