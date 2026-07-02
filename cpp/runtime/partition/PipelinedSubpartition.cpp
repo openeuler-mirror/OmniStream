@@ -20,8 +20,8 @@
 #include "runtime/buffer/VectorBatchBuffer.h"
 
 namespace omnistream {
-PipelinedSubpartition::PipelinedSubpartition(
-    int index, int receiverExclusiveBuffersPerChannel, std::shared_ptr<ResultPartition> parent)
+PipelinedSubpartition::PipelinedSubpartition(int index, int receiverExclusiveBuffersPerChannel,
+                                             std::shared_ptr<ResultPartition> parent)
     : ResultSubpartition(index, parent), receiverExclusiveBuffersPerChannel(receiverExclusiveBuffersPerChannel),
       buffersInBacklog(0), readView(nullptr), isFinished(false), flushRequested(false), isReleased_(false),
       totalNumberOfBuffers(0), totalNumberOfBytes(0), bufferSize_(0), isBlocked(false), sequenceNumber(0)
@@ -51,12 +51,16 @@ void PipelinedSubpartition::finish()
 {
     auto bufferConsumer = EventSerializer::ToBufferConsumer(EndOfPartitionEvent::getInstance(), false);
 
-    LOG_TRACE("buffer detail: "  << bufferConsumer->toString()  << "bufferConsumer count " << std::to_string(bufferConsumer.use_count()))
+    LOG_TRACE("buffer detail: " << bufferConsumer->toString() << "bufferConsumer count "
+                                << std::to_string(bufferConsumer.use_count()))
     add(bufferConsumer, 0, true);
-    INFO_RELEASE("add EndOfPartition event.  Task :  " << parent->getOwningTaskName() << " Partition : " << subpartitionInfo.toString())
+    INFO_RELEASE("add EndOfPartition event.  Task :  " << parent->getOwningTaskName()
+                                                       << " Partition : " << subpartitionInfo.toString())
 
-    LOG_TRACE("buffer detail: "  << bufferConsumer->toString()  << "bufferConsumer count " << std::to_string(bufferConsumer.use_count()))
-    LOG_TRACE(parent->getOwningTaskName().substr(0, 15) << ": Finished ::" << toString() << this->subpartitionInfo.getSubPartitionIdx() << "." << std::endl);
+    LOG_TRACE("buffer detail: " << bufferConsumer->toString() << "bufferConsumer count "
+                                << std::to_string(bufferConsumer.use_count()))
+    LOG_TRACE(parent->getOwningTaskName().substr(0, 15)
+              << ": Finished ::" << toString() << this->subpartitionInfo.getSubPartitionIdx() << "." << std::endl);
 }
 
 void PipelinedSubpartition::release()
@@ -68,8 +72,9 @@ void PipelinedSubpartition::release()
         return;
     }
 
-    INFO_RELEASE("Clear Buffer size" << buffers.size()<<parent->getOwningTaskName()
-                 << ": PipelinedSubpartition Released " << toString() << this->subpartitionInfo.getSubPartitionIdx());
+    INFO_RELEASE("Clear Buffer size" << buffers.size() << parent->getOwningTaskName()
+                                     << ": PipelinedSubpartition Released " << toString()
+                                     << this->subpartitionInfo.getSubPartitionIdx());
     // Release all available buffers
     while (buffers.size() > 0) {
         std::shared_ptr<BufferConsumerWithPartialRecordLength> buffer = buffers.poll();
@@ -89,10 +94,11 @@ void PipelinedSubpartition::release()
     }
 }
 
-BufferAndBacklog* PipelinedSubpartition::pollBuffer()
+BufferAndBacklog *PipelinedSubpartition::pollBuffer()
 {
     std::lock_guard<std::recursive_mutex> buffersLock(buffersMutex);
-    LOG(">>>>>>buffers.peek() is " << buffers.peek() << " buffers.size()" << buffers.size() << " buffers address" << &buffers);
+    LOG(">>>>>>buffers.peek() is " << buffers.peek() << " buffers.size()" << buffers.size() << " buffers address"
+                                   << &buffers);
     // When blocked by an aligned checkpoint barrier, priority events (e.g., timeout->UC) must still overtake.
     if (isBlocked) {
         return nullptr;
@@ -101,8 +107,8 @@ BufferAndBacklog* PipelinedSubpartition::pollBuffer()
     // should use VectorBatchBuffer
     Buffer *buffer = nullptr;
 
-   // std::shared_ptr<ObjectBufferConsumerWithPartialRecordLength> ObjectBufferConsumerPL = nullptr;
-   // std::shared_ptr<ObjectBufferConsumer> consumer = nullptr;
+    // std::shared_ptr<ObjectBufferConsumerWithPartialRecordLength> ObjectBufferConsumerPL = nullptr;
+    // std::shared_ptr<ObjectBufferConsumer> consumer = nullptr;
 
     if (buffers.isEmpty()) {
         LOG("PipelinedSubpartition buffers.isEmpty()")
@@ -111,17 +117,18 @@ BufferAndBacklog* PipelinedSubpartition::pollBuffer()
 
     // LOG_TRACE("PipelinedSubpartition::pollBuffer() before while  isEmppty " << buffers.isEmpty())
     while (!buffers.isEmpty()) {
-        LOG_TRACE("PipelinedSubpartition::pollBuffer()  Inside the while "<< parent->getOwningTaskName() << " buffer size " << buffers.size())
+        LOG_TRACE("PipelinedSubpartition::pollBuffer()  Inside the while " << parent->getOwningTaskName()
+                                                                           << " buffer size " << buffers.size())
         auto bufferConsumerWithPartialRecordLength = buffers.peek();
         if (!bufferConsumerWithPartialRecordLength) {
-            INFO_RELEASE("PipelinedSubpartition::pollBuffer found null BufferConsumerWithPartialRecordLength, drop it. Task : "
-                         << parent->getOwningTaskName() << " Partition : " << subpartitionInfo.toString())
+            INFO_RELEASE(
+                "PipelinedSubpartition::pollBuffer found null BufferConsumerWithPartialRecordLength, drop it. Task : "
+                << parent->getOwningTaskName() << " Partition : " << subpartitionInfo.toString())
             buffers.poll();
             continue;
         }
 
-        std::shared_ptr<BufferConsumer> bufferConsumer =
-            bufferConsumerWithPartialRecordLength->getBufferConsumer();
+        std::shared_ptr<BufferConsumer> bufferConsumer = bufferConsumerWithPartialRecordLength->getBufferConsumer();
         if (!bufferConsumer) {
             INFO_RELEASE("PipelinedSubpartition::pollBuffer found null BufferConsumer, drop it. Task : "
                          << parent->getOwningTaskName() << " Partition : " << subpartitionInfo.toString())
@@ -133,19 +140,18 @@ BufferAndBacklog* PipelinedSubpartition::pollBuffer()
             // todo: finsh checkpoint
             // completeTimeoutableCheckpointBarrier(bufferConsumer);
         }
-        LOG("PipelinedSubpartition::pollBuffer(): buildSliceBuffer"<< parent->getOwningTaskName())
+        LOG("PipelinedSubpartition::pollBuffer(): buildSliceBuffer" << parent->getOwningTaskName())
         buffer = buildSliceBuffer(bufferConsumerWithPartialRecordLength);
 
         // Align with Flink checkState: unfinished head is only allowed when queue size is 1.
         if (!bufferConsumer->isFinished() && buffers.size() > 1) {
-            THROW_LOGIC_EXCEPTION(
-                "pollBuffer stall unfinished head "
-                << " isFinished=" << std::boolalpha << bufferConsumer->isFinished()
-                << " dataType=" << bufferConsumer->getDataType().toString()
-                << " remainingQueue=" << buffers.size()
-                << ". When there are multiple buffers, an unfinished bufferConsumer can not be at the head of the buffers queue.");
+            THROW_LOGIC_EXCEPTION("pollBuffer stall unfinished head "
+                                  << " isFinished=" << std::boolalpha << bufferConsumer->isFinished() << " dataType="
+                                  << bufferConsumer->getDataType().toString() << " remainingQueue=" << buffers.size()
+                                  << ". When there are multiple buffers, an unfinished bufferConsumer can not be at "
+                                     "the head of the buffers queue.");
         }
-        
+
         if (buffer == nullptr) {
             if (bufferConsumer->isFinished()) {
                 decreaseBuffersInBacklogUnsafe(bufferConsumer->isBuffer());
@@ -156,14 +162,14 @@ BufferAndBacklog* PipelinedSubpartition::pollBuffer()
             break;
         }
 
-
         LOG_PART("After buildSliceBuffer buffer raw ponter  " << buffer << " buffer size " << buffer->GetSize())
-        LOG_TRACE("ObjectBufferConsumerWithPartialRecordLength ref count " << std::to_string(bufferConsumerWithPartialRecordLength.use_count()));
+        LOG_TRACE("ObjectBufferConsumerWithPartialRecordLength ref count "
+                  << std::to_string(bufferConsumerWithPartialRecordLength.use_count()));
         LOG_TRACE("bufferConsumer ref count " << std::to_string(bufferConsumer.use_count()));
         LOG_TRACE("bufferConsumer inside: " << bufferConsumer->toString());
 
         if (buffers.size() == 1) {
-            flushRequested  = false;
+            flushRequested = false;
         }
         if (bufferConsumer->isFinished()) {
             decreaseBuffersInBacklogUnsafe(bufferConsumer->isBuffer());
@@ -179,9 +185,8 @@ BufferAndBacklog* PipelinedSubpartition::pollBuffer()
             break;
         }
 
-        LOG_TRACE(
-            "BufferConsumerWithPartialRecordLength ref count " << std::to_string(
-                bufferConsumerWithPartialRecordLength.use_count()));
+        LOG_TRACE("BufferConsumerWithPartialRecordLength ref count "
+                  << std::to_string(bufferConsumerWithPartialRecordLength.use_count()));
         LOG_TRACE("bufferConsumer ref count " << std::to_string(bufferConsumer.use_count()));
 
         if (buffer->GetSize() != 0) {
@@ -189,33 +194,36 @@ BufferAndBacklog* PipelinedSubpartition::pollBuffer()
         }
         // buffer is null, not sent to downstream, need to recycle here
         buffer->RecycleBuffer();
-        delete buffer; // this is ReadOnlySlicedNetworkBuffer in datastream, so we directly delete it (not specified in SQL)
+        delete buffer; // this is ReadOnlySlicedNetworkBuffer in datastream, so we directly delete it (not specified in
+                       // SQL)
         buffer = nullptr;
         if (!bufferConsumer->isFinished()) {
             break;
         }
     }
-    // LOG("PipelinedSubpartition::pollBuffer() after while"  << (buffer? "exist" : "null, possible upstream not write first record"))
+    // LOG("PipelinedSubpartition::pollBuffer() after while"  << (buffer? "exist" : "null, possible upstream not write
+    // first record"))
 
     if (buffer == nullptr) {
         return nullptr;
     }
 
     if (buffer->GetDataType().isBlockingUpstream()) {
-        LOG("PipelinedSubpartition is blocked when pollBuffer, event data type: " << buffer->GetDataType().toString() <<
-            ", subpartitionInfo: " << this->subpartitionInfo.toString())
+        LOG("PipelinedSubpartition is blocked when pollBuffer, event data type: "
+            << buffer->GetDataType().toString() << ", subpartitionInfo: " << this->subpartitionInfo.toString())
         isBlocked = true;
     }
 
     if (buffer->isBuffer()) {
-        auto bufferandlog = new BufferAndBacklog(
-            buffer, getBuffersInBacklogUnsafe(), ObjectBufferDataType::DATA_BUFFER, sequenceNumber++);
+        auto bufferandlog = new BufferAndBacklog(buffer, getBuffersInBacklogUnsafe(), ObjectBufferDataType::DATA_BUFFER,
+                                                 sequenceNumber++);
         return bufferandlog;
     } else {
-        LOG("PipelinedSubpartition has an event when pollBuffer, event data type: " << buffer->GetDataType().toString() <<
-            ", parentTask: " << parent->getOwningTaskName() << ", subpartitionInfo: " << this->subpartitionInfo.toString())
-        auto bufferandlog = new BufferAndBacklog(
-           buffer, getBuffersInBacklogUnsafe(), ObjectBufferDataType::EVENT_BUFFER, sequenceNumber++);
+        LOG("PipelinedSubpartition has an event when pollBuffer, event data type: "
+            << buffer->GetDataType().toString() << ", parentTask: " << parent->getOwningTaskName()
+            << ", subpartitionInfo: " << this->subpartitionInfo.toString())
+        auto bufferandlog = new BufferAndBacklog(buffer, getBuffersInBacklogUnsafe(),
+                                                 ObjectBufferDataType::EVENT_BUFFER, sequenceNumber++);
         return bufferandlog;
     }
 }
@@ -231,13 +239,10 @@ void PipelinedSubpartition::acknowledgeAllDataProcessed()
     parent->onSubpartitionAllDataProcessed(subpartitionInfo.getSubPartitionIdx());
 }
 
-bool PipelinedSubpartition::isReleased()
-{
-    return isReleased_;
-}
+bool PipelinedSubpartition::isReleased() { return isReleased_; }
 
-std::shared_ptr<ResultSubpartitionView> PipelinedSubpartition::createReadView(
-    BufferAvailabilityListener* availabilityListener)
+std::shared_ptr<ResultSubpartitionView>
+PipelinedSubpartition::createReadView(BufferAvailabilityListener *availabilityListener)
 {
     std::lock_guard<std::recursive_mutex> lock(buffersMutex);
     if (readView == nullptr) {
@@ -286,16 +291,9 @@ void PipelinedSubpartition::bufferSize(int desirableNewBufferSize)
     bufferSize_ = desirableNewBufferSize;
 }
 
-std::string PipelinedSubpartition::toString()
-{
-    return "PipelinedSubpartition";
-}
+std::string PipelinedSubpartition::toString() { return "PipelinedSubpartition"; }
 
-int PipelinedSubpartition::unsynchronizedGetNumberOfQueuedBuffers()
-{
-    return std::max(buffers.size(), 0);
-}
-
+int PipelinedSubpartition::unsynchronizedGetNumberOfQueuedBuffers() { return std::max(buffers.size(), 0); }
 
 void PipelinedSubpartition::flush()
 {
@@ -315,14 +313,13 @@ void PipelinedSubpartition::flush()
             return;
         }
         auto firstConsumer = first->getBufferConsumer();
-        bool isDataAvailableInUnfinishedBuffer =
-            buffers.size() == 1 && firstConsumer->isDataAvailable();
-        bool isEventAvailableInBuffer =
-            firstConsumer->getDataType().isEvent();
+        bool isDataAvailableInUnfinishedBuffer = buffers.size() == 1 && firstConsumer->isDataAvailable();
+        bool isEventAvailableInBuffer = firstConsumer->getDataType().isEvent();
 
-        LOG_TRACE("isBlocked " << isBlocked  << " isDataAvailableInUnfinishedBuffer " << isDataAvailableInUnfinishedBuffer
-             << " isEventAvailableInBuffer " << isEventAvailableInBuffer)
-        LOG_TRACE(" buffer type " <<  firstConsumer->getBufferType())
+        LOG_TRACE("isBlocked " << isBlocked << " isDataAvailableInUnfinishedBuffer "
+                               << isDataAvailableInUnfinishedBuffer << " isEventAvailableInBuffer "
+                               << isEventAvailableInBuffer)
+        LOG_TRACE(" buffer type " << firstConsumer->getBufferType())
 
         notifyDataAvailable_ = !isBlocked && isDataAvailableInUnfinishedBuffer;
         flushRequested = buffers.size() > 1 || isDataAvailableInUnfinishedBuffer;
@@ -334,15 +331,9 @@ void PipelinedSubpartition::flush()
     }
 }
 
-long PipelinedSubpartition::getTotalNumberOfBuffersUnsafe()
-{
-    return totalNumberOfBuffers;
-}
+long PipelinedSubpartition::getTotalNumberOfBuffersUnsafe() { return totalNumberOfBuffers; }
 
-long PipelinedSubpartition::getTotalNumberOfBytesUnsafe()
-{
-    return totalNumberOfBytes;
-}
+long PipelinedSubpartition::getTotalNumberOfBytesUnsafe() { return totalNumberOfBytes; }
 
 void PipelinedSubpartition::decreaseBuffersInBacklogUnsafe(bool isBuffer)
 {
@@ -357,7 +348,6 @@ void PipelinedSubpartition::increaseBuffersInBacklog(std::shared_ptr<BufferConsu
         buffersInBacklog++;
     }
 }
-
 
 int PipelinedSubpartition::getBuffersInBacklogUnsafe() const
 {
@@ -379,9 +369,7 @@ int PipelinedSubpartition::getBuffersInBacklogUnsafe() const
 
 bool PipelinedSubpartition::shouldNotifyDataAvailable()
 {
-    return readView && !flushRequested
-           && !isBlocked
-           && getNumberOfFinishedBuffers() == 1;
+    return readView && !flushRequested && !isBlocked && getNumberOfFinishedBuffers() == 1;
 }
 
 void PipelinedSubpartition::notifyDataAvailable()
@@ -419,10 +407,7 @@ int PipelinedSubpartition::getNumberOfFinishedBuffers()
     return std::max(0, numBuffers - 1);
 }
 
-const ResultSubpartitionInfoPOD& PipelinedSubpartition::getSubpartitionInfo()
-{
-    return subpartitionInfo;
-}
+const ResultSubpartitionInfoPOD &PipelinedSubpartition::getSubpartitionInfo() { return subpartitionInfo; }
 
 BufferBuilder *PipelinedSubpartition::requestBufferBuilderBlocking()
 {
@@ -444,15 +429,10 @@ void PipelinedSubpartition::finishReadRecoveredState(bool notifyAndBlockOnComple
     }
 }
 
-void PipelinedSubpartition::alignedBarrierTimeout(long checkpointId)
-{
-    NOT_IMPL_EXCEPTION
-}
+void PipelinedSubpartition::alignedBarrierTimeout(long checkpointId) { NOT_IMPL_EXCEPTION }
 
-void PipelinedSubpartition::abortCheckpoint(long checkpointId, std::optional<std::exception_ptr>  throwable)
-{
-    NOT_IMPL_EXCEPTION
-}
+void PipelinedSubpartition::abortCheckpoint(long checkpointId,
+                                            std::optional<std::exception_ptr> throwable){NOT_IMPL_EXCEPTION}
 
 Buffer *PipelinedSubpartition::buildSliceBuffer(
     std::shared_ptr<BufferConsumerWithPartialRecordLength> bufferConsumerWithPartialRecordLength)
@@ -463,10 +443,7 @@ Buffer *PipelinedSubpartition::buildSliceBuffer(
     return bufferConsumerWithPartialRecordLength->build();
 }
 
-std::shared_ptr<BufferConsumerWithPartialRecordLength> PipelinedSubpartition::getNextBuffer()
-{
-    return buffers.poll();
-}
+std::shared_ptr<BufferConsumerWithPartialRecordLength> PipelinedSubpartition::getNextBuffer() { return buffers.poll(); }
 
 int PipelinedSubpartition::add(std::shared_ptr<BufferConsumer> bufferConsumer, int partialRecordLength, bool finish)
 {
@@ -508,7 +485,7 @@ bool PipelinedSubpartition::addBuffer(std::shared_ptr<BufferConsumer> bufferCons
     if (bufferConsumer == nullptr) {
         throw std::invalid_argument("bufferConsumer cannot be null");
     }
-    LOG_DEBUG("buffer consumer added to buffers" << (bufferConsumer->isBuffer() ? "buffer": "event"))
+    LOG_DEBUG("buffer consumer added to buffers" << (bufferConsumer->isBuffer() ? "buffer" : "event"))
     if (bufferConsumer->getDataType().hasPriority()) {
         return ProcessPriorityBuffer(bufferConsumer, partialRecordLength);
     } else if (ObjectBufferDataType::TIMEOUTABLE_ALIGNED_CHECKPOINT_BARRIER == bufferConsumer->getDataType()) {
@@ -517,24 +494,25 @@ bool PipelinedSubpartition::addBuffer(std::shared_ptr<BufferConsumer> bufferCons
     }
     buffers.add(std::make_shared<BufferConsumerWithPartialRecordLength>(bufferConsumer, partialRecordLength));
     LOG_DEBUG("buffer priorityqueue size " << std::to_string(buffers.size()) << " first buffer  "
-                                     << std::to_string(reinterpret_cast<long>(buffers.peek().get())))
+                                           << std::to_string(reinterpret_cast<long>(buffers.peek().get())))
     return false;
 }
 
-std::shared_ptr<CheckpointBarrier> PipelinedSubpartition::ParseCheckpointBarrier(
-    const std::shared_ptr<BufferConsumer> &bufferConsumer)
+std::shared_ptr<CheckpointBarrier>
+PipelinedSubpartition::ParseCheckpointBarrier(const std::shared_ptr<BufferConsumer> &bufferConsumer)
 {
-    //auto buffer = bufferConsumer->build();
+    // auto buffer = bufferConsumer->build();
     auto buffer = bufferConsumer->buildForPeek();
     auto event = EventSerializer::fromBuffer(buffer);
-    //auto event = EventSerializer::fromBuffe_V2r(buffer);
+    // auto event = EventSerializer::fromBuffe_V2r(buffer);
     return std::dynamic_pointer_cast<CheckpointBarrier>(event);
 }
 
-bool PipelinedSubpartition::ProcessPriorityBuffer(std::shared_ptr<BufferConsumer> bufferConsumer, int partialRecordLength)
+bool PipelinedSubpartition::ProcessPriorityBuffer(std::shared_ptr<BufferConsumer> bufferConsumer,
+                                                  int partialRecordLength)
 {
-    buffers.addPriorityElement(std::make_shared<BufferConsumerWithPartialRecordLength>(bufferConsumer,
-        partialRecordLength));
+    buffers.addPriorityElement(
+        std::make_shared<BufferConsumerWithPartialRecordLength>(bufferConsumer, partialRecordLength));
     size_t numPriorityElements = buffers.getNumPriorityElements();
 
     auto barrier = ParseCheckpointBarrier(bufferConsumer);
@@ -544,7 +522,7 @@ bool PipelinedSubpartition::ProcessPriorityBuffer(std::shared_ptr<BufferConsumer
             throw std::runtime_error("Only unalined checkpoints should be priority events.");
         }
         auto elements = buffers.asUnmodifiableCollection();
-        std::vector<Buffer*> inflightBuffers;
+        std::vector<Buffer *> inflightBuffers;
         for (const auto &current : elements) {
             auto buffer = current->getBufferConsumer();
             if (buffer->isBuffer()) {
@@ -552,17 +530,14 @@ bool PipelinedSubpartition::ProcessPriorityBuffer(std::shared_ptr<BufferConsumer
                 if (inflightbuffer == nullptr) {
                     LOG("writeOutput buffers is null ");
                 }
-                
+
                 inflightBuffers.push_back(inflightbuffer);
             }
         }
 
         if (!inflightBuffers.empty()) {
-            channelStateWriter_->AddOutputData(
-                barrier->GetId(),
-                subpartitionInfo,
-                ChannelStateWriter::sequenceNumberUnknown,
-                inflightBuffers);
+            channelStateWriter_->AddOutputData(barrier->GetId(), subpartitionInfo,
+                                               ChannelStateWriter::sequenceNumberUnknown, inflightBuffers);
         }
     }
     // Priority events must be forwarded/announced even if the subpartition is currently blocked.
@@ -574,7 +549,7 @@ void PipelinedSubpartition::ConvertToPriorityEvent(int announcedSequenceNumber)
     std::shared_ptr<BufferConsumerWithPartialRecordLength> target;
     int targetIndex = -1;
     std::shared_ptr<CheckpointBarrier> barrier;
-    std::vector<Buffer*> overtaken;
+    std::vector<Buffer *> overtaken;
     bool completedFuture = false;
 
     {
@@ -582,7 +557,7 @@ void PipelinedSubpartition::ConvertToPriorityEvent(int announcedSequenceNumber)
 
         auto elements = buffers.asUnmodifiableCollection();
         for (int i = 0; i < static_cast<int>(elements.size()); ++i) {
-            const auto& e = elements[i];
+            const auto &e = elements[i];
             if (!e || !e->getBufferConsumer()) {
                 continue;
             }
@@ -601,7 +576,7 @@ void PipelinedSubpartition::ConvertToPriorityEvent(int announcedSequenceNumber)
 
         // Collect overtaken data buffers before the barrier.
         for (int i = 0; i < targetIndex; ++i) {
-            const auto& e = elements[i];
+            const auto &e = elements[i];
             if (!e || !e->getBufferConsumer()) {
                 continue;
             }
@@ -630,11 +605,8 @@ void PipelinedSubpartition::ConvertToPriorityEvent(int announcedSequenceNumber)
 
     // Best effort: if no future was registered (or id mismatch), directly persist overtaken buffers.
     if (!completedFuture && barrier && channelStateWriter_ && !overtaken.empty()) {
-        channelStateWriter_->AddOutputData(
-            barrier->GetId(),
-            subpartitionInfo,
-            ChannelStateWriter::sequenceNumberUnknown,
-            overtaken);
+        channelStateWriter_->AddOutputData(barrier->GetId(), subpartitionInfo,
+                                           ChannelStateWriter::sequenceNumberUnknown, overtaken);
     }
 
     notifyPriorityEvent(announcedSequenceNumber);
@@ -644,16 +616,14 @@ void PipelinedSubpartition::ConvertToPriorityEvent(int announcedSequenceNumber)
 void PipelinedSubpartition::ProcessTimeoutableCheckpointBarrier(std::shared_ptr<BufferConsumer> bufferConsumer)
 {
     auto barrier = ParseAndCheckTimeoutableCheckpointBarrier(bufferConsumer);
-    std::vector<Buffer*> inflightBuffers;
-    channelStateWriter_->AddOutputDataFuture(
-        barrier->GetId(),
-        subpartitionInfo,
-        ChannelStateWriter::sequenceNumberUnknown,
-        CreateChannelStateFuture(barrier->GetId()));
+    std::vector<Buffer *> inflightBuffers;
+    channelStateWriter_->AddOutputDataFuture(barrier->GetId(), subpartitionInfo,
+                                             ChannelStateWriter::sequenceNumberUnknown,
+                                             CreateChannelStateFuture(barrier->GetId()));
 }
 
-std::shared_ptr<CheckpointBarrier> PipelinedSubpartition::ParseAndCheckTimeoutableCheckpointBarrier(
-    const std::shared_ptr<BufferConsumer> &bufferConsumer)
+std::shared_ptr<CheckpointBarrier>
+PipelinedSubpartition::ParseAndCheckTimeoutableCheckpointBarrier(const std::shared_ptr<BufferConsumer> &bufferConsumer)
 {
     auto barrier = ParseCheckpointBarrier(bufferConsumer);
     if (barrier == nullptr) {
@@ -668,25 +638,25 @@ std::shared_ptr<CheckpointBarrier> PipelinedSubpartition::ParseAndCheckTimeoutab
     return barrier;
 }
 
-std::shared_ptr<CompletableFutureV2<std::vector<Buffer*>>> PipelinedSubpartition::CreateChannelStateFuture(long checkpointId)
+std::shared_ptr<CompletableFutureV2<std::vector<Buffer *>>>
+PipelinedSubpartition::CreateChannelStateFuture(long checkpointId)
 {
     if (channelStateFuture_ != nullptr) {
-        std::vector<Buffer*> channelResult;
-        std::string errorMessage = "Has uncompleted channelStateFuture of checkpointId: " +
-        std::to_string(channelStateCheckpointId_) +
-        ", current checkpointId: " +
-        std::to_string(checkpointId);
+        std::vector<Buffer *> channelResult;
+        std::string errorMessage =
+            "Has uncompleted channelStateFuture of checkpointId: " + std::to_string(channelStateCheckpointId_) +
+            ", current checkpointId: " + std::to_string(checkpointId);
         CompleteChannelStateFuture(channelResult, std::make_exception_ptr(std::runtime_error(errorMessage)));
     }
 
-    channelStateFuture_ = std::make_shared<CompletableFutureV2<std::vector<Buffer*>>>();
+    channelStateFuture_ = std::make_shared<CompletableFutureV2<std::vector<Buffer *>>>();
     channelStateCheckpointId_ = checkpointId;
     return channelStateFuture_;
 }
 
-void PipelinedSubpartition::CompleteChannelStateFuture(std::vector<Buffer*> &channelResult, std::exception_ptr e)
+void PipelinedSubpartition::CompleteChannelStateFuture(std::vector<Buffer *> &channelResult, std::exception_ptr e)
 {
-    if (e != nullptr){
+    if (e != nullptr) {
         channelStateFuture_->CompleteExceptionally(e);
     } else {
         channelStateFuture_->Complete(channelResult);
@@ -695,4 +665,4 @@ void PipelinedSubpartition::CompleteChannelStateFuture(std::vector<Buffer*> &cha
 }
 
 ////////////////namespace end
-}  // namespace omnistream
+} // namespace omnistream
