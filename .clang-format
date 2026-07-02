@@ -11,7 +11,7 @@ AccessModifierOffset: -4
 # AlignOperands: true
 # AlignTrailingComments: true
 # AllowAllArgumentsOnNextLine: true
-AllowAllConstructorInitializersOnNextLine: false
+PackConstructorInitializers: CurrentLine
 # AllowAllParametersOfDeclarationOnNextLine: true
 # AllowShortBlocksOnASingleLine: Never
 AllowShortCaseLabelsOnASingleLine: true
@@ -59,7 +59,7 @@ CommentPragmas: "^ NOLINT:"
 # ContinuationIndentWidth: 4
 # Cpp11BracedListStyle: true
 # DeriveLineEnding: true
-# DerivePointerAlignment: true
+DerivePointerAlignment: false
 # DisableFormat: false
 # ExperimentalAutoDetectBinPacking: false
 # FixNamespaceComments: true
@@ -107,7 +107,8 @@ IndentWidth: 4
 # PenaltyBreakTemplateDeclaration: 10
 # PenaltyExcessCharacter: 1000000
 # PenaltyReturnTypeOnItsOwnLine: 200
-PointerAlignment: Right
+PointerAlignment: Left
+ReferenceAlignment: Left
 # RawStringFormats:
 #   - Language: Cpp
 #     Delimiters:
@@ -158,7 +159,7 @@ SpacesInContainerLiterals: false
 # SpacesInParentheses: false
 # SpacesInSquareBrackets: false
 # SpaceBeforeSquareBrackets: false
-Standard: Cpp11
+Standard: c++17
 # StatementMacros:
 #   - Q_UNUSED
 #   - QT_REQUIRE_VERSION
