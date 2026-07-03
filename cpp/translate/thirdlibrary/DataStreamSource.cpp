@@ -12,7 +12,7 @@
 #include "thirdlibrary/DataStreamSource.h"
 DataStreamSource::DataStreamSource() = default;
 DataStreamSource::~DataStreamSource() = default;
-DataStreamSource *DataStreamSource::setParallelism(int parallelism)
+DataStreamSource* DataStreamSource::setParallelism(int parallelism)
 {
     return nullptr;
 }

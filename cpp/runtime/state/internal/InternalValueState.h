@@ -21,5 +21,4 @@
  * @tparam T Value type
  */
 template <typename K, typename N, typename T>
-class InternalValueState : public InternalKvState<K, N, T>, public ValueState<T> {
-};
+class InternalValueState : public InternalKvState<K, N, T>, public ValueState<T> {};

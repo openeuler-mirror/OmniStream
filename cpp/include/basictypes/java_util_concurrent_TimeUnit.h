@@ -86,7 +86,7 @@ private:
     // 内部转换实现
     template <typename Rep, typename Period>
     constexpr int64_t convert(Rep duration) const;
-    
+
     Value unit_;
 };
 

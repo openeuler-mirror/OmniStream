@@ -22,13 +22,13 @@ namespace {
 {
     throw std::runtime_error("Unsupported calc expression for native codegen: " + expr.dump());
 }
-}
+} // namespace
 
 static bool checkAllFieldReference(const json& jsonDesc)
 {
     // check all the field references
     if (jsonDesc.contains("indices") && jsonDesc["indices"].is_array()) {
-        for (auto &index: jsonDesc["indices"]) {
+        for (auto& index : jsonDesc["indices"]) {
             if (index["exprType"] != "FIELD_REFERENCE") {
                 return false;
             }
@@ -38,20 +38,22 @@ static bool checkAllFieldReference(const json& jsonDesc)
     return false;
 }
 
-StreamCalcBatch::StreamCalcBatch(const nlohmann::json &description, Output* output)
+StreamCalcBatch::StreamCalcBatch(const nlohmann::json& description, Output* output)
     : description_(description),
-    selectedRowsBuffer(1024),
-    executionContext(std::make_unique<omniruntime::op::ExecutionContext>())
+      selectedRowsBuffer(1024),
+      executionContext(std::make_unique<omniruntime::op::ExecutionContext>())
 {
-    LOG("StreamCalc description: " + description.dump())
+    LOG("StreamCalc description: " + description.dump());
     this->output = output;
 }
 
-StreamCalcBatch::~StreamCalcBatch() {}
+StreamCalcBatch::~StreamCalcBatch()
+{
+}
 
 void StreamCalcBatch::processBatch(StreamRecord* input)
 {
-    LOG("===>>>>>>")
+    LOG("===>>>>>>");
     int32_t newRowCnt = 0;
     auto record = reinterpret_cast<omnistream::VectorBatch*>(input->getValue());
 
@@ -66,11 +68,12 @@ void StreamCalcBatch::processBatch(StreamRecord* input)
         outputBatch = record;
         timestampedCollector_->collect(outputBatch);
     } else {
-            // This builds an omniruntime::vec::VectorBatch
+        // This builds an omniruntime::vec::VectorBatch
         auto projectedVecs = this->exprEvaluator->Evaluate(record, executionContext.get(), &selectedRowsBuffer);
         if (hasFilter) {
             if (projectedVecs != nullptr) {
-                 // get the new timestamps* and new RowKinds* by using selectedRowsBuffer. Then create a omnistream::Vectorbatch
+                // get the new timestamps* and new RowKinds* by using selectedRowsBuffer. Then create a
+                // omnistream::Vectorbatch
                 newRowCnt = projectedVecs->GetRowCount();
                 long* timestamps = new long[newRowCnt];
                 RowKind* rowkinds = new RowKind[newRowCnt];
@@ -84,7 +87,7 @@ void StreamCalcBatch::processBatch(StreamRecord* input)
                 outputBatch = new omnistream::VectorBatch(projectedVecs, timestamps, rowkinds);
                 // This destructor clears both rowkind/timestamp and the data vectors
                 delete record;
-                
+
                 timestampedCollector_->collect(outputBatch);
             } else {
                 LOG("Filter selected 0 rows");
@@ -106,7 +109,7 @@ void StreamCalcBatch::open()
     if (!isSimpleProjection_ || hasFilter) {
         JSONParser parser = JSONParser();
         if (description_.contains("indices")) {
-            for (auto &index : description_["indices"]) {
+            for (auto& index : description_["indices"]) {
                 auto expr = parser.ParseJSON(index);
                 if (expr == nullptr) {
                     omniruntime::expressions::Expr::DeleteExprs(projExprs);
@@ -116,7 +119,7 @@ void StreamCalcBatch::open()
                 projExprs.push_back(expr);
             }
         }
-        
+
         if (hasFilter) {
             filterCondition = parser.ParseJSON(description_["condition"]);
             if (filterCondition == nullptr) {
@@ -129,12 +132,11 @@ void StreamCalcBatch::open()
         auto ofConfig = new omniruntime::op::OverflowConfig();
         // This calls codegen and generates the functions
         if (hasFilter) {
-            exprEvaluator = new omniruntime::codegen::ExpressionEvaluator
-                    (filterCondition, projExprs, inputTypes_, ofConfig);
+            exprEvaluator =
+                new omniruntime::codegen::ExpressionEvaluator(filterCondition, projExprs, inputTypes_, ofConfig);
             exprEvaluator->FilterFuncGeneration();
         } else {
-            exprEvaluator = new omniruntime::codegen::ExpressionEvaluator
-                    (projExprs, inputTypes_, ofConfig);
+            exprEvaluator = new omniruntime::codegen::ExpressionEvaluator(projExprs, inputTypes_, ofConfig);
             exprEvaluator->ProjectFuncGeneration();
         }
     }
@@ -146,7 +148,7 @@ void StreamCalcBatch::close()
     timestampedCollector_->close();
 }
 
-const char *StreamCalcBatch::getName()
+const char* StreamCalcBatch::getName()
 {
     // later, should use its unique name
     return "StreamCalcBatch";
@@ -170,15 +172,15 @@ void StreamCalcBatch::parseDescription(json& descriptionJson)
     if (descriptionJson.contains("condition") && (!descriptionJson["condition"].is_null())) {
         hasFilter = true;
     }
-    isSimpleProjection_ =  checkAllFieldReference(descriptionJson);
+    isSimpleProjection_ = checkAllFieldReference(descriptionJson);
     if (isSimpleProjection_) {
-        for (auto &index: descriptionJson["indices"]) {
+        for (auto& index : descriptionJson["indices"]) {
             outputIndexes_.push_back(index["colVal"]);
         }
     }
 }
 
-void StreamCalcBatch::collectUnsupportedExpr(json &description, int32_t& nextIndex)
+void StreamCalcBatch::collectUnsupportedExpr(json& description, int32_t& nextIndex)
 {
     collectUnsupportedExprImpl(description, nextIndex);
 
@@ -195,12 +197,12 @@ void StreamCalcBatch::collectUnsupportedExpr(json &description, int32_t& nextInd
 inline bool IsMulInt64Decimal64Decimal128(const nlohmann::json& obj)
 {
     // Special case: int64 multiply decimal64 get decimal128 with same scale
-    return obj["exprType"] == "BINARY" && obj["operator"]=="MULTIPLY" && obj["returnType"] == OMNI_DECIMAL128
-           && obj["right"]["exprType"] == "FIELD_REFERENCE" && obj["right"]["dataType"] == OMNI_LONG
-           && obj["left"]["exprType"] == "LITERAL" && obj["left"]["dataType"] == OMNI_DECIMAL64
-           && obj["left"]["scale"] == obj["scale"];
+    return obj["exprType"] == "BINARY" && obj["operator"] == "MULTIPLY" && obj["returnType"] == OMNI_DECIMAL128 &&
+           obj["right"]["exprType"] == "FIELD_REFERENCE" && obj["right"]["dataType"] == OMNI_LONG &&
+           obj["left"]["exprType"] == "LITERAL" && obj["left"]["dataType"] == OMNI_DECIMAL64 &&
+           obj["left"]["scale"] == obj["scale"];
 }
-void StreamCalcBatch::manuallyAddNewVectors(omnistream::VectorBatch *vb) const
+void StreamCalcBatch::manuallyAddNewVectors(omnistream::VectorBatch* vb) const
 {
     LOG("=======>>>");
     int row = vb->GetRowCount();
@@ -223,7 +225,8 @@ void StreamCalcBatch::manuallyAddNewVectors(omnistream::VectorBatch *vb) const
                 vec->SetValue(i, Decimal128(value));
             }
             vb->Append(vec);
-        } else if (obj["exprType"] == "PROCTIME" && obj["returnType"] == DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE) {
+        } else if (
+            obj["exprType"] == "PROCTIME" && obj["returnType"] == DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE) {
             auto curTime = std::chrono::system_clock::now();
             auto curTimeMs = std::chrono::duration_cast<std::chrono::milliseconds>(curTime.time_since_epoch()).count();
             auto vec = new omniruntime::vec::Vector<int64_t>(row);
@@ -237,7 +240,7 @@ void StreamCalcBatch::manuallyAddNewVectors(omnistream::VectorBatch *vb) const
     }
 }
 
-void StreamCalcBatch::collectUnsupportedExprImpl(nlohmann::json& field, int32_t &nextIndex)
+void StreamCalcBatch::collectUnsupportedExprImpl(nlohmann::json& field, int32_t& nextIndex)
 {
     if (!field.is_object() || !field.contains("exprType")) {
         return;
@@ -263,11 +266,12 @@ void StreamCalcBatch::collectUnsupportedExprImpl(nlohmann::json& field, int32_t 
             newRefDescriptions_.push_back(field);
             description_["inputTypes"].push_back("VARCHAR(2147483647)");
         }
-    } else if (field["exprType"] == "PROCTIME" && field["returnType"] == DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE) {
+    } else if (
+        field["exprType"] == "PROCTIME" && field["returnType"] == DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE) {
         replacedDescriptions_.push_back(field);
         field["exprType"] = "FIELD_REFERENCE";
         field["colVal"] = nextIndex;
-        field["dataType"] = (int) OMNI_LONG;
+        field["dataType"] = (int)OMNI_LONG;
         nextIndex++;
         newRefDescriptions_.push_back(field);
         description_["inputTypes"].push_back("BIGINT");
@@ -283,8 +287,8 @@ void StreamCalcBatch::collectUnsupportedExprImpl(nlohmann::json& field, int32_t 
         field.erase("operator");
         nextIndex++;
         newRefDescriptions_.push_back(field);
-        description_["inputTypes"].push_back("DECIMAL(" + std::to_string(field["precision"].get<int>()) +
-            ", " + std::to_string(field["scale"].get<int>()) + ")");
+        description_["inputTypes"].push_back(
+            "DECIMAL(" + std::to_string(field["precision"].get<int>()) + ", " +
+            std::to_string(field["scale"].get<int>()) + ")");
     }
 }
-

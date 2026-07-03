@@ -1,5 +1,5 @@
 /*
-* Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
  * You can use this software according to the terms and conditions of the Mulan PSL v2.
  * You may obtain a copy of Mulan PSL v2 at:
  *          http://license.coscl.org.cn/MulanPSL2
@@ -19,29 +19,53 @@
 
 class RemoteRecoveredInputChannel : public RecoveredInputChannel {
 public:
-    RemoteRecoveredInputChannel(std::shared_ptr<SingleInputGate> inputGate, int channelIndex,
-                                ResultPartitionIDPOD partitionId,
-                                std::shared_ptr<omnistream::ResultPartitionManager> manager,
-                                int initialBackoff, int maxBackoff, int networkBuffersPerChannel,
-                                std::shared_ptr<Counter> numBytesIn, std::shared_ptr<Counter> numBuffersIn
-    ) : RecoveredInputChannel(inputGate, channelIndex, partitionId, consumedSubpartitionIndex, initialBackoff,
-                              maxBackoff, numBytesIn, numBuffersIn, networkBuffersPerChannel),partitionManager(manager) {}
+    RemoteRecoveredInputChannel(
+        std::shared_ptr<SingleInputGate> inputGate,
+        int channelIndex,
+        ResultPartitionIDPOD partitionId,
+        std::shared_ptr<omnistream::ResultPartitionManager> manager,
+        int initialBackoff,
+        int maxBackoff,
+        int networkBuffersPerChannel,
+        std::shared_ptr<Counter> numBytesIn,
+        std::shared_ptr<Counter> numBuffersIn)
+        : RecoveredInputChannel(
+              inputGate,
+              channelIndex,
+              partitionId,
+              consumedSubpartitionIndex,
+              initialBackoff,
+              maxBackoff,
+              numBytesIn,
+              numBuffersIn,
+              networkBuffersPerChannel),
+          partitionManager(manager)
+    {
+    }
 
     std::shared_ptr<omnistream::InputChannel> toInputChannelInternal()
     {
         auto stateWriter = GetChannelStateWriter();
         if (stateWriter == nullptr) {
-            LOG("ERROR: RemoteRecoveredInputChannel.h stateWriter is null.")
+            LOG("ERROR: RemoteRecoveredInputChannel.h stateWriter is null.");
             throw std::runtime_error("ERROR: RemoteRecoveredInputChannel.h stateWriter is null.");
         }
 
-        return std::make_shared<omnistream::RemoteInputChannel>(inputGate, getChannelIndex(), partitionId,
-                                                                partitionManager, initialBackoff, maxBackoff,
-                                                                getNetworkBuffersPerChannel(), numBytesIn,
-                                                                numBuffersIn,stateWriter);
+        return std::make_shared<omnistream::RemoteInputChannel>(
+            inputGate,
+            getChannelIndex(),
+            partitionId,
+            partitionManager,
+            initialBackoff,
+            maxBackoff,
+            getNetworkBuffersPerChannel(),
+            numBytesIn,
+            numBuffersIn,
+            stateWriter);
     }
+
 private:
     std::shared_ptr<omnistream::ResultPartitionManager> partitionManager;
 };
 
-#endif //OMNISTREAM_REMOTERECOVEREDINPUTCHANNEL_H
+#endif // OMNISTREAM_REMOTERECOVEREDINPUTCHANNEL_H

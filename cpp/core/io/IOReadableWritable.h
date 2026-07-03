@@ -22,5 +22,4 @@ public:
     virtual ~IOReadableWritable() = default;
 };
 
-
 #endif

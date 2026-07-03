@@ -25,68 +25,63 @@
 #include <buffer/NetworkBuffer.h>
 namespace ds = ::datastream;
 namespace omnistream {
-    using ::datastream::NetworkBuffer;
+using ::datastream::NetworkBuffer;
 
-    struct LongHash {
-        size_t operator()(int64_t key) const {
-            return std::hash<int64_t>{}(key);
-        }
-    };
+struct LongHash {
+    size_t operator()(int64_t key) const
+    {
+        return std::hash<int64_t>{}(key);
+    }
+};
 
-    struct LongEqual {
-        bool operator()(int64_t a, int64_t b) const {
-            return a == b;
-        }
-    };
+struct LongEqual {
+    bool operator()(int64_t a, int64_t b) const
+    {
+        return a == b;
+    }
+};
 
-    class OmniCreditBasedSequenceNumberingViewReader
-        : public BufferAvailabilityListener {
-    public:
-        OmniCreditBasedSequenceNumberingViewReader(ResultPartitionIDPOD partitionId,
-                                                   int subPartitionIndex,
-                                                   long outputBufferStatus);
-        ~OmniCreditBasedSequenceNumberingViewReader() override;
-        void notifyDataAvailable() override;
-        void requestSubpartitionView(
-            std::shared_ptr<ResultPartitionManager> resultPartitionManager,
-            ResultPartitionIDPOD partitionId, int subPartitionId);
-        int getAvailabilityAndBacklog();
-        void getNextBufferInternal();
-        int getNextBuffer();
-        void RecycleNettyBuffer(long address);
-        std::shared_ptr<NettyBufferInfo> RequestNettyBuffer(int size);
-        bool SerializeVectorBatch(VectorBatch* vectorBatch,
-                                  std::shared_ptr<NettyBufferInfo>& bufferInfo);
-        void DoSerializeVectorBatch(VectorBatch* vectorBatch, int vectorSize,
-                                    std::shared_ptr<NettyBufferInfo>& bufferInfo);
-        void AddNettyBufferInfoToQueue(std::shared_ptr<NettyBufferInfo>& bufferInfo);
-        bool DoSerializeWaterMark(long timestamp,
-                                  std::shared_ptr<NettyBufferInfo> bufferInfo);
-        void SerializeBufferAndBacklog(
-                VectorBatchBuffer* vectorBatchBuffer);
-        void SerializeEvent(
-                VectorBatchBuffer* vectorBatchBuffer);
-        void SerializeVectorBatchBuffer(
-                VectorBatchBuffer* vectorBatchBuffer);
-        void RecycleNetworkBuffer(int64_t address);
+class OmniCreditBasedSequenceNumberingViewReader : public BufferAvailabilityListener {
+public:
+    OmniCreditBasedSequenceNumberingViewReader(
+        ResultPartitionIDPOD partitionId, int subPartitionIndex, long outputBufferStatus);
+    ~OmniCreditBasedSequenceNumberingViewReader() override;
+    void notifyDataAvailable() override;
+    void requestSubpartitionView(
+        std::shared_ptr<ResultPartitionManager> resultPartitionManager,
+        ResultPartitionIDPOD partitionId,
+        int subPartitionId);
+    int getAvailabilityAndBacklog();
+    void getNextBufferInternal();
+    int getNextBuffer();
+    void RecycleNettyBuffer(long address);
+    std::shared_ptr<NettyBufferInfo> RequestNettyBuffer(int size);
+    bool SerializeVectorBatch(VectorBatch* vectorBatch, std::shared_ptr<NettyBufferInfo>& bufferInfo);
+    void DoSerializeVectorBatch(VectorBatch* vectorBatch, int vectorSize, std::shared_ptr<NettyBufferInfo>& bufferInfo);
+    void AddNettyBufferInfoToQueue(std::shared_ptr<NettyBufferInfo>& bufferInfo);
+    bool DoSerializeWaterMark(long timestamp, std::shared_ptr<NettyBufferInfo> bufferInfo);
+    void SerializeBufferAndBacklog(VectorBatchBuffer* vectorBatchBuffer);
+    void SerializeEvent(VectorBatchBuffer* vectorBatchBuffer);
+    void SerializeVectorBatchBuffer(VectorBatchBuffer* vectorBatchBuffer);
+    void RecycleNetworkBuffer(int64_t address);
 
-        void ResumeConsumption() ;
+    void ResumeConsumption();
 
-    private:
-        std::atomic<bool> stopped_{false};
-        std::shared_ptr<ResultSubpartitionView> subpartitionView;
-        std::queue<std::shared_ptr<SerializedBatchInfo>> serializedBatchQueue;
-        OutputBufferStatus* outputBufferStatus;
-        std::recursive_mutex queueMutex;
-        int nextDataAvailable = 0;
-        std::unique_ptr<NettyBufferPool> nettyBufferPool;
-        int bufferPoolSize = 100;
-        // 32k
-        int bufferSize = 32 * 1024;
-        std::recursive_mutex fetchingDataMutex;
-        int requestNextBufferWaitingTime = 10;
-        int noBufferPrintCount = 200;
-        std::unordered_map<int64_t, NetworkBuffer*> networkBufferPendingRecycling;
-        std::recursive_mutex recycleNetworkBufferMutex;
-    };
+private:
+    std::atomic<bool> stopped_{false};
+    std::shared_ptr<ResultSubpartitionView> subpartitionView;
+    std::queue<std::shared_ptr<SerializedBatchInfo>> serializedBatchQueue;
+    OutputBufferStatus* outputBufferStatus;
+    std::recursive_mutex queueMutex;
+    int nextDataAvailable = 0;
+    std::unique_ptr<NettyBufferPool> nettyBufferPool;
+    int bufferPoolSize = 100;
+    // 32k
+    int bufferSize = 32 * 1024;
+    std::recursive_mutex fetchingDataMutex;
+    int requestNextBufferWaitingTime = 10;
+    int noBufferPrintCount = 200;
+    std::unordered_map<int64_t, NetworkBuffer*> networkBufferPendingRecycling;
+    std::recursive_mutex recycleNetworkBufferMutex;
+};
 } // namespace omnistream

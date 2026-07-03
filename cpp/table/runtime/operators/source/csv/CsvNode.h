@@ -23,10 +23,18 @@ namespace csv {
 
 class CsvNode {
 public:
-    CsvNode(const std::string& value, omniruntime::type::DataTypeId type) : value_(value), type_(type) {}
+    CsvNode(const std::string& value, omniruntime::type::DataTypeId type) : value_(value), type_(type)
+    {
+    }
     ~CsvNode() = default;
-    std::string getValue() const { return value_; }
-    omniruntime::type::DataTypeId getType() const { return type_; }
+    std::string getValue() const
+    {
+        return value_;
+    }
+    omniruntime::type::DataTypeId getType() const
+    {
+        return type_;
+    }
 
 private:
     std::string value_;
@@ -34,6 +42,6 @@ private:
 };
 
 } // namespace csv
-} // namespace formats
+} // namespace omnistream
 
 #endif

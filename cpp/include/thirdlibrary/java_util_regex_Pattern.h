@@ -21,13 +21,13 @@ public:
 
     Pattern(std::string str);
 
-    static Pattern *compile(std::string str);
+    static Pattern* compile(std::string str);
 
     static String* quote(String* str);
 
-    Matcher *matcher(std::string str);
+    Matcher* matcher(std::string str);
 
-    Matcher *matcher(String* str);
+    Matcher* matcher(String* str);
 
     std::regex pattern;
 };

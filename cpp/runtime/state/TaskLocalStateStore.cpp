@@ -84,17 +84,15 @@ void TaskLocalStateStore::pruneMatchingCheckpoints(std::function<bool(long)> mat
 void TaskLocalStateStore::confirmCheckpoint(long confirmedCheckpointId)
 {
     pruneCheckpoints(
-        [confirmedCheckpointId](long snapshotCheckpointId) {
-            return snapshotCheckpointId < confirmedCheckpointId;
-        }, true);
+        [confirmedCheckpointId](long snapshotCheckpointId) { return snapshotCheckpointId < confirmedCheckpointId; },
+        true);
 }
 
 void TaskLocalStateStore::abortCheckpoint(long abortedCheckpointId)
 {
     pruneCheckpoints(
-        [abortedCheckpointId](long snapshotCheckpointId) {
-            return snapshotCheckpointId == abortedCheckpointId;
-        }, false);
+        [abortedCheckpointId](long snapshotCheckpointId) { return snapshotCheckpointId == abortedCheckpointId; },
+        false);
 }
 
 std::shared_ptr<TaskStateSnapshot> TaskLocalStateStore::nullDummy()
@@ -146,8 +144,8 @@ void TaskLocalStateStore::syncDiscardLocalStateForCollection(
     }
 }
 
-void TaskLocalStateStore::discardLocalStateForCheckpoint(long checkpointID,
-                                                         std::shared_ptr<TaskStateSnapshot> taskStateSnapshot)
+void TaskLocalStateStore::discardLocalStateForCheckpoint(
+    long checkpointID, std::shared_ptr<TaskStateSnapshot> taskStateSnapshot)
 {
     LOG("Discarding local task state snapshot of checkpoint " << checkpointID);
     if (taskStateSnapshot != nullptr) {
@@ -184,8 +182,10 @@ void TaskLocalStateStore::persistLocalStateMetadata(long checkpointId, std::shar
         // Serialize the TaskStateSnapshot object
         ofs << TaskStateSnapshotSerializer::Serialize(localState);
 
-        LOG_PRINTF("Successfully written local task state snapshot file %s for checkpoint %ld.",
-            taskStateSnapshotFile.string().c_str(), checkpointId);
+        LOG_PRINTF(
+            "Successfully written local task state snapshot file %s for checkpoint %ld.",
+            taskStateSnapshotFile.string().c_str(),
+            checkpointId);
     } catch (const std::exception& e) {
         throw std::runtime_error("Could not write the local task state snapshot file.");
     }

@@ -19,44 +19,40 @@ namespace omnistream {
 class CheckpointResponder {
 public:
     virtual void acknowledgeCheckpoint(
-        const JobIDPOD &jobID,
-        const ExecutionAttemptIDPOD &executionAttemptID,
+        const JobIDPOD& jobID,
+        const ExecutionAttemptIDPOD& executionAttemptID,
         long checkpointId,
-        CheckpointMetrics *checkpointMetrics,
+        CheckpointMetrics* checkpointMetrics,
         std::shared_ptr<TaskStateSnapshot> subtaskState) = 0;
 
     virtual void reportCheckpointMetrics(
-        const JobIDPOD &jobId,
-        const ExecutionAttemptIDPOD &executionAttemptID,
+        const JobIDPOD& jobId,
+        const ExecutionAttemptIDPOD& executionAttemptID,
         long checkpointId,
-        CheckpointMetrics *checkpointMetrics) = 0;
+        CheckpointMetrics* checkpointMetrics) = 0;
 
     virtual void DeclineCheckpoint(
-        const JobIDPOD &jobID,
-        const ExecutionAttemptIDPOD &executionAttemptID,
-        long checkpointId) = 0;
+        const JobIDPOD& jobID, const ExecutionAttemptIDPOD& executionAttemptID, long checkpointId) = 0;
     virtual ~CheckpointResponder() = default;
 };
 
 class NoOpCheckpoingResponder : public CheckpointResponder {
 public:
     void acknowledgeCheckpoint(
-        const JobIDPOD &jobID,
-        const ExecutionAttemptIDPOD &executionAttemptID,
+        const JobIDPOD& jobID,
+        const ExecutionAttemptIDPOD& executionAttemptID,
         long checkpointId,
-        CheckpointMetrics *checkpointMetrics,
+        CheckpointMetrics* checkpointMetrics,
         std::shared_ptr<TaskStateSnapshot> subtaskState) override {};
 
     void reportCheckpointMetrics(
-        const JobIDPOD &jobId,
-        const ExecutionAttemptIDPOD &executionAttemptID,
+        const JobIDPOD& jobId,
+        const ExecutionAttemptIDPOD& executionAttemptID,
         long checkpointId,
-        CheckpointMetrics *checkpointMetrics) override {};
+        CheckpointMetrics* checkpointMetrics) override {};
 
     void DeclineCheckpoint(
-        const JobIDPOD &jobID,
-        const ExecutionAttemptIDPOD &executionAttemptID,
-        long checkpointId) override {};
+        const JobIDPOD& jobID, const ExecutionAttemptIDPOD& executionAttemptID, long checkpointId) override {};
 };
-}
+} // namespace omnistream
 #endif // OMNISTREAM_CHECKPOINTRESPONDER

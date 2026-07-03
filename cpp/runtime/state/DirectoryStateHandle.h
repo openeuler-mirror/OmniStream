@@ -21,14 +21,22 @@ public:
     DirectoryStateHandle(const Path& directory, long directorySize)
         : directoryString_(directory.toString()),
           directorySize_(directorySize),
-          directory_(directory) {}
+          directory_(directory)
+    {
+    }
 
     DirectoryStateHandle(const nlohmann::json& json)
-        : directoryString_(json.contains("directoryString") ? json["directoryString"].get<std::string>()
-                : throw std::invalid_argument("DirectoryStateHandle 'directoryString' field missing")),
-          directorySize_(json.contains("stateSize") ? json["stateSize"].get<long>()
-                : throw std::invalid_argument("DirectoryStateHandle 'directorySize' field missing")),
-          directory_(Path(directoryString_)) {}
+        : directoryString_(
+              json.contains("directoryString")
+                  ? json["directoryString"].get<std::string>()
+                  : throw std::invalid_argument("DirectoryStateHandle 'directoryString' field missing")),
+          directorySize_(
+              json.contains("stateSize")
+                  ? json["stateSize"].get<long>()
+                  : throw std::invalid_argument("DirectoryStateHandle 'directorySize' field missing")),
+          directory_(Path(directoryString_))
+    {
+    }
 
     static DirectoryStateHandle forPathWithSize(const Path& directory)
     {
@@ -51,7 +59,7 @@ public:
         }
         return std::make_unique<DirectoryStateHandle>(directory, size);
     }
-    
+
     void DiscardState() override
     {
         std::error_code ec;
@@ -60,12 +68,12 @@ public:
             throw std::runtime_error("Failed to delete directory " + directoryString_ + ": " + ec.message());
         }
     }
-    
+
     long GetStateSize() const override
     {
         return directorySize_;
     }
-    
+
     const Path& getDirectory()
     {
         return directory_;
@@ -92,12 +100,12 @@ private:
         uintmax_t total = 0;
 
         for (auto it = std::filesystem::recursive_directory_iterator(dir, ec);
-            it != std::filesystem::recursive_directory_iterator();
-            it.increment(ec)) {
+             it != std::filesystem::recursive_directory_iterator();
+             it.increment(ec)) {
             if (ec) {
                 continue;
             }
-            
+
             if (std::filesystem::is_regular_file(it->path(), ec) && !ec) {
                 total += std::filesystem::file_size(it->path(), ec);
             }

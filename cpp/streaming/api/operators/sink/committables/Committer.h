@@ -95,7 +95,7 @@ public:
      * @param committables A list of Commit requests staged by the sink writer.
      * @throws std::exception for reasons that may yield a complete restart of the job.
      */
-    virtual void Commit(std::vector<std::shared_ptr<CommitRequest<CommT>>> &committables) = 0;
+    virtual void Commit(std::vector<std::shared_ptr<CommitRequest<CommT>>>& committables) = 0;
 
     /**
      * Close the committer.

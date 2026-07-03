@@ -17,7 +17,8 @@
 class TransactionalIdFactory {
 public:
     static std::string buildTransactionalId(
-            const std::string& transactionalIdPrefix, int subtaskId, long checkpointOffset);
+        const std::string& transactionalIdPrefix, int subtaskId, long checkpointOffset);
+
 private:
     static const std::string TRANSACTIONAL_ID_DELIMITER;
     static const int randomStrLen = 6;

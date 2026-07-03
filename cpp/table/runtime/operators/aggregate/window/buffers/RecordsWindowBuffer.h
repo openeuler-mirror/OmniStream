@@ -31,29 +31,30 @@ public:
     using KeyType = std::shared_ptr<RowData>;
 
     RecordsWindowBuffer(
-            const nlohmann::json& config,
-            WindowValueState<KeyType, int64_t, RowData*> *state,
-            Output* output,
-            KeyedStateBackend<KeyType>* stateBackend_,
-            SliceAssigner* sliceAssigner,
-            InternalTimerServiceImpl<KeyType, int64_t>* internalTimerService);
+        const nlohmann::json& config,
+        WindowValueState<KeyType, int64_t, RowData*>* state,
+        Output* output,
+        KeyedStateBackend<KeyType>* stateBackend_,
+        SliceAssigner* sliceAssigner,
+        InternalTimerServiceImpl<KeyType, int64_t>* internalTimerService);
     void InitializeKeySelectorAndTypes(const nlohmann::json& config);
-    void addVectorBatch(omnistream::VectorBatch *elementBatch, std::vector<int64_t>& sliceEndArr, std::vector<bool>& dropArr);
+    void addVectorBatch(
+        omnistream::VectorBatch* elementBatch, std::vector<int64_t>& sliceEndArr, std::vector<bool>& dropArr);
     void advanceProgress(long currentProgress);
     void flush();
     void close() {};
     omnistream::VectorBatch* createOutputBatch(std::vector<std::unique_ptr<RowData>>& collectedRows);
-    void collectOutputBatch(TimestampedCollector *out, omnistream::VectorBatch *outputBatch);
+    void collectOutputBatch(TimestampedCollector* out, omnistream::VectorBatch* outputBatch);
     std::vector<std::string> getKeyedTypes(std::vector<int32_t> keyedIndex, std::vector<std::string> inputTypes);
     Output* getOutput();
     void combineAccumulator(const WindowKey& windowKey, RowData* acc);
     void globalWinAggProcess(const WindowKey& currentWindowKey, std::vector<std::unique_ptr<RowData>>& sliceResultArr);
-    void winAggProcess(const WindowKey& currentWindowKey, std::vector<std::unique_ptr<RowData>>&  sliceResultArr);
+    void winAggProcess(const WindowKey& currentWindowKey, std::vector<std::unique_ptr<RowData>>& sliceResultArr);
     void WindowAggProcess(const WindowKey& currentKey, std::vector<std::unique_ptr<RowData>>& sliceResultArr);
     bool shouldDeleteWindowStateValue() const;
 
 private:
-    static constexpr int AVG_ACCUMULATOR_SLOTS = 2;  // AVG needs sum + count
+    static constexpr int AVG_ACCUMULATOR_SLOTS = 2; // AVG needs sum + count
     static constexpr int DEFAULT_ACCUMULATOR_SLOTS = 1;
     nlohmann::json description;
     std::unordered_map<WindowKey, std::vector<std::unique_ptr<RowData>>> recordsBuffer;
@@ -76,14 +77,14 @@ private:
     omnistream::VectorBatch* resultBatch = nullptr;
     TimestampedCollector* collector;
     int rowTimeIndex;
-    WindowValueState<KeyType, int64_t, RowData *> *accState;
+    WindowValueState<KeyType, int64_t, RowData*>* accState;
     Output* output;
     InternalTimerServiceImpl<KeyType, int64_t>* internalTimerService;
-     bool isWindowAgg;
+    bool isWindowAgg;
     std::mutex bufferMutex;
     SliceAssigner* sliceAssigner;
     std::string shiftTimeZone;
     int64_t minSliceEnd = INT64_MAX;
 
-    void initNamespaceAggsHandleFunction(const nlohmann::json &aggInfoList);
+    void initNamespaceAggsHandleFunction(const nlohmann::json& aggInfoList);
 };

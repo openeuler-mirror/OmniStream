@@ -19,16 +19,16 @@
 
 class NonReusingDeserializationDelegate : public DeserializationDelegate {
 public:
-    explicit NonReusingDeserializationDelegate(omnistream::datastream::StreamElementSerializer *serializer);
+    explicit NonReusingDeserializationDelegate(omnistream::datastream::StreamElementSerializer* serializer);
     ~NonReusingDeserializationDelegate() override;
     void* getInstance() override;
     void setInstance(void* instance) override;
     void write(DataOutputSerializer& out) override;
     void read(DataInputView& in) override;
+
 private:
-    omnistream::datastream::StreamElementSerializer *serializer_;
+    omnistream::datastream::StreamElementSerializer* serializer_;
     void* instance_;
 };
-
 
 #endif

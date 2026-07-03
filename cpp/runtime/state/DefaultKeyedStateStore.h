@@ -27,73 +27,76 @@
 template <typename K>
 class DefaultKeyedStateStore {
 public:
-    DefaultKeyedStateStore(AbstractKeyedStateBackend<K> *backend) : backend(backend) {};
+    DefaultKeyedStateStore(AbstractKeyedStateBackend<K>* backend) : backend(backend) {};
     template <typename UK, typename UV>
-    MapState<UK, UV> *getMapState(MapStateDescriptor<UK, UV> *descriptor)
+    MapState<UK, UV>* getMapState(MapStateDescriptor<UK, UV>* descriptor)
     {
 #ifdef WITH_OMNISTATESTORE
-        if (dynamic_cast<BssKeyedStateBackend<K> *>(backend) != nullptr) {
-            LOG("backend is Bss")
+        if (dynamic_cast<BssKeyedStateBackend<K>*>(backend) != nullptr) {
+            LOG("backend is Bss");
             using S = BssMapState<K, VoidNamespace, UK, UV>;
-            return getPartitionedState<S, emhash7::HashMap<UK, UV> *>(descriptor);
+            return getPartitionedState<S, emhash7::HashMap<UK, UV>*>(descriptor);
         }
 #endif
-        if (dynamic_cast<RocksdbKeyedStateBackend<K> *>(backend) != nullptr) {
-            LOG("backend is Rocksdb")
+        if (dynamic_cast<RocksdbKeyedStateBackend<K>*>(backend) != nullptr) {
+            LOG("backend is Rocksdb");
             using S = RocksdbMapState<K, VoidNamespace, UK, UV>;
-            return getPartitionedState<S, emhash7::HashMap<UK, UV> *>(descriptor);
+            return getPartitionedState<S, emhash7::HashMap<UK, UV>*>(descriptor);
         } else {
-            LOG("backend is hashMap")
+            LOG("backend is hashMap");
             using S = HeapMapState<K, VoidNamespace, UK, UV>;
-            return getPartitionedState<S, emhash7::HashMap<UK, UV> *>(descriptor);
+            return getPartitionedState<S, emhash7::HashMap<UK, UV>*>(descriptor);
         }
     };
     template <typename V>
-    ValueState<V> *getState(ValueStateDescriptor<V> *descriptor)
+    ValueState<V>* getState(ValueStateDescriptor<V>* descriptor)
     {
-        LOG("get value state")
+        LOG("get value state");
 #ifdef WITH_OMNISTATESTORE
-        if (dynamic_cast<BssKeyedStateBackend<K> *>(backend) != nullptr) {
-            LOG("get BssKeyedStateBackend state")
+        if (dynamic_cast<BssKeyedStateBackend<K>*>(backend) != nullptr) {
+            LOG("get BssKeyedStateBackend state");
             using S = BssValueState<K, VoidNamespace, V>;
             return getPartitionedState<S, V>(descriptor);
         }
 #endif
-        if (dynamic_cast<RocksdbKeyedStateBackend<K> *>(backend) != nullptr) {
+        if (dynamic_cast<RocksdbKeyedStateBackend<K>*>(backend) != nullptr) {
             using S = RocksdbValueState<K, VoidNamespace, V>;
-            LOG("get RocksdbKeyedStateBackend state")
+            LOG("get RocksdbKeyedStateBackend state");
             return getPartitionedState<S, V>(descriptor);
         } else {
-            LOG("get HeapValueState state")
+            LOG("get HeapValueState state");
             using S = HeapValueState<K, VoidNamespace, V>;
             return getPartitionedState<S, V>(descriptor);
         }
     };
     template <typename V>
-    ValueState<V> *getStateForWindow(ValueStateDescriptor<V> *descriptor)
+    ValueState<V>* getStateForWindow(ValueStateDescriptor<V>* descriptor)
     {
-            return getPartitionedState_window<HeapValueState<K, TimeWindow, V>, V>(descriptor);
+        return getPartitionedState_window<HeapValueState<K, TimeWindow, V>, V>(descriptor);
     };
     template <typename V>
-    ListState<V> *getListState(ListStateDescriptor<V> *descriptor)
+    ListState<V>* getListState(ListStateDescriptor<V>* descriptor)
     {
         using S = HeapListState<K, VoidNamespace, V>;
-        return getPartitionedState<S, std::vector<V> *>(descriptor);
+        return getPartitionedState<S, std::vector<V>*>(descriptor);
     }
+
 protected:
     template <typename S, typename V>
-    S *getPartitionedState(StateDescriptor *stateDescriptor)
+    S* getPartitionedState(StateDescriptor* stateDescriptor)
     {
-        return backend->template getPartitionedState<VoidNamespace, S, V>(VoidNamespace(), new VoidNamespaceSerializer(), stateDescriptor);
+        return backend->template getPartitionedState<VoidNamespace, S, V>(
+            VoidNamespace(), new VoidNamespaceSerializer(), stateDescriptor);
     };
 
     template <typename S, typename V>
-    S *getPartitionedState_window(StateDescriptor *stateDescriptor)
+    S* getPartitionedState_window(StateDescriptor* stateDescriptor)
     {
-        return backend->template getPartitionedState<TimeWindow, S, V>(TimeWindow(0, 0), new TimeWindow::Serializer(), stateDescriptor);
+        return backend->template getPartitionedState<TimeWindow, S, V>(
+            TimeWindow(0, 0), new TimeWindow::Serializer(), stateDescriptor);
     };
 
 private:
-    AbstractKeyedStateBackend<K> *backend;
+    AbstractKeyedStateBackend<K>* backend;
 };
 #endif // FLINK_TNEL_DEFAULTKEYEDSTATESTORE_H

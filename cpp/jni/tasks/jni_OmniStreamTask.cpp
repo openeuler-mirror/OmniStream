@@ -14,25 +14,25 @@
 #include "streaming/runtime/tasks/StreamTask.h"
 #include "runtime/taskmanager/OmniTask.h"
 
-
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_tasks_OmniStreamTask_createNativeStreamTask(JNIEnv *env, jclass clazz, jstring TDDString, jlong statusAddress, jlong nativeTask)
+JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_tasks_OmniStreamTask_createNativeStreamTask(
+    JNIEnv* env, jclass clazz, jstring TDDString, jlong statusAddress, jlong nativeTask)
 {
-    LOG("this is create native task object")
-    const char *cStrTDD = (env)->GetStringUTFChars(TDDString, 0);
+    LOG("this is create native task object");
+    const char* cStrTDD = (env)->GetStringUTFChars(TDDString, 0);
 
-    LOG("debug tdd is: " + std::string(cStrTDD))
+    LOG("debug tdd is: " + std::string(cStrTDD));
 
-    void *bufferStatus = reinterpret_cast<void *>(statusAddress);
+    void* bufferStatus = reinterpret_cast<void*>(statusAddress);
 
     nlohmann::json tdd = nlohmann::json::parse(cStrTDD);
 
-    LOG("Calling  StreamTask with json " + tdd.dump(2))
+    LOG("Calling  StreamTask with json " + tdd.dump(2));
 
     // Update this for setting up environment
-    auto task = reinterpret_cast<omnistream::OmniTask *>(nativeTask);
+    auto task = reinterpret_cast<omnistream::OmniTask*>(nativeTask);
 
-    auto *streamTask = new omnistream::datastream::StreamTask(tdd, bufferStatus, task->getRuntimeEnv());
-    LOG("After Calling StreamTask with json  " << reinterpret_cast<long>(streamTask))
+    auto* streamTask = new omnistream::datastream::StreamTask(tdd, bufferStatus, task->getRuntimeEnv());
+    LOG("After Calling StreamTask with json  " << reinterpret_cast<long>(streamTask));
 
     env->ReleaseStringUTFChars(TDDString, cStrTDD);
 
@@ -40,17 +40,19 @@ JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_tasks_OmniStre
 };
 
 JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_tasks_OmniStreamTask_createNativeOmniInputProcessor(
-    JNIEnv *env, jclass clazz, jlong omniStreamTaskRef, jstring inputChannelInfo, jint operatorMethodIndicator)
+    JNIEnv* env, jclass clazz, jlong omniStreamTaskRef, jstring inputChannelInfo, jint operatorMethodIndicator)
 {
-    const char *channelInfos = (env)->GetStringUTFChars(inputChannelInfo, 0);
+    const char* channelInfos = (env)->GetStringUTFChars(inputChannelInfo, 0);
 
-    LOG("channel info is: " + std::string(channelInfos))
+    LOG("channel info is: " + std::string(channelInfos));
 
     nlohmann::json channelJson = nlohmann::json::parse(channelInfos);
     env->ReleaseStringUTFChars(inputChannelInfo, channelInfos);
-    auto *streamTask = reinterpret_cast<omnistream::datastream::StreamTask *>(omniStreamTaskRef);
-    auto *processor = streamTask->createOmniInputProcessor(channelJson, operatorMethodIndicator);
-    std::cout << "Java_com_huawei_omniruntime_flink_runtime_tasks_OmniStreamTask_createNativeOmniInputProcessor operatorMethodIndicator :" << operatorMethodIndicator << std::endl;
+    auto* streamTask = reinterpret_cast<omnistream::datastream::StreamTask*>(omniStreamTaskRef);
+    auto* processor = streamTask->createOmniInputProcessor(channelJson, operatorMethodIndicator);
+    std::cout << "Java_com_huawei_omniruntime_flink_runtime_tasks_OmniStreamTask_createNativeOmniInputProcessor "
+                 "operatorMethodIndicator :"
+              << operatorMethodIndicator << std::endl;
     streamTask->addStreamOneInputProcessor(processor);
 
     return reinterpret_cast<long>(processor);
@@ -61,11 +63,11 @@ JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_tasks_OmniStre
  * Method:    removeNativeStreamTask
  * Signature: (J)J
  */
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_tasks_OmniStreamTask_removeNativeStreamTask
-        (JNIEnv *, jclass, jlong omniStreamTaskRef)
+JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_tasks_OmniStreamTask_removeNativeStreamTask(
+    JNIEnv*, jclass, jlong omniStreamTaskRef)
 {
     LOG("Remove Native Stream Task at " << reinterpret_cast<long>(omniStreamTaskRef));
-    auto *streamTask = reinterpret_cast<omnistream::datastream::StreamTask *>(omniStreamTaskRef);
+    auto* streamTask = reinterpret_cast<omnistream::datastream::StreamTask*>(omniStreamTaskRef);
     streamTask->cleanUp();
     return 0L;
 }

@@ -96,10 +96,7 @@ public:
             throw std::runtime_error("Cannot open file: " + file.string());
         }
 
-        std::string content(
-                (std::istreambuf_iterator<char>(in)),
-                std::istreambuf_iterator<char>()
-        );
+        std::string content((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
         return content;
     };
 
@@ -165,7 +162,7 @@ private:
     };
 
     // 平台特定的安全执行
-    template<typename Func>
+    template <typename Func>
     static void guardIfThreadSafe(Func&& func, const fs::path& path)
     {
         func(path);
@@ -193,6 +190,5 @@ public:
         return fs::relative(path, base);
     }
 };
-
 
 #endif // OMNISTREAM_FILEUTILS_H

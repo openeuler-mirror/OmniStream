@@ -10,7 +10,8 @@ namespace {
 constexpr int32_t LONG_TYPE = omniruntime::type::DataTypeId::OMNI_LONG;
 }
 
-TEST(NamespaceAggsCountFunctionTest, SupportsCountStarRetractAndValueOutput) {
+TEST(NamespaceAggsCountFunctionTest, SupportsCountStarRetractAndValueOutput)
+{
     NamespaceAggsCountFunction<int64_t> function({}, {}, {0}, {LONG_TYPE}, 0);
     auto accumulator = std::unique_ptr<BinaryRowData>(BinaryRowData::createBinaryRowDataWithMem(1));
     accumulator->setNullAt(0);
@@ -26,7 +27,8 @@ TEST(NamespaceAggsCountFunctionTest, SupportsCountStarRetractAndValueOutput) {
     EXPECT_EQ(1, *value->getLong(0));
 }
 
-TEST(NamespaceAggsCountFunctionTest, IgnoresNullArgumentAndMerges) {
+TEST(NamespaceAggsCountFunctionTest, IgnoresNullArgumentAndMerges)
+{
     NamespaceAggsCountFunction<int64_t> function({0}, {LONG_TYPE}, {0}, {LONG_TYPE}, 0);
     auto accumulator = std::unique_ptr<BinaryRowData>(BinaryRowData::createBinaryRowDataWithMem(1));
     accumulator->setNullAt(0);
@@ -45,7 +47,8 @@ TEST(NamespaceAggsCountFunctionTest, IgnoresNullArgumentAndMerges) {
     EXPECT_EQ(3, *function.getAccumulators()->getLong(0));
 }
 
-TEST(NamespaceAggsCountFunctionTest, InsertedCountStarDoesNotWriteResultValue) {
+TEST(NamespaceAggsCountFunctionTest, InsertedCountStarDoesNotWriteResultValue)
+{
     NamespaceAggsCountFunction<int64_t> function({}, {}, {0}, {LONG_TYPE}, -1);
     auto accumulator = std::unique_ptr<BinaryRowData>(BinaryRowData::createBinaryRowDataWithMem(1));
     accumulator->setNullAt(0);

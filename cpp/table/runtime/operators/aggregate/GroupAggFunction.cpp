@@ -20,16 +20,19 @@
 #include <iostream>
 #include <regex>
 
-GroupAggFunction::GroupAggFunction(long stateRetentionTime,
-                                   const nlohmann::json& config)
+GroupAggFunction::GroupAggFunction(long stateRetentionTime, const nlohmann::json& config)
     : stateRetentionTime(stateRetentionTime),
-      description(config) {
+      description(config)
+{
     indexOfCountStar = config["aggInfoList"]["indexOfCountStar"];
     recordCounter = std::move(RecordCounter::of(indexOfCountStar));
     accTypes = config["aggInfoList"]["accTypes"].get<std::vector<std::string>>();
-    accTypes.erase(std::remove_if(accTypes.begin(), accTypes.end(),
-                                  [](const std::string& type) { return type.find("RAW") != std::string::npos; }),
-                   accTypes.end());
+    accTypes.erase(
+        std::remove_if(
+            accTypes.begin(),
+            accTypes.end(),
+            [](const std::string& type) { return type.find("RAW") != std::string::npos; }),
+        accTypes.end());
     aggValueTypes = config["aggInfoList"]["aggValueTypes"].get<std::vector<std::string>>();
     accumulatorArity = accTypes.size();
     generateUpdateBefore = config.value("generateUpdateBefore", false);
@@ -77,15 +80,16 @@ std::string extractAggFunction(const std::string& input)
 std::vector<std::string> GroupAggFunction::handleInputTypes()
 {
     std::vector<std::string> types;
-    for (const std::string &inputType: description["inputTypes"]) {
+    for (const std::string& inputType : description["inputTypes"]) {
         types.push_back(inputType);
         auto typeId = LogicalType::flinkTypeToOmniTypeId(inputType);
         if (typeId == DataTypeId::OMNI_INT) {
             equalisers.push_back(IntEqualiser);
         } else if (typeId == DataTypeId::OMNI_LONG) {
             equalisers.push_back(LongEqualiser);
-        } else if (typeId == DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE ||
-                    typeId == DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE) {
+        } else if (
+            typeId == DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE ||
+            typeId == DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE) {
             equalisers.push_back(TimestampEqualiser);
         } else {
             equalisers.push_back(nullptr);
@@ -98,7 +102,7 @@ std::vector<std::string> GroupAggFunction::handleInputTypes()
 std::map<int, int> GroupAggFunction::handleDistinctInfo()
 {
     std::map<int, int> distinctInfoMap;
-    for (DistinctInfo info: distinctInfos) {
+    for (DistinctInfo info : distinctInfos) {
         if (info.filterArgs.size() != info.aggIndexes.size()) {
             std::cerr << "Error: filterArgs and aggIndexes size mismatch!" << std::endl;
             continue;
@@ -112,19 +116,19 @@ std::map<int, int> GroupAggFunction::handleDistinctInfo()
 
 void GroupAggFunction::open(const Configuration& parameters)
 {
-    LOG("GroupAggFunction open() running")
+    LOG("GroupAggFunction open() running");
     // Init HeapValueState
     omnistream::RowType accRowType(true, this->accTypes);
     auto accRowTypeInfo = InternalTypeInfo::ofRowType(&accRowType);
     std::string accStateName = "accState";
-    ValueStateDescriptor<RowData*> *accDesc = new ValueStateDescriptor<RowData*>(accStateName, accRowTypeInfo);
+    ValueStateDescriptor<RowData*>* accDesc = new ValueStateDescriptor<RowData*>(accStateName, accRowTypeInfo);
     accDesc->SetStateSerializer(accRowTypeInfo->getTypeSerializer());
 
     // This kind of specific template type should all be solved by an if-else based on stateDescription
-    accState = static_cast<StreamingRuntimeContext<RowData*> *>(getRuntimeContext())->getState<RowData*>(accDesc);
+    accState = static_cast<StreamingRuntimeContext<RowData*>*>(getRuntimeContext())->getState<RowData*>(accDesc);
 
-    if (dynamic_cast<RocksdbValueState<RowData*, VoidNamespace, RowData*> *>(accState)) {
-        this->backend=2;
+    if (dynamic_cast<RocksdbValueState<RowData*, VoidNamespace, RowData*>*>(accState)) {
+        this->backend = 2;
     }
 
     int accStartingIndex = 0;
@@ -136,14 +140,14 @@ void GroupAggFunction::open(const Configuration& parameters)
     // indexOfCountStar will not be -1 ，which is mainly used for the COUNT(*) operation.
     // In this case, we initialize an extra count function.
     if (indexOfCountStar != -1) {
-        auto *function = new CountFunction(-1, "BIGINT", accStartingIndex, -1, -1);
+        auto* function = new CountFunction(-1, "BIGINT", accStartingIndex, -1, -1);
         function->setCountStart(true);
         functions.push_back(function);
         accStartingIndex++;
     }
 
-    LOG("group agg accStartingIndex: "<<accStartingIndex)
-    LOG("group agg accumulatorArity: "<<accumulatorArity)
+    LOG("group agg accStartingIndex: " << accStartingIndex);
+    LOG("group agg accumulatorArity: " << accumulatorArity);
     if (accStartingIndex != accumulatorArity) {
         throw std::runtime_error("GroupAggFunction open: accStartingIndex does not match accumulatorArity");
     }
@@ -154,12 +158,12 @@ void GroupAggFunction::open(const Configuration& parameters)
     aggregateCallsCount = description["aggInfoList"]["aggregateCalls"].size();
     resultRow = new JoinedRowData();
     reUsePrevAggValue = BinaryRowData::createBinaryRowDataWithMem(functions.size());
-    LOG("init reUsePrevAggValue getArity : "<< reUsePrevAggValue->getArity())
+    LOG("init reUsePrevAggValue getArity : " << reUsePrevAggValue->getArity());
     reUseNewAggValue = BinaryRowData::createBinaryRowDataWithMem(functions.size());
     sharedAccmulators = BinaryRowData::createBinaryRowDataWithMem(accTypes.size());
 }
 
-void GroupAggFunction::InitAggFunctions(int &accStartingIndex, int &aggValueIndex)
+void GroupAggFunction::InitAggFunctions(int& accStartingIndex, int& aggValueIndex)
 {
     vector<string> types = handleInputTypes();
     map<int, int> distinctInfoMap = handleDistinctInfo();
@@ -170,36 +174,38 @@ void GroupAggFunction::InitAggFunctions(int &accStartingIndex, int &aggValueInde
         string aggType = extractAggFunction(aggTypeStr);
         int filterIndex = aggCall["filterArg"];
         // Be careful here. It only deal with one agg per call. This should be fixed !!
-        int aggIndex = aggCall["argIndexes"].get<vector<int>>().empty() ? -1
-                                                                        : aggCall["argIndexes"].get<vector<int>>()[0];
+        int aggIndex =
+            aggCall["argIndexes"].get<vector<int>>().empty() ? -1 : aggCall["argIndexes"].get<vector<int>>()[0];
         string aggDataType = aggIndex == -1 ? "BIGINT" : types[aggIndex];
         AggsHandleFunction* function = nullptr;
         bool shouldDoRetract = false;
         // aggIndex -> column index of the input row (input row from vectorBatch)
         // accIndex -> agg function value index in results row (row from acc state)
         if (aggType == "AVG") {
-            function = new AverageFunction(aggIndex, aggDataType, accStartingIndex, accStartingIndex + 1, aggValueIndex,
-                                           filterIndex);
+            function = new AverageFunction(
+                aggIndex, aggDataType, accStartingIndex, accStartingIndex + 1, aggValueIndex, filterIndex);
         } else if (aggType == "COUNT") {
             if (distinctInfoMap.find(aggFuncIndex) != distinctInfoMap.end()) {
                 filterIndex = distinctInfoMap[aggFuncIndex];
-                auto *distinctFunction = new CountDistinctFunction(aggIndex, aggDataType, accStartingIndex,
-                                                                   aggValueIndex, aggFuncIndex, filterIndex);
+                auto* distinctFunction = new CountDistinctFunction(
+                    aggIndex, aggDataType, accStartingIndex, aggValueIndex, aggFuncIndex, filterIndex);
                 distinctFunction->open(new PerKeyStateDataViewStore(
-                        dynamic_cast<StreamingRuntimeContext<RowData *> *>(getRuntimeContext())));
+                    dynamic_cast<StreamingRuntimeContext<RowData*>*>(getRuntimeContext())));
                 function = distinctFunction;
             } else {
                 function = new CountFunction(aggIndex, aggDataType, accStartingIndex, aggValueIndex, filterIndex);
             }
         } else if (aggType == "MAX") {
-            function = new MinMaxFunction(aggIndex, aggDataType, accStartingIndex, aggValueIndex, MAX_FUNC, filterIndex);
+            function =
+                new MinMaxFunction(aggIndex, aggDataType, accStartingIndex, aggValueIndex, MAX_FUNC, filterIndex);
         } else if (aggType == "MIN") {
-            function = new MinMaxFunction(aggIndex, aggDataType, accStartingIndex, aggValueIndex, MIN_FUNC, filterIndex);
+            function =
+                new MinMaxFunction(aggIndex, aggDataType, accStartingIndex, aggValueIndex, MIN_FUNC, filterIndex);
         } else if (aggType == "SUM") {
             shouldDoRetract = (aggregationFunction.find("WithRetract") != std::string::npos) ? true : shouldDoRetract;
             int count0Index = shouldDoRetract ? accStartingIndex + 1 : -1;
-            SumFunction *sumFunction = new SumFunction(aggIndex, aggDataType, accStartingIndex,
-                                                       aggValueIndex, filterIndex);
+            SumFunction* sumFunction =
+                new SumFunction(aggIndex, aggDataType, accStartingIndex, aggValueIndex, filterIndex);
             sumFunction->setRetraction(count0Index);
             function = sumFunction;
         } else if (aggType == "last_string_value_without_retract") {
@@ -230,7 +236,7 @@ void GroupAggFunction::processElement(RowData* input, Context* ctx, TimestampedC
     if (accumulators == nullptr) {
         // This is a new key
         if (!currentKey) {
-            LOG("current key is nullptr")
+            LOG("current key is nullptr");
             throw std::runtime_error("current key is nullptr");
         }
         RowData* updatedKey = currentKey->copy();
@@ -268,7 +274,8 @@ void GroupAggFunction::processElement(RowData* input, Context* ctx, TimestampedC
     }
 
     if (!recordCounter->recordCountIsZero(accumulators)) {
-        // Flink update accumulators in state here. But since we directly take the RowData* and updates in getAccumulator, the value in statebackend is already updated!
+        // Flink update accumulators in state here. But since we directly take the RowData* and updates in
+        // getAccumulator, the value in statebackend is already updated!
         if (!firstRow) {
             for (int i = 0; i < aggregateCallsCount; i++) {
                 if (!functions[i]->equaliser(reUsePrevAggValue, reUseNewAggValue)) {
@@ -299,8 +306,8 @@ void GroupAggFunction::processElement(RowData* input, Context* ctx, TimestampedC
     }
 }
 
-void GroupAggFunction::processBatchColumnar(omnistream::VectorBatch *input, const std::vector<RowInfo> &groupInfo,
-                                            RowData *accumulators)
+void GroupAggFunction::processBatchColumnar(
+    omnistream::VectorBatch* input, const std::vector<RowInfo>& groupInfo, RowData* accumulators)
 {
     // Separate into accumulate and retract batches
     std::vector<int> accumulateIndices;
@@ -315,7 +322,7 @@ void GroupAggFunction::processBatchColumnar(omnistream::VectorBatch *input, cons
     }
 
     // Process all aggregate functions
-    for (auto &function : functions) {
+    for (auto& function : functions) {
         function->getValue(reUsePrevAggValue);
 
         // Batch accumulate
@@ -331,8 +338,10 @@ void GroupAggFunction::processBatchColumnar(omnistream::VectorBatch *input, cons
     }
 }
 
-void GroupAggFunction::processBatch(omnistream::VectorBatch *input, KeyedProcessFunction<RowData *,
-                                    RowData *, RowData *>::Context &ctx, TimestampedCollector &out)
+void GroupAggFunction::processBatch(
+    omnistream::VectorBatch* input,
+    KeyedProcessFunction<RowData*, RowData*, RowData*>::Context& ctx,
+    TimestampedCollector& out)
 {
     auto rowCount = input->GetRowCount();
     if (rowCount < 0) {
@@ -340,7 +349,7 @@ void GroupAggFunction::processBatch(omnistream::VectorBatch *input, KeyedProcess
     }
     // Use map to organize all data with the same key.
     std::unordered_map<RowData*, std::vector<RowInfo>> keyToRowIndices;
-    LOG("getEntireRow rowCount :" << rowCount)
+    LOG("getEntireRow rowCount :" << rowCount);
     FillRowIndices(input, keyToRowIndices, rowCount);
     // List of rows to convert to VectorBatch
     std::vector<RowData*> resultKeys;
@@ -367,13 +376,13 @@ void GroupAggFunction::processBatch(omnistream::VectorBatch *input, KeyedProcess
             func->setBackend(backend);
         }
         processBatchColumnar(input, groupInfo, accumulators);
-        LOG("functions loop aggregateCallsCount end")
+        LOG("functions loop aggregateCallsCount end");
         AssembleResultForBatch(accumulators, isEqual, firstRow, currentKey, resultKeys, resultValues, resultRowKinds);
     }
 
     if (backend == 2) {
         UpdateAccumulatorsInRocksDB(pendingUpdates);
-        for (auto& pair :  pendingUpdates) {
+        for (auto& pair : pendingUpdates) {
             delete pair.second;
         }
         pendingUpdates.clear();
@@ -383,19 +392,19 @@ void GroupAggFunction::processBatch(omnistream::VectorBatch *input, KeyedProcess
     }
 
     ClearEnv(input, resultKeys, resultValues, resultRowKinds, out, keyToRowIndices);
-    LOG("GroupAggFunction processBatch end")
+    LOG("GroupAggFunction processBatch end");
 }
 
-void GroupAggFunction::deleteRowData(vector<RowData *> &rowVector)
+void GroupAggFunction::deleteRowData(vector<RowData*>& rowVector)
 {
-    for (auto row: rowVector) {
+    for (auto row : rowVector) {
         delete row;
     }
     rowVector.clear();
 }
 
-void GroupAggFunction::setInt(omniruntime::vec::VectorBatch* outputBatch,
-    int numRows, int colIndex, std::vector<RowData*> vec)
+void GroupAggFunction::setInt(
+    omniruntime::vec::VectorBatch* outputBatch, int numRows, int colIndex, std::vector<RowData*> vec)
 {
     auto* vector = new omniruntime::vec::Vector<int64_t>(numRows);
     for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
@@ -408,8 +417,8 @@ void GroupAggFunction::setInt(omniruntime::vec::VectorBatch* outputBatch,
     outputBatch->Append(vector);
 }
 
-void GroupAggFunction::setLong(omniruntime::vec::VectorBatch* outputBatch,
-    int numRows, int colIndex, std::vector<RowData*> vec)
+void GroupAggFunction::setLong(
+    omniruntime::vec::VectorBatch* outputBatch, int numRows, int colIndex, std::vector<RowData*> vec)
 {
     auto* vector = new omniruntime::vec::Vector<int64_t>(numRows);
     for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
@@ -422,8 +431,8 @@ void GroupAggFunction::setLong(omniruntime::vec::VectorBatch* outputBatch,
     outputBatch->Append(vector);
 }
 
-void GroupAggFunction::setString(omniruntime::vec::VectorBatch* outputBatch,
-    int numRows, int colIndex, std::vector<RowData*> vec)
+void GroupAggFunction::setString(
+    omniruntime::vec::VectorBatch* outputBatch, int numRows, int colIndex, std::vector<RowData*> vec)
 {
     auto* vector = new omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>(numRows);
     for (int rowIndex = 0; rowIndex < numRows; rowIndex++) {
@@ -437,12 +446,12 @@ void GroupAggFunction::setString(omniruntime::vec::VectorBatch* outputBatch,
     outputBatch->Append(vector);
 }
 
-omnistream::VectorBatch* GroupAggFunction::createOutputBatch(std::vector<RowData*> collectedKeys,
-    std::vector<RowData*> collectedValues, std::vector<RowKind> rowKinds)
+omnistream::VectorBatch* GroupAggFunction::createOutputBatch(
+    std::vector<RowData*> collectedKeys, std::vector<RowData*> collectedValues, std::vector<RowKind> rowKinds)
 {
     int numColumns = outputTypes.size();
-    auto *outputRowType = new std::vector<omniruntime::type::DataTypeId>;
-    for (const auto &typeStr : outputTypes) {
+    auto* outputRowType = new std::vector<omniruntime::type::DataTypeId>;
+    for (const auto& typeStr : outputTypes) {
         outputRowType->push_back(LogicalType::flinkTypeToOmniTypeId(typeStr));
     }
     int numRows = collectedKeys.size(); // Number of rows collected
@@ -480,7 +489,7 @@ omnistream::VectorBatch* GroupAggFunction::createOutputBatch(std::vector<RowData
             default: {
                 delete outputRowType;
                 delete outputBatch;
-                LOG("Unsupported column type in inputRow (createOutputBatch). colIndex : "<<colIndex)
+                LOG("Unsupported column type in inputRow (createOutputBatch). colIndex : " << colIndex);
                 throw std::runtime_error("Unsupported column type in inputRow");
             }
         }
@@ -494,8 +503,8 @@ omnistream::VectorBatch* GroupAggFunction::createOutputBatch(std::vector<RowData
     return outputBatch;
 }
 
-std::vector<int32_t> GroupAggFunction::getKeyedTypes(const std::vector<int32_t> keyedIndex,
-                                                     const std::vector<std::string> inputTypes)
+std::vector<int32_t> GroupAggFunction::getKeyedTypes(
+    const std::vector<int32_t> keyedIndex, const std::vector<std::string> inputTypes)
 {
     std::vector<int32_t> keyedTypes;
     for (int32_t index : keyedIndex) {
@@ -506,15 +515,16 @@ std::vector<int32_t> GroupAggFunction::getKeyedTypes(const std::vector<int32_t> 
     return keyedTypes;
 }
 
-void GroupAggFunction::collectOutputBatch(TimestampedCollector out, omnistream::VectorBatch *outputBatch)
+void GroupAggFunction::collectOutputBatch(TimestampedCollector out, omnistream::VectorBatch* outputBatch)
 {
     out.collect(outputBatch);
 }
 
-void GroupAggFunction::close() {
+void GroupAggFunction::close()
+{
 }
 
-ValueState<RowData *> *GroupAggFunction::getValueState()
+ValueState<RowData*>* GroupAggFunction::getValueState()
 {
     return accState;
 }
@@ -535,17 +545,20 @@ bool GroupAggFunction::FirstRowAccumulate(std::vector<RowInfo>& groupInfo, RowDa
     accumulators = BinaryRowData::createBinaryRowDataWithMem(accumulatorArity);
     // If the accumulator does not exist, traverse functions to create the accumulators.
     for (auto& func : functions) {
-        func->createAccumulators(dynamic_cast<BinaryRowData *>(accumulators));
+        func->createAccumulators(dynamic_cast<BinaryRowData*>(accumulators));
     }
     // Flink don't do update here, it updates it in if (!recordCounter->recordCountIsZero(accumulators)){}
     // static_cast<HeapValueState<RowData*, VoidNamespace, RowData*> *>(accState)->update(accumulators);
     return true;
 }
 
-void GroupAggFunction::ClearEnv(omnistream::VectorBatch *input, std::vector<RowData *> resultKeys,
-                                std::vector<RowData *> resultValues, std::vector<RowKind> resultRowKinds,
-                                TimestampedCollector &out,
-                                std::unordered_map<RowData*, std::vector<RowInfo>> keyToRowIndices)
+void GroupAggFunction::ClearEnv(
+    omnistream::VectorBatch* input,
+    std::vector<RowData*> resultKeys,
+    std::vector<RowData*> resultValues,
+    std::vector<RowKind> resultRowKinds,
+    TimestampedCollector& out,
+    std::unordered_map<RowData*, std::vector<RowInfo>> keyToRowIndices)
 {
     delete input;
     if (!resultKeys.empty()) {
@@ -564,17 +577,23 @@ void GroupAggFunction::ClearEnv(omnistream::VectorBatch *input, std::vector<RowD
     }
 }
 
-void GroupAggFunction::AssembleResultForBatch(RowData* accumulators, bool isEqual, bool firstRow, RowData* currentKey,
-                                              std::vector<RowData*>& resultKeys, std::vector<RowData*>& resultValues,
-                                              std::vector<RowKind>& resultRowKinds)
+void GroupAggFunction::AssembleResultForBatch(
+    RowData* accumulators,
+    bool isEqual,
+    bool firstRow,
+    RowData* currentKey,
+    std::vector<RowData*>& resultKeys,
+    std::vector<RowData*>& resultValues,
+    std::vector<RowKind>& resultRowKinds)
 {
     if (!recordCounter->recordCountIsZero(accumulators)) {
         if (backend == 2) {
             pendingUpdates.emplace(currentKey, accumulators);
-        }else {
+        } else {
             accState->update(accumulators);
         }
-        // Flink update accumulators in state here. But since we directly take the RowData* and updates in getAccumulator, the value in statebackend is already updated!
+        // Flink update accumulators in state here. But since we directly take the RowData* and updates in
+        // getAccumulator, the value in statebackend is already updated!
         if (!firstRow) {
             if (EndAssemble(isEqual)) {
                 return;
@@ -602,8 +621,8 @@ void GroupAggFunction::AssembleResultForBatch(RowData* accumulators, bool isEqua
     }
 }
 
-void GroupAggFunction::FillRowIndices(omnistream::VectorBatch *input,
-                                      std::unordered_map<RowData*, std::vector<RowInfo>>& keyToRowIndices, int rowCount)
+void GroupAggFunction::FillRowIndices(
+    omnistream::VectorBatch* input, std::unordered_map<RowData*, std::vector<RowInfo>>& keyToRowIndices, int rowCount)
 {
     for (int rowIndex = 0; rowIndex < rowCount; rowIndex++) {
         auto key = groupByKeySelector->getKey(input, rowIndex);
@@ -618,11 +637,12 @@ void GroupAggFunction::FillRowIndices(omnistream::VectorBatch *input,
     }
 }
 
-void GroupAggFunction::AssembleResultForElement(RowData *accumulators, bool isEqual, bool firstRow, RowData *currentKey,
-                                                TimestampedCollector& out)
+void GroupAggFunction::AssembleResultForElement(
+    RowData* accumulators, bool isEqual, bool firstRow, RowData* currentKey, TimestampedCollector& out)
 {
     if (!recordCounter->recordCountIsZero(accumulators)) {
-        // Flink update accumulators in state here. But since we directly take the RowData* and updates in getAccumulator, the value in statebackend is already updated!
+        // Flink update accumulators in state here. But since we directly take the RowData* and updates in
+        // getAccumulator, the value in statebackend is already updated!
         if (!firstRow) {
             if (EndAssemble(isEqual)) {
                 return;

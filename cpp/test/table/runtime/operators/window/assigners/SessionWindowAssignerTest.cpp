@@ -25,7 +25,7 @@ void AssertWindowSetEq(const std::unordered_set<TimeWindow>& actual, const std::
     }
 }
 
-}
+} // namespace
 
 TEST(SessionWindowAssignerTest, WindowAssignmentMatchesFlink)
 {
@@ -39,10 +39,7 @@ TEST(SessionWindowAssignerTest, WindowAssignmentMatchesFlink)
 TEST(SessionWindowAssignerTest, MergeWindowsMergesIntersectingNeighbors)
 {
     SessionWindowAssigner assigner(5000, true);
-    std::set<TimeWindow> sortedWindows = {
-        TimeWindow(0, 5000),
-        TimeWindow(12000, 17000)
-    };
+    std::set<TimeWindow> sortedWindows = {TimeWindow(0, 5000), TimeWindow(12000, 17000)};
     MergingWindowAssigner<TimeWindow>::MergeResultCollector callback;
 
     assigner.mergeWindows(TimeWindow(4000, 9000), &sortedWindows, callback);
@@ -56,10 +53,7 @@ TEST(SessionWindowAssignerTest, MergeWindowsMergesIntersectingNeighbors)
 TEST(SessionWindowAssignerTest, MergeWindowsMergesBothSidesWhenNewWindowConnectsThem)
 {
     SessionWindowAssigner assigner(5000, true);
-    std::set<TimeWindow> sortedWindows = {
-        TimeWindow(0, 5000),
-        TimeWindow(9000, 14000)
-    };
+    std::set<TimeWindow> sortedWindows = {TimeWindow(0, 5000), TimeWindow(9000, 14000)};
     MergingWindowAssigner<TimeWindow>::MergeResultCollector callback;
 
     assigner.mergeWindows(TimeWindow(4000, 10000), &sortedWindows, callback);
@@ -67,17 +61,13 @@ TEST(SessionWindowAssignerTest, MergeWindowsMergesBothSidesWhenNewWindowConnects
     ASSERT_EQ(callback.size(), 1);
     auto it = callback.find(TimeWindow(0, 14000));
     ASSERT_NE(it, callback.end());
-    AssertWindowSetEq(*it->second,
-        {TimeWindow(0, 5000), TimeWindow(4000, 10000), TimeWindow(9000, 14000)});
+    AssertWindowSetEq(*it->second, {TimeWindow(0, 5000), TimeWindow(4000, 10000), TimeWindow(9000, 14000)});
 }
 
 TEST(SessionWindowAssignerTest, MergeWindowsSkipsDisjointWindows)
 {
     SessionWindowAssigner assigner(5000, true);
-    std::set<TimeWindow> sortedWindows = {
-        TimeWindow(0, 5000),
-        TimeWindow(12000, 17000)
-    };
+    std::set<TimeWindow> sortedWindows = {TimeWindow(0, 5000), TimeWindow(12000, 17000)};
     MergingWindowAssigner<TimeWindow>::MergeResultCollector callback;
 
     assigner.mergeWindows(TimeWindow(6000, 11000), &sortedWindows, callback);

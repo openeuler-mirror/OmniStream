@@ -31,46 +31,39 @@ public:
     ~RocksDBStateBackend();
 
     template <typename K>
-    AbstractKeyedStateBackend<K> *createKeyedStateBackend(
-            omnistream::EnvironmentV2 *env,
-            std::set<KeyedStateHandle> stateHandles,
-            KeyGroupRange *keyGroupRange,
-            TypeSerializer *keySerializer,
-            int numberOfKeyGroups) {}
+    AbstractKeyedStateBackend<K>* createKeyedStateBackend(
+        omnistream::EnvironmentV2* env,
+        std::set<KeyedStateHandle> stateHandles,
+        KeyGroupRange* keyGroupRange,
+        TypeSerializer* keySerializer,
+        int numberOfKeyGroups)
+    {
+    }
 
     template <typename K>
-    AbstractKeyedStateBackend<K> *createKeyedStateBackend(
-        omnistream::EnvironmentV2 *env,
+    AbstractKeyedStateBackend<K>* createKeyedStateBackend(
+        omnistream::EnvironmentV2* env,
         std::string operatorIdentifier,
         std::set<std::shared_ptr<KeyedStateHandle>> stateHandles,
-        KeyGroupRange *keyGroupRange,
-        TypeSerializer *keySerializer,
+        KeyGroupRange* keyGroupRange,
+        TypeSerializer* keySerializer,
         int numberOfKeyGroups,
         int alternativeIdx)
     {
         return rocksDbStateBackend->template createKeyedStateBackend<K>(
-            env,
-            operatorIdentifier,
-            stateHandles,
-            keyGroupRange,
-            keySerializer,
-            numberOfKeyGroups,
-            alternativeIdx);
+            env, operatorIdentifier, stateHandles, keyGroupRange, keySerializer, numberOfKeyGroups, alternativeIdx);
     };
 
     OperatorStateBackend* createOperatorStateBackend(
         omnistream::EnvironmentV2* env_,
         std::string operatorIdentifier_,
-        std::set<std::shared_ptr<OperatorStateHandle>> stateHandles_) {
-
-        return rocksDbStateBackend->createOperatorStateBackend(
-            env_,
-            operatorIdentifier_,
-            stateHandles_);
+        std::set<std::shared_ptr<OperatorStateHandle>> stateHandles_)
+    {
+        return rocksDbStateBackend->createOperatorStateBackend(env_, operatorIdentifier_, stateHandles_);
     }
 
 private:
-    EmbeddedRocksDBStateBackend *rocksDbStateBackend;
+    EmbeddedRocksDBStateBackend* rocksDbStateBackend;
 };
 
 #endif // OMNISTREAM_ROCKSDBSTATEBACKEND

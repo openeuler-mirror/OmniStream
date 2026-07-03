@@ -32,7 +32,9 @@ public:
         keySerializer = nullptr;
     }
 
-    AbstractKeyedStateBackend(TypeSerializer *keySerializer, InternalKeyContext<K> *context) :context(context), keySerializer(keySerializer) {};
+    AbstractKeyedStateBackend(TypeSerializer* keySerializer, InternalKeyContext<K>* context)
+        : context(context),
+          keySerializer(keySerializer) {};
 
     void setCurrentKey(K newKey);
     K getCurrentKey();
@@ -42,27 +44,27 @@ public:
      * S: The type of the State objects created from this {@code StateDescriptor}.
      * V: The type of the value of the state object described by this state descriptor.
      * */
-    template<typename N, typename S, typename V>
-    S *getOrCreateKeyedState(TypeSerializer *namespaceSerializer, StateDescriptor *stateDescriptor);
-    TypeSerializer *getKeySerializer()
+    template <typename N, typename S, typename V>
+    S* getOrCreateKeyedState(TypeSerializer* namespaceSerializer, StateDescriptor* stateDescriptor);
+    TypeSerializer* getKeySerializer()
     {
         return keySerializer;
     };
-    template<typename N, typename S, typename V>
-    S *getPartitionedState(N nameSpace, TypeSerializer *namespaceSerializer, StateDescriptor *stateDescriptor);
+    template <typename N, typename S, typename V>
+    S* getPartitionedState(N nameSpace, TypeSerializer* namespaceSerializer, StateDescriptor* stateDescriptor);
 
-    KeyGroupRange *getKeyGroupRange() override;
+    KeyGroupRange* getKeyGroupRange() override;
 
     void dispose() override;
 
-    virtual bool requiresLegacySynchronousTimerSnapshots(SnapshotType *checkpointType)
+    virtual bool requiresLegacySynchronousTimerSnapshots(SnapshotType* checkpointType)
     {
         return false;
     }
 
 protected:
-    InternalKeyContext<K> *context;
-    TypeSerializer * keySerializer = nullptr;
+    InternalKeyContext<K>* context;
+    TypeSerializer* keySerializer = nullptr;
     std::string lastName;
     // This state is InternalKvState
     uintptr_t lastState;
@@ -84,7 +86,7 @@ inline K AbstractKeyedStateBackend<K>::getCurrentKey()
 }
 
 template <typename K>
-inline KeyGroupRange *AbstractKeyedStateBackend<K>::getKeyGroupRange()
+inline KeyGroupRange* AbstractKeyedStateBackend<K>::getKeyGroupRange()
 {
     return context->getKeyGroupRange();
 }
@@ -98,29 +100,31 @@ inline void AbstractKeyedStateBackend<K>::dispose()
 }
 
 template <typename K>
-template<typename N, typename S, typename V>
-S *AbstractKeyedStateBackend<K>::getOrCreateKeyedState(TypeSerializer *namespaceSerializer, StateDescriptor *stateDescriptor)
+template <typename N, typename S, typename V>
+S* AbstractKeyedStateBackend<K>::getOrCreateKeyedState(
+    TypeSerializer* namespaceSerializer, StateDescriptor* stateDescriptor)
 {
-    S *kvState;
+    S* kvState;
     auto it = keyValueStatesByName.find(stateDescriptor->getName());
     if (it == keyValueStatesByName.end()) {
-        kvState = TtlStateFactory<K, N, S, V>::createStateAndWrapWithTtlIfEnabled(
-            namespaceSerializer, stateDescriptor, this);
+        kvState =
+            TtlStateFactory<K, N, S, V>::createStateAndWrapWithTtlIfEnabled(namespaceSerializer, stateDescriptor, this);
         keyValueStatesByName[stateDescriptor->getName()] = reinterpret_cast<uintptr_t>(kvState);
     } else {
-        kvState = reinterpret_cast<S *>(it->second);
+        kvState = reinterpret_cast<S*>(it->second);
     }
     return kvState;
 }
 
 template <typename K>
-template<typename N, typename S, typename V>
-S *AbstractKeyedStateBackend<K>::getPartitionedState(N nameSpace, TypeSerializer *namespaceSerializer, StateDescriptor *stateDescriptor)
+template <typename N, typename S, typename V>
+S* AbstractKeyedStateBackend<K>::getPartitionedState(
+    N nameSpace, TypeSerializer* namespaceSerializer, StateDescriptor* stateDescriptor)
 {
     // S here is InternalKvState<K, N, V>
     std::string name = stateDescriptor->getName();
     if (!lastName.empty() && lastName == name) {
-        S *lastStateAsS = reinterpret_cast<S *>(lastState);
+        S* lastStateAsS = reinterpret_cast<S*>(lastState);
         lastStateAsS->setCurrentNamespace(nameSpace);
         return lastStateAsS;
     }
@@ -129,13 +133,13 @@ S *AbstractKeyedStateBackend<K>::getPartitionedState(N nameSpace, TypeSerializer
     if (it != keyValueStatesByName.end()) {
         previous = it->second;
         lastState = previous;
-        reinterpret_cast<S *>(lastState)->setCurrentNamespace(nameSpace);
+        reinterpret_cast<S*>(lastState)->setCurrentNamespace(nameSpace);
         lastName = name;
-        return reinterpret_cast<S *>(previous);
+        return reinterpret_cast<S*>(previous);
     }
 
-    S *state = getOrCreateKeyedState<N, S, V>(namespaceSerializer, stateDescriptor);
-    S *kvState = reinterpret_cast<S *>(state);
+    S* state = getOrCreateKeyedState<N, S, V>(namespaceSerializer, stateDescriptor);
+    S* kvState = reinterpret_cast<S*>(state);
 
     lastName = name;
     lastState = reinterpret_cast<uintptr_t>(state);

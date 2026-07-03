@@ -21,21 +21,22 @@
 
 namespace omnistream {
 
-    class ObjectBufferConsumerWithPartialRecordLength {
-    public:
-        ObjectBufferConsumerWithPartialRecordLength(std::shared_ptr<ObjectBufferConsumer> bufferConsumer, int partialRecordLength);
-        ~ObjectBufferConsumerWithPartialRecordLength();
+class ObjectBufferConsumerWithPartialRecordLength {
+public:
+    ObjectBufferConsumerWithPartialRecordLength(
+        std::shared_ptr<ObjectBufferConsumer> bufferConsumer, int partialRecordLength);
+    ~ObjectBufferConsumerWithPartialRecordLength();
 
-        std::shared_ptr<ObjectBufferConsumer> getBufferConsumer();
-        int getPartialRecordLength();
-        VectorBatchBuffer* build();
-        bool cleanupPartialRecord();
-        std::string toString() const;
+    std::shared_ptr<ObjectBufferConsumer> getBufferConsumer();
+    int getPartialRecordLength();
+    VectorBatchBuffer* build();
+    bool cleanupPartialRecord();
+    std::string toString() const;
 
-    private:
-        std::shared_ptr<ObjectBufferConsumer> bufferConsumer;
-        int partialRecordLength;
-    };
+private:
+    std::shared_ptr<ObjectBufferConsumer> bufferConsumer;
+    int partialRecordLength;
+};
 
 } // namespace omnistream
 

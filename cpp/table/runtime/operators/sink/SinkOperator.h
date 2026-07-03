@@ -16,39 +16,43 @@
 #include "DiscardingSink.h"
 #include "streaming/runtime/streamrecord/StreamRecord.h"
 
-class SinkOperator : public AbstractUdfStreamOperator<SinkFunction<StreamRecord *>, int>, public OneInputStreamOperator {
+class SinkOperator : public AbstractUdfStreamOperator<SinkFunction<StreamRecord*>, int>, public OneInputStreamOperator {
 public:
-    explicit SinkOperator(const nlohmann::json& description) : AbstractUdfStreamOperator(new DiscardingSink(description)),
-                                                               description(description){};
+    explicit SinkOperator(const nlohmann::json& description)
+        : AbstractUdfStreamOperator(new DiscardingSink(description)),
+          description(description) {};
 
-    ~SinkOperator() override{};
+    ~SinkOperator() override {};
 
     void open() override;
-    const char *getName() override;
-    void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) override {
+    const char* getName() override;
+    void initializeState(StreamTaskStateInitializerImpl* initializer, TypeSerializer* keySerializer) override
+    {
         INFO_RELEASE("SinkOperator::initializeState not impl");
         // AbstractStreamOperator<int>::initializeState(initializer, keySerializer);
     }
 
-    void notifyCheckpointComplete(long checkpointId) override {
+    void notifyCheckpointComplete(long checkpointId) override
+    {
         INFO_RELEASE("SinkOperator::notifyCheckpointComplete not impl, checkpointId : " << checkpointId);
     }
 
-    void notifyCheckpointAborted(long checkpointId) override {
+    void notifyCheckpointAborted(long checkpointId) override
+    {
         INFO_RELEASE("SinkOperator::notifyCheckpointAborted not impl, checkpointId : " << checkpointId);
     }
 
-    void processBatch(StreamRecord *record) override;
-    void processElement(StreamRecord *record) override;
+    void processBatch(StreamRecord* record) override;
+    void processElement(StreamRecord* record) override;
 
     std::string getTypeName() override;
 
-    void ProcessWatermark(Watermark *watermark) override
+    void ProcessWatermark(Watermark* watermark) override
     {
-        LOG("SinkOperator ProcessWatermark, do nothing!")
+        LOG("SinkOperator ProcessWatermark, do nothing!");
     }
 
-    void processWatermarkStatus(WatermarkStatus *watermarkStatus) override
+    void processWatermarkStatus(WatermarkStatus* watermarkStatus) override
     {
         output->emitWatermarkStatus(watermarkStatus);
     }
@@ -62,4 +66,4 @@ private:
     nlohmann::json description;
 };
 
-#endif  // FLINK_TNEL_SINKOPERATOR_H
+#endif // FLINK_TNEL_SINKOPERATOR_H

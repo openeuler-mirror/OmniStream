@@ -5,7 +5,6 @@
 #ifndef OMNISTREAM_TUPLETYPEINFO_H
 #define OMNISTREAM_TUPLETYPEINFO_H
 
-
 #include "core/typeutils/TypeSerializer.h"
 #include "TypeInformation.h"
 
@@ -15,28 +14,26 @@ using json = nlohmann::json;
 
 class TupleTypeInfo : public TypeInformation {
 public:
-    explicit TupleTypeInfo(TypeSerializer *typeSerializer)
-        : typeSerializer(typeSerializer) {
-    };
+    explicit TupleTypeInfo(TypeSerializer* typeSerializer) : typeSerializer(typeSerializer) {};
 
     explicit TupleTypeInfo(std::vector<TypeInformation*> types) : types(types)
-    {}
+    {
+    }
 
-    TypeSerializer *createTypeSerializer() override;
+    TypeSerializer* createTypeSerializer() override;
     TypeSerializer* getTypeSerializer() override;
 
     std::string name() override;
 
     ~TupleTypeInfo() override = default;
 
-    static TupleTypeInfo *of(const json &type);
+    static TupleTypeInfo* of(const json& type);
 
     BackendDataType getBackendId() const override;
 
 private:
-    TypeSerializer *typeSerializer = nullptr;
+    TypeSerializer* typeSerializer = nullptr;
     std::vector<TypeInformation*> types;
 };
-
 
 #endif // OMNISTREAM_TUPLETYPEINFO_H

@@ -16,12 +16,10 @@ long int omnistream::SHMMetricView::GetThreadID()
     return this->valuePtr_[threadIDOffset];
 }
 
-
 long int omnistream::SHMMetricView::GetProbeID()
 {
     return this->valuePtr_[probeIDOffset];
 }
-
 
 long int omnistream::SHMMetricView::GetMilliSeconds()
 {

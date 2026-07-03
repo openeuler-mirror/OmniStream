@@ -22,50 +22,52 @@
 
 namespace omnistream {
 
+class BufferOrEvent {
+public:
+    BufferOrEvent(Buffer* buffer, InputChannelInfo channelInfo, bool moreAvailable, bool morePriorityEvents);
 
-    class BufferOrEvent {
-    public:
-        BufferOrEvent(Buffer* buffer, InputChannelInfo channelInfo,
-                      bool moreAvailable, bool morePriorityEvents);
+    BufferOrEvent(
+        std::shared_ptr<AbstractEvent>,
+        bool hasPriority,
+        InputChannelInfo channelInfo,
+        bool moreAvailable,
+        int size,
+        bool morePriorityEvents);
 
-        BufferOrEvent(std::shared_ptr<AbstractEvent>, bool hasPriority,
-                      InputChannelInfo channelInfo, bool moreAvailable, int size,
-                      bool morePriorityEvents);
+    // Visible for testing
+    BufferOrEvent(Buffer* buffer, InputChannelInfo channelInfo);
 
-        // Visible for testing
-        BufferOrEvent(Buffer* buffer, InputChannelInfo channelInfo);
+    // Visible for testing
+    BufferOrEvent(std::shared_ptr<AbstractEvent>, InputChannelInfo channelInfo);
 
-        // Visible for testing
-        BufferOrEvent(std::shared_ptr<AbstractEvent>, InputChannelInfo channelInfo);
+    bool isBuffer() const;
+    bool isEvent() const;
 
-        bool isBuffer() const;
-        bool isEvent() const;
+    Buffer* getBuffer() const;
+    std::shared_ptr<AbstractEvent> getEvent() const;
+    InputChannelInfo getChannelInfo() const;
 
-        Buffer* getBuffer() const;
-        std::shared_ptr<AbstractEvent>  getEvent() const;
-        InputChannelInfo getChannelInfo() const;
+    void setChannelInfo(InputChannelInfo channelInfo);
 
-        void setChannelInfo(InputChannelInfo channelInfo);
+    bool moreAvailable() const;
+    bool morePriorityEvents() const;
 
-        bool moreAvailable() const;
-        bool morePriorityEvents() const;
+    std::string toString() const;
 
-        std::string toString() const;
+    void setMoreAvailable(bool moreAvailable);
 
-        void setMoreAvailable(bool moreAvailable);
+    int getSize() const;
+    bool hasPriority() const;
 
-        int getSize() const;
-        bool hasPriority() const;
-
-    private:
-        Buffer* buffer_;
-        std::shared_ptr<AbstractEvent> event_;
-        bool hasPriority_;
-        InputChannelInfo channelInfo_;
-        int size_;
-        bool moreAvailable_;
-        bool morePriorityEvents_;
-    };
+private:
+    Buffer* buffer_;
+    std::shared_ptr<AbstractEvent> event_;
+    bool hasPriority_;
+    InputChannelInfo channelInfo_;
+    int size_;
+    bool moreAvailable_;
+    bool morePriorityEvents_;
+};
 
 } // namespace omnistream
 

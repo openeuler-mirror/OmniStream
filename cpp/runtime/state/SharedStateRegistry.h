@@ -35,14 +35,14 @@ public:
     }
 
     virtual std::shared_ptr<StreamStateHandle> RegisterReference(
-            const std::string& registrationKey,
-            std::shared_ptr<StreamStateHandle> state,
-            long checkpointID,
-            bool preventDiscardingCreatedCheckpoint) = 0;
+        const std::string& registrationKey,
+        std::shared_ptr<StreamStateHandle> state,
+        long checkpointID,
+        bool preventDiscardingCreatedCheckpoint) = 0;
 
     virtual std::set<long> unregisterUnusedState(long lowestCheckpointID) = 0;
 
-    template<typename IterableType>
+    template <typename IterableType>
     void RegisterAll(const IterableType& stateHandles, long checkpointID)
     {
         RegisterAllImpl(stateHandles, checkpointID);
@@ -59,7 +59,7 @@ protected:
     virtual void RegisterAllImpl(
         const std::vector<std::shared_ptr<CompositeStateHandle>>& stateHandles, long checkpointID) = 0;
 
-    template<typename IterableType>
+    template <typename IterableType>
     void RegisterAllImpl(const IterableType& stateHandles, long checkpointID)
     {
         std::vector<std::shared_ptr<CompositeStateHandle>> handleVector;
@@ -69,6 +69,5 @@ protected:
         RegisterAllImpl(handleVector, checkpointID);
     }
 };
-
 
 #endif // OMNISTREAM_SHAREDSTATEREGISTRY_H

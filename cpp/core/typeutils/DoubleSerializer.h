@@ -21,13 +21,13 @@ public:
         reuseBuffer = new Double();
     }
     ~DoubleSerializer() override = default;
-    void* deserialize(DataInputView &source) override
+    void* deserialize(DataInputView& source) override
     {
-        NOT_IMPL_EXCEPTION
+        NOT_IMPL_EXCEPTION;
     }
-    void serialize(void* record, DataOutputSerializer &target) override
+    void serialize(void* record, DataOutputSerializer& target) override
     {
-        NOT_IMPL_EXCEPTION
+        NOT_IMPL_EXCEPTION;
     }
     BackendDataType getBackendId() const override
     {
@@ -40,8 +40,8 @@ public:
     }
 
     static DoubleSerializer* INSTANCE;
-    void deserialize(Object* buffer, DataInputView &source) override;
-    void serialize(Object* buffer, DataOutputSerializer &target) override;
+    void deserialize(Object* buffer, DataInputView& source) override;
+    void serialize(Object* buffer, DataOutputSerializer& target) override;
 
     Object* GetBuffer() override;
 };

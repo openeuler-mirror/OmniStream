@@ -28,19 +28,19 @@ enum class CheckpointingMode {
 
 class ExecutionCheckpointingOptions {
 public:
-    static const ConfigOptionV2<CheckpointingMode> *CHECKPOINTING_MODE;
-    static const ConfigOptionV2<std::chrono::milliseconds> *CHECKPOINTING_TIMEOUT;
-    static const ConfigOptionV2<int> *MAX_CONCURRENT_CHECKPOINTS;
-    static const ConfigOptionV2<std::chrono::milliseconds> *MIN_PAUSE_BETWEEN_CHECKPOINTS;
-    static const ConfigOptionV2<int> *TOLERABLE_FAILURE_NUMBER;
+    static const ConfigOptionV2<CheckpointingMode>* CHECKPOINTING_MODE;
+    static const ConfigOptionV2<std::chrono::milliseconds>* CHECKPOINTING_TIMEOUT;
+    static const ConfigOptionV2<int>* MAX_CONCURRENT_CHECKPOINTS;
+    static const ConfigOptionV2<std::chrono::milliseconds>* MIN_PAUSE_BETWEEN_CHECKPOINTS;
+    static const ConfigOptionV2<int>* TOLERABLE_FAILURE_NUMBER;
     // static const ConfigOption<CheckpointConfig::ExternalizedCheckpointCleanup> *EXTERNALIZED_CHECKPOINT;
-    static const ConfigOptionV2<std::chrono::milliseconds> *CHECKPOINTING_INTERVAL;
-    static const ConfigOptionV2<bool> *ENABLE_UNALIGNED;
-    static const ConfigOptionV2<std::chrono::milliseconds> *ALIGNED_CHECKPOINT_TIMEOUT;
-    static const ConfigOptionV2<std::chrono::milliseconds> *ALIGNMENT_TIMEOUT;
-    static const ConfigOptionV2<bool> *FORCE_UNALIGNED;
-    static const ConfigOptionV2<long> *CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA;
-    static const ConfigOptionV2<bool> *ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH;
+    static const ConfigOptionV2<std::chrono::milliseconds>* CHECKPOINTING_INTERVAL;
+    static const ConfigOptionV2<bool>* ENABLE_UNALIGNED;
+    static const ConfigOptionV2<std::chrono::milliseconds>* ALIGNED_CHECKPOINT_TIMEOUT;
+    static const ConfigOptionV2<std::chrono::milliseconds>* ALIGNMENT_TIMEOUT;
+    static const ConfigOptionV2<bool>* FORCE_UNALIGNED;
+    static const ConfigOptionV2<long>* CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA;
+    static const ConfigOptionV2<bool>* ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH;
 };
 
 #endif // FLINK_TNEL_EXECTUIONCHECKPOINTINGOPTIONS_H

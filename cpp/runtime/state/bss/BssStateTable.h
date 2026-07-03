@@ -22,27 +22,31 @@
 #include "table_description.h"
 #include "state/HashCode.h"
 
-template<typename K, typename N, typename S>
+template <typename K, typename N, typename S>
 class BssStateTable {
 public:
-    BssStateTable(InternalKeyContext<K> *keyContext, RegisteredKeyValueStateBackendMetaInfo *metaInfo,
-                  TypeSerializer *keySerializer) : keyContext(keyContext), metaInfo(metaInfo),
-        keySerializer(keySerializer) {};
+    BssStateTable(
+        InternalKeyContext<K>* keyContext,
+        RegisteredKeyValueStateBackendMetaInfo* metaInfo,
+        TypeSerializer* keySerializer)
+        : keyContext(keyContext),
+          metaInfo(metaInfo),
+          keySerializer(keySerializer) {};
 
     bool isEmpty()
     {
         return size == 0;
     }
 
-    void createTable(ock::bss::BoostStateDBPtr &_dbPtr)
+    void createTable(ock::bss::BoostStateDBPtr& _dbPtr)
     {
         this->dbPtr = _dbPtr;
         auto tblDesc = std::make_shared<ock::bss::TableDescription>(
-                ock::bss::StateType::VALUE, "dbTable", -1, ock::bss::TableSerializer{}, dbPtr->GetConfig());
+            ock::bss::StateType::VALUE, "dbTable", -1, ock::bss::TableSerializer{}, dbPtr->GetConfig());
         dbTable = std::dynamic_pointer_cast<ock::bss::KVTable>(_dbPtr->GetTableOrCreate(tblDesc));
     };
 
-    S get(N &nameSpace)
+    S get(N& nameSpace)
     {
         LOG("bss state table get");
         uint32_t keyHashCode;
@@ -60,25 +64,24 @@ public:
                 return std::numeric_limits<S>::max();
             }
         }
-        DataInputDeserializer serializedData(reinterpret_cast<const uint8_t *>(readValue.Data()),
-            readValue.Length(), 0);
-        void *resPtr = getStateSerializer()->deserialize(serializedData);
+        DataInputDeserializer serializedData(reinterpret_cast<const uint8_t*>(readValue.Data()), readValue.Length(), 0);
+        void* resPtr = getStateSerializer()->deserialize(serializedData);
         if constexpr (std::is_pointer_v<S>) {
-            return (S) resPtr;
+            return (S)resPtr;
         } else {
-            return resPtr == nullptr ? std::numeric_limits<S>::max() : *(S *) resPtr;
+            return resPtr == nullptr ? std::numeric_limits<S>::max() : *(S*)resPtr;
         }
     }
 
-    void put(N &nameSpace, const S &state)
+    void put(N& nameSpace, const S& state)
     {
-        LOG("BSS state table put")
+        LOG("BSS state table put");
         uint32_t keyHashCode;
         DataOutputSerializer serializer;
         OutputBufferStatus outputBufferStatus;
         serializer.setBackendBuffer(&outputBufferStatus);
         ock::bss::BinaryData priKey = GetPriBinaryData(nameSpace, keyHashCode, serializer);
-        TypeSerializer *vSerializer = getStateSerializer();
+        TypeSerializer* vSerializer = getStateSerializer();
         DataOutputSerializer valueOutputSerializer;
         OutputBufferStatus valueOutputBufferStatus;
         valueOutputSerializer.setBackendBuffer(&valueOutputBufferStatus);
@@ -90,17 +93,17 @@ public:
         } else {
             vSerializer->serialize(&tmpS, valueOutputSerializer);
         }
-        ock::bss::BinaryData priValue(valueOutputSerializer.getData(),
-            static_cast<int32_t>(valueOutputSerializer.getPosition()));
+        ock::bss::BinaryData priValue(
+            valueOutputSerializer.getData(), static_cast<int32_t>(valueOutputSerializer.getPosition()));
         auto res = dbTable->Put(keyHashCode, priKey, priValue);
         if (res != ock::bss::BSS_OK) {
-            LOG("Warning: put failed")
+            LOG("Warning: put failed");
         }
     }
 
-    void clear(N &nameSpace)
+    void clear(N& nameSpace)
     {
-        LOG("BSS state table clear")
+        LOG("BSS state table clear");
         uint32_t keyHashCode;
         DataOutputSerializer serializer;
         OutputBufferStatus outputBufferStatus;
@@ -108,13 +111,13 @@ public:
         ock::bss::BinaryData priKey = GetPriBinaryData(nameSpace, keyHashCode, serializer);
         auto res = dbTable->Remove(keyHashCode, priKey);
         if (res != ock::bss::BSS_OK) {
-            LOG("Warning: clear failed")
+            LOG("Warning: clear failed");
         }
     }
 
-    void add(N &nameSpace, const S &value)
+    void add(N& nameSpace, const S& value)
     {
-        LOG("BSS state table add")
+        LOG("BSS state table add");
         uint32_t keyHashCode;
         DataOutputSerializer serializer;
         OutputBufferStatus outputBufferStatus;
@@ -124,7 +127,7 @@ public:
         OutputBufferStatus valueOutputBufferStatus;
         valueOutputSerializer.setBackendBuffer(&valueOutputBufferStatus);
         S tmpS = value;
-        TypeSerializer *vSerializer = getStateSerializer();
+        TypeSerializer* vSerializer = getStateSerializer();
         if constexpr (std::is_same_v<S, int64_t> || std::is_same_v<S, int32_t>) {
             LongSerializer::INSTANCE->serialize(&tmpS, valueOutputSerializer);
         } else if constexpr (std::is_pointer_v<S>) {
@@ -132,15 +135,15 @@ public:
         } else {
             vSerializer->serialize(&tmpS, valueOutputSerializer);
         }
-        ock::bss::BinaryData priVal(valueOutputSerializer.getData(),
-            static_cast<int32_t>(valueOutputSerializer.getPosition()));
+        ock::bss::BinaryData priVal(
+            valueOutputSerializer.getData(), static_cast<int32_t>(valueOutputSerializer.getPosition()));
         auto res = dbTable->Add(keyHashCode, priKey, priVal);
         if (res != ock::bss::BSS_OK) {
-            LOG("Warning: add failed")
+            LOG("Warning: add failed");
         }
     }
 
-    ock::bss::BinaryData GetPriBinaryData(N &nameSpace, uint32_t &keyHashCode, DataOutputSerializer &serializer)
+    ock::bss::BinaryData GetPriBinaryData(N& nameSpace, uint32_t& keyHashCode, DataOutputSerializer& serializer)
     {
         auto currentKey = keyContext->getCurrentKey();
         // serialize key
@@ -169,76 +172,77 @@ public:
         return vectorBatchId;
     }
 
-    void addVectorBatch(omnistream::VectorBatch *vectorBatch)
+    void addVectorBatch(omnistream::VectorBatch* vectorBatch)
     {
-        LOG("Bss state table addVectorBatch")
+        LOG("Bss state table addVectorBatch");
         DataOutputSerializer keyOutputSerializer;
         OutputBufferStatus outputBufferStatus;
         keyOutputSerializer.setBackendBuffer(&outputBufferStatus);
         LongSerializer longSerializer;
         longSerializer.serialize(&vectorBatchId, keyOutputSerializer);
-        ock::bss::BinaryData priKey(keyOutputSerializer.getData(),
-            static_cast<int32_t>(keyOutputSerializer.getPosition()));
-        uint32_t keyHashCode = HashCode::Hash(keyOutputSerializer.getData(),
-            static_cast<int32_t>(keyOutputSerializer.getPosition()));
+        ock::bss::BinaryData priKey(
+            keyOutputSerializer.getData(), static_cast<int32_t>(keyOutputSerializer.getPosition()));
+        uint32_t keyHashCode =
+            HashCode::Hash(keyOutputSerializer.getData(), static_cast<int32_t>(keyOutputSerializer.getPosition()));
         int batchSize = omnistream::VectorBatchSerializationUtils::calculateVectorBatchSerializableSize(vectorBatch);
-        uint8_t *buffer = new uint8_t[batchSize];
+        uint8_t* buffer = new uint8_t[batchSize];
         omnistream::SerializedBatchInfo serializedBatchInfo =
-                omnistream::VectorBatchSerializationUtils::serializeVectorBatch(vectorBatch, batchSize, buffer);
+            omnistream::VectorBatchSerializationUtils::serializeVectorBatch(vectorBatch, batchSize, buffer);
         ock::bss::BinaryData priVal(serializedBatchInfo.buffer, serializedBatchInfo.size);
         auto res = dbTable->Put(keyHashCode, priKey, priVal);
         if (res != ock::bss::BSS_OK) {
-            LOG("Warning: addVectorBatch failed")
+            LOG("Warning: addVectorBatch failed");
         }
         vectorBatchId++;
     }
 
-    omnistream::VectorBatch *getVectorBatch(long batchId)
+    omnistream::VectorBatch* getVectorBatch(long batchId)
     {
-        LOG("Bss state table getVectorBatch")
+        LOG("Bss state table getVectorBatch");
         DataOutputSerializer keyOutputSerializer;
         OutputBufferStatus outputBufferStatus;
         keyOutputSerializer.setBackendBuffer(&outputBufferStatus);
         LongSerializer longSerializer;
         longSerializer.serialize(&batchId, keyOutputSerializer);
-        uint32_t keyHashCode = HashCode::Hash(keyOutputSerializer.getData(),
-            static_cast<int32_t>(keyOutputSerializer.getPosition()));
-        ock::bss::BinaryData priKey(keyOutputSerializer.getData(),
-            static_cast<uint32_t>(keyOutputSerializer.getPosition()));
+        uint32_t keyHashCode =
+            HashCode::Hash(keyOutputSerializer.getData(), static_cast<int32_t>(keyOutputSerializer.getPosition()));
+        ock::bss::BinaryData priKey(
+            keyOutputSerializer.getData(), static_cast<uint32_t>(keyOutputSerializer.getPosition()));
 
         ock::bss::BinaryData priVal;
         auto res = dbTable->Get(keyHashCode, priKey, priVal);
         if (res != ock::bss::BSS_OK) {
-            LOG("Warning: getVectorBatch failed")
+            LOG("Warning: getVectorBatch failed");
         }
-        uint8_t* address = const_cast<uint8_t *>(priVal.Data() + sizeof(int8_t));
+        uint8_t* address = const_cast<uint8_t*>(priVal.Data() + sizeof(int8_t));
         auto batch = omnistream::VectorBatchDeserializationUtils::deserializeVectorBatch(address);
         return batch;
     }
 
-    TypeSerializer *getNamespaceSerializer()
+    TypeSerializer* getNamespaceSerializer()
     {
         return metaInfo->getNamespaceSerializer();
     }
 
-    TypeSerializer *getStateSerializer()
+    TypeSerializer* getStateSerializer()
     {
         return metaInfo->getStateSerializer();
     }
 
-    RegisteredKeyValueStateBackendMetaInfo *getMetaInfo()
+    RegisteredKeyValueStateBackendMetaInfo* getMetaInfo()
     {
         return metaInfo;
     }
 
-    void setMetaInfo(RegisteredKeyValueStateBackendMetaInfo *newMetaInfo)
+    void setMetaInfo(RegisteredKeyValueStateBackendMetaInfo* newMetaInfo)
     {
         metaInfo = newMetaInfo;
     }
+
 protected:
-    InternalKeyContext<K> *keyContext;
-    RegisteredKeyValueStateBackendMetaInfo *metaInfo;
-    TypeSerializer *keySerializer;
+    InternalKeyContext<K>* keyContext;
+    RegisteredKeyValueStateBackendMetaInfo* metaInfo;
+    TypeSerializer* keySerializer;
     ock::bss::BoostStateDBPtr dbPtr;
     ock::bss::ConfigRef config;
     ock::bss::KVTableRef dbTable;

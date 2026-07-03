@@ -17,7 +17,6 @@
 #include "InternalPriorityQueue.h"
 #include "core/utils/type_traits_ext.h"
 
-
 template <typename T>
 class KeyGroupedInternalPriorityQueue : virtual public InternalPriorityQueue<T> {
 public:
@@ -26,6 +25,3 @@ public:
     using DedupSet = std::unordered_set<T, typename InnerType::SharedPtrHash, typename InnerType::SharedPtrEqual>;
     virtual std::shared_ptr<DedupSet> getSubsetForKeyGroup(int32_t keyGroupId) = 0;
 };
-
-
-

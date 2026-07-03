@@ -12,7 +12,7 @@
 #define FLINK_TNEL_INTERNALKEYCONTEXT_H
 #include "KeyGroupRange.h"
 
-template<typename K>
+template <typename K>
 class InternalKeyContext {
 public:
     virtual ~InternalKeyContext() = default;
@@ -27,7 +27,7 @@ public:
 
     virtual void setCurrentKeyGroupIndex(int currentKeyGroupIndex) = 0;
 
-    virtual KeyGroupRange *getKeyGroupRange() = 0;
+    virtual KeyGroupRange* getKeyGroupRange() = 0;
 };
 
 #endif // FLINK_TNEL_INTERNALKEYCONTEXT_H

@@ -28,12 +28,13 @@ public:
     virtual const std::vector<E*>& getRecordsFromSplit() = 0;
     virtual size_t getSplitStoppingOffset() = 0;
     // 获取已完成的分片
-    virtual std::set<std::string> &finishedSplits() = 0;
+    virtual std::set<std::string>& finishedSplits() = 0;
     // 当这批记录全部发出时调用，默认实现为空
-    virtual void recycle() {}
+    virtual void recycle()
+    {
+    }
     // 虚析构函数，确保派生类对象能被正确释放
     virtual ~RecordsWithSplitIds() = default;
 };
 
 #endif // FLINK_TNEL_RECORDSWITHSPLITIDS_H
-

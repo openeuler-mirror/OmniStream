@@ -53,7 +53,7 @@ public:
     inline int readUnsignedByte() override;
 
     inline int64_t readLong() override;
-    inline void *GetBuffer() override
+    inline void* GetBuffer() override
     {
         return nullptr;
     }
@@ -66,36 +66,43 @@ public:
 
     inline double readDouble() override;
 
-    const uint8_t* getData() override {
+    const uint8_t* getData() override
+    {
         return data_;
     }
 
-    size_t getPosition() override {
+    size_t getPosition() override
+    {
         return position_;
     }
 
-    void setPosition(size_t position) override {
+    void setPosition(size_t position) override
+    {
         position_ = position;
     }
 
     Buffer* GetUnconsumedSegment()
     {
         LOG("NonSpanningWrapper GetUnconsumedSegment position: " << position_ << ", length: " << length_
-            << ", remaining: " << remaining());
+                                                                 << ", remaining: " << remaining());
         if (!hasRemaining() || remaining() <= 0) {
             return nullptr;
         }
-        uint8_t *data = reinterpret_cast<uint8_t *>(malloc(remaining()));
+        uint8_t* data = reinterpret_cast<uint8_t*>(malloc(remaining()));
         MemorySegment* memorySegment = new MemorySegment(data, remaining());
         memorySegment->put(0, data_, position_, remaining());
         ::datastream::NetworkBuffer* networkBuffer = new ::datastream::NetworkBuffer(
-            memorySegment, remaining(), 0, std::make_shared<OriginalNetworkBufferRecycler>(),
-            ObjectBufferDataType::DATA_BUFFER, true);
+            memorySegment,
+            remaining(),
+            0,
+            std::make_shared<OriginalNetworkBufferRecycler>(),
+            ObjectBufferDataType::DATA_BUFFER,
+            true);
         return networkBuffer;
     }
-private:
 
-    const std::string BROKEN_SERIALIZATION_ERROR_MESSAGE =   "Serializer consumed more bytes than the record had. ";
+private:
+    const std::string BROKEN_SERIALIZATION_ERROR_MESSAGE = "Serializer consumed more bytes than the record had. ";
 
     const uint8_t* data_;
     size_t length_;
@@ -137,8 +144,7 @@ inline int NonSpanningWrapper::readInt()
     }
     uint32_t value = (static_cast<uint32_t>(data_[position_]) << 24) |
                      (static_cast<uint32_t>(data_[position_ + 1]) << 16) |
-                     (static_cast<uint32_t>(data_[position_ + 2]) << 8) |
-                     static_cast<uint32_t>(data_[position_ + 3]);
+                     (static_cast<uint32_t>(data_[position_ + 2]) << 8) | static_cast<uint32_t>(data_[position_ + 3]);
 
     position_ += sizeof(uint32_t);
 
@@ -156,7 +162,7 @@ inline bool NonSpanningWrapper::canReadRecord(int recordLength) const
     return recordLength <= remaining();
 }
 
-inline DeserializationResult &NonSpanningWrapper::readInto(IOReadableWritable &target)
+inline DeserializationResult& NonSpanningWrapper::readInto(IOReadableWritable& target)
 {
     LOG(">>>>>>>>>");
 
@@ -174,8 +180,7 @@ inline DeserializationResult &NonSpanningWrapper::readInto(IOReadableWritable &t
     }
 }
 
-
-inline void NonSpanningWrapper::transferTo(ByteBuffer &dst)
+inline void NonSpanningWrapper::transferTo(ByteBuffer& dst)
 {
     //
 
@@ -195,32 +200,32 @@ inline void NonSpanningWrapper::clear()
     this->length_ = 0;
 }
 
-inline void NonSpanningWrapper::initializeFromMemoryBuffer(const uint8_t *buffer, int limit)
+inline void NonSpanningWrapper::initializeFromMemoryBuffer(const uint8_t* buffer, int limit)
 {
     data_ = buffer;
     position_ = 0;
     length_ = static_cast<size_t>(limit);
 
 #ifdef DEBUG
-    LOG("   NonSpanningWrapper::initializeFromMemoryBuffer: buffer  " +
-        std::to_string(reinterpret_cast<long>(data_)) + " length_ " + std::to_string(length_))
+    LOG("   NonSpanningWrapper::initializeFromMemoryBuffer: buffer  " + std::to_string(reinterpret_cast<long>(data_)) +
+        " length_ " + std::to_string(length_));
 #endif
 }
 
-inline void NonSpanningWrapper::InitializeFromMemoryBuffer(const uint8_t *buffer, int position, int limit)
+inline void NonSpanningWrapper::InitializeFromMemoryBuffer(const uint8_t* buffer, int position, int limit)
 {
     data_ = buffer;
     position_ = position;
     length_ = limit;
 }
 
-inline int NonSpanningWrapper::copyContentTo(uint8_t *dst)
+inline int NonSpanningWrapper::copyContentTo(uint8_t* dst)
 {
     int numBytesChunk = remaining();
-    auto *src = data_ + position_;
+    auto* src = data_ + position_;
 #ifdef DEBUG
-    LOG("   buffer  " << reinterpret_cast<long>(dst) << " numBytesChunk " << numBytesChunk << " data_ " << data_ <<
-                      " position_: " << position_ << " length_: " << length_)
+    LOG("   buffer  " << reinterpret_cast<long>(dst) << " numBytesChunk " << numBytesChunk << " data_ " << data_
+                      << " position_: " << position_ << " length_: " << length_);
 #endif
     if (numBytesChunk) {
         auto ret = memcpy_s(dst, numBytesChunk, src, numBytesChunk);
@@ -242,20 +247,16 @@ inline int64_t NonSpanningWrapper::readLong()
     if (unlikely(length_ < required_size || position_ > length_ - required_size)) {
         THROW_LOGIC_EXCEPTION("EOFException");
     }
-    auto ret = static_cast <int64_t>
-    ((static_cast<uint64_t>(data_[position_]) << 56) |
-     (static_cast<uint64_t>(data_[position_ + 1]) << 48) |
-     (static_cast<uint64_t>(data_[position_ + 2]) << 40) |
-     (static_cast<uint64_t>(data_[position_ + 3]) << 32) |
-     (static_cast<uint64_t>(data_[position_ + 4]) << 24) |
-     (static_cast<uint64_t>(data_[position_ + 5]) << 16) |
-     (static_cast<uint64_t>(data_[position_ + 6]) << 8) |
-     static_cast<uint64_t>(data_[position_ + 7]));
+    auto ret = static_cast<int64_t>(
+        (static_cast<uint64_t>(data_[position_]) << 56) | (static_cast<uint64_t>(data_[position_ + 1]) << 48) |
+        (static_cast<uint64_t>(data_[position_ + 2]) << 40) | (static_cast<uint64_t>(data_[position_ + 3]) << 32) |
+        (static_cast<uint64_t>(data_[position_ + 4]) << 24) | (static_cast<uint64_t>(data_[position_ + 5]) << 16) |
+        (static_cast<uint64_t>(data_[position_ + 6]) << 8) | static_cast<uint64_t>(data_[position_ + 7]));
     position_ += 8;
     return ret;
 }
 
-inline void NonSpanningWrapper::readFully(uint8_t *buffer, int capacity, int offset, int length)
+inline void NonSpanningWrapper::readFully(uint8_t* buffer, int capacity, int offset, int length)
 {
     size_t ulength = static_cast<size_t>(length);
     std::copy(data_ + position_, data_ + position_ + ulength, buffer + offset);
@@ -279,16 +280,16 @@ inline std::string NonSpanningWrapper::readUTF()
     readFully(byteArr.data(), utflen, 0, utflen);
 
     while (count < utflen) {
-        c = (int) byteArr[count] & 0xff;
+        c = (int)byteArr[count] & 0xff;
         if (c > 127) {
             break;
         }
         count++;
-        charArr[chararrCount++] = (char) c;
+        charArr[chararrCount++] = (char)c;
     }
 
     while (count < utflen) {
-        c = (int) byteArr[count] & 0xff;
+        c = (int)byteArr[count] & 0xff;
         switch (c >> 4) {
             case 0:
             case 1:
@@ -300,7 +301,7 @@ inline std::string NonSpanningWrapper::readUTF()
             case 7:
                 /* 0xxxxxxx */
                 count++;
-                charArr[chararrCount++] = (char) c;
+                charArr[chararrCount++] = (char)c;
                 break;
             case 12:
             case 13:
@@ -309,11 +310,11 @@ inline std::string NonSpanningWrapper::readUTF()
                 if (unlikely(count > utflen)) {
                     THROW_LOGIC_EXCEPTION("malformed input: partial character at end");
                 }
-                char2 = (int) byteArr[count - 1];
+                char2 = (int)byteArr[count - 1];
                 if (unlikely((char2 & 0xC0) != 0x80)) {
                     THROW_LOGIC_EXCEPTION("malformed input around byte " + count);
                 }
-                charArr[chararrCount++] = (char) (((c & 0x1F) << 6) | (char2 & 0x3F));
+                charArr[chararrCount++] = (char)(((c & 0x1F) << 6) | (char2 & 0x3F));
                 break;
             case 14:
                 /* 1110 xxxx 10xx xxxx 10xx xxxx */
@@ -321,12 +322,12 @@ inline std::string NonSpanningWrapper::readUTF()
                 if (unlikely(count > utflen)) {
                     THROW_LOGIC_EXCEPTION("malformed input: partial character at end");
                 }
-                char2 = (int) byteArr[count - 2];
-                char3 = (int) byteArr[count - 1];
+                char2 = (int)byteArr[count - 2];
+                char3 = (int)byteArr[count - 1];
                 if (unlikely(((char2 & 0xC0) != 0x80) || ((char3 & 0xC0) != 0x80))) {
                     THROW_LOGIC_EXCEPTION("malformed input around byte " + (count - 1));
                 }
-                charArr[chararrCount++] = (char) (((c & 0x0F) << 12) | ((char2 & 0x3F) << 6) | (char3 & 0x3F));
+                charArr[chararrCount++] = (char)(((c & 0x0F) << 12) | ((char2 & 0x3F) << 6) | (char3 & 0x3F));
                 break;
             default:
                 /* 10xx xxxx, 1111 xxxx */
@@ -344,8 +345,9 @@ inline int NonSpanningWrapper::readUnsignedShort()
         // Handle error or throw exception
         THROW_LOGIC_EXCEPTION("readUnsignedShort EOFException");
     }
-    int value = (((static_cast<uint16_t>(data_[position_]) & 0xFF00) >> 8)
-                 | (static_cast<uint16_t>(data_[position_]) << 8)) & 0xffff;
+    int value =
+        (((static_cast<uint16_t>(data_[position_]) & 0xFF00) >> 8) | (static_cast<uint16_t>(data_[position_]) << 8)) &
+        0xffff;
     position_ += sizeof(uint16_t);
 
     return value;
@@ -360,6 +362,6 @@ inline double NonSpanningWrapper::readDouble()
 {
     return Double::doubleToLongBits(readLong());
 }
-}
+} // namespace omnistream::datastream
 
-#endif  // FLINK_TNEL_NONSPANNINGWRAPPER_H
+#endif // FLINK_TNEL_NONSPANNINGWRAPPER_H

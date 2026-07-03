@@ -35,5 +35,4 @@ public:
     virtual void emitWatermark(Watermark* watermark) = 0;
 };
 
-
 #endif

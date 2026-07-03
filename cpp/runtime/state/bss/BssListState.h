@@ -17,56 +17,60 @@
 #include "state/internal/InternalListState.h"
 #include "api/common/state/StateDescriptor.h"
 
-template<typename K, typename N, typename UV>
+template <typename K, typename N, typename UV>
 class BssListState : public InternalListState<K, N, UV> {
 public:
-    BssListState(BssListStateTable<K, N, UV> *_stateTable, TypeSerializer *_valueSerializer,
-        TypeSerializer *_namespaceSerializer) : stateTable(_stateTable), valueSerializer(_valueSerializer),
-        namespaceSerializer(_namespaceSerializer) {};
+    BssListState(
+        BssListStateTable<K, N, UV>* _stateTable,
+        TypeSerializer* _valueSerializer,
+        TypeSerializer* _namespaceSerializer)
+        : stateTable(_stateTable),
+          valueSerializer(_valueSerializer),
+          namespaceSerializer(_namespaceSerializer) {};
 
     ~BssListState() = default;
 
-    void merge(const std::vector<UV> &other) override {};
+    void merge(const std::vector<UV>& other) override {};
 
-    void addAll(const std::vector<UV> &values) override
+    void addAll(const std::vector<UV>& values) override
     {
         stateTable->addAll(currentNamespace, values);
     };
 
-    void CreateTable(ock::bss::BoostStateDBPtr &_dbPtr)
+    void CreateTable(ock::bss::BoostStateDBPtr& _dbPtr)
     {
         stateTable->createTable(_dbPtr);
     };
 
-    TypeSerializer *getNameSpaceSerializer() const
+    TypeSerializer* getNameSpaceSerializer() const
     {
         return namespaceSerializer;
     };
 
-    TypeSerializer *getValueSerializer() const
+    TypeSerializer* getValueSerializer() const
     {
         return valueSerializer;
     };
 
-    void setNamespaceSerializer(TypeSerializer *serializer)
+    void setNamespaceSerializer(TypeSerializer* serializer)
     {
         namespaceSerializer = serializer;
     };
 
-    void setValueSerializer(TypeSerializer *serializer)
+    void setValueSerializer(TypeSerializer* serializer)
     {
         valueSerializer = serializer;
     };
 
-    void add(const UV &value) override
+    void add(const UV& value) override
     {
         stateTable->add(currentNamespace, value);
     };
 
-    void update(const std::vector<UV> &values) override {};
+    void update(const std::vector<UV>& values) override {};
 
-    static BssListState<K, N, UV>* update(StateDescriptor* stateDesc, BssListStateTable<K, N, UV> *stateTable,
-        BssListState<K, N, UV>* existingState)
+    static BssListState<K, N, UV>* update(
+        StateDescriptor* stateDesc, BssListStateTable<K, N, UV>* stateTable, BssListState<K, N, UV>* existingState)
     {
         existingState->setValueSerializer(stateTable->getStateSerializer());
         existingState->setNamespaceSerializer(stateTable->getNamespaceSerializer());
@@ -88,19 +92,19 @@ public:
         stateTable->clear(currentNamespace);
     };
 
-    static BssListState<K, N, UV> *create(StateDescriptor *stateDesc,
-        BssListStateTable<K, N, UV> *stateTable, TypeSerializer *keySerializer)
+    static BssListState<K, N, UV>* create(
+        StateDescriptor* stateDesc, BssListStateTable<K, N, UV>* stateTable, TypeSerializer* keySerializer)
     {
-        return new BssListState<K, N, UV>(stateTable, stateTable->getStateSerializer(),
-            stateTable->getNamespaceSerializer());
+        return new BssListState<K, N, UV>(
+            stateTable, stateTable->getStateSerializer(), stateTable->getNamespaceSerializer());
     };
 
-    void addVectorBatch(omnistream::VectorBatch *vectorBatch) override
+    void addVectorBatch(omnistream::VectorBatch* vectorBatch) override
     {
         stateTable->addVectorBatch(vectorBatch);
     };
 
-    omnistream::VectorBatch *getVectorBatch(int batchId) override
+    omnistream::VectorBatch* getVectorBatch(int batchId) override
     {
         return stateTable->getVectorBatch(batchId);
     };
@@ -111,13 +115,12 @@ public:
     };
 
 private:
-    BssListStateTable<K, N, UV> *stateTable;
-    TypeSerializer *keySerializer;
-    TypeSerializer *valueSerializer;
-    TypeSerializer *namespaceSerializer;
+    BssListStateTable<K, N, UV>* stateTable;
+    TypeSerializer* keySerializer;
+    TypeSerializer* valueSerializer;
+    TypeSerializer* namespaceSerializer;
     N currentNamespace;
 };
-
 
 #endif // OMNISTREAM_BSSLISTSTATE_H
 #endif

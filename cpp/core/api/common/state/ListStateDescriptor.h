@@ -16,23 +16,35 @@
 /**
  * T: The type of the values that can be added to the list state.
  * */
-template<typename T>
+template <typename T>
 class ListStateDescriptor : public StateDescriptor {
 public:
-    ListStateDescriptor(std::string& name, TypeSerializer *serializer) : StateDescriptor(name, serializer)
+    ListStateDescriptor(std::string& name, TypeSerializer* serializer) : StateDescriptor(name, serializer)
     {
         backendDataId = serializer->getBackendId();
     };
-    Type getType() override { return StateDescriptor::Type::LIST; };
+    Type getType() override
+    {
+        return StateDescriptor::Type::LIST;
+    };
 
-    ListStateDescriptor(std::string& name, TypeInformation* typeInfo) :  StateDescriptor(name, typeInfo)
+    ListStateDescriptor(std::string& name, TypeInformation* typeInfo) : StateDescriptor(name, typeInfo)
     {
         backendDataId = typeInfo->getBackendId();
     };
 
-    BackendDataType getBackendId() override { return backendDataId; }
-    BackendDataType getKeyDataId() override {throw std::runtime_error("No keyDataId for a ListStateDescriptor");}
-    BackendDataType getValueDataId() override {throw std::runtime_error("No valueDataId for a ListStateDescriptor");}
+    BackendDataType getBackendId() override
+    {
+        return backendDataId;
+    }
+    BackendDataType getKeyDataId() override
+    {
+        throw std::runtime_error("No keyDataId for a ListStateDescriptor");
+    }
+    BackendDataType getValueDataId() override
+    {
+        throw std::runtime_error("No valueDataId for a ListStateDescriptor");
+    }
 
 protected:
     BackendDataType backendDataId;

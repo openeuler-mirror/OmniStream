@@ -29,7 +29,8 @@ using nlohmann::json;
 
 using ::std::shared_ptr;
 
-static json loadJson(const std::string& path) {
+static json loadJson(const std::string& path)
+{
     std::ifstream f(path);
     if (!f.is_open()) {
         throw std::runtime_error("Failed to open file: " + path);
@@ -41,7 +42,8 @@ static json loadJson(const std::string& path) {
     }
 }
 
-static TypeDescriptionPOD parseTypeDesc(const json& j) {
+static TypeDescriptionPOD parseTypeDesc(const json& j)
+{
     return TypeDescriptionPOD(
         j.at("kind").get<std::string>(),
         j.at("isNull").get<bool>(),
@@ -51,7 +53,8 @@ static TypeDescriptionPOD parseTypeDesc(const json& j) {
         j.at("fieldName").get<std::string>());
 }
 
-static OperatorPOD buildOperatorPod(const json& opDesc) {
+static OperatorPOD buildOperatorPod(const json& opDesc)
+{
     // inputs
     std::vector<TypeDescriptionPOD> inputs;
     if (opDesc.contains("inputs") && opDesc["inputs"].is_array()) {
@@ -73,37 +76,32 @@ static OperatorPOD buildOperatorPod(const json& opDesc) {
         opDesc.at("vertexID").get<int>(),
         /* numInputs */ 2,
         /* numOutputs */ 2,
-        /* chainingStrategy */ 2
-    );
+        /* chainingStrategy */ 2);
 }
 
-static StreamConfigPOD buildStreamConfig(const json& scJ) {
+static StreamConfigPOD buildStreamConfig(const json& scJ)
+{
     StreamConfigPOD cfg;
     cfg.setOperatorDescription(buildOperatorPod(scJ.at("operatorDescription")));
     cfg.setNumberOfNetworkInputs(scJ.at("numberOfNetworkInputs").get<int>());
 
     // In-stream edges (two, like original)
     StreamEdgePOD edge1(
-        1, 5, 1,
-        StreamPartitionerPOD("hash",
-                             std::vector<KeyFieldInfoPOD>{KeyFieldInfoPOD("f0", "BIGINT", 1)}),
-        100);
+        1, 5, 1, StreamPartitionerPOD("hash", std::vector<KeyFieldInfoPOD>{KeyFieldInfoPOD("f0", "BIGINT", 1)}), 100);
     StreamEdgePOD edge2(
-        3, 5, 2,
-        StreamPartitionerPOD("hash",
-                             std::vector<KeyFieldInfoPOD>{KeyFieldInfoPOD("f0", "BIGINT", 0)}),
-        100);
+        3, 5, 2, StreamPartitionerPOD("hash", std::vector<KeyFieldInfoPOD>{KeyFieldInfoPOD("f0", "BIGINT", 0)}), 100);
     cfg.setInStreamEdges(std::vector<StreamEdgePOD>{edge1, edge2});
     return cfg;
 }
 
-static TaskInformationPOD createTaskInformation(const json& joinTddJson) {
+static TaskInformationPOD createTaskInformation(const json& joinTddJson)
+{
     // task-level
-    auto taskName          = joinTddJson.at("taskName").get<std::string>();
-    auto numberOfSubtasks  = joinTddJson.at("numberOfSubtasks").get<int>();
-    auto maxNumberOfSubs   = joinTddJson.at("maxNumberOfSubtasks").get<int>();
-    auto indexOfSubtask    = joinTddJson.at("indexOfSubtask").get<int>();
-    auto stateBackend      = joinTddJson.at("stateBackend").get<std::string>();
+    auto taskName = joinTddJson.at("taskName").get<std::string>();
+    auto numberOfSubtasks = joinTddJson.at("numberOfSubtasks").get<int>();
+    auto maxNumberOfSubs = joinTddJson.at("maxNumberOfSubtasks").get<int>();
+    auto indexOfSubtask = joinTddJson.at("indexOfSubtask").get<int>();
+    auto stateBackend = joinTddJson.at("stateBackend").get<std::string>();
 
     // stream config
     StreamConfigPOD streamCfg = buildStreamConfig(joinTddJson.at("streamConfig"));
@@ -130,7 +128,8 @@ static TaskInformationPOD createTaskInformation(const json& joinTddJson) {
         rocksdbStorePaths);
 }
 
-TEST(CheckpointingCombinedTest, DISABLED_Test1) {
+TEST(CheckpointingCombinedTest, DISABLED_Test1)
+{
     // ---------------------------
     //          Input JSON
     // ---------------------------
@@ -139,8 +138,8 @@ TEST(CheckpointingCombinedTest, DISABLED_Test1) {
 
     // TaskManagerServices configuration
     const json taskMCSConfJson = loadJson("./input/taskMCSConfJoin.json");
-    auto taskManagerServices = std::shared_ptr<TaskManagerServices>(
-        TaskManagerServices::fromConfiguration(taskMCSConfJson));
+    auto taskManagerServices =
+        std::shared_ptr<TaskManagerServices>(TaskManagerServices::fromConfiguration(taskMCSConfJson));
     auto shuffleEnv = taskManagerServices->getShuffleEnvironment();
 
     // ---------------------------
@@ -162,14 +161,12 @@ TEST(CheckpointingCombinedTest, DISABLED_Test1) {
     auto attemptId = std::make_unique<ExecutionAttemptIDPOD>();
     auto jobVertexID = std::make_unique<JobVertexID>();
     auto stateStore = new TaskLocalStateStore(jobId, *jobVertexID, 0, nullptr);
-    auto responder  = new omnistream::NoOpCheckpoingResponder();
-    auto taskStateManager =
-        std::make_shared<omnistream::TaskStateManager>(jobId, *attemptId, stateStore, responder);
+    auto responder = new omnistream::NoOpCheckpoingResponder();
+    auto taskStateManager = std::make_shared<omnistream::TaskStateManager>(jobId, *attemptId, stateStore, responder);
     env->SetTaskStateManager(taskStateManager);
 
-    auto shuffleIOOwnerContext =
-        shuffleEnv->createShuffleIOOwnerContext("testShuffleIOOwnerContext",
-                                                omnistream::ExecutionAttemptIDPOD(), nullptr);
+    auto shuffleIOOwnerContext = shuffleEnv->createShuffleIOOwnerContext(
+        "testShuffleIOOwnerContext", omnistream::ExecutionAttemptIDPOD(), nullptr);
 
     // ---------------------------
     //        Upstream TDDs
@@ -185,10 +182,8 @@ TEST(CheckpointingCombinedTest, DISABLED_Test1) {
     // ---------------------------
     std::vector<std::shared_ptr<ResultPartitionWriter>> upstreamWriters;
 
-    auto rpw1 = shuffleEnv->createResultPartitionWriters(
-        shuffleIOOwnerContext, srcTddInfo1.getProducedPartitions(), 1);
-    auto rpw2 = shuffleEnv->createResultPartitionWriters(
-        shuffleIOOwnerContext, srcTddInfo2.getProducedPartitions(), 1);
+    auto rpw1 = shuffleEnv->createResultPartitionWriters(shuffleIOOwnerContext, srcTddInfo1.getProducedPartitions(), 1);
+    auto rpw2 = shuffleEnv->createResultPartitionWriters(shuffleIOOwnerContext, srcTddInfo2.getProducedPartitions(), 1);
 
     upstreamWriters.push_back(rpw1[0]);
     upstreamWriters.push_back(rpw2[0]);
@@ -196,21 +191,19 @@ TEST(CheckpointingCombinedTest, DISABLED_Test1) {
     auto partitioner = std::make_shared<omnistream::ForwardPartitionerV2<StreamRecord>>();
     const int bufferTimeout = 1000;
 
-    auto recordWriter1 = std::shared_ptr<omnistream::RecordWriterV2>(
-        omnistream::RecordWriterBuilderV2()
-            .withTaskName("testRecordWriter1")
-            .withChannelSelector(partitioner.get())
-            .withWriter(upstreamWriters[0])
-            .withTimeout(bufferTimeout)
-            .build());
+    auto recordWriter1 = std::shared_ptr<omnistream::RecordWriterV2>(omnistream::RecordWriterBuilderV2()
+                                                                         .withTaskName("testRecordWriter1")
+                                                                         .withChannelSelector(partitioner.get())
+                                                                         .withWriter(upstreamWriters[0])
+                                                                         .withTimeout(bufferTimeout)
+                                                                         .build());
 
-    auto recordWriter2 = std::shared_ptr<omnistream::RecordWriterV2>(
-        omnistream::RecordWriterBuilderV2()
-            .withTaskName("testRecordWriter2")
-            .withChannelSelector(partitioner.get())
-            .withWriter(upstreamWriters[1])
-            .withTimeout(bufferTimeout)
-            .build());
+    auto recordWriter2 = std::shared_ptr<omnistream::RecordWriterV2>(omnistream::RecordWriterBuilderV2()
+                                                                         .withTaskName("testRecordWriter2")
+                                                                         .withChannelSelector(partitioner.get())
+                                                                         .withWriter(upstreamWriters[1])
+                                                                         .withTimeout(bufferTimeout)
+                                                                         .build());
 
     recordWriter1->postConstruct();
     recordWriter2->postConstruct();
@@ -221,17 +214,14 @@ TEST(CheckpointingCombinedTest, DISABLED_Test1) {
     // ---------------------------
     //        Input Gates
     // ---------------------------
-    std::vector<std::shared_ptr<omnistream::SingleInputGate>> singleInputGates =
-        shuffleEnv->createInputGates(
-            shuffleIOOwnerContext,
-            nullptr,
-            inputGatePods,
-            /* taskType */ 1);
+    std::vector<std::shared_ptr<omnistream::SingleInputGate>> singleInputGates = shuffleEnv->createInputGates(
+        shuffleIOOwnerContext,
+        nullptr,
+        inputGatePods,
+        /* taskType */ 1);
 
-    const int targetSubpartition1 =
-        srcTddInfo1.getProducedPartitions()[0].getPartitionId().getPartitionNum();
-    const int targetSubpartition2 =
-        srcTddInfo2.getProducedPartitions()[0].getPartitionId().getPartitionNum();
+    const int targetSubpartition1 = srcTddInfo1.getProducedPartitions()[0].getPartitionId().getPartitionNum();
+    const int targetSubpartition2 = srcTddInfo2.getProducedPartitions()[0].getPartitionId().getPartitionNum();
 
     std::vector<std::shared_ptr<omnistream::IndexedInputGate>> indexedInputGates;
     indexedInputGates.reserve(singleInputGates.size());
@@ -246,20 +236,20 @@ TEST(CheckpointingCombinedTest, DISABLED_Test1) {
     env->SetTaskMetricGroup(metrics);
 
     omnistream::MetricManager* metric_manager = omnistream::MetricManager::GetInstance();
-    bool result  = metric_manager->Setup(32768);
+    bool result = metric_manager->Setup(32768);
 
     auto streamTask = std::make_shared<omnistream::OmniTwoInputStreamTask>(env);
     streamTask->restore();
 
     // Basic invariants
-    auto coordinator = std::dynamic_pointer_cast<SubtaskCheckpointCoordinatorImpl>(
-            streamTask->GetSubtaskCheckpointCoordinator());
+    auto coordinator =
+        std::dynamic_pointer_cast<SubtaskCheckpointCoordinatorImpl>(streamTask->GetSubtaskCheckpointCoordinator());
     ASSERT_NE(coordinator, nullptr);
     ASSERT_NE(coordinator->getChannelStateWriter(), nullptr);
     ASSERT_NE(coordinator->getCheckpointStorage(), nullptr);
 
-    auto barrierHandler = std::dynamic_pointer_cast<SingleCheckpointBarrierHandler>(
-            streamTask->GetCheckpointBarrierHandler());
+    auto barrierHandler =
+        std::dynamic_pointer_cast<SingleCheckpointBarrierHandler>(streamTask->GetCheckpointBarrierHandler());
     ASSERT_NE(barrierHandler, nullptr);
     ASSERT_NE(barrierHandler->GetContext(), nullptr);
     ASSERT_NE(barrierHandler->GetCurrentState(), nullptr);
@@ -268,10 +258,9 @@ TEST(CheckpointingCombinedTest, DISABLED_Test1) {
     // Prepare checkpoint barrier
     // ---------------------------
     auto checkpointOptions = new CheckpointOptions(
-            new CheckpointType("FullCheckpoint", SnapshotType::SharingFilesStrategy::FORWARD),
-            CheckpointStorageLocationReference::GetDefault());
+        new CheckpointType("FullCheckpoint", SnapshotType::SharingFilesStrategy::FORWARD),
+        CheckpointStorageLocationReference::GetDefault());
     auto barrier = std::make_shared<CheckpointBarrier>(0, 10000, checkpointOptions);
-
 
     upstreamWriters[0]->broadcastEvent(barrier, targetSubpartition1);
     upstreamWriters[0]->finish();

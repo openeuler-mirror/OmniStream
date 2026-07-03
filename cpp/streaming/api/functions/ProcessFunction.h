@@ -30,7 +30,7 @@
  * @param <I> Type of the input elements. such as Object*, VectorBatch*
  * @param <O> Type of the output elements. such as Object*, VectorBatch*
  * */
-template<typename I, typename O>
+template <typename I, typename O>
 class ProcessFunction : public AbstractRichFunction {
 public:
     class Context : public Object {
@@ -45,20 +45,20 @@ public:
 
     virtual ~ProcessFunction() = default;
 
-    virtual void processElement(Object* value, Context* cxt, Collector *collector)
+    virtual void processElement(Object* value, Context* cxt, Collector* collector)
     {
-        NOT_IMPL_EXCEPTION
+        NOT_IMPL_EXCEPTION;
     };
 
-    virtual void processBatch(omnistream::VectorBatch* value, Context* cxt, Collector *collector)
+    virtual void processBatch(omnistream::VectorBatch* value, Context* cxt, Collector* collector)
     {
-        NOT_IMPL_EXCEPTION
+        NOT_IMPL_EXCEPTION;
     };
 
-    virtual void onTimer(int64_t timestamp, class OnTimerContext *ctx, Collector *collector) { };
+    virtual void onTimer(int64_t timestamp, class OnTimerContext* ctx, Collector* collector) {};
 };
 
-template<typename I, typename O>
+template <typename I, typename O>
 using ProcessFunctionUnique = std::unique_ptr<ProcessFunction<I, O>>;
 
 #endif // FLINK_TNEL_PROCESSFUNCTION_H

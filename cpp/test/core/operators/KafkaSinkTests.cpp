@@ -7,24 +7,24 @@
 using json = nlohmann::json;
 
 const std::unordered_map<std::string, DeliveryGuarantee> deliveryGuaranteeMap = {
-        {"EXACTLY_ONCE", DeliveryGuarantee::EXACTLY_ONCE},
-        {"NONE", DeliveryGuarantee::NONE},
-        {"AT_LEAST_ONCE", DeliveryGuarantee::AT_LEAST_ONCE}
-};
+    {"EXACTLY_ONCE", DeliveryGuarantee::EXACTLY_ONCE},
+    {"NONE", DeliveryGuarantee::NONE},
+    {"AT_LEAST_ONCE", DeliveryGuarantee::AT_LEAST_ONCE}};
 
-//std::string generateRandomString(size_t length) {
-//    const char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-//    std::string result;
-//    result.reserve(length);
+// std::string generateRandomString(size_t length) {
+//     const char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+//     std::string result;
+//     result.reserve(length);
 //
-//    for (size_t i = 0; i < length; ++i) {
-//        result += charset[rand() % (sizeof(charset) - 1)]; // 随机选择字符
-//    }
+//     for (size_t i = 0; i < length; ++i) {
+//         result += charset[rand() % (sizeof(charset) - 1)]; // 随机选择字符
+//     }
 //
-//    return result;
-//}
+//     return result;
+// }
 
-TEST(KafkaSinkTest, DISABLED_StringDataSink) {
+TEST(KafkaSinkTest, DISABLED_StringDataSink)
+{
     std::string jsonString = R"({
         "deliveryGuarantee": "AT_LEAST_ONCE",
         "transactionalIdPrefix": "kafka-sink",
@@ -62,9 +62,9 @@ TEST(KafkaSinkTest, DISABLED_StringDataSink) {
             }
         }
     }
-    auto kafkaSink = new KafkaSink(deliveryGuarantee, kafkaProducerConfig, transactionalIdPrefix, topic, tableOptions,
-                                   100);
-    SinkWriterOperator *sinkWriterOperator;
+    auto kafkaSink =
+        new KafkaSink(deliveryGuarantee, kafkaProducerConfig, transactionalIdPrefix, topic, tableOptions, 100);
+    SinkWriterOperator* sinkWriterOperator;
     std::vector<std::any> fieldByPosition;
     std::map<std::string, std::any> fieldByName;
     std::map<std::string, int> positionByName;
@@ -79,9 +79,9 @@ TEST(KafkaSinkTest, DISABLED_StringDataSink) {
 
     try {
         sinkWriterOperator = new SinkWriterOperator(kafkaSink, tableOptions);
-//        srand(static_cast<unsigned int>(time(0)));
-//        size_t length = 10;
-//        std::string randomString = generateRandomString(length);
+        //        srand(static_cast<unsigned int>(time(0)));
+        //        size_t length = 10;
+        //        std::string randomString = generateRandomString(length);
         for (int i = 0; i < 100000; ++i) {
             sinkWriterOperator->processElement(streamRecord);
         }
@@ -90,9 +90,9 @@ TEST(KafkaSinkTest, DISABLED_StringDataSink) {
     } catch (std::exception& e) {
         std::cout << " " << e.what() << std::endl;
     }
-//    delete row;
-//    delete streamRecord;
-//    delete kafkaSink;
-//    delete sinkWriterOperator;
+    //    delete row;
+    //    delete streamRecord;
+    //    delete kafkaSink;
+    //    delete sinkWriterOperator;
     EXPECT_EQ(0, 0);
 }

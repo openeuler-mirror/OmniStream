@@ -22,50 +22,37 @@
 
 class StreamSourceContexts {
 public:
-    static SourceContext *getSourceContext(
-            TimeCharacteristic timeCharacteristic,
-            ProcessingTimeService *processingTimeService,
-            Object *checkpointLock,
-            Output *output,
-            int64_t watermarkInterval,
-            int64_t idleTimeout,
-            bool emitProgressiveWatermarks,
-            bool isStream = false)
+    static SourceContext* getSourceContext(
+        TimeCharacteristic timeCharacteristic,
+        ProcessingTimeService* processingTimeService,
+        Object* checkpointLock,
+        Output* output,
+        int64_t watermarkInterval,
+        int64_t idleTimeout,
+        bool emitProgressiveWatermarks,
+        bool isStream = false)
     {
-        SourceContext *ctx = nullptr;
+        SourceContext* ctx = nullptr;
         switch (timeCharacteristic) {
             case EventTime:
-                ctx =
-                        new ManualWatermarkContext(
-                                output,
-                                processingTimeService,
-                                checkpointLock,
-                                idleTimeout,
-                                emitProgressiveWatermarks);
+                ctx = new ManualWatermarkContext(
+                    output, processingTimeService, checkpointLock, idleTimeout, emitProgressiveWatermarks);
 
                 break;
             case IngestionTime:
                 if (!emitProgressiveWatermarks) {
                     THROW_LOGIC_EXCEPTION(
-                        
-                        "Ingestion time is not available when emitting progressive watermarks is disabled.")
+
+                        "Ingestion time is not available when emitting progressive watermarks is disabled.");
                 }
-                ctx =
-                        new AutomaticWatermarkContext(
-                                output,
-                                watermarkInterval,
-                                processingTimeService,
-                                checkpointLock,
-                                idleTimeout);
+                ctx = new AutomaticWatermarkContext(
+                    output, watermarkInterval, processingTimeService, checkpointLock, idleTimeout);
                 break;
-            case ProcessingTime:
-                ctx = new NonTimestampContext(checkpointLock, output, isStream);
-                break;
-            default:
-                THROW_LOGIC_EXCEPTION("timeCharacteristic is Illegal.")
+            case ProcessingTime: ctx = new NonTimestampContext(checkpointLock, output, isStream); break;
+            default: THROW_LOGIC_EXCEPTION("timeCharacteristic is Illegal.");
         }
         return new SwitchingOnClose(ctx);
     }
 };
 
-#endif  // FLINK_TNEL_STREAMSOURCECONTEXTS_H
+#endif // FLINK_TNEL_STREAMSOURCECONTEXTS_H

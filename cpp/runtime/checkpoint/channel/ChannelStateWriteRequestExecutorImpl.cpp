@@ -12,198 +12,201 @@
 
 namespace omnistream {
 
-    ChannelStateWriteRequestExecutorImpl::ChannelStateWriteRequestExecutorImpl(
-        std::shared_ptr<ChannelStateWriteRequestDispatcher> dispatcher)
-        : dispatcher(dispatcher) {}
+ChannelStateWriteRequestExecutorImpl::ChannelStateWriteRequestExecutorImpl(
+    std::shared_ptr<ChannelStateWriteRequestDispatcher> dispatcher)
+    : dispatcher(dispatcher)
+{
+}
 
-    ChannelStateWriteRequestExecutorImpl::~ChannelStateWriteRequestExecutorImpl()
-    {
-        shutdown();
-        if (worker.joinable()) {
-            worker.join();
-        }
+ChannelStateWriteRequestExecutorImpl::~ChannelStateWriteRequestExecutorImpl()
+{
+    shutdown();
+    if (worker.joinable()) {
+        worker.join();
+    }
+}
+
+void ChannelStateWriteRequestExecutorImpl::start()
+{
+    if (!started.exchange(true)) {
+        worker = std::thread([this] { run(); });
+    }
+}
+
+void ChannelStateWriteRequestExecutorImpl::submit(std::shared_ptr<ChannelStateWriteRequest> req)
+{
+    std::lock_guard<std::mutex> lock(mutex);
+    if (!stopped) {
+        enqueue(req, false);
+    }
+}
+
+void ChannelStateWriteRequestExecutorImpl::submitPriority(std::shared_ptr<ChannelStateWriteRequest> req)
+{
+    std::lock_guard<std::mutex> lock(mutex);
+    if (!stopped) {
+        enqueue(req, true);
+    }
+}
+
+void ChannelStateWriteRequestExecutorImpl::registerSubtask(const JobVertexID& jvid, int idx)
+{
+    std::lock_guard<std::mutex> regLock(registerLock);
+    std::lock_guard<std::mutex> lock(mutex);
+    if (!isRegistering || stopped) {
+        throw std::logic_error("registration already completed or executor stopped");
     }
 
-    void ChannelStateWriteRequestExecutorImpl::start()
-    {
-        if (!started.exchange(true)) {
-            worker = std::thread([this] { run(); });
-        }
+    SubtaskID sid = SubtaskID::Of(jvid, idx);
+    subtasks.insert(sid);
+    unreadyQueues.emplace(sid, std::queue<std::shared_ptr<ChannelStateWriteRequest>>());
+
+    enqueue(ChannelStateWriteRequest::registerSubtask(jvid, idx), false);
+
+    if ((int)subtasks.size() >= maxSubtasks) {
+        completeRegistration();
     }
+}
 
-    void ChannelStateWriteRequestExecutorImpl::submit(std::shared_ptr<ChannelStateWriteRequest> req)
-    {
-        std::lock_guard<std::mutex> lock(mutex);
-        if (!stopped) {
-            enqueue(req, false);
-        }
-    }
+void ChannelStateWriteRequestExecutorImpl::releaseSubtask(const JobVertexID& jvid, int idx)
+{
+    std::lock_guard<std::mutex> regLock(registerLock);
+    std::lock_guard<std::mutex> lock(mutex);
+    SubtaskID sid = SubtaskID::Of(jvid, idx);
 
-    void ChannelStateWriteRequestExecutorImpl::submitPriority(std::shared_ptr<ChannelStateWriteRequest> req)
-    {
-        std::lock_guard<std::mutex> lock(mutex);
-        if (!stopped) {
-            enqueue(req, true);
-        }
-    }
+    enqueue(ChannelStateWriteRequest::releaseSubtask(jvid, idx), false);
+    subtasks.erase(sid);
 
-    void ChannelStateWriteRequestExecutorImpl::registerSubtask(const JobVertexID &jvid, int idx)
-    {
-        std::lock_guard<std::mutex> regLock(registerLock);
-        std::lock_guard<std::mutex> lock(mutex);
-        if (!isRegistering || stopped) {
-            throw std::logic_error("registration already completed or executor stopped");
-        }
-
-        SubtaskID sid = SubtaskID::Of(jvid, idx);
-        subtasks.insert(sid);
-        unreadyQueues.emplace(sid, std::queue<std::shared_ptr<ChannelStateWriteRequest>>());
-
-        enqueue(ChannelStateWriteRequest::registerSubtask(jvid, idx), false);
-
-        if ((int)subtasks.size() >= maxSubtasks) {
-            completeRegistration();
-        }
-    }
-
-    void ChannelStateWriteRequestExecutorImpl::releaseSubtask(const JobVertexID &jvid, int idx)
-    {
-        std::lock_guard<std::mutex> regLock(registerLock);
-        std::lock_guard<std::mutex> lock(mutex);
-        SubtaskID sid = SubtaskID::Of(jvid, idx);
-
-        enqueue(ChannelStateWriteRequest::releaseSubtask(jvid, idx), false);
-        subtasks.erase(sid);
-
-        if (subtasks.empty()) {
-            stopped = true;
-        }
-        cv.notify_all();
-    }
-
-    void ChannelStateWriteRequestExecutorImpl::shutdown()
-    {
-        std::lock_guard<std::mutex> lock(mutex);
+    if (subtasks.empty()) {
         stopped = true;
+    }
+    cv.notify_all();
+}
+
+void ChannelStateWriteRequestExecutorImpl::shutdown()
+{
+    std::lock_guard<std::mutex> lock(mutex);
+    stopped = true;
+    cv.notify_all();
+}
+
+void ChannelStateWriteRequestExecutorImpl::run()
+{
+    try {
+        loop();
+    } catch (...) {
+        std::lock_guard<std::mutex> lock(mutex);
+        exceptionPtr = std::current_exception();
+    }
+
+    cleanup();
+}
+
+void ChannelStateWriteRequestExecutorImpl::loop()
+{
+    while (true) {
+        auto req = take();
+        if (!req) {
+            continue;
+        }
+        dispatcher->dispatch(req);
+    }
+}
+
+std::shared_ptr<ChannelStateWriteRequest> ChannelStateWriteRequestExecutorImpl::take()
+{
+    std::unique_lock<std::mutex> lock(mutex);
+    cv.wait(lock, [&]() { return stopped || !readyQueue.empty(); });
+    if (readyQueue.empty()) {
+        return nullptr;
+    }
+    std::shared_ptr<ChannelStateWriteRequest> req = std::move(readyQueue.front());
+    readyQueue.pop_front();
+    return req;
+}
+
+void ChannelStateWriteRequestExecutorImpl::enqueue(std::shared_ptr<ChannelStateWriteRequest> req, bool priority)
+{
+    SubtaskID sid = SubtaskID::Of(req->getJobVertexID(), req->getSubtaskIndex());
+    auto& queue = unreadyQueues[sid];
+
+    if (!queue.empty() || !req->getReadyFuture()->IsDone()) {
+        std::shared_ptr<ChannelStateWriteRequest> raw = req;
+        {
+            queue.push(req);
+        }
+
+        registerCallback(raw, sid);
+    } else {
+        if (priority) {
+            readyQueue.push_front(req);
+        } else {
+            readyQueue.push_back(req);
+        }
         cv.notify_all();
     }
+}
 
-    void ChannelStateWriteRequestExecutorImpl::run()
+void ChannelStateWriteRequestExecutorImpl::registerCallback(
+    std::shared_ptr<ChannelStateWriteRequest> first, SubtaskID sid)
+{
+    auto future = first->getReadyFuture();
+    future->ThenRun([this, first, sid, future]() {
+        std::lock_guard<std::mutex> lock(mutex);
+        auto it = unreadyQueues.find(sid);
+        if (it == unreadyQueues.end()) {
+            return;
+        }
+        auto& q = it->second;
+
+        while (!q.empty() && q.front()->getReadyFuture()->IsDone()) {
+            readyQueue.push_back(q.front());
+            q.pop();
+        }
+        if (!q.empty()) {
+            registerCallback(q.front(), sid);
+        }
+        cv.notify_all();
+    });
+}
+
+void ChannelStateWriteRequestExecutorImpl::cleanup()
+{
+    std::vector<std::shared_ptr<ChannelStateWriteRequest>> all;
     {
-        try {
-            loop();
-        } catch (...) {
-            std::lock_guard<std::mutex> lock(mutex);
-            exceptionPtr = std::current_exception();
+        std::lock_guard<std::mutex> lock(mutex);
+
+        while (!readyQueue.empty()) {
+            all.push_back(std::move(readyQueue.front()));
+            readyQueue.pop_front();
         }
 
-        cleanup();
-    }
-
-    void ChannelStateWriteRequestExecutorImpl::loop()
-    {
-        while (true) {
-            auto req = take();
-            if (!req) {
-                continue;
-            }
-            dispatcher->dispatch(req);
-        }
-    }
-
-    std::shared_ptr<ChannelStateWriteRequest> ChannelStateWriteRequestExecutorImpl::take()
-    {
-        std::unique_lock<std::mutex> lock(mutex);
-        cv.wait(lock, [&]() { return stopped || !readyQueue.empty(); });
-        if (readyQueue.empty()) {
-            return nullptr;
-        }
-        std::shared_ptr<ChannelStateWriteRequest> req = std::move(readyQueue.front());
-        readyQueue.pop_front();
-        return req;
-    }
-
-    void ChannelStateWriteRequestExecutorImpl::enqueue(std::shared_ptr<ChannelStateWriteRequest> req, bool priority)
-    {
-        SubtaskID sid = SubtaskID::Of(req->getJobVertexID(), req->getSubtaskIndex());
-        auto &queue = unreadyQueues[sid];
-
-        if (!queue.empty() || !req->getReadyFuture()->IsDone()) {
-            std::shared_ptr<ChannelStateWriteRequest> raw = req;
-            {
-                queue.push(req);
-            }
-
-            registerCallback(raw, sid);
-        } else {
-            if (priority) {
-                readyQueue.push_front(req);
-            } else {
-                readyQueue.push_back(req);
-            }
-            cv.notify_all();
-        }
-    }
-
-    void ChannelStateWriteRequestExecutorImpl::registerCallback(std::shared_ptr<ChannelStateWriteRequest> first, SubtaskID sid)
-    {
-        auto future = first->getReadyFuture();
-        future->ThenRun([this, first, sid, future]() {
-            std::lock_guard<std::mutex> lock(mutex);
-            auto it = unreadyQueues.find(sid);
-            if (it == unreadyQueues.end()) {
-                return;
-            }
-            auto& q = it->second;
-
-            while (!q.empty() && q.front()->getReadyFuture()->IsDone()) {
-                readyQueue.push_back(q.front());
+        for (auto& kv : unreadyQueues) {
+            auto& q = kv.second;
+            while (!q.empty()) {
+                all.push_back(std::move(q.front()));
                 q.pop();
             }
-            if (!q.empty()) {
-                registerCallback(q.front(), sid);
-            }
-            cv.notify_all();
-        });
+        }
+        unreadyQueues.clear();
     }
 
-    void ChannelStateWriteRequestExecutorImpl::cleanup()
-    {
-        std::vector<std::shared_ptr<ChannelStateWriteRequest>> all;
-        {
-            std::lock_guard<std::mutex> lock(mutex);
+    auto cause = exceptionPtr ? exceptionPtr : std::make_exception_ptr(std::runtime_error("executor stopped"));
 
-            while (!readyQueue.empty()) {
-                all.push_back(std::move(readyQueue.front()));
-                readyQueue.pop_front();
-            }
-
-            for (auto &kv : unreadyQueues) {
-                auto &q = kv.second;
-                while (!q.empty()) {
-                    all.push_back(std::move(q.front()));
-                    q.pop();
-                }
-            }
-            unreadyQueues.clear();
-        }
-
-        auto cause = exceptionPtr ? exceptionPtr : std::make_exception_ptr(std::runtime_error("executor stopped"));
-
-        for (auto &r : all) {
-            r->cancel(cause);
-        }
-
-        if (exceptionPtr) {
-            dispatcher->fail(exceptionPtr);
-        }
+    for (auto& r : all) {
+        r->cancel(cause);
     }
 
-    void ChannelStateWriteRequestExecutorImpl::completeRegistration()
-    {
-        if (isRegistering.exchange(false)) {
-            onRegistered(this);
-        }
+    if (exceptionPtr) {
+        dispatcher->fail(exceptionPtr);
     }
+}
+
+void ChannelStateWriteRequestExecutorImpl::completeRegistration()
+{
+    if (isRegistering.exchange(false)) {
+        onRegistered(this);
+    }
+}
 
 } // namespace omnistream

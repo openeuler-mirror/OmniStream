@@ -23,17 +23,23 @@ public:
         return 42;
     }
     void DiscardState() override
-    {}
+    {
+    }
 
-    std::string ToString() const override{return "";}
+    std::string ToString() const override
+    {
+        return "";
+    }
 };
 
-TEST(StateObjectCollectionTest, testEmptyCollection) {
+TEST(StateObjectCollectionTest, testEmptyCollection)
+{
     StateObjectCollection<StateObject> empty = *(StateObjectCollection<StateObject>::Empty().get());
     EXPECT_EQ(0, empty.GetStateSize());
 }
 
-TEST(StateObjectCollectionTest, testHasState) {
+TEST(StateObjectCollectionTest, testHasState)
+{
     // Test with empty ArrayList
     std::vector<std::shared_ptr<StateObject>> emptyVector;
     StateObjectCollection<StateObject> stateObjects(emptyVector);
@@ -50,4 +56,3 @@ TEST(StateObjectCollectionTest, testHasState) {
     stateObjects = StateObjectCollection<StateObject>({mockObject});
     EXPECT_TRUE(stateObjects.HasState());
 }
-

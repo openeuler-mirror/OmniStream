@@ -13,31 +13,39 @@
 #define FLINK_TNEL_UDF_HASH_H
 
 // stateless function
-using HashFunctionType = size_t(Object *);
+using HashFunctionType = size_t(Object*);
 using CmpFunctionType = bool(Object*, Object*);
 
 struct UdfHash {
-    HashFunctionType *hashFunc;
-    UdfHash() {}
-    explicit UdfHash(HashFunctionType *func) : hashFunc(func) {}
+    HashFunctionType* hashFunc;
+    UdfHash()
+    {
+    }
+    explicit UdfHash(HashFunctionType* func) : hashFunc(func)
+    {
+    }
 
-    size_t operator()(Object *str) const
+    size_t operator()(Object* str) const
     {
         return hashFunc(str);
     }
 };
 
 struct UdfCompare {
-    CmpFunctionType *cmpFunc;
-    UdfCompare() {}
-    explicit UdfCompare(CmpFunctionType* func) : cmpFunc(func) {}
+    CmpFunctionType* cmpFunc;
+    UdfCompare()
+    {
+    }
+    explicit UdfCompare(CmpFunctionType* func) : cmpFunc(func)
+    {
+    }
 
-    bool operator()(Object* const& lhs, Object* &rhs) const
+    bool operator()(Object* const& lhs, Object*& rhs) const
     {
         return cmpFunc(lhs, rhs);
     }
 
-    bool operator()(Object* const& lhs, Object* &rhs)
+    bool operator()(Object* const& lhs, Object*& rhs)
     {
         return cmpFunc(lhs, rhs);
     }

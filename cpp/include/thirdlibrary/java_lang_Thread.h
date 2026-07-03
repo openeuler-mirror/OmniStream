@@ -24,8 +24,9 @@ public:
     static void sleep(int64_t timeMill);
     static java_lang_Thread* currentThread();
     String getName();
-    void setName(const std::string &name);
+    void setName(const std::string& name);
     int64_t getId();
+
 private:
     std::thread::id id;
     std::string name;

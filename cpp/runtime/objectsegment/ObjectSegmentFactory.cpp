@@ -13,9 +13,8 @@
 #include "table/data/vectorbatch/VectorBatch.h"
 
 namespace omnistream {
-    ObjectSegment *omnistream::ObjectSegmentFactory::allocateUnpooledSegment(int segmentSize)
-    {
-        return new ObjectSegment(segmentSize);
-    }
+ObjectSegment* omnistream::ObjectSegmentFactory::allocateUnpooledSegment(int segmentSize)
+{
+    return new ObjectSegment(segmentSize);
 }
-
+} // namespace omnistream

@@ -24,7 +24,7 @@ public:
 
     /** Gets the checkpointed subpartition with the given subpartitionIndex. */
     virtual std::shared_ptr<omnistream::PipelinedSubpartition> getCheckpointedSubpartition(int subpartitionIndex) = 0;
-    
+
     virtual void finishReadRecoveredState(bool notifyAndBlockOnCompletion) = 0;
 };
 

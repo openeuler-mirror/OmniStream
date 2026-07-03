@@ -26,22 +26,25 @@ public:
         }
     }
 
-    void* deserialize(DataInputView &source) override
+    void* deserialize(DataInputView& source) override
     {
-        NOT_IMPL_EXCEPTION
+        NOT_IMPL_EXCEPTION;
     }
-    void serialize(void* record, DataOutputSerializer &target) override
+    void serialize(void* record, DataOutputSerializer& target) override
     {
-        NOT_IMPL_EXCEPTION
+        NOT_IMPL_EXCEPTION;
     }
-    void deserialize(Object* buffer, DataInputView &source) override;
-    void serialize(Object* buffer, DataOutputSerializer &target) override;
+    void deserialize(Object* buffer, DataInputView& source) override;
+    void serialize(Object* buffer, DataOutputSerializer& target) override;
     BackendDataType getBackendId() const override
     {
         return BackendDataType::OBJECT_BK;
     }
 
-    TypeSerializer* getElementSerializer() const { return elementSerializer; }
+    TypeSerializer* getElementSerializer() const
+    {
+        return elementSerializer;
+    }
 
     void setSubBufferReusable(bool bufferReusable_) override;
 

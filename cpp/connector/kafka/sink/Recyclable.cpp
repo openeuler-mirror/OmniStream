@@ -12,11 +12,9 @@
 #include "Recyclable.h"
 #include <stdexcept>
 
-
 template <typename T>
-Recyclable<T>::Recyclable(T* object, std::function<void(T*)> recycler)
-    : object(object),
-    recycler(recycler)
+Recyclable<T>::Recyclable(T* object, std::function<void(T*)> recycler) : object(object),
+                                                                         recycler(recycler)
 {
     if (object == nullptr) {
         throw std::invalid_argument("Object cannot be null");
@@ -56,8 +54,8 @@ void Recyclable<T>::Close()
     }
 }
 
-template Recyclable<FlinkKafkaInternalProducer>::Recyclable(FlinkKafkaInternalProducer* object,
-                                                            std::function<void(FlinkKafkaInternalProducer*)> recycler);
+template Recyclable<FlinkKafkaInternalProducer>::Recyclable(
+    FlinkKafkaInternalProducer* object, std::function<void(FlinkKafkaInternalProducer*)> recycler);
 template Recyclable<FlinkKafkaInternalProducer>::~Recyclable();
 template FlinkKafkaInternalProducer* Recyclable<FlinkKafkaInternalProducer>::GetObject();
 template bool Recyclable<FlinkKafkaInternalProducer>::IsRecycled();

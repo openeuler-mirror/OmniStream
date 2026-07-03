@@ -13,7 +13,7 @@
 LoggerFactory::LoggerFactory() = default;
 LoggerFactory::~LoggerFactory() = default;
 
-Logger* LoggerFactory::getLogger(Class * cls)
+Logger* LoggerFactory::getLogger(Class* cls)
 {
     return new Logger();
 }

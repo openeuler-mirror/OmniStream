@@ -16,15 +16,27 @@
 #include "table/data/binary/BinaryRowData.h"
 #include "table/runtime/operators/window/TimeWindow.h"
 
-template<typename N>
+template <typename N>
 NamespaceAggsSumFunction<N>::NamespaceAggsSumFunction(
-        std::vector<int32_t> argIndexes, std::vector<int32_t> inputTypeIds,
-        std::vector<int32_t> accIndexes, std::vector<int32_t> accTypeIds, int32_t aggValueIndex, int32_t aggValueTypeId)
-    : NamespaceAggsBasicFunction<N>(std::move(argIndexes), std::move(inputTypeIds),
-                                    std::move(accIndexes), std::move(accTypeIds), aggValueIndex, aggValueTypeId) {}
+    std::vector<int32_t> argIndexes,
+    std::vector<int32_t> inputTypeIds,
+    std::vector<int32_t> accIndexes,
+    std::vector<int32_t> accTypeIds,
+    int32_t aggValueIndex,
+    int32_t aggValueTypeId)
+    : NamespaceAggsBasicFunction<N>(
+          std::move(argIndexes),
+          std::move(inputTypeIds),
+          std::move(accIndexes),
+          std::move(accTypeIds),
+          aggValueIndex,
+          aggValueTypeId)
+{
+}
 
-template<typename N>
-void NamespaceAggsSumFunction<N>::accumulate(RowData* input) {
+template <typename N>
+void NamespaceAggsSumFunction<N>::accumulate(RowData* input)
+{
     const int32_t argIndex = this->singleArgIndex();
     if (!input->isNullAt(argIndex)) {
         sum_ += this->readInputByIndex(input, argIndex);
@@ -32,16 +44,18 @@ void NamespaceAggsSumFunction<N>::accumulate(RowData* input) {
     }
 }
 
-template<typename N>
-void NamespaceAggsSumFunction<N>::retract(RowData* input) {
+template <typename N>
+void NamespaceAggsSumFunction<N>::retract(RowData* input)
+{
     const int32_t argIndex = this->singleArgIndex();
     if (!input->isNullAt(argIndex)) {
         sum_ -= this->readInputByIndex(input, argIndex);
     }
 }
 
-template<typename N>
-void NamespaceAggsSumFunction<N>::merge(N ns, RowData* otherAcc) {
+template <typename N>
+void NamespaceAggsSumFunction<N>::merge(N ns, RowData* otherAcc)
+{
     const int32_t accIndex = this->singleAccIndex();
     if (!otherAcc->isNullAt(accIndex)) {
         sum_ += *otherAcc->getLong(accIndex);
@@ -49,16 +63,18 @@ void NamespaceAggsSumFunction<N>::merge(N ns, RowData* otherAcc) {
     }
 }
 
-template<typename N>
-void NamespaceAggsSumFunction<N>::setAccumulators(N ns, RowData* acc) {
+template <typename N>
+void NamespaceAggsSumFunction<N>::setAccumulators(N ns, RowData* acc)
+{
     this->currentAcc_ = acc;
     const int32_t accIndex = this->singleAccIndex();
     this->isNull_ = acc->isNullAt(accIndex);
     sum_ = this->isNull_ ? 0L : *acc->getLong(accIndex);
 }
 
-template<typename N>
-RowData* NamespaceAggsSumFunction<N>::getAccumulators() {
+template <typename N>
+RowData* NamespaceAggsSumFunction<N>::getAccumulators()
+{
     const int32_t accIndex = this->singleAccIndex();
     if (this->isNull_) {
         static_cast<BinaryRowData*>(this->currentAcc_)->setNullAt(accIndex);
@@ -68,8 +84,9 @@ RowData* NamespaceAggsSumFunction<N>::getAccumulators() {
     return this->currentAcc_;
 }
 
-template<typename N>
-void NamespaceAggsSumFunction<N>::updateAggValue(RowData* aggValue) {
+template <typename N>
+void NamespaceAggsSumFunction<N>::updateAggValue(RowData* aggValue)
+{
     if (this->isNull_) {
         static_cast<BinaryRowData*>(aggValue)->setNullAt(this->aggValueIndex_);
     } else {

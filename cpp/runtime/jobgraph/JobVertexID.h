@@ -13,25 +13,30 @@
 #include "runtime/executiongraph/common/AbstractIDPOD.h"
 
 namespace omnistream {
-    class JobVertexID : public AbstractIDPOD {
-    public:
-        
-        JobVertexID() : AbstractIDPOD() {}
+class JobVertexID : public AbstractIDPOD {
+public:
+    JobVertexID() : AbstractIDPOD()
+    {
+    }
 
-        JobVertexID(const std::vector<uint8_t>& bytes) : AbstractIDPOD(bytes) {}
+    JobVertexID(const std::vector<uint8_t>& bytes) : AbstractIDPOD(bytes)
+    {
+    }
 
-        JobVertexID(long upperPart, long lowerPart): AbstractIDPOD(upperPart, lowerPart) {}
-    };
-}
+    JobVertexID(long upperPart, long lowerPart) : AbstractIDPOD(upperPart, lowerPart)
+    {
+    }
+};
+} // namespace omnistream
 
 namespace std {
-    template<>
-    struct hash<omnistream::JobVertexID> {
-        size_t operator()(const omnistream::JobVertexID& id) const
-        {
-            return hash_value(static_cast<omnistream::AbstractIDPOD const&>(id));
-        }
-    };
-}
+template <>
+struct hash<omnistream::JobVertexID> {
+    size_t operator()(const omnistream::JobVertexID& id) const
+    {
+        return hash_value(static_cast<omnistream::AbstractIDPOD const&>(id));
+    }
+};
+} // namespace std
 
 #endif // JOBVERTEXID_H

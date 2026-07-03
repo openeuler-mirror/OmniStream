@@ -15,10 +15,10 @@
 #include "api/common/state/ListState.h"
 
 template <typename K, typename N, typename UV>
-class InternalListState : virtual public InternalKvState<K, N, std::vector<UV> *>, virtual public ListState<UV> {
+class InternalListState : virtual public InternalKvState<K, N, std::vector<UV>*>, virtual public ListState<UV> {
 public:
-    virtual std::vector<UV> *get() = 0;
-    virtual void add(const UV &value) = 0;
+    virtual std::vector<UV>* get() = 0;
+    virtual void add(const UV& value) = 0;
 };
 
 #endif

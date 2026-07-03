@@ -29,13 +29,15 @@ public:
         // Give it a random ID
         operatorId = OperatorID();
     }
-    virtual void open() { };
-    virtual void close() { };
-    virtual void stop(StopMode mode) {}
-    virtual void setKeyContextElement(StreamRecord* record){};
-    virtual void setKeyContextElement1(StreamRecord* record){};
-    virtual void setKeyContextElement2(StreamRecord* record){};
-    virtual void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) =0;
+    virtual void open() {};
+    virtual void close() {};
+    virtual void stop(StopMode mode)
+    {
+    }
+    virtual void setKeyContextElement(StreamRecord* record) {};
+    virtual void setKeyContextElement1(StreamRecord* record) {};
+    virtual void setKeyContextElement2(StreamRecord* record) {};
+    virtual void initializeState(StreamTaskStateInitializerImpl* initializer, TypeSerializer* keySerializer) = 0;
     virtual bool isSetKeyContextElement()
     {
         return false;
@@ -56,7 +58,7 @@ public:
         return false;
     }
 
-    virtual void finish() { };
+    virtual void finish() {};
 
     // for debugging
     virtual std::string getTypeName() = 0;
@@ -68,14 +70,14 @@ public:
 
     virtual std::shared_ptr<omnistream::TaskMetricGroup> GetMectrics()
     {
-        LOG("Stream Operator GetMectrics")
+        LOG("Stream Operator GetMectrics");
         return nullptr;
     };
 
-     virtual void PrepareSnapshotPreBarrier(long checkpointId)
-     {
-         LOG("prepareSnapshotPreBarrier " << checkpointId);
-     };
+    virtual void PrepareSnapshotPreBarrier(long checkpointId)
+    {
+        LOG("prepareSnapshotPreBarrier " << checkpointId);
+    };
 
     /**
      * Called to draw a state snapshot from the operator.
@@ -84,8 +86,11 @@ public:
      *     synchronous implementations, the runnable might already be finished.
      * @throws Exception exception that happened during snapshotting.
      */
-    virtual OperatorSnapshotFutures *SnapshotState(long checkpointId, long timestamp,
-        CheckpointOptions *checkpointOptions, CheckpointStreamFactory* storageLocation,
+    virtual OperatorSnapshotFutures* SnapshotState(
+        long checkpointId,
+        long timestamp,
+        CheckpointOptions* checkpointOptions,
+        CheckpointStreamFactory* storageLocation,
         const std::shared_ptr<OmniTaskBridge>& bridge)
     {
         LOG("checkpointId " << checkpointId << " timestamp " << timestamp);
@@ -94,16 +99,16 @@ public:
 
     virtual void notifyCheckpointComplete(long checkpointId)
     {
-        LOG("notifyCheckpointComplete checkpointId " << checkpointId)
+        LOG("notifyCheckpointComplete checkpointId " << checkpointId);
     }
 
     virtual void notifyCheckpointAborted(long checkpointId)
     {
-        LOG("notifyCheckpointAborted checkpointId " << checkpointId)
+        LOG("notifyCheckpointAborted checkpointId " << checkpointId);
     }
     virtual void notifyCheckpointSubsumed(long checkpointId)
     {
-        LOG("notifyCheckpointSubsumed checkpointId " << checkpointId)
+        LOG("notifyCheckpointSubsumed checkpointId " << checkpointId);
     }
     virtual void SetOperatorID(const std::string& operatorId_)
     {
@@ -113,9 +118,9 @@ public:
     {
         return operatorId;
     };
+
 protected:
     OperatorID operatorId;
 };
-
 
 #endif

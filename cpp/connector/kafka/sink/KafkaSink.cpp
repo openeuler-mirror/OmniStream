@@ -11,26 +11,28 @@
 
 #include "KafkaSink.h"
 
-KafkaSink::KafkaSink(DeliveryGuarantee deliveryGuarantee,
-                     RdKafka::Conf* kafkaProducerConfig,
-                     std::string& transactionalIdPrefix,
-                     std::string& topic,
-                     const nlohmann::json& description,
-                     int64_t maxPushRecords)
+KafkaSink::KafkaSink(
+    DeliveryGuarantee deliveryGuarantee,
+    RdKafka::Conf* kafkaProducerConfig,
+    std::string& transactionalIdPrefix,
+    std::string& topic,
+    const nlohmann::json& description,
+    int64_t maxPushRecords)
     : deliveryGuarantee(deliveryGuarantee),
-    kafkaProducerConfig(kafkaProducerConfig),
-    transactionalIdPrefix(transactionalIdPrefix),
-    topic(topic),
-    description(description),
-    maxPushRecords(maxPushRecords) {}
-
+      kafkaProducerConfig(kafkaProducerConfig),
+      transactionalIdPrefix(transactionalIdPrefix),
+      topic(topic),
+      description(description),
+      maxPushRecords(maxPushRecords)
+{
+}
 
 Committer<KafkaCommittable>* KafkaSink::CreateCommitter()
 {
     return new KafkaCommitter(kafkaProducerConfig);
 }
 
-KafkaCommittableSerializer *KafkaSink::getCommittableSerializer()
+KafkaCommittableSerializer* KafkaSink::getCommittableSerializer()
 {
     return new KafkaCommittableSerializer();
 }

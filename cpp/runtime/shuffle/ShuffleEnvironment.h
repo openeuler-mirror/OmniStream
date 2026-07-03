@@ -30,38 +30,36 @@
 #include "ShuffleIOOwnerContextPOD.h"
 
 namespace omnistream {
-    class ShuffleEnvironment {
-    public:
-        virtual ~ShuffleEnvironment() = default;
+class ShuffleEnvironment {
+public:
+    virtual ~ShuffleEnvironment() = default;
 
-        virtual int start() = 0;
+    virtual int start() = 0;
 
-        virtual ShuffleIOOwnerContextPOD createShuffleIOOwnerContext(
-            const std::string& ownerName,
-            const ExecutionAttemptIDPOD& executionAttemptID,
-            std::shared_ptr<MetricGroup> parentGroup) = 0;
+    virtual ShuffleIOOwnerContextPOD createShuffleIOOwnerContext(
+        const std::string& ownerName,
+        const ExecutionAttemptIDPOD& executionAttemptID,
+        std::shared_ptr<MetricGroup> parentGroup) = 0;
 
-        virtual std::vector<std::shared_ptr<ResultPartitionWriter>> createResultPartitionWriters(
-            ShuffleIOOwnerContextPOD ownerContext,
-            const std::vector<ResultPartitionDeploymentDescriptorPOD>&
-            resultPartitionDeploymentDescriptors,
-            int taskType) = 0;
+    virtual std::vector<std::shared_ptr<ResultPartitionWriter>> createResultPartitionWriters(
+        ShuffleIOOwnerContextPOD ownerContext,
+        const std::vector<ResultPartitionDeploymentDescriptorPOD>& resultPartitionDeploymentDescriptors,
+        int taskType) = 0;
 
-        virtual void releasePartitionsLocally(const std::set<ResultPartitionIDPOD>& partitionIds) = 0;
+    virtual void releasePartitionsLocally(const std::set<ResultPartitionIDPOD>& partitionIds) = 0;
 
-        virtual std::set<ResultPartitionIDPOD> getPartitionsOccupyingLocalResources() = 0;
+    virtual std::set<ResultPartitionIDPOD> getPartitionsOccupyingLocalResources() = 0;
 
-        virtual std::vector<std::shared_ptr<SingleInputGate>> createInputGates(
-            ShuffleIOOwnerContextPOD ownerContext,
-            std::shared_ptr<PartitionProducerStateProvider> partitionProducerStateProvider,
-            const std::vector<InputGateDeploymentDescriptorPOD>& inputGateDeploymentDescriptors,
-            int taskType) = 0;
+    virtual std::vector<std::shared_ptr<SingleInputGate>> createInputGates(
+        ShuffleIOOwnerContextPOD ownerContext,
+        std::shared_ptr<PartitionProducerStateProvider> partitionProducerStateProvider,
+        const std::vector<InputGateDeploymentDescriptorPOD>& inputGateDeploymentDescriptors,
+        int taskType) = 0;
 
-        virtual bool updatePartitionInfo(ExecutionAttemptIDPOD consumerID,
-                                         PartitionInfoPOD partitionInfo) = 0;
+    virtual bool updatePartitionInfo(ExecutionAttemptIDPOD consumerID, PartitionInfoPOD partitionInfo) = 0;
 
-        virtual void close() = 0;
-    };
+    virtual void close() = 0;
+};
 } // namespace omnistream
 
 #endif // SHUFFLEENVIRONMENT_H

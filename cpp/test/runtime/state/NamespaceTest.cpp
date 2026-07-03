@@ -15,4 +15,3 @@ TEST(NamespaceTest, VoidNamespace)
 
     EXPECT_EQ(isEqual, true);
 }
-

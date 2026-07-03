@@ -13,13 +13,11 @@
 #include "../../api/operators/InputSelection.h"
 
 namespace omnistream {
-    int MutipleInputSelectionHandler::selectNextInputIndex(int lastReadInputIndex)
-    {
-        uint64_t uavailableInputsMask = static_cast<uint64_t>(availableInputsMask);
-        uint64_t unotFinishedInputsMask = static_cast<uint64_t>(notFinishedInputsMask);
-        return InputSelection::fairSelectNextIndex(
-            selectedInputsMask,
-            uavailableInputsMask & unotFinishedInputsMask,
-            lastReadInputIndex);
-    }
+int MutipleInputSelectionHandler::selectNextInputIndex(int lastReadInputIndex)
+{
+    uint64_t uavailableInputsMask = static_cast<uint64_t>(availableInputsMask);
+    uint64_t unotFinishedInputsMask = static_cast<uint64_t>(notFinishedInputsMask);
+    return InputSelection::fairSelectNextIndex(
+        selectedInputsMask, uavailableInputsMask & unotFinishedInputsMask, lastReadInputIndex);
 }
+} // namespace omnistream

@@ -29,8 +29,7 @@ FieldGetter* RowData::createFieldGetter(LogicalType* fieldType, int fieldPos)
             return new FieldGetter(fieldPos, reinterpret_cast<getFieldByPosFn>(&RowData::getLong));
         case DataTypeId::OMNI_VARCHAR:
             return new FieldGetter(fieldPos, reinterpret_cast<getFieldByPosFn>(&RowData::getStringView));
-        case DataTypeId::OMNI_TIME_WITHOUT_TIME_ZONE:
-            return new FieldGetter(fieldPos, false);
+        case DataTypeId::OMNI_TIME_WITHOUT_TIME_ZONE: return new FieldGetter(fieldPos, false);
         case DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE: {
             if (static_cast<TimestampWithoutTimeZoneType>(fieldType).getPrecision() > 3) {
                 return new FieldGetter(fieldPos, true);
@@ -49,12 +48,13 @@ FieldGetter* RowData::createFieldGetter(LogicalType* fieldType, int fieldPos)
             }
             return new FieldGetter(fieldPos, false);
         }
-        default:
-            THROW_LOGIC_EXCEPTION("Unknown type" + std::to_string(fieldType->getTypeId()));
+        default: THROW_LOGIC_EXCEPTION("Unknown type" + std::to_string(fieldType->getTypeId()));
     }
 }
 
-RowData::RowData(int rowDataTypeId) : rowDataTypeID_(rowDataTypeId) {}
+RowData::RowData(int rowDataTypeId) : rowDataTypeID_(rowDataTypeId)
+{
+}
 
 int RowData::getRowDataTypeId() const
 {
@@ -80,5 +80,5 @@ void RowData::printRow()
             std::cout << *getLong(i) << "|";
         }
     }
-    std::cout<<std::endl;
+    std::cout << std::endl;
 }

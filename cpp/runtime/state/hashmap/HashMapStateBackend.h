@@ -21,17 +21,17 @@ public:
     HashMapStateBackend() {};
 
     template <typename K>
-    AbstractKeyedStateBackend<K> *createKeyedStateBackend(
-        omnistream::EnvironmentV2 *env,
+    AbstractKeyedStateBackend<K>* createKeyedStateBackend(
+        omnistream::EnvironmentV2* env,
         std::set<KeyedStateHandle> stateHandles,
-        KeyGroupRange *keyGroupRange,
-        TypeSerializer *keySerializer,
+        KeyGroupRange* keyGroupRange,
+        TypeSerializer* keySerializer,
         int numberOfKeyGroups);
 
     OperatorStateBackend* createOperatorStateBackend(
-            omnistream::EnvironmentV2* env,
-            std::string operatorIdentifier,
-            std::set<std::shared_ptr<OperatorStateHandle>> stateHandles);
+        omnistream::EnvironmentV2* env,
+        std::string operatorIdentifier,
+        std::set<std::shared_ptr<OperatorStateHandle>> stateHandles);
 
 private:
     void restoreState();

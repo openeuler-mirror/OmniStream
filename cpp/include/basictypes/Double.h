@@ -21,15 +21,15 @@ public:
     Double();
     ~Double();
 
-    static Double *valueOf(double d);
-    static Long* doubleToLongBits(Double *value);
-    static Double* doubleToLongBits(Long *value);
+    static Double* valueOf(double d);
+    static Long* doubleToLongBits(Double* value);
+    static Double* doubleToLongBits(Long* value);
     static int64_t doubleToLongBits(double value);
     static double doubleToLongBits(int64_t value);
-    void setValue(const std::string &basicString) override;
+    void setValue(const std::string& basicString) override;
     Object* clone() override;
     int hashCode();
-    bool equals(Object *obj);
+    bool equals(Object* obj);
     double doubleValue();
 
     double value;

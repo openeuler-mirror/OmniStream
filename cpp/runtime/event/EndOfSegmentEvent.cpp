@@ -11,9 +11,9 @@
 #include "EndOfSegmentEvent.h"
 
 namespace omnistream {
-    EndOfSegmentEvent &EndOfSegmentEvent::getInstance()
-    {
-        static EndOfSegmentEvent instance;
-        return instance;
-    }
+EndOfSegmentEvent& EndOfSegmentEvent::getInstance()
+{
+    static EndOfSegmentEvent instance;
+    return instance;
+}
 } // namespace omnistream

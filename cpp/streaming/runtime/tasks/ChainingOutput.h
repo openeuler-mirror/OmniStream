@@ -22,18 +22,18 @@
 
 class ChainingOutput : public WatermarkGaugeExposingOutput {
 public:
-    explicit ChainingOutput(Input *);
-    explicit ChainingOutput(Input *op, const std::shared_ptr<omnistream::TaskMetricGroup>& metricGroup,
-                            omnistream::OperatorPOD &opConfig);
-    void collect(void *record) override;
+    explicit ChainingOutput(Input*);
+    explicit ChainingOutput(
+        Input* op, const std::shared_ptr<omnistream::TaskMetricGroup>& metricGroup, omnistream::OperatorPOD& opConfig);
+    void collect(void* record) override;
     void close() override;
-    void emitWatermark(Watermark *watermark) override;
-    void emitWatermarkStatus(WatermarkStatus *watermarkStatus) override;
+    void emitWatermark(Watermark* watermark) override;
+    void emitWatermarkStatus(WatermarkStatus* watermarkStatus) override;
 
 private:
-    Input *operator_;
-    WatermarkGauge *watermarkGauge;
-    WatermarkStatus *announcedStatus;
+    Input* operator_;
+    WatermarkGauge* watermarkGauge;
+    WatermarkStatus* announcedStatus;
     std::shared_ptr<omnistream::SimpleCounter> numRecordsOut;
 
     // Counter *counter_;

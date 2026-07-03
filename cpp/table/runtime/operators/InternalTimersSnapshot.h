@@ -29,7 +29,7 @@
  * currently only used by the CP raw keyed write path; restore readers are added
  * but not wired in this patch.
  */
-template<typename K, typename N>
+template <typename K, typename N>
 class InternalTimersSnapshot {
 public:
     using TimerPtr = std::shared_ptr<TimerHeapInternalTimer<K, N>>;
@@ -37,8 +37,8 @@ public:
     InternalTimersSnapshot() = default;
 
     InternalTimersSnapshot(
-        TypeSerializer *keySerializer,
-        TypeSerializer *namespaceSerializer,
+        TypeSerializer* keySerializer,
+        TypeSerializer* namespaceSerializer,
         std::vector<TimerPtr> eventTimeTimers,
         std::vector<TimerPtr> processingTimeTimers)
         : keySerializer_(keySerializer),
@@ -48,49 +48,49 @@ public:
     {
     }
 
-    TypeSerializer *getKeySerializer() const
+    TypeSerializer* getKeySerializer() const
     {
         return keySerializer_;
     }
 
-    void setKeySerializer(TypeSerializer *keySerializer)
+    void setKeySerializer(TypeSerializer* keySerializer)
     {
         keySerializer_ = keySerializer;
     }
 
-    TypeSerializer *getNamespaceSerializer() const
+    TypeSerializer* getNamespaceSerializer() const
     {
         return namespaceSerializer_;
     }
 
-    void setNamespaceSerializer(TypeSerializer *namespaceSerializer)
+    void setNamespaceSerializer(TypeSerializer* namespaceSerializer)
     {
         namespaceSerializer_ = namespaceSerializer;
     }
 
-    const std::vector<TimerPtr> &getEventTimeTimers() const
+    const std::vector<TimerPtr>& getEventTimeTimers() const
     {
         return eventTimeTimers_;
     }
 
-    void addEventTimeTimer(const TimerPtr &timer)
+    void addEventTimeTimer(const TimerPtr& timer)
     {
         eventTimeTimers_.push_back(timer);
     }
 
-    const std::vector<TimerPtr> &getProcessingTimeTimers() const
+    const std::vector<TimerPtr>& getProcessingTimeTimers() const
     {
         return processingTimeTimers_;
     }
 
-    void addProcessingTimeTimer(const TimerPtr &timer)
+    void addProcessingTimeTimer(const TimerPtr& timer)
     {
         processingTimeTimers_.push_back(timer);
     }
 
 private:
-    TypeSerializer *keySerializer_ = nullptr;
-    TypeSerializer *namespaceSerializer_ = nullptr;
+    TypeSerializer* keySerializer_ = nullptr;
+    TypeSerializer* namespaceSerializer_ = nullptr;
     std::vector<TimerPtr> eventTimeTimers_;
     std::vector<TimerPtr> processingTimeTimers_;
 };

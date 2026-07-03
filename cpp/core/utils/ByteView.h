@@ -25,13 +25,17 @@
  */
 class ByteView {
 public:
-    ByteView() : data_(nullptr), length_(0) {}
+    ByteView() : data_(nullptr), length_(0)
+    {
+    }
     ~ByteView() = default;
 
-    template<typename T>
+    template <typename T>
     ByteView(const T* data, size_t length)
-        : data_(reinterpret_cast<const uint8_t*>(data)), length_(data == nullptr ? 0 : length * sizeof(T))
-    {}
+        : data_(reinterpret_cast<const uint8_t*>(data)),
+          length_(data == nullptr ? 0 : length * sizeof(T))
+    {
+    }
 
     ByteView(const ByteView& other) = default;
     ByteView(ByteView&& other) noexcept = default;
@@ -39,15 +43,37 @@ public:
     ByteView& operator=(const ByteView& other) = default;
     ByteView& operator=(ByteView&& other) noexcept = default;
 
-    template<typename T> static ByteView fromBuffer(const T* buffer, size_t length) { return {buffer, length}; }
+    template <typename T>
+    static ByteView fromBuffer(const T* buffer, size_t length)
+    {
+        return {buffer, length};
+    }
 
-    const uint8_t* data() const { return data_; }
-    size_t size() const { return length_; }
-    bool empty() const { return length_ == 0; }
+    const uint8_t* data() const
+    {
+        return data_;
+    }
+    size_t size() const
+    {
+        return length_;
+    }
+    bool empty() const
+    {
+        return length_ == 0;
+    }
 
-    const uint8_t& operator[](size_t index) const { return data_[index]; }
-    const uint8_t* begin() const { return data_; }
-    const uint8_t* end() const { return data_ == nullptr ? nullptr : data_ + length_; }
+    const uint8_t& operator[](size_t index) const
+    {
+        return data_[index];
+    }
+    const uint8_t* begin() const
+    {
+        return data_;
+    }
+    const uint8_t* end() const
+    {
+        return data_ == nullptr ? nullptr : data_ + length_;
+    }
 
 private:
     const uint8_t* data_;

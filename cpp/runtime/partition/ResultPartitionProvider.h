@@ -20,15 +20,13 @@
 // check
 namespace omnistream {
 
-    class ResultPartitionProvider {
-    public:
-        virtual ~ResultPartitionProvider() = default;
+class ResultPartitionProvider {
+public:
+    virtual ~ResultPartitionProvider() = default;
 
-        virtual std::shared_ptr<ResultSubpartitionView> createSubpartitionView(
-            const ResultPartitionIDPOD& partitionId,
-            int index,
-            BufferAvailabilityListener* availabilityListener) = 0;
-    };
+    virtual std::shared_ptr<ResultSubpartitionView> createSubpartitionView(
+        const ResultPartitionIDPOD& partitionId, int index, BufferAvailabilityListener* availabilityListener) = 0;
+};
 
 } // namespace omnistream
 

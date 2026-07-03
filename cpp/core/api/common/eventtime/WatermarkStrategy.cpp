@@ -11,15 +11,18 @@
 
 #include "WatermarkStrategy.h"
 
-std::shared_ptr<WatermarkStrategy> WatermarkStrategy::ForMonotonousTimestamps() {
+std::shared_ptr<WatermarkStrategy> WatermarkStrategy::ForMonotonousTimestamps()
+{
     return std::make_shared<MonotonousTimestampsStrategy>();
 }
 
-std::shared_ptr<WatermarkStrategy> WatermarkStrategy::ForBoundedOutOfOrderness(int32_t rowtimeFieldIndex, long maxOutOfOrderness) {
+std::shared_ptr<WatermarkStrategy> WatermarkStrategy::ForBoundedOutOfOrderness(
+    int32_t rowtimeFieldIndex, long maxOutOfOrderness)
+{
     return std::make_shared<BoundedOutOfOrdernessStrategy>(rowtimeFieldIndex, maxOutOfOrderness);
 }
 
-std::shared_ptr<WatermarkStrategy> WatermarkStrategy::NoWatermarks() {
+std::shared_ptr<WatermarkStrategy> WatermarkStrategy::NoWatermarks()
+{
     return std::make_shared<NoWatermarkStrategy>();
 }
-

@@ -9,7 +9,6 @@
  * See the Mulan PSL v2 for more details.
  */
 
-
 #include <gtest/gtest.h>
 #include <memory>
 #include <vector>
@@ -21,16 +20,22 @@
 class MockOperatorSubtaskState : public OperatorSubtaskState {
 public:
     void DiscardState() override
-    {}
+    {
+    }
     void RegisterSharedStates(SharedStateRegistry& stateRegistry, long checkpointID) override
-    {}
-    std::string ToString() const override{return "";}
+    {
+    }
+    std::string ToString() const override
+    {
+        return "";
+    }
 };
 
 class MockOperatorStateHandle : public OperatorStateHandle {
 public:
     void DiscardState() override
-    {}
+    {
+    }
     long GetStateSize() const override
     {
         return 2;
@@ -43,19 +48,40 @@ public:
     {
         return nullptr;
     };
-    std::string ToString() const override{ return ""; }
+    std::string ToString() const override
+    {
+        return "";
+    }
 
-    PhysicalStateHandleID getStreamStateHandleID() { return GetStreamStateHandleID(); }
+    PhysicalStateHandleID getStreamStateHandleID()
+    {
+        return GetStreamStateHandleID();
+    }
 
-    std::shared_ptr<FSDataInputStream> OpenInputStream() const override { return nullptr; }
+    std::shared_ptr<FSDataInputStream> OpenInputStream() const override
+    {
+        return nullptr;
+    }
 
-    std::optional<std::vector<uint8_t>> AsBytesIfInMemory() const override { return std::optional<std::vector<uint8_t>>(); }
+    std::optional<std::vector<uint8_t>> AsBytesIfInMemory() const override
+    {
+        return std::optional<std::vector<uint8_t>>();
+    }
 
-    PhysicalStateHandleID GetStreamStateHandleID() const override { PhysicalStateHandleID id(""); return id;; }
+    PhysicalStateHandleID GetStreamStateHandleID() const override
+    {
+        PhysicalStateHandleID id("");
+        return id;
+        ;
+    }
 
-    bool operator==(const StreamStateHandle& other_) const override { return false; }
+    bool operator==(const StreamStateHandle& other_) const override
+    {
+        return false;
+    }
 };
-TEST(TaskStateSnapshotTest, putGetSubtaskStateByOperatorID) {
+TEST(TaskStateSnapshotTest, putGetSubtaskStateByOperatorID)
+{
     TaskStateSnapshot taskStateSnapshot;
 
     OperatorID operatorID_1 = OperatorID();
@@ -70,12 +96,14 @@ TEST(TaskStateSnapshotTest, putGetSubtaskStateByOperatorID) {
     taskStateSnapshot.PutSubtaskStateByOperatorID(operatorID_2, operatorSubtaskState_2);
     EXPECT_EQ(operatorSubtaskState_1, taskStateSnapshot.GetSubtaskStateByOperatorID(operatorID_1));
     EXPECT_EQ(operatorSubtaskState_2, taskStateSnapshot.GetSubtaskStateByOperatorID(operatorID_2));
-    EXPECT_EQ(operatorSubtaskState_1,
-              taskStateSnapshot.PutSubtaskStateByOperatorID(operatorID_1, operatorSubtaskState_1_replace));
+    EXPECT_EQ(
+        operatorSubtaskState_1,
+        taskStateSnapshot.PutSubtaskStateByOperatorID(operatorID_1, operatorSubtaskState_1_replace));
     EXPECT_EQ(operatorSubtaskState_1_replace, taskStateSnapshot.GetSubtaskStateByOperatorID(operatorID_1));
 }
 
-TEST(TaskStateSnapshotTest, hasState) {
+TEST(TaskStateSnapshotTest, hasState)
+{
     TaskStateSnapshot taskStateSnapshot;
     EXPECT_FALSE(taskStateSnapshot.HasState());
 
@@ -94,7 +122,8 @@ TEST(TaskStateSnapshotTest, hasState) {
     EXPECT_TRUE(taskStateSnapshot.HasState());
 }
 
-TEST(TaskStateSnapshotTest, discardState) {
+TEST(TaskStateSnapshotTest, discardState)
+{
     TaskStateSnapshot taskStateSnapshot;
     auto operatorSubtaskState_1 = std::make_shared<MockOperatorSubtaskState>();
     auto operatorSubtaskState_2 = std::make_shared<MockOperatorSubtaskState>();
@@ -104,7 +133,8 @@ TEST(TaskStateSnapshotTest, discardState) {
     EXPECT_NO_THROW(taskStateSnapshot.DiscardState());
 }
 
-TEST(TaskStateSnapshotTest, getStateSize) {
+TEST(TaskStateSnapshotTest, getStateSize)
+{
     std::mt19937 random(0x42);
     TaskStateSnapshot taskStateSnapshot;
     EXPECT_EQ(0, taskStateSnapshot.GetStateSize());
@@ -131,4 +161,3 @@ TEST(TaskStateSnapshotTest, getStateSize) {
     long totalSize = stateHandle_1->GetStateSize() + stateHandle_2->GetStateSize();
     EXPECT_EQ(totalSize, taskStateSnapshot.GetStateSize());
 }
-

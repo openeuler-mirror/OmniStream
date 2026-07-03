@@ -21,7 +21,10 @@ using OmniDataOutputPtr = omnistream::OmniPushingAsyncDataInput::OmniDataOutput*
 class WatermarkToDataOutput : public WatermarkOutput {
 public:
     WatermarkToDataOutput(OmniDataOutputPtr output, TimestampsAndWatermarks::WatermarkUpdateListener* watermarkEmitted)
-        : output(output), watermarkEmitted(watermarkEmitted), maxWatermarkSoFar(INT64_MIN), isIdle(false)
+        : output(output),
+          watermarkEmitted(watermarkEmitted),
+          maxWatermarkSoFar(INT64_MIN),
+          isIdle(false)
     {
     }
 
@@ -54,6 +57,7 @@ public:
     {
         MarkActiveInternally();
     }
+
 private:
     OmniDataOutputPtr output;
     TimestampsAndWatermarks::WatermarkUpdateListener* watermarkEmitted;
@@ -62,16 +66,15 @@ private:
 
     bool MarkActiveInternally()
     {
-            if (!isIdle) {
-                return true;
-            }
+        if (!isIdle) {
+            return true;
+        }
 
-            output->emitWatermarkStatus(WatermarkStatus::active());
-            watermarkEmitted->UpdateIdle(false);
-            isIdle = false;
-            return false;
+        output->emitWatermarkStatus(WatermarkStatus::active());
+        watermarkEmitted->UpdateIdle(false);
+        isIdle = false;
+        return false;
     }
 };
-
 
 #endif // OMNISTREAM_WATERMARKTODATAOUTPUT_H

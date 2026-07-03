@@ -12,7 +12,6 @@
 #ifndef OMNISTREAM_NEXMARKUTILS_H
 #define OMNISTREAM_NEXMARKUTILS_H
 
-
 #include <iostream>
 #include <string>
 #include <stdexcept>
@@ -32,7 +31,9 @@ public:
         long usPerUnit;
 
         // Private constructor to initialize RateUnit.
-        explicit RateUnit(long usPerUnit) : usPerUnit(usPerUnit) {}
+        explicit RateUnit(long usPerUnit) : usPerUnit(usPerUnit)
+        {
+        }
 
         // Grant NexmarkUtils access if needed.
         friend class NexmarkUtils;
@@ -49,12 +50,8 @@ public:
         {
             int n = 0;
             switch (type) {
-                case SQUARE:
-                    n = 2;
-                    break;
-                case SINE:
-                    n = N;
-                    break;
+                case SQUARE: n = 2; break;
+                case SINE: n = N; break;
             }
             return (ratePeriodSec + n - 1) / n;
         }
@@ -75,7 +72,9 @@ public:
         static const int N = 10;
 
         // Private constructor.
-        RateShape(Type type) : type(type) {}
+        RateShape(Type type) : type(type)
+        {
+        }
     };
 };
 

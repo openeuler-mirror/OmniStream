@@ -18,12 +18,12 @@
 #include <set>
 #include "WindowAssigner.h"
 
-template<typename W>
+template <typename W>
 class MergingWindowAssigner : public WindowAssigner<W> {
 public:
     using MergeResultCollector = std::unordered_map<W, std::unordered_set<W>*>;
 
-    virtual void mergeWindows(const W &newWindow, std::set<W> *sortedWindows, MergeResultCollector &callback) = 0;
+    virtual void mergeWindows(const W& newWindow, std::set<W>* sortedWindows, MergeResultCollector& callback) = 0;
 };
 
 #endif

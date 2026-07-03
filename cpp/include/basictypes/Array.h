@@ -23,7 +23,6 @@
 
 class Array : public Object {
 public:
-
     using T = Object*;
     using reference = T&;
     using const_reference = const T&;
@@ -32,14 +31,15 @@ public:
     using iterator = T*;
     using const_iterator = const T*;
 
-    void append(Object *value);
-    Array() : length(0), data_(nullptr), capacity_(0) {}
+    void append(Object* value);
+    Array() : length(0), data_(nullptr), capacity_(0)
+    {
+    }
 
-    explicit Array(int size)
-        : length(size), capacity_(size)
+    explicit Array(int size) : length(size), capacity_(size)
     {
         data_ = new T[size];
-        errno_t ret = memset_s((void *)data_, sizeof(T) * size, 0, sizeof(T) * size);
+        errno_t ret = memset_s((void*)data_, sizeof(T) * size, 0, sizeof(T) * size);
         if (ret != 0) {
             throw std::runtime_error("memset_s failed" + std::to_string(ret));
         }
@@ -63,11 +63,9 @@ public:
     ~Array()
     {
         for (int i = 0; i < this->length; ++i) {
-            if (data_ != nullptr && data_[i])
-                ((Object *)data_[i])->putRefCount();
+            if (data_ != nullptr && data_[i]) ((Object*)data_[i])->putRefCount();
         }
-        if (data_)
-            delete[] data_;
+        if (data_) delete[] data_;
     }
 
     Array(const Array& other) : Array(other.length)
@@ -77,8 +75,7 @@ public:
         }
     }
 
-    Array(Array&& other) noexcept
-        : length(other.length), data_(other.data_), capacity_(other.capacity_)
+    Array(Array&& other) noexcept : length(other.length), data_(other.data_), capacity_(other.capacity_)
     {
         other.data_ = nullptr;
         other.length = other.capacity_ = 0;
@@ -132,25 +129,70 @@ public:
         return data_[index];
     }
 
-    reference front() { return data_[0]; }
-    const_reference front() const { return data_[0]; }
-    reference back() { return data_[length - 1]; }
-    const_reference back() const { return data_[length - 1]; }
+    reference front()
+    {
+        return data_[0];
+    }
+    const_reference front() const
+    {
+        return data_[0];
+    }
+    reference back()
+    {
+        return data_[length - 1];
+    }
+    const_reference back() const
+    {
+        return data_[length - 1];
+    }
 
-    pointer data() noexcept { return data_; }
-    const_pointer data() const noexcept { return data_; }
+    pointer data() noexcept
+    {
+        return data_;
+    }
+    const_pointer data() const noexcept
+    {
+        return data_;
+    }
 
-    iterator begin() noexcept { return data_; }
-    const_iterator begin() const noexcept { return data_; }
-    const_iterator cbegin() const noexcept { return data_; }
+    iterator begin() noexcept
+    {
+        return data_;
+    }
+    const_iterator begin() const noexcept
+    {
+        return data_;
+    }
+    const_iterator cbegin() const noexcept
+    {
+        return data_;
+    }
 
-    iterator end() noexcept { return data_ + length; }
-    const_iterator end() const noexcept { return data_ + length; }
-    const_iterator cend() const noexcept { return data_ + length; }
+    iterator end() noexcept
+    {
+        return data_ + length;
+    }
+    const_iterator end() const noexcept
+    {
+        return data_ + length;
+    }
+    const_iterator cend() const noexcept
+    {
+        return data_ + length;
+    }
 
-    bool empty() const noexcept { return length == 0; }
-    int size() const noexcept { return length; }
-    int capacity() const noexcept { return capacity_; }
+    bool empty() const noexcept
+    {
+        return length == 0;
+    }
+    int size() const noexcept
+    {
+        return length;
+    }
+    int capacity() const noexcept
+    {
+        return capacity_;
+    }
 
     void reserve(int new_capacity)
     {
@@ -161,8 +203,7 @@ public:
             new_data[i] = std::move(data_[i]);
         }
 
-        if (data_)
-            delete[] data_;
+        if (data_) delete[] data_;
         data_ = new_data;
         capacity_ = new_capacity;
     }
@@ -197,7 +238,7 @@ public:
         if (length >= capacity_) {
             reserve(capacity_ == 0 ? 2 : capacity_ * EXPAND_SIZE);
         }
-        new(data_ + length) T(std::forward<Args>(args)...);
+        new (data_ + length) T(std::forward<Args>(args)...);
         return data_[length++];
     }
 
@@ -228,7 +269,7 @@ public:
         return !(*this == other);
     }
 
-    bool equals(Object *obj);
+    bool equals(Object* obj);
 
     Object* clone();
 
@@ -241,7 +282,8 @@ public:
     void putRefCount() override;
 
     int length;
-    Array *next = nullptr;
+    Array* next = nullptr;
+
 private:
     static const int EXPAND_SIZE = 2;
     T* data_;

@@ -17,52 +17,52 @@
 #include <queue>
 
 namespace omnistream {
-    class OriginalNetworkBufferRecycler : public BufferRecycler {
-    public:
-        OriginalNetworkBufferRecycler() = default;
-        ~OriginalNetworkBufferRecycler() override = default;
+class OriginalNetworkBufferRecycler : public BufferRecycler {
+public:
+    OriginalNetworkBufferRecycler() = default;
+    ~OriginalNetworkBufferRecycler() override = default;
 
-        void recycle(Segment *segment) override
-        {
-            auto memorySegment = reinterpret_cast<MemorySegment*>(segment);
-            if (memorySegment) {
-                long address = reinterpret_cast<long>(memorySegment->getAll());
-                recycle(address);
-            }
+    void recycle(Segment* segment) override
+    {
+        auto memorySegment = reinterpret_cast<MemorySegment*>(segment);
+        if (memorySegment) {
+            long address = reinterpret_cast<long>(memorySegment->getAll());
+            recycle(address);
         }
+    }
 
-        void recycle(long address)
-        {
-            std::lock_guard<std::mutex> lock(queue_mutex);
-            originalNetworkBufferQueue.push(address);
-            queue_cv.notify_one();
-        }
+    void recycle(long address)
+    {
+        std::lock_guard<std::mutex> lock(queue_mutex);
+        originalNetworkBufferQueue.push(address);
+        queue_cv.notify_one();
+    }
 
-        [[nodiscard]] std::string toString() const override
-        {
-            return "OriginalNetworkBufferRecycler";
-        };
-
-        long getRecycleBufferAddress()
-        {
-            std::unique_lock<std::mutex> lock(queue_mutex);
-            queue_cv.wait(lock, [this] { return !originalNetworkBufferQueue.empty(); });
-            long address = originalNetworkBufferQueue.front();
-            originalNetworkBufferQueue.pop();
-            return address;
-        }
-
-        void stop()
-        {
-            std::unique_lock<std::mutex> lock(queue_mutex);
-            originalNetworkBufferQueue.push(-9999);
-            queue_cv.notify_one();
-        }
-
-    private:
-        std::queue<long> originalNetworkBufferQueue;
-        std::mutex queue_mutex;
-        std::condition_variable queue_cv;
+    [[nodiscard]] std::string toString() const override
+    {
+        return "OriginalNetworkBufferRecycler";
     };
-}
+
+    long getRecycleBufferAddress()
+    {
+        std::unique_lock<std::mutex> lock(queue_mutex);
+        queue_cv.wait(lock, [this] { return !originalNetworkBufferQueue.empty(); });
+        long address = originalNetworkBufferQueue.front();
+        originalNetworkBufferQueue.pop();
+        return address;
+    }
+
+    void stop()
+    {
+        std::unique_lock<std::mutex> lock(queue_mutex);
+        originalNetworkBufferQueue.push(-9999);
+        queue_cv.notify_one();
+    }
+
+private:
+    std::queue<long> originalNetworkBufferQueue;
+    std::mutex queue_mutex;
+    std::condition_variable queue_cv;
+};
+} // namespace omnistream
 #endif // ORIGINALNETWORKBUFFERRECYCLER_H

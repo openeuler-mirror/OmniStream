@@ -15,14 +15,14 @@
 
 namespace omnistream {
 
-    class CompletedCheckpointStorageLocation {
-    public:
-        virtual ~CompletedCheckpointStorageLocation() = default;
-        
-        virtual StreamStateHandle* getMetadataHandle() = 0;
-        virtual std::string getExternalPointer() = 0;
-        virtual void disposeStorageLocation() = 0;
-    };
-}
+class CompletedCheckpointStorageLocation {
+public:
+    virtual ~CompletedCheckpointStorageLocation() = default;
+
+    virtual StreamStateHandle* getMetadataHandle() = 0;
+    virtual std::string getExternalPointer() = 0;
+    virtual void disposeStorageLocation() = 0;
+};
+} // namespace omnistream
 
 #endif // OMNISTREAM_COMPLETED_CHECKPOINT_STORAGE_LOCATION_H

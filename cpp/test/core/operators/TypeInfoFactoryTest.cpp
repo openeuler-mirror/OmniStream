@@ -15,7 +15,8 @@
 #include <iostream>
 
 // 测试用例定义
-TEST(TypeInfoFactoryTest, DISABLED_PojoValueStateTest) {
+TEST(TypeInfoFactoryTest, DISABLED_PojoValueStateTest)
+{
     std::string pojo = "{\n"
                        "\t\"fieldSerializers\": [\n"
                        "\t\t{\n"
@@ -34,9 +35,10 @@ TEST(TypeInfoFactoryTest, DISABLED_PojoValueStateTest) {
                        "}";
     nlohmann::json opDescriptionJSON = nlohmann::json::parse(pojo);
     TypeInformation* typeInfo = TypeInfoFactory::createDataStreamTypeInfo(opDescriptionJSON);
-    omnistream::RuntimeEnvironmentV2 *env = new omnistream::RuntimeEnvironmentV2();
+    omnistream::RuntimeEnvironmentV2* env = new omnistream::RuntimeEnvironmentV2();
     StreamTaskStateInitializerImpl initializer(env);
-    StreamOperatorStateContextImpl<long> *context = initializer.streamOperatorStateContext<long>(new LongSerializer(), nullptr, nullptr);
+    StreamOperatorStateContextImpl<long>* context =
+        initializer.streamOperatorStateContext<long>(new LongSerializer(), nullptr, nullptr);
     auto stateHandler = new StreamOperatorStateHandler<long>(context);
     auto keyStore = stateHandler->getKeyedStateStore();
     auto vs = new DataStreamValueStateDescriptor("vs", typeInfo);
@@ -54,7 +56,8 @@ TEST(TypeInfoFactoryTest, DISABLED_PojoValueStateTest) {
     delete typeInfo;
 }
 
-TEST(TypeInfoFactoryTest, DISABLED_PojoMapStateTest) {
+TEST(TypeInfoFactoryTest, DISABLED_PojoMapStateTest)
+{
     std::string pojo = "{\n"
                        "\t\"fieldSerializers\": [\n"
                        "\t\t{\n"
@@ -73,14 +76,16 @@ TEST(TypeInfoFactoryTest, DISABLED_PojoMapStateTest) {
                        "}";
     nlohmann::json opDescriptionJSON = nlohmann::json::parse(pojo);
     TypeInformation* typeInfo = TypeInfoFactory::createDataStreamTypeInfo(opDescriptionJSON);
-    omnistream::RuntimeEnvironmentV2 *env = new omnistream::RuntimeEnvironmentV2();
+    omnistream::RuntimeEnvironmentV2* env = new omnistream::RuntimeEnvironmentV2();
     StreamTaskStateInitializerImpl initializer(env);
-    StreamOperatorStateContextImpl<long> *context = initializer.streamOperatorStateContext<long>(new LongSerializer(), nullptr, nullptr);
+    StreamOperatorStateContextImpl<long>* context =
+        initializer.streamOperatorStateContext<long>(new LongSerializer(), nullptr, nullptr);
     auto stateHandler = new StreamOperatorStateHandler<long>(context);
     auto keyStore = stateHandler->getKeyedStateStore();
     auto keyInfo = new LongTypeInfo("long");
 
-    auto ms = new DataStreamMapStateDescriptor("ms", new BasicTypeInfo(LongSerializer::INSTANCE, TYPE_NAME_LONG_SERIALIZER) ,typeInfo);
+    auto ms = new DataStreamMapStateDescriptor(
+        "ms", new BasicTypeInfo(LongSerializer::INSTANCE, TYPE_NAME_LONG_SERIALIZER), typeInfo);
     auto stateMs = keyStore->getMapState(ms);
     auto iterator = stateMs->iterator();
     bool hasNext = iterator->hasNext();
@@ -123,25 +128,30 @@ TEST(TypeInfoFactoryTest, DISABLED_PojoMapStateTest) {
 }
 
 // 测试用例定义
-TEST(TypeInfoFactoryTest, CreateTypeInfoStringTest) {
+TEST(TypeInfoFactoryTest, CreateTypeInfoStringTest)
+{
     TypeInformation* typeInfo = TypeInfoFactory::createTypeInfo(TYPE_NAME_STRING);
     EXPECT_TRUE(typeInfo != nullptr);
     delete typeInfo;
 }
 
-TEST(TypeInfoFactoryTest, CreateTypeInfoUnsupportedTypeTest) {
-    EXPECT_THROW({
-                     try {
-                         TypeInformation* typeInfo = TypeInfoFactory::createTypeInfo("UnsupportedType");
-                         delete typeInfo;
-                     } catch (const std::exception& e) {
-                         THROW_LOGIC_EXCEPTION("Exception caught: " + std::string(e.what()));
-                     }
-                 }, std::exception);
+TEST(TypeInfoFactoryTest, CreateTypeInfoUnsupportedTypeTest)
+{
+    EXPECT_THROW(
+        {
+            try {
+                TypeInformation* typeInfo = TypeInfoFactory::createTypeInfo("UnsupportedType");
+                delete typeInfo;
+            } catch (const std::exception& e) {
+                THROW_LOGIC_EXCEPTION("Exception caught: " + std::string(e.what()));
+            }
+        },
+        std::exception);
 }
 
-TEST(TypeInfoFactoryTest, CreateInternalTypeInfoRowTest) {
-    const json &rowType = R"(
+TEST(TypeInfoFactoryTest, CreateInternalTypeInfoRowTest)
+{
+    const json& rowType = R"(
             [{"type":"Long"}, {"type":"Long"}]
     )"_json;
 
@@ -150,65 +160,74 @@ TEST(TypeInfoFactoryTest, CreateInternalTypeInfoRowTest) {
     delete typeInfo;
 }
 
-TEST(TypeInfoFactoryTest, CreateTupleTypeInfoNonArrayTest) {
-    json fieldType = {
-            {"type", "BIGINT"}
-    };
+TEST(TypeInfoFactoryTest, CreateTupleTypeInfoNonArrayTest)
+{
+    json fieldType = {{"type", "BIGINT"}};
 
-    EXPECT_THROW({
-                     try {
-                         TypeInformation* typeInfo = TypeInfoFactory::createTupleTypeInfo(fieldType);
-                         delete typeInfo;
-                     } catch (const std::exception& e) {
-                         THROW_LOGIC_EXCEPTION("Exception caught: " + std::string(e.what()));
-                     }
-                 }, std::exception);
+    EXPECT_THROW(
+        {
+            try {
+                TypeInformation* typeInfo = TypeInfoFactory::createTupleTypeInfo(fieldType);
+                delete typeInfo;
+            } catch (const std::exception& e) {
+                THROW_LOGIC_EXCEPTION("Exception caught: " + std::string(e.what()));
+            }
+        },
+        std::exception);
 }
 
-TEST(TypeInfoFactoryTest, CreateCommittableMessageInfoTest) {
+TEST(TypeInfoFactoryTest, CreateCommittableMessageInfoTest)
+{
     TypeInformation* typeInfo = TypeInfoFactory::createCommittableMessageInfo();
     EXPECT_TRUE(typeInfo != nullptr);
     delete typeInfo;
 }
 
-TEST(TypeInfoFactoryTest, CreateBasicInternalTypeInfoTest) {
-    EXPECT_THROW({
-                     try {
-                         TypeInformation* typeInfo = TypeInfoFactory::createBasicInternalTypeInfo("UnsupportedType");
-                         delete typeInfo;
-                     } catch (const std::exception& e) {
-                         THROW_LOGIC_EXCEPTION("Exception caught: " + std::string(e.what()));
-                     }
-                 }, std::exception);
+TEST(TypeInfoFactoryTest, CreateBasicInternalTypeInfoTest)
+{
+    EXPECT_THROW(
+        {
+            try {
+                TypeInformation* typeInfo = TypeInfoFactory::createBasicInternalTypeInfo("UnsupportedType");
+                delete typeInfo;
+            } catch (const std::exception& e) {
+                THROW_LOGIC_EXCEPTION("Exception caught: " + std::string(e.what()));
+            }
+        },
+        std::exception);
 }
 
-TEST(TypeInfoFactoryTest, CreateLogicalTypeBigIntTest) {
+TEST(TypeInfoFactoryTest, CreateLogicalTypeBigIntTest)
+{
     LogicalType* logicalType = TypeInfoFactory::createLogicalType("'BIGINT'");
     EXPECT_TRUE(logicalType->getTypeId() == BasicLogicalType::BIGINT->getTypeId());
     delete logicalType;
 }
 
-TEST(TypeInfoFactoryTest, CreateLogicalTypeTimeWithoutTimeZoneTest) {
+TEST(TypeInfoFactoryTest, CreateLogicalTypeTimeWithoutTimeZoneTest)
+{
     LogicalType* logicalType = TypeInfoFactory::createLogicalType("'TIME_WITHOUT_TIME_ZONE'");
     EXPECT_TRUE(logicalType->getTypeId() == BasicLogicalType::TIME_WITHOUT_TIME_ZONE->getTypeId());
     delete logicalType;
 }
 
-TEST(TypeInfoFactoryTest, CreateLogicalTypeTimestampWithoutTimeZoneTest) {
+TEST(TypeInfoFactoryTest, CreateLogicalTypeTimestampWithoutTimeZoneTest)
+{
     LogicalType* logicalType = TypeInfoFactory::createLogicalType("'TIMESTAMP_WITHOUT_TIME_ZONE'");
     EXPECT_TRUE(logicalType->getTypeId() == BasicLogicalType::TIMESTAMP_WITHOUT_TIME_ZONE->getTypeId());
     delete logicalType;
 }
 
-TEST(TypeInfoFactoryTest, CreateLogicalTypeTimestampWithTimeZoneTest) {
+TEST(TypeInfoFactoryTest, CreateLogicalTypeTimestampWithTimeZoneTest)
+{
     LogicalType* logicalType = TypeInfoFactory::createLogicalType("'TIMESTAMP_WITH_TIME_ZONE'");
     EXPECT_TRUE(logicalType->getTypeId() == BasicLogicalType::TIMESTAMP_WITH_TIME_ZONE->getTypeId());
     delete logicalType;
 }
 
-TEST(TypeInfoFactoryTest, CreateLogicalTypeTimestampWithLocalTimeZoneTest) {
+TEST(TypeInfoFactoryTest, CreateLogicalTypeTimestampWithLocalTimeZoneTest)
+{
     LogicalType* logicalType = TypeInfoFactory::createLogicalType("'TIMESTAMP_WITH_LOCAL_TIME_ZONE'");
     EXPECT_TRUE(logicalType->getTypeId() == BasicLogicalType::TIMESTAMP_WITH_LOCAL_TIME_ZONE->getTypeId());
     delete logicalType;
 }
-

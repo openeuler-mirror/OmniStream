@@ -15,12 +15,13 @@
 #include "runtime/state/rocksdb/RocksdbValueState.h"
 #include "state/internal/InternalValueState.h"
 
-template<typename KeyType, typename W, typename ValType>
+template <typename KeyType, typename W, typename ValType>
 class WindowValueState : public WindowState<W> {
 public:
-    WindowValueState(InternalValueState<KeyType, W, ValType> *windowState) : windowState(windowState) {
+    WindowValueState(InternalValueState<KeyType, W, ValType>* windowState) : windowState(windowState)
+    {
         isFalconEnabled_ = dynamic_cast<RocksdbValueState<KeyType, W, ValType>*>(windowState) != nullptr &&
-                          dynamic_cast<RocksdbValueState<KeyType, W, ValType>*>(windowState)->isFalconEnabled();
+                           dynamic_cast<RocksdbValueState<KeyType, W, ValType>*>(windowState)->isFalconEnabled();
     }
 
     void clear(W window) override
@@ -46,12 +47,12 @@ public:
         delete windowState;
     };
 
-    void addVectorBatch(omnistream::VectorBatch *batch)
+    void addVectorBatch(omnistream::VectorBatch* batch)
     {
         windowState->addVectorBatch(batch);
     };
 
-    const std::vector<omnistream::VectorBatch *> &getVectorBatches()
+    const std::vector<omnistream::VectorBatch*>& getVectorBatches()
     {
         return windowState->getVectorBatches();
     };
@@ -61,9 +62,11 @@ public:
         return windowState->getVectorBatchesSize();
     };
 
-    bool isFalconEnabled() const {
+    bool isFalconEnabled() const
+    {
         return isFalconEnabled_;
     }
+
 private:
     InternalValueState<KeyType, W, ValType>* windowState;
     bool isFalconEnabled_ = false;

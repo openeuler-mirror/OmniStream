@@ -14,10 +14,16 @@
 
 class RocksDbStringAppendOperator : public rocksdb::AssociativeMergeOperator {
 public:
-    explicit RocksDbStringAppendOperator(char delimiter) : delimiter(delimiter) {}
+    explicit RocksDbStringAppendOperator(char delimiter) : delimiter(delimiter)
+    {
+    }
 
-    bool Merge(const rocksdb::Slice& key, const rocksdb::Slice* existing_value, const rocksdb::Slice& value,
-               std::string* new_value, rocksdb::Logger* logger) const override
+    bool Merge(
+        const rocksdb::Slice& key,
+        const rocksdb::Slice* existing_value,
+        const rocksdb::Slice& value,
+        std::string* new_value,
+        rocksdb::Logger* logger) const override
     {
         new_value->clear();
         if (!existing_value) {
@@ -37,5 +43,5 @@ public:
     }
 
 private:
-    char delimiter;         // The delimiter is inserted between elements
+    char delimiter; // The delimiter is inserted between elements
 };

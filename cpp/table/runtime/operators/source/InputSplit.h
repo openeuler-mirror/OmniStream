@@ -17,7 +17,11 @@ namespace omnistream {
 class InputSplit {
 public:
     InputSplit(std::string filePath, int startOffset, int length)
-        : filePath_(filePath), startOffset_(startOffset), length_(length) {}
+        : filePath_(filePath),
+          startOffset_(startOffset),
+          length_(length)
+    {
+    }
 
     std::string getFilePath()
     {

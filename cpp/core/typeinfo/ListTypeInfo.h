@@ -18,7 +18,8 @@
 class ListTypeInfo : public TypeInformation {
 public:
     explicit ListTypeInfo(TypeInformation* elementTypeInfo) : elementTypeInfo(elementTypeInfo)
-    {}
+    {
+    }
 
     explicit ListTypeInfo(Class* cl)
     {
@@ -39,9 +40,9 @@ public:
     {
         return "ListTypeInfo";
     }
+
 private:
     TypeInformation* elementTypeInfo;
 };
-
 
 #endif // OMNISTREAM_LISTTYPEINFO_H

@@ -15,53 +15,57 @@
 
 namespace omnistream {
 
-    KeyFieldInfoPOD::KeyFieldInfoPOD() : fieldIndex(0) {}
-
-    KeyFieldInfoPOD::KeyFieldInfoPOD(const std::string& fieldName, const std::string& fieldTypeName, int fieldIndex)
-        : fieldName(fieldName), fieldTypeName(fieldTypeName), fieldIndex(fieldIndex) {}
-
-    std::string KeyFieldInfoPOD::getFieldName() const
-    {
-        return fieldName;
-    }
-
-    std::string KeyFieldInfoPOD::getFieldTypeName() const
-    {
-        return fieldTypeName;
-    }
-
-    int KeyFieldInfoPOD::getFieldIndex() const
-    {
-        return fieldIndex;
-    }
-
-    void KeyFieldInfoPOD::setFieldName(const std::string& fieldName_)
-    {
-        this->fieldName = fieldName_;
-    }
-
-    void KeyFieldInfoPOD::setFieldTypeName(const std::string& fieldTypeName_)
-    {
-        this->fieldTypeName = fieldTypeName_;
-    }
-
-    void KeyFieldInfoPOD::setFieldIndex(int fieldIndex_)
-    {
-        this->fieldIndex = fieldIndex_;
-    }
-
-    std::string KeyFieldInfoPOD::toString() const
-    {
-        std::stringstream ss;
-        ss << "FieldInfo{"
-           << "fieldName='" << fieldName << '\''
-           << ", fieldTypeName='" << fieldTypeName << '\''
-           << ", fieldIndex=" << fieldIndex
-           << '}';
-        return ss.str();
-    }
-
+KeyFieldInfoPOD::KeyFieldInfoPOD() : fieldIndex(0)
+{
 }
+
+KeyFieldInfoPOD::KeyFieldInfoPOD(const std::string& fieldName, const std::string& fieldTypeName, int fieldIndex)
+    : fieldName(fieldName),
+      fieldTypeName(fieldTypeName),
+      fieldIndex(fieldIndex)
+{
+}
+
+std::string KeyFieldInfoPOD::getFieldName() const
+{
+    return fieldName;
+}
+
+std::string KeyFieldInfoPOD::getFieldTypeName() const
+{
+    return fieldTypeName;
+}
+
+int KeyFieldInfoPOD::getFieldIndex() const
+{
+    return fieldIndex;
+}
+
+void KeyFieldInfoPOD::setFieldName(const std::string& fieldName_)
+{
+    this->fieldName = fieldName_;
+}
+
+void KeyFieldInfoPOD::setFieldTypeName(const std::string& fieldTypeName_)
+{
+    this->fieldTypeName = fieldTypeName_;
+}
+
+void KeyFieldInfoPOD::setFieldIndex(int fieldIndex_)
+{
+    this->fieldIndex = fieldIndex_;
+}
+
+std::string KeyFieldInfoPOD::toString() const
+{
+    std::stringstream ss;
+    ss << "FieldInfo{"
+       << "fieldName='" << fieldName << '\'' << ", fieldTypeName='" << fieldTypeName << '\''
+       << ", fieldIndex=" << fieldIndex << '}';
+    return ss.str();
+}
+
+} // namespace omnistream
 
 /**
  *
@@ -88,7 +92,8 @@ int main() {
     outfile.close();
 
     // Deserialization from JSON string
-    demo::KeyFieldInfoPOJO myField2 = nlohmann::json::parse(jsonString); // Implicitly uses the intrusive deserialization
+    demo::KeyFieldInfoPOJO myField2 = nlohmann::json::parse(jsonString); // Implicitly uses the intrusive
+deserialization
 
     std::cout << "\nDeserialized object:\n" << myField2.toString() << std::endl;
 

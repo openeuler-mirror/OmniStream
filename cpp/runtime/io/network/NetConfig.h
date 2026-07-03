@@ -17,27 +17,27 @@
 
 namespace omnistream {
 
-    class NetConfig {
-    public:
-        static const std::string SERVER_THREAD_GROUP_NAME;
-        static const std::string CLIENT_THREAD_GROUP_NAME;
+class NetConfig {
+public:
+    static const std::string SERVER_THREAD_GROUP_NAME;
+    static const std::string CLIENT_THREAD_GROUP_NAME;
 
-        NetConfig();
-        NetConfig(const std::string& serverAddress, int serverPort);
-        ~NetConfig();
+    NetConfig();
+    NetConfig(const std::string& serverAddress, int serverPort);
+    ~NetConfig();
 
-        std::string getServerAddress() const;
-        void setServerAddress(const std::string& serverAddress);
+    std::string getServerAddress() const;
+    void setServerAddress(const std::string& serverAddress);
 
-        int getServerPort() const;
-        void setServerPort(int serverPort);
+    int getServerPort() const;
+    void setServerPort(int serverPort);
 
-        std::string toString() const;
+    std::string toString() const;
 
-    private:
-        std::string serverAddress;
-        int serverPort;
-    };
+private:
+    std::string serverAddress;
+    int serverPort;
+};
 
 } // namespace omnistream
 

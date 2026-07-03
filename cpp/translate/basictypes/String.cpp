@@ -11,28 +11,33 @@
 #include "basictypes/String.h"
 #include "basictypes/ObjectPool.h"
 
-String::String(): hash(0) {
+String::String() : hash(0)
+{
 }
 
-String::String(const String *str): inner(str->inner), hash(0) {
+String::String(const String* str) : inner(str->inner), hash(0)
+{
 }
 
-String::String(const char *str, const size_t size): inner(str, str + size), hash(0) {
+String::String(const char* str, const size_t size) : inner(str, str + size), hash(0)
+{
 }
 
-String::String(const std::string &str): inner(str), hash(0) {
+String::String(const std::string& str) : inner(str), hash(0)
+{
 }
 
-String::String(std::string &&str) noexcept: inner(std::move(str)), hash(0) {
+String::String(std::string&& str) noexcept : inner(std::move(str)), hash(0)
+{
 }
 
-String::String(const String &str) = default;
+String::String(const String& str) = default;
 
-String::String(String &&str) = default;
+String::String(String&& str) = default;
 
-String &String::operator=(const String &str) = default;
+String& String::operator=(const String& str) = default;
 
-String &String::operator=(String &&str) = default;
+String& String::operator=(String&& str) = default;
 
 String::~String() = default;
 
@@ -42,7 +47,7 @@ void String::putRefCount()
         if (this->isPool) {
             // inner.clear();
             // this->refCount = 1;
-            ObjectPool<String> *stringObjectPool = ObjectPool<String>::getInstance();
+            ObjectPool<String>* stringObjectPool = ObjectPool<String>::getInstance();
             this->next = stringObjectPool->head;
             stringObjectPool->head = this;
         } else {
@@ -51,11 +56,11 @@ void String::putRefCount()
     }
 }
 
-String *String::replace(const std::string &target, const std::string &replacement)
+String* String::replace(const std::string& target, const std::string& replacement)
 {
     std::string str = this->toString();
-    const std::string &from = target;
-    const std::string &to = replacement;
+    const std::string& from = target;
+    const std::string& to = replacement;
     size_t start_pos = 0;
     while ((start_pos = str.find(from, start_pos)) != std::string::npos) {
         str.replace(start_pos, from.length(), to);
@@ -64,56 +69,56 @@ String *String::replace(const std::string &target, const std::string &replacemen
     return new String(str);
 }
 
-String *String::replace(const String *target, const String *replacement)
+String* String::replace(const String* target, const String* replacement)
 {
     return this->replace(target->inner, replacement->inner);
 }
 
-Array *String::split(const std::string &pattern)
+Array* String::split(const std::string& pattern)
 {
-    ObjectPool<Array> *arrayObjectPool = ObjectPool<Array>::getInstance();
-    Array *curArray = arrayObjectPool->getObject();
-    ObjectPool<String> *stringObjectPool = ObjectPool<String>::getInstance();
+    ObjectPool<Array>* arrayObjectPool = ObjectPool<Array>::getInstance();
+    Array* curArray = arrayObjectPool->getObject();
+    ObjectPool<String>* stringObjectPool = ObjectPool<String>::getInstance();
 
     size_t start = 0;
     size_t index = inner.find(pattern);
     while (index != std::string::npos) {
-        String *subStr = stringObjectPool->getObject();
+        String* subStr = stringObjectPool->getObject();
         subStr->setValue(inner.substr(start, index - start));
         curArray->push_back(subStr);
         start = index + pattern.length();
         index = inner.find(pattern, start);
     }
-    String *subStr = stringObjectPool->getObject();
+    String* subStr = stringObjectPool->getObject();
     subStr->setValue(inner.substr(start));
     curArray->push_back(subStr);
     return curArray;
 }
 
-Array *String::split(const std::regex &re)
+Array* String::split(const std::regex& re)
 {
     std::string str = this->toString();
     std::sregex_token_iterator it(str.begin(), str.end(), re, -1);
-    auto *arr = new Array();
+    auto* arr = new Array();
     for (const std::sregex_token_iterator reg_end; it != reg_end; ++it) {
-        auto *tmp = new String(it->str());
+        auto* tmp = new String(it->str());
         arr->push_back(tmp);
     }
     return arr;
 }
 
-Array *String::split(const String *patt)
+Array* String::split(const String* patt)
 {
     return split(patt->inner);
 }
 
-String *String::replaceAll_tune(const std::string &replace) const
+String* String::replaceAll_tune(const std::string& replace) const
 {
     const auto result = ReplaceAllAcc(inner, replace);
     return new String(result);
 }
 
-String *String::replaceAll_tune(const std::string &pattern, const std::string &replace) const
+String* String::replaceAll_tune(const std::string& pattern, const std::string& replace) const
 {
     if (pattern == "[^A-Za-z0-9_/.]+") {
         const auto result = ReplaceAllAcc(inner, replace);
@@ -124,7 +129,7 @@ String *String::replaceAll_tune(const std::string &pattern, const std::string &r
     return new String(res);
 }
 
-String *String::replaceAll(const std::string &pattern, const std::string &replace) const
+String* String::replaceAll(const std::string& pattern, const std::string& replace) const
 {
     std::regex regex_;
     if (pattern == "[^A-Za-z0-9_/.]+") {

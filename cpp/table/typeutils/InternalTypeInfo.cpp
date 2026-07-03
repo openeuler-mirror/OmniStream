@@ -12,23 +12,26 @@
 #include "InternalTypeInfo.h"
 #include "InternalSerializers.h"
 
-InternalTypeInfo::InternalTypeInfo(LogicalType *type, TypeSerializer *typeSerializer) : type_(type), typeSerializer(typeSerializer) {}
+InternalTypeInfo::InternalTypeInfo(LogicalType* type, TypeSerializer* typeSerializer)
+    : type_(type),
+      typeSerializer(typeSerializer)
+{
+}
 
-TypeSerializer *InternalTypeInfo::createTypeSerializer()
+TypeSerializer* InternalTypeInfo::createTypeSerializer()
 {
     return typeSerializer;
 }
 
-
 InternalTypeInfo::~InternalTypeInfo() = default;
 
-InternalTypeInfo *InternalTypeInfo::of(LogicalType *type)
+InternalTypeInfo* InternalTypeInfo::of(LogicalType* type)
 {
     auto serializer = InternalSerializers::create(type);
-    return  new InternalTypeInfo(type, serializer);
+    return new InternalTypeInfo(type, serializer);
 }
 
-InternalTypeInfo *InternalTypeInfo::ofRowType(omnistream::RowType *type)
+InternalTypeInfo* InternalTypeInfo::ofRowType(omnistream::RowType* type)
 {
     return of(dynamic_cast<LogicalType*>(type));
 }

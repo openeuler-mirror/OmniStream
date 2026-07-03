@@ -15,8 +15,7 @@
 
 class PojoField {
 public:
-    PojoField(const std::string &field, TypeInformation* type) : field(std::move(field)), type(type)
-    {};
+    PojoField(const std::string& field, TypeInformation* type) : field(std::move(field)), type(type) {};
 
     ~PojoField()
     {
@@ -32,10 +31,10 @@ public:
     {
         return type;
     }
+
 private:
     std::string field;
     TypeInformation* type;
 };
-
 
 #endif // OMNISTREAM_POJOFIELD_H

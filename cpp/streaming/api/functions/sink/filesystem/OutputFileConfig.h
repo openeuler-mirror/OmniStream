@@ -18,16 +18,18 @@ class OutputFileConfigBuilder;
 
 class OutputFileConfig {
 public:
-    OutputFileConfig(const std::string &partPrefix, const std::string &partSuffix)
+    OutputFileConfig(const std::string& partPrefix, const std::string& partSuffix)
         : partPrefix(partPrefix),
-          partSuffix(partSuffix) {}
+          partSuffix(partSuffix)
+    {
+    }
 
-    const std::string &getPartPrefix() const
+    const std::string& getPartPrefix() const
     {
         return partPrefix;
     }
 
-    const std::string &getPartSuffix() const
+    const std::string& getPartSuffix() const
     {
         return partSuffix;
     }
@@ -43,13 +45,13 @@ class OutputFileConfigBuilder {
 public:
     inline OutputFileConfigBuilder();
 
-    inline OutputFileConfigBuilder &withPartPrefix(const std::string &prefix)
+    inline OutputFileConfigBuilder& withPartPrefix(const std::string& prefix)
     {
         this->partPrefix = prefix;
         return *this;
     }
 
-    inline OutputFileConfigBuilder &withPartSuffix(const std::string &suffix)
+    inline OutputFileConfigBuilder& withPartSuffix(const std::string& suffix)
     {
         this->partSuffix = suffix;
         return *this;
@@ -69,7 +71,9 @@ private:
 
 inline OutputFileConfigBuilder::OutputFileConfigBuilder()
     : partPrefix(DEFAULT_PART_PREFIX),
-      partSuffix(DEFAULT_PART_SUFFIX) {}
+      partSuffix(DEFAULT_PART_SUFFIX)
+{
+}
 
 inline OutputFileConfigBuilder OutputFileConfig::builder()
 {

@@ -13,30 +13,35 @@ private:
     ProcessingTimeServiceImpl* processingTimeService;
     std::optional<uint64_t> restoredCheckpointId;
     StreamingRuntimeContext<K>* runtimeContext;
-    
+
 public:
     InitContextImpl(
-            StreamingRuntimeContext<K>* runtimeContext,
-            ProcessingTimeServiceImpl* processingTimeService,
-            std::optional<uint64_t> restoredCheckpointId)
+        StreamingRuntimeContext<K>* runtimeContext,
+        ProcessingTimeServiceImpl* processingTimeService,
+        std::optional<uint64_t> restoredCheckpointId)
         : runtimeContext(runtimeContext),
           processingTimeService(processingTimeService),
-          restoredCheckpointId(restoredCheckpointId) {}
-    
-    
-    int getNumberOfParallelSubtasks() {
+          restoredCheckpointId(restoredCheckpointId)
+    {
+    }
+
+    int getNumberOfParallelSubtasks()
+    {
         return runtimeContext->getNumberOfParallelSubtasks();
     }
-    
-    ProcessingTimeServiceImpl* getProcessingTimeService() {
+
+    ProcessingTimeServiceImpl* getProcessingTimeService()
+    {
         return processingTimeService;
     }
-    
-    int getSubtaskId() {
+
+    int getSubtaskId()
+    {
         return runtimeContext->getIndexOfThisSubtask();
     }
-    
-    std::optional<uint64_t> getRestoredCheckpointId() {
+
+    std::optional<uint64_t> getRestoredCheckpointId()
+    {
         return restoredCheckpointId;
     }
 };

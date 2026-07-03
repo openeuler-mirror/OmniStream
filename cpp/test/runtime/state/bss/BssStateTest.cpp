@@ -42,8 +42,8 @@ public:
     static uint32_t generateUUID()
     {
         // 每个线程有独立的随机数生成器
-        thread_local std::random_device rd; // 随机种子
-        thread_local std::mt19937 gen(rd()); // 梅森旋转算法生成器
+        thread_local std::random_device rd;                                      // 随机种子
+        thread_local std::mt19937 gen(rd());                                     // 梅森旋转算法生成器
         thread_local std::uniform_int_distribution<uint32_t> dis(1, UINT32_MAX); // 1 到 uint32_t 最大值
         return dis(gen);
     }
@@ -85,10 +85,10 @@ void initialMapState(BssMapState<RowData*, int64_t, int64_t, int64_t>*& mapState
     mapState->CreateTable(nDB);
 }
 
-TableRef CreateFromDB(StateType keyedStateType, std::string tableName, BoostStateDB *db)
+TableRef CreateFromDB(StateType keyedStateType, std::string tableName, BoostStateDB* db)
 {
     auto tblDesc = std::make_shared<ock::bss::TableDescription>(
-            keyedStateType, "dbTable", -1, ock::bss::TableSerializer{}, db->GetConfig());
+        keyedStateType, "dbTable", -1, ock::bss::TableSerializer{}, db->GetConfig());
     return db->GetTableOrCreate(tblDesc);
 }
 
@@ -111,22 +111,23 @@ TEST(BssStateTest, kvtable_long_test)
     long vectorBatchId = 1;
     longSerializer.serialize(&vectorBatchId, keyOutputSerializer);
 
-    BinaryData priKey(keyOutputSerializer.getData(), (int32_t) (keyOutputSerializer.getPosition()));
-    BinaryData val(keyOutputSerializer.getData(), (int32_t) (keyOutputSerializer.getPosition()));
-    uint32_t keyHashCode = HashCode::Hash(keyOutputSerializer.getData(), (int32_t) (keyOutputSerializer.getPosition()));
+    BinaryData priKey(keyOutputSerializer.getData(), (int32_t)(keyOutputSerializer.getPosition()));
+    BinaryData val(keyOutputSerializer.getData(), (int32_t)(keyOutputSerializer.getPosition()));
+    uint32_t keyHashCode = HashCode::Hash(keyOutputSerializer.getData(), (int32_t)(keyOutputSerializer.getPosition()));
     kVTable->Put(keyHashCode, priKey, val);
 
     BinaryData readValue;
     kVTable->Get(keyHashCode, priKey, readValue);
-    DataInputDeserializer serializedData(reinterpret_cast<const uint8_t *>(readValue.Data()), readValue.Length(), 0);
-    void *readLong = longSerializer.deserialize(serializedData);
-    ASSERT_EQ(*reinterpret_cast<long *>(readLong), 1);
+    DataInputDeserializer serializedData(reinterpret_cast<const uint8_t*>(readValue.Data()), readValue.Length(), 0);
+    void* readLong = longSerializer.deserialize(serializedData);
+    ASSERT_EQ(*reinterpret_cast<long*>(readLong), 1);
 
     nDB->Close();
     delete nDB;
 }
 
-omnistream::VectorBatch* GetVectorBatch(int64_t rowCount) {
+omnistream::VectorBatch* GetVectorBatch(int64_t rowCount)
+{
     auto vBatch = new omnistream::VectorBatch(rowCount);
     for (int i = 0; i < 5; ++i) {
         auto pVector = new omniruntime::vec::Vector<long>(rowCount);
@@ -147,16 +148,15 @@ TEST(BssStateTest, BinaryRowDataSerialzerTest)
     DataOutputSerializer keyOutputSerializer;
     OutputBufferStatus outputBufferStatus;
     keyOutputSerializer.setBackendBuffer(&outputBufferStatus);
-    BinaryRowDataSerializer *binaryRowDataSerializer = new BinaryRowDataSerializer(1);
+    BinaryRowDataSerializer* binaryRowDataSerializer = new BinaryRowDataSerializer(1);
     binaryRowDataSerializer->serialize(value, keyOutputSerializer);
-    BinaryData priKey(keyOutputSerializer.getData(), (int32_t) (keyOutputSerializer.getPosition()));
+    BinaryData priKey(keyOutputSerializer.getData(), (int32_t)(keyOutputSerializer.getPosition()));
     DataInputDeserializer serializedData(priKey.Data(), priKey.Length(), 0);
-    void *readLong = binaryRowDataSerializer->deserialize(serializedData);
-    auto res = *reinterpret_cast<BinaryRowData *>(readLong);
+    void* readLong = binaryRowDataSerializer->deserialize(serializedData);
+    auto res = *reinterpret_cast<BinaryRowData*>(readLong);
     EXPECT_EQ(*res.getLong(0), 100);
     EXPECT_EQ(*res.getLong(1), 200);
 }
-
 
 TEST(BssStateTest, KVTable_putNGet_binaryRowData)
 {
@@ -173,30 +173,30 @@ TEST(BssStateTest, KVTable_putNGet_binaryRowData)
     DataOutputSerializer keyOutputSerializer;
     OutputBufferStatus outputBufferStatus;
     keyOutputSerializer.setBackendBuffer(&outputBufferStatus);
-    BinaryRowDataSerializer *binaryRowDataSerializer = new BinaryRowDataSerializer(3);
+    BinaryRowDataSerializer* binaryRowDataSerializer = new BinaryRowDataSerializer(3);
     BinaryRowData* value = BinaryRowData::createBinaryRowDataWithMem(3);
     value->setLong(0, 100);
     value->setLong(1, 200);
     value->setLong(2, 300);
     binaryRowDataSerializer->serialize(value, keyOutputSerializer);
 
-    BinaryData priKey(keyOutputSerializer.getData(), (int32_t) (keyOutputSerializer.getPosition()));
-    BinaryData val(keyOutputSerializer.getData(), (int32_t) (keyOutputSerializer.getPosition()));
-    uint32_t keyHashCode = HashCode::Hash(keyOutputSerializer.getData(), (int32_t) (keyOutputSerializer.getPosition()));
+    BinaryData priKey(keyOutputSerializer.getData(), (int32_t)(keyOutputSerializer.getPosition()));
+    BinaryData val(keyOutputSerializer.getData(), (int32_t)(keyOutputSerializer.getPosition()));
+    uint32_t keyHashCode = HashCode::Hash(keyOutputSerializer.getData(), (int32_t)(keyOutputSerializer.getPosition()));
     kVTable->Put(keyHashCode, priKey, val);
 
     BinaryData readValue;
     kVTable->Get(keyHashCode, priKey, readValue);
-    DataInputDeserializer serializedData(reinterpret_cast<const uint8_t *>(readValue.Data()), readValue.Length(), 0);
-    void *readLong = binaryRowDataSerializer->deserialize(serializedData);
-    auto res = *reinterpret_cast<BinaryRowData *>(readLong);
+    DataInputDeserializer serializedData(reinterpret_cast<const uint8_t*>(readValue.Data()), readValue.Length(), 0);
+    void* readLong = binaryRowDataSerializer->deserialize(serializedData);
+    auto res = *reinterpret_cast<BinaryRowData*>(readLong);
     EXPECT_EQ(*res.getLong(0), 100);
     EXPECT_EQ(*res.getLong(1), 200);
 
     kVTable->Get(keyHashCode, priKey, readValue);
-    DataInputDeserializer serializedData1(reinterpret_cast<const uint8_t *>(readValue.Data()), readValue.Length(), 0);
+    DataInputDeserializer serializedData1(reinterpret_cast<const uint8_t*>(readValue.Data()), readValue.Length(), 0);
     readLong = binaryRowDataSerializer->deserialize(serializedData1);
-    res = *reinterpret_cast<BinaryRowData *>(readLong);
+    res = *reinterpret_cast<BinaryRowData*>(readLong);
     EXPECT_EQ(*res.getLong(0), 100);
     EXPECT_EQ(*res.getLong(1), 200);
 
@@ -204,27 +204,27 @@ TEST(BssStateTest, KVTable_putNGet_binaryRowData)
     delete nDB;
 }
 
-
 TEST(BssStateTest, BssValueStateTest)
 {
     // serializer
-    VoidNamespaceSerializer *voidNamespaceSerializer = new VoidNamespaceSerializer();
-    BinaryRowDataSerializer *binaryRowDataSerializer = new BinaryRowDataSerializer(3);
+    VoidNamespaceSerializer* voidNamespaceSerializer = new VoidNamespaceSerializer();
+    BinaryRowDataSerializer* binaryRowDataSerializer = new BinaryRowDataSerializer(3);
     // Initialize the InternalKeyContext
-    InternalKeyContextImpl<RowData*> *context = new InternalKeyContextImpl<RowData*>(new KeyGroupRange(0, 1), 1);
+    InternalKeyContextImpl<RowData*>* context = new InternalKeyContextImpl<RowData*>(new KeyGroupRange(0, 1), 1);
     BinaryRowData* keyRowData = BinaryRowData::createBinaryRowDataWithMem(3);
     keyRowData->setLong(0, 100);
     keyRowData->setLong(1, 100);
     keyRowData->setLong(2, 100);
     context->setCurrentKey(keyRowData);
     context->setCurrentKeyGroupIndex(1);
-    RegisteredKeyValueStateBackendMetaInfo *metaInfo =
-            new RegisteredKeyValueStateBackendMetaInfo("metaInfo", voidNamespaceSerializer, binaryRowDataSerializer);
+    RegisteredKeyValueStateBackendMetaInfo* metaInfo =
+        new RegisteredKeyValueStateBackendMetaInfo("metaInfo", voidNamespaceSerializer, binaryRowDataSerializer);
     BssStateTable<RowData*, VoidNamespace, RowData*> bssStateTable(context, metaInfo, binaryRowDataSerializer);
-    BssValueState<RowData*, VoidNamespace, RowData*> *valueState =
+    BssValueState<RowData*, VoidNamespace, RowData*>* valueState =
         BssValueState<RowData*, VoidNamespace, RowData*>::create(
-        new ValueStateDescriptor<RowData *>("ValueStateTest", binaryRowDataSerializer),
-        &bssStateTable, binaryRowDataSerializer);
+            new ValueStateDescriptor<RowData*>("ValueStateTest", binaryRowDataSerializer),
+            &bssStateTable,
+            binaryRowDataSerializer);
     initialValueState(valueState);
     BinaryRowData* value = BinaryRowData::createBinaryRowDataWithMem(3);
     value->setLong(0, 100);
@@ -235,41 +235,41 @@ TEST(BssStateTest, BssValueStateTest)
     EXPECT_EQ(*result->getLong(0), 100);
     EXPECT_EQ(*result->getLong(1), 200);
     EXPECT_EQ(*result->getLong(2), 300);
-    LOG("*******************************************")
+    LOG("*******************************************");
     value->setLong(0, 200);
-    result = dynamic_cast<BinaryRowData *>(valueState->value());
+    result = dynamic_cast<BinaryRowData*>(valueState->value());
     EXPECT_EQ(*result->getLong(0), 100);
     EXPECT_EQ(*result->getLong(1), 200);
     EXPECT_EQ(*result->getLong(2), 300);
-    LOG("*******************************************")
+    LOG("*******************************************");
     valueState->update(value);
-    result = dynamic_cast<BinaryRowData *>(valueState->value());
+    result = dynamic_cast<BinaryRowData*>(valueState->value());
     EXPECT_EQ(*result->getLong(0), 200);
     EXPECT_EQ(*result->getLong(1), 200);
     EXPECT_EQ(*result->getLong(2), 300);
-    LOG("*******************************************")
+    LOG("*******************************************");
     auto newKey = BinaryRowData::createBinaryRowDataWithMem(1);
     context->setCurrentKey(BinaryRowData::createBinaryRowDataWithMem(1));
-    result = dynamic_cast<BinaryRowData *>(valueState->value());
+    result = dynamic_cast<BinaryRowData*>(valueState->value());
     ASSERT_EQ(nullptr, result);
-    LOG("*******************************************")
+    LOG("*******************************************");
     context->setCurrentKey(keyRowData);
-    result = dynamic_cast<BinaryRowData *>(valueState->value());
-    LOG("*******************************************")
+    result = dynamic_cast<BinaryRowData*>(valueState->value());
+    LOG("*******************************************");
     EXPECT_EQ(*result->getLong(0), 200);
     EXPECT_EQ(*result->getLong(1), 200);
     EXPECT_EQ(*result->getLong(2), 300);
-    LOG("*******************************************")
+    LOG("*******************************************");
     valueState->clear();
-    result = dynamic_cast<BinaryRowData *>(valueState->value());
+    result = dynamic_cast<BinaryRowData*>(valueState->value());
     ASSERT_EQ(nullptr, result);
-    LOG("*******************************************")
+    LOG("*******************************************");
     delete newKey;
     delete keyRowData;
     delete value;
 }
 
-BinaryData GetBssUnifyingData(int64_t longValue, uint32_t& hashcode, DataOutputSerializer &keyOutputSerializer)
+BinaryData GetBssUnifyingData(int64_t longValue, uint32_t& hashcode, DataOutputSerializer& keyOutputSerializer)
 {
     LongSerializer longSerializer;
     longSerializer.serialize(&longValue, keyOutputSerializer);
@@ -308,13 +308,12 @@ TEST(BssStateTest, Bss_KListState_put_get)
     auto serializer = new LongSerializer();
     auto getResult = kListTable->Get(keyHashCode, keyData);
     for (std::size_t i = 0; i < getResult.addresses.size(); ++i) {
-        DataInputDeserializer serializedData(reinterpret_cast<const uint8_t *>(getResult.addresses.at(i)),
-                                             getResult.lengths.at(i), 0);
-        void *resPtr = serializer->deserialize(serializedData);
-        LOG("result is " << *(long*) resPtr)
-        EXPECT_EQ(9999, *(long*) resPtr);
+        DataInputDeserializer serializedData(
+            reinterpret_cast<const uint8_t*>(getResult.addresses.at(i)), getResult.lengths.at(i), 0);
+        void* resPtr = serializer->deserialize(serializedData);
+        LOG("result is " << *(long*)resPtr);
+        EXPECT_EQ(9999, *(long*)resPtr);
     }
-
 }
 
 TEST(BssStateTest, Bss_KListState_add_get)
@@ -342,7 +341,7 @@ TEST(BssStateTest, Bss_KListState_add_get)
     keyOutputSerializer.setBackendBuffer(&outputBufferStatus1);
     BinaryData valueData = GetBssUnifyingData(value, valueHashCode, keyOutputSerializer);
 
-    LongSerializer *serializer = new LongSerializer();
+    LongSerializer* serializer = new LongSerializer();
 
     int64_t value1 = 9998;
     uint32_t valueHashCode1;
@@ -365,13 +364,13 @@ TEST(BssStateTest, Bss_KListState_add_get)
     std::vector<int64_t>* result = new std::vector<int64_t>();
 
     for (int i = 0; i < getResult.addresses.size(); ++i) {
-        DataInputDeserializer serializedData(reinterpret_cast<const uint8_t *>(getResult.addresses.at(i)),
-                                             getResult.lengths.at(i), 0);
+        DataInputDeserializer serializedData(
+            reinterpret_cast<const uint8_t*>(getResult.addresses.at(i)), getResult.lengths.at(i), 0);
         auto tempData = serializer->deserialize(serializedData);
-        LOG("tempData: " << (long)tempData)
-        LOG("tempData1: " << (long*)tempData)
-        result->push_back(*(long *)tempData);
-        LOG("==================================")
+        LOG("tempData: " << (long)tempData);
+        LOG("tempData1: " << (long*)tempData);
+        result->push_back(*(long*)tempData);
+        LOG("==================================");
     }
 
     EXPECT_EQ(3, result->size());
@@ -441,16 +440,15 @@ TEST(BssStateTest, Bss_KMapState_add_get1)
     kMapTable->Put(keyHashCode3, prikeyData, keyData3, valueData3);
     auto iterator = kMapTable->EntryIteratorWrraper(keyHashCode1, prikeyData);
     while (iterator->HasNext()) {
-        LOG("iterator1 test")
+        LOG("iterator1 test");
         auto temp = iterator->Next();
         auto keyData = temp[0];
         auto valueData = temp[1];
-        DataInputDeserializer keySerializedData(reinterpret_cast<const uint8_t *>(keyData.Data()),
-                                                keyData.Length(), 0);
-        auto keyRes = *(long *)longSerializer->deserialize(keySerializedData);
-        DataInputDeserializer valSerializedData(reinterpret_cast<const uint8_t *>(valueData.Data()),
-                                                valueData.Length(), 0);
-        auto valRes = *(long *)longSerializer->deserialize(valSerializedData);
+        DataInputDeserializer keySerializedData(reinterpret_cast<const uint8_t*>(keyData.Data()), keyData.Length(), 0);
+        auto keyRes = *(long*)longSerializer->deserialize(keySerializedData);
+        DataInputDeserializer valSerializedData(
+            reinterpret_cast<const uint8_t*>(valueData.Data()), valueData.Length(), 0);
+        auto valRes = *(long*)longSerializer->deserialize(valSerializedData);
         EXPECT_EQ(keyRes, 10000);
         EXPECT_EQ(valRes, 9998);
     }
@@ -458,16 +456,15 @@ TEST(BssStateTest, Bss_KMapState_add_get1)
 
     auto iterator2 = kMapTable->EntryIteratorWrraper(keyHashCode2, prikeyData);
     while (iterator2->HasNext()) {
-        LOG("iterator2 test")
+        LOG("iterator2 test");
         auto temp = iterator2->Next();
         auto keyData = temp[0];
         auto valueData = temp[1];
-        DataInputDeserializer keySerializedData(reinterpret_cast<const uint8_t *>(keyData.Data()),
-                                                keyData.Length(), 0);
-        auto keyRes = *(long *)longSerializer->deserialize(keySerializedData);
-        DataInputDeserializer valSerializedData(reinterpret_cast<const uint8_t *>(valueData.Data()),
-                                                valueData.Length(), 0);
-        auto valRes = *(long *)longSerializer->deserialize(valSerializedData);
+        DataInputDeserializer keySerializedData(reinterpret_cast<const uint8_t*>(keyData.Data()), keyData.Length(), 0);
+        auto keyRes = *(long*)longSerializer->deserialize(keySerializedData);
+        DataInputDeserializer valSerializedData(
+            reinterpret_cast<const uint8_t*>(valueData.Data()), valueData.Length(), 0);
+        auto valRes = *(long*)longSerializer->deserialize(valSerializedData);
         EXPECT_EQ(keyRes, 10001);
         EXPECT_EQ(valRes, 9997);
     }
@@ -477,12 +474,11 @@ TEST(BssStateTest, Bss_KMapState_add_get1)
         auto temp = iterator3->Next();
         auto keyData = temp[0];
         auto valueData = temp[1];
-        DataInputDeserializer keySerializedData(reinterpret_cast<const uint8_t *>(keyData.Data()),
-                                                keyData.Length(), 0);
-        auto keyRes = *(long *)longSerializer->deserialize(keySerializedData);
-        DataInputDeserializer valSerializedData(reinterpret_cast<const uint8_t *>(valueData.Data()),
-                                                valueData.Length(), 0);
-        auto valRes = *(long *)longSerializer->deserialize(valSerializedData);
+        DataInputDeserializer keySerializedData(reinterpret_cast<const uint8_t*>(keyData.Data()), keyData.Length(), 0);
+        auto keyRes = *(long*)longSerializer->deserialize(keySerializedData);
+        DataInputDeserializer valSerializedData(
+            reinterpret_cast<const uint8_t*>(valueData.Data()), valueData.Length(), 0);
+        auto valRes = *(long*)longSerializer->deserialize(valSerializedData);
         EXPECT_EQ(keyRes, 10002);
         EXPECT_EQ(valRes, 9996);
     }
@@ -556,31 +552,31 @@ TEST(BssStateTest, Bss_KMapState_add_get)
     BinaryData valueDataFromMapState;
     kMapTable->Get(keyHashCode, prikeyData, keyData, valueDataFromMapState);
 
-    DataInputDeserializer serializedData(reinterpret_cast<const uint8_t *>(valueDataFromMapState.Data()),
-                                         valueDataFromMapState.Length(), 0);
+    DataInputDeserializer serializedData(
+        reinterpret_cast<const uint8_t*>(valueDataFromMapState.Data()), valueDataFromMapState.Length(), 0);
     LongSerializer* longSerializer = new LongSerializer();
     auto res = longSerializer->deserialize(serializedData);
-    auto size = *(long *)res;
+    auto size = *(long*)res;
     EXPECT_EQ(size, 9997);
 
     kMapTable->Remove(keyHashCode, prikeyData);
-    auto *wrapper = kMapTable->EntryIteratorWrraper(keyHashCode, prikeyData);
+    auto* wrapper = kMapTable->EntryIteratorWrraper(keyHashCode, prikeyData);
     ASSERT_EQ(false, wrapper->HasNext());
     delete wrapper;
 }
 
 TEST(BssStateTest, BssListState)
 {
-    LongSerializer *serializer = LongSerializer::INSTANCE;
+    LongSerializer* serializer = LongSerializer::INSTANCE;
     // Initialize the InternalKeyContext
-    InternalKeyContextImpl<RowData*> *context = new InternalKeyContextImpl<RowData*>(new KeyGroupRange(0, 1), 1);
+    InternalKeyContextImpl<RowData*>* context = new InternalKeyContextImpl<RowData*>(new KeyGroupRange(0, 1), 1);
     BinaryRowData* keyRowData = BinaryRowData::createBinaryRowDataWithMem(1);
     keyRowData->setLong(0, 100);
     context->setCurrentKey(keyRowData);
     context->setCurrentKeyGroupIndex(1);
-    auto *metaInfo =new RegisteredKeyValueStateBackendMetaInfo("metaInfo", serializer, serializer);
-    BssListStateTable<RowData *, int64_t, int64_t> bssListStateTable(context, metaInfo, new BinaryRowDataSerializer(1));
-    auto *listState = new BssListState<RowData*, int64_t, int64_t>(&bssListStateTable, serializer, serializer);
+    auto* metaInfo = new RegisteredKeyValueStateBackendMetaInfo("metaInfo", serializer, serializer);
+    BssListStateTable<RowData*, int64_t, int64_t> bssListStateTable(context, metaInfo, new BinaryRowDataSerializer(1));
+    auto* listState = new BssListState<RowData*, int64_t, int64_t>(&bssListStateTable, serializer, serializer);
     initialListState(listState);
     listState->setCurrentNamespace(1000);
     listState->add(10);
@@ -591,7 +587,7 @@ TEST(BssStateTest, BssListState)
     listState->add(20);
 
     list = listState->get();
-    LOG("list size " <<list->size())
+    LOG("list size " << list->size());
     EXPECT_EQ(list->size(), 3);
     EXPECT_EQ((*list)[1], 10);
     EXPECT_EQ((*list)[2], 20);
@@ -599,71 +595,75 @@ TEST(BssStateTest, BssListState)
 
 TEST(BssStateTest, BssMapState_putNget)
 {
-    LongSerializer *serializer = LongSerializer::INSTANCE;
+    LongSerializer* serializer = LongSerializer::INSTANCE;
     // Initialize the InternalKeyContext
-    InternalKeyContextImpl<RowData*> *context = new InternalKeyContextImpl<RowData*>(new KeyGroupRange(0, 1), 1);
+    InternalKeyContextImpl<RowData*>* context = new InternalKeyContextImpl<RowData*>(new KeyGroupRange(0, 1), 1);
     BinaryRowData* keyRowData = BinaryRowData::createBinaryRowDataWithMem(1);
     keyRowData->setLong(0, 100);
     context->setCurrentKey(keyRowData);
     context->setCurrentKeyGroupIndex(1);
-    auto *metaInfo =new RegisteredKeyValueStateBackendMetaInfo("metaInfo", serializer, serializer);
-    BssMapStateTable<RowData *, int64_t, int64_t, int64_t> bssMapStateTable(context, new BinaryRowDataSerializer(1), serializer, metaInfo);
-    auto *mapState = new BssMapState<RowData *, int64_t, int64_t, int64_t>(&bssMapStateTable, new BinaryRowDataSerializer(1), serializer, serializer);
+    auto* metaInfo = new RegisteredKeyValueStateBackendMetaInfo("metaInfo", serializer, serializer);
+    BssMapStateTable<RowData*, int64_t, int64_t, int64_t> bssMapStateTable(
+        context, new BinaryRowDataSerializer(1), serializer, metaInfo);
+    auto* mapState = new BssMapState<RowData*, int64_t, int64_t, int64_t>(
+        &bssMapStateTable, new BinaryRowDataSerializer(1), serializer, serializer);
     initialMapState(mapState);
     mapState->setCurrentNamespace(1000);
     mapState->put(10, 10);
-    auto *entries = mapState->entries();
-    LOG("map size is " << entries->size())
+    auto* entries = mapState->entries();
+    LOG("map size is " << entries->size());
     auto val = mapState->get(10);
     EXPECT_EQ(val, 10);
     mapState->put(10, 20);
     entries = mapState->entries();
-    LOG("map size is " << entries->size())
+    LOG("map size is " << entries->size());
     val = mapState->get(10);
     EXPECT_EQ(val, 20);
     mapState->put(20, 10);
     entries = mapState->entries();
-    LOG("map size is " << entries->size())
+    LOG("map size is " << entries->size());
     val = mapState->get(20);
     EXPECT_EQ(val, 10);
     mapState->put(20, 20);
     entries = mapState->entries();
-    LOG("map size is " << entries->size())
+    LOG("map size is " << entries->size());
     val = mapState->get(20);
     EXPECT_EQ(val, 20);
 }
 
 TEST(BssStateTest, BssMapState_putNentries)
 {
-    LongSerializer *serializer = LongSerializer::INSTANCE;
+    LongSerializer* serializer = LongSerializer::INSTANCE;
     // Initialize the InternalKeyContext
-    InternalKeyContextImpl<RowData*> *context = new InternalKeyContextImpl<RowData*>(new KeyGroupRange(0, 1), 1);
+    InternalKeyContextImpl<RowData*>* context = new InternalKeyContextImpl<RowData*>(new KeyGroupRange(0, 1), 1);
     BinaryRowData* keyRowData = BinaryRowData::createBinaryRowDataWithMem(1);
     keyRowData->setLong(0, 100);
     context->setCurrentKey(keyRowData);
     context->setCurrentKeyGroupIndex(1);
-    auto *metaInfo =new RegisteredKeyValueStateBackendMetaInfo("metaInfo", serializer, serializer);
-    BssMapStateTable<RowData *, int64_t, int64_t, int64_t> bssMapStateTable(context, new BinaryRowDataSerializer(1), serializer, metaInfo);
-    auto *mapState = new BssMapState<RowData *, int64_t, int64_t, int64_t>(&bssMapStateTable, new BinaryRowDataSerializer(1), serializer, serializer);
+    auto* metaInfo = new RegisteredKeyValueStateBackendMetaInfo("metaInfo", serializer, serializer);
+    BssMapStateTable<RowData*, int64_t, int64_t, int64_t> bssMapStateTable(
+        context, new BinaryRowDataSerializer(1), serializer, metaInfo);
+    auto* mapState = new BssMapState<RowData*, int64_t, int64_t, int64_t>(
+        &bssMapStateTable, new BinaryRowDataSerializer(1), serializer, serializer);
     initialMapState(mapState);
     mapState->setCurrentNamespace(1000);
     mapState->put(10, 10);
-    auto *entries = mapState->entries();
-    LOG("map size is " << entries->size())
-    LOG("================================================================================")
+    auto* entries = mapState->entries();
+    LOG("map size is " << entries->size());
+    LOG("================================================================================");
     mapState->put(20, 10);
     entries = mapState->entries();
-    LOG("map size is " << entries->size())
-    LOG("================================================================================")
-    mapState->put(10,20);
+    LOG("map size is " << entries->size());
+    LOG("================================================================================");
+    mapState->put(10, 20);
 
-    mapState->put(30,35);
+    mapState->put(30, 35);
     entries = mapState->entries();
-    LOG("map size is " << entries->size())
+    LOG("map size is " << entries->size());
     mapState->remove(30);
     entries = mapState->entries();
-    LOG("map size is " << entries->size())
-    LOG("================================================================================")
+    LOG("map size is " << entries->size());
+    LOG("================================================================================");
 
     EXPECT_EQ(entries->size(), 2);
     for (auto& pair : *entries) {
@@ -675,24 +675,24 @@ TEST(BssStateTest, BssMapState_putNentries)
 
 TEST(BssStateTest, BssListState_vectorbatch)
 {
-    LongSerializer *serializer = LongSerializer::INSTANCE;
+    LongSerializer* serializer = LongSerializer::INSTANCE;
     // Initialize the InternalKeyContext
-    InternalKeyContextImpl<RowData*> *context = new InternalKeyContextImpl<RowData*>(new KeyGroupRange(0, 1), 1);
+    InternalKeyContextImpl<RowData*>* context = new InternalKeyContextImpl<RowData*>(new KeyGroupRange(0, 1), 1);
     BinaryRowData* keyRowData = BinaryRowData::createBinaryRowDataWithMem(1);
     keyRowData->setLong(0, 100);
     context->setCurrentKey(keyRowData);
     context->setCurrentKeyGroupIndex(1);
-    auto *metaInfo =new RegisteredKeyValueStateBackendMetaInfo("metaInfo", serializer, serializer);
-    BssListStateTable<RowData *, int64_t, int64_t> bssListStateTable(context, metaInfo, new BinaryRowDataSerializer(1));
-    auto *listState = new BssListState<RowData*, int64_t, int64_t>(&bssListStateTable, serializer, serializer);
+    auto* metaInfo = new RegisteredKeyValueStateBackendMetaInfo("metaInfo", serializer, serializer);
+    BssListStateTable<RowData*, int64_t, int64_t> bssListStateTable(context, metaInfo, new BinaryRowDataSerializer(1));
+    auto* listState = new BssListState<RowData*, int64_t, int64_t>(&bssListStateTable, serializer, serializer);
     initialListState(listState);
     listState->setCurrentNamespace(1000);
     omnistream::VectorBatch* tmpBatch = GetVectorBatch(vecBatchRows);
     auto batchid = listState->getVectorBatchesSize();
     listState->addVectorBatch(tmpBatch);
-    LOG("vectorbatch id " << batchid)
+    LOG("vectorbatch id " << batchid);
     auto res = listState->getVectorBatch(batchid);
-    LOG("vectorbatch row : " << tmpBatch->GetRowCount() << ", vector : " << tmpBatch->GetVectorCount())
+    LOG("vectorbatch row : " << tmpBatch->GetRowCount() << ", vector : " << tmpBatch->GetVectorCount());
     for (int i = 0; i < tmpBatch->GetVectorCount(); ++i) {
         for (int j = 0; j < tmpBatch->GetRowCount(); ++j) {
             EXPECT_EQ(tmpBatch->GetValueAt<long>(i, j), res->GetValueAt<long>(i, j));
@@ -702,23 +702,25 @@ TEST(BssStateTest, BssListState_vectorbatch)
 
 TEST(BssStateTest, BssMapState_vectorbatch)
 {
-    LongSerializer *serializer = LongSerializer::INSTANCE;
+    LongSerializer* serializer = LongSerializer::INSTANCE;
     // Initialize the InternalKeyContext
-    InternalKeyContextImpl<RowData*> *context = new InternalKeyContextImpl<RowData*>(new KeyGroupRange(0, 1), 1);
+    InternalKeyContextImpl<RowData*>* context = new InternalKeyContextImpl<RowData*>(new KeyGroupRange(0, 1), 1);
     BinaryRowData* keyRowData = BinaryRowData::createBinaryRowDataWithMem(1);
     keyRowData->setLong(0, 100);
     context->setCurrentKey(keyRowData);
     context->setCurrentKeyGroupIndex(1);
-    auto *metaInfo =new RegisteredKeyValueStateBackendMetaInfo("metaInfo", serializer, serializer);
-    BssMapStateTable<RowData *, int64_t, int64_t, int64_t> bssMapStateTable(context, new BinaryRowDataSerializer(1), serializer, metaInfo);
-    auto *mapState = new BssMapState<RowData*, int64_t, int64_t, int64_t>(&bssMapStateTable, serializer, serializer, serializer);
+    auto* metaInfo = new RegisteredKeyValueStateBackendMetaInfo("metaInfo", serializer, serializer);
+    BssMapStateTable<RowData*, int64_t, int64_t, int64_t> bssMapStateTable(
+        context, new BinaryRowDataSerializer(1), serializer, metaInfo);
+    auto* mapState =
+        new BssMapState<RowData*, int64_t, int64_t, int64_t>(&bssMapStateTable, serializer, serializer, serializer);
     initialMapState(mapState);
     mapState->setCurrentNamespace(1000);
     omnistream::VectorBatch* tmpBatch = GetVectorBatch(vecBatchRows);
     mapState->addVectorBatch(tmpBatch);
-    LOG("vectorbatch id " << mapState->getVectorBatchesSize())
+    LOG("vectorbatch id " << mapState->getVectorBatchesSize());
     auto res = mapState->getVectorBatch(mapState->getVectorBatchesSize() - 1);
-    LOG("vectorbatch row : " << tmpBatch->GetRowCount() << ", vector : " << tmpBatch->GetVectorCount())
+    LOG("vectorbatch row : " << tmpBatch->GetRowCount() << ", vector : " << tmpBatch->GetVectorCount());
     for (int i = 0; i < tmpBatch->GetVectorCount(); ++i) {
         for (int j = 0; j < tmpBatch->GetRowCount(); ++j) {
             EXPECT_EQ(tmpBatch->GetValueAt<long>(i, j), res->GetValueAt<long>(i, j));
@@ -727,9 +729,9 @@ TEST(BssStateTest, BssMapState_vectorbatch)
 
     omnistream::VectorBatch* tmpBatch2 = GetVectorBatch(vecBatchRows);
     mapState->addVectorBatch(tmpBatch2);
-    LOG("vectorbatch id " << mapState->getVectorBatchesSize())
+    LOG("vectorbatch id " << mapState->getVectorBatchesSize());
     auto res1 = mapState->getVectorBatch(mapState->getVectorBatchesSize() - 1);
-    LOG("vectorbatch row : " << tmpBatch2->GetRowCount() << ", vector : " << tmpBatch->GetVectorCount())
+    LOG("vectorbatch row : " << tmpBatch2->GetRowCount() << ", vector : " << tmpBatch->GetVectorCount());
     for (int i = 0; i < tmpBatch2->GetVectorCount(); ++i) {
         for (int j = 0; j < tmpBatch2->GetRowCount(); ++j) {
             EXPECT_EQ(tmpBatch2->GetValueAt<long>(i, j), res1->GetValueAt<long>(i, j));

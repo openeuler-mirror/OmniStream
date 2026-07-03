@@ -29,8 +29,8 @@ namespace omnistream {
 class FsCheckpointStorageAccess : public AbstractFsCheckpointStorageAccess {
 public:
     FsCheckpointStorageAccess(
-        Path *checkpointBaseDirectory,
-        Path *defaultSavepointDirectory,
+        Path* checkpointBaseDirectory,
+        Path* defaultSavepointDirectory,
         JobIDPOD jobId,
         int fileSizeThreshold,
         int writeBufferSize)
@@ -46,8 +46,8 @@ public:
 
     FsCheckpointStorageAccess(
         int fs,
-        Path *checkpointBaseDirectory,
-        Path *defaultSavepointDirectory,
+        Path* checkpointBaseDirectory,
+        Path* defaultSavepointDirectory,
         JobIDPOD jobId,
         int fileSizeThreshold,
         int writeBufferSize)
@@ -67,16 +67,21 @@ public:
         this->writeBufferSize = writeBufferSize;
     }
 
-    CheckpointStateOutputStream *createTaskOwnedStateStream() override { return nullptr; };
+    CheckpointStateOutputStream* createTaskOwnedStateStream() override
+    {
+        return nullptr;
+    };
 
-    CheckpointStateToolset *createTaskOwnedCheckpointStateToolset() override { return nullptr; };
+    CheckpointStateToolset* createTaskOwnedCheckpointStateToolset() override
+    {
+        return nullptr;
+    };
 
-    CheckpointStreamFactory *resolveCheckpointStorageLocation(
+    CheckpointStreamFactory* resolveCheckpointStorageLocation(
         int64_t checkpointId, std::shared_ptr<CheckpointStorageLocationReference> reference) override
     {
         if (reference->IsDefaultReference()) {
-            Path *checkpointDir =
-                createCheckpointDirectory(*checkpointsDirectory, checkpointId);
+            Path* checkpointDir = createCheckpointDirectory(*checkpointsDirectory, checkpointId);
 
             return new FsCheckpointStorageLocation(
                 fileSystem,
@@ -87,16 +92,10 @@ public:
                 fileSizeThreshold,
                 writeBufferSize);
         } else {
-            Path *path = decodePathFromReference(reference);
+            Path* path = decodePathFromReference(reference);
 
             return new FsCheckpointStorageLocation(
-                path->getFileSystem(),
-                path,
-                path,
-                path,
-                reference,
-                fileSizeThreshold,
-                writeBufferSize);
+                path->getFileSystem(), path, path, path, reference, fileSizeThreshold, writeBufferSize);
         }
     };
 
@@ -105,7 +104,8 @@ public:
         return nullptr; // NOT_IMPLEMENTED
     };
 
-    CheckpointStorageLocation* initializeLocationForSavepoint(long checkpointId, const std::string& externalPath) override
+    CheckpointStorageLocation* initializeLocationForSavepoint(
+        long checkpointId, const std::string& externalPath) override
     {
         return nullptr; // NOT_IMPLEMENTED
     }
@@ -119,18 +119,20 @@ public:
     {
         return nullptr; // NOT_IMPLEMENTED
     }
-    
-    void initializeBaseLocations() override {}
+
+    void initializeBaseLocations() override
+    {
+    }
 
 private:
     int fileSystem;
-    Path *checkpointsDirectory;
-    Path *sharedStateDirectory;
-    Path *taskOwnedStateDirectory;
+    Path* checkpointsDirectory;
+    Path* sharedStateDirectory;
+    Path* taskOwnedStateDirectory;
     int fileSizeThreshold;
     int writeBufferSize;
 };
 
-}
+} // namespace omnistream
 
 #endif // FLINK_TNEL_FSCHECKPOINTSTORAGEACCESS_H

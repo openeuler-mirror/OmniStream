@@ -35,7 +35,8 @@
  * */
 template <typename K>
 class AbstractStreamOperator : public StreamOperator,
-public KeyContext<K>, public StreamOperatorStateHandler<K>::CheckpointedStreamOperator {
+                               public KeyContext<K>,
+                               public StreamOperatorStateHandler<K>::CheckpointedStreamOperator {
 public:
     void setDescription(nlohmann::json description)
     {
@@ -47,7 +48,7 @@ public:
         this->runtimeContext = nullptr;
     }
 
-    explicit AbstractStreamOperator(Output *output)
+    explicit AbstractStreamOperator(Output* output)
     {
         this->output = output;
         this->runtimeContext = nullptr;
@@ -92,7 +93,7 @@ public:
 
     std::shared_ptr<omnistream::TaskMetricGroup> GetMectrics() override
     {
-        LOG("AbstractStreamOperator GetMectrics")
+        LOG("AbstractStreamOperator GetMectrics");
         return this->metrics;
     }
 
@@ -116,7 +117,7 @@ public:
         return stateHandler->getCurrentKey();
     };
 
-    void open() override{};
+    void open() override {};
 
     void close() override
     {
@@ -125,19 +126,21 @@ public:
         }
     };
 
-    TypeSerializer *GetOperatorKeySerializer()
+    TypeSerializer* GetOperatorKeySerializer()
     {
         return new BinaryRowDataSerializer(1);
     };
 
-    void initializeState(StateInitializationContextImpl *context)  override {}
+    void initializeState(StateInitializationContextImpl* context) override
+    {
+    }
     // KeySerializer should be retrieved from description.getStateKeySerializer(getUserCodeClassloader()),
     // but we're just passing it through this function for now
-    void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) override
+    void initializeState(StreamTaskStateInitializerImpl* initializer, TypeSerializer* keySerializer) override
     {
-        LOG("abstractStreamOperator::initializeState")
+        LOG("abstractStreamOperator::initializeState");
         auto operatorID = this->GetOperatorID();
-        StreamOperatorStateContextImpl<K> *context =
+        StreamOperatorStateContextImpl<K>* context =
             initializer->streamOperatorStateContext<K>(keySerializer, this, processingTimeService, &operatorID);
         stateHandler = new StreamOperatorStateHandler<K>(context);
         auto stateStore = stateHandler->getKeyedStateStore();
@@ -148,17 +151,17 @@ public:
         timeServiceManager = context->getInternalTimeServiceManager();
         stateHandler->initializeOperatorState(this);
     }
-    StreamingRuntimeContext<K> *getRuntimeContext() const
+    StreamingRuntimeContext<K>* getRuntimeContext() const
     {
         return runtimeContext;
     }
 
-    AbstractKeyedStateBackend<K> *getKeyedStateBackend() const
+    AbstractKeyedStateBackend<K>* getKeyedStateBackend() const
     {
         return stateHandler->getKeyedStateBackend();
     }
 
-    OperatorStateBackend *getOperatorStateBackend()
+    OperatorStateBackend* getOperatorStateBackend()
     {
         return stateHandler->getOperatorStateBackend();
     }
@@ -170,15 +173,15 @@ public:
         return typeName;
     }
     template <typename N>
-    InternalTimerServiceImpl<K, N> *getInternalTimerService(
-        std::string name, TypeSerializer *namespaceSerializer, Triggerable<K, N> *triggerable)
+    InternalTimerServiceImpl<K, N>* getInternalTimerService(
+        std::string name, TypeSerializer* namespaceSerializer, Triggerable<K, N>* triggerable)
     {
         if (timeServiceManager == nullptr) {
-            THROW_LOGIC_EXCEPTION("The timer service has not been initialized")
+            THROW_LOGIC_EXCEPTION("The timer service has not been initialized");
         }
-        AbstractKeyedStateBackend<K> *keyedStateBackend = getKeyedStateBackend();
+        AbstractKeyedStateBackend<K>* keyedStateBackend = getKeyedStateBackend();
         if (keyedStateBackend == nullptr) {
-            THROW_LOGIC_EXCEPTION("Timers can only be used on keyed operators")
+            THROW_LOGIC_EXCEPTION("Timers can only be used on keyed operators");
         }
         return timeServiceManager->template getInternalTimerService<N>(
             name, keyedStateBackend->getKeySerializer(), namespaceSerializer, triggerable);
@@ -201,24 +204,25 @@ public:
     {
         ProcessWatermark(mark, 1);
     }
-    void processWatermarkStatus(WatermarkStatus *watermarkStatus)
+    void processWatermarkStatus(WatermarkStatus* watermarkStatus)
     {
         output->emitWatermarkStatus(watermarkStatus);
     }
 
-    void setProcessingTimeService(ProcessingTimeService *service)
+    void setProcessingTimeService(ProcessingTimeService* service)
     {
         processingTimeService = service;
     };
 
-    ProcessingTimeService *getProcessingTimeService()
+    ProcessingTimeService* getProcessingTimeService()
     {
         return processingTimeService;
     };
 
-    OperatorSnapshotFutures *SnapshotState(long checkpointId,
+    OperatorSnapshotFutures* SnapshotState(
+        long checkpointId,
         long timestamp,
-        CheckpointOptions *checkpointOptions,
+        CheckpointOptions* checkpointOptions,
         CheckpointStreamFactory* storageLocation,
         const std::shared_ptr<OmniTaskBridge>& bridge) override
     {
@@ -243,27 +247,28 @@ public:
     {
         stateHandler->notifyCheckpointAborted(checkpointId);
     }
+
 protected:
     // own  and  own the backend through stateHandler
-    StreamOperatorStateHandler<K> *stateHandler = nullptr;
+    StreamOperatorStateHandler<K>* stateHandler = nullptr;
 
-    Output *output = nullptr;
+    Output* output = nullptr;
     // should not own the backend though runtimeContext
-    StreamingRuntimeContext<K> *runtimeContext = nullptr;
+    StreamingRuntimeContext<K>* runtimeContext = nullptr;
     ChainingStrategy chainingStrategy;
     nlohmann::json desc;
-    InternalTimeServiceManager<K> *timeServiceManager = nullptr;
+    InternalTimeServiceManager<K>* timeServiceManager = nullptr;
     std::shared_ptr<omnistream::TaskMetricGroup> metrics;
     std::string opName;
     bool isStream = false;
     omnistream::IndexedCombinedWatermarkStatus* combinedWatermark = nullptr;
 
 private:
-    ProcessingTimeService *processingTimeService = nullptr;
+    ProcessingTimeService* processingTimeService = nullptr;
 
     void ProcessWatermark(Watermark* mark, int index)
     {
-        LOG(">>>>>>>>>>")
+        LOG(">>>>>>>>>>");
         if (combinedWatermark->UpdateWatermark(index, mark->getTimestamp())) {
             Watermark watermark(combinedWatermark->GetCombinedWatermark());
             this->ProcessWatermark(&watermark);

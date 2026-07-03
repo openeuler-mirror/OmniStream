@@ -15,14 +15,21 @@
 #include "runtime/executiongraph/common/AbstractIDPOD.h"
 
 namespace omnistream {
-    
-    class ExecutionGraphIDPOD : public AbstractIDPOD {
-    public:
-        ExecutionGraphIDPOD() : AbstractIDPOD() {}
-        explicit ExecutionGraphIDPOD(const std::vector<uint8_t>& bytes) : AbstractIDPOD(bytes) {}
-    private:
-        ExecutionGraphIDPOD(int64_t lowerPart, int64_t upperPart) : AbstractIDPOD(lowerPart, upperPart) {}
-    };
+
+class ExecutionGraphIDPOD : public AbstractIDPOD {
+public:
+    ExecutionGraphIDPOD() : AbstractIDPOD()
+    {
+    }
+    explicit ExecutionGraphIDPOD(const std::vector<uint8_t>& bytes) : AbstractIDPOD(bytes)
+    {
+    }
+
+private:
+    ExecutionGraphIDPOD(int64_t lowerPart, int64_t upperPart) : AbstractIDPOD(lowerPart, upperPart)
+    {
+    }
+};
 
 } // namespace omnistream
 

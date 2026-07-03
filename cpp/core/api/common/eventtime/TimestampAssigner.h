@@ -28,16 +28,21 @@ class RecordTimestampAssigner : public TimestampAssigner {
 public:
     RecordTimestampAssigner() = default;
 
-    explicit RecordTimestampAssigner(int32_t rowtimeFieldIndex): rowtimeFieldIndex(rowtimeFieldIndex) {}
+    explicit RecordTimestampAssigner(int32_t rowtimeFieldIndex) : rowtimeFieldIndex(rowtimeFieldIndex)
+    {
+    }
 
-    long ExtractTimestamp(void* element, long recordTimestamp) override {
+    long ExtractTimestamp(void* element, long recordTimestamp) override
+    {
         // TODO: directly return recordTimestamp is not correct
         return recordTimestamp;
     }
 
-    int32_t getRowtimeFieldIndex() const override {
+    int32_t getRowtimeFieldIndex() const override
+    {
         return rowtimeFieldIndex;
     }
+
 private:
     int32_t rowtimeFieldIndex = -1;
 };

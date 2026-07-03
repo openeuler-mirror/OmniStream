@@ -13,4 +13,3 @@
 
 // Static member definition
 std::shared_ptr<NoOpChannelStateWriter> NoOpChannelStateWriter::noOp = std::make_shared<NoOpChannelStateWriter>();
-

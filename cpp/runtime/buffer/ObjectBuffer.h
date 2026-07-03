@@ -39,13 +39,13 @@ public:
         return 0;
     };
 
-    Segment *GetSegment() override
+    Segment* GetSegment() override
     {
         return GetObjectSegment();
     }
 
-    virtual ObjectSegment *GetObjectSegment() = 0;
-    virtual std::pair<uint8_t *, size_t> GetBytes() = 0;
+    virtual ObjectSegment* GetObjectSegment() = 0;
+    virtual std::pair<uint8_t*, size_t> GetBytes() = 0;
 
     int GetOffset() const override
     {
@@ -56,6 +56,6 @@ protected:
     ObjectBuffer() = default;
 };
 
-}  // namespace omnistream
+} // namespace omnistream
 
-#endif  // OMNISTREAM_OBJECTBUFFER_H
+#endif // OMNISTREAM_OBJECTBUFFER_H

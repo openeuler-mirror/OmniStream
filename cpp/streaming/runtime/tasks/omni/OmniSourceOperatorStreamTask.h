@@ -19,22 +19,23 @@
 #include <taskmanager/OmniRuntimeEnvironment.h>
 
 namespace omnistream {
-    class OmniSourceOperatorStreamTask : public OmniStreamTask {
-    public:
-        explicit OmniSourceOperatorStreamTask(std::shared_ptr<RuntimeEnvironmentV2> &env, int taskType)
-            : OmniStreamTask(env, taskType) {
-        }
+class OmniSourceOperatorStreamTask : public OmniStreamTask {
+public:
+    explicit OmniSourceOperatorStreamTask(std::shared_ptr<RuntimeEnvironmentV2>& env, int taskType)
+        : OmniStreamTask(env, taskType)
+    {
+    }
 
-        void init() override;
+    void init() override;
 
-        void processInput(MailboxDefaultAction::Controller *controller) override;
+    void processInput(MailboxDefaultAction::Controller* controller) override;
 
-        ~OmniSourceOperatorStreamTask() override = default;
-        const std::string getName() const override;
-        OmniPushingAsyncDataInput::OmniDataOutput* createDataOutput();
-        OmniStreamTaskInput* createTaskInput();
-        void cancel() override;
-    };
-}
+    ~OmniSourceOperatorStreamTask() override = default;
+    const std::string getName() const override;
+    OmniPushingAsyncDataInput::OmniDataOutput* createDataOutput();
+    OmniStreamTaskInput* createTaskInput();
+    void cancel() override;
+};
+} // namespace omnistream
 
 #endif // OMNISOURCEOPERATORSTREAMTASK_H

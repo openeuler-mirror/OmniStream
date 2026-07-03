@@ -34,23 +34,25 @@ nlohmann::json rankjson = nlohmann::json::parse(rankDescription);
 
 #include <random>
 
-int rand_int(int min, int max) {
+int rand_int(int min, int max)
+{
     static thread_local std::mt19937 generator(std::random_device{}());
     std::uniform_int_distribution<int> distribution(min, max);
     return distribution(generator);
 }
 
-long rand_long(long min, long max) {
+long rand_long(long min, long max)
+{
     static thread_local std::mt19937_64 generator(std::random_device{}());
     std::uniform_int_distribution<long> distribution(min, max);
     return distribution(generator);
 }
 
-std::string rand_string(size_t length) {
-    static const char charset[] =
-        "abcdefghijklmnopqrstuvwxyz"
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-        "0123456789";
+std::string rand_string(size_t length)
+{
+    static const char charset[] = "abcdefghijklmnopqrstuvwxyz"
+                                  "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                                  "0123456789";
     static thread_local std::mt19937 generator(std::random_device{}());
     static std::uniform_int_distribution<size_t> dist(0, sizeof(charset) - 2);
 
@@ -62,9 +64,14 @@ std::string rand_string(size_t length) {
     return result;
 }
 
-enum class Typing { INT, LONG, STRING };
+enum class Typing {
+    INT,
+    LONG,
+    STRING
+};
 
-StreamRecord *makeBatch(std::vector<Typing> types) {
+StreamRecord* makeBatch(std::vector<Typing> types)
+{
     int size = 1000;
     auto batch = new omnistream::VectorBatch(size);
     for (auto type : types) {
@@ -81,8 +88,7 @@ StreamRecord *makeBatch(std::vector<Typing> types) {
             }
             batch->Append(vec);
         } else if (type == Typing::STRING) {
-            auto vec = new omniruntime::vec::Vector<
-                omniruntime::LargeStringContainer<std::string_view>>(size);
+            auto vec = new omniruntime::vec::Vector<omniruntime::LargeStringContainer<std::string_view>>(size);
             for (int i = 0; i < size; ++i) {
                 auto str = rand_string(10);
                 std::string_view str_view(str);
@@ -94,18 +100,18 @@ StreamRecord *makeBatch(std::vector<Typing> types) {
     return new StreamRecord(batch);
 }
 
-TEST(q9, test) {
+TEST(q9, test)
+{
     auto output = new DeletingOutput();
 
     auto calc2 = new StreamCalcBatch(calc2json, output);
     auto calc4 = new StreamCalcBatch(calc4json, output);
     auto calc6 = new StreamCalcBatch(calc6json, output);
     auto calc8 = new StreamCalcBatch(calc8json, output);
-    auto join = new StreamingJoinOperator<RowData *>(joinjson, output);
+    auto join = new StreamingJoinOperator<RowData*>(joinjson, output);
     auto calc11 = new StreamCalcBatch(calc11json, output);
-    AbstractTopNFunction<RowData *> *func =
-        new FastTop1Function<RowData *>(rankjson);
-    auto *key = new KeyedProcessOperator(func, output, rankjson);
+    AbstractTopNFunction<RowData*>* func = new FastTop1Function<RowData*>(rankjson);
+    auto* key = new KeyedProcessOperator(func, output, rankjson);
 
     calc2->setup();
     calc4->setup();
@@ -142,50 +148,91 @@ TEST(q9, test) {
     key->open();
 
     calc2->processBatch(makeBatch(
-        {Typing::INT,    Typing::LONG,   Typing::STRING, Typing::STRING,
-         Typing::STRING, Typing::STRING, Typing::STRING, Typing::LONG,
-         Typing::STRING, Typing::LONG,   Typing::STRING, Typing::STRING,
-         Typing::LONG,   Typing::LONG,   Typing::LONG,   Typing::LONG,
-         Typing::LONG,   Typing::LONG,   Typing::STRING, Typing::LONG,
-         Typing::LONG,   Typing::LONG,   Typing::STRING, Typing::STRING,
-         Typing::LONG,   Typing::STRING}));
+        {Typing::INT,  Typing::LONG,   Typing::STRING, Typing::STRING, Typing::STRING, Typing::STRING, Typing::STRING,
+         Typing::LONG, Typing::STRING, Typing::LONG,   Typing::STRING, Typing::STRING, Typing::LONG,   Typing::LONG,
+         Typing::LONG, Typing::LONG,   Typing::LONG,   Typing::LONG,   Typing::STRING, Typing::LONG,   Typing::LONG,
+         Typing::LONG, Typing::STRING, Typing::STRING, Typing::LONG,   Typing::STRING}));
 
-    calc4->processBatch(
-        makeBatch({Typing::INT, Typing::LONG, Typing::STRING, Typing::STRING,
-                   Typing::LONG, Typing::LONG, Typing::LONG, Typing::LONG,
-                   Typing::LONG, Typing::LONG, Typing::STRING, Typing::LONG}));
+    calc4->processBatch(makeBatch(
+        {Typing::INT,
+         Typing::LONG,
+         Typing::STRING,
+         Typing::STRING,
+         Typing::LONG,
+         Typing::LONG,
+         Typing::LONG,
+         Typing::LONG,
+         Typing::LONG,
+         Typing::LONG,
+         Typing::STRING,
+         Typing::LONG}));
 
     calc6->processBatch(makeBatch(
-        {Typing::INT,    Typing::LONG,   Typing::STRING, Typing::STRING,
-         Typing::STRING, Typing::STRING, Typing::STRING, Typing::LONG,
-         Typing::STRING, Typing::LONG,   Typing::STRING, Typing::STRING,
-         Typing::LONG,   Typing::LONG,   Typing::LONG,   Typing::LONG,
-         Typing::LONG,   Typing::LONG,   Typing::STRING, Typing::LONG,
-         Typing::LONG,   Typing::LONG,   Typing::STRING, Typing::STRING,
-         Typing::LONG,   Typing::STRING}));
+        {Typing::INT,  Typing::LONG,   Typing::STRING, Typing::STRING, Typing::STRING, Typing::STRING, Typing::STRING,
+         Typing::LONG, Typing::STRING, Typing::LONG,   Typing::STRING, Typing::STRING, Typing::LONG,   Typing::LONG,
+         Typing::LONG, Typing::LONG,   Typing::LONG,   Typing::LONG,   Typing::STRING, Typing::LONG,   Typing::LONG,
+         Typing::LONG, Typing::STRING, Typing::STRING, Typing::LONG,   Typing::STRING}));
 
     calc8->processBatch(makeBatch(
-        {Typing::INT, Typing::LONG, Typing::LONG, Typing::LONG, Typing::STRING,
-         Typing::STRING, Typing::LONG, Typing::STRING, Typing::LONG}));
+        {Typing::INT,
+         Typing::LONG,
+         Typing::LONG,
+         Typing::LONG,
+         Typing::STRING,
+         Typing::STRING,
+         Typing::LONG,
+         Typing::STRING,
+         Typing::LONG}));
 
     calc11->processBatch(makeBatch(
-        {Typing::LONG, Typing::STRING, Typing::STRING, Typing::LONG,
-         Typing::LONG, Typing::LONG, Typing::LONG, Typing::LONG, Typing::LONG,
-         Typing::STRING, Typing::LONG, Typing::LONG, Typing::LONG,
-         Typing::STRING, Typing::STRING, Typing::LONG, Typing::STRING}));
+        {Typing::LONG,
+         Typing::STRING,
+         Typing::STRING,
+         Typing::LONG,
+         Typing::LONG,
+         Typing::LONG,
+         Typing::LONG,
+         Typing::LONG,
+         Typing::LONG,
+         Typing::STRING,
+         Typing::LONG,
+         Typing::LONG,
+         Typing::LONG,
+         Typing::STRING,
+         Typing::STRING,
+         Typing::LONG,
+         Typing::STRING}));
 
-    key->processBatch(
-        makeBatch({Typing::LONG, Typing::STRING, Typing::STRING, Typing::LONG,
-                   Typing::LONG, Typing::LONG, Typing::LONG, Typing::LONG,
-                   Typing::LONG, Typing::STRING, Typing::LONG, Typing::LONG,
-                   Typing::LONG, Typing::LONG, Typing::STRING}));
+    key->processBatch(makeBatch(
+        {Typing::LONG,
+         Typing::STRING,
+         Typing::STRING,
+         Typing::LONG,
+         Typing::LONG,
+         Typing::LONG,
+         Typing::LONG,
+         Typing::LONG,
+         Typing::LONG,
+         Typing::STRING,
+         Typing::LONG,
+         Typing::LONG,
+         Typing::LONG,
+         Typing::LONG,
+         Typing::STRING}));
 
     join->processBatch1(makeBatch(
-        {Typing::LONG, Typing::STRING, Typing::STRING, Typing::LONG, Typing::LONG,
-         Typing::LONG, Typing::LONG, Typing::LONG, Typing::LONG, Typing::STRING}));
-    join->processBatch2(
-        makeBatch({Typing::LONG, Typing::LONG, Typing::LONG, Typing::STRING,
-                   Typing::STRING, Typing::LONG, Typing::STRING}));
+        {Typing::LONG,
+         Typing::STRING,
+         Typing::STRING,
+         Typing::LONG,
+         Typing::LONG,
+         Typing::LONG,
+         Typing::LONG,
+         Typing::LONG,
+         Typing::LONG,
+         Typing::STRING}));
+    join->processBatch2(makeBatch(
+        {Typing::LONG, Typing::LONG, Typing::LONG, Typing::STRING, Typing::STRING, Typing::LONG, Typing::STRING}));
 
     calc2->close();
     calc4->close();

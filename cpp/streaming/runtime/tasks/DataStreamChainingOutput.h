@@ -18,22 +18,22 @@
 #include "../metrics/WatermarkGauge.h"
 #include "runtime/watermark/WatermarkStatus.h"
 namespace omnistream::datastream {
-    class DataStreamChainingOutput : public WatermarkGaugeExposingOutput {
-    public:
-        explicit DataStreamChainingOutput(Input* op);
-        void collect(void *record) override;
-        void close() override;
-        void emitWatermark(Watermark* mark) override;
-        void emitWatermarkStatus(WatermarkStatus *watermarkStatus) override;
-        void disableFree();
+class DataStreamChainingOutput : public WatermarkGaugeExposingOutput {
+public:
+    explicit DataStreamChainingOutput(Input* op);
+    void collect(void* record) override;
+    void close() override;
+    void emitWatermark(Watermark* mark) override;
+    void emitWatermarkStatus(WatermarkStatus* watermarkStatus) override;
+    void disableFree();
 
-        ~DataStreamChainingOutput() override;
+    ~DataStreamChainingOutput() override;
 
-    private:
-        Input *operator_;
-        WatermarkGauge *watermarkGauge;
-        bool shouldFree{true};
-    };
-}
+private:
+    Input* operator_;
+    WatermarkGauge* watermarkGauge;
+    bool shouldFree{true};
+};
+} // namespace omnistream::datastream
 
 #endif

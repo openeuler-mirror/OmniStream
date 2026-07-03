@@ -12,7 +12,6 @@
 #ifndef RESULTPARTITIONDEPLOYMENTDESCRIPTORPOD_H
 #define RESULTPARTITIONDEPLOYMENTDESCRIPTORPOD_H
 
-
 #include <string>
 #include <iostream>
 #include "PartitionDescriptorPOD.h"
@@ -21,34 +20,54 @@
 
 namespace omnistream {
 
-    class ResultPartitionDeploymentDescriptorPOD {
-    public:
+class ResultPartitionDeploymentDescriptorPOD {
+public:
     // Default Constructor
-    ResultPartitionDeploymentDescriptorPOD() : maxParallelism(0), notifyPartitionDataAvailable(false), totalNumberOfPartitions(0), partitionType(0), numberOfSubpartitions(0) {}
-
-    // Full Argument Constructor
-    ResultPartitionDeploymentDescriptorPOD(const ShuffleDescriptorPOD& shuffleDescriptor, int maxParallelism, bool notifyPartitionDataAvailable, const AbstractIDPOD& resultId, int totalNumberOfPartitions, const IntermediateResultPartitionIDPOD& partitionId, int partitionType, int numberOfSubpartitions)
-        : shuffleDescriptor(shuffleDescriptor), maxParallelism(maxParallelism), notifyPartitionDataAvailable(notifyPartitionDataAvailable), resultId(resultId), totalNumberOfPartitions(totalNumberOfPartitions), partitionId(partitionId), partitionType(partitionType), numberOfSubpartitions(numberOfSubpartitions) {}
-
-    // Copy Constructor
-    ResultPartitionDeploymentDescriptorPOD &operator=(const ResultPartitionDeploymentDescriptorPOD&) = default;
-    ResultPartitionDeploymentDescriptorPOD(const ResultPartitionDeploymentDescriptorPOD& other) = default;
-
-    friend bool operator==(const ResultPartitionDeploymentDescriptorPOD& lhs,
-        const ResultPartitionDeploymentDescriptorPOD& rhs)
+    ResultPartitionDeploymentDescriptorPOD()
+        : maxParallelism(0),
+          notifyPartitionDataAvailable(false),
+          totalNumberOfPartitions(0),
+          partitionType(0),
+          numberOfSubpartitions(0)
     {
-        return lhs.shuffleDescriptor == rhs.shuffleDescriptor
-            && lhs.maxParallelism == rhs.maxParallelism
-            && lhs.notifyPartitionDataAvailable == rhs.notifyPartitionDataAvailable
-            && lhs.resultId == rhs.resultId
-            && lhs.totalNumberOfPartitions == rhs.totalNumberOfPartitions
-            && lhs.partitionId == rhs.partitionId
-            && lhs.partitionType == rhs.partitionType
-            && lhs.numberOfSubpartitions == rhs.numberOfSubpartitions;
     }
 
-    friend bool operator!=(const ResultPartitionDeploymentDescriptorPOD& lhs,
-        const ResultPartitionDeploymentDescriptorPOD& rhs)
+    // Full Argument Constructor
+    ResultPartitionDeploymentDescriptorPOD(
+        const ShuffleDescriptorPOD& shuffleDescriptor,
+        int maxParallelism,
+        bool notifyPartitionDataAvailable,
+        const AbstractIDPOD& resultId,
+        int totalNumberOfPartitions,
+        const IntermediateResultPartitionIDPOD& partitionId,
+        int partitionType,
+        int numberOfSubpartitions)
+        : shuffleDescriptor(shuffleDescriptor),
+          maxParallelism(maxParallelism),
+          notifyPartitionDataAvailable(notifyPartitionDataAvailable),
+          resultId(resultId),
+          totalNumberOfPartitions(totalNumberOfPartitions),
+          partitionId(partitionId),
+          partitionType(partitionType),
+          numberOfSubpartitions(numberOfSubpartitions)
+    {
+    }
+
+    // Copy Constructor
+    ResultPartitionDeploymentDescriptorPOD& operator=(const ResultPartitionDeploymentDescriptorPOD&) = default;
+    ResultPartitionDeploymentDescriptorPOD(const ResultPartitionDeploymentDescriptorPOD& other) = default;
+
+    friend bool operator==(
+        const ResultPartitionDeploymentDescriptorPOD& lhs, const ResultPartitionDeploymentDescriptorPOD& rhs)
+    {
+        return lhs.shuffleDescriptor == rhs.shuffleDescriptor && lhs.maxParallelism == rhs.maxParallelism &&
+               lhs.notifyPartitionDataAvailable == rhs.notifyPartitionDataAvailable && lhs.resultId == rhs.resultId &&
+               lhs.totalNumberOfPartitions == rhs.totalNumberOfPartitions && lhs.partitionId == rhs.partitionId &&
+               lhs.partitionType == rhs.partitionType && lhs.numberOfSubpartitions == rhs.numberOfSubpartitions;
+    }
+
+    friend bool operator!=(
+        const ResultPartitionDeploymentDescriptorPOD& lhs, const ResultPartitionDeploymentDescriptorPOD& rhs)
     {
         return !(lhs == rhs);
     }
@@ -68,43 +87,100 @@ namespace omnistream {
     }
 
     // Getters
-    const ShuffleDescriptorPOD& getShuffleDescriptor() const { return shuffleDescriptor; }
-    int getMaxParallelism() const { return maxParallelism; }
-    bool isNotifyPartitionDataAvailable() const { return notifyPartitionDataAvailable; }
-    const AbstractIDPOD& getResultId() const { return resultId; }
-    int getTotalNumberOfPartitions() const { return totalNumberOfPartitions; }
-    const IntermediateResultPartitionIDPOD& getPartitionId() const { return partitionId; }
-    int getPartitionType() const { return partitionType; }
-    int getNumberOfSubpartitions() const { return numberOfSubpartitions; }
+    const ShuffleDescriptorPOD& getShuffleDescriptor() const
+    {
+        return shuffleDescriptor;
+    }
+    int getMaxParallelism() const
+    {
+        return maxParallelism;
+    }
+    bool isNotifyPartitionDataAvailable() const
+    {
+        return notifyPartitionDataAvailable;
+    }
+    const AbstractIDPOD& getResultId() const
+    {
+        return resultId;
+    }
+    int getTotalNumberOfPartitions() const
+    {
+        return totalNumberOfPartitions;
+    }
+    const IntermediateResultPartitionIDPOD& getPartitionId() const
+    {
+        return partitionId;
+    }
+    int getPartitionType() const
+    {
+        return partitionType;
+    }
+    int getNumberOfSubpartitions() const
+    {
+        return numberOfSubpartitions;
+    }
 
     // Setters
-    void setShuffleDescriptor(const ShuffleDescriptorPOD& shuffleDescriptor_) { this->shuffleDescriptor = shuffleDescriptor_; }
-    void setMaxParallelism(int maxParallelism_) { this->maxParallelism = maxParallelism_; }
-    void setNotifyPartitionDataAvailable(bool notifyPartitionDataAvailable_) { this->notifyPartitionDataAvailable = notifyPartitionDataAvailable_; }
-    void setResultId(const AbstractIDPOD& resultId_) { this->resultId = resultId_; }
-    void setTotalNumberOfPartitions(int totalNumberOfPartitions_) { this->totalNumberOfPartitions = totalNumberOfPartitions_; }
-    void setPartitionId(const IntermediateResultPartitionIDPOD& partitionId_) { this->partitionId = partitionId_; }
-    void setPartitionType(int partitionType_) { this->partitionType = partitionType_; }
-    void setNumberOfSubpartitions(int numberOfSubpartitions_) { this->numberOfSubpartitions = numberOfSubpartitions_; }
+    void setShuffleDescriptor(const ShuffleDescriptorPOD& shuffleDescriptor_)
+    {
+        this->shuffleDescriptor = shuffleDescriptor_;
+    }
+    void setMaxParallelism(int maxParallelism_)
+    {
+        this->maxParallelism = maxParallelism_;
+    }
+    void setNotifyPartitionDataAvailable(bool notifyPartitionDataAvailable_)
+    {
+        this->notifyPartitionDataAvailable = notifyPartitionDataAvailable_;
+    }
+    void setResultId(const AbstractIDPOD& resultId_)
+    {
+        this->resultId = resultId_;
+    }
+    void setTotalNumberOfPartitions(int totalNumberOfPartitions_)
+    {
+        this->totalNumberOfPartitions = totalNumberOfPartitions_;
+    }
+    void setPartitionId(const IntermediateResultPartitionIDPOD& partitionId_)
+    {
+        this->partitionId = partitionId_;
+    }
+    void setPartitionType(int partitionType_)
+    {
+        this->partitionType = partitionType_;
+    }
+    void setNumberOfSubpartitions(int numberOfSubpartitions_)
+    {
+        this->numberOfSubpartitions = numberOfSubpartitions_;
+    }
 
     // toString() method
     std::string toString() const
     {
         return "ResultPartitionDeploymentDescriptorPOD{"
-               "shuffleDescriptor=" + shuffleDescriptor.toString() + // Assuming toString() exists in ShuffleDescriptorPOD
+               "shuffleDescriptor=" +
+               shuffleDescriptor.toString() + // Assuming toString() exists in ShuffleDescriptorPOD
                ", maxParallelism=" + std::to_string(maxParallelism) +
                ", notifyPartitionDataAvailable=" + std::to_string(notifyPartitionDataAvailable) +
                ", resultId=" + resultId.toString() + // Assuming toString() exists in AbstractIDPOD
-               ", totalNumberOfPartitions=" + std::to_string(totalNumberOfPartitions) +
-               ", partitionId=" + partitionId.toString() + // Assuming toString() exists in IntermediateResultPartitionIDPOD
+               ", totalNumberOfPartitions=" + std::to_string(totalNumberOfPartitions) + ", partitionId=" +
+               partitionId.toString() + // Assuming toString() exists in IntermediateResultPartitionIDPOD
                ", partitionType=" + std::to_string(partitionType) +
-               ", numberOfSubpartitions=" + std::to_string(numberOfSubpartitions) +
-               "}";
+               ", numberOfSubpartitions=" + std::to_string(numberOfSubpartitions) + "}";
     }
 
     // JSON Serialization/Deserialization
-    NLOHMANN_DEFINE_TYPE_INTRUSIVE(ResultPartitionDeploymentDescriptorPOD, shuffleDescriptor, maxParallelism, notifyPartitionDataAvailable, resultId, totalNumberOfPartitions, partitionId, partitionType, numberOfSubpartitions)
-    private:
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(
+        ResultPartitionDeploymentDescriptorPOD,
+        shuffleDescriptor,
+        maxParallelism,
+        notifyPartitionDataAvailable,
+        resultId,
+        totalNumberOfPartitions,
+        partitionId,
+        partitionType,
+        numberOfSubpartitions)
+private:
     ShuffleDescriptorPOD shuffleDescriptor;
     int maxParallelism;
     bool notifyPartitionDataAvailable;
@@ -120,14 +196,13 @@ namespace omnistream {
 } // namespace omnistream
 
 namespace std {
-    template <>
-    struct hash<omnistream::ResultPartitionDeploymentDescriptorPOD> {
-        std::size_t operator()(const omnistream::ResultPartitionDeploymentDescriptorPOD& obj) const
-        {
-            return hash_value(obj);
-        }
-    };
-}
-
+template <>
+struct hash<omnistream::ResultPartitionDeploymentDescriptorPOD> {
+    std::size_t operator()(const omnistream::ResultPartitionDeploymentDescriptorPOD& obj) const
+    {
+        return hash_value(obj);
+    }
+};
+} // namespace std
 
 #endif

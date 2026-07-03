@@ -9,8 +9,7 @@ omnistream::VectorBatch* getVectorBatch()
 
     // Key Column
     auto vKey = new omniruntime::vec::Vector<int64_t>(9);
-    for (int j = 0; j < 9; j++)
-    {
+    for (int j = 0; j < 9; j++) {
         vKey->SetValue(j, j % 3);
     }
     vbatch->Append(vKey);
@@ -18,13 +17,11 @@ omnistream::VectorBatch* getVectorBatch()
     // Price Column
     auto vPrice = new omniruntime::vec::Vector<int64_t>(9);
     auto vDate = new omniruntime::vec::Vector<int64_t>(9);
-    for (int j = 0; j < 9; j++)
-    {
+    for (int j = 0; j < 9; j++) {
         if (j % 2 == 0) {
             vPrice->SetValue(j, 1000);
             vDate->SetValue(j, 200);
-        }
-        else {
+        } else {
             vPrice->SetValue(j, 2000);
             vDate->SetValue(j, 100);
         }
@@ -38,14 +35,15 @@ omnistream::VectorBatch* getVectorBatch()
 }
 
 // Test: Basic functionality.
-TEST(Top1ComparatorTest, BasicFunctionality) {
+TEST(Top1ComparatorTest, BasicFunctionality)
+{
     std::vector<int> sortColumnIds = {1}; // Sort by Price column.
     std::vector<bool> ascending = {true}; // Descending order.
 
-    omnistream::VectorBatch *vectorBatch = getVectorBatch();
+    omnistream::VectorBatch* vectorBatch = getVectorBatch();
     std::vector<int32_t> pkTypes = {omniruntime::type::OMNI_LONG};
     std::vector<int> pk = {0};
-    auto *comparator = new Top1Comparator<int64_t>(pkTypes, pk, sortColumnIds, ascending);
+    auto* comparator = new Top1Comparator<int64_t>(pkTypes, pk, sortColumnIds, ascending);
     auto top1RowIds = comparator->findTop1RowIdsByPartitionV2(vectorBatch);
 
     // Check results for each partition (KeyCol).
@@ -68,14 +66,15 @@ TEST(Top1ComparatorTest, BasicFunctionality) {
 }
 
 // Test: Tie-breaking with multiple sort columns.
-TEST(Top1ComparatorTest, TieBreaking) {
+TEST(Top1ComparatorTest, TieBreaking)
+{
     std::vector<int> sortColumnIds = {1, 2}; // Sort by Price, then by Date.
-    std::vector<bool> ascending = {true, false };
+    std::vector<bool> ascending = {true, false};
 
-    omnistream::VectorBatch *vectorBatch = getVectorBatch();
+    omnistream::VectorBatch* vectorBatch = getVectorBatch();
     std::vector<int32_t> pkTypes = {omniruntime::type::OMNI_LONG};
     std::vector<int> pk = {0};
-    auto *comparator = new Top1Comparator<int64_t>(pkTypes, pk, sortColumnIds, ascending);
+    auto* comparator = new Top1Comparator<int64_t>(pkTypes, pk, sortColumnIds, ascending);
     auto top1RowIds = comparator->findTop1RowIdsByPartitionV2(vectorBatch);
 
     // Check results for each partition (KeyCol), resolving ties with Date.
@@ -88,14 +87,15 @@ TEST(Top1ComparatorTest, TieBreaking) {
 }
 
 // Test: Empty batch.
-TEST(Top1ComparatorTest, EmptyBatch) {
+TEST(Top1ComparatorTest, EmptyBatch)
+{
     std::vector<int> sortColumnIds = {1, 2}; // Sort by Price, then by Date.
-    std::vector<bool> ascending = {true, false };
+    std::vector<bool> ascending = {true, false};
     // Create an empty VectorBatch.
     auto emptyBatch = new omnistream::VectorBatch(3);
     std::vector<int32_t> pkTypes = {omniruntime::type::OMNI_LONG};
     std::vector<int> pk = {0};
-    auto *comparator = new Top1Comparator<RowData*>(pkTypes, pk, sortColumnIds, ascending);
+    auto* comparator = new Top1Comparator<RowData*>(pkTypes, pk, sortColumnIds, ascending);
 
     auto top1RowIds = comparator->findTop1RowIdsByPartition(emptyBatch);
 
@@ -104,18 +104,19 @@ TEST(Top1ComparatorTest, EmptyBatch) {
 }
 
 //// Test: All equal values.
-TEST(Top1ComparatorTest, AllEqualValues) {
-    omnistream::VectorBatch *vectorBatch = getVectorBatch();
+TEST(Top1ComparatorTest, AllEqualValues)
+{
+    omnistream::VectorBatch* vectorBatch = getVectorBatch();
     auto priceColumn = dynamic_cast<omniruntime::vec::Vector<int64_t>*>(vectorBatch->Get(1));
     for (int j = 0; j < 9; j++) {
         priceColumn->SetValue(j, 1000); // Set all prices to the same value.
     }
 
-    std::vector<int> sortColumnIds = {1}; // Sort by Price.
+    std::vector<int> sortColumnIds = {1};  // Sort by Price.
     std::vector<bool> ascending = {false}; // Descending order.
     std::vector<int32_t> pkTypes = {omniruntime::type::OMNI_LONG};
     std::vector<int> pk = {0};
-    auto *comparator = new Top1Comparator<int64_t>(pkTypes, pk, sortColumnIds, ascending);
+    auto* comparator = new Top1Comparator<int64_t>(pkTypes, pk, sortColumnIds, ascending);
 
     auto top1RowIds = comparator->findTop1RowIdsByPartition(vectorBatch);
 
@@ -136,7 +137,8 @@ TEST(Top1ComparatorTest, AllEqualValues) {
     6  | 1004	1005	200	    300	    400 	500	    600
     7  | 1000	1002	201	    301	    401 	501     601
 */
-omnistream::VectorBatch* getTwoKeyVectorBatch() {
+omnistream::VectorBatch* getTwoKeyVectorBatch()
+{
     constexpr int rows = 8;
     constexpr int cols = 7;
     auto vBatch = new omnistream::VectorBatch(rows);
@@ -145,15 +147,7 @@ omnistream::VectorBatch* getTwoKeyVectorBatch() {
     auto key1 = new omniruntime::vec::Vector<int64_t>(rows);
 
     std::vector<std::pair<int64_t, int64_t>> keys = {
-        {1000, 1001},
-        {1002, 1003},
-        {1000, 1002},
-        {1002, 1003},
-        {1000, 1002},
-        {1004, 1005},
-        {1004, 1005},
-        {1000, 1002}
-    };
+        {1000, 1001}, {1002, 1003}, {1000, 1002}, {1002, 1003}, {1000, 1002}, {1004, 1005}, {1004, 1005}, {1000, 1002}};
 
     for (int i = 0; i < rows; ++i) {
         key0->SetValue(i, keys[i].first);
@@ -173,17 +167,18 @@ omnistream::VectorBatch* getTwoKeyVectorBatch() {
     return vBatch;
 }
 
-TEST(Top1ComparatorTest, BasicFunctionalityWithTwoPKeys) {
+TEST(Top1ComparatorTest, BasicFunctionalityWithTwoPKeys)
+{
     std::vector<int> sortColumnIds = {5}; // Sort by 5th column.
-    std::vector<bool> ascending = {true}; //top1 has the smallest element in the sortColumn
+    std::vector<bool> ascending = {true}; // top1 has the smallest element in the sortColumn
 
-    omnistream::VectorBatch *vectorBatch = getTwoKeyVectorBatch();
+    omnistream::VectorBatch* vectorBatch = getTwoKeyVectorBatch();
     std::vector<int32_t> pkTypes = {omniruntime::type::OMNI_LONG, omniruntime::type::OMNI_LONG};
     std::vector<int32_t> pk = {0, 1};
 
-    //Create comparator
-    auto *comparator = new Top1Comparator<RowData*>(pkTypes, pk, sortColumnIds, ascending);
-    //template K = BinaryRowData*
+    // Create comparator
+    auto* comparator = new Top1Comparator<RowData*>(pkTypes, pk, sortColumnIds, ascending);
+    // template K = BinaryRowData*
     auto top1RowIds = comparator->findTop1RowIdsByPartitionV2(vectorBatch);
 
     /*  top1RowIds
@@ -192,35 +187,34 @@ TEST(Top1ComparatorTest, BasicFunctionalityWithTwoPKeys) {
         (1000, 1002), 4
         (1004, 1005), 6
     */
-    
+
     for (auto& [keyPtr, rowId] : top1RowIds) {
         long* p0 = keyPtr->getLong(0);
         ASSERT_NE(p0, nullptr);
         int64_t k0 = *p0;
-        
+
         long* p1 = keyPtr->getLong(1);
         ASSERT_NE(p1, nullptr);
         int64_t k1 = *p1;
-    
-        if (k0==1000 && k1==1001) {
+
+        if (k0 == 1000 && k1 == 1001) {
             EXPECT_EQ(rowId, 0);
-        } else if (k0==1002 && k1==1003) {
+        } else if (k0 == 1002 && k1 == 1003) {
             EXPECT_EQ(rowId, 3);
-        } else if (k0==1000 && k1==1002) {
+        } else if (k0 == 1000 && k1 == 1002) {
             EXPECT_EQ(rowId, 4);
-        } else if (k0==1004 && k1==1005) {
+        } else if (k0 == 1004 && k1 == 1005) {
             EXPECT_EQ(rowId, 6);
         } else {
-            FAIL() << "Unexpected partition key combination: ("<< k0 << "," << k1 << ")";
+            FAIL() << "Unexpected partition key combination: (" << k0 << "," << k1 << ")";
         }
-        
     }
 
     delete comparator;
-    ascending[0] = false; //top1 has the largest element in the sortColumn
-    //Create another comparator
+    ascending[0] = false; // top1 has the largest element in the sortColumn
+    // Create another comparator
     comparator = new Top1Comparator<RowData*>(pkTypes, pk, sortColumnIds, ascending);
-    //template K = BinaryRowData*
+    // template K = BinaryRowData*
     top1RowIds = comparator->findTop1RowIdsByPartitionV2(vectorBatch);
 
     /*  top1RowIds
@@ -229,45 +223,45 @@ TEST(Top1ComparatorTest, BasicFunctionalityWithTwoPKeys) {
         (1000, 1002), 2
         (1004, 1005), 5
     */
-    
+
     for (auto& [keyPtr, rowId] : top1RowIds) {
         long* p0 = keyPtr->getLong(0);
         ASSERT_NE(p0, nullptr);
         int64_t k0 = *p0;
-        
+
         long* p1 = keyPtr->getLong(1);
         ASSERT_NE(p1, nullptr);
         int64_t k1 = *p1;
-    
-        if (k0==1000 && k1==1001) {
+
+        if (k0 == 1000 && k1 == 1001) {
             EXPECT_EQ(rowId, 0);
-        } else if (k0==1002 && k1==1003) {
+        } else if (k0 == 1002 && k1 == 1003) {
             EXPECT_EQ(rowId, 1);
-        } else if (k0==1000 && k1==1002) {
+        } else if (k0 == 1000 && k1 == 1002) {
             EXPECT_EQ(rowId, 2);
-        } else if (k0==1004 && k1==1005) {
+        } else if (k0 == 1004 && k1 == 1005) {
             EXPECT_EQ(rowId, 5);
         } else {
-            FAIL() << "Unexpected partition key combination: ("<< k0 << "," << k1 << ")";
+            FAIL() << "Unexpected partition key combination: (" << k0 << "," << k1 << ")";
         }
-        
     }
 
     delete comparator;
     delete vectorBatch;
 }
 
-TEST(Top1ComparatorTest, TieBreakingWithTwoPKeys) {
+TEST(Top1ComparatorTest, TieBreakingWithTwoPKeys)
+{
     std::vector<int32_t> pkTypes = {omniruntime::type::OMNI_LONG, omniruntime::type::OMNI_LONG};
     std::vector<int32_t> pk = {0, 1};
     // Sort by 5th column ascending, then 6th column descending
     std::vector<int> sortColumnIds = {2, 3};
     std::vector<bool> ascending = {true, false};
 
-    omnistream::VectorBatch *vectorBatch = getTwoKeyVectorBatch();
-    //Create comparator
-    auto *comparator = new Top1Comparator<RowData*>(pkTypes, pk, sortColumnIds, ascending);
-    //template K = BinaryRowData*
+    omnistream::VectorBatch* vectorBatch = getTwoKeyVectorBatch();
+    // Create comparator
+    auto* comparator = new Top1Comparator<RowData*>(pkTypes, pk, sortColumnIds, ascending);
+    // template K = BinaryRowData*
     auto top1RowIds = comparator->findTop1RowIdsByPartitionV2(vectorBatch);
 
     /*  top1RowIds
@@ -276,41 +270,41 @@ TEST(Top1ComparatorTest, TieBreakingWithTwoPKeys) {
         (1000, 1002), 4
         (1004, 1005), 6
     */
-    
+
     for (auto& [keyPtr, rowId] : top1RowIds) {
         long* p0 = keyPtr->getLong(0);
         ASSERT_NE(p0, nullptr);
         int64_t k0 = *p0;
-        
+
         long* p1 = keyPtr->getLong(1);
         ASSERT_NE(p1, nullptr);
         int64_t k1 = *p1;
-    
-        if (k0==1000 && k1==1001) {
+
+        if (k0 == 1000 && k1 == 1001) {
             EXPECT_EQ(rowId, 0);
-        } else if (k0==1002 && k1==1003) {
+        } else if (k0 == 1002 && k1 == 1003) {
             EXPECT_EQ(rowId, 3);
-        } else if (k0==1000 && k1==1002) {
+        } else if (k0 == 1000 && k1 == 1002) {
             EXPECT_EQ(rowId, 4);
-        } else if (k0==1004 && k1==1005) {
+        } else if (k0 == 1004 && k1 == 1005) {
             EXPECT_EQ(rowId, 6);
         } else {
-            FAIL() << "Unexpected partition key combination: ("<< k0 << "," << k1 << ")";
+            FAIL() << "Unexpected partition key combination: (" << k0 << "," << k1 << ")";
         }
-        
     }
 
     delete comparator;
     delete vectorBatch;
 }
 
-TEST(Top1ComparatorTest, EmptyBatchWithTwoPKeys) {
+TEST(Top1ComparatorTest, EmptyBatchWithTwoPKeys)
+{
     std::vector<int> sortColumnIds = {5};
     std::vector<bool> ascending = {true};
     omnistream::VectorBatch* emptyBatch = new omnistream::VectorBatch(3);
     std::vector<int32_t> pkTypes = {omniruntime::type::OMNI_LONG, omniruntime::type::OMNI_LONG};
     std::vector<int32_t> pk = {0, 1};
-    auto *comparator = new Top1Comparator<RowData*>(pkTypes, pk, sortColumnIds, ascending);
+    auto* comparator = new Top1Comparator<RowData*>(pkTypes, pk, sortColumnIds, ascending);
     auto top1RowIds = comparator->findTop1RowIdsByPartition(emptyBatch);
     EXPECT_TRUE(top1RowIds.empty());
 
@@ -318,40 +312,40 @@ TEST(Top1ComparatorTest, EmptyBatchWithTwoPKeys) {
     delete emptyBatch;
 }
 
-TEST(Top1ComparatorTest, AllEqualValuesWithTwoPKeys) {
+TEST(Top1ComparatorTest, AllEqualValuesWithTwoPKeys)
+{
     std::vector<int> sortColumnIds = {5}; // Sort by 5th column.
-    std::vector<bool> ascending = {true}; //top1 has the smallest element in the sortColumn
+    std::vector<bool> ascending = {true}; // top1 has the smallest element in the sortColumn
     std::vector<int32_t> pkTypes = {omniruntime::type::OMNI_LONG, omniruntime::type::OMNI_LONG};
     std::vector<int32_t> pk = {0, 1};
-    omnistream::VectorBatch *vectorBatch = getTwoKeyVectorBatch();
+    omnistream::VectorBatch* vectorBatch = getTwoKeyVectorBatch();
     auto sortColumn = dynamic_cast<omniruntime::vec::Vector<int64_t>*>(vectorBatch->Get(5));
-    for(int row = 0; row < 8; row++) {
+    for (int row = 0; row < 8; row++) {
         sortColumn->SetValue(row, 500);
     }
-    auto *comparator = new Top1Comparator<RowData*>(pkTypes, pk, sortColumnIds, ascending);
+    auto* comparator = new Top1Comparator<RowData*>(pkTypes, pk, sortColumnIds, ascending);
     auto top1RowIds = comparator->findTop1RowIdsByPartition(vectorBatch);
 
     for (auto& [keyPtr, rowId] : top1RowIds) {
         long* p0 = keyPtr->getLong(0);
         ASSERT_NE(p0, nullptr);
         int64_t k0 = *p0;
-        
+
         long* p1 = keyPtr->getLong(1);
         ASSERT_NE(p1, nullptr);
         int64_t k1 = *p1;
-    
-        if (k0==1000 && k1==1001) {
+
+        if (k0 == 1000 && k1 == 1001) {
             EXPECT_EQ(rowId, 0);
-        } else if (k0==1002 && k1==1003) {
+        } else if (k0 == 1002 && k1 == 1003) {
             EXPECT_EQ(rowId, 1);
-        } else if (k0==1000 && k1==1002) {
+        } else if (k0 == 1000 && k1 == 1002) {
             EXPECT_EQ(rowId, 2);
-        } else if (k0==1004 && k1==1005) {
+        } else if (k0 == 1004 && k1 == 1005) {
             EXPECT_EQ(rowId, 5);
         } else {
-            FAIL() << "Unexpected partition key combination: ("<< k0 << "," << k1 << ")";
+            FAIL() << "Unexpected partition key combination: (" << k0 << "," << k1 << ")";
         }
-        
     }
 
     delete comparator;

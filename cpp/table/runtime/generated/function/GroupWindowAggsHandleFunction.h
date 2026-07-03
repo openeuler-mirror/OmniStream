@@ -19,16 +19,16 @@
 #include "table/runtime/generated/NamespaceAggsHandleFunction.h"
 class JoinedRowData;
 
-template<typename N>
+template <typename N>
 class GroupWindowAggsHandleFunction : public NamespaceAggsHandleFunction<N> {
 public:
     explicit GroupWindowAggsHandleFunction(
-            std::vector<std::unique_ptr<NamespaceAggsBasicFunction<N>>> functions,
-            std::vector<int32_t> aggValueTypeIds,
-            std::vector<int32_t> windowPropertyTypeIds,
-            std::vector<int32_t> outputValueTypeIds,
-            int32_t accumulatorArity,
-            std::string shiftTimeZone = "UTC");
+        std::vector<std::unique_ptr<NamespaceAggsBasicFunction<N>>> functions,
+        std::vector<int32_t> aggValueTypeIds,
+        std::vector<int32_t> windowPropertyTypeIds,
+        std::vector<int32_t> outputValueTypeIds,
+        int32_t accumulatorArity,
+        std::string shiftTimeZone = "UTC");
 
     void open(StateDataViewStore* store) override;
 

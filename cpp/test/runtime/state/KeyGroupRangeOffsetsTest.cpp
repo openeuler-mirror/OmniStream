@@ -1,26 +1,29 @@
 #include <gtest/gtest.h>
 #include "runtime/state/KeyGroupRangeOffsets.h"
 
-std::vector<int64_t> copyOfRange(const std::vector<int64_t>& vec, int start, int end) {
+std::vector<int64_t> copyOfRange(const std::vector<int64_t>& vec, int start, int end)
+{
     return std::vector<int64_t>(vec.begin() + start, vec.begin() + end);
 }
 
-TEST(KeyGroupRangeOffsetsTest, KeyGroupIntersection) {
+TEST(KeyGroupRangeOffsetsTest, KeyGroupIntersection)
+{
     // offsets [0,1,2,3,4,5,6,7,8]
     std::vector<int64_t> offsets(9);
     for (int i = 0; i < 9; ++i) offsets[i] = i;
     int startKeyGroup = 2;
 
     // KeyGroupRangeOffsets with KeyGroupRange [2, 10]
-    KeyGroupRangeOffsets keyGroupRangeOffsets(*std::unique_ptr<KeyGroupRange>(KeyGroupRange::of(startKeyGroup, 10)),
-                                                                                                            offsets);
+    KeyGroupRangeOffsets keyGroupRangeOffsets(
+        *std::unique_ptr<KeyGroupRange>(KeyGroupRange::of(startKeyGroup, 10)), offsets);
     // KeyGroupRangeOffsets with KeyGroupRange [3, 7]
-    KeyGroupRangeOffsets intersection = keyGroupRangeOffsets.getIntersection
-                                                            (*std::unique_ptr<KeyGroupRange>(KeyGroupRange::of(3, 7)));
+    KeyGroupRangeOffsets intersection =
+        keyGroupRangeOffsets.getIntersection(*std::unique_ptr<KeyGroupRange>(KeyGroupRange::of(3, 7)));
 
     // [2, 10] and [3, 7]: keyGroupRange intersection is [3, 7], offsets intersection is [1, 5]
-    KeyGroupRangeOffsets expected (*std::unique_ptr<KeyGroupRange>(KeyGroupRange::of(3, 7)),
-                                                            copyOfRange(offsets, 3 - startKeyGroup, 8 - startKeyGroup));
+    KeyGroupRangeOffsets expected(
+        *std::unique_ptr<KeyGroupRange>(KeyGroupRange::of(3, 7)),
+        copyOfRange(offsets, 3 - startKeyGroup, 8 - startKeyGroup));
     std::cout << "Expected: " << expected.ToString() << std::endl;
     std::cout << "Actual:   " << intersection.ToString() << std::endl;
 
@@ -38,25 +41,28 @@ TEST(KeyGroupRangeOffsetsTest, KeyGroupIntersection) {
 
     // [2, 10] and [5, 13]: keyGroupRange intersection is [5, 10], offsets intersection is [3, 8]
     intersection = keyGroupRangeOffsets.getIntersection(*std::unique_ptr<KeyGroupRange>(KeyGroupRange::of(5, 13)));
-    expected = KeyGroupRangeOffsets(*std::unique_ptr<KeyGroupRange>(KeyGroupRange::of(5, 10)),
-                                                        copyOfRange(offsets, 5 - startKeyGroup, 11 - startKeyGroup));
+    expected = KeyGroupRangeOffsets(
+        *std::unique_ptr<KeyGroupRange>(KeyGroupRange::of(5, 10)),
+        copyOfRange(offsets, 5 - startKeyGroup, 11 - startKeyGroup));
     EXPECT_TRUE(intersection == expected);
 
     // [2, 10] and [0, 2]: keyGroupRange intersection is [2], offsets intersection is [0]
     intersection = keyGroupRangeOffsets.getIntersection(*std::unique_ptr<KeyGroupRange>(KeyGroupRange::of(0, 2)));
-    expected = KeyGroupRangeOffsets(*std::unique_ptr<KeyGroupRange>(KeyGroupRange::of(2, 2)),
-                                                            copyOfRange(offsets, 2 - startKeyGroup, 3 - startKeyGroup));
+    expected = KeyGroupRangeOffsets(
+        *std::unique_ptr<KeyGroupRange>(KeyGroupRange::of(2, 2)),
+        copyOfRange(offsets, 2 - startKeyGroup, 3 - startKeyGroup));
     EXPECT_TRUE(intersection == expected);
 }
 
-void testKeyGroupRangeOffsetsBasicsInternal(int startKeyGroup, int endKeyGroup) {
+void testKeyGroupRangeOffsetsBasicsInternal(int startKeyGroup, int endKeyGroup)
+{
     int len = endKeyGroup - startKeyGroup + 1;
     std::vector<int64_t> offsets(len > 0 ? len : 0);
     for (int i = 0; i < offsets.size(); ++i) offsets[i] = i;
 
     KeyGroupRangeOffsets keyGroupRange(startKeyGroup, endKeyGroup, offsets);
-    KeyGroupRangeOffsets sameButDifferentConstr(*std::unique_ptr<KeyGroupRange>
-                                                            (KeyGroupRange::of(startKeyGroup, endKeyGroup)), offsets);
+    KeyGroupRangeOffsets sameButDifferentConstr(
+        *std::unique_ptr<KeyGroupRange>(KeyGroupRange::of(startKeyGroup, endKeyGroup)), offsets);
     EXPECT_TRUE(sameButDifferentConstr == keyGroupRange);
 
     int numberOfKeyGroup = keyGroupRange.getKeyGroupRange().getNumberOfKeyGroups();
@@ -96,7 +102,8 @@ void testKeyGroupRangeOffsetsBasicsInternal(int startKeyGroup, int endKeyGroup) 
     }
 }
 
-TEST(KeyGroupRangeOffsetsTest, KeyGroupRangeOffsetsBasics) {
+TEST(KeyGroupRangeOffsetsTest, KeyGroupRangeOffsetsBasics)
+{
     testKeyGroupRangeOffsetsBasicsInternal(0, 0);
     testKeyGroupRangeOffsetsBasicsInternal(0, 1);
     testKeyGroupRangeOffsetsBasicsInternal(1, 2);

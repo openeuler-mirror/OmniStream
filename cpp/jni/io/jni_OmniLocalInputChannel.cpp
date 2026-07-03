@@ -21,8 +21,8 @@
 #include "runtime/partition/consumer/OmniLocalInputChannel.h"
 
 JNIEXPORT jlong JNICALL
-Java_org_apache_flink_runtime_io_network_partition_consumer_OmniLocalInputChannel_doChangeNativeLocalInputChannel
-(JNIEnv* jniEnv, jobject, jlong nativeTaskRef, jstring partitionIdJson)
+Java_org_apache_flink_runtime_io_network_partition_consumer_OmniLocalInputChannel_doChangeNativeLocalInputChannel(
+    JNIEnv* jniEnv, jobject, jlong nativeTaskRef, jstring partitionIdJson)
 {
     const char* paritionIdChars = jniEnv->GetStringUTFChars(partitionIdJson, nullptr);
     std::string paritionIdStr(paritionIdChars);
@@ -35,26 +35,35 @@ Java_org_apache_flink_runtime_io_network_partition_consumer_OmniLocalInputChanne
 }
 
 JNIEXPORT void JNICALL
-Java_org_apache_flink_runtime_io_network_partition_consumer_OmniLocalInputChannel_sendMemorySegmentToNative
-(JNIEnv*, jobject, jlong omniLocalInputChannelRef, jlong segmentAddress, jint readIndex, jint length,
- jint memorySegmentOffset, jint sequenceNum, jint bufferType)
+Java_org_apache_flink_runtime_io_network_partition_consumer_OmniLocalInputChannel_sendMemorySegmentToNative(
+    JNIEnv*,
+    jobject,
+    jlong omniLocalInputChannelRef,
+    jlong segmentAddress,
+    jint readIndex,
+    jint length,
+    jint memorySegmentOffset,
+    jint sequenceNum,
+    jint bufferType)
 {
     auto omniInputChannel = reinterpret_cast<omnistream::OmniLocalInputChannel*>(omniLocalInputChannelRef);
-    omniInputChannel->notifyOriginalDataAvailable(segmentAddress, length, readIndex, sequenceNum, memorySegmentOffset, bufferType);
+    omniInputChannel->notifyOriginalDataAvailable(
+        segmentAddress, length, readIndex, sequenceNum, memorySegmentOffset, bufferType);
 }
 
-
-JNIEXPORT jlong JNICALL Java_org_apache_flink_runtime_io_network_partition_consumer_OmniLocalInputChannel_getRecycleBufferAddress
-  (JNIEnv *, jobject, jlong omniLocalInputChannelRef)
+JNIEXPORT jlong JNICALL
+Java_org_apache_flink_runtime_io_network_partition_consumer_OmniLocalInputChannel_getRecycleBufferAddress(
+    JNIEnv*, jobject, jlong omniLocalInputChannelRef)
 {
     auto omniInputChannel = reinterpret_cast<omnistream::OmniLocalInputChannel*>(omniLocalInputChannelRef);
     return omniInputChannel->GetRecycleBufferAddress();
 }
 
 JNIEXPORT void JNICALL
-Java_org_apache_flink_runtime_io_network_partition_consumer_OmniLocalInputChannel_registerJavaOmniLocalInputChannel
-(JNIEnv *env, jobject thiz, jlong omniLocalInputChannelRef) {
-    auto omniInputChannel = reinterpret_cast<omnistream::OmniLocalInputChannel *>(omniLocalInputChannelRef);
+Java_org_apache_flink_runtime_io_network_partition_consumer_OmniLocalInputChannel_registerJavaOmniLocalInputChannel(
+    JNIEnv* env, jobject thiz, jlong omniLocalInputChannelRef)
+{
+    auto omniInputChannel = reinterpret_cast<omnistream::OmniLocalInputChannel*>(omniLocalInputChannelRef);
     std::shared_ptr<OmniLocalInputChannelBridgeImpl> bridge = std::make_shared<OmniLocalInputChannelBridgeImpl>();
     bridge->RegisterJavaOmniLocalInputChannel(env, thiz);
     omniInputChannel->SetOmniLocalInputChannelBridge(bridge);

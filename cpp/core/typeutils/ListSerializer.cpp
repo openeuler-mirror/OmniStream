@@ -18,9 +18,9 @@ ListSerializer::ListSerializer(TypeSerializer* elementSerializer) : elementSeria
     reuseBuffer = new ArrayList();
 }
 
-void ListSerializer::deserialize(Object* buffer, DataInputView &source)
+void ListSerializer::deserialize(Object* buffer, DataInputView& source)
 {
-    auto list = static_cast<ArrayList *>(buffer);
+    auto list = static_cast<ArrayList*>(buffer);
     int size = source.readInt();
     // create new list with (size + 1) capacity to prevent expensive growth when a single
     // element is added
@@ -35,9 +35,9 @@ void ListSerializer::deserialize(Object* buffer, DataInputView &source)
     }
 }
 
-void ListSerializer::serialize(Object* buffer, DataOutputSerializer &target)
+void ListSerializer::serialize(Object* buffer, DataOutputSerializer& target)
 {
-    auto list = static_cast<ArrayList *>(buffer);
+    auto list = static_cast<ArrayList*>(buffer);
     auto size = list->size();
     target.writeInt(size);
     auto iterator = list->iterator();
@@ -60,7 +60,7 @@ void ListSerializer::setSubBufferReusable(bool bufferReusable_)
 Object* ListSerializer::GetBuffer()
 {
     if (bufferReusable) {
-        static_cast<ArrayList *>(reuseBuffer)->clear();
+        static_cast<ArrayList*>(reuseBuffer)->clear();
         reuseBuffer->getRefCount();
         return reuseBuffer;
     }

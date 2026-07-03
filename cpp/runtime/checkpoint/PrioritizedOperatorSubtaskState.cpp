@@ -28,7 +28,7 @@ PrioritizedOperatorSubtaskState PrioritizedOperatorSubtaskState::Builder::build(
     std::vector<StateObjectCollection<ResultSubpartitionStateHandle>> resultSubpartitionStateAlternatives;
     resultSubpartitionStateAlternatives.reserve(size);
 
-    for (const OperatorSubtaskState &subtaskState: alternativesByPriority) {
+    for (const OperatorSubtaskState& subtaskState : alternativesByPriority) {
         managedKeyedAlternatives.push_back(subtaskState.getManagedKeyedState());
         rawKeyedAlternatives.push_back(subtaskState.getRawKeyedState());
         managedOperatorAlternatives.push_back(subtaskState.getManagedOperatorState());
@@ -39,33 +39,43 @@ PrioritizedOperatorSubtaskState PrioritizedOperatorSubtaskState::Builder::build(
     using OPStateHandleIdentity = std::unordered_map<std::string, OperatorStateHandle::StateMetaInfo>;
     return PrioritizedOperatorSubtaskState(
         resolvePrioritizedAlternatives(
-            jobManagerState.getManagedKeyedState(), managedKeyedAlternatives,
+            jobManagerState.getManagedKeyedState(),
+            managedKeyedAlternatives,
             eqStateApprover<KeyedStateHandle, KeyGroupRange>(
                 [](std::shared_ptr<KeyedStateHandle> handle) { return handle->GetKeyGroupRange(); })),
-        resolvePrioritizedAlternatives(jobManagerState.getRawKeyedState(),
-            rawKeyedAlternatives, eqStateApprover<KeyedStateHandle, KeyGroupRange>(
+        resolvePrioritizedAlternatives(
+            jobManagerState.getRawKeyedState(),
+            rawKeyedAlternatives,
+            eqStateApprover<KeyedStateHandle, KeyGroupRange>(
                 [](std::shared_ptr<KeyedStateHandle> handle) { return handle->GetKeyGroupRange(); })),
-        resolvePrioritizedAlternatives(jobManagerState.getManagedOperatorState(),
-            managedOperatorAlternatives, eqStateApprover<OperatorStateHandle, OPStateHandleIdentity>(
+        resolvePrioritizedAlternatives(
+            jobManagerState.getManagedOperatorState(),
+            managedOperatorAlternatives,
+            eqStateApprover<OperatorStateHandle, OPStateHandleIdentity>(
                 [](std::shared_ptr<OperatorStateHandle> handle) { return handle->getStateNameToPartitionOffsets(); })),
-        resolvePrioritizedAlternatives(jobManagerState.getRawOperatorState(),
-            rawOperatorAlternatives, eqStateApprover<OperatorStateHandle, OPStateHandleIdentity>(
+        resolvePrioritizedAlternatives(
+            jobManagerState.getRawOperatorState(),
+            rawOperatorAlternatives,
+            eqStateApprover<OperatorStateHandle, OPStateHandleIdentity>(
                 [](std::shared_ptr<OperatorStateHandle> handle) { return handle->getStateNameToPartitionOffsets(); })),
-        resolvePrioritizedAlternatives(jobManagerState.getInputChannelState(),
-            inputChannelStateAlternatives, eqStateApprover<InputChannelStateHandle, InputChannelInfo>(
+        resolvePrioritizedAlternatives(
+            jobManagerState.getInputChannelState(),
+            inputChannelStateAlternatives,
+            eqStateApprover<InputChannelStateHandle, InputChannelInfo>(
                 [](std::shared_ptr<InputChannelStateHandle> handle) { return handle->GetInfo(); })),
-        resolvePrioritizedAlternatives(jobManagerState.getResultSubpartitionState(),
+        resolvePrioritizedAlternatives(
+            jobManagerState.getResultSubpartitionState(),
             resultSubpartitionStateAlternatives,
             eqStateApprover<ResultSubpartitionStateHandle, ResultSubpartitionInfoPOD>(
                 [](std::shared_ptr<ResultSubpartitionStateHandle> handle) { return handle->GetInfo(); })),
         restoredCheckpointId);
 }
 
-template<typename T>
+template <typename T>
 std::vector<StateObjectCollection<T>> PrioritizedOperatorSubtaskState::Builder::resolvePrioritizedAlternatives(
-    const StateObjectCollection<T> &jobManagerState,
-    const std::vector<StateObjectCollection<T>> &alternativesByPriority,
-    const std::function<bool(std::shared_ptr<T>, std::shared_ptr<T>)> &approveFun)
+    const StateObjectCollection<T>& jobManagerState,
+    const std::vector<StateObjectCollection<T>>& alternativesByPriority,
+    const std::function<bool(std::shared_ptr<T>, std::shared_ptr<T>)>& approveFun)
 {
     // Nothing to resolve if there are no alternatives, or the ground truth has already no
     // state, or if we can
@@ -85,7 +95,7 @@ std::vector<StateObjectCollection<T>> PrioritizedOperatorSubtaskState::Builder::
     std::vector<StateObjectCollection<T>> approved;
     approved.reserve(1 + alternativesByPriority.size());
 
-    for (const StateObjectCollection<T> &alternative: alternativesByPriority) {
+    for (const StateObjectCollection<T>& alternative : alternativesByPriority) {
         // We found an alternative to the JM state if it has state, we have a 1:1
         // relationship, and the
         // approve-function signaled true.
@@ -97,4 +107,4 @@ std::vector<StateObjectCollection<T>> PrioritizedOperatorSubtaskState::Builder::
     approved.push_back(jobManagerState);
     return approved;
 }
-}
+} // namespace omnistream

@@ -17,7 +17,7 @@
 
 class SwitchingOnClose : public SourceContext {
 public:
-    explicit SwitchingOnClose(SourceContext *nestedContext)
+    explicit SwitchingOnClose(SourceContext* nestedContext)
     {
         this->nestedContext = nestedContext;
     }
@@ -27,12 +27,12 @@ public:
         delete nestedContext;
     }
 
-    void collect(void *element) override
+    void collect(void* element) override
     {
         nestedContext->collect(element);
     }
 
-    void collectWithTimestamp(void *element, int64_t timestamp) override
+    void collectWithTimestamp(void* element, int64_t timestamp) override
     {
         nestedContext->collectWithTimestamp(element, timestamp);
     }
@@ -47,7 +47,7 @@ public:
         nestedContext->markAsTemporarilyIdle();
     }
 
-    Object *getCheckpointLock() override
+    Object* getCheckpointLock() override
     {
         return nestedContext->getCheckpointLock();
     }
@@ -62,7 +62,7 @@ public:
     }
 
 private:
-    SourceContext *nestedContext;
+    SourceContext* nestedContext;
 };
 
-#endif  // FLINK_TNEL_SWITCHINGONCLOSE_H
+#endif // FLINK_TNEL_SWITCHINGONCLOSE_H

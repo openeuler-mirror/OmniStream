@@ -12,7 +12,6 @@
 #ifndef FLINK_TNEL_DESERIALIZATIONSCHEMA_H
 #define FLINK_TNEL_DESERIALIZATIONSCHEMA_H
 
-
 #include <vector>
 #include <memory>
 #include <stdexcept>
@@ -24,7 +23,9 @@ class DeserializationSchema {
 public:
     virtual ~DeserializationSchema() = default;
 
-    virtual void Open() {}
+    virtual void Open()
+    {
+    }
 
     virtual Object* deserialize(const uint8_t* message, size_t length)
     {
@@ -44,8 +45,11 @@ public:
         }
     }
 
-    virtual void deserialize(std::vector<const uint8_t*>& messageVec, std::vector<size_t>& lengthVec,
-        std::vector<int64_t>& timeVec, Collector* out)
+    virtual void deserialize(
+        std::vector<const uint8_t*>& messageVec,
+        std::vector<size_t>& lengthVec,
+        std::vector<int64_t>& timeVec,
+        Collector* out)
     {
         auto deserialized = deserialize(messageVec, lengthVec);
         if (deserialized == nullptr) {
@@ -64,7 +68,7 @@ public:
 
     virtual omnistream::VectorBatch* createBatch(int size, std::vector<DataTypeId>& typeVec)
     {
-        auto *vectorBatch = new omnistream::VectorBatch(size);
+        auto* vectorBatch = new omnistream::VectorBatch(size);
         for (auto& type : typeVec) {
             switch (type) {
                 case (omniruntime::type::DataTypeId::OMNI_INT): {
@@ -81,14 +85,13 @@ public:
                     break;
                 }
                 case (omniruntime::type::DataTypeId::OMNI_CHAR):
-                case (omniruntime::type::DataTypeId::OMNI_VARCHAR) : {
+                case (omniruntime::type::DataTypeId::OMNI_VARCHAR): {
                     auto vec =
                         new omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>(size);
                     vectorBatch->Append(vec);
                     break;
                 }
-                default:
-                    throw std::runtime_error("Unsupported type: " + type);
+                default: throw std::runtime_error("Unsupported type: " + type);
             }
         }
         return vectorBatch;

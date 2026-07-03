@@ -12,16 +12,17 @@
 #include "com_huawei_omniruntime_flink_runtime_tasks_OmniSourceOperatorStreamTaskV2.h"
 #include "runtime/taskmanager/OmniTask.h"
 
-JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_tasks_OmniSourceOperatorStreamTaskV2_dispatchOperatorEvent(
-    JNIEnv *env, jclass, jlong nativeTask, jstring operatorId, jstring eventDesc)
+JNIEXPORT void JNICALL
+Java_com_huawei_omniruntime_flink_runtime_tasks_OmniSourceOperatorStreamTaskV2_dispatchOperatorEvent(
+    JNIEnv* env, jclass, jlong nativeTask, jstring operatorId, jstring eventDesc)
 {
-    auto *task = reinterpret_cast<omnistream::OmniTask *>(nativeTask);
+    auto* task = reinterpret_cast<omnistream::OmniTask*>(nativeTask);
 
-    const char *eventCharArray = env->GetStringUTFChars(eventDesc, nullptr);
+    const char* eventCharArray = env->GetStringUTFChars(eventDesc, nullptr);
     std::string eventString(eventCharArray);
     env->ReleaseStringUTFChars(eventDesc, eventCharArray);
 
-    const char *operatorIdCharArray = env->GetStringUTFChars(operatorId, nullptr);
+    const char* operatorIdCharArray = env->GetStringUTFChars(operatorId, nullptr);
     std::string operatorIdString(operatorIdCharArray);
     env->ReleaseStringUTFChars(operatorId, operatorIdCharArray);
 

@@ -17,7 +17,9 @@
 
 class Buffer {
 public:
-    explicit Buffer(std::size_t size) : data(size) {}
+    explicit Buffer(std::size_t size) : data(size)
+    {
+    }
 
     ~Buffer() = default;
 
@@ -25,18 +27,20 @@ public:
     {
         return data.data();
     }
-    
+
     uint8_t* Data()
     {
         return data.data();
     }
-    
+
     std::size_t Size() const
     {
         return data.size();
     }
 
-    void Recycle() {}
+    void Recycle()
+    {
+    }
 
 private:
     std::vector<uint8_t> data;

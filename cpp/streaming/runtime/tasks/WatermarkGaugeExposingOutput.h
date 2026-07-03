@@ -14,8 +14,6 @@
 
 #include "streaming/api/operators/Output.h"
 
-class WatermarkGaugeExposingOutput : public Output {
-};
-
+class WatermarkGaugeExposingOutput : public Output {};
 
 #endif // FLINK_TNEL_WATERMARKGAUGEEXPOSINGOUTPUT_H

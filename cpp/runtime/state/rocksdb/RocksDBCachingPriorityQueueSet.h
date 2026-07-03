@@ -30,7 +30,9 @@ class RocksDBCachingPriorityQueueSet : public InternalPriorityQueue<T>, public H
     class RocksBytesIterator {
     public:
         RocksBytesIterator(std::unique_ptr<RocksIteratorWrapper> iterator, RocksDBCachingPriorityQueueSet* self)
-                : iterator_(std::move(iterator)), self_(self) {
+            : iterator_(std::move(iterator)),
+              self_(self)
+        {
             try {
                 // todo: Can cache be used to improve performance?
                 // rocksDB will seek to the first key >= target, appending a zero byte to make sure the result > target
@@ -45,17 +47,20 @@ class RocksDBCachingPriorityQueueSet : public InternalPriorityQueue<T>, public H
             }
         }
 
-        ~RocksBytesIterator() {
+        ~RocksBytesIterator()
+        {
             delete currentElement_;
         }
 
-        bool hasNext() {
+        bool hasNext()
+        {
             return currentElement_ != nullptr;
         }
 
-        std::vector<uint8_t>* next() {
+        std::vector<uint8_t>* next()
+        {
             if (!hasNext()) {
-                THROW_RUNTIME_ERROR("Iterator has no more elements!")
+                THROW_RUNTIME_ERROR("Iterator has no more elements!");
             }
 
             auto returnElement = currentElement_;
@@ -65,7 +70,8 @@ class RocksDBCachingPriorityQueueSet : public InternalPriorityQueue<T>, public H
         }
 
     private:
-        std::vector<uint8_t>* nextElementIfAvailable() {
+        std::vector<uint8_t>* nextElementIfAvailable()
+        {
             if (iterator_->isValid()) {
                 auto iterKey = iterator_->keyView();
                 auto* elementBytes = new std::vector<uint8_t>(iterKey.begin(), iterKey.end());
@@ -84,12 +90,20 @@ class RocksDBCachingPriorityQueueSet : public InternalPriorityQueue<T>, public H
 
     class DeserializingIteratorWrapper : public omnistream::utils::Iterator<T> {
     public:
-        explicit DeserializingIteratorWrapper(std::unique_ptr<RocksBytesIterator> iterator, RocksDBCachingPriorityQueueSet* self)
-                : iterator_(std::move(iterator)), self_(self) {}
+        explicit DeserializingIteratorWrapper(
+            std::unique_ptr<RocksBytesIterator> iterator, RocksDBCachingPriorityQueueSet* self)
+            : iterator_(std::move(iterator)),
+              self_(self)
+        {
+        }
 
-        bool hasNext() override { return iterator_->hasNext(); }
+        bool hasNext() override
+        {
+            return iterator_->hasNext();
+        }
 
-        T next() override {
+        T next() override
+        {
             auto* elementBytes = iterator_->next();
             const auto& element = self_->deserializeElement(*elementBytes);
             delete elementBytes;
@@ -105,7 +119,8 @@ class RocksDBCachingPriorityQueueSet : public InternalPriorityQueue<T>, public H
     public:
         struct LexicographicByteComparator {
             // LexicographicByteComparator{}(lhs, rhs) return true if lhs has higher priority than rhs
-            bool operator()(const std::vector<uint8_t>* lhs, const std::vector<uint8_t>* rhs) const {
+            bool operator()(const std::vector<uint8_t>* lhs, const std::vector<uint8_t>* rhs) const
+            {
                 const size_t min_len = std::min(lhs->size(), rhs->size());
                 for (size_t i = 0; i < min_len; ++i) {
                     if ((*lhs)[i] != (*rhs)[i]) {
@@ -116,41 +131,65 @@ class RocksDBCachingPriorityQueueSet : public InternalPriorityQueue<T>, public H
             }
         };
 
-        explicit TreeOrderedSetCache(int32_t maxSize) : maxSize_(maxSize) {}
+        explicit TreeOrderedSetCache(int32_t maxSize) : maxSize_(maxSize)
+        {
+        }
 
-        ~TreeOrderedSetCache() {
+        ~TreeOrderedSetCache()
+        {
             for (auto* elementBytes : treeSet_) {
                 delete elementBytes;
             }
         }
 
-        int32_t size() const { return treeSet_.size(); }
+        int32_t size() const
+        {
+            return treeSet_.size();
+        }
 
-        int32_t max_size() const { return maxSize_; }
+        int32_t max_size() const
+        {
+            return maxSize_;
+        }
 
-        bool isEmpty() const { return treeSet_.empty(); }
+        bool isEmpty() const
+        {
+            return treeSet_.empty();
+        }
 
-        bool isFull() const { return treeSet_.size() >= maxSize_; }
+        bool isFull() const
+        {
+            return treeSet_.size() >= maxSize_;
+        }
 
-        bool add(std::vector<uint8_t>* toAdd) { return treeSet_.insert(toAdd).second; }
+        bool add(std::vector<uint8_t>* toAdd)
+        {
+            return treeSet_.insert(toAdd).second;
+        }
 
-        bool remove(std::vector<uint8_t>* toRemove) { return treeSet_.erase(toRemove) > 0; }
+        bool remove(std::vector<uint8_t>* toRemove)
+        {
+            return treeSet_.erase(toRemove) > 0;
+        }
 
-        std::vector<uint8_t>* peekFirst() {
+        std::vector<uint8_t>* peekFirst()
+        {
             if (isEmpty()) {
                 return nullptr;
             }
             return *treeSet_.begin();
         }
 
-        std::vector<uint8_t>* peekLast() {
+        std::vector<uint8_t>* peekLast()
+        {
             if (isEmpty()) {
                 return nullptr;
             }
             return *std::prev(treeSet_.end());
         }
 
-        std::vector<uint8_t>* pollFirst() {
+        std::vector<uint8_t>* pollFirst()
+        {
             if (isEmpty()) {
                 return nullptr;
             }
@@ -158,7 +197,8 @@ class RocksDBCachingPriorityQueueSet : public InternalPriorityQueue<T>, public H
             return res.value();
         }
 
-        std::vector<uint8_t>* pollLast() {
+        std::vector<uint8_t>* pollLast()
+        {
             if (isEmpty()) {
                 return nullptr;
             }
@@ -166,7 +206,8 @@ class RocksDBCachingPriorityQueueSet : public InternalPriorityQueue<T>, public H
             return res.value();
         }
 
-        void bulkLoadFromOrderedIterator(RocksBytesIterator* orderedIterator) {
+        void bulkLoadFromOrderedIterator(RocksBytesIterator* orderedIterator)
+        {
             for (auto* elementBytes : treeSet_) {
                 delete elementBytes;
             }
@@ -184,36 +225,39 @@ class RocksDBCachingPriorityQueueSet : public InternalPriorityQueue<T>, public H
 
 public:
     RocksDBCachingPriorityQueueSet(
-            int keyGroupId,
-            int keyGroupPrefixBytes,
-            rocksdb::DB* db,
-            std::shared_ptr<rocksdb::ReadOptions> readOptions,
-            rocksdb::ColumnFamilyHandle* columnFamilyHandle,
-            TypeSerializer* byteOrderProducingSerializer,
-            std::shared_ptr<DataOutputSerializer> outputStream,
-            std::shared_ptr<DataInputDeserializer> inputStream,
-            std::shared_ptr<RocksDBWriteBatchWrapper> batchWrapper,
-            int32_t cacheSize)
-            : db_(db),
-            readOptions_(std::move(readOptions)),
-            columnFamilyHandle_(columnFamilyHandle),
-            byteOrderProducingSerializer_(byteOrderProducingSerializer),
-            batchWrapper_(batchWrapper),
-            outputView_(outputStream),
-            inputView_(inputStream),
-            orderedCache_(cacheSize),
-            allElementsInCache_(false) {
+        int keyGroupId,
+        int keyGroupPrefixBytes,
+        rocksdb::DB* db,
+        std::shared_ptr<rocksdb::ReadOptions> readOptions,
+        rocksdb::ColumnFamilyHandle* columnFamilyHandle,
+        TypeSerializer* byteOrderProducingSerializer,
+        std::shared_ptr<DataOutputSerializer> outputStream,
+        std::shared_ptr<DataInputDeserializer> inputStream,
+        std::shared_ptr<RocksDBWriteBatchWrapper> batchWrapper,
+        int32_t cacheSize)
+        : db_(db),
+          readOptions_(std::move(readOptions)),
+          columnFamilyHandle_(columnFamilyHandle),
+          byteOrderProducingSerializer_(byteOrderProducingSerializer),
+          batchWrapper_(batchWrapper),
+          outputView_(outputStream),
+          inputView_(inputStream),
+          orderedCache_(cacheSize),
+          allElementsInCache_(false)
+    {
         groupPrefixBytes_ = createKeyGroupBytes(keyGroupId, keyGroupPrefixBytes);
         seekHint_ = groupPrefixBytes_.get();
     }
 
-    ~RocksDBCachingPriorityQueueSet() override {
+    ~RocksDBCachingPriorityQueueSet() override
+    {
         if (seekHint_ != groupPrefixBytes_.get()) {
             delete seekHint_;
         }
     }
 
-    T peek() override {
+    T peek() override
+    {
         checkRefillCacheFromStore();
 
         if (peekCache_ != nullptr) {
@@ -228,7 +272,8 @@ public:
         return nullptr;
     }
 
-    T poll() override {
+    T poll() override
+    {
         checkRefillCacheFromStore();
 
         auto firstBytes = orderedCache_.pollFirst();
@@ -260,14 +305,14 @@ public:
         return res;
     }
 
-    bool add(const T& toAdd) override {
+    bool add(const T& toAdd) override
+    {
         checkRefillCacheFromStore();
 
         auto toAddBytes = serializeElement(toAdd);
         bool cacheFull = orderedCache_.isFull();
         auto last = orderedCache_.peekLast();
-        bool shouldCache = (!cacheFull && allElementsInCache_) ||
-                (last != nullptr && comparator_(toAddBytes, last));
+        bool shouldCache = (!cacheFull && allElementsInCache_) || (last != nullptr && comparator_(toAddBytes, last));
 
         if (shouldCache) {
             if (cacheFull) {
@@ -293,7 +338,8 @@ public:
         return false;
     }
 
-    void addAll(const std::vector<T>& elements) override {
+    void addAll(const std::vector<T>& elements) override
+    {
         if (elements.empty()) {
             return;
         }
@@ -302,7 +348,8 @@ public:
         }
     }
 
-    bool remove(const T& toRemove) override {
+    bool remove(const T& toRemove) override
+    {
         checkRefillCacheFromStore();
 
         auto oldHead = orderedCache_.peekFirst();
@@ -333,12 +380,14 @@ public:
         return false;
     }
 
-    bool isEmpty() override {
+    bool isEmpty() override
+    {
         checkRefillCacheFromStore();
         return orderedCache_.isEmpty();
     }
 
-    int32_t size() override {
+    int32_t size() override
+    {
         if (allElementsInCache_) {
             return orderedCache_.size();
         }
@@ -352,12 +401,14 @@ public:
         return count;
     }
 
-    std::unique_ptr<omnistream::utils::Iterator<T>> iterator() override {
+    std::unique_ptr<omnistream::utils::Iterator<T>> iterator() override
+    {
         return std::make_unique<DeserializingIteratorWrapper>(std::move(orderedBytesIterator()), this);
     }
 
 private:
-    std::unique_ptr<RocksBytesIterator> orderedBytesIterator() {
+    std::unique_ptr<RocksBytesIterator> orderedBytesIterator()
+    {
         flushWriteBatch();
 
         std::unique_ptr<rocksdb::Iterator> rocksIterator;
@@ -367,52 +418,58 @@ private:
         return std::make_unique<RocksBytesIterator>(std::move(rocksIteratorWrapper), this);
     }
 
-    void flushWriteBatch() {
+    void flushWriteBatch()
+    {
         try {
             batchWrapper_->Flush();
         } catch (const std::exception& e) {
-            THROW_RUNTIME_ERROR("Failed to flush write batch: " + std::string(e.what()))
+            THROW_RUNTIME_ERROR("Failed to flush write batch: " + std::string(e.what()));
         }
     }
 
-    void addToRocksDB(std::vector<uint8_t>& toAddBytes) {
+    void addToRocksDB(std::vector<uint8_t>& toAddBytes)
+    {
         try {
             rocksdb::Slice slice(reinterpret_cast<const char*>(toAddBytes.data()), toAddBytes.size());
             batchWrapper_->Put(columnFamilyHandle_, slice, rocksdb::Slice());
         } catch (const std::exception& e) {
-            THROW_RUNTIME_ERROR("Failed to add data to RocksDB: " + std::string(e.what()))
+            THROW_RUNTIME_ERROR("Failed to add data to RocksDB: " + std::string(e.what()));
         }
     }
 
-    void removeFromRocksDB(std::vector<uint8_t>& toRemoveBytes) {
+    void removeFromRocksDB(std::vector<uint8_t>& toRemoveBytes)
+    {
         try {
             rocksdb::Slice slice(reinterpret_cast<const char*>(toRemoveBytes.data()), toRemoveBytes.size());
             batchWrapper_->Delete(columnFamilyHandle_, slice);
         } catch (const std::exception& e) {
-            THROW_RUNTIME_ERROR("Failed to remove data from RocksDB: " + std::string(e.what()))
+            THROW_RUNTIME_ERROR("Failed to remove data from RocksDB: " + std::string(e.what()));
         }
     }
 
-    void checkRefillCacheFromStore() {
+    void checkRefillCacheFromStore()
+    {
         if (!allElementsInCache_ && orderedCache_.isEmpty()) {
             try {
                 auto iter = orderedBytesIterator();
                 orderedCache_.bulkLoadFromOrderedIterator(iter.get());
                 allElementsInCache_ = !iter->hasNext();
             } catch (const std::exception& e) {
-                THROW_RUNTIME_ERROR("Exception while refilling store from iterator: " + std::string(e.what()))
+                THROW_RUNTIME_ERROR("Exception while refilling store from iterator: " + std::string(e.what()));
             }
         }
     }
 
-    static bool isPrefixWith(const std::vector<uint8_t>& bytes, const std::vector<uint8_t>& prefix) {
+    static bool isPrefixWith(const std::vector<uint8_t>& bytes, const std::vector<uint8_t>& prefix)
+    {
         if (bytes.size() < prefix.size()) {
             return false;
         }
         return std::memcmp(bytes.data(), prefix.data(), prefix.size()) == 0;
     }
 
-    std::unique_ptr<std::vector<uint8_t>> createKeyGroupBytes(int32_t keyGroupId, int32_t numPrefixBytes) {
+    std::unique_ptr<std::vector<uint8_t>> createKeyGroupBytes(int32_t keyGroupId, int32_t numPrefixBytes)
+    {
         outputView_->clear();
         try {
             CompositeKeySerializationUtils::writeKeyGroup(keyGroupId, numPrefixBytes, *outputView_);
@@ -422,7 +479,8 @@ private:
         return std::unique_ptr<std::vector<uint8_t>>(outputView_->getCopyOfBuffer());
     }
 
-    std::vector<uint8_t>* serializeElement(const T& element) {
+    std::vector<uint8_t>* serializeElement(const T& element)
+    {
         try {
             outputView_->clear();
             outputView_->write(*groupPrefixBytes_);
@@ -433,16 +491,18 @@ private:
         }
     }
 
-    T deserializeElement(const std::vector<uint8_t>& bytes) {
+    T deserializeElement(const std::vector<uint8_t>& bytes)
+    {
         try {
             auto numPrefixBytes = groupPrefixBytes_->size();
             inputView_->setBuffer(
-                    bytes.data(),
-                    static_cast<int>(bytes.size()),
-                    static_cast<int>(numPrefixBytes),
-                    static_cast<int>(bytes.size() - numPrefixBytes));
+                bytes.data(),
+                static_cast<int>(bytes.size()),
+                static_cast<int>(numPrefixBytes),
+                static_cast<int>(bytes.size() - numPrefixBytes));
             using ElementType = typename T::element_type;
-            return std::shared_ptr<ElementType>(static_cast<ElementType*>(byteOrderProducingSerializer_->deserialize(*inputView_)));
+            return std::shared_ptr<ElementType>(
+                static_cast<ElementType*>(byteOrderProducingSerializer_->deserialize(*inputView_)));
         } catch (const std::exception& e) {
             THROW_RUNTIME_ERROR("Failed to deserialize element: " + std::string(e.what()));
         }

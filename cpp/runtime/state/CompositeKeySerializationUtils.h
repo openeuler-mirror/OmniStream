@@ -21,26 +21,28 @@ public:
     static constexpr int PREFIX_TWO_BYTES = 2;
     static constexpr int PREFIX_ONE_BYTES = 1;
 
-    static void serializeKeyGroup(int keyGroup, std::vector<uint8_t>& startKeyGroupPrefixBytes) {
+    static void serializeKeyGroup(int keyGroup, std::vector<uint8_t>& startKeyGroupPrefixBytes)
+    {
         const size_t keyGroupPrefixBytes = startKeyGroupPrefixBytes.size();
         for (size_t j = 0; j < keyGroupPrefixBytes; ++j) {
             startKeyGroupPrefixBytes[j] = extractByteAtPosition(keyGroup, keyGroupPrefixBytes - j - 1);
         }
     }
 
-    static uint8_t extractByteAtPosition(int value, int byteIdx) {
+    static uint8_t extractByteAtPosition(int value, int byteIdx)
+    {
         return static_cast<uint8_t>((value >> (byteIdx * BITS_PER_BYTE)));
     }
 
-    static int computeRequiredBytesInKeyGroupPrefix(int totalKeyGroupsInJob) {
+    static int computeRequiredBytesInKeyGroupPrefix(int totalKeyGroupsInJob)
+    {
         return totalKeyGroupsInJob > SINGLE_BYTE_MAX_GROUPS ? PREFIX_TWO_BYTES : PREFIX_ONE_BYTES;
     }
 
     static void writeKeyGroup(
-            int32_t keyGroup,
-            int32_t keyGroupPrefixBytes,
-            DataOutputSerializer& keySerializationDateDataOutputView) {
-        for (auto i = keyGroupPrefixBytes; --i >= 0; ) {
+        int32_t keyGroup, int32_t keyGroupPrefixBytes, DataOutputSerializer& keySerializationDateDataOutputView)
+    {
+        for (auto i = keyGroupPrefixBytes; --i >= 0;) {
             keySerializationDateDataOutputView.writeByte(extractByteAtPosition(keyGroup, i));
         }
     }

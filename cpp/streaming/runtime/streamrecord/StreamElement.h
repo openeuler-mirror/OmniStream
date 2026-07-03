@@ -30,7 +30,7 @@ enum class StreamElementTag {
 
 class StreamElement : public Object {
 public:
-    explicit StreamElement(StreamElementTag tag = StreamElementTag::TAG_UNKNOWN) : tag_(tag)  {};
+    explicit StreamElement(StreamElementTag tag = StreamElementTag::TAG_UNKNOWN) : tag_(tag) {};
     virtual ~StreamElement() = default;
 
     StreamElementTag getTag() const
@@ -42,17 +42,19 @@ public:
         tag_ = tag;
     }
 
-    void *getValue() const
+    void* getValue() const
     {
         return value_;
     }
 
-    void setValue(void *value)
+    void setValue(void* value)
     {
         value_ = value;
     }
+
 protected:
-    void *value_ = nullptr;
+    void* value_ = nullptr;
+
 private:
     StreamElementTag tag_;
 };

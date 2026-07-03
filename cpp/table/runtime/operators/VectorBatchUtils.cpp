@@ -11,8 +11,11 @@
 
 #include "VectorBatchUtils.h"
 
-void VectorBatchUtils::AppendLongVectorForInt64(omnistream::VectorBatch *outputVB, std::vector<std::unique_ptr<RowData>>& collectedRows,
-                                                int numRowsPerVB, int colIndex)
+void VectorBatchUtils::AppendLongVectorForInt64(
+    omnistream::VectorBatch* outputVB,
+    std::vector<std::unique_ptr<RowData>>& collectedRows,
+    int numRowsPerVB,
+    int colIndex)
 {
     auto* vector = new omniruntime::vec::Vector<int64_t>(numRowsPerVB);
     for (int rowIndex = 0; rowIndex < numRowsPerVB; ++rowIndex) {
@@ -21,8 +24,11 @@ void VectorBatchUtils::AppendLongVectorForInt64(omnistream::VectorBatch *outputV
     outputVB->Append(vector);
 }
 
-void VectorBatchUtils::AppendLongVectorForDouble(omnistream::VectorBatch *outputVB, std::vector<std::unique_ptr<RowData>>& collectedRows,
-                                                 int numRowsPerVB, int colIndex)
+void VectorBatchUtils::AppendLongVectorForDouble(
+    omnistream::VectorBatch* outputVB,
+    std::vector<std::unique_ptr<RowData>>& collectedRows,
+    int numRowsPerVB,
+    int colIndex)
 {
     auto* vector = new omniruntime::vec::Vector<double>(numRowsPerVB);
     for (int rowIndex = 0; rowIndex < numRowsPerVB; ++rowIndex) {
@@ -31,8 +37,11 @@ void VectorBatchUtils::AppendLongVectorForDouble(omnistream::VectorBatch *output
     outputVB->Append(vector);
 }
 
-void VectorBatchUtils::AppendIntVector(omnistream::VectorBatch *outputVB, std::vector<std::unique_ptr<RowData>>& collectedRows,
-                                       int numRowsPerVB, int colIndex)
+void VectorBatchUtils::AppendIntVector(
+    omnistream::VectorBatch* outputVB,
+    std::vector<std::unique_ptr<RowData>>& collectedRows,
+    int numRowsPerVB,
+    int colIndex)
 {
     auto* vector = new omniruntime::vec::Vector<int32_t>(numRowsPerVB);
     for (int rowIndex = 0; rowIndex < numRowsPerVB; ++rowIndex) {
@@ -41,8 +50,11 @@ void VectorBatchUtils::AppendIntVector(omnistream::VectorBatch *outputVB, std::v
     outputVB->Append(vector);
 }
 
-void VectorBatchUtils::AppendIntVectorForBool(omnistream::VectorBatch* outputVB, std::vector<std::unique_ptr<RowData>>& collectedRows,
-                                              int numRowsPerVB, int colIndex)
+void VectorBatchUtils::AppendIntVectorForBool(
+    omnistream::VectorBatch* outputVB,
+    std::vector<std::unique_ptr<RowData>>& collectedRows,
+    int numRowsPerVB,
+    int colIndex)
 {
     auto* vector = new omniruntime::vec::Vector<bool>(numRowsPerVB);
     for (int rowIndex = 0; rowIndex < numRowsPerVB; ++rowIndex) {
@@ -51,8 +63,11 @@ void VectorBatchUtils::AppendIntVectorForBool(omnistream::VectorBatch* outputVB,
     outputVB->Append(vector);
 }
 
-void VectorBatchUtils::AppendStringVector(omnistream::VectorBatch* outputVB, std::vector<std::unique_ptr<RowData>>& collectedRows,
-                                          int numRowsPerVB, int colIndex)
+void VectorBatchUtils::AppendStringVector(
+    omnistream::VectorBatch* outputVB,
+    std::vector<std::unique_ptr<RowData>>& collectedRows,
+    int numRowsPerVB,
+    int colIndex)
 {
     // Add bounds checking to prevent infinite loop
     if (numRowsPerVB < 0 || numRowsPerVB > static_cast<int>(collectedRows.size())) {

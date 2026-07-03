@@ -7,15 +7,15 @@
 ////#include "basictypes/utils/Collector.h"
 //
 //
-//#include "../../../../core/operators/source/reader/KafkaSource.h"
-//#include "../../../../core/operators/source/deserialize/SimpleStringSchema.h"
+// #include "../../../../core/operators/source/reader/KafkaSource.h"
+// #include "../../../../core/operators/source/deserialize/SimpleStringSchema.h"
 //
-//#include <gtest/gtest.h>
+// #include <gtest/gtest.h>
 //
-//class TestCollector : public Collector {
-//private:
+// class TestCollector : public Collector {
+// private:
 //    StringView collectedRecord; // 新增变量用于保存 record 内容
-//public:
+// public:
 //    void collect(Object * record) override {
 //        auto* strPtr = reinterpret_cast<StringView*>(record);
 //        if (strPtr) {
@@ -35,7 +35,7 @@
 //    }
 //};
 //
-//TEST(DeserializationTest, SimpleStringTest) {
+// TEST(DeserializationTest, SimpleStringTest) {
 //    auto valueDeserializationSchema = std::make_shared<SimpleStringSchema>();
 //    // 调用 valueOnly 方法创建 KafkaRecordDeserializationSchema<std::string> 对象
 //    auto kafkaRecordDeserializationSchema = KafkaRecordDeserializationSchema::valueOnly(valueDeserializationSchema);

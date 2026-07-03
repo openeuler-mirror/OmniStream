@@ -19,24 +19,27 @@ RocksNativeFullSnapshotStrategy::RocksNativeFullSnapshotStrategy(
     rocksdb::DB* db,
     std::shared_ptr<ResourceGuard> rocksDBResourceGuard,
     std::shared_ptr<TypeSerializer> keySerializer,
-    std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>> *kvStateInformation,
+    std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation,
     KeyGroupRange keyGroupRange,
     int keyGroupPrefixBytes,
     std::shared_ptr<LocalRecoveryConfig> localRecoveryConfig,
     const fs::path& instanceBasePath,
     UUID backendUID,
     std::shared_ptr<RocksDBStateUploader> rocksDBStateUploader)
-    : RocksDBSnapshotStrategyBase("Asynchronous full RocksDB snapshot",
-        db,
-        rocksDBResourceGuard,
-        keySerializer,
-        kvStateInformation,
-        keyGroupRange,
-        keyGroupPrefixBytes,
-        localRecoveryConfig,
-        instanceBasePath,
-        backendUID),
-    stateUploader(rocksDBStateUploader) {}
+    : RocksDBSnapshotStrategyBase(
+          "Asynchronous full RocksDB snapshot",
+          db,
+          rocksDBResourceGuard,
+          keySerializer,
+          kvStateInformation,
+          keyGroupRange,
+          keyGroupPrefixBytes,
+          localRecoveryConfig,
+          instanceBasePath,
+          backendUID),
+      stateUploader(rocksDBStateUploader)
+{
+}
 
 std::shared_ptr<SnapshotResultSupplier<KeyedStateHandle>> RocksNativeFullSnapshotStrategy::asyncSnapshot(
     const std::shared_ptr<SnapshotResources>& snapshotResources,
@@ -57,7 +60,8 @@ std::shared_ptr<SnapshotResultSupplier<KeyedStateHandle>> RocksNativeFullSnapsho
     auto stateMetaInfoSnapshots = rocksdbSnapshotResources->stateMetaInfoSnapshots;
 
     return std::static_pointer_cast<SnapshotResultSupplier<KeyedStateHandle>>(
-        std::make_shared<RocksDBNativeFullSnapshotOperation>(checkpointId,
+        std::make_shared<RocksDBNativeFullSnapshotOperation>(
+            checkpointId,
             checkpointStreamFactory,
             snapshotDirectory,
             stateMetaInfoSnapshots,
@@ -68,15 +72,20 @@ std::shared_ptr<SnapshotResultSupplier<KeyedStateHandle>> RocksNativeFullSnapsho
             keySerializer_));
 }
 
-void RocksNativeFullSnapshotStrategy::notifyCheckpointComplete(int64_t completedCheckpointId) {}
+void RocksNativeFullSnapshotStrategy::notifyCheckpointComplete(int64_t completedCheckpointId)
+{
+}
 
-void RocksNativeFullSnapshotStrategy::notifyCheckpointAborted(int64_t abortedCheckpointId) {}
+void RocksNativeFullSnapshotStrategy::notifyCheckpointAborted(int64_t abortedCheckpointId)
+{
+}
 
-void RocksNativeFullSnapshotStrategy::close() {}
+void RocksNativeFullSnapshotStrategy::close()
+{
+}
 
 std::shared_ptr<PreviousSnapshot> RocksNativeFullSnapshotStrategy::snapshotMetaData(
-    int64_t checkpointId,
-    std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& stateMetaInfoSnapshots)
+    int64_t checkpointId, std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& stateMetaInfoSnapshots)
 {
     for (const auto& kv : *kvStateInformation_) {
         stateMetaInfoSnapshots.push_back(kv.second->metaInfo_->snapshot());
@@ -94,20 +103,19 @@ RocksNativeFullSnapshotStrategy::RocksDBNativeFullSnapshotOperation::RocksDBNati
     UUID backendUID,
     KeyGroupRange keyGroupRange,
     RocksNativeFullSnapshotStrategy* outerStrategy,
-    CheckpointOptions *checkpointOptions,
+    CheckpointOptions* checkpointOptions,
     std::shared_ptr<TypeSerializer> keySerializer)
     : RocksDBSnapshotOperation(
-        checkpointId,
-        checkpointStreamFactory,
-        localBackupDirectory,
-        stateMetaInfoSnapshots,
-        keySerializer),
-    backendUID_(backendUID),
-    keyGroupRange_(keyGroupRange),
-    outerStrategy_(outerStrategy),
-    checkpointOptions_(checkpointOptions) {}
+          checkpointId, checkpointStreamFactory, localBackupDirectory, stateMetaInfoSnapshots, keySerializer),
+      backendUID_(backendUID),
+      keyGroupRange_(keyGroupRange),
+      outerStrategy_(outerStrategy),
+      checkpointOptions_(checkpointOptions)
+{
+}
 
-std::shared_ptr<SnapshotResult<KeyedStateHandle>>RocksNativeFullSnapshotStrategy::RocksDBNativeFullSnapshotOperation::get(
+std::shared_ptr<SnapshotResult<KeyedStateHandle>>
+RocksNativeFullSnapshotStrategy::RocksDBNativeFullSnapshotOperation::get(
     std::shared_ptr<omnistream::OmniTaskBridge> bridge)
 {
     bool completed = false;
@@ -116,35 +124,29 @@ std::shared_ptr<SnapshotResult<KeyedStateHandle>>RocksNativeFullSnapshotStrategy
     std::shared_ptr<CloseableRegistry> tmpResourcesRegistry = std::make_shared<CloseableRegistry>();
     try {
         metaStateHandle = outerStrategy_->materializeMetaData(
-            stateMetaInfoSnapshots,
-            checkpointId,
-            checkpointOptions_,
-            bridge,
-            keySerializer->toJson());
+            stateMetaInfoSnapshots, checkpointId, checkpointOptions_, bridge, keySerializer->toJson());
 
         int64_t checkpointedSize = metaStateHandle->GetStateSize();
         checkpointedSize += uploadSnapshotFiles(privateFiles, bridge);
 
-        auto jmIncrementalKeyedStateHandle =
-            std::make_shared<IncrementalRemoteKeyedStateHandle>(
-                backendUID_,
-                keyGroupRange_,
-                checkpointId,
-                std::vector<HandleAndLocalPath>(),
-                privateFiles,
-                metaStateHandle->GetJobManagerOwnedSnapshot(),
-                checkpointedSize);
+        auto jmIncrementalKeyedStateHandle = std::make_shared<IncrementalRemoteKeyedStateHandle>(
+            backendUID_,
+            keyGroupRange_,
+            checkpointId,
+            std::vector<HandleAndLocalPath>(),
+            privateFiles,
+            metaStateHandle->GetJobManagerOwnedSnapshot(),
+            checkpointedSize);
 
         auto localSnapshot = getLocalSnapshot(
-            outerStrategy_,
-            metaStateHandle->GetTaskLocalSnapshot(),
-            std::vector<HandleAndLocalPath>());
+            outerStrategy_, metaStateHandle->GetTaskLocalSnapshot(), std::vector<HandleAndLocalPath>());
 
         std::shared_ptr<SnapshotResult<KeyedStateHandle>> result;
         if (localSnapshot) {
-            result = (jmIncrementalKeyedStateHandle != nullptr) ?
-                std::make_shared<SnapshotResult<KeyedStateHandle>>(jmIncrementalKeyedStateHandle, localSnapshot)
-                : std::make_shared<SnapshotResult<KeyedStateHandle>>(nullptr, nullptr);
+            result =
+                (jmIncrementalKeyedStateHandle != nullptr)
+                    ? std::make_shared<SnapshotResult<KeyedStateHandle>>(jmIncrementalKeyedStateHandle, localSnapshot)
+                    : std::make_shared<SnapshotResult<KeyedStateHandle>>(nullptr, nullptr);
         } else {
             result = std::make_shared<SnapshotResult<KeyedStateHandle>>(jmIncrementalKeyedStateHandle, nullptr);
         }
@@ -160,8 +162,7 @@ std::shared_ptr<SnapshotResult<KeyedStateHandle>>RocksNativeFullSnapshotStrategy
 }
 
 int64_t RocksNativeFullSnapshotStrategy::RocksDBNativeFullSnapshotOperation::uploadSnapshotFiles(
-    std::vector<HandleAndLocalPath>& privateFiles,
-    std::shared_ptr<omnistream::OmniTaskBridge> bridge)
+    std::vector<HandleAndLocalPath>& privateFiles, std::shared_ptr<omnistream::OmniTaskBridge> bridge)
 {
     auto files = localBackupDirectory->listDirectory();
     int64_t uploadedSize = 0;
@@ -173,14 +174,10 @@ int64_t RocksNativeFullSnapshotStrategy::RocksDBNativeFullSnapshotOperation::upl
             filePaths.emplace_back(file);
         }
 
-        auto uploadedFiles = outerStrategy_->stateUploader->callUploadFilesToCheckpointFs(
-            bridge,
-            filePaths);
+        auto uploadedFiles = outerStrategy_->stateUploader->callUploadFilesToCheckpointFs(bridge, filePaths);
 
-        uploadedSize += std::accumulate(uploadedFiles.begin(),
-            uploadedFiles.end(),
-            0LL,
-            [](int64_t sum, const HandleAndLocalPath& handle) {
+        uploadedSize += std::accumulate(
+            uploadedFiles.begin(), uploadedFiles.end(), 0LL, [](int64_t sum, const HandleAndLocalPath& handle) {
                 return sum + handle.GetStateSize();
             });
 

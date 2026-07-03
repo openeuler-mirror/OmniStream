@@ -12,11 +12,11 @@
 #include "basictypes/java_lang_ClassLoader.h"
 ClassLoader::ClassLoader() = default;
 ClassLoader::~ClassLoader() = default;
-InputStream* ClassLoader::getResourceAsStream(String * str)
+InputStream* ClassLoader::getResourceAsStream(String* str)
 {
     return nullptr;
 };
-InputStream* ClassLoader::getResourceAsStream(const std::string &str)
+InputStream* ClassLoader::getResourceAsStream(const std::string& str)
 {
     return nullptr;
 };

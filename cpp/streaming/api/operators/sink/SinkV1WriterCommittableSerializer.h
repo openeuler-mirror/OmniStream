@@ -20,10 +20,13 @@ template <typename CmmT>
 class SinkV1WriterCommittableSerializer : public SimpleVersionedSerializer<std::vector<CmmT>> {
 public:
     explicit SinkV1WriterCommittableSerializer(std::shared_ptr<SimpleVersionedSerializer<CmmT>> serializer)
-        : serializer(serializer){}
+        : serializer(serializer)
+    {
+    }
     int getVersion() const override;
     std::vector<uint8_t> serialize(const std::vector<CmmT>& obj) override;
     std::vector<CmmT>* deserialize(int version, std::vector<uint8_t>& serialized) override;
+
 private:
     std::shared_ptr<SimpleVersionedSerializer<CmmT>> serializer;
 };

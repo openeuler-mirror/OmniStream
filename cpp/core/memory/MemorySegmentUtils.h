@@ -21,12 +21,12 @@ public:
     static const int ADDRESS_BITS_PER_WORD = 3;
     static const int BIT_BYTE_INDEX_MASK = 7;
 
-    static inline uint8_t *getAll(uint8_t *offHeapBuffer)
+    static inline uint8_t* getAll(uint8_t* offHeapBuffer)
     {
         return offHeapBuffer;
     }
 
-    static inline uint8_t get(uint8_t *offHeapBuffer, int size, int index)
+    static inline uint8_t get(uint8_t* offHeapBuffer, int size, int index)
     {
         if (index >= 0 && index < size) {
             return *(offHeapBuffer + index);
@@ -36,7 +36,7 @@ public:
         }
     }
 
-    static inline void put(uint8_t *offHeapBuffer, int size, int index, uint8_t byte)
+    static inline void put(uint8_t* offHeapBuffer, int size, int index, uint8_t byte)
     {
         if (index >= 0 && index < size) {
             *(offHeapBuffer + index) = byte;
@@ -46,10 +46,10 @@ public:
         }
     }
 
-    static inline void put(uint8_t *offHeapBuffer, int size, int index, const uint8_t *src, int offset, int length)
+    static inline void put(uint8_t* offHeapBuffer, int size, int index, const uint8_t* src, int offset, int length)
     {
         if (index >= 0 && index <= size - length) {
-            void *pos = static_cast<void *>(offHeapBuffer + index);
+            void* pos = static_cast<void*>(offHeapBuffer + index);
             memcpy_s(pos, length, src + offset, length);
         } else {
             std::cerr << "Index: " << index << " size: " << size << std::endl;
@@ -62,11 +62,11 @@ public:
         return size;
     }
 
-    static inline void get(uint8_t *offHeapBuffer, int size, int index, uint8_t *dst, int offset, int length)
+    static inline void get(uint8_t* offHeapBuffer, int size, int index, uint8_t* dst, int offset, int length)
     {
         if (index >= 0 && index <= size - length) {
-            void *srcPos = static_cast<void *>(offHeapBuffer + index);
-            void *dstPos = static_cast<void *>(dst + offset);
+            void* srcPos = static_cast<void*>(offHeapBuffer + index);
+            void* dstPos = static_cast<void*>(dst + offset);
             memcpy_s(dstPos, length, srcPos, length);
         } else {
             std::cerr << "Index: " << index << " size: " << size << std::endl;
@@ -79,17 +79,17 @@ public:
         return size;
     }
 
-    static inline long *getLong(uint8_t *offHeapBuffer, int size, int index)
+    static inline long* getLong(uint8_t* offHeapBuffer, int size, int index)
     {
         if (index >= 0 && index <= size - static_cast<int>(sizeof(long))) {
-            return reinterpret_cast<long *>(offHeapBuffer + index);
+            return reinterpret_cast<long*>(offHeapBuffer + index);
         } else {
             std::cerr << "Index: " << index << " size: " << size << std::endl;
             throw std::logic_error("IndexOutOfBoundsException");
         }
     }
 
-    static inline void putLong(uint8_t *offHeapBuffer, int size, int index, long value)
+    static inline void putLong(uint8_t* offHeapBuffer, int size, int index, long value)
     {
         if (index >= 0 && index <= size - static_cast<int>(sizeof(long))) {
             memcpy_s(offHeapBuffer + index, sizeof(long), &value, sizeof(long));
@@ -99,17 +99,17 @@ public:
         }
     }
 
-    static inline bool *getBool(uint8_t *offHeapBuffer, int size, int index)
+    static inline bool* getBool(uint8_t* offHeapBuffer, int size, int index)
     {
         if (index >= 0 && index <= size - static_cast<int>(sizeof(bool))) {
-            return reinterpret_cast<bool *>(offHeapBuffer + index);
+            return reinterpret_cast<bool*>(offHeapBuffer + index);
         } else {
             std::cerr << "Index: " << index << " size: " << size << std::endl;
             throw std::logic_error("IndexOutOfBoundsException");
         }
     }
 
-    static inline void putBool(uint8_t *offHeapBuffer, int size, int index, bool value)
+    static inline void putBool(uint8_t* offHeapBuffer, int size, int index, bool value)
     {
         if (index >= 0 && index <= size - static_cast<int>(sizeof(bool))) {
             memcpy_s(offHeapBuffer + index, sizeof(bool), &value, sizeof(bool));
@@ -119,17 +119,17 @@ public:
         }
     }
 
-    static inline int *getInt(uint8_t *offHeapBuffer, int size, int index)
+    static inline int* getInt(uint8_t* offHeapBuffer, int size, int index)
     {
         if (index >= 0 && index <= size - static_cast<int>(sizeof(int))) {
-            return reinterpret_cast<int *>(offHeapBuffer + index);
+            return reinterpret_cast<int*>(offHeapBuffer + index);
         } else {
             std::cerr << "Index: " << index << " size: " << size << std::endl;
             throw std::logic_error("IndexOutOfBoundsException");
         }
     }
 
-    static inline void putInt(uint8_t *offHeapBuffer, int size, int index, int value)
+    static inline void putInt(uint8_t* offHeapBuffer, int size, int index, int value)
     {
         if (index >= 0 && index <= size - static_cast<int>(sizeof(int))) {
             memcpy_s(offHeapBuffer + index, sizeof(int), &value, sizeof(int));
@@ -139,7 +139,7 @@ public:
         }
     }
 
-    static inline bool equalTo(uint8_t *offHeapBuffer1, uint8_t *offHeapBuffer2, int offset1, int offset2, int length)
+    static inline bool equalTo(uint8_t* offHeapBuffer1, uint8_t* offHeapBuffer2, int offset1, int offset2, int length)
     {
         return (std::memcmp(offHeapBuffer1 + offset1, offHeapBuffer2 + offset2, length) == 0);
     }
@@ -150,7 +150,7 @@ public:
         return static_cast<int>(ubitIndex >> ADDRESS_BITS_PER_WORD);
     }
 
-    static inline void bitUnSet(uint8_t *offHeapBuffer, int size, int baseOffset, int index)
+    static inline void bitUnSet(uint8_t* offHeapBuffer, int size, int baseOffset, int index)
     {
         int offset = baseOffset + byteIndex(index);
         uint8_t current = get(offHeapBuffer, size, offset);
@@ -159,7 +159,7 @@ public:
         put(offHeapBuffer, size, offset, current);
     }
 
-    static inline void bitSet(uint8_t *offHeapBuffer, int size, int baseOffset, int index)
+    static inline void bitSet(uint8_t* offHeapBuffer, int size, int baseOffset, int index)
     {
         int offset = baseOffset + byteIndex(index);
         uint8_t current = get(offHeapBuffer, size, offset);
@@ -167,8 +167,8 @@ public:
         current |= (1 << (uindex & BIT_BYTE_INDEX_MASK));
         put(offHeapBuffer, size, offset, current);
     }
-    
-    static inline void copy(uint8_t *source, int source_offset, uint8_t * dest, int dest_offset, int copy_len)
+
+    static inline void copy(uint8_t* source, int source_offset, uint8_t* dest, int dest_offset, int copy_len)
     {
         memcpy_s(dest + dest_offset, copy_len, source + source_offset, copy_len);
     }

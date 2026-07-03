@@ -21,7 +21,7 @@
 
 #include "PojoSerializer.h"
 
-void PojoSerializer::serialize(Object* buffer, DataOutputSerializer &target)
+void PojoSerializer::serialize(Object* buffer, DataOutputSerializer& target)
 {
     if (classObj == nullptr) {
         classObj = ClassRegistry::instance().getClass(clazz);
@@ -34,7 +34,7 @@ void PojoSerializer::serialize(Object* buffer, DataOutputSerializer &target)
     }
 
     int8_t subclassTag = -1;
-    TypeSerializer *subclassSerializer = nullptr;
+    TypeSerializer* subclassSerializer = nullptr;
     auto actualClass = (std::string)(classObj->getName());
     if (clazz != actualClass) {
         subclassTag = registeredClasses[actualClass];
@@ -79,8 +79,7 @@ void PojoSerializer::serialize(Object* buffer, DataOutputSerializer &target)
     }
 }
 
-
-TypeSerializer *PojoSerializer::getSubclassSerializer(const std::string &subclass)
+TypeSerializer* PojoSerializer::getSubclassSerializer(const std::string& subclass)
 {
     if (subclassSerializerCache.find(subclass) != subclassSerializerCache.end()) {
         return subclassSerializerCache[subclass];
@@ -90,20 +89,20 @@ TypeSerializer *PojoSerializer::getSubclassSerializer(const std::string &subclas
     return result;
 }
 
-TypeSerializer *PojoSerializer::createSubclassSerializer(const std::string &subclass)
+TypeSerializer* PojoSerializer::createSubclassSerializer(const std::string& subclass)
 {
     // todo
     return nullptr;
 }
 
-void PojoSerializer::deserialize(Object* buffer, DataInputView &source)
+void PojoSerializer::deserialize(Object* buffer, DataInputView& source)
 {
     uint8_t flags = source.readByte();
     if ((flags & IS_NULL) != 0) {
         return;
     }
 
-    TypeSerializer *subclassSerializer = getSubclassSerializer(flags, source);
+    TypeSerializer* subclassSerializer = getSubclassSerializer(flags, source);
 
     if ((flags & NO_SUBCLASS) != 0) {
         deserializeFields(buffer, source);
@@ -112,7 +111,7 @@ void PojoSerializer::deserialize(Object* buffer, DataInputView &source)
     }
 }
 
-TypeSerializer* PojoSerializer::getSubclassSerializer(uint8_t flags, DataInputView &source)
+TypeSerializer* PojoSerializer::getSubclassSerializer(uint8_t flags, DataInputView& source)
 {
     if ((flags & IS_SUBCLASS) != 0) {
         std::string subclassName = source.readUTF();
@@ -125,12 +124,12 @@ TypeSerializer* PojoSerializer::getSubclassSerializer(uint8_t flags, DataInputVi
     return nullptr;
 }
 
-void PojoSerializer::deserializeFields(Object* buffer, DataInputView &source)
+void PojoSerializer::deserializeFields(Object* buffer, DataInputView& source)
 {
     for (int i = 0; i < numFields; i++) {
         bool isNull = source.readBoolean();
-        Object *fieldBuffer = nullptr;
-        
+        Object* fieldBuffer = nullptr;
+
         if (fields[i] != "") {
             if (isNull) {
                 classObj->set(buffer, fields[i], nullptr);
@@ -143,7 +142,7 @@ void PojoSerializer::deserializeFields(Object* buffer, DataInputView &source)
             fieldBuffer = fieldSerializers[i]->GetBuffer();
             fieldSerializers[i]->deserialize(fieldBuffer, source);
         }
-        
+
         if (fieldBuffer != nullptr) {
             fieldBuffer->putRefCount();
         }
@@ -156,7 +155,6 @@ void PojoSerializer::setSubBufferReusable(bool bufferReusable_)
         fieldSerializer->setSelfBufferReusable(bufferReusable_);
     }
 }
-
 
 Object* PojoSerializer::GetBuffer()
 {

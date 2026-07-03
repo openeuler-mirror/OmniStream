@@ -12,9 +12,8 @@
 #include "AbstractEvent.h"
 
 namespace omnistream {
-    const int AbstractEvent::abstractEvent = 0;
-    const int AbstractEvent::endOfPartition = 1;
-    const int AbstractEvent::endOfData = 2;
-    const int AbstractEvent::checkpointbarrier = 3;
+const int AbstractEvent::abstractEvent = 0;
+const int AbstractEvent::endOfPartition = 1;
+const int AbstractEvent::endOfData = 2;
+const int AbstractEvent::checkpointbarrier = 3;
 } // namespace omnistream
-

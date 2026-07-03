@@ -21,9 +21,9 @@ using namespace omniruntime::type;
 class StringDataSerializer : public TypeSerializerSingleton {
 public:
     StringDataSerializer() {};
-    void *deserialize(DataInputView &source) override;
+    void* deserialize(DataInputView& source) override;
 
-    void serialize(void *record, DataOutputSerializer &target) override;
+    void serialize(void* record, DataOutputSerializer& target) override;
 
     static StringDataSerializer* INSTANCE;
 

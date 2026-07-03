@@ -24,33 +24,33 @@
 // check
 namespace omnistream {
 
-    class ResultPartitionManager : public ResultPartitionProvider {
-    public:
-        ResultPartitionManager();
-        ~ResultPartitionManager() override;
+class ResultPartitionManager : public ResultPartitionProvider {
+public:
+    ResultPartitionManager();
+    ~ResultPartitionManager() override;
 
-        void registerResultPartition(std::shared_ptr<ResultPartition> partition);
+    void registerResultPartition(std::shared_ptr<ResultPartition> partition);
 
-        std::shared_ptr<ResultSubpartitionView> createSubpartitionView(
-            const ResultPartitionIDPOD& partitionId,
-            int subpartitionIndex,
-            BufferAvailabilityListener* availabilityListener) override;
+    std::shared_ptr<ResultSubpartitionView> createSubpartitionView(
+        const ResultPartitionIDPOD& partitionId,
+        int subpartitionIndex,
+        BufferAvailabilityListener* availabilityListener) override;
 
-        void releasePartition(const ResultPartitionIDPOD& partitionId, std::optional<std::exception_ptr>  cause);
+    void releasePartition(const ResultPartitionIDPOD& partitionId, std::optional<std::exception_ptr> cause);
 
-        void shutdown();
+    void shutdown();
 
-        void onConsumedPartition(std::shared_ptr<ResultPartition> partition);
+    void onConsumedPartition(std::shared_ptr<ResultPartition> partition);
 
-        std::vector<ResultPartitionIDPOD> getUnreleasedPartitions();
+    std::vector<ResultPartitionIDPOD> getUnreleasedPartitions();
 
-        std::string toString();
+    std::string toString();
 
-    private:
-        std::unordered_map<ResultPartitionIDPOD, std::shared_ptr<ResultPartition>> registeredPartitions;
-        bool isShutdown;
-        std::recursive_mutex mutex_;
-    };
+private:
+    std::unordered_map<ResultPartitionIDPOD, std::shared_ptr<ResultPartition>> registeredPartitions;
+    bool isShutdown;
+    std::recursive_mutex mutex_;
+};
 
 } // namespace omnistream
 

@@ -18,13 +18,13 @@
 
 namespace omnistream {
 
-    class PeriodTimer {
-    public:
-        virtual ~PeriodTimer() = default;
-        virtual void markStart() = 0;
-        virtual void markEnd() = 0;
-        virtual std::string toString() const = 0;
-    };
+class PeriodTimer {
+public:
+    virtual ~PeriodTimer() = default;
+    virtual void markStart() = 0;
+    virtual void markEnd() = 0;
+    virtual std::string toString() const = 0;
+};
 
 } // namespace omnistream
 

@@ -14,7 +14,7 @@ std::shared_ptr<StateMetaInfoSnapshot> RegisteredKeyValueStateBackendMetaInfo::c
 {
     std::unordered_map<std::string, std::string> optionsMap;
     optionsMap[StateMetaInfoSnapshot::commonOptionsKeyToString(
-        StateMetaInfoSnapshot::CommonOptionsKeys::KEYED_STATE_TYPE)] = std::to_string((int) stateType);
+        StateMetaInfoSnapshot::CommonOptionsKeys::KEYED_STATE_TYPE)] = std::to_string((int)stateType);
 
     std::unordered_map<std::string, TypeSerializer*> serializerMap;
     serializerMap.emplace("stateSerializer", getStateSerializer());
@@ -29,7 +29,7 @@ std::shared_ptr<StateMetaInfoSnapshot> RegisteredKeyValueStateBackendMetaInfo::c
         serializerMap);
 }
 
-RegisteredKeyValueStateBackendMetaInfo::RegisteredKeyValueStateBackendMetaInfo(const StateMetaInfoSnapshot &snapshot)
+RegisteredKeyValueStateBackendMetaInfo::RegisteredKeyValueStateBackendMetaInfo(const StateMetaInfoSnapshot& snapshot)
     : RegisteredStateMetaInfoBase(snapshot.getName())
 {
     auto stateTypeString = snapshot.getOption(StateMetaInfoSnapshot::CommonOptionsKeys::KEYED_STATE_TYPE);

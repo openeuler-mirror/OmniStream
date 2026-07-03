@@ -1,5 +1,5 @@
 /*
-* Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
  * You can use this software according to the terms and conditions of the Mulan PSL v2.
  * You may obtain a copy of Mulan PSL v2 at:
  *          http://license.coscl.org.cn/MulanPSL2
@@ -14,22 +14,31 @@
 #include "table/runtime/generated/function/GroupWindowAggsHandleFunction.h"
 #include "table/runtime/generated/NamespaceAggsBasicFunctionFactory.h"
 
-template<typename K, typename W>
-std::unique_ptr<NamespaceAggsHandleFunction<W>> AggregateWindowOperator<K, W>::initNamespaceAggsHandleFunction(const nlohmann::json &aggInfoList) {
-    // TODO: namespace is unused in functions, which may cause WindowOperator only supports session window(each key corresponds to only one window)
+template <typename K, typename W>
+std::unique_ptr<NamespaceAggsHandleFunction<W>> AggregateWindowOperator<K, W>::initNamespaceAggsHandleFunction(
+    const nlohmann::json& aggInfoList)
+{
+    // TODO: namespace is unused in functions, which may cause WindowOperator only supports session window(each key
+    // corresponds to only one window)
     auto aggregateCalls = aggInfoList["aggregateCalls"].get<vector<nlohmann::json>>();
     auto accTypes = aggInfoList["AccTypes"].get<vector<std::string>>();
-    accTypes.erase(std::remove_if(accTypes.begin(), accTypes.end(),
-                                  [](const std::string& type) { return type.find("RAW") != std::string::npos; }),
-                   accTypes.end());
+    accTypes.erase(
+        std::remove_if(
+            accTypes.begin(),
+            accTypes.end(),
+            [](const std::string& type) { return type.find("RAW") != std::string::npos; }),
+        accTypes.end());
     std::vector<int32_t> accTypeIds;
     for (const auto& type : accTypes) {
         accTypeIds.push_back(LogicalType::flinkTypeToOmniTypeId(type));
     }
     auto aggValueTypes = aggInfoList["aggValueTypes"].get<vector<std::string>>();
-    aggValueTypes.erase(std::remove_if(aggValueTypes.begin(), aggValueTypes.end(),
-                                       [](const std::string& type) { return type.find("RAW") != std::string::npos; }),
-                        aggValueTypes.end());
+    aggValueTypes.erase(
+        std::remove_if(
+            aggValueTypes.begin(),
+            aggValueTypes.end(),
+            [](const std::string& type) { return type.find("RAW") != std::string::npos; }),
+        aggValueTypes.end());
     std::vector<int32_t> aggValueTypeIds;
     for (const auto& type : aggValueTypes) {
         aggValueTypeIds.push_back(LogicalType::flinkTypeToOmniTypeId(type));
@@ -43,7 +52,7 @@ std::unique_ptr<NamespaceAggsHandleFunction<W>> AggregateWindowOperator<K, W>::i
     auto aggValueStartIndex = 0;
     for (const auto& aggregateCall : aggregateCalls) {
         std::string aggTypeStr = aggregateCall["name"];
-        const int32_t filterIndex = aggregateCall["filterArg"].get<int32_t>(); // TODO: not support now
+        const int32_t filterIndex = aggregateCall["filterArg"].get<int32_t>();    // TODO: not support now
         const std::string consumeRetraction = aggregateCall["consumeRetraction"]; // TODO: not support now
 
         const auto argIndexes = aggregateCall.value("argIndexes", std::vector<int32_t>{});
@@ -51,23 +60,26 @@ std::unique_ptr<NamespaceAggsHandleFunction<W>> AggregateWindowOperator<K, W>::i
         const int32_t aggValueIndex = isInsertedCountStar ? -1 : aggValueStartIndex;
         const int32_t aggValueTypeId = isInsertedCountStar ? -1 : aggValueTypeIds[aggValueIndex];
         auto accIndexes = NamespaceAggsBasicFunctionFactory::getAccIndexes(aggTypeStr, accStartIndex);
-        functions.push_back(NamespaceAggsBasicFunctionFactory::create<W>(
-                aggTypeStr, argIndexes, this->inputTypeIds_, accIndexes, accTypeIds,
-                aggValueIndex, aggValueTypeId));
+        functions.push_back(
+            NamespaceAggsBasicFunctionFactory::create<W>(
+                aggTypeStr, argIndexes, this->inputTypeIds_, accIndexes, accTypeIds, aggValueIndex, aggValueTypeId));
         accStartIndex += accIndexes.size();
-        if (!isInsertedCountStar) { aggValueStartIndex++; }
+        if (!isInsertedCountStar) {
+            aggValueStartIndex++;
+        }
     }
     return std::make_unique<GroupWindowAggsHandleFunction<W>>(
-            std::move(functions),
-            std::move(aggValueTypeIds),
-            this->windowPropertyTypeIds_,
-            std::vector<int32_t>(this->outputTypeIds.begin() + this->keyedTypes.size(), this->outputTypeIds.end()),
-            this->accumulatorArity,
-            this->shiftTimeZone);
+        std::move(functions),
+        std::move(aggValueTypeIds),
+        this->windowPropertyTypeIds_,
+        std::vector<int32_t>(this->outputTypeIds.begin() + this->keyedTypes.size(), this->outputTypeIds.end()),
+        this->accumulatorArity,
+        this->shiftTimeZone);
 }
 
-template<typename K, typename W>
-omnistream::VectorBatch* AggregateWindowOperator<K, W>::createOutputBatch(const std::vector<RowData*> &collectedRows) {
+template <typename K, typename W>
+omnistream::VectorBatch* AggregateWindowOperator<K, W>::createOutputBatch(const std::vector<RowData*>& collectedRows)
+{
     int numColumns = WindowOperator<K, W>::outputTypes.size();
     const int numRows = static_cast<int>(collectedRows.size()); // Number of rows collected
 
@@ -128,8 +140,8 @@ omnistream::VectorBatch* AggregateWindowOperator<K, W>::createOutputBatch(const 
                 break;
             }
             case OMNI_VARCHAR: {
-                auto* vector = new omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<
-                    std::string_view>>(numRows);
+                auto* vector =
+                    new omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>(numRows);
                 for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
                     if (collectedRows[rowIndex]->isNullAt(colIndex)) {
                         vector->SetNull(rowIndex);
@@ -154,20 +166,21 @@ omnistream::VectorBatch* AggregateWindowOperator<K, W>::createOutputBatch(const 
     return outputBatch;
 }
 
-template<typename K, typename W>
-void AggregateWindowOperator<K, W>::emitWindowResult(const W& window) {
+template <typename K, typename W>
+void AggregateWindowOperator<K, W>::emitWindowResult(const W& window)
+{
     this->windowFunction->prepareAggregateAccumulatorForEmit(window);
     auto aggResult = std::unique_ptr<RowData>(this->windowAggregator->getValue(window));
 
     if (this->produceUpdates_) {
-        NOT_IMPL_EXCEPTION
+        NOT_IMPL_EXCEPTION;
     } else {
         if (aggResult != nullptr) {
             // send INSERT
             if constexpr (KeySelector<K>::isSharedRowKey_) {
                 collect(RowKind::INSERT, this->stateHandler->getCurrentKey().get(), std::move(aggResult));
             } else {
-                NOT_IMPL_EXCEPTION
+                NOT_IMPL_EXCEPTION;
             }
         }
         // if the counter is zero, no need to send accumulate

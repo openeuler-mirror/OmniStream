@@ -16,24 +16,37 @@ namespace {
 constexpr int32_t LONG_TYPE = omniruntime::type::DataTypeId::OMNI_LONG;
 constexpr int32_t TIMESTAMP_TYPE = omniruntime::type::DataTypeId::OMNI_TIMESTAMP;
 
-std::vector<std::unique_ptr<NamespaceAggsBasicFunction<TimeWindow>>> MakeFunctions() {
+std::vector<std::unique_ptr<NamespaceAggsBasicFunction<TimeWindow>>> MakeFunctions()
+{
     std::vector<std::unique_ptr<NamespaceAggsBasicFunction<TimeWindow>>> functions;
-    functions.push_back(std::make_unique<NamespaceAggsCountFunction<TimeWindow>>(
-            std::vector<int32_t>{}, std::vector<int32_t>{}, std::vector<int32_t>{0},
-            std::vector<int32_t>{LONG_TYPE}, 0));
-    functions.push_back(std::make_unique<NamespaceAggsSumFunction<TimeWindow>>(
-            std::vector<int32_t>{0}, std::vector<int32_t>{LONG_TYPE}, std::vector<int32_t>{1},
-            std::vector<int32_t>{LONG_TYPE}, 1, LONG_TYPE));
+    functions.push_back(
+        std::make_unique<NamespaceAggsCountFunction<TimeWindow>>(
+            std::vector<int32_t>{},
+            std::vector<int32_t>{},
+            std::vector<int32_t>{0},
+            std::vector<int32_t>{LONG_TYPE},
+            0));
+    functions.push_back(
+        std::make_unique<NamespaceAggsSumFunction<TimeWindow>>(
+            std::vector<int32_t>{0},
+            std::vector<int32_t>{LONG_TYPE},
+            std::vector<int32_t>{1},
+            std::vector<int32_t>{LONG_TYPE},
+            1,
+            LONG_TYPE));
     return functions;
 }
 
-}
+} // namespace
 
-TEST(GroupWindowAggsHandleFunctionTest, CoordinatesFunctionsAndAppendsWindowProperties) {
+TEST(GroupWindowAggsHandleFunctionTest, CoordinatesFunctionsAndAppendsWindowProperties)
+{
     GroupWindowAggsHandleFunction<TimeWindow> function(
-            MakeFunctions(), {LONG_TYPE, LONG_TYPE},
-            {TIMESTAMP_TYPE, TIMESTAMP_TYPE, TIMESTAMP_TYPE, TIMESTAMP_TYPE},
-            {LONG_TYPE, LONG_TYPE, TIMESTAMP_TYPE, TIMESTAMP_TYPE, TIMESTAMP_TYPE, TIMESTAMP_TYPE}, 2);
+        MakeFunctions(),
+        {LONG_TYPE, LONG_TYPE},
+        {TIMESTAMP_TYPE, TIMESTAMP_TYPE, TIMESTAMP_TYPE, TIMESTAMP_TYPE},
+        {LONG_TYPE, LONG_TYPE, TIMESTAMP_TYPE, TIMESTAMP_TYPE, TIMESTAMP_TYPE, TIMESTAMP_TYPE},
+        2);
     auto accumulator = std::unique_ptr<RowData>(function.createAccumulators());
     function.setAccumulators(TimeWindow(1000, 2000), accumulator.get());
 
@@ -51,11 +64,14 @@ TEST(GroupWindowAggsHandleFunctionTest, CoordinatesFunctionsAndAppendsWindowProp
     EXPECT_EQ(-1, *value->getLong(5));
 }
 
-TEST(GroupWindowAggsHandleFunctionTest, RejectsInconsistentOutputLayout) {
+TEST(GroupWindowAggsHandleFunctionTest, RejectsInconsistentOutputLayout)
+{
     EXPECT_THROW(
-            GroupWindowAggsHandleFunction<TimeWindow>(
-                    MakeFunctions(), {LONG_TYPE, LONG_TYPE},
-                    {TIMESTAMP_TYPE, TIMESTAMP_TYPE, TIMESTAMP_TYPE, TIMESTAMP_TYPE},
-                    {LONG_TYPE, LONG_TYPE}, 2),
-            std::logic_error);
+        GroupWindowAggsHandleFunction<TimeWindow>(
+            MakeFunctions(),
+            {LONG_TYPE, LONG_TYPE},
+            {TIMESTAMP_TYPE, TIMESTAMP_TYPE, TIMESTAMP_TYPE, TIMESTAMP_TYPE},
+            {LONG_TYPE, LONG_TYPE},
+            2),
+        std::logic_error);
 }

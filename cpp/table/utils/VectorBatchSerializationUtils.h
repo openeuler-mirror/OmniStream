@@ -27,7 +27,7 @@ using namespace std;
 namespace omnistream {
 
 struct SerializedBatchInfo {
-    uint8_t *buffer;
+    uint8_t* buffer;
     int32_t size;
     int event = -1;
     int bufferType = 0; // 0 for vector batch, 1 memory segment buffer ,2  memory segment event
@@ -40,69 +40,55 @@ class VectorBatchSerializationUtils {
 public:
     static SerializedBatchInfo serializeVectorBatch(VectorBatch* vectorBatch, int32_t batchSize, uint8_t*& buffer);
 
-    static void serializeTimestampAndRowKinds(VectorBatch *vectorBatch, uint8_t *&buffer, int32_t bufferSize);
+    static void serializeTimestampAndRowKinds(VectorBatch* vectorBatch, uint8_t*& buffer, int32_t bufferSize);
 
-    static int32_t calculateVectorBatchSerializableSize(VectorBatch *vectorBatch);
+    static int32_t calculateVectorBatchSerializableSize(VectorBatch* vectorBatch);
 
-    static int32_t calculateVectorSerializableSize(BaseVector *baseVector);
+    static int32_t calculateVectorSerializableSize(BaseVector* baseVector);
 
     // dataPayload
-    static int32_t calculatePrimitiveDataSize(BaseVector *baseVector);
+    static int32_t calculatePrimitiveDataSize(BaseVector* baseVector);
 
     // stringDataSize--offsetArray--stringData
-    static int32_t calculateCharDataSize(BaseVector *baseVector);
+    static int32_t calculateCharDataSize(BaseVector* baseVector);
 
-    static void serializePrimitiveVector(BaseVector *baseVector,
-                                         uint8_t *&buffer, int32_t bufferSize);
+    static void serializePrimitiveVector(BaseVector* baseVector, uint8_t*& buffer, int32_t bufferSize);
 
-    static void serializeCharVector(BaseVector *baseVector, uint8_t *&buffer, int32_t bufferSize);
+    static void serializeCharVector(BaseVector* baseVector, uint8_t*& buffer, int32_t bufferSize);
 
-    static void serializeInt64(BaseVector *baseVector, uint8_t *&buffer,
-                               int32_t bufferSize);
+    static void serializeInt64(BaseVector* baseVector, uint8_t*& buffer, int32_t bufferSize);
 
-    static void serializeInt32(BaseVector *baseVector, uint8_t *&buffer,
-                               int32_t bufferSize);
+    static void serializeInt32(BaseVector* baseVector, uint8_t*& buffer, int32_t bufferSize);
 
-    static void serializeInt16(BaseVector *baseVector, uint8_t *&buffer,
-                               int32_t bufferSize);
+    static void serializeInt16(BaseVector* baseVector, uint8_t*& buffer, int32_t bufferSize);
 
-    static void serializeDouble(BaseVector *baseVector, uint8_t *&buffer,
-                                int32_t bufferSize);
+    static void serializeDouble(BaseVector* baseVector, uint8_t*& buffer, int32_t bufferSize);
 
-    static void serializeBool(BaseVector *baseVector, uint8_t *&buffer,
-                              int32_t bufferSize);
+    static void serializeBool(BaseVector* baseVector, uint8_t*& buffer, int32_t bufferSize);
 
-    static void serializeDecimal128(BaseVector *baseVector, uint8_t *&buffer,
-                                    int32_t bufferSize);
+    static void serializeDecimal128(BaseVector* baseVector, uint8_t*& buffer, int32_t bufferSize);
 
-    static int32_t calculateStringDictionarySerializableSize(
-        BaseVector *baseVector);
+    static int32_t calculateStringDictionarySerializableSize(BaseVector* baseVector);
 
     static int32_t calculateLargeStringContainerDataSize(
-        std::shared_ptr<LargeStringContainer<std::string_view>> stringContainer,
-        int32_t rowCount)
+        std::shared_ptr<LargeStringContainer<std::string_view>> stringContainer, int32_t rowCount)
     {
         int32_t stringBodySizeField = sizeof(int32_t);
         int32_t offsetSize = (rowCount + 1) * sizeof(int32_t);
         int32_t dataSize = 0;
-        int32_t *offsetArr =
-            UnsafeStringContainer::GetOffsets(stringContainer.get());
+        int32_t* offsetArr = UnsafeStringContainer::GetOffsets(stringContainer.get());
         dataSize = offsetArr[rowCount];
         return stringBodySizeField + offsetSize + dataSize * sizeof(char);
     }
 
-    static void serializeStringDictionaryContainerVector(BaseVector *baseVector,
-                                                         uint8_t *&buffer,
-                                                         int32_t bufferSize)
+    static void serializeStringDictionaryContainerVector(BaseVector* baseVector, uint8_t*& buffer, int32_t bufferSize)
     {
         serializeVectorBatchHeader(baseVector, buffer, bufferSize);
 
         serializeStringDictionaryBody(baseVector, buffer, bufferSize);
     }
 
-    static void serializeVectorBatchHeader(BaseVector *baseVector,
-                                           uint8_t *&buffer,
-                                           int32_t bufferSize)
+    static void serializeVectorBatchHeader(BaseVector* baseVector, uint8_t*& buffer, int32_t bufferSize)
     {
         int32_t vectorSize = calculateVectorSerializableSize(baseVector);
 
@@ -130,38 +116,28 @@ public:
         bufferSize -= sizeof(int8_t);
     }
 
-    static void serializeStringDictionaryBody(BaseVector *baseVector,
-                                              uint8_t *&buffer,
-                                              int32_t bufferSize)
+    static void serializeStringDictionaryBody(BaseVector* baseVector, uint8_t*& buffer, int32_t bufferSize)
     {
-        auto *vec_string_dict_container = reinterpret_cast<Vector<
-            DictionaryContainer<std::string_view, LargeStringContainer>> *>(
-            baseVector);
-        std::shared_ptr<DictionaryContainer<std::string_view>>
-            string_dictionary = static_cast<
-                std::shared_ptr<DictionaryContainer<std::string_view>>>(
-                unsafe::UnsafeDictionaryVector::GetDictionaryOriginal(
-                    vec_string_dict_container));
-        std::shared_ptr<LargeStringContainer<std::string_view>>
-            stringContainer =
-                unsafe::UnsafeDictionaryContainer::GetStringDictionaryOriginal(
-                    string_dictionary.get());
+        auto* vec_string_dict_container =
+            reinterpret_cast<Vector<DictionaryContainer<std::string_view, LargeStringContainer>>*>(baseVector);
+        std::shared_ptr<DictionaryContainer<std::string_view>> string_dictionary =
+            static_cast<std::shared_ptr<DictionaryContainer<std::string_view>>>(
+                unsafe::UnsafeDictionaryVector::GetDictionaryOriginal(vec_string_dict_container));
+        std::shared_ptr<LargeStringContainer<std::string_view>> stringContainer =
+            unsafe::UnsafeDictionaryContainer::GetStringDictionaryOriginal(string_dictionary.get());
 
         // get value size
         int32_t valueSize = baseVector->GetSize();
         // get values
-        int32_t *valueIndex =
-            unsafe::UnsafeDictionaryContainer::GetIds(string_dictionary.get());
-        auto ret = memcpy_s(buffer, bufferSize, valueIndex,
-                            sizeof(int32_t) * valueSize);
+        int32_t* valueIndex = unsafe::UnsafeDictionaryContainer::GetIds(string_dictionary.get());
+        auto ret = memcpy_s(buffer, bufferSize, valueIndex, sizeof(int32_t) * valueSize);
         if (ret != EOK) {
             throw std::runtime_error("memcpy_s failed");
         }
         buffer += sizeof(int32_t) * valueSize;
 
         // get dict offset
-        int32_t dictOffset = unsafe::UnsafeDictionaryContainer::GetDictOffset(
-            string_dictionary.get());
+        int32_t dictOffset = unsafe::UnsafeDictionaryContainer::GetDictOffset(string_dictionary.get());
         ret = memcpy_s(buffer, bufferSize, &dictOffset, sizeof(int32_t));
         if (ret != EOK) {
             throw std::runtime_error("memcpy_s failed");
@@ -169,19 +145,16 @@ public:
         buffer += sizeof(int32_t);
 
         // get dict size
-        int32_t dictSize = unsafe::UnsafeDictionaryContainer::GetDictSize(
-            string_dictionary.get());
+        int32_t dictSize = unsafe::UnsafeDictionaryContainer::GetDictSize(string_dictionary.get());
         ret = memcpy_s(buffer, bufferSize, &dictSize, sizeof(int32_t));
         if (ret != EOK) {
             throw std::runtime_error("memcpy_s failed");
         }
         buffer += sizeof(int32_t);
 
-        int32_t *offsetArr =
-            UnsafeStringContainer::GetOffsets(stringContainer.get());
+        int32_t* offsetArr = UnsafeStringContainer::GetOffsets(stringContainer.get());
 
-        int32_t rowCount = unsafe::UnsafeDictionaryContainer::GetDictSize(
-            string_dictionary.get());
+        int32_t rowCount = unsafe::UnsafeDictionaryContainer::GetDictSize(string_dictionary.get());
 
         // real data size
         int32_t stringBodySize = offsetArr[rowCount];
@@ -190,44 +163,41 @@ public:
             throw std::runtime_error("memcpy_s failed");
         }
         buffer += sizeof(int32_t);
-        serializeStringDictionaryTail(baseVector, buffer, bufferSize, valueSize,
-                                      offsetArr, rowCount, stringBodySize,
-                                      stringContainer);
+        serializeStringDictionaryTail(
+            baseVector, buffer, bufferSize, valueSize, offsetArr, rowCount, stringBodySize, stringContainer);
     }
 
     static void serializeStringDictionaryTail(
-        BaseVector *baseVector, uint8_t *&buffer, int32_t bufferSize,
-        int32_t valueSize, int32_t *offsetArr, int32_t rowCount,
+        BaseVector* baseVector,
+        uint8_t*& buffer,
+        int32_t bufferSize,
+        int32_t valueSize,
+        int32_t* offsetArr,
+        int32_t rowCount,
         int32_t stringBodySize,
-        std::shared_ptr<LargeStringContainer<std::string_view>>
-            stringContainer)
+        std::shared_ptr<LargeStringContainer<std::string_view>> stringContainer)
     {
         // nullData
         auto nullData = UnsafeBaseVector::GetNulls(baseVector);
         auto nullByteSize = omniruntime::vec::NullsBuffer::CalculateNbytes(rowCount);
 
         size_t len = nullByteSize;
-        auto ret =
-            memcpy_s(buffer, bufferSize, nullData, nullByteSize);
+        auto ret = memcpy_s(buffer, bufferSize, nullData, nullByteSize);
         if (ret != EOK) {
             throw std::runtime_error("memcpy_s failed");
         }
         buffer += nullByteSize;
 
         // offset array
-        ret = memcpy_s(buffer, bufferSize, offsetArr,
-                       sizeof(int32_t) * (rowCount + 1));
+        ret = memcpy_s(buffer, bufferSize, offsetArr, sizeof(int32_t) * (rowCount + 1));
         if (ret != EOK) {
             throw std::runtime_error("memcpy_s failed");
         }
         buffer += sizeof(int32_t) * (rowCount + 1);
 
         // real data
-        std::string dataStr(
-            UnsafeStringContainer::GetStringBufferAddr(stringContainer.get()),
-            stringBodySize);
-        ret = memcpy_s(buffer, bufferSize, dataStr.data(),
-                       stringBodySize * sizeof(char));
+        std::string dataStr(UnsafeStringContainer::GetStringBufferAddr(stringContainer.get()), stringBodySize);
+        ret = memcpy_s(buffer, bufferSize, dataStr.data(), stringBodySize * sizeof(char));
         if (ret != EOK) {
             throw std::runtime_error("memcpy_s failed");
         }
@@ -262,4 +232,4 @@ public:
     }
 };
 
-}  // namespace omnistream
+} // namespace omnistream

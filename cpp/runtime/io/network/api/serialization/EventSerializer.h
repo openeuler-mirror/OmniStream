@@ -1,5 +1,5 @@
 /*
-* Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
  */
 
 #ifndef OMNISTREAM_EVENTSERIALIZER_H
@@ -23,56 +23,54 @@
 using ::datastream::NetworkBuffer;
 
 namespace omnistream {
-    class ObjectBuffer;
+class ObjectBuffer;
 
-    class EventSerializer {
-    public:
-        static NetworkBuffer* toBuffer(std::shared_ptr<AbstractEvent> event, bool hasPriority);
-        // static std::shared_ptr<ObjectBufferConsumer> toBufferConsumer(const int event, bool hasPriority) ;
-        static std::shared_ptr<BufferConsumer> ToBufferConsumer(std::shared_ptr<AbstractEvent> event,
-                                                                bool hasPriority);
-        static std::shared_ptr<AbstractEvent> fromBuffer(Buffer* buffer);
-        static std::shared_ptr<AbstractEvent> fromBufferNotRecycle(Buffer* buffer);
-        static std::shared_ptr<AbstractEvent> fromBuffer_V2(const std::shared_ptr<Buffer>& buffer);
+class EventSerializer {
+public:
+    static NetworkBuffer* toBuffer(std::shared_ptr<AbstractEvent> event, bool hasPriority);
+    // static std::shared_ptr<ObjectBufferConsumer> toBufferConsumer(const int event, bool hasPriority) ;
+    static std::shared_ptr<BufferConsumer> ToBufferConsumer(std::shared_ptr<AbstractEvent> event, bool hasPriority);
+    static std::shared_ptr<AbstractEvent> fromBuffer(Buffer* buffer);
+    static std::shared_ptr<AbstractEvent> fromBufferNotRecycle(Buffer* buffer);
+    static std::shared_ptr<AbstractEvent> fromBuffer_V2(const std::shared_ptr<Buffer>& buffer);
 
-        static MemorySegment *ToSerializedEvent(std::shared_ptr<AbstractEvent> event);
-        static std::shared_ptr<AbstractEvent> fromSerializedEvent(Buffer* buffer, bool recycleEvent = true);
-        static std::shared_ptr<AbstractEvent> fromSerializedEvent_V2(std::shared_ptr<Buffer> buffer);
+    static MemorySegment* ToSerializedEvent(std::shared_ptr<AbstractEvent> event);
+    static std::shared_ptr<AbstractEvent> fromSerializedEvent(Buffer* buffer, bool recycleEvent = true);
+    static std::shared_ptr<AbstractEvent> fromSerializedEvent_V2(std::shared_ptr<Buffer> buffer);
 
-//        static std::shared_ptr<BufferOrEvent> fromNetworkBuffer(
-//            std::shared_ptr<::datastream::NetworkBuffer> networkBuffer,
-//            std::shared_ptr<Buffer> buffer,
-//            bool moreAvailable,
-//            std::shared_ptr<InputChannel> currentChannel,
-//            bool morePriorityEvents);
+    //        static std::shared_ptr<BufferOrEvent> fromNetworkBuffer(
+    //            std::shared_ptr<::datastream::NetworkBuffer> networkBuffer,
+    //            std::shared_ptr<Buffer> buffer,
+    //            bool moreAvailable,
+    //            std::shared_ptr<InputChannel> currentChannel,
+    //            bool morePriorityEvents);
 
-        // static std::shared_ptr<CheckpointBarrier> deserializeBarrier(std::shared_ptr<ByteBuffer> buffer);
-        static MemorySegment *SerializeCheckpointBarrier(
-            std::shared_ptr<CheckpointBarrier> checkpointBarrier);
-        static void EncodeSavepointType(
-            SavepointType* savepointType, ByteBuffer& buffer);
-        static std::shared_ptr<CheckpointBarrier> DeserializeCheckpointBarrier(ByteBuffer &buffer);
-        static SnapshotType* DecodeSavepointType(uint8_t checkpointTypeCode, ByteBuffer& buffer);
+    // static std::shared_ptr<CheckpointBarrier> deserializeBarrier(std::shared_ptr<ByteBuffer> buffer);
+    static MemorySegment* SerializeCheckpointBarrier(std::shared_ptr<CheckpointBarrier> checkpointBarrier);
+    static void EncodeSavepointType(SavepointType* savepointType, ByteBuffer& buffer);
+    static std::shared_ptr<CheckpointBarrier> DeserializeCheckpointBarrier(ByteBuffer& buffer);
+    static SnapshotType* DecodeSavepointType(uint8_t checkpointTypeCode, ByteBuffer& buffer);
 
-    public:
-        static const int INVALID_EVENT;;
-        static const int END_OF_PARTITION_EVENT;
-        static const int CHECKPOINT_BARRIER_EVENT;
-        static const int END_OF_SUPERSTEP_EVENT;
-        static const int OTHER_EVENT;
-        static const int CANCEL_CHECKPOINT_MARKER_EVENT;
-        static const int END_OF_CHANNEL_STATE_EVENT;
-        static const int ANNOUNCEMENT_EVENT;
-        static const int VIRTUAL_CHANNEL_SELECTOR_EVENT;
-        static const int END_OF_USER_RECORDS_EVENT;
-        static constexpr uint8_t CHECKPOINT_TYPE_CHECKPOINT = 0x00;
-        static constexpr uint8_t CHECKPOINT_TYPE_SAVEPOINT = 0x01;
-        static constexpr uint8_t CHECKPOINT_TYPE_SAVEPOINT_SUSPEND = 0x02;
-        static constexpr uint8_t CHECKPOINT_TYPE_SAVEPOINT_TERMINATE = 0x03;
-        static constexpr uint8_t CHECKPOINT_TYPE_FULL_CHECKPOINT = 0x04;
-        static constexpr uint8_t SAVEPOINT_FORMAT_CANONICAL = 0x00;
-        static constexpr uint8_t SAVEPOINT_FORMAT_NATIVE = 0x01;
-    };
-}
+public:
+    static const int INVALID_EVENT;
+    ;
+    static const int END_OF_PARTITION_EVENT;
+    static const int CHECKPOINT_BARRIER_EVENT;
+    static const int END_OF_SUPERSTEP_EVENT;
+    static const int OTHER_EVENT;
+    static const int CANCEL_CHECKPOINT_MARKER_EVENT;
+    static const int END_OF_CHANNEL_STATE_EVENT;
+    static const int ANNOUNCEMENT_EVENT;
+    static const int VIRTUAL_CHANNEL_SELECTOR_EVENT;
+    static const int END_OF_USER_RECORDS_EVENT;
+    static constexpr uint8_t CHECKPOINT_TYPE_CHECKPOINT = 0x00;
+    static constexpr uint8_t CHECKPOINT_TYPE_SAVEPOINT = 0x01;
+    static constexpr uint8_t CHECKPOINT_TYPE_SAVEPOINT_SUSPEND = 0x02;
+    static constexpr uint8_t CHECKPOINT_TYPE_SAVEPOINT_TERMINATE = 0x03;
+    static constexpr uint8_t CHECKPOINT_TYPE_FULL_CHECKPOINT = 0x04;
+    static constexpr uint8_t SAVEPOINT_FORMAT_CANONICAL = 0x00;
+    static constexpr uint8_t SAVEPOINT_FORMAT_NATIVE = 0x01;
+};
+} // namespace omnistream
 
 #endif // OMNISTREAM_EVENTSERIALIZER_H

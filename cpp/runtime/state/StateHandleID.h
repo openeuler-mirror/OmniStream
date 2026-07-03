@@ -15,25 +15,26 @@
 
 class StateHandleID {
 public:
-    explicit StateHandleID(const std::string &keyString)
-        : keyString_(keyString) {}
+    explicit StateHandleID(const std::string& keyString) : keyString_(keyString)
+    {
+    }
 
-    const std::string &getKeyString() const
+    const std::string& getKeyString() const
     {
         return keyString_;
     }
 
-    bool operator==(const StateHandleID &other) const
+    bool operator==(const StateHandleID& other) const
     {
         return keyString_ == other.keyString_;
     }
 
-    bool operator!=(const StateHandleID &other) const
+    bool operator!=(const StateHandleID& other) const
     {
         return !(*this == other);
     }
 
-    bool operator<(const StateHandleID &other) const
+    bool operator<(const StateHandleID& other) const
     {
         return keyString_ < other.keyString_;
     }

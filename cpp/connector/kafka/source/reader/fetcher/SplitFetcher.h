@@ -42,7 +42,7 @@ public:
     {
         std::lock_guard<std::mutex> lock(mutex_);
         deque_.push_front(item);
-        notEmpty_.notify_one();  // 通知等待的消费者
+        notEmpty_.notify_one(); // 通知等待的消费者
     }
 
     // 插入到队列的尾部
@@ -50,7 +50,7 @@ public:
     {
         std::lock_guard<std::mutex> lock(mutex_);
         deque_.push_back(item);
-        notEmpty_.notify_one();  // 通知等待的消费者
+        notEmpty_.notify_one(); // 通知等待的消费者
     }
 
     std::shared_ptr<SplitFetcherTask> take()
@@ -62,7 +62,7 @@ public:
     std::shared_ptr<SplitFetcherTask> takeFirst()
     {
         std::unique_lock<std::mutex> lock(mutex_);
-        notEmpty_.wait(lock, [this] { return !deque_.empty(); });  // 等待直到队列不为空
+        notEmpty_.wait(lock, [this] { return !deque_.empty(); }); // 等待直到队列不为空
         std::shared_ptr<SplitFetcherTask> item = deque_.front();
         deque_.pop_front();
         return item;
@@ -86,20 +86,26 @@ private:
     std::deque<std::shared_ptr<SplitFetcherTask>> deque_;
 };
 
-
 template <typename E, typename SplitT>
 class SplitFetcher {
 public:
-    SplitFetcher(int id, FutureCompletingBlockingQueue<E>* elementsQueue,
-                 SplitReader<E, SplitT>* splitReader,
-        std::function<void(const std::exception_ptr &)> errorHandler, std::function<void()> shutdownHook)
-        : id(id), elementsQueue(elementsQueue), splitReader(splitReader), errorHandler(errorHandler),
-        shutdownHook(shutdownHook)
+    SplitFetcher(
+        int id,
+        FutureCompletingBlockingQueue<E>* elementsQueue,
+        SplitReader<E, SplitT>* splitReader,
+        std::function<void(const std::exception_ptr&)> errorHandler,
+        std::function<void()> shutdownHook)
+        : id(id),
+          elementsQueue(elementsQueue),
+          splitReader(splitReader),
+          errorHandler(errorHandler),
+          shutdownHook(shutdownHook)
     {
         this->fetchTask = std::make_shared<FetchTask<E, SplitT>>(
-            splitReader, elementsQueue,
-            [this](const std::set <std::string> &ids) {
-                for (const auto &id: ids) {
+            splitReader,
+            elementsQueue,
+            [this](const std::set<std::string>& ids) {
+                for (const auto& id : ids) {
                     assignedSplitsMap.erase(id);
                 }
             },
@@ -118,13 +124,13 @@ public:
             while (!closed.load()) {
                 runOnce();
             }
-        } catch (const std::exception &e) {
+        } catch (const std::exception& e) {
             auto exceptionPtr = std::current_exception();
             errorHandler(exceptionPtr);
         }
         try {
             splitReader->close();
-        } catch (const std::exception &e) {
+        } catch (const std::exception& e) {
             auto exceptionPtr = std::current_exception();
             errorHandler(exceptionPtr);
         }
@@ -147,13 +153,15 @@ public:
                 runningTask = nullptr;
                 checkAndSetIdle();
             }
-        } catch (const std::exception &e) {
-            throw std::runtime_error(std::string("SplitFetcher thread ") + std::to_string(id) +
-                                     " received unexpected exception while polling the records: " + e.what());
+        } catch (const std::exception& e) {
+            throw std::runtime_error(
+                std::string("SplitFetcher thread ") + std::to_string(id) +
+                " received unexpected exception while polling the records: " + e.what());
         }
         maybeEnqueueTask(runningTask);
         {
-            std::lock_guard <std::mutex> wakeUpLock(wakeUpMutex); // 假设存在一个互斥量 wakeUpMutex 用于保护 wakeUp 相关操作
+            std::lock_guard<std::mutex> wakeUpLock(
+                wakeUpMutex); // 假设存在一个互斥量 wakeUpMutex 用于保护 wakeUp 相关操作
             runningTask = nullptr;
             wakeUp.store(false);
             LOG("Cleaned wakeup flag.");
@@ -167,9 +175,9 @@ public:
         wake(true);
     }
 
-    void enqueueTask(const std::shared_ptr <SplitFetcherTask> &task)
+    void enqueueTask(const std::shared_ptr<SplitFetcherTask>& task)
     {
-        std::lock_guard <std::mutex> lockGuard(lock);
+        std::lock_guard<std::mutex> lockGuard(lock);
         taskQueue.offer(task);
         idle = false;
     }
@@ -197,7 +205,7 @@ public:
     }
 
     // 获取已分配的分片，供单元测试使用
-    const std::unordered_map<std::string, SplitT*> &assignedSplits() const
+    const std::unordered_map<std::string, SplitT*>& assignedSplits() const
     {
         return assignedSplitsMap;
     }
@@ -216,7 +224,7 @@ public:
 
     void wake(bool taskOnly)
     {
-        std::lock_guard <std::mutex> wakeUpLock(wakeUpMutex);
+        std::lock_guard<std::mutex> wakeUpLock(wakeUpMutex);
         // 避免重复唤醒
         auto currentTask = runningTask;
         if (isRunningTask(currentTask)) {
@@ -228,7 +236,7 @@ public:
     }
 
     // 判断是否为正在运行的任务
-    bool isRunningTask(const std::shared_ptr <SplitFetcherTask> &task) const
+    bool isRunningTask(const std::shared_ptr<SplitFetcherTask>& task) const
     {
         return task && task != WAKEUP_TASK;
     }
@@ -238,6 +246,7 @@ public:
     {
         return assignedSplitsMap.empty() && taskQueue.isEmpty();
     }
+
 private:
     inline static std::shared_ptr<SplitFetcherTask> WAKEUP_TASK =
         std::make_shared<DummySplitFetcherTask>("WAKEUP_TASK");
@@ -246,7 +255,7 @@ private:
     std::unordered_map<std::string, SplitT*> assignedSplitsMap;
     FutureCompletingBlockingQueue<E>* elementsQueue;
     SplitReader<E, SplitT>* splitReader;
-    std::function<void(const std::exception_ptr &)> errorHandler;
+    std::function<void(const std::exception_ptr&)> errorHandler;
     std::function<void()> shutdownHook;
     std::atomic<bool> wakeUp{false};
     std::atomic<bool> closed{false};
@@ -259,7 +268,7 @@ private:
     void checkAndSetIdle()
     {
         if (shouldIdle()) {
-            std::lock_guard <std::mutex> lockGuard(lock);
+            std::lock_guard<std::mutex> lockGuard(lock);
             if (shouldIdle()) {
                 idle = true;
             }
@@ -272,7 +281,7 @@ private:
         return assignedSplitsMap.empty() && taskQueue.isEmpty();
     }
 
-    void maybeEnqueueTask(const std::shared_ptr <SplitFetcherTask> &task)
+    void maybeEnqueueTask(const std::shared_ptr<SplitFetcherTask>& task)
     {
         if (!closed.load() && task && task != WAKEUP_TASK && task != fetchTask) {
             taskQueue.offerFirst(task);
@@ -280,7 +289,7 @@ private:
         }
     }
 
-    bool isRunningTask(const std::shared_ptr <SplitFetcherTask> &task)
+    bool isRunningTask(const std::shared_ptr<SplitFetcherTask>& task)
     {
         return task && task != WAKEUP_TASK;
     }

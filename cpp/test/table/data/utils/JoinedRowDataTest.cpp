@@ -5,12 +5,14 @@
 
 #include <iostream>
 
-TEST(JoinedRowDataTest, ConstructorTest) {
+TEST(JoinedRowDataTest, ConstructorTest)
+{
     JoinedRowData joinedRow(nullptr, nullptr);
     EXPECT_EQ(joinedRow.getRowKind(), RowKind::INSERT);
 }
 
-TEST(JoinedRowDataTest, GetRowKindTest) {
+TEST(JoinedRowDataTest, GetRowKindTest)
+{
     JoinedRowData row1(RowKind::INSERT, nullptr, nullptr);
     JoinedRowData row2(RowKind::DELETE, nullptr, nullptr);
 
@@ -18,7 +20,8 @@ TEST(JoinedRowDataTest, GetRowKindTest) {
     EXPECT_EQ(row2.getRowKind(), RowKind::DELETE);
 }
 
-TEST(JoinedRowDataTest, SetRowKindTest) {
+TEST(JoinedRowDataTest, SetRowKindTest)
+{
     JoinedRowData row1(RowKind::INSERT, nullptr, nullptr);
     JoinedRowData row2(RowKind::DELETE, nullptr, nullptr);
 
@@ -30,26 +33,29 @@ TEST(JoinedRowDataTest, SetRowKindTest) {
     EXPECT_EQ(row2.getRowKind(), RowKind::UPDATE_AFTER);
 }
 
-TEST(JoinedRowDataTest, GetArityTest) {
+TEST(JoinedRowDataTest, GetArityTest)
+{
     BinaryRowData row1(5);
     BinaryRowData row2(4);
     JoinedRowData joinedRow(&row1, &row2);
-    
+
     EXPECT_EQ(joinedRow.getArity(), 9);
 }
 
-TEST(JoinedRowDataTest, ReplaceTest) {
+TEST(JoinedRowDataTest, ReplaceTest)
+{
     JoinedRowData joinedRow(RowKind::INSERT, nullptr, nullptr);
     BinaryRowData row1(5);
     BinaryRowData row2(4);
     joinedRow.replace(&row1, &row2);
-    
+
     EXPECT_EQ(joinedRow.getArity(), 9);
 }
 
-TEST(JoinedRowDataTest, SetCompactTimestamp) {
-    BinaryRowData *row1 = BinaryRowData::createBinaryRowDataWithMem(1);
-    BinaryRowData *row2 = BinaryRowData::createBinaryRowDataWithMem(1);
+TEST(JoinedRowDataTest, SetCompactTimestamp)
+{
+    BinaryRowData* row1 = BinaryRowData::createBinaryRowDataWithMem(1);
+    BinaryRowData* row2 = BinaryRowData::createBinaryRowDataWithMem(1);
     JoinedRowData joinedRow(row1, row2);
     TimestampData timestamp1 = TimestampData::fromEpochMillis(123L, 456);
     TimestampData timestamp2 = TimestampData::fromEpochMillis(321L, 654);
@@ -62,9 +68,10 @@ TEST(JoinedRowDataTest, SetCompactTimestamp) {
     EXPECT_EQ(*(joinedRow.getLong(1)), 321L);
 }
 
-TEST(JoinedRowDataTest, SetNonCompactTimestamp) {
-    BinaryRowData *row1 = BinaryRowData::createBinaryRowDataWithMem(2);
-    BinaryRowData *row2 = BinaryRowData::createBinaryRowDataWithMem(2);
+TEST(JoinedRowDataTest, SetNonCompactTimestamp)
+{
+    BinaryRowData* row1 = BinaryRowData::createBinaryRowDataWithMem(2);
+    BinaryRowData* row2 = BinaryRowData::createBinaryRowDataWithMem(2);
     JoinedRowData joinedRow(row1, row2);
     TimestampData timestamp1 = TimestampData::fromEpochMillis(123L, 456);
     TimestampData timestamp2 = TimestampData::fromEpochMillis(321L, 654);
@@ -80,9 +87,10 @@ TEST(JoinedRowDataTest, SetNonCompactTimestamp) {
     EXPECT_EQ(*(joinedRow.getInt(3)), 654);
 }
 
-TEST(JoinedRowDataTest, SetNonCompactTimestampOutOfBoundThrowingException) {
-    BinaryRowData *row1 = BinaryRowData::createBinaryRowDataWithMem(1);
-    BinaryRowData *row2 = BinaryRowData::createBinaryRowDataWithMem(1);
+TEST(JoinedRowDataTest, SetNonCompactTimestampOutOfBoundThrowingException)
+{
+    BinaryRowData* row1 = BinaryRowData::createBinaryRowDataWithMem(1);
+    BinaryRowData* row2 = BinaryRowData::createBinaryRowDataWithMem(1);
     JoinedRowData joinedRow(row1, row2);
     TimestampData timestamp1 = TimestampData::fromEpochMillis(123L, 456);
     TimestampData timestamp2 = TimestampData::fromEpochMillis(321L, 654);
@@ -90,12 +98,12 @@ TEST(JoinedRowDataTest, SetNonCompactTimestampOutOfBoundThrowingException) {
 
     EXPECT_THROW(joinedRow.setTimestamp(0, timestamp1, precision), std::logic_error);
     EXPECT_THROW(joinedRow.setTimestamp(1, timestamp2, precision), std::logic_error);
-
 }
 
-TEST(JoinedRowDataTest, GetCompactTimestamp) {
-    BinaryRowData *row1 = BinaryRowData::createBinaryRowDataWithMem(1);
-    BinaryRowData *row2 = BinaryRowData::createBinaryRowDataWithMem(1);
+TEST(JoinedRowDataTest, GetCompactTimestamp)
+{
+    BinaryRowData* row1 = BinaryRowData::createBinaryRowDataWithMem(1);
+    BinaryRowData* row2 = BinaryRowData::createBinaryRowDataWithMem(1);
     JoinedRowData joinedRow(row1, row2);
     joinedRow.setLong(0, 123L);
     joinedRow.setLong(1, 321L);
@@ -107,9 +115,10 @@ TEST(JoinedRowDataTest, GetCompactTimestamp) {
     EXPECT_EQ(timestamp2.getMillisecond(), 321L);
 }
 
-TEST(JoinedRowDataTest, GetNonCompactTimestamp) {
-    BinaryRowData *row1 = BinaryRowData::createBinaryRowDataWithMem(2);
-    BinaryRowData *row2 = BinaryRowData::createBinaryRowDataWithMem(2);
+TEST(JoinedRowDataTest, GetNonCompactTimestamp)
+{
+    BinaryRowData* row1 = BinaryRowData::createBinaryRowDataWithMem(2);
+    BinaryRowData* row2 = BinaryRowData::createBinaryRowDataWithMem(2);
     JoinedRowData joinedRow(row1, row2);
     joinedRow.setLong(0, 123L);
     joinedRow.setInt(1, 456);

@@ -15,11 +15,10 @@
 #include <buffer/ObjectSegment.h>
 
 namespace omnistream {
-    class ObjectSegmentFactory {
-    public:
-        static ObjectSegment *allocateUnpooledSegment(int segmentSize);
-    };
-}
-
+class ObjectSegmentFactory {
+public:
+    static ObjectSegment* allocateUnpooledSegment(int segmentSize);
+};
+} // namespace omnistream
 
 #endif

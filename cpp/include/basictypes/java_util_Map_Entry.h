@@ -14,23 +14,24 @@
 
 class MapEntry : public Object {
 public:
-    MapEntry(Object *key, Object *value);
+    MapEntry(Object* key, Object* value);
 
     MapEntry();
 
     ~MapEntry();
 
-    virtual Object *getKey() const;
+    virtual Object* getKey() const;
 
-    virtual const Object *getValue() const;
+    virtual const Object* getValue() const;
 
-    virtual Object *getKey();
+    virtual Object* getKey();
 
-    virtual Object *getValue();
+    virtual Object* getValue();
 
-    virtual void setValue(Object *newValue);
+    virtual void setValue(Object* newValue);
+
 private:
-    Object *key_;
-    Object *value_;
+    Object* key_;
+    Object* value_;
 };
 #endif

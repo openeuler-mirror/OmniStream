@@ -14,14 +14,18 @@
 using namespace omniruntime::type;
 
 TimeWithoutTimeZoneType::TimeWithoutTimeZoneType(bool isNull, int precision)
-    : BasicLogicalType( isNull, DataTypeId::OMNI_TIME_WITHOUT_TIME_ZONE,"TIME_WITHOUT_TIME_ZONE"), precision(precision) {}
-
-std::vector<LogicalType *> TimeWithoutTimeZoneType::getChildren()
+    : BasicLogicalType(isNull, DataTypeId::OMNI_TIME_WITHOUT_TIME_ZONE, "TIME_WITHOUT_TIME_ZONE"),
+      precision(precision)
 {
-    NOT_IMPL_EXCEPTION
 }
 
-nlohmann::json TimeWithoutTimeZoneType::toJson() const {
+std::vector<LogicalType*> TimeWithoutTimeZoneType::getChildren()
+{
+    NOT_IMPL_EXCEPTION;
+}
+
+nlohmann::json TimeWithoutTimeZoneType::toJson() const
+{
     nlohmann::json result = LogicalType::toJson();
     result["precision"] = precision;
 

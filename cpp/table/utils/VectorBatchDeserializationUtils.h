@@ -30,17 +30,16 @@ namespace omnistream {
 // vector<xxx>
 class VectorBatchDeserializationUtils {
 public:
-    static VectorBatch* deserializeVectorBatch(uint8_t *&buffer)
+    static VectorBatch* deserializeVectorBatch(uint8_t*& buffer)
     {
-        LOG("----deserializeVectorBatch start:: " << buffer)
+        LOG("----deserializeVectorBatch start:: " << buffer);
 
         int32_t batchSize;
         memcpy_s(&batchSize, sizeof(batchSize), buffer, sizeof(batchSize));
         buffer += sizeof(batchSize);
 
         int32_t vectorCount;
-        memcpy_s(&vectorCount, sizeof(vectorCount), buffer,
-                 sizeof(vectorCount));
+        memcpy_s(&vectorCount, sizeof(vectorCount), buffer, sizeof(vectorCount));
         buffer += sizeof(vectorCount);
 
         int32_t rowCnt = 0;
@@ -49,12 +48,10 @@ public:
 
         VectorBatch* batch = new VectorBatch(rowCnt);
 
-        memcpy_s(batch->getTimestamps(), sizeof(int64_t) * rowCnt, buffer,
-                 sizeof(int64_t) * rowCnt);
+        memcpy_s(batch->getTimestamps(), sizeof(int64_t) * rowCnt, buffer, sizeof(int64_t) * rowCnt);
         buffer += sizeof(int64_t) * rowCnt;
 
-        memcpy_s(batch->getRowKinds(), sizeof(RowKind) * rowCnt, buffer,
-                 sizeof(RowKind) * rowCnt);
+        memcpy_s(batch->getRowKinds(), sizeof(RowKind) * rowCnt, buffer, sizeof(RowKind) * rowCnt);
         buffer += sizeof(RowKind) * rowCnt;
 
         for (int idx = 0; idx < vectorCount; idx++) {
@@ -77,26 +74,24 @@ public:
                 if (dataType == OMNI_CHAR || dataType == OMNI_VARCHAR) {
                     batch->Append(deserializeCharVector(rowCnt, buffer));
                 } else {
-                    batch->Append(
-                        deserializePrimitiveVector(rowCnt, buffer, dataType));
+                    batch->Append(deserializePrimitiveVector(rowCnt, buffer, dataType));
                 }
             } else if (encoding == OMNI_DICTIONARY) {
                 if (dataType == OMNI_CHAR || dataType == OMNI_VARCHAR) {
-                    batch->Append(deserializeStringDictionaryContainerVector(
-                        rowCnt, buffer));
+                    batch->Append(deserializeStringDictionaryContainerVector(rowCnt, buffer));
                 } else {
                     throw std::runtime_error("Unsupported data type");
                 }
             }
         }
-        LOG("----deserializeVectorBatch END:: " << reinterpret_cast<long>(buffer))
+        LOG("----deserializeVectorBatch END:: " << reinterpret_cast<long>(buffer));
 
         return batch;
     }
 
-    static BaseVector *deserializePrimitiveVector(int32_t vectorSize, uint8_t *&buffer, DataTypeId dataType)
+    static BaseVector* deserializePrimitiveVector(int32_t vectorSize, uint8_t*& buffer, DataTypeId dataType)
     {
-        BaseVector *baseVector = nullptr;
+        BaseVector* baseVector = nullptr;
 
         switch (dataType) {
             case OMNI_LONG:
@@ -104,79 +99,72 @@ public:
             case OMNI_TIME64:
             case OMNI_TIMESTAMP:
             case OMNI_DECIMAL64: {
-                Vector<int64_t> *vector64 = new Vector<int64_t>(vectorSize);
+                Vector<int64_t>* vector64 = new Vector<int64_t>(vectorSize);
                 baseVector = vector64;
                 deserializeInt64(vector64, buffer);
                 break;
             }
             case OMNI_INT:
             case OMNI_DATE32: {
-                Vector<int32_t> *vector32 = new Vector<int32_t>(vectorSize);
+                Vector<int32_t>* vector32 = new Vector<int32_t>(vectorSize);
                 baseVector = vector32;
                 deserializeInt32(vector32, buffer);
                 break;
             }
 
             case OMNI_SHORT: {
-                Vector<int16_t> *vector16 = new Vector<int16_t>(vectorSize);
+                Vector<int16_t>* vector16 = new Vector<int16_t>(vectorSize);
                 baseVector = vector16;
                 deserializeInt16(vector16, buffer);
                 break;
             }
 
             case OMNI_DOUBLE: {
-                Vector<double> *vectorDouble = new Vector<double>(vectorSize);
+                Vector<double>* vectorDouble = new Vector<double>(vectorSize);
                 baseVector = vectorDouble;
                 deserializeDouble(vectorDouble, buffer);
                 break;
             }
             case OMNI_BOOLEAN: {
-                Vector<bool> *vectorBool = new Vector<bool>(vectorSize);
+                Vector<bool>* vectorBool = new Vector<bool>(vectorSize);
                 baseVector = vectorBool;
                 deserializeBool(vectorBool, buffer);
                 break;
             }
             case OMNI_DECIMAL128: {
-                Vector<Decimal128> *vectorDecimal128 =
-                    new Vector<Decimal128>(vectorSize);
+                Vector<Decimal128>* vectorDecimal128 = new Vector<Decimal128>(vectorSize);
                 baseVector = vectorDecimal128;
                 deserializeDecimal128(vectorDecimal128, buffer);
                 break;
             }
-            default:
-                throw std::runtime_error("Unsupported data type");
+            default: throw std::runtime_error("Unsupported data type");
         }
         return baseVector;
     }
 
-    static Vector<LargeStringContainer<std::string_view>> *
-    deserializeCharVector(int32_t size, uint8_t *&buffer)
+    static Vector<LargeStringContainer<std::string_view>>* deserializeCharVector(int32_t size, uint8_t*& buffer)
     {
         int32_t stringBodySize;
         memcpy_s(&stringBodySize, sizeof(int32_t), buffer, sizeof(int32_t));
         buffer += sizeof(int32_t);
 
-        Vector<LargeStringContainer<std::string_view>> *charVector =
-            new Vector<LargeStringContainer<std::string_view>>(size,
-                                                               stringBodySize);
+        Vector<LargeStringContainer<std::string_view>>* charVector =
+            new Vector<LargeStringContainer<std::string_view>>(size, stringBodySize);
         deserializeNulls(charVector, buffer, size);
 
         // deserialize offset data
-        int32_t *offsetArr = UnsafeStringVector::GetOffsets(charVector);
-        memcpy_s(offsetArr, sizeof(int32_t) * (size + 1), buffer,
-                 sizeof(int32_t) * (size + 1));
+        int32_t* offsetArr = UnsafeStringVector::GetOffsets(charVector);
+        memcpy_s(offsetArr, sizeof(int32_t) * (size + 1), buffer, sizeof(int32_t) * (size + 1));
         buffer += sizeof(int32_t) * (size + 1);
 
         size_t copySize = offsetArr[size] * sizeof(char);
-        memcpy_s(UnsafeStringVector::GetValues(charVector), copySize, buffer,
-                 copySize);
+        memcpy_s(UnsafeStringVector::GetValues(charVector), copySize, buffer, copySize);
         buffer += offsetArr[size] * sizeof(char);
 
         return charVector;
     }
 
-    static void deserializeNulls(BaseVector *baseVector, uint8_t *&buffer,
-                                 int32_t size)
+    static void deserializeNulls(BaseVector* baseVector, uint8_t*& buffer, int32_t size)
     {
         auto nullData = UnsafeBaseVector::GetNulls(baseVector);
         auto nullByteSize = omniruntime::vec::NullsBuffer::CalculateNbytes(size);
@@ -184,74 +172,69 @@ public:
         buffer += nullByteSize;
     }
 
-    static void deserializeInt64(Vector<int64_t> *vector64, uint8_t *&buffer)
+    static void deserializeInt64(Vector<int64_t>* vector64, uint8_t*& buffer)
     {
         int32_t size = vector64->GetSize();
 
         deserializeNulls(vector64, buffer, size);
 
-        int64_t *data = UnsafeVector::GetRawValues(vector64);
+        int64_t* data = UnsafeVector::GetRawValues(vector64);
         memcpy_s(data, sizeof(int64_t) * size, buffer, sizeof(int64_t) * size);
         buffer += sizeof(int64_t) * size;
     }
 
-    static void deserializeInt32(Vector<int32_t> *vector32, uint8_t *&buffer)
+    static void deserializeInt32(Vector<int32_t>* vector32, uint8_t*& buffer)
     {
         int32_t size = vector32->GetSize();
 
         deserializeNulls(vector32, buffer, size);
-        int32_t *data = UnsafeVector::GetRawValues(vector32);
+        int32_t* data = UnsafeVector::GetRawValues(vector32);
 
         memcpy_s(data, sizeof(int32_t) * size, buffer, sizeof(int32_t) * size);
         buffer += sizeof(int32_t) * size;
     }
 
-    static void deserializeInt16(Vector<int16_t> *vector16, uint8_t *&buffer)
+    static void deserializeInt16(Vector<int16_t>* vector16, uint8_t*& buffer)
     {
         int32_t size = vector16->GetSize();
         deserializeNulls(vector16, buffer, size);
-        int16_t *data = UnsafeVector::GetRawValues(vector16);
+        int16_t* data = UnsafeVector::GetRawValues(vector16);
         memcpy_s(data, sizeof(int16_t) * size, buffer, sizeof(int16_t) * size);
         buffer += sizeof(int16_t) * size;
     }
 
-    static void deserializeDouble(Vector<double> *vectorDouble,
-                                  uint8_t *&buffer)
+    static void deserializeDouble(Vector<double>* vectorDouble, uint8_t*& buffer)
     {
         int32_t size = vectorDouble->GetSize();
         deserializeNulls(vectorDouble, buffer, size);
-        double *data = UnsafeVector::GetRawValues(vectorDouble);
+        double* data = UnsafeVector::GetRawValues(vectorDouble);
         memcpy_s(data, sizeof(double) * size, buffer, sizeof(double) * size);
         buffer += sizeof(double) * size;
     }
 
-    static void deserializeBool(Vector<bool> *vectorBool, uint8_t *&buffer)
+    static void deserializeBool(Vector<bool>* vectorBool, uint8_t*& buffer)
     {
         int32_t size = vectorBool->GetSize();
         deserializeNulls(vectorBool, buffer, size);
-        bool *data = UnsafeVector::GetRawValues(vectorBool);
+        bool* data = UnsafeVector::GetRawValues(vectorBool);
         memcpy_s(data, sizeof(bool) * size, buffer, sizeof(bool) * size);
         buffer += sizeof(bool) * size;
     }
 
-    static void deserializeDecimal128(Vector<Decimal128> *vectorDecimal128,
-                                      uint8_t *&buffer)
+    static void deserializeDecimal128(Vector<Decimal128>* vectorDecimal128, uint8_t*& buffer)
     {
         int32_t size = vectorDecimal128->GetSize();
         deserializeNulls(vectorDecimal128, buffer, size);
-        Decimal128 *data = UnsafeVector::GetRawValues(vectorDecimal128);
-        memcpy_s(data, sizeof(Decimal128) * size, buffer,
-                 sizeof(Decimal128) * size);
+        Decimal128* data = UnsafeVector::GetRawValues(vectorDecimal128);
+        memcpy_s(data, sizeof(Decimal128) * size, buffer, sizeof(Decimal128) * size);
         buffer += sizeof(Decimal128) * size;
     }
 
-    static Vector<DictionaryContainer<std::string_view, LargeStringContainer>> *
-    deserializeStringDictionaryContainerVector(int32_t rowCnt,
-                                               uint8_t *&buffer)
+    static Vector<DictionaryContainer<std::string_view, LargeStringContainer>>*
+    deserializeStringDictionaryContainerVector(int32_t rowCnt, uint8_t*& buffer)
     {
-        int32_t *values = new int32_t[rowCnt];
-        memcpy_s(values, sizeof(int32_t) * rowCnt, buffer,
-                 sizeof(int32_t) * rowCnt);
+        int32_t* values = new int32_t[rowCnt];
+        memcpy_s(values, sizeof(int32_t) * rowCnt, buffer, sizeof(int32_t) * rowCnt);
         buffer += sizeof(int32_t) * rowCnt;
 
         int32_t dictOffset = 0;
@@ -268,44 +251,38 @@ public:
 
         buffer += sizeof(int32_t);
         auto nullByteSize = omniruntime::vec::NullsBuffer::CalculateNbytes(rowCnt);
-        std::shared_ptr<AlignedBuffer<uint8_t>> nullsBuffer =
-            std::make_shared<AlignedBuffer<uint8_t>>(nullByteSize);
-        memcpy(nullsBuffer->GetBuffer(), buffer,
-               nullByteSize);
+        std::shared_ptr<AlignedBuffer<uint8_t>> nullsBuffer = std::make_shared<AlignedBuffer<uint8_t>>(nullByteSize);
+        memcpy(nullsBuffer->GetBuffer(), buffer, nullByteSize);
         buffer += nullByteSize;
 
-        std::shared_ptr<LargeStringContainer<std::string_view>>
-            stringContainer =
-                std::make_shared<LargeStringContainer<std::string_view>>(
-                    dictSize, stringBodySize);
+        std::shared_ptr<LargeStringContainer<std::string_view>> stringContainer =
+            std::make_shared<LargeStringContainer<std::string_view>>(dictSize, stringBodySize);
 
         // string offset
-        int32_t *offset =
-            UnsafeStringContainer::GetOffsets(stringContainer.get());
+        int32_t* offset = UnsafeStringContainer::GetOffsets(stringContainer.get());
 
-        auto ret = memcpy_s(offset, sizeof(int32_t) * (dictSize + 1), buffer,
-            sizeof(int32_t) * (dictSize + 1));
+        auto ret = memcpy_s(offset, sizeof(int32_t) * (dictSize + 1), buffer, sizeof(int32_t) * (dictSize + 1));
         if (ret != EOK) {
-            LOG("memcpy_s failed for string offset, ret = " << ret)
+            LOG("memcpy_s failed for string offset, ret = " << ret);
         }
         buffer += sizeof(int32_t) * (dictSize + 1);
 
         // string body
-        ret = memcpy_s(UnsafeStringContainer::GetValues(stringContainer.get()),
-                       offset[dictSize] * sizeof(char), buffer,
-                       offset[dictSize] * sizeof(char));
+        ret = memcpy_s(
+            UnsafeStringContainer::GetValues(stringContainer.get()),
+            offset[dictSize] * sizeof(char),
+            buffer,
+            offset[dictSize] * sizeof(char));
         if (ret != EOK) {
-            LOG("memcpy_s failed for string offset, ret = " << ret)
+            LOG("memcpy_s failed for string offset, ret = " << ret);
         }
         buffer += offset[dictSize] * sizeof(char);
 
-        auto dictionary =
-            std::make_shared<DictionaryContainer<std::string_view>>(
-                values, rowCnt, stringContainer, dictSize, dictOffset);
+        auto dictionary = std::make_shared<DictionaryContainer<std::string_view>>(
+            values, rowCnt, stringContainer, dictSize, dictOffset);
         auto newNullsBuffer = new NullsBuffer(rowCnt, nullsBuffer);
         auto stringDictionaryVector =
-            new Vector<DictionaryContainer<std::string_view>>(
-                rowCnt, dictionary, newNullsBuffer, false, OMNI_CHAR);
+            new Vector<DictionaryContainer<std::string_view>>(rowCnt, dictionary, newNullsBuffer, false, OMNI_CHAR);
 
         return stringDictionaryVector;
     }
@@ -318,4 +295,4 @@ public:
         return timestamp;
     }
 };
-}  // namespace omnistream
+} // namespace omnistream

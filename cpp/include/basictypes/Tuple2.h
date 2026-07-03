@@ -17,40 +17,40 @@
 
 class Tuple2 : public Object {
 public:
-    Tuple2(Object *f0, Object *f1);
+    Tuple2(Object* f0, Object* f1);
 
     Tuple2();
 
     ~Tuple2();
 
-    inline void SetF0(Object *obj);
+    inline void SetF0(Object* obj);
 
-    inline Object *GetF0();
+    inline Object* GetF0();
 
-    inline void SetF1(Object *obj);
+    inline void SetF1(Object* obj);
 
-    inline void Set(Object *obj1, Object *obj2);
+    inline void Set(Object* obj1, Object* obj2);
 
-    inline Object *GetF1();
+    inline Object* GetF1();
 
     inline int hashCode() override;
 
-    inline bool equals(Object *obj) override;
+    inline bool equals(Object* obj) override;
 
-    inline Object *clone() override;
+    inline Object* clone() override;
 
     inline void putRefCount();
 
-    static inline Tuple2 *of(Object *f0, Object *f1);
+    static inline Tuple2* of(Object* f0, Object* f1);
 
-    Tuple2 *next = nullptr;
+    Tuple2* next = nullptr;
 
 public:
-    Object *f0 = nullptr;
-    Object *f1 = nullptr;
+    Object* f0 = nullptr;
+    Object* f1 = nullptr;
 };
 
-inline void Tuple2::SetF0(Object *obj)
+inline void Tuple2::SetF0(Object* obj)
 {
     if (f0 != obj) {
         if (obj != nullptr) {
@@ -68,7 +68,7 @@ inline Object* Tuple2::GetF0()
     return f0;
 }
 
-inline void Tuple2::SetF1(Object *obj)
+inline void Tuple2::SetF1(Object* obj)
 {
     if (f1 != obj) {
         if (obj != nullptr) {
@@ -81,7 +81,7 @@ inline void Tuple2::SetF1(Object *obj)
     }
 }
 
-inline void Tuple2::Set(Object *obj1, Object *obj2)
+inline void Tuple2::Set(Object* obj1, Object* obj2)
 {
     if (f0 != obj1) {
         if (obj1 != nullptr) {
@@ -116,12 +116,12 @@ inline int Tuple2::hashCode()
     return (int)(f0Hash * 31 + f1Hash);
 }
 
-inline bool Tuple2::equals(Object *obj)
+inline bool Tuple2::equals(Object* obj)
 {
     if (obj == nullptr) {
         return false;
     }
-    Tuple2 *tuple = reinterpret_cast<Tuple2 *>(obj);
+    Tuple2* tuple = reinterpret_cast<Tuple2*>(obj);
     return f0->equals(tuple->GetF0()) && f1->equals(tuple->GetF1());
 }
 
@@ -140,7 +140,7 @@ inline void Tuple2::putRefCount()
     if (--refCount <= 0) {
         if (this->isPool) {
             // this->refCount = 1;
-            ObjectPool<Tuple2> *tupleObjectPool = ObjectPool<Tuple2>::getInstance();
+            ObjectPool<Tuple2>* tupleObjectPool = ObjectPool<Tuple2>::getInstance();
             this->next = tupleObjectPool->head;
             tupleObjectPool->head = this;
         } else {
@@ -149,10 +149,10 @@ inline void Tuple2::putRefCount()
     }
 }
 
-inline Tuple2* Tuple2::of(Object *f0, Object *f1)
+inline Tuple2* Tuple2::of(Object* f0, Object* f1)
 {
-    ObjectPool<Tuple2> *tupleObjectPool = ObjectPool<Tuple2>::getInstance();
-    Tuple2 * curTuple = tupleObjectPool->getObject();
+    ObjectPool<Tuple2>* tupleObjectPool = ObjectPool<Tuple2>::getInstance();
+    Tuple2* curTuple = tupleObjectPool->getObject();
     curTuple->Set(f0, f1);
     return curTuple;
 }

@@ -21,14 +21,13 @@
 
 class DirectoryKeyedStateHandle : virtual public KeyedStateHandle {
 public:
-    DirectoryKeyedStateHandle(
-        DirectoryStateHandle* directoryHandle,
-        const KeyGroupRange& keyGroupRange)
+    DirectoryKeyedStateHandle(DirectoryStateHandle* directoryHandle, const KeyGroupRange& keyGroupRange)
         : directoryStateHandle_(directoryHandle),
           keyGroupRange_(keyGroupRange),
-          stateHandleId_(StateHandleID::randomStateHandleId()) 
+          stateHandleId_(StateHandleID::randomStateHandleId())
     {
-        directoryStateHandle = new DirectoryStateHandle(directoryHandle->getDirectory(), directoryHandle->GetStateSize());
+        directoryStateHandle =
+            new DirectoryStateHandle(directoryHandle->getDirectory(), directoryHandle->GetStateSize());
     }
 
     DirectoryKeyedStateHandle(const nlohmann::json& json)
@@ -44,7 +43,8 @@ public:
         }
 
         directoryStateHandle_ = new DirectoryStateHandle(json["directoryStateHandle"]);
-        directoryStateHandle = new DirectoryStateHandle(directoryStateHandle_->getDirectory(), directoryStateHandle_->GetStateSize());
+        directoryStateHandle =
+            new DirectoryStateHandle(directoryStateHandle_->getDirectory(), directoryStateHandle_->GetStateSize());
         keyGroupRange_ = KeyGroupRange(json["keyGroupRange"]["startKeyGroup"], json["keyGroupRange"]["endKeyGroup"]);
     }
 
@@ -73,13 +73,9 @@ public:
         KeyGroupRange* intersection = keyGroupRange_.getIntersection(other);
         if (intersection->getNumberOfKeyGroups() > 0) {
             return std::shared_ptr<KeyedStateHandle>(
-                new DirectoryKeyedStateHandle(
-                    new DirectoryStateHandle(*directoryStateHandle_),
-                    *intersection
-                )
-            );
+                new DirectoryKeyedStateHandle(new DirectoryStateHandle(*directoryStateHandle_), *intersection));
         }
-        
+
         delete intersection;
         return nullptr;
     }
@@ -99,7 +95,9 @@ public:
         return GetStateSize();
     }
 
-    void RegisterSharedStates(SharedStateRegistry&, long) override {}
+    void RegisterSharedStates(SharedStateRegistry&, long) override
+    {
+    }
 
     void DiscardState() override
     {
@@ -117,8 +115,7 @@ public:
 
     bool operator==(const DirectoryKeyedStateHandle& other) const
     {
-        return *directoryStateHandle_ == *other.directoryStateHandle_ &&
-               keyGroupRange_ == other.keyGroupRange_;
+        return *directoryStateHandle_ == *other.directoryStateHandle_ && keyGroupRange_ == other.keyGroupRange_;
     }
 
 private:

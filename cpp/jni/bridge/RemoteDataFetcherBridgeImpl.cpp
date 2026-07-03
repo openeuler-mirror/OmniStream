@@ -1,5 +1,5 @@
 /*
-* Copyright (c) Huawei Technologies Co., Ltd. 2012-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2012-2025. All rights reserved.
  * Create Date : 2025
  */
 #include "RemoteDataFetcherBridgeImpl.h"
@@ -9,7 +9,7 @@ RemoteDataFetcherBridgeImpl::~RemoteDataFetcherBridgeImpl()
     CleanJavaRemoteDataFetcher();
 }
 
-void RemoteDataFetcherBridgeImpl::SetJavaRemoteDataFetcher(JNIEnv *env, jobject fetcher)
+void RemoteDataFetcherBridgeImpl::SetJavaRemoteDataFetcher(JNIEnv* env, jobject fetcher)
 {
     if (javaRemoteDataFetcherRef_) {
         env->DeleteGlobalRef(javaRemoteDataFetcherRef_);
@@ -26,11 +26,11 @@ void RemoteDataFetcherBridgeImpl::InvokeJavaRemoteDataFetcherResumeConsumption(i
         return;
     }
 
-    JNIEnv *env = nullptr;
+    JNIEnv* env = nullptr;
     bool attached = false;
 
-    if (g_OmniStreamJVM->GetEnv(reinterpret_cast<void **>(&env), JNI_VERSION_1_8) != JNI_OK) {
-        if (g_OmniStreamJVM->AttachCurrentThread(reinterpret_cast<void **>(&env), nullptr) != 0) {
+    if (g_OmniStreamJVM->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_8) != JNI_OK) {
+        if (g_OmniStreamJVM->AttachCurrentThread(reinterpret_cast<void**>(&env), nullptr) != 0) {
             return;
         }
         attached = true;
@@ -48,7 +48,7 @@ void RemoteDataFetcherBridgeImpl::InvokeJavaRemoteDataFetcherResumeConsumption(i
         if (attached) g_OmniStreamJVM->DetachCurrentThread();
         return;
     }
-    env->CallVoidMethod(javaRemoteDataFetcherRef_, mid, (jint) inputGateIndex, (jint) channelIndex);
+    env->CallVoidMethod(javaRemoteDataFetcherRef_, mid, (jint)inputGateIndex, (jint)channelIndex);
     if (env->ExceptionCheck()) {
         env->ExceptionDescribe();
         env->ExceptionClear();
@@ -64,10 +64,10 @@ void RemoteDataFetcherBridgeImpl::CleanJavaRemoteDataFetcher()
     if (!g_OmniStreamJVM || !javaRemoteDataFetcherRef_) {
         return;
     }
-    JNIEnv *env = nullptr;
+    JNIEnv* env = nullptr;
     bool attached = false;
-    if (g_OmniStreamJVM->GetEnv(reinterpret_cast<void **>(&env), JNI_VERSION_1_8) != JNI_OK) {
-        if (g_OmniStreamJVM->AttachCurrentThread(reinterpret_cast<void **>(&env), nullptr) == 0) {
+    if (g_OmniStreamJVM->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_8) != JNI_OK) {
+        if (g_OmniStreamJVM->AttachCurrentThread(reinterpret_cast<void**>(&env), nullptr) == 0) {
             attached = true;
         } else {
             return;

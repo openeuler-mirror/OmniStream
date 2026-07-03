@@ -12,9 +12,6 @@
 #ifndef PARTITIONINFOPOD_H
 #define PARTITIONINFOPOD_H
 
-
-class PartitionInfoPOD {
-};
-
+class PartitionInfoPOD {};
 
 #endif

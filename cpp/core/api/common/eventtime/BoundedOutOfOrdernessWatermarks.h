@@ -16,20 +16,24 @@
 class BoundedOutOfOrdernessWatermarks : public WatermarkGenerator {
 public:
     explicit BoundedOutOfOrdernessWatermarks(long outOfOrdernessMillis)
-        : maxTimestamp(INT64_MIN + outOfOrdernessMillis + 1), outOfOrdernessMillis(outOfOrdernessMillis)
+        : maxTimestamp(INT64_MIN + outOfOrdernessMillis + 1),
+          outOfOrdernessMillis(outOfOrdernessMillis)
     {
     }
 
-    void OnEvent(void * event, long eventTimestamp, WatermarkOutput* output) override {
+    void OnEvent(void* event, long eventTimestamp, WatermarkOutput* output) override
+    {
         maxTimestamp = std::max(maxTimestamp, eventTimestamp);
     }
 
-    void OnPeriodicEmit(WatermarkOutput* output) override {
+    void OnPeriodicEmit(WatermarkOutput* output) override
+    {
         lastEmittedMaxTimestamp_ = maxTimestamp;
         output->emitWatermark(new Watermark(maxTimestamp - outOfOrdernessMillis - 1));
     }
 
-    int64_t getLastEmittedMaxTimestamp() override {
+    int64_t getLastEmittedMaxTimestamp() override
+    {
         return lastEmittedMaxTimestamp_;
     }
 

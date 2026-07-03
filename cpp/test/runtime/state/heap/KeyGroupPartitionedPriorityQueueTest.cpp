@@ -19,72 +19,83 @@ namespace fs = std::filesystem;
 
 static const std::string kDBPath = "/tmp/rocksdb_kgpq_ut/";
 
-static std::string getRocksDbPath() {
+static std::string getRocksDbPath()
+{
     auto now = std::chrono::system_clock::now();
-    auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
-            now.time_since_epoch()).count();
+    auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count();
     return kDBPath + std::to_string(ns) + "_";
 }
 
 namespace {
-    class TestElement : public HeapPriorityQueueElement {
-    public:
-        TestElement(int64_t val) : val(val) {}
-        int64_t getKey() const { return val; }
+class TestElement : public HeapPriorityQueueElement {
+public:
+    TestElement(int64_t val) : val(val)
+    {
+    }
+    int64_t getKey() const
+    {
+        return val;
+    }
 
-        struct SharedPtrComparator {
-            bool operator()(const std::shared_ptr<TestElement>& lhs, const std::shared_ptr<TestElement>& rhs) const {
-                return lhs->getKey() < rhs->getKey();
-            }
-        };
-
-        struct SharedPtrHash {
-            size_t operator()(const std::shared_ptr<TestElement>& obj) const {
-                if (obj) {
-                    return std::hash<int64_t>()(obj->getKey());
-                }
-                return 0;
-            }
-        };
-
-        struct SharedPtrEqual {
-            bool operator()(const std::shared_ptr<TestElement>& lhs, const std::shared_ptr<TestElement>& rhs) const {
-                if (lhs && rhs) {
-                    return lhs->getKey() == rhs->getKey();
-                }
-                return lhs == rhs;
-            }
-        };
-    private:
-        int64_t val;
-    };
-
-    class TestElementSerializer : public TypeSerializer {
-    public:
-        void serialize(void* record, DataOutputSerializer& target) override {
-            auto* elem = static_cast<TestElement*>(record);
-            int64_t val = elem->getKey();
-            LongSerializer::INSTANCE->serialize(&val, target);
-        }
-
-        void* deserialize(DataInputView& source) override {
-            void* raw = LongSerializer::INSTANCE->deserialize(source);
-            auto* val = static_cast<int64_t*>(raw);
-            auto* elem = new TestElement(*val);
-            delete val;
-            return elem;
+    struct SharedPtrComparator {
+        bool operator()(const std::shared_ptr<TestElement>& lhs, const std::shared_ptr<TestElement>& rhs) const
+        {
+            return lhs->getKey() < rhs->getKey();
         }
     };
-}
+
+    struct SharedPtrHash {
+        size_t operator()(const std::shared_ptr<TestElement>& obj) const
+        {
+            if (obj) {
+                return std::hash<int64_t>()(obj->getKey());
+            }
+            return 0;
+        }
+    };
+
+    struct SharedPtrEqual {
+        bool operator()(const std::shared_ptr<TestElement>& lhs, const std::shared_ptr<TestElement>& rhs) const
+        {
+            if (lhs && rhs) {
+                return lhs->getKey() == rhs->getKey();
+            }
+            return lhs == rhs;
+        }
+    };
+
+private:
+    int64_t val;
+};
+
+class TestElementSerializer : public TypeSerializer {
+public:
+    void serialize(void* record, DataOutputSerializer& target) override
+    {
+        auto* elem = static_cast<TestElement*>(record);
+        int64_t val = elem->getKey();
+        LongSerializer::INSTANCE->serialize(&val, target);
+    }
+
+    void* deserialize(DataInputView& source) override
+    {
+        void* raw = LongSerializer::INSTANCE->deserialize(source);
+        auto* val = static_cast<int64_t*>(raw);
+        auto* elem = new TestElement(*val);
+        delete val;
+        return elem;
+    }
+};
+} // namespace
 
 class KeyGroupPartitionedPriorityQueueTestFixture : public ::testing::Test {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
         fs::remove_all(fs::path(kDBPath));
         fs::create_directories(fs::path(kDBPath));
 
-        const ::testing::TestInfo* testInfo =
-                ::testing::UnitTest::GetInstance()->current_test_info();
+        const ::testing::TestInfo* testInfo = ::testing::UnitTest::GetInstance()->current_test_info();
         dbPath_ = getRocksDbPath() + testInfo->name();
 
         rocksdb::Options options;
@@ -116,7 +127,8 @@ protected:
         totalKeyGroups_ = 4;
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
         delete serializer_;
         batchWrapper_.reset();
         db_->DestroyColumnFamilyHandle(cfHandle_);
@@ -128,9 +140,10 @@ protected:
 
     using PQ = KeyGroupPartitionedPriorityQueue<int, std::shared_ptr<TestElement>, TestElement::SharedPtrComparator>;
 
-    std::unique_ptr<PQ> createPQ(int32_t cacheSize = 5) {
-        auto factory = [this, cacheSize](int32_t keyGroupId, int32_t totalKeyGroups)
-            -> std::shared_ptr<PQ::RocksDBCachingPQ> {
+    std::unique_ptr<PQ> createPQ(int32_t cacheSize = 5)
+    {
+        auto factory = [this, cacheSize](
+                           int32_t keyGroupId, int32_t totalKeyGroups) -> std::shared_ptr<PQ::RocksDBCachingPQ> {
             return std::make_shared<PQ::RocksDBCachingPQ>(
                 keyGroupId,
                 1,
@@ -160,20 +173,23 @@ protected:
     int32_t totalKeyGroups_ = 4;
 };
 
-TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, Initialization) {
+TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, Initialization)
+{
     auto pq = createPQ();
     EXPECT_EQ(pq->size(), 0);
     EXPECT_EQ(pq->isEmpty(), true);
 }
 
-TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, AddAndPoll) {
+TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, AddAndPoll)
+{
     auto pq = createPQ();
     pq->add(std::make_shared<TestElement>(1));
     EXPECT_EQ(pq->poll()->getKey(), 1);
     EXPECT_EQ(pq->isEmpty(), true);
 }
 
-TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, Inserts) {
+TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, Inserts)
+{
     auto pq = createPQ();
     pq->add(std::make_shared<TestElement>(1));
     pq->add(std::make_shared<TestElement>(3));
@@ -187,7 +203,8 @@ TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, Inserts) {
     EXPECT_EQ(pq->isEmpty(), true);
 }
 
-TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, Peek) {
+TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, Peek)
+{
     auto pq = createPQ();
     pq->add(std::make_shared<TestElement>(5));
     pq->add(std::make_shared<TestElement>(3));
@@ -198,7 +215,8 @@ TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, Peek) {
     EXPECT_EQ(pq->size(), 3);
 }
 
-TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, SizeTest) {
+TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, SizeTest)
+{
     auto pq = createPQ();
     EXPECT_EQ(pq->size(), 0);
 
@@ -215,7 +233,8 @@ TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, SizeTest) {
     EXPECT_EQ(pq->isEmpty(), true);
 }
 
-TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, RemoveTest) {
+TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, RemoveTest)
+{
     auto pq = createPQ();
     pq->add(std::make_shared<TestElement>(1));
     pq->add(std::make_shared<TestElement>(2));
@@ -226,7 +245,8 @@ TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, RemoveTest) {
     EXPECT_EQ(pq->isEmpty(), true);
 }
 
-TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, RemoveNonExistentTest) {
+TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, RemoveNonExistentTest)
+{
     auto pq = createPQ();
     pq->add(std::make_shared<TestElement>(1));
     pq->add(std::make_shared<TestElement>(2));
@@ -235,7 +255,8 @@ TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, RemoveNonExistentTest) {
     EXPECT_EQ(pq->size(), 2);
 }
 
-TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, RemoveHeadTest) {
+TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, RemoveHeadTest)
+{
     auto pq = createPQ();
     auto elem1 = std::make_shared<TestElement>(1);
     auto elem2 = std::make_shared<TestElement>(2);
@@ -252,7 +273,8 @@ TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, RemoveHeadTest) {
     EXPECT_EQ(pq->isEmpty(), true);
 }
 
-TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, RemoveLastElementTest) {
+TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, RemoveLastElementTest)
+{
     auto pq = createPQ();
     auto elem1 = std::make_shared<TestElement>(1);
     auto elem2 = std::make_shared<TestElement>(2);
@@ -269,14 +291,14 @@ TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, RemoveLastElementTest) {
     EXPECT_EQ(pq->isEmpty(), true);
 }
 
-TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, AddAllTest) {
+TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, AddAllTest)
+{
     auto pq = createPQ();
     std::vector<std::shared_ptr<TestElement>> elements = {
         std::make_shared<TestElement>(5),
         std::make_shared<TestElement>(2),
         std::make_shared<TestElement>(8),
-        std::make_shared<TestElement>(1)
-    };
+        std::make_shared<TestElement>(1)};
 
     pq->addAll(elements);
     EXPECT_EQ(pq->size(), 4);
@@ -286,7 +308,8 @@ TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, AddAllTest) {
     EXPECT_EQ(pq->poll()->getKey(), 8);
 }
 
-TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, AddAllEmptyTest) {
+TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, AddAllEmptyTest)
+{
     auto pq = createPQ();
     std::vector<std::shared_ptr<TestElement>> emptyElements;
 
@@ -295,7 +318,8 @@ TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, AddAllEmptyTest) {
     EXPECT_EQ(pq->isEmpty(), true);
 }
 
-TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, DuplicateTest) {
+TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, DuplicateTest)
+{
     auto pq = createPQ();
     pq->add(std::make_shared<TestElement>(1));
     pq->add(std::make_shared<TestElement>(1));
@@ -305,7 +329,8 @@ TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, DuplicateTest) {
     EXPECT_EQ(pq->isEmpty(), true);
 }
 
-TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, MixedOperationsTest) {
+TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, MixedOperationsTest)
+{
     auto pq = createPQ();
 
     pq->add(std::make_shared<TestElement>(5));
@@ -322,7 +347,8 @@ TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, MixedOperationsTest) {
     EXPECT_EQ(pq->isEmpty(), true);
 }
 
-TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, SingleElementTest) {
+TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, SingleElementTest)
+{
     auto pq = createPQ();
     auto elem = std::make_shared<TestElement>(42);
 
@@ -336,7 +362,8 @@ TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, SingleElementTest) {
     EXPECT_EQ(pq->isEmpty(), true);
 }
 
-TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, LargeScaleTest) {
+TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, LargeScaleTest)
+{
     auto pq = createPQ(100);
     for (int i = 500; i >= 1; --i) {
         pq->add(std::make_shared<TestElement>(i));
@@ -349,7 +376,8 @@ TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, LargeScaleTest) {
     EXPECT_EQ(pq->isEmpty(), true);
 }
 
-TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, SmallCacheWithLargeDataTest) {
+TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, SmallCacheWithLargeDataTest)
+{
     auto pq = createPQ(2);
 
     for (int i = 10; i >= 1; --i) {
@@ -363,7 +391,8 @@ TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, SmallCacheWithLargeDataTest)
     EXPECT_EQ(pq->isEmpty(), true);
 }
 
-TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, MultiKeyGroupDistributionTest) {
+TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, MultiKeyGroupDistributionTest)
+{
     auto pq = createPQ();
 
     for (int i = 0; i < 100; ++i) {
@@ -380,7 +409,8 @@ TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, MultiKeyGroupDistributionTes
     }
 }
 
-TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, PollAllThenAddTest) {
+TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, PollAllThenAddTest)
+{
     auto pq = createPQ();
 
     pq->add(std::make_shared<TestElement>(3));
@@ -399,7 +429,8 @@ TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, PollAllThenAddTest) {
     EXPECT_EQ(pq->isEmpty(), true);
 }
 
-TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, IteratorTest) {
+TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, IteratorTest)
+{
     auto pq = createPQ();
     pq->add(std::make_shared<TestElement>(1));
     pq->add(std::make_shared<TestElement>(2));
@@ -414,7 +445,8 @@ TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, IteratorTest) {
     EXPECT_EQ(count, 3);
 }
 
-TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, CacheOverflowAcrossKeyGroupsTest) {
+TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, CacheOverflowAcrossKeyGroupsTest)
+{
     auto pq = createPQ(3);
 
     for (int i = 1; i <= 20; ++i) {
@@ -429,7 +461,8 @@ TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, CacheOverflowAcrossKeyGroups
     EXPECT_EQ(pq->isEmpty(), true);
 }
 
-TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, MultiKeyGroupPollOrderingTest) {
+TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, MultiKeyGroupPollOrderingTest)
+{
     auto pq = createPQ();
 
     std::map<int, std::vector<int64_t>> elementsByKeyGroup;
@@ -454,7 +487,8 @@ TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, MultiKeyGroupPollOrderingTes
     }
 }
 
-TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, GetSubsetForKeyGroupBasicTest) {
+TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, GetSubsetForKeyGroupBasicTest)
+{
     auto pq = createPQ();
 
     std::map<int, std::vector<int64_t>> elementsByKeyGroup;
@@ -478,7 +512,8 @@ TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, GetSubsetForKeyGroupBasicTes
     }
 }
 
-TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, GetSubsetForKeyGroupEmptyTest) {
+TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, GetSubsetForKeyGroupEmptyTest)
+{
     auto pq = createPQ();
 
     pq->add(std::make_shared<TestElement>(1));
@@ -499,7 +534,8 @@ TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, GetSubsetForKeyGroupEmptyTes
     }
 }
 
-TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, GetSubsetForKeyGroupAllKeyGroupsTest) {
+TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, GetSubsetForKeyGroupAllKeyGroupsTest)
+{
     auto pq = createPQ();
 
     for (int64_t i = 0; i < 40; ++i) {
@@ -514,7 +550,8 @@ TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, GetSubsetForKeyGroupAllKeyGr
     EXPECT_EQ(totalFromSubsets, 40u);
 }
 
-TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, GetSubsetForKeyGroupInvalidKeyGroupTest) {
+TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, GetSubsetForKeyGroupInvalidKeyGroupTest)
+{
     auto pq = createPQ();
     pq->add(std::make_shared<TestElement>(1));
 
@@ -522,7 +559,8 @@ TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, GetSubsetForKeyGroupInvalidK
     EXPECT_THROW(pq->getSubsetForKeyGroup(totalKeyGroups_), std::logic_error);
 }
 
-TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, GetSubsetForKeyGroupAfterPollTest) {
+TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, GetSubsetForKeyGroupAfterPollTest)
+{
     auto pq = createPQ();
 
     for (int64_t i = 0; i < 10; ++i) {
@@ -540,7 +578,8 @@ TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, GetSubsetForKeyGroupAfterPol
     EXPECT_EQ(totalFromSubsets, 8u);
 }
 
-TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, GetSubsetForKeyGroupAfterRemoveTest) {
+TEST_F(KeyGroupPartitionedPriorityQueueTestFixture, GetSubsetForKeyGroupAfterRemoveTest)
+{
     auto pq = createPQ();
 
     for (int64_t i = 0; i < 10; ++i) {

@@ -11,7 +11,8 @@
 
 #include "RegularOperatorChain.h"
 
-void RegularOperatorChain::CloseAllOperators() {
+void RegularOperatorChain::CloseAllOperators()
+{
     auto iter = getAllOperators(false);
     while (iter.hasNext()) {
         auto op = iter.next()->getStreamOperator();

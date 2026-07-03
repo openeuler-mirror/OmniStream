@@ -27,8 +27,11 @@ namespace omnistream {
 template <typename OUT>
 class InputFormatSourceFunction : public SourceFunction<OUT>, public AbstractRichFunction {
 public:
-    InputFormatSourceFunction(omnistream::csv::CsvInputFormat<OUT> *format, InputSplit *inputSplit)
-        : isRunning_(true), format_(format), inputSplit_(inputSplit) {
+    InputFormatSourceFunction(omnistream::csv::CsvInputFormat<OUT>* format, InputSplit* inputSplit)
+        : isRunning_(true),
+          format_(format),
+          inputSplit_(inputSplit)
+    {
     }
 
     void run(SourceContext* ctx)
@@ -37,11 +40,11 @@ public:
         // in order to trigger back pressure
         for (int i = 0; i < 1000; i++) {
 #endif
-        int taskId = this->getRuntimeContext()->getIndexOfThisSubtask();
-        if (taskId > 0) {
-            return;
-        }
-        INFO_RELEASE("taskId is: " << taskId)
+            int taskId = this->getRuntimeContext()->getIndexOfThisSubtask();
+            if (taskId > 0) {
+                return;
+            }
+            INFO_RELEASE("taskId is: " << taskId);
             format_->open(inputSplit_);
 
             while (isRunning_ && !format_->reachedEnd()) {
@@ -92,4 +95,4 @@ private:
     int lineCount;
 };
 
-}  // namespace omnistream
+} // namespace omnistream

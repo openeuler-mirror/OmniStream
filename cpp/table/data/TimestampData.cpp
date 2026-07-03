@@ -16,7 +16,9 @@
 #include "TimestampData.h"
 #include "common.h"
 
-TimestampData::TimestampData(long millisecond, int nanoOfMillisecond): millisecond(millisecond), nanoOfMillisecond(nanoOfMillisecond)
+TimestampData::TimestampData(long millisecond, int nanoOfMillisecond)
+    : millisecond(millisecond),
+      nanoOfMillisecond(nanoOfMillisecond)
 {
     if (nanoOfMillisecond < 0 || nanoOfMillisecond > 999999) {
         throw std::invalid_argument("nanoOfMillisecond must be between 0 and 999999.");
@@ -60,7 +62,7 @@ long TimestampData::stringToEpochMillis(const std::string& str)
     while (start < end && *start == ' ') ++start;
     while (end > start && *(end - 1) == ' ') --end;
     if (start >= end) {
-        THROW_RUNTIME_ERROR("Empty datetime string after trimming spaces")
+        THROW_RUNTIME_ERROR("Empty datetime string after trimming spaces");
     }
     const char* dotPtr = nullptr;
     const char* tempPtr = start;
@@ -76,14 +78,10 @@ long TimestampData::stringToEpochMillis(const std::string& str)
     const char* datetimeEnd = dotPtr ? dotPtr : end;
 
     std::tm t = {};
-    int parse_count = sscanf(
-            start,
-            "%d-%d-%d %d:%d:%d",
-            &t.tm_year, &t.tm_mon, &t.tm_mday,
-            &t.tm_hour, &t.tm_min, &t.tm_sec
-    );
+    int parse_count =
+        sscanf(start, "%d-%d-%d %d:%d:%d", &t.tm_year, &t.tm_mon, &t.tm_mday, &t.tm_hour, &t.tm_min, &t.tm_sec);
     if (parse_count != 6) {
-        THROW_RUNTIME_ERROR("Failed to parse datetime string"+ std::string(start, datetimeEnd))
+        THROW_RUNTIME_ERROR("Failed to parse datetime string" + std::string(start, datetimeEnd));
     }
     // tm_year starts from 1900, tm_mon starts from 0
     t.tm_year -= 1900;
@@ -103,11 +101,11 @@ long TimestampData::stringToEpochMillis(const std::string& str)
         // Obtain actual milliseconds
         size_t msDigits = res.ptr - msStart;
         if (msDigits == 1) {
-            milliseconds = msInt * 100;  // .1 → 1 * 100 = 100ms
+            milliseconds = msInt * 100; // .1 → 1 * 100 = 100ms
         } else if (msDigits == 2) {
-            milliseconds = msInt * 10;   // .12 → 12 * 10 = 120ms, .01 -> 1 * 10 = 10ms, .10 -> 10 * 10 = 100ms
+            milliseconds = msInt * 10; // .12 → 12 * 10 = 120ms, .01 -> 1 * 10 = 10ms, .10 -> 10 * 10 = 100ms
         } else if (msDigits == 3) {
-            milliseconds = msInt;        // .120 → 120 = 120ms, .012 -> 12 = 12ms, .001 -> 1 = 1ms
+            milliseconds = msInt; // .120 → 120 = 120ms, .012 -> 12 = 12ms, .001 -> 1 = 1ms
         }
     }
 

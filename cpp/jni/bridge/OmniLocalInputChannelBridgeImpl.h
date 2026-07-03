@@ -1,5 +1,5 @@
 /*
-* Copyright (c) Huawei Technologies Co., Ltd. 2012-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2012-2025. All rights reserved.
  * Create Date : 2025
  */
 
@@ -13,7 +13,7 @@ class OmniLocalInputChannelBridgeImpl : public omnistream::OmniLocalInputChannel
 public:
     ~OmniLocalInputChannelBridgeImpl();
 
-    void RegisterJavaOmniLocalInputChannel(JNIEnv *env, jobject javaRemoteDataFetcher);
+    void RegisterJavaOmniLocalInputChannel(JNIEnv* env, jobject javaRemoteDataFetcher);
 
     void ClearJavaChannelRef();
 

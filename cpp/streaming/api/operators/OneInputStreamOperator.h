@@ -16,12 +16,11 @@
 #include "StreamOperator.h"
 #include "core/include/common.h"
 
-class OneInputStreamOperator : public  StreamOperator, public Input {
+class OneInputStreamOperator : public StreamOperator, public Input {
 public:
-
     ~OneInputStreamOperator() override = default;
 
-    const char *getName() override
+    const char* getName() override
     {
         // NOT IMPLEMENTED
         return "OneInputStreamOperator";
@@ -47,6 +46,5 @@ public:
         THROW_LOGIC_EXCEPTION("To be implemented");
     }
 };
-
 
 #endif

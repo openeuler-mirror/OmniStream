@@ -24,7 +24,7 @@ class SinkFunction : public omnistream::Function {
 public:
     virtual ~SinkFunction() = default;
     virtual void invoke(IN value, SinkInputValueType valueType) = 0;
-    virtual void writeWatermark(Watermark *watermark) = 0;
+    virtual void writeWatermark(Watermark* watermark) = 0;
     virtual void finish() = 0;
 };
 

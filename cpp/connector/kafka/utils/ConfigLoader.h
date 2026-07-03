@@ -17,7 +17,7 @@
 
 class ConfigLoader {
 public:
-    static std::unordered_map<std::string, std::string> LoadKafkaConfig(const std::string &confFile);
+    static std::unordered_map<std::string, std::string> LoadKafkaConfig(const std::string& confFile);
 
     static std::unordered_map<std::string, std::string> LoadKafkaConsumerConfig();
 

@@ -45,62 +45,64 @@ public:
     inline static std::string EVENT_TIMER_PREFIX = TIMER_STATE_PREFIX + "/event_";
 
     InternalTimeServiceManager(
-            KeyGroupRange* localKeyGroupRange,
-            KeyContext<K>* keyContext,
-            PriorityQueueSetFactory* priorityQueueSetFactory,
-            ProcessingTimeService* processingTimeService,
-            int maxNumberOfSubtasks,
-            const std::vector<std::shared_ptr<KeyedStateHandle>> &rawKeyedStateHandles = {},
-            std::shared_ptr<omnistream::OmniTaskBridge> omniTaskBridge = nullptr)
-            :
-            localKeyGroupRange(localKeyGroupRange),
-            keyContext(keyContext),
-            priorityQueueSetFactory(priorityQueueSetFactory),
-            processingTimeService(processingTimeService),
-            maxNumberOfSubtasks(maxNumberOfSubtasks),
-            omniTaskBridge(std::move(omniTaskBridge)) {
+        KeyGroupRange* localKeyGroupRange,
+        KeyContext<K>* keyContext,
+        PriorityQueueSetFactory* priorityQueueSetFactory,
+        ProcessingTimeService* processingTimeService,
+        int maxNumberOfSubtasks,
+        const std::vector<std::shared_ptr<KeyedStateHandle>>& rawKeyedStateHandles = {},
+        std::shared_ptr<omnistream::OmniTaskBridge> omniTaskBridge = nullptr)
+        : localKeyGroupRange(localKeyGroupRange),
+          keyContext(keyContext),
+          priorityQueueSetFactory(priorityQueueSetFactory),
+          processingTimeService(processingTimeService),
+          maxNumberOfSubtasks(maxNumberOfSubtasks),
+          omniTaskBridge(std::move(omniTaskBridge))
+    {
         if (auto keyedBackend = dynamic_cast<AbstractKeyedStateBackend<K>*>(priorityQueueSetFactory)) {
             keySerializerForRestore = keyedBackend->getKeySerializer();
         }
         restoreRawKeyedState(rawKeyedStateHandles);
     }
 
-    ~InternalTimeServiceManager() {
-        for (const auto &it : timerServicesInt64) {
+    ~InternalTimeServiceManager()
+    {
+        for (const auto& it : timerServicesInt64) {
             delete it.second;
         }
         timerServicesInt64.clear();
 
-        for (const auto &it : timerServicesWindow) {
+        for (const auto& it : timerServicesWindow) {
             delete it.second;
         }
         timerServicesWindow.clear();
 
-        for (const auto &it : timerServicesVoidNameSpace) {
+        for (const auto& it : timerServicesVoidNameSpace) {
             delete it.second;
         }
         timerServicesVoidNameSpace.clear();
     }
 
     template <typename N>
-    InternalTimerServiceImpl<K, N> *getInternalTimerService(
-            std::string name,
-            TypeSerializer *keySerializer,
-            TypeSerializer *namespaceSerializer,
-            Triggerable<K, N> *triggerable);
+    InternalTimerServiceImpl<K, N>* getInternalTimerService(
+        std::string name,
+        TypeSerializer* keySerializer,
+        TypeSerializer* namespaceSerializer,
+        Triggerable<K, N>* triggerable);
 
-    void advanceWatermark(Watermark *watermark);
+    void advanceWatermark(Watermark* watermark);
 
     void snapshotToRawKeyedState(
-        KeyedStateCheckpointOutputStream *stateCheckpointOutputStream,
+        KeyedStateCheckpointOutputStream* stateCheckpointOutputStream,
         std::string operatorName,
         int64_t checkpointId = -1);
 
     int32_t getRegisteredTimerServiceCount() const;
 
-    void writeTimersForKeyGroup(KeyedStateCheckpointOutputStream *out, int32_t keyGroupIdx);
+    void writeTimersForKeyGroup(KeyedStateCheckpointOutputStream* out, int32_t keyGroupIdx);
 
-    void readTimersForKeyGroup(RawKeyedStateInputStreamProxy *in, int32_t keyGroupIdx, int32_t version);
+    void readTimersForKeyGroup(RawKeyedStateInputStreamProxy* in, int32_t keyGroupIdx, int32_t version);
+
 private:
     enum class TimerNamespaceKind {
         INT64,
@@ -183,7 +185,7 @@ private:
             considerSample(std::move(candidate));
         }
 
-        void mergeKeyGroupDigest(int32_t keyGroupId, const TimerDataDigest &keyGroupDigest)
+        void mergeKeyGroupDigest(int32_t keyGroupId, const TimerDataDigest& keyGroupDigest)
         {
             ++keyGroupCount;
             if (keyGroupDigest.totalTimerCount() > 0) {
@@ -234,7 +236,7 @@ private:
             return value;
         }
 
-        static uint64_t hashKeyGroupDigest(int32_t keyGroupId, const TimerDataDigest &digest)
+        static uint64_t hashKeyGroupDigest(int32_t keyGroupId, const TimerDataDigest& digest)
         {
             uint64_t value = mixHash(static_cast<uint64_t>(static_cast<uint32_t>(keyGroupId)));
             value ^= mixHash(static_cast<uint64_t>(digest.eventTimerCount));
@@ -255,7 +257,7 @@ private:
     ProcessingTimeService* processingTimeService;
     int maxNumberOfSubtasks;
     std::shared_ptr<omnistream::OmniTaskBridge> omniTaskBridge;
-    TypeSerializer *keySerializerForRestore = nullptr;
+    TypeSerializer* keySerializerForRestore = nullptr;
     int64_t activeSnapshotCheckpointId = -1;
     int64_t snapshotEventTimerCount = 0;
     int64_t snapshotProcessingTimerCount = 0;
@@ -278,58 +280,57 @@ private:
 
     template <typename N>
     InternalTimerServiceImpl<K, N>* registerOrGetTimerServiceForRestore(
-        const std::string &name,
-        TypeSerializer *keySerializer,
-        TypeSerializer *namespaceSerializer);
+        const std::string& name, TypeSerializer* keySerializer, TypeSerializer* namespaceSerializer);
 
     template <typename N>
-    void writeTimerServiceMap(KeyedStateCheckpointOutputStream *out,
-        emhash7::HashMap<std::string, InternalTimerService<N>*> &services,
+    void writeTimerServiceMap(
+        KeyedStateCheckpointOutputStream* out,
+        emhash7::HashMap<std::string, InternalTimerService<N>*>& services,
         int32_t keyGroupIdx);
 
-    void restoreRawKeyedState(const std::vector<std::shared_ptr<KeyedStateHandle>> &rawKeyedStateHandles);
+    void restoreRawKeyedState(const std::vector<std::shared_ptr<KeyedStateHandle>>& rawKeyedStateHandles);
 
-    void restoreRawKeyGroupState(const std::shared_ptr<KeyGroupsStateHandle> &keyGroupsStateHandle);
+    void restoreRawKeyGroupState(const std::shared_ptr<KeyGroupsStateHandle>& keyGroupsStateHandle);
 
-    void restoreStateForKeyGroup(RawKeyedStateInputStreamProxy *in, int32_t keyGroupIdx);
+    void restoreStateForKeyGroup(RawKeyedStateInputStreamProxy* in, int32_t keyGroupIdx);
 
     TimerNamespaceKind inferNamespaceKind(
-        const FlinkTimerSerializerSnapshots::SnapshotDescriptor &namespaceSerializerSnapshot);
+        const FlinkTimerSerializerSnapshots::SnapshotDescriptor& namespaceSerializerSnapshot);
 
     template <typename N>
     void readTimerServiceForNamespace(
-        RawKeyedStateInputStreamProxy *in,
-        const std::string &serviceName,
+        RawKeyedStateInputStreamProxy* in,
+        const std::string& serviceName,
         FlinkTimerSerializerSnapshots::SnapshotDescriptor keySerializerSnapshot,
         FlinkTimerSerializerSnapshots::SnapshotDescriptor namespaceSerializerSnapshot,
         int32_t keyGroupIdx,
         int32_t version);
 
     template <typename N>
-    TimerDataDigest buildTimerDataDigest(const InternalTimersSnapshot<K, N> &timersSnapshot);
+    TimerDataDigest buildTimerDataDigest(const InternalTimersSnapshot<K, N>& timersSnapshot);
 
     template <typename N>
     void addTimersToDigest(
-        TimerDataDigest &digest,
-        const std::vector<typename InternalTimersSnapshot<K, N>::TimerPtr> &timers,
-        TypeSerializer *keySerializer,
-        TypeSerializer *namespaceSerializer,
+        TimerDataDigest& digest,
+        const std::vector<typename InternalTimersSnapshot<K, N>::TimerPtr>& timers,
+        TypeSerializer* keySerializer,
+        TypeSerializer* namespaceSerializer,
         bool eventTimer);
 
     template <typename T>
-    static std::vector<uint8_t> serializeTimerValueForDigest(TypeSerializer *serializer, T value);
+    static std::vector<uint8_t> serializeTimerValueForDigest(TypeSerializer* serializer, T value);
 
     static uint64_t hashTimerBytes(
         bool eventTimer,
         int64_t timestamp,
-        const std::vector<uint8_t> &keyBytes,
-        const std::vector<uint8_t> &namespaceBytes);
+        const std::vector<uint8_t>& keyBytes,
+        const std::vector<uint8_t>& namespaceBytes);
 
-    static uint64_t hashBytesForDigestLog(const std::vector<uint8_t> &bytes);
+    static uint64_t hashBytesForDigestLog(const std::vector<uint8_t>& bytes);
 
-    static std::string bytesPreviewHex(const std::vector<uint8_t> &bytes, size_t maxBytes);
+    static std::string bytesPreviewHex(const std::vector<uint8_t>& bytes, size_t maxBytes);
 
-    static uint64_t fnv1aUpdate(uint64_t hash, const uint8_t *data, size_t length);
+    static uint64_t fnv1aUpdate(uint64_t hash, const uint8_t* data, size_t length);
 
     static uint64_t fnv1aUpdateInt64(uint64_t hash, int64_t value);
 
@@ -337,45 +338,45 @@ private:
 
     static std::string namespaceKindName(TimerNamespaceKind namespaceKind);
 
-    static std::string digestMapKey(const std::string &serviceName, TimerNamespaceKind namespaceKind);
+    static std::string digestMapKey(const std::string& serviceName, TimerNamespaceKind namespaceKind);
 
     static int64_t printableMinTimestamp(int64_t count, int64_t value);
 
     static int64_t printableMaxTimestamp(int64_t count, int64_t value);
 
     void mergeTimerDataDigest(
-        std::unordered_map<std::string, TimerDataDigest> &target,
-        const std::string &serviceName,
+        std::unordered_map<std::string, TimerDataDigest>& target,
+        const std::string& serviceName,
         TimerNamespaceKind namespaceKind,
         int32_t keyGroupIdx,
-        const TimerDataDigest &keyGroupDigest);
+        const TimerDataDigest& keyGroupDigest);
 
     void logTimerDataDigest(
-        const char *phase,
-        const std::string &operatorName,
+        const char* phase,
+        const std::string& operatorName,
         int64_t checkpointId,
-        const std::string &serviceName,
+        const std::string& serviceName,
         TimerNamespaceKind namespaceKind,
-        const TimerDataDigest &digest);
+        const TimerDataDigest& digest);
 
     void logTimerDataDigests(
-        const char *phase,
-        const std::string &operatorName,
+        const char* phase,
+        const std::string& operatorName,
         int64_t checkpointId,
-        const std::unordered_map<std::string, TimerDataDigest> &digests);
+        const std::unordered_map<std::string, TimerDataDigest>& digests);
 
     void logTimerDataSample(
-        const char *phase,
-        const std::string &operatorName,
+        const char* phase,
+        const std::string& operatorName,
         int64_t checkpointId,
-        const std::string &serviceName,
-        const std::string &namespaceKind,
-        const TimerDataDigest &digest);
-
+        const std::string& serviceName,
+        const std::string& namespaceKind,
+        const TimerDataDigest& digest);
 };
 
 template <typename K>
-void InternalTimeServiceManager<K>::advanceWatermark(Watermark *watermark) {
+void InternalTimeServiceManager<K>::advanceWatermark(Watermark* watermark)
+{
     for (auto it = timerServicesWindow.begin(); it != timerServicesWindow.end(); it++) {
         it->second->advanceWatermark(watermark->getTimestamp());
     }
@@ -389,8 +390,12 @@ void InternalTimeServiceManager<K>::advanceWatermark(Watermark *watermark) {
 
 template <typename K>
 template <typename N>
-InternalTimerServiceImpl<K, N>* InternalTimeServiceManager<K>::getInternalTimerService(std::string name,
-        TypeSerializer* keySerializer, TypeSerializer* namespaceSerializer, Triggerable<K, N>* triggerable) {
+InternalTimerServiceImpl<K, N>* InternalTimeServiceManager<K>::getInternalTimerService(
+    std::string name,
+    TypeSerializer* keySerializer,
+    TypeSerializer* namespaceSerializer,
+    Triggerable<K, N>* triggerable)
+{
     // TODO: delete？
     auto timerSerializer = new TimerSerializer<K, N>(keySerializer, namespaceSerializer);
     InternalTimerServiceImpl<K, N>* timerService = this->template registerOrGetTimerService<N>(name, timerSerializer);
@@ -400,8 +405,9 @@ InternalTimerServiceImpl<K, N>* InternalTimeServiceManager<K>::getInternalTimerS
 
 template <typename K>
 template <typename N>
-InternalTimerServiceImpl<K, N> *InternalTimeServiceManager<K>::registerOrGetTimerService(
-        std::string name, TimerSerializer<K, N>* timerSerializer) {
+InternalTimerServiceImpl<K, N>* InternalTimeServiceManager<K>::registerOrGetTimerService(
+    std::string name, TimerSerializer<K, N>* timerSerializer)
+{
     auto& timerServicesMap = [&]() -> auto& {
         if constexpr (std::is_same_v<N, int64_t>) {
             return timerServicesInt64;
@@ -410,7 +416,7 @@ InternalTimerServiceImpl<K, N> *InternalTimeServiceManager<K>::registerOrGetTime
         } else if constexpr (std::is_same_v<N, TimeWindow>) {
             return timerServicesWindow;
         } else {
-            THROW_LOGIC_EXCEPTION("Unsupported namespace type, timerService name: " << name)
+            THROW_LOGIC_EXCEPTION("Unsupported namespace type, timerService name: " << name);
         }
     }();
 
@@ -422,40 +428,38 @@ InternalTimerServiceImpl<K, N> *InternalTimeServiceManager<K>::registerOrGetTime
     if (it == timerServicesMap.end()) {
         if (auto factory = dynamic_cast<HeapKeyedStateBackend<K>*>(priorityQueueSetFactory)) {
             auto processingTimerQueue = factory->template create<std::shared_ptr<TimerType>, TimerComparator>(
-                    PROCESSING_TIMER_PREFIX + name,
-                    timerSerializer);
+                PROCESSING_TIMER_PREFIX + name, timerSerializer);
             auto eventTimerQueue = factory->template create<std::shared_ptr<TimerType>, TimerComparator>(
-                    EVENT_TIMER_PREFIX + name,
-                    timerSerializer);
+                EVENT_TIMER_PREFIX + name, timerSerializer);
 
-            timerService = new InternalTimerServiceImpl<K, N>(localKeyGroupRange, keyContext, processingTimeService, processingTimerQueue, eventTimerQueue);
+            timerService = new InternalTimerServiceImpl<K, N>(
+                localKeyGroupRange, keyContext, processingTimeService, processingTimerQueue, eventTimerQueue);
             timerServicesMap.emplace(name, timerService);
-            INFO_RELEASE("TIMER_CP_QUEUE_CREATE backend=HEAP_KEYED"
+            INFO_RELEASE(
+                "TIMER_CP_QUEUE_CREATE backend=HEAP_KEYED"
                 << ", managerPtr=" << reinterpret_cast<uintptr_t>(this)
-                << ", timerServicePtr=" << reinterpret_cast<uintptr_t>(timerService)
-                << ", timerServiceName=" << name
+                << ", timerServicePtr=" << reinterpret_cast<uintptr_t>(timerService) << ", timerServiceName=" << name
                 << ", processingStateName=" << PROCESSING_TIMER_PREFIX + name
                 << ", eventStateName=" << EVENT_TIMER_PREFIX + name
                 << ", registeredTimerServiceCountNow=" << getRegisteredTimerServiceCount());
         } else if (auto factory = dynamic_cast<RocksdbKeyedStateBackend<K>*>(priorityQueueSetFactory)) {
             auto processingTimerQueue = factory->template create<std::shared_ptr<TimerType>, TimerComparator>(
-                    PROCESSING_TIMER_PREFIX + name,
-                    timerSerializer);
+                PROCESSING_TIMER_PREFIX + name, timerSerializer);
             auto eventTimerQueue = factory->template create<std::shared_ptr<TimerType>, TimerComparator>(
-                    EVENT_TIMER_PREFIX + name,
-                    timerSerializer);
+                EVENT_TIMER_PREFIX + name, timerSerializer);
 
-            timerService = new InternalTimerServiceImpl<K, N>(localKeyGroupRange, keyContext, processingTimeService, processingTimerQueue, eventTimerQueue);
+            timerService = new InternalTimerServiceImpl<K, N>(
+                localKeyGroupRange, keyContext, processingTimeService, processingTimerQueue, eventTimerQueue);
             timerServicesMap.emplace(name, timerService);
-            INFO_RELEASE("TIMER_CP_QUEUE_CREATE backend=ROCKSDB_KEYED"
+            INFO_RELEASE(
+                "TIMER_CP_QUEUE_CREATE backend=ROCKSDB_KEYED"
                 << ", managerPtr=" << reinterpret_cast<uintptr_t>(this)
-                << ", timerServicePtr=" << reinterpret_cast<uintptr_t>(timerService)
-                << ", timerServiceName=" << name
+                << ", timerServicePtr=" << reinterpret_cast<uintptr_t>(timerService) << ", timerServiceName=" << name
                 << ", processingStateName=" << PROCESSING_TIMER_PREFIX + name
                 << ", eventStateName=" << EVENT_TIMER_PREFIX + name
                 << ", registeredTimerServiceCountNow=" << getRegisteredTimerServiceCount());
         } else {
-            THROW_LOGIC_EXCEPTION("Unsupported priorityQueueSetFactory")
+            THROW_LOGIC_EXCEPTION("Unsupported priorityQueueSetFactory");
         }
     } else {
         timerService = static_cast<InternalTimerServiceImpl<K, N>*>(it->second);
@@ -466,9 +470,7 @@ InternalTimerServiceImpl<K, N> *InternalTimeServiceManager<K>::registerOrGetTime
 template <typename K>
 template <typename N>
 InternalTimerServiceImpl<K, N>* InternalTimeServiceManager<K>::registerOrGetTimerServiceForRestore(
-    const std::string &name,
-    TypeSerializer *keySerializer,
-    TypeSerializer *namespaceSerializer)
+    const std::string& name, TypeSerializer* keySerializer, TypeSerializer* namespaceSerializer)
 {
     auto timerSerializer = new TimerSerializer<K, N>(keySerializer, namespaceSerializer);
     return this->template registerOrGetTimerService<N>(name, timerSerializer);
@@ -476,7 +478,7 @@ InternalTimerServiceImpl<K, N>* InternalTimeServiceManager<K>::registerOrGetTime
 
 template <typename K>
 void InternalTimeServiceManager<K>::restoreRawKeyedState(
-    const std::vector<std::shared_ptr<KeyedStateHandle>> &rawKeyedStateHandles)
+    const std::vector<std::shared_ptr<KeyedStateHandle>>& rawKeyedStateHandles)
 {
     restoreEventTimerCount = 0;
     restoreProcessingTimerCount = 0;
@@ -487,20 +489,20 @@ void InternalTimeServiceManager<K>::restoreRawKeyedState(
     restoreTimerDataDigests.clear();
 
     if (rawKeyedStateHandles.empty()) {
-        INFO_RELEASE("TIMER_CP_RESTORE_SUMMARY rawHandleCount=0"
-            << ", managerPtr=" << reinterpret_cast<uintptr_t>(this)
-            << ", skippedHandleCount=0"
-            << ", restoredKeyGroupCount=0"
-            << ", nonEmptyKeyGroupCount=0"
-            << ", nonEmptyServiceKeyGroupCount=0"
-            << ", eventTimerCount=0"
-            << ", processingTimerCount=0"
-            << ", totalTimerCount=0"
-            << ", localKeyGroupRange=" << localKeyGroupRange->ToString());
+        INFO_RELEASE(
+            "TIMER_CP_RESTORE_SUMMARY rawHandleCount=0" << ", managerPtr=" << reinterpret_cast<uintptr_t>(this)
+                                                        << ", skippedHandleCount=0"
+                                                        << ", restoredKeyGroupCount=0"
+                                                        << ", nonEmptyKeyGroupCount=0"
+                                                        << ", nonEmptyServiceKeyGroupCount=0"
+                                                        << ", eventTimerCount=0"
+                                                        << ", processingTimerCount=0"
+                                                        << ", totalTimerCount=0"
+                                                        << ", localKeyGroupRange=" << localKeyGroupRange->ToString());
         return;
     }
 
-    for (const auto &handle : rawKeyedStateHandles) {
+    for (const auto& handle : rawKeyedStateHandles) {
         if (handle == nullptr) {
             ++restoreSkippedHandleCount;
             continue;
@@ -515,20 +517,19 @@ void InternalTimeServiceManager<K>::restoreRawKeyedState(
         auto keyGroupsStateHandle = std::dynamic_pointer_cast<KeyGroupsStateHandle>(intersection);
         if (keyGroupsStateHandle == nullptr) {
             INFO_RELEASE("Error: restoreRawKeyedState Raw keyed timer restore only supports KeyGroupsStateHandle.");
-            THROW_LOGIC_EXCEPTION("Raw keyed timer restore only supports KeyGroupsStateHandle.")
+            THROW_LOGIC_EXCEPTION("Raw keyed timer restore only supports KeyGroupsStateHandle.");
         }
 
         restoreRawKeyGroupState(keyGroupsStateHandle);
     }
 
-    INFO_RELEASE("TIMER_CP_RESTORE_SUMMARY rawHandleCount=" << rawKeyedStateHandles.size()
-        << ", managerPtr=" << reinterpret_cast<uintptr_t>(this)
-        << ", skippedHandleCount=" << restoreSkippedHandleCount
-        << ", restoredKeyGroupCount=" << restoreReadKeyGroupCount
-        << ", nonEmptyKeyGroupCount=" << restoreNonEmptyKeyGroupCount
+    INFO_RELEASE(
+        "TIMER_CP_RESTORE_SUMMARY rawHandleCount="
+        << rawKeyedStateHandles.size() << ", managerPtr=" << reinterpret_cast<uintptr_t>(this)
+        << ", skippedHandleCount=" << restoreSkippedHandleCount << ", restoredKeyGroupCount="
+        << restoreReadKeyGroupCount << ", nonEmptyKeyGroupCount=" << restoreNonEmptyKeyGroupCount
         << ", nonEmptyServiceKeyGroupCount=" << restoreNonEmptyServiceKeyGroupCount
-        << ", eventTimerCount=" << restoreEventTimerCount
-        << ", processingTimerCount=" << restoreProcessingTimerCount
+        << ", eventTimerCount=" << restoreEventTimerCount << ", processingTimerCount=" << restoreProcessingTimerCount
         << ", totalTimerCount=" << (restoreEventTimerCount + restoreProcessingTimerCount)
         << ", localKeyGroupRange=" << localKeyGroupRange->ToString());
     if (TimerConsistencyCheckControl::timerConsistencyCheckEnabled) {
@@ -538,13 +539,12 @@ void InternalTimeServiceManager<K>::restoreRawKeyedState(
 
 template <typename K>
 void InternalTimeServiceManager<K>::restoreRawKeyGroupState(
-    const std::shared_ptr<KeyGroupsStateHandle> &keyGroupsStateHandle)
+    const std::shared_ptr<KeyGroupsStateHandle>& keyGroupsStateHandle)
 {
     KeyGroupRange keyGroupRange = keyGroupsStateHandle->GetKeyGroupRange();
     RawKeyedStateInputStreamProxy input(omniTaskBridge, keyGroupsStateHandle);
 
-    for (int32_t keyGroupIdx = keyGroupRange.getStartKeyGroup();
-         keyGroupIdx <= keyGroupRange.getEndKeyGroup();
+    for (int32_t keyGroupIdx = keyGroupRange.getStartKeyGroup(); keyGroupIdx <= keyGroupRange.getEndKeyGroup();
          ++keyGroupIdx) {
         int64_t offset = keyGroupsStateHandle->getOffsetForKeyGroup(keyGroupIdx);
         if (offset < 0) {
@@ -557,20 +557,17 @@ void InternalTimeServiceManager<K>::restoreRawKeyGroupState(
 }
 
 template <typename K>
-void InternalTimeServiceManager<K>::restoreStateForKeyGroup(
-    RawKeyedStateInputStreamProxy *in,
-    int32_t keyGroupIdx)
+void InternalTimeServiceManager<K>::restoreStateForKeyGroup(RawKeyedStateInputStreamProxy* in, int32_t keyGroupIdx)
 {
     InternalTimerServiceSerializationProxy<K> proxy(this, keyGroupIdx);
     proxy.read(in);
 }
 
 template <typename K>
-typename InternalTimeServiceManager<K>::TimerNamespaceKind
-InternalTimeServiceManager<K>::inferNamespaceKind(
-    const FlinkTimerSerializerSnapshots::SnapshotDescriptor &namespaceSerializerSnapshot)
+typename InternalTimeServiceManager<K>::TimerNamespaceKind InternalTimeServiceManager<K>::inferNamespaceKind(
+    const FlinkTimerSerializerSnapshots::SnapshotDescriptor& namespaceSerializerSnapshot)
 {
-    const std::string &className = namespaceSerializerSnapshot.className;
+    const std::string& className = namespaceSerializerSnapshot.className;
     if (className == FlinkTimerSerializerSnapshots::VOID_NAMESPACE_SERIALIZER_SNAPSHOT) {
         return TimerNamespaceKind::VOID_NAMESPACE;
     }
@@ -582,14 +579,12 @@ InternalTimeServiceManager<K>::inferNamespaceKind(
     }
 
     INFO_RELEASE("Error: inferNamespaceKind Unsupported timer namespace serializer snapshot class: " << className);
-    THROW_LOGIC_EXCEPTION("Unsupported timer namespace serializer snapshot class: " << className)
+    THROW_LOGIC_EXCEPTION("Unsupported timer namespace serializer snapshot class: " << className);
 }
 
 template <typename K>
 void InternalTimeServiceManager<K>::readTimersForKeyGroup(
-    RawKeyedStateInputStreamProxy *in,
-    int32_t keyGroupIdx,
-    int32_t version)
+    RawKeyedStateInputStreamProxy* in, int32_t keyGroupIdx, int32_t version)
 {
     int32_t serviceCount = in->readInt();
     ++restoreReadKeyGroupCount;
@@ -642,18 +637,15 @@ void InternalTimeServiceManager<K>::readTimersForKeyGroup(
 template <typename K>
 template <typename N>
 void InternalTimeServiceManager<K>::readTimerServiceForNamespace(
-    RawKeyedStateInputStreamProxy *in,
-    const std::string &serviceName,
+    RawKeyedStateInputStreamProxy* in,
+    const std::string& serviceName,
     FlinkTimerSerializerSnapshots::SnapshotDescriptor keySerializerSnapshot,
     FlinkTimerSerializerSnapshots::SnapshotDescriptor namespaceSerializerSnapshot,
     int32_t keyGroupIdx,
     int32_t version)
 {
     auto reader = InternalTimersSnapshotReaderWriters<K, N>::getReaderForVersion(
-        version,
-        std::move(keySerializerSnapshot),
-        std::move(namespaceSerializerSnapshot),
-        keySerializerForRestore);
+        version, std::move(keySerializerSnapshot), std::move(namespaceSerializerSnapshot), keySerializerForRestore);
     InternalTimersSnapshot<K, N> timersSnapshot = reader->readTimersSnapshot(in);
     int64_t eventTimerCount = static_cast<int64_t>(timersSnapshot.getEventTimeTimers().size());
     int64_t processingTimerCount = static_cast<int64_t>(timersSnapshot.getProcessingTimeTimers().size());
@@ -676,22 +668,19 @@ void InternalTimeServiceManager<K>::readTimerServiceForNamespace(
         mergeTimerDataDigest(restoreTimerDataDigests, serviceName, namespaceKind, keyGroupIdx, keyGroupDigest);
     }
 
-    auto *timerService = registerOrGetTimerServiceForRestore<N>(
-        serviceName,
-        timersSnapshot.getKeySerializer(),
-        timersSnapshot.getNamespaceSerializer());
+    auto* timerService = registerOrGetTimerServiceForRestore<N>(
+        serviceName, timersSnapshot.getKeySerializer(), timersSnapshot.getNamespaceSerializer());
     timerService->restoreTimersForKeyGroup(timersSnapshot, keyGroupIdx);
 }
 
 template <typename K>
 inline void InternalTimeServiceManager<K>::snapshotToRawKeyedState(
-    KeyedStateCheckpointOutputStream *stateCheckpointOutputStream,
-    std::string operatorName,
-    int64_t checkpointId)
+    KeyedStateCheckpointOutputStream* stateCheckpointOutputStream, std::string operatorName, int64_t checkpointId)
 {
     if (stateCheckpointOutputStream == nullptr) {
-        INFO_RELEASE("Error: snapshotToRawKeyedState Raw keyed state output stream is null for operator " << operatorName);
-        THROW_LOGIC_EXCEPTION("Raw keyed state output stream is null for operator " << operatorName)
+        INFO_RELEASE(
+            "Error: snapshotToRawKeyedState Raw keyed state output stream is null for operator " << operatorName);
+        THROW_LOGIC_EXCEPTION("Raw keyed state output stream is null for operator " << operatorName);
     }
 
     try {
@@ -708,56 +697,51 @@ inline void InternalTimeServiceManager<K>::snapshotToRawKeyedState(
             InternalTimerServiceSerializationProxy<K> proxy(this, keyGroupIdx);
             proxy.write(stateCheckpointOutputStream);
         }
-    } catch (const std::exception &e) {
-        INFO_RELEASE("TIMER_CP_SNAPSHOT_ABORT checkpointId=" << checkpointId
-            << ", managerPtr=" << reinterpret_cast<uintptr_t>(this)
-            << ", operatorName=" << operatorName
+    } catch (const std::exception& e) {
+        INFO_RELEASE(
+            "TIMER_CP_SNAPSHOT_ABORT checkpointId="
+            << checkpointId << ", managerPtr=" << reinterpret_cast<uintptr_t>(this) << ", operatorName=" << operatorName
             << ", phase=writeKeyGroups"
-            << ", activeKeyGroupId=" << activeSnapshotKeyGroupId
-            << ", writtenKeyGroupCount=" << snapshotWrittenKeyGroupCount
-            << ", registeredTimerServiceCount=" << getRegisteredTimerServiceCount()
+            << ", activeKeyGroupId=" << activeSnapshotKeyGroupId << ", writtenKeyGroupCount="
+            << snapshotWrittenKeyGroupCount << ", registeredTimerServiceCount=" << getRegisteredTimerServiceCount()
             << ", int64TimerServiceCount=" << timerServicesInt64.size()
             << ", windowTimerServiceCount=" << timerServicesWindow.size()
-            << ", voidTimerServiceCount=" << timerServicesVoidNameSpace.size()
-            << ", error=" << e.what());
+            << ", voidTimerServiceCount=" << timerServicesVoidNameSpace.size() << ", error=" << e.what());
         activeSnapshotCheckpointId = -1;
         activeSnapshotKeyGroupId = -1;
-        INFO_RELEASE("Error: snapshotToRawKeyedState Could not write timer service of operator "
+        INFO_RELEASE(
+            "Error: snapshotToRawKeyedState Could not write timer service of operator "
             << operatorName << " to raw keyed checkpoint state stream.");
-        THROW_LOGIC_EXCEPTION("Could not write timer service of operator " << operatorName
-            << " to raw keyed checkpoint state stream. Root cause: " << e.what())
+        THROW_LOGIC_EXCEPTION(
+            "Could not write timer service of operator "
+            << operatorName << " to raw keyed checkpoint state stream. Root cause: " << e.what());
     }
 
     try {
         stateCheckpointOutputStream->close();
-    } catch (const std::exception &e) {
-        INFO_RELEASE("TIMER_CP_SNAPSHOT_ABORT checkpointId=" << checkpointId
-            << ", managerPtr=" << reinterpret_cast<uintptr_t>(this)
-            << ", operatorName=" << operatorName
+    } catch (const std::exception& e) {
+        INFO_RELEASE(
+            "TIMER_CP_SNAPSHOT_ABORT checkpointId="
+            << checkpointId << ", managerPtr=" << reinterpret_cast<uintptr_t>(this) << ", operatorName=" << operatorName
             << ", phase=closeRawKeyedStateStream"
-            << ", activeKeyGroupId=" << activeSnapshotKeyGroupId
-            << ", writtenKeyGroupCount=" << snapshotWrittenKeyGroupCount
-            << ", registeredTimerServiceCount=" << getRegisteredTimerServiceCount()
+            << ", activeKeyGroupId=" << activeSnapshotKeyGroupId << ", writtenKeyGroupCount="
+            << snapshotWrittenKeyGroupCount << ", registeredTimerServiceCount=" << getRegisteredTimerServiceCount()
             << ", int64TimerServiceCount=" << timerServicesInt64.size()
             << ", windowTimerServiceCount=" << timerServicesWindow.size()
-            << ", voidTimerServiceCount=" << timerServicesVoidNameSpace.size()
-            << ", error=" << e.what());
+            << ", voidTimerServiceCount=" << timerServicesVoidNameSpace.size() << ", error=" << e.what());
         activeSnapshotCheckpointId = -1;
         activeSnapshotKeyGroupId = -1;
         throw;
     }
-    INFO_RELEASE("TIMER_CP_SNAPSHOT_SUMMARY checkpointId=" << checkpointId
-        << ", managerPtr=" << reinterpret_cast<uintptr_t>(this)
-        << ", operatorName=" << operatorName
-        << ", keyGroupCount=" << snapshotWrittenKeyGroupCount
-        << ", nonEmptyKeyGroupCount=" << snapshotNonEmptyKeyGroupCount
-        << ", registeredTimerServiceCount=" << getRegisteredTimerServiceCount()
-        << ", int64TimerServiceCount=" << timerServicesInt64.size()
-        << ", windowTimerServiceCount=" << timerServicesWindow.size()
-        << ", voidTimerServiceCount=" << timerServicesVoidNameSpace.size()
+    INFO_RELEASE(
+        "TIMER_CP_SNAPSHOT_SUMMARY checkpointId="
+        << checkpointId << ", managerPtr=" << reinterpret_cast<uintptr_t>(this) << ", operatorName=" << operatorName
+        << ", keyGroupCount=" << snapshotWrittenKeyGroupCount << ", nonEmptyKeyGroupCount="
+        << snapshotNonEmptyKeyGroupCount << ", registeredTimerServiceCount=" << getRegisteredTimerServiceCount()
+        << ", int64TimerServiceCount=" << timerServicesInt64.size() << ", windowTimerServiceCount="
+        << timerServicesWindow.size() << ", voidTimerServiceCount=" << timerServicesVoidNameSpace.size()
         << ", nonEmptyServiceKeyGroupCount=" << snapshotNonEmptyServiceKeyGroupCount
-        << ", eventTimerCount=" << snapshotEventTimerCount
-        << ", processingTimerCount=" << snapshotProcessingTimerCount
+        << ", eventTimerCount=" << snapshotEventTimerCount << ", processingTimerCount=" << snapshotProcessingTimerCount
         << ", totalTimerCount=" << (snapshotEventTimerCount + snapshotProcessingTimerCount));
     if (TimerConsistencyCheckControl::timerConsistencyCheckEnabled) {
         logTimerDataDigests("snapshot", operatorName, checkpointId, snapshotTimerDataDigests);
@@ -766,19 +750,16 @@ inline void InternalTimeServiceManager<K>::snapshotToRawKeyedState(
     activeSnapshotKeyGroupId = -1;
 }
 
-
 template <typename K>
 inline int32_t InternalTimeServiceManager<K>::getRegisteredTimerServiceCount() const
 {
-    return static_cast<int32_t>(timerServicesInt64.size()
-        + timerServicesWindow.size()
-        + timerServicesVoidNameSpace.size());
+    return static_cast<int32_t>(
+        timerServicesInt64.size() + timerServicesWindow.size() + timerServicesVoidNameSpace.size());
 }
 
 template <typename K>
 inline void InternalTimeServiceManager<K>::writeTimersForKeyGroup(
-    KeyedStateCheckpointOutputStream *out,
-    int32_t keyGroupIdx)
+    KeyedStateCheckpointOutputStream* out, int32_t keyGroupIdx)
 {
     ++snapshotWrittenKeyGroupCount;
     int64_t keyGroupEventTimerCountBefore = snapshotEventTimerCount;
@@ -799,13 +780,13 @@ inline void InternalTimeServiceManager<K>::writeTimersForKeyGroup(
 template <typename K>
 template <typename N>
 inline void InternalTimeServiceManager<K>::writeTimerServiceMap(
-    KeyedStateCheckpointOutputStream *out,
-    emhash7::HashMap<std::string, InternalTimerService<N>*> &services,
+    KeyedStateCheckpointOutputStream* out,
+    emhash7::HashMap<std::string, InternalTimerService<N>*>& services,
     int32_t keyGroupIdx)
 {
-    for (auto &entry : services) {
-        const std::string &serviceName = entry.first;
-        auto *timerService = static_cast<InternalTimerServiceImpl<K, N>*>(entry.second);
+    for (auto& entry : services) {
+        const std::string& serviceName = entry.first;
+        auto* timerService = static_cast<InternalTimerServiceImpl<K, N>*>(entry.second);
         out->writeUTF(serviceName);
 
         auto timersSnapshot = timerService->snapshotTimersForKeyGroup(keyGroupIdx);
@@ -841,7 +822,7 @@ inline void InternalTimeServiceManager<K>::writeTimerServiceMap(
 template <typename K>
 template <typename N>
 typename InternalTimeServiceManager<K>::TimerDataDigest InternalTimeServiceManager<K>::buildTimerDataDigest(
-    const InternalTimersSnapshot<K, N> &timersSnapshot)
+    const InternalTimersSnapshot<K, N>& timersSnapshot)
 {
     TimerDataDigest digest;
     addTimersToDigest<N>(
@@ -862,18 +843,18 @@ typename InternalTimeServiceManager<K>::TimerDataDigest InternalTimeServiceManag
 template <typename K>
 template <typename N>
 void InternalTimeServiceManager<K>::addTimersToDigest(
-    TimerDataDigest &digest,
-    const std::vector<typename InternalTimersSnapshot<K, N>::TimerPtr> &timers,
-    TypeSerializer *keySerializer,
-    TypeSerializer *namespaceSerializer,
+    TimerDataDigest& digest,
+    const std::vector<typename InternalTimersSnapshot<K, N>::TimerPtr>& timers,
+    TypeSerializer* keySerializer,
+    TypeSerializer* namespaceSerializer,
     bool eventTimer)
 {
-    for (const auto &timer : timers) {
+    for (const auto& timer : timers) {
         if (timer == nullptr) {
             continue;
         }
-        std::vector<uint8_t> keyBytes = InternalTimeServiceManager<K>::template serializeTimerValueForDigest<K>(
-            keySerializer, timer->getKey());
+        std::vector<uint8_t> keyBytes =
+            InternalTimeServiceManager<K>::template serializeTimerValueForDigest<K>(keySerializer, timer->getKey());
         std::vector<uint8_t> namespaceBytes = InternalTimeServiceManager<K>::template serializeTimerValueForDigest<N>(
             namespaceSerializer, timer->getNamespace());
         uint64_t timerHash = hashTimerBytes(eventTimer, timer->getTimestamp(), keyBytes, namespaceBytes);
@@ -892,11 +873,11 @@ void InternalTimeServiceManager<K>::addTimersToDigest(
 
 template <typename K>
 template <typename T>
-std::vector<uint8_t> InternalTimeServiceManager<K>::serializeTimerValueForDigest(TypeSerializer *serializer, T value)
+std::vector<uint8_t> InternalTimeServiceManager<K>::serializeTimerValueForDigest(TypeSerializer* serializer, T value)
 {
     if (serializer == nullptr) {
         INFO_RELEASE("Error: serializeTimerValueForDigest Timer serializer is null.");
-        THROW_LOGIC_EXCEPTION("Timer serializer is null while building timer digest.")
+        THROW_LOGIC_EXCEPTION("Timer serializer is null while building timer digest.");
     }
 
     DataOutputSerializer target(128);
@@ -906,19 +887,19 @@ std::vector<uint8_t> InternalTimeServiceManager<K>::serializeTimerValueForDigest
     } else if constexpr (std::is_same_v<T, int32_t>) {
         Integer boxed(value);
         serializer->serialize(&boxed, target);
-    } else if constexpr (std::is_same_v<T, Object *>) {
+    } else if constexpr (std::is_same_v<T, Object*>) {
         serializer->serialize(value, target);
     } else if constexpr (is_shared_ptr_v<T>) {
         if (value == nullptr) {
             INFO_RELEASE("Error: serializeTimerValueForDigest Timer shared_ptr value is null.");
-            THROW_LOGIC_EXCEPTION("Timer shared_ptr value is null while building timer digest.")
+            THROW_LOGIC_EXCEPTION("Timer shared_ptr value is null while building timer digest.");
         }
         serializer->serialize(value.get(), target);
     } else if constexpr (std::is_pointer_v<T>) {
-        serializer->serialize(static_cast<void *>(value), target);
+        serializer->serialize(static_cast<void*>(value), target);
     } else {
         T copy = value;
-        serializer->serialize(static_cast<void *>(&copy), target);
+        serializer->serialize(static_cast<void*>(&copy), target);
     }
 
     int32_t length = target.getPosition();
@@ -932,8 +913,8 @@ template <typename K>
 uint64_t InternalTimeServiceManager<K>::hashTimerBytes(
     bool eventTimer,
     int64_t timestamp,
-    const std::vector<uint8_t> &keyBytes,
-    const std::vector<uint8_t> &namespaceBytes)
+    const std::vector<uint8_t>& keyBytes,
+    const std::vector<uint8_t>& namespaceBytes)
 {
     static constexpr uint64_t FNV_OFFSET_BASIS = 1469598103934665603ULL;
     uint64_t hash = FNV_OFFSET_BASIS;
@@ -948,7 +929,7 @@ uint64_t InternalTimeServiceManager<K>::hashTimerBytes(
 }
 
 template <typename K>
-uint64_t InternalTimeServiceManager<K>::hashBytesForDigestLog(const std::vector<uint8_t> &bytes)
+uint64_t InternalTimeServiceManager<K>::hashBytesForDigestLog(const std::vector<uint8_t>& bytes)
 {
     static constexpr uint64_t FNV_OFFSET_BASIS = 1469598103934665603ULL;
     uint64_t hash = FNV_OFFSET_BASIS;
@@ -957,7 +938,7 @@ uint64_t InternalTimeServiceManager<K>::hashBytesForDigestLog(const std::vector<
 }
 
 template <typename K>
-std::string InternalTimeServiceManager<K>::bytesPreviewHex(const std::vector<uint8_t> &bytes, size_t maxBytes)
+std::string InternalTimeServiceManager<K>::bytesPreviewHex(const std::vector<uint8_t>& bytes, size_t maxBytes)
 {
     static constexpr char HEX[] = "0123456789abcdef";
     size_t previewLength = std::min(bytes.size(), maxBytes);
@@ -972,7 +953,7 @@ std::string InternalTimeServiceManager<K>::bytesPreviewHex(const std::vector<uin
 }
 
 template <typename K>
-uint64_t InternalTimeServiceManager<K>::fnv1aUpdate(uint64_t hash, const uint8_t *data, size_t length)
+uint64_t InternalTimeServiceManager<K>::fnv1aUpdate(uint64_t hash, const uint8_t* data, size_t length)
 {
     static constexpr uint64_t FNV_PRIME = 1099511628211ULL;
     if (data == nullptr || length == 0) {
@@ -1011,21 +992,16 @@ template <typename K>
 std::string InternalTimeServiceManager<K>::namespaceKindName(TimerNamespaceKind namespaceKind)
 {
     switch (namespaceKind) {
-        case TimerNamespaceKind::INT64:
-            return "INT64";
-        case TimerNamespaceKind::TIME_WINDOW:
-            return "TIME_WINDOW";
-        case TimerNamespaceKind::VOID_NAMESPACE:
-            return "VOID_NAMESPACE";
-        default:
-            return "UNKNOWN";
+        case TimerNamespaceKind::INT64: return "INT64";
+        case TimerNamespaceKind::TIME_WINDOW: return "TIME_WINDOW";
+        case TimerNamespaceKind::VOID_NAMESPACE: return "VOID_NAMESPACE";
+        default: return "UNKNOWN";
     }
 }
 
 template <typename K>
 std::string InternalTimeServiceManager<K>::digestMapKey(
-    const std::string &serviceName,
-    TimerNamespaceKind namespaceKind)
+    const std::string& serviceName, TimerNamespaceKind namespaceKind)
 {
     return namespaceKindName(namespaceKind) + "|" + serviceName;
 }
@@ -1044,42 +1020,35 @@ int64_t InternalTimeServiceManager<K>::printableMaxTimestamp(int64_t count, int6
 
 template <typename K>
 void InternalTimeServiceManager<K>::mergeTimerDataDigest(
-    std::unordered_map<std::string, TimerDataDigest> &target,
-    const std::string &serviceName,
+    std::unordered_map<std::string, TimerDataDigest>& target,
+    const std::string& serviceName,
     TimerNamespaceKind namespaceKind,
     int32_t keyGroupIdx,
-    const TimerDataDigest &keyGroupDigest)
+    const TimerDataDigest& keyGroupDigest)
 {
     target[digestMapKey(serviceName, namespaceKind)].mergeKeyGroupDigest(keyGroupIdx, keyGroupDigest);
 }
 
 template <typename K>
 void InternalTimeServiceManager<K>::logTimerDataDigest(
-    const char *phase,
-    const std::string &operatorName,
+    const char* phase,
+    const std::string& operatorName,
     int64_t checkpointId,
-    const std::string &serviceName,
+    const std::string& serviceName,
     TimerNamespaceKind namespaceKind,
-    const TimerDataDigest &digest)
+    const TimerDataDigest& digest)
 {
-    INFO_RELEASE("TIMER_CP_HEAP_PQ_DATA_DIGEST phase=" << phase
-        << ", checkpointId=" << checkpointId
-        << ", backend=ROCKSDB_KEYED"
+    INFO_RELEASE(
+        "TIMER_CP_HEAP_PQ_DATA_DIGEST phase="
+        << phase << ", checkpointId=" << checkpointId << ", backend=ROCKSDB_KEYED"
         << ", pqStorage=HEAP"
-        << ", managerPtr=" << reinterpret_cast<uintptr_t>(this)
-        << ", operatorName=" << operatorName
-        << ", serviceName=" << serviceName
-        << ", namespaceKind=" << namespaceKindName(namespaceKind)
-        << ", keyGroupCount=" << digest.keyGroupCount
-        << ", nonEmptyKeyGroupCount=" << digest.nonEmptyKeyGroupCount
-        << ", eventTimerCount=" << digest.eventTimerCount
-        << ", processingTimerCount=" << digest.processingTimerCount
-        << ", totalTimerCount=" << digest.totalTimerCount()
-        << ", eventXorHash=" << digest.eventXorHash
-        << ", eventSumHash=" << digest.eventSumHash
-        << ", processingXorHash=" << digest.processingXorHash
-        << ", processingSumHash=" << digest.processingSumHash
-        << ", keyGroupXorHash=" << digest.keyGroupXorHash
+        << ", managerPtr=" << reinterpret_cast<uintptr_t>(this) << ", operatorName=" << operatorName
+        << ", serviceName=" << serviceName << ", namespaceKind=" << namespaceKindName(namespaceKind)
+        << ", keyGroupCount=" << digest.keyGroupCount << ", nonEmptyKeyGroupCount=" << digest.nonEmptyKeyGroupCount
+        << ", eventTimerCount=" << digest.eventTimerCount << ", processingTimerCount=" << digest.processingTimerCount
+        << ", totalTimerCount=" << digest.totalTimerCount() << ", eventXorHash=" << digest.eventXorHash
+        << ", eventSumHash=" << digest.eventSumHash << ", processingXorHash=" << digest.processingXorHash
+        << ", processingSumHash=" << digest.processingSumHash << ", keyGroupXorHash=" << digest.keyGroupXorHash
         << ", keyGroupSumHash=" << digest.keyGroupSumHash
         << ", eventMinTimestamp=" << printableMinTimestamp(digest.eventTimerCount, digest.eventMinTimestamp)
         << ", eventMaxTimestamp=" << printableMaxTimestamp(digest.eventTimerCount, digest.eventMaxTimestamp)
@@ -1092,36 +1061,29 @@ void InternalTimeServiceManager<K>::logTimerDataDigest(
 
 template <typename K>
 void InternalTimeServiceManager<K>::logTimerDataDigests(
-    const char *phase,
-    const std::string &operatorName,
+    const char* phase,
+    const std::string& operatorName,
     int64_t checkpointId,
-    const std::unordered_map<std::string, TimerDataDigest> &digests)
+    const std::unordered_map<std::string, TimerDataDigest>& digests)
 {
-    for (const auto &entry : digests) {
-        const std::string &key = entry.first;
+    for (const auto& entry : digests) {
+        const std::string& key = entry.first;
         size_t separator = key.find('|');
         std::string namespaceKind = separator == std::string::npos ? "UNKNOWN" : key.substr(0, separator);
         std::string serviceName = separator == std::string::npos ? key : key.substr(separator + 1);
-        const TimerDataDigest &digest = entry.second;
-        INFO_RELEASE("TIMER_CP_HEAP_PQ_DATA_DIGEST phase=" << phase
-            << ", checkpointId=" << checkpointId
-            << ", backend=ROCKSDB_KEYED"
+        const TimerDataDigest& digest = entry.second;
+        INFO_RELEASE(
+            "TIMER_CP_HEAP_PQ_DATA_DIGEST phase="
+            << phase << ", checkpointId=" << checkpointId << ", backend=ROCKSDB_KEYED"
             << ", pqStorage=HEAP"
-            << ", managerPtr=" << reinterpret_cast<uintptr_t>(this)
-            << ", operatorName=" << operatorName
-            << ", serviceName=" << serviceName
-            << ", namespaceKind=" << namespaceKind
-            << ", keyGroupCount=" << digest.keyGroupCount
-            << ", nonEmptyKeyGroupCount=" << digest.nonEmptyKeyGroupCount
-            << ", eventTimerCount=" << digest.eventTimerCount
-            << ", processingTimerCount=" << digest.processingTimerCount
-            << ", totalTimerCount=" << digest.totalTimerCount()
-            << ", eventXorHash=" << digest.eventXorHash
-            << ", eventSumHash=" << digest.eventSumHash
-            << ", processingXorHash=" << digest.processingXorHash
-            << ", processingSumHash=" << digest.processingSumHash
-            << ", keyGroupXorHash=" << digest.keyGroupXorHash
-            << ", keyGroupSumHash=" << digest.keyGroupSumHash
+            << ", managerPtr=" << reinterpret_cast<uintptr_t>(this) << ", operatorName=" << operatorName
+            << ", serviceName=" << serviceName << ", namespaceKind=" << namespaceKind
+            << ", keyGroupCount=" << digest.keyGroupCount << ", nonEmptyKeyGroupCount=" << digest.nonEmptyKeyGroupCount
+            << ", eventTimerCount=" << digest.eventTimerCount << ", processingTimerCount="
+            << digest.processingTimerCount << ", totalTimerCount=" << digest.totalTimerCount()
+            << ", eventXorHash=" << digest.eventXorHash << ", eventSumHash=" << digest.eventSumHash
+            << ", processingXorHash=" << digest.processingXorHash << ", processingSumHash=" << digest.processingSumHash
+            << ", keyGroupXorHash=" << digest.keyGroupXorHash << ", keyGroupSumHash=" << digest.keyGroupSumHash
             << ", eventMinTimestamp=" << printableMinTimestamp(digest.eventTimerCount, digest.eventMinTimestamp)
             << ", eventMaxTimestamp=" << printableMaxTimestamp(digest.eventTimerCount, digest.eventMaxTimestamp)
             << ", processingMinTimestamp="
@@ -1134,33 +1096,26 @@ void InternalTimeServiceManager<K>::logTimerDataDigests(
 
 template <typename K>
 void InternalTimeServiceManager<K>::logTimerDataSample(
-    const char *phase,
-    const std::string &operatorName,
+    const char* phase,
+    const std::string& operatorName,
     int64_t checkpointId,
-    const std::string &serviceName,
-    const std::string &namespaceKind,
-    const TimerDataDigest &digest)
+    const std::string& serviceName,
+    const std::string& namespaceKind,
+    const TimerDataDigest& digest)
 {
     if (!digest.sample.present) {
         return;
     }
-    INFO_RELEASE("TIMER_CP_HEAP_PQ_DATA_SAMPLE phase=" << phase
-        << ", checkpointId=" << checkpointId
-        << ", backend=ROCKSDB_KEYED"
+    INFO_RELEASE(
+        "TIMER_CP_HEAP_PQ_DATA_SAMPLE phase="
+        << phase << ", checkpointId=" << checkpointId << ", backend=ROCKSDB_KEYED"
         << ", pqStorage=HEAP"
-        << ", managerPtr=" << reinterpret_cast<uintptr_t>(this)
-        << ", operatorName=" << operatorName
-        << ", serviceName=" << serviceName
-        << ", namespaceKind=" << namespaceKind
-        << ", keyGroupId=" << digest.sample.keyGroupId
+        << ", managerPtr=" << reinterpret_cast<uintptr_t>(this) << ", operatorName=" << operatorName << ", serviceName="
+        << serviceName << ", namespaceKind=" << namespaceKind << ", keyGroupId=" << digest.sample.keyGroupId
         << ", queue=" << (digest.sample.eventTimer ? "event" : "processing")
-        << ", timestamp=" << digest.sample.timestamp
-        << ", timerHash=" << digest.sample.timerHash
-        << ", sampleRankHash=" << digest.sample.sampleRankHash
-        << ", keyHash=" << digest.sample.keyHash
-        << ", namespaceHash=" << digest.sample.namespaceHash
-        << ", keyBytesLen=" << digest.sample.keyBytesLength
-        << ", namespaceBytesLen=" << digest.sample.namespaceBytesLength
-        << ", keyPreviewHex=" << digest.sample.keyPreviewHex
-        << ", namespacePreviewHex=" << digest.sample.namespacePreviewHex);
+        << ", timestamp=" << digest.sample.timestamp << ", timerHash=" << digest.sample.timerHash
+        << ", sampleRankHash=" << digest.sample.sampleRankHash << ", keyHash=" << digest.sample.keyHash
+        << ", namespaceHash=" << digest.sample.namespaceHash << ", keyBytesLen=" << digest.sample.keyBytesLength
+        << ", namespaceBytesLen=" << digest.sample.namespaceBytesLength << ", keyPreviewHex="
+        << digest.sample.keyPreviewHex << ", namespacePreviewHex=" << digest.sample.namespacePreviewHex);
 }

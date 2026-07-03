@@ -12,11 +12,11 @@ class LongSerializer : public TypeSerializerSingleton {
 public:
     LongSerializer();
 
-    void *deserialize(DataInputView &source) override;
-    void serialize(void *record, DataOutputSerializer &target) override;
+    void* deserialize(DataInputView& source) override;
+    void serialize(void* record, DataOutputSerializer& target) override;
 
-    void deserialize(Object *buffer, DataInputView& source) override;
-    void serialize(Object *buffer, DataOutputSerializer& target) override;
+    void deserialize(Object* buffer, DataInputView& source) override;
+    void serialize(Object* buffer, DataOutputSerializer& target) override;
 
     static LongSerializer* INSTANCE;
 
@@ -31,7 +31,7 @@ public:
         }
     };
 
-    const char *getName() const override
+    const char* getName() const override
     {
         return "LongSerializer";
     }
@@ -67,11 +67,11 @@ class IntSerializer : public TypeSerializerSingleton {
 public:
     IntSerializer();
 
-    void *deserialize(DataInputView &source) override;
-    void serialize(void *record, DataOutputSerializer &target) override;
+    void* deserialize(DataInputView& source) override;
+    void serialize(void* record, DataOutputSerializer& target) override;
 
-    void deserialize(Object *buffer, DataInputView& source) override;
-    void serialize(Object *buffer, DataOutputSerializer& target) override;
+    void deserialize(Object* buffer, DataInputView& source) override;
+    void serialize(Object* buffer, DataOutputSerializer& target) override;
 
     static IntSerializer* INSTANCE;
 
@@ -86,7 +86,7 @@ public:
         }
     };
 
-    const char *getName() const override
+    const char* getName() const override
     {
         return "IntSerializer";
     }

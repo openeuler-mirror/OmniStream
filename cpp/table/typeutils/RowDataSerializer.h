@@ -21,34 +21,40 @@
 #include "../data/binary/BinaryRowData.h"
 #include "../data/writer/BinaryRowWriter.h"
 
-
-class RowDataSerializer : public TypeSerializerSingleton  {
+class RowDataSerializer : public TypeSerializerSingleton {
 public:
-    explicit RowDataSerializer(omnistream::RowType *rowType);
+    explicit RowDataSerializer(omnistream::RowType* rowType);
     ~RowDataSerializer() override;
 
-    void *deserialize(DataInputView &source) override;
+    void* deserialize(DataInputView& source) override;
 
-    void serialize(void *record, DataOutputSerializer &target) override;
+    void serialize(void* record, DataOutputSerializer& target) override;
 
-    [[nodiscard]] const char *getName() const override;
+    [[nodiscard]] const char* getName() const override;
 
     BinaryRowData* toBinaryRow(RowData* row);
 
-    BackendDataType getBackendId() const override { return BackendDataType::ROW_BK;};
+    BackendDataType getBackendId() const override
+    {
+        return BackendDataType::ROW_BK;
+    };
 
-    int getArity() const { return static_cast<int>(types_.size()); }
+    int getArity() const
+    {
+        return static_cast<int>(types_.size());
+    }
 
-    std::string toJson() override {
-        SerializerJsonInfo typeJson = { SerializerType::ROW };
+    std::string toJson() override
+    {
+        SerializerJsonInfo typeJson = {SerializerType::ROW};
         typeJson.logicalType = rowType_;
 
         return typeJson.toJson();
     }
-    
+
 private:
     BinaryRowDataSerializer binarySerializer_;
-    std::vector<LogicalType *> types_;
+    std::vector<LogicalType*> types_;
     std::vector<TypeSerializer*> fieldSerializers_;
     std::vector<FieldGetter*> fieldGetters_;
     omnistream::RowType* rowType_;
@@ -56,6 +62,5 @@ private:
     BinaryRowData* reuseRow_;
     BinaryRowWriter* reuseWriter_;
 };
-
 
 #endif

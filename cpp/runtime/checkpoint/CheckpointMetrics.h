@@ -28,7 +28,9 @@ public:
           checkpointStartDelayNanos(UNSET),
           unalignedCheckpoint(false),
           bytesPersistedOfThisCheckpoint(0),
-          totalBytesPersisted(0) {}
+          totalBytesPersisted(0)
+    {
+    }
 
     CheckpointMetrics(
         int64_t bytesProcessedDuringAlignment,
@@ -121,20 +123,19 @@ public:
         return totalBytesPersisted;
     }
 
-    bool operator==(const CheckpointMetrics &other) const
+    bool operator==(const CheckpointMetrics& other) const
     {
         return bytesProcessedDuringAlignment == other.bytesProcessedDuringAlignment &&
                bytesPersistedDuringAlignment == other.bytesPersistedDuringAlignment &&
                alignmentDurationNanos == other.alignmentDurationNanos &&
-               syncDurationMillis == other.syncDurationMillis &&
-               asyncDurationMillis == other.asyncDurationMillis &&
+               syncDurationMillis == other.syncDurationMillis && asyncDurationMillis == other.asyncDurationMillis &&
                checkpointStartDelayNanos == other.checkpointStartDelayNanos &&
                unalignedCheckpoint == other.unalignedCheckpoint &&
                bytesPersistedOfThisCheckpoint == other.bytesPersistedOfThisCheckpoint &&
                totalBytesPersisted == other.totalBytesPersisted;
     }
 
-    bool operator!=(const CheckpointMetrics &other) const
+    bool operator!=(const CheckpointMetrics& other) const
     {
         return !(*this == other);
     }
@@ -155,6 +156,7 @@ public:
 
         return j.dump();
     }
+
 private:
     int64_t bytesProcessedDuringAlignment;
     int64_t bytesPersistedDuringAlignment;

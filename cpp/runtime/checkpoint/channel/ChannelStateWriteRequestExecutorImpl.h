@@ -28,46 +28,45 @@
 
 namespace omnistream {
 
-    class ChannelStateWriteRequestExecutorImpl : public ChannelStateWriteRequestExecutor {
-    public:
-        ChannelStateWriteRequestExecutorImpl(
-            std::shared_ptr<ChannelStateWriteRequestDispatcher> dispatcher);
+class ChannelStateWriteRequestExecutorImpl : public ChannelStateWriteRequestExecutor {
+public:
+    ChannelStateWriteRequestExecutorImpl(std::shared_ptr<ChannelStateWriteRequestDispatcher> dispatcher);
 
-        ~ChannelStateWriteRequestExecutorImpl() override;
+    ~ChannelStateWriteRequestExecutorImpl() override;
 
-        void start() override;
-        void submit(std::shared_ptr<ChannelStateWriteRequest> req) override;
-        void submitPriority(std::shared_ptr<ChannelStateWriteRequest> req) override;
-        void registerSubtask(const JobVertexID &jvid, int idx) override;
-        void releaseSubtask(const JobVertexID &jvid, int idx) override;
-        void shutdown() override;
+    void start() override;
+    void submit(std::shared_ptr<ChannelStateWriteRequest> req) override;
+    void submitPriority(std::shared_ptr<ChannelStateWriteRequest> req) override;
+    void registerSubtask(const JobVertexID& jvid, int idx) override;
+    void releaseSubtask(const JobVertexID& jvid, int idx) override;
+    void shutdown() override;
 
-    private:
-        std::shared_ptr<ChannelStateWriteRequestDispatcher> dispatcher;
-        const int maxSubtasks;
-        std::function<void(ChannelStateWriteRequestExecutor *)> onRegistered;
-        std::mutex &registerLock;
+private:
+    std::shared_ptr<ChannelStateWriteRequestDispatcher> dispatcher;
+    const int maxSubtasks;
+    std::function<void(ChannelStateWriteRequestExecutor*)> onRegistered;
+    std::mutex& registerLock;
 
-        std::mutex mutex;
-        std::condition_variable cv;
-        std::deque<std::shared_ptr<ChannelStateWriteRequest>> readyQueue;
-        std::map<SubtaskID, std::queue<std::shared_ptr<ChannelStateWriteRequest>>> unreadyQueues;
-        std::set<SubtaskID> subtasks;
+    std::mutex mutex;
+    std::condition_variable cv;
+    std::deque<std::shared_ptr<ChannelStateWriteRequest>> readyQueue;
+    std::map<SubtaskID, std::queue<std::shared_ptr<ChannelStateWriteRequest>>> unreadyQueues;
+    std::set<SubtaskID> subtasks;
 
-        std::atomic<bool> isRegistering;
-        std::atomic<bool> stopped{false};
-        std::atomic<bool> started{false};
-        std::thread worker;
-        std::exception_ptr exceptionPtr;
+    std::atomic<bool> isRegistering;
+    std::atomic<bool> stopped{false};
+    std::atomic<bool> started{false};
+    std::thread worker;
+    std::exception_ptr exceptionPtr;
 
-        void run();
-        void loop();
-        std::shared_ptr<ChannelStateWriteRequest> take();
-        void enqueue(std::shared_ptr<ChannelStateWriteRequest> req, bool priority);
-        void registerCallback(std::shared_ptr<ChannelStateWriteRequest> first, SubtaskID sid);
-        void cleanup();
-        void completeRegistration();
-    };
+    void run();
+    void loop();
+    std::shared_ptr<ChannelStateWriteRequest> take();
+    void enqueue(std::shared_ptr<ChannelStateWriteRequest> req, bool priority);
+    void registerCallback(std::shared_ptr<ChannelStateWriteRequest> first, SubtaskID sid);
+    void cleanup();
+    void completeRegistration();
+};
 
 } // namespace omnistream
 

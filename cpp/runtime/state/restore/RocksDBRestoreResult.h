@@ -20,15 +20,17 @@
 
 class RocksDBRestoreResult {
 public:
-    RocksDBRestoreResult(rocksdb::DB* db, rocksdb::ColumnFamilyHandle* defaultColumnFamilyHandle,
-                         long lastCompletedCheckpointId, const UUID& backendUID,
-                         std::map<long, std::vector<IncrementalKeyedStateHandle::HandleAndLocalPath>> restoredSstFiles)
+    RocksDBRestoreResult(
+        rocksdb::DB* db,
+        rocksdb::ColumnFamilyHandle* defaultColumnFamilyHandle,
+        long lastCompletedCheckpointId,
+        const UUID& backendUID,
+        std::map<long, std::vector<IncrementalKeyedStateHandle::HandleAndLocalPath>> restoredSstFiles)
         : db(db),
           defaultColumnFamilyHandle(defaultColumnFamilyHandle),
           lastCompletedCheckpointId(lastCompletedCheckpointId),
           backendUID(backendUID),
-          restoredSstFiles(std::move(restoredSstFiles)) {
-    };
+          restoredSstFiles(std::move(restoredSstFiles)) {};
 
     rocksdb::DB* getDb()
     {

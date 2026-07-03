@@ -13,7 +13,7 @@
 
 #include <cstdint>
 
-template<typename N>
+template <typename N>
 class InternalTimerService {
 public:
     virtual ~InternalTimerService() = default;

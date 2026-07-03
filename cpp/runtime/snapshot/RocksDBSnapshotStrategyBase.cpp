@@ -18,7 +18,7 @@ namespace fs = std::filesystem;
 
 // 静态常量定义
 const PreviousSnapshot RocksDBSnapshotStrategyBase::EMPTY_PREVIOUS_SNAPSHOT =
-        PreviousSnapshot(std::vector<HandleAndLocalPath>());
+    PreviousSnapshot(std::vector<HandleAndLocalPath>());
 
 // 主类实现
 RocksDBSnapshotStrategyBase::RocksDBSnapshotStrategyBase(
@@ -26,22 +26,22 @@ RocksDBSnapshotStrategyBase::RocksDBSnapshotStrategyBase(
     rocksdb::DB* db,
     std::shared_ptr<ResourceGuard> rocksDBResourceGuard,
     std::shared_ptr<TypeSerializer> keySerializer,
-    std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>> *kvStateInformation,
+    std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation,
     KeyGroupRange keyGroupRange,
     int keyGroupPrefixBytes,
     std::shared_ptr<LocalRecoveryConfig> localRecoveryConfig,
     std::string instanceBasePath,
     UUID backendUID)
     : description_(std::move(description)),
-    db_(db),
-    rocksDBResourceGuard_(rocksDBResourceGuard),
-    kvStateInformation_(kvStateInformation),
-    keyGroupRange_(std::move(keyGroupRange)),
-    keyGroupPrefixBytes_(keyGroupPrefixBytes),
-    localRecoveryConfig_(std::move(localRecoveryConfig)),
-    instanceBasePath_(std::move(instanceBasePath)),
-    backendUID_(std::move(backendUID)),
-    keySerializer_(keySerializer)
+      db_(db),
+      rocksDBResourceGuard_(rocksDBResourceGuard),
+      kvStateInformation_(kvStateInformation),
+      keyGroupRange_(std::move(keyGroupRange)),
+      keyGroupPrefixBytes_(keyGroupPrefixBytes),
+      localRecoveryConfig_(std::move(localRecoveryConfig)),
+      instanceBasePath_(std::move(instanceBasePath)),
+      backendUID_(std::move(backendUID)),
+      keySerializer_(keySerializer)
 {
     // 替换UUID中的破折号
     std::string uid = this->backendUID_.ToString();
@@ -54,7 +54,6 @@ std::string RocksDBSnapshotStrategyBase::getDescription() const
     return description_;
 }
 
-
 std::shared_ptr<SnapshotResources> RocksDBSnapshotStrategyBase::syncPrepareResources(long checkpointId)
 {
     auto snapshotDirectory = prepareLocalSnapshotDirectory(checkpointId);
@@ -66,14 +65,10 @@ std::shared_ptr<SnapshotResources> RocksDBSnapshotStrategyBase::syncPrepareResou
     takeDBNativeCheckpoint(snapshotDirectory);
 
     return std::make_shared<NativeRocksDBSnapshotResources>(
-            snapshotDirectory,
-            previousSnapshot,
-            stateMetaInfoSnapshots);
+        snapshotDirectory, previousSnapshot, stateMetaInfoSnapshots);
 }
 
-
-void RocksDBSnapshotStrategyBase::cleanupIncompleteSnapshot(
-    std::shared_ptr<SnapshotDirectory> localBackupDirectory)
+void RocksDBSnapshotStrategyBase::cleanupIncompleteSnapshot(std::shared_ptr<SnapshotDirectory> localBackupDirectory)
 {
     if (localBackupDirectory->isSnapshotCompleted()) {
         try {
@@ -119,8 +114,7 @@ std::shared_ptr<SnapshotDirectory> RocksDBSnapshotStrategyBase::prepareLocalSnap
     }
 }
 
-void RocksDBSnapshotStrategyBase::takeDBNativeCheckpoint(
-    std::shared_ptr<SnapshotDirectory> outputDirectory)
+void RocksDBSnapshotStrategyBase::takeDBNativeCheckpoint(std::shared_ptr<SnapshotDirectory> outputDirectory)
 {
     auto lease = rocksDBResourceGuard_->acquireResource();
     rocksdb::Checkpoint* checkpoint;
@@ -180,16 +174,18 @@ std::shared_ptr<StreamStateHandle> PreviousSnapshot::getUploaded(const std::stri
 }
 
 const std::shared_ptr<PreviousSnapshot> PreviousSnapshot::EMPTY_PREVIOUS_SNAPSHOT =
-        std::make_shared<PreviousSnapshot>(std::vector<HandleAndLocalPath>());
+    std::make_shared<PreviousSnapshot>(std::vector<HandleAndLocalPath>());
 
 // NativeRocksDBSnapshotResources 实现
 NativeRocksDBSnapshotResources::NativeRocksDBSnapshotResources(
     std::shared_ptr<SnapshotDirectory> snapshotDirectory,
     std::shared_ptr<PreviousSnapshot> previousSnapshot,
-    std::vector<std::shared_ptr<StateMetaInfoSnapshot>> stateMetaInfoSnapshots
-) : snapshotDirectory(std::move(snapshotDirectory)),
-    previousSnapshot(std::move(previousSnapshot)),
-    stateMetaInfoSnapshots(std::move(stateMetaInfoSnapshots)) {}
+    std::vector<std::shared_ptr<StateMetaInfoSnapshot>> stateMetaInfoSnapshots)
+    : snapshotDirectory(std::move(snapshotDirectory)),
+      previousSnapshot(std::move(previousSnapshot)),
+      stateMetaInfoSnapshots(std::move(stateMetaInfoSnapshots))
+{
+}
 
 void NativeRocksDBSnapshotResources::release()
 {
@@ -209,10 +205,10 @@ RocksDBSnapshotStrategyBase::RocksDBSnapshotOperation::RocksDBSnapshotOperation(
     std::vector<std::shared_ptr<StateMetaInfoSnapshot>> stateMetaInfoSnapshots,
     std::shared_ptr<TypeSerializer> keySerializer)
     : checkpointId(checkpointId),
-    checkpointStreamFactory(checkpointStreamFactory),
-    stateMetaInfoSnapshots(std::move(stateMetaInfoSnapshots)),
-    localBackupDirectory(std::move(localBackupDirectory)),
-    keySerializer(keySerializer)
+      checkpointStreamFactory(checkpointStreamFactory),
+      stateMetaInfoSnapshots(std::move(stateMetaInfoSnapshots)),
+      localBackupDirectory(std::move(localBackupDirectory)),
+      keySerializer(keySerializer)
 {
     tmpResourcesRegistry = std::make_shared<CloseableRegistry>();
 }
@@ -225,12 +221,12 @@ std::shared_ptr<KeyedStateHandle> RocksDBSnapshotStrategyBase::RocksDBSnapshotOp
     auto directoryStateHandle = localBackupDirectory->completeSnapshotAndGetHandle();
     if (directoryStateHandle && localStreamStateHandle) {
         auto stateHandle = std::make_shared<IncrementalLocalKeyedStateHandle>(
-                parent_->backendUID_,
-                checkpointId,
-                directoryStateHandle.get(),
-                parent_->keyGroupRange_,
-                localStreamStateHandle,
-                sharedState);
+            parent_->backendUID_,
+            checkpointId,
+            directoryStateHandle.get(),
+            parent_->keyGroupRange_,
+            localStreamStateHandle,
+            sharedState);
         return std::static_pointer_cast<KeyedStateHandle>(std::make_shared<BridgeKeyedStateHandle>(stateHandle));
     }
     return nullptr;

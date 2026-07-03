@@ -1,10 +1,9 @@
 /*
-* Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
  */
 
 #ifndef OMNISTREAM_OMNIPUSHINGASYNCDATAINPUT_H
 #define OMNISTREAM_OMNIPUSHINGASYNCDATAINPUT_H
-
 
 #include "runtime/io/AvailabilityProvider.h"
 #include <streaming/runtime/io/DataInputStatus.h>
@@ -15,27 +14,29 @@
 
 namespace omnistream {
 
-    class OmniPushingAsyncDataInput : public AvailabilityProvider {
+class OmniPushingAsyncDataInput : public AvailabilityProvider {
+public:
+    class OmniDataOutput {
     public:
-        class OmniDataOutput {
-        public:
-            virtual void emitRecord(StreamRecord* streamRecord) = 0;
+        virtual void emitRecord(StreamRecord* streamRecord) = 0;
 
-            virtual void emitWatermark(Watermark* watermark) = 0;
+        virtual void emitWatermark(Watermark* watermark) = 0;
 
-            virtual void emitWatermarkStatus(WatermarkStatus* watermarkStatus) = 0;
+        virtual void emitWatermarkStatus(WatermarkStatus* watermarkStatus) = 0;
 
-            virtual void close() {};
+        virtual void close() {};
 
-            virtual ~OmniDataOutput() = default;
+        virtual ~OmniDataOutput() = default;
 
-            // temp fix for taskType, should be removed in the future (taskType should not be set in Runtime)
-            virtual void setTaskType(int taskType) {}
-        };
-
-        virtual DataInputStatus emitNext(OmniDataOutput* output) = 0;
+        // temp fix for taskType, should be removed in the future (taskType should not be set in Runtime)
+        virtual void setTaskType(int taskType)
+        {
+        }
     };
 
-} // omnistream
+    virtual DataInputStatus emitNext(OmniDataOutput* output) = 0;
+};
+
+} // namespace omnistream
 
 #endif

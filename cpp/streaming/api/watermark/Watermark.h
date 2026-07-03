@@ -28,8 +28,7 @@ public:
     void setTimestamp(int64_t timestamp);
 
 private:
-    int64_t  timestamp_;
+    int64_t timestamp_;
 };
-
 
 #endif // FLINK_TNEL_WATERMARK_H

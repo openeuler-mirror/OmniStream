@@ -44,8 +44,6 @@ public:
      * @return successfully committed committables with meta information
      * @throws std::exception
      */
-    virtual std::vector<CommittableWithLineage<CommT>> commit(
-            bool fullyReceived,
-            Committer<CommT>& committer) = 0;
+    virtual std::vector<CommittableWithLineage<CommT>> commit(bool fullyReceived, Committer<CommT>& committer) = 0;
 };
 #endif // FLINK_BENCHMARK_COMMITTABLEMANAGER_H

@@ -15,8 +15,8 @@
 #include <string>
 #include <iostream>
 #include "ResultPartitionIDPOD.h" // Assuming this header exists
-#include "ResourceIDPOD.h"       // Assuming this header exists
-#include "nlohmann/json.hpp" // Include for JSON serialization
+#include "ResourceIDPOD.h"        // Assuming this header exists
+#include "nlohmann/json.hpp"      // Include for JSON serialization
 
 namespace omnistream {
 
@@ -25,30 +25,35 @@ using json = nlohmann::json;
 class ShuffleDescriptorPOD {
 public:
     // Default constructor
-    ShuffleDescriptorPOD() : unknown(false), hasLocalResource(false) {
+    ShuffleDescriptorPOD() : unknown(false), hasLocalResource(false)
+    {
     }
 
     // Full argument constructor
-    ShuffleDescriptorPOD(const ResultPartitionIDPOD &resultPartitionID, bool isUnknown, bool hasLocalResource,
-                         const ResourceIDPOD &storesLocalResourcesOn)
-        : resultPartitionID(resultPartitionID), unknown(isUnknown), hasLocalResource(hasLocalResource),
-          storesLocalResourcesOn(storesLocalResourcesOn) {
-    }
-
-    friend bool operator==(const ShuffleDescriptorPOD &lhs, const ShuffleDescriptorPOD &rhs)
+    ShuffleDescriptorPOD(
+        const ResultPartitionIDPOD& resultPartitionID,
+        bool isUnknown,
+        bool hasLocalResource,
+        const ResourceIDPOD& storesLocalResourcesOn)
+        : resultPartitionID(resultPartitionID),
+          unknown(isUnknown),
+          hasLocalResource(hasLocalResource),
+          storesLocalResourcesOn(storesLocalResourcesOn)
     {
-        return lhs.resultPartitionID == rhs.resultPartitionID
-              && lhs.unknown == rhs.unknown
-              && lhs.hasLocalResource == rhs.hasLocalResource
-              && lhs.storesLocalResourcesOn == rhs.storesLocalResourcesOn;
     }
 
-    friend bool operator!=(const ShuffleDescriptorPOD &lhs, const ShuffleDescriptorPOD &rhs)
+    friend bool operator==(const ShuffleDescriptorPOD& lhs, const ShuffleDescriptorPOD& rhs)
+    {
+        return lhs.resultPartitionID == rhs.resultPartitionID && lhs.unknown == rhs.unknown &&
+               lhs.hasLocalResource == rhs.hasLocalResource && lhs.storesLocalResourcesOn == rhs.storesLocalResourcesOn;
+    }
+
+    friend bool operator!=(const ShuffleDescriptorPOD& lhs, const ShuffleDescriptorPOD& rhs)
     {
         return !(lhs == rhs);
     }
 
-    friend std::size_t hash_value(const ShuffleDescriptorPOD &obj)
+    friend std::size_t hash_value(const ShuffleDescriptorPOD& obj)
     {
         std::size_t seed = 0x0C583894;
         seed ^= (seed << 6) + (seed >> 2) + 0x58FAECDB + hash_value(obj.resultPartitionID);
@@ -59,24 +64,39 @@ public:
     }
 
     // Getters
-    const ResultPartitionIDPOD &getResultPartitionID() const { return resultPartitionID; }
-    bool getIsUnknown() const { return unknown; }
-    bool getHasLocalResource() const { return hasLocalResource; }
-    const ResourceIDPOD &getStoresLocalResourcesOn() const { return storesLocalResourcesOn; }
+    const ResultPartitionIDPOD& getResultPartitionID() const
+    {
+        return resultPartitionID;
+    }
+    bool getIsUnknown() const
+    {
+        return unknown;
+    }
+    bool getHasLocalResource() const
+    {
+        return hasLocalResource;
+    }
+    const ResourceIDPOD& getStoresLocalResourcesOn() const
+    {
+        return storesLocalResourcesOn;
+    }
 
     // Setters
-    void setResultPartitionID(const ResultPartitionIDPOD &resultPartitionID_)
+    void setResultPartitionID(const ResultPartitionIDPOD& resultPartitionID_)
     {
         this->resultPartitionID = resultPartitionID_;
     }
 
-    void setIsUnknown(bool isUnknown) { this->unknown = isUnknown; }
+    void setIsUnknown(bool isUnknown)
+    {
+        this->unknown = isUnknown;
+    }
     void setHasLocalResource(bool hasLocalResource_)
     {
         this->hasLocalResource = hasLocalResource_;
     }
 
-    void setStoresLocalResourcesOn(const ResourceIDPOD &storesLocalResourcesOn_)
+    void setStoresLocalResourcesOn(const ResourceIDPOD& storesLocalResourcesOn_)
     {
         this->storesLocalResourcesOn = storesLocalResourcesOn_;
     }
@@ -85,34 +105,33 @@ public:
     std::string toString() const
     {
         return "ShuffleDescriptorPOD{"
-             "resultPartitionID=" + resultPartitionID.toString() + // Assuming ResultPartitionIDPOD has a toString()
-             ", isUnknown=" + std::to_string(unknown) +
-             ", hasLocalResource=" + std::to_string(hasLocalResource) +
-             ", storesLocalResourcesOn=" + storesLocalResourcesOn.toString() + // Assuming ResourceIDPOD has a toString()
-             "}";
+               "resultPartitionID=" +
+               resultPartitionID.toString() + // Assuming ResultPartitionIDPOD has a toString()
+               ", isUnknown=" + std::to_string(unknown) + ", hasLocalResource=" + std::to_string(hasLocalResource) +
+               ", storesLocalResourcesOn=" +
+               storesLocalResourcesOn.toString() + // Assuming ResourceIDPOD has a toString()
+               "}";
     }
 
- NLOHMANN_DEFINE_TYPE_INTRUSIVE(ShuffleDescriptorPOD, resultPartitionID, unknown, hasLocalResource,
-                                storesLocalResourcesOn)
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(
+        ShuffleDescriptorPOD, resultPartitionID, unknown, hasLocalResource, storesLocalResourcesOn)
 
 private:
     ResultPartitionIDPOD resultPartitionID; // Class: ResultPartitionIDPOD, Variable: resultPartitionID
-    bool unknown; // Class: bool, Variable: isUnknown
-    bool hasLocalResource; // Class: bool, Variable: hasLocalResource
-    ResourceIDPOD storesLocalResourcesOn; // Class: ResourceIDPOD, Variable: storesLocalResourcesOn
+    bool unknown;                           // Class: bool, Variable: isUnknown
+    bool hasLocalResource;                  // Class: bool, Variable: hasLocalResource
+    ResourceIDPOD storesLocalResourcesOn;   // Class: ResourceIDPOD, Variable: storesLocalResourcesOn
 };
 } // namespace omnistream
 
 namespace std {
-    template<>
-        struct hash<omnistream::ShuffleDescriptorPOD> {
-            std::size_t operator()(const omnistream::ShuffleDescriptorPOD &obj) const
-        {
-            return hash_value(obj);
-        }
-    };
-}
-
+template <>
+struct hash<omnistream::ShuffleDescriptorPOD> {
+    std::size_t operator()(const omnistream::ShuffleDescriptorPOD& obj) const
+    {
+        return hash_value(obj);
+    }
+};
+} // namespace std
 
 #endif // OMNISTREAM_SHUFFLE_DESCRIPTOR_POD_H
-

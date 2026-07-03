@@ -14,18 +14,16 @@
 
 #include "LogicalType.h"
 
-
 class TimeWithoutTimeZoneType : public BasicLogicalType {
 public:
     explicit TimeWithoutTimeZoneType(bool isNull, int precision = 0);
     int32_t getPrecision();
-    std::vector<LogicalType *> getChildren() override;
+    std::vector<LogicalType*> getChildren() override;
 
     nlohmann::json toJson() const override;
 
 private:
     int precision;
 };
-
 
 #endif

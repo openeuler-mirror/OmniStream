@@ -39,11 +39,11 @@ public:
     void setLong(int pos, long value) override;
     void setLong(int pos, long* value);
 
-    bool *getBool(int pos) override;
+    bool* getBool(int pos) override;
     void setBool(int pos, bool value) override;
-    void setBool(int pos, bool *value);
+    void setBool(int pos, bool* value);
 
-    int *getInt(int pos) override;
+    int* getInt(int pos) override;
     void setInt(int pos, int value) override;
 
     TimestampData getTimestamp(int pos) override;
@@ -71,7 +71,7 @@ public:
     int getFixedLengthPartSize() const;
     void setSizeInBytes(int sizeInBytes);
 
-    bool operator==(const RowData &other) const override;
+    bool operator==(const RowData& other) const override;
 
     int hashCode() const override;
     [[nodiscard]] int hashCodeFast() const override;
@@ -103,64 +103,68 @@ private:
 };
 
 namespace std {
-    template<>
-    struct hash<BinaryRowData> {
-        std::size_t operator()(const BinaryRowData& ns) const noexcept
-        {
-            return ns.hashCodeFast();
-        }
-    };
-    template <>
-    struct equal_to<BinaryRowData> {
-        bool operator()(const BinaryRowData& lhs, const BinaryRowData& rhs) const noexcept
-        {
-            return lhs == rhs;
-        }
-    };
-    template <>
-    struct hash<BinaryRowData*> {
-        std::size_t operator()(const BinaryRowData* nsPtr) const noexcept
-        {
-            auto hashFast=  nsPtr ? nsPtr->hashCodeFast() : 0;
-            return static_cast<size_t>(hashFast);
-        }
-    };
-    // Attention: Be very careful when using this! It does not compare the address. but the content
-    template <>
-    struct equal_to<BinaryRowData*> {
-        bool operator()(const BinaryRowData* lhs, const BinaryRowData* rhs) const noexcept
-        {
-            return *lhs == *rhs;
-        }
-    };
-    template <>
-    struct hash<std::shared_ptr<BinaryRowData>> {
-        std::size_t operator()(const std::shared_ptr<BinaryRowData> &nsPtr) const noexcept {
-            return nsPtr ? nsPtr->hashCodeFast() : 0;
-        }
-    };
-    // Attention: Be very careful when using this! It does not compare the address. but the content
-    template <>
-    struct equal_to<std::shared_ptr<BinaryRowData>> {
-        bool operator()(const std::shared_ptr<BinaryRowData> &lhs, const std::shared_ptr<BinaryRowData> &rhs) const noexcept {
-            if (lhs == rhs) return true;
-            if (!lhs || !rhs) return false;
-            return *lhs == *rhs;
-        }
-    };
-    template <>
-    struct hash<std::unique_ptr<BinaryRowData>> {
-        std::size_t operator()(const std::unique_ptr<BinaryRowData> &nsPtr) const noexcept {
-            return nsPtr ? nsPtr->hashCodeFast() : 0;
-        }
-    };
-    // Attention: Be very careful when using this! It does not compare the address. but the content
-    template <>
-    struct equal_to<std::unique_ptr<BinaryRowData>> {
-        bool operator()(const std::unique_ptr<BinaryRowData> &lhs, const std::unique_ptr<BinaryRowData> &rhs) const noexcept {
-            if (lhs == rhs) return true;
-            if (!lhs || !rhs) return false;
-            return *lhs == *rhs;
-        }
-    };
-}
+template <>
+struct hash<BinaryRowData> {
+    std::size_t operator()(const BinaryRowData& ns) const noexcept
+    {
+        return ns.hashCodeFast();
+    }
+};
+template <>
+struct equal_to<BinaryRowData> {
+    bool operator()(const BinaryRowData& lhs, const BinaryRowData& rhs) const noexcept
+    {
+        return lhs == rhs;
+    }
+};
+template <>
+struct hash<BinaryRowData*> {
+    std::size_t operator()(const BinaryRowData* nsPtr) const noexcept
+    {
+        auto hashFast = nsPtr ? nsPtr->hashCodeFast() : 0;
+        return static_cast<size_t>(hashFast);
+    }
+};
+// Attention: Be very careful when using this! It does not compare the address. but the content
+template <>
+struct equal_to<BinaryRowData*> {
+    bool operator()(const BinaryRowData* lhs, const BinaryRowData* rhs) const noexcept
+    {
+        return *lhs == *rhs;
+    }
+};
+template <>
+struct hash<std::shared_ptr<BinaryRowData>> {
+    std::size_t operator()(const std::shared_ptr<BinaryRowData>& nsPtr) const noexcept
+    {
+        return nsPtr ? nsPtr->hashCodeFast() : 0;
+    }
+};
+// Attention: Be very careful when using this! It does not compare the address. but the content
+template <>
+struct equal_to<std::shared_ptr<BinaryRowData>> {
+    bool operator()(const std::shared_ptr<BinaryRowData>& lhs, const std::shared_ptr<BinaryRowData>& rhs) const noexcept
+    {
+        if (lhs == rhs) return true;
+        if (!lhs || !rhs) return false;
+        return *lhs == *rhs;
+    }
+};
+template <>
+struct hash<std::unique_ptr<BinaryRowData>> {
+    std::size_t operator()(const std::unique_ptr<BinaryRowData>& nsPtr) const noexcept
+    {
+        return nsPtr ? nsPtr->hashCodeFast() : 0;
+    }
+};
+// Attention: Be very careful when using this! It does not compare the address. but the content
+template <>
+struct equal_to<std::unique_ptr<BinaryRowData>> {
+    bool operator()(const std::unique_ptr<BinaryRowData>& lhs, const std::unique_ptr<BinaryRowData>& rhs) const noexcept
+    {
+        if (lhs == rhs) return true;
+        if (!lhs || !rhs) return false;
+        return *lhs == *rhs;
+    }
+};
+} // namespace std

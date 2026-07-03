@@ -22,32 +22,34 @@
 #include "runtime/io/network/api/writer/V2/RecordWriterV2.h"
 
 namespace omnistream {
-    class RecordWriterOutputV2 : public WatermarkGaugeExposingOutput {
-    public:
-        explicit RecordWriterOutputV2(RecordWriterV2* recordWriter, TypeSerializer *outSerializer = nullptr, bool supportsUnalignedCheckpoints = true);
-        ~RecordWriterOutputV2() override;
+class RecordWriterOutputV2 : public WatermarkGaugeExposingOutput {
+public:
+    explicit RecordWriterOutputV2(
+        RecordWriterV2* recordWriter,
+        TypeSerializer* outSerializer = nullptr,
+        bool supportsUnalignedCheckpoints = true);
+    ~RecordWriterOutputV2() override;
 
-        bool collectAndCheckIfChained(StreamRecord* record);
-        void pushToRecordWriter(StreamRecord*  record);
+    bool collectAndCheckIfChained(StreamRecord* record);
+    void pushToRecordWriter(StreamRecord* record);
 
-        void collect(void* record) override;
-        void close() override;
-        void emitWatermark(Watermark* watermark) override;
-        void emitWatermarkStatus(WatermarkStatus* watermarkStatus) override;
-        void broadcastEvent(std::shared_ptr<AbstractEvent> event, bool isPriorityEvent);
+    void collect(void* record) override;
+    void close() override;
+    void emitWatermark(Watermark* watermark) override;
+    void emitWatermarkStatus(WatermarkStatus* watermarkStatus) override;
+    void broadcastEvent(std::shared_ptr<AbstractEvent> event, bool isPriorityEvent);
 
-        void setSerializationDelegate(SerializationDelegate* serializationDelegate);
+    void setSerializationDelegate(SerializationDelegate* serializationDelegate);
 
-    private:
-        // WatermarkGauge watermarkGauge;
-        SerializationDelegate* serializationDelegate_;
+private:
+    // WatermarkGauge watermarkGauge;
+    SerializationDelegate* serializationDelegate_;
 
-        ///RecordWriter<SerializationDelegate<StreamElement>> recordWriter_;
-        RecordWriterV2* recordWriter_;
-        WatermarkGauge watermarkGauge_;
-        bool supportsUnalignedCheckpoints_;
-    };
-}
+    /// RecordWriter<SerializationDelegate<StreamElement>> recordWriter_;
+    RecordWriterV2* recordWriter_;
+    WatermarkGauge watermarkGauge_;
+    bool supportsUnalignedCheckpoints_;
+};
+} // namespace omnistream
 
 #endif
-

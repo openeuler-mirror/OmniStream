@@ -20,12 +20,13 @@ TEST(SinkOperatorTest, InitTest)
     auto op = SinkOperator(obj);
     op.open();
 
-    BinaryRowData *rowData = BinaryRowData::createBinaryRowDataWithMem(1);
-    StreamRecord *record = new StreamRecord(rowData);
+    BinaryRowData* rowData = BinaryRowData::createBinaryRowDataWithMem(1);
+    StreamRecord* record = new StreamRecord(rowData);
     op.processElement(record);
 };
 
-TEST(SinkOperatorTest, DISABLED_BatchOutputTest) {
+TEST(SinkOperatorTest, DISABLED_BatchOutputTest)
+{
     std::string sinkDescription = R"({"outputfile":"/tmp/flink_output.txt"})";
     auto obj = nlohmann::json::parse(sinkDescription);
     auto op = SinkOperator(obj);
@@ -38,7 +39,7 @@ TEST(SinkOperatorTest, DISABLED_BatchOutputTest) {
     }
     vb.Append(vec0);
 
-    auto *vec1 = new Vector<LargeStringContainer<std::string_view>>(vectorSize, 2048);
+    auto* vec1 = new Vector<LargeStringContainer<std::string_view>>(vectorSize, 2048);
 
     std::string valuePrefix;
     valuePrefix = "hello_world__";
@@ -66,100 +67,111 @@ omnistream::VectorBatch* createVectorBatch()
     return vbatch;
 }
 
-class MockResultPartitionWriter : public omnistream::ResultPartitionWriter{
+class MockResultPartitionWriter : public omnistream::ResultPartitionWriter {
 public:
     MockResultPartitionWriter() = default;
 
-    void setup() override {
-
+    void setup() override
+    {
     }
 
-    ResultPartitionIDPOD getPartitionId() override {
+    ResultPartitionIDPOD getPartitionId() override
+    {
         return ResultPartitionIDPOD();
     }
 
-    int getNumberOfSubpartitions() override {
+    int getNumberOfSubpartitions() override
+    {
         return 0;
     }
 
-    int getNumTargetKeyGroups() override {
+    int getNumTargetKeyGroups() override
+    {
         return 0;
     }
 
-    void emitRecord(void *record, int targetSubpartition) override {
-
+    void emitRecord(void* record, int targetSubpartition) override
+    {
     }
 
-    void broadcastRecord(void *record) override {
-
+    void broadcastRecord(void* record) override
+    {
     }
 
-    void broadcastEvent(std::shared_ptr<AbstractEvent> event, bool isPriorityEvent) override {
-
+    void broadcastEvent(std::shared_ptr<AbstractEvent> event, bool isPriorityEvent) override
+    {
     }
 
-    void NotifyEndOfData(StopMode mode) override {
-
+    void NotifyEndOfData(StopMode mode) override
+    {
     }
 
-    shared_ptr<CompletableFuture> getAllDataProcessedFuture() override {
+    shared_ptr<CompletableFuture> getAllDataProcessedFuture() override
+    {
         return std::shared_ptr<CompletableFuture>();
     }
 
-    shared_ptr<ResultSubpartitionView>
-    createSubpartitionView(int index, BufferAvailabilityListener* availabilityListener) override {
+    shared_ptr<ResultSubpartitionView> createSubpartitionView(
+        int index, BufferAvailabilityListener* availabilityListener) override
+    {
         return std::shared_ptr<ResultSubpartitionView>();
     }
 
-    void flushAll() override {
-
+    void flushAll() override
+    {
     }
 
-    void flush(int subpartitionIndex) override {
-
+    void flush(int subpartitionIndex) override
+    {
     }
 
-    void fail(std::optional<std::exception_ptr> throwable) override {
-
+    void fail(std::optional<std::exception_ptr> throwable) override
+    {
     }
 
-    void finish() override {
-
+    void finish() override
+    {
     }
 
-    bool isFinished() override {
+    bool isFinished() override
+    {
         return false;
     }
 
-    void release(std::optional<std::exception_ptr> cause) override {
-
+    void release(std::optional<std::exception_ptr> cause) override
+    {
     }
 
-    bool isReleased() override {
+    bool isReleased() override
+    {
         return false;
     }
 
-    void cancel() override {
-
+    void cancel() override
+    {
     }
 
-    void close() override {
-
+    void close() override
+    {
     }
 
-    string toString() const override {
+    string toString() const override
+    {
         return "MockResultPartitionWriter";
     }
 
-    shared_ptr<CompletableFuture> GetAvailableFuture() override {
+    shared_ptr<CompletableFuture> GetAvailableFuture() override
+    {
         return std::shared_ptr<CompletableFuture>();
     }
 
-    bool isAvailable() override {
+    bool isAvailable() override
+    {
         return AvailabilityProvider::isAvailable();
     }
 
-    string toString() override {
+    string toString() override
+    {
         return AvailabilityProvider::toString();
     }
 };
@@ -168,15 +180,17 @@ class MockChannelSelectorV2 : public omnistream::ChannelSelectorV2<StreamRecord>
 public:
     MockChannelSelectorV2() = default;
 
-    void setup(int numberOfChannels) override {
-
+    void setup(int numberOfChannels) override
+    {
     }
 
-    unordered_map<int, StreamRecord *> selectChannel(StreamRecord *record) override {
-        return unordered_map<int, StreamRecord *>();
+    unordered_map<int, StreamRecord*> selectChannel(StreamRecord* record) override
+    {
+        return unordered_map<int, StreamRecord*>();
     }
 
-    bool isBroadcast() const override {
+    bool isBroadcast() const override
+    {
         return false;
     }
 };
@@ -185,20 +199,20 @@ TEST(TimeStampSinkOperatorTest, InitTest)
 {
     std::string desc = R"DELIM({"rowtimeFieldIndex": 1})DELIM";
     auto obj = nlohmann::json::parse(desc);
-    BinaryRowDataSerializer *binaryRowDataSerializer = new BinaryRowDataSerializer(2);
+    BinaryRowDataSerializer* binaryRowDataSerializer = new BinaryRowDataSerializer(2);
     const int32_t BUFFER_CAPACITY = 256;
-    uint8_t *address = new uint8_t[BUFFER_CAPACITY];
-    auto *partitioner = new DummyStreamPartitioner();
+    uint8_t* address = new uint8_t[BUFFER_CAPACITY];
+    auto* partitioner = new DummyStreamPartitioner();
     auto targetPartitionWriter = std::make_shared<MockResultPartitionWriter>();
-    auto * recordWriter = new omnistream::SimpleSelectorRecordWriterV2(targetPartitionWriter, new MockChannelSelectorV2(), nullptr, 1000, "test", 1);
-    auto *recordWriteOutput = new omnistream::RecordWriterOutputV2(recordWriter, binaryRowDataSerializer);
+    auto* recordWriter = new omnistream::SimpleSelectorRecordWriterV2(
+        targetPartitionWriter, new MockChannelSelectorV2(), nullptr, 1000, "test", 1);
+    auto* recordWriteOutput = new omnistream::RecordWriterOutputV2(recordWriter, binaryRowDataSerializer);
     auto op = TimeStampInserterSinkOperator(obj, recordWriteOutput, obj);
     op.open();
-    BinaryRowData *rowData = BinaryRowData::createBinaryRowDataWithMem(1);
-    StreamRecord *record = new StreamRecord(rowData);
+    BinaryRowData* rowData = BinaryRowData::createBinaryRowDataWithMem(1);
+    StreamRecord* record = new StreamRecord(rowData);
     op.processElement(record);
     omnistream::VectorBatch* batch = createVectorBatch();
-    StreamRecord *record2 = new StreamRecord(batch);
+    StreamRecord* record2 = new StreamRecord(batch);
     op.processBatch(record2);
 }
-

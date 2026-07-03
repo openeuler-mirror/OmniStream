@@ -22,9 +22,9 @@ class FsCheckpointStorageLocation : public FsCheckpointStreamFactory {
 public:
     FsCheckpointStorageLocation(
         int fileSystem,
-        Path *checkpointDir,
-        Path *sharedStateDir,
-        Path *taskOwnedStateDir,
+        Path* checkpointDir,
+        Path* sharedStateDir,
+        Path* taskOwnedStateDir,
         std::shared_ptr<CheckpointStorageLocationReference> reference,
         int fileStateSizeThreshold,
         int writeBufferSize)
@@ -38,49 +38,47 @@ public:
           writeBufferSize(writeBufferSize)
     {
         if (fileStateSizeThreshold < 0) {
-            THROW_LOGIC_EXCEPTION(
-                "The threshold for file state size must be zero or larger");
+            THROW_LOGIC_EXCEPTION("The threshold for file state size must be zero or larger");
         }
 
         if (writeBufferSize < 0) {
-            THROW_LOGIC_EXCEPTION(
-                "The write buffer size must be zero or larger");
+            THROW_LOGIC_EXCEPTION("The write buffer size must be zero or larger");
         }
 
         Path metadataDir = Path(*checkpointDir); // TTODO EntropyInjector.removeEntropyMarkerIfPresent
         metadataFilePath = new Path(metadataDir, AbstractFsCheckpointStorageAccess::METADATA_FILE_NAME);
     }
 
-    Path *getCheckpointDirectory()
+    Path* getCheckpointDirectory()
     {
         return checkpointDirectory;
     }
 
-    Path *getSharedStateDirectory()
+    Path* getSharedStateDirectory()
     {
         return sharedStateDirectory;
     }
 
-    Path *getTaskOwnedStateDirectory()
+    Path* getTaskOwnedStateDirectory()
     {
         return taskOwnedStateDirectory;
     }
 
-    Path *getMetadataFilePath()
+    Path* getMetadataFilePath()
     {
         return metadataFilePath;
     }
 
 private:
     int fileSystem;
-    Path *checkpointDirectory;
-    Path *sharedStateDirectory;
-    Path *taskOwnedStateDirectory;
-    Path *metadataFilePath;
+    Path* checkpointDirectory;
+    Path* sharedStateDirectory;
+    Path* taskOwnedStateDirectory;
+    Path* metadataFilePath;
     std::shared_ptr<CheckpointStorageLocationReference> reference;
     int fileStateSizeThreshold;
     int writeBufferSize;
 };
 
-}
+} // namespace omnistream
 #endif // FLINK_TNEL_FSCHECKPOINTSTORAGELOCATION_H

@@ -12,7 +12,7 @@
 
 #include <stdexcept>
 
-nlohmann::json TaskStateSnapshotSerializer::Serialize(const std::shared_ptr<TaskStateSnapshot> &localState)
+nlohmann::json TaskStateSnapshotSerializer::Serialize(const std::shared_ptr<TaskStateSnapshot>& localState)
 {
     nlohmann::json j;
     j["@class"] = "org.apache.flink.runtime.checkpoint.TaskStateSnapshot";
@@ -27,13 +27,11 @@ nlohmann::json TaskStateSnapshotSerializer::Serialize(const std::shared_ptr<Task
         subtaskStateJson = parseOperatorStateAndKeyedState(subtaskStateJson, subtaskState);
 
         // inputChannelState empty?
-        subtaskStateJson["inputChannelState"] =
-            nlohmann::json::array({"org.apache.flink.runtime.checkpoint.StateObjectCollection",
-                                   nlohmann::json::array()});
+        subtaskStateJson["inputChannelState"] = nlohmann::json::array(
+            {"org.apache.flink.runtime.checkpoint.StateObjectCollection", nlohmann::json::array()});
         // resultSubpartitionState empty?
-        subtaskStateJson["resultSubpartitionState"] =
-            nlohmann::json::array({"org.apache.flink.runtime.checkpoint.StateObjectCollection",
-                                   nlohmann::json::array()});
+        subtaskStateJson["resultSubpartitionState"] = nlohmann::json::array(
+            {"org.apache.flink.runtime.checkpoint.StateObjectCollection", nlohmann::json::array()});
 
         // inputRescalingDescriptor empty?
         subtaskStateJson["inputRescalingDescriptor"] =
@@ -53,10 +51,8 @@ nlohmann::json TaskStateSnapshotSerializer::Serialize(const std::shared_ptr<Task
         // subtaskStatesJson[operatorId.getBytesToString()] = subtaskStateJson;
     }
 
-    j["subtaskStatesByOperatorID"] = nlohmann::json::object({
-                                                                {"@class", "java.util.HashMap"},
-                                                                {"mappings", subtaskStatesJson}
-                                                            });
+    j["subtaskStatesByOperatorID"] =
+        nlohmann::json::object({{"@class", "java.util.HashMap"}, {"mappings", subtaskStatesJson}});
 
     // Add boolean flags
     j["isTaskDeployedAsFinished"] = localState->GetIsTaskDeployedAsFinished();
@@ -78,23 +74,23 @@ nlohmann::json TaskStateSnapshotSerializer::Serialize(const std::shared_ptr<Task
     return j;
 }
 
-nlohmann::json TaskStateSnapshotSerializer::parseOperatorStateAndKeyedState(nlohmann::json subtaskStateJson,
-    std::shared_ptr<OperatorSubtaskState> operatorSubtaskState)
+nlohmann::json TaskStateSnapshotSerializer::parseOperatorStateAndKeyedState(
+    nlohmann::json subtaskStateJson, std::shared_ptr<OperatorSubtaskState> operatorSubtaskState)
 {
     subtaskStateJson["@class"] = "org.apache.flink.runtime.checkpoint.OperatorSubtaskState";
     // Serialize state collections
-    subtaskStateJson["managedOperatorState"] =
-        nlohmann::json::array({"org.apache.flink.runtime.checkpoint.StateObjectCollection",
-                               parseOperatorState(operatorSubtaskState->getManagedOperatorState())});
-    subtaskStateJson["rawOperatorState"] =
-        nlohmann::json::array({"org.apache.flink.runtime.checkpoint.StateObjectCollection",
-                               parseOperatorState(operatorSubtaskState->getRawOperatorState())});
-    subtaskStateJson["managedKeyedState"] =
-        nlohmann::json::array({"org.apache.flink.runtime.checkpoint.StateObjectCollection",
-                               parseKeyedState(operatorSubtaskState->getManagedKeyedState())});
-    subtaskStateJson["rawKeyedState"] =
-        nlohmann::json::array({"org.apache.flink.runtime.checkpoint.StateObjectCollection",
-                               parseKeyedState(operatorSubtaskState->getRawKeyedState())});
+    subtaskStateJson["managedOperatorState"] = nlohmann::json::array(
+        {"org.apache.flink.runtime.checkpoint.StateObjectCollection",
+         parseOperatorState(operatorSubtaskState->getManagedOperatorState())});
+    subtaskStateJson["rawOperatorState"] = nlohmann::json::array(
+        {"org.apache.flink.runtime.checkpoint.StateObjectCollection",
+         parseOperatorState(operatorSubtaskState->getRawOperatorState())});
+    subtaskStateJson["managedKeyedState"] = nlohmann::json::array(
+        {"org.apache.flink.runtime.checkpoint.StateObjectCollection",
+         parseKeyedState(operatorSubtaskState->getManagedKeyedState())});
+    subtaskStateJson["rawKeyedState"] = nlohmann::json::array(
+        {"org.apache.flink.runtime.checkpoint.StateObjectCollection",
+         parseKeyedState(operatorSubtaskState->getRawKeyedState())});
 
     return subtaskStateJson;
 }
@@ -170,12 +166,9 @@ nlohmann::json TaskStateSnapshotSerializer::parseKeyGroupsStateHandle(std::share
 {
     nlohmann::json handleJson;
     const bool isSavepointHandle = std::dynamic_pointer_cast<KeyGroupsSavepointStateHandle>(kh) != nullptr;
-    handleJson["@class"] = isSavepointHandle
-        ? "org.apache.flink.runtime.state.KeyGroupsSavepointStateHandle"
-        : "org.apache.flink.runtime.state.KeyGroupsStateHandle";
-    handleJson["stateHandleName"] = isSavepointHandle
-        ? "KeyGroupsSavepointStateHandle"
-        : "KeyGroupsStateHandle";
+    handleJson["@class"] = isSavepointHandle ? "org.apache.flink.runtime.state.KeyGroupsSavepointStateHandle"
+                                             : "org.apache.flink.runtime.state.KeyGroupsStateHandle";
+    handleJson["stateHandleName"] = isSavepointHandle ? "KeyGroupsSavepointStateHandle" : "KeyGroupsStateHandle";
     handleJson["keyGroupRange"] = parseKeyGroupRange(kh->GetKeyGroupRange());
     handleJson["groupRangeOffsets"] = nlohmann::json::parse(kh->getGroupRangeOffsets().ToString());
     handleJson["streamStateHandle"] = parseMetaDataState(kh->getDelegateStateHandle());
@@ -188,7 +181,8 @@ nlohmann::json TaskStateSnapshotSerializer::parseKeyGroupsStateHandle(std::share
     return handleJson;
 }
 
-nlohmann::json TaskStateSnapshotSerializer::parseOperatorStreamStateHandle(std::shared_ptr<OperatorStreamStateHandle> kh)
+nlohmann::json TaskStateSnapshotSerializer::parseOperatorStreamStateHandle(
+    std::shared_ptr<OperatorStreamStateHandle> kh)
 {
     nlohmann::json handleJson;
     handleJson["@class"] = "org.apache.flink.runtime.state.OperatorStreamStateHandle";
@@ -229,7 +223,7 @@ nlohmann::json TaskStateSnapshotSerializer::parseMetaDataState(std::shared_ptr<S
         metaDataStateHandleJson["data"] = jobj["data"];
         metaDataStateHandleJson["stateSize"] = msh->GetStateSize();
         metaDataStateHandleJson["streamStateHandleID"] = parseStreamStateHandleID(msh->GetStreamStateHandleID());
-    } else if(auto msh = std::dynamic_pointer_cast<PlaceholderStreamStateHandle>(metaDataStateHandle)){
+    } else if (auto msh = std::dynamic_pointer_cast<PlaceholderStreamStateHandle>(metaDataStateHandle)) {
         metaDataStateHandleJson["@class"] = "org.apache.flink.runtime.state.PlaceholderStreamStateHandle";
         metaDataStateHandleJson["stateHandleName"] = "PlaceholderStreamStateHandle";
         metaDataStateHandleJson["stateSize"] = msh->GetStateSize();
@@ -243,7 +237,7 @@ nlohmann::json TaskStateSnapshotSerializer::parseMetaDataState(std::shared_ptr<S
     return metaDataStateHandleJson;
 }
 
-nlohmann::json TaskStateSnapshotSerializer::parseDirectoryStateHandle(DirectoryStateHandle *directoryStateHandle)
+nlohmann::json TaskStateSnapshotSerializer::parseDirectoryStateHandle(DirectoryStateHandle* directoryStateHandle)
 {
     nlohmann::json directoryStateHandleJson;
     nlohmann::json directoryJson;
@@ -314,8 +308,9 @@ nlohmann::json TaskStateSnapshotSerializer::parseInflightDataRescalingDescriptor
     nlohmann::json inputRescalingDesc;
     inputRescalingDesc["@class"] = "org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor"
                                    "$NoRescalingDescriptor";
-    inputRescalingDesc["gateOrPartitionDescriptors"] =
-        nlohmann::json::array({"[Lorg.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor"
-                               "$InflightDataGateOrPartitionRescalingDescriptor;", nlohmann::json::array()});
+    inputRescalingDesc["gateOrPartitionDescriptors"] = nlohmann::json::array(
+        {"[Lorg.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor"
+         "$InflightDataGateOrPartitionRescalingDescriptor;",
+         nlohmann::json::array()});
     return inputRescalingDesc;
 }

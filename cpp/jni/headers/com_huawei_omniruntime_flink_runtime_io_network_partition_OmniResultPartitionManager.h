@@ -22,8 +22,9 @@ extern "C" {
  * Method:    registerResultPartitionNative
  * Signature: (JJ)V
  */
-JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_io_network_partition_OmniResultPartitionManager_registerResultPartitionNative
-  (JNIEnv *, jobject, jlong, jlong);
+JNIEXPORT void JNICALL
+Java_com_huawei_omniruntime_flink_runtime_io_network_partition_OmniResultPartitionManager_registerResultPartitionNative(
+    JNIEnv*, jobject, jlong, jlong);
 
 #ifdef __cplusplus
 }

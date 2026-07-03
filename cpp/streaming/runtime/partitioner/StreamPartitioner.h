@@ -17,28 +17,42 @@
 #include "ChannelSelector.h"
 
 namespace omnistream::datastream {
-    template<typename T>
-    class StreamPartitioner : public ChannelSelector<T> {
-    public:
-        StreamPartitioner() : numberOfChannels(0) {}
+template <typename T>
+class StreamPartitioner : public ChannelSelector<T> {
+public:
+    StreamPartitioner() : numberOfChannels(0)
+    {
+    }
 
-        virtual ~StreamPartitioner() {}
+    virtual ~StreamPartitioner()
+    {
+    }
 
-        void setup(int numberOfChannels_) override
-        {
-            this->numberOfChannels = numberOfChannels_;
-        }
+    void setup(int numberOfChannels_) override
+    {
+        this->numberOfChannels = numberOfChannels_;
+    }
 
-        bool isBroadcast() const override
-        {
-            return false;
-        }
+    bool isBroadcast() const override
+    {
+        return false;
+    }
 
-        virtual bool isPointWise() const {return false;}
-        virtual std::unique_ptr<StreamPartitioner<T>> copy() {return nullptr;}
-        [[nodiscard]] virtual std::string toString() const {return "";}
-    protected:
-        int numberOfChannels;
-    };
-}
+    virtual bool isPointWise() const
+    {
+        return false;
+    }
+    virtual std::unique_ptr<StreamPartitioner<T>> copy()
+    {
+        return nullptr;
+    }
+    [[nodiscard]] virtual std::string toString() const
+    {
+        return "";
+    }
+
+protected:
+    int numberOfChannels;
+};
+} // namespace omnistream::datastream
 #endif

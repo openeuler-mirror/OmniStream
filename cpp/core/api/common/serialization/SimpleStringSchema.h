@@ -12,7 +12,6 @@
 #ifndef CPP_SIMPLESTRINGSCHEMA_H
 #define CPP_SIMPLESTRINGSCHEMA_H
 
-
 #include <memory>
 #include <string>
 #include <vector>
@@ -34,7 +33,7 @@ public:
     std::string_view getCharset() const;
 
     // 反序列化方法
-    Object *deserialize(const uint8_t* message, size_t length) override;
+    Object* deserialize(const uint8_t* message, size_t length) override;
     // 判断是否为流结束
     bool isEndOfStream(const void* nextElement) override;
 
@@ -42,8 +41,7 @@ public:
 
 private:
     std::string_view charsetName;
-    String *buffer;
+    String* buffer;
 };
-
 
 #endif // CPP_SIMPLESTRINGSCHEMA_H

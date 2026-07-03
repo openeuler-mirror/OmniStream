@@ -67,11 +67,15 @@ public:
         bool valid = false;
     };
 
-    CheckpointStateOutputStreamProxy(const std::shared_ptr<omnistream::OmniTaskBridge> &bridge, long checkpointId, CheckpointOptions *checkpointOptions)
-        : bridge_(bridge), chunk_(INITIAL_CHUNK_SIZE)
+    CheckpointStateOutputStreamProxy(
+        const std::shared_ptr<omnistream::OmniTaskBridge>& bridge,
+        long checkpointId,
+        CheckpointOptions* checkpointOptions)
+        : bridge_(bridge),
+          chunk_(INITIAL_CHUNK_SIZE)
     {
         provider_ = bridge_->AcquireSavepointOutputStream(checkpointId, checkpointOptions);
-        if(!provider_){
+        if (!provider_) {
             throw std::runtime_error("Failed to AcquireSavepointOutputStream");
         }
         directBuffer_ = bridge_->CreateSavepointOutputDirectBuffer(chunk_.data(), capacity_);
@@ -100,8 +104,7 @@ public:
         return nullptr;
     }
 
-    void writeMetadata(
-        const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& snapshots, std::string keySerializer)
+    void writeMetadata(const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& snapshots, std::string keySerializer)
     {
         if (provider_ == nullptr) {
             return;
@@ -110,8 +113,10 @@ public:
         pos_ = bridge_->GetSavepointOutputStreamPos(provider_);
     }
 
-    void writeOperatorMetaData(const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& operatorStateMetaInfoSnapshots,
-                               const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& broadcastStateMetaInfoSnapshots){
+    void writeOperatorMetaData(
+        const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& operatorStateMetaInfoSnapshots,
+        const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& broadcastStateMetaInfoSnapshots)
+    {
         if (provider_ == nullptr) {
             return;
         }
@@ -171,21 +176,21 @@ public:
         writeBytes(bytes, sizeof(bytes));
     }
 
-    void writeUTF(const std::string &data)
+    void writeUTF(const std::string& data)
     {
         DataOutputSerializer tmp(static_cast<int>(data.size() * 3 + 2));
         tmp.writeUTF(data);
         writeBytes(tmp.getData(), tmp.getPosition());
     }
 
-    void writeBytes(const void *data, size_t len)
+    void writeBytes(const void* data, size_t len)
     {
         size_t ori_len = len;
         if (!provider_) {
             return;
         }
         requireNoActivePatch("writeBytes");
-        const int8_t *src = (const int8_t *)data;
+        const int8_t* src = (const int8_t*)data;
         while (len > 0) {
             if (offset_ == capacity_) {
                 flush();
@@ -202,8 +207,7 @@ public:
     void writeKeyValuePair(const std::vector<int8_t>& key, const std::vector<int8_t>& value)
     {
         writeKeyValuePair(
-            ByteView::fromBuffer(key.data(), key.size()),
-            ByteView::fromBuffer(value.data(), value.size()));
+            ByteView::fromBuffer(key.data(), key.size()), ByteView::fromBuffer(value.data(), value.size()));
     }
 
     void writeKeyValuePair(ByteView key, ByteView value)
@@ -243,7 +247,8 @@ public:
         targetCapacity = std::min(targetCapacity, MAX_CHUNK_SIZE);
         if (targetCapacity > capacity_) {
             if (!growBuffer(targetCapacity)) {
-                INFO_RELEASE("Error: CheckpointStateOutputStreamProxy failed to grow buffer from "
+                INFO_RELEASE(
+                    "Error: CheckpointStateOutputStreamProxy failed to grow buffer from "
                     << capacity_ << " to " << targetCapacity << " bytes");
             }
         }
@@ -387,8 +392,7 @@ private:
     {
         if (patchGuardActive_) {
             INFO_RELEASE("Error: Cannot " << operation << " while a savepoint BytePatch is pending");
-            throw std::runtime_error(
-                std::string("Cannot ") + operation + " while a savepoint BytePatch is pending");
+            throw std::runtime_error(std::string("Cannot ") + operation + " while a savepoint BytePatch is pending");
         }
     }
 
@@ -435,11 +439,7 @@ private:
         dst[3] = static_cast<uint8_t>(data & 0xFF);
     }
 
-    void writeKeyValuePairToBuffer(
-        ByteView key,
-        ByteView value,
-        size_t encodedLen,
-        BytePatch* patch)
+    void writeKeyValuePairToBuffer(ByteView key, ByteView value, size_t encodedLen, BytePatch* patch)
     {
         auto* dst = reinterpret_cast<uint8_t*>(&chunk_[offset_]);
         size_t remaining = capacity_ - offset_;

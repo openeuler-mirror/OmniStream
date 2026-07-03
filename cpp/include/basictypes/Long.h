@@ -30,31 +30,32 @@ public:
 
     inline int hashCode() override;
 
-    inline bool equals(Object *obj) override;
+    inline bool equals(Object* obj) override;
 
     inline std::string toString() override;
 
-    inline Object *clone() override;
+    inline Object* clone() override;
 
     inline int64_t longValue();
 
-    static inline Long *valueOf(String *str);
+    static inline Long* valueOf(String* str);
 
-    static inline Long *valueOf_tune(String *str);
+    static inline Long* valueOf_tune(String* str);
 
-    static inline Long *valueOf(std::string str);
+    static inline Long* valueOf(std::string str);
 
-    static inline Long *valueOf_tune(std::string str);
+    static inline Long* valueOf_tune(std::string str);
 
-    static inline Long *valueOf(int64_t val);
+    static inline Long* valueOf(int64_t val);
 
-    static inline Long *valueOf_tune(int64_t val);
+    static inline Long* valueOf_tune(int64_t val);
 
     inline void putRefCount() override;
 
     int64_t value;
-    Long *next = nullptr;
-    inline void setValue(const std::string &basicString) override;
+    Long* next = nullptr;
+    inline void setValue(const std::string& basicString) override;
+
 protected:
     static std::uint64_t parseLong(std::string_view s);
 };
@@ -71,12 +72,12 @@ inline void Long::setValue(int64_t val)
 
 inline int Long::hashCode()
 {
-    return (int) (value ^ (static_cast<uint64_t>(value) >> 32));
+    return (int)(value ^ (static_cast<uint64_t>(value) >> 32));
 }
 
-inline bool Long::equals(Object *obj)
+inline bool Long::equals(Object* obj)
 {
-    Long *ptr = reinterpret_cast<Long *>(obj);
+    Long* ptr = reinterpret_cast<Long*>(obj);
     int64_t val = ptr->getValue();
     return value == val ? true : false;
 }
@@ -86,7 +87,7 @@ inline std::string Long::toString()
     return std::to_string(value);
 }
 
-inline Object *Long::clone()
+inline Object* Long::clone()
 {
     return new Long(value);
 }
@@ -96,22 +97,22 @@ inline int64_t Long::longValue()
     return value;
 }
 
-inline Long *Long::valueOf(String *str)
+inline Long* Long::valueOf(String* str)
 {
     return valueOf_tune(str);
 }
 
-inline Long* Long::valueOf_tune(String *str)
+inline Long* Long::valueOf_tune(String* str)
 {
     std::string_view value = str->getValue();
     uint64_t val = parseLong(value);
-    ObjectPool<Long> *longObjectPool =  ObjectPool<Long>::getInstance();
+    ObjectPool<Long>* longObjectPool = ObjectPool<Long>::getInstance();
     Long* curLong = longObjectPool->getObject();
     curLong->setValue(val);
     return curLong;
 }
 
-inline Long *Long::valueOf(std::string str)
+inline Long* Long::valueOf(std::string str)
 {
     return valueOf_tune(str);
 }
@@ -119,20 +120,20 @@ inline Long *Long::valueOf(std::string str)
 inline Long* Long::valueOf_tune(std::string str)
 {
     uint64_t val = parseLong(str);
-    ObjectPool<Long> *longObjectPool =  ObjectPool<Long>::getInstance();
+    ObjectPool<Long>* longObjectPool = ObjectPool<Long>::getInstance();
     Long* curLong = longObjectPool->getObject();
     curLong->setValue(val);
     return curLong;
 }
 
-inline Long *Long::valueOf(int64_t val)
+inline Long* Long::valueOf(int64_t val)
 {
     return valueOf_tune(val);
 }
 
-inline Long *Long::valueOf_tune(int64_t val)
+inline Long* Long::valueOf_tune(int64_t val)
 {
-    ObjectPool<Long> *longObjectPool =  ObjectPool<Long>::getInstance();
+    ObjectPool<Long>* longObjectPool = ObjectPool<Long>::getInstance();
     Long* curLong = longObjectPool->getObject();
     curLong->setValue(val);
     return curLong;
@@ -141,7 +142,7 @@ inline Long *Long::valueOf_tune(int64_t val)
 inline std::uint64_t Long::parseLong(std::string_view s)
 {
     std::uint64_t result = 0;
-    for (char digit: s) {
+    for (char digit : s) {
         if (digit < 48 || digit > 57) {
             throw std::out_of_range("parseLong out digit range");
         } // 0: 48; 9: 57
@@ -156,7 +157,7 @@ inline void Long::putRefCount()
     if (--refCount <= 0) {
         if (this->isPool) {
             // this->refCount = 1;
-            ObjectPool<Long> *longObjectPool = ObjectPool<Long>::getInstance();
+            ObjectPool<Long>* longObjectPool = ObjectPool<Long>::getInstance();
             this->next = longObjectPool->head;
             longObjectPool->head = this;
         } else {
@@ -165,7 +166,7 @@ inline void Long::putRefCount()
     }
 }
 
-inline void Long::setValue(const std::string &basicString)
+inline void Long::setValue(const std::string& basicString)
 {
     this->value = std::stol(basicString);
 }

@@ -12,9 +12,9 @@
 #pragma once
 
 namespace omnistream {
-    class AutoCloseable {
-    public:
-        virtual ~AutoCloseable() = default;
-        virtual void close() = 0 ;
-    };
-}
+class AutoCloseable {
+public:
+    virtual ~AutoCloseable() = default;
+    virtual void close() = 0;
+};
+} // namespace omnistream

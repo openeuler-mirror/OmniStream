@@ -21,11 +21,14 @@ template <typename E, typename SplitT>
 class AddSplitsTask : public SplitFetcherTask {
 public:
     AddSplitsTask(
-            SplitReader<RdKafka::Message, KafkaPartitionSplit> *splitReader,
-            std::vector<KafkaPartitionSplit*>& splitsToAdd,
-            std::unordered_map<std::string, KafkaPartitionSplit*>& assignedSplits): splitReader(splitReader),
-                                                                                    splitsToAdd(splitsToAdd),
-                                                                                    assignedSplits(assignedSplits) {}
+        SplitReader<RdKafka::Message, KafkaPartitionSplit>* splitReader,
+        std::vector<KafkaPartitionSplit*>& splitsToAdd,
+        std::unordered_map<std::string, KafkaPartitionSplit*>& assignedSplits)
+        : splitReader(splitReader),
+          splitsToAdd(splitsToAdd),
+          assignedSplits(assignedSplits)
+    {
+    }
 
     ~AddSplitsTask() override
     {
@@ -52,7 +55,9 @@ public:
         return true;
     }
 
-    void WakeUp() override {}
+    void WakeUp() override
+    {
+    }
 
     std::string ToString() override
     {
@@ -71,11 +76,11 @@ public:
         result += "]";
         return result;
     }
+
 private:
     SplitReader<E, SplitT>* splitReader;
     std::vector<SplitT*> splitsToAdd;
     std::unordered_map<std::string, SplitT*>& assignedSplits;
 };
-
 
 #endif // OMNISTREAM_ADDSPLITSTASK_H

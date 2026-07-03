@@ -44,20 +44,21 @@ namespace fs = std::filesystem;
  * - Stream compression/decompression
  *
  */
-template<typename K>
+template <typename K>
 class FullSnapshotRestoreOperation {
 public:
     /**
-* Constructor for FullSnapshotRestoreOperation
-*
-* @param keyGroupRange range of key groups for this restore operation
-* @param restoreStateHandles collection of state handles to restore from
-* @param keySerializerProvider provider for key serialization
-*/
-    FullSnapshotRestoreOperation(KeyGroupRange* keyGroupRange,
-                                 const std::vector<std::shared_ptr<KeyedStateHandle>>& restoreStateHandles,
-                                 std::shared_ptr<TypeSerializer> keySerializerProvider,
-                                 std::shared_ptr<OmniTaskBridge> omniTaskBridge);
+     * Constructor for FullSnapshotRestoreOperation
+     *
+     * @param keyGroupRange range of key groups for this restore operation
+     * @param restoreStateHandles collection of state handles to restore from
+     * @param keySerializerProvider provider for key serialization
+     */
+    FullSnapshotRestoreOperation(
+        KeyGroupRange* keyGroupRange,
+        const std::vector<std::shared_ptr<KeyedStateHandle>>& restoreStateHandles,
+        std::shared_ptr<TypeSerializer> keySerializerProvider,
+        std::shared_ptr<OmniTaskBridge> omniTaskBridge);
 
     ~FullSnapshotRestoreOperation();
 
@@ -72,13 +73,13 @@ private:
 };
 
 // Template implementation
-template<typename K>
+template <typename K>
 std::unique_ptr<SavepointRestoreResultIterator> FullSnapshotRestoreOperation<K>::restore()
 {
     return std::make_unique<SavepointRestoreResultIterator>(restoreStateHandles_, omniTaskBridge_);
 }
 
-template<typename K>
+template <typename K>
 FullSnapshotRestoreOperation<K>::FullSnapshotRestoreOperation(
     KeyGroupRange* keyGroupRange,
     const std::vector<std::shared_ptr<KeyedStateHandle>>& restoreStateHandles,
@@ -88,15 +89,16 @@ FullSnapshotRestoreOperation<K>::FullSnapshotRestoreOperation(
       restoreStateHandles_(restoreStateHandles),
       keySerializerProvider_(keySerializerProvider),
       omniTaskBridge_(omniTaskBridge),
-      isKeySerializerCompatibilityChecked_(false) {
+      isKeySerializerCompatibilityChecked_(false)
+{
     // Filter out null state handles
     restoreStateHandles_.erase(
-        std::remove(restoreStateHandles_.begin(), restoreStateHandles_.end(), nullptr),
-        restoreStateHandles_.end());
+        std::remove(restoreStateHandles_.begin(), restoreStateHandles_.end(), nullptr), restoreStateHandles_.end());
 }
 
-template<typename K>
-FullSnapshotRestoreOperation<K>::~FullSnapshotRestoreOperation() {
+template <typename K>
+FullSnapshotRestoreOperation<K>::~FullSnapshotRestoreOperation()
+{
 }
 
 #endif // OMNISTREAM_FULLSNAPSHOTRESTOREOPERATION_H

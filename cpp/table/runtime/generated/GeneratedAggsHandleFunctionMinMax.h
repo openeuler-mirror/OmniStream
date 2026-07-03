@@ -25,18 +25,20 @@ enum AggMaxOrMin {
 class GeneratedAggsHandleFunctionMinMax : public AggsHandleFunction {
 public:
     GeneratedAggsHandleFunctionMinMax(int aggIdx, int accIndex, int valueIndex, AggMaxOrMin aggOperator)
-        :aggValue(aggOperator == MAX ? std::numeric_limits<long>::min() : std::numeric_limits<long>::max()),
-        limit(aggOperator == MAX ? std::numeric_limits<long>::min() : std::numeric_limits<long>::max()),
-        valueIsNull(true),
-        aggIdx(aggIdx),
-        accIndex(accIndex),
-        valueIndex(valueIndex),
-        aggOperator(aggOperator){ }
+        : aggValue(aggOperator == MAX ? std::numeric_limits<long>::min() : std::numeric_limits<long>::max()),
+          limit(aggOperator == MAX ? std::numeric_limits<long>::min() : std::numeric_limits<long>::max()),
+          valueIsNull(true),
+          aggIdx(aggIdx),
+          accIndex(accIndex),
+          valueIndex(valueIndex),
+          aggOperator(aggOperator)
+    {
+    }
 
     void open(StateDataViewStore* store);
     void setWindowSize(int windowSize) override {};
     void accumulate(RowData* accInput) override;
-    void accumulate(omnistream::VectorBatch *input, const std::vector<int> &indices) override;
+    void accumulate(omnistream::VectorBatch* input, const std::vector<int>& indices) override;
     void createAccumulators(BinaryRowData* accumulators) override;
     void retract(RowData* retractInput) override;
     void retract(omnistream::VectorBatch* input, const std::vector<int>& indices) override;

@@ -21,17 +21,21 @@ namespace fs = std::filesystem;
 template <typename IN, typename BucketID>
 class BucketWriter {
 public:
-    FileWriter<IN, BucketID> *openNewInProgressFile(BucketID bucketId, const std::string &path, long currentTime, std::vector<int> nonPartitionIndexes, std::vector<std::string> inputTypes)
+    FileWriter<IN, BucketID>* openNewInProgressFile(
+        BucketID bucketId,
+        const std::string& path,
+        long currentTime,
+        std::vector<int> nonPartitionIndexes,
+        std::vector<std::string> inputTypes)
     {
         fs::path targetPath(path);
         fs::path parentDir = targetPath.parent_path();
 
-        if (!fs::exists(parentDir))
-        {
+        if (!fs::exists(parentDir)) {
             std::error_code ec;
-            if (!fs::create_directories(parentDir, ec))
-            {
-                throw std::ios_base::failure("Failed to create directory: " + parentDir.string() + ", error: " + ec.message());
+            if (!fs::create_directories(parentDir, ec)) {
+                throw std::ios_base::failure(
+                    "Failed to create directory: " + parentDir.string() + ", error: " + ec.message());
             }
         }
 

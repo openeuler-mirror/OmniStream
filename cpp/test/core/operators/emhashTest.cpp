@@ -5,13 +5,15 @@
 using namespace std;
 using namespace emhash7;
 
-TEST(HashMapTest, DefaultConstructor) {
+TEST(HashMapTest, DefaultConstructor)
+{
     HashMap<string, int> map;
     EXPECT_EQ(map.size(), 0);
     EXPECT_EQ(map.empty(), true);
 }
 
-TEST(HashMapTest, Insert_Value) {
+TEST(HashMapTest, Insert_Value)
+{
     HashMap<string, int> map;
     map.insert({"key1", 1});
     map.insert({"key2", 2});
@@ -21,7 +23,8 @@ TEST(HashMapTest, Insert_Value) {
     EXPECT_EQ(map["key2"], 2);
 }
 
-TEST(HashMapTest, Emplace_Value) {
+TEST(HashMapTest, Emplace_Value)
+{
     HashMap<string, int> map;
     map.emplace("key1", 1);
     map.emplace("key2", 2);
@@ -31,7 +34,8 @@ TEST(HashMapTest, Emplace_Value) {
     EXPECT_EQ(map["key2"], 2);
 }
 
-TEST(HashMapTest, InsertOrAssign_Value) {
+TEST(HashMapTest, InsertOrAssign_Value)
+{
     HashMap<string, int> map;
     map.insert_or_assign("key1", 1);
     map.insert_or_assign("key1", 2);
@@ -40,13 +44,15 @@ TEST(HashMapTest, InsertOrAssign_Value) {
     EXPECT_EQ(map["key1"], 2);
 }
 
-TEST(HashMapTest, TryGet_Value) {
+TEST(HashMapTest, TryGet_Value)
+{
     HashMap<string, int> map;
     map.insert({"key1", 1});
     EXPECT_EQ(map.at("key1"), 1);
 }
 
-TEST(HashMapTest, Contains_Value) {
+TEST(HashMapTest, Contains_Value)
+{
     HashMap<string, int> map;
     map.insert({"key1", 1});
     map.insert({"key2", 2});
@@ -55,7 +61,8 @@ TEST(HashMapTest, Contains_Value) {
     EXPECT_FALSE(map.contains("key3"));
 }
 
-TEST(HashMapTest, Erase_Value) {
+TEST(HashMapTest, Erase_Value)
+{
     HashMap<string, int> map;
     map.insert({"key1", 1});
     map.insert({"key2", 2});
@@ -68,7 +75,8 @@ TEST(HashMapTest, Erase_Value) {
     EXPECT_EQ(map["key3"], 3);
 }
 
-TEST(HashMapTest, Clear_Map) {
+TEST(HashMapTest, Clear_Map)
+{
     HashMap<string, int> map;
     map.insert({"key1", 1});
     map.insert({"key2", 2});
@@ -78,19 +86,22 @@ TEST(HashMapTest, Clear_Map) {
     EXPECT_EQ(map.empty(), true);
 }
 
-TEST(HashMapTest, Reserve_Map) {
+TEST(HashMapTest, Reserve_Map)
+{
     HashMap<string, int> map;
     map.reserve(100);
     EXPECT_GE(map.bucket_count(), 100);
 }
 
-TEST(HashMapTest, Rehash_Map) {
+TEST(HashMapTest, Rehash_Map)
+{
     HashMap<string, int> map;
     map.rehash(100);
     EXPECT_GE(map.bucket_count(), 100);
 }
 
-TEST(HashMapTest, Find_Value) {
+TEST(HashMapTest, Find_Value)
+{
     HashMap<string, int> map;
     map.insert({"key1", 1});
     map.insert({"key2", 2});
@@ -104,7 +115,8 @@ TEST(HashMapTest, Find_Value) {
     EXPECT_EQ(it, map.end());
 }
 
-TEST(HashMapTest, Operator_Bracket) {
+TEST(HashMapTest, Operator_Bracket)
+{
     HashMap<string, int> map;
     map["key1"] = 1;
     map["key2"] = 2;
@@ -118,7 +130,8 @@ TEST(HashMapTest, Operator_Bracket) {
     EXPECT_EQ(map.size(), 3);
 }
 
-TEST(HashMapTest, Iteration) {
+TEST(HashMapTest, Iteration)
+{
     HashMap<string, int> map;
     map["key1"] = 1;
     map["key2"] = 2;
@@ -126,7 +139,7 @@ TEST(HashMapTest, Iteration) {
     std::vector<std::pair<std::string, int>> expected = {{"key1", 1}, {"key2", 2}};
     std::vector<std::pair<std::string, int>> actual;
 
-    for (const auto &pair : map) {
+    for (const auto& pair : map) {
         actual.emplace_back(pair.first, pair.second);
     }
 
@@ -134,7 +147,7 @@ TEST(HashMapTest, Iteration) {
 }
 
 //
-//TEST(HashMapTest, UpdateOrCreate_Value) {
+// TEST(HashMapTest, UpdateOrCreate_Value) {
 //    HashMap<string, int> map;
 //    map.updateOrCreate("key1", 1);
 //    map.updateOrCreate("key2", 2);
@@ -145,7 +158,8 @@ TEST(HashMapTest, Iteration) {
 //    EXPECT_EQ(map["key2"], 2);
 //}
 
-TEST(HashMapTest, Merge_Values) {
+TEST(HashMapTest, Merge_Values)
+{
     HashMap<string, int> map1;
     map1["key1"] = 1;
     map1["key2"] = 2;
@@ -162,7 +176,8 @@ TEST(HashMapTest, Merge_Values) {
     EXPECT_EQ(map1["key3"], 4);
 }
 
-TEST(HashMapTest, Resize_Bucket) {
+TEST(HashMapTest, Resize_Bucket)
+{
     HashMap<string, int> map;
     for (int i = 0; i < 1000; ++i) {
         map.emplace("key" + to_string(i), i);
@@ -171,7 +186,8 @@ TEST(HashMapTest, Resize_Bucket) {
     EXPECT_GE(map.bucket_count(), 1000);
 }
 
-TEST(HashMapTest, Delete_And_Rehash) {
+TEST(HashMapTest, Delete_And_Rehash)
+{
     HashMap<string, int> map;
     for (int i = 0; i < 1000; ++i) {
         map.emplace("key" + to_string(i), i);

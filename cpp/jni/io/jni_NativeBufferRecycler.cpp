@@ -19,31 +19,24 @@
 #include "com_huawei_omniruntime_flink_runtime_io_network_buffer_NativeNetworkBufferRecycler.h"
 
 JNIEXPORT void JNICALL
-Java_com_huawei_omniruntime_flink_runtime_io_network_buffer_NativeBufferRecycler_freeNativeByteBuffer
-(JNIEnv* jniEnv, jobject input, jlong nativeViewReaderRef, jlong nativeByteBufferAddressRef)
+Java_com_huawei_omniruntime_flink_runtime_io_network_buffer_NativeBufferRecycler_freeNativeByteBuffer(
+    JNIEnv* jniEnv, jobject input, jlong nativeViewReaderRef, jlong nativeByteBufferAddressRef)
 {
-    auto nativeViewReader =
-        reinterpret_cast<omnistream::BufferAvailabilityListener*>
-        (nativeViewReaderRef);
-    if (auto creditReader = dynamic_cast<omnistream::OmniCreditBasedSequenceNumberingViewReader*>(nativeViewReader))
-    {
+    auto nativeViewReader = reinterpret_cast<omnistream::BufferAvailabilityListener*>(nativeViewReaderRef);
+    if (auto creditReader = dynamic_cast<omnistream::OmniCreditBasedSequenceNumberingViewReader*>(nativeViewReader)) {
         creditReader->RecycleNettyBuffer(nativeByteBufferAddressRef);
-    }
-    else if (auto localChannelReader = dynamic_cast<omnistream::OmniLocalChannelReader*>(nativeViewReader))
-    {
+    } else if (auto localChannelReader = dynamic_cast<omnistream::OmniLocalChannelReader*>(nativeViewReader)) {
         localChannelReader->recycleMemorySegment(nativeByteBufferAddressRef);
     }
 }
 
 JNIEXPORT void JNICALL
-Java_com_huawei_omniruntime_flink_runtime_io_network_buffer_NativeNetworkBufferRecycler_freeNativeByteBuffer
-(JNIEnv* jniEnv, jobject input, jlong nativeViewReaderRef, jlong nativeByteBufferAddressRef)
+Java_com_huawei_omniruntime_flink_runtime_io_network_buffer_NativeNetworkBufferRecycler_freeNativeByteBuffer(
+    JNIEnv* jniEnv, jobject input, jlong nativeViewReaderRef, jlong nativeByteBufferAddressRef)
 {
     auto nativeViewReader =
-        reinterpret_cast<omnistream::OmniCreditBasedSequenceNumberingViewReader*>
-        (nativeViewReaderRef);
-    if (nativeViewReader != nullptr)
-    {
+        reinterpret_cast<omnistream::OmniCreditBasedSequenceNumberingViewReader*>(nativeViewReaderRef);
+    if (nativeViewReader != nullptr) {
         nativeViewReader->RecycleNetworkBuffer(nativeByteBufferAddressRef);
     }
 }

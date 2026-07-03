@@ -11,14 +11,13 @@
 
 #include "SubtaskStateMapper.h"
 
-
 namespace omnistream {
-    SubtaskStateMapper *SubtaskStateMapper::create(Type type)
-    {
-        switch (type) {
-            case ARBITRARY: return new ArbitraryMapper();
-            case ROUND_ROBIN: return new RoundRobinMapper();
-            default: return nullptr;
-        }
+SubtaskStateMapper* SubtaskStateMapper::create(Type type)
+{
+    switch (type) {
+        case ARBITRARY: return new ArbitraryMapper();
+        case ROUND_ROBIN: return new RoundRobinMapper();
+        default: return nullptr;
     }
 }
+} // namespace omnistream

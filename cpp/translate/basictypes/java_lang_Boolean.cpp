@@ -28,15 +28,15 @@ Boolean* Boolean::valueOf(int i)
     }
 }
 
-thread_local Boolean *Boolean::TRUE = new Boolean(true);
-thread_local Boolean *Boolean::FALSE = new Boolean(false);
+thread_local Boolean* Boolean::TRUE = new Boolean(true);
+thread_local Boolean* Boolean::FALSE = new Boolean(false);
 
-Object *Boolean::clone()
+Object* Boolean::clone()
 {
     return new Boolean(value);
 }
 
-void Boolean::setValue(const std::string &basicString)
+void Boolean::setValue(const std::string& basicString)
 {
     std::string s = basicString;
     std::transform(s.begin(), s.end(), s.begin(), ::tolower);

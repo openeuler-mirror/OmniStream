@@ -30,25 +30,26 @@
 #include "runtime/state/ResultSubpartitionStateHandle.h"
 #include "runtime/snapshot/RocksDBSnapshotStrategyBase.h"
 
-template<typename T>
+template <typename T>
 class StateObjectCollection : public StateObject {
 public:
-/** Creates a new StateObjectCollection that is backed by a vector. */
+    /** Creates a new StateObjectCollection that is backed by a vector. */
     StateObjectCollection()
     {
         this->stateObjects = std::vector<std::shared_ptr<T>>();
     }
 
-/**
- * Creates a new StateObjectCollection wraps the given collection and delegates to it.
- *
- * @param stateObjects collection of state objects to wrap.
- */
+    /**
+     * Creates a new StateObjectCollection wraps the given collection and delegates to it.
+     *
+     * @param stateObjects collection of state objects to wrap.
+     */
 
-    explicit StateObjectCollection(std::vector<std::shared_ptr<T>> stateObjects)
-        : stateObjects(stateObjects) {}
+    explicit StateObjectCollection(std::vector<std::shared_ptr<T>> stateObjects) : stateObjects(stateObjects)
+    {
+    }
 
-// Collection interface implementation
+    // Collection interface implementation
     int Size() const
     {
         return static_cast<int>(stateObjects.size());
@@ -59,7 +60,7 @@ public:
         return stateObjects.empty();
     }
 
-    bool Contains(const std::shared_ptr<T> &element) const
+    bool Contains(const std::shared_ptr<T>& element) const
     {
         return std::find(stateObjects.begin(), stateObjects.end(), element) != stateObjects.end();
     }
@@ -89,13 +90,13 @@ public:
         return stateObjects;
     }
 
-    bool Add(const std::shared_ptr<T> &element)
+    bool Add(const std::shared_ptr<T>& element)
     {
         stateObjects.push_back(element);
         return true;
     }
 
-    bool Remove(const std::shared_ptr<T> &element)
+    bool Remove(const std::shared_ptr<T>& element)
     {
         auto it = std::find(stateObjects.begin(), stateObjects.end(), element);
         if (it != stateObjects.end()) {
@@ -105,9 +106,9 @@ public:
         return false;
     }
 
-    bool ContainsAll(const std::vector<std::shared_ptr<T>> &c) const
+    bool ContainsAll(const std::vector<std::shared_ptr<T>>& c) const
     {
-        for (const auto &element: c) {
+        for (const auto& element : c) {
             if (!contains(element)) {
                 return false;
             }
@@ -115,10 +116,10 @@ public:
         return true;
     }
 
-    bool AddAll(const std::vector<std::shared_ptr<T>> &c)
+    bool AddAll(const std::vector<std::shared_ptr<T>>& c)
     {
         bool changed = false;
-        for (const auto &element: c) {
+        for (const auto& element : c) {
             if (add(element)) {
                 changed = true;
             }
@@ -126,10 +127,10 @@ public:
         return changed;
     }
 
-    bool RemoveAll(const std::vector<std::shared_ptr<T>> &c)
+    bool RemoveAll(const std::vector<std::shared_ptr<T>>& c)
     {
         bool changed = false;
-        for (const auto &element: c) {
+        for (const auto& element : c) {
             if (remove(element)) {
                 changed = true;
             }
@@ -137,7 +138,7 @@ public:
         return changed;
     }
 
-    bool RemoveIf(std::function<bool(const std::shared_ptr<T> &)> filter)
+    bool RemoveIf(std::function<bool(const std::shared_ptr<T>&)> filter)
     {
         auto it = std::remove_if(stateObjects.begin(), stateObjects.end(), filter);
         bool changed = it != stateObjects.end();
@@ -145,13 +146,13 @@ public:
         return changed;
     }
 
-    bool RetainAll(const std::vector<std::shared_ptr<T>> &c)
+    bool RetainAll(const std::vector<std::shared_ptr<T>>& c)
     {
         std::unordered_set<std::shared_ptr<T>> retainSet(c.begin(), c.end());
-        auto it = std::remove_if(stateObjects.begin(), stateObjects.end(),
-                                 [&retainSet](const std::shared_ptr<T> &element) {
-                                     return retainSet.find(element) == retainSet.end();
-                                 });
+        auto it =
+            std::remove_if(stateObjects.begin(), stateObjects.end(), [&retainSet](const std::shared_ptr<T>& element) {
+                return retainSet.find(element) == retainSet.end();
+            });
         bool changed = it != stateObjects.end();
         stateObjects.erase(it, stateObjects.end());
         return changed;
@@ -162,10 +163,10 @@ public:
         stateObjects.clear();
     }
 
-// StateObject interface implementation
+    // StateObject interface implementation
     void DiscardState() override
     {
-        for (const auto &object: stateObjects) {
+        for (const auto& object : stateObjects) {
             object->DiscardState();
         }
     }
@@ -180,10 +181,10 @@ public:
         return SumAllCheckpointedSizes(stateObjects);
     }
 
-/** Returns true if this contains at least one StateObject. */
+    /** Returns true if this contains at least one StateObject. */
     bool HasState() const
     {
-        for (const auto &state: stateObjects) {
+        for (const auto& state : stateObjects) {
             if (state != nullptr) {
                 return true;
             }
@@ -191,7 +192,7 @@ public:
         return false;
     }
 
-    bool operator==(const StateObjectCollection<T> &other) const
+    bool operator==(const StateObjectCollection<T>& other) const
     {
         if (this == &other) {
             return true;
@@ -199,10 +200,10 @@ public:
         // simple equals can cause troubles here because of how equals works e.g. between lists and
         // sets.
         // return CollectionUtils::isEqualCollection(stateObjects, other.stateObjects);
-        NOT_IMPL_EXCEPTION
+        NOT_IMPL_EXCEPTION;
     }
 
-    bool operator!=(const StateObjectCollection<T> &other) const
+    bool operator!=(const StateObjectCollection<T>& other) const
     {
         return !(*this == other);
     }
@@ -210,7 +211,7 @@ public:
     size_t HashCode() const
     {
         size_t hash = 0;
-        for (const auto &obj: stateObjects) {
+        for (const auto& obj : stateObjects) {
             hash ^= std::hash<std::shared_ptr<T>>{}(obj);
         }
         return hash;
@@ -227,7 +228,7 @@ public:
                 if (derived != nullptr && derived->handle != nullptr) {
                     std::string jsonStr = derived->handle->ToString();
                     state_objects_array.push_back(nlohmann::json::parse(jsonStr));
-                } else{
+                } else {
                     state_objects_array.push_back(nlohmann::json::parse(obj->ToString()));
                 }
             } else {
@@ -243,9 +244,9 @@ public:
         return stateObjects;
     }
 
-// ------------------------------------------------------------------------
-//  Helper methods.
-// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Helper methods.
+    // ------------------------------------------------------------------------
 
     static std::shared_ptr<StateObjectCollection<T>> Empty()
     {
@@ -274,43 +275,44 @@ public:
 private:
     static const long serialVersionUID = 1L;
 
-/** The empty StateObjectCollection. */
+    /** The empty StateObjectCollection. */
     static std::shared_ptr<StateObjectCollection<T>> EMPTY;
 
-/** Wrapped collection that contains the state objects. */
+    /** Wrapped collection that contains the state objects. */
     std::vector<std::shared_ptr<T>> stateObjects;
 
-// Helper methods
-    static long SumAllSizes(const std::vector<std::shared_ptr<T>> &stateObjects)
+    // Helper methods
+    static long SumAllSizes(const std::vector<std::shared_ptr<T>>& stateObjects)
     {
         long size = 0L;
-        for (const auto &object: stateObjects) {
+        for (const auto& object : stateObjects) {
             size += GetSizeNullSafe(object);
         }
         return size;
     }
 
-    static long GetSizeNullSafe(const std::shared_ptr<T> &stateObject)
+    static long GetSizeNullSafe(const std::shared_ptr<T>& stateObject)
     {
         return stateObject != nullptr ? stateObject->GetStateSize() : 0L;
     }
 
-    static long SumAllCheckpointedSizes(const std::vector<std::shared_ptr<T>> &stateObjects)
+    static long SumAllCheckpointedSizes(const std::vector<std::shared_ptr<T>>& stateObjects)
     {
         long size = 0L;
-        for (const auto &object: stateObjects) {
+        for (const auto& object : stateObjects) {
             size += GetCheckpointedSizeNullSafe(object);
         }
         return size;
     }
 
-    static long GetCheckpointedSizeNullSafe(const std::shared_ptr<T> &stateObject)
+    static long GetCheckpointedSizeNullSafe(const std::shared_ptr<T>& stateObject)
     {
         auto composite = std::dynamic_pointer_cast<CompositeStateHandle>(stateObject);
         return composite != nullptr ? composite->GetCheckpointedSize() : GetSizeNullSafe(stateObject);
     }
 };
 
-template<typename T> inline std::shared_ptr<StateObjectCollection<T>> StateObjectCollection<T>::EMPTY
-    = std::make_shared<StateObjectCollection<T>>(std::vector<std::shared_ptr<T>>());
+template <typename T>
+inline std::shared_ptr<StateObjectCollection<T>> StateObjectCollection<T>::EMPTY =
+    std::make_shared<StateObjectCollection<T>>(std::vector<std::shared_ptr<T>>());
 #endif // OMNISTREAM_STATEOBJECTCOLLECTION_H

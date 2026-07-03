@@ -20,21 +20,25 @@
 class RegisteredKeyValueStateBackendMetaInfo : public RegisteredStateMetaInfoBase {
 public:
     RegisteredKeyValueStateBackendMetaInfo(
-        StateDescriptor::Type stateType, // @Nonnull
-        const std::string& name, // @Nonnull
+        StateDescriptor::Type stateType,     // @Nonnull
+        const std::string& name,             // @Nonnull
         TypeSerializer* namespaceSerializer, // @Nonnull
-        TypeSerializer* stateSerializer) // @Nonnull
-        : RegisteredStateMetaInfoBase(name), stateType(stateType), namespaceSerializer(namespaceSerializer),
-        stateSerializer(stateSerializer) {}
+        TypeSerializer* stateSerializer)     // @Nonnull
+        : RegisteredStateMetaInfoBase(name),
+          stateType(stateType),
+          namespaceSerializer(namespaceSerializer),
+          stateSerializer(stateSerializer)
+    {
+    }
 
     RegisteredKeyValueStateBackendMetaInfo(
-        const std::string& name, // @Nonnull
+        const std::string& name,             // @Nonnull
         TypeSerializer* namespaceSerializer, // @Nonnull
-        TypeSerializer* stateSerializer) // @Nonnull
+        TypeSerializer* stateSerializer)     // @Nonnull
         : RegisteredKeyValueStateBackendMetaInfo(
-            StateDescriptor::Type::UNKNOWN, name, namespaceSerializer, stateSerializer) {};
+              StateDescriptor::Type::UNKNOWN, name, namespaceSerializer, stateSerializer) {};
 
-    explicit RegisteredKeyValueStateBackendMetaInfo(const StateMetaInfoSnapshot &snapshot);
+    explicit RegisteredKeyValueStateBackendMetaInfo(const StateMetaInfoSnapshot& snapshot);
     // @Nonnull
     StateDescriptor::Type getStateType() const
     {
@@ -67,6 +71,7 @@ public:
     {
         stateSerializer = sttSerializer;
     }
+
 private:
     // Instead of using serializer provider, straight up use serializer
     // Might change later if needed

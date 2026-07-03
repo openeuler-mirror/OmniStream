@@ -21,37 +21,37 @@
 
 namespace omnistream {
 
-    class ObjectBufferRecycler : public BufferRecycler {
-    public:
-        ~ObjectBufferRecycler() override = default;
+class ObjectBufferRecycler : public BufferRecycler {
+public:
+    ~ObjectBufferRecycler() override = default;
 
-        std::string toString() const override
-        {
-            return "ObjectBufferRecycler";
-        };
+    std::string toString() const override
+    {
+        return "ObjectBufferRecycler";
+    };
+};
+
+class DummyObjectBufferRecycler : public ObjectBufferRecycler {
+public:
+    static std::shared_ptr<DummyObjectBufferRecycler> getInstance()
+    {
+        if (!instance) {
+            instance = std::make_shared<DummyObjectBufferRecycler>();
+        }
+        return instance;
+    };
+    DummyObjectBufferRecycler() = default;
+    ~DummyObjectBufferRecycler() override = default;
+    void recycle(Segment* objectBuffer) override {};
+
+    std::string toString() const override
+    {
+        return "DummyObjectBufferRecycler";
     };
 
-    class DummyObjectBufferRecycler : public ObjectBufferRecycler {
-    public:
-        static std::shared_ptr<DummyObjectBufferRecycler> getInstance()
-        {
-            if (!instance) {
-                instance = std::make_shared<DummyObjectBufferRecycler>();
-            }
-            return instance;
-        };
-        DummyObjectBufferRecycler() = default;
-        ~DummyObjectBufferRecycler() override = default;
-        void recycle(Segment *objectBuffer) override
-        {};
-
-        std::string toString() const override
-        {
-            return "DummyObjectBufferRecycler";
-        };
-    private:
-        static std::shared_ptr<DummyObjectBufferRecycler> instance;
-    };
+private:
+    static std::shared_ptr<DummyObjectBufferRecycler> instance;
+};
 
 } // namespace omnistream
 

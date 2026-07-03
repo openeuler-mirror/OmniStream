@@ -10,6 +10,5 @@
  */
 #ifndef FLINK_TNEL_FUNCTION_H
 #define FLINK_TNEL_FUNCTION_H
-class Function {
-};
+class Function {};
 #endif // FLINK_TNEL_FUNCTION_H

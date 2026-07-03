@@ -18,38 +18,41 @@
 #include "BufferRecycler.h"
 
 namespace omnistream {
-    class Buffer {
-    public:
-        virtual ~Buffer() = default;
+class Buffer {
+public:
+    virtual ~Buffer() = default;
 
-        virtual bool isBuffer() const = 0;
-        virtual std::shared_ptr<BufferRecycler> GetRecycler() = 0;
-        virtual void RecycleBuffer() = 0;
+    virtual bool isBuffer() const = 0;
+    virtual std::shared_ptr<BufferRecycler> GetRecycler() = 0;
+    virtual void RecycleBuffer() = 0;
 
-        virtual bool IsRecycled() const = 0;
-        virtual bool ShouldBeDeleted() { return false; }
-        virtual Buffer* RetainBuffer() = 0;
-        virtual Buffer* ReadOnlySlice() = 0;
-        virtual Buffer* ReadOnlySlice(int index, int length) = 0;
-        virtual int GetMaxCapacity() const = 0;
-        virtual int GetReaderIndex() const = 0;
-        virtual void SetReaderIndex(int readerIndex) = 0;
-        virtual int GetSize() const = 0;
-        virtual void SetSize(int writerIndex) = 0;
-        virtual int ReadableObjects() const = 0;
+    virtual bool IsRecycled() const = 0;
+    virtual bool ShouldBeDeleted()
+    {
+        return false;
+    }
+    virtual Buffer* RetainBuffer() = 0;
+    virtual Buffer* ReadOnlySlice() = 0;
+    virtual Buffer* ReadOnlySlice(int index, int length) = 0;
+    virtual int GetMaxCapacity() const = 0;
+    virtual int GetReaderIndex() const = 0;
+    virtual void SetReaderIndex(int readerIndex) = 0;
+    virtual int GetSize() const = 0;
+    virtual void SetSize(int writerIndex) = 0;
+    virtual int ReadableObjects() const = 0;
 
-        virtual bool IsCompressed() const = 0;
-        virtual void SetCompressed(bool isCompressed) = 0;
-        virtual ObjectBufferDataType GetDataType() const = 0;
-        virtual void SetDataType(ObjectBufferDataType dataType) = 0;
-        virtual int GetBufferType() = 0;
-        virtual int RefCount() const = 0;
-        virtual std::string ToDebugString(bool includeHash) const = 0;
+    virtual bool IsCompressed() const = 0;
+    virtual void SetCompressed(bool isCompressed) = 0;
+    virtual ObjectBufferDataType GetDataType() const = 0;
+    virtual void SetDataType(ObjectBufferDataType dataType) = 0;
+    virtual int GetBufferType() = 0;
+    virtual int RefCount() const = 0;
+    virtual std::string ToDebugString(bool includeHash) const = 0;
 
-        // temp added
-        virtual int EventType() const = 0;
-        virtual Segment *GetSegment() = 0;
-        virtual int GetOffset() const = 0;
-    };
-}
+    // temp added
+    virtual int EventType() const = 0;
+    virtual Segment* GetSegment() = 0;
+    virtual int GetOffset() const = 0;
+};
+} // namespace omnistream
 #endif // OMNI_BUFFER_H

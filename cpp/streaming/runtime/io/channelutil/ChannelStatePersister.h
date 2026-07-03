@@ -25,24 +25,24 @@ class ChannelStatePersister {
         BARRIER_PENDING,
         BARRIER_RECEIVED
     };
+
 public:
-    explicit ChannelStatePersister(const std::shared_ptr<ChannelStateWriter> &channelStateWriter,
-        const InputChannelInfo &channelInfo)
-        : channelStateWriter_(channelStateWriter), channelInfo_(channelInfo)
+    explicit ChannelStatePersister(
+        const std::shared_ptr<ChannelStateWriter>& channelStateWriter, const InputChannelInfo& channelInfo)
+        : channelStateWriter_(channelStateWriter),
+          channelInfo_(channelInfo)
     {
     }
 
     void StartPersisting(int64_t barrierId, const std::vector<Buffer*>& knownBuffers)
     {
         std::lock_guard<std::mutex> persistLock(mutex_);
-        LOG("StartPersisting" << barrierId)
+        LOG("StartPersisting" << barrierId);
 
         if (checkpointStatus_ == CheckpointStatus::BARRIER_RECEIVED && lastSeenBarrier_ > barrierId) {
             throw std::runtime_error(
                 "Barrier for newer checkpoint " + std::to_string(lastSeenBarrier_) +
-                " has already been received compared to the requested checkpoint " +
-                std::to_string(barrierId)
-            );
+                " has already been received compared to the requested checkpoint " + std::to_string(barrierId));
         }
 
         if (lastSeenBarrier_ < barrierId) {
@@ -52,18 +52,14 @@ public:
 
         if (!knownBuffers.empty()) {
             channelStateWriter_->AddInputData(
-                barrierId,
-                channelInfo_,
-                ChannelStateWriter::sequenceNumberUnknown,
-                knownBuffers
-            );
+                barrierId, channelInfo_, ChannelStateWriter::sequenceNumberUnknown, knownBuffers);
         }
     }
 
     void StopPersisting(int64_t id)
     {
         std::lock_guard<std::mutex> persistLock(mutex_);
-        LOG("StopPersisting" << id)
+        LOG("StopPersisting" << id);
         if (id >= lastSeenBarrier_) {
             checkpointStatus_ = CheckpointStatus::COMPLETED;
             lastSeenBarrier_ = id;
@@ -75,11 +71,11 @@ public:
         std::lock_guard<std::mutex> persistLock(mutex_);
         if (checkpointStatus_ == CheckpointStatus::BARRIER_PENDING && buffer->isBuffer()) {
             std::vector<Buffer*> buffers;
-            Buffer *inflightbuffer = buffer->RetainBuffer();
+            Buffer* inflightbuffer = buffer->RetainBuffer();
             if (inflightbuffer != nullptr) {
                 buffers.push_back(inflightbuffer);
-                channelStateWriter_->AddInputData(lastSeenBarrier_, channelInfo_,
-                    ChannelStateWriter::sequenceNumberUnknown, buffers);
+                channelStateWriter_->AddInputData(
+                    lastSeenBarrier_, channelInfo_, ChannelStateWriter::sequenceNumberUnknown, buffers);
             } else {
                 LOG_DEBUG(" buffers is null  ");
                 buffer->RecycleBuffer();
@@ -97,17 +93,16 @@ public:
         }
         if (auto barrier = std::dynamic_pointer_cast<CheckpointBarrier>(event)) {
             int64_t barrierId = barrier->GetId();
-            int64_t expectedBarrierId = (checkpointStatus_ == CheckpointStatus::COMPLETED)
-                ? lastSeenBarrier_ + 1
-                : lastSeenBarrier_;
+            int64_t expectedBarrierId =
+                (checkpointStatus_ == CheckpointStatus::COMPLETED) ? lastSeenBarrier_ + 1 : lastSeenBarrier_;
 
             if (barrierId >= expectedBarrierId) {
-                LOG("found barrier" << barrierId)
+                LOG("found barrier" << barrierId);
                 checkpointStatus_ = CheckpointStatus::BARRIER_RECEIVED;
                 lastSeenBarrier_ = barrierId;
                 return std::make_optional(lastSeenBarrier_);
             } else {
-                LOG("ignoring barrier" << barrierId)
+                LOG("ignoring barrier" << barrierId);
             }
         }
 
@@ -141,6 +136,7 @@ private:
             default: return "UNKNOWN";
         }
     }
+
 private:
     InputChannelInfo channelInfo_;
     CheckpointStatus checkpointStatus_ = CheckpointStatus::COMPLETED;
@@ -148,5 +144,5 @@ private:
     std::shared_ptr<ChannelStateWriter> channelStateWriter_;
     std::mutex mutex_;
 };
-}
+} // namespace omnistream
 #endif

@@ -25,7 +25,7 @@
 
 StringValue::StringValue() = default;
 
-void StringValue::write(DataOutputSerializer &out)
+void StringValue::write(DataOutputSerializer& out)
 {
     unsigned int len = len_;
 
@@ -48,7 +48,7 @@ void StringValue::write(DataOutputSerializer &out)
     }
 }
 
-void StringValue::read(DataInputView &in)
+void StringValue::read(DataInputView& in)
 {
     value_.clear();
 
@@ -88,23 +88,23 @@ void StringValue::read(DataInputView &in)
 
 // return the ref, means the value_ ownership is still in this object, although caller may change the internal
 // content of value_
-const std::u32string &StringValue::getValue() const
+const std::u32string& StringValue::getValue() const
 {
     return value_;
 }
 
 // notice, the input argument value is copied (Copy Assignment Operator) to the internal value_
 // value is copied
-void StringValue::setValue(const std::u32string &value)
+void StringValue::setValue(const std::u32string& value)
 {
     value_ = value;
     len_ = value.size();
 }
 
-void StringValue::writeString(const std::u32string *value, DataOutputSerializer &out)
+void StringValue::writeString(const std::u32string* value, DataOutputSerializer& out)
 {
     if (value != nullptr) {
-        auto &cs = *value;
+        auto& cs = *value;
 
         uint32_t strlen = cs.length();
 
@@ -157,14 +157,14 @@ void StringValue::writeString(const std::u32string *value, DataOutputSerializer 
     }
 }
 
-std::u32string *StringValue::readString(SysDataInput& in)
+std::u32string* StringValue::readString(SysDataInput& in)
 {
     // the length we read is offset_ by one, because a length of zero indicates a null value
     auto data_ = in.getData();
     auto position_ = in.getPosition();
     unsigned int len = static_cast<int>(data_[position_++]);
 
-    LOG("first len" + std::to_string(len))
+    LOG("first len" + std::to_string(len));
 
     if (len == 0) {
         in.setPosition(position_);
@@ -184,7 +184,7 @@ std::u32string *StringValue::readString(SysDataInput& in)
 
     // subtract one for the null length
     len -= 1;
-    LOG("final len" + std::to_string(len))
+    LOG("final len" + std::to_string(len));
 
     auto* data = new std::u32string();
     if (len > SHORT_STRING_MAX_LENGTH) {
@@ -213,8 +213,7 @@ std::u32string *StringValue::readString(SysDataInput& in)
     return data;
 }
 
-
-void StringValue::writeString(String *buffer, DataOutputSerializer &out)
+void StringValue::writeString(String* buffer, DataOutputSerializer& out)
 {
     std::string_view value = buffer->getValue();
     if (likely(!value.empty())) {
@@ -270,20 +269,20 @@ void StringValue::writeString(String *buffer, DataOutputSerializer &out)
         }
 
         // use memcpy to write all data
-        out.write((uint8_t *) serializedData, maxLimit, 0, index);
+        out.write((uint8_t*)serializedData, maxLimit, 0, index);
     } else {
         out.write(0);
     }
 }
 
-void StringValue::readString(String *buffer, SysDataInput& in)
+void StringValue::readString(String* buffer, SysDataInput& in)
 {
     // the length we read is offset_ by one, because a length of zero indicates a null value
     auto data_ = in.getData();
     auto position_ = in.getPosition();
     unsigned int len = static_cast<int>(data_[position_++]);
 #ifdef DEBUG
-    LOG("first len" + std::to_string(len))
+    LOG("first len" + std::to_string(len));
 #endif
     if (unlikely(len == 0)) {
         in.setPosition(position_);
@@ -328,4 +327,3 @@ void StringValue::readString(String *buffer, SysDataInput& in)
     buffer->resize(len);
     in.setPosition(position_);
 }
-

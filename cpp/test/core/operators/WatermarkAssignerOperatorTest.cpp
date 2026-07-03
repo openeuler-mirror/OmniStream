@@ -16,13 +16,14 @@ TEST(WatermarkAssignerOperatorTest, InitTest)
     long emissionInterval = 200;
     OutputTest out = OutputTest();
     auto timerService = SystemProcessingTimeService();
-    WatermarkAssignerOperator op = WatermarkAssignerOperator(&out, timeRowIndex, outOfOrderT, emissionInterval, &timerService);
+    WatermarkAssignerOperator op =
+        WatermarkAssignerOperator(&out, timeRowIndex, outOfOrderT, emissionInterval, &timerService);
     op.open();
 
     int rowCount = 5;
     auto vb1 = new omnistream::VectorBatch(rowCount);
-    std::vector<long> vec1 {42, 142, 242, 342, 442};
-    std::vector<long> vec2 {41, 42, 43, 44, 45};
+    std::vector<long> vec1{42, 142, 242, 342, 442};
+    std::vector<long> vec2{41, 42, 43, 44, 45};
     vb1->Append(omniruntime::TestUtil::CreateVector(rowCount, vec1.data()));
     vb1->Append(omniruntime::TestUtil::CreateVector(rowCount, vec2.data()));
 

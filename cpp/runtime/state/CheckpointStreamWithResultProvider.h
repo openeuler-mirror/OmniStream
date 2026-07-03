@@ -26,15 +26,16 @@ public:
         getCheckpointOutputStream().Close();
     }
 
-    static std::shared_ptr<CheckpointStreamWithResultProvider> createSimpleStream
-                (CheckpointedStateScope checkpointedStateScope, CheckpointStreamFactory* primaryStreamFactory);
+    static std::shared_ptr<CheckpointStreamWithResultProvider> createSimpleStream(
+        CheckpointedStateScope checkpointedStateScope, CheckpointStreamFactory* primaryStreamFactory);
 };
 
 class CheckpointStreamWithResultProvider::PrimaryStreamOnly : public CheckpointStreamWithResultProvider {
 public:
     explicit PrimaryStreamOnly(std::shared_ptr<CheckpointStateOutputStream> outputStream)
         : outputStream_(std::move(outputStream))
-        {}
+    {
+    }
 
     CheckpointStateOutputStream& getCheckpointOutputStream() override
     {
@@ -45,8 +46,8 @@ private:
     std::shared_ptr<CheckpointStateOutputStream> outputStream_;
 };
 
-inline std::shared_ptr<CheckpointStreamWithResultProvider> CheckpointStreamWithResultProvider::createSimpleStream
-                        (CheckpointedStateScope checkpointedStateScope, CheckpointStreamFactory* primaryStreamFactory)
+inline std::shared_ptr<CheckpointStreamWithResultProvider> CheckpointStreamWithResultProvider::createSimpleStream(
+    CheckpointedStateScope checkpointedStateScope, CheckpointStreamFactory* primaryStreamFactory)
 {
     auto* rawOut = primaryStreamFactory->createCheckpointStateOutputStream(checkpointedStateScope);
     auto outPtr = std::shared_ptr<CheckpointStateOutputStream>(rawOut);

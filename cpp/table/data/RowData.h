@@ -33,10 +33,10 @@ public:
 
     // virutal
     /**
-   * Returns the number of fields in this row.
-   *
-   * <p>The number does not include {@link RowKind}. It is kept separately.
-   */
+     * Returns the number of fields in this row.
+     *
+     * <p>The number does not include {@link RowKind}. It is kept separately.
+     */
     virtual int getArity() = 0;
 
     /**
@@ -51,7 +51,7 @@ public:
 
     virtual long* getLong(int pos) = 0;
 
-    virtual bool *getBool(int pos) = 0;
+    virtual bool* getBool(int pos) = 0;
 
     virtual int* getInt(int pos) = 0;
 
@@ -63,15 +63,30 @@ public:
 
     virtual TimestampData getTimestampPrecise(int pos) = 0;
 
-    virtual void setLong(int pos, long value) { NOT_IMPL_EXCEPTION; };
+    virtual void setLong(int pos, long value)
+    {
+        NOT_IMPL_EXCEPTION;
+    };
 
-    virtual void setBool(int pos, bool value) { NOT_IMPL_EXCEPTION; };
+    virtual void setBool(int pos, bool value)
+    {
+        NOT_IMPL_EXCEPTION;
+    };
 
-    virtual void setInt(int pos, int value) { NOT_IMPL_EXCEPTION; };
+    virtual void setInt(int pos, int value)
+    {
+        NOT_IMPL_EXCEPTION;
+    };
 
-    virtual void setTimestamp(int pos, const TimestampData& value, int precision) { NOT_IMPL_EXCEPTION; };
+    virtual void setTimestamp(int pos, const TimestampData& value, int precision)
+    {
+        NOT_IMPL_EXCEPTION;
+    };
 
-    virtual void setString(int pos, BinaryStringData* value) { NOT_IMPL_EXCEPTION; };
+    virtual void setString(int pos, BinaryStringData* value)
+    {
+        NOT_IMPL_EXCEPTION;
+    };
 
     virtual std::string_view getStringView(int pos)
     {
@@ -82,7 +97,7 @@ public:
         NOT_IMPL_EXCEPTION;
     };
 
-    virtual bool operator==(const RowData &other) const = 0;
+    virtual bool operator==(const RowData& other) const = 0;
     virtual int hashCode() const = 0;
     virtual int hashCodeFast() const = 0;
     // constant
@@ -93,74 +108,81 @@ public:
     // non virtual
     [[nodiscard]] int getRowDataTypeId() const;
 
-    static FieldGetter* createFieldGetter(LogicalType *fieldType, int fieldPos);
+    static FieldGetter* createFieldGetter(LogicalType* fieldType, int fieldPos);
 
     void printRow();
 
-    virtual RowData* copy() { return nullptr;};
+    virtual RowData* copy()
+    {
+        return nullptr;
+    };
+
 private:
-    int rowDataTypeID_ {-1};
+    int rowDataTypeID_{-1};
 };
 
 namespace std {
-    template <>
-    struct hash<RowData> {
-        std::size_t operator()(const RowData &ns) const noexcept
-        {
-            return ns.hashCodeFast();
-        }
-    };
-    template <>
-    struct equal_to<RowData> {
-        bool operator()(const RowData &lhs, const RowData &rhs) const noexcept
-        {
-            return lhs == rhs;
-        }
-    };
-    template <>
-    struct hash<RowData*> {
-        std::size_t operator()(const RowData* nsPtr) const noexcept
-        {
-            return nsPtr->hashCodeFast();
-        }
-    };
-    // Attention: Be very careful when using this! It does not compare the address. but the content
-    template <>
-    struct equal_to<RowData*> {
-        bool operator()(const RowData* lhs, const RowData* rhs) const noexcept
-        {
-            return *lhs == *rhs;
-        }
-    };
-    template <>
-    struct hash<std::shared_ptr<RowData>> {
-        std::size_t operator()(const std::shared_ptr<RowData> &nsPtr) const noexcept {
-            return nsPtr ? nsPtr->hashCodeFast() : 0;
-        }
-    };
-    // Attention: Be very careful when using this! It does not compare the address. but the content
-    template <>
-    struct equal_to<std::shared_ptr<RowData>> {
-        bool operator()(const std::shared_ptr<RowData> &lhs, const std::shared_ptr<RowData> &rhs) const noexcept {
-            if (lhs == rhs) return true;
-            if (!lhs || !rhs) return false;
-            return *lhs == *rhs;
-        }
-    };
-    template <>
-    struct hash<std::unique_ptr<RowData>> {
-        std::size_t operator()(const std::unique_ptr<RowData> &nsPtr) const noexcept {
-            return nsPtr ? nsPtr->hashCodeFast() : 0;
-        }
-    };
-    // Attention: Be very careful when using this! It does not compare the address. but the content
-    template <>
-    struct equal_to<std::unique_ptr<RowData>> {
-        bool operator()(const std::unique_ptr<RowData> &lhs, const std::unique_ptr<RowData> &rhs) const noexcept {
-            if (lhs == rhs) return true;
-            if (!lhs || !rhs) return false;
-            return *lhs == *rhs;
-        }
-    };
-}
-
+template <>
+struct hash<RowData> {
+    std::size_t operator()(const RowData& ns) const noexcept
+    {
+        return ns.hashCodeFast();
+    }
+};
+template <>
+struct equal_to<RowData> {
+    bool operator()(const RowData& lhs, const RowData& rhs) const noexcept
+    {
+        return lhs == rhs;
+    }
+};
+template <>
+struct hash<RowData*> {
+    std::size_t operator()(const RowData* nsPtr) const noexcept
+    {
+        return nsPtr->hashCodeFast();
+    }
+};
+// Attention: Be very careful when using this! It does not compare the address. but the content
+template <>
+struct equal_to<RowData*> {
+    bool operator()(const RowData* lhs, const RowData* rhs) const noexcept
+    {
+        return *lhs == *rhs;
+    }
+};
+template <>
+struct hash<std::shared_ptr<RowData>> {
+    std::size_t operator()(const std::shared_ptr<RowData>& nsPtr) const noexcept
+    {
+        return nsPtr ? nsPtr->hashCodeFast() : 0;
+    }
+};
+// Attention: Be very careful when using this! It does not compare the address. but the content
+template <>
+struct equal_to<std::shared_ptr<RowData>> {
+    bool operator()(const std::shared_ptr<RowData>& lhs, const std::shared_ptr<RowData>& rhs) const noexcept
+    {
+        if (lhs == rhs) return true;
+        if (!lhs || !rhs) return false;
+        return *lhs == *rhs;
+    }
+};
+template <>
+struct hash<std::unique_ptr<RowData>> {
+    std::size_t operator()(const std::unique_ptr<RowData>& nsPtr) const noexcept
+    {
+        return nsPtr ? nsPtr->hashCodeFast() : 0;
+    }
+};
+// Attention: Be very careful when using this! It does not compare the address. but the content
+template <>
+struct equal_to<std::unique_ptr<RowData>> {
+    bool operator()(const std::unique_ptr<RowData>& lhs, const std::unique_ptr<RowData>& rhs) const noexcept
+    {
+        if (lhs == rhs) return true;
+        if (!lhs || !rhs) return false;
+        return *lhs == *rhs;
+    }
+};
+} // namespace std

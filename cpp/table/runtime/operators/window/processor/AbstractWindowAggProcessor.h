@@ -29,10 +29,10 @@ public:
     AbstractWindowAggProcessor(nlohmann::json description, Output* output);
     ~AbstractWindowAggProcessor() = default;
     void open(
-            AbstractKeyedStateBackend<KeyType> *state,
-            const nlohmann::json& config,
-            StreamingRuntimeContext<KeyType> *runtimeCtx,
-            InternalTimerServiceImpl<KeyType, int64_t>* internalTimerService) override;
+        AbstractKeyedStateBackend<KeyType>* state,
+        const nlohmann::json& config,
+        StreamingRuntimeContext<KeyType>* runtimeCtx,
+        InternalTimerServiceImpl<KeyType, int64_t>* internalTimerService) override;
     void initializeWatermark(int64_t watermark) override;
     bool processBatch(omnistream::VectorBatch* key) override;
     void advanceProgress(long progress) override;
@@ -40,10 +40,10 @@ public:
     void fireWindow(int64_t window) override;
     void clearWindow(int64_t window) override;
     void close() override;
-    TypeSerializer *createWindowSerializer() override;
+    TypeSerializer* createWindowSerializer() override;
     Output* getOutput() override;
     omnistream::VectorBatch* createOutputBatch(std::vector<std::unique_ptr<RowData>>& collectedRows);
-    void collectOutputBatch(TimestampedCollector *out, omnistream::VectorBatch *outputBatch);
+    void collectOutputBatch(TimestampedCollector* out, omnistream::VectorBatch* outputBatch);
     void setClockService(ClockService* newClock);
     bool isWindowEmpty();
     RowData* GetHopResult(int64_t windowEnd, int64_t numSlices, int64_t interval);
@@ -52,6 +52,7 @@ public:
     void ProcessHopResult(RowData* result);
     void ProcessNonHopResult(RowData* result);
     bool shouldDeleteWindowStateValue() const;
+
 protected:
     std::unique_ptr<RecordsWindowBuffer> windowBuffer;
     int64_t currentProgress = INT64_MIN;
@@ -64,25 +65,25 @@ protected:
     std::unique_ptr<WindowValueState<KeyType, int64_t, RowData*>> windowState;
     Output* output;
 
-
     int accumulatorArity_ = 0;
-    AbstractKeyedStateBackend<KeyType> *stateBackend = nullptr;
+    AbstractKeyedStateBackend<KeyType>* stateBackend = nullptr;
     std::unique_ptr<JoinedRowData> resultRow = std::make_unique<JoinedRowData>();
     omnistream::VectorBatch* resultBatch = nullptr;
     std::unique_ptr<TimestampedCollector> collector;
     std::vector<std::string> outputTypes;
     std::vector<int32_t> outputTypeIds;
     std::unique_ptr<ClockService> clockService = std::make_unique<ClockService>();
-    InternalTimerServiceImpl<KeyType, int64_t> *internalTimerService = nullptr;
+    InternalTimerServiceImpl<KeyType, int64_t>* internalTimerService = nullptr;
     std::vector<std::string> inputTypes;
     std::vector<int32_t> inputTypeIds_;
     std::vector<int32_t> keyedIndex;
     std::vector<int32_t> keyedTypes;
     std::unique_ptr<KeySelector<KeyType>> keySelector;
+
 private:
     std::unordered_set<int64_t> uniqueData;
     omnistream::StateType backendType_ = omnistream::StateType::HEAP;
 
     std::unique_ptr<NamespaceAggsHandleFunction<int64_t>> initNamespaceAggsHandleFunction(
-            bool isWindowAgg, const nlohmann::json &aggInfoList);
+        bool isWindowAgg, const nlohmann::json& aggInfoList);
 };

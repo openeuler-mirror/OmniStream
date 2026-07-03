@@ -20,23 +20,23 @@
 template <typename K, typename N, typename V>
 class BssValueState : public InternalValueState<K, N, V> {
 public:
-    TypeSerializer *getKeySerializer()
+    TypeSerializer* getKeySerializer()
     {
         return keySerializer;
     };
-    TypeSerializer *getNamespaceSerializer()
+    TypeSerializer* getNamespaceSerializer()
     {
         return namespaceSerializer;
     };
-    TypeSerializer *getValueSerializer()
+    TypeSerializer* getValueSerializer()
     {
         return valueSerializer;
     };
-    void setNamespaceSerializer(TypeSerializer *serializer)
+    void setNamespaceSerializer(TypeSerializer* serializer)
     {
         namespaceSerializer = serializer;
     };
-    void setValueSerializer(TypeSerializer *serializer)
+    void setValueSerializer(TypeSerializer* serializer)
     {
         valueSerializer = serializer;
     };
@@ -53,7 +53,7 @@ public:
             return result == std::numeric_limits<V>::max() ? defaultValue : result;
         }
     };
-    void update(const V &value, bool copyKey = false) override
+    void update(const V& value, bool copyKey = false) override
     {
         stateTable->put(currentNamespace, value);
     };
@@ -62,51 +62,58 @@ public:
     {
         defaultValue = value;
     };
-    static BssValueState<K, N, V> *create(
-            StateDescriptor *stateDesc, BssStateTable<K, N, V> *stateTable, TypeSerializer *keySerializer)
+    static BssValueState<K, N, V>* create(
+        StateDescriptor* stateDesc, BssStateTable<K, N, V>* stateTable, TypeSerializer* keySerializer)
     {
-        return new BssValueState<K, N, V>(stateTable, keySerializer, stateTable->getStateSerializer(),
-            stateTable->getNamespaceSerializer(), V());
+        return new BssValueState<K, N, V>(
+            stateTable, keySerializer, stateTable->getStateSerializer(), stateTable->getNamespaceSerializer(), V());
     };
 
-    static BssValueState<K, N, V> *updateState(StateDescriptor *stateDesc, BssStateTable<K, N, V> *stateTable,
-        BssValueState<K, N, V> *existingState)
+    static BssValueState<K, N, V>* updateState(
+        StateDescriptor* stateDesc, BssStateTable<K, N, V>* stateTable, BssValueState<K, N, V>* existingState)
     {
         existingState->setNamespaceSerializer(stateTable->getNamespaceSerializer());
         existingState->setValueSerializer(stateTable->getStateSerializer());
         return existingState;
     }
 
-    BssValueState(BssStateTable<K, N, V> *stateTable,
-                  TypeSerializer *keySerializer,
-                  TypeSerializer *valueSerializer,
-                  TypeSerializer *namespaceSerializer,
-                  V defaultValue): stateTable(stateTable), keySerializer(keySerializer),
-        valueSerializer(valueSerializer), namespaceSerializer(namespaceSerializer), defaultValue(defaultValue) {};
+    BssValueState(
+        BssStateTable<K, N, V>* stateTable,
+        TypeSerializer* keySerializer,
+        TypeSerializer* valueSerializer,
+        TypeSerializer* namespaceSerializer,
+        V defaultValue)
+        : stateTable(stateTable),
+          keySerializer(keySerializer),
+          valueSerializer(valueSerializer),
+          namespaceSerializer(namespaceSerializer),
+          defaultValue(defaultValue) {};
 
     ~BssValueState()
     {
         delete stateTable;
     };
 
-    void CreateTable(ock::bss::BoostStateDBPtr &_dbPtr)
+    void CreateTable(ock::bss::BoostStateDBPtr& _dbPtr)
     {
         stateTable->createTable(_dbPtr);
     }
 
-    void clearVectors(int64_t currentTimestamp) {}
+    void clearVectors(int64_t currentTimestamp)
+    {
+    }
 
     void clear() override
     {
         stateTable->clear(currentNamespace);
     };
 
-    void addVectorBatch(omnistream::VectorBatch *vectorBatch) override
+    void addVectorBatch(omnistream::VectorBatch* vectorBatch) override
     {
         stateTable->addVectorBatch(vectorBatch);
     };
 
-    omnistream::VectorBatch *getVectorBatch(int batchId) override
+    omnistream::VectorBatch* getVectorBatch(int batchId) override
     {
         return stateTable->getVectorBatch(batchId);
     };
@@ -118,9 +125,9 @@ public:
 
 private:
     BssStateTable<K, N, V>* stateTable;
-    TypeSerializer *keySerializer;
-    TypeSerializer *valueSerializer;
-    TypeSerializer *namespaceSerializer;
+    TypeSerializer* keySerializer;
+    TypeSerializer* valueSerializer;
+    TypeSerializer* namespaceSerializer;
     V defaultValue;
     N currentNamespace;
 };

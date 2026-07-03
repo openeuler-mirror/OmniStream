@@ -29,7 +29,7 @@ TEST(KeyGroupRangeTest, Contains)
 
 TEST(KeyGroupRangeTest, EmptyKeyGroupRange)
 {
-    KeyGroupRange *empty = KeyGroupRange::EMPTY_KEY_GROUP_RANGE();
+    KeyGroupRange* empty = KeyGroupRange::EMPTY_KEY_GROUP_RANGE();
     EXPECT_EQ(empty->getStartKeyGroup(), 0);
     EXPECT_EQ(empty->getEndKeyGroup(), -1);
 }

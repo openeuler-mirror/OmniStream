@@ -30,9 +30,7 @@ private:
 
     class TimestampsOnlyOutput : public ReaderOutput {
     public:
-        TimestampsOnlyOutput(
-                OmniDataOutputPtr output,
-                TimestampAssigner* timestampAssigner);
+        TimestampsOnlyOutput(OmniDataOutputPtr output, TimestampAssigner* timestampAssigner);
 
         ~TimestampsOnlyOutput() override
         {
@@ -43,12 +41,12 @@ private:
         void Collect(void* record, long timestamp) override;
         SourceOutput& CreateOutputForSplit(const std::string& splitId) override;
         void ReleaseOutputForSplit(const std::string& splitId) override;
+
     private:
         OmniDataOutputPtr output;
         TimestampAssigner* timestampAssigner;
         StreamRecord* reusingRecord;
     };
 };
-
 
 #endif // OMNISTREAM_NOOPTIMESTAMPSANDWATERMARKS_H

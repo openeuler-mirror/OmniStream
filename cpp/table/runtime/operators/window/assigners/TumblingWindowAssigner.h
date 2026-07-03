@@ -23,7 +23,7 @@ public:
 
     ~TumblingWindowAssigner() override = default;
 
-    std::vector<TimeWindow> assignWindows(const RowData *element, int64_t timestamp) override;
+    std::vector<TimeWindow> assignWindows(const RowData* element, int64_t timestamp) override;
 
     bool isEventTime() const override;
 

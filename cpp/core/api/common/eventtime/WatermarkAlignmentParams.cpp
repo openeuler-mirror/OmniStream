@@ -11,6 +11,5 @@
 
 #include "WatermarkAlignmentParams.h"
 
-const WatermarkAlignmentParams* WatermarkAlignmentParams::watermarkAlignmentDisabled
-    = new WatermarkAlignmentParams(INT64_MAX, 0, "");
-
+const WatermarkAlignmentParams* WatermarkAlignmentParams::watermarkAlignmentDisabled =
+    new WatermarkAlignmentParams(INT64_MAX, 0, "");

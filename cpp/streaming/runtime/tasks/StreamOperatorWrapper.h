@@ -16,7 +16,7 @@
 
 class StreamOperatorWrapper {
 public:
-    StreamOperatorWrapper(StreamOperator *op, bool isHead): wrapped_(op), isHead_(isHead)
+    StreamOperatorWrapper(StreamOperator* op, bool isHead) : wrapped_(op), isHead_(isHead)
     {
         previous_ = nullptr;
         next_ = nullptr;
@@ -67,8 +67,9 @@ private:
 
 class ReadIterator {
 public:
-    ReadIterator(StreamOperatorWrapper* first, bool reverse)
-        : reverse(reverse), current(first) {}
+    ReadIterator(StreamOperatorWrapper* first, bool reverse) : reverse(reverse), current(first)
+    {
+    }
 
     bool hasNext() const
     {
@@ -89,6 +90,5 @@ private:
     bool reverse;
     StreamOperatorWrapper* current;
 };
-
 
 #endif

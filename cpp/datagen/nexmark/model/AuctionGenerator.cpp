@@ -11,8 +11,8 @@
 
 #include "EventGenerator.h"
 #include "AuctionGenerator.h"
-std::unique_ptr<Auction> AuctionGenerator::nextAuction(long eventsCountSoFar, long eventId, long timestamp,
-                                                       const GeneratorConfig &config)
+std::unique_ptr<Auction> AuctionGenerator::nextAuction(
+    long eventsCountSoFar, long eventId, long timestamp, const GeneratorConfig& config)
 {
     long id = lastBase0AuctionId(config, eventId) + GeneratorConfig::FIRST_AUCTION_ID;
 
@@ -31,12 +31,22 @@ std::unique_ptr<Auction> AuctionGenerator::nextAuction(long eventsCountSoFar, lo
     StringsGenerator::fillWithRandomLower<true>(random, descBuffer, 100);
     long reserve = initialBid + random.nextPrice();
     int currentSize = 8 + 20 + 100 + 8 + 8 + 8 + 8 + 8;
-    std::string_view extra = StringsGenerator::nextExtra(random, currentSize, config.getAvgAuctionByteSize(), extraBuffer);
-    return std::make_unique<Auction>(id, std::string_view(nameBuffer, 20), std::string_view(descBuffer, 100), initialBid, reserve,
-                                     timestamp, expires, seller, category, extra);
+    std::string_view extra =
+        StringsGenerator::nextExtra(random, currentSize, config.getAvgAuctionByteSize(), extraBuffer);
+    return std::make_unique<Auction>(
+        id,
+        std::string_view(nameBuffer, 20),
+        std::string_view(descBuffer, 100),
+        initialBid,
+        reserve,
+        timestamp,
+        expires,
+        seller,
+        category,
+        extra);
 }
 
-long AuctionGenerator::lastBase0AuctionId(const GeneratorConfig &config, long eventId)
+long AuctionGenerator::lastBase0AuctionId(const GeneratorConfig& config, long eventId)
 {
     if (config.totalProportion == 0) {
         GErrorLog("event num is 0");
@@ -55,8 +65,8 @@ long AuctionGenerator::lastBase0AuctionId(const GeneratorConfig &config, long ev
     return epoch * config.auctionProportion + offset;
 }
 
-long AuctionGenerator::nextAuctionLengthMs(long eventsCountSoFar, SplittableRandom &random, long timestamp,
-                                           const GeneratorConfig &config)
+long AuctionGenerator::nextAuctionLengthMs(
+    long eventsCountSoFar, SplittableRandom& random, long timestamp, const GeneratorConfig& config)
 {
     long currentEventNumber = config.nextAdjustedEventNumber(eventsCountSoFar);
     if (config.totalProportion == 0) {
@@ -70,7 +80,7 @@ long AuctionGenerator::nextAuctionLengthMs(long eventsCountSoFar, SplittableRand
     return 1L + random.nextLong(bound);
 }
 
-long AuctionGenerator::nextBase0AuctionId(long nextEventId, SplittableRandom &random, const GeneratorConfig &config)
+long AuctionGenerator::nextBase0AuctionId(long nextEventId, SplittableRandom& random, const GeneratorConfig& config)
 {
     long minAuction = std::max(lastBase0AuctionId(config, nextEventId) - config.getNumInFlightAuctions(), 0L);
     long maxAuction = lastBase0AuctionId(config, nextEventId);

@@ -20,10 +20,16 @@ public:
     {
         this->input = input_;
     }
-    void* getInput() {return input;}
+    void* getInput()
+    {
+        return input;
+    }
     void reset();
     void outputResult(void* result);
-    bool isCollected() const { return collected;}
+    bool isCollected() const
+    {
+        return collected;
+    }
     void close() override
     {
         this->collector->close();
@@ -37,6 +43,7 @@ public:
         collector->collect(result);
         collected = true;
     }
+
 private:
     bool collected;
     void* input;

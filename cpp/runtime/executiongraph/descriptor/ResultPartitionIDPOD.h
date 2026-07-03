@@ -15,7 +15,7 @@
 #include <string>
 #include <nlohmann/json.hpp>
 #include "IntermediateResultPartitionIDPOD.h" // Include header for IntermediateResultPartitionIDPOD
-#include "ExecutionAttemptIDPOD.h"        // Include header for ExecutionAttemptIDPOD
+#include "ExecutionAttemptIDPOD.h"            // Include header for ExecutionAttemptIDPOD
 
 namespace omnistream {
 
@@ -26,12 +26,14 @@ public:
     ~ResultPartitionIDPOD() = default;
     // Full argument constructor
     ResultPartitionIDPOD(const IntermediateResultPartitionIDPOD& partitionId, const ExecutionAttemptIDPOD& producerId)
-        : partitionId(partitionId), producerId(producerId) {}
+        : partitionId(partitionId),
+          producerId(producerId)
+    {
+    }
 
     friend bool operator==(const ResultPartitionIDPOD& lhs, const ResultPartitionIDPOD& rhs)
     {
-        return lhs.partitionId == rhs.partitionId
-            && lhs.producerId == rhs.producerId;
+        return lhs.partitionId == rhs.partitionId && lhs.producerId == rhs.producerId;
     }
 
     friend bool operator!=(const ResultPartitionIDPOD& lhs, const ResultPartitionIDPOD& rhs)
@@ -48,19 +50,34 @@ public:
     }
 
     // Getters
-    const IntermediateResultPartitionIDPOD& getPartitionId() const { return partitionId; }
-    const ExecutionAttemptIDPOD& getProducerId() const { return producerId; }
+    const IntermediateResultPartitionIDPOD& getPartitionId() const
+    {
+        return partitionId;
+    }
+    const ExecutionAttemptIDPOD& getProducerId() const
+    {
+        return producerId;
+    }
 
     // Setters
-    void setPartitionId(const IntermediateResultPartitionIDPOD& partitionId_) { this->partitionId = partitionId_; }
-    void setProducerId(const ExecutionAttemptIDPOD& producerId_) { this->producerId = producerId_; }
+    void setPartitionId(const IntermediateResultPartitionIDPOD& partitionId_)
+    {
+        this->partitionId = partitionId_;
+    }
+    void setProducerId(const ExecutionAttemptIDPOD& producerId_)
+    {
+        this->producerId = producerId_;
+    }
 
     // toString method (example implementation)
     std::string toString() const
     {
         return "ResultPartitionIDPOD { "
-               "partitionId: " + partitionId.toString() + ", "
-               "producerId: " + producerId.toString() + " }";
+               "partitionId: " +
+               partitionId.toString() +
+               ", "
+               "producerId: " +
+               producerId.toString() + " }";
     }
 
     NLOHMANN_DEFINE_TYPE_INTRUSIVE(ResultPartitionIDPOD, partitionId, producerId)
@@ -72,14 +89,13 @@ private:
 } // namespace omnistream
 
 namespace std {
-    template <>
-    struct hash<omnistream::ResultPartitionIDPOD> {
-        std::size_t operator()(const omnistream::ResultPartitionIDPOD& obj) const
-        {
-            return hash_value(obj);
-        }
-    };
-}
+template <>
+struct hash<omnistream::ResultPartitionIDPOD> {
+    std::size_t operator()(const omnistream::ResultPartitionIDPOD& obj) const
+    {
+        return hash_value(obj);
+    }
+};
+} // namespace std
 
 #endif // RESULT_PARTITION_ID_POD_H
-

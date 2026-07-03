@@ -27,7 +27,6 @@
 #include "nlohmann/json.hpp"
 #include "OmniOperatorJIT/core/src/vector/vector.h"
 
-
 using namespace std::chrono;
 
 // ------—------—------—------—------—------—------—------—------—------—
@@ -39,8 +38,13 @@ using TimePoint = system_clock::time_point;
 // 模拟时钟服务
 class ClockService {
 public:
-    ClockService() {}
-    TimePoint currentProcessingTime() const { return system_clock::now(); }
+    ClockService()
+    {
+    }
+    TimePoint currentProcessingTime() const
+    {
+        return system_clock::now();
+    }
 };
 
 class IteratorBase {
@@ -52,45 +56,53 @@ public:
     virtual std::vector<int64_t> getList() = 0;
 };
 namespace omnistream {
-    class ZoneId {
-    public:
-        ZoneId() : id_("UTC") {}
-        explicit ZoneId(const std::string &id) : id_(id.empty() ? "UTC" : id) {}
-        ~ZoneId() = default;
-        const std::string &getId() const { return id_; }
-    private:
-        std::string id_;
-    };
-}
+class ZoneId {
+public:
+    ZoneId() : id_("UTC")
+    {
+    }
+    explicit ZoneId(const std::string& id) : id_(id.empty() ? "UTC" : id)
+    {
+    }
+    ~ZoneId() = default;
+    const std::string& getId() const
+    {
+        return id_;
+    }
 
+private:
+    std::string id_;
+};
+} // namespace omnistream
 
 class SliceAssigner {
 public:
     virtual ~SliceAssigner() = default;
-    virtual int64_t assignSliceEnd(omnistream::VectorBatch *element, int rowId, ClockService *clock) = 0;
+    virtual int64_t assignSliceEnd(omnistream::VectorBatch* element, int rowId, ClockService* clock) = 0;
     virtual int64_t getLastWindowEnd(int64_t sliceEnd) = 0;
     virtual int64_t getWindowStart(int64_t windowEnd) = 0;
-    virtual IteratorBase *expiredSlices(int64_t windowEnd) = 0;
+    virtual IteratorBase* expiredSlices(int64_t windowEnd) = 0;
     virtual int64_t getSliceEndInterval() = 0;
     virtual bool isEventTime() = 0;
     virtual void SetWindowEnd(bool hasIndex) = 0;
     virtual void SetSliceEnd(bool hasIndex) = 0;
-    virtual int64_t GetCurrentTimeStamp(omnistream::VectorBatch *element, int rowId, ClockService *clock,
-                                        int rowTimeIdx) = 0;
+    virtual int64_t GetCurrentTimeStamp(
+        omnistream::VectorBatch* element, int rowId, ClockService* clock, int rowTimeIdx) = 0;
     bool hasWindowEndIndex = false;
     bool hasSliceEndIndex = false;
 };
 
 class AbstractSlicedSliceAssigner : public virtual SliceAssigner {
 public:
-    AbstractSlicedSliceAssigner(SliceAssigner *innerAssigner, int sliceEndIndex);
-    int64_t assignSliceEnd(omnistream::VectorBatch *element, int rowId, ClockService *clock) override;
+    AbstractSlicedSliceAssigner(SliceAssigner* innerAssigner, int sliceEndIndex);
+    int64_t assignSliceEnd(omnistream::VectorBatch* element, int rowId, ClockService* clock) override;
     int64_t getWindowStart(int64_t windowEnd) override;
-    IteratorBase *expiredSlices(int64_t windowEnd) override;
+    IteratorBase* expiredSlices(int64_t windowEnd) override;
     int64_t getSliceEndInterval() override;
     bool isEventTime() override;
+
 protected:
-    SliceAssigner *innerAssigner;
+    SliceAssigner* innerAssigner;
 
 private:
     int sliceEndIndex;
@@ -99,18 +111,20 @@ private:
 class AbstractSliceAssigner : public virtual SliceAssigner {
 public:
     ~AbstractSliceAssigner() override = default;
-    int64_t assignSliceEnd(omnistream::VectorBatch *element, int rowId, ClockService *clock) override;
+    int64_t assignSliceEnd(omnistream::VectorBatch* element, int rowId, ClockService* clock) override;
     bool isEventTime() override;
     std::string getShiftTimeZoneId() const;
     virtual int64_t assignSliceEnd(int64_t timestamp) = 0;
+
 protected:
     int rowtimeIndex;
     bool isEventTimeBool;
-    omnistream::ZoneId *shiftTimeZone;
+    omnistream::ZoneId* shiftTimeZone;
 
     // 构造函数受保护，防止直接实例化
-    AbstractSliceAssigner(int rowtimeIndex, omnistream::ZoneId *shiftTimeZone)
-        : rowtimeIndex(rowtimeIndex), shiftTimeZone(shiftTimeZone)
+    AbstractSliceAssigner(int rowtimeIndex, omnistream::ZoneId* shiftTimeZone)
+        : rowtimeIndex(rowtimeIndex),
+          shiftTimeZone(shiftTimeZone)
     {
         this->isEventTimeBool = rowtimeIndex >= 0;
     }
@@ -118,7 +132,7 @@ protected:
 
 class MergeCallback {
 public:
-    virtual void merge(long mergeResult, IteratorBase *toBeMerged) = 0;
+    virtual void merge(long mergeResult, IteratorBase* toBeMerged) = 0;
 };
 
 class ReusableListIterable : public IteratorBase {
@@ -130,6 +144,7 @@ public:
     int64_t next() override;
     std::unique_ptr<IteratorBase> iterator();
     std::vector<int64_t> getList();
+
 private:
     std::vector<int64_t> values;
     size_t index = 0;
@@ -142,7 +157,11 @@ public:
     bool hasNext() const override;
     int64_t next() override;
     std::unique_ptr<IteratorBase> iterator() override;
-    std::vector<int64_t> getList() override { return {}; };
+    std::vector<int64_t> getList() override
+    {
+        return {};
+    };
+
 private:
     const int64_t slice_size;
     int64_t current_value;
@@ -154,7 +173,7 @@ public:
     ~SliceSharedAssigner() override = default;
 
     // 纯虚函数声明
-    virtual void mergeSlices(int64_t *sliceEnd, MergeCallback *callback) = 0;
+    virtual void mergeSlices(int64_t* sliceEnd, MergeCallback* callback) = 0;
     virtual int64_t NextTriggerWindow(int64_t windowEnd, bool hasCountFunc) = 0;
     void SetWindowEnd(bool hasIndex) override
     {
@@ -166,15 +185,14 @@ public:
 
 class SlicedSharedSliceAssigner : public AbstractSlicedSliceAssigner, public SliceSharedAssigner {
 public:
-    SlicedSharedSliceAssigner(int sliceEndIndex, SliceSharedAssigner *innerAssigner);
-    void mergeSlices(int64_t *sliceEnd, MergeCallback *callback) override;
+    SlicedSharedSliceAssigner(int sliceEndIndex, SliceSharedAssigner* innerAssigner);
+    void mergeSlices(int64_t* sliceEnd, MergeCallback* callback) override;
     int64_t NextTriggerWindow(int64_t windowEnd, bool hasCountFunc) override;
     int64_t getLastWindowEnd(int64_t sliceEnd) override;
 
 private:
-    SliceSharedAssigner *innerSharedAssigner;
+    SliceSharedAssigner* innerSharedAssigner;
 };
-
 
 // ------—------—------—------—------—------—------—------—------—------—
 // 工具函数
@@ -184,8 +202,8 @@ private:
 class TimeWindow1 {
 public:
     static int64_t getWindowStartWithOffset(int64_t timestamp, int64_t offset, int64_t size);
-    static int64_t GetCurrentTimeStamp(omnistream::VectorBatch *element, int rowId, ClockService *clock,
-                                       int rowtimeIndex);
+    static int64_t GetCurrentTimeStamp(
+        omnistream::VectorBatch* element, int rowId, ClockService* clock, int rowtimeIndex);
 };
 
 class SliceUnsharedAssigner : public virtual SliceAssigner {
@@ -202,12 +220,16 @@ class SliceUnsharedAssigner : public virtual SliceAssigner {
 
 class WindowedSliceAssigner : public SliceUnsharedAssigner {
 public:
-    WindowedSliceAssigner(int windowEndIndex, SliceAssigner* innerAssigner) : windowEndIndex(windowEndIndex), innerAssigner(innerAssigner) {
+    WindowedSliceAssigner(int windowEndIndex, SliceAssigner* innerAssigner)
+        : windowEndIndex(windowEndIndex),
+          innerAssigner(innerAssigner)
+    {
     }
 
-    int64_t assignSliceEnd(omnistream::VectorBatch *element, int rowId, ClockService *clock)
+    int64_t assignSliceEnd(omnistream::VectorBatch* element, int rowId, ClockService* clock)
     {
-        return reinterpret_cast<omniruntime::vec::Vector<std::int64_t> *>(element->GetVectors()[windowEndIndex])->GetValue(rowId);
+        return reinterpret_cast<omniruntime::vec::Vector<std::int64_t>*>(element->GetVectors()[windowEndIndex])
+            ->GetValue(rowId);
     }
 
     int64_t getLastWindowEnd(int64_t sliceEnd) override
@@ -220,7 +242,7 @@ public:
         return innerAssigner->getWindowStart(windowEnd);
     }
 
-    IteratorBase *expiredSlices(int64_t windowEnd) override
+    IteratorBase* expiredSlices(int64_t windowEnd) override
     {
         reuseExpiredList->reset(windowEnd);
         return reuseExpiredList;
@@ -241,8 +263,8 @@ public:
         return innerAssigner;
     }
 
-    int64_t GetCurrentTimeStamp(omnistream::VectorBatch *element, int rowId, ClockService *clock,
-                                int rowTimeIdx) override
+    int64_t GetCurrentTimeStamp(
+        omnistream::VectorBatch* element, int rowId, ClockService* clock, int rowTimeIdx) override
     {
         return 0;
     };
@@ -255,7 +277,7 @@ private:
 
 class SlicedUnsharedSliceAssigner : public AbstractSlicedSliceAssigner, public SliceUnsharedAssigner {
 public:
-    SlicedUnsharedSliceAssigner(int sliceEndIndex, SliceAssigner *innerAssigner);
+    SlicedUnsharedSliceAssigner(int sliceEndIndex, SliceAssigner* innerAssigner);
     ~SlicedUnsharedSliceAssigner() override = default;
     int64_t getLastWindowEnd(int64_t sliceEnd) override;
 };
@@ -266,43 +288,43 @@ public:
 
 class TumblingSliceAssigner : public AbstractSliceAssigner, public SliceUnsharedAssigner {
 public:
-    TumblingSliceAssigner(int rowtimeIndex, omnistream::ZoneId *shiftTimeZone, int64_t size, int64_t offset);
+    TumblingSliceAssigner(int rowtimeIndex, omnistream::ZoneId* shiftTimeZone, int64_t size, int64_t offset);
     ~TumblingSliceAssigner() override;
     TumblingSliceAssigner* withOffset(int64_t offset);
-    int64_t assignSliceEnd(omnistream::VectorBatch *element, int rowId, ClockService *clock) override;
+    int64_t assignSliceEnd(omnistream::VectorBatch* element, int rowId, ClockService* clock) override;
     int64_t assignSliceEnd(int64_t timestamp) override;
     int64_t getLastWindowEnd(int64_t sliceEnd) override;
     int64_t getWindowStart(int64_t windowEnd) override;
-    IteratorBase *expiredSlices(int64_t windowEnd) override;
+    IteratorBase* expiredSlices(int64_t windowEnd) override;
     int64_t getSliceEndInterval() override;
     bool isEventTime() override;
-    int64_t GetCurrentTimeStamp(omnistream::VectorBatch *element, int rowId, ClockService *clock,
-                                int rowTimeIdx) override;
+    int64_t GetCurrentTimeStamp(
+        omnistream::VectorBatch* element, int rowId, ClockService* clock, int rowTimeIdx) override;
+
 private:
     int64_t size;
     int64_t offset;
-    ReusableListIterable *reuseExpiredList;
+    ReusableListIterable* reuseExpiredList;
 };
-
 
 class HoppingSliceAssigner : public AbstractSliceAssigner, public SliceSharedAssigner {
 public:
-    HoppingSliceAssigner(int rowtimeIndex, omnistream::ZoneId *shiftTimeZone,
-                         int64_t size, int64_t slide, int64_t offset);
+    HoppingSliceAssigner(
+        int rowtimeIndex, omnistream::ZoneId* shiftTimeZone, int64_t size, int64_t slide, int64_t offset);
     ~HoppingSliceAssigner() override;
     HoppingSliceAssigner* withOffset(int64_t offset);
-    int64_t assignSliceEnd(omnistream::VectorBatch *element, int rowId, ClockService *clock) override;
+    int64_t assignSliceEnd(omnistream::VectorBatch* element, int rowId, ClockService* clock) override;
     int64_t assignSliceEnd(int64_t timestamp) override;
     int64_t getLastWindowEnd(int64_t sliceEnd) override;
     int64_t getWindowStart(int64_t windowEnd) override;
-    IteratorBase *expiredSlices(int64_t windowEnd) override;
+    IteratorBase* expiredSlices(int64_t windowEnd) override;
     int64_t getSliceEndInterval() override;
     bool isEventTime() override;
-    void mergeSlices(int64_t *sliceEnd, MergeCallback *callback) override;
+    void mergeSlices(int64_t* sliceEnd, MergeCallback* callback) override;
     int64_t NextTriggerWindow(int64_t windowEnd, bool windowIsEmpty) override;
     int64_t getNumSlicesPerWindow();
-    int64_t GetCurrentTimeStamp(omnistream::VectorBatch *element, int rowId, ClockService *clock,
-                                int rowTimeIdx) override;
+    int64_t GetCurrentTimeStamp(
+        omnistream::VectorBatch* element, int rowId, ClockService* clock, int rowTimeIdx) override;
 
 private:
     int64_t size;
@@ -310,9 +332,8 @@ private:
     int64_t offset;
     int64_t sliceSize;
     std::int64_t numSlicesPerWindow;
-    ReusableListIterable *reuseExpiredList;
+    ReusableListIterable* reuseExpiredList;
 };
-
 
 // ------—------—------—------—------—------—------—------—------—------—
 // CumulativeSliceAssigner（累积窗口分配器）
@@ -320,28 +341,28 @@ private:
 
 class CumulativeSliceAssigner : public AbstractSliceAssigner, public SliceSharedAssigner {
 public:
-    CumulativeSliceAssigner(int rowtimeIndex, omnistream::ZoneId *shiftTimeZone,
-                            int64_t maxSize, int64_t step, int64_t offset);
+    CumulativeSliceAssigner(
+        int rowtimeIndex, omnistream::ZoneId* shiftTimeZone, int64_t maxSize, int64_t step, int64_t offset);
     ~CumulativeSliceAssigner() override;
     CumulativeSliceAssigner* withOffset(int64_t offset);
-    int64_t assignSliceEnd(omnistream::VectorBatch *element, int rowId, ClockService *clock) override;
+    int64_t assignSliceEnd(omnistream::VectorBatch* element, int rowId, ClockService* clock) override;
     int64_t assignSliceEnd(int64_t timestamp) override;
     int64_t getLastWindowEnd(int64_t sliceEnd) override;
     int64_t getWindowStart(int64_t windowEnd) override;
-    IteratorBase *expiredSlices(int64_t windowEnd) override;
+    IteratorBase* expiredSlices(int64_t windowEnd) override;
     int64_t getSliceEndInterval() override;
-    void mergeSlices(int64_t *sliceEnd, MergeCallback *callback) override;
+    void mergeSlices(int64_t* sliceEnd, MergeCallback* callback) override;
     int64_t NextTriggerWindow(int64_t windowEnd, bool hasCountFunc) override;
     bool isEventTime() override;
-    int64_t GetCurrentTimeStamp(omnistream::VectorBatch *element, int rowId, ClockService *clock,
-                                int rowTimeIdx) override;
+    int64_t GetCurrentTimeStamp(
+        omnistream::VectorBatch* element, int rowId, ClockService* clock, int rowTimeIdx) override;
 
 private:
     int64_t maxSize;
     int64_t step;
     int64_t offset;
-    ReusableListIterable *reuseToBeMergedList;
-    ReusableListIterable *reuseExpiredList;
+    ReusableListIterable* reuseToBeMergedList;
+    ReusableListIterable* reuseExpiredList;
 };
 
 // ------—------—------—------—------—------—------—------—------—------—
@@ -353,51 +374,33 @@ public:
     // 禁止实例化（工具类）
     SliceAssigners() = delete;
 
-    static TumblingSliceAssigner* tumbling(
-            int rowtimeIndex,
-            omnistream::ZoneId *shiftTimeZone,
-            int64_t size
-    )
+    static TumblingSliceAssigner* tumbling(int rowtimeIndex, omnistream::ZoneId* shiftTimeZone, int64_t size)
     {
-        return new TumblingSliceAssigner(
-                rowtimeIndex, shiftTimeZone, size, 0
-        );
+        return new TumblingSliceAssigner(rowtimeIndex, shiftTimeZone, size, 0);
     }
 
-    static HoppingSliceAssigner *hopping(
-            int rowtimeIndex,
-            omnistream::ZoneId *shiftTimeZone,
-            std::int64_t size,
-            std::int64_t slide
-    )
+    static HoppingSliceAssigner* hopping(
+        int rowtimeIndex, omnistream::ZoneId* shiftTimeZone, std::int64_t size, std::int64_t slide)
     {
-        return new HoppingSliceAssigner(
-                rowtimeIndex, shiftTimeZone, size, slide, 0
-        );
+        return new HoppingSliceAssigner(rowtimeIndex, shiftTimeZone, size, slide, 0);
     }
 
     static CumulativeSliceAssigner* cumulative(
-            int rowtimeIndex,
-            omnistream::ZoneId *shiftTimeZone,
-            int64_t maxSize,
-            int64_t step
-    )
+        int rowtimeIndex, omnistream::ZoneId* shiftTimeZone, int64_t maxSize, int64_t step)
     {
-        return new CumulativeSliceAssigner(
-                rowtimeIndex, shiftTimeZone, maxSize, step, 0
-        );
+        return new CumulativeSliceAssigner(rowtimeIndex, shiftTimeZone, maxSize, step, 0);
     }
 };
 
-inline std::string ResolveShiftTimeZoneId(SliceAssigner *assigner)
+inline std::string ResolveShiftTimeZoneId(SliceAssigner* assigner)
 {
     if (assigner == nullptr) {
         return "UTC";
     }
-    if (auto *abstractAssigner = dynamic_cast<AbstractSliceAssigner *>(assigner)) {
+    if (auto* abstractAssigner = dynamic_cast<AbstractSliceAssigner*>(assigner)) {
         return abstractAssigner->getShiftTimeZoneId();
     }
-    if (auto *windowedAssigner = dynamic_cast<WindowedSliceAssigner *>(assigner)) {
+    if (auto* windowedAssigner = dynamic_cast<WindowedSliceAssigner*>(assigner)) {
         return ResolveShiftTimeZoneId(windowedAssigner->GetInnerAssigner());
     }
     return "UTC";
@@ -406,12 +409,12 @@ inline std::string ResolveShiftTimeZoneId(SliceAssigner *assigner)
 class AssignerAtt {
 public:
     static SliceAssigner* createSliceAssigner(const nlohmann::json& parsedJson);
-    static HoppingSliceAssigner* CreateHopSliceAssigner(const nlohmann::json& parsedJson, int rowtimeIndexVal,
-                                                        omnistream::ZoneId* zonePtr);
-    static TumblingSliceAssigner* CreateTumbleSliceAssigner(const nlohmann::json& parsedJson, int rowtimeIndexVal,
-                                                            omnistream::ZoneId* zonePtr);
-    static CumulativeSliceAssigner* CreateCumlativeSliceAssigner(const nlohmann::json& parsedJson, int rowtimeIndexVal,
-                                                                 omnistream::ZoneId* zonePtr);
+    static HoppingSliceAssigner* CreateHopSliceAssigner(
+        const nlohmann::json& parsedJson, int rowtimeIndexVal, omnistream::ZoneId* zonePtr);
+    static TumblingSliceAssigner* CreateTumbleSliceAssigner(
+        const nlohmann::json& parsedJson, int rowtimeIndexVal, omnistream::ZoneId* zonePtr);
+    static CumulativeSliceAssigner* CreateCumlativeSliceAssigner(
+        const nlohmann::json& parsedJson, int rowtimeIndexVal, omnistream::ZoneId* zonePtr);
 };
 
 #endif

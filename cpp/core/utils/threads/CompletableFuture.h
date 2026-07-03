@@ -38,7 +38,9 @@ public:
 // Wrapper to compose a Runnable.
 class Task : public Runnable {
 public:
-    explicit Task(std::shared_ptr<Runnable> runnable) : target(std::move(runnable)) {}
+    explicit Task(std::shared_ptr<Runnable> runnable) : target(std::move(runnable))
+    {
+    }
 
     void run() override
     {
@@ -51,13 +53,24 @@ private:
     std::shared_ptr<Runnable> target;
 };
 
-enum class FutureState { NOT_STARTED, RUNNING, COMPLETED, FAILED, CANCELLED };
+enum class FutureState {
+    NOT_STARTED,
+    RUNNING,
+    COMPLETED,
+    FAILED,
+    CANCELLED
+};
 
 // CancellationException — thrown when a future is cancelled and get() is called.
 class CancellationException : public std::exception {
 public:
-    explicit CancellationException(const std::string &msg = "Future cancelled") : msg_(msg) {}
-    const char *what() const noexcept override { return msg_.c_str(); }
+    explicit CancellationException(const std::string& msg = "Future cancelled") : msg_(msg)
+    {
+    }
+    const char* what() const noexcept override
+    {
+        return msg_.c_str();
+    }
 
 private:
     std::string msg_;
@@ -85,8 +98,8 @@ public:
     ~CompletableFuture();
 
     // Disable copying
-    CompletableFuture(const CompletableFuture &) = delete;
-    CompletableFuture &operator=(const CompletableFuture &) = delete;
+    CompletableFuture(const CompletableFuture&) = delete;
+    CompletableFuture& operator=(const CompletableFuture&) = delete;
 
     // Submit a task to run synchronously (on a new thread, via runAsync).
     void runAs(std::shared_ptr<Runnable> task);
@@ -108,8 +121,8 @@ public:
     // allOf: returns CF that completes when ALL input futures complete.
     //        If any input fails, result fails with the first exception.
     // anyOf: returns CF that completes when ANY input future completes.
-    static std::shared_ptr<CompletableFuture> allOf(const std::vector<std::shared_ptr<CompletableFuture>> &futures);
-    static std::shared_ptr<CompletableFuture> anyOf(const std::vector<std::shared_ptr<CompletableFuture>> &futures);
+    static std::shared_ptr<CompletableFuture> allOf(const std::vector<std::shared_ptr<CompletableFuture>>& futures);
+    static std::shared_ptr<CompletableFuture> anyOf(const std::vector<std::shared_ptr<CompletableFuture>>& futures);
 
     // State setters — all fire registered callbacks.
     // complete(): mark as COMPLETED, fire callbacks.
@@ -164,8 +177,8 @@ private:
 
     // Add an observation callback (whenComplete semantics):
     //   always invoke action; child inherits parent's outcome
-    void addObservationCallback(std::shared_ptr<CompletableFuture> child,
-                                std::function<void(std::exception_ptr)> action);
+    void addObservationCallback(
+        std::shared_ptr<CompletableFuture> child, std::function<void(std::exception_ptr)> action);
 
     FutureState state_ = FutureState::NOT_STARTED;
     std::atomic<bool> done_{false};

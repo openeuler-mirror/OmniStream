@@ -19,43 +19,45 @@
 #include "streaming/api/watermark/Watermark.h"
 
 namespace omnistream::datastream {
-    class StreamElementSerializer : public TypeSerializer {
-    public:
-        explicit StreamElementSerializer(TypeSerializer *typeSerializer);
+class StreamElementSerializer : public TypeSerializer {
+public:
+    explicit StreamElementSerializer(TypeSerializer* typeSerializer);
 
-        ~StreamElementSerializer() override
-        {
-            if (reUsableRecord_ != nullptr) {
-                delete reUsableRecord_;
-                reUsableRecord_ = nullptr;
-            }
-            if (reUsableWatermark_ != nullptr) {
-                delete reUsableWatermark_;
-                reUsableWatermark_ = nullptr;
-            }
-            if (typeSerializer_ != nullptr) {
-                delete typeSerializer_;
-                typeSerializer_ = nullptr;
-            }
+    ~StreamElementSerializer() override
+    {
+        if (reUsableRecord_ != nullptr) {
+            delete reUsableRecord_;
+            reUsableRecord_ = nullptr;
         }
+        if (reUsableWatermark_ != nullptr) {
+            delete reUsableWatermark_;
+            reUsableWatermark_ = nullptr;
+        }
+        if (typeSerializer_ != nullptr) {
+            delete typeSerializer_;
+            typeSerializer_ = nullptr;
+        }
+    }
 
-        void *deserialize(DataInputView& source) override;
-        void serialize(void * record, DataOutputSerializer& target) override {}
+    void* deserialize(DataInputView& source) override;
+    void serialize(void* record, DataOutputSerializer& target) override
+    {
+    }
 
-        void serialize(Object *record, DataOutputSerializer &target) override;
+    void serialize(Object* record, DataOutputSerializer& target) override;
 
-        const char *getName() const override;
+    const char* getName() const override;
 
-        BackendDataType getBackendId() const override
-        {
-            return BackendDataType::BIGINT_BK;
-        };
-
-    private:
-        TypeSerializer *typeSerializer_;
-        bool isDatastream;
-        StreamRecord *reUsableRecord_ = nullptr;
-        Watermark *reUsableWatermark_ = nullptr;
+    BackendDataType getBackendId() const override
+    {
+        return BackendDataType::BIGINT_BK;
     };
-}
+
+private:
+    TypeSerializer* typeSerializer_;
+    bool isDatastream;
+    StreamRecord* reUsableRecord_ = nullptr;
+    Watermark* reUsableWatermark_ = nullptr;
+};
+} // namespace omnistream::datastream
 #endif

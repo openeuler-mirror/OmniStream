@@ -23,37 +23,50 @@
 #include "RocksdbStateTable.h"
 
 // The state is a list. In the InternalKvState, the state is stored as a pointer to a std::vector
-template<typename K, typename N, typename UV>
+template <typename K, typename N, typename UV>
 class RocksdbListState : public InternalListState<K, N, UV> {
 public:
-    RocksdbListState(RocksdbStateTable<K, N, UV> *stateTable,
-                     TypeSerializer *valueSerializer,
-                     TypeSerializer *namespaceSerializer);
+    RocksdbListState(
+        RocksdbStateTable<K, N, UV>* stateTable, TypeSerializer* valueSerializer, TypeSerializer* namespaceSerializer);
 
     ~RocksdbListState() = default;
 
-    void createTable(ROCKSDB_NAMESPACE::DB* db, std::string cfName,
-        std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>> *kvStateInformation);
+    void createTable(
+        ROCKSDB_NAMESPACE::DB* db,
+        std::string cfName,
+        std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation);
 
-    [[nodiscard]] TypeSerializer *getNamespaceSerializer() const { return namespaceSerializer; };
+    [[nodiscard]] TypeSerializer* getNamespaceSerializer() const
+    {
+        return namespaceSerializer;
+    };
 
-    [[nodiscard]] TypeSerializer *getValueSerializer() const { return valueSerializer; };
+    [[nodiscard]] TypeSerializer* getValueSerializer() const
+    {
+        return valueSerializer;
+    };
 
-    void setNamespaceSerializer(TypeSerializer *serializer) { namespaceSerializer = serializer; };
+    void setNamespaceSerializer(TypeSerializer* serializer)
+    {
+        namespaceSerializer = serializer;
+    };
 
-    void setValueSerializer(TypeSerializer *serializer) { valueSerializer = serializer; };
+    void setValueSerializer(TypeSerializer* serializer)
+    {
+        valueSerializer = serializer;
+    };
 
-    void add(const UV &value) override;
+    void add(const UV& value) override;
 
-    void addAll(const std::vector<UV> &values) override;
+    void addAll(const std::vector<UV>& values) override;
 
     // to be impl
-    void update(const std::vector<UV> &values) override {};
+    void update(const std::vector<UV>& values) override {};
 
     std::vector<UV>* get() override;
 
     // to be impl
-    void merge(const std::vector<UV> &other) override {};
+    void merge(const std::vector<UV>& other) override {};
 
     void setCurrentNamespace(N nameSpace) override
     {
@@ -62,74 +75,78 @@ public:
 
     void clear() override;
 
-    static RocksdbListState<K, N, UV> *create(StateDescriptor *stateDesc,
-                                              RocksdbStateTable<K, N, UV> *stateTable, TypeSerializer *keySerializer);
+    static RocksdbListState<K, N, UV>* create(
+        StateDescriptor* stateDesc, RocksdbStateTable<K, N, UV>* stateTable, TypeSerializer* keySerializer);
 
-    static RocksdbListState<K, N, UV>* update(StateDescriptor *stateDesc, RocksdbStateTable<K, N, UV> *stateTable,
-                                              RocksdbListState<K, N, UV>* existingState);
+    static RocksdbListState<K, N, UV>* update(
+        StateDescriptor* stateDesc, RocksdbStateTable<K, N, UV>* stateTable, RocksdbListState<K, N, UV>* existingState);
 
-    void addVectorBatch(omnistream::VectorBatch *vectorBatch) override;
-    omnistream::VectorBatch *getVectorBatch(int batchId) override;
+    void addVectorBatch(omnistream::VectorBatch* vectorBatch) override;
+    omnistream::VectorBatch* getVectorBatch(int batchId) override;
     long getVectorBatchesSize() override;
     void clearVectors(int64_t currentTimestamp) override;
 
 private:
-    RocksdbStateTable<K, N, UV> *stateTable;
-    TypeSerializer *keySerializer;
-    TypeSerializer *valueSerializer;
-    TypeSerializer *namespaceSerializer;
+    RocksdbStateTable<K, N, UV>* stateTable;
+    TypeSerializer* keySerializer;
+    TypeSerializer* valueSerializer;
+    TypeSerializer* namespaceSerializer;
     N currentNamespace;
 };
 
 template <typename K, typename N, typename UV>
-RocksdbListState<K, N, UV> *RocksdbListState<K, N, UV>::create(StateDescriptor *stateDesc,
-                                                               RocksdbStateTable<K, N, UV> *stateTable,
-                                                               TypeSerializer *keySerializer)
+RocksdbListState<K, N, UV>* RocksdbListState<K, N, UV>::create(
+    StateDescriptor* stateDesc, RocksdbStateTable<K, N, UV>* stateTable, TypeSerializer* keySerializer)
 {
     return new RocksdbListState<K, N, UV>(
         stateTable, stateTable->getStateSerializer(), stateTable->getNamespaceSerializer());
 }
 
-template<typename K, typename N, typename UV>
-RocksdbListState<K, N, UV>::RocksdbListState(RocksdbStateTable<K, N, UV> *stateTable,
-                                             TypeSerializer *valueSerializer, TypeSerializer *namespaceSerializer)
-    : stateTable(stateTable), valueSerializer(valueSerializer), namespaceSerializer(namespaceSerializer) {}
+template <typename K, typename N, typename UV>
+RocksdbListState<K, N, UV>::RocksdbListState(
+    RocksdbStateTable<K, N, UV>* stateTable, TypeSerializer* valueSerializer, TypeSerializer* namespaceSerializer)
+    : stateTable(stateTable),
+      valueSerializer(valueSerializer),
+      namespaceSerializer(namespaceSerializer)
+{
+}
 
-template<typename K, typename N, typename UV>
-void RocksdbListState<K, N, UV>::createTable(rocksdb::DB *db, std::string cfName,
-    std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>> *kvStateInformation)
+template <typename K, typename N, typename UV>
+void RocksdbListState<K, N, UV>::createTable(
+    rocksdb::DB* db,
+    std::string cfName,
+    std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation)
 {
     stateTable->createTable(db, cfName, kvStateInformation);
 }
 
-template<typename K, typename N, typename UV>
-void RocksdbListState<K, N, UV>::add(const UV &value)
+template <typename K, typename N, typename UV>
+void RocksdbListState<K, N, UV>::add(const UV& value)
 {
     stateTable->add(currentNamespace, value);
 }
 
-template<typename K, typename N, typename UV>
-std::vector<UV> *RocksdbListState<K, N, UV>::get()
+template <typename K, typename N, typename UV>
+std::vector<UV>* RocksdbListState<K, N, UV>::get()
 {
     return stateTable->getList(currentNamespace);
 }
 
-template<typename K, typename N, typename UV>
-void RocksdbListState<K, N, UV>::addAll(const std::vector<UV> &values)
+template <typename K, typename N, typename UV>
+void RocksdbListState<K, N, UV>::addAll(const std::vector<UV>& values)
 {
     stateTable->addAll(currentNamespace, values);
 }
 
-template<typename K, typename N, typename UV>
+template <typename K, typename N, typename UV>
 void RocksdbListState<K, N, UV>::clear()
 {
     stateTable->clear(currentNamespace);
 }
 
-template<typename K, typename N, typename UV>
-RocksdbListState<K, N, UV>* RocksdbListState<K, N, UV>::update(StateDescriptor *stateDesc,
-                                                               RocksdbStateTable<K, N, UV> *stateTable,
-                                                               RocksdbListState<K, N, UV> *existingState)
+template <typename K, typename N, typename UV>
+RocksdbListState<K, N, UV>* RocksdbListState<K, N, UV>::update(
+    StateDescriptor* stateDesc, RocksdbStateTable<K, N, UV>* stateTable, RocksdbListState<K, N, UV>* existingState)
 {
     existingState->setNamespaceSerializer(stateTable->getNamespaceSerializer());
     existingState->setValueSerializer(stateTable->getStateSerializer());
@@ -137,13 +154,13 @@ RocksdbListState<K, N, UV>* RocksdbListState<K, N, UV>::update(StateDescriptor *
 }
 
 template <typename K, typename N, typename UV>
-void RocksdbListState<K, N, UV>::addVectorBatch(omnistream::VectorBatch *vectorBatch)
+void RocksdbListState<K, N, UV>::addVectorBatch(omnistream::VectorBatch* vectorBatch)
 {
     stateTable->addVectorBatch(vectorBatch);
 }
 
 template <typename K, typename N, typename UV>
-omnistream::VectorBatch *RocksdbListState<K, N, UV>::getVectorBatch(int batchId)
+omnistream::VectorBatch* RocksdbListState<K, N, UV>::getVectorBatch(int batchId)
 {
     return stateTable->getVectorBatch(batchId);
 }
@@ -154,9 +171,9 @@ long RocksdbListState<K, N, UV>::getVectorBatchesSize()
     return stateTable->getVectorBatchesSize();
 }
 
-
 template <typename K, typename N, typename UV>
-void  RocksdbListState<K, N, UV>::clearVectors(int64_t currentTimestamp){
+void RocksdbListState<K, N, UV>::clearVectors(int64_t currentTimestamp)
+{
     return stateTable->clearVectors(currentTimestamp);
 }
 

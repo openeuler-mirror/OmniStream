@@ -18,119 +18,123 @@
 #include "NetworkMemoryBufferPool.h"
 
 namespace omnistream::datastream {
-    class LocalMemoryBufferPool : public LocalBufferPool {
-    public:
-        LocalMemoryBufferPool(std::shared_ptr<NetworkMemoryBufferPool> networkBufferPool,
-                              int numberOfRequiredMemorySegments)
-            : LocalMemoryBufferPool(networkBufferPool, numberOfRequiredMemorySegments, INT_MAX, 0, INT_MAX) {
-        }
+class LocalMemoryBufferPool : public LocalBufferPool {
+public:
+    LocalMemoryBufferPool(
+        std::shared_ptr<NetworkMemoryBufferPool> networkBufferPool, int numberOfRequiredMemorySegments)
+        : LocalMemoryBufferPool(networkBufferPool, numberOfRequiredMemorySegments, INT_MAX, 0, INT_MAX)
+    {
+    }
 
-        LocalMemoryBufferPool(std::shared_ptr<NetworkMemoryBufferPool> networkBufferPool,
-                              int numberOfRequiredMemorySegments, int maxNumberOfMemorySegments)
-            : LocalMemoryBufferPool(networkBufferPool, numberOfRequiredMemorySegments, maxNumberOfMemorySegments, 0,
-                                    INT_MAX) {
-        }
+    LocalMemoryBufferPool(
+        std::shared_ptr<NetworkMemoryBufferPool> networkBufferPool,
+        int numberOfRequiredMemorySegments,
+        int maxNumberOfMemorySegments)
+        : LocalMemoryBufferPool(
+              networkBufferPool, numberOfRequiredMemorySegments, maxNumberOfMemorySegments, 0, INT_MAX)
+    {
+    }
 
-        LocalMemoryBufferPool(std::shared_ptr<NetworkMemoryBufferPool> networkBufferPool,
-                              int numberOfRequiredMemorySegments,
-                              int maxNumberOfMemorySegments,
-                              int numberOfSubpartitions,
-                              int maxBuffersPerChannel);
+    LocalMemoryBufferPool(
+        std::shared_ptr<NetworkMemoryBufferPool> networkBufferPool,
+        int numberOfRequiredMemorySegments,
+        int maxNumberOfMemorySegments,
+        int numberOfSubpartitions,
+        int maxBuffersPerChannel);
 
-        ~LocalMemoryBufferPool() override = default;
+    ~LocalMemoryBufferPool() override = default;
 
-        void postConstruct();
+    void postConstruct();
 
-        void lazyDestroy() override;
+    void lazyDestroy() override;
 
-        void reserveSegments(int numberOfSegmentsToReserve) override;
+    void reserveSegments(int numberOfSegmentsToReserve) override;
 
-        bool isDestroyed() override;
+    bool isDestroyed() override;
 
-        int getMaxNumberOfSegments() const override;
+    int getMaxNumberOfSegments() const override;
 
-        int getNumberOfAvailableSegments() override;
+    int getNumberOfAvailableSegments() override;
 
-        int getNumBuffers() override;
+    int getNumBuffers() override;
 
-        int bestEffortGetNumOfUsedBuffers() const override;
+    int bestEffortGetNumOfUsedBuffers() const override;
 
-        std::shared_ptr<Buffer> requestBuffer() override;
+    std::shared_ptr<Buffer> requestBuffer() override;
 
-        BufferBuilder *requestBufferBuilder() override;
+    BufferBuilder* requestBufferBuilder() override;
 
-        BufferBuilder *requestBufferBuilder(int targetChannel) override;
+    BufferBuilder* requestBufferBuilder(int targetChannel) override;
 
-        BufferBuilder *requestBufferBuilderBlocking() override;
+    BufferBuilder* requestBufferBuilderBlocking() override;
 
-        BufferBuilder *requestBufferBuilderBlocking(int targetChannel) override;
+    BufferBuilder* requestBufferBuilderBlocking(int targetChannel) override;
 
-        std::shared_ptr<NetworkBuffer> requestNetworkBuffer();
+    std::shared_ptr<NetworkBuffer> requestNetworkBuffer();
 
-        MemoryBufferBuilder *requestMemoryBufferBuilder();
+    MemoryBufferBuilder* requestMemoryBufferBuilder();
 
-        MemoryBufferBuilder *requestMemoryBufferBuilder(int targetChannel);
+    MemoryBufferBuilder* requestMemoryBufferBuilder(int targetChannel);
 
-        MemoryBufferBuilder *requestMemoryBufferBuilderBlocking();
+    MemoryBufferBuilder* requestMemoryBufferBuilderBlocking();
 
-        MemoryBufferBuilder *requestMemoryBufferBuilderBlocking(int targetChannel);
+    MemoryBufferBuilder* requestMemoryBufferBuilderBlocking(int targetChannel);
 
-        Segment *requestSegment() override;
+    Segment* requestSegment() override;
 
-        Segment *requestSegment(int targetChannel) override;
+    Segment* requestSegment(int targetChannel) override;
 
-        Segment *requestSegmentBlocking() override;
+    Segment* requestSegmentBlocking() override;
 
-        Segment *requestSegmentBlocking(int targetChannel) override;
+    Segment* requestSegmentBlocking(int targetChannel) override;
 
-        MemorySegment *requestPooledMemorySegment();
+    MemorySegment* requestPooledMemorySegment();
 
-        MemorySegment *requestOverdraftMemorySegmentFromGlobal();
+    MemorySegment* requestOverdraftMemorySegmentFromGlobal();
 
-        MemorySegment *requestMemorySegment();
+    MemorySegment* requestMemorySegment();
 
-        MemorySegment *requestMemorySegment(int targetChannel);
+    MemorySegment* requestMemorySegment(int targetChannel);
 
-        MemorySegment *requestMemorySegmentBlocking();
+    MemorySegment* requestMemorySegmentBlocking();
 
-        MemorySegment *requestMemorySegmentBlocking(int targetChannel);
+    MemorySegment* requestMemorySegmentBlocking(int targetChannel);
 
-        std::shared_ptr<NetworkBuffer> toNetworkBuffer(MemorySegment *memorySegment);
+    std::shared_ptr<NetworkBuffer> toNetworkBuffer(MemorySegment* memorySegment);
 
-        MemoryBufferBuilder *toMemoryBufferBuilder(MemorySegment *memorySegment, int targetChannel);
+    MemoryBufferBuilder* toMemoryBufferBuilder(MemorySegment* memorySegment, int targetChannel);
 
-        std::string toString() const override;
+    std::string toString() const override;
 
-    private:
-        bool requestSegmentFromGlobal() override;
+private:
+    bool requestSegmentFromGlobal() override;
 
-        void returnSegment(Segment *segment) override;
+    void returnSegment(Segment* segment) override;
 
-        void returnMemorySegment(MemorySegment *segment);
+    void returnMemorySegment(MemorySegment* segment);
 
-        void returnExcessSegments() override;
+    void returnExcessSegments() override;
 
-        void returnExcessMemorySegments();
+    void returnExcessMemorySegments();
 
-        bool hasExcessBuffers() override;
+    bool hasExcessBuffers() override;
 
-        bool isRequestedSizeReached() override;
+    bool isRequestedSizeReached() override;
 
-        std::shared_ptr<NetworkMemoryBufferPool> networkMemoryBufferPool;
+    std::shared_ptr<NetworkMemoryBufferPool> networkMemoryBufferPool;
 
-        std::deque<std::shared_ptr<BufferListener> > registeredListeners_;
+    std::deque<std::shared_ptr<BufferListener>> registeredListeners_;
 
-        /**
-         * Number of all memory segments, which have been requested from the network buffer pool and are
-         * somehow referenced through this pool (e.g. wrapped in Buffer instances or as available
-         * segments).
-         */
-        int numberOfRequestedMemorySegments;
-        std::vector<std::shared_ptr<BufferRecycler> > subpartitionBufferRecyclers_;
-        bool isDestroyed_ = false;
-    };
+    /**
+     * Number of all memory segments, which have been requested from the network buffer pool and are
+     * somehow referenced through this pool (e.g. wrapped in Buffer instances or as available
+     * segments).
+     */
+    int numberOfRequestedMemorySegments;
+    std::vector<std::shared_ptr<BufferRecycler>> subpartitionBufferRecyclers_;
+    bool isDestroyed_ = false;
+};
 
-}
-
+} // namespace omnistream::datastream
 
 #endif // LOCALMEMORYBUFFERPOOL_H

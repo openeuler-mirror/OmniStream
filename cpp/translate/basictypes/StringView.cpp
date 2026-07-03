@@ -12,7 +12,7 @@
 
 StringView::StringView() = default;
 
-StringView::StringView(char *pointer, size_t length)
+StringView::StringView(char* pointer, size_t length)
 {
     this->data = pointer;
     this->size = length;
@@ -20,7 +20,7 @@ StringView::StringView(char *pointer, size_t length)
 
 StringView::~StringView() = default;
 
-void StringView::setData(char *pointer)
+void StringView::setData(char* pointer)
 {
     this->data = pointer;
 }
@@ -30,7 +30,7 @@ void StringView::setSize(size_t length)
     this->size = length;
 }
 
-char *StringView::getData()
+char* StringView::getData()
 {
     return data;
 }

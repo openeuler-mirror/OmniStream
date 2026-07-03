@@ -15,11 +15,11 @@
 
 class FallbackKey {
 public:
-    static FallbackKey *createFallbackKey(std::string key)
+    static FallbackKey* createFallbackKey(std::string key)
     {
         return new FallbackKey(key, false);
     };
-    static FallbackKey *createDeprecatedKey(std::string key)
+    static FallbackKey* createDeprecatedKey(std::string key)
     {
         return new FallbackKey(key, true);
     };
@@ -34,27 +34,25 @@ public:
         return isDepricated_;
     };
 
-    bool operator==(const FallbackKey &other) const
+    bool operator==(const FallbackKey& other) const
     {
         return key_ == other.key_ && isDepricated_ == other.isDepricated_;
     }
 
 private:
-    FallbackKey(std::string key, bool isDeprecated)
-        : key_(key),
-          isDepricated_(isDeprecated) {};
+    FallbackKey(std::string key, bool isDeprecated) : key_(key), isDepricated_(isDeprecated) {};
     std::string key_;
     bool isDepricated_;
 };
 
 namespace std {
-    template <>
-    struct hash<FallbackKey> {
-        size_t operator()(const FallbackKey& record) const
-        {
-            return 31 * std::hash<std::string>{}(record.getKey()) + (record.isDepricated() ? 1 : 0);
-        }
-    };
+template <>
+struct hash<FallbackKey> {
+    size_t operator()(const FallbackKey& record) const
+    {
+        return 31 * std::hash<std::string>{}(record.getKey()) + (record.isDepricated() ? 1 : 0);
+    }
 };
+}; // namespace std
 
 #endif // OMNISTREAM_FALLBACKKEY

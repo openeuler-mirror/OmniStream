@@ -7,11 +7,12 @@
 #include "runtime/state/KeyGroupRange.h"
 #include "core/fs/Path.h"
 
-TEST(DirectoryKeyedStateHandleTest, Initialization) {
+TEST(DirectoryKeyedStateHandleTest, Initialization)
+{
     std::string dirName = (std::filesystem::temp_directory_path() / "DirectoryKeyedStateHandleTest").string();
     std::string fileName = "TestFile.tmp";
     std::string content = "Test File For DirectoryKeyedStateHandleTest.Initialization";
-    
+
     std::filesystem::remove_all(dirName);
     std::filesystem::create_directories(dirName);
     std::ofstream ofs(dirName + "/" + fileName, std::ios::binary);
@@ -33,7 +34,7 @@ TEST(DirectoryKeyedStateHandleTest, Initialization) {
     KeyGroupRange other(3, 10);
     auto intersectionHandle = directoryKeyedStateHandle.GetIntersection(other);
     ASSERT_NE(intersectionHandle, nullptr);
-    EXPECT_EQ(intersectionHandle->GetKeyGroupRange(), KeyGroupRange(3,5));
+    EXPECT_EQ(intersectionHandle->GetKeyGroupRange(), KeyGroupRange(3, 5));
 
     KeyGroupRange disjoint(6, 8);
     EXPECT_EQ(directoryKeyedStateHandle.GetIntersection(disjoint), nullptr);
@@ -44,8 +45,8 @@ TEST(DirectoryKeyedStateHandleTest, Initialization) {
     std::filesystem::remove_all(dirName);
 }
 
-
-TEST(DirectoryKeyedStateHandleTest, JSONConstructor) {
+TEST(DirectoryKeyedStateHandleTest, JSONConstructor)
+{
     std::string dirName = (std::filesystem::temp_directory_path() / "DirectoryKeyedStateHandleTest").string();
     std::string fileName = "JSONConstructor.tmp";
     std::string content = "Test File For DirectoryKeyedStateHandleTest.JSONConstructor";
@@ -63,19 +64,13 @@ TEST(DirectoryKeyedStateHandleTest, JSONConstructor) {
     long expectedSize = originalDirHandle.GetStateSize();
 
     nlohmann::json jsonObj;
-    jsonObj["directoryStateHandle"] = {
-        {"directoryString", path.toString()},
-        {"stateSize", expectedSize}
-    };
-    jsonObj["keyGroupRange"] = {
-        {"startKeyGroup", 0},
-        {"endKeyGroup", 5}
-    };
+    jsonObj["directoryStateHandle"] = {{"directoryString", path.toString()}, {"stateSize", expectedSize}};
+    jsonObj["keyGroupRange"] = {{"startKeyGroup", 0}, {"endKeyGroup", 5}};
 
     DirectoryKeyedStateHandle directoryKeyedStateHandle(jsonObj);
 
     EXPECT_EQ(directoryKeyedStateHandle.GetStateSize(), expectedSize);
-    EXPECT_EQ(directoryKeyedStateHandle.GetKeyGroupRange(), KeyGroupRange(0,5));
+    EXPECT_EQ(directoryKeyedStateHandle.GetKeyGroupRange(), KeyGroupRange(0, 5));
 
     const std::string toStringResult = directoryKeyedStateHandle.ToString();
     auto parsed = nlohmann::json::parse(toStringResult);

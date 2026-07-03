@@ -22,8 +22,7 @@
 
 class FileStateHandle : public StreamStateHandle {
 public:
-    FileStateHandle(const Path& filePath, long stateSize)
-        : filePath_(filePath), stateSize_(stateSize)
+    FileStateHandle(const Path& filePath, long stateSize) : filePath_(filePath), stateSize_(stateSize)
     {
         if (stateSize < -1) {
             throw std::invalid_argument("stateSize must be >= -1");
@@ -31,10 +30,12 @@ public:
     }
 
     FileStateHandle(const nlohmann::json& json)
-        : filePath_(json.contains("filePath") ? Path(json["filePath"].get<std::string>())
-            : throw std::invalid_argument("FileStateHandle 'filePath' field missing")),
-          stateSize_(json.contains("stateSize") ? json["stateSize"].get<long>()
-            : throw std::invalid_argument("FileStateHandle 'stateSize' field missing"))
+        : filePath_(
+              json.contains("filePath") ? Path(json["filePath"].get<std::string>())
+                                        : throw std::invalid_argument("FileStateHandle 'filePath' field missing")),
+          stateSize_(
+              json.contains("stateSize") ? json["stateSize"].get<long>()
+                                         : throw std::invalid_argument("FileStateHandle 'stateSize' field missing"))
     {
         if (stateSize_ < -1) {
             throw std::invalid_argument("stateSize must be >= -1");
@@ -68,7 +69,7 @@ public:
         if (!removed && std::filesystem::exists(fsPath)) {
             throw std::runtime_error("Failed to delete file " + filePath_.toString());
         }
-    
+
         auto parent = fsPath.parent_path();
         if (!parent.empty() && parent != fsPath) {
             try {

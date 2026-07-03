@@ -20,11 +20,8 @@
 
 class FsCheckpointStateOutputStream : public CheckpointStateOutputStream {
 public:
-    FsCheckpointStateOutputStream(Path basePath,
-                                    int fs,
-                                    int bufferSize,
-                                    int localStateThreshold,
-                                    bool allowRelativePaths = false);
+    FsCheckpointStateOutputStream(
+        Path basePath, int fs, int bufferSize, int localStateThreshold, bool allowRelativePaths = false);
 
     ~FsCheckpointStateOutputStream()
     {

@@ -18,14 +18,17 @@
 #include "internal/PanedWindowProcessFunction.h"
 #include "table/utils/TimeWindowUtil.h"
 
-template<typename K, typename W>
-WindowOperator<K, W>::~WindowOperator() {
+template <typename K, typename W>
+WindowOperator<K, W>::~WindowOperator()
+{
     WindowOperator<K, W>::close();
 }
 
-template<typename K, typename W>
-void WindowOperator<K, W>::open() {
-    internalTimerService = AbstractStreamOperator<K>::getInternalTimerService("window-timers", windowSerializer_.get(), this);
+template <typename K, typename W>
+void WindowOperator<K, W>::open()
+{
+    internalTimerService =
+        AbstractStreamOperator<K>::getInternalTimerService("window-timers", windowSerializer_.get(), this);
     triggerContext_ = std::make_unique<TriggerContext>(this);
     triggerContext_->open();
 
@@ -44,40 +47,34 @@ void WindowOperator<K, W>::open() {
         THROW_LOGIC_EXCEPTION("The keyedStateBackend is not supported");
     }
 
-    S *state = keyedStateBackend->template getOrCreateKeyedState<TimeWindow, S, RowData *>(
+    S* state = keyedStateBackend->template getOrCreateKeyedState<TimeWindow, S, RowData*>(
         windowSerializer_.get(), valueStateDescriptor);
     windowState = state;
 
     if (dynamic_cast<MergingWindowAssigner<W>*>(windowAssigner.get())) {
-        this->windowFunction =
-                std::make_unique<MergingWindowProcessFunction<K, W>>(
-                        static_cast<MergingWindowAssigner<W>*>(windowAssigner.get()),
-                        windowAggregator.get(),
-                        new TimeWindow::Serializer(),
-                        allowedLateness);
+        this->windowFunction = std::make_unique<MergingWindowProcessFunction<K, W>>(
+            static_cast<MergingWindowAssigner<W>*>(windowAssigner.get()),
+            windowAggregator.get(),
+            new TimeWindow::Serializer(),
+            allowedLateness);
     } else if (dynamic_cast<PanedWindowAssigner<W>*>(windowAssigner.get())) {
-        this->windowFunction =
-                std::make_unique<PanedWindowProcessFunction<K, W>>(
-                        static_cast<PanedWindowAssigner<W>*>(windowAssigner.get()),
-                        windowAggregator.get(),
-                        allowedLateness);
+        this->windowFunction = std::make_unique<PanedWindowProcessFunction<K, W>>(
+            static_cast<PanedWindowAssigner<W>*>(windowAssigner.get()), windowAggregator.get(), allowedLateness);
     } else {
-        this->windowFunction =
-                std::make_unique<GeneralWindowProcessFunction<K, W>>(
-                    windowAssigner.get(),
-                    windowAggregator.get(),
-                    allowedLateness);
+        this->windowFunction = std::make_unique<GeneralWindowProcessFunction<K, W>>(
+            windowAssigner.get(), windowAggregator.get(), allowedLateness);
     }
     windowFunction->open(new WindowContext(this));
 }
 
-template<typename K, typename W>
-void WindowOperator<K, W>::close() {
+template <typename K, typename W>
+void WindowOperator<K, W>::close()
+{
     AbstractStreamOperator<K>::close();
     INFO_RELEASE("WindowOperator closed");
 }
 
-template<typename K, typename W>
+template <typename K, typename W>
 int64_t WindowOperator<K, W>::cleanupTime(const W& window)
 {
     if (windowAssigner->isEventTime()) {
@@ -86,7 +83,7 @@ int64_t WindowOperator<K, W>::cleanupTime(const W& window)
     return std::max<int64_t>(0, window.maxTimestamp());
 }
 
-template<typename K, typename W>
+template <typename K, typename W>
 void WindowOperator<K, W>::registerCleanupTimer(const W& window)
 {
     int64_t cleanupTime = this->cleanupTime(window);
@@ -98,11 +95,11 @@ void WindowOperator<K, W>::registerCleanupTimer(const W& window)
         }
     }
 }
-template<typename K, typename W>
+template <typename K, typename W>
 class AggregateWindowOperator;
 
-template<typename K, typename W>
-void WindowOperator<K, W>::onEventTime(TimerHeapInternalTimer<K, W> *timer)
+template <typename K, typename W>
+void WindowOperator<K, W>::onEventTime(TimerHeapInternalTimer<K, W>* timer)
 {
     this->setCurrentKey(timer->getKey());
 
@@ -117,21 +114,24 @@ void WindowOperator<K, W>::onEventTime(TimerHeapInternalTimer<K, W> *timer)
     }
 }
 
-template<typename K, typename W>
-void WindowOperator<K, W>::onProcessingTime(TimerHeapInternalTimer<K, W> *timer) {
-    NOT_IMPL_EXCEPTION
+template <typename K, typename W>
+void WindowOperator<K, W>::onProcessingTime(TimerHeapInternalTimer<K, W>* timer)
+{
+    NOT_IMPL_EXCEPTION;
 }
 
-template<typename K, typename W>
-void WindowOperator<K, W>::processWatermarkStatus(WatermarkStatus *watermarkStatus)
+template <typename K, typename W>
+void WindowOperator<K, W>::processWatermarkStatus(WatermarkStatus* watermarkStatus)
 {
     this->output->emitWatermarkStatus(watermarkStatus);
 }
 
-template<typename K, typename W>
-void WindowOperator<K, W>::processBatch(StreamRecord* input) {
+template <typename K, typename W>
+void WindowOperator<K, W>::processBatch(StreamRecord* input)
+{
     auto record = std::unique_ptr<StreamRecord>(input);
-    auto batch = std::unique_ptr<omnistream::VectorBatch>(reinterpret_cast<omnistream::VectorBatch*>(record->getValue()));
+    auto batch =
+        std::unique_ptr<omnistream::VectorBatch>(reinterpret_cast<omnistream::VectorBatch*>(record->getValue()));
     auto rowCount = batch->GetRowCount();
     if (rowCount <= 0) {
         return;
@@ -144,21 +144,22 @@ void WindowOperator<K, W>::processBatch(StreamRecord* input) {
     }
 }
 
-template<typename K, typename W>
-void WindowOperator<K, W>::processElement(RowData *inputRow) {
+template <typename K, typename W>
+void WindowOperator<K, W>::processElement(RowData* inputRow)
+{
     int64_t timestamp = 0;
     if (windowAssigner->isEventTime()) {
         timestamp = *inputRow->getLong(rowtimeIndex);
     } else {
-        THROW_LOGIC_EXCEPTION("Processing time window is not supported yet!")
+        THROW_LOGIC_EXCEPTION("Processing time window is not supported yet!");
     }
     timestamp = TimeWindowUtil::toUtcTimestampMills(timestamp, shiftTimeZone);
 
     // the windows which the input row should be placed into
     std::vector<W> affectedWindows = windowFunction->assignStateNamespace(inputRow, timestamp);
-    for (const auto& window: affectedWindows) {
+    for (const auto& window : affectedWindows) {
         windowState->setCurrentNamespace(window);
-        auto acc = reinterpret_cast<RowData *>(windowState->value());
+        auto acc = reinterpret_cast<RowData*>(windowState->value());
         if (acc == nullptr) {
             acc = windowAggregator->createAccumulators();
         }
@@ -178,7 +179,7 @@ void WindowOperator<K, W>::processElement(RowData *inputRow) {
 
     // the actual window which the input row is belongs to
     const auto& actualWindows = windowFunction->assignActualWindows(inputRow, timestamp);
-    for (const auto& window: actualWindows) {
+    for (const auto& window : actualWindows) {
         triggerContext_->window = window;
         bool triggerResult = triggerContext_->onElement(inputRow, timestamp);
         if (triggerResult) {

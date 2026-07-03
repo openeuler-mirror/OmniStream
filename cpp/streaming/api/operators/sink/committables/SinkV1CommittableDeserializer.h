@@ -16,17 +16,20 @@
 #include "core/io/SimpleVersionedSerializer.h"
 #include "core/io/SimpleVersionedSerialization.h"
 
-class SinkV1CommittableDeserializer{
+class SinkV1CommittableDeserializer {
 public:
     static constexpr int MAGIC_NUMBER = 0xb91f252c;
     template <typename T>
     static std::vector<T>* readVersionAndDeserializeList(
-        std::shared_ptr<SimpleVersionedSerializer<T>>& serializer, DataInputDeserializer& in) {
+        std::shared_ptr<SimpleVersionedSerializer<T>>& serializer, DataInputDeserializer& in)
+    {
         validateMagicNumber(in);
         return SimpleVersionedSerialization::readVersionAndDeserializeList<T>(*serializer, in);
     }
+
 private:
-    static void validateMagicNumber(DataInputDeserializer& in) {
+    static void validateMagicNumber(DataInputDeserializer& in)
+    {
         const int magicNumber = in.readInt();
         if (magicNumber != MAGIC_NUMBER) {
             throw std::runtime_error("Corrupt data: Unexpected magic number");

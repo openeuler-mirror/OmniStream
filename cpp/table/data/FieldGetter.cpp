@@ -13,19 +13,22 @@
 #include "RowData.h"
 
 FieldGetter::FieldGetter(int fieldPos, getFieldByPosFn getFieldByPos)
-    :fieldPos_(fieldPos), getFieldByPos_(getFieldByPos) {
+    : fieldPos_(fieldPos),
+      getFieldByPos_(getFieldByPos)
+{
 }
 
 FieldGetter::FieldGetter(int fieldPos, bool preciseTimestamp)
-    : fieldPos_(fieldPos), timestampGetter_(true), preciseTimestamp_(preciseTimestamp) {
+    : fieldPos_(fieldPos),
+      timestampGetter_(true),
+      preciseTimestamp_(preciseTimestamp)
+{
 }
 
-void *FieldGetter::getFieldOrNull(RowData *row)
+void* FieldGetter::getFieldOrNull(RowData* row)
 {
     if (timestampGetter_) {
-        timestampValue_ = preciseTimestamp_
-            ? row->getTimestampPrecise(fieldPos_)
-            : row->getTimestamp(fieldPos_);
+        timestampValue_ = preciseTimestamp_ ? row->getTimestampPrecise(fieldPos_) : row->getTimestamp(fieldPos_);
         return &timestampValue_.value();
     }
     return (row->*getFieldByPos_)(fieldPos_);

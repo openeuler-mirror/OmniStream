@@ -28,7 +28,7 @@ RdKafkaConsumer::RdKafkaConsumer(const std::unordered_map<std::string, std::stri
         }
         std::string errstr;
         if (conf->set(kv.first, kv.second, errstr) != RdKafka::Conf::CONF_OK) {
-            LOG("unknown rdkafka config given, but it's ok to ignore it here")
+            LOG("unknown rdkafka config given, but it's ok to ignore it here");
         }
     }
 
@@ -55,7 +55,7 @@ void RdKafkaConsumer::setBatchSize(int size)
 
 ConsumerRecords* RdKafkaConsumer::poll(int timeoutMs)
 {
-    std::unordered_map<RdKafka::TopicPartition *, std::vector<RdKafka::Message *>> records =
+    std::unordered_map<RdKafka::TopicPartition*, std::vector<RdKafka::Message*>> records =
         consumer_->consumeBatch(timeoutMs, batch_size_);
 
     ConsumerRecords* consumerRecords = new ConsumerRecords(std::move(records));
@@ -63,68 +63,64 @@ ConsumerRecords* RdKafkaConsumer::poll(int timeoutMs)
     return consumerRecords;
 }
 
-void RdKafkaConsumer::assign(std::vector<RdKafka::TopicPartition*> &partitions)
+void RdKafkaConsumer::assign(std::vector<RdKafka::TopicPartition*>& partitions)
 {
-    RdKafka::ErrorCode resp =  consumer_->assign(partitions);
+    RdKafka::ErrorCode resp = consumer_->assign(partitions);
     if (resp != RdKafka::ERR_NO_ERROR) {
-        std::cerr << "% assign failed: " << RdKafka::err2str(resp)
-                  << std::endl;
+        std::cerr << "% assign failed: " << RdKafka::err2str(resp) << std::endl;
     }
 }
 
-void RdKafkaConsumer::assignment(std::vector<RdKafka::TopicPartition*> &partitions)
+void RdKafkaConsumer::assignment(std::vector<RdKafka::TopicPartition*>& partitions)
 {
     RdKafka::ErrorCode resp = consumer_->assignment(partitions);
     if (resp != RdKafka::ERR_NO_ERROR) {
-        std::cerr << "% assignment failed: " << RdKafka::err2str(resp)
-                  << std::endl;
+        std::cerr << "% assignment failed: " << RdKafka::err2str(resp) << std::endl;
     }
 }
 
-void RdKafkaConsumer::position(std::vector<RdKafka::TopicPartition *> &partitions)
+void RdKafkaConsumer::position(std::vector<RdKafka::TopicPartition*>& partitions)
 {
     RdKafka::ErrorCode resp = consumer_->position(partitions);
     if (resp != RdKafka::ERR_NO_ERROR) {
-        std::cerr << "% position failed: " << RdKafka::err2str(resp)
-                  << std::endl;
+        std::cerr << "% position failed: " << RdKafka::err2str(resp) << std::endl;
     }
 }
 
-void RdKafkaConsumer::committed(std::vector<std::shared_ptr<RdKafka::TopicPartition>> &partitions)
+void RdKafkaConsumer::committed(std::vector<std::shared_ptr<RdKafka::TopicPartition>>& partitions)
 {
-    std::vector<RdKafka::TopicPartition *> rawPartitions;
+    std::vector<RdKafka::TopicPartition*> rawPartitions;
     rawPartitions.reserve(partitions.size());
-    for (const auto &ptr: partitions) {
+    for (const auto& ptr : partitions) {
         rawPartitions.push_back(ptr.get());
     }
     RdKafka::ErrorCode resp = consumer_->committed(rawPartitions, 10000);
     if (resp != RdKafka::ERR_NO_ERROR) {
-        std::cerr << "% committed failed: " << RdKafka::err2str(resp)
-                  << std::endl;
+        std::cerr << "% committed failed: " << RdKafka::err2str(resp) << std::endl;
     }
 }
 
-void RdKafkaConsumer::seek(RdKafka::TopicPartition &partition)
+void RdKafkaConsumer::seek(RdKafka::TopicPartition& partition)
 {
     RdKafka::ErrorCode resp = consumer_->seek(partition, 10000);
     if (resp != RdKafka::ERR_NO_ERROR) {
-        std::cerr << "% seek failed: " << RdKafka::err2str(resp) << " " << std::to_string(resp)
-                  << std::endl;
+        std::cerr << "% seek failed: " << RdKafka::err2str(resp) << " " << std::to_string(resp) << std::endl;
     }
 }
 
-void RdKafkaConsumer::seek(std::unordered_map<std::shared_ptr<RdKafka::TopicPartition>, int64_t>&
-    partitionsStartingFromSpecifiedOffsets)
+void RdKafkaConsumer::seek(
+    std::unordered_map<std::shared_ptr<RdKafka::TopicPartition>, int64_t>& partitionsStartingFromSpecifiedOffsets)
 {
     for (const auto& pair : partitionsStartingFromSpecifiedOffsets) {
-        INFO_RELEASE("RdKafkaConsumer::seek topic " << pair.first->topic() << " partition" << pair.first->partition()
-            << " offset " << pair.second)
+        INFO_RELEASE(
+            "RdKafkaConsumer::seek topic " << pair.first->topic() << " partition" << pair.first->partition()
+                                           << " offset " << pair.second);
         pair.first->set_offset(pair.second);
         seek(*(pair.first));
     }
 }
 
-void RdKafkaConsumer::seekToEnd(std::vector<std::shared_ptr<RdKafka::TopicPartition>> &partitions)
+void RdKafkaConsumer::seekToEnd(std::vector<std::shared_ptr<RdKafka::TopicPartition>>& partitions)
 {
     for (const auto& tp : partitions) {
         tp->set_offset(RdKafka::Topic::OFFSET_END);
@@ -132,7 +128,7 @@ void RdKafkaConsumer::seekToEnd(std::vector<std::shared_ptr<RdKafka::TopicPartit
     }
 }
 
-void RdKafkaConsumer::seekToBeginning(std::vector<std::shared_ptr<RdKafka::TopicPartition>> &partitions)
+void RdKafkaConsumer::seekToBeginning(std::vector<std::shared_ptr<RdKafka::TopicPartition>>& partitions)
 {
     for (const auto& tp : partitions) {
         tp->set_offset(RdKafka::Topic::OFFSET_BEGINNING);
@@ -140,24 +136,22 @@ void RdKafkaConsumer::seekToBeginning(std::vector<std::shared_ptr<RdKafka::Topic
     }
 }
 
-void RdKafkaConsumer::endOffsets(std::vector<std::shared_ptr<RdKafka::TopicPartition>> &partitions)
+void RdKafkaConsumer::endOffsets(std::vector<std::shared_ptr<RdKafka::TopicPartition>>& partitions)
 {
     for (const auto& tp : partitions) {
         int64_t low;
         int64_t high;
         // 时间从kafka配置读取 default.api.timeout.ms
-        RdKafka::ErrorCode resp = consumer_->query_watermark_offsets(
-            tp->topic().c_str(), tp->partition(), &low, &high, 10000);
+        RdKafka::ErrorCode resp =
+            consumer_->query_watermark_offsets(tp->topic().c_str(), tp->partition(), &low, &high, 10000);
         if (resp != RdKafka::ErrorCode::ERR_NO_ERROR) {
-            LOG("Failed to query watermark offsets for topic: " + tp->topic()
-                      + ", partition: " + std::to_string(tp->partition())
-                      + ". Error: " + RdKafka::err2str(resp));
+            LOG("Failed to query watermark offsets for topic: " + tp->topic() +
+                ", partition: " + std::to_string(tp->partition()) + ". Error: " + RdKafka::err2str(resp));
         } else {
             tp->set_offset(high);
         }
     }
 }
-
 
 void RdKafkaConsumer::close()
 {
@@ -167,8 +161,7 @@ void RdKafkaConsumer::close()
     closed_ = true;
     RdKafka::ErrorCode resp = consumer_->close();
     if (resp != RdKafka::ERR_NO_ERROR) {
-        std::cerr << "% close failed: " << RdKafka::err2str(resp)
-                  << std::endl;
+        std::cerr << "% close failed: " << RdKafka::err2str(resp) << std::endl;
     }
 }
 
@@ -194,8 +187,7 @@ void RdKafkaConsumer::commitOffsets(const std::map<std::shared_ptr<RdKafka::Topi
     RdKafka::ErrorCode resp = consumer_->commitSync(partitions);
     if (resp != RdKafka::ERR_NO_ERROR) {
         std::cerr << "% commitOffsets failed: " << RdKafka::err2str(resp) << std::endl;
-        INFO_RELEASE("Error:Failed to commit offsets: " <<RdKafka::err2str(resp));
+        INFO_RELEASE("Error:Failed to commit offsets: " << RdKafka::err2str(resp));
         throw std::runtime_error("Failed to commit offsets: " + RdKafka::err2str(resp));
     }
-
 }

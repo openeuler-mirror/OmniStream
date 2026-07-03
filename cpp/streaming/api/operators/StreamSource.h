@@ -31,42 +31,43 @@
  * K: such as Object
  * */
 namespace omnistream {
-template<typename K>
+template <typename K>
 class StreamSource : public AbstractUdfStreamOperator<SourceFunction<K>, K*> {
 public:
-    StreamSource(SourceFunction<K> *func, Output *output, bool isStream = false) : AbstractUdfStreamOperator<SourceFunction<K>, K*>(func, output)
+    StreamSource(SourceFunction<K>* func, Output* output, bool isStream = false)
+        : AbstractUdfStreamOperator<SourceFunction<K>, K*>(func, output)
     {
         this->isStream = isStream;
     }
 
-    StreamSource(Output *output, nlohmann::json config, bool isStream = true)
+    StreamSource(Output* output, nlohmann::json config, bool isStream = true)
     {
         this->output = output;
         this->isStream = isStream;
         loadUdf(config);
     }
 
-     ~StreamSource()
+    ~StreamSource()
     {
         delete ctx;
     }
 
-    void loadUdf(const nlohmann::json &config)
+    void loadUdf(const nlohmann::json& config)
     {
         std::string soPath = config["udf_so"];
         std::string udfObj = config["udf_obj"];
         nlohmann::json udfObjJson = nlohmann::json::parse(udfObj);
 
-        auto *symbol = udfLoader.LoadSourceFunction(soPath);
+        auto* symbol = udfLoader.LoadSourceFunction(soPath);
         if (symbol == nullptr) {
             throw std::out_of_range("null pointer when load " + soPath);
         }
         this->userFunction = symbol(udfObjJson).release();
     }
 
-    void setProcessArgs(jmethodID methodID, JNIEnv *env, jobject task)
+    void setProcessArgs(jmethodID methodID, JNIEnv* env, jobject task)
     {
-        CallBack *callback = new CallBack();
+        CallBack* callback = new CallBack();
         callback->SetArgs(methodID, env, task);
         this->userFunction->SaveCallBack(callback);
     }
@@ -74,27 +75,29 @@ public:
     void run()
     {
         thread_local Object lockingObject;
-        ctx = StreamSourceContexts::getSourceContext(TimeCharacteristic::ProcessingTime,
-                                                     new SystemProcessingTimeService(),
-                                                     &lockingObject,
-                                                     this->output,
-                                                     -1,
-                                                     -1,
-                                                     true,
-                                                     this->isStream);
+        ctx = StreamSourceContexts::getSourceContext(
+            TimeCharacteristic::ProcessingTime,
+            new SystemProcessingTimeService(),
+            &lockingObject,
+            this->output,
+            -1,
+            -1,
+            true,
+            this->isStream);
         this->userFunction->run(ctx);
     }
 
-    void run(Object* lock) {
+    void run(Object* lock)
+    {
         ctx = StreamSourceContexts::getSourceContext(
-                TimeCharacteristic::ProcessingTime,
-                this->getProcessingTimeService(),
-                lock,
-                this->output,
-                -1,
-                -1,
-                true,
-                this->isStream);
+            TimeCharacteristic::ProcessingTime,
+            this->getProcessingTimeService(),
+            lock,
+            this->output,
+            -1,
+            -1,
+            true,
+            this->isStream);
         this->userFunction->run(ctx);
     }
 
@@ -110,8 +113,8 @@ public:
 
 private:
     UDFLoader udfLoader;
-    SourceContext *ctx;
+    SourceContext* ctx;
 };
-}  // namespace omnistream
+} // namespace omnistream
 
-#endif  // OMNISTREAM_STREAMSOURCE_H
+#endif // OMNISTREAM_STREAMSOURCE_H

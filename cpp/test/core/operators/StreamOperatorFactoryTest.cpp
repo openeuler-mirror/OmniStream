@@ -8,14 +8,17 @@
 #include "runtime/executiongraph/StreamConfigPOD.h"
 #include <unordered_map>
 
-
 class MockStreamOperatorFactory : public omnistream::StreamOperatorFactory {
 public:
-    static StreamOperator* createOperatorAndCollector(omnistream::OperatorConfig &opConfig, WatermarkGaugeExposingOutput *chainOutput) {
+    static StreamOperator* createOperatorAndCollector(
+        omnistream::OperatorConfig& opConfig, WatermarkGaugeExposingOutput* chainOutput)
+    {
         return StreamOperatorFactory::createOperatorAndCollector(opConfig, chainOutput);
     }
 
-    static StreamOperator* createOperatorAndCollector(const std::string& id, const std::string& description, WatermarkGaugeExposingOutput *chainOutput) {
+    static StreamOperator* createOperatorAndCollector(
+        const std::string& id, const std::string& description, WatermarkGaugeExposingOutput* chainOutput)
+    {
         omnistream::OperatorPOD operatorPod;
         operatorPod.setDescription(description);
         operatorPod.setId(id);
@@ -24,33 +27,40 @@ public:
     }
 };
 
-TEST(StreamOperatorFactoryTest, CreateOperatorAndCollector_Map) {
+TEST(StreamOperatorFactoryTest, CreateOperatorAndCollector_Map)
+{
     std::string id = "org.apache.flink.streaming.api.operators.StreamMap";
     std::string description = "{\"udf_so\":\"/tmp/libMockMapFunction.so\",\"udf_obj\":\"{}\"}";
 
     MockOutput output;
-    StreamOperator* operatorAndCollector = MockStreamOperatorFactory::createOperatorAndCollector(id, description, &output);
+    StreamOperator* operatorAndCollector =
+        MockStreamOperatorFactory::createOperatorAndCollector(id, description, &output);
     EXPECT_NE(operatorAndCollector, nullptr);
     delete operatorAndCollector;
 }
 
-TEST(StreamOperatorFactoryTest, CreateOperatorAndCollector_Map_InvalidSoPath) {
+TEST(StreamOperatorFactoryTest, CreateOperatorAndCollector_Map_InvalidSoPath)
+{
     std::string id = "org.apache.flink.streaming.api.operators.StreamMap";
     std::string description = "{\"udf_so\":\"invalidMap.so\",\"udf_obj\":\"{}\"}";
     MockOutput output;
     EXPECT_THROW(MockStreamOperatorFactory::createOperatorAndCollector(id, description, &output), std::out_of_range);
 }
 
-TEST(StreamOperatorFactoryTest, CreateOperatorAndCollector_Reduce) {
+TEST(StreamOperatorFactoryTest, CreateOperatorAndCollector_Reduce)
+{
     std::string id = "org.apache.flink.streaming.api.operators.StreamMap";
-    std::string description = "{\"udf_so\":\"/tmp/libMockReduceFunction.so\",\"key_so\":\"libMockKeyedBy.so\",\"udf_obj\":\"{}\"}";
+    std::string description =
+        "{\"udf_so\":\"/tmp/libMockReduceFunction.so\",\"key_so\":\"libMockKeyedBy.so\",\"udf_obj\":\"{}\"}";
     MockOutput output;
-    StreamOperator* operatorAndCollector = MockStreamOperatorFactory::createOperatorAndCollector(id, description, &output);
+    StreamOperator* operatorAndCollector =
+        MockStreamOperatorFactory::createOperatorAndCollector(id, description, &output);
     EXPECT_NE(operatorAndCollector, nullptr);
     delete operatorAndCollector;
 }
 
-TEST(StreamOperatorFactoryTest, CreateOperatorAndCollector_UnknownOperator) {
+TEST(StreamOperatorFactoryTest, CreateOperatorAndCollector_UnknownOperator)
+{
     std::string id = "UnknownOperator";
     std::string description = "{}";
 

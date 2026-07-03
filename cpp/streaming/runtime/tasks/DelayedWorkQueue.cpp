@@ -40,12 +40,9 @@ ScheduledFutureTask* DelayedWorkQueue::Take()
             return task;
         }
 
-        condition.wait_for(
-                lock,
-                std::chrono::milliseconds(delay),
-                [this, task] {
-                    return stop || queue.empty() || queue.top() != task || task->GetDelay() <= 0;
-                });
+        condition.wait_for(lock, std::chrono::milliseconds(delay), [this, task] {
+            return stop || queue.empty() || queue.top() != task || task->GetDelay() <= 0;
+        });
     }
 
     return nullptr;

@@ -22,9 +22,9 @@ class FutureState {
 public:
     enum State {
         Completed,
-      CompletedExceptional,
-      Cancelled,
-      Pending,
+        CompletedExceptional,
+        Cancelled,
+        Pending,
     };
 
     explicit FutureState(State initialState = Pending);
@@ -44,7 +44,8 @@ public:
     bool operator==(const FutureState& other) const;
     bool operator!=(const FutureState& other) const;
 
-    static std::shared_ptr<FutureState> allOf(const std::shared_ptr<FutureState>& first, const std::shared_ptr<FutureState>& second)
+    static std::shared_ptr<FutureState> allOf(
+        const std::shared_ptr<FutureState>& first, const std::shared_ptr<FutureState>& second)
     {
         if (first && second && *first == *second) {
             return first;
@@ -65,7 +66,8 @@ public:
         }
     }
 
-    static std::shared_ptr<FutureState> anyOf(const std::shared_ptr<FutureState>& first, const std::shared_ptr<FutureState>& second)
+    static std::shared_ptr<FutureState> anyOf(
+        const std::shared_ptr<FutureState>& first, const std::shared_ptr<FutureState>& second)
     {
         if (first && second && *first == *second) {
             return first;

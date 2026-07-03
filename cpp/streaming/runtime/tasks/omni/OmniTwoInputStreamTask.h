@@ -17,22 +17,29 @@
 #include "runtime/io/checkpointing/InputProcessorUtil.h"
 
 namespace omnistream {
-    class OmniTwoInputStreamTask : public OmniStreamTask {
-    public:
-        explicit OmniTwoInputStreamTask(std::shared_ptr<RuntimeEnvironmentV2>& env) : OmniStreamTask(env) {}
-        explicit OmniTwoInputStreamTask(std::shared_ptr<RuntimeEnvironmentV2>& env, int taskType) : OmniStreamTask(env, taskType) {}
+class OmniTwoInputStreamTask : public OmniStreamTask {
+public:
+    explicit OmniTwoInputStreamTask(std::shared_ptr<RuntimeEnvironmentV2>& env) : OmniStreamTask(env)
+    {
+    }
+    explicit OmniTwoInputStreamTask(std::shared_ptr<RuntimeEnvironmentV2>& env, int taskType)
+        : OmniStreamTask(env, taskType)
+    {
+    }
 
-        void init() override;
-        const shared_ptr<CheckpointBarrierHandler> &GetCheckpointBarrierHandler() const;
-    protected:
-        void createInputProcessor(std::vector<std::shared_ptr<IndexedInputGate>> inputGates1,
-                                  std::vector<std::shared_ptr<IndexedInputGate>> inputGates2, const json &inputTypes,
-                                  std::function<StreamPartitioner<IOReadableWritable>*(int)> getPartitionerFunction);
+    void init() override;
+    const shared_ptr<CheckpointBarrierHandler>& GetCheckpointBarrierHandler() const;
 
-    private:
-        std::shared_ptr<CheckpointBarrierHandler> checkpointBarrierHandler;
-    };
-}
+protected:
+    void createInputProcessor(
+        std::vector<std::shared_ptr<IndexedInputGate>> inputGates1,
+        std::vector<std::shared_ptr<IndexedInputGate>> inputGates2,
+        const json& inputTypes,
+        std::function<StreamPartitioner<IOReadableWritable>*(int)> getPartitionerFunction);
 
+private:
+    std::shared_ptr<CheckpointBarrierHandler> checkpointBarrierHandler;
+};
+} // namespace omnistream
 
 #endif // OMNISTREAM_OMNITWOINPUTSTREAMTASK_H

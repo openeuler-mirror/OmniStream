@@ -21,8 +21,8 @@ public:
 
 public:
     void capacityExpansion();
-private:
 
+private:
     explicit LongObjectPool(size_t poolSize);
     ~LongObjectPool();
 

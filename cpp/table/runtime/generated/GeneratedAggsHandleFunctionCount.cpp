@@ -10,9 +10,10 @@
  */
 #include "GeneratedAggsHandleFunctionCount.h"
 
-bool GeneratedAggsHandleFunctionCount::equaliser(BinaryRowData *r1, BinaryRowData *r2)
+bool GeneratedAggsHandleFunctionCount::equaliser(BinaryRowData* r1, BinaryRowData* r2)
 {
-    return !r1->isNullAt(valueIndex) && !r2->isNullAt(valueIndex) && *r1->getLong(valueIndex) == *r2->getLong(valueIndex);
+    return !r1->isNullAt(valueIndex) && !r2->isNullAt(valueIndex) &&
+           *r1->getLong(valueIndex) == *r2->getLong(valueIndex);
 }
 
 void GeneratedAggsHandleFunctionCount::open(StateDataViewStore* store)
@@ -20,8 +21,7 @@ void GeneratedAggsHandleFunctionCount::open(StateDataViewStore* store)
     this->store = store;
 }
 
-
-void GeneratedAggsHandleFunctionCount::accumulate(RowData *accInput)
+void GeneratedAggsHandleFunctionCount::accumulate(RowData* accInput)
 {
     bool isFieldNull = accInput->isNullAt(aggIdx);
     if (!isFieldNull) {
@@ -32,10 +32,10 @@ void GeneratedAggsHandleFunctionCount::accumulate(RowData *accInput)
             valueIsNull = false;
         }
     }
-    LOG("Accumulate. Count:  " << aggCount << " countIsNull: " << valueIsNull)
+    LOG("Accumulate. Count:  " << aggCount << " countIsNull: " << valueIsNull);
 }
 
-void GeneratedAggsHandleFunctionCount::accumulate(omnistream::VectorBatch *input, const std::vector<int> &indices)
+void GeneratedAggsHandleFunctionCount::accumulate(omnistream::VectorBatch* input, const std::vector<int>& indices)
 {
     auto columnData = input->Get(aggIdx);
 
@@ -69,22 +69,19 @@ void GeneratedAggsHandleFunctionCount::merge(RowData* otherAcc)
     throw std::runtime_error("This function does not require merge method, but the merge method is called.");
 }
 
-
 void GeneratedAggsHandleFunctionCount::setAccumulators(RowData* acc)
 {
     valueIsNull = acc->isNullAt(accIndex);
     aggCount = valueIsNull ? -1L : *acc->getLong(accIndex);
-    LOG("Set Acc. Count:  " << aggCount << " countIsNull: " << valueIndex)
+    LOG("Set Acc. Count:  " << aggCount << " countIsNull: " << valueIndex);
 }
-
 
 void GeneratedAggsHandleFunctionCount::resetAccumulators()
 {
     aggCount = (static_cast<long>(0L));
     valueIsNull = false;
-    LOG("Reset Acc. Count:  " << aggCount << " countIsNull: " << valueIsNull)
+    LOG("Reset Acc. Count:  " << aggCount << " countIsNull: " << valueIsNull);
 }
-
 
 void GeneratedAggsHandleFunctionCount::getAccumulators(BinaryRowData* accumulators)
 {
@@ -93,20 +90,18 @@ void GeneratedAggsHandleFunctionCount::getAccumulators(BinaryRowData* accumulato
     } else {
         accumulators->setLong(accIndex, aggCount);
     }
-    LOG("Get acc: " << aggCount)
+    LOG("Get acc: " << aggCount);
 }
-
 
 void GeneratedAggsHandleFunctionCount::createAccumulators(BinaryRowData* accumulators)
 {
-    if (false) {  // This condition is always false, but it's in the original code.
+    if (false) { // This condition is always false, but it's in the original code.
         accumulators->setNullAt(accIndex);
     } else {
         accumulators->setLong(accIndex, 0L);
     }
-    LOG("Create acc")
+    LOG("Create acc");
 }
-
 
 void GeneratedAggsHandleFunctionCount::getValue(BinaryRowData* newAggValue)
 {
@@ -115,6 +110,5 @@ void GeneratedAggsHandleFunctionCount::getValue(BinaryRowData* newAggValue)
     } else {
         newAggValue->setLong(valueIndex, aggCount);
     }
-    LOG("Get value: " << aggCount)
+    LOG("Get value: " << aggCount);
 }
-

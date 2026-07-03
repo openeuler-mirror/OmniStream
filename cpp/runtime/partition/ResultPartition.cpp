@@ -45,7 +45,7 @@ ResultPartition::ResultPartition(
 void ResultPartition::setup()
 {
     if (bufferPool != nullptr) {
-        THROW_RUNTIME_ERROR("Bug in result partition setup logic: Already registered buffer pool.")
+        THROW_RUNTIME_ERROR("Bug in result partition setup logic: Already registered buffer pool.");
     }
 
     LOG_PART("Before get buffer pool");
@@ -53,7 +53,7 @@ void ResultPartition::setup()
     LOG_PART("before register partition");
     this->partitionManager->registerResultPartition(shared_from_this());
 
-    LOG_PART(" after register partition")
+    LOG_PART(" after register partition");
 }
 
 std::string ResultPartition::getOwningTaskName() const
@@ -61,8 +61,8 @@ std::string ResultPartition::getOwningTaskName() const
     return owningTaskName;
 };
 
-    ResultPartitionIDPOD ResultPartition::getPartitionId()
-    {
+ResultPartitionIDPOD ResultPartition::getPartitionId()
+{
     return partitionId;
 }
 
@@ -91,7 +91,9 @@ std::shared_ptr<CompletableFuture> ResultPartition::getAllDataProcessedFuture()
     throw std::runtime_error("UnsupportedOperationException");
 }
 
-void ResultPartition::onSubpartitionAllDataProcessed(int subpartition) {}
+void ResultPartition::onSubpartitionAllDataProcessed(int subpartition)
+{
+}
 
 void ResultPartition::finish()
 {
@@ -111,29 +113,29 @@ void ResultPartition::release()
 
 void ResultPartition::release(std::optional<std::exception_ptr> cause)
 {
-        bool expected = false;
-        if (isReleased_.compare_exchange_strong(expected, true)) {
-            std::cout << owningTaskName << ": Releasing " << toString() << std::endl;
+    bool expected = false;
+    if (isReleased_.compare_exchange_strong(expected, true)) {
+        std::cout << owningTaskName << ": Releasing " << toString() << std::endl;
 
-            if (cause != nullptr) {
-                this->cause = cause;
-            }
-
-            releaseInternal();
+        if (cause != nullptr) {
+            this->cause = cause;
         }
-    }
-    void ResultPartition::closeBufferPool()
-    {
-        if (bufferPool != nullptr) {
-            bufferPool->lazyDestroy();
-        }
-    }
-    void ResultPartition::close()
-    {
-        this->closeBufferPool();
-    }
 
-void ResultPartition::fail(std::optional<std::exception_ptr>  throwable)
+        releaseInternal();
+    }
+}
+void ResultPartition::closeBufferPool()
+{
+    if (bufferPool != nullptr) {
+        bufferPool->lazyDestroy();
+    }
+}
+void ResultPartition::close()
+{
+    this->closeBufferPool();
+}
+
+void ResultPartition::fail(std::optional<std::exception_ptr> throwable)
 {
     if (bufferPool != nullptr) {
         bufferPool->lazyDestroy();
@@ -141,7 +143,7 @@ void ResultPartition::fail(std::optional<std::exception_ptr>  throwable)
     partitionManager->releasePartition(partitionId, throwable);
 }
 
-std::optional<std::exception_ptr>  ResultPartition::getFailureCause()
+std::optional<std::exception_ptr> ResultPartition::getFailureCause()
 {
     return cause;
 }
@@ -150,7 +152,6 @@ int ResultPartition::getNumTargetKeyGroups()
 {
     return numTargetKeyGroups;
 }
-
 
 bool ResultPartition::isReleased()
 {
@@ -164,7 +165,8 @@ std::shared_ptr<CompletableFuture> ResultPartition::GetAvailableFuture()
 
 std::string ResultPartition::toString() const
 {
-    return "ResultPartition " + partitionId.toString() + " [" + std::to_string(partitionType) + ", " + std::to_string(numSubpartitions) + " subpartitions]";
+    return "ResultPartition " + partitionId.toString() + " [" + std::to_string(partitionType) + ", " +
+           std::to_string(numSubpartitions) + " subpartitions]";
 }
 
 std::shared_ptr<ResultPartitionManager> ResultPartition::getPartitionManager()
@@ -180,12 +182,13 @@ void ResultPartition::checkInProduceState() const
 }
 
 void ResultPartition::OnConsumedSubpartition(int subpartitionIndex)
-    {
-        std::cout<<"you are in ResultPartition::OnConsumedSubpartition"<<std::endl;
-        if (isReleased_.load()) {
-            return;
-        }
-    std::cout << toString() << ": Received release notification for subpartition " << subpartitionIndex << "." << std::endl;
+{
+    std::cout << "you are in ResultPartition::OnConsumedSubpartition" << std::endl;
+    if (isReleased_.load()) {
+        return;
+    }
+    std::cout << toString() << ": Received release notification for subpartition " << subpartitionIndex << "."
+              << std::endl;
 }
 
 } // namespace omnistream

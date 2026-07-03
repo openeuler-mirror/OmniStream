@@ -38,21 +38,21 @@
 #include "table/runtime/generated/NamespaceAggsHandleFunction.h"
 #include "table/runtime/keyselector/KeySelector.h"
 
-template<typename K, typename W>
+template <typename K, typename W>
 class WindowOperator : public OneInputStreamOperator, public AbstractStreamOperator<K>, public Triggerable<K, W> {
 public:
-    WindowOperator(nlohmann::json description, Output *output) : AbstractStreamOperator<K>(output)
+    WindowOperator(nlohmann::json description, Output* output) : AbstractStreamOperator<K>(output)
     {
         inputTypes = description["inputTypes"].get<std::vector<std::string>>();
-        for (const auto &typeStr : inputTypes) {
+        for (const auto& typeStr : inputTypes) {
             inputTypeIds_.push_back(LogicalType::flinkTypeToOmniTypeId(typeStr));
         }
         outputTypes = description["outputTypes"].get<std::vector<std::string>>();
-        for (const auto &typeStr : outputTypes) {
+        for (const auto& typeStr : outputTypes) {
             outputTypeIds_.push_back(LogicalType::flinkTypeToOmniTypeId(typeStr));
         }
         windowPropertyTypes = description["windowPropertyTypes"].get<std::vector<std::string>>();
-        for (const auto &typeStr : windowPropertyTypes) {
+        for (const auto& typeStr : windowPropertyTypes) {
             windowPropertyTypeIds_.push_back(LogicalType::flinkTypeToOmniTypeId(typeStr));
         }
         if (windowPropertyTypeIds_.size() != 4) {
@@ -75,8 +75,11 @@ public:
 
         // agg function init
         std::vector<std::string> accTypes = description["aggInfoList"]["AccTypes"].get<std::vector<std::string>>();
-        accTypes.erase(std::remove_if(accTypes.begin(), accTypes.end(),
-            [](const std::string &type) { return type.find("RAW") != std::string::npos; }),
+        accTypes.erase(
+            std::remove_if(
+                accTypes.begin(),
+                accTypes.end(),
+                [](const std::string& type) { return type.find("RAW") != std::string::npos; }),
             accTypes.end());
         accumulatorArity = static_cast<int32_t>(accTypes.size());
 
@@ -90,21 +93,23 @@ public:
 
     void close() override;
 
-    void processBatch(StreamRecord *input) override;
+    void processBatch(StreamRecord* input) override;
 
-    void processElement(StreamRecord *element) override {};
+    void processElement(StreamRecord* element) override {};
 
-    K getCurrentKey() override {
+    K getCurrentKey() override
+    {
         return this->stateHandler->getCurrentKey();
     }
 
-    void onEventTime(TimerHeapInternalTimer<K, W> *timer) override;
+    void onEventTime(TimerHeapInternalTimer<K, W>* timer) override;
 
-    void onProcessingTime(TimerHeapInternalTimer<K, W> *timer) override;
+    void onProcessingTime(TimerHeapInternalTimer<K, W>* timer) override;
 
-    void processWatermarkStatus(WatermarkStatus *watermarkStatus) override;
+    void processWatermarkStatus(WatermarkStatus* watermarkStatus) override;
 
-    void ProcessWatermark(Watermark *watermark) override {
+    void ProcessWatermark(Watermark* watermark) override
+    {
         if (AbstractStreamOperator<K>::timeServiceManager != nullptr) {
             AbstractStreamOperator<K>::timeServiceManager->advanceWatermark(watermark);
         }
@@ -113,61 +118,74 @@ public:
 
     class TriggerContext : public OnMergeContext<W> {
     public:
-        explicit TriggerContext(WindowOperator *outer): outer(outer)
+        explicit TriggerContext(WindowOperator* outer) : outer(outer)
         {
             trigger = outer->trigger.get();
             internalTimerService = outer->internalTimerService;
         }
 
-        void open() {
+        void open()
+        {
             trigger->open(this);
         }
 
-        void clear() {
+        void clear()
+        {
             trigger->clear(window);
         }
 
-        bool onElement(RowData *row, int64_t timestamp) {
+        bool onElement(RowData* row, int64_t timestamp)
+        {
             return trigger->onElement(row, timestamp, window);
         }
 
-        bool onProcessingTime(int64_t time) {
+        bool onProcessingTime(int64_t time)
+        {
             return trigger->onProcessingTime(time, window);
         }
 
-        bool onEventTime(int64_t time) {
+        bool onEventTime(int64_t time)
+        {
             return trigger->onEventTime(time, window);
         }
 
-        void onMerge() {
+        void onMerge()
+        {
             trigger->onMerge(window, this);
         }
 
-        int64_t getCurrentProcessingTime() {
+        int64_t getCurrentProcessingTime()
+        {
             return internalTimerService->currentProcessingTime();
         }
 
-        int64_t getCurrentWatermark() {
+        int64_t getCurrentWatermark()
+        {
             return internalTimerService->currentWatermark();
         }
 
-        void registerProcessingTimeTimer(int64_t time) {
+        void registerProcessingTimeTimer(int64_t time)
+        {
             internalTimerService->registerProcessingTimeTimer(window, time);
         }
 
-        void registerEventTimeTimer(int64_t time) override {
+        void registerEventTimeTimer(int64_t time) override
+        {
             internalTimerService->registerEventTimeTimer(window, time);
         }
 
-        void deleteProcessingTimeTimer(int64_t time) {
+        void deleteProcessingTimeTimer(int64_t time)
+        {
             internalTimerService->deleteProcessingTimeTimer(window, time);
         }
 
-        void deleteEventTimeTimer(int64_t time) {
+        void deleteEventTimeTimer(int64_t time)
+        {
             internalTimerService->deleteEventTimeTimer(window, time);
         }
 
-        const std::string &getShiftTimeZone() const override {
+        const std::string& getShiftTimeZone() const override
+        {
             return outer->shiftTimeZone;
         }
 
@@ -182,9 +200,12 @@ public:
     public:
         WindowContext() = default;
 
-        explicit WindowContext(WindowOperator *outerOperator) : outerOperator(outerOperator) {}
+        explicit WindowContext(WindowOperator* outerOperator) : outerOperator(outerOperator)
+        {
+        }
 
-        MapState<W, W>* getPartitionedState(StateDescriptor* stateDescriptor) {
+        MapState<W, W>* getPartitionedState(StateDescriptor* stateDescriptor)
+        {
             if (!stateDescriptor) {
                 throw std::invalid_argument("The state properties must not be null");
             }
@@ -193,61 +214,70 @@ public:
             if (outerOperator->backendType_ == omnistream::StateType::ROCKSDB) {
                 using S = RocksdbMapState<K, VoidNamespace, W, W>;
                 S* state = keyedStateBackend->template getPartitionedState<VoidNamespace, S, emhash7::HashMap<W, W>*>(
-                        VoidNamespace(), new VoidNamespaceSerializer(), stateDescriptor);
+                    VoidNamespace(), new VoidNamespaceSerializer(), stateDescriptor);
                 return state;
             }
 
             if (outerOperator->backendType_ == omnistream::StateType::HEAP) {
                 using S = HeapMapState<K, VoidNamespace, W, W>;
                 S* state = keyedStateBackend->template getPartitionedState<VoidNamespace, S, emhash7::HashMap<W, W>*>(
-                        VoidNamespace(), new VoidNamespaceSerializer(), stateDescriptor);
+                    VoidNamespace(), new VoidNamespaceSerializer(), stateDescriptor);
                 return state;
             }
 
             THROW_LOGIC_EXCEPTION("The keyedStateBackend is not supported");
         }
 
-        K currentKey() override {
+        K currentKey() override
+        {
             return outerOperator->getCurrentKey();
         }
 
-        int64_t currentProcessingTime() override {
+        int64_t currentProcessingTime() override
+        {
             return outerOperator->internalTimerService->currentProcessingTime();
         }
 
-        int64_t currentWatermark() override {
+        int64_t currentWatermark() override
+        {
             return outerOperator->internalTimerService->currentWatermark();
         }
 
-        RowData *getWindowAccumulators(const W& window) override {
+        RowData* getWindowAccumulators(const W& window) override
+        {
             outerOperator->windowState->setCurrentNamespace(window);
             return outerOperator->windowState->value();
         }
 
-        void setWindowAccumulators(const W& window, RowData *acc) override {
+        void setWindowAccumulators(const W& window, RowData* acc) override
+        {
             outerOperator->windowState->setCurrentNamespace(window);
-            outerOperator->windowState->update(reinterpret_cast<BinaryRowData *>(acc));
+            outerOperator->windowState->update(reinterpret_cast<BinaryRowData*>(acc));
         }
 
-        void clearWindowState(const W& window) override {
+        void clearWindowState(const W& window) override
+        {
             outerOperator->windowState->setCurrentNamespace(window);
             outerOperator->windowState->clear();
             outerOperator->windowAggregator->cleanup(window);
         }
 
-        void clearPreviousState(const W& window) override {
+        void clearPreviousState(const W& window) override
+        {
             if (outerOperator->previousState_ != nullptr) {
                 outerOperator->previousState_->setCurrentNamespace(window);
                 outerOperator->previousState_->clear();
             }
         }
 
-        void clearTrigger(const W& window) override {
+        void clearTrigger(const W& window) override
+        {
             outerOperator->triggerContext_->window = window;
             outerOperator->triggerContext_->clear();
         }
 
-        void deleteCleanupTimer(const W& window) override {
+        void deleteCleanupTimer(const W& window) override
+        {
             int64_t cleanupTime = outerOperator->cleanupTime(window);
             if (cleanupTime != INT64_MAX) {
                 if (outerOperator->windowAssigner->isEventTime()) {
@@ -263,14 +293,15 @@ public:
             return outerOperator->shiftTimeZone;
         }
 
-        void onMerge(const W& newWindow, std::vector<W>& mergedWindows) override {
+        void onMerge(const W& newWindow, std::vector<W>& mergedWindows) override
+        {
             outerOperator->triggerContext_->window = newWindow;
             outerOperator->triggerContext_->mergedWindows = &mergedWindows;
             outerOperator->triggerContext_->onMerge();
         }
 
     private:
-        WindowOperator *outerOperator;
+        WindowOperator* outerOperator;
     };
 
     std::unique_ptr<Trigger<W>> trigger;
@@ -278,14 +309,15 @@ public:
     int32_t accumulatorArity = 0;
     InternalValueState<K, W, RowData*>* windowState{};
     std::unique_ptr<InternalWindowProcessFunction<K, W>> windowFunction;
-    InternalTimerService<W> *internalTimerService;
+    InternalTimerService<W>* internalTimerService;
 
 protected:
-    virtual void emitWindowResult(const W &window) = 0;
+    virtual void emitWindowResult(const W& window) = 0;
 
-    bool shouldDeleteWindowStateValue() const {
-        return backendType_ == omnistream::StateType::ROCKSDB
-            && !reinterpret_cast<RocksdbValueState<K, W, RowData*>*>(windowState)->isFalconEnabled();
+    bool shouldDeleteWindowStateValue() const
+    {
+        return backendType_ == omnistream::StateType::ROCKSDB &&
+               !reinterpret_cast<RocksdbValueState<K, W, RowData*>*>(windowState)->isFalconEnabled();
     }
 
     TimestampedCollector* collector{};
@@ -313,15 +345,17 @@ private:
 
     void registerCleanupTimer(const W& window);
 
-    void getKeyedTypes() {
-        for (int32_t index: keyedIndex) {
+    void getKeyedTypes()
+    {
+        for (int32_t index : keyedIndex) {
             if (index >= 0 && static_cast<size_t>(index) < inputTypes.size()) {
                 keyedTypes.push_back(inputTypes[index]);
             }
         }
     }
 
-    std::unique_ptr<WindowAssigner<W>> getWindowAssigner(const nlohmann::json& description) {
+    std::unique_ptr<WindowAssigner<W>> getWindowAssigner(const nlohmann::json& description)
+    {
         const std::string windowType = description["windowType"].get<std::string>();
         int64_t windowSize = description["windowSize"].get<int64_t>();
         bool isEventTime = description.contains("timeType") && description["timeType"].get<std::string>() == "event";

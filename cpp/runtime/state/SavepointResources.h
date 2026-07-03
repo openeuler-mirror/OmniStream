@@ -16,13 +16,14 @@ class SavepointResources {
 private:
     std::shared_ptr<FullSnapshotResources> snapshotResources_;
     SnapshotExecutionType preferredSnapshotExecutionType_;
+
 public:
     SavepointResources(
         const std::shared_ptr<FullSnapshotResources>& snapshotResources,
         SnapshotExecutionType preferredSnapshotExecutionType)
-        :snapshotResources_(snapshotResources), preferredSnapshotExecutionType_(preferredSnapshotExecutionType)
+        : snapshotResources_(snapshotResources),
+          preferredSnapshotExecutionType_(preferredSnapshotExecutionType)
     {
-
     }
     const std::shared_ptr<FullSnapshotResources>& getSnapshotResources() const
     {

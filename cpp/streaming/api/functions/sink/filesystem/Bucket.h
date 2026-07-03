@@ -22,14 +22,14 @@
 template <typename IN, typename BucketID>
 class Bucket {
 public:
-    static Bucket<IN, BucketID> *getNew(
+    static Bucket<IN, BucketID>* getNew(
         int subtaskIndex,
         BucketID bucketId,
         std::string bucketPath,
         long initialPartCounter,
-        BucketWriter<IN, BucketID> *bucketWriter,
-        RollingPolicy<IN, BucketID> *rollingPolicy,
-        OutputFileConfig *outputFileConfig,
+        BucketWriter<IN, BucketID>* bucketWriter,
+        RollingPolicy<IN, BucketID>* rollingPolicy,
+        OutputFileConfig* outputFileConfig,
         std::vector<int> nonPartitionIndexes,
         std::vector<std::string> inputTypes)
     {
@@ -45,15 +45,16 @@ public:
             inputTypes);
     }
 
-    Bucket(int subtaskIndex,
-           BucketID bucketId,
-           std::string bucketPath,
-           long initialPartCounter,
-           BucketWriter<IN, BucketID> *bucketWriter,
-           RollingPolicy<IN, BucketID> *rollingPolicy,
-           OutputFileConfig *outputFileConfig,
-           std::vector<int> nonPartitionIndexes,
-           std::vector<std::string> inputTypes)
+    Bucket(
+        int subtaskIndex,
+        BucketID bucketId,
+        std::string bucketPath,
+        long initialPartCounter,
+        BucketWriter<IN, BucketID>* bucketWriter,
+        RollingPolicy<IN, BucketID>* rollingPolicy,
+        OutputFileConfig* outputFileConfig,
+        std::vector<int> nonPartitionIndexes,
+        std::vector<std::string> inputTypes)
         : subtaskIndex(subtaskIndex),
           bucketId(bucketId),
           bucketPath(bucketPath),
@@ -63,7 +64,9 @@ public:
           outputFileConfig(outputFileConfig),
           inProgressPart(nullptr),
           nonPartitionIndexes(nonPartitionIndexes),
-          inputTypes(inputTypes) {}
+          inputTypes(inputTypes)
+    {
+    }
 
     ~Bucket()
     {
@@ -103,11 +106,12 @@ public:
     }
 
 private:
-    FileWriter<IN, BucketID> *rollPartFile(long currentTime)
+    FileWriter<IN, BucketID>* rollPartFile(long currentTime)
     {
         closePartFile();
         std::string partFilePath = assembleNewPartPath();
-        return bucketWriter->openNewInProgressFile(bucketId, partFilePath, currentTime, nonPartitionIndexes, inputTypes);
+        return bucketWriter->openNewInProgressFile(
+            bucketId, partFilePath, currentTime, nonPartitionIndexes, inputTypes);
     }
 
     void closePartFile()
@@ -121,21 +125,18 @@ private:
 
     std::string assembleNewPartPath()
     {
-        return bucketPath +
-               outputFileConfig->getPartPrefix() + "-" +
-               std::to_string(subtaskIndex) + "-" +
-               std::to_string(partCounter++) +
-               outputFileConfig->getPartSuffix();
+        return bucketPath + outputFileConfig->getPartPrefix() + "-" + std::to_string(subtaskIndex) + "-" +
+               std::to_string(partCounter++) + outputFileConfig->getPartSuffix();
     }
 
     int subtaskIndex;
     BucketID bucketId;
     std::string bucketPath;
     long partCounter;
-    BucketWriter<IN, BucketID> *bucketWriter;
-    RollingPolicy<IN, BucketID> *rollingPolicy;
-    OutputFileConfig *outputFileConfig;
-    FileWriter<IN, BucketID> *inProgressPart;
+    BucketWriter<IN, BucketID>* bucketWriter;
+    RollingPolicy<IN, BucketID>* rollingPolicy;
+    OutputFileConfig* outputFileConfig;
+    FileWriter<IN, BucketID>* inProgressPart;
     std::vector<int> nonPartitionIndexes;
     std::vector<std::string> inputTypes;
     std::mutex inProgressPartMutex;

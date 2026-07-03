@@ -20,28 +20,37 @@
 #include "core/api/common/state/MapState.h"
 #include "../runtime/state/rocksdb/RocksdbMapState.h"
 
-
-
 template <typename N, typename EK, typename EV>
 class StateMapView : public MapView<EK, EV>, public StateDataView<N> {
 public:
     // get a view of cowMap, i.e. copy it
-    emhash7::HashMap<EK, EV> *getMap() override
+    emhash7::HashMap<EK, EV>* getMap() override
     {
         auto map = MapView<EK, EV>::getMap();
-        emhash7::HashMap<EK, EV> *mapView = new emhash7::HashMap<EK, EV>(*map);
+        emhash7::HashMap<EK, EV>* mapView = new emhash7::HashMap<EK, EV>(*map);
         return mapView;
     }
 
-    void setMap() {}
+    void setMap()
+    {
+    }
 };
 
 template <typename N, typename EK, typename EV>
 class StateMapViewWithKeysNullable : public StateMapView<N, EK, EV> {
 public:
-    std::optional<EV> get(const std::optional<EK>& key) override { return key == std::nullopt ? getNullState()->value() : getMapState()->get(*key); };
-    void put(const std::optional<EK>& key, const EV& value) override { key == std::nullopt ? getNullState()->update(value) : getMapState()->put(*key, value); };
-    void remove(const std::optional<EK>& key) { key == std::nullopt ? getNullState()->clear() : getMapState()->remove(*key); };
+    std::optional<EV> get(const std::optional<EK>& key) override
+    {
+        return key == std::nullopt ? getNullState()->value() : getMapState()->get(*key);
+    };
+    void put(const std::optional<EK>& key, const EV& value) override
+    {
+        key == std::nullopt ? getNullState()->update(value) : getMapState()->put(*key, value);
+    };
+    void remove(const std::optional<EK>& key)
+    {
+        key == std::nullopt ? getNullState()->clear() : getMapState()->remove(*key);
+    };
     bool contains(const std::optional<EK>& key)
     {
         if (key == std::nullopt) {
@@ -49,25 +58,25 @@ public:
         }
         return getMapState()->contains(*key);
     };
-    emhash7::HashMap<EK, EV> *entries()
+    emhash7::HashMap<EK, EV>* entries()
     {
         return getMapState()->entries();
     };
-    void putByBatch(std::vector<std::shared_ptr<std::tuple<RowData*,EK,std::shared_ptr<std::string>>>> & batchData)
+    void putByBatch(std::vector<std::shared_ptr<std::tuple<RowData*, EK, std::shared_ptr<std::string>>>>& batchData)
     {
-        auto rocksDBMap = dynamic_cast<RocksdbMapState<RowData*,N,EK,EV> *>(getMapState());
+        auto rocksDBMap = dynamic_cast<RocksdbMapState<RowData*, N, EK, EV>*>(getMapState());
         if (rocksDBMap) {
             rocksDBMap->putByBatch(batchData);
         }
     }
 
-    void putByBatch(std::vector<std::shared_ptr<std::tuple<RowData*, EK, EV>>> &batchData)
+    void putByBatch(std::vector<std::shared_ptr<std::tuple<RowData*, EK, EV>>>& batchData)
     {
         if (batchData.empty()) {
             return;
         }
 
-        auto rocksDBMap = dynamic_cast<RocksdbMapState<RowData*, N, EK, EV> *>(getMapState());
+        auto rocksDBMap = dynamic_cast<RocksdbMapState<RowData*, N, EK, EV>*>(getMapState());
         if (rocksDBMap) {
             rocksDBMap->putByBatch(batchData);
             return;
@@ -78,13 +87,13 @@ public:
         }
     }
 
-    void putByBatch(std::vector<std::tuple<RowData*, EK, EV>> &batchData)
+    void putByBatch(std::vector<std::tuple<RowData*, EK, EV>>& batchData)
     {
         if (batchData.empty()) {
             return;
         }
 
-        auto rocksDBMap = dynamic_cast<RocksdbMapState<RowData*, N, EK, EV> *>(getMapState());
+        auto rocksDBMap = dynamic_cast<RocksdbMapState<RowData*, N, EK, EV>*>(getMapState());
         if (rocksDBMap) {
             rocksDBMap->putByBatch(batchData);
             return;
@@ -95,13 +104,13 @@ public:
         }
     }
 
-    void putByBatch(std::unordered_map<RowData*, std::vector<std::tuple<EK, EV>>> &batchData)
+    void putByBatch(std::unordered_map<RowData*, std::vector<std::tuple<EK, EV>>>& batchData)
     {
         if (batchData.empty()) {
             return;
         }
 
-        auto rocksDBMap = dynamic_cast<RocksdbMapState<RowData*, N, EK, EV> *>(getMapState());
+        auto rocksDBMap = dynamic_cast<RocksdbMapState<RowData*, N, EK, EV>*>(getMapState());
         if (rocksDBMap) {
             rocksDBMap->putByBatch(batchData);
             return;
@@ -116,7 +125,7 @@ public:
             return;
         }
 
-        auto rocksDBMap = dynamic_cast<RocksdbMapState<RowData*, N, EK, EV> *>(getMapState());
+        auto rocksDBMap = dynamic_cast<RocksdbMapState<RowData*, N, EK, EV>*>(getMapState());
         if (rocksDBMap) {
             rocksDBMap->putByBatch(key, batchData);
             return;
@@ -129,7 +138,7 @@ public:
 
     std::shared_ptr<std::string> getRawBytes(EK& ek)
     {
-        auto rocksDBMap = dynamic_cast<RocksdbMapState<RowData*,N,EK,EV> *>(getMapState());
+        auto rocksDBMap = dynamic_cast<RocksdbMapState<RowData*, N, EK, EV>*>(getMapState());
         if (rocksDBMap) {
             return rocksDBMap->getRawBytes(ek);
         }
@@ -140,27 +149,37 @@ public:
     {
         getMapState()->clearEntriesCache();
     }
+
 protected:
-    virtual ValueState<EV> *getNullState() = 0;
-    virtual MapState<EK, EV> *getMapState() = 0;
+    virtual ValueState<EV>* getNullState() = 0;
+    virtual MapState<EK, EV>* getMapState() = 0;
 };
 template <typename N, typename EK, typename EV>
 class KeyedStateMapViewWithKeysNullable : public StateMapViewWithKeysNullable<N, EK, EV> {
 public:
-    KeyedStateMapViewWithKeysNullable(MapState<EK, EV> *mapState, ValueState<EV> *nullState) : mapState(mapState), nullState(nullState) {};
-    void setCurrentNamespace(N nameSpace) override { };
+    KeyedStateMapViewWithKeysNullable(MapState<EK, EV>* mapState, ValueState<EV>* nullState)
+        : mapState(mapState),
+          nullState(nullState) {};
+    void setCurrentNamespace(N nameSpace) override {};
     void clear() override
     {
         getMapState()->clear();
         getNullState()->clear();
     };
+
 protected:
-    MapState<EK, EV> *getMapState() override { return mapState; };
-    ValueState<EV> *getNullState() override { return nullState; };
+    MapState<EK, EV>* getMapState() override
+    {
+        return mapState;
+    };
+    ValueState<EV>* getNullState() override
+    {
+        return nullState;
+    };
 
 private:
-    MapState<EK, EV> *mapState;
-    ValueState<EV> *nullState;
+    MapState<EK, EV>* mapState;
+    ValueState<EV>* nullState;
 };
 template <typename N, typename EK, typename EV>
 class StateMapViewWithKeysNotNull : public StateMapView<N, EK, EV> {
@@ -169,21 +188,33 @@ public:
     {
         return getMapState()->get(*key);
     };
-    void put(const std::optional<EK>& key, const EV& value) override { getMapState()->put(*key, value); };
-    void remove(const std::optional<EK>& key) { getMapState()->remove(*key); };
-    bool contains(const std::optional<EK>& key) { return getMapState()->contains(*key); };
-    void clear() override { getMapState()->clear(); };
+    void put(const std::optional<EK>& key, const EV& value) override
+    {
+        getMapState()->put(*key, value);
+    };
+    void remove(const std::optional<EK>& key)
+    {
+        getMapState()->remove(*key);
+    };
+    bool contains(const std::optional<EK>& key)
+    {
+        return getMapState()->contains(*key);
+    };
+    void clear() override
+    {
+        getMapState()->clear();
+    };
 
 protected:
-    virtual MapState<EK, EV> *getMapState() = 0;
+    virtual MapState<EK, EV>* getMapState() = 0;
+
 private:
 };
 
 template <typename N, typename EK, typename EV>
 class KeyedStateMapViewWithKeysNotNull : public StateMapViewWithKeysNotNull<N, EK, EV> {
 public:
-    explicit KeyedStateMapViewWithKeysNotNull(MapState<EK, EV> *mapState) : mapState(mapState) {
-    };
+    explicit KeyedStateMapViewWithKeysNotNull(MapState<EK, EV>* mapState) : mapState(mapState) {};
 
     void setCurrentNamespace(N nameSpace) override
     {
@@ -191,9 +222,13 @@ public:
     }
 
 protected:
-    MapState<EK, EV> *getMapState() override { return mapState; };
+    MapState<EK, EV>* getMapState() override
+    {
+        return mapState;
+    };
+
 private:
-    MapState<EK, EV> *mapState;
+    MapState<EK, EV>* mapState;
 };
 
 #endif // FLINK_TNEL_STATEMAPVIEW_H

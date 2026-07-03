@@ -16,7 +16,7 @@
 
 class DataInputView : public SysDataInput {
 public:
-    virtual void *GetBuffer() = 0;
+    virtual void* GetBuffer() = 0;
     ~DataInputView() override = default;
 };
 #endif

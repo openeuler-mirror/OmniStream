@@ -12,7 +12,6 @@
 #ifndef OMNISTREAM_SCHEDULEDFUTURETASK_H
 #define OMNISTREAM_SCHEDULEDFUTURETASK_H
 
-
 #include "core/utils/threads/CompletableFuture.h"
 #include <atomic>
 
@@ -35,16 +34,17 @@ public:
 
     bool IsCancelled() const;
 
-    bool operator<(const ScheduledFutureTask& other) const {
+    bool operator<(const ScheduledFutureTask& other) const
+    {
         // smaller time has higher priority
         return time > other.time;
     }
+
 private:
     long time;
     const long period;
     omnistream::Runnable* outerTask;
     std::atomic<bool> stop = false;
 };
-
 
 #endif // OMNISTREAM_SCHEDULEDFUTURETASK_H

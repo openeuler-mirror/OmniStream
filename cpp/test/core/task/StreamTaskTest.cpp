@@ -13,26 +13,33 @@ using namespace testing;
 using namespace omnistream;
 using json = nlohmann::json;
 
-static omnistream::datastream::StreamTask *createTaskTest() {
+static omnistream::datastream::StreamTask* createTaskTest()
+{
     auto env = make_shared<omnistream::RuntimeEnvironmentV2>();
     // Create JSON for testing
-    std::string ntdd = "{\"partition\":\n"
-                       "                {\"partitionName\":\"forward\",\"channelNumber\":1},\n"
-                       "            \"operators\":[\n"
-                       "                {\"output\":{\"kind\":\"basic\",\"type\":\"Long\"},\n"
-                       "                \"inputs\":[{\"kind\":\"basic\",\"type\":\"Long\"}],\n"
-                       "                \"name\":\"Map\",\n"
-                       "                \"description\":{\"inputTypes\":[{\"filed\":\"Long\",\"typeName\":\"org.apache.flink.api.common.typeutils.base.LongSerializer\"}],\"key_so\":\"\",\"udf_so\":\"/tmp/libMockMapFunction.so\",\n"
-                       "                    \"index\":2,\n"
-                       "                    \"outputTypes\":{\"filed\":\"Long\",\"typeName\":\"org.apache.flink.api.common.typeutils.base.LongSerializer\"},\n"
-                       "                    \"originDescription\":\"Map\"},\n"
-                       "                \"id\":\"org.apache.flink.streaming.api.operators.StreamMap\"}],\n"
-                       "            \"type\":\"DataStream\"}";
+    std::string ntdd =
+        "{\"partition\":\n"
+        "                {\"partitionName\":\"forward\",\"channelNumber\":1},\n"
+        "            \"operators\":[\n"
+        "                {\"output\":{\"kind\":\"basic\",\"type\":\"Long\"},\n"
+        "                \"inputs\":[{\"kind\":\"basic\",\"type\":\"Long\"}],\n"
+        "                \"name\":\"Map\",\n"
+        "                "
+        "\"description\":{\"inputTypes\":[{\"filed\":\"Long\",\"typeName\":\"org.apache.flink.api.common.typeutils."
+        "base.LongSerializer\"}],\"key_so\":\"\",\"udf_so\":\"/tmp/libMockMapFunction.so\",\n"
+        "                    \"index\":2,\n"
+        "                    "
+        "\"outputTypes\":{\"filed\":\"Long\",\"typeName\":\"org.apache.flink.api.common.typeutils.base."
+        "LongSerializer\"},\n"
+        "                    \"originDescription\":\"Map\"},\n"
+        "                \"id\":\"org.apache.flink.streaming.api.operators.StreamMap\"}],\n"
+        "            \"type\":\"DataStream\"}";
 
     omnistream::StreamConfigPOD streamConfigPod;
     omnistream::OperatorPOD operatorPod;
-    std::string  id = "org.apache.flink.streaming.api.operators.StreamMap";
-    std::string description = R"({"udf_so":"/tmp/libMockMapFunction.so","udf_obj":"{}","stateKeyTypes":{"serializerName":"org.apache.flink.api.common.typeutils.base.LongSerializer"},"jobType":2})";
+    std::string id = "org.apache.flink.streaming.api.operators.StreamMap";
+    std::string description =
+        R"({"udf_so":"/tmp/libMockMapFunction.so","udf_obj":"{}","stateKeyTypes":{"serializerName":"org.apache.flink.api.common.typeutils.base.LongSerializer"},"jobType":2})";
     operatorPod.setDescription(description);
     operatorPod.setId(id);
     operatorPod.setJobType(Type_o::STREAM);
@@ -47,19 +54,17 @@ static omnistream::datastream::StreamTask *createTaskTest() {
 
     env->setTaskConfiguration(taskInformationPOD);
     OutputBufferStatus outputBufferStatus;
-    outputBufferStatus.outputBuffer_ = reinterpret_cast<uintptr_t>(reinterpret_cast<uint8_t *>(malloc(1024)));
+    outputBufferStatus.outputBuffer_ = reinterpret_cast<uintptr_t>(reinterpret_cast<uint8_t*>(malloc(1024)));
     outputBufferStatus.capacity_ = 1024;
 
-
-    omnistream::datastream::StreamTask *streamTask = new omnistream::datastream::StreamTask(json::parse(ntdd), &outputBufferStatus,
-                                                                                            env);
+    omnistream::datastream::StreamTask* streamTask =
+        new omnistream::datastream::StreamTask(json::parse(ntdd), &outputBufferStatus, env);
     return streamTask;
 }
 
-
-TEST(StreamTaskTest, DISABLED_ExtractTaskPartitionerConfigValid) {
-
-    omnistream::datastream::StreamTask *streamTask = createTaskTest();
+TEST(StreamTaskTest, DISABLED_ExtractTaskPartitionerConfigValid)
+{
+    omnistream::datastream::StreamTask* streamTask = createTaskTest();
     json ntdd = R"(
     {
         "partition": {
@@ -74,8 +79,9 @@ TEST(StreamTaskTest, DISABLED_ExtractTaskPartitionerConfigValid) {
     delete streamTask;
 }
 
-TEST(StreamTaskTest, DISABLED_ExtractTaskPartitionerConfigInvalid) {
-    omnistream::datastream::StreamTask *streamTask = createTaskTest();
+TEST(StreamTaskTest, DISABLED_ExtractTaskPartitionerConfigInvalid)
+{
+    omnistream::datastream::StreamTask* streamTask = createTaskTest();
     json ntdd = R"({})"_json;
 
     omnistream::datastream::TaskPartitionerConfig config = streamTask->extractTaskPartitionerConfig(ntdd);
@@ -84,37 +90,41 @@ TEST(StreamTaskTest, DISABLED_ExtractTaskPartitionerConfigInvalid) {
     delete streamTask;
 }
 
-TEST(StreamTaskTest, DISABLED_CreatePartitionerForward) {
-    omnistream::datastream::StreamTask *streamTask = createTaskTest();
+TEST(StreamTaskTest, DISABLED_CreatePartitionerForward)
+{
+    omnistream::datastream::StreamTask* streamTask = createTaskTest();
     streamTask->setTaskPartitionerConfig(omnistream::datastream::TaskPartitionerConfig("forward", 1, nullptr));
-    omnistream::datastream::StreamPartitioner<IOReadableWritable> *partitioner = streamTask->createPartitioner();
+    omnistream::datastream::StreamPartitioner<IOReadableWritable>* partitioner = streamTask->createPartitioner();
     EXPECT_NE(partitioner, nullptr);
     delete partitioner;
     delete streamTask;
 }
 
-TEST(StreamTaskTest, DISABLED_CreatePartitionerResacale) {
-    omnistream::datastream::StreamTask *streamTask = createTaskTest();
+TEST(StreamTaskTest, DISABLED_CreatePartitionerResacale)
+{
+    omnistream::datastream::StreamTask* streamTask = createTaskTest();
     streamTask->setTaskPartitionerConfig(omnistream::datastream::TaskPartitionerConfig("rescale", 1, nullptr));
-    omnistream::datastream::StreamPartitioner<IOReadableWritable> *partitioner = streamTask->createPartitioner();
+    omnistream::datastream::StreamPartitioner<IOReadableWritable>* partitioner = streamTask->createPartitioner();
     EXPECT_NE(partitioner, nullptr);
     delete partitioner;
     delete streamTask;
 }
 
-TEST(StreamTaskTest, DISABLED_CreatePartitionerRebalance) {
-    omnistream::datastream::StreamTask *streamTask = createTaskTest();
+TEST(StreamTaskTest, DISABLED_CreatePartitionerRebalance)
+{
+    omnistream::datastream::StreamTask* streamTask = createTaskTest();
     streamTask->setTaskPartitionerConfig(omnistream::datastream::TaskPartitionerConfig("rebalance", 1, nullptr));
-    omnistream::datastream::StreamPartitioner<IOReadableWritable> *partitioner = streamTask->createPartitioner();
+    omnistream::datastream::StreamPartitioner<IOReadableWritable>* partitioner = streamTask->createPartitioner();
     EXPECT_NE(partitioner, nullptr);
     delete partitioner;
     delete streamTask;
 }
 
-TEST(StreamTaskTest, DISABLED_CreatePartitionerHash) {
-    omnistream::datastream::StreamTask *streamTask = createTaskTest();
+TEST(StreamTaskTest, DISABLED_CreatePartitionerHash)
+{
+    omnistream::datastream::StreamTask* streamTask = createTaskTest();
     streamTask->setTaskPartitionerConfig(omnistream::datastream::TaskPartitionerConfig("hash", 1, nullptr));
-    omnistream::datastream::StreamPartitioner<IOReadableWritable> *partitioner = streamTask->createPartitioner();
+    omnistream::datastream::StreamPartitioner<IOReadableWritable>* partitioner = streamTask->createPartitioner();
     EXPECT_EQ(partitioner, nullptr);
     delete partitioner;
     delete streamTask;

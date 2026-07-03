@@ -25,7 +25,7 @@ int Object::hashCode()
     return 0;
 }
 
-bool Object::equals(Object *obj)
+bool Object::equals(Object* obj)
 {
     return false;
 }
@@ -35,31 +35,31 @@ std::string Object::toString()
     return std::string();
 }
 
-Object *Object::clone()
+Object* Object::clone()
 {
     return nullptr;
 }
 
-Object::Object(const Object &obj)
+Object::Object(const Object& obj)
 {
     this->refCount = 1;
     this->isClone = obj.isClone;
 }
 
-Object::Object(Object &&obj)
+Object::Object(Object&& obj)
 {
     this->refCount = obj.refCount;
     this->isClone = obj.isClone;
 }
 
-Object &Object::operator=(const Object &obj)
+Object& Object::operator=(const Object& obj)
 {
     this->refCount = obj.refCount;
     this->isClone = obj.isClone;
     return *this;
 }
 
-Object &Object::operator=(Object &&obj)
+Object& Object::operator=(Object&& obj)
 {
     this->refCount = obj.refCount;
     this->isClone = obj.isClone;
@@ -91,15 +91,15 @@ uint64_t Object::getRefCountNumber()
 
 void Object::setValue(const std::string& value)
 {
-    NOT_IMPL_EXCEPTION
+    NOT_IMPL_EXCEPTION;
 }
 
-Class *Object::getClass()
+Class* Object::getClass()
 {
     return nullptr;
 }
 
-Class *Object::getObjectClass()
+Class* Object::getObjectClass()
 {
     return nullptr;
 }

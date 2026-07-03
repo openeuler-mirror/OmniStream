@@ -16,22 +16,26 @@ public:
         std::shared_ptr<ROCKSDB_NAMESPACE::Cache> cache,
         std::shared_ptr<ROCKSDB_NAMESPACE::WriteBufferManager> writeBufferManager,
         int64_t writeBufferManagerCapacity,
-        bool usingPartitionedIndexFilters
-    ) : cache_(cache),
-        writeBufferManager_(writeBufferManager),
-        writeBufferManagerCapacity_(writeBufferManagerCapacity),
-        usingPartitionedIndexFilters_(usingPartitionedIndexFilters) {
+        bool usingPartitionedIndexFilters)
+        : cache_(cache),
+          writeBufferManager_(writeBufferManager),
+          writeBufferManagerCapacity_(writeBufferManagerCapacity),
+          usingPartitionedIndexFilters_(usingPartitionedIndexFilters)
+    {
     }
 
-    std::shared_ptr<ROCKSDB_NAMESPACE::WriteBufferManager> getWriteBufferManager() {
+    std::shared_ptr<ROCKSDB_NAMESPACE::WriteBufferManager> getWriteBufferManager()
+    {
         return writeBufferManager_;
     }
 
-    std::shared_ptr<ROCKSDB_NAMESPACE::Cache> getCache() {
+    std::shared_ptr<ROCKSDB_NAMESPACE::Cache> getCache()
+    {
         return cache_;
     }
 
-    int64_t getWriteBufferManagerCapacity() {
+    int64_t getWriteBufferManagerCapacity()
+    {
         return writeBufferManagerCapacity_;
     }
 

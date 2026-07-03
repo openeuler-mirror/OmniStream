@@ -43,30 +43,31 @@ public:
     }
 
     template <typename K>
-    AbstractKeyedStateBackend<K> *createKeyedStateBackend(
-        omnistream::EnvironmentV2 *env,
+    AbstractKeyedStateBackend<K>* createKeyedStateBackend(
+        omnistream::EnvironmentV2* env,
         std::string operatorIdentifier,
         std::set<std::shared_ptr<KeyedStateHandle>> stateHandles,
-        KeyGroupRange *keyGroupRange,
-        TypeSerializer *keySerializer,
+        KeyGroupRange* keyGroupRange,
+        TypeSerializer* keySerializer,
         int numberOfKeyGroups,
         int alternativeIdx)
     {
         std::string tempDir = env->taskConfiguration().getTmpWorkingDirectory().string();
 
         std::string fileCompatibleIdentifier = operatorIdentifier;
-        std::replace_if(fileCompatibleIdentifier.begin(), fileCompatibleIdentifier.end(),
-                        [](char c) { return !std::isalnum(c) && c != '-'; }, '_');
+        std::replace_if(
+            fileCompatibleIdentifier.begin(),
+            fileCompatibleIdentifier.end(),
+            [](char c) { return !std::isalnum(c) && c != '-'; },
+            '_');
 
         lazyInitializeForJob(env, fileCompatibleIdentifier);
 
-        fs::path instanceBasePath = getNextStoragePath() /
-                                    ("job_" + jobID.AbstractIDPOD::toString() +
-                                     "_op_" + fileCompatibleIdentifier +
-                                     "_uuid_" + UUID::randomUUID().ToString());
+        fs::path instanceBasePath =
+            getNextStoragePath() / ("job_" + jobID.AbstractIDPOD::toString() + "_op_" + fileCompatibleIdentifier +
+                                    "_uuid_" + UUID::randomUUID().ToString());
 
-        auto localRecoveryConfig =
-                env->getTaskStateManager()->createLocalRecoveryConfig();
+        auto localRecoveryConfig = env->getTaskStateManager()->createLocalRecoveryConfig();
 
         auto bridge = env->getTaskStateManager()->getTaskStateManagerBridge();
 
@@ -81,38 +82,33 @@ public:
 
         auto sharedResources = RocksDBMemoryControllerUtils::allocateRocksDBSharedResources(env->taskConfiguration());
 
-        auto resourceContainer = std::make_shared<RocksDBResourceContainer>(
-                sharedResources,
-                instanceBasePath,
-                false);
+        auto resourceContainer = std::make_shared<RocksDBResourceContainer>(sharedResources, instanceBasePath, false);
 
-        std::vector<std::shared_ptr<KeyedStateHandle>> stateVec(
-                stateHandles.begin(),
-                stateHandles.end());
+        std::vector<std::shared_ptr<KeyedStateHandle>> stateVec(stateHandles.begin(), stateHandles.end());
 
-        auto priorityQueueStateType = env->taskConfiguration().getPriorityQueueStateType() == "ROCKSDB" ?
-                RocksDBKeyedStateBackendBuilder<K>::PriorityQueueStateType::ROCKSDB :
-                RocksDBKeyedStateBackendBuilder<K>::PriorityQueueStateType::HEAP;
+        auto priorityQueueStateType = env->taskConfiguration().getPriorityQueueStateType() == "ROCKSDB"
+                                          ? RocksDBKeyedStateBackendBuilder<K>::PriorityQueueStateType::ROCKSDB
+                                          : RocksDBKeyedStateBackendBuilder<K>::PriorityQueueStateType::HEAP;
 
         RocksDBKeyedStateBackendBuilder<K> builder(
-                operatorIdentifier,
-                instanceBasePath,
-                resourceContainer,
-                keySerializer,
-                numberOfKeyGroups,
-                keyGroupRange,
-                localRecoveryConfig,
-                priorityQueueStateType,
-                stateVec,
-                bridge,
-                omniTaskBridge,
-                operatorId,
-                alternativeIdx);
+            operatorIdentifier,
+            instanceBasePath,
+            resourceContainer,
+            keySerializer,
+            numberOfKeyGroups,
+            keyGroupRange,
+            localRecoveryConfig,
+            priorityQueueStateType,
+            stateVec,
+            bridge,
+            omniTaskBridge,
+            operatorId,
+            alternativeIdx);
 
         bool incrementalCheckpointing = enableIncrementalCheckpointing == TernaryBoolean::TRUE ? true : false;
         builder.setEnableIncrementalCheckpointing(incrementalCheckpointing)
-                .setNumberOfTransferringThreads(numberOfTransferThreads)
-                .setWriteBatchSize(writeBatchSize);
+            .setNumberOfTransferringThreads(numberOfTransferThreads)
+            .setWriteBatchSize(writeBatchSize);
 
         return builder.build();
     }
@@ -120,33 +116,30 @@ public:
     OperatorStateBackend* createOperatorStateBackend(
         omnistream::EnvironmentV2* env,
         std::string operatorIdentifier,
-        std::set<std::shared_ptr<OperatorStateHandle>> stateHandles) {
+        std::set<std::shared_ptr<OperatorStateHandle>> stateHandles)
+    {
         std::vector<std::shared_ptr<OperatorStateHandle>> stateVector(stateHandles.begin(), stateHandles.end());
         auto bridge = env->getTaskStateManager()->getTaskStateManagerBridge();
         auto omniTaskBridge = env->getTaskStateManager()->getOmniTaskBridge();
 
         const bool asynchronousSnapshots = true;
         DefaultOperatorStateBackendBuilder builder(
-            asynchronousSnapshots,
-            operatorIdentifier,
-            stateVector,
-            bridge,
-            omniTaskBridge);
+            asynchronousSnapshots, operatorIdentifier, stateVector, bridge, omniTaskBridge);
 
         return builder.build();
     }
 
     explicit EmbeddedRocksDBStateBackend(TaskInformationPOD taskConfiguration)
         : enableIncrementalCheckpointing(TernaryBoolean::UNDEFINED),
-        numberOfTransferThreads(UNDEFINED_NUMBER_OF_TRANSFER_THREADS),
-        nextDirectory(0),
-        isInitialized(false),
-        writeBatchSize(UNDEFINED_WRITE_BATCH_SIZE),
-        overlapFractionThreshold(UNDEFINED_OVERLAP_FRACTION_THRESHOLD)
+          numberOfTransferThreads(UNDEFINED_NUMBER_OF_TRANSFER_THREADS),
+          nextDirectory(0),
+          isInitialized(false),
+          writeBatchSize(UNDEFINED_WRITE_BATCH_SIZE),
+          overlapFractionThreshold(UNDEFINED_OVERLAP_FRACTION_THRESHOLD)
     {
-        enableIncrementalCheckpointing =
-                taskConfiguration.getCheckpointConfig().getIncrementalCheckpoints() ?
-                TernaryBoolean::TRUE : TernaryBoolean::FALSE;
+        enableIncrementalCheckpointing = taskConfiguration.getCheckpointConfig().getIncrementalCheckpoints()
+                                             ? TernaryBoolean::TRUE
+                                             : TernaryBoolean::FALSE;
         configureStoragePaths(taskConfiguration.getRocksdbStorePaths());
         configureOtherParameters(taskConfiguration);
     }
@@ -161,8 +154,8 @@ public:
 
             try {
                 if (!fs::create_directories(testDir)) {
-                    std::string msg = "Local DB files directory '" + dir.string() +
-                                      "' does not exist and cannot be created.";
+                    std::string msg =
+                        "Local DB files directory '" + dir.string() + "' does not exist and cannot be created.";
                     errorMessage += msg + "\n";
                 } else {
                     validDirs.push_back(dir);
@@ -170,8 +163,7 @@ public:
 
                 fs::remove_all(testDir);
             } catch (const fs::filesystem_error& e) {
-                std::string msg = "Failed to create test directory in '" + dir.string() +
-                                  "': " + e.what();
+                std::string msg = "Failed to create test directory in '" + dir.string() + "': " + e.what();
                 errorMessage += msg + "\n";
             }
         }

@@ -4,4 +4,4 @@
 extern long vecBatchRows;
 extern bool isFlush;
 
-#endif //OMNISTREAM_GLOBALS_H
+#endif // OMNISTREAM_GLOBALS_H

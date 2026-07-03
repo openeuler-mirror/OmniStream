@@ -23,12 +23,12 @@ class ResultPartitionWriter;
 class SequentialChannelStateReader {
 public:
     virtual ~SequentialChannelStateReader() = default;
-    virtual void readInputData(const std::vector<std::shared_ptr<InputGate>> &inputGates) = 0;
-    virtual void readOutputData(const std::vector<std::shared_ptr<ResultPartitionWriter>> &writers,
-        bool notifyAndBlockOnCompletion) = 0;
+    virtual void readInputData(const std::vector<std::shared_ptr<InputGate>>& inputGates) = 0;
+    virtual void readOutputData(
+        const std::vector<std::shared_ptr<ResultPartitionWriter>>& writers, bool notifyAndBlockOnCompletion) = 0;
     virtual void close() = 0;
 
     static std::shared_ptr<SequentialChannelStateReader> NO_OP;
 };
-}
-#endif //SEQUENTIAL_CHANNEL_STATE_READER_H
+} // namespace omnistream
+#endif // SEQUENTIAL_CHANNEL_STATE_READER_H

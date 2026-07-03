@@ -16,7 +16,9 @@
 
 class DummySplitFetcherTask : public SplitFetcherTask {
 public:
-    explicit DummySplitFetcherTask(std::string name) : name(name) {}
+    explicit DummySplitFetcherTask(std::string name) : name(name)
+    {
+    }
 
     bool Run() override
     {
@@ -31,9 +33,9 @@ public:
     {
         return name;
     }
+
 private:
     std::string name;
 };
-
 
 #endif // OMNISTREAM_DUMMYSPLITFETCHERTASK_H

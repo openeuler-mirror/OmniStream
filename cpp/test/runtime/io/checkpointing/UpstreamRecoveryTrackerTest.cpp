@@ -18,7 +18,8 @@
 
 using namespace omnistream;
 
-TEST(UpstreamRecoveryTrackerImplTest, InitialAndNoOpBehavior) {
+TEST(UpstreamRecoveryTrackerImplTest, InitialAndNoOpBehavior)
+{
     auto dummyGate = std::make_shared<SingleChannelDummyInputGate>(0);
     assert(dummyGate != nullptr);
     std::cout << "created SingleChannelDummyInputGate" << std::endl;
@@ -44,7 +45,8 @@ TEST(UpstreamRecoveryTrackerImplTest, InitialAndNoOpBehavior) {
     std::cout << "Test3" << std::endl;
 }
 
-TEST(UpstreamRecoveryTrackerImplTest, HandleSingleChannelRecovery) {
+TEST(UpstreamRecoveryTrackerImplTest, HandleSingleChannelRecovery)
+{
     auto dummyGate = std::make_shared<SingleChannelDummyInputGate>(0);
     auto tracker = UpstreamRecoveryTracker::forInputGate(dummyGate);
 
@@ -56,7 +58,8 @@ TEST(UpstreamRecoveryTrackerImplTest, HandleSingleChannelRecovery) {
     EXPECT_TRUE(tracker->allChannelsRecovered());
 }
 
-TEST(UpstreamRecoveryTrackerImplTest, DuplicateRecoveryThrows) {
+TEST(UpstreamRecoveryTrackerImplTest, DuplicateRecoveryThrows)
+{
     auto gate = std::make_shared<MultiChannelDummyInputGate>();
     auto tracker = UpstreamRecoveryTracker::forInputGate(gate);
 
@@ -67,7 +70,7 @@ TEST(UpstreamRecoveryTrackerImplTest, DuplicateRecoveryThrows) {
     // First recovery of channel 0: numUnrestoredChannels_ should decrease from 2 to 1
     tracker->handleEndOfRecovery(infos[0]);
     EXPECT_FALSE(tracker->allChannelsRecovered());
-    
+
     // Attempt a second recovery of channel 0: numUnrestoredChannels_ is still > 0, but restoredChannels_ already
     // contains infos[0], so this should throw error
     EXPECT_THROW(tracker->handleEndOfRecovery(infos[0]), std::runtime_error);

@@ -18,11 +18,9 @@ enum class SegmentType {
     MEMORY_SEGMENT
 };
 
-
 class Segment {
 public:
-    explicit Segment(const SegmentType& segment_type)
-        : segmentType(segment_type)
+    explicit Segment(const SegmentType& segment_type) : segmentType(segment_type)
     {
     }
 
@@ -41,6 +39,5 @@ public:
 private:
     SegmentType segmentType;
 };
-
 
 #endif // SEGMENT_H

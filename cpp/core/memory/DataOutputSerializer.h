@@ -9,8 +9,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
-
-# pragma once
+#pragma once
 #include <securec.h>
 #include <vector>
 #include <cstddef>
@@ -22,7 +21,7 @@
 #include "include/common.h"
 #include "basictypes/Double.h"
 
-class DataOutputSerializer  {
+class DataOutputSerializer {
 public:
     DataOutputSerializer() = default;
     explicit DataOutputSerializer(int size);
@@ -42,15 +41,15 @@ public:
     inline void setPositionUnsafe(int position);
     inline void writeIntUnsafe(uint32_t value, int pos);
     inline int length() const;
-    inline void writeLong(int64_t value) ;
+    inline void writeLong(int64_t value);
 
     inline void writeRecordTimestamp(uint64_t value);
 
-    inline void writeByte(uint32_t var) ;
+    inline void writeByte(uint32_t var);
 
-    inline void writeUTF(std::string str) ;
+    inline void writeUTF(std::string str);
 
-    inline void write(uint32_t var1) ;
+    inline void write(uint32_t var1);
 
     inline void writeShort(uint16_t value);
 
@@ -63,7 +62,7 @@ public:
 
     inline void writeDouble(double value);
 
-    inline void write(uint8_t *buffer, int bufferSize, int dstOffset, int length);
+    inline void write(uint8_t* buffer, int bufferSize, int dstOffset, int length);
     inline void expandDataBuffer(int requiredSize);
 
     inline ByteBuffer* wrapAsByteBuffer();
@@ -71,7 +70,8 @@ public:
     inline uint8_t* getData();
     inline int getPosition();
 
-    std::vector<uint8_t>* getCopyOfBuffer() {
+    std::vector<uint8_t>* getCopyOfBuffer()
+    {
         return new std::vector<uint8_t>(data_, data_ + position_);
     }
 
@@ -79,7 +79,7 @@ private:
     uint8_t* data_ = nullptr;
     int position_ = 0;
     int capacity_ = 0;
-    OutputBufferStatus *outputBufferStatus = nullptr;
+    OutputBufferStatus* outputBufferStatus = nullptr;
     ByteBuffer reusedWrapper;
 };
 
@@ -90,7 +90,7 @@ inline DataOutputSerializer::DataOutputSerializer(int size)
 
 inline ByteBuffer* DataOutputSerializer::wrapAsByteBuffer()
 {
-    ByteBuffer *byteBuffer = reusedWrapper.wrapOpt(data_, 0,  position_);
+    ByteBuffer* byteBuffer = reusedWrapper.wrapOpt(data_, 0, position_);
     return byteBuffer;
     // return ByteBuffer::wrap(data_, 0, position_);
 }
@@ -100,17 +100,16 @@ inline uint8_t* DataOutputSerializer::getData()
     return data_;
 }
 
-
-inline void DataOutputSerializer::setBackendBuffer(uint8_t *address, int32_t capacity)
+inline void DataOutputSerializer::setBackendBuffer(uint8_t* address, int32_t capacity)
 {
     data_ = address;
     capacity_ = capacity;
     position_ = 0;
 }
 
-inline void DataOutputSerializer::setBackendBuffer(OutputBufferStatus *outputBufferStatus_)
+inline void DataOutputSerializer::setBackendBuffer(OutputBufferStatus* outputBufferStatus_)
 {
-    data_ = reinterpret_cast<uint8_t *>(outputBufferStatus_->outputBuffer_);
+    data_ = reinterpret_cast<uint8_t*>(outputBufferStatus_->outputBuffer_);
     capacity_ = outputBufferStatus_->capacity_;
     position_ = 0;
     this->outputBufferStatus = outputBufferStatus_;
@@ -120,7 +119,6 @@ inline void DataOutputSerializer::clear()
 {
     position_ = 0;
 }
-
 
 inline void DataOutputSerializer::setPosition(int position)
 {
@@ -138,7 +136,7 @@ inline void DataOutputSerializer::writeIntUnsafe(uint32_t value, int pos)
     *reinterpret_cast<uint32_t*>(data_ + pos) = __builtin_bswap32(value);
 }
 
-inline  int DataOutputSerializer::length() const
+inline int DataOutputSerializer::length() const
 {
     return position_;
 }
@@ -164,7 +162,8 @@ inline void DataOutputSerializer::writeShort(uint16_t value)
     position_ += 2;
 }
 
-inline void DataOutputSerializer::write(std::vector<uint8_t>& var) {
+inline void DataOutputSerializer::write(std::vector<uint8_t>& var)
+{
     write(var.data(), var.size(), 0, var.size());
 }
 
@@ -188,11 +187,11 @@ inline void DataOutputSerializer::writeLong(int64_t value)
     position_ += 8;
 }
 
-
 /**
-* Write timestamp in a record element
-*  The timestamp is written in big endian format,  while the rest of the record element is written in little endian format  Thus, we need this specific function
-*/
+ * Write timestamp in a record element
+ *  The timestamp is written in big endian format,  while the rest of the record element is written in little endian
+ * format  Thus, we need this specific function
+ */
 inline void DataOutputSerializer::writeRecordTimestamp(uint64_t value)
 {
     expandDataBuffer(8);
@@ -203,7 +202,7 @@ inline void DataOutputSerializer::writeRecordTimestamp(uint64_t value)
     position_ += 8;
 }
 
-inline void DataOutputSerializer::write(uint8_t *buffer, int bufferSize, int dstOffset, int length)
+inline void DataOutputSerializer::write(uint8_t* buffer, int bufferSize, int dstOffset, int length)
 {
     expandDataBuffer(length);
     std::copy(buffer + dstOffset, buffer + dstOffset + length, data_ + position_);
@@ -215,13 +214,13 @@ inline void DataOutputSerializer::expandDataBuffer(int requiredSize)
     if (unlikely(position_ + requiredSize > capacity_)) {
         LOG("******************output buffer is full, expand the buffer****************************************");
         capacity_ = (position_ + requiredSize) * 4;
-        uint8_t *newData = new uint8_t[capacity_];
+        uint8_t* newData = new uint8_t[capacity_];
         // when data_ is nullptr, memcpy_s return not EOK, will cause exception
         if (likely(data_ != nullptr)) {
             std::copy(data_, data_ + position_, newData);
         }
         if (outputBufferStatus != nullptr && outputBufferStatus->ownership == 0) {
-            STD_LOG("data_ is owned by java, should not delete " << reinterpret_cast<uintptr_t>(data_))
+            STD_LOG("data_ is owned by java, should not delete " << reinterpret_cast<uintptr_t>(data_));
         } else {
             delete[] data_;
         }
@@ -259,7 +258,7 @@ inline void DataOutputSerializer::writeUTF(std::string str)
         }
     }
     if (utflen > 65535) {
-        THROW_RUNTIME_ERROR("Encoded string is too long: " + utflen)
+        THROW_RUNTIME_ERROR("Encoded string is too long: " + utflen);
     }
     expandDataBuffer(utflen + 2);
     int count = position_;

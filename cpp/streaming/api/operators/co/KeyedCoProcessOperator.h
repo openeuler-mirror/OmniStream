@@ -19,16 +19,18 @@
 #include "udf/UDFLoader.h"
 #include "../TimestampedCollector.h"
 
-
 namespace omnistream::datastream {
-template<typename K, typename IN1, typename IN2, typename OUT>
+template <typename K, typename IN1, typename IN2, typename OUT>
 class KeyedCoProcessOperator : public AbstractUdfStreamOperator<KeyedCoProcessFunction<K*, IN1, IN2, OUT>, OUT>,
-                               public TwoInputStreamOperator, public Triggerable<K*, VoidNamespace> {
+                               public TwoInputStreamOperator,
+                               public Triggerable<K*, VoidNamespace> {
 private:
     class ContextImpl : public KeyedCoProcessFunction<K*, IN1, IN2, OUT>::Context {
-    public :
-        ContextImpl(KeyedCoProcessFunction<K*, IN1, IN2, OUT>* function,
-            std::shared_ptr<omnistream::streaming::TimerService> timerService, AbstractStreamOperator<K*> *op)
+    public:
+        ContextImpl(
+            KeyedCoProcessFunction<K*, IN1, IN2, OUT>* function,
+            std::shared_ptr<omnistream::streaming::TimerService> timerService,
+            AbstractStreamOperator<K*>* op)
         {
             localTimerService = timerService;
             this->op = op;
@@ -54,7 +56,7 @@ private:
             return localTimerService.get();
         }
 
-        void output(Object *value) override
+        void output(Object* value) override
         {
             op->GetOutput()->collect(reuse->replace(value, element->getTimestamp()));
         }
@@ -65,22 +67,23 @@ private:
         }
 
         std::shared_ptr<omnistream::streaming::TimerService> localTimerService;
-        AbstractStreamOperator<K*> *op;
+        AbstractStreamOperator<K*>* op;
         StreamRecord* element;
         StreamRecord* reuse;
     };
 
-
-    class OnTimerContextImpl: public KeyedCoProcessFunction<K*, IN1, IN2, OUT>::OnTimerContext {
+    class OnTimerContextImpl : public KeyedCoProcessFunction<K*, IN1, IN2, OUT>::OnTimerContext {
     public:
         std::shared_ptr<omnistream::streaming::TimerService> localTimerService;
-        AbstractStreamOperator<K*> *op;
+        AbstractStreamOperator<K*>* op;
         TimeDomain localTimeDomain;
         StreamRecord* reuse;
-        TimerHeapInternalTimer<K*, VoidNamespace> *timer = nullptr;
+        TimerHeapInternalTimer<K*, VoidNamespace>* timer = nullptr;
 
-        OnTimerContextImpl(KeyedCoProcessFunction<K*, IN1, IN2, OUT>* function,
-            std::shared_ptr<omnistream::streaming::TimerService> timerService, AbstractStreamOperator<K*> *op)
+        OnTimerContextImpl(
+            KeyedCoProcessFunction<K*, IN1, IN2, OUT>* function,
+            std::shared_ptr<omnistream::streaming::TimerService> timerService,
+            AbstractStreamOperator<K*>* op)
         {
             localTimerService = timerService;
             this->op = op;
@@ -118,16 +121,16 @@ private:
         }
     };
 
-    TimestampedCollector *timestampedCollector = nullptr;
-    ContextImpl *context = nullptr;
+    TimestampedCollector* timestampedCollector = nullptr;
+    ContextImpl* context = nullptr;
     OnTimerContextImpl* onTimerContext = nullptr;
     UDFLoader udfLoader;
     KeyedCoProcessFunctionUnique<K*, IN1, IN2, OUT> function = nullptr;
     KeySelectUnique<K> keySelector1;
     KeySelectUnique<K> keySelector2;
 
-public :
-    KeyedCoProcessOperator(Output *output, nlohmann::json config, bool isStream = true)
+public:
+    KeyedCoProcessOperator(Output* output, nlohmann::json config, bool isStream = true)
     {
         LOG("-----create KeyedCoProcessOperator-----");
         loadUdf(config);
@@ -135,7 +138,7 @@ public :
         this->isStream = isStream;
     }
 
-    void loadUdf(const nlohmann::json &config)
+    void loadUdf(const nlohmann::json& config)
     {
         std::string udfSoPath = config["udf_so"];
         std::string udfObj = config["udf_obj"];
@@ -145,7 +148,7 @@ public :
 
         nlohmann::json udfObjJson = nlohmann::json::parse(udfObj);
 
-        auto *symbol = udfLoader.LoadKeyedCoProcessFunction(udfSoPath);
+        auto* symbol = udfLoader.LoadKeyedCoProcessFunction(udfSoPath);
         if (symbol == nullptr) {
             throw std::out_of_range("null pointer when load " + udfSoPath);
         }
@@ -153,14 +156,14 @@ public :
         this->userFunction = function.release();
 
         std::string keySoPath1 = keySoDir + keySo1Name;
-        auto *keySelectorSymbol1 = udfLoader.LoadKeySelectFunction(keySoPath1);
+        auto* keySelectorSymbol1 = udfLoader.LoadKeySelectFunction(keySoPath1);
         if (keySelectorSymbol1 == nullptr) {
             throw std::out_of_range("null pointer when load " + keySoPath1);
         }
         keySelector1 = keySelectorSymbol1(udfObjJson);
 
         std::string keySoPath2 = keySoDir + keySo2Name;
-        auto *keySelectorSymbol2 = udfLoader.LoadKeySelectFunction(keySoPath2);
+        auto* keySelectorSymbol2 = udfLoader.LoadKeySelectFunction(keySoPath2);
         if (keySelectorSymbol2 == nullptr) {
             throw std::out_of_range("null pointer when load " + keySoPath2);
         }
@@ -179,7 +182,7 @@ public :
         AbstractUdfStreamOperator<KeyedCoProcessFunction<K*, IN1, IN2, OUT>, K*>::open();
         timestampedCollector = new TimestampedCollector(this->output, this->isStream);
 
-        InternalTimerService<VoidNamespace> *internalTimerService =
+        InternalTimerService<VoidNamespace>* internalTimerService =
             this->template getInternalTimerService<VoidNamespace>("user-timers", new VoidNamespaceSerializer(), this);
 
         auto timerService = std::make_shared<SimpleTimerService>(internalTimerService);
@@ -193,24 +196,23 @@ public :
         return this->metrics;
     }
 
-    void processElement1(StreamRecord *element) override
+    void processElement1(StreamRecord* element) override
     {
         LOG("processElement1 handle----------------------");
         timestampedCollector->setTimestamp(element);
         context->element = element;
-        auto value = reinterpret_cast<Object *>(element->getValue());
+        auto value = reinterpret_cast<Object*>(element->getValue());
         this->userFunction->processElement1(value, context, timestampedCollector);
         value->putRefCount();
         context->element = nullptr;
     }
 
-
-    void processElement2(StreamRecord *element) override
+    void processElement2(StreamRecord* element) override
     {
         LOG("----------------------processElement2 handle");
         timestampedCollector->setTimestamp(element);
         context->element = element;
-        auto value = reinterpret_cast<Object *>(element->getValue());
+        auto value = reinterpret_cast<Object*>(element->getValue());
         this->userFunction->processElement2(value, context, timestampedCollector);
         value->putRefCount();
         context->element = nullptr;
@@ -235,7 +237,6 @@ public :
         onTimerContext->timer = nullptr;
     }
 
-
     void onProcessingTime(TimerHeapInternalTimer<K*, VoidNamespace>* timer) override
     {
         timestampedCollector->eraseTimestamp();
@@ -246,20 +247,26 @@ public :
         onTimerContext->timer = nullptr;
     }
 
-    void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) override
+    void initializeState(StreamTaskStateInitializerImpl* initializer, TypeSerializer* keySerializer) override
     {
         // First do the shared initialization step
-        INFO_RELEASE("savepoint: KeyedCoProcessOperator initializeState with initializer, operatorID: " << TwoInputStreamOperator::GetOperatorID().toString());
+        INFO_RELEASE(
+            "savepoint: KeyedCoProcessOperator initializeState with initializer, operatorID: "
+            << TwoInputStreamOperator::GetOperatorID().toString());
         AbstractStreamOperator<K*>::SetOperatorID(TwoInputStreamOperator::GetOperatorID().toString());
         AbstractStreamOperator<K*>::initializeState(initializer, keySerializer);
     }
 
-    void notifyCheckpointComplete(long checkpointId) override {
-        AbstractUdfStreamOperator<KeyedCoProcessFunction<K*, IN1, IN2, OUT>, OUT>::notifyCheckpointComplete(checkpointId);
+    void notifyCheckpointComplete(long checkpointId) override
+    {
+        AbstractUdfStreamOperator<KeyedCoProcessFunction<K*, IN1, IN2, OUT>, OUT>::notifyCheckpointComplete(
+            checkpointId);
     }
 
-    void notifyCheckpointAborted(long checkpointId) override {
-        AbstractUdfStreamOperator<KeyedCoProcessFunction<K*, IN1, IN2, OUT>, OUT>::notifyCheckpointAborted(checkpointId);
+    void notifyCheckpointAborted(long checkpointId) override
+    {
+        AbstractUdfStreamOperator<KeyedCoProcessFunction<K*, IN1, IN2, OUT>, OUT>::notifyCheckpointAborted(
+            checkpointId);
     }
 
     bool isSetKeyContextElement1() override
@@ -272,18 +279,18 @@ public :
         return true;
     }
 
-    void setKeyContextElement1(StreamRecord *record) override
+    void setKeyContextElement1(StreamRecord* record) override
     {
-        Object *key = reinterpret_cast<Object*>(keySelector1->getKey(reinterpret_cast<Object*>(record->getValue())));
+        Object* key = reinterpret_cast<Object*>(keySelector1->getKey(reinterpret_cast<Object*>(record->getValue())));
         this->stateHandler->setCurrentKey(key);
         if (key != nullptr) {
             key->putRefCount();
         }
     }
 
-    void setKeyContextElement2(StreamRecord *record) override
+    void setKeyContextElement2(StreamRecord* record) override
     {
-        Object *key = reinterpret_cast<Object*>(keySelector2->getKey(reinterpret_cast<Object*>(record->getValue())));
+        Object* key = reinterpret_cast<Object*>(keySelector2->getKey(reinterpret_cast<Object*>(record->getValue())));
         this->stateHandler->setCurrentKey(key);
         if (key != nullptr) {
             key->putRefCount();
@@ -295,26 +302,27 @@ public :
         return this->isStream;
     }
 
-    const char *getName()
+    const char* getName()
     {
         return "KeyedCoProcessOperator";
     }
 
-    void close() override {
-        // Since both AbstractUdfStreamOperator and TwoInputStreamOperator inherit from the same base class StreamOperator,
-        // the overridden close method in AbstractUdfStreamOperator is not invoked correctly in polymorphic contexts.
-        // As a temporary workaround, the close method is overridden again here.
-        // A proper solution in the future may involve introducing virtual inheritance across StreamOperator,
-        // AbstractStreamOperator, OneInputStreamOperator and TwoInputStreamOperator to address the diamond inheritance issue.
+    void close() override
+    {
+        // Since both AbstractUdfStreamOperator and TwoInputStreamOperator inherit from the same base class
+        // StreamOperator, the overridden close method in AbstractUdfStreamOperator is not invoked correctly in
+        // polymorphic contexts. As a temporary workaround, the close method is overridden again here. A proper solution
+        // in the future may involve introducing virtual inheritance across StreamOperator, AbstractStreamOperator,
+        // OneInputStreamOperator and TwoInputStreamOperator to address the diamond inheritance issue.
         AbstractUdfStreamOperator<KeyedCoProcessFunction<K*, IN1, IN2, OUT>, OUT>::close();
     }
 
 protected:
-    TimestampedCollector *getCollector()
+    TimestampedCollector* getCollector()
     {
         return timestampedCollector;
     }
 };
-}
+} // namespace omnistream::datastream
 
-#endif  // OMNISTREAM_KEYEDCOPROCESSOPERATOR_H
+#endif // OMNISTREAM_KEYEDCOPROCESSOPERATOR_H

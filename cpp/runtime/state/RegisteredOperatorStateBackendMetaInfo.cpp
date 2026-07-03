@@ -1,5 +1,5 @@
 /*
-* Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
  * You can use this software according to the terms and conditions of the Mulan PSL v2.
  * You may obtain a copy of Mulan PSL v2 at:
  *          http://license.coscl.org.cn/MulanPSL2
@@ -13,27 +13,34 @@
 
 RegisteredOperatorStateBackendMetaInfo::RegisteredOperatorStateBackendMetaInfo(
     const std::string& name, OperatorStateHandle::Mode assignmentMode, TypeSerializer* stateSerializer)
-    : RegisteredStateMetaInfoBase(name), assignmentMode_(assignmentMode), stateSerializer_(stateSerializer) {
+    : RegisteredStateMetaInfoBase(name),
+      assignmentMode_(assignmentMode),
+      stateSerializer_(stateSerializer)
+{
 }
 
 RegisteredOperatorStateBackendMetaInfo::RegisteredOperatorStateBackendMetaInfo(const StateMetaInfoSnapshot& snapshot)
-    : RegisteredStateMetaInfoBase(snapshot.getName()) {
-
-    auto assignmentModeStr = snapshot.getOption(StateMetaInfoSnapshot::CommonOptionsKeys::OPERATOR_STATE_DISTRIBUTION_MODE);
+    : RegisteredStateMetaInfoBase(snapshot.getName())
+{
+    auto assignmentModeStr =
+        snapshot.getOption(StateMetaInfoSnapshot::CommonOptionsKeys::OPERATOR_STATE_DISTRIBUTION_MODE);
     assignmentMode_ = OperatorStateHandle::StrToMode(assignmentModeStr);
 
-    std::string stateSerializerKey = StateMetaInfoSnapshot::commonSerializerKeyToString(StateMetaInfoSnapshot::CommonSerializerKeys::VALUE_SERIALIZER);
+    std::string stateSerializerKey = StateMetaInfoSnapshot::commonSerializerKeyToString(
+        StateMetaInfoSnapshot::CommonSerializerKeys::VALUE_SERIALIZER);
 
     stateSerializer_ = snapshot.getTypeSerializer(stateSerializerKey);
 }
 
-std::shared_ptr<StateMetaInfoSnapshot> RegisteredOperatorStateBackendMetaInfo::computeSnapshot() {
+std::shared_ptr<StateMetaInfoSnapshot> RegisteredOperatorStateBackendMetaInfo::computeSnapshot()
+{
     std::unordered_map<std::string, std::string> optionsMap;
     std::unordered_map<std::string, TypeSerializer*> serializerMap;
     std::unordered_map<std::string, std::shared_ptr<TypeSerializerSnapshot>> serializerConfigSnapshotsMap;
 
-    std::string optionKey = StateMetaInfoSnapshot::commonOptionsKeyToString(StateMetaInfoSnapshot::CommonOptionsKeys::OPERATOR_STATE_DISTRIBUTION_MODE);
-    optionsMap.emplace(optionKey, std::to_string((int) getAssignmentMode()));
+    std::string optionKey = StateMetaInfoSnapshot::commonOptionsKeyToString(
+        StateMetaInfoSnapshot::CommonOptionsKeys::OPERATOR_STATE_DISTRIBUTION_MODE);
+    optionsMap.emplace(optionKey, std::to_string((int)getAssignmentMode()));
 
     serializerMap.emplace("stateSerializer", getStateSerializer());
 

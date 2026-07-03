@@ -11,9 +11,10 @@
 
 #include "JoinTupleSerializer2.h"
 
-void *JoinTupleSerializer2::deserialize(DataInputView &source) {
+void* JoinTupleSerializer2::deserialize(DataInputView& source)
+{
     int32_t f0 = source.readInt();
-    int32_t f1= source.readInt();
+    int32_t f1 = source.readInt();
     int64_t f2 = source.readLong();
 
     auto* res = new std::tuple<int32_t, int32_t, int64_t>(f0, f1, f2);
@@ -21,7 +22,8 @@ void *JoinTupleSerializer2::deserialize(DataInputView &source) {
     return static_cast<void*>(res);
 }
 
-void JoinTupleSerializer2::serialize(void *record, DataOutputSerializer &target) {
+void JoinTupleSerializer2::serialize(void* record, DataOutputSerializer& target)
+{
     auto* obj = reinterpret_cast<std::tuple<int32_t, int32_t, int64_t>*>(record);
     int32_t f0 = std::get<0>(*obj);
     int32_t f1 = std::get<1>(*obj);

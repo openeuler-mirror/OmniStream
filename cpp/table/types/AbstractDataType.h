@@ -12,8 +12,6 @@
 #ifndef FLINK_TNEL_ABSTRACTDATATYPE_H
 #define FLINK_TNEL_ABSTRACTDATATYPE_H
 
-
 class AbstractDataType {};
-
 
 #endif

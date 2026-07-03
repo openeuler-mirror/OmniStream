@@ -32,21 +32,24 @@ public:
     };
 
     /**
- * Generate and return a random auction with next available id.
- */
-    std::unique_ptr<Auction> nextAuction(long eventsCountSoFar, long eventId, long timestamp, const GeneratorConfig &config);
+     * Generate and return a random auction with next available id.
+     */
+    std::unique_ptr<Auction> nextAuction(
+        long eventsCountSoFar, long eventId, long timestamp, const GeneratorConfig& config);
 
     /**
      * Return the last valid auction id (ignoring FIRST_AUCTION_ID). Will be the current auction id if
      * due to generate an auction.
      */
-    static long lastBase0AuctionId(const GeneratorConfig &config, long eventId);
+    static long lastBase0AuctionId(const GeneratorConfig& config, long eventId);
 
     /** Return a random auction id (base 0). */
-    static long nextBase0AuctionId(long nextEventId, SplittableRandom &random, const GeneratorConfig &config);
+    static long nextBase0AuctionId(long nextEventId, SplittableRandom& random, const GeneratorConfig& config);
 
     /** Return a random time delay, in milliseconds, for length of auctions. */
-    static long nextAuctionLengthMs(long eventsCountSoFar, SplittableRandom &random, long timestamp, const GeneratorConfig &config);
+    static long nextAuctionLengthMs(
+        long eventsCountSoFar, SplittableRandom& random, long timestamp, const GeneratorConfig& config);
+
 private:
     SplittableRandom random;
     /**
@@ -68,6 +71,5 @@ private:
     char* descBuffer;
     char* extraBuffer;
 };
-
 
 #endif // OMNISTREAM_AUCTIONGENERATOR_H

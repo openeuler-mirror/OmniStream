@@ -25,23 +25,30 @@ class WatermarkAssignerOperator : public AbstractStreamOperator<int>,
                                   public OneInputStreamOperator,
                                   public ProcessingTimeCallback {
 public:
-    explicit WatermarkAssignerOperator(Output *, int rowtimeIndex, int64_t outOfOrderT, int64_t idleTimeout,
-                                       ProcessingTimeService* processingTimeService);
+    explicit WatermarkAssignerOperator(
+        Output*,
+        int rowtimeIndex,
+        int64_t outOfOrderT,
+        int64_t idleTimeout,
+        ProcessingTimeService* processingTimeService);
     ~WatermarkAssignerOperator() override = default;
 
     // Processing functions
-    void processBatch(StreamRecord *input) override;
-    void processElement(StreamRecord *element) override;
-    void ProcessWatermark(Watermark *mark) override;
-    void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) override {
+    void processBatch(StreamRecord* input) override;
+    void processElement(StreamRecord* element) override;
+    void ProcessWatermark(Watermark* mark) override;
+    void initializeState(StreamTaskStateInitializerImpl* initializer, TypeSerializer* keySerializer) override
+    {
         INFO_RELEASE("WatermarkAssignerOperator::initializeState not impl");
     }
 
-    void notifyCheckpointComplete(long checkpointId) override {
+    void notifyCheckpointComplete(long checkpointId) override
+    {
         INFO_RELEASE("WatermarkAssignerOperator::notifyCheckpointComplete not impl checkpointId : " << checkpointId);
     }
 
-    void notifyCheckpointAborted(long checkpointId) override {
+    void notifyCheckpointAborted(long checkpointId) override
+    {
         INFO_RELEASE("WatermarkAssignerOperator::notifyCheckpointAborted not impl checkpointId : " << checkpointId);
     }
 
@@ -50,13 +57,13 @@ public:
     void finish() override;
     void close() override;
 
-    const char *getName() override;
+    const char* getName() override;
 
     std::string getTypeName() override;
-    void processWatermarkStatus(WatermarkStatus *watermarkStatus) override;
+    void processWatermarkStatus(WatermarkStatus* watermarkStatus) override;
     void setSplitWaterMark(bool doSplitWaterMark);
-    void processBatchSimple(StreamRecord *element);
-    void processBatchWatermark(StreamRecord *element);
+    void processBatchSimple(StreamRecord* element);
+    void processBatchWatermark(StreamRecord* element);
 
 private:
     int rowtimeIndex_;
@@ -72,10 +79,10 @@ private:
     // For q0, this remains at 200
     int64_t emissionInterval_ = 200;
 
-    WatermarkStatus *currentStatus;
+    WatermarkStatus* currentStatus;
 
     void OnProcessingTime(int64_t timestamp) override;
     int64_t currentWatermark(int64_t element_timestamp);
     void advanceWatermark();
-    void emitWatermarkStatus(WatermarkStatus *watermarkStatus);
+    void emitWatermarkStatus(WatermarkStatus* watermarkStatus);
 };

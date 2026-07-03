@@ -20,17 +20,27 @@
 
 namespace omnistream {
 
-PipelinedSubpartitionView::PipelinedSubpartitionView(std::shared_ptr<PipelinedSubpartition> parent, BufferAvailabilityListener* listener)
-    : parent(parent), availabilityListener(listener), isReleased_(false)
+PipelinedSubpartitionView::PipelinedSubpartitionView(
+    std::shared_ptr<PipelinedSubpartition> parent, BufferAvailabilityListener* listener)
+    : parent(parent),
+      availabilityListener(listener),
+      isReleased_(false)
 {
     if (!parent || !listener) {
         throw std::invalid_argument("parent and listener cannot be null");
     }
 }
 
-PipelinedSubpartitionView::PipelinedSubpartitionView() : parent(nullptr), availabilityListener(nullptr), isReleased_(false) {}
+PipelinedSubpartitionView::PipelinedSubpartitionView()
+    : parent(nullptr),
+      availabilityListener(nullptr),
+      isReleased_(false)
+{
+}
 
-PipelinedSubpartitionView::~PipelinedSubpartitionView() {}
+PipelinedSubpartitionView::~PipelinedSubpartitionView()
+{
+}
 
 BufferAndBacklog* PipelinedSubpartitionView::getNextBuffer()
 {

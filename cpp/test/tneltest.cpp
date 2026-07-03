@@ -4,7 +4,8 @@
 long vecBatchRows = 1000;
 bool isFlush = false;
 
-static void HandleCustomArgs(int argc, char **argv) {
+static void HandleCustomArgs(int argc, char** argv)
+{
     for (int i = 1; i < argc; ++i) {
         if (std::string(argv[i]) == "--VectorBatch_rows") {
             if (i + 1 < argc) {
@@ -26,7 +27,7 @@ static void HandleCustomArgs(int argc, char **argv) {
     }
 }
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);
     HandleCustomArgs(argc, argv);

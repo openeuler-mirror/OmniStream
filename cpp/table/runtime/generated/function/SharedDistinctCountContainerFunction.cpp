@@ -19,14 +19,12 @@
 using namespace omniruntime::type;
 
 namespace {
-TypeSerializer *createOwnedSharedDistinctSerializer(DataTypeId typeId)
+TypeSerializer* createOwnedSharedDistinctSerializer(DataTypeId typeId)
 {
     switch (typeId) {
         case DataTypeId::OMNI_INT:
-        case DataTypeId::OMNI_LONG:
-            return new LongSerializer();
-        default:
-            throw std::runtime_error("Shared DISTINCT only supports INT/LONG key types.");
+        case DataTypeId::OMNI_LONG: return new LongSerializer();
+        default: throw std::runtime_error("Shared DISTINCT only supports INT/LONG key types.");
     }
 }
 } // namespace
@@ -36,8 +34,8 @@ SharedDistinctCountContainerFunction::SharedDistinctCountContainerFunction(std::
 {
 }
 
-void SharedDistinctCountContainerFunction::addDistinctEntry(int aggFuncIndex, const std::string& aggType,
-                                                            int aggIdx, int filterIndex, const std::string& inputType)
+void SharedDistinctCountContainerFunction::addDistinctEntry(
+    int aggFuncIndex, const std::string& aggType, int aggIdx, int filterIndex, const std::string& inputType)
 {
     auto* entry = new DistinctEntry();
     entry->aggFuncIndex = aggFuncIndex;
@@ -50,17 +48,13 @@ void SharedDistinctCountContainerFunction::addDistinctEntry(int aggFuncIndex, co
     finalized_ = false;
 }
 
-void SharedDistinctCountContainerFunction::getOrCreateGroup(
-    DistinctEntry* entry)
+void SharedDistinctCountContainerFunction::getOrCreateGroup(DistinctEntry* entry)
 {
     int aggIdx = entry->aggIdx;
     auto found = distinctGroupMap.find(aggIdx);
-    if (found != distinctGroupMap.end())
-    {
+    if (found != distinctGroupMap.end()) {
         groups_[found->second].groupEntries.push_back(entry);
-    }
-    else
-    {
+    } else {
         DistinctGroup group;
         group.aggIdx = aggIdx;
         group.typeId = entry->typeId;
@@ -74,12 +68,10 @@ void SharedDistinctCountContainerFunction::getOrCreateGroup(
 
 void SharedDistinctCountContainerFunction::finalizeEntries()
 {
-    if (finalized_)
-    {
+    if (finalized_) {
         return;
     }
-    if (entries_.empty())
-    {
+    if (entries_.empty()) {
         throw std::runtime_error("SharedDistinctCountContainerFunction has no entries.");
     }
 
@@ -88,32 +80,26 @@ void SharedDistinctCountContainerFunction::finalizeEntries()
     groups_.clear();
     distinctGroupMap.clear();
 
-    for (int i = 0; i < entries_.size(); ++i)
-    {
+    for (int i = 0; i < entries_.size(); ++i) {
         auto& entry = entries_[i];
-        if (entryIndexToAggFuncIndex.find(entry->aggFuncIndex) != entryIndexToAggFuncIndex.end())
-        {
+        if (entryIndexToAggFuncIndex.find(entry->aggFuncIndex) != entryIndexToAggFuncIndex.end()) {
             throw std::runtime_error("Duplicated aggFuncIndex in shared DISTINCT container.");
         }
-        if (entry->typeId != DataTypeId::OMNI_INT && entry->typeId != DataTypeId::OMNI_LONG)
-        {
+        if (entry->typeId != DataTypeId::OMNI_INT && entry->typeId != DataTypeId::OMNI_LONG) {
             throw std::runtime_error("Shared DISTINCT only supports INT/LONG key types.");
         }
         getOrCreateGroup(entry);
         entryIndexToAggFuncIndex.emplace(entry->aggFuncIndex, i);
     }
 
-    for (auto& group : groups_)
-    {
-        if (group.groupEntries.size() > 64)
-        {
+    for (auto& group : groups_) {
+        if (group.groupEntries.size() > 64) {
             throw std::runtime_error(
                 "SharedDistinctCountContainerFunction supports at most 64 DISTINCT entries per key column.");
         }
 
         group.pendingDistinctUpdates.reserve(500);
-        for (int bitOffset = 0; bitOffset < group.groupEntries.size(); ++bitOffset)
-        {
+        for (int bitOffset = 0; bitOffset < group.groupEntries.size(); ++bitOffset) {
             group.groupEntries[bitOffset]->bitOffset = static_cast<std::uint8_t>(bitOffset);
         }
     }
@@ -123,13 +109,11 @@ void SharedDistinctCountContainerFunction::finalizeEntries()
 
 void SharedDistinctCountContainerFunction::bindEntryAccValueIndex(int aggFuncIndex, int accIndex, int valueIndex)
 {
-    if (!finalized_)
-    {
+    if (!finalized_) {
         throw std::runtime_error("bindEntryIndices called before finalizeEntries.");
     }
     auto it = entryIndexToAggFuncIndex.find(aggFuncIndex);
-    if (it == entryIndexToAggFuncIndex.end())
-    {
+    if (it == entryIndexToAggFuncIndex.end()) {
         throw std::runtime_error("Unknown aggFuncIndex for shared DISTINCT entry binding.");
     }
     auto& entry = entries_[it->second];
@@ -140,8 +124,7 @@ void SharedDistinctCountContainerFunction::bindEntryAccValueIndex(int aggFuncInd
 void SharedDistinctCountContainerFunction::bindAccValueIndex(int accStartIndex, int valueStartIndex)
 {
     finalizeEntries();
-    for (auto& entry : entries_)
-    {
+    for (auto& entry : entries_) {
         entry->accIndex = accStartIndex++;
         entry->valueIndex = valueStartIndex++;
     }
@@ -149,18 +132,14 @@ void SharedDistinctCountContainerFunction::bindAccValueIndex(int accStartIndex, 
 
 bool SharedDistinctCountContainerFunction::equaliser(BinaryRowData* r1, BinaryRowData* r2)
 {
-    for (const auto& entry : entries_)
-    {
-        if (entry->valueIndex < 0)
-        {
+    for (const auto& entry : entries_) {
+        if (entry->valueIndex < 0) {
             continue;
         }
-        if (r1->isNullAt(entry->valueIndex) || r2->isNullAt(entry->valueIndex))
-        {
+        if (r1->isNullAt(entry->valueIndex) || r2->isNullAt(entry->valueIndex)) {
             return false;
         }
-        if (*r1->getLong(entry->valueIndex) != *r2->getLong(entry->valueIndex))
-        {
+        if (*r1->getLong(entry->valueIndex) != *r2->getLong(entry->valueIndex)) {
             return false;
         }
     }
@@ -173,35 +152,28 @@ void SharedDistinctCountContainerFunction::open(StateDataViewStore* store)
     store_ = store;
     auto* perKeyViewStore = reinterpret_cast<PerKeyStateDataViewStore<RowData*>*>(store_);
 
-    for (auto& group : groups_)
-    {
+    for (auto& group : groups_) {
         group.distinctMapView = reinterpret_cast<KeyedStateMapViewWithKeysNullable<VoidNamespace, long, long>*>(
             perKeyViewStore->getStateMapView<VoidNamespace, long, long>(
-                group.stateName,
-                true,
-                createOwnedSharedDistinctSerializer(group.typeId),
-                new LongSerializer()));
+                group.stateName, true, createOwnedSharedDistinctSerializer(group.typeId), new LongSerializer()));
     }
 }
 
 bool SharedDistinctCountContainerFunction::shouldAccumulateForEntry(DistinctEntry* entry, RowData* inputRow) const
 {
-    if (entry->filterIndex < 0)
-    {
+    if (entry->filterIndex < 0) {
         return true;
     }
     const bool isFilterNull = inputRow->isNullAt(entry->filterIndex);
     return !isFilterNull && *inputRow->getBool(entry->filterIndex);
 }
 
-std::uint64_t SharedDistinctCountContainerFunction::collectCandidateMask(RowData* inputRow,
-                                                                         const DistinctGroup& group) const
+std::uint64_t SharedDistinctCountContainerFunction::collectCandidateMask(
+    RowData* inputRow, const DistinctGroup& group) const
 {
     std::uint64_t candidateMask = 0ULL;
-    for (auto entry : group.groupEntries)
-    {
-        if (shouldAccumulateForEntry(entry, inputRow))
-        {
+    for (auto entry : group.groupEntries) {
+        if (shouldAccumulateForEntry(entry, inputRow)) {
             candidateMask |= (1ULL << entry->bitOffset);
         }
     }
@@ -211,64 +183,50 @@ std::uint64_t SharedDistinctCountContainerFunction::collectCandidateMask(RowData
 void SharedDistinctCountContainerFunction::applyMaskDelta(std::size_t groupIndex, std::uint64_t deltaMask)
 {
     auto& group = groups_[groupIndex];
-    for (auto& entry : group.groupEntries)
-    {
-        if ((deltaMask & (1ULL << entry->bitOffset)) == 0ULL)
-        {
+    for (auto& entry : group.groupEntries) {
+        if ((deltaMask & (1ULL << entry->bitOffset)) == 0ULL) {
             continue;
         }
-        if (entry->valueIsNull)
-        {
+        if (entry->valueIsNull) {
             entry->aggCount = 1L;
             entry->valueIsNull = false;
-        }
-        else
-        {
+        } else {
             entry->aggCount++;
         }
     }
 }
 
-long SharedDistinctCountContainerFunction::getRowFieldValue(RowData* row, int aggIdx, DataTypeId typeId,
-                                                            bool& isNull) const
+long SharedDistinctCountContainerFunction::getRowFieldValue(
+    RowData* row, int aggIdx, DataTypeId typeId, bool& isNull) const
 {
     isNull = row->isNullAt(aggIdx);
-    if (isNull)
-    {
+    if (isNull) {
         return 0L;
     }
 
-    switch (typeId)
-    {
-    case DataTypeId::OMNI_INT:
-        return static_cast<long>(*row->getInt(aggIdx));
-    case DataTypeId::OMNI_LONG:
-        return *row->getLong(aggIdx);
-    default:
-        throw std::runtime_error("Unsupported shared DISTINCT key type.");
+    switch (typeId) {
+        case DataTypeId::OMNI_INT: return static_cast<long>(*row->getInt(aggIdx));
+        case DataTypeId::OMNI_LONG: return *row->getLong(aggIdx);
+        default: throw std::runtime_error("Unsupported shared DISTINCT key type.");
     }
 }
 
 void SharedDistinctCountContainerFunction::accumulate(RowData* accInput)
 {
-    for (std::size_t groupIndex = 0; groupIndex < groups_.size(); ++groupIndex)
-    {
+    for (std::size_t groupIndex = 0; groupIndex < groups_.size(); ++groupIndex) {
         auto& group = groups_[groupIndex];
-        if (group.distinctMapView == nullptr)
-        {
+        if (group.distinctMapView == nullptr) {
             continue;
         }
 
         const std::uint64_t candidateMask = collectCandidateMask(accInput, group);
-        if (candidateMask == 0ULL)
-        {
+        if (candidateMask == 0ULL) {
             continue;
         }
 
         bool isNull = false;
         const long fieldValue = getRowFieldValue(accInput, group.aggIdx, group.typeId, isNull);
-        if (isNull)
-        {
+        if (isNull) {
             continue;
         }
 
@@ -277,8 +235,7 @@ void SharedDistinctCountContainerFunction::accumulate(RowData* accInput)
             existingValue.has_value() ? static_cast<std::uint64_t>(*existingValue) : 0ULL;
         const std::uint64_t newMask = existingMask | candidateMask;
         const std::uint64_t deltaMask = newMask ^ existingMask;
-        if (deltaMask == 0ULL)
-        {
+        if (deltaMask == 0ULL) {
             continue;
         }
 
@@ -290,44 +247,35 @@ void SharedDistinctCountContainerFunction::accumulate(RowData* accInput)
 
 void SharedDistinctCountContainerFunction::accumulate(omnistream::VectorBatch* input, const std::vector<int>& indices)
 {
-    if (indices.empty())
-    {
+    if (indices.empty()) {
         return;
     }
 
-    for (std::size_t groupIndex = 0; groupIndex < groups_.size(); ++groupIndex)
-    {
+    for (std::size_t groupIndex = 0; groupIndex < groups_.size(); ++groupIndex) {
         auto& group = groups_[groupIndex];
-        if (group.distinctMapView == nullptr)
-        {
+        if (group.distinctMapView == nullptr) {
             continue;
         }
 
         auto* columnData = input->Get(group.aggIdx);
-        auto* intColumn = (group.typeId == DataTypeId::OMNI_INT)
-                              ? dynamic_cast<omniruntime::vec::Vector<int>*>(columnData)
-                              : nullptr;
+        auto* intColumn =
+            (group.typeId == DataTypeId::OMNI_INT) ? dynamic_cast<omniruntime::vec::Vector<int>*>(columnData) : nullptr;
         auto* longColumn = (group.typeId == DataTypeId::OMNI_LONG)
                                ? dynamic_cast<omniruntime::vec::Vector<long>*>(columnData)
                                : nullptr;
 
         if ((group.typeId == DataTypeId::OMNI_INT && intColumn == nullptr) ||
-            (group.typeId == DataTypeId::OMNI_LONG && longColumn == nullptr))
-        {
+            (group.typeId == DataTypeId::OMNI_LONG && longColumn == nullptr)) {
             throw std::runtime_error("Input column type mismatch for shared DISTINCT.");
         }
 
         std::vector<omniruntime::vec::Vector<bool>*> filterColumns;
         filterColumns.reserve(group.groupEntries.size());
-        for (const auto& entry : group.groupEntries)
-        {
-            if (entry->filterIndex >= 0)
-            {
+        for (const auto& entry : group.groupEntries) {
+            if (entry->filterIndex >= 0) {
                 filterColumns.push_back(
                     reinterpret_cast<omniruntime::vec::Vector<bool>*>(input->Get(entry->filterIndex)));
-            }
-            else
-            {
+            } else {
                 filterColumns.push_back(nullptr);
             }
         }
@@ -335,69 +283,54 @@ void SharedDistinctCountContainerFunction::accumulate(omnistream::VectorBatch* i
         std::unordered_map<long, std::uint64_t> batchRequestMasks;
         batchRequestMasks.reserve(indices.size());
 
-        for (int rowIndex : indices)
-        {
-            if (columnData->IsNull(rowIndex))
-            {
+        for (int rowIndex : indices) {
+            if (columnData->IsNull(rowIndex)) {
                 continue;
             }
 
             std::uint64_t candidateMask = 0ULL;
-            for (std::size_t i = 0; i < group.groupEntries.size(); ++i)
-            {
+            for (std::size_t i = 0; i < group.groupEntries.size(); ++i) {
                 const auto& entry = group.groupEntries[i];
                 bool shouldAccumulate = true;
-                if (entry->filterIndex >= 0)
-                {
+                if (entry->filterIndex >= 0) {
                     auto* filterData = filterColumns[i];
                     const bool isFilterNull = filterData->IsNull(rowIndex);
                     shouldAccumulate = !isFilterNull && filterData->GetValue(rowIndex);
                 }
-                if (shouldAccumulate)
-                {
+                if (shouldAccumulate) {
                     candidateMask |= (1ULL << entry->bitOffset);
                 }
             }
-            if (candidateMask == 0ULL)
-            {
+            if (candidateMask == 0ULL) {
                 continue;
             }
 
             long fieldValue = 0L;
-            if (group.typeId == DataTypeId::OMNI_INT)
-            {
+            if (group.typeId == DataTypeId::OMNI_INT) {
                 fieldValue = static_cast<long>(intColumn->GetValue(rowIndex));
-            }
-            else
-            {
+            } else {
                 fieldValue = longColumn->GetValue(rowIndex);
             }
             batchRequestMasks[fieldValue] |= candidateMask;
         }
 
-        for (const auto& pair : batchRequestMasks)
-        {
+        for (const auto& pair : batchRequestMasks) {
             const long fieldValue = pair.first;
             const std::uint64_t candidateMask = pair.second;
 
             const auto existingValue = group.distinctMapView->get(std::optional<long>{fieldValue});
-            const std::uint64_t existingMask = existingValue.has_value()
-                                                   ? static_cast<std::uint64_t>(*existingValue)
-                                                   : 0ULL;
+            const std::uint64_t existingMask =
+                existingValue.has_value() ? static_cast<std::uint64_t>(*existingValue) : 0ULL;
             const std::uint64_t newMask = existingMask | candidateMask;
             const std::uint64_t deltaMask = newMask & (~existingMask);
-            if (deltaMask == 0ULL)
-            {
+            if (deltaMask == 0ULL) {
                 continue;
             }
 
             applyMaskDelta(groupIndex, deltaMask);
-            if (backend == 2 && currentGroupKey_ != nullptr)
-            {
+            if (backend == 2 && currentGroupKey_ != nullptr) {
                 group.pendingDistinctUpdates[currentGroupKey_].emplace_back(fieldValue, static_cast<long>(newMask));
-            }
-            else
-            {
+            } else {
                 group.distinctMapView->put(std::optional<long>{fieldValue}, static_cast<long>(newMask));
             }
         }
@@ -411,10 +344,8 @@ void SharedDistinctCountContainerFunction::merge(RowData* otherAcc)
 
 void SharedDistinctCountContainerFunction::setAccumulators(RowData* acc)
 {
-    for (auto& entry : entries_)
-    {
-        if (entry->accIndex < 0)
-        {
+    for (auto& entry : entries_) {
+        if (entry->accIndex < 0) {
             continue;
         }
         entry->valueIsNull = acc->isNullAt(entry->accIndex);
@@ -424,32 +355,26 @@ void SharedDistinctCountContainerFunction::setAccumulators(RowData* acc)
 
 void SharedDistinctCountContainerFunction::resetAccumulators()
 {
-    for (auto& entry : entries_)
-    {
+    for (auto& entry : entries_) {
         entry->aggCount = 0L;
         entry->valueIsNull = false;
     }
 
-    for (auto& group : groups_)
-    {
+    for (auto& group : groups_) {
         group.pendingDistinctUpdates.clear();
-        if (group.distinctMapView == nullptr)
-        {
+        if (group.distinctMapView == nullptr) {
             continue;
         }
         auto* entries = group.distinctMapView->entries();
-        if (entries == nullptr)
-        {
+        if (entries == nullptr) {
             continue;
         }
         std::vector<long> keysToRemove;
         keysToRemove.reserve(entries->size());
-        for (const auto& entry : *entries)
-        {
+        for (const auto& entry : *entries) {
             keysToRemove.push_back(entry.first);
         }
-        for (long distinctKey : keysToRemove)
-        {
+        for (long distinctKey : keysToRemove) {
             group.distinctMapView->remove(std::optional<long>{distinctKey});
         }
     }
@@ -457,18 +382,13 @@ void SharedDistinctCountContainerFunction::resetAccumulators()
 
 void SharedDistinctCountContainerFunction::getAccumulators(BinaryRowData* accumulators)
 {
-    for (const auto& entry : entries_)
-    {
-        if (entry->accIndex < 0)
-        {
+    for (const auto& entry : entries_) {
+        if (entry->accIndex < 0) {
             continue;
         }
-        if (entry->valueIsNull)
-        {
+        if (entry->valueIsNull) {
             accumulators->setNullAt(entry->accIndex);
-        }
-        else
-        {
+        } else {
             accumulators->setLong(entry->accIndex, entry->aggCount);
         }
     }
@@ -476,10 +396,8 @@ void SharedDistinctCountContainerFunction::getAccumulators(BinaryRowData* accumu
 
 void SharedDistinctCountContainerFunction::createAccumulators(BinaryRowData* accumulators)
 {
-    for (const auto& entry : entries_)
-    {
-        if (entry->accIndex >= 0)
-        {
+    for (const auto& entry : entries_) {
+        if (entry->accIndex >= 0) {
             accumulators->setLong(entry->accIndex, 0L);
         }
     }
@@ -487,18 +405,13 @@ void SharedDistinctCountContainerFunction::createAccumulators(BinaryRowData* acc
 
 void SharedDistinctCountContainerFunction::getValue(BinaryRowData* aggValue)
 {
-    for (const auto& entry : entries_)
-    {
-        if (entry->valueIndex < 0)
-        {
+    for (const auto& entry : entries_) {
+        if (entry->valueIndex < 0) {
             continue;
         }
-        if (entry->valueIsNull)
-        {
+        if (entry->valueIsNull) {
             aggValue->setNullAt(entry->valueIndex);
-        }
-        else
-        {
+        } else {
             aggValue->setLong(entry->valueIndex, entry->aggCount);
         }
     }
@@ -506,16 +419,14 @@ void SharedDistinctCountContainerFunction::getValue(BinaryRowData* aggValue)
 
 void SharedDistinctCountContainerFunction::cleanup()
 {
-    for (auto& group : groups_)
-    {
+    for (auto& group : groups_) {
         group.pendingDistinctUpdates.clear();
     }
 }
 
 void SharedDistinctCountContainerFunction::close()
 {
-    for (auto& group : groups_)
-    {
+    for (auto& group : groups_) {
         group.pendingDistinctUpdates.clear();
     }
 }
@@ -527,47 +438,38 @@ void SharedDistinctCountContainerFunction::setCurrentGroupKey(RowData* key)
 
 void SharedDistinctCountContainerFunction::updateInnerState()
 {
-    for (auto& group : groups_)
-    {
-        if (group.distinctMapView != nullptr && !group.pendingDistinctUpdates.empty())
-        {
+    for (auto& group : groups_) {
+        if (group.distinctMapView != nullptr && !group.pendingDistinctUpdates.empty()) {
             group.distinctMapView->putByBatch(group.pendingDistinctUpdates);
         }
         group.pendingDistinctUpdates.clear();
-        if (group.distinctMapView != nullptr)
-        {
+        if (group.distinctMapView != nullptr) {
             group.distinctMapView->cleanup();
         }
     }
 }
 
-long SharedDistinctCountContainerFunction::getRowFieldValueFromVB(omnistream::VectorBatch* input, int columnIdx,
-                                                                  int rowIdx, DataTypeId typeId, bool& isNull) const
+long SharedDistinctCountContainerFunction::getRowFieldValueFromVB(
+    omnistream::VectorBatch* input, int columnIdx, int rowIdx, DataTypeId typeId, bool& isNull) const
 {
     auto* columnData = input->Get(columnIdx);
-    switch (typeId)
-    {
-    case DataTypeId::OMNI_INT:
-        {
+    switch (typeId) {
+        case DataTypeId::OMNI_INT: {
             auto* intColumn = dynamic_cast<omniruntime::vec::Vector<int>*>(columnData);
-            if (intColumn == nullptr)
-            {
+            if (intColumn == nullptr) {
                 throw std::runtime_error("Input column type mismatch for shared DISTINCT.");
             }
             isNull = intColumn->IsNull(rowIdx);
             return isNull ? 0L : static_cast<long>(intColumn->GetValue(rowIdx));
         }
-    case DataTypeId::OMNI_LONG:
-        {
+        case DataTypeId::OMNI_LONG: {
             auto* longColumn = dynamic_cast<omniruntime::vec::Vector<long>*>(columnData);
-            if (longColumn == nullptr)
-            {
+            if (longColumn == nullptr) {
                 throw std::runtime_error("Input column type mismatch for shared DISTINCT.");
             }
             isNull = longColumn->IsNull(rowIdx);
             return isNull ? 0L : longColumn->GetValue(rowIdx);
         }
-    default:
-        throw std::runtime_error("Unsupported shared DISTINCT key type.");
+        default: throw std::runtime_error("Unsupported shared DISTINCT key type.");
     }
 }

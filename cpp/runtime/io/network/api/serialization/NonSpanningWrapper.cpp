@@ -22,6 +22,7 @@
 #include "NonSpanningWrapper.h"
 
 namespace omnistream::datastream {
-    NonSpanningWrapper::NonSpanningWrapper() : data_(nullptr), length_(0), position_(0) {}
+NonSpanningWrapper::NonSpanningWrapper() : data_(nullptr), length_(0), position_(0)
+{
 }
-
+} // namespace omnistream::datastream

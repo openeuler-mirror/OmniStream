@@ -20,13 +20,15 @@
 template <typename IN, typename BucketID>
 class FileWriter {
 public:
-    FileWriter(const std::string &path,
+    FileWriter(
+        const std::string& path,
         long createdTime,
         std::vector<int> nonPartitionIndexes,
-        std::vector<std::string> inputTypes) : filePath(path),
-                                               createdTime(createdTime),
-                                               nonPartitionIndexes(nonPartitionIndexes),
-                                               inputTypes(inputTypes)
+        std::vector<std::string> inputTypes)
+        : filePath(path),
+          createdTime(createdTime),
+          nonPartitionIndexes(nonPartitionIndexes),
+          inputTypes(inputTypes)
     {
         outFile.open(filePath, std::ios::out | std::ios::app);
     }
@@ -38,7 +40,7 @@ public:
             return;
         }
 
-        auto vb = reinterpret_cast<omnistream::VectorBatch *>(batch);
+        auto vb = reinterpret_cast<omnistream::VectorBatch*>(batch);
         for (size_t i = 0; i < nonPartitionIndexes.size(); ++i) {
             size_t colId = nonPartitionIndexes[i];
             auto val = VectorBatchUtil::getValueAtAsStr(vb, colId, rowId, inputTypes);
@@ -85,7 +87,7 @@ public:
 
     ~FileWriter()
     {
-        LOG("FileWriter => Destructor")
+        LOG("FileWriter => Destructor");
         close();
     }
 

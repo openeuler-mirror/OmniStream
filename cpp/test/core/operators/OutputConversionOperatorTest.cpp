@@ -10,11 +10,13 @@
 
 using json = nlohmann::json;
 
-std::string outputconversionDescription = R"DELIM({"originDescription":"TableToDataSteam(type=ROW<`key` STRING, `countRightId` BIGINT NOT NULL, `sumRightId` BIGINT, `value` STRING> NOT NULL, rowtime=false)",
+std::string outputconversionDescription =
+    R"DELIM({"originDescription":"TableToDataSteam(type=ROW<`key` STRING, `countRightId` BIGINT NOT NULL, `sumRightId` BIGINT, `value` STRING> NOT NULL, rowtime=false)",
 "inputTypes":["VARCHAR(2147483647)","BIGINT","BIGINT","VARCHAR(2147483647)"],
 "outputTypes":["VARCHAR(2147483647)","BIGINT","BIGINT","VARCHAR(2147483647)"]})DELIM";
 
-omnistream::VectorBatch* newVectorBatchOutputConversion() {
+omnistream::VectorBatch* newVectorBatchOutputConversion()
+{
     auto* vbatch = new omnistream::VectorBatch(5);
     std::vector<std::string> key = {"2_0_7y0tKfD", "11_0_9PxSTa", "7_0_UiVsMjV", "13_1_R6Qnyd", "5_0_YgXQRyu"};
     std::vector<int64_t> countRightId = {3, 4, 5, 6, 7};
@@ -34,18 +36,20 @@ omnistream::VectorBatch* newVectorBatchOutputConversion() {
     return vbatch;
 }
 
-TEST(OutputConversionOperatorTest, DISABLED_ProcessTest) {
-    //Operator description
+TEST(OutputConversionOperatorTest, DISABLED_ProcessTest)
+{
+    // Operator description
     json parsedJson = json::parse(outputconversionDescription);
-    omnistream::OperatorPOD outputconversionPOD("nexmark_source", std::string(OPERATOR_NAME_OUTPUT_CONVERSION), outputconversionDescription, {}, {});
-    auto *output = new ExternalOutputTest();
+    omnistream::OperatorPOD outputconversionPOD(
+        "nexmark_source", std::string(OPERATOR_NAME_OUTPUT_CONVERSION), outputconversionDescription, {}, {});
+    auto* output = new ExternalOutputTest();
     auto* outputConversionOperator = dynamic_cast<OutputConversionOperator*>(
-            omnistream::StreamOperatorFactory::createOperatorAndCollector(outputconversionPOD, output, nullptr));
+        omnistream::StreamOperatorFactory::createOperatorAndCollector(outputconversionPOD, output, nullptr));
     omnistream::VectorBatch* vBatch = newVectorBatchOutputConversion();
     auto* streamRecord = new StreamRecord(vBatch);
     outputConversionOperator->open();
     outputConversionOperator->processElement(streamRecord);
-//    auto* rowOutput = dynamic_cast<ExternalOutputTest*>(outputConversionOperator->getOutput());
+    //    auto* rowOutput = dynamic_cast<ExternalOutputTest*>(outputConversionOperator->getOutput());
     std::cout << "=========== print result ==========" << std::endl;
     auto resultVec = output->getAll();
     // print Row
@@ -63,7 +67,8 @@ TEST(OutputConversionOperatorTest, DISABLED_ProcessTest) {
                 std::cout << std::any_cast<long>(resultRow->getField(i)) << "| ";
             } else if (outputTypes[i] == "BOOLEAN") {
                 std::cout << std::any_cast<int>(resultRow->getField(i)) << "| ";
-            } else if (outputTypes[i] == "STRING" || outputTypes[i] == "VARCHAR" || outputTypes[i] == "VARCHAR(2147483647)") {
+            } else if (
+                outputTypes[i] == "STRING" || outputTypes[i] == "VARCHAR" || outputTypes[i] == "VARCHAR(2147483647)") {
                 auto str_result = std::any_cast<std::string>(resultRow->getField(i));
                 std::cout << str_result << "| ";
             } else {

@@ -69,12 +69,11 @@ std::string Q7hopdescription = R"DELIM(
 }
 )DELIM";
 
-
-omnistream::VectorBatch* newVectorBatchOneKeyOneValueQ7Test1() {
+omnistream::VectorBatch* newVectorBatchOneKeyOneValueQ7Test1()
+{
     auto* vbatch = new omnistream::VectorBatch(3);
     std::vector<int64_t> bids = {59333717, 147347, 65489};
     std::vector<int64_t> timeStamps = {1731973220000, 1731973230000, 1731973230000};
-
 
     vbatch->Append(omniruntime::TestUtil::CreateVector<int64_t>(3, bids.data()));
     vbatch->Append(omniruntime::TestUtil::CreateVector<int64_t>(3, timeStamps.data()));
@@ -84,22 +83,22 @@ omnistream::VectorBatch* newVectorBatchOneKeyOneValueQ7Test1() {
     return vbatch;
 }
 
-TEST(NEXTMARKTESTQ7, MAXTEST) {
+TEST(NEXTMARKTESTQ7, MAXTEST)
+{
     omnistream::VectorBatch* vbatch = newVectorBatchOneKeyOneValueQ7Test1();
 
-    //Operator description
+    // Operator description
     std::string uniqueName = "org.apache.flink.table.runtime.operators.window.slicing.SlicingWindowOperator";
     json parsedJson = json::parse(Q7hopdescription);
     omnistream::OperatorConfig opConfig(
-            uniqueName, //uniqueName:
-            "GlobalWindowAgg_By_Simple", //Name
-            parsedJson["description"]["inputTypes"],
-            parsedJson["description"]["outputTypes"],
-            parsedJson["description"]
-    );
-    auto *output = new BatchOutputTest();
+        uniqueName,                  // uniqueName:
+        "GlobalWindowAgg_By_Simple", // Name
+        parsedJson["description"]["inputTypes"],
+        parsedJson["description"]["outputTypes"],
+        parsedJson["description"]);
+    auto* output = new BatchOutputTest();
     auto* slicingWindowOperator = dynamic_cast<SlicingWindowOperator<std::shared_ptr<RowData>, int64_t>*>(
-            StreamOperatorFactory::createOperatorAndCollector(opConfig, output));
+        StreamOperatorFactory::createOperatorAndCollector(opConfig, output));
 
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
@@ -113,21 +112,21 @@ TEST(NEXTMARKTESTQ7, MAXTEST) {
     }
     env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
+    StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
     std::vector<omnistream::RowField> typeInfo{omnistream::RowField("col0", BasicLogicalType::BIGINT)};
     slicingWindowOperator->setup();
-    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, typeInfo));
+    TypeSerializer* ser = new RowDataSerializer(new omnistream::RowType(false, typeInfo));
     slicingWindowOperator->initializeState(initializer, ser);
 
-    LOG("step1")
+    LOG("step1");
     slicingWindowOperator->open();
-    LOG("step2")
+    LOG("step2");
     slicingWindowOperator->processBatch(vbatch);
     slicingWindowOperator->ProcessWatermark(new Watermark(INT64_MAX));
 
     BatchOutputTest* batchOutput = output;
-    LOG("step3")
-    auto* resultBatch = reinterpret_cast<omnistream::VectorBatch*> (batchOutput->getVectorBatch());
+    LOG("step3");
+    auto* resultBatch = reinterpret_cast<omnistream::VectorBatch*>(batchOutput->getVectorBatch());
     // print VectorBatch
     int rowCount = resultBatch->GetRowCount();
     int colCount = resultBatch->GetVectorCount();
@@ -137,6 +136,6 @@ TEST(NEXTMARKTESTQ7, MAXTEST) {
             std::cout << result;
             std::cout << " ";
         }
-            std::cout << to_string(resultBatch->getRowKind(i)) << std::endl;
+        std::cout << to_string(resultBatch->getRowKind(i)) << std::endl;
     }
 }

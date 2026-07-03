@@ -17,11 +17,11 @@
 #include <executiongraph/TaskInformationPOD.h>
 
 namespace omnistream {
-    class EnvironmentV2 {
-    public:
-        virtual std::shared_ptr<TaskStateManager> getTaskStateManager() = 0;
-        virtual const TaskInformationPOD& taskConfiguration() const = 0;
-    };
-}
+class EnvironmentV2 {
+public:
+    virtual std::shared_ptr<TaskStateManager> getTaskStateManager() = 0;
+    virtual const TaskInformationPOD& taskConfiguration() const = 0;
+};
+} // namespace omnistream
 
 #endif

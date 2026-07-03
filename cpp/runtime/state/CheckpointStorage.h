@@ -21,21 +21,21 @@
 #include "filesystem/FsCheckpointStorageAccess.h"
 
 namespace omnistream {
-    class CheckpointStorage {
-    public:
-        virtual ~CheckpointStorage() = default;
-        
-        virtual std::shared_ptr<CheckpointStorageAccess> createCheckpointStorage(const JobIDPOD& jobId) = 0;
+class CheckpointStorage {
+public:
+    virtual ~CheckpointStorage() = default;
 
-        std::shared_ptr<CheckpointStorageAccess> createCheckpointStorage(std::string tmpWorkingDirectory)
-        {
-            // Temp initialization
-            auto path1 = new Path(tmpWorkingDirectory);
-            auto path2 = new Path("test2");
+    virtual std::shared_ptr<CheckpointStorageAccess> createCheckpointStorage(const JobIDPOD& jobId) = 0;
 
-            return std::make_shared<FsCheckpointStorageAccess>(path1, path2, JobIDPOD(), 100, 100);
-        }
-    };
-}
+    std::shared_ptr<CheckpointStorageAccess> createCheckpointStorage(std::string tmpWorkingDirectory)
+    {
+        // Temp initialization
+        auto path1 = new Path(tmpWorkingDirectory);
+        auto path2 = new Path("test2");
+
+        return std::make_shared<FsCheckpointStorageAccess>(path1, path2, JobIDPOD(), 100, 100);
+    }
+};
+} // namespace omnistream
 
 #endif // OMNISTREAM_CHECKPOINT_STORAGE_H

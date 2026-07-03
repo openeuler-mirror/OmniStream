@@ -19,14 +19,15 @@
 
 class WatermarkContext : public SourceContext {
 public:
-    WatermarkContext(ProcessingTimeService *timeService,
-                     Object *checkpointLock,
-                     int64_t idleTimeout) : timeService(timeService), checkpointLock(checkpointLock),
-                                            idleTimeout(idleTimeout) {
+    WatermarkContext(ProcessingTimeService* timeService, Object* checkpointLock, int64_t idleTimeout)
+        : timeService(timeService),
+          checkpointLock(checkpointLock),
+          idleTimeout(idleTimeout)
+    {
         scheduleNextIdleDetectionTask();
     }
 
-    void collectWithTimestamp(void *element, int64_t timestamp) override
+    void collectWithTimestamp(void* element, int64_t timestamp) override
     {
         checkpointLock->mutex.lock();
         {
@@ -43,7 +44,7 @@ public:
         checkpointLock->mutex.unlock();
     }
 
-    void collect(void *element) override
+    void collect(void* element) override
     {
         checkpointLock->mutex.lock();
         {
@@ -60,7 +61,7 @@ public:
         checkpointLock->mutex.unlock();
     }
 
-    void emitWatermark(Watermark *mark) override
+    void emitWatermark(Watermark* mark) override
     {
         if (allowWatermark(mark)) {
             checkpointLock->mutex.lock();
@@ -88,7 +89,7 @@ public:
         checkpointLock->mutex.unlock();
     }
 
-    Object *getCheckpointLock() override
+    Object* getCheckpointLock() override
     {
         return checkpointLock;
     }
@@ -116,33 +117,35 @@ protected:
         }
     }
 
-    virtual void processAndCollect(void *element) = 0;
+    virtual void processAndCollect(void* element) = 0;
 
-    virtual void processAndCollectWithTimestamp(void *element, int64_t timestamp) = 0;
+    virtual void processAndCollectWithTimestamp(void* element, int64_t timestamp) = 0;
 
-    virtual bool allowWatermark(Watermark *mark) = 0;
+    virtual bool allowWatermark(Watermark* mark) = 0;
 
-    virtual void processAndEmitWatermarkStatus(WatermarkStatus *watermarkStatus) = 0;
+    virtual void processAndEmitWatermarkStatus(WatermarkStatus* watermarkStatus) = 0;
 
-    virtual void processAndEmitWatermark(Watermark *mark) = 0;
+    virtual void processAndEmitWatermark(Watermark* mark) = 0;
 
-    ProcessingTimeService *timeService;
-    Object *checkpointLock;
+    ProcessingTimeService* timeService;
+    Object* checkpointLock;
     int64_t idleTimeout;
+
 private:
     void scheduleNextIdleDetectionTask()
     {
         if (idleTimeout != -1) {
             // reset flag; if it remains true when task fires, we have detected idleness
             failOnNextCheck = true;
-            timeService->registerTimer(timeService->getCurrentProcessingTime() + idleTimeout, new IdlenessDetectionTask(this));
+            timeService->registerTimer(
+                timeService->getCurrentProcessingTime() + idleTimeout, new IdlenessDetectionTask(this));
         }
     }
 
     class IdlenessDetectionTask : public ProcessingTimeCallback {
     public:
-        explicit IdlenessDetectionTask(
-                WatermarkContext *watermarkContext) : watermarkContext(watermarkContext) {
+        explicit IdlenessDetectionTask(WatermarkContext* watermarkContext) : watermarkContext(watermarkContext)
+        {
         }
 
         ~IdlenessDetectionTask() override = default;
@@ -167,12 +170,12 @@ private:
         }
 
     private:
-        WatermarkContext *watermarkContext;
+        WatermarkContext* watermarkContext;
     };
 
     volatile bool failOnNextCheck;
     // todo
-    ScheduledFuture *nextCheck;
+    ScheduledFuture* nextCheck;
 };
 
-#endif  // FLINK_TNEL_WATERMARKCONTEXT_H
+#endif // FLINK_TNEL_WATERMARKCONTEXT_H

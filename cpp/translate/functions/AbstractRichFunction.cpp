@@ -11,7 +11,7 @@
 #include "functions/AbstractRichFunction.h"
 #include <stdexcept>
 
-RuntimeContext *AbstractRichFunction::getRuntimeContext()
+RuntimeContext* AbstractRichFunction::getRuntimeContext()
 {
     if (runtimeContext) {
         return runtimeContext;
@@ -20,12 +20,12 @@ RuntimeContext *AbstractRichFunction::getRuntimeContext()
     }
 }
 
-IterationRuntimeContext *AbstractRichFunction::getIterationRuntimeContext()
+IterationRuntimeContext* AbstractRichFunction::getIterationRuntimeContext()
 {
     if (!runtimeContext) {
         throw std::runtime_error("The runtime context has not been initialized.");
     }
-    IterationRuntimeContext *iterationContext = static_cast<IterationRuntimeContext *>(runtimeContext);
+    IterationRuntimeContext* iterationContext = static_cast<IterationRuntimeContext*>(runtimeContext);
     if (iterationContext) {
         return iterationContext;
     } else {
@@ -33,18 +33,21 @@ IterationRuntimeContext *AbstractRichFunction::getIterationRuntimeContext()
     }
 }
 
-void AbstractRichFunction::setRuntimeContext(RuntimeContext *context)
+void AbstractRichFunction::setRuntimeContext(RuntimeContext* context)
 {
     runtimeContext = context;
 }
 
 AbstractRichFunction::~AbstractRichFunction() = default;
 
-void AbstractRichFunction::open(const Configuration &parameters) {
+void AbstractRichFunction::open(const Configuration& parameters)
+{
 }
 
-void AbstractRichFunction::close() {
+void AbstractRichFunction::close()
+{
 }
 
-void AbstractRichFunction::open(Configuration* parameters) {
+void AbstractRichFunction::open(Configuration* parameters)
+{
 }

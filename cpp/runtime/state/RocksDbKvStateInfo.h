@@ -22,14 +22,11 @@
 class RocksDbKvStateInfo {
 public:
     RocksDbKvStateInfo(
-            rocksdb::ColumnFamilyHandle* columnFamilyHandle,
-            std::shared_ptr<RegisteredStateMetaInfoBase> metaInfo
-    ): columnFamilyHandle_(columnFamilyHandle),
-       metaInfo_(std::move(metaInfo))
-    {};
+        rocksdb::ColumnFamilyHandle* columnFamilyHandle, std::shared_ptr<RegisteredStateMetaInfoBase> metaInfo)
+        : columnFamilyHandle_(columnFamilyHandle),
+          metaInfo_(std::move(metaInfo)) {};
 
-    RocksDbKvStateInfo(): columnFamilyHandle_(nullptr),
-                          metaInfo_(nullptr) {};
+    RocksDbKvStateInfo() : columnFamilyHandle_(nullptr), metaInfo_(nullptr) {};
 
     void setColumnFamilyHandle(rocksdb::ColumnFamilyHandle* columnFamilyHandle)
     {

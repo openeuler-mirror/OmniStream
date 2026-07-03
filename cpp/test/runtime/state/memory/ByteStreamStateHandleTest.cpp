@@ -2,7 +2,8 @@
 #include "runtime/state/memory/ByteStreamStateHandle.h"
 
 // Test Seeking and getting position
-TEST(ByteStreamStateHandleTest, StreamSeekAndPos) {
+TEST(ByteStreamStateHandleTest, StreamSeekAndPos)
+{
     std::vector<uint8_t> data = {34, 25, 22, 66, 88, 54};
     ByteStreamStateHandle handle("name", data);
 
@@ -31,7 +32,8 @@ TEST(ByteStreamStateHandleTest, StreamSeekAndPos) {
 }
 
 // Test Seeking out of bounds
-TEST(ByteStreamStateHandleTest, StreamSeekOutOfBounds) {
+TEST(ByteStreamStateHandleTest, StreamSeekOutOfBounds)
+{
     int len = 10;
     ByteStreamStateHandle handle("name", std::vector<uint8_t>(len));
 
@@ -46,7 +48,8 @@ TEST(ByteStreamStateHandleTest, StreamSeekOutOfBounds) {
 }
 
 // Test bulk Read behavior
-TEST(ByteStreamStateHandleTest, BulkRead) {
+TEST(ByteStreamStateHandleTest, BulkRead)
+{
     std::vector<uint8_t> data = {34, 25, 22, 66};
     ByteStreamStateHandle handle("name", data);
     int targetLen = 8;
@@ -75,7 +78,8 @@ TEST(ByteStreamStateHandleTest, BulkRead) {
 }
 
 // Test invalid Read ranges throw exceptions
-TEST(ByteStreamStateHandleTest, BulkReadIndexOutOfBounds) {
+TEST(ByteStreamStateHandleTest, BulkReadIndexOutOfBounds)
+{
     ByteStreamStateHandle handle("name", std::vector<uint8_t>(10));
 
     auto check_invalid = [&](int off, int len) {
@@ -84,9 +88,9 @@ TEST(ByteStreamStateHandleTest, BulkReadIndexOutOfBounds) {
         EXPECT_THROW(in->Read(buffer, off, len), std::out_of_range);
     };
 
-    check_invalid(-1, 5);                    // negative offset
-    check_invalid(10, 5);                    // offset overflow
-    check_invalid(0, -2);                    // negative length
-    check_invalid(5, 6);                     // overflow beyond buffer
-    check_invalid(5, INT32_MAX);            // integer overflow
+    check_invalid(-1, 5);        // negative offset
+    check_invalid(10, 5);        // offset overflow
+    check_invalid(0, -2);        // negative length
+    check_invalid(5, 6);         // overflow beyond buffer
+    check_invalid(5, INT32_MAX); // integer overflow
 }

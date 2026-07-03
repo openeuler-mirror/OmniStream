@@ -19,13 +19,15 @@ class OutputTag {
 public:
     // OutputTag(std::string &id) : id(std::move(id)) {}
 
-    OutputTag(std::string &id, TypeInformation *typeInfo) : id(std::move(id)), typeInfo(typeInfo) {}
+    OutputTag(std::string& id, TypeInformation* typeInfo) : id(std::move(id)), typeInfo(typeInfo)
+    {
+    }
 
     std::string getId() const
     {
         return id;
     }
-    TypeInformation *getTypeInformation() const
+    TypeInformation* getTypeInformation() const
     {
         return typeInfo;
     }
@@ -37,8 +39,9 @@ public:
     {
         return other.id == this->id;
     }
+
 private:
     std::string id;
-    TypeInformation *typeInfo;
+    TypeInformation* typeInfo;
 };
 #endif // FLINK_TNEL_OUTPUTTAG_H

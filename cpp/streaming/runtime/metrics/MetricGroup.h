@@ -12,10 +12,8 @@
 #ifndef METRICGROUP_H
 #define METRICGROUP_H
 
-
 namespace omnistream {
-    class MetricGroup {
-    };
-}
+class MetricGroup {};
+} // namespace omnistream
 
 #endif

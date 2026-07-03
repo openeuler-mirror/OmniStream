@@ -16,8 +16,9 @@
 
 class PartitionNotFoundException : public std::logic_error {
 public:
-    explicit PartitionNotFoundException(const std::string& message)
-        : std::logic_error(message) {}
+    explicit PartitionNotFoundException(const std::string& message) : std::logic_error(message)
+    {
+    }
 };
 
 #endif // PARTITION_NOT_FOUND_EXCEPTION_H

@@ -9,7 +9,6 @@
  * See the Mulan PSL v2 for more details.
  */
 
-
 #ifndef FLINK_TNEL_DATAINPUTDESERIALIZER_H
 #define FLINK_TNEL_DATAINPUTDESERIALIZER_H
 
@@ -19,15 +18,16 @@
 #include "basictypes/Double.h"
 #include "include/common.h"
 
-
 class DataInputDeserializer : public DataInputView {
 public:
-    explicit DataInputDeserializer(const uint8_t *buffer = nullptr, int anEnd = 0, int position = 0)
-        : buffer_(buffer), end_(anEnd), position_(position) {};
+    explicit DataInputDeserializer(const uint8_t* buffer = nullptr, int anEnd = 0, int position = 0)
+        : buffer_(buffer),
+          end_(anEnd),
+          position_(position) {};
 
     ~DataInputDeserializer() override = default;
 
-    void setBuffer(const uint8_t *buffer, int bufferLength, int start, int len);
+    void setBuffer(const uint8_t* buffer, int bufferLength, int start, int len);
 
     int readUnsignedByte() override;
 
@@ -45,9 +45,9 @@ public:
 
     void readFully(uint8_t* b, int size, int off, int len) override;
 
-    void *GetBuffer() override
+    void* GetBuffer() override
     {
-        return const_cast<void *>(static_cast<const void *>(buffer_));
+        return const_cast<void*>(static_cast<const void*>(buffer_));
     }
 
     int Available()
@@ -60,20 +60,23 @@ public:
     }
     double readDouble() override;
 
-    const uint8_t* getData() override {
+    const uint8_t* getData() override
+    {
         return buffer_;
     }
 
-    size_t getPosition() override {
+    size_t getPosition() override
+    {
         return position_;
     }
 
-    void setPosition(size_t position) override {
+    void setPosition(size_t position) override
+    {
         position_ = position;
     }
 
 private:
-    const uint8_t *buffer_;
+    const uint8_t* buffer_;
     int end_ = 0;
     int position_ = 0;
 
@@ -82,12 +85,10 @@ private:
     std::vector<char> charArr;
 };
 
-inline void DataInputDeserializer::setBuffer(const uint8_t *buffer, int bufferLength, int start, int len)
+inline void DataInputDeserializer::setBuffer(const uint8_t* buffer, int bufferLength, int start, int len)
 {
-    LOG("DataInputDeserializer::setBuffer " << reinterpret_cast<long>(buffer)
-                                            << " bufferLength " << bufferLength
-                                            << " start " << start
-                                            << " len " << len)
+    LOG("DataInputDeserializer::setBuffer " << reinterpret_cast<long>(buffer) << " bufferLength " << bufferLength
+                                            << " start " << start << " len " << len);
 
     if (start < 0 || len < 0 || start + len > bufferLength) {
         THROW_LOGIC_EXCEPTION("Invalid bounds.");
@@ -101,9 +102,8 @@ inline void DataInputDeserializer::setBuffer(const uint8_t *buffer, int bufferLe
 inline uint8_t DataInputDeserializer::readByte()
 {
     // debug
-    LOG("DataInputDeserializer::readByte " << reinterpret_cast<long>(buffer_)
-                                           << " position_ " << position_
-                                           << " end_ " << end_)
+    LOG("DataInputDeserializer::readByte " << reinterpret_cast<long>(buffer_) << " position_ " << position_ << " end_ "
+                                           << end_);
     if (unlikely(position_ < 0 || position_ > end_)) {
         THROW_LOGIC_EXCEPTION("readByte EOFException.");
     }
@@ -118,15 +118,11 @@ inline int64_t DataInputDeserializer::readLong()
         THROW_LOGIC_EXCEPTION("EOFException, position_: " << position_ << ", end_: " << end_);
     }
     // big endian
-    auto ret =  static_cast <int64_t>
-    ((static_cast<uint64_t>(buffer_[position_]) << 56) |
-     (static_cast<uint64_t>(buffer_[position_ + 1]) << 48) |
-     (static_cast<uint64_t>(buffer_[position_ + 2]) << 40) |
-     (static_cast<uint64_t>(buffer_[position_ + 3]) << 32) |
-     (static_cast<uint64_t>(buffer_[position_ + 4]) << 24) |
-     (static_cast<uint64_t>(buffer_[position_ + 5]) << 16) |
-     (static_cast<uint64_t>(buffer_[position_ + 6]) << 8) |
-     static_cast<uint64_t>(buffer_[position_ + 7]));
+    auto ret = static_cast<int64_t>(
+        (static_cast<uint64_t>(buffer_[position_]) << 56) | (static_cast<uint64_t>(buffer_[position_ + 1]) << 48) |
+        (static_cast<uint64_t>(buffer_[position_ + 2]) << 40) | (static_cast<uint64_t>(buffer_[position_ + 3]) << 32) |
+        (static_cast<uint64_t>(buffer_[position_ + 4]) << 24) | (static_cast<uint64_t>(buffer_[position_ + 5]) << 16) |
+        (static_cast<uint64_t>(buffer_[position_ + 6]) << 8) | static_cast<uint64_t>(buffer_[position_ + 7]));
     position_ += 8;
     return ret;
 }
@@ -138,15 +134,13 @@ inline int DataInputDeserializer::readInt()
         // Handle error or throw exception
         THROW_LOGIC_EXCEPTION("readInt EOFException");
     }
-    uint32_t value = (static_cast<uint32_t>(buffer_[position_]) << 24) |
-                     (static_cast<uint32_t>(buffer_[position_ + 1]) << 16) |
-                     (static_cast<uint32_t>(buffer_[position_ + 2]) << 8) |
-                     static_cast<uint32_t>(buffer_[position_ + 3]);
+    uint32_t value =
+        (static_cast<uint32_t>(buffer_[position_]) << 24) | (static_cast<uint32_t>(buffer_[position_ + 1]) << 16) |
+        (static_cast<uint32_t>(buffer_[position_ + 2]) << 8) | static_cast<uint32_t>(buffer_[position_ + 3]);
 
     position_ += sizeof(uint32_t);
 
-    LOG("position_ " << position_ << " address " << reinterpret_cast<long>(buffer_)   \
-      << " value  " << value)
+    LOG("position_ " << position_ << " address " << reinterpret_cast<long>(buffer_) << " value  " << value);
     return static_cast<int>(value);
 }
 
@@ -164,8 +158,8 @@ inline int DataInputDeserializer::readUnsignedByte()
 {
     if (likely(position_ < end_)) {
         return (buffer_[position_++] & 0xff);
-    } else  {
-        THROW_LOGIC_EXCEPTION("EOFException")
+    } else {
+        THROW_LOGIC_EXCEPTION("EOFException");
     }
 }
 
@@ -186,16 +180,16 @@ inline std::string DataInputDeserializer::readUTF()
     readFully(byteArr.data(), utflen, 0, utflen);
 
     while (count < utflen) {
-        c = (int) byteArr[count] & 0xff;
+        c = (int)byteArr[count] & 0xff;
         if (c > 127) {
             break;
         }
         count++;
-        charArr[chararrCount++] = (char) c;
+        charArr[chararrCount++] = (char)c;
     }
 
     while (count < utflen) {
-        c = (int) byteArr[count] & 0xff;
+        c = (int)byteArr[count] & 0xff;
         switch (c >> 4) {
             case 0:
             case 1:
@@ -207,7 +201,7 @@ inline std::string DataInputDeserializer::readUTF()
             case 7:
                 /* 0xxxxxxx */
                 count++;
-                charArr[chararrCount++] = (char) c;
+                charArr[chararrCount++] = (char)c;
                 break;
             case 12:
             case 13:
@@ -216,11 +210,11 @@ inline std::string DataInputDeserializer::readUTF()
                 if (unlikely(count > utflen)) {
                     THROW_LOGIC_EXCEPTION("malformed input: partial character at end");
                 }
-                char2 = (int) byteArr[count - 1];
+                char2 = (int)byteArr[count - 1];
                 if (unlikely((char2 & 0xC0) != 0x80)) {
                     THROW_LOGIC_EXCEPTION("malformed input around byte " + count);
                 }
-                charArr[chararrCount++] = (char) (((c & 0x1F) << 6) | (char2 & 0x3F));
+                charArr[chararrCount++] = (char)(((c & 0x1F) << 6) | (char2 & 0x3F));
                 break;
             case 14:
                 /* 1110 xxxx 10xx xxxx 10xx xxxx */
@@ -228,12 +222,12 @@ inline std::string DataInputDeserializer::readUTF()
                 if (unlikely(count > utflen)) {
                     THROW_LOGIC_EXCEPTION("malformed input: partial character at end");
                 }
-                char2 = (int) byteArr[count - 2];
-                char3 = (int) byteArr[count - 1];
+                char2 = (int)byteArr[count - 2];
+                char3 = (int)byteArr[count - 1];
                 if (unlikely(((char2 & 0xC0) != 0x80) || ((char3 & 0xC0) != 0x80))) {
                     THROW_LOGIC_EXCEPTION("malformed input around byte " + (count - 1));
                 }
-                charArr[chararrCount++] = (char) (((c & 0x0F) << 12) | ((char2 & 0x3F) << 6) | (char3 & 0x3F));
+                charArr[chararrCount++] = (char)(((c & 0x0F) << 12) | ((char2 & 0x3F) << 6) | (char3 & 0x3F));
                 break;
             default:
                 /* 10xx xxxx, 1111 xxxx */
@@ -268,4 +262,4 @@ inline double DataInputDeserializer::readDouble()
     return Double::doubleToLongBits(readLong());
 }
 
-#endif  // FLINK_TNEL_DATAINPUTDESERIALIZER_H
+#endif // FLINK_TNEL_DATAINPUTDESERIALIZER_H

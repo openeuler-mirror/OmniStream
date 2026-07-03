@@ -36,16 +36,21 @@ template <typename K>
 class JoinRecordStateView {
 public:
     /** update the inputSideStateView based on rowKind of input. Add accumulate rows and rectract non-accumulate rows*/
-    virtual void addOrRectractRecord(omnistream::VectorBatch *input, KeySelector<K>* keySelector,
-        bool OtherIsOuter, KeyedStateBackend<K> *backend, bool filterNulls, const std::vector<int32_t>& numAssociates) = 0;
+    virtual void addOrRectractRecord(
+        omnistream::VectorBatch* input,
+        KeySelector<K>* keySelector,
+        bool OtherIsOuter,
+        KeyedStateBackend<K>* backend,
+        bool filterNulls,
+        const std::vector<int32_t>& numAssociates) = 0;
 
     virtual ~JoinRecordStateView() = default;
 
-    virtual void addVectorBatch(omnistream::VectorBatch *vectorBatch) = 0;
+    virtual void addVectorBatch(omnistream::VectorBatch* vectorBatch) = 0;
 
     virtual int getCurrentBatchId() const = 0;
-    virtual std::vector<omnistream::VectorBatch *> getVectorBatches() const = 0;
-    virtual omnistream::VectorBatch *getVectorBatch(int batchId) = 0;
+    virtual std::vector<omnistream::VectorBatch*> getVectorBatches() const = 0;
+    virtual omnistream::VectorBatch* getVectorBatch(int batchId) = 0;
     virtual long getVectorBatchesSize() = 0;
     virtual void freeDelVectorBatch()
     {
@@ -54,7 +59,7 @@ public:
             this->delVb.clear();
             return;
         }
-        for (auto vb: this->delVb) {
+        for (auto vb : this->delVb) {
             delete vb;
         }
         this->delVb.clear();
@@ -63,10 +68,9 @@ public:
     virtual void cleanEntriesCache() = 0;
 
 protected:
-    std::unordered_map<int, omnistream::VectorBatch *> cachedVb;
-    std::set<omnistream::VectorBatch *> delVb;
+    std::unordered_map<int, omnistream::VectorBatch*> cachedVb;
+    std::set<omnistream::VectorBatch*> delVb;
     omnistream::StateType backendType_ = omnistream::StateType::HEAP;
-
 };
 
 template <typename K>
@@ -77,48 +81,46 @@ public:
     using MAP_STATE_TYPE = MapState<XXH128_hash_t, UV>;
     using MAP_TYPE = emhash7::HashMap<XXH128_hash_t, UV>;
 
-    InputSideHasNoUniqueKey(StreamingRuntimeContext<K> *ctx, std::string stateName, InternalTypeInfo *recordType)
+    InputSideHasNoUniqueKey(StreamingRuntimeContext<K>* ctx, std::string stateName, InternalTypeInfo* recordType)
     {
-        auto *recordStateDesc = new MapStateDescriptor<XXH128_hash_t, UV>(stateName, new XxH128_hashSerializer(),
-                                                                          new JoinTupleSerializer());
+        auto* recordStateDesc = new MapStateDescriptor<XXH128_hash_t, UV>(
+            stateName, new XxH128_hashSerializer(), new JoinTupleSerializer());
         recordStateDesc->setKeyValueBackendTypeId(BackendDataType::XXHASH128_BK, BackendDataType::TUPLE_INT32_INT64);
         this->recordStateVB = ctx->template getMapState<XXH128_hash_t, UV>(recordStateDesc);
 #ifdef WITH_OMNISTATESTORE
-        if (auto *backend = dynamic_cast<BssMapState<K, VoidNamespace, XXH128_hash_t, UV> *>(recordStateVB)) {
-            INFO_RELEASE("InputSideHasNoUniqueKey backend is bss")
+        if (auto* backend = dynamic_cast<BssMapState<K, VoidNamespace, XXH128_hash_t, UV>*>(recordStateVB)) {
+            INFO_RELEASE("InputSideHasNoUniqueKey backend is bss");
             this->backendType_ = omnistream::StateType::BSS;
         }
 #endif
-        if (auto *backend = dynamic_cast<RocksdbMapState<K, VoidNamespace, XXH128_hash_t, UV> *>(recordStateVB)) {
-            INFO_RELEASE("InputSideHasNoUniqueKey backend is rocksdb")
+        if (auto* backend = dynamic_cast<RocksdbMapState<K, VoidNamespace, XXH128_hash_t, UV>*>(recordStateVB)) {
+            INFO_RELEASE("InputSideHasNoUniqueKey backend is rocksdb");
             this->backendType_ = omnistream::StateType::ROCKSDB;
         } else {
-            INFO_RELEASE("InputSideHasNoUniqueKey backend is mem")
+            INFO_RELEASE("InputSideHasNoUniqueKey backend is mem");
             this->backendType_ = omnistream::StateType::HEAP;
         }
     }
 
-    ~InputSideHasNoUniqueKey() override
-    {
-    };
+    ~InputSideHasNoUniqueKey() override {};
 
     virtual long getVectorBatchesSize()
     {
         return recordStateVB->getVectorBatchesSize();
     };
 
-    void addVectorBatch(omnistream::VectorBatch *vectorBatch) override
+    void addVectorBatch(omnistream::VectorBatch* vectorBatch) override
     {
         this->delVb.insert(vectorBatch);
         recordStateVB->addVectorBatch(vectorBatch);
     }
 
-    omnistream::VectorBatch *getVectorBatch(int batchId)
+    omnistream::VectorBatch* getVectorBatch(int batchId)
     {
         if (this->cachedVb.end() != this->cachedVb.find((batchId))) {
             return this->cachedVb[batchId];
         }
-        auto vb =  recordStateVB->getVectorBatch(batchId);
+        auto vb = recordStateVB->getVectorBatch(batchId);
         this->delVb.insert(vb);
         this->cachedVb.emplace(batchId, vb);
         return vb;
@@ -134,7 +136,7 @@ public:
         return recordStateVB->entries();
     }
 
-    [[nodiscard]] std::vector<omnistream::VectorBatch *> getVectorBatches() const override
+    [[nodiscard]] std::vector<omnistream::VectorBatch*> getVectorBatches() const override
     {
         return recordStateVB->getVectorBatches();
     }
@@ -144,35 +146,46 @@ public:
         return recordStateVB;
     };
 
-    void addOrRectractRecord(omnistream::VectorBatch *input, KeySelector<K>* keySelector,
-        bool otherIsOuter, KeyedStateBackend<K> *backend, bool filterNulls, const std::vector<int32_t>& numAssociates) override;
+    void addOrRectractRecord(
+        omnistream::VectorBatch* input,
+        KeySelector<K>* keySelector,
+        bool otherIsOuter,
+        KeyedStateBackend<K>* backend,
+        bool filterNulls,
+        const std::vector<int32_t>& numAssociates) override;
 
-    void cleanEntriesCache() {
+    void cleanEntriesCache()
+    {
         recordStateVB->clearEntriesCache();
     }
-
 
 private:
     MAP_STATE_TYPE* recordStateVB;
 
-    void  GetRockDBRecordsInBatch(std::vector<XXH128_hash_t>& xxh128Hashes,
-                                                         std::vector<K> &keys,std::unordered_map<std::pair<K,XXH128_hash_t>,UV> & result);
+    void GetRockDBRecordsInBatch(
+        std::vector<XXH128_hash_t>& xxh128Hashes,
+        std::vector<K>& keys,
+        std::unordered_map<std::pair<K, XXH128_hash_t>, UV>& result);
 
-    void ProcessRockDBRecordsInBatch(omnistream::VectorBatch *input, KeySelector<K>* keySelector,bool filterNulls,int batchId);
-
-
+    void ProcessRockDBRecordsInBatch(
+        omnistream::VectorBatch* input, KeySelector<K>* keySelector, bool filterNulls, int batchId);
 };
 
 template <typename K>
-void InputSideHasNoUniqueKey<K>::addOrRectractRecord(omnistream::VectorBatch *input, KeySelector<K>* keySelector,
-    bool otherIsOuter, KeyedStateBackend<K> *backend, bool filterNulls, const std::vector<int32_t>& numAssociates)
+void InputSideHasNoUniqueKey<K>::addOrRectractRecord(
+    omnistream::VectorBatch* input,
+    KeySelector<K>* keySelector,
+    bool otherIsOuter,
+    KeyedStateBackend<K>* backend,
+    bool filterNulls,
+    const std::vector<int32_t>& numAssociates)
 {
     LOG(">>>>>>>");
-    int32_t batchId = getCurrentBatchId();  // vector<vb*>.size(); this need to be called before addVectorBatch(input)
+    int32_t batchId = getCurrentBatchId(); // vector<vb*>.size(); this need to be called before addVectorBatch(input)
     this->addVectorBatch(input);
     // compress a row into a xxhash128 value.
     if (this->backendType_ == omnistream::StateType::ROCKSDB) {
-        ProcessRockDBRecordsInBatch( input, keySelector, filterNulls, batchId);
+        ProcessRockDBRecordsInBatch(input, keySelector, filterNulls, batchId);
         return;
     }
 
@@ -190,14 +203,11 @@ void InputSideHasNoUniqueKey<K>::addOrRectractRecord(omnistream::VectorBatch *in
         recordStateVB->updateOrCreate(
             ukey,
             /* default value used only if key is missing and delta is positive */
-            UV {1, comboIDs[i]},
+            UV{1, comboIDs[i]},
             [delta, &numAssociates, i](UV& val) -> std::optional<UV> {
                 int newCount = std::get<0>(val) + delta;
                 if (newCount != 0) {
-                    return UV{
-                        newCount,
-                        std::get<1>(val)
-                    };
+                    return UV{newCount, std::get<1>(val)};
                 } else {
                     return std::nullopt; // signal to remove entry
                 }
@@ -210,22 +220,18 @@ void InputSideHasNoUniqueKey<K>::addOrRectractRecord(omnistream::VectorBatch *in
 }
 
 template <typename K>
-void InputSideHasNoUniqueKey<K>::ProcessRockDBRecordsInBatch(omnistream::VectorBatch *input, KeySelector<K>* keySelector,
-    bool filterNulls,int batchId)
+void InputSideHasNoUniqueKey<K>::ProcessRockDBRecordsInBatch(
+    omnistream::VectorBatch* input, KeySelector<K>* keySelector, bool filterNulls, int batchId)
 {
-
     std::vector<XXH128_hash_t> xxh128Hashes = input->getXXH128s();
-    std::unordered_map<std::pair<K,XXH128_hash_t>,UV> rockdbRecords;
+    std::unordered_map<std::pair<K, XXH128_hash_t>, UV> rockdbRecords;
     std::vector<K> keys;
     std::vector<int> deltas;
-    for (int i = 0; i < input->GetRowCount(); i++)
-    {
+    for (int i = 0; i < input->GetRowCount(); i++) {
         if (filterNulls && keySelector->isAnyKeyNull(input, i)) {
-            if constexpr (std::is_pointer_v<K>)
-            {
+            if constexpr (std::is_pointer_v<K>) {
                 keys.push_back(nullptr);
-            }else
-            {
+            } else {
                 keys.push_back(K{});
             }
 
@@ -238,65 +244,54 @@ void InputSideHasNoUniqueKey<K>::ProcessRockDBRecordsInBatch(omnistream::VectorB
         deltas.push_back(delta);
     }
 
-    GetRockDBRecordsInBatch(xxh128Hashes,keys,rockdbRecords);
+    GetRockDBRecordsInBatch(xxh128Hashes, keys, rockdbRecords);
 
+    std::unordered_map<K, std::unordered_map<XXH128_hash_t, UV>> addOrUpdateRecords;
+    std::unordered_map<K, std::unordered_set<XXH128_hash_t>> deleteRecords;
 
-    std::unordered_map<K,std::unordered_map<XXH128_hash_t,UV>> addOrUpdateRecords;
-    std::unordered_map<K,std::unordered_set<XXH128_hash_t>> deleteRecords;
-
-    for (int i=0; i<keys.size(); i++)
-    {
+    for (int i = 0; i < keys.size(); i++) {
         if constexpr (std::is_pointer_v<K>) {
-            if (keys[i] == nullptr)
-                continue;
+            if (keys[i] == nullptr) continue;
         } else {
             // For non-pointer types, check a sentinel or skip this check
-            if (keys[i] == K{})
-            {
+            if (keys[i] == K{}) {
                 // default constructed (e.g. 0)
                 continue;
             }
         }
-        auto keyAndUkey = std::make_pair(keys[i],xxh128Hashes[i]);
+        auto keyAndUkey = std::make_pair(keys[i], xxh128Hashes[i]);
         auto recordIter = rockdbRecords.find(keyAndUkey);
         UV val{0, VectorBatchUtil::getComboId(batchId, i)};
-        if (recordIter != rockdbRecords.end())
-        {
+        if (recordIter != rockdbRecords.end()) {
             val = recordIter->second;
         }
 
         // update
         int newCount = std::get<0>(val) + deltas[i];
         if (newCount > 0) {
-            //add
-             UV newVal{
-                newCount,
-                std::get<1>(val)};
-            rockdbRecords[keyAndUkey]= newVal;
+            // add
+            UV newVal{newCount, std::get<1>(val)};
+            rockdbRecords[keyAndUkey] = newVal;
             auto& inner = addOrUpdateRecords[keys[i]];
-            inner.insert_or_assign(xxh128Hashes[i],std::move(newVal));
+            inner.insert_or_assign(xxh128Hashes[i], std::move(newVal));
             auto it = deleteRecords.find(keys[i]);
             if (it != deleteRecords.end()) {
                 // Key exists
                 auto& innerSet = it->second;
-                innerSet.erase(xxh128Hashes[i]);  // erase safely; does nothing if userHash not found
+                innerSet.erase(xxh128Hashes[i]); // erase safely; does nothing if userHash not found
                 if (innerSet.empty()) {
                     deleteRecords.erase(it);
                 }
             }
-        } else
-        {
-            //delete
+        } else {
+            // delete
             rockdbRecords.erase(keyAndUkey);
-            auto  it = addOrUpdateRecords.find(keys[i]);
-            if (it!=addOrUpdateRecords.end())
-            {
-                auto &inner = it->second;
-                if (inner.find(xxh128Hashes[i]) != inner.end())
-                {
+            auto it = addOrUpdateRecords.find(keys[i]);
+            if (it != addOrUpdateRecords.end()) {
+                auto& inner = it->second;
+                if (inner.find(xxh128Hashes[i]) != inner.end()) {
                     inner.erase(xxh128Hashes[i]);
-                    if (inner.empty())
-                    {
+                    if (inner.empty()) {
                         addOrUpdateRecords.erase(it);
                     }
                 }
@@ -304,22 +299,16 @@ void InputSideHasNoUniqueKey<K>::ProcessRockDBRecordsInBatch(omnistream::VectorB
 
             deleteRecords[keys[i]].emplace(xxh128Hashes[i]);
         }
-
     }
-    auto rockState = dynamic_cast<RocksdbMapState<K, VoidNamespace, XXH128_hash_t,UV>*>(recordStateVB);
-    if (rockState)
-    {
+    auto rockState = dynamic_cast<RocksdbMapState<K, VoidNamespace, XXH128_hash_t, UV>*>(recordStateVB);
+    if (rockState) {
         rockState->putByBatch(addOrUpdateRecords);
-        rockState->removeByBatch(deleteRecords );
-
+        rockState->removeByBatch(deleteRecords);
     }
-    //clean up
-    for (int i=0; i<keys.size(); i++)
-    {
-        if constexpr (std::is_pointer_v<K>)
-        {
-            if (keys[i] != nullptr)
-            {
+    // clean up
+    for (int i = 0; i < keys.size(); i++) {
+        if constexpr (std::is_pointer_v<K>) {
+            if (keys[i] != nullptr) {
                 delete keys[i];
             }
         }
@@ -327,26 +316,23 @@ void InputSideHasNoUniqueKey<K>::ProcessRockDBRecordsInBatch(omnistream::VectorB
 }
 
 template <typename K>
-void InputSideHasNoUniqueKey<K>::GetRockDBRecordsInBatch(std::vector<XXH128_hash_t>& xxh128Hashes,
-                                                         std::vector<K> &keys,std::unordered_map<std::pair<K,XXH128_hash_t>,UV>& result)
+void InputSideHasNoUniqueKey<K>::GetRockDBRecordsInBatch(
+    std::vector<XXH128_hash_t>& xxh128Hashes,
+    std::vector<K>& keys,
+    std::unordered_map<std::pair<K, XXH128_hash_t>, UV>& result)
 {
-
-
     auto rockState = dynamic_cast<RocksdbMapState<K, VoidNamespace, XXH128_hash_t, UV>*>(recordStateVB);
-    if (rockState)
-    {
-        std::unordered_map<K,std::unordered_set<XXH128_hash_t>> keyAndUkeysMap;
-        for (int i = 0; i < keys.size(); i++)
-        {
+    if (rockState) {
+        std::unordered_map<K, std::unordered_set<XXH128_hash_t>> keyAndUkeysMap;
+        for (int i = 0; i < keys.size(); i++) {
             auto joinKey = keys.at(i);
             if constexpr (std::is_pointer_v<K>) {
-                if (keys[i] == nullptr)
-                {
+                if (keys[i] == nullptr) {
                     continue;
                 }
             } else {
                 // For non-pointer types, check a sentinel or skip this check
-                if (keys[i] == K{})  // default constructed (e.g. 0)
+                if (keys[i] == K{}) // default constructed (e.g. 0)
                 {
                     continue;
                 }
@@ -355,57 +341,60 @@ void InputSideHasNoUniqueKey<K>::GetRockDBRecordsInBatch(std::vector<XXH128_hash
             keyAndUkeysMap[joinKey].insert(userRecordHash);
         }
 
-        rockState->GetByBatch(keyAndUkeysMap,result);
+        rockState->GetByBatch(keyAndUkeysMap, result);
     }
 }
 
 class JoinRecordStateViews {
 public:
     template <typename K>
-    static JoinRecordStateView<K> *create(StreamingRuntimeContext<K> *ctx, std::string stateName,
-        InternalTypeInfo *recordType, InternalTypeInfo *UniqueKeyType, std::vector<int32_t> &uniqueKeyIndex);
+    static JoinRecordStateView<K>* create(
+        StreamingRuntimeContext<K>* ctx,
+        std::string stateName,
+        InternalTypeInfo* recordType,
+        InternalTypeInfo* UniqueKeyType,
+        std::vector<int32_t>& uniqueKeyIndex);
 };
 
 /** Creates a {@link JoinRecordStateView} depends on {@link JoinInputSideSpec}. */
 template <typename K>
-JoinRecordStateView<K> *JoinRecordStateViews::create(StreamingRuntimeContext<K> *ctx, std::string stateName,
-    InternalTypeInfo *recordType, InternalTypeInfo *UniqueKeyType, std::vector<int32_t> &uniqueKeyIndex)
+JoinRecordStateView<K>* JoinRecordStateViews::create(
+    StreamingRuntimeContext<K>* ctx,
+    std::string stateName,
+    InternalTypeInfo* recordType,
+    InternalTypeInfo* UniqueKeyType,
+    std::vector<int32_t>& uniqueKeyIndex)
 {
     if (stateName.find("JoinKeyContainsUniqueKey") != std::string::npos) {
-        NOT_IMPL_EXCEPTION
+        NOT_IMPL_EXCEPTION;
     } else if (stateName.find("HasUnique") != std::string::npos) {
-        NOT_IMPL_EXCEPTION
+        NOT_IMPL_EXCEPTION;
     } else {
-        LOG("creating InputSideHasNoUniqueKey")
+        LOG("creating InputSideHasNoUniqueKey");
         return new InputSideHasNoUniqueKey<K>(ctx, stateName, recordType);
     }
 }
 
-namespace  std
-{
+namespace std {
 
-    template<typename K>
-    struct hash<std::pair<K, XXH128_hash_t>> {
-        size_t operator()(const std::pair<K, XXH128_hash_t>& p) const noexcept {
-            size_t h1 = std::hash<K>{}(p.first);
-            size_t h2 = std::hash<XXH128_hash_t>{}(p.second);
-            return h1 ^ (h2 << 1); // Combine the two hash values
-        }
-    };
+template <typename K>
+struct hash<std::pair<K, XXH128_hash_t>> {
+    size_t operator()(const std::pair<K, XXH128_hash_t>& p) const noexcept
+    {
+        size_t h1 = std::hash<K>{}(p.first);
+        size_t h2 = std::hash<XXH128_hash_t>{}(p.second);
+        return h1 ^ (h2 << 1); // Combine the two hash values
+    }
+};
 
-    template<typename K>
-    struct equal_to<std::pair<K, XXH128_hash_t>> {
-        bool operator()(const std::pair<K, XXH128_hash_t> &lhs, const std::pair<K, XXH128_hash_t> &rhs) const noexcept
-        {
-            return lhs.first == rhs.first &&
-                lhs.second.low64 == rhs.second.low64 &&
-                lhs.second.high64 == rhs.second.high64;
-        }
-    };
+template <typename K>
+struct equal_to<std::pair<K, XXH128_hash_t>> {
+    bool operator()(const std::pair<K, XXH128_hash_t>& lhs, const std::pair<K, XXH128_hash_t>& rhs) const noexcept
+    {
+        return lhs.first == rhs.first && lhs.second.low64 == rhs.second.low64 && lhs.second.high64 == rhs.second.high64;
+    }
+};
 
-}
+} // namespace std
 
-
-
-
-#endif  // FLINK_TNEL_JOINRECORDSTATEVIEW_H
+#endif // FLINK_TNEL_JOINRECORDSTATEVIEW_H

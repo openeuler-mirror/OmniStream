@@ -16,19 +16,17 @@
 #include "runtime/dataview/PerKeyStateDataViewStore.h"
 
 namespace {
-TypeSerializer *createOwnedDistinctSerializer(DataTypeId typeId)
+TypeSerializer* createOwnedDistinctSerializer(DataTypeId typeId)
 {
     switch (typeId) {
         case DataTypeId::OMNI_INT:
-        case DataTypeId::OMNI_LONG:
-            return new LongSerializer();
-        default:
-            throw std::runtime_error("Data type is not supported.");
+        case DataTypeId::OMNI_LONG: return new LongSerializer();
+        default: throw std::runtime_error("Data type is not supported.");
     }
 }
 } // namespace
 
-bool CountDistinctFunction::equaliser(BinaryRowData *r1, BinaryRowData *r2)
+bool CountDistinctFunction::equaliser(BinaryRowData* r1, BinaryRowData* r2)
 {
     if (r1->isNullAt(valueIndex) || r2->isNullAt(valueIndex)) {
         return false;
@@ -43,38 +41,34 @@ bool CountDistinctFunction::equaliser(BinaryRowData *r1, BinaryRowData *r2)
             isEqual = *r1->getLong(valueIndex) == *r2->getLong(valueIndex);
             break;
         }
-        default:
-            LOG("Data type is not supported.");
-            throw std::runtime_error("Data type is not supported.");
+        default: LOG("Data type is not supported."); throw std::runtime_error("Data type is not supported.");
     }
     return isEqual;
 }
 
-void CountDistinctFunction::open(StateDataViewStore *store)
+void CountDistinctFunction::open(StateDataViewStore* store)
 {
     this->store = store;
     pendingDistinctUpdates.reserve(64);
-    auto *perKeyViewStore =
-        reinterpret_cast<PerKeyStateDataViewStore<RowData *> *>(store);
+    auto* perKeyViewStore = reinterpret_cast<PerKeyStateDataViewStore<RowData*>*>(store);
     // todo support more data types
     switch (typeId) {
         case DataTypeId::OMNI_INT:
         case DataTypeId::OMNI_LONG: {
-            distinctMapView = reinterpret_cast<KeyedStateMapViewWithKeysNullable<VoidNamespace, long, long> *>(
-                    perKeyViewStore->getStateMapView<VoidNamespace, long, long>("distinct_acc" + std::to_string(aggFuncIndex), true,
-                                                                                createOwnedDistinctSerializer(typeId),
-                                                                                createOwnedDistinctSerializer(typeId)));
+            distinctMapView = reinterpret_cast<KeyedStateMapViewWithKeysNullable<VoidNamespace, long, long>*>(
+                perKeyViewStore->getStateMapView<VoidNamespace, long, long>(
+                    "distinct_acc" + std::to_string(aggFuncIndex),
+                    true,
+                    createOwnedDistinctSerializer(typeId),
+                    createOwnedDistinctSerializer(typeId)));
 
             break;
         }
-        default:
-            LOG("Data type is not supported.");
-            throw std::runtime_error("Data type is not supported.");
+        default: LOG("Data type is not supported."); throw std::runtime_error("Data type is not supported.");
     }
 }
 
-
-void CountDistinctFunction::accumulate(RowData *accInput)
+void CountDistinctFunction::accumulate(RowData* accInput)
 {
     bool isFieldNull = accInput->isNullAt(aggIdx);
     long fieldValue = 0L;
@@ -87,9 +81,7 @@ void CountDistinctFunction::accumulate(RowData *accInput)
             fieldValue = isFieldNull ? -1L : *accInput->getLong(aggIdx);
             break;
         }
-        default:
-            LOG("Data type is not supported.");
-            throw std::runtime_error("Data type is not supported.");
+        default: LOG("Data type is not supported."); throw std::runtime_error("Data type is not supported.");
     }
     bool shouldDoAccumulate = !hasFilter || (hasFilter && *accInput->getBool(filterIndex));
     if (shouldDoAccumulate && !isFieldNull) {
@@ -101,11 +93,11 @@ void CountDistinctFunction::accumulate(RowData *accInput)
                 aggCount = 1L;
                 valueIsNull = false;
             }
-            distinctMapView->put(std::optional<long> { fieldValue }, 0L);
+            distinctMapView->put(std::optional<long>{fieldValue}, 0L);
         }
     }
 
-    LOG("Accumulate. Count:  " << aggCount << " countIsNull: " << valueIsNull)
+    LOG("Accumulate. Count:  " << aggCount << " countIsNull: " << valueIsNull);
 }
 
 void CountDistinctFunction::accumulate(omnistream::VectorBatch* input, const std::vector<int>& indices)
@@ -115,9 +107,8 @@ void CountDistinctFunction::accumulate(omnistream::VectorBatch* input, const std
     } else {
         auto columnData = input->Get(aggIdx);
         const bool hasFilterCol = hasFilter;
-        const auto filterData = hasFilterCol
-                                    ? reinterpret_cast<omniruntime::vec::Vector<bool>*>(input->Get(filterIndex))
-                                    : nullptr;
+        const auto filterData =
+            hasFilterCol ? reinterpret_cast<omniruntime::vec::Vector<bool>*>(input->Get(filterIndex)) : nullptr;
         for (int rowIndex : indices) {
             bool shouldDoAccumulate = true;
             if (hasFilterCol) {
@@ -132,24 +123,21 @@ void CountDistinctFunction::accumulate(omnistream::VectorBatch* input, const std
 
             long fieldValue = 0L;
             switch (typeId) {
-            case DataTypeId::OMNI_INT: {
-                fieldValue = dynamic_cast<omniruntime::vec::Vector<int>*>(columnData)->GetValue(rowIndex);
-                break;
-            }
-            case DataTypeId::OMNI_LONG: {
-                fieldValue = dynamic_cast<omniruntime::vec::Vector<long>*>(columnData)->GetValue(rowIndex);
-                break;
-            }
-            default:
-                LOG("Data type is not supported.");
-                throw std::runtime_error("Data type is not supported.");
+                case DataTypeId::OMNI_INT: {
+                    fieldValue = dynamic_cast<omniruntime::vec::Vector<int>*>(columnData)->GetValue(rowIndex);
+                    break;
+                }
+                case DataTypeId::OMNI_LONG: {
+                    fieldValue = dynamic_cast<omniruntime::vec::Vector<long>*>(columnData)->GetValue(rowIndex);
+                    break;
+                }
+                default: LOG("Data type is not supported."); throw std::runtime_error("Data type is not supported.");
             }
             const bool existsInState = distinctMapView->contains(std::optional<long>{fieldValue});
             if (!existsInState) {
                 if (!valueIsNull) {
                     aggCount++;
-                }
-                else {
+                } else {
                     aggCount = 1L;
                     valueIsNull = false;
                 }
@@ -160,20 +148,16 @@ void CountDistinctFunction::accumulate(omnistream::VectorBatch* input, const std
     }
 }
 
-
 void CountDistinctFunction::accumulateInRocksDB(omnistream::VectorBatch* input, const std::vector<int>& indices)
 {
     auto columnData = input->Get(aggIdx);
     const bool hasFilterCol = hasFilter;
-    const auto filterData = hasFilterCol
-                                ? reinterpret_cast<omniruntime::vec::Vector<bool>*>(input->Get(filterIndex))
-                                : nullptr;
-    auto* intColumn = (typeId == DataTypeId::OMNI_INT)
-                          ? dynamic_cast<omniruntime::vec::Vector<int>*>(columnData)
-                          : nullptr;
-    auto* longColumn = (typeId == DataTypeId::OMNI_LONG)
-                           ? dynamic_cast<omniruntime::vec::Vector<long>*>(columnData)
-                           : nullptr;
+    const auto filterData =
+        hasFilterCol ? reinterpret_cast<omniruntime::vec::Vector<bool>*>(input->Get(filterIndex)) : nullptr;
+    auto* intColumn =
+        (typeId == DataTypeId::OMNI_INT) ? dynamic_cast<omniruntime::vec::Vector<int>*>(columnData) : nullptr;
+    auto* longColumn =
+        (typeId == DataTypeId::OMNI_LONG) ? dynamic_cast<omniruntime::vec::Vector<long>*>(columnData) : nullptr;
 
     if ((typeId == DataTypeId::OMNI_INT && intColumn == nullptr) ||
         (typeId == DataTypeId::OMNI_LONG && longColumn == nullptr)) {
@@ -209,9 +193,7 @@ void CountDistinctFunction::accumulateInRocksDB(omnistream::VectorBatch* input, 
                 fieldValue = longColumn->GetValue(rowIndex);
                 break;
             }
-            default:
-                LOG("Data type is not supported.");
-                throw std::runtime_error("Data type is not supported.");
+            default: LOG("Data type is not supported."); throw std::runtime_error("Data type is not supported.");
         }
 
         batchDistinctKeys.emplace(fieldValue);
@@ -239,7 +221,7 @@ void CountDistinctFunction::accumulateInRocksDB(omnistream::VectorBatch* input, 
     LOG("Accumulate. Count: " << aggCount << " valueIsNull: " << valueIsNull);
 }
 
-void CountDistinctFunction::retract(RowData *retractInput)
+void CountDistinctFunction::retract(RowData* retractInput)
 {
 }
 
@@ -247,18 +229,16 @@ void CountDistinctFunction::retract(omnistream::VectorBatch* input, const std::v
 {
 }
 
-void CountDistinctFunction::merge(RowData *otherAcc)
+void CountDistinctFunction::merge(RowData* otherAcc)
 {
 }
 
-
-void CountDistinctFunction::setAccumulators(RowData *acc)
+void CountDistinctFunction::setAccumulators(RowData* acc)
 {
     valueIsNull = acc->isNullAt(accIndex);
     aggCount = valueIsNull ? -1L : *acc->getLong(accIndex);
-    LOG("Set Acc. Count:  " << aggCount << " countIsNull: " << valueIndex)
+    LOG("Set Acc. Count:  " << aggCount << " countIsNull: " << valueIndex);
 }
-
 
 void CountDistinctFunction::resetAccumulators()
 {
@@ -290,40 +270,37 @@ void CountDistinctFunction::resetAccumulators()
         }
     }
 
-    LOG("Reset Acc. Count:  " << aggCount << " countIsNull: " << valueIsNull)
+    LOG("Reset Acc. Count:  " << aggCount << " countIsNull: " << valueIsNull);
 }
 
-
-void CountDistinctFunction::getAccumulators(BinaryRowData *accumulators)
+void CountDistinctFunction::getAccumulators(BinaryRowData* accumulators)
 {
     if (valueIsNull) {
         accumulators->setNullAt(accIndex);
     } else {
         accumulators->setLong(accIndex, aggCount);
     }
-    LOG("Get acc: " << aggCount)
+    LOG("Get acc: " << aggCount);
 }
 
-
-void CountDistinctFunction::createAccumulators(BinaryRowData *accumulators)
+void CountDistinctFunction::createAccumulators(BinaryRowData* accumulators)
 {
     if (false) { // This condition is always false, but it's in the original code.
         accumulators->setNullAt(accIndex);
     } else {
         accumulators->setLong(accIndex, 0L);
     }
-    LOG("Create acc")
+    LOG("Create acc");
 }
 
-
-void CountDistinctFunction::getValue(BinaryRowData *newAggValue)
+void CountDistinctFunction::getValue(BinaryRowData* newAggValue)
 {
     if (valueIsNull) {
         newAggValue->setNullAt(valueIndex);
     } else {
         newAggValue->setLong(valueIndex, aggCount);
     }
-    LOG("Get value: " << aggCount)
+    LOG("Get value: " << aggCount);
 }
 
 void CountDistinctFunction::setCurrentGroupKey(RowData* key)

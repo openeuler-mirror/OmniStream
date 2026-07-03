@@ -10,7 +10,7 @@
  */
 #include "basictypes/java_util_Map_Entry.h"
 
-MapEntry::MapEntry(Object *key, Object *value)
+MapEntry::MapEntry(Object* key, Object* value)
 {
     key_ = key;
     value_ = value;
@@ -34,24 +34,27 @@ MapEntry::~MapEntry()
     }
 }
 
-Object *MapEntry::getKey() const { return key_; }
-
-const Object *MapEntry::getValue() const
-{
-    return value_;
-}
-
-Object *MapEntry::getKey()
+Object* MapEntry::getKey() const
 {
     return key_;
 }
 
-Object *MapEntry::getValue()
+const Object* MapEntry::getValue() const
 {
     return value_;
 }
 
-void MapEntry::setValue(Object *newValue)
+Object* MapEntry::getKey()
+{
+    return key_;
+}
+
+Object* MapEntry::getValue()
+{
+    return value_;
+}
+
+void MapEntry::setValue(Object* newValue)
 {
     newValue->getRefCount();
     value_->putRefCount();

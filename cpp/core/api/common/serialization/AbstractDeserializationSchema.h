@@ -20,7 +20,7 @@ public:
     {
     }
 
-    bool isEndOfStream(const void * nextElement) override
+    bool isEndOfStream(const void* nextElement) override
     {
         return false;
     }

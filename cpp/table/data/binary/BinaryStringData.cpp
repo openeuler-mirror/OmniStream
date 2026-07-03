@@ -10,7 +10,7 @@
  */
 #include "BinaryStringData.h"
 
-BinaryStringData *BinaryStringData::EMPTY_UTF8 = fromBytes(StringUtf8Utils::encodeUTF8(new std::u32string(U"")), 0);
+BinaryStringData* BinaryStringData::EMPTY_UTF8 = fromBytes(StringUtf8Utils::encodeUTF8(new std::u32string(U"")), 0);
 
 void BinaryStringData::ensureMaterialized()
 {
@@ -20,19 +20,19 @@ void BinaryStringData::ensureMaterialized()
     }
 }
 
-BinarySection *BinaryStringData::materialize(TypeSerializer *S)
+BinarySection* BinaryStringData::materialize(TypeSerializer* S)
 {
     if (S != nullptr) {
         THROW_LOGIC_EXCEPTION("BinaryStringData does not support custom serializers");
     }
 
-    uint8_t *bytes = StringUtf8Utils::encodeUTF8(object);
+    uint8_t* bytes = StringUtf8Utils::encodeUTF8(object);
     int size = StringUtf8Utils::computeUTF8Length(object);
 
     return new BinarySection(bytes, 0, size);
 }
 
-std::u32string *BinaryStringData::toString()
+std::u32string* BinaryStringData::toString()
 {
     if (object == nullptr) {
         object = StringUtf8Utils::decodeUTF8(toBytes(), 0, getSizeInBytes());
@@ -43,7 +43,7 @@ std::u32string *BinaryStringData::toString()
     return object;
 }
 
-std::string *BinaryStringData::ToUtF8String()
+std::string* BinaryStringData::ToUtF8String()
 {
     if (!materialized) {
         // Object is already materialized (as std::u32string), encode to UTF-8 and construct std::string
@@ -55,14 +55,13 @@ std::string *BinaryStringData::ToUtF8String()
     return new std::string(static_cast<const char*>(static_cast<const void*>(toBytes())), getSizeInBytes());
 }
 
-
-uint8_t *BinaryStringData::toBytes()
+uint8_t* BinaryStringData::toBytes()
 {
-        ensureMaterialized();
-        return getSegment() + getOffset();
+    ensureMaterialized();
+    return getSegment() + getOffset();
 }
 
-BinaryStringData *BinaryStringData::fromString(std::u32string *str)
+BinaryStringData* BinaryStringData::fromString(std::u32string* str)
 {
     if (str->empty()) {
         return nullptr;
@@ -71,12 +70,12 @@ BinaryStringData *BinaryStringData::fromString(std::u32string *str)
     }
 }
 
-BinaryStringData *BinaryStringData::fromBytes(uint8_t *bytes, int len)
+BinaryStringData* BinaryStringData::fromBytes(uint8_t* bytes, int len)
 {
     return fromBytes(bytes, 0, len);
 }
 
-BinaryStringData *BinaryStringData::fromBytes(uint8_t *bytes, int offset, int len)
+BinaryStringData* BinaryStringData::fromBytes(uint8_t* bytes, int offset, int len)
 {
     return new BinaryStringData(bytes, offset, len);
 }

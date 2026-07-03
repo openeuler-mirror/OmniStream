@@ -14,10 +14,10 @@
 
 #include <iostream>
 
-template<typename T>
+template <typename T>
 class ObjectPool {
 public:
-    static ObjectPool<T> *getInstance();
+    static ObjectPool<T>* getInstance();
 
     void capacityExpansion();
 
@@ -36,4 +36,4 @@ private:
 
     int32_t capacityExpansionNum = 16;
 };
-#endif //OMNISTREAM_OBJECTPOOL_H
+#endif // OMNISTREAM_OBJECTPOOL_H

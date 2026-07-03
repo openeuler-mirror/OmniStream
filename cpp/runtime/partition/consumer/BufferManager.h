@@ -21,18 +21,20 @@
 using namespace omnistream::datastream;
 class AvailableBufferQueue {
 public:
-    void addFloatingBuffer(std::shared_ptr<omnistream::Buffer> buffer) {
+    void addFloatingBuffer(std::shared_ptr<omnistream::Buffer> buffer)
+    {
         floatingBuffers.emplace_back(buffer);
     }
 
-    void releaseAll(std::vector<Segment *>& exclusiveSegments) {
+    void releaseAll(std::vector<Segment*>& exclusiveSegments)
+    {
         std::shared_ptr<omnistream::Buffer> buffer;
-        while (!floatingBuffers.empty()){
+        while (!floatingBuffers.empty()) {
             buffer = floatingBuffers.front();
             floatingBuffers.pop_front();
             buffer->RecycleBuffer();
         }
-        while (!exclusiveBuffers.empty()){
+        while (!exclusiveBuffers.empty()) {
             buffer = exclusiveBuffers.front();
             exclusiveBuffers.pop_front();
             exclusiveSegments.emplace_back(buffer->GetSegment());
@@ -40,39 +42,39 @@ public:
     }
 
     std::shared_ptr<omnistream::Buffer> addExclusiveBuffer(
-                std::shared_ptr<omnistream::Buffer> buffer,
-                        int numRequiredBuffers) 
+        std::shared_ptr<omnistream::Buffer> buffer, int numRequiredBuffers)
     {
         exclusiveBuffers.emplace_back(buffer);
-        
+
         // 只有在“超额”且确实有 floating buffer 时，才回收一个 floating buffer
         if (getAvailableBufferSize() > numRequiredBuffers && !floatingBuffers.empty()) {
             auto buf = floatingBuffers.front();
             floatingBuffers.pop_front();
             return buf;
         }
-        
+
         return nullptr;
     }
-    
-    std::shared_ptr<omnistream::Buffer> takeBuffer() 
+
+    std::shared_ptr<omnistream::Buffer> takeBuffer()
     {
         if (!floatingBuffers.empty()) {
             auto buffer = floatingBuffers.front();
             floatingBuffers.pop_front();
             return buffer;
         }
-        
+
         if (!exclusiveBuffers.empty()) {
             auto buffer = exclusiveBuffers.front();
             exclusiveBuffers.pop_front();
             return buffer;
         }
-        
+
         return nullptr;
     }
 
-    int getAvailableBufferSize() {
+    int getAvailableBufferSize()
+    {
         return floatingBuffers.size() + exclusiveBuffers.size();
     }
 
@@ -81,20 +83,24 @@ public:
         return floatingBuffers;
     }
 
-    std::deque<std::shared_ptr<omnistream::Buffer>> clearFloatingBuffers() {
+    std::deque<std::shared_ptr<omnistream::Buffer>> clearFloatingBuffers()
+    {
         std::deque<std::shared_ptr<omnistream::Buffer>> buffers = std::move(floatingBuffers);
         floatingBuffers.clear();
         return buffers;
     }
 
-    void notifyAll() {
+    void notifyAll()
+    {
         queueCondition.notify_all();
     }
 
-    void wait() {
+    void wait()
+    {
         std::unique_lock<std::mutex> lock(queueMutex);
         queueCondition.wait(lock);
     }
+
 private:
     std::deque<std::shared_ptr<omnistream::Buffer>> floatingBuffers;
     std::deque<std::shared_ptr<omnistream::Buffer>> exclusiveBuffers;
@@ -102,16 +108,20 @@ private:
     std::condition_variable queueCondition;
 };
 
-class BufferManager : public BufferListener, public omnistream::BufferRecycler , public std::enable_shared_from_this<BufferManager>{
+class BufferManager : public BufferListener,
+                      public omnistream::BufferRecycler,
+                      public std::enable_shared_from_this<BufferManager> {
 public:
-    BufferManager(std::shared_ptr<datastream::SegmentProvider> provider,
-                  omnistream::InputChannel *channel, int numBuffers) : inputChannel(channel),
-                                                                       numRequiredBuffers(numBuffers),
-                                                                       globalPool(provider) {
+    BufferManager(
+        std::shared_ptr<datastream::SegmentProvider> provider, omnistream::InputChannel* channel, int numBuffers)
+        : inputChannel(channel),
+          numRequiredBuffers(numBuffers),
+          globalPool(provider)
+    {
         bufferQueue = std::make_shared<AvailableBufferQueue>();
     }
 
-    void releaseAllBuffers(std::deque<Buffer *> buffers);
+    void releaseAllBuffers(std::deque<Buffer*> buffers);
 
     void requestExclusiveBuffers(int numExclusiveBuffers);
 
@@ -139,7 +149,7 @@ public:
 
     [[nodiscard]] std::string toString() const override;
 
-    void recycle(Segment *segment) override;
+    void recycle(Segment* segment) override;
 
     bool notifyBufferAvailable(std::shared_ptr<Buffer> buffer) override;
 
@@ -153,6 +163,5 @@ private:
     std::shared_ptr<AvailableBufferQueue> bufferQueue;
     std::mutex bufferQueueLock;
 };
-
 
 #endif // OMNISTREAM_BUFFERMANAGER_H

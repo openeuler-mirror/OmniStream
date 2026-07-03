@@ -20,7 +20,9 @@
 class LocalRecoveryConfig {
 public:
     explicit LocalRecoveryConfig(std::shared_ptr<LocalRecoveryDirectoryProvider> directoryProvider)
-        : localStateDirectories_(std::move(directoryProvider)) {}
+        : localStateDirectories_(std::move(directoryProvider))
+    {
+    }
 
     bool IsLocalRecoveryEnabled() const
     {
@@ -34,11 +36,8 @@ public:
 
     std::string ToString() const
     {
-        return "LocalRecoveryConfig{localStateDirectories="
-               + (localStateDirectories_
-                    ? localStateDirectories_->ToString()
-                    : std::string("null"))
-               + "}";
+        return "LocalRecoveryConfig{localStateDirectories=" +
+               (localStateDirectories_ ? localStateDirectories_->ToString() : std::string("null")) + "}";
     }
 
 private:

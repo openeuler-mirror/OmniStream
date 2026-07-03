@@ -22,104 +22,104 @@ extern "C" {
  * Method:    setupStreamTaskBeforeInvoke
  * Signature: (JLjava/lang/String;)J
  */
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_setupStreamTaskBeforeInvoke
-  (JNIEnv *, jobject, jlong, jstring);
+JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_setupStreamTaskBeforeInvoke(
+    JNIEnv*, jobject, jlong, jstring);
 
 /*
  * Class:     com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask
  * Method:    doRunRestoreNativeTask
  * Signature: (JJ)J
  */
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_doRunRestoreNativeTask
-  (JNIEnv *, jobject, jlong, jlong);
+JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_doRunRestoreNativeTask(
+    JNIEnv*, jobject, jlong, jlong);
 
 /*
  * Class:     com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask
  * Method:    doRunInvokeNativeTask
  * Signature: (JJ)J
  */
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_doRunInvokeNativeTask
-  (JNIEnv *, jobject, jlong, jlong);
+JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_doRunInvokeNativeTask(
+    JNIEnv*, jobject, jlong, jlong);
 
 /*
  * Class:     com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask
  * Method:    dispatchOperatorEvent
  * Signature: (JLjava/lang/String;Ljava/lang/String;)V
  */
-JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_dispatchOperatorEvent
-  (JNIEnv *, jobject, jlong, jstring, jstring);
+JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_dispatchOperatorEvent(
+    JNIEnv*, jobject, jlong, jstring, jstring);
 
 /*
  * Class:     com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask
  * Method:    notifyChannelToOmni
  * Signature: (JLjava/lang/String;)V
  */
-JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_notifyChannelToOmni
-  (JNIEnv *, jobject, jlong, jstring);
+JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_notifyChannelToOmni(
+    JNIEnv*, jobject, jlong, jstring);
 
 /*
  * Class:     com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask
  * Method:    doRunNativeTask
  * Signature: (JJ)J
  */
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_doRunNativeTask
-  (JNIEnv *, jobject, jlong, jlong);
+JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_doRunNativeTask(
+    JNIEnv*, jobject, jlong, jlong);
 
 /*
  * Class:     com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask
  * Method:    doDeleteNativeTask
  * Signature: (J)J
  */
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_doDeleteNativeTask
-  (JNIEnv *, jobject, jlong);
+JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_doDeleteNativeTask(
+    JNIEnv*, jobject, jlong);
 
 /*
  * Class:     com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask
  * Method:    createNativeTaskMetricGroup
  * Signature: (J)J
  */
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_createNativeTaskMetricGroup
-  (JNIEnv *, jobject, jlong);
+JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_createNativeTaskMetricGroup(
+    JNIEnv*, jobject, jlong);
 
 /*
  * Class:     com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask
  * Method:    triggerCheckpointCpp
  * Signature: (JJJLjava/lang/String;)V
  */
-JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_triggerCheckpointCpp
-  (JNIEnv *, jobject, jlong, jlong, jlong, jstring);
+JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_triggerCheckpointCpp(
+    JNIEnv*, jobject, jlong, jlong, jlong, jstring);
 
 /*
  * Class:     com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask
  * Method:    cancelTask
  * Signature: (J)J
  */
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_cancelTask
-  (JNIEnv *, jobject, jlong);
+JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_cancelTask(
+    JNIEnv*, jobject, jlong);
 
 /*
  * Class:     com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask
  * Method:    abortCpp
  * Signature: (JJJ)V
  */
-JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_abortCpp
-  (JNIEnv *, jobject, jlong, jlong, jlong);
+JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_abortCpp(
+    JNIEnv*, jobject, jlong, jlong, jlong);
 
 /*
  * Class:     com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask
  * Method:    completeCpp
  * Signature: (JJ)V
  */
-JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_completeCpp
-  (JNIEnv *, jobject, jlong, jlong, jlong);
+JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_completeCpp(
+    JNIEnv*, jobject, jlong, jlong, jlong);
 
 /*
  * Class:     com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask
  * Method:    subsumedCpp
  * Signature: (JJ)V
  */
-JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_subsumedCpp
-  (JNIEnv *, jobject, jlong, jlong);
+JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_subsumedCpp(
+    JNIEnv*, jobject, jlong, jlong);
 
 /*
  * Class:     com_huawei_omniruntime_flink_runtime_io_network_partition_RemoteDataFetcher
@@ -127,8 +127,8 @@ JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_Omn
  * Signature: (J)V
  */
 JNIEXPORT void JNICALL
-Java_com_huawei_omniruntime_flink_runtime_io_network_partition_RemoteDataFetcher_registerRemoteDataFetcherToNative
-  (JNIEnv* env, jobject, jlong);
+Java_com_huawei_omniruntime_flink_runtime_io_network_partition_RemoteDataFetcher_registerRemoteDataFetcherToNative(
+    JNIEnv* env, jobject, jlong);
 
 #ifdef __cplusplus
 }

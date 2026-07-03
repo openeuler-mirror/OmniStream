@@ -1,5 +1,5 @@
 /*
-* Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
  * You can use this software according to the terms and conditions of the Mulan PSL v2.
  * You may obtain a copy of Mulan PSL v2 at:
  *          http://license.coscl.org.cn/MulanPSL2
@@ -29,7 +29,8 @@ public:
     virtual ~OperatorStateStore() = default;
 
     template <typename K, typename V>
-    std::shared_ptr<BroadcastState<K, V>> getBroadcastState(MapStateDescriptor<K, V>* stateDescriptor){
+    std::shared_ptr<BroadcastState<K, V>> getBroadcastState(MapStateDescriptor<K, V>* stateDescriptor)
+    {
         /**
          * template functions cannot be virtual.
          * but subclasses can override it by defining the same signature.
@@ -39,7 +40,8 @@ public:
     }
 
     template <typename S>
-    std::shared_ptr<ListState<S>> getListState(ListStateDescriptor<S>* stateDescriptor){
+    std::shared_ptr<ListState<S>> getListState(ListStateDescriptor<S>* stateDescriptor)
+    {
         /**
          * template functions cannot be virtual.
          * but subclasses can override it by defining the same signature.
@@ -49,7 +51,8 @@ public:
     }
 
     template <typename S>
-    std::shared_ptr<ListState<S>> getUnionListState(ListStateDescriptor<S>* stateDescriptor){
+    std::shared_ptr<ListState<S>> getUnionListState(ListStateDescriptor<S>* stateDescriptor)
+    {
         /**
          * template functions cannot be virtual.
          * but subclasses can override it by defining the same signature.
@@ -63,4 +66,4 @@ public:
     virtual std::unordered_set<std::string> getRegisteredBroadcastStateNames() = 0;
 };
 
-#endif //OMNISTREAM_OPERATORSTATESTORE_H
+#endif // OMNISTREAM_OPERATORSTATESTORE_H

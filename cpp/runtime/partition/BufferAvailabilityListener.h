@@ -26,7 +26,8 @@ public:
     virtual void notifyDataAvailable() = 0;
 
     virtual void notifyPriorityEvent(int prioritySequenceNumber)
-    {}
+    {
+    }
 
     virtual std::string toString() const
     {
@@ -42,10 +43,12 @@ public:
     ~DefaultBufferAvailabilityListener() override = default;
 
     void notifyDataAvailable() override
-    {}
+    {
+    }
 
     void notifyPriorityEvent(int prioritySequenceNumber) override
-    {}
+    {
+    }
 
     std::string toString() const override
     {
@@ -55,6 +58,6 @@ public:
     }
 };
 
-}  // namespace omnistream
+} // namespace omnistream
 
-#endif  // OMNISTREAM_BUFFERAVAILABILITYLISTENER_H_
+#endif // OMNISTREAM_BUFFERAVAILABILITYLISTENER_H_

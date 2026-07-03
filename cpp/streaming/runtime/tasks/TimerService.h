@@ -15,12 +15,12 @@
 #include "ProcessingTimeService.h"
 #include "common.h"
 namespace omnistream::runtime {
-    class TimerService : public ProcessingTimeService {
-    public:
-        virtual bool isTerminated() = 0;
-        virtual void shutdownService() = 0;
-        virtual bool shutdownServiceUninterruptible(long timeoutMs) = 0;
-    };
-}
+class TimerService : public ProcessingTimeService {
+public:
+    virtual bool isTerminated() = 0;
+    virtual void shutdownService() = 0;
+    virtual bool shutdownServiceUninterruptible(long timeoutMs) = 0;
+};
+} // namespace omnistream::runtime
 
 #endif // FLINK_TNEL_TIMERSERVICE_H

@@ -24,33 +24,33 @@ namespace fs = std::filesystem;
 
 class FileSystemCommitter {
 public:
-    static void createSuccessFile(const std::string &partitionPath)
+    static void createSuccessFile(const std::string& partitionPath)
     {
         fs::path successPath = fs::path(partitionPath) / "_SUCCESS";
         if (!fs::exists(successPath)) {
             std::ofstream out(successPath, std::ios::out);
             if (out.is_open()) {
                 out.close();
-                LOG("Created success file at: " + successPath.string())
+                LOG("Created success file at: " + successPath.string());
             } else {
-                LOG("Failed to create success file at: " + successPath.string())
+                LOG("Failed to create success file at: " + successPath.string());
             }
         }
     }
 
-    static bool hasSuccessFile(const std::string &partitionPath)
+    static bool hasSuccessFile(const std::string& partitionPath)
     {
         return fs::exists(fs::path(partitionPath) / "_SUCCESS");
     }
 
-    static void commitPartition(const std::string &partitionPath, const std::string &pendingPath)
+    static void commitPartition(const std::string& partitionPath, const std::string& pendingPath)
     {
         if (!fs::exists(partitionPath)) {
             fs::create_directories(partitionPath);
         }
 
         if (fs::exists(pendingPath) && pendingPath != partitionPath) {
-            for (const auto &entry : fs::directory_iterator(pendingPath)) {
+            for (const auto& entry : fs::directory_iterator(pendingPath)) {
                 auto srcPath = entry.path();
                 auto dstPath = fs::path(partitionPath) / srcPath.filename();
                 fs::rename(srcPath, dstPath);
@@ -63,7 +63,7 @@ public:
         createSuccessFile(partitionPath);
     }
 
-    static void movePendingFiles(const std::string &srcDir, const std::string &dstDir)
+    static void movePendingFiles(const std::string& srcDir, const std::string& dstDir)
     {
         if (!fs::exists(srcDir)) {
             return;
@@ -73,7 +73,7 @@ public:
             fs::create_directories(dstDir);
         }
 
-        for (const auto &entry : fs::directory_iterator(srcDir)) {
+        for (const auto& entry : fs::directory_iterator(srcDir)) {
             if (entry.is_regular_file()) {
                 auto srcPath = entry.path();
                 auto dstPath = fs::path(dstDir) / srcPath.filename();
@@ -82,15 +82,15 @@ public:
         }
     }
 
-    static std::vector<std::string> listPendingPartitions(const std::string &basePath,
-                                                           const std::vector<std::string> &partitionKeys)
+    static std::vector<std::string> listPendingPartitions(
+        const std::string& basePath, const std::vector<std::string>& partitionKeys)
     {
         std::vector<std::string> partitions;
         if (!fs::exists(basePath)) {
             return partitions;
         }
 
-        for (const auto &entry : fs::directory_iterator(basePath)) {
+        for (const auto& entry : fs::directory_iterator(basePath)) {
             if (entry.is_directory() && entry.path().filename() != "_SUCCESS") {
                 auto dirName = entry.path().filename().string();
                 if (dirName.find('=') != std::string::npos) {
@@ -104,7 +104,7 @@ public:
         return partitions;
     }
 
-    static int64_t getFileModificationTime(const std::string &path)
+    static int64_t getFileModificationTime(const std::string& path)
     {
         struct stat attr;
         if (stat(path.c_str(), &attr) == 0) {

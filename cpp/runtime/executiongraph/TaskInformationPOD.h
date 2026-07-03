@@ -29,51 +29,100 @@ public:
     static constexpr uint64_t DEFAULT_ROCKSDB_MANAGED_MEMORY_SIZE = 64ULL * 1024ULL * 1024ULL;
 
     TaskInformationPOD()
-        : taskName(""), numberOfSubtasks(1), maxNumberOfSubtasks(1), indexOfSubtask(0),
-          streamConfig(StreamConfigPOD()), chainedConfig(), stateBackend(""),
-          rocksdbStorePaths(), stateBackendManagedMemoryFraction(0.0),
-          stateBackendManagedMemorySize(DEFAULT_ROCKSDB_MANAGED_MEMORY_SIZE), numberOfTransferThreads(4),
-          rocksDBMemoryConfiguration(), cacheAddr(0), writeBufferManagerAddr(0),
-          taskType(1), checkpointConfig(CheckpointConfigPOD()),
-          executionCheckpointConfig(ExecutionCheckpointConfigPOD()), localRecoveryConfig(""),
-          tmpWorkingDirectory("/tmp") {}
-
-    TaskInformationPOD(const std::string &taskName, int numberOfSubtasks, int maxNumberOfSubtasks, int indexOfSubtask,
-                       const StreamConfigPOD &streamConfigPOD, const OperatorChainPOD &operatorChain,
-                       const std::vector<StreamConfigPOD> &chainedConfig_, const int taskType = 1)
-        : taskName(taskName), numberOfSubtasks(numberOfSubtasks), maxNumberOfSubtasks(maxNumberOfSubtasks),
-          indexOfSubtask(indexOfSubtask), streamConfig(streamConfigPOD), chainedConfig(chainedConfig_),
-          stateBackend(""), rocksdbStorePaths(), stateBackendManagedMemoryFraction(0.0),
-          stateBackendManagedMemorySize(DEFAULT_ROCKSDB_MANAGED_MEMORY_SIZE), numberOfTransferThreads(4),
-          rocksDBMemoryConfiguration(), cacheAddr(0), writeBufferManagerAddr(0),
-          taskType(taskType), checkpointConfig(CheckpointConfigPOD()),
-          executionCheckpointConfig(ExecutionCheckpointConfigPOD()), localRecoveryConfig(""),
-          tmpWorkingDirectory("/tmp") {
+        : taskName(""),
+          numberOfSubtasks(1),
+          maxNumberOfSubtasks(1),
+          indexOfSubtask(0),
+          streamConfig(StreamConfigPOD()),
+          chainedConfig(),
+          stateBackend(""),
+          rocksdbStorePaths(),
+          stateBackendManagedMemoryFraction(0.0),
+          stateBackendManagedMemorySize(DEFAULT_ROCKSDB_MANAGED_MEMORY_SIZE),
+          numberOfTransferThreads(4),
+          rocksDBMemoryConfiguration(),
+          cacheAddr(0),
+          writeBufferManagerAddr(0),
+          taskType(1),
+          checkpointConfig(CheckpointConfigPOD()),
+          executionCheckpointConfig(ExecutionCheckpointConfigPOD()),
+          localRecoveryConfig(""),
+          tmpWorkingDirectory("/tmp")
+    {
     }
 
-    TaskInformationPOD(const std::string &taskName, int numberOfSubtasks, int maxNumberOfSubtasks, int indexOfSubtask,
-                       const StreamConfigPOD &streamConfigPOD, const OperatorChainPOD &operatorChain,
-                       const std::vector<StreamConfigPOD> &chainedConfig_, std::string &stateBackend,
-                       std::vector<std::string> rocksdbStorePaths)
-        : taskName(taskName), numberOfSubtasks(numberOfSubtasks), maxNumberOfSubtasks(maxNumberOfSubtasks),
-        indexOfSubtask(indexOfSubtask), streamConfig(streamConfigPOD), chainedConfig(chainedConfig_),
-        stateBackend(stateBackend), rocksdbStorePaths(rocksdbStorePaths),
-        stateBackendManagedMemoryFraction(0.0), stateBackendManagedMemorySize(DEFAULT_ROCKSDB_MANAGED_MEMORY_SIZE),
-        numberOfTransferThreads(4), rocksDBMemoryConfiguration(), cacheAddr(0),
-        writeBufferManagerAddr(0), taskType(1), checkpointConfig(CheckpointConfigPOD()),
-        executionCheckpointConfig(ExecutionCheckpointConfigPOD()), localRecoveryConfig(""),
-        tmpWorkingDirectory("/tmp")
-    {}
+    TaskInformationPOD(
+        const std::string& taskName,
+        int numberOfSubtasks,
+        int maxNumberOfSubtasks,
+        int indexOfSubtask,
+        const StreamConfigPOD& streamConfigPOD,
+        const OperatorChainPOD& operatorChain,
+        const std::vector<StreamConfigPOD>& chainedConfig_,
+        const int taskType = 1)
+        : taskName(taskName),
+          numberOfSubtasks(numberOfSubtasks),
+          maxNumberOfSubtasks(maxNumberOfSubtasks),
+          indexOfSubtask(indexOfSubtask),
+          streamConfig(streamConfigPOD),
+          chainedConfig(chainedConfig_),
+          stateBackend(""),
+          rocksdbStorePaths(),
+          stateBackendManagedMemoryFraction(0.0),
+          stateBackendManagedMemorySize(DEFAULT_ROCKSDB_MANAGED_MEMORY_SIZE),
+          numberOfTransferThreads(4),
+          rocksDBMemoryConfiguration(),
+          cacheAddr(0),
+          writeBufferManagerAddr(0),
+          taskType(taskType),
+          checkpointConfig(CheckpointConfigPOD()),
+          executionCheckpointConfig(ExecutionCheckpointConfigPOD()),
+          localRecoveryConfig(""),
+          tmpWorkingDirectory("/tmp")
+    {
+    }
 
-    TaskInformationPOD &operator=(const TaskInformationPOD&) = default;
-    TaskInformationPOD(const TaskInformationPOD &other) = default;
+    TaskInformationPOD(
+        const std::string& taskName,
+        int numberOfSubtasks,
+        int maxNumberOfSubtasks,
+        int indexOfSubtask,
+        const StreamConfigPOD& streamConfigPOD,
+        const OperatorChainPOD& operatorChain,
+        const std::vector<StreamConfigPOD>& chainedConfig_,
+        std::string& stateBackend,
+        std::vector<std::string> rocksdbStorePaths)
+        : taskName(taskName),
+          numberOfSubtasks(numberOfSubtasks),
+          maxNumberOfSubtasks(maxNumberOfSubtasks),
+          indexOfSubtask(indexOfSubtask),
+          streamConfig(streamConfigPOD),
+          chainedConfig(chainedConfig_),
+          stateBackend(stateBackend),
+          rocksdbStorePaths(rocksdbStorePaths),
+          stateBackendManagedMemoryFraction(0.0),
+          stateBackendManagedMemorySize(DEFAULT_ROCKSDB_MANAGED_MEMORY_SIZE),
+          numberOfTransferThreads(4),
+          rocksDBMemoryConfiguration(),
+          cacheAddr(0),
+          writeBufferManagerAddr(0),
+          taskType(1),
+          checkpointConfig(CheckpointConfigPOD()),
+          executionCheckpointConfig(ExecutionCheckpointConfigPOD()),
+          localRecoveryConfig(""),
+          tmpWorkingDirectory("/tmp")
+    {
+    }
+
+    TaskInformationPOD& operator=(const TaskInformationPOD&) = default;
+    TaskInformationPOD(const TaskInformationPOD& other) = default;
 
     std::string getTaskName() const
     {
         return taskName;
     }
 
-    void setTaskName(const std::string &taskName_)
+    void setTaskName(const std::string& taskName_)
     {
         this->taskName = taskName_;
     }
@@ -108,12 +157,12 @@ public:
         this->maxNumberOfSubtasks = maxNumberOfSubtasks_;
     }
 
-    const StreamConfigPOD &getStreamConfigPOD() const
+    const StreamConfigPOD& getStreamConfigPOD() const
     {
         return streamConfig;
     }
 
-    void setStreamConfigPOD(const StreamConfigPOD &streamConfigPOD)
+    void setStreamConfigPOD(const StreamConfigPOD& streamConfigPOD)
     {
         this->streamConfig = streamConfigPOD;
     }
@@ -138,47 +187,58 @@ public:
         chainedConfig = chained_config;
     }
 
-    const std::string &getStateBackend() const {
+    const std::string& getStateBackend() const
+    {
         return stateBackend;
     }
 
-    void setStateBackend(const std::string &stateBackend_) {
+    void setStateBackend(const std::string& stateBackend_)
+    {
         stateBackend = stateBackend_;
     }
 
-    const std::vector<std::string> &getRocksdbStorePaths() const {
+    const std::vector<std::string>& getRocksdbStorePaths() const
+    {
         return rocksdbStorePaths;
     }
 
-    void setRocksdbStorePaths(const std::vector<std::string> &rocksdbStorePaths_) {
+    void setRocksdbStorePaths(const std::vector<std::string>& rocksdbStorePaths_)
+    {
         rocksdbStorePaths = rocksdbStorePaths_;
     }
 
-    double getStateBackendManagedMemoryFraction() const {
+    double getStateBackendManagedMemoryFraction() const
+    {
         return stateBackendManagedMemoryFraction;
     }
 
-    uint64_t getStateBackendManagedMemorySize() const {
+    uint64_t getStateBackendManagedMemorySize() const
+    {
         return stateBackendManagedMemorySize;
     }
 
-    uint32_t getNumberOfTransferThreads() const {
+    uint32_t getNumberOfTransferThreads() const
+    {
         return numberOfTransferThreads;
     }
 
-    const RocksDBMemoryConfiguration& getRocksDBMemoryConfiguration() const {
+    const RocksDBMemoryConfiguration& getRocksDBMemoryConfiguration() const
+    {
         return rocksDBMemoryConfiguration;
     }
 
-    uint64_t getCacheAddr() const {
+    uint64_t getCacheAddr() const
+    {
         return cacheAddr;
     }
 
-    uint64_t getWriteBufferManagerAddr() const {
+    uint64_t getWriteBufferManagerAddr() const
+    {
         return writeBufferManagerAddr;
     }
 
-    std::string getPriorityQueueStateType() const {
+    std::string getPriorityQueueStateType() const
+    {
         return priorityQueueStateType;
     }
 
@@ -201,22 +261,16 @@ public:
         return "TaskInformationPOD{ taskName='" + taskName + '\'' +
                ", numberOfSubtasks=" + std::to_string(numberOfSubtasks) +
                ", maxNumberOfSubtasks=" + std::to_string(maxNumberOfSubtasks) +
-               ", indexOfSubtask=" + std::to_string(indexOfSubtask) +
-               ", streamConfigPOD=" + streamConfig.toString() +
-               ", stateBackend=" + stateBackend +
-                   ", chainedConfig= "  + ss.str() + '}';
+               ", indexOfSubtask=" + std::to_string(indexOfSubtask) + ", streamConfigPOD=" + streamConfig.toString() +
+               ", stateBackend=" + stateBackend + ", chainedConfig= " + ss.str() + '}';
     }
 
     bool operator==(const TaskInformationPOD& other) const
     {
-        return taskName == other.taskName &&
-               numberOfSubtasks == other.numberOfSubtasks &&
-               maxNumberOfSubtasks == other.maxNumberOfSubtasks &&
-               indexOfSubtask == other.indexOfSubtask &&
-               streamConfig == other.streamConfig &&
-               chainedConfig == other.chainedConfig &&
-               stateBackend == other.stateBackend &&
-                rocksdbStorePaths == other.rocksdbStorePaths;
+        return taskName == other.taskName && numberOfSubtasks == other.numberOfSubtasks &&
+               maxNumberOfSubtasks == other.maxNumberOfSubtasks && indexOfSubtask == other.indexOfSubtask &&
+               streamConfig == other.streamConfig && chainedConfig == other.chainedConfig &&
+               stateBackend == other.stateBackend && rocksdbStorePaths == other.rocksdbStorePaths;
     }
 
     bool GetSplitWatermark() const
@@ -224,7 +278,8 @@ public:
         return splitWatermark;
     }
 
-    void SetSplitWatermark(const bool &splitWatermark) {
+    void SetSplitWatermark(const bool& splitWatermark)
+    {
         this->splitWatermark = splitWatermark;
     }
 
@@ -233,7 +288,7 @@ public:
         return taskType;
     }
 
-    void SetTaskType(const int &taskType)
+    void SetTaskType(const int& taskType)
     {
         this->taskType = taskType;
     }
@@ -263,7 +318,8 @@ public:
         return localRecoveryConfig;
     }
 
-    std::filesystem::path getTmpWorkingDirectory() const {
+    std::filesystem::path getTmpWorkingDirectory() const
+    {
         return tmpWorkingDirectory;
     }
 
@@ -290,8 +346,7 @@ public:
             {"executionCheckpointConfig", taskInfo.executionCheckpointConfig},
             {"localRecoveryConfig", taskInfo.localRecoveryConfig},
             {"tmpWorkingDirectory", taskInfo.tmpWorkingDirectory},
-            {"splitWatermark", taskInfo.splitWatermark}
-        };
+            {"splitWatermark", taskInfo.splitWatermark}};
     }
 
     friend void from_json(const nlohmann::json& json, TaskInformationPOD& taskInfo)
@@ -309,18 +364,18 @@ public:
         taskInfo.writeBufferManagerAddr = json.value("writeBufferManagerAddr", static_cast<uint64_t>(0));
         taskInfo.priorityQueueStateType = json.value("priorityQueueStateType", "HEAP");
         taskInfo.numberOfTransferThreads = json.value("numberOfTransferThreads", static_cast<uint32_t>(4));
-        taskInfo.rocksDBMemoryConfiguration = json.contains("rocksDBMemoryConfiguration") &&
-                !json.at("rocksDBMemoryConfiguration").is_null()
-            ? json.at("rocksDBMemoryConfiguration").get<RocksDBMemoryConfiguration>()
-            : RocksDBMemoryConfiguration();
+        taskInfo.rocksDBMemoryConfiguration =
+            json.contains("rocksDBMemoryConfiguration") && !json.at("rocksDBMemoryConfiguration").is_null()
+                ? json.at("rocksDBMemoryConfiguration").get<RocksDBMemoryConfiguration>()
+                : RocksDBMemoryConfiguration();
         taskInfo.streamConfig = json.contains("streamConfig") && !json.at("streamConfig").is_null()
-            ? json.at("streamConfig").get<StreamConfigPOD>()
-            : StreamConfigPOD();
+                                    ? json.at("streamConfig").get<StreamConfigPOD>()
+                                    : StreamConfigPOD();
         taskInfo.chainedConfig = json.value("chainedConfig", std::vector<StreamConfigPOD>());
         taskInfo.taskType = json.value("taskType", 1);
         taskInfo.checkpointConfig = json.contains("checkpointConfig") && !json.at("checkpointConfig").is_null()
-            ? json.at("checkpointConfig").get<CheckpointConfigPOD>()
-            : CheckpointConfigPOD();
+                                        ? json.at("checkpointConfig").get<CheckpointConfigPOD>()
+                                        : CheckpointConfigPOD();
         taskInfo.executionCheckpointConfig =
             json.contains("executionCheckpointConfig") && !json.at("executionCheckpointConfig").is_null()
                 ? json.at("executionCheckpointConfig").get<ExecutionCheckpointConfigPOD>()
@@ -329,6 +384,7 @@ public:
         taskInfo.tmpWorkingDirectory = json.value("tmpWorkingDirectory", std::string("/tmp"));
         taskInfo.splitWatermark = json.value("splitWatermark", false);
     }
+
 private:
     std::string taskName;
     int numberOfSubtasks;
@@ -358,37 +414,37 @@ private:
     bool splitWatermark;
 };
 
-}  // namespace omnistream
+} // namespace omnistream
 
 namespace std {
-    template<>
-    struct hash<omnistream::TaskInformationPOD> {
-        size_t operator()(const omnistream::TaskInformationPOD& obj) const
-        {
-            size_t h1 = std::hash<std::string>()(obj.getTaskName());
-            size_t h2 = std::hash<int>()(obj.getNumberOfSubtasks());
-            size_t h3 = std::hash<int>()(obj.getMaxNumberOfSubtasks());
-            size_t h4 = std::hash<int>()(obj.getIndexOfSubtask());
-            size_t h5 = std::hash<omnistream::StreamConfigPOD>()(obj.getStreamConfigPOD());
+template <>
+struct hash<omnistream::TaskInformationPOD> {
+    size_t operator()(const omnistream::TaskInformationPOD& obj) const
+    {
+        size_t h1 = std::hash<std::string>()(obj.getTaskName());
+        size_t h2 = std::hash<int>()(obj.getNumberOfSubtasks());
+        size_t h3 = std::hash<int>()(obj.getMaxNumberOfSubtasks());
+        size_t h4 = std::hash<int>()(obj.getIndexOfSubtask());
+        size_t h5 = std::hash<omnistream::StreamConfigPOD>()(obj.getStreamConfigPOD());
 
-            // 对 vector<StreamConfigPOD> 做 hash，逐个元素合并
-            size_t h6 = 0;
-            for (const auto& cfg : obj.getChainedConfig()) {
-                size_t h = std::hash<omnistream::StreamConfigPOD>()(cfg);
-                h6 ^= h + 0x9e3779b9 + (h6 << 6) + (h6 >> 2);
-            }
-
-            size_t seed = 0;
-            seed ^= h1 + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-            seed ^= h2 + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-            seed ^= h3 + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-            seed ^= h4 + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-            seed ^= h5 + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-            seed ^= h6 + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-
-            return seed;
+        // 对 vector<StreamConfigPOD> 做 hash，逐个元素合并
+        size_t h6 = 0;
+        for (const auto& cfg : obj.getChainedConfig()) {
+            size_t h = std::hash<omnistream::StreamConfigPOD>()(cfg);
+            h6 ^= h + 0x9e3779b9 + (h6 << 6) + (h6 >> 2);
         }
-    };
-}
 
-#endif  // TASKINFORMATIONPOD_H
+        size_t seed = 0;
+        seed ^= h1 + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        seed ^= h2 + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        seed ^= h3 + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        seed ^= h4 + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        seed ^= h5 + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        seed ^= h6 + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+
+        return seed;
+    }
+};
+} // namespace std
+
+#endif // TASKINFORMATIONPOD_H

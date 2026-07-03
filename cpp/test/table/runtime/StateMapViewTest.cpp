@@ -11,14 +11,14 @@
 
 TEST(StateMapViewTest, PutGetClearTest)
 {
-    IntSerializer *ser = new IntSerializer();
-    InternalKeyContextImpl<int> *context = new InternalKeyContextImpl<int>(new KeyGroupRange(0, 1), 3);
+    IntSerializer* ser = new IntSerializer();
+    InternalKeyContextImpl<int>* context = new InternalKeyContextImpl<int>(new KeyGroupRange(0, 1), 3);
     context->setCurrentKey(1);
     context->setCurrentKeyGroupIndex(1);
-    RegisteredKeyValueStateBackendMetaInfo *metaInfo = new RegisteredKeyValueStateBackendMetaInfo("metaInfo", ser, ser);
+    RegisteredKeyValueStateBackendMetaInfo* metaInfo = new RegisteredKeyValueStateBackendMetaInfo("metaInfo", ser, ser);
 
     // HeapMapState Init
-    auto table1 = new CopyOnWriteStateTable<int, VoidNamespace, emhash7::HashMap<int, int>* >(context, metaInfo, ser);
+    auto table1 = new CopyOnWriteStateTable<int, VoidNamespace, emhash7::HashMap<int, int>*>(context, metaInfo, ser);
     auto heapMapState = new HeapMapState<int, VoidNamespace, int, int>(table1, ser, ser, ser);
 
     // HeapValueState Init

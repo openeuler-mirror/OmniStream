@@ -14,15 +14,15 @@
 #include <sstream>
 
 // Constructor
-CheckpointBarrier::CheckpointBarrier(long id, long timestamp,
-                                     CheckpointOptions *checkpointOptions)
+CheckpointBarrier::CheckpointBarrier(long id, long timestamp, CheckpointOptions* checkpointOptions)
     : CheckpointBarrier(id, timestamp, std::shared_ptr<CheckpointOptions>(checkpointOptions, [](CheckpointOptions*) {}))
 {
 }
 
-CheckpointBarrier::CheckpointBarrier(long id, long timestamp,
-                                     std::shared_ptr<CheckpointOptions> checkpointOptions)
-    : id_(id), timestamp_(timestamp), checkpointOptions_(std::move(checkpointOptions))
+CheckpointBarrier::CheckpointBarrier(long id, long timestamp, std::shared_ptr<CheckpointOptions> checkpointOptions)
+    : id_(id),
+      timestamp_(timestamp),
+      checkpointOptions_(std::move(checkpointOptions))
 {
     if (checkpointOptions_ == nullptr) {
         INFO_RELEASE("Error checkpointOptions must not be null");
@@ -39,52 +39,55 @@ std::shared_ptr<CheckpointOptions> CheckpointBarrier::GetCheckpointOptions() con
     return checkpointOptions_;
 }
 
-CheckpointBarrier *CheckpointBarrier::WithOptions(
-    CheckpointOptions *checkpointOptions)
+CheckpointBarrier* CheckpointBarrier::WithOptions(CheckpointOptions* checkpointOptions)
 {
     return this->checkpointOptions_.get() == checkpointOptions
                ? this
                : new CheckpointBarrier(id_, timestamp_, checkpointOptions);
 }
 
-bool CheckpointBarrier::operator==(const CheckpointBarrier &other) const
+bool CheckpointBarrier::operator==(const CheckpointBarrier& other) const
 {
-    return id_ == other.id_ && timestamp_ == other.timestamp_ &&
-           *checkpointOptions_ == *other.checkpointOptions_;
+    return id_ == other.id_ && timestamp_ == other.timestamp_ && *checkpointOptions_ == *other.checkpointOptions_;
 }
 
-long CheckpointBarrier::GetId() const { return id_; }
+long CheckpointBarrier::GetId() const
+{
+    return id_;
+}
 
-long CheckpointBarrier::GetTimestamp() const { return timestamp_; }
+long CheckpointBarrier::GetTimestamp() const
+{
+    return timestamp_;
+}
 
 bool CheckpointBarrier::IsCheckpoint() const
 {
     return !(checkpointOptions_->GetCheckpointType()->IsSavepoint());
 }
 
-CheckpointBarrier *CheckpointBarrier::AsUnaligned()
+CheckpointBarrier* CheckpointBarrier::AsUnaligned()
 {
     return checkpointOptions_->IsUnalignedCheckpoint()
                ? this
                : new CheckpointBarrier(
-                     GetId(), GetTimestamp(),
+                     GetId(),
+                     GetTimestamp(),
                      std::shared_ptr<CheckpointOptions>(GetCheckpointOptions()->ToUnaligned()));
 }
 
 std::string CheckpointBarrier::ToString() const
 {
     std::ostringstream oss;
-    oss << "CheckpointBarrier " << id_ << " @ " << timestamp_
-        << " Options: " << checkpointOptions_->ToString();
+    oss << "CheckpointBarrier " << id_ << " @ " << timestamp_ << " Options: " << checkpointOptions_->ToString();
     return oss.str();
 }
 
 namespace std {
-    std::size_t hash<CheckpointBarrier>::operator()(const CheckpointBarrier &ref) const
-    {
-        return static_cast<std::size_t>(
-            (static_cast<std::uint64_t>(ref.GetId()) ^ (static_cast<std::uint64_t>(ref.GetId()) >> 32) ^
-             static_cast<std::uint64_t>(ref.GetTimestamp()) ^ (static_cast<std::uint64_t>(ref.GetTimestamp()) >> 32))
-        );
-    }
+std::size_t hash<CheckpointBarrier>::operator()(const CheckpointBarrier& ref) const
+{
+    return static_cast<std::size_t>(
+        (static_cast<std::uint64_t>(ref.GetId()) ^ (static_cast<std::uint64_t>(ref.GetId()) >> 32) ^
+         static_cast<std::uint64_t>(ref.GetTimestamp()) ^ (static_cast<std::uint64_t>(ref.GetTimestamp()) >> 32)));
 }
+} // namespace std

@@ -13,14 +13,16 @@
 #include "table/data/Row.h"
 
 // 构造函数实现
-Row::Row(RowKind kind,
-         std::vector<std::any> fieldByPosition,
-         std::map<std::string, std::any> fieldByName,
-         std::map<std::string, int> positionByName)
+Row::Row(
+    RowKind kind,
+    std::vector<std::any> fieldByPosition,
+    std::map<std::string, std::any> fieldByName,
+    std::map<std::string, int> positionByName)
     : kind_(kind),
-    fieldByPosition_(std::move(fieldByPosition)),
-    fieldByName_(std::move(fieldByName)),
-    positionByName_(std::move(positionByName)) {
+      fieldByPosition_(std::move(fieldByPosition)),
+      fieldByName_(std::move(fieldByName)),
+      positionByName_(std::move(positionByName))
+{
     internalRow_ = nullptr;
 }
 

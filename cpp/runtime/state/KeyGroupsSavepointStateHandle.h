@@ -17,11 +17,9 @@
 class KeyGroupsSavepointStateHandle : public KeyGroupsStateHandle {
 public:
     KeyGroupsSavepointStateHandle(
-        const KeyGroupRangeOffsets& groupRangeOffsets,
-        const std::shared_ptr<StreamStateHandle>& streamStateHandle);
-    explicit KeyGroupsSavepointStateHandle(const nlohmann::json &description);
-    std::shared_ptr<KeyedStateHandle> GetIntersection(
-        const KeyGroupRange& keyGroupRange) const override;
+        const KeyGroupRangeOffsets& groupRangeOffsets, const std::shared_ptr<StreamStateHandle>& streamStateHandle);
+    explicit KeyGroupsSavepointStateHandle(const nlohmann::json& description);
+    std::shared_ptr<KeyedStateHandle> GetIntersection(const KeyGroupRange& keyGroupRange) const override;
     std::string ToString() const override;
 };
 #endif

@@ -12,7 +12,6 @@
 #ifndef FLINK_TNEL_DATAINPUTSTATUS_H
 #define FLINK_TNEL_DATAINPUTSTATUS_H
 
-
 #include <cstdint>
 
 // DataInputStatus is to provide the constant definition for OmniDataInputStatus which is an uint32_t;
@@ -20,7 +19,6 @@
 //  second lowest 8 bits: boolean isBufferConsumed
 //  3rd lowest 8 bits: boolean isFullRecord
 //  higest 8 bits: breakBatchEmitting
-
 
 class OmniDataInputStatus {
 public:
@@ -34,17 +32,17 @@ public:
     static constexpr uint8_t DataInputStatus_END_OF_INPUT = 6;
 
     // mask
-    static constexpr uint32_t  MASK_DataInputStatus = 0xFF;
-    static constexpr uint32_t  MASK_BUFFER_CONSUMED = 0xFF00;
-    static constexpr uint32_t  MASK_FULL_RECORD = 0xFF0000;
-    static constexpr uint32_t  MASK_BREAK_BATCH_EMITTING = 0xFF000000;
+    static constexpr uint32_t MASK_DataInputStatus = 0xFF;
+    static constexpr uint32_t MASK_BUFFER_CONSUMED = 0xFF00;
+    static constexpr uint32_t MASK_FULL_RECORD = 0xFF0000;
+    static constexpr uint32_t MASK_BREAK_BATCH_EMITTING = 0xFF000000;
 
     static constexpr uint32_t BUFFER_CONSUMED_TRUE = 0x0100;
     static constexpr uint32_t FULL_RECORD_TRUE = 0x010000;
     static constexpr uint32_t BREAK_BATCH_EMITTING_TRUE = 0x01000000;
     static constexpr uint32_t AT_LEAST_ONE_FULL_RECORD_CONSUMED = 8;
 };
- 
+
 enum class DataInputStatus : int {
     NOT_PROCESSED = -1,
     /**
@@ -80,24 +78,16 @@ public:
     static int mapToInt(const DataInputStatus& inputStatus)
     {
         switch (inputStatus) {
-            case DataInputStatus::NOT_PROCESSED:
-                return -1;
-            case DataInputStatus::MORE_AVAILABLE:
-                return 0;
-            case DataInputStatus::NOTHING_AVAILABLE:
-                return 1;
-            case DataInputStatus::END_OF_RECOVERY:
-                return 2;
-            case DataInputStatus::STOPPED:
-                return 3;
-            case DataInputStatus::END_OF_DATA:
-                return 4;
-            case DataInputStatus::END_OF_INPUT:
-                return 5;
+            case DataInputStatus::NOT_PROCESSED: return -1;
+            case DataInputStatus::MORE_AVAILABLE: return 0;
+            case DataInputStatus::NOTHING_AVAILABLE: return 1;
+            case DataInputStatus::END_OF_RECOVERY: return 2;
+            case DataInputStatus::STOPPED: return 3;
+            case DataInputStatus::END_OF_DATA: return 4;
+            case DataInputStatus::END_OF_INPUT: return 5;
         }
         return -2; // unknow
     }
 };
-
 
 #endif

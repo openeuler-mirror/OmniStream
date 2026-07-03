@@ -29,23 +29,29 @@ using ::testing::Return;
 using ::testing::_;
 using ::testing::NiceMock;
 
+namespace {
 class MockCheckpointableTask : public CheckpointableTask {
 public:
-    MOCK_METHOD(void, TriggerCheckpointOnBarrier,
+    MOCK_METHOD(
+        void,
+        TriggerCheckpointOnBarrier,
         (std::shared_ptr<CheckpointMetaData> checkpointMetaData,
-            std::shared_ptr<CheckpointOptions> checkpointOptions, std::shared_ptr<CheckpointMetricsBuilder> checkpointMetrics), (override));
+         std::shared_ptr<CheckpointOptions> checkpointOptions,
+         std::shared_ptr<CheckpointMetricsBuilder> checkpointMetrics),
+        (override));
 
-    MOCK_METHOD(void, abortCheckpointOnBarrier,
-                (long checkpointId, CheckpointException cause), (override));
+    MOCK_METHOD(void, abortCheckpointOnBarrier, (long checkpointId, CheckpointException cause), (override));
 };
 
 class MockSubtaskCheckpointCoordinator : public SubtaskCheckpointCoordinator {
 public:
     MOCK_METHOD(std::shared_ptr<ChannelStateWriter>, getChannelStateWriter, (), (override));
-    MOCK_METHOD(void, InitInputsCheckpoint, (long id, CheckpointOptions * checkpointOptions), (override));
+    MOCK_METHOD(void, InitInputsCheckpoint, (long id, CheckpointOptions* checkpointOptions), (override));
 };
+} // namespace
 
-TEST(SingleCheckpointBarrierHandlerTest, ProcessBarrier_ValidBarrier_TransitionsStateAndMarksAlignment) {
+TEST(SingleCheckpointBarrierHandlerTest, ProcessBarrier_ValidBarrier_TransitionsStateAndMarksAlignment)
+{
     auto mockTask = std::make_unique<NiceMock<MockCheckpointableTask>>();
     auto mockCoordinator = std::make_unique<NiceMock<MockSubtaskCheckpointCoordinator>>();
     Clock& clock = SystemClock::GetInstance();
@@ -59,8 +65,8 @@ TEST(SingleCheckpointBarrierHandlerTest, ProcessBarrier_ValidBarrier_Transitions
     auto executor = std::make_unique<MailboxExecutorTest>();
     auto timerService = std::make_unique<SystemProcessingTimeService>();
 
-    auto* delayableTimer = BarrierAlignmentUtil::createRegisterTimerCallback<std::function<void()>>(
-        executor.get(), timerService.get());
+    auto* delayableTimer =
+        BarrierAlignmentUtil::createRegisterTimerCallback<std::function<void()>>(executor.get(), timerService.get());
     std::unique_ptr<BarrierAlignmentUtil::DelayableTimer<std::function<void()>>> timerGuard(delayableTimer);
 
     auto* cancellableRaw = delayableTimer->RegisterTask([]() {}, std::chrono::milliseconds(100));
@@ -78,8 +84,7 @@ TEST(SingleCheckpointBarrierHandlerTest, ProcessBarrier_ValidBarrier_Transitions
         false,
         delayableTimer,
         inputs,
-        false
-    ));
+        false));
 
     auto checkpointType = CheckpointType::CHECKPOINT;
     auto targetLocation = CheckpointStorageLocationReference::GetDefault();
@@ -113,7 +118,8 @@ TEST(SingleCheckpointBarrierHandlerTest, ProcessBarrier_ValidBarrier_Transitions
     timerService->shutdownService();
 }
 
-TEST(SingleCheckpointBarrierHandlerTest, AlignmentTimeout_SwitchesToUnaligned) {
+TEST(SingleCheckpointBarrierHandlerTest, AlignmentTimeout_SwitchesToUnaligned)
+{
     auto mockTask = std::make_unique<NiceMock<MockCheckpointableTask>>();
     auto mockCoordinator = std::make_unique<NiceMock<MockSubtaskCheckpointCoordinator>>();
     Clock& clock = SystemClock::GetInstance();
@@ -126,8 +132,8 @@ TEST(SingleCheckpointBarrierHandlerTest, AlignmentTimeout_SwitchesToUnaligned) {
     auto executor = new MailboxExecutorTest();
     auto timerService = std::make_shared<SystemProcessingTimeService>();
 
-    auto delayableTimer = BarrierAlignmentUtil::createRegisterTimerCallback<std::function<void()>>(
-        executor, timerService.get());
+    auto delayableTimer =
+        BarrierAlignmentUtil::createRegisterTimerCallback<std::function<void()>>(executor, timerService.get());
 
     // Start with aligned state
     auto* initialState = new AlternatingWaitingForFirstBarrier(ChannelState(inputs));
@@ -137,9 +143,9 @@ TEST(SingleCheckpointBarrierHandlerTest, AlignmentTimeout_SwitchesToUnaligned) {
         mockTask.get(),
         mockCoordinator.get(),
         clock,
-        2,  // two input channels
+        2, // two input channels
         initialState,
-        true,  // is alternating
+        true, // is alternating
         delayableTimer,
         inputs,
         false // enableCheckpointAfterTasksFinished
@@ -148,7 +154,8 @@ TEST(SingleCheckpointBarrierHandlerTest, AlignmentTimeout_SwitchesToUnaligned) {
     // Barrier setup
     auto checkpointType = CheckpointType::CHECKPOINT;
     auto targetLocation = CheckpointStorageLocationReference::GetDefault();
-    auto *options = new CheckpointOptions(checkpointType, targetLocation, CheckpointOptions::AlignmentType::ALIGNED, 3000);
+    auto* options =
+        new CheckpointOptions(checkpointType, targetLocation, CheckpointOptions::AlignmentType::ALIGNED, 3000);
     CheckpointBarrier barrier(42, clock.RelativeTimeMillis(), options);
 
     InputChannelInfo channel0(0, 0);
@@ -174,13 +181,14 @@ TEST(SingleCheckpointBarrierHandlerTest, AlignmentTimeout_SwitchesToUnaligned) {
     handler->ProcessBarrier(barrier, channel1, false);
 
     currentState = handler->GetCurrentState();
-    auto *asAlignedAgain = dynamic_cast<AlternatingWaitingForFirstBarrier*>(currentState);
+    auto* asAlignedAgain = dynamic_cast<AlternatingWaitingForFirstBarrier*>(currentState);
     EXPECT_NE(asAlignedAgain, nullptr) << "Expected Aligned mode";
 
     delete handler;
 }
 
-TEST(SingleCheckpointBarrierHandlerTest, ProcessBarrier_TriggerCheckpointFails_AbortsAndUnblocksChannels) {
+TEST(SingleCheckpointBarrierHandlerTest, ProcessBarrier_TriggerCheckpointFails_AbortsAndUnblocksChannels)
+{
     auto mockTask = std::make_unique<NiceMock<MockCheckpointableTask>>();
     auto mockCoordinator = std::make_unique<NiceMock<MockSubtaskCheckpointCoordinator>>();
     Clock& clock = SystemClock::GetInstance();
@@ -191,8 +199,8 @@ TEST(SingleCheckpointBarrierHandlerTest, ProcessBarrier_TriggerCheckpointFails_A
 
     auto executor = std::make_unique<MailboxExecutorTest>();
     auto timerService = std::make_unique<SystemProcessingTimeService>();
-    auto* delayableTimer = BarrierAlignmentUtil::createRegisterTimerCallback<std::function<void()>>(
-        executor.get(), timerService.get());
+    auto* delayableTimer =
+        BarrierAlignmentUtil::createRegisterTimerCallback<std::function<void()>>(executor.get(), timerService.get());
     std::unique_ptr<BarrierAlignmentUtil::DelayableTimer<std::function<void()>>> timerGuard(delayableTimer);
 
     auto* initialState = new AlternatingWaitingForFirstBarrier(ChannelState(inputs));
@@ -219,9 +227,7 @@ TEST(SingleCheckpointBarrierHandlerTest, ProcessBarrier_TriggerCheckpointFails_A
     EXPECT_CALL(*mockTask, TriggerCheckpointOnBarrier(_, _, _))
         .WillOnce([](std::shared_ptr<CheckpointMetaData>,
                      std::shared_ptr<CheckpointOptions>,
-                     std::shared_ptr<CheckpointMetricsBuilder>) {
-            throw std::runtime_error("snapshot failed");
-        });
+                     std::shared_ptr<CheckpointMetricsBuilder>) { throw std::runtime_error("snapshot failed"); });
     EXPECT_CALL(*mockTask, abortCheckpointOnBarrier(7, _)).Times(1);
 
     handler->ProcessBarrier(barrier, ch0, false);

@@ -5,30 +5,30 @@
 #include "LongSerializer.h"
 #include "basictypes/Long.h"
 
-void *LongSerializer::deserialize(DataInputView &source)
+void* LongSerializer::deserialize(DataInputView& source)
 {
-    return reinterpret_cast<void *>(new long(source.readLong()));
+    return reinterpret_cast<void*>(new long(source.readLong()));
 }
 
-void LongSerializer::serialize(void *record, DataOutputSerializer &target)
+void LongSerializer::serialize(void* record, DataOutputSerializer& target)
 {
-    target.writeLong(*(long *)record);
+    target.writeLong(*(long*)record);
 }
 
-void LongSerializer::deserialize(Object *buffer, DataInputView &source)
+void LongSerializer::deserialize(Object* buffer, DataInputView& source)
 {
     LOG("LongSerializer::deserialize change start ---");
     int64_t value = source.readLong();
-    reinterpret_cast<Long *>(buffer)->setValue(value);
+    reinterpret_cast<Long*>(buffer)->setValue(value);
     LOG("LongSerializer::deserialize change end ---");
 }
 
-void LongSerializer::serialize(Object *buffer, DataOutputSerializer &target)
+void LongSerializer::serialize(Object* buffer, DataOutputSerializer& target)
 {
     LOG("LongSerializer::serialize change start +++ value : ");
-    const int64_t value = reinterpret_cast<Long *>(buffer)->getValue();
+    const int64_t value = reinterpret_cast<Long*>(buffer)->getValue();
     target.writeLong(value);
-    LOG("LongSerializer::serialize change end +++")
+    LOG("LongSerializer::serialize change end +++");
 }
 
 LongSerializer::LongSerializer()
@@ -39,23 +39,22 @@ LongSerializer::LongSerializer()
 LongSerializer* LongSerializer::INSTANCE = new LongSerializer();
 LongSerializer::LongSerializerCleaner LongSerializer::cleaner;
 
-
-void *IntSerializer::deserialize(DataInputView &source)
+void* IntSerializer::deserialize(DataInputView& source)
 {
-    return reinterpret_cast<void *>(new int(source.readInt()));
+    return reinterpret_cast<void*>(new int(source.readInt()));
 }
 
-void IntSerializer::serialize(void *record, DataOutputSerializer &target)
+void IntSerializer::serialize(void* record, DataOutputSerializer& target)
 {
-    target.writeInt(*(int *)record);
+    target.writeInt(*(int*)record);
 }
 
-void IntSerializer::deserialize(Object *buffer, DataInputView& source)
+void IntSerializer::deserialize(Object* buffer, DataInputView& source)
 {
     NOT_IMPL_EXCEPTION;
 }
 
-void IntSerializer::serialize(Object *buffer, DataOutputSerializer& target)
+void IntSerializer::serialize(Object* buffer, DataOutputSerializer& target)
 {
     NOT_IMPL_EXCEPTION;
 }

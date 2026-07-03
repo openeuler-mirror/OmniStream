@@ -16,37 +16,49 @@
 
 #include "TypeSerializerSingleton.h"
 
-
 class JoinTupleSerializer2 : public TypeSerializerSingleton {
 public:
-    JoinTupleSerializer2() {}
+    JoinTupleSerializer2()
+    {
+    }
 
     ~JoinTupleSerializer2() override = default;
 
-    void *deserialize(DataInputView &source) override;
+    void* deserialize(DataInputView& source) override;
 
-    void serialize(void *record, DataOutputSerializer &target) override;
+    void serialize(void* record, DataOutputSerializer& target) override;
 
-    const char* getName() const override { return "JoinTupleSerializer2"; }
-
-    virtual TypeSerializer* duplicate() { return JoinTupleSerializer2::INSTANCE; }
-
-    virtual std::shared_ptr<TypeSerializerSnapshot> snapshotConfiguration(){
-        // TODO impl build serializer snapshot
-        NOT_IMPL_EXCEPTION
+    const char* getName() const override
+    {
+        return "JoinTupleSerializer2";
     }
 
-    BackendDataType getBackendId() const override { return BackendDataType::TUPLE_INT32_INT32_INT64;};
+    virtual TypeSerializer* duplicate()
+    {
+        return JoinTupleSerializer2::INSTANCE;
+    }
 
-    std::string toJson() override {
+    virtual std::shared_ptr<TypeSerializerSnapshot> snapshotConfiguration()
+    { // TODO impl build serializer snapshot
+        NOT_IMPL_EXCEPTION;
+    }
+
+    BackendDataType getBackendId() const override
+    {
+        return BackendDataType::TUPLE_INT32_INT32_INT64;
+    };
+
+    std::string toJson() override
+    {
         SerializerJsonInfo typeJson = {SerializerType::POJO, TYPE_NAME_JOIN_TUPLE2_CLASS};
         return typeJson.toJson();
     }
 
-    void setSubBufferReusable(bool bufferReusable_) override {}
+    void setSubBufferReusable(bool bufferReusable_) override
+    {
+    }
 
     static JoinTupleSerializer2* INSTANCE;
 };
-
 
 #endif // OMNISTREAM_JOINTUPLESERIALIZER_H

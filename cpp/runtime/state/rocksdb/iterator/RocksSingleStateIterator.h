@@ -27,13 +27,10 @@ public:
      * @param iterator Underlying RocksIteratorWrapper (ownership transferred)
      * @param kvStateId Id of the K/V state to which this iterator belongs
      */
-    RocksSingleStateIterator(
-        std::unique_ptr<RocksIteratorWrapper> iterator,
-        int kvStateId,
-        int keyGroupPrefixBytes)
+    RocksSingleStateIterator(std::unique_ptr<RocksIteratorWrapper> iterator, int kvStateId, int keyGroupPrefixBytes)
         : iterator_(std::move(iterator)),
-        kvStateId_(kvStateId),
-        keyGroupPrefixBytes_(keyGroupPrefixBytes)
+          kvStateId_(kvStateId),
+          keyGroupPrefixBytes_(keyGroupPrefixBytes)
     {
         if (!iterator_) {
             throw std::invalid_argument("RocksIteratorWrapper cannot be null");

@@ -37,10 +37,14 @@
 namespace omnistream {
 class OmniAbstractStreamTaskNetworkInput : public OmniStreamTaskInput {
 public:
-    OmniAbstractStreamTaskNetworkInput(int64_t inputIndex, std::shared_ptr<CheckpointedInputGate> inputGate,
-                                       int taskType, TypeSerializer *inputSerializer, std::vector<long> &channelInfos,
-                                       std::unique_ptr<std::unordered_map<long, std::unique_ptr<RecordDeserializer>>> recordDeserializers,
-                                       int64_t checkpointInterval)
+    OmniAbstractStreamTaskNetworkInput(
+        int64_t inputIndex,
+        std::shared_ptr<CheckpointedInputGate> inputGate,
+        int taskType,
+        TypeSerializer* inputSerializer,
+        std::vector<long>& channelInfos,
+        std::unique_ptr<std::unordered_map<long, std::unique_ptr<RecordDeserializer>>> recordDeserializers,
+        int64_t checkpointInterval)
         : recordDeserializers(std::move(recordDeserializers)),
           inputIndex(inputIndex),
           inputGate(std::move(inputGate)),
@@ -52,18 +56,22 @@ public:
     {
         INFO_RELEASE("create OmniAbstractStreamTaskNetworkInput, task type is:" << taskType);
         inSerializer = inputSerializer;
-        deserializationDelegate_ =
-            std::make_unique<NonReusingDeserializationDelegate>(new datastream::StreamElementSerializer(inputSerializer));
+        deserializationDelegate_ = std::make_unique<NonReusingDeserializationDelegate>(
+            new datastream::StreamElementSerializer(inputSerializer));
         rowCount = 0;
         maxRowCount = 1000;
         timeout = 1000;
         running_.exchange(true);
     }
 
-    OmniAbstractStreamTaskNetworkInput(int64_t inputIndex, std::shared_ptr<CheckpointedInputGate> inputGate,
-                                       int taskType, TypeSerializer *inputSerializer, std::vector<long> &channelInfos,
-                                       int64_t checkpointInterval)
-        :inputIndex(inputIndex),
+    OmniAbstractStreamTaskNetworkInput(
+        int64_t inputIndex,
+        std::shared_ptr<CheckpointedInputGate> inputGate,
+        int taskType,
+        TypeSerializer* inputSerializer,
+        std::vector<long>& channelInfos,
+        int64_t checkpointInterval)
+        : inputIndex(inputIndex),
           inputGate(std::move(inputGate)),
           taskType(taskType),
           currentRecordDeserializer(nullptr),
@@ -73,16 +81,16 @@ public:
     {
         INFO_RELEASE("create OmniAbstractStreamTaskNetworkInput, task type is:" << taskType);
         inSerializer = inputSerializer;
-        deserializationDelegate_ =
-            std::make_unique<NonReusingDeserializationDelegate>(new datastream::StreamElementSerializer(inputSerializer));
-        recordDeserializers= getRecordDeserializers(channelInfos);
+        deserializationDelegate_ = std::make_unique<NonReusingDeserializationDelegate>(
+            new datastream::StreamElementSerializer(inputSerializer));
+        recordDeserializers = getRecordDeserializers(channelInfos);
         rowCount = 0;
         maxRowCount = 1000;
         timeout = 1000;
         running_.exchange(true);
     }
 
-    DataInputStatus emitNext(OmniPushingAsyncDataInput::OmniDataOutput *output) override
+    DataInputStatus emitNext(OmniPushingAsyncDataInput::OmniDataOutput* output) override
     {
         // temp fix for taskType, will be removed in the future (taskType should not be set in Runtime)
         output->setTaskType(taskType);
@@ -91,7 +99,7 @@ public:
             fromOriginal = inputGate->fromOriginal();
             if (fromOriginal) {
                 if (!isStartTimer) {
-                    INFO_RELEASE("Start timer thread")
+                    INFO_RELEASE("Start timer thread");
                     timer_thread_ = std::thread(&OmniAbstractStreamTaskNetworkInput::timerThread, this);
                     isStartTimer = true;
                 }
@@ -107,24 +115,22 @@ public:
         }
     }
 
-    void timerThread() {
+    void timerThread()
+    {
         while (running_) {
             std::unique_lock<std::mutex> lock(mutex_);
-            if (cv_.wait_for(lock, std::chrono::seconds(1), [this]() {
-                return !running_ || rowList.empty();
-            })) {
+            if (cv_.wait_for(lock, std::chrono::seconds(1), [this]() { return !running_ || rowList.empty(); })) {
                 if (!running_) break;
             } else {
                 if (!rowList.empty()) {
                     lock.unlock();
-                    INFO_RELEASE("Raw to Native, triggering by schedule")
+                    INFO_RELEASE("Raw to Native, triggering by schedule");
                     emitCurrentBatch(output_);
                 }
             }
         }
-        INFO_RELEASE("timer thread end")
+        INFO_RELEASE("timer thread end");
     }
-
 
     std::shared_ptr<CompletableFuture> GetAvailableFuture() override
     {
@@ -140,19 +146,20 @@ public:
         }
     }
     std::unique_ptr<std::unordered_map<long, std::unique_ptr<RecordDeserializer>>> getRecordDeserializers(
-        std::vector<long> &channelInfos)
+        std::vector<long>& channelInfos)
     {
         std::unique_ptr<std::unordered_map<long, std::unique_ptr<RecordDeserializer>>> recordDeserializers =
-           std::make_unique<std::unordered_map<long, std::unique_ptr<RecordDeserializer>>>();
+            std::make_unique<std::unordered_map<long, std::unique_ptr<RecordDeserializer>>>();
         for (size_t i = 0; i < channelInfos.size(); i++) {
-            LOG("getRecordDeserializers channelInfo " << i)
+            LOG("getRecordDeserializers channelInfo " << i);
             auto deserializer = std::make_unique<SpillingAdaptiveSpanningRecordDeserializer>();
             recordDeserializers->emplace(channelInfos.at(i), std::move(deserializer));
         }
         return recordDeserializers;
     }
 
-    virtual RecordDeserializer *getActiveSerializer(long channelInfo) {
+    virtual RecordDeserializer* getActiveSerializer(long channelInfo)
+    {
         auto it = recordDeserializers->find(channelInfo);
         if (it == recordDeserializers->end()) {
             THROW_RUNTIME_ERROR("ChannelInfo not found in recordDeserializers");
@@ -160,13 +167,13 @@ public:
         return it->second.get();
     }
 
-    DataInputStatus processBufferOrEventOptForSQL(OmniPushingAsyncDataInput::OmniDataOutput* output,
-                                                  BufferOrEvent* bufferOrEvent)
+    DataInputStatus processBufferOrEventOptForSQL(
+        OmniPushingAsyncDataInput::OmniDataOutput* output, BufferOrEvent* bufferOrEvent)
     {
         isLastValueNull = false;
         NullValueCount = 0;
 
-        LOG(">>>>> bufferOrEventOpt bufferOrEvent" + std::to_string(reinterpret_cast<int64_t>(bufferOrEvent)))
+        LOG(">>>>> bufferOrEventOpt bufferOrEvent" + std::to_string(reinterpret_cast<int64_t>(bufferOrEvent)));
         if (bufferOrEvent->isBuffer()) {
             auto buff = reinterpret_cast<ObjectBuffer*>(bufferOrEvent->getBuffer());
             lastChannel_ = bufferOrEvent->getChannelInfo();
@@ -174,32 +181,31 @@ public:
             auto size = buff->GetSize();
             auto objSegment = buff->GetObjectSegment();
             auto offset = buff->GetOffset();
-            LOG(">>>>object segment is " << std::to_string(reinterpret_cast<long>(objSegment)))
-            LOG(">>>>>buffer size is " << size << " buffer offset is " << offset)
+            LOG(">>>>object segment is " << std::to_string(reinterpret_cast<long>(objSegment)));
+            LOG(">>>>>buffer size is " << size << " buffer offset is " << offset);
 
-            LOG("===================start output=======================")
+            LOG("===================start output=======================");
             for (int64_t index = offset; index < offset + size; index++) {
-                StreamElement *object = objSegment->getObject(index);
+                StreamElement* object = objSegment->getObject(index);
                 int tag = static_cast<int>(object->getTag());
-                LOG("OmniAbstractStreamTaskNetworkInput tag: " << tag << " channelIndex: " << lastChannel_.getInputChannelIdx())
+                LOG("OmniAbstractStreamTaskNetworkInput tag: " << tag << " channelIndex: "
+                                                               << lastChannel_.getInputChannelIdx());
                 if (object->getTag() == StreamElementTag::TAG_REC_WITH_TIMESTAMP ||
                     object->getTag() == StreamElementTag::TAG_REC_WITHOUT_TIMESTAMP) {
-                    auto record = static_cast<StreamRecord *>(object);
-                    auto vectorBatch = static_cast<VectorBatch *>(record->getValue());
+                    auto record = static_cast<StreamRecord*>(object);
+                    auto vectorBatch = static_cast<VectorBatch*>(record->getValue());
                     size_t row_cnt = vectorBatch->GetRowCount();
                     numberOfRow += row_cnt;
 
-                    output->emitRecord(reinterpret_cast<StreamRecord *>(object));
+                    output->emitRecord(reinterpret_cast<StreamRecord*>(object));
                 } else if (object->getTag() == StreamElementTag::TAG_WATERMARK) {
-                    statusWatermarkValve_.inputWatermark(reinterpret_cast<Watermark *>(object),
-                                     lastChannel_.getInputChannelIdx(),
-                                     output);
+                    statusWatermarkValve_.inputWatermark(
+                        reinterpret_cast<Watermark*>(object), lastChannel_.getInputChannelIdx(), output);
                 } else if (object->getTag() == StreamElementTag::TAG_STREAM_STATUS) {
-                    statusWatermarkValve_.inputWatermarkStatus(reinterpret_cast<WatermarkStatus *>(object),
-                                                               lastChannel_.getInputChannelIdx(),
-                                                               output);
+                    statusWatermarkValve_.inputWatermarkStatus(
+                        reinterpret_cast<WatermarkStatus*>(object), lastChannel_.getInputChannelIdx(), output);
                 } else {
-                    LOG("Bypass the tag for now: " << tag)
+                    LOG("Bypass the tag for now: " << tag);
                 }
             }
             // more avaiable means there could be more data come in
@@ -217,7 +223,7 @@ public:
         }
     }
 
-    DataInputStatus processForSQL(OmniPushingAsyncDataInput::OmniDataOutput *output)
+    DataInputStatus processForSQL(OmniPushingAsyncDataInput::OmniDataOutput* output)
     {
         while (true) {
             auto bufferOrEvent = inputGate->PollNext();
@@ -240,7 +246,7 @@ public:
 
     void processBufferForDataStreamAndSQLFromOriginal(BufferOrEvent* bufferOrEvent)
     {
-        auto buffer = static_cast<ReadOnlySlicedNetworkBuffer* >(bufferOrEvent->getBuffer());
+        auto buffer = static_cast<ReadOnlySlicedNetworkBuffer*>(bufferOrEvent->getBuffer());
         auto inputChannelInfo = bufferOrEvent->getChannelInfo();
         currentRecordDeserializer = getActiveSerializer(inputChannelInfo.getInputChannelIdx());
         if (currentRecordDeserializer == nullptr) {
@@ -249,25 +255,25 @@ public:
         currentRecordDeserializer->SetNextBuffer(buffer);
     }
 
-    DataInputStatus processFullRecordForDataStream(OmniPushingAsyncDataInput::OmniDataOutput *output)
+    DataInputStatus processFullRecordForDataStream(OmniPushingAsyncDataInput::OmniDataOutput* output)
     {
-        auto *element = static_cast<StreamElement *>(deserializationDelegate_->getInstance());
+        auto* element = static_cast<StreamElement*>(deserializationDelegate_->getInstance());
         if (element->getTag() == StreamElementTag::TAG_WATERMARK) {
-            output->emitWatermark(reinterpret_cast<Watermark *>(element));
-        } else if(element->getTag() == StreamElementTag::TAG_STREAM_STATUS){
-            output->emitWatermarkStatus(reinterpret_cast<WatermarkStatus *>(element));
-        }else {
+            output->emitWatermark(reinterpret_cast<Watermark*>(element));
+        } else if (element->getTag() == StreamElementTag::TAG_STREAM_STATUS) {
+            output->emitWatermarkStatus(reinterpret_cast<WatermarkStatus*>(element));
+        } else {
             processElement(element, output);
         }
         return DataInputStatus::MORE_AVAILABLE;
     }
 
-    DataInputStatus processForDataStream(OmniPushingAsyncDataInput::OmniDataOutput *output)
+    DataInputStatus processForDataStream(OmniPushingAsyncDataInput::OmniDataOutput* output)
     {
-        try{
+        try {
             while (true) {
                 if (currentRecordDeserializer != nullptr) {
-                    DeserializationResult &result = currentRecordDeserializer->getNextRecord(*deserializationDelegate_);
+                    DeserializationResult& result = currentRecordDeserializer->getNextRecord(*deserializationDelegate_);
                     if (unlikely(result.isBufferConsumed())) {
                         currentRecordDeserializer = nullptr;
                     }
@@ -291,20 +297,20 @@ public:
                     return DataInputStatus::NOTHING_AVAILABLE;
                 }
             }
-        }catch (const std::exception &e){
-            INFO_RELEASE("processForDataStream exception:" <<e.what());
+        } catch (const std::exception& e) {
+            INFO_RELEASE("processForDataStream exception:" << e.what());
             throw std::runtime_error(e.what());
         }
     }
 
-    DataInputStatus processForSQLFromOriginal(OmniPushingAsyncDataInput::OmniDataOutput *output)
+    DataInputStatus processForSQLFromOriginal(OmniPushingAsyncDataInput::OmniDataOutput* output)
     {
         while (true) {
             if (currentRecordDeserializer != nullptr) {
-                DeserializationResult &result = currentRecordDeserializer->getNextRecord(*deserializationDelegate_);
+                DeserializationResult& result = currentRecordDeserializer->getNextRecord(*deserializationDelegate_);
 
                 if (unlikely(result.isBufferConsumed())) {
-                    LOG("isBufferConsumed: do we really buffer consumed?!!!")
+                    LOG("isBufferConsumed: do we really buffer consumed?!!!");
                     currentRecordDeserializer = nullptr;
                 }
 
@@ -318,7 +324,7 @@ public:
                 if (bufferOrEvent->isBuffer()) {
                     processBufferForDataStreamAndSQLFromOriginal(bufferOrEvent);
                     delete bufferOrEvent;
-                } else  {
+                } else {
                     DataInputStatus status = processEvent(*bufferOrEvent, output);
                     delete bufferOrEvent;
                     return status;
@@ -329,14 +335,15 @@ public:
         }
     }
 
-    DataInputStatus processFullRecordForSQLFromOriginal(OmniPushingAsyncDataInput::OmniDataOutput *output)
+    DataInputStatus processFullRecordForSQLFromOriginal(OmniPushingAsyncDataInput::OmniDataOutput* output)
     {
-        auto *element = reinterpret_cast<StreamElement *>(deserializationDelegate_->getInstance()); // 这里面包装的是BinaryRowData
+        auto* element =
+            reinterpret_cast<StreamElement*>(deserializationDelegate_->getInstance()); // 这里面包装的是BinaryRowData
         if (element->getTag() == StreamElementTag::TAG_WATERMARK) {
-            output->emitWatermark(reinterpret_cast<Watermark *>(element));
+            output->emitWatermark(reinterpret_cast<Watermark*>(element));
         } else {
-            auto record = reinterpret_cast<StreamRecord *>(element);
-            auto row = reinterpret_cast<BinaryRowData *>(record->getValue());
+            auto record = reinterpret_cast<StreamRecord*>(element);
+            auto row = reinterpret_cast<BinaryRowData*>(record->getValue());
 
             // 1.If rowList is empty, reset the batch start time
             if (rowList.empty()) {
@@ -350,9 +357,9 @@ public:
                 }
 
                 // 2.Push the row data into list
-                auto newRow = reinterpret_cast<BinaryRowData *>(row->copy());
+                auto newRow = reinterpret_cast<BinaryRowData*>(row->copy());
                 rowList.push_back(newRow);
-                LOG("push in a record, size is " << rowList.size())
+                LOG("push in a record, size is " << rowList.size());
                 rowCount++;
                 numberOfRow++;
             }
@@ -363,7 +370,7 @@ public:
                 std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - batchStartTime).count();
             // 4.If the number of records reaches the maximum capacity is reached
             if (rowCount >= maxRowCount || elapsedMs >= timeout) {
-                LOG("Reach the maximum capacity or timeout, start to generate VectorBatch and send to output")
+                LOG("Reach the maximum capacity or timeout, start to generate VectorBatch and send to output");
                 // 3. Convert the rowList to VectorBatch, send to output, and clear the state
                 emitCurrentBatch(output);
             }
@@ -371,18 +378,18 @@ public:
         return DataInputStatus::MORE_AVAILABLE;
     }
 
-    void emitCurrentBatch(OmniPushingAsyncDataInput::OmniDataOutput *output)
+    void emitCurrentBatch(OmniPushingAsyncDataInput::OmniDataOutput* output)
     {
         if (rowCount == 0) {
             return;
         }
         // Convert the rowdata list to VectorBatch
         StreamRecord* batchRecord = nullptr;
-        const std::vector<std::string> &inputTypes =
-            reinterpret_cast<BinaryRowDataSerializer* >(inSerializer)->getInputTypes();
+        const std::vector<std::string>& inputTypes =
+            reinterpret_cast<BinaryRowDataSerializer*>(inSerializer)->getInputTypes();
         {
             std::unique_lock<std::mutex> lock(mutex_);
-            omnistream::VectorBatch *resultBatch = createOutputBatch(rowList, inputTypes);
+            omnistream::VectorBatch* resultBatch = createOutputBatch(rowList, inputTypes);
             batchRecord = new StreamRecord(resultBatch);
             for (BinaryRowData* row : rowList) {
                 delete row;
@@ -396,17 +403,17 @@ public:
         batchStartTime = std::chrono::steady_clock::now();
     }
 
-    omnistream::VectorBatch* createOutputBatch(std::vector<BinaryRowData *> collectedRows,
-                                               const std::vector<std::string> &inputTypes)
+    omnistream::VectorBatch* createOutputBatch(
+        std::vector<BinaryRowData*> collectedRows, const std::vector<std::string>& inputTypes)
     {
-        INFO_RELEASE("Start to createOutputBatch")
+        INFO_RELEASE("Start to createOutputBatch");
         int numColumns = inputTypes.size();
         auto inputRowType = new std::vector<omniruntime::type::DataTypeId>;
-        for (const auto &typeStr : inputTypes) {
+        for (const auto& typeStr : inputTypes) {
             inputRowType->push_back(LogicalType::flinkTypeToOmniTypeId(typeStr));
         }
         int numRows = collectedRows.size();
-        INFO_RELEASE("collectedRows: " << collectedRows.size())
+        INFO_RELEASE("collectedRows: " << collectedRows.size());
         auto* outputBatch = new omnistream::VectorBatch(numRows);
         for (int colIndex = 0; colIndex < numColumns; ++colIndex) {
             switch (inputRowType->at(colIndex)) {
@@ -455,10 +462,13 @@ public:
         return outputBatch;
     }
 
-    void setInt(omniruntime::vec::VectorBatch* outputBatch,
-                int numRows, int colIndex, std::vector<BinaryRowData*> collectedRows)
+    void setInt(
+        omniruntime::vec::VectorBatch* outputBatch,
+        int numRows,
+        int colIndex,
+        std::vector<BinaryRowData*> collectedRows)
     {
-        auto *vector = new omniruntime::vec::Vector<int32_t>(numRows);
+        auto* vector = new omniruntime::vec::Vector<int32_t>(numRows);
         for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
             if (collectedRows[rowIndex]->isNullAt(colIndex)) {
                 vector->SetNull(rowIndex);
@@ -469,9 +479,13 @@ public:
         outputBatch->Append(vector);
     }
 
-    void setLong(omniruntime::vec::VectorBatch* outputBatch, int numRows, int colIndex,
-                 std::vector<BinaryRowData*> collectedRows) {
-        auto *vector = new omniruntime::vec::Vector<int64_t>(numRows);
+    void setLong(
+        omniruntime::vec::VectorBatch* outputBatch,
+        int numRows,
+        int colIndex,
+        std::vector<BinaryRowData*> collectedRows)
+    {
+        auto* vector = new omniruntime::vec::Vector<int64_t>(numRows);
         for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
             if (collectedRows[rowIndex]->isNullAt(colIndex)) {
                 vector->SetNull(rowIndex);
@@ -482,9 +496,13 @@ public:
         outputBatch->Append(vector);
     }
 
-    void setDecimal64(omniruntime::vec::VectorBatch* outputBatch, int numRows, int colIndex,
-                      std::vector<BinaryRowData*> collectedRows) {
-        auto *vector = new omniruntime::vec::Vector<int64_t>(numRows, DataTypeId::OMNI_DECIMAL64);
+    void setDecimal64(
+        omniruntime::vec::VectorBatch* outputBatch,
+        int numRows,
+        int colIndex,
+        std::vector<BinaryRowData*> collectedRows)
+    {
+        auto* vector = new omniruntime::vec::Vector<int64_t>(numRows, DataTypeId::OMNI_DECIMAL64);
         for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
             if (collectedRows[rowIndex]->isNullAt(colIndex)) {
                 vector->SetNull(rowIndex);
@@ -495,9 +513,13 @@ public:
         outputBatch->Append(vector);
     }
 
-    void setDecimal128(omniruntime::vec::VectorBatch* outputBatch, int numRows, int colIndex,
-                       std::vector<BinaryRowData*> collectedRows) {
-        auto *vector = new omniruntime::vec::Vector<Decimal128>(numRows);
+    void setDecimal128(
+        omniruntime::vec::VectorBatch* outputBatch,
+        int numRows,
+        int colIndex,
+        std::vector<BinaryRowData*> collectedRows)
+    {
+        auto* vector = new omniruntime::vec::Vector<Decimal128>(numRows);
         for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
             if (collectedRows[rowIndex]->isNullAt(colIndex)) {
                 vector->SetNull(rowIndex);
@@ -508,24 +530,33 @@ public:
         outputBatch->Append(vector);
     }
 
-    void setString(omniruntime::vec::VectorBatch* outputBatch, int numRows, int colIndex,
-                   std::vector<BinaryRowData*> collectedRows) {
+    void setString(
+        omniruntime::vec::VectorBatch* outputBatch,
+        int numRows,
+        int colIndex,
+        std::vector<BinaryRowData*> collectedRows)
+    {
         using VarcharVector = omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>;
-        VarcharVector *vector = new VarcharVector(numRows);
+        VarcharVector* vector = new VarcharVector(numRows);
         for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
             if (collectedRows[rowIndex]->isNullAt(colIndex)) {
                 vector->SetNull(rowIndex);
             } else {
                 auto value = std::string(collectedRows[rowIndex]->getStringView(colIndex));
-                omniruntime::vec::VectorHelper::VectorSetValue<DataTypeId::OMNI_VARCHAR>(vector, rowIndex, (void*)&value);
+                omniruntime::vec::VectorHelper::VectorSetValue<DataTypeId::OMNI_VARCHAR>(
+                    vector, rowIndex, (void*)&value);
             }
         }
         outputBatch->Append(vector);
     }
 
-    void setDouble(omniruntime::vec::VectorBatch* outputBatch, int numRows, int colIndex,
-                   std::vector<BinaryRowData*> collectedRows) {
-        auto *vector = new omniruntime::vec::Vector<double>(numRows);
+    void setDouble(
+        omniruntime::vec::VectorBatch* outputBatch,
+        int numRows,
+        int colIndex,
+        std::vector<BinaryRowData*> collectedRows)
+    {
+        auto* vector = new omniruntime::vec::Vector<double>(numRows);
         for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
             if (collectedRows[rowIndex]->isNullAt(colIndex)) {
                 vector->SetNull(rowIndex);
@@ -536,10 +567,13 @@ public:
         outputBatch->Append(vector);
     }
 
-    void setBool(omniruntime::vec::VectorBatch* outputBatch, int numRows, int colIndex,
-                 std::vector<BinaryRowData*> collectedRows)
+    void setBool(
+        omniruntime::vec::VectorBatch* outputBatch,
+        int numRows,
+        int colIndex,
+        std::vector<BinaryRowData*> collectedRows)
     {
-        auto *vector = new omniruntime::vec::Vector<bool>(numRows);
+        auto* vector = new omniruntime::vec::Vector<bool>(numRows);
         for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
             if (collectedRows[rowIndex]->isNullAt(colIndex)) {
                 vector->SetNull(rowIndex);
@@ -558,24 +592,21 @@ public:
     void close() override
     {
         running_.exchange(false);
-        INFO_RELEASE("OmniAbstractStreamTaskNetworkInput received numberOfRow: " << numberOfRow)
+        INFO_RELEASE("OmniAbstractStreamTaskNetworkInput received numberOfRow: " << numberOfRow);
     }
 
-    std::shared_ptr<CompletableFutureV2<void>> PrepareSnapshot(std::shared_ptr<ChannelStateWriter> writer,
-                                                               long checkpointId) override
+    std::shared_ptr<CompletableFutureV2<void>> PrepareSnapshot(
+        std::shared_ptr<ChannelStateWriter> writer, long checkpointId) override
     {
         LOG("Network prepare snapshot, checkpointId: " << checkpointId);
-        for (const auto &pair : *recordDeserializers) {
-            std::vector<InputChannelInfo> channelInfofos = inputGate->GetChannelInfos(); 
+        for (const auto& pair : *recordDeserializers) {
+            std::vector<InputChannelInfo> channelInfofos = inputGate->GetChannelInfos();
             try {
                 std::vector<omnistream::Buffer*> buffers = (pair.second)->GetUnconsumedBuffer();
                 int bufferSize = buffers.size();
                 if (bufferSize > 0) {
                     writer->AddInputData(
-                        checkpointId,
-                        channelInfofos[pair.first],
-                        ChannelStateWriter::sequenceNumberUnknown,
-                        buffers);
+                        checkpointId, channelInfofos[pair.first], ChannelStateWriter::sequenceNumberUnknown, buffers);
                 } else {
                     LOG_DEBUG(" PrepareSnapshot buffers is null ");
                 }
@@ -585,36 +616,38 @@ public:
         }
 
         auto f = inputGate->GetAllBarriersReceivedFuture(checkpointId);
-        LOG("PrepareSnapshot cp="<<checkpointId<<" future_ptr="<<f);
+        LOG("PrepareSnapshot cp=" << checkpointId << " future_ptr=" << f);
         return f;
     }
+
 protected:
     int64_t inputIndex;
     std::shared_ptr<CheckpointedInputGate> inputGate;
-    std::atomic<long> numberOfRow {0};
+    std::atomic<long> numberOfRow{0};
 
-    void processElement(StreamElement *recordOrMark, OmniDataOutput *output)
+    void processElement(StreamElement* recordOrMark, OmniDataOutput* output)
     {
-        output->emitRecord(static_cast<StreamRecord *>(recordOrMark));
+        output->emitRecord(static_cast<StreamRecord*>(recordOrMark));
     }
 
-    virtual DataInputStatus processEvent(BufferOrEvent *bufferOrEvent)
+    virtual DataInputStatus processEvent(BufferOrEvent* bufferOrEvent)
     {
         std::shared_ptr<AbstractEvent> event = bufferOrEvent->getEvent();
-        if (dynamic_cast<EndOfData *>(event.get())) { // END_OF_USER_RECORDS_EVENT is End_of_Data
+        if (dynamic_cast<EndOfData*>(event.get())) { // END_OF_USER_RECORDS_EVENT is End_of_Data
             if (inputGate->HasReceivedEndOfData()) {
                 INFO_RELEASE("received a EndOfData event!");
                 return DataInputStatus::END_OF_DATA;
             }
-        } else if (dynamic_cast<EndOfPartitionEvent *>(event.get())) {
+        } else if (dynamic_cast<EndOfPartitionEvent*>(event.get())) {
             // it means one sub partition or channel end. we need to check if all end by checking input gate state
             if (inputGate->IsFinished()) {
                 INFO_RELEASE("received a EndOfPartitionEvent event!");
                 return DataInputStatus::END_OF_INPUT;
             }
-        } else if (dynamic_cast<EndOfChannelStateEvent *>(event.get())) {
-            INFO_RELEASE("received EndOfChannelStateEvent start, inputIndex=" << inputIndex
-                << ", channel=" << bufferOrEvent->getChannelInfo().toString());
+        } else if (dynamic_cast<EndOfChannelStateEvent*>(event.get())) {
+            INFO_RELEASE(
+                "received EndOfChannelStateEvent start, inputIndex=" << inputIndex << ", channel="
+                                                                     << bufferOrEvent->getChannelInfo().toString());
             if (inputGate->AllChannelsRecovered()) {
                 INFO_RELEASE("received EndOfChannelStateEvent end, inputIndex=" << inputIndex);
                 return DataInputStatus::END_OF_RECOVERY;
@@ -625,21 +658,22 @@ protected:
     }
 
     // Specifically for SQL from original task
-    DataInputStatus processEvent(BufferOrEvent &bufferOrEvent, OmniPushingAsyncDataInput::OmniDataOutput *output)
+    DataInputStatus processEvent(BufferOrEvent& bufferOrEvent, OmniPushingAsyncDataInput::OmniDataOutput* output)
     {
         std::shared_ptr<AbstractEvent> event = bufferOrEvent.getEvent();
-        if (dynamic_cast<EndOfData *>(event.get())) { // END_OF_USER_RECORDS_EVENT is End_of_Data
+        if (dynamic_cast<EndOfData*>(event.get())) { // END_OF_USER_RECORDS_EVENT is End_of_Data
             if (inputGate->HasReceivedEndOfData()) {
-                // Which means reach the end of Data, if the rowList still remains data, create the last vectorbatch and send to output
+                // Which means reach the end of Data, if the rowList still remains data, create the last vectorbatch and
+                // send to output
                 emitCurrentBatch(output);
                 return DataInputStatus::END_OF_DATA;
             }
-        } else if (dynamic_cast<EndOfPartitionEvent *>(event.get())) {
+        } else if (dynamic_cast<EndOfPartitionEvent*>(event.get())) {
             // it means one sub partition or channel end. we need to check if all end by checking input gate state
             if (inputGate->IsFinished()) {
                 return DataInputStatus::END_OF_INPUT;
             }
-        } else if (dynamic_cast<EndOfChannelStateEvent *>(event.get())) {
+        } else if (dynamic_cast<EndOfChannelStateEvent*>(event.get())) {
             INFO_RELEASE("received a end of recovery event start");
             if (inputGate->AllChannelsRecovered()) {
                 INFO_RELEASE("received a end of recovery event end");
@@ -669,7 +703,7 @@ protected:
     // Maximum timeout for accumulating VectorBatch(ms)
     int timeout;
     // List of BinaryRowData to be accumulated, only init in SQLFromOriginal case
-    std::vector<BinaryRowData *> rowList;
+    std::vector<BinaryRowData*> rowList;
     std::chrono::steady_clock::time_point batchStartTime;
 
     // Valve that controls how watermarks and watermark statuses are forwarded.
@@ -681,11 +715,11 @@ protected:
     std::mutex mutex_;           // 保护缓冲区的互斥锁
     std::condition_variable cv_; // 用于线程同步的条件变量
     std::thread timer_thread_;   // 定时器线程
-    OmniPushingAsyncDataInput::OmniDataOutput *output_;
+    OmniPushingAsyncDataInput::OmniDataOutput* output_;
     bool isStartTimer = false;
 
     int64_t checkpointInterval = -1;
 };
-}  // namespace omnistream
+} // namespace omnistream
 
-#endif  // OMNISTREAM_OMNIABSTRACTSTREAMTASKNETWORKINPUT_H
+#endif // OMNISTREAM_OMNIABSTRACTSTREAMTASKNETWORKINPUT_H

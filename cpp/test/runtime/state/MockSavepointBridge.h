@@ -26,9 +26,15 @@ static jobject kMockDirectBuffer = reinterpret_cast<jobject>(0x20001);
 class MockSavepointBridge : public omnistream::OmniTaskBridge {
 public:
     MOCK_METHOD(void, declineCheckpoint, (std::string&, std::string&, std::string&), (override));
-    MOCK_METHOD(std::shared_ptr<SnapshotResult<StreamStateHandle>>, CallMaterializeMetaData,
-                (jlong, std::vector<std::shared_ptr<StateMetaInfoSnapshot>>&,
-                 std::shared_ptr<LocalRecoveryConfig>, CheckpointOptions*, std::string), (override));
+    MOCK_METHOD(
+        std::shared_ptr<SnapshotResult<StreamStateHandle>>,
+        CallMaterializeMetaData,
+        (jlong,
+         std::vector<std::shared_ptr<StateMetaInfoSnapshot>>&,
+         std::shared_ptr<LocalRecoveryConfig>,
+         CheckpointOptions*,
+         std::string),
+        (override));
     MOCK_METHOD(jobject, CallUploadFilesToCheckpointFs, (const std::vector<Path>&, int), (override));
     MOCK_METHOD(std::vector<StateMetaInfoSnapshot>, readMetaData, (const std::string&), (override));
     MOCK_METHOD(std::vector<StateMetaInfoSnapshot>, readOperatorMetaData, (const std::string&), (override));
@@ -38,8 +44,18 @@ public:
     MOCK_METHOD(jobject, CreateSavepointOutputDirectBuffer, (void*, size_t), (override));
     MOCK_METHOD(void, ReleaseSavepointOutputDirectBuffer, (jobject), (override));
     MOCK_METHOD(bool, WriteSavepointOutputStreamDirect, (jobject, jobject, size_t), (override));
-    MOCK_METHOD(void, WriteSavepointMetadata, (jobject, const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>&, std::string), (override));
-    MOCK_METHOD(void, WriteOperatorMetaData, (jobject, const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>&, const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>&), (override));
+    MOCK_METHOD(
+        void,
+        WriteSavepointMetadata,
+        (jobject, const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>&, std::string),
+        (override));
+    MOCK_METHOD(
+        void,
+        WriteOperatorMetaData,
+        (jobject,
+         const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>&,
+         const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>&),
+        (override));
     MOCK_METHOD(long, GetSavepointOutputStreamPos, (jobject), (override));
     MOCK_METHOD(void, getKeyGroupEntries, (jobject, int&, bool, std::vector<KeyGroupEntry>&), (override));
     MOCK_METHOD(jobject, getSavepointInputStream, (const std::string&), (override));

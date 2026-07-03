@@ -19,9 +19,7 @@ template <typename IN>
 class StreamingFileSinkHelper : public ProcessingTimeCallback {
 public:
     StreamingFileSinkHelper(
-        Buckets<IN, std::string> *buckets,
-        ProcessingTimeService *procTimeService,
-        long bucketCheckInterval)
+        Buckets<IN, std::string>* buckets, ProcessingTimeService* procTimeService, long bucketCheckInterval)
         : bucketCheckInterval(bucketCheckInterval),
           procTimeService(procTimeService),
           buckets(buckets)
@@ -58,11 +56,12 @@ public:
             buckets->commitUpToCheckpoint(-1);
         }
     }
+
 private:
     const long bucketCheckInterval;
-    ProcessingTimeService *procTimeService;
-    Buckets<IN, std::string> *buckets;
-    ListState<long> *maxPartCountersState;
+    ProcessingTimeService* procTimeService;
+    Buckets<IN, std::string>* buckets;
+    ListState<long>* maxPartCountersState;
 };
 
 #endif // OMNISTREAM_STREAMING_FILE_SINK_HELPER_H

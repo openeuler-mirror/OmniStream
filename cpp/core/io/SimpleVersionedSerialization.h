@@ -14,9 +14,9 @@
 class SimpleVersionedSerialization {
 public:
     template <typename T>
-    static void writeVersionAndSerialize(SimpleVersionedSerializer<T>& serializer,
-                                                         const T& obj,
-                                                         DataOutputSerializer& out) {
+    static void writeVersionAndSerialize(
+        SimpleVersionedSerializer<T>& serializer, const T& obj, DataOutputSerializer& out)
+    {
         std::vector<uint8_t> serialized = serializer.serialize(obj);
         out.writeInt(serializer.getVersion());
         out.writeInt(serialized.size());
@@ -24,9 +24,9 @@ public:
     }
 
     template <typename T>
-    static void writeVersionAndSerializeList(SimpleVersionedSerializer<T>& serializer,
-                                                             const std::vector<T>& objList,
-                                                             DataOutputSerializer& out) {
+    static void writeVersionAndSerializeList(
+        SimpleVersionedSerializer<T>& serializer, const std::vector<T>& objList, DataOutputSerializer& out)
+    {
         out.writeInt(serializer.getVersion());
         out.writeInt(objList.size());
         for (const T& obj : objList) {
@@ -38,8 +38,8 @@ public:
 
     // 写入版本号并序列化对象
     template <typename T>
-    static std::vector<uint8_t> writeVersionAndSerialize(
-            SimpleVersionedSerializer<T>& serializer, const T& obj) {
+    static std::vector<uint8_t> writeVersionAndSerialize(SimpleVersionedSerializer<T>& serializer, const T& obj)
+    {
         // 简化实现：先写入版本号（4字节），然后写入序列化数据
         std::vector<uint8_t> result;
         int version = serializer.getVersion();
@@ -63,31 +63,32 @@ public:
 
         return result;
     }
-    
+
     // 读取版本号并反序列化对象
     template <typename T>
-    static T* readVersionAndDeSerialize(
-            SimpleVersionedSerializer<T>& serializer, std::vector<uint8_t>& bytes) {
+    static T* readVersionAndDeSerialize(SimpleVersionedSerializer<T>& serializer, std::vector<uint8_t>& bytes)
+    {
         // 简化实现：先读取版本号（4字节），然后反序列化数据
         if (bytes.size() < 8) {
             INFO_RELEASE("Exception: Insufficient data for version deserialization, size=" << bytes.size());
             throw std::runtime_error("Insufficient data for version deserialization");
         }
-        
+
         // 读取版本号（大端序）
         int version = (bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3];
-        
+
         int length = (bytes[4] << 24) | (bytes[5] << 16) | (bytes[6] << 8) | bytes[7];
 
         // 提取序列化数据部分
         std::vector<uint8_t> serializedData(bytes.begin() + 8, bytes.end());
-        
+
         // 反序列化对象
         return serializer.deserialize(version, serializedData);
     }
 
     template <typename T>
-    static T* readVersionAndDeSerialize(SimpleVersionedSerializer<T>& serializer, DataInputDeserializer& input) {
+    static T* readVersionAndDeSerialize(SimpleVersionedSerializer<T>& serializer, DataInputDeserializer& input)
+    {
         // 读取版本号
         int version = input.readInt();
 
@@ -105,7 +106,8 @@ public:
     // 读取版本号并反序列化列表 (使用DataInputView)
     template <typename T>
     static std::vector<T>* readVersionAndDeserializeList(
-        SimpleVersionedSerializer<T>& serializer, DataInputDeserializer& in) {
+        SimpleVersionedSerializer<T>& serializer, DataInputDeserializer& in)
+    {
         // 读取版本号
         int serializerVersion = in.readInt();
 

@@ -33,7 +33,7 @@ public:
         rocksdb::DB* db,
         std::shared_ptr<ResourceGuard> rocksDBResourceGuard,
         std::shared_ptr<TypeSerializer> keySerializer,
-        std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>> *kvStateInformation,
+        std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation,
         KeyGroupRange keyGroupRange,
         int keyGroupPrefixBytes,
         std::shared_ptr<LocalRecoveryConfig> localRecoveryConfig,
@@ -55,8 +55,7 @@ public:
 
 protected:
     std::shared_ptr<PreviousSnapshot> snapshotMetaData(
-        int64_t checkpointId,
-        std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& stateMetaInfoSnapshots) override;
+        int64_t checkpointId, std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& stateMetaInfoSnapshots) override;
 
 private:
     std::shared_ptr<RocksDBStateUploader> stateUploader;
@@ -71,20 +70,20 @@ private:
             UUID backendUID,
             KeyGroupRange keyGroupRange,
             RocksNativeFullSnapshotStrategy* outerStrategy,
-            CheckpointOptions *checkpointOptions,
+            CheckpointOptions* checkpointOptions,
             std::shared_ptr<TypeSerializer> keySerializer);
 
-        std::shared_ptr<SnapshotResult<KeyedStateHandle>> get(std::shared_ptr<omnistream::OmniTaskBridge> bridge) override;
+        std::shared_ptr<SnapshotResult<KeyedStateHandle>> get(
+            std::shared_ptr<omnistream::OmniTaskBridge> bridge) override;
 
     private:
         int64_t uploadSnapshotFiles(
-            std::vector<HandleAndLocalPath>& privateFiles,
-            std::shared_ptr<omnistream::OmniTaskBridge> bridge);
+            std::vector<HandleAndLocalPath>& privateFiles, std::shared_ptr<omnistream::OmniTaskBridge> bridge);
 
         UUID backendUID_;
         KeyGroupRange keyGroupRange_;
         RocksNativeFullSnapshotStrategy* outerStrategy_;
-        CheckpointOptions *checkpointOptions_;
+        CheckpointOptions* checkpointOptions_;
     };
 };
 

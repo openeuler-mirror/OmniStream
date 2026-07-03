@@ -27,8 +27,7 @@ std::vector<uint8_t> SinkV1WriterCommittableSerializer<CmmT>::serialize(const st
 }
 
 template <typename CmmT>
-std::vector<CmmT>* SinkV1WriterCommittableSerializer<CmmT>::deserialize(int version,
-    std::vector<uint8_t>& serialized)
+std::vector<CmmT>* SinkV1WriterCommittableSerializer<CmmT>::deserialize(int version, std::vector<uint8_t>& serialized)
 {
     DataInputDeserializer deserializer;
     deserializer.setBuffer(serialized.data(), serialized.size(), 0, serialized.size());

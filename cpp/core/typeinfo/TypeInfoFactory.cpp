@@ -32,36 +32,36 @@
 #include "runtime/state/VoidNamespaceTypeInfo.h"
 #include "core/typeinfo/TimerTypeInfo.h"
 
-TypeInformation *TypeInfoFactory::createTypeInfo(const char *name)
+TypeInformation* TypeInfoFactory::createTypeInfo(const char* name)
 {
-    LOG("Beginning of  createTypeInfo: type_name_string  " << TYPE_NAME_STRING << "vname:" << name)
+    LOG("Beginning of  createTypeInfo: type_name_string  " << TYPE_NAME_STRING << "vname:" << name);
     // so far, only support String
     if (strcmp(name, TYPE_NAME_STRING) == 0) {
         return new StringTypeInfo(name);
     } else if (strcmp(name, TYPE_NAME_VOID) == 0) {
         return new VoidTypeInfo(name);
-    } else if (strcmp (name, TYPE_NAME_LONG) == 0) {
+    } else if (strcmp(name, TYPE_NAME_LONG) == 0) {
         return new LongTypeInfo(name);
     } else {
         THROW_LOGIC_EXCEPTION("createTypeInfo: Unsupported type " + std::string(name));
     }
 }
 
-TypeInformation *TypeInfoFactory::createTupleTypeInfo(const json &filedType)
+TypeInformation* TypeInfoFactory::createTupleTypeInfo(const json& filedType)
 {
     if (!filedType.is_array()) {
-        THROW_LOGIC_EXCEPTION("Tuple type is  not JSON Array:" +  filedType.dump(2));
+        THROW_LOGIC_EXCEPTION("Tuple type is  not JSON Array:" + filedType.dump(2));
     }
     auto typeInfo = TupleTypeInfo::of(filedType);
-    LOG(">>>> Return createTupleTypeInfo")
+    LOG(">>>> Return createTupleTypeInfo");
     return typeInfo;
 }
 
-TypeInformation *TypeInfoFactory::createCommittableMessageInfo()
+TypeInformation* TypeInfoFactory::createCommittableMessageInfo()
 {
     auto typeInfo = new CommittableMessageInfo();
-    LOG(">>>> Return createCommittableMessageInfo")
-    return  typeInfo;
+    LOG(">>>> Return createCommittableMessageInfo");
+    return typeInfo;
 }
 
 // rowType json example
@@ -98,7 +98,7 @@ TypeInformation *TypeInfoFactory::createCommittableMessageInfo()
                     ]
 
  */
-TypeInformation *TypeInfoFactory::createInternalTypeInfo(const json &rowType)
+TypeInformation* TypeInfoFactory::createInternalTypeInfo(const json& rowType)
 {
     if (!rowType.is_array()) {
         THROW_LOGIC_EXCEPTION("Row type is not JSON Array:" + rowType.dump(2));
@@ -109,18 +109,18 @@ TypeInformation *TypeInfoFactory::createInternalTypeInfo(const json &rowType)
     // create RowType from json description
     // Iterate over each element of the array
     int fieldIndex = 0;
-    for (const auto &element : rowType) {
+    for (const auto& element : rowType) {
         // Access and process properties of each element
         LOG("type Name: " << element["type"]);
         string typeName = element["type"];
         int typeId = LogicalType::flinkTypeToOmniTypeId(typeName);
-        LOG("type Id: " << typeId)
+        LOG("type Id: " << typeId);
         auto logicalType = BasicLogicalType::getTypeBy(typeId, element);
         fields.emplace_back("f" + std::to_string(fieldIndex++), logicalType);
     }
     omnistream::RowType type(true, fields);
     auto typeInfo = InternalTypeInfo::ofRowType(&type);
-    LOG(">>>> Return createInternalTypeInfo")
+    LOG(">>>> Return createInternalTypeInfo");
     return typeInfo;
 }
 // rowType json example
@@ -136,12 +136,13 @@ TypeInformation *TypeInfoFactory::createInternalTypeInfo(const json &rowType)
       }
     ]
 */
-TypeInformation *TypeInfoFactory::createInternalTypeInfoOfRow(const json& fields) {
+TypeInformation* TypeInfoFactory::createInternalTypeInfoOfRow(const json& fields)
+{
     if (!fields.is_array()) {
         THROW_LOGIC_EXCEPTION("fields type is not JSON Array:" + fields.dump(2));
     }
     std::vector<omnistream::RowField> rowFields;
-    for (const auto &field : fields) {
+    for (const auto& field : fields) {
         string name = field["name"];
         string description = field["description"];
         const json& fieldType = field["fieldType"];
@@ -156,25 +157,25 @@ TypeInformation *TypeInfoFactory::createInternalTypeInfoOfRow(const json& fields
     return typeInfo;
 }
 
-omnistream::RowType *TypeInfoFactory::createRowType(const std::vector<omniruntime::type::DataTypeId> *inputRowType)
+omnistream::RowType* TypeInfoFactory::createRowType(const std::vector<omniruntime::type::DataTypeId>* inputRowType)
 {
     //    auto *typeInfo = new std::vector<RowField>();
     std::vector<omnistream::RowField> typeInfo;
     for (size_t i = 0; i < inputRowType->size(); ++i) {
         std::string columnName = "col" + std::to_string(i);
-        BasicLogicalType *logicalType = BasicLogicalType::getTypeBy(inputRowType->at(i), json::object());
+        BasicLogicalType* logicalType = BasicLogicalType::getTypeBy(inputRowType->at(i), json::object());
         typeInfo.emplace_back(columnName, logicalType);
     }
 
     return new omnistream::RowType(true, typeInfo);
 }
 
-TypeInformation *TypeInfoFactory::createBasicInternalTypeInfo(const char *name)
+TypeInformation* TypeInfoFactory::createBasicInternalTypeInfo(const char* name)
 {
     THROW_LOGIC_EXCEPTION("to be decided later " + std::string(name));
 }
 
-LogicalType *TypeInfoFactory::createLogicalType(const std::string type)
+LogicalType* TypeInfoFactory::createLogicalType(const std::string type)
 {
     std::string typeName = type.substr(1, type.size() - 2);
     if (typeName == "BIGINT") {
@@ -200,13 +201,13 @@ LogicalType *TypeInfoFactory::createLogicalType(const std::string type)
                 fieldTypes.push_back(fieldType);
             }
             return new omnistream::RowType(true, fieldTypes);
-        } catch (std::runtime_error &e) {
+        } catch (std::runtime_error& e) {
             THROW_LOGIC_EXCEPTION("Unknown logical type " + type);
         }
     }
 }
 
-TypeInformation *TypeInfoFactory::createDataStreamTypeInfo(const json &serializerInfo)
+TypeInformation* TypeInfoFactory::createDataStreamTypeInfo(const json& serializerInfo)
 {
     std::string serializerName = serializerInfo["serializerName"];
     TypeInformation* typeInformation = BasicTypeInfo::getBasicTypeInfo(serializerName);
@@ -216,13 +217,13 @@ TypeInformation *TypeInfoFactory::createDataStreamTypeInfo(const json &serialize
     if (serializerName == TYPE_NAME_TUPLE_SERIALIZER) {
         std::vector<TypeInformation*> types;
         types.reserve(serializerInfo["fieldSerializers"].size());
-        for (const auto &item: serializerInfo["fieldSerializers"]) {
+        for (const auto& item : serializerInfo["fieldSerializers"]) {
             types.push_back(createDataStreamTypeInfo(item));
         }
         typeInformation = new TupleTypeInfo(types);
     } else if (serializerName == TYPE_NAME_POJO_SERIALIZER) {
         std::string clazz = serializerInfo["clazz"];
-        if(CustomTypeInfo::isCustomType(clazz)) {
+        if (CustomTypeInfo::isCustomType(clazz)) {
             typeInformation = CustomTypeInfo::build(clazz);
         } else {
             std::vector<PojoField*> pojoFields;
@@ -242,33 +243,34 @@ TypeInformation *TypeInfoFactory::createDataStreamTypeInfo(const json &serialize
     } else if (serializerName == TYPE_NAME_LIST_SERIALIZER) {
         auto elementTypeInfo = createDataStreamTypeInfo(serializerInfo["elementSerializer"]);
         typeInformation = new ListTypeInfo(elementTypeInfo);
-    }  else if (serializerName == TYPE_NAME_VOID_NAMESPACE_SERIALIZER) {
+    } else if (serializerName == TYPE_NAME_VOID_NAMESPACE_SERIALIZER) {
         typeInformation = new VoidNamespaceTypeInfo(serializerName.c_str());
     } else if (serializerName == TYPE_NAME_TIMER_SERIALIZER) {
         auto keyTypeInfo = createDataStreamTypeInfo(serializerInfo["keySerializer"]);
         auto namespaceTypeInfo = createDataStreamTypeInfo(serializerInfo["namespaceSerializer"]);
 
-   		std::string keyInstanceClass = TYPE_NAME_STRING_CLASS;
-		if(serializerInfo["keySerializer"].contains("serializerInstanceClazz")
-			&& !serializerInfo["keySerializer"]["serializerInstanceClazz"].empty()) {
-			keyInstanceClass = serializerInfo["keySerializer"]["serializerInstanceClazz"];
-		}
-   		std::string namespaceInstanceClass = TYPE_NAME_VOID_NAMESPACE_CLASS;
-		if(serializerInfo["namespaceSerializer"].contains("serializerInstanceClazz")
-			&& !serializerInfo["namespaceSerializer"]["serializerInstanceClazz"].empty()) {
-			namespaceInstanceClass = serializerInfo["namespaceSerializer"]["serializerInstanceClazz"];
-		}
+        std::string keyInstanceClass = TYPE_NAME_STRING_CLASS;
+        if (serializerInfo["keySerializer"].contains("serializerInstanceClazz") &&
+            !serializerInfo["keySerializer"]["serializerInstanceClazz"].empty()) {
+            keyInstanceClass = serializerInfo["keySerializer"]["serializerInstanceClazz"];
+        }
+        std::string namespaceInstanceClass = TYPE_NAME_VOID_NAMESPACE_CLASS;
+        if (serializerInfo["namespaceSerializer"].contains("serializerInstanceClazz") &&
+            !serializerInfo["namespaceSerializer"]["serializerInstanceClazz"].empty()) {
+            namespaceInstanceClass = serializerInfo["namespaceSerializer"]["serializerInstanceClazz"];
+        }
 
-		typeInformation = new TimerTypeInfo(keyTypeInfo,
-				namespaceTypeInfo,
-				ClassRegistry::instance().newClass(keyInstanceClass),
- 				ClassRegistry::instance().newClass(namespaceInstanceClass));
+        typeInformation = new TimerTypeInfo(
+            keyTypeInfo,
+            namespaceTypeInfo,
+            ClassRegistry::instance().newClass(keyInstanceClass),
+            ClassRegistry::instance().newClass(namespaceInstanceClass));
     } else if (serializerName == TYPE_NAME_BYTE_PRIMITIVE_ARRAY_SERIALIZER) {
         typeInformation = new BytePrimitiveArrayTypeInfo();
     } else if (serializerName == TYPE_NAME_ROW_DATA_SERIALIZER) {
         const json& logicalType = serializerInfo["logicalType"];
         typeInformation = TypeInfoFactory::createInternalTypeInfoOfRow(logicalType["fields"]);
-    }  else if (serializerName == TYPE_NAME_BINARY_ROW_DATA_SERIALIZER) {
+    } else if (serializerName == TYPE_NAME_BINARY_ROW_DATA_SERIALIZER) {
         std::vector<std::string> fields = serializerInfo["fields"];
         typeInformation = BinaryTypeInfo::of(fields.size(), fields);
     } else {

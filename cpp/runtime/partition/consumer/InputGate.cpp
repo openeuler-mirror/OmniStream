@@ -13,7 +13,8 @@
 
 namespace omnistream {
 
-void InputGate::setChannelStateWriter(std::shared_ptr<ChannelStateWriter> channelStateWriter) {
+void InputGate::setChannelStateWriter(std::shared_ptr<ChannelStateWriter> channelStateWriter)
+{
     for (int index = 0, numChannels = GetNumberOfInputChannels(); index < numChannels; index++) {
         std::shared_ptr<InputChannel> channel = getChannel(index);
         if (std::dynamic_pointer_cast<ChannelStateHolder>(channel)) {
@@ -56,6 +57,12 @@ std::shared_ptr<CompletableFuture> InputGate::getPriorityEventAvailableFuture()
 }
 
 template <typename INPUT, typename DATA>
-InputGate::InputWithData<INPUT, DATA>::InputWithData(std::shared_ptr<INPUT> input, std::shared_ptr<DATA> data, bool moreAvailable, bool morePriorityEvents)
-    : input(input), data(data), moreAvailable(moreAvailable), morePriorityEvents(morePriorityEvents) {}
+InputGate::InputWithData<INPUT, DATA>::InputWithData(
+    std::shared_ptr<INPUT> input, std::shared_ptr<DATA> data, bool moreAvailable, bool morePriorityEvents)
+    : input(input),
+      data(data),
+      moreAvailable(moreAvailable),
+      morePriorityEvents(morePriorityEvents)
+{
+}
 } // namespace omnistream

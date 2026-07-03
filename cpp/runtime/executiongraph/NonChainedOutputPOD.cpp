@@ -9,33 +9,59 @@
  * See the Mulan PSL v2 for more details.
  */
 
-
 // NonChainedOutputPOD.cpp
 #include "NonChainedOutputPOD.h"
 #include <sstream>
 
-
 namespace omnistream {
 
 NonChainedOutputPOD::NonChainedOutputPOD()
-    : supportsUnalignedCheckpoints(false), sourceNodeId(0), consumerParallelism(0), consumerMaxParallelism(0),
-      bufferTimeout(0), dataSetId(), isPersistentDataSet(false), partitioner(), partitionType(0) {}
+    : supportsUnalignedCheckpoints(false),
+      sourceNodeId(0),
+      consumerParallelism(0),
+      consumerMaxParallelism(0),
+      bufferTimeout(0),
+      dataSetId(),
+      isPersistentDataSet(false),
+      partitioner(),
+      partitionType(0)
+{
+}
 
-NonChainedOutputPOD::NonChainedOutputPOD(bool supportsUnalignedCheckpoints, int sourceNodeId, int consumerParallelism,
-                                         int consumerMaxParallelism, long bufferTimeout,
-                                         IntermediateDataSetIDPOD dataSetId, bool isPersistentDataSet,
-                                         StreamPartitionerPOD partitioner, int partitionType)
-    : supportsUnalignedCheckpoints(supportsUnalignedCheckpoints), sourceNodeId(sourceNodeId), consumerParallelism(consumerParallelism),
-      consumerMaxParallelism(consumerMaxParallelism), bufferTimeout(bufferTimeout),
-      dataSetId(dataSetId), isPersistentDataSet(isPersistentDataSet),
-      partitioner(partitioner), partitionType(partitionType) {}
+NonChainedOutputPOD::NonChainedOutputPOD(
+    bool supportsUnalignedCheckpoints,
+    int sourceNodeId,
+    int consumerParallelism,
+    int consumerMaxParallelism,
+    long bufferTimeout,
+    IntermediateDataSetIDPOD dataSetId,
+    bool isPersistentDataSet,
+    StreamPartitionerPOD partitioner,
+    int partitionType)
+    : supportsUnalignedCheckpoints(supportsUnalignedCheckpoints),
+      sourceNodeId(sourceNodeId),
+      consumerParallelism(consumerParallelism),
+      consumerMaxParallelism(consumerMaxParallelism),
+      bufferTimeout(bufferTimeout),
+      dataSetId(dataSetId),
+      isPersistentDataSet(isPersistentDataSet),
+      partitioner(partitioner),
+      partitionType(partitionType)
+{
+}
 
 NonChainedOutputPOD::NonChainedOutputPOD(const NonChainedOutputPOD& other)
     : supportsUnalignedCheckpoints(other.supportsUnalignedCheckpoints),
-      sourceNodeId(other.sourceNodeId), consumerParallelism(other.consumerParallelism),
-      consumerMaxParallelism(other.consumerMaxParallelism), bufferTimeout(other.bufferTimeout),
-      dataSetId(other.dataSetId), isPersistentDataSet(other.isPersistentDataSet),
-      partitioner(other.partitioner), partitionType(other.partitionType) {}
+      sourceNodeId(other.sourceNodeId),
+      consumerParallelism(other.consumerParallelism),
+      consumerMaxParallelism(other.consumerMaxParallelism),
+      bufferTimeout(other.bufferTimeout),
+      dataSetId(other.dataSetId),
+      isPersistentDataSet(other.isPersistentDataSet),
+      partitioner(other.partitioner),
+      partitionType(other.partitionType)
+{
+}
 
 NonChainedOutputPOD& NonChainedOutputPOD::operator=(const NonChainedOutputPOD& other)
 {
@@ -53,7 +79,9 @@ NonChainedOutputPOD& NonChainedOutputPOD::operator=(const NonChainedOutputPOD& o
     return *this;
 }
 
-NonChainedOutputPOD::~NonChainedOutputPOD() {}
+NonChainedOutputPOD::~NonChainedOutputPOD()
+{
+}
 
 bool NonChainedOutputPOD::getSupportsUnalignedCheckpoints() const
 {

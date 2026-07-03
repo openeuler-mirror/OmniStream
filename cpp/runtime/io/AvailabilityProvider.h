@@ -18,42 +18,43 @@
 
 namespace omnistream {
 
-    class AvailabilityProvider {
-    public:
-        AvailabilityProvider() = default;
-        virtual ~AvailabilityProvider() = default;
+class AvailabilityProvider {
+public:
+    AvailabilityProvider() = default;
+    virtual ~AvailabilityProvider() = default;
 
-        static std::shared_ptr<CompletableFuture> AVAILABLE;
+    static std::shared_ptr<CompletableFuture> AVAILABLE;
 
-        virtual std::shared_ptr<CompletableFuture> GetAvailableFuture() = 0;
+    virtual std::shared_ptr<CompletableFuture> GetAvailableFuture() = 0;
 
-        static std::shared_ptr<CompletableFuture> and_(std::shared_ptr<CompletableFuture> first, std::shared_ptr<CompletableFuture> second);
-        static std::shared_ptr<CompletableFuture> or_(std::shared_ptr<CompletableFuture> first, std::shared_ptr<CompletableFuture> second);
+    static std::shared_ptr<CompletableFuture> and_(
+        std::shared_ptr<CompletableFuture> first, std::shared_ptr<CompletableFuture> second);
+    static std::shared_ptr<CompletableFuture> or_(
+        std::shared_ptr<CompletableFuture> first, std::shared_ptr<CompletableFuture> second);
 
-        virtual bool isAvailable()
-        {
-            auto future = GetAvailableFuture();
-            return future == AVAILABLE || future->isDone();
+    virtual bool isAvailable()
+    {
+        auto future = GetAvailableFuture();
+        return future == AVAILABLE || future->isDone();
+    }
+
+    bool isApproximatelyAvailable()
+    {
+        return GetAvailableFuture() == AVAILABLE;
+    }
+
+    virtual std::string toString()
+    {
+        std::stringstream ss;
+        ss << "AvailabilityProvider: ";
+        if (isAvailable()) {
+            ss << "Available";
+        } else {
+            ss << "Not Available";
         }
-
-        bool isApproximatelyAvailable()
-        {
-            return GetAvailableFuture() == AVAILABLE;
-        }
-
-        virtual std::string toString()
-        {
-            std::stringstream ss;
-            ss << "AvailabilityProvider: ";
-            if (isAvailable()) {
-                ss << "Available";
-            } else {
-                ss << "Not Available";
-            }
-            return ss.str();
-        }
-    };
-
+        return ss.str();
+    }
+};
 
 } // namespace omnistream
 

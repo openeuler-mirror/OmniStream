@@ -14,8 +14,8 @@
 
 class Tuple2Serializer : public TypeSerializerSingleton {
 public:
-    explicit Tuple2Serializer(const std::vector<TypeInformation*> &types);
-    explicit Tuple2Serializer(nlohmann::json &type);
+    explicit Tuple2Serializer(const std::vector<TypeInformation*>& types);
+    explicit Tuple2Serializer(nlohmann::json& type);
     Tuple2Serializer();
 
     ~Tuple2Serializer()
@@ -30,18 +30,18 @@ public:
 
     void serialize(void* record, DataOutputSerializer& target) override;
 
-    void deserialize(Object *buffer, DataInputView &source) override;
+    void deserialize(Object* buffer, DataInputView& source) override;
 
-    void serialize(Object *buffer, DataOutputSerializer &target) override;
+    void serialize(Object* buffer, DataOutputSerializer& target) override;
 
-    const char *getName() const override
+    const char* getName() const override
     {
         return "TupleSerializer";
     }
 
     BackendDataType getBackendId() const override;
 
-    void createSerializer(nlohmann::json &type);
+    void createSerializer(nlohmann::json& type);
 
     void setSubBufferReusable(bool bufferReusable_) override;
 
@@ -52,7 +52,7 @@ public:
     std::string toJson() override;
 
 private:
-    std::vector<TypeSerializer *> fieldSerializers;
+    std::vector<TypeSerializer*> fieldSerializers;
     uint16_t arity = 0;
 };
 

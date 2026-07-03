@@ -35,24 +35,25 @@ public:
     // Forward declaration for nested Builder class
     class Builder;
     PrioritizedOperatorSubtaskState() = default;
-    explicit PrioritizedOperatorSubtaskState(const std::optional<long> &restoredCheckpointId)
+    explicit PrioritizedOperatorSubtaskState(const std::optional<long>& restoredCheckpointId)
         : restoredCheckpointId(restoredCheckpointId) {};
     // StateObjectCollection contains a vector of shared_ptr<T>, therefore it is not copying the entire state.
     PrioritizedOperatorSubtaskState(
-        const std::vector<StateObjectCollection<KeyedStateHandle>> &prioritizedManagedKeyedState,
-        const std::vector<StateObjectCollection<KeyedStateHandle>> &prioritizedRawKeyedState,
-        const std::vector<StateObjectCollection<OperatorStateHandle>> &prioritizedManagedOperatorState,
-        const std::vector<StateObjectCollection<OperatorStateHandle>> &prioritizedRawOperatorState,
-        const std::vector<StateObjectCollection<InputChannelStateHandle>> &prioritizedInputChannelState,
-        const std::vector<StateObjectCollection<ResultSubpartitionStateHandle>> &prioritizedResultSubpartitionState,
-        const std::optional<long> &restoredCheckpointId)
+        const std::vector<StateObjectCollection<KeyedStateHandle>>& prioritizedManagedKeyedState,
+        const std::vector<StateObjectCollection<KeyedStateHandle>>& prioritizedRawKeyedState,
+        const std::vector<StateObjectCollection<OperatorStateHandle>>& prioritizedManagedOperatorState,
+        const std::vector<StateObjectCollection<OperatorStateHandle>>& prioritizedRawOperatorState,
+        const std::vector<StateObjectCollection<InputChannelStateHandle>>& prioritizedInputChannelState,
+        const std::vector<StateObjectCollection<ResultSubpartitionStateHandle>>& prioritizedResultSubpartitionState,
+        const std::optional<long>& restoredCheckpointId)
         : prioritizedManagedOperatorState(prioritizedManagedOperatorState),
           prioritizedRawOperatorState(prioritizedRawOperatorState),
           prioritizedManagedKeyedState(prioritizedManagedKeyedState),
           prioritizedRawKeyedState(prioritizedRawKeyedState),
           prioritizedInputChannelState(prioritizedInputChannelState),
           prioritizedResultSubpartitionState(prioritizedResultSubpartitionState),
-          restoredCheckpointId(restoredCheckpointId) {
+          restoredCheckpointId(restoredCheckpointId)
+    {
     }
 
     // -----------------------------------------------------------------------------------------------------------------
@@ -61,7 +62,7 @@ public:
      * Returns an immutable list with all alternative snapshots to restore the managed operator
      * state, in the order in which we should attempt to restore.
      */
-    const std::vector<StateObjectCollection<OperatorStateHandle>> &getPrioritizedManagedOperatorState() const
+    const std::vector<StateObjectCollection<OperatorStateHandle>>& getPrioritizedManagedOperatorState() const
     {
         return prioritizedManagedOperatorState;
     }
@@ -70,7 +71,7 @@ public:
      * Returns an immutable list with all alternative snapshots to restore the raw operator state,
      * in the order in which we should attempt to restore.
      */
-    const std::vector<StateObjectCollection<OperatorStateHandle>> &getPrioritizedRawOperatorState() const
+    const std::vector<StateObjectCollection<OperatorStateHandle>>& getPrioritizedRawOperatorState() const
     {
         return prioritizedRawOperatorState;
     }
@@ -79,7 +80,7 @@ public:
      * Returns an immutable list with all alternative snapshots to restore the managed keyed state,
      * in the order in which we should attempt to restore.
      */
-    const std::vector<StateObjectCollection<KeyedStateHandle>> &getPrioritizedManagedKeyedState() const
+    const std::vector<StateObjectCollection<KeyedStateHandle>>& getPrioritizedManagedKeyedState() const
     {
         return prioritizedManagedKeyedState;
     }
@@ -88,7 +89,7 @@ public:
      * Returns an immutable list with all alternative snapshots to restore the raw keyed state, in
      * the order in which we should attempt to restore.
      */
-    const std::vector<StateObjectCollection<KeyedStateHandle>> &getPrioritizedRawKeyedState() const
+    const std::vector<StateObjectCollection<KeyedStateHandle>>& getPrioritizedRawKeyedState() const
     {
         return prioritizedRawKeyedState;
     }
@@ -167,19 +168,23 @@ public:
     /** A builder for PrioritizedOperatorSubtaskState. */
     class Builder {
     public:
-        Builder(const OperatorSubtaskState &jobManagerState,
-                const std::vector<OperatorSubtaskState> &alternativesByPriority)
+        Builder(
+            const OperatorSubtaskState& jobManagerState,
+            const std::vector<OperatorSubtaskState>& alternativesByPriority)
             : jobManagerState(jobManagerState),
               alternativesByPriority(alternativesByPriority),
-              restoredCheckpointId(-1) {
+              restoredCheckpointId(-1)
+        {
         }
 
-        Builder(const OperatorSubtaskState &jobManagerState,
-                const std::vector<OperatorSubtaskState> &alternativesByPriority,
-                long restoredCheckpointId)
+        Builder(
+            const OperatorSubtaskState& jobManagerState,
+            const std::vector<OperatorSubtaskState>& alternativesByPriority,
+            long restoredCheckpointId)
             : jobManagerState(jobManagerState),
               alternativesByPriority(alternativesByPriority),
-              restoredCheckpointId(restoredCheckpointId) {
+              restoredCheckpointId(restoredCheckpointId)
+        {
         }
 
         PrioritizedOperatorSubtaskState build();
@@ -190,11 +195,12 @@ public:
          * state obtained from the job manager and potential alternatives for recovery, e.g. from a
          * task-local source.
          */
-        template<typename T>
+        template <typename T>
         std::vector<StateObjectCollection<T>> resolvePrioritizedAlternatives(
-            const StateObjectCollection<T> &jobManagerState,
-            const std::vector<StateObjectCollection<T>> &alternativesByPriority,
-            const std::function<bool(std::shared_ptr<T>, std::shared_ptr<T>)> &approveFun);
+            const StateObjectCollection<T>& jobManagerState,
+            const std::vector<StateObjectCollection<T>>& alternativesByPriority,
+            const std::function<bool(std::shared_ptr<T>, std::shared_ptr<T>)>& approveFun);
+
     private:
         /** Ground truth of state, provided by job manager. */
         OperatorSubtaskState jobManagerState;
@@ -208,9 +214,9 @@ public:
     private:
         // T: type of the class to compare, E: type of class "identity", such as id
         // Given two class of type T, return whether they are equal based on their extracted identity <E>
-        template<typename T, typename E>
+        template <typename T, typename E>
         std::function<bool(std::shared_ptr<T>, std::shared_ptr<T>)> eqStateApprover(
-            const std::function<const E(std::shared_ptr<T>)> &identityExtractor)
+            const std::function<const E(std::shared_ptr<T>)>& identityExtractor)
         {
             return [identityExtractor](std::shared_ptr<T> ref, std::shared_ptr<T> alt) -> bool {
                 return identityExtractor(ref) == identityExtractor(alt);
@@ -238,6 +244,6 @@ private:
     /** Checkpoint id for a restored operator or null if not restored. */
     std::optional<long> restoredCheckpointId;
 };
-} // namespace checkpoint
+} // namespace omnistream
 
 #endif

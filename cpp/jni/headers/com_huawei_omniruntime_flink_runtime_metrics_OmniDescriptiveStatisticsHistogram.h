@@ -24,16 +24,18 @@ extern "C" {
  * Method:    getNativeCount
  * Signature: (J)J
  */
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_OmniDescriptiveStatisticsHistogram_getNativeCount
-  (JNIEnv *, jobject, jlong);
+JNIEXPORT jlong JNICALL
+Java_com_huawei_omniruntime_flink_runtime_metrics_OmniDescriptiveStatisticsHistogram_getNativeCount(
+    JNIEnv*, jobject, jlong);
 
 /*
  * Class:     com_huawei_omniruntime_flink_runtime_metrics_OmniDescriptiveStatisticsHistogram
  * Method:    getStatistics
  * Signature: (J)Ljava/lang/String;
  */
-JNIEXPORT jstring JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_OmniDescriptiveStatisticsHistogram_getStatistics
-  (JNIEnv *, jobject, jlong);
+JNIEXPORT jstring JNICALL
+Java_com_huawei_omniruntime_flink_runtime_metrics_OmniDescriptiveStatisticsHistogram_getStatistics(
+    JNIEnv*, jobject, jlong);
 
 #ifdef __cplusplus
 }

@@ -16,10 +16,11 @@
 namespace omnistream {
 class JobManagerTaskRestore {
 public:
-    JobManagerTaskRestore(
-        long long restoreCheckpointId, std::shared_ptr<TaskStateSnapshot> taskStateSnapshot)
-        : restoreCheckpointId(restoreCheckpointId), taskStateSnapshot(taskStateSnapshot)
-        {}
+    JobManagerTaskRestore(long long restoreCheckpointId, std::shared_ptr<TaskStateSnapshot> taskStateSnapshot)
+        : restoreCheckpointId(restoreCheckpointId),
+          taskStateSnapshot(taskStateSnapshot)
+    {
+    }
 
     long getRestoreCheckpointId() const
     {
@@ -35,13 +36,11 @@ public:
     {
         std::ostringstream oss;
         oss << "JobManagerTaskRestore{"
-            << "restoreCheckpointId="
-            << restoreCheckpointId
-            << ", taskStateSnapshot="
-            << taskStateSnapshot->ToString()
+            << "restoreCheckpointId=" << restoreCheckpointId << ", taskStateSnapshot=" << taskStateSnapshot->ToString()
             << '}';
         return oss.str();
     }
+
 private:
     static const long serialVersionUID = 1L;
 
@@ -52,5 +51,5 @@ private:
     const std::shared_ptr<TaskStateSnapshot> taskStateSnapshot;
 };
 
-}
+} // namespace omnistream
 #endif // OMNISTREAM_JOBMANAGERTASKRESTORE_H

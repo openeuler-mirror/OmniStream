@@ -20,15 +20,15 @@ std::string TupleTypeInfo::name()
     return ss.str();
 }
 
-TypeSerializer *TupleTypeInfo::createTypeSerializer()
+TypeSerializer* TupleTypeInfo::createTypeSerializer()
 {
     typeSerializer = new Tuple2Serializer(types);
     return typeSerializer;
 }
 
-TupleTypeInfo *TupleTypeInfo::of(const json &type)
+TupleTypeInfo* TupleTypeInfo::of(const json& type)
 {
-    auto *serializer = new Tuple2Serializer(const_cast<json &>(type));
+    auto* serializer = new Tuple2Serializer(const_cast<json&>(type));
     serializer->setSelfBufferReusable(true);
     return new TupleTypeInfo(serializer);
 }
@@ -38,7 +38,7 @@ BackendDataType TupleTypeInfo::getBackendId() const
     return typeSerializer->getBackendId();
 }
 
-TypeSerializer *TupleTypeInfo::getTypeSerializer()
+TypeSerializer* TupleTypeInfo::getTypeSerializer()
 {
     // TupleTypeInfo 有两种构造路径：
     //   1) of(json)  → 在构造时直接传入构造好的 Tuple2Serializer，typeSerializer 已设置

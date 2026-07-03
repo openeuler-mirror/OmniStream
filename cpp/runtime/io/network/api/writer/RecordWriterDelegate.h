@@ -14,11 +14,11 @@
 
 #include "RecordWriter.h"
 namespace omnistream::datastream {
-    class RecordWriterDelegate {
-    public:
-        virtual RecordWriter*  getRecordWriter(int outputIndex) = 0;
+class RecordWriterDelegate {
+public:
+    virtual RecordWriter* getRecordWriter(int outputIndex) = 0;
 
-        virtual ~RecordWriterDelegate() = default;
-    };
-}
+    virtual ~RecordWriterDelegate() = default;
+};
+} // namespace omnistream::datastream
 #endif

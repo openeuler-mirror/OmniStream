@@ -21,8 +21,8 @@
 class KeyValueByteContainer {
 public:
     // 公有成员变量（按需求可直接访问）
-    char *key;
-    char *value;
+    char* key;
+    char* value;
     size_t keyLen;
     size_t valueLen;
 
@@ -30,22 +30,30 @@ public:
     KeyValueByteContainer() = default;
 
     // 参数化构造函数（使用移动语义优化性能）
-    KeyValueByteContainer(char *keyData, std::string_view valueData) : key(keyData)
+    KeyValueByteContainer(char* keyData, std::string_view valueData) : key(keyData)
     {
         valueLen = valueData.size();
-        value = reinterpret_cast<char *>(malloc(valueLen)); // free by rdkafka
+        value = reinterpret_cast<char*>(malloc(valueLen)); // free by rdkafka
         if (!value) {
             throw std::runtime_error("allocate memory failed!");
         }
         memcpy_s(value, valueLen, valueData.data(), valueLen);
     }
 
-    ~KeyValueByteContainer() {}
+    ~KeyValueByteContainer()
+    {
+    }
 
     // （可选）获取数据大小的便捷方法
-    [[nodiscard]] size_t keySize() const noexcept { return strlen(value); }
+    [[nodiscard]] size_t keySize() const noexcept
+    {
+        return strlen(value);
+    }
 
-    [[nodiscard]] size_t valueSize() const noexcept { return valueLen; }
+    [[nodiscard]] size_t valueSize() const noexcept
+    {
+        return valueLen;
+    }
 };
 
 #endif // FLINK_BENCHMARK_KEYVALUEBYTECONTAINER_H

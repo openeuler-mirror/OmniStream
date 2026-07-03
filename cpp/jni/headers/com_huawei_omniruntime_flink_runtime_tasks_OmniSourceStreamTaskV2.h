@@ -22,24 +22,25 @@ extern "C" {
  * Method:    runStreamSource
  * Signature: (J)J
  */
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_tasks_OmniSourceStreamTaskV2_runStreamSource
-  (JNIEnv *, jobject, jlong);
+JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_tasks_OmniSourceStreamTaskV2_runStreamSource(
+    JNIEnv*, jobject, jlong);
 
 /*
  * Class:     com_huawei_omniruntime_flink_runtime_tasks_OmniSourceStreamTaskV2
  * Method:    cancelStreamSource
  * Signature: (J)J
  */
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_tasks_OmniSourceStreamTaskV2_cancelStreamSource
-  (JNIEnv *, jobject, jlong);
+JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_tasks_OmniSourceStreamTaskV2_cancelStreamSource(
+    JNIEnv*, jobject, jlong);
 
 /*
  * Class:     com_huawei_omniruntime_flink_runtime_tasks_OmniSourceStreamTaskV2
  * Method:    resetOutputBufferAndRecordWriter
  * Signature: (J)V
  */
-JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_tasks_OmniSourceStreamTaskV2_resetOutputBufferAndRecordWriter
-  (JNIEnv *, jobject, jlong);
+JNIEXPORT void JNICALL
+Java_com_huawei_omniruntime_flink_runtime_tasks_OmniSourceStreamTaskV2_resetOutputBufferAndRecordWriter(
+    JNIEnv*, jobject, jlong);
 
 #ifdef __cplusplus
 }

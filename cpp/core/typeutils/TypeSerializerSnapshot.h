@@ -11,6 +11,5 @@
 
 #ifndef OMNISTREAM_TYPESERIALIZERSNAPSHOT_H
 #define OMNISTREAM_TYPESERIALIZERSNAPSHOT_H
-class TypeSerializerSnapshot {
-};
+class TypeSerializerSnapshot {};
 #endif // OMNISTREAM_TYPESERIALIZERSNAPSHOT_H

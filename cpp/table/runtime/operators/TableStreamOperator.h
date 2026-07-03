@@ -16,8 +16,12 @@
 template <typename OUT>
 class TableStreamOperator : public AbstractStreamOperator<OUT> {
 public:
-    explicit TableStreamOperator(Output *output) : AbstractStreamOperator<OUT>(output) {}
-    TableStreamOperator() {}
+    explicit TableStreamOperator(Output* output) : AbstractStreamOperator<OUT>(output)
+    {
+    }
+    TableStreamOperator()
+    {
+    }
 
     void open() override
     {
@@ -25,7 +29,7 @@ public:
         ctx = new ContextImpl(AbstractStreamOperator<OUT>::getProcessingTimeService());
     }
 
-    void ProcessWatermark(Watermark *mark) override
+    void ProcessWatermark(Watermark* mark) override
     {
         if (this->timeServiceManager != nullptr) {
             this->timeServiceManager->advanceWatermark(mark);
@@ -37,8 +41,8 @@ public:
 protected:
     class ContextImpl {
     public:
-        StreamRecord *element;
-        explicit ContextImpl(ProcessingTimeService *timerService) : timerService(timerService) {};
+        StreamRecord* element;
+        explicit ContextImpl(ProcessingTimeService* timerService) : timerService(timerService) {};
 
         int64_t timestamp()
         {
@@ -50,9 +54,9 @@ protected:
         };
 
     protected:
-        ProcessingTimeService *timerService;
+        ProcessingTimeService* timerService;
     };
 
-    ContextImpl *ctx;
+    ContextImpl* ctx;
     int64_t currentWatermark = INT64_MIN;
 };

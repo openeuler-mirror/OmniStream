@@ -17,8 +17,7 @@
 
 namespace omnistream {
 
-    class RuntimeEvent : public AbstractEvent {
-    };
+class RuntimeEvent : public AbstractEvent {};
 } // namespace omnistream
 
 #endif

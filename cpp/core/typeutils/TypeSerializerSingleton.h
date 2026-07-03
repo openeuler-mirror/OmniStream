@@ -15,8 +15,6 @@
 #include "TypeSerializer.h"
 #include "SerializerJsonInfo.h"
 
-class TypeSerializerSingleton : public TypeSerializer {
-};
-
+class TypeSerializerSingleton : public TypeSerializer {};
 
 #endif

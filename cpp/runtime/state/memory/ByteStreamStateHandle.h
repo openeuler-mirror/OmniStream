@@ -23,8 +23,9 @@
  */
 class ByteStateHandleInputStream : public FSDataInputStream {
 public:
-    explicit ByteStateHandleInputStream(const std::vector<uint8_t>& data)
-        : data_(data), index_(0) {}
+    explicit ByteStateHandleInputStream(const std::vector<uint8_t>& data) : data_(data), index_(0)
+    {
+    }
 
     /**
      * Seek to the given offset from the start of the data.
@@ -78,11 +79,7 @@ public:
         size_t bytesToCopy = std::min(static_cast<size_t>(len), bytesLeft);
         if (bytesToCopy == 0) return 0;
 
-        auto err = memcpy_s(
-            buffer.data() + off,
-            buffer.size() - off,
-            data_.data() + index_,
-            bytesToCopy);
+        auto err = memcpy_s(buffer.data() + off, buffer.size() - off, data_.data() + index_, bytesToCopy);
         if (err != EOK) {
             throw std::runtime_error("memcpy_s failed with error code: " + std::to_string(err));
         }
@@ -109,7 +106,8 @@ public:
      * @param data       The byte array containing the actual state data.
      */
     ByteStreamStateHandle(const std::string& handleName, const std::vector<uint8_t>& data)
-        : handleName_(handleName), data_(data)
+        : handleName_(handleName),
+          data_(data)
     {
         if (handleName_.empty()) {
             throw std::invalid_argument("handleName must not be empty");
@@ -182,7 +180,7 @@ public:
     size_t hashCode() const
     {
         size_t hashMultiplier = 31;
-        return std::hash<std::string>{}(handleName_) * hashMultiplier;
+        return std::hash<std::string>{}(handleName_)*hashMultiplier;
     }
 
     /**

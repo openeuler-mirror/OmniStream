@@ -10,7 +10,7 @@
  */
 #include "basictypes/Tuple2.h"
 
-Tuple2::Tuple2(Object *f0, Object *f1)
+Tuple2::Tuple2(Object* f0, Object* f1)
 {
     this->f0 = f0;
     f0->getRefCount();

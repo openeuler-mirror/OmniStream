@@ -19,28 +19,27 @@
 #include <string>
 #include <io/AvailabilityProvider.h>
 
-
 namespace omnistream {
-    class BufferProvider : public AvailabilityProvider   {
-    public:
-        ~BufferProvider() override = default;
+class BufferProvider : public AvailabilityProvider {
+public:
+    ~BufferProvider() override = default;
 
-        virtual std::shared_ptr<Buffer> requestBuffer() = 0;
+    virtual std::shared_ptr<Buffer> requestBuffer() = 0;
 
-        virtual BufferBuilder *requestBufferBuilder() = 0;
+    virtual BufferBuilder* requestBufferBuilder() = 0;
 
-        virtual BufferBuilder *requestBufferBuilder(int targetChannel) = 0;
+    virtual BufferBuilder* requestBufferBuilder(int targetChannel) = 0;
 
-        virtual BufferBuilder *requestBufferBuilderBlocking() = 0;
+    virtual BufferBuilder* requestBufferBuilderBlocking() = 0;
 
-        virtual BufferBuilder *requestBufferBuilderBlocking(int targetChannel) = 0;
+    virtual BufferBuilder* requestBufferBuilderBlocking(int targetChannel) = 0;
 
-        virtual bool addBufferListener(std::shared_ptr<BufferListener> listener) = 0;
+    virtual bool addBufferListener(std::shared_ptr<BufferListener> listener) = 0;
 
-        virtual bool isDestroyed() = 0;
+    virtual bool isDestroyed() = 0;
 
-        virtual std::string toString() const = 0;
-    };
-}
+    virtual std::string toString() const = 0;
+};
+} // namespace omnistream
 
 #endif // BUFFERPROVIDER_H

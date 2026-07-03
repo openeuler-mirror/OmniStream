@@ -28,7 +28,7 @@ ClassRegistry::~ClassRegistry()
     classes_.clear();
 }
 
-void ClassRegistry::registerClass(const std::string &name, Class *clazz)
+void ClassRegistry::registerClass(const std::string& name, Class* clazz)
 {
     classes_[name] = clazz;
 }
@@ -44,21 +44,21 @@ Class* ClassRegistry::getClass(const std::string& name)
     return newClass;
 }
 
-Class* ClassRegistry::newClass(const std::string& name) {
-	if(strcasecmp(name.c_str(), TYPE_NAME_STRING) == 0
-		|| name == TYPE_NAME_STRING_CLASS
-		|| name == TYPE_NAME_STRING_CLASS_LINE) {
-		return new Class([]() -> Object* { return new String(); });
-	} else if(strcasecmp(name.c_str(), TYPE_NAME_VOID_NAMESPACE) == 0
-		|| name == TYPE_NAME_VOID_NAMESPACE_CLASS
-		|| name == TYPE_NAME_VOID_NAMESPACE_CLASS_LINE) {
-		return new Class([]() -> Object* { return new VoidNamespace(); });
-	} else {
-		return new Class(name);
-	}
+Class* ClassRegistry::newClass(const std::string& name)
+{
+    if (strcasecmp(name.c_str(), TYPE_NAME_STRING) == 0 || name == TYPE_NAME_STRING_CLASS ||
+        name == TYPE_NAME_STRING_CLASS_LINE) {
+        return new Class([]() -> Object* { return new String(); });
+    } else if (
+        strcasecmp(name.c_str(), TYPE_NAME_VOID_NAMESPACE) == 0 || name == TYPE_NAME_VOID_NAMESPACE_CLASS ||
+        name == TYPE_NAME_VOID_NAMESPACE_CLASS_LINE) {
+        return new Class([]() -> Object* { return new VoidNamespace(); });
+    } else {
+        return new Class(name);
+    }
 }
 
-bool ClassRegistry::hasRegistry(const std::string &name)
+bool ClassRegistry::hasRegistry(const std::string& name)
 {
     auto it = classes_.find(name);
     if (it != classes_.end()) {
@@ -66,4 +66,3 @@ bool ClassRegistry::hasRegistry(const std::string &name)
     }
     return false;
 }
-

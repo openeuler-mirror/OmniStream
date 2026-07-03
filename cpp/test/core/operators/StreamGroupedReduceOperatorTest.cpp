@@ -11,7 +11,8 @@
 using namespace std;
 
 // 测试 StreamGroupedReduceOperator 的构造函数
-TEST(StreamGroupedReduceOperatorTest, Constructor_ValidPaths) {
+TEST(StreamGroupedReduceOperatorTest, Constructor_ValidPaths)
+{
     MockOutput output;
     string soPath = "/tmp/libMockReduceFunction.so";
     nlohmann::json config;
@@ -24,7 +25,8 @@ TEST(StreamGroupedReduceOperatorTest, Constructor_ValidPaths) {
     EXPECT_NO_THROW(reduceOp.loadUdf(config));
 }
 
-TEST(StreamGroupedReduceOperatorTest, Constructor_ReduceFunctionNull) {
+TEST(StreamGroupedReduceOperatorTest, Constructor_ReduceFunctionNull)
+{
     MockOutput output;
     string soPath = "invalid_reduce.so";
     string keyBySoName = "libMockKeyedBy.so";
@@ -38,7 +40,8 @@ TEST(StreamGroupedReduceOperatorTest, Constructor_ReduceFunctionNull) {
 }
 
 // 测试 processElement 方法
-TEST(StreamGroupedReduceOperatorTest, ProcessElement_NewKey) {
+TEST(StreamGroupedReduceOperatorTest, ProcessElement_NewKey)
+{
     MockOutput output;
     string soPath = "/tmp/libMockReduceFunction.so";
     string keyBySoName = "/tmp/libMockKeyedBy.so";
@@ -61,7 +64,7 @@ TEST(StreamGroupedReduceOperatorTest, ProcessElement_NewKey) {
     }
     env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
+    StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
     reduceOp.setup();
     reduceOp.initializeState(initializer, new StringSerializer());
     reduceOp.open();
@@ -69,7 +72,7 @@ TEST(StreamGroupedReduceOperatorTest, ProcessElement_NewKey) {
     Object* key = new String("key1");
     Object* value = new Long(1);
     Tuple2* tuple = new Tuple2(key, value);
-    StreamRecord *record = new StreamRecord(tuple);
+    StreamRecord* record = new StreamRecord(tuple);
     reduceOp.setKeyContextElement(record);
     // 处理元素
     reduceOp.processElement(record);
@@ -85,7 +88,8 @@ TEST(StreamGroupedReduceOperatorTest, ProcessElement_NewKey) {
     }
 }
 
-TEST(StreamGroupedReduceOperatorTest, ProcessElement_ExistingKey) {
+TEST(StreamGroupedReduceOperatorTest, ProcessElement_ExistingKey)
+{
     MockOutput output;
     string soPath = "/tmp/libMockReduceFunction.so";
     string keyBySoName = "/tmp/libMockKeyedBy.so";
@@ -107,8 +111,7 @@ TEST(StreamGroupedReduceOperatorTest, ProcessElement_ExistingKey) {
     }
     env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
-    StreamTaskStateInitializerImpl *initializer =
-            new StreamTaskStateInitializerImpl(env2);
+    StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
     reduceOp.setup();
     reduceOp.initializeState(initializer, new StringSerializer());
     reduceOp.open();
@@ -116,12 +119,12 @@ TEST(StreamGroupedReduceOperatorTest, ProcessElement_ExistingKey) {
     Object* key1 = new String("key1");
     Object* value1 = new Long(1);
     Tuple2* tuple1 = new Tuple2(key1, value1);
-    StreamRecord *record1 = new StreamRecord(tuple1);
+    StreamRecord* record1 = new StreamRecord(tuple1);
 
     Object* key2 = new String("key1");
     Object* value2 = new Long(2);
     Tuple2* tuple2 = new Tuple2(key2, value2);
-    StreamRecord *record2 = new StreamRecord(tuple2);
+    StreamRecord* record2 = new StreamRecord(tuple2);
 
     reduceOp.setKeyContextElement(record1);
     // 处理第一个元素
@@ -143,7 +146,8 @@ TEST(StreamGroupedReduceOperatorTest, ProcessElement_ExistingKey) {
 }
 
 // 测试 getName 方法
-TEST(StreamGroupedReduceOperatorTest, GetName) {
+TEST(StreamGroupedReduceOperatorTest, GetName)
+{
     MockOutput output;
     string soPath = "/tmp/libMockReduceFunction.so";
     string keyBySoName = "libMockKeyedBy.so";
@@ -158,7 +162,8 @@ TEST(StreamGroupedReduceOperatorTest, GetName) {
 }
 
 // 测试 open 方法
-TEST(StreamGroupedReduceOperatorTest, Open_NotImplemented) {
+TEST(StreamGroupedReduceOperatorTest, Open_NotImplemented)
+{
     MockOutput output;
     string soPath = "/tmp/libMockReduceFunction.so";
     string keyBySoName = "libMockKeyedBy.so";
@@ -180,7 +185,7 @@ TEST(StreamGroupedReduceOperatorTest, Open_NotImplemented) {
     }
     env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
+    StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
     reduceOp.setup();
     reduceOp.initializeState(initializer, new LongSerializer());
     reduceOp.open();

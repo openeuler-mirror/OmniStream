@@ -3,27 +3,24 @@
 #include <sstream>
 #include <memory>
 KeyGroupsSavepointStateHandle::KeyGroupsSavepointStateHandle(
-    const KeyGroupRangeOffsets& groupRangeOffsets,
-    const std::shared_ptr<StreamStateHandle>& streamStateHandle)
+    const KeyGroupRangeOffsets& groupRangeOffsets, const std::shared_ptr<StreamStateHandle>& streamStateHandle)
     : KeyGroupsStateHandle(groupRangeOffsets, streamStateHandle)
 {
 }
 
-KeyGroupsSavepointStateHandle::KeyGroupsSavepointStateHandle(const nlohmann::json &description)
+KeyGroupsSavepointStateHandle::KeyGroupsSavepointStateHandle(const nlohmann::json& description)
     : KeyGroupsStateHandle(description)
 {
 }
 
-std::shared_ptr<KeyedStateHandle>
-KeyGroupsSavepointStateHandle::GetIntersection(const KeyGroupRange& keyGroupRange) const
+std::shared_ptr<KeyedStateHandle> KeyGroupsSavepointStateHandle::GetIntersection(
+    const KeyGroupRange& keyGroupRange) const
 {
     auto offsets = getGroupRangeOffsets().getIntersection(keyGroupRange);
-    if(offsets.getKeyGroupRange().getNumberOfKeyGroups() <= 0) {
+    if (offsets.getKeyGroupRange().getNumberOfKeyGroups() <= 0) {
         return nullptr;
     }
-    return std::make_shared<KeyGroupsSavepointStateHandle>(
-        offsets,
-        getDelegateStateHandle());
+    return std::make_shared<KeyGroupsSavepointStateHandle>(offsets, getDelegateStateHandle());
 }
 std::string KeyGroupsSavepointStateHandle::ToString() const
 {

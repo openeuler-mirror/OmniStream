@@ -38,9 +38,7 @@ private:
     class PendingSingleStateIterator : public SingleStateIterator {
     public:
         PendingSingleStateIterator(
-            int kvStateId,
-            int keyGroupPrefixBytes,
-            const std::vector<std::vector<int8_t>> &serializedKeys)
+            int kvStateId, int keyGroupPrefixBytes, const std::vector<std::vector<int8_t>>& serializedKeys)
             : kvStateId_(kvStateId),
               keyGroupPrefixBytes_(keyGroupPrefixBytes),
               serializedKeys_(serializedKeys),
@@ -65,7 +63,7 @@ private:
 
         ByteView key() const override
         {
-            const auto &key = serializedKeys_[currentIndex_];
+            const auto& key = serializedKeys_[currentIndex_];
             return ByteView::fromBuffer(key.data(), key.size());
         }
 
@@ -110,7 +108,7 @@ private:
             if (!valid_ || currentIndex_ >= serializedKeys_.size()) {
                 return;
             }
-            const auto &key = serializedKeys_[currentIndex_];
+            const auto& key = serializedKeys_[currentIndex_];
             if (key.size() < static_cast<size_t>(keyGroupPrefixBytes_)) {
                 return;
             }
@@ -126,23 +124,21 @@ private:
 public:
     explicit RestoredHeapPriorityQueueSnapshotRestoreWrapper(
         std::shared_ptr<RegisteredPriorityQueueStateBackendMetaInfo> metaInfo)
-        : metaInfo_(std::move(metaInfo)) {}
+        : metaInfo_(std::move(metaInfo))
+    {
+    }
 
     std::shared_ptr<StateMetaInfoSnapshot> snapshotMetaInfo() override
     {
         return metaInfo_ == nullptr ? nullptr : metaInfo_->snapshot();
     }
 
-    std::unique_ptr<SingleStateIterator> createSnapshotIterator(
-        int kvStateId,
-        int keyGroupPrefixBytes) override
+    std::unique_ptr<SingleStateIterator> createSnapshotIterator(int kvStateId, int keyGroupPrefixBytes) override
     {
         return std::make_unique<PendingSingleStateIterator>(kvStateId, keyGroupPrefixBytes, serializedKeys_);
     }
 
-    void restoreSerializedElement(
-        const std::vector<int8_t> &serializedKey,
-        int /*keyGroupPrefixBytes*/) override
+    void restoreSerializedElement(const std::vector<int8_t>& serializedKey, int /*keyGroupPrefixBytes*/) override
     {
         if (!serializedKey.empty()) {
             serializedKeys_.push_back(serializedKey);
@@ -159,7 +155,7 @@ public:
         return serializedKeys_.size();
     }
 
-    const std::string &getStateName() const override
+    const std::string& getStateName() const override
     {
         static const std::string emptyName;
         return metaInfo_ == nullptr ? emptyName : metaInfo_->getName();
@@ -167,15 +163,15 @@ public:
 
     template <typename K, typename T, typename Comparator>
     void drainTo(
-        const std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapper<K, T, Comparator>> &target,
+        const std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapper<K, T, Comparator>>& target,
         int keyGroupPrefixBytes)
     {
         if (target == nullptr) {
             INFO_RELEASE("Error: drainTo Cannot drain restored priority queue entries to null target");
-            THROW_LOGIC_EXCEPTION("Cannot drain restored priority queue entries to null target")
+            THROW_LOGIC_EXCEPTION("Cannot drain restored priority queue entries to null target");
         }
 
-        for (const auto &serializedKey : serializedKeys_) {
+        for (const auto& serializedKey : serializedKeys_) {
             target->restoreSerializedElement(serializedKey, keyGroupPrefixBytes);
         }
         serializedKeys_.clear();

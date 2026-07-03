@@ -10,14 +10,16 @@
 #include "taskmanager/OmniRuntimeEnvironment.h"
 #include "runtime/state/TaskStateManager.h"
 
-TEST(StreamSourceTest, NexmarkSourceFunction) {
+TEST(StreamSourceTest, NexmarkSourceFunction)
+{
     std::string description = R"({"format":"nexmark", "batchSize":10, "configMap":{"maxEvents":100}})";
     nlohmann::json opDescription = nlohmann::json::parse(description);
     OperatorPOD nexmarkPOD("nexmark_source", std::string(OPERATOR_NAME_STREAM_SOURCE), description, {}, {});
     nexmarkPOD.setVOperatorType(omnistream::Type_o::SQL);
-    BatchOutputTest *output = new BatchOutputTest();
-    //StreamTask is set to nullptr
-    auto sourceOp = reinterpret_cast<StreamSource<omnistream::VectorBatch>*> (StreamOperatorFactory::createOperatorAndCollector(nexmarkPOD, output, nullptr));
+    BatchOutputTest* output = new BatchOutputTest();
+    // StreamTask is set to nullptr
+    auto sourceOp = reinterpret_cast<StreamSource<omnistream::VectorBatch>*>(
+        StreamOperatorFactory::createOperatorAndCollector(nexmarkPOD, output, nullptr));
     sourceOp->setup();
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
@@ -35,5 +37,4 @@ TEST(StreamSourceTest, NexmarkSourceFunction) {
     sourceOp->open();
     sourceOp->run();
     auto generatedOp = output->getVectorBatch();
-
 }

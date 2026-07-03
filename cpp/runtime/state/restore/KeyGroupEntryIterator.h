@@ -19,31 +19,35 @@
 
 class KeyGroupEntryIterator {
 public:
-    KeyGroupEntryIterator(int64_t offset,
+    KeyGroupEntryIterator(
+        int64_t offset,
         std::shared_ptr<KeyGroupsStateHandle> keyGroupsStateHandle,
         std::shared_ptr<OmniTaskBridge> omniTaskBridge,
         jobject inputStream,
         bool isUsingKeyGroupCompression)
         : offset_(offset),
-        keyGroupsStateHandle_(keyGroupsStateHandle),
-        omniTaskBridge_(omniTaskBridge),
-        inputStream_(inputStream),
-        isUsingKeyGroupCompression_(isUsingKeyGroupCompression),
-        currentKvStateId_(-1),
-        currentIndex_(0){}
+          keyGroupsStateHandle_(keyGroupsStateHandle),
+          omniTaskBridge_(omniTaskBridge),
+          inputStream_(inputStream),
+          isUsingKeyGroupCompression_(isUsingKeyGroupCompression),
+          currentKvStateId_(-1),
+          currentIndex_(0)
+    {
+    }
 
     bool hasNext()
     {
         if (currentIndex_ < entries_.size()) {
             return true;
         }
-        bool shouldReadNextBatch = currentKvStateId_ == -1 ||
-            ((END_OF_KEY_GROUP_MARK & currentKvStateId_) != END_OF_KEY_GROUP_MARK);
+        bool shouldReadNextBatch =
+            currentKvStateId_ == -1 || ((END_OF_KEY_GROUP_MARK & currentKvStateId_) != END_OF_KEY_GROUP_MARK);
         if ((offset_ != 0) && shouldReadNextBatch) {
             if (currentIndex_ >= entries_.size()) {
                 // jni read
                 currentIndex_ = 0;
-                omniTaskBridge_->getKeyGroupEntries(inputStream_, currentKvStateId_, isUsingKeyGroupCompression_, entries_);
+                omniTaskBridge_->getKeyGroupEntries(
+                    inputStream_, currentKvStateId_, isUsingKeyGroupCompression_, entries_);
                 // if entries_ is empty, it means jni has exceptions, return false to forbidden coredump
                 if (entries_.size() == 0) {
                     return false;

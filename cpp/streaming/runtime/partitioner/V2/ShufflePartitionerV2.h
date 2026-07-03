@@ -16,48 +16,51 @@
 #include "StreamPartitionerV2.h"
 
 namespace omnistream {
-    template<typename T>
-    class ShufflePartitionerV2 : public StreamPartitionerV2<T> {
-    public:
-        ShufflePartitionerV2() : randomEngine(std::random_device{}()) {}
+template <typename T>
+class ShufflePartitionerV2 : public StreamPartitionerV2<T> {
+public:
+    ShufflePartitionerV2() : randomEngine(std::random_device{}())
+    {
+    }
 
-        ShufflePartitionerV2(const ShufflePartitionerV2& other) : randomEngine(other.randomEngine) {}
+    ShufflePartitionerV2(const ShufflePartitionerV2& other) : randomEngine(other.randomEngine)
+    {
+    }
 
-        ShufflePartitionerV2& operator=(const ShufflePartitionerV2& other)
-        {
-            randomEngine = other.randomEngine;
-        }
+    ShufflePartitionerV2& operator=(const ShufflePartitionerV2& other)
+    {
+        randomEngine = other.randomEngine;
+    }
 
-        int selectRowChannel(omnistream::VectorBatch* record, int rowIndex) override
-        {
-            std::uniform_int_distribution<int> distribution(0, this->numberOfChannels - 1);
-            return distribution(randomEngine);
-        }
+    int selectRowChannel(omnistream::VectorBatch* record, int rowIndex) override
+    {
+        std::uniform_int_distribution<int> distribution(0, this->numberOfChannels - 1);
+        return distribution(randomEngine);
+    }
 
-        std::unique_ptr<SubtaskStateMapper> getDownstreamSubtaskStateMapper() override
-        {
-            return std::make_unique<SubtaskStateMapper>(RoundRobinMapper());
-        }
+    std::unique_ptr<SubtaskStateMapper> getDownstreamSubtaskStateMapper() override
+    {
+        return std::make_unique<SubtaskStateMapper>(RoundRobinMapper());
+    }
 
-        std::unique_ptr<StreamPartitionerV2<T>> copy() override
-        {
-            return std::make_unique<ShufflePartitionerV2<T>>(*this);
-        }
+    std::unique_ptr<StreamPartitionerV2<T>> copy() override
+    {
+        return std::make_unique<ShufflePartitionerV2<T>>(*this);
+    }
 
-        bool isPointwise() override
-        {
-            return false;
-        }
+    bool isPointwise() override
+    {
+        return false;
+    }
 
-        [[nodiscard]] std::string toString() const override
-        {
-            return "SHUFFLE";
-        }
+    [[nodiscard]] std::string toString() const override
+    {
+        return "SHUFFLE";
+    }
 
-    private:
-        std::default_random_engine randomEngine;
-    };
-}
-
+private:
+    std::default_random_engine randomEngine;
+};
+} // namespace omnistream
 
 #endif

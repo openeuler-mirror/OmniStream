@@ -11,19 +11,21 @@
 #include "CheckpointType.h"
 #include "nlohmann/json.hpp"
 
-CheckpointType *CheckpointType::CHECKPOINT = new CheckpointType(
-    "Checkpoint", SnapshotType::SharingFilesStrategy::FORWARD_BACKWARD);
+CheckpointType* CheckpointType::CHECKPOINT =
+    new CheckpointType("Checkpoint", SnapshotType::SharingFilesStrategy::FORWARD_BACKWARD);
 
-CheckpointType *CheckpointType::FULL_CHECKPOINT = new CheckpointType(
-    "FullCheckpoint", SnapshotType::SharingFilesStrategy::FORWARD);
+CheckpointType* CheckpointType::FULL_CHECKPOINT =
+    new CheckpointType("FullCheckpoint", SnapshotType::SharingFilesStrategy::FORWARD);
 
-CheckpointType::CheckpointType(
-    std::string name, SnapshotType::SharingFilesStrategy sharingFileStrategy)
-    : name(name), sharingFilesStrategy_(sharingFileStrategy) {}
-
-bool CheckpointType::operator==(const SnapshotType &other) const
+CheckpointType::CheckpointType(std::string name, SnapshotType::SharingFilesStrategy sharingFileStrategy)
+    : name(name),
+      sharingFilesStrategy_(sharingFileStrategy)
 {
-    auto castedOther = dynamic_cast<const CheckpointType *>(&other);
+}
+
+bool CheckpointType::operator==(const SnapshotType& other) const
+{
+    auto castedOther = dynamic_cast<const CheckpointType*>(&other);
     if (!castedOther) {
         return false;
     }

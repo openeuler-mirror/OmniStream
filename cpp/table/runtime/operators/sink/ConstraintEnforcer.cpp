@@ -11,15 +11,14 @@
 
 #include "ConstraintEnforcer.h"
 
-
-void ConstraintEnforcer::processElement(StreamRecord *record)
+void ConstraintEnforcer::processElement(StreamRecord* record)
 {
-    LOG("ConstraintEnforcer::processElement(StreamRecord *record)")
+    LOG("ConstraintEnforcer::processElement(StreamRecord *record)");
     output->collect(record);
 }
 
-void ConstraintEnforcer::processBatch(StreamRecord *record)
+void ConstraintEnforcer::processBatch(StreamRecord* record)
 {
-    LOG("ConstraintEnforcer::processBatch(StreamRecord *record)")
+    LOG("ConstraintEnforcer::processBatch(StreamRecord *record)");
     output->collect(record);
 }

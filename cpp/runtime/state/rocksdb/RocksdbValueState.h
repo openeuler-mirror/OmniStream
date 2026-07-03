@@ -30,23 +30,23 @@ class ValueStateLRUCache;
 template <typename K, typename N, typename V>
 class RocksdbValueState : public InternalValueState<K, N, V> {
 public:
-    TypeSerializer *getKeySerializer()
+    TypeSerializer* getKeySerializer()
     {
         return keySerializer;
     };
-    TypeSerializer *getNamespaceSerializer()
+    TypeSerializer* getNamespaceSerializer()
     {
         return namespaceSerializer;
     };
-    TypeSerializer *getValueSerializer()
+    TypeSerializer* getValueSerializer()
     {
         return valueSerializer;
     };
-    void setNamespaceSerializer(TypeSerializer *serializer)
+    void setNamespaceSerializer(TypeSerializer* serializer)
     {
         namespaceSerializer = serializer;
     };
-    void setValueSerializer(TypeSerializer *serializer)
+    void setValueSerializer(TypeSerializer* serializer)
     {
         valueSerializer = serializer;
     };
@@ -55,23 +55,25 @@ public:
         currentNamespace = nameSpace;
     };
     V value() override;
-    void update(const V &value, bool copyKey = false) override;
+    void update(const V& value, bool copyKey = false) override;
 
     void setDefaultValue(V value)
     {
         defaultValue = value;
     };
 
-    static RocksdbValueState<K, N, V> *create(
-            StateDescriptor *stateDesc, RocksdbStateTable<K, N, V> *stateTable, TypeSerializer *keySerializer);
+    static RocksdbValueState<K, N, V>* create(
+        StateDescriptor* stateDesc, RocksdbStateTable<K, N, V>* stateTable, TypeSerializer* keySerializer);
 
-    static RocksdbValueState<K, N, V> *update(
-            StateDescriptor *stateDesc, RocksdbStateTable<K, N, V> *stateTable,
-            RocksdbValueState<K, N, V> *existingState);
+    static RocksdbValueState<K, N, V>* update(
+        StateDescriptor* stateDesc, RocksdbStateTable<K, N, V>* stateTable, RocksdbValueState<K, N, V>* existingState);
 
-    RocksdbValueState(RocksdbStateTable<K, N, V> *stateTable, TypeSerializer *keySerializer,
-                      TypeSerializer *valueSerializer,
-                      TypeSerializer *namespaceSerializer, V defaultValue);
+    RocksdbValueState(
+        RocksdbStateTable<K, N, V>* stateTable,
+        TypeSerializer* keySerializer,
+        TypeSerializer* valueSerializer,
+        TypeSerializer* namespaceSerializer,
+        V defaultValue);
 
     ~RocksdbValueState()
     {
@@ -79,22 +81,32 @@ public:
         stateCache = nullptr; // [FALCON] delete falcon cache corresponding to this ValueState
     };
 
-    void createTable(ROCKSDB_NAMESPACE::DB* db, std::string cfName,
-                    std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>> *kvStateInformation);
+    void createTable(
+        ROCKSDB_NAMESPACE::DB* db,
+        std::string cfName,
+        std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation);
 
-   
     void clear() override;
-    void addVectorBatch(omnistream::VectorBatch *vectorBatch) override;
-    omnistream::VectorBatch *getVectorBatch(int batchId) override;
+    void addVectorBatch(omnistream::VectorBatch* vectorBatch) override;
+    omnistream::VectorBatch* getVectorBatch(int batchId) override;
     long getVectorBatchesSize() override;
     void updateByBatch(std::unordered_map<K, V>& pendingUpdates);
     void clearVectors(int64_t currentTimestamp) override;
     void clearVectors(std::vector<size_t>& indicesToDelete) override;
     // [FALCON] -------------------------------------------------------------------------------------------
     // function to get defaultValue, get currentNamespace and set currentKey & namespace
-    V getDefaultValue() { return defaultValue; };
-    K getCurrentKey() { return stateTable->getCurrentKey(); }
-    N getNamespace() { return currentNamespace; }
+    V getDefaultValue()
+    {
+        return defaultValue;
+    };
+    K getCurrentKey()
+    {
+        return stateTable->getCurrentKey();
+    }
+    N getNamespace()
+    {
+        return currentNamespace;
+    }
     void setKeyAndNamespace(K key, N ns)
     {
         stateTable->setCurrentKey(key);
@@ -103,7 +115,7 @@ public:
 
     // rename RocksDBValueState.value(), RocksDBValueState.update() and AbstractRocksDBState.clear()
     V getValue();
-    void writeValue(const V &value);
+    void writeValue(const V& value);
     void deleteValue();
 
     bool isFalconEnabled() const;
@@ -111,12 +123,11 @@ public:
     ValueStateLRUCache<K, N, V>* stateCache; // falcon cache corresponding to this ValueState
     // [FALCON] -------------------------------------------------------------------------------------------
 
-
 private:
-    RocksdbStateTable<K, N, V> *stateTable;
-    TypeSerializer *keySerializer;
-    TypeSerializer *valueSerializer;
-    TypeSerializer *namespaceSerializer;
+    RocksdbStateTable<K, N, V>* stateTable;
+    TypeSerializer* keySerializer;
+    TypeSerializer* valueSerializer;
+    TypeSerializer* namespaceSerializer;
     V defaultValue;
     N currentNamespace;
 };
@@ -162,9 +173,9 @@ public:
             // [refcount] udf and omniStream will interaction through RocksdbValueState.value(), after udf have used
             // the return value, it will decrease value's refcount, thus we should increase value's refcount here.
             if constexpr (std::is_same_v<V, Object*>) {
-				if (value != nullptr) {
-                	reinterpret_cast<Object*>(value)->getRefCount();
-				}
+                if (value != nullptr) {
+                    reinterpret_cast<Object*>(value)->getRefCount();
+                }
             }
             delete falconKey; // if we do not insert falconKey into falcon cache, directly delete it.
             return value;
@@ -186,7 +197,7 @@ public:
                             return value;
                         }
                     } else if constexpr (std::is_same_v<V, std::vector<long>*>) {
-                        if (*value == *defaultValue) {  // dereference value and default value and compare
+                        if (*value == *defaultValue) { // dereference value and default value and compare
                             delete falconKey;
                             return value;
                         }
@@ -241,7 +252,7 @@ public:
         if (it != cache.end()) {
             delete it->first;
             delete it->second; // delete falconKey and falconValue object
-            cache.erase(it); // delete falconKey and falconValue pointer
+            cache.erase(it);   // delete falconKey and falconValue pointer
         }
         delete falconKey;
         // the state is going to be deleted from rocksdb, thus we do not need to flush it from falcon cache to rocksdb
@@ -265,7 +276,7 @@ public:
                 reinterpret_cast<Object*>(currentKey)->getRefCount();
             }
         }
-        for (auto &[falconKey, falconValue]  : cache) {
+        for (auto& [falconKey, falconValue] : cache) {
             if (falconValue->isDirty()) {
                 valueState->setKeyAndNamespace(falconKey->getKey(), falconKey->getNamespace());
                 valueState->writeValue(falconValue->getValue());
@@ -293,7 +304,7 @@ public:
 
     void clearAll() override
     {
-        for (auto &[falconKey, falconValue] : cache) {
+        for (auto& [falconKey, falconValue] : cache) {
             delete falconKey;
             delete falconValue;
         }
@@ -322,7 +333,8 @@ private:
 
 // [FALCON] -------------------------------------------------------------------------------------------
 template <typename K, typename N, typename V>
-bool RocksdbValueState<K, N, V>::isFalconEnabled() const {
+bool RocksdbValueState<K, N, V>::isFalconEnabled() const
+{
     return stateCache != nullptr && stateCache->getSizeLimit() != 0;
 }
 
@@ -333,17 +345,16 @@ V RocksdbValueState<K, N, V>::getValue()
     // For pointer types (e.g. BinaryRowData*, set<long>*): return defaultValue when null.
     // For BinaryRowData*, the underlying implementation uses a shared instance to deserialize
     // from RocksDB, so we must copy it to avoid it being overwritten by the next get.
-    if constexpr (std::is_pointer<V>::value)
-    {
+    if constexpr (std::is_pointer<V>::value) {
         if (result == nullptr) {
             return defaultValue;
         }
         if constexpr (std::is_base_of_v<RowData, std::remove_pointer_t<V>>) {
-            auto *br = dynamic_cast<BinaryRowData*>(result);
+            auto* br = dynamic_cast<BinaryRowData*>(result);
             if (br == nullptr) {
                 return result;
             }
-            auto *copied = br->copy();
+            auto* copied = br->copy();
             return static_cast<V>(copied);
         } else {
             // Other pointer types (e.g. set<long>*) are not shared; return as-is.
@@ -356,7 +367,7 @@ V RocksdbValueState<K, N, V>::getValue()
 }
 
 template <typename K, typename N, typename V>
-void RocksdbValueState<K, N, V>::writeValue(const V &value)
+void RocksdbValueState<K, N, V>::writeValue(const V& value)
 {
     if constexpr (std::is_pointer_v<V>) {
         if (value == nullptr) {
@@ -370,7 +381,7 @@ void RocksdbValueState<K, N, V>::writeValue(const V &value)
     stateTable->put(currentNamespace, value);
 }
 
-template<typename K, typename N, typename V>
+template <typename K, typename N, typename V>
 void RocksdbValueState<K, N, V>::deleteValue()
 {
     stateTable->clear(currentNamespace);
@@ -378,25 +389,34 @@ void RocksdbValueState<K, N, V>::deleteValue()
 // [FALCON] -------------------------------------------------------------------------------------------
 
 template <typename K, typename N, typename V>
-RocksdbValueState<K, N, V> *RocksdbValueState<K, N, V>::create(StateDescriptor *stateDesc,
-    RocksdbStateTable<K, N, V> *stateTable, TypeSerializer *keySerializer)
+RocksdbValueState<K, N, V>* RocksdbValueState<K, N, V>::create(
+    StateDescriptor* stateDesc, RocksdbStateTable<K, N, V>* stateTable, TypeSerializer* keySerializer)
 {
     return new RocksdbValueState<K, N, V>(
-            stateTable, keySerializer, stateTable->getStateSerializer(), stateTable->getNamespaceSerializer(), V());
+        stateTable, keySerializer, stateTable->getStateSerializer(), stateTable->getNamespaceSerializer(), V());
 }
 
-template<typename K, typename N, typename V>
-RocksdbValueState<K, N, V>::RocksdbValueState(RocksdbStateTable<K, N, V> *stateTable, TypeSerializer *keySerializer,
-                                              TypeSerializer *valueSerializer, TypeSerializer *namespaceSerializer,
-                                              V defaultValue)
-    : stateTable(stateTable), keySerializer(keySerializer), valueSerializer(valueSerializer),
-    namespaceSerializer(namespaceSerializer), defaultValue(defaultValue) {
-        stateCache = new ValueStateLRUCache(this); // [FALCON] init falcon cache corresponding to this ValueState
-    }
+template <typename K, typename N, typename V>
+RocksdbValueState<K, N, V>::RocksdbValueState(
+    RocksdbStateTable<K, N, V>* stateTable,
+    TypeSerializer* keySerializer,
+    TypeSerializer* valueSerializer,
+    TypeSerializer* namespaceSerializer,
+    V defaultValue)
+    : stateTable(stateTable),
+      keySerializer(keySerializer),
+      valueSerializer(valueSerializer),
+      namespaceSerializer(namespaceSerializer),
+      defaultValue(defaultValue)
+{
+    stateCache = new ValueStateLRUCache(this); // [FALCON] init falcon cache corresponding to this ValueState
+}
 
 template <typename K, typename N, typename V>
-void RocksdbValueState<K, N, V>::createTable(ROCKSDB_NAMESPACE::DB* db, std::string cfName,
-    std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>> *kvStateInformation)
+void RocksdbValueState<K, N, V>::createTable(
+    ROCKSDB_NAMESPACE::DB* db,
+    std::string cfName,
+    std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation)
 {
     stateTable->createTable(db, cfName, kvStateInformation);
 }
@@ -412,7 +432,7 @@ V RocksdbValueState<K, N, V>::value()
 }
 
 template <typename K, typename N, typename V>
-void RocksdbValueState<K, N, V>::update(const V &value, bool copyKey)
+void RocksdbValueState<K, N, V>::update(const V& value, bool copyKey)
 {
     if (stateCache->getSizeLimit() == 0) {
         writeValue(value);
@@ -428,8 +448,8 @@ void RocksdbValueState<K, N, V>::update(const V &value, bool copyKey)
 }
 
 template <typename K, typename N, typename V>
-RocksdbValueState<K, N, V> *RocksdbValueState<K, N, V>::update(StateDescriptor *stateDesc,
-    RocksdbStateTable<K, N, V> *stateTable, RocksdbValueState<K, N, V> *existingState)
+RocksdbValueState<K, N, V>* RocksdbValueState<K, N, V>::update(
+    StateDescriptor* stateDesc, RocksdbStateTable<K, N, V>* stateTable, RocksdbValueState<K, N, V>* existingState)
 {
     existingState->setNamespaceSerializer(stateTable->getNamespaceSerializer());
     existingState->setValueSerializer(stateTable->getStateSerializer());
@@ -437,13 +457,13 @@ RocksdbValueState<K, N, V> *RocksdbValueState<K, N, V>::update(StateDescriptor *
 }
 
 template <typename K, typename N, typename V>
-void RocksdbValueState<K, N, V>::addVectorBatch(omnistream::VectorBatch *vectorBatch)
+void RocksdbValueState<K, N, V>::addVectorBatch(omnistream::VectorBatch* vectorBatch)
 {
     stateTable->addVectorBatch(vectorBatch);
 };
 
 template <typename K, typename N, typename V>
-omnistream::VectorBatch *RocksdbValueState<K, N, V>::getVectorBatch(int batchId)
+omnistream::VectorBatch* RocksdbValueState<K, N, V>::getVectorBatch(int batchId)
 {
     return stateTable->getVectorBatch(batchId);
 };
@@ -454,7 +474,7 @@ long RocksdbValueState<K, N, V>::getVectorBatchesSize()
     return stateTable->getVectorBatchesSize();
 };
 
-template<typename K, typename N, typename V>
+template <typename K, typename N, typename V>
 void RocksdbValueState<K, N, V>::clear()
 {
     if (stateCache->getSizeLimit() == 0) {
@@ -464,18 +484,20 @@ void RocksdbValueState<K, N, V>::clear()
     }
 }
 
-template<typename K, typename N, typename V>
+template <typename K, typename N, typename V>
 void RocksdbValueState<K, N, V>::updateByBatch(std::unordered_map<K, V>& pendingUpdates)
 {
-    stateTable->putByBatch(currentNamespace,pendingUpdates);
+    stateTable->putByBatch(currentNamespace, pendingUpdates);
 }
 
 template <typename K, typename N, typename V>
-void  RocksdbValueState<K, N, V>::clearVectors(int64_t currentTimestamp){
+void RocksdbValueState<K, N, V>::clearVectors(int64_t currentTimestamp)
+{
     return stateTable->clearVectors(currentTimestamp);
 }
 
 template <typename K, typename N, typename V>
-void  RocksdbValueState<K, N, V>::clearVectors(std::vector<size_t>& indicesToDelete){
+void RocksdbValueState<K, N, V>::clearVectors(std::vector<size_t>& indicesToDelete)
+{
     return stateTable->clearVectors(indicesToDelete);
 }

@@ -11,6 +11,6 @@
 
 #include "ObjectSegmentProvider.h"
 
-namespace  omnistream {
+namespace omnistream {
 
 }

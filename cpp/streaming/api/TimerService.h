@@ -67,5 +67,5 @@ public:
      */
     virtual void deleteEventTimeTimer(int64_t time) = 0;
 };
-}
+} // namespace omnistream::streaming
 #endif // OMNISTREAM_TIMERSERVICE_H

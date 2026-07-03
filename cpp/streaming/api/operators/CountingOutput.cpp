@@ -10,16 +10,16 @@
  */
 #include "CountingOutput.h"
 
-void CountingOutput::emitWatermark(Watermark *mark)
+void CountingOutput::emitWatermark(Watermark* mark)
 {
-    LOG("CountingOutput::emitWatermark: " << mark->getTimestamp())
+    LOG("CountingOutput::emitWatermark: " << mark->getTimestamp());
     output->emitWatermark(mark);
 }
 
-void CountingOutput::collect(void *record)
+void CountingOutput::collect(void* record)
 {
     numRecordsOut->Inc();
-    output->collect(reinterpret_cast<StreamRecord *>(record));
+    output->collect(reinterpret_cast<StreamRecord*>(record));
 }
 
 void CountingOutput::close()
@@ -27,7 +27,7 @@ void CountingOutput::close()
     output->close();
 }
 
-void CountingOutput::emitWatermarkStatus(WatermarkStatus *watermarkStatus)
+void CountingOutput::emitWatermarkStatus(WatermarkStatus* watermarkStatus)
 {
     output->emitWatermarkStatus(watermarkStatus);
 }

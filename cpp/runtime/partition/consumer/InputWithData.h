@@ -10,27 +10,26 @@
  */
 #pragma once
 
-
 namespace omnistream {
 
-    class InputChannel;
+class InputChannel;
 
-    class InputWithData {
-        /**
-    public:
-        InputChannel *inputChannel;
-        ReadOnlySlicedNetworkBuffer *networkBuffer;
-        bool moreAvailable;
+class InputWithData {
+    /**
+public:
+    InputChannel *inputChannel;
+    ReadOnlySlicedNetworkBuffer *networkBuffer;
+    bool moreAvailable;
 
-    public:
-        InputWithData(InputChannel *inputChannel, ReadOnlySlicedNetworkBuffer *networkBuffer, bool moreAvailable);
+public:
+    InputWithData(InputChannel *inputChannel, ReadOnlySlicedNetworkBuffer *networkBuffer, bool moreAvailable);
 
-        InputChannel *getInputChannel();
+    InputChannel *getInputChannel();
 
-        ReadOnlySlicedNetworkBuffer *getNetworkBuffer();
+    ReadOnlySlicedNetworkBuffer *getNetworkBuffer();
 
-        bool isMoreAvailable();
-        **/
-    };
+    bool isMoreAvailable();
+    **/
+};
 
 } // namespace omnistream

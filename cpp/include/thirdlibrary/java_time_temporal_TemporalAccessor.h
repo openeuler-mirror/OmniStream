@@ -20,7 +20,7 @@ public:
 
     virtual ~TemporalAccessor();
 
-    virtual std::tm *getTm() = 0;
+    virtual std::tm* getTm() = 0;
 };
 
 #endif // FLINK_TNEL_TemporalAccessor_H

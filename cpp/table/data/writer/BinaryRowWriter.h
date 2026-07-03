@@ -12,15 +12,14 @@
 #ifndef FLINK_TNEL_BINARYROWWRITER_H
 #define FLINK_TNEL_BINARYROWWRITER_H
 
-
 #include "AbstractBinaryWriter.h"
 #include "table/data/binary/BinaryRowData.h"
 
 class BinaryRowWriter : public AbstractBinaryWriter {
 public:
-    explicit BinaryRowWriter(BinaryRowData *row);
+    explicit BinaryRowWriter(BinaryRowData* row);
 
-    BinaryRowWriter(BinaryRowData *row,  int initialSize);
+    BinaryRowWriter(BinaryRowData* row, int initialSize);
     ~BinaryRowWriter() override = default;
 
     // virtual
@@ -43,11 +42,9 @@ protected:
     void setNullBit(int ordinal) override;
 
 private:
-
     int nullBitsSizeInBytes_{};
     BinaryRowData* row_{};
     int fixedSize_{};
 };
-
 
 #endif

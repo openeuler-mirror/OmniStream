@@ -10,7 +10,8 @@ namespace {
 constexpr int32_t LONG_TYPE = omniruntime::type::DataTypeId::OMNI_LONG;
 }
 
-TEST(NamespaceAggsAvgFunctionTest, AccumulatesRetractsAndWritesValue) {
+TEST(NamespaceAggsAvgFunctionTest, AccumulatesRetractsAndWritesValue)
+{
     NamespaceAggsAvgFunction<int64_t> function({0}, {LONG_TYPE}, {0, 1}, {LONG_TYPE, LONG_TYPE}, 0, LONG_TYPE);
     auto accumulator = std::unique_ptr<BinaryRowData>(BinaryRowData::createBinaryRowDataWithMem(2));
     accumulator->setNullAt(0);
@@ -33,7 +34,8 @@ TEST(NamespaceAggsAvgFunctionTest, AccumulatesRetractsAndWritesValue) {
     EXPECT_EQ(8, *value->getLong(0));
 }
 
-TEST(NamespaceAggsAvgFunctionTest, BecomesNullAfterRetractingLastValue) {
+TEST(NamespaceAggsAvgFunctionTest, BecomesNullAfterRetractingLastValue)
+{
     NamespaceAggsAvgFunction<int64_t> function({0}, {LONG_TYPE}, {0, 1}, {LONG_TYPE, LONG_TYPE}, 0, LONG_TYPE);
     auto accumulator = std::unique_ptr<BinaryRowData>(BinaryRowData::createBinaryRowDataWithMem(2));
     accumulator->setNullAt(0);
@@ -52,7 +54,8 @@ TEST(NamespaceAggsAvgFunctionTest, BecomesNullAfterRetractingLastValue) {
     EXPECT_TRUE(value->isNullAt(0));
 }
 
-TEST(NamespaceAggsAvgFunctionTest, MergesBothAccumulatorSlots) {
+TEST(NamespaceAggsAvgFunctionTest, MergesBothAccumulatorSlots)
+{
     NamespaceAggsAvgFunction<int64_t> function({0}, {LONG_TYPE}, {0, 1}, {LONG_TYPE, LONG_TYPE}, 0, LONG_TYPE);
     auto accumulator = std::unique_ptr<BinaryRowData>(BinaryRowData::createBinaryRowDataWithMem(2));
     accumulator->setLong(0, 4);

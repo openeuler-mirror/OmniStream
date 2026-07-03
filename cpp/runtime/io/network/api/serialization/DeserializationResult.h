@@ -17,7 +17,10 @@
 class DeserializationResult {
 public:
     DeserializationResult(const bool isFullRecord, const bool isBufferConsumed)
-        : whetherFullRecord(isFullRecord), whetherBufferConsumed(isBufferConsumed){ }
+        : whetherFullRecord(isFullRecord),
+          whetherBufferConsumed(isBufferConsumed)
+    {
+    }
 
     __attribute__((always_inline)) bool isFullRecord() const
     {
@@ -32,8 +35,8 @@ public:
     std::string toDebugString() const;
 
 private:
-     bool whetherFullRecord;
-     bool whetherBufferConsumed;
+    bool whetherFullRecord;
+    bool whetherBufferConsumed;
 };
 
 extern DeserializationResult DeserializationResult_PARTIAL_RECORD;

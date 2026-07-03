@@ -13,9 +13,9 @@
 #define OMNISTREAM_CHANNELSTATEHOLDER_H
 #include "runtime/checkpoint/channel/ChannelStateWriter.h"
 namespace omnistream {
-    class ChannelStateHolder {
-        public:
-        virtual void setChannelStateWriter(std::shared_ptr<ChannelStateWriter> channelStateWriter) = 0;
-    };
-}
-#endif //OMNISTREAM_CHANNELSTATEHOLDER_H
+class ChannelStateHolder {
+public:
+    virtual void setChannelStateWriter(std::shared_ptr<ChannelStateWriter> channelStateWriter) = 0;
+};
+} // namespace omnistream
+#endif // OMNISTREAM_CHANNELSTATEHOLDER_H

@@ -6,7 +6,6 @@
 #include "runtime/taskmanager/OmniRuntimeEnvironment.h"
 #include <gtest/gtest.h>
 
-
 TEST(DatagenTest, MeituanTest)
 {
     // Set up runtime context
@@ -25,16 +24,14 @@ TEST(DatagenTest, MeituanTest)
     auto ctx = new NonTimestampContext(&lockingObject, output);
 
     // Running and stopping source
-    std::thread sourceThread([&]()
-                             { joinSource.run(ctx); });
+    std::thread sourceThread([&]() { joinSource.run(ctx); });
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     sourceThread.join();
 
     // Output records
     auto outputRecords = output->getAll();
     EXPECT_FALSE(outputRecords.empty());
-    for (const auto &record : outputRecords)
-    {
+    for (const auto& record : outputRecords) {
         EXPECT_TRUE(record->GetRowCount() > 0);
     }
 
@@ -43,11 +40,9 @@ TEST(DatagenTest, MeituanTest)
     // Records not outputted yet
     auto records = joinSource.getRecordsToCollect();
     EXPECT_FALSE(records.empty());
-    for (const auto &entry : records)
-    {
+    for (const auto& entry : records) {
         EXPECT_FALSE(entry.second.empty());
-        for (const auto &record : entry.second)
-        {
+        for (const auto& record : entry.second) {
             EXPECT_TRUE(record->getTimestamp() > 0);
             EXPECT_FALSE(record->getValue().empty());
         }

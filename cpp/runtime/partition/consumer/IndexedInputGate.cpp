@@ -13,44 +13,44 @@
 
 namespace omnistream {
 
-    void IndexedInputGate::CheckpointStarted(const CheckpointBarrier& barrier)
-    {
-        int num = GetNumberOfInputChannels();
-        for (int i = 0; i < num; ++i) {
-            getChannel(i)->CheckpointStarted(barrier);
-        }
+void IndexedInputGate::CheckpointStarted(const CheckpointBarrier& barrier)
+{
+    int num = GetNumberOfInputChannels();
+    for (int i = 0; i < num; ++i) {
+        getChannel(i)->CheckpointStarted(barrier);
     }
-    
-    void IndexedInputGate::CheckpointStopped(long checkpointId)
-    {
-        int num = GetNumberOfInputChannels();
-        for (int i = 0; i < num; ++i) {
-            getChannel(i)->CheckpointStopped(checkpointId);
-        }
-    }
+}
 
-    int IndexedInputGate::GetInputGateIndex()
-    {
-        return GetGateIndex();
+void IndexedInputGate::CheckpointStopped(long checkpointId)
+{
+    int num = GetNumberOfInputChannels();
+    for (int i = 0; i < num; ++i) {
+        getChannel(i)->CheckpointStopped(checkpointId);
     }
+}
 
-    std::vector<InputChannelInfo> IndexedInputGate::GetChannelInfos()
-    {
-        std::vector<InputChannelInfo> infos;
-        for (int i = 0; i < GetNumberOfInputChannels(); ++i) {
-            auto channel = getChannel(i);
-            if (channel) {
-                infos.emplace_back(channel->getChannelInfo());
-            }
-        }
-        return infos;
-    }
+int IndexedInputGate::GetInputGateIndex()
+{
+    return GetGateIndex();
+}
 
-    void IndexedInputGate::SetChannelStateWriter(std::shared_ptr<ChannelStateWriter> channelStateWriter)
-    {
-        int num = GetNumberOfInputChannels();
-        for (int i = 0; i < num; ++i) {
-            getChannel(i)->SetChannelStateWriter(channelStateWriter);
+std::vector<InputChannelInfo> IndexedInputGate::GetChannelInfos()
+{
+    std::vector<InputChannelInfo> infos;
+    for (int i = 0; i < GetNumberOfInputChannels(); ++i) {
+        auto channel = getChannel(i);
+        if (channel) {
+            infos.emplace_back(channel->getChannelInfo());
         }
     }
-}  // namespace omnistream
+    return infos;
+}
+
+void IndexedInputGate::SetChannelStateWriter(std::shared_ptr<ChannelStateWriter> channelStateWriter)
+{
+    int num = GetNumberOfInputChannels();
+    for (int i = 0; i < num; ++i) {
+        getChannel(i)->SetChannelStateWriter(channelStateWriter);
+    }
+}
+} // namespace omnistream

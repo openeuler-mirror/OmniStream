@@ -14,7 +14,6 @@
 #include "core/typeutils/TypeSerializer_new.h"
 
 template <typename K>
-class PagedTypeSerializer : public TypeSerializer<K> {
-}
+class PagedTypeSerializer : public TypeSerializer<K> {}
 
 #endif

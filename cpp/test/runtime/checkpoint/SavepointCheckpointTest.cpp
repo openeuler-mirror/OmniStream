@@ -23,31 +23,36 @@ using namespace omnistream;
 // SavepointType tests
 // =========================================================================
 
-TEST(SavepointTypeTest, IsSavepointReturnsTrue) {
+TEST(SavepointTypeTest, IsSavepointReturnsTrue)
+{
     auto* sp = SavepointType::savepoint(SavepointFormatType::CANONICAL);
     EXPECT_TRUE(sp->IsSavepoint());
     delete sp;
 }
 
-TEST(SavepointTypeTest, SavepointIsSynchronousReturnsFalse) {
+TEST(SavepointTypeTest, SavepointIsSynchronousReturnsFalse)
+{
     auto* sp = SavepointType::savepoint(SavepointFormatType::CANONICAL);
     EXPECT_FALSE(sp->isSynchronous());
     delete sp;
 }
 
-TEST(SavepointTypeTest, TerminateIsSynchronousReturnsTrue) {
+TEST(SavepointTypeTest, TerminateIsSynchronousReturnsTrue)
+{
     auto* sp = SavepointType::terminate(SavepointFormatType::NATIVE);
     EXPECT_TRUE(sp->isSynchronous());
     delete sp;
 }
 
-TEST(SavepointTypeTest, SuspendIsSynchronousReturnsTrue) {
+TEST(SavepointTypeTest, SuspendIsSynchronousReturnsTrue)
+{
     auto* sp = SavepointType::suspend(SavepointFormatType::CANONICAL);
     EXPECT_TRUE(sp->isSynchronous());
     delete sp;
 }
 
-TEST(SavepointTypeTest, ShouldDrainTrueForTerminateFalseForOthers) {
+TEST(SavepointTypeTest, ShouldDrainTrueForTerminateFalseForOthers)
+{
     auto* terminate = SavepointType::terminate(SavepointFormatType::NATIVE);
     auto* savepoint = SavepointType::savepoint(SavepointFormatType::CANONICAL);
     auto* suspend = SavepointType::suspend(SavepointFormatType::CANONICAL);
@@ -61,7 +66,8 @@ TEST(SavepointTypeTest, ShouldDrainTrueForTerminateFalseForOthers) {
     delete suspend;
 }
 
-TEST(SavepointTypeTest, ShouldIgnoreEndOfInputTrueForSuspendFalseForOthers) {
+TEST(SavepointTypeTest, ShouldIgnoreEndOfInputTrueForSuspendFalseForOthers)
+{
     auto* terminate = SavepointType::terminate(SavepointFormatType::NATIVE);
     auto* savepoint = SavepointType::savepoint(SavepointFormatType::CANONICAL);
     auto* suspend = SavepointType::suspend(SavepointFormatType::CANONICAL);
@@ -75,13 +81,15 @@ TEST(SavepointTypeTest, ShouldIgnoreEndOfInputTrueForSuspendFalseForOthers) {
     delete suspend;
 }
 
-TEST(SavepointTypeTest, GetSharingFilesStrategyReturnsNoSharing) {
+TEST(SavepointTypeTest, GetSharingFilesStrategyReturnsNoSharing)
+{
     auto* sp = SavepointType::savepoint(SavepointFormatType::NATIVE);
     EXPECT_EQ(sp->GetSharingFilesStrategy(), SnapshotType::SharingFilesStrategy::NO_SHARING);
     delete sp;
 }
 
-TEST(SavepointTypeTest, GetFormatTypeReturnsCorrectType) {
+TEST(SavepointTypeTest, GetFormatTypeReturnsCorrectType)
+{
     auto* canonical = SavepointType::savepoint(SavepointFormatType::CANONICAL);
     auto* native = SavepointType::savepoint(SavepointFormatType::NATIVE);
 
@@ -92,7 +100,8 @@ TEST(SavepointTypeTest, GetFormatTypeReturnsCorrectType) {
     delete native;
 }
 
-TEST(SavepointTypeTest, OperatorEqualsWithSameTypeAndFormat) {
+TEST(SavepointTypeTest, OperatorEqualsWithSameTypeAndFormat)
+{
     auto* a = SavepointType::savepoint(SavepointFormatType::NATIVE);
     auto* b = SavepointType::savepoint(SavepointFormatType::NATIVE);
     EXPECT_TRUE(*a == *b);
@@ -100,7 +109,8 @@ TEST(SavepointTypeTest, OperatorEqualsWithSameTypeAndFormat) {
     delete b;
 }
 
-TEST(SavepointTypeTest, OperatorEqualsDifferentFormat) {
+TEST(SavepointTypeTest, OperatorEqualsDifferentFormat)
+{
     auto* a = SavepointType::terminate(SavepointFormatType::CANONICAL);
     auto* b = SavepointType::terminate(SavepointFormatType::NATIVE);
     EXPECT_FALSE(*a == *b);
@@ -108,31 +118,36 @@ TEST(SavepointTypeTest, OperatorEqualsDifferentFormat) {
     delete b;
 }
 
-TEST(SavepointTypeTest, OperatorEqualsCrossTypeWithCheckpoint) {
+TEST(SavepointTypeTest, OperatorEqualsCrossTypeWithCheckpoint)
+{
     auto* sp = SavepointType::savepoint(SavepointFormatType::CANONICAL);
     EXPECT_FALSE((*sp) == (*CheckpointType::CHECKPOINT));
     delete sp;
 }
 
-TEST(SavepointTypeTest, FactorySavepointProducesCorrectName) {
+TEST(SavepointTypeTest, FactorySavepointProducesCorrectName)
+{
     auto* sp = SavepointType::savepoint(SavepointFormatType::CANONICAL);
     EXPECT_EQ(sp->GetName(), "Savepoint");
     delete sp;
 }
 
-TEST(SavepointTypeTest, FactoryTerminateProducesCorrectName) {
+TEST(SavepointTypeTest, FactoryTerminateProducesCorrectName)
+{
     auto* sp = SavepointType::terminate(SavepointFormatType::NATIVE);
     EXPECT_EQ(sp->GetName(), "Terminate Savepoint");
     delete sp;
 }
 
-TEST(SavepointTypeTest, FactorySuspendProducesCorrectName) {
+TEST(SavepointTypeTest, FactorySuspendProducesCorrectName)
+{
     auto* sp = SavepointType::suspend(SavepointFormatType::CANONICAL);
     EXPECT_EQ(sp->GetName(), "Suspend Savepoint");
     delete sp;
 }
 
-TEST(SavepointTypeTest, ShouldAdvanceToEndOfTimeDelegatesToShouldDrain) {
+TEST(SavepointTypeTest, ShouldAdvanceToEndOfTimeDelegatesToShouldDrain)
+{
     auto* terminate = SavepointType::terminate(SavepointFormatType::NATIVE);
     auto* savepoint = SavepointType::savepoint(SavepointFormatType::CANONICAL);
 
@@ -143,7 +158,8 @@ TEST(SavepointTypeTest, ShouldAdvanceToEndOfTimeDelegatesToShouldDrain) {
     delete savepoint;
 }
 
-TEST(SavepointTypeTest, ToStringContainsKeyFields) {
+TEST(SavepointTypeTest, ToStringContainsKeyFields)
+{
     auto* sp = SavepointType::savepoint(SavepointFormatType::NATIVE);
     std::string str = sp->ToString();
     EXPECT_NE(str.find("Savepoint"), std::string::npos);
@@ -154,36 +170,42 @@ TEST(SavepointTypeTest, ToStringContainsKeyFields) {
 // CheckpointType tests
 // =========================================================================
 
-TEST(CheckpointTypeTest, IsSavepointReturnsFalse) {
+TEST(CheckpointTypeTest, IsSavepointReturnsFalse)
+{
     EXPECT_FALSE(CheckpointType::CHECKPOINT->IsSavepoint());
     EXPECT_FALSE(CheckpointType::FULL_CHECKPOINT->IsSavepoint());
 }
 
-TEST(CheckpointTypeTest, CheckpointSharingStrategyIsForwardBackward) {
-    EXPECT_EQ(CheckpointType::CHECKPOINT->GetSharingFilesStrategy(),
-        SnapshotType::SharingFilesStrategy::FORWARD_BACKWARD);
+TEST(CheckpointTypeTest, CheckpointSharingStrategyIsForwardBackward)
+{
+    EXPECT_EQ(
+        CheckpointType::CHECKPOINT->GetSharingFilesStrategy(), SnapshotType::SharingFilesStrategy::FORWARD_BACKWARD);
 }
 
-TEST(CheckpointTypeTest, FullCheckpointSharingStrategyIsForward) {
-    EXPECT_EQ(CheckpointType::FULL_CHECKPOINT->GetSharingFilesStrategy(),
-        SnapshotType::SharingFilesStrategy::FORWARD);
+TEST(CheckpointTypeTest, FullCheckpointSharingStrategyIsForward)
+{
+    EXPECT_EQ(CheckpointType::FULL_CHECKPOINT->GetSharingFilesStrategy(), SnapshotType::SharingFilesStrategy::FORWARD);
 }
 
-TEST(CheckpointTypeTest, OperatorEqualsSameType) {
+TEST(CheckpointTypeTest, OperatorEqualsSameType)
+{
     EXPECT_TRUE(*CheckpointType::CHECKPOINT == *CheckpointType::CHECKPOINT);
 }
 
-TEST(CheckpointTypeTest, OperatorEqualsDifferentType) {
+TEST(CheckpointTypeTest, OperatorEqualsDifferentType)
+{
     EXPECT_FALSE(*CheckpointType::CHECKPOINT == *CheckpointType::FULL_CHECKPOINT);
 }
 
-TEST(CheckpointTypeTest, OperatorEqualsCrossTypeWithSavepoint) {
+TEST(CheckpointTypeTest, OperatorEqualsCrossTypeWithSavepoint)
+{
     auto* sp = SavepointType::savepoint(SavepointFormatType::CANONICAL);
     EXPECT_FALSE(CheckpointType::CHECKPOINT->operator==(*sp));
     delete sp;
 }
 
-TEST(CheckpointTypeTest, GetNameReturnsCorrect) {
+TEST(CheckpointTypeTest, GetNameReturnsCorrect)
+{
     EXPECT_EQ(CheckpointType::CHECKPOINT->GetName(), "Checkpoint");
     EXPECT_EQ(CheckpointType::FULL_CHECKPOINT->GetName(), "FullCheckpoint");
 }
@@ -192,37 +214,54 @@ TEST(CheckpointTypeTest, GetNameReturnsCorrect) {
 // CheckpointOptions - constructor guard tests
 // =========================================================================
 
-TEST(CheckpointOptionsTest, SavepointCannotBeUnaligned) {
+TEST(CheckpointOptionsTest, SavepointCannotBeUnaligned)
+{
     auto* sp = SavepointType::savepoint(SavepointFormatType::CANONICAL);
     EXPECT_THROW(
-        CheckpointOptions(sp, CheckpointStorageLocationReference::GetDefault(),
-            CheckpointOptions::AlignmentType::UNALIGNED, CheckpointOptions::NO_ALIGNED_CHECKPOINT_TIME_OUT),
+        CheckpointOptions(
+            sp,
+            CheckpointStorageLocationReference::GetDefault(),
+            CheckpointOptions::AlignmentType::UNALIGNED,
+            CheckpointOptions::NO_ALIGNED_CHECKPOINT_TIME_OUT),
         std::invalid_argument);
     delete sp;
 }
 
-TEST(CheckpointOptionsTest, UnalignedCheckpointCannotHaveTimeout) {
+TEST(CheckpointOptionsTest, UnalignedCheckpointCannotHaveTimeout)
+{
     EXPECT_THROW(
-        CheckpointOptions(CheckpointType::CHECKPOINT, CheckpointStorageLocationReference::GetDefault(),
-            CheckpointOptions::AlignmentType::UNALIGNED, 10000L),
+        CheckpointOptions(
+            CheckpointType::CHECKPOINT,
+            CheckpointStorageLocationReference::GetDefault(),
+            CheckpointOptions::AlignmentType::UNALIGNED,
+            10000L),
         std::invalid_argument);
 }
 
-TEST(CheckpointOptionsTest, CannotHaveNullTargetLocation) {
+TEST(CheckpointOptionsTest, CannotHaveNullTargetLocation)
+{
     EXPECT_THROW(
-        CheckpointOptions(CheckpointType::CHECKPOINT, nullptr,
-            CheckpointOptions::AlignmentType::ALIGNED, CheckpointOptions::NO_ALIGNED_CHECKPOINT_TIME_OUT),
+        CheckpointOptions(
+            CheckpointType::CHECKPOINT,
+            nullptr,
+            CheckpointOptions::AlignmentType::ALIGNED,
+            CheckpointOptions::NO_ALIGNED_CHECKPOINT_TIME_OUT),
         std::invalid_argument);
 }
 
-TEST(CheckpointOptionsTest, CannotHaveNullCheckpointType) {
+TEST(CheckpointOptionsTest, CannotHaveNullCheckpointType)
+{
     EXPECT_THROW(
-        CheckpointOptions(nullptr, CheckpointStorageLocationReference::GetDefault(),
-            CheckpointOptions::AlignmentType::ALIGNED, CheckpointOptions::NO_ALIGNED_CHECKPOINT_TIME_OUT),
+        CheckpointOptions(
+            nullptr,
+            CheckpointStorageLocationReference::GetDefault(),
+            CheckpointOptions::AlignmentType::ALIGNED,
+            CheckpointOptions::NO_ALIGNED_CHECKPOINT_TIME_OUT),
         std::invalid_argument);
 }
 
-TEST(CheckpointOptionsTest, AlignedNoTimeoutCreatesCorrectDefaults) {
+TEST(CheckpointOptionsTest, AlignedNoTimeoutCreatesCorrectDefaults)
+{
     auto* options = CheckpointOptions::AlignedNoTimeout(
         *CheckpointType::CHECKPOINT, CheckpointStorageLocationReference::GetDefault());
     EXPECT_EQ(options->GetAlignment(), CheckpointOptions::AlignmentType::ALIGNED);
@@ -231,7 +270,8 @@ TEST(CheckpointOptionsTest, AlignedNoTimeoutCreatesCorrectDefaults) {
     delete options;
 }
 
-TEST(CheckpointOptionsTest, NotExactlyOnceCreatesAtLeastOnce) {
+TEST(CheckpointOptionsTest, NotExactlyOnceCreatesAtLeastOnce)
+{
     auto* options = CheckpointOptions::NotExactlyOnce(
         *CheckpointType::CHECKPOINT, CheckpointStorageLocationReference::GetDefault());
     EXPECT_EQ(options->GetAlignment(), CheckpointOptions::AlignmentType::AT_LEAST_ONCE);
@@ -243,52 +283,57 @@ TEST(CheckpointOptionsTest, NotExactlyOnceCreatesAtLeastOnce) {
 // CheckpointOptions - ForConfig decision tree tests
 // =========================================================================
 
-TEST(CheckpointOptionsTest, ForConfigNotExactlyOnceReturnsAtLeastOnce) {
+TEST(CheckpointOptionsTest, ForConfigNotExactlyOnceReturnsAtLeastOnce)
+{
     auto* options = CheckpointOptions::ForConfig(
-        *CheckpointType::CHECKPOINT, CheckpointStorageLocationReference::GetDefault(),
-        false, true, 10000L);
+        *CheckpointType::CHECKPOINT, CheckpointStorageLocationReference::GetDefault(), false, true, 10000L);
     EXPECT_EQ(options->GetAlignment(), CheckpointOptions::AlignmentType::AT_LEAST_ONCE);
     delete options;
 }
 
-TEST(CheckpointOptionsTest, ForConfigSavepointReturnsAlignedNoTimeout) {
+TEST(CheckpointOptionsTest, ForConfigSavepointReturnsAlignedNoTimeout)
+{
     auto* sp = SavepointType::savepoint(SavepointFormatType::CANONICAL);
-    auto* options = CheckpointOptions::ForConfig(*sp, CheckpointStorageLocationReference::GetDefault(),
-        true, true, 10000L);
+    auto* options =
+        CheckpointOptions::ForConfig(*sp, CheckpointStorageLocationReference::GetDefault(), true, true, 10000L);
     EXPECT_EQ(options->GetAlignment(), CheckpointOptions::AlignmentType::ALIGNED);
     EXPECT_EQ(options->GetAlignedCheckpointTimeout(), CheckpointOptions::NO_ALIGNED_CHECKPOINT_TIME_OUT);
     delete options;
     delete sp;
 }
 
-TEST(CheckpointOptionsTest, ForConfigUnalignedDisabledReturnsAlignedNoTimeout) {
+TEST(CheckpointOptionsTest, ForConfigUnalignedDisabledReturnsAlignedNoTimeout)
+{
     auto* options = CheckpointOptions::ForConfig(
-        *CheckpointType::CHECKPOINT, CheckpointStorageLocationReference::GetDefault(),
-        true, false, 10000L);
+        *CheckpointType::CHECKPOINT, CheckpointStorageLocationReference::GetDefault(), true, false, 10000L);
     EXPECT_EQ(options->GetAlignment(), CheckpointOptions::AlignmentType::ALIGNED);
     delete options;
 }
 
-TEST(CheckpointOptionsTest, ForConfigUnalignedZeroTimeoutReturnsUnaligned) {
+TEST(CheckpointOptionsTest, ForConfigUnalignedZeroTimeoutReturnsUnaligned)
+{
     auto* options = CheckpointOptions::ForConfig(
-        *CheckpointType::CHECKPOINT, CheckpointStorageLocationReference::GetDefault(),
-        true, true, 0L);
+        *CheckpointType::CHECKPOINT, CheckpointStorageLocationReference::GetDefault(), true, true, 0L);
     EXPECT_TRUE(options->IsUnalignedCheckpoint());
     delete options;
 }
 
-TEST(CheckpointOptionsTest, ForConfigUnalignedMaxTimeoutReturnsUnaligned) {
+TEST(CheckpointOptionsTest, ForConfigUnalignedMaxTimeoutReturnsUnaligned)
+{
     auto* options = CheckpointOptions::ForConfig(
-        *CheckpointType::CHECKPOINT, CheckpointStorageLocationReference::GetDefault(),
-        true, true, CheckpointOptions::NO_ALIGNED_CHECKPOINT_TIME_OUT);
+        *CheckpointType::CHECKPOINT,
+        CheckpointStorageLocationReference::GetDefault(),
+        true,
+        true,
+        CheckpointOptions::NO_ALIGNED_CHECKPOINT_TIME_OUT);
     EXPECT_TRUE(options->IsUnalignedCheckpoint());
     delete options;
 }
 
-TEST(CheckpointOptionsTest, ForConfigWithTimeoutReturnsAlignedWithTimeout) {
+TEST(CheckpointOptionsTest, ForConfigWithTimeoutReturnsAlignedWithTimeout)
+{
     auto* options = CheckpointOptions::ForConfig(
-        *CheckpointType::CHECKPOINT, CheckpointStorageLocationReference::GetDefault(),
-        true, true, 5000L);
+        *CheckpointType::CHECKPOINT, CheckpointStorageLocationReference::GetDefault(), true, true, 5000L);
     EXPECT_EQ(options->GetAlignment(), CheckpointOptions::AlignmentType::ALIGNED);
     EXPECT_EQ(options->GetAlignedCheckpointTimeout(), 5000L);
     delete options;
@@ -298,7 +343,8 @@ TEST(CheckpointOptionsTest, ForConfigWithTimeoutReturnsAlignedWithTimeout) {
 // CheckpointOptions - IsTimeoutable / NeedsChannelState tests
 // =========================================================================
 
-TEST(CheckpointOptionsTest, AlignedWithTimeoutIsTimeoutable) {
+TEST(CheckpointOptionsTest, AlignedWithTimeoutIsTimeoutable)
+{
     auto* options = CheckpointOptions::AlignedWithTimeout(
         *CheckpointType::CHECKPOINT, CheckpointStorageLocationReference::GetDefault(), 5000L);
     EXPECT_TRUE(options->IsTimeoutable());
@@ -306,23 +352,26 @@ TEST(CheckpointOptionsTest, AlignedWithTimeoutIsTimeoutable) {
     delete options;
 }
 
-TEST(CheckpointOptionsTest, AlignedNoTimeoutIsNotTimeoutable) {
+TEST(CheckpointOptionsTest, AlignedNoTimeoutIsNotTimeoutable)
+{
     auto* options = CheckpointOptions::AlignedNoTimeout(
         *CheckpointType::CHECKPOINT, CheckpointStorageLocationReference::GetDefault());
     EXPECT_FALSE(options->IsTimeoutable());
     delete options;
 }
 
-TEST(CheckpointOptionsTest, UnalignedNeedsChannelState) {
-    auto* options = CheckpointOptions::Unaligned(
-        *CheckpointType::CHECKPOINT, CheckpointStorageLocationReference::GetDefault());
+TEST(CheckpointOptionsTest, UnalignedNeedsChannelState)
+{
+    auto* options =
+        CheckpointOptions::Unaligned(*CheckpointType::CHECKPOINT, CheckpointStorageLocationReference::GetDefault());
     EXPECT_FALSE(options->IsTimeoutable());
     EXPECT_TRUE(options->IsUnalignedCheckpoint());
     EXPECT_TRUE(options->NeedsChannelState());
     delete options;
 }
 
-TEST(CheckpointOptionsTest, AtLeastOnceDoesNotNeedChannelState) {
+TEST(CheckpointOptionsTest, AtLeastOnceDoesNotNeedChannelState)
+{
     auto* options = CheckpointOptions::NotExactlyOnce(
         *CheckpointType::CHECKPOINT, CheckpointStorageLocationReference::GetDefault());
     EXPECT_FALSE(options->NeedsChannelState());
@@ -333,7 +382,8 @@ TEST(CheckpointOptionsTest, AtLeastOnceDoesNotNeedChannelState) {
 // CheckpointOptions - ToUnaligned / WithUnaligned tests
 // =========================================================================
 
-TEST(CheckpointOptionsTest, ToUnalignedOnAlignedReturnsUnaligned) {
+TEST(CheckpointOptionsTest, ToUnalignedOnAlignedReturnsUnaligned)
+{
     auto* options = CheckpointOptions::AlignedNoTimeout(
         *CheckpointType::CHECKPOINT, CheckpointStorageLocationReference::GetDefault());
     auto* unaligned = options->ToUnaligned();
@@ -342,31 +392,34 @@ TEST(CheckpointOptionsTest, ToUnalignedOnAlignedReturnsUnaligned) {
     delete unaligned;
 }
 
-TEST(CheckpointOptionsTest, ToUnalignedOnUnalignedThrows) {
-    auto* options = CheckpointOptions::Unaligned(
-        *CheckpointType::CHECKPOINT, CheckpointStorageLocationReference::GetDefault());
+TEST(CheckpointOptionsTest, ToUnalignedOnUnalignedThrows)
+{
+    auto* options =
+        CheckpointOptions::Unaligned(*CheckpointType::CHECKPOINT, CheckpointStorageLocationReference::GetDefault());
     EXPECT_THROW(options->ToUnaligned(), std::logic_error);
     delete options;
 }
 
-TEST(CheckpointOptionsTest, NeedsAlignmentForCheckpointAligned) {
+TEST(CheckpointOptionsTest, NeedsAlignmentForCheckpointAligned)
+{
     auto* options = CheckpointOptions::AlignedNoTimeout(
         *CheckpointType::CHECKPOINT, CheckpointStorageLocationReference::GetDefault());
     EXPECT_TRUE(options->NeedsAlignment());
     delete options;
 }
 
-TEST(CheckpointOptionsTest, NeedsAlignmentForCheckpointUnaligned) {
-    auto* options = CheckpointOptions::Unaligned(
-        *CheckpointType::CHECKPOINT, CheckpointStorageLocationReference::GetDefault());
+TEST(CheckpointOptionsTest, NeedsAlignmentForCheckpointUnaligned)
+{
+    auto* options =
+        CheckpointOptions::Unaligned(*CheckpointType::CHECKPOINT, CheckpointStorageLocationReference::GetDefault());
     EXPECT_FALSE(options->NeedsAlignment());
     delete options;
 }
 
-TEST(CheckpointOptionsTest, NeedsAlignmentForSavepoint) {
+TEST(CheckpointOptionsTest, NeedsAlignmentForSavepoint)
+{
     auto* sp = SavepointType::savepoint(SavepointFormatType::CANONICAL);
-    auto* options = CheckpointOptions::AlignedNoTimeout(
-        *sp, CheckpointStorageLocationReference::GetDefault());
+    auto* options = CheckpointOptions::AlignedNoTimeout(*sp, CheckpointStorageLocationReference::GetDefault());
     EXPECT_TRUE(options->NeedsAlignment());
     delete options;
     delete sp;
@@ -376,7 +429,8 @@ TEST(CheckpointOptionsTest, NeedsAlignmentForSavepoint) {
 // CheckpointOptions - OperatorEquals tests
 // =========================================================================
 
-TEST(CheckpointOptionsTest, OperatorEqualsSameOptions) {
+TEST(CheckpointOptionsTest, OperatorEqualsSameOptions)
+{
     auto* a = CheckpointOptions::AlignedNoTimeout(
         *CheckpointType::CHECKPOINT, CheckpointStorageLocationReference::GetDefault());
     auto* b = CheckpointOptions::AlignedNoTimeout(
@@ -386,7 +440,8 @@ TEST(CheckpointOptionsTest, OperatorEqualsSameOptions) {
     delete b;
 }
 
-TEST(CheckpointOptionsTest, OperatorEqualsDifferentAlignment) {
+TEST(CheckpointOptionsTest, OperatorEqualsDifferentAlignment)
+{
     auto* a = CheckpointOptions::AlignedNoTimeout(
         *CheckpointType::CHECKPOINT, CheckpointStorageLocationReference::GetDefault());
     auto* b = CheckpointOptions::NotExactlyOnce(
@@ -396,7 +451,8 @@ TEST(CheckpointOptionsTest, OperatorEqualsDifferentAlignment) {
     delete b;
 }
 
-TEST(CheckpointOptionsTest, ForCheckpointWithDefaultLocationReturnsNonNull) {
+TEST(CheckpointOptionsTest, ForCheckpointWithDefaultLocationReturnsNonNull)
+{
     auto* options = CheckpointOptions::ForCheckpointWithDefaultLocation();
     EXPECT_NE(options, nullptr);
     EXPECT_TRUE(options->IsExactlyOnceMode());
@@ -406,7 +462,8 @@ TEST(CheckpointOptionsTest, ForCheckpointWithDefaultLocationReturnsNonNull) {
 // CheckpointOptions - FromJson tests
 // =========================================================================
 
-TEST(CheckpointOptionsTest, FromJsonCheckpointAligned) {
+TEST(CheckpointOptionsTest, FromJsonCheckpointAligned)
+{
     nlohmann::json json;
     json["alignment"] = "ALIGNED";
     json["alignedCheckpointTimeout"] = CheckpointOptions::NO_ALIGNED_CHECKPOINT_TIME_OUT;
@@ -420,7 +477,8 @@ TEST(CheckpointOptionsTest, FromJsonCheckpointAligned) {
     delete options;
 }
 
-TEST(CheckpointOptionsTest, FromJsonCheckpointUnaligned) {
+TEST(CheckpointOptionsTest, FromJsonCheckpointUnaligned)
+{
     nlohmann::json json;
     json["alignment"] = "UNALIGNED";
     json["alignedCheckpointTimeout"] = CheckpointOptions::NO_ALIGNED_CHECKPOINT_TIME_OUT;
@@ -432,7 +490,8 @@ TEST(CheckpointOptionsTest, FromJsonCheckpointUnaligned) {
     delete options;
 }
 
-TEST(CheckpointOptionsTest, FromJsonFullCheckpoint) {
+TEST(CheckpointOptionsTest, FromJsonFullCheckpoint)
+{
     nlohmann::json json;
     json["alignment"] = "ALIGNED";
     json["alignedCheckpointTimeout"] = CheckpointOptions::NO_ALIGNED_CHECKPOINT_TIME_OUT;
@@ -444,7 +503,8 @@ TEST(CheckpointOptionsTest, FromJsonFullCheckpoint) {
     delete options;
 }
 
-TEST(CheckpointOptionsTest, FromJsonSavepointCanonical) {
+TEST(CheckpointOptionsTest, FromJsonSavepointCanonical)
+{
     nlohmann::json json;
     json["alignment"] = "ALIGNED";
     json["alignedCheckpointTimeout"] = CheckpointOptions::NO_ALIGNED_CHECKPOINT_TIME_OUT;
@@ -458,7 +518,8 @@ TEST(CheckpointOptionsTest, FromJsonSavepointCanonical) {
     delete options;
 }
 
-TEST(CheckpointOptionsTest, FromJsonTerminateSavepointNative) {
+TEST(CheckpointOptionsTest, FromJsonTerminateSavepointNative)
+{
     nlohmann::json json;
     json["alignment"] = "ALIGNED";
     json["alignedCheckpointTimeout"] = CheckpointOptions::NO_ALIGNED_CHECKPOINT_TIME_OUT;
@@ -474,7 +535,8 @@ TEST(CheckpointOptionsTest, FromJsonTerminateSavepointNative) {
     delete options;
 }
 
-TEST(CheckpointOptionsTest, FromJsonSuspendSavepoint) {
+TEST(CheckpointOptionsTest, FromJsonSuspendSavepoint)
+{
     nlohmann::json json;
     json["alignment"] = "ALIGNED";
     json["alignedCheckpointTimeout"] = CheckpointOptions::NO_ALIGNED_CHECKPOINT_TIME_OUT;
@@ -487,7 +549,8 @@ TEST(CheckpointOptionsTest, FromJsonSuspendSavepoint) {
     delete options;
 }
 
-TEST(CheckpointOptionsTest, FromJsonUnknownAlignmentThrows) {
+TEST(CheckpointOptionsTest, FromJsonUnknownAlignmentThrows)
+{
     nlohmann::json json;
     json["alignment"] = "INVALID";
     json["alignedCheckpointTimeout"] = 0;
@@ -497,7 +560,8 @@ TEST(CheckpointOptionsTest, FromJsonUnknownAlignmentThrows) {
     EXPECT_THROW(CheckpointOptions::FromJson(json), std::invalid_argument);
 }
 
-TEST(CheckpointOptionsTest, FromJsonUnknownSavepointFormatThrows) {
+TEST(CheckpointOptionsTest, FromJsonUnknownSavepointFormatThrows)
+{
     nlohmann::json json;
     json["alignment"] = "ALIGNED";
     json["alignedCheckpointTimeout"] = CheckpointOptions::NO_ALIGNED_CHECKPOINT_TIME_OUT;
@@ -508,7 +572,8 @@ TEST(CheckpointOptionsTest, FromJsonUnknownSavepointFormatThrows) {
     EXPECT_THROW(CheckpointOptions::FromJson(json), std::invalid_argument);
 }
 
-TEST(CheckpointOptionsTest, FromJsonUnknownSavepointTypeThrows) {
+TEST(CheckpointOptionsTest, FromJsonUnknownSavepointTypeThrows)
+{
     nlohmann::json json;
     json["alignment"] = "ALIGNED";
     json["alignedCheckpointTimeout"] = CheckpointOptions::NO_ALIGNED_CHECKPOINT_TIME_OUT;
@@ -519,7 +584,8 @@ TEST(CheckpointOptionsTest, FromJsonUnknownSavepointTypeThrows) {
     EXPECT_THROW(CheckpointOptions::FromJson(json), std::invalid_argument);
 }
 
-TEST(CheckpointOptionsTest, FromJsonUnknownCheckpointTypeThrows) {
+TEST(CheckpointOptionsTest, FromJsonUnknownCheckpointTypeThrows)
+{
     nlohmann::json json;
     json["alignment"] = "ALIGNED";
     json["alignedCheckpointTimeout"] = CheckpointOptions::NO_ALIGNED_CHECKPOINT_TIME_OUT;
@@ -533,29 +599,30 @@ TEST(CheckpointOptionsTest, FromJsonUnknownCheckpointTypeThrows) {
 // CheckpointBarrier tests
 // =========================================================================
 
-TEST(CheckpointBarrierTest, SharedPtrConstructorThrowsOnNullOptions) {
-    EXPECT_THROW(
-        CheckpointBarrier(1, 1000, std::shared_ptr<CheckpointOptions>(nullptr)),
-        std::invalid_argument);
+TEST(CheckpointBarrierTest, SharedPtrConstructorThrowsOnNullOptions)
+{
+    EXPECT_THROW(CheckpointBarrier(1, 1000, std::shared_ptr<CheckpointOptions>(nullptr)), std::invalid_argument);
 }
 
-TEST(CheckpointBarrierTest, IsCheckpointReturnsTrueForCheckpoint) {
+TEST(CheckpointBarrierTest, IsCheckpointReturnsTrueForCheckpoint)
+{
     auto options = std::make_shared<CheckpointOptions>(
         CheckpointType::CHECKPOINT, CheckpointStorageLocationReference::GetDefault());
     CheckpointBarrier barrier(1, 1000, options);
     EXPECT_TRUE(barrier.IsCheckpoint());
 }
 
-TEST(CheckpointBarrierTest, IsCheckpointReturnsFalseForSavepoint) {
+TEST(CheckpointBarrierTest, IsCheckpointReturnsFalseForSavepoint)
+{
     auto* sp = SavepointType::savepoint(SavepointFormatType::CANONICAL);
-    auto options = std::make_shared<CheckpointOptions>(
-        sp, CheckpointStorageLocationReference::GetDefault());
+    auto options = std::make_shared<CheckpointOptions>(sp, CheckpointStorageLocationReference::GetDefault());
     CheckpointBarrier barrier(1, 1000, options);
     EXPECT_FALSE(barrier.IsCheckpoint());
     delete sp;
 }
 
-TEST(CheckpointBarrierTest, WithOptionsSameReturnsThis) {
+TEST(CheckpointBarrierTest, WithOptionsSameReturnsThis)
+{
     auto options = std::make_shared<CheckpointOptions>(
         CheckpointType::CHECKPOINT, CheckpointStorageLocationReference::GetDefault());
     CheckpointBarrier barrier(1, 1000, options);
@@ -563,7 +630,8 @@ TEST(CheckpointBarrierTest, WithOptionsSameReturnsThis) {
     EXPECT_EQ(result, &barrier);
 }
 
-TEST(CheckpointBarrierTest, GetIdReturnsCorrect) {
+TEST(CheckpointBarrierTest, GetIdReturnsCorrect)
+{
     auto options = std::make_shared<CheckpointOptions>(
         CheckpointType::CHECKPOINT, CheckpointStorageLocationReference::GetDefault());
     CheckpointBarrier barrier(42, 999, options);
@@ -571,7 +639,8 @@ TEST(CheckpointBarrierTest, GetIdReturnsCorrect) {
     EXPECT_EQ(barrier.GetTimestamp(), 999);
 }
 
-TEST(CheckpointBarrierTest, OperatorEqualsSameBarrier) {
+TEST(CheckpointBarrierTest, OperatorEqualsSameBarrier)
+{
     auto options = std::make_shared<CheckpointOptions>(
         CheckpointType::CHECKPOINT, CheckpointStorageLocationReference::GetDefault());
     CheckpointBarrier a(1, 1000, options);
@@ -579,7 +648,8 @@ TEST(CheckpointBarrierTest, OperatorEqualsSameBarrier) {
     EXPECT_TRUE(a == b);
 }
 
-TEST(CheckpointBarrierTest, OperatorEqualsDifferentId) {
+TEST(CheckpointBarrierTest, OperatorEqualsDifferentId)
+{
     auto options = std::make_shared<CheckpointOptions>(
         CheckpointType::CHECKPOINT, CheckpointStorageLocationReference::GetDefault());
     CheckpointBarrier a(1, 1000, options);
@@ -587,7 +657,8 @@ TEST(CheckpointBarrierTest, OperatorEqualsDifferentId) {
     EXPECT_FALSE(a == b);
 }
 
-TEST(CheckpointBarrierTest, OperatorEqualsDifferentTimestamp) {
+TEST(CheckpointBarrierTest, OperatorEqualsDifferentTimestamp)
+{
     auto options = std::make_shared<CheckpointOptions>(
         CheckpointType::CHECKPOINT, CheckpointStorageLocationReference::GetDefault());
     CheckpointBarrier a(1, 1000, options);
@@ -595,16 +666,20 @@ TEST(CheckpointBarrierTest, OperatorEqualsDifferentTimestamp) {
     EXPECT_FALSE(a == b);
 }
 
-TEST(CheckpointBarrierTest, AsUnalignedAlreadyUnalignedReturnsThis) {
+TEST(CheckpointBarrierTest, AsUnalignedAlreadyUnalignedReturnsThis)
+{
     auto opts = std::make_shared<CheckpointOptions>(
-        CheckpointType::CHECKPOINT, CheckpointStorageLocationReference::GetDefault(),
-        CheckpointOptions::AlignmentType::UNALIGNED, CheckpointOptions::NO_ALIGNED_CHECKPOINT_TIME_OUT);
+        CheckpointType::CHECKPOINT,
+        CheckpointStorageLocationReference::GetDefault(),
+        CheckpointOptions::AlignmentType::UNALIGNED,
+        CheckpointOptions::NO_ALIGNED_CHECKPOINT_TIME_OUT);
     CheckpointBarrier barrier(1, 1000, opts);
     auto* result = barrier.AsUnaligned();
     EXPECT_EQ(result, &barrier);
 }
 
-TEST(CheckpointBarrierTest, AsUnalignedCreatesNewWhenAligned) {
+TEST(CheckpointBarrierTest, AsUnalignedCreatesNewWhenAligned)
+{
     auto options = std::make_shared<CheckpointOptions>(
         CheckpointType::CHECKPOINT, CheckpointStorageLocationReference::GetDefault());
     CheckpointBarrier barrier(1, 1000, options);
@@ -614,7 +689,8 @@ TEST(CheckpointBarrierTest, AsUnalignedCreatesNewWhenAligned) {
     delete result;
 }
 
-TEST(CheckpointBarrierTest, GetEventClassNameReturnsCheckpointBarrier) {
+TEST(CheckpointBarrierTest, GetEventClassNameReturnsCheckpointBarrier)
+{
     auto options = std::make_shared<CheckpointOptions>(
         CheckpointType::CHECKPOINT, CheckpointStorageLocationReference::GetDefault());
     CheckpointBarrier barrier(1, 1000, options);
@@ -625,12 +701,15 @@ TEST(CheckpointBarrierTest, GetEventClassNameReturnsCheckpointBarrier) {
 // CheckpointBarrier - WithOptions creates new when different
 // =========================================================================
 
-TEST(CheckpointBarrierTest, WithOptionsDifferentReturnsNewBarrier) {
+TEST(CheckpointBarrierTest, WithOptionsDifferentReturnsNewBarrier)
+{
     auto opts1 = std::make_shared<CheckpointOptions>(
         CheckpointType::CHECKPOINT, CheckpointStorageLocationReference::GetDefault());
     auto opts2 = std::make_shared<CheckpointOptions>(
-        CheckpointType::CHECKPOINT, CheckpointStorageLocationReference::GetDefault(),
-        CheckpointOptions::AlignmentType::AT_LEAST_ONCE, CheckpointOptions::NO_ALIGNED_CHECKPOINT_TIME_OUT);
+        CheckpointType::CHECKPOINT,
+        CheckpointStorageLocationReference::GetDefault(),
+        CheckpointOptions::AlignmentType::AT_LEAST_ONCE,
+        CheckpointOptions::NO_ALIGNED_CHECKPOINT_TIME_OUT);
     CheckpointBarrier barrier(1, 1000, opts1);
 
     auto* result = barrier.WithOptions(opts2.get());

@@ -15,7 +15,6 @@
 #include <string>
 #include <nlohmann/json.hpp>
 
-
 /**  row type example
  *  [
                 {
@@ -63,51 +62,54 @@
  *
  */
 namespace omnistream {
-    class OperatorConfig {
-    public:
-        OperatorConfig(std::string uniqueName, std::string name, nlohmann::json inputType,
-                       nlohmann::json outputType, nlohmann::json description);
-        OperatorConfig() = default;
+class OperatorConfig {
+public:
+    OperatorConfig(
+        std::string uniqueName,
+        std::string name,
+        nlohmann::json inputType,
+        nlohmann::json outputType,
+        nlohmann::json description);
+    OperatorConfig() = default;
 
-        std::string getUniqueName() const;
+    std::string getUniqueName() const;
 
-        nlohmann::json getInputType() const;
+    nlohmann::json getInputType() const;
 
-        nlohmann::json getOutputType() const;
+    nlohmann::json getOutputType() const;
 
-        std::string getUdfName() const;
+    std::string getUdfName() const;
 
-        std::string getName() const;
+    std::string getName() const;
 
-        nlohmann::json getUdfInputType() const;
+    nlohmann::json getUdfInputType() const;
 
-        nlohmann::json getUdfOutputType() const;
+    nlohmann::json getUdfOutputType() const;
 
-        nlohmann::json getDescription() const;
+    nlohmann::json getDescription() const;
 
-        void setUniqueName(std::string uniqueName)
-        {
-            uniqueName_ = uniqueName;
-        }
+    void setUniqueName(std::string uniqueName)
+    {
+        uniqueName_ = uniqueName;
+    }
 
-        void setDescription(nlohmann::json description)
-        {
-            uniqueName_ = description;
-        }
+    void setDescription(nlohmann::json description)
+    {
+        uniqueName_ = description;
+    }
 
-    private:
-        std::string uniqueName_;
-        std::string name_;
-        nlohmann::json inputType_;
-        nlohmann::json outputType_;
+private:
+    std::string uniqueName_;
+    std::string name_;
+    nlohmann::json inputType_;
+    nlohmann::json outputType_;
 
-        std::string udfName_;
-        nlohmann::json udfInputType_;
-        nlohmann::json udfOutputType_;
+    std::string udfName_;
+    nlohmann::json udfInputType_;
+    nlohmann::json udfOutputType_;
 
-        nlohmann::json description_;
-    };
-}
+    nlohmann::json description_;
+};
+} // namespace omnistream
 
 #endif
-

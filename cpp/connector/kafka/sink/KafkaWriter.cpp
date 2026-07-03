@@ -15,20 +15,22 @@
 #include "../bind_core_manager.h"
 #include "include/common.h"
 
-KafkaWriter::KafkaWriter(DeliveryGuarantee deliveryGuarantee,
-                         RdKafka::Conf *kafkaProducerConfig,
-                         std::string &transactionalIdPrefix,
-                         std::string &topic,
-                         const nlohmann::json& description,
-                         int64_t maxPushRecords,
-                         InitContextImpl<void*>* initContext,
-                         const std::vector<KafkaWriterState>& states)
+KafkaWriter::KafkaWriter(
+    DeliveryGuarantee deliveryGuarantee,
+    RdKafka::Conf* kafkaProducerConfig,
+    std::string& transactionalIdPrefix,
+    std::string& topic,
+    const nlohmann::json& description,
+    int64_t maxPushRecords,
+    InitContextImpl<void*>* initContext,
+    const std::vector<KafkaWriterState>& states)
     : kafkaProducerConfig(kafkaProducerConfig),
-    topic(topic),
-    deliveryGuarantee(deliveryGuarantee),
-    transactionalIdPrefix(transactionalIdPrefix),
-    description(description),
-    limit(maxPushRecords) {
+      topic(topic),
+      deliveryGuarantee(deliveryGuarantee),
+      transactionalIdPrefix(transactionalIdPrefix),
+      description(description),
+      limit(maxPushRecords)
+{
     Init();
     if (description["batch"]) {
         inputFields = description["inputFields"].get<std::vector<std::basic_string<char>>>();
@@ -46,19 +48,18 @@ KafkaWriter::KafkaWriter(DeliveryGuarantee deliveryGuarantee,
     }
 
     currentProducer1 =
-            std::make_shared<FlinkKafkaInternalProducer>(kafkaProducerConfig, std::to_string(producerIndexOne));
+        std::make_shared<FlinkKafkaInternalProducer>(kafkaProducerConfig, std::to_string(producerIndexOne));
     currentProducer2 =
-            std::make_shared<FlinkKafkaInternalProducer>(kafkaProducerConfig, std::to_string(producerIndexTwo));
-    RdKafka::Conf *tconf = RdKafka::Conf::create(RdKafka::Conf::CONF_TOPIC);
+        std::make_shared<FlinkKafkaInternalProducer>(kafkaProducerConfig, std::to_string(producerIndexTwo));
+    RdKafka::Conf* tconf = RdKafka::Conf::create(RdKafka::Conf::CONF_TOPIC);
     std::string errstr;
     this->kafkaProducerConfig->set("default_topic_conf", tconf, errstr);
     rd_topic1 = RdKafka::Topic::create(currentProducer1->getKafkaProducer(), topic, tconf, errstr);
     rd_topic2 = RdKafka::Topic::create(currentProducer2->getKafkaProducer(), topic, tconf, errstr);
     partitionNum = rd_topic1->get_partition_num();
     kafkaWriterState = new KafkaWriterState(transactionalIdPrefix);
-    taskId = omnistream::TimerThreadPool::GetTimerThreadPoolInstance()->addPeriodicTask(5000, [](KafkaWriter* kafkaWriter) {
-        kafkaWriter->timer_thread();
-    }, this);
+    taskId = omnistream::TimerThreadPool::GetTimerThreadPoolInstance()->addPeriodicTask(
+        5000, [](KafkaWriter* kafkaWriter) { kafkaWriter->timer_thread(); }, this);
 }
 
 KafkaWriter::~KafkaWriter()
@@ -88,7 +89,7 @@ KafkaWriter::~KafkaWriter()
     rd_topic2 = nullptr;
 }
 
-void KafkaWriter::write(String *element)
+void KafkaWriter::write(String* element)
 {
     if (unlikely(not binded)) {
         if (bindCore >= 0) {
@@ -101,19 +102,19 @@ void KafkaWriter::write(String *element)
     element->putRefCount();
 }
 
-void KafkaWriter::write(Row *element)
+void KafkaWriter::write(Row* element)
 {
     auto record = recordSerializer->Serialize(element);
     ProduceRecord(record);
 }
 
-void KafkaWriter::write(RowData *element)
+void KafkaWriter::write(RowData* element)
 {
     auto record = recordSerializer->Serialize(element);
     ProduceRecord(record);
 }
 
-void KafkaWriter::write(omnistream::VectorBatch *input, int rowIndex)
+void KafkaWriter::write(omnistream::VectorBatch* input, int rowIndex)
 {
     auto record = recordSerializer->Serialize(input, rowIndex);
     ProduceRecord(record);
@@ -135,7 +136,7 @@ std::vector<KafkaCommittable> KafkaWriter::prepareCommit()
 {
     if (deliveryGuarantee == DeliveryGuarantee::EXACTLY_ONCE) {
         auto committables = std::vector<KafkaCommittable>{
-            KafkaCommittable::of(currentProducer1.get(), [this](FlinkKafkaInternalProducer *producer) {
+            KafkaCommittable::of(currentProducer1.get(), [this](FlinkKafkaInternalProducer* producer) {
                 producerPool.push_back(static_cast<const std::shared_ptr<FlinkKafkaInternalProducer>>(producer));
             })};
         return committables;
@@ -150,21 +151,21 @@ void KafkaWriter::AbortCurrentProducer()
     }
 }
 
-void KafkaWriter::abortLingeringTransactions(const std::vector<KafkaWriterState> &recoveredStates,
-                                             long startCheckpointId)
+void KafkaWriter::abortLingeringTransactions(
+    const std::vector<KafkaWriterState>& recoveredStates, long startCheckpointId)
 {
     auto prefixesToAbort = std::vector<std::string>{transactionalIdPrefix};
 
     if (!recoveredStates.empty()) {
-        const auto &lastState = recoveredStates.front();
+        const auto& lastState = recoveredStates.front();
         if (lastState.getTransactionalIdPrefix() != transactionalIdPrefix) {
             prefixesToAbort.push_back(lastState.getTransactionalIdPrefix());
         }
     }
 
     TransactionAborter transactionAborter(
-            [this](const std::string &transactionalId) { return getOrCreateTransactionalProducer(transactionalId); },
-            [this](const std::shared_ptr<FlinkKafkaInternalProducer> &producer) { producerPool.push_back(producer); });
+        [this](const std::string& transactionalId) { return getOrCreateTransactionalProducer(transactionalId); },
+        [this](const std::shared_ptr<FlinkKafkaInternalProducer>& producer) { producerPool.push_back(producer); });
     transactionAborter.abortLingeringTransactions(prefixesToAbort, startCheckpointId);
 }
 
@@ -180,7 +181,7 @@ std::shared_ptr<FlinkKafkaInternalProducer> KafkaWriter::getTransactionalProduce
 }
 
 std::shared_ptr<FlinkKafkaInternalProducer> KafkaWriter::getOrCreateTransactionalProducer(
-    const std::string &transactionalId)
+    const std::string& transactionalId)
 {
     auto producer = producerPool.empty() ? nullptr : producerPool.front();
     if (!producer) {
@@ -191,7 +192,7 @@ std::shared_ptr<FlinkKafkaInternalProducer> KafkaWriter::getOrCreateTransactiona
     return producer;
 }
 
-void KafkaWriter::ProduceRecord(KeyValueByteContainer &record)
+void KafkaWriter::ProduceRecord(KeyValueByteContainer& record)
 {
     std::unique_lock<std::mutex> gLock(gMtx);
     values.push_back(record.value);
@@ -211,7 +212,8 @@ void KafkaWriter::handleRecord()
         return;
     }
     if (recordCount != valuesLens.size()) {
-        INFO_RELEASE("KafkaWriter::handleRecord cached record size mismatch, values size: "
+        INFO_RELEASE(
+            "KafkaWriter::handleRecord cached record size mismatch, values size: "
             << recordCount << ", valuesLens size: " << valuesLens.size() << ", cur: " << cur);
         return;
     }
@@ -250,29 +252,32 @@ void KafkaWriter::SetSubTaskIdx(int32_t subtaskIdx)
     worker_thread = std::thread(&KafkaWriter::WorkerThreadFunc, this);
 }
 
-void KafkaWriter::produce(RdKafka::Producer* kafkaProducer,
-                          RdKafka::Topic *rd_topic,
-                          const std::vector<char*>& value,
-                          const std::vector<size_t>& valuesLen)
+void KafkaWriter::produce(
+    RdKafka::Producer* kafkaProducer,
+    RdKafka::Topic* rd_topic,
+    const std::vector<char*>& value,
+    const std::vector<size_t>& valuesLen)
 {
     partitionNum = rd_topic->get_partition_num();
     int32_t realPartition = partitionNum == 0 ? RdKafka::Topic::PARTITION_UA : (instanceId % partitionNum);
-    RdKafka::ErrorCode resp = kafkaProducer->produce(rd_topic,
-                                                     realPartition,
-                                                     RdKafka::Producer::RK_MSG_FREE |  RdKafka::Producer::RK_MSG_BLOCK,
-                                                     value,
-                                                     valuesLen,
-                                                     nullptr,
-                                                     0,
-                                                     nullptr);
+    RdKafka::ErrorCode resp = kafkaProducer->produce(
+        rd_topic,
+        realPartition,
+        RdKafka::Producer::RK_MSG_FREE | RdKafka::Producer::RK_MSG_BLOCK,
+        value,
+        valuesLen,
+        nullptr,
+        0,
+        nullptr);
     if (resp != RdKafka::ERR_NO_ERROR) {
-        LOG("Produce failed:" << RdKafka::err2str(resp))
+        LOG("Produce failed:" << RdKafka::err2str(resp));
     }
 
     kafkaProducer->poll(0);
 }
 
-std::vector<KafkaWriterState> KafkaWriter::snapshotState(long checkpointId) {
+std::vector<KafkaWriterState> KafkaWriter::snapshotState(long checkpointId)
+{
     if (deliveryGuarantee == DeliveryGuarantee::EXACTLY_ONCE) {
         auto currentProducer = getTransactionalProducer(checkpointId + 1);
         currentProducer->BeginTransaction();

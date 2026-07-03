@@ -13,7 +13,7 @@
 
 DataStream::DataStream() = default;
 DataStream::~DataStream() = default;
-SingleOutputStreamOperator *DataStream::flatMap(FlatMapFunction<Object> *flatMapFunction)
+SingleOutputStreamOperator* DataStream::flatMap(FlatMapFunction<Object>* flatMapFunction)
 {
     return nullptr;
 }

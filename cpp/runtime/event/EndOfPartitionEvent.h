@@ -14,32 +14,31 @@
 #include "RuntimeEvent.h"
 
 namespace omnistream {
-    class EndOfPartitionEvent : public RuntimeEvent {
-    public:
-        static std::shared_ptr<EndOfPartitionEvent> getInstance()
-        {
-            static std::shared_ptr<EndOfPartitionEvent> instance =
-                std::make_shared<EndOfPartitionEvent>();
-            return instance;
-        }
-        int GetEventClassID() override
-        {
-            return AbstractEvent::endOfPartition;
-        }
+class EndOfPartitionEvent : public RuntimeEvent {
+public:
+    static std::shared_ptr<EndOfPartitionEvent> getInstance()
+    {
+        static std::shared_ptr<EndOfPartitionEvent> instance = std::make_shared<EndOfPartitionEvent>();
+        return instance;
+    }
+    int GetEventClassID() override
+    {
+        return AbstractEvent::endOfPartition;
+    }
 
-        static int hashCode()
-        {
-            return 1965146673;
-        }
+    static int hashCode()
+    {
+        return 1965146673;
+    }
 
-        std::string GetEventClassName() override
-        {
-            return "EndOfPartitionEvent";
-        }
+    std::string GetEventClassName() override
+    {
+        return "EndOfPartitionEvent";
+    }
 
-        static bool equals(const RuntimeEvent& other)
-        {
-            return typeid(other) == typeid(EndOfPartitionEvent);
-        }
-    };
+    static bool equals(const RuntimeEvent& other)
+    {
+        return typeid(other) == typeid(EndOfPartitionEvent);
+    }
+};
 } // namespace omnistream

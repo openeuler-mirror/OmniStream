@@ -55,30 +55,44 @@ public:
     void open(const Configuration& parameters) override;
     JoinedRowData* getResultRow() override;
     void processElement(RowData* input, Context* ctx, TimestampedCollector* out);
-    void processBatch(omnistream::VectorBatch* inputBatch,
-                      KeyedProcessFunction<RowData *, RowData *, RowData *>::Context &ctx, TimestampedCollector& out);
-    void processBatchColumnar(omnistream::VectorBatch *input, const std::vector<RowInfo> &groupInfo, RowData *pData);
+    void processBatch(
+        omnistream::VectorBatch* inputBatch,
+        KeyedProcessFunction<RowData*, RowData*, RowData*>::Context& ctx,
+        TimestampedCollector& out);
+    void processBatchColumnar(omnistream::VectorBatch* input, const std::vector<RowInfo>& groupInfo, RowData* pData);
     void close();
     ValueState<RowData*>* getValueState() override;
-    static std::vector<std::int32_t> getKeyedTypes(const std::vector<int32_t> keyedIndex, const std::vector<std::string> inputTypes);
-    omnistream::VectorBatch* createOutputBatch(std::vector<RowData*> collectedKeys,
-        std::vector<RowData*> collectedValues, std::vector<RowKind> rowKinds);
-    void collectOutputBatch(TimestampedCollector out, omnistream::VectorBatch *outputBatch);
+    static std::vector<std::int32_t> getKeyedTypes(
+        const std::vector<int32_t> keyedIndex, const std::vector<std::string> inputTypes);
+    omnistream::VectorBatch* createOutputBatch(
+        std::vector<RowData*> collectedKeys, std::vector<RowData*> collectedValues, std::vector<RowKind> rowKinds);
+    void collectOutputBatch(TimestampedCollector out, omnistream::VectorBatch* outputBatch);
 
-    void InitAggFunctions(int &accStartingIndex, int &aggValueIndex);
+    void InitAggFunctions(int& accStartingIndex, int& aggValueIndex);
 
     bool FirstRowAccumulate(std::vector<RowInfo>& groupInfo, RowData*& accumulators);
-    void ClearEnv(omnistream::VectorBatch *input, std::vector<RowData*> resultKeys, std::vector<RowData*> resultValues,
-                  std::vector<RowKind> resultRowKinds, TimestampedCollector &out,
-                  std::unordered_map<RowData*, std::vector<RowInfo>> keyToRowIndices);
+    void ClearEnv(
+        omnistream::VectorBatch* input,
+        std::vector<RowData*> resultKeys,
+        std::vector<RowData*> resultValues,
+        std::vector<RowKind> resultRowKinds,
+        TimestampedCollector& out,
+        std::unordered_map<RowData*, std::vector<RowInfo>> keyToRowIndices);
 
-    void AssembleResultForBatch(RowData* accumulators, bool isEqual, bool firstRow, RowData* currentKey,
-                                std::vector<RowData*>& resultKeys, std::vector<RowData*>& resultValues,
-                                std::vector<RowKind>& resultRowKinds);
-    void AssembleResultForElement(RowData* accumulators, bool isEqual, bool firstRow, RowData* currentKey,
-                                  TimestampedCollector& out);
-    void FillRowIndices(omnistream::VectorBatch *input, std::unordered_map<RowData*,
-            std::vector<RowInfo>>& keyToRowIndices, int rowCount);
+    void AssembleResultForBatch(
+        RowData* accumulators,
+        bool isEqual,
+        bool firstRow,
+        RowData* currentKey,
+        std::vector<RowData*>& resultKeys,
+        std::vector<RowData*>& resultValues,
+        std::vector<RowKind>& resultRowKinds);
+    void AssembleResultForElement(
+        RowData* accumulators, bool isEqual, bool firstRow, RowData* currentKey, TimestampedCollector& out);
+    void FillRowIndices(
+        omnistream::VectorBatch* input,
+        std::unordered_map<RowData*, std::vector<RowInfo>>& keyToRowIndices,
+        int rowCount);
     bool EndAssemble(bool isEqual);
     void UpdateAccumulatorsInRocksDB(std::unordered_map<RowData*, RowData*>& pendingUpdates);
 
@@ -106,20 +120,20 @@ private:
     std::vector<int32_t> keyedTypes;
     std::vector<int32_t> keyedIndex;
     std::vector<DistinctInfo> distinctInfos;
-    KeySelector<RowData*> *groupByKeySelector;
+    KeySelector<RowData*>* groupByKeySelector;
     int indexOfCountStar = -1;
 
-    inline void setInt(omniruntime::vec::VectorBatch* outputBatch,
-                       int numRows, int colIndex, std::vector<RowData*> vec);
-    inline void setLong(omniruntime::vec::VectorBatch* outputBatch,
-                        int numRows, int colIndex, std::vector<RowData*> vec);
-    inline void setString(omniruntime::vec::VectorBatch* outputBatch,
-                          int numRows, int colIndex, std::vector<RowData*> vec);
+    inline void setInt(
+        omniruntime::vec::VectorBatch* outputBatch, int numRows, int colIndex, std::vector<RowData*> vec);
+    inline void setLong(
+        omniruntime::vec::VectorBatch* outputBatch, int numRows, int colIndex, std::vector<RowData*> vec);
+    inline void setString(
+        omniruntime::vec::VectorBatch* outputBatch, int numRows, int colIndex, std::vector<RowData*> vec);
     std::vector<std::string> handleInputTypes();
     std::map<int, int> handleDistinctInfo();
-    void deleteRowData(vector<RowData *> &rowVector);
-    int backend=0; //0: memory, 1: bss, 2: rocksdb
-    //rocksdb update container
+    void deleteRowData(vector<RowData*>& rowVector);
+    int backend = 0; // 0: memory, 1: bss, 2: rocksdb
+    // rocksdb update container
     std::unordered_map<RowData*, RowData*> pendingUpdates;
 };
 

@@ -19,10 +19,12 @@
 
 class SavepointRestoreResult {
 public:
-    SavepointRestoreResult(std::vector<StateMetaInfoSnapshot> stateMetaInfoSnapshots,
-                           std::shared_ptr<KeyGroupIterator> keyGroupIterator)
+    SavepointRestoreResult(
+        std::vector<StateMetaInfoSnapshot> stateMetaInfoSnapshots, std::shared_ptr<KeyGroupIterator> keyGroupIterator)
         : stateMetaInfoSnapshots_(stateMetaInfoSnapshots),
-          keyGroupIterator_(keyGroupIterator) {}
+          keyGroupIterator_(keyGroupIterator)
+    {
+    }
 
     const std::vector<StateMetaInfoSnapshot>& getStateMetaInfoSnapshots() const
     {

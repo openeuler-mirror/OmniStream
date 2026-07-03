@@ -20,23 +20,27 @@ class Path {
     std::string pathStr;
 
 public:
-    Path(const std::string &path) : pathStr(path) {}
-    Path(const Path &other) : pathStr(other.pathStr) {}
-    Path(const Path &other, std::string child) : pathStr(other.toString() + child) {}
-    Path(const Path &parent, const Path &child)
+    Path(const std::string& path) : pathStr(path)
+    {
+    }
+    Path(const Path& other) : pathStr(other.pathStr)
+    {
+    }
+    Path(const Path& other, std::string child) : pathStr(other.toString() + child)
+    {
+    }
+    Path(const Path& parent, const Path& child)
     {
         std::string parentPath = parent.pathStr;
         std::string childPath = child.pathStr;
 
         // Ensure parent path ends with a slash unless it's "/" or empty
         if (!(parentPath == "/" || parentPath.empty())) {
-            if (parentPath.back() != '/')
-                parentPath += '/';
+            if (parentPath.back() != '/') parentPath += '/';
         }
 
         // If child path starts with '/', remove it
-        if (!childPath.empty() && childPath.front() == '/')
-            childPath = childPath.substr(1);
+        if (!childPath.empty() && childPath.front() == '/') childPath = childPath.substr(1);
 
         // Concatenate
         pathStr = parentPath + childPath;
@@ -47,7 +51,7 @@ public:
         return pathStr;
     }
 
-    const std::string &toString() const
+    const std::string& toString() const
     {
         return pathStr;
     }

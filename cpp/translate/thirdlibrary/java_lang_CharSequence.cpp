@@ -12,4 +12,7 @@
 
 CharSequence::CharSequence() = default;
 
-std::string CharSequence::toString() { return std::string(); }
+std::string CharSequence::toString()
+{
+    return std::string();
+}

@@ -60,7 +60,7 @@ int MurmurHashUtils::hashUnsafeBytes(const void* base, std::size_t offset, int l
     if (lengthInBytes < 0) {
         throw std::runtime_error("Length in bytes cannot be negative.");
     }
-    
+
     int lengthAligned = lengthInBytes - lengthInBytes % 4;
     int h1 = hashUnsafeBytesByInt(base, offset, lengthAligned, seed);
     for (int i = lengthAligned; i < lengthInBytes; i++) {

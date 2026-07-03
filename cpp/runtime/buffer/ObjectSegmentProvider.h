@@ -19,23 +19,23 @@
 
 namespace omnistream {
 
-    class ObjectSegment;
+class ObjectSegment;
 
-    class ObjectSegmentProvider {
-    public:
-        virtual ~ObjectSegmentProvider() = default;
+class ObjectSegmentProvider {
+public:
+    virtual ~ObjectSegmentProvider() = default;
 
-        virtual std::vector<std::shared_ptr<ObjectSegment>> requestUnpooledMemorySegments(int numberOfSegmentsToRequest) = 0;
-        virtual void recycleUnpooledMemorySegments(const std::vector<std::shared_ptr<ObjectSegment>>& segments) = 0;
+    virtual std::vector<std::shared_ptr<ObjectSegment>> requestUnpooledMemorySegments(
+        int numberOfSegmentsToRequest) = 0;
+    virtual void recycleUnpooledMemorySegments(const std::vector<std::shared_ptr<ObjectSegment>>& segments) = 0;
 
-        virtual std::string toString() const
-        {
-            std::stringstream ss;
-            ss << "ObjectSegmentProvider";
-            return ss.str();
-        }
-    };
-
+    virtual std::string toString() const
+    {
+        std::stringstream ss;
+        ss << "ObjectSegmentProvider";
+        return ss.str();
+    }
+};
 
 } // namespace omnistream
 

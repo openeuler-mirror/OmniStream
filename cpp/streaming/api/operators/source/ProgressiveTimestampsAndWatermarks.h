@@ -19,12 +19,14 @@
 #include "SourceOutputWithWatermarks.h"
 #include "runtime/tasks/ScheduledFutureTask.h"
 
-class ProgressiveTimestampsAndWatermarks :
-    public TimestampsAndWatermarks, std::enable_shared_from_this<ProgressiveTimestampsAndWatermarks> {
+class ProgressiveTimestampsAndWatermarks : public TimestampsAndWatermarks,
+                                           std::enable_shared_from_this<ProgressiveTimestampsAndWatermarks> {
 public:
-    ProgressiveTimestampsAndWatermarks(TimestampAssigner* timestampAssigner,
-                                       std::shared_ptr<WatermarkGeneratorSupplier> watermarksFactory,
-                                       ProcessingTimeService* timeService, long periodicWatermarkInterval);
+    ProgressiveTimestampsAndWatermarks(
+        TimestampAssigner* timestampAssigner,
+        std::shared_ptr<WatermarkGeneratorSupplier> watermarksFactory,
+        ProcessingTimeService* timeService,
+        long periodicWatermarkInterval);
 
     class IdlenessManager {
     public:
@@ -32,7 +34,11 @@ public:
         class IdlenessAwareWatermarkOutput : public WatermarkOutput {
         public:
             IdlenessAwareWatermarkOutput(WatermarkOutput* output, IdlenessManager* parent)
-                : underlyingOutput_(output), isIdle_(true), parentManager_(parent) {}
+                : underlyingOutput_(output),
+                  isIdle_(true),
+                  parentManager_(parent)
+            {
+            }
 
             ~IdlenessAwareWatermarkOutput() override = default;
             void emitWatermark(Watermark* watermark) override
@@ -53,17 +59,23 @@ public:
                 underlyingOutput_->MarkActive();
             }
 
-            [[nodiscard]] bool IsIdle() const { return isIdle_; }
+            [[nodiscard]] bool IsIdle() const
+            {
+                return isIdle_;
+            }
 
         private:
             WatermarkOutput* underlyingOutput_;
             bool isIdle_;
-            IdlenessManager* parentManager_;  // 指向父管理器的指针
+            IdlenessManager* parentManager_; // 指向父管理器的指针
         };
 
-        explicit IdlenessManager(WatermarkOutput* output) : underlyingOutput_(output),
-            splitLocalOutput_(new IdlenessAwareWatermarkOutput(output, this)),
-            mainOutput_(new IdlenessAwareWatermarkOutput(output, this)) {}
+        explicit IdlenessManager(WatermarkOutput* output)
+            : underlyingOutput_(output),
+              splitLocalOutput_(new IdlenessAwareWatermarkOutput(output, this)),
+              mainOutput_(new IdlenessAwareWatermarkOutput(output, this))
+        {
+        }
 
         ~IdlenessManager()
         {
@@ -81,6 +93,7 @@ public:
         {
             return mainOutput_;
         }
+
     private:
         WatermarkOutput* underlyingOutput_;
         IdlenessAwareWatermarkOutput* splitLocalOutput_;
@@ -96,12 +109,17 @@ public:
 
     class SplitLocalOutputs {
     public:
-        SplitLocalOutputs(OmniDataOutputPtr recordOutput, WatermarkOutput* watermarkOutput,
-                TimestampAssigner* timestampAssigner, std::shared_ptr<WatermarkGeneratorSupplier> watermarksFactory,
-                long periodicWatermarkInterval)
-                :
-                recordOutput(recordOutput), timestampAssigner(timestampAssigner), watermarksFactory(watermarksFactory),
-                periodicWatermarkInterval_(periodicWatermarkInterval) {
+        SplitLocalOutputs(
+            OmniDataOutputPtr recordOutput,
+            WatermarkOutput* watermarkOutput,
+            TimestampAssigner* timestampAssigner,
+            std::shared_ptr<WatermarkGeneratorSupplier> watermarksFactory,
+            long periodicWatermarkInterval)
+            : recordOutput(recordOutput),
+              timestampAssigner(timestampAssigner),
+              watermarksFactory(watermarksFactory),
+              periodicWatermarkInterval_(periodicWatermarkInterval)
+        {
             watermarkMultiplexer = new WatermarkOutputMultiplexer(watermarkOutput);
         }
 
@@ -134,8 +152,8 @@ public:
 
             auto watermarks = watermarksFactory->CreateWatermarkGenerator();
 
-            auto localOutput = SourceOutputWithWatermarks::createWithSeparateOutputs(recordOutput, onEventOutput,
-                    periodicOutput, timestampAssigner, watermarks, periodicWatermarkInterval_);
+            auto localOutput = SourceOutputWithWatermarks::createWithSeparateOutputs(
+                recordOutput, onEventOutput, periodicOutput, timestampAssigner, watermarks, periodicWatermarkInterval_);
 
             localOutputs.emplace(splitId, localOutput);
             return localOutput;
@@ -172,14 +190,23 @@ public:
 
     class StreamingReaderOutput : public SourceOutputWithWatermarks {
     public:
-        StreamingReaderOutput(OmniDataOutputPtr output, WatermarkOutput* watermarkOutput,
-                TimestampAssigner* timestampAssigner, WatermarkGenerator* watermarkGenerator,
-                SplitLocalOutputs* splitLocalOutputs, long periodicWatermarkInterval)
-                :
-                SourceOutputWithWatermarks(
-                        output, watermarkOutput, watermarkOutput,
-                        timestampAssigner, watermarkGenerator, periodicWatermarkInterval),
-                splitLocalOutputs(splitLocalOutputs) {}
+        StreamingReaderOutput(
+            OmniDataOutputPtr output,
+            WatermarkOutput* watermarkOutput,
+            TimestampAssigner* timestampAssigner,
+            WatermarkGenerator* watermarkGenerator,
+            SplitLocalOutputs* splitLocalOutputs,
+            long periodicWatermarkInterval)
+            : SourceOutputWithWatermarks(
+                  output,
+                  watermarkOutput,
+                  watermarkOutput,
+                  timestampAssigner,
+                  watermarkGenerator,
+                  periodicWatermarkInterval),
+              splitLocalOutputs(splitLocalOutputs)
+        {
+        }
 
         SourceOutput& CreateOutputForSplit(const std::string& splitId) override
         {
@@ -190,6 +217,7 @@ public:
         {
             splitLocalOutputs->ReleaseOutputForSplit(splitId);
         }
+
     private:
         SplitLocalOutputs* splitLocalOutputs;
     };
@@ -197,7 +225,9 @@ public:
     class TriggerProcessingTimeCallback : public ProcessingTimeCallback {
     public:
         explicit TriggerProcessingTimeCallback(std::shared_ptr<ProgressiveTimestampsAndWatermarks> eventTimeLogic)
-            : eventTimeLogic(eventTimeLogic) {}
+            : eventTimeLogic(eventTimeLogic)
+        {
+        }
 
         ~TriggerProcessingTimeCallback() override = default;
 
@@ -225,8 +255,7 @@ public:
         // The scheduler stores raw callback pointers; the weak callback is left alive so queued tasks can no-op.
     }
 
-    ReaderOutput* CreateMainOutput(
-            OmniDataOutputPtr output, WatermarkUpdateListener* watermarkCallback) override;
+    ReaderOutput* CreateMainOutput(OmniDataOutputPtr output, WatermarkUpdateListener* watermarkCallback) override;
     void StartPeriodicWatermarkEmits() override;
     void StopPeriodicWatermarkEmits() override;
 

@@ -21,16 +21,16 @@
 class KeyGroupIterator {
 public:
     KeyGroupIterator(
-        std::shared_ptr<KeyGroupsStateHandle> keyGroupsStateHandle,
-        std::shared_ptr<OmniTaskBridge> omniTaskBridge)
+        std::shared_ptr<KeyGroupsStateHandle> keyGroupsStateHandle, std::shared_ptr<OmniTaskBridge> omniTaskBridge)
         : keyGroupsStateHandle_(keyGroupsStateHandle),
-        omniTaskBridge_(omniTaskBridge),
-        keyGroupRangeOffset_(keyGroupsStateHandle->getGroupRangeOffsets()),
-        keyGroupRange_(keyGroupsStateHandle->getGroupRangeOffsets().getKeyGroupRange()),
-        currentIndex_(0) {
-            auto serializerStr = TaskStateSnapshotSerializer::parseKeyGroupsStateHandle(keyGroupsStateHandle_);
-            inputStream_ = omniTaskBridge_->getSavepointInputStream(to_string(serializerStr));
-            isUsingKeyGroupCompression_ = omniTaskBridge_->isUsingKeyGroupCompression(inputStream_);
+          omniTaskBridge_(omniTaskBridge),
+          keyGroupRangeOffset_(keyGroupsStateHandle->getGroupRangeOffsets()),
+          keyGroupRange_(keyGroupsStateHandle->getGroupRangeOffsets().getKeyGroupRange()),
+          currentIndex_(0)
+    {
+        auto serializerStr = TaskStateSnapshotSerializer::parseKeyGroupsStateHandle(keyGroupsStateHandle_);
+        inputStream_ = omniTaskBridge_->getSavepointInputStream(to_string(serializerStr));
+        isUsingKeyGroupCompression_ = omniTaskBridge_->isUsingKeyGroupCompression(inputStream_);
     }
 
     ~KeyGroupIterator()
@@ -54,8 +54,10 @@ public:
         int keyGroup = keyGroupRange_.getKeyGroupId(currentIndex_++);
         int64_t offset = keyGroupRangeOffset_.getKeyGroupOffset(keyGroup);
         omniTaskBridge_->setSavepointInputStreamOffset(inputStream_, offset);
-        return std::make_unique<KeyGroup>(KeyGroup(keyGroup,
-            std::make_unique<KeyGroupEntryIterator>(offset, keyGroupsStateHandle_, omniTaskBridge_, inputStream_, isUsingKeyGroupCompression_)));
+        return std::make_unique<KeyGroup>(KeyGroup(
+            keyGroup,
+            std::make_unique<KeyGroupEntryIterator>(
+                offset, keyGroupsStateHandle_, omniTaskBridge_, inputStream_, isUsingKeyGroupCompression_)));
     }
 
 private:

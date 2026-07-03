@@ -12,7 +12,6 @@
 #ifndef FLINK_TNEL_STREAMCALCBATCH_H
 #define FLINK_TNEL_STREAMCALCBATCH_H
 
-
 #include <functional>
 #include <iostream>
 #include <nlohmann/json.hpp>
@@ -40,41 +39,41 @@
 #include "OmniOperatorJIT/core/src/operator/execution_context.h"
 // StreamCalcBatch does not need Udf, so it directly inherit from AbstractStreamoperator.
 // int is not needed. StreamCalc has no key.
-class StreamCalcBatch : public  OneInputStreamOperator, public AbstractStreamOperator<int> {
-// StreamCalc is not stateful, this RowData* is not needed
+class StreamCalcBatch : public OneInputStreamOperator, public AbstractStreamOperator<int> {
+    // StreamCalc is not stateful, this RowData* is not needed
 public:
-    explicit StreamCalcBatch(const nlohmann::json&  description, Output* output);
+    explicit StreamCalcBatch(const nlohmann::json& description, Output* output);
     ~StreamCalcBatch() override;
     void processBatch(class StreamRecord* input) override;
     void processElement(StreamRecord* record) override
     {
-        NOT_IMPL_EXCEPTION
+        NOT_IMPL_EXCEPTION;
     };
     void open() override;
     void close() override;
 
-    const char *getName() override;
+    const char* getName() override;
 
-    void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) override
+    void initializeState(StreamTaskStateInitializerImpl* initializer, TypeSerializer* keySerializer) override
     {
-        LOG("StreamCalc initializeState()")
+        LOG("StreamCalc initializeState()");
         // Do Nothing
     }
 
-    void ProcessWatermark(Watermark *watermark) override
+    void ProcessWatermark(Watermark* watermark) override
     {
         output->emitWatermark(watermark);
     }
 
-    void processWatermarkStatus(WatermarkStatus *watermarkStatus) override
+    void processWatermarkStatus(WatermarkStatus* watermarkStatus) override
     {
         output->emitWatermarkStatus(watermarkStatus);
     }
     std::string getTypeName() override
     {
         std::string typeName = "StreamCalc";
-        typeName.append(__PRETTY_FUNCTION__) ;
-        return typeName ;
+        typeName.append(__PRETTY_FUNCTION__);
+        return typeName;
     }
 
     std::shared_ptr<omnistream::TaskMetricGroup> GetMectrics() override
@@ -109,11 +108,10 @@ private:
     bool hasFilter = false;
     TimestampedCollector* timestampedCollector_;
     omniruntime::mem::AlignedBuffer<int32_t> selectedRowsBuffer;
-    std::vector<omniruntime::expressions::Expr *> projExprs;
+    std::vector<omniruntime::expressions::Expr*> projExprs;
     omniruntime::expressions::Expr* filterCondition = nullptr;
     omniruntime::codegen::ExpressionEvaluator* exprEvaluator;
     std::unique_ptr<omniruntime::op::ExecutionContext> executionContext;
 };
-
 
 #endif

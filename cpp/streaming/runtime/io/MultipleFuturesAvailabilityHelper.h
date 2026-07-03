@@ -15,37 +15,38 @@
 #include "core/utils/threads/CompletableFuture.h"
 
 namespace omnistream {
-    class MultipleFuturesAvailabilityHelper {
-
+class MultipleFuturesAvailabilityHelper {
+public:
+    class InnerRunnable : public Runnable {
     public:
-        class InnerRunnable : public Runnable {
-        public:
-            explicit InnerRunnable(MultipleFuturesAvailabilityHelper* outer) : outer(outer) {}
+        explicit InnerRunnable(MultipleFuturesAvailabilityHelper* outer) : outer(outer)
+        {
+        }
 
-            void run() override
-            {
-                outer->notifyCompletion();
-            }
+        void run() override
+        {
+            outer->notifyCompletion();
+        }
 
-        private:
-            MultipleFuturesAvailabilityHelper* outer;
-        };
-
-        explicit MultipleFuturesAvailabilityHelper(int size);
-
-        std::shared_ptr<CompletableFuture> getAvailableFuture();
-
-        void resetToUnAvailable();
-
-        void anyOf(int idx, std::shared_ptr<CompletableFuture> availabilityFuture);
     private:
-        std::vector<std::shared_ptr<CompletableFuture>> futuresToCombine;
-        std::shared_ptr<CompletableFuture> availableFuture = std::make_shared<CompletableFuture>();
-        std::recursive_mutex availableFutureMutex;
-
-        void notifyCompletion();
+        MultipleFuturesAvailabilityHelper* outer;
     };
-}
 
+    explicit MultipleFuturesAvailabilityHelper(int size);
+
+    std::shared_ptr<CompletableFuture> getAvailableFuture();
+
+    void resetToUnAvailable();
+
+    void anyOf(int idx, std::shared_ptr<CompletableFuture> availabilityFuture);
+
+private:
+    std::vector<std::shared_ptr<CompletableFuture>> futuresToCombine;
+    std::shared_ptr<CompletableFuture> availableFuture = std::make_shared<CompletableFuture>();
+    std::recursive_mutex availableFutureMutex;
+
+    void notifyCompletion();
+};
+} // namespace omnistream
 
 #endif

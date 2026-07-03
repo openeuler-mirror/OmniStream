@@ -19,8 +19,12 @@
 
 class UUID {
 public:
-    UUID(uint64_t mostSigBits, uint64_t leastSigBits) : mostSigBits(mostSigBits), leastSigBits(leastSigBits) {}
-    UUID() : mostSigBits(0), leastSigBits(0) {}
+    UUID(uint64_t mostSigBits, uint64_t leastSigBits) : mostSigBits(mostSigBits), leastSigBits(leastSigBits)
+    {
+    }
+    UUID() : mostSigBits(0), leastSigBits(0)
+    {
+    }
 
     static UUID randomUUID()
     {
@@ -38,8 +42,7 @@ public:
 
     static UUID FromString(const std::string& str)
     {
-        if (str.length() != 36 ||
-            str[8] != '-' || str[13] != '-' || str[18] != '-' || str[23] != '-') {
+        if (str.length() != 36 || str[8] != '-' || str[13] != '-' || str[18] != '-' || str[23] != '-') {
             throw std::invalid_argument("Invalid UUID string format: " + str);
         }
 
@@ -55,11 +58,8 @@ public:
 
         uint64_t msb = 0;
         uint64_t lsb = 0;
-        msb = (hexToULL(str.substr(0, 8)) << 32)
-            | (hexToULL(str.substr(9, 4)) << 16)
-            | hexToULL(str.substr(14, 4));
-        lsb = (hexToULL(str.substr(19, 4)) << 48)
-            | hexToULL(str.substr(24, 12));
+        msb = (hexToULL(str.substr(0, 8)) << 32) | (hexToULL(str.substr(9, 4)) << 16) | hexToULL(str.substr(14, 4));
+        lsb = (hexToULL(str.substr(19, 4)) << 48) | hexToULL(str.substr(24, 12));
 
         return UUID(msb, lsb);
     }
@@ -67,12 +67,10 @@ public:
     std::string ToString() const
     {
         std::ostringstream oss;
-        oss << std::hex << std::setfill('0')
-            << std::setw(8) << ((mostSigBits >> 32) & 0xFFFFFFFFULL) << "-"
-            << std::setw(4) << ((mostSigBits >> 16) & 0xFFFFULL) << "-"
-            << std::setw(4) << (mostSigBits & 0xFFFFULL) << "-"
-            << std::setw(4) << ((leastSigBits >> 48) & 0xFFFFULL) << "-"
-            << std::setw(12) << (leastSigBits & 0xFFFFFFFFFFFFULL);
+        oss << std::hex << std::setfill('0') << std::setw(8) << ((mostSigBits >> 32) & 0xFFFFFFFFULL) << "-"
+            << std::setw(4) << ((mostSigBits >> 16) & 0xFFFFULL) << "-" << std::setw(4) << (mostSigBits & 0xFFFFULL)
+            << "-" << std::setw(4) << ((leastSigBits >> 48) & 0xFFFFULL) << "-" << std::setw(12)
+            << (leastSigBits & 0xFFFFFFFFFFFFULL);
         return oss.str();
     }
 
@@ -115,13 +113,14 @@ private:
 };
 
 namespace std {
-    template <>
-    struct hash<UUID> {
-        size_t operator()(const UUID& uuid) const noexcept
-        {
-            return std::hash<uint64_t>()(uuid.getMostSignificantBits()) ^ std::hash<uint64_t>()(uuid.getLeastSignificantBits());
-        }
-    };
-}
+template <>
+struct hash<UUID> {
+    size_t operator()(const UUID& uuid) const noexcept
+    {
+        return std::hash<uint64_t>()(uuid.getMostSignificantBits()) ^
+               std::hash<uint64_t>()(uuid.getLeastSignificantBits());
+    }
+};
+} // namespace std
 
 #endif // FLINK_TNEL_UUID_H

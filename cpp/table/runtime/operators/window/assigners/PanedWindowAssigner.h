@@ -17,7 +17,7 @@
 #include "WindowAssigner.h"
 #include "table/runtime/operators/window/Window.h"
 
-template<typename W>
+template <typename W>
 class PanedWindowAssigner : public WindowAssigner<W> {
     static_assert(std::is_base_of_v<Window, W>, "typename W must inherit from Window");
 

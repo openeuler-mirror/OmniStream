@@ -30,16 +30,14 @@ public:
         auto unitStr = trim(trimmed.substr(pos));
         std::transform(unitStr.begin(), unitStr.end(), unitStr.begin(), ::tolower);
         if (number.length() == 0) {
-            THROW_RUNTIME_ERROR("text does not start with a number")
+            THROW_RUNTIME_ERROR("text does not start with a number");
         }
         uint64_t value = static_cast<uint64_t>(std::stol(number));
         auto multiplier = parseUnit(unitStr);
         auto result = value * multiplier;
         if (result / multiplier != value) {
             THROW_RUNTIME_ERROR(
-                "The value '" +
-                text +
-                "' cannot be re represented as 64bit number of bytes (numeric overflow).")
+                "The value '" + text + "' cannot be re represented as 64bit number of bytes (numeric overflow).");
         }
         return result;
     }
@@ -59,10 +57,7 @@ public:
         } else if (unit == "g" || unit == "gb" || unit == "gibibytes") {
             multiplier = 1024 * 1024 * 1024;
         } else {
-            THROW_RUNTIME_ERROR(
-                "Memory size unit '" +
-                unit +
-                "' does not match any of the recognized units.")
+            THROW_RUNTIME_ERROR("Memory size unit '" + unit + "' does not match any of the recognized units.");
         }
         return multiplier;
     }
@@ -71,8 +66,7 @@ public:
     static std::string ltrim(const std::string& s)
     {
         std::string str = s;
-        auto it = std::find_if(str.begin(), str.end(),
-                               [](unsigned char c) { return !std::isspace(c); });
+        auto it = std::find_if(str.begin(), str.end(), [](unsigned char c) { return !std::isspace(c); });
         str.erase(str.begin(), it);
         return str;
     }
@@ -81,8 +75,7 @@ public:
     static std::string rtrim(const std::string& s)
     {
         std::string str = s;
-        auto it = std::find_if(str.rbegin(), str.rend(),
-                               [](unsigned char c) { return !std::isspace(c); });
+        auto it = std::find_if(str.rbegin(), str.rend(), [](unsigned char c) { return !std::isspace(c); });
         str.erase(it.base(), str.end());
         return str;
     }
@@ -93,6 +86,5 @@ public:
         return ltrim(rtrim(s));
     }
 };
-
 
 #endif // OMNISTREAM_MEMORYSIZE_H

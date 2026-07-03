@@ -16,10 +16,10 @@
 #include <cstdint>
 #include <string>
 
-template<typename W>
+template <typename W>
 class OnMergeContext;
 
-template<typename W>
+template <typename W>
 class Trigger {
 public:
     virtual ~Trigger() = default;
@@ -40,16 +40,16 @@ public:
 
         virtual void deleteEventTimeTimer(int64_t time) = 0;
 
-        virtual const std::string &getShiftTimeZone() const
+        virtual const std::string& getShiftTimeZone() const
         {
             static const std::string utc = "UTC";
             return utc;
         }
     };
 
-    virtual void open(TriggerContext *ctx) = 0;
+    virtual void open(TriggerContext* ctx) = 0;
 
-    virtual bool onElement(RowData *element, int64_t timestamp, W window) = 0;
+    virtual bool onElement(RowData* element, int64_t timestamp, W window) = 0;
 
     virtual bool onProcessingTime(int64_t time, W window) = 0;
 
@@ -60,7 +60,7 @@ public:
         return false;
     }
 
-    virtual void onMerge(W window, OnMergeContext<W> *mergeContext)
+    virtual void onMerge(W window, OnMergeContext<W>* mergeContext)
     {
         throw std::runtime_error("This trigger does not support merging.");
     }
@@ -68,7 +68,7 @@ public:
     virtual void clear(W window) = 0;
 };
 
-template<typename W>
+template <typename W>
 class OnMergeContext : public Trigger<W>::TriggerContext {};
 
 #endif

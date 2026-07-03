@@ -24,7 +24,7 @@ public:
         endKeyGroup = -1;
     }
 
-    static KeyGroupRange *EMPTY_KEY_GROUP_RANGE()
+    static KeyGroupRange* EMPTY_KEY_GROUP_RANGE()
     {
         return new KeyGroupRange();
     }
@@ -86,7 +86,7 @@ public:
     {
         return 1 + endKeyGroup - startKeyGroup;
     }
-    KeyGroupRange *getIntersection(const KeyGroupRange& other) const
+    KeyGroupRange* getIntersection(const KeyGroupRange& other) const
     {
         int start = std::max(startKeyGroup, other.startKeyGroup);
         int end = std::min(endKeyGroup, other.endKeyGroup);
@@ -106,7 +106,7 @@ public:
         return !(*this == other);
     }
 
-    static KeyGroupRange *of(int startKeyGroupInput, int endKeyGroupInput)
+    static KeyGroupRange* of(int startKeyGroupInput, int endKeyGroupInput)
     {
         if (startKeyGroupInput <= endKeyGroupInput) {
             return new KeyGroupRange(startKeyGroupInput, endKeyGroupInput);
@@ -125,7 +125,9 @@ public:
     // Iterator
     class KeyGroupIterator : public omnistream::utils::Iterator<int> {
     public:
-        explicit KeyGroupIterator(const KeyGroupRange &r) : range(r), iteratorPos(0) {}
+        explicit KeyGroupIterator(const KeyGroupRange& r) : range(r), iteratorPos(0)
+        {
+        }
         bool hasNext()
         {
             return iteratorPos < 1 + range.endKeyGroup - range.startKeyGroup;
@@ -134,14 +136,16 @@ public:
         {
             return range.startKeyGroup + (iteratorPos++);
         }
+
     private:
-        const KeyGroupRange &range;
+        const KeyGroupRange& range;
         int iteratorPos;
     };
     KeyGroupIterator iterator()
     {
         return KeyGroupIterator(*this);
     }
+
 private:
     int startKeyGroup;
     int endKeyGroup;

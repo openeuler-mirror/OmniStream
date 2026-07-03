@@ -11,26 +11,30 @@ public:
     std::vector<int64_t> emittedWatermarks;
     std::vector<WatermarkStatus*> emittedWatermarkStatuses;
 
-    void emitWatermark(Watermark* watermark) {
+    void emitWatermark(Watermark* watermark)
+    {
         if (watermark != nullptr) {
             emittedWatermarks.push_back(watermark->getTimestamp());
         }
     }
 
-    void emitWatermarkStatus(WatermarkStatus* status) {
+    void emitWatermarkStatus(WatermarkStatus* status)
+    {
         if (status != nullptr) {
             emittedWatermarkStatuses.push_back(status);
         }
     }
 
-    int64_t getLastWatermark() {
+    int64_t getLastWatermark()
+    {
         if (emittedWatermarks.empty()) {
             return INT64_MIN;
         }
         return emittedWatermarks.back();
     }
 
-    WatermarkStatus* getLastWatermarkStatus() {
+    WatermarkStatus* getLastWatermarkStatus()
+    {
         if (emittedWatermarkStatuses.empty()) {
             return nullptr;
         }
@@ -38,12 +42,14 @@ public:
     }
 };
 
-TEST(StatusWatermarkValveTest, ConstructorWithInvalidChannels) {
+TEST(StatusWatermarkValveTest, ConstructorWithInvalidChannels)
+{
     EXPECT_THROW(StatusWatermarkValve<MockStatusWatermarkValveOutput> valve(0), std::logic_error);
     EXPECT_THROW(StatusWatermarkValve<MockStatusWatermarkValveOutput> valve(-1), std::logic_error);
 }
 
-TEST(StatusWatermarkValveTest, InputWatermarkWithInvalidChannelIndex) {
+TEST(StatusWatermarkValveTest, InputWatermarkWithInvalidChannelIndex)
+{
     StatusWatermarkValve<MockStatusWatermarkValveOutput> valve(2);
     MockStatusWatermarkValveOutput output;
 
@@ -52,7 +58,8 @@ TEST(StatusWatermarkValveTest, InputWatermarkWithInvalidChannelIndex) {
     EXPECT_THROW(valve.inputWatermark(&wm, 2, &output), std::logic_error);
 }
 
-TEST(StatusWatermarkValveTest, InputWatermarkToSingleChannel) {
+TEST(StatusWatermarkValveTest, InputWatermarkToSingleChannel)
+{
     StatusWatermarkValve<MockStatusWatermarkValveOutput> valve(1);
     MockStatusWatermarkValveOutput output;
 
@@ -65,7 +72,8 @@ TEST(StatusWatermarkValveTest, InputWatermarkToSingleChannel) {
     EXPECT_EQ(output.getLastWatermark(), 200);
 }
 
-TEST(StatusWatermarkValveTest, InputWatermarkToMultipleChannels) {
+TEST(StatusWatermarkValveTest, InputWatermarkToMultipleChannels)
+{
     StatusWatermarkValve<MockStatusWatermarkValveOutput> valve(2);
     MockStatusWatermarkValveOutput output;
 

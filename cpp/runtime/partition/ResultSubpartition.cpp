@@ -12,9 +12,12 @@
 #include "ResultSubpartition.h"
 
 omnistream::ResultSubpartition::ResultSubpartition(int index, std::shared_ptr<ResultPartition> parent)
-    : index(index), parent(parent)
+    : index(index),
+      parent(parent)
 {
     subpartitionInfo = ResultSubpartitionInfoPOD(parent->getPartitionIndex(), index);
 }
 
-omnistream::ResultSubpartition::~ResultSubpartition() {}
+omnistream::ResultSubpartition::~ResultSubpartition()
+{
+}

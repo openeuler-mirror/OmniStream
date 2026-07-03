@@ -22,7 +22,7 @@ int main()
     // Worker thread function
     auto worker_thread_func = [&ready]() {
         bool expected = false; // Expected value for compare_exchange_strong
-        bool desired = true;  // Desired value to set
+        bool desired = true;   // Desired value to set
 
         // Attempt to atomically change ready from false to true
         while (!ready.compare_exchange_strong(expected, desired)) {

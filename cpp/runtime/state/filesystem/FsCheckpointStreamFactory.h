@@ -18,35 +18,35 @@
 
 class FsCheckpointStreamFactory : public CheckpointStreamFactory {
 public:
-    FsCheckpointStreamFactory(int fileSystem, Path *checkpointDirectory, Path *sharedStateDirectory,
-                              int fileStateSizeThreshold,
-                              int writeBufferSize);
+    FsCheckpointStreamFactory(
+        int fileSystem,
+        Path* checkpointDirectory,
+        Path* sharedStateDirectory,
+        int fileStateSizeThreshold,
+        int writeBufferSize);
 
     ~FsCheckpointStreamFactory() = default;
 
     CheckpointStateOutputStream* createCheckpointStateOutputStream(CheckpointedStateScope scope) override;
-    
+
     Path* getTargetPath(CheckpointedStateScope scope) const;
 
-    bool canFastDuplicate(
-        StreamStateHandle *stateHandle,
-        CheckpointedStateScope scope) override
+    bool canFastDuplicate(StreamStateHandle* stateHandle, CheckpointedStateScope scope) override
     {
-        NOT_IMPL_EXCEPTION
+        NOT_IMPL_EXCEPTION;
     };
 
-    std::vector<std::shared_ptr<StreamStateHandle>>
-    duplicate(std::vector<StreamStateHandle *> &stateHandles,
-              CheckpointedStateScope scope) override
+    std::vector<std::shared_ptr<StreamStateHandle>> duplicate(
+        std::vector<StreamStateHandle*>& stateHandles, CheckpointedStateScope scope) override
     {
-        NOT_IMPL_EXCEPTION
+        NOT_IMPL_EXCEPTION;
     };
 
 private:
     int writeBufferSize;
     int fileStateThreshold;
-    Path *checkpointDirectory;
-    Path *sharedStateDirectory;
+    Path* checkpointDirectory;
+    Path* sharedStateDirectory;
     int fileSystem; // NOT IMPLEMENTED
     static const int MAX_FILE_STATE_THRESHOLD = 1024 * 1024;
 };

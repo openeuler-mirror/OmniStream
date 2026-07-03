@@ -19,5 +19,4 @@ public:
     static DeserializationSchema* getDeserializationSchema(nlohmann::json& opDescriptionJSON);
 };
 
-
 #endif

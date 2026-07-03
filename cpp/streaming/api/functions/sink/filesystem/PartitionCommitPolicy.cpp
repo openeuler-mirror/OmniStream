@@ -13,8 +13,7 @@
 
 namespace {
 
-void addPolicy(std::vector<std::unique_ptr<PartitionCommitPolicy>> &policies,
-               const std::string &kind)
+void addPolicy(std::vector<std::unique_ptr<PartitionCommitPolicy>>& policies, const std::string& kind)
 {
     std::string trimmed = kind;
     trimmed.erase(0, trimmed.find_first_not_of(" \t"));
@@ -29,7 +28,7 @@ void addPolicy(std::vector<std::unique_ptr<PartitionCommitPolicy>> &policies,
 
 } // anonymous namespace
 
-std::vector<std::unique_ptr<PartitionCommitPolicy>> createPolicyChain(const std::string &policyKind)
+std::vector<std::unique_ptr<PartitionCommitPolicy>> createPolicyChain(const std::string& policyKind)
 {
     std::vector<std::unique_ptr<PartitionCommitPolicy>> policies;
     if (policyKind.empty()) {

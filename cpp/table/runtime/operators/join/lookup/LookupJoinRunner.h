@@ -27,7 +27,7 @@ public:
 
     void open(const Configuration& parameters) override;
 
-    void processBatch(omnistream::VectorBatch* value, Context* cxt, Collector *collector) override;
+    void processBatch(omnistream::VectorBatch* value, Context* cxt, Collector* collector) override;
 
     [[nodiscard]] Collector* getFetcherCollector() const
     {
@@ -35,6 +35,7 @@ public:
     }
 
     void close();
+
 private:
     bool isLeftOuterJoin;
     GeneratedCsvLookupFunction<int64_t>* fetcher;
@@ -44,6 +45,5 @@ private:
     // inputTypeInfos is the type of incoming probe side
     nlohmann::json description;
 };
-
 
 #endif

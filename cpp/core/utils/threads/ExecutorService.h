@@ -26,8 +26,10 @@ public:
     ~ExecutorService();
 
     void Execute(std::function<void()> task);
+
 protected:
     void WorkerLoop();
+
 private:
     std::vector<std::thread> workers;
     std::queue<std::function<void()>> tasks;

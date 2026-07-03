@@ -20,9 +20,11 @@ public:
 
     virtual int getSuperstepNumber() const = 0;
 
-    template<typename T> T *getIterationAggregator(const std::string &name);
+    template <typename T>
+    T* getIterationAggregator(const std::string& name);
 
-    template<typename T> T *getPreviousIterationAggregate(const std::string &name);
+    template <typename T>
+    T* getPreviousIterationAggregate(const std::string& name);
 };
 
 #endif // FLINK_TNEL_ITERATION_RUNTIME_CONTEXT_H

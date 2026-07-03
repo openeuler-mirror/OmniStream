@@ -12,12 +12,8 @@
 #ifndef CONNECTIONMANAGER_H
 #define CONNECTIONMANAGER_H
 
-
 namespace omnistream {
-    class ConnectionManager {
-
-    };
-}
-
+class ConnectionManager {};
+} // namespace omnistream
 
 #endif

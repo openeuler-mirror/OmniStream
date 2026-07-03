@@ -9,7 +9,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
-# pragma once
+#pragma once
 
 #include <mutex>
 #include <condition_variable>
@@ -19,12 +19,14 @@
 
 class ScheduledTaskExecutor {
 public:
-    explicit ScheduledTaskExecutor(size_t numThreads) {
+    explicit ScheduledTaskExecutor(size_t numThreads)
+    {
         workQueue = new DelayedWorkQueue();
         initWorks(numThreads);
     }
 
-    void WorkerThreadProc() {
+    void WorkerThreadProc()
+    {
         ScheduledFutureTask* task;
         while (!stop.load()) {
             task = workQueue->Take();
@@ -39,13 +41,15 @@ public:
         }
     }
 
-    void initWorks(size_t numThreads) {
+    void initWorks(size_t numThreads)
+    {
         for (size_t i = 0; i < numThreads; ++i) {
-            workers.emplace_back([this] {WorkerThreadProc();});
+            workers.emplace_back([this] { WorkerThreadProc(); });
         }
     }
 
-    void Shutdown() {
+    void Shutdown()
+    {
         if (stop.exchange(true)) {
             return;
         }
@@ -58,26 +62,31 @@ public:
         }
     }
 
-    ScheduledFutureTask* Schedule(omnistream::Runnable* task, long initialDelay) {
+    ScheduledFutureTask* Schedule(omnistream::Runnable* task, long initialDelay)
+    {
         auto* futureTask = new ScheduledFutureTask(initialDelay, task);
         workQueue->Offer(futureTask);
         return futureTask;
     }
 
-    ScheduledFutureTask* ScheduleWithFixedDelay(omnistream::Runnable* task, long initialDelay, long period) {
+    ScheduledFutureTask* ScheduleWithFixedDelay(omnistream::Runnable* task, long initialDelay, long period)
+    {
         ScheduledFutureTask* futureTask = new ScheduledFutureTask(initialDelay, period, task);
         workQueue->Offer(futureTask);
         return futureTask;
     }
 
-    ScheduledFutureTask* ScheduleAtFixedRate(omnistream::Runnable* task, long initialDelay, long period) {
+    ScheduledFutureTask* ScheduleAtFixedRate(omnistream::Runnable* task, long initialDelay, long period)
+    {
         NOT_IMPL_EXCEPTION;
     }
 
-    ~ScheduledTaskExecutor() {
+    ~ScheduledTaskExecutor()
+    {
         Shutdown();
         delete workQueue;
     }
+
 private:
     std::vector<std::thread> workers;
     std::atomic<bool> stop = false;

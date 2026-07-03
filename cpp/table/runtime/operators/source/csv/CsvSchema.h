@@ -24,14 +24,14 @@ class CsvSchema {
 public:
     explicit CsvSchema(const std::vector<omniruntime::type::DataTypeId>& types) : types_(types)
     {
-        arity_                 = static_cast<int>(types_.size());
-        columnSeparator_       = ',';
-        quoteChar_             = '"';
-        escapeChar_            = '\\';
-        allowComments_         = false;
+        arity_ = static_cast<int>(types_.size());
+        columnSeparator_ = ',';
+        quoteChar_ = '"';
+        escapeChar_ = '\\';
+        allowComments_ = false;
         arrayElementSeparator_ = ",";
-        hasNullValue_          = false;
-        nullValue_             = "";
+        hasNullValue_ = false;
+        nullValue_ = "";
     }
 
     // Setter methods
@@ -130,6 +130,6 @@ private:
     std::vector<omniruntime::type::DataTypeId> types_;
 };
 
-}  // namespace csv
-}  // namespace omnistreams
+} // namespace csv
+} // namespace omnistream
 #endif

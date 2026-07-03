@@ -17,8 +17,8 @@
 #include "nlohmann/json.hpp"
 #include "core/include/common.h"
 
-#define likely(x)      __builtin_expect(!!(x), 1)
-#define unlikely(x)    __builtin_expect(!!(x), 0)
+#define likely(x) __builtin_expect(!!(x), 1)
+#define unlikely(x) __builtin_expect(!!(x), 0)
 class Class;
 class Object {
 public:
@@ -30,23 +30,24 @@ public:
 
     virtual int hashCode();
 
-    virtual bool equals(Object *obj);
+    virtual bool equals(Object* obj);
 
     virtual std::string toString();
 
-    virtual Object *clone();
+    virtual Object* clone();
 
-    Object(const Object &obj);
+    Object(const Object& obj);
 
-    Object(Object &&obj);
+    Object(Object&& obj);
 
-    Object &operator=(const Object &obj);
+    Object& operator=(const Object& obj);
 
-    Object &operator=(Object &&obj);
+    Object& operator=(Object&& obj);
 
     virtual void putRefCount();
 
-    inline void getRefCount() {
+    inline void getRefCount()
+    {
         ++refCount;
     }
 
@@ -60,7 +61,7 @@ public:
 
     virtual Class* getObjectClass();
 
-    static Class *getClass();
+    static Class* getClass();
 
 public:
     std::recursive_mutex mutex;
@@ -69,23 +70,22 @@ public:
     uint64_t refCount = 1;
 };
 
-
 namespace std {
-    template <>
-    struct hash<Object*> {
-        std::size_t operator()(Object* nsPtr) const noexcept
-        {
-            return nsPtr->hashCode();
-        }
-    };
+template <>
+struct hash<Object*> {
+    std::size_t operator()(Object* nsPtr) const noexcept
+    {
+        return nsPtr->hashCode();
+    }
+};
 
-    template <>
-    struct equal_to<Object*> {
-        bool operator()(Object* lhs, Object* rhs) const noexcept
-        {
-            return lhs->equals(rhs);
-        }
-    };
-}
+template <>
+struct equal_to<Object*> {
+    bool operator()(Object* lhs, Object* rhs) const noexcept
+    {
+        return lhs->equals(rhs);
+    }
+};
+} // namespace std
 
 #endif // FLINK_TNEL_OBJECT_H

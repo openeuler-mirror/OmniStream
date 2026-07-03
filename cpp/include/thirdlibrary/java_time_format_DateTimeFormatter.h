@@ -25,16 +25,15 @@ public:
 
     ~DateTimeFormatter();
 
-    static DateTimeFormatter *ofPattern(const std::string &pattern);
+    static DateTimeFormatter* ofPattern(const std::string& pattern);
 
-    String *format(TemporalAccessor *temporal);
+    String* format(TemporalAccessor* temporal);
 
 private:
     static std::unordered_map<std::string, std::string> patterns;
     std::string pattern;
 
-    DateTimeFormatter(const std::string &pat);
+    DateTimeFormatter(const std::string& pat);
 };
-
 
 #endif // FLINK_TNEL_DateTimeFormatter_H

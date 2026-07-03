@@ -21,25 +21,31 @@
 
 class RocksDBWriteBatchWrapper {
 public:
-
     RocksDBWriteBatchWrapper(rocksdb::DB* db, long write_batch_size = DEFAULT_BATCH_SIZE)
-        : RocksDBWriteBatchWrapper(db, nullptr, DEFAULT_CAPACITY, write_batch_size) {}
+        : RocksDBWriteBatchWrapper(db, nullptr, DEFAULT_CAPACITY, write_batch_size)
+    {
+    }
 
     RocksDBWriteBatchWrapper(rocksdb::DB* db, std::shared_ptr<rocksdb::WriteOptions> options)
-        : RocksDBWriteBatchWrapper(db, std::move(options), DEFAULT_CAPACITY, DEFAULT_BATCH_SIZE) {}
+        : RocksDBWriteBatchWrapper(db, std::move(options), DEFAULT_CAPACITY, DEFAULT_BATCH_SIZE)
+    {
+    }
 
     RocksDBWriteBatchWrapper(rocksdb::DB* db, std::shared_ptr<rocksdb::WriteOptions> options, long batch_size)
-        : RocksDBWriteBatchWrapper(db, std::move(options), DEFAULT_CAPACITY, batch_size) {}
+        : RocksDBWriteBatchWrapper(db, std::move(options), DEFAULT_CAPACITY, batch_size)
+    {
+    }
 
-    RocksDBWriteBatchWrapper(rocksdb::DB* db,
-                             std::shared_ptr<rocksdb::WriteOptions> options,
-                             int capacity,
-                             long batch_size)
-        : db_(db), options_(std::move(options)), capacity_(capacity), batch_size_(batch_size)
+    RocksDBWriteBatchWrapper(
+        rocksdb::DB* db, std::shared_ptr<rocksdb::WriteOptions> options, int capacity, long batch_size)
+        : db_(db),
+          options_(std::move(options)),
+          capacity_(capacity),
+          batch_size_(batch_size)
     {
         if (capacity < MIN_CAPACITY || capacity > MAX_CAPACITY) {
-            throw std::invalid_argument("Capacity should be between " + std::to_string(MIN_CAPACITY) +
-                                        " and " + std::to_string(MAX_CAPACITY));
+            throw std::invalid_argument(
+                "Capacity should be between " + std::to_string(MIN_CAPACITY) + " and " + std::to_string(MAX_CAPACITY));
         }
 
         if (batch_size < 0) {
@@ -48,8 +54,7 @@ public:
 
         if (batch_size_ > 0) {
             batch_ = std::make_unique<rocksdb::WriteBatch>(
-                    std::min(static_cast<long>(batch_size_),
-                             static_cast<long>(capacity_) * PER_RECORD_BYTES));
+                std::min(static_cast<long>(batch_size_), static_cast<long>(capacity_) * PER_RECORD_BYTES));
         } else {
             batch_ = std::make_unique<rocksdb::WriteBatch>(capacity_ * PER_RECORD_BYTES);
         }
@@ -94,7 +99,8 @@ public:
         return options_;
     }
 
-    void close() {
+    void close()
+    {
         if (!closed_.exchange(true)) {
             if (batch_->Count() != 0) {
                 Flush();
@@ -103,7 +109,8 @@ public:
         }
     }
 
-    ~RocksDBWriteBatchWrapper() {
+    ~RocksDBWriteBatchWrapper()
+    {
         try {
             close();
         } catch (...) {
@@ -126,8 +133,7 @@ private:
 
     void FlushIfNeeded()
     {
-        bool need_flush = batch_->Count() == capacity_ ||
-                          (batch_size_ > 0 && GetDataSize() >= batch_size_);
+        bool need_flush = batch_->Count() == capacity_ || (batch_size_ > 0 && GetDataSize() >= batch_size_);
         if (need_flush) {
             Flush();
         }

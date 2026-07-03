@@ -17,7 +17,7 @@ public:
     virtual ~SourceContext() = default;
 
     // Collect method
-    virtual void collect(void *element) = 0;
+    virtual void collect(void* element) = 0;
 
     virtual void collectWithTimestamp(void* var1, int64_t var2) = 0;
 

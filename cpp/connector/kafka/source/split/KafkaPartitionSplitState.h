@@ -12,7 +12,6 @@
 #ifndef FLINK_TNEL_KAFKAPARTITIONSPLITSTATE_H
 #define FLINK_TNEL_KAFKAPARTITIONSPLITSTATE_H
 
-
 #include "KafkaPartitionSplit.h"
 
 class KafkaPartitionSplitState : public KafkaPartitionSplit {
@@ -27,6 +26,5 @@ public:
 private:
     long currentOffset;
 };
-
 
 #endif // FLINK_TNEL_KAFKAPARTITIONSPLITSTATE_H

@@ -12,11 +12,12 @@
 #include "AlternatingCollectingBarriersUnaligned.h"
 
 AlternatingCollectingBarriers::AlternatingCollectingBarriers(ChannelState state)
-    : AbstractAlternatingAlignedBarrierHandlerState(std::move(state)) {}
+    : AbstractAlternatingAlignedBarrierHandlerState(std::move(state))
+{
+}
 
 BarrierHandlerState* AlternatingCollectingBarriers::AlignedCheckpointTimeout(
-    Controller* controller,
-    CheckpointBarrier* barrier)
+    Controller* controller, CheckpointBarrier* barrier)
 {
     state.PrioritizeAllAnnouncements();
     CheckpointBarrier* unalignedBarrier = barrier->AsUnaligned();
@@ -35,8 +36,7 @@ BarrierHandlerState* AlternatingCollectingBarriers::AlignedCheckpointTimeout(
 }
 
 BarrierHandlerState* AlternatingCollectingBarriers::endOfPartitionReceived(
-    Controller* controller,
-    const InputChannelInfo& channelInfo)
+    Controller* controller, const InputChannelInfo& channelInfo)
 {
     state.ChannelFinished(channelInfo);
 

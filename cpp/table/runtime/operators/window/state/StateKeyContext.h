@@ -15,7 +15,7 @@
 
 class StateKeyContext {
 public:
-    virtual void setCurrentKey(RowData *key) = 0;
+    virtual void setCurrentKey(RowData* key) = 0;
 };
 
 #endif

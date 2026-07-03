@@ -12,7 +12,6 @@
 #ifndef FLINK_TNEL_INPUTSTATUS_H
 #define FLINK_TNEL_INPUTSTATUS_H
 
-
 // 定义 InputStatus 枚举类
 enum class InputStatus {
     // 指示有更多数据可用，并且可以立即再次调用输入以产生更多数据
@@ -22,6 +21,5 @@ enum class InputStatus {
     // 指示输入已经到达数据的末尾
     END_OF_INPUT
 };
-
 
 #endif

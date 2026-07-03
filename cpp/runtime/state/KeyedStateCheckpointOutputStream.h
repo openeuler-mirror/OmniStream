@@ -41,29 +41,28 @@ public:
     static constexpr int32_t NO_CURRENT_KEY_GROUP = -1;
 
     KeyedStateCheckpointOutputStream(
-        const std::shared_ptr<omnistream::OmniTaskBridge> &bridge,
+        const std::shared_ptr<omnistream::OmniTaskBridge>& bridge,
         long checkpointId,
-        CheckpointOptions *checkpointOptions,
-        KeyGroupRange *keyGroupRange)
+        CheckpointOptions* checkpointOptions,
+        KeyGroupRange* keyGroupRange)
         : delegate_(std::make_unique<CheckpointStateOutputStreamProxy>(bridge, checkpointId, checkpointOptions)),
           keyGroupRange_(*keyGroupRange),
-          keyGroupRangeOffsets_(*keyGroupRange,
-              std::vector<int64_t>(keyGroupRange->getNumberOfKeyGroups(), NO_OFFSET_SET))
+          keyGroupRangeOffsets_(
+              *keyGroupRange, std::vector<int64_t>(keyGroupRange->getNumberOfKeyGroups(), NO_OFFSET_SET))
     {
     }
 
     std::vector<int32_t> getKeyGroupList() const
     {
         std::vector<int32_t> result;
-        for (int32_t keyGroup = keyGroupRange_.getStartKeyGroup();
-             keyGroup <= keyGroupRange_.getEndKeyGroup();
+        for (int32_t keyGroup = keyGroupRange_.getStartKeyGroup(); keyGroup <= keyGroupRange_.getEndKeyGroup();
              ++keyGroup) {
             result.push_back(keyGroup);
         }
         return result;
     }
 
-    const KeyGroupRange &getKeyGroupRange() const
+    const KeyGroupRange& getKeyGroupRange() const
     {
         return keyGroupRange_;
     }
@@ -76,7 +75,7 @@ public:
         if (keyGroupRangeOffsets_.getKeyGroupOffset(keyGroupId) != NO_OFFSET_SET) {
             INFO_RELEASE(
                 "Error: startNewKeyGroup Key group already registered in raw keyed stream, keyGroupId:" << keyGroupId);
-            THROW_LOGIC_EXCEPTION("Key group already registered in raw keyed stream: " << keyGroupId)
+            THROW_LOGIC_EXCEPTION("Key group already registered in raw keyed stream: " << keyGroupId);
         }
         keyGroupRangeOffsets_.setKeyGroupOffset(keyGroupId, static_cast<int64_t>(delegate_->getPos()));
         currentKeyGroup_ = keyGroupId;
@@ -102,12 +101,12 @@ public:
         delegate_->writeLong(data);
     }
 
-    void writeUTF(const std::string &data)
+    void writeUTF(const std::string& data)
     {
         delegate_->writeUTF(data);
     }
 
-    void writeBytes(const void *data, size_t len)
+    void writeBytes(const void* data, size_t len)
     {
         delegate_->writeBytes(data, len);
     }
@@ -140,9 +139,8 @@ public:
             return finalizedResult_;
         }
 
-        std::shared_ptr<KeyedStateHandle> keyedStateHandle = std::make_shared<KeyGroupsStateHandle>(
-            keyGroupRangeOffsets_,
-            streamSnapshot->GetJobManagerOwnedSnapshot());
+        std::shared_ptr<KeyedStateHandle> keyedStateHandle =
+            std::make_shared<KeyGroupsStateHandle>(keyGroupRangeOffsets_, streamSnapshot->GetJobManagerOwnedSnapshot());
         finalizedResult_ = SnapshotResult<KeyedStateHandle>::Of(keyedStateHandle);
         return finalizedResult_;
     }

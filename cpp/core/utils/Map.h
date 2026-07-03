@@ -12,16 +12,17 @@
 #pragma once
 
 namespace omnistream::utils {
-    template <typename K, typename V> class Map {
-    public:
-        virtual ~Map() = default;
+template <typename K, typename V>
+class Map {
+public:
+    virtual ~Map() = default;
 
-        class Entry {
-        public:
-            virtual ~Entry() = default;
-            virtual std::optional<K> getKey() = 0;
-            virtual std::optional<V> getValue() = 0;
-            virtual void setValue(std::optional<V> value) = 0;
-        };
+    class Entry {
+    public:
+        virtual ~Entry() = default;
+        virtual std::optional<K> getKey() = 0;
+        virtual std::optional<V> getValue() = 0;
+        virtual void setValue(std::optional<V> value) = 0;
     };
-}
+};
+} // namespace omnistream::utils

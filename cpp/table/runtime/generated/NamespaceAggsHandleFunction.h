@@ -13,13 +13,16 @@
 
 #include "NamespaceAggsHandleFunctionBase.h"
 
-template<typename N>
+template <typename N>
 class NamespaceAggsHandleFunction : public NamespaceAggsHandleFunctionBase<N> {
 public:
     // Gets the result of the aggregation from the current accumulators and namespace properties
     virtual RowData* getValue(N namespaceVal) = 0;
 
-    explicit NamespaceAggsHandleFunction(int32_t accumulatorArity) : NamespaceAggsHandleFunctionBase<N>(accumulatorArity) {}
+    explicit NamespaceAggsHandleFunction(int32_t accumulatorArity)
+        : NamespaceAggsHandleFunctionBase<N>(accumulatorArity)
+    {
+    }
 
     ~NamespaceAggsHandleFunction() override = default;
 };

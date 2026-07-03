@@ -13,12 +13,16 @@
 
 #include "NamespaceAggsBasicFunction.h"
 
-template<typename N>
+template <typename N>
 class NamespaceAggsSumFunction : public NamespaceAggsBasicFunction<N> {
 public:
-    NamespaceAggsSumFunction(std::vector<int32_t> argIndexes, std::vector<int32_t> inputTypeIds,
-                             std::vector<int32_t> accIndexes, std::vector<int32_t> accTypeIds,
-                             int32_t aggValueIndex, int32_t aggValueTypeId);
+    NamespaceAggsSumFunction(
+        std::vector<int32_t> argIndexes,
+        std::vector<int32_t> inputTypeIds,
+        std::vector<int32_t> accIndexes,
+        std::vector<int32_t> accTypeIds,
+        int32_t aggValueIndex,
+        int32_t aggValueTypeId);
 
     void accumulate(RowData* input) override;
     void retract(RowData* input) override;

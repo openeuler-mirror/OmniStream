@@ -14,14 +14,15 @@
 
 #include <cstdint>
 
-
 struct OutputBufferStatus {
-        uintptr_t outputBuffer_;
-        int32_t capacity_;
-        int32_t outputSize; // byte size
-        int32_t numberElement; // number of element_ of outputToOut
-        int32_t ownership;  // 0 outputBuffer owned by java, 1 stands  owned by cpp native
-        OutputBufferStatus() : outputBuffer_(0), capacity_(0), ownership(1) {}
+    uintptr_t outputBuffer_;
+    int32_t capacity_;
+    int32_t outputSize;    // byte size
+    int32_t numberElement; // number of element_ of outputToOut
+    int32_t ownership;     // 0 outputBuffer owned by java, 1 stands  owned by cpp native
+    OutputBufferStatus() : outputBuffer_(0), capacity_(0), ownership(1)
+    {
+    }
 };
 
 #endif

@@ -12,11 +12,15 @@
 #include "ProgressiveTimestampsAndWatermarks.h"
 #include "WatermarkToDataOutput.h"
 
-
-ProgressiveTimestampsAndWatermarks::ProgressiveTimestampsAndWatermarks(TimestampAssigner* timestampAssigner,
-    std::shared_ptr<WatermarkGeneratorSupplier> watermarksFactory, ProcessingTimeService* timeService,
-    long periodicWatermarkInterval) : timestampAssigner(timestampAssigner), watermarksFactory(watermarksFactory),
-    timeService(timeService), periodicWatermarkInterval(periodicWatermarkInterval)
+ProgressiveTimestampsAndWatermarks::ProgressiveTimestampsAndWatermarks(
+    TimestampAssigner* timestampAssigner,
+    std::shared_ptr<WatermarkGeneratorSupplier> watermarksFactory,
+    ProcessingTimeService* timeService,
+    long periodicWatermarkInterval)
+    : timestampAssigner(timestampAssigner),
+      watermarksFactory(watermarksFactory),
+      timeService(timeService),
+      periodicWatermarkInterval(periodicWatermarkInterval)
 {
 }
 
@@ -33,7 +37,6 @@ void ProgressiveTimestampsAndWatermarks::TriggerPeriodicEmit(long wallClockTimes
     }
 }
 
-
 ReaderOutput* ProgressiveTimestampsAndWatermarks::CreateMainOutput(
     OmniDataOutputPtr output, WatermarkUpdateListener* watermarkCallback)
 {
@@ -43,25 +46,34 @@ ReaderOutput* ProgressiveTimestampsAndWatermarks::CreateMainOutput(
     WatermarkOutput* watermarkOutput = new WatermarkToDataOutput(output, watermarkCallback);
     idlenessManager = new IdlenessManager(watermarkOutput);
     WatermarkGenerator* watermarkGenerator = watermarksFactory->CreateWatermarkGenerator();
-    currentPerSplitOutputs = new SplitLocalOutputs(output, idlenessManager->GetSplitLocalOutput(),
-        timestampAssigner, watermarksFactory, periodicWatermarkInterval);
-    currentMainOutput = new StreamingReaderOutput(output, idlenessManager->GetMainOutput(), timestampAssigner,
-                                                  watermarkGenerator, currentPerSplitOutputs, periodicWatermarkInterval);
+    currentPerSplitOutputs = new SplitLocalOutputs(
+        output,
+        idlenessManager->GetSplitLocalOutput(),
+        timestampAssigner,
+        watermarksFactory,
+        periodicWatermarkInterval);
+    currentMainOutput = new StreamingReaderOutput(
+        output,
+        idlenessManager->GetMainOutput(),
+        timestampAssigner,
+        watermarkGenerator,
+        currentPerSplitOutputs,
+        periodicWatermarkInterval);
     return currentMainOutput;
 }
 
 void ProgressiveTimestampsAndWatermarks::StartPeriodicWatermarkEmits()
 {
     if (periodicEmitHandle != nullptr) {
-        THROW_LOGIC_EXCEPTION("periodic emitter already started")
+        THROW_LOGIC_EXCEPTION("periodic emitter already started");
     }
     if (periodicWatermarkInterval == 0) {
         // a value of zero means not activated
         return;
     }
     periodicEmitStopped_.store(false);
-    periodicEmitHandle = timeService->scheduleWithFixedDelay(callback, periodicWatermarkInterval,
-        periodicWatermarkInterval);
+    periodicEmitHandle =
+        timeService->scheduleWithFixedDelay(callback, periodicWatermarkInterval, periodicWatermarkInterval);
 }
 
 void ProgressiveTimestampsAndWatermarks::StopPeriodicWatermarkEmits()

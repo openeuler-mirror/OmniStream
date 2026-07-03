@@ -25,9 +25,10 @@ class TtlStateFactory {
 public:
     // Function def does not match java, simplified to be passed to next class
     // stateBackend input should be KeyedStateBackend instead
-    static S *createStateAndWrapWithTtlIfEnabled(TypeSerializer *namespaceSerialzer, StateDescriptor *stateDesc, KeyedStateBackend<K> *stateBackend)
+    static S* createStateAndWrapWithTtlIfEnabled(
+        TypeSerializer* namespaceSerialzer, StateDescriptor* stateDesc, KeyedStateBackend<K>* stateBackend)
     {
-        return (S *) stateBackend->createOrUpdateInternalState(namespaceSerialzer, stateDesc);
+        return (S*)stateBackend->createOrUpdateInternalState(namespaceSerialzer, stateDesc);
     };
 };
 

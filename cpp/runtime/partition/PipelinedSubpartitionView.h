@@ -23,35 +23,35 @@
 #include "ResultSubpartitionView.h"
 
 namespace omnistream {
-    class PipelinedSubpartition;
+class PipelinedSubpartition;
 
-    class PipelinedSubpartitionView : public ResultSubpartitionView {
-    public:
-        PipelinedSubpartitionView(std::shared_ptr<PipelinedSubpartition> parent, BufferAvailabilityListener* listener);
-        PipelinedSubpartitionView();
-        ~PipelinedSubpartitionView() override;
+class PipelinedSubpartitionView : public ResultSubpartitionView {
+public:
+    PipelinedSubpartitionView(std::shared_ptr<PipelinedSubpartition> parent, BufferAvailabilityListener* listener);
+    PipelinedSubpartitionView();
+    ~PipelinedSubpartitionView() override;
 
-        BufferAndBacklog* getNextBuffer() override;
-        void notifyDataAvailable() override;
-        void notifyPriorityEvent(int priorityBufferNumber) override;
-        void ConvertToPriorityEvent(int sequenceNumber) override;
-        void releaseAllResources() override;
-        bool isReleased() override;
-        void resumeConsumption() override;
-        void acknowledgeAllDataProcessed() override;
-        AvailabilityWithBacklog getAvailabilityAndBacklog(int numCreditsAvailable) override;
-        std::shared_ptr<std::exception> getFailureCause() override;
-        int unsynchronizedGetNumberOfQueuedBuffers() override;
-        int getNumberOfQueuedBuffers() override;
-        void notifyNewBufferSize(int newBufferSize) override;
-        std::string toString();
-        std::string getClassSimpleName();
+    BufferAndBacklog* getNextBuffer() override;
+    void notifyDataAvailable() override;
+    void notifyPriorityEvent(int priorityBufferNumber) override;
+    void ConvertToPriorityEvent(int sequenceNumber) override;
+    void releaseAllResources() override;
+    bool isReleased() override;
+    void resumeConsumption() override;
+    void acknowledgeAllDataProcessed() override;
+    AvailabilityWithBacklog getAvailabilityAndBacklog(int numCreditsAvailable) override;
+    std::shared_ptr<std::exception> getFailureCause() override;
+    int unsynchronizedGetNumberOfQueuedBuffers() override;
+    int getNumberOfQueuedBuffers() override;
+    void notifyNewBufferSize(int newBufferSize) override;
+    std::string toString();
+    std::string getClassSimpleName();
 
-    private:
-        std::shared_ptr<PipelinedSubpartition> parent;
-        BufferAvailabilityListener* availabilityListener;
-        std::atomic<bool> isReleased_;
-    };
+private:
+    std::shared_ptr<PipelinedSubpartition> parent;
+    BufferAvailabilityListener* availabilityListener;
+    std::atomic<bool> isReleased_;
+};
 
 } // namespace omnistream
 

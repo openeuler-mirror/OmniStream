@@ -13,17 +13,25 @@
 #include "streaming/runtime/io/StreamOneInputProcessor.h"
 #include "streaming/runtime/tasks/StreamTask.h"
 
-
-JNIEXPORT jobject JNICALL Java_com_huawei_omniruntime_flink_streaming_runtime_io_OmniStreamTaskNetworkInput_TNELProcessBuffer
-        (JNIEnv *env, jobject input, jlong omniStreamTaskRef, jlong omniInputProcessorRef, jlong address, jint offset, jint numBytes, jlong channelInfo)
+JNIEXPORT jobject JNICALL
+Java_com_huawei_omniruntime_flink_streaming_runtime_io_OmniStreamTaskNetworkInput_TNELProcessBuffer(
+    JNIEnv* env,
+    jobject input,
+    jlong omniStreamTaskRef,
+    jlong omniInputProcessorRef,
+    jlong address,
+    jint offset,
+    jint numBytes,
+    jlong channelInfo)
 {
-    auto *streamTask = reinterpret_cast<omnistream::datastream::StreamTask *>(omniStreamTaskRef);
-    auto *processor = reinterpret_cast<omnistream::datastream::StreamOneInputProcessor *>(omniInputProcessorRef);
+    auto* streamTask = reinterpret_cast<omnistream::datastream::StreamTask*>(omniStreamTaskRef);
+    auto* processor = reinterpret_cast<omnistream::datastream::StreamOneInputProcessor*>(omniInputProcessorRef);
 
-    auto buffAddress = reinterpret_cast<uint8_t *>(address);
+    auto buffAddress = reinterpret_cast<uint8_t*>(address);
 
-    LOG(" Inside Java_com_huawei_omniruntime_flink_streaming_runtime_io_OmniStreamTaskNetworkInput_TNELProcessBuffer buffAddress + offset " +
-        std::to_string(reinterpret_cast<long>(buffAddress + offset)) + " numBytes " + std::to_string(numBytes))
+    LOG(" Inside Java_com_huawei_omniruntime_flink_streaming_runtime_io_OmniStreamTaskNetworkInput_TNELProcessBuffer "
+        "buffAddress + offset " +
+        std::to_string(reinterpret_cast<long>(buffAddress + offset)) + " numBytes " + std::to_string(numBytes));
 
     auto myClass = env->FindClass("com/huawei/omniruntime/flink/streaming/runtime/io/TNELProcessState");
     auto constructor = env->GetMethodID(myClass, "<init>", "(IJ)V");

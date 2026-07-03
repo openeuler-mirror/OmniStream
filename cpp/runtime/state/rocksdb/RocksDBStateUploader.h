@@ -42,19 +42,19 @@ public:
     explicit RocksDBStateUploader(int numberOfSnapshottingThreads);
 
     std::vector<HandleAndLocalPath> callUploadFilesToCheckpointFs(
-            JNIEnv* env,
-            const std::vector<fs::path>& files,
-            CheckpointedStateScope& stateScope,
-            jobject jCheckpointStreamFactory);
+        JNIEnv* env,
+        const std::vector<fs::path>& files,
+        CheckpointedStateScope& stateScope,
+        jobject jCheckpointStreamFactory);
 
     std::vector<HandleAndLocalPath> callUploadFilesToCheckpointFs(
-            std::shared_ptr<omnistream::OmniTaskBridge> bridge,
-            const std::vector<fs::path>& files);
+        std::shared_ptr<omnistream::OmniTaskBridge> bridge, const std::vector<fs::path>& files);
 
 private:
     static const int READ_BUFFER_SIZE = 16 * 1024;
 
-    jobject addToJavaPathList(JNIEnv* env,
+    jobject addToJavaPathList(
+        JNIEnv* env,
         const std::vector<fs::path>& files,
         jobject javaList,
         jmethodID arrayListAdd,

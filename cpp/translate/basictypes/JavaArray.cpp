@@ -30,9 +30,9 @@ T JavaArray<T>::get(int index)
 
 // short、int、long、float、double、bool、char
 template <typename T>
-bool JavaArray<T>::equals(Object *obj)
+bool JavaArray<T>::equals(Object* obj)
 {
-    JavaArray *a = (JavaArray *)obj;
+    JavaArray* a = (JavaArray*)obj;
     return (*this == *a);
 }
 
@@ -40,8 +40,8 @@ template <typename T>
 Object* JavaArray<T>::clone()
 {
     int length = this->length;
-    JavaArray *a = new JavaArray(length);
-    errno_t ret = memcpy_s((void *)a->data_, sizeof(T) * length, (void *)this->data_, sizeof(T)*length);
+    JavaArray* a = new JavaArray(length);
+    errno_t ret = memcpy_s((void*)a->data_, sizeof(T) * length, (void*)this->data_, sizeof(T) * length);
     if (ret != 0) {
         throw std::runtime_error("memcpy_s failed" + std::to_string(ret));
     }

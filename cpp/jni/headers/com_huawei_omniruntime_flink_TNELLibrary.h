@@ -22,8 +22,7 @@ extern "C" {
  * Method:    initialize
  * Signature: ()V
  */
-JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_TNELLibrary_initialize
-  (JNIEnv *, jclass);
+JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_TNELLibrary_initialize(JNIEnv*, jclass);
 
 #ifdef __cplusplus
 }

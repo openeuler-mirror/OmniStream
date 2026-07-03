@@ -11,11 +11,12 @@
 
 #include "SingleRecordWriter.h"
 namespace omnistream::datastream {
-    SingleRecordWriter::SingleRecordWriter(RecordWriter* recordWriter) : recordWriter_(recordWriter) {}
-
-    RecordWriter* SingleRecordWriter::getRecordWriter(int outputIndex)
-    {
-        return recordWriter_;
-    }
+SingleRecordWriter::SingleRecordWriter(RecordWriter* recordWriter) : recordWriter_(recordWriter)
+{
 }
 
+RecordWriter* SingleRecordWriter::getRecordWriter(int outputIndex)
+{
+    return recordWriter_;
+}
+} // namespace omnistream::datastream

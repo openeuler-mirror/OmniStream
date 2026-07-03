@@ -28,14 +28,22 @@ public:
     static constexpr int SIZE = 2 * SIZE_OF_LONG;
 
     // Default constructor
-    AbstractIDPOD() : upperPart(randomLong()), lowerPart(randomLong()) {}
+    AbstractIDPOD() : upperPart(randomLong()), lowerPart(randomLong())
+    {
+    }
 
     // Full argument constructor
-    AbstractIDPOD(long upperPart, long lowerPart) : upperPart(upperPart), lowerPart(lowerPart) {}
+    AbstractIDPOD(long upperPart, long lowerPart) : upperPart(upperPart), lowerPart(lowerPart)
+    {
+    }
 
-    AbstractIDPOD(const AbstractIDPOD& other) : upperPart(other.upperPart), lowerPart(other.lowerPart) {}
+    AbstractIDPOD(const AbstractIDPOD& other) : upperPart(other.upperPart), lowerPart(other.lowerPart)
+    {
+    }
 
-    AbstractIDPOD(AbstractIDPOD&& other) noexcept : upperPart(other.upperPart), lowerPart(other.lowerPart) {}
+    AbstractIDPOD(AbstractIDPOD&& other) noexcept : upperPart(other.upperPart), lowerPart(other.lowerPart)
+    {
+    }
 
     explicit AbstractIDPOD(const std::vector<uint8_t>& bytes)
     {
@@ -76,12 +84,24 @@ public:
     }
 
     // Getters
-    virtual long getUpperPart() const { return upperPart; }
-    virtual long getLowerPart() const { return lowerPart; }
+    virtual long getUpperPart() const
+    {
+        return upperPart;
+    }
+    virtual long getLowerPart() const
+    {
+        return lowerPart;
+    }
 
     // Setters
-    virtual void setUpperPart(long upper) { upperPart = upper; }
-    virtual void setLowerPart(long lower) { lowerPart = lower; }
+    virtual void setUpperPart(long upper)
+    {
+        upperPart = upper;
+    }
+    virtual void setLowerPart(long lower)
+    {
+        lowerPart = lower;
+    }
 
     std::vector<uint8_t> getBytes() const
     {
@@ -109,7 +129,9 @@ public:
     }
 
     friend bool operator!=(const AbstractIDPOD& lhs, const AbstractIDPOD& rhs)
-    { return !(lhs == rhs); }
+    {
+        return !(lhs == rhs);
+    }
 
     bool operator<(const AbstractIDPOD& other) const
     {
@@ -151,15 +173,15 @@ private:
     }
 };
 
-}  // namespace omnistream
+} // namespace omnistream
 
 namespace std {
-    template <>
-    struct hash<omnistream::AbstractIDPOD> {
-        size_t operator()(const omnistream::AbstractIDPOD& key) const
-        {
+template <>
+struct hash<omnistream::AbstractIDPOD> {
+    size_t operator()(const omnistream::AbstractIDPOD& key) const
+    {
         return hash_value(key);
-        }
-    };
-}
+    }
+};
+} // namespace std
 #endif // ABSTRACTIDPOD_H

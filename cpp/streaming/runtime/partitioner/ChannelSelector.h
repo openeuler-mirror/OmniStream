@@ -12,19 +12,21 @@
 #ifndef CHANNELSELECTOR_H
 #define CHANNELSELECTOR_H
 
-
 namespace omnistream::datastream {
-    template <typename T>
-    class ChannelSelector {
-    public:
-        virtual ~ChannelSelector() {}
+template <typename T>
+class ChannelSelector {
+public:
+    virtual ~ChannelSelector()
+    {
+    }
 
-        virtual void setup(int numberOfChannels) = 0;
-        virtual int selectChannel(T *record) {return 0;}
-        virtual bool isBroadcast() const = 0;
-    };
-}
-
+    virtual void setup(int numberOfChannels) = 0;
+    virtual int selectChannel(T* record)
+    {
+        return 0;
+    }
+    virtual bool isBroadcast() const = 0;
+};
+} // namespace omnistream::datastream
 
 #endif // CHANNELSELECTOR_H
-

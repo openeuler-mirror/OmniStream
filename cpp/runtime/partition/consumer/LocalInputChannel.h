@@ -32,22 +32,32 @@
 
 namespace omnistream {
 
-class LocalInputChannel : public InputChannel,
-                          public BufferAvailabilityListener {
+class LocalInputChannel : public InputChannel, public BufferAvailabilityListener {
 public:
-    LocalInputChannel(std::shared_ptr<SingleInputGate> inputGate, int channelIndex, ResultPartitionIDPOD partitionId,
+    LocalInputChannel(
+        std::shared_ptr<SingleInputGate> inputGate,
+        int channelIndex,
+        ResultPartitionIDPOD partitionId,
         std::shared_ptr<ResultPartitionManager> partitionManager,
         //   std::shared_ptr<TaskEventPublisher> taskEventPublisher,
-        int initialBackoff, int maxBackoff, std::shared_ptr<Counter> numBytesIn, std::shared_ptr<Counter> numBuffersIn
+        int initialBackoff,
+        int maxBackoff,
+        std::shared_ptr<Counter> numBytesIn,
+        std::shared_ptr<Counter> numBuffersIn
         //  std::shared_ptr<ChannelStateWriter> stateWriter
     );
 
-    LocalInputChannel(std::shared_ptr<SingleInputGate> inputGate, int channelIndex,
-        ResultPartitionIDPOD partitionId, std::shared_ptr<ResultPartitionManager> _partitionManager,
+    LocalInputChannel(
+        std::shared_ptr<SingleInputGate> inputGate,
+        int channelIndex,
+        ResultPartitionIDPOD partitionId,
+        std::shared_ptr<ResultPartitionManager> _partitionManager,
         // std::shared_ptr<TaskEventPublisher> taskEventPublisher,
-        int initialBackoff, int maxBackoff, std::shared_ptr<Counter> numBytesIn, std::shared_ptr<Counter> numBuffersIn,
-        std::shared_ptr<ChannelStateWriter> stateWriter
-    );
+        int initialBackoff,
+        int maxBackoff,
+        std::shared_ptr<Counter> numBytesIn,
+        std::shared_ptr<Counter> numBuffersIn,
+        std::shared_ptr<ChannelStateWriter> stateWriter);
 
     void CheckpointStarted(const CheckpointBarrier& barrier) override;
     void CheckpointStopped(long checkpointId) override;
@@ -65,10 +75,12 @@ public:
     std::shared_ptr<ResultSubpartitionView> getSubpartitionView();
     void notifyBufferAvailable(int subpartitionId) override;
     void SetChannelStateWriter(std::shared_ptr<ChannelStateWriter> channelStateWriter) override;
+
 public:
     void retriggerSubpartitionRequest(
         std::shared_ptr<std::chrono::steady_clock::time_point> timer, int subpartitionIndex);
     std::shared_ptr<ResultSubpartitionView> checkAndWaitForSubpartitionView();
+
 protected:
     void requestSubpartition(int subpartitionIndex) override;
     std::optional<BufferAndAvailability> getNextBuffer() override;
@@ -83,6 +95,6 @@ protected:
     std::atomic<bool> isReleased_{false};
 };
 
-}  // namespace omnistream
+} // namespace omnistream
 
-#endif  // LOCALINPUTCHANNEL_H
+#endif // LOCALINPUTCHANNEL_H

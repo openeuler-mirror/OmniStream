@@ -12,14 +12,12 @@
 #ifndef FLINK_TNEL_KAFKASOURCEREADER_H
 #define FLINK_TNEL_KAFKASOURCEREADER_H
 
-
 #include <iostream>
 #include <map>
 #include <vector>
 #include <memory>
 #include <mutex>
 #include <functional>
-
 
 #include "connector/kafka/source/metrics/KafkaSourceReaderMetrics.h"
 #include "SingleThreadMultiplexSourceReaderBase.h"
@@ -31,10 +29,11 @@ public:
      * 构造函数
      */
     KafkaSourceReader(
-            FutureCompletingBlockingQueue<RdKafka::Message>* elementsQueue,
-            SingleThreadFetcherManager<RdKafka::Message, KafkaPartitionSplit>* splitFetcherManager,
-            RecordEmitter<RdKafka::Message, KafkaPartitionSplitState>* recordEmitter,
-            SourceReaderContext* context, bool isBatch);
+        FutureCompletingBlockingQueue<RdKafka::Message>* elementsQueue,
+        SingleThreadFetcherManager<RdKafka::Message, KafkaPartitionSplit>* splitFetcherManager,
+        RecordEmitter<RdKafka::Message, KafkaPartitionSplitState>* recordEmitter,
+        SourceReaderContext* context,
+        bool isBatch);
 
     /**
      * 析构函数
@@ -49,16 +48,16 @@ public:
     void notifyCheckpointComplete(long checkpointId) override;
 
     // 通知拆分完成
-    void onSplitFinished(
-        const std::unordered_map<std::string, KafkaPartitionSplitState*>& finishedSplitIds) override
+    void onSplitFinished(const std::unordered_map<std::string, KafkaPartitionSplitState*>& finishedSplitIds) override
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        for (const auto& [ignored, splitState]: finishedSplitIds) {
+        for (const auto& [ignored, splitState] : finishedSplitIds) {
             if (splitState->getCurrentOffset() >= 0) {
                 offsetsOfFinishedSplits[splitState->getTopicPartition()] = splitState->getCurrentOffset();
             }
         }
     }
+
 private:
     std::shared_ptr<KafkaSourceReaderMetrics> kafkaSourceReaderMetrics_;
     std::unordered_map<std::shared_ptr<RdKafka::TopicPartition>, long> offsetsOfFinishedSplits;
@@ -67,6 +66,5 @@ private:
 
     mutable std::mutex mutex_;
 };
-
 
 #endif // FLINK_TNEL_KAFKASOURCEREADER_H

@@ -10,7 +10,7 @@
  */
 #include "BasicTypeInfo.h"
 
-BasicTypeInfo *BasicTypeInfo::getBasicTypeInfo(const std::string typeName_)
+BasicTypeInfo* BasicTypeInfo::getBasicTypeInfo(const std::string typeName_)
 {
     if (typeName_ == TYPE_NAME_STRING_SERIALIZER) {
         return new BasicTypeInfo(typeName_);
@@ -22,13 +22,13 @@ BasicTypeInfo *BasicTypeInfo::getBasicTypeInfo(const std::string typeName_)
         return new BasicTypeInfo(typeName_);
     } else if (typeName_ == TYPE_NAME_INT_SERIALIZER) {
         return new BasicTypeInfo(typeName_);
-    }else if (typeName_ == TYPE_NAME_VOID_SERIALIZER){
+    } else if (typeName_ == TYPE_NAME_VOID_SERIALIZER) {
         return new BasicTypeInfo(typeName_);
     }
     return nullptr;
 }
 
-BasicTypeInfo *BasicTypeInfo::getBasicTypeInfoByClass(std::string className)
+BasicTypeInfo* BasicTypeInfo::getBasicTypeInfoByClass(std::string className)
 {
     if (className == "java_lang_String" || className == "String") {
         return new BasicTypeInfo(TYPE_NAME_STRING_SERIALIZER);
@@ -46,9 +46,8 @@ BasicTypeInfo *BasicTypeInfo::getBasicTypeInfoByClass(std::string className)
 thread_local auto Unique_Basici_String = std::make_unique<BasicTypeInfo>(TYPE_NAME_STRING_SERIALIZER);
 thread_local BasicTypeInfo* BasicTypeInfo::STRING_TYPE_INFO = Unique_Basici_String.get();
 thread_local auto Unique_Basici_BigInt = std::make_unique<BasicTypeInfo>(TYPE_NAME_BIGINT_SERIALIZER);
-thread_local BasicTypeInfo *BasicTypeInfo::BIG_INT_TYPE_INFO = Unique_Basici_BigInt.get();
+thread_local BasicTypeInfo* BasicTypeInfo::BIG_INT_TYPE_INFO = Unique_Basici_BigInt.get();
 thread_local auto Unique_Basici_Long = std::make_unique<BasicTypeInfo>(TYPE_NAME_LONG_SERIALIZER);
 thread_local BasicTypeInfo* BasicTypeInfo::LONG_TYPE_INFO = Unique_Basici_Long.get();
 thread_local auto Unique_Basici_Double = std::make_unique<BasicTypeInfo>(TYPE_NAME_DOUBLE_SERIALIZER);
-thread_local BasicTypeInfo *BasicTypeInfo::DOUBLE_TYPE_INFO = Unique_Basici_Double.get();
-
+thread_local BasicTypeInfo* BasicTypeInfo::DOUBLE_TYPE_INFO = Unique_Basici_Double.get();

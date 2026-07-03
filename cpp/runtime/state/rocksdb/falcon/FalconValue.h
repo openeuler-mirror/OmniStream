@@ -43,7 +43,7 @@ public:
                 this->value = new std::vector<long>(*value); // deep copy value using new
             }
         } else {
-            this->value = value;  // int32_t and int64_t type do not need deepcopy
+            this->value = value; // int32_t and int64_t type do not need deepcopy
         }
         dirty = isDirty;
     }
@@ -68,7 +68,7 @@ public:
                 this->value = new std::vector<long>(*value); // deep copy value using new
             }
         } else {
-            this->value = V();  // int32_t and int64_t type do not need deepcopy
+            this->value = V(); // int32_t and int64_t type do not need deepcopy
         }
         dirty = false;
     }
@@ -95,10 +95,22 @@ public:
         }
     }
 
-    const V& getValue() const { return value; }
-    [[nodiscard]] bool isDirty() const { return dirty; }
-    void markAsDirty() { dirty = true; }
-    void markAsClean() { dirty = false; }
+    const V& getValue() const
+    {
+        return value;
+    }
+    [[nodiscard]] bool isDirty() const
+    {
+        return dirty;
+    }
+    void markAsDirty()
+    {
+        dirty = true;
+    }
+    void markAsClean()
+    {
+        dirty = false;
+    }
 
 private:
     V value;

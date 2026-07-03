@@ -10,15 +10,16 @@
 TEST(HeapListStateTest, InitTest)
 {
     // Initialize serializers
-    IntSerializer *serializer = IntSerializer::INSTANCE;
+    IntSerializer* serializer = IntSerializer::INSTANCE;
     VoidNamespaceSerializer* nsSerializer = new VoidNamespaceSerializer();
     // Initialize the InternalKeyContext
-    InternalKeyContextImpl<int> *context = new InternalKeyContextImpl<int>(new KeyGroupRange(0, 1), 3);
+    InternalKeyContextImpl<int>* context = new InternalKeyContextImpl<int>(new KeyGroupRange(0, 1), 3);
     context->setCurrentKey(1);
     context->setCurrentKeyGroupIndex(1);
 
     // Initialize RegisteredKeyValueStateBackendMetaInfo
-    RegisteredKeyValueStateBackendMetaInfo *metaInfo = new RegisteredKeyValueStateBackendMetaInfo("metaInfo", nsSerializer, serializer);
+    RegisteredKeyValueStateBackendMetaInfo* metaInfo =
+        new RegisteredKeyValueStateBackendMetaInfo("metaInfo", nsSerializer, serializer);
 
     // Initialize StateTable
     CopyOnWriteStateTable<int, VoidNamespace, std::vector<int>*> table(context, metaInfo, serializer);

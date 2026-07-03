@@ -13,25 +13,27 @@
 
 #include <iostream>
 #include <future>
-#include <thread> 
+#include <thread>
 #include <mutex>
 #include <memory>
 #include <functional>
 #include <exception>
 #include <optional>
 // 1. Forward declare primary
-template<typename T>
+template <typename T>
 class CompletableFutureV2;
 
 // 2. Forward declare specialization
-template<>
+template <>
 class CompletableFutureV2<void>;
 
-template<typename T>
+template <typename T>
 class CompletableFutureV2 {
 public:
     // Constructor
-    CompletableFutureV2() : future_(promise_.get_future().share()) {}
+    CompletableFutureV2() : future_(promise_.get_future().share())
+    {
+    }
 
     // Movable
     CompletableFutureV2(CompletableFutureV2&& other) noexcept
@@ -40,7 +42,9 @@ public:
           completed_(other.completed_.load()),
           completedExceptionally_(other.completedExceptionally_.load()),
           result_(other.result_),
-          callbacks_(std::move(other.callbacks_)) {}
+          callbacks_(std::move(other.callbacks_))
+    {
+    }
 
     CompletableFutureV2& operator=(CompletableFutureV2&& other) noexcept
     {
@@ -100,7 +104,7 @@ public:
     }
 
     // SupplyAsync
-    template<typename F>
+    template <typename F>
     static std::shared_ptr<CompletableFutureV2<std::invoke_result_t<F>>> SupplyAsync(F&& func)
     {
         using R = std::invoke_result_t<F>;
@@ -113,7 +117,7 @@ public:
             } catch (...) {
                 cf_ptr->CompleteExceptionally(std::current_exception());
             }
-        }).detach();  // still detached, but safe because cf_ptr is captured by value
+        }).detach(); // still detached, but safe because cf_ptr is captured by value
 
         return cf_ptr;
     }
@@ -156,20 +160,19 @@ public:
     // This function is very likely to be problematic. Try to avoid it.
     void ThenRun(std::function<void()> callback)
     {
-        ThenApply([callback](const T&) {
-            callback();
-        });
+        ThenApply([callback](const T&) { callback(); });
     }
     // Wait for all futures to complete
     static std::shared_ptr<CompletableFutureV2<void>> AllOf(
         const std::vector<std::shared_ptr<CompletableFutureV2<T>>>& futures);
+
 private:
     std::promise<T> promise_;
     std::shared_future<T> future_;
     // This flag_ is for completion
     std::once_flag flag_;
     std::atomic<bool> completed_{false};
-    std::atomic<bool> completedExceptionally_{false};  // NEW
+    std::atomic<bool> completedExceptionally_{false}; // NEW
 
     // for callbacks;
     std::optional<T> result_;
@@ -185,11 +188,13 @@ private:
     }
 };
 
-template<>
+template <>
 class CompletableFutureV2<void> {
 public:
     // Constructor
-    CompletableFutureV2() : future_(promise_.get_future().share()) {}
+    CompletableFutureV2() : future_(promise_.get_future().share())
+    {
+    }
 
     // Movable
     CompletableFutureV2(CompletableFutureV2&& other) noexcept
@@ -197,7 +202,9 @@ public:
           future_(std::move(other.future_)),
           completed_(other.completed_.load()),
           completedExceptionally_(other.completedExceptionally_.load()),
-          callbacks_(std::move(other.callbacks_)) {}
+          callbacks_(std::move(other.callbacks_))
+    {
+    }
 
     CompletableFutureV2& operator=(CompletableFutureV2&& other) noexcept
     {
@@ -240,7 +247,7 @@ public:
     }
 
     // SupplyAsync
-    template<typename F>
+    template <typename F>
     static std::shared_ptr<CompletableFutureV2<std::invoke_result_t<F>>> SupplyAsync(F&& func)
     {
         using R = std::invoke_result_t<F>;
@@ -254,7 +261,7 @@ public:
             } catch (...) {
                 cf_ptr->CompleteWithException(std::current_exception());
             }
-        }).detach();  // still detached, but safe because cf_ptr is captured by value
+        }).detach(); // still detached, but safe because cf_ptr is captured by value
 
         return cf_ptr;
     }
@@ -285,7 +292,7 @@ public:
     // This function is very likely to be problematic. Try to avoid it.
     void ThenRun(std::function<void()> callback)
     {
-        std::cout<<"execute then run method!"<<std::endl;
+        std::cout << "execute then run method!" << std::endl;
         auto wrapper = [this, callback]() {
             if (completed_) {
                 callback();
@@ -301,7 +308,7 @@ public:
             }
         }
     }
-   // Wait for all futures to complete
+    // Wait for all futures to complete
     static std::shared_ptr<CompletableFutureV2<void>> AllOf(
         const std::vector<std::shared_ptr<CompletableFutureV2<void>>>& futures)
     {
@@ -312,7 +319,7 @@ public:
                     f->Get(); // wait for each to complete
                 }
                 cf_ptr->Complete();
-                std::cout<<"all of future complete!"<<std::endl;
+                std::cout << "all of future complete!" << std::endl;
             } catch (...) {
                 cf_ptr->CompleteExceptionally(std::current_exception());
             }
@@ -321,12 +328,13 @@ public:
     }
 
     // 2. 新增链式 ThenRun：返回一个新的 future，其完成标志着 callback 执行完毕
-    std::shared_ptr<CompletableFutureV2<void>> ThenRunWithFuture(std::function<void()> callback) {
+    std::shared_ptr<CompletableFutureV2<void>> ThenRunWithFuture(std::function<void()> callback)
+    {
         auto result = std::make_shared<CompletableFutureV2<void>>();
         auto wrapper = [this, callback, result]() {
             if (completed_) {
-                callback();                  // 执行用户回调
-                result->Complete();          // 标记 result future 完成
+                callback();         // 执行用户回调
+                result->Complete(); // 标记 result future 完成
             }
         };
         {
@@ -341,13 +349,14 @@ public:
         }
         return result;
     }
+
 private:
     std::promise<void> promise_;
     std::shared_future<void> future_;
     // This flag_ is for completion
     std::once_flag flag_;
     std::atomic<bool> completed_{false};
-    std::atomic<bool> completedExceptionally_{false};  // NEW
+    std::atomic<bool> completedExceptionally_{false}; // NEW
 
     // for callbacks;
     std::vector<std::function<void()>> callbacks_;
@@ -363,7 +372,7 @@ private:
 };
 
 // Wait for all futures to complete
-template<typename T>
+template <typename T>
 std::shared_ptr<CompletableFutureV2<void>> CompletableFutureV2<T>::AllOf(
     const std::vector<std::shared_ptr<CompletableFutureV2<T>>>& futures)
 {

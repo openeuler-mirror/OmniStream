@@ -20,7 +20,8 @@
 class MapTypeInfo : public TypeInformation {
 public:
     explicit MapTypeInfo(TypeInformation* keyInfo, TypeInformation* valueInfo)
-        : keyTypeInfo(keyInfo), valueTypeInfo(valueInfo)
+        : keyTypeInfo(keyInfo),
+          valueTypeInfo(valueInfo)
     {
         keyInfo->getRefCount();
         valueInfo->getRefCount();
@@ -62,14 +63,17 @@ public:
         return keyTypeInfo->name() + " " + valueTypeInfo->name();
     }
 
-    TypeSerializer *createTypeSerializer() override;
+    TypeSerializer* createTypeSerializer() override;
 
-    BackendDataType getBackendId() const override {return BackendDataType::OBJECT_BK;};
+    BackendDataType getBackendId() const override
+    {
+        return BackendDataType::OBJECT_BK;
+    };
+
 private:
     const char* name_ = TYPE_NAME_STRING;
     TypeInformation* keyTypeInfo;
     TypeInformation* valueTypeInfo;
 };
 
-
-#endif  // FLINK_TNEL_STRINGTYPEINFO_H
+#endif // FLINK_TNEL_STRINGTYPEINFO_H

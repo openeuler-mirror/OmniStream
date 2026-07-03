@@ -16,7 +16,7 @@
 class TimestampData {
 public:
     TimestampData(long millisecond, int nanoOfMillisecond);
-    
+
     long getMillisecond() const;
     int getNanoOfMillisecond() const;
 

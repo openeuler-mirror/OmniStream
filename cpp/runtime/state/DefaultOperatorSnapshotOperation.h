@@ -1,5 +1,5 @@
 /*
-* Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
  * You can use this software according to the terms and conditions of the Mulan PSL v2.
  * You may obtain a copy of Mulan PSL v2 at:
  *          http://license.coscl.org.cn/MulanPSL2
@@ -34,10 +34,13 @@ public:
         : checkpointId_(checkpointId),
           checkpointOptions_(checkpointOptions),
           streamFactory_(streamFactory),
-          snapshotResources_(std::move(snapshotResources)) {
+          snapshotResources_(std::move(snapshotResources))
+    {
     }
 
-    std::shared_ptr<SnapshotResult<OperatorStateHandle>> get(std::shared_ptr<omnistream::OmniTaskBridge> bridge) override {
+    std::shared_ptr<SnapshotResult<OperatorStateHandle>> get(
+        std::shared_ptr<omnistream::OmniTaskBridge> bridge) override
+    {
         try {
             auto registeredOperatorStatesDeepCopies = snapshotResources_->getRegisteredOperatorStatesDeepCopies();
             auto registeredBroadcastStatesDeepCopies = snapshotResources_->getRegisteredBroadcastStatesDeepCopies();
@@ -51,8 +54,10 @@ public:
 
             outputStreamProxy.writeOperatorMetaData(operatorStateMetaInfoSnapshots, broadcastStateMetaInfoSnapshots);
 
-            int initialMapCapacity = registeredOperatorStatesDeepCopies->size() + registeredBroadcastStatesDeepCopies->size();
-            auto writtenStatesMetaData = std::unordered_map<std::string, OperatorStateHandle::StateMetaInfo>(initialMapCapacity);
+            int initialMapCapacity =
+                registeredOperatorStatesDeepCopies->size() + registeredBroadcastStatesDeepCopies->size();
+            auto writtenStatesMetaData =
+                std::unordered_map<std::string, OperatorStateHandle::StateMetaInfo>(initialMapCapacity);
 
             for (auto& entry : *registeredOperatorStatesDeepCopies) {
                 std::string name = entry.first;
@@ -79,7 +84,8 @@ public:
 
             for (auto& entry : *registeredBroadcastStatesDeepCopies) {
                 std::string name = entry.first;
-                auto state = std::dynamic_pointer_cast<HeapBroadcastState<std::vector<uint8_t>, std::vector<uint8_t>>>(entry.second);
+                auto state = std::dynamic_pointer_cast<HeapBroadcastState<std::vector<uint8_t>, std::vector<uint8_t>>>(
+                    entry.second);
                 if (state != nullptr) {
                     long startPos = outputStreamProxy.getPos();
                     DataOutputSerializer out;
@@ -93,12 +99,13 @@ public:
             auto handle = outputStreamProxy.close();
             if (handle) {
                 auto jobManagerOwnedSnapshot = handle->GetJobManagerOwnedSnapshot();
-                auto stateHandle = std::make_shared<OperatorStreamStateHandle>(writtenStatesMetaData, jobManagerOwnedSnapshot);
+                auto stateHandle =
+                    std::make_shared<OperatorStreamStateHandle>(writtenStatesMetaData, jobManagerOwnedSnapshot);
 
                 return SnapshotResult<OperatorStateHandle>::WithLocalState(stateHandle, nullptr);
             }
             return SnapshotResult<OperatorStateHandle>::Empty();
-        } catch (const std::exception &e) {
+        } catch (const std::exception& e) {
             GErrorLog("DefaultOperatorSnapshotOperation get exception : " + std::string(e.what()));
             throw std::runtime_error("DefaultOperatorSnapshotOperation get failed.");
         }
@@ -111,4 +118,4 @@ protected:
     std::shared_ptr<DefaultOperatorStateBackendSnapshotResources> snapshotResources_;
 };
 
-#endif //OMNISTREAM_DEFAULTOPERATORSNAPSHOTOPERATION_H
+#endif // OMNISTREAM_DEFAULTOPERATORSNAPSHOTOPERATION_H

@@ -25,55 +25,49 @@
 
 namespace omnistream {
 
-    class ChannelStateWriterImpl : public ChannelStateWriter {
-    public:
-        ChannelStateWriterImpl() = default;
-        ChannelStateWriterImpl(
-            const JobVertexID &jobVertexID,
-            const std::string &taskName,
-            int subtaskIndex,
-            std::shared_ptr<CheckpointStorage> checkpointStorage,
-            std::shared_ptr<CheckpointStorageWorkerView> streamFactoryResolver,
-            int maxCheckpoints = 1000,
-            int maxSubtasksPerChannelStateFile = 10);
+class ChannelStateWriterImpl : public ChannelStateWriter {
+public:
+    ChannelStateWriterImpl() = default;
+    ChannelStateWriterImpl(
+        const JobVertexID& jobVertexID,
+        const std::string& taskName,
+        int subtaskIndex,
+        std::shared_ptr<CheckpointStorage> checkpointStorage,
+        std::shared_ptr<CheckpointStorageWorkerView> streamFactoryResolver,
+        int maxCheckpoints = 1000,
+        int maxSubtasksPerChannelStateFile = 10);
 
-        void Start(long checkpointId, const CheckpointOptions &options) override;
-        void AddInputData(
-            long checkpointId,
-            const InputChannelInfo &info,
-            int startSeqNum,
-            std::vector<Buffer*> data) override;
-        void AddOutputData(
-            long checkpointId,
-            const ResultSubpartitionInfoPOD &info,
-            int startSeqNum,
-            std::vector<Buffer*> &data) override;
-        void AddOutputDataFuture(
-            long checkpointId,
-            const ResultSubpartitionInfoPOD &info,
-            int startSeqNum,
-            std::shared_ptr<CompletableFutureV2<std::vector<Buffer*>>> data) override;
-        void FinishInput(long checkpointId) override;
-        void FinishOutput(long checkpointId) override;
-        void Abort(long checkpointId, const std::exception_ptr &cause, bool cleanup) override;
-        std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> GetAndRemoveWriteResult(long checkpointId) override;
-        void Close();
-        void open() override;
+    void Start(long checkpointId, const CheckpointOptions& options) override;
+    void AddInputData(
+        long checkpointId, const InputChannelInfo& info, int startSeqNum, std::vector<Buffer*> data) override;
+    void AddOutputData(
+        long checkpointId, const ResultSubpartitionInfoPOD& info, int startSeqNum, std::vector<Buffer*>& data) override;
+    void AddOutputDataFuture(
+        long checkpointId,
+        const ResultSubpartitionInfoPOD& info,
+        int startSeqNum,
+        std::shared_ptr<CompletableFutureV2<std::vector<Buffer*>>> data) override;
+    void FinishInput(long checkpointId) override;
+    void FinishOutput(long checkpointId) override;
+    void Abort(long checkpointId, const std::exception_ptr& cause, bool cleanup) override;
+    std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> GetAndRemoveWriteResult(long checkpointId) override;
+    void Close();
+    void open() override;
 
-    private:
-        JobVertexID jobVertexID_;
-        std::string taskName_;
-        int subtaskIndex_;
-        int maxCheckpoints_;
-        std::atomic<bool> wasClosed_;
-        std::mutex resultsMutex_;
-        std::shared_ptr<ChannelStateWriteRequestExecutor> executor_;
-        std::map<long, std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult>> results_;
-        std::shared_ptr<ChannelStateSerializer> serializer_;
+private:
+    JobVertexID jobVertexID_;
+    std::string taskName_;
+    int subtaskIndex_;
+    int maxCheckpoints_;
+    std::atomic<bool> wasClosed_;
+    std::mutex resultsMutex_;
+    std::shared_ptr<ChannelStateWriteRequestExecutor> executor_;
+    std::map<long, std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult>> results_;
+    std::shared_ptr<ChannelStateSerializer> serializer_;
 
-        void validateCheckpointId(long checkpointId);
-        void enqueue(std::shared_ptr<ChannelStateWriteRequest> request, bool priority);
-    };
+    void validateCheckpointId(long checkpointId);
+    void enqueue(std::shared_ptr<ChannelStateWriteRequest> request, bool priority);
+};
 
 } // namespace omnistream
 

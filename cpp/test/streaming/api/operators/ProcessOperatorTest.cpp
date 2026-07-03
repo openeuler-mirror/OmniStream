@@ -26,7 +26,8 @@ std::string plan = R"delim(
 "formatType":"csv"}
 )delim";
 
-omnistream::VectorBatch* BuildInputVectorBatch3() {
+omnistream::VectorBatch* BuildInputVectorBatch3()
+{
     int rowCnt = 5;
     std::vector<long> col0(rowCnt);
     std::vector<long> col1(rowCnt);
@@ -48,23 +49,25 @@ omnistream::VectorBatch* BuildInputVectorBatch3() {
     vb->Append(omniruntime::TestUtil::CreateVector<int64_t>(rowCnt, col3.data()));
     vb->Append(omniruntime::TestUtil::CreateVector<int64_t>(rowCnt, col4.data()));
 
-    std::cout<<"input vectorbatch created"<<std::endl;
+    std::cout << "input vectorbatch created" << std::endl;
     return vb;
 }
 
-TEST(ProcessOperatorTest, Constructor) {
+TEST(ProcessOperatorTest, Constructor)
+{
     auto description = nlohmann::json::parse(plan);
     BatchOutputTest* output = new BatchOutputTest();
-    LookupJoinRunner *runner = new LookupJoinRunner(description, output);
-    std::cout<<"LookupJoinRunner constructed"<<std::endl;
+    LookupJoinRunner* runner = new LookupJoinRunner(description, output);
+    std::cout << "LookupJoinRunner constructed" << std::endl;
     ProcessOperator op(runner, description, output);
-    std::cout<<"ProcessOperator constructed"<<std::endl;
+    std::cout << "ProcessOperator constructed" << std::endl;
 }
 
-TEST(ProcessOperatorTest, Open) {
+TEST(ProcessOperatorTest, Open)
+{
     auto description = nlohmann::json::parse(plan);
     BatchOutputTest* output = new BatchOutputTest();
-    LookupJoinRunner *runner = new LookupJoinRunner(description, output);
+    LookupJoinRunner* runner = new LookupJoinRunner(description, output);
     ProcessOperator op(runner, description, output);
     op.open();
 }
@@ -75,7 +78,8 @@ TEST(ProcessOperatorTest, Open) {
  * 423,5,hello_world_5,5,0
  * 424,5,hello_world_7,5,0
  */
-omnistream::VectorBatch* BuildExpectedVectorBatch3() {
+omnistream::VectorBatch* BuildExpectedVectorBatch3()
+{
     int rowCnt = 4;
     std::vector<long> col0{421, 422, 423, 424};
     std::vector<long> col1{4, 4, 5, 5};
@@ -90,19 +94,20 @@ omnistream::VectorBatch* BuildExpectedVectorBatch3() {
     vb->Append(omniruntime::TestUtil::CreateVector<int64_t>(rowCnt, col3.data()));
     return vb;
 }
-TEST(ProcessOperatorTest, DISABLED_LookupJoinRunner) {
+TEST(ProcessOperatorTest, DISABLED_LookupJoinRunner)
+{
     auto description = nlohmann::json::parse(plan);
     OutputTestVectorBatch* output = new OutputTestVectorBatch();
-    LookupJoinRunner *runner = new LookupJoinRunner(description, output);
+    LookupJoinRunner* runner = new LookupJoinRunner(description, output);
     ProcessOperator op(runner, description, output);
     op.open();
     auto inputBatch = BuildInputVectorBatch3();
     auto record = new StreamRecord(inputBatch);
     op.processBatch(record);
-    //auto outputvb = output->getVectorBatch();
+    // auto outputvb = output->getVectorBatch();
 
-    //auto expectedvb = BuildExpectedVectorBatch3();
-    // TODO: We should have a VecBatchMatchIgnoreRowOrder for this one!
-    //bool matched = omniruntime::TestUtil::VecBatchMatch(outputvb, expectedvb);
-    //EXPECT_EQ(matched, true);
+    // auto expectedvb = BuildExpectedVectorBatch3();
+    //  TODO: We should have a VecBatchMatchIgnoreRowOrder for this one!
+    // bool matched = omniruntime::TestUtil::VecBatchMatch(outputvb, expectedvb);
+    // EXPECT_EQ(matched, true);
 }

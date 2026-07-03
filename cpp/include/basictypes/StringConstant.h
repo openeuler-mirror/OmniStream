@@ -17,7 +17,7 @@
 
 class StringConstant : public Object {
 public:
-    using StringMap = std::unordered_map<std::string, String *>;
+    using StringMap = std::unordered_map<std::string, String*>;
     StringMap stringMap;
 
     static StringConstant& getInstance();

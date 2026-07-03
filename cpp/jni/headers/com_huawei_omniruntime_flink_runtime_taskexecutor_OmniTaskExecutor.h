@@ -22,24 +22,27 @@ extern "C" {
  * Method:    createNativeTaskExecutor
  * Signature: (Ljava/lang/String;J)J
  */
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskexecutor_OmniTaskExecutor_createNativeTaskExecutor
-  (JNIEnv *, jobject, jstring, jlong);
+JNIEXPORT jlong JNICALL
+Java_com_huawei_omniruntime_flink_runtime_taskexecutor_OmniTaskExecutor_createNativeTaskExecutor(
+    JNIEnv*, jobject, jstring, jlong);
 
 /*
  * Class:     com_huawei_omniruntime_flink_runtime_taskexecutor_OmniTaskExecutor
  * Method:    submitTaskNative
  * Signature: (JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;)J
  */
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskexecutor_OmniTaskExecutor_submitTaskNative
-  (JNIEnv *, jobject, jlong, jstring, jstring, jstring);
+JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskexecutor_OmniTaskExecutor_submitTaskNative(
+    JNIEnv*, jobject, jlong, jstring, jstring, jstring);
 
 /*
  * Class:     com_huawei_omniruntime_flink_runtime_taskexecutor_OmniTaskExecutor
  * Method:    submitTaskNativeWithCheckpointing
- * Signature: (JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/huawei/omniruntime/flink/runtime/state/TaskStateManagerWrapper;Lcom/huawei/omniruntime/flink/runtime/taskmanager/OmniTaskWrapper;Lcom/huawei/omniruntime/flink/runtime/taskexecutor/TaskOperatorGatewayWrapper;)J
+ * Signature:
+ * (JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/huawei/omniruntime/flink/runtime/state/TaskStateManagerWrapper;Lcom/huawei/omniruntime/flink/runtime/taskmanager/OmniTaskWrapper;Lcom/huawei/omniruntime/flink/runtime/taskexecutor/TaskOperatorGatewayWrapper;)J
  */
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskexecutor_OmniTaskExecutor_submitTaskNativeWithCheckpointing
-  (JNIEnv *, jobject, jlong, jstring, jstring, jstring, jobject, jobject, jobject);
+JNIEXPORT jlong JNICALL
+Java_com_huawei_omniruntime_flink_runtime_taskexecutor_OmniTaskExecutor_submitTaskNativeWithCheckpointing(
+    JNIEnv*, jobject, jlong, jstring, jstring, jstring, jobject, jobject, jobject);
 
 #ifdef __cplusplus
 }

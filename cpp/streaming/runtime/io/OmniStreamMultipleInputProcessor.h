@@ -17,30 +17,35 @@
 #include "MultipleFuturesAvailabilityHelper.h"
 
 namespace omnistream {
-    class OmniStreamMultipleInputProcessor : public OmniStreamInputProcessor {
-    public:
-        OmniStreamMultipleInputProcessor(std::vector<OmniStreamOneInputProcessor *> &&_processors,
-                                         std::shared_ptr<MutipleInputSelectionHandler> inputSelectionHandler)
-            : processors(_processors), inputSelectionHandler(inputSelectionHandler) {
-            availabilityHelper = std::make_shared<MultipleFuturesAvailabilityHelper>(processors.size());
-        }
-        ~OmniStreamMultipleInputProcessor() override;
+class OmniStreamMultipleInputProcessor : public OmniStreamInputProcessor {
+public:
+    OmniStreamMultipleInputProcessor(
+        std::vector<OmniStreamOneInputProcessor*>&& _processors,
+        std::shared_ptr<MutipleInputSelectionHandler> inputSelectionHandler)
+        : processors(_processors),
+          inputSelectionHandler(inputSelectionHandler)
+    {
+        availabilityHelper = std::make_shared<MultipleFuturesAvailabilityHelper>(processors.size());
+    }
+    ~OmniStreamMultipleInputProcessor() override;
 
-        DataInputStatus processInput() override;
-        std::shared_ptr<CompletableFuture> GetAvailableFuture() override;
-        std::shared_ptr<CompletableFutureV2<void>> PrepareSnapshot(std::shared_ptr<ChannelStateWriter> writer, long checkpointID) override;
-        void close() override;
-    private:
-        std::vector<OmniStreamOneInputProcessor *> processors;
-        std::shared_ptr<MutipleInputSelectionHandler> inputSelectionHandler;
-        std::shared_ptr<MultipleFuturesAvailabilityHelper> availabilityHelper;
-        bool isPrepared = false;
-        int8_t suspendNum = 2;
-        int32_t lastReadInputIndex;
-        int selectFirstReadingInputIndex();
-        int selectNextReadingInputIndex();
-        void FullCheckAndSetAvailable();
-    };
-}
+    DataInputStatus processInput() override;
+    std::shared_ptr<CompletableFuture> GetAvailableFuture() override;
+    std::shared_ptr<CompletableFutureV2<void>> PrepareSnapshot(
+        std::shared_ptr<ChannelStateWriter> writer, long checkpointID) override;
+    void close() override;
+
+private:
+    std::vector<OmniStreamOneInputProcessor*> processors;
+    std::shared_ptr<MutipleInputSelectionHandler> inputSelectionHandler;
+    std::shared_ptr<MultipleFuturesAvailabilityHelper> availabilityHelper;
+    bool isPrepared = false;
+    int8_t suspendNum = 2;
+    int32_t lastReadInputIndex;
+    int selectFirstReadingInputIndex();
+    int selectNextReadingInputIndex();
+    void FullCheckAndSetAvailable();
+};
+} // namespace omnistream
 
 #endif

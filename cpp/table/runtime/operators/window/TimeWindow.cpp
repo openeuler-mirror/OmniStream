@@ -11,28 +11,34 @@
 #include "../../core/memory/DataInputView.h"
 #include "TimeWindow.h"
 
-TimeWindow::TimeWindow() {}
+TimeWindow::TimeWindow()
+{
+}
 
-TimeWindow::TimeWindow(int64_t start, int64_t end) : start(start), end(end) {}
+TimeWindow::TimeWindow(int64_t start, int64_t end) : start(start), end(end)
+{
+}
 
-TimeWindow::Serializer::Serializer() {}
+TimeWindow::Serializer::Serializer()
+{
+}
 
 bool TimeWindow::Serializer::isImmutableType() const
 {
     return true;
 }
 
-TimeWindow *TimeWindow::Serializer::createInstance() const
+TimeWindow* TimeWindow::Serializer::createInstance() const
 {
     return new TimeWindow(0, 1);
 }
 
-TimeWindow *TimeWindow::Serializer::copy(TimeWindow *from) const
+TimeWindow* TimeWindow::Serializer::copy(TimeWindow* from) const
 {
     return from;
 }
 
-TimeWindow *TimeWindow::Serializer::copy(TimeWindow *from, TimeWindow *reuse) const
+TimeWindow* TimeWindow::Serializer::copy(TimeWindow* from, TimeWindow* reuse) const
 {
     return from;
 }
@@ -42,14 +48,14 @@ int32_t TimeWindow::Serializer::getLength() const
     return sizeof(int64_t) * 2;
 }
 
-void TimeWindow::Serializer::serialize(void *input, DataOutputSerializer &target)
+void TimeWindow::Serializer::serialize(void* input, DataOutputSerializer& target)
 {
-    TimeWindow *record = (TimeWindow *) input;
+    TimeWindow* record = (TimeWindow*)input;
     target.writeLong(record->start);
     target.writeLong(record->end);
 }
 
-void *TimeWindow::Serializer::deserialize(DataInputView &source)
+void* TimeWindow::Serializer::deserialize(DataInputView& source)
 {
     int64_t start1;
     int64_t end1;
@@ -58,7 +64,7 @@ void *TimeWindow::Serializer::deserialize(DataInputView &source)
     return new TimeWindow(start1, end1);
 }
 
-void TimeWindow::Serializer::copy(DataInputView *source, DataOutputSerializer *target) const
+void TimeWindow::Serializer::copy(DataInputView* source, DataOutputSerializer* target) const
 {
     target->writeLong(source->readLong());
     target->writeLong(source->readLong());

@@ -28,18 +28,18 @@ public:
     }
     ~PersonGenerator()
     {
-        delete []emailBuffer;
-        delete []extraBuffer;
+        delete[] emailBuffer;
+        delete[] extraBuffer;
     }
     /** Generate and return a random person with next available id. */
-    std::unique_ptr<Person> nextPerson(long nextEventId, long timestamp, const GeneratorConfig &config);
+    std::unique_ptr<Person> nextPerson(long nextEventId, long timestamp, const GeneratorConfig& config);
     /** Return a random person id (base 0). */
-    static long nextBase0PersonId(long eventId, SplittableRandom &random, const GeneratorConfig &config);
+    static long nextBase0PersonId(long eventId, SplittableRandom& random, const GeneratorConfig& config);
     /**
      * Return the last valid person id (ignoring FIRST_PERSON_ID). Will be the current person id if
      * due to generate a person.
      */
-    static long lastBase0PersonId(const GeneratorConfig &config, long eventId);
+    static long lastBase0PersonId(const GeneratorConfig& config, long eventId);
 
 private:
     SplittableRandom random;
@@ -67,13 +67,13 @@ private:
     inline std::string_view nextUSState()
     {
         // These are
-        return US_STATES[random.nextInt((int) US_STATES.size())];
+        return US_STATES[random.nextInt((int)US_STATES.size())];
     }
 
     /** Return a random US city. */
     inline std::string_view nextUSCity()
     {
-        return US_CITIES[random.nextInt((int) US_CITIES.size())];
+        return US_CITIES[random.nextInt((int)US_CITIES.size())];
     }
 
     /** Return a random person name. */
@@ -97,6 +97,5 @@ private:
     char* emailBuffer;
     char* extraBuffer;
 };
-
 
 #endif // OMNISTREAM_PERSONGENERATOR_H

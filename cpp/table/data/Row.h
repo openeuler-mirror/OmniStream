@@ -51,12 +51,12 @@ public:
         return this->positionByName_;
     }
 
-    void setInternalRow(RowData *internalRow)
+    void setInternalRow(RowData* internalRow)
     {
         this->internalRow_ = internalRow;
     }
 
-    RowData *getInternalRow()
+    RowData* getInternalRow()
     {
         return this->internalRow_;
     }
@@ -68,7 +68,7 @@ private:
     std::vector<std::any> fieldByPosition_;
     std::map<std::string, std::any> fieldByName_;
     std::map<std::string, int> positionByName_;
-    RowData *internalRow_;
+    RowData* internalRow_;
 };
 
 #endif // ROW_H

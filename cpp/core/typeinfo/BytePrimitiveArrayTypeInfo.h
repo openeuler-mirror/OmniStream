@@ -9,8 +9,8 @@
  * See the Mulan PSL v2 for more details.
  */
 
- #ifndef OMNISTREAM_BYTEPRIMITIVEARRAYTYPEINFO_H
- #define OMNISTREAM_BYTEPRIMITIVEARRAYTYPEINFO_H
+#ifndef OMNISTREAM_BYTEPRIMITIVEARRAYTYPEINFO_H
+#define OMNISTREAM_BYTEPRIMITIVEARRAYTYPEINFO_H
 
 #include "../typeutils/TypeSerializer.h"
 #include "../typeutils/BytePrimitiveArraySerializer.h"
@@ -19,11 +19,13 @@
 
 class BytePrimitiveArrayTypeInfo : public TypeInformation {
 public:
-    TypeSerializer *createTypeSerializer() override {
+    TypeSerializer* createTypeSerializer() override
+    {
         return new BytePrimitiveArraySerializer(nullptr);
     };
 
-    std::string name() override {
+    std::string name() override
+    {
         return name_;
     }
 
@@ -31,6 +33,7 @@ public:
     {
         return BackendDataType::BYTE_ARRAY_BK;
     };
+
 private:
     const char* name_ = TYPE_NAME_BYTE_PRIMITIVE_ARRAY_SERIALIZER;
 };

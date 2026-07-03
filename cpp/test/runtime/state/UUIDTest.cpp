@@ -2,7 +2,8 @@
 #include "runtime/state/UUID.h"
 #include <unordered_set>
 
-TEST(UUIDTest, RandomUUID_UniqueAndFormat) {
+TEST(UUIDTest, RandomUUID_UniqueAndFormat)
+{
     std::unordered_set<std::string> seen;
     // Generate 100 UUIDs to ensure uniqueness and correct format
     for (int i = 0; i < 100; ++i) {
@@ -18,7 +19,8 @@ TEST(UUIDTest, RandomUUID_UniqueAndFormat) {
     }
 }
 
-TEST(UUIDTest, ToStringAndFromStringConsistency) {
+TEST(UUIDTest, ToStringAndFromStringConsistency)
+{
     for (int i = 0; i < 10; ++i) {
         UUID uuid = UUID::randomUUID();
         std::string str = uuid.ToString();
@@ -27,7 +29,8 @@ TEST(UUIDTest, ToStringAndFromStringConsistency) {
     }
 }
 
-TEST(UUIDTest, OperatorEqualsNotEquals) {
+TEST(UUIDTest, OperatorEqualsNotEquals)
+{
     UUID a = UUID::randomUUID();
     UUID b = UUID::FromString(a.ToString());
     UUID c = UUID::randomUUID();
@@ -37,7 +40,8 @@ TEST(UUIDTest, OperatorEqualsNotEquals) {
     ASSERT_TRUE(a != c);
 }
 
-TEST(UUIDTest, OperatorLess) {
+TEST(UUIDTest, OperatorLess)
+{
     UUID a(1, 2);
     UUID b(1, 3);
     UUID c(2, 0);
@@ -46,7 +50,8 @@ TEST(UUIDTest, OperatorLess) {
     ASSERT_TRUE(a < c);
 }
 
-TEST(UUIDTest, HashWorksInUnorderedSet) {
+TEST(UUIDTest, HashWorksInUnorderedSet)
+{
     UUID a = UUID::randomUUID();
     UUID b = UUID::FromString(a.ToString());
     UUID c = UUID::randomUUID();
@@ -58,8 +63,9 @@ TEST(UUIDTest, HashWorksInUnorderedSet) {
     ASSERT_EQ(uset.count(c), 1);
 }
 
-TEST(UUIDTest, InvalidFromStringThrows) {
+TEST(UUIDTest, InvalidFromStringThrows)
+{
     ASSERT_THROW(UUID::FromString("not-a-uuid"), std::invalid_argument);
-    ASSERT_THROW(UUID::FromString("000000000000000000000000000000000000"), std::invalid_argument); // wrong length
+    ASSERT_THROW(UUID::FromString("000000000000000000000000000000000000"), std::invalid_argument);      // wrong length
     ASSERT_THROW(UUID::FromString("00000000-0000-0000-0000-000000000000-0000"), std::invalid_argument); // too long
 }

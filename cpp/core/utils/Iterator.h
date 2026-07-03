@@ -14,11 +14,15 @@
 #include "common.h"
 
 namespace omnistream::utils {
-    template <typename E> class Iterator {
-    public:
-        virtual ~Iterator() = default;
-        virtual bool hasNext() = 0;
-        virtual E next() = 0;
-        virtual void remove() { NOT_IMPL_EXCEPTION }
-    };
-}
+template <typename E>
+class Iterator {
+public:
+    virtual ~Iterator() = default;
+    virtual bool hasNext() = 0;
+    virtual E next() = 0;
+    virtual void remove()
+    {
+        NOT_IMPL_EXCEPTION;
+    }
+};
+} // namespace omnistream::utils

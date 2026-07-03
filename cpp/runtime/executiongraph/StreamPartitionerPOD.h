@@ -12,14 +12,12 @@
 #ifndef STREAMPARTITIONERPOD_H
 #define STREAMPARTITIONERPOD_H
 
-
 #include <string>
 #include <vector>
 #include <nlohmann/json.hpp>
 #include "KeyFieldInfoPOD.h"
 
 namespace omnistream {
-
 
 class StreamPartitionerPOD {
 public:
@@ -32,22 +30,25 @@ public:
 
     StreamPartitionerPOD() = default;
 
-    StreamPartitionerPOD(const std::string &partitionerName, const std::vector<KeyFieldInfoPOD> &hashFields)
+    StreamPartitionerPOD(const std::string& partitionerName, const std::vector<KeyFieldInfoPOD>& hashFields)
         : partitionerName(partitionerName),
-          hashFields(hashFields) {
+          hashFields(hashFields)
+    {
     }
 
-    StreamPartitionerPOD(const StreamPartitionerPOD &other)
+    StreamPartitionerPOD(const StreamPartitionerPOD& other)
         : partitionerName(other.partitionerName),
-          hashFields(other.hashFields) {
+          hashFields(other.hashFields)
+    {
     }
 
-    StreamPartitionerPOD(StreamPartitionerPOD &&other) noexcept
+    StreamPartitionerPOD(StreamPartitionerPOD&& other) noexcept
         : partitionerName(std::move(other.partitionerName)),
-          hashFields(std::move(other.hashFields)) {
+          hashFields(std::move(other.hashFields))
+    {
     }
 
-    StreamPartitionerPOD& operator=(const StreamPartitionerPOD &other)
+    StreamPartitionerPOD& operator=(const StreamPartitionerPOD& other)
     {
         if (this == &other) {
             return *this;
@@ -57,7 +58,7 @@ public:
         return *this;
     }
 
-    StreamPartitionerPOD& operator=(StreamPartitionerPOD &&other) noexcept
+    StreamPartitionerPOD& operator=(StreamPartitionerPOD&& other) noexcept
     {
         if (this == &other) {
             return *this;
@@ -67,27 +68,26 @@ public:
         return *this;
     }
 
-    friend bool operator==(const StreamPartitionerPOD &lhs, const StreamPartitionerPOD &rhs)
+    friend bool operator==(const StreamPartitionerPOD& lhs, const StreamPartitionerPOD& rhs)
     {
-        return lhs.partitionerName == rhs.partitionerName
-               && lhs.hashFields == rhs.hashFields;
+        return lhs.partitionerName == rhs.partitionerName && lhs.hashFields == rhs.hashFields;
     }
 
-    friend bool operator!=(const StreamPartitionerPOD &lhs, const StreamPartitionerPOD &rhs)
+    friend bool operator!=(const StreamPartitionerPOD& lhs, const StreamPartitionerPOD& rhs)
     {
         return !(lhs == rhs);
     }
 
-    static std::size_t hash_value(const std::vector<KeyFieldInfoPOD> &hashFields_)
+    static std::size_t hash_value(const std::vector<KeyFieldInfoPOD>& hashFields_)
     {
         std::size_t seed = 0x0151AD2E;
-        for (const KeyFieldInfoPOD &element: hashFields_) {
+        for (const KeyFieldInfoPOD& element : hashFields_) {
             seed ^= std::hash<KeyFieldInfoPOD>{}(element) + 0x9e3779b9 + (seed << 6) + (seed >> 2); // Good mixing
         }
         return seed;
     }
 
-    friend std::size_t hash_value(const StreamPartitionerPOD &obj)
+    friend std::size_t hash_value(const StreamPartitionerPOD& obj)
     {
         std::size_t seed = 0x0151AD2E;
         seed ^= (seed << 6) + (seed >> 2) + 0x7CA90669 + std::hash<std::string>{}(obj.partitionerName);
@@ -113,14 +113,13 @@ private:
 
 // Specialize std::hash  (REQUIRED)
 namespace std {
-    template <>
-    struct hash<omnistream::StreamPartitionerPOD> {
-        std::size_t operator()(const omnistream::StreamPartitionerPOD& obj) const
-        {
-            return hash_value(obj); // O
-        }
-    };
+template <>
+struct hash<omnistream::StreamPartitionerPOD> {
+    std::size_t operator()(const omnistream::StreamPartitionerPOD& obj) const
+    {
+        return hash_value(obj); // O
+    }
+};
 } // namespace std
-
 
 #endif

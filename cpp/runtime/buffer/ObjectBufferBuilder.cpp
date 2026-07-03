@@ -29,8 +29,10 @@
 
 namespace omnistream {
 
-ObjectBufferBuilder::ObjectBufferBuilder(ObjectSegment *objSegment, std::shared_ptr<BufferRecycler> recycler)
-    : BufferBuilder(new VectorBatchBuffer(objSegment, recycler)), objSegment(objSegment) {
+ObjectBufferBuilder::ObjectBufferBuilder(ObjectSegment* objSegment, std::shared_ptr<BufferRecycler> recycler)
+    : BufferBuilder(new VectorBatchBuffer(objSegment, recycler)),
+      objSegment(objSegment)
+{
 }
 
 std::shared_ptr<BufferConsumer> ObjectBufferBuilder::createBufferConsumerFromBeginning()
@@ -45,25 +47,28 @@ std::shared_ptr<BufferConsumer> ObjectBufferBuilder::createBufferConsumer(int cu
     }
     bufferConsumerCreated = true;
     positionMarker->addRef();
-    return std::make_shared<ObjectBufferConsumer>(dynamic_cast<VectorBatchBuffer*>(buffer->RetainBuffer()), positionMarker, currentReaderPosition);
+    return std::make_shared<ObjectBufferConsumer>(
+        dynamic_cast<VectorBatchBuffer*>(buffer->RetainBuffer()), positionMarker, currentReaderPosition);
 }
 
-int ObjectBufferBuilder::appendAndCommit(void *source)
+int ObjectBufferBuilder::appendAndCommit(void* source)
 {
     int writtenBytes = append(source);
     commit();
     return writtenBytes;
 }
 
-int ObjectBufferBuilder::append(void *source)
+int ObjectBufferBuilder::append(void* source)
 {
     if (isFinished()) {
         throw std::runtime_error("BufferBuilder is finished");
     }
-    LOG_PART(" Put a record to buffer builder :" << this  << " at positionMarker->getCached()" << positionMarker->getCached())
+    LOG_PART(
+        " Put a record to buffer builder :" << this << " at positionMarker->getCached()"
+                                            << positionMarker->getCached());
 
     objSegment->putObject(positionMarker->getCached(), reinterpret_cast<StreamElement*>(source));
-    LOG("put source to objSegment")
+    LOG("put source to objSegment");
     positionMarker->move(1);
     return 1;
 }
@@ -73,12 +78,10 @@ StreamElement* ObjectBufferBuilder::getObject(int index)
     return objSegment->getObject(index);
 }
 
-
 std::string ObjectBufferBuilder::toString()
 {
     std::stringstream ss;
-    ss << "ObjectBufferBuilder{maxCapacity=" << maxCapacity
-       << ", committedBytes=" << positionMarker->getCached()
+    ss << "ObjectBufferBuilder{maxCapacity=" << maxCapacity << ", committedBytes=" << positionMarker->getCached()
        << ", finished=" << isFinished() << "}";
     return ss.str();
 }

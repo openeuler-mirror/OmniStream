@@ -12,20 +12,18 @@
 #ifndef FLINK_TNEL_VARCHARTYPE_H
 #define FLINK_TNEL_VARCHARTYPE_H
 
-
 #include "LogicalType.h"
 
 class VarCharType : public BasicLogicalType {
 public:
     explicit VarCharType(bool isNull, int length);
 
-    std::vector<LogicalType *> getChildren() override;
+    std::vector<LogicalType*> getChildren() override;
 
     nlohmann::json toJson() const override;
 
 private:
     int length;
 };
-
 
 #endif

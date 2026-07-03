@@ -13,60 +13,69 @@
 #include "streaming/api/operators/KeyedProcessOperator.h"
 #include "core/operators/OutputTest.h"
 
-
-//using json = nlohmann::json;
+// using json = nlohmann::json;
 using namespace omnistream;
 using namespace omnistream::datastream;
 
-template<typename T>
-class DummyStreamPartitioner : public StreamPartitioner<T>{
+template <typename T>
+class DummyStreamPartitioner : public StreamPartitioner<T> {
 public:
-    int selectChannel(T* record) override {
+    int selectChannel(T* record) override
+    {
         return 0;
     }
 
-    std::unique_ptr<StreamPartitioner<T>> copy() override {
+    std::unique_ptr<StreamPartitioner<T>> copy() override
+    {
         return std::make_unique<DummyStreamPartitioner<T>>(*this);
     }
 
-    bool isPointWise() const override {
+    bool isPointWise() const override
+    {
         return true;
     }
 
-    [[nodiscard]] std::string toString() const override {
+    [[nodiscard]] std::string toString() const override
+    {
         return "FORWARD";
     }
 };
 
 class DummyRecordWriterOutput : public WatermarkGaugeExposingOutput {
 public:
-    DummyRecordWriterOutput(TypeSerializer *outSerializer, RecordWriter *recordWriter) : outSerializer(outSerializer),
-                                                                                         recordWriter(recordWriter) {}
+    DummyRecordWriterOutput(TypeSerializer* outSerializer, RecordWriter* recordWriter)
+        : outSerializer(outSerializer),
+          recordWriter(recordWriter)
+    {
+    }
 
-    ~DummyRecordWriterOutput() {
+    ~DummyRecordWriterOutput()
+    {
         delete outSerializer;
         delete recordWriter;
     }
 
-    void collect(void *record) override {
-
+    void collect(void* record) override
+    {
     }
-    void close() override {
-
+    void close() override
+    {
     }
-    void emitWatermark(Watermark *watermark) override {
-
+    void emitWatermark(Watermark* watermark) override
+    {
     }
 
-    void emitWatermarkStatus(WatermarkStatus *watermarkStatus) override{
-
+    void emitWatermarkStatus(WatermarkStatus* watermarkStatus) override
+    {
     }
+
 private:
-    TypeSerializer *outSerializer;
+    TypeSerializer* outSerializer;
     omnistream::datastream::RecordWriter* recordWriter;
 };
 
-BinaryRowData* createBinaryRowData(const std::vector<int64_t>& rows) {
+BinaryRowData* createBinaryRowData(const std::vector<int64_t>& rows)
+{
     size_t numCols = rows.size();
     BinaryRowData* rowData = BinaryRowData::createBinaryRowDataWithMem(numCols);
     for (size_t i = 0; i < numCols; ++i) {
@@ -75,30 +84,31 @@ BinaryRowData* createBinaryRowData(const std::vector<int64_t>& rows) {
     return rowData;
 }
 
-TEST(GroupAggFunctionTest, OneKeyOneMaxAggBigIntTest){
-    //Create BinaryRowData for input rows
-    //TODO: proper keySelector hasn't been implemented yet!
+TEST(GroupAggFunctionTest, OneKeyOneMaxAggBigIntTest)
+{
+    // Create BinaryRowData for input rows
+    // TODO: proper keySelector hasn't been implemented yet!
     int64_t keyVal = 30;
-    BinaryRowData *input1 = BinaryRowData::createBinaryRowDataWithMem(2);
+    BinaryRowData* input1 = BinaryRowData::createBinaryRowDataWithMem(2);
     input1->setLong(0, 3);
     input1->setLong(1, keyVal);
 
-    BinaryRowData *input2 = BinaryRowData::createBinaryRowDataWithMem(2);
+    BinaryRowData* input2 = BinaryRowData::createBinaryRowDataWithMem(2);
     input2->setLong(0, 2);
     input2->setLong(1, keyVal);
 
-    BinaryRowData *input3 = BinaryRowData::createBinaryRowDataWithMem(2);
+    BinaryRowData* input3 = BinaryRowData::createBinaryRowDataWithMem(2);
     input3->setLong(0, 4);
     input3->setLong(1, keyVal);
 
-    //Warp BinaryRowData in StreamRecord
+    // Warp BinaryRowData in StreamRecord
     StreamRecord* record1 = new StreamRecord(input1);
     StreamRecord* record2 = new StreamRecord(input2);
     StreamRecord* record3 = new StreamRecord(input3);
-    
-    //Operator description
+
+    // Operator description
     std::string uniqueName = "org.apache.flink.streaming.api.operators.KeyedProcessOperator";
-    //Group by column 1, aggregate on column 0
+    // Group by column 1, aggregate on column 0
     std::string description = R"DELIM({"input_channels":[0],
                             "operators":[{"description":{
                                         "aggInfoList":{"accTypes": ["BIGINT"],"aggValueTypes":["BIGINT"],"aggregateCalls":[{"aggregationFunction":"LongMaxAggFunction","argIndexes":[0],"consumeRetraction":"false","name":"MAX($0)", "filterArg":-1}],"indexOfCountStar":-1},
@@ -115,27 +125,28 @@ TEST(GroupAggFunctionTest, OneKeyOneMaxAggBigIntTest){
     json parsedJson = json::parse(description);
 
     omnistream::OperatorConfig opConfig(
-        uniqueName, //uniqueName: 
-        "Group_By_Simple", //Name
+        uniqueName,        // uniqueName:
+        "Group_By_Simple", // Name
         parsedJson["operators"][0]["inputTypes"],
         parsedJson["operators"][0]["outputTypes"],
-        parsedJson["operators"][0]["description"]
-    );
+        parsedJson["operators"][0]["description"]);
 
-    //Output writer description
-    //RowDataSerializer * RowDataSerializer = new RowDataSerializer();
-    BinaryRowDataSerializer *binaryRowDataSerializer = new BinaryRowDataSerializer(2);
+    // Output writer description
+    // RowDataSerializer * RowDataSerializer = new RowDataSerializer();
+    BinaryRowDataSerializer* binaryRowDataSerializer = new BinaryRowDataSerializer(2);
     const int32_t BUFFER_CAPACITY = 256;
-    uint8_t *address = new uint8_t[BUFFER_CAPACITY];
-    auto *partitioner = new DummyStreamPartitioner<IOReadableWritable>();
-    auto * recordWriter = new RecordWriter(address, BUFFER_CAPACITY, partitioner);
-    auto *recordWriteOutput = new DummyRecordWriterOutput(binaryRowDataSerializer, recordWriter);
+    uint8_t* address = new uint8_t[BUFFER_CAPACITY];
+    auto* partitioner = new DummyStreamPartitioner<IOReadableWritable>();
+    auto* recordWriter = new RecordWriter(address, BUFFER_CAPACITY, partitioner);
+    auto* recordWriteOutput = new DummyRecordWriterOutput(binaryRowDataSerializer, recordWriter);
 
-    //create streamOperatorFactory
+    // create streamOperatorFactory
     StreamOperatorFactory streamOperatorFactory;
-    KeyedProcessOperator<RowData *, RowData*, RowData*> *keyedOp = dynamic_cast<KeyedProcessOperator<RowData *, RowData*, RowData*> *>(streamOperatorFactory.createOperatorAndCollector(opConfig, recordWriteOutput));
-    
-    //initiate keyedState
+    KeyedProcessOperator<RowData*, RowData*, RowData*>* keyedOp =
+        dynamic_cast<KeyedProcessOperator<RowData*, RowData*, RowData*>*>(
+            streamOperatorFactory.createOperatorAndCollector(opConfig, recordWriteOutput));
+
+    // initiate keyedState
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
     taskInfo->setStateBackend("HashMapStateBackend");
@@ -148,18 +159,20 @@ TEST(GroupAggFunctionTest, OneKeyOneMaxAggBigIntTest){
     }
     env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
-    std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::BIGINT)});
-    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
-   
+    StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
+    std::vector<omnistream::RowField>* typeInfo = new std::vector<omnistream::RowField>(
+        {omnistream::RowField("col0", BasicLogicalType::BIGINT),
+         omnistream::RowField("col1", BasicLogicalType::BIGINT)});
+    TypeSerializer* ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
+
     keyedOp->initializeState(initializer, ser);
-    
+
     keyedOp->open();
     JoinedRowData* out = keyedOp->getResultRow();
-    
+
     keyedOp->setKeyContextElement(record1);
     keyedOp->processElement(record1);
-    
+
     ASSERT_EQ(*(out->getInt(1)), *(input1->getLong(0)));
 
     keyedOp->setKeyContextElement(record2);
@@ -171,9 +184,8 @@ TEST(GroupAggFunctionTest, OneKeyOneMaxAggBigIntTest){
     keyedOp->processElement(record3);
 
     ASSERT_EQ(*(out->getInt(1)), *(input3->getLong(0)));
-    
-    
-    //clean up
+
+    // clean up
     delete input1;
     delete input2;
     delete input3;
@@ -214,8 +226,8 @@ TEST(GroupAggFunctionTest, OneKeyOneMaxAggBigIntTest){
 // | +U |  2 |       12 |     450 |
 // +----+----+----------+---------+
 
-TEST(GroupAggFunctionTest, TwoKeysOneMaxAggBigInt){
-
+TEST(GroupAggFunctionTest, TwoKeysOneMaxAggBigInt)
+{
     std::vector<std::vector<int64_t>> rows = {
         {1, 12, 300},
         {1, 12, 500},
@@ -225,8 +237,7 @@ TEST(GroupAggFunctionTest, TwoKeysOneMaxAggBigInt){
         {1, 12, 450},
         {2, 12, 450},
         {3, 40, 200},
-        {4, 40, 250}
-    };
+        {4, 40, 250}};
 
     // std::random_shuffle(rows.begin(), rows.end());
 
@@ -239,9 +250,9 @@ TEST(GroupAggFunctionTest, TwoKeysOneMaxAggBigInt){
         records.push_back(new StreamRecord(input));
     }
 
-    //Operator description
+    // Operator description
     std::string uniqueName = "org.apache.flink.streaming.api.operators.KeyedProcessOperator";
-    //Group by column 1, aggregate on column 0
+    // Group by column 1, aggregate on column 0
     std::string description = R"DELIM({"input_channels":[0],
                             "operators":[{"description":{
                                         "aggInfoList":{"accTypes":["BIGINT"],"aggValueTypes":["BIGINT"],"aggregateCalls":[{"aggregationFunction":"LongMaxAggFunction","argIndexes":[2],"consumeRetraction":"false","name":"MAX($0)","filterArg":-1}],"indexOfCountStar":-1},
@@ -258,27 +269,28 @@ TEST(GroupAggFunctionTest, TwoKeysOneMaxAggBigInt){
     json parsedJson = json::parse(description);
 
     omnistream::OperatorConfig opConfig(
-        uniqueName, //uniqueName: 
-        "Group_By_Simple", //Name
+        uniqueName,        // uniqueName:
+        "Group_By_Simple", // Name
         parsedJson["operators"][0]["inputTypes"],
         parsedJson["operators"][0]["outputTypes"],
-        parsedJson["operators"][0]["description"]
-    );
+        parsedJson["operators"][0]["description"]);
 
-    //Output writer description
-    //RowDataSerializer * RowDataSerializer = new RowDataSerializer();
-    BinaryRowDataSerializer *binaryRowDataSerializer = new BinaryRowDataSerializer(2);
+    // Output writer description
+    // RowDataSerializer * RowDataSerializer = new RowDataSerializer();
+    BinaryRowDataSerializer* binaryRowDataSerializer = new BinaryRowDataSerializer(2);
     const int32_t BUFFER_CAPACITY = 1000;
-    uint8_t *address = new uint8_t[BUFFER_CAPACITY];
-    auto *partitioner = new DummyStreamPartitioner<IOReadableWritable>();
-    auto * recordWriter = new RecordWriter(address, BUFFER_CAPACITY, partitioner);
-    auto *recordWriteOutput = new DummyRecordWriterOutput(binaryRowDataSerializer, recordWriter);
+    uint8_t* address = new uint8_t[BUFFER_CAPACITY];
+    auto* partitioner = new DummyStreamPartitioner<IOReadableWritable>();
+    auto* recordWriter = new RecordWriter(address, BUFFER_CAPACITY, partitioner);
+    auto* recordWriteOutput = new DummyRecordWriterOutput(binaryRowDataSerializer, recordWriter);
 
-    //create streamOperatorFactory
+    // create streamOperatorFactory
     StreamOperatorFactory streamOperatorFactory;
-    KeyedProcessOperator<RowData *, RowData*, RowData*> *keyedOp = dynamic_cast<KeyedProcessOperator<RowData *, RowData*, RowData*> *>(streamOperatorFactory.createOperatorAndCollector(opConfig, recordWriteOutput));
-    
-    //initiate keyedState
+    KeyedProcessOperator<RowData*, RowData*, RowData*>* keyedOp =
+        dynamic_cast<KeyedProcessOperator<RowData*, RowData*, RowData*>*>(
+            streamOperatorFactory.createOperatorAndCollector(opConfig, recordWriteOutput));
+
+    // initiate keyedState
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
     taskInfo->setStateBackend("HashMapStateBackend");
@@ -291,12 +303,14 @@ TEST(GroupAggFunctionTest, TwoKeysOneMaxAggBigInt){
     }
     env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
-    std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::BIGINT)});
-    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
-   
+    StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
+    std::vector<omnistream::RowField>* typeInfo = new std::vector<omnistream::RowField>(
+        {omnistream::RowField("col0", BasicLogicalType::BIGINT),
+         omnistream::RowField("col1", BasicLogicalType::BIGINT)});
+    TypeSerializer* ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
+
     keyedOp->initializeState(initializer, ser);
-    
+
     keyedOp->open();
     JoinedRowData* out = keyedOp->getResultRow();
 
@@ -306,16 +320,15 @@ TEST(GroupAggFunctionTest, TwoKeysOneMaxAggBigInt){
         {RowKind::INSERT, 4, 40, 350},
         {RowKind::INSERT, 2, 12, 400},
         {RowKind::INSERT, 3, 40, 300},
-        {RowKind::INSERT, 3, 40, 300},       // not emitted
+        {RowKind::INSERT, 3, 40, 300}, // not emitted
         {RowKind::UPDATE_AFTER, 2, 12, 450},
         {RowKind::UPDATE_AFTER, 2, 12, 450}, // not emitted
         {RowKind::UPDATE_AFTER, 2, 12, 450}  // not emitted
     };
-    
-    for (size_t i = 0; i < records.size(); ++i) {
 
+    for (size_t i = 0; i < records.size(); ++i) {
         auto [expectedKind, expectedCol1, expectedCol2, expectedAgg] = expectedResponse[i];
-        
+
         keyedOp->setKeyContextElement(records[i]);
         keyedOp->processElement(records[i]);
         if (i != 5 && i != 7 && i != 8) {
@@ -355,8 +368,8 @@ TEST(GroupAggFunctionTest, TwoKeysOneMaxAggBigInt){
 // Key (4, 40) -> {350,   250, 2,   600, 2}
 // Key (5, 10) -> {200,  1000, 2,   600, 2}
 
-TEST(GroupAggFunctionTest, TwoKeyTwoAggMaxAndAvg){
-
+TEST(GroupAggFunctionTest, TwoKeyTwoAggMaxAndAvg)
+{
     std::vector<std::vector<int64_t>> rows = {
         {1, 12, 300, 400},
         {1, 12, 500, 600},
@@ -371,8 +384,7 @@ TEST(GroupAggFunctionTest, TwoKeyTwoAggMaxAndAvg){
         {5, 10, 100, 100},
         {5, 10, 100, 200},
         {5, 10, 200, 500},
-        {4, 40, 250, 150}
-    };
+        {4, 40, 250, 150}};
 
     std::vector<BinaryRowData*> inputs;
     std::vector<StreamRecord*> records;
@@ -409,17 +421,18 @@ TEST(GroupAggFunctionTest, TwoKeyTwoAggMaxAndAvg){
         "Group_By_Simple",
         parsedJson["operators"][0]["inputTypes"],
         parsedJson["operators"][0]["outputTypes"],
-        parsedJson["operators"][0]["description"]
-    );
+        parsedJson["operators"][0]["description"]);
 
-    BinaryRowDataSerializer *binaryRowDataSerializer = new BinaryRowDataSerializer(2);
+    BinaryRowDataSerializer* binaryRowDataSerializer = new BinaryRowDataSerializer(2);
     const int32_t BUFFER_CAPACITY = 1000;
-    uint8_t *address = new uint8_t[BUFFER_CAPACITY];
-    auto *partitioner = new DummyStreamPartitioner<IOReadableWritable>();
-    RecordWriter *recordWriter = new RecordWriter(address, BUFFER_CAPACITY, partitioner);
-    auto *recordWriteOutput = new DummyRecordWriterOutput(binaryRowDataSerializer, recordWriter);
+    uint8_t* address = new uint8_t[BUFFER_CAPACITY];
+    auto* partitioner = new DummyStreamPartitioner<IOReadableWritable>();
+    RecordWriter* recordWriter = new RecordWriter(address, BUFFER_CAPACITY, partitioner);
+    auto* recordWriteOutput = new DummyRecordWriterOutput(binaryRowDataSerializer, recordWriter);
     StreamOperatorFactory streamOperatorFactory;
-    KeyedProcessOperator<RowData *, RowData*, RowData*> *keyedOp = dynamic_cast<KeyedProcessOperator<RowData *, RowData*, RowData*> *>(streamOperatorFactory.createOperatorAndCollector(opConfig, recordWriteOutput));
+    KeyedProcessOperator<RowData*, RowData*, RowData*>* keyedOp =
+        dynamic_cast<KeyedProcessOperator<RowData*, RowData*, RowData*>*>(
+            streamOperatorFactory.createOperatorAndCollector(opConfig, recordWriteOutput));
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
     taskInfo->setStateBackend("HashMapStateBackend");
@@ -432,35 +445,35 @@ TEST(GroupAggFunctionTest, TwoKeyTwoAggMaxAndAvg){
     }
     env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
-    std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::BIGINT)});
-    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
-   
+    StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
+    std::vector<omnistream::RowField>* typeInfo = new std::vector<omnistream::RowField>(
+        {omnistream::RowField("col0", BasicLogicalType::BIGINT),
+         omnistream::RowField("col1", BasicLogicalType::BIGINT)});
+    TypeSerializer* ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
+
     keyedOp->initializeState(initializer, ser);
     keyedOp->open();
     JoinedRowData* out = keyedOp->getResultRow();
 
     std::vector<std::tuple<RowKind, int, int, int, int, int>> expectedResponse = {
-        {RowKind::INSERT,       1, 12, 300, 400, 300},
+        {RowKind::INSERT, 1, 12, 300, 400, 300},
         {RowKind::UPDATE_AFTER, 1, 12, 500, 500, 400},
-        {RowKind::INSERT,       4, 40, 350, 100, 350},
-        {RowKind::INSERT,       2, 12, 400, 250, 400},
-        {RowKind::INSERT,       3, 40, 300, 900, 300},
+        {RowKind::INSERT, 4, 40, 350, 100, 350},
+        {RowKind::INSERT, 2, 12, 400, 250, 400},
+        {RowKind::INSERT, 3, 40, 300, 900, 300},
         {RowKind::UPDATE_AFTER, 1, 12, 500, 400, 416},
         {RowKind::UPDATE_AFTER, 2, 12, 450, 350, 425},
-        {RowKind::INSERT,       5, 10, 100, 100, 100},
-        {RowKind::INSERT,       5, 10, 100, 100, 100}, // skipped, not emitted
+        {RowKind::INSERT, 5, 10, 100, 100, 100},
+        {RowKind::INSERT, 5, 10, 100, 100, 100}, // skipped, not emitted
         {RowKind::UPDATE_AFTER, 3, 40, 300, 900, 250},
         {RowKind::UPDATE_AFTER, 3, 40, 300, 900, 250}, // skipped, not emitted
         {RowKind::UPDATE_AFTER, 5, 10, 100, 125, 100},
         {RowKind::UPDATE_AFTER, 5, 10, 200, 200, 120},
-        {RowKind::UPDATE_AFTER, 4, 40, 350, 125, 300}
-    };
-    
-    for (size_t i = 0; i < expectedResponse.size(); ++i) {
+        {RowKind::UPDATE_AFTER, 4, 40, 350, 125, 300}};
 
+    for (size_t i = 0; i < expectedResponse.size(); ++i) {
         auto [expectedKind, expectedCol1, expectedCol2, expectedMax, expectedAgg1, expectedAgg2] = expectedResponse[i];
-        
+
         keyedOp->setKeyContextElement(records[i]);
         keyedOp->processElement(records[i]);
 
@@ -478,36 +491,36 @@ TEST(GroupAggFunctionTest, TwoKeyTwoAggMaxAndAvg){
     for (auto* record : records) delete record;
 }
 
-TEST(GroupAggFunctionTest, OneKeyOneMaxAggCompactTimestampTest){
-    //Create BinaryRowData for input rows
-    //TODO: proper keySelector hasn't been implemented yet!
+TEST(GroupAggFunctionTest, OneKeyOneMaxAggCompactTimestampTest)
+{
+    // Create BinaryRowData for input rows
+    // TODO: proper keySelector hasn't been implemented yet!
     int64_t keyVal = 30;
     int precision = 3;
 
-    BinaryRowData *input1 = BinaryRowData::createBinaryRowDataWithMem(3);
+    BinaryRowData* input1 = BinaryRowData::createBinaryRowDataWithMem(3);
     input1->setLong(0, keyVal);
     TimestampData timestamp1 = TimestampData::fromEpochMillis(2L, 5);
     input1->setTimestamp(1, timestamp1, precision);
 
-    BinaryRowData *input2 = BinaryRowData::createBinaryRowDataWithMem(3);
+    BinaryRowData* input2 = BinaryRowData::createBinaryRowDataWithMem(3);
     input2->setLong(0, keyVal);
     TimestampData timestamp2 = TimestampData::fromEpochMillis(2L, 4);
     input2->setTimestamp(1, timestamp2, precision);
-    
-    BinaryRowData *input3 = BinaryRowData::createBinaryRowDataWithMem(3);
+
+    BinaryRowData* input3 = BinaryRowData::createBinaryRowDataWithMem(3);
     input3->setLong(0, keyVal);
     TimestampData timestamp3 = TimestampData::fromEpochMillis(3L, 3);
     input3->setTimestamp(1, timestamp3, precision);
-    
 
-    //Warp BinaryRowData in StreamRecord
+    // Warp BinaryRowData in StreamRecord
     StreamRecord* record1 = new StreamRecord(input1);
     StreamRecord* record2 = new StreamRecord(input2);
     StreamRecord* record3 = new StreamRecord(input3);
-    
-    //Operator description
+
+    // Operator description
     std::string uniqueName = "org.apache.flink.streaming.api.operators.KeyedProcessOperator";
-    //Group by column 1, aggregate on column 0
+    // Group by column 1, aggregate on column 0
     std::string description = R"DELIM({"input_channels":[0],
                             "operators":[{"description":{
                                         "aggInfoList":{"accTypes":["BIGINT"],"aggValueTypes":["BIGINT"],"aggregateCalls":[{"aggregationFunction":"TimestampMaxAggFunction","argIndexes":[1],"consumeRetraction":"false","name":"MAX($1)","filterArg":-1}],"indexOfCountStar":-1},
@@ -524,27 +537,28 @@ TEST(GroupAggFunctionTest, OneKeyOneMaxAggCompactTimestampTest){
     json parsedJson = json::parse(description);
 
     omnistream::OperatorConfig opConfig(
-        uniqueName, //uniqueName: 
-        "Group_By_Simple", //Name
+        uniqueName,        // uniqueName:
+        "Group_By_Simple", // Name
         parsedJson["operators"][0]["inputTypes"],
         parsedJson["operators"][0]["outputTypes"],
-        parsedJson["operators"][0]["description"]
-    );
+        parsedJson["operators"][0]["description"]);
 
-    //Output writer description
-    //RowDataSerializer * RowDataSerializer = new RowDataSerializer();
-    BinaryRowDataSerializer *binaryRowDataSerializer = new BinaryRowDataSerializer(3);
+    // Output writer description
+    // RowDataSerializer * RowDataSerializer = new RowDataSerializer();
+    BinaryRowDataSerializer* binaryRowDataSerializer = new BinaryRowDataSerializer(3);
     const int32_t BUFFER_CAPACITY = 256;
-    uint8_t *address = new uint8_t[BUFFER_CAPACITY];
-    auto *partitioner = new DummyStreamPartitioner<IOReadableWritable>();
-    RecordWriter *recordWriter = new RecordWriter(address, BUFFER_CAPACITY, partitioner);
-    auto *recordWriteOutput = new DummyRecordWriterOutput(binaryRowDataSerializer, recordWriter);
+    uint8_t* address = new uint8_t[BUFFER_CAPACITY];
+    auto* partitioner = new DummyStreamPartitioner<IOReadableWritable>();
+    RecordWriter* recordWriter = new RecordWriter(address, BUFFER_CAPACITY, partitioner);
+    auto* recordWriteOutput = new DummyRecordWriterOutput(binaryRowDataSerializer, recordWriter);
 
-    //create streamOperatorFactory
+    // create streamOperatorFactory
     StreamOperatorFactory streamOperatorFactory;
-    KeyedProcessOperator<RowData *, RowData*, RowData*> *keyedOp = dynamic_cast<KeyedProcessOperator<RowData *, RowData*, RowData*> *>(streamOperatorFactory.createOperatorAndCollector(opConfig, recordWriteOutput));
-    
-    //initiate keyedState
+    KeyedProcessOperator<RowData*, RowData*, RowData*>* keyedOp =
+        dynamic_cast<KeyedProcessOperator<RowData*, RowData*, RowData*>*>(
+            streamOperatorFactory.createOperatorAndCollector(opConfig, recordWriteOutput));
+
+    // initiate keyedState
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
     taskInfo->setStateBackend("HashMapStateBackend");
@@ -557,16 +571,18 @@ TEST(GroupAggFunctionTest, OneKeyOneMaxAggCompactTimestampTest){
     }
     env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
-    std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::TIMESTAMP_WITHOUT_TIME_ZONE)});
-    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
-   
-    keyedOp->initializeState(initializer, ser);   
+    StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
+    std::vector<omnistream::RowField>* typeInfo = new std::vector<omnistream::RowField>(
+        {omnistream::RowField("col0", BasicLogicalType::BIGINT),
+         omnistream::RowField("col1", BasicLogicalType::TIMESTAMP_WITHOUT_TIME_ZONE)});
+    TypeSerializer* ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
+
+    keyedOp->initializeState(initializer, ser);
     keyedOp->open();
     JoinedRowData* out = keyedOp->getResultRow();
     keyedOp->setKeyContextElement(record1);
     keyedOp->processElement(record1);
-    
+
     EXPECT_EQ(out->getTimestamp(1).getMillisecond(), 2L);
     out->printRow();
 
@@ -581,8 +597,8 @@ TEST(GroupAggFunctionTest, OneKeyOneMaxAggCompactTimestampTest){
 
     EXPECT_EQ(out->getTimestamp(1).getMillisecond(), 3L);
     out->printRow();
-    
-    //clean up
+
+    // clean up
     delete input1;
     delete input2;
     delete input3;
@@ -591,30 +607,31 @@ TEST(GroupAggFunctionTest, OneKeyOneMaxAggCompactTimestampTest){
     delete record3;
 }
 
-TEST(GroupAggFunctionTest, OneKeyOneAggCountTest){
-    //Create BinaryRowData for input rows
-    //TODO: proper keySelector hasn't been implemented yet!
+TEST(GroupAggFunctionTest, OneKeyOneAggCountTest)
+{
+    // Create BinaryRowData for input rows
+    // TODO: proper keySelector hasn't been implemented yet!
     int64_t keyVal = 30;
-    BinaryRowData *input1 = BinaryRowData::createBinaryRowDataWithMem(2);
+    BinaryRowData* input1 = BinaryRowData::createBinaryRowDataWithMem(2);
     input1->setLong(1, 3);
     input1->setLong(0, keyVal);
 
-    BinaryRowData *input2 = BinaryRowData::createBinaryRowDataWithMem(2);
+    BinaryRowData* input2 = BinaryRowData::createBinaryRowDataWithMem(2);
     input2->setLong(1, 2);
     input2->setLong(0, keyVal);
 
-    BinaryRowData *input3 = BinaryRowData::createBinaryRowDataWithMem(2);
+    BinaryRowData* input3 = BinaryRowData::createBinaryRowDataWithMem(2);
     input3->setLong(1, 4);
     input3->setLong(0, keyVal);
 
-    //Warp BinaryRowData in StreamRecord
+    // Warp BinaryRowData in StreamRecord
     StreamRecord* record1 = new StreamRecord(input1);
     StreamRecord* record2 = new StreamRecord(input2);
     StreamRecord* record3 = new StreamRecord(input3);
-    
-    //Operator description
+
+    // Operator description
     std::string uniqueName = "org.apache.flink.streaming.api.operators.KeyedProcessOperator";
-    //Group by column 1, aggregate on column 0
+    // Group by column 1, aggregate on column 0
     std::string description = R"DELIM({"input_channels":[0],
                             "operators":[{"description":{
                                         "aggInfoList":{"accTypes":["BIGINT"],"aggValueTypes":["BIGINT"],"aggregateCalls":[{"aggregationFunction":"CountAggFunction","argIndexes":[1],"consumeRetraction":"false","name":"COUNT($1)","filterArg":-1}],"indexOfCountStar":-1},
@@ -632,27 +649,28 @@ TEST(GroupAggFunctionTest, OneKeyOneAggCountTest){
     json parsedJson = json::parse(description);
 
     omnistream::OperatorConfig opConfig(
-        uniqueName, //uniqueName: 
-        "Group_By_Simple", //Name
+        uniqueName,        // uniqueName:
+        "Group_By_Simple", // Name
         parsedJson["operators"][0]["inputTypes"],
         parsedJson["operators"][0]["outputTypes"],
-        parsedJson["operators"][0]["description"]
-    );
+        parsedJson["operators"][0]["description"]);
 
-    //Output writer description
-    //RowDataSerializer * RowDataSerializer = new RowDataSerializer();
-    BinaryRowDataSerializer *binaryRowDataSerializer = new BinaryRowDataSerializer(2);
+    // Output writer description
+    // RowDataSerializer * RowDataSerializer = new RowDataSerializer();
+    BinaryRowDataSerializer* binaryRowDataSerializer = new BinaryRowDataSerializer(2);
     const int32_t BUFFER_CAPACITY = 256;
-    uint8_t *address = new uint8_t[BUFFER_CAPACITY];
-    auto *dummyPartitioner = new DummyStreamPartitioner<IOReadableWritable>();
-    RecordWriter *recordWriter = new RecordWriter(address, BUFFER_CAPACITY, dummyPartitioner);
-    auto *recordWriteOutput = new DummyRecordWriterOutput(binaryRowDataSerializer, recordWriter);
+    uint8_t* address = new uint8_t[BUFFER_CAPACITY];
+    auto* dummyPartitioner = new DummyStreamPartitioner<IOReadableWritable>();
+    RecordWriter* recordWriter = new RecordWriter(address, BUFFER_CAPACITY, dummyPartitioner);
+    auto* recordWriteOutput = new DummyRecordWriterOutput(binaryRowDataSerializer, recordWriter);
 
-    //create streamOperatorFactory
+    // create streamOperatorFactory
     StreamOperatorFactory streamOperatorFactory;
-    KeyedProcessOperator<RowData *, RowData*, RowData*> *keyedOp = dynamic_cast<KeyedProcessOperator<RowData *, RowData*, RowData*> *>(streamOperatorFactory.createOperatorAndCollector(opConfig, recordWriteOutput));
-    
-    //initiate keyedState
+    KeyedProcessOperator<RowData*, RowData*, RowData*>* keyedOp =
+        dynamic_cast<KeyedProcessOperator<RowData*, RowData*, RowData*>*>(
+            streamOperatorFactory.createOperatorAndCollector(opConfig, recordWriteOutput));
+
+    // initiate keyedState
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
     taskInfo->setStateBackend("HashMapStateBackend");
@@ -665,15 +683,17 @@ TEST(GroupAggFunctionTest, OneKeyOneAggCountTest){
     }
     env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
-    std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::BIGINT)});
-    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
-   
+    StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
+    std::vector<omnistream::RowField>* typeInfo = new std::vector<omnistream::RowField>(
+        {omnistream::RowField("col0", BasicLogicalType::BIGINT),
+         omnistream::RowField("col1", BasicLogicalType::BIGINT)});
+    TypeSerializer* ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
+
     keyedOp->initializeState(initializer, ser);
-    
+
     keyedOp->open();
     JoinedRowData* out = keyedOp->getResultRow();
-    
+
     keyedOp->setKeyContextElement(record1);
     keyedOp->processElement(record1);
 
@@ -688,9 +708,8 @@ TEST(GroupAggFunctionTest, OneKeyOneAggCountTest){
     keyedOp->processElement(record3);
 
     EXPECT_EQ(*(out->getInt(1)), 3);
-    
-    
-    //clean up
+
+    // clean up
     delete input1;
     delete input2;
     delete input3;
@@ -699,33 +718,34 @@ TEST(GroupAggFunctionTest, OneKeyOneAggCountTest){
     delete record3;
 }
 
-TEST(GroupAggFunctionTest, OneKeyOneAggCountAndAvgTest){
-    //Create BinaryRowData for input rows
-    //TODO: proper keySelector hasn't been implemented yet!
+TEST(GroupAggFunctionTest, OneKeyOneAggCountAndAvgTest)
+{
+    // Create BinaryRowData for input rows
+    // TODO: proper keySelector hasn't been implemented yet!
     int64_t keyVal = 30;
-    BinaryRowData *input1 = BinaryRowData::createBinaryRowDataWithMem(3);
+    BinaryRowData* input1 = BinaryRowData::createBinaryRowDataWithMem(3);
     input1->setLong(2, 5);
     input1->setLong(1, 3);
     input1->setLong(0, keyVal);
 
-    BinaryRowData *input2 = BinaryRowData::createBinaryRowDataWithMem(3);
+    BinaryRowData* input2 = BinaryRowData::createBinaryRowDataWithMem(3);
     input2->setLong(2, 1);
     input2->setLong(1, 2);
     input2->setLong(0, keyVal);
 
-    BinaryRowData *input3 = BinaryRowData::createBinaryRowDataWithMem(3);
+    BinaryRowData* input3 = BinaryRowData::createBinaryRowDataWithMem(3);
     input3->setLong(2, 3);
     input3->setLong(1, 4);
     input3->setLong(0, keyVal);
 
-    //Warp BinaryRowData in StreamRecord
+    // Warp BinaryRowData in StreamRecord
     StreamRecord* record1 = new StreamRecord(input1);
     StreamRecord* record2 = new StreamRecord(input2);
     StreamRecord* record3 = new StreamRecord(input3);
-    
-    //Operator description
+
+    // Operator description
     std::string uniqueName = "org.apache.flink.streaming.api.operators.KeyedProcessOperator";
-    //Group by column 1, aggregate on column 0
+    // Group by column 1, aggregate on column 0
     std::string description = R"DELIM({"input_channels":[0],
                             "operators":[{"description":{
                                         "aggInfoList":{"accTypes":["BIGINT", "BIGINT", "BIGINT"],"aggValueTypes":["BIGINT", "BIGINT"],
@@ -745,27 +765,28 @@ TEST(GroupAggFunctionTest, OneKeyOneAggCountAndAvgTest){
     json parsedJson = json::parse(description);
 
     omnistream::OperatorConfig opConfig(
-        uniqueName, //uniqueName: 
-        "Group_By_Simple", //Name
+        uniqueName,        // uniqueName:
+        "Group_By_Simple", // Name
         parsedJson["operators"][0]["inputTypes"],
         parsedJson["operators"][0]["outputTypes"],
-        parsedJson["operators"][0]["description"]
-    );
+        parsedJson["operators"][0]["description"]);
 
-    //Output writer description
-    //RowDataSerializer * RowDataSerializer = new RowDataSerializer();
-    BinaryRowDataSerializer *binaryRowDataSerializer = new BinaryRowDataSerializer(3);
+    // Output writer description
+    // RowDataSerializer * RowDataSerializer = new RowDataSerializer();
+    BinaryRowDataSerializer* binaryRowDataSerializer = new BinaryRowDataSerializer(3);
     const int32_t BUFFER_CAPACITY = 256;
-    uint8_t *address = new uint8_t[BUFFER_CAPACITY];
-    auto *dummyPartitioner = new DummyStreamPartitioner<IOReadableWritable>();
-    RecordWriter *recordWriter = new RecordWriter(address, BUFFER_CAPACITY, dummyPartitioner);
-    auto *recordWriteOutput = new DummyRecordWriterOutput(binaryRowDataSerializer, recordWriter);
+    uint8_t* address = new uint8_t[BUFFER_CAPACITY];
+    auto* dummyPartitioner = new DummyStreamPartitioner<IOReadableWritable>();
+    RecordWriter* recordWriter = new RecordWriter(address, BUFFER_CAPACITY, dummyPartitioner);
+    auto* recordWriteOutput = new DummyRecordWriterOutput(binaryRowDataSerializer, recordWriter);
 
-    //create streamOperatorFactory
+    // create streamOperatorFactory
     StreamOperatorFactory streamOperatorFactory;
-    KeyedProcessOperator<RowData *, RowData*, RowData*> *keyedOp = dynamic_cast<KeyedProcessOperator<RowData *, RowData*, RowData*> *>(streamOperatorFactory.createOperatorAndCollector(opConfig, recordWriteOutput));
-    
-    //initiate keyedState
+    KeyedProcessOperator<RowData*, RowData*, RowData*>* keyedOp =
+        dynamic_cast<KeyedProcessOperator<RowData*, RowData*, RowData*>*>(
+            streamOperatorFactory.createOperatorAndCollector(opConfig, recordWriteOutput));
+
+    // initiate keyedState
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
     taskInfo->setStateBackend("HashMapStateBackend");
@@ -778,15 +799,18 @@ TEST(GroupAggFunctionTest, OneKeyOneAggCountAndAvgTest){
     }
     env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
-    std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::BIGINT), omnistream::RowField("col3", BasicLogicalType::BIGINT)});
-    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
-   
+    StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
+    std::vector<omnistream::RowField>* typeInfo = new std::vector<omnistream::RowField>(
+        {omnistream::RowField("col0", BasicLogicalType::BIGINT),
+         omnistream::RowField("col1", BasicLogicalType::BIGINT),
+         omnistream::RowField("col3", BasicLogicalType::BIGINT)});
+    TypeSerializer* ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
+
     keyedOp->initializeState(initializer, ser);
-    
+
     keyedOp->open();
     JoinedRowData* out = keyedOp->getResultRow();
-    
+
     keyedOp->setKeyContextElement(record1);
     keyedOp->processElement(record1);
 
@@ -804,9 +828,8 @@ TEST(GroupAggFunctionTest, OneKeyOneAggCountAndAvgTest){
 
     EXPECT_EQ(*(out->getInt(1)), 3);
     EXPECT_EQ(*(out->getInt(2)), 3);
-    
-    
-    //clean up
+
+    // clean up
     delete input1;
     delete input2;
     delete input3;
@@ -816,35 +839,35 @@ TEST(GroupAggFunctionTest, OneKeyOneAggCountAndAvgTest){
 }
 
 // TODO: Need functionality to work with non-compact time
-TEST(GroupAggFunctionTest, DISABLED_OneKeyOneMaxAggNonCompactTimestampTest){
-    //Create BinaryRowData for input rows
-    //TODO: proper keySelector hasn't been implemented yet!
+TEST(GroupAggFunctionTest, DISABLED_OneKeyOneMaxAggNonCompactTimestampTest)
+{
+    // Create BinaryRowData for input rows
+    // TODO: proper keySelector hasn't been implemented yet!
     int64_t keyVal = 30;
     int precision = 4;
-    BinaryRowData *input1 = BinaryRowData::createBinaryRowDataWithMem(3);
+    BinaryRowData* input1 = BinaryRowData::createBinaryRowDataWithMem(3);
     input1->setLong(0, keyVal);
     TimestampData timestamp1 = TimestampData::fromEpochMillis(2L, 5);
     input1->setTimestamp(1, timestamp1, precision);
 
-    BinaryRowData *input2 = BinaryRowData::createBinaryRowDataWithMem(3);
+    BinaryRowData* input2 = BinaryRowData::createBinaryRowDataWithMem(3);
     input2->setLong(0, keyVal);
     TimestampData timestamp2 = TimestampData::fromEpochMillis(2L, 4);
     input2->setTimestamp(1, timestamp2, precision);
-    
-    BinaryRowData *input3 = BinaryRowData::createBinaryRowDataWithMem(3);
+
+    BinaryRowData* input3 = BinaryRowData::createBinaryRowDataWithMem(3);
     input3->setLong(0, keyVal);
     TimestampData timestamp3 = TimestampData::fromEpochMillis(3L, 3);
     input3->setTimestamp(1, timestamp3, precision);
-    
 
-    //Warp BinaryRowData in StreamRecord
+    // Warp BinaryRowData in StreamRecord
     StreamRecord* record1 = new StreamRecord(input1);
     StreamRecord* record2 = new StreamRecord(input2);
     StreamRecord* record3 = new StreamRecord(input3);
-    
-    //Operator description
+
+    // Operator description
     std::string uniqueName = "org.apache.flink.streaming.api.operators.KeyedProcessOperator";
-    //Group by column 1, aggregate on column 0
+    // Group by column 1, aggregate on column 0
     std::string description = R"DELIM({"input_channels":[0],
                             "operators":[{"description":{
                                         "aggInfoList":{"accTypes":["BIGINT"],"aggValueTypes":["BIGINT"],"aggregateCalls":[{"aggregationFunction":"TimestampMaxAggFunction","argIndexes":[1, 2],"consumeRetraction":"false","name":"MAX($1)","filterArg":-1}],"indexOfCountStar":-1},
@@ -861,27 +884,28 @@ TEST(GroupAggFunctionTest, DISABLED_OneKeyOneMaxAggNonCompactTimestampTest){
     json parsedJson = json::parse(description);
 
     omnistream::OperatorConfig opConfig(
-        uniqueName, //uniqueName: 
-        "Group_By_Simple", //Name
+        uniqueName,        // uniqueName:
+        "Group_By_Simple", // Name
         parsedJson["operators"][0]["inputTypes"],
         parsedJson["operators"][0]["outputTypes"],
-        parsedJson["operators"][0]["description"]
-    );
+        parsedJson["operators"][0]["description"]);
 
-    //Output writer description
-    //RowDataSerializer * RowDataSerializer = new RowDataSerializer();
-    BinaryRowDataSerializer *binaryRowDataSerializer = new BinaryRowDataSerializer(3);
+    // Output writer description
+    // RowDataSerializer * RowDataSerializer = new RowDataSerializer();
+    BinaryRowDataSerializer* binaryRowDataSerializer = new BinaryRowDataSerializer(3);
     const int32_t BUFFER_CAPACITY = 256;
-    uint8_t *address = new uint8_t[BUFFER_CAPACITY];
-    auto *dummyPartitioner = new DummyStreamPartitioner<IOReadableWritable>();
-    RecordWriter *recordWriter = new RecordWriter(address, BUFFER_CAPACITY, dummyPartitioner);
-    auto *recordWriteOutput = new DummyRecordWriterOutput(binaryRowDataSerializer, recordWriter);
+    uint8_t* address = new uint8_t[BUFFER_CAPACITY];
+    auto* dummyPartitioner = new DummyStreamPartitioner<IOReadableWritable>();
+    RecordWriter* recordWriter = new RecordWriter(address, BUFFER_CAPACITY, dummyPartitioner);
+    auto* recordWriteOutput = new DummyRecordWriterOutput(binaryRowDataSerializer, recordWriter);
 
-    //create streamOperatorFactory
+    // create streamOperatorFactory
     StreamOperatorFactory streamOperatorFactory;
-    KeyedProcessOperator<RowData *, RowData*, RowData*> *keyedOp = dynamic_cast<KeyedProcessOperator<RowData *, RowData*, RowData*> *>(streamOperatorFactory.createOperatorAndCollector(opConfig, recordWriteOutput));
-    
-    //initiate keyedState
+    KeyedProcessOperator<RowData*, RowData*, RowData*>* keyedOp =
+        dynamic_cast<KeyedProcessOperator<RowData*, RowData*, RowData*>*>(
+            streamOperatorFactory.createOperatorAndCollector(opConfig, recordWriteOutput));
+
+    // initiate keyedState
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
     taskInfo->setStateBackend("HashMapStateBackend");
@@ -894,19 +918,21 @@ TEST(GroupAggFunctionTest, DISABLED_OneKeyOneMaxAggNonCompactTimestampTest){
     }
     env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
-    std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::TIMESTAMP_WITHOUT_TIME_ZONE)});
-    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
-   
+    StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
+    std::vector<omnistream::RowField>* typeInfo = new std::vector<omnistream::RowField>(
+        {omnistream::RowField("col0", BasicLogicalType::BIGINT),
+         omnistream::RowField("col1", BasicLogicalType::TIMESTAMP_WITHOUT_TIME_ZONE)});
+    TypeSerializer* ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
+
     keyedOp->initializeState(initializer, ser);
-    
+
     keyedOp->open();
     JoinedRowData* out = keyedOp->getResultRow();
     keyedOp->setKeyContextElement(record1);
     out->printRow();
     EXPECT_EQ(out->getTimestampPrecise(1).getMillisecond(), 2L);
     EXPECT_EQ(out->getTimestampPrecise(1).getNanoOfMillisecond(), 5);
-    
+
     out->printRow();
     keyedOp->setKeyContextElement(record2);
     keyedOp->processElement(record2);
@@ -922,7 +948,7 @@ TEST(GroupAggFunctionTest, DISABLED_OneKeyOneMaxAggNonCompactTimestampTest){
     EXPECT_EQ(out->getTimestampPrecise(1).getNanoOfMillisecond(), 3);
     EXPECT_EQ(out->getRow1()->getArity(), out->getRow2()->getArity());
     out->printRow();
-    //clean up
+    // clean up
     delete input1;
     delete input2;
     delete input3;
@@ -931,7 +957,8 @@ TEST(GroupAggFunctionTest, DISABLED_OneKeyOneMaxAggNonCompactTimestampTest){
     delete record3;
 }
 
-omnistream::VectorBatch* newVectorBatchForQ17() {
+omnistream::VectorBatch* newVectorBatchForQ17()
+{
     omnistream::VectorBatch* vbatch = new omnistream::VectorBatch(10);
     auto col1 = new omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>(10);
     for (int i = 0; i < 10; i++) {
@@ -943,11 +970,11 @@ omnistream::VectorBatch* newVectorBatchForQ17() {
     auto col3 = new omniruntime::vec::Vector<bool>(10);
     auto col4 = new omniruntime::vec::Vector<bool>(10);
     auto col5 = new omniruntime::vec::Vector<int64_t>(10);
-    std::array<int64_t ,10> bigint0 = {11, 22, 33, 11, 22, 33, 44, 55, 66, 11};
+    std::array<int64_t, 10> bigint0 = {11, 22, 33, 11, 22, 33, 44, 55, 66, 11};
     std::array<bool, 10> bool2 = {false, false, true, false, false, true, false, false, true, false};
     std::array<bool, 10> bool3 = {true, false, false, false, true, false, false, false, false, true};
     std::array<bool, 10> bool4 = {false, true, false, true, false, false, true, true, false, false};
-    std::array<int64_t ,10> bigint5 = {4, 5, 6, 7, 8, 9, 10, 2, 13, 11};
+    std::array<int64_t, 10> bigint5 = {4, 5, 6, 7, 8, 9, 10, 2, 13, 11};
     for (int i = 0; i < 10; i++) {
         col0->SetValue(i, bigint0[i]);
         col2->SetValue(i, bool2[i]);
@@ -998,15 +1025,16 @@ TEST(GroupAggFunctionTest, VectorBatch_Q17Agg)
 {
     nlohmann::json parsedJson = nlohmann::json::parse(Q17ConfigStr_agg);
     OperatorConfig opConfig(
-            parsedJson["id"],  // uniqueName:
-            parsedJson["name"], // Name
-            parsedJson["description"]["inputType"],
-            parsedJson["description"]["outputType"],
-            parsedJson["description"]);
+        parsedJson["id"],   // uniqueName:
+        parsedJson["name"], // Name
+        parsedJson["description"]["inputType"],
+        parsedJson["description"]["outputType"],
+        parsedJson["description"]);
 
-    BatchOutputTest *output = new BatchOutputTest();
-    GroupAggFunction *func = new GroupAggFunction(0l, opConfig.getDescription());
-    KeyedProcessOperator<RowData *, RowData*, RowData*> *keyedOp = new KeyedProcessOperator(func, output, opConfig.getDescription());
+    BatchOutputTest* output = new BatchOutputTest();
+    GroupAggFunction* func = new GroupAggFunction(0l, opConfig.getDescription());
+    KeyedProcessOperator<RowData*, RowData*, RowData*>* keyedOp =
+        new KeyedProcessOperator(func, output, opConfig.getDescription());
     keyedOp->setup();
 
     auto env2 = new omnistream::RuntimeEnvironmentV2();
@@ -1021,9 +1049,11 @@ TEST(GroupAggFunctionTest, VectorBatch_Q17Agg)
     }
     env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
-    std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::BIGINT)});
-    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
+    StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
+    std::vector<omnistream::RowField>* typeInfo = new std::vector<omnistream::RowField>(
+        {omnistream::RowField("col0", BasicLogicalType::BIGINT),
+         omnistream::RowField("col1", BasicLogicalType::BIGINT)});
+    TypeSerializer* ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
     keyedOp->initializeState(initializer, ser);
     keyedOp->open();
 
@@ -1044,17 +1074,21 @@ TEST(GroupAggFunctionTest, VectorBatch_Q17Agg)
     11      a           0           1           0           11      +I
     */
     keyedOp->processBatch(new StreamRecord(vbatch));
-    omnistream::VectorBatch* resultBatch = reinterpret_cast<omnistream::VectorBatch*> (output->getVectorBatch());
+    omnistream::VectorBatch* resultBatch = reinterpret_cast<omnistream::VectorBatch*>(output->getVectorBatch());
     int rowCount = resultBatch->GetRowCount();
     int colCount = resultBatch->GetVectorCount();
     EXPECT_EQ(rowCount, 6);
     EXPECT_EQ(colCount, 10);
-    std::vector types = {"BIGINT","VARCHAR","BIGINT","BIGINT","BIGINT","BIGINT","BIGINT","BIGINT","BIGINT","BIGINT"};
+    std::vector types = {
+        "BIGINT", "VARCHAR", "BIGINT", "BIGINT", "BIGINT", "BIGINT", "BIGINT", "BIGINT", "BIGINT", "BIGINT"};
     std::cout << "========================print result round 1============================" << std::endl;
     for (int i = 0; i < rowCount; i++) {
         for (int j = 0; j < colCount; j++) {
             if (types[j] == "VARCHAR") {
-                auto result = reinterpret_cast<omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>> *>(resultBatch->Get(j))->GetValue(i);
+                auto result = reinterpret_cast<
+                                  omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>*>(
+                                  resultBatch->Get(j))
+                                  ->GetValue(i);
                 std::string resStr(result);
                 std::cout << resStr;
             } else if (types[j] == "INTEGER") {
@@ -1085,7 +1119,7 @@ TEST(GroupAggFunctionTest, VectorBatch_Q17Agg)
 
     omnistream::VectorBatch* vbatch2 = newVectorBatchForQ17();
     keyedOp->processBatch(new StreamRecord(vbatch2));
-    omnistream::VectorBatch* resultBatch2 = reinterpret_cast<omnistream::VectorBatch*> (output->getVectorBatch());
+    omnistream::VectorBatch* resultBatch2 = reinterpret_cast<omnistream::VectorBatch*>(output->getVectorBatch());
     int rowCount2 = resultBatch2->GetRowCount();
     int colCount2 = resultBatch2->GetVectorCount();
     EXPECT_EQ(rowCount2, 12);
@@ -1094,7 +1128,10 @@ TEST(GroupAggFunctionTest, VectorBatch_Q17Agg)
     for (int i = 0; i < rowCount2; i++) {
         for (int j = 0; j < colCount2; j++) {
             if (types[j] == "VARCHAR") {
-                auto result = reinterpret_cast<omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>> *>(resultBatch2->Get(j))->GetValue(i);
+                auto result = reinterpret_cast<
+                                  omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>*>(
+                                  resultBatch2->Get(j))
+                                  ->GetValue(i);
                 std::string resStr(result);
                 std::cout << resStr;
             } else if (types[j] == "INTEGER") {
@@ -1130,12 +1167,13 @@ TEST(GroupAggFunctionTest, VectorBatch_Q17Agg)
     */
 }
 
-omnistream::VectorBatch* newVectorBatchOneKeyOneValue_1() {
+omnistream::VectorBatch* newVectorBatchOneKeyOneValue_1()
+{
     omnistream::VectorBatch* vbatch = new omnistream::VectorBatch(5);
     auto vKey = new omniruntime::vec::Vector<int64_t>(5);
     auto vValue = new omniruntime::vec::Vector<int64_t>(5);
-    std::array<long, 5> key= {1, 2, 3, 2, 3};
-    std::array<long, 5> value= {5, 3, 8, 6, 4};
+    std::array<long, 5> key = {1, 2, 3, 2, 3};
+    std::array<long, 5> value = {5, 3, 8, 6, 4};
     for (int i = 0; i < 5; i++) {
         vKey->SetValue(i, key[i]);
         vValue->SetValue(i, value[i]);
@@ -1146,12 +1184,13 @@ omnistream::VectorBatch* newVectorBatchOneKeyOneValue_1() {
     return vbatch;
 }
 
-omnistream::VectorBatch* newVectorBatchOneKeyOneValue_2() {
+omnistream::VectorBatch* newVectorBatchOneKeyOneValue_2()
+{
     omnistream::VectorBatch* vbatch = new omnistream::VectorBatch(5);
     auto vKey = new omniruntime::vec::Vector<int64_t>(5);
     auto vValue = new omniruntime::vec::Vector<int64_t>(5);
-    std::array<long, 5> key= {1, 4, 2, 3, 2};
-    std::array<long, 5> value= {7, 5, 12, 10, 5};
+    std::array<long, 5> key = {1, 4, 2, 3, 2};
+    std::array<long, 5> value = {7, 5, 12, 10, 5};
     for (int i = 0; i < 5; i++) {
         vKey->SetValue(i, key[i]);
         vValue->SetValue(i, value[i]);
@@ -1164,10 +1203,9 @@ omnistream::VectorBatch* newVectorBatchOneKeyOneValue_2() {
 
 TEST(GroupAggFunctionTest, VectorBatch_OneKeyMaxAggTest)
 {
-
-    //Operator description
+    // Operator description
     std::string uniqueName = "org.apache.flink.streaming.api.operators.KeyedProcessOperator";
-    //Group by column 0, aggregate on column 1
+    // Group by column 0, aggregate on column 1
     std::string description = R"DELIM({"input_channels":[0],
                             "operators":[{"description":{
                                         "aggInfoList":{"accTypes": ["BIGINT"],"aggValueTypes":["BIGINT"],"aggregateCalls":[{"aggregationFunction":"LongMaxAggFunction","argIndexes":[1],"consumeRetraction":"false","filterArg":-1,"name":"MAX($0)"}],"indexOfCountStar":-1},
@@ -1184,18 +1222,19 @@ TEST(GroupAggFunctionTest, VectorBatch_OneKeyMaxAggTest)
 
     json parsedJson = json::parse(description);
     omnistream::OperatorConfig opConfig(
-            uniqueName, //uniqueName:
-            "Group_By_Simple", //Name
-            parsedJson["operators"][0]["inputTypes"],
-            parsedJson["operators"][0]["outputTypes"],
-            parsedJson["operators"][0]["description"]
-    );
-    BinaryRowDataSerializer *binaryRowDataSerializer = new BinaryRowDataSerializer(2);
-    BatchOutputTest *output = new BatchOutputTest();
+        uniqueName,        // uniqueName:
+        "Group_By_Simple", // Name
+        parsedJson["operators"][0]["inputTypes"],
+        parsedJson["operators"][0]["outputTypes"],
+        parsedJson["operators"][0]["description"]);
+    BinaryRowDataSerializer* binaryRowDataSerializer = new BinaryRowDataSerializer(2);
+    BatchOutputTest* output = new BatchOutputTest();
 
     // create streamOperatorFactory
     StreamOperatorFactory streamOperatorFactory;
-    KeyedProcessOperator<RowData *, RowData*, RowData*> *keyedOp = dynamic_cast<KeyedProcessOperator<RowData *, RowData*, RowData*> *>(streamOperatorFactory.createOperatorAndCollector(opConfig, output));
+    KeyedProcessOperator<RowData*, RowData*, RowData*>* keyedOp =
+        dynamic_cast<KeyedProcessOperator<RowData*, RowData*, RowData*>*>(
+            streamOperatorFactory.createOperatorAndCollector(opConfig, output));
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
     taskInfo->setStateBackend("HashMapStateBackend");
@@ -1208,9 +1247,11 @@ TEST(GroupAggFunctionTest, VectorBatch_OneKeyMaxAggTest)
     }
     env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
-    std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::BIGINT)});
-    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
+    StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
+    std::vector<omnistream::RowField>* typeInfo = new std::vector<omnistream::RowField>(
+        {omnistream::RowField("col0", BasicLogicalType::BIGINT),
+         omnistream::RowField("col1", BasicLogicalType::BIGINT)});
+    TypeSerializer* ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
     keyedOp->initializeState(initializer, ser);
     keyedOp->open();
 
@@ -1228,8 +1269,7 @@ TEST(GroupAggFunctionTest, VectorBatch_OneKeyMaxAggTest)
     auto record = new StreamRecord(vbatch);
     keyedOp->processBatch(record);
 
-
-    omnistream::VectorBatch* resultBatch = reinterpret_cast<omnistream::VectorBatch*> (output->getVectorBatch());
+    omnistream::VectorBatch* resultBatch = reinterpret_cast<omnistream::VectorBatch*>(output->getVectorBatch());
     // print VectorBatch
     int rowCount = resultBatch->GetRowCount();
     int colCount = resultBatch->GetVectorCount();
@@ -1268,8 +1308,7 @@ TEST(GroupAggFunctionTest, VectorBatch_OneKeyMaxAggTest)
     auto record2 = new StreamRecord(vbatch2);
     keyedOp->processBatch(record2);
 
-
-    omnistream::VectorBatch* resultBatch2 = reinterpret_cast<omnistream::VectorBatch*> (output->getVectorBatch());
+    omnistream::VectorBatch* resultBatch2 = reinterpret_cast<omnistream::VectorBatch*>(output->getVectorBatch());
     // print VectorBatch
     int rowCount2 = resultBatch2->GetRowCount();
     int colCount2 = resultBatch2->GetVectorCount();
@@ -1296,10 +1335,9 @@ TEST(GroupAggFunctionTest, VectorBatch_OneKeyMaxAggTest)
 
 TEST(GroupAggFunctionTest, VectorBatch_OneKeyAvgAggTest)
 {
-
-    //Operator description
+    // Operator description
     std::string uniqueName = "org.apache.flink.streaming.api.operators.KeyedProcessOperator";
-    //Group by column 0, aggregate on column 1
+    // Group by column 0, aggregate on column 1
     std::string description = R"DELIM({"input_channels":[0],
                             "operators":[{"description":{
                                         "aggInfoList":{"accTypes": ["BIGINT","BIGINT"],"aggValueTypes":["BIGINT"],"aggregateCalls":[{"aggregationFunction":"LongAvgAggFunction","argIndexes":[1],"consumeRetraction":"false","filterArg":-1,"name":"AVG($0)"}],"indexOfCountStar":-1},
@@ -1316,18 +1354,19 @@ TEST(GroupAggFunctionTest, VectorBatch_OneKeyAvgAggTest)
 
     json parsedJson = json::parse(description);
     omnistream::OperatorConfig opConfig(
-            uniqueName, //uniqueName:
-            "Group_By_Simple", //Name
-            parsedJson["operators"][0]["inputTypes"],
-            parsedJson["operators"][0]["outputTypes"],
-            parsedJson["operators"][0]["description"]
-    );
-    BinaryRowDataSerializer *binaryRowDataSerializer = new BinaryRowDataSerializer(2);
-    BatchOutputTest *output = new BatchOutputTest();
+        uniqueName,        // uniqueName:
+        "Group_By_Simple", // Name
+        parsedJson["operators"][0]["inputTypes"],
+        parsedJson["operators"][0]["outputTypes"],
+        parsedJson["operators"][0]["description"]);
+    BinaryRowDataSerializer* binaryRowDataSerializer = new BinaryRowDataSerializer(2);
+    BatchOutputTest* output = new BatchOutputTest();
 
     // create streamOperatorFactory
     StreamOperatorFactory streamOperatorFactory;
-    KeyedProcessOperator<RowData *, RowData*, RowData*> *keyedOp = dynamic_cast<KeyedProcessOperator<RowData *, RowData*, RowData*> *>(streamOperatorFactory.createOperatorAndCollector(opConfig, output));
+    KeyedProcessOperator<RowData*, RowData*, RowData*>* keyedOp =
+        dynamic_cast<KeyedProcessOperator<RowData*, RowData*, RowData*>*>(
+            streamOperatorFactory.createOperatorAndCollector(opConfig, output));
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
     taskInfo->setStateBackend("HashMapStateBackend");
@@ -1340,9 +1379,11 @@ TEST(GroupAggFunctionTest, VectorBatch_OneKeyAvgAggTest)
     }
     env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
-    std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::BIGINT)});
-    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
+    StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
+    std::vector<omnistream::RowField>* typeInfo = new std::vector<omnistream::RowField>(
+        {omnistream::RowField("col0", BasicLogicalType::BIGINT),
+         omnistream::RowField("col1", BasicLogicalType::BIGINT)});
+    TypeSerializer* ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
     keyedOp->initializeState(initializer, ser);
     keyedOp->open();
 
@@ -1360,8 +1401,7 @@ TEST(GroupAggFunctionTest, VectorBatch_OneKeyAvgAggTest)
     auto record = new StreamRecord(vbatch);
     keyedOp->processBatch(record);
 
-
-    omnistream::VectorBatch* resultBatch = reinterpret_cast<omnistream::VectorBatch*> (output->getVectorBatch());
+    omnistream::VectorBatch* resultBatch = reinterpret_cast<omnistream::VectorBatch*>(output->getVectorBatch());
     // print VectorBatch
     int rowCount = resultBatch->GetRowCount();
     int colCount = resultBatch->GetVectorCount();
@@ -1385,7 +1425,6 @@ TEST(GroupAggFunctionTest, VectorBatch_OneKeyAvgAggTest)
     1        , 5         , +I
     */
 
-
     omnistream::VectorBatch* vbatch2 = newVectorBatchOneKeyOneValue_2();
     auto record2 = new StreamRecord(vbatch2);
     keyedOp->processBatch(record2);
@@ -1399,7 +1438,7 @@ TEST(GroupAggFunctionTest, VectorBatch_OneKeyAvgAggTest)
     2        , 5         , +I
     */
 
-    omnistream::VectorBatch* resultBatch2 = reinterpret_cast<omnistream::VectorBatch*> (output->getVectorBatch());
+    omnistream::VectorBatch* resultBatch2 = reinterpret_cast<omnistream::VectorBatch*>(output->getVectorBatch());
     // print VectorBatch
     int rowCount2 = resultBatch2->GetRowCount();
     int colCount2 = resultBatch2->GetVectorCount();
@@ -1427,9 +1466,8 @@ TEST(GroupAggFunctionTest, VectorBatch_OneKeyAvgAggTest)
     */
 }
 
-
-
-omnistream::VectorBatch* newVectorBatchForQ17WithSize(int batchSize = 10000) {
+omnistream::VectorBatch* newVectorBatchForQ17WithSize(int batchSize = 10000)
+{
     omnistream::VectorBatch* vbatch = new omnistream::VectorBatch(batchSize);
 
     auto col1 = new omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>(batchSize);
@@ -1439,11 +1477,11 @@ omnistream::VectorBatch* newVectorBatchForQ17WithSize(int batchSize = 10000) {
     auto col4 = new omniruntime::vec::Vector<bool>(batchSize);
     auto col5 = new omniruntime::vec::Vector<int64_t>(batchSize);
 
-    std::array<int64_t ,10> bigint0 = {11, 22, 33, 11, 22, 33, 44, 55, 66, 11};
+    std::array<int64_t, 10> bigint0 = {11, 22, 33, 11, 22, 33, 44, 55, 66, 11};
     std::array<bool, 10> bool2 = {false, false, true, false, false, true, false, false, true, false};
     std::array<bool, 10> bool3 = {true, false, false, false, true, false, false, false, false, true};
     std::array<bool, 10> bool4 = {false, true, false, true, false, false, true, true, false, false};
-    std::array<int64_t ,10> bigint5 = {4, 5, 6, 7, 8, 9, 10, 2, 13, 11};
+    std::array<int64_t, 10> bigint5 = {4, 5, 6, 7, 8, 9, 10, 2, 13, 11};
 
     for (int i = 0; i < batchSize; i++) {
         std::string_view dateStr = "a";
@@ -1466,21 +1504,20 @@ omnistream::VectorBatch* newVectorBatchForQ17WithSize(int batchSize = 10000) {
     return vbatch;
 }
 
-
-
 TEST(GroupAggFunctionTest, VectorBatch_Q17Agg_Benchmark)
 {
     nlohmann::json parsedJson = nlohmann::json::parse(Q17ConfigStr_agg);
     OperatorConfig opConfig(
-            parsedJson["id"],
-            parsedJson["name"],
-            parsedJson["description"]["inputType"],
-            parsedJson["description"]["outputType"],
-            parsedJson["description"]);
+        parsedJson["id"],
+        parsedJson["name"],
+        parsedJson["description"]["inputType"],
+        parsedJson["description"]["outputType"],
+        parsedJson["description"]);
 
-    BatchOutputTest *output = new BatchOutputTest();
-    GroupAggFunction *func = new GroupAggFunction(0l, opConfig.getDescription());
-    KeyedProcessOperator<RowData *, RowData*, RowData*> *keyedOp = new KeyedProcessOperator(func, output, opConfig.getDescription());
+    BatchOutputTest* output = new BatchOutputTest();
+    GroupAggFunction* func = new GroupAggFunction(0l, opConfig.getDescription());
+    KeyedProcessOperator<RowData*, RowData*, RowData*>* keyedOp =
+        new KeyedProcessOperator(func, output, opConfig.getDescription());
     keyedOp->setup();
 
     auto env2 = new omnistream::RuntimeEnvironmentV2();
@@ -1495,9 +1532,11 @@ TEST(GroupAggFunctionTest, VectorBatch_Q17Agg_Benchmark)
     }
     env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
-    std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::BIGINT)});
-    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
+    StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
+    std::vector<omnistream::RowField>* typeInfo = new std::vector<omnistream::RowField>(
+        {omnistream::RowField("col0", BasicLogicalType::BIGINT),
+         omnistream::RowField("col1", BasicLogicalType::BIGINT)});
+    TypeSerializer* ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
     keyedOp->initializeState(initializer, ser);
     keyedOp->open();
 

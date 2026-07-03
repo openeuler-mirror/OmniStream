@@ -17,20 +17,22 @@
 
 namespace omnistream {
 
-    class CheckpointStorageAccess : public CheckpointStorageWorkerView {
-    public:
-        virtual ~CheckpointStorageAccess() = default;
-        
-        virtual CheckpointStorageLocation* initializeLocationForCheckpoint(long checkpointId) = 0;
-        virtual CheckpointStorageLocation* initializeLocationForSavepoint(long checkpointId, const std::string& externalPath) = 0;
-        
-        virtual bool hasDefaultSavepointLocation() = 0;
-        
-        virtual CheckpointStreamFactory* resolveCheckpointStorageLocation(int64_t checkpointId, std::shared_ptr<CheckpointStorageLocationReference> reference) = 0;
-        virtual CheckpointStreamFactory* resolveCheckpointStorageLocation(long checkpointId) = 0;
-        virtual void initializeBaseLocations() = 0;
-    };
+class CheckpointStorageAccess : public CheckpointStorageWorkerView {
+public:
+    virtual ~CheckpointStorageAccess() = default;
 
-}
+    virtual CheckpointStorageLocation* initializeLocationForCheckpoint(long checkpointId) = 0;
+    virtual CheckpointStorageLocation* initializeLocationForSavepoint(
+        long checkpointId, const std::string& externalPath) = 0;
+
+    virtual bool hasDefaultSavepointLocation() = 0;
+
+    virtual CheckpointStreamFactory* resolveCheckpointStorageLocation(
+        int64_t checkpointId, std::shared_ptr<CheckpointStorageLocationReference> reference) = 0;
+    virtual CheckpointStreamFactory* resolveCheckpointStorageLocation(long checkpointId) = 0;
+    virtual void initializeBaseLocations() = 0;
+};
+
+} // namespace omnistream
 
 #endif // OMNISTREAM_CHECKPOINT_STORAGE_ACCESS_H

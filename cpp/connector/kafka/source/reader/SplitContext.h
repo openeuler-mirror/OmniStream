@@ -21,8 +21,9 @@ public:
     KafkaPartitionSplitState* state;
     SourceOutput* sourceOutput = nullptr;
 
-    SplitContext(const std::string& splitId, KafkaPartitionSplitState* state)
-        : splitId(splitId), state(state) {}
+    SplitContext(const std::string& splitId, KafkaPartitionSplitState* state) : splitId(splitId), state(state)
+    {
+    }
 
     ~SplitContext()
     {
@@ -30,7 +31,7 @@ public:
     }
 
     // 获取或创建 SplitOutput 的方法
-    SourceOutput &getOrCreateSplitOutput(ReaderOutput* mainOutput)
+    SourceOutput& getOrCreateSplitOutput(ReaderOutput* mainOutput)
     {
         if (sourceOutput == nullptr) {
             // 拆分输出应该在 SourceOperator 中处理 AddSplitsEvent 时创建。
@@ -40,6 +41,5 @@ public:
         return *sourceOutput;
     }
 };
-
 
 #endif // FLINK_TNEL_SPLITCONTEXT_H

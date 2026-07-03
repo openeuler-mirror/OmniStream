@@ -22,8 +22,9 @@ extern "C" {
  * Method:    createOmniTaskManagerServices
  * Signature: (Ljava/lang/String;)J
  */
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskexecutor_OmniTaskManagerServices_createOmniTaskManagerServices
-  (JNIEnv *, jclass, jstring);
+JNIEXPORT jlong JNICALL
+Java_com_huawei_omniruntime_flink_runtime_taskexecutor_OmniTaskManagerServices_createOmniTaskManagerServices(
+    JNIEnv*, jclass, jstring);
 
 #ifdef __cplusplus
 }

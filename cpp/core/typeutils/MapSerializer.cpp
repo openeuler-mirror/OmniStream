@@ -12,20 +12,21 @@
 #include "MapSerializer.h"
 #include "basictypes/java_util_HashMap.h"
 
-MapSerializer::MapSerializer(TypeSerializer *keySerializer, TypeSerializer *valueSerializer)
-    : keySerializer(keySerializer), valueSerializer(valueSerializer)
+MapSerializer::MapSerializer(TypeSerializer* keySerializer, TypeSerializer* valueSerializer)
+    : keySerializer(keySerializer),
+      valueSerializer(valueSerializer)
 {
     reuseBuffer = new HashMap();
     setSubBufferReusable(false);
 }
 
-void MapSerializer::serialize(Object* buffer, DataOutputSerializer &target)
+void MapSerializer::serialize(Object* buffer, DataOutputSerializer& target)
 {
-    auto map = static_cast<HashMap *>(buffer);
+    auto map = static_cast<HashMap*>(buffer);
     int size = map->size();
     target.writeInt(size);
 
-    for (const auto &it : *map->map_) {
+    for (const auto& it : *map->map_) {
         auto key = it.first;
         auto value = it.second;
         keySerializer->serialize(key, target);
@@ -38,7 +39,7 @@ void MapSerializer::serialize(Object* buffer, DataOutputSerializer &target)
     }
 }
 
-void MapSerializer::deserialize(Object* buffer, DataInputView &source)
+void MapSerializer::deserialize(Object* buffer, DataInputView& source)
 {
     auto size = source.readInt();
     auto map = static_cast<HashMap*>(buffer);
@@ -68,11 +69,10 @@ void MapSerializer::setSubBufferReusable(bool bufferReusable_)
     valueSerializer->setSelfBufferReusable(bufferReusable_);
 }
 
-
 Object* MapSerializer::GetBuffer()
 {
     if (bufferReusable) {
-        static_cast<HashMap *>(reuseBuffer)->clear();
+        static_cast<HashMap*>(reuseBuffer)->clear();
         reuseBuffer->getRefCount();
         return reuseBuffer;
     }

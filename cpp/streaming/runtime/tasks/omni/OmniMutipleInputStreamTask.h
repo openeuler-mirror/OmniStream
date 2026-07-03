@@ -14,14 +14,14 @@
 
 #include "OmniStreamTask.h"
 namespace omnistream {
-    class OmniMutipleInputStreamTask : public OmniStreamTask {
-    public:
-        explicit OmniMutipleInputStreamTask(std::shared_ptr<RuntimeEnvironmentV2>& env);
+class OmniMutipleInputStreamTask : public OmniStreamTask {
+public:
+    explicit OmniMutipleInputStreamTask(std::shared_ptr<RuntimeEnvironmentV2>& env);
 
-        void init() override;
+    void init() override;
 
-    protected:
-        void createInputProcessor();
-    };
-}
+protected:
+    void createInputProcessor();
+};
+} // namespace omnistream
 #endif

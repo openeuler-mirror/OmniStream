@@ -29,37 +29,41 @@ public:
     StateSnapshotContextSynchronousImpl(
         long checkpointId,
         long checkpointTimestamp,
-        CheckpointStreamFactory *streamFactory,
-        KeyGroupRange *keyGroupRange);
+        CheckpointStreamFactory* streamFactory,
+        KeyGroupRange* keyGroupRange);
 
     StateSnapshotContextSynchronousImpl(
         long checkpointId,
         long checkpointTimestamp,
-        CheckpointStreamFactory *streamFactory,
-        KeyGroupRange *keyGroupRange,
+        CheckpointStreamFactory* streamFactory,
+        KeyGroupRange* keyGroupRange,
         std::shared_ptr<omnistream::OmniTaskBridge> bridge,
-        CheckpointOptions *checkpointOptions);
+        CheckpointOptions* checkpointOptions);
 
-    KeyedStateCheckpointOutputStream *getRawKeyedOperatorStateOutput();
+    KeyedStateCheckpointOutputStream* getRawKeyedOperatorStateOutput();
 
     long getCheckpointId();
     long getCheckpointTimestamp();
 
-    std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<KeyedStateHandle>>()>> getKeyedStateStreamFuture();
-    std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<OperatorStateHandle>>()>> getOperatorStateStreamFuture();
+    std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<KeyedStateHandle>>()>>
+    getKeyedStateStreamFuture();
+    std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<OperatorStateHandle>>()>>
+    getOperatorStateStreamFuture();
     void closeExceptionally();
 
 protected:
-    std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<KeyedStateHandle>>()>> keyedStateCheckpointClosingFuture;
-    std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<OperatorStateHandle>>()>> operatorStateCheckpointClosingFuture;
+    std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<KeyedStateHandle>>()>>
+        keyedStateCheckpointClosingFuture;
+    std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<OperatorStateHandle>>()>>
+        operatorStateCheckpointClosingFuture;
 
 private:
     long checkpointId_;
     long checkpointTimestamp_;
-    CheckpointStreamFactory *streamFactory_;
-    KeyGroupRange *keyGroupRange_;
+    CheckpointStreamFactory* streamFactory_;
+    KeyGroupRange* keyGroupRange_;
     std::shared_ptr<omnistream::OmniTaskBridge> bridge_;
-    CheckpointOptions *checkpointOptions_ = nullptr;
+    CheckpointOptions* checkpointOptions_ = nullptr;
     std::shared_ptr<KeyedStateCheckpointOutputStream> keyedStateCheckpointOutputStream_;
 };
 

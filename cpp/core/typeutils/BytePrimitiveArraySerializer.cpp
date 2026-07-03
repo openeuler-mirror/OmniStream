@@ -14,25 +14,25 @@
 
 using ByteArray = JavaArray<uint8_t>;
 
-void BytePrimitiveArraySerializer::deserialize(Object* buffer, DataInputView &source)
+void BytePrimitiveArraySerializer::deserialize(Object* buffer, DataInputView& source)
 {
     auto array = static_cast<ByteArray*>(buffer);
     int size = source.readInt();
-    
+
     if (size == 0) {
         return;
     }
-    
+
     array->resize(size);
     source.readFully(array->data(), size, 0, size);
 }
 
-void BytePrimitiveArraySerializer::serialize(Object* buffer, DataOutputSerializer &target)
+void BytePrimitiveArraySerializer::serialize(Object* buffer, DataOutputSerializer& target)
 {
     auto array = static_cast<ByteArray*>(buffer);
     int size = array->size();
     target.writeInt(size);
-    
+
     if (size > 0) {
         target.write(array->data(), size, 0, size);
     }

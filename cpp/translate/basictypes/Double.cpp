@@ -26,7 +26,7 @@ double Double::jsonValue()
     return value;
 }
 
-Long* Double::doubleToLongBits(Double *value)
+Long* Double::doubleToLongBits(Double* value)
 {
     if (value == nullptr) {
         return nullptr;
@@ -43,7 +43,7 @@ Long* Double::doubleToLongBits(Double *value)
     return new Long(result);
 }
 
-Double* Double::doubleToLongBits(Long *value)
+Double* Double::doubleToLongBits(Long* value)
 {
     if (value == nullptr) {
         return nullptr;
@@ -84,31 +84,31 @@ int Double::hashCode()
     int64_t bits = doubleToLongBits(this->value);
     return (int)(bits ^ (bits >> 32));
 }
- 
-bool Double::equals(Object *obj)
+
+bool Double::equals(Object* obj)
 {
     if (obj == nullptr) {
         return false;
     }
- 
+
     if (typeid(*obj) != typeid(Double)) {
         return false;
     }
- 
-    Double *other = static_cast<Double *>(obj);
-    if (doubleToLongBits(other->value) !=  doubleToLongBits(this->value)) {
+
+    Double* other = static_cast<Double*>(obj);
+    if (doubleToLongBits(other->value) != doubleToLongBits(this->value)) {
         return false;
     }
- 
+
     return true;
 }
 
-void Double::setValue(const std::string &basicString)
+void Double::setValue(const std::string& basicString)
 {
     this->value = std::stod(basicString);
 }
 
-Object *Double::clone()
+Object* Double::clone()
 {
     return new Double(value);
 }

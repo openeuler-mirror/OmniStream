@@ -10,15 +10,16 @@
  */
 #include "RecordCounter.h"
 
-RetractionRecordCounter::RetractionRecordCounter(int indexOfCountStar_)
-    : indexOfCountStar(indexOfCountStar_) {}
+RetractionRecordCounter::RetractionRecordCounter(int indexOfCountStar_) : indexOfCountStar(indexOfCountStar_)
+{
+}
 
-bool AccumulationRecordCounter::recordCountIsZero(RowData *acc)
+bool AccumulationRecordCounter::recordCountIsZero(RowData* acc)
 {
     return acc == nullptr;
 }
 
-bool RetractionRecordCounter::recordCountIsZero(RowData *acc)
+bool RetractionRecordCounter::recordCountIsZero(RowData* acc)
 {
     return acc == nullptr || *acc->getLong(indexOfCountStar) == 0;
 }

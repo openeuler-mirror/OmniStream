@@ -27,62 +27,80 @@
 #include "core/typeutils/LongSerializer.h"
 
 // The state is a list. In the InternalKvState, the state is stored as a pointer to a std::vector
-template<typename K, typename N, typename UV>
+template <typename K, typename N, typename UV>
 class HeapListState : public InternalListState<K, N, UV> {
 public:
-    HeapListState(StateTable<K, N, std::vector<UV>*> *stateTable,
-                  TypeSerializer *valueSerializer,
-                  TypeSerializer *namespaceSerializer);
+    HeapListState(
+        StateTable<K, N, std::vector<UV>*>* stateTable,
+        TypeSerializer* valueSerializer,
+        TypeSerializer* namespaceSerializer);
 
     ~HeapListState();
 
-    TypeSerializer *getNamespaceSerializer() const { return namespaceSerializer; };
+    TypeSerializer* getNamespaceSerializer() const
+    {
+        return namespaceSerializer;
+    };
 
-    TypeSerializer *getValueSerializer() const { return valueSerializer; };
+    TypeSerializer* getValueSerializer() const
+    {
+        return valueSerializer;
+    };
 
-    void setNamespaceSerializer(TypeSerializer *serializer) { namespaceSerializer = serializer; };
+    void setNamespaceSerializer(TypeSerializer* serializer)
+    {
+        namespaceSerializer = serializer;
+    };
 
-    void setValueSerializer(TypeSerializer *serializer) { valueSerializer = serializer; };
+    void setValueSerializer(TypeSerializer* serializer)
+    {
+        valueSerializer = serializer;
+    };
 
-    void add(const UV &value) override;
+    void add(const UV& value) override;
 
-    void addAll(const std::vector<UV> &values) override;
+    void addAll(const std::vector<UV>& values) override;
 
-    void update(const std::vector<UV> &values) override;
+    void update(const std::vector<UV>& values) override;
 
     std::vector<UV>* get() override;
 
-    void merge(const std::vector<UV> &other) override;
+    void merge(const std::vector<UV>& other) override;
 
     void setCurrentNamespace(N nameSpace) override;
 
     void clear() override;
 
-    void addVectorBatch(omnistream::VectorBatch *vectorBatch) override;
-    omnistream::VectorBatch *getVectorBatch(int batchId) override;
+    void addVectorBatch(omnistream::VectorBatch* vectorBatch) override;
+    omnistream::VectorBatch* getVectorBatch(int batchId) override;
     long getVectorBatchesSize() override;
     void clearVectors(int64_t currentTimestamp) override;
 
-    static HeapListState<K, N, UV> *
-    create(StateDescriptor *stateDesc, StateTable<K, N, std::vector<UV>*> *stateTable, TypeSerializer *keySerializer,
-           StateTable<int, VoidNamespace, omnistream::VectorBatch *> *vectorBatchStateTable);
+    static HeapListState<K, N, UV>* create(
+        StateDescriptor* stateDesc,
+        StateTable<K, N, std::vector<UV>*>* stateTable,
+        TypeSerializer* keySerializer,
+        StateTable<int, VoidNamespace, omnistream::VectorBatch*>* vectorBatchStateTable);
 
-    static HeapListState<K, N, UV> *
-    update(StateDescriptor *stateDesc, StateTable<K, N, std::vector<UV>*> *stateTable,
-           HeapListState<K, N, UV> *existingState,
-           StateTable<int, VoidNamespace, omnistream::VectorBatch *> *vectorBatchStateTable);
+    static HeapListState<K, N, UV>* update(
+        StateDescriptor* stateDesc,
+        StateTable<K, N, std::vector<UV>*>* stateTable,
+        HeapListState<K, N, UV>* existingState,
+        StateTable<int, VoidNamespace, omnistream::VectorBatch*>* vectorBatchStateTable);
+
 private:
-    StateTable<K, N, std::vector<UV>*> *stateTable;
-    StateTable<int, VoidNamespace, omnistream::VectorBatch *> *vectorBatchStateTable = nullptr;
-    TypeSerializer *valueSerializer;
-    TypeSerializer *namespaceSerializer;
+    StateTable<K, N, std::vector<UV>*>* stateTable;
+    StateTable<int, VoidNamespace, omnistream::VectorBatch*>* vectorBatchStateTable = nullptr;
+    TypeSerializer* valueSerializer;
+    TypeSerializer* namespaceSerializer;
     N currentNamespace;
 };
 
-template<typename K, typename N, typename UV>
-HeapListState<K, N, UV>::HeapListState(StateTable<K, N, std::vector<UV>*> *stateTable,
-                                       TypeSerializer *valueSerializer,
-                                       TypeSerializer *namespaceSerializer)
+template <typename K, typename N, typename UV>
+HeapListState<K, N, UV>::HeapListState(
+    StateTable<K, N, std::vector<UV>*>* stateTable,
+    TypeSerializer* valueSerializer,
+    TypeSerializer* namespaceSerializer)
 {
     this->valueSerializer = valueSerializer;
     this->namespaceSerializer = namespaceSerializer;
@@ -94,13 +112,13 @@ HeapListState<K, N, UV>::~HeapListState()
 {
 }
 
-template<typename K, typename N, typename UV>
+template <typename K, typename N, typename UV>
 void HeapListState<K, N, UV>::clear()
 {
     stateTable->remove(currentNamespace);
 }
 
-template<typename K, typename N, typename UV>
+template <typename K, typename N, typename UV>
 void HeapListState<K, N, UV>::clearVectors(int64_t currentTimestamp)
 {
     if (vectorBatchStateTable == nullptr) {
@@ -108,35 +126,35 @@ void HeapListState<K, N, UV>::clearVectors(int64_t currentTimestamp)
         return;
     }
     VoidNamespace nameSpace;
-    auto *table = static_cast<CopyOnWriteStateTable<int, VoidNamespace, omnistream::VectorBatch *> *>(
-        vectorBatchStateTable);
+    auto* table =
+        static_cast<CopyOnWriteStateTable<int, VoidNamespace, omnistream::VectorBatch*>*>(vectorBatchStateTable);
     int keyGroup = table->getKeyGroupRange()->getStartKeyGroup();
     const int batchCount = vectorBatchStateTable->size();
     for (int batchId = 0; batchId < batchCount; ++batchId) {
-        omnistream::VectorBatch *batch = vectorBatchStateTable->get(batchId, keyGroup, nameSpace);
+        omnistream::VectorBatch* batch = vectorBatchStateTable->get(batchId, keyGroup, nameSpace);
         if (batch != nullptr && batch->isEmpty(currentTimestamp)) {
             delete batch;
-            table->put(batchId, keyGroup, nameSpace, static_cast<omnistream::VectorBatch *>(nullptr));
+            table->put(batchId, keyGroup, nameSpace, static_cast<omnistream::VectorBatch*>(nullptr));
         }
     }
 }
 
-template<typename K, typename N, typename UV>
-void HeapListState<K, N, UV>::addVectorBatch(omnistream::VectorBatch *vectorBatch)
+template <typename K, typename N, typename UV>
+void HeapListState<K, N, UV>::addVectorBatch(omnistream::VectorBatch* vectorBatch)
 {
     if (vectorBatchStateTable == nullptr) {
         return;
     }
     VoidNamespace nameSpace;
-    auto *table = static_cast<CopyOnWriteStateTable<int, VoidNamespace, omnistream::VectorBatch *> *>(
-        vectorBatchStateTable);
+    auto* table =
+        static_cast<CopyOnWriteStateTable<int, VoidNamespace, omnistream::VectorBatch*>*>(vectorBatchStateTable);
     int keyGroup = table->getKeyGroupRange()->getStartKeyGroup();
     int batchId = vectorBatchStateTable->size();
     table->put(batchId, keyGroup, nameSpace, vectorBatch);
 }
 
-template<typename K, typename N, typename UV>
-omnistream::VectorBatch *HeapListState<K, N, UV>::getVectorBatch(int batchId)
+template <typename K, typename N, typename UV>
+omnistream::VectorBatch* HeapListState<K, N, UV>::getVectorBatch(int batchId)
 {
     if (vectorBatchStateTable == nullptr || batchId < 0 || batchId >= vectorBatchStateTable->size()) {
         return nullptr;
@@ -146,16 +164,16 @@ omnistream::VectorBatch *HeapListState<K, N, UV>::getVectorBatch(int batchId)
     return vectorBatchStateTable->get(batchId, keyGroup, nameSpace);
 }
 
-template<typename K, typename N, typename UV>
+template <typename K, typename N, typename UV>
 long HeapListState<K, N, UV>::getVectorBatchesSize()
 {
     return vectorBatchStateTable != nullptr ? vectorBatchStateTable->size() : 0;
 }
 
-template<typename K, typename N, typename UV>
-void HeapListState<K, N, UV>::add(const UV &value)
+template <typename K, typename N, typename UV>
+void HeapListState<K, N, UV>::add(const UV& value)
 {
-    std::vector<UV> *userList = stateTable->get(currentNamespace);
+    std::vector<UV>* userList = stateTable->get(currentNamespace);
     if (userList == nullptr) {
         userList = new std::vector<UV>();
         stateTable->put(currentNamespace, userList);
@@ -163,10 +181,10 @@ void HeapListState<K, N, UV>::add(const UV &value)
     userList->push_back(value);
 }
 
-template<typename K, typename N, typename UV>
-void HeapListState<K, N, UV>::addAll(const std::vector<UV> &values)
+template <typename K, typename N, typename UV>
+void HeapListState<K, N, UV>::addAll(const std::vector<UV>& values)
 {
-    std::vector<UV> *userList = stateTable->get(currentNamespace);
+    std::vector<UV>* userList = stateTable->get(currentNamespace);
     if (userList == nullptr) {
         userList = new std::vector<UV>(values);
         stateTable->put(currentNamespace, userList);
@@ -175,10 +193,10 @@ void HeapListState<K, N, UV>::addAll(const std::vector<UV> &values)
     }
 }
 
-template<typename K, typename N, typename UV>
-void HeapListState<K, N, UV>::update(const std::vector<UV> &values)
+template <typename K, typename N, typename UV>
+void HeapListState<K, N, UV>::update(const std::vector<UV>& values)
 {
-    std::vector<UV> *userList = stateTable->get(currentNamespace);
+    std::vector<UV>* userList = stateTable->get(currentNamespace);
     if (userList == nullptr) {
         userList = new std::vector<UV>(values);
         stateTable->put(currentNamespace, userList);
@@ -187,16 +205,16 @@ void HeapListState<K, N, UV>::update(const std::vector<UV> &values)
     }
 }
 
-template<typename K, typename N, typename UV>
+template <typename K, typename N, typename UV>
 std::vector<UV>* HeapListState<K, N, UV>::get()
 {
     return stateTable->get(currentNamespace);
 }
 
-template<typename K, typename N, typename UV>
-void HeapListState<K, N, UV>::merge(const std::vector<UV> &other)
+template <typename K, typename N, typename UV>
+void HeapListState<K, N, UV>::merge(const std::vector<UV>& other)
 {
-    std::vector<UV> *userList = stateTable->get(currentNamespace);
+    std::vector<UV>* userList = stateTable->get(currentNamespace);
     if (userList == nullptr) {
         userList = new std::vector<UV>(other);
         stateTable->put(currentNamespace, userList);
@@ -205,30 +223,31 @@ void HeapListState<K, N, UV>::merge(const std::vector<UV> &other)
     }
 }
 
-template<typename K, typename N, typename UV>
+template <typename K, typename N, typename UV>
 void HeapListState<K, N, UV>::setCurrentNamespace(N nameSpace)
 {
     currentNamespace = nameSpace;
 }
 
-template<typename K, typename N, typename UV>
-HeapListState<K, N, UV> *HeapListState<K, N, UV>::create(StateDescriptor *stateDesc,
-                                                         StateTable<K, N, std::vector<UV> *> *stateTable,
-                                                         TypeSerializer *keySerializer,
-                                                         StateTable<int, VoidNamespace, omnistream::VectorBatch *> *vectorBatchSideTable)
+template <typename K, typename N, typename UV>
+HeapListState<K, N, UV>* HeapListState<K, N, UV>::create(
+    StateDescriptor* stateDesc,
+    StateTable<K, N, std::vector<UV>*>* stateTable,
+    TypeSerializer* keySerializer,
+    StateTable<int, VoidNamespace, omnistream::VectorBatch*>* vectorBatchSideTable)
 {
-    auto *createdState = new HeapListState<K, N, UV>(stateTable,
-        stateTable->getStateSerializer(),
-        stateTable->getNamespaceSerializer());
+    auto* createdState =
+        new HeapListState<K, N, UV>(stateTable, stateTable->getStateSerializer(), stateTable->getNamespaceSerializer());
     createdState->vectorBatchStateTable = vectorBatchSideTable;
     return createdState;
 }
 
-template<typename K, typename N, typename UV>
-HeapListState<K, N, UV> *HeapListState<K, N, UV>::update(StateDescriptor *stateDesc,
-                                                         StateTable<K, N, std::vector<UV> *> *stateTable,
-                                                         HeapListState<K, N, UV> *existingState,
-                                                         StateTable<int, VoidNamespace, omnistream::VectorBatch *> *vectorBatchSideTable)
+template <typename K, typename N, typename UV>
+HeapListState<K, N, UV>* HeapListState<K, N, UV>::update(
+    StateDescriptor* stateDesc,
+    StateTable<K, N, std::vector<UV>*>* stateTable,
+    HeapListState<K, N, UV>* existingState,
+    StateTable<int, VoidNamespace, omnistream::VectorBatch*>* vectorBatchSideTable)
 {
     existingState->setNamespaceSerializer(stateTable->getNamespaceSerializer());
     existingState->setValueSerializer(stateTable->getStateSerializer());

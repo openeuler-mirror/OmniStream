@@ -39,8 +39,8 @@ public:
     HeapFullSnapshotResources(
         std::vector<std::shared_ptr<StateMetaInfoSnapshot>> stateMetaInfoSnapshots,
         std::vector<std::unique_ptr<SingleStateIterator>> stateIterators,
-        KeyGroupRange *keyGroupRange,
-        TypeSerializer *keySerializer,
+        KeyGroupRange* keyGroupRange,
+        TypeSerializer* keySerializer,
         int keyGroupPrefixBytes)
         : stateMetaInfoSnapshots_(std::move(stateMetaInfoSnapshots)),
           stateIterators_(std::move(stateIterators)),
@@ -52,18 +52,17 @@ public:
 
     ~HeapFullSnapshotResources() override = default;
 
-    const std::vector<std::shared_ptr<StateMetaInfoSnapshot>> &
-    getMetaInfoSnapshots() override
+    const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& getMetaInfoSnapshots() override
     {
         return stateMetaInfoSnapshots_;
     }
 
-    KeyGroupRange *getKeyGroupRange() override
+    KeyGroupRange* getKeyGroupRange() override
     {
         return keyGroupRange_;
     }
 
-    TypeSerializer *getKeySerializer() override
+    TypeSerializer* getKeySerializer() override
     {
         return keySerializer_;
     }
@@ -78,7 +77,7 @@ public:
         std::vector<std::pair<std::unique_ptr<RocksIteratorWrapper>, int>> emptyRocksIterators;
         std::vector<std::unique_ptr<SingleStateIterator>> heapIterators;
 
-        for (auto &iter : stateIterators_) {
+        for (auto& iter : stateIterators_) {
             if (iter && iter->isValid()) {
                 heapIterators.push_back(std::move(iter));
             }
@@ -86,10 +85,7 @@ public:
         stateIterators_.clear();
 
         return std::make_shared<RocksStatesPerKeyGroupMergeIterator>(
-            std::move(closeableRegistry),
-            emptyRocksIterators,
-            heapIterators,
-            keyGroupPrefixBytes_);
+            std::move(closeableRegistry), emptyRocksIterators, heapIterators, keyGroupPrefixBytes_);
     }
 
     void cleanup() override
@@ -100,8 +96,8 @@ public:
 private:
     std::vector<std::shared_ptr<StateMetaInfoSnapshot>> stateMetaInfoSnapshots_;
     std::vector<std::unique_ptr<SingleStateIterator>> stateIterators_;
-    KeyGroupRange *keyGroupRange_;
-    TypeSerializer *keySerializer_;
+    KeyGroupRange* keyGroupRange_;
+    TypeSerializer* keySerializer_;
     int keyGroupPrefixBytes_;
 };
 

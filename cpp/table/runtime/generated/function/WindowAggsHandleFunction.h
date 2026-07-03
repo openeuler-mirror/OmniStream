@@ -23,11 +23,11 @@
 class WindowAggsHandleFunction : public NamespaceAggsHandleFunction<int64_t> {
 public:
     explicit WindowAggsHandleFunction(
-            std::vector<std::unique_ptr<NamespaceAggsBasicFunction<int64_t>>> functions,
-            std::vector<int32_t> aggValueTypeIds,
-            std::vector<int32_t> outputValueTypeIds,
-            SliceAssigner* sliceAssigner,
-            int32_t accumulatorArity);
+        std::vector<std::unique_ptr<NamespaceAggsBasicFunction<int64_t>>> functions,
+        std::vector<int32_t> aggValueTypeIds,
+        std::vector<int32_t> outputValueTypeIds,
+        SliceAssigner* sliceAssigner,
+        int32_t accumulatorArity);
 
     ~WindowAggsHandleFunction() override = default;
 

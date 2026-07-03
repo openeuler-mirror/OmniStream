@@ -23,12 +23,12 @@
  * Method:    setupStreamTaskBeforeInvoke
  * Signature: (JLjava/lang/String;)J
  */
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_setupStreamTaskBeforeInvoke
-  (JNIEnv * jniEnv, jobject thiz, jlong nativeTask, jstring className)
+JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_setupStreamTaskBeforeInvoke(
+    JNIEnv* jniEnv, jobject thiz, jlong nativeTask, jstring className)
 {
-    auto task = reinterpret_cast<omnistream::OmniTask *>(nativeTask);
+    auto task = reinterpret_cast<omnistream::OmniTask*>(nativeTask);
 
-    const char* utf8String  = jniEnv->GetStringUTFChars(className, nullptr);
+    const char* utf8String = jniEnv->GetStringUTFChars(className, nullptr);
     if (utf8String == nullptr) {
         throw std::runtime_error("Failed to convert jstring to std::string");
     }
@@ -36,7 +36,7 @@ JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_Om
     std::string clsName(utf8String);
 
     jniEnv->ReleaseStringUTFChars(className, utf8String); // VERY IMPORTANT: Release the string
-    LOG("class name : " << clsName)
+    LOG("class name : " << clsName);
 
     long streamTaskAddress = task->setupStreamTask(clsName);
     return streamTaskAddress;
@@ -47,56 +47,56 @@ JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_Om
  * Method:    doRunNativeTask
  * Signature: (JJ)J
  */
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_doRunNativeTask
-  (JNIEnv *, jobject, jlong nativeTask, jlong streamTaskAddress)
+JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_doRunNativeTask(
+    JNIEnv*, jobject, jlong nativeTask, jlong streamTaskAddress)
 {
-    auto task = reinterpret_cast<omnistream::OmniTask *>(nativeTask);
+    auto task = reinterpret_cast<omnistream::OmniTask*>(nativeTask);
     task->doRun(streamTaskAddress);
     return 1;
 }
 
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_doRunInvokeNativeTask
-        (JNIEnv *, jobject, jlong nativeTask, jlong streamTaskAddress)
+JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_doRunInvokeNativeTask(
+    JNIEnv*, jobject, jlong nativeTask, jlong streamTaskAddress)
 {
-    auto task = reinterpret_cast<omnistream::OmniTask *>(nativeTask);
+    auto task = reinterpret_cast<omnistream::OmniTask*>(nativeTask);
     task->DoRunInvoke(streamTaskAddress);
     return 1;
 }
 
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_doRunRestoreNativeTask
-        (JNIEnv *, jobject, jlong nativeTask, jlong streamTaskAddress)
+JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_doRunRestoreNativeTask(
+    JNIEnv*, jobject, jlong nativeTask, jlong streamTaskAddress)
 {
-    auto task = reinterpret_cast<omnistream::OmniTask *>(nativeTask);
+    auto task = reinterpret_cast<omnistream::OmniTask*>(nativeTask);
     task->DoRunRestore(streamTaskAddress);
     return 1;
 }
 
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_doDeleteNativeTask
-        (JNIEnv *, jobject, jlong nativeTask)
+JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_doDeleteNativeTask(
+    JNIEnv*, jobject, jlong nativeTask)
 {
-    auto task = reinterpret_cast<omnistream::OmniTask *>(nativeTask);
+    auto task = reinterpret_cast<omnistream::OmniTask*>(nativeTask);
     delete task;
     return 1;
 }
 
-JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_dispatchOperatorEvent
-(JNIEnv * env, jobject, jlong nativeTask, jstring operatorId, jstring eventDesc)
+JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_dispatchOperatorEvent(
+    JNIEnv* env, jobject, jlong nativeTask, jstring operatorId, jstring eventDesc)
 {
-    auto *task = reinterpret_cast<omnistream::OmniTask *>(nativeTask);
+    auto* task = reinterpret_cast<omnistream::OmniTask*>(nativeTask);
 
-    const char *eventCharArray = (env)->GetStringUTFChars(eventDesc, nullptr);
+    const char* eventCharArray = (env)->GetStringUTFChars(eventDesc, nullptr);
     std::string eventString(eventCharArray);
     (env)->ReleaseStringUTFChars(eventDesc, eventCharArray);
 
-    const char *operatorIdCharArray = (env)->GetStringUTFChars(operatorId, nullptr);
+    const char* operatorIdCharArray = (env)->GetStringUTFChars(operatorId, nullptr);
     std::string operatorIdString(operatorIdCharArray);
     (env)->ReleaseStringUTFChars(operatorId, operatorIdCharArray);
 
     task->dispatchOperatorEvent(operatorIdString, eventString);
 }
 
-JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_notifyChannelToOmni
-(JNIEnv * env, jobject, jlong nativeTaskRef, jstring partitionIdJson)
+JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_notifyChannelToOmni(
+    JNIEnv* env, jobject, jlong nativeTaskRef, jstring partitionIdJson)
 {
     const char* paritionIdChars = (env)->GetStringUTFChars(partitionIdJson, nullptr);
     std::string paritionIdStr(paritionIdChars);
@@ -109,42 +109,57 @@ JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_Omn
 }
 
 JNIEXPORT void JNICALL
-Java_com_huawei_omniruntime_flink_runtime_io_network_partition_RemoteDataFetcher_notifyRemoteDataAvailable
-(JNIEnv*, jobject, jlong nativeTask, jint inputGateIndex, jint channelIndex, jlong bufferAddress, jint bufferLength,
- jint readIndex, jint sequenceNumber, jboolean isBuffer, jint bufferType) {
+Java_com_huawei_omniruntime_flink_runtime_io_network_partition_RemoteDataFetcher_notifyRemoteDataAvailable(
+    JNIEnv*,
+    jobject,
+    jlong nativeTask,
+    jint inputGateIndex,
+    jint channelIndex,
+    jlong bufferAddress,
+    jint bufferLength,
+    jint readIndex,
+    jint sequenceNumber,
+    jboolean isBuffer,
+    jint bufferType)
+{
     auto task = reinterpret_cast<omnistream::OmniTask*>(nativeTask);
-    task->notifyRemoteDataAvailable(inputGateIndex, channelIndex, bufferAddress, bufferLength, readIndex,
-                                    sequenceNumber, isBuffer,
-                                    bufferType);
+    task->notifyRemoteDataAvailable(
+        inputGateIndex, channelIndex, bufferAddress, bufferLength, readIndex, sequenceNumber, isBuffer, bufferType);
 }
 
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_createNativeTaskMetricGroup
-  (JNIEnv *, jobject, jlong nativeTask)
+JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_createNativeTaskMetricGroup(
+    JNIEnv*, jobject, jlong nativeTask)
 {
-    auto task = reinterpret_cast<omnistream::OmniTask *>(nativeTask);
+    auto task = reinterpret_cast<omnistream::OmniTask*>(nativeTask);
     auto taskMetricGroup = task->createTaskMetricGroup();
     return reinterpret_cast<long>(taskMetricGroup.get());
 }
 
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_cancelTask
-        (JNIEnv *, jobject, jlong nativeTask)
+JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_cancelTask(
+    JNIEnv*, jobject, jlong nativeTask)
 {
-    auto task = reinterpret_cast<omnistream::OmniTask *>(nativeTask);
+    auto task = reinterpret_cast<omnistream::OmniTask*>(nativeTask);
     task->cancel();
     return reinterpret_cast<long>(0L);
 }
 
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_io_network_partition_RemoteDataFetcher_getRecycleBufferAddress
-  (JNIEnv *, jobject, jlong nativeTask)
+JNIEXPORT jlong JNICALL
+Java_com_huawei_omniruntime_flink_runtime_io_network_partition_RemoteDataFetcher_getRecycleBufferAddress(
+    JNIEnv*, jobject, jlong nativeTask)
 {
-    auto task = reinterpret_cast<omnistream::OmniTask *>(nativeTask);
+    auto task = reinterpret_cast<omnistream::OmniTask*>(nativeTask);
     return task->GetRecycleBufferAddress();
 }
 
-JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_triggerCheckpointCpp
-  (JNIEnv *jniEnv, jobject, jlong nativeTask, jlong checkpointID, jlong checkpointTimestamp, jstring checkpointoptionJson)
+JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_triggerCheckpointCpp(
+    JNIEnv* jniEnv,
+    jobject,
+    jlong nativeTask,
+    jlong checkpointID,
+    jlong checkpointTimestamp,
+    jstring checkpointoptionJson)
 {
-    auto task = reinterpret_cast<omnistream::OmniTask *>(nativeTask);
+    auto task = reinterpret_cast<omnistream::OmniTask*>(nativeTask);
     if (!task) {
         INFO_RELEASE("Error OmniTask_triggerCheckpointCpp task is null");
         THROW_LOGIC_EXCEPTION("OmniTask_triggerCheckpointCpp task is null");
@@ -156,17 +171,17 @@ JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_Omn
     task->triggerCheckpointBarrier(checkpointID, checkpointTimestamp, configuredOptions);
 }
 
-JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_abortCpp
-  (JNIEnv *, jobject, jlong nativeTask, jlong checkpointId, jlong latestCompletedCheckpointId)
+JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_abortCpp(
+    JNIEnv*, jobject, jlong nativeTask, jlong checkpointId, jlong latestCompletedCheckpointId)
 {
-    auto task = reinterpret_cast<omnistream::OmniTask *>(nativeTask);
+    auto task = reinterpret_cast<omnistream::OmniTask*>(nativeTask);
     task->notifyCheckpointAborted(checkpointId, latestCompletedCheckpointId);
 }
 
-JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_completeCpp
-  (JNIEnv *, jobject, jlong nativeTask, jlong checkpointId, jlong inputState)
+JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_completeCpp(
+    JNIEnv*, jobject, jlong nativeTask, jlong checkpointId, jlong inputState)
 {
-    auto task = reinterpret_cast<omnistream::OmniTask *>(nativeTask);
+    auto task = reinterpret_cast<omnistream::OmniTask*>(nativeTask);
     task->notifyCheckpointComplete(checkpointId, inputState);
 }
 
@@ -175,24 +190,24 @@ JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_Omn
  * Method:    subsumedCpp
  * Signature: (JJ)V
  */
-JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_subsumedCpp
-  (JNIEnv *, jobject, jlong nativeTask, jlong latestCompletedCheckpointId) {
-    auto task = reinterpret_cast<omnistream::OmniTask *>(nativeTask);
+JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_subsumedCpp(
+    JNIEnv*, jobject, jlong nativeTask, jlong latestCompletedCheckpointId)
+{
+    auto task = reinterpret_cast<omnistream::OmniTask*>(nativeTask);
     task->notifyCheckpointSubsumed(latestCompletedCheckpointId);
 }
 
 JNIEXPORT void JNICALL
-Java_com_huawei_omniruntime_flink_runtime_io_network_partition_RemoteDataFetcher_registerRemoteDataFetcherToNative
-(JNIEnv* env, jobject thiz, jlong nativeTask)
+Java_com_huawei_omniruntime_flink_runtime_io_network_partition_RemoteDataFetcher_registerRemoteDataFetcherToNative(
+    JNIEnv* env, jobject thiz, jlong nativeTask)
 {
     auto task = reinterpret_cast<omnistream::OmniTask*>(nativeTask);
     auto bridgeBase = task->GetRemoteDataFetcherBridge();
-    if (!bridgeBase)
-    {
+    if (!bridgeBase) {
         LOG("GetRemoteDataFetcherBridge returned null");
         return;
     }
-    std::shared_ptr<RemoteDataFetcherBridgeImpl> remote = std::static_pointer_cast<RemoteDataFetcherBridgeImpl>(
-        bridgeBase);
+    std::shared_ptr<RemoteDataFetcherBridgeImpl> remote =
+        std::static_pointer_cast<RemoteDataFetcherBridgeImpl>(bridgeBase);
     remote->SetJavaRemoteDataFetcher(env, thiz);
 }

@@ -22,18 +22,17 @@
 /**
  * UK: The type of the keys that can be added to the map state.
  * */
-template<typename UK, typename UV>
+template <typename UK, typename UV>
 class MapStateDescriptor : public StateDescriptor {
 public:
-    MapStateDescriptor(std::string name, TypeSerializer *keySerializer, TypeSerializer *valueSerializer)
+    MapStateDescriptor(std::string name, TypeSerializer* keySerializer, TypeSerializer* valueSerializer)
         : StateDescriptor(name, new MapSerializer(keySerializer, valueSerializer)),
           keyDataId(keySerializer->getBackendId()),
           valueDataId(valueSerializer->getBackendId()),
           userKeySerializer(keySerializer),
-          valueSerializer(valueSerializer)
-          {};
+          valueSerializer(valueSerializer) {};
 
-    MapStateDescriptor(std::string name, TypeInformation *keyTypeInfo, TypeInformation *valueTypeInfo)
+    MapStateDescriptor(std::string name, TypeInformation* keyTypeInfo, TypeInformation* valueTypeInfo)
         : StateDescriptor(name, new MapTypeInfo(keyTypeInfo, valueTypeInfo)),
           keyDataId(keyTypeInfo->getBackendId()),
           valueDataId(valueTypeInfo->getBackendId())
@@ -43,11 +42,10 @@ public:
         stateSerializer = new MapSerializer(userKeySerializer, valueSerializer);
     }
 
-    MapStateDescriptor(std::string name, TypeSerializer *serializer)
+    MapStateDescriptor(std::string name, TypeSerializer* serializer)
         : StateDescriptor(name, serializer),
           keyDataId(serializer->getBackendId()),
-          valueDataId(serializer->getBackendId())
-          {};
+          valueDataId(serializer->getBackendId()) {};
 
     ~MapStateDescriptor() override
     {
@@ -59,12 +57,12 @@ public:
         valueSerializer = nullptr;
     }
 
-    TypeSerializer *GetUserKeySerializer()
+    TypeSerializer* GetUserKeySerializer()
     {
         return this->userKeySerializer;
     }
 
-    TypeSerializer *GetValueSerializer()
+    TypeSerializer* GetValueSerializer()
     {
         return this->valueSerializer;
     }
@@ -78,15 +76,24 @@ public:
         keyDataId = keyType;
         valueDataId = valueType;
     }
-    BackendDataType getBackendId() override {throw std::runtime_error("No dataId for a MapStateDescriptor");}
-    BackendDataType getKeyDataId() override {return keyDataId;}
-    BackendDataType getValueDataId() override {return valueDataId;}
+    BackendDataType getBackendId() override
+    {
+        throw std::runtime_error("No dataId for a MapStateDescriptor");
+    }
+    BackendDataType getKeyDataId() override
+    {
+        return keyDataId;
+    }
+    BackendDataType getValueDataId() override
+    {
+        return valueDataId;
+    }
 
 protected:
     BackendDataType keyDataId = BackendDataType::INVALID_BK;
     BackendDataType valueDataId = BackendDataType::INVALID_BK;
-    TypeSerializer *userKeySerializer;
-    TypeSerializer *valueSerializer;
+    TypeSerializer* userKeySerializer;
+    TypeSerializer* valueSerializer;
 };
 
 using DataStreamMapStateDescriptor = MapStateDescriptor<Object*, Object*>;

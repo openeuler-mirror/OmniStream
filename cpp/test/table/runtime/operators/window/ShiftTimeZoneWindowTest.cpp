@@ -34,7 +34,7 @@ int64_t ExpectedSliceEndWithShanghaiShift()
     return TimeWindow1::getWindowStartWithOffset(kUtcWallClockMillis, 0, kHourMillis) + kHourMillis;
 }
 
-nlohmann::json MakeHourlyTumbleDescription(const char *shiftTimeZone)
+nlohmann::json MakeHourlyTumbleDescription(const char* shiftTimeZone)
 {
     nlohmann::json description = {
         {"window", "TUMBLE(size=[3600 s], offset=[0 s])"},
@@ -50,16 +50,16 @@ nlohmann::json MakeHourlyTumbleDescription(const char *shiftTimeZone)
     return description;
 }
 
-omnistream::VectorBatch *CreateSingleTimestampBatch(int64_t epochMillis)
+omnistream::VectorBatch* CreateSingleTimestampBatch(int64_t epochMillis)
 {
-    auto *batch = new omnistream::VectorBatch(1);
+    auto* batch = new omnistream::VectorBatch(1);
     batch->Append(omniruntime::TestUtil::CreateVector<int64_t>(1, &epochMillis));
     return batch;
 }
 
-int64_t AssignSliceEnd(SliceAssigner *assigner, int64_t epochMillis)
+int64_t AssignSliceEnd(SliceAssigner* assigner, int64_t epochMillis)
 {
-    omnistream::VectorBatch *batch = CreateSingleTimestampBatch(epochMillis);
+    omnistream::VectorBatch* batch = CreateSingleTimestampBatch(epochMillis);
     ClockService clock;
     const int64_t sliceEnd = assigner->assignSliceEnd(batch, 0, &clock);
     delete batch;
@@ -70,7 +70,7 @@ int64_t AssignSliceEnd(SliceAssigner *assigner, int64_t epochMillis)
 
 TEST(ShiftTimeZoneWindowTest, ResolveShiftTimeZoneDefaultsToUtcWhenMissing)
 {
-    SliceAssigner *assigner = AssignerAtt::createSliceAssigner(MakeHourlyTumbleDescription(nullptr));
+    SliceAssigner* assigner = AssignerAtt::createSliceAssigner(MakeHourlyTumbleDescription(nullptr));
     ASSERT_NE(assigner, nullptr);
     EXPECT_EQ(ResolveShiftTimeZoneId(assigner), "UTC");
     delete assigner;
@@ -78,7 +78,7 @@ TEST(ShiftTimeZoneWindowTest, ResolveShiftTimeZoneDefaultsToUtcWhenMissing)
 
 TEST(ShiftTimeZoneWindowTest, ResolveShiftTimeZoneReadsAsiaShanghaiFromJson)
 {
-    SliceAssigner *assigner = AssignerAtt::createSliceAssigner(MakeHourlyTumbleDescription("Asia/Shanghai"));
+    SliceAssigner* assigner = AssignerAtt::createSliceAssigner(MakeHourlyTumbleDescription("Asia/Shanghai"));
     ASSERT_NE(assigner, nullptr);
     EXPECT_EQ(ResolveShiftTimeZoneId(assigner), "Asia/Shanghai");
     delete assigner;
@@ -86,8 +86,8 @@ TEST(ShiftTimeZoneWindowTest, ResolveShiftTimeZoneReadsAsiaShanghaiFromJson)
 
 TEST(ShiftTimeZoneWindowTest, ResolveShiftTimeZoneExplicitUtcMatchesMissingField)
 {
-    SliceAssigner *withoutShift = AssignerAtt::createSliceAssigner(MakeHourlyTumbleDescription(nullptr));
-    SliceAssigner *withUtc = AssignerAtt::createSliceAssigner(MakeHourlyTumbleDescription("UTC"));
+    SliceAssigner* withoutShift = AssignerAtt::createSliceAssigner(MakeHourlyTumbleDescription(nullptr));
+    SliceAssigner* withUtc = AssignerAtt::createSliceAssigner(MakeHourlyTumbleDescription("UTC"));
     ASSERT_NE(withoutShift, nullptr);
     ASSERT_NE(withUtc, nullptr);
     EXPECT_EQ(ResolveShiftTimeZoneId(withoutShift), ResolveShiftTimeZoneId(withUtc));
@@ -98,7 +98,7 @@ TEST(ShiftTimeZoneWindowTest, ResolveShiftTimeZoneExplicitUtcMatchesMissingField
 
 TEST(ShiftTimeZoneWindowTest, TumbleAssignSliceEndWithoutShiftTimezone)
 {
-    SliceAssigner *assigner = AssignerAtt::createSliceAssigner(MakeHourlyTumbleDescription(nullptr));
+    SliceAssigner* assigner = AssignerAtt::createSliceAssigner(MakeHourlyTumbleDescription(nullptr));
     ASSERT_NE(assigner, nullptr);
     EXPECT_EQ(AssignSliceEnd(assigner, kShanghaiEpochMillis), ExpectedSliceEndWithoutShift());
     delete assigner;
@@ -106,7 +106,7 @@ TEST(ShiftTimeZoneWindowTest, TumbleAssignSliceEndWithoutShiftTimezone)
 
 TEST(ShiftTimeZoneWindowTest, TumbleAssignSliceEndWithAsiaShanghai)
 {
-    SliceAssigner *assigner = AssignerAtt::createSliceAssigner(MakeHourlyTumbleDescription("Asia/Shanghai"));
+    SliceAssigner* assigner = AssignerAtt::createSliceAssigner(MakeHourlyTumbleDescription("Asia/Shanghai"));
     ASSERT_NE(assigner, nullptr);
     EXPECT_EQ(AssignSliceEnd(assigner, kShanghaiEpochMillis), ExpectedSliceEndWithShanghaiShift());
     delete assigner;
@@ -114,8 +114,8 @@ TEST(ShiftTimeZoneWindowTest, TumbleAssignSliceEndWithAsiaShanghai)
 
 TEST(ShiftTimeZoneWindowTest, TumbleAssignSliceEndShiftedAndUnshiftedDifferByEightHours)
 {
-    SliceAssigner *utcAssigner = AssignerAtt::createSliceAssigner(MakeHourlyTumbleDescription("UTC"));
-    SliceAssigner *shanghaiAssigner = AssignerAtt::createSliceAssigner(MakeHourlyTumbleDescription("Asia/Shanghai"));
+    SliceAssigner* utcAssigner = AssignerAtt::createSliceAssigner(MakeHourlyTumbleDescription("UTC"));
+    SliceAssigner* shanghaiAssigner = AssignerAtt::createSliceAssigner(MakeHourlyTumbleDescription("Asia/Shanghai"));
     ASSERT_NE(utcAssigner, nullptr);
     ASSERT_NE(shanghaiAssigner, nullptr);
 
@@ -170,18 +170,21 @@ TEST(ShiftTimeZoneWindowTest, TimeConversionWithoutShiftTimezone)
     EXPECT_EQ(TimeWindowUtil::toUtcTimestampMills(kShanghaiEpochMillis, "UTC"), kShanghaiEpochMillis);
     EXPECT_EQ(TimeWindowUtil::toUtcTimestampMills(kShanghaiEpochMillis, ""), kShanghaiEpochMillis);
     EXPECT_EQ(TimeWindowUtil::toEpochMills(kShanghaiEpochMillis, "UTC"), kShanghaiEpochMillis);
-    EXPECT_EQ(TimeWindowUtil::toCleanupTimerMills(ExpectedSliceEndWithoutShift() - 1, 0, "UTC"),
-              ExpectedSliceEndWithoutShift() - 1);
+    EXPECT_EQ(
+        TimeWindowUtil::toCleanupTimerMills(ExpectedSliceEndWithoutShift() - 1, 0, "UTC"),
+        ExpectedSliceEndWithoutShift() - 1);
 }
 
 TEST(ShiftTimeZoneWindowTest, IsWindowFiredTwoArgMatchesUtcThreeArg)
 {
     const int64_t windowEnd = ExpectedSliceEndWithoutShift();
     const int64_t triggerTime = windowEnd - 1;
-    EXPECT_EQ(TimeWindowUtil::isWindowFired(windowEnd, triggerTime - 1),
-              TimeWindowUtil::isWindowFired(windowEnd, triggerTime - 1, "UTC"));
-    EXPECT_EQ(TimeWindowUtil::isWindowFired(windowEnd, triggerTime),
-              TimeWindowUtil::isWindowFired(windowEnd, triggerTime, "UTC"));
+    EXPECT_EQ(
+        TimeWindowUtil::isWindowFired(windowEnd, triggerTime - 1),
+        TimeWindowUtil::isWindowFired(windowEnd, triggerTime - 1, "UTC"));
+    EXPECT_EQ(
+        TimeWindowUtil::isWindowFired(windowEnd, triggerTime),
+        TimeWindowUtil::isWindowFired(windowEnd, triggerTime, "UTC"));
 }
 
 TEST(ShiftTimeZoneWindowTest, WindowJoinLateDetectionWithAsiaShanghai)

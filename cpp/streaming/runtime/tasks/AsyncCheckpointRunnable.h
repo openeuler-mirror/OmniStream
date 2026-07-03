@@ -37,20 +37,22 @@ public:
         long bytesPersisted)
         : jobManagerTaskOperatorSubtaskStates(std::move(jobManagerStates)),
           localTaskOperatorSubtaskStates(std::move(localStates)),
-          bytesPersistedDuringAlignment(bytesPersisted) {}
+          bytesPersistedDuringAlignment(bytesPersisted)
+    {
+    }
 };
 
 class AsyncCheckpointRunnable {
 public:
     AsyncCheckpointRunnable(
-        std::unordered_map<OperatorID, OperatorSnapshotFutures *> *operatorSnapshotsInProgress,
-        const CheckpointMetaData &checkpointMetaData,
-        const CheckpointMetricsBuilder &checkpointMetrics,
+        std::unordered_map<OperatorID, OperatorSnapshotFutures*>* operatorSnapshotsInProgress,
+        const CheckpointMetaData& checkpointMetaData,
+        const CheckpointMetricsBuilder& checkpointMetrics,
         long asyncConstructionNanos,
-        const std::string &taskName,
-        std::function<void(AsyncCheckpointRunnable *)> *unregister,
-        std::shared_ptr<omnistream::EnvironmentV2>taskEnvironment,
-        std::function<void(std::string, std::exception)> *asyncExceptionHandler,
+        const std::string& taskName,
+        std::function<void(AsyncCheckpointRunnable*)>* unregister,
+        std::shared_ptr<omnistream::EnvironmentV2> taskEnvironment,
+        std::function<void(std::string, std::exception)>* asyncExceptionHandler,
         bool isTaskDeployedAsFinished,
         bool isTaskFinished,
         std::shared_ptr<omnistream::Supplier<bool>> isTaskRunning)
@@ -66,12 +68,15 @@ public:
           isTaskFinished(isTaskFinished),
           isTaskRunning(isTaskRunning),
           asyncCheckpointState(AsyncCheckpointState::RUNNING),
-          finishedFuture() {}
+          finishedFuture()
+    {
+    }
 
-    ~AsyncCheckpointRunnable() {
+    ~AsyncCheckpointRunnable()
+    {
         if (operatorSnapshotsInProgress) {
             const bool shouldCancel = asyncCheckpointState.load() == AsyncCheckpointState::RUNNING;
-            for (auto &entry : *operatorSnapshotsInProgress) {
+            for (auto& entry : *operatorSnapshotsInProgress) {
                 if (entry.second == nullptr) {
                     continue;
                 }
@@ -114,24 +119,25 @@ public:
     void Close();
 
 private:
-    SnapshotsFinalizeResult *FinalizeNonFinishedSnapshots();
-    SnapshotsFinalizeResult *FinalizedFinishedSnapshots();
-    void ReportCompletedSnapshotStates(std::shared_ptr<TaskStateSnapshot> acknowledgedTaskStateSnapshot,
-                                       std::shared_ptr<TaskStateSnapshot> localTaskStateSnapshot,
-                                       long asyncDurationMillis);
+    SnapshotsFinalizeResult* FinalizeNonFinishedSnapshots();
+    SnapshotsFinalizeResult* FinalizedFinishedSnapshots();
+    void ReportCompletedSnapshotStates(
+        std::shared_ptr<TaskStateSnapshot> acknowledgedTaskStateSnapshot,
+        std::shared_ptr<TaskStateSnapshot> localTaskStateSnapshot,
+        long asyncDurationMillis);
     void HandleExecutionException(std::__exception_ptr::exception_ptr e);
     std::pair<long, long> Cleanup();
     void ReportAbortedSnapshotStats(long stateSize, long checkpointedSize);
     void LogFailedCleanupAttempt();
 
-    std::unordered_map<OperatorID, OperatorSnapshotFutures *> *operatorSnapshotsInProgress;
+    std::unordered_map<OperatorID, OperatorSnapshotFutures*>* operatorSnapshotsInProgress;
     CheckpointMetaData checkpointMetaData;
     CheckpointMetricsBuilder checkpointMetric;
     long asyncConstructionNanos;
     std::string taskName;
-    std::function<void(AsyncCheckpointRunnable *)> *consumer;
-    std::shared_ptr<omnistream::EnvironmentV2>taskEnvironment;
-    std::function<void(std::string, std::exception)> *asyncExceptionHandler;
+    std::function<void(AsyncCheckpointRunnable*)>* consumer;
+    std::shared_ptr<omnistream::EnvironmentV2> taskEnvironment;
+    std::function<void(std::string, std::exception)>* asyncExceptionHandler;
     bool isTaskDeployedAsFinished;
     bool isTaskFinished;
     std::shared_ptr<omnistream::Supplier<bool>> isTaskRunning;

@@ -17,15 +17,11 @@
 #include "typeutils/TypeSerializer.h"
 
 namespace omnistream::datastream {
-    class StreamTaskNetworkInputFactory {
-    public:
-        static std::unique_ptr<StreamTaskNetworkInput> create(
-                TypeSerializer*  inputSerializer,
-                std::vector<long>& channelInfos
-        );
-    };
-}
-
+class StreamTaskNetworkInputFactory {
+public:
+    static std::unique_ptr<StreamTaskNetworkInput> create(
+        TypeSerializer* inputSerializer, std::vector<long>& channelInfos);
+};
+} // namespace omnistream::datastream
 
 #endif
-

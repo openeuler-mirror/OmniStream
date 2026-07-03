@@ -17,7 +17,9 @@
 
 class Queue {
 public:
-    explicit Queue(size_t cap) : capacity(cap) {}
+    explicit Queue(size_t cap) : capacity(cap)
+    {
+    }
 
     bool add(Object* obj);
     // 其他队列操作，如front、back、pop等

@@ -26,7 +26,11 @@ LogicalType::LogicalType(int typeId, bool isNullable) : isNullable_(isNullable),
 }
 
 LogicalType::LogicalType(bool isNullable, int typeId, const std::string& typeName)
-    : isNullable_(isNullable), typeId_(typeId), typeName_(typeName) {}
+    : isNullable_(isNullable),
+      typeId_(typeId),
+      typeName_(typeName)
+{
+}
 
 int LogicalType::getTypeId() const
 {
@@ -38,7 +42,8 @@ bool LogicalType::isNullable() const
     return isNullable_;
 }
 
-nlohmann::json LogicalType::toJson() const {
+nlohmann::json LogicalType::toJson() const
+{
     nlohmann::json result;
     result["nullable"] = isNullable_;
     result["type"] = typeName_;
@@ -176,9 +181,9 @@ BasicLogicalType* BasicLogicalType::TIMESTAMP_WITH_LOCAL_TIME_ZONE = new Timesta
 BasicLogicalType* BasicLogicalType::TIMESTAMP = new TimestampWithLocalTimeZoneType(true);
 BasicLogicalType* BasicLogicalType::INVALID_TYPE = new BasicLogicalType(true, DataTypeId::OMNI_INVALID, "UNRESOLVED");
 
-
-BasicLogicalType *BasicLogicalType::getTypeBy(DataTypeId typeId, const nlohmann::json& element) {
-    BasicLogicalType *type = nullptr;
+BasicLogicalType* BasicLogicalType::getTypeBy(DataTypeId typeId, const nlohmann::json& element)
+{
+    BasicLogicalType* type = nullptr;
     switch (typeId) {
         case DataTypeId::OMNI_BOOLEAN: {
             type = BasicLogicalType::BOOLEAN;
@@ -193,7 +198,8 @@ BasicLogicalType *BasicLogicalType::getTypeBy(DataTypeId typeId, const nlohmann:
             break;
         }
         case DataTypeId::OMNI_VARCHAR: {
-            type = new VarCharType(true, std::numeric_limits<int>::max());;
+            type = new VarCharType(true, std::numeric_limits<int>::max());
+            ;
             break;
         }
         case DataTypeId::OMNI_DOUBLE: {
@@ -230,8 +236,7 @@ BasicLogicalType *BasicLogicalType::getTypeBy(DataTypeId typeId, const nlohmann:
             type = BasicLogicalType::INVALID_TYPE;
             break;
         */
-        default:
-            THROW_LOGIC_EXCEPTION("Unsupported DataTypeId : " << typeId << " in inputRowType.");
+        default: THROW_LOGIC_EXCEPTION("Unsupported DataTypeId : " << typeId << " in inputRowType.");
     }
 
     return type;

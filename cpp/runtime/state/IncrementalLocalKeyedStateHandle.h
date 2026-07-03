@@ -22,10 +22,14 @@
 #include "runtime/state/StreamStateHandleFactory.h"
 using json = nlohmann::json;
 
-class IncrementalLocalKeyedStateHandle : virtual public DirectoryKeyedStateHandle, virtual public IncrementalKeyedStateHandle {
+class IncrementalLocalKeyedStateHandle : virtual public DirectoryKeyedStateHandle,
+                                         virtual public IncrementalKeyedStateHandle {
 public:
-    IncrementalLocalKeyedStateHandle(const UUID& backendIdentifier, int64_t checkpointId,
-        DirectoryStateHandle* directoryStateHandle, const KeyGroupRange& keyGroupRange,
+    IncrementalLocalKeyedStateHandle(
+        const UUID& backendIdentifier,
+        int64_t checkpointId,
+        DirectoryStateHandle* directoryStateHandle,
+        const KeyGroupRange& keyGroupRange,
         std::shared_ptr<StreamStateHandle> metaDataState,
         const std::vector<HandleAndLocalPath>& sharedState)
         : DirectoryKeyedStateHandle(directoryStateHandle, keyGroupRange),
@@ -33,14 +37,15 @@ public:
           backendIdentifier_(backendIdentifier),
           metaDataState_(std::move(metaDataState)),
           sharedState_(sharedState)
-          {}
+    {
+    }
 
     explicit IncrementalLocalKeyedStateHandle(const nlohmann::json& json)
         : DirectoryKeyedStateHandle(json),
-        checkpointId_(0),
-        backendIdentifier_(),
-        metaDataState_(nullptr),
-        sharedState_()
+          checkpointId_(0),
+          backendIdentifier_(),
+          metaDataState_(nullptr),
+          sharedState_()
     {
         if (!json.contains("checkpointId")) {
             throw std::invalid_argument("'checkpointId' field missing");
@@ -69,7 +74,7 @@ public:
     {
         return metaDataState_;
     }
-    
+
     int64_t GetCheckpointId() const override
     {
         return checkpointId_;
@@ -93,8 +98,7 @@ public:
             getDirectoryStateHandle(),
             GetKeyGroupRange(),
             GetMetaDataState(),
-            GetSharedStateHandles()
-        );
+            GetSharedStateHandles());
     }
 
     void DiscardState() override
@@ -177,7 +181,7 @@ public:
         }
         json["stateHandleName"] = "IncrementalLocalKeyedStateHandle";
         json["stateSize"] = GetStateSize();
-        json["checkpointedSize"] =  DirectoryKeyedStateHandle::GetStateSize();
+        json["checkpointedSize"] = DirectoryKeyedStateHandle::GetStateSize();
         return json.dump();
     }
 

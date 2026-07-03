@@ -29,10 +29,9 @@ public:
      * @param transformer State snapshot transformer to apply to values
      */
     RocksTransformingIteratorWrapper(
-        std::unique_ptr<rocksdb::Iterator> iterator,
-        StateSnapshotTransformer<std::vector<int8_t>>* transformer)
+        std::unique_ptr<rocksdb::Iterator> iterator, StateSnapshotTransformer<std::vector<int8_t>>* transformer)
         : RocksIteratorWrapper(std::move(iterator)),
-        stateSnapshotTransformer_(transformer)
+          stateSnapshotTransformer_(transformer)
     {
         if (!transformer) {
             throw std::invalid_argument("StateSnapshotTransformer cannot be null");

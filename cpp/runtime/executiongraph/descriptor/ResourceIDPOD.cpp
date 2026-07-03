@@ -13,6 +13,6 @@
 
 namespace omnistream {
 
-    //  (Method definitions if you choose to separate them)
+//  (Method definitions if you choose to separate them)
 
 } // namespace omnistream

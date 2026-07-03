@@ -14,11 +14,19 @@
 #include <utility>
 
 namespace omnistream {
-OperatorConfig::OperatorConfig(std::string uniqueName, std::string name, nlohmann::json inputType,
-    nlohmann::json outputType, nlohmann::json description)
-    : uniqueName_(std::move(uniqueName)), name_(std::move(name)), inputType_(std::move(inputType)),
-      outputType_(std::move(outputType)), description_(std::move(description))
-{}
+OperatorConfig::OperatorConfig(
+    std::string uniqueName,
+    std::string name,
+    nlohmann::json inputType,
+    nlohmann::json outputType,
+    nlohmann::json description)
+    : uniqueName_(std::move(uniqueName)),
+      name_(std::move(name)),
+      inputType_(std::move(inputType)),
+      outputType_(std::move(outputType)),
+      description_(std::move(description))
+{
+}
 
 std::string OperatorConfig::getUniqueName() const
 {
@@ -60,4 +68,4 @@ nlohmann::json OperatorConfig::getDescription() const
     return description_;
 }
 
-}  // namespace omnistream
+} // namespace omnistream

@@ -19,18 +19,17 @@
 
 namespace omnistream {
 
+class GaugePeriodTimer : public PeriodTimer {
+public:
+    GaugePeriodTimer();
+    ~GaugePeriodTimer() override = default;
 
-    class GaugePeriodTimer : public PeriodTimer {
-    public:
-        GaugePeriodTimer();
-        ~GaugePeriodTimer() override = default;
+    void markStart() override;
+    void markEnd() override;
+    std::string toString() const override;
 
-        void markStart() override;
-        void markEnd() override;
-        std::string toString() const override;
-
-    private:
-    };
+private:
+};
 
 } // namespace omnistream
 

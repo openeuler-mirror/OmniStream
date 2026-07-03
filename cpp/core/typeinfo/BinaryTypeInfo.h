@@ -1,5 +1,5 @@
 /*
-* Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
  * You can use this software according to the terms and conditions of the Mulan PSL v2.
  * You may obtain a copy of Mulan PSL v2 at:
  *          http://license.coscl.org.cn/MulanPSL2
@@ -17,21 +17,32 @@
 
 class BinaryTypeInfo : public TypeInformation {
 public:
-    BinaryTypeInfo(int numFields, const std::vector<std::string>& inputTypes) {
+    BinaryTypeInfo(int numFields, const std::vector<std::string>& inputTypes)
+    {
         typeSerializer_ = new BinaryRowDataSerializer(numFields, inputTypes);
     }
 
-    std::string name() override { return typeSerializer_->getName(); }
+    std::string name() override
+    {
+        return typeSerializer_->getName();
+    }
 
-    BackendDataType getBackendId() const override { return typeSerializer_->getBackendId(); }
+    BackendDataType getBackendId() const override
+    {
+        return typeSerializer_->getBackendId();
+    }
 
-    TypeSerializer *createTypeSerializer() override { return typeSerializer_; }
+    TypeSerializer* createTypeSerializer() override
+    {
+        return typeSerializer_;
+    }
 
-    static BinaryTypeInfo* of(int numFields, const std::vector<std::string>& inputTypes) {
+    static BinaryTypeInfo* of(int numFields, const std::vector<std::string>& inputTypes)
+    {
         return new BinaryTypeInfo(numFields, inputTypes);
     }
 
 private:
-    TypeSerializer *typeSerializer_;
+    TypeSerializer* typeSerializer_;
 };
-#endif //OMNISTREAM_BINARYTYPEINFO_H
+#endif // OMNISTREAM_BINARYTYPEINFO_H

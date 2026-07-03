@@ -12,9 +12,11 @@
 
 namespace omnistream {
 
-omniruntime::vec::VectorBatch* convertToVectorBatch(const std::vector<BinaryRowData*>& binaryRows, const std::vector<omniruntime::type::DataTypeId>& inputTypes) {
-    size_t rowCount   = binaryRows.size();
-    size_t colCount   = inputTypes.size();
+omniruntime::vec::VectorBatch* convertToVectorBatch(
+    const std::vector<BinaryRowData*>& binaryRows, const std::vector<omniruntime::type::DataTypeId>& inputTypes)
+{
+    size_t rowCount = binaryRows.size();
+    size_t colCount = inputTypes.size();
     auto* vectorBatch = omnistream::createVectorBatch(inputTypes, rowCount); // not `doSetValue`
 
     // Assuming each BinaryRowData corresponds to a row in the VectorBatch
@@ -38,16 +40,20 @@ omniruntime::vec::VectorBatch* convertToVectorBatch(const std::vector<BinaryRowD
     return vectorBatch;
 }
 
-}  // namespace omnistream
+} // namespace omnistream
 
-
-TEST(ConvertToVectorBatchTest, BasicConversion) {
+TEST(ConvertToVectorBatchTest, BasicConversion)
+{
     // Define the schema
-    std::vector<omniruntime::type::DataTypeId> inputTypes = {omniruntime::type::OMNI_LONG, omniruntime::type::OMNI_LONG, omniruntime::type::OMNI_LONG, omniruntime::type::OMNI_CHAR};
+    std::vector<omniruntime::type::DataTypeId> inputTypes = {
+        omniruntime::type::OMNI_LONG,
+        omniruntime::type::OMNI_LONG,
+        omniruntime::type::OMNI_LONG,
+        omniruntime::type::OMNI_CHAR};
 
     // Create some sample BinaryRowData
     std::vector<BinaryRowData*> binaryRows;
-    for (int i = 0; i < 5; ++i) {  // Create 5 rows for example
+    for (int i = 0; i < 5; ++i) { // Create 5 rows for example
         auto* rowData = BinaryRowData::createBinaryRowDataWithMem(inputTypes.size());
 
         std::cout << "Row " << i << ": ";
@@ -56,9 +62,9 @@ TEST(ConvertToVectorBatchTest, BasicConversion) {
                 rowData->setLong(j, static_cast<long>(i * 10 + j));
                 std::cout << i * 10 + j << " ";
             } else if (inputTypes[j] == omniruntime::type::OMNI_CHAR) {
-                std::string prefix                 = "row";
-                std::string suffix                 = std::to_string(i);
-                std::string value                  = prefix + suffix;
+                std::string prefix = "row";
+                std::string suffix = std::to_string(i);
+                std::string value = prefix + suffix;
                 std::string_view sv = value;
                 rowData->setStringView(j, sv);
 
@@ -78,11 +84,14 @@ TEST(ConvertToVectorBatchTest, BasicConversion) {
         std::cout << "Column " << colIndex << ": ";
         for (int rowIndex = 0; rowIndex < vectorBatch->GetRowCount(); ++rowIndex) {
             if (inputTypes[colIndex] == omniruntime::type::OMNI_LONG) {
-                omniruntime::vec::Vector<int64_t>* vector_int64 = static_cast<omniruntime::vec::Vector<int64_t>*>(vector);
+                omniruntime::vec::Vector<int64_t>* vector_int64 =
+                    static_cast<omniruntime::vec::Vector<int64_t>*>(vector);
                 std::cout << vector_int64->GetValue(rowIndex) << " ";
                 EXPECT_EQ(vector_int64->GetValue(rowIndex), static_cast<long>(rowIndex * 10 + colIndex));
             } else if (inputTypes[colIndex] == omniruntime::type::OMNI_CHAR) {
-                omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>* vector_string_view = static_cast<omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>*>(vector);
+                omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>* vector_string_view =
+                    static_cast<omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>*>(
+                        vector);
                 std::cout << vector_string_view->GetValue(rowIndex).data() << " ";
                 EXPECT_EQ(vector_string_view->GetValue(rowIndex), std::string("row" + std::to_string(rowIndex)));
             }

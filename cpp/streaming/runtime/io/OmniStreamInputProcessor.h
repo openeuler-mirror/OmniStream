@@ -19,28 +19,29 @@
 
 namespace omnistream {
 
-    class OmniStreamInputProcessor : public AvailabilityProvider {
-    public:
-        virtual DataInputStatus processInput() = 0;
+class OmniStreamInputProcessor : public AvailabilityProvider {
+public:
+    virtual DataInputStatus processInput() = 0;
 
-        std::shared_ptr<CompletableFuture> GetAvailableFuture() override
-        {
-            return nullptr;
-        }
+    std::shared_ptr<CompletableFuture> GetAvailableFuture() override
+    {
+        return nullptr;
+    }
 
-        virtual void close() = 0;
+    virtual void close() = 0;
 
-//        virtual CompletableFutureV2<void> *PrepareSnapshot(std::shared_ptr<ChannelStateWriter> writer, long checkpointID)
-//        {
-//            return nullptr;
-//        };
+    //        virtual CompletableFutureV2<void> *PrepareSnapshot(std::shared_ptr<ChannelStateWriter> writer, long
+    //        checkpointID)
+    //        {
+    //            return nullptr;
+    //        };
 
-        virtual std::shared_ptr<CompletableFutureV2<void>> PrepareSnapshot(std::shared_ptr<ChannelStateWriter> writer, long checkpointID)
-        {
-            return nullptr;
-        };
+    virtual std::shared_ptr<CompletableFutureV2<void>> PrepareSnapshot(
+        std::shared_ptr<ChannelStateWriter> writer, long checkpointID)
+    {
+        return nullptr;
     };
-}
-
+};
+} // namespace omnistream
 
 #endif

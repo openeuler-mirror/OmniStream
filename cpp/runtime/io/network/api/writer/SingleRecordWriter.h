@@ -16,16 +16,16 @@
 #include "RecordWriterDelegate.h"
 
 namespace omnistream::datastream {
-    class SingleRecordWriter : public RecordWriterDelegate {
-    public:
-        explicit SingleRecordWriter(RecordWriter* recordWriter);
+class SingleRecordWriter : public RecordWriterDelegate {
+public:
+    explicit SingleRecordWriter(RecordWriter* recordWriter);
 
-        RecordWriter* getRecordWriter(int outputIndex) override;
+    RecordWriter* getRecordWriter(int outputIndex) override;
 
-        ~SingleRecordWriter() override = default;
+    ~SingleRecordWriter() override = default;
 
-    private:
-        RecordWriter* recordWriter_;
-    };
-}
+private:
+    RecordWriter* recordWriter_;
+};
+} // namespace omnistream::datastream
 #endif

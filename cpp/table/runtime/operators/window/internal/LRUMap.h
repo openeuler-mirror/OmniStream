@@ -15,20 +15,23 @@
 #include <optional>
 #include <emhash7.hpp>
 
-template <typename K, typename V, typename KHash=std::hash<K>, typename KEqual=std::equal_to<K>>
+template <typename K, typename V, typename KHash = std::hash<K>, typename KEqual = std::equal_to<K>>
 class LRUMap {
 public:
-    LRUMap() {
+    LRUMap()
+    {
         cacheMap_.reserve(capacity_);
     };
 
-    explicit LRUMap(size_t cap) : capacity_(cap) {
+    explicit LRUMap(size_t cap) : capacity_(cap)
+    {
         if (capacity_ > 0) {
             cacheMap_.reserve(capacity_);
         }
     }
 
-    ~LRUMap() {
+    ~LRUMap()
+    {
         if constexpr (std::is_pointer_v<V>) {
             for (auto it = cacheMap_.begin(); it != cacheMap_.end(); ++it) {
                 delete it->second.second;
@@ -36,7 +39,8 @@ public:
         }
     }
 
-    std::optional<V> get(const K& key) {
+    std::optional<V> get(const K& key)
+    {
         auto mapIt = cacheMap_.find(key);
         if (mapIt == cacheMap_.end()) {
             return std::nullopt;
@@ -45,7 +49,8 @@ public:
         return mapIt->second.second;
     }
 
-    void put(const K& key, const V& value) {
+    void put(const K& key, const V& value)
+    {
         auto mapIt = cacheMap_.find(key);
         if (mapIt != cacheMap_.end()) {
             cacheList_.splice(cacheList_.begin(), cacheList_, mapIt->second.first);
@@ -61,7 +66,7 @@ public:
                     }
                     cacheMap_.erase(lruMapIt);
                 } else {
-                    THROW_RUNTIME_ERROR("LRU key not found in cache map")
+                    THROW_RUNTIME_ERROR("LRU key not found in cache map");
                 }
                 cacheList_.pop_back();
             }

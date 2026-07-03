@@ -17,29 +17,30 @@
 class MapStateWrapper : public State, public Object {
 public:
     MapStateWrapper(MapState<Object*, Object*>* mapState) : mapState(mapState)
-    {}
+    {
+    }
 
     // can not delete mapState, because it will be deleted when RocksdbKeyedStateBackend delete.
     ~MapStateWrapper() = default;
 
     int hashCode() override
     {
-        NOT_IMPL_EXCEPTION
+        NOT_IMPL_EXCEPTION;
     }
 
     bool equals(Object* obj) override
     {
-        NOT_IMPL_EXCEPTION
+        NOT_IMPL_EXCEPTION;
     }
 
     std::string toString() override
     {
-        NOT_IMPL_EXCEPTION
+        NOT_IMPL_EXCEPTION;
     }
 
     Object* clone() override
     {
-        NOT_IMPL_EXCEPTION
+        NOT_IMPL_EXCEPTION;
     }
 
     void clear() override

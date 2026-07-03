@@ -15,7 +15,6 @@
 
 namespace omnistream::datastream {
 class SpanningWrapper {
-
 public:
     ByteBuffer* lengthBuffer_;
 
@@ -28,19 +27,23 @@ public:
     inline DataInputView& getInputView();
 
     inline void transferLeftOverTo(NonSpanningWrapper& nonSpanningWrapper);
-    inline void transferFrom(NonSpanningWrapper &partial, int nextRecordLength);
+    inline void transferFrom(NonSpanningWrapper& partial, int nextRecordLength);
     inline void addNextChunkFromMemoryBuffer(const uint8_t* buffer, int numBytes);
 
     Buffer* GetUnconsumedSegment()
     {
         LOG("SpanningWrapper GetUnconsumedSegment position: " << lengthBuffer_->position());
         if (lengthBuffer_->position() > 0) {
-            uint8_t *data = reinterpret_cast<uint8_t *>(malloc(lengthBuffer_->position()));
+            uint8_t* data = reinterpret_cast<uint8_t*>(malloc(lengthBuffer_->position()));
             MemorySegment* memorySegment = new MemorySegment(data, lengthBuffer_->position());
             memorySegment->put(0, lengthBuffer_->getValue(), 0, lengthBuffer_->position());
             ::datastream::NetworkBuffer* networkBuffer = new ::datastream::NetworkBuffer(
-                memorySegment, lengthBuffer_->position(), 0, std::make_shared<OriginalNetworkBufferRecycler>(),
-                ObjectBufferDataType::DATA_BUFFER, true);
+                memorySegment,
+                lengthBuffer_->position(),
+                0,
+                std::make_shared<OriginalNetworkBufferRecycler>(),
+                ObjectBufferDataType::DATA_BUFFER,
+                true);
             return networkBuffer;
         } else if (recordLength_ == -1) {
             return nullptr;
@@ -57,16 +60,21 @@ public:
         serializer->writeInt(recordLength_);
         serializer->write(buffer_.data(), accumulatedRecordBytes_, 0, accumulatedRecordBytes_);
         if (leftOverData_ != nullptr) {
-            serializer->write(const_cast<uint8_t *>(leftOverData_), 0, leftOverStart_, leftOverSize);
+            serializer->write(const_cast<uint8_t*>(leftOverData_), 0, leftOverStart_, leftOverSize);
         }
-        uint8_t *data = reinterpret_cast<uint8_t *>(malloc(unconsumedSize));
+        uint8_t* data = reinterpret_cast<uint8_t*>(malloc(unconsumedSize));
         MemorySegment* memorySegment = new MemorySegment(data, unconsumedSize);
         memorySegment->put(0, serializer->getData(), 0, unconsumedSize);
         ::datastream::NetworkBuffer* networkBuffer = new ::datastream::NetworkBuffer(
-            memorySegment, unconsumedSize, 0, std::make_shared<OriginalNetworkBufferRecycler>(),
-            ObjectBufferDataType::DATA_BUFFER, true);
+            memorySegment,
+            unconsumedSize,
+            0,
+            std::make_shared<OriginalNetworkBufferRecycler>(),
+            ObjectBufferDataType::DATA_BUFFER,
+            true);
         return networkBuffer;
     }
+
 private:
     std::vector<uint8_t> buffer_; // internal buff to stick data, has the ownership
 
@@ -75,7 +83,7 @@ private:
 
     DataInputDeserializer* serializationReadBuffer_;
 
-    const uint8_t* leftOverData_;  // ref to input buffer_ (flink MemSegment), no ownership
+    const uint8_t* leftOverData_; // ref to input buffer_ (flink MemSegment), no ownership
     int leftOverStart_;
     int leftOverLimit_;
 
@@ -83,7 +91,7 @@ private:
     inline void updateLength(int length);
     inline int readLength(const uint8_t* buffer, int remaining);
     inline void ensureBufferCapacity(int minLength);
-    inline void copyIntoBuffer(const uint8_t* buffer,  int offset, int length);
+    inline void copyIntoBuffer(const uint8_t* buffer, int offset, int length);
 };
 
 inline bool SpanningWrapper::hasFullRecord() const
@@ -91,24 +99,22 @@ inline bool SpanningWrapper::hasFullRecord() const
     bool result = recordLength_ >= 0 && accumulatedRecordBytes_ >= recordLength_;
     // LOG("hasFullRecord is " << result)
 #ifdef DEBUG
-    if (result)
-        PRINT_HEX(const_cast<uint8_t*>(buffer_.data()), 0, recordLength_);
+    if (result) PRINT_HEX(const_cast<uint8_t*>(buffer_.data()), 0, recordLength_);
 #endif
-    return  result;
+    return result;
 }
 
-inline DataInputView &SpanningWrapper::getInputView()
+inline DataInputView& SpanningWrapper::getInputView()
 {
     return *serializationReadBuffer_;
 }
 
-inline void SpanningWrapper::transferLeftOverTo(NonSpanningWrapper &nonSpanningWrapper)
+inline void SpanningWrapper::transferLeftOverTo(NonSpanningWrapper& nonSpanningWrapper)
 {
     nonSpanningWrapper.clear();
 
     if (leftOverData_ != nullptr) {
-        nonSpanningWrapper.initializeFromMemoryBuffer(
-                leftOverData_ + leftOverStart_, leftOverLimit_ - leftOverStart_);
+        nonSpanningWrapper.initializeFromMemoryBuffer(leftOverData_ + leftOverStart_, leftOverLimit_ - leftOverStart_);
     }
     clear();
 }
@@ -125,30 +131,30 @@ inline void SpanningWrapper::clear()
     leftOverLimit_ = 0;
 }
 
-// the function will be called after nonspanningwtrapper has read all full record. now the left is not full record length
-// copy all nonspaccingwrapper remainings to spaandingwtriper buff
-inline void SpanningWrapper::transferFrom(NonSpanningWrapper &partial, int nextRecordLength)
+// the function will be called after nonspanningwtrapper has read all full record. now the left is not full record
+// length copy all nonspaccingwrapper remainings to spaandingwtriper buff
+inline void SpanningWrapper::transferFrom(NonSpanningWrapper& partial, int nextRecordLength)
 {
     // LOG("nextRecordLength :" << nextRecordLength)
     updateLength(nextRecordLength);
-    accumulatedRecordBytes_ =
-            partial.copyContentTo(buffer_.data());
+    accumulatedRecordBytes_ = partial.copyContentTo(buffer_.data());
     // LOG("after partial.copyContentTo : accumulatedRecordBytes_ is " << accumulatedRecordBytes_)
     partial.clear();
 }
 
 // numBytes total number of bytes of buffer
-inline void SpanningWrapper::addNextChunkFromMemoryBuffer(const uint8_t *buffer, int numBytes)
+inline void SpanningWrapper::addNextChunkFromMemoryBuffer(const uint8_t* buffer, int numBytes)
 {
     // 1. if the record length is not completed, get it
     // LOG("isReadingLength()  " << isReadingLength())
-#ifdef  DEBUG
+#ifdef DEBUG
     ByteBuffer::showInternalInfo(lengthBuffer_);
 #endif
     int numBytesRead = isReadingLength() ? readLength(buffer, numBytes) : 0;
     int offset = numBytesRead;
     int remainNumBytes = numBytes - numBytesRead;
-    // LOG("numBytesRead ()  " << numBytesRead  << " numBytes   " << numBytes  <<   " remainNumBytes  " << remainNumBytes  )
+    // LOG("numBytesRead ()  " << numBytesRead  << " numBytes   " << numBytes  <<   " remainNumBytes  " <<
+    // remainNumBytes  )
     if (remainNumBytes == 0) {
         return;
     }
@@ -168,7 +174,6 @@ inline void SpanningWrapper::addNextChunkFromMemoryBuffer(const uint8_t *buffer,
         leftOverLimit_ = numBytes;
     }
 }
-
 
 // private member functions
 inline bool SpanningWrapper::isReadingLength() const
@@ -191,7 +196,7 @@ inline void SpanningWrapper::ensureBufferCapacity(int minLength)
     }
 }
 
-inline int SpanningWrapper::readLength(const uint8_t *buffer, int remaining)
+inline int SpanningWrapper::readLength(const uint8_t* buffer, int remaining)
 {
     // LOG("lengthBuffer_->remaining(): "  << lengthBuffer_->remaining()  << " remaining:  "<< remaining)
     int bytesToRead = std::min(lengthBuffer_->remaining(), remaining);
@@ -204,7 +209,7 @@ inline int SpanningWrapper::readLength(const uint8_t *buffer, int remaining)
     return bytesToRead;
 }
 
-inline void SpanningWrapper::copyIntoBuffer(const uint8_t *buffer, int offset, int length)
+inline void SpanningWrapper::copyIntoBuffer(const uint8_t* buffer, int offset, int length)
 {
     auto ret = memcpy_s(buffer_.data() + accumulatedRecordBytes_, length, buffer + offset, length);
     if (ret != EOK) {
@@ -220,9 +225,8 @@ inline void SpanningWrapper::copyIntoBuffer(const uint8_t *buffer, int offset, i
 
 inline int SpanningWrapper::getNumGatheredBytes() const
 {
-    return accumulatedRecordBytes_
-           + (recordLength_ >= 0 ? LENGTH_BYTES : lengthBuffer_->position());
+    return accumulatedRecordBytes_ + (recordLength_ >= 0 ? LENGTH_BYTES : lengthBuffer_->position());
 }
-}
+} // namespace omnistream::datastream
 
 #endif

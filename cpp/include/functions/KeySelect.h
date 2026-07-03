@@ -17,12 +17,12 @@
 /**
  * T: Object
  * */
-template<typename T>
+template <typename T>
 class KeySelect {
 public:
     virtual T* getKey(T* value) = 0;
 };
 
-template<typename T>
+template <typename T>
 using KeySelectUnique = std::unique_ptr<KeySelect<T>>;
 #endif // OMNISTREAM_KEYSELECT_H

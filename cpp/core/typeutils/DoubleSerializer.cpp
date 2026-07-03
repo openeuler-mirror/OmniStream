@@ -11,13 +11,13 @@
 
 #include "DoubleSerializer.h"
 
-void DoubleSerializer::serialize(Object *buffer, DataOutputSerializer &target)
+void DoubleSerializer::serialize(Object* buffer, DataOutputSerializer& target)
 {
     auto doubleValue = static_cast<Double*>(buffer);
     target.writeDouble(doubleValue->value);
 }
 
-void DoubleSerializer::deserialize(Object *buffer, DataInputView &source)
+void DoubleSerializer::deserialize(Object* buffer, DataInputView& source)
 {
     auto doubleValue = static_cast<Double*>(buffer);
     doubleValue->value = source.readDouble();

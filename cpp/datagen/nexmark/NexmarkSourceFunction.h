@@ -32,7 +32,7 @@
 #include "core/api/common/state/ListState.h"
 #include "runtime/state/DefaultOperatorStateBackend.h"
 
-template<typename K>
+template <typename K>
 class NexmarkSourceFunction : public SourceFunction<K>, public AbstractRichFunction, public CheckpointedFunction {
     // Configuration for generator to use when reading synthetic events. May be split.
     GeneratorConfig config;
@@ -54,39 +54,44 @@ class NexmarkSourceFunction : public SourceFunction<K>, public AbstractRichFunct
     std::shared_ptr<ListState<long>> checkpointedState;
 
 public:
-    NexmarkSourceFunction(const GeneratorConfig& config,
-                          EventDeserializer* deserializer,
-                          TypeInformation* resultType)
+    NexmarkSourceFunction(const GeneratorConfig& config, EventDeserializer* deserializer, TypeInformation* resultType)
         : config(config),
           deserializer(deserializer),
           resultType(resultType),
           generator(nullptr),
           numElementsEmitted(0),
-          isRunning(true) {}
+          isRunning(true)
+    {
+    }
 
     // Overriding open method.
-    void open(const Configuration& parameters) override {
+    void open(const Configuration& parameters) override
+    {
         AbstractRichFunction::open(parameters);
         this->generator.reset(new NexmarkGenerator(getSubGeneratorConfig()));
     }
 
     // Private method to get sub-generator config.
-    GeneratorConfig getSubGeneratorConfig() {
+    GeneratorConfig getSubGeneratorConfig()
+    {
         int parallelism = this->getRuntimeContext()->getNumberOfParallelSubtasks();
         int taskId = this->getRuntimeContext()->getIndexOfThisSubtask();
         std::vector<GeneratorConfig> splits = config.split(parallelism);
         return splits.at(taskId);
     }
 
-    void initializeState() {
+    void initializeState()
+    {
         // checkpoint stuff
     }
 
     // Overriding run method.
-    void run(SourceContext* ctx) override {
+    void run(SourceContext* ctx) override
+    {
         while (isRunning && generator->hasNext()) {
             long now = std::chrono::duration_cast<std::chrono::milliseconds>(
-                    std::chrono::system_clock::now().time_since_epoch()).count();
+                           std::chrono::system_clock::now().time_since_epoch())
+                           .count();
             NexmarkGenerator::NextEvent nextEvent = generator->nextEvent();
             if (nextEvent.wallclockTimestamp > now) {
                 // sleep until wall clock less than current timestamp.
@@ -101,7 +106,7 @@ public:
                 if (next) {
                     try {
                         ctx->collect(next->getValue());
-                    } catch (const std::exception &e) {
+                    } catch (const std::exception& e) {
                         std::cerr << "Exception during collect: " << e.what() << std::endl;
                     }
                 }
@@ -111,29 +116,34 @@ public:
     }
 
     // Overriding cancel method.
-    void cancel() override {
+    void cancel() override
+    {
         isRunning = false;
     }
 
     // Overriding close method.
-    void close() override {
+    void close() override
+    {
         AbstractRichFunction::close();
     }
 
     // Overriding getProducedType method.
-    TypeInformation* getProducedType() {
+    TypeInformation* getProducedType()
+    {
         return resultType;
     }
-    
-    void snapshotState(StateSnapshotContextSynchronousImpl *context) override {
+
+    void snapshotState(StateSnapshotContextSynchronousImpl* context) override
+    {
         this->checkpointedState->clear();
         this->checkpointedState->add(const_cast<long&>(numElementsEmitted));
     }
 
-    void initializeState(StateInitializationContextImpl *context) override {
+    void initializeState(StateInitializationContextImpl* context) override
+    {
         std::string stateName = "elements-count-state";
-        auto *listStateDescriptor = new ListStateDescriptor<long>(stateName, new LongSerializer());
-        auto *stateBackend = static_cast<DefaultOperatorStateBackend*>(context->getOperatorStateBackend());
+        auto* listStateDescriptor = new ListStateDescriptor<long>(stateName, new LongSerializer());
+        auto* stateBackend = static_cast<DefaultOperatorStateBackend*>(context->getOperatorStateBackend());
         this->checkpointedState = stateBackend->template getListState<long>(listStateDescriptor);
 
         if (context->isRestored()) {
@@ -150,6 +160,5 @@ public:
         }
     }
 };
-
 
 #endif // OMNISTREAM_NEXMARKSOURCEFUNCTION_H

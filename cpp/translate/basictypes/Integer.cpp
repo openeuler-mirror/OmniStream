@@ -39,9 +39,9 @@ int Integer::hashCode()
     return value;
 }
 
-bool Integer::equals(Object *obj)
+bool Integer::equals(Object* obj)
 {
-    Integer *ptr = reinterpret_cast<Integer *>(obj);
+    Integer* ptr = reinterpret_cast<Integer*>(obj);
     int32_t val = ptr->getValue();
     return value == val ? true : false;
 }
@@ -51,7 +51,7 @@ std::string Integer::toString()
     return std::to_string(value);
 }
 
-Object *Integer::clone()
+Object* Integer::clone()
 {
     return new Integer(value);
 }
@@ -61,7 +61,7 @@ int32_t Integer::intValue()
     return value;
 }
 
-Integer *Integer::valueOf(String *str)
+Integer* Integer::valueOf(String* str)
 {
     std::string_view value = str->getValue();
     // which can use simd instruction
@@ -69,7 +69,7 @@ Integer *Integer::valueOf(String *str)
     return new Integer(val);
 }
 
-Integer *Integer::valueOf(int32_t val)
+Integer* Integer::valueOf(int32_t val)
 {
     return new Integer(val);
 }
@@ -77,14 +77,14 @@ Integer *Integer::valueOf(int32_t val)
 std::uint32_t Integer::parseInt(std::string_view s) noexcept
 {
     std::uint32_t result = 0;
-    for (char digit: s) {
+    for (char digit : s) {
         result *= 10;
         result += digit - '0';
     }
     return result;
 }
 
-void Integer::setValue(const std::string &basicString)
+void Integer::setValue(const std::string& basicString)
 {
     this->value = std::stoi(basicString);
 }

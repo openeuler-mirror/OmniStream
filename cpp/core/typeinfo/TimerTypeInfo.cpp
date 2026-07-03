@@ -1,5 +1,5 @@
 /*
-* Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
  * You can use this software according to the terms and conditions of the Mulan PSL v2.
  * You may obtain a copy of Mulan PSL v2 at:
  *          http://license.coscl.org.cn/MulanPSL2
@@ -12,27 +12,31 @@
 #include "TimerTypeInfo.h"
 #include "table/runtime/operators/TimerSerializer.h"
 
-TimerTypeInfo::TimerTypeInfo(TypeInformation* keyTypeInfo_, TypeInformation* namespaceTypeInfo_, Class* keyClazz_, Class* namespaceClazz_)
-	: keyTypeInfo(keyTypeInfo_), namespaceTypeInfo(namespaceTypeInfo_), keyClazz(keyClazz_), namespaceClazz(namespaceClazz_) {
-	keyTypeInfo_->getRefCount();
-	namespaceTypeInfo->getRefCount();
+TimerTypeInfo::TimerTypeInfo(
+    TypeInformation* keyTypeInfo_, TypeInformation* namespaceTypeInfo_, Class* keyClazz_, Class* namespaceClazz_)
+    : keyTypeInfo(keyTypeInfo_),
+      namespaceTypeInfo(namespaceTypeInfo_),
+      keyClazz(keyClazz_),
+      namespaceClazz(namespaceClazz_)
+{
+    keyTypeInfo_->getRefCount();
+    namespaceTypeInfo->getRefCount();
 
-	keyClazz_->getRefCount();
-	namespaceClazz_->getRefCount();
+    keyClazz_->getRefCount();
+    namespaceClazz_->getRefCount();
 }
 
-TimerTypeInfo::~TimerTypeInfo() {
-	keyTypeInfo->putRefCount();
-	namespaceTypeInfo->putRefCount();
+TimerTypeInfo::~TimerTypeInfo()
+{
+    keyTypeInfo->putRefCount();
+    namespaceTypeInfo->putRefCount();
 
-	keyClazz->putRefCount();
-	namespaceClazz->putRefCount();
+    keyClazz->putRefCount();
+    namespaceClazz->putRefCount();
 }
 
-TypeSerializer* TimerTypeInfo::createTypeSerializer() {
+TypeSerializer* TimerTypeInfo::createTypeSerializer()
+{
     return new TimerSerializer<Object*, Object*>(
-            keyTypeInfo->createTypeSerializer(),
-            namespaceTypeInfo->createTypeSerializer(),
-            keyClazz,
-            namespaceClazz);
+        keyTypeInfo->createTypeSerializer(), namespaceTypeInfo->createTypeSerializer(), keyClazz, namespaceClazz);
 }

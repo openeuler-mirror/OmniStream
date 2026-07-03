@@ -17,25 +17,24 @@
 #include <string>
 #include "AvailabilityProvider.h"
 
-
 namespace omnistream {
 
-    template <typename T>
-    class PullingAsyncDataInput : public AvailabilityProvider {
-    public:
-        ~PullingAsyncDataInput() override = default;
+template <typename T>
+class PullingAsyncDataInput : public AvailabilityProvider {
+public:
+    ~PullingAsyncDataInput() override = default;
 
-        virtual T* PollNext() = 0;
+    virtual T* PollNext() = 0;
 
-        virtual bool IsFinished() = 0;
+    virtual bool IsFinished() = 0;
 
-        virtual bool HasReceivedEndOfData() = 0;
+    virtual bool HasReceivedEndOfData() = 0;
 
-        std::string toString() override
-        {
-            return "PullingAsyncDataInput";
-        }
-    };
+    std::string toString() override
+    {
+        return "PullingAsyncDataInput";
+    }
+};
 
 } // namespace omnistream
 

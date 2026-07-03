@@ -20,13 +20,23 @@ public:
     VectorBatchSerializer() = default;
     ~VectorBatchSerializer() override = default;
 
-    void *deserialize(DataInputView &source) override {}
+    void* deserialize(DataInputView& source) override
+    {
+    }
 
-    void serialize(void *record, DataOutputSerializer &target) override {}
+    void serialize(void* record, DataOutputSerializer& target) override
+    {
+    }
 
-    const char* getName() const override { return "VectorBatchSerializer"; }
+    const char* getName() const override
+    {
+        return "VectorBatchSerializer";
+    }
 
-    virtual TypeSerializer* duplicate() { return &getInstance(); }
+    virtual TypeSerializer* duplicate()
+    {
+        return &getInstance();
+    }
 
     static VectorBatchSerializer& getInstance()
     {
@@ -34,19 +44,25 @@ public:
         return instance;
     }
 
-    virtual std::shared_ptr<TypeSerializerSnapshot> snapshotConfiguration(){
-        // TODO impl build serializer snapshot
-        NOT_IMPL_EXCEPTION
+    virtual std::shared_ptr<TypeSerializerSnapshot> snapshotConfiguration()
+    { // TODO impl build serializer snapshot
+        NOT_IMPL_EXCEPTION;
     }
 
-    BackendDataType getBackendId() const override { return BackendDataType::VECTOR_BATCH_BK; }
+    BackendDataType getBackendId() const override
+    {
+        return BackendDataType::VECTOR_BATCH_BK;
+    }
 
-    std::string toJson() override {
+    std::string toJson() override
+    {
         SerializerJsonInfo typeJson = {SerializerType::POJO, TYPE_NAME_VECTOR_BATCH_CLASS};
         return typeJson.toJson();
     }
 
-    void setSubBufferReusable(bool bufferReusable_) override {}
+    void setSubBufferReusable(bool bufferReusable_) override
+    {
+    }
 };
 
 #endif // OMNISTREAM_VECTORBATCHSERIALIZER_H

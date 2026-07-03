@@ -12,8 +12,9 @@
 #include "TimestampedCollector.h"
 #include "basictypes/Object.h"
 
-TimestampedCollector::TimestampedCollector(Output *output, bool isDataStream)
-    : output_(output), isDataStream(isDataStream)
+TimestampedCollector::TimestampedCollector(Output* output, bool isDataStream)
+    : output_(output),
+      isDataStream(isDataStream)
 {
     reuse = new StreamRecord();
     tag_ = StreamElementTag::TAG_REC_WITH_TIMESTAMP;
@@ -28,12 +29,12 @@ TimestampedCollector::~TimestampedCollector()
     }
 }
 
-void TimestampedCollector::collect(void *value)
+void TimestampedCollector::collect(void* value)
 {
-    LOG(">>>>>>>")
+    LOG(">>>>>>>");
     // The default TAG is TAG_REC_WITH_TIMESTAMP
     if (isDataStream) {
-        auto *obj = static_cast<Object *>(value);
+        auto* obj = static_cast<Object*>(value);
         obj->getRefCount();
         reuse->replace(obj, timestamp_);
         output_->collect(reuse);
@@ -44,9 +45,9 @@ void TimestampedCollector::collect(void *value)
     }
 }
 
-void TimestampedCollector::collectExternalRow(void *value)
+void TimestampedCollector::collectExternalRow(void* value)
 {
-    LOG("collect for external row.")
+    LOG("collect for external row.");
     // The default TAG is TAG_REC_WITH_TIMESTAMP
     auto* record = new StreamRecord(value);
     record->setTimestamp(timestamp_);
@@ -54,7 +55,7 @@ void TimestampedCollector::collectExternalRow(void *value)
     output_->collect(record);
 }
 
-void TimestampedCollector::setTimestamp(StreamRecord *timestampBase)
+void TimestampedCollector::setTimestamp(StreamRecord* timestampBase)
 {
     if (timestampBase->getTag() == StreamElementTag::TAG_REC_WITH_TIMESTAMP) {
         timestamp_ = timestampBase->getTimestamp();
@@ -68,12 +69,12 @@ void TimestampedCollector::close()
     output_->close();
 }
 
-void TimestampedCollector::emitWatermark(Watermark *watermark)
+void TimestampedCollector::emitWatermark(Watermark* watermark)
 {
     output_->emitWatermark(watermark);
 }
 
-void TimestampedCollector::emitWatermarkStatus(WatermarkStatus *watermarkStatus)
+void TimestampedCollector::emitWatermarkStatus(WatermarkStatus* watermarkStatus)
 {
     output_->emitWatermarkStatus(watermarkStatus);
 }

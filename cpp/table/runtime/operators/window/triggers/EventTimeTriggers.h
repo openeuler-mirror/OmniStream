@@ -17,15 +17,20 @@
 #include "WindowTrigger.h"
 #include "Trigger.h"
 
-template<typename W>
+template <typename W>
 class EventTimeTriggers {
 public:
     class AfterEndOfWindowEarlyAndLate : public WindowTrigger<W> {
     public:
-        AfterEndOfWindowEarlyAndLate(Trigger<W> *earlyTrigger, Trigger<W> *lateTrigger): earlyTrigger(earlyTrigger),
-            lateTrigger(lateTrigger), hasFiredOnTimeStateDesc("eventTime-afterEOW", (TypeSerializer*) nullptr) {}
+        AfterEndOfWindowEarlyAndLate(Trigger<W>* earlyTrigger, Trigger<W>* lateTrigger)
+            : earlyTrigger(earlyTrigger),
+              lateTrigger(lateTrigger),
+              hasFiredOnTimeStateDesc("eventTime-afterEOW", (TypeSerializer*)nullptr)
+        {
+        }
 
-        void open(typename Trigger<W>::TriggerContext *ctx) override {
+        void open(typename Trigger<W>::TriggerContext* ctx) override
+        {
             this->ctx = ctx;
             if (earlyTrigger != nullptr) {
                 earlyTrigger->open(ctx);
@@ -35,7 +40,8 @@ public:
             }
         }
 
-        bool onElement(RowData *element, int64_t timestamp, W window) override {
+        bool onElement(RowData* element, int64_t timestamp, W window) override
+        {
             bool hasFired = this->ctx->getPartitionedState(hasFiredOnTimeStateDesc).value();
             if (hasFired) {
                 // this is to cover the case where we recover from a failure and the watermark
@@ -57,7 +63,8 @@ public:
             }
         }
 
-        bool onProcessingTime(int64_t time, W window) override {
+        bool onProcessingTime(int64_t time, W window) override
+        {
             bool hasFired = this->ctx->getPartitionedState(hasFiredOnTimeStateDesc).value();
             if (hasFired) {
                 // late fire
@@ -68,8 +75,9 @@ public:
             }
         }
 
-        bool onEventTime(int64_t time, W window) {
-            ValueState<bool> *hasFiredState = this->ctx->getPartitionedState(hasFiredOnTimeStateDesc);
+        bool onEventTime(int64_t time, W window)
+        {
+            ValueState<bool>* hasFiredState = this->ctx->getPartitionedState(hasFiredOnTimeStateDesc);
             bool hasFired = hasFiredState->value();
             if (hasFired) {
                 // late fire
@@ -86,12 +94,14 @@ public:
             }
         }
 
-        bool canMerge() override {
-            return (earlyTrigger == nullptr || earlyTrigger->canMerge())
-                    && (lateTrigger == nullptr || lateTrigger->canMerge());
+        bool canMerge() override
+        {
+            return (earlyTrigger == nullptr || earlyTrigger->canMerge()) &&
+                   (lateTrigger == nullptr || lateTrigger->canMerge());
         }
 
-        void onMerge(W window, OnMergeContext<W> *mergeContext) override {
+        void onMerge(W window, OnMergeContext<W>* mergeContext) override
+        {
             if (earlyTrigger != nullptr) {
                 earlyTrigger->onMerge(window, mergeContext);
             }
@@ -104,7 +114,8 @@ public:
             this->ctx->registerEventTimeTimer(this->triggerTime(window));
         }
 
-        void clear(W window) override {
+        void clear(W window) override
+        {
             if (earlyTrigger != nullptr) {
                 earlyTrigger->clear(window);
             }
@@ -116,8 +127,8 @@ public:
         }
 
     private:
-        Trigger<W> *earlyTrigger;
-        Trigger<W> *lateTrigger;
+        Trigger<W>* earlyTrigger;
+        Trigger<W>* lateTrigger;
         ValueStateDescriptor<void> hasFiredOnTimeStateDesc;
     };
 
@@ -125,11 +136,13 @@ public:
     public:
         AfterEndOfWindow() = default;
 
-        void open(typename Trigger<W>::TriggerContext *ctx) override {
+        void open(typename Trigger<W>::TriggerContext* ctx) override
+        {
             this->ctx = ctx;
         }
 
-        bool onElement(RowData *element, int64_t timestamp, W window) {
+        bool onElement(RowData* element, int64_t timestamp, W window)
+        {
             if (this->triggerTime(window) <= this->ctx->getCurrentWatermark()) {
                 // if the watermark is already past the window fire immediately
                 return true;
@@ -139,19 +152,23 @@ public:
             }
         }
 
-        bool onProcessingTime(int64_t time, W window) override {
+        bool onProcessingTime(int64_t time, W window) override
+        {
             return false;
         }
 
-        bool onEventTime(int64_t time, W window) override {
+        bool onEventTime(int64_t time, W window) override
+        {
             return time == this->triggerTime(window);
         }
 
-        void clear(W window) override {
+        void clear(W window) override
+        {
             this->ctx->deleteEventTimeTimer(this->triggerTime(window));
         }
 
-        void onMerge(W window, OnMergeContext<W> *mergeContext) override {
+        void onMerge(W window, OnMergeContext<W>* mergeContext) override
+        {
             this->ctx->registerEventTimeTimer(this->triggerTime(window));
         }
     };

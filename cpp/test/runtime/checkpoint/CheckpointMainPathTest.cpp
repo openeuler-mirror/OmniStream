@@ -40,12 +40,16 @@ using namespace omnistream;
 
 class MockSerializer : public ChannelStateSerializerImpl {
 public:
-    int64_t GetHeaderLength() const override { return 100; }
+    int64_t GetHeaderLength() const override
+    {
+        return 100;
+    }
 };
 
 class MockStorage : public CheckpointStorage {
 public:
-    std::shared_ptr<CheckpointStorageAccess> createCheckpointStorage(const JobIDPOD& jobId) override {
+    std::shared_ptr<CheckpointStorageAccess> createCheckpointStorage(const JobIDPOD& jobId) override
+    {
         static Path checkpointDir("");
         static Path savepointDir("");
         return std::make_shared<FsCheckpointStorageAccess>(&checkpointDir, &savepointDir, jobId, 100, 100);
@@ -54,35 +58,98 @@ public:
 
 class MockBuffer : public ObjectBuffer {
 public:
-    bool isBuffer() const override { return true; }
-    std::shared_ptr<BufferRecycler> GetRecycler() override { return DummyObjectBufferRecycler::getInstance(); }
-    void RecycleBuffer() override { recycled = true; }
-    bool IsRecycled() const override { return recycled; }
-    Buffer* RetainBuffer() override { return this; }
-    Buffer* ReadOnlySlice() override { return this; }
-    Buffer* ReadOnlySlice(int, int) override { return this; }
-    int GetMaxCapacity() const override { return 512; }
-    int GetReaderIndex() const override { return 0; }
-    void SetReaderIndex(int) override {}
-    int GetSize() const override { return 128; }
-    void SetSize(int) override {}
-    int ReadableObjects() const override { return 1; }
-    bool IsCompressed() const override { return false; }
-    void SetCompressed(bool) override {}
-    ObjectBufferDataType GetDataType() const override { return ObjectBufferDataType::DATA_BUFFER; }
-    void SetDataType(ObjectBufferDataType) override {}
-    int RefCount() const override { return 1; }
-    std::string ToDebugString(bool) const override { return "MockBuffer"; }
-    ObjectSegment* GetObjectSegment() override { return nullptr; }
-    int GetBufferType() override { return 0; }
-    std::pair<uint8_t*, size_t> GetBytes() override { return {nullptr, 0}; }
+    bool isBuffer() const override
+    {
+        return true;
+    }
+    std::shared_ptr<BufferRecycler> GetRecycler() override
+    {
+        return DummyObjectBufferRecycler::getInstance();
+    }
+    void RecycleBuffer() override
+    {
+        recycled = true;
+    }
+    bool IsRecycled() const override
+    {
+        return recycled;
+    }
+    Buffer* RetainBuffer() override
+    {
+        return this;
+    }
+    Buffer* ReadOnlySlice() override
+    {
+        return this;
+    }
+    Buffer* ReadOnlySlice(int, int) override
+    {
+        return this;
+    }
+    int GetMaxCapacity() const override
+    {
+        return 512;
+    }
+    int GetReaderIndex() const override
+    {
+        return 0;
+    }
+    void SetReaderIndex(int) override
+    {
+    }
+    int GetSize() const override
+    {
+        return 128;
+    }
+    void SetSize(int) override
+    {
+    }
+    int ReadableObjects() const override
+    {
+        return 1;
+    }
+    bool IsCompressed() const override
+    {
+        return false;
+    }
+    void SetCompressed(bool) override
+    {
+    }
+    ObjectBufferDataType GetDataType() const override
+    {
+        return ObjectBufferDataType::DATA_BUFFER;
+    }
+    void SetDataType(ObjectBufferDataType) override
+    {
+    }
+    int RefCount() const override
+    {
+        return 1;
+    }
+    std::string ToDebugString(bool) const override
+    {
+        return "MockBuffer";
+    }
+    ObjectSegment* GetObjectSegment() override
+    {
+        return nullptr;
+    }
+    int GetBufferType() override
+    {
+        return 0;
+    }
+    std::pair<uint8_t*, size_t> GetBytes() override
+    {
+        return {nullptr, 0};
+    }
     bool recycled = false;
 };
 
 // =========================================================================
 // ChannelStatePendingResult tests
 // =========================================================================
-TEST(ChannelStatePendingResultTest, InitialStateNotDone) {
+TEST(ChannelStatePendingResultTest, InitialStateNotDone)
+{
     auto result = ChannelStateWriter::ChannelStateWriteResult::CreateEmpty();
     auto serializer = std::make_shared<MockSerializer>();
     ChannelStatePendingResult pending(0, 1, result, serializer);
@@ -93,7 +160,8 @@ TEST(ChannelStatePendingResultTest, InitialStateNotDone) {
     EXPECT_EQ(pending.GetCheckpointId(), 1);
 }
 
-TEST(ChannelStatePendingResultTest, CompleteInputSetsFlag) {
+TEST(ChannelStatePendingResultTest, CompleteInputSetsFlag)
+{
     auto result = ChannelStateWriter::ChannelStateWriteResult::CreateEmpty();
     auto serializer = std::make_shared<MockSerializer>();
     ChannelStatePendingResult pending(0, 1, result, serializer);
@@ -101,7 +169,8 @@ TEST(ChannelStatePendingResultTest, CompleteInputSetsFlag) {
     EXPECT_TRUE(pending.IsAllInputsReceived());
 }
 
-TEST(ChannelStatePendingResultTest, CompleteInputTwiceThrows) {
+TEST(ChannelStatePendingResultTest, CompleteInputTwiceThrows)
+{
     auto result = ChannelStateWriter::ChannelStateWriteResult::CreateEmpty();
     auto serializer = std::make_shared<MockSerializer>();
     ChannelStatePendingResult pending(0, 1, result, serializer);
@@ -109,7 +178,8 @@ TEST(ChannelStatePendingResultTest, CompleteInputTwiceThrows) {
     EXPECT_THROW(pending.CompleteInput(), std::logic_error);
 }
 
-TEST(ChannelStatePendingResultTest, CompleteOutputSetsFlag) {
+TEST(ChannelStatePendingResultTest, CompleteOutputSetsFlag)
+{
     auto result = ChannelStateWriter::ChannelStateWriteResult::CreateEmpty();
     auto serializer = std::make_shared<MockSerializer>();
     ChannelStatePendingResult pending(0, 1, result, serializer);
@@ -117,7 +187,8 @@ TEST(ChannelStatePendingResultTest, CompleteOutputSetsFlag) {
     EXPECT_TRUE(pending.IsAllOutputsReceived());
 }
 
-TEST(ChannelStatePendingResultTest, CompleteOutputTwiceThrows) {
+TEST(ChannelStatePendingResultTest, CompleteOutputTwiceThrows)
+{
     auto result = ChannelStateWriter::ChannelStateWriteResult::CreateEmpty();
     auto serializer = std::make_shared<MockSerializer>();
     ChannelStatePendingResult pending(0, 1, result, serializer);
@@ -125,28 +196,32 @@ TEST(ChannelStatePendingResultTest, CompleteOutputTwiceThrows) {
     EXPECT_THROW(pending.CompleteOutput(), std::logic_error);
 }
 
-TEST(ChannelStatePendingResultTest, FailDoesNotThrow) {
+TEST(ChannelStatePendingResultTest, FailDoesNotThrow)
+{
     auto result = ChannelStateWriter::ChannelStateWriteResult::CreateEmpty();
     auto serializer = std::make_shared<MockSerializer>();
     ChannelStatePendingResult pending(0, 1, result, serializer);
     EXPECT_NO_THROW(pending.Fail(std::make_exception_ptr(std::runtime_error("test"))));
 }
 
-TEST(ChannelStatePendingResultTest, GetInputChannelOffsetsStartsEmpty) {
+TEST(ChannelStatePendingResultTest, GetInputChannelOffsetsStartsEmpty)
+{
     auto result = ChannelStateWriter::ChannelStateWriteResult::CreateEmpty();
     auto serializer = std::make_shared<MockSerializer>();
     ChannelStatePendingResult pending(0, 1, result, serializer);
     EXPECT_TRUE(pending.GetInputChannelOffsets().empty());
 }
 
-TEST(ChannelStatePendingResultTest, GetResultSubpartitionOffsetsStartsEmpty) {
+TEST(ChannelStatePendingResultTest, GetResultSubpartitionOffsetsStartsEmpty)
+{
     auto result = ChannelStateWriter::ChannelStateWriteResult::CreateEmpty();
     auto serializer = std::make_shared<MockSerializer>();
     ChannelStatePendingResult pending(0, 1, result, serializer);
     EXPECT_TRUE(pending.GetResultSubpartitionOffsets().empty());
 }
 
-TEST(ChannelStatePendingResultTest, IsDoneReflectsResultState) {
+TEST(ChannelStatePendingResultTest, IsDoneReflectsResultState)
+{
     auto result = ChannelStateWriter::ChannelStateWriteResult::CreateEmpty();
     auto serializer = std::make_shared<MockSerializer>();
     ChannelStatePendingResult pending(0, 1, result, serializer);
@@ -156,48 +231,62 @@ TEST(ChannelStatePendingResultTest, IsDoneReflectsResultState) {
 // =========================================================================
 // ChannelStateWriteRequest - CheckpointInProgressRequest tests
 // =========================================================================
-TEST(CheckpointInProgressRequestTest, ConstructorWithAction) {
-    CheckpointInProgressRequest req("Test", JobVertexID(1, 1), 0, 42,
-        [](std::shared_ptr<ChannelStateCheckpointWriter>&) {});
+TEST(CheckpointInProgressRequestTest, ConstructorWithAction)
+{
+    CheckpointInProgressRequest req(
+        "Test", JobVertexID(1, 1), 0, 42, [](std::shared_ptr<ChannelStateCheckpointWriter>&) {});
     EXPECT_EQ(req.getCheckpointId(), 42);
     EXPECT_EQ(req.getSubtaskIndex(), 0);
     EXPECT_EQ(req.getName(), "Test");
 }
 
-TEST(CheckpointInProgressRequestTest, ExecuteTransitionsState) {
-    CheckpointInProgressRequest req("Test", JobVertexID(1, 1), 0, 1,
-        [](std::shared_ptr<ChannelStateCheckpointWriter>&) {});
+TEST(CheckpointInProgressRequestTest, ExecuteTransitionsState)
+{
+    CheckpointInProgressRequest req(
+        "Test", JobVertexID(1, 1), 0, 1, [](std::shared_ptr<ChannelStateCheckpointWriter>&) {});
     std::shared_ptr<ChannelStateCheckpointWriter> writer = nullptr;
     EXPECT_NO_THROW(req.execute(writer));
 }
 
-TEST(CheckpointInProgressRequestTest, ExecuteTwiceThrows) {
-    CheckpointInProgressRequest req("Test", JobVertexID(1, 1), 0, 1,
-        [](std::shared_ptr<ChannelStateCheckpointWriter>&) {});
+TEST(CheckpointInProgressRequestTest, ExecuteTwiceThrows)
+{
+    CheckpointInProgressRequest req(
+        "Test", JobVertexID(1, 1), 0, 1, [](std::shared_ptr<ChannelStateCheckpointWriter>&) {});
     std::shared_ptr<ChannelStateCheckpointWriter> writer = nullptr;
     req.execute(writer);
     EXPECT_THROW(req.execute(writer), std::runtime_error);
 }
 
-TEST(CheckpointInProgressRequestTest, CancelCallsDiscardAction) {
+TEST(CheckpointInProgressRequestTest, CancelCallsDiscardAction)
+{
     bool discarded = false;
-    CheckpointInProgressRequest req("Test", JobVertexID(1, 1), 0, 1,
+    CheckpointInProgressRequest req(
+        "Test",
+        JobVertexID(1, 1),
+        0,
+        1,
         [](std::shared_ptr<ChannelStateCheckpointWriter>&) {},
         [&](const std::exception_ptr&) { discarded = true; });
     req.cancel(std::make_exception_ptr(std::runtime_error("cancel test")));
     EXPECT_TRUE(discarded);
 }
 
-TEST(CheckpointInProgressRequestTest, GetReadyFutureReturnsCompletedWhenNoFutureProvided) {
-    CheckpointInProgressRequest req("Test", JobVertexID(1, 1), 0, 1,
-        [](std::shared_ptr<ChannelStateCheckpointWriter>&) {});
+TEST(CheckpointInProgressRequestTest, GetReadyFutureReturnsCompletedWhenNoFutureProvided)
+{
+    CheckpointInProgressRequest req(
+        "Test", JobVertexID(1, 1), 0, 1, [](std::shared_ptr<ChannelStateCheckpointWriter>&) {});
     auto future = req.getReadyFuture();
     EXPECT_TRUE(future->IsDone());
 }
 
-TEST(CheckpointInProgressRequestTest, GetReadyFutureReflectsProvidedFuture) {
+TEST(CheckpointInProgressRequestTest, GetReadyFutureReflectsProvidedFuture)
+{
     auto ready = std::make_shared<CompletableFutureV2<void>>();
-    CheckpointInProgressRequest req("Test", JobVertexID(1, 1), 0, 1,
+    CheckpointInProgressRequest req(
+        "Test",
+        JobVertexID(1, 1),
+        0,
+        1,
         [](std::shared_ptr<ChannelStateCheckpointWriter>&) {},
         [](const std::exception_ptr&) {},
         ready);
@@ -209,7 +298,8 @@ TEST(CheckpointInProgressRequestTest, GetReadyFutureReflectsProvidedFuture) {
 // =========================================================================
 // ChannelStateWriteRequest - writeInput buffers recycled on cancel
 // =========================================================================
-TEST(ChannelStateWriteRequestTest, WriteInputDiscardRecyclesBuffers) {
+TEST(ChannelStateWriteRequestTest, WriteInputDiscardRecyclesBuffers)
+{
     auto buf = std::make_shared<MockBuffer>();
     std::vector<Buffer*> buffers = {buf.get()};
     auto req = ChannelStateWriteRequest::writeInput(JobVertexID(1, 1), 0, 1, InputChannelInfo{}, buffers);
@@ -218,7 +308,8 @@ TEST(ChannelStateWriteRequestTest, WriteInputDiscardRecyclesBuffers) {
     EXPECT_TRUE(buf->recycled);
 }
 
-TEST(ChannelStateWriteRequestTest, WriteOutputDiscardRecyclesBuffers) {
+TEST(ChannelStateWriteRequestTest, WriteOutputDiscardRecyclesBuffers)
+{
     auto buf = std::make_shared<MockBuffer>();
     std::vector<Buffer*> buffers = {buf.get()};
     auto req = ChannelStateWriteRequest::writeOutput(JobVertexID(1, 1), 0, 1, ResultSubpartitionInfoPOD{}, buffers);
@@ -227,25 +318,29 @@ TEST(ChannelStateWriteRequestTest, WriteOutputDiscardRecyclesBuffers) {
     EXPECT_TRUE(buf->recycled);
 }
 
-TEST(ChannelStateWriteRequestTest, CompleteInputHasDoneFuture) {
+TEST(ChannelStateWriteRequestTest, CompleteInputHasDoneFuture)
+{
     auto req = ChannelStateWriteRequest::completeInput(JobVertexID(1, 1), 0, 1);
     EXPECT_TRUE(req->getReadyFuture()->IsDone());
     EXPECT_EQ(req->getName(), "CheckpointCompleteInput");
 }
 
-TEST(ChannelStateWriteRequestTest, CompleteOutputHasDoneFuture) {
+TEST(ChannelStateWriteRequestTest, CompleteOutputHasDoneFuture)
+{
     auto req = ChannelStateWriteRequest::completeOutput(JobVertexID(1, 1), 0, 1);
     EXPECT_TRUE(req->getReadyFuture()->IsDone());
     EXPECT_EQ(req->getName(), "CheckpointCompleteOutput");
 }
 
-TEST(ChannelStateWriteRequestTest, RegisterSubtaskCreatesCorrectType) {
+TEST(ChannelStateWriteRequestTest, RegisterSubtaskCreatesCorrectType)
+{
     auto req = ChannelStateWriteRequest::registerSubtask(JobVertexID(1, 1), 0);
     EXPECT_EQ(req->getName(), "Register");
     EXPECT_EQ(req->getSubtaskIndex(), 0);
 }
 
-TEST(ChannelStateWriteRequestTest, ReleaseSubtaskCreatesCorrectType) {
+TEST(ChannelStateWriteRequestTest, ReleaseSubtaskCreatesCorrectType)
+{
     auto req = ChannelStateWriteRequest::releaseSubtask(JobVertexID(1, 1), 0);
     EXPECT_EQ(req->getName(), "Release");
     EXPECT_EQ(req->getSubtaskIndex(), 0);
@@ -254,12 +349,12 @@ TEST(ChannelStateWriteRequestTest, ReleaseSubtaskCreatesCorrectType) {
 // =========================================================================
 // ChannelStateWriteRequestDispatcherImpl - abort logic
 // =========================================================================
-TEST(ChannelStateWriteRequestDispatcherImplTest, AbortedCheckpointIdDetection) {
+TEST(ChannelStateWriteRequestDispatcherImplTest, AbortedCheckpointIdDetection)
+{
     auto storage = std::make_shared<MockStorage>();
     auto serializer = std::make_shared<MockSerializer>();
     auto dispatcher = std::make_shared<ChannelStateWriteRequestDispatcherImpl>(
-        storage, JobIDPOD(-1, -1), serializer,
-        storage->createCheckpointStorage(JobIDPOD(-1, -1)));
+        storage, JobIDPOD(-1, -1), serializer, storage->createCheckpointStorage(JobIDPOD(-1, -1)));
 
     JobVertexID jvid(1, 1);
     auto targetResult = ChannelStateWriter::ChannelStateWriteResult::CreateEmpty();
@@ -268,17 +363,17 @@ TEST(ChannelStateWriteRequestDispatcherImplTest, AbortedCheckpointIdDetection) {
     auto startReq = ChannelStateWriteRequest::start(jvid, 1, 5, targetResult, "Start");
     dispatcher->dispatch(startReq);
 
-    auto abortReq = ChannelStateWriteRequest::terminate(jvid, 1, 5,
-        std::make_exception_ptr(std::runtime_error("abort")));
+    auto abortReq =
+        ChannelStateWriteRequest::terminate(jvid, 1, 5, std::make_exception_ptr(std::runtime_error("abort")));
     EXPECT_NO_THROW(dispatcher->dispatch(abortReq));
 }
 
-TEST(ChannelStateWriteRequestDispatcherImplTest, SubsumedCheckpointIsCancelled) {
+TEST(ChannelStateWriteRequestDispatcherImplTest, SubsumedCheckpointIsCancelled)
+{
     auto storage = std::make_shared<MockStorage>();
     auto serializer = std::make_shared<MockSerializer>();
     auto dispatcher = std::make_shared<ChannelStateWriteRequestDispatcherImpl>(
-        storage, JobIDPOD(-1, -1), serializer,
-        storage->createCheckpointStorage(JobIDPOD(-1, -1)));
+        storage, JobIDPOD(-1, -1), serializer, storage->createCheckpointStorage(JobIDPOD(-1, -1)));
 
     JobVertexID jvid(1, 1);
     auto targetResult = ChannelStateWriter::ChannelStateWriteResult::CreateEmpty();
@@ -291,27 +386,27 @@ TEST(ChannelStateWriteRequestDispatcherImplTest, SubsumedCheckpointIsCancelled) 
     EXPECT_NO_THROW(dispatcher->dispatch(oldStartReq));
 }
 
-TEST(ChannelStateWriteRequestDispatcherImplTest, NoStartBeforeAbortDoesNotThrow) {
+TEST(ChannelStateWriteRequestDispatcherImplTest, NoStartBeforeAbortDoesNotThrow)
+{
     auto storage = std::make_shared<MockStorage>();
     auto serializer = std::make_shared<MockSerializer>();
     auto dispatcher = std::make_shared<ChannelStateWriteRequestDispatcherImpl>(
-        storage, JobIDPOD(-1, -1), serializer,
-        storage->createCheckpointStorage(JobIDPOD(-1, -1)));
+        storage, JobIDPOD(-1, -1), serializer, storage->createCheckpointStorage(JobIDPOD(-1, -1)));
 
     JobVertexID jvid(1, 1);
     dispatcher->dispatch(ChannelStateWriteRequest::registerSubtask(jvid, 1));
 
-    auto abortReq = ChannelStateWriteRequest::terminate(jvid, 1, 1,
-        std::make_exception_ptr(std::runtime_error("early abort")));
+    auto abortReq =
+        ChannelStateWriteRequest::terminate(jvid, 1, 1, std::make_exception_ptr(std::runtime_error("early abort")));
     EXPECT_NO_THROW(dispatcher->dispatch(abortReq));
 }
 
-TEST(ChannelStateWriteRequestDispatcherImplTest, ReleaseUnregistersSubtask) {
+TEST(ChannelStateWriteRequestDispatcherImplTest, ReleaseUnregistersSubtask)
+{
     auto storage = std::make_shared<MockStorage>();
     auto serializer = std::make_shared<MockSerializer>();
     auto dispatcher = std::make_shared<ChannelStateWriteRequestDispatcherImpl>(
-        storage, JobIDPOD(-1, -1), serializer,
-        storage->createCheckpointStorage(JobIDPOD(-1, -1)));
+        storage, JobIDPOD(-1, -1), serializer, storage->createCheckpointStorage(JobIDPOD(-1, -1)));
 
     JobVertexID jvid(1, 1);
     auto registerReq = std::make_shared<SubtaskRegisterRequest>(jvid, 1);
@@ -327,15 +422,32 @@ TEST(ChannelStateWriteRequestDispatcherImplTest, ReleaseUnregistersSubtask) {
 
 class MockCheckpointableInput : public CheckpointableInput {
 public:
-    void BlockConsumption(const InputChannelInfo&) override { blocked = true; }
-    void ResumeConsumption(const InputChannelInfo&) override { resumed = true; }
-    void ConvertToPriorityEvent(int, int) override { prioritized = true; }
-    std::vector<InputChannelInfo> GetChannelInfos() override {
+    void BlockConsumption(const InputChannelInfo&) override
+    {
+        blocked = true;
+    }
+    void ResumeConsumption(const InputChannelInfo&) override
+    {
+        resumed = true;
+    }
+    void ConvertToPriorityEvent(int, int) override
+    {
+        prioritized = true;
+    }
+    std::vector<InputChannelInfo> GetChannelInfos() override
+    {
         return {InputChannelInfo(GetInputGateIndex(), 0)};
     }
-    void CheckpointStarted(const CheckpointBarrier&) override {}
-    void CheckpointStopped(long) override {}
-    int GetInputGateIndex() override { return gateIdx; }
+    void CheckpointStarted(const CheckpointBarrier&) override
+    {
+    }
+    void CheckpointStopped(long) override
+    {
+    }
+    int GetInputGateIndex() override
+    {
+        return gateIdx;
+    }
 
     int gateIdx = 0;
     bool blocked = false;
@@ -343,7 +455,8 @@ public:
     bool prioritized = false;
 };
 
-TEST(ChannelStateTest, BlockChannelCallsBlockOnInput) {
+TEST(ChannelStateTest, BlockChannelCallsBlockOnInput)
+{
     MockCheckpointableInput input;
     std::vector<CheckpointableInput*> inputs = {&input};
     ChannelState state(inputs);
@@ -351,7 +464,8 @@ TEST(ChannelStateTest, BlockChannelCallsBlockOnInput) {
     EXPECT_TRUE(input.blocked);
 }
 
-TEST(ChannelStateTest, UnblockAllChannelsResumesBlockedInputs) {
+TEST(ChannelStateTest, UnblockAllChannelsResumesBlockedInputs)
+{
     MockCheckpointableInput input;
     std::vector<CheckpointableInput*> inputs = {&input};
     ChannelState state(inputs);
@@ -360,7 +474,8 @@ TEST(ChannelStateTest, UnblockAllChannelsResumesBlockedInputs) {
     EXPECT_TRUE(input.resumed);
 }
 
-TEST(ChannelStateTest, UnblockAllDoesNotResumeAlreadyResumed) {
+TEST(ChannelStateTest, UnblockAllDoesNotResumeAlreadyResumed)
+{
     MockCheckpointableInput input0, input1;
     input1.gateIdx = 1;
     std::vector<CheckpointableInput*> inputs = {&input0, &input1};
@@ -371,7 +486,8 @@ TEST(ChannelStateTest, UnblockAllDoesNotResumeAlreadyResumed) {
     EXPECT_FALSE(input1.resumed);
 }
 
-TEST(ChannelStateTest, ChannelFinishedRemovesBlockedState) {
+TEST(ChannelStateTest, ChannelFinishedRemovesBlockedState)
+{
     MockCheckpointableInput input;
     std::vector<CheckpointableInput*> inputs = {&input};
     ChannelState state(inputs);
@@ -380,7 +496,8 @@ TEST(ChannelStateTest, ChannelFinishedRemovesBlockedState) {
     EXPECT_NO_THROW(state.EmptyState());
 }
 
-TEST(ChannelStateTest, EmptyStateThrowsWhenBlockedChannelsExist) {
+TEST(ChannelStateTest, EmptyStateThrowsWhenBlockedChannelsExist)
+{
     MockCheckpointableInput input;
     std::vector<CheckpointableInput*> inputs = {&input};
     ChannelState state(inputs);
@@ -388,7 +505,8 @@ TEST(ChannelStateTest, EmptyStateThrowsWhenBlockedChannelsExist) {
     EXPECT_THROW(state.EmptyState(), std::runtime_error);
 }
 
-TEST(ChannelStateTest, EmptyStateSucceedsAfterUnblockAll) {
+TEST(ChannelStateTest, EmptyStateSucceedsAfterUnblockAll)
+{
     MockCheckpointableInput input;
     std::vector<CheckpointableInput*> inputs = {&input};
     ChannelState state(inputs);
@@ -397,7 +515,8 @@ TEST(ChannelStateTest, EmptyStateSucceedsAfterUnblockAll) {
     EXPECT_NO_THROW(state.EmptyState());
 }
 
-TEST(ChannelStateTest, PrioritizeAllAnnouncementsCallsConvert) {
+TEST(ChannelStateTest, PrioritizeAllAnnouncementsCallsConvert)
+{
     MockCheckpointableInput input;
     std::vector<CheckpointableInput*> inputs = {&input};
     ChannelState state(inputs);
@@ -406,7 +525,8 @@ TEST(ChannelStateTest, PrioritizeAllAnnouncementsCallsConvert) {
     EXPECT_TRUE(input.prioritized);
 }
 
-TEST(ChannelStateTest, AnnouncementSeenAndRemoved) {
+TEST(ChannelStateTest, AnnouncementSeenAndRemoved)
+{
     MockCheckpointableInput input;
     std::vector<CheckpointableInput*> inputs = {&input};
     ChannelState state(inputs);
@@ -415,7 +535,8 @@ TEST(ChannelStateTest, AnnouncementSeenAndRemoved) {
     EXPECT_NO_THROW(state.PrioritizeAllAnnouncements());
 }
 
-TEST(ChannelStateTest, GetInputsReturnsCorrect) {
+TEST(ChannelStateTest, GetInputsReturnsCorrect)
+{
     MockCheckpointableInput input0, input1;
     input1.gateIdx = 1;
     std::vector<CheckpointableInput*> inputs = {&input0, &input1};
@@ -430,11 +551,26 @@ TEST(ChannelStateTest, GetInputsReturnsCorrect) {
 
 class MockController : public Controller {
 public:
-    bool AllBarriersReceived() const override { return allReceived; }
-    const CheckpointBarrier* GetPendingCheckpointBarrier() const override { return nullptr; }
-    void TriggerGlobalCheckpoint(const CheckpointBarrier&) override { triggered = true; }
-    void InitInputsCheckpoint(const CheckpointBarrier&) override { initialized = true; }
-    bool IsTimedOut(const CheckpointBarrier&) override { return timedOut; }
+    bool AllBarriersReceived() const override
+    {
+        return allReceived;
+    }
+    const CheckpointBarrier* GetPendingCheckpointBarrier() const override
+    {
+        return nullptr;
+    }
+    void TriggerGlobalCheckpoint(const CheckpointBarrier&) override
+    {
+        triggered = true;
+    }
+    void InitInputsCheckpoint(const CheckpointBarrier&) override
+    {
+        initialized = true;
+    }
+    bool IsTimedOut(const CheckpointBarrier&) override
+    {
+        return timedOut;
+    }
 
     bool allReceived = false;
     bool triggered = false;
@@ -444,17 +580,23 @@ public:
 
 class TestBarrierHandler : public AbstractAlternatingAlignedBarrierHandlerState {
 public:
-    TestBarrierHandler(ChannelState state) : AbstractAlternatingAlignedBarrierHandlerState(std::move(state)) {}
+    TestBarrierHandler(ChannelState state) : AbstractAlternatingAlignedBarrierHandlerState(std::move(state))
+    {
+    }
+
 protected:
-    BarrierHandlerState* TransitionAfterBarrierReceived(ChannelState s) override {
+    BarrierHandlerState* TransitionAfterBarrierReceived(ChannelState s) override
+    {
         return new AlternatingCollectingBarriers(std::move(s));
     }
-    BarrierHandlerState* AlignedCheckpointTimeout(Controller*, CheckpointBarrier*) override {
+    BarrierHandlerState* AlignedCheckpointTimeout(Controller*, CheckpointBarrier*) override
+    {
         return new AlternatingWaitingForFirstBarrier(state.EmptyState());
     }
 };
 
-TEST(BarrierHandlerStateTest, SingleChannelBarrierReceivedTriggersCheckpoint) {
+TEST(BarrierHandlerStateTest, SingleChannelBarrierReceivedTriggersCheckpoint)
+{
     MockCheckpointableInput input;
     std::vector<CheckpointableInput*> inputs = {&input};
     ChannelState state(inputs);
@@ -463,8 +605,8 @@ TEST(BarrierHandlerStateTest, SingleChannelBarrierReceivedTriggersCheckpoint) {
     std::unique_ptr<TestBarrierHandler> handler(new TestBarrierHandler(std::move(state)));
     controller.allReceived = true;
 
-    auto options = std::make_shared<CheckpointOptions>(CheckpointType::CHECKPOINT,
-        CheckpointStorageLocationReference::GetDefault());
+    auto options = std::make_shared<CheckpointOptions>(
+        CheckpointType::CHECKPOINT, CheckpointStorageLocationReference::GetDefault());
     CheckpointBarrier barrier(1, 1000, options);
 
     std::unique_ptr<BarrierHandlerState> next(
@@ -474,15 +616,16 @@ TEST(BarrierHandlerStateTest, SingleChannelBarrierReceivedTriggersCheckpoint) {
     EXPECT_TRUE(input.resumed);
 }
 
-TEST(BarrierHandlerStateTest, BarrierReceivedBlocksChannelWhenMarked) {
+TEST(BarrierHandlerStateTest, BarrierReceivedBlocksChannelWhenMarked)
+{
     MockCheckpointableInput input;
     std::vector<CheckpointableInput*> inputs = {&input};
     ChannelState state(inputs);
     MockController controller;
 
     std::unique_ptr<TestBarrierHandler> handler(new TestBarrierHandler(std::move(state)));
-    auto options = std::make_shared<CheckpointOptions>(CheckpointType::CHECKPOINT,
-        CheckpointStorageLocationReference::GetDefault());
+    auto options = std::make_shared<CheckpointOptions>(
+        CheckpointType::CHECKPOINT, CheckpointStorageLocationReference::GetDefault());
     CheckpointBarrier barrier(1, 1000, options);
 
     std::unique_ptr<BarrierHandlerState> next(
@@ -490,15 +633,16 @@ TEST(BarrierHandlerStateTest, BarrierReceivedBlocksChannelWhenMarked) {
     EXPECT_TRUE(input.blocked);
 }
 
-TEST(BarrierHandlerStateTest, BarrierReceivedDoesNotBlockWhenNotMarked) {
+TEST(BarrierHandlerStateTest, BarrierReceivedDoesNotBlockWhenNotMarked)
+{
     MockCheckpointableInput input;
     std::vector<CheckpointableInput*> inputs = {&input};
     ChannelState state(inputs);
     MockController controller;
 
     std::unique_ptr<TestBarrierHandler> handler(new TestBarrierHandler(std::move(state)));
-    auto options = std::make_shared<CheckpointOptions>(CheckpointType::CHECKPOINT,
-        CheckpointStorageLocationReference::GetDefault());
+    auto options = std::make_shared<CheckpointOptions>(
+        CheckpointType::CHECKPOINT, CheckpointStorageLocationReference::GetDefault());
     CheckpointBarrier barrier(1, 1000, options);
 
     std::unique_ptr<BarrierHandlerState> next(
@@ -506,7 +650,8 @@ TEST(BarrierHandlerStateTest, BarrierReceivedDoesNotBlockWhenNotMarked) {
     EXPECT_FALSE(input.blocked);
 }
 
-TEST(BarrierHandlerStateTest, AnnouncementReceivedRecordsState) {
+TEST(BarrierHandlerStateTest, AnnouncementReceivedRecordsState)
+{
     MockCheckpointableInput input;
     std::vector<CheckpointableInput*> inputs = {&input};
     ChannelState state(inputs);
@@ -520,16 +665,18 @@ TEST(BarrierHandlerStateTest, AnnouncementReceivedRecordsState) {
 // =========================================================================
 // ChannelStateWriteResult tests
 // =========================================================================
-TEST(ChannelStateWriteResultTest, CreateEmptyIsNotDone) {
+TEST(ChannelStateWriteResultTest, CreateEmptyIsNotDone)
+{
     auto result = ChannelStateWriter::ChannelStateWriteResult::CreateEmpty();
     EXPECT_FALSE(result->IsDone());
 }
 
-TEST(ChannelStateWriteResultTest, IsDoneAfterBothFuturesComplete) {
-    auto inputFuture = std::make_shared<CompletableFutureV2<
-        ChannelStateWriter::ChannelStateWriteResult::InputChannelStateHandleVecPtr>>();
-    auto outputFuture = std::make_shared<CompletableFutureV2<
-        ChannelStateWriter::ChannelStateWriteResult::ResultSubpartitionStateVecPtr>>();
+TEST(ChannelStateWriteResultTest, IsDoneAfterBothFuturesComplete)
+{
+    auto inputFuture = std::make_shared<
+        CompletableFutureV2<ChannelStateWriter::ChannelStateWriteResult::InputChannelStateHandleVecPtr>>();
+    auto outputFuture = std::make_shared<
+        CompletableFutureV2<ChannelStateWriter::ChannelStateWriteResult::ResultSubpartitionStateVecPtr>>();
     ChannelStateWriter::ChannelStateWriteResult result(inputFuture, outputFuture);
 
     EXPECT_FALSE(result.IsDone());
@@ -539,11 +686,12 @@ TEST(ChannelStateWriteResultTest, IsDoneAfterBothFuturesComplete) {
     EXPECT_TRUE(result.IsDone());
 }
 
-TEST(ChannelStateWriteResultTest, FailCancelsBothFutures) {
-    auto inputFuture = std::make_shared<CompletableFutureV2<
-        ChannelStateWriter::ChannelStateWriteResult::InputChannelStateHandleVecPtr>>();
-    auto outputFuture = std::make_shared<CompletableFutureV2<
-        ChannelStateWriter::ChannelStateWriteResult::ResultSubpartitionStateVecPtr>>();
+TEST(ChannelStateWriteResultTest, FailCancelsBothFutures)
+{
+    auto inputFuture = std::make_shared<
+        CompletableFutureV2<ChannelStateWriter::ChannelStateWriteResult::InputChannelStateHandleVecPtr>>();
+    auto outputFuture = std::make_shared<
+        CompletableFutureV2<ChannelStateWriter::ChannelStateWriteResult::ResultSubpartitionStateVecPtr>>();
     ChannelStateWriter::ChannelStateWriteResult result(inputFuture, outputFuture);
 
     result.Fail(std::make_exception_ptr(std::runtime_error("fail")));
@@ -551,11 +699,12 @@ TEST(ChannelStateWriteResultTest, FailCancelsBothFutures) {
     EXPECT_TRUE(result.GetResultSubpartitionStateHandles()->IsCancelled());
 }
 
-TEST(ChannelStateWriteResultTest, IsDoneFalseWhenFuturesNotComplete) {
-    auto inputFuture = std::make_shared<CompletableFutureV2<
-        ChannelStateWriter::ChannelStateWriteResult::InputChannelStateHandleVecPtr>>();
-    auto outputFuture = std::make_shared<CompletableFutureV2<
-        ChannelStateWriter::ChannelStateWriteResult::ResultSubpartitionStateVecPtr>>();
+TEST(ChannelStateWriteResultTest, IsDoneFalseWhenFuturesNotComplete)
+{
+    auto inputFuture = std::make_shared<
+        CompletableFutureV2<ChannelStateWriter::ChannelStateWriteResult::InputChannelStateHandleVecPtr>>();
+    auto outputFuture = std::make_shared<
+        CompletableFutureV2<ChannelStateWriter::ChannelStateWriteResult::ResultSubpartitionStateVecPtr>>();
     ChannelStateWriter::ChannelStateWriteResult result(inputFuture, outputFuture);
 
     EXPECT_FALSE(result.IsDone());
@@ -564,18 +713,19 @@ TEST(ChannelStateWriteResultTest, IsDoneFalseWhenFuturesNotComplete) {
 // =========================================================================
 // ChannelStateCheckpointWriter - subtask registration
 // =========================================================================
-TEST(ChannelStateCheckpointWriterTest, ConstructorRequiresNonEmptySubtasks) {
+TEST(ChannelStateCheckpointWriterTest, ConstructorRequiresNonEmptySubtasks)
+{
     std::set<SubtaskID> empty;
-    EXPECT_THROW({
-        ChannelStateCheckpointWriter writer(empty, 1, nullptr,
-            std::make_shared<MockSerializer>(), []() {});
-    }, std::invalid_argument);
+    EXPECT_THROW(
+        { ChannelStateCheckpointWriter writer(empty, 1, nullptr, std::make_shared<MockSerializer>(), []() {}); },
+        std::invalid_argument);
 }
 
 // =========================================================================
 // SubtaskID tests
 // =========================================================================
-TEST(SubtaskIDTest, EqualityAndOrdering) {
+TEST(SubtaskIDTest, EqualityAndOrdering)
+{
     SubtaskID a(JobVertexID(1, 1), 0);
     SubtaskID b(JobVertexID(1, 1), 0);
     SubtaskID c(JobVertexID(1, 1), 1);
@@ -588,13 +738,15 @@ TEST(SubtaskIDTest, EqualityAndOrdering) {
     EXPECT_LT(a, d);
 }
 
-TEST(SubtaskIDTest, OfFactoryCreatesCorrectId) {
+TEST(SubtaskIDTest, OfFactoryCreatesCorrectId)
+{
     auto sid = SubtaskID::Of(JobVertexID(3, 4), 5);
     EXPECT_EQ(sid.GetJobVertexID(), JobVertexID(3, 4));
     EXPECT_EQ(sid.GetSubtaskIndex(), 5);
 }
 
-TEST(SubtaskIDTest, DefaultConstructor) {
+TEST(SubtaskIDTest, DefaultConstructor)
+{
     SubtaskID sid;
     EXPECT_EQ(sid.GetSubtaskIndex(), -1);
     EXPECT_EQ(sid.GetJobVertexID(), JobVertexID(-1, -1));
@@ -603,7 +755,8 @@ TEST(SubtaskIDTest, DefaultConstructor) {
 // =========================================================================
 // CheckpointAbortRequest tests
 // =========================================================================
-TEST(CheckpointAbortRequestTest, ConstructorStoresCause) {
+TEST(CheckpointAbortRequestTest, ConstructorStoresCause)
+{
     auto cause = std::make_exception_ptr(std::runtime_error("abort"));
     CheckpointAbortRequest req(JobVertexID(1, 1), 0, 1, cause);
     EXPECT_EQ(req.getName(), "Abort");
@@ -611,7 +764,8 @@ TEST(CheckpointAbortRequestTest, ConstructorStoresCause) {
     EXPECT_EQ(req.getSubtaskIndex(), 0);
 }
 
-TEST(CheckpointAbortRequestTest, CancelIsNoOp) {
+TEST(CheckpointAbortRequestTest, CancelIsNoOp)
+{
     auto cause = std::make_exception_ptr(std::runtime_error("abort"));
     CheckpointAbortRequest req(JobVertexID(1, 1), 0, 1, cause);
     EXPECT_NO_THROW(req.cancel(std::make_exception_ptr(std::runtime_error("cancel"))));

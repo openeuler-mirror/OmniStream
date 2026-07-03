@@ -36,5 +36,4 @@ public:
     virtual void setPosition(size_t) = 0;
 };
 
-
-#endif  // FLINK_TNEL_SYSDATAINPUT_H
+#endif // FLINK_TNEL_SYSDATAINPUT_H

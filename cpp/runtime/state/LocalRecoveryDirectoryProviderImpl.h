@@ -29,11 +29,12 @@ public:
         : allocationBaseDirs_(allocationBaseDirs),
           jobID_(jobID),
           jobVertexID_(jobVertexID),
-          subtaskIndex_(subtaskIndex) {
+          subtaskIndex_(subtaskIndex)
+    {
         if (allocationBaseDirs_.empty()) {
             throw std::invalid_argument("At least one base directory required");
         }
-        
+
         for (const auto& dir : allocationBaseDirs_) {
             std::filesystem::create_directories(dir);
         }
@@ -83,8 +84,7 @@ public:
             if (i > 0) result += ", ";
             result += allocationBaseDirs_[i].string();
         }
-        result += "], JobID=" + jobID_.toString() +
-                  ", JobVertexID=" + jobVertexID_.toString() +
+        result += "], JobID=" + jobID_.toString() + ", JobVertexID=" + jobVertexID_.toString() +
                   ", SubtaskIndex=" + std::to_string(subtaskIndex_) + "}";
         return result;
     }
@@ -103,15 +103,15 @@ public:
     {
         jobIdHexStr = hexStr;
     }
-    std::string GetJobIdHexStr()  override
+    std::string GetJobIdHexStr() override
     {
         return jobIdHexStr;
     }
-    void SetVertexIdHexStr(std::string hexStr)  override
+    void SetVertexIdHexStr(std::string hexStr) override
     {
         vertexIdHexStr = hexStr;
     }
-    std::string GetVertexIdHexStr()  override
+    std::string GetVertexIdHexStr() override
     {
         return vertexIdHexStr;
     }
@@ -119,9 +119,8 @@ public:
 private:
     std::string SubtaskDirString() const
     {
-        return "jid_" + jobID_.AbstractIDPOD::toString() +
-               "/vtx_" + jobVertexID_.AbstractIDPOD::toString() +
-               "_sti_" + std::to_string(subtaskIndex_);
+        return "jid_" + jobID_.AbstractIDPOD::toString() + "/vtx_" + jobVertexID_.AbstractIDPOD::toString() + "_sti_" +
+               std::to_string(subtaskIndex_);
     }
 
     std::string CheckpointDirString(long checkpointId) const

@@ -15,37 +15,54 @@
 
 class VoidNamespace : public Object {
 public:
-    VoidNamespace()= default;
+    VoidNamespace() = default;
 
     VoidNamespace(const VoidNamespace& other) = default;
 
     ~VoidNamespace() override = default;
 
-    VoidNamespace& operator=(const VoidNamespace& other) { return *this; }
+    VoidNamespace& operator=(const VoidNamespace& other)
+    {
+        return *this;
+    }
 
-    bool operator==(const VoidNamespace &other) const { return true; }
+    bool operator==(const VoidNamespace& other) const
+    {
+        return true;
+    }
 
-    operator size_t() const { return 0; }
+    operator size_t() const
+    {
+        return 0;
+    }
 
-    operator int64_t() const { return 0; }
+    operator int64_t() const
+    {
+        return 0;
+    }
 
-    int hashCode() {  return 99; }
+    int hashCode()
+    {
+        return 99;
+    }
 };
 
 namespace std {
-    template <>
-    struct hash<VoidNamespace> {
-        std::size_t operator()(const VoidNamespace &ns) const noexcept {
-            return 99;
-        }
-    };
+template <>
+struct hash<VoidNamespace> {
+    std::size_t operator()(const VoidNamespace& ns) const noexcept
+    {
+        return 99;
+    }
+};
 
-    template <>
-    struct equal_to<VoidNamespace> {
-        bool operator()(const VoidNamespace &lhs, const VoidNamespace &rhs) const noexcept {
-            return true;
-        }
-    };
-}
+template <>
+struct equal_to<VoidNamespace> {
+    bool operator()(const VoidNamespace& lhs, const VoidNamespace& rhs) const noexcept
+    {
+        return true;
+    }
+};
+} // namespace std
 
 #endif // FLINK_TNEL_VOIDNAMESPACE_H

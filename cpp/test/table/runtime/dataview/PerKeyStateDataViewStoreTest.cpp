@@ -13,23 +13,24 @@
 
 TEST(PerKeyStateDataViewStoreTest, InitTest)
 {
-    KeyGroupRange *range = new KeyGroupRange(0, 10);
-    auto *keyContext = new InternalKeyContextImpl<int>(range, 10);
+    KeyGroupRange* range = new KeyGroupRange(0, 10);
+    auto* keyContext = new InternalKeyContextImpl<int>(range, 10);
     keyContext->setCurrentKey(1);
     keyContext->setCurrentKeyGroupIndex(1);
-    auto *backend = new HeapKeyedStateBackend<int>(new IntSerializer(), keyContext);
+    auto* backend = new HeapKeyedStateBackend<int>(new IntSerializer(), keyContext);
 
     // Initialize DefaultKeyedStateStore
-    auto *stateStore = new DefaultKeyedStateStore(backend);
+    auto* stateStore = new DefaultKeyedStateStore(backend);
 
     // Initialize StreamingRuntimeContext
-    auto *ctx = new StreamingRuntimeContext(stateStore, nullptr);
+    auto* ctx = new StreamingRuntimeContext(stateStore, nullptr);
 
     // Initialized PerKeyStateDataViewStore
-    auto *store = new PerKeyStateDataViewStore(ctx);
+    auto* store = new PerKeyStateDataViewStore(ctx);
 
     // Should be created successfully
-    ASSERT_NO_THROW((store->getStateMapView<VoidNamespace, int, int *>("test", false, new IntSerializer(), new IntSerializer())));
+    ASSERT_NO_THROW(
+        (store->getStateMapView<VoidNamespace, int, int*>("test", false, new IntSerializer(), new IntSerializer())));
     delete store;
     delete ctx;
     delete stateStore;
@@ -40,31 +41,33 @@ TEST(PerKeyStateDataViewStoreTest, InitTest)
 
 TEST(PerKeyStateDataViewStoreTest, RetrievalTest)
 {
-    KeyGroupRange *range = new KeyGroupRange(0, 10);
-    auto *keyContext = new InternalKeyContextImpl<int>(range, 10);
+    KeyGroupRange* range = new KeyGroupRange(0, 10);
+    auto* keyContext = new InternalKeyContextImpl<int>(range, 10);
     keyContext->setCurrentKey(1);
     keyContext->setCurrentKeyGroupIndex(1);
-    auto *backend = new HeapKeyedStateBackend<int>(new IntSerializer(), keyContext);
+    auto* backend = new HeapKeyedStateBackend<int>(new IntSerializer(), keyContext);
 
     // Initialize DefaultKeyedStateStore
-    auto *stateStore = new DefaultKeyedStateStore(backend);
+    auto* stateStore = new DefaultKeyedStateStore(backend);
 
     // Initialize StreamingRuntimeContext
-    auto *ctx = new StreamingRuntimeContext(stateStore, nullptr);
+    auto* ctx = new StreamingRuntimeContext(stateStore, nullptr);
 
     // Initialized PerKeyStateDataViewStore
-    auto *store = new PerKeyStateDataViewStore(ctx);
+    auto* store = new PerKeyStateDataViewStore(ctx);
 
     // Should be created successfully
-    KeyedStateMapViewWithKeysNotNull<VoidNamespace, int, int> *mapView =
-            reinterpret_cast<KeyedStateMapViewWithKeysNotNull<VoidNamespace, int, int> *>(store->getStateMapView<VoidNamespace, int, int *>("test", false, new IntSerializer(), new IntSerializer()));
+    KeyedStateMapViewWithKeysNotNull<VoidNamespace, int, int>* mapView =
+        reinterpret_cast<KeyedStateMapViewWithKeysNotNull<VoidNamespace, int, int>*>(
+            store->getStateMapView<VoidNamespace, int, int*>("test", false, new IntSerializer(), new IntSerializer()));
 
     mapView->put(1, 3);
 
     EXPECT_EQ(*(mapView->get(1)), 3);
 
-    KeyedStateMapViewWithKeysNotNull<VoidNamespace, int, int> *newMapView =
-            reinterpret_cast<KeyedStateMapViewWithKeysNotNull<VoidNamespace, int, int> *>(store->getStateMapView<VoidNamespace, int, int *>("test", false, new IntSerializer(), new IntSerializer()));
+    KeyedStateMapViewWithKeysNotNull<VoidNamespace, int, int>* newMapView =
+        reinterpret_cast<KeyedStateMapViewWithKeysNotNull<VoidNamespace, int, int>*>(
+            store->getStateMapView<VoidNamespace, int, int*>("test", false, new IntSerializer(), new IntSerializer()));
 
     EXPECT_EQ(*(newMapView->get(1)), 3);
 

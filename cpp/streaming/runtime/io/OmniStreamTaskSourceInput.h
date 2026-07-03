@@ -19,86 +19,91 @@
 
 namespace omnistream {
 
-    class OmniStreamTaskSourceInput : public OmniStreamTaskInput, public CheckpointableInput {
-    public:
-        explicit OmniStreamTaskSourceInput(StreamOperator* sourceOperator, int inputGateIndex, int inputIndex)
-            :sourceOperator(reinterpret_cast<SourceOperator<>*>(sourceOperator)), inputGateIndex(inputGateIndex), inputIndex(inputIndex)
-        {
-            inputChannelInfos.emplace_back(inputGateIndex, 0);
-            isBlockedAvailability->resetAvailable();
+class OmniStreamTaskSourceInput : public OmniStreamTaskInput, public CheckpointableInput {
+public:
+    explicit OmniStreamTaskSourceInput(StreamOperator* sourceOperator, int inputGateIndex, int inputIndex)
+        : sourceOperator(reinterpret_cast<SourceOperator<>*>(sourceOperator)),
+          inputGateIndex(inputGateIndex),
+          inputIndex(inputIndex)
+    {
+        inputChannelInfos.emplace_back(inputGateIndex, 0);
+        isBlockedAvailability->resetAvailable();
+    }
+
+    DataInputStatus emitNext(OmniPushingAsyncDataInput::OmniDataOutput* output) override
+    {
+        //            LOG("OmniSourceOperatorStreamTask::processInput")
+        if (isBlockedAvailability->isApproximatelyAvailable()) {
+            return sourceOperator->emitNext(output);
         }
+        return DataInputStatus::NOTHING_AVAILABLE;
+    }
 
-        DataInputStatus emitNext(OmniPushingAsyncDataInput::OmniDataOutput *output) override
-        {
-//            LOG("OmniSourceOperatorStreamTask::processInput")
-            if (isBlockedAvailability->isApproximatelyAvailable()) {
-                return sourceOperator->emitNext(output);
-            }
-            return DataInputStatus::NOTHING_AVAILABLE;
-        }
+    std::shared_ptr<CompletableFuture> GetAvailableFuture() override
+    {
+        // no inputGate no output
+        return isBlockedAvailability->and_(sourceOperator->GetAvailableFuture());
+    }
 
-        std::shared_ptr<CompletableFuture> GetAvailableFuture() override
-        {
-            // no inputGate no output
-            return isBlockedAvailability->and_(sourceOperator->GetAvailableFuture());
-        }
+    int getInputIndex() override
+    {
+        return static_cast<int>(inputIndex);
+    }
 
-        int getInputIndex() override
-        {
-            return static_cast<int>(inputIndex);
-        }
+    StreamOperator* getOperator()
+    {
+        return sourceOperator;
+    }
 
-        StreamOperator* getOperator()
-        {
-            return sourceOperator;
-        }
+    void BlockConsumption(const InputChannelInfo& channelInfo) override
+    {
+        isBlockedAvailability->resetUnavailable();
+    }
 
-        void BlockConsumption(const InputChannelInfo& channelInfo) override
-        {
-            isBlockedAvailability->resetUnavailable();
-        }
+    void BlockConsumption()
+    {
+        isBlockedAvailability->resetUnavailable();
+    }
 
-        void BlockConsumption()
-        {
-            isBlockedAvailability->resetUnavailable();
-        }
+    void ResumeConsumption(const InputChannelInfo& channelInfo) override
+    {
+    }
 
-        void ResumeConsumption(const InputChannelInfo& channelInfo) override
-        {
-        }
+    void ConvertToPriorityEvent(int channelIndex, int sequenceNumber) override
+    {
+    }
 
-        void ConvertToPriorityEvent(int channelIndex, int sequenceNumber) override {}
+    void CheckpointStarted(const CheckpointBarrier& barrier) override
+    {
+        BlockConsumption();
+    }
 
-        void CheckpointStarted(const CheckpointBarrier& barrier) override
-        {
-            BlockConsumption();
-        }
+    void CheckpointStopped(long checkpointId) override {};
 
-        void CheckpointStopped(long checkpointId) override {};
-
-        std::vector<InputChannelInfo> GetChannelInfos() override
-        {
-            return inputChannelInfos;
-        };
-
-        int GetInputGateIndex() override
-        {
-            return inputGateIndex;
-        }
-
-        std::shared_ptr<CompletableFutureV2<void>> PrepareSnapshot(std::shared_ptr<ChannelStateWriter> writer, long checkpointID)
-        {
-            LOG("SourceInput prepare snapshot, checkpointID: " <<checkpointID);
-            return nullptr;
-        }
-    private:
-        SourceOperator<>* sourceOperator;
-        std::shared_ptr<AvailabilityHelper> isBlockedAvailability = std::make_shared<AvailabilityHelper>();
-        int inputGateIndex;
-        int inputIndex;
-        std::vector<InputChannelInfo> inputChannelInfos;
+    std::vector<InputChannelInfo> GetChannelInfos() override
+    {
+        return inputChannelInfos;
     };
-}
 
+    int GetInputGateIndex() override
+    {
+        return inputGateIndex;
+    }
+
+    std::shared_ptr<CompletableFutureV2<void>> PrepareSnapshot(
+        std::shared_ptr<ChannelStateWriter> writer, long checkpointID)
+    {
+        LOG("SourceInput prepare snapshot, checkpointID: " << checkpointID);
+        return nullptr;
+    }
+
+private:
+    SourceOperator<>* sourceOperator;
+    std::shared_ptr<AvailabilityHelper> isBlockedAvailability = std::make_shared<AvailabilityHelper>();
+    int inputGateIndex;
+    int inputIndex;
+    std::vector<InputChannelInfo> inputChannelInfos;
+};
+} // namespace omnistream
 
 #endif // OMNISTREAM_OMNISTREAMTASKSOURCEINPUT_H

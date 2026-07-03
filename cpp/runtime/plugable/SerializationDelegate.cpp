@@ -12,30 +12,31 @@
 #include <stdexcept>
 #include "SerializationDelegate.h"
 
-SerializationDelegate::SerializationDelegate(TypeSerializer* serializer)
-    :instance_(nullptr), serializer_(serializer) {}
+SerializationDelegate::SerializationDelegate(TypeSerializer* serializer) : instance_(nullptr), serializer_(serializer)
+{
+}
 
 SerializationDelegate::~SerializationDelegate()
 {
     delete serializer_;
 }
 
-Object *SerializationDelegate::getInstance() const
+Object* SerializationDelegate::getInstance() const
 {
     return instance_;
 }
 
-void SerializationDelegate::setInstance(Object *instance)
+void SerializationDelegate::setInstance(Object* instance)
 {
     this->instance_ = instance;
 }
 
-void SerializationDelegate::write(DataOutputSerializer &out)
+void SerializationDelegate::write(DataOutputSerializer& out)
 {
     serializer_->serialize(instance_, out);
 }
 
-void SerializationDelegate::read(DataInputView &in)
+void SerializationDelegate::read(DataInputView& in)
 {
     THROW_LOGIC_EXCEPTION("Deserialization method called on SerializationDelegate.");
 }

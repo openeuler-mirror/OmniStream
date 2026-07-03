@@ -3,23 +3,31 @@
 #include "state/heap/HeapPriorityQueueElement.h"
 
 namespace {
-    class IntType : public HeapPriorityQueueElement {
-    private:
-        int val;
+class IntType : public HeapPriorityQueueElement {
+private:
+    int val;
 
-    public:
-        IntType(int val) : val(val) {}
-        int getKey() const { return val; }
-        void setKey(int v) { val = v; }
+public:
+    IntType(int val) : val(val)
+    {
+    }
+    int getKey() const
+    {
+        return val;
+    }
+    void setKey(int v)
+    {
+        val = v;
+    }
 
-        struct SharedPtrComparator {
-            bool operator()(const std::shared_ptr<IntType>& lhs, const std::shared_ptr<IntType>& rhs) const {
-                return lhs->getKey() < rhs->getKey();
-            }
-        };
+    struct SharedPtrComparator {
+        bool operator()(const std::shared_ptr<IntType>& lhs, const std::shared_ptr<IntType>& rhs) const
+        {
+            return lhs->getKey() < rhs->getKey();
+        }
     };
-}
-
+};
+} // namespace
 
 TEST(HeapPriorityQueueTest, Initialization)
 {
@@ -104,8 +112,7 @@ TEST(HeapPriorityQueueTest, AddAll)
         std::make_shared<IntType>(5),
         std::make_shared<IntType>(2),
         std::make_shared<IntType>(8),
-        std::make_shared<IntType>(1)
-    };
+        std::make_shared<IntType>(1)};
 
     pq.addAll(elements);
     EXPECT_EQ(pq.size(), 4);

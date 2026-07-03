@@ -15,36 +15,39 @@
 #include "StreamPartitioner.h"
 
 namespace omnistream::datastream {
-    template<typename T>
-    class RescalePartitioner : public StreamPartitioner<T> {
-    public:
-        RescalePartitioner() : nextChannelToSendTo(-1) {}
+template <typename T>
+class RescalePartitioner : public StreamPartitioner<T> {
+public:
+    RescalePartitioner() : nextChannelToSendTo(-1)
+    {
+    }
 
-        int selectChannel(T* record) override
-        {
-            if (++nextChannelToSendTo >= this->numberOfChannels) {
-                nextChannelToSendTo = 0;
-            }
-            return nextChannelToSendTo;
+    int selectChannel(T* record) override
+    {
+        if (++nextChannelToSendTo >= this->numberOfChannels) {
+            nextChannelToSendTo = 0;
         }
+        return nextChannelToSendTo;
+    }
 
-        std::unique_ptr<StreamPartitioner<T>> copy() override
-        {
-            return std::make_unique<RescalePartitioner<T>>(*this);
-        }
+    std::unique_ptr<StreamPartitioner<T>> copy() override
+    {
+        return std::make_unique<RescalePartitioner<T>>(*this);
+    }
 
-        bool isPointWise() const override
-        {
-            return true;
-        }
+    bool isPointWise() const override
+    {
+        return true;
+    }
 
-        std::string toString() const override
-        {
-            return "RESCALE";
-        }
-    private:
-        mutable int nextChannelToSendTo = -1;
-    };
-}
+    std::string toString() const override
+    {
+        return "RESCALE";
+    }
+
+private:
+    mutable int nextChannelToSendTo = -1;
+};
+} // namespace omnistream::datastream
 
 #endif // RESCALEPARTITIONER_H

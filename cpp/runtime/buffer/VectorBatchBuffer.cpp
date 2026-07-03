@@ -14,10 +14,7 @@
 #include "ReadOnlySlicedVectorBatchBuffer.h"
 
 namespace omnistream {
-VectorBatchBuffer::VectorBatchBuffer(
-        ObjectSegment *segment,
-        std::shared_ptr<BufferRecycler> recycle
-)
+VectorBatchBuffer::VectorBatchBuffer(ObjectSegment* segment, std::shared_ptr<BufferRecycler> recycle)
 {
     bufferType = 0;
     if (segment == nullptr) {
@@ -42,7 +39,7 @@ std::shared_ptr<BufferRecycler> VectorBatchBuffer::GetRecycler()
     return recycler;
 }
 
-ObjectSegment *VectorBatchBuffer::GetObjectSegment()
+ObjectSegment* VectorBatchBuffer::GetObjectSegment()
 {
     return objectSegment;
 }
@@ -50,13 +47,13 @@ ObjectSegment *VectorBatchBuffer::GetObjectSegment()
 Buffer* VectorBatchBuffer::ReadOnlySlice(int index, int length)
 {
     if (bufferType == 0) {
-        LOG_TRACE("Beginning VectorBatchBuffer ")
+        LOG_TRACE("Beginning VectorBatchBuffer ");
         auto sliceBuffer = new ReadOnlySlicedVectorBatchBuffer(this, index, length);
         return sliceBuffer;
     } else {
-        LOG_TRACE("Event Buffer  ")
+        LOG_TRACE("Event Buffer  ");
         return new VectorBatchBuffer(event_type);
     }
 }
 
-}  // namespace omnistream
+} // namespace omnistream

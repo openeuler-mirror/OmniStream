@@ -7,9 +7,9 @@
 #include "core/typeutils/LongSerializer.h"
 TEST(CopyOnWriteStateTableTest, InitTest)
 {
-    IntSerializer *ser = IntSerializer::INSTANCE;
-    InternalKeyContextImpl<int> *context = new InternalKeyContextImpl<int>(new KeyGroupRange(0, 2), 3);
-    RegisteredKeyValueStateBackendMetaInfo *metaInfo = new RegisteredKeyValueStateBackendMetaInfo("metaInfo", ser, ser);
+    IntSerializer* ser = IntSerializer::INSTANCE;
+    InternalKeyContextImpl<int>* context = new InternalKeyContextImpl<int>(new KeyGroupRange(0, 2), 3);
+    RegisteredKeyValueStateBackendMetaInfo* metaInfo = new RegisteredKeyValueStateBackendMetaInfo("metaInfo", ser, ser);
     CopyOnWriteStateTable<int, int, int> table(context, metaInfo, ser); // metaInfo delete when table delete
     EXPECT_EQ(table.isEmpty(), true);
     EXPECT_EQ(table.getKeyGroupOffset(), 0);
@@ -20,9 +20,8 @@ TEST(CopyOnWriteStateTableTest, InitTest)
 // {
 //     IntSerializer *ser = IntSerializer::INSTANCE;
 //     InternalKeyContextImpl<int> *context = new InternalKeyContextImpl<int>(new KeyGroupRange(0, 1), 3);
-//     RegisteredKeyValueStateBackendMetaInfo *metaInfo = new RegisteredKeyValueStateBackendMetaInfo("metaInfo", ser, ser);
-//     CopyOnWriteStateTable<int, int, int> table(context, metaInfo, ser);
-//     EXPECT_EQ(table.isEmpty(), true);
+//     RegisteredKeyValueStateBackendMetaInfo *metaInfo = new RegisteredKeyValueStateBackendMetaInfo("metaInfo", ser,
+//     ser); CopyOnWriteStateTable<int, int, int> table(context, metaInfo, ser); EXPECT_EQ(table.isEmpty(), true);
 //     context->setCurrentKey(1);
 //     table.put(1, 1);
 //     EXPECT_EQ(*(table.get(1, 1)), 1);
@@ -37,13 +36,13 @@ TEST(CopyOnWriteStateTableTest, InitTest)
 // }
 TEST(CopyOnWriteStateTableTest, PutAndGetTest)
 {
-    IntSerializer *ser = IntSerializer::INSTANCE;
-    InternalKeyContextImpl<int> *context = new InternalKeyContextImpl<int>(new KeyGroupRange(0, 2), 3);
-    RegisteredKeyValueStateBackendMetaInfo *metaInfo = new RegisteredKeyValueStateBackendMetaInfo("metaInfo", ser, ser);
+    IntSerializer* ser = IntSerializer::INSTANCE;
+    InternalKeyContextImpl<int>* context = new InternalKeyContextImpl<int>(new KeyGroupRange(0, 2), 3);
+    RegisteredKeyValueStateBackendMetaInfo* metaInfo = new RegisteredKeyValueStateBackendMetaInfo("metaInfo", ser, ser);
     CopyOnWriteStateTable<int, int, int> table(context, metaInfo, ser);
     EXPECT_EQ(table.isEmpty(), true);
 
-    for (int i = 0; i < 10; i++){
+    for (int i = 0; i < 10; i++) {
         context->setCurrentKey(i);
         context->setCurrentKeyGroupIndex(table.computeKeyGroupForKeyHash(i));
         table.put(i, i);
@@ -57,10 +56,9 @@ TEST(CopyOnWriteStateTableTest, PutAndGetTest)
 // {
 //         IntSerializer *ser = IntSerializer::INSTANCE;
 //     InternalKeyContextImpl<int> *context = new InternalKeyContextImpl<int>(new KeyGroupRange(0, 1), 3);
-//     RegisteredKeyValueStateBackendMetaInfo *metaInfo = new RegisteredKeyValueStateBackendMetaInfo("metaInfo", ser, ser);
-//     CopyOnWriteStateTable<int, int, int> table(context, metaInfo, ser);
-//     std::unordered_set<int> compareSet = {};
-//     for (int i = 0; i < 10; i++)
+//     RegisteredKeyValueStateBackendMetaInfo *metaInfo = new RegisteredKeyValueStateBackendMetaInfo("metaInfo", ser,
+//     ser); CopyOnWriteStateTable<int, int, int> table(context, metaInfo, ser); std::unordered_set<int> compareSet =
+//     {}; for (int i = 0; i < 10; i++)
 //     {
 //         compareSet.insert(i);
 //         context->setCurrentKey(i);
@@ -70,14 +68,13 @@ TEST(CopyOnWriteStateTableTest, PutAndGetTest)
 //     std::unordered_set<int> iteratorSet = {};
 TEST(CopyOnWriteStateTableTest, IteratorTest)
 {
-    IntSerializer *ser = IntSerializer::INSTANCE;
-    InternalKeyContextImpl<int> *context = new InternalKeyContextImpl<int>(new KeyGroupRange(0, 2), 3);
+    IntSerializer* ser = IntSerializer::INSTANCE;
+    InternalKeyContextImpl<int>* context = new InternalKeyContextImpl<int>(new KeyGroupRange(0, 2), 3);
     context->setCurrentKeyGroupIndex(0);
-    RegisteredKeyValueStateBackendMetaInfo *metaInfo = new RegisteredKeyValueStateBackendMetaInfo("metaInfo", ser, ser);
+    RegisteredKeyValueStateBackendMetaInfo* metaInfo = new RegisteredKeyValueStateBackendMetaInfo("metaInfo", ser, ser);
     CopyOnWriteStateTable<int, int, int> table(context, metaInfo, ser);
     std::unordered_set<int> compareSet = {};
-    for (int i = 0; i < 10; i++)
-    {
+    for (int i = 0; i < 10; i++) {
         compareSet.insert(i);
         context->setCurrentKey(i);
         table.put(i, i);
@@ -85,8 +82,7 @@ TEST(CopyOnWriteStateTableTest, IteratorTest)
     auto it = table.getStateIncrementalVisitor(1);
     std::unordered_set<int> iteratorSet = {};
 
-    while (it->hasNext())
-    {
+    while (it->hasNext()) {
         iteratorSet.insert(it->nextEntries());
     }
     EXPECT_EQ(iteratorSet, compareSet);

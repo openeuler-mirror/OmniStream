@@ -14,4 +14,4 @@ namespace omnistream {
 namespace csv {
 
 } // namespace csv
-} // namespace omnistreams
+} // namespace omnistream

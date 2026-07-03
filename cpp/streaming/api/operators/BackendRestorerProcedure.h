@@ -21,11 +21,9 @@
 template <typename T, typename S>
 class BackendRestorerProcedure {
 public:
-    BackendRestorerProcedure(
-        std::function<T(std::set<S>, int)> instanceSupplier,
-        std::string logDescription)
+    BackendRestorerProcedure(std::function<T(std::set<S>, int)> instanceSupplier, std::string logDescription)
         : instanceSupplier_(instanceSupplier),
-        logDescription_(logDescription) {};
+          logDescription_(logDescription) {};
 
     T createAndRestore(std::vector<std::set<S>> restoreOptions)
     {
@@ -42,8 +40,7 @@ public:
 
             try {
                 return attemptCreateAndRestore(restoreState, curIdx);
-            }
-            catch (const std::exception &e) {
+            } catch (const std::exception& e) {
                 throw;
             }
         }
@@ -58,10 +55,10 @@ private:
         try {
             // register closable into backendCloseableRegistry
             return backendInstance;
-        } catch (const std::exception &e) {
+        } catch (const std::exception& e) {
             try {
                 backendInstance->dispose();
-            } catch (const std::exception &ex) {
+            } catch (const std::exception& ex) {
                 throw std::runtime_error("dispose failed.");
             }
             throw;

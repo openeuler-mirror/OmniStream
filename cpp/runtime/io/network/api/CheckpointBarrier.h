@@ -22,29 +22,27 @@
 
 class CheckpointBarrier : public omnistream::RuntimeEvent {
 public:
-    CheckpointBarrier(long id, long timestamp,
-                    CheckpointOptions *checkpointOptions);
+    CheckpointBarrier(long id, long timestamp, CheckpointOptions* checkpointOptions);
 
-    CheckpointBarrier(long id, long timestamp,
-                    std::shared_ptr<CheckpointOptions> checkpointOptions);
+    CheckpointBarrier(long id, long timestamp, std::shared_ptr<CheckpointOptions> checkpointOptions);
 
     ~CheckpointBarrier();
 
     std::shared_ptr<CheckpointOptions> GetCheckpointOptions() const;
 
-    CheckpointBarrier *WithOptions(CheckpointOptions *checkpointOptions);
+    CheckpointBarrier* WithOptions(CheckpointOptions* checkpointOptions);
 
     std::string GetEventClassName() override
     {
         return "CheckpointBarrier";
     }
 
-    bool operator==(const CheckpointBarrier &other) const;
+    bool operator==(const CheckpointBarrier& other) const;
 
     long GetId() const;
     long GetTimestamp() const;
     bool IsCheckpoint() const;
-    CheckpointBarrier *AsUnaligned();
+    CheckpointBarrier* AsUnaligned();
     std::string ToString() const;
 
 private:
@@ -54,10 +52,10 @@ private:
 };
 
 namespace std {
-    template <>
-    struct hash<CheckpointBarrier> {
-        std::size_t operator()(const CheckpointBarrier &ref) const;
-    };
+template <>
+struct hash<CheckpointBarrier> {
+    std::size_t operator()(const CheckpointBarrier& ref) const;
+};
 } // namespace std
 
 #endif // FLINK_TNEL_CHECKPOINTBARRIER_H

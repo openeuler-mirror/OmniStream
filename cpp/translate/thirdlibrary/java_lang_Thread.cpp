@@ -25,9 +25,9 @@ java_lang_Thread::~java_lang_Thread()
     threadNames.erase(id);
 }
 
-java_lang_Thread *java_lang_Thread::currentThread()
+java_lang_Thread* java_lang_Thread::currentThread()
 {
-    static thread_local java_lang_Thread *current = nullptr;
+    static thread_local java_lang_Thread* current = nullptr;
     if (current == nullptr) {
         current = new java_lang_Thread(std::this_thread::get_id());
     }
@@ -44,7 +44,7 @@ int64_t java_lang_Thread::getId()
     return static_cast<int64_t>(std::hash<std::thread::id>()(id));
 }
 
-void java_lang_Thread::setName(const std::string &name)
+void java_lang_Thread::setName(const std::string& name)
 {
     this->name = name;
     threadNames[id] = name;

@@ -13,7 +13,7 @@
 #include <string>
 #include <cstdint>
 #include <nlohmann/json.hpp>
-#include <vector>  // Include the vector header
+#include <vector> // Include the vector header
 #include <iostream>
 #include <fstream>
 #include "common.h"
@@ -33,20 +33,21 @@ using json = nlohmann::json;
 // class StreamOneInputProcessor;
 
 namespace omnistream {
-    class OperatorChainV2;
+class OperatorChainV2;
 }
 
 namespace omnistream::datastream {
 
 using ::omnistream::OperatorChainV2;
 
-
 class StreamTask {
 public:
-    StreamTask(const nlohmann::json& ntdd, void* outputBufferStatus,
-               std::shared_ptr<RuntimeEnvironmentV2> runtimeEnv);  // Default constructor
+    StreamTask(
+        const nlohmann::json& ntdd,
+        void* outputBufferStatus,
+        std::shared_ptr<RuntimeEnvironmentV2> runtimeEnv); // Default constructor
 
-    ~StreamTask();  // Destructor
+    ~StreamTask(); // Destructor
     void cleanUp();
 
     // entry for native
@@ -94,7 +95,8 @@ private:
     // owning
     OperatorChainV2* operatorChain_;
 
-    // weal ref. mainOperator_ is only a shortcut of first operator in operator chain. should be deleted by operatroChain_
+    // weal ref. mainOperator_ is only a shortcut of first operator in operator chain. should be deleted by
+    // operatroChain_
     StreamOperator* mainOperator_;
 
     // owning, although some mem function return the pointer to outside of class
@@ -117,18 +119,19 @@ private:
     std::shared_ptr<RecordWriterDelegateV2> createRecordWriterDelegate(
         TaskInformationPOD taskConfig, std::shared_ptr<RuntimeEnvironmentV2> environment);
 
-    std::vector<RecordWriterV2*> createRecordWriters(TaskInformationPOD taskConfig,
-                                               std::shared_ptr<RuntimeEnvironmentV2> environment);
+    std::vector<RecordWriterV2*> createRecordWriters(
+        TaskInformationPOD taskConfig, std::shared_ptr<RuntimeEnvironmentV2> environment);
     RecordWriterV2* createRecordWriter(
-    StreamEdgePOD& edge, int outputIndex,
-    std::shared_ptr<RuntimeEnvironmentV2> environment,
-    std::string taskName,
-    long bufferTimeout);
+        StreamEdgePOD& edge,
+        int outputIndex,
+        std::shared_ptr<RuntimeEnvironmentV2> environment,
+        std::string taskName,
+        long bufferTimeout);
 
     template <typename K>
     KeySelector<K>* buildKeySelector(std::vector<KeyFieldInfoPOD>& keyFields);
 
     // partitioner
-    StreamPartitioner<IOReadableWritable >* createPartitionerFromDesc(const StreamEdgePOD& edge);
+    StreamPartitioner<IOReadableWritable>* createPartitionerFromDesc(const StreamEdgePOD& edge);
 };
-}  // namespace omnistream::datastream
+} // namespace omnistream::datastream

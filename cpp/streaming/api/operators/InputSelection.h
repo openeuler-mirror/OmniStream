@@ -14,8 +14,7 @@
 
 class InputSelection {
 public:
-    static int fairSelectNextIndex(
-            long inputMask, long availableInputsMask, int lastReadInputIndex)
+    static int fairSelectNextIndex(long inputMask, long availableInputsMask, int lastReadInputIndex)
     {
         uint64_t uavailableInputsMask = static_cast<uint64_t>(availableInputsMask);
         uint64_t uinputMask = static_cast<uint64_t>(inputMask);
@@ -38,7 +37,8 @@ public:
             return -1;
         }
         uint64_t ubits = static_cast<uint64_t>(bits);
-        for (ubits >>= next; ubits != 0 && (ubits & 1) != 1; ubits >>= 1, next++) {}
+        for (ubits >>= next; ubits != 0 && (ubits & 1) != 1; ubits >>= 1, next++) {
+        }
         return ubits != 0 ? next : -1;
     }
 };

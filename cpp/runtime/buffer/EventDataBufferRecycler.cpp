@@ -13,13 +13,13 @@
 #include "core/memory/MemorySegment.h"
 
 namespace omnistream {
-    void EventDataBufferRecycler::recycle(Segment *segment)
-    {
-        // Ensure the segment is of type ObjectSegment
-        auto toRecycledSegment = dynamic_cast<MemorySegment*>(segment);
-        if (toRecycledSegment) {
-            LOG_PART("EventDataBufferRecycler recycled " << toRecycledSegment->getData())
-            // since memorysegment has a destructor that deletes the data, we do not need to delete it here
-        }
+void EventDataBufferRecycler::recycle(Segment* segment)
+{
+    // Ensure the segment is of type ObjectSegment
+    auto toRecycledSegment = dynamic_cast<MemorySegment*>(segment);
+    if (toRecycledSegment) {
+        LOG_PART("EventDataBufferRecycler recycled " << toRecycledSegment->getData());
+        // since memorysegment has a destructor that deletes the data, we do not need to delete it here
     }
-};
+}
+}; // namespace omnistream

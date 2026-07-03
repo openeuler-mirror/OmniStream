@@ -21,8 +21,9 @@ using omnistream::InputChannelInfo;
 
 class ChannelState {
 public:
-    explicit ChannelState(std::vector<CheckpointableInput*> inputs)
-        : inputs(std::move(inputs)) {}
+    explicit ChannelState(std::vector<CheckpointableInput*> inputs) : inputs(std::move(inputs))
+    {
+    }
 
     void BlockChannel(InputChannelInfo channelInfo)
     {
@@ -40,8 +41,7 @@ public:
     {
         for (auto& entry : sequenceNumberInAnnouncedChannels) {
             InputChannelInfo channelInfo = entry.first;
-            inputs[channelInfo.getGateIdx()]->ConvertToPriorityEvent(
-                channelInfo.getInputChannelIdx(), entry.second);
+            inputs[channelInfo.getGateIdx()]->ConvertToPriorityEvent(channelInfo.getInputChannelIdx(), entry.second);
         }
         sequenceNumberInAnnouncedChannels.clear();
     }

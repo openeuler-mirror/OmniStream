@@ -16,21 +16,29 @@
 
 using json = nlohmann::json;
 
-class MockUserFunction : public KeyedProcessFunction<RowData *, RowData *, RowData *>
-{
+class MockUserFunction : public KeyedProcessFunction<RowData*, RowData*, RowData*> {
 public:
     void open(const Configuration& parameters) override {};
-    void processElement(RowData *input, Context *ctx, TimestampedCollector *out) override { isCalled = true; }
+    void processElement(RowData* input, Context* ctx, TimestampedCollector* out) override
+    {
+        isCalled = true;
+    }
     bool isCalled = false;
-    JoinedRowData* getResultRow() override {return nullptr;};
+    JoinedRowData* getResultRow() override
+    {
+        return nullptr;
+    };
     void processBatch(omnistream::VectorBatch* inputBatch, Context& ctx, TimestampedCollector& out) override {};
-    ValueState<RowData*>* getValueState() override {return nullptr;};
+    ValueState<RowData*>* getValueState() override
+    {
+        return nullptr;
+    };
 };
 
 TEST(KeyedProcessOperatorTest, Constructor)
 {
-
-    std::string desc = R"delim({"originDescription":null,"inputTypes":["BIGINT","BIGINT"],"outputTypes":["BIGINT","BIGINT"],"grouping":[0],"distinctInfos":[],
+    std::string desc =
+        R"delim({"originDescription":null,"inputTypes":["BIGINT","BIGINT"],"outputTypes":["BIGINT","BIGINT"],"grouping":[0],"distinctInfos":[],
 "aggInfoList":
 	{
 	"aggregateCalls":[{"name":"AVG($1)","aggregationFunction":"LongAvgAggFunction","argIndexes":[1],"consumeRetraction":"true","filterArg":-1}],
@@ -41,14 +49,14 @@ TEST(KeyedProcessOperatorTest, Constructor)
 })delim";
     json config = json::parse(desc);
 
-    GroupAggFunction *groupAgg = new GroupAggFunction(1L, config);
-    KeyedProcessOperator<RowData *, RowData *, RowData *> keyedProcessOperator(groupAgg, new OutputTest(), config);
+    GroupAggFunction* groupAgg = new GroupAggFunction(1L, config);
+    KeyedProcessOperator<RowData*, RowData*, RowData*> keyedProcessOperator(groupAgg, new OutputTest(), config);
 }
 
 TEST(KeyedProcessOperatorTest, Open)
 {
-
-    std::string desc = R"delim({"originDescription":null,"inputTypes":["BIGINT","BIGINT"],"outputTypes":["BIGINT","BIGINT"],"grouping":[0],"distinctInfos":[],
+    std::string desc =
+        R"delim({"originDescription":null,"inputTypes":["BIGINT","BIGINT"],"outputTypes":["BIGINT","BIGINT"],"grouping":[0],"distinctInfos":[],
 "aggInfoList":
 	{
 	"aggregateCalls":[{"name":"AVG($1)","aggregationFunction":"LongAvgAggFunction","argIndexes":[1],"consumeRetraction":"true","filterArg":-1}],
@@ -58,8 +66,8 @@ TEST(KeyedProcessOperatorTest, Open)
 	}
 })delim";
     json config = json::parse(desc);
-    GroupAggFunction *groupAgg = new GroupAggFunction(1L, config);
-    KeyedProcessOperator<RowData *, RowData *, RowData *> keyedProcessOperator(groupAgg, new OutputTest(), config);
+    GroupAggFunction* groupAgg = new GroupAggFunction(1L, config);
+    KeyedProcessOperator<RowData*, RowData*, RowData*> keyedProcessOperator(groupAgg, new OutputTest(), config);
     keyedProcessOperator.setup();
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
@@ -73,9 +81,10 @@ TEST(KeyedProcessOperatorTest, Open)
     }
     env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
-    std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({RowField("col1", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::BIGINT)});
-    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
+    StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
+    std::vector<omnistream::RowField>* typeInfo = new std::vector<omnistream::RowField>(
+        {RowField("col1", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::BIGINT)});
+    TypeSerializer* ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
 
     ASSERT_NO_THROW(keyedProcessOperator.initializeState(initializer, ser));
 
@@ -84,10 +93,10 @@ TEST(KeyedProcessOperatorTest, Open)
 
 TEST(KeyedProcessOperatorTest, ProcessElementWithMockedUserFunction)
 {
+    MockUserFunction* userFunction = new MockUserFunction();
 
-    MockUserFunction *userFunction = new MockUserFunction();
-
-    std::string desc = R"delim({"originDescription":null,"inputTypes":["BIGINT","BIGINT"],"outputTypes":["BIGINT","BIGINT"],"grouping":[0],"distinctInfos":[],
+    std::string desc =
+        R"delim({"originDescription":null,"inputTypes":["BIGINT","BIGINT"],"outputTypes":["BIGINT","BIGINT"],"grouping":[0],"distinctInfos":[],
 "aggInfoList":
 	{
 	"aggregateCalls":[{"name":"AVG($1)","aggregationFunction":"LongAvgAggFunction","argIndexes":[1],"consumeRetraction":"true","filterArg":-1}],
@@ -98,7 +107,7 @@ TEST(KeyedProcessOperatorTest, ProcessElementWithMockedUserFunction)
 })delim";
     json config = json::parse(desc);
 
-    KeyedProcessOperator<RowData *, RowData *, RowData *> keyedProcessOperator(userFunction, new OutputTest(), config);
+    KeyedProcessOperator<RowData*, RowData*, RowData*> keyedProcessOperator(userFunction, new OutputTest(), config);
     keyedProcessOperator.setup();
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
@@ -112,17 +121,19 @@ TEST(KeyedProcessOperatorTest, ProcessElementWithMockedUserFunction)
     }
     env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
-    std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col1", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::BIGINT)});
-    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
+    StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
+    std::vector<omnistream::RowField>* typeInfo = new std::vector<omnistream::RowField>(
+        {omnistream::RowField("col1", BasicLogicalType::BIGINT),
+         omnistream::RowField("col1", BasicLogicalType::BIGINT)});
+    TypeSerializer* ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
 
     keyedProcessOperator.initializeState(initializer, ser);
     keyedProcessOperator.open();
 
-    BinaryRowData *row = BinaryRowData::createBinaryRowDataWithMem(2);
+    BinaryRowData* row = BinaryRowData::createBinaryRowDataWithMem(2);
     row->setInt(0, 1);
     row->setInt(1, 1);
-    StreamRecord *record = new StreamRecord(reinterpret_cast<void *>(row));
+    StreamRecord* record = new StreamRecord(reinterpret_cast<void*>(row));
     keyedProcessOperator.setCurrentKey(row);
     ASSERT_NO_THROW(keyedProcessOperator.processElement(record));
     ASSERT_EQ(userFunction->isCalled, true);
@@ -158,10 +169,8 @@ TEST(KeyedProcessOperatorTest, DISABLED_GroupAggFailsWhenAggregateCallMissingFil
     taskInfo->setStateBackend("HashMapStateBackend");
     env2->setTaskConfiguration(*taskInfo);
     auto* initializer = new StreamTaskStateInitializerImpl(env2);
-    auto* typeInfo = new std::vector<omnistream::RowField>({
-        RowField("k", BasicLogicalType::BIGINT),
-        RowField("v", BasicLogicalType::BIGINT)
-    });
+    auto* typeInfo = new std::vector<omnistream::RowField>(
+        {RowField("k", BasicLogicalType::BIGINT), RowField("v", BasicLogicalType::BIGINT)});
     TypeSerializer* ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
     keyedProcessOperator.initializeState(initializer, ser);
 
@@ -176,26 +185,23 @@ TEST(KeyedProcessOperatorTest, DISABLED_GroupAggFailsWhenSharedDistinctExceeds64
         {"outputTypes", {"BIGINT"}},
         {"grouping", {0}},
         {"distinctInfos", json::array()},
-        {"aggInfoList", {
-            {"aggregateCalls", json::array()},
-            {"accTypes", json::array()},
-            {"aggValueTypes", json::array()},
-            {"indexOfCountStar", -1}
-        }}
-    };
+        {"aggInfoList",
+         {{"aggregateCalls", json::array()},
+          {"accTypes", json::array()},
+          {"aggValueTypes", json::array()},
+          {"indexOfCountStar", -1}}}};
 
     const int distinctCount = 65;
     json filterArgs = json::array();
     json argIndexes = json::array();
     json aggIndexes = json::array();
     for (int i = 0; i < distinctCount; ++i) {
-        config["aggInfoList"]["aggregateCalls"].push_back({
-            {"name", "COUNT($1)"},
-            {"aggregationFunction", "CountAggFunction"},
-            {"argIndexes", {1}},
-            {"consumeRetraction", "false"},
-            {"filterArg", -1}
-        });
+        config["aggInfoList"]["aggregateCalls"].push_back(
+            {{"name", "COUNT($1)"},
+             {"aggregationFunction", "CountAggFunction"},
+             {"argIndexes", {1}},
+             {"consumeRetraction", "false"},
+             {"filterArg", -1}});
         config["aggInfoList"]["accTypes"].push_back("BIGINT");
         config["aggInfoList"]["aggValueTypes"].push_back("BIGINT");
         filterArgs.push_back(-1);
@@ -203,11 +209,8 @@ TEST(KeyedProcessOperatorTest, DISABLED_GroupAggFailsWhenSharedDistinctExceeds64
         aggIndexes.push_back(i);
         config["outputTypes"].push_back("BIGINT");
     }
-    config["distinctInfos"].push_back({
-        {"filterArgs", filterArgs},
-        {"argIndexes", argIndexes},
-        {"aggIndexes", aggIndexes}
-    });
+    config["distinctInfos"].push_back(
+        {{"filterArgs", filterArgs}, {"argIndexes", argIndexes}, {"aggIndexes", aggIndexes}});
 
     auto* groupAgg = new GroupAggFunction(1L, config);
     KeyedProcessOperator<RowData*, RowData*, RowData*> keyedProcessOperator(groupAgg, new OutputTest(), config);
@@ -218,10 +221,8 @@ TEST(KeyedProcessOperatorTest, DISABLED_GroupAggFailsWhenSharedDistinctExceeds64
     taskInfo->setStateBackend("HashMapStateBackend");
     env2->setTaskConfiguration(*taskInfo);
     auto* initializer = new StreamTaskStateInitializerImpl(env2);
-    auto* typeInfo = new std::vector<omnistream::RowField>({
-        RowField("k", BasicLogicalType::BIGINT),
-        RowField("d", BasicLogicalType::BIGINT)
-    });
+    auto* typeInfo = new std::vector<omnistream::RowField>(
+        {RowField("k", BasicLogicalType::BIGINT), RowField("d", BasicLogicalType::BIGINT)});
     TypeSerializer* ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
     keyedProcessOperator.initializeState(initializer, ser);
 
@@ -264,7 +265,7 @@ TEST(KeyedProcessOperatorTest, FastTop1FunctionTest)
 })delim";
     json config = json::parse(desc);
 
-    FastTop1Function<long> *fastTop1Function = new FastTop1Function<long>(config);
+    FastTop1Function<long>* fastTop1Function = new FastTop1Function<long>(config);
     BatchOutputTest* output = new BatchOutputTest();
     KeyedProcessOperator keyedProcessOperator(fastTop1Function, output, config);
     keyedProcessOperator.setup();
@@ -280,9 +281,12 @@ TEST(KeyedProcessOperatorTest, FastTop1FunctionTest)
     }
     env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
-    std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col1", BasicLogicalType::BIGINT), omnistream::RowField("col2", BasicLogicalType::BIGINT),omnistream::RowField("col3", BasicLogicalType::TIMESTAMP_WITHOUT_TIME_ZONE)});
-    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
+    StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
+    std::vector<omnistream::RowField>* typeInfo = new std::vector<omnistream::RowField>(
+        {omnistream::RowField("col1", BasicLogicalType::BIGINT),
+         omnistream::RowField("col2", BasicLogicalType::BIGINT),
+         omnistream::RowField("col3", BasicLogicalType::TIMESTAMP_WITHOUT_TIME_ZONE)});
+    TypeSerializer* ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
 
     keyedProcessOperator.initializeState(initializer, ser);
     keyedProcessOperator.open();
@@ -304,17 +308,17 @@ TEST(KeyedProcessOperatorTest, FastTop1FunctionTest)
     vb->Append(omniruntime::TestUtil::CreateVector<int64_t>(rowCnt, col0.data()));
     vb->Append(omniruntime::TestUtil::CreateVector<int64_t>(rowCnt, col1.data()));
     vb->Append(omniruntime::TestUtil::CreateVector<int64_t>(rowCnt, col2.data()));
-    std::cout<<"input vectorbatch created"<<std::endl;
-    StreamRecord *record = new StreamRecord(vb);
+    std::cout << "input vectorbatch created" << std::endl;
+    StreamRecord* record = new StreamRecord(vb);
     keyedProcessOperator.processBatch(record);
     auto outputvb = output->getVectorBatch();
 
     /*
-    * 2,5,6
-    * 3,144,14
-    * 4,4,4
-    * 5,6,9
-    */
+     * 2,5,6
+     * 3,144,14
+     * 4,4,4
+     * 5,6,9
+     */
     int rowCnt2 = 4;
     std::vector<long> expectedcol0{2, 3, 4, 5};
     std::vector<long> expectedcol1{5, 144, 4, 6};
@@ -357,7 +361,7 @@ TEST(KeyedProcessOperatorTest, Appened)
     ]})delim";
     json config = json::parse(desc);
 
-    AppendOnlyTopNFunction<long> *TopNFunction = new AppendOnlyTopNFunction<long>(config);
+    AppendOnlyTopNFunction<long>* TopNFunction = new AppendOnlyTopNFunction<long>(config);
     BatchOutputTest* output = new BatchOutputTest();
     KeyedProcessOperator keyedProcessOperator(TopNFunction, output, config);
     keyedProcessOperator.setup();
@@ -373,9 +377,12 @@ TEST(KeyedProcessOperatorTest, Appened)
     }
     env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
-    std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col1", BasicLogicalType::BIGINT), omnistream::RowField("col2", BasicLogicalType::BIGINT),omnistream::RowField("col3", BasicLogicalType::BIGINT)});
-    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
+    StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
+    std::vector<omnistream::RowField>* typeInfo = new std::vector<omnistream::RowField>(
+        {omnistream::RowField("col1", BasicLogicalType::BIGINT),
+         omnistream::RowField("col2", BasicLogicalType::BIGINT),
+         omnistream::RowField("col3", BasicLogicalType::BIGINT)});
+    TypeSerializer* ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
 
     keyedProcessOperator.initializeState(initializer, ser);
     keyedProcessOperator.open();
@@ -397,17 +404,17 @@ TEST(KeyedProcessOperatorTest, Appened)
     vb->Append(omniruntime::TestUtil::CreateVector<int64_t>(rowCnt, col0.data()));
     vb->Append(omniruntime::TestUtil::CreateVector<int64_t>(rowCnt, col1.data()));
     vb->Append(omniruntime::TestUtil::CreateVector<int64_t>(rowCnt, col2.data()));
-    std::cout<<"input vectorbatch created"<<std::endl;
-    StreamRecord *record = new StreamRecord(vb);
+    std::cout << "input vectorbatch created" << std::endl;
+    StreamRecord* record = new StreamRecord(vb);
     keyedProcessOperator.processBatch(record);
     auto outputvb = output->getVectorBatch();
 
     /*
-    * 2,5,6
-    * 3,144,14
-    * 4,4,4
-    * 5,6,9
-    */
+     * 2,5,6
+     * 3,144,14
+     * 4,4,4
+     * 5,6,9
+     */
     int rowCnt2 = 10;
     std::vector<long> expectedcol0 = {1, 1, 1, 1, 1, 1, 1, 1, 1, 5};
     std::vector<long> expectedcol1 = {5, 5, 144, 5, 5, 14, 5, 24, 14, 6};
@@ -421,7 +428,6 @@ TEST(KeyedProcessOperatorTest, Appened)
     bool matched = omniruntime::TestUtil::VecBatchMatch(outputvb, expectedvb);
     EXPECT_EQ(matched, true);
 }
-
 
 TEST(KeyedProcessOperatorTest, DISABLED_Appened2)
 {
@@ -453,7 +459,7 @@ TEST(KeyedProcessOperatorTest, DISABLED_Appened2)
     ]})delim";
     json config = json::parse(desc);
 
-    AppendOnlyTopNFunction<long> *TopNFunction = new AppendOnlyTopNFunction<long>(config);
+    AppendOnlyTopNFunction<long>* TopNFunction = new AppendOnlyTopNFunction<long>(config);
     BatchOutputTest* output = new BatchOutputTest();
     KeyedProcessOperator keyedProcessOperator(TopNFunction, output, config);
     keyedProcessOperator.setup();
@@ -461,9 +467,12 @@ TEST(KeyedProcessOperatorTest, DISABLED_Appened2)
     auto taskInfo = new TaskInformationPOD();
     taskInfo->setStateBackend("HashMapStateBackend");
     env2->setTaskConfiguration(*taskInfo);
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
-    std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col1", BasicLogicalType::BIGINT), omnistream::RowField("col2", BasicLogicalType::BIGINT),omnistream::RowField("col3", BasicLogicalType::BIGINT)});
-    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
+    StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
+    std::vector<omnistream::RowField>* typeInfo = new std::vector<omnistream::RowField>(
+        {omnistream::RowField("col1", BasicLogicalType::BIGINT),
+         omnistream::RowField("col2", BasicLogicalType::BIGINT),
+         omnistream::RowField("col3", BasicLogicalType::BIGINT)});
+    TypeSerializer* ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
 
     keyedProcessOperator.initializeState(initializer, ser);
     keyedProcessOperator.open();
@@ -485,17 +494,17 @@ TEST(KeyedProcessOperatorTest, DISABLED_Appened2)
     vb->Append(omniruntime::TestUtil::CreateVector<int64_t>(rowCnt, col0.data()));
     vb->Append(omniruntime::TestUtil::CreateVector<int64_t>(rowCnt, col1.data()));
     vb->Append(omniruntime::TestUtil::CreateVector<int64_t>(rowCnt, col2.data()));
-    std::cout<<"input vectorbatch created"<<std::endl;
-    StreamRecord *record = new StreamRecord(vb);
+    std::cout << "input vectorbatch created" << std::endl;
+    StreamRecord* record = new StreamRecord(vb);
     keyedProcessOperator.processBatch(record);
     auto outputvb = output->getVectorBatch();
 
     /*
-    * 2,5,6
-    * 3,144,14
-    * 4,4,4
-    * 5,6,9
-    */
+     * 2,5,6
+     * 3,144,14
+     * 4,4,4
+     * 5,6,9
+     */
     int rowCnt2 = 10;
     std::vector<long> expectedcol0 = {1, 1, 1, 1, 1, 1, 1, 1, 1, 5};
     std::vector<long> expectedcol1 = {5, 5, 144, 5, 5, 14, 5, 24, 14, 6};

@@ -28,4 +28,3 @@ private:
 };
 
 #endif // OMNISTREAM_EXECUTIONCONFIG_H
-

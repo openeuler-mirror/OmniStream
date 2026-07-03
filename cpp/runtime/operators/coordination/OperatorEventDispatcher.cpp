@@ -32,8 +32,8 @@ std::unordered_set<OperatorID> OperatorEventDispatcherImpl::GetRegisteredOperato
     return std::unordered_set<OperatorID>();
 }
 
-void OperatorEventDispatcherImpl::RegisterEventHandler(const OperatorID &operatorId,
-    std::shared_ptr<OperatorEventHandler> handler)
+void OperatorEventDispatcherImpl::RegisterEventHandler(
+    const OperatorID& operatorId, std::shared_ptr<OperatorEventHandler> handler)
 {
     auto result = handlers.insert(std::make_pair(operatorId, handler));
     if (!result.second) {
@@ -41,8 +41,8 @@ void OperatorEventDispatcherImpl::RegisterEventHandler(const OperatorID &operato
     }
 }
 
-void OperatorEventDispatcherImpl::DispatchEventToHandlers(const OperatorID &operatorID,
-    std::shared_ptr<OperatorEvent> serializedEvent)
+void OperatorEventDispatcherImpl::DispatchEventToHandlers(
+    const OperatorID& operatorID, std::shared_ptr<OperatorEvent> serializedEvent)
 {
     // This logic needs recheck, in Flink, handleOperatorEvent taks a event as input. Ours takes string as input
     auto it = handlers.find(operatorID);

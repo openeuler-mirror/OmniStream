@@ -28,18 +28,24 @@ class SharedDistinctCountContainerFunction : public AggsHandleFunction {
 public:
     explicit SharedDistinctCountContainerFunction(std::string stateName = "distinct_acc_shared");
 
-    void addDistinctEntry(int aggFuncIndex, const std::string& aggType, int aggIdx, int filterIndex,
-                          const std::string& inputType);
+    void addDistinctEntry(
+        int aggFuncIndex, const std::string& aggType, int aggIdx, int filterIndex, const std::string& inputType);
     void finalizeEntries();
     void bindEntryAccValueIndex(int aggFuncIndex, int accIndex, int valueIndex);
 
-    void setWindowSize(int windowSize) override {}
+    void setWindowSize(int windowSize) override
+    {
+    }
     bool equaliser(BinaryRowData* r1, BinaryRowData* r2) override;
     void open(StateDataViewStore* store);
     void accumulate(RowData* accInput) override;
     void accumulate(omnistream::VectorBatch* input, const std::vector<int>& indices) override;
-    void retract(RowData* retractInput) override {}
-    void retract(omnistream::VectorBatch* input, const std::vector<int>& indices) override {}
+    void retract(RowData* retractInput) override
+    {
+    }
+    void retract(omnistream::VectorBatch* input, const std::vector<int>& indices) override
+    {
+    }
     void merge(RowData* otherAcc) override;
     void setAccumulators(RowData* acc) override;
     void resetAccumulators() override;
@@ -52,8 +58,14 @@ public:
     void updateInnerState() override;
 
     void bindAccValueIndex(int accStartIndex, int valueStartIndex) override;
-    int accumulatorSlots() const override { return static_cast<int>(entries_.size()); }
-    bool hasAggOutput() const override { return !entries_.empty(); }
+    int accumulatorSlots() const override
+    {
+        return static_cast<int>(entries_.size());
+    }
+    bool hasAggOutput() const override
+    {
+        return !entries_.empty();
+    }
 
 private:
     struct DistinctEntry {
@@ -81,12 +93,11 @@ private:
         PendingDistinctUpdates pendingDistinctUpdates;
     };
 
-
     bool shouldAccumulateForEntry(DistinctEntry* entry, RowData* inputRow) const;
     std::uint64_t collectCandidateMask(RowData* inputRow, const DistinctGroup& group) const;
     void applyMaskDelta(std::size_t groupIndex, std::uint64_t deltaMask);
     long getRowFieldValue(RowData* row, int aggIdx, omniruntime::type::DataTypeId typeId, bool& isNull) const;
-    void getOrCreateGroup( DistinctEntry* entry);
+    void getOrCreateGroup(DistinctEntry* entry);
 
     std::string stateName_;
     std::vector<DistinctEntry*> entries_;
@@ -96,8 +107,12 @@ private:
     bool finalized_ = false;
     StateDataViewStore* store_ = nullptr;
     RowData* currentGroupKey_ = nullptr;
-    long getRowFieldValueFromVB(omnistream::VectorBatch* input, int columnIdx,int rowIdx ,omniruntime::type::DataTypeId typeId, bool& isNull) const;
-
+    long getRowFieldValueFromVB(
+        omnistream::VectorBatch* input,
+        int columnIdx,
+        int rowIdx,
+        omniruntime::type::DataTypeId typeId,
+        bool& isNull) const;
 };
 
 #endif // FLINK_TNEL_SHARED_DISTINCT_COUNT_CONTAINER_FUNCTION_H

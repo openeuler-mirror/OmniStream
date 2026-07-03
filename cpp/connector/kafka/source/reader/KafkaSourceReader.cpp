@@ -16,11 +16,12 @@ KafkaSourceReader::KafkaSourceReader(
     FutureCompletingBlockingQueue<RdKafka::Message>* elementsQueue,
     SingleThreadFetcherManager<RdKafka::Message, KafkaPartitionSplit>* splitFetcherManager,
     RecordEmitter<RdKafka::Message, KafkaPartitionSplitState>* recordEmitter,
-    SourceReaderContext* context, bool isBatch)
+    SourceReaderContext* context,
+    bool isBatch)
     : SingleThreadMultiplexSourceReaderBase<RdKafka::Message, KafkaPartitionSplit, KafkaPartitionSplitState>(
-    elementsQueue, splitFetcherManager, recordEmitter, context, isBatch)
+          elementsQueue, splitFetcherManager, recordEmitter, context, isBatch)
 {
-    //todo 修改为读取配置的形式
+    // todo 修改为读取配置的形式
     commitOffsetsOnCheckpoint_ = false;
 }
 
@@ -80,16 +81,16 @@ void KafkaSourceReader::notifyCheckpointComplete(long checkpointId)
     }
 
     auto kafkaFetcherManager = static_cast<KafkaSourceFetcherManager*>(splitFetcherManager);
-    kafkaFetcherManager->commitOffsets(*committedPartitions,
-        [this, checkpointId, committedPartitions](const std::map<std::shared_ptr<RdKafka::TopicPartition>, int64_t>&, const std::exception_ptr& e) {
+    kafkaFetcherManager->commitOffsets(
+        *committedPartitions,
+        [this, checkpointId, committedPartitions](
+            const std::map<std::shared_ptr<RdKafka::TopicPartition>, int64_t>&, const std::exception_ptr& e) {
             // The offset commit here is needed by the external monitoring. It won't
             // break Flink job's correctness if we fail to commit the offset here.
             if (e != nullptr) {
-                INFO_RELEASE(
-                        "Error:Failed to commit consumer offsets for checkpoint:"<<checkpointId<<", error: ");
+                INFO_RELEASE("Error:Failed to commit consumer offsets for checkpoint:" << checkpointId << ", error: ");
             } else {
-                INFO_RELEASE(
-                        "Successfully committed offsets for checkpoint:"<<checkpointId);
+                INFO_RELEASE("Successfully committed offsets for checkpoint:" << checkpointId);
 
                 std::lock_guard<std::mutex> lock(mutex_);
                 // 从 offsetsOfFinishedSplits 中移除已提交的分区

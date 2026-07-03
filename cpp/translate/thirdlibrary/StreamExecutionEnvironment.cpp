@@ -13,7 +13,7 @@
 StreamExecutionEnvironment::StreamExecutionEnvironment() = default;
 StreamExecutionEnvironment::~StreamExecutionEnvironment() = default;
 
-DataStreamSource *StreamExecutionEnvironment::addSource(SourceFunction<Object> *sourceFunction)
+DataStreamSource* StreamExecutionEnvironment::addSource(SourceFunction<Object>* sourceFunction)
 {
     return nullptr;
 }

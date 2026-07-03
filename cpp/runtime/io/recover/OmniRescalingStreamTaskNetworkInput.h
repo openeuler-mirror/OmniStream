@@ -40,64 +40,77 @@ namespace omnistream {
 class OmniRescalingStreamTaskNetworkInput : public OmniAbstractStreamTaskNetworkInput {
 public:
     OmniRescalingStreamTaskNetworkInput(
-        int64_t inputIndex, std::shared_ptr<CheckpointedInputGate> inputGate, int taskType,
-        TypeSerializer *inputSerializer, std::vector<long> &channelInfos,
+        int64_t inputIndex,
+        std::shared_ptr<CheckpointedInputGate> inputGate,
+        int taskType,
+        TypeSerializer* inputSerializer,
+        std::vector<long>& channelInfos,
         std::shared_ptr<InflightDataRescalingDescriptor> inflightDataRescalingDescriptor,
-        std::function<StreamPartitioner<IOReadableWritable> *(int)> getPartitionerFunction,TaskInformationPOD *taskInfo)
-        : OmniAbstractStreamTaskNetworkInput(inputIndex, inputGate, taskType, inputSerializer, channelInfos,
-                                             getRecordDeserializers(inputGate, inputSerializer,
-                                                                    *inflightDataRescalingDescriptor,
-                                                                    getPartitionerFunction, taskInfo),
-                                             taskInfo->getExecutionCheckpointConfig().getCheckpointInterval())
+        std::function<StreamPartitioner<IOReadableWritable>*(int)> getPartitionerFunction,
+        TaskInformationPOD* taskInfo)
+        : OmniAbstractStreamTaskNetworkInput(
+              inputIndex,
+              inputGate,
+              taskType,
+              inputSerializer,
+              channelInfos,
+              getRecordDeserializers(
+                  inputGate, inputSerializer, *inflightDataRescalingDescriptor, getPartitionerFunction, taskInfo),
+              taskInfo->getExecutionCheckpointConfig().getCheckpointInterval())
     {
         INFO_RELEASE("create OmniRescalingStreamTaskNetworkInput");
     }
 
-    datastream::RecordDeserializer *getActiveSerializer(long channelInfo) override
+    datastream::RecordDeserializer* getActiveSerializer(long channelInfo) override
     {
         auto ser = OmniAbstractStreamTaskNetworkInput::getActiveSerializer(channelInfo);
-        if(ser == nullptr){
-            INFO_RELEASE("error OmniRescalingStreamTaskNetworkInput::getActiveSerializer not find:"<< channelInfo);
-            throw std::runtime_error("Channel " + std::to_string(channelInfo) +
-                                     " should not receive data during recovery.");
+        if (ser == nullptr) {
+            INFO_RELEASE("error OmniRescalingStreamTaskNetworkInput::getActiveSerializer not find:" << channelInfo);
+            throw std::runtime_error(
+                "Channel " + std::to_string(channelInfo) + " should not receive data during recovery.");
         }
-        auto deserializer = dynamic_cast<DemultiplexingRecordDeserializer *>(ser);
+        auto deserializer = dynamic_cast<DemultiplexingRecordDeserializer*>(ser);
         if (!deserializer || !deserializer->hasMappings()) {
-            INFO_RELEASE("error OmniRescalingStreamTaskNetworkInput::getActiveSerializer trans fail:"<< channelInfo);
-            throw std::runtime_error("Channel " + std::to_string(channelInfo) +
-                                     " should not receive data during recovery.");
+            INFO_RELEASE("error OmniRescalingStreamTaskNetworkInput::getActiveSerializer trans fail:" << channelInfo);
+            throw std::runtime_error(
+                "Channel " + std::to_string(channelInfo) + " should not receive data during recovery.");
         }
         return deserializer;
     }
 
-    DataInputStatus processEvent(BufferOrEvent *bufferOrEvent) override
+    DataInputStatus processEvent(BufferOrEvent* bufferOrEvent) override
     {
         auto event = bufferOrEvent->getEvent();
-        if (auto subtaskConnDesc = dynamic_cast<SubtaskConnectionDescriptor *>(event.get())) {
+        if (auto subtaskConnDesc = dynamic_cast<SubtaskConnectionDescriptor*>(event.get())) {
             auto channelId = bufferOrEvent->getChannelInfo().getComplexId();
-            auto serializer = dynamic_cast<DemultiplexingRecordDeserializer *>(getActiveSerializer(channelId));
+            auto serializer = dynamic_cast<DemultiplexingRecordDeserializer*>(getActiveSerializer(channelId));
             serializer->select(subtaskConnDesc);
             INFO_RELEASE(
-                "process SubtaskConnectionDescriptor event, channelInfo:" << bufferOrEvent->getChannelInfo().toString());
+                "process SubtaskConnectionDescriptor event, channelInfo:"
+                << bufferOrEvent->getChannelInfo().toString());
             return DataInputStatus::MORE_AVAILABLE;
         }
         return OmniAbstractStreamTaskNetworkInput::processEvent(bufferOrEvent);
     }
 
-    OmniStreamTaskInput *finishRecover()
+    OmniStreamTaskInput* finishRecover()
     {
         std::vector<long> channelIds;
-        for (const auto &item : inputGate->GetChannelInfos()) {
+        for (const auto& item : inputGate->GetChannelInfos()) {
             channelIds.emplace_back(item.getInputChannelIdx());
         }
-        return new OmniAbstractStreamTaskNetworkInput(inputIndex, inputGate, taskType, inSerializer, channelIds, checkpointInterval);
+        return new OmniAbstractStreamTaskNetworkInput(
+            inputIndex, inputGate, taskType, inSerializer, channelIds, checkpointInterval);
     }
 
     class RecordFilterFactory {
     public:
-        RecordFilterFactory(int subtaskIndex, TypeSerializer *inputSerializer, int numberOfChannels,
-                            std::function<StreamPartitioner<IOReadableWritable> *(int)> gatePartitioners,
-                            int maxParallelism)
+        RecordFilterFactory(
+            int subtaskIndex,
+            TypeSerializer* inputSerializer,
+            int numberOfChannels,
+            std::function<StreamPartitioner<IOReadableWritable>*(int)> gatePartitioners,
+            int maxParallelism)
             : gatePartitioners_(std::move(gatePartitioners)),
               inputSerializer_(std::move(inputSerializer)),
               numberOfChannels_(numberOfChannels),
@@ -106,7 +119,7 @@ public:
         {
         }
 
-        std::function<bool(StreamRecord &)> apply(const InputChannelInfo &channelInfo)
+        std::function<bool(StreamRecord&)> apply(const InputChannelInfo& channelInfo)
         {
             auto it = partitionerCache_.find(channelInfo.getGateIdx());
             if (it == partitionerCache_.end()) {
@@ -114,23 +127,22 @@ public:
                 partitionerCache_[channelInfo.getGateIdx()] = partitioner;
                 it = partitionerCache_.find(channelInfo.getGateIdx());
             }
-            auto filter = std::make_shared<RecordFilter>(dynamic_cast<ChannelSelector<IOReadableWritable> *>(
-                                                                 it->second),
-                                                         inputSerializer_, subtaskIndex_);
-            auto function = std::function<bool(StreamRecord &)>(
-                [filter](StreamRecord &record) { return filter->apply(record); });
+            auto filter = std::make_shared<RecordFilter>(
+                dynamic_cast<ChannelSelector<IOReadableWritable>*>(it->second), inputSerializer_, subtaskIndex_);
+            auto function =
+                std::function<bool(StreamRecord&)>([filter](StreamRecord& record) { return filter->apply(record); });
             return function;
         }
 
     private:
-        std::unordered_map<int, StreamPartitioner<IOReadableWritable> *> partitionerCache_;
-        std::function<StreamPartitioner<IOReadableWritable> *(int)> gatePartitioners_;
-        TypeSerializer *inputSerializer_;
+        std::unordered_map<int, StreamPartitioner<IOReadableWritable>*> partitionerCache_;
+        std::function<StreamPartitioner<IOReadableWritable>*(int)> gatePartitioners_;
+        TypeSerializer* inputSerializer_;
         int numberOfChannels_;
         int subtaskIndex_;
         int maxParallelism_;
 
-        StreamPartitioner<IOReadableWritable> *createPartitioner(int index)
+        StreamPartitioner<IOReadableWritable>* createPartitioner(int index)
         {
             auto partitioner = gatePartitioners_(index);
             partitioner->setup(numberOfChannels_);
@@ -151,27 +163,36 @@ public:
     };
 
     static std::unique_ptr<std::unordered_map<long, std::unique_ptr<RecordDeserializer>>> getRecordDeserializers(
-        std::shared_ptr<CheckpointedInputGate> checkpointedInputGate, TypeSerializer *inputSerializer,
-        const InflightDataRescalingDescriptor &rescalingDescriptor,
-        std::function<StreamPartitioner<IOReadableWritable> *(int)> gatePartitioners, TaskInformationPOD *taskInfo)
+        std::shared_ptr<CheckpointedInputGate> checkpointedInputGate,
+        TypeSerializer* inputSerializer,
+        const InflightDataRescalingDescriptor& rescalingDescriptor,
+        std::function<StreamPartitioner<IOReadableWritable>*(int)> gatePartitioners,
+        TaskInformationPOD* taskInfo)
     {
-        auto recordFilterFactory = std::make_shared<RecordFilterFactory>(taskInfo->getIndexOfSubtask(), inputSerializer, taskInfo->getNumberOfSubtasks(), gatePartitioners,  taskInfo->getMaxNumberOfSubtasks());
+        auto recordFilterFactory = std::make_shared<RecordFilterFactory>(
+            taskInfo->getIndexOfSubtask(),
+            inputSerializer,
+            taskInfo->getNumberOfSubtasks(),
+            gatePartitioners,
+            taskInfo->getMaxNumberOfSubtasks());
 
-        auto function = std::function<std::function<bool(StreamRecord &)>(const InputChannelInfo &)>(
-            [recordFilterFactory](const InputChannelInfo &channelInfo) {
+        auto function = std::function<std::function<bool(StreamRecord&)>(const InputChannelInfo&)>(
+            [recordFilterFactory](const InputChannelInfo& channelInfo) {
                 return recordFilterFactory->apply(channelInfo);
             });
         auto deserializers = std::make_unique<std::unordered_map<long, std::unique_ptr<RecordDeserializer>>>();
         deserializers->reserve(checkpointedInputGate->GetChannelInfos().size());
 
-        for (auto &channelInfo : checkpointedInputGate->GetChannelInfos()) {
+        for (auto& channelInfo : checkpointedInputGate->GetChannelInfos()) {
             auto channelId = channelInfo.getComplexId();
-            deserializers->emplace(channelId, DemultiplexingRecordDeserializer::create(channelInfo, rescalingDescriptor,
-                                                                                DeserializerFactory::apply, function));
+            deserializers->emplace(
+                channelId,
+                DemultiplexingRecordDeserializer::create(
+                    channelInfo, rescalingDescriptor, DeserializerFactory::apply, function));
         }
         return deserializers;
     }
 };
-}  // namespace omnistream
+} // namespace omnistream
 
-#endif  // OMNISTREAM_OMNIRESCALINGSTREAMTASKNETWORKINPUT_H
+#endif // OMNISTREAM_OMNIRESCALINGSTREAMTASKNETWORKINPUT_H

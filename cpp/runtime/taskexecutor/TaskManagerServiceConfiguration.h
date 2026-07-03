@@ -12,22 +12,21 @@
 #ifndef TASKMANAGERSERVICECONFIGURATION_H
 #define TASKMANAGERSERVICECONFIGURATION_H
 
-
 namespace omnistream {
-    class TaskManagerServiceConfiguration {
-    public:
-            explicit TaskManagerServiceConfiguration(int num_threads)
-                : numThreads_(num_threads) {
-            }
+class TaskManagerServiceConfiguration {
+public:
+    explicit TaskManagerServiceConfiguration(int num_threads) : numThreads_(num_threads)
+    {
+    }
 
-            [[nodiscard]] int numbertOfThreads() const
-            {
-                return numThreads_;
-            }
+    [[nodiscard]] int numbertOfThreads() const
+    {
+        return numThreads_;
+    }
 
-    private:
-        int numThreads_;
-    };
-}
+private:
+    int numThreads_;
+};
+} // namespace omnistream
 
 #endif // TASKMANAGERSERVICECONFIGURATION_H

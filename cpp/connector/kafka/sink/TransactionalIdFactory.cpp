@@ -30,14 +30,9 @@ std::string generateRandomString(size_t length)
     return randomString;
 }
 
-std::string TransactionalIdFactory::buildTransactionalId(const std::string& transactionalIdPrefix,
-                                                         int subtaskId,
-                                                         long checkpointOffset)
+std::string TransactionalIdFactory::buildTransactionalId(
+    const std::string& transactionalIdPrefix, int subtaskId, long checkpointOffset)
 {
-    return transactionalIdPrefix
-           + TRANSACTIONAL_ID_DELIMITER
-           + std::to_string(subtaskId)
-           + TRANSACTIONAL_ID_DELIMITER
-           + std::to_string(checkpointOffset)
-           + generateRandomString(randomStrLen);
+    return transactionalIdPrefix + TRANSACTIONAL_ID_DELIMITER + std::to_string(subtaskId) + TRANSACTIONAL_ID_DELIMITER +
+           std::to_string(checkpointOffset) + generateRandomString(randomStrLen);
 }

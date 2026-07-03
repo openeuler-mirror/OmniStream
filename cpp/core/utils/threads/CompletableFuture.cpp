@@ -176,8 +176,8 @@ void CompletableFuture::addPropagationCallback(std::shared_ptr<CompletableFuture
     }
 }
 
-void CompletableFuture::addObservationCallback(std::shared_ptr<CompletableFuture> child,
-                                               std::function<void(std::exception_ptr)> action)
+void CompletableFuture::addObservationCallback(
+    std::shared_ptr<CompletableFuture> child, std::function<void(std::exception_ptr)> action)
 {
     bool fireNow = false;
     bool parentFailed = false;
@@ -231,7 +231,7 @@ void CompletableFuture::drainCallbacks()
 
     bool parentFailed = (terminalState != FutureState::COMPLETED);
 
-    for (auto &entry : snapshot) {
+    for (auto& entry : snapshot) {
         if (!entry.child) {
             continue;
         }
@@ -297,7 +297,10 @@ bool CompletableFuture::completeImpl(FutureState targetState, std::exception_ptr
     return transitioned;
 }
 
-void CompletableFuture::complete() { completeImpl(FutureState::COMPLETED, nullptr); }
+void CompletableFuture::complete()
+{
+    completeImpl(FutureState::COMPLETED, nullptr);
+}
 
 bool CompletableFuture::completeExceptionally(std::exception_ptr ex)
 {
@@ -330,7 +333,10 @@ FutureState CompletableFuture::getState()
     return state_;
 }
 
-bool CompletableFuture::isDone() const { return done_.load(); }
+bool CompletableFuture::isDone() const
+{
+    return done_.load();
+}
 
 bool CompletableFuture::isCancelled()
 {
@@ -402,8 +408,8 @@ std::shared_ptr<CompletableFuture> CompletableFuture::completedFuture()
 // allOf — combine via callback chain (no joiner thread)
 // =============================================================================
 
-std::shared_ptr<CompletableFuture>
-CompletableFuture::allOf(const std::vector<std::shared_ptr<CompletableFuture>> &futures)
+std::shared_ptr<CompletableFuture> CompletableFuture::allOf(
+    const std::vector<std::shared_ptr<CompletableFuture>>& futures)
 {
     auto result = std::make_shared<CompletableFuture>();
     if (futures.empty()) {
@@ -416,7 +422,7 @@ CompletableFuture::allOf(const std::vector<std::shared_ptr<CompletableFuture>> &
     auto firstExMtx = std::make_shared<std::mutex>();
     auto failedFlag = std::make_shared<std::atomic<bool>>(false);
 
-    for (auto &f : futures) {
+    for (auto& f : futures) {
         if (!f) {
             // Null entry counts as failed with NPE.
             bool expected = false;
@@ -456,8 +462,8 @@ CompletableFuture::allOf(const std::vector<std::shared_ptr<CompletableFuture>> &
 // anyOf — first-to-complete wins (no polling)
 // =============================================================================
 
-std::shared_ptr<CompletableFuture>
-CompletableFuture::anyOf(const std::vector<std::shared_ptr<CompletableFuture>> &futures)
+std::shared_ptr<CompletableFuture> CompletableFuture::anyOf(
+    const std::vector<std::shared_ptr<CompletableFuture>>& futures)
 {
     auto result = std::make_shared<CompletableFuture>();
     if (futures.empty()) {
@@ -466,7 +472,7 @@ CompletableFuture::anyOf(const std::vector<std::shared_ptr<CompletableFuture>> &
     }
 
     auto completed = std::make_shared<std::atomic<bool>>(false);
-    for (auto &f : futures) {
+    for (auto& f : futures) {
         if (!f) {
             // Null entry: treat as immediately completed (best-effort semantics).
             bool expected = false;

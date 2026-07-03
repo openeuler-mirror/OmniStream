@@ -25,21 +25,27 @@ public:
     }
 
     LazyBinaryFormat() {};
-    explicit LazyBinaryFormat(T *object) : object(object)
+    explicit LazyBinaryFormat(T* object) : object(object)
     {
         binarySection = new BinarySection();
     };
 
     // todo why we need to new A T here?
-    LazyBinaryFormat(uint8_t *bytes, int offset, int sizeInBytes) : materialized(true)
+    LazyBinaryFormat(uint8_t* bytes, int offset, int sizeInBytes) : materialized(true)
     {
         binarySection = new BinarySection(bytes, offset, sizeInBytes);
         object = new T();
     };
 
     // Getters
-    T *getObject() { return object; };
-    BinarySection *getBinarySection() { return binarySection; };
+    T* getObject()
+    {
+        return object;
+    };
+    BinarySection* getBinarySection()
+    {
+        return binarySection;
+    };
 
     int getOffset()
     {
@@ -59,20 +65,21 @@ public:
     // Materialization
     void ensureMaterialized();
 
-    uint8_t *getSegment()
+    uint8_t* getSegment()
     {
         if (materialized == false) {
             THROW_LOGIC_EXCEPTION("Lazy Binary Format was not materialized");
         }
         return binarySection->getSegment();
     };
+
 protected:
-    T *object;
-    BinarySection *binarySection;
+    T* object;
+    BinarySection* binarySection;
     bool materialized = false;
 
     // Materializer
-    virtual BinarySection *materialize(TypeSerializer *serializer) = 0;
+    virtual BinarySection* materialize(TypeSerializer* serializer) = 0;
 };
 
 #endif // OMNIFLINK_LAZYBINARYFORMAT_H

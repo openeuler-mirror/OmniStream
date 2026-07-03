@@ -23,17 +23,14 @@
 class StreamingFunctionUtils {
 public:
     static void setOutputType(
-        omnistream::Function* userFunction,
-        const TypeInformation& outTypeInfo,
-        const ExecutionConfig& executionConfig) {
-        NOT_IMPL_EXCEPTION
+        omnistream::Function* userFunction, const TypeInformation& outTypeInfo, const ExecutionConfig& executionConfig)
+    {
+        NOT_IMPL_EXCEPTION;
     }
 
     static void snapshotFunctionState(
-        StateSnapshotContextSynchronousImpl* context,
-        OperatorStateBackend* backend,
-        omnistream::Function* userFunction) {
-        
+        StateSnapshotContextSynchronousImpl* context, OperatorStateBackend* backend, omnistream::Function* userFunction)
+    {
         if (context == nullptr) {
             throw std::invalid_argument("context is nullptr");
         }
@@ -49,10 +46,9 @@ public:
             break;
         }
     }
-    
-    static void restoreFunctionState(
-        StateInitializationContextImpl* context,
-        omnistream::Function* userFunction) {
+
+    static void restoreFunctionState(StateInitializationContextImpl* context, omnistream::Function* userFunction)
+    {
         if (context == nullptr) {
             throw std::invalid_argument("context is nullptr");
         }
@@ -65,20 +61,17 @@ public:
             break;
         }
     }
-    
+
 private:
     static bool trySetOutputType(
-        omnistream::Function* userFunction,
-        const TypeInformation& outTypeInfo,
-        const ExecutionConfig& executionConfig) {
-        NOT_IMPL_EXCEPTION
+        omnistream::Function* userFunction, const TypeInformation& outTypeInfo, const ExecutionConfig& executionConfig)
+    {
+        NOT_IMPL_EXCEPTION;
     }
 
     static bool trySnapshotFunctionState(
-        StateSnapshotContextSynchronousImpl* context,
-        OperatorStateBackend* backend,
-        omnistream::Function* userFunction) {
-
+        StateSnapshotContextSynchronousImpl* context, OperatorStateBackend* backend, omnistream::Function* userFunction)
+    {
         auto* checkpointed = dynamic_cast<CheckpointedFunction*>(userFunction);
         if (checkpointed != nullptr) {
             checkpointed->snapshotState(context);
@@ -88,10 +81,8 @@ private:
         return false;
     }
 
-    static bool tryRestoreFunction(
-        StateInitializationContextImpl* context,
-        omnistream::Function* userFunction) {
-
+    static bool tryRestoreFunction(StateInitializationContextImpl* context, omnistream::Function* userFunction)
+    {
         auto* checkpointed = dynamic_cast<CheckpointedFunction*>(userFunction);
         if (checkpointed != nullptr) {
             checkpointed->initializeState(context);

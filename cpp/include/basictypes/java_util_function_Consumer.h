@@ -20,7 +20,8 @@ public:
     ~java_util_function_Consumer();
 
     void accept(Object* T);
+
 private:
     std::function<void(Object*)> lamda;
 };
-#endif  // JAVA_UNTIL_CONSUMER_H
+#endif // JAVA_UNTIL_CONSUMER_H

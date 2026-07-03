@@ -36,7 +36,7 @@ struct PredicateContext {
 class PartitionCommitPredicate {
 public:
     virtual ~PartitionCommitPredicate() = default;
-    virtual bool isPartitionCommittable(const PredicateContext &ctx) = 0;
+    virtual bool isPartitionCommittable(const PredicateContext& ctx) = 0;
 };
 
 /**
@@ -45,9 +45,11 @@ public:
  */
 class PartitionTimeCommitPredicate : public PartitionCommitPredicate {
 public:
-    PartitionTimeCommitPredicate(int64_t commitDelayMs) : commitDelayMs_(commitDelayMs) {}
+    PartitionTimeCommitPredicate(int64_t commitDelayMs) : commitDelayMs_(commitDelayMs)
+    {
+    }
 
-    bool isPartitionCommittable(const PredicateContext &ctx) override
+    bool isPartitionCommittable(const PredicateContext& ctx) override
     {
         return ctx.currentWatermark > ctx.createProcTime + commitDelayMs_;
     }
@@ -62,9 +64,11 @@ private:
  */
 class ProcTimeCommitPredicate : public PartitionCommitPredicate {
 public:
-    ProcTimeCommitPredicate(int64_t commitDelayMs) : commitDelayMs_(commitDelayMs) {}
+    ProcTimeCommitPredicate(int64_t commitDelayMs) : commitDelayMs_(commitDelayMs)
+    {
+    }
 
-    bool isPartitionCommittable(const PredicateContext &ctx) override
+    bool isPartitionCommittable(const PredicateContext& ctx) override
     {
         if (commitDelayMs_ == 0) {
             return true;
@@ -84,7 +88,7 @@ class PartitionCommitTrigger {
 public:
     virtual ~PartitionCommitTrigger() = default;
 
-    virtual void addPartition(const std::string &partition) = 0;
+    virtual void addPartition(const std::string& partition) = 0;
 
     virtual std::vector<std::string> committablePartitions(long checkpointId) = 0;
 
@@ -100,10 +104,11 @@ public:
  */
 class PartitionTimeCommitTrigger : public PartitionCommitTrigger {
 public:
-    PartitionTimeCommitTrigger(PartitionCommitPredicate *predicate)
-        : predicate_(predicate) {}
+    PartitionTimeCommitTrigger(PartitionCommitPredicate* predicate) : predicate_(predicate)
+    {
+    }
 
-    void addPartition(const std::string &partition) override
+    void addPartition(const std::string& partition) override
     {
         if (!partition.empty()) {
             pendingPartitions_.insert(partition);
@@ -152,7 +157,7 @@ public:
 protected:
     std::set<std::string> pendingPartitions_;
     std::map<long, long> watermarks_;
-    PartitionCommitPredicate *predicate_;
+    PartitionCommitPredicate* predicate_;
 };
 
 /**
@@ -162,10 +167,11 @@ protected:
  */
 class ProcTimeCommitTrigger : public PartitionCommitTrigger {
 public:
-    ProcTimeCommitTrigger(PartitionCommitPredicate *predicate)
-        : predicate_(predicate) {}
+    ProcTimeCommitTrigger(PartitionCommitPredicate* predicate) : predicate_(predicate)
+    {
+    }
 
-    void addPartition(const std::string &partition) override
+    void addPartition(const std::string& partition) override
     {
         if (!partition.empty() && pendingPartitions_.find(partition) == pendingPartitions_.end()) {
             pendingPartitions_[partition] = currentProcTimeMs();
@@ -195,7 +201,7 @@ public:
     std::vector<std::string> endInput() override
     {
         std::vector<std::string> result;
-        for (const auto &pair : pendingPartitions_) {
+        for (const auto& pair : pendingPartitions_) {
             result.push_back(pair.first);
         }
         pendingPartitions_.clear();
@@ -215,13 +221,12 @@ private:
     }
 
     std::map<std::string, int64_t> pendingPartitions_;
-    PartitionCommitPredicate *predicate_;
+    PartitionCommitPredicate* predicate_;
 };
 
 /**
  * Factory to create the appropriate PartitionCommitTrigger based on config.
  */
-PartitionCommitTrigger *createPartitionCommitTrigger(const std::string &triggerType,
-                                                       int64_t commitDelayMs);
+PartitionCommitTrigger* createPartitionCommitTrigger(const std::string& triggerType, int64_t commitDelayMs);
 
 #endif // PARTITION_COMMIT_TRIGGER_H

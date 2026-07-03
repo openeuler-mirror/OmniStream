@@ -10,16 +10,16 @@
  */
 #include "thirdlibrary/java_time_LocalDateTime.h"
 
-LocalDateTime *LocalDateTime::ofInstant(Instant *instant, ZoneId *zoneId)
+LocalDateTime* LocalDateTime::ofInstant(Instant* instant, ZoneId* zoneId)
 {
     //        time_t t = instant->getEpochSecond() + instant->getNano() / SEC_TO_NSEC;
     time_t t = instant->getEpochSecond();
-    LocalDateTime *n = new LocalDateTime();
-    localtime_r((const time_t *) &t, &n->now_tm);
+    LocalDateTime* n = new LocalDateTime();
+    localtime_r((const time_t*)&t, &n->now_tm);
     return n;
 }
 
-std::tm *LocalDateTime::getTm()
+std::tm* LocalDateTime::getTm()
 {
     return &now_tm;
 }

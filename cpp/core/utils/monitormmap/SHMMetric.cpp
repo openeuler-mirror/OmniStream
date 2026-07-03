@@ -13,12 +13,12 @@
 #include "MetricManager.h"
 
 namespace omnistream {
-    void SHMMetric::UpdateMetric(long count)
-    {
-        if (MetricManager::GetThreadId() == threadID_) {
-            valuePtr_[millisecondsOffset] = MetricManager::GetMillisecondsSinceEpoch();
-            valuePtr_[countOffset] = count;
-        }
+void SHMMetric::UpdateMetric(long count)
+{
+    if (MetricManager::GetThreadId() == threadID_) {
+        valuePtr_[millisecondsOffset] = MetricManager::GetMillisecondsSinceEpoch();
+        valuePtr_[countOffset] = count;
     }
-
 }
+
+} // namespace omnistream

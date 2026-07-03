@@ -11,35 +11,33 @@
 #include "HashMapStateBackend.h"
 
 template <typename K>
-AbstractKeyedStateBackend<K> *HashMapStateBackend::createKeyedStateBackend(
-    omnistream::EnvironmentV2 *env,
+AbstractKeyedStateBackend<K>* HashMapStateBackend::createKeyedStateBackend(
+    omnistream::EnvironmentV2* env,
     std ::set<KeyedStateHandle> stateHandles,
-    KeyGroupRange *keyGroupRange,
-    TypeSerializer *keySerializer,
+    KeyGroupRange* keyGroupRange,
+    TypeSerializer* keySerializer,
     int numberOfKeyGroups)
 {
     // TTODO
     // Get recovery config
     restoreState();
-    HeapKeyedStateBackendBuilder<K> builder = HeapKeyedStateBackendBuilder<K>(keySerializer, numberOfKeyGroups, keyGroupRange);
+    HeapKeyedStateBackendBuilder<K> builder =
+        HeapKeyedStateBackendBuilder<K>(keySerializer, numberOfKeyGroups, keyGroupRange);
     return builder.build();
 }
 
 OperatorStateBackend* HashMapStateBackend::createOperatorStateBackend(
     omnistream::EnvironmentV2* env,
     std::string operatorIdentifier,
-    std::set<std::shared_ptr<OperatorStateHandle>> stateHandles) {
+    std::set<std::shared_ptr<OperatorStateHandle>> stateHandles)
+{
     std::vector<std::shared_ptr<OperatorStateHandle>> stateVector(stateHandles.begin(), stateHandles.end());
     auto bridge = env->getTaskStateManager()->getTaskStateManagerBridge();
     auto omniTaskBridge = env->getTaskStateManager()->getOmniTaskBridge();
 
     const bool asynchronousSnapshots = true;
     DefaultOperatorStateBackendBuilder builder(
-        asynchronousSnapshots,
-        operatorIdentifier,
-        stateVector,
-        bridge,
-        omniTaskBridge);
+        asynchronousSnapshots, operatorIdentifier, stateVector, bridge, omniTaskBridge);
     return builder.build();
 }
 

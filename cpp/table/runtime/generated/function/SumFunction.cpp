@@ -11,17 +11,19 @@
 
 #include "SumFunction.h"
 
-
-SumFunction::SumFunction(int aggIdx, std::string inputType, int accIndex, int valueIndex,
-                         int filterIndex) : aggIdx(aggIdx), inputType(inputType), accIndex(accIndex),
-                                            valueIndex(valueIndex), filterIndex(filterIndex)
+SumFunction::SumFunction(int aggIdx, std::string inputType, int accIndex, int valueIndex, int filterIndex)
+    : aggIdx(aggIdx),
+      inputType(inputType),
+      accIndex(accIndex),
+      valueIndex(valueIndex),
+      filterIndex(filterIndex)
 {
     hasFilter = filterIndex != -1;
     store = nullptr;
     accIndexCount0 = -1;
 }
 
-void SumFunction::accumulate(RowData *accInput)
+void SumFunction::accumulate(RowData* accInput)
 {
     bool shouldDoAccumulate = true;
     if (hasFilter) {
@@ -41,9 +43,7 @@ void SumFunction::accumulate(RowData *accInput)
                 fieldValue = isFieldNull ? -1L : *accInput->getLong(aggIdx);
                 break;
             }
-            default:
-                LOG("Data type is not supported.");
-                throw std::runtime_error("Data type is not supported.");
+            default: LOG("Data type is not supported."); throw std::runtime_error("Data type is not supported.");
         }
 
         if (!isFieldNull) {
@@ -61,13 +61,12 @@ void SumFunction::accumulate(RowData *accInput)
     }
 }
 
-void SumFunction::accumulate(omnistream::VectorBatch *input, const std::vector<int> &indices)
+void SumFunction::accumulate(omnistream::VectorBatch* input, const std::vector<int>& indices)
 {
     auto columnData = input->Get(aggIdx);
     const bool hasFilterCol = hasFilter;
-    const auto filterData = hasFilterCol
-                            ? reinterpret_cast<omniruntime::vec::Vector<bool> *>(input->Get(filterIndex))
-                            : nullptr;
+    const auto filterData =
+        hasFilterCol ? reinterpret_cast<omniruntime::vec::Vector<bool>*>(input->Get(filterIndex)) : nullptr;
 
     for (int rowIndex : indices) {
         bool isFilter = true;
@@ -83,20 +82,16 @@ void SumFunction::accumulate(omnistream::VectorBatch *input, const std::vector<i
         auto typeId = LogicalType::flinkTypeToOmniTypeId(inputType);
         switch (typeId) {
             case DataTypeId::OMNI_INT: {
-                fieldValue = isFieldNull
-                             ? -1L
-                             : dynamic_cast<omniruntime::vec::Vector<int> *>(columnData)->GetValue(rowIndex);
+                fieldValue =
+                    isFieldNull ? -1L : dynamic_cast<omniruntime::vec::Vector<int>*>(columnData)->GetValue(rowIndex);
                 break;
             }
             case DataTypeId::OMNI_LONG: {
-                fieldValue = isFieldNull
-                             ? -1L
-                             : dynamic_cast<omniruntime::vec::Vector<long> *>(columnData)->GetValue(rowIndex);
+                fieldValue =
+                    isFieldNull ? -1L : dynamic_cast<omniruntime::vec::Vector<long>*>(columnData)->GetValue(rowIndex);
                 break;
             }
-            default:
-                LOG("Data type is not supported.");
-                throw std::runtime_error("Data type is not supported.");
+            default: LOG("Data type is not supported."); throw std::runtime_error("Data type is not supported.");
         }
 
         if (!isFieldNull) {
@@ -110,8 +105,7 @@ void SumFunction::accumulate(omnistream::VectorBatch *input, const std::vector<i
     }
 }
 
-
-void SumFunction::setAccumulators(RowData *_acc)
+void SumFunction::setAccumulators(RowData* _acc)
 {
     sumIsNull = _acc->isNullAt(accIndex);
     sum = sumIsNull ? 0L : *_acc->getLong(accIndex);
@@ -138,12 +132,12 @@ void SumFunction::createAccumulators(BinaryRowData* accumulators)
     }
 }
 
-void SumFunction::open(StateDataViewStore *store)
+void SumFunction::open(StateDataViewStore* store)
 {
     this->store = store;
 }
 
-void SumFunction::retract(RowData *retractInput)
+void SumFunction::retract(RowData* retractInput)
 {
     auto typeId = LogicalType::flinkTypeToOmniTypeId(inputType);
     bool isFieldNull = retractInput->isNullAt(aggIdx);
@@ -157,9 +151,7 @@ void SumFunction::retract(RowData *retractInput)
             fieldValue = isFieldNull ? -1L : *retractInput->getLong(aggIdx);
             break;
         }
-        default:
-            LOG("Data type is not supported.");
-            throw std::runtime_error("Data type is not supported.");
+        default: LOG("Data type is not supported."); throw std::runtime_error("Data type is not supported.");
     }
 
     if (!isFieldNull) {
@@ -170,7 +162,7 @@ void SumFunction::retract(RowData *retractInput)
     }
 }
 
-void SumFunction::retract(omnistream::VectorBatch *input, const std::vector<int> &indices)
+void SumFunction::retract(omnistream::VectorBatch* input, const std::vector<int>& indices)
 {
     auto columnData = input->Get(aggIdx);
 
@@ -182,20 +174,16 @@ void SumFunction::retract(omnistream::VectorBatch *input, const std::vector<int>
 
         switch (typeId) {
             case DataTypeId::OMNI_INT: {
-                fieldValue = isFieldNull
-                             ? -1L
-                             : dynamic_cast<omniruntime::vec::Vector<int> *>(columnData)->GetValue(rowIndex);
+                fieldValue =
+                    isFieldNull ? -1L : dynamic_cast<omniruntime::vec::Vector<int>*>(columnData)->GetValue(rowIndex);
                 break;
             }
             case DataTypeId::OMNI_LONG: {
-                fieldValue = isFieldNull
-                             ? -1L
-                             : dynamic_cast<omniruntime::vec::Vector<long> *>(columnData)->GetValue(rowIndex);
+                fieldValue =
+                    isFieldNull ? -1L : dynamic_cast<omniruntime::vec::Vector<long>*>(columnData)->GetValue(rowIndex);
                 break;
             }
-            default:
-                LOG("Data type is not supported.");
-                throw std::runtime_error("Data type is not supported.");
+            default: LOG("Data type is not supported."); throw std::runtime_error("Data type is not supported.");
         }
 
         if (!isFieldNull) {
@@ -204,13 +192,12 @@ void SumFunction::retract(omnistream::VectorBatch *input, const std::vector<int>
     }
 }
 
-
-void SumFunction::merge(RowData *otherAcc)
+void SumFunction::merge(RowData* otherAcc)
 {
     throw std::runtime_error("This function does not require the merge method, but the merge method is called.");
 }
 
-void SumFunction::getAccumulators(BinaryRowData *acc)
+void SumFunction::getAccumulators(BinaryRowData* acc)
 {
     if (sumIsNull) {
         acc->setNullAt(accIndex);
@@ -227,7 +214,7 @@ void SumFunction::getAccumulators(BinaryRowData *acc)
     }
 }
 
-void SumFunction::getValue(BinaryRowData *aggValue)
+void SumFunction::getValue(BinaryRowData* aggValue)
 {
     if (sumIsNull) {
         aggValue->setNullAt(valueIndex);
@@ -236,7 +223,7 @@ void SumFunction::getValue(BinaryRowData *aggValue)
     }
 }
 
-bool SumFunction::equaliser(BinaryRowData *r1, BinaryRowData *r2)
+bool SumFunction::equaliser(BinaryRowData* r1, BinaryRowData* r2)
 {
     if (r1->isNullAt(valueIndex) || r2->isNullAt(valueIndex)) {
         return false;
@@ -252,9 +239,7 @@ bool SumFunction::equaliser(BinaryRowData *r1, BinaryRowData *r2)
             isEqual = *r1->getLong(valueIndex) == *r2->getLong(valueIndex);
             break;
         }
-        default:
-            LOG("Data type is not supported.");
-            throw std::runtime_error("Data type is not supported.");
+        default: LOG("Data type is not supported."); throw std::runtime_error("Data type is not supported.");
     }
     return isEqual;
 }

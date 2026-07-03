@@ -31,19 +31,12 @@ public:
     virtual ~BarrierHandlerState() = default;
 
     virtual BarrierHandlerState* BarrierReceived(
-        Controller* controller,
-        InputChannelInfo channelInfo,
-        CheckpointBarrier* barrier,
-        bool markChannelBlocked) = 0;
+        Controller* controller, InputChannelInfo channelInfo, CheckpointBarrier* barrier, bool markChannelBlocked) = 0;
 
-    virtual BarrierHandlerState* AlignedCheckpointTimeout(
-        Controller* controller,
-        CheckpointBarrier* barrier) = 0;
+    virtual BarrierHandlerState* AlignedCheckpointTimeout(Controller* controller, CheckpointBarrier* barrier) = 0;
 
     virtual BarrierHandlerState* AnnouncementReceived(
-        Controller* /*controller*/,
-        InputChannelInfo /*channelInfo*/,
-        int /*sequenceNumber*/)
+        Controller* /*controller*/, InputChannelInfo /*channelInfo*/, int /*sequenceNumber*/)
     {
         return this;
     }

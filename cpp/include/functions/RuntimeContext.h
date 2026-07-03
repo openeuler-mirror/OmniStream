@@ -25,8 +25,8 @@ public:
 
     virtual int getNumberOfParallelSubtasks() = 0;
     virtual int getIndexOfThisSubtask() = 0;
-    State *getState(StateDescriptor* stateProperties);
-    State *getMapState(StateDescriptor* descriptor);
+    State* getState(StateDescriptor* stateProperties);
+    State* getMapState(StateDescriptor* descriptor);
 
     // dataStream need
     MapStateWrapper* getMapState(MapStateDescriptorWrapper* stateProperties);

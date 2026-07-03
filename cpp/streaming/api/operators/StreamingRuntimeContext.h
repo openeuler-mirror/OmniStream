@@ -23,14 +23,15 @@
 #include "runtime/execution/OmniEnvironment.h"
 #include "runtime/taskmanager/OmniRuntimeEnvironment.h"
 
-template<typename K>
+template <typename K>
 class StreamingRuntimeContext : public RuntimeContext {
 public:
     StreamingRuntimeContext() = default;
-    explicit StreamingRuntimeContext(DefaultKeyedStateStore<K> *keyedStateStore, omnistream::EnvironmentV2* env)
-        : keyedStateStore(keyedStateStore), environment(env) {};
+    explicit StreamingRuntimeContext(DefaultKeyedStateStore<K>* keyedStateStore, omnistream::EnvironmentV2* env)
+        : keyedStateStore(keyedStateStore),
+          environment(env) {};
     void close() override {};
-    void setKeyedStateStore(DefaultKeyedStateStore<K> *keyedStateStore)
+    void setKeyedStateStore(DefaultKeyedStateStore<K>* keyedStateStore)
     {
         this->keyedStateStore = keyedStateStore;
     };
@@ -40,25 +41,25 @@ public:
         this->environment = env;
     }
     template <typename UK, typename UV>
-    MapState<UK, UV> *getMapState(MapStateDescriptor<UK, UV> *stateProperties)
+    MapState<UK, UV>* getMapState(MapStateDescriptor<UK, UV>* stateProperties)
     {
         return keyedStateStore->template getMapState<UK, UV>(stateProperties);
     }
 
     template <typename T>
-    ValueState<T> *getState(ValueStateDescriptor<T> *stateProperties)
+    ValueState<T>* getState(ValueStateDescriptor<T>* stateProperties)
     {
         return keyedStateStore->template getState<T>(stateProperties);
     }
 
     template <typename T>
-    ValueState<T> *getStateForWindow(ValueStateDescriptor<T> *stateProperties)
+    ValueState<T>* getStateForWindow(ValueStateDescriptor<T>* stateProperties)
     {
         return keyedStateStore->template getStateForWindow<T>(stateProperties);
     }
 
     template <typename T>
-    ListState<T> *getListState(ListStateDescriptor<T> *stateProperties)
+    ListState<T>* getListState(ListStateDescriptor<T>* stateProperties)
     {
         return keyedStateStore->template getListState<T>(stateProperties);
     }
@@ -75,11 +76,13 @@ public:
 
     long getAutoWatermarkInterval()
     {
-        return static_cast<omnistream::RuntimeEnvironmentV2*>(environment)->jobConfiguration().getAutoWatermarkInterval();
+        return static_cast<omnistream::RuntimeEnvironmentV2*>(environment)
+            ->jobConfiguration()
+            .getAutoWatermarkInterval();
     }
 
 private:
-    DefaultKeyedStateStore<K> *keyedStateStore;
+    DefaultKeyedStateStore<K>* keyedStateStore;
     omnistream::EnvironmentV2* environment;
 };
 #endif // FLINK_TNEL_STREAMINGRUNTIMECONTEXT_H

@@ -22,24 +22,27 @@ extern "C" {
  * Method:    doChangeNativeLocalInputChannel
  * Signature: (JLjava/lang/String;)J
  */
-JNIEXPORT jlong JNICALL Java_org_apache_flink_runtime_io_network_partition_consumer_OmniLocalInputChannel_doChangeNativeLocalInputChannel
-  (JNIEnv *, jobject, jlong, jstring);
+JNIEXPORT jlong JNICALL
+Java_org_apache_flink_runtime_io_network_partition_consumer_OmniLocalInputChannel_doChangeNativeLocalInputChannel(
+    JNIEnv*, jobject, jlong, jstring);
 
 /*
  * Class:     org_apache_flink_runtime_io_network_partition_consumer_OmniLocalInputChannel
  * Method:    sendMemorySegmentToNative
  * Signature: (JJIIIII)V
  */
-JNIEXPORT void JNICALL Java_org_apache_flink_runtime_io_network_partition_consumer_OmniLocalInputChannel_sendMemorySegmentToNative
-  (JNIEnv *, jobject, jlong, jlong, jint, jint, jint, jint, jint);
+JNIEXPORT void JNICALL
+Java_org_apache_flink_runtime_io_network_partition_consumer_OmniLocalInputChannel_sendMemorySegmentToNative(
+    JNIEnv*, jobject, jlong, jlong, jint, jint, jint, jint, jint);
 
 /*
  * Class:     org_apache_flink_runtime_io_network_partition_consumer_OmniLocalInputChannel
  * Method:    getRecycleBufferAddress
  * Signature: (J)J
  */
-JNIEXPORT jlong JNICALL Java_org_apache_flink_runtime_io_network_partition_consumer_OmniLocalInputChannel_getRecycleBufferAddress
-  (JNIEnv *, jobject, jlong);
+JNIEXPORT jlong JNICALL
+Java_org_apache_flink_runtime_io_network_partition_consumer_OmniLocalInputChannel_getRecycleBufferAddress(
+    JNIEnv*, jobject, jlong);
 
 /*
  * Class:     org_apache_flink_runtime_io_network_partition_consumer_OmniLocalInputChannel
@@ -47,8 +50,8 @@ JNIEXPORT jlong JNICALL Java_org_apache_flink_runtime_io_network_partition_consu
  * Signature: (J)V
  */
 JNIEXPORT void JNICALL
-Java_org_apache_flink_runtime_io_network_partition_consumer_OmniLocalInputChannel_registerJavaOmniLocalInputChannel
-  (JNIEnv *env, jobject, jlong);
+Java_org_apache_flink_runtime_io_network_partition_consumer_OmniLocalInputChannel_registerJavaOmniLocalInputChannel(
+    JNIEnv* env, jobject, jlong);
 #ifdef __cplusplus
 }
 #endif

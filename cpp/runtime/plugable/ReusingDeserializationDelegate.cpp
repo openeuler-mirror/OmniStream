@@ -12,22 +12,22 @@
 #include <stdexcept>
 #include "ReusingDeserializationDelegate.h"
 
-void *ReusingDeserializationDelegate::getInstance()
+void* ReusingDeserializationDelegate::getInstance()
 {
     return instance_;
 }
 
-void ReusingDeserializationDelegate::setInstance(void *instance)
+void ReusingDeserializationDelegate::setInstance(void* instance)
 {
     instance_ = instance;
 }
 
-void ReusingDeserializationDelegate::write(DataOutputSerializer &out)
+void ReusingDeserializationDelegate::write(DataOutputSerializer& out)
 {
     THROW_LOGIC_EXCEPTION("Serialization method called on DeserializationDelegate.");
 }
 
-void ReusingDeserializationDelegate::read(DataInputView &in)
+void ReusingDeserializationDelegate::read(DataInputView& in)
 {
     instance_ = serializer_->deserialize(in);
 }

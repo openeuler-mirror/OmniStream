@@ -17,11 +17,17 @@
 
 class WatermarkOutput {
 public:
-    virtual void emitWatermark(Watermark* watermark) {}
+    virtual void emitWatermark(Watermark* watermark)
+    {
+    }
 
-    virtual void MarkIdle() {}
+    virtual void MarkIdle()
+    {
+    }
 
-    virtual void MarkActive() {}
+    virtual void MarkActive()
+    {
+    }
 
     virtual ~WatermarkOutput() = default;
 };

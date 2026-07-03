@@ -40,11 +40,13 @@ public:
         : registeredOperatorStates_(registeredOperatorStates),
           registeredBroadcastStates_(registeredBroadcastStates),
           stateHandles_(stateHandles),
-          omniTaskBridge_(omniTaskBridge) {}
+          omniTaskBridge_(omniTaskBridge)
+    {
+    }
 
     ~OperatorStateRestoreOperation() = default;
-    
-    void restore() 
+
+    void restore()
     {
         if (stateHandles_.empty()) {
             return;
@@ -62,7 +64,7 @@ public:
                 auto stateMetaInfoSnapshots = omniTaskBridge_->readOperatorMetaData(handleJson);
                 std::vector<uint8_t> stateData;
                 bool stateDataLoaded = false;
-                
+
                 for (auto& snapshot : stateMetaInfoSnapshots) {
                     const std::string& stateName = snapshot.getName();
                     if (stateNameToPartitionOffsets.find(stateName) == stateNameToPartitionOffsets.end()) {
@@ -81,20 +83,18 @@ public:
             }
         }
     }
-    
+
     void deserializeOperatorStateValues(
         std::shared_ptr<RegisteredOperatorStateBackendMetaInfo> metaInfo,
         const std::vector<uint8_t>& stateData,
-        std::unordered_map<std::string, OperatorStateHandle::StateMetaInfo> stateNameToPartitionOffsets) 
+        std::unordered_map<std::string, OperatorStateHandle::StateMetaInfo> stateNameToPartitionOffsets)
     {
         if (stateData.size() > static_cast<size_t>(std::numeric_limits<int>::max())) {
             INFO_RELEASE("Error: Operator state handle is too large to deserialize in memory: " << stateData.size());
-            THROW_LOGIC_EXCEPTION("Operator state handle is too large to deserialize in memory: "
-                << stateData.size())
+            THROW_LOGIC_EXCEPTION("Operator state handle is too large to deserialize in memory: " << stateData.size());
         }
-        DataInputDeserializer in(stateData.empty() ? nullptr : stateData.data(),
-            static_cast<int>(stateData.size()), 0);
-        TypeSerializer *serializer = metaInfo->getStateSerializer();
+        DataInputDeserializer in(stateData.empty() ? nullptr : stateData.data(), static_cast<int>(stateData.size()), 0);
+        TypeSerializer* serializer = metaInfo->getStateSerializer();
         if (serializer == nullptr) {
             return;
         }
@@ -113,8 +113,9 @@ public:
                     in.setPosition(static_cast<size_t>(offset));
                     auto rawValue = static_cast<std::vector<uint8_t>*>(serializer->deserialize(in));
                     if (rawValue == nullptr) {
-                        INFO_RELEASE("ERROR: Failed to deserialize operator state: " << name << ", offset="
-                            << std::to_string(offset));
+                        INFO_RELEASE(
+                            "ERROR: Failed to deserialize operator state: " << name
+                                                                            << ", offset=" << std::to_string(offset));
                         throw std::runtime_error(
                             "Failed to deserialize operator state: " + name + ", offset=" + std::to_string(offset));
                     }
@@ -130,8 +131,9 @@ public:
                     in.setPosition(static_cast<size_t>(offset));
                     auto rawValue = static_cast<long*>(serializer->deserialize(in));
                     if (rawValue == nullptr) {
-                        INFO_RELEASE("ERROR: Failed to deserialize operator state: " << name << ", offset="
-                            << std::to_string(offset));
+                        INFO_RELEASE(
+                            "ERROR: Failed to deserialize operator state: " << name
+                                                                            << ", offset=" << std::to_string(offset));
                         throw std::runtime_error(
                             "Failed to deserialize operator state: " + name + ", offset=" + std::to_string(offset));
                     }
@@ -151,12 +153,11 @@ private:
     static constexpr size_t READ_CHUNK_SIZE = 4096;
 
     std::vector<uint8_t> readOperatorStateData(
-        const std::shared_ptr<StreamStateHandle>& stateHandle,
-        const std::string& handleJson)
+        const std::shared_ptr<StreamStateHandle>& stateHandle, const std::string& handleJson)
     {
         if (stateHandle == nullptr) {
             INFO_RELEASE("Error: Operator state delegate handle is null.");
-            THROW_LOGIC_EXCEPTION("Operator state delegate handle is null.")
+            THROW_LOGIC_EXCEPTION("Operator state delegate handle is null.");
         }
 
         auto inMemoryBytes = stateHandle->AsBytesIfInMemory();
@@ -166,7 +167,7 @@ private:
 
         if (omniTaskBridge_ == nullptr) {
             INFO_RELEASE("Error: Cannot restore remote operator state without OmniTaskBridge.");
-            THROW_LOGIC_EXCEPTION("Cannot restore remote operator state without OmniTaskBridge.")
+            THROW_LOGIC_EXCEPTION("Cannot restore remote operator state without OmniTaskBridge.");
         }
 
         jobject inputStream = nullptr;
@@ -174,7 +175,7 @@ private:
             long expectedStateSize = stateHandle->GetStateSize();
             if (expectedStateSize < 0) {
                 INFO_RELEASE("Error: Operator state handle has negative state size: " << expectedStateSize);
-                THROW_LOGIC_EXCEPTION("Operator state handle has negative state size: " << expectedStateSize)
+                THROW_LOGIC_EXCEPTION("Operator state handle has negative state size: " << expectedStateSize);
             }
             if (expectedStateSize == 0) {
                 return {};
@@ -183,7 +184,7 @@ private:
             inputStream = omniTaskBridge_->getSavepointInputStream(handleJson);
             if (inputStream == nullptr) {
                 INFO_RELEASE("Error: Failed to open operator state input stream through OmniTaskBridge.");
-                THROW_LOGIC_EXCEPTION("Failed to open operator state input stream through OmniTaskBridge.")
+                THROW_LOGIC_EXCEPTION("Failed to open operator state input stream through OmniTaskBridge.");
             }
 
             std::vector<uint8_t> data;
@@ -191,19 +192,23 @@ private:
             while (data.size() < static_cast<size_t>(expectedStateSize)) {
                 size_t remaining = static_cast<size_t>(expectedStateSize) - data.size();
                 size_t readLength = remaining < READ_CHUNK_SIZE ? remaining : READ_CHUNK_SIZE;
-                int read = omniTaskBridge_->ReadSavepointInputStream(inputStream,
-                    reinterpret_cast<int8_t *>(chunk.data()), 0, readLength);
+                int read = omniTaskBridge_->ReadSavepointInputStream(
+                    inputStream, reinterpret_cast<int8_t*>(chunk.data()), 0, readLength);
                 if (read < 0) {
-                    INFO_RELEASE("Error: Operator state input stream ended before expected size: expected="
+                    INFO_RELEASE(
+                        "Error: Operator state input stream ended before expected size: expected="
                         << expectedStateSize << ", actual=" << data.size() << ", read=" << read);
-                    THROW_LOGIC_EXCEPTION("Operator state input stream ended before expected size: expected="
-                        << expectedStateSize << ", actual=" << data.size() << ", read=" << read)
+                    THROW_LOGIC_EXCEPTION(
+                        "Operator state input stream ended before expected size: expected="
+                        << expectedStateSize << ", actual=" << data.size() << ", read=" << read);
                 }
                 if (read == 0) {
-                    INFO_RELEASE("Error: Operator state input stream returned zero bytes before expected size: expected="
+                    INFO_RELEASE(
+                        "Error: Operator state input stream returned zero bytes before expected size: expected="
                         << expectedStateSize << ", actual=" << data.size());
-                    THROW_LOGIC_EXCEPTION("Operator state input stream returned zero bytes before expected size: expected="
-                        << expectedStateSize << ", actual=" << data.size())
+                    THROW_LOGIC_EXCEPTION(
+                        "Operator state input stream returned zero bytes before expected size: expected="
+                        << expectedStateSize << ", actual=" << data.size());
                 }
                 data.insert(data.end(), chunk.begin(), chunk.begin() + read);
             }
@@ -218,8 +223,8 @@ private:
                 try {
                     omniTaskBridge_->closeSavepointInputStream(inputStreamToClose);
                 } catch (const std::exception& e) {
-                    INFO_RELEASE("Error: Failed to close operator state input stream after restore failure: "
-                        << e.what());
+                    INFO_RELEASE(
+                        "Error: Failed to close operator state input stream after restore failure: " << e.what());
                 } catch (...) {
                     INFO_RELEASE("Error: Failed to close operator state input stream after restore failure.");
                 }
@@ -231,23 +236,24 @@ private:
     static void validateOffset(const std::string& stateName, long offset, size_t stateSize)
     {
         if (offset < 0 || static_cast<size_t>(offset) >= stateSize) {
-            INFO_RELEASE("Error: Invalid operator state offset for state " << stateName
-                << ": offset=" << offset << ", stateSize=" << stateSize);
-            THROW_LOGIC_EXCEPTION("Invalid operator state offset for state " << stateName
-                << ": offset=" << offset << ", stateSize=" << stateSize)
+            INFO_RELEASE(
+                "Error: Invalid operator state offset for state " << stateName << ": offset=" << offset
+                                                                  << ", stateSize=" << stateSize);
+            THROW_LOGIC_EXCEPTION(
+                "Invalid operator state offset for state " << stateName << ": offset=" << offset
+                                                           << ", stateSize=" << stateSize);
         }
     }
 
     static bool isSupportedRestoredState(const std::string& stateName)
     {
-        return typeByteStateNames.find(stateName) != typeByteStateNames.end()
-            || typeLongStateNames.find(stateName) != typeLongStateNames.end();
+        return typeByteStateNames.find(stateName) != typeByteStateNames.end() ||
+               typeLongStateNames.find(stateName) != typeLongStateNames.end();
     }
 
     template <typename T>
     std::shared_ptr<PartitionableListState<T>> getOrCreateOperatorListState(
-        const std::string& stateName,
-        const std::shared_ptr<RegisteredOperatorStateBackendMetaInfo>& metaInfo)
+        const std::string& stateName, const std::shared_ptr<RegisteredOperatorStateBackendMetaInfo>& metaInfo)
     {
         auto existing = registeredOperatorStates_->find(stateName);
         if (existing != registeredOperatorStates_->end()) {
@@ -274,8 +280,8 @@ private:
             INFO_RELEASE("ERROR: Restored operator state meta info is null for state: " << stateName);
             throw std::runtime_error("Restored operator state meta info is null for state: " + stateName);
         }
-        if (existingMetaInfo->getName() != restoredMetaInfo->getName()
-            || existingMetaInfo->getAssignmentMode() != restoredMetaInfo->getAssignmentMode()) {
+        if (existingMetaInfo->getName() != restoredMetaInfo->getName() ||
+            existingMetaInfo->getAssignmentMode() != restoredMetaInfo->getAssignmentMode()) {
             INFO_RELEASE("ERROR: Restored operator state meta info mismatch for state: " << stateName);
             throw std::runtime_error("Restored operator state meta info mismatch for state: " + stateName);
         }
@@ -293,15 +299,9 @@ private:
     }
 
     inline static std::set<std::string> typeByteStateNames = {
-        "SourceReaderState",
-        "writer_raw_states",
-        "streaming_committer_raw_states"
-    };
+        "SourceReaderState", "writer_raw_states", "streaming_committer_raw_states"};
 
-    inline static std::set<std::string> typeLongStateNames = {
-        "watermark",
-        "elements-count-state"
-    };
+    inline static std::set<std::string> typeLongStateNames = {"watermark", "elements-count-state"};
 };
 
 #endif // OMNISTREAM_OPERATORSTATERESTOREOPERATION_H

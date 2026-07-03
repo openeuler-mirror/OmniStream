@@ -36,7 +36,7 @@ public:
      * @param csvRows
      * @return VectorBatch
      */
-    static omnistream::VectorBatch *convert(std::vector<CsvRow> &csvRows);
+    static omnistream::VectorBatch* convert(std::vector<CsvRow>& csvRows);
 
     /**
      * @brief Convert csv rows to vector batch using the given `oneMap`
@@ -44,7 +44,7 @@ public:
      * @param oneMap mapping from project field index to csv field index
      * @return VectorBatch
      */
-    static omnistream::VectorBatch *convert(std::vector<CsvRow> &csvRows, std::vector<int>& oneMap);
+    static omnistream::VectorBatch* convert(std::vector<CsvRow>& csvRows, std::vector<int>& oneMap);
 };
 
 } // namespace csv

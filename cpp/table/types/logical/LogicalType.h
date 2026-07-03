@@ -46,10 +46,10 @@ protected:
 
 class BasicLogicalType : public LogicalType {
 public:
-    BasicLogicalType(int typeId, bool isNullable) : LogicalType(typeId, isNullable){};
+    BasicLogicalType(int typeId, bool isNullable) : LogicalType(typeId, isNullable) {};
 
     BasicLogicalType(bool isNullable, int typeId, const std::string& typeName)
-        : LogicalType(isNullable, typeId, typeName){};
+        : LogicalType(isNullable, typeId, typeName) {};
 
     // Basic type has no children
     std::vector<LogicalType*> getChildren()
@@ -57,10 +57,11 @@ public:
         return emptyChildren;
     }
 
-    nlohmann::json toJson() const override {
+    nlohmann::json toJson() const override
+    {
         nlohmann::json result = LogicalType::toJson();
         nlohmann::json types = nlohmann::json::array();
-        for (const auto& item: emptyChildren) {
+        for (const auto& item : emptyChildren) {
             types.push_back(item->toJson());
         }
         if (types.size() > 0) {

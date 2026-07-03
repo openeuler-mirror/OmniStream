@@ -20,10 +20,13 @@ public:
     explicit VoidTypeInfo(const char* name);
     TypeSerializer* createTypeSerializer() override;
     std::string name() override;
-    BackendDataType getBackendId() const override { return BackendDataType::OBJECT_BK; }
+    BackendDataType getBackendId() const override
+    {
+        return BackendDataType::OBJECT_BK;
+    }
 
 private:
     const char* name_ = TYPE_NAME_VOID;
 };
 
-#endif  // VOIDTYPEINFO_H
+#endif // VOIDTYPEINFO_H

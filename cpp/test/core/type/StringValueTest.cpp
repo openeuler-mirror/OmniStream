@@ -13,14 +13,15 @@ static const int HIGH_BIT21 = 0x1 << 21;
 static const int HIGH_BIT28 = 0x1 << 28;
 
 // 测试用例定义
-TEST(StringValueTest, WriteAndReadTest) {
+TEST(StringValueTest, WriteAndReadTest)
+{
     StringValue stringValue;
     std::u32string value(U"Hello, World!");
     stringValue.setValue(value);
 
     // 写入数据到 DataOutputSerializer
     DataOutputSerializer out{};
-    uint8_t *data = reinterpret_cast<uint8_t *>(malloc(100));
+    uint8_t* data = reinterpret_cast<uint8_t*>(malloc(100));
     out.setBackendBuffer(data, 100);
     stringValue.write(out);
 
@@ -33,7 +34,8 @@ TEST(StringValueTest, WriteAndReadTest) {
     EXPECT_EQ(stringValue.getValue(), stringValue2.getValue());
 }
 
-TEST(StringValueTest, WriteAndReadLargeStringTest) {
+TEST(StringValueTest, WriteAndReadLargeStringTest)
+{
     std::string largeString(1000, 'A');
     StringValue stringValue;
     std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> convert;
@@ -42,7 +44,7 @@ TEST(StringValueTest, WriteAndReadLargeStringTest) {
 
     // 写入数据到 DataOutputSerializer
     DataOutputSerializer out{};
-    uint8_t *data = reinterpret_cast<uint8_t *>(malloc(100));
+    uint8_t* data = reinterpret_cast<uint8_t*>(malloc(100));
     OutputBufferStatus outputBufferStatus_;
     out.setBackendBuffer(&outputBufferStatus_);
     stringValue.write(out);
@@ -56,7 +58,8 @@ TEST(StringValueTest, WriteAndReadLargeStringTest) {
     EXPECT_EQ(stringValue.getValue(), stringValue2.getValue());
 }
 
-TEST(StringValueTest, WriteStringTest) {
+TEST(StringValueTest, WriteStringTest)
+{
     std::string expectedValue = "Hello, World!";
     String buffer(expectedValue);
     DataOutputSerializer out{};
@@ -64,7 +67,7 @@ TEST(StringValueTest, WriteStringTest) {
     out.setBackendBuffer(&outputBufferStatus_);
 
     StringValue::writeString(&buffer, out);
-    uint8_t *data = out.getData();
+    uint8_t* data = out.getData();
 
     // 验证写入的数据是否正确
     size_t len = buffer.getValue().size();
@@ -79,11 +82,12 @@ TEST(StringValueTest, WriteStringTest) {
     }
 }
 
-TEST(StringValueTest, WriteStringLargeTest) {
+TEST(StringValueTest, WriteStringLargeTest)
+{
     std::string largeString(1000, 'A');
     String buffer(largeString);
     DataOutputSerializer out{};
-    uint8_t *data = reinterpret_cast<uint8_t *>(malloc(100));
+    uint8_t* data = reinterpret_cast<uint8_t*>(malloc(100));
     OutputBufferStatus outputBufferStatus_;
     out.setBackendBuffer(&outputBufferStatus_);
 
@@ -93,7 +97,6 @@ TEST(StringValueTest, WriteStringLargeTest) {
     // 验证写入的数据是否正确
     size_t len = buffer.getValue().size();
     size_t expectedLen = len + 1; // Length is offset by one
-
 
     // 验证长度
     if (expectedLen < HIGH_BIT) {
@@ -119,12 +122,13 @@ TEST(StringValueTest, WriteStringLargeTest) {
     }
 }
 
-TEST(StringValueTest, WriteAndReadStringTest) {
+TEST(StringValueTest, WriteAndReadStringTest)
+{
     std::string expectedValue = "o4测试用字符..............................************************************";
-    String *s = new String(expectedValue);
+    String* s = new String(expectedValue);
 
     DataOutputSerializer out{};
-    uint8_t *data = reinterpret_cast<uint8_t *>(malloc(100));
+    uint8_t* data = reinterpret_cast<uint8_t*>(malloc(100));
     out.setBackendBuffer(data, 100);
 
     StringValue::writeString(s, out);
@@ -132,7 +136,7 @@ TEST(StringValueTest, WriteAndReadStringTest) {
     omnistream::datastream::NonSpanningWrapper in;
     in.initializeFromMemoryBuffer(out.getData(), 100);
 
-    String *result = new String();
+    String* result = new String();
     StringValue::readString(result, in);
 
     EXPECT_EQ(result->getValue(), s->getValue());
@@ -140,11 +144,13 @@ TEST(StringValueTest, WriteAndReadStringTest) {
     delete result;
 }
 
-TEST(StringValueTest, ReadStringTest) {
+TEST(StringValueTest, ReadStringTest)
+{
     std::string expectedValue = "Hello, World!";
     // 计算长度并填充到前缀中
     size_t len = expectedValue.size();
-    size_t prefixLength = len < HIGH_BIT ? 1 : (len < HIGH_BIT14 ? 2 : (len < HIGH_BIT21 ? 3 : (len < HIGH_BIT28 ? 4 : 5)));
+    size_t prefixLength =
+        len < HIGH_BIT ? 1 : (len < HIGH_BIT14 ? 2 : (len < HIGH_BIT21 ? 3 : (len < HIGH_BIT28 ? 4 : 5)));
 
     std::vector<uint8_t> data(prefixLength);
     size_t idx = 0;
@@ -183,12 +189,13 @@ TEST(StringValueTest, ReadStringTest) {
     delete buffer;
 }
 
-TEST(StringValueTest, ReadStringLargeTest) {
+TEST(StringValueTest, ReadStringLargeTest)
+{
     std::string expectedValue(1000, 'A');
     // 计算长度并填充到前缀中
     size_t len = expectedValue.size();
 
-    int32_t maxLimit = 5  + 3 * len;
+    int32_t maxLimit = 5 + 3 * len;
 
     std::vector<uint8_t> data(1000 + maxLimit);
 
@@ -233,7 +240,7 @@ TEST(StringValueTest, ReadStringLargeTest) {
     }
 
     // 添加字符串内容
-    //data.insert(data.end(), expectedValue.begin(), expectedValue.end());
+    // data.insert(data.end(), expectedValue.begin(), expectedValue.end());
 
     auto buffer = new String("", idx + 1);
     omnistream::datastream::NonSpanningWrapper in;
@@ -245,7 +252,8 @@ TEST(StringValueTest, ReadStringLargeTest) {
     delete buffer;
 }
 
-TEST(StringValueTest, ReadStringNullTest) {
+TEST(StringValueTest, ReadStringNullTest)
+{
     // 创建一个表示空字符串的数据vector（长度为0）
     std::vector<uint8_t> data = {0};
 
@@ -258,11 +266,12 @@ TEST(StringValueTest, ReadStringNullTest) {
     EXPECT_EQ(buffer.getSize(), 1);
 }
 
-TEST(StringValueTest, ReadStringReallocateMemoryTest) {
+TEST(StringValueTest, ReadStringReallocateMemoryTest)
+{
     std::string expectedValue(1000, 'A');
     // 计算长度并填充到前缀中
     size_t len = expectedValue.size();
-    int32_t maxLimit = 5  + 3 * len;
+    int32_t maxLimit = 5 + 3 * len;
 
     std::vector<uint8_t> data(1000 + maxLimit);
     size_t idx = 0;

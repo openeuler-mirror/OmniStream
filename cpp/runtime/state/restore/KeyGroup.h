@@ -14,14 +14,25 @@
 #include "KeyGroupEntryIterator.h"
 class KeyGroup {
 public:
-    explicit KeyGroup(int keyGroupId) : keyGroupId_(keyGroupId) {}
+    explicit KeyGroup(int keyGroupId) : keyGroupId_(keyGroupId)
+    {
+    }
 
     KeyGroup(int keyGroupId, std::shared_ptr<KeyGroupEntryIterator> keyGroupEntries)
-        : keyGroupId_(keyGroupId), keyGroupEntries_(keyGroupEntries) {}
+        : keyGroupId_(keyGroupId),
+          keyGroupEntries_(keyGroupEntries)
+    {
+    }
 
-    int getKeyGroupId() const { return keyGroupId_; }
+    int getKeyGroupId() const
+    {
+        return keyGroupId_;
+    }
 
-    std::shared_ptr<KeyGroupEntryIterator> getKeyGroupEntries() { return keyGroupEntries_; }
+    std::shared_ptr<KeyGroupEntryIterator> getKeyGroupEntries()
+    {
+        return keyGroupEntries_;
+    }
 
 private:
     int keyGroupId_;

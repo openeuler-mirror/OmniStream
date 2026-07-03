@@ -17,18 +17,23 @@
 
 class CheckpointType : public SnapshotType {
 public:
-    static CheckpointType *CHECKPOINT;
-    static CheckpointType *FULL_CHECKPOINT;
-    CheckpointType(std::string name,
-                SnapshotType::SharingFilesStrategy sharingFilesStrategy);
+    static CheckpointType* CHECKPOINT;
+    static CheckpointType* FULL_CHECKPOINT;
+    CheckpointType(std::string name, SnapshotType::SharingFilesStrategy sharingFilesStrategy);
 
-    bool IsSavepoint() const override { return false; }
-    std::string GetName() const override { return name; }
+    bool IsSavepoint() const override
+    {
+        return false;
+    }
+    std::string GetName() const override
+    {
+        return name;
+    }
     SharingFilesStrategy GetSharingFilesStrategy() const override
     {
         return sharingFilesStrategy_;
     }
-    bool operator==(const SnapshotType &other) const override;
+    bool operator==(const SnapshotType& other) const override;
 
     std::string ToString() override;
 

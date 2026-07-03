@@ -9,7 +9,6 @@
  * See the Mulan PSL v2 for more details.
  */
 
-
 #ifndef OMNILOCALCHANNELREADER_H
 #define OMNILOCALCHANNELREADER_H
 #include <memory>
@@ -25,56 +24,64 @@
 #include "table/data/RowData.h"
 
 namespace omnistream {
-    struct MemorySegmentInfo {
-        uint64_t memorySegmentAddress;
-        int32_t readIndex;
-        int32_t length;
-        int32_t currentDataType;
-        int32_t backlog;
-        int32_t nextDataType;
-        int32_t sequenceNumber;
-    };
+struct MemorySegmentInfo {
+    uint64_t memorySegmentAddress;
+    int32_t readIndex;
+    int32_t length;
+    int32_t currentDataType;
+    int32_t backlog;
+    int32_t nextDataType;
+    int32_t sequenceNumber;
+};
 
+class OmniLocalChannelReader : public BufferAvailabilityListener {
+public:
+    OmniLocalChannelReader(
+        ResultPartitionIDPOD partitionId,
+        int subPartitionIndex,
+        long outputBufferStatus,
+        std::string taskNameWithSubtas);
+    ~OmniLocalChannelReader() override;
 
-    class OmniLocalChannelReader : public BufferAvailabilityListener {
-    public:
-        OmniLocalChannelReader(ResultPartitionIDPOD partitionId,
-                               int subPartitionIndex, long outputBufferStatus, std::string taskNameWithSubtas);
-        ~OmniLocalChannelReader() override;
+    void requestSubpartitionView(
+        std::shared_ptr<ResultPartitionManager> resultPartitionManager,
+        ResultPartitionIDPOD partitionId,
+        int subPartitionId);
 
-        void requestSubpartitionView(
-            std::shared_ptr<ResultPartitionManager> resultPartitionManager,
-            ResultPartitionIDPOD partitionId, int subPartitionId);
+    void notifyDataAvailable();
+    bool checkIfDataAvailable();
+    uint8_t getNextBuffer();
+    void recycleMemorySegment(long memorySegmentAddress);
+    void Close();
+    void ReleaseAllResources();
+    void WrapBufferInfoIntoMemorySegmentInfo(
+        ::datastream::ReadOnlySlicedNetworkBuffer* nBuffer, BufferAndBacklog* bufferAndLog);
+    void WrapBufferInfoIntoBinaryRowDataInfo(omnistream::VectorBatchBuffer* nBuffer, BufferAndBacklog* bufferAndLog);
+    void ResumeConsumption();
 
-        void notifyDataAvailable();
-        bool checkIfDataAvailable();
-        uint8_t getNextBuffer();
-        void recycleMemorySegment(long memorySegmentAddress);
-        void Close();
-        void ReleaseAllResources();
-        void WrapBufferInfoIntoMemorySegmentInfo(::datastream::ReadOnlySlicedNetworkBuffer* nBuffer,
-                                                 BufferAndBacklog* bufferAndLog);
-        void WrapBufferInfoIntoBinaryRowDataInfo(omnistream::VectorBatchBuffer* nBuffer,
-                                                 BufferAndBacklog* bufferAndLog);
-        void ResumeConsumption();
+private:
+    int calculateTotalRows(ObjectSegment* objectSegment, int offset, int vbNum);
+    void setRowDataToPtr(
+        RowData* binaryRowData,
+        uint8_t* dataResultContainer,
+        unsigned int& position,
+        int vectorBatchCol,
+        VectorBatch* element,
+        int index);
 
-    private:
-        int calculateTotalRows(ObjectSegment *objectSegment, int offset, int vbNum);
-        void setRowDataToPtr(RowData* binaryRowData, uint8_t* dataResultContainer, unsigned int& position, int vectorBatchCol, VectorBatch* element, int index);
-
-        ResultPartitionIDPOD partitionId_;
-        int subPartitionIndex_;
-        std::shared_ptr<ResultSubpartitionView> subpartitionView;
-        std::recursive_mutex createViewMutex;
-        std::recursive_mutex fetchingDataMutex;
-        MemorySegmentInfo* memorySegmentInfo;
-        std::condition_variable_any dataAvailableCondition;
-        std::recursive_mutex dataAvailableMutex;
-        std::atomic<bool> dataAvailable = false;
-        std::unordered_map<uint64_t, Buffer*> pendingRecyclingBufferMap;
-        std::recursive_mutex recycleBufferMutex;
-        std::atomic<bool> isStopped = false;
-        std::string taskNameWithSubtask_;
-    };
+    ResultPartitionIDPOD partitionId_;
+    int subPartitionIndex_;
+    std::shared_ptr<ResultSubpartitionView> subpartitionView;
+    std::recursive_mutex createViewMutex;
+    std::recursive_mutex fetchingDataMutex;
+    MemorySegmentInfo* memorySegmentInfo;
+    std::condition_variable_any dataAvailableCondition;
+    std::recursive_mutex dataAvailableMutex;
+    std::atomic<bool> dataAvailable = false;
+    std::unordered_map<uint64_t, Buffer*> pendingRecyclingBufferMap;
+    std::recursive_mutex recycleBufferMutex;
+    std::atomic<bool> isStopped = false;
+    std::string taskNameWithSubtask_;
+};
 } // namespace omnistream
-#endif  // OMNILOCALCHANNELREADER_H
+#endif // OMNILOCALCHANNELREADER_H

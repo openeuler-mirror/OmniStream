@@ -1,5 +1,5 @@
 /*
-* Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
  * You can use this software according to the terms and conditions of the Mulan PSL v2.
  * You may obtain a copy of Mulan PSL v2 at:
  *          http://license.coscl.org.cn/MulanPSL2
@@ -25,19 +25,35 @@
 
 class RegisteredOperatorStateBackendMetaInfo : public RegisteredStateMetaInfoBase {
 public:
-    RegisteredOperatorStateBackendMetaInfo(const std::string& name, OperatorStateHandle::Mode assignmentMode, TypeSerializer* stateSerializer);
+    RegisteredOperatorStateBackendMetaInfo(
+        const std::string& name, OperatorStateHandle::Mode assignmentMode, TypeSerializer* stateSerializer);
 
     explicit RegisteredOperatorStateBackendMetaInfo(const StateMetaInfoSnapshot& snapshot);
 
-    std::shared_ptr<StateMetaInfoSnapshot> snapshot() override { return computeSnapshot(); }
+    std::shared_ptr<StateMetaInfoSnapshot> snapshot() override
+    {
+        return computeSnapshot();
+    }
 
-    OperatorStateHandle::Mode getAssignmentMode() { return assignmentMode_; }
+    OperatorStateHandle::Mode getAssignmentMode()
+    {
+        return assignmentMode_;
+    }
 
-    void updateAssignmentMode(OperatorStateHandle::Mode assignmentMode) { assignmentMode_ = assignmentMode; }
+    void updateAssignmentMode(OperatorStateHandle::Mode assignmentMode)
+    {
+        assignmentMode_ = assignmentMode;
+    }
 
-    TypeSerializer* getStateSerializer() { return stateSerializer_; }
+    TypeSerializer* getStateSerializer()
+    {
+        return stateSerializer_;
+    }
 
-    void updateStateSerializer(TypeSerializer* stateSerializer) { stateSerializer_ = stateSerializer; }
+    void updateStateSerializer(TypeSerializer* stateSerializer)
+    {
+        stateSerializer_ = stateSerializer;
+    }
 
 private:
     OperatorStateHandle::Mode assignmentMode_;
@@ -46,4 +62,4 @@ private:
     std::shared_ptr<StateMetaInfoSnapshot> computeSnapshot();
 };
 
-#endif //OMNISTREAM_REGISTEREDOPERATORSTATEBACKENDMETAINFO_H
+#endif // OMNISTREAM_REGISTEREDOPERATORSTATEBACKENDMETAINFO_H

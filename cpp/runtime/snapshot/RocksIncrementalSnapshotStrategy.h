@@ -37,7 +37,7 @@ public:
         rocksdb::DB* db,
         std::shared_ptr<ResourceGuard> rocksDBResourceGuard,
         std::shared_ptr<TypeSerializer> keySerializer,
-        std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>> *kvStateInformation,
+        std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation,
         KeyGroupRange keyGroupRange,
         int keyGroupPrefixBytes,
         std::shared_ptr<LocalRecoveryConfig> localRecoveryConfig,
@@ -45,8 +45,7 @@ public:
         UUID backendUID,
         const std::map<long, std::vector<HandleAndLocalPath>>& uploadedStateHandles,
         std::shared_ptr<RocksDBStateUploader> rocksDBStateUploader,
-        long lastCompletedCheckpointId
-    );
+        long lastCompletedCheckpointId);
 
     std::shared_ptr<SnapshotResources> syncPrepareResources(long checkpointId)
     {
@@ -67,8 +66,7 @@ public:
 
 protected:
     std::shared_ptr<PreviousSnapshot> snapshotMetaData(
-        long checkpointId,
-        std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& stateMetaInfoSnapshots) override;
+        long checkpointId, std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& stateMetaInfoSnapshots) override;
 
     class RocksDBIncrementalSnapshotOperation : public RocksDBSnapshotStrategyBase::RocksDBSnapshotOperation {
     public:
@@ -80,10 +78,11 @@ protected:
             std::shared_ptr<PreviousSnapshot> previousSnapshot,
             SnapshotType::SharingFilesStrategy sharingFilesStrategy,
             std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& stateMetaInfoSnapshots,
-            CheckpointOptions *checkpointOptions,
+            CheckpointOptions* checkpointOptions,
             std::shared_ptr<TypeSerializer> keySerializer);
 
-        std::shared_ptr<SnapshotResult<KeyedStateHandle>> get(std::shared_ptr<omnistream::OmniTaskBridge> bridge) override;
+        std::shared_ptr<SnapshotResult<KeyedStateHandle>> get(
+            std::shared_ptr<omnistream::OmniTaskBridge> bridge) override;
 
     private:
         long uploadSnapshotFiles(
@@ -100,7 +99,7 @@ protected:
         RocksIncrementalSnapshotStrategy* parent_;
         std::shared_ptr<PreviousSnapshot> previousSnapshot_;
         SnapshotType::SharingFilesStrategy sharingFilesStrategy_;
-        CheckpointOptions *checkpointOptions_;
+        CheckpointOptions* checkpointOptions_;
     };
 
 private:

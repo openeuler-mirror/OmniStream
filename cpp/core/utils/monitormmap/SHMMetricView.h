@@ -12,29 +12,27 @@
 #ifndef SHMMETRICVIEW_H
 #define SHMMETRICVIEW_H
 
-
 namespace omnistream {
-    class SHMMetricView {
-    public:
-        explicit SHMMetricView(long int* valuePtr)
-            : valuePtr_(valuePtr)
-        {
-        }
+class SHMMetricView {
+public:
+    explicit SHMMetricView(long int* valuePtr) : valuePtr_(valuePtr)
+    {
+    }
 
-        ~SHMMetricView();
+    ~SHMMetricView();
 
-        long int GetThreadID();
-        long int GetProbeID();
-        long int GetMilliSeconds();
-        long int GetCount();
+    long int GetThreadID();
+    long int GetProbeID();
+    long int GetMilliSeconds();
+    long int GetCount();
 
-    private:
-        const int threadIDOffset = 0;
-        const int probeIDOffset = 1;
-        const int millisecondsOffset = 2;
-        const int countOffset = 3;
-        long int *valuePtr_;
-    };
-}
+private:
+    const int threadIDOffset = 0;
+    const int probeIDOffset = 1;
+    const int millisecondsOffset = 2;
+    const int countOffset = 3;
+    long int* valuePtr_;
+};
+} // namespace omnistream
 
 #endif // SHMMETRICVIEW_H

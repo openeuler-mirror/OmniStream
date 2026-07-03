@@ -1,5 +1,5 @@
 /*
-* Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
  * You can use this software according to the terms and conditions of the Mulan PSL v2.
  * You may obtain a copy of Mulan PSL v2 at:
  *          http://license.coscl.org.cn/MulanPSL2
@@ -18,7 +18,6 @@
 #include <vector>
 #include <functional>
 
-
 #include "core/include/common.h"
 #include "runtime/checkpoint/CheckpointOptions.h"
 
@@ -36,19 +35,20 @@
 #include "DefaultOperatorStateBackendSnapshotResources.h"
 #include "../../core/include/common.h"
 
-class DefaultOperatorStateBackendSnapshotStrategy
-    : public SnapshotStrategy<OperatorStateHandle, SnapshotResources> {
+class DefaultOperatorStateBackendSnapshotStrategy : public SnapshotStrategy<OperatorStateHandle, SnapshotResources> {
 public:
     DefaultOperatorStateBackendSnapshotStrategy(
         std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> registeredOperatorStates,
         std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> registeredBroadcastStates)
         : registeredOperatorStates_(registeredOperatorStates),
-          registeredBroadcastStates_(registeredBroadcastStates) {
+          registeredBroadcastStates_(registeredBroadcastStates)
+    {
     }
 
     ~DefaultOperatorStateBackendSnapshotStrategy() = default;
 
-    std::shared_ptr<SnapshotResources> syncPrepareResources(long checkpointId) override {
+    std::shared_ptr<SnapshotResources> syncPrepareResources(long checkpointId) override
+    {
         auto operatorStateMetaInfoSnapshots = std::vector<std::shared_ptr<StateMetaInfoSnapshot>>();
         auto broadcastStateMetaInfoSnapshots = std::vector<std::shared_ptr<StateMetaInfoSnapshot>>();
 
@@ -69,7 +69,7 @@ public:
                         continue;
                     }
                     auto state1 = std::dynamic_pointer_cast<PartitionableListState<long>>(entry.second);
-                    if (state1){
+                    if (state1) {
                         operatorStateMetaInfoSnapshots.push_back(state1->getStateMetaInfo()->snapshot());
                         continue;
                     }
@@ -79,9 +79,11 @@ public:
 
         if (!registeredBroadcastStates_->empty()) {
             for (auto& entry : *registeredBroadcastStates_) {
-                if (entry.second !=  nullptr) {
+                if (entry.second != nullptr) {
                     // TODO  需使用broadcast具体类型
-                    auto state = std::dynamic_pointer_cast<HeapBroadcastState<std::vector<uint8_t>, std::vector<uint8_t>>>(entry.second);
+                    auto state =
+                        std::dynamic_pointer_cast<HeapBroadcastState<std::vector<uint8_t>, std::vector<uint8_t>>>(
+                            entry.second);
                     broadcastStateMetaInfoSnapshots.push_back(state->getStateMetaInfo()->snapshot());
                 }
             }
@@ -100,14 +102,13 @@ public:
         long timestamp, /* not used */
         CheckpointStreamFactory* streamFactory,
         CheckpointOptions* checkpointOptions,
-        std::string keySerializer_ = "") override {
+        std::string keySerializer_ = "") override
+    {
+        auto operatorSnapshotResources =
+            std::dynamic_pointer_cast<DefaultOperatorStateBackendSnapshotResources>(snapshotResources);
 
-        auto operatorSnapshotResources = std::dynamic_pointer_cast<DefaultOperatorStateBackendSnapshotResources>(snapshotResources);
-
-        return std::make_shared<DefaultOperatorSnapshotOperation>(checkpointId,
-                                                                           checkpointOptions,
-                                                                           streamFactory,
-                                                                           operatorSnapshotResources);
+        return std::make_shared<DefaultOperatorSnapshotOperation>(
+            checkpointId, checkpointOptions, streamFactory, operatorSnapshotResources);
     }
 
 private:
@@ -115,4 +116,4 @@ private:
     std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> registeredBroadcastStates_;
 };
 
-#endif //OMNISTREAM_DEFAULTOPERATORSTATEBACKENDSNAPSHOTSTRATEGY_H
+#endif // OMNISTREAM_DEFAULTOPERATORSTATEBACKENDSNAPSHOTSTRATEGY_H

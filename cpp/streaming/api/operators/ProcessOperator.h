@@ -9,7 +9,6 @@
  * See the Mulan PSL v2 for more details.
  */
 
-
 #ifndef FLINK_TNEL_PROCESSOPERATOR_H
 #define FLINK_TNEL_PROCESSOPERATOR_H
 
@@ -25,12 +24,13 @@
  * IN: such as Object*, VectorBatch*
  * OUT: such as Object*, VectorBatch*
  * */
-template<typename IN, typename OUT>
+template <typename IN, typename OUT>
 class ProcessOperator : public OneInputStreamOperator, public AbstractUdfStreamOperator<ProcessFunction<IN, OUT>, OUT> {
 public:
     // it is called when the operator type is sql
-    ProcessOperator(ProcessFunction<IN, OUT>* function, const nlohmann::json& description, Output* output, bool isStream = false) :
-        AbstractUdfStreamOperator<ProcessFunction<IN, OUT>, OUT>(function)
+    ProcessOperator(
+        ProcessFunction<IN, OUT>* function, const nlohmann::json& description, Output* output, bool isStream = false)
+        : AbstractUdfStreamOperator<ProcessFunction<IN, OUT>, OUT>(function)
     {
         this->output = output;
         this->isStream = isStream;
@@ -52,18 +52,18 @@ public:
         delete context;
     }
 
-    void loadUdf(nlohmann::json config) {
+    void loadUdf(nlohmann::json config)
+    {
         std::string soPath = config["udf_so"];
         std::string udfObj = config["udf_obj"];
         nlohmann::json udfObjJson = nlohmann::json::parse(udfObj);
         LOG("ProcessOperator udf obj: " + udfObj);
-        auto *symbol = udfLoader.LoadProcessOperatorFunction(soPath);
+        auto* symbol = udfLoader.LoadProcessOperatorFunction(soPath);
         if (symbol == nullptr) {
             throw std::out_of_range("null pointer when load " + soPath);
         }
         this->userFunction = symbol(udfObjJson).release();
     }
-
 
     void open() override
     {
@@ -73,31 +73,34 @@ public:
         context = new ContextImpl(this->userFunction, this->getProcessingTimeService(), this);
     }
 
-    void processElement(StreamRecord *element) override
+    void processElement(StreamRecord* element) override
     {
         collector->setTimestamp(element);
         context->element = element;
-        auto value = reinterpret_cast<Object *>(element->getValue());
+        auto value = reinterpret_cast<Object*>(element->getValue());
         this->userFunction->processElement(value, context, collector);
         value->putRefCount();
         context->element = nullptr;
     }
 
-    void processBatch(StreamRecord *element) override
+    void processBatch(StreamRecord* element) override
     {
-        this->userFunction->processBatch(reinterpret_cast<omnistream::VectorBatch*>(element->getValue()), context,
-                                         collector);
+        this->userFunction->processBatch(
+            reinterpret_cast<omnistream::VectorBatch*>(element->getValue()), context, collector);
     }
 
-    void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) override {
+    void initializeState(StreamTaskStateInitializerImpl* initializer, TypeSerializer* keySerializer) override
+    {
         INFO_RELEASE("ProcessOperator::initializeState not impl initializeState");
     }
 
-    void notifyCheckpointComplete(long checkpointId) override {
+    void notifyCheckpointComplete(long checkpointId) override
+    {
         INFO_RELEASE("ProcessOperator::notifyCheckpointComplete not impl checkpointId : " << checkpointId);
     }
 
-    void notifyCheckpointAborted(long checkpointId) override {
+    void notifyCheckpointAborted(long checkpointId) override
+    {
         INFO_RELEASE("ProcessOperator::notifyCheckpointAborted not impl  checkpointId : " << checkpointId);
     }
 
@@ -106,7 +109,7 @@ public:
         AbstractStreamOperator<OUT>::ProcessWatermark(mark);
         this->currentWatermark_ = mark->getTimestamp();
     }
-    void processWatermarkStatus(WatermarkStatus *watermarkStatus) override
+    void processWatermarkStatus(WatermarkStatus* watermarkStatus) override
     {
         this->output->emitWatermarkStatus(watermarkStatus);
     }
@@ -119,8 +122,9 @@ public:
 private:
     class ContextImpl : public ProcessFunction<IN, OUT>::Context, public omnistream::streaming::TimerService {
     public:
-        ContextImpl(ProcessFunction<IN, OUT>* function, ProcessingTimeService* timeService, ProcessOperator* op_) :
-            processingTimeService(timeService), op(op_)
+        ContextImpl(ProcessFunction<IN, OUT>* function, ProcessingTimeService* timeService, ProcessOperator* op_)
+            : processingTimeService(timeService),
+              op(op_)
         {
             op->userFunction = function;
             reuse = new StreamRecord();
@@ -150,7 +154,7 @@ private:
         void Output(OutputTag* tag, Object* value) override
         {
             if (tag == nullptr) {
-                THROW_LOGIC_EXCEPTION("OutputTag must not be null")
+                THROW_LOGIC_EXCEPTION("OutputTag must not be null");
             }
             op->GetOutput()->collect(reuse->replace(value, element->getTimestamp()));
         }
@@ -165,22 +169,23 @@ private:
             return op->currentWatermark_;
         }
 
-        void registerProcessingTimeTimer(int64_t time) override {
-            NOT_IMPL_EXCEPTION
+        void registerProcessingTimeTimer(int64_t time) override
+        {
+            NOT_IMPL_EXCEPTION;
         }
         void registerEventTimeTimer(int64_t time) override
         {
-            NOT_IMPL_EXCEPTION
+            NOT_IMPL_EXCEPTION;
         }
 
         void deleteProcessingTimeTimer(int64_t time) override
         {
-            NOT_IMPL_EXCEPTION
+            NOT_IMPL_EXCEPTION;
         }
 
         void deleteEventTimeTimer(int64_t time) override
         {
-            NOT_IMPL_EXCEPTION
+            NOT_IMPL_EXCEPTION;
         }
 
     public:

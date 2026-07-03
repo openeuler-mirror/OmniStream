@@ -27,7 +27,6 @@ public:
 
     bool operator==(const CheckpointStorageLocationReference& other) const
     {
-
         if (!this->encodedReference_ && !other.encodedReference_) {
             return true;
         }
@@ -44,22 +43,25 @@ public:
     std::shared_ptr<std::vector<uint8_t>> GetReferenceBytes() const;
     bool IsDefaultReference() const;
     static std::shared_ptr<CheckpointStorageLocationReference> DEFAULT;
-    static std::shared_ptr<CheckpointStorageLocationReference> GetDefault() { return DEFAULT; }
+    static std::shared_ptr<CheckpointStorageLocationReference> GetDefault()
+    {
+        return DEFAULT;
+    }
     std::string ToString() const;
     nlohmann::json ToJson() const;
+
 private:
     std::shared_ptr<std::vector<uint8_t>> encodedReference_;
 };
 
 namespace std {
-    template <>
-    struct hash<CheckpointStorageLocationReference> {
-        std::size_t operator()(
-            const CheckpointStorageLocationReference &ref) const
-        {
-            return static_cast<std::size_t>(ref.HashCode());
-        }
-    };
+template <>
+struct hash<CheckpointStorageLocationReference> {
+    std::size_t operator()(const CheckpointStorageLocationReference& ref) const
+    {
+        return static_cast<std::size_t>(ref.HashCode());
+    }
+};
 } // namespace std
 
 #endif // FLINK_TNEL_CHECKPOINTSTORAGELOCATIONREFERENCE_H

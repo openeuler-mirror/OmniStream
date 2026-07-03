@@ -38,14 +38,14 @@
 // (2) check if filter condition is satisfied
 using namespace omniruntime::expressions;
 
-using FilterFuncPtr = bool (*)(int64_t *, bool *, int32_t *, bool *, int32_t *, int64_t);
-using JoinedRowFilterFunc = std::vector<void (*)(omniruntime::vec::BaseVector *, int32_t, int32_t, int64_t *, bool *)>;
+using FilterFuncPtr = bool (*)(int64_t*, bool*, int32_t*, bool*, int32_t*, int64_t);
+using JoinedRowFilterFunc = std::vector<void (*)(omniruntime::vec::BaseVector*, int32_t, int32_t, int64_t*, bool*)>;
 
 template <typename TYPE>
 void getValueAddress(
-    omniruntime::vec::BaseVector *vec, int32_t rowId, int32_t colId, int64_t *valuesPtr, bool *isNullPtr)
+    omniruntime::vec::BaseVector* vec, int32_t rowId, int32_t colId, int64_t* valuesPtr, bool* isNullPtr)
 {
-    omniruntime::vec::Vector<TYPE> *castedVec = reinterpret_cast<omniruntime::vec::Vector<TYPE> *>(vec);
+    omniruntime::vec::Vector<TYPE>* castedVec = reinterpret_cast<omniruntime::vec::Vector<TYPE>*>(vec);
     valuesPtr[colId] =
         reinterpret_cast<int64_t>(omniruntime::vec::unsafe::UnsafeVector::GetRawValues<TYPE>(castedVec)) +
         rowId * sizeof(TYPE);
@@ -55,7 +55,7 @@ void getValueAddress(
 template <typename K>
 class AbstractStreamingJoinOperator : public AbstractStreamOperator<K>, public TwoInputStreamOperator {
 public:
-    AbstractStreamingJoinOperator(const nlohmann::json &description, Output *output);
+    AbstractStreamingJoinOperator(const nlohmann::json& description, Output* output);
 
     ~AbstractStreamingJoinOperator() override
     {
@@ -67,9 +67,9 @@ public:
 
     void open() override;
     void close() override;
-    void setKeyContextElement1(StreamRecord *record) override;
-    void setKeyContextElement2(StreamRecord *record) override;
-    void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) override;
+    void setKeyContextElement1(StreamRecord* record) override;
+    void setKeyContextElement2(StreamRecord* record) override;
+    void initializeState(StreamTaskStateInitializerImpl* initializer, TypeSerializer* keySerializer) override;
 
     void notifyCheckpointComplete(long checkpointId) override;
 
@@ -93,10 +93,10 @@ public:
 
     // Find matched records
     template <typename otherViewT>
-    void of(omnistream::VectorBatch *input, bool inputIsLeft, otherViewT *otherSideStateView);
+    void of(omnistream::VectorBatch* input, bool inputIsLeft, otherViewT* otherSideStateView);
 
     template <typename otherViewT>
-    bool needHandleInputSide(otherViewT *otherSideStateView, std::unique_ptr<std::vector<int64_t>>& vecs);
+    bool needHandleInputSide(otherViewT* otherSideStateView, std::unique_ptr<std::vector<int64_t>>& vecs);
 
 protected:
     std::string leftInputSpec;
@@ -107,7 +107,7 @@ protected:
     long leftStateRetentionTime = 0;
     long rightStateRetentionTime = 0;
 
-    TimestampedCollector *collector;
+    TimestampedCollector* collector;
 
     // The description we get from RexNode
     nlohmann::json description;
@@ -139,23 +139,27 @@ protected:
     JoinedRowFilterFunc joinCondition;
 
     std::set<int> colRefsForNonEquiCondition;
-    std::set<int> getColRefs(nlohmann::json &config);
+    std::set<int> getColRefs(nlohmann::json& config);
 
     template <typename otherViewT>
-    std::unique_ptr<std::vector<int64_t>> filterRecords(omnistream::VectorBatch *inputBatch, std::vector<int64_t> *matchedRecords,
-        int inputRowId, otherViewT *otherSideStateView, bool inputIsLeft);
+    std::unique_ptr<std::vector<int64_t>> filterRecords(
+        omnistream::VectorBatch* inputBatch,
+        std::vector<int64_t>* matchedRecords,
+        int inputRowId,
+        otherViewT* otherSideStateView,
+        bool inputIsLeft);
 
 private:
-    JoinedRowFilterFunc generateJoinFilterFunction(const nlohmann::json &description)
+    JoinedRowFilterFunc generateJoinFilterFunction(const nlohmann::json& description)
     {
         JoinedRowFilterFunc filterFuncPtrs;
 
         if (description.contains("nonEquiCondition") && !description["nonEquiCondition"].is_null()) {
             auto filter = description["nonEquiCondition"];
-            Expr *jExpr = JSONParser::ParseJSON(filter);
-            SimpleFilterCodeGen *filterCodegen = new SimpleFilterCodeGen("nonEquiCondition", *jExpr, nullptr);
+            Expr* jExpr = JSONParser::ParseJSON(filter);
+            SimpleFilterCodeGen* filterCodegen = new SimpleFilterCodeGen("nonEquiCondition", *jExpr, nullptr);
             int64_t filterAddress = filterCodegen->GetFunction();
-            generatedFilter = *static_cast<FilterFuncPtr *>(reinterpret_cast<void *>(&filterAddress));
+            generatedFilter = *static_cast<FilterFuncPtr*>(reinterpret_cast<void*>(&filterAddress));
 
             colRefsForNonEquiCondition = getColRefs(filter);
 
@@ -183,13 +187,11 @@ private:
                         case omniruntime::type::DataTypeId::OMNI_BOOLEAN:
                             filterFuncPtrs.push_back(getValueAddress<bool>);
                             break;
-                        default:
-                            THROW_LOGIC_EXCEPTION("Type not recognized");
-                            break;
+                        default: THROW_LOGIC_EXCEPTION("Type not recognized"); break;
                     }
                 }
             }
-        }  // Add other join filters
+        } // Add other join filters
 
         return filterFuncPtrs;
     };
@@ -201,7 +203,7 @@ void AbstractStreamingJoinOperator<K>::open()
     try {
         AbstractStreamOperator<K>::open();
         joinCondition = generateJoinFilterFunction(description);
-    } catch (const std::runtime_error &e) {
+    } catch (const std::runtime_error& e) {
         throw std::runtime_error("failed to open join operator");
     }
     if (leftKeyIndex.size() != rightKeyIndex.size()) {
@@ -215,34 +217,38 @@ void AbstractStreamingJoinOperator<K>::close()
 }
 
 template <typename K>
-void AbstractStreamingJoinOperator<K>::setKeyContextElement1(StreamRecord *record)
-{}
+void AbstractStreamingJoinOperator<K>::setKeyContextElement1(StreamRecord* record)
+{
+}
 
 template <typename K>
-void AbstractStreamingJoinOperator<K>::setKeyContextElement2(StreamRecord *record)
-{}
+void AbstractStreamingJoinOperator<K>::setKeyContextElement2(StreamRecord* record)
+{
+}
 template <typename K>
 void AbstractStreamingJoinOperator<K>::initializeState(
-    StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer)
+    StreamTaskStateInitializerImpl* initializer, TypeSerializer* keySerializer)
 {
     AbstractStreamOperator<K>::SetOperatorID(TwoInputStreamOperator::GetOperatorID().toString());
     AbstractStreamOperator<K>::initializeState(initializer, keySerializer);
 }
 
 template <typename K>
-void AbstractStreamingJoinOperator<K>::notifyCheckpointComplete(long checkpointId) {
+void AbstractStreamingJoinOperator<K>::notifyCheckpointComplete(long checkpointId)
+{
     AbstractStreamOperator<K>::notifyCheckpointComplete(checkpointId);
 }
 
 template <typename K>
-void AbstractStreamingJoinOperator<K>::notifyCheckpointAborted(long checkpointId) {
+void AbstractStreamingJoinOperator<K>::notifyCheckpointAborted(long checkpointId)
+{
     AbstractStreamOperator<K>::notifyCheckpointAborted(checkpointId);
 }
 
 template <typename K>
 template <typename otherViewT>
 void AbstractStreamingJoinOperator<K>::of(
-    omnistream::VectorBatch *input, bool inputIsLeft, otherViewT *otherSideStateView)
+    omnistream::VectorBatch* input, bool inputIsLeft, otherViewT* otherSideStateView)
 {
     KeySelector<K>* keySelector = inputIsLeft ? this->keySelectorLeft : this->keySelectorRight;
     matchedLists.clear();
@@ -262,13 +268,13 @@ void AbstractStreamingJoinOperator<K>::of(
         this->setCurrentKey(key);
         deleteKeys.push_back(key);
         std::unique_ptr<std::vector<int64_t>> vecs = std::make_unique<std::vector<int64_t>>();
-        if constexpr(std::is_same_v<InputSideHasNoUniqueKey<K>, otherViewT>) {
+        if constexpr (std::is_same_v<InputSideHasNoUniqueKey<K>, otherViewT>) {
             if (!needHandleInputSide(otherSideStateView, vecs)) {
                 continue;
             }
-        } else if constexpr(std::is_same_v<OuterInputSideHasNoUniqueKey<K>, otherViewT>) {
-            emhash7::HashMap<XXH128_hash_t, std::tuple<int32_t, int32_t, int64_t>> *matchedMap
-                    = static_cast<OuterInputSideHasNoUniqueKey<K> *>(otherSideStateView)->getRecords();
+        } else if constexpr (std::is_same_v<OuterInputSideHasNoUniqueKey<K>, otherViewT>) {
+            emhash7::HashMap<XXH128_hash_t, std::tuple<int32_t, int32_t, int64_t>>* matchedMap =
+                static_cast<OuterInputSideHasNoUniqueKey<K>*>(otherSideStateView)->getRecords();
             if (matchedMap == nullptr) {
                 continue;
             }
@@ -285,7 +291,9 @@ void AbstractStreamingJoinOperator<K>::of(
                         deleteKinds.push_back(static_cast<int8_t>(1));
                     }
                 }
-                int32_t newNumAssociate = RowDataUtil::isAccumulateMsg(input->getRowKind(i))?  std::get<1>(it->second) + 1 : std::get<1>(it->second) - 1;
+                int32_t newNumAssociate = RowDataUtil::isAccumulateMsg(input->getRowKind(i))
+                                              ? std::get<1>(it->second) + 1
+                                              : std::get<1>(it->second) - 1;
                 it->second = {std::get<0>(it->second), newNumAssociate, std::get<2>(it->second)};
                 for (int j = 0; j < std::get<0>(it->second); j++) {
                     vecs->push_back(std::get<2>(it->second));
@@ -295,7 +303,8 @@ void AbstractStreamingJoinOperator<K>::of(
 
         if (!joinCondition.empty()) {
             // Filter out rows that fits the condition. Build a new vector
-            auto filteredRecords = filterRecords(input, vecs.get(), i, otherSideStateView, inputIsLeft); // 获取过滤后的combId
+            auto filteredRecords =
+                filterRecords(input, vecs.get(), i, otherSideStateView, inputIsLeft); // 获取过滤后的combId
             matchedCount[i] = filteredRecords == nullptr ? 0 : filteredRecords->size();
             matchedLists[i] = std::move(filteredRecords);
         } else {
@@ -304,7 +313,7 @@ void AbstractStreamingJoinOperator<K>::of(
         }
     }
     // todo: here need to update numberOfAssocaites of the records in deleteRecords for OuterInputSideHasNoUniqueKey
-    //delete keys
+    // delete keys
     for (auto key : deleteKeys) {
         if constexpr (std::is_same<K, RowData*>::value) {
             delete key;
@@ -312,19 +321,19 @@ void AbstractStreamingJoinOperator<K>::of(
     }
     deleteKeys.clear();
 
-    auto view = dynamic_cast<JoinRecordStateView<K> *>(otherSideStateView);
+    auto view = dynamic_cast<JoinRecordStateView<K>*>(otherSideStateView);
     if (view != nullptr) {
         view->cleanEntriesCache();
     }
 }
 
-template<typename K>
-template<typename otherViewT>
-bool AbstractStreamingJoinOperator<K>::needHandleInputSide(otherViewT *otherSideStateView,
-                                                           std::unique_ptr<std::vector<int64_t>>& vecs)
+template <typename K>
+template <typename otherViewT>
+bool AbstractStreamingJoinOperator<K>::needHandleInputSide(
+    otherViewT* otherSideStateView, std::unique_ptr<std::vector<int64_t>>& vecs)
 {
-    emhash7::HashMap<XXH128_hash_t, std::tuple<int32_t, int64_t>> *matchedMap
-            = static_cast<InputSideHasNoUniqueKey<K> *>(otherSideStateView)->getRecords();
+    emhash7::HashMap<XXH128_hash_t, std::tuple<int32_t, int64_t>>* matchedMap =
+        static_cast<InputSideHasNoUniqueKey<K>*>(otherSideStateView)->getRecords();
     if (matchedMap == nullptr) {
         return false;
     }
@@ -338,14 +347,14 @@ bool AbstractStreamingJoinOperator<K>::needHandleInputSide(otherViewT *otherSide
 }
 
 template <typename K>
-AbstractStreamingJoinOperator<K>::AbstractStreamingJoinOperator(const nlohmann::json &description, Output *output)
+AbstractStreamingJoinOperator<K>::AbstractStreamingJoinOperator(const nlohmann::json& description, Output* output)
 {
     this->description = description;
     // parse description to get left/right dataTypeId
-    for (const auto &typeStr : description["leftInputTypes"].get<std::vector<std::string>>()) {
+    for (const auto& typeStr : description["leftInputTypes"].get<std::vector<std::string>>()) {
         leftInputTypes.push_back(LogicalType::flinkTypeToOmniTypeId(typeStr));
     }
-    for (const auto &typeStr : description["rightInputTypes"].get<std::vector<std::string>>()) {
+    for (const auto& typeStr : description["rightInputTypes"].get<std::vector<std::string>>()) {
         rightInputTypes.push_back(LogicalType::flinkTypeToOmniTypeId(typeStr));
     }
 
@@ -354,12 +363,12 @@ AbstractStreamingJoinOperator<K>::AbstractStreamingJoinOperator(const nlohmann::
     leftKeyIndex = description["leftJoinKey"].get<std::vector<int32_t>>();
     filterNullKeys = description["filterNulls"].get<std::vector<bool>>();
 
-    auto getFirstArray = [](const nlohmann::json &jsonObject, const std::string &key) -> std::vector<int> {
+    auto getFirstArray = [](const nlohmann::json& jsonObject, const std::string& key) -> std::vector<int> {
         if (jsonObject.contains(key) && jsonObject[key].is_array() && !jsonObject[key].empty() &&
             jsonObject[key][0].is_array()) {
             return jsonObject[key][0].get<std::vector<int>>();
         }
-        return {};  // Return an empty vector if conditions are not met
+        return {}; // Return an empty vector if conditions are not met
     };
     leftUniqueKeyIndex = getFirstArray(description, "leftUniqueKeys");
     rightUniqueKeyIndex = getFirstArray(description, "rightUniqueKeys");
@@ -373,7 +382,7 @@ AbstractStreamingJoinOperator<K>::AbstractStreamingJoinOperator(const nlohmann::
 }
 
 template <typename K>
-std::set<int> AbstractStreamingJoinOperator<K>::getColRefs(nlohmann::json &config)
+std::set<int> AbstractStreamingJoinOperator<K>::getColRefs(nlohmann::json& config)
 {
     std::set<int> colRefs;
 
@@ -396,14 +405,18 @@ std::set<int> AbstractStreamingJoinOperator<K>::getColRefs(nlohmann::json &confi
 
 template <typename K>
 template <typename otherViewT>
-std::unique_ptr<std::vector<int64_t>> AbstractStreamingJoinOperator<K>::filterRecords(omnistream::VectorBatch *inputBatch,
-    std::vector<int64_t> *matchedRecords, int inputRowId, otherViewT *otherSideStateView, bool inputIsLeft)
+std::unique_ptr<std::vector<int64_t>> AbstractStreamingJoinOperator<K>::filterRecords(
+    omnistream::VectorBatch* inputBatch,
+    std::vector<int64_t>* matchedRecords,
+    int inputRowId,
+    otherViewT* otherSideStateView,
+    bool inputIsLeft)
 {
     std::unique_ptr<std::vector<int64_t>> filteredRecords = std::make_unique<std::vector<int64_t>>();
     int leftArity = leftInputTypes.size();
     int rightArity = rightInputTypes.size();
     std::vector<int64_t> vals(leftArity + rightArity);
-    std::vector<uint8_t> nulls(leftArity + rightArity);  // recasted as bool later
+    std::vector<uint8_t> nulls(leftArity + rightArity); // recasted as bool later
     bool resultBool;
 
     // for the inputSide
@@ -411,7 +424,7 @@ std::unique_ptr<std::vector<int64_t>> AbstractStreamingJoinOperator<K>::filterRe
         bool isLeftColumn = col < leftArity;
         if ((inputIsLeft && isLeftColumn) || (!inputIsLeft && !isLeftColumn)) {
             auto vector = inputBatch->Get(inputIsLeft ? col : col - leftArity);
-            joinCondition[col](vector, inputRowId, col, vals.data(), reinterpret_cast<bool *>(nulls.data()));
+            joinCondition[col](vector, inputRowId, col, vals.data(), reinterpret_cast<bool*>(nulls.data()));
         }
     }
 
@@ -421,7 +434,7 @@ std::unique_ptr<std::vector<int64_t>> AbstractStreamingJoinOperator<K>::filterRe
 
     int processNum = svcntw();
     int half = svcntd();
-    for (int i = 0; i < num; i+=processNum) {
+    for (int i = 0; i < num; i += processNum) {
         svbool_t pg = svwhilelt_b64(i, num);
         svbool_t pg2 = svwhilelt_b64(i + half, num);
         svbool_t pg3 = svwhilelt_b32(i, num);
@@ -444,14 +457,14 @@ std::unique_ptr<std::vector<int64_t>> AbstractStreamingJoinOperator<K>::filterRe
             bool isLeftColumn = col < leftArity;
             if ((inputIsLeft && !isLeftColumn) || (!inputIsLeft && isLeftColumn)) {
                 auto vector =
-                        otherSideStateView->getVectorBatch(othersideBatchId)->Get(inputIsLeft ? col - leftArity : col);
-                joinCondition[col](vector, othersideRowId, col, vals.data(), reinterpret_cast<bool *>(nulls.data()));
+                    otherSideStateView->getVectorBatch(othersideBatchId)->Get(inputIsLeft ? col - leftArity : col);
+                joinCondition[col](vector, othersideRowId, col, vals.data(), reinterpret_cast<bool*>(nulls.data()));
             }
         }
 
         omniruntime::op::ExecutionContext context;
         auto result = generatedFilter(
-                vals.data(), reinterpret_cast<bool *>(nulls.data()), nullptr, &resultBool, nullptr, (int64_t)(&context));
+            vals.data(), reinterpret_cast<bool*>(nulls.data()), nullptr, &resultBool, nullptr, (int64_t)(&context));
 
         if (result) {
             filteredRecords->push_back((*matchedRecords)[i]);
@@ -462,4 +475,4 @@ std::unique_ptr<std::vector<int64_t>> AbstractStreamingJoinOperator<K>::filterRe
     return filteredRecords;
 }
 
-#endif  // FLINK_TNEL_ABSTRACTSTREAMINGJOINOPERATOR_H
+#endif // FLINK_TNEL_ABSTRACTSTREAMINGJOINOPERATOR_H

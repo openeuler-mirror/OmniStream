@@ -13,11 +13,11 @@
 ParameterTool::ParameterTool() = default;
 ParameterTool::~ParameterTool() = default;
 
-ParameterTool *ParameterTool::fromPropertiesFile(InputStream *inputStream)
+ParameterTool* ParameterTool::fromPropertiesFile(InputStream* inputStream)
 {
     return nullptr;
 }
-Configuration *ParameterTool::getConfiguration()
+Configuration* ParameterTool::getConfiguration()
 {
     return nullptr;
 }

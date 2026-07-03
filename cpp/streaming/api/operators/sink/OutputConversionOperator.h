@@ -25,30 +25,29 @@
 
 class OutputConversionOperator : public OneInputStreamOperator {
 public:
-
-    OutputConversionOperator(const nlohmann::json& config,
-                             Output* output);
+    OutputConversionOperator(const nlohmann::json& config, Output* output);
 
     void open();
 
-    void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) override {
+    void initializeState(StreamTaskStateInitializerImpl* initializer, TypeSerializer* keySerializer) override
+    {
     }
 
-    void processElement(StreamRecord *record) override;
+    void processElement(StreamRecord* record) override;
 
-    void processBatch(StreamRecord *record) override;
+    void processBatch(StreamRecord* record) override;
 
-    RowData* getEntireRow(omnistream::VectorBatch *batch, int rowId);
+    RowData* getEntireRow(omnistream::VectorBatch* batch, int rowId);
 
-    Row* toExternal(RowData *internalRecord);
+    Row* toExternal(RowData* internalRecord);
 
     Output* getOutput();
 
-    void processWatermark(Watermark *watermark);
+    void processWatermark(Watermark* watermark);
 
     ~OutputConversionOperator() override;
 
-    void processWatermarkStatus(WatermarkStatus *watermarkStatus);
+    void processWatermarkStatus(WatermarkStatus* watermarkStatus);
 
 private:
     std::vector<std::string> inputTypes;

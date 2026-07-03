@@ -11,13 +11,11 @@
 
 #include "BarrierAlignmentUtil.h"
 namespace omnistream::runtime {
-    long BarrierAlignmentUtil::getTimerDelay(
-        long clockMillis,
-        const CheckpointBarrier &announcedBarrier)
-    {
-        long alignedCheckpointTimeout = announcedBarrier.GetCheckpointOptions()->GetAlignedCheckpointTimeout();
-        long timePassedSinceCheckpointStart = clockMillis - announcedBarrier.GetTimestamp();
-        long retVal = alignedCheckpointTimeout - timePassedSinceCheckpointStart;
-        return retVal > 0 ? retVal : 0;
-    }
+long BarrierAlignmentUtil::getTimerDelay(long clockMillis, const CheckpointBarrier& announcedBarrier)
+{
+    long alignedCheckpointTimeout = announcedBarrier.GetCheckpointOptions()->GetAlignedCheckpointTimeout();
+    long timePassedSinceCheckpointStart = clockMillis - announcedBarrier.GetTimestamp();
+    long retVal = alignedCheckpointTimeout - timePassedSinceCheckpointStart;
+    return retVal > 0 ? retVal : 0;
 }
+} // namespace omnistream::runtime

@@ -32,12 +32,12 @@ public:
     SingleInputGateFactory() = default;
 
     // Full argument constructor
-    SingleInputGateFactory(ResourceIDPOD &taskExecutorResourceId,
-                           std::shared_ptr<OmniShuffleEnvironmentConfiguration> config,
-                           std::shared_ptr<ResultPartitionManager> partitionManager,
-                           std::shared_ptr<NetworkObjectBufferPool> networkBufferPool,
-                           std::shared_ptr<NetworkMemoryBufferPool> networkMemoryBufferPool
-    )
+    SingleInputGateFactory(
+        ResourceIDPOD& taskExecutorResourceId,
+        std::shared_ptr<OmniShuffleEnvironmentConfiguration> config,
+        std::shared_ptr<ResultPartitionManager> partitionManager,
+        std::shared_ptr<NetworkObjectBufferPool> networkBufferPool,
+        std::shared_ptr<NetworkMemoryBufferPool> networkMemoryBufferPool)
         : taskExecutorResourceId(taskExecutorResourceId),
           partitionManager(partitionManager),
           networkObjectBufferPool(networkBufferPool),
@@ -46,7 +46,8 @@ public:
           partitionRequestInitialBackoff(config->getPartitionRequestInitialBackoff()),
           partitionRequestMaxBackoff(config->getPartitionRequestMaxBackoff()),
           networkBuffersPerChannel(config->getNetworkBuffersPerChannel()),
-          floatingNetworkBuffersPerGate(config->getFloatingNetworkBuffersPerGate()) {
+          floatingNetworkBuffersPerGate(config->getFloatingNetworkBuffersPerGate())
+    {
     }
 
     class ChannelStatistics {
@@ -64,26 +65,46 @@ public:
         }
     };
 
-    std::shared_ptr<SingleInputGate> create(std::string owningTaskName, int gateIndex, std::shared_ptr<InputGateDeploymentDescriptorPOD> igdd,
-                                            std::shared_ptr<PartitionProducerStateProvider> partitionProducerStateProvider, int taskType);
+    std::shared_ptr<SingleInputGate> create(
+        std::string owningTaskName,
+        int gateIndex,
+        std::shared_ptr<InputGateDeploymentDescriptorPOD> igdd,
+        std::shared_ptr<PartitionProducerStateProvider> partitionProducerStateProvider,
+        int taskType);
 
-    std::function<std::shared_ptr<BufferPool>()>  createBufferPoolFactory(std::shared_ptr<BufferPoolFactory> networkBufferPool, int floatingNetworkBuffersPerGate);
+    std::function<std::shared_ptr<BufferPool>()> createBufferPoolFactory(
+        std::shared_ptr<BufferPoolFactory> networkBufferPool, int floatingNetworkBuffersPerGate);
 
-    void createInputChannels(std::string owningTaskName,
-                             std::shared_ptr<InputGateDeploymentDescriptorPOD> inputGateDeploymentDescriptor,
-                             std::shared_ptr<SingleInputGate> inputGate,
-                             int consumedSubpartitionIndex);
+    void createInputChannels(
+        std::string owningTaskName,
+        std::shared_ptr<InputGateDeploymentDescriptorPOD> inputGateDeploymentDescriptor,
+        std::shared_ptr<SingleInputGate> inputGate,
+        int consumedSubpartitionIndex);
 
-    std::shared_ptr<InputChannel> createInputChannel(std::shared_ptr<SingleInputGate> inputGate, int index,
-                                                     ShuffleDescriptorPOD shuffleDescriptor,
-                                                     std::shared_ptr<ChannelStatistics> channelStatistics,
-                                                     int consumedSubpartitionIndex);
+    std::shared_ptr<InputChannel> createInputChannel(
+        std::shared_ptr<SingleInputGate> inputGate,
+        int index,
+        ShuffleDescriptorPOD shuffleDescriptor,
+        std::shared_ptr<ChannelStatistics> channelStatistics,
+        int consumedSubpartitionIndex);
 
     // Getters
-    ResourceIDPOD getTaskExecutorResourceId() const { return taskExecutorResourceId; }
-    std::shared_ptr<ResultPartitionManager> getPartitionManager() const { return partitionManager; }
-    std::shared_ptr<NetworkObjectBufferPool> getNetworkBufferPool() const { return networkObjectBufferPool; }
-    int getNetworkBufferSize() const { return networkBufferSize; }
+    ResourceIDPOD getTaskExecutorResourceId() const
+    {
+        return taskExecutorResourceId;
+    }
+    std::shared_ptr<ResultPartitionManager> getPartitionManager() const
+    {
+        return partitionManager;
+    }
+    std::shared_ptr<NetworkObjectBufferPool> getNetworkBufferPool() const
+    {
+        return networkObjectBufferPool;
+    }
+    int getNetworkBufferSize() const
+    {
+        return networkBufferSize;
+    }
 
     // Setters (consider returning a reference to self for chaining)
     SingleInputGateFactory& setTaskExecutorResourceId(ResourceIDPOD& taskExecutorResourceId)
@@ -113,19 +134,19 @@ public:
     // toString (example, customize as needed)
     std::string toString() const
     {
-        return "SingleInputGateFactory{ taskExecutorResourceId=" + taskExecutorResourceId.toString()  +
-               ", partitionManager=" +  partitionManager->toString()  +
-               ", networkBufferPool=" + networkObjectBufferPool->toString()+
-               ", networkBufferSize=" + std::to_string(networkBufferSize) +
-               "}";
+        return "SingleInputGateFactory{ taskExecutorResourceId=" + taskExecutorResourceId.toString() +
+               ", partitionManager=" + partitionManager->toString() +
+               ", networkBufferPool=" + networkObjectBufferPool->toString() +
+               ", networkBufferSize=" + std::to_string(networkBufferSize) + "}";
     }
 
-    std::shared_ptr<OmniLocalInputChannel> createOriginalInputChannel(std::shared_ptr<SingleInputGate> inputGate,
-                                                                      int index, ResultPartitionIDPOD& partitionId);
+    std::shared_ptr<OmniLocalInputChannel> createOriginalInputChannel(
+        std::shared_ptr<SingleInputGate> inputGate, int index, ResultPartitionIDPOD& partitionId);
     int getNetworkBuffersPerChannel()
     {
         return networkBuffersPerChannel;
     }
+
 private:
     ResourceIDPOD taskExecutorResourceId;
     std::shared_ptr<ResultPartitionManager> partitionManager;
@@ -139,6 +160,5 @@ private:
 };
 
 } // namespace omnistream
-
 
 #endif // SINGLEINPUTGATEFACTORY_H

@@ -13,49 +13,60 @@
 
 namespace omnistream {
 
-    ShuffleIOOwnerContextPOD::ShuffleIOOwnerContextPOD() : ownerName(""), executionAttemptID() {}
+ShuffleIOOwnerContextPOD::ShuffleIOOwnerContextPOD() : ownerName(""), executionAttemptID()
+{
+}
 
-    ShuffleIOOwnerContextPOD::ShuffleIOOwnerContextPOD(const std::string& ownerName, const ExecutionAttemptIDPOD& executionAttemptID)
-        : ownerName(ownerName), executionAttemptID(executionAttemptID) {}
+ShuffleIOOwnerContextPOD::ShuffleIOOwnerContextPOD(
+    const std::string& ownerName, const ExecutionAttemptIDPOD& executionAttemptID)
+    : ownerName(ownerName),
+      executionAttemptID(executionAttemptID)
+{
+}
 
-    ShuffleIOOwnerContextPOD::ShuffleIOOwnerContextPOD(const ShuffleIOOwnerContextPOD& other)
-        : ownerName(other.ownerName), executionAttemptID(other.executionAttemptID) {}
+ShuffleIOOwnerContextPOD::ShuffleIOOwnerContextPOD(const ShuffleIOOwnerContextPOD& other)
+    : ownerName(other.ownerName),
+      executionAttemptID(other.executionAttemptID)
+{
+}
 
-    ShuffleIOOwnerContextPOD::~ShuffleIOOwnerContextPOD() {}
+ShuffleIOOwnerContextPOD::~ShuffleIOOwnerContextPOD()
+{
+}
 
-    std::string ShuffleIOOwnerContextPOD::getOwnerName() const
-    {
-        return ownerName;
-    }
+std::string ShuffleIOOwnerContextPOD::getOwnerName() const
+{
+    return ownerName;
+}
 
+void ShuffleIOOwnerContextPOD::setOwnerName(const std::string& ownerName_)
+{
+    this->ownerName = ownerName_;
+}
 
-    void ShuffleIOOwnerContextPOD::setOwnerName(const std::string& ownerName_)
-    {
-        this->ownerName = ownerName_;
-    }
+ExecutionAttemptIDPOD ShuffleIOOwnerContextPOD::getExecutionAttemptID() const
+{
+    return executionAttemptID;
+}
 
-    ExecutionAttemptIDPOD ShuffleIOOwnerContextPOD::getExecutionAttemptID() const
-    {
-        return executionAttemptID;
-    }
+void ShuffleIOOwnerContextPOD::setExecutionAttemptID(const ExecutionAttemptIDPOD& executionAttemptID)
+{
+    this->executionAttemptID = executionAttemptID;
+}
 
-    void ShuffleIOOwnerContextPOD::setExecutionAttemptID(const ExecutionAttemptIDPOD& executionAttemptID)
-    {
-        this->executionAttemptID = executionAttemptID;
-    }
+std::string ShuffleIOOwnerContextPOD::toString() const
+{
+    std::stringstream ss;
+    ss << "ShuffleIOOwnerContextPOD{ownerName='" << ownerName
+       << "', executionAttemptID=" << executionAttemptID.toString() << "}";
+    return ss.str();
+}
 
-    std::string ShuffleIOOwnerContextPOD::toString() const
-    {
-        std::stringstream ss;
-        ss << "ShuffleIOOwnerContextPOD{ownerName='" << ownerName << "', executionAttemptID=" << executionAttemptID.toString() << "}";
-        return ss.str();
-    }
-
-    ShuffleIOOwnerContextPOD &ShuffleIOOwnerContextPOD::operator=(const ShuffleIOOwnerContextPOD &other)
-    {
-        ownerName = other.ownerName;
-        executionAttemptID = other.executionAttemptID;
-        return *this;
-    }
+ShuffleIOOwnerContextPOD& ShuffleIOOwnerContextPOD::operator=(const ShuffleIOOwnerContextPOD& other)
+{
+    ownerName = other.ownerName;
+    executionAttemptID = other.executionAttemptID;
+    return *this;
+}
 
 } // namespace omnistream

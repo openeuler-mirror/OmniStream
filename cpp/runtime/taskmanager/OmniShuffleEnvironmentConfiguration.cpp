@@ -12,24 +12,29 @@
 #include "OmniShuffleEnvironmentConfiguration.h"
 
 namespace omnistream {
-    std::shared_ptr<OmniShuffleEnvironmentConfiguration> OmniShuffleEnvironmentConfiguration::fromConfiguration(
-        int numNetworkBuffers,
-        int networkBufferSize,
-        long requestSegmentsTimeoutMillis,
-        int networkBuffersPerChannel,
-        int partitionRequestInitialBackoff,
-        int partitionRequestMaxBackoff,
-        int floatingNetworkBuffersPerGate,
-        int sortShuffleMinBuffers,
-        int sortShuffleMinParallelism,
-        int maxBuffersPerChannel)
-    {
-        auto configuration = std::make_shared<omnistream::OmniShuffleEnvironmentConfiguration>(
-            numNetworkBuffers,
-            networkBufferSize, requestSegmentsTimeoutMillis,
-            networkBuffersPerChannel, partitionRequestInitialBackoff,
-            partitionRequestMaxBackoff, floatingNetworkBuffersPerGate,
-            sortShuffleMinBuffers, sortShuffleMinParallelism, maxBuffersPerChannel);
-        return configuration;
-    }
+std::shared_ptr<OmniShuffleEnvironmentConfiguration> OmniShuffleEnvironmentConfiguration::fromConfiguration(
+    int numNetworkBuffers,
+    int networkBufferSize,
+    long requestSegmentsTimeoutMillis,
+    int networkBuffersPerChannel,
+    int partitionRequestInitialBackoff,
+    int partitionRequestMaxBackoff,
+    int floatingNetworkBuffersPerGate,
+    int sortShuffleMinBuffers,
+    int sortShuffleMinParallelism,
+    int maxBuffersPerChannel)
+{
+    auto configuration = std::make_shared<omnistream::OmniShuffleEnvironmentConfiguration>(
+        numNetworkBuffers,
+        networkBufferSize,
+        requestSegmentsTimeoutMillis,
+        networkBuffersPerChannel,
+        partitionRequestInitialBackoff,
+        partitionRequestMaxBackoff,
+        floatingNetworkBuffersPerGate,
+        sortShuffleMinBuffers,
+        sortShuffleMinParallelism,
+        maxBuffersPerChannel);
+    return configuration;
 }
+} // namespace omnistream

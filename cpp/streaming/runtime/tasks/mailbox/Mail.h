@@ -21,33 +21,37 @@
 #include "StreamTaskActionExecutor.h"
 
 namespace omnistream {
-    class Mail {
-    public:
-        Mail();
+class Mail {
+public:
+    Mail();
 
-        Mail(std::shared_ptr<ThrowingRunnable> runnable,
-            int priority,
-            std::shared_ptr<StreamTaskActionExecutor> actionExecutor,
-             const std::string& descriptionFormat,
-             const std::vector<std::string>& descriptionArgs);
+    Mail(
+        std::shared_ptr<ThrowingRunnable> runnable,
+        int priority,
+        std::shared_ptr<StreamTaskActionExecutor> actionExecutor,
+        const std::string& descriptionFormat,
+        const std::vector<std::string>& descriptionArgs);
 
-        Mail(std::shared_ptr<ThrowingRunnable> runnable, int priority, const std::string& descriptionFormat,
-             const std::vector<std::string>& descriptionArgs);
+    Mail(
+        std::shared_ptr<ThrowingRunnable> runnable,
+        int priority,
+        const std::string& descriptionFormat,
+        const std::vector<std::string>& descriptionArgs);
 
-        ~Mail();
+    ~Mail();
 
-        int getPriority() const;
-        void tryCancel();
-        std::string toString() const;
-        void run();
+    int getPriority() const;
+    void tryCancel();
+    std::string toString() const;
+    void run();
 
-    private:
-        std::shared_ptr<ThrowingRunnable> runnable_;
-        int priority_;
-        std::string descriptionFormat_;
-        std::vector<std::string> descriptionArgs_;
-        std::shared_ptr<StreamTaskActionExecutor> actionExecutor_;
-    };
+private:
+    std::shared_ptr<ThrowingRunnable> runnable_;
+    int priority_;
+    std::string descriptionFormat_;
+    std::vector<std::string> descriptionArgs_;
+    std::shared_ptr<StreamTaskActionExecutor> actionExecutor_;
+};
 } // namespace omnistream
 
 #endif // MAIL_H

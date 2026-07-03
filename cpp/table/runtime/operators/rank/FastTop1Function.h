@@ -31,16 +31,21 @@
 
 // FastTop1Function processes batches of rows and maintains the Top-1 per partition.
 // The partition key type is templated (KeyType).
-template<typename KeyType>
+template <typename KeyType>
 class FastTop1Function : public AbstractTopNFunction<KeyType> {
 public:
-    explicit FastTop1Function(const nlohmann::json& rankConfig) : AbstractTopNFunction<KeyType>(rankConfig) {}
+    explicit FastTop1Function(const nlohmann::json& rankConfig) : AbstractTopNFunction<KeyType>(rankConfig)
+    {
+    }
     ~FastTop1Function()
     {
         delete comparator;
     }
     // Processes a batch of rows from inputBatch and writes results into outputBatch.
-    void processBatch(omnistream::VectorBatch *inputBatch, typename KeyedProcessFunction<KeyType, RowData*, RowData*>::Context& ctx, TimestampedCollector& out) override;
+    void processBatch(
+        omnistream::VectorBatch* inputBatch,
+        typename KeyedProcessFunction<KeyType, RowData*, RowData*>::Context& ctx,
+        TimestampedCollector& out) override;
 
     ValueState<KeyType>* getValueState() override
     {
@@ -49,40 +54,45 @@ public:
     // Initialization method; call before processing batches.
     void open(const Configuration& context) override;
     void freeKeyInCache(KeyType mutableKey);
+
 private:
-    ValueState<RowData*> *stateStore = nullptr;
-    Top1Comparator<KeyType> *comparator = nullptr;
+    ValueState<RowData*>* stateStore = nullptr;
+    Top1Comparator<KeyType>* comparator = nullptr;
     SortedKVCache<KeyType, RowData*> kvCache;
     omnistream::StateType backendType_ = omnistream::StateType::HEAP;
-    int compareRows(BinaryRowData *inputRow, BinaryRowData *previousRow);
-    int compareRowsV2(omnistream::VectorBatch* vectorBatch,int rowId, BinaryRowData *previousRow);
+    int compareRows(BinaryRowData* inputRow, BinaryRowData* previousRow);
+    int compareRowsV2(omnistream::VectorBatch* vectorBatch, int rowId, BinaryRowData* previousRow);
 };
 
-template<typename KeyType>
+template <typename KeyType>
 void FastTop1Function<KeyType>::open(const Configuration& context)
 {
     auto rankRowTypeInfo = InternalTypeInfo::ofRowType(TypeInfoFactory::createRowType(this->inputRowType));
     std::string name = "rank";
     ValueStateDescriptor<RowData*>* recordStateDesc = new ValueStateDescriptor<RowData*>(name, rankRowTypeInfo);
     recordStateDesc->SetStateSerializer(rankRowTypeInfo->getTypeSerializer());
-    this->stateStore = static_cast<StreamingRuntimeContext<KeyType> *>(this->getRuntimeContext())->template getState<RowData*>(recordStateDesc);
+    this->stateStore = static_cast<StreamingRuntimeContext<KeyType>*>(this->getRuntimeContext())
+                           ->template getState<RowData*>(recordStateDesc);
     // Decide backendType by probing the concrete state implementation.
-    if (dynamic_cast<RocksdbValueState<KeyType, VoidNamespace, RowData*> *>(this->stateStore)) {
-        INFO_RELEASE("FastTop1Function backend is rocksdb")
+    if (dynamic_cast<RocksdbValueState<KeyType, VoidNamespace, RowData*>*>(this->stateStore)) {
+        INFO_RELEASE("FastTop1Function backend is rocksdb");
         this->backendType_ = omnistream::StateType::ROCKSDB;
         // RocksDB stores a byte-copy in the DB, not the ptr — cache is sole owner
         // of its V pointers, so it's safe to free them on LRU eviction.
         kvCache.setOwnsValues(true);
     } else {
-        INFO_RELEASE("FastTop1Function backend is mem")
+        INFO_RELEASE("FastTop1Function backend is mem");
         this->backendType_ = omnistream::StateType::HEAP;
     }
-    comparator = new Top1Comparator<KeyType>(this->partitionKeyTypeIds, this->partitionKeyIndices,
-                this->sortKeyIndices, this->sortOrder);
+    comparator = new Top1Comparator<KeyType>(
+        this->partitionKeyTypeIds, this->partitionKeyIndices, this->sortKeyIndices, this->sortOrder);
 }
 
-template<typename KeyType>
-void FastTop1Function<KeyType>::processBatch(omnistream::VectorBatch* inputBatch, typename KeyedProcessFunction<KeyType, RowData*, RowData*>::Context& ctx, TimestampedCollector& out)
+template <typename KeyType>
+void FastTop1Function<KeyType>::processBatch(
+    omnistream::VectorBatch* inputBatch,
+    typename KeyedProcessFunction<KeyType, RowData*, RowData*>::Context& ctx,
+    TimestampedCollector& out)
 {
     int rowCount = inputBatch->GetRowCount();
     if (rowCount == 0) {
@@ -104,23 +114,22 @@ void FastTop1Function<KeyType>::processBatch(omnistream::VectorBatch* inputBatch
         }
 
         if (previousRow == nullptr) {
-            RowData *inputRow = inputBatch->extractRowData(rowId);
+            RowData* inputRow = inputBatch->extractRowData(rowId);
 
             // No previous state, insert the new row into the state store.
             stateStore->update(inputRow, false);
             kvCache.put(mutableKey, inputRow);
             int64_t timestamp = inputBatch->getTimestamp(rowId);
-            this->collectInsert(inputRow, 1, timestamp);  // Emit the new row.
+            this->collectInsert(inputRow, 1, timestamp); // Emit the new row.
         } else {
-            if (compareRowsV2(inputBatch,rowId, static_cast<BinaryRowData*>(previousRow)) > 0) {
+            if (compareRowsV2(inputBatch, rowId, static_cast<BinaryRowData*>(previousRow)) > 0) {
                 int64_t timestamp = inputBatch->getTimestamp(rowId);
-                RowData *inputRow = inputBatch->extractRowData(rowId);
-                this->collectUpdateBefore(previousRow, 1, timestamp);  // Emit an update.
+                RowData* inputRow = inputBatch->extractRowData(rowId);
+                this->collectUpdateBefore(previousRow, 1, timestamp); // Emit an update.
                 this->collectUpdateAfter(inputRow, 1, timestamp);
                 stateStore->update(inputRow, false);
                 kvCache.put(mutableKey, inputRow);
-                if (!fromCache)
-                {
+                if (!fromCache) {
                     rowToDel.insert(previousRow);
                 }
             } else {
@@ -142,7 +151,7 @@ void FastTop1Function<KeyType>::processBatch(omnistream::VectorBatch* inputBatch
     }
     // omniruntime::vec::VectorHelper::FreeVecBatch(inputBatch);
     delete inputBatch;
-    omnistream::VectorBatch *outputBatch = this->createOutputBatch();
+    omnistream::VectorBatch* outputBatch = this->createOutputBatch();
     this->collectOutputBatch(out, outputBatch);
     // Drain previousRow pointers we became sole owners of (see per-case comments).
     for (RowData* r : rowToDel) {
@@ -152,7 +161,7 @@ void FastTop1Function<KeyType>::processBatch(omnistream::VectorBatch* inputBatch
     kvCache.clearOldValues();
 }
 
-template<typename KeyType>
+template <typename KeyType>
 void FastTop1Function<KeyType>::freeKeyInCache(KeyType key)
 {
     if constexpr (std::is_same<KeyType, RowData*>::value) {
@@ -160,12 +169,11 @@ void FastTop1Function<KeyType>::freeKeyInCache(KeyType key)
     }
 }
 
-template<typename KeyType>
-int FastTop1Function<KeyType>::compareRows(BinaryRowData* inputRow,
-                                           BinaryRowData* previousRow)
+template <typename KeyType>
+int FastTop1Function<KeyType>::compareRows(BinaryRowData* inputRow, BinaryRowData* previousRow)
 {
     if (!inputRow) {
-        LOG("input row is null")
+        LOG("input row is null");
         throw std::runtime_error("input row is null");
     }
     for (size_t i = 0; i < this->sortKeyIndices.size(); ++i) {
@@ -197,8 +205,9 @@ int FastTop1Function<KeyType>::compareRows(BinaryRowData* inputRow,
                 TimestampData inputVal = inputRow->getTimestamp(colId);
                 TimestampData previousVal = previousRow->getTimestamp(colId);
                 if (inputVal.getMillisecond() == previousVal.getMillisecond()) {
-                    comparisonResult = (inputVal.getNanoOfMillisecond() < previousVal.getNanoOfMillisecond()) ? -1 :
-                                       (inputVal.getNanoOfMillisecond() > previousVal.getNanoOfMillisecond()) ? 1 : 0;
+                    comparisonResult = (inputVal.getNanoOfMillisecond() < previousVal.getNanoOfMillisecond())   ? -1
+                                       : (inputVal.getNanoOfMillisecond() > previousVal.getNanoOfMillisecond()) ? 1
+                                                                                                                : 0;
                 } else {
                     comparisonResult = (inputVal.getMillisecond() < previousVal.getMillisecond()) ? -1 : 1;
                 }
@@ -219,10 +228,8 @@ int FastTop1Function<KeyType>::compareRows(BinaryRowData* inputRow,
     return 0;
 }
 
-
-template<typename KeyType>
-int FastTop1Function<KeyType>::compareRowsV2(omnistream::VectorBatch* originalVb,int rowId,
-                                           BinaryRowData* previousRow)
+template <typename KeyType>
+int FastTop1Function<KeyType>::compareRowsV2(omnistream::VectorBatch* originalVb, int rowId, BinaryRowData* previousRow)
 {
     for (size_t i = 0; i < this->sortKeyIndices.size(); ++i) {
         int colId = this->sortKeyIndices[i];
@@ -233,13 +240,13 @@ int FastTop1Function<KeyType>::compareRowsV2(omnistream::VectorBatch* originalVb
 
         switch (this->inputRowType->at(colId)) {
             case DataTypeId::OMNI_INT: {
-                int32_t inputVal =  reinterpret_cast<vec::Vector<int32_t>*>(originalVb->Get(colId))->GetValue(rowId);
+                int32_t inputVal = reinterpret_cast<vec::Vector<int32_t>*>(originalVb->Get(colId))->GetValue(rowId);
                 int32_t previousVal = *previousRow->getInt(colId);
                 comparisonResult = (inputVal < previousVal) ? -1 : (inputVal > previousVal) ? 1 : 0;
                 break;
             }
             case DataTypeId::OMNI_LONG: {
-                int64_t inputVal =reinterpret_cast<vec::Vector<int64_t>*>(originalVb->Get(colId))->GetValue(rowId);
+                int64_t inputVal = reinterpret_cast<vec::Vector<int64_t>*>(originalVb->Get(colId))->GetValue(rowId);
                 int64_t previousVal = *previousRow->getLong(colId);
                 comparisonResult = (inputVal < previousVal) ? -1 : (inputVal > previousVal) ? 1 : 0;
                 break;
@@ -247,12 +254,14 @@ int FastTop1Function<KeyType>::compareRowsV2(omnistream::VectorBatch* originalVb
             case DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:
             case DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE:
             case DataTypeId::OMNI_TIMESTAMP: {
-                    int64_t currentMillseconds =reinterpret_cast<vec::Vector<int64_t>*>(originalVb->Get(colId))->GetValue(rowId);
+                int64_t currentMillseconds =
+                    reinterpret_cast<vec::Vector<int64_t>*>(originalVb->Get(colId))->GetValue(rowId);
                 TimestampData inputVal = TimestampData::fromEpochMillis(currentMillseconds);
                 TimestampData previousVal = previousRow->getTimestamp(colId);
                 if (inputVal.getMillisecond() == previousVal.getMillisecond()) {
-                    comparisonResult = (inputVal.getNanoOfMillisecond() < previousVal.getNanoOfMillisecond()) ? -1 :
-                                       (inputVal.getNanoOfMillisecond() > previousVal.getNanoOfMillisecond()) ? 1 : 0;
+                    comparisonResult = (inputVal.getNanoOfMillisecond() < previousVal.getNanoOfMillisecond())   ? -1
+                                       : (inputVal.getNanoOfMillisecond() > previousVal.getNanoOfMillisecond()) ? 1
+                                                                                                                : 0;
                 } else {
                     comparisonResult = (inputVal.getMillisecond() < previousVal.getMillisecond()) ? -1 : 1;
                 }

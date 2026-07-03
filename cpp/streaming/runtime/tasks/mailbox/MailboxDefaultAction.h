@@ -18,25 +18,25 @@
 
 namespace omnistream {
 
-    class MailboxDefaultAction {
+class MailboxDefaultAction {
+public:
+    class Suspension {
     public:
-        class Suspension {
-        public:
-            virtual void resume() = 0;
-            virtual ~Suspension() = default;
-        };
-
-        class Controller {
-        public:
-            virtual void allActionsCompleted() = 0;
-            virtual std::shared_ptr<Suspension> suspendDefaultAction() = 0;
-            virtual std::shared_ptr<Suspension> suspendDefaultAction(std::shared_ptr<PeriodTimer> periodTimer) = 0;
-            virtual ~Controller() = default;
-        };
-
-        virtual void runDefaultAction(Controller *controller) = 0;
-        virtual ~MailboxDefaultAction() = default;
+        virtual void resume() = 0;
+        virtual ~Suspension() = default;
     };
+
+    class Controller {
+    public:
+        virtual void allActionsCompleted() = 0;
+        virtual std::shared_ptr<Suspension> suspendDefaultAction() = 0;
+        virtual std::shared_ptr<Suspension> suspendDefaultAction(std::shared_ptr<PeriodTimer> periodTimer) = 0;
+        virtual ~Controller() = default;
+    };
+
+    virtual void runDefaultAction(Controller* controller) = 0;
+    virtual ~MailboxDefaultAction() = default;
+};
 
 } // namespace omnistream
 

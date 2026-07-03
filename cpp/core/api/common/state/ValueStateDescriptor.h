@@ -16,27 +16,30 @@
 /**
  * T: The type of the values that the value state can hold, such as Object*
  * */
-template<typename T>
+template <typename T>
 class ValueStateDescriptor : public StateDescriptor {
 public:
     ValueStateDescriptor() = default;
 
-    ValueStateDescriptor(const std::string &name, TypeSerializer *serializer) : StateDescriptor(name, serializer)
+    ValueStateDescriptor(const std::string& name, TypeSerializer* serializer) : StateDescriptor(name, serializer)
     {
         if (serializer != nullptr) {
             backendDataId = serializer->getBackendId();
         }
     };
-    Type getType() override { return StateDescriptor::Type::VALUE; };
+    Type getType() override
+    {
+        return StateDescriptor::Type::VALUE;
+    };
 
-    ValueStateDescriptor(const std::string &name, TypeInformation *typeInfo) : StateDescriptor(name, typeInfo)
+    ValueStateDescriptor(const std::string& name, TypeInformation* typeInfo) : StateDescriptor(name, typeInfo)
     {
         if (typeInfo != nullptr) {
             backendDataId = typeInfo->getBackendId();
         }
     };
 
-    ValueStateDescriptor(const std::string& name, Class *cl) : StateDescriptor(name, cl)
+    ValueStateDescriptor(const std::string& name, Class* cl) : StateDescriptor(name, cl)
     {
         TypeInformation* typeInfo = getTypeInfo();
         if (typeInfo != nullptr) {
@@ -46,9 +49,19 @@ public:
 
     ~ValueStateDescriptor() override = default;
 
-    BackendDataType getBackendId() override {return backendDataId; }
-    BackendDataType getKeyDataId() override {throw std::runtime_error("No keyDataId for a ValueStateDescriptor");}
-    BackendDataType getValueDataId() override {throw std::runtime_error("No valueDataId for a ValueStateDescriptor");}
+    BackendDataType getBackendId() override
+    {
+        return backendDataId;
+    }
+    BackendDataType getKeyDataId() override
+    {
+        throw std::runtime_error("No keyDataId for a ValueStateDescriptor");
+    }
+    BackendDataType getValueDataId() override
+    {
+        throw std::runtime_error("No valueDataId for a ValueStateDescriptor");
+    }
+
 protected:
     BackendDataType backendDataId = BackendDataType::INVALID_BK;
 };

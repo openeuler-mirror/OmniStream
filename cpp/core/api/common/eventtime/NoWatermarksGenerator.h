@@ -18,5 +18,4 @@ class NoWatermarksGenerator : public WatermarkGenerator {
     ~NoWatermarksGenerator() override = default;
 };
 
-
 #endif // OMNISTREAM_NOWATERMARKSGENERATOR_H

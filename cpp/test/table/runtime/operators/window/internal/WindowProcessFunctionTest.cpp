@@ -24,8 +24,7 @@ BinaryRowData* NewLongRow(int64_t value)
 
 class TestContext : public Context<Key, TimeWindow> {
 public:
-    explicit TestContext(int64_t watermark = std::numeric_limits<int64_t>::min())
-        : watermark_(watermark)
+    explicit TestContext(int64_t watermark = std::numeric_limits<int64_t>::min()) : watermark_(watermark)
     {
     }
 
@@ -101,9 +100,13 @@ public:
 
 class TestAggregator : public NamespaceAggsHandleFunctionBase<TimeWindow> {
 public:
-    TestAggregator() : NamespaceAggsHandleFunctionBase<TimeWindow>(1) {}
+    TestAggregator() : NamespaceAggsHandleFunctionBase<TimeWindow>(1)
+    {
+    }
 
-    void open(StateDataViewStore* store) override {}
+    void open(StateDataViewStore* store) override
+    {
+    }
 
     void setAccumulators(TimeWindow namespaceVal, RowData* accumulators) override
     {
@@ -112,9 +115,13 @@ public:
         setAccumulatorsCalls++;
     }
 
-    void accumulate(RowData* inputRow) override {}
+    void accumulate(RowData* inputRow) override
+    {
+    }
 
-    void retract(RowData* inputRow) override {}
+    void retract(RowData* inputRow) override
+    {
+    }
 
     void merge(TimeWindow namespaceVal, RowData* otherAcc) override
     {
@@ -141,7 +148,9 @@ public:
         cleanedNamespaces.push_back(namespaceVal);
     }
 
-    void close() override {}
+    void close() override
+    {
+    }
 
     TimeWindow lastNamespace;
     RowData* currentAccumulators = nullptr;
@@ -160,7 +169,7 @@ void AssertWindowsEq(const std::vector<TimeWindow>& actual, const std::vector<Ti
     }
 }
 
-}
+} // namespace
 
 TEST(GeneralWindowProcessFunctionTest, AssignsOnlyNonLateStateNamespaces)
 {
@@ -211,9 +220,9 @@ TEST(PanedWindowProcessFunctionTest, AssignsPanesAndActualWindowsUsingFlinkLateS
     function.open(context);
 
     AssertWindowsEq(function.assignStateNamespace(nullptr, 4999), {TimeWindow(4000, 5000)});
-    AssertWindowsEq(function.assignActualWindows(nullptr, 4999),
-        {TimeWindow(4000, 9000), TimeWindow(3000, 8000), TimeWindow(2000, 7000),
-         TimeWindow(1000, 6000)});
+    AssertWindowsEq(
+        function.assignActualWindows(nullptr, 4999),
+        {TimeWindow(4000, 9000), TimeWindow(3000, 8000), TimeWindow(2000, 7000), TimeWindow(1000, 6000)});
 
     auto* lateContext = new TestContext(8999);
     PanedWindowProcessFunction<Key, TimeWindow> lateFunction(&assigner, &aggregator, 0);

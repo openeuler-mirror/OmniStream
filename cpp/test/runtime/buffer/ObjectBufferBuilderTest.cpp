@@ -7,16 +7,14 @@
 using namespace omnistream;
 TEST(ObjectBufferBuilderTest, AppendAndCommintNotFull)
 {
-
     int size = 10;
     auto objSegment = new ObjectSegment(size);
     std::shared_ptr<DummyObjectBufferRecycler> recycler = DummyObjectBufferRecycler::getInstance();
 
-    ObjectBufferBuilder *bufferBuilder = new ObjectBufferBuilder(objSegment, recycler);
+    ObjectBufferBuilder* bufferBuilder = new ObjectBufferBuilder(objSegment, recycler);
 
-    for (int i = 0; i < size - 1; i++)
-    {
-        StreamRecord *record = new StreamRecord();
+    for (int i = 0; i < size - 1; i++) {
+        StreamRecord* record = new StreamRecord();
         auto v = new VectorBatch(1);
         record->setValue(v);
         bufferBuilder->append(record);
@@ -32,17 +30,15 @@ TEST(ObjectBufferBuilderTest, AppendAndCommintNotFull)
 
 TEST(ObjectBufferBuilderTest, AppendAndCommintFull)
 {
-
     int size = 10;
     auto objSegment = new ObjectSegment(size);
 
     std::shared_ptr<DummyObjectBufferRecycler> recycler = DummyObjectBufferRecycler::getInstance();
 
-    ObjectBufferBuilder *bufferBuilder = new ObjectBufferBuilder(objSegment, recycler);
+    ObjectBufferBuilder* bufferBuilder = new ObjectBufferBuilder(objSegment, recycler);
 
-    for (int i = 0; i < size; i++)
-    {
-        StreamRecord *record = new StreamRecord();
+    for (int i = 0; i < size; i++) {
+        StreamRecord* record = new StreamRecord();
         auto v = new VectorBatch(1);
         record->setValue(v);
         bufferBuilder->append(record);
@@ -58,27 +54,22 @@ TEST(ObjectBufferBuilderTest, AppendAndCommintFull)
 
 TEST(ObjectBufferBuilderTest, AppendAndCommintExceed)
 {
-
     int size = 10;
     auto objSegment = new ObjectSegment(size);
 
     std::shared_ptr<DummyObjectBufferRecycler> recycler = DummyObjectBufferRecycler::getInstance();
 
-    ObjectBufferBuilder *bufferBuilder = new ObjectBufferBuilder(objSegment, recycler);
+    ObjectBufferBuilder* bufferBuilder = new ObjectBufferBuilder(objSegment, recycler);
 
     // Append size + 1 records to exceed the buffer capacity
-    try
-    {
-        for (int i = 0; i < size + 1; i++)
-        {
-            StreamRecord *record = new StreamRecord();
+    try {
+        for (int i = 0; i < size + 1; i++) {
+            StreamRecord* record = new StreamRecord();
             auto v = new VectorBatch(1);
             record->setValue(v);
             bufferBuilder->append(record);
         }
-    }
-    catch (const std::runtime_error &e)
-    {
+    } catch (const std::runtime_error& e) {
         EXPECT_STREQ(e.what(), "BufferBuilder is finished");
     }
     delete objSegment;
@@ -87,17 +78,15 @@ TEST(ObjectBufferBuilderTest, AppendAndCommintExceed)
 
 TEST(ObjectBufferBuilderTest, Finish)
 {
-
     int size = 10;
     auto objSegment = new ObjectSegment(size);
 
     std::shared_ptr<DummyObjectBufferRecycler> recycler = DummyObjectBufferRecycler::getInstance();
 
-    ObjectBufferBuilder *bufferBuilder = new ObjectBufferBuilder(objSegment, recycler);
+    ObjectBufferBuilder* bufferBuilder = new ObjectBufferBuilder(objSegment, recycler);
 
-    for (int i = 0; i < size; i++)
-    {
-        StreamRecord *record = new StreamRecord();
+    for (int i = 0; i < size; i++) {
+        StreamRecord* record = new StreamRecord();
         auto v = new VectorBatch(1);
         record->setValue(v);
         bufferBuilder->append(record);
@@ -110,17 +99,15 @@ TEST(ObjectBufferBuilderTest, Finish)
 
 TEST(ObjectBufferBuilderTest, Recycle)
 {
-
     int size = 10;
     auto objSegment = new ObjectSegment(size);
 
     std::shared_ptr<DummyObjectBufferRecycler> recycler = DummyObjectBufferRecycler::getInstance();
 
-    ObjectBufferBuilder *bufferBuilder = new ObjectBufferBuilder(objSegment, recycler);
+    ObjectBufferBuilder* bufferBuilder = new ObjectBufferBuilder(objSegment, recycler);
 
-    for (int i = 0; i < size; i++)
-    {
-        StreamRecord *record = new StreamRecord();
+    for (int i = 0; i < size; i++) {
+        StreamRecord* record = new StreamRecord();
         auto v = new VectorBatch(1);
         record->setValue(v);
         bufferBuilder->append(record);
@@ -132,19 +119,18 @@ TEST(ObjectBufferBuilderTest, Recycle)
 
 TEST(ObjectBufferBuilderTest, BufferConsumerReadable)
 {
-
     int size = 10;
     auto objSegment = new ObjectSegment(size);
 
     std::shared_ptr<DummyObjectBufferRecycler> recycler = DummyObjectBufferRecycler::getInstance();
 
-    ObjectBufferBuilder *bufferBuilder = new ObjectBufferBuilder(objSegment, recycler);
+    ObjectBufferBuilder* bufferBuilder = new ObjectBufferBuilder(objSegment, recycler);
 
-    std::shared_ptr<ObjectBufferConsumer> bufferConsumer = std::dynamic_pointer_cast<ObjectBufferConsumer>(bufferBuilder->createBufferConsumer());
+    std::shared_ptr<ObjectBufferConsumer> bufferConsumer =
+        std::dynamic_pointer_cast<ObjectBufferConsumer>(bufferBuilder->createBufferConsumer());
 
-    for (int i = 0; i < size; i++)
-    {
-        StreamRecord *record = new StreamRecord();
+    for (int i = 0; i < size; i++) {
+        StreamRecord* record = new StreamRecord();
         auto v = new VectorBatch(1);
         record->setValue(v);
         bufferBuilder->appendAndCommit(record);
@@ -166,20 +152,19 @@ TEST(ObjectBufferBuilderTest, BufferConsumerReadable)
 
 TEST(ObjectBufferBuilderTest, BufferConsumerDataIdentical)
 {
-
     int size = 10;
     auto objSegment = new ObjectSegment(size);
 
     std::shared_ptr<DummyObjectBufferRecycler> recycler = DummyObjectBufferRecycler::getInstance();
 
-    ObjectBufferBuilder *bufferBuilder = new ObjectBufferBuilder(objSegment, recycler);
+    ObjectBufferBuilder* bufferBuilder = new ObjectBufferBuilder(objSegment, recycler);
 
-    std::shared_ptr<ObjectBufferConsumer> bufferConsumer = std::dynamic_pointer_cast<ObjectBufferConsumer>(bufferBuilder->createBufferConsumer());
+    std::shared_ptr<ObjectBufferConsumer> bufferConsumer =
+        std::dynamic_pointer_cast<ObjectBufferConsumer>(bufferBuilder->createBufferConsumer());
 
-    StreamRecord **objects = new StreamRecord *[size];
-    for (int i = 0; i < size; i++)
-    {
-        StreamRecord *record = new StreamRecord();
+    StreamRecord** objects = new StreamRecord*[size];
+    for (int i = 0; i < size; i++) {
+        StreamRecord* record = new StreamRecord();
         auto v = new VectorBatch(1);
         record->setValue(v);
         objects[i] = record;
@@ -188,9 +173,8 @@ TEST(ObjectBufferBuilderTest, BufferConsumerDataIdentical)
     VectorBatchBuffer* readBuffer = dynamic_cast<VectorBatchBuffer*>(bufferConsumer->build());
     int readSize = readBuffer->GetSize();
     EXPECT_EQ(readSize, size);
-    for (size_t i = 0; i < readSize; i++)
-    {
-        StreamRecord *record = static_cast<StreamRecord*>(readBuffer->GetObjectSegment()->getObject(i));
+    for (size_t i = 0; i < readSize; i++) {
+        StreamRecord* record = static_cast<StreamRecord*>(readBuffer->GetObjectSegment()->getObject(i));
         EXPECT_EQ(record, objects[i]);
     }
     delete readBuffer;

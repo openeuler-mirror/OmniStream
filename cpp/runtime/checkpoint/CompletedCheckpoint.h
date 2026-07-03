@@ -11,6 +11,5 @@
 
 #ifndef OMNISTREAM_COMPLETEDCHECKPOINT_H
 #define OMNISTREAM_COMPLETEDCHECKPOINT_H
-class CompletedCheckpoint {
-};
+class CompletedCheckpoint {};
 #endif // OMNISTREAM_COMPLETEDCHECKPOINT_H

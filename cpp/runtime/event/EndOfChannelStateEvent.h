@@ -14,29 +14,29 @@
 #include "RuntimeEvent.h"
 
 namespace omnistream {
-    class EndOfChannelStateEvent : public RuntimeEvent {
-    public:
-        static std::shared_ptr<EndOfChannelStateEvent> getInstance();
-        // {
-        //     static EndOfChannelStateEvent instance;
-        // }
+class EndOfChannelStateEvent : public RuntimeEvent {
+public:
+    static std::shared_ptr<EndOfChannelStateEvent> getInstance();
+    // {
+    //     static EndOfChannelStateEvent instance;
+    // }
 
-        static int hashCode()
-        {
-            return 1965146670;
-        }
+    static int hashCode()
+    {
+        return 1965146670;
+    }
 
-        static bool equals(RuntimeEvent &other)
-        {
-            return typeid(other) == typeid(EndOfChannelStateEvent);
-        }
+    static bool equals(RuntimeEvent& other)
+    {
+        return typeid(other) == typeid(EndOfChannelStateEvent);
+    }
 
-        std::string GetEventClassName() override
-        {
-            return "EndOfChannelStateEvent";
-        }
+    std::string GetEventClassName() override
+    {
+        return "EndOfChannelStateEvent";
+    }
 
     // private:
     //     EndOfChannelStateEvent() {}
-    };
+};
 } // namespace omnistream

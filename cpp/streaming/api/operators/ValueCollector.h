@@ -20,10 +20,8 @@ public:
     // value can be int, string, date POJO.
     // ownership, one the object is passed into collector from UDF, the ownership  of object are transferred as well
     // it is collector to decide whether delete it, keep it or transfer it again.
-    virtual void collect(void *value) = 0;
-    virtual void collectRow(void *value) = 0;
+    virtual void collect(void* value) = 0;
+    virtual void collectRow(void* value) = 0;
 };
 
-
 #endif
-

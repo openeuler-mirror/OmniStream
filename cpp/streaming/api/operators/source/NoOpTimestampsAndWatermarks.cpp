@@ -11,19 +11,22 @@
 
 #include "NoOpTimestampsAndWatermarks.h"
 
-ReaderOutput* NoOpTimestampsAndWatermarks::CreateMainOutput(OmniDataOutputPtr output,
-    WatermarkUpdateListener* watermarkCallback)
+ReaderOutput* NoOpTimestampsAndWatermarks::CreateMainOutput(
+    OmniDataOutputPtr output, WatermarkUpdateListener* watermarkCallback)
 {
     return new TimestampsOnlyOutput(output, timestampAssigner);
 }
 
 NoOpTimestampsAndWatermarks::NoOpTimestampsAndWatermarks(TimestampAssigner* timestampAssigner)
-    : timestampAssigner(timestampAssigner) {}
-
+    : timestampAssigner(timestampAssigner)
+{
+}
 
 // implementation of TimestampsOnlyOutput
-NoOpTimestampsAndWatermarks::TimestampsOnlyOutput::TimestampsOnlyOutput(OmniDataOutputPtr output,
-    TimestampAssigner* timestampAssigner) : output(output), timestampAssigner(timestampAssigner)
+NoOpTimestampsAndWatermarks::TimestampsOnlyOutput::TimestampsOnlyOutput(
+    OmniDataOutputPtr output, TimestampAssigner* timestampAssigner)
+    : output(output),
+      timestampAssigner(timestampAssigner)
 {
     reusingRecord = new StreamRecord();
 }

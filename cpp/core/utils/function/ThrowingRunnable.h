@@ -12,103 +12,104 @@
 #ifndef OMNISTREAM_THROWINGRUNNABLE_H
 #define OMNISTREAM_THROWINGRUNNABLE_H
 #include <atomic>
-#include  "common.h"
+#include "common.h"
 #include <memory>
 #include <functional>
 
 namespace omnistream {
-    class ThrowingRunnable {
-    public:
-        virtual ~ThrowingRunnable() = default;
-        virtual void Run() = 0;
-        virtual void TryCancel() = 0;
-        virtual std::string ToString() const = 0;
-    };
+class ThrowingRunnable {
+public:
+    virtual ~ThrowingRunnable() = default;
+    virtual void Run() = 0;
+    virtual void TryCancel() = 0;
+    virtual std::string ToString() const = 0;
+};
 
-    template <typename T>
-    class MemberFunctionRunnable : public ThrowingRunnable {
-    public:
-        using MemberFunctionPtr = void (T::*)();
+template <typename T>
+class MemberFunctionRunnable : public ThrowingRunnable {
+public:
+    using MemberFunctionPtr = void (T::*)();
 
-        MemberFunctionRunnable(std::shared_ptr<T> obj, MemberFunctionPtr func)
-            :MemberFunctionRunnable(obj, func, "MemberFunctionRunnable")
-        {
+    MemberFunctionRunnable(std::shared_ptr<T> obj, MemberFunctionPtr func)
+        : MemberFunctionRunnable(obj, func, "MemberFunctionRunnable")
+    {
+    }
+
+    MemberFunctionRunnable(std::shared_ptr<T> obj, MemberFunctionPtr func, std::string description)
+        : obj_(obj),
+          func_(func),
+          description_(description)
+    {
+    }
+
+    ~MemberFunctionRunnable() override = default; // Use default destructor
+
+    void Run() override
+    {
+        if (cancelled_.load()) {
+            LOG("runnable has been cancelled");
+            return;
         }
-
-        MemberFunctionRunnable(std::shared_ptr<T> obj, MemberFunctionPtr func, std::string  description)
-            : obj_(obj), func_(func), description_(description)
-        {
+        if (obj_ && func_) {
+            (obj_.get()->*func_)(); // Use .get() to access raw pointer
         }
+    }
 
-        ~MemberFunctionRunnable() override = default; // Use default destructor
+    void TryCancel() override
+    {
+        cancelled_.store(true); // Use .store() for atomic assignment
+    }
 
-        void Run() override
-        {
-            if (cancelled_.load()) {
-                LOG("runnable has been cancelled");
-                return;
-            }
-            if (obj_ && func_) {
-                (obj_.get()->*func_)(); // Use .get() to access raw pointer
-            }
+    std::string ToString() const override
+    {
+        return "MemberFunctionRunnable: ( " + description_ + ")";
+    }
+
+private:
+    std::shared_ptr<T> obj_;
+    MemberFunctionPtr func_;
+    std::atomic<bool> cancelled_{false};
+    std::string description_;
+};
+
+class VoidFunctionRunnable : public ThrowingRunnable {
+public:
+    VoidFunctionRunnable(std::function<void()> func) : VoidFunctionRunnable(func, "VoidFunctionRunnable")
+    {
+    }
+
+    VoidFunctionRunnable(std::function<void()> func, std::string description) : func_(func), description_(description)
+    {
+    }
+
+    ~VoidFunctionRunnable() override = default; // Use default destructor
+
+    void Run() override
+    { // Use .load() for atomic access
+        if (cancelled_.load()) {
+            LOG("runnable has been cancelled");
+            return;
         }
-
-        void TryCancel() override
-        {
-            cancelled_.store(true); // Use .store() for atomic assignment
+        if (func_) {
+            func_();
         }
+    }
 
-        std::string ToString() const override
-        {
-            return "MemberFunctionRunnable: ( " + description_ + ")";
-        }
+    void TryCancel() override
+    {
+        cancelled_.store(true); // Use .store() for atomic assignment
+    }
 
-    private:
-        std::shared_ptr<T> obj_;
-        MemberFunctionPtr func_;
-        std::atomic<bool> cancelled_{false};
-        std::string description_;
-    };
+    std::string ToString() const override
+    {
+        return "VoidFunctionRunnable: ( " + description_ + ")";
+    }
 
-    class VoidFunctionRunnable : public ThrowingRunnable {
-    public:
-        VoidFunctionRunnable(std::function<void()> func) : VoidFunctionRunnable(func, "VoidFunctionRunnable")
-        {
-        }
-
-        VoidFunctionRunnable(std::function<void()> func, std::string  description)
-            : func_(func), description_(description)
-        {
-        }
-
-        ~VoidFunctionRunnable() override = default; // Use default destructor
-
-        void Run() override
-        { // Use .load() for atomic access
-            if (cancelled_.load()) {
-                LOG("runnable has been cancelled");
-                return;
-            }
-            if (func_) {
-                func_();
-            }
-        }
-
-        void TryCancel() override
-        {
-            cancelled_.store(true); // Use .store() for atomic assignment
-        }
-
-        std::string ToString() const override
-        {
-            return "VoidFunctionRunnable: ( " + description_ + ")";
-        }
-
-    private:
-        std::function<void()> func_;
-        std::atomic<bool> cancelled_{false};
-        std::string description_;
-    };
+private:
+    std::function<void()> func_;
+    std::atomic<bool> cancelled_{false};
+    std::string description_;
+};
 } // namespace omnistream
 
 #endif // OMNISTREAM_THROWINGRUNNABLE_H

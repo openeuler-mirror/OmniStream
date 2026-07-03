@@ -31,12 +31,10 @@ IncrementalRemoteKeyedStateHandle::IncrementalRemoteKeyedStateHandle(
 
 {
     this->persistedSizeOfThisCheckpoint_ =
-        persistedSizeOfThisCheckpoint == unkownCheckpointSize
-            ? GetStateSize()
-            : persistedSizeOfThisCheckpoint;
+        persistedSizeOfThisCheckpoint == unkownCheckpointSize ? GetStateSize() : persistedSizeOfThisCheckpoint;
 }
 
-IncrementalRemoteKeyedStateHandle *IncrementalRemoteKeyedStateHandle::Restore(
+IncrementalRemoteKeyedStateHandle* IncrementalRemoteKeyedStateHandle::Restore(
     UUID backendIdentifier,
     KeyGroupRange keyGroupRange,
     int64_t checkpointId,
@@ -57,7 +55,8 @@ IncrementalRemoteKeyedStateHandle *IncrementalRemoteKeyedStateHandle::Restore(
         stateHandleId);
 }
 
-std::shared_ptr<CheckpointBoundKeyedStateHandle> IncrementalRemoteKeyedStateHandle::rebound(int64_t newCheckpointId) const
+std::shared_ptr<CheckpointBoundKeyedStateHandle> IncrementalRemoteKeyedStateHandle::rebound(
+    int64_t newCheckpointId) const
 {
     return std::make_shared<IncrementalRemoteKeyedStateHandle>(
         backendIdentifier_,
@@ -71,7 +70,7 @@ std::shared_ptr<CheckpointBoundKeyedStateHandle> IncrementalRemoteKeyedStateHand
 }
 
 std::string IncrementalRemoteKeyedStateHandle::ToString() const
- {
+{
     std::string sharedStateStr = "[";
     for (size_t i = 0; i < sharedState_.size(); ++i) {
         sharedStateStr += sharedState_[i].ToString();
@@ -91,24 +90,13 @@ std::string IncrementalRemoteKeyedStateHandle::ToString() const
 
     std::ostringstream oss;
     oss << "{"
-        << "\"backendIdentifier\": \""
-        << backendIdentifier_.ToString()
-        << "\", \"stateHandleId\": "
-        << stateHandleId_.ToString()
-        << ", \"keyGroupRange\": "
-        << keyGroupRange_.ToString()
-        << ", \"checkpointId\": "
-        << checkpointId_
-        << ", \"sharedState\": "
-        << sharedStateStr
-        << ", \"privateState\": "
-        << privateStateStr
-        << ", \"metaStateHandle\": "
-        << (metaStateHandle_ ? metaStateHandle_->ToString() : "null")
-        << ", \"persistedSizeOfThisCheckpoint\": "
-        << persistedSizeOfThisCheckpoint_
-        << ", \"checkpointedSize\": "
-        << persistedSizeOfThisCheckpoint_
+        << "\"backendIdentifier\": \"" << backendIdentifier_.ToString()
+        << "\", \"stateHandleId\": " << stateHandleId_.ToString()
+        << ", \"keyGroupRange\": " << keyGroupRange_.ToString() << ", \"checkpointId\": " << checkpointId_
+        << ", \"sharedState\": " << sharedStateStr << ", \"privateState\": " << privateStateStr
+        << ", \"metaStateHandle\": " << (metaStateHandle_ ? metaStateHandle_->ToString() : "null")
+        << ", \"persistedSizeOfThisCheckpoint\": " << persistedSizeOfThisCheckpoint_
+        << ", \"checkpointedSize\": " << persistedSizeOfThisCheckpoint_
         << ", \"stateHandleName\": \"IncrementalRemoteKeyedStateHandle\"}";
     return oss.str();
 }
@@ -130,7 +118,7 @@ void IncrementalRemoteKeyedStateHandle::DiscardState()
     }
 }
 
-void IncrementalRemoteKeyedStateHandle::RegisterSharedStates(SharedStateRegistry &stateRegistry, int64_t checkpointId)
+void IncrementalRemoteKeyedStateHandle::RegisterSharedStates(SharedStateRegistry& stateRegistry, int64_t checkpointId)
 {
     // Do nothing for now
 }
@@ -145,7 +133,8 @@ StateHandleID IncrementalRemoteKeyedStateHandle::GetStateHandleId() const
     return stateHandleId_;
 }
 
-std::shared_ptr<KeyedStateHandle> IncrementalRemoteKeyedStateHandle::GetIntersection(const KeyGroupRange &keyGroupRange) const
+std::shared_ptr<KeyedStateHandle> IncrementalRemoteKeyedStateHandle::GetIntersection(
+    const KeyGroupRange& keyGroupRange) const
 {
     auto range = keyGroupRange_.getIntersection(keyGroupRange);
     if (range == nullptr || range->getNumberOfKeyGroups() == 0) {
@@ -164,7 +153,7 @@ std::shared_ptr<KeyedStateHandle> IncrementalRemoteKeyedStateHandle::GetIntersec
     return shared;
 }
 
-const UUID &IncrementalRemoteKeyedStateHandle::GetBackendIdentifier() const
+const UUID& IncrementalRemoteKeyedStateHandle::GetBackendIdentifier() const
 {
     return backendIdentifier_;
 }
@@ -174,12 +163,13 @@ std::shared_ptr<StreamStateHandle> IncrementalRemoteKeyedStateHandle::GetMetaDat
     return metaStateHandle_;
 }
 
-const std::vector<IncrementalKeyedStateHandle::HandleAndLocalPath>& IncrementalRemoteKeyedStateHandle::GetSharedStateHandles() const
+const std::vector<IncrementalKeyedStateHandle::HandleAndLocalPath>&
+IncrementalRemoteKeyedStateHandle::GetSharedStateHandles() const
 {
     return GetSharedState();
 }
 
-bool IncrementalRemoteKeyedStateHandle::operator==(const IncrementalRemoteKeyedStateHandle &other) const
+bool IncrementalRemoteKeyedStateHandle::operator==(const IncrementalRemoteKeyedStateHandle& other) const
 {
     if (this == &other) {
         return true;
@@ -238,7 +228,8 @@ int64_t IncrementalRemoteKeyedStateHandle::GetCheckpointId() const
     return checkpointId_;
 }
 
-const std::vector<IncrementalKeyedStateHandle::HandleAndLocalPath>& IncrementalRemoteKeyedStateHandle::GetSharedState() const
+const std::vector<IncrementalKeyedStateHandle::HandleAndLocalPath>& IncrementalRemoteKeyedStateHandle::GetSharedState()
+    const
 {
     return sharedState_;
 }

@@ -17,10 +17,13 @@
 #include "nlohmann/json.hpp"
 #include "core/include/common.h"
 
-#define SET_FIELD(field) if (configMap.contains(#field)) { field = configMap[#field].get<decltype(field)>(); };
+#define SET_FIELD(field)                                  \
+    if (configMap.contains(#field)) {                     \
+        field = configMap[#field].get<decltype(field)>(); \
+    };
 struct NexmarkConfiguration {
     NexmarkConfiguration() : configuration(nlohmann::json::object()) {};
-    explicit NexmarkConfiguration(const nlohmann::json &configuration) : configuration(configuration)
+    explicit NexmarkConfiguration(const nlohmann::json& configuration) : configuration(configuration)
     {
         if (configuration.contains("configMap") && !configuration["configMap"].is_null()) {
             auto configMap = configuration["configMap"];

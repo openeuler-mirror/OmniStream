@@ -12,18 +12,27 @@ class SetTopNBuffer {
 public:
     using Buffer = std::multiset<long, Comparator>;
 
-    explicit SetTopNBuffer(Comparator cmp)
-        : buffer_(cmp), bufferId(-99) {}
+    explicit SetTopNBuffer(Comparator cmp) : buffer_(cmp), bufferId(-99)
+    {
+    }
 
-    inline auto begin() { return buffer_.begin(); }
-    inline auto end()   { return buffer_.end(); }
+    inline auto begin()
+    {
+        return buffer_.begin();
+    }
+    inline auto end()
+    {
+        return buffer_.end();
+    }
 
-    inline bool AddElement(long id) {
+    inline bool AddElement(long id)
+    {
         buffer_.insert(id);
         return true;
     }
 
-    inline void RemoveSmallestElement() {
+    inline void RemoveSmallestElement()
+    {
         if (!buffer_.empty()) {
             auto it = buffer_.end();
             --it;
@@ -31,24 +40,36 @@ public:
         }
     }
 
-    inline int GetSize() const { return (int)buffer_.size(); }
+    inline int GetSize() const
+    {
+        return (int)buffer_.size();
+    }
 
-    inline long GetSmallestElement() const {
+    inline long GetSmallestElement() const
+    {
         auto it = buffer_.end();
         --it;
         return *it;
     }
 
-    inline void LoadFromPlainVector(const std::vector<long>& plain) {
+    inline void LoadFromPlainVector(const std::vector<long>& plain)
+    {
         buffer_.clear();
         buffer_.insert(plain.begin(), plain.end());
     }
 
-    inline std::vector<long>* ToPlainVector() const {
+    inline std::vector<long>* ToPlainVector() const
+    {
         return new std::vector<long>(buffer_.begin(), buffer_.end());
     }
-    inline void SetBufferId(int id) { bufferId = id; }
-    inline int GetBufferId() const { return bufferId; }
+    inline void SetBufferId(int id)
+    {
+        bufferId = id;
+    }
+    inline int GetBufferId() const
+    {
+        return bufferId;
+    }
 
 private:
     Buffer buffer_;

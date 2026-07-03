@@ -19,25 +19,24 @@
 #include "TaskManagerServiceConfiguration.h"
 
 namespace omnistream {
-    class TaskManagerServices {
-    public:
-            explicit TaskManagerServices(
-                std::shared_ptr<ShuffleEnvironment> shuffleEnvironment)
-                :  shuffleEnvironment_(shuffleEnvironment) {
-            }
+class TaskManagerServices {
+public:
+    explicit TaskManagerServices(std::shared_ptr<ShuffleEnvironment> shuffleEnvironment)
+        : shuffleEnvironment_(shuffleEnvironment)
+    {
+    }
 
-            ~TaskManagerServices() {
-            }
+    ~TaskManagerServices()
+    {
+    }
 
-            std::shared_ptr<ShuffleEnvironment> getShuffleEnvironment();
+    std::shared_ptr<ShuffleEnvironment> getShuffleEnvironment();
 
-            static TaskManagerServices *fromConfiguration(
-                TaskManagerServiceConfigurationPOD taskManagerServiceConfiguration);
+    static TaskManagerServices* fromConfiguration(TaskManagerServiceConfigurationPOD taskManagerServiceConfiguration);
 
-    private:
-            std::shared_ptr<ShuffleEnvironment> shuffleEnvironment_;
-    };
-}
-
+private:
+    std::shared_ptr<ShuffleEnvironment> shuffleEnvironment_;
+};
+} // namespace omnistream
 
 #endif // TASKMANAGERSERVICES_H

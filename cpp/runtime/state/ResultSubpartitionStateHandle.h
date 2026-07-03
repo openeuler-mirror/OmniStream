@@ -15,21 +15,24 @@
 #include "AbstractChannelStateHandle.h"
 #include "core/include/common.h"
 #include "runtime/partition/ResultSubpartitionInfoPOD.h"
-class ResultSubpartitionStateHandle : public omnistream::AbstractChannelStateHandle<omnistream::ResultSubpartitionInfoPOD> {
+class ResultSubpartitionStateHandle
+    : public omnistream::AbstractChannelStateHandle<omnistream::ResultSubpartitionInfoPOD> {
 public:
-    ResultSubpartitionStateHandle(int subTaskIndex,
-                                  omnistream::ResultSubpartitionInfoPOD info,
-                                  std::shared_ptr<StreamStateHandle> delegate,
-                                  StateContentMetaInfo contentMetaInfo)
-            : omnistream::AbstractChannelStateHandle<omnistream::ResultSubpartitionInfoPOD>(subTaskIndex, info,
-                                                                                            delegate,
-                                                                                            contentMetaInfo.GetOffsets(),
-                                                                                            contentMetaInfo.GetSize()) {}
-
+    ResultSubpartitionStateHandle(
+        int subTaskIndex,
+        omnistream::ResultSubpartitionInfoPOD info,
+        std::shared_ptr<StreamStateHandle> delegate,
+        StateContentMetaInfo contentMetaInfo)
+        : omnistream::AbstractChannelStateHandle<omnistream::ResultSubpartitionInfoPOD>(
+              subTaskIndex, info, delegate, contentMetaInfo.GetOffsets(), contentMetaInfo.GetSize())
+    {
+    }
 
     // This class should be a template with InputChannelInfo, and info should be of class InputChannelInfo
     // This is a temporary place holder for checkpointing's PioritizedOperatorSubtaskState
-    void DiscardState() override {}
+    void DiscardState() override
+    {
+    }
 
     std::string ToString() const override
     {

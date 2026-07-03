@@ -17,16 +17,18 @@
 #include <queue>
 #include "SourceReaderBase.h"
 
-
 template <typename E, typename SplitT, typename SplitStateT>
 class SingleThreadMultiplexSourceReaderBase : public SourceReaderBase<E, SplitT, SplitStateT> {
 public:
-    SingleThreadMultiplexSourceReaderBase(FutureCompletingBlockingQueue<E>* elementsQueue,
+    SingleThreadMultiplexSourceReaderBase(
+        FutureCompletingBlockingQueue<E>* elementsQueue,
         SingleThreadFetcherManager<E, SplitT>* splitFetcherManager,
         RecordEmitter<E, SplitStateT>* recordEmitter,
-        SourceReaderContext* context, bool isBatch)
-        : SourceReaderBase<E, SplitT, SplitStateT>(elementsQueue,
-            splitFetcherManager, recordEmitter, context, isBatch) {}
+        SourceReaderContext* context,
+        bool isBatch)
+        : SourceReaderBase<E, SplitT, SplitStateT>(elementsQueue, splitFetcherManager, recordEmitter, context, isBatch)
+    {
+    }
 };
 
 #endif // FLINK_TNEL_SINGLETHREADMULTIPLEXSOURCEREADERBASE_H

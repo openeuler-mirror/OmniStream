@@ -15,14 +15,11 @@
 #include <memory>
 #include "core/api/connector/source/SourceOutput.h"
 
-
 template <typename E, typename SplitStateT>
 class RecordEmitter {
 public:
-    virtual void emitRecord(E* consumerRecord, SourceOutput* output,
-        SplitStateT* splitState) = 0;
-    virtual void emitBatchRecord(const std::vector<E*>& messageVec, SourceOutput* output,
-        SplitStateT* splitState) = 0;
+    virtual void emitRecord(E* consumerRecord, SourceOutput* output, SplitStateT* splitState) = 0;
+    virtual void emitBatchRecord(const std::vector<E*>& messageVec, SourceOutput* output, SplitStateT* splitState) = 0;
     // 虚析构函数，确保正确释放派生类对象
     virtual ~RecordEmitter() = default;
 };

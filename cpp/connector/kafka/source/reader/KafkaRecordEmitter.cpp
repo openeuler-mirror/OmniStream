@@ -14,7 +14,8 @@
 #include "datagen/meituan/OriginalRecord.h"
 
 KafkaRecordEmitter::KafkaRecordEmitter(KafkaRecordDeserializationSchema* deserializationSchema)
-    : deserializationSchema(deserializationSchema), sourceOutputWrapper(new SourceOutputWrapper())
+    : deserializationSchema(deserializationSchema),
+      sourceOutputWrapper(new SourceOutputWrapper())
 {
 }
 
@@ -24,8 +25,8 @@ KafkaRecordEmitter::~KafkaRecordEmitter()
     delete sourceOutputWrapper;
 }
 
-void KafkaRecordEmitter::emitRecord(RdKafka::Message* consumerRecord, SourceOutput* output,
-    KafkaPartitionSplitState* splitState)
+void KafkaRecordEmitter::emitRecord(
+    RdKafka::Message* consumerRecord, SourceOutput* output, KafkaPartitionSplitState* splitState)
 {
     try {
         sourceOutputWrapper->setSourceOutput(output);
@@ -39,14 +40,13 @@ void KafkaRecordEmitter::emitRecord(RdKafka::Message* consumerRecord, SourceOutp
             error.find("Partition is released") != std::string::npos) {
             throw;
         }
-        INFO_RELEASE("Error: Failed to deserialize consumer record due to: " <<e.what());
+        INFO_RELEASE("Error: Failed to deserialize consumer record due to: " << e.what());
         throw std::runtime_error("Failed to deserialize consumer record due to: " + std::string(e.what()));
     }
 }
 
 void KafkaRecordEmitter::emitBatchRecord(
-    const std::vector<RdKafka::Message*>& messageVec, SourceOutput* output,
-    KafkaPartitionSplitState* splitState)
+    const std::vector<RdKafka::Message*>& messageVec, SourceOutput* output, KafkaPartitionSplitState* splitState)
 {
     try {
         sourceOutputWrapper->setSourceOutput(output);
@@ -60,7 +60,7 @@ void KafkaRecordEmitter::emitBatchRecord(
             error.find("Partition is released") != std::string::npos) {
             throw;
         }
-        INFO_RELEASE("Error: Failed to deserialize consumer batch record due to: " <<e.what());
+        INFO_RELEASE("Error: Failed to deserialize consumer batch record due to: " << e.what());
         throw std::runtime_error("Failed to deserialize consumer batch record due to: " + std::string(e.what()));
     }
 }

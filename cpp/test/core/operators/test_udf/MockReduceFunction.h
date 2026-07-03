@@ -6,7 +6,8 @@
 
 class MockReduceFunction : public ReduceFunction<Object> {
 public:
-    Object* reduce(Object* in1, Object* in2) override {
+    Object* reduce(Object* in1, Object* in2) override
+    {
         // 假设 in1 和 in2 都是 Tuple2，且 f1 是 Long
         auto tuple1 = dynamic_cast<Tuple2*>(in1);
         auto tuple2 = dynamic_cast<Tuple2*>(in2);
@@ -21,4 +22,4 @@ public:
         return nullptr;
     }
 };
-#endif //FLINK_TNEL_MOCKREDUCEFUNCTION_H
+#endif // FLINK_TNEL_MOCKREDUCEFUNCTION_H
