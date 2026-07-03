@@ -18,9 +18,9 @@
 
 class LongTypeInfo : public TypeInformation {
 public:
-    explicit LongTypeInfo(const char *name);
+    explicit LongTypeInfo(const char* name);
 
-    TypeSerializer *createTypeSerializer() override;
+    TypeSerializer* createTypeSerializer() override;
     std::string name() override;
 
     BackendDataType getBackendId() const override
@@ -31,6 +31,5 @@ public:
 private:
     const char* name_ = TYPE_NAME_LONG;
 };
-
 
 #endif

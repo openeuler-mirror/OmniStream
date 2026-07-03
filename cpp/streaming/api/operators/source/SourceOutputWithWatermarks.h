@@ -12,7 +12,6 @@
 #ifndef OMNISTREAM_SOURCEOUTPUTWITHWATERMARKS_H
 #define OMNISTREAM_SOURCEOUTPUTWITHWATERMARKS_H
 
-
 #include <memory>
 #include <utility>
 #include <stdexcept>
@@ -29,7 +28,6 @@ using OmniDataOutputPtr = omnistream::OmniPushingAsyncDataInput::OmniDataOutput*
 
 class SourceOutputWithWatermarks : public ReaderOutput {
 public:
-
     ~SourceOutputWithWatermarks() override
     {
         delete reusingRecord_;
@@ -42,7 +40,8 @@ public:
         Collect(record, TimestampAssigner::NO_TIMESTAMP);
     }
 
-    void Collect(void* record, long timestamp) override {
+    void Collect(void* record, long timestamp) override
+    {
         if (timestampAssigner_->getRowtimeFieldIndex() < 0) {
             // TODO: Datastream scenario, not correct now
             try {
@@ -67,48 +66,65 @@ public:
     }
 
     // WatermarkOutput Methods
-    void emitWatermark(Watermark* watermark) override {
+    void emitWatermark(Watermark* watermark) override
+    {
         onEventWatermarkOutput_->emitWatermark(watermark);
     }
 
-    void MarkIdle() override {
+    void MarkIdle() override
+    {
         onEventWatermarkOutput_->MarkIdle();
     }
 
-    void MarkActive() override {
+    void MarkActive() override
+    {
         onEventWatermarkOutput_->MarkActive();
     }
 
-    SourceOutput& CreateOutputForSplit(const std::string& splitId) {
-        NOT_IMPL_EXCEPTION
+    SourceOutput& CreateOutputForSplit(const std::string& splitId)
+    {
+        NOT_IMPL_EXCEPTION;
     }
 
-    void ReleaseOutputForSplit(const std::string& splitId) {
-        NOT_IMPL_EXCEPTION
+    void ReleaseOutputForSplit(const std::string& splitId)
+    {
+        NOT_IMPL_EXCEPTION;
     }
 
-    void EmitPeriodicWatermark() {
+    void EmitPeriodicWatermark()
+    {
         watermarkGenerator_->OnPeriodicEmit(periodicWatermarkOutput_);
     }
 
-    static SourceOutputWithWatermarks* createWithSeparateOutputs(OmniDataOutputPtr recordsOutput,
-        WatermarkOutput* onEventWatermarkOutput, WatermarkOutput* periodicWatermarkOutput,
-        TimestampAssigner* timestampAssigner, WatermarkGenerator* watermarkGenerator, long autoWatermarkInterval);
+    static SourceOutputWithWatermarks* createWithSeparateOutputs(
+        OmniDataOutputPtr recordsOutput,
+        WatermarkOutput* onEventWatermarkOutput,
+        WatermarkOutput* periodicWatermarkOutput,
+        TimestampAssigner* timestampAssigner,
+        WatermarkGenerator* watermarkGenerator,
+        long autoWatermarkInterval);
 
 protected:
-    SourceOutputWithWatermarks(OmniDataOutputPtr recordsOutput, WatermarkOutput* onEventWatermarkOutput,
-            WatermarkOutput* periodicWatermarkOutput, TimestampAssigner* timestampAssigner,
-            WatermarkGenerator* watermarkGenerator, long autoWatermarkInterval) : recordsOutput_(recordsOutput),
-            onEventWatermarkOutput_(onEventWatermarkOutput),
-            periodicWatermarkOutput_(periodicWatermarkOutput),
-            timestampAssigner_(timestampAssigner),
-            watermarkGenerator_(watermarkGenerator),
-            autoWatermarkInterval_(autoWatermarkInterval) {
+    SourceOutputWithWatermarks(
+        OmniDataOutputPtr recordsOutput,
+        WatermarkOutput* onEventWatermarkOutput,
+        WatermarkOutput* periodicWatermarkOutput,
+        TimestampAssigner* timestampAssigner,
+        WatermarkGenerator* watermarkGenerator,
+        long autoWatermarkInterval)
+        : recordsOutput_(recordsOutput),
+          onEventWatermarkOutput_(onEventWatermarkOutput),
+          periodicWatermarkOutput_(periodicWatermarkOutput),
+          timestampAssigner_(timestampAssigner),
+          watermarkGenerator_(watermarkGenerator),
+          autoWatermarkInterval_(autoWatermarkInterval)
+    {
         reusingRecord_ = new StreamRecord();
     }
 
 private:
-    void CollectVectorBatch(omnistream::VectorBatch* vectorBatch) {
+    void CollectVectorBatch(omnistream::VectorBatch* vectorBatch)
+    {
         if (vectorBatch == nullptr) {
             THROW_RUNTIME_ERROR("SourceOutputWithWatermarks received a null VectorBatch.");
         }
@@ -169,6 +185,5 @@ private:
     StreamRecord* reusingRecord_;
     long autoWatermarkInterval_;
 };
-
 
 #endif // OMNISTREAM_SOURCEOUTPUTWITHWATERMARKS_H

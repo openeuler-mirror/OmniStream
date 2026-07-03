@@ -37,9 +37,8 @@ public:
         }
 
         // Create a dummy checkpoint barrier event
-        auto options = new CheckpointOptions(
-                CheckpointType::CHECKPOINT,
-                CheckpointStorageLocationReference::GetDefault());
+        auto options =
+            new CheckpointOptions(CheckpointType::CHECKPOINT, CheckpointStorageLocationReference::GetDefault());
 
         auto barrier = std::make_shared<CheckpointBarrier>(1L, 999L, options);
         auto boe = std::make_shared<BufferOrEvent>(barrier, InputChannelInfo(0, 0));
@@ -63,16 +62,22 @@ public:
         return finished_;
     }
 
-    void sendTaskEvent(const std::shared_ptr<TaskEvent>&) override {}
+    void sendTaskEvent(const std::shared_ptr<TaskEvent>&) override
+    {
+    }
 
     std::shared_ptr<CompletableFuture> GetAvailableFuture() override
     {
         return std::make_shared<CompletableFuture>();
     }
 
-    void ResumeConsumption(const InputChannelInfo&) override {}
+    void ResumeConsumption(const InputChannelInfo&) override
+    {
+    }
 
-    void acknowledgeAllRecordsProcessed(const InputChannelInfo&) override {}
+    void acknowledgeAllRecordsProcessed(const InputChannelInfo&) override
+    {
+    }
 
     std::shared_ptr<InputChannel> getChannel(int) override
     {
@@ -81,12 +86,16 @@ public:
 
     std::vector<InputChannelInfo> getChannelInfos()
     {
-        return { InputChannelInfo(0, 0) };
+        return {InputChannelInfo(0, 0)};
     }
 
-    void setup() override {}
+    void setup() override
+    {
+    }
 
-    void RequestPartitions() override {}
+    void RequestPartitions() override
+    {
+    }
 
     std::shared_ptr<CompletableFutureV2<void>> getStateConsumedFuture() override
     {
@@ -98,7 +107,9 @@ public:
         return {};
     }
 
-    void FinishReadRecoveredState() override {}
+    void FinishReadRecoveredState() override
+    {
+    }
 
 private:
     bool emitted_;
@@ -107,39 +118,55 @@ private:
 
 class DummyTask : public CheckpointableTask {
 public:
-    void TriggerCheckpointOnBarrier(std::shared_ptr<CheckpointMetaData> checkpointMetaData,
-        std::shared_ptr<CheckpointOptions> checkpointOptions, std::shared_ptr<CheckpointMetricsBuilder> checkpointMetrics) override {}
+    void TriggerCheckpointOnBarrier(
+        std::shared_ptr<CheckpointMetaData> checkpointMetaData,
+        std::shared_ptr<CheckpointOptions> checkpointOptions,
+        std::shared_ptr<CheckpointMetricsBuilder> checkpointMetrics) override
+    {
+    }
 
-    void abortCheckpointOnBarrier(long, CheckpointException) override {}
+    void abortCheckpointOnBarrier(long, CheckpointException) override
+    {
+    }
 };
 
 class DummyCoordinator : public SubtaskCheckpointCoordinator {
 public:
-    void InitInputsCheckpoint(long, CheckpointOptions*) override {}
-    std::shared_ptr<ChannelStateWriter> getChannelStateWriter() override {}
+    void InitInputsCheckpoint(long, CheckpointOptions*) override
+    {
+    }
+    std::shared_ptr<ChannelStateWriter> getChannelStateWriter() override
+    {
+    }
 };
 
-
-TEST(CheckpointedInputGateTest, DISABLED_PollNext_ProcessesCheckpointBarrierEvent) {
+TEST(CheckpointedInputGateTest, DISABLED_PollNext_ProcessesCheckpointBarrierEvent)
+{
     auto inputGate = std::make_shared<DummyInputGate>();
     auto task = std::make_shared<DummyTask>();
     auto coordinator = std::make_shared<DummyCoordinator>();
     auto mailbox = std::make_shared<MailboxExecutorTest>();
     auto timerService = std::make_shared<SystemProcessingTimeService>();
-    auto delayableTimer = BarrierAlignmentUtil::createRegisterTimerCallback<std::function<void()>>(
-            mailbox.get(), timerService.get());
+    auto delayableTimer =
+        BarrierAlignmentUtil::createRegisterTimerCallback<std::function<void()>>(mailbox.get(), timerService.get());
     auto mockInput = new TestInput(0);
-    std::vector<CheckpointableInput *> inputs = {mockInput};
+    std::vector<CheckpointableInput*> inputs = {mockInput};
 
     auto initialState = new AlternatingWaitingForFirstBarrierUnaligned(false, ChannelState(inputs));
 
     auto handler = std::make_shared<SingleCheckpointBarrierHandler>(
-        "test-task", task.get(), coordinator.get(),
-        SystemClock::GetInstance(), 1, initialState,
-        false, delayableTimer, inputs, false
-    );
+        "test-task",
+        task.get(),
+        coordinator.get(),
+        SystemClock::GetInstance(),
+        1,
+        initialState,
+        false,
+        delayableTimer,
+        inputs,
+        false);
 
-    CheckpointedInputGate *gate = new CheckpointedInputGate(inputGate, handler, mailbox);
+    CheckpointedInputGate* gate = new CheckpointedInputGate(inputGate, handler, mailbox);
 
     auto result = gate->PollNext();
     ASSERT_TRUE(result);

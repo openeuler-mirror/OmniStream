@@ -16,10 +16,19 @@
 
 #include "../include/common.h"
 
-MemorySegment::MemorySegment(uint8_t* offHeapBuffer, int size) : Segment(SegmentType::MEMORY_SEGMENT), offHeapBuffer_(offHeapBuffer), size_(size), owner_(nullptr) {
+MemorySegment::MemorySegment(uint8_t* offHeapBuffer, int size)
+    : Segment(SegmentType::MEMORY_SEGMENT),
+      offHeapBuffer_(offHeapBuffer),
+      size_(size),
+      owner_(nullptr)
+{
 }
 
-MemorySegment::MemorySegment(uint8_t* offHeapBuffer, int size, void* owner) : Segment(SegmentType::MEMORY_SEGMENT), offHeapBuffer_(offHeapBuffer), size_(size), owner_(owner)
+MemorySegment::MemorySegment(uint8_t* offHeapBuffer, int size, void* owner)
+    : Segment(SegmentType::MEMORY_SEGMENT),
+      offHeapBuffer_(offHeapBuffer),
+      size_(size),
+      owner_(owner)
 {
 }
 
@@ -91,7 +100,8 @@ int MemorySegment::getSize() const
 }
 
 /**
- * Bulk get method. Copies a sequence of bytes of length `length` from the memory segment starting at the specified index to the destination memory `dst`, beginning at the given `offset`
+ * Bulk get method. Copies a sequence of bytes of length `length` from the memory segment starting at the specified
+ * index to the destination memory `dst`, beginning at the given `offset`
  */
 void MemorySegment::get(int index, uint8_t* dst, int offset, int length)
 {

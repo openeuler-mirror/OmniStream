@@ -1,5 +1,5 @@
 /*
-* Copyright (c) Huawei Technologies Co., Ltd. 2012-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2012-2025. All rights reserved.
  * Create Date : 2025
  */
 
@@ -7,9 +7,9 @@
 #define OMNISTREAM_OMNILOCALINPUTCHANNELBRIDGE_H
 
 namespace omnistream {
-    class OmniLocalInputChannelBridge {
-    public:
-        virtual void InvokeDoResumeConsumption() =0;
-    };
-}
+class OmniLocalInputChannelBridge {
+public:
+    virtual void InvokeDoResumeConsumption() = 0;
+};
+} // namespace omnistream
 #endif // OMNISTREAM_OMNILOCALINPUTCHANNELBRIDGE_H

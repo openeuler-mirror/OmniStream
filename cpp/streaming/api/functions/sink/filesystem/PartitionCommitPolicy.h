@@ -23,25 +23,46 @@
  */
 class PolicyContext {
 public:
-    PolicyContext(const std::string &catalogName,
-                  const std::string &databaseName,
-                  const std::string &tableName,
-                  const std::vector<std::string> &partitionKeys,
-                  const std::vector<std::string> &partitionValues,
-                  const std::string &partitionPath)
+    PolicyContext(
+        const std::string& catalogName,
+        const std::string& databaseName,
+        const std::string& tableName,
+        const std::vector<std::string>& partitionKeys,
+        const std::vector<std::string>& partitionValues,
+        const std::string& partitionPath)
         : catalogName_(catalogName),
           databaseName_(databaseName),
           tableName_(tableName),
           partitionKeys_(partitionKeys),
           partitionValues_(partitionValues),
-          partitionPath_(partitionPath) {}
+          partitionPath_(partitionPath)
+    {
+    }
 
-    const std::string &catalogName() const { return catalogName_; }
-    const std::string &databaseName() const { return databaseName_; }
-    const std::string &tableName() const { return tableName_; }
-    const std::vector<std::string> &partitionKeys() const { return partitionKeys_; }
-    const std::vector<std::string> &partitionValues() const { return partitionValues_; }
-    const std::string &partitionPath() const { return partitionPath_; }
+    const std::string& catalogName() const
+    {
+        return catalogName_;
+    }
+    const std::string& databaseName() const
+    {
+        return databaseName_;
+    }
+    const std::string& tableName() const
+    {
+        return tableName_;
+    }
+    const std::vector<std::string>& partitionKeys() const
+    {
+        return partitionKeys_;
+    }
+    const std::vector<std::string>& partitionValues() const
+    {
+        return partitionValues_;
+    }
+    const std::string& partitionPath() const
+    {
+        return partitionPath_;
+    }
 
     std::map<std::string, std::string> partitionSpec() const
     {
@@ -69,11 +90,11 @@ class PartitionCommitPolicy {
 public:
     virtual ~PartitionCommitPolicy() = default;
 
-    virtual void commit(const PolicyContext &context) = 0;
+    virtual void commit(const PolicyContext& context) = 0;
 
-    static constexpr const char *METASTORE = "metastore";
-    static constexpr const char *SUCCESS_FILE = "success-file";
-    static constexpr const char *CUSTOM = "custom";
+    static constexpr const char* METASTORE = "metastore";
+    static constexpr const char* SUCCESS_FILE = "success-file";
+    static constexpr const char* CUSTOM = "custom";
 };
 
 /**
@@ -81,7 +102,7 @@ public:
  */
 class SuccessFileCommitPolicy : public PartitionCommitPolicy {
 public:
-    void commit(const PolicyContext &context) override
+    void commit(const PolicyContext& context) override
     {
         FileSystemCommitter::createSuccessFile(context.partitionPath());
     }
@@ -93,7 +114,7 @@ public:
  */
 class MetastoreCommitPolicy : public PartitionCommitPolicy {
 public:
-    void commit(const PolicyContext &context) override
+    void commit(const PolicyContext& context) override
     {
     }
 };
@@ -102,8 +123,6 @@ public:
  * Creates a chain of commit policies from the policy kind string.
  * Supported kinds (comma-separated): "success-file", "metastore", "custom"
  */
-std::vector<std::unique_ptr<PartitionCommitPolicy>> createPolicyChain(const std::string &policyKind);
-
-
+std::vector<std::unique_ptr<PartitionCommitPolicy>> createPolicyChain(const std::string& policyKind);
 
 #endif // PARTITION_COMMIT_POLICY_H

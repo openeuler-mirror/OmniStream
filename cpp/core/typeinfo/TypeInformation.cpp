@@ -15,7 +15,7 @@
 TypeInformation::~TypeInformation() = default;
 
 // create typeInfo by cl: TypeExtractor.createTypeInfo(cl)
-TypeInformation *TypeInformation::of(Class *cl)
+TypeInformation* TypeInformation::of(Class* cl)
 {
     return TypeExtractor::CreateTypeInfo(cl);
 }

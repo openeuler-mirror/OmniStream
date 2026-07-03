@@ -17,12 +17,12 @@ ConfigOption::~ConfigOption()
     defaultValue->putRefCount();
 }
 
-String *ConfigOption::GetKey()
+String* ConfigOption::GetKey()
 {
     return key;
 }
 
-Object *ConfigOption::GetDefaultValue()
+Object* ConfigOption::GetDefaultValue()
 {
     return defaultValue;
 }

@@ -14,15 +14,15 @@
 #include <vector>
 #include "table/data/vectorbatch/VectorBatch.h"
 namespace omnistream {
-    enum class StateType {
-        HEAP = 0,
-        ROCKSDB = 1,
-        BSS = 2
-    };
-}
+enum class StateType {
+    HEAP = 0,
+    ROCKSDB = 1,
+    BSS = 2
+};
+} // namespace omnistream
 class State {
 public:
-    State() : vectorBatches(){};
+    State() : vectorBatches() {};
     virtual ~State()
     {
         for (auto batch : vectorBatches) {
@@ -30,12 +30,12 @@ public:
         }
     };
     virtual void clear() = 0;
-    virtual void addVectorBatch(omnistream::VectorBatch *vectorBatch)
+    virtual void addVectorBatch(omnistream::VectorBatch* vectorBatch)
     {
         vectorBatches.push_back(vectorBatch);
     };
 
-    const std::vector<omnistream::VectorBatch *> &getVectorBatches() const
+    const std::vector<omnistream::VectorBatch*>& getVectorBatches() const
     {
         return vectorBatches;
     };
@@ -43,10 +43,11 @@ public:
     {
         return vectorBatches.size();
     };
-    virtual omnistream::VectorBatch *getVectorBatch(int batchId)
+    virtual omnistream::VectorBatch* getVectorBatch(int batchId)
     {
         if (batchId < 0 || static_cast<size_t>(batchId) >= vectorBatches.size()) {
-            THROW_LOGIC_EXCEPTION("batchId out of bounds: batchId = " << batchId << ", vectorBatches.size() = " << vectorBatches.size())
+            THROW_LOGIC_EXCEPTION(
+                "batchId out of bounds: batchId = " << batchId << ", vectorBatches.size() = " << vectorBatches.size());
         }
         return vectorBatches[batchId];
     }
@@ -71,5 +72,5 @@ public:
     }
 
 protected:
-    std::vector<omnistream::VectorBatch *> vectorBatches;
+    std::vector<omnistream::VectorBatch*> vectorBatches;
 };

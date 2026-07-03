@@ -14,25 +14,25 @@
 #include "Clock.h"
 
 namespace omnistream {
-    class SystemClock : public Clock {
-    public:
-        static SystemClock& GetInstance()
-        {
-            static SystemClock instance;
-            return instance;
-        }
+class SystemClock : public Clock {
+public:
+    static SystemClock& GetInstance()
+    {
+        static SystemClock instance;
+        return instance;
+    }
 
-        long AbsoluteTimeMillis() const override;
-        long RelativeTimeMillis() const override;
-        long RelativeTimeNanos() const override;
+    long AbsoluteTimeMillis() const override;
+    long RelativeTimeMillis() const override;
+    long RelativeTimeNanos() const override;
 
-    private:
-        SystemClock()
-        {
-        }
+private:
+    SystemClock()
+    {
+    }
 
-        SystemClock(const SystemClock&) = delete;
-        SystemClock& operator=(const SystemClock&) = delete;
-    };
+    SystemClock(const SystemClock&) = delete;
+    SystemClock& operator=(const SystemClock&) = delete;
+};
 } // namespace omnistream
 #endif // SYSTEM_CLOCK_H

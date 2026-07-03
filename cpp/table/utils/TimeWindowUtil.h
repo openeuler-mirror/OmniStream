@@ -18,15 +18,16 @@
 
 class TimeWindowUtil {
 public:
-    static int64_t toUtcTimestampMills(int64_t epochMills, const std::string &shiftTimeZone);
+    static int64_t toUtcTimestampMills(int64_t epochMills, const std::string& shiftTimeZone);
 
-    static int64_t toEpochMills(int64_t utcTimestampMills, const std::string &shiftTimeZone);
+    static int64_t toEpochMills(int64_t utcTimestampMills, const std::string& shiftTimeZone);
 
-    static int64_t toEpochMillsForTimer(int64_t utcTimestampMills, const std::string &shiftTimeZone);
+    static int64_t toEpochMillsForTimer(int64_t utcTimestampMills, const std::string& shiftTimeZone);
 
-    static int64_t toCleanupTimerMills(int64_t windowMaxTimestamp, int64_t allowedLateness, const std::string &shiftTimeZone);
+    static int64_t toCleanupTimerMills(
+        int64_t windowMaxTimestamp, int64_t allowedLateness, const std::string& shiftTimeZone);
 
-    static bool isWindowFired(int64_t windowEnd, int64_t currentProgress, const std::string &shiftTimeZone);
+    static bool isWindowFired(int64_t windowEnd, int64_t currentProgress, const std::string& shiftTimeZone);
 
     static bool isWindowFired(int64_t windowEnd, int64_t currentProgress);
 };

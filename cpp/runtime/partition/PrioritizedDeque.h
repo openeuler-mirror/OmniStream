@@ -50,16 +50,21 @@ public:
     int hashCode() const;
     std::string toString() const;
     std::shared_ptr<T> peekLast() const;
+
 private:
     std::deque<std::shared_ptr<T>> deque;
     int numPriorityElements;
 };
 
 template <typename T>
-PrioritizedDeque<T>::PrioritizedDeque() : numPriorityElements(0) {}
+PrioritizedDeque<T>::PrioritizedDeque() : numPriorityElements(0)
+{
+}
 
 template <typename T>
-PrioritizedDeque<T>::~PrioritizedDeque() {}
+PrioritizedDeque<T>::~PrioritizedDeque()
+{
+}
 
 template <typename T>
 void PrioritizedDeque<T>::addPriorityElement(std::shared_ptr<T> element)

@@ -17,7 +17,7 @@
 #include <cstdint>
 #include <iostream>
 
-template<typename K, typename N>
+template <typename K, typename N>
 class InternalTimer {
 public:
     virtual ~InternalTimer() = default;

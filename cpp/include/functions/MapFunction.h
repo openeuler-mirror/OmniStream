@@ -16,14 +16,14 @@
 #include "basictypes/Object.h"
 #include "Function.h"
 
-template<typename T>
+template <typename T>
 class MapFunction : public omnistream::Function {
 public:
     virtual ~MapFunction() = default;
-    virtual T* map(T *obj) = 0;
+    virtual T* map(T* obj) = 0;
 };
 
-template<typename T>
+template <typename T>
 using MapFunctionUnique = std::unique_ptr<MapFunction<T>>;
 
 #endif // OMNIFLINK_MAPFUNCTION_H

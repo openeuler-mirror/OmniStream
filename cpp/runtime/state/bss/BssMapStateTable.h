@@ -25,26 +25,32 @@
 #include "utils/VectorBatchSerializationUtils.h"
 #include "utils/VectorBatchDeserializationUtils.h"
 
-template<typename K, typename N, typename UK, typename UV>
+template <typename K, typename N, typename UK, typename UV>
 class BssMapStateTable {
 public:
-    BssMapStateTable(InternalKeyContext<K> *keyContext, TypeSerializer *keySerializer,
-        TypeSerializer *userKeySerializer, RegisteredKeyValueStateBackendMetaInfo *metaInfo) : keyContext(keyContext),
-        keySerializer(keySerializer), userKeySerializer(userKeySerializer), metaInfo(metaInfo) {};
+    BssMapStateTable(
+        InternalKeyContext<K>* keyContext,
+        TypeSerializer* keySerializer,
+        TypeSerializer* userKeySerializer,
+        RegisteredKeyValueStateBackendMetaInfo* metaInfo)
+        : keyContext(keyContext),
+          keySerializer(keySerializer),
+          userKeySerializer(userKeySerializer),
+          metaInfo(metaInfo) {};
 
     bool isEmpty()
     {
         return true;
     }
 
-    void createTable(ock::bss::BoostStateDBPtr &_dbPtr)
+    void createTable(ock::bss::BoostStateDBPtr& _dbPtr)
     {
         auto tblDesc = std::make_shared<ock::bss::TableDescription>(
-                ock::bss::StateType::MAP, "dbTable", -1, ock::bss::TableSerializer{}, _dbPtr->GetConfig());
+            ock::bss::StateType::MAP, "dbTable", -1, ock::bss::TableSerializer{}, _dbPtr->GetConfig());
         dbTable = std::dynamic_pointer_cast<ock::bss::KMapTable>(_dbPtr->GetTableOrCreate(tblDesc));
     };
 
-    UV get(N &nameSpace, const UK &userKey)
+    UV get(N& nameSpace, const UK& userKey)
     {
         LOG("bss MapState table get");
         // hashcode is used to determine the position of map, not the specified element
@@ -66,24 +72,23 @@ public:
                 return std::numeric_limits<UV>::max();
             }
         }
-        DataInputDeserializer serializedData(reinterpret_cast<const uint8_t *>(readValue.Data()),
-                                             readValue.Length(), 0);
-        void *resPtr = getStateSerializer()->deserialize(serializedData);
+        DataInputDeserializer serializedData(reinterpret_cast<const uint8_t*>(readValue.Data()), readValue.Length(), 0);
+        void* resPtr = getStateSerializer()->deserialize(serializedData);
         if constexpr (std::is_pointer_v<UV>) {
-            return (UV) resPtr;
+            return (UV)resPtr;
         } else {
-            return resPtr == nullptr ? std::numeric_limits<UV>::max() : *(UV *) resPtr;
+            return resPtr == nullptr ? std::numeric_limits<UV>::max() : *(UV*)resPtr;
         }
     }
 
-    void put(N &nameSpace, const UK &userKey, const UV &state)
+    void put(N& nameSpace, const UK& userKey, const UV& state)
     {
-        LOG("BSS Map State table put")
+        LOG("BSS Map State table put");
         OutputBufferStatus outputBufferStatus;
         DataOutputSerializer serializer;
         serializer.setBackendBuffer(&outputBufferStatus);
         ock::bss::BinaryData priUserKey = GetUserKeyBinaryData(userKey, serializer);
-        TypeSerializer *vSerializer = getStateSerializer();
+        TypeSerializer* vSerializer = getStateSerializer();
         OutputBufferStatus valueOutputBufferStatus;
         serializer.setBackendBuffer(&valueOutputBufferStatus);
         UV tmpS = state;
@@ -93,21 +98,20 @@ public:
         } else {
             vSerializer->serialize(&tmpS, serializer);
         }
-        ock::bss::BinaryData priValue(serializer.getData(),
-                                      static_cast<uint32_t>(serializer.getPosition()));
+        ock::bss::BinaryData priValue(serializer.getData(), static_cast<uint32_t>(serializer.getPosition()));
         OutputBufferStatus outputBufferStatus1;
         serializer.setBackendBuffer(&outputBufferStatus1);
         uint32_t hashCode;
         ock::bss::BinaryData priNamespaceKey = GetNamespaceBinaryData(nameSpace, serializer, hashCode);
         auto res = dbTable->Put(hashCode, priNamespaceKey, priUserKey, priValue);
         if (res != ock::bss::BSS_OK) {
-            LOG("Warning: put failed")
+            LOG("Warning: put failed");
         }
     }
 
-    void remove(N &nameSpace, const UK &userKey)
+    void remove(N& nameSpace, const UK& userKey)
     {
-        LOG("BSS MapState table remove")
+        LOG("BSS MapState table remove");
         DataOutputSerializer serializer;
         OutputBufferStatus outputBufferStatus;
         serializer.setBackendBuffer(&outputBufferStatus);
@@ -118,13 +122,13 @@ public:
         ock::bss::BinaryData priUserKey = GetUserKeyBinaryData(userKey, serializer);
         auto res = dbTable->Remove(keyHashCode, priNameSpace, priUserKey);
         if (res != ock::bss::BSS_OK) {
-            LOG("Warning: clear failed")
+            LOG("Warning: clear failed");
         }
     }
 
-    emhash7::HashMap<UK, UV>* entries(N &nameSpace)
+    emhash7::HashMap<UK, UV>* entries(N& nameSpace)
     {
-        LOG("BSS MapState table entries")
+        LOG("BSS MapState table entries");
         auto* resultMap = new emhash7::HashMap<UK, UV>();
         DataOutputSerializer serializer;
         OutputBufferStatus outputBufferStatus;
@@ -133,37 +137,37 @@ public:
         ock::bss::BinaryData priBinaryData = GetNamespaceBinaryData(nameSpace, serializer, keyHashCode);
         auto pMapIteratorWrraper = dbTable->EntryIteratorWrraper(keyHashCode, priBinaryData);
         while (pMapIteratorWrraper->HasNext()) {
-            LOG("get element from wrapper")
+            LOG("get element from wrapper");
             auto pairs = pMapIteratorWrraper->Next();
             if (pairs.size() != 2) {
-                LOG("ERROR: get the element from mapState is wrong size")
-                THROW_LOGIC_EXCEPTION("ERROR: get the element from mapState is wrong size")
+                LOG("ERROR: get the element from mapState is wrong size");
+                THROW_LOGIC_EXCEPTION("ERROR: get the element from mapState is wrong size");
             }
             auto keyData = pairs.at(0);
-            DataInputDeserializer keySerializedData(reinterpret_cast<const uint8_t *>(keyData.Data()),
-                                                    static_cast<int>(keyData.Length()), 0);
-            void *keyResPtr = getStateSerializer()->deserialize(keySerializedData);
+            DataInputDeserializer keySerializedData(
+                reinterpret_cast<const uint8_t*>(keyData.Data()), static_cast<int>(keyData.Length()), 0);
+            void* keyResPtr = getStateSerializer()->deserialize(keySerializedData);
             UK userKey;
             if constexpr (std::is_pointer_v<UK>) {
-                userKey = (UK) keyResPtr;
+                userKey = (UK)keyResPtr;
             } else {
-                userKey = (keyResPtr == nullptr ? std::numeric_limits<UK>::max() : *(UK *) keyResPtr);
+                userKey = (keyResPtr == nullptr ? std::numeric_limits<UK>::max() : *(UK*)keyResPtr);
             }
 
             auto valData = pairs.at(1);
-            DataInputDeserializer valSerializedData(reinterpret_cast<const uint8_t *>(valData.Data()),
-                                                    static_cast<int>(valData.Length()), 0);
-            void *valResPtr = getStateSerializer()->deserialize(valSerializedData);
+            DataInputDeserializer valSerializedData(
+                reinterpret_cast<const uint8_t*>(valData.Data()), static_cast<int>(valData.Length()), 0);
+            void* valResPtr = getStateSerializer()->deserialize(valSerializedData);
             UV userVal;
             if constexpr (std::is_pointer_v<UV>) {
-                userVal = (UV) valResPtr;
+                userVal = (UV)valResPtr;
             } else {
-                userVal = (valResPtr == nullptr ? std::numeric_limits<UV>::max() : *(UV *) valResPtr);
+                userVal = (valResPtr == nullptr ? std::numeric_limits<UV>::max() : *(UV*)valResPtr);
             }
             resultMap->emplace(userKey, userVal);
         }
         delete pMapIteratorWrraper;
-        LOG("get entries size is " << resultMap->size())
+        LOG("get entries size is " << resultMap->size());
         if (resultMap->size() == 0) {
             delete resultMap;
             return nullptr;
@@ -172,19 +176,20 @@ public:
         }
     }
 
-    void addVectorBatch(omnistream::VectorBatch *vectorBatch)
+    void addVectorBatch(omnistream::VectorBatch* vectorBatch)
     {
-        LOG("BSS MapState table addVectorBatch")
+        LOG("BSS MapState table addVectorBatch");
         DataOutputSerializer keyOutputSerializer;
         OutputBufferStatus outputBufferStatus;
         keyOutputSerializer.setBackendBuffer(&outputBufferStatus);
         LongSerializer longSerializer;
         longSerializer.serialize(&vectorBatchId, keyOutputSerializer);
-        ock::bss::BinaryData priKey(keyOutputSerializer.getData(), static_cast<uint32_t>(keyOutputSerializer.getPosition()));
+        ock::bss::BinaryData priKey(
+            keyOutputSerializer.getData(), static_cast<uint32_t>(keyOutputSerializer.getPosition()));
         int batchSize = omnistream::VectorBatchSerializationUtils::calculateVectorBatchSerializableSize(vectorBatch);
-        uint8_t *buffer = new uint8_t[batchSize];
+        uint8_t* buffer = new uint8_t[batchSize];
         omnistream::SerializedBatchInfo serializedBatchInfo =
-                omnistream::VectorBatchSerializationUtils::serializeVectorBatch(vectorBatch, batchSize, buffer);
+            omnistream::VectorBatchSerializationUtils::serializeVectorBatch(vectorBatch, batchSize, buffer);
         ock::bss::BinaryData priVal(serializedBatchInfo.buffer, static_cast<uint32_t>(serializedBatchInfo.size));
 
         OutputBufferStatus outputBufferStatus1;
@@ -192,23 +197,23 @@ public:
         uint32_t keyHashCode;
         auto vectorBatchKey = GetVectorBatchNameSpaceKey(keyOutputSerializer, keyHashCode);
         auto res = dbTable->Put(keyHashCode, vectorBatchKey, priKey, priVal);
-        LOG("add result " << res)
+        LOG("add result " << res);
         if (res != ock::bss::BSS_OK) {
-            LOG("Warning: addAll failed")
+            LOG("Warning: addAll failed");
         }
         vectorBatchId++;
     }
 
-    omnistream::VectorBatch *getVectorBatch(long batchId)
+    omnistream::VectorBatch* getVectorBatch(long batchId)
     {
-        LOG("BSS MapState table getVectorBatch")
+        LOG("BSS MapState table getVectorBatch");
         DataOutputSerializer keyOutputSerializer;
         OutputBufferStatus outputBufferStatus;
         keyOutputSerializer.setBackendBuffer(&outputBufferStatus);
         LongSerializer longSerializer;
         longSerializer.serialize(&batchId, keyOutputSerializer);
-        ock::bss::BinaryData priKey(keyOutputSerializer.getData(),
-                                    static_cast<uint32_t>(keyOutputSerializer.getPosition()));
+        ock::bss::BinaryData priKey(
+            keyOutputSerializer.getData(), static_cast<uint32_t>(keyOutputSerializer.getPosition()));
         ock::bss::BinaryData priVal;
         uint32_t keyHashCode;
         OutputBufferStatus outputBufferStatus1;
@@ -216,14 +221,14 @@ public:
         auto vectorBatchKey = GetVectorBatchNameSpaceKey(keyOutputSerializer, keyHashCode);
         auto res = dbTable->Get(keyHashCode, vectorBatchKey, priKey, priVal);
         if (res != ock::bss::BSS_OK) {
-            LOG("Warning: getVectorBatch failed")
+            LOG("Warning: getVectorBatch failed");
         }
-        uint8_t* address = const_cast<uint8_t *>(priVal.Data() + sizeof(int8_t));
+        uint8_t* address = const_cast<uint8_t*>(priVal.Data() + sizeof(int8_t));
         auto batch = omnistream::VectorBatchDeserializationUtils::deserializeVectorBatch(address);
         return batch;
     }
 
-    ock::bss::BinaryData GetNamespaceBinaryData(N &nameSpace, DataOutputSerializer &serializer, uint32_t &hashCode)
+    ock::bss::BinaryData GetNamespaceBinaryData(N& nameSpace, DataOutputSerializer& serializer, uint32_t& hashCode)
     {
         auto currentKey = keyContext->getCurrentKey();
         // serialize key
@@ -239,13 +244,12 @@ public:
         } else {
             getNamespaceSerializer()->serialize(&nameSpace, serializer);
         }
-        ock::bss::BinaryData priBinaryData(serializer.getData(),
-                                           static_cast<uint32_t>(serializer.getPosition()));
+        ock::bss::BinaryData priBinaryData(serializer.getData(), static_cast<uint32_t>(serializer.getPosition()));
         hashCode = HashCode::Hash(priBinaryData.Data(), priBinaryData.Length());
         return priBinaryData;
     }
 
-    ock::bss::BinaryData GetUserKeyBinaryData(UK userKey, DataOutputSerializer &serializer)
+    ock::bss::BinaryData GetUserKeyBinaryData(UK userKey, DataOutputSerializer& serializer)
     {
         // serialize user key
         if constexpr (std::is_pointer_v<UK>) {
@@ -256,37 +260,37 @@ public:
         ock::bss::BinaryData priBinaryData(serializer.getData(), static_cast<uint32_t>(serializer.getPosition()));
         return priBinaryData;
     }
-    TypeSerializer *getNamespaceSerializer()
+    TypeSerializer* getNamespaceSerializer()
     {
         return metaInfo->getNamespaceSerializer();
     }
 
-    TypeSerializer *getStateSerializer()
+    TypeSerializer* getStateSerializer()
     {
         return metaInfo->getStateSerializer();
     }
 
-    RegisteredKeyValueStateBackendMetaInfo *getMetaInfo()
+    RegisteredKeyValueStateBackendMetaInfo* getMetaInfo()
     {
         return metaInfo;
     }
 
-    void setMetaInfo(RegisteredKeyValueStateBackendMetaInfo *newMetaInfo)
+    void setMetaInfo(RegisteredKeyValueStateBackendMetaInfo* newMetaInfo)
     {
         metaInfo = newMetaInfo;
     }
 
-    TypeSerializer *getKeySerializer()
+    TypeSerializer* getKeySerializer()
     {
         return keySerializer;
     }
 
-    TypeSerializer *getUserKeySerializer()
+    TypeSerializer* getUserKeySerializer()
     {
         return userKeySerializer;
     }
 
-    ock::bss::BinaryData GetVectorBatchNameSpaceKey(DataOutputSerializer &serializer, uint32_t &keyHashCode)
+    ock::bss::BinaryData GetVectorBatchNameSpaceKey(DataOutputSerializer& serializer, uint32_t& keyHashCode)
     {
         LongSerializer::INSTANCE->serialize(&vectorBatchNamespaceKey, serializer);
         ock::bss::BinaryData priBinaryData(serializer.getData(), static_cast<int32_t>(serializer.getPosition()));
@@ -298,11 +302,12 @@ public:
     {
         return vectorBatchId;
     }
+
 private:
-    InternalKeyContext<K> *keyContext;
-    TypeSerializer *keySerializer;
-    TypeSerializer *userKeySerializer;
-    RegisteredKeyValueStateBackendMetaInfo *metaInfo;
+    InternalKeyContext<K>* keyContext;
+    TypeSerializer* keySerializer;
+    TypeSerializer* userKeySerializer;
+    RegisteredKeyValueStateBackendMetaInfo* metaInfo;
     ock::bss::ConfigRef config;
     ock::bss::KMapTableRef dbTable;
     int size = 0;

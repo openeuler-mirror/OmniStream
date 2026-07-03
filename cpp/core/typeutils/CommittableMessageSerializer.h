@@ -13,7 +13,7 @@
 #define FLINK_TNEL_COMMITTABLEMESSAGESERIALIZER_H
 
 #include "../../core/typeutils/TypeSerializer.h"
-class CommittableMessageSerializer :  public TypeSerializer {
+class CommittableMessageSerializer : public TypeSerializer {
     const char* getName() const override
     {
         return "CommittableMessageSerializer";
@@ -23,7 +23,8 @@ class CommittableMessageSerializer :  public TypeSerializer {
     {
         return nullptr;
     }
-    void serialize(void * record, DataOutputSerializer& target) {
+    void serialize(void* record, DataOutputSerializer& target)
+    {
     }
 
     BackendDataType getBackendId() const override

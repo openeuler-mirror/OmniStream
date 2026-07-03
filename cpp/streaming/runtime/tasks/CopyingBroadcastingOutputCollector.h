@@ -17,104 +17,108 @@
 #include "table/data/Row.h"
 
 namespace omnistream {
-    class VectorBatchCopyingBroadcastingOutputCollector : public WatermarkGaugeExposingOutput {
+class VectorBatchCopyingBroadcastingOutputCollector : public WatermarkGaugeExposingOutput {
+public:
+    explicit VectorBatchCopyingBroadcastingOutputCollector(std::vector<WatermarkGaugeExposingOutput*> outputs)
+        : outputs(std::move(outputs)) {};
 
-    public:
-        explicit VectorBatchCopyingBroadcastingOutputCollector(std::vector<WatermarkGaugeExposingOutput*> outputs) : outputs(std::move(outputs)) {};
-
-        void collect(void * record) override
-        {
-            LOG(" VectorBatchCopyingBroadcastingOutputCollector collect >>>>>>>>")
-            for (size_t i = 0; i < outputs.size() - 1; i++) {
-                auto output = outputs[i];
-                auto streamRecord = reinterpret_cast<StreamRecord*>(record);
-                if (streamRecord->hasExternalRow()) {
-                    long timestamp = streamRecord->getTimestamp();
-                    auto value = streamRecord->getValue();
-                    auto row = reinterpret_cast<Row*>(value);
-                    auto copyRow = new Row(row->getKind(), row->getFieldByPosition(),
-                        row->getFieldByName(), row->getPositionByName());
-                    auto copyStreamRecord = new StreamRecord(copyRow, timestamp);
-                    output->collect(copyStreamRecord);
-                    delete row;
-                    delete streamRecord;
-                } else {
-                    StreamRecord *copyRecord = StreamRecordHelper::deepCopyVectorBatch(streamRecord);
-                    output->collect(copyRecord);
-                }
-            }
-            if (!outputs.empty()) {
-                outputs[outputs.size() - 1]->collect(record);
+    void collect(void* record) override
+    {
+        LOG(" VectorBatchCopyingBroadcastingOutputCollector collect >>>>>>>>");
+        for (size_t i = 0; i < outputs.size() - 1; i++) {
+            auto output = outputs[i];
+            auto streamRecord = reinterpret_cast<StreamRecord*>(record);
+            if (streamRecord->hasExternalRow()) {
+                long timestamp = streamRecord->getTimestamp();
+                auto value = streamRecord->getValue();
+                auto row = reinterpret_cast<Row*>(value);
+                auto copyRow =
+                    new Row(row->getKind(), row->getFieldByPosition(), row->getFieldByName(), row->getPositionByName());
+                auto copyStreamRecord = new StreamRecord(copyRow, timestamp);
+                output->collect(copyStreamRecord);
+                delete row;
+                delete streamRecord;
+            } else {
+                StreamRecord* copyRecord = StreamRecordHelper::deepCopyVectorBatch(streamRecord);
+                output->collect(copyRecord);
             }
         }
-
-        void close() override {}
-
-        void emitWatermark(Watermark *watermark) override
-        {
-            for (auto output : outputs) {
-                output->emitWatermark(watermark);
-            }
+        if (!outputs.empty()) {
+            outputs[outputs.size() - 1]->collect(record);
         }
+    }
 
-        void emitWatermarkStatus(WatermarkStatus *watermarkStatus) override
-        {
-            for (auto output : outputs) {
-                output->emitWatermarkStatus(watermarkStatus);
-            }
+    void close() override
+    {
+    }
+
+    void emitWatermark(Watermark* watermark) override
+    {
+        for (auto output : outputs) {
+            output->emitWatermark(watermark);
         }
+    }
 
-    private:
-        std::vector<WatermarkGaugeExposingOutput*> outputs;
-    };
-}
+    void emitWatermarkStatus(WatermarkStatus* watermarkStatus) override
+    {
+        for (auto output : outputs) {
+            output->emitWatermarkStatus(watermarkStatus);
+        }
+    }
+
+private:
+    std::vector<WatermarkGaugeExposingOutput*> outputs;
+};
+} // namespace omnistream
 
 namespace omnistream::datastream {
-    class CopyingBroadcastingOutputCollector : public WatermarkGaugeExposingOutput {
+class CopyingBroadcastingOutputCollector : public WatermarkGaugeExposingOutput {
+public:
+    explicit CopyingBroadcastingOutputCollector(std::vector<WatermarkGaugeExposingOutput*> outputs)
+        : outputs(std::move(outputs)) {};
 
-    public:
-        explicit CopyingBroadcastingOutputCollector(std::vector<WatermarkGaugeExposingOutput*> outputs) : outputs(std::move(outputs)) {};
-
-        void collect(void * record) override
-        {
-            LOG(" CopyingBroadcastingOutputCollector collect >>>>>>>>")
-            if (outputs.empty()) {
-                auto streamRecord = reinterpret_cast<StreamRecord*>(record);
-                Object *value = reinterpret_cast<Object *>(streamRecord->getValue());
-                value->putRefCount();
-                return;
-            }
-
-            for (size_t i = 0; i < outputs.size() - 1; i++) {
-                auto streamRecord = reinterpret_cast<StreamRecord*>(record);
-                StreamRecord *copyRecord = StreamRecordHelper::deepCopyObject(streamRecord);
-                outputs[i]->collect(copyRecord);
-                delete copyRecord;
-            }
-
-            if (!outputs.empty()) {
-                outputs[outputs.size() - 1]->collect(record);
-            }
+    void collect(void* record) override
+    {
+        LOG(" CopyingBroadcastingOutputCollector collect >>>>>>>>");
+        if (outputs.empty()) {
+            auto streamRecord = reinterpret_cast<StreamRecord*>(record);
+            Object* value = reinterpret_cast<Object*>(streamRecord->getValue());
+            value->putRefCount();
+            return;
         }
 
-        void close() override {}
-
-        void emitWatermark(Watermark *watermark) override
-        {
-            for (auto output : outputs) {
-                output->emitWatermark(watermark);
-            }
+        for (size_t i = 0; i < outputs.size() - 1; i++) {
+            auto streamRecord = reinterpret_cast<StreamRecord*>(record);
+            StreamRecord* copyRecord = StreamRecordHelper::deepCopyObject(streamRecord);
+            outputs[i]->collect(copyRecord);
+            delete copyRecord;
         }
 
-        void emitWatermarkStatus(WatermarkStatus *watermarkStatus) override
-        {
-            for (auto output : outputs) {
-                output->emitWatermarkStatus(watermarkStatus);
-            }
+        if (!outputs.empty()) {
+            outputs[outputs.size() - 1]->collect(record);
         }
+    }
 
-    private:
-        std::vector<WatermarkGaugeExposingOutput*> outputs;
-    };
-}
+    void close() override
+    {
+    }
+
+    void emitWatermark(Watermark* watermark) override
+    {
+        for (auto output : outputs) {
+            output->emitWatermark(watermark);
+        }
+    }
+
+    void emitWatermarkStatus(WatermarkStatus* watermarkStatus) override
+    {
+        for (auto output : outputs) {
+            output->emitWatermarkStatus(watermarkStatus);
+        }
+    }
+
+private:
+    std::vector<WatermarkGaugeExposingOutput*> outputs;
+};
+} // namespace omnistream::datastream
 #endif // COPYINGBROADCASTINGOUTPUTCOLLECTOR_H

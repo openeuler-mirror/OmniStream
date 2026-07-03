@@ -1,5 +1,5 @@
 /*
-* Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
  */
 
 #ifndef FLINK_TNEL_INTERNALKEYCONTEXTIMPL_H
@@ -13,7 +13,9 @@
 template <typename K>
 class InternalKeyContextImpl : public InternalKeyContext<K> {
 public:
-    InternalKeyContextImpl(KeyGroupRange *keyGroupRange, int numberOfKeyGroups) : keyGroupRange(keyGroupRange), numberOfKeyGroups(numberOfKeyGroups)
+    InternalKeyContextImpl(KeyGroupRange* keyGroupRange, int numberOfKeyGroups)
+        : keyGroupRange(keyGroupRange),
+          numberOfKeyGroups(numberOfKeyGroups)
     {
         if constexpr (std::is_same_v<K, Object*>) {
             currentKey = nullptr;
@@ -36,10 +38,22 @@ public:
     }
 
     // Getters
-    K getCurrentKey() override { return currentKey; };
-    int getCurrentKeyGroupIndex() override { return currentKeyGroupIndex; };
-    int getNumberOfKeyGroups() override { return numberOfKeyGroups; };
-    KeyGroupRange *getKeyGroupRange() override { return keyGroupRange; };
+    K getCurrentKey() override
+    {
+        return currentKey;
+    };
+    int getCurrentKeyGroupIndex() override
+    {
+        return currentKeyGroupIndex;
+    };
+    int getNumberOfKeyGroups() override
+    {
+        return numberOfKeyGroups;
+    };
+    KeyGroupRange* getKeyGroupRange() override
+    {
+        return keyGroupRange;
+    };
 
     // Setters
     void setCurrentKey(K currentKey) override
@@ -60,8 +74,9 @@ public:
     };
 
     void setCurrentKeyGroupIndex(int currentKeyGroupIndex) override;
+
 private:
-    KeyGroupRange *keyGroupRange;
+    KeyGroupRange* keyGroupRange;
     int numberOfKeyGroups;
     K currentKey;
     int currentKeyGroupIndex;
@@ -72,8 +87,8 @@ inline void InternalKeyContextImpl<K>::setCurrentKeyGroupIndex(int currentKeyGro
 {
     if (!keyGroupRange->contains(currentKeyGroupIndex)) {
         std::string err = "Key group " + std::to_string(currentKeyGroupIndex) + " is not in the range of " +
-                          std::to_string(keyGroupRange->getStartKeyGroup()) + " and " + std::to_string(
-                              keyGroupRange->getEndKeyGroup());
+                          std::to_string(keyGroupRange->getStartKeyGroup()) + " and " +
+                          std::to_string(keyGroupRange->getEndKeyGroup());
         THROW_LOGIC_EXCEPTION(err);
     }
     this->currentKeyGroupIndex = currentKeyGroupIndex;

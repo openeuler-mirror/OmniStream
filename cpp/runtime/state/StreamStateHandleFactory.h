@@ -25,8 +25,8 @@ public:
     static std::shared_ptr<StreamStateHandle> from_json(const nlohmann::json& json)
     {
         if (!json.is_object()) {
-            throw std::runtime_error("metadata State JSON must be an object, actual type: " +
-                std::string(json.type_name()));
+            throw std::runtime_error(
+                "metadata State JSON must be an object, actual type: " + std::string(json.type_name()));
         }
         const std::string className = GetClassName(json);
         if (className.find("RelativeFileStateHandle") != std::string::npos) {
@@ -49,7 +49,8 @@ public:
             long stateSize = GetLong(json, "stateSize");
             std::string keyString = GetNestedString(json, "physicalID", "keyString");
             std::unique_ptr<PhysicalStateHandleID> physicalID = std::make_unique<PhysicalStateHandleID>(keyString);
-            std::shared_ptr<PlaceholderStreamStateHandle> handle =  std::make_shared<PlaceholderStreamStateHandle>(std::move(physicalID), stateSize);
+            std::shared_ptr<PlaceholderStreamStateHandle> handle =
+                std::make_shared<PlaceholderStreamStateHandle>(std::move(physicalID), stateSize);
             return handle;
         }
         return nullptr;

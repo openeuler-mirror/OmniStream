@@ -14,7 +14,7 @@
 
 TEST(AbstractStreamOperatorTest, InitTest)
 {
-    AbstractStreamOperator<int> *op = new AbstractStreamOperator<int>();
+    AbstractStreamOperator<int>* op = new AbstractStreamOperator<int>();
     op->setup();
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
@@ -36,7 +36,7 @@ TEST(AbstractStreamOperatorTest, InitTest)
 
 TEST(AbstractStreamOperatorTest, setAndGetCurrentKey)
 {
-    AbstractStreamOperator<int> *op = new AbstractStreamOperator<int>();
+    AbstractStreamOperator<int>* op = new AbstractStreamOperator<int>();
     op->setup();
     op->open();
     auto env2 = new omnistream::RuntimeEnvironmentV2();
@@ -53,10 +53,10 @@ TEST(AbstractStreamOperatorTest, setAndGetCurrentKey)
     env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     op->initializeState(new StreamTaskStateInitializerImpl(env2), new IntSerializer());
 
-    BinaryRowData *row = BinaryRowData::createBinaryRowDataWithMem(2);
-    row->setInt(0,2L);
-    row->setInt(1,4L);
-    //row->getInt(0) is the stateKeySelector here
+    BinaryRowData* row = BinaryRowData::createBinaryRowDataWithMem(2);
+    row->setInt(0, 2L);
+    row->setInt(1, 4L);
+    // row->getInt(0) is the stateKeySelector here
     op->setCurrentKey(*row->getInt(0));
 
     int key = op->getCurrentKey();
@@ -66,7 +66,7 @@ TEST(AbstractStreamOperatorTest, setAndGetCurrentKey)
 
 TEST(AbstractStreamOperatorTest, compositeKeys)
 {
-    AbstractStreamOperator<RowData*> *op = new AbstractStreamOperator<RowData*>();
+    AbstractStreamOperator<RowData*>* op = new AbstractStreamOperator<RowData*>();
     op->setup();
     op->open();
     auto env2 = new omnistream::RuntimeEnvironmentV2();
@@ -83,9 +83,9 @@ TEST(AbstractStreamOperatorTest, compositeKeys)
     env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     op->initializeState(new StreamTaskStateInitializerImpl(env2), new IntSerializer());
 
-    BinaryRowData *row = BinaryRowData::createBinaryRowDataWithMem(2);
-    row->setInt(0,8);
-    row->setInt(1,12);
+    BinaryRowData* row = BinaryRowData::createBinaryRowDataWithMem(2);
+    row->setInt(0, 8);
+    row->setInt(1, 12);
     op->setCurrentKey(dynamic_cast<RowData*>(row));
 
     BinaryRowData* key = dynamic_cast<BinaryRowData*>(op->getCurrentKey());

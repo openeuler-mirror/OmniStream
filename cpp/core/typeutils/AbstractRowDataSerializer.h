@@ -18,7 +18,7 @@ template <typename T>
 class AbstractRowDataSerializer : public PagedTypeSerializer<T> {
 public:
     virtual int getArity() = 0;
-    virtual BinaryRowData *toBinaryRow(T rowdata) = 0;
+    virtual BinaryRowData* toBinaryRow(T rowdata) = 0;
 };
 
 #endif

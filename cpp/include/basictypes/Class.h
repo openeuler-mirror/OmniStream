@@ -18,7 +18,7 @@
 class Class : public Object {
 public:
     using Creator = std::function<Object*()>;
-    using Getter = std::function<Object*(Object *)>;
+    using Getter = std::function<Object*(Object*)>;
     using Setter = std::function<void(Object*, Object*)>;
 
     std::string name; // such as org.example.PVMVLogType; java.lang.Long
@@ -37,9 +37,9 @@ public:
 
     Class();
 
-    explicit Class(const std::string &str);
+    explicit Class(const std::string& str);
 
-    explicit Class(std::string &&str) noexcept;
+    explicit Class(std::string&& str) noexcept;
 
     std::string_view getName();
 

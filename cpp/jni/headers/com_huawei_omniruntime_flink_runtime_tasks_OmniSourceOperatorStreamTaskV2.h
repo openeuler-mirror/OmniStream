@@ -22,8 +22,9 @@ extern "C" {
  * Method:    dispatchOperatorEvent
  * Signature: (JLjava/lang/String;Ljava/lang/String;)V
  */
-JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_tasks_OmniSourceOperatorStreamTaskV2_dispatchOperatorEvent
-  (JNIEnv *, jclass, jlong, jstring, jstring);
+JNIEXPORT void JNICALL
+Java_com_huawei_omniruntime_flink_runtime_tasks_OmniSourceOperatorStreamTaskV2_dispatchOperatorEvent(
+    JNIEnv*, jclass, jlong, jstring, jstring);
 
 #ifdef __cplusplus
 }

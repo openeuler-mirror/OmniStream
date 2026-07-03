@@ -30,9 +30,13 @@ template <typename T, typename SR>
 class SnapshotStrategyRunner {
 public:
     SnapshotStrategyRunner() {};
-    SnapshotStrategyRunner(std::string description, SnapshotStrategy<T, SR>* snapshotStrategy, SnapshotExecutionType executionType)
-        : description_(description), snapshotStrategy_(snapshotStrategy), executionType_(executionType)
-        {}
+    SnapshotStrategyRunner(
+        std::string description, SnapshotStrategy<T, SR>* snapshotStrategy, SnapshotExecutionType executionType)
+        : description_(description),
+          snapshotStrategy_(snapshotStrategy),
+          executionType_(executionType)
+    {
+    }
     ~SnapshotStrategyRunner() {};
 
     std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<T>>()>> snapshot(
@@ -45,19 +49,18 @@ public:
     {
         try {
             auto snapshotResources = snapshotStrategy_->syncPrepareResources(checkpointId);
-            auto asyncSnapshot = snapshotStrategy_->asyncSnapshot(snapshotResources, checkpointId, timestamp, streamFactory,
-                                                                  checkpointOptions, keySerializer);
-            auto task = std::make_shared<std::packaged_task<std::shared_ptr<SnapshotResult<T>>()>>(
-                [=]() {
-                    try {
-                        auto res = asyncSnapshot->get(bridge);
-                        snapshotResources->cleanup();
-                        return res;
-                    } catch (const std::exception &e) {
-                        snapshotResources->cleanup();
-                        throw e;
-                    }
-                });
+            auto asyncSnapshot = snapshotStrategy_->asyncSnapshot(
+                snapshotResources, checkpointId, timestamp, streamFactory, checkpointOptions, keySerializer);
+            auto task = std::make_shared<std::packaged_task<std::shared_ptr<SnapshotResult<T>>()>>([=]() {
+                try {
+                    auto res = asyncSnapshot->get(bridge);
+                    snapshotResources->cleanup();
+                    return res;
+                } catch (const std::exception& e) {
+                    snapshotResources->cleanup();
+                    throw e;
+                }
+            });
 
             if (executionType_ == SnapshotExecutionType::SYNCHRONOUS) {
                 try {
@@ -66,20 +69,22 @@ public:
                     if (res) {
                         LOG("native rocksdb checkpoint has been finished.");
                     }
-                } catch (const std::exception &e) {
+                } catch (const std::exception& e) {
                     snapshotResources->cleanup();
                     throw e;
                 }
             }
             return task;
-        } catch (const std::exception &e) {
-            INFO_RELEASE("Error:SnapshotStrategyRunner[" << description_
-                << "]: snapshot pipeline failed during preparation, checkpointId=" << checkpointId
+        } catch (const std::exception& e) {
+            INFO_RELEASE(
+                "Error:SnapshotStrategyRunner["
+                << description_ << "]: snapshot pipeline failed during preparation, checkpointId=" << checkpointId
                 << ", exception=" << e.what());
             throw;
         } catch (...) {
-            INFO_RELEASE("Error:SnapshotStrategyRunner[" << description_
-                << "]: snapshot pipeline failed during preparation, checkpointId=" << checkpointId
+            INFO_RELEASE(
+                "Error:SnapshotStrategyRunner["
+                << description_ << "]: snapshot pipeline failed during preparation, checkpointId=" << checkpointId
                 << ", exception=unknown");
             throw;
         }

@@ -16,9 +16,9 @@
 namespace omnistream {
 class VectorBatchBuffer : public ObjectBuffer {
 public:
-    VectorBatchBuffer(ObjectSegment *segment, std::shared_ptr<BufferRecycler> recycler);
+    VectorBatchBuffer(ObjectSegment* segment, std::shared_ptr<BufferRecycler> recycler);
 
-    explicit VectorBatchBuffer(ObjectSegment *segment) : objectSegment(segment), recycler(nullptr)
+    explicit VectorBatchBuffer(ObjectSegment* segment) : objectSegment(segment), recycler(nullptr)
     {
         bufferType = 0;
         event_type = -1;
@@ -27,7 +27,9 @@ public:
     }
 
     explicit VectorBatchBuffer(std::shared_ptr<ObjectSegment> segment)
-            : objectSegment(segment.get()), recycler(nullptr), ownedSegment_(std::move(segment))
+        : objectSegment(segment.get()),
+          recycler(nullptr),
+          ownedSegment_(std::move(segment))
     {
         bufferType = 0;
         event_type = -1;
@@ -35,12 +37,15 @@ public:
         isCompressed_ = false;
     }
 
-    explicit VectorBatchBuffer(int event_) : objectSegment(nullptr), recycler(nullptr), isCompressed_(false),
-        readerIndex_(-1)
+    explicit VectorBatchBuffer(int event_)
+        : objectSegment(nullptr),
+          recycler(nullptr),
+          isCompressed_(false),
+          readerIndex_(-1)
     {
         // only use for event type
-        bufferType  = 1;
-        event_type  = event_;
+        bufferType = 1;
+        event_type = event_;
         currentSize = 1;
     }
 
@@ -51,7 +56,8 @@ public:
         return bufferType == 0;
     }
 
-    void RecycleBuffer() override {
+    void RecycleBuffer() override
+    {
         // data buffer has recyler, event buffer does not
         if (recycler == nullptr) {
             return;
@@ -68,24 +74,24 @@ public:
         }
     }
 
-    bool IsRecycled() const override {
+    bool IsRecycled() const override
+    {
         return isRecycled_.load();
     }
 
     Buffer* RetainBuffer() override
     {
-        LOG_TRACE("retain ")
+        LOG_TRACE("retain ");
         LOG_PART(
             "RetainBuffer The buffer " << this << " refCount is incremented from " << refCount_.load() << " to "
-                                       << (refCount_.load() + 1)
-        )
+                                       << (refCount_.load() + 1));
         refCount_++;
         return this;
     }
 
     Buffer* ReadOnlySlice() override
     {
-        LOG_TRACE("ReadOnlySlice  ")
+        LOG_TRACE("ReadOnlySlice  ");
         return this;
     }
 
@@ -154,12 +160,12 @@ public:
         return ss.str();
     };
 
-    ObjectSegment *GetObjectSegment() override;
+    ObjectSegment* GetObjectSegment() override;
     std::shared_ptr<BufferRecycler> GetRecycler() override;
 
     std::pair<uint8_t*, size_t> GetBytes() override
     {
-        NOT_IMPL_EXCEPTION
+        NOT_IMPL_EXCEPTION;
     };
 
     [[nodiscard]] int EventType() const override
@@ -173,11 +179,11 @@ public:
     }
 
 private:
-    ObjectSegment *objectSegment;
+    ObjectSegment* objectSegment;
     std::shared_ptr<ObjectSegment> ownedSegment_; // 共享指针包装，保证ObjectSegment生命周期
     std::shared_ptr<BufferRecycler> recycler;
     // ObjectBufferDataType dataType;
-    int bufferType;  // 0 vectorbatch, 1. event  for now
+    int bufferType; // 0 vectorbatch, 1. event  for now
 
     // workaround  event buffer, objecgtsegment == nulllptr, recyler = nullptr
     int event_type;
@@ -190,6 +196,6 @@ private:
     std::atomic<int> refCount_;
 };
 
-}  // namespace omnistream
+} // namespace omnistream
 
-#endif  // VECTORBATCHBUFFER_H
+#endif // VECTORBATCHBUFFER_H

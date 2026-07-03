@@ -24,9 +24,10 @@ template <typename E, typename SplitT>
 class SingleThreadFetcherManager : public SplitFetcherManager<E, SplitT> {
 public:
     SingleThreadFetcherManager(
-        FutureCompletingBlockingQueue<E>* elementsQueue,
-        std::function<SplitReader<E, SplitT>*()>& splitReaderSupplier)
-        : SplitFetcherManager<E, SplitT>(elementsQueue, splitReaderSupplier) {}
+        FutureCompletingBlockingQueue<E>* elementsQueue, std::function<SplitReader<E, SplitT>*()>& splitReaderSupplier)
+        : SplitFetcherManager<E, SplitT>(elementsQueue, splitReaderSupplier)
+    {
+    }
 
     void addSplits(std::vector<SplitT*>& splitsToAdd) override
     {
@@ -40,6 +41,7 @@ public:
             fetcher->addSplits(splitsToAdd);
         }
     }
+
 protected:
     SplitFetcher<E, SplitT>* getRunningFetcher()
     {

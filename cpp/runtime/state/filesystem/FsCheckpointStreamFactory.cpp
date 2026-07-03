@@ -10,13 +10,18 @@
  */
 #include "FsCheckpointStreamFactory.h"
 
-FsCheckpointStreamFactory::FsCheckpointStreamFactory(int fileSystem, Path *checkpointDirectory,
-    Path *sharedStateDirectory, int fileStateSizeThreshold, int writeBufferSize)
-    : writeBufferSize(writeBufferSize), fileStateThreshold(fileStateSizeThreshold), fileSystem(fileSystem)
+FsCheckpointStreamFactory::FsCheckpointStreamFactory(
+    int fileSystem,
+    Path* checkpointDirectory,
+    Path* sharedStateDirectory,
+    int fileStateSizeThreshold,
+    int writeBufferSize)
+    : writeBufferSize(writeBufferSize),
+      fileStateThreshold(fileStateSizeThreshold),
+      fileSystem(fileSystem)
 {
     if (fileStateSizeThreshold < 0) {
-        THROW_LOGIC_EXCEPTION(
-            "The threshold for file state size must be zero or larger.");
+        THROW_LOGIC_EXCEPTION("The threshold for file state size must be zero or larger.");
     }
 
     if (writeBufferSize < 0) {
@@ -24,8 +29,7 @@ FsCheckpointStreamFactory::FsCheckpointStreamFactory(int fileSystem, Path *check
     }
 
     if (fileStateSizeThreshold > MAX_FILE_STATE_THRESHOLD) {
-        THROW_LOGIC_EXCEPTION(
-            "The threshold for file state size cannot be larger than MAX_FILE_STATE_THRESHOLD");
+        THROW_LOGIC_EXCEPTION("The threshold for file state size cannot be larger than MAX_FILE_STATE_THRESHOLD");
     }
 
     if (checkpointDirectory == nullptr) {
@@ -48,17 +52,10 @@ CheckpointStateOutputStream* FsCheckpointStreamFactory::createCheckpointStateOut
     bool entropyInjecting = false; // NOT IMPLEMENTED
     bool absolutePath = entropyInjecting || (scope == CheckpointedStateScope::SHARED);
 
-    return new FsCheckpointStateOutputStream(
-        *target,
-        fileSystem,
-        bufferSize,
-        fileStateThreshold,
-        !absolutePath);
+    return new FsCheckpointStateOutputStream(*target, fileSystem, bufferSize, fileStateThreshold, !absolutePath);
 }
 
 Path* FsCheckpointStreamFactory::getTargetPath(CheckpointedStateScope scope) const
 {
-    return (scope == CheckpointedStateScope::EXCLUSIVE)
-        ? checkpointDirectory
-        : sharedStateDirectory;
+    return (scope == CheckpointedStateScope::EXCLUSIVE) ? checkpointDirectory : sharedStateDirectory;
 }

@@ -16,17 +16,15 @@
 #include "RecordWriterDelegate.h"
 
 namespace omnistream::datastream {
-    class NonRecordWriter : public RecordWriterDelegate {
+class NonRecordWriter : public RecordWriterDelegate {
+public:
+    NonRecordWriter() = default;
 
-    public:
-        NonRecordWriter() = default;
-
-        RecordWriter* getRecordWriter(int outputIndex) override
-        {
-            return nullptr;
-        }
-    };
-}
-
+    RecordWriter* getRecordWriter(int outputIndex) override
+    {
+        return nullptr;
+    }
+};
+} // namespace omnistream::datastream
 
 #endif

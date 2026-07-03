@@ -9,7 +9,6 @@
  * See the Mulan PSL v2 for more details.
  */
 
-
 // PipelinedResultPartition.h
 #ifndef PIPELINED_RESULT_PARTITION_H
 #define PIPELINED_RESULT_PARTITION_H
@@ -29,8 +28,10 @@
 #include "CheckpointedResultPartition.h"
 #include "ChannelStateHolder.h"
 namespace omnistream {
-    
-class PipelinedResultPartition : public BufferWritingResultPartition, public CheckpointedResultPartition, public ChannelStateHolder {
+
+class PipelinedResultPartition : public BufferWritingResultPartition,
+                                 public CheckpointedResultPartition,
+                                 public ChannelStateHolder {
 public:
     PipelinedResultPartition(
         const std::string& owningTaskName,
@@ -40,17 +41,17 @@ public:
         std::vector<std::shared_ptr<ResultSubpartition>> subpartitions,
         int numTargetKeyGroups,
         std::shared_ptr<ResultPartitionManager> partitionManager,
-         // std::shared_ptr<Supplier<ObjectBufferPool>> bufferPool);
-         std::shared_ptr<Supplier<BufferPool>> bufferPoolFactory);
+        // std::shared_ptr<Supplier<ObjectBufferPool>> bufferPool);
+        std::shared_ptr<Supplier<BufferPool>> bufferPoolFactory);
 
     PipelinedResultPartition(
-       const std::string& owningTaskName,
-       int partitionIndex,
-       const ResultPartitionIDPOD& partitionId,
-       int partitionType,
+        const std::string& owningTaskName,
+        int partitionIndex,
+        const ResultPartitionIDPOD& partitionId,
+        int partitionType,
         int numSubpartitions,
-       int numTargetKeyGroups,
-       std::shared_ptr<ResultPartitionManager> partitionManager,
+        int numTargetKeyGroups,
+        std::shared_ptr<ResultPartitionManager> partitionManager,
         std::shared_ptr<Supplier<BufferPool>> bufferPoolFactory,
         int taskType);
 
@@ -67,6 +68,7 @@ public:
     void setChannelStateWriter(std::shared_ptr<ChannelStateWriter> channelStateWriter) override;
     std::shared_ptr<CheckpointedResultSubpartition> getCheckpointedSubpartition(int subpartitionIndex) override;
     void finishReadRecoveredState(bool notifyAndBlockOnCompletion) override;
+
 private:
     void decrementNumberOfUsers(int subpartitionIndex);
     static int checkResultPartitionType(int type);

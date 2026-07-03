@@ -1,5 +1,5 @@
 /*
-* Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
  */
 
 #ifndef OUTPUTFLUSHER_H
@@ -11,32 +11,31 @@
 #include <string>
 #include <vector>
 
-
 namespace omnistream {
-    class RecordWriterV2;
+class RecordWriterV2;
 
-    class OutputFlusher {
-    public:
-        OutputFlusher(const std::string& name, long timeout, RecordWriterV2* writer);
-        ~OutputFlusher();
+class OutputFlusher {
+public:
+    OutputFlusher(const std::string& name, long timeout, RecordWriterV2* writer);
+    ~OutputFlusher();
 
-        void terminate();
-        void run();
-        void start();
+    void terminate();
+    void run();
+    void start();
 
-    private:
-        long timeout;
-        RecordWriterV2* writer;
-        std::thread thread;
-        bool running;
+private:
+    long timeout;
+    RecordWriterV2* writer;
+    std::thread thread;
+    bool running;
 
-        std::string taskName;
+    std::string taskName;
 
-        // trouble shooting
-        long counter = 0;
+    // trouble shooting
+    long counter = 0;
 
-        void notifyFlusherException(const std::exception_ptr& e);
-    };
-}
+    void notifyFlusherException(const std::exception_ptr& e);
+};
+} // namespace omnistream
 
 #endif // OUTPUTFLUSHER_H

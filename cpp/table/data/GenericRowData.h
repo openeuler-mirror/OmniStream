@@ -23,17 +23,22 @@ public:
         typeIDs_.resize(arity);
         null_.resize(arity, false);
     }
-    GenericRowData(std::vector<int>& typeIDs, RowKind kind): RowData(RowData::GenericRowDataID),
-        kind_(kind),
-        arity_(typeIDs.size()),
-        typeIDs_(typeIDs) {
+    GenericRowData(std::vector<int>& typeIDs, RowKind kind)
+        : RowData(RowData::GenericRowDataID),
+          kind_(kind),
+          arity_(typeIDs.size()),
+          typeIDs_(typeIDs)
+    {
         fields_.resize(arity_);
         null_.resize(arity_, false);
     }
 
-    GenericRowData(std::vector<int>& typeIDs) : RowData(RowData::GenericRowDataID), kind_(RowKind::INSERT),
-        arity_(typeIDs.size()),
-        typeIDs_(typeIDs) {
+    GenericRowData(std::vector<int>& typeIDs)
+        : RowData(RowData::GenericRowDataID),
+          kind_(RowKind::INSERT),
+          arity_(typeIDs.size()),
+          typeIDs_(typeIDs)
+    {
         fields_.resize(arity_);
         null_.resize(arity_, false);
     }
@@ -46,19 +51,25 @@ public:
         return &fields_[pos];
     };
 
-    bool *getBool(int pos) override
+    bool* getBool(int pos) override
     {
-        return reinterpret_cast<bool *>(fields_[pos]);
+        return reinterpret_cast<bool*>(fields_[pos]);
     };
 
     int* getInt(int pos) override
     {
-        return reinterpret_cast<int *>(fields_.data() + pos);
+        return reinterpret_cast<int*>(fields_.data() + pos);
     }
 
-    TimestampData getTimestamp(int pos) override { return *reinterpret_cast<TimestampData *>(fields_[pos]); };
+    TimestampData getTimestamp(int pos) override
+    {
+        return *reinterpret_cast<TimestampData*>(fields_[pos]);
+    };
 
-    TimestampData getTimestampPrecise(int pos) override { return *reinterpret_cast<TimestampData *>(fields_[pos]); };
+    TimestampData getTimestampPrecise(int pos) override
+    {
+        return *reinterpret_cast<TimestampData*>(fields_[pos]);
+    };
 
     // non virtual
     [[nodiscard]] int getRowDataTypeId() const
@@ -66,8 +77,8 @@ public:
         return RowData::GenericRowDataID;
     };
 
-    template<typename... Args>
-    GenericRowData* of(std::vector<int>& typeIDs, Args...args)
+    template <typename... Args>
+    GenericRowData* of(std::vector<int>& typeIDs, Args... args)
     {
         GenericRowData* rowData = new GenericRowData(typeIDs);
         rowData->setFieldandProceedPos(args...);
@@ -75,8 +86,8 @@ public:
         return rowData;
     }
 
-    template<typename... Args>
-    GenericRowData* ofKind(RowKind kind, std::vector<int>& typeIDs, Args...args)
+    template <typename... Args>
+    GenericRowData* ofKind(RowKind kind, std::vector<int>& typeIDs, Args... args)
     {
         GenericRowData* rowData = new GenericRowData(typeIDs, kind);
         rowData->setFieldandProceedPos(args...);
@@ -84,14 +95,15 @@ public:
         return rowData;
     }
 
-    template<typename T> void setField(int pos, T value)
+    template <typename T>
+    void setField(int pos, T value)
     {
         if (pos < 0 || pos >= arity_) {
             throw std::out_of_range("GenericRowData::setField position out of range");
         }
         if constexpr (std::is_same<T, std::nullptr_t>::value) {
             null_[pos] = true;
-        } else if constexpr(!std::is_pointer<T>::value) {
+        } else if constexpr (!std::is_pointer<T>::value) {
             fields_[pos] = value;
             null_[pos] = false;
         } else {
@@ -141,10 +153,11 @@ public:
     {
         NOT_IMPL_EXCEPTION;
     };
-    bool operator==(const RowData &other) const
+    bool operator==(const RowData& other) const
     {
         NOT_IMPL_EXCEPTION;
     }
+
 private:
     /** The kind of change that a row describes in a changelog. */
     RowKind kind_ = RowKind::INSERT;
@@ -155,9 +168,10 @@ private:
     std::vector<int> typeIDs_;
 
     std::vector<bool> null_;
-    
+
     int curPos = 0;
-    template<typename T> void setFieldandProceedPos(T value)
+    template <typename T>
+    void setFieldandProceedPos(T value)
     {
         setField(curPos, value);
         curPos++;

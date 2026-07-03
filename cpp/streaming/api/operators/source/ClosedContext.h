@@ -16,36 +16,43 @@
 
 class ClosedContext : public SourceContext {
 public:
-    explicit ClosedContext(Object *checkpointLock) {
+    explicit ClosedContext(Object* checkpointLock)
+    {
         this->checkpointLock = checkpointLock;
     }
 
-    void collectWithTimestamp(void *element, int64_t timestamp) override {
+    void collectWithTimestamp(void* element, int64_t timestamp) override
+    {
         NOT_IMPL_EXCEPTION;
     }
 
-    void collect(void *element) override {
+    void collect(void* element) override
+    {
         NOT_IMPL_EXCEPTION;
     }
 
-    void emitWatermark(Watermark *mark) override {
+    void emitWatermark(Watermark* mark) override
+    {
         NOT_IMPL_EXCEPTION;
     }
 
-    void markAsTemporarilyIdle() override {
+    void markAsTemporarilyIdle() override
+    {
         NOT_IMPL_EXCEPTION;
     }
 
-    Object *getCheckpointLock() override {
+    Object* getCheckpointLock() override
+    {
         return checkpointLock;
     }
 
-    void close() override {
+    void close() override
+    {
         // nothing to be done
     }
 
 private:
-    Object *checkpointLock;
+    Object* checkpointLock;
 };
 
 #endif

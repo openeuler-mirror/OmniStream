@@ -16,7 +16,6 @@
 #include <nlohmann/json.hpp>
 #include <string>
 
-
 #include "core/api/common/TaskInfoImpl.h"
 #include "../include/common.h"
 
@@ -34,14 +33,15 @@
 // for convenience
 using json = nlohmann::json;
 
-JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_TNELLibrary_initialize(JNIEnv *, jclass)
+JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_TNELLibrary_initialize(JNIEnv*, jclass)
 {
-    INFO_RELEASE("TNELLibrary_initialize call!")
+    INFO_RELEASE("TNELLibrary_initialize call!");
 }
 
-JNIEXPORT void JNICALL Java_org_apache_flink_runtime_taskexecutor_TaskManagerRunner_initTMConfiguration(JNIEnv *env, jclass, jstring configStr)
+JNIEXPORT void JNICALL Java_org_apache_flink_runtime_taskexecutor_TaskManagerRunner_initTMConfiguration(
+    JNIEnv* env, jclass, jstring configStr)
 {
-    const char *cStrCon = (env)->GetStringUTFChars(configStr, 0);
+    const char* cStrCon = (env)->GetStringUTFChars(configStr, 0);
     nlohmann::json config = nlohmann::json::parse(cStrCon);
     Configuration::TM_CONFIG->setConfiguration(config);
 }

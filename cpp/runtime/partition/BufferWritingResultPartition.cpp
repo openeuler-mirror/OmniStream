@@ -21,33 +21,60 @@
 namespace omnistream {
 // origin realization
 BufferWritingResultPartition::BufferWritingResultPartition(
-    const std::string &owningTaskName, int partitionIndex, const ResultPartitionIDPOD &partitionId, int partitionType,
-    std::vector<std::shared_ptr<ResultSubpartition>> subpartitions, int numTargetKeyGroups,
-    std::shared_ptr<ResultPartitionManager> partitionManager, std::shared_ptr<Supplier<BufferPool>> bufferPoolFactory)
-    : ResultPartition(owningTaskName, partitionIndex, partitionId, partitionType, subpartitions.size(),
-                      numTargetKeyGroups, partitionManager, bufferPoolFactory),
-      subpartitions_(subpartitions), unicastBufferBuilders(subpartitions.size(), nullptr),
+    const std::string& owningTaskName,
+    int partitionIndex,
+    const ResultPartitionIDPOD& partitionId,
+    int partitionType,
+    std::vector<std::shared_ptr<ResultSubpartition>> subpartitions,
+    int numTargetKeyGroups,
+    std::shared_ptr<ResultPartitionManager> partitionManager,
+    std::shared_ptr<Supplier<BufferPool>> bufferPoolFactory)
+    : ResultPartition(
+          owningTaskName,
+          partitionIndex,
+          partitionId,
+          partitionType,
+          subpartitions.size(),
+          numTargetKeyGroups,
+          partitionManager,
+          bufferPoolFactory),
+      subpartitions_(subpartitions),
+      unicastBufferBuilders(subpartitions.size(), nullptr),
       broadcastBufferBuilder(nullptr) {};
 
 // omni use, then set subpartitions
-BufferWritingResultPartition::BufferWritingResultPartition(const std::string &owningTaskName, int partitionIndex,
-                                                           const ResultPartitionIDPOD &partitionId, int partitionType,
-                                                           int numSubpartitions, int numTargetKeyGroups,
-                                                           std::shared_ptr<ResultPartitionManager> partitionManager,
-                                                           std::shared_ptr<Supplier<BufferPool>> bufferPoolFactory,
-                                                           int taskType)
-    : ResultPartition(owningTaskName, partitionIndex, partitionId, partitionType, numSubpartitions, numTargetKeyGroups,
-                      partitionManager, bufferPoolFactory, taskType),
+BufferWritingResultPartition::BufferWritingResultPartition(
+    const std::string& owningTaskName,
+    int partitionIndex,
+    const ResultPartitionIDPOD& partitionId,
+    int partitionType,
+    int numSubpartitions,
+    int numTargetKeyGroups,
+    std::shared_ptr<ResultPartitionManager> partitionManager,
+    std::shared_ptr<Supplier<BufferPool>> bufferPoolFactory,
+    int taskType)
+    : ResultPartition(
+          owningTaskName,
+          partitionIndex,
+          partitionId,
+          partitionType,
+          numSubpartitions,
+          numTargetKeyGroups,
+          partitionManager,
+          bufferPoolFactory,
+          taskType),
 
-      unicastBufferBuilders(numSubpartitions, nullptr), broadcastBufferBuilder(nullptr) {
-          LOG_PART("Body BufferWritingResultPartition constructor.")
-      };
+      unicastBufferBuilders(numSubpartitions, nullptr),
+      broadcastBufferBuilder(nullptr)
+{
+    LOG_PART("Body BufferWritingResultPartition constructor.");
+};
 
 void BufferWritingResultPartition::setSubpartitions(
-    const std::vector<std::shared_ptr<ResultSubpartition>> &subpartitions)
+    const std::vector<std::shared_ptr<ResultSubpartition>>& subpartitions)
 {
     if (subpartitions.size() != static_cast<size_t>(numSubpartitions)) {
-        THROW_LOGIC_EXCEPTION("sub partition size mismatched!")
+        THROW_LOGIC_EXCEPTION("sub partition size mismatched!");
     }
 
     this->subpartitions_ = subpartitions;
@@ -58,7 +85,7 @@ std::vector<std::shared_ptr<ResultSubpartition>> BufferWritingResultPartition::g
     return subpartitions_;
 }
 
-void BufferWritingResultPartition::SetChannelStateWriter(const std::shared_ptr<ChannelStateWriter> &channelStateWriter)
+void BufferWritingResultPartition::SetChannelStateWriter(const std::shared_ptr<ChannelStateWriter>& channelStateWriter)
 {
     for (auto subpartition : subpartitions_) {
         if (auto subpartitionChild = std::dynamic_pointer_cast<PipelinedSubpartition>(subpartition)) {
@@ -72,15 +99,16 @@ void BufferWritingResultPartition::setup()
     ResultPartition::setup();
 
     if (bufferPool->getNumberOfRequiredSegments() < getNumberOfSubpartitions()) {
-        throw std::runtime_error("Bug in result partition setup logic: Buffer pool has not enough guaranteed buffers "
-                                 "for this result partition.");
+        throw std::runtime_error(
+            "Bug in result partition setup logic: Buffer pool has not enough guaranteed buffers "
+            "for this result partition.");
     }
 }
 
 int BufferWritingResultPartition::getNumberOfQueuedBuffers()
 {
     int totalBuffers = 0;
-    for (const auto &subpartition : subpartitions_) {
+    for (const auto& subpartition : subpartitions_) {
         totalBuffers += subpartition->unsynchronizedGetNumberOfQueuedBuffers();
     }
     return totalBuffers;
@@ -105,24 +133,24 @@ void BufferWritingResultPartition::flushSubpartition(int targetSubpartition, boo
 
 void BufferWritingResultPartition::flushAllSubpartitions(bool finishProducers)
 {
-    LOG_TRACE(" >>> ")
+    LOG_TRACE(" >>> ");
     if (finishProducers) {
         finishBroadcastBufferBuilder();
         finishUnicastBufferBuilders();
     }
 
-    for (const auto &subpartition : subpartitions_) {
-        LOG_TRACE("Flush each subpartition")
+    for (const auto& subpartition : subpartitions_) {
+        LOG_TRACE("Flush each subpartition");
         subpartition->flush();
     }
 }
 
-void BufferWritingResultPartition::emitRecord(void *record, int targetSubpartition)
+void BufferWritingResultPartition::emitRecord(void* record, int targetSubpartition)
 {
     auto buffer = appendUnicastDataForNewRecord(record, targetSubpartition);
     if (taskType == 2) {
-        auto streamRecord = reinterpret_cast<StreamRecord *>(record);
-        auto value = reinterpret_cast<ByteBuffer *>(streamRecord->getValue());
+        auto streamRecord = reinterpret_cast<StreamRecord*>(record);
+        auto value = reinterpret_cast<ByteBuffer*>(streamRecord->getValue());
         totalWrittenBytes += value->remaining();
         while (value->hasRemaining()) {
             finishUnicastBufferBuilder(targetSubpartition);
@@ -136,8 +164,8 @@ void BufferWritingResultPartition::emitRecord(void *record, int targetSubpartiti
     }
 }
 
-BufferBuilder *BufferWritingResultPartition::appendUnicastDataForRecordContinuation(void *record,
-                                                                                    int targetSubpartition)
+BufferBuilder* BufferWritingResultPartition::appendUnicastDataForRecordContinuation(
+    void* record, int targetSubpartition)
 {
     auto bufferBuilder = requestNewUnicastBufferBuilder(targetSubpartition);
 
@@ -147,7 +175,9 @@ BufferBuilder *BufferWritingResultPartition::appendUnicastDataForRecordContinuat
     return bufferBuilder;
 }
 
-void BufferWritingResultPartition::broadcastRecord(void *record) {}
+void BufferWritingResultPartition::broadcastRecord(void* record)
+{
+}
 
 void BufferWritingResultPartition::broadcastEvent(std::shared_ptr<AbstractEvent> event, bool isPriorityEvent)
 {
@@ -155,7 +185,7 @@ void BufferWritingResultPartition::broadcastEvent(std::shared_ptr<AbstractEvent>
     finishBroadcastBufferBuilder();
     finishUnicastBufferBuilders();
 
-    for (const auto &subpartition : subpartitions_) {
+    for (const auto& subpartition : subpartitions_) {
         auto eventBufferConsumer = EventSerializer::ToBufferConsumer(event, isPriorityEvent);
         if (eventBufferConsumer == nullptr) {
             INFO_RELEASE("eventBufferConsumer is null ");
@@ -166,17 +196,17 @@ void BufferWritingResultPartition::broadcastEvent(std::shared_ptr<AbstractEvent>
         subpartition->add(eventBufferConsumer, 0);
         //            INFO_DEBUG(" Send " << event->GetEventClassName() << " to subPartition " <<
         //            subPartitionInfo.toString() << ", index : " << index)
-        LOG_DEBUG("[RP=" << (void *)this << "]Send " << event->GetEventClassName() << " to subPartition "
-                         << subPartitionInfo.toString() << ", index : " << index)
+        LOG_DEBUG(
+            "[RP=" << (void*)this << "]Send " << event->GetEventClassName() << " to subPartition "
+                   << subPartitionInfo.toString() << ", index : " << index);
     }
     flushAllSubpartitions(false);
 }
 
-std::shared_ptr<ResultSubpartitionView>
-BufferWritingResultPartition::createSubpartitionView(int subpartitionIndex,
-                                                     BufferAvailabilityListener *availabilityListener)
+std::shared_ptr<ResultSubpartitionView> BufferWritingResultPartition::createSubpartitionView(
+    int subpartitionIndex, BufferAvailabilityListener* availabilityListener)
 {
-    LOG_PART("Beginning")
+    LOG_PART("Beginning");
     if (subpartitionIndex < 0 || subpartitionIndex >= numSubpartitions) {
         throw std::out_of_range("Subpartition not found.");
     }
@@ -194,7 +224,7 @@ void BufferWritingResultPartition::finish()
 {
     finishBroadcastBufferBuilder();
     finishUnicastBufferBuilders();
-    for (const auto &subpartition : subpartitions_) {
+    for (const auto& subpartition : subpartitions_) {
         subpartition->finish();
     }
     ResultPartition::finish();
@@ -213,7 +243,7 @@ void BufferWritingResultPartition::close()
         broadcastBufferBuilder->close();
         broadcastBufferBuilder = nullptr;
     }
-    for (auto &builder : unicastBufferBuilders) {
+    for (auto& builder : unicastBufferBuilders) {
         if (builder) {
             builder->close();
             delete builder;
@@ -231,46 +261,47 @@ std::shared_ptr<TimerGauge> BufferWritingResultPartition::getBackPressuredTimeMs
 }
 */
 
-BufferBuilder *BufferWritingResultPartition::appendUnicastDataForNewRecord(void *record, int targetSubpartition)
+BufferBuilder* BufferWritingResultPartition::appendUnicastDataForNewRecord(void* record, int targetSubpartition)
 {
-    LOG_PART(this->getOwningTaskName() << " appending data   " << std::to_string(reinterpret_cast<long>(record))
-                                       << " targetPartition " << std::to_string(targetSubpartition))
+    LOG_PART(
+        this->getOwningTaskName() << " appending data   " << std::to_string(reinterpret_cast<long>(record))
+                                  << " targetPartition " << std::to_string(targetSubpartition));
 
     if (targetSubpartition < 0 || static_cast<size_t>(targetSubpartition) >= unicastBufferBuilders.size()) {
         throw std::out_of_range("targetSubpartition out of range");
     }
-    BufferBuilder *buffer = unicastBufferBuilders[targetSubpartition];
+    BufferBuilder* buffer = unicastBufferBuilders[targetSubpartition];
     if (taskType == 1) {
         if (buffer == nullptr) {
             buffer = requestNewUnicastBufferBuilder(targetSubpartition);
-            LOG_PART("Add bufferbuilder: " << buffer << " to subparition" << targetSubpartition)
+            LOG_PART("Add bufferbuilder: " << buffer << " to subparition" << targetSubpartition);
             addToSubpartition(buffer, targetSubpartition, 0);
         }
-        auto objectBuffer = reinterpret_cast<ObjectBufferBuilder *>(buffer);
+        auto objectBuffer = reinterpret_cast<ObjectBufferBuilder*>(buffer);
         // LOG("buffer->appendAndCommit will running")
         objectBuffer->appendAndCommit(record);
     } else if (taskType == 2) {
         if (buffer == nullptr) {
             buffer = requestNewUnicastBufferBuilder(targetSubpartition);
-            LOG_PART("Add bufferbuilder: " << buffer << " to subparition" << targetSubpartition)
+            LOG_PART("Add bufferbuilder: " << buffer << " to subparition" << targetSubpartition);
 
-            auto streamRecord = reinterpret_cast<StreamRecord *>(record);
-            auto value = reinterpret_cast<ByteBuffer *>(streamRecord->getValue());
+            auto streamRecord = reinterpret_cast<StreamRecord*>(record);
+            auto value = reinterpret_cast<ByteBuffer*>(streamRecord->getValue());
             addToSubpartition(buffer, targetSubpartition, 0, value->remaining());
         }
-        auto memoryBuffer = reinterpret_cast<datastream::MemoryBufferBuilder *>(buffer);
+        auto memoryBuffer = reinterpret_cast<datastream::MemoryBufferBuilder*>(buffer);
         // LOG("buffer->appendAndCommit will running")
         memoryBuffer->appendAndCommit(record);
     } else {
-        THROW_LOGIC_EXCEPTION("NOT IMPLEMENT")
+        THROW_LOGIC_EXCEPTION("NOT IMPLEMENT");
     }
     return buffer;
 }
 
-void BufferWritingResultPartition::addToSubpartition(BufferBuilder *buffer, int targetSubpartition,
-                                                     int partialRecordLength)
+void BufferWritingResultPartition::addToSubpartition(
+    BufferBuilder* buffer, int targetSubpartition, int partialRecordLength)
 {
-    LOG("addToSubpartition running , createBufferConsumerFromBeginning")
+    LOG("addToSubpartition running , createBufferConsumerFromBeginning");
     int desirableBufferSize =
         subpartitions_[targetSubpartition]->add(buffer->createBufferConsumerFromBeginning(), partialRecordLength);
     if (desirableBufferSize > 0) {
@@ -279,18 +310,18 @@ void BufferWritingResultPartition::addToSubpartition(BufferBuilder *buffer, int 
 }
 
 // for datastream, likely vanilla flink
-void BufferWritingResultPartition::addToSubpartition(BufferBuilder *buffer, int targetSubpartition,
-                                                     int partialRecordLength, int minDesirableBufferSize)
+void BufferWritingResultPartition::addToSubpartition(
+    BufferBuilder* buffer, int targetSubpartition, int partialRecordLength, int minDesirableBufferSize)
 {
-    LOG("addToSubpartition running , createBufferConsumerFromBeginning")
+    LOG("addToSubpartition running , createBufferConsumerFromBeginning");
     int desirableBufferSize =
         subpartitions_[targetSubpartition]->add(buffer->createBufferConsumerFromBeginning(), partialRecordLength);
 
     resizeBuffer(buffer, desirableBufferSize, minDesirableBufferSize);
 }
 
-void BufferWritingResultPartition::resizeBuffer(BufferBuilder *buffer, int desirableBufferSize,
-                                                int minDesirableBufferSize)
+void BufferWritingResultPartition::resizeBuffer(
+    BufferBuilder* buffer, int desirableBufferSize, int minDesirableBufferSize)
 {
     if (desirableBufferSize > 0) {
         buffer->trim(std::max(desirableBufferSize, minDesirableBufferSize));
@@ -350,12 +381,12 @@ std::shared_ptr<ObjectBufferBuilder> BufferWritingResultPartition::appendUnicast
     }
  */
 
-void BufferWritingResultPartition::createBroadcastBufferConsumers(std::shared_ptr<ObjectBufferBuilder> buffer,
-                                                                  int partialRecordBytes)
+void BufferWritingResultPartition::createBroadcastBufferConsumers(
+    std::shared_ptr<ObjectBufferBuilder> buffer, int partialRecordBytes)
 {
     auto consumer = buffer->createBufferConsumerFromBeginning();
     try {
-        for (const auto &subpartition : subpartitions_) {
+        for (const auto& subpartition : subpartitions_) {
             subpartition->add(consumer->copy(), partialRecordBytes);
         }
     } catch (...) {
@@ -370,27 +401,27 @@ void BufferWritingResultPartition::createBroadcastBufferConsumers(std::shared_pt
     }
 }
 
-BufferBuilder *BufferWritingResultPartition::requestNewUnicastBufferBuilder(int targetSubpartition)
+BufferBuilder* BufferWritingResultPartition::requestNewUnicastBufferBuilder(int targetSubpartition)
 {
     checkInProduceState();
     ensureUnicastMode();
-    BufferBuilder *bufferBuilder = requestNewBufferBuilderFromPool(targetSubpartition);
+    BufferBuilder* bufferBuilder = requestNewBufferBuilderFromPool(targetSubpartition);
     unicastBufferBuilders[targetSubpartition] = bufferBuilder;
-    LOG("set bufferBuilder to unicastBufferBuilders, targetSubpartition: " << std::to_string(targetSubpartition))
+    LOG("set bufferBuilder to unicastBufferBuilders, targetSubpartition: " << std::to_string(targetSubpartition));
     return bufferBuilder;
 }
 
-BufferBuilder *BufferWritingResultPartition::requestNewBroadcastBufferBuilder()
+BufferBuilder* BufferWritingResultPartition::requestNewBroadcastBufferBuilder()
 {
     checkInProduceState();
     ensureBroadcastMode();
 
-    BufferBuilder *bufferBuilder = requestNewBufferBuilderFromPool(0);
+    BufferBuilder* bufferBuilder = requestNewBufferBuilderFromPool(0);
     broadcastBufferBuilder = bufferBuilder;
     return bufferBuilder;
 }
 
-BufferBuilder *BufferWritingResultPartition::requestNewBufferBuilderFromPool(int targetSubpartition)
+BufferBuilder* BufferWritingResultPartition::requestNewBufferBuilderFromPool(int targetSubpartition)
 {
     if (isReleased()) {
         throw std::runtime_error("Partition is released.");
@@ -398,25 +429,25 @@ BufferBuilder *BufferWritingResultPartition::requestNewBufferBuilderFromPool(int
     if (bufferPool == nullptr) {
         throw std::runtime_error("Result partition buffer pool is null.");
     }
-    LOG("bufferPool->requestObjectBufferBuilder will running")
-    BufferBuilder *bufferBuilder = bufferPool->requestBufferBuilder(targetSubpartition);
+    LOG("bufferPool->requestObjectBufferBuilder will running");
+    BufferBuilder* bufferBuilder = bufferPool->requestBufferBuilder(targetSubpartition);
     if (bufferBuilder) {
         return bufferBuilder;
     }
 
     try {
-        LOG("bufferPool->requestObjectBufferBuilderBlocking will running")
+        LOG("bufferPool->requestObjectBufferBuilderBlocking will running");
         bufferBuilder = bufferPool->requestBufferBuilderBlocking(targetSubpartition);
         return bufferBuilder;
-    } catch (const std::exception &e) {
+    } catch (const std::exception& e) {
         throw std::runtime_error(std::string("Interrupted while waiting for buffer: ") + e.what());
     }
 }
 
 void BufferWritingResultPartition::finishUnicastBufferBuilder(int targetSubpartition)
 {
-    BufferBuilder *bufferBuilder = unicastBufferBuilders[targetSubpartition];
-    LOG_PART("Finish the bufferbuilder " << bufferBuilder << "  of targetSubpartition " << targetSubpartition)
+    BufferBuilder* bufferBuilder = unicastBufferBuilders[targetSubpartition];
+    LOG_PART("Finish the bufferbuilder " << bufferBuilder << "  of targetSubpartition " << targetSubpartition);
 
     if (bufferBuilder) {
         numBytesOut->Inc(bufferBuilder->finish());
@@ -444,16 +475,22 @@ void BufferWritingResultPartition::finishBroadcastBufferBuilder()
     }
 }
 
-void BufferWritingResultPartition::ensureUnicastMode() { finishBroadcastBufferBuilder(); }
+void BufferWritingResultPartition::ensureUnicastMode()
+{
+    finishBroadcastBufferBuilder();
+}
 
-void BufferWritingResultPartition::ensureBroadcastMode() { finishUnicastBufferBuilders(); }
+void BufferWritingResultPartition::ensureBroadcastMode()
+{
+    finishUnicastBufferBuilders();
+}
 
 void BufferWritingResultPartition::releaseInternal()
 {
     for (auto subPartition : subpartitions_) {
         try {
             subPartition->release();
-        } catch (const std::exception &e) {
+        } catch (const std::exception& e) {
             throw std::runtime_error("subpartition release error in class BufferWritingResultPartition");
         }
     }

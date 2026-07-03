@@ -12,12 +12,11 @@
 
 #include "state/bridge/OmniTaskBridge.h"
 
-
 class TaskOperatorEventGatewayBridgeImpl : public omnistream::TaskOperatorEventGatewayBridge {
 public:
     explicit TaskOperatorEventGatewayBridgeImpl(jobject m_globalTaskOperatorEventGateWayRef)
     {
-        this->m_globalTaskOperatorEventGateWayRef=m_globalTaskOperatorEventGateWayRef;
+        this->m_globalTaskOperatorEventGateWayRef = m_globalTaskOperatorEventGateWayRef;
     }
     void sendOperatorEventToCoordinator(std::string operatorid, std::string event) override
     {
@@ -34,7 +33,9 @@ public:
                 return;
             }
 
-            jmethodID sendOperatorEventToCoordinatorMethodId = env->GetMethodID(TaskOperatorEventGateWayClass, "sendOperatorEventToCoordinator",
+            jmethodID sendOperatorEventToCoordinatorMethodId = env->GetMethodID(
+                TaskOperatorEventGateWayClass,
+                "sendOperatorEventToCoordinator",
                 "(Ljava/lang/String;Ljava/lang/String;)V");
             if (sendOperatorEventToCoordinatorMethodId == nullptr) {
                 env->DeleteLocalRef(TaskOperatorEventGateWayClass); // Clean up local ref
@@ -46,7 +47,8 @@ public:
             jstring eventstr = env->NewStringUTF(event.c_str());
 
             // 3. Invoke the Java method
-            env->CallVoidMethod(m_globalTaskOperatorEventGateWayRef, sendOperatorEventToCoordinatorMethodId, operatoridstr, eventstr);
+            env->CallVoidMethod(
+                m_globalTaskOperatorEventGateWayRef, sendOperatorEventToCoordinatorMethodId, operatoridstr, eventstr);
 
             if (env->ExceptionCheck()) {
                 env->ExceptionDescribe(); // Print exception details to stderr
@@ -62,6 +64,7 @@ public:
 
         g_OmniStreamJVM->DetachCurrentThread();
     }
+
 public:
     jobject m_globalTaskOperatorEventGateWayRef;
 };

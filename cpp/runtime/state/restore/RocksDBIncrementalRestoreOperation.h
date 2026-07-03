@@ -32,7 +32,6 @@
 #include "runtime/state/CompositeKeySerializationUtils.h"
 #include "runtime/state/RocksDBWriteBatchWrapper.h"
 
-
 template <typename K>
 class RocksDBIncrementalRestoreOperation : public RocksDBRestoreOperation {
 public:
@@ -41,7 +40,7 @@ public:
         KeyGroupRange* keyGroupRange,
         int keyGroupPrefixBytes,
         int numberOfTransferringThreads,
-        std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>> *kvStateInformation,
+        std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation,
         std::shared_ptr<TypeSerializer> keySerializer,
         std::filesystem::path& instanceBasePath,
         std::filesystem::path& instanceRocksDBPath,
@@ -53,26 +52,23 @@ public:
         std::shared_ptr<OperatorID> operatorId,
         int alternativeIdx)
         : operatorIdentifier_(std::move(operatorIdentifier)),
-        restoredSstFiles_(),
-        lastCompletedCheckpointId_(-1L),
-        backendUID_(UUID::randomUUID()),
-        writeBatchSize_(writeBatchSize),
-        restoreStateHandles_(std::move(restoreStateHandles)),
-        keyGroupRange_(keyGroupRange),
-        keySerializer_(std::move(keySerializer)),
-        instanceBasePath_(instanceBasePath),
-        numberOfTransferringThreads_(numberOfTransferringThreads),
-        keyGroupPrefixBytes_(keyGroupPrefixBytes),
-        overlapFractionThreshold_(0),
-        omniTaskBridge_(omniTaskBridge),
-        operatorId_(operatorId),
-        alternativeIdx_(alternativeIdx)
+          restoredSstFiles_(),
+          lastCompletedCheckpointId_(-1L),
+          backendUID_(UUID::randomUUID()),
+          writeBatchSize_(writeBatchSize),
+          restoreStateHandles_(std::move(restoreStateHandles)),
+          keyGroupRange_(keyGroupRange),
+          keySerializer_(std::move(keySerializer)),
+          instanceBasePath_(instanceBasePath),
+          numberOfTransferringThreads_(numberOfTransferringThreads),
+          keyGroupPrefixBytes_(keyGroupPrefixBytes),
+          overlapFractionThreshold_(0),
+          omniTaskBridge_(omniTaskBridge),
+          operatorId_(operatorId),
+          alternativeIdx_(alternativeIdx)
     {
         this->rocksHandle_ = std::make_unique<RocksDbHandle>(
-            kvStateInformation,
-            instanceRocksDBPath,
-            dbOptions,
-            columnFamilyOptionsFactory);
+            kvStateInformation, instanceRocksDBPath, dbOptions, columnFamilyOptionsFactory);
     }
 
     ~RocksDBIncrementalRestoreOperation() override = default;
@@ -90,7 +86,7 @@ public:
         if (restoreStateHandles_.size() > 1) {
             isRescaling = true;
         } else {
-            const auto &firstKeyGroupRange = theFirstStateHandle->GetKeyGroupRange();
+            const auto& firstKeyGroupRange = theFirstStateHandle->GetKeyGroupRange();
             if (!(firstKeyGroupRange == *keyGroupRange_)) {
                 isRescaling = true;
             }
@@ -102,19 +98,18 @@ public:
             } else {
                 restoreWithoutRescaling(theFirstStateHandle);
             }
-        } catch (const std::exception &e) {
+        } catch (const std::exception& e) {
             throw std::runtime_error("Restore failed: " + std::string(e.what()));
         } catch (...) {
             throw std::runtime_error("Restore failed with unknown exception");
         }
 
         return std::make_shared<RocksDBRestoreResult>(
-                rocksHandle_->getDb(),
-                rocksHandle_->getDefaultColumnFamilyHandle(),
-                lastCompletedCheckpointId_,
-                backendUID_,
-                restoredSstFiles_
-        );
+            rocksHandle_->getDb(),
+            rocksHandle_->getDefaultColumnFamilyHandle(),
+            lastCompletedCheckpointId_,
+            backendUID_,
+            restoredSstFiles_);
     }
 
 private:
@@ -153,21 +148,20 @@ private:
         }
     }
 
-    void restorePreviousIncrementalFilesStatus(
-            std::shared_ptr<IncrementalKeyedStateHandle> localKeyedStateHandle)
+    void restorePreviousIncrementalFilesStatus(std::shared_ptr<IncrementalKeyedStateHandle> localKeyedStateHandle)
     {
         backendUID_ = localKeyedStateHandle->GetBackendIdentifier();
-        restoredSstFiles_.emplace(localKeyedStateHandle->GetCheckpointId(),
-                                  localKeyedStateHandle->GetSharedStateHandles());
+        restoredSstFiles_.emplace(
+            localKeyedStateHandle->GetCheckpointId(), localKeyedStateHandle->GetSharedStateHandles());
         lastCompletedCheckpointId_ = localKeyedStateHandle->GetCheckpointId();
     }
 
     void restoreFromRemoteState(std::shared_ptr<IncrementalRemoteKeyedStateHandle> stateHandle)
     {
         std::filesystem::path tmpRestoreInstancePath =
-                std::filesystem::absolute(instanceBasePath_) / UUID::randomUUID().ToString();
+            std::filesystem::absolute(instanceBasePath_) / UUID::randomUUID().ToString();
         auto restoreStateHandle =
-                transferRemoteStateToLocalDirectory(omniTaskBridge_, tmpRestoreInstancePath, stateHandle);
+            transferRemoteStateToLocalDirectory(omniTaskBridge_, tmpRestoreInstancePath, stateHandle);
         restoreFromLocalState(restoreStateHandle);
     }
 
@@ -182,9 +176,8 @@ private:
         std::filesystem::path restoreSourcePath = path.toString();
 
         LOG("localKeyedStateHandle path!" << restoreSourcePath);
-        rocksHandle_->openDB(createColumnFamilyDescriptors(stateMetaInfoSnapshots, false),
-                             stateMetaInfoSnapshots,
-                             restoreSourcePath);
+        rocksHandle_->openDB(
+            createColumnFamilyDescriptors(stateMetaInfoSnapshots, false), stateMetaInfoSnapshots, restoreSourcePath);
     }
 
     void cleanUpPathQuietly(const std::filesystem::path& path)
@@ -194,31 +187,29 @@ private:
                 return;
             }
             std::filesystem::remove_all(path);
-        }  catch (const std::exception& ex) {
+        } catch (const std::exception& ex) {
             // do nothing
         }
     }
 
     std::shared_ptr<IncrementalLocalKeyedStateHandle> transferRemoteStateToLocalDirectory(
-            std::shared_ptr<omnistream::OmniTaskBridge> omniTaskBridge,
-            fs::path temporaryRestoreInstancePath,
-            std::shared_ptr<IncrementalRemoteKeyedStateHandle> restoreStateHandle)
+        std::shared_ptr<omnistream::OmniTaskBridge> omniTaskBridge,
+        fs::path temporaryRestoreInstancePath,
+        std::shared_ptr<IncrementalRemoteKeyedStateHandle> restoreStateHandle)
     {
         std::unique_ptr<RocksDBStateDownloader> rocksDBStateDownloader =
-                std::make_unique<RocksDBStateDownloader>(numberOfTransferringThreads_);
+            std::make_unique<RocksDBStateDownloader>(numberOfTransferringThreads_);
 
-        rocksDBStateDownloader->transferAllStateDataToDirectory(*restoreStateHandle,
-                                                                temporaryRestoreInstancePath,
-                                                                omniTaskBridge);
+        rocksDBStateDownloader->transferAllStateDataToDirectory(
+            *restoreStateHandle, temporaryRestoreInstancePath, omniTaskBridge);
         Path path(temporaryRestoreInstancePath.string());
         return std::make_shared<IncrementalLocalKeyedStateHandle>(
-                restoreStateHandle->GetBackendIdentifier(),
-                restoreStateHandle->GetCheckpointId(),
-                new DirectoryStateHandle(path, 0),
-                restoreStateHandle->GetKeyGroupRange(),
-                restoreStateHandle->GetMetaDataStateHandle(),
-                restoreStateHandle->GetSharedState()
-        );
+            restoreStateHandle->GetBackendIdentifier(),
+            restoreStateHandle->GetCheckpointId(),
+            new DirectoryStateHandle(path, 0),
+            restoreStateHandle->GetKeyGroupRange(),
+            restoreStateHandle->GetMetaDataStateHandle(),
+            restoreStateHandle->GetSharedState());
     }
 
     /**
@@ -240,38 +231,42 @@ private:
         CompositeKeySerializationUtils::serializeKeyGroup(keyGroupRange_->getStartKeyGroup(), startKeyGroupPrefixBytes);
 
         std::vector<uint8_t> stopKeyGroupPrefixBytes(keyGroupPrefixBytes_);
-        CompositeKeySerializationUtils::serializeKeyGroup(keyGroupRange_->getEndKeyGroup() + 1,
-                                                          stopKeyGroupPrefixBytes);
+        CompositeKeySerializationUtils::serializeKeyGroup(
+            keyGroupRange_->getEndKeyGroup() + 1, stopKeyGroupPrefixBytes);
 
         for (const auto& rawStateHandle : restoreStateHandles) {
             auto remoteHandle = std::dynamic_pointer_cast<IncrementalRemoteKeyedStateHandle>(rawStateHandle);
             if (!remoteHandle) {
                 throw unexpectedStateHandleException(
-                    typeid(IncrementalRemoteKeyedStateHandle),
-                    typeid(*rawStateHandle)
-                );
+                    typeid(IncrementalRemoteKeyedStateHandle), typeid(*rawStateHandle));
             }
             fs::path temporaryRestoreInstancePath =
-                    std::filesystem::absolute(instanceBasePath_) / UUID::randomUUID().ToString();
+                std::filesystem::absolute(instanceBasePath_) / UUID::randomUUID().ToString();
             try {
                 auto tmpRestoreDBInfo = restoreDBInstanceFromStateHandle(remoteHandle, temporaryRestoreInstancePath);
 
                 RocksDBWriteBatchWrapper writeBatchWrapper(rocksHandle_->getDb(), writeBatchSize_);
                 std::vector<rocksdb::ColumnFamilyDescriptor> tmpColumnFamilyDescriptors =
-                        tmpRestoreDBInfo->columnFamilyDescriptors_;
+                    tmpRestoreDBInfo->columnFamilyDescriptors_;
                 std::vector<rocksdb::ColumnFamilyHandle*> tmpColumnFamilyHandles =
-                        tmpRestoreDBInfo->columnFamilyHandles_;
+                    tmpRestoreDBInfo->columnFamilyHandles_;
                 for (size_t i = 0; i < tmpColumnFamilyDescriptors.size(); ++i) {
                     rocksdb::ColumnFamilyHandle* tmpColumnFamilyHandle = tmpColumnFamilyHandles[i];
 
                     rocksdb::ColumnFamilyHandle* targetColumnFamilyHandle =
-                            rocksHandle_->getOrRegisterStateColumnFamilyHandle(
-                                nullptr, tmpRestoreDBInfo->stateMetaInfoSnapshots_[i])->columnFamilyHandle_;
+                        rocksHandle_
+                            ->getOrRegisterStateColumnFamilyHandle(
+                                nullptr, tmpRestoreDBInfo->stateMetaInfoSnapshots_[i])
+                            ->columnFamilyHandle_;
 
                     auto iterator = RocksDbOperationUtils::getRocksIterator(
                         tmpRestoreDBInfo->db_, tmpColumnFamilyHandle, *tmpRestoreDBInfo->readOptions_);
-                    migrateDataBetweenColumnFamilies(iterator, targetColumnFamilyHandle, startKeyGroupPrefixBytes,
-                                                     stopKeyGroupPrefixBytes, writeBatchWrapper);
+                    migrateDataBetweenColumnFamilies(
+                        iterator,
+                        targetColumnFamilyHandle,
+                        startKeyGroupPrefixBytes,
+                        stopKeyGroupPrefixBytes,
+                        writeBatchWrapper);
                 }
             } catch (...) {
                 cleanUpPathQuietly(temporaryRestoreInstancePath);
@@ -298,23 +293,18 @@ private:
     }
 
     void migrateDataBetweenColumnFamilies(
-            std::unique_ptr<RocksIteratorWrapper>& iterator,
-            rocksdb::ColumnFamilyHandle* targetCF,
-            const std::vector<uint8_t>& startKey,
-            const std::vector<uint8_t>& stopKey,
-            RocksDBWriteBatchWrapper& writeBatch)
+        std::unique_ptr<RocksIteratorWrapper>& iterator,
+        rocksdb::ColumnFamilyHandle* targetCF,
+        const std::vector<uint8_t>& startKey,
+        const std::vector<uint8_t>& stopKey,
+        RocksDBWriteBatchWrapper& writeBatch)
     {
         iterator->seek(startKey);
         while (iterator->isValid()) {
             std::string key = iterator->key();
             std::string stopKeyGroupPrefixBytesSliceStr(stopKey.begin(), stopKey.end());
-            if (RocksDBIncrementalCheckpointUtils::beforeThePrefixBytes(
-                key, stopKeyGroupPrefixBytesSliceStr)) {
-                writeBatch.Put(
-                    targetCF,
-                    key,
-                    iterator->value()
-                );
+            if (RocksDBIncrementalCheckpointUtils::beforeThePrefixBytes(key, stopKeyGroupPrefixBytesSliceStr)) {
+                writeBatch.Put(targetCF, key, iterator->value());
             } else {
                 break;
             }
@@ -345,15 +335,16 @@ private:
     class RestoredDBInstance {
     public:
         RestoredDBInstance(
-                rocksdb::DB* db,
-                std::vector<rocksdb::ColumnFamilyHandle*> columnFamilyHandles,
-                std::vector<rocksdb::ColumnFamilyDescriptor> columnFamilyDescriptors,
-                std::vector<StateMetaInfoSnapshot> stateMetaInfoSnapshots
-        ) : db_(db),
-            columnFamilyDescriptors_(std::move(columnFamilyDescriptors)),
-            stateMetaInfoSnapshots_(std::move(stateMetaInfoSnapshots)),
-            columnFamilyHandles_(columnFamilyHandles),
-            readOptions_(std::make_shared<rocksdb::ReadOptions>()) {
+            rocksdb::DB* db,
+            std::vector<rocksdb::ColumnFamilyHandle*> columnFamilyHandles,
+            std::vector<rocksdb::ColumnFamilyDescriptor> columnFamilyDescriptors,
+            std::vector<StateMetaInfoSnapshot> stateMetaInfoSnapshots)
+            : db_(db),
+              columnFamilyDescriptors_(std::move(columnFamilyDescriptors)),
+              stateMetaInfoSnapshots_(std::move(stateMetaInfoSnapshots)),
+              columnFamilyHandles_(columnFamilyHandles),
+              readOptions_(std::make_shared<rocksdb::ReadOptions>())
+        {
             if (columnFamilyHandles_.empty()) {
                 throw std::invalid_argument("columnFamilyHandles cannot be empty");
             }
@@ -363,7 +354,9 @@ private:
             columnFamilyHandles_ = columnFamilyHandles;
         }
 
-        ~RestoredDBInstance() {}
+        ~RestoredDBInstance()
+        {
+        }
         rocksdb::DB* db_;
         rocksdb::ColumnFamilyHandle* defaultColumnFamilyHandle_;
         std::vector<rocksdb::ColumnFamilyHandle*> columnFamilyHandles_;
@@ -374,24 +367,21 @@ private:
 
     // This function is for restoreWithRescaling. It will not be used!
     std::shared_ptr<RestoredDBInstance> restoreDBInstanceFromStateHandle(
-            std::shared_ptr<IncrementalRemoteKeyedStateHandle> restoreStateHandle,
-            fs::path temporaryRestoreInstancePath)
+        std::shared_ptr<IncrementalRemoteKeyedStateHandle> restoreStateHandle, fs::path temporaryRestoreInstancePath)
     {
         RocksDBStateDownloader rocksDbStateDownloader(numberOfTransferringThreads_);
-        rocksDbStateDownloader.transferAllStateDataToDirectory(*restoreStateHandle,
-                                                               temporaryRestoreInstancePath,
-                                                               omniTaskBridge_);
+        rocksDbStateDownloader.transferAllStateDataToDirectory(
+            *restoreStateHandle, temporaryRestoreInstancePath, omniTaskBridge_);
         // read meta data
         auto serializerStr = TaskStateSnapshotSerializer::parseIncrementalRemoteKeyedStateHandle(restoreStateHandle);
         auto stateMetaInfoSnapshots = omniTaskBridge_->readMetaData(to_string(serializerStr));
 
         std::vector<rocksdb::ColumnFamilyDescriptor> columnFamilyDescriptors =
-                createColumnFamilyDescriptors(stateMetaInfoSnapshots, false);
+            createColumnFamilyDescriptors(stateMetaInfoSnapshots, false);
         std::vector<rocksdb::ColumnFamilyHandle*> columnFamilyHandles;
         columnFamilyHandles.reserve(stateMetaInfoSnapshots.size() + 1);
         rocksdb::ColumnFamilyOptions columnFamilyOptions =
-                RocksDbOperationUtils::createColumnFamilyOptions(rocksHandle_->getColumnFamilyOptionsFactory(),
-                                                                 "default");
+            RocksDbOperationUtils::createColumnFamilyOptions(rocksHandle_->getColumnFamilyOptionsFactory(), "default");
 
         std::shared_ptr<rocksdb::DBOptions> dbOptions = rocksHandle_->getDbOptions();
         rocksdb::DB* restoreDb = RocksDbOperationUtils::openDB(
@@ -400,13 +390,12 @@ private:
             columnFamilyHandles,
             columnFamilyOptions,
             *dbOptions);
-        return std::make_shared<RestoredDBInstance>(restoreDb, columnFamilyHandles,
-                                                    columnFamilyDescriptors, stateMetaInfoSnapshots);
+        return std::make_shared<RestoredDBInstance>(
+            restoreDb, columnFamilyHandles, columnFamilyDescriptors, stateMetaInfoSnapshots);
     };
 
-    std::vector<rocksdb::ColumnFamilyDescriptor> createColumnFamilyDescriptors (
-            std::vector<StateMetaInfoSnapshot> stateMetaInfoSnapshots,
-            bool registerTtlCompactFilter)
+    std::vector<rocksdb::ColumnFamilyDescriptor> createColumnFamilyDescriptors(
+        std::vector<StateMetaInfoSnapshot> stateMetaInfoSnapshots, bool registerTtlCompactFilter)
     {
         std::vector<rocksdb::ColumnFamilyDescriptor> columnFamilyDescriptors;
         columnFamilyDescriptors.reserve(stateMetaInfoSnapshots.size());
@@ -417,20 +406,18 @@ private:
                 continue;
             }
             rocksdb::ColumnFamilyDescriptor columnFamilyDescriptor =
-                    RocksDbOperationUtils::createColumnFamilyDescriptor(
-                        std::move(metaInfoBase),
-                        rocksHandle_->getColumnFamilyOptionsFactory());
+                RocksDbOperationUtils::createColumnFamilyDescriptor(
+                    std::move(metaInfoBase), rocksHandle_->getColumnFamilyOptionsFactory());
             columnFamilyDescriptors.push_back(std::move(columnFamilyDescriptor));
         }
         return columnFamilyDescriptors;
     }
 
-    std::runtime_error unexpectedStateHandleException(
-            const std::type_info& expected, const std::type_info& actual)
+    std::runtime_error unexpectedStateHandleException(const std::type_info& expected, const std::type_info& actual)
     {
         return std::runtime_error(
-            "Unexpected state handle type: expected " +
-            std::string(expected.name()) + ", but got " + std::string(actual.name()));
+            "Unexpected state handle type: expected " + std::string(expected.name()) + ", but got " +
+            std::string(actual.name()));
     }
 };
 #endif // OMNISTREAM_ROCKSDBINCREMENTALRESTOREOPERATION_H

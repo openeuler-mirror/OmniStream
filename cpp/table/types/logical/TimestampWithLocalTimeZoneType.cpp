@@ -14,14 +14,18 @@
 using namespace omniruntime::type;
 
 TimestampWithLocalTimeZoneType::TimestampWithLocalTimeZoneType(bool isNull, int32_t precision)
-    : BasicLogicalType(isNull, DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE, "TIMESTAMP_WITH_LOCAL_TIME_ZONE"), precision(precision) {}
-
-std::vector<LogicalType *> TimestampWithLocalTimeZoneType::getChildren()
+    : BasicLogicalType(isNull, DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE, "TIMESTAMP_WITH_LOCAL_TIME_ZONE"),
+      precision(precision)
 {
-    NOT_IMPL_EXCEPTION
 }
 
-nlohmann::json TimestampWithLocalTimeZoneType::toJson() const {
+std::vector<LogicalType*> TimestampWithLocalTimeZoneType::getChildren()
+{
+    NOT_IMPL_EXCEPTION;
+}
+
+nlohmann::json TimestampWithLocalTimeZoneType::toJson() const
+{
     nlohmann::json result = LogicalType::toJson();
     result["precision"] = precision;
 
@@ -32,4 +36,3 @@ int32_t TimestampWithLocalTimeZoneType::getPrecision()
 {
     return this->precision;
 }
-

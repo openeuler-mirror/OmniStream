@@ -14,41 +14,39 @@
 #include "state/heap/HeapPriorityQueueDataDigest.h"
 #include "common.h"
 FullSnapshotAsyncWriter::FullSnapshotAsyncWriter(
-    SnapshotType *snapshotType,
-    CheckpointOptions *checkpointOptions,
+    SnapshotType* snapshotType,
+    CheckpointOptions* checkpointOptions,
     long checkpointId,
-    const std::shared_ptr<FullSnapshotResources> & snapshotResources,
+    const std::shared_ptr<FullSnapshotResources>& snapshotResources,
     std::string keySerializer)
     : snapshotResources_(snapshotResources),
-    checkpointOptions_(checkpointOptions),
-    checkpointId_(checkpointId),
-    snapshotType_(snapshotType),
-    keySerializer_(keySerializer)
+      checkpointOptions_(checkpointOptions),
+      checkpointId_(checkpointId),
+      snapshotType_(snapshotType),
+      keySerializer_(keySerializer)
 {
 }
 std::shared_ptr<SnapshotResult<KeyedStateHandle>> FullSnapshotAsyncWriter::get(
     std::shared_ptr<omnistream::OmniTaskBridge> bridge)
 {
     std::shared_ptr<KeyValueStateIterator> mergeIterator = nullptr;
-    try{
-        auto *kgRange = snapshotResources_->getKeyGroupRange();
+    try {
+        auto* kgRange = snapshotResources_->getKeyGroupRange();
         auto keyGroupRangeOffsets = std::make_shared<KeyGroupRangeOffsets>(*kgRange);
         CheckpointStateOutputStreamProxy stream(bridge, checkpointId_, checkpointOptions_);
-        const auto &metaInfoSnapshots = snapshotResources_->getMetaInfoSnapshots();
+        const auto& metaInfoSnapshots = snapshotResources_->getMetaInfoSnapshots();
         stream.writeMetadata(metaInfoSnapshots, keySerializer_);
 
         std::map<int, HeapPriorityQueueDataDigest::Summary> heapPqDigests;
-        const bool shouldDigestHeapPq = snapshotType_ != nullptr
-            && snapshotType_->IsSavepoint()
-            && TimerConsistencyCheckControl::timerConsistencyCheckEnabled;
+        const bool shouldDigestHeapPq = snapshotType_ != nullptr && snapshotType_->IsSavepoint() &&
+                                        TimerConsistencyCheckControl::timerConsistencyCheckEnabled;
         if (shouldDigestHeapPq) {
             for (size_t i = 0; i < metaInfoSnapshots.size(); i++) {
                 const int kvStateId = static_cast<int>(i);
                 if (!snapshotResources_->isHeapPriorityQueueStateId(kvStateId)) {
                     continue;
                 }
-                const std::string stateName =
-                    metaInfoSnapshots[i] == nullptr ? "" : metaInfoSnapshots[i]->getName();
+                const std::string stateName = metaInfoSnapshots[i] == nullptr ? "" : metaInfoSnapshots[i]->getName();
                 heapPqDigests.emplace(
                     kvStateId,
                     HeapPriorityQueueDataDigest::createSummary(
@@ -60,24 +58,16 @@ std::shared_ptr<SnapshotResult<KeyedStateHandle>> FullSnapshotAsyncWriter::get(
         }
 
         const int keyGroupPrefixBytes = snapshotResources_->getKeyGroupPrefixBytes();
-        auto recordHeapPqEntry = [&](int kvStateId,
-                                     ByteView key,
-                                     ByteView value) {
+        auto recordHeapPqEntry = [&](int kvStateId, ByteView key, ByteView value) {
             auto digest = heapPqDigests.find(kvStateId);
             if (digest == heapPqDigests.end()) {
                 return;
             }
-            HeapPriorityQueueDataDigest::addSerializedEntry(
-                digest->second,
-                key,
-                value,
-                keyGroupPrefixBytes);
+            HeapPriorityQueueDataDigest::addSerializedEntry(digest->second, key, value, keyGroupPrefixBytes);
         };
 
         mergeIterator = snapshotResources_->createKVStateIterator();
-        SavepointKvStreamWriter kvStreamWriter(
-            stream,
-            *keyGroupRangeOffsets);
+        SavepointKvStreamWriter kvStreamWriter(stream, *keyGroupRangeOffsets);
         if (mergeIterator->isValid()) {
             const auto& entry = mergeIterator->current();
             if (shouldDigestHeapPq) {
@@ -92,12 +82,7 @@ std::shared_ptr<SnapshotResult<KeyedStateHandle>> FullSnapshotAsyncWriter::get(
                 recordHeapPqEntry(entry.kvStateId, entry.key, entry.value);
             }
             kvStreamWriter.writeNext(
-                entry.key,
-                entry.value,
-                entry.kvStateId,
-                entry.keyGroup,
-                entry.newKeyGroup,
-                entry.newKeyValueState);
+                entry.key, entry.value, entry.kvStateId, entry.keyGroup, entry.newKeyGroup, entry.newKeyValueState);
             mergeIterator->next();
         }
         kvStreamWriter.finish();
@@ -111,24 +96,23 @@ std::shared_ptr<SnapshotResult<KeyedStateHandle>> FullSnapshotAsyncWriter::get(
                 jmKeyedState = std::make_shared<KeyGroupsSavepointStateHandle>(
                     *keyGroupRangeOffsets.get(), jobManagerOwnedSnapshot);
             } else {
-                jmKeyedState = std::make_shared<KeyGroupsStateHandle>(
-                    *keyGroupRangeOffsets.get(), jobManagerOwnedSnapshot);
+                jmKeyedState =
+                    std::make_shared<KeyGroupsStateHandle>(*keyGroupRangeOffsets.get(), jobManagerOwnedSnapshot);
             }
-            for (const auto &digest : heapPqDigests) {
+            for (const auto& digest : heapPqDigests) {
                 HeapPriorityQueueDataDigest::logSummary(digest.second);
             }
             return SnapshotResult<KeyedStateHandle>::Of(jmKeyedState);
         }
-        for (const auto &digest : heapPqDigests) {
+        for (const auto& digest : heapPqDigests) {
             HeapPriorityQueueDataDigest::logSummary(digest.second);
         }
         return SnapshotResult<KeyedStateHandle>::Empty();
-    }catch(std::exception& e){
-        if(mergeIterator) {
+    } catch (std::exception& e) {
+        if (mergeIterator) {
             mergeIterator->close();
         }
-        INFO_RELEASE("Error:FullSnapshotAsyncWriter::get cp=" << checkpointId_
-            << " exception: " << e.what());
+        INFO_RELEASE("Error:FullSnapshotAsyncWriter::get cp=" << checkpointId_ << " exception: " << e.what());
         throw;
     }
 }

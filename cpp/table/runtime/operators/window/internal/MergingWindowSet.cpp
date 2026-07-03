@@ -14,8 +14,9 @@
 #include "data/Row.h"
 #include "runtime/operators/window/TimeWindow.h"
 
-template<typename K, typename W>
-void MergingWindowSet<K, W>::initializeCache(const K& key) {
+template <typename K, typename W>
+void MergingWindowSet<K, W>::initializeCache(const K& key)
+{
     auto cache = cachedSortedWindows.get(key);
     if (!cache) {
         sortedWindows = new std::set<W>;
@@ -25,7 +26,7 @@ void MergingWindowSet<K, W>::initializeCache(const K& key) {
             if (entry.getKey().has_value()) {
                 sortedWindows->emplace(entry.getKey().value());
             } else {
-                THROW_RUNTIME_ERROR("Iterator return an entry with empty key.")
+                THROW_RUNTIME_ERROR("Iterator return an entry with empty key.");
             }
         }
         cachedSortedWindows.put(key, sortedWindows);
@@ -34,34 +35,39 @@ void MergingWindowSet<K, W>::initializeCache(const K& key) {
     }
 }
 
-template<typename K, typename W>
-W MergingWindowSet<K, W>::getStateWindow(const W &window) {
-    const auto &optionalRes = mapping->get(window);
+template <typename K, typename W>
+W MergingWindowSet<K, W>::getStateWindow(const W& window)
+{
+    const auto& optionalRes = mapping->get(window);
     if (optionalRes.has_value()) {
         return optionalRes.value();
     }
-    THROW_RUNTIME_ERROR("Cannot find the state of window, startTime:" + std::to_string(window.getStart()) + ", endTime: " + std::to_string(window.getEnd()))
+    THROW_RUNTIME_ERROR(
+        "Cannot find the state of window, startTime:" + std::to_string(window.getStart()) +
+        ", endTime: " + std::to_string(window.getEnd()));
 }
 
-template<typename K, typename W>
-void MergingWindowSet<K, W>::retireWindow(const W &window) {
+template <typename K, typename W>
+void MergingWindowSet<K, W>::retireWindow(const W& window)
+{
     mapping->remove(window);
     auto it = sortedWindows->find(window);
     if (it == sortedWindows->end()) {
-        THROW_RUNTIME_ERROR("Window is not in in-flight window set.")
+        THROW_RUNTIME_ERROR("Window is not in in-flight window set.");
     }
     sortedWindows->erase(it);
 }
 
-template<typename K, typename W>
-W MergingWindowSet<K, W>::addWindow(const W &newWindow, const MergeFunction &mergeFunction) {
+template <typename K, typename W>
+W MergingWindowSet<K, W>::addWindow(const W& newWindow, const MergeFunction& mergeFunction)
+{
     reuseCollector_.clear();
-    windowAssigner->mergeWindows(newWindow, sortedWindows,  reuseCollector_);
+    windowAssigner->mergeWindows(newWindow, sortedWindows, reuseCollector_);
 
     W resultWindow = newWindow;
     bool isNewWindowMerged = false;
 
-    for (const auto& c:  reuseCollector_) {
+    for (const auto& c : reuseCollector_) {
         W mergeResult = c.first;
         auto* mergedWindows = c.second;
 
@@ -76,7 +82,7 @@ W MergingWindowSet<K, W>::addWindow(const W &newWindow, const MergeFunction &mer
         W mergedStateNamespace = getStateWindow(*mergedWindows->begin());
 
         std::vector<W> mergedStateWindows;
-        for (const auto &mergedWindow: *mergedWindows) {
+        for (const auto& mergedWindow : *mergedWindows) {
             const std::optional<W>& optionalRes = mapping->get(mergedWindow);
             if (optionalRes.has_value()) {
                 mapping->remove(mergedWindow);
@@ -104,4 +110,3 @@ W MergingWindowSet<K, W>::addWindow(const W &newWindow, const MergeFunction &mer
 }
 
 template class MergingWindowSet<std::shared_ptr<RowData>, TimeWindow>;
-

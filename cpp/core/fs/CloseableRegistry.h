@@ -59,7 +59,9 @@ public:
     }
 
 protected:
-    explicit AbstractAutoCloseableRegistry(M map) : closeableMap(std::move(map)) {}
+    explicit AbstractAutoCloseableRegistry(M map) : closeableMap(std::move(map))
+    {
+    }
     virtual void doRegister(T closeable, M& map) = 0;
     virtual bool doUnRegister(T closeable, M& map) = 0;
     virtual void doClose(std::list<T>& toClose) = 0;
@@ -68,22 +70,24 @@ protected:
     bool closed = false;
 };
 
-class CloseableRegistry : public AbstractAutoCloseableRegistry<std::shared_ptr<Closeable>,
-        std::map<std::shared_ptr<Closeable>, void*>, void> {
+class CloseableRegistry : public AbstractAutoCloseableRegistry<
+                              std::shared_ptr<Closeable>,
+                              std::map<std::shared_ptr<Closeable>, void*>,
+                              void> {
 public:
-    CloseableRegistry() : AbstractAutoCloseableRegistry(std::map<std::shared_ptr<Closeable>, void*>()) {}
+    CloseableRegistry() : AbstractAutoCloseableRegistry(std::map<std::shared_ptr<Closeable>, void*>())
+    {
+    }
 
 protected:
-    void doRegister(std::shared_ptr<Closeable> closeable,
-                    std::map<std::shared_ptr<Closeable>,
-                    void*>& closeableMap) override
+    void doRegister(
+        std::shared_ptr<Closeable> closeable, std::map<std::shared_ptr<Closeable>, void*>& closeableMap) override
     {
         closeableMap[closeable] = DUMMY;
     }
 
-    bool doUnRegister(std::shared_ptr<Closeable> closeable,
-                      std::map<std::shared_ptr<Closeable>,
-                      void*>& closeableMap) override
+    bool doUnRegister(
+        std::shared_ptr<Closeable> closeable, std::map<std::shared_ptr<Closeable>, void*>& closeableMap) override
     {
         return closeableMap.erase(closeable) > 0;
     }

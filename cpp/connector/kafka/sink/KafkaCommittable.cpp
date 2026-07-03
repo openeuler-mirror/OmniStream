@@ -11,19 +11,23 @@
 
 #include "KafkaCommittable.h"
 
-KafkaCommittable::KafkaCommittable(long producerId,
-                                   short epoch,
-                                   const std::string& transactionalId,
-                                   std::shared_ptr<Recyclable<FlinkKafkaInternalProducer>> producer)
+KafkaCommittable::KafkaCommittable(
+    long producerId,
+    short epoch,
+    const std::string& transactionalId,
+    std::shared_ptr<Recyclable<FlinkKafkaInternalProducer>> producer)
     : producerId(producerId),
-    epoch(epoch),
-    transactionalId(transactionalId),
-    producer(producer) {}
-
-KafkaCommittable KafkaCommittable::of(FlinkKafkaInternalProducer* producer,
-                                      std::function<void(FlinkKafkaInternalProducer*)> recycler)
+      epoch(epoch),
+      transactionalId(transactionalId),
+      producer(producer)
 {
-    return KafkaCommittable(producer->getProducerId(),
+}
+
+KafkaCommittable KafkaCommittable::of(
+    FlinkKafkaInternalProducer* producer, std::function<void(FlinkKafkaInternalProducer*)> recycler)
+{
+    return KafkaCommittable(
+        producer->getProducerId(),
         producer->getEpoch(),
         producer->getTransactionalId(),
         std::make_shared<Recyclable<FlinkKafkaInternalProducer>>(producer, recycler));
@@ -51,18 +55,13 @@ std::optional<std::shared_ptr<Recyclable<FlinkKafkaInternalProducer>>> KafkaComm
 
 std::string KafkaCommittable::toString() const
 {
-    return std::string("KafkaCommittable{")
-           + "producerId=" + std::to_string(producerId)
-           + ", epoch=" + std::to_string(epoch)
-           + ", transactionalId=" + transactionalId
-           + '}';
+    return std::string("KafkaCommittable{") + "producerId=" + std::to_string(producerId) +
+           ", epoch=" + std::to_string(epoch) + ", transactionalId=" + transactionalId + '}';
 }
 
 bool KafkaCommittable::operator==(const KafkaCommittable& that) const
 {
-    return producerId == that.producerId
-           && epoch == that.epoch
-           && transactionalId == that.transactionalId;
+    return producerId == that.producerId && epoch == that.epoch && transactionalId == that.transactionalId;
 }
 
 bool KafkaCommittable::operator!=(const KafkaCommittable& that) const

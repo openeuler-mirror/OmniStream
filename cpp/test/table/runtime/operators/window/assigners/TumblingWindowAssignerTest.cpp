@@ -15,7 +15,7 @@ void AssertWindowsEq(const std::vector<TimeWindow>& actual, const std::vector<Ti
     }
 }
 
-}
+} // namespace
 
 TEST(TumblingWindowAssignerTest, WindowAssignmentMatchesFlink)
 {

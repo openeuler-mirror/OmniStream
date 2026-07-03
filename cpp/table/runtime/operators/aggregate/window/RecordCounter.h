@@ -15,28 +15,28 @@
 
 class RecordCounter {
 public:
-        virtual ~RecordCounter() = default;
-        virtual bool recordCountIsZero(RowData *acc) = 0;
-        
-        static std::unique_ptr<RecordCounter> of(int indexOfCountStar_);
+    virtual ~RecordCounter() = default;
+    virtual bool recordCountIsZero(RowData* acc) = 0;
+
+    static std::unique_ptr<RecordCounter> of(int indexOfCountStar_);
 
 protected:
-        RecordCounter() = default;
+    RecordCounter() = default;
 };
 
 class AccumulationRecordCounter : public RecordCounter {
 public:
-        bool recordCountIsZero(RowData *acc) override;
+    bool recordCountIsZero(RowData* acc) override;
 };
 
 class RetractionRecordCounter : public RecordCounter {
 public:
-        explicit RetractionRecordCounter(int indexOfCountStar_);
+    explicit RetractionRecordCounter(int indexOfCountStar_);
 
-        bool recordCountIsZero(RowData *acc) override;
+    bool recordCountIsZero(RowData* acc) override;
 
 private:
-        int indexOfCountStar;
+    int indexOfCountStar;
 };
 
 #endif // FLINK_TNEL_RECORDCOUNTER_H

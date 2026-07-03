@@ -40,135 +40,137 @@
 #include "runtime/operators/coordination/AcknowledgeCheckpointEvent.h"
 #include "runtime/operators/coordination/OperatorEventDispatcher.h"
 namespace omnistream {
-    // forward declaration
-    class OmniStreamTask;
+// forward declaration
+class OmniStreamTask;
 
-    class OperatorChainV2 {
-    public:
-        OperatorChainV2(std::weak_ptr<OmniStreamTask> containingTask,
-                        std::shared_ptr<RecordWriterDelegateV2> recordWriterDelegate);
+class OperatorChainV2 {
+public:
+    OperatorChainV2(
+        std::weak_ptr<OmniStreamTask> containingTask, std::shared_ptr<RecordWriterDelegateV2> recordWriterDelegate);
 
-        OperatorChainV2(std::shared_ptr<RuntimeEnvironmentV2> env,
-                        std::shared_ptr<omnistream::datastream::RecordWriterDelegate> recordWriterDelegate)
-        {
-            TaskInformationPOD taskConfiguration = env->taskConfiguration();
+    OperatorChainV2(
+        std::shared_ptr<RuntimeEnvironmentV2> env,
+        std::shared_ptr<omnistream::datastream::RecordWriterDelegate> recordWriterDelegate)
+    {
+        TaskInformationPOD taskConfiguration = env->taskConfiguration();
 
-            auto configuration = taskConfiguration.getStreamConfigPOD();
-            auto outputsInOrder = configuration.getOutEdgesInOrder();
-            auto chainedConfigs = taskConfiguration.getChainedConfigMap();
+        auto configuration = taskConfiguration.getStreamConfigPOD();
+        auto outputsInOrder = configuration.getOutEdgesInOrder();
+        auto chainedConfigs = taskConfiguration.getChainedConfigMap();
 
-            std::unordered_map<int, datastream::RecordWriterOutput *> recordWriterOutputs;
-            createDataStreamChainOutputs(outputsInOrder, chainedConfigs, recordWriterDelegate, recordWriterOutputs);
+        std::unordered_map<int, datastream::RecordWriterOutput*> recordWriterOutputs;
+        createDataStreamChainOutputs(outputsInOrder, chainedConfigs, recordWriterDelegate, recordWriterOutputs);
 
-            std::vector<StreamOperatorWrapper *> allOperatorWrappers;
-            this->mainOperatorOutput = createDataStreamOutputCollector(configuration, chainedConfigs, recordWriterOutputs, allOperatorWrappers);
+        std::vector<StreamOperatorWrapper*> allOperatorWrappers;
+        this->mainOperatorOutput =
+            createDataStreamOutputCollector(configuration, chainedConfigs, recordWriterOutputs, allOperatorWrappers);
 
-            auto opDesc = configuration.getOperatorDescription();
-            auto chainedOperator = StreamOperatorFactory::createOperatorAndCollector(opDesc, mainOperatorOutput, nullptr);
-            auto operatorWrapper = new StreamOperatorWrapper(chainedOperator, false);
-            this->mainOperatorWrapper = operatorWrapper;
-            allOperatorWrappers.emplace_back(operatorWrapper);
-            if (allOperatorWrappers.size() != 0) {
-                this->tailOperatorWrapper = allOperatorWrappers[0];
-            } else {
-                this->tailOperatorWrapper = mainOperatorWrapper;
-            }
-            linkOperatorWrappers(allOperatorWrappers);
-
-            operatorDependenciesDeal();
-
-            operatorEventDispatcher = new OperatorEventDispatcherImpl(
-                    env->getOperatorCoordinatorEventGateway());
+        auto opDesc = configuration.getOperatorDescription();
+        auto chainedOperator = StreamOperatorFactory::createOperatorAndCollector(opDesc, mainOperatorOutput, nullptr);
+        auto operatorWrapper = new StreamOperatorWrapper(chainedOperator, false);
+        this->mainOperatorWrapper = operatorWrapper;
+        allOperatorWrappers.emplace_back(operatorWrapper);
+        if (allOperatorWrappers.size() != 0) {
+            this->tailOperatorWrapper = allOperatorWrappers[0];
+        } else {
+            this->tailOperatorWrapper = mainOperatorWrapper;
         }
+        linkOperatorWrappers(allOperatorWrappers);
 
-        OperatorChainV2(std::shared_ptr<RuntimeEnvironmentV2> env, std::shared_ptr<RecordWriterDelegateV2> recordWriterDelegate)
-        {
-            TaskInformationPOD taskConfiguration = env->taskConfiguration();
+        operatorDependenciesDeal();
 
-            auto configuration = taskConfiguration.getStreamConfigPOD();
-            auto outputsInOrder = configuration.getOutEdgesInOrder();
-            auto chainedConfigs = taskConfiguration.getChainedConfigMap();
+        operatorEventDispatcher = new OperatorEventDispatcherImpl(env->getOperatorCoordinatorEventGateway());
+    }
 
-            std::unordered_map<int, RecordWriterOutputV2*> recordWriterOutputs;
-            createChainOutputs(outputsInOrder, chainedConfigs, recordWriterDelegate, recordWriterOutputs);
+    OperatorChainV2(
+        std::shared_ptr<RuntimeEnvironmentV2> env, std::shared_ptr<RecordWriterDelegateV2> recordWriterDelegate)
+    {
+        TaskInformationPOD taskConfiguration = env->taskConfiguration();
 
-            std::vector<StreamOperatorWrapper *> allOperatorWrappers;
-            this->mainOperatorOutput = createOutputCollector(nullptr, configuration,
-                                                             chainedConfigs, recordWriterOutputs, allOperatorWrappers);
+        auto configuration = taskConfiguration.getStreamConfigPOD();
+        auto outputsInOrder = configuration.getOutEdgesInOrder();
+        auto chainedConfigs = taskConfiguration.getChainedConfigMap();
 
-            auto opDesc = configuration.getOperatorDescription();
-            auto chainedOperator = StreamOperatorFactory::createOperatorAndCollector(opDesc, mainOperatorOutput, nullptr);
+        std::unordered_map<int, RecordWriterOutputV2*> recordWriterOutputs;
+        createChainOutputs(outputsInOrder, chainedConfigs, recordWriterDelegate, recordWriterOutputs);
 
-            registerHandler(opDesc, chainedOperator);
+        std::vector<StreamOperatorWrapper*> allOperatorWrappers;
+        this->mainOperatorOutput =
+            createOutputCollector(nullptr, configuration, chainedConfigs, recordWriterOutputs, allOperatorWrappers);
 
-            auto operatorWrapper = new StreamOperatorWrapper(chainedOperator, false);
-            this->mainOperatorWrapper = operatorWrapper;
-            allOperatorWrappers.emplace_back(operatorWrapper);
-            if (!allOperatorWrappers.empty()) {
-                this->tailOperatorWrapper = allOperatorWrappers[0];
-            } else {
-                this->tailOperatorWrapper = mainOperatorWrapper;
-            }
-            linkOperatorWrappers(allOperatorWrappers);
+        auto opDesc = configuration.getOperatorDescription();
+        auto chainedOperator = StreamOperatorFactory::createOperatorAndCollector(opDesc, mainOperatorOutput, nullptr);
+
+        registerHandler(opDesc, chainedOperator);
+
+        auto operatorWrapper = new StreamOperatorWrapper(chainedOperator, false);
+        this->mainOperatorWrapper = operatorWrapper;
+        allOperatorWrappers.emplace_back(operatorWrapper);
+        if (!allOperatorWrappers.empty()) {
+            this->tailOperatorWrapper = allOperatorWrappers[0];
+        } else {
+            this->tailOperatorWrapper = mainOperatorWrapper;
         }
+        linkOperatorWrappers(allOperatorWrappers);
+    }
 
-        ~OperatorChainV2()
-        {
-            delete mainOperatorWrapper;
-            mainOperatorWrapper = nullptr;
-            tailOperatorWrapper = nullptr;
+    ~OperatorChainV2()
+    {
+        delete mainOperatorWrapper;
+        mainOperatorWrapper = nullptr;
+        tailOperatorWrapper = nullptr;
+    }
+
+    void finishOperators(StreamTaskActionExecutor* actionExecutor);
+
+    StreamOperator* createMainOperatorAndCollector(OperatorChainPOD& opChainConfig, RecordWriterOutputV2* chainOutput);
+
+    void initializeStateAndOpenOperators(
+        StreamTaskStateInitializerImpl* initializer, const TaskInformationPOD& taskConfiguration_);
+
+    [[nodiscard]] StreamOperator* getMainOperator() const
+    {
+        return mainOperatorWrapper->getStreamOperator();
+    }
+
+    [[nodiscard]] WatermarkGaugeExposingOutput* GetMainOperatorOutput() const
+    {
+        return mainOperatorOutput;
+    }
+
+    bool IsClosed() const
+    {
+        return isClosed_;
+    }
+
+    virtual void CloseAllOperators()
+    {
+        isClosed_ = true;
+    }
+
+    void AlignedBarrierTimeout(long checkpointId)
+    {
+        // TTODO
+    }
+
+    void broadcastEvent(std::shared_ptr<AbstractEvent> event, bool isPriorityEvent)
+    {
+        LOG_DEBUG("broadcastEvent");
+        for (RecordWriterOutputV2* streamOutput : streamOutputs) {
+            streamOutput->broadcastEvent(event, isPriorityEvent);
         }
+    };
 
-    void finishOperators(StreamTaskActionExecutor *actionExecutor);
+    void broadcastEvent(std::shared_ptr<AbstractEvent> event)
+    {
+        broadcastEvent(event, false);
+    };
 
-        StreamOperator *createMainOperatorAndCollector(OperatorChainPOD &opChainConfig,
-                                                       RecordWriterOutputV2 *chainOutput);
+    const std::vector<RecordWriterOutputV2*>& getStreamOutputs() const
+    {
+        return streamOutputs;
+    }
 
-    void initializeStateAndOpenOperators(StreamTaskStateInitializerImpl *initializer, const TaskInformationPOD& taskConfiguration_);
-
-        [[nodiscard]] StreamOperator *getMainOperator() const
-        {
-            return mainOperatorWrapper->getStreamOperator();
-        }
-
-        [[nodiscard]] WatermarkGaugeExposingOutput *GetMainOperatorOutput() const
-        {
-            return mainOperatorOutput;
-        }
-
-        bool IsClosed() const
-        {
-            return isClosed_;
-        }
-
-        virtual void CloseAllOperators()
-        {
-            isClosed_ = true;
-        }
-
-        void AlignedBarrierTimeout(long checkpointId)
-        {
-            // TTODO
-        }
-
-        void broadcastEvent(std::shared_ptr<AbstractEvent> event, bool isPriorityEvent)
-        {
-            LOG_DEBUG("broadcastEvent")
-            for (RecordWriterOutputV2* streamOutput : streamOutputs) {
-                streamOutput->broadcastEvent(event, isPriorityEvent);
-            }
-        };
-
-        void broadcastEvent(std::shared_ptr<AbstractEvent> event)
-        {
-            broadcastEvent(event, false);
-        };
-
-        const std::vector<RecordWriterOutputV2*>& getStreamOutputs() const
-        {
-            return streamOutputs;
-        }
-    
     void DispatchOperatorEvent(const std::string& operatorIdString, const std::string& eventString);
 
     // Snapshot related functions
@@ -177,115 +179,129 @@ namespace omnistream {
     void NotifyCheckpointComplete(long checkpointId);
     void NotifyCheckpointAborted(long checkpointId);
     void NotifyCheckpointSubsumed(long checkpointId);
-    void SnapshotState(std::unordered_map<OperatorID, OperatorSnapshotFutures *> *operatorSnapshotsInProgress,
-        CheckpointMetaData &checkpointMetaData, CheckpointOptions *checkpointOptions, std::shared_ptr<Supplier<bool>> isRunning,
-        std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> channelStateWriteResult, CheckpointStreamFactory* storage,
+    void SnapshotState(
+        std::unordered_map<OperatorID, OperatorSnapshotFutures*>* operatorSnapshotsInProgress,
+        CheckpointMetaData& checkpointMetaData,
+        CheckpointOptions* checkpointOptions,
+        std::shared_ptr<Supplier<bool>> isRunning,
+        std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> channelStateWriteResult,
+        CheckpointStreamFactory* storage,
         const std::shared_ptr<OmniTaskBridge>& bridge);
     bool IsTaskDeployedAsFinished()
     {
         return false;
     }
 
-    protected:
-        bool isClosed_ = false;
-        // WatermarkGaugeExposingOutput<StreamRecord<OUT>> mainOperatorOutput;
-        WatermarkGaugeExposingOutput *mainOperatorOutput;
+protected:
+    bool isClosed_ = false;
+    // WatermarkGaugeExposingOutput<StreamRecord<OUT>> mainOperatorOutput;
+    WatermarkGaugeExposingOutput* mainOperatorOutput;
 
-        std::unordered_map<std::string, OperatorEventHandler *> handlers;
+    std::unordered_map<std::string, OperatorEventHandler*> handlers;
 
-        // ownership is mainOperatorWrapper own its next, wrapper also own its op, op own its output
-        StreamOperatorWrapper *mainOperatorWrapper;
+    // ownership is mainOperatorWrapper own its next, wrapper also own its op, op own its output
+    StreamOperatorWrapper* mainOperatorWrapper;
 
-        std::vector<RecordWriterOutputV2*> streamOutputs;
+    std::vector<RecordWriterOutputV2*> streamOutputs;
 
-        // weak ref,
-        StreamOperatorWrapper *tailOperatorWrapper;
+    // weak ref,
+    StreamOperatorWrapper* tailOperatorWrapper;
 
-        OperatorEventDispatcherImpl* operatorEventDispatcher;
+    OperatorEventDispatcherImpl* operatorEventDispatcher;
 
-        void SnapshotChannelStates(StreamOperator* op, std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> channelStateWriteResult,
-            OperatorSnapshotFutures* snapshotInProgress);
+    void SnapshotChannelStates(
+        StreamOperator* op,
+        std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> channelStateWriteResult,
+        OperatorSnapshotFutures* snapshotInProgress);
 
-        void SendAcknowledgeCheckpointEvent(long checkpointId);
+    void SendAcknowledgeCheckpointEvent(long checkpointId);
 
-        ReadIterator getAllOperators(bool reverse) {
-            return reverse
-                       ? ReadIterator(tailOperatorWrapper, true)
-                       : ReadIterator(mainOperatorWrapper, false);
-        }
+    ReadIterator getAllOperators(bool reverse)
+    {
+        return reverse ? ReadIterator(tailOperatorWrapper, true) : ReadIterator(mainOperatorWrapper, false);
+    }
 
-        void operatorDependenciesDeal();
+    void operatorDependenciesDeal();
 
-    private:
+private:
     // future the following function should be private and the logic will be refactory
-    void createChainOutputs(std::vector<StreamEdgePOD>& outputsInOrder,
-    std::unordered_map<int, StreamConfigPOD>& chainedConfigs,
+    void createChainOutputs(
+        std::vector<StreamEdgePOD>& outputsInOrder,
+        std::unordered_map<int, StreamConfigPOD>& chainedConfigs,
         std::shared_ptr<RecordWriterDelegateV2> recordWriterDelegate,
         std::unordered_map<int, RecordWriterOutputV2*>& recordWriterOutputs);
-    RecordWriterOutputV2* createStreamOutput(RecordWriterV2 *recordWriter, TypeInformation &typeInformation, const NonChainedOutputPOD &streamOutput);
+    RecordWriterOutputV2* createStreamOutput(
+        RecordWriterV2* recordWriter, TypeInformation& typeInformation, const NonChainedOutputPOD& streamOutput);
 
-        void createDataStreamChainOutputs(std::vector<StreamEdgePOD>& outputsInOrder, std::unordered_map<int, StreamConfigPOD>& chainedConfigs,
-                                          std::shared_ptr<datastream::RecordWriterDelegate> recordWriterDelegate, std::unordered_map<int, datastream::RecordWriterOutput*>& recordWriterOutputs);
-        datastream::RecordWriterOutput* createDataStreamStreamOutput(datastream::RecordWriter* recordWriter, TypeInformation& typeInformation);
+    void createDataStreamChainOutputs(
+        std::vector<StreamEdgePOD>& outputsInOrder,
+        std::unordered_map<int, StreamConfigPOD>& chainedConfigs,
+        std::shared_ptr<datastream::RecordWriterDelegate> recordWriterDelegate,
+        std::unordered_map<int, datastream::RecordWriterOutput*>& recordWriterOutputs);
+    datastream::RecordWriterOutput* createDataStreamStreamOutput(
+        datastream::RecordWriter* recordWriter, TypeInformation& typeInformation);
 
     TypeInformation* getChainOutputType(OperatorPOD operatorPod);
     TypeInformation* getDataStreamStateKeyType(OperatorPOD operatorPod);
     TypeInformation* getDataStreamChainOutputType(OperatorPOD operatorPod);
-    static WatermarkGaugeExposingOutput* wrapOperatorIntoOutput(StreamOperator* op, omnistream::OperatorPOD &opConfig);
-        WatermarkGaugeExposingOutput *createOperatorChain(
-            const std::shared_ptr<OmniStreamTask> &streamTask,
-            StreamConfigPOD *operatorConfig,
-            std::unordered_map<int, StreamConfigPOD> &chainedConfigs,
-            std::unordered_map<int, RecordWriterOutputV2 *> &recordWriterOutputs,
-            std::vector<StreamOperatorWrapper *> &allOperatorWrappers);
+    static WatermarkGaugeExposingOutput* wrapOperatorIntoOutput(StreamOperator* op, omnistream::OperatorPOD& opConfig);
+    WatermarkGaugeExposingOutput* createOperatorChain(
+        const std::shared_ptr<OmniStreamTask>& streamTask,
+        StreamConfigPOD* operatorConfig,
+        std::unordered_map<int, StreamConfigPOD>& chainedConfigs,
+        std::unordered_map<int, RecordWriterOutputV2*>& recordWriterOutputs,
+        std::vector<StreamOperatorWrapper*>& allOperatorWrappers);
 
-        WatermarkGaugeExposingOutput *createOutputCollector(
-            const std::shared_ptr<OmniStreamTask> &streamTask, StreamConfigPOD &operatorConfig,
-            std::unordered_map<int, StreamConfigPOD> &chainedConfigs,
-            std::unordered_map<int, RecordWriterOutputV2 *> &recordWriterOutputs,
-            std::vector<StreamOperatorWrapper *> &allOperatorWrappers);
-        static void linkOperatorWrappers(std::vector<StreamOperatorWrapper *> &allOperatorWrappers);
+    WatermarkGaugeExposingOutput* createOutputCollector(
+        const std::shared_ptr<OmniStreamTask>& streamTask,
+        StreamConfigPOD& operatorConfig,
+        std::unordered_map<int, StreamConfigPOD>& chainedConfigs,
+        std::unordered_map<int, RecordWriterOutputV2*>& recordWriterOutputs,
+        std::vector<StreamOperatorWrapper*>& allOperatorWrappers);
+    static void linkOperatorWrappers(std::vector<StreamOperatorWrapper*>& allOperatorWrappers);
 
-        WatermarkGaugeExposingOutput *createDataStreamOutputCollector(StreamConfigPOD &operatorConfig,
-            std::unordered_map<int, StreamConfigPOD> &chainedConfigs,
-            std::unordered_map<int, datastream::RecordWriterOutput *> &recordWriterOutputs,
-            std::vector<StreamOperatorWrapper *> &allOperatorWrappers);
-        WatermarkGaugeExposingOutput *createDataStreamOperatorChain(StreamConfigPOD &operatorConfig,
-            std::unordered_map<int, StreamConfigPOD> &chainedConfigs,
-            std::unordered_map<int, datastream::RecordWriterOutput *> &recordWriterOutputs,
-            std::vector<StreamOperatorWrapper *> &allOperatorWrappers);
+    WatermarkGaugeExposingOutput* createDataStreamOutputCollector(
+        StreamConfigPOD& operatorConfig,
+        std::unordered_map<int, StreamConfigPOD>& chainedConfigs,
+        std::unordered_map<int, datastream::RecordWriterOutput*>& recordWriterOutputs,
+        std::vector<StreamOperatorWrapper*>& allOperatorWrappers);
+    WatermarkGaugeExposingOutput* createDataStreamOperatorChain(
+        StreamConfigPOD& operatorConfig,
+        std::unordered_map<int, StreamConfigPOD>& chainedConfigs,
+        std::unordered_map<int, datastream::RecordWriterOutput*>& recordWriterOutputs,
+        std::vector<StreamOperatorWrapper*>& allOperatorWrappers);
 
-        void registerHandler(OperatorPOD &opDesc, StreamOperator *streamOperator)
-        {
-            auto id = opDesc.getId();
-            if (id == OPERATOR_NAME_SOURCE_OPERATOR) {
-                if (auto *handler = dynamic_cast<OperatorEventHandler *>(streamOperator)) {
-                    handlers.emplace(opDesc.getOperatorId(), handler);
-                } else {
-                    LOG("Unsupported source operator of csv");
-                }
+    void registerHandler(OperatorPOD& opDesc, StreamOperator* streamOperator)
+    {
+        auto id = opDesc.getId();
+        if (id == OPERATOR_NAME_SOURCE_OPERATOR) {
+            if (auto* handler = dynamic_cast<OperatorEventHandler*>(streamOperator)) {
+                handlers.emplace(opDesc.getOperatorId(), handler);
+            } else {
+                LOG("Unsupported source operator of csv");
             }
         }
-    
-    OperatorSnapshotFutures *BuildOperatorSnapshotFutures(
+    }
+
+    OperatorSnapshotFutures* BuildOperatorSnapshotFutures(
         CheckpointMetaData checkpointMetaData,
-        CheckpointOptions *checkpointOptions,
-        StreamOperator *op,
+        CheckpointOptions* checkpointOptions,
+        StreamOperator* op,
         std::shared_ptr<Supplier<bool>> isRunning,
         std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> channelStateWriteResult,
-        CheckpointStreamFactory *storage,
+        CheckpointStreamFactory* storage,
         const std::shared_ptr<OmniTaskBridge>& bridge);
 
-    OperatorSnapshotFutures *CheckpointStreamOperator(
-        StreamOperator *op,
+    OperatorSnapshotFutures* CheckpointStreamOperator(
+        StreamOperator* op,
         CheckpointMetaData checkpointMetaData,
-        CheckpointOptions *checkpointOptions,
-        CheckpointStreamFactory *storageLocation,
+        CheckpointOptions* checkpointOptions,
+        CheckpointStreamFactory* storageLocation,
         std::shared_ptr<Supplier<bool>> isRunning,
         const std::shared_ptr<OmniTaskBridge>& bridge);
     // std::vector<OperatorConfig> & opChainConfig_;
     // std::shared_ptr<RecordWriterDelegate> recordWriterDelegate_;
-    };
 };
+}; // namespace omnistream
 
 #endif // OPERATORCHAIN_H

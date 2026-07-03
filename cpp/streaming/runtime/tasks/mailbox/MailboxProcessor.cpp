@@ -22,24 +22,33 @@
 
 namespace omnistream {
 MailboxProcessor::MailboxProcessor() : suspended(false), mailboxLoopRunning(false)
-{}
+{
+}
 
 MailboxProcessor::MailboxProcessor(std::unique_ptr<MailboxDefaultAction> mailboxDefaultAction)
     : MailboxProcessor(std::move(mailboxDefaultAction), StreamTaskActionExecutor::IMMEDIATE)
-{}
+{
+}
 
-MailboxProcessor::MailboxProcessor(std::unique_ptr<MailboxDefaultAction> mailboxDefaultAction,
+MailboxProcessor::MailboxProcessor(
+    std::unique_ptr<MailboxDefaultAction> mailboxDefaultAction,
     std::shared_ptr<StreamTaskActionExecutor> actionExecutor)
-    : MailboxProcessor(
-          std::move(mailboxDefaultAction), new TaskMailboxImpl(std::this_thread::get_id()), actionExecutor)
-{}
+    : MailboxProcessor(std::move(mailboxDefaultAction), new TaskMailboxImpl(std::this_thread::get_id()), actionExecutor)
+{
+}
 
-MailboxProcessor::MailboxProcessor(std::unique_ptr<MailboxDefaultAction> mailboxDefaultAction,
-    TaskMailbox* mailbox, std::shared_ptr<StreamTaskActionExecutor> actionExecutor)
-    : mailbox_(mailbox), mailboxDefaultAction(std::move(mailboxDefaultAction)), suspended(false),
+MailboxProcessor::MailboxProcessor(
+    std::unique_ptr<MailboxDefaultAction> mailboxDefaultAction,
+    TaskMailbox* mailbox,
+    std::shared_ptr<StreamTaskActionExecutor> actionExecutor)
+    : mailbox_(mailbox),
+      mailboxDefaultAction(std::move(mailboxDefaultAction)),
+      suspended(false),
       mailboxLoopRunning(true),
-      suspendedDefaultAction(nullptr), actionExecutor(actionExecutor)
-{}
+      suspendedDefaultAction(nullptr),
+      actionExecutor(actionExecutor)
+{
+}
 
 MailboxProcessor::~MailboxProcessor()
 {
@@ -69,7 +78,7 @@ void MailboxProcessor::close()
     if (!droppedMails.empty()) {
         // Log dropped mails (if logging is available)
         std::exception_ptr maybeErr;
-        for (auto &droppedMail : droppedMails) {
+        for (auto& droppedMail : droppedMails) {
             try {
                 droppedMail->tryCancel();
             } catch (...) {
@@ -86,20 +95,20 @@ void MailboxProcessor::close()
 
 void MailboxProcessor::drain()
 {
-    for (auto &mail : mailbox_->drain()) {
+    for (auto& mail : mailbox_->drain()) {
         mail->run();
     }
 }
 
 void MailboxProcessor::runMailboxLoop()
 {
-    LOG("runMailboxLoop  start")
+    LOG("runMailboxLoop  start");
     suspended = !mailboxLoopRunning;
 
-    LOG("mailbox localmailbox")
+    LOG("mailbox localmailbox");
     auto localMailbox = mailbox_;
 
-    LOG(">>>localMailbox  isMailboxThread")
+    LOG(">>>localMailbox  isMailboxThread");
     if (!localMailbox->isMailboxThread()) {
         throw std::runtime_error("Method must be executed by declared mailbox thread!");
     }
@@ -107,8 +116,8 @@ void MailboxProcessor::runMailboxLoop()
     if (localMailbox->getState() != TaskMailbox::State::OPEN) {
         throw std::runtime_error("Mailbox must be opened!");
     }
-    LOG(">>>before isNextLoopPossible")
-    MailboxController *mailboxController = new MailboxController(this);
+    LOG(">>>before isNextLoopPossible");
+    MailboxController* mailboxController = new MailboxController(this);
     while (isNextLoopPossible()) {
         // LOG(">>>before procsiyessMail")
         // workaround
@@ -119,17 +128,17 @@ void MailboxProcessor::runMailboxLoop()
         // 阻塞的 `processMail` 调用将不会返回，直到有默认操作可用为止。
         processMail(mailbox_, false);
         if (isNextLoopPossible()) {
-            LOG(">>>before runDefaultAction")
+            LOG(">>>before runDefaultAction");
             mailboxDefaultAction->runDefaultAction(mailboxController);
         }
     }
     delete mailboxController;
-    INFO_RELEASE(">>>after isNextLoopPossible")
+    INFO_RELEASE(">>>after isNextLoopPossible");
 }
 
 class LambdaSuspend : public MailboxProcessor::lambdaHelper {
 public:
-    explicit LambdaSuspend(MailboxProcessor* obj1) : lambdaHelper(obj1){};
+    explicit LambdaSuspend(MailboxProcessor* obj1) : lambdaHelper(obj1) {};
 
     void lambda()
     {
@@ -166,7 +175,7 @@ bool MailboxProcessor::isMailboxThread()
 
 class LambdaReportThrowable {
 public:
-    explicit LambdaReportThrowable(std::exception_ptr throwable) : throwable_(throwable){};
+    explicit LambdaReportThrowable(std::exception_ptr throwable) : throwable_(throwable) {};
     std::exception_ptr throwable_;
     void lambda()
     {
@@ -183,7 +192,7 @@ void MailboxProcessor::reportThrowable(std::exception_ptr throwable)
 
 class LambdaAllActionCompleted : public MailboxProcessor::lambdaHelper {
 public:
-    explicit LambdaAllActionCompleted(MailboxProcessor* obj1) : lambdaHelper(obj1){};
+    explicit LambdaAllActionCompleted(MailboxProcessor* obj1) : lambdaHelper(obj1) {};
     void lambda()
     {
         lambdaHelper::suspended(true);
@@ -218,13 +227,14 @@ std::string MailboxProcessor::toString() const
 class LambdaSendPoisonMail : public MailboxProcessor::lambdaHelper {
 public:
     LambdaSendPoisonMail(MailboxProcessor* processor, std::shared_ptr<ThrowingRunnable> runnableMail)
-        : lambdaHelper(processor), runnableMail_(runnableMail){};
+        : lambdaHelper(processor),
+          runnableMail_(runnableMail) {};
     void lambda()
     {
         auto mailbox = lambdaHelper::getMailbox();
         if (mailbox->getState() == TaskMailbox::State::OPEN) {
             std::vector<std::string> stringVector;
-            processor_->sendControlMail(runnableMail_, "PoisonMail" + runnableMail_ ->ToString(), stringVector);
+            processor_->sendControlMail(runnableMail_, "PoisonMail" + runnableMail_->ToString(), stringVector);
         }
     }
     std::shared_ptr<ThrowingRunnable> runnableMail_;
@@ -237,8 +247,10 @@ void MailboxProcessor::sendPoisonMail(std::shared_ptr<ThrowingRunnable> runnable
     mailbox_->runExclusively(runnable);
 }
 
-void MailboxProcessor::sendControlMail(std::shared_ptr<ThrowingRunnable> runnable, const std::string &descriptionFormat,
-    const std::vector<std::string> &descriptionArgs)
+void MailboxProcessor::sendControlMail(
+    std::shared_ptr<ThrowingRunnable> runnable,
+    const std::string& descriptionFormat,
+    const std::vector<std::string>& descriptionArgs)
 {
     auto mail = new Mail(runnable, INT_MAX, descriptionFormat, descriptionArgs);
     mailbox_->putFirst(mail);
@@ -278,7 +290,7 @@ bool MailboxProcessor::processMailsWhenDefaultActionUnavailable()
 bool MailboxProcessor::processMailsNonBlocking(bool singleStep)
 {
     long processedMails = 0;
-    Mail *maybeMail = nullptr;
+    Mail* maybeMail = nullptr;
 
     while (isNextLoopPossible() && (maybeMail = mailbox_->tryTakeFromBatch())) {
         if (processedMails++ == 0) {
@@ -312,7 +324,9 @@ void MailboxProcessor::maybeRestartIdleTimer()
     }
 }
 
-std::shared_ptr<MailboxDefaultAction::Suspension> MailboxProcessor::suspendDefaultAction(std::shared_ptr<PeriodTimer> suspensionTimer) {
+std::shared_ptr<MailboxDefaultAction::Suspension> MailboxProcessor::suspendDefaultAction(
+    std::shared_ptr<PeriodTimer> suspensionTimer)
+{
     if (!mailbox_->isMailboxThread()) {
         throw std::runtime_error("Suspending must only be called from the mailbox thread!");
     }
@@ -327,7 +341,7 @@ std::shared_ptr<MailboxDefaultAction::Suspension> MailboxProcessor::suspendDefau
     return suspendedDefaultAction;
 }
 
-void MailboxProcessor::sendPoisonMail(std::shared_ptr<ThrowingRunnable> mail, const std::string &descriptionFormat)
+void MailboxProcessor::sendPoisonMail(std::shared_ptr<ThrowingRunnable> mail, const std::string& descriptionFormat)
 {
     auto runnable = std::make_shared<MemberFunctionRunnable<LambdaSendPoisonMail>>(
         std::make_shared<LambdaSendPoisonMail>(this, mail), &LambdaSendPoisonMail::lambda);
@@ -336,13 +350,17 @@ void MailboxProcessor::sendPoisonMail(std::shared_ptr<ThrowingRunnable> mail, co
 
 class LambdaResume : public MailboxProcessor::lambdaHelper {
 public:
-    LambdaResume(MailboxProcessor* processor) : lambdaHelper(processor) {}
-    void lambda() {
+    LambdaResume(MailboxProcessor* processor) : lambdaHelper(processor)
+    {
+    }
+    void lambda()
+    {
         resume();
     }
 };
 
-void MailboxProcessor::DefaultActionSuspension::resume() {
+void MailboxProcessor::DefaultActionSuspension::resume()
+{
     if (this->mailboxProcessor_->isMailboxThread()) {
         this->mailboxProcessor_->suspendedDefaultAction = nullptr;
         return;
@@ -357,4 +375,4 @@ void MailboxProcessor::DefaultActionSuspension::resume() {
     }
 }
 
-}  // namespace omnistream
+} // namespace omnistream

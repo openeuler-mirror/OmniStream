@@ -19,17 +19,16 @@
 
 namespace omnistream {
 class TaskStateManagerBridge {
-
 public:
-        virtual void ReportTaskStateSnapshots(
-        std::string &checkpointMetaData,
-        std::string &checkpointMetrics,
-        std::string &acknowledgedState,
-        std::string &localState) = 0;
-        virtual void notifyCheckpointAborted(std::string checkpointId)= 0;
-        virtual void NotifyCheckpointComplete(std::string checkpointId)=0;
-        virtual std::shared_ptr<TaskStateSnapshot> RetrieveLocalState(long restoreCheckpointId) = 0;
+    virtual void ReportTaskStateSnapshots(
+        std::string& checkpointMetaData,
+        std::string& checkpointMetrics,
+        std::string& acknowledgedState,
+        std::string& localState) = 0;
+    virtual void notifyCheckpointAborted(std::string checkpointId) = 0;
+    virtual void NotifyCheckpointComplete(std::string checkpointId) = 0;
+    virtual std::shared_ptr<TaskStateSnapshot> RetrieveLocalState(long restoreCheckpointId) = 0;
 };
-}
+} // namespace omnistream
 
 #endif // TASKSTATEMANAGERBRIDGE_H

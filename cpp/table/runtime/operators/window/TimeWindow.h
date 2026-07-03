@@ -27,58 +27,69 @@ public:
 
     TimeWindow(int64_t start, int64_t end);
 
-    int64_t getStart() const {
+    int64_t getStart() const
+    {
         return start;
     }
 
-    int64_t getEnd() const {
+    int64_t getEnd() const
+    {
         return end;
     }
 
-    int64_t maxTimestamp() const override {
+    int64_t maxTimestamp() const override
+    {
         return end - 1;
     }
 
-    bool intersects(const TimeWindow &other) const {
+    bool intersects(const TimeWindow& other) const
+    {
         return this->start <= other.end && this->end >= other.start;
     }
 
-    TimeWindow cover(const TimeWindow &other) const {
+    TimeWindow cover(const TimeWindow& other) const
+    {
         return {std::min(this->start, other.start), std::max(this->end, other.end)};
     }
 
-    static int64_t getWindowStartWithOffset(int64_t timestamp, int64_t offset, int64_t windowSize) {
+    static int64_t getWindowStartWithOffset(int64_t timestamp, int64_t offset, int64_t windowSize)
+    {
         if (windowSize <= 0) {
-            THROW_RUNTIME_ERROR("windowSize should be larger than 0.")
+            THROW_RUNTIME_ERROR("windowSize should be larger than 0.");
         }
         int64_t remainder = (timestamp - offset) % windowSize;
         return remainder < 0L ? timestamp - (remainder + windowSize) : timestamp - remainder;
     }
 
-    size_t hashCode() const {
+    size_t hashCode() const
+    {
         int32_t endTransformed = static_cast<int32_t>((end << 1) + 1);
         return static_cast<size_t>(start + modInverse(endTransformed));
     }
 
-    bool operator<(const TimeWindow &other) const {
+    bool operator<(const TimeWindow& other) const
+    {
         if (start == other.start) {
             return end < other.end;
         }
         return start < other.start;
     }
 
-    bool operator>(const TimeWindow &other) const {
+    bool operator>(const TimeWindow& other) const
+    {
         if (start == other.start) {
             return end > other.end;
         }
         return start > other.start;
     }
 
-    bool operator==(const TimeWindow &other) const {
+    bool operator==(const TimeWindow& other) const
+    {
         return start == other.start && end == other.end;
     }
 
-    friend std::ostream &operator<<(std::ostream &os, const TimeWindow &obj) {
+    friend std::ostream& operator<<(std::ostream& os, const TimeWindow& obj)
+    {
         os << "TimeWindow{start=" << std::to_string(obj.start) << ", end=" << std::to_string(obj.end) << '}';
         return os;
     }
@@ -89,34 +100,40 @@ public:
 
         bool isImmutableType() const;
 
-        TimeWindow *createInstance() const;
+        TimeWindow* createInstance() const;
 
-        TimeWindow *copy(TimeWindow *from) const;
+        TimeWindow* copy(TimeWindow* from) const;
 
-        TimeWindow *copy(TimeWindow *from, TimeWindow *reuse) const;
+        TimeWindow* copy(TimeWindow* from, TimeWindow* reuse) const;
 
         int32_t getLength() const;
 
-        void serialize(void *record, DataOutputSerializer &target) override;
+        void serialize(void* record, DataOutputSerializer& target) override;
 
-        void *deserialize(DataInputView &source) override;
+        void* deserialize(DataInputView& source) override;
 
-        void copy(DataInputView *source, DataOutputSerializer *target) const;
+        void copy(DataInputView* source, DataOutputSerializer* target) const;
 
         BackendDataType getBackendId() const override;
 
-        const char* getName() const override { return "TimeWindow.Serializer"; }
+        const char* getName() const override
+        {
+            return "TimeWindow.Serializer";
+        }
 
-        std::string toJson() override {
+        std::string toJson() override
+        {
             SerializerJsonInfo typeJson = {SerializerType::POJO, TYPE_NAME_TIME_WINDOW_CLASS};
             return typeJson.toJson();
         }
     };
+
 private:
     int64_t start{};
     int64_t end{};
 
-    int32_t modInverse(int32_t x) const {
+    int32_t modInverse(int32_t x) const
+    {
         uint32_t ux = static_cast<uint32_t>(x);
         // Cube gives inverse mod 2^4, as x^4 == 1 (mod 2^4) for all odd x.
         uint32_t inverse = ux * ux * ux;
@@ -129,11 +146,11 @@ private:
 };
 
 namespace std {
-    template<>
-    struct hash<TimeWindow> {
-        std::size_t operator()(const TimeWindow& timeWindow) const noexcept
-        {
-            return timeWindow.hashCode();
-        }
-    };
-}
+template <>
+struct hash<TimeWindow> {
+    std::size_t operator()(const TimeWindow& timeWindow) const noexcept
+    {
+        return timeWindow.hashCode();
+    }
+};
+} // namespace std

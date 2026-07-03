@@ -23,60 +23,75 @@
 
 class KeyGroupsStateHandle : public StreamStateHandle, public KeyedStateHandle {
 public:
-    KeyGroupsStateHandle(const KeyGroupRangeOffsets& groupRangeOffsets,
-                                                                std::shared_ptr<StreamStateHandle> streamStateHandle)
-        : KeyGroupsStateHandle(groupRangeOffsets, std::move(streamStateHandle),
-                                            StateHandleID(boost::uuids::to_string(boost::uuids::random_generator()())))
-    {}
+    KeyGroupsStateHandle(
+        const KeyGroupRangeOffsets& groupRangeOffsets, std::shared_ptr<StreamStateHandle> streamStateHandle)
+        : KeyGroupsStateHandle(
+              groupRangeOffsets,
+              std::move(streamStateHandle),
+              StateHandleID(boost::uuids::to_string(boost::uuids::random_generator()())))
+    {
+    }
 
-    KeyGroupsStateHandle(const KeyGroupRangeOffsets& groupRangeOffsets,
-        std::shared_ptr<StreamStateHandle> streamStateHandle, const StateHandleID& stateHandleId)
-        : keyGroupRangeOffsets_(groupRangeOffsets), stateHandle_(std::move(streamStateHandle)),
-        stateHandleId_(stateHandleId)
-    {}
+    KeyGroupsStateHandle(
+        const KeyGroupRangeOffsets& groupRangeOffsets,
+        std::shared_ptr<StreamStateHandle> streamStateHandle,
+        const StateHandleID& stateHandleId)
+        : keyGroupRangeOffsets_(groupRangeOffsets),
+          stateHandle_(std::move(streamStateHandle)),
+          stateHandleId_(stateHandleId)
+    {
+    }
 
-    explicit KeyGroupsStateHandle(const nlohmann::json &description)
+    explicit KeyGroupsStateHandle(const nlohmann::json& description)
         : stateHandle_(ParseDelegateStateHandle(description)),
           keyGroupRangeOffsets_(ParseKeyGroupRangeOffsets(description)),
           stateHandleId_(ParseStateHandleId(description))
-    {}
+    {
+    }
 
     ~KeyGroupsStateHandle() noexcept(true) override = default;
 
-    std::shared_ptr<FSDataInputStream> OpenInputStream() const override {return stateHandle_->OpenInputStream();}
+    std::shared_ptr<FSDataInputStream> OpenInputStream() const override
+    {
+        return stateHandle_->OpenInputStream();
+    }
 
-    std::shared_ptr<KeyedStateHandle> GetIntersection(
-        const KeyGroupRange& keyGroupRange) const override
+    std::shared_ptr<KeyedStateHandle> GetIntersection(const KeyGroupRange& keyGroupRange) const override
     {
         auto offsets = keyGroupRangeOffsets_.getIntersection(keyGroupRange);
         if (offsets.getKeyGroupRange().getNumberOfKeyGroups() <= 0) {
             return nullptr;
         }
-        return std::make_shared<KeyGroupsStateHandle>(
-            offsets, stateHandle_, stateHandleId_);
+        return std::make_shared<KeyGroupsStateHandle>(offsets, stateHandle_, stateHandleId_);
     }
 
-    KeyGroupRange GetKeyGroupRange() const override {
+    KeyGroupRange GetKeyGroupRange() const override
+    {
         return keyGroupRangeOffsets_.getKeyGroupRange();
     }
 
-    StateHandleID GetStateHandleId() const override {
+    StateHandleID GetStateHandleId() const override
+    {
         return stateHandleId_;
     }
 
-    void RegisterSharedStates(SharedStateRegistry& stateRegistry, int64_t checkpointID) override {
+    void RegisterSharedStates(SharedStateRegistry& stateRegistry, int64_t checkpointID) override
+    {
         // No shared states
     }
 
-    long GetStateSize() const override {
+    long GetStateSize() const override
+    {
         return stateHandle_->GetStateSize();
     }
 
-    long GetCheckpointedSize() override {
+    long GetCheckpointedSize() override
+    {
         return GetStateSize();
     }
 
-    void DiscardState() override {
+    void DiscardState() override
+    {
         stateHandle_->DiscardState();
     }
 
@@ -112,9 +127,9 @@ public:
     {
         auto pOther = dynamic_cast<const KeyGroupsStateHandle*>(&other);
         if (!pOther) return false;
-        return keyGroupRangeOffsets_ == pOther->keyGroupRangeOffsets_
-            && stateHandle_->GetStreamStateHandleID() == pOther->stateHandle_->GetStreamStateHandleID()
-            && stateHandle_ == pOther->stateHandle_;
+        return keyGroupRangeOffsets_ == pOther->keyGroupRangeOffsets_ &&
+               stateHandle_->GetStreamStateHandleID() == pOther->stateHandle_->GetStreamStateHandleID() &&
+               stateHandle_ == pOther->stateHandle_;
     }
 
     std::size_t hashCode()
@@ -143,20 +158,21 @@ public:
         return json.dump();
     }
 
-    std::optional<std::vector<uint8_t>> AsBytesIfInMemory() const override {return stateHandle_->AsBytesIfInMemory();}
+    std::optional<std::vector<uint8_t>> AsBytesIfInMemory() const override
+    {
+        return stateHandle_->AsBytesIfInMemory();
+    }
 
 private:
     static KeyGroupRange ParseKeyGroupRangeJson(const nlohmann::json& rangeJson)
     {
-        return KeyGroupRange(
-            rangeJson.at("startKeyGroup").get<int>(),
-            rangeJson.at("endKeyGroup").get<int>());
+        return KeyGroupRange(rangeJson.at("startKeyGroup").get<int>(), rangeJson.at("endKeyGroup").get<int>());
     }
 
     static std::vector<int64_t> ParseOffsets(const nlohmann::json& offsetsJson)
     {
-        if (offsetsJson.is_array() && offsetsJson.size() == 2 && offsetsJson.at(0).is_string()
-            && offsetsJson.at(1).is_array()) {
+        if (offsetsJson.is_array() && offsetsJson.size() == 2 && offsetsJson.at(0).is_string() &&
+            offsetsJson.at(1).is_array()) {
             return offsetsJson.at(1).get<std::vector<int64_t>>();
         }
         return offsetsJson.get<std::vector<int64_t>>();
@@ -164,19 +180,17 @@ private:
 
     static KeyGroupRangeOffsets ParseKeyGroupRangeOffsets(const nlohmann::json& description)
     {
-        const nlohmann::json& offsetsRoot = description.contains("groupRangeOffsets")
-            ? description.at("groupRangeOffsets")
-            : description;
-        const nlohmann::json& rangeJson = offsetsRoot.contains("keyGroupRange")
-            ? offsetsRoot.at("keyGroupRange")
-            : description.at("keyGroupRange");
+        const nlohmann::json& offsetsRoot =
+            description.contains("groupRangeOffsets") ? description.at("groupRangeOffsets") : description;
+        const nlohmann::json& rangeJson =
+            offsetsRoot.contains("keyGroupRange") ? offsetsRoot.at("keyGroupRange") : description.at("keyGroupRange");
         KeyGroupRange keyGroupRange = ParseKeyGroupRangeJson(rangeJson);
 
         if (offsetsRoot.contains("offsets")) {
             return KeyGroupRangeOffsets(keyGroupRange, ParseOffsets(offsetsRoot.at("offsets")));
         }
-        return KeyGroupRangeOffsets(keyGroupRange,
-            std::vector<int64_t>(static_cast<size_t>(keyGroupRange.getNumberOfKeyGroups()), 0));
+        return KeyGroupRangeOffsets(
+            keyGroupRange, std::vector<int64_t>(static_cast<size_t>(keyGroupRange.getNumberOfKeyGroups()), 0));
     }
 
     static std::shared_ptr<StreamStateHandle> ParseDelegateStateHandle(const nlohmann::json& description)
@@ -195,12 +209,12 @@ private:
 
     static StateHandleID ParseStateHandleId(const nlohmann::json& description)
     {
-        if (description.contains("stateHandleId") && description.at("stateHandleId").is_object()
-            && description.at("stateHandleId").contains("keyString")) {
+        if (description.contains("stateHandleId") && description.at("stateHandleId").is_object() &&
+            description.at("stateHandleId").contains("keyString")) {
             return StateHandleID(description.at("stateHandleId").at("keyString").get<std::string>());
         }
-        if (description.contains("stateHandleID") && description.at("stateHandleID").is_object()
-            && description.at("stateHandleID").contains("keyString")) {
+        if (description.contains("stateHandleID") && description.at("stateHandleID").is_object() &&
+            description.at("stateHandleID").contains("keyString")) {
             return StateHandleID(description.at("stateHandleID").at("keyString").get<std::string>());
         }
         return StateHandleID(boost::uuids::to_string(boost::uuids::random_generator()()));

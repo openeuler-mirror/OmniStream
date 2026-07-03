@@ -17,22 +17,22 @@ Pattern::Pattern(std::string str)
     this->pattern = std::regex(str);
 }
 
-Pattern *Pattern::compile(std::string str)
+Pattern* Pattern::compile(std::string str)
 {
     return new Pattern(str);
 }
 
-String* Pattern::quote(String * str)
+String* Pattern::quote(String* str)
 {
     return str;
 }
 
-Matcher *Pattern::matcher(std::string str)
+Matcher* Pattern::matcher(std::string str)
 {
     return new Matcher(str, pattern);
 }
 
-Matcher *Pattern::matcher(String * str)
+Matcher* Pattern::matcher(String* str)
 {
     return matcher(str->toString());
 }

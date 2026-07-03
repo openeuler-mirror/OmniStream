@@ -23,8 +23,9 @@ extern "C" {
  * Method:    createNativeEnvironment
  * Signature: (J)J
  */
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_execution_OmniRuntimeEnvironment_createNativeEnvironment
-  (JNIEnv *, jobject, jlong);
+JNIEXPORT jlong JNICALL
+Java_com_huawei_omniruntime_flink_runtime_execution_OmniRuntimeEnvironment_createNativeEnvironment(
+    JNIEnv*, jobject, jlong);
 
 #ifdef __cplusplus
 }

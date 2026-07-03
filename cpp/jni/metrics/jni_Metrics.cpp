@@ -24,8 +24,11 @@
 using namespace omnistream;
 // Updated common helper uses raw pointer for TaskMetricGroup
 template <typename T>
-static void registerMetric(TaskMetricGroup* taskMetricGroup, const std::string& scope, const std::string& metricNameStr,
-                           std::shared_ptr<T> metric)
+static void registerMetric(
+    TaskMetricGroup* taskMetricGroup,
+    const std::string& scope,
+    const std::string& metricNameStr,
+    std::shared_ptr<T> metric)
 {
     size_t pos = scope.find('_');
     std::string firstSubstring = (pos == std::string::npos) ? scope : scope.substr(0, pos);
@@ -41,8 +44,8 @@ static void registerMetric(TaskMetricGroup* taskMetricGroup, const std::string& 
 }
 
 JNIEXPORT jlong JNICALL
-Java_com_huawei_omniruntime_flink_runtime_metrics_utils_OmniMetricHelper_createNativeSimpleCounter
-(JNIEnv* jniEnv, jclass, jlong taskMetricRef, jstring scope, jstring metricName)
+Java_com_huawei_omniruntime_flink_runtime_metrics_utils_OmniMetricHelper_createNativeSimpleCounter(
+    JNIEnv* jniEnv, jclass, jlong taskMetricRef, jstring scope, jstring metricName)
 {
     auto taskMetricGroup = reinterpret_cast<TaskMetricGroup*>(taskMetricRef);
     // Convert scope parameter
@@ -65,8 +68,8 @@ Java_com_huawei_omniruntime_flink_runtime_metrics_utils_OmniMetricHelper_createN
     return reinterpret_cast<long>(counter.get());
 }
 
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_utils_OmniMetricHelper_createNativeTimeGauge
-(JNIEnv* jniEnv, jclass, jlong taskMetricRef, jstring scope, jstring metricName)
+JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_utils_OmniMetricHelper_createNativeTimeGauge(
+    JNIEnv* jniEnv, jclass, jlong taskMetricRef, jstring scope, jstring metricName)
 {
     auto taskMetricGroup = reinterpret_cast<TaskMetricGroup*>(taskMetricRef);
     // Convert scope parameter
@@ -89,8 +92,8 @@ JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_utils_
     return reinterpret_cast<long>(timerGauge.get());
 }
 
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_utils_OmniMetricHelper_createNativeSizeGauge
-(JNIEnv* jniEnv, jclass, jlong taskMetricRef, jstring scope, jstring metricName)
+JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_utils_OmniMetricHelper_createNativeSizeGauge(
+    JNIEnv* jniEnv, jclass, jlong taskMetricRef, jstring scope, jstring metricName)
 {
     auto taskMetricGroup = reinterpret_cast<TaskMetricGroup*>(taskMetricRef);
     // Convert scope parameter
@@ -114,8 +117,8 @@ JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_utils_
 }
 
 JNIEXPORT jlong JNICALL
-Java_com_huawei_omniruntime_flink_runtime_metrics_utils_OmniMetricHelper_createNativeOmniDescriptiveStatisticsHistogram
-(JNIEnv* jniEnv, jclass, jlong taskMetricRef, jint windowSize, jstring scope, jstring metricName)
+Java_com_huawei_omniruntime_flink_runtime_metrics_utils_OmniMetricHelper_createNativeOmniDescriptiveStatisticsHistogram(
+    JNIEnv* jniEnv, jclass, jlong taskMetricRef, jint windowSize, jstring scope, jstring metricName)
 {
     auto taskMetricGroup = reinterpret_cast<TaskMetricGroup*>(taskMetricRef);
     // Convert scope parameter
@@ -138,23 +141,23 @@ Java_com_huawei_omniruntime_flink_runtime_metrics_utils_OmniMetricHelper_createN
     return reinterpret_cast<long>(histogram.get());
 }
 
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_OmniSimpleCounter_getNativeCounter
-(JNIEnv*, jobject, jlong nativeCounter)
+JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_OmniSimpleCounter_getNativeCounter(
+    JNIEnv*, jobject, jlong nativeCounter)
 {
     auto counter = reinterpret_cast<SimpleCounter*>(nativeCounter);
     return counter->GetCount();
 }
 
-JNIEXPORT jint JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_OmniSizeGauge_getNativeSize
-(JNIEnv*, jobject, jlong nativeSizeGauge)
+JNIEXPORT jint JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_OmniSizeGauge_getNativeSize(
+    JNIEnv*, jobject, jlong nativeSizeGauge)
 {
     auto sizeGauge = reinterpret_cast<SizeGauge*>(nativeSizeGauge);
     return sizeGauge->GetValue();
 }
 
 JNIEXPORT jlong JNICALL
-Java_com_huawei_omniruntime_flink_runtime_metrics_OmniDescriptiveStatisticsHistogram_getNativeCount
-(JNIEnv*, jobject, jlong nativeHistogram)
+Java_com_huawei_omniruntime_flink_runtime_metrics_OmniDescriptiveStatisticsHistogram_getNativeCount(
+    JNIEnv*, jobject, jlong nativeHistogram)
 {
     auto histogram = reinterpret_cast<DescriptiveStatisticsHistogram*>(nativeHistogram);
     return histogram->GetCount();
@@ -166,8 +169,8 @@ Java_com_huawei_omniruntime_flink_runtime_metrics_OmniDescriptiveStatisticsHisto
  * Signature: (J)Ljava/lang/String;
  */
 JNIEXPORT jstring JNICALL
-Java_com_huawei_omniruntime_flink_runtime_metrics_OmniDescriptiveStatisticsHistogram_getStatistics
-(JNIEnv* jniEnv, jobject, jlong nativeHistogram)
+Java_com_huawei_omniruntime_flink_runtime_metrics_OmniDescriptiveStatisticsHistogram_getStatistics(
+    JNIEnv* jniEnv, jobject, jlong nativeHistogram)
 {
     auto histogram = reinterpret_cast<DescriptiveStatisticsHistogram*>(nativeHistogram);
     auto statistics = histogram->GetStatistics();
@@ -175,8 +178,8 @@ Java_com_huawei_omniruntime_flink_runtime_metrics_OmniDescriptiveStatisticsHisto
     return jniEnv->NewStringUTF(statsString.c_str());
 }
 
-JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_OmniTimeGauge_updateNative
-(JNIEnv*, jobject, jlong nativeTimeGauge)
+JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_OmniTimeGauge_updateNative(
+    JNIEnv*, jobject, jlong nativeTimeGauge)
 {
     auto timerGauge = reinterpret_cast<TimerGauge*>(nativeTimeGauge);
     timerGauge->Update();
@@ -187,8 +190,8 @@ JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_OmniTim
  * Method:    getNativeValue
  * Signature: (J)J
  */
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_OmniTimeGauge_getNativeValue
-(JNIEnv*, jobject, jlong nativeTimeGauge)
+JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_OmniTimeGauge_getNativeValue(
+    JNIEnv*, jobject, jlong nativeTimeGauge)
 {
     auto timerGauge = reinterpret_cast<TimerGauge*>(nativeTimeGauge);
     return timerGauge->GetValue();
@@ -199,8 +202,8 @@ JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_OmniTi
  * Method:    getNativeCount
  * Signature: (J)J
  */
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_OmniTimeGauge_getNativeCount
-(JNIEnv*, jobject, jlong nativeTimeGauge)
+JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_OmniTimeGauge_getNativeCount(
+    JNIEnv*, jobject, jlong nativeTimeGauge)
 {
     auto timerGauge = reinterpret_cast<TimerGauge*>(nativeTimeGauge);
     return timerGauge->GetCount();
@@ -211,8 +214,8 @@ JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_OmniTi
  * Method:    getNativeAccumulatedCount
  * Signature: (J)J
  */
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_OmniTimeGauge_getNativeAccumulatedCount
-(JNIEnv*, jobject, jlong nativeTimeGauge)
+JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_OmniTimeGauge_getNativeAccumulatedCount(
+    JNIEnv*, jobject, jlong nativeTimeGauge)
 {
     auto timerGauge = reinterpret_cast<TimerGauge*>(nativeTimeGauge);
     return timerGauge->GetAccumulatedCount();
@@ -223,8 +226,8 @@ JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_OmniTi
  * Method:    getNativeIsMeasuring
  * Signature: (J)Z
  */
-JNIEXPORT jboolean JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_OmniTimeGauge_getNativeIsMeasuring
-(JNIEnv*, jobject, jlong nativeTimeGauge)
+JNIEXPORT jboolean JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_OmniTimeGauge_getNativeIsMeasuring(
+    JNIEnv*, jobject, jlong nativeTimeGauge)
 {
     auto timerGauge = reinterpret_cast<TimerGauge*>(nativeTimeGauge);
     return timerGauge->IsMeasuring() ? JNI_TRUE : JNI_FALSE;
@@ -235,8 +238,8 @@ JNIEXPORT jboolean JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_Omn
  * Method:    getNativeMaxSingleMeasurement
  * Signature: (J)J
  */
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_OmniTimeGauge_getNativeMaxSingleMeasurement
-(JNIEnv*, jobject, jlong nativeTimeGauge)
+JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_OmniTimeGauge_getNativeMaxSingleMeasurement(
+    JNIEnv*, jobject, jlong nativeTimeGauge)
 {
     auto timerGauge = reinterpret_cast<TimerGauge*>(nativeTimeGauge);
     return timerGauge->GetMaxSingleMeasurement();

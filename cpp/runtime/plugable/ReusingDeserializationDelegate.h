@@ -12,13 +12,11 @@
 #ifndef FLINK_TNEL_REUSINGDESERIALIZATIONDELEGATE_H
 #define FLINK_TNEL_REUSINGDESERIALIZATIONDELEGATE_H
 
-
 #include "DeserializationDelegate.h"
 #include "core/typeutils/TypeSerializer.h"
 
 class ReusingDeserializationDelegate : public DeserializationDelegate {
 public:
-
     void* getInstance() override;
     void setInstance(void* instance) override;
     void write(DataOutputSerializer& out) override;
@@ -29,6 +27,4 @@ private:
     TypeSerializer* serializer_;
 };
 
-
 #endif
-

@@ -11,8 +11,6 @@
 
 #include "IntermediateResultPartitionIDPOD.h"
 
-
 namespace omnistream {
-
 
 } // namespace omnistream

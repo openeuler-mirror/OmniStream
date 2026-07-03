@@ -11,31 +11,48 @@ public:
 
     ~Void() override = default;
 
-    Void& operator=(const Void& other) { return *this; }
+    Void& operator=(const Void& other)
+    {
+        return *this;
+    }
 
-    bool operator==(const Void &other) const { return true; }
+    bool operator==(const Void& other) const
+    {
+        return true;
+    }
 
-    operator size_t() const { return 0; }
+    operator size_t() const
+    {
+        return 0;
+    }
 
-    operator int64_t() const { return 0; }
+    operator int64_t() const
+    {
+        return 0;
+    }
 
-    int hashCode() {  return 99; }
+    int hashCode()
+    {
+        return 99;
+    }
 };
 
 namespace std {
-    template <>
-    struct hash<Void> {
-        std::size_t operator()(const Void &ns) const noexcept {
-            return 99;
-        }
-    };
+template <>
+struct hash<Void> {
+    std::size_t operator()(const Void& ns) const noexcept
+    {
+        return 99;
+    }
+};
 
-    template <>
-    struct equal_to<Void> {
-        bool operator()(const Void &lhs, const Void &rhs) const noexcept {
-            return true;
-        }
-    };
-}
+template <>
+struct equal_to<Void> {
+    bool operator()(const Void& lhs, const Void& rhs) const noexcept
+    {
+        return true;
+    }
+};
+} // namespace std
 
-#endif //OMNISTREAM_VOID_H
+#endif // OMNISTREAM_VOID_H

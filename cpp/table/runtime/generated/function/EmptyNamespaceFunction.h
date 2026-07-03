@@ -21,14 +21,22 @@
 
 class EmptyNamespaceFunction : public AggsHandleFunction {
 public:
-    void getValue(BinaryRowData* aggValue) override {}
-    void setWindowSize(int windowSize) override {}
+    void getValue(BinaryRowData* aggValue) override
+    {
+    }
+    void setWindowSize(int windowSize) override
+    {
+    }
     bool equaliser(BinaryRowData* r1, BinaryRowData* r2) override
     {
         return false;
     }
-    void accumulate(RowData* input) override {}
-    void accumulate(omnistream::VectorBatch *input, const std::vector<int>& indices) override {}
+    void accumulate(RowData* input) override
+    {
+    }
+    void accumulate(omnistream::VectorBatch* input, const std::vector<int>& indices) override
+    {
+    }
 
     void retract(RowData* input) override
     {
@@ -38,14 +46,27 @@ public:
     {
         throw std::runtime_error("This function does not require retract method, but the retract method is called.");
     }
-    void merge(RowData* accumulators) override {}
-    void createAccumulators(BinaryRowData* accumulators) override {}
-    void setAccumulators(RowData* accumulators) override {}
-    void resetAccumulators() override {}
-    void getAccumulators(BinaryRowData* accumulators) override {}
-    void cleanup() override {}
-    void close() override {}
+    void merge(RowData* accumulators) override
+    {
+    }
+    void createAccumulators(BinaryRowData* accumulators) override
+    {
+    }
+    void setAccumulators(RowData* accumulators) override
+    {
+    }
+    void resetAccumulators() override
+    {
+    }
+    void getAccumulators(BinaryRowData* accumulators) override
+    {
+    }
+    void cleanup() override
+    {
+    }
+    void close() override
+    {
+    }
 };
-
 
 #endif

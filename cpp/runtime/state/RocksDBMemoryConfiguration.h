@@ -20,25 +20,32 @@ public:
           writeBufferRatio(0.5),
           highPriorityPoolRatio(0.1),
           usingPartitionedIndexFilters(false),
-          usingFixedMemoryPerSlot(false) {}
+          usingFixedMemoryPerSlot(false)
+    {
+    }
 
-    bool isUsingManagedMemory() const {
+    bool isUsingManagedMemory() const
+    {
         return usingManagedMemory;
     }
 
-    double getWriteBufferRatio() const {
+    double getWriteBufferRatio() const
+    {
         return writeBufferRatio;
     }
 
-    double getHighPriorityPoolRatio() const {
+    double getHighPriorityPoolRatio() const
+    {
         return highPriorityPoolRatio;
     }
 
-    bool isUsingPartitionedIndexFilters() const {
+    bool isUsingPartitionedIndexFilters() const
+    {
         return usingPartitionedIndexFilters;
     }
 
-    bool isUsingFixedMemoryPerSlot() const {
+    bool isUsingFixedMemoryPerSlot() const
+    {
         return usingFixedMemoryPerSlot;
     }
 
@@ -49,8 +56,7 @@ public:
             {"writeBufferRatio", config.writeBufferRatio},
             {"highPriorityPoolRatio", config.highPriorityPoolRatio},
             {"usingPartitionedIndexFilters", config.usingPartitionedIndexFilters},
-            {"usingFixedMemoryPerSlot", config.usingFixedMemoryPerSlot}
-        };
+            {"usingFixedMemoryPerSlot", config.usingFixedMemoryPerSlot}};
     }
 
     friend void from_json(const nlohmann::json& json, RocksDBMemoryConfiguration& config)

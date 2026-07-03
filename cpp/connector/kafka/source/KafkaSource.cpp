@@ -16,7 +16,7 @@ KafkaSource::KafkaSource(nlohmann::json& opDescriptionJSON, bool isBatch) : isBa
 {
     nlohmann::json properties = opDescriptionJSON["properties"];
     // obtain the config
-    for (auto &[key, value] : properties.items()) {
+    for (auto& [key, value] : properties.items()) {
         auto iter = ConsumerConfigUtil::GetConfig().find(key);
         if (iter != ConsumerConfigUtil::GetConfig().end() && iter->second != "") {
             props.emplace(iter->second, value);
@@ -24,25 +24,22 @@ KafkaSource::KafkaSource(nlohmann::json& opDescriptionJSON, bool isBatch) : isBa
     }
     // opt kafka consumer para from file
     std::unordered_map<std::string, std::string> optConsumerConfig = ConfigLoader::GetKafkaConsumerConfig();
-    for (const auto &pair : optConsumerConfig) {
+    for (const auto& pair : optConsumerConfig) {
         props.emplace(pair.first, pair.second);
     }
 
-    auto innerDeserializationSchema = DeserializationFactory::getDeserializationSchema(
-        opDescriptionJSON);
+    auto innerDeserializationSchema = DeserializationFactory::getDeserializationSchema(opDescriptionJSON);
     deserializationSchema = KafkaRecordDeserializationSchema::valueOnly(innerDeserializationSchema);
 }
 
-SourceReader<KafkaPartitionSplit>* KafkaSource::createReader(
-    SourceReaderContext* readerContext) const
+SourceReader<KafkaPartitionSplit>* KafkaSource::createReader(SourceReaderContext* readerContext) const
 {
     auto subTaskId = readerContext->getSubTaskIndex();
     auto elementsQueue = new FutureCompletingBlockingQueue<RdKafka::Message>(subTaskId);
     deserializationSchema->open();
-    std::function<SplitReader<RdKafka::Message, KafkaPartitionSplit>*()> splitReaderSupplier =
-        [this, readerContext]() {
-            return new KafkaPartitionSplitReader(props, readerContext);
-        };
+    std::function<SplitReader<RdKafka::Message, KafkaPartitionSplit>*()> splitReaderSupplier = [this, readerContext]() {
+        return new KafkaPartitionSplitReader(props, readerContext);
+    };
     RecordEmitter<RdKafka::Message, KafkaPartitionSplitState>* recordEmitter =
         new KafkaRecordEmitter(deserializationSchema);
     SingleThreadFetcherManager<RdKafka::Message, KafkaPartitionSplit>* kafkaSourceFetcherManager =

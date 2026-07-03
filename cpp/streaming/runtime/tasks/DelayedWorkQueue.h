@@ -15,7 +15,7 @@
 #include <queue>
 #include "ScheduledFutureTask.h"
 
-class DelayedWorkQueue  {
+class DelayedWorkQueue {
 public:
     void Offer(ScheduledFutureTask* task);
 
@@ -27,7 +27,8 @@ public:
 
 private:
     struct Comparator {
-        bool operator()(ScheduledFutureTask* left, ScheduledFutureTask* right) {
+        bool operator()(ScheduledFutureTask* left, ScheduledFutureTask* right)
+        {
             // *left < *right means the right ScheduledFutureTask has higher priority (earlier execution time)
             return *left < *right;
         }

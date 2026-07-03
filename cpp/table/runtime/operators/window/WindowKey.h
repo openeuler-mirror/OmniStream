@@ -12,7 +12,6 @@
 #ifndef FLINK_TNEL_WINDOWKEY_H
 #define FLINK_TNEL_WINDOWKEY_H
 
-
 #include <iostream>
 #include <functional>
 #include <memory>
@@ -21,7 +20,9 @@
 
 class WindowKey {
 public:
-    WindowKey(long window, std::shared_ptr<RowData> key) : window(window), key(std::move(key)) {}
+    WindowKey(long window, std::shared_ptr<RowData> key) : window(window), key(std::move(key))
+    {
+    }
     WindowKey replace(long window, std::shared_ptr<RowData> key);
     long getWindow() const;
     std::shared_ptr<RowData> getKey() const;
@@ -31,20 +32,20 @@ public:
     {
         return window == other.window && *key == *(other.getKey());
     }
+
 private:
     long window;
     std::shared_ptr<RowData> key;
 };
 
 namespace std {
-    template<>
-    struct hash<WindowKey> {
-        std::size_t operator()(const WindowKey& windowKey) const noexcept
-        {
-            return windowKey.hash();
-        }
-    };
-}
-
+template <>
+struct hash<WindowKey> {
+    std::size_t operator()(const WindowKey& windowKey) const noexcept
+    {
+        return windowKey.hash();
+    }
+};
+} // namespace std
 
 #endif

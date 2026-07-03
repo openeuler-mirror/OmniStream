@@ -8,13 +8,13 @@
 #include "core/typeutils/LongSerializer.h"
 TEST(HeapMapStateTest, InitTest)
 {
-    IntSerializer *ser = IntSerializer::INSTANCE;
-    InternalKeyContextImpl<int> *context = new InternalKeyContextImpl<int>(new KeyGroupRange(0, 1), 3);
+    IntSerializer* ser = IntSerializer::INSTANCE;
+    InternalKeyContextImpl<int>* context = new InternalKeyContextImpl<int>(new KeyGroupRange(0, 1), 3);
     context->setCurrentKey(1);
     context->setCurrentKeyGroupIndex(1);
-    RegisteredKeyValueStateBackendMetaInfo *metaInfo = new RegisteredKeyValueStateBackendMetaInfo("metaInfo", ser, ser);
-    CopyOnWriteStateTable<int, VoidNamespace, emhash7::HashMap<int, int>* > table(context, metaInfo, ser);
-    HeapMapState<int, VoidNamespace, int, int> heapMapState (&table, ser, ser, ser);
+    RegisteredKeyValueStateBackendMetaInfo* metaInfo = new RegisteredKeyValueStateBackendMetaInfo("metaInfo", ser, ser);
+    CopyOnWriteStateTable<int, VoidNamespace, emhash7::HashMap<int, int>*> table(context, metaInfo, ser);
+    HeapMapState<int, VoidNamespace, int, int> heapMapState(&table, ser, ser, ser);
 
     heapMapState.put(1, 1);
     EXPECT_EQ(*(heapMapState.get(1)), 1);

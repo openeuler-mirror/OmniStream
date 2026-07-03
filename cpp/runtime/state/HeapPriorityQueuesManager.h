@@ -24,63 +24,69 @@
 class HeapPriorityQueuesManager {
 public:
     HeapPriorityQueuesManager(
-            std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapperBase>>> registeredPQStates,
-            std::shared_ptr<HeapPriorityQueueSetFactory> priorityQueueSetFactory,
-            KeyGroupRange* keyGroupRange,
-            int32_t numberOfKeyGroups)
-            :
-            registeredPQStates_(registeredPQStates),
-            priorityQueueSetFactory_(priorityQueueSetFactory),
-            keyGroupRange_(keyGroupRange),
-            numberOfKeyGroups_(numberOfKeyGroups) {}
+        std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapperBase>>>
+            registeredPQStates,
+        std::shared_ptr<HeapPriorityQueueSetFactory> priorityQueueSetFactory,
+        KeyGroupRange* keyGroupRange,
+        int32_t numberOfKeyGroups)
+        : registeredPQStates_(registeredPQStates),
+          priorityQueueSetFactory_(priorityQueueSetFactory),
+          keyGroupRange_(keyGroupRange),
+          numberOfKeyGroups_(numberOfKeyGroups)
+    {
+    }
 
     template <typename K, typename T, typename Comparator>
     std::shared_ptr<KeyGroupedInternalPriorityQueue<T>> createOrUpdate(
-            std::string stateName,
-            TypeSerializer* byteOrderedElementSerializer) {
+        std::string stateName, TypeSerializer* byteOrderedElementSerializer)
+    {
         return createOrUpdate<K, T, Comparator>(stateName, byteOrderedElementSerializer, false);
     }
 
     template <typename K, typename T, typename Comparator>
     std::shared_ptr<KeyGroupedInternalPriorityQueue<T>> createOrUpdate(
-            std::string stateName,
-            TypeSerializer* byteOrderedElementSerializer,
-            bool allowFutureMetadataUpdates) {
+        std::string stateName, TypeSerializer* byteOrderedElementSerializer, bool allowFutureMetadataUpdates)
+    {
         auto iter = registeredPQStates_->find(stateName);
         if (iter != registeredPQStates_->end()) {
-            auto existingState = std::dynamic_pointer_cast<HeapPriorityQueueSnapshotRestoreWrapper<K, T, Comparator>>(iter->second);
+            auto existingState =
+                std::dynamic_pointer_cast<HeapPriorityQueueSnapshotRestoreWrapper<K, T, Comparator>>(iter->second);
             if (existingState != nullptr) {
                 // todo: TypeSerializerSchemaCompatibility
                 return existingState->getHeapPriorityQueueSet();
             }
 
-            auto pendingRestoredState = std::dynamic_pointer_cast<RestoredHeapPriorityQueueSnapshotRestoreWrapper>(iter->second);
+            auto pendingRestoredState =
+                std::dynamic_pointer_cast<RestoredHeapPriorityQueueSnapshotRestoreWrapper>(iter->second);
             if (pendingRestoredState != nullptr) {
                 auto metaInfo = std::make_shared<RegisteredPriorityQueueStateBackendMetaInfo>(
-                    stateName,
-                    byteOrderedElementSerializer);
+                    stateName, byteOrderedElementSerializer);
                 auto restoredState = createInternal<K, T, Comparator>(metaInfo);
                 const size_t pendingEntryCount = pendingRestoredState->size();
                 pendingRestoredState->template drainTo<K, T, Comparator>(restoredState, getKeyGroupPrefixBytes());
                 if (TimerConsistencyCheckControl::timerConsistencyCheckEnabled) {
                     logRestoredQueueDigest<K, T, Comparator>(stateName, restoredState);
                 }
-                INFO_RELEASE("HeapPriorityQueuesManager: drained " << pendingEntryCount
-                    << " pending restored entries for priority queue state '" << stateName << "'");
+                INFO_RELEASE(
+                    "HeapPriorityQueuesManager: drained "
+                    << pendingEntryCount << " pending restored entries for priority queue state '" << stateName << "'");
                 return restoredState->getHeapPriorityQueueSet();
             }
 
             INFO_RELEASE(
                 "Error: createOrUpdate Priority queue type is not supported for restored HEAP PQ state:" << stateName);
-            THROW_LOGIC_EXCEPTION("Priority queue type is not supported for restored HEAP PQ state: " << stateName)
+            THROW_LOGIC_EXCEPTION("Priority queue type is not supported for restored HEAP PQ state: " << stateName);
         }
-        auto metaInfo = std::make_shared<RegisteredPriorityQueueStateBackendMetaInfo>(stateName, byteOrderedElementSerializer);
+        auto metaInfo =
+            std::make_shared<RegisteredPriorityQueueStateBackendMetaInfo>(stateName, byteOrderedElementSerializer);
 
         // todo: withSerializerUpgradesAllowed
         return createInternal<K, T, Comparator>(metaInfo)->getHeapPriorityQueueSet();
     }
 
-    std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapperBase>>> getRegisteredPQStates() {
+    std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapperBase>>>
+    getRegisteredPQStates()
+    {
         return registeredPQStates_;
     }
 
@@ -92,7 +98,8 @@ private:
 
     template <typename K, typename T, typename Comparator>
     std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapper<K, T, Comparator>> createInternal(
-            std::shared_ptr<RegisteredPriorityQueueStateBackendMetaInfo> metaInfo) {
+        std::shared_ptr<RegisteredPriorityQueueStateBackendMetaInfo> metaInfo)
+    {
         const std::string& stateName = metaInfo->getName();
 
         std::shared_ptr<KeyGroupedInternalPriorityQueue<T>> priorityQueue =
@@ -103,8 +110,7 @@ private:
             std::static_pointer_cast<HeapPriorityQueueSet<K, T, Comparator>>(priorityQueue),
             metaInfo,
             keyGroupRange_,
-            numberOfKeyGroups_
-        );
+            numberOfKeyGroups_);
 
         (*registeredPQStates_)[stateName] = wrapper;
 
@@ -113,8 +119,8 @@ private:
 
     template <typename K, typename T, typename Comparator>
     void logRestoredQueueDigest(
-            const std::string &stateName,
-            const std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapper<K, T, Comparator>> &wrapper)
+        const std::string& stateName,
+        const std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapper<K, T, Comparator>>& wrapper)
     {
         auto summary = HeapPriorityQueueDataDigest::createSummary(
             "restore",
@@ -126,10 +132,7 @@ private:
             auto iterator = wrapper->createSnapshotIterator(-1, getKeyGroupPrefixBytes());
             while (iterator != nullptr && iterator->isValid()) {
                 HeapPriorityQueueDataDigest::addSerializedEntry(
-                    summary,
-                    iterator->key(),
-                    iterator->value(),
-                    getKeyGroupPrefixBytes());
+                    summary, iterator->key(), iterator->value(), getKeyGroupPrefixBytes());
                 iterator->next();
             }
             if (iterator != nullptr) {
@@ -140,12 +143,9 @@ private:
         HeapPriorityQueueDataDigest::logSummary(summary);
     }
 
-    std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapperBase>>> registeredPQStates_;
+    std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapperBase>>>
+        registeredPQStates_;
     std::shared_ptr<HeapPriorityQueueSetFactory> priorityQueueSetFactory_;
     KeyGroupRange* keyGroupRange_;
     int32_t numberOfKeyGroups_;
 };
-
-
-
-

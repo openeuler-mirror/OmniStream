@@ -22,7 +22,7 @@ public:
 
     ~ZoneId();
 
-    static ZoneId *systemDefault();
+    static ZoneId* systemDefault();
 
     std::string getTimezone();
 

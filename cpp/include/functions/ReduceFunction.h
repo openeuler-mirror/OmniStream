@@ -15,14 +15,14 @@
 #include "basictypes/Object.h"
 #include "Function.h"
 
-template<typename T>
+template <typename T>
 class ReduceFunction : public omnistream::Function {
 public:
     virtual ~ReduceFunction() = default;
     virtual T* reduce(T* value1, T* value2) = 0;
 };
 
-template<typename T>
+template <typename T>
 using ReduceFunctionUnique = std::unique_ptr<ReduceFunction<T>>;
 
 #endif // OMNIFLINK_REDUCEFUNCTION_H

@@ -11,7 +11,8 @@
 #include <nlohmann/json.hpp>
 
 // Utility function to create a VectorBatch for testing.
-omnistream::VectorBatch* createTestBatch() {
+omnistream::VectorBatch* createTestBatch()
+{
     auto batch = new omnistream::VectorBatch(6);
 
     // Partition Key Column
@@ -34,7 +35,8 @@ omnistream::VectorBatch* createTestBatch() {
     return batch;
 }
 
-omnistream::VectorBatch* createTestBatch2() {
+omnistream::VectorBatch* createTestBatch2()
+{
     auto batch = new omnistream::VectorBatch(4);
 
     // Partition Key Column
@@ -62,7 +64,8 @@ omnistream::VectorBatch* createTestBatch2() {
 }
 
 // Test: Basic functionality of open().
-TEST(FastTop1FunctionTest, OpenInitialization) {
+TEST(FastTop1FunctionTest, OpenInitialization)
+{
     // Initialize the FastTop1Function with mock configuration.
     std::string description = R"DELIM({
         "originDescription": null,
@@ -79,13 +82,13 @@ TEST(FastTop1FunctionTest, OpenInitialization) {
     })DELIM";
 
     const nlohmann::json rankConfig = nlohmann::json::parse(description);
-    KeyedProcessFunction<long, RowData*, RowData*> *top1Function = reinterpret_cast<KeyedProcessFunction<long, RowData *, RowData *> *>(new FastTop1Function<long>(
-            rankConfig));
+    KeyedProcessFunction<long, RowData*, RowData*>* top1Function =
+        reinterpret_cast<KeyedProcessFunction<long, RowData*, RowData*>*>(new FastTop1Function<long>(rankConfig));
 
-//    GroupAggFunction *func = new GroupAggFunction(0l, opConfig.getDescription());
-//    auto *op = new KeyedProcessOperator(top1Function, chainOutput, opConfig.getDescription());
+    //    GroupAggFunction *func = new GroupAggFunction(0l, opConfig.getDescription());
+    //    auto *op = new KeyedProcessOperator(top1Function, chainOutput, opConfig.getDescription());
     nlohmann::json newRankConfig = rankConfig;
-    auto *op = new KeyedProcessOperator(top1Function, new BatchOutputTest(), newRankConfig);
+    auto* op = new KeyedProcessOperator(top1Function, new BatchOutputTest(), newRankConfig);
     op->setup();
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
@@ -99,14 +102,18 @@ TEST(FastTop1FunctionTest, OpenInitialization) {
     }
     env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
-    std::vector<omnistream::RowField> typeInfo {omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::BIGINT)};
-    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, typeInfo));
+    StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
+    std::vector<omnistream::RowField> typeInfo{
+        omnistream::RowField("col0", BasicLogicalType::BIGINT),
+        omnistream::RowField("col0", BasicLogicalType::BIGINT),
+        omnistream::RowField("col1", BasicLogicalType::BIGINT)};
+    TypeSerializer* ser = new RowDataSerializer(new omnistream::RowType(false, typeInfo));
     op->initializeState(initializer, ser);
     EXPECT_NO_THROW(op->open());
 }
 
-TEST(FastTop1FunctionTest, ProcessSingleBatch) {
+TEST(FastTop1FunctionTest, ProcessSingleBatch)
+{
     // Initialize the FastTop1Function with mock configuration.
     std::string description = R"DELIM({
         "originDescription": null,
@@ -123,12 +130,12 @@ TEST(FastTop1FunctionTest, ProcessSingleBatch) {
     })DELIM";
 
     const nlohmann::json rankConfig = nlohmann::json::parse(description);
-    KeyedProcessFunction<long, RowData*, RowData*> *top1Function = reinterpret_cast<KeyedProcessFunction<long, RowData *, RowData *> *>(new FastTop1Function<long>(
-            rankConfig));
+    KeyedProcessFunction<long, RowData*, RowData*>* top1Function =
+        reinterpret_cast<KeyedProcessFunction<long, RowData*, RowData*>*>(new FastTop1Function<long>(rankConfig));
 
     nlohmann::json newRankConfig = rankConfig;
-    BatchOutputTest *output = new BatchOutputTest();
-    auto *op = new KeyedProcessOperator(top1Function, output, newRankConfig);
+    BatchOutputTest* output = new BatchOutputTest();
+    auto* op = new KeyedProcessOperator(top1Function, output, newRankConfig);
     op->setup();
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
@@ -142,9 +149,12 @@ TEST(FastTop1FunctionTest, ProcessSingleBatch) {
     }
     env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
-    std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::BIGINT)});
-    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
+    StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
+    std::vector<omnistream::RowField>* typeInfo = new std::vector<omnistream::RowField>(
+        {omnistream::RowField("col0", BasicLogicalType::BIGINT),
+         omnistream::RowField("col0", BasicLogicalType::BIGINT),
+         omnistream::RowField("col1", BasicLogicalType::BIGINT)});
+    TypeSerializer* ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
     op->initializeState(initializer, ser);
     EXPECT_NO_THROW(op->open());
 
@@ -171,7 +181,8 @@ TEST(FastTop1FunctionTest, ProcessSingleBatch) {
     EXPECT_EQ(matched, true);
 }
 
-TEST(FastTop1FunctionTest, ProcessMultipleBatches) {
+TEST(FastTop1FunctionTest, ProcessMultipleBatches)
+{
     // Initialize the FastTop1Function with mock configuration.
     std::string description = R"DELIM({
         "originDescription": null,
@@ -188,12 +199,12 @@ TEST(FastTop1FunctionTest, ProcessMultipleBatches) {
     })DELIM";
 
     const nlohmann::json rankConfig = nlohmann::json::parse(description);
-    KeyedProcessFunction<long, RowData*, RowData*> *top1Function = reinterpret_cast<KeyedProcessFunction<long, RowData *, RowData *> *>(new FastTop1Function<long>(
-            rankConfig));
+    KeyedProcessFunction<long, RowData*, RowData*>* top1Function =
+        reinterpret_cast<KeyedProcessFunction<long, RowData*, RowData*>*>(new FastTop1Function<long>(rankConfig));
 
     nlohmann::json newRankConfig = rankConfig;
-    BatchOutputTest *output = new BatchOutputTest();
-    auto *op = new KeyedProcessOperator(top1Function, output, newRankConfig);
+    BatchOutputTest* output = new BatchOutputTest();
+    auto* op = new KeyedProcessOperator(top1Function, output, newRankConfig);
     op->setup();
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
@@ -207,9 +218,12 @@ TEST(FastTop1FunctionTest, ProcessMultipleBatches) {
     }
     env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
-    std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::BIGINT)});
-    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
+    StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
+    std::vector<omnistream::RowField>* typeInfo = new std::vector<omnistream::RowField>(
+        {omnistream::RowField("col0", BasicLogicalType::BIGINT),
+         omnistream::RowField("col0", BasicLogicalType::BIGINT),
+         omnistream::RowField("col1", BasicLogicalType::BIGINT)});
+    TypeSerializer* ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
     op->initializeState(initializer, ser);
     EXPECT_NO_THROW(op->open());
 
@@ -270,7 +284,8 @@ TEST(FastTop1FunctionTest, ProcessMultipleBatches) {
     6  | 1004	1005	200	    300
     7  | 1000	1002	201	    301
 */
-omnistream::VectorBatch* createTwoKeyVectorBatch() {
+omnistream::VectorBatch* createTwoKeyVectorBatch()
+{
     constexpr int rows = 8;
     constexpr int cols = 4;
     auto vBatch = new omnistream::VectorBatch(rows);
@@ -279,15 +294,7 @@ omnistream::VectorBatch* createTwoKeyVectorBatch() {
     auto key1 = new omniruntime::vec::Vector<int64_t>(rows);
 
     std::vector<std::pair<int64_t, int64_t>> keys = {
-        {1000, 1001},
-        {1002, 1003},
-        {1000, 1002},
-        {1002, 1003},
-        {1000, 1002},
-        {1004, 1005},
-        {1004, 1005},
-        {1000, 1002}
-    };
+        {1000, 1001}, {1002, 1003}, {1000, 1002}, {1002, 1003}, {1000, 1002}, {1004, 1005}, {1004, 1005}, {1000, 1002}};
 
     for (int i = 0; i < rows; ++i) {
         key0->SetValue(i, keys[i].first);
@@ -318,7 +325,8 @@ omnistream::VectorBatch* createTwoKeyVectorBatch() {
     6  | 1004	1005	102	    152
     7  | 1000	1002	103	    153
 */
-omnistream::VectorBatch* createTwoKeyVectorBatch2() {
+omnistream::VectorBatch* createTwoKeyVectorBatch2()
+{
     constexpr int rows = 8;
     constexpr int cols = 4;
     auto vBatch = new omnistream::VectorBatch(rows);
@@ -327,15 +335,7 @@ omnistream::VectorBatch* createTwoKeyVectorBatch2() {
     auto key1 = new omniruntime::vec::Vector<int64_t>(rows);
 
     std::vector<std::pair<int64_t, int64_t>> keys = {
-        {1000, 1001},
-        {1002, 1003},
-        {1000, 1002},
-        {1002, 1003},
-        {1000, 1002},
-        {1004, 1005},
-        {1004, 1005},
-        {1000, 1002}
-    };
+        {1000, 1001}, {1002, 1003}, {1000, 1002}, {1002, 1003}, {1000, 1002}, {1004, 1005}, {1004, 1005}, {1000, 1002}};
 
     for (int i = 0; i < rows; ++i) {
         key0->SetValue(i, keys[i].first);
@@ -356,7 +356,8 @@ omnistream::VectorBatch* createTwoKeyVectorBatch2() {
 }
 
 // Test: Basic functionality of open().
-TEST(FastTop1FunctionTest, OpenInitializationWithTwoPKeys) {
+TEST(FastTop1FunctionTest, OpenInitializationWithTwoPKeys)
+{
     // Initialize the FastTop1Function with mock configuration.
     std::string description = R"DELIM({
         "originDescription": null,
@@ -373,10 +374,12 @@ TEST(FastTop1FunctionTest, OpenInitializationWithTwoPKeys) {
     })DELIM";
 
     const nlohmann::json rankConfig = nlohmann::json::parse(description);
-    KeyedProcessFunction<RowData*, RowData*, RowData*> *top1Function = reinterpret_cast<KeyedProcessFunction<RowData*, RowData *, RowData *> *>(new FastTop1Function<RowData*>(rankConfig));
+    KeyedProcessFunction<RowData*, RowData*, RowData*>* top1Function =
+        reinterpret_cast<KeyedProcessFunction<RowData*, RowData*, RowData*>*>(
+            new FastTop1Function<RowData*>(rankConfig));
 
     nlohmann::json newRankConfig = rankConfig;
-    auto *op = new KeyedProcessOperator(top1Function, new BatchOutputTest(), newRankConfig);
+    auto* op = new KeyedProcessOperator(top1Function, new BatchOutputTest(), newRankConfig);
     op->setup();
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
@@ -390,14 +393,22 @@ TEST(FastTop1FunctionTest, OpenInitializationWithTwoPKeys) {
     }
     env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
-    std::vector<omnistream::RowField> typeInfo {omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::BIGINT), omnistream::RowField("col2", BasicLogicalType::BIGINT), omnistream::RowField("col3", BasicLogicalType::BIGINT), omnistream::RowField("col4", BasicLogicalType::BIGINT), omnistream::RowField("col5", BasicLogicalType::BIGINT), omnistream::RowField("col6", BasicLogicalType::BIGINT)};
-    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, typeInfo));
+    StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
+    std::vector<omnistream::RowField> typeInfo{
+        omnistream::RowField("col0", BasicLogicalType::BIGINT),
+        omnistream::RowField("col1", BasicLogicalType::BIGINT),
+        omnistream::RowField("col2", BasicLogicalType::BIGINT),
+        omnistream::RowField("col3", BasicLogicalType::BIGINT),
+        omnistream::RowField("col4", BasicLogicalType::BIGINT),
+        omnistream::RowField("col5", BasicLogicalType::BIGINT),
+        omnistream::RowField("col6", BasicLogicalType::BIGINT)};
+    TypeSerializer* ser = new RowDataSerializer(new omnistream::RowType(false, typeInfo));
     op->initializeState(initializer, ser);
     EXPECT_NO_THROW(op->open());
 }
 
-TEST(FastTop1FunctionTest, ProcessSingleBatchWithTwoPKeys) {
+TEST(FastTop1FunctionTest, ProcessSingleBatchWithTwoPKeys)
+{
     // Initialize the FastTop1Function with mock configuration.
     std::string description = R"DELIM({
         "originDescription": null,
@@ -414,11 +425,13 @@ TEST(FastTop1FunctionTest, ProcessSingleBatchWithTwoPKeys) {
     })DELIM";
 
     const nlohmann::json rankConfig = nlohmann::json::parse(description);
-    KeyedProcessFunction<RowData*, RowData*, RowData*> *top1Function = reinterpret_cast<KeyedProcessFunction<RowData*, RowData *, RowData *> *>(new FastTop1Function<RowData*>(rankConfig));
+    KeyedProcessFunction<RowData*, RowData*, RowData*>* top1Function =
+        reinterpret_cast<KeyedProcessFunction<RowData*, RowData*, RowData*>*>(
+            new FastTop1Function<RowData*>(rankConfig));
 
     nlohmann::json newRankConfig = rankConfig;
-    BatchOutputTest *output = new BatchOutputTest();
-    auto *op = new KeyedProcessOperator(top1Function, output, newRankConfig);
+    BatchOutputTest* output = new BatchOutputTest();
+    auto* op = new KeyedProcessOperator(top1Function, output, newRankConfig);
     op->setup();
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
@@ -432,9 +445,13 @@ TEST(FastTop1FunctionTest, ProcessSingleBatchWithTwoPKeys) {
     }
     env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
-    std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::BIGINT), omnistream::RowField("col2", BasicLogicalType::BIGINT), omnistream::RowField("col3", BasicLogicalType::BIGINT)});
-    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
+    StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
+    std::vector<omnistream::RowField>* typeInfo = new std::vector<omnistream::RowField>(
+        {omnistream::RowField("col0", BasicLogicalType::BIGINT),
+         omnistream::RowField("col1", BasicLogicalType::BIGINT),
+         omnistream::RowField("col2", BasicLogicalType::BIGINT),
+         omnistream::RowField("col3", BasicLogicalType::BIGINT)});
+    TypeSerializer* ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
     op->initializeState(initializer, ser);
     EXPECT_NO_THROW(op->open());
 
@@ -442,11 +459,11 @@ TEST(FastTop1FunctionTest, ProcessSingleBatchWithTwoPKeys) {
     op->processBatch(record);
     int rowCnt = 4;
     auto expectedBatch = new omnistream::VectorBatch(rowCnt);
-    
-    std::vector<int64_t> col0 = {1000, 1002, 1000, 1004};//partition key 1
-    std::vector<int64_t> col1 = {1001, 1003, 1002, 1005};//partition key 2
-    std::vector<int64_t> col2 = { 200,  200,  201,  200};
-    std::vector<int64_t> col3 = { 300,  300,  301,  300};
+
+    std::vector<int64_t> col0 = {1000, 1002, 1000, 1004}; // partition key 1
+    std::vector<int64_t> col1 = {1001, 1003, 1002, 1005}; // partition key 2
+    std::vector<int64_t> col2 = {200, 200, 201, 200};
+    std::vector<int64_t> col3 = {300, 300, 301, 300};
 
     auto Vec0 = omniruntime::TestUtil::CreateVector(rowCnt, col0.data());
     auto Vec1 = omniruntime::TestUtil::CreateVector(rowCnt, col1.data());
@@ -465,7 +482,8 @@ TEST(FastTop1FunctionTest, ProcessSingleBatchWithTwoPKeys) {
     delete record;
 }
 
-TEST(FastTop1FunctionTest, ProcessMultipleBatchesWithTwoPKeys) {
+TEST(FastTop1FunctionTest, ProcessMultipleBatchesWithTwoPKeys)
+{
     // Initialize the FastTop1Function with mock configuration.
     std::string description = R"DELIM({
         "originDescription": null,
@@ -482,11 +500,13 @@ TEST(FastTop1FunctionTest, ProcessMultipleBatchesWithTwoPKeys) {
     })DELIM";
 
     const nlohmann::json rankConfig = nlohmann::json::parse(description);
-    KeyedProcessFunction<RowData*, RowData*, RowData*> *top1Function = reinterpret_cast<KeyedProcessFunction<RowData*, RowData *, RowData *> *>(new FastTop1Function<RowData*>(rankConfig));
+    KeyedProcessFunction<RowData*, RowData*, RowData*>* top1Function =
+        reinterpret_cast<KeyedProcessFunction<RowData*, RowData*, RowData*>*>(
+            new FastTop1Function<RowData*>(rankConfig));
 
     nlohmann::json newRankConfig = rankConfig;
-    BatchOutputTest *output = new BatchOutputTest();
-    auto *op = new KeyedProcessOperator(top1Function, output, newRankConfig);
+    BatchOutputTest* output = new BatchOutputTest();
+    auto* op = new KeyedProcessOperator(top1Function, output, newRankConfig);
     op->setup();
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
@@ -500,9 +520,13 @@ TEST(FastTop1FunctionTest, ProcessMultipleBatchesWithTwoPKeys) {
     }
     env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
-    std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>({omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::BIGINT), omnistream::RowField("col2", BasicLogicalType::BIGINT), omnistream::RowField("col3", BasicLogicalType::BIGINT)});
-    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
+    StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
+    std::vector<omnistream::RowField>* typeInfo = new std::vector<omnistream::RowField>(
+        {omnistream::RowField("col0", BasicLogicalType::BIGINT),
+         omnistream::RowField("col1", BasicLogicalType::BIGINT),
+         omnistream::RowField("col2", BasicLogicalType::BIGINT),
+         omnistream::RowField("col3", BasicLogicalType::BIGINT)});
+    TypeSerializer* ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
     op->initializeState(initializer, ser);
     EXPECT_NO_THROW(op->open());
 
@@ -512,9 +536,9 @@ TEST(FastTop1FunctionTest, ProcessMultipleBatchesWithTwoPKeys) {
 
     int rowCnt = 4;
     auto expectedBatch = new omnistream::VectorBatch(rowCnt);
-    
-    std::vector<int64_t> col0 = {1000, 1002, 1000, 1004};//partition key 1
-    std::vector<int64_t> col1 = {1001, 1003, 1002, 1005};//partition key 2
+
+    std::vector<int64_t> col0 = {1000, 1002, 1000, 1004}; // partition key 1
+    std::vector<int64_t> col1 = {1001, 1003, 1002, 1005}; // partition key 2
     std::vector<int64_t> col2 = {200, 200, 201, 200};
     std::vector<int64_t> col3 = {300, 300, 301, 300};
 
@@ -530,7 +554,7 @@ TEST(FastTop1FunctionTest, ProcessMultipleBatchesWithTwoPKeys) {
 
     bool matched = omniruntime::TestUtil::VecBatchMatch(output->getVectorBatch(), expectedBatch);
     EXPECT_EQ(matched, true);
- //   delete vecBatch;
+    //   delete vecBatch;
     delete output->getStreamRecord();
 
     auto vecBatch2 = createTwoKeyVectorBatch2();
@@ -539,8 +563,8 @@ TEST(FastTop1FunctionTest, ProcessMultipleBatchesWithTwoPKeys) {
 
     expectedBatch = new omnistream::VectorBatch(rowCnt);
 
-    col0 = {1000, 1002, 1000, 1004};//partition key 1
-    col1 = {1001, 1003, 1002, 1005};//partition key 2
+    col0 = {1000, 1002, 1000, 1004}; // partition key 1
+    col1 = {1001, 1003, 1002, 1005}; // partition key 2
     col2 = {100, 101, 100, 101};
     col3 = {150, 151, 150, 151};
 
@@ -556,7 +580,7 @@ TEST(FastTop1FunctionTest, ProcessMultipleBatchesWithTwoPKeys) {
 
     matched = omniruntime::TestUtil::VecBatchMatch(output->getVectorBatch(), expectedBatch);
     EXPECT_EQ(matched, true);
- //   delete vecBatch2;
+    //   delete vecBatch2;
     delete output->getStreamRecord();
 
     delete expectedBatch;

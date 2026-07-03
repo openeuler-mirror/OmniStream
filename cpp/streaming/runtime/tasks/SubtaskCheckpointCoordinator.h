@@ -19,29 +19,28 @@
 #include "OperatorChain.h"
 
 namespace omnistream {
-    class SubtaskCheckpointCoordinator {
-    public:
-        virtual ~SubtaskCheckpointCoordinator() = default;
+class SubtaskCheckpointCoordinator {
+public:
+    virtual ~SubtaskCheckpointCoordinator() = default;
 
-        /**
-         * Triggers a checkpoint asynchronously (typically for source tasks)
-         *
-         * @param checkpointMetaData Meta data about this checkpoint
-         * @param checkpointOptions Options for performing this checkpoint
-         * @return future with value of false if checkpoint was not carried out, true otherwise
-         */
-        virtual void InitInputsCheckpoint(long id, CheckpointOptions *checkpointOptions) = 0;
+    /**
+     * Triggers a checkpoint asynchronously (typically for source tasks)
+     *
+     * @param checkpointMetaData Meta data about this checkpoint
+     * @param checkpointOptions Options for performing this checkpoint
+     * @return future with value of false if checkpoint was not carried out, true otherwise
+     */
+    virtual void InitInputsCheckpoint(long id, CheckpointOptions* checkpointOptions) = 0;
 
-        virtual std::shared_ptr<ChannelStateWriter> getChannelStateWriter() = 0;
+    virtual std::shared_ptr<ChannelStateWriter> getChannelStateWriter() = 0;
 
-        virtual void checkpointState(
-                std::shared_ptr<CheckpointMetaData> metadata,
-                std::shared_ptr<CheckpointOptions> options,
-                std::shared_ptr<CheckpointMetricsBuilder> metrics,
-                omnistream::OperatorChainV2 *operatorChain,
-                bool isTaskFinished,
-                std::shared_ptr<omnistream::Supplier<bool>> isRunning
-        ) {};
-    };
-}
+    virtual void checkpointState(
+        std::shared_ptr<CheckpointMetaData> metadata,
+        std::shared_ptr<CheckpointOptions> options,
+        std::shared_ptr<CheckpointMetricsBuilder> metrics,
+        omnistream::OperatorChainV2* operatorChain,
+        bool isTaskFinished,
+        std::shared_ptr<omnistream::Supplier<bool>> isRunning) {};
+};
+} // namespace omnistream
 #endif // OMNISTREAM_SUBTASKCHECKPOINTCOORDINATOR_H

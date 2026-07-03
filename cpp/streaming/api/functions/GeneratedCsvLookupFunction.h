@@ -16,7 +16,7 @@
 #include "table/sources/CsvTableSource.h"
 #include "functions/FlatMapFunction.h"
 
-template<typename K>
+template <typename K>
 class GeneratedCsvLookupFunction : public FlatMapFunction<omnistream::VectorBatch> {
 public:
     explicit GeneratedCsvLookupFunction(CsvLookupFunction<K>* lookupFunc_) : lookupFunction(lookupFunc_) {};
@@ -32,6 +32,7 @@ public:
     {
         lookupFunction->eval(in, collector);
     }
+
 private:
     CsvLookupFunction<K>* lookupFunction;
     // RowRowConverter converter;

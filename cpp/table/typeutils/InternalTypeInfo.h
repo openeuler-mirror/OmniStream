@@ -19,19 +19,19 @@
 
 class InternalTypeInfo : public TypeInformation {
 public:
-    InternalTypeInfo(LogicalType *type, TypeSerializer *typeSerializer);
+    InternalTypeInfo(LogicalType* type, TypeSerializer* typeSerializer);
 
-    TypeSerializer *createTypeSerializer() override;
+    TypeSerializer* createTypeSerializer() override;
 
     std::string name() override;
 
     ~InternalTypeInfo() override;
 
-    static InternalTypeInfo *of(LogicalType *type);
+    static InternalTypeInfo* of(LogicalType* type);
 
-    static InternalTypeInfo *ofRowType(omnistream::RowType *type);
+    static InternalTypeInfo* ofRowType(omnistream::RowType* type);
 
-    static InternalTypeInfo *INT_TYPE;
+    static InternalTypeInfo* INT_TYPE;
 
     TypeSerializer* getTypeSerializer() override
     {
@@ -48,10 +48,8 @@ public:
     }
 
 private:
-
     LogicalType* type_;
     TypeSerializer* typeSerializer;
 };
-
 
 #endif

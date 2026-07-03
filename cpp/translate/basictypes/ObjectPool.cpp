@@ -16,14 +16,14 @@
 
 constexpr int POOL_SIZE = 16;
 
-template<typename T>
-ObjectPool<T> *ObjectPool<T>::getInstance()
+template <typename T>
+ObjectPool<T>* ObjectPool<T>::getInstance()
 {
     thread_local static ObjectPool<T> instance(POOL_SIZE);
     return &instance;
 }
 
-template<typename T>
+template <typename T>
 ObjectPool<T>::ObjectPool(size_t poolSize)
 {
     while (poolSize > 0) {
@@ -35,7 +35,7 @@ ObjectPool<T>::ObjectPool(size_t poolSize)
     }
 }
 
-template<typename T>
+template <typename T>
 void ObjectPool<T>::capacityExpansion()
 {
     size_t size = capacityExpansionNum;
@@ -49,11 +49,11 @@ void ObjectPool<T>::capacityExpansion()
     this->capacityExpansionNum = (this->capacityExpansionNum << 1);
 }
 
-template<typename T>
+template <typename T>
 T* ObjectPool<T>::getObject()
 {
     // ObjectPool<T> *objectPool = ObjectPool<T>::getInstance();
-    T *curObject = this->head;
+    T* curObject = this->head;
     if (curObject == nullptr) {
         this->capacityExpansion();
         curObject = this->head;
@@ -67,7 +67,7 @@ T* ObjectPool<T>::getObject()
     return curObject;
 }
 
-template<typename T>
+template <typename T>
 ObjectPool<T>::~ObjectPool()
 {
     while (head != nullptr) {

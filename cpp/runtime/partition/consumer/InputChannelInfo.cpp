@@ -15,80 +15,90 @@
 
 namespace omnistream {
 
-    InputChannelInfo::InputChannelInfo() : gateIdx(0), inputChannelIdx(0) {}
+InputChannelInfo::InputChannelInfo() : gateIdx(0), inputChannelIdx(0)
+{
+}
 
-    InputChannelInfo::InputChannelInfo(int gateIdx, int inputChannelIdx)
-        : gateIdx(gateIdx), inputChannelIdx(inputChannelIdx) {}
+InputChannelInfo::InputChannelInfo(int gateIdx, int inputChannelIdx)
+    : gateIdx(gateIdx),
+      inputChannelIdx(inputChannelIdx)
+{
+}
 
-    InputChannelInfo::InputChannelInfo(const InputChannelInfo& other)
-        : gateIdx(other.gateIdx), inputChannelIdx(other.inputChannelIdx) {}
+InputChannelInfo::InputChannelInfo(const InputChannelInfo& other)
+    : gateIdx(other.gateIdx),
+      inputChannelIdx(other.inputChannelIdx)
+{
+}
 
-    InputChannelInfo& InputChannelInfo::operator=(const InputChannelInfo& other)
-    {
-        if (this != &other) {
-            gateIdx = other.gateIdx;
-            inputChannelIdx = other.inputChannelIdx;
-        }
-        return *this;
+InputChannelInfo& InputChannelInfo::operator=(const InputChannelInfo& other)
+{
+    if (this != &other) {
+        gateIdx = other.gateIdx;
+        inputChannelIdx = other.inputChannelIdx;
     }
+    return *this;
+}
 
-    bool InputChannelInfo::operator==(const InputChannelInfo& other) const
-    {
-        return gateIdx == other.gateIdx && inputChannelIdx == other.inputChannelIdx;
+bool InputChannelInfo::operator==(const InputChannelInfo& other) const
+{
+    return gateIdx == other.gateIdx && inputChannelIdx == other.inputChannelIdx;
+}
+
+bool InputChannelInfo::operator!=(const InputChannelInfo& other) const
+{
+    return !(*this == other);
+}
+
+bool InputChannelInfo::operator<(const InputChannelInfo& other) const
+{
+    if (gateIdx != other.gateIdx) {
+        return gateIdx < other.gateIdx;
     }
+    return inputChannelIdx < other.inputChannelIdx;
+}
 
-    bool InputChannelInfo::operator!=(const InputChannelInfo& other) const
-    {
-        return !(*this == other);
-    }
+InputChannelInfo::~InputChannelInfo()
+{
+}
 
-    bool InputChannelInfo::operator<(const InputChannelInfo& other) const
-    {
-        if (gateIdx != other.gateIdx) {
-            return gateIdx < other.gateIdx;
-        }
-        return inputChannelIdx < other.inputChannelIdx;
-    }
+int InputChannelInfo::getGateIdx() const
+{
+    return gateIdx;
+}
 
-    InputChannelInfo::~InputChannelInfo() {}
+void InputChannelInfo::setGateIdx(int gateIdx_)
+{
+    this->gateIdx = gateIdx_;
+}
 
-    int InputChannelInfo::getGateIdx() const
-    {
-        return gateIdx;
-    }
+void InputChannelInfo::setOmni()
+{
+    this->omni = true;
+}
 
-    void InputChannelInfo::setGateIdx(int gateIdx_)
-    {
-        this->gateIdx = gateIdx_;
-    }
+bool InputChannelInfo::getOmni()
+{
+    return omni;
+}
 
-    void InputChannelInfo::setOmni()
-    {
-        this->omni = true;
-    }
+int InputChannelInfo::getInputChannelIdx() const
+{
+    return inputChannelIdx;
+}
 
-    bool InputChannelInfo::getOmni()
-    {
-        return omni;
-    }
+void InputChannelInfo::setInputChannelIdx(int inputChannelIdx_)
+{
+    this->inputChannelIdx = inputChannelIdx_;
+}
 
-    int InputChannelInfo::getInputChannelIdx() const
-    {
-        return inputChannelIdx;
-    }
-
-    void InputChannelInfo::setInputChannelIdx(int inputChannelIdx_)
-    {
-        this->inputChannelIdx = inputChannelIdx_;
-    }
-
-    std::string InputChannelInfo::toString() const
-    {
-        nlohmann::json j;
-        j["@class"] = "org.apache.flink.runtime.checkpoint.channel.InputChannelInfo";
-        j["gateIdx"] = gateIdx;
-        j["inputChannelIdx"] = inputChannelIdx;
-        return j.dump();
-    }
+std::string InputChannelInfo::toString() const
+{
+    nlohmann::json j;
+    j["@class"] = "org.apache.flink.runtime.checkpoint.channel.InputChannelInfo";
+    j["gateIdx"] = gateIdx;
+    j["inputChannelIdx"] = inputChannelIdx;
+    return j.dump();
+}
 
 } // namespace omnistream

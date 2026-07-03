@@ -74,7 +74,8 @@ protected:
         bool moreAvailable;
         bool morePriorityEvents;
 
-        InputWithData(std::shared_ptr<INPUT> input, std::shared_ptr<DATA> data, bool moreAvailable, bool morePriorityEvents);
+        InputWithData(
+            std::shared_ptr<INPUT> input, std::shared_ptr<DATA> data, bool moreAvailable, bool morePriorityEvents);
 
         friend std::ostream& operator<<(std::ostream& os, const InputWithData& obj)
         {

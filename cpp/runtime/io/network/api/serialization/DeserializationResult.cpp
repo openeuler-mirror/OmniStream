@@ -23,5 +23,5 @@ std::string DeserializationResult::toDebugString() const
 }
 
 DeserializationResult DeserializationResult_PARTIAL_RECORD(false, true);
-DeserializationResult DeserializationResult_INTERMEDIATE_RECORD_FROM_BUFFER (true, false);
+DeserializationResult DeserializationResult_INTERMEDIATE_RECORD_FROM_BUFFER(true, false);
 DeserializationResult DeserializationResult_LAST_RECORD_FROM_BUFFER(true, true);

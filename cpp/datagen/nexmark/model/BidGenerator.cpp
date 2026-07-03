@@ -17,14 +17,15 @@ const std::array<std::string, 4> BidGenerator::HOT_CHANNELS = {"Google", "Facebo
 const std::array<std::string, 4> BidGenerator::HOT_URLS = []() -> std::array<std::string, 4> {
     SplittableRandom random(0);
     return {getBaseUrl(random), getBaseUrl(random), getBaseUrl(random), getBaseUrl(random)};
-} ();
+}();
 
-std::vector<std::tuple<std::string, std::string>> BidGenerator::CHANNEL_URL_CACHE = []() -> std::vector<std::tuple<std::string, std::string>> {
+std::vector<std::tuple<std::string, std::string>> BidGenerator::CHANNEL_URL_CACHE =
+    []() -> std::vector<std::tuple<std::string, std::string>> {
     SplittableRandom random(0);
     return BidGenerator::createChannelUrlCache(random);
-} ();
+}();
 
-std::vector<std::tuple<std::string, std::string>> BidGenerator::createChannelUrlCache(SplittableRandom &random)
+std::vector<std::tuple<std::string, std::string>> BidGenerator::createChannelUrlCache(SplittableRandom& random)
 {
     std::vector<std::tuple<std::string, std::string>> cache;
     cache.reserve(CHANNELS_NUMBER);
@@ -38,7 +39,7 @@ std::vector<std::tuple<std::string, std::string>> BidGenerator::createChannelUrl
     return cache;
 }
 
-std::unique_ptr<Bid> BidGenerator::nextBid(long eventId, long timestamp, const GeneratorConfig &config)
+std::unique_ptr<Bid> BidGenerator::nextBid(long eventId, long timestamp, const GeneratorConfig& config)
 {
     long auction;
     // Here P(bid will be for a hot auction) = 1 - 1/hotAuctionRatio.
@@ -80,6 +81,7 @@ std::unique_ptr<Bid> BidGenerator::nextBid(long eventId, long timestamp, const G
     int currentSize = 8 + 8 + 8 + 8;
     std::string_view extra = StringsGenerator::nextExtra(random, currentSize, config.getAvgBidByteSize(), extraBuffer);
     // Convert timestamp (in milliseconds) to time_point.
-    // std::chrono::system_clock::time_point timePoint = std::chrono::system_clock::time_point(std::chrono::milliseconds(timestamp));
+    // std::chrono::system_clock::time_point timePoint =
+    // std::chrono::system_clock::time_point(std::chrono::milliseconds(timestamp));
     return std::make_unique<Bid>(auction, bidder, price, channel, url, timestamp, extra);
 }

@@ -17,8 +17,11 @@
 class ConfigOption {
 public:
     ConfigOption(String* key, Object* defaultValue, bool hasDefaultValueValue = true)
-        : key(key), defaultValue(defaultValue), hasDefaultValueValue(hasDefaultValueValue)
-    {}
+        : key(key),
+          defaultValue(defaultValue),
+          hasDefaultValueValue(hasDefaultValueValue)
+    {
+    }
 
     ~ConfigOption();
 
@@ -27,6 +30,7 @@ public:
     Object* GetDefaultValue();
 
     bool hasDefaultValue();
+
 private:
     String* key = nullptr;
     Object* defaultValue = nullptr;
@@ -44,11 +48,7 @@ private:
 template <typename T>
 class ConfigOptionV2 {
 public:
-    ConfigOptionV2(
-        std::string key,
-        std::string description,
-        std::optional<T> defaultValue,
-        bool isList)
+    ConfigOptionV2(std::string key, std::string description, std::optional<T> defaultValue, bool isList)
         : key_(key),
           description_(description),
           defaultValue_(defaultValue),
@@ -66,17 +66,17 @@ public:
           isList_(isList),
           fallbackKeys_(list) {};
 
-    ConfigOptionV2<T> *withDescription(std::string description)
+    ConfigOptionV2<T>* withDescription(std::string description)
     {
-        return new ConfigOptionV2<T> (key_, description, defaultValue_, isList_, fallbackKeys_);
+        return new ConfigOptionV2<T>(key_, description, defaultValue_, isList_, fallbackKeys_);
     }
 
-    ConfigOptionV2<T> *withDeprecatedKeys(std::initializer_list<std::string> deprecatedKeys)
+    ConfigOptionV2<T>* withDeprecatedKeys(std::initializer_list<std::string> deprecatedKeys)
     {
         for (auto str : deprecatedKeys) {
             fallbackKeys_.push_back(FallbackKey::createDeprecatedKey(str));
         }
-        return new ConfigOptionV2<T> (key_, description_, defaultValue_, isList_, fallbackKeys_);
+        return new ConfigOptionV2<T>(key_, description_, defaultValue_, isList_, fallbackKeys_);
     }
 
     std::string key() const
@@ -98,7 +98,7 @@ public:
     {
         return !fallbackKeys_.empty();
     }
-    
+
 private:
     std::string key_;
     std::string description_;

@@ -11,5 +11,6 @@
 #include "basictypes/java_lang_IllegalArgumentException.h"
 java_lang_IllegalArgumentException::java_lang_IllegalArgumentException() = default;
 java_lang_IllegalArgumentException::~java_lang_IllegalArgumentException() = default;
-java_lang_IllegalArgumentException::java_lang_IllegalArgumentException(String * str) {
+java_lang_IllegalArgumentException::java_lang_IllegalArgumentException(String* str)
+{
 }

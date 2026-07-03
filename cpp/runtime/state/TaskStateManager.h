@@ -31,20 +31,20 @@ public:
     TaskStateManager(
         JobIDPOD jobId,
         ExecutionAttemptIDPOD executionAttemptId,
-        TaskLocalStateStore *localStateStore,
-        CheckpointResponder *checkpointResponder)
+        TaskLocalStateStore* localStateStore,
+        CheckpointResponder* checkpointResponder)
         : TaskStateManager(jobId, executionAttemptId, localStateStore, checkpointResponder, nullptr, nullptr, nullptr)
     {
     }
 
     TaskStateManager(
-    JobIDPOD jobId,
-    ExecutionAttemptIDPOD executionAttemptId,
-    TaskLocalStateStore *localStateStore,
-    CheckpointResponder *checkpointResponder,
-    std::shared_ptr<TaskStateManagerBridge> bridge,
-    std::shared_ptr<OmniTaskBridge> omniTaskBridge,
-    std::shared_ptr<JobManagerTaskRestore> jobManagerTaskRestore);
+        JobIDPOD jobId,
+        ExecutionAttemptIDPOD executionAttemptId,
+        TaskLocalStateStore* localStateStore,
+        CheckpointResponder* checkpointResponder,
+        std::shared_ptr<TaskStateManagerBridge> bridge,
+        std::shared_ptr<OmniTaskBridge> omniTaskBridge,
+        std::shared_ptr<JobManagerTaskRestore> jobManagerTaskRestore);
 
     ~TaskStateManager();
 
@@ -55,23 +55,22 @@ public:
     void NotifyCheckpointCompleteV2(long checkpointId);
 
     void ReportTaskStateSnapshots(
-        CheckpointMetaData *checkpointMetaData,
-        CheckpointMetrics *checkpointMetrics,
+        CheckpointMetaData* checkpointMetaData,
+        CheckpointMetrics* checkpointMetrics,
         std::shared_ptr<TaskStateSnapshot> acknowledgedState,
         std::shared_ptr<TaskStateSnapshot> localState); // should be removed later
 
     void ReportTaskStateSnapshotsV2(
-    CheckpointMetaData *checkpointMetaData,
-    CheckpointMetrics *checkpointMetrics,
-    std::shared_ptr<TaskStateSnapshot> acknowledgedState,
-    std::shared_ptr<TaskStateSnapshot> localState);
+        CheckpointMetaData* checkpointMetaData,
+        CheckpointMetrics* checkpointMetrics,
+        std::shared_ptr<TaskStateSnapshot> acknowledgedState,
+        std::shared_ptr<TaskStateSnapshot> localState);
 
     void ReportIncompleteTaskStateSnapshots(
-        CheckpointMetaData *checkpointMetaData,
-        CheckpointMetrics *checkpointMetrics);
+        CheckpointMetaData* checkpointMetaData, CheckpointMetrics* checkpointMetrics);
 
     PrioritizedOperatorSubtaskState prioritizedOperatorState(const OperatorID& operatorID);
-    
+
     JobIDPOD getJobId()
     {
         return jobId_;
@@ -119,8 +118,8 @@ public:
     }
 
 private:
-    TaskLocalStateStore *localStateStore_;
-    CheckpointResponder *checkpointResponder_; // should be removed later
+    TaskLocalStateStore* localStateStore_;
+    CheckpointResponder* checkpointResponder_; // should be removed later
     JobIDPOD jobId_;
     ExecutionAttemptIDPOD executionAttempId_;
     std::shared_ptr<TaskStateManagerBridge> bridge_;
@@ -128,6 +127,6 @@ private:
     std::shared_ptr<SequentialChannelStateReaderImpl> sequentialChannelStateReader_;
     std::shared_ptr<OmniTaskBridge> omniTaskBridge_;
 };
-}
+} // namespace omnistream
 
 #endif // OMNISTREAM_TASKSTATEMANAGER_H

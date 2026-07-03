@@ -11,25 +11,32 @@
 #include "TumblingWindowAssigner.h"
 
 TumblingWindowAssigner::TumblingWindowAssigner(int64_t size, int64_t offset, bool eventTime)
-        : size_(size), offset_(offset), eventTime_(eventTime) {
+    : size_(size),
+      offset_(offset),
+      eventTime_(eventTime)
+{
     if (size <= 0) {
         THROW_LOGIC_EXCEPTION("TumblingWindowAssigner parameters must satisfy size > 0");
     }
 }
 
-std::vector<TimeWindow> TumblingWindowAssigner::assignWindows(const RowData *element, int64_t timestamp) {
+std::vector<TimeWindow> TumblingWindowAssigner::assignWindows(const RowData* element, int64_t timestamp)
+{
     int64_t start = TimeWindow::getWindowStartWithOffset(timestamp, offset_, size_);
     return {TimeWindow(start, start + size_)};
 }
 
-bool TumblingWindowAssigner::isEventTime() const {
+bool TumblingWindowAssigner::isEventTime() const
+{
     return eventTime_;
 }
 
-TumblingWindowAssigner *TumblingWindowAssigner::withEventTime() {
+TumblingWindowAssigner* TumblingWindowAssigner::withEventTime()
+{
     return new TumblingWindowAssigner(size_, offset_, true);
 }
 
-TumblingWindowAssigner *TumblingWindowAssigner::withProcessingTime() {
+TumblingWindowAssigner* TumblingWindowAssigner::withProcessingTime()
+{
     return new TumblingWindowAssigner(size_, offset_, false);
 }

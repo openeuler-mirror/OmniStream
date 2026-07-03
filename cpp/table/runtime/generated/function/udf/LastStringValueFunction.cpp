@@ -4,21 +4,24 @@
 
 #include "LastStringValueFunction.h"
 
-bool LastStringValueFunction::equaliser(BinaryRowData *r1, BinaryRowData *r2)
+bool LastStringValueFunction::equaliser(BinaryRowData* r1, BinaryRowData* r2)
 {
     return false;
 }
 
-void LastStringValueFunction::accumulate(RowData *accInput)
-{}
+void LastStringValueFunction::accumulate(RowData* accInput)
+{
+}
 
-void LastStringValueFunction::retract(RowData *retractInput)
-{}
+void LastStringValueFunction::retract(RowData* retractInput)
+{
+}
 
-void LastStringValueFunction::merge(RowData *otherAcc)
-{}
+void LastStringValueFunction::merge(RowData* otherAcc)
+{
+}
 
-void LastStringValueFunction::setAccumulators(RowData *acc)
+void LastStringValueFunction::setAccumulators(RowData* acc)
 {
     valueIsNull = acc->isNullAt(accIndex);
     switch (typeId) {
@@ -26,9 +29,7 @@ void LastStringValueFunction::setAccumulators(RowData *acc)
             stringAggValue = valueIsNull ? emptyStringAggValue : std::string(acc->getStringView(accIndex));
             break;
         }
-        default:
-            LOG("Data type is not supported.");
-            throw std::runtime_error("Data type is not supported.");
+        default: LOG("Data type is not supported."); throw std::runtime_error("Data type is not supported.");
     }
 }
 
@@ -38,7 +39,7 @@ void LastStringValueFunction::resetAccumulators()
     valueIsNull = true;
 }
 
-void LastStringValueFunction::getAccumulators(BinaryRowData *accumulators)
+void LastStringValueFunction::getAccumulators(BinaryRowData* accumulators)
 {
     if (valueIsNull) {
         accumulators->setNullAt(accIndex);
@@ -49,27 +50,23 @@ void LastStringValueFunction::getAccumulators(BinaryRowData *accumulators)
                 accumulators->setStringView(accIndex, sv);
                 break;
             }
-            default:
-                LOG("Data type is not supported.");
-                throw std::runtime_error("Data type is not supported.");
+            default: LOG("Data type is not supported."); throw std::runtime_error("Data type is not supported.");
         }
     }
 }
 
-void LastStringValueFunction::createAccumulators(BinaryRowData *accumulators)
+void LastStringValueFunction::createAccumulators(BinaryRowData* accumulators)
 {
     switch (typeId) {
         case DataTypeId::OMNI_VARCHAR: {
             accumulators->setNullAt(accIndex);
             break;
         }
-        default:
-            LOG("Data type is not supported.");
-            throw std::runtime_error("Data type is not supported.");
+        default: LOG("Data type is not supported."); throw std::runtime_error("Data type is not supported.");
     }
 }
 
-void LastStringValueFunction::getValue(BinaryRowData *aggValue)
+void LastStringValueFunction::getValue(BinaryRowData* aggValue)
 {
     if (valueIsNull) {
         aggValue->setNullAt(valueIndex);
@@ -80,13 +77,15 @@ void LastStringValueFunction::getValue(BinaryRowData *aggValue)
                 aggValue->setStringView(valueIndex, sv);
                 break;
             }
-            default:
-                LOG("Data type is not supported.");
-                throw std::runtime_error("Data type is not supported.");
+            default: LOG("Data type is not supported."); throw std::runtime_error("Data type is not supported.");
         }
     }
 }
 
-void LastStringValueFunction::accumulate(omnistream::VectorBatch *input, const std::vector<int> &indices) {}
+void LastStringValueFunction::accumulate(omnistream::VectorBatch* input, const std::vector<int>& indices)
+{
+}
 
-void LastStringValueFunction::retract(omnistream::VectorBatch *input, const std::vector<int> &indices) {}
+void LastStringValueFunction::retract(omnistream::VectorBatch* input, const std::vector<int>& indices)
+{
+}

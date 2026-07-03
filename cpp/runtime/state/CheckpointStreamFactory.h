@@ -25,7 +25,7 @@ public:
     virtual void Flush() = 0;
     virtual void Sync() = 0;
     virtual void Close() = 0;
-    virtual void Write(const void *data, size_t length) = 0;
+    virtual void Write(const void* data, size_t length) = 0;
     virtual ~FSDataOutputStream() = default;
 };
 
@@ -39,16 +39,12 @@ class CheckpointStreamFactory {
 public:
     virtual ~CheckpointStreamFactory() = default;
 
-    virtual CheckpointStateOutputStream *
-    createCheckpointStateOutputStream(CheckpointedStateScope scope) = 0;
+    virtual CheckpointStateOutputStream* createCheckpointStateOutputStream(CheckpointedStateScope scope) = 0;
 
-    virtual bool canFastDuplicate(
-        StreamStateHandle *stateHandle,
-        CheckpointedStateScope scope) = 0;
+    virtual bool canFastDuplicate(StreamStateHandle* stateHandle, CheckpointedStateScope scope) = 0;
 
-    virtual std::vector<std::shared_ptr<StreamStateHandle>>
-    duplicate(std::vector<StreamStateHandle *> &stateHandles,
-              CheckpointedStateScope scope) = 0;
+    virtual std::vector<std::shared_ptr<StreamStateHandle>> duplicate(
+        std::vector<StreamStateHandle*>& stateHandles, CheckpointedStateScope scope) = 0;
 };
 
 #endif // FLINK_TNEL_CHECKPOINTSTREAMFACTORY_H

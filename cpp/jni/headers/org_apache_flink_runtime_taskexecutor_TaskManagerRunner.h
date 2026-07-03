@@ -28,8 +28,8 @@ extern "C" {
  * Method:    initTMConfiguration
  * Signature: (Ljava/lang/String;)V
  */
-JNIEXPORT void JNICALL Java_org_apache_flink_runtime_taskexecutor_TaskManagerRunner_initTMConfiguration
-  (JNIEnv *, jclass, jstring);
+JNIEXPORT void JNICALL Java_org_apache_flink_runtime_taskexecutor_TaskManagerRunner_initTMConfiguration(
+    JNIEnv*, jclass, jstring);
 
 #ifdef __cplusplus
 }

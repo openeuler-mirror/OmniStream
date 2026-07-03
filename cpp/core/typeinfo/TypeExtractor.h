@@ -28,7 +28,8 @@ class TypeExtractor {
 public:
     inline static std::string MAP_NAME = "java_util_Map";
 
-    inline static TypeInformation *CreateTypeInfo(Class* cl) {
+    inline static TypeInformation* CreateTypeInfo(Class* cl)
+    {
         std::string className = cl->name;
         auto basicTypeInfo = BasicTypeInfo::getBasicTypeInfoByClass(className);
         if (basicTypeInfo != nullptr) {
@@ -40,13 +41,13 @@ public:
             auto keyTypeInfo = CreateTypeInfo(ClassRegistry::instance().getClass(types.first));
             auto valueTypeInfo = CreateTypeInfo(ClassRegistry::instance().getClass(types.second));
             return new MapTypeInfo(keyTypeInfo, valueTypeInfo);
-        } else if (strcasecmp(className.c_str(), TYPE_NAME_VOID_NAMESPACE) == 0
-                || className == TYPE_NAME_VOID_NAMESPACE_CLASS
-                || className == TYPE_NAME_VOID_NAMESPACE_CLASS_LINE) {
+        } else if (
+            strcasecmp(className.c_str(), TYPE_NAME_VOID_NAMESPACE) == 0 ||
+            className == TYPE_NAME_VOID_NAMESPACE_CLASS || className == TYPE_NAME_VOID_NAMESPACE_CLASS_LINE) {
             return new VoidNamespaceTypeInfo(className.c_str());
-        } else if (strcasecmp(className.c_str(), TYPE_NAME_TIMER) == 0
-                || className == TYPE_NAME_TIMER_CLASS
-                || className == TYPE_NAME_TIMER_CLASS_LINE) {
+        } else if (
+            strcasecmp(className.c_str(), TYPE_NAME_TIMER) == 0 || className == TYPE_NAME_TIMER_CLASS ||
+            className == TYPE_NAME_TIMER_CLASS_LINE) {
             auto timer = static_cast<TimerHeapInternalTimer<Object*, Object*>*>(cl->newInstance());
             Class* keyClazz = timer->getKey()->getClass();
             Class* namespaceClazz = timer->getNamespace()->getClass();
@@ -58,21 +59,21 @@ public:
         if (typeInformation != nullptr) {
             return typeInformation;
         }
-        THROW_LOGIC_EXCEPTION("unsupported class info..")
+        THROW_LOGIC_EXCEPTION("unsupported class info..");
     }
 
-    inline static std::pair<std::string, std::string> splitAndTrim(const std::string &content)
+    inline static std::pair<std::string, std::string> splitAndTrim(const std::string& content)
     {
         size_t commaPos = content.find(',');
         if (commaPos == std::string::npos) {
-            THROW_LOGIC_EXCEPTION("illegal format : A comma is missing")
+            THROW_LOGIC_EXCEPTION("illegal format : A comma is missing");
         }
 
         std::string first = content.substr(0, commaPos);
         std::string second = content.substr(commaPos + 1);
 
         // 去除首尾空格
-        auto trim = [](std::string &s) {
+        auto trim = [](std::string& s) {
             s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](int ch) { return !std::isspace(ch); }));
             s.erase(std::find_if(s.rbegin(), s.rend(), [](int ch) { return !std::isspace(ch); }).base(), s.end());
         };
@@ -83,7 +84,7 @@ public:
         return {first, second};
     }
 
-    inline static TypeInformation *analyzePojo(Class *cl)
+    inline static TypeInformation* analyzePojo(Class* cl)
     {
         if (cl->fieldTypes_.empty()) {
             return nullptr;

@@ -38,7 +38,7 @@ using SerializeFunction = char*(char*);
 using DeSerializeFunction = char*(char*);
 using DebugFunction = void(char*);
 
-using RichMapFunctionType = MapFunctionUnique<Object>(RuntimeContext *);
+using RichMapFunctionType = MapFunctionUnique<Object>(RuntimeContext*);
 
 enum class UDFLogicType : uint8_t {
     Map,
@@ -54,79 +54,79 @@ enum class UDFLogicType : uint8_t {
 
 class UDFLoader {
 public:
-    MapDllType* LoadMapFunction(const std::string &filePath)
+    MapDllType* LoadMapFunction(const std::string& filePath)
     {
-        return LoadUDFFunction<MapDllType >(filePath, MapFuncName);
+        return LoadUDFFunction<MapDllType>(filePath, MapFuncName);
     }
 
-    FlatMapDllType* LoadFlatMapFunction(const std::string &filePath)
+    FlatMapDllType* LoadFlatMapFunction(const std::string& filePath)
     {
-        return LoadUDFFunction<FlatMapDllType >(filePath, FlatMapFuncName);
+        return LoadUDFFunction<FlatMapDllType>(filePath, FlatMapFuncName);
     }
 
-    FilterDllType* LoadFilterFunction(const std::string &filePath)
+    FilterDllType* LoadFilterFunction(const std::string& filePath)
     {
-        return LoadUDFFunction<FilterDllType >(filePath, FilterFuncName);
+        return LoadUDFFunction<FilterDllType>(filePath, FilterFuncName);
     }
 
-    ReduceDllType *LoadReduceFunction(const std::string &filePath)
+    ReduceDllType* LoadReduceFunction(const std::string& filePath)
     {
         return LoadUDFFunction<ReduceDllType>(filePath, ReduceFuncName);
     }
 
-    SerializeFunction *LoadSerFunction(const std::string &filePath)
+    SerializeFunction* LoadSerFunction(const std::string& filePath)
     {
         return LoadUDFFunction<SerializeFunction>(filePath, SerializeName);
     }
 
-    SerializeFunction *LoadDeSerFunction(const std::string &filePath)
+    SerializeFunction* LoadDeSerFunction(const std::string& filePath)
     {
         return LoadUDFFunction<DeSerializeFunction>(filePath, DeSerializeName);
     }
 
-    DebugFunction* LoadDebugFunction(const std::string &filePath)
+    DebugFunction* LoadDebugFunction(const std::string& filePath)
     {
         return LoadUDFFunction<DebugFunction>(filePath, DebugName);
     }
 
-    HashFunctionType* LoadHashFunction(const std::string &filePah)
+    HashFunctionType* LoadHashFunction(const std::string& filePah)
     {
         return LoadUDFFunction<HashFunctionType>(filePah, HashName);
     }
 
-    CmpFunctionType* LoadCmpFunction(const std::string &filePah)
+    CmpFunctionType* LoadCmpFunction(const std::string& filePah)
     {
         return LoadUDFFunction<CmpFunctionType>(filePah, CmpName);
     }
 
-    SourceDllType* LoadSourceFunction(const std::string &filePath)
+    SourceDllType* LoadSourceFunction(const std::string& filePath)
     {
-        return LoadUDFFunction<SourceDllType >(filePath, SourceFuncName);
+        return LoadUDFFunction<SourceDllType>(filePath, SourceFuncName);
     }
 
-    KeySelectDllType* LoadKeySelectFunction(const std::string &filePath)
+    KeySelectDllType* LoadKeySelectFunction(const std::string& filePath)
     {
-        return LoadUDFFunction<KeySelectDllType >(filePath, KeySelectName);
+        return LoadUDFFunction<KeySelectDllType>(filePath, KeySelectName);
     }
 
-    KeyedCoProcessDllType* LoadKeyedCoProcessFunction(const std::string &filePath)
+    KeyedCoProcessDllType* LoadKeyedCoProcessFunction(const std::string& filePath)
     {
-        return LoadUDFFunction<KeyedCoProcessDllType >(filePath, KeyedCoProcessFuncName);
+        return LoadUDFFunction<KeyedCoProcessDllType>(filePath, KeyedCoProcessFuncName);
     }
 
-    ProcessOperatorDllType* LoadProcessOperatorFunction(const std::string &filePath)
+    ProcessOperatorDllType* LoadProcessOperatorFunction(const std::string& filePath)
     {
-        return LoadUDFFunction<ProcessOperatorDllType >(filePath, ProcessOperatorFuncName);
+        return LoadUDFFunction<ProcessOperatorDllType>(filePath, ProcessOperatorFuncName);
     }
 
-    RichMapFunctionType* LoadRichMapFunction(const std::string &filePah)
+    RichMapFunctionType* LoadRichMapFunction(const std::string& filePah)
     {
         return LoadUDFFunction<RichMapFunctionType>(filePah, HashName);
     }
 
 private:
-    template<typename FuncType>
-    FuncType* LoadUDFFunction(const std::string &filePath, const std::string &funcSignature)
+    template <typename FuncType>
+    FuncType* LoadUDFFunction(const std::string& filePath, const std::string& funcSignature)
     {
         void* handle = dlopen(filePath.c_str(), RTLD_LAZY);
         if (not handle) {
@@ -134,7 +134,7 @@ private:
             return nullptr;
         }
 
-        FuncType *funcPointer = (FuncType *)dlsym(handle, funcSignature.c_str());
+        FuncType* funcPointer = (FuncType*)dlsym(handle, funcSignature.c_str());
 
         const char* path = nullptr;
         if (path == nullptr) {

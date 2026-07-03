@@ -29,8 +29,8 @@ public:
     RowKind getRowKind() override;
     void setRowKind(RowKind kind) override;
     bool isNullAt(int pos) override;
-    long *getLong(int pos) override;
-    bool *getBool(int pos) override;
+    long* getLong(int pos) override;
+    bool* getBool(int pos) override;
     int* getInt(int pos) override;
     TimestampData getTimestamp(int pos) override;
     TimestampData getTimestampPrecise(int pos) override;
@@ -50,7 +50,7 @@ public:
 
     int hashCode() const override;
     [[nodiscard]] int hashCodeFast() const override;
-    bool operator==(const RowData &other) const override;
+    bool operator==(const RowData& other) const override;
 
 private:
     RowKind rowKind;

@@ -14,73 +14,76 @@
 
 namespace omnistream {
 
+AvailabilityHelper::AvailabilityHelper() : availableFuture(std::make_shared<CompletableFuture>())
+{
+}
 
-    AvailabilityHelper::AvailabilityHelper() : availableFuture(std::make_shared<CompletableFuture>()) {}
+AvailabilityHelper::~AvailabilityHelper()
+{
+}
 
-    AvailabilityHelper::~AvailabilityHelper() {}
+std::shared_ptr<CompletableFuture> AvailabilityHelper::and_(const std::shared_ptr<CompletableFuture>& other)
+{
+    return AvailabilityProvider::and_(availableFuture, other);
+}
 
-    std::shared_ptr<CompletableFuture> AvailabilityHelper::and_(const std::shared_ptr<CompletableFuture>& other)
-    {
-        return AvailabilityProvider::and_(availableFuture, other);
-    }
+std::shared_ptr<CompletableFuture> AvailabilityHelper::and_(const std::shared_ptr<AvailabilityProvider>& other)
+{
+    return and_(other->GetAvailableFuture());
+}
 
-    std::shared_ptr<CompletableFuture> AvailabilityHelper::and_(const std::shared_ptr<AvailabilityProvider>& other)
-    {
-        return and_(other->GetAvailableFuture());
-    }
+std::shared_ptr<CompletableFuture> AvailabilityHelper::or_(const std::shared_ptr<CompletableFuture>& other)
+{
+    return AvailabilityProvider::or_(availableFuture, other);
+}
 
-    std::shared_ptr<CompletableFuture> AvailabilityHelper::or_(const std::shared_ptr<CompletableFuture>& other)
-    {
-        return AvailabilityProvider::or_(availableFuture, other);
-    }
+std::shared_ptr<CompletableFuture> AvailabilityHelper::or_(const std::shared_ptr<AvailabilityProvider>& other)
+{
+    return or_(other->GetAvailableFuture());
+}
 
-    std::shared_ptr<CompletableFuture> AvailabilityHelper::or_(const std::shared_ptr<AvailabilityProvider>& other)
-    {
-        return or_(other->GetAvailableFuture());
-    }
-
-    void AvailabilityHelper::resetUnavailable()
-    {
-        std::unique_lock<std::recursive_mutex> lock(availableFutureMutex);
-        if (isAvailable()) {
-            availableFuture = std::make_shared<CompletableFuture>();
-        }
-    }
-
-    void AvailabilityHelper::resetAvailable()
-    {
-        std::unique_lock<std::recursive_mutex> lock(availableFutureMutex);
-        availableFuture = AVAILABLE;
-    }
-
-    std::shared_ptr<CompletableFuture> AvailabilityHelper::getUnavailableToResetAvailable()
-    {
-        std::unique_lock<std::recursive_mutex> lock(availableFutureMutex);
-        std::shared_ptr<CompletableFuture> toNotify = availableFuture;
-        availableFuture = AVAILABLE;
-        return toNotify;
-    }
-
-    std::shared_ptr<CompletableFuture> AvailabilityHelper::getUnavailableToResetUnavailable()
-    {
-        std::unique_lock<std::recursive_mutex> lock(availableFutureMutex);
-        std::shared_ptr<CompletableFuture> toNotify = availableFuture;
+void AvailabilityHelper::resetUnavailable()
+{
+    std::unique_lock<std::recursive_mutex> lock(availableFutureMutex);
+    if (isAvailable()) {
         availableFuture = std::make_shared<CompletableFuture>();
-        return toNotify;
     }
+}
 
-    std::shared_ptr<CompletableFuture> AvailabilityHelper::GetAvailableFuture()
-    {
-        std::unique_lock<std::recursive_mutex> lock(availableFutureMutex);
-        return availableFuture;
-    }
+void AvailabilityHelper::resetAvailable()
+{
+    std::unique_lock<std::recursive_mutex> lock(availableFutureMutex);
+    availableFuture = AVAILABLE;
+}
 
-    std::string AvailabilityHelper::toString()
-    {
-        if (availableFuture == AVAILABLE) {
-            return "AVAILABLE";
-        }
-        return availableFuture->toString();
+std::shared_ptr<CompletableFuture> AvailabilityHelper::getUnavailableToResetAvailable()
+{
+    std::unique_lock<std::recursive_mutex> lock(availableFutureMutex);
+    std::shared_ptr<CompletableFuture> toNotify = availableFuture;
+    availableFuture = AVAILABLE;
+    return toNotify;
+}
+
+std::shared_ptr<CompletableFuture> AvailabilityHelper::getUnavailableToResetUnavailable()
+{
+    std::unique_lock<std::recursive_mutex> lock(availableFutureMutex);
+    std::shared_ptr<CompletableFuture> toNotify = availableFuture;
+    availableFuture = std::make_shared<CompletableFuture>();
+    return toNotify;
+}
+
+std::shared_ptr<CompletableFuture> AvailabilityHelper::GetAvailableFuture()
+{
+    std::unique_lock<std::recursive_mutex> lock(availableFutureMutex);
+    return availableFuture;
+}
+
+std::string AvailabilityHelper::toString()
+{
+    if (availableFuture == AVAILABLE) {
+        return "AVAILABLE";
     }
+    return availableFuture->toString();
+}
 
 } // namespace omnistream

@@ -24,16 +24,17 @@
 #include "table/runtime/operators/window/WindowOperator.h"
 #include "streaming/api/operators/AbstractStreamOperator.h"
 
-template<typename K, typename W>
+template <typename K, typename W>
 class AggregateWindowOperator : public WindowOperator<K, W> {
 public:
-    std::unique_ptr<NamespaceAggsHandleFunction<W>> initNamespaceAggsHandleFunction(const nlohmann::json &aggInfoList);
+    std::unique_ptr<NamespaceAggsHandleFunction<W>> initNamespaceAggsHandleFunction(const nlohmann::json& aggInfoList);
 
-    AggregateWindowOperator(nlohmann::json description, Output* output) : WindowOperator<K, W>(description, output) {
+    AggregateWindowOperator(nlohmann::json description, Output* output) : WindowOperator<K, W>(description, output)
+    {
         this->output = output;
         this->collector = std::make_unique<TimestampedCollector>(output);
 
-        for (const auto &typeStr: WindowOperator<K, W>::outputTypes) {
+        for (const auto& typeStr : WindowOperator<K, W>::outputTypes) {
             outputTypeIds.push_back(LogicalType::flinkTypeToOmniTypeId(typeStr));
         }
 
@@ -44,7 +45,8 @@ public:
         }
     }
 
-    void open() {
+    void open()
+    {
         if (aggWindowAggregator != nullptr) {
             this->windowAggregator = std::move(aggWindowAggregator);
         }
@@ -52,20 +54,24 @@ public:
         reuseOutput_ = std::make_unique<JoinedRowData>();
     }
 
-    void setCurrentKey(K key) override {
+    void setCurrentKey(K key) override
+    {
         this->stateHandler->setCurrentKey(key);
     }
 
-    void initializeState(StreamTaskStateInitializerImpl* initializer, TypeSerializer* keySerializer) override {
+    void initializeState(StreamTaskStateInitializerImpl* initializer, TypeSerializer* keySerializer) override
+    {
         AbstractStreamOperator<K>::SetOperatorID(OneInputStreamOperator::GetOperatorID().toString());
         AbstractStreamOperator<K>::initializeState(initializer, keySerializer);
     };
 
-    void notifyCheckpointComplete(long checkpointId) override {
+    void notifyCheckpointComplete(long checkpointId) override
+    {
         AbstractStreamOperator<K>::notifyCheckpointComplete(checkpointId);
     }
 
-    void notifyCheckpointAborted(long checkpointId) override {
+    void notifyCheckpointAborted(long checkpointId) override
+    {
         AbstractStreamOperator<K>::notifyCheckpointAborted(checkpointId);
     }
 
@@ -75,18 +81,20 @@ protected:
 private:
     omnistream::VectorBatch* createOutputBatch(const std::vector<RowData*>& collectedRows);
 
-    void collect(RowKind rowKind, RowData* key, std::unique_ptr<RowData> aggResult) {
+    void collect(RowKind rowKind, RowData* key, std::unique_ptr<RowData> aggResult)
+    {
         reuseResultRows_.clear();
         reuseOutput_->replace(key, aggResult.get());
         reuseOutput_->setRowKind(rowKind);
-        auto resultRow = std::unique_ptr<BinaryRowData>(BinaryRowDataSerializer::joinedRowToBinaryRow(
-            reuseOutput_.get(), outputTypeIds));
+        auto resultRow = std::unique_ptr<BinaryRowData>(
+            BinaryRowDataSerializer::joinedRowToBinaryRow(reuseOutput_.get(), outputTypeIds));
         reuseResultRows_.push_back(resultRow.get());
         auto resultBatch = createOutputBatch(reuseResultRows_);
         collectOutputBatch(collector.get(), resultBatch);
     }
 
-    void collectOutputBatch(TimestampedCollector* out, omnistream::VectorBatch* outputBatch) {
+    void collectOutputBatch(TimestampedCollector* out, omnistream::VectorBatch* outputBatch)
+    {
         out->collect(outputBatch);
     }
 
@@ -96,5 +104,4 @@ private:
     std::unique_ptr<JoinedRowData> reuseOutput_{};
     std::vector<RowData*> reuseResultRows_;
     std::vector<int32_t> outputTypeIds;
-
 };

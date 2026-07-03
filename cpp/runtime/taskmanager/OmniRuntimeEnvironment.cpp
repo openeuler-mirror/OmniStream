@@ -12,10 +12,11 @@
 #include "OmniRuntimeEnvironment.h"
 
 namespace omnistream {
-   // RuntimeEnvironmentV2::RuntimeEnvironmentV2(std::shared_ptr<ShuffleEnvironment> env) :
-   // omniShuffleEnvironment_(env){
-   // }
+// RuntimeEnvironmentV2::RuntimeEnvironmentV2(std::shared_ptr<ShuffleEnvironment> env) :
+// omniShuffleEnvironment_(env){
+// }
 
-    RuntimeEnvironmentV2::~RuntimeEnvironmentV2() {
-    }
+RuntimeEnvironmentV2::~RuntimeEnvironmentV2()
+{
 }
+} // namespace omnistream

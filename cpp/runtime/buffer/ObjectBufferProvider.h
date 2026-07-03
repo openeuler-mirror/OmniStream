@@ -16,7 +16,6 @@
 #include <string>
 #include <io/AvailabilityProvider.h>
 
-
 #include "ObjectBuffer.h"
 #include "ObjectBufferBuilder.h"
 #include "ObjectBufferListener.h"
@@ -24,12 +23,12 @@
 
 namespace omnistream {
 
-    class ObjectBufferProvider : public BufferProvider {
-    public:
-        ~ObjectBufferProvider() override = default;
+class ObjectBufferProvider : public BufferProvider {
+public:
+    ~ObjectBufferProvider() override = default;
 
-        virtual bool addBufferListener(std::shared_ptr<ObjectBufferListener> listener) = 0;
-    };
+    virtual bool addBufferListener(std::shared_ptr<ObjectBufferListener> listener) = 0;
+};
 
 } // namespace omnistream
 

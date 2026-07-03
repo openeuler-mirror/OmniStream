@@ -19,8 +19,9 @@ using namespace omnistream;
 // Sample task that sleeps for a specified duration
 class SleepTask : public Runnable {
 public:
-    SleepTask(const std::string& name, int timeMs)
-        : sleepTimeMs(timeMs), taskName(name) {}
+    SleepTask(const std::string& name, int timeMs) : sleepTimeMs(timeMs), taskName(name)
+    {
+    }
 
     void run() override
     {
@@ -28,6 +29,7 @@ public:
         std::this_thread::sleep_for(std::chrono::milliseconds(sleepTimeMs));
         std::cout << "Completed task: " << taskName << std::endl;
     }
+
 private:
     int sleepTimeMs;
     std::string taskName;
@@ -36,12 +38,15 @@ private:
 // Task that prints a message
 class PrintTask : public Runnable {
 public:
-    explicit PrintTask(const std::string& msg) : message(msg) {}
+    explicit PrintTask(const std::string& msg) : message(msg)
+    {
+    }
 
     void run() override
     {
         std::cout << "Message: " << message << std::endl;
     }
+
 private:
     std::string message;
 };
@@ -112,7 +117,7 @@ int to_be_main()
     auto futureB = CompletableFuture::runAsync(taskB);
     auto futureC = CompletableFuture::runAsync(taskC);
 
-    std::vector<std::shared_ptr<CompletableFuture>> allFutures = { futureA, futureB, futureC };
+    std::vector<std::shared_ptr<CompletableFuture>> allFutures = {futureA, futureB, futureC};
 
     // Wait for any task to complete
     std::cout << "Waiting for any task to complete..." << std::endl;

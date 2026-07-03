@@ -22,14 +22,17 @@
 
 class SavepointRestoreResultIterator {
 public:
-    SavepointRestoreResultIterator()
-        : currentIndex_(0) {
+    SavepointRestoreResultIterator() : currentIndex_(0)
+    {
     }
 
     SavepointRestoreResultIterator(
-            const std::vector<std::shared_ptr<KeyedStateHandle>>& stateHandles,
-            std::shared_ptr<OmniTaskBridge> omniTaskBridge)
-        : omniTaskBridge_(omniTaskBridge), stateHandles_(stateHandles), currentIndex_(0) {
+        const std::vector<std::shared_ptr<KeyedStateHandle>>& stateHandles,
+        std::shared_ptr<OmniTaskBridge> omniTaskBridge)
+        : omniTaskBridge_(omniTaskBridge),
+          stateHandles_(stateHandles),
+          currentIndex_(0)
+    {
     }
 
     bool hasNext()
@@ -46,16 +49,13 @@ public:
         auto stateHandle = stateHandles_[currentIndex_++];
         auto keyedStateHandle = std::dynamic_pointer_cast<KeyGroupsStateHandle>(stateHandle);
         if (!keyedStateHandle) {
-            throw unexpectedStateHandleException(
-                typeid(KeyGroupsStateHandle),
-                typeid(*stateHandle)
-            );
+            throw unexpectedStateHandleException(typeid(KeyGroupsStateHandle), typeid(*stateHandle));
         }
         // In a real implementation, this would deserialize the state handle
         // and extract the actual state metadata and key groups
         // For now, we create a placeholder
         auto serializerStr = TaskStateSnapshotSerializer::parseKeyGroupsStateHandle(keyedStateHandle);
-        std::vector<StateMetaInfoSnapshot> stateMetaInfoSnapshots = 
+        std::vector<StateMetaInfoSnapshot> stateMetaInfoSnapshots =
             omniTaskBridge_->readMetaData(to_string(serializerStr));
 
         // This would involve deserializing the savepoint data
@@ -68,12 +68,11 @@ private:
     std::vector<std::shared_ptr<KeyedStateHandle>> stateHandles_;
     std::shared_ptr<OmniTaskBridge> omniTaskBridge_;
     size_t currentIndex_;
-    std::runtime_error unexpectedStateHandleException(
-            const std::type_info& expected, const std::type_info& actual)
+    std::runtime_error unexpectedStateHandleException(const std::type_info& expected, const std::type_info& actual)
     {
         return std::runtime_error(
-            "Unexpected state handle type: expected " +
-            std::string(expected.name()) + ", but got " + std::string(actual.name()));
+            "Unexpected state handle type: expected " + std::string(expected.name()) + ", but got " +
+            std::string(actual.name()));
     }
 };
 

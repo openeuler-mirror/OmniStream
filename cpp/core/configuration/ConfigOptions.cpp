@@ -14,47 +14,47 @@ OptionBuilder::OptionBuilder(std::string key) : key(key)
 {
 }
 
-TypedConfigOptionBuilder<bool> *OptionBuilder::booleanType()
+TypedConfigOptionBuilder<bool>* OptionBuilder::booleanType()
 {
     return new TypedConfigOptionBuilder<bool>(key);
 }
 
-TypedConfigOptionBuilder<int> *OptionBuilder::intType()
+TypedConfigOptionBuilder<int>* OptionBuilder::intType()
 {
     return new TypedConfigOptionBuilder<int>(key);
 }
 
-TypedConfigOptionBuilder<long> *OptionBuilder::longType()
+TypedConfigOptionBuilder<long>* OptionBuilder::longType()
 {
     return new TypedConfigOptionBuilder<long>(key);
 }
 
-TypedConfigOptionBuilder<float> *OptionBuilder::floatType()
+TypedConfigOptionBuilder<float>* OptionBuilder::floatType()
 {
     return new TypedConfigOptionBuilder<float>(key);
 }
 
-TypedConfigOptionBuilder<double> *OptionBuilder::doubleTYpe()
+TypedConfigOptionBuilder<double>* OptionBuilder::doubleTYpe()
 {
     return new TypedConfigOptionBuilder<double>(key);
 }
 
-TypedConfigOptionBuilder<std::string> *OptionBuilder::stringType()
+TypedConfigOptionBuilder<std::string>* OptionBuilder::stringType()
 {
     return new TypedConfigOptionBuilder<std::string>(key);
 }
 
-TypedConfigOptionBuilder<long> *OptionBuilder::memoryType()
+TypedConfigOptionBuilder<long>* OptionBuilder::memoryType()
 {
     return new TypedConfigOptionBuilder<long>(key);
 }
 
-TypedConfigOptionBuilder<std::chrono::milliseconds> *OptionBuilder::durationType()
+TypedConfigOptionBuilder<std::chrono::milliseconds>* OptionBuilder::durationType()
 {
     return new TypedConfigOptionBuilder<std::chrono::milliseconds>(key);
 }
 
-OptionBuilder *ConfigOptions::key(std::string key)
+OptionBuilder* ConfigOptions::key(std::string key)
 {
     return new OptionBuilder(key);
 }

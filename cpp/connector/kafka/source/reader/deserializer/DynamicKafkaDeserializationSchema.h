@@ -34,5 +34,4 @@ private:
     DeserializationSchema* valueDeserialization;
 };
 
-
 #endif // OMNISTREAM_DYNAMICKAFKADESERIALIZATIONSCHEMA_H

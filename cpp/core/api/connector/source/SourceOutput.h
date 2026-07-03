@@ -12,10 +12,8 @@
 #ifndef FLINK_TNEL_SOURCEOUTPUT_H
 #define FLINK_TNEL_SOURCEOUTPUT_H
 
-
 #include <memory>
 #include "api/common/eventtime/WatermarkOutput.h"
-
 
 class SourceOutput : public WatermarkOutput {
 public:

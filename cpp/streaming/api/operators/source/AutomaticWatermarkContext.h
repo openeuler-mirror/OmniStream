@@ -17,18 +17,21 @@
 
 class AutomaticWatermarkContext : public WatermarkContext {
 public:
-    AutomaticWatermarkContext(Output *output,
-                              int64_t watermarkInterval,
-                              ProcessingTimeService *timeService,
-                              Object *checkpointLock,
-                              int64_t idleTimeout) : WatermarkContext(timeService, checkpointLock,
-                                                                      idleTimeout),
-                                                     output(output),
-                                                     watermarkInterval(watermarkInterval) {
+    AutomaticWatermarkContext(
+        Output* output,
+        int64_t watermarkInterval,
+        ProcessingTimeService* timeService,
+        Object* checkpointLock,
+        int64_t idleTimeout)
+        : WatermarkContext(timeService, checkpointLock, idleTimeout),
+          output(output),
+          watermarkInterval(watermarkInterval)
+    {
         reuse = new StreamRecord();
         lastRecordTime = INT64_MAX;
         int64_t now = timeService->getCurrentProcessingTime();
-        timeService->registerTimer(now + watermarkInterval, new WatermarkEmittingTask(timeService, checkpointLock, output));
+        timeService->registerTimer(
+            now + watermarkInterval, new WatermarkEmittingTask(timeService, checkpointLock, output));
     }
 
     ~AutomaticWatermarkContext() override
@@ -45,7 +48,7 @@ public:
     }
 
 protected:
-    void processAndCollect(void *element) override
+    void processAndCollect(void* element) override
     {
         lastRecordTime = this->timeService->getCurrentProcessingTime();
         output->collect(reuse->replace(element, lastRecordTime));
@@ -56,19 +59,19 @@ protected:
         }
     }
 
-    void processAndCollectWithTimestamp(void *element, int64_t timestamp) override
+    void processAndCollectWithTimestamp(void* element, int64_t timestamp) override
     {
         processAndCollect(element);
     }
 
-    bool allowWatermark(Watermark *mark) override
+    bool allowWatermark(Watermark* mark) override
     {
         // allow Long.MAX_VALUE since this is the special end-watermark that for example the
         // Kafka source emits
         return mark->getTimestamp() == INT64_MAX && nextWatermarkTime != INT64_MAX;
     }
 
-    void processAndEmitWatermark(Watermark *mark) override
+    void processAndEmitWatermark(Watermark* mark) override
     {
         nextWatermarkTime = INT64_MAX;
         output->emitWatermark(mark);
@@ -78,7 +81,7 @@ protected:
         }
     }
 
-    void processAndEmitWatermarkStatus(WatermarkStatus *watermarkStatus) override
+    void processAndEmitWatermarkStatus(WatermarkStatus* watermarkStatus) override
     {
         if (idle != watermarkStatus->IsIdle()) {
             output->emitWatermarkStatus(watermarkStatus);
@@ -89,9 +92,12 @@ protected:
 private:
     class WatermarkEmittingTask : public ProcessingTimeCallback {
     public:
-        WatermarkEmittingTask(ProcessingTimeService *timeService,
-                              Object *lock,
-                              Output *output) : timeService(timeService), lock(lock), output(output) {}
+        WatermarkEmittingTask(ProcessingTimeService* timeService, Object* lock, Output* output)
+            : timeService(timeService),
+              lock(lock),
+              output(output)
+        {
+        }
 
         void OnProcessingTime(int64_t timestamp) override
         {
@@ -101,15 +107,15 @@ private:
         ~WatermarkEmittingTask() override = default;
 
     private:
-        ProcessingTimeService *timeService;
-        Object *lock;
-        Output *output;
+        ProcessingTimeService* timeService;
+        Object* lock;
+        Output* output;
     };
 
-    Output *output;
-    StreamRecord *reuse;
+    Output* output;
+    StreamRecord* reuse;
     long watermarkInterval;
-    volatile ScheduledFuture *nextWatermarkTimer;
+    volatile ScheduledFuture* nextWatermarkTimer;
     volatile int64_t nextWatermarkTime{};
     volatile int64_t lastRecordTime;
 

@@ -12,9 +12,10 @@
 #include "JsonDeserializationSchema.h"
 #include "table/data/vectorbatch/VectorBatch.h"
 
-JsonDeserializationSchema::JsonDeserializationSchema(std::string inputType) : AbstractDeserializationSchema(inputType) {
+JsonDeserializationSchema::JsonDeserializationSchema(std::string inputType) : AbstractDeserializationSchema(inputType)
+{
 }
 
-void JsonDeserializationSchema::Open() {
+void JsonDeserializationSchema::Open()
+{
 }
-

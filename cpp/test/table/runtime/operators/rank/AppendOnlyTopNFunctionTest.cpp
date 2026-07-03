@@ -11,40 +11,42 @@
 #include <nlohmann/json.hpp>
 
 namespace omnistream {
-    VectorBatch *createVectorBatchFromCSV(std::string filepath, int nrow, int ncol)
-    {
-        VectorBatch* resultVB = new omnistream::VectorBatch(nrow);
-        resultVB->ResizeVectorCount(ncol);
-        for(int i = 0; i < ncol; i++) {
-            auto vec = new omniruntime::vec::Vector<int64_t>(nrow);
-            resultVB->SetVector(i, vec);
-        }
-        std::ifstream file(filepath);
-        if (!file.is_open()) {
-            std::cerr << "Error opening file\n";
-            return nullptr;
-        }
-        std::string line;
-        int irow = 0;
-        while (std::getline(file, line)) {
-            std::stringstream ss(line);
-            std::string value;
-            std::vector<std::string> row;
-    
-            while (std::getline(ss, value, ',')) {
-                row.push_back(value);
-            }
-            for (size_t i = 0; i < row.size(); ++i) {
-                reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(resultVB->GetVectors()[i])->SetValue(irow, std::stoll(row[i]));
-            }
-            irow++;
-        }
-        file.close();
-        return resultVB;
+VectorBatch* createVectorBatchFromCSV(std::string filepath, int nrow, int ncol)
+{
+    VectorBatch* resultVB = new omnistream::VectorBatch(nrow);
+    resultVB->ResizeVectorCount(ncol);
+    for (int i = 0; i < ncol; i++) {
+        auto vec = new omniruntime::vec::Vector<int64_t>(nrow);
+        resultVB->SetVector(i, vec);
     }
-}
+    std::ifstream file(filepath);
+    if (!file.is_open()) {
+        std::cerr << "Error opening file\n";
+        return nullptr;
+    }
+    std::string line;
+    int irow = 0;
+    while (std::getline(file, line)) {
+        std::stringstream ss(line);
+        std::string value;
+        std::vector<std::string> row;
 
-TEST(AppendOnlyTopNFunctionTest, OneLongPartitionKeyOneLongSortKey) {
+        while (std::getline(ss, value, ',')) {
+            row.push_back(value);
+        }
+        for (size_t i = 0; i < row.size(); ++i) {
+            reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(resultVB->GetVectors()[i])
+                ->SetValue(irow, std::stoll(row[i]));
+        }
+        irow++;
+    }
+    file.close();
+    return resultVB;
+}
+} // namespace omnistream
+
+TEST(AppendOnlyTopNFunctionTest, OneLongPartitionKeyOneLongSortKey)
+{
     // partition by field0, sort desceding by field 1
     std::string description = R"DELIM({"originDescription":null,
 "inputTypes":["BIGINT", "BIGINT", "BIGINT"],
@@ -59,12 +61,12 @@ TEST(AppendOnlyTopNFunctionTest, OneLongPartitionKeyOneLongSortKey) {
 "sortNullsIsLast":[true]})DELIM";
 
     const nlohmann::json rankConfig = nlohmann::json::parse(description);
-    auto func = reinterpret_cast<KeyedProcessFunction<RowData*, RowData *, RowData *> *>(new AppendOnlyTopNFunction<RowData*>(
-            rankConfig));
+    auto func = reinterpret_cast<KeyedProcessFunction<RowData*, RowData*, RowData*>*>(
+        new AppendOnlyTopNFunction<RowData*>(rankConfig));
 
     nlohmann::json newRankConfig = rankConfig;
-    BatchOutputTest *output = new BatchOutputTest();
-    auto *op = new KeyedProcessOperator(func, output, newRankConfig);
+    BatchOutputTest* output = new BatchOutputTest();
+    auto* op = new KeyedProcessOperator(func, output, newRankConfig);
     op->setup();
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
@@ -78,9 +80,12 @@ TEST(AppendOnlyTopNFunctionTest, OneLongPartitionKeyOneLongSortKey) {
     }
     env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
-    std::vector<omnistream::RowField> typeInfo {omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::BIGINT)};
-    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, typeInfo));
+    StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
+    std::vector<omnistream::RowField> typeInfo{
+        omnistream::RowField("col0", BasicLogicalType::BIGINT),
+        omnistream::RowField("col0", BasicLogicalType::BIGINT),
+        omnistream::RowField("col1", BasicLogicalType::BIGINT)};
+    TypeSerializer* ser = new RowDataSerializer(new omnistream::RowType(false, typeInfo));
     op->initializeState(initializer, ser);
     EXPECT_NO_THROW(op->open());
 
@@ -101,42 +106,46 @@ TEST(AppendOnlyTopNFunctionTest, OneLongPartitionKeyOneLongSortKey) {
     vb->Append(vector1);
     vb->Append(vector2);
     op->processBatch(new StreamRecord(vb));
-/*
-+I      0       0       12      1
-+U      0       1       11      1 // 1 > 0
-+I      0       0       12      2 // prev row move one rank lower
-+U      0       2       10      1 // 2 > 1
-+U      0       1       11      2 // 1 moved one rank lower
-+I      0       0       12      3 // 0 moved one rank lower
-+U      0       3       9       1 // 3 > 2
-+U      0       2       10      2 // 2 moved one rank lower
-+U      0       1       11      3 // 1 moved one rank lower
-+U      0       4       8       1 // 4 > 3
-+U      0       3       9       2 // 3 moved one rank lower
-+U      0       2       10      3 // 2 moved one rank lower
-+U      0       5       7       1 // 5 > 4
-+U      0       4       8       2 // 4 moved one rank lower
-+U      0       3       9       3 // 3 moved one rank lower
-+I      1       6       6       1 // new partition key 
-+U      1       7       5       1
-+I      1       6       6       2
-+U      1       8       4       1
-+U      1       7       5       2
-+I      1       6       6       3
-+U      1       9       3       1
-+U      1       8       4       2
-+U      1       7       5       3
-+U      1       10      2       1
-+U      1       9       3       2
-+U      1       8       4       3
-+U      1       11      1       1
-+U      1       10      2       2
-+U      1       9       3       3
- */
-    std::vector<int64_t> expected0 = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};
-    std::vector<int64_t> expected1 = {0,1,0,2,1,0,3,2,1,4,3,2,5,4,3,6,7,6,8,7,6,9,8,7,10,9,8,11,10,9};
-    std::vector<int64_t> expected2 = {12,11,12,10,11,12,9,10,11,8,9,10,7,8,9,6,5,6,4,5,6,3,4,5,2,3,4,1,2,3};
-    std::vector<int64_t> expected3 = {1,1,2,1,2,3,1,2,3,1,2,3,1,2,3,1,1,2,1,2,3,1,2,3,1,2,3,1,2,3};
+    /*
+    +I      0       0       12      1
+    +U      0       1       11      1 // 1 > 0
+    +I      0       0       12      2 // prev row move one rank lower
+    +U      0       2       10      1 // 2 > 1
+    +U      0       1       11      2 // 1 moved one rank lower
+    +I      0       0       12      3 // 0 moved one rank lower
+    +U      0       3       9       1 // 3 > 2
+    +U      0       2       10      2 // 2 moved one rank lower
+    +U      0       1       11      3 // 1 moved one rank lower
+    +U      0       4       8       1 // 4 > 3
+    +U      0       3       9       2 // 3 moved one rank lower
+    +U      0       2       10      3 // 2 moved one rank lower
+    +U      0       5       7       1 // 5 > 4
+    +U      0       4       8       2 // 4 moved one rank lower
+    +U      0       3       9       3 // 3 moved one rank lower
+    +I      1       6       6       1 // new partition key
+    +U      1       7       5       1
+    +I      1       6       6       2
+    +U      1       8       4       1
+    +U      1       7       5       2
+    +I      1       6       6       3
+    +U      1       9       3       1
+    +U      1       8       4       2
+    +U      1       7       5       3
+    +U      1       10      2       1
+    +U      1       9       3       2
+    +U      1       8       4       3
+    +U      1       11      1       1
+    +U      1       10      2       2
+    +U      1       9       3       3
+     */
+    std::vector<int64_t> expected0 = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+    std::vector<int64_t> expected1 = {0, 1, 0, 2, 1, 0, 3, 2, 1, 4,  3, 2, 5,  4,  3,
+                                      6, 7, 6, 8, 7, 6, 9, 8, 7, 10, 9, 8, 11, 10, 9};
+    std::vector<int64_t> expected2 = {12, 11, 12, 10, 11, 12, 9, 10, 11, 8, 9, 10, 7, 8, 9,
+                                      6,  5,  6,  4,  5,  6,  3, 4,  5,  2, 3, 4,  1, 2, 3};
+    std::vector<int64_t> expected3 = {1, 1, 2, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3,
+                                      1, 1, 2, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3};
 
     auto expectedVB = new omnistream::VectorBatch(30);
     expectedVB->Append(omniruntime::TestUtil::CreateVector(30, expected0.data()));
@@ -145,10 +154,10 @@ TEST(AppendOnlyTopNFunctionTest, OneLongPartitionKeyOneLongSortKey) {
     expectedVB->Append(omniruntime::TestUtil::CreateVector(30, expected3.data()));
     bool matched = omniruntime::TestUtil::VecBatchMatch(output->getVectorBatch(), expectedVB);
     EXPECT_EQ(matched, true);
-
 }
 
-TEST(AppendOnlyTopNFunctionTest, Q19Top10) {
+TEST(AppendOnlyTopNFunctionTest, Q19Top10)
+{
     std::string description = R"DELIM({"originDescription":null,
                                         "inputTypes":["BIGINT", "BIGINT", "BIGINT"],
                                         "outputTypes":["BIGINT","BIGINT","BIGINT","BIGINT"],
@@ -162,12 +171,12 @@ TEST(AppendOnlyTopNFunctionTest, Q19Top10) {
                                         "sortNullsIsLast":[true]})DELIM";
 
     const nlohmann::json rankConfig = nlohmann::json::parse(description);
-    auto func = reinterpret_cast<KeyedProcessFunction<long, RowData *, RowData *> *>(new AppendOnlyTopNFunction<long>(
-            rankConfig));
+    auto func =
+        reinterpret_cast<KeyedProcessFunction<long, RowData*, RowData*>*>(new AppendOnlyTopNFunction<long>(rankConfig));
 
     nlohmann::json newRankConfig = rankConfig;
-    BatchOutputTest *output = new BatchOutputTest();
-    auto *op = new KeyedProcessOperator(func, output, newRankConfig);
+    BatchOutputTest* output = new BatchOutputTest();
+    auto* op = new KeyedProcessOperator(func, output, newRankConfig);
     op->setup();
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
@@ -181,19 +190,23 @@ TEST(AppendOnlyTopNFunctionTest, Q19Top10) {
     }
     env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
-    std::vector<omnistream::RowField> typeInfo {omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::BIGINT), omnistream::RowField("col2", BasicLogicalType::BIGINT)};
-    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, typeInfo));
+    StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
+    std::vector<omnistream::RowField> typeInfo{
+        omnistream::RowField("col0", BasicLogicalType::BIGINT),
+        omnistream::RowField("col1", BasicLogicalType::BIGINT),
+        omnistream::RowField("col2", BasicLogicalType::BIGINT)};
+    TypeSerializer* ser = new RowDataSerializer(new omnistream::RowType(false, typeInfo));
     op->initializeState(initializer, ser);
     EXPECT_NO_THROW(op->open());
 
     auto inputVB = createVectorBatchFromCSV("input/q19_input.csv", 150, 3);
-    op->processBatch(new StreamRecord(inputVB));    
+    op->processBatch(new StreamRecord(inputVB));
     auto expectedVB = createVectorBatchFromCSV("input/q19_expected_output.csv", 511, 4);
     bool matched = omniruntime::TestUtil::VecBatchMatch(output->getVectorBatch(), expectedVB);
 }
 
-TEST(AppendOnlyTopNFunctionTest, WithoutRowNumber) {
+TEST(AppendOnlyTopNFunctionTest, WithoutRowNumber)
+{
     std::string description = R"DELIM({"originDescription":null,
                                        "sortAscendingOrders": [false],
                                        "inputTypes": ["BIGINT","BIGINT","BIGINT"],
@@ -208,12 +221,12 @@ TEST(AppendOnlyTopNFunctionTest, WithoutRowNumber) {
                                        "outputRankNumber": false})DELIM";
 
     const nlohmann::json rankConfig = nlohmann::json::parse(description);
-    auto func = reinterpret_cast<KeyedProcessFunction<long, RowData *, RowData *> *>(new AppendOnlyTopNFunction<long>(
-            rankConfig));
+    auto func =
+        reinterpret_cast<KeyedProcessFunction<long, RowData*, RowData*>*>(new AppendOnlyTopNFunction<long>(rankConfig));
 
     nlohmann::json newRankConfig = rankConfig;
-    BatchOutputTest *output = new BatchOutputTest();
-    auto *op = new KeyedProcessOperator(func, output, newRankConfig);
+    BatchOutputTest* output = new BatchOutputTest();
+    auto* op = new KeyedProcessOperator(func, output, newRankConfig);
     op->setup();
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
@@ -227,9 +240,12 @@ TEST(AppendOnlyTopNFunctionTest, WithoutRowNumber) {
     }
     env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
-    std::vector<omnistream::RowField> typeInfo {omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::BIGINT), omnistream::RowField("col2", BasicLogicalType::BIGINT)};
-    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, typeInfo));
+    StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
+    std::vector<omnistream::RowField> typeInfo{
+        omnistream::RowField("col0", BasicLogicalType::BIGINT),
+        omnistream::RowField("col1", BasicLogicalType::BIGINT),
+        omnistream::RowField("col2", BasicLogicalType::BIGINT)};
+    TypeSerializer* ser = new RowDataSerializer(new omnistream::RowType(false, typeInfo));
     op->initializeState(initializer, ser);
     EXPECT_NO_THROW(op->open());
 

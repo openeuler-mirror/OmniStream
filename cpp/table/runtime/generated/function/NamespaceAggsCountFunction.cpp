@@ -16,55 +16,67 @@
 #include "table/data/binary/BinaryRowData.h"
 #include "table/runtime/operators/window/TimeWindow.h"
 
-template<typename N>
+template <typename N>
 NamespaceAggsCountFunction<N>::NamespaceAggsCountFunction(
-        std::vector<int32_t> argIndexes, std::vector<int32_t> inputTypeIds,
-        std::vector<int32_t> accIndexes, std::vector<int32_t> accTypeIds,
-        int32_t aggValueIndex)
-    : NamespaceAggsBasicFunction<N>(std::move(argIndexes), std::move(inputTypeIds),
-                                    std::move(accIndexes), std::move(accTypeIds),
-                                    aggValueIndex, omniruntime::type::DataTypeId::OMNI_LONG) {
+    std::vector<int32_t> argIndexes,
+    std::vector<int32_t> inputTypeIds,
+    std::vector<int32_t> accIndexes,
+    std::vector<int32_t> accTypeIds,
+    int32_t aggValueIndex)
+    : NamespaceAggsBasicFunction<N>(
+          std::move(argIndexes),
+          std::move(inputTypeIds),
+          std::move(accIndexes),
+          std::move(accTypeIds),
+          aggValueIndex,
+          omniruntime::type::DataTypeId::OMNI_LONG)
+{
     this->isNull_ = false;
 }
 
-template<typename N>
-void NamespaceAggsCountFunction<N>::accumulate(RowData* input) {
+template <typename N>
+void NamespaceAggsCountFunction<N>::accumulate(RowData* input)
+{
     if (this->argIndexes_.empty() || !input->isNullAt(this->singleArgIndex())) {
         ++count_;
     }
 }
 
-template<typename N>
-void NamespaceAggsCountFunction<N>::retract(RowData* input) {
+template <typename N>
+void NamespaceAggsCountFunction<N>::retract(RowData* input)
+{
     if (this->argIndexes_.empty() || !input->isNullAt(this->singleArgIndex())) {
         --count_;
     }
 }
 
-template<typename N>
-void NamespaceAggsCountFunction<N>::merge(N ns, RowData* otherAcc) {
+template <typename N>
+void NamespaceAggsCountFunction<N>::merge(N ns, RowData* otherAcc)
+{
     const int32_t accIndex = this->singleAccIndex();
     if (!otherAcc->isNullAt(accIndex)) {
         count_ += *otherAcc->getLong(accIndex);
     }
 }
 
-template<typename N>
-void NamespaceAggsCountFunction<N>::setAccumulators(N ns, RowData* acc) {
+template <typename N>
+void NamespaceAggsCountFunction<N>::setAccumulators(N ns, RowData* acc)
+{
     this->currentAcc_ = acc;
     const int32_t accIndex = this->singleAccIndex();
     count_ = acc->isNullAt(accIndex) ? 0L : *acc->getLong(accIndex);
 }
 
-template<typename N>
-RowData* NamespaceAggsCountFunction<N>::getAccumulators() {
+template <typename N>
+RowData* NamespaceAggsCountFunction<N>::getAccumulators()
+{
     this->currentAcc_->setLong(this->singleAccIndex(), count_);
     return this->currentAcc_;
 }
 
-
-template<typename N>
-void NamespaceAggsCountFunction<N>::updateAggValue(RowData* aggValue) {
+template <typename N>
+void NamespaceAggsCountFunction<N>::updateAggValue(RowData* aggValue)
+{
     if (this->aggValueIndex_ < 0) {
         return;
     }

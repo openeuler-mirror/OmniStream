@@ -4,13 +4,15 @@
 
 using namespace std;
 
-TEST(Tuple2Test, Constructor_Default) {
+TEST(Tuple2Test, Constructor_Default)
+{
     Tuple2 tuple;
     EXPECT_EQ(tuple.GetF0(), nullptr);
     EXPECT_EQ(tuple.GetF1(), nullptr);
 }
 
-TEST(Tuple2Test, Constructor_WithObjects) {
+TEST(Tuple2Test, Constructor_WithObjects)
+{
     String obj1("f0");
     String obj2("f1");
 
@@ -20,7 +22,8 @@ TEST(Tuple2Test, Constructor_WithObjects) {
     EXPECT_EQ(tuple.GetF1(), &obj2);
 }
 
-TEST(Tuple2Test, Destructor_NotClone) {
+TEST(Tuple2Test, Destructor_NotClone)
+{
     String obj1("f0");
     String obj2("f1");
 
@@ -29,7 +32,8 @@ TEST(Tuple2Test, Destructor_NotClone) {
     EXPECT_FALSE(tuple.isCloned());
 }
 
-TEST(Tuple2Test, SetF0) {
+TEST(Tuple2Test, SetF0)
+{
     String obj1("f0");
     String obj2("f1");
 
@@ -42,7 +46,8 @@ TEST(Tuple2Test, SetF0) {
     EXPECT_EQ(newObj.getRefCountNumber(), 2);
 }
 
-TEST(Tuple2Test, GetF0) {
+TEST(Tuple2Test, GetF0)
+{
     String obj1("f0");
     String obj2("f1");
 
@@ -50,7 +55,8 @@ TEST(Tuple2Test, GetF0) {
     EXPECT_EQ(tuple.GetF0(), &obj1);
 }
 
-TEST(Tuple2Test, SetF1) {
+TEST(Tuple2Test, SetF1)
+{
     String obj1("f0");
     String obj2("f1");
 
@@ -63,7 +69,8 @@ TEST(Tuple2Test, SetF1) {
     EXPECT_EQ(newObj.getRefCountNumber(), 2);
 }
 
-TEST(Tuple2Test, GetF1) {
+TEST(Tuple2Test, GetF1)
+{
     String obj1("f0");
     String obj2("f1");
 
@@ -71,7 +78,8 @@ TEST(Tuple2Test, GetF1) {
     EXPECT_EQ(tuple.GetF1(), &obj2);
 }
 
-TEST(Tuple2Test, HashCode) {
+TEST(Tuple2Test, HashCode)
+{
     String obj1("f0");
     String obj2("f1");
 
@@ -81,7 +89,8 @@ TEST(Tuple2Test, HashCode) {
     EXPECT_EQ(autualHash, expectedHash);
 }
 
-TEST(Tuple2Test, Equals_SameValues) {
+TEST(Tuple2Test, Equals_SameValues)
+{
     String obj1("f0");
     String obj2("f1");
 
@@ -91,7 +100,8 @@ TEST(Tuple2Test, Equals_SameValues) {
     EXPECT_TRUE(tuple1.equals(&tuple2));
 }
 
-TEST(Tuple2Test, Equals_DifferentValues) {
+TEST(Tuple2Test, Equals_DifferentValues)
+{
     String obj1("f0");
     String obj2("f1");
     String obj3("f2");
@@ -102,7 +112,8 @@ TEST(Tuple2Test, Equals_DifferentValues) {
     EXPECT_FALSE(tuple1.equals(&tuple2));
 }
 
-TEST(Tuple2Test, Clone) {
+TEST(Tuple2Test, Clone)
+{
     String obj1("f0");
     String obj2("f1");
 
@@ -117,9 +128,10 @@ TEST(Tuple2Test, Clone) {
     delete clonedTuple;
 }
 
-TEST(Tuple2Test, StaticOf) {
-    String *obj1 = new String("f0");
-    String *obj2 = new String("f1");
+TEST(Tuple2Test, StaticOf)
+{
+    String* obj1 = new String("f0");
+    String* obj2 = new String("f1");
     Tuple2* tuple = Tuple2::of(obj1, obj2);
 
     // Since Tuple2::of sets isClone to true, the objects should be deleted

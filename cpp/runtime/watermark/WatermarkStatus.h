@@ -20,12 +20,14 @@ public:
     const int status_;
     static constexpr int idleStatus = -1;
     static constexpr int activeStatus = 0;
-    static WatermarkStatus* idle() {
+    static WatermarkStatus* idle()
+    {
         static WatermarkStatus s(idleStatus);
         return &s;
     }
 
-    static WatermarkStatus* active() {
+    static WatermarkStatus* active()
+    {
         static WatermarkStatus s(activeStatus);
         return &s;
     }
@@ -48,7 +50,7 @@ public:
         return !IsIdle();
     }
 
-    bool Equals(WatermarkStatus *other)
+    bool Equals(WatermarkStatus* other)
     {
         if (other == nullptr) {
             return false;

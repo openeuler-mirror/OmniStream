@@ -23,28 +23,43 @@
 
 class KafkaSink {
 public:
-    KafkaSink(DeliveryGuarantee deliveryGuarantee,
-              RdKafka::Conf* kafkaProducerConfig,
-              std::string& transactionalIdPrefix,
-              std::string& topic,
-              const nlohmann::json& opDescriptionJSON,
-              int64_t maxPushRecords);
+    KafkaSink(
+        DeliveryGuarantee deliveryGuarantee,
+        RdKafka::Conf* kafkaProducerConfig,
+        std::string& transactionalIdPrefix,
+        std::string& topic,
+        const nlohmann::json& opDescriptionJSON,
+        int64_t maxPushRecords);
 
     Committer<KafkaCommittable>* CreateCommitter();
-    KafkaCommittableSerializer *getCommittableSerializer();
+    KafkaCommittableSerializer* getCommittableSerializer();
 
     template <typename K>
-    KafkaWriter *CreateWriter(InitContextImpl<K>* initContext = nullptr)
+    KafkaWriter* CreateWriter(InitContextImpl<K>* initContext = nullptr)
     {
-        return new KafkaWriter(deliveryGuarantee, kafkaProducerConfig, transactionalIdPrefix, topic, description,
-                               maxPushRecords, initContext, {});
+        return new KafkaWriter(
+            deliveryGuarantee,
+            kafkaProducerConfig,
+            transactionalIdPrefix,
+            topic,
+            description,
+            maxPushRecords,
+            initContext,
+            {});
     }
 
     template <typename K>
-    KafkaWriter *RestoreWriter(InitContextImpl<K>* initContext, const std::vector<KafkaWriterState>& states)
+    KafkaWriter* RestoreWriter(InitContextImpl<K>* initContext, const std::vector<KafkaWriterState>& states)
     {
-        return new KafkaWriter(deliveryGuarantee, kafkaProducerConfig, transactionalIdPrefix, topic, description,
-                               maxPushRecords, initContext, states);
+        return new KafkaWriter(
+            deliveryGuarantee,
+            kafkaProducerConfig,
+            transactionalIdPrefix,
+            topic,
+            description,
+            maxPushRecords,
+            initContext,
+            states);
     }
 
 private:

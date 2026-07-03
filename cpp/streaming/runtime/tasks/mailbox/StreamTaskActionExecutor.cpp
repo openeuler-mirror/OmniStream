@@ -13,9 +13,8 @@
 
 namespace omnistream {
 
-    // Initialize the static member
-    std::shared_ptr<StreamTaskActionExecutor> StreamTaskActionExecutor::IMMEDIATE =
-        std::make_shared<ImmediateStreamTaskActionExecutor>();
+// Initialize the static member
+std::shared_ptr<StreamTaskActionExecutor> StreamTaskActionExecutor::IMMEDIATE =
+    std::make_shared<ImmediateStreamTaskActionExecutor>();
 
 } // namespace omnistream
-

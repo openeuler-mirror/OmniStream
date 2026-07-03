@@ -25,22 +25,18 @@ public:
 
     virtual std::shared_ptr<StateMetaInfoSnapshot> snapshotMetaInfo() = 0;
 
-    virtual const std::string &getStateName() const
+    virtual const std::string& getStateName() const
     {
         static const std::string emptyName;
         return emptyName;
     }
 
-    virtual std::unique_ptr<SingleStateIterator> createSnapshotIterator(
-        int kvStateId,
-        int keyGroupPrefixBytes) = 0;
+    virtual std::unique_ptr<SingleStateIterator> createSnapshotIterator(int kvStateId, int keyGroupPrefixBytes) = 0;
 
     /**
      * Restore one full-snapshot PRIORITY_QUEUE entry. The key is encoded as:
      *   [key-group-prefix] + [serialized priority queue element]
      * and the value is empty. This mirrors Flink heap PQ restore semantics.
      */
-    virtual void restoreSerializedElement(
-        const std::vector<int8_t> &serializedKey,
-        int keyGroupPrefixBytes) = 0;
+    virtual void restoreSerializedElement(const std::vector<int8_t>& serializedKey, int keyGroupPrefixBytes) = 0;
 };

@@ -13,7 +13,8 @@
 #include "common.h"
 
 CheckpointStorageLocationReference::CheckpointStorageLocationReference(
-    std::shared_ptr<std::vector<uint8_t>> encodedReference) : encodedReference_(encodedReference)
+    std::shared_ptr<std::vector<uint8_t>> encodedReference)
+    : encodedReference_(encodedReference)
 {
     if (encodedReference == nullptr || encodedReference->empty()) {
         throw std::invalid_argument("encodedReference must not be empty");
@@ -26,11 +27,9 @@ CheckpointStorageLocationReference::CheckpointStorageLocationReference() : encod
 
 CheckpointStorageLocationReference::~CheckpointStorageLocationReference() = default;
 
-std::shared_ptr<std::vector<uint8_t>> CheckpointStorageLocationReference::GetReferenceBytes()
-    const
+std::shared_ptr<std::vector<uint8_t>> CheckpointStorageLocationReference::GetReferenceBytes() const
 {
-    return encodedReference_ != nullptr ? encodedReference_
-                                        : std::make_shared<std::vector<uint8_t>>();
+    return encodedReference_ != nullptr ? encodedReference_ : std::make_shared<std::vector<uint8_t>>();
 }
 
 bool CheckpointStorageLocationReference::IsDefaultReference() const
@@ -59,7 +58,7 @@ std::string CheckpointStorageLocationReference::ToString() const
 {
     nlohmann::json json;
     if (encodedReference_ == nullptr) {
-        json["referenceBytes"] =  "(default)";
+        json["referenceBytes"] = "(default)";
     } else {
         std::ostringstream oss;
         oss << std::hex << std::setfill('0');
@@ -75,13 +74,13 @@ nlohmann::json CheckpointStorageLocationReference::ToJson() const
 {
     nlohmann::json json;
     if (encodedReference_ == nullptr) {
-        json["referenceBytes"] =  "(default)";
+        json["referenceBytes"] = "(default)";
     } else {
-        json["referenceBytes"] = std::string(reinterpret_cast<const char*>(encodedReference_->data()), encodedReference_->size());
+        json["referenceBytes"] =
+            std::string(reinterpret_cast<const char*>(encodedReference_->data()), encodedReference_->size());
     }
     return json;
 }
 
-std::shared_ptr<CheckpointStorageLocationReference>
-    CheckpointStorageLocationReference::DEFAULT =
-        std::make_shared< CheckpointStorageLocationReference>();
+std::shared_ptr<CheckpointStorageLocationReference> CheckpointStorageLocationReference::DEFAULT =
+    std::make_shared<CheckpointStorageLocationReference>();

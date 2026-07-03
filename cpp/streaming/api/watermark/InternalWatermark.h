@@ -18,6 +18,7 @@
 class InternalWatermark : public Watermark {
 public:
     explicit InternalWatermark(int64_t timestamp) : Watermark(timestamp) {};
+
 private:
     int32_t subpartitionIndex;
 };

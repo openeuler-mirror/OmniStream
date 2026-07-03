@@ -45,17 +45,20 @@ public:
     // 通知读取器不会再收到更多拆分
     virtual void notifyNoMoreSplits() = 0;
 
-    virtual void handleSourceEvents(const SourceEvent& sourceEvent) {
+    virtual void handleSourceEvents(const SourceEvent& sourceEvent)
+    {
         // 默认实现为空
     }
 
     // 通知检查点完成
-    virtual void notifyCheckpointComplete(long checkpointId) {
+    virtual void notifyCheckpointComplete(long checkpointId)
+    {
         // 默认实现为空
     }
 
     // 通知检查点中断
-    virtual void notifyCheckpointAborted(long checkpointId) {
+    virtual void notifyCheckpointAborted(long checkpointId)
+    {
         // 默认实现为空
     }
 

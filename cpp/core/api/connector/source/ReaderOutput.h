@@ -23,5 +23,4 @@ public:
     virtual void ReleaseOutputForSplit(const std::string& splitId) = 0;
 };
 
-
 #endif // FLINK_TNEL_READEROUTPUT_H

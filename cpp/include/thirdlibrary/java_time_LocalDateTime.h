@@ -21,9 +21,9 @@
 
 class LocalDateTime : public TemporalAccessor {
 public:
-    static LocalDateTime *ofInstant(Instant *instant, ZoneId *zoneId);
+    static LocalDateTime* ofInstant(Instant* instant, ZoneId* zoneId);
 
-    std::tm *getTm();
+    std::tm* getTm();
 
 private:
     std::tm now_tm;

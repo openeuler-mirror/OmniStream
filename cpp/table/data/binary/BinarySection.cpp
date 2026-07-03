@@ -31,7 +31,7 @@ BinarySection::~BinarySection()
     }
 }
 
-void BinarySection::pointTo(uint8_t *segment, int offset, int sizeInBytes, int bufferCapacity_)
+void BinarySection::pointTo(uint8_t* segment, int offset, int sizeInBytes, int bufferCapacity_)
 {
     memoryBuffer = segment;
     offset_ = offset;
@@ -39,7 +39,7 @@ void BinarySection::pointTo(uint8_t *segment, int offset, int sizeInBytes, int b
     this->bufferCapacity = bufferCapacity_;
 }
 
-void BinarySection::own(uint8_t *segment, int offset, int sizeInBytes, int bufferCapacity_)
+void BinarySection::own(uint8_t* segment, int offset, int sizeInBytes, int bufferCapacity_)
 {
     memoryBuffer = segment;
     offset_ = offset;
@@ -58,7 +58,7 @@ int BinarySection::getOffset() const
     return offset_;
 }
 
-uint8_t *BinarySection::getSegment() const
+uint8_t* BinarySection::getSegment() const
 {
     return memoryBuffer;
 }

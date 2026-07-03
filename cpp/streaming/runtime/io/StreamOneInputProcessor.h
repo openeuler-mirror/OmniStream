@@ -12,17 +12,19 @@
 using json = nlohmann::json;
 
 namespace omnistream::datastream {
-    class StreamOneInputProcessor {
-    public:
-        StreamOneInputProcessor(std::unique_ptr<StreamTaskNetworkOutput> streamTaskOutput, std::unique_ptr<StreamTaskNetworkInput> streamTaskInput);
-        ~StreamOneInputProcessor();
+class StreamOneInputProcessor {
+public:
+    StreamOneInputProcessor(
+        std::unique_ptr<StreamTaskNetworkOutput> streamTaskOutput,
+        std::unique_ptr<StreamTaskNetworkInput> streamTaskInput);
+    ~StreamOneInputProcessor();
 
-        /* data */
-        std::unique_ptr<StreamTaskNetworkOutput> streamTaskOutput;
-        std::unique_ptr<StreamTaskNetworkInput> streamTaskInput;
+    /* data */
+    std::unique_ptr<StreamTaskNetworkOutput> streamTaskOutput;
+    std::unique_ptr<StreamTaskNetworkInput> streamTaskInput;
 
-        int processInput(const uint8_t *input_buffer, size_t input_size, long channelInfo, int32_t &inputNumber);
-    };
+    int processInput(const uint8_t* input_buffer, size_t input_size, long channelInfo, int32_t& inputNumber);
+};
 
-}
+} // namespace omnistream::datastream
 #endif

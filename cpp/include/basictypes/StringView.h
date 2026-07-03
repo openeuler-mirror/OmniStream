@@ -21,11 +21,11 @@ class StringView : public String {
 public:
     StringView();
 
-    StringView(char *pointer, size_t length);
+    StringView(char* pointer, size_t length);
 
     ~StringView();
 
-    void setData(char *pointer) override;
+    void setData(char* pointer) override;
 
     void setSize(size_t length) override;
 
@@ -38,7 +38,7 @@ public:
     std::string toString() override;
 
 private:
-    char *data;
+    char* data;
     size_t size;
 };
 

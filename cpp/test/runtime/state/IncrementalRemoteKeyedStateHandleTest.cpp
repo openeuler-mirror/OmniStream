@@ -3,32 +3,30 @@
 
 TEST(IncrementalRemoteKeyedStateHandleTest, InitTest)
 {
-    IncrementalRemoteKeyedStateHandle *handle =
-        new IncrementalRemoteKeyedStateHandle(
-            UUID::randomUUID(),
-            KeyGroupRange(0, 1),
-            15,
-            std::vector<IncrementalKeyedStateHandle::HandleAndLocalPath>(),
-            std::vector<IncrementalKeyedStateHandle::HandleAndLocalPath>(),
-            nullptr,
-            1,
-            StateHandleID("StateHandleID"));
+    IncrementalRemoteKeyedStateHandle* handle = new IncrementalRemoteKeyedStateHandle(
+        UUID::randomUUID(),
+        KeyGroupRange(0, 1),
+        15,
+        std::vector<IncrementalKeyedStateHandle::HandleAndLocalPath>(),
+        std::vector<IncrementalKeyedStateHandle::HandleAndLocalPath>(),
+        nullptr,
+        1,
+        StateHandleID("StateHandleID"));
     delete handle;
 }
 
 TEST(IncrementalRemoteKeyedStateHandleTest, ToStringTest)
 {
     auto uuid = UUID::randomUUID();
-    IncrementalRemoteKeyedStateHandle *handle =
-        new IncrementalRemoteKeyedStateHandle(
-            uuid,
-            KeyGroupRange(0, 1),
-            15,
-            std::vector<IncrementalKeyedStateHandle::HandleAndLocalPath>(),
-            std::vector<IncrementalKeyedStateHandle::HandleAndLocalPath>(),
-            nullptr,
-            1,
-            StateHandleID(uuid.ToString()));
+    IncrementalRemoteKeyedStateHandle* handle = new IncrementalRemoteKeyedStateHandle(
+        uuid,
+        KeyGroupRange(0, 1),
+        15,
+        std::vector<IncrementalKeyedStateHandle::HandleAndLocalPath>(),
+        std::vector<IncrementalKeyedStateHandle::HandleAndLocalPath>(),
+        nullptr,
+        1,
+        StateHandleID(uuid.ToString()));
     auto str = handle->ToString();
     nlohmann::json j = nlohmann::json::parse(str);
 
@@ -75,7 +73,8 @@ TEST(IncrementalRemoteKeyedStateHandleTest, FromJsonTest)
                     "stateSize": 425906,
                     "checkpointedSize": 425906
                 })";
-    IncrementalRemoteKeyedStateHandle *handle = new IncrementalRemoteKeyedStateHandle(nlohmann::json::parse(jsonString));
+    IncrementalRemoteKeyedStateHandle* handle =
+        new IncrementalRemoteKeyedStateHandle(nlohmann::json::parse(jsonString));
     EXPECT_EQ(handle->GetBackendIdentifier().ToString(), "0ced51ed-dbc4-487c-a371-3f5fe758f478");
     EXPECT_EQ(handle->GetKeyGroupRange(), KeyGroupRange(0, 127));
     EXPECT_EQ(handle->GetCheckpointId(), 16);

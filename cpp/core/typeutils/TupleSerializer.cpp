@@ -12,12 +12,12 @@ Tuple2Serializer::Tuple2Serializer()
     reuseBuffer = new Tuple2();
 }
 
-Tuple2Serializer::Tuple2Serializer(nlohmann::json &type) : Tuple2Serializer()
+Tuple2Serializer::Tuple2Serializer(nlohmann::json& type) : Tuple2Serializer()
 {
     createSerializer(type);
 }
 
-Tuple2Serializer::Tuple2Serializer(const std::vector<TypeInformation*> &types) : Tuple2Serializer()
+Tuple2Serializer::Tuple2Serializer(const std::vector<TypeInformation*>& types) : Tuple2Serializer()
 {
     arity = types.size();
     fieldSerializers.resize(arity);
@@ -26,58 +26,58 @@ Tuple2Serializer::Tuple2Serializer(const std::vector<TypeInformation*> &types) :
     }
 }
 
-void *Tuple2Serializer::deserialize(DataInputView &source)
+void* Tuple2Serializer::deserialize(DataInputView& source)
 {
-    NOT_IMPL_EXCEPTION
+    NOT_IMPL_EXCEPTION;
 }
 
-void Tuple2Serializer::serialize(void *record, DataOutputSerializer &target)
+void Tuple2Serializer::serialize(void* record, DataOutputSerializer& target)
 {
-    NOT_IMPL_EXCEPTION
+    NOT_IMPL_EXCEPTION;
 }
 
-void Tuple2Serializer::deserialize(Object *buffer, DataInputView &source)
+void Tuple2Serializer::deserialize(Object* buffer, DataInputView& source)
 {
-    LOG("TupleSerializer->deserialize start+++")
-    auto tupInfo = reinterpret_cast<Tuple2 *>(buffer);
+    LOG("TupleSerializer->deserialize start+++");
+    auto tupInfo = reinterpret_cast<Tuple2*>(buffer);
     Object* buffer0 = fieldSerializers[0]->GetBuffer();
     Object* buffer1 = fieldSerializers[1]->GetBuffer();
     fieldSerializers[0]->deserialize(buffer0, source);
     fieldSerializers[1]->deserialize(buffer1, source);
     tupInfo->SetF0(buffer0);
     tupInfo->SetF1(buffer1);
-    LOG("TupleSerializer->deserialize end+++")
+    LOG("TupleSerializer->deserialize end+++");
 };
 
-void Tuple2Serializer::serialize(Object *buffer, DataOutputSerializer &target)
+void Tuple2Serializer::serialize(Object* buffer, DataOutputSerializer& target)
 {
-    LOG("TupleSerializer->serialize start+++")
-    auto tupInfo = reinterpret_cast<Tuple2 *>(buffer);
+    LOG("TupleSerializer->serialize start+++");
+    auto tupInfo = reinterpret_cast<Tuple2*>(buffer);
     fieldSerializers[0]->serialize(tupInfo->f0, target);
     fieldSerializers[1]->serialize(tupInfo->f1, target);
-    LOG("TupleSerializer->serialize end+++")
+    LOG("TupleSerializer->serialize end+++");
 }
 
-void Tuple2Serializer::createSerializer(nlohmann::json &type)
+void Tuple2Serializer::createSerializer(nlohmann::json& type)
 {
     arity = type.size();
-    for (const auto &element: type) {
+    for (const auto& element : type) {
         // Access and process properties of each element
         std::string typeName;
         if (element.is_array()) {
-            LOG("Tuple type is array.")
+            LOG("Tuple type is array.");
             typeName = element[1];
         } else {
-            LOG("Tuple type is object.")
+            LOG("Tuple type is object.");
             typeName = element.value("type", "test");
         }
-        LOG("Tuple type Name: " + typeName)
+        LOG("Tuple type Name: " + typeName);
         if (typeName == "Long") {
-            LOG("TupleSerializer: Long")
+            LOG("TupleSerializer: Long");
             auto longSerializer = new LongSerializer();
             fieldSerializers.push_back(longSerializer);
         } else if (typeName == "String") {
-            LOG("TupleSerializer: String")
+            LOG("TupleSerializer: String");
             auto stringSerializer = new StringSerializer();
             fieldSerializers.push_back(stringSerializer);
         } else {
@@ -119,10 +119,9 @@ std::string Tuple2Serializer::toJson()
     nlohmann::json jsonObj;
     jsonObj["type"] = static_cast<int>(SerializerType::TUPLE);
     // element_type: Java 端用作 Class.forName 还原 TupleN 的 raw class
-    jsonObj["element_type"] =
-        std::string("org.apache.flink.api.java.tuple.Tuple") + std::to_string(arity);
+    jsonObj["element_type"] = std::string("org.apache.flink.api.java.tuple.Tuple") + std::to_string(arity);
     nlohmann::json fieldArr = nlohmann::json::array();
-    for (auto *fs : fieldSerializers) {
+    for (auto* fs : fieldSerializers) {
         fieldArr.push_back(fs ? fs->toJson() : std::string());
     }
     jsonObj["fieldSerializers"] = fieldArr;

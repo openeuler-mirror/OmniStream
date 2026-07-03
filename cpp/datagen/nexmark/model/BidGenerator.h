@@ -25,7 +25,7 @@ public:
         extraBuffer = new char[2048];
     }
     /** Generate and return a random bid with next available id. */
-    std::unique_ptr<Bid> nextBid(long eventId, long timestamp, const GeneratorConfig &config);
+    std::unique_ptr<Bid> nextBid(long eventId, long timestamp, const GeneratorConfig& config);
 
     virtual ~BidGenerator()
     {
@@ -41,9 +41,9 @@ private:
     char* extraBuffer;
 
     /**
- * Fraction of people/auctions which may be 'hot' sellers/bidders/auctions are 1 over these
- * values.
- */
+     * Fraction of people/auctions which may be 'hot' sellers/bidders/auctions are 1 over these
+     * values.
+     */
     static const int HOT_AUCTION_RATIO = 100;
     static const int HOT_BIDDER_RATIO = 100;
     static const int HOT_CHANNELS_RATIO = 2;
@@ -54,20 +54,18 @@ private:
     static std::vector<std::tuple<std::string, std::string>> CHANNEL_URL_CACHE;
 
     // Returns a base URL string.
-    static std::string getBaseUrl(SplittableRandom &random)
+    static std::string getBaseUrl(SplittableRandom& random)
     {
-        return std::string("https://www.nexmark.com/") +
-               StringsGenerator::nextString(random, 5, '_') + '/' +
-               StringsGenerator::nextString(random, 5, '_') + '/' +
-               StringsGenerator::nextString(random, 5, '_') + '/' +
+        return std::string("https://www.nexmark.com/") + StringsGenerator::nextString(random, 5, '_') + '/' +
+               StringsGenerator::nextString(random, 5, '_') + '/' + StringsGenerator::nextString(random, 5, '_') + '/' +
                "item.htm?query=1";
     }
 
     // Creates and returns the channel URL cache.
-    static std::vector<std::tuple<std::string, std::string>> createChannelUrlCache(SplittableRandom &random);
+    static std::vector<std::tuple<std::string, std::string>> createChannelUrlCache(SplittableRandom& random);
 
     // Returns the next channel and URL from the cache.
-    static const std::tuple<std::string, std::string>& getNextChannelAndurl(SplittableRandom &random)
+    static const std::tuple<std::string, std::string>& getNextChannelAndurl(SplittableRandom& random)
     {
         int channelNumber = random.nextInt(CHANNELS_NUMBER);
         return CHANNEL_URL_CACHE[channelNumber];
@@ -82,6 +80,5 @@ private:
         return result;
     }
 };
-
 
 #endif // OMNISTREAM_BIDGENERATOR_H

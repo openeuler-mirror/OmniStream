@@ -1,5 +1,5 @@
 /*
-* Copyright (c) Huawei Technologies Co., Ltd. 2012-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2012-2025. All rights reserved.
  */
 
 #ifndef TASKOPERATOREVENTGATEWAYBRIDGE_H
@@ -9,13 +9,12 @@
 #include "jobgraph/OperatorID.h"
 #include "operators/coordination/OperatorEvent.h"
 
-
 namespace omnistream {
-    class TaskOperatorEventGatewayBridge {
-    public:
-        virtual ~TaskOperatorEventGatewayBridge() = default;
-        virtual void sendOperatorEventToCoordinator(std::string operatorId, std::string event)=0;
-    };
-}
+class TaskOperatorEventGatewayBridge {
+public:
+    virtual ~TaskOperatorEventGatewayBridge() = default;
+    virtual void sendOperatorEventToCoordinator(std::string operatorId, std::string event) = 0;
+};
+} // namespace omnistream
 
 #endif // TASKOPERATOREVENTGATEWAYBRIDGE_H

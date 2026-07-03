@@ -1,5 +1,5 @@
 /*
-* Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
  * You can use this software according to the terms and conditions of the Mulan PSL v2.
  * You may obtain a copy of Mulan PSL v2 at:
  *          http://license.coscl.org.cn/MulanPSL2
@@ -31,12 +31,21 @@
 template <typename CommT>
 class CheckpointSimpleVersionedSerializer : public SimpleVersionedSerializer<CheckpointCommittableManagerImpl<CommT>> {
 public:
-    CheckpointSimpleVersionedSerializer(std::shared_ptr<SimpleVersionedSerializer<CommT>> committableSerializer, int subtaskId, int numberOfSubtasks)
-        : committableSerializer_(std::move(committableSerializer)), subtaskId_(subtaskId), numberOfSubtasks_(numberOfSubtasks) {}
+    CheckpointSimpleVersionedSerializer(
+        std::shared_ptr<SimpleVersionedSerializer<CommT>> committableSerializer, int subtaskId, int numberOfSubtasks)
+        : committableSerializer_(std::move(committableSerializer)),
+          subtaskId_(subtaskId),
+          numberOfSubtasks_(numberOfSubtasks)
+    {
+    }
 
-    int getVersion() const override { return 0; }
+    int getVersion() const override
+    {
+        return 0;
+    }
 
-    std::vector<uint8_t> serialize(const CheckpointCommittableManagerImpl<CommT>& checkpoint) override {
+    std::vector<uint8_t> serialize(const CheckpointCommittableManagerImpl<CommT>& checkpoint) override
+    {
         DataOutputSerializer out(256);
         out.writeLong(checkpoint.GetCheckpointId());
 
@@ -48,19 +57,22 @@ public:
             list.push_back(item->Copy());
         }
 
-        SubTaskSimpleVersionedSerializer<CommT> subTaskSerializer(committableSerializer_, subtaskId_, numberOfSubtasks_, checkpoint.GetCheckpointId());
+        SubTaskSimpleVersionedSerializer<CommT> subTaskSerializer(
+            committableSerializer_, subtaskId_, numberOfSubtasks_, checkpoint.GetCheckpointId());
 
         SimpleVersionedSerialization::writeVersionAndSerializeList(subTaskSerializer, list, out);
 
         return std::vector<uint8_t>(out.getData(), out.getData() + out.length());
     }
 
-    CheckpointCommittableManagerImpl<CommT>* deserialize(int version, std::vector<uint8_t>& serialized) override {
+    CheckpointCommittableManagerImpl<CommT>* deserialize(int version, std::vector<uint8_t>& serialized) override
+    {
         DataInputDeserializer input(serialized.data(), serialized.size(), 0);
 
         long checkpointId = input.readLong();
 
-        SubTaskSimpleVersionedSerializer<CommT> subTaskSerializer(committableSerializer_, subtaskId_, numberOfSubtasks_, checkpointId);
+        SubTaskSimpleVersionedSerializer<CommT> subTaskSerializer(
+            committableSerializer_, subtaskId_, numberOfSubtasks_, checkpointId);
 
         std::unique_ptr<std::vector<SubtaskCommittableManager<CommT>>> subCMs(
             SimpleVersionedSerialization::readVersionAndDeserializeList(subTaskSerializer, input));
@@ -77,10 +89,7 @@ public:
             }
         }
 
-        return new CheckpointCommittableManagerImpl<CommT>(managers,
-                                                           subtaskId_,
-                                                           numberOfSubtasks_,
-                                                           checkpointId);
+        return new CheckpointCommittableManagerImpl<CommT>(managers, subtaskId_, numberOfSubtasks_, checkpointId);
     }
 
 private:
@@ -89,4 +98,4 @@ private:
     int numberOfSubtasks_;
 };
 
-#endif //OMNISTREAM_CHECKPOINTSIMPLEVERSIONEDSERIALIZER_H
+#endif // OMNISTREAM_CHECKPOINTSIMPLEVERSIONEDSERIALIZER_H

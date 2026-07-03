@@ -29,13 +29,16 @@
  * @tparam T The type of the record payload.
  */
 namespace omnistream {
-class RecordFilter : public StreamRecord{
+class RecordFilter : public StreamRecord {
 public:
-    RecordFilter(omnistream::datastream::ChannelSelector<IOReadableWritable> *partitioner,
-                 TypeSerializer *inputSerializer, int subtaskIndex)
-        : partitioner(partitioner), subtaskIndex(subtaskIndex)
+    RecordFilter(
+        omnistream::datastream::ChannelSelector<IOReadableWritable>* partitioner,
+        TypeSerializer* inputSerializer,
+        int subtaskIndex)
+        : partitioner(partitioner),
+          subtaskIndex(subtaskIndex)
     {
-         // Initialize the delegate with the serializer.
+        // Initialize the delegate with the serializer.
         delegate = new SerializationDelegate(inputSerializer);
     }
 
@@ -46,10 +49,10 @@ public:
      * @param streamRecord The record to test.
      * @return true if the record would have been routed to our subtask, false otherwise.
      */
-    bool apply(StreamRecord &streamRecord) const
+    bool apply(StreamRecord& streamRecord) const
     {
-        auto *obj = dynamic_cast<Object *>(&streamRecord);
-        if(!obj){
+        auto* obj = dynamic_cast<Object*>(&streamRecord);
+        if (!obj) {
             LogError("error,streamRecord cast to obj fail!");
         }
         delegate->setInstance(obj);
@@ -63,16 +66,16 @@ public:
      */
     static auto all()
     {
-        auto func = std::function<bool(const StreamRecord &)>([](const StreamRecord &) { return true; });
+        auto func = std::function<bool(const StreamRecord&)>([](const StreamRecord&) { return true; });
         return func;
     }
 
 private:
-    omnistream::datastream::ChannelSelector<IOReadableWritable> *partitioner;
-    SerializationDelegate *delegate;
+    omnistream::datastream::ChannelSelector<IOReadableWritable>* partitioner;
+    SerializationDelegate* delegate;
     int subtaskIndex;
     std::shared_ptr<omnistream::datastream::StreamElementSerializer> streamElementSerializer;
 };
-}  // namespace omnistream
+} // namespace omnistream
 
-#endif  // OMNISTREAM_RECORDFILTER_H
+#endif // OMNISTREAM_RECORDFILTER_H

@@ -50,6 +50,6 @@ private:
     size_t sharedMemorySize;
     void* sharedMemoryPtr;
 };
-}  // namespace omnistream
+} // namespace omnistream
 
-#endif  // METRIC_READER_H
+#endif // METRIC_READER_H

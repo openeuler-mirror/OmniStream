@@ -16,14 +16,16 @@
 
 #include "table/data/RowData.h"
 
-template<typename W>
+template <typename W>
 class WindowAssigner {
 public:
     WindowAssigner() = default;
 
     virtual ~WindowAssigner() = default;
 
-    virtual void open() {}
+    virtual void open()
+    {
+    }
 
     virtual std::vector<W> assignWindows(const RowData* rowData, int64_t timestamp) = 0;
 

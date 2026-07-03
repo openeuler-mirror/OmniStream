@@ -20,94 +20,94 @@ class String : public Object {
 public:
     String();
 
-    explicit String(const String *str);
+    explicit String(const String* str);
 
-    explicit String(const char *str, const size_t size);
+    explicit String(const char* str, const size_t size);
 
-    explicit String(const std::string &str);
+    explicit String(const std::string& str);
 
-    explicit String(std::string &&str) noexcept;
+    explicit String(std::string&& str) noexcept;
 
-    String(const String &str);
+    String(const String& str);
 
-    String(String &&str);
+    String(String&& str);
 
-    String &operator=(const String &str);
+    String& operator=(const String& str);
 
-    String &operator=(String &&str);
+    String& operator=(String&& str);
 
     ~String() override;
 
     virtual inline std::string_view getValue();
 
-    virtual inline char *getData();
+    virtual inline char* getData();
 
     virtual inline size_t getSize();
 
-    inline void setValue(const std::string &val) override;
+    inline void setValue(const std::string& val) override;
 
-    inline void setValue(const std::string_view &val);
+    inline void setValue(const std::string_view& val);
 
-    inline void setData(const char *pointer);
+    inline void setData(const char* pointer);
 
     inline int hashCode() override;
 
-    inline bool equals(Object *obj) override;
+    inline bool equals(Object* obj) override;
 
     inline std::string toString() override;
 
-    inline Object *clone() override;
+    inline Object* clone() override;
 
     inline void resize(const int64_t size);
 
-    inline char *data();
+    inline char* data();
 
-    String *replace(const std::string &target, const std::string &replacement);
+    String* replace(const std::string& target, const std::string& replacement);
 
-    String *replace(const String *target, const String *replacement);
+    String* replace(const String* target, const String* replacement);
 
-    Array *split(const std::string &pattern);
+    Array* split(const std::string& pattern);
 
-    Array *split(const std::regex &re);
+    Array* split(const std::regex& re);
 
-    Array *split(const String *patt);
+    Array* split(const String* patt);
 
     /* only work for replace pattern: "[^A-Za-z0-9_/.]+" */
-    String *replaceAll_tune(const std::string &replace) const;
+    String* replaceAll_tune(const std::string& replace) const;
 
-    String *replaceAll_tune(const std::string &pattern, const std::string &replace) const;
+    String* replaceAll_tune(const std::string& pattern, const std::string& replace) const;
 
-    String *replaceAll(const std::string &pattern, const std::string &replace) const;
+    String* replaceAll(const std::string& pattern, const std::string& replace) const;
 
-    inline int32_t lastIndexOf(const std::string &s_patt) const;
+    inline int32_t lastIndexOf(const std::string& s_patt) const;
 
-    inline int32_t lastIndexOf(const String *s_patt) const;
+    inline int32_t lastIndexOf(const String* s_patt) const;
 
     inline int32_t length() const;
 
-    inline String *substring(const int32_t idx) const;
+    inline String* substring(const int32_t idx) const;
 
-    inline String *substring(const int32_t start, const int32_t end) const;
+    inline String* substring(const int32_t start, const int32_t end) const;
 
-    inline bool equals(const String *obj) const;
+    inline bool equals(const String* obj) const;
 
     inline bool equals(String* obj);
 
-    inline bool equals(const std::string &str) const;
+    inline bool equals(const std::string& str) const;
 
-    inline bool contains(const std::string &str) const;
+    inline bool contains(const std::string& str) const;
 
-    inline bool contains(const String *str) const;
+    inline bool contains(const String* str) const;
 
-    inline bool endsWith(const String *str) const;
+    inline bool endsWith(const String* str) const;
 
-    inline bool endsWith(const std::string &str);
+    inline bool endsWith(const std::string& str);
 
-    inline bool startsWith(const String *str) const;
+    inline bool startsWith(const String* str) const;
 
-    inline bool startsWith(const std::string &str) const;
+    inline bool startsWith(const std::string& str) const;
 
-    inline static std::unique_ptr<String> valueOf(Object *obj);
+    inline static std::unique_ptr<String> valueOf(Object* obj);
 
     inline static String* valueOf(int32_t val);
 
@@ -115,15 +115,16 @@ public:
 
     inline std::string_view ref();
 
-    virtual inline void setData(char *pointer);
+    virtual inline void setData(char* pointer);
 
-    inline void setValue(char *pointer, size_t size);
+    inline void setValue(char* pointer, size_t size);
 
     virtual inline void setSize(size_t size);
 
     void putRefCount() override;
 
-    String *next = nullptr;
+    String* next = nullptr;
+
 private:
     std::string inner;
     int hash;
@@ -134,7 +135,7 @@ inline std::string_view String::getValue()
     return inner;
 }
 
-inline char *String::getData()
+inline char* String::getData()
 {
     return inner.data();
 }
@@ -144,19 +145,19 @@ inline size_t String::getSize()
     return static_cast<size_t>(inner.size());
 }
 
-inline void String::setValue(const std::string &val)
+inline void String::setValue(const std::string& val)
 {
     inner = val;
     hash = 0;
 }
 
-inline void String::setValue(const std::string_view &val)
+inline void String::setValue(const std::string_view& val)
 {
     inner = val;
     hash = 0;
 }
 
-inline void String::setData(const char *pointer)
+inline void String::setData(const char* pointer)
 {
     inner = pointer;
     hash = 0;
@@ -178,9 +179,9 @@ inline int String::hashCode()
     return (int)hash;
 }
 
-inline bool String::equals(Object *obj)
+inline bool String::equals(Object* obj)
 {
-    const auto *str = reinterpret_cast<String *>(obj);
+    const auto* str = reinterpret_cast<String*>(obj);
     return this->inner == str->inner;
 }
 
@@ -189,7 +190,7 @@ inline std::string String::toString()
     return inner;
 }
 
-inline Object *String::clone()
+inline Object* String::clone()
 {
     return new String(inner);
 }
@@ -199,7 +200,7 @@ inline void String::resize(const int64_t size)
     inner.resize(size);
 }
 
-inline char *String::data()
+inline char* String::data()
 {
     return inner.data();
 }
@@ -208,12 +209,12 @@ inline char *String::data()
 //    return std::unique_ptr<Array>(this->split(pattern));
 // }
 
-inline int32_t String::lastIndexOf(const std::string &s_patt) const
+inline int32_t String::lastIndexOf(const std::string& s_patt) const
 {
     return static_cast<int32_t>(inner.rfind(s_patt));
 }
 
-inline int32_t String::lastIndexOf(const String *s_patt) const
+inline int32_t String::lastIndexOf(const String* s_patt) const
 {
     return static_cast<int32_t>(inner.rfind(s_patt->inner));
 }
@@ -223,39 +224,39 @@ inline int32_t String::length() const
     return static_cast<int32_t>(inner.size());
 }
 
-inline String *String::substring(const int32_t idx) const
+inline String* String::substring(const int32_t idx) const
 {
     std::string s = this->inner.substr(idx);
     return new String(std::move(s));
 }
 
-inline String *String::substring(const int32_t start, const int32_t end) const
+inline String* String::substring(const int32_t start, const int32_t end) const
 {
     std::string s = this->inner.substr(start, end);
     return new String(std::move(s));
 }
 
-inline bool String::equals(const String *obj) const
+inline bool String::equals(const String* obj) const
 {
-    auto &cur = this->inner;
-    auto &val = obj->inner;
+    auto& cur = this->inner;
+    auto& val = obj->inner;
     return cur == val;
 }
 
-inline bool String::equals(String * obj)
+inline bool String::equals(String* obj)
 {
-    auto &cur = this->inner;
-    auto &val = obj->inner;
+    auto& cur = this->inner;
+    auto& val = obj->inner;
     return cur == val;
 }
 
-inline bool String::equals(const std::string &str) const
+inline bool String::equals(const std::string& str) const
 {
-    auto &cur = this->inner;
+    auto& cur = this->inner;
     return cur == str;
 }
 
-inline bool String::contains(const std::string &str) const
+inline bool String::contains(const std::string& str) const
 {
     if (!&str) {
         throw std::invalid_argument("Input string is null");
@@ -264,35 +265,35 @@ inline bool String::contains(const std::string &str) const
     return (this->inner.find(str) != std::string::npos);
 }
 
-inline bool String::contains(const String *str) const
+inline bool String::contains(const String* str) const
 {
     return (this->inner.find(str->inner) != std::string::npos);
 }
 
-inline bool String::endsWith(const String *str) const
+inline bool String::endsWith(const String* str) const
 {
-    auto &s1 = this->inner;
-    auto &s2 = str->inner;
+    auto& s1 = this->inner;
+    auto& s2 = str->inner;
     return std::equal(s2.rbegin(), s2.rend(), s1.rbegin());
 }
 
-inline bool String::endsWith(const std::string &str)
+inline bool String::endsWith(const std::string& str)
 {
-    auto &s1 = this->inner;
+    auto& s1 = this->inner;
     return std::equal(str.rbegin(), str.rend(), s1.rbegin());
 }
 
-inline bool String::startsWith(const String *str) const
+inline bool String::startsWith(const String* str) const
 {
     return this->inner.find(str->inner) == 0;
 }
 
-inline bool String::startsWith(const std::string &str) const
+inline bool String::startsWith(const std::string& str) const
 {
     return inner.find(str) == 0;
 }
 
-inline std::unique_ptr<String> String::valueOf(Object *obj)
+inline std::unique_ptr<String> String::valueOf(Object* obj)
 {
     if (obj) {
         return std::make_unique<String>(obj->toString());
@@ -315,12 +316,13 @@ inline std::string_view String::ref()
     return this->inner;
 }
 
-inline void String::setData(char *pointer)
+inline void String::setData(char* pointer)
 {
     inner = pointer;
 }
 
-inline void String::setValue(char *pointer, size_t size) {
+inline void String::setValue(char* pointer, size_t size)
+{
     inner.assign(pointer, size);
 }
 

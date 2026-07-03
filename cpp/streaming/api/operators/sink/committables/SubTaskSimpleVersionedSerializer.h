@@ -1,5 +1,5 @@
 /*
-* Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
  * You can use this software according to the terms and conditions of the Mulan PSL v2.
  * You may obtain a copy of Mulan PSL v2 at:
  *          http://license.coscl.org.cn/MulanPSL2
@@ -27,21 +27,28 @@
 #include "SubtaskCommittableManager.h"
 #include "RequestSimpleVersionedSerializer.h"
 
-template<typename CommT>
-class SubTaskSimpleVersionedSerializer : public SimpleVersionedSerializer<SubtaskCommittableManager<CommT> > {
+template <typename CommT>
+class SubTaskSimpleVersionedSerializer : public SimpleVersionedSerializer<SubtaskCommittableManager<CommT>> {
 public:
-    SubTaskSimpleVersionedSerializer(std::shared_ptr<SimpleVersionedSerializer<CommT> > committableSerializer,
-                                     int subtaskId,
-                                     int numberOfSubtasks,
-                                     long checkpointId)
+    SubTaskSimpleVersionedSerializer(
+        std::shared_ptr<SimpleVersionedSerializer<CommT>> committableSerializer,
+        int subtaskId,
+        int numberOfSubtasks,
+        long checkpointId)
         : committableSerializer_(std::move(committableSerializer)),
           subtaskId_(subtaskId),
           numberOfSubtasks_(numberOfSubtasks),
-          checkpointId_(checkpointId) {}
+          checkpointId_(checkpointId)
+    {
+    }
 
-    int getVersion() const override { return 0; }
+    int getVersion() const override
+    {
+        return 0;
+    }
 
-    std::vector<uint8_t> serialize(const SubtaskCommittableManager<CommT> &subtask) override {
+    std::vector<uint8_t> serialize(const SubtaskCommittableManager<CommT>& subtask) override
+    {
         DataOutputSerializer out(256);
 
         auto requests = subtask.GetRequests();
@@ -59,7 +66,8 @@ public:
         return std::vector<uint8_t>(out.getData(), out.getData() + out.length());
     }
 
-    SubtaskCommittableManager<CommT> *deserialize(int version, std::vector<uint8_t> &serialized) override {
+    SubtaskCommittableManager<CommT>* deserialize(int version, std::vector<uint8_t>& serialized) override
+    {
         DataInputDeserializer input(serialized.data(), serialized.size(), 0);
 
         RequestSimpleVersionedSerializer<CommT> requestSerializer(committableSerializer_);
@@ -72,19 +80,20 @@ public:
             requests.push_back(std::make_shared<CommitRequestImpl<CommT>>(std::move(item)));
         }
         delete list;
-        return new SubtaskCommittableManager<CommT>(requests,
-                                                    input.readInt(),
-                                                    input.readInt(),
-                                                    input.readInt(),
-                                                    subtaskId_,
-                                                    std::optional<long>(checkpointId_));
+        return new SubtaskCommittableManager<CommT>(
+            requests,
+            input.readInt(),
+            input.readInt(),
+            input.readInt(),
+            subtaskId_,
+            std::optional<long>(checkpointId_));
     }
 
 private:
-    std::shared_ptr<SimpleVersionedSerializer<CommT> > committableSerializer_;
+    std::shared_ptr<SimpleVersionedSerializer<CommT>> committableSerializer_;
     int subtaskId_;
     int numberOfSubtasks_;
     long checkpointId_;
 };
 
-#endif //OMNISTREAM_SUBTASKSIMPLEVERSIONEDSERIALIZER_H
+#endif // OMNISTREAM_SUBTASKSIMPLEVERSIONEDSERIALIZER_H

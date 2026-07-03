@@ -15,23 +15,23 @@
 #include <common.h>
 
 namespace omnistream {
-    class AbstractEvent {
-    public:
-        static const int abstractEvent;
-        static const int endOfPartition;
-        static const int endOfData;
-        static const int checkpointbarrier;
+class AbstractEvent {
+public:
+    static const int abstractEvent;
+    static const int endOfPartition;
+    static const int endOfData;
+    static const int checkpointbarrier;
 
-        virtual int GetEventClassID()
-        {
-            NOT_IMPL_EXCEPTION
-        }
+    virtual int GetEventClassID()
+    {
+        NOT_IMPL_EXCEPTION;
+    }
 
-        virtual std::string GetEventClassName()
-        {
-            NOT_IMPL_EXCEPTION
-        }
-    };
+    virtual std::string GetEventClassName()
+    {
+        NOT_IMPL_EXCEPTION;
+    }
+};
 } // namespace omnistream
 
 #endif

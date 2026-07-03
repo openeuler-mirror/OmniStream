@@ -8,7 +8,7 @@ TEST(ChannelStateWriteResultTest, CreateEmpty)
 {
     auto result = ChannelStateWriter::ChannelStateWriteResult::CreateEmpty();
     EXPECT_FALSE(result->IsDone());
-    
+
     result->Fail(std::make_exception_ptr(std::runtime_error("Test failure")));
     EXPECT_TRUE(result->GetInputChannelStateHandles()->IsCancelled());
     EXPECT_TRUE(result->GetResultSubpartitionStateHandles()->IsCancelled());
@@ -16,10 +16,10 @@ TEST(ChannelStateWriteResultTest, CreateEmpty)
 
 TEST(ChannelStateWriteResultTest, IsDone)
 {
-    auto inputFuture = std::make_shared<CompletableFutureV2<
-        ChannelStateWriter::ChannelStateWriteResult::InputChannelStateHandleVecPtr>>();
-    auto resultFuture = std::make_shared<CompletableFutureV2<
-        ChannelStateWriter::ChannelStateWriteResult::ResultSubpartitionStateVecPtr>>();
+    auto inputFuture = std::make_shared<
+        CompletableFutureV2<ChannelStateWriter::ChannelStateWriteResult::InputChannelStateHandleVecPtr>>();
+    auto resultFuture = std::make_shared<
+        CompletableFutureV2<ChannelStateWriter::ChannelStateWriteResult::ResultSubpartitionStateVecPtr>>();
 
     ChannelStateWriter::ChannelStateWriteResult result(inputFuture, resultFuture);
     EXPECT_FALSE(result.IsDone());

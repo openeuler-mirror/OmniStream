@@ -18,12 +18,15 @@
 
 class StringTypeInfo : public TypeInformation {
 public:
-    explicit StringTypeInfo(const char *name);
+    explicit StringTypeInfo(const char* name);
 
-    TypeSerializer *createTypeSerializer() override;
+    TypeSerializer* createTypeSerializer() override;
     std::string name() override;
 
-    BackendDataType getBackendId() const override { return BackendDataType::VARCHAR_BK; };
+    BackendDataType getBackendId() const override
+    {
+        return BackendDataType::VARCHAR_BK;
+    };
 
 private:
     const char* name_ = TYPE_NAME_STRING;
@@ -31,6 +34,5 @@ private:
     // u32string is std string for utf32 which is equivalent to java char utf32.
     const char* native_type = "std::u32string";
 };
-
 
 #endif

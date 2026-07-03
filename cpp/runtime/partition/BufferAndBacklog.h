@@ -18,32 +18,34 @@
 #include <buffer/VectorBatchBuffer.h>
 #include <runtime/buffer/ObjectBufferDataType.h>
 
-
 namespace omnistream {
 
-    class BufferAndBacklog {
-    public:
-        BufferAndBacklog();
-        BufferAndBacklog(Buffer *buffer, int buffersInBacklog, const ObjectBufferDataType& nextDataType, int sequenceNumber);
-        ~BufferAndBacklog();
+class BufferAndBacklog {
+public:
+    BufferAndBacklog();
+    BufferAndBacklog(
+        Buffer* buffer, int buffersInBacklog, const ObjectBufferDataType& nextDataType, int sequenceNumber);
+    ~BufferAndBacklog();
 
-        Buffer *getBuffer() const;
-        int getBuffersInBacklog() const;
-        ObjectBufferDataType getNextDataType() const;
-        int getSequenceNumber() const;
+    Buffer* getBuffer() const;
+    int getBuffersInBacklog() const;
+    ObjectBufferDataType getNextDataType() const;
+    int getSequenceNumber() const;
 
-        bool isDataAvailable() const;
-        bool isEventAvailable() const;
+    bool isDataAvailable() const;
+    bool isEventAvailable() const;
 
-        static BufferAndBacklog fromBufferAndLookahead(Buffer *current, const ObjectBufferDataType& nextDataType, int backlog, int sequenceNumber_);
+    static BufferAndBacklog fromBufferAndLookahead(
+        Buffer* current, const ObjectBufferDataType& nextDataType, int backlog, int sequenceNumber_);
 
-        std::string toString() const;
-    private:
-        Buffer *buffer;
-        int buffersInBacklog;
-        ObjectBufferDataType nextDataType;
-        int sequenceNumber;
-    };
+    std::string toString() const;
+
+private:
+    Buffer* buffer;
+    int buffersInBacklog;
+    ObjectBufferDataType nextDataType;
+    int sequenceNumber;
+};
 
 } // namespace omnistream
 

@@ -12,7 +12,7 @@
 #include "ConfigLoader.h"
 #include <fstream>
 
-static void Trim(std::string &value)
+static void Trim(std::string& value)
 {
     value.erase(0, value.find_first_not_of(' '));
     value.erase(value.find_last_not_of(' ') + 1);
@@ -22,7 +22,7 @@ static std::string GetOmniHome()
 {
     auto omniHome = std::getenv("OMNI_HOME");
     if (omniHome != nullptr && omniHome[0] != '\0') {
-        std::string confDir { omniHome };
+        std::string confDir{omniHome};
         Trim(confDir);
         return confDir;
     } else {
@@ -30,12 +30,12 @@ static std::string GetOmniHome()
     }
 }
 
-static std::string GetConfigFilePath(const std::string &confFile)
+static std::string GetConfigFilePath(const std::string& confFile)
 {
     return GetOmniHome() + confFile;
 }
 
-std::unordered_map<std::string, std::string> ConfigLoader::LoadKafkaConfig(const std::string &configFilePath)
+std::unordered_map<std::string, std::string> ConfigLoader::LoadKafkaConfig(const std::string& configFilePath)
 {
     std::unordered_map<std::string, std::string> kafkaConfig;
     auto configFileRealPath = realpath(configFilePath.c_str(), nullptr);

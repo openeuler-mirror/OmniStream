@@ -12,21 +12,24 @@
 #include "ScheduledFutureTask.h"
 
 ScheduledFutureTask::ScheduledFutureTask(long initialDelay, const long period, omnistream::Runnable* outerTask)
-    : period(period), outerTask(outerTask)
+    : period(period),
+      outerTask(outerTask)
 {
     this->time = initialDelay + static_cast<int64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::system_clock::now().time_since_epoch()).count());
+                                                         std::chrono::system_clock::now().time_since_epoch())
+                                                         .count());
 }
 
 ScheduledFutureTask::ScheduledFutureTask(long initialDelay, omnistream::Runnable* outerTask)
     : ScheduledFutureTask(initialDelay, 0, outerTask)
-    {
+{
 }
 
 [[nodiscard]] long ScheduledFutureTask::GetDelay() const
 {
     return time - static_cast<int64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::system_clock::now().time_since_epoch()).count());
+                                           std::chrono::system_clock::now().time_since_epoch())
+                                           .count());
 }
 
 void ScheduledFutureTask::SetNextRuntime()

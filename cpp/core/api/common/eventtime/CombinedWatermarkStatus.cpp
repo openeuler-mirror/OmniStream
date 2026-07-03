@@ -51,4 +51,4 @@ bool CombinedWatermarkStatus::UpdateCombinedWatermark()
     return false;
 }
 
-}
+} // namespace omnistream

@@ -22,13 +22,13 @@ public:
     {
         reuseBuffer = new BigInteger();
     }
-    void* deserialize(DataInputView &source) override
+    void* deserialize(DataInputView& source) override
     {
-        NOT_IMPL_EXCEPTION
+        NOT_IMPL_EXCEPTION;
     }
-    void serialize(void *record, DataOutputSerializer &target) override
+    void serialize(void* record, DataOutputSerializer& target) override
     {
-        NOT_IMPL_EXCEPTION
+        NOT_IMPL_EXCEPTION;
     }
     BackendDataType getBackendId() const override
     {
@@ -42,10 +42,10 @@ public:
     }
 
     static BigIntSerializer* INSTANCE;
-    void deserialize(Object *buffer, DataInputView &source) override;
-    void serialize(Object *buffer, DataOutputSerializer &target) override;
-    void writeBigInteger(Object *buffer, DataOutputSerializer &target);
-    void readBigInteger(Object *buffer, DataInputView &source);
+    void deserialize(Object* buffer, DataInputView& source) override;
+    void serialize(Object* buffer, DataOutputSerializer& target) override;
+    void writeBigInteger(Object* buffer, DataOutputSerializer& target);
+    void readBigInteger(Object* buffer, DataInputView& source);
     Object* GetBuffer() override;
 };
 

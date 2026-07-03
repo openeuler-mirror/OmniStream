@@ -20,23 +20,26 @@
 #include "StateMapView.h"
 #include "StateDataViewStore.h"
 
-template<typename K>
+template <typename K>
 class PerKeyStateDataViewStore : public StateDataViewStore {
 public:
-    PerKeyStateDataViewStore(StreamingRuntimeContext<K> *ctx) : ctx(ctx) {};
+    PerKeyStateDataViewStore(StreamingRuntimeContext<K>* ctx) : ctx(ctx) {};
 
     template <typename N, typename EK, typename EV>
-    StateMapView<N, EK, EV> *getStateMapView(const std::string &stateName, bool supportNullKey,
-        TypeSerializer *keySerializer, TypeSerializer *valueSerializer)
+    StateMapView<N, EK, EV>* getStateMapView(
+        const std::string& stateName,
+        bool supportNullKey,
+        TypeSerializer* keySerializer,
+        TypeSerializer* valueSerializer)
     {
         // What if it is not a heapstate?
-        MapStateDescriptor<EK, EV> *mapStateDescriptor = new MapStateDescriptor<EK, EV>(stateName, keySerializer,
-                                                                                        valueSerializer);
-        MapState<EK, EV> *mapState = ctx->template getMapState<EK, EV>(mapStateDescriptor);
+        MapStateDescriptor<EK, EV>* mapStateDescriptor =
+            new MapStateDescriptor<EK, EV>(stateName, keySerializer, valueSerializer);
+        MapState<EK, EV>* mapState = ctx->template getMapState<EK, EV>(mapStateDescriptor);
         if (supportNullKey) {
             std::string newName = stateName + "_null_state";
-            ValueStateDescriptor<EV> *nullStateDescriptor = new ValueStateDescriptor<EV>(newName, valueSerializer);
-            ValueState<EV> *nullState = ctx->template getState<EV>(nullStateDescriptor);
+            ValueStateDescriptor<EV>* nullStateDescriptor = new ValueStateDescriptor<EV>(newName, valueSerializer);
+            ValueState<EV>* nullState = ctx->template getState<EV>(nullStateDescriptor);
             return new KeyedStateMapViewWithKeysNullable<N, EK, EV>(mapState, nullState);
         } else {
             return new KeyedStateMapViewWithKeysNotNull<N, EK, EV>(mapState);
@@ -44,7 +47,7 @@ public:
     };
 
 private:
-    StreamingRuntimeContext<K> *ctx;
+    StreamingRuntimeContext<K>* ctx;
 };
 
 #endif // FLINK_TNEL_PERKEYSTATEDATAVIEWSTORE_H

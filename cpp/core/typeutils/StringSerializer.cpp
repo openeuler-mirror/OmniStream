@@ -6,29 +6,28 @@
 #include "../type/StringValue.h"
 #include "StringSerializer.h"
 
-
-void *StringSerializer::deserialize(DataInputView &source)
+void* StringSerializer::deserialize(DataInputView& source)
 {
     return StringValue::readString(source);
 }
 
-void StringSerializer::serialize(void *record, DataOutputSerializer &target)
+void StringSerializer::serialize(void* record, DataOutputSerializer& target)
 {
-    StringValue::writeString(static_cast<const std::u32string *>(record), target);
+    StringValue::writeString(static_cast<const std::u32string*>(record), target);
 }
 
-void StringSerializer::deserialize(Object *buffer, DataInputView &source)
+void StringSerializer::deserialize(Object* buffer, DataInputView& source)
 {
-    LOG("StringSerializer::deserialize change start ---")
-    StringValue::readString(reinterpret_cast<String *>(buffer), source);
-    LOG("StringSerializer::deserialize change end ---")
+    LOG("StringSerializer::deserialize change start ---");
+    StringValue::readString(reinterpret_cast<String*>(buffer), source);
+    LOG("StringSerializer::deserialize change end ---");
 }
 
-void StringSerializer::serialize(Object *buffer, DataOutputSerializer &target)
+void StringSerializer::serialize(Object* buffer, DataOutputSerializer& target)
 {
-    LOG("StringSerializer::serialize change start +++")
-    StringValue::writeString(reinterpret_cast<String *>(buffer), target);
-    LOG("StringSerializer::serialize change end +++")
+    LOG("StringSerializer::serialize change start +++");
+    StringValue::writeString(reinterpret_cast<String*>(buffer), target);
+    LOG("StringSerializer::serialize change end +++");
 }
 
 StringSerializer* StringSerializer::INSTANCE = new StringSerializer();

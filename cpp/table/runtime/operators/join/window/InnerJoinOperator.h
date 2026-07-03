@@ -6,20 +6,23 @@
 #define OMNISTREAM_WINDOWOPERATORS_H
 #include "WindowJoinOperator.h"
 
-template <typename KeyType> class InnerJoinOperator : public WindowJoinOperator<KeyType> {
+template <typename KeyType>
+class InnerJoinOperator : public WindowJoinOperator<KeyType> {
 public:
     InnerJoinOperator(
-        const nlohmann::json &config, Output *output, TypeSerializer *leftSerializer, TypeSerializer *rightSerializer);
-    void join(std::vector<VectorBatchId> *leftRecords, std::vector<VectorBatchId> *rightRecords) override;
+        const nlohmann::json& config, Output* output, TypeSerializer* leftSerializer, TypeSerializer* rightSerializer);
+    void join(std::vector<VectorBatchId>* leftRecords, std::vector<VectorBatchId>* rightRecords) override;
 };
 
 template <typename KeyType>
-InnerJoinOperator<KeyType>::InnerJoinOperator(const nlohmann::json &config, Output *output,
-    TypeSerializer *leftSerializer, TypeSerializer *rightSerializer)
-    : WindowJoinOperator<KeyType>(config, output, leftSerializer, rightSerializer) {}
+InnerJoinOperator<KeyType>::InnerJoinOperator(
+    const nlohmann::json& config, Output* output, TypeSerializer* leftSerializer, TypeSerializer* rightSerializer)
+    : WindowJoinOperator<KeyType>(config, output, leftSerializer, rightSerializer)
+{
+}
 
 template <typename KeyType>
-void InnerJoinOperator<KeyType>::join(std::vector<VectorBatchId> *leftRecords, std::vector<VectorBatchId> *rightRecords)
+void InnerJoinOperator<KeyType>::join(std::vector<VectorBatchId>* leftRecords, std::vector<VectorBatchId>* rightRecords)
 {
     if (leftRecords == nullptr || rightRecords == nullptr) {
         return;
@@ -48,55 +51,76 @@ void InnerJoinOperator<KeyType>::join(std::vector<VectorBatchId> *leftRecords, s
     }
 }
 
-template <typename KeyType> class SemiAntiJoinOperator : public WindowJoinOperator<KeyType> {
+template <typename KeyType>
+class SemiAntiJoinOperator : public WindowJoinOperator<KeyType> {
 public:
-    SemiAntiJoinOperator(const nlohmann::json &config, Output *output, TypeSerializer *leftSerializer,
-        TypeSerializer *rightSerializer, bool isAntiJoin);
-    void join(std::vector<VectorBatchId> *leftRecords, std::vector<VectorBatchId> *rightRecords) override;
+    SemiAntiJoinOperator(
+        const nlohmann::json& config,
+        Output* output,
+        TypeSerializer* leftSerializer,
+        TypeSerializer* rightSerializer,
+        bool isAntiJoin);
+    void join(std::vector<VectorBatchId>* leftRecords, std::vector<VectorBatchId>* rightRecords) override;
 
 private:
     bool isAntiJoin;
 };
 
-template <typename KeyType> SemiAntiJoinOperator<KeyType>::SemiAntiJoinOperator(const nlohmann::json &config,
-    Output *output, TypeSerializer *leftSerializer, TypeSerializer *rightSerializer, bool isAntiJoin)
-    : WindowJoinOperator<KeyType>(config, output, leftSerializer, rightSerializer), isAntiJoin(isAntiJoin) {}
+template <typename KeyType>
+SemiAntiJoinOperator<KeyType>::SemiAntiJoinOperator(
+    const nlohmann::json& config,
+    Output* output,
+    TypeSerializer* leftSerializer,
+    TypeSerializer* rightSerializer,
+    bool isAntiJoin)
+    : WindowJoinOperator<KeyType>(config, output, leftSerializer, rightSerializer),
+      isAntiJoin(isAntiJoin)
+{
+}
 
-template <typename KeyType> void SemiAntiJoinOperator<KeyType>::join(std::vector<VectorBatchId> *leftRecords,
-    std::vector<VectorBatchId> *rightRecords)
-{}
+template <typename KeyType>
+void SemiAntiJoinOperator<KeyType>::join(
+    std::vector<VectorBatchId>* leftRecords, std::vector<VectorBatchId>* rightRecords)
+{
+}
 
-template <typename KeyType> class AbstractOuterJoinOperator : public WindowJoinOperator<KeyType> {
+template <typename KeyType>
+class AbstractOuterJoinOperator : public WindowJoinOperator<KeyType> {
 public:
-    AbstractOuterJoinOperator(const nlohmann::json &config,
-        Output *output, TypeSerializer *leftSerializer, TypeSerializer *rightSerializer);
-};
-
-template <typename KeyType> AbstractOuterJoinOperator<KeyType>::AbstractOuterJoinOperator(
-    const nlohmann::json &config, Output *output, TypeSerializer *leftSerializer, TypeSerializer *rightSerializer)
-    : WindowJoinOperator<KeyType>(config, output, leftSerializer, rightSerializer)
-{}
-
-template <typename KeyType> class LeftOuterJoinOperator : public AbstractOuterJoinOperator<KeyType> {
-public:
-    LeftOuterJoinOperator(const nlohmann::json &config, Output *output, TypeSerializer *leftSerializer,
-        TypeSerializer *rightSerializer);
-    void join(std::vector<VectorBatchId> *leftRecords, std::vector<VectorBatchId> *rightRecords) override;
+    AbstractOuterJoinOperator(
+        const nlohmann::json& config, Output* output, TypeSerializer* leftSerializer, TypeSerializer* rightSerializer);
 };
 
 template <typename KeyType>
-LeftOuterJoinOperator<KeyType>::LeftOuterJoinOperator(const nlohmann::json &config, Output *output,
-    TypeSerializer *leftSerializer, TypeSerializer *rightSerializer)
-    : AbstractOuterJoinOperator<KeyType>(config, output, leftSerializer, rightSerializer)
-{}
+AbstractOuterJoinOperator<KeyType>::AbstractOuterJoinOperator(
+    const nlohmann::json& config, Output* output, TypeSerializer* leftSerializer, TypeSerializer* rightSerializer)
+    : WindowJoinOperator<KeyType>(config, output, leftSerializer, rightSerializer)
+{
+}
 
-template <typename KeyType> void LeftOuterJoinOperator<KeyType>::join(
-    std::vector<VectorBatchId> *leftRecords, std::vector<VectorBatchId> *rightRecords)
+template <typename KeyType>
+class LeftOuterJoinOperator : public AbstractOuterJoinOperator<KeyType> {
+public:
+    LeftOuterJoinOperator(
+        const nlohmann::json& config, Output* output, TypeSerializer* leftSerializer, TypeSerializer* rightSerializer);
+    void join(std::vector<VectorBatchId>* leftRecords, std::vector<VectorBatchId>* rightRecords) override;
+};
+
+template <typename KeyType>
+LeftOuterJoinOperator<KeyType>::LeftOuterJoinOperator(
+    const nlohmann::json& config, Output* output, TypeSerializer* leftSerializer, TypeSerializer* rightSerializer)
+    : AbstractOuterJoinOperator<KeyType>(config, output, leftSerializer, rightSerializer)
+{
+}
+
+template <typename KeyType>
+void LeftOuterJoinOperator<KeyType>::join(
+    std::vector<VectorBatchId>* leftRecords, std::vector<VectorBatchId>* rightRecords)
 {
     // map = key : <left rows, right rows>
     if (leftRecords != nullptr && rightRecords != nullptr) {
-        auto outputBatch = omnistream::VectorBatch::CreateVectorBatch(leftRecords->size() * rightRecords->size(),
-            this->outputTypes);
+        auto outputBatch =
+            omnistream::VectorBatch::CreateVectorBatch(leftRecords->size() * rightRecords->size(), this->outputTypes);
         this->buildInner(leftRecords, rightRecords, outputBatch);
         AbstractStreamOperator<KeyType>::output->collect(outputBatch);
     }
@@ -111,22 +135,25 @@ template <typename KeyType> void LeftOuterJoinOperator<KeyType>::join(
 template <typename KeyType>
 class RightOuterJoinOperator : public AbstractOuterJoinOperator<KeyType> {
 public:
-    RightOuterJoinOperator(const nlohmann::json &config, Output *output, TypeSerializer *leftSerializer,
-        TypeSerializer *rightSerializer);
-    void join(std::vector<VectorBatchId> *leftRecords, std::vector<VectorBatchId> *rightRecords) override;
+    RightOuterJoinOperator(
+        const nlohmann::json& config, Output* output, TypeSerializer* leftSerializer, TypeSerializer* rightSerializer);
+    void join(std::vector<VectorBatchId>* leftRecords, std::vector<VectorBatchId>* rightRecords) override;
 };
 
-template <typename KeyType> RightOuterJoinOperator<KeyType>::RightOuterJoinOperator(const nlohmann::json &config,
-    Output *output, TypeSerializer *leftSerializer, TypeSerializer *rightSerializer)
+template <typename KeyType>
+RightOuterJoinOperator<KeyType>::RightOuterJoinOperator(
+    const nlohmann::json& config, Output* output, TypeSerializer* leftSerializer, TypeSerializer* rightSerializer)
     : AbstractOuterJoinOperator<KeyType>(config, output, leftSerializer, rightSerializer)
-{}
+{
+}
 
-template <typename KeyType> void RightOuterJoinOperator<KeyType>::join(
-    std::vector<VectorBatchId> *leftRecords, std::vector<VectorBatchId> *rightRecords)
+template <typename KeyType>
+void RightOuterJoinOperator<KeyType>::join(
+    std::vector<VectorBatchId>* leftRecords, std::vector<VectorBatchId>* rightRecords)
 {
     if (leftRecords != nullptr && rightRecords != nullptr) {
-        auto outputBatch = omnistream::VectorBatch::CreateVectorBatch(leftRecords->size() * rightRecords->size(),
-            this->outputTypes);
+        auto outputBatch =
+            omnistream::VectorBatch::CreateVectorBatch(leftRecords->size() * rightRecords->size(), this->outputTypes);
         this->buildInner(leftRecords, rightRecords, outputBatch);
         AbstractStreamOperator<KeyType>::output->collect(outputBatch);
     }
@@ -138,24 +165,28 @@ template <typename KeyType> void RightOuterJoinOperator<KeyType>::join(
     }
 }
 
-template <typename KeyType> class FullOuterJoinOperator : public AbstractOuterJoinOperator<KeyType> {
+template <typename KeyType>
+class FullOuterJoinOperator : public AbstractOuterJoinOperator<KeyType> {
 public:
-    FullOuterJoinOperator(const nlohmann::json &config, Output *output, TypeSerializer *leftSerializer,
-        TypeSerializer *rightSerializer);
-    void join(std::vector<VectorBatchId> *leftRecords, std::vector<VectorBatchId> *rightRecords) override;
+    FullOuterJoinOperator(
+        const nlohmann::json& config, Output* output, TypeSerializer* leftSerializer, TypeSerializer* rightSerializer);
+    void join(std::vector<VectorBatchId>* leftRecords, std::vector<VectorBatchId>* rightRecords) override;
 };
 
-template <typename KeyType> FullOuterJoinOperator<KeyType>::FullOuterJoinOperator(
-    const nlohmann::json &config, Output *output, TypeSerializer *leftSerializer, TypeSerializer *rightSerializer)
+template <typename KeyType>
+FullOuterJoinOperator<KeyType>::FullOuterJoinOperator(
+    const nlohmann::json& config, Output* output, TypeSerializer* leftSerializer, TypeSerializer* rightSerializer)
     : AbstractOuterJoinOperator<KeyType>(config, output, leftSerializer, rightSerializer)
-{}
+{
+}
 
-template <typename KeyType> void FullOuterJoinOperator<KeyType>::join(std::vector<VectorBatchId> *leftRecords,
-    std::vector<VectorBatchId> *rightRecords)
+template <typename KeyType>
+void FullOuterJoinOperator<KeyType>::join(
+    std::vector<VectorBatchId>* leftRecords, std::vector<VectorBatchId>* rightRecords)
 {
     if (leftRecords != nullptr && rightRecords != nullptr) {
-        auto outputBatch = omnistream::VectorBatch::CreateVectorBatch(leftRecords->size() * rightRecords->size(),
-            this->outputTypes);
+        auto outputBatch =
+            omnistream::VectorBatch::CreateVectorBatch(leftRecords->size() * rightRecords->size(), this->outputTypes);
         this->buildInner(leftRecords, rightRecords, outputBatch);
         AbstractStreamOperator<KeyType>::output->collect(outputBatch);
     }

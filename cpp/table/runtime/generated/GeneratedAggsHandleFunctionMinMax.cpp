@@ -34,13 +34,12 @@ void GeneratedAggsHandleFunctionMinMax::accumulate(RowData* accInput)
 
 void GeneratedAggsHandleFunctionMinMax::accumulate(omnistream::VectorBatch* input, const std::vector<int>& indices)
 {
-    auto columnData = input->Get(aggIdx);  // Get the column data for the aggregation
+    auto columnData = input->Get(aggIdx); // Get the column data for the aggregation
 
     for (int rowIndex : indices) {
         bool isFieldNull = columnData->IsNull(rowIndex);
-        long fieldValue = isFieldNull
-                ? limit
-                : dynamic_cast<omniruntime::vec::Vector<long>*>(columnData)->GetValue(rowIndex);
+        long fieldValue =
+            isFieldNull ? limit : dynamic_cast<omniruntime::vec::Vector<long>*>(columnData)->GetValue(rowIndex);
 
         if (isFieldNull) {
             // If the field is null, we keep the existing aggregation value (or initialize if it's the first null)
@@ -49,8 +48,8 @@ void GeneratedAggsHandleFunctionMinMax::accumulate(omnistream::VectorBatch* inpu
             // If the field is not null, update the aggregation value based on the operator (MAX or MIN)
             bool toUpdate = !valueIsNull && (aggOperator == MAX ? fieldValue > aggValue : fieldValue < aggValue);
             if (valueIsNull || toUpdate) {
-                aggValue = fieldValue;  // Update the aggregation value
-                valueIsNull = false;    // Mark that the value is no longer null
+                aggValue = fieldValue; // Update the aggregation value
+                valueIsNull = false;   // Mark that the value is no longer null
             }
         }
     }
@@ -68,7 +67,8 @@ void GeneratedAggsHandleFunctionMinMax::retract(omnistream::VectorBatch* input, 
 
 void GeneratedAggsHandleFunctionMinMax::createAccumulators(BinaryRowData* accumulators)
 {
-    throw std::runtime_error("This function does not require createAccumulators method, but createAccumulators was called.");
+    throw std::runtime_error(
+        "This function does not require createAccumulators method, but createAccumulators was called.");
 }
 
 void GeneratedAggsHandleFunctionMinMax::merge(RowData* otherAcc)
@@ -111,7 +111,8 @@ void GeneratedAggsHandleFunctionMinMax::open(StateDataViewStore* store)
     this->store = store;
 }
 
-bool GeneratedAggsHandleFunctionMinMax::equaliser(BinaryRowData *r1, BinaryRowData *r2)
+bool GeneratedAggsHandleFunctionMinMax::equaliser(BinaryRowData* r1, BinaryRowData* r2)
 {
-    return !r1->isNullAt(valueIndex) && !r2->isNullAt(valueIndex) && *r1->getLong(valueIndex) == *r2->getLong(valueIndex);
+    return !r1->isNullAt(valueIndex) && !r2->isNullAt(valueIndex) &&
+           *r1->getLong(valueIndex) == *r2->getLong(valueIndex);
 }

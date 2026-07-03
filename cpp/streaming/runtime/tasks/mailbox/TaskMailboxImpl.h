@@ -22,49 +22,52 @@
 #include <algorithm>
 #include "TaskMailbox.h"
 
-
 namespace omnistream {
 
-    class TaskMailboxImpl : public TaskMailbox {
-    public:
-        explicit TaskMailboxImpl(std::thread::id taskMailboxThreadId) : taskMailboxThreadId(taskMailboxThreadId) {}
-        TaskMailboxImpl() : taskMailboxThreadId(std::thread::id()) {}
+class TaskMailboxImpl : public TaskMailbox {
+public:
+    explicit TaskMailboxImpl(std::thread::id taskMailboxThreadId) : taskMailboxThreadId(taskMailboxThreadId)
+    {
+    }
+    TaskMailboxImpl() : taskMailboxThreadId(std::thread::id())
+    {
+    }
 
-        bool isMailboxThread() const override;
-        bool hasMail() const override;
-        int size();
+    bool isMailboxThread() const override;
+    bool hasMail() const override;
+    int size();
 
-        Mail* tryTake(int priority) override;
-        Mail* take(int priority) override;
+    Mail* tryTake(int priority) override;
+    Mail* take(int priority) override;
 
-        bool createBatch() override;
-        Mail* tryTakeFromBatch() override;
+    bool createBatch() override;
+    Mail* tryTakeFromBatch() override;
 
-        void put(Mail* mail) override;
-        void putFirst(Mail* mail) override;
+    void put(Mail* mail) override;
+    void putFirst(Mail* mail) override;
 
-        std::vector<Mail*> drain() override;
-        void quiesce() override;
-        std::vector<Mail*> close() override;
-        State getState()  override;
-        void runExclusively(const std::shared_ptr<ThrowingRunnable>& runnable) override;
+    std::vector<Mail*> drain() override;
+    void quiesce() override;
+    std::vector<Mail*> close() override;
+    State getState() override;
+    void runExclusively(const std::shared_ptr<ThrowingRunnable>& runnable) override;
 
-        std::string toString() override;
+    std::string toString() override;
 
-    private:
-        std::recursive_mutex lock;
-        std::deque<Mail*> queue;
-        std::condition_variable_any notEmpty;
-        State state = State::OPEN;
-        std::thread::id taskMailboxThreadId;
-        std::deque<Mail*> batch;
-        std::atomic<bool> hasNewMail = false;
+private:
+    std::recursive_mutex lock;
+    std::deque<Mail*> queue;
+    std::condition_variable_any notEmpty;
+    State state = State::OPEN;
+    std::thread::id taskMailboxThreadId;
+    std::deque<Mail*> batch;
+    std::atomic<bool> hasNewMail = false;
 
-        Mail* takeOrNull(std::deque<Mail*> &queue, int priority);
-        void checkIsMailboxThread() const;
-        void checkPutStateConditions();
-        void checkTakeStateConditions();
-    };
+    Mail* takeOrNull(std::deque<Mail*>& queue, int priority);
+    void checkIsMailboxThread() const;
+    void checkPutStateConditions();
+    void checkTakeStateConditions();
+};
 
 } // namespace omnistream
 

@@ -14,7 +14,7 @@
 
 #include "ByteBuffer.h"
 
-class ByteBufferView :  public ByteBuffer {
+class ByteBufferView : public ByteBuffer {
 public:
     static ByteBufferView* wrap(std::vector<uint8_t>* data_);
 

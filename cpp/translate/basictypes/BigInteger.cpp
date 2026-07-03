@@ -18,7 +18,7 @@ void BigInteger::checkRange() const
     }
 }
 
-void BigInteger::destructiveMulAdd(std::vector<int> &x, int y, int z)
+void BigInteger::destructiveMulAdd(std::vector<int>& x, int y, int z)
 {
     int64_t ylong = static_cast<int64_t>(y) & LONG_MASK;
     int64_t zlong = static_cast<int64_t>(z) & LONG_MASK;
@@ -55,12 +55,12 @@ int BigInteger::hashCode()
     return static_cast<int>(hashCode) * signum;
 }
 
-bool BigInteger::equals(Object *obj)
+bool BigInteger::equals(Object* obj)
 {
     if (obj == nullptr) {
         return false;
     }
-    const auto *bigInteger = reinterpret_cast<BigInteger *>(obj);
+    const auto* bigInteger = reinterpret_cast<BigInteger*>(obj);
     if (bigInteger == this) {
         return true;
     }
@@ -81,15 +81,14 @@ bool BigInteger::equals(Object *obj)
     return true;
 }
 
-Object *BigInteger::clone()
+Object* BigInteger::clone()
 {
     return new BigInteger(this->mag, this->signum);
 }
 
 std::string BigInteger::toString(int radix) const
 {
-    if (signum == 0)
-        return "0";
+    if (signum == 0) return "0";
 
     // Copy magnitude since we need to modify it
     std::vector<uint32_t> magCopy;
@@ -129,7 +128,7 @@ std::string BigInteger::toString(int radix) const
     return result;
 }
 
-BigInteger::BigInteger(const std::string &val, int radix)
+BigInteger::BigInteger(const std::string& val, int radix)
 {
     int cursor = 0;
     int len = val.length();
@@ -187,7 +186,7 @@ BigInteger::BigInteger(const std::string &val, int radix)
     std::vector<int> magnitude(numWords, 0);
 
     // 处理第一个数字组
-    int firstGroupLen = numDigits % digitsPerInt[radix];  // 假设每组最多10位
+    int firstGroupLen = numDigits % digitsPerInt[radix]; // 假设每组最多10位
     if (firstGroupLen == 0) {
         firstGroupLen = digitsPerInt[radix];
     }
@@ -219,11 +218,11 @@ BigInteger::BigInteger(const std::string &val, int radix)
     return;
 }
 
-BigInteger::BigInteger(const std::string &val) : BigInteger(val, 10)
+BigInteger::BigInteger(const std::string& val) : BigInteger(val, 10)
 {
 }
 
-BigInteger::BigInteger(String *val)
+BigInteger::BigInteger(String* val)
 {
     if (val == nullptr) {
         throw std::runtime_error("String* is nullptr");
@@ -261,7 +260,7 @@ BigInteger::BigInteger(int64_t val)
     }
 }
 
-std::vector<int> BigInteger::makePositive(const std::vector<int> &val)
+std::vector<int> BigInteger::makePositive(const std::vector<int>& val)
 {
     // 实现makePositive逻辑
     std::vector<int> result(val);
@@ -278,7 +277,7 @@ std::vector<int> BigInteger::makePositive(const std::vector<int> &val)
     return result;
 }
 
-std::vector<int> BigInteger::trustedStripLeadingZeroInts(const std::vector<int> &val)
+std::vector<int> BigInteger::trustedStripLeadingZeroInts(const std::vector<int>& val)
 {
     int keep = 0;
     int vlen = val.size();
@@ -302,7 +301,7 @@ void BigInteger::checkRange()
     }
 }
 
-BigInteger::BigInteger(const std::vector<int> &val)
+BigInteger::BigInteger(const std::vector<int>& val)
 {
     if (val.empty()) {
         throw std::runtime_error("Zero length BigInteger");
@@ -321,8 +320,9 @@ BigInteger::BigInteger(const std::vector<int> &val)
     }
 }
 
-BigInteger::BigInteger(const std::vector<int> &magnitude, int signum)
-    : mag(magnitude), signum(magnitude.empty() ? 0 : signum)
+BigInteger::BigInteger(const std::vector<int>& magnitude, int signum)
+    : mag(magnitude),
+      signum(magnitude.empty() ? 0 : signum)
 {
     if (!mag.empty() && mag.size() >= MAX_MAG_LENGTH) {
         checkRange();
@@ -334,7 +334,7 @@ BigInteger* BigInteger::valueOf(int64_t val)
     return new BigInteger(val);
 }
 
-BigInteger* BigInteger::valueOf(std::vector<int> &val)
+BigInteger* BigInteger::valueOf(std::vector<int>& val)
 {
     if (val.size() == 0) {
         return new BigInteger((int64_t)0);
@@ -396,13 +396,12 @@ int BigInteger::bitLength() const
 int BigInteger::firstNonzeroIntNum()
 {
     int fn = firstNonzeroIntNumIndex - 2;
-    if (fn == -2) {  // 未初始化
+    if (fn == -2) { // 未初始化
         fn = 0;
 
         int mlen = mag.size();
         int i;
-        for (i = mlen - 1; i >= 0 && mag[i] == 0; --i)
-            ;  // 查找第一个非零整数
+        for (i = mlen - 1; i >= 0 && mag[i] == 0; --i); // 查找第一个非零整数
 
         fn = (mlen - i - 1);
         firstNonzeroIntNumIndex = fn + 2;
@@ -416,7 +415,7 @@ int BigInteger::getInt(int n)
         return 0;
     }
     if (n >= static_cast<int>(mag.size())) {
-        return signum < 0 ? -1 : 0;  // 假设signInt()返回符号位的值
+        return signum < 0 ? -1 : 0; // 假设signInt()返回符号位的值
     }
 
     int magInt = mag[mag.size() - n - 1];
@@ -441,7 +440,7 @@ std::vector<unsigned char> BigInteger::toByteArray()
     std::vector<unsigned char> byteArray(byteLen, 0x00);
 
     int intIndex = 0;
-    int bytesCopied = 4;  // 每个int有4个字节
+    int bytesCopied = 4; // 每个int有4个字节
     int nextInt = 0;
 
     for (int i = byteLen - 1; i >= 0; --i) {
@@ -457,7 +456,7 @@ std::vector<unsigned char> BigInteger::toByteArray()
     return byteArray;
 }
 
-void BigInteger::setByteArray(uint8_t *buffer, int capacity, int offset, int length)
+void BigInteger::setByteArray(uint8_t* buffer, int capacity, int offset, int length)
 {
     if (buffer == nullptr || offset + length > capacity) {
         throw std::runtime_error("BigInteger::setByteArray error");
@@ -572,7 +571,8 @@ BigInteger& BigInteger::operator=(const BigInteger& other)
 
 bool BigInteger::operator==(const BigInteger& other) const
 {
-    if (this->signum == other.signum && std::equal(this->mag.begin(), this->mag.end(), other.mag.begin(), other.mag.end())) {
+    if (this->signum == other.signum &&
+        std::equal(this->mag.begin(), this->mag.end(), other.mag.begin(), other.mag.end())) {
         return true;
     }
     return false;
@@ -580,7 +580,8 @@ bool BigInteger::operator==(const BigInteger& other) const
 
 bool BigInteger::operator!=(const BigInteger& other) const
 {
-    if (this->signum != other.signum || !std::equal(this->mag.begin(), this->mag.end(), other.mag.begin(), other.mag.end())) {
+    if (this->signum != other.signum ||
+        !std::equal(this->mag.begin(), this->mag.end(), other.mag.begin(), other.mag.end())) {
         return true;
     }
     return false;

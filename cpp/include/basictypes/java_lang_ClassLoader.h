@@ -19,8 +19,7 @@ public:
     ClassLoader();
     ~ClassLoader();
     InputStream* getResourceAsStream(String* str);
-    InputStream* getResourceAsStream(const std::string &str);
+    InputStream* getResourceAsStream(const std::string& str);
 };
 
 #endif // FLINK_TNEL_JAVA_LANG_CLASSLOADER_H
-

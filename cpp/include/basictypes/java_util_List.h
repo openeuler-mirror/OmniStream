@@ -27,7 +27,7 @@
 
 class List : public Collection {
 public:
-    std::list<Object *> list;
+    std::list<Object*> list;
 
     List();
 
@@ -38,25 +38,25 @@ public:
     List(std::list<std::string> list);
 
 public:
-    Object *get(int32_t idx);
+    Object* get(int32_t idx);
 
     void clear();
 
-    void add(Object *a);
+    void add(Object* a);
 
-    void add(std::string &str);
+    void add(std::string& str);
 
-    void addLast(Object *a);
+    void addLast(Object* a);
 
-    void addFirst(Object *a);
+    void addFirst(Object* a);
 
     void remove(int32_t idx);
 
     void remove(Object* ele);
 
-    bool contains(std::string &str);
+    bool contains(std::string& str);
 
-    bool contains(Object *a);
+    bool contains(Object* a);
 
     int size();
 
@@ -66,15 +66,15 @@ public:
     //    }
     bool isEmpty();
 
-    Object *getFirst();
+    Object* getFirst();
 
-    Object *getLast();
+    Object* getLast();
 
-    Object *clone() override;
+    Object* clone() override;
 
     class ListIterator : public java_util_Iterator {
     public:
-        using listIterator = std::list<Object *>::iterator;
+        using listIterator = std::list<Object*>::iterator;
 
         listIterator current_;
         listIterator lastRet;
@@ -90,7 +90,7 @@ public:
 
         bool hasNext();
 
-        Object *next();
+        Object* next();
 
         void remove() override;
     };
@@ -98,7 +98,7 @@ public:
     ~List() override;
 
     // need free
-    java_util_Iterator *iterator();
+    java_util_Iterator* iterator();
 };
 
 using ArrayList = List;

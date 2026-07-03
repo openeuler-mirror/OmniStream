@@ -17,20 +17,20 @@ void SinkOperator::open()
     }
 }
 
-const char *SinkOperator::getName()
+const char* SinkOperator::getName()
 {
     return "SinkOperator";
 }
 
-void SinkOperator::processElement(StreamRecord *record)
+void SinkOperator::processElement(StreamRecord* record)
 {
-    LOG("SinkOperator::processElement(StreamRecord *record)")
+    LOG("SinkOperator::processElement(StreamRecord *record)");
     userFunction->invoke(record, SinkInputValueType::ROW_DATA);
 }
 
-void SinkOperator::processBatch(StreamRecord *record)
+void SinkOperator::processBatch(StreamRecord* record)
 {
-    LOG("SinkOperator::processBatch(StreamRecord *record)")
+    LOG("SinkOperator::processBatch(StreamRecord *record)");
     userFunction->invoke(record, SinkInputValueType::VEC_BATCH);
 }
 

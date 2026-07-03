@@ -11,11 +11,19 @@
 
 #include "SourceOutputWithWatermarks.h"
 
-
-SourceOutputWithWatermarks* SourceOutputWithWatermarks::createWithSeparateOutputs(OmniDataOutputPtr recordsOutput,
-    WatermarkOutput* onEventWatermarkOutput, WatermarkOutput* periodicWatermarkOutput,
-    TimestampAssigner* timestampAssigner, WatermarkGenerator* watermarkGenerator, long autoWatermarkInterval)
+SourceOutputWithWatermarks* SourceOutputWithWatermarks::createWithSeparateOutputs(
+    OmniDataOutputPtr recordsOutput,
+    WatermarkOutput* onEventWatermarkOutput,
+    WatermarkOutput* periodicWatermarkOutput,
+    TimestampAssigner* timestampAssigner,
+    WatermarkGenerator* watermarkGenerator,
+    long autoWatermarkInterval)
 {
-    return new SourceOutputWithWatermarks(recordsOutput, onEventWatermarkOutput,
-        periodicWatermarkOutput, timestampAssigner, watermarkGenerator, autoWatermarkInterval);
+    return new SourceOutputWithWatermarks(
+        recordsOutput,
+        onEventWatermarkOutput,
+        periodicWatermarkOutput,
+        timestampAssigner,
+        watermarkGenerator,
+        autoWatermarkInterval);
 }

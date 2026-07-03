@@ -18,7 +18,7 @@
 
 class AsyncDataOutputToOutput : public DataOutput {
 public:
-    AsyncDataOutputToOutput(Output *output)
+    AsyncDataOutputToOutput(Output* output)
     {
         this->output = output;
     }
@@ -28,14 +28,14 @@ public:
         output->collect(streamRecord);
     }
 
-    void emitWatermark(Watermark *watermark) override
+    void emitWatermark(Watermark* watermark) override
     {
         output->emitWatermark(watermark);
     }
 
 private:
-    Output *output;
-    WatermarkGauge *watermarkGauge;
+    Output* output;
+    WatermarkGauge* watermarkGauge;
 };
 
 #endif

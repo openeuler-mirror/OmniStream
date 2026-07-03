@@ -16,11 +16,18 @@
 
 class WatermarkGenerator {
 public:
-    virtual void OnEvent(void * event, long eventTimestamp, WatermarkOutput* output) {}
+    virtual void OnEvent(void* event, long eventTimestamp, WatermarkOutput* output)
+    {
+    }
 
-    virtual void OnPeriodicEmit(WatermarkOutput* output) {}
+    virtual void OnPeriodicEmit(WatermarkOutput* output)
+    {
+    }
 
-    virtual int64_t getLastEmittedMaxTimestamp() { NOT_IMPL_EXCEPTION }
+    virtual int64_t getLastEmittedMaxTimestamp()
+    {
+        NOT_IMPL_EXCEPTION;
+    }
     virtual ~WatermarkGenerator() = default;
 };
 

@@ -41,11 +41,11 @@ public:
     {
         int rowSize = static_cast<int>(messageVec.size());
         int colSize = static_cast<int>(fieldNames.size());
-        auto *vectorBatch = createBatch(rowSize, fieldTypes);
+        auto* vectorBatch = createBatch(rowSize, fieldTypes);
         nlohmann::json node;
         for (int rowIndex = 0; rowIndex < rowSize; rowIndex++) {
-            node = nlohmann::json::parse(std::string_view(
-                reinterpret_cast<const char *>(messageVec[rowIndex]), lengthVec[rowIndex]));
+            node = nlohmann::json::parse(
+                std::string_view(reinterpret_cast<const char*>(messageVec[rowIndex]), lengthVec[rowIndex]));
             for (int colIndex = 0; colIndex < colSize; colIndex++) {
                 setColValue(rowIndex, colIndex, vectorBatch, node);
             }
@@ -64,29 +64,30 @@ public:
         }
 
         switch (type) {
-            case omniruntime::type::DataTypeId::OMNI_INT:{
+            case omniruntime::type::DataTypeId::OMNI_INT: {
                 vectorBatch->SetValueAt(colIndex, rowIndex, fieldIt->get<int32_t>());
                 break;
             }
-            case omniruntime::type::DataTypeId::OMNI_LONG:{
+            case omniruntime::type::DataTypeId::OMNI_LONG: {
                 vectorBatch->SetValueAt(colIndex, rowIndex, fieldIt->get<int64_t>());
                 break;
             }
             case omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:
-            case omniruntime::type::DataTypeId::OMNI_TIMESTAMP:{
-                vectorBatch->SetValueAt(colIndex, rowIndex,
-                                        TimestampData::stringToEpochMillis(fieldIt->get<std::string>()));
+            case omniruntime::type::DataTypeId::OMNI_TIMESTAMP: {
+                vectorBatch->SetValueAt(
+                    colIndex, rowIndex, TimestampData::stringToEpochMillis(fieldIt->get<std::string>()));
                 break;
             }
-            case (omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE) : {
+            case (omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE): {
                 const TimestampData timeString = TimestampData::fromLocalTimeString(fieldIt->get<std::string>());
                 vectorBatch->SetValueAt(colIndex, rowIndex, timeString.getMillisecond());
                 break;
             }
             case omniruntime::type::DataTypeId::OMNI_CHAR:
             case omniruntime::type::DataTypeId::OMNI_VARCHAR: {
-                auto stringVec = reinterpret_cast<omniruntime::vec::Vector<
-                        omniruntime::vec::LargeStringContainer<std::string_view>> *>(vectorBatch->Get(colIndex));
+                auto stringVec = reinterpret_cast<
+                    omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>*>(
+                    vectorBatch->Get(colIndex));
                 std::string value;
                 if (fieldIt->is_string()) {
                     value = fieldIt->get<std::string>();
@@ -97,8 +98,7 @@ public:
                 stringVec->SetValue(rowIndex, strView);
                 break;
             }
-            default:
-                std::runtime_error("DataType not supported yet!");
+            default: std::runtime_error("DataType not supported yet!");
         }
     }
 

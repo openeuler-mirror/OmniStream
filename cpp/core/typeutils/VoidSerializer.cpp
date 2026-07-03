@@ -1,10 +1,12 @@
 #include "VoidSerializer.h"
 
-void* VoidSerializer::deserialize(DataInputView& source) {
-    return static_cast<void *>(new Void());
+void* VoidSerializer::deserialize(DataInputView& source)
+{
+    return static_cast<void*>(new Void());
 }
 
-Object* VoidSerializer::GetBuffer() {
+Object* VoidSerializer::GetBuffer()
+{
     if (bufferReusable) {
         reuseBuffer->getRefCount();
         return reuseBuffer;

@@ -38,17 +38,21 @@ public:
         : subtaskId(subtaskId),
           numberOfSubtasks(numberOfSubtasks),
           checkpointId(checkpointId),
-          subtasksCommittableManagers() {}
+          subtasksCommittableManagers()
+    {
+    }
 
     CheckpointCommittableManagerImpl(
-            const SubtaskCommittableManagers& subtasksCommittableManagers,
-            int subtaskId,
-            int numberOfSubtasks,
-            std::optional<long> checkpointId)
+        const SubtaskCommittableManagers& subtasksCommittableManagers,
+        int subtaskId,
+        int numberOfSubtasks,
+        std::optional<long> checkpointId)
         : subtasksCommittableManagers(subtasksCommittableManagers),
           subtaskId(subtaskId),
           numberOfSubtasks(numberOfSubtasks),
-          checkpointId(checkpointId) {}
+          checkpointId(checkpointId)
+    {
+    }
 
     long GetCheckpointId() const
     {
@@ -72,9 +76,7 @@ public:
         auto it = subtasksCommittableManagers.find(summary.GetSubtaskId());
         if (it == subtasksCommittableManagers.end()) {
             subtasksCommittableManagers[summary.GetSubtaskId()] = std::make_shared<SubtaskCommittableManager<CommT>>(
-                    summary.GetNumberOfCommittables(),
-                    subtaskId,
-                    summary.GetCheckpointId());
+                summary.GetNumberOfCommittables(), subtaskId, summary.GetCheckpointId());
         } else {
             throw std::runtime_error("Updating CommittableSummary for the same subtask is not supported");
         }
@@ -105,12 +107,7 @@ public:
             totalFailed += entry.second->GetNumFailed();
         }
         return CommittableSummary<CommT>(
-                subtaskId,
-                numberOfSubtasks,
-                checkpointId,
-                totalCommittables,
-                totalPending,
-                totalFailed);
+            subtaskId, numberOfSubtasks, checkpointId, totalCommittables, totalPending, totalFailed);
     }
 
     bool IsFinished() const
@@ -123,9 +120,7 @@ public:
         return true;
     }
 
-    std::vector<CommittableWithLineage<CommT>> commit(
-            bool fullyReceived,
-            Committer<CommT>& committer)
+    std::vector<CommittableWithLineage<CommT>> commit(bool fullyReceived, Committer<CommT>& committer)
     {
         std::vector<std::shared_ptr<CommitRequest<CommT>>> requests = getPendingRequests(fullyReceived);
         for (auto& request : requests) {
@@ -180,7 +175,8 @@ public:
 
     CheckpointCommittableManagerImpl<CommT> Copy() const
     {
-        return CheckpointCommittableManagerImpl<CommT>(subtasksCommittableManagers, subtaskId, numberOfSubtasks, checkpointId);
+        return CheckpointCommittableManagerImpl<CommT>(
+            subtasksCommittableManagers, subtaskId, numberOfSubtasks, checkpointId);
     }
 
 private:

@@ -22,16 +22,17 @@ extern "C" {
  * Method:    emitNextNative
  * Signature: (J)I
  */
-JNIEXPORT jint JNICALL Java_com_huawei_omniruntime_flink_streaming_runtime_io_OmniStreamTaskSourceInput_emitNextNative
-  (JNIEnv *, jclass, jlong);
+JNIEXPORT jint JNICALL Java_com_huawei_omniruntime_flink_streaming_runtime_io_OmniStreamTaskSourceInput_emitNextNative(
+    JNIEnv*, jclass, jlong);
 
 /*
  * Class:     com_huawei_omniruntime_flink_streaming_runtime_io_OmniStreamTaskSourceInput
  * Method:    getSourceReaderAvailableNative
  * Signature: (J)Z
  */
-JNIEXPORT jboolean JNICALL Java_com_huawei_omniruntime_flink_streaming_runtime_io_OmniStreamTaskSourceInput_getSourceReaderAvailableNative
-  (JNIEnv *, jclass, jlong);
+JNIEXPORT jboolean JNICALL
+Java_com_huawei_omniruntime_flink_streaming_runtime_io_OmniStreamTaskSourceInput_getSourceReaderAvailableNative(
+    JNIEnv*, jclass, jlong);
 
 #ifdef __cplusplus
 }

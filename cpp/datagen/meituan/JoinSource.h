@@ -30,22 +30,23 @@
 class JoinSource : public SourceFunction<omnistream::VectorBatch>, public AbstractRichFunction {
 public:
     explicit JoinSource(const nlohmann::json& description);
-               
-    JoinSource(int keysPerCheck,
-               int checkInterval,
-               int minLeftRecordsPerKey,
-               int maxLeftRecordsPerKey,
-               int minRightRecordsPerKey,
-               int maxRightRecordsPerKey,
-               int recordValueSize,
-               int recordKeySize,
-               int leftMaxDelay,
-               int rightMaxDelay,
-               long sleepTime = 3000);
 
-    std::unordered_map<long, std::vector<OriginalRecord *>> &getRecordsToCollect();
-    void open(const Configuration &parameters) override;
-    void run(SourceContext *ctx) override;
+    JoinSource(
+        int keysPerCheck,
+        int checkInterval,
+        int minLeftRecordsPerKey,
+        int maxLeftRecordsPerKey,
+        int minRightRecordsPerKey,
+        int maxRightRecordsPerKey,
+        int recordValueSize,
+        int recordKeySize,
+        int leftMaxDelay,
+        int rightMaxDelay,
+        long sleepTime = 3000);
+
+    std::unordered_map<long, std::vector<OriginalRecord*>>& getRecordsToCollect();
+    void open(const Configuration& parameters) override;
+    void run(SourceContext* ctx) override;
     void cancel() override;
     void generateRecordsForKey();
 
@@ -65,13 +66,13 @@ private:
 
     int currentSubtaskIndex = 0;
     long currentKeyId = 0;
-    std::unordered_map<long, std::vector<OriginalRecord *>> *recordsToCollect;
+    std::unordered_map<long, std::vector<OriginalRecord*>>* recordsToCollect;
 
     std::unique_ptr<std::mt19937> random;
 
     long getRandomLong();
     std::string getRandomAlphanumeric(int length);
-    void originalRecordToBatch(OriginalRecord *record, omnistream::VectorBatch* batch, int index);
+    void originalRecordToBatch(OriginalRecord* record, omnistream::VectorBatch* batch, int index);
     omnistream::VectorBatch* createBatch(int size);
 };
 

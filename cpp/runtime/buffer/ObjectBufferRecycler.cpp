@@ -13,6 +13,6 @@
 
 #include <memory>
 namespace omnistream {
-    // Define the static member
-    std::shared_ptr<DummyObjectBufferRecycler> DummyObjectBufferRecycler::instance = nullptr;
-}
+// Define the static member
+std::shared_ptr<DummyObjectBufferRecycler> DummyObjectBufferRecycler::instance = nullptr;
+} // namespace omnistream

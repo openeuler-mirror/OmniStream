@@ -29,22 +29,24 @@
 
 namespace omnistream {
 
-
-class PipelinedSubpartition : public ResultSubpartition, public CheckpointedResultSubpartition, public ChannelStateHolder, public  std::enable_shared_from_this<PipelinedSubpartition> {
+class PipelinedSubpartition : public ResultSubpartition,
+                              public CheckpointedResultSubpartition,
+                              public ChannelStateHolder,
+                              public std::enable_shared_from_this<PipelinedSubpartition> {
 public:
     PipelinedSubpartition(int index, int receiverExclusiveBuffersPerChannel, std::shared_ptr<ResultPartition> parent);
     ~PipelinedSubpartition() override;
 
     // int add(std::shared_ptr<ObjectBufferConsumer> bufferConsumer, int partialRecordLength) override;
-    const ResultSubpartitionInfoPOD &getSubpartitionInfo() override;
-    BufferBuilder *requestBufferBuilderBlocking() override;
+    const ResultSubpartitionInfoPOD& getSubpartitionInfo() override;
+    BufferBuilder* requestBufferBuilderBlocking() override;
     void addRecovered(std::shared_ptr<BufferConsumer> bufferConsumer) override;
     void finishReadRecoveredState(bool notifyAndBlockOnCompletion) override;
 
     void setChannelStateWriter(std::shared_ptr<ChannelStateWriter> channelStateWriter) override;
 
     void alignedBarrierTimeout(long checkpointId) override;
-    void abortCheckpoint(long checkpointId, std::optional<std::exception_ptr>  throwable) override;
+    void abortCheckpoint(long checkpointId, std::optional<std::exception_ptr> throwable) override;
 
     int add(std::shared_ptr<BufferConsumer> bufferConsumer, int partialRecordLength) override;
 
@@ -69,8 +71,10 @@ public:
     long getTotalNumberOfBytesUnsafe() override;
     void decreaseBuffersInBacklogUnsafe(bool isBuffer);
     void increaseBuffersInBacklog(std::shared_ptr<BufferConsumer> buffer);
-    // std::shared_ptr<VectorBatchBuffer> buildSliceBuffer(std::shared_ptr<ObjectBufferConsumerWithPartialRecordLength> buffer);
-    Buffer *buildSliceBuffer(std::shared_ptr<BufferConsumerWithPartialRecordLength> bufferConsumerWithPartialRecordLength);
+    // std::shared_ptr<VectorBatchBuffer> buildSliceBuffer(std::shared_ptr<ObjectBufferConsumerWithPartialRecordLength>
+    // buffer);
+    Buffer* buildSliceBuffer(
+        std::shared_ptr<BufferConsumerWithPartialRecordLength> bufferConsumerWithPartialRecordLength);
     // std::shared_ptr<ObjectBufferConsumerWithPartialRecordLength> getNextBuffer();
     std::shared_ptr<BufferConsumerWithPartialRecordLength> getNextBuffer();
 
@@ -100,13 +104,13 @@ private:
 
     int add(std::shared_ptr<BufferConsumer> bufferConsumer, int partialRecordLength, bool finish);
     bool addBuffer(std::shared_ptr<BufferConsumer> bufferConsumer, int partialRecordLength);
-    std::shared_ptr<CheckpointBarrier> ParseCheckpointBarrier(const std::shared_ptr<BufferConsumer> &bufferConsumer);
+    std::shared_ptr<CheckpointBarrier> ParseCheckpointBarrier(const std::shared_ptr<BufferConsumer>& bufferConsumer);
     bool ProcessPriorityBuffer(std::shared_ptr<BufferConsumer> bufferConsumer, int partialRecordLength);
     void ProcessTimeoutableCheckpointBarrier(std::shared_ptr<BufferConsumer> bufferConsumer);
     std::shared_ptr<CheckpointBarrier> ParseAndCheckTimeoutableCheckpointBarrier(
-        const std::shared_ptr<BufferConsumer> &bufferConsumer);
+        const std::shared_ptr<BufferConsumer>& bufferConsumer);
     std::shared_ptr<CompletableFutureV2<std::vector<Buffer*>>> CreateChannelStateFuture(long checkpointId);
-    void CompleteChannelStateFuture(std::vector<Buffer*> &channelResult, std::exception_ptr e);
+    void CompleteChannelStateFuture(std::vector<Buffer*>& channelResult, std::exception_ptr e);
 
     bool isDataAvailableUnsafe();
     ObjectBufferDataType getNextBufferTypeUnsafe();

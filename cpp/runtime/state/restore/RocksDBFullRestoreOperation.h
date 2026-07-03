@@ -39,7 +39,7 @@ namespace fs = std::filesystem;
  * It uses FullSnapshotRestoreOperation to handle the unified binary format
  * and then applies the restored data to RocksDB.
  */
-template<typename K>
+template <typename K>
 class RocksDBFullRestoreOperation : public RocksDBRestoreOperation {
 public:
     /**
@@ -56,15 +56,15 @@ public:
      * @param omniTaskBridge omniTaskBridge
      */
     RocksDBFullRestoreOperation(
-            KeyGroupRange* keyGroupRange,
-            std::shared_ptr<TypeSerializer> keySerializer,
-            std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>> *kvStateInformation,
-            fs::path& instanceRocksDBPath,
-            std::shared_ptr<rocksdb::DBOptions> dbOptions,
-            std::function<rocksdb::ColumnFamilyOptions(const std::string&)> columnFamilyOptionsFactory,
-            const std::vector<std::shared_ptr<KeyedStateHandle>>& restoreStateHandles,
-            long writeBatchSize,
-            std::shared_ptr<OmniTaskBridge> omniTaskBridge);
+        KeyGroupRange* keyGroupRange,
+        std::shared_ptr<TypeSerializer> keySerializer,
+        std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation,
+        fs::path& instanceRocksDBPath,
+        std::shared_ptr<rocksdb::DBOptions> dbOptions,
+        std::function<rocksdb::ColumnFamilyOptions(const std::string&)> columnFamilyOptionsFactory,
+        const std::vector<std::shared_ptr<KeyedStateHandle>>& restoreStateHandles,
+        long writeBatchSize,
+        std::shared_ptr<OmniTaskBridge> omniTaskBridge);
 
     /**
      * Destructor
@@ -97,16 +97,16 @@ private:
     void applyRestoreResult(std::unique_ptr<SavepointRestoreResult> savepointRestoreResult);
 
     void restoreKVStateData(
-            std::shared_ptr<KeyGroupIterator> keyGroups,
-            std::unordered_map<int, rocksdb::ColumnFamilyHandle*> columnFamilyHandles);
+        std::shared_ptr<KeyGroupIterator> keyGroups,
+        std::unordered_map<int, rocksdb::ColumnFamilyHandle*> columnFamilyHandles);
 };
 
 // Template implementation
-template<typename K>
+template <typename K>
 RocksDBFullRestoreOperation<K>::RocksDBFullRestoreOperation(
     KeyGroupRange* keyGroupRange,
     std::shared_ptr<TypeSerializer> keySerializer,
-    std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>> *kvStateInformation,
+    std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation,
     fs::path& instanceRocksDBPath,
     std::shared_ptr<rocksdb::DBOptions> dbOptions,
     std::function<rocksdb::ColumnFamilyOptions(const std::string&)> columnFamilyOptionsFactory,
@@ -116,21 +116,15 @@ RocksDBFullRestoreOperation<K>::RocksDBFullRestoreOperation(
     : writeBatchSize_(writeBatchSize)
 {
     // Create RocksDBHandle
-    rocksDbHandle_ = std::make_unique<RocksDbHandle>(
-            kvStateInformation,
-            instanceRocksDBPath,
-            dbOptions,
-            columnFamilyOptionsFactory);
+    rocksDbHandle_ =
+        std::make_unique<RocksDbHandle>(kvStateInformation, instanceRocksDBPath, dbOptions, columnFamilyOptionsFactory);
 
     // Create FullSnapshotRestoreOperation
     savepointRestoreOperation_ = std::make_unique<FullSnapshotRestoreOperation<K>>(
-            keyGroupRange,
-            restoreStateHandles,
-            keySerializer,
-            omniTaskBridge);
+        keyGroupRange, restoreStateHandles, keySerializer, omniTaskBridge);
 }
 
-template<typename K>
+template <typename K>
 std::shared_ptr<RocksDBRestoreResult> RocksDBFullRestoreOperation<K>::restore()
 {
     try {
@@ -150,31 +144,25 @@ std::shared_ptr<RocksDBRestoreResult> RocksDBFullRestoreOperation<K>::restore()
         UUID empty_uid{};
         std::map<long, std::vector<IncrementalKeyedStateHandle::HandleAndLocalPath>> empty_map{};
         auto end = std::chrono::high_resolution_clock::now();
-        INFO_RELEASE("Restore native task took "
-            << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms.");
+        INFO_RELEASE(
+            "Restore native task took " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count()
+                                        << " ms.");
         return std::make_shared<RocksDBRestoreResult>(
-                rocksDbHandle_->getDb(),
-                rocksDbHandle_->getDefaultColumnFamilyHandle(),
-                -1L,
-                empty_uid,
-                empty_map);
+            rocksDbHandle_->getDb(), rocksDbHandle_->getDefaultColumnFamilyHandle(), -1L, empty_uid, empty_map);
     } catch (const std::exception& e) {
         // Clean up on error
         throw;
     }
 }
 
-template<typename K>
-void RocksDBFullRestoreOperation<K>::applyRestoreResult(
-    std::unique_ptr<SavepointRestoreResult> savepointRestoreResult)
+template <typename K>
+void RocksDBFullRestoreOperation<K>::applyRestoreResult(std::unique_ptr<SavepointRestoreResult> savepointRestoreResult)
 {
-    std::vector<StateMetaInfoSnapshot> restoredMetaInfos =
-            savepointRestoreResult->getStateMetaInfoSnapshots();
+    std::vector<StateMetaInfoSnapshot> restoredMetaInfos = savepointRestoreResult->getStateMetaInfoSnapshots();
     std::unordered_map<int, rocksdb::ColumnFamilyHandle*> columnFamilyHandles;
     for (size_t i = 0; i < restoredMetaInfos.size(); i++) {
         StateMetaInfoSnapshot restoredMetaInfo = restoredMetaInfos[i];
-        auto registeredStateCFHandle =
-                rocksDbHandle_->getOrRegisterStateColumnFamilyHandle(nullptr, restoredMetaInfo);
+        auto registeredStateCFHandle = rocksDbHandle_->getOrRegisterStateColumnFamilyHandle(nullptr, restoredMetaInfo);
         columnFamilyHandles.insert({i, registeredStateCFHandle->columnFamilyHandle_});
     }
 
@@ -182,13 +170,13 @@ void RocksDBFullRestoreOperation<K>::applyRestoreResult(
     restoreKVStateData(keyGroups, columnFamilyHandles);
 }
 
-template<typename K>
+template <typename K>
 void RocksDBFullRestoreOperation<K>::restoreKVStateData(
     std::shared_ptr<KeyGroupIterator> keyGroups,
     std::unordered_map<int, rocksdb::ColumnFamilyHandle*> columnFamilyHandles)
 {
     std::unique_ptr<RocksDBWriteBatchWrapper> rocksDbWriteBatchWrapper =
-            std::make_unique<RocksDBWriteBatchWrapper>(rocksDbHandle_->getDb(), writeBatchSize_);
+        std::make_unique<RocksDBWriteBatchWrapper>(rocksDbHandle_->getDb(), writeBatchSize_);
     rocksdb::ColumnFamilyHandle* handle;
     while (keyGroups->hasNext()) {
         std::unique_ptr<KeyGroup> keyGroup = keyGroups->next();
@@ -201,10 +189,9 @@ void RocksDBFullRestoreOperation<K>::restoreKVStateData(
                 oldKvStateId = kvStateId;
                 handle = columnFamilyHandles[kvStateId];
             }
-            rocksdb::Slice key(reinterpret_cast<const char*>(groupEntry.getKey().data()),
-                               groupEntry.getKey().size());
-            rocksdb::Slice value(reinterpret_cast<const char*>(groupEntry.getValue().data()),
-                                 groupEntry.getValue().size());
+            rocksdb::Slice key(reinterpret_cast<const char*>(groupEntry.getKey().data()), groupEntry.getKey().size());
+            rocksdb::Slice value(
+                reinterpret_cast<const char*>(groupEntry.getValue().data()), groupEntry.getValue().size());
             rocksDbWriteBatchWrapper->Put(handle, key, value);
         }
     }

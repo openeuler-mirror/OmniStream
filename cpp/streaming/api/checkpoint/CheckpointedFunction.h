@@ -19,8 +19,12 @@ class CheckpointedFunction {
 public:
     virtual ~CheckpointedFunction() = default;
     // 此处snapshotState和initializeState的参数应为对应类型的父类，OmniStreamTask未实现，故使用具体类。
-    virtual void snapshotState(StateSnapshotContextSynchronousImpl *context) {}
-    virtual void initializeState(StateInitializationContextImpl *context) {}
+    virtual void snapshotState(StateSnapshotContextSynchronousImpl* context)
+    {
+    }
+    virtual void initializeState(StateInitializationContextImpl* context)
+    {
+    }
 };
 
-#endif  // OMNISTREAM_CHECKPOINTEDFUNCTION_H
+#endif // OMNISTREAM_CHECKPOINTEDFUNCTION_H

@@ -17,15 +17,20 @@
 class CheckpointMetaData {
 public:
     CheckpointMetaData(int64_t checkpointId, int64_t timestamp)
-        : CheckpointMetaData(checkpointId, timestamp,
-              std::chrono::duration_cast<std::chrono::milliseconds>(
-                  std::chrono::system_clock::now().time_since_epoch())
-                  .count()) {}
+        : CheckpointMetaData(
+              checkpointId,
+              timestamp,
+              std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch())
+                  .count())
+    {
+    }
 
     CheckpointMetaData(int64_t checkpointId, int64_t timestamp, int64_t receiveTimestamp)
         : checkpointId(checkpointId),
           timestamp(timestamp),
-          receiveTimestamp(receiveTimestamp) {}
+          receiveTimestamp(receiveTimestamp)
+    {
+    }
 
     int64_t GetCheckpointId() const
     {
@@ -44,8 +49,7 @@ public:
 
     bool operator==(const CheckpointMetaData& other) const
     {
-        return checkpointId == other.checkpointId &&
-               timestamp == other.timestamp &&
+        return checkpointId == other.checkpointId && timestamp == other.timestamp &&
                receiveTimestamp == other.receiveTimestamp;
     }
 
@@ -57,10 +61,8 @@ public:
     friend std::ostream& operator<<(std::ostream& os, const CheckpointMetaData& meta)
     {
         os << "CheckpointMetaData{"
-           << "checkpointId=" << meta.checkpointId
-           << ", receiveTimestamp=" << meta.receiveTimestamp
-           << ", timestamp=" << meta.timestamp
-           << '}';
+           << "checkpointId=" << meta.checkpointId << ", receiveTimestamp=" << meta.receiveTimestamp
+           << ", timestamp=" << meta.timestamp << '}';
         return os;
     }
 
@@ -85,19 +87,25 @@ private:
 };
 
 namespace std {
-    template <>
-    struct hash<CheckpointMetaData> {
-        size_t operator()(const CheckpointMetaData& meta) const
-        {
-            int hashMultiplier = 31;
-            int bitShift = 32;
-            int result = static_cast<int>(static_cast<uint64_t>(meta.GetCheckpointId()) ^ (static_cast<uint64_t>(meta.GetCheckpointId()) >> bitShift));
-            result = result + static_cast<int>(static_cast<uint64_t>(meta.GetTimestamp()) ^ (static_cast<uint64_t>(meta.GetTimestamp()) >> bitShift));
-            result = hashMultiplier * result;
-            result = result + static_cast<int>(static_cast<uint64_t>(meta.GetReceiveTimestamp()) ^ (static_cast<uint64_t>(meta.GetReceiveTimestamp()) >> bitShift));
-            result = hashMultiplier * result;
-            return static_cast<size_t>(result);
-        }
-    };
-}
+template <>
+struct hash<CheckpointMetaData> {
+    size_t operator()(const CheckpointMetaData& meta) const
+    {
+        int hashMultiplier = 31;
+        int bitShift = 32;
+        int result = static_cast<int>(
+            static_cast<uint64_t>(meta.GetCheckpointId()) ^
+            (static_cast<uint64_t>(meta.GetCheckpointId()) >> bitShift));
+        result = result + static_cast<int>(
+                              static_cast<uint64_t>(meta.GetTimestamp()) ^
+                              (static_cast<uint64_t>(meta.GetTimestamp()) >> bitShift));
+        result = hashMultiplier * result;
+        result = result + static_cast<int>(
+                              static_cast<uint64_t>(meta.GetReceiveTimestamp()) ^
+                              (static_cast<uint64_t>(meta.GetReceiveTimestamp()) >> bitShift));
+        result = hashMultiplier * result;
+        return static_cast<size_t>(result);
+    }
+};
+} // namespace std
 #endif // FLINK_TNEL_CHECKPOINTMETADATA_H

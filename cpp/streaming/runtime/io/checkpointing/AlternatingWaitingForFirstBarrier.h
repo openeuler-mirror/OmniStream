@@ -16,12 +16,10 @@
 class AlternatingWaitingForFirstBarrier : public AbstractAlternatingAlignedBarrierHandlerState {
 public:
     explicit AlternatingWaitingForFirstBarrier(ChannelState state);
-    
+
     ~AlternatingWaitingForFirstBarrier() override = default;
 
-    BarrierHandlerState* AlignedCheckpointTimeout(
-        Controller* controller,
-        CheckpointBarrier* barrier) override;
+    BarrierHandlerState* AlignedCheckpointTimeout(Controller* controller, CheckpointBarrier* barrier) override;
 
 protected:
     BarrierHandlerState* TransitionAfterBarrierReceived(ChannelState state) override;

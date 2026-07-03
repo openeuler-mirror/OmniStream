@@ -12,6 +12,6 @@
 #include "MailboxDefaultAction.h"
 
 namespace omnistream {
-    // Implementation (if needed) for any non-pure virtual functions
-    // For example, if you add a common helper method
+// Implementation (if needed) for any non-pure virtual functions
+// For example, if you add a common helper method
 } // namespace omnistream

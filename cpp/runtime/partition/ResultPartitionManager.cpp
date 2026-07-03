@@ -9,7 +9,6 @@
  * See the Mulan PSL v2 for more details.
  */
 
-
 // ResultPartitionManager.cpp
 #include "ResultPartitionManager.h"
 #include <iostream>
@@ -28,7 +27,7 @@ ResultPartitionManager::~ResultPartitionManager()
 
 void ResultPartitionManager::registerResultPartition(std::shared_ptr<ResultPartition> partition)
 {
-    std::cout<<"ResultPartitionManager::registerResultPartition: "<<partition.use_count()<<std::endl;
+    std::cout << "ResultPartitionManager::registerResultPartition: " << partition.use_count() << std::endl;
     std::lock_guard<std::recursive_mutex> lock(mutex_);
     if (isShutdown) {
         throw std::runtime_error("Result partition manager already shut down.");
@@ -36,22 +35,20 @@ void ResultPartitionManager::registerResultPartition(std::shared_ptr<ResultParti
 
     auto result = registeredPartitions.insert({partition->getPartitionId(), partition});
     if (!result.second) {
-        THROW_RUNTIME_ERROR("Result partition already registered.")
+        THROW_RUNTIME_ERROR("Result partition already registered.");
     }
 
-    LOG_PART("Registered " << partition->toString() << std::endl)
+    LOG_PART("Registered " << partition->toString() << std::endl);
 }
 
 std::shared_ptr<ResultSubpartitionView> ResultPartitionManager::createSubpartitionView(
-    const ResultPartitionIDPOD& partitionId,
-    int subpartitionIndex,
-    BufferAvailabilityListener* availabilityListener)
+    const ResultPartitionIDPOD& partitionId, int subpartitionIndex, BufferAvailabilityListener* availabilityListener)
 {
-    LOG("Requesting subpartition " << subpartitionIndex << " of " << partitionId.toString() << std::endl)
+    LOG("Requesting subpartition " << subpartitionIndex << " of " << partitionId.toString() << std::endl);
 
-    LOCK_BEFORE()
+    LOCK_BEFORE();
     std::lock_guard<std::recursive_mutex> lock(mutex_);
-    LOCK_AFTER()
+    LOCK_AFTER();
 
     auto it = registeredPartitions.find(partitionId);
     if (it == registeredPartitions.end()) {
@@ -59,12 +56,13 @@ std::shared_ptr<ResultSubpartitionView> ResultPartitionManager::createSubpartiti
     }
 
     std::shared_ptr<ResultPartition> partition = it->second;
-    LOG_PART("Requesting subpartition " << subpartitionIndex << " of " << partition->toString() << std::endl)
+    LOG_PART("Requesting subpartition " << subpartitionIndex << " of " << partition->toString() << std::endl);
 
     return partition->createSubpartitionView(subpartitionIndex, availabilityListener);
 }
 
-void ResultPartitionManager::releasePartition(const ResultPartitionIDPOD& partitionId, std::optional<std::exception_ptr>  cause)
+void ResultPartitionManager::releasePartition(
+    const ResultPartitionIDPOD& partitionId, std::optional<std::exception_ptr> cause)
 {
     std::lock_guard<std::recursive_mutex> lock(mutex_);
     auto it = registeredPartitions.find(partitionId);
@@ -72,7 +70,8 @@ void ResultPartitionManager::releasePartition(const ResultPartitionIDPOD& partit
         std::shared_ptr<ResultPartition> resultPartition = it->second;
         registeredPartitions.erase(it);
         resultPartition->release(cause);
-        std::cout << "Released partition " << partitionId.toString() << " produced by " << partitionId.toString() << std::endl;
+        std::cout << "Released partition " << partitionId.toString() << " produced by " << partitionId.toString()
+                  << std::endl;
     }
 }
 

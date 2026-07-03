@@ -18,4 +18,4 @@ public:
     static const long FLUSH_AFTER_EVERY_RECORD = 0L;
 };
 
-#endif //OMNISTREAM_EXECUTIONOPTIONS_H
+#endif // OMNISTREAM_EXECUTIONOPTIONS_H

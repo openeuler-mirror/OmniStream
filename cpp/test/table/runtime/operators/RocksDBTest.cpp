@@ -31,14 +31,15 @@ extern bool isFlush;
 
 std::string kDBPath = "/tmp/rocksdb_ut/";
 
-std::string getRocksDbPath() {
+std::string getRocksDbPath()
+{
     auto now = std::chrono::system_clock::now();
-    auto nano_seconds = std::chrono::duration_cast<std::chrono::nanoseconds>(
-            now.time_since_epoch()).count();
+    auto nano_seconds = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count();
     return kDBPath + std::to_string(nano_seconds) + "_";
 }
 
-TEST(RocksDBTest, BasicTest) {
+TEST(RocksDBTest, BasicTest)
+{
     // restore rocksdb tmp Directory
     fs::remove_all(fs::path(kDBPath));
     fs::create_directories(fs::path(kDBPath));
@@ -63,7 +64,8 @@ TEST(RocksDBTest, BasicTest) {
     db->Close();
 }
 
-TEST(RocksDBTest, BinaryRowDataTest) {
+TEST(RocksDBTest, BinaryRowDataTest)
+{
     DB* rocksDb;
     Options options;
     options.create_if_missing = true;
@@ -73,7 +75,7 @@ TEST(RocksDBTest, BinaryRowDataTest) {
     std::cout << (int)s.code() << std::endl;
     assert(s.ok());
 
-    TypeSerializer *vSerializer = new BinaryRowDataSerializer(1);
+    TypeSerializer* vSerializer = new BinaryRowDataSerializer(1);
     DataOutputSerializer valueOutputSerializer;
     OutputBufferStatus valueOutputBufferStatus;
     valueOutputSerializer.setBackendBuffer(&valueOutputBufferStatus);
@@ -83,30 +85,32 @@ TEST(RocksDBTest, BinaryRowDataTest) {
     tmpS->setLong(1, 200);
     tmpS->setLong(2, 300);
 
-//    if constexpr (std::is_pointer_v<BinaryRowData>) {
+    //    if constexpr (std::is_pointer_v<BinaryRowData>) {
     vSerializer->serialize(tmpS, valueOutputSerializer);
-//    } else {
-//        vSerializer->serialize(&tmpS, valueOutputSerializer);
-//    }
+    //    } else {
+    //        vSerializer->serialize(&tmpS, valueOutputSerializer);
+    //    }
 
     ROCKSDB_NAMESPACE::Slice sliceKey("key1");
-    ROCKSDB_NAMESPACE::Slice sliceValue(reinterpret_cast<const char *>(valueOutputSerializer.getData()),
-                                        valueOutputSerializer.length());
+    ROCKSDB_NAMESPACE::Slice sliceValue(
+        reinterpret_cast<const char*>(valueOutputSerializer.getData()), valueOutputSerializer.length());
     rocksDb->Put(ROCKSDB_NAMESPACE::WriteOptions(), sliceKey, sliceValue);
 
     std::string valueInTable;
     rocksDb->Get(ROCKSDB_NAMESPACE::ReadOptions(), sliceKey, &valueInTable);
 
-    DataInputDeserializer serializedData(reinterpret_cast<const uint8_t *>(valueInTable.data()), valueInTable.length(), 0);
+    DataInputDeserializer serializedData(
+        reinterpret_cast<const uint8_t*>(valueInTable.data()), valueInTable.length(), 0);
     BinaryRowData* resPtr = reinterpret_cast<BinaryRowData*>(vSerializer->deserialize(serializedData));
-//    ASSERT_EQ(100, *resPtr->getLong(0));
-    for(int i = 0; i < 3; i++) {
+    //    ASSERT_EQ(100, *resPtr->getLong(0));
+    for (int i = 0; i < 3; i++) {
         std::cout << *resPtr->getLong(i) << "|";
     }
     rocksDb->Close();
 }
 
-TEST(RocksDBTest, BinaryRowDataStringTest) {
+TEST(RocksDBTest, BinaryRowDataStringTest)
+{
     DB* rocksDb;
     Options options;
     options.create_if_missing = true;
@@ -116,7 +120,7 @@ TEST(RocksDBTest, BinaryRowDataStringTest) {
     std::cout << (int)s.code() << std::endl;
     assert(s.ok());
 
-    TypeSerializer *vSerializer = new BinaryRowDataSerializer(1);
+    TypeSerializer* vSerializer = new BinaryRowDataSerializer(1);
     DataOutputSerializer valueOutputSerializer;
     OutputBufferStatus valueOutputBufferStatus;
     valueOutputSerializer.setBackendBuffer(&valueOutputBufferStatus);
@@ -138,14 +142,15 @@ TEST(RocksDBTest, BinaryRowDataStringTest) {
     vSerializer->serialize(row, valueOutputSerializer);
 
     ROCKSDB_NAMESPACE::Slice sliceKey("key1");
-    ROCKSDB_NAMESPACE::Slice sliceValue(reinterpret_cast<const char *>(valueOutputSerializer.getData()),
-                                        valueOutputSerializer.length());
+    ROCKSDB_NAMESPACE::Slice sliceValue(
+        reinterpret_cast<const char*>(valueOutputSerializer.getData()), valueOutputSerializer.length());
     rocksDb->Put(ROCKSDB_NAMESPACE::WriteOptions(), sliceKey, sliceValue);
 
     std::string valueInTable;
     rocksDb->Get(ROCKSDB_NAMESPACE::ReadOptions(), sliceKey, &valueInTable);
 
-    DataInputDeserializer serializedData(reinterpret_cast<const uint8_t *>(valueInTable.data()), valueInTable.length(), 0);
+    DataInputDeserializer serializedData(
+        reinterpret_cast<const uint8_t*>(valueInTable.data()), valueInTable.length(), 0);
     BinaryRowData* resPtr = reinterpret_cast<BinaryRowData*>(vSerializer->deserialize(serializedData));
     EXPECT_EQ(*resPtr->getLong(0), 42);
     EXPECT_EQ(resPtr->getStringView(1), sv0);
@@ -154,7 +159,8 @@ TEST(RocksDBTest, BinaryRowDataStringTest) {
     rocksDb->Close();
 }
 
-TEST(RocksDBTest, BinaryRowDataAndLongTest) {
+TEST(RocksDBTest, BinaryRowDataAndLongTest)
+{
     DB* rocksDb;
     Options options;
     options.create_if_missing = true;
@@ -164,7 +170,7 @@ TEST(RocksDBTest, BinaryRowDataAndLongTest) {
     std::cout << (int)s.code() << std::endl;
     assert(s.ok());
 
-    TypeSerializer *keySerializer = new BinaryRowDataSerializer(1);
+    TypeSerializer* keySerializer = new BinaryRowDataSerializer(1);
     DataOutputSerializer keyOutputSerializer;
     OutputBufferStatus keyOutputBufferStatus;
     keyOutputSerializer.setBackendBuffer(&keyOutputBufferStatus);
@@ -173,57 +179,54 @@ TEST(RocksDBTest, BinaryRowDataAndLongTest) {
     key->setLong(0, 100);
     key->setLong(1, 101);
 
-
     keySerializer->serialize(key, keyOutputSerializer);
-    ROCKSDB_NAMESPACE::Slice sliceKey(reinterpret_cast<const char *>(keyOutputSerializer.getData()),
-                                      keyOutputSerializer.length());
-
+    ROCKSDB_NAMESPACE::Slice sliceKey(
+        reinterpret_cast<const char*>(keyOutputSerializer.getData()), keyOutputSerializer.length());
 
     long value = 100;
-    TypeSerializer *vSerializer = new LongSerializer();
+    TypeSerializer* vSerializer = new LongSerializer();
     DataOutputSerializer valueOutputSerializer;
     OutputBufferStatus valueOutputBufferStatus;
     valueOutputSerializer.setBackendBuffer(&valueOutputBufferStatus);
     vSerializer->serialize(&value, valueOutputSerializer);
-    ROCKSDB_NAMESPACE::Slice sliceValue(reinterpret_cast<const char *>(valueOutputSerializer.getData()),
-                                        valueOutputSerializer.length());
+    ROCKSDB_NAMESPACE::Slice sliceValue(
+        reinterpret_cast<const char*>(valueOutputSerializer.getData()), valueOutputSerializer.length());
     rocksDb->Put(ROCKSDB_NAMESPACE::WriteOptions(), sliceKey, sliceValue);
-
 
     BinaryRowData* key_copy = BinaryRowData::createBinaryRowDataWithMem(2);
     key_copy->setLong(0, 100);
     key_copy->setLong(1, 101);
-    TypeSerializer *keySerializer_copy = new BinaryRowDataSerializer(2);
+    TypeSerializer* keySerializer_copy = new BinaryRowDataSerializer(2);
     DataOutputSerializer keyOutputSerializer_copy;
     OutputBufferStatus keyOutputBufferStatus_copy;
     keyOutputSerializer_copy.setBackendBuffer(&keyOutputBufferStatus_copy);
     keySerializer_copy->serialize(key_copy, keyOutputSerializer_copy);
 
-    ROCKSDB_NAMESPACE::Slice slicekey_copy(reinterpret_cast<const char *>(keyOutputSerializer_copy.getData()),
-                                           keyOutputSerializer_copy.length());
+    ROCKSDB_NAMESPACE::Slice slicekey_copy(
+        reinterpret_cast<const char*>(keyOutputSerializer_copy.getData()), keyOutputSerializer_copy.length());
     std::cout << "keyOutputSerializer_copy.length() is " << keyOutputSerializer_copy.length() << std::endl;
 
     std::string valueInTable;
     rocksDb->Get(ROCKSDB_NAMESPACE::ReadOptions(), slicekey_copy, &valueInTable);
     std::cout << "valueInTable length is " << valueInTable.length() << std::endl;
 
-    DataInputDeserializer serializedData(reinterpret_cast<const uint8_t *>(valueInTable.data()), valueInTable.length(), 0);
+    DataInputDeserializer serializedData(
+        reinterpret_cast<const uint8_t*>(valueInTable.data()), valueInTable.length(), 0);
     int res = serializedData.readLong();
     ASSERT_EQ(100, res);
     std::cout << "success" << std::endl;
 
-
     BinaryRowData* key_copy2 = BinaryRowData::createBinaryRowDataWithMem(2);
     key_copy2->setLong(0, 100);
     key_copy2->setLong(1, 102);
-    TypeSerializer *keySerializer_copy2 = new BinaryRowDataSerializer(1);
+    TypeSerializer* keySerializer_copy2 = new BinaryRowDataSerializer(1);
     DataOutputSerializer keyOutputSerializer_copy2;
     OutputBufferStatus keyOutputBufferStatus_copy2;
     keyOutputSerializer_copy2.setBackendBuffer(&keyOutputBufferStatus_copy2);
     keySerializer_copy2->serialize(key_copy2, keyOutputSerializer_copy2);
 
-    ROCKSDB_NAMESPACE::Slice slicekey_copy2(reinterpret_cast<const char *>(keyOutputSerializer_copy2.getData()),
-                                            keyOutputSerializer_copy2.length());
+    ROCKSDB_NAMESPACE::Slice slicekey_copy2(
+        reinterpret_cast<const char*>(keyOutputSerializer_copy2.getData()), keyOutputSerializer_copy2.length());
     std::cout << "keyOutputSerializer_copy2.length() is " << keyOutputSerializer_copy2.length() << std::endl;
 
     std::string valueInTable2;
@@ -236,7 +239,8 @@ TEST(RocksDBTest, BinaryRowDataAndLongTest) {
     rocksDb->Close();
 }
 
-TEST(RocksDBTest, GetKeyTest) {
+TEST(RocksDBTest, GetKeyTest)
+{
     DB* rocksDb;
     Options options;
     options.create_if_missing = true;
@@ -246,7 +250,7 @@ TEST(RocksDBTest, GetKeyTest) {
     std::cout << (int)s.code() << std::endl;
     assert(s.ok());
 
-    TypeSerializer *keySerializer = new BinaryRowDataSerializer(1);
+    TypeSerializer* keySerializer = new BinaryRowDataSerializer(1);
     DataOutputSerializer keyOutputSerializer;
     OutputBufferStatus keyOutputBufferStatus;
     keyOutputSerializer.setBackendBuffer(&keyOutputBufferStatus);
@@ -255,21 +259,22 @@ TEST(RocksDBTest, GetKeyTest) {
     key->setLong(0, 100);
     key->setLong(1, 101);
 
-
     keySerializer->serialize(key, keyOutputSerializer);
-    ROCKSDB_NAMESPACE::Slice sliceKey(reinterpret_cast<const char *>(keyOutputSerializer.getData()),
-                                      keyOutputSerializer.length());
+    ROCKSDB_NAMESPACE::Slice sliceKey(
+        reinterpret_cast<const char*>(keyOutputSerializer.getData()), keyOutputSerializer.length());
 
     std::string valueInTable;
     s = rocksDb->Get(ROCKSDB_NAMESPACE::ReadOptions(), sliceKey, &valueInTable);
     std::cout << (int)s.code() << std::endl;
-//    ASSERT_EQ(true, s.IsNotFound());
-//    ASSERT_EQ(0, valueInTable.length());
-//    std::cout << "valueInTable length is: " << valueInTable.length() << ", valueInTable is : " << valueInTable << std::endl;
+    //    ASSERT_EQ(true, s.IsNotFound());
+    //    ASSERT_EQ(0, valueInTable.length());
+    //    std::cout << "valueInTable length is: " << valueInTable.length() << ", valueInTable is : " << valueInTable <<
+    //    std::endl;
     rocksDb->Close();
 }
 
-TEST(RocksDBTest, EntriesTest) {
+TEST(RocksDBTest, EntriesTest)
+{
     DB* rocksDb;
     Options options;
     options.create_if_missing = true;
@@ -280,7 +285,7 @@ TEST(RocksDBTest, EntriesTest) {
     assert(s.ok());
 
     // put BinaryRowData(100, 101), 100
-    TypeSerializer *keySerializer = new BinaryRowDataSerializer(1);
+    TypeSerializer* keySerializer = new BinaryRowDataSerializer(1);
     DataOutputSerializer keyOutputSerializer;
     OutputBufferStatus keyOutputBufferStatus;
     keyOutputSerializer.setBackendBuffer(&keyOutputBufferStatus);
@@ -290,18 +295,18 @@ TEST(RocksDBTest, EntriesTest) {
     key->setLong(1, 101);
 
     keySerializer->serialize(key, keyOutputSerializer);
-    ROCKSDB_NAMESPACE::Slice sliceKey(reinterpret_cast<const char *>(keyOutputSerializer.getData()),
-                                      keyOutputSerializer.length());
+    ROCKSDB_NAMESPACE::Slice sliceKey(
+        reinterpret_cast<const char*>(keyOutputSerializer.getData()), keyOutputSerializer.length());
 
     long value = 100;
-    TypeSerializer *vSerializer = new LongSerializer();
+    TypeSerializer* vSerializer = new LongSerializer();
     DataOutputSerializer valueOutputSerializer;
     OutputBufferStatus valueOutputBufferStatus;
     valueOutputSerializer.setBackendBuffer(&valueOutputBufferStatus);
     vSerializer->serialize(&value, valueOutputSerializer);
-    ROCKSDB_NAMESPACE::Slice sliceValue(reinterpret_cast<const char *>(valueOutputSerializer.getData()),
-                                        valueOutputSerializer.length());
-//    rocksDb->Put(ROCKSDB_NAMESPACE::WriteOptions(), sliceKey, sliceValue);
+    ROCKSDB_NAMESPACE::Slice sliceValue(
+        reinterpret_cast<const char*>(valueOutputSerializer.getData()), valueOutputSerializer.length());
+    //    rocksDb->Put(ROCKSDB_NAMESPACE::WriteOptions(), sliceKey, sliceValue);
 
     BinaryRowDataSerializer* userKeySerializer = new BinaryRowDataSerializer(1);
     LongSerializer* valueSerializer = new LongSerializer();
@@ -318,11 +323,11 @@ TEST(RocksDBTest, EntriesTest) {
         BinaryRowData* entryKey;
         long entryValue;
 
-        DataInputDeserializer serializedData(reinterpret_cast<const uint8_t *>(key.data()), key.size(), 0);
-        void *resPtr = userKeySerializer->deserialize(serializedData);
+        DataInputDeserializer serializedData(reinterpret_cast<const uint8_t*>(key.data()), key.size(), 0);
+        void* resPtr = userKeySerializer->deserialize(serializedData);
         entryKey = (BinaryRowData*)resPtr;
 
-        serializedData = DataInputDeserializer(reinterpret_cast<const uint8_t *>(value.data()), value.size(), 0);
+        serializedData = DataInputDeserializer(reinterpret_cast<const uint8_t*>(value.data()), value.size(), 0);
         entryValue = serializedData.readLong();
         resultMap.emplace(entryKey, entryValue);
     }
@@ -335,7 +340,8 @@ TEST(RocksDBTest, EntriesTest) {
     rocksDb->Close();
 }
 
-TEST(RocksDBTest, TimeWindowTypeTest) {
+TEST(RocksDBTest, TimeWindowTypeTest)
+{
     DB* rocksDb;
     Options options;
     options.create_if_missing = true;
@@ -345,7 +351,7 @@ TEST(RocksDBTest, TimeWindowTypeTest) {
     std::cout << (int)s.code() << std::endl;
     assert(s.ok());
 
-    TypeSerializer *vSerializer = new TimeWindow::Serializer();
+    TypeSerializer* vSerializer = new TimeWindow::Serializer();
     DataOutputSerializer valueOutputSerializer;
     OutputBufferStatus valueOutputBufferStatus;
     valueOutputSerializer.setBackendBuffer(&valueOutputBufferStatus);
@@ -355,21 +361,23 @@ TEST(RocksDBTest, TimeWindowTypeTest) {
     vSerializer->serialize(&timeWindow, valueOutputSerializer);
 
     ROCKSDB_NAMESPACE::Slice sliceKey("key1");
-    ROCKSDB_NAMESPACE::Slice sliceValue(reinterpret_cast<const char *>(valueOutputSerializer.getData()),
-                                        valueOutputSerializer.length());
+    ROCKSDB_NAMESPACE::Slice sliceValue(
+        reinterpret_cast<const char*>(valueOutputSerializer.getData()), valueOutputSerializer.length());
     rocksDb->Put(ROCKSDB_NAMESPACE::WriteOptions(), sliceKey, sliceValue);
 
     std::string valueInTable;
     rocksDb->Get(ROCKSDB_NAMESPACE::ReadOptions(), sliceKey, &valueInTable);
 
-    DataInputDeserializer serializedData(reinterpret_cast<const uint8_t *>(valueInTable.data()), valueInTable.length(), 0);
+    DataInputDeserializer serializedData(
+        reinterpret_cast<const uint8_t*>(valueInTable.data()), valueInTable.length(), 0);
     TimeWindow* resPtr = reinterpret_cast<TimeWindow*>(vSerializer->deserialize(serializedData));
     ASSERT_EQ(1000, resPtr->getStart());
     ASSERT_EQ(2000, resPtr->getEnd());
     rocksDb->Close();
 }
 
-TEST(RocksDBTest, BinaryRowDataListTest) {
+TEST(RocksDBTest, BinaryRowDataListTest)
+{
     DB* rocksDb;
     Options options;
     options.create_if_missing = true;
@@ -379,7 +387,7 @@ TEST(RocksDBTest, BinaryRowDataListTest) {
     std::cout << (int)s.code() << std::endl;
     assert(s.ok());
 
-    TypeSerializer *vSerializer = new BinaryRowDataListSerializer();
+    TypeSerializer* vSerializer = new BinaryRowDataListSerializer();
     DataOutputSerializer valueOutputSerializer;
     OutputBufferStatus valueOutputBufferStatus;
     valueOutputSerializer.setBackendBuffer(&valueOutputBufferStatus);
@@ -401,14 +409,15 @@ TEST(RocksDBTest, BinaryRowDataListTest) {
     vSerializer->serialize(rowDataList, valueOutputSerializer);
 
     ROCKSDB_NAMESPACE::Slice sliceKey("key1");
-    ROCKSDB_NAMESPACE::Slice sliceValue(reinterpret_cast<const char *>(valueOutputSerializer.getData()),
-                                        valueOutputSerializer.length());
+    ROCKSDB_NAMESPACE::Slice sliceValue(
+        reinterpret_cast<const char*>(valueOutputSerializer.getData()), valueOutputSerializer.length());
     rocksDb->Put(ROCKSDB_NAMESPACE::WriteOptions(), sliceKey, sliceValue);
 
     std::string valueInTable;
     rocksDb->Get(ROCKSDB_NAMESPACE::ReadOptions(), sliceKey, &valueInTable);
 
-    DataInputDeserializer serializedData(reinterpret_cast<const uint8_t *>(valueInTable.data()), valueInTable.length(), 0);
+    DataInputDeserializer serializedData(
+        reinterpret_cast<const uint8_t*>(valueInTable.data()), valueInTable.length(), 0);
     std::vector<RowData*>* resPtr = reinterpret_cast<std::vector<RowData*>*>(vSerializer->deserialize(serializedData));
     ASSERT_EQ(10, *resPtr->at(0)->getLong(0));
     ASSERT_EQ(20, *resPtr->at(0)->getLong(1));
@@ -417,7 +426,8 @@ TEST(RocksDBTest, BinaryRowDataListTest) {
     rocksDb->Close();
 }
 
-TEST(RocksDBTest, MergeTest) {
+TEST(RocksDBTest, MergeTest)
+{
     DB* rocksDb;
     Options options;
     options.merge_operator.reset(new RocksDbStringAppendOperator(','));
@@ -435,46 +445,50 @@ TEST(RocksDBTest, MergeTest) {
     status = rocksDb->Get(ROCKSDB_NAMESPACE::ReadOptions(), key, &valueInTable);
     ASSERT_EQ("1,2", valueInTable);
 
-    LongSerializer *serializer = LongSerializer::INSTANCE;
+    LongSerializer* serializer = LongSerializer::INSTANCE;
     int64_t currentKey = 100;
     // serializer long data
     DataOutputSerializer outputSerializer;
     OutputBufferStatus outputBufferStatus;
     outputSerializer.setBackendBuffer(&outputBufferStatus);
     serializer->serialize(&currentKey, outputSerializer);
-    ROCKSDB_NAMESPACE::Slice keySlice(reinterpret_cast<const char *>(outputSerializer.getData()), outputSerializer.length());
-    ROCKSDB_NAMESPACE::Slice valueSlice(reinterpret_cast<const char *>(outputSerializer.getData()), outputSerializer.length());
+    ROCKSDB_NAMESPACE::Slice keySlice(
+        reinterpret_cast<const char*>(outputSerializer.getData()), outputSerializer.length());
+    ROCKSDB_NAMESPACE::Slice valueSlice(
+        reinterpret_cast<const char*>(outputSerializer.getData()), outputSerializer.length());
     status = rocksDb->Merge(ROCKSDB_NAMESPACE::WriteOptions(), keySlice, valueSlice);
     status = rocksDb->Merge(ROCKSDB_NAMESPACE::WriteOptions(), keySlice, valueSlice);
     status = rocksDb->Get(ROCKSDB_NAMESPACE::ReadOptions(), keySlice, &valueInTable);
 
-    DataInputDeserializer serializedData(reinterpret_cast<const uint8_t *>(valueInTable.data()),
-                                         valueInTable.length(), 0);
-    auto*result = new std::vector<int64_t>();
+    DataInputDeserializer serializedData(
+        reinterpret_cast<const uint8_t*>(valueInTable.data()), valueInTable.length(), 0);
+    auto* result = new std::vector<int64_t>();
     while (serializedData.Available() > 0) {
-        void *resPtr = serializer->deserialize(serializedData);
-        result->push_back(*(int64_t *)resPtr);
+        void* resPtr = serializer->deserialize(serializedData);
+        result->push_back(*(int64_t*)resPtr);
         if (serializedData.Available() > 0) {
             serializedData.readByte();
         }
     }
-    for (const auto &item: *result) {
+    for (const auto& item : *result) {
         std::cout << "Rocks merge result: " << item << std::endl;
     }
     rocksDb->Close();
 }
 
-TEST(RocksDBTest, ListStateVectorBatchTest) {
+TEST(RocksDBTest, ListStateVectorBatchTest)
+{
     // Initialize the InternalKeyContext
-    auto *context = new InternalKeyContextImpl<RowData*>(new KeyGroupRange(0, 1), 1);
+    auto* context = new InternalKeyContextImpl<RowData*>(new KeyGroupRange(0, 1), 1);
     BinaryRowData* binaryRowData = BinaryRowData::createBinaryRowDataWithMem(1);
     binaryRowData->setLong(0, 100);
     context->setCurrentKey(binaryRowData);
     context->setCurrentKeyGroupIndex(1);
     // Initialize RegisteredKeyValueStateBackendMetaInfo
-    auto metaInfo = std::make_unique<RegisteredKeyValueStateBackendMetaInfo>("metaInfo", new LongSerializer(), new LongSerializer());
-    RocksdbStateTable<RowData*, int64_t, int64_t> rocksdbStateTable(context, std::move(metaInfo),
-                                                                    new BinaryRowDataSerializer(1));
+    auto metaInfo = std::make_unique<RegisteredKeyValueStateBackendMetaInfo>(
+        "metaInfo", new LongSerializer(), new LongSerializer());
+    RocksdbStateTable<RowData*, int64_t, int64_t> rocksdbStateTable(
+        context, std::move(metaInfo), new BinaryRowDataSerializer(1));
     // Create HeapListState
     auto* rocksdbListState = new RocksdbListState(&rocksdbStateTable, new LongSerializer(), new LongSerializer());
     DB* rocksDb;
@@ -514,24 +528,28 @@ TEST(RocksDBTest, ListStateVectorBatchTest) {
     rocksDb->Close();
 }
 
-TEST(RocksDBTest, ValueStateTest) {
+TEST(RocksDBTest, ValueStateTest)
+{
     // Initialize serializers
-    VoidNamespaceSerializer *voidNamespaceSerializer = new VoidNamespaceSerializer();
-    BinaryRowDataSerializer *binaryRowDataSerializer = new BinaryRowDataSerializer(1);
+    VoidNamespaceSerializer* voidNamespaceSerializer = new VoidNamespaceSerializer();
+    BinaryRowDataSerializer* binaryRowDataSerializer = new BinaryRowDataSerializer(1);
     // Initialize the InternalKeyContext
-    InternalKeyContextImpl<RowData*> *context = new InternalKeyContextImpl<RowData*>(new KeyGroupRange(0, 1), 1);
+    InternalKeyContextImpl<RowData*>* context = new InternalKeyContextImpl<RowData*>(new KeyGroupRange(0, 1), 1);
     BinaryRowData* keyRowData = BinaryRowData::createBinaryRowDataWithMem(1);
     keyRowData->setLong(0, 100);
     context->setCurrentKey(keyRowData);
     // Initialize RegisteredKeyValueStateBackendMetaInfo
-    auto metaInfo = std::make_unique<RegisteredKeyValueStateBackendMetaInfo>("metaInfo",
-                                         voidNamespaceSerializer, binaryRowDataSerializer);
-    RocksdbStateTable<RowData*, VoidNamespace, RowData*> rocksdbStateTable(context, std::move(metaInfo),
-                                                                           binaryRowDataSerializer);
+    auto metaInfo = std::make_unique<RegisteredKeyValueStateBackendMetaInfo>(
+        "metaInfo", voidNamespaceSerializer, binaryRowDataSerializer);
+    RocksdbStateTable<RowData*, VoidNamespace, RowData*> rocksdbStateTable(
+        context, std::move(metaInfo), binaryRowDataSerializer);
 
     // Create HeapListState
-    RocksdbValueState<RowData*, VoidNamespace, RowData*>* rocksdbValueState = RocksdbValueState<RowData*, VoidNamespace, RowData*>::create(
-            new ValueStateDescriptor<RowData*>("ValueStateTest", binaryRowDataSerializer), &rocksdbStateTable, binaryRowDataSerializer);
+    RocksdbValueState<RowData*, VoidNamespace, RowData*>* rocksdbValueState =
+        RocksdbValueState<RowData*, VoidNamespace, RowData*>::create(
+            new ValueStateDescriptor<RowData*>("ValueStateTest", binaryRowDataSerializer),
+            &rocksdbStateTable,
+            binaryRowDataSerializer);
 
     DB* rocksDb;
     Options options;
@@ -548,7 +566,7 @@ TEST(RocksDBTest, ValueStateTest) {
     value->setLong(1, 200);
     value->setLong(2, 300);
     rocksdbValueState->update(value);
-    BinaryRowData* result = dynamic_cast<BinaryRowData *>(rocksdbValueState->value());
+    BinaryRowData* result = dynamic_cast<BinaryRowData*>(rocksdbValueState->value());
 
     EXPECT_EQ(*result->getLong(0), 100);
     EXPECT_EQ(*result->getLong(1), 200);
@@ -556,12 +574,12 @@ TEST(RocksDBTest, ValueStateTest) {
 
     // Test: Update BinaryRowData to the ValueState
     value->setLong(0, 200);
-    result = dynamic_cast<BinaryRowData *>(rocksdbValueState->value());
+    result = dynamic_cast<BinaryRowData*>(rocksdbValueState->value());
     EXPECT_EQ(*result->getLong(0), 100);
     EXPECT_EQ(*result->getLong(1), 200);
     EXPECT_EQ(*result->getLong(2), 300);
     rocksdbValueState->update(value);
-    result = dynamic_cast<BinaryRowData *>(rocksdbValueState->value());
+    result = dynamic_cast<BinaryRowData*>(rocksdbValueState->value());
 
     EXPECT_EQ(*result->getLong(0), 200);
     EXPECT_EQ(*result->getLong(1), 200);
@@ -569,35 +587,36 @@ TEST(RocksDBTest, ValueStateTest) {
 
     // Test: new BinaryRowData, get empty value
     context->setCurrentKey(BinaryRowData::createBinaryRowDataWithMem(1));
-    result = dynamic_cast<BinaryRowData *>(rocksdbValueState->value());
+    result = dynamic_cast<BinaryRowData*>(rocksdbValueState->value());
     ASSERT_EQ(nullptr, result);
 
     // Test: clear ValueState
     context->setCurrentKey(keyRowData);
-    result = dynamic_cast<BinaryRowData *>(rocksdbValueState->value());
+    result = dynamic_cast<BinaryRowData*>(rocksdbValueState->value());
 
     EXPECT_EQ(*result->getLong(0), 200);
     EXPECT_EQ(*result->getLong(1), 200);
     EXPECT_EQ(*result->getLong(2), 300);
     rocksdbValueState->clear();
-    result = dynamic_cast<BinaryRowData *>(rocksdbValueState->value());
+    result = dynamic_cast<BinaryRowData*>(rocksdbValueState->value());
     ASSERT_EQ(nullptr, result);
     rocksDb->Close();
 }
 
-TEST(RocksDBTest, ListStateTest) {
+TEST(RocksDBTest, ListStateTest)
+{
     // Initialize serializers
-    LongSerializer *serializer = LongSerializer::INSTANCE;
+    LongSerializer* serializer = LongSerializer::INSTANCE;
     // Initialize the InternalKeyContext
-    auto *context = new InternalKeyContextImpl<RowData*>(new KeyGroupRange(0, 1), 1);
+    auto* context = new InternalKeyContextImpl<RowData*>(new KeyGroupRange(0, 1), 1);
     BinaryRowData* binaryRowData = BinaryRowData::createBinaryRowDataWithMem(1);
     binaryRowData->setLong(0, 100);
     context->setCurrentKey(binaryRowData);
     context->setCurrentKeyGroupIndex(1);
     // Initialize RegisteredKeyValueStateBackendMetaInfo
     auto metaInfo = std::make_unique<RegisteredKeyValueStateBackendMetaInfo>("metaInfo", serializer, serializer);
-    RocksdbStateTable<RowData*, int64_t, int64_t> rocksdbStateTable(context, std::move(metaInfo),
-                                                                    new BinaryRowDataSerializer(1));
+    RocksdbStateTable<RowData*, int64_t, int64_t> rocksdbStateTable(
+        context, std::move(metaInfo), new BinaryRowDataSerializer(1));
     // Create HeapListState
     auto* rocksdbListState = new RocksdbListState(&rocksdbStateTable, serializer, new LongSerializer());
     DB* rocksDb;
@@ -647,7 +666,7 @@ long readTotalTime[] = {0, 0, 0, 0, 0};
 long readRocksDBTime[] = {0, 0, 0, 0, 0};
 long desTime[] = {0, 0, 0, 0, 0};
 
-void addVectorBatch(DB* rocksDb, long vectorBatchId, omnistream::VectorBatch *vectorBatch, bool isSync)
+void addVectorBatch(DB* rocksDb, long vectorBatchId, omnistream::VectorBatch* vectorBatch, bool isSync)
 {
     DataOutputSerializer keyOutputSerializer;
     OutputBufferStatus outputBufferStatus;
@@ -655,34 +674,35 @@ void addVectorBatch(DB* rocksDb, long vectorBatchId, omnistream::VectorBatch *ve
     LongSerializer longSerializer;
     longSerializer.serialize(&vectorBatchId, keyOutputSerializer);
 
-    ROCKSDB_NAMESPACE::Slice key(reinterpret_cast<const char *>(keyOutputSerializer.getData()),
-                                 (int32_t) (keyOutputSerializer.getPosition()));
+    ROCKSDB_NAMESPACE::Slice key(
+        reinterpret_cast<const char*>(keyOutputSerializer.getData()), (int32_t)(keyOutputSerializer.getPosition()));
     int batchSize = omnistream::VectorBatchSerializationUtils::calculateVectorBatchSerializableSize(vectorBatch);
-    uint8_t *buffer = new uint8_t[batchSize];
+    uint8_t* buffer = new uint8_t[batchSize];
     auto serializeStart = std::chrono::high_resolution_clock::now();
     omnistream::SerializedBatchInfo serializedBatchInfo =
-            omnistream::VectorBatchSerializationUtils::serializeVectorBatch(vectorBatch, batchSize, buffer);
+        omnistream::VectorBatchSerializationUtils::serializeVectorBatch(vectorBatch, batchSize, buffer);
     auto serializeEnd = std::chrono::high_resolution_clock::now();
     serializeTime += std::chrono::duration_cast<std::chrono::nanoseconds>(serializeEnd - serializeStart).count();
-    ROCKSDB_NAMESPACE::Slice vbValue(reinterpret_cast<const char *>(serializedBatchInfo.buffer),
-                                     serializedBatchInfo.size);
+    ROCKSDB_NAMESPACE::Slice vbValue(
+        reinterpret_cast<const char*>(serializedBatchInfo.buffer), serializedBatchInfo.size);
 
     rocksdb::WriteOptions write_options;
     write_options.disableWAL = true;
     if (isSync) {
-//        std::cout << "flush is true!" << std::endl;
+        //        std::cout << "flush is true!" << std::endl;
         write_options.sync = isSync;
     }
     auto writeRocksDBStart = std::chrono::high_resolution_clock::now();
     auto res = rocksDb->Put(write_options, key, vbValue);
     auto writeRocksDBEnd = std::chrono::high_resolution_clock::now();
-    writeRocksDBTime += std::chrono::duration_cast<std::chrono::nanoseconds>(writeRocksDBEnd - writeRocksDBStart).count();
+    writeRocksDBTime +=
+        std::chrono::duration_cast<std::chrono::nanoseconds>(writeRocksDBEnd - writeRocksDBStart).count();
     if (!res.ok()) {
         ASSERT_EQ(1, 2);
     }
 }
 
-omnistream::VectorBatch *getVectorBatch(DB* rocksDb, long batchId, int index)
+omnistream::VectorBatch* getVectorBatch(DB* rocksDb, long batchId, int index)
 {
     auto totalTimeStart = std::chrono::high_resolution_clock::now();
     DataOutputSerializer keyOutputSerializer;
@@ -691,29 +711,35 @@ omnistream::VectorBatch *getVectorBatch(DB* rocksDb, long batchId, int index)
     LongSerializer longSerializer;
     longSerializer.serialize(&batchId, keyOutputSerializer);
 
-    ROCKSDB_NAMESPACE::Slice key(reinterpret_cast<const char *>(keyOutputSerializer.getData()),
-                                 (int32_t) (keyOutputSerializer.getPosition()));
+    ROCKSDB_NAMESPACE::Slice key(
+        reinterpret_cast<const char*>(keyOutputSerializer.getData()), (int32_t)(keyOutputSerializer.getPosition()));
 
     std::string valueInTable;
     auto rocksDbReadStart = std::chrono::high_resolution_clock::now();
     auto s = rocksDb->Get(ROCKSDB_NAMESPACE::ReadOptions(), key, &valueInTable);
     auto rocksDbReadEnd = std::chrono::high_resolution_clock::now();
-    readRocksDBTime[index] = readRocksDBTime[index] + std::chrono::duration_cast<std::chrono::nanoseconds>(rocksDbReadEnd - rocksDbReadStart).count();
+    readRocksDBTime[index] =
+        readRocksDBTime[index] +
+        std::chrono::duration_cast<std::chrono::nanoseconds>(rocksDbReadEnd - rocksDbReadStart).count();
     if (!s.ok()) {
         std::cout << "getVectorBatch 失败! batchId: " << batchId << std::endl;
         return nullptr;
     } else {
-        uint8_t* address = reinterpret_cast<uint8_t *>(valueInTable.data()) + sizeof(int8_t);
+        uint8_t* address = reinterpret_cast<uint8_t*>(valueInTable.data()) + sizeof(int8_t);
         auto desTimeStart = std::chrono::high_resolution_clock::now();
         auto batch = omnistream::VectorBatchDeserializationUtils::deserializeVectorBatch(address);
         auto totalTimend = std::chrono::high_resolution_clock::now();
-        desTime[index] = desTime[index] + std::chrono::duration_cast<std::chrono::nanoseconds>(totalTimend - desTimeStart).count();
-        readTotalTime[index] = readTotalTime[index] + std::chrono::duration_cast<std::chrono::nanoseconds>(totalTimend - totalTimeStart).count();
+        desTime[index] =
+            desTime[index] + std::chrono::duration_cast<std::chrono::nanoseconds>(totalTimend - desTimeStart).count();
+        readTotalTime[index] =
+            readTotalTime[index] +
+            std::chrono::duration_cast<std::chrono::nanoseconds>(totalTimend - totalTimeStart).count();
         return batch;
     }
 }
 
-omnistream::VectorBatch* newVectorBatch(int64_t rowCount) {
+omnistream::VectorBatch* newVectorBatch(int64_t rowCount)
+{
     auto vBatch = new omnistream::VectorBatch(rowCount);
     for (int i = 0; i < 5; ++i) {
         auto pVector = new omniruntime::vec::Vector<long>(rowCount);
@@ -725,17 +751,18 @@ omnistream::VectorBatch* newVectorBatch(int64_t rowCount) {
     return vBatch;
 }
 
-void addBinaryRowData(DB* rocksDb, long id, bool isSync) {
+void addBinaryRowData(DB* rocksDb, long id, bool isSync)
+{
     DataOutputSerializer keyOutputSerializer;
     OutputBufferStatus outputBufferStatus;
     keyOutputSerializer.setBackendBuffer(&outputBufferStatus);
     LongSerializer longSerializer;
     longSerializer.serialize(&id, keyOutputSerializer);
 
-    ROCKSDB_NAMESPACE::Slice sliceKey(reinterpret_cast<const char *>(keyOutputSerializer.getData()),
-                                 (int32_t) (keyOutputSerializer.getPosition()));
+    ROCKSDB_NAMESPACE::Slice sliceKey(
+        reinterpret_cast<const char*>(keyOutputSerializer.getData()), (int32_t)(keyOutputSerializer.getPosition()));
 
-    TypeSerializer *vSerializer = new BinaryRowDataSerializer(1);
+    TypeSerializer* vSerializer = new BinaryRowDataSerializer(1);
     DataOutputSerializer valueOutputSerializer;
     OutputBufferStatus valueOutputBufferStatus;
     valueOutputSerializer.setBackendBuffer(&valueOutputBufferStatus);
@@ -752,44 +779,53 @@ void addBinaryRowData(DB* rocksDb, long id, bool isSync) {
     auto serializeEnd = std::chrono::high_resolution_clock::now();
     serializeTime += std::chrono::duration_cast<std::chrono::nanoseconds>(serializeEnd - serializeStart).count();
 
-    ROCKSDB_NAMESPACE::Slice sliceValue(reinterpret_cast<const char *>(valueOutputSerializer.getData()),
-                                        valueOutputSerializer.length());
+    ROCKSDB_NAMESPACE::Slice sliceValue(
+        reinterpret_cast<const char*>(valueOutputSerializer.getData()), valueOutputSerializer.length());
     auto writeRocksDBStart = std::chrono::high_resolution_clock::now();
     rocksDb->Put(ROCKSDB_NAMESPACE::WriteOptions(), sliceKey, sliceValue);
     auto writeRocksDBEnd = std::chrono::high_resolution_clock::now();
-    writeRocksDBTime += std::chrono::duration_cast<std::chrono::nanoseconds>(writeRocksDBEnd - writeRocksDBStart).count();
+    writeRocksDBTime +=
+        std::chrono::duration_cast<std::chrono::nanoseconds>(writeRocksDBEnd - writeRocksDBStart).count();
 }
 
-BinaryRowData* getBinaryRowData(DB* rocksDb, long rowId, int index) {
+BinaryRowData* getBinaryRowData(DB* rocksDb, long rowId, int index)
+{
     auto totalTimeStart = std::chrono::high_resolution_clock::now();
     DataOutputSerializer keyOutputSerializer;
     OutputBufferStatus outputBufferStatus;
     keyOutputSerializer.setBackendBuffer(&outputBufferStatus);
     LongSerializer longSerializer;
     longSerializer.serialize(&rowId, keyOutputSerializer);
-    ROCKSDB_NAMESPACE::Slice sliceKey(reinterpret_cast<const char *>(keyOutputSerializer.getData()),
-                                 (int32_t) (keyOutputSerializer.getPosition()));
+    ROCKSDB_NAMESPACE::Slice sliceKey(
+        reinterpret_cast<const char*>(keyOutputSerializer.getData()), (int32_t)(keyOutputSerializer.getPosition()));
 
     std::string valueInTable;
     auto rocksDbReadStart = std::chrono::high_resolution_clock::now();
     auto s = rocksDb->Get(ROCKSDB_NAMESPACE::ReadOptions(), sliceKey, &valueInTable);
     auto rocksDbReadEnd = std::chrono::high_resolution_clock::now();
-    readRocksDBTime[index] = readRocksDBTime[index] + std::chrono::duration_cast<std::chrono::nanoseconds>(rocksDbReadEnd - rocksDbReadStart).count();
+    readRocksDBTime[index] =
+        readRocksDBTime[index] +
+        std::chrono::duration_cast<std::chrono::nanoseconds>(rocksDbReadEnd - rocksDbReadStart).count();
     if (!s.ok()) {
         return nullptr;
     } else {
-        TypeSerializer *vSerializer = new BinaryRowDataSerializer(1);
-        DataInputDeserializer serializedData(reinterpret_cast<const uint8_t *>(valueInTable.data()), valueInTable.length(), 0);
+        TypeSerializer* vSerializer = new BinaryRowDataSerializer(1);
+        DataInputDeserializer serializedData(
+            reinterpret_cast<const uint8_t*>(valueInTable.data()), valueInTable.length(), 0);
         auto desTimeStart = std::chrono::high_resolution_clock::now();
         BinaryRowData* resPtr = reinterpret_cast<BinaryRowData*>(vSerializer->deserialize(serializedData));
         auto totalTimend = std::chrono::high_resolution_clock::now();
-        desTime[index] = desTime[index] + std::chrono::duration_cast<std::chrono::nanoseconds>(totalTimend - desTimeStart).count();
-        readTotalTime[index] = readTotalTime[index] + std::chrono::duration_cast<std::chrono::nanoseconds>(totalTimend - totalTimeStart).count();
+        desTime[index] =
+            desTime[index] + std::chrono::duration_cast<std::chrono::nanoseconds>(totalTimend - desTimeStart).count();
+        readTotalTime[index] =
+            readTotalTime[index] +
+            std::chrono::duration_cast<std::chrono::nanoseconds>(totalTimend - totalTimeStart).count();
         return resPtr;
     }
 }
 
-TEST(RocksDBTest, CustomBinaryRowDataPerformanceTest) {
+TEST(RocksDBTest, CustomBinaryRowDataPerformanceTest)
+{
     std::srand(static_cast<unsigned int>(std::time(nullptr)));
     DB* rocksDb;
     Options options;
@@ -806,7 +842,7 @@ TEST(RocksDBTest, CustomBinaryRowDataPerformanceTest) {
         addBinaryRowData(rocksDb, i, isFlush);
     }
     if (isFlush) {
-//        std::cout << "flush is true!" << std::endl;
+        //        std::cout << "flush is true!" << std::endl;
         rocksdb::FlushOptions flush_opts;
         rocksDb->Flush(flush_opts);
     }
@@ -814,26 +850,32 @@ TEST(RocksDBTest, CustomBinaryRowDataPerformanceTest) {
     writeTotalTime += std::chrono::duration_cast<std::chrono::nanoseconds>(writeEnd - writeStart).count();
     for (int i = 0; i < 10000; ++i) {
         int rowId = std::rand() % binaryRowDataCount;
-//        std::cout << "batchId: " << batchId << std::endl;
+        //        std::cout << "batchId: " << batchId << std::endl;
         getBinaryRowData(rocksDb, rowId, 0);
     }
-    std::cout << "BinaryRowData" << vecBatchRows << "新建BinaryRowData耗时: " << newDataTime / 1000000 << " 毫秒" << std::endl;
-    std::cout << "BinaryRowData" << vecBatchRows << "写入RocksDB耗时: " << writeRocksDBTime / 1000000 << " 毫秒" << std::endl;
+    std::cout << "BinaryRowData" << vecBatchRows << "新建BinaryRowData耗时: " << newDataTime / 1000000 << " 毫秒"
+              << std::endl;
+    std::cout << "BinaryRowData" << vecBatchRows << "写入RocksDB耗时: " << writeRocksDBTime / 1000000 << " 毫秒"
+              << std::endl;
     std::cout << "BinaryRowData" << vecBatchRows << "序列化耗时: " << serializeTime / 1000000 << " 毫秒" << std::endl;
-    std::cout << "BinaryRowData" << vecBatchRows << "写入BinaryRowData总耗时: " << writeTotalTime / 1000000 << " 毫秒" << std::endl;
-    std::cout << "BinaryRowData" << vecBatchRows << "读取RocksDB耗时: " << readRocksDBTime[0] / 1000000 << " 毫秒" << std::endl;
+    std::cout << "BinaryRowData" << vecBatchRows << "写入BinaryRowData总耗时: " << writeTotalTime / 1000000 << " 毫秒"
+              << std::endl;
+    std::cout << "BinaryRowData" << vecBatchRows << "读取RocksDB耗时: " << readRocksDBTime[0] / 1000000 << " 毫秒"
+              << std::endl;
     std::cout << "BinaryRowData" << vecBatchRows << "反序列化耗时: " << desTime[0] / 1000000 << " 毫秒" << std::endl;
-    std::cout << "BinaryRowData" << vecBatchRows << "读取BinaryRowData总耗时: " << readTotalTime[0] / 1000000 << " 毫秒" << std::endl;
+    std::cout << "BinaryRowData" << vecBatchRows << "读取BinaryRowData总耗时: " << readTotalTime[0] / 1000000 << " 毫秒"
+              << std::endl;
     rocksDb->Close();
     delete rocksDb;
 }
 
-TEST(RocksDBTest, CustomVectorBatchPerformanceTest) {
+TEST(RocksDBTest, CustomVectorBatchPerformanceTest)
+{
     std::srand(static_cast<unsigned int>(std::time(nullptr)));
     DB* rocksDb;
     Options options;
     options.create_if_missing = true;
-//    options.compression = kNoCompression;
+    //    options.compression = kNoCompression;
 
     const ::testing::TestInfo* const test_info = ::testing::UnitTest::GetInstance()->current_test_info();
     Status s = DB::Open(options, getRocksDbPath() + test_info->name(), &rocksDb);
@@ -851,7 +893,7 @@ TEST(RocksDBTest, CustomVectorBatchPerformanceTest) {
         addVectorBatch(rocksDb, i, tmpBatch, isFlush);
     }
     if (isFlush) {
-//        std::cout << "flush is true!" << std::endl;
+        //        std::cout << "flush is true!" << std::endl;
         rocksdb::FlushOptions flush_opts;
         rocksDb->Flush(flush_opts);
     }
@@ -859,21 +901,27 @@ TEST(RocksDBTest, CustomVectorBatchPerformanceTest) {
     writeTotalTime += std::chrono::duration_cast<std::chrono::nanoseconds>(writeEnd - writeStart).count();
     for (int i = 0; i < 10000; ++i) {
         int batchId = std::rand() % vecBatchCount;
-//        std::cout << "batchId: " << batchId << std::endl;
+        //        std::cout << "batchId: " << batchId << std::endl;
         getVectorBatch(rocksDb, batchId, 0);
     }
-    std::cout << "VectorBatch" << vecBatchRows << "新建VectorBatch耗时: " << newDataTime / 1000000 << " 毫秒" << std::endl;
-    std::cout << "VectorBatch" << vecBatchRows << "写入RocksDB耗时: " << writeRocksDBTime / 1000000 << " 毫秒" << std::endl;
+    std::cout << "VectorBatch" << vecBatchRows << "新建VectorBatch耗时: " << newDataTime / 1000000 << " 毫秒"
+              << std::endl;
+    std::cout << "VectorBatch" << vecBatchRows << "写入RocksDB耗时: " << writeRocksDBTime / 1000000 << " 毫秒"
+              << std::endl;
     std::cout << "VectorBatch" << vecBatchRows << "序列化耗时: " << serializeTime / 1000000 << " 毫秒" << std::endl;
-    std::cout << "VectorBatch" << vecBatchRows << "写入VectorBatch总耗时: " << writeTotalTime / 1000000 << " 毫秒" << std::endl;
-    std::cout << "VectorBatch" << vecBatchRows << "读取RocksDB耗时: " << readRocksDBTime[0] / 1000000 << " 毫秒" << std::endl;
+    std::cout << "VectorBatch" << vecBatchRows << "写入VectorBatch总耗时: " << writeTotalTime / 1000000 << " 毫秒"
+              << std::endl;
+    std::cout << "VectorBatch" << vecBatchRows << "读取RocksDB耗时: " << readRocksDBTime[0] / 1000000 << " 毫秒"
+              << std::endl;
     std::cout << "VectorBatch" << vecBatchRows << "反序列化耗时: " << desTime[0] / 1000000 << " 毫秒" << std::endl;
-    std::cout << "VectorBatch" << vecBatchRows << "读取VectorBatch总耗时: " << readTotalTime[0] / 1000000 << " 毫秒" << std::endl;
+    std::cout << "VectorBatch" << vecBatchRows << "读取VectorBatch总耗时: " << readTotalTime[0] / 1000000 << " 毫秒"
+              << std::endl;
     rocksDb->Close();
     delete rocksDb;
 }
 
-TEST(RocksDBTest, VectorBatchPerformanceTest) {
+TEST(RocksDBTest, VectorBatchPerformanceTest)
+{
     DB* rocksDb;
     Options options;
     options.create_if_missing = true;
@@ -884,7 +932,7 @@ TEST(RocksDBTest, VectorBatchPerformanceTest) {
     assert(s.ok());
 
     int rowCounts[] = {1, 10, 100, 1000, 10000};
-    for (const auto &rowCount: rowCounts) {
+    for (const auto& rowCount : rowCounts) {
         omnistream::VectorBatch* tmpBatch = newVectorBatch(rowCount);
         addVectorBatch(rocksDb, rowCount, tmpBatch, false);
     }
@@ -894,9 +942,11 @@ TEST(RocksDBTest, VectorBatchPerformanceTest) {
         }
     }
     for (int i = 0; i < 5; ++i) {
-        std::cout << "VectorBatch" << rowCounts[i] << "读取RocksDB耗时: " << readRocksDBTime[i] / 1000000 << " 毫秒" << std::endl;
+        std::cout << "VectorBatch" << rowCounts[i] << "读取RocksDB耗时: " << readRocksDBTime[i] / 1000000 << " 毫秒"
+                  << std::endl;
         std::cout << "VectorBatch" << rowCounts[i] << "反序列化耗时: " << desTime[i] / 1000000 << " 毫秒" << std::endl;
-        std::cout << "VectorBatch" << rowCounts[i] << "读取VectorBatch总耗时: " << readTotalTime[i] / 1000000 << " 毫秒" << std::endl;
+        std::cout << "VectorBatch" << rowCounts[i] << "读取VectorBatch总耗时: " << readTotalTime[i] / 1000000 << " 毫秒"
+                  << std::endl;
     }
     rocksDb->Close();
     delete rocksDb;

@@ -21,25 +21,24 @@
 #include "runtime/io/checkpointing/InputProcessorUtil.h"
 
 namespace omnistream {
-    class OmniOneInputStreamTask : public OmniStreamTask {
+class OmniOneInputStreamTask : public OmniStreamTask {
+public:
+    explicit OmniOneInputStreamTask(std::shared_ptr<RuntimeEnvironmentV2>& env, int taskType)
+        : OmniStreamTask(env, taskType)
+    {
+    }
 
-    public:
-        explicit OmniOneInputStreamTask(std::shared_ptr<RuntimeEnvironmentV2> &env, int taskType)
-            : OmniStreamTask(env, taskType) {
-        }
+    void init() override;
 
-        void init() override;
+    void processInput(MailboxDefaultAction::Controller* controller) override;
 
-        void processInput(MailboxDefaultAction::Controller* controller) override;
-
-        ~OmniOneInputStreamTask() override = default;
-        const std::string getName() const override;
-        OmniPushingAsyncDataInput::OmniDataOutput* createDataOutput(
-                std::shared_ptr<omnistream::SimpleCounter> &numRecordsIn);
-        OmniStreamTaskInput* CreateTaskInput(std::shared_ptr<CheckpointedInputGate> inputGate);
-        std::shared_ptr<CheckpointedInputGate> CreateCheckpointedInputGate();
-    };
-}
-
+    ~OmniOneInputStreamTask() override = default;
+    const std::string getName() const override;
+    OmniPushingAsyncDataInput::OmniDataOutput* createDataOutput(
+        std::shared_ptr<omnistream::SimpleCounter>& numRecordsIn);
+    OmniStreamTaskInput* CreateTaskInput(std::shared_ptr<CheckpointedInputGate> inputGate);
+    std::shared_ptr<CheckpointedInputGate> CreateCheckpointedInputGate();
+};
+} // namespace omnistream
 
 #endif

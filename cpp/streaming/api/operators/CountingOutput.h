@@ -18,15 +18,18 @@
 
 class CountingOutput : WatermarkGaugeExposingOutput {
 public:
-    CountingOutput(WatermarkGaugeExposingOutput *output, omnistream::Counter *numRecordsOut) : output(output), numRecordsOut(numRecordsOut) {};
+    CountingOutput(WatermarkGaugeExposingOutput* output, omnistream::Counter* numRecordsOut)
+        : output(output),
+          numRecordsOut(numRecordsOut) {};
 
-    void emitWatermark(Watermark *mark) override;
-    void collect(void *record) override;
+    void emitWatermark(Watermark* mark) override;
+    void collect(void* record) override;
     void close() override;
-    void emitWatermarkStatus(WatermarkStatus *watermarkStatus) override;
+    void emitWatermarkStatus(WatermarkStatus* watermarkStatus) override;
+
 private:
-    WatermarkGaugeExposingOutput *output;
-    omnistream::Counter *numRecordsOut;
+    WatermarkGaugeExposingOutput* output;
+    omnistream::Counter* numRecordsOut;
 };
 
 #endif // FLINK_TNEL_COUNTINGOUTPUT_H

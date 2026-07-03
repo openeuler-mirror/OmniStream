@@ -23,53 +23,61 @@
 
 class OmniTaskBridgeImpl2 : public omnistream::OmniTaskBridge {
 public:
-    explicit OmniTaskBridgeImpl2(jobject mGlobalOmniTaskRef): m_globalOmniTaskRef(mGlobalOmniTaskRef) {}
+    explicit OmniTaskBridgeImpl2(jobject mGlobalOmniTaskRef) : m_globalOmniTaskRef(mGlobalOmniTaskRef)
+    {
+    }
 
     virtual ~OmniTaskBridgeImpl2();
 
-    void declineCheckpoint(std::string &checkpointIDJson, std::string &failure_reasonJson,
-        std::string &exceptionJson) override;
+    void declineCheckpoint(
+        std::string& checkpointIDJson, std::string& failure_reasonJson, std::string& exceptionJson) override;
 
-    std::vector<StateMetaInfoSnapshot> readMetaData(const std::string &metaStateHandle) override;
+    std::vector<StateMetaInfoSnapshot> readMetaData(const std::string& metaStateHandle) override;
 
-    std::vector<StateMetaInfoSnapshot> readOperatorMetaData(const std::string &metaStateHandle) override;
+    std::vector<StateMetaInfoSnapshot> readOperatorMetaData(const std::string& metaStateHandle) override;
 
-    void getKeyGroupEntries(jobject inputStream,
-        int &currentKvStateId, bool isUsingKeyGroupCompression, std::vector<KeyGroupEntry> &entries) override;
+    void getKeyGroupEntries(
+        jobject inputStream,
+        int& currentKvStateId,
+        bool isUsingKeyGroupCompression,
+        std::vector<KeyGroupEntry>& entries) override;
 
-    jobject getSavepointInputStream(const std::string &metaStateHandle) override;
+    jobject getSavepointInputStream(const std::string& metaStateHandle) override;
 
     void setSavepointInputStreamOffset(jobject inputStream, int64_t offset) override;
 
-    int ReadSavepointInputStream(jobject inputStream, int8_t *chunk, size_t offset, size_t len) override;
+    int ReadSavepointInputStream(jobject inputStream, int8_t* chunk, size_t offset, size_t len) override;
 
     bool isUsingKeyGroupCompression(jobject inputStream) override;
 
     void closeSavepointInputStream(jobject inputStream) override;
 
     std::shared_ptr<SnapshotResult<StreamStateHandle>> CallMaterializeMetaData(
-            jlong checkpointId,
-            std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& snapshots,
-            std::shared_ptr<LocalRecoveryConfig> localRecoveryConfig,
-            CheckpointOptions *checkpointOptions, std::string keySerializer) override;
+        jlong checkpointId,
+        std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& snapshots,
+        std::shared_ptr<LocalRecoveryConfig> localRecoveryConfig,
+        CheckpointOptions* checkpointOptions,
+        std::string keySerializer) override;
 
-    jobject CallUploadFilesToCheckpointFs(const std::vector<Path>& filePaths,
-                                          int numberOfSnapshottingThreads) override;
+    jobject CallUploadFilesToCheckpointFs(const std::vector<Path>& filePaths, int numberOfSnapshottingThreads) override;
 
     JNIEnv* getJNIEnv() override;
 
-    jobject AcquireSavepointOutputStream(long checkpointId, CheckpointOptions *checkpointOptions) override;
+    jobject AcquireSavepointOutputStream(long checkpointId, CheckpointOptions* checkpointOptions) override;
     std::shared_ptr<SnapshotResult<StreamStateHandle>> CloseSavepointOutputStream(jobject provider) override;
-    void WriteSavepointOutputStream(jobject provider, const int8_t *chunk, size_t offset, size_t len) override;
+    void WriteSavepointOutputStream(jobject provider, const int8_t* chunk, size_t offset, size_t len) override;
     jobject CreateSavepointOutputDirectBuffer(void* data, size_t capacity) override;
     void ReleaseSavepointOutputDirectBuffer(jobject directBuffer) override;
     bool WriteSavepointOutputStreamDirect(jobject provider, jobject directBuffer, size_t len) override;
-    void WriteSavepointMetadata(jobject provider, const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& snapshots,
-                                std::string keySerializer) override;
+    void WriteSavepointMetadata(
+        jobject provider,
+        const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& snapshots,
+        std::string keySerializer) override;
 
-    void WriteOperatorMetaData(jobject provider,
-                               const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& operatorStateMetaInfoSnapshots,
-                               const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& broadcastStateMetaInfoSnapshots) override;
+    void WriteOperatorMetaData(
+        jobject provider,
+        const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& operatorStateMetaInfoSnapshots,
+        const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& broadcastStateMetaInfoSnapshots) override;
 
     long GetSavepointOutputStreamPos(jobject provider) override;
 
@@ -80,7 +88,7 @@ public:
      * @param restoreInstancePath The destination local file path where the downloaded file will be stored.
      * @return true if the file is successfully downloaded and saved; false otherwise.
      */
-    bool CallDownloadFileToLocal(const StreamStateHandle &cppHandle, const std::string &restoreInstancePath) override;
+    bool CallDownloadFileToLocal(const StreamStateHandle& cppHandle, const std::string& restoreInstancePath) override;
 
 public:
     jobject m_globalOmniTaskRef;

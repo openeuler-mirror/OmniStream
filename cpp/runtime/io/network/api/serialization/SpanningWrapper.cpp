@@ -13,7 +13,7 @@ SpanningWrapper::SpanningWrapper() : buffer_(1024)
     accumulatedRecordBytes_ = 0;
 
     leftOverData_ = nullptr;
-    leftOverStart_ = 0 ;
+    leftOverStart_ = 0;
     leftOverLimit_ = 0;
 }
 
@@ -22,4 +22,4 @@ SpanningWrapper::~SpanningWrapper()
     delete lengthBuffer_;
     delete serializationReadBuffer_;
 }
-}
+} // namespace omnistream::datastream

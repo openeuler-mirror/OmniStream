@@ -22,41 +22,45 @@ extern "C" {
  * Method:    getAvailabilityAndBacklog
  * Signature: (JI)I
  */
-JNIEXPORT jint JNICALL Java_org_apache_flink_runtime_io_network_netty_OmniCreditBasedSequenceNumberingViewReader_getAvailabilityAndBacklog
-  (JNIEnv *, jobject, jlong, jint);
+JNIEXPORT jint JNICALL
+Java_org_apache_flink_runtime_io_network_netty_OmniCreditBasedSequenceNumberingViewReader_getAvailabilityAndBacklog(
+    JNIEnv*, jobject, jlong, jint);
 
 /*
  * Class:     org_apache_flink_runtime_io_network_netty_OmniCreditBasedSequenceNumberingViewReader
  * Method:    releaseNativeViewReader
  * Signature: (J)V
  */
-JNIEXPORT void JNICALL Java_org_apache_flink_runtime_io_network_netty_OmniCreditBasedSequenceNumberingViewReader_releaseNativeViewReader
-        (JNIEnv *, jobject, jlong);
-
+JNIEXPORT void JNICALL
+Java_org_apache_flink_runtime_io_network_netty_OmniCreditBasedSequenceNumberingViewReader_releaseNativeViewReader(
+    JNIEnv*, jobject, jlong);
 
 /*
  * Class:     org_apache_flink_runtime_io_network_netty_OmniCreditBasedSequenceNumberingViewReader
  * Method:    getNextBuffer
  * Signature: (J)I
  */
-JNIEXPORT jint JNICALL Java_org_apache_flink_runtime_io_network_netty_OmniCreditBasedSequenceNumberingViewReader_getNextBuffer
-  (JNIEnv *, jobject, jlong);
+JNIEXPORT jint JNICALL
+Java_org_apache_flink_runtime_io_network_netty_OmniCreditBasedSequenceNumberingViewReader_getNextBuffer(
+    JNIEnv*, jobject, jlong);
 
 /*
  * Class:     org_apache_flink_runtime_io_network_netty_OmniCreditBasedSequenceNumberingViewReader
  * Method:    createNativeCreditBasedSequenceNumberingViewReader
  * Signature: (JJLjava/lang/String;I)J
  */
-JNIEXPORT jlong JNICALL Java_org_apache_flink_runtime_io_network_netty_OmniCreditBasedSequenceNumberingViewReader_createNativeCreditBasedSequenceNumberingViewReader
-  (JNIEnv *, jobject, jlong, jlong, jstring, jint);
+JNIEXPORT jlong JNICALL
+Java_org_apache_flink_runtime_io_network_netty_OmniCreditBasedSequenceNumberingViewReader_createNativeCreditBasedSequenceNumberingViewReader(
+    JNIEnv*, jobject, jlong, jlong, jstring, jint);
 
 /*
  * Class:     org_apache_flink_runtime_io_network_netty_OmniCreditBasedSequenceNumberingViewReader
  * Method:    firstDataAvailableNotification
  * Signature: (J)V
  */
-JNIEXPORT void JNICALL Java_org_apache_flink_runtime_io_network_netty_OmniCreditBasedSequenceNumberingViewReader_firstDataAvailableNotification
-  (JNIEnv *, jobject, jlong);
+JNIEXPORT void JNICALL
+Java_org_apache_flink_runtime_io_network_netty_OmniCreditBasedSequenceNumberingViewReader_firstDataAvailableNotification(
+    JNIEnv*, jobject, jlong);
 
 /*
  * Class:     org_apache_flink_runtime_io_network_netty_OmniCreditBasedSequenceNumberingViewReader
@@ -64,8 +68,8 @@ JNIEXPORT void JNICALL Java_org_apache_flink_runtime_io_network_netty_OmniCredit
  * Signature: (J)V
  */
 JNIEXPORT void JNICALL
-Java_org_apache_flink_runtime_io_network_netty_OmniCreditBasedSequenceNumberingViewReader_resumeConsumption
-  (JNIEnv* jniEnv, jobject, jlong);
+Java_org_apache_flink_runtime_io_network_netty_OmniCreditBasedSequenceNumberingViewReader_resumeConsumption(
+    JNIEnv* jniEnv, jobject, jlong);
 
 #ifdef __cplusplus
 }

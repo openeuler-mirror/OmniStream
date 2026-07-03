@@ -16,13 +16,12 @@
 #include "ShuffleEnvironment.h"
 #include "ShuffleEnvironmentContext.h"
 
-
 namespace omnistream {
-    class ShuffleServiceFactory {
-    public:
-            virtual std::shared_ptr<ShuffleEnvironment> createOmniShuffleEnvironment(std::shared_ptr<ShuffleEnvironmentContext> context) = 0;
-    };
-}
-
+class ShuffleServiceFactory {
+public:
+    virtual std::shared_ptr<ShuffleEnvironment> createOmniShuffleEnvironment(
+        std::shared_ptr<ShuffleEnvironmentContext> context) = 0;
+};
+} // namespace omnistream
 
 #endif

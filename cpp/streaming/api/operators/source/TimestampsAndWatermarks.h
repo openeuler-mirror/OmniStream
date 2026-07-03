@@ -33,15 +33,19 @@ public:
     };
 
     // 纯虚函数声明
-    virtual ReaderOutput* CreateMainOutput(
-        OmniDataOutputPtr output, WatermarkUpdateListener* watermarkCallback) = 0;
-    virtual void StartPeriodicWatermarkEmits() {}
-    virtual void StopPeriodicWatermarkEmits() {}
+    virtual ReaderOutput* CreateMainOutput(OmniDataOutputPtr output, WatermarkUpdateListener* watermarkCallback) = 0;
+    virtual void StartPeriodicWatermarkEmits()
+    {
+    }
+    virtual void StopPeriodicWatermarkEmits()
+    {
+    }
     static std::shared_ptr<TimestampsAndWatermarks> CreateNoOpEventTimeLogic(
         const std::shared_ptr<WatermarkStrategy>& watermarkStrategy);
     static std::shared_ptr<TimestampsAndWatermarks> CreateProgressiveEventTimeLogic(
         const std::shared_ptr<WatermarkStrategy>& watermarkStrategy,
-        ProcessingTimeService* timeService, long periodicWatermarkIntervalMillis);
+        ProcessingTimeService* timeService,
+        long periodicWatermarkIntervalMillis);
     virtual ~TimestampsAndWatermarks() = default;
 };
 

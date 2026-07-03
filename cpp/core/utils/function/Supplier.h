@@ -18,35 +18,36 @@
 
 namespace omnistream {
 
-    template <typename T>
-    class Supplier {
-    public:
-        virtual ~Supplier() = default;
-        virtual std::shared_ptr<T> get() = 0;
-        virtual std::string toString() const = 0;
-    };
+template <typename T>
+class Supplier {
+public:
+    virtual ~Supplier() = default;
+    virtual std::shared_ptr<T> get() = 0;
+    virtual std::string toString() const = 0;
+};
 
+template <typename T>
+class LambdaSupplier : public Supplier<T> {
+public:
+    using SupplierFunction = std::function<std::shared_ptr<T>()>;
+    explicit LambdaSupplier(SupplierFunction func) : func_(func)
+    {
+    }
+    ~LambdaSupplier() override = default;
 
-    template <typename T>
-    class LambdaSupplier : public Supplier<T> {
-    public:
-        using SupplierFunction = std::function<std::shared_ptr<T>()>;
-        explicit LambdaSupplier(SupplierFunction func) : func_(func) {}
-        ~LambdaSupplier() override = default;
+    std::shared_ptr<T> get() override
+    {
+        return func_();
+    }
 
-        std::shared_ptr<T> get() override
-        {
-            return func_();
-        }
+    std::string toString() const override
+    {
+        return "LambdaSupplier";
+    }
 
-        std::string toString() const override
-        {
-            return "LambdaSupplier";
-        }
-
-    private:
-        SupplierFunction func_;
-    };
+private:
+    SupplierFunction func_;
+};
 
 } // namespace omnistream
 

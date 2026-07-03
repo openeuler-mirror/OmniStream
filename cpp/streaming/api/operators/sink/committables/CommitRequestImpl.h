@@ -32,13 +32,10 @@ inline bool IsFinalState(CommitRequestState state)
 {
     switch (state) {
         case CommitRequestState::FAILED:
-        case CommitRequestState::COMMITTED:
-            return true;
+        case CommitRequestState::COMMITTED: return true;
         case CommitRequestState::RECEIVED:
-        case CommitRequestState::RETRY:
-            return false;
-        default:
-            throw std::invalid_argument("Unknown CommitRequestState");
+        case CommitRequestState::RETRY: return false;
+        default: throw std::invalid_argument("Unknown CommitRequestState");
     }
 }
 
@@ -46,32 +43,46 @@ template <typename CommT>
 class CommitRequestImpl : public CommitRequest<CommT> {
 public:
     explicit CommitRequestImpl(const CommT& committable)
-        : committable(committable), numRetries(0), state(CommitRequestState::RECEIVED) {}
+        : committable(committable),
+          numRetries(0),
+          state(CommitRequestState::RECEIVED)
+    {
+    }
 
     CommitRequestImpl(const CommT& committable, int numRetries, const CommitRequestState& state)
-        : committable(committable), numRetries(numRetries), state(state) {}
+        : committable(committable),
+          numRetries(numRetries),
+          state(state)
+    {
+    }
 
-    bool IsFinished() const {
+    bool IsFinished() const
+    {
         return IsFinalState(state);
     }
 
-    CommitRequestState GetState() const {
+    CommitRequestState GetState() const
+    {
         return state;
     }
 
-    CommT GetCommittable() const {
+    CommT GetCommittable() const
+    {
         return committable;
     }
 
-    int GetNumberOfRetries() const {
+    int GetNumberOfRetries() const
+    {
         return numRetries;
     }
 
-    void signalFailedWithKnownReason(const std::exception& t) {
+    void signalFailedWithKnownReason(const std::exception& t)
+    {
         state = CommitRequestState::FAILED;
     }
 
-    void signalFailedWithUnknownReason(const std::exception& t) {
+    void signalFailedWithUnknownReason(const std::exception& t)
+    {
         state = CommitRequestState::FAILED;
         std::ostringstream oss;
         // oss << "FAILED to Commit " << committable;
@@ -79,31 +90,37 @@ public:
         GErrorLog(oss.str());
     }
 
-    void RetryLater() {
+    void RetryLater()
+    {
         state = CommitRequestState::RETRY;
         numRetries++;
     }
 
-    void UpdateAndRetryLater(const CommT& committable) {
+    void UpdateAndRetryLater(const CommT& committable)
+    {
         this->committable = committable;
         RetryLater();
     }
 
-    void SignalAlreadyCommitted() {
+    void SignalAlreadyCommitted()
+    {
         state = CommitRequestState::COMMITTED;
     }
 
-    void SetSelected() {
+    void SetSelected()
+    {
         state = CommitRequestState::RECEIVED;
     }
 
-    void SetCommittedIfNoError() {
+    void SetCommittedIfNoError()
+    {
         if (state == CommitRequestState::RECEIVED) {
             state = CommitRequestState::COMMITTED;
         }
     }
 
-    std::shared_ptr<CommitRequestImpl<CommT>> Copy() const {
+    std::shared_ptr<CommitRequestImpl<CommT>> Copy() const
+    {
         return std::make_shared<CommitRequestImpl<CommT>>(committable, numRetries, state);
     }
 

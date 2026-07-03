@@ -25,7 +25,7 @@ public:
     public:
         virtual ~Context() = default;
         virtual long timestamp() const = 0;
-        virtual omnistream::streaming::TimerService *timerService() = 0;
+        virtual omnistream::streaming::TimerService* timerService() = 0;
         virtual K getCurrentKey() const = 0;
         virtual void setCurrentKey(K key) = 0;
     };
@@ -42,7 +42,7 @@ public:
     virtual JoinedRowData* getResultRow() = 0;
 
     ~KeyedProcessFunction() = default;
-    virtual ValueState<K>* getValueState() =0;
+    virtual ValueState<K>* getValueState() = 0;
 };
 
-#endif  // FLINK_TNEL_KEYED_PROCESS_FUNCTION_H
+#endif // FLINK_TNEL_KEYED_PROCESS_FUNCTION_H

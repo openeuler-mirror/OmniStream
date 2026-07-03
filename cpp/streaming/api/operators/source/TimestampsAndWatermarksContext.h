@@ -16,8 +16,6 @@
 #include "core/api/common/eventtime/WatermarkGeneratorSupplier.h"
 
 class TimestampsAndWatermarksContext : public TimestampAssignerSupplier::Context,
-    public WatermarkGeneratorSupplier::Context {
-};
-
+                                       public WatermarkGeneratorSupplier::Context {};
 
 #endif // OMNISTREAM_TIMESTAMPSANDWATERMARKSCONTEXT_H

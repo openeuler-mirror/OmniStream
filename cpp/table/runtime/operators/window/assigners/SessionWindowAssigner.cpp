@@ -13,8 +13,9 @@
 
 #include <unordered_set>
 
-TimeWindow SessionWindowAssigner::mergeWindow(TimeWindow &curWindow, const TimeWindow &other,
-        std::unordered_set<TimeWindow> &mergedWindow) {
+TimeWindow SessionWindowAssigner::mergeWindow(
+    TimeWindow& curWindow, const TimeWindow& other, std::unordered_set<TimeWindow>& mergedWindow)
+{
     if (curWindow.intersects(other)) {
         mergedWindow.emplace(other);
         return curWindow.cover(other);
@@ -23,14 +24,17 @@ TimeWindow SessionWindowAssigner::mergeWindow(TimeWindow &curWindow, const TimeW
 }
 
 SessionWindowAssigner::SessionWindowAssigner(int64_t sessionGap, bool eventTime)
-        : sessionGap_(sessionGap), eventTime_(eventTime) {
+    : sessionGap_(sessionGap),
+      eventTime_(eventTime)
+{
     if (sessionGap <= 0) {
         THROW_LOGIC_EXCEPTION("SessionWindowAssigner parameters must satisfy 0 < size");
     }
 }
 
-void SessionWindowAssigner::mergeWindows(const TimeWindow &newWindow, std::set<TimeWindow> *sortedWindows,
-    MergeResultCollector &callback) {
+void SessionWindowAssigner::mergeWindows(
+    const TimeWindow& newWindow, std::set<TimeWindow>* sortedWindows, MergeResultCollector& callback)
+{
     auto ceiling = sortedWindows->lower_bound(newWindow);
     // upper_bound功能与java set的floor还不一致
     auto floor = sortedWindows->upper_bound(newWindow);
@@ -52,7 +56,8 @@ void SessionWindowAssigner::mergeWindows(const TimeWindow &newWindow, std::set<T
     }
 }
 
-std::vector<TimeWindow> SessionWindowAssigner::assignWindows(const RowData* element, int64_t timestamp) {
+std::vector<TimeWindow> SessionWindowAssigner::assignWindows(const RowData* element, int64_t timestamp)
+{
     return {TimeWindow(timestamp, timestamp + sessionGap_)};
 }
 

@@ -36,21 +36,22 @@ public:
         std::vector<std::shared_ptr<ResultSubpartition>> subpartitions,
         int numTargetKeyGroups,
         std::shared_ptr<ResultPartitionManager> partitionManager,
-         // std::shared_ptr<Supplier<ObjectBufferPool>> bufferPoolFactory);
-         std::shared_ptr<Supplier<BufferPool>> bufferPoolFactory);
+        // std::shared_ptr<Supplier<ObjectBufferPool>> bufferPoolFactory);
+        std::shared_ptr<Supplier<BufferPool>> bufferPoolFactory);
 
     BufferWritingResultPartition(
-       const std::string& owningTaskName,
-       int partitionIndex,
-       const ResultPartitionIDPOD& partitionId,
-       int partitionType,
-       int numSubpartitions,
-       int numTargetKeyGroups,
-       std::shared_ptr<ResultPartitionManager> partitionManager,
+        const std::string& owningTaskName,
+        int partitionIndex,
+        const ResultPartitionIDPOD& partitionId,
+        int partitionType,
+        int numSubpartitions,
+        int numTargetKeyGroups,
+        std::shared_ptr<ResultPartitionManager> partitionManager,
         std::shared_ptr<Supplier<BufferPool>> bufferPoolFactory,
         int taskType);
 
-    ~BufferWritingResultPartition() {
+    ~BufferWritingResultPartition()
+    {
         for (auto bufferBuilder : unicastBufferBuilders) {
             if (bufferBuilder) {
                 bufferBuilder->close();
@@ -69,7 +70,7 @@ public:
     void emitRecord(void* record, int targetSubpartition) override;
     void broadcastRecord(void* record) override;
     void broadcastEvent(std::shared_ptr<AbstractEvent> event, bool isPriorityEvent) override;
-    BufferBuilder *appendUnicastDataForRecordContinuation(void *record, int targetSubpartition);
+    BufferBuilder* appendUnicastDataForRecordContinuation(void* record, int targetSubpartition);
 
     std::shared_ptr<ResultSubpartitionView> createSubpartitionView(
         int subpartitionIndex, BufferAvailabilityListener* availabilityListener) override;
@@ -80,7 +81,8 @@ public:
     virtual void setSubpartitions(const std::vector<std::shared_ptr<ResultSubpartition>>& subpartitions);
 
     std::vector<std::shared_ptr<ResultSubpartition>> getAllPartitions();
-    void SetChannelStateWriter(const std::shared_ptr<ChannelStateWriter> &channelStateWriter);
+    void SetChannelStateWriter(const std::shared_ptr<ChannelStateWriter>& channelStateWriter);
+
 protected:
     void releaseInternal() override;
     void flushSubpartition(int targetSubpartition, bool finishProducers);
@@ -93,7 +95,7 @@ protected:
     std::vector<BufferBuilder*> unicastBufferBuilders;
 
     // For broadcast mode, a single BufferBuilder is shared by all subpartitions
-    BufferBuilder *broadcastBufferBuilder = nullptr;
+    BufferBuilder* broadcastBufferBuilder = nullptr;
 
     int64_t totalWrittenBytes;
 
@@ -110,19 +112,20 @@ protected:
     void ensureBroadcastMode();
 
 private:
-    BufferBuilder *requestNewUnicastBufferBuilder(int targetSubpartition);
+    BufferBuilder* requestNewUnicastBufferBuilder(int targetSubpartition);
 
-    BufferBuilder *requestNewBroadcastBufferBuilder();
+    BufferBuilder* requestNewBroadcastBufferBuilder();
 
-    BufferBuilder *requestNewBufferBuilderFromPool(int targetSubpartition);
+    BufferBuilder* requestNewBufferBuilderFromPool(int targetSubpartition);
 
-    void addToSubpartition(BufferBuilder *buffer, int targetSubpartition, int i);
+    void addToSubpartition(BufferBuilder* buffer, int targetSubpartition, int i);
 
-    void addToSubpartition(BufferBuilder *buffer, int targetSubpartition, int partialRecordLength, int minDesirableBufferSize);
+    void addToSubpartition(
+        BufferBuilder* buffer, int targetSubpartition, int partialRecordLength, int minDesirableBufferSize);
 
-    void resizeBuffer(BufferBuilder *buffer, int desirableBufferSize, int minDesirableBufferSize);
+    void resizeBuffer(BufferBuilder* buffer, int desirableBufferSize, int minDesirableBufferSize);
 
-    BufferBuilder *appendUnicastDataForNewRecord(void* record, int targetSubpartition);
+    BufferBuilder* appendUnicastDataForNewRecord(void* record, int targetSubpartition);
 };
 
 } // namespace omnistream

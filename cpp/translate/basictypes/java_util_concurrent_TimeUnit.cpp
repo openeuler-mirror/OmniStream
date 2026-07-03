@@ -12,7 +12,9 @@
 #include "basictypes/java_util_concurrent_TimeUnit.h"
 
 // 构造函数
-constexpr JavaUtilTimeUnit::JavaUtilTimeUnit(Value unit) : unit_(unit) {}
+constexpr JavaUtilTimeUnit::JavaUtilTimeUnit(Value unit) : unit_(unit)
+{
+}
 
 // 转换为纳秒
 template <typename Rep>
@@ -71,13 +73,13 @@ constexpr int64_t JavaUtilTimeUnit::convert(Rep sourceDuration, const JavaUtilTi
     int64_t nanos = sourceUnit.toNanos(sourceDuration);
     // 再将纳秒转换到目标单位
     switch (unit_) {
-        case NANOSECONDS:  return nanos;
+        case NANOSECONDS: return nanos;
         case MICROSECONDS: return nanos / 1000;
         case MILLISECONDS: return nanos / 1000000;
-        case SECONDS:      return nanos / 1000000000;
-        case MINUTES:      return nanos / 60000000000LL;
-        case HOURS:        return nanos / 3600000000000LL;
-        case DAYS:         return nanos / 86400000000000LL;
+        case SECONDS: return nanos / 1000000000;
+        case MINUTES: return nanos / 60000000000LL;
+        case HOURS: return nanos / 3600000000000LL;
+        case DAYS: return nanos / 86400000000000LL;
         default: throw std::invalid_argument("Invalid time unit");
     }
 }
@@ -86,35 +88,22 @@ constexpr int64_t JavaUtilTimeUnit::convert(Rep sourceDuration, const JavaUtilTi
 void JavaUtilTimeUnit::sleep(int64_t timeout) const
 {
     switch (unit_) {
-        case NANOSECONDS:
-            std::this_thread::sleep_for(std::chrono::nanoseconds(timeout));
-            break;
-        case MICROSECONDS:
-            std::this_thread::sleep_for(std::chrono::microseconds(timeout));
-            break;
-        case MILLISECONDS:
-            std::this_thread::sleep_for(std::chrono::milliseconds(timeout));
-            break;
-        case SECONDS:
-            std::this_thread::sleep_for(std::chrono::seconds(timeout));
-            break;
-        case MINUTES:
-            std::this_thread::sleep_for(std::chrono::minutes(timeout));
-            break;
-        case HOURS:
-            std::this_thread::sleep_for(std::chrono::hours(timeout));
-            break;
-        case DAYS:
-            std::this_thread::sleep_for(std::chrono::hours(24 * timeout));
-            break;
-        default:
-            throw std::invalid_argument("Invalid time unit for sleep");
+        case NANOSECONDS: std::this_thread::sleep_for(std::chrono::nanoseconds(timeout)); break;
+        case MICROSECONDS: std::this_thread::sleep_for(std::chrono::microseconds(timeout)); break;
+        case MILLISECONDS: std::this_thread::sleep_for(std::chrono::milliseconds(timeout)); break;
+        case SECONDS: std::this_thread::sleep_for(std::chrono::seconds(timeout)); break;
+        case MINUTES: std::this_thread::sleep_for(std::chrono::minutes(timeout)); break;
+        case HOURS: std::this_thread::sleep_for(std::chrono::hours(timeout)); break;
+        case DAYS: std::this_thread::sleep_for(std::chrono::hours(24 * timeout)); break;
+        default: throw std::invalid_argument("Invalid time unit for sleep");
     }
 }
 
 // 获取单位值
-constexpr JavaUtilTimeUnit::Value JavaUtilTimeUnit::value() const { return unit_; }
-
+constexpr JavaUtilTimeUnit::Value JavaUtilTimeUnit::value() const
+{
+    return unit_;
+}
 
 // 内部转换实现
 template <typename Rep, typename Period>
@@ -126,23 +115,23 @@ constexpr int64_t JavaUtilTimeUnit::convert(Rep duration) const
 
     // 根据当前单位创建适当的持续时间
     switch (unit_) {
-        case NANOSECONDS:  return SourceDuration(duration).count();
+        case NANOSECONDS: return SourceDuration(duration).count();
         case MICROSECONDS: return duration_cast<TargetDuration>(microseconds(duration)).count();
         case MILLISECONDS: return duration_cast<TargetDuration>(milliseconds(duration)).count();
-        case SECONDS:      return duration_cast<TargetDuration>(seconds(duration)).count();
-        case MINUTES:      return duration_cast<TargetDuration>(minutes(duration)).count();
-        case HOURS:        return duration_cast<TargetDuration>(hours(duration)).count();
-        case DAYS:         return duration_cast<TargetDuration>(hours(24 * duration)).count();
+        case SECONDS: return duration_cast<TargetDuration>(seconds(duration)).count();
+        case MINUTES: return duration_cast<TargetDuration>(minutes(duration)).count();
+        case HOURS: return duration_cast<TargetDuration>(hours(duration)).count();
+        case DAYS: return duration_cast<TargetDuration>(hours(24 * duration)).count();
         default: throw std::invalid_argument("Invalid time unit");
     }
 }
 
 template int64_t JavaUtilTimeUnit::toMillis<int64_t>(int64_t) const;
 // 初始化静态常量
-JavaUtilTimeUnit JavaUtilTimeUnit::NANOS  = JavaUtilTimeUnit(JavaUtilTimeUnit::NANOSECONDS);
+JavaUtilTimeUnit JavaUtilTimeUnit::NANOS = JavaUtilTimeUnit(JavaUtilTimeUnit::NANOSECONDS);
 JavaUtilTimeUnit JavaUtilTimeUnit::MICROS = JavaUtilTimeUnit(JavaUtilTimeUnit::MICROSECONDS);
 JavaUtilTimeUnit JavaUtilTimeUnit::MILLIS = JavaUtilTimeUnit(JavaUtilTimeUnit::MILLISECONDS);
-JavaUtilTimeUnit JavaUtilTimeUnit::SECS   = JavaUtilTimeUnit(JavaUtilTimeUnit::SECONDS);
-JavaUtilTimeUnit JavaUtilTimeUnit::MINS   = JavaUtilTimeUnit(JavaUtilTimeUnit::MINUTES);
-JavaUtilTimeUnit JavaUtilTimeUnit::HS  = JavaUtilTimeUnit(JavaUtilTimeUnit::HOURS);
-JavaUtilTimeUnit JavaUtilTimeUnit::DS   = JavaUtilTimeUnit(JavaUtilTimeUnit::DAYS);
+JavaUtilTimeUnit JavaUtilTimeUnit::SECS = JavaUtilTimeUnit(JavaUtilTimeUnit::SECONDS);
+JavaUtilTimeUnit JavaUtilTimeUnit::MINS = JavaUtilTimeUnit(JavaUtilTimeUnit::MINUTES);
+JavaUtilTimeUnit JavaUtilTimeUnit::HS = JavaUtilTimeUnit(JavaUtilTimeUnit::HOURS);
+JavaUtilTimeUnit JavaUtilTimeUnit::DS = JavaUtilTimeUnit(JavaUtilTimeUnit::DAYS);

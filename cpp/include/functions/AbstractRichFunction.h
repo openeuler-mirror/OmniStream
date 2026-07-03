@@ -29,4 +29,4 @@ public:
 private:
     RuntimeContext* runtimeContext;
 };
-#endif  // FLINK_TNEL_ABSTRACT_RICH_FUNCTION_H
+#endif // FLINK_TNEL_ABSTRACT_RICH_FUNCTION_H

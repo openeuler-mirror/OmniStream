@@ -15,34 +15,31 @@
 #include "checkpoint/SavepointType.h"
 #include "state/FullSnapshotResources.h"
 #include "state/FullSnapshotAsyncWriter.h"
-class SavepointSnapshotStrategy
-    : public SnapshotStrategy<KeyedStateHandle, FullSnapshotResources> {
+class SavepointSnapshotStrategy : public SnapshotStrategy<KeyedStateHandle, FullSnapshotResources> {
 private:
     std::shared_ptr<FullSnapshotResources> savepointResources_;
 
 public:
-    SavepointSnapshotStrategy(
-        const std::shared_ptr<FullSnapshotResources>& savepointResources)
-        :savepointResources_(savepointResources)
+    SavepointSnapshotStrategy(const std::shared_ptr<FullSnapshotResources>& savepointResources)
+        : savepointResources_(savepointResources)
     {
     }
-    std::shared_ptr<FullSnapshotResources> syncPrepareResources(long checkpointId) override {
+    std::shared_ptr<FullSnapshotResources> syncPrepareResources(long checkpointId) override
+    {
         return savepointResources_;
     }
-    std::shared_ptr<SnapshotResultSupplier<KeyedStateHandle>>
-    asyncSnapshot(
+    std::shared_ptr<SnapshotResultSupplier<KeyedStateHandle>> asyncSnapshot(
         const std::shared_ptr<FullSnapshotResources>& snapshotResources,
         long checkpointId,
         long timestamp,
-        CheckpointStreamFactory *streamFactory,
-        CheckpointOptions *checkpointOptions,
+        CheckpointStreamFactory* streamFactory,
+        CheckpointOptions* checkpointOptions,
         std::string keySerializer = "") override
     {
         if (savepointResources_->getMetaInfoSnapshots().empty()) {
-            struct EmptySnapshotResourceSupplier
-                : public SnapshotResultSupplier<KeyedStateHandle> {
-                std::shared_ptr<SnapshotResult<KeyedStateHandle>>
-                get(std::shared_ptr<omnistream::OmniTaskBridge> bridge) override
+            struct EmptySnapshotResourceSupplier : public SnapshotResultSupplier<KeyedStateHandle> {
+                std::shared_ptr<SnapshotResult<KeyedStateHandle>> get(
+                    std::shared_ptr<omnistream::OmniTaskBridge> bridge) override
                 {
                     return SnapshotResult<KeyedStateHandle>::Empty();
                 }

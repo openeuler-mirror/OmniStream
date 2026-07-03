@@ -12,17 +12,17 @@
 #include "BinaryRowDataListSerializer.h"
 #include "core/memory/DataInputDeserializer.h"
 
-void BinaryRowDataListSerializer::serialize(void *row, DataOutputSerializer &target)
+void BinaryRowDataListSerializer::serialize(void* row, DataOutputSerializer& target)
 {
-    LOG(">>>>")
+    LOG(">>>>");
     std::vector<RowData*>* castedVectorRow = reinterpret_cast<std::vector<RowData*>*>(row);
     target.writeInt(castedVectorRow->size());
-    for (auto &item: *castedVectorRow) {
+    for (auto& item : *castedVectorRow) {
         binaryRowDataSerializer->serialize(item, target);
     }
 }
 
-void* BinaryRowDataListSerializer::deserialize(DataInputView &source)
+void* BinaryRowDataListSerializer::deserialize(DataInputView& source)
 {
     int size = source.readInt();
     std::vector<RowData*>* result = new std::vector<RowData*>();
@@ -33,7 +33,7 @@ void* BinaryRowDataListSerializer::deserialize(DataInputView &source)
     return result;
 }
 
-const char *BinaryRowDataListSerializer::getName() const
+const char* BinaryRowDataListSerializer::getName() const
 {
     return "BinaryRowDataListSerializer";
 }

@@ -17,38 +17,38 @@
 #include "table/runtime/operators/VectorBatchUtils.h"
 
 RecordsWindowBuffer::RecordsWindowBuffer(
-        const nlohmann::json& config,
-        WindowValueState<RecordsWindowBuffer::KeyType, int64_t, RowData*>* state,
-        Output* output,
-        KeyedStateBackend<KeyType>* stateBackend,
-        SliceAssigner* sliceAssigner,
-        InternalTimerServiceImpl<RecordsWindowBuffer::KeyType, int64_t>* internalTimerService)
-        :
-        output(output),
-        stateBackend_(stateBackend),
-        internalTimerService(internalTimerService) {
+    const nlohmann::json& config,
+    WindowValueState<RecordsWindowBuffer::KeyType, int64_t, RowData*>* state,
+    Output* output,
+    KeyedStateBackend<KeyType>* stateBackend,
+    SliceAssigner* sliceAssigner,
+    InternalTimerServiceImpl<RecordsWindowBuffer::KeyType, int64_t>* internalTimerService)
+    : output(output),
+      stateBackend_(stateBackend),
+      internalTimerService(internalTimerService)
+{
     this->description = config;
     this->sliceAssigner = sliceAssigner;
 
     if (dynamic_cast<RocksdbKeyedStateBackend<KeyType>*>(stateBackend_)) {
-        INFO_RELEASE("RecordsWindowBuffer backend is rocksdb")
+        INFO_RELEASE("RecordsWindowBuffer backend is rocksdb");
         this->backendType_ = omnistream::StateType::ROCKSDB;
     } else {
-        INFO_RELEASE("RecordsWindowBuffer backend is mem")
+        INFO_RELEASE("RecordsWindowBuffer backend is mem");
         this->backendType_ = omnistream::StateType::HEAP;
     }
 
     shiftTimeZone = ResolveShiftTimeZoneId(sliceAssigner);
     inputTypes = config["inputTypes"].get<std::vector<std::string>>();
-    for (const auto &typeStr : inputTypes) {
+    for (const auto& typeStr : inputTypes) {
         inputTypeIds_.push_back(LogicalType::flinkTypeToOmniTypeId(typeStr));
     }
     outputTypes = config["outputTypes"].get<std::vector<std::string>>();
-    for (const auto &typeStr : outputTypes) {
+    for (const auto& typeStr : outputTypes) {
         outputTypeIds.push_back(LogicalType::flinkTypeToOmniTypeId(typeStr));
     }
     InitializeKeySelectorAndTypes(config);
-    isWindowAgg  = config.contains("isWindowAggregate") && description["isWindowAggregate"].get<bool>();
+    isWindowAgg = config.contains("isWindowAggregate") && description["isWindowAggregate"].get<bool>();
 
     accState = state;
     const auto keyArity = keyedIndex.size();
@@ -69,15 +69,19 @@ void RecordsWindowBuffer::InitializeKeySelectorAndTypes(const nlohmann::json& co
     keySelector = std::make_unique<KeySelector<KeyType>>(keyedTypes, keyedIndex);
 }
 
-void RecordsWindowBuffer::initNamespaceAggsHandleFunction(const nlohmann::json& aggInfoList) {
-    std::string const accTypesName = isWindowAgg  ? "AccTypes" : "globalAccTypes";
-    std::string const aggCallsName = isWindowAgg  ? "aggregateCalls" : "globalAggregateCalls";
-    std::string const aggValueTypesName = isWindowAgg  ? "aggValueTypes" : "globalAggValueTypes";
+void RecordsWindowBuffer::initNamespaceAggsHandleFunction(const nlohmann::json& aggInfoList)
+{
+    std::string const accTypesName = isWindowAgg ? "AccTypes" : "globalAccTypes";
+    std::string const aggCallsName = isWindowAgg ? "aggregateCalls" : "globalAggregateCalls";
+    std::string const aggValueTypesName = isWindowAgg ? "aggValueTypes" : "globalAggValueTypes";
 
     auto accTypes = aggInfoList[accTypesName].get<std::vector<std::string>>();
-    accTypes.erase(std::remove_if(accTypes.begin(), accTypes.end(),
-                                  [](const std::string& type) { return type.find("RAW") != std::string::npos; }),
-                   accTypes.end());
+    accTypes.erase(
+        std::remove_if(
+            accTypes.begin(),
+            accTypes.end(),
+            [](const std::string& type) { return type.find("RAW") != std::string::npos; }),
+        accTypes.end());
     accumulatorArity = accTypes.size();
 
     std::vector<int32_t> accTypeIds;
@@ -87,9 +91,12 @@ void RecordsWindowBuffer::initNamespaceAggsHandleFunction(const nlohmann::json& 
     }
 
     auto aggValueTypes = aggInfoList[aggValueTypesName].get<vector<std::string>>();
-    aggValueTypes.erase(std::remove_if(aggValueTypes.begin(), aggValueTypes.end(),
-                                       [](const std::string& type) { return type.find("RAW") != std::string::npos; }),
-                        aggValueTypes.end());
+    aggValueTypes.erase(
+        std::remove_if(
+            aggValueTypes.begin(),
+            aggValueTypes.end(),
+            [](const std::string& type) { return type.find("RAW") != std::string::npos; }),
+        aggValueTypes.end());
     std::vector<int32_t> aggValueTypeIds;
     for (const auto& type : aggValueTypes) {
         aggValueTypeIds.push_back(LogicalType::flinkTypeToOmniTypeId(type));
@@ -111,35 +118,36 @@ void RecordsWindowBuffer::initNamespaceAggsHandleFunction(const nlohmann::json& 
         const int32_t aggValueTypeId = isInsertedCountStar ? -1 : aggValueTypeIds[aggValueIndex];
         auto accIndexes = NamespaceAggsBasicFunctionFactory::getAccIndexes(aggTypeStr, accStartIndex);
         auto localFunction = NamespaceAggsBasicFunctionFactory::create<int64_t>(
-                aggTypeStr, argIndexes, this->inputTypeIds_, accIndexes,
-                accTypeIds, aggValueIndex, aggValueTypeId);
+            aggTypeStr, argIndexes, this->inputTypeIds_, accIndexes, accTypeIds, aggValueIndex, aggValueTypeId);
         localFunctions.push_back(std::move(localFunction));
         if (!isWindowAgg) {
             auto globalFunction = NamespaceAggsBasicFunctionFactory::create<int64_t>(
-                    aggTypeStr, argIndexes, this->inputTypeIds_, accIndexes,
-                accTypeIds, aggValueIndex, aggValueTypeId);
+                aggTypeStr, argIndexes, this->inputTypeIds_, accIndexes, accTypeIds, aggValueIndex, aggValueTypeId);
             globalFunctions.push_back(std::move(globalFunction));
         }
         accStartIndex += accIndexes.size();
-        if (!isInsertedCountStar) { aggValueStartIndex++; }
+        if (!isInsertedCountStar) {
+            aggValueStartIndex++;
+        }
     }
     localAggregator = std::make_unique<WindowAggsHandleFunction>(
-            std::move(localFunctions),
+        std::move(localFunctions),
+        aggValueTypeIds,
+        std::vector<int32_t>(outputTypeIds.begin() + keyedIndex.size(), outputTypeIds.end()),
+        sliceAssigner,
+        accumulatorArity);
+    if (!isWindowAgg) {
+        globalAggregator = std::make_unique<WindowAggsHandleFunction>(
+            std::move(globalFunctions),
             aggValueTypeIds,
             std::vector<int32_t>(outputTypeIds.begin() + keyedIndex.size(), outputTypeIds.end()),
             sliceAssigner,
             accumulatorArity);
-    if (!isWindowAgg){
-        globalAggregator = std::make_unique<WindowAggsHandleFunction>(
-                std::move(globalFunctions),
-                aggValueTypeIds,
-                std::vector<int32_t>(outputTypeIds.begin() + keyedIndex.size(), outputTypeIds.end()),
-                sliceAssigner,
-                accumulatorArity);
     }
 }
 
-std::vector<std::string> RecordsWindowBuffer::getKeyedTypes(std::vector<int32_t> keyedIndex, std::vector<std::string> inputTypes)
+std::vector<std::string> RecordsWindowBuffer::getKeyedTypes(
+    std::vector<int32_t> keyedIndex, std::vector<std::string> inputTypes)
 {
     std::vector<std::string> keyedTypes;
     for (int32_t index : keyedIndex) {
@@ -150,8 +158,10 @@ std::vector<std::string> RecordsWindowBuffer::getKeyedTypes(std::vector<int32_t>
     return keyedTypes;
 }
 
-//skip droped records, only add valid records to window buffer
-void RecordsWindowBuffer::addVectorBatch(omnistream::VectorBatch *input, std::vector<int64_t>& sliceEndArr, std::vector<bool>& dropArr) {
+// skip droped records, only add valid records to window buffer
+void RecordsWindowBuffer::addVectorBatch(
+    omnistream::VectorBatch* input, std::vector<int64_t>& sliceEndArr, std::vector<bool>& dropArr)
+{
     auto rowCount = input->GetRowCount();
     if (rowCount < 0) {
         return;
@@ -182,16 +192,17 @@ void RecordsWindowBuffer::addVectorBatch(omnistream::VectorBatch *input, std::ve
     }
 }
 
-
-void RecordsWindowBuffer::advanceProgress(long currentProgress) {
-    if (!TimeWindowUtil::isWindowFired(minSliceEnd, currentProgress, shiftTimeZone)){
-        LOG("no windows in record buffer is fired.")
+void RecordsWindowBuffer::advanceProgress(long currentProgress)
+{
+    if (!TimeWindowUtil::isWindowFired(minSliceEnd, currentProgress, shiftTimeZone)) {
+        LOG("no windows in record buffer is fired.");
         return;
     }
     flush();
 }
 
-void RecordsWindowBuffer::flush() {
+void RecordsWindowBuffer::flush()
+{
     std::lock_guard<std::mutex> lock(bufferMutex);
     // 开始遍历每一个key
     for (auto& pair : recordsBuffer) {
@@ -214,21 +225,22 @@ void RecordsWindowBuffer::flush() {
     }
     recordsBuffer.clear();
     minSliceEnd = INT64_MAX;
-    LOG("end RecordsWindowBuffer::advanceProgress")
+    LOG("end RecordsWindowBuffer::advanceProgress");
 }
 
 void RecordsWindowBuffer::WindowAggProcess(
-        const WindowKey& currentKey,
-        std::vector<std::unique_ptr<RowData>>& sliceResultArr) {
+    const WindowKey& currentKey, std::vector<std::unique_ptr<RowData>>& sliceResultArr)
+{
     if (isWindowAgg) {
         winAggProcess(currentKey, sliceResultArr);
         if (sliceAssigner->isEventTime()) {
-            if (!TimeWindowUtil::isWindowFired(currentKey.getWindow(), internalTimerService->currentWatermark(), shiftTimeZone)) {
-                LOG("register event timer")
+            if (!TimeWindowUtil::isWindowFired(
+                    currentKey.getWindow(), internalTimerService->currentWatermark(), shiftTimeZone)) {
+                LOG("register event timer");
                 internalTimerService->registerEventTimeTimer(
                     currentKey.getWindow(),
                     TimeWindowUtil::toEpochMillsForTimer(currentKey.getWindow() - 1, shiftTimeZone));
-                LOG("end register event timer")
+                LOG("end register event timer");
             }
         }
     } else {
@@ -237,9 +249,9 @@ void RecordsWindowBuffer::WindowAggProcess(
 }
 
 void RecordsWindowBuffer::winAggProcess(
-        const WindowKey& currentWindowKey,
-        std::vector<std::unique_ptr<RowData>>& sliceResultArr) {
-    LOG(">>>WindowAgg process")
+    const WindowKey& currentWindowKey, std::vector<std::unique_ptr<RowData>>& sliceResultArr)
+{
+    LOG(">>>WindowAgg process");
     stateBackend_->setCurrentKey(currentWindowKey.getKey());
     long window = currentWindowKey.getWindow();
     RowData* stateVal = accState->value(window);
@@ -261,10 +273,9 @@ void RecordsWindowBuffer::winAggProcess(
     }
 }
 
-
 void RecordsWindowBuffer::globalWinAggProcess(
-        const WindowKey& currentWindowKey,
-        std::vector<std::unique_ptr<RowData>>& sliceResultArr) {
+    const WindowKey& currentWindowKey, std::vector<std::unique_ptr<RowData>>& sliceResultArr)
+{
     RowData* accumulators = localAggregator->createAccumulators();
     localAggregator->setAccumulators(currentWindowKey.getWindow(), accumulators);
 
@@ -278,9 +289,8 @@ void RecordsWindowBuffer::globalWinAggProcess(
     delete accumulators;
 }
 
-void RecordsWindowBuffer::combineAccumulator(
-        const WindowKey& windowKey,
-        RowData* acc) {
+void RecordsWindowBuffer::combineAccumulator(const WindowKey& windowKey, RowData* acc)
+{
     // step 1: set current key for states and timers
     stateBackend_->setCurrentKey(windowKey.getKey());
     long window = windowKey.getWindow();
@@ -302,8 +312,7 @@ void RecordsWindowBuffer::combineAccumulator(
     // step 3: register timer for current window
     if (!TimeWindowUtil::isWindowFired(window, internalTimerService->currentWatermark(), shiftTimeZone)) {
         internalTimerService->registerEventTimeTimer(
-                window,
-                TimeWindowUtil::toEpochMillsForTimer(window - 1, shiftTimeZone));
+            window, TimeWindowUtil::toEpochMillsForTimer(window - 1, shiftTimeZone));
     }
 }
 
@@ -353,7 +362,7 @@ omnistream::VectorBatch* RecordsWindowBuffer::createOutputBatch(std::vector<std:
     return outputBatch;
 }
 
-void RecordsWindowBuffer::collectOutputBatch(TimestampedCollector *out, omnistream::VectorBatch *outputBatch)
+void RecordsWindowBuffer::collectOutputBatch(TimestampedCollector* out, omnistream::VectorBatch* outputBatch)
 {
     out->collect(outputBatch);
 }
@@ -363,6 +372,7 @@ Output* RecordsWindowBuffer::getOutput()
     return this->output;
 }
 
-bool RecordsWindowBuffer::shouldDeleteWindowStateValue() const {
+bool RecordsWindowBuffer::shouldDeleteWindowStateValue() const
+{
     return backendType_ == omnistream::StateType::ROCKSDB && !accState->isFalconEnabled();
 }

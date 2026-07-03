@@ -14,14 +14,13 @@
 
 #include <jni.h>
 
-
 #ifdef __cplusplus
 extern "C" { // This block ensures C linkage for the global variable
 #endif
 
-    // Declare the global JVM* variable.
-    // The 'extern' keyword indicates that the variable is defined elsewhere.
-    extern JavaVM* g_OmniStreamJVM;
+// Declare the global JVM* variable.
+// The 'extern' keyword indicates that the variable is defined elsewhere.
+extern JavaVM* g_OmniStreamJVM;
 
 #ifdef __cplusplus
 }

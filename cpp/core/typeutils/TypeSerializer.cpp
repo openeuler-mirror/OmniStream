@@ -15,4 +15,3 @@ const char* TypeSerializer::getName() const
 {
     return "General TypeSerializer";
 }
-

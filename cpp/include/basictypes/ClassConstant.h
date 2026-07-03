@@ -17,7 +17,7 @@
 
 class ClassConstant : public Object {
 public:
-    using ClassMap = std::unordered_map<std::string, Class *>;
+    using ClassMap = std::unordered_map<std::string, Class*>;
     ClassMap classMap;
 
     static ClassConstant& getInstance();

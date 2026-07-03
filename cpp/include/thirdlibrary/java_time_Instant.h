@@ -25,7 +25,7 @@ public:
 
     ~Instant();
 
-    static Instant *ofEpochMilli(int64_t epochMilli);
+    static Instant* ofEpochMilli(int64_t epochMilli);
 
     int64_t getEpochSecond();
 

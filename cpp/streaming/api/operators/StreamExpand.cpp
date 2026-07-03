@@ -12,15 +12,16 @@
 #include "StreamExpand.h"
 #include "StreamCalc.h"
 
-
-StreamExpand::StreamExpand(const nlohmann::json &description, Output *output) :description_(description),
-executionContext(std::make_unique<omniruntime::op::ExecutionContext>()),selectedRowsBuffer(1024) {
+StreamExpand::StreamExpand(const nlohmann::json& description, Output* output)
+    : description_(description),
+      executionContext(std::make_unique<omniruntime::op::ExecutionContext>()),
+      selectedRowsBuffer(1024)
+{
     this->setOutput(output);
-    LOG("StreamExpand description: " << description)
+    LOG("StreamExpand description: " << description);
 }
 
 StreamExpand::~StreamExpand() = default;
-
 
 void StreamExpand::parseDescription(nlohmann::json& subDesc, int index)
 {
@@ -33,8 +34,9 @@ void StreamExpand::parseDescription(nlohmann::json& subDesc, int index)
     inputTypes[index] = omniruntime::type::DataTypes(types);
 }
 
-void StreamExpand::open() {
-    INFO_RELEASE("StreamExpand descriptionJson: " << description_.dump())
+void StreamExpand::open()
+{
+    INFO_RELEASE("StreamExpand descriptionJson: " << description_.dump());
     if (description_.contains("projects")) {
         std::vector<nlohmann::json> projections = description_["projects"].get<std::vector<nlohmann::json>>();
         int len = projections.size();
@@ -44,22 +46,23 @@ void StreamExpand::open() {
         for (int i = 0; i < projections.size(); i++) {
             JSONParser parser = JSONParser();
             nlohmann::json subDesc = projections[i];
-            parseDescription(subDesc,i);
+            parseDescription(subDesc, i);
             if (subDesc.contains("indices")) {
-                for (auto &index : subDesc["indices"]) {
+                for (auto& index : subDesc["indices"]) {
                     auto expr = parser.ParseJSON(index);
                     if (expr == nullptr) {
                         omniruntime::expressions::Expr::DeleteExprs(projExprs[i]);
                         projExprs[i].clear();
-                        throw std::runtime_error("Unsupported StreamExpand expression for native codegen: " + index.dump());
+                        throw std::runtime_error(
+                            "Unsupported StreamExpand expression for native codegen: " + index.dump());
                     }
                     projExprs[i].push_back(expr);
                 }
             }
             auto ofConfig = new omniruntime::op::OverflowConfig();
-            INFO_RELEASE("projExprs[i] size " << projExprs[i].size())
-            omniruntime::codegen::ExpressionEvaluator* exprEvaluator = new omniruntime::codegen::ExpressionEvaluator
-                    (projExprs[i], inputTypes[i], ofConfig);
+            INFO_RELEASE("projExprs[i] size " << projExprs[i].size());
+            omniruntime::codegen::ExpressionEvaluator* exprEvaluator =
+                new omniruntime::codegen::ExpressionEvaluator(projExprs[i], inputTypes[i], ofConfig);
             exprEvaluator->ProjectFuncGeneration();
             exprEvaluators[i] = exprEvaluator;
         }
@@ -67,10 +70,12 @@ void StreamExpand::open() {
     timestampedCollector_ = new TimestampedCollector(this->output);
 }
 
-void StreamExpand::close() {
+void StreamExpand::close()
+{
 }
 
-omnistream::VectorBatch *StreamExpand::copyTimestampAndKind(omnistream::VectorBatch *srcVb, omniruntime::vec::VectorBatch *projectedVecs)
+omnistream::VectorBatch* StreamExpand::copyTimestampAndKind(
+    omnistream::VectorBatch* srcVb, omniruntime::vec::VectorBatch* projectedVecs)
 {
     int32_t rowCnt = srcVb->GetRowCount();
     if (rowCnt <= 0) {
@@ -80,27 +85,16 @@ omnistream::VectorBatch *StreamExpand::copyTimestampAndKind(omnistream::VectorBa
     RowKind* target_rowKinds = new RowKind[rowCnt];
     int64_t* srcTimestamps = srcVb->getTimestamps();
     RowKind* srcRowKinds = srcVb->getRowKinds();
-    memcpy_s(
-            target_timestamps,
-            sizeof(int64_t) * rowCnt,
-            srcTimestamps,
-            sizeof(int64_t) * rowCnt
-    );
-    memcpy_s(
-            target_rowKinds,
-            sizeof(RowKind) * rowCnt,
-            srcRowKinds,
-            sizeof(RowKind) * rowCnt
-    );
+    memcpy_s(target_timestamps, sizeof(int64_t) * rowCnt, srcTimestamps, sizeof(int64_t) * rowCnt);
+    memcpy_s(target_rowKinds, sizeof(RowKind) * rowCnt, srcRowKinds, sizeof(RowKind) * rowCnt);
     auto outputBatch = new omnistream::VectorBatch(projectedVecs, target_timestamps, target_rowKinds);
     return outputBatch;
 }
 
-
 void StreamExpand::processBatch(StreamRecord* input)
 {
     auto record = reinterpret_cast<omnistream::VectorBatch*>(input->getValue());
-    for(auto expr :exprEvaluators){
+    for (auto expr : exprEvaluators) {
         auto projectedVecs = expr->Evaluate(record, executionContext.get(), &selectedRowsBuffer);
         auto outputBatch = copyTimestampAndKind(record, projectedVecs);
         if (outputBatch) {
@@ -110,8 +104,7 @@ void StreamExpand::processBatch(StreamRecord* input)
     delete record;
 }
 
-const char *StreamExpand::getName()
+const char* StreamExpand::getName()
 {
     return OneInputStreamOperator::getName();
 }
-

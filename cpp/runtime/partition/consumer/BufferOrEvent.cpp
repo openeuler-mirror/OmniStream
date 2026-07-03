@@ -20,50 +20,68 @@
 
 namespace omnistream {
 
-BufferOrEvent::BufferOrEvent(Buffer* buffer,
-                             InputChannelInfo channelInfo,
-                             bool moreAvailable, bool morePriorityEvents)
+BufferOrEvent::BufferOrEvent(Buffer* buffer, InputChannelInfo channelInfo, bool moreAvailable, bool morePriorityEvents)
     : buffer_(buffer),
       event_(nullptr),
       hasPriority_(false),
       channelInfo_(channelInfo),
       size_(buffer ? buffer->GetSize() : 0),
       moreAvailable_(moreAvailable),
-      morePriorityEvents_(morePriorityEvents) {
+      morePriorityEvents_(morePriorityEvents)
+{
     if (!buffer) {
         throw std::invalid_argument("Buffer cannot be null");
     }
 }
 
-BufferOrEvent::BufferOrEvent(std::shared_ptr<AbstractEvent> event, bool hasPriority,
-                             InputChannelInfo channelInfo, bool moreAvailable,
-                             int size, bool morePriorityEvents)
+BufferOrEvent::BufferOrEvent(
+    std::shared_ptr<AbstractEvent> event,
+    bool hasPriority,
+    InputChannelInfo channelInfo,
+    bool moreAvailable,
+    int size,
+    bool morePriorityEvents)
     : buffer_(nullptr),
       event_(event),
       hasPriority_(hasPriority),
       channelInfo_(channelInfo),
       size_(size),
       moreAvailable_(moreAvailable),
-      morePriorityEvents_(morePriorityEvents) {
+      morePriorityEvents_(morePriorityEvents)
+{
 }
 
 // Visible for testing
-BufferOrEvent::BufferOrEvent(Buffer* buffer,
-                             InputChannelInfo channelInfo)
-    : BufferOrEvent(buffer, channelInfo, true, false) {}
+BufferOrEvent::BufferOrEvent(Buffer* buffer, InputChannelInfo channelInfo)
+    : BufferOrEvent(buffer, channelInfo, true, false)
+{
+}
 
 // Visible for testing
-BufferOrEvent::BufferOrEvent(std::shared_ptr<AbstractEvent> event,
-                             InputChannelInfo channelInfo)
-    : BufferOrEvent(event, false, channelInfo, true, 0, false) {}
+BufferOrEvent::BufferOrEvent(std::shared_ptr<AbstractEvent> event, InputChannelInfo channelInfo)
+    : BufferOrEvent(event, false, channelInfo, true, 0, false)
+{
+}
 
-bool BufferOrEvent::isBuffer() const { return buffer_ != nullptr; }
+bool BufferOrEvent::isBuffer() const
+{
+    return buffer_ != nullptr;
+}
 
-bool BufferOrEvent::isEvent() const { return event_ != nullptr; }
+bool BufferOrEvent::isEvent() const
+{
+    return event_ != nullptr;
+}
 
-Buffer* BufferOrEvent::getBuffer() const { return buffer_; }
+Buffer* BufferOrEvent::getBuffer() const
+{
+    return buffer_;
+}
 
-std::shared_ptr<AbstractEvent> BufferOrEvent::getEvent() const { return event_; }
+std::shared_ptr<AbstractEvent> BufferOrEvent::getEvent() const
+{
+    return event_;
+}
 
 InputChannelInfo BufferOrEvent::getChannelInfo() const
 {
@@ -75,9 +93,15 @@ void BufferOrEvent::setChannelInfo(InputChannelInfo channelInfo)
     channelInfo_ = channelInfo;
 }
 
-bool BufferOrEvent::moreAvailable() const { return moreAvailable_; }
+bool BufferOrEvent::moreAvailable() const
+{
+    return moreAvailable_;
+}
 
-bool BufferOrEvent::morePriorityEvents() const { return morePriorityEvents_; }
+bool BufferOrEvent::morePriorityEvents() const
+{
+    return morePriorityEvents_;
+}
 
 std::string BufferOrEvent::toString() const
 {
@@ -90,7 +114,7 @@ std::string BufferOrEvent::toString() const
     }
     ss << ", channelInfo = ";
 
-        ss << "InputChannelInfo"  << channelInfo_.toString();
+    ss << "InputChannelInfo" << channelInfo_.toString();
 
     ss << ", size = " << size_ << "]";
     return ss.str();
@@ -101,8 +125,14 @@ void BufferOrEvent::setMoreAvailable(bool moreAvailable)
     moreAvailable_ = moreAvailable;
 }
 
-int BufferOrEvent::getSize() const { return size_; }
+int BufferOrEvent::getSize() const
+{
+    return size_;
+}
 
-bool BufferOrEvent::hasPriority() const { return hasPriority_; }
+bool BufferOrEvent::hasPriority() const
+{
+    return hasPriority_;
+}
 
 } // namespace omnistream

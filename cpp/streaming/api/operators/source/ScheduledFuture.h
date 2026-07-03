@@ -13,6 +13,9 @@
 #define FLINK_TNEL_SCHEDULEDFUTURE_H
 class ScheduledFuture {
 public:
-    bool cancel(bool mayInterruptIfRunning) volatile {return mayInterruptIfRunning;};
+    bool cancel(bool mayInterruptIfRunning) volatile
+    {
+        return mayInterruptIfRunning;
+    };
 };
-#endif  // FLINK_TNEL_SCHEDULEDFUTURE_H
+#endif // FLINK_TNEL_SCHEDULEDFUTURE_H

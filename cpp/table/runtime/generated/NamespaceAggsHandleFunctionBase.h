@@ -19,8 +19,9 @@ class StateDataViewStore;
 template <typename N>
 class NamespaceAggsHandleFunctionBase {
 public:
-    explicit NamespaceAggsHandleFunctionBase(int32_t accumulatorArity)
-        : accumulatorArity_(accumulatorArity) {}
+    explicit NamespaceAggsHandleFunctionBase(int32_t accumulatorArity) : accumulatorArity_(accumulatorArity)
+    {
+    }
 
     virtual ~NamespaceAggsHandleFunctionBase() = default;
 
@@ -40,10 +41,10 @@ public:
     virtual void merge(N namespace_val, RowData* other_acc) = 0;
 
     // 创建初始累加器
-    virtual RowData *createAccumulators() = 0;
+    virtual RowData* createAccumulators() = 0;
 
     // 获取当前累加器
-    virtual RowData *getAccumulators() = 0;
+    virtual RowData* getAccumulators() = 0;
 
     // 清理命名空间
     virtual void cleanup(N namespace_val) = 0;

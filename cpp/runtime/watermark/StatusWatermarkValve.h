@@ -20,7 +20,8 @@
 template <typename T>
 class StatusWatermarkValve {
 public:
-    explicit StatusWatermarkValve(int32_t numInputChannels) {
+    explicit StatusWatermarkValve(int32_t numInputChannels)
+    {
         if (numInputChannels <= 0) {
             THROW_LOGIC_EXCEPTION("Number of input channels must be greater than 0");
         }
@@ -33,9 +34,10 @@ public:
         lastOutputWatermarkStatus_ = WatermarkStatus::active();
     }
 
-    void inputWatermark(Watermark* watermark, const int32_t channelIndex, T* output) {
+    void inputWatermark(Watermark* watermark, const int32_t channelIndex, T* output)
+    {
         if (channelIndex < 0 || channelIndex >= channelStatuses_.size()) {
-            THROW_LOGIC_EXCEPTION("Channel index out of range.")
+            THROW_LOGIC_EXCEPTION("Channel index out of range.");
         }
 
         // ignore the input watermark if its input channel, or all input channels are idle (i.e.
@@ -56,9 +58,10 @@ public:
         }
     }
 
-    void inputWatermarkStatus(WatermarkStatus* watermarkStatus, const int32_t channelIndex, T* output) {
+    void inputWatermarkStatus(WatermarkStatus* watermarkStatus, const int32_t channelIndex, T* output)
+    {
         if (channelIndex < 0 || channelIndex >= channelStatuses_.size()) {
-            THROW_LOGIC_EXCEPTION("Channel index out of range.")
+            THROW_LOGIC_EXCEPTION("Channel index out of range.");
         }
 
         bool isWatermarkStatusActive = watermarkStatus->IsActive();
@@ -98,10 +101,15 @@ private:
         InputChannelStatus() = default;
 
         InputChannelStatus(int64_t watermark, WatermarkStatus* watermarkStatus, bool isWatermarkAligned)
-                : watermark(watermark), watermarkStatus(watermarkStatus), isWatermarkAligned(isWatermarkAligned) {}
+            : watermark(watermark),
+              watermarkStatus(watermarkStatus),
+              isWatermarkAligned(isWatermarkAligned)
+        {
+        }
 
-        static bool hasActiveChannels(const std::vector<InputChannelStatus>& channelStatuses) {
-            for (auto& channelStatus: channelStatuses) {
+        static bool hasActiveChannels(const std::vector<InputChannelStatus>& channelStatuses)
+        {
+            for (auto& channelStatus : channelStatuses) {
                 if (channelStatus.watermarkStatus->IsActive()) {
                     return true;
                 }
@@ -110,10 +118,11 @@ private:
         }
     };
 
-    void findAndOutputNewMinWatermarkAcrossAlignedChannels(T* output) {
+    void findAndOutputNewMinWatermarkAcrossAlignedChannels(T* output)
+    {
         int64_t newMinWatermark = INT64_MAX;
         bool hasAlignedChannels = false;
-        for (auto& channelStatus: channelStatuses_) {
+        for (auto& channelStatus : channelStatuses_) {
             if (channelStatus.isWatermarkAligned) {
                 hasAlignedChannels = true;
                 newMinWatermark = std::min(channelStatus.watermark, newMinWatermark);
@@ -128,10 +137,11 @@ private:
         }
     }
 
-    void findAndOutputMaxWatermarkAcrossAllChannels(T* output) {
+    void findAndOutputMaxWatermarkAcrossAllChannels(T* output)
+    {
         int64_t maxWatermark = INT64_MIN;
 
-        for (auto& channelStatus: channelStatuses_) {
+        for (auto& channelStatus : channelStatuses_) {
             maxWatermark = std::max(channelStatus.watermark, maxWatermark);
         }
 
@@ -148,4 +158,4 @@ private:
     WatermarkStatus* lastOutputWatermarkStatus_ = nullptr;
 };
 
-#endif //OMNISTREAM_STATUSWATERMARKVALVE_H
+#endif // OMNISTREAM_STATUSWATERMARKVALVE_H

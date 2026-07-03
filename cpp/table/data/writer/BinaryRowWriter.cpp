@@ -12,7 +12,7 @@
 #include "BinaryRowWriter.h"
 #include "../../../core/memory/MemorySegmentUtils.h"
 
-BinaryRowWriter::BinaryRowWriter(BinaryRowData *row,  int initialSize) : row_(row)
+BinaryRowWriter::BinaryRowWriter(BinaryRowData* row, int initialSize) : row_(row)
 {
     nullBitsSizeInBytes_ = BinaryRowData::calculateBitSetWidthInBytes(row->getArity());
     fixedSize_ = row->getFixedLengthPartSize();
@@ -21,11 +21,13 @@ BinaryRowWriter::BinaryRowWriter(BinaryRowData *row,  int initialSize) : row_(ro
     int buffer_size = fixedSize_ + initialSize;
 
     memoryBuffer = new uint8_t[buffer_size];
-    
+
     row_->pointTo(memoryBuffer, 0, buffer_size, buffer_size);
 }
 
-BinaryRowWriter::BinaryRowWriter(BinaryRowData *row) : BinaryRowWriter(row, 0) {}
+BinaryRowWriter::BinaryRowWriter(BinaryRowData* row) : BinaryRowWriter(row, 0)
+{
+}
 
 void BinaryRowWriter::writeLong(int pos, long value)
 {
@@ -41,7 +43,6 @@ void BinaryRowWriter::writeInt(int pos, int value)
 {
     MemorySegmentUtils::putInt(memoryBuffer, row_->getBufferCapacity(), getFieldOffset(pos), value);
 }
-
 
 void BinaryRowWriter::reset()
 {
@@ -65,7 +66,7 @@ void BinaryRowWriter::setNullBit(int pos)
 
 int BinaryRowWriter::getFieldOffset(int pos)
 {
-    return   nullBitsSizeInBytes_ + 8 * pos;
+    return nullBitsSizeInBytes_ + 8 * pos;
 }
 
 void BinaryRowWriter::complete()

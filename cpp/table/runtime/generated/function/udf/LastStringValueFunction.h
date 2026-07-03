@@ -11,24 +11,27 @@ using namespace omniruntime::type;
 class LastStringValueFunction : public AggsHandleFunction {
 public:
     LastStringValueFunction(int aggIdx, std::string inputType, int accIndex = -1, int valueIndex = -1)
-        : valueIsNull(true), aggIdx(aggIdx), accIndex(accIndex), valueIndex(valueIndex)
+        : valueIsNull(true),
+          aggIdx(aggIdx),
+          accIndex(accIndex),
+          valueIndex(valueIndex)
     {
         typeId = LogicalType::flinkTypeToOmniTypeId(inputType);
         emptyStringAggValue = "";
     }
 
     void setWindowSize(int windowSize) override {};
-    bool equaliser(BinaryRowData *r1, BinaryRowData *r2) override;
-    void accumulate(RowData *accInput) override;
-    void accumulate(omnistream::VectorBatch *input, const std::vector<int>& indices) override;
-    void retract(RowData *retractInput) override;
+    bool equaliser(BinaryRowData* r1, BinaryRowData* r2) override;
+    void accumulate(RowData* accInput) override;
+    void accumulate(omnistream::VectorBatch* input, const std::vector<int>& indices) override;
+    void retract(RowData* retractInput) override;
     void retract(omnistream::VectorBatch* input, const std::vector<int>& indices) override;
-    void merge(RowData *otherAcc) override;
-    void setAccumulators(RowData *acc) override;
+    void merge(RowData* otherAcc) override;
+    void setAccumulators(RowData* acc) override;
     void resetAccumulators() override;
-    void getAccumulators(BinaryRowData *accumulators) override;
-    void createAccumulators(BinaryRowData *accumulators) override;
-    void getValue(BinaryRowData *aggValue) override;
+    void getAccumulators(BinaryRowData* accumulators) override;
+    void createAccumulators(BinaryRowData* accumulators) override;
+    void getValue(BinaryRowData* aggValue) override;
     void cleanup() override {};
     void close() override {};
     void bindAccValueIndex(int accStartIndex, int valueStartIndex) override
@@ -36,8 +39,14 @@ public:
         accIndex = accStartIndex;
         valueIndex = valueStartIndex;
     }
-    int accumulatorSlots() const override { return 1; }
-    bool hasAggOutput() const override { return valueIndex >= 0; }
+    int accumulatorSlots() const override
+    {
+        return 1;
+    }
+    bool hasAggOutput() const override
+    {
+        return valueIndex >= 0;
+    }
 
 private:
     bool valueIsNull;
@@ -48,6 +57,5 @@ private:
     omniruntime::type::DataTypeId typeId;
     std::string emptyStringAggValue;
 };
-
 
 #endif // OMNISTREAM_LASTSTRINGVALUEFUNCTION_H

@@ -11,10 +11,8 @@
 
 #include "StreamTaskStateInitializerImpl.h"
 
-KeyGroupRange *StreamTaskStateInitializerImpl::computeKeyGroupRangeForOperatorIndex(
-    int maxParallelism,
-    int parallelism,
-    int operatorIndex)
+KeyGroupRange* StreamTaskStateInitializerImpl::computeKeyGroupRangeForOperatorIndex(
+    int maxParallelism, int parallelism, int operatorIndex)
 {
     int start = ((operatorIndex * maxParallelism + parallelism - 1) / parallelism);
     int end = ((operatorIndex + 1) * maxParallelism - 1) / parallelism;

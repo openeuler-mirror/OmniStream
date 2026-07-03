@@ -31,17 +31,18 @@ enum class NamespaceAggsBasicFunctionType {
 
 class NamespaceAggsBasicFunctionFactory {
 public:
-    template<typename N>
+    template <typename N>
     static std::unique_ptr<NamespaceAggsBasicFunction<N>> create(
-            const std::string &accTypeStr,
-            std::vector<int32_t> argIndexes,
-            std::vector<int32_t> inputTypeIds,
-            std::vector<int32_t> accIndexes,
-            std::vector<int32_t> accTypeIds,
-            int32_t aggValueIndex,
-            int32_t aggValueTypeId);
+        const std::string& accTypeStr,
+        std::vector<int32_t> argIndexes,
+        std::vector<int32_t> inputTypeIds,
+        std::vector<int32_t> accIndexes,
+        std::vector<int32_t> accTypeIds,
+        int32_t aggValueIndex,
+        int32_t aggValueTypeId);
 
-    static std::vector<int32_t> getAccIndexes(const std::string &accTypeStr, int32_t accStartIndex) {
+    static std::vector<int32_t> getAccIndexes(const std::string& accTypeStr, int32_t accStartIndex)
+    {
         auto accFunctionType = extractAggFunction(accTypeStr);
         if (accFunctionType == NamespaceAggsBasicFunctionType::AVG) {
             return {accStartIndex, accStartIndex + 1};
@@ -50,17 +51,20 @@ public:
     }
 
 private:
-    static int32_t getAccSlot(NamespaceAggsBasicFunctionType accFunctionType) {
+    static int32_t getAccSlot(NamespaceAggsBasicFunctionType accFunctionType)
+    {
         return accFunctionType == NamespaceAggsBasicFunctionType::AVG ? 2 : 1;
     }
 
-    static NamespaceAggsBasicFunctionType extractAggFunction(const std::string &accTypeStr) {
+    static NamespaceAggsBasicFunctionType extractAggFunction(const std::string& accTypeStr)
+    {
         std::regex aggRegex(R"((?:MAX|COUNT|SUM|MIN|AVG))", std::regex_constants::icase);
         std::smatch match;
         if (std::regex_search(accTypeStr, match, aggRegex)) {
             std::string aggType = match.str();
-            std::transform(aggType.begin(), aggType.end(), aggType.begin(),
-                [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
+            std::transform(aggType.begin(), aggType.end(), aggType.begin(), [](unsigned char c) {
+                return static_cast<char>(std::toupper(c));
+            });
             if (aggType == "COUNT") {
                 return NamespaceAggsBasicFunctionType::COUNT;
             }

@@ -15,19 +15,19 @@ protected:
     std::shared_ptr<MailboxExecutor> mockMailbox;
     std::shared_ptr<StreamTaskActionExecutor> executor;
 
-    void SetUp() override {
+    void SetUp() override
+    {
         env = std::make_shared<RuntimeEnvironmentV2>();
         task = std::make_shared<OmniTwoInputStreamTask>(env);
     }
 };
 
-TEST_F(OmniTwoInputStreamTaskTest, DISABLED_InitDistributesGatesAndInitializesProcessor) {
-
+TEST_F(OmniTwoInputStreamTaskTest, DISABLED_InitDistributesGatesAndInitializesProcessor)
+{
     auto gate1 = std::make_shared<MockInputGate>(0);
     auto gate2 = std::make_shared<MockInputGate>(1);
 
     std::vector<std::shared_ptr<IndexedInputGate>> gates = {gate1, gate2};
-
 
     // Create StreamEdgePODs with distinct type numbers
     StreamEdgePOD edge1, edge2;
@@ -41,14 +41,13 @@ TEST_F(OmniTwoInputStreamTaskTest, DISABLED_InitDistributesGatesAndInitializesPr
     auto taskConfig = make_shared<TaskInformationPOD>();
     taskConfig->setStreamConfigPOD(*configPOD);
     env->setTaskConfiguration(*(taskConfig));
-//    env->taskConfiguration().setStreamConfigPOD(*(configPOD.get()));
+    //    env->taskConfiguration().setStreamConfigPOD(*(configPOD.get()));
     env->SetInputGates(gates);
     task->restore();
     // Initialize the task
-//    task->init();
-
+    //    task->init();
 
     // Assertions to ensure proper distribution and processor creation
     ASSERT_NE(task->GetCheckpointBarrierHandler(), nullptr);
-//    ASSERT_NE(task->GetInputProcessor(), nullptr);
+    //    ASSERT_NE(task->GetInputProcessor(), nullptr);
 }

@@ -8,4 +8,3 @@ TEST(PathTest, JoinTwoPaths)
     auto joined = new Path(*parent, *child);
     EXPECT_EQ(joined->toString(), "/path/to/file/path/to/child/");
 }
-

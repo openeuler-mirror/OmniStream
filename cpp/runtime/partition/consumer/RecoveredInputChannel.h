@@ -24,33 +24,40 @@
 
 class RecoveredInputChannel : public omnistream::InputChannel {
 public:
-
-    RecoveredInputChannel(std::shared_ptr<omnistream::SingleInputGate> inputGate, int channelIndex,
-                          omnistream::ResultPartitionIDPOD partitionId,
-                          int consumedSubpartitionIndex, int initialBackoff, int maxBackoff,
-                          std::shared_ptr<omnistream::Counter> numBytesIn,
-                          std::shared_ptr<omnistream::Counter> numBuffersIn, int networkBuffersPerChannel)
-            : omnistream::InputChannel(inputGate, channelIndex, partitionId, initialBackoff, maxBackoff, numBytesIn,
-                                       numBuffersIn) {
+    RecoveredInputChannel(
+        std::shared_ptr<omnistream::SingleInputGate> inputGate,
+        int channelIndex,
+        omnistream::ResultPartitionIDPOD partitionId,
+        int consumedSubpartitionIndex,
+        int initialBackoff,
+        int maxBackoff,
+        std::shared_ptr<omnistream::Counter> numBytesIn,
+        std::shared_ptr<omnistream::Counter> numBuffersIn,
+        int networkBuffersPerChannel)
+        : omnistream::InputChannel(
+              inputGate, channelIndex, partitionId, initialBackoff, maxBackoff, numBytesIn, numBuffersIn)
+    {
         setConsumedSubpartitionIndex(consumedSubpartitionIndex);
         bufferManager = std::make_shared<BufferManager>(inputGate->getSegmentProvider(), this, 1);
-        this->networkBuffersPerChannel =networkBuffersPerChannel;
+        this->networkBuffersPerChannel = networkBuffersPerChannel;
         stateConsumedFuture = std::make_shared<CompletableFutureV2<void>>();
     }
 
-    void SetChannelStateWriter(std::shared_ptr<ChannelStateWriter> stateWriter) {
-        if (stateWriter == nullptr){
+    void SetChannelStateWriter(std::shared_ptr<ChannelStateWriter> stateWriter)
+    {
+        if (stateWriter == nullptr) {
             LOG("invalid param, nullptr!");
             return;
         }
-        if(this->channelStateWriter != nullptr){
+        if (this->channelStateWriter != nullptr) {
             LOG("channel state writer already init!");
             return;
         }
         this->channelStateWriter = stateWriter;
     }
 
-    std::shared_ptr<ChannelStateWriter> GetChannelStateWriter() const {
+    std::shared_ptr<ChannelStateWriter> GetChannelStateWriter() const
+    {
         return channelStateWriter;
     }
 
@@ -73,16 +80,16 @@ public:
         return stateConsumedFuture1.load();
     }
 
-    void onRecoveredStateBuffer(Buffer *buffer);
-    void onRecoveredStateBuffer2(Buffer *buffer);
+    void onRecoveredStateBuffer(Buffer* buffer);
+    void onRecoveredStateBuffer2(Buffer* buffer);
 
     void finishReadRecoveredState();
 
-    std::optional<omnistream::BufferAndAvailability>  getNextRecoveredStateBuffer();
+    std::optional<omnistream::BufferAndAvailability> getNextRecoveredStateBuffer();
 
     omnistream::ObjectBufferDataType peekDataTypeUnsafe();
 
-    bool isEndOfChannelStateEvent(Buffer *buffer);
+    bool isEndOfChannelStateEvent(Buffer* buffer);
 
     std::optional<BufferAndAvailability> getNextBuffer() override;
 
@@ -107,7 +114,8 @@ public:
         throw std::invalid_argument("RecoveredInputChannel should never request partition.");
     }
 
-    void sendTaskEvent(std::shared_ptr<TaskEvent> event) override {
+    void sendTaskEvent(std::shared_ptr<TaskEvent> event) override
+    {
         throw std::invalid_argument("RecoveredInputChannel should never send any task events.");
     }
 
@@ -132,7 +140,9 @@ public:
         throw std::invalid_argument("Checkpoint was declined (tasks not ready)");
     }
 
-    void announceBufferSize(int newBufferSize) override {}
+    void announceBufferSize(int newBufferSize) override
+    {
+    }
 
     int getNetworkBuffersPerChannel()
     {
@@ -155,7 +165,10 @@ private:
         std::shared_ptr<omnistream::Buffer> owner;
 
         RecoveredBufferEntry(Buffer* b, std::shared_ptr<omnistream::Buffer> o = nullptr)
-            : buffer(b), owner(std::move(o)) {}
+            : buffer(b),
+              owner(std::move(o))
+        {
+        }
     };
 
     std::deque<RecoveredBufferEntry> receivedBuffers;
@@ -173,6 +186,5 @@ private:
     bool toOmniChannel_ = false;
     std::mutex bufferLock;
 };
-
 
 #endif // OMNISTREAM_RECOVEREDINPUTCHANNEL_H

@@ -26,12 +26,12 @@ public:
 
     std::vector<int> filterBatch(void* input) override
     {
-        auto *batch = reinterpret_cast<omnistream::VectorBatch*>(input);
+        auto* batch = reinterpret_cast<omnistream::VectorBatch*>(input);
         std::vector<int> newBatch;
         auto rowCount = batch->GetRowCount();
         newBatch.reserve(rowCount);
         auto colVecs = batch->GetVectors();
-        auto colVec = reinterpret_cast<omniruntime::vec::Vector<bool> *>(colVecs[filterColIdx]);
+        auto colVec = reinterpret_cast<omniruntime::vec::Vector<bool>*>(colVecs[filterColIdx]);
         for (int i = 0; i < rowCount; i++) {
             if (colVec->GetValue(i) == filterResult) {
                 newBatch.push_back(i);
@@ -45,6 +45,5 @@ private:
     int filterColIdx;
     bool filterResult;
 };
-
 
 #endif // OMNISTREAM_MTFILTERFUNC_H

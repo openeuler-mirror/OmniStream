@@ -13,15 +13,15 @@
 #include "data/vectorbatch/VectorBatch.h"
 #include <algorithm>
 
-DynamicKafkaRecordSerializationSchema::
-DynamicKafkaRecordSerializationSchema(std::vector<std::string>& inputFields,
-                                      std::vector<std::string>& inputTypes): inputFields_(inputFields),
-    inputTypes_(inputTypes)
+DynamicKafkaRecordSerializationSchema::DynamicKafkaRecordSerializationSchema(
+    std::vector<std::string>& inputFields, std::vector<std::string>& inputTypes)
+    : inputFields_(inputFields),
+      inputTypes_(inputTypes)
 {
     std::regex pattern(R"(DECIMAL\d+\((\d+),\s*(\d+)\))");
     std::smatch match;
 
-    for (const std::string &inputType: inputTypes) {
+    for (const std::string& inputType : inputTypes) {
         if (std::regex_search(inputType, match, pattern)) {
             int precision = std::stoi(match[1].str());
             int scale = std::stoi(match[2].str());
@@ -48,9 +48,7 @@ void DynamicKafkaRecordSerializationSchema::RowToJson(RowData* row)
             struct tm timeinfo;
             gmtime_r(&seconds, &timeinfo);
             strftime(timeBuffer, sizeof(timeBuffer), "%Y-%m-%d %H:%M:%S", &timeinfo);
-            oss << timeBuffer
-                << "."
-                << std::setw(3) << std::setfill('0')  // 强制3位宽度，不足补零
+            oss << timeBuffer << "." << std::setw(3) << std::setfill('0') // 强制3位宽度，不足补零
                 << milliseconds;
             j[inputFields_[i]] = oss.str();
         } else if (inputTypes_[i] == "INTEGER") {
@@ -59,25 +57,24 @@ void DynamicKafkaRecordSerializationSchema::RowToJson(RowData* row)
             j[inputFields_[i]] = *row->getLong(i);
         } else if (inputTypes_[i] == "BOOLEAN") {
             j[inputFields_[i]] = *row->getInt(i);
-        } else if (inputTypes_[i] == "STRING"
-                   || inputTypes_[i] == "VARCHAR"
-                   || inputTypes_[i] == "VARCHAR(2147483647)") {
-            BinaryStringData *stringRowData = row->getString(i);
-            std::string strValue = std::string(stringRowData->toString()->begin(),
-                                               stringRowData->toString()->end());
+        } else if (
+            inputTypes_[i] == "STRING" || inputTypes_[i] == "VARCHAR" || inputTypes_[i] == "VARCHAR(2147483647)") {
+            BinaryStringData* stringRowData = row->getString(i);
+            std::string strValue = std::string(stringRowData->toString()->begin(), stringRowData->toString()->end());
             j[inputFields_[i]] = strValue;
         } else {
-            LOG("RowToJson(RowData) Data type not supported: " << inputTypes_[i])
+            LOG("RowToJson(RowData) Data type not supported: " << inputTypes_[i]);
             throw std::runtime_error("RowToJson(RowData) Data type not supported");
         };
     }
 }
 
-void DynamicKafkaRecordSerializationSchema::RowToJson(omnistream::VectorBatch *input, int rowIndex) {
+void DynamicKafkaRecordSerializationSchema::RowToJson(omnistream::VectorBatch* input, int rowIndex)
+{
     input->convertToJson(j, rowIndex, decimalInfo, inputTypes_, inputFields_);
 }
 
-KeyValueByteContainer DynamicKafkaRecordSerializationSchema::Serialize(RowData *consumedRow)
+KeyValueByteContainer DynamicKafkaRecordSerializationSchema::Serialize(RowData* consumedRow)
 {
     j.clear();
     RowToJson(consumedRow);
@@ -85,7 +82,7 @@ KeyValueByteContainer DynamicKafkaRecordSerializationSchema::Serialize(RowData *
     return {nullptr, jsonStr.data()};
 }
 
-KeyValueByteContainer DynamicKafkaRecordSerializationSchema::Serialize(omnistream::VectorBatch *input, int rowIndex)
+KeyValueByteContainer DynamicKafkaRecordSerializationSchema::Serialize(omnistream::VectorBatch* input, int rowIndex)
 {
     j.clear();
     RowToJson(input, rowIndex);
@@ -93,21 +90,19 @@ KeyValueByteContainer DynamicKafkaRecordSerializationSchema::Serialize(omnistrea
     return {nullptr, jsonStr.data()};
 }
 
-KeyValueByteContainer DynamicKafkaRecordSerializationSchema::Serialize(String *element)
+KeyValueByteContainer DynamicKafkaRecordSerializationSchema::Serialize(String* element)
 {
     return {nullptr, element->data()};
 }
 
 GenericRowData DynamicKafkaRecordSerializationSchema::createProjectedRow(
-    RowData &sourceRow,
-    RowKind kind,
-    std::vector<FieldGetter> &getters)
+    RowData& sourceRow, RowKind kind, std::vector<FieldGetter>& getters)
 {
     GenericRowData projectedRow(getters.size());
     for (size_t i = 0; i < getters.size(); ++i) {
-        void *fieldPtr = getters[i].getFieldOrNull(&sourceRow);
+        void* fieldPtr = getters[i].getFieldOrNull(&sourceRow);
         if (fieldPtr != nullptr) {
-            projectedRow.setField(i, *static_cast<long *>(fieldPtr));
+            projectedRow.setField(i, *static_cast<long*>(fieldPtr));
         } else {
             // 处理 nullptr 的情况，例如设置默认值
             projectedRow.setField(i, 0L); // 假设设置默认值为 0
@@ -133,7 +128,7 @@ void to_json(nlohmann::json& j, const Row& row)
     j["arity"] = row.getFieldByPosition().size();
 }
 
-KeyValueByteContainer DynamicKafkaRecordSerializationSchema::Serialize(Row *row)
+KeyValueByteContainer DynamicKafkaRecordSerializationSchema::Serialize(Row* row)
 {
     nlohmann::json j = *row;
     std::string jsonStr = j.dump();

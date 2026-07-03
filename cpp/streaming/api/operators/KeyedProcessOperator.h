@@ -24,16 +24,17 @@
 
 // K => Key Type, IN => Input Type, OUT => Output Type
 
-template<typename K, typename IN, typename OUT>
+template <typename K, typename IN, typename OUT>
 class ContextImpl;
 
-template<typename K, typename IN, typename OUT>
+template <typename K, typename IN, typename OUT>
 class KeyedProcessOperator : public AbstractUdfStreamOperator<KeyedProcessFunction<K, IN, OUT>, K>,
                              public OneInputStreamOperator {
 public:
     using F = KeyedProcessFunction<K, IN, OUT>;
-    
-    KeyedProcessOperator(F* function, Output* output, nlohmann::json desc) : AbstractUdfStreamOperator<F, K>(function) {
+
+    KeyedProcessOperator(F* function, Output* output, nlohmann::json desc) : AbstractUdfStreamOperator<F, K>(function)
+    {
         this->chainingStrategy = ChainingStrategy::ALWAYS;
         this->output = output;
         if (desc.contains("partitionKey")) {
@@ -45,7 +46,8 @@ public:
 
     ~KeyedProcessOperator() override {};
 
-    void open() override {
+    void open() override
+    {
         AbstractUdfStreamOperator<F, K>::open();
         collector = new TimestampedCollector(this->output);
         context = new ContextImpl<K, IN, OUT>(this->userFunction, this);
@@ -53,20 +55,22 @@ public:
         reUseKeyRow = BinaryRowData::createBinaryRowDataWithMem(keyedIndex.size());
     }
 
-    void close() override {
+    void close() override
+    {
     }
 
-    JoinedRowData* getResultRow() {
+    JoinedRowData* getResultRow()
+    {
         return this->userFunction->getResultRow();
     }
-    void ProcessWatermark(Watermark *watermark) override {
+    void ProcessWatermark(Watermark* watermark) override
+    {
         AbstractStreamOperator<K>::ProcessWatermark(watermark);
     }
-    void processElement(StreamRecord *element) override
+    void processElement(StreamRecord* element) override
     {
         collector->setTimestamp(element);
-        if (context->element != nullptr)
-        {
+        if (context->element != nullptr) {
             delete context->element;
         }
         context->element = element;
@@ -75,32 +79,42 @@ public:
         context->element = nullptr;
     }
 
-    void processBatch(StreamRecord *element) override
+    void processBatch(StreamRecord* element) override
     {
-        LOG("KeyedProcessOperator processBatch running")
-        this->userFunction->processBatch(reinterpret_cast<omnistream::VectorBatch*>(element->getValue()), *context, *collector); // GroupAgg
-        LOG("KeyedProcessOperator processBatch end")
+        LOG("KeyedProcessOperator processBatch running");
+        this->userFunction->processBatch(
+            reinterpret_cast<omnistream::VectorBatch*>(element->getValue()),
+            *context,
+            *collector); // GroupAgg
+        LOG("KeyedProcessOperator processBatch end");
     }
 
-    void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) override {
-        INFO_RELEASE("savepoint: KeyedProcessOperator initializeState with initializer, operatorID: " << OneInputStreamOperator::GetOperatorID().toString());
+    void initializeState(StreamTaskStateInitializerImpl* initializer, TypeSerializer* keySerializer) override
+    {
+        INFO_RELEASE(
+            "savepoint: KeyedProcessOperator initializeState with initializer, operatorID: "
+            << OneInputStreamOperator::GetOperatorID().toString());
         AbstractStreamOperator<K>::SetOperatorID(OneInputStreamOperator::GetOperatorID().toString());
         AbstractStreamOperator<K>::initializeState(initializer, keySerializer);
         // Operator specifig initialization
     }
 
-    void notifyCheckpointComplete(long checkpointId) override {
+    void notifyCheckpointComplete(long checkpointId) override
+    {
         AbstractUdfStreamOperator<F, K>::notifyCheckpointComplete(checkpointId);
     }
 
-    void notifyCheckpointAborted(long checkpointId) override {
+    void notifyCheckpointAborted(long checkpointId) override
+    {
         AbstractUdfStreamOperator<F, K>::notifyCheckpointAborted(checkpointId);
     }
 
-    bool isSetKeyContextElement() override {
+    bool isSetKeyContextElement() override
+    {
         return true;
     }
-    void setKeyContextElement(StreamRecord *record) {
+    void setKeyContextElement(StreamRecord* record)
+    {
         for (size_t i = 0; i < keyedIndex.size(); ++i) {
             int64_t keyVal = *(reinterpret_cast<RowData*>(record->getValue())->getLong(keyedIndex[i]));
             reUseKeyRow->setLong(i, keyVal);
@@ -110,18 +124,20 @@ public:
             this->setCurrentKey(reUseKeyRow);
         }
     }
-    
-    const char * getName() override {
+
+    const char* getName() override
+    {
         return "KeyedProcessOperator";
     }
 
-    std::string getTypeName() override {
+    std::string getTypeName() override
+    {
         std::string typeName = "KeyedProcessOperator";
-        typeName.append(__PRETTY_FUNCTION__) ;
-        return typeName ;
+        typeName.append(__PRETTY_FUNCTION__);
+        return typeName;
     }
 
-    void processWatermarkStatus(WatermarkStatus *watermarkStatus) override
+    void processWatermarkStatus(WatermarkStatus* watermarkStatus) override
     {
         this->output->emitWatermarkStatus(watermarkStatus);
     }
@@ -133,24 +149,31 @@ private:
     BinaryRowData* reUseKeyRow;
 };
 
-template<typename K, typename IN, typename OUT>
+template <typename K, typename IN, typename OUT>
 class ContextImpl : public KeyedProcessFunction<K, IN, OUT>::Context {
 public:
-    ContextImpl(KeyedProcessFunction<K, IN, OUT>* function, KeyedProcessOperator<K, IN, OUT>* owner) : KeyedProcessFunction<K, IN, OUT>::Context(), owner_(owner) {}
-    long timestamp() const override {
+    ContextImpl(KeyedProcessFunction<K, IN, OUT>* function, KeyedProcessOperator<K, IN, OUT>* owner)
+        : KeyedProcessFunction<K, IN, OUT>::Context(),
+          owner_(owner)
+    {
+    }
+    long timestamp() const override
+    {
         // NOT IMPLEMENTED
         return 0;
     }
 
-    omnistream::streaming::TimerService *timerService() override
+    omnistream::streaming::TimerService* timerService() override
     {
         return localTimerService.get();
     }
 
-    K getCurrentKey() const override {
+    K getCurrentKey() const override
+    {
         return owner_->getCurrentKey();
     }
-    void setCurrentKey(K key) override {
+    void setCurrentKey(K key) override
+    {
         owner_->setCurrentKey(key);
     }
     StreamRecord* element = nullptr;
@@ -160,7 +183,7 @@ private:
     KeyedProcessOperator<K, IN, OUT>* owner_;
 };
 
-template<typename K, typename IN, typename OUT>
+template <typename K, typename IN, typename OUT>
 class OnTimerContextImpl : public KeyedProcessFunction<K, IN, OUT>::OnTimerContext {
     // NOT IMPLEMENTED
 };

@@ -30,10 +30,11 @@
  * Method:    createNativeTaskExecutor
  * Signature: (Ljava/lang/String;J)J
  */
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskexecutor_OmniTaskExecutor_createNativeTaskExecutor
-  (JNIEnv *jnienv, jobject thiz, jstring taskExecutorConfiguration, jlong nativeTaskManagerServiceAddress)
+JNIEXPORT jlong JNICALL
+Java_com_huawei_omniruntime_flink_runtime_taskexecutor_OmniTaskExecutor_createNativeTaskExecutor(
+    JNIEnv* jnienv, jobject thiz, jstring taskExecutorConfiguration, jlong nativeTaskManagerServiceAddress)
 {
-    auto taskManagerServices = reinterpret_cast<omnistream::TaskManagerServices *>(nativeTaskManagerServiceAddress);
+    auto taskManagerServices = reinterpret_cast<omnistream::TaskManagerServices*>(nativeTaskManagerServiceAddress);
     auto taskManagerServicesWrap = std::shared_ptr<omnistream::TaskManagerServices>(taskManagerServices);
     omnistream::OmniTaskExecutor* omniTaskExecutor = new omnistream::OmniTaskExecutor(taskManagerServicesWrap);
     return reinterpret_cast<jlong>(omniTaskExecutor);
@@ -44,18 +45,18 @@ JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskexecutor_O
  * Method:    submitTaskNative
  * Signature: (JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;)J
  */
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskexecutor_OmniTaskExecutor_submitTaskNative
-  (JNIEnv * jniEnv, jobject thiz, jlong nativeTaskExecutorAddress, jstring jobjson, jstring taskjson, jstring tddjson)
+JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskexecutor_OmniTaskExecutor_submitTaskNative(
+    JNIEnv* jniEnv, jobject thiz, jlong nativeTaskExecutorAddress, jstring jobjson, jstring taskjson, jstring tddjson)
 {
-    const char* jobString  = jniEnv->GetStringUTFChars(jobjson, nullptr);
+    const char* jobString = jniEnv->GetStringUTFChars(jobjson, nullptr);
     std::string jobInfoString(jobString);
     jniEnv->ReleaseStringUTFChars(jobjson, jobString);
 
-    const char* taskString  = jniEnv->GetStringUTFChars(taskjson, nullptr);
+    const char* taskString = jniEnv->GetStringUTFChars(taskjson, nullptr);
     std::string taskInfoString(taskString);
     jniEnv->ReleaseStringUTFChars(taskjson, taskString);
 
-    const char* tddString  = jniEnv->GetStringUTFChars(tddjson, nullptr);
+    const char* tddString = jniEnv->GetStringUTFChars(tddjson, nullptr);
     std::string taskDDString(tddString);
     jniEnv->ReleaseStringUTFChars(tddjson, tddString);
 
@@ -70,34 +71,41 @@ JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskexecutor_O
     nlohmann::json tdd = nlohmann::json::parse(taskDDString);
     omnistream::TaskDeploymentDescriptorPOD tddinfo = tdd;
 
-    auto omniTaskExecutor = reinterpret_cast<omnistream::OmniTaskExecutor *> (nativeTaskExecutorAddress);
+    auto omniTaskExecutor = reinterpret_cast<omnistream::OmniTaskExecutor*>(nativeTaskExecutorAddress);
     std::shared_ptr<RemoteDataFetcherBridge> remoteDataFetcherBridge = std::make_shared<RemoteDataFetcherBridgeImpl>();
 
-    auto nativeTask  = omniTaskExecutor ->submitTask(jobInfo, taskInfo, tddinfo, nullptr, nullptr, nullptr, remoteDataFetcherBridge);
+    auto nativeTask =
+        omniTaskExecutor->submitTask(jobInfo, taskInfo, tddinfo, nullptr, nullptr, nullptr, remoteDataFetcherBridge);
     return reinterpret_cast<jlong>(nativeTask);
 }
 /*
  * Class:     com_huawei_omniruntime_flink_runtime_taskexecutor_OmniTaskExecutor
  * Method:    submitTaskNativeWithCheckpointing
- * Signature: (JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/huawei/omniruntime/flink/runtime/state/TaskStateManagerWrapper;)J
+ * Signature:
+ * (JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/huawei/omniruntime/flink/runtime/state/TaskStateManagerWrapper;)J
  */
 
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskexecutor_OmniTaskExecutor_submitTaskNativeWithCheckpointing
-(JNIEnv * jniEnv, jobject thiz, jlong nativeTaskExecutorAddress,
- jstring jobjson, jstring taskjson, jstring tddjson,
- jobject taskStateManagerWrapper,
- jobject omniTaskWrapper,
- jobject taskOperatorEventGateway)
+JNIEXPORT jlong JNICALL
+Java_com_huawei_omniruntime_flink_runtime_taskexecutor_OmniTaskExecutor_submitTaskNativeWithCheckpointing(
+    JNIEnv* jniEnv,
+    jobject thiz,
+    jlong nativeTaskExecutorAddress,
+    jstring jobjson,
+    jstring taskjson,
+    jstring tddjson,
+    jobject taskStateManagerWrapper,
+    jobject omniTaskWrapper,
+    jobject taskOperatorEventGateway)
 {
-    const char* jobString  = jniEnv->GetStringUTFChars(jobjson, nullptr);
+    const char* jobString = jniEnv->GetStringUTFChars(jobjson, nullptr);
     std::string jobInfoString(jobString);
     jniEnv->ReleaseStringUTFChars(jobjson, jobString);
 
-    const char* taskString  = jniEnv->GetStringUTFChars(taskjson, nullptr);
+    const char* taskString = jniEnv->GetStringUTFChars(taskjson, nullptr);
     std::string taskInfoString(taskString);
     jniEnv->ReleaseStringUTFChars(taskjson, taskString);
 
-    const char* tddString  = jniEnv->GetStringUTFChars(tddjson, nullptr);
+    const char* tddString = jniEnv->GetStringUTFChars(tddjson, nullptr);
     std::string taskDDString(tddString);
     jniEnv->ReleaseStringUTFChars(tddjson, tddString);
 
@@ -113,30 +121,30 @@ JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskexecutor_O
     omnistream::TaskDeploymentDescriptorPOD tddinfo = tdd;
     jobject globalTaskStateRef = jniEnv->NewGlobalRef(taskStateManagerWrapper);
     if (globalTaskStateRef == nullptr) {
-        LOG_TRACE ("Failed to create global reference for TaskState!")
+        LOG_TRACE("Failed to create global reference for TaskState!");
     }
-    LOG_TRACE("C++ Task object created. Global ref acquired.")
-    std::shared_ptr<TaskStateManagerBridge> stateBridge
-         = std::make_shared<TaskStateManagerBridgeImpl>(globalTaskStateRef);
+    LOG_TRACE("C++ Task object created. Global ref acquired.");
+    std::shared_ptr<TaskStateManagerBridge> stateBridge =
+        std::make_shared<TaskStateManagerBridgeImpl>(globalTaskStateRef);
 
     // create the global referecen for the omnitaskwrapper
     jobject globalOmniTaskRef = jniEnv->NewGlobalRef(omniTaskWrapper);
     if (globalOmniTaskRef == nullptr) {
-        LOG_TRACE ("Failed to create global reference for globalOmniTaskRef!")
+        LOG_TRACE("Failed to create global reference for globalOmniTaskRef!");
     }
-    LOG_TRACE("C++ Task object created. Global ref acquired.")
-    std::shared_ptr<OmniTaskBridge> TaskBridge
-         = std::make_shared<OmniTaskBridgeImpl2>(globalOmniTaskRef);
+    LOG_TRACE("C++ Task object created. Global ref acquired.");
+    std::shared_ptr<OmniTaskBridge> TaskBridge = std::make_shared<OmniTaskBridgeImpl2>(globalOmniTaskRef);
     // create the global reference for the taskOperatorEventGateway
     jobject globaltaskOperatorEventGatewayref = jniEnv->NewGlobalRef(taskOperatorEventGateway);
     if (globaltaskOperatorEventGatewayref == nullptr) {
-        LOG_TRACE ("Failed to create global reference for globaltaskOperatorEventGatewayref!")
+        LOG_TRACE("Failed to create global reference for globaltaskOperatorEventGatewayref!");
     }
-    LOG_TRACE("C++ Task object created. Global ref acquired.")
-    std::shared_ptr<TaskOperatorEventGatewayBridge> TaskOperatorEventGatewayBridge
-         = std::make_shared<TaskOperatorEventGatewayBridgeImpl>(globaltaskOperatorEventGatewayref);
+    LOG_TRACE("C++ Task object created. Global ref acquired.");
+    std::shared_ptr<TaskOperatorEventGatewayBridge> TaskOperatorEventGatewayBridge =
+        std::make_shared<TaskOperatorEventGatewayBridgeImpl>(globaltaskOperatorEventGatewayref);
     std::shared_ptr<RemoteDataFetcherBridge> remoteDataFetcherBridge = std::make_shared<RemoteDataFetcherBridgeImpl>();
-    auto omniTaskExecutor = reinterpret_cast<omnistream::OmniTaskExecutor *> (nativeTaskExecutorAddress);
-    auto nativeTask  = omniTaskExecutor ->submitTask(jobInfo, taskInfo, tddinfo, stateBridge, TaskBridge, TaskOperatorEventGatewayBridge, remoteDataFetcherBridge);
+    auto omniTaskExecutor = reinterpret_cast<omnistream::OmniTaskExecutor*>(nativeTaskExecutorAddress);
+    auto nativeTask = omniTaskExecutor->submitTask(
+        jobInfo, taskInfo, tddinfo, stateBridge, TaskBridge, TaskOperatorEventGatewayBridge, remoteDataFetcherBridge);
     return reinterpret_cast<jlong>(nativeTask);
 }

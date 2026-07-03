@@ -21,18 +21,20 @@ TEST(CompletableFutureTest, CompleteAndGet)
 }
 
 // A non-inline supplier function with a parameter
-int ComputeAnswer() {
+int ComputeAnswer()
+{
     return 42;
 }
 
-TEST(CompletableFutureV2Test, SupplyAsyncReturnsValue) {
+TEST(CompletableFutureV2Test, SupplyAsyncReturnsValue)
+{
     auto cf = CompletableFutureV2<int>::SupplyAsync([]() {
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
         return 42;
     });
 
     // Wait for completion
-    auto result = cf->Get();  // blocks until completed
+    auto result = cf->Get(); // blocks until completed
 
     EXPECT_EQ(result, 42);
     EXPECT_TRUE(cf->IsDone());
@@ -54,7 +56,6 @@ TEST(CompletableFutureTest, ThenApplyCallback)
 
 TEST(CompletableFutureTest, AllOfCompletes)
 {
-
     auto f1 = std::make_shared<CompletableFutureV2<int>>();
     auto f2 = std::make_shared<CompletableFutureV2<int>>();
     auto f3 = std::make_shared<CompletableFutureV2<int>>();
@@ -70,7 +71,8 @@ TEST(CompletableFutureTest, AllOfCompletes)
     EXPECT_TRUE(all->IsDone());
 }
 
-TEST(CompletableFutureTest, TwoFuturesCombineResults) {
+TEST(CompletableFutureTest, TwoFuturesCombineResults)
+{
     auto f1 = std::make_shared<CompletableFutureV2<int>>();
     auto f2 = std::make_shared<CompletableFutureV2<int>>();
 

@@ -107,7 +107,7 @@ std::string ConfigStr_sink =
         "id":"org.apache.flink.table.runtime.operators.sink.SinkOperator"
     })delimiter";
 
-omnistream::VectorBatch *getBatch1()
+omnistream::VectorBatch* getBatch1()
 {
     // Batch
     /*
@@ -157,7 +157,7 @@ omnistream::VectorBatch *getBatch1()
     return vbatch;
 }
 
-omnistream::VectorBatch *getBatch2()
+omnistream::VectorBatch* getBatch2()
 {
     // Batch
     /*
@@ -210,7 +210,7 @@ omnistream::VectorBatch *getBatch2()
     return vbatch;
 }
 
-omnistream::VectorBatch *getBatch3()
+omnistream::VectorBatch* getBatch3()
 {
     // Batch
     /*
@@ -260,7 +260,7 @@ omnistream::VectorBatch *getBatch3()
     return vbatch;
 }
 
-omnistream::VectorBatch *getOutput1()
+omnistream::VectorBatch* getOutput1()
 {
     // Batch
     /*
@@ -304,7 +304,7 @@ omnistream::VectorBatch *getOutput1()
     return vbatch;
 }
 
-omnistream::VectorBatch *getOutput2()
+omnistream::VectorBatch* getOutput2()
 {
     // Batch
     /*
@@ -358,7 +358,7 @@ omnistream::VectorBatch *getOutput2()
     return vbatch;
 }
 
-omnistream::VectorBatch *getOutput3()
+omnistream::VectorBatch* getOutput3()
 {
     // Batch
     /*
@@ -409,7 +409,7 @@ omnistream::VectorBatch *getOutput3()
     return vbatch;
 }
 
-omnistream::VectorBatch *getOutput4()
+omnistream::VectorBatch* getOutput4()
 {
     // Batch
     /*
@@ -453,7 +453,7 @@ omnistream::VectorBatch *getOutput4()
     return vbatch;
 }
 
-omnistream::VectorBatch *getOutput5()
+omnistream::VectorBatch* getOutput5()
 {
     // Batch
     /*
@@ -507,7 +507,7 @@ omnistream::VectorBatch *getOutput5()
     return vbatch;
 }
 
-omnistream::VectorBatch *getOutput6()
+omnistream::VectorBatch* getOutput6()
 {
     // Batch
     /*
@@ -559,7 +559,7 @@ omnistream::VectorBatch *getOutput6()
 }
 
 template <typename T>
-bool compareCol(omniruntime::vec::BaseVector *col1, omniruntime::vec::BaseVector *col2)
+bool compareCol(omniruntime::vec::BaseVector* col1, omniruntime::vec::BaseVector* col2)
 {
     if (col1->GetSize() != col2->GetSize()) {
         std::cout << "size wrong" << std::endl;
@@ -571,8 +571,8 @@ bool compareCol(omniruntime::vec::BaseVector *col1, omniruntime::vec::BaseVector
         return false;
     }
 
-    omniruntime::vec::Vector<T> *col1cast = static_cast<omniruntime::vec::Vector<T> *>(col1);
-    omniruntime::vec::Vector<T> *col2cast = static_cast<omniruntime::vec::Vector<T> *>(col2);
+    omniruntime::vec::Vector<T>* col1cast = static_cast<omniruntime::vec::Vector<T>*>(col1);
+    omniruntime::vec::Vector<T>* col2cast = static_cast<omniruntime::vec::Vector<T>*>(col2);
 
     if (col1cast->GetNullCount() != col2cast->GetNullCount()) {
         std::cout << "null count wrong" << std::endl;
@@ -596,7 +596,7 @@ bool compareCol(omniruntime::vec::BaseVector *col1, omniruntime::vec::BaseVector
     return true;
 };
 
-bool batchesEqual(omnistream::VectorBatch *b1, omnistream::VectorBatch *b2)
+bool batchesEqual(omnistream::VectorBatch* b1, omnistream::VectorBatch* b2)
 {
     if (b1->GetVectorCount() != b2->GetVectorCount()) {
         std::cout << "b1 count is: " << b1->GetVectorCount() << " b2 count is: " << b2->GetVectorCount() << std::endl;
@@ -630,7 +630,7 @@ bool batchesEqual(omnistream::VectorBatch *b1, omnistream::VectorBatch *b2)
            compareCol<omniruntime::vec::LargeStringContainer<std::string_view>>(b1->Get(3), b2->Get(3));
 };
 
-bool batchesEqual2(omnistream::VectorBatch *b1, omnistream::VectorBatch *b2)
+bool batchesEqual2(omnistream::VectorBatch* b1, omnistream::VectorBatch* b2)
 {
     if (b1->GetVectorCount() != b2->GetVectorCount()) {
         std::cout << "b1 count is: " << b1->GetVectorCount() << " b2 count is: " << b2->GetVectorCount() << std::endl;
@@ -671,16 +671,17 @@ TEST(RowTimeDeduplicateTest, UpdateBeforeKeepLastRowTimeTest)
     // VectorBatchUtil::printVectorBatch(inputVB2);
 
     json parsedJson = json::parse(description);
-    OperatorConfig opConfig(uniqueName,                                // uniqueName:
-        "Deduplicate(keep=[LastRow], key=[$1, $2], order=[ROWTIME])",  // Name
+    OperatorConfig opConfig(
+        uniqueName,                                                   // uniqueName:
+        "Deduplicate(keep=[LastRow], key=[$1, $2], order=[ROWTIME])", // Name
         parsedJson["operators"][0]["description"]["inputTypes"],
         parsedJson["operators"][0]["description"]["outputTypes"],
         parsedJson["operators"][0]["description"]);
 
-    BatchOutputTest *output = new BatchOutputTest();
+    BatchOutputTest* output = new BatchOutputTest();
     StreamOperatorFactory streamOperatorFactory;
 
-    auto *keyedOp = dynamic_cast<KeyedProcessOperator<RowData *, omnistream::VectorBatch *, omnistream::VectorBatch *> *>(
+    auto* keyedOp = dynamic_cast<KeyedProcessOperator<RowData*, omnistream::VectorBatch*, omnistream::VectorBatch*>*>(
         streamOperatorFactory.createOperatorAndCollector(opConfig, output));
 
     // keyedOp->setup();
@@ -698,29 +699,30 @@ TEST(RowTimeDeduplicateTest, UpdateBeforeKeepLastRowTimeTest)
     }
     env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
-    std::vector<omnistream::RowField> *typeInfo = new std::vector<omnistream::RowField>(
-        {omnistream::RowField("col0", BasicLogicalType::BIGINT), omnistream::RowField("col1", BasicLogicalType::BIGINT)});
-    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
+    StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
+    std::vector<omnistream::RowField>* typeInfo = new std::vector<omnistream::RowField>(
+        {omnistream::RowField("col0", BasicLogicalType::BIGINT),
+         omnistream::RowField("col1", BasicLogicalType::BIGINT)});
+    TypeSerializer* ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
 
     keyedOp->initializeState(initializer, ser);
     keyedOp->open();
     keyedOp->processBatch(new StreamRecord(inputVB1));
 
     // 状态后端为空，插入测试
-    omnistream::VectorBatch *outputVB1_1 = reinterpret_cast<omnistream::VectorBatch *>(output->getVectorBatch());
+    omnistream::VectorBatch* outputVB1_1 = reinterpret_cast<omnistream::VectorBatch*>(output->getVectorBatch());
     auto outputVB1 = getOutput1();
     EXPECT_TRUE(batchesEqual(outputVB1, outputVB1_1));
 
     keyedOp->processBatch(new StreamRecord(inputVB2));
     // 插入重复数据，回撤测试
-    omnistream::VectorBatch *outputVB2_2 = reinterpret_cast<omnistream::VectorBatch *>(output->getVectorBatch());
+    omnistream::VectorBatch* outputVB2_2 = reinterpret_cast<omnistream::VectorBatch*>(output->getVectorBatch());
     auto outputVB2 = getOutput2();
     EXPECT_TRUE(batchesEqual(outputVB2, outputVB2_2));
 
     // 状态后端有数据，插入测试
     keyedOp->processBatch(new StreamRecord(inputVB3));
-    omnistream::VectorBatch *outputVB3_3 = reinterpret_cast<omnistream::VectorBatch *>(output->getVectorBatch());
+    omnistream::VectorBatch* outputVB3_3 = reinterpret_cast<omnistream::VectorBatch*>(output->getVectorBatch());
     auto outputVB3 = getOutput3();
     EXPECT_TRUE(batchesEqual(outputVB3, outputVB3_3));
 

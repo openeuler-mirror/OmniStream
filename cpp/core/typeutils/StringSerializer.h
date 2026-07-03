@@ -15,14 +15,14 @@ public:
     {
         reuseBuffer = new String();
     };
-    void *deserialize(DataInputView &source) override;
+    void* deserialize(DataInputView& source) override;
 
-    void serialize(void *record, DataOutputSerializer &target) override;
+    void serialize(void* record, DataOutputSerializer& target) override;
 
-    void deserialize(Object *buffer, DataInputView &source) override;
+    void deserialize(Object* buffer, DataInputView& source) override;
 
-    void serialize(Object *buffer, DataOutputSerializer &target) override;
-    
+    void serialize(Object* buffer, DataOutputSerializer& target) override;
+
     BackendDataType getBackendId() const override
     {
         return BackendDataType::VARCHAR_BK;
@@ -41,7 +41,7 @@ public:
         }
     };
 
-    const char *getName() const override
+    const char* getName() const override
     {
         return "StringSerializer";
     }

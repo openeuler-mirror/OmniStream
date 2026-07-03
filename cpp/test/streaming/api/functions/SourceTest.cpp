@@ -7,37 +7,46 @@
 
 class DummySourceContext : public SourceContext {
 public:
-    DummySourceContext(Object *lock) : lock(lock) {
+    DummySourceContext(Object* lock) : lock(lock)
+    {
     }
 
-    void collect(void *element) override {
+    void collect(void* element) override
+    {
         reUseRecord = element;
     }
 
-    void collectWithTimestamp(void *element, int64_t timestamp) override {
+    void collectWithTimestamp(void* element, int64_t timestamp) override
+    {
         // ignore the timestamp
         collect(element);
     }
 
-    void emitWatermark(Watermark* mark) override {
+    void emitWatermark(Watermark* mark) override
+    {
         // do nothing
     }
 
-    void markAsTemporarilyIdle() override {
+    void markAsTemporarilyIdle() override
+    {
         // do nothing
     }
 
-    Object *getCheckpointLock() override {
+    Object* getCheckpointLock() override
+    {
         return lock;
     }
 
-    void close() override {}
+    void close() override
+    {
+    }
 
     void* reUseRecord;
-    Object *lock;
+    Object* lock;
 };
 
-TEST(SourceTest, NexmarkDataGeneratorTest) {
+TEST(SourceTest, NexmarkDataGeneratorTest)
+{
     int batchSize = 100;
     BatchEventDeserializer* eventDeserializer = new BatchEventDeserializer(batchSize);
     auto typeInfo = TypeInfoFactory::createTypeInfo("String");
@@ -53,8 +62,8 @@ TEST(SourceTest, NexmarkDataGeneratorTest) {
                 int64_t firstEventNumber
     */
     std::string baseTimeStr = "2025-02-22 00:00:00";
-    GeneratorConfig config {nexmarkConfig, 1740182400000, 0, 100, 0};
-    NexmarkSourceFunction<omnistream::VectorBatch> srcFunc {config, eventDeserializer, typeInfo};
+    GeneratorConfig config{nexmarkConfig, 1740182400000, 0, 100, 0};
+    NexmarkSourceFunction<omnistream::VectorBatch> srcFunc{config, eventDeserializer, typeInfo};
 
     auto runtimeEnv = new omnistream::RuntimeEnvironmentV2();
     auto runtimeCtx = new StreamingRuntimeContext<int>();
@@ -65,6 +74,6 @@ TEST(SourceTest, NexmarkDataGeneratorTest) {
     thread_local Object lock;
     DummySourceContext ctx(&lock);
     srcFunc.run(&ctx);
-    auto output = reinterpret_cast<omnistream::VectorBatch*> (ctx.reUseRecord);
+    auto output = reinterpret_cast<omnistream::VectorBatch*>(ctx.reUseRecord);
     EXPECT_EQ(output->GetRowCount(), batchSize);
 }

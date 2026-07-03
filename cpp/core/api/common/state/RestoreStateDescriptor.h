@@ -20,24 +20,39 @@
  */
 class RestoreStateDescriptor : public StateDescriptor {
 public:
-    RestoreStateDescriptor(const std::string &name,
-                           Type type,
-                           TypeSerializer *stateSerializer,
-                           BackendDataType backendId,
-                           BackendDataType keyDataId = BackendDataType::VOID_NAMESPACE_BK,
-                           BackendDataType valueDataId = BackendDataType::VOID_NAMESPACE_BK)
+    RestoreStateDescriptor(
+        const std::string& name,
+        Type type,
+        TypeSerializer* stateSerializer,
+        BackendDataType backendId,
+        BackendDataType keyDataId = BackendDataType::VOID_NAMESPACE_BK,
+        BackendDataType valueDataId = BackendDataType::VOID_NAMESPACE_BK)
         : StateDescriptor(name, stateSerializer),
           type_(type),
           backendId_(backendId),
           keyDataId_(keyDataId),
-          valueDataId_(valueDataId) {}
+          valueDataId_(valueDataId)
+    {
+    }
 
     ~RestoreStateDescriptor() override = default;
 
-    Type getType() override { return type_; }
-    BackendDataType getBackendId() override { return backendId_; }
-    BackendDataType getKeyDataId() override { return keyDataId_; }
-    BackendDataType getValueDataId() override { return valueDataId_; }
+    Type getType() override
+    {
+        return type_;
+    }
+    BackendDataType getBackendId() override
+    {
+        return backendId_;
+    }
+    BackendDataType getKeyDataId() override
+    {
+        return keyDataId_;
+    }
+    BackendDataType getValueDataId() override
+    {
+        return valueDataId_;
+    }
 
 private:
     Type type_;

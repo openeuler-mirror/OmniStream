@@ -5,7 +5,6 @@
 #ifndef FLINK_TNEL_SPILLINGADAPTIVESPANNINGRECORDDESERIALIZER_H
 #define FLINK_TNEL_SPILLINGADAPTIVESPANNINGRECORDDESERIALIZER_H
 
-
 #include <buffer/ReadOnlySlicedNetworkBuffer.h>
 
 #include "SpanningWrapper.h"
@@ -14,37 +13,38 @@
 
 namespace omnistream::datastream {
 class SpillingAdaptiveSpanningRecordDeserializer : public RecordDeserializer {
-
 public:
     SpillingAdaptiveSpanningRecordDeserializer();
 
-    DeserializationResult &getNextRecord(IOReadableWritable& target) override ;
+    DeserializationResult& getNextRecord(IOReadableWritable& target) override;
 
-    void setNextBuffer(const uint8_t *buffer, int size) override;
+    void setNextBuffer(const uint8_t* buffer, int size) override;
 
     ~SpillingAdaptiveSpanningRecordDeserializer() override;
 
-    void clear() override ;
+    void clear() override;
 
-    void *deserialize(DataInputView &source) override;
+    void* deserialize(DataInputView& source) override;
 
-    void serialize(void *record, DataOutputSerializer &target) override;
+    void serialize(void* record, DataOutputSerializer& target) override;
 
-    const char *getName() const override;
+    const char* getName() const override;
 
-    BackendDataType getBackendId() const override { return BackendDataType::INVALID_BK; };
+    BackendDataType getBackendId() const override
+    {
+        return BackendDataType::INVALID_BK;
+    };
     void SetNextBuffer(ReadOnlySlicedNetworkBuffer* buffer);
     std::vector<omnistream::Buffer*> GetUnconsumedBuffer() override;
-private:
 
+private:
     DeserializationResult& readNextRecord(IOReadableWritable& target);
     DeserializationResult& readNonSpanningRecord(IOReadableWritable& target);
 
-    NonSpanningWrapper *nonSpanningWrapper;
-    SpanningWrapper *spanningWrapper;
+    NonSpanningWrapper* nonSpanningWrapper;
+    SpanningWrapper* spanningWrapper;
     ReadOnlySlicedNetworkBuffer* currentBuffer = nullptr;
 };
-}
-
+} // namespace omnistream::datastream
 
 #endif

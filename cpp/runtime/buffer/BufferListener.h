@@ -16,18 +16,18 @@
 
 namespace omnistream {
 
-    class BufferListener {
-    public:
-        virtual ~BufferListener() = default;
+class BufferListener {
+public:
+    virtual ~BufferListener() = default;
 
-        virtual bool notifyBufferAvailable(std::shared_ptr<Buffer> buffer) = 0;
-        virtual void notifyBufferDestroyed() = 0;
+    virtual bool notifyBufferAvailable(std::shared_ptr<Buffer> buffer) = 0;
+    virtual void notifyBufferDestroyed() = 0;
 
-        virtual std::string toString() const
-        {
-            return "BufferListener";
-        }
-    };
+    virtual std::string toString() const
+    {
+        return "BufferListener";
+    }
 };
+}; // namespace omnistream
 
 #endif // BUFFERLISTENER_H

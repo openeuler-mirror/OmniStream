@@ -12,8 +12,7 @@
 #include "StringTypeInfo.h"
 #include "../typeutils/StringSerializer.h"
 
-
-TypeSerializer *StringTypeInfo::createTypeSerializer()
+TypeSerializer* StringTypeInfo::createTypeSerializer()
 {
     return new StringSerializer();
 }
@@ -23,4 +22,6 @@ std::string StringTypeInfo::name()
     return name_;
 }
 
-StringTypeInfo::StringTypeInfo(const char *name) : name_(name) {}
+StringTypeInfo::StringTypeInfo(const char* name) : name_(name)
+{
+}

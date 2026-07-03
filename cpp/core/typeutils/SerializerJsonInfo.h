@@ -17,23 +17,23 @@
 
 enum class SerializerType {
     UNKNOWN = 0,
-    LIST = 1, /* use fields [type, valueSerializer] */
-    BIG_INT = 2, /* use fields [type] */
-    LONG = 3, /* use fields [type] */
-    INT = 4, /* use fields [type] */
-    DOUBLE = 5, /* use fields [type] */
-    MAP = 6, /* use fields [type, keySerializer, valueSerializer] */
-    POJO = 7, /* use fields [type, fieldNames, fieldSerializers] */
-    STRING_T = 8, /* use fields [type] */
-    BOOLEAN = 9, /* use fields [type] */
-    VOID = 10, /* use fields [type] */
+    LIST = 1,            /* use fields [type, valueSerializer] */
+    BIG_INT = 2,         /* use fields [type] */
+    LONG = 3,            /* use fields [type] */
+    INT = 4,             /* use fields [type] */
+    DOUBLE = 5,          /* use fields [type] */
+    MAP = 6,             /* use fields [type, keySerializer, valueSerializer] */
+    POJO = 7,            /* use fields [type, fieldNames, fieldSerializers] */
+    STRING_T = 8,        /* use fields [type] */
+    BOOLEAN = 9,         /* use fields [type] */
+    VOID = 10,           /* use fields [type] */
     VOID_NAMESPACE = 11, /* use fields [type] */
-    TIMER = 12, /* use fields [type, keySerializer, namespaceSerializer] */
+    TIMER = 12,          /* use fields [type, keySerializer, namespaceSerializer] */
     // TUPLE = 13 与 OmniAdaptor Java 端 OmniSerializerType.TUPLE 的 code 必须保持一致
-    TUPLE = 13,/* use fields [type, elementType, fieldSerializers] */
+    TUPLE = 13,                /* use fields [type, elementType, fieldSerializers] */
     BYTE_PRIMITIVE_ARRAY = 14, /* use fields [type, valueSerializer] */
-    ROW = 15, /* use fields [type, logicalType] */
-    BINARY_ROW = 16, /* use fields [type, fieldNames] */
+    ROW = 15,                  /* use fields [type, logicalType] */
+    BINARY_ROW = 16,           /* use fields [type, fieldNames] */
 };
 
 struct SerializerJsonInfo {
@@ -42,18 +42,19 @@ struct SerializerJsonInfo {
     // elementType pojo使用，类的全路径限定名 com.example.xxx
     std::string elementType = "";
     // keySerializer只有map使用
-    TypeSerializer *keySerializer;
+    TypeSerializer* keySerializer;
     // valueSerializer map及list中的pojo使用
-    TypeSerializer *valueSerializer;
+    TypeSerializer* valueSerializer;
     // namespaceSerializer TimerSerializer 使用
-    TypeSerializer *namespaceSerializer;
+    TypeSerializer* namespaceSerializer;
     // fieldSerializers和fieldNames pojo使用
-    std::vector<TypeSerializer *> fieldSerializers;
+    std::vector<TypeSerializer*> fieldSerializers;
     std::vector<std::string> fieldNames;
     LogicalType* logicalType;
 
 public:
-    std::string toJson() {
+    std::string toJson()
+    {
         nlohmann::json jsonObj;
         jsonObj["type"] = type;
         jsonObj["element_type"] = elementType;
@@ -93,4 +94,4 @@ public:
     };
 };
 
-#endif //OMNISTREAM_SERIALIZERJSONINFO_H
+#endif // OMNISTREAM_SERIALIZERJSONINFO_H

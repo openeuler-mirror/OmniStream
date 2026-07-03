@@ -29,12 +29,19 @@
 template <typename E, typename SplitT, typename SplitStateT>
 class SourceReaderBase : public SourceReader<SplitT> {
 public:
-    SourceReaderBase(FutureCompletingBlockingQueue<RdKafka::Message>* elementsQueue,
+    SourceReaderBase(
+        FutureCompletingBlockingQueue<RdKafka::Message>* elementsQueue,
         SingleThreadFetcherManager<E, SplitT>* splitFetcherManager,
         RecordEmitter<E, SplitStateT>* recordEmitter,
-        SourceReaderContext* context, bool isBatch)
-        : isBatch(isBatch), elementsQueue(elementsQueue), splitStates(), recordEmitter(recordEmitter),
-        splitFetcherManager(splitFetcherManager), context(context), noMoreSplitsAssignment(false)
+        SourceReaderContext* context,
+        bool isBatch)
+        : isBatch(isBatch),
+          elementsQueue(elementsQueue),
+          splitStates(),
+          recordEmitter(recordEmitter),
+          splitFetcherManager(splitFetcherManager),
+          context(context),
+          noMoreSplitsAssignment(false)
     {
         if (isBatch) {
             reuseMessageVec.reserve(batchSize);
@@ -67,7 +74,7 @@ public:
         }
 
         // emit all records and one batch per pollNext, which is better
-        const std::vector<RdKafka::Message*> &records = recordsWithSplitId->getRecordsFromSplit();
+        const std::vector<RdKafka::Message*>& records = recordsWithSplitId->getRecordsFromSplit();
         if (isBatch) {
             batchPoll(records, recordsWithSplitId);
         } else {
@@ -77,7 +84,7 @@ public:
         return InputStatus::MORE_AVAILABLE;
     }
 
-    void normalPoll(const std::vector<RdKafka::Message*> &records, RecordsWithSplitIds<E>* recordsWithSplitId)
+    void normalPoll(const std::vector<RdKafka::Message*>& records, RecordsWithSplitIds<E>* recordsWithSplitId)
     {
         auto currentSplitStoppingOffset = recordsWithSplitId->getSplitStoppingOffset();
         for (RdKafka::Message* record : records) {
@@ -88,7 +95,7 @@ public:
         }
     }
 
-    void batchPoll(const std::vector<RdKafka::Message*> &records, RecordsWithSplitIds<E>* recordsWithSplitId)
+    void batchPoll(const std::vector<RdKafka::Message*>& records, RecordsWithSplitIds<E>* recordsWithSplitId)
     {
         auto currentSplitStoppingOffset = recordsWithSplitId->getSplitStoppingOffset();
         size_t totalRecords = records.size();
@@ -123,7 +130,7 @@ public:
     }
 
     // 对拆分状态进行快照
-    std::vector<KafkaPartitionSplit> snapshotState(long checkpointId)  override
+    std::vector<KafkaPartitionSplit> snapshotState(long checkpointId) override
     {
         (void)checkpointId;
         std::vector<KafkaPartitionSplit> splits;
@@ -137,12 +144,14 @@ public:
     }
 
     // 通知检查点完成
-    void notifyCheckpointComplete(long checkpointId)  override {
+    void notifyCheckpointComplete(long checkpointId) override
+    {
         LOG("SourceReaderBase::notifyCheckpointComplete not impl, checkpointId : " << checkpointId);
     }
 
     // 通知检查点完成
-    void notifyCheckpointAborted(long checkpointId)  override {
+    void notifyCheckpointAborted(long checkpointId) override
+    {
         LOG("SourceReaderBase::notifyCheckpointAborted not impl, checkpointId : " << checkpointId);
     }
 
@@ -215,6 +224,7 @@ protected:
 
     virtual void onSplitFinished(const std::unordered_map<std::string, KafkaPartitionSplitState*>& finishedSplitIds) {};
     SplitFetcherManager<E, SplitT>* splitFetcherManager;
+
 private:
     bool isBatch;
     FutureCompletingBlockingQueue<E>* elementsQueue;
@@ -257,7 +267,7 @@ private:
         return recordsWithSplitId;
     }
     // 完成当前提取
-    void finishCurrentFetch(RecordsWithSplitIds<E>* fetch,  ReaderOutput* output)
+    void finishCurrentFetch(RecordsWithSplitIds<E>* fetch, ReaderOutput* output)
     {
         currentFetch = nullptr;
         currentSplitContext = nullptr;
@@ -270,7 +280,7 @@ private:
             binded1 = true;
         }
 
-        const std::set<std::string> &finishedSplits = fetch->finishedSplits();
+        const std::set<std::string>& finishedSplits = fetch->finishedSplits();
         if (!finishedSplits.empty()) {
             std::unordered_map<std::string, KafkaPartitionSplitState*> stateOfFinishedSplits;
             for (const auto& finishedSplitId : finishedSplits) {
@@ -292,7 +302,7 @@ private:
     // 移动到下一个拆分
     bool moveToNextSplit(RecordsWithSplitIds<E>* recordsWithSplitIds, ReaderOutput* output)
     {
-        const std::string &nextSplitId = recordsWithSplitIds->nextSplit();
+        const std::string& nextSplitId = recordsWithSplitIds->nextSplit();
         if (nextSplitId.empty()) {
             finishCurrentFetch(recordsWithSplitIds, output);
             return false;

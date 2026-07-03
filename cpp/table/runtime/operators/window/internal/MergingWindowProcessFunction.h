@@ -17,26 +17,27 @@
 #include "core/api/common/state/MapStateDescriptor.h"
 #include "table/runtime/operators/window/WindowOperator.h"
 
-template<typename K, typename W>
+template <typename K, typename W>
 class MergingWindowProcessFunction : public InternalWindowProcessFunction<K, W> {
     static_assert(std::is_base_of_v<Window, W>, "W must inherit from Window");
 
 public:
     MergingWindowProcessFunction(
-            MergingWindowAssigner<W> *windowAssigner,
-            NamespaceAggsHandleFunctionBase<W> *windowAggregator,
-            TypeSerializer *windowSerializer,
-            int64_t allowedLateness)
-            :
-            InternalWindowProcessFunction<K, W>(windowAssigner, windowAggregator, allowedLateness),
-            windowAssigner(windowAssigner),
-            windowSerializer(windowSerializer) {}
+        MergingWindowAssigner<W>* windowAssigner,
+        NamespaceAggsHandleFunctionBase<W>* windowAggregator,
+        TypeSerializer* windowSerializer,
+        int64_t allowedLateness)
+        : InternalWindowProcessFunction<K, W>(windowAssigner, windowAggregator, allowedLateness),
+          windowAssigner(windowAssigner),
+          windowSerializer(windowSerializer)
+    {
+    }
 
-    void open(Context<K, W> *ctx) override;
+    void open(Context<K, W>* ctx) override;
 
-    std::vector<W> assignStateNamespace(RowData *keyRowData, int64_t timestamp) override;
+    std::vector<W> assignStateNamespace(RowData* keyRowData, int64_t timestamp) override;
 
-    std::vector<W> assignActualWindows(RowData *inputRow, int64_t timestamp) override;
+    std::vector<W> assignActualWindows(RowData* inputRow, int64_t timestamp) override;
 
     void prepareAggregateAccumulatorForEmit(const W& window) override;
 

@@ -28,7 +28,8 @@ public:
     // Adds an element to the queue, returns false if the head of the queue is not changed by this operation
     virtual bool add(const T& element) = 0;
 
-    // Removes the specified element from the queue, returns false if the head of the queue is not changed by this operation
+    // Removes the specified element from the queue, returns false if the head of the queue is not changed by this
+    // operation
     virtual bool remove(const T& element) = 0;
 
     virtual bool isEmpty() = 0;
@@ -37,6 +38,8 @@ public:
 
     virtual void addAll(const std::vector<T>& elements) = 0;
 
-    virtual std::unique_ptr<omnistream::utils::Iterator<T>> iterator() { NOT_IMPL_EXCEPTION };
+    virtual std::unique_ptr<omnistream::utils::Iterator<T>> iterator()
+    {
+        NOT_IMPL_EXCEPTION;
+    };
 };
-

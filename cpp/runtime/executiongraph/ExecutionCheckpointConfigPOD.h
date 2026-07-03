@@ -25,26 +25,34 @@ public:
     ExecutionCheckpointConfigPOD() = default;
 
     ExecutionCheckpointConfigPOD(
-        std::int64_t alignedCheckpointTimeoutSecond, std::int64_t alignedCheckpointTimeoutNano,
-        std::int64_t checkpointIdOfIgnoredInFlightData, std::int64_t checkpointInterval,
-        std::int64_t checkpointTimeout, std::string checkpointingMode,
-        std::string externalizedCheckpointCleanup, bool forceUnalignedCheckpoints,
-        int maxConcurrentCheckpoints, std::int64_t minPauseBetweenCheckpoints, int tolerableCheckpointFailureNumber,
-        bool unalignedCheckpointsEnabled, bool checkpointAfterTasksFinishEnabled)
+        std::int64_t alignedCheckpointTimeoutSecond,
+        std::int64_t alignedCheckpointTimeoutNano,
+        std::int64_t checkpointIdOfIgnoredInFlightData,
+        std::int64_t checkpointInterval,
+        std::int64_t checkpointTimeout,
+        std::string checkpointingMode,
+        std::string externalizedCheckpointCleanup,
+        bool forceUnalignedCheckpoints,
+        int maxConcurrentCheckpoints,
+        std::int64_t minPauseBetweenCheckpoints,
+        int tolerableCheckpointFailureNumber,
+        bool unalignedCheckpointsEnabled,
+        bool checkpointAfterTasksFinishEnabled)
         : alignedCheckpointTimeoutSecond(alignedCheckpointTimeoutSecond),
-        alignedCheckpointTimeoutNano(alignedCheckpointTimeoutNano),
-        checkpointIdOfIgnoredInFlightData(checkpointIdOfIgnoredInFlightData),
-        checkpointInterval(checkpointInterval),
-        checkpointTimeout(checkpointTimeout),
-        checkpointingMode(checkpointingMode),
-        externalizedCheckpointCleanup(externalizedCheckpointCleanup),
-        forceUnalignedCheckpoints(forceUnalignedCheckpoints),
-        maxConcurrentCheckpoints(maxConcurrentCheckpoints),
-        minPauseBetweenCheckpoints(minPauseBetweenCheckpoints),
-        tolerableCheckpointFailureNumber(tolerableCheckpointFailureNumber),
-        unalignedCheckpointsEnabled(unalignedCheckpointsEnabled),
-        checkpointAfterTasksFinishEnabled(checkpointAfterTasksFinishEnabled)
-    {}
+          alignedCheckpointTimeoutNano(alignedCheckpointTimeoutNano),
+          checkpointIdOfIgnoredInFlightData(checkpointIdOfIgnoredInFlightData),
+          checkpointInterval(checkpointInterval),
+          checkpointTimeout(checkpointTimeout),
+          checkpointingMode(checkpointingMode),
+          externalizedCheckpointCleanup(externalizedCheckpointCleanup),
+          forceUnalignedCheckpoints(forceUnalignedCheckpoints),
+          maxConcurrentCheckpoints(maxConcurrentCheckpoints),
+          minPauseBetweenCheckpoints(minPauseBetweenCheckpoints),
+          tolerableCheckpointFailureNumber(tolerableCheckpointFailureNumber),
+          unalignedCheckpointsEnabled(unalignedCheckpointsEnabled),
+          checkpointAfterTasksFinishEnabled(checkpointAfterTasksFinishEnabled)
+    {
+    }
 
     std::int64_t getAlignedCheckpointTimeoutSecond() const
     {
@@ -183,8 +191,7 @@ public:
             << "alignedCheckpointTimeoutSecond=" << alignedCheckpointTimeoutSecond
             << ", alignedCheckpointTimeoutNano=" << alignedCheckpointTimeoutNano
             << ", checkpointIdOfIgnoredInFlightData=" << checkpointIdOfIgnoredInFlightData
-            << ", checkpointInterval=" << checkpointInterval
-            << ", checkpointTimeout=" << checkpointTimeout
+            << ", checkpointInterval=" << checkpointInterval << ", checkpointTimeout=" << checkpointTimeout
             << ", checkpointingMode=" << checkpointingMode
             << ", externalizedCheckpointCleanup=" << externalizedCheckpointCleanup
             << ", forceUnalignedCheckpoints=" << forceUnalignedCheckpoints
@@ -192,32 +199,40 @@ public:
             << ", minPauseBetweenCheckpoints=" << minPauseBetweenCheckpoints
             << ", tolerableCheckpointFailureNumber=" << tolerableCheckpointFailureNumber
             << ", unalignedCheckpointsEnabled=" << unalignedCheckpointsEnabled
-            << ", checkpointAfterTasksFinishEnabled=" << checkpointAfterTasksFinishEnabled
-            << '}';
+            << ", checkpointAfterTasksFinishEnabled=" << checkpointAfterTasksFinishEnabled << '}';
         return oss.str();
     }
 
     bool operator==(const ExecutionCheckpointConfigPOD& other) const
     {
         return alignedCheckpointTimeoutSecond == other.alignedCheckpointTimeoutSecond &&
-            alignedCheckpointTimeoutNano == other.alignedCheckpointTimeoutNano &&
-            checkpointIdOfIgnoredInFlightData == other.checkpointIdOfIgnoredInFlightData &&
-            checkpointInterval == other.checkpointInterval &&
-            checkpointTimeout == other.checkpointTimeout &&
-            checkpointingMode == other.checkpointingMode &&
-            externalizedCheckpointCleanup == other.externalizedCheckpointCleanup &&
-            forceUnalignedCheckpoints == other.forceUnalignedCheckpoints &&
-            maxConcurrentCheckpoints == other.maxConcurrentCheckpoints &&
-            minPauseBetweenCheckpoints == other.minPauseBetweenCheckpoints &&
-            tolerableCheckpointFailureNumber == other.tolerableCheckpointFailureNumber &&
-            unalignedCheckpointsEnabled == other.unalignedCheckpointsEnabled &&
-            checkpointAfterTasksFinishEnabled == other.checkpointAfterTasksFinishEnabled;
+               alignedCheckpointTimeoutNano == other.alignedCheckpointTimeoutNano &&
+               checkpointIdOfIgnoredInFlightData == other.checkpointIdOfIgnoredInFlightData &&
+               checkpointInterval == other.checkpointInterval && checkpointTimeout == other.checkpointTimeout &&
+               checkpointingMode == other.checkpointingMode &&
+               externalizedCheckpointCleanup == other.externalizedCheckpointCleanup &&
+               forceUnalignedCheckpoints == other.forceUnalignedCheckpoints &&
+               maxConcurrentCheckpoints == other.maxConcurrentCheckpoints &&
+               minPauseBetweenCheckpoints == other.minPauseBetweenCheckpoints &&
+               tolerableCheckpointFailureNumber == other.tolerableCheckpointFailureNumber &&
+               unalignedCheckpointsEnabled == other.unalignedCheckpointsEnabled &&
+               checkpointAfterTasksFinishEnabled == other.checkpointAfterTasksFinishEnabled;
     }
 
-    NLOHMANN_DEFINE_TYPE_INTRUSIVE(ExecutionCheckpointConfigPOD, alignedCheckpointTimeoutSecond,
-        alignedCheckpointTimeoutNano, checkpointIdOfIgnoredInFlightData, checkpointInterval, checkpointTimeout,
-        checkpointingMode, externalizedCheckpointCleanup, forceUnalignedCheckpoints, maxConcurrentCheckpoints,
-        minPauseBetweenCheckpoints, tolerableCheckpointFailureNumber, unalignedCheckpointsEnabled,
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(
+        ExecutionCheckpointConfigPOD,
+        alignedCheckpointTimeoutSecond,
+        alignedCheckpointTimeoutNano,
+        checkpointIdOfIgnoredInFlightData,
+        checkpointInterval,
+        checkpointTimeout,
+        checkpointingMode,
+        externalizedCheckpointCleanup,
+        forceUnalignedCheckpoints,
+        maxConcurrentCheckpoints,
+        minPauseBetweenCheckpoints,
+        tolerableCheckpointFailureNumber,
+        unalignedCheckpointsEnabled,
         checkpointAfterTasksFinishEnabled)
 
 private:
@@ -225,7 +240,7 @@ private:
     std::int64_t alignedCheckpointTimeoutNano = 0;
     std::int64_t checkpointIdOfIgnoredInFlightData = -1;
     std::int64_t checkpointInterval = -1;
-    std::int64_t checkpointTimeout  = 600000;
+    std::int64_t checkpointTimeout = 600000;
     std::string checkpointingMode = "EXACTLY_ONCE";
     std::string externalizedCheckpointCleanup = "NO_EXTERNALIZED_CHECKPOINTS";
     bool forceUnalignedCheckpoints = false;
@@ -239,44 +254,44 @@ private:
 } // namespace omnistream
 
 namespace std {
-    template<>
-    struct hash<omnistream::ExecutionCheckpointConfigPOD> {
-        size_t operator()(const omnistream::ExecutionCheckpointConfigPOD& obj) const
-        {
-            size_t h1  = std::hash<std::int64_t>()(obj.getAlignedCheckpointTimeoutSecond());
-            size_t h2  = std::hash<std::int64_t>()(obj.getAlignedCheckpointTimeoutNano());
-            size_t h3  = std::hash<std::int64_t>()(obj.getCheckpointIdOfIgnoredInFlightData());
-            size_t h4  = std::hash<std::int64_t>()(obj.getCheckpointInterval());
-            size_t h5  = std::hash<std::int64_t>()(obj.getCheckpointTimeout());
-            size_t h6  = std::hash<std::string>()  (obj.getCheckpointingMode());
-            size_t h7  = std::hash<std::string>()  (obj.getExternalizedCheckpointCleanup());
-            size_t h8  = std::hash<bool>()         (obj.getForceUnalignedCheckpoints());
-            size_t h9  = std::hash<int>()          (obj.getMaxConcurrentCheckpoints());
-            size_t h10 = std::hash<std::int64_t>() (obj.getMinPauseBetweenCheckpoints());
-            size_t h11 = std::hash<int>()          (obj.getTolerableCheckpointFailureNumber());
-            size_t h12 = std::hash<bool>()         (obj.getUnalignedCheckpointsEnabled());
-            size_t h13 = std::hash<bool>()         (obj.getCheckpointAfterTasksFinishEnabled());
+template <>
+struct hash<omnistream::ExecutionCheckpointConfigPOD> {
+    size_t operator()(const omnistream::ExecutionCheckpointConfigPOD& obj) const
+    {
+        size_t h1 = std::hash<std::int64_t>()(obj.getAlignedCheckpointTimeoutSecond());
+        size_t h2 = std::hash<std::int64_t>()(obj.getAlignedCheckpointTimeoutNano());
+        size_t h3 = std::hash<std::int64_t>()(obj.getCheckpointIdOfIgnoredInFlightData());
+        size_t h4 = std::hash<std::int64_t>()(obj.getCheckpointInterval());
+        size_t h5 = std::hash<std::int64_t>()(obj.getCheckpointTimeout());
+        size_t h6 = std::hash<std::string>()(obj.getCheckpointingMode());
+        size_t h7 = std::hash<std::string>()(obj.getExternalizedCheckpointCleanup());
+        size_t h8 = std::hash<bool>()(obj.getForceUnalignedCheckpoints());
+        size_t h9 = std::hash<int>()(obj.getMaxConcurrentCheckpoints());
+        size_t h10 = std::hash<std::int64_t>()(obj.getMinPauseBetweenCheckpoints());
+        size_t h11 = std::hash<int>()(obj.getTolerableCheckpointFailureNumber());
+        size_t h12 = std::hash<bool>()(obj.getUnalignedCheckpointsEnabled());
+        size_t h13 = std::hash<bool>()(obj.getCheckpointAfterTasksFinishEnabled());
 
-            size_t seed = 0;
-            const size_t C = 0x7f4a7c15;
+        size_t seed = 0;
+        const size_t C = 0x7f4a7c15;
 
-            seed ^= (h1  + C + (seed << 6) + (seed >> 2));
-            seed ^= (h2  + C + (seed << 6) + (seed >> 2));
-            seed ^= (h3  + C + (seed << 6) + (seed >> 2));
-            seed ^= (h4  + C + (seed << 6) + (seed >> 2));
-            seed ^= (h5  + C + (seed << 6) + (seed >> 2));
-            seed ^= (h6  + C + (seed << 6) + (seed >> 2));
-            seed ^= (h7  + C + (seed << 6) + (seed >> 2));
-            seed ^= (h8  + C + (seed << 6) + (seed >> 2));
-            seed ^= (h9  + C + (seed << 6) + (seed >> 2));
-            seed ^= (h10 + C + (seed << 6) + (seed >> 2));
-            seed ^= (h11 + C + (seed << 6) + (seed >> 2));
-            seed ^= (h12 + C + (seed << 6) + (seed >> 2));
-            seed ^= (h13 + C + (seed << 6) + (seed >> 2));
+        seed ^= (h1 + C + (seed << 6) + (seed >> 2));
+        seed ^= (h2 + C + (seed << 6) + (seed >> 2));
+        seed ^= (h3 + C + (seed << 6) + (seed >> 2));
+        seed ^= (h4 + C + (seed << 6) + (seed >> 2));
+        seed ^= (h5 + C + (seed << 6) + (seed >> 2));
+        seed ^= (h6 + C + (seed << 6) + (seed >> 2));
+        seed ^= (h7 + C + (seed << 6) + (seed >> 2));
+        seed ^= (h8 + C + (seed << 6) + (seed >> 2));
+        seed ^= (h9 + C + (seed << 6) + (seed >> 2));
+        seed ^= (h10 + C + (seed << 6) + (seed >> 2));
+        seed ^= (h11 + C + (seed << 6) + (seed >> 2));
+        seed ^= (h12 + C + (seed << 6) + (seed >> 2));
+        seed ^= (h13 + C + (seed << 6) + (seed >> 2));
 
-            return seed;
-        }
-    };
-}
+        return seed;
+    }
+};
+} // namespace std
 
 #endif // OMNISTREAM_EXECUTIONCHECKPOINTCONFIGPOD_H

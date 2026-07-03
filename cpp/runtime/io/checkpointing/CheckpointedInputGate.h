@@ -11,7 +11,6 @@
 #ifndef OMNISTREAM_CHECKPOINTEDINPUTGATE_H
 #define OMNISTREAM_CHECKPOINTEDINPUTGATE_H
 
-
 #include <memory>
 #include <optional>
 #include <future>
@@ -32,15 +31,15 @@ namespace omnistream {
 class CheckpointedInputGate : public PullingAsyncDataInput<BufferOrEvent> {
 public:
     CheckpointedInputGate(
-            std::shared_ptr<InputGate> inputGate,
-            std::shared_ptr<CheckpointBarrierHandler> barrierHandler,
-            std::shared_ptr<MailboxExecutor> mailboxExecutor);
+        std::shared_ptr<InputGate> inputGate,
+        std::shared_ptr<CheckpointBarrierHandler> barrierHandler,
+        std::shared_ptr<MailboxExecutor> mailboxExecutor);
 
     CheckpointedInputGate(
-            std::shared_ptr<InputGate> inputGate,
-            std::shared_ptr<CheckpointBarrierHandler> barrierHandler,
-            std::shared_ptr<MailboxExecutor> mailboxExecutor,
-            std::shared_ptr<UpstreamRecoveryTracker> upstreamRecoveryTracker);
+        std::shared_ptr<InputGate> inputGate,
+        std::shared_ptr<CheckpointBarrierHandler> barrierHandler,
+        std::shared_ptr<MailboxExecutor> mailboxExecutor,
+        std::shared_ptr<UpstreamRecoveryTracker> upstreamRecoveryTracker);
 
     ~CheckpointedInputGate() override;
 

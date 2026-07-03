@@ -27,37 +27,38 @@
 
 class DefaultOperatorStateBackendBuilder {
 public:
-    DefaultOperatorStateBackendBuilder(bool asynchronousSnapshots,
-                                       std::string operatorIdentifier,
-                                       std::vector<std::shared_ptr<OperatorStateHandle>> stateHandles,
-                                       std::shared_ptr<TaskStateManagerBridge> bridge,
-                                       std::shared_ptr<OmniTaskBridge> omniTaskBridge)
+    DefaultOperatorStateBackendBuilder(
+        bool asynchronousSnapshots,
+        std::string operatorIdentifier,
+        std::vector<std::shared_ptr<OperatorStateHandle>> stateHandles,
+        std::shared_ptr<TaskStateManagerBridge> bridge,
+        std::shared_ptr<OmniTaskBridge> omniTaskBridge)
         : asynchronousSnapshots_(asynchronousSnapshots),
           operatorIdentifier_(operatorIdentifier),
           restoreStateHandles_(stateHandles),
           bridge_(bridge),
-          omniTaskBridge_(omniTaskBridge){
+          omniTaskBridge_(omniTaskBridge)
+    {
     }
 
-    OperatorStateBackend* build() {
+    OperatorStateBackend* build()
+    {
         auto registeredOperatorStates = std::make_shared<std::unordered_map<std::string, std::shared_ptr<State>>>();
         auto registeredBroadcastStates = std::make_shared<std::unordered_map<std::string, std::shared_ptr<State>>>();
         auto accessedStatesByName = std::make_shared<std::unordered_map<std::string, std::shared_ptr<State>>>();
-        auto accessedBroadcastStatesByName = std::make_shared<std::unordered_map<std::string, std::shared_ptr<State>>>();
+        auto accessedBroadcastStatesByName =
+            std::make_shared<std::unordered_map<std::string, std::shared_ptr<State>>>();
 
-        auto snapshotStrategy = new DefaultOperatorStateBackendSnapshotStrategy(registeredOperatorStates, registeredBroadcastStates);
-
+        auto snapshotStrategy =
+            new DefaultOperatorStateBackendSnapshotStrategy(registeredOperatorStates, registeredBroadcastStates);
 
         auto restoreOperation = std::make_shared<OperatorStateRestoreOperation>(
-            registeredOperatorStates,
-            registeredBroadcastStates,
-            restoreStateHandles_,
-            omniTaskBridge_);
+            registeredOperatorStates, registeredBroadcastStates, restoreStateHandles_, omniTaskBridge_);
         try {
             restoreOperation->restore();
         } catch (const std::exception& e) {
-            INFO_RELEASE("Error:Failed when trying to restore operator state backend"<< e.what());
-            throw std::runtime_error("Failed when trying to restore operator state backend"+ std::string(e.what()));
+            INFO_RELEASE("Error:Failed when trying to restore operator state backend" << e.what());
+            throw std::runtime_error("Failed when trying to restore operator state backend" + std::string(e.what()));
         }
 
         return new DefaultOperatorStateBackend(
@@ -79,4 +80,4 @@ protected:
     std::shared_ptr<OmniTaskBridge> omniTaskBridge_;
 };
 
-#endif //OMNISTREAM_DEFAULTOPERATORSTATEBACKENDBUILDER_H
+#endif // OMNISTREAM_DEFAULTOPERATORSTATEBACKENDBUILDER_H

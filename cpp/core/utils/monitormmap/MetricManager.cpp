@@ -16,13 +16,15 @@
 
 namespace omnistream {
 
-    const char* MetricManager::sharedMemoryKeyPrefix = "OMNI_SHM_METRIC";
-    long MetricManager::omniStreamTaskProcessInputID = 1;
-    std::unique_ptr<MetricManager> MetricManager::instance;
-    std::mutex MetricManager::singletonMutex;
-    const int MetricManager::sharedMemoryFDMode = 0666;
+const char* MetricManager::sharedMemoryKeyPrefix = "OMNI_SHM_METRIC";
+long MetricManager::omniStreamTaskProcessInputID = 1;
+std::unique_ptr<MetricManager> MetricManager::instance;
+std::mutex MetricManager::singletonMutex;
+const int MetricManager::sharedMemoryFDMode = 0666;
 
-MetricManager::MetricManager(const std::string& monitorKey) : monitorKey(monitorKey) {}
+MetricManager::MetricManager(const std::string& monitorKey) : monitorKey(monitorKey)
+{
+}
 
 MetricManager::~MetricManager()
 {
@@ -140,4 +142,4 @@ bool MetricManager::CreateSharedMemory(size_t size)
     return true;
 }
 
-} // namespace xost::share_mem_monitor
+} // namespace omnistream

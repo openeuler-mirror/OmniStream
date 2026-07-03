@@ -43,8 +43,8 @@ public:
     static_assert(is_shared_ptr_v<T>, "T should be shared ptr.");
 
     HeapPriorityQueueSingleStateIterator(
-        HeapPriorityQueueSet<K, T, Comparator> *priorityQueue,
-        TypeSerializer *elementSerializer,
+        HeapPriorityQueueSet<K, T, Comparator>* priorityQueue,
+        TypeSerializer* elementSerializer,
         int kvStateId,
         int keyGroupPrefixBytes,
         int totalNumberOfKeyGroups)
@@ -57,9 +57,9 @@ public:
         currentIndex_ = 0;
         valid_ = !entries_.empty();
         refreshKeyGroup();
-        INFO_RELEASE("HeapPriorityQueueSingleStateIterator: kvStateId=" << kvStateId_
-            << ", entryCount=" << entries_.size()
-            << ", valid=" << valid_);
+        INFO_RELEASE(
+            "HeapPriorityQueueSingleStateIterator: kvStateId=" << kvStateId_ << ", entryCount=" << entries_.size()
+                                                               << ", valid=" << valid_);
     }
 
     void next() override
@@ -78,7 +78,7 @@ public:
 
     ByteView key() const override
     {
-        const auto &key = entries_[currentIndex_].serializedKey;
+        const auto& key = entries_[currentIndex_].serializedKey;
         return ByteView::fromBuffer(key.data(), key.size());
     }
 
@@ -115,7 +115,7 @@ private:
         std::vector<int8_t> serializedKey;
     };
 
-    TypeSerializer *elementSerializer_;
+    TypeSerializer* elementSerializer_;
     int kvStateId_;
     int keyGroupPrefixBytes_;
     int totalNumberOfKeyGroups_;
@@ -131,7 +131,7 @@ private:
         if (!valid_ || currentIndex_ >= entries_.size()) {
             return;
         }
-        const auto &key = entries_[currentIndex_].serializedKey;
+        const auto& key = entries_[currentIndex_].serializedKey;
         if (key.size() < static_cast<size_t>(keyGroupPrefixBytes_)) {
             return;
         }
@@ -143,7 +143,7 @@ private:
         currentKeyGroup_ = result;
     }
 
-    void collectAndSerializeEntries(HeapPriorityQueueSet<K, T, Comparator> *priorityQueue)
+    void collectAndSerializeEntries(HeapPriorityQueueSet<K, T, Comparator>* priorityQueue)
     {
         if (priorityQueue == nullptr) {
             return;
@@ -155,19 +155,20 @@ private:
         entries_.reserve(snapshot.size());
 
         int entryIndex = 0;
-        for (const auto &element : snapshot) {
+        for (const auto& element : snapshot) {
             if (!element) {
                 continue;
             }
 
-            const auto &key = element->getKey();
+            const auto& key = element->getKey();
             int keyGroup = KeyGroupRangeAssignment<K>::assignToKeyGroup(key, totalNumberOfKeyGroups_);
 
             SerializedEntry entry;
             try {
                 entry.serializedKey = serializeKey(keyGroup, element);
-            } catch (const std::exception &e) {
-                INFO_RELEASE("Error: HeapPriorityQueueSingleStateIterator: serialize EXCEPTION at keyGroup="
+            } catch (const std::exception& e) {
+                INFO_RELEASE(
+                    "Error: HeapPriorityQueueSingleStateIterator: serialize EXCEPTION at keyGroup="
                     << keyGroup << ", entryIndex=" << entryIndex << ", error=" << e.what());
                 throw;
             }
@@ -178,23 +179,23 @@ private:
 
         // Sort by key-group prefix so RocksStatesPerKeyGroupMergeIterator can
         // merge this PQ iterator with KV iterators correctly.
-        std::sort(entries_.begin(), entries_.end(),
-            [this](const SerializedEntry &a, const SerializedEntry &b) -> bool {
-                const int len = std::min({keyGroupPrefixBytes_,
-                    static_cast<int>(a.serializedKey.size()),
-                    static_cast<int>(b.serializedKey.size())});
-                for (int i = 0; i < len; i++) {
-                    auto av = static_cast<uint8_t>(a.serializedKey[i]);
-                    auto bv = static_cast<uint8_t>(b.serializedKey[i]);
-                    if (av != bv) {
-                        return av < bv;
-                    }
+        std::sort(entries_.begin(), entries_.end(), [this](const SerializedEntry& a, const SerializedEntry& b) -> bool {
+            const int len = std::min(
+                {keyGroupPrefixBytes_,
+                 static_cast<int>(a.serializedKey.size()),
+                 static_cast<int>(b.serializedKey.size())});
+            for (int i = 0; i < len; i++) {
+                auto av = static_cast<uint8_t>(a.serializedKey[i]);
+                auto bv = static_cast<uint8_t>(b.serializedKey[i]);
+                if (av != bv) {
+                    return av < bv;
                 }
-                return false;
-            });
+            }
+            return false;
+        });
     }
 
-    std::vector<int8_t> serializeKey(int keyGroup, const T &element)
+    std::vector<int8_t> serializeKey(int keyGroup, const T& element)
     {
         DataOutputSerializer outputSerializer;
         OutputBufferStatus outputBufferStatus;
@@ -209,7 +210,7 @@ private:
 
         serializeElement(element, outputSerializer);
 
-        auto *data = outputSerializer.getData();
+        auto* data = outputSerializer.getData();
         size_t len = outputSerializer.length();
         std::vector<int8_t> result(len);
         for (size_t i = 0; i < len; i++) {
@@ -218,17 +219,17 @@ private:
         return result;
     }
 
-    void serializeElement(const T &element, DataOutputSerializer &outputSerializer)
+    void serializeElement(const T& element, DataOutputSerializer& outputSerializer)
     {
         if (elementSerializer_ == nullptr) {
             INFO_RELEASE("Error: serializeElement Priority queue element serializer is null");
-            THROW_LOGIC_EXCEPTION("Priority queue element serializer is null")
+            THROW_LOGIC_EXCEPTION("Priority queue element serializer is null");
         }
 
         if constexpr (std::is_base_of_v<Object, ElementType>) {
-            elementSerializer_->serialize(static_cast<Object *>(element.get()), outputSerializer);
+            elementSerializer_->serialize(static_cast<Object*>(element.get()), outputSerializer);
         } else {
-            elementSerializer_->serialize(static_cast<void *>(element.get()), outputSerializer);
+            elementSerializer_->serialize(static_cast<void*>(element.get()), outputSerializer);
         }
     }
 };

@@ -21,14 +21,16 @@
  */
 class TaskTracker {
 public:
-    explicit TaskTracker(int numberOfTasks) : numberOfTasks_(numberOfTasks) {}
+    explicit TaskTracker(int numberOfTasks) : numberOfTasks_(numberOfTasks)
+    {
+    }
 
     /**
      * @return true if all tasks for this checkpointId have reported and this checkpoint is ready for commit
      */
     bool add(long checkpointId, int taskId)
     {
-        auto &taskSet = notifiedTasks_[checkpointId];
+        auto& taskSet = notifiedTasks_[checkpointId];
         taskSet.insert(taskId);
 
         if (static_cast<int>(taskSet.size()) == numberOfTasks_) {

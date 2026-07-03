@@ -22,13 +22,14 @@
 
 class KafkaCommittable {
 public:
-    KafkaCommittable(long producerId,
-                     short epoch,
-                     const std::string& transactionalId,
-                     std::shared_ptr<Recyclable<FlinkKafkaInternalProducer>> producer);
+    KafkaCommittable(
+        long producerId,
+        short epoch,
+        const std::string& transactionalId,
+        std::shared_ptr<Recyclable<FlinkKafkaInternalProducer>> producer);
 
-    static KafkaCommittable of(FlinkKafkaInternalProducer* producer,
-                               std::function<void(FlinkKafkaInternalProducer*)> recycler);
+    static KafkaCommittable of(
+        FlinkKafkaInternalProducer* producer, std::function<void(FlinkKafkaInternalProducer*)> recycler);
 
     long GetProducerId() const;
     short GetEpoch() const;

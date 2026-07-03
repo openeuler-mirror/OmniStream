@@ -18,8 +18,8 @@
 #include "runtime/state/bridge/TaskOperatorEventGatewayBridge.h"
 class TaskOperatorEventGateway {
 public:
-    explicit TaskOperatorEventGateway(const std::shared_ptr<TaskOperatorEventGatewayBridge> &bridge)
-        : bridge_(bridge) {
+    explicit TaskOperatorEventGateway(const std::shared_ptr<TaskOperatorEventGatewayBridge>& bridge) : bridge_(bridge)
+    {
     }
 
     std::shared_ptr<TaskOperatorEventGatewayBridge> bridge_;
@@ -27,7 +27,7 @@ public:
      * Sends an event from the operator (identified by the given operator ID) to the operator
      * coordinator (identified by the same ID).
      */
-    virtual  void SendOperatorEventToCoordinator(OperatorID operatorId, std::shared_ptr<OperatorEvent> event)
+    virtual void SendOperatorEventToCoordinator(OperatorID operatorId, std::shared_ptr<OperatorEvent> event)
     {
         std::string operatorIdJson = operatorId.toString();
         std::string eventJson = event->toString();
@@ -40,7 +40,7 @@ public:
      * Sends a request from current operator to a specified operator coordinator which is identified
      * by the given operator ID and return the response.
      */
-     // todo
+    // todo
     // virtual CompletableFuture<CoordinationResponse> sendRequestToCoordinator(OperatorID operator,
     //    CoordinationRequest& request) = 0;
 };

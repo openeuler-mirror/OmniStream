@@ -30,7 +30,7 @@ public:
         return json.dump();
     }
 
-/** The ID of the checkpoint that this event is related to. */
+    /** The ID of the checkpoint that this event is related to. */
 private:
     long checkpointId;
 };

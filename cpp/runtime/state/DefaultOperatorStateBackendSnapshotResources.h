@@ -1,5 +1,5 @@
 /*
-* Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
  * You can use this software according to the terms and conditions of the Mulan PSL v2.
  * You may obtain a copy of Mulan PSL v2 at:
  *          http://license.coscl.org.cn/MulanPSL2
@@ -27,25 +27,40 @@
 class DefaultOperatorStateBackendSnapshotResources : public SnapshotResources {
 public:
     DefaultOperatorStateBackendSnapshotResources(
-    std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> registeredOperatorStatesDeepCopies,
-    std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> registeredBroadcastStatesDeepCopies,
+        std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> registeredOperatorStatesDeepCopies,
+        std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> registeredBroadcastStatesDeepCopies,
         std::vector<std::shared_ptr<StateMetaInfoSnapshot>> operatorStateMetaInfoSnapshots,
         std::vector<std::shared_ptr<StateMetaInfoSnapshot>> broadcastStateMetaInfoSnapshots)
         : registeredOperatorStatesDeepCopies_(std::move(registeredOperatorStatesDeepCopies)),
           registeredBroadcastStatesDeepCopies_(std::move(registeredBroadcastStatesDeepCopies)),
           operatorStateMetaInfoSnapshots_(std::move(operatorStateMetaInfoSnapshots)),
-          broadcastStateMetaInfoSnapshots_(std::move(broadcastStateMetaInfoSnapshots)) {
+          broadcastStateMetaInfoSnapshots_(std::move(broadcastStateMetaInfoSnapshots))
+    {
     }
 
-    void cleanup() {}
+    void cleanup()
+    {
+    }
 
-    std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> getRegisteredOperatorStatesDeepCopies() { return registeredOperatorStatesDeepCopies_; }
+    std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> getRegisteredOperatorStatesDeepCopies()
+    {
+        return registeredOperatorStatesDeepCopies_;
+    }
 
-    std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> getRegisteredBroadcastStatesDeepCopies() { return registeredBroadcastStatesDeepCopies_; }
+    std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> getRegisteredBroadcastStatesDeepCopies()
+    {
+        return registeredBroadcastStatesDeepCopies_;
+    }
 
-    std::vector<std::shared_ptr<StateMetaInfoSnapshot>> getOperatorStateMetaInfoSnapshots() { return operatorStateMetaInfoSnapshots_; }
+    std::vector<std::shared_ptr<StateMetaInfoSnapshot>> getOperatorStateMetaInfoSnapshots()
+    {
+        return operatorStateMetaInfoSnapshots_;
+    }
 
-    std::vector<std::shared_ptr<StateMetaInfoSnapshot>> getBroadcastStateMetaInfoSnapshots() { return broadcastStateMetaInfoSnapshots_; }
+    std::vector<std::shared_ptr<StateMetaInfoSnapshot>> getBroadcastStateMetaInfoSnapshots()
+    {
+        return broadcastStateMetaInfoSnapshots_;
+    }
 
 private:
     std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> registeredOperatorStatesDeepCopies_;
@@ -54,4 +69,4 @@ private:
     std::vector<std::shared_ptr<StateMetaInfoSnapshot>> broadcastStateMetaInfoSnapshots_;
 };
 
-#endif //OMNISTREAM_DEFAULTOPERATORSTATEBACKENDSNAPSHOTRESOURCES_H
+#endif // OMNISTREAM_DEFAULTOPERATORSTATEBACKENDSNAPSHOTRESOURCES_H

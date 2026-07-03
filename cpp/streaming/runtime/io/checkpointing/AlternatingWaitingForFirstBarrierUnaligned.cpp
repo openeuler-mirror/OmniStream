@@ -14,15 +14,15 @@
 
 AlternatingWaitingForFirstBarrierUnaligned::AlternatingWaitingForFirstBarrierUnaligned(
     bool alternating, ChannelState state)
-    : alternating_(alternating), state_(std::move(state)) {}
+    : alternating_(alternating),
+      state_(std::move(state))
+{
+}
 
 BarrierHandlerState* AlternatingWaitingForFirstBarrierUnaligned::BarrierReceived(
-    Controller* controller,
-    InputChannelInfo channelInfo,
-    CheckpointBarrier* barrier,
-    bool markChannelBlocked)
+    Controller* controller, InputChannelInfo channelInfo, CheckpointBarrier* barrier, bool markChannelBlocked)
 {
-    LOG_DEBUG("AlternatingWaitingForFirstBarrierUnaligned::BarrierReceived")
+    LOG_DEBUG("AlternatingWaitingForFirstBarrierUnaligned::BarrierReceived");
     if (markChannelBlocked && !barrier->GetCheckpointOptions()->IsUnalignedCheckpoint()) {
         state_.BlockChannel(channelInfo);
     }
@@ -41,8 +41,7 @@ BarrierHandlerState* AlternatingWaitingForFirstBarrierUnaligned::BarrierReceived
         return FinishCheckpoint();
     }
 
-    return new AlternatingCollectingBarriersUnaligned(
-        alternating_, std::move(state_), unalignedBarrier->GetId());
+    return new AlternatingCollectingBarriersUnaligned(alternating_, std::move(state_), unalignedBarrier->GetId());
 }
 
 BarrierHandlerState* AlternatingWaitingForFirstBarrierUnaligned::AlignedCheckpointTimeout(

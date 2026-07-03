@@ -18,28 +18,29 @@
 
 namespace omnistream {
 
-    class AvailabilityHelper : public AvailabilityProvider {
-    public:
-        AvailabilityHelper();
-        ~AvailabilityHelper() override;
+class AvailabilityHelper : public AvailabilityProvider {
+public:
+    AvailabilityHelper();
+    ~AvailabilityHelper() override;
 
-        std::shared_ptr<CompletableFuture> and_(const std::shared_ptr<CompletableFuture>& other);
-        std::shared_ptr<CompletableFuture> and_(const std::shared_ptr<AvailabilityProvider>& other);
-        std::shared_ptr<CompletableFuture> or_(const std::shared_ptr<CompletableFuture>& other);
-        std::shared_ptr<CompletableFuture> or_(const std::shared_ptr<AvailabilityProvider>& other);
+    std::shared_ptr<CompletableFuture> and_(const std::shared_ptr<CompletableFuture>& other);
+    std::shared_ptr<CompletableFuture> and_(const std::shared_ptr<AvailabilityProvider>& other);
+    std::shared_ptr<CompletableFuture> or_(const std::shared_ptr<CompletableFuture>& other);
+    std::shared_ptr<CompletableFuture> or_(const std::shared_ptr<AvailabilityProvider>& other);
 
-        void resetUnavailable();
-        void resetAvailable();
-        std::shared_ptr<CompletableFuture> getUnavailableToResetAvailable();
-        std::shared_ptr<CompletableFuture> getUnavailableToResetUnavailable();
-        std::shared_ptr<CompletableFuture> GetAvailableFuture()  override;
-        std::string toString()  override;
+    void resetUnavailable();
+    void resetAvailable();
+    std::shared_ptr<CompletableFuture> getUnavailableToResetAvailable();
+    std::shared_ptr<CompletableFuture> getUnavailableToResetUnavailable();
+    std::shared_ptr<CompletableFuture> GetAvailableFuture() override;
+    std::string toString() override;
 
-    private:
-        std::shared_ptr<CompletableFuture> availableFuture;
-    protected:
-        std::recursive_mutex availableFutureMutex;
-    };
+private:
+    std::shared_ptr<CompletableFuture> availableFuture;
+
+protected:
+    std::recursive_mutex availableFutureMutex;
+};
 
 } // namespace omnistream
 

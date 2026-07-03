@@ -33,8 +33,14 @@ class SingleInputGate;
 
 class InputChannel : public virtual_enable_shared_from_this<InputChannel> {
 public:
-    InputChannel(std::shared_ptr<SingleInputGate> inputGate, int channelIndex, ResultPartitionIDPOD partitionId,
-        int initialBackoff, int maxBackoff, std::shared_ptr<Counter> numBytesIn, std::shared_ptr<Counter> numBuffersIn);
+    InputChannel(
+        std::shared_ptr<SingleInputGate> inputGate,
+        int channelIndex,
+        ResultPartitionIDPOD partitionId,
+        int initialBackoff,
+        int maxBackoff,
+        std::shared_ptr<Counter> numBytesIn,
+        std::shared_ptr<Counter> numBuffersIn);
 
     int getChannelIndex() const;
     InputChannelInfo getChannelInfo() const;
@@ -48,11 +54,15 @@ public:
     virtual void requestSubpartition(int subpartitionIndex) = 0;
     virtual std::optional<BufferAndAvailability> getNextBuffer() = 0;
 
-    virtual void CheckpointStarted(const CheckpointBarrier& barrier) {}
+    virtual void CheckpointStarted(const CheckpointBarrier& barrier)
+    {
+    }
     virtual void CheckpointStopped(long checkpointId)
-    {}
+    {
+    }
     virtual void ConvertToPriorityEvent(int sequenceNumber)
-    {}
+    {
+    }
 
     virtual void sendTaskEvent(std::shared_ptr<TaskEvent> event) = 0;
 
@@ -61,6 +71,7 @@ public:
     virtual void announceBufferSize(int newBufferSize) = 0;
     virtual int getBuffersInUseCount() = 0;
     virtual void SetChannelStateWriter(std::shared_ptr<ChannelStateWriter> channelStateWriter) = 0;
+
 public:
     void checkError();
     void setError(std::exception_ptr cause);
@@ -72,7 +83,6 @@ public:
     {
         consumedSubpartitionIndex = index;
     }
-
 
     std::shared_ptr<SingleInputGate> getInputGate()
     {
@@ -88,10 +98,11 @@ public:
     {
         return 0;
     }
-    virtual void setup(){};
-    virtual std::string toString(){};
+    virtual void setup() {};
+    virtual std::string toString() {};
     static const int initBackoffConstant = 100;
     static const int maxBackoffConstant = 1000;
+
 protected:
     InputChannelInfo channelInfo;
     ResultPartitionIDPOD partitionId;
@@ -112,9 +123,10 @@ protected:
     void notifyChannelNonEmpty();
     void NotifyPriorityEvent(int priorityBufferNumber);
     virtual void notifyBufferAvailable(int numAvailableBuffers)
-    {}
+    {
+    }
 };
 
-}  // namespace omnistream
+} // namespace omnistream
 
-#endif  // INPUT_CHANNEL_H
+#endif // INPUT_CHANNEL_H

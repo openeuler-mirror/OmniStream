@@ -21,15 +21,15 @@ public:
 
     ~SerializationDelegate() override;
 
-    Object *getInstance() const;
-    void setInstance(Object *instance);
+    Object* getInstance() const;
+    void setInstance(Object* instance);
 
-    void write(DataOutputSerializer &out) override;
+    void write(DataOutputSerializer& out) override;
 
-    void read(DataInputView &in) override;
+    void read(DataInputView& in) override;
 
 private:
-    Object *instance_;
+    Object* instance_;
     TypeSerializer* serializer_;
 };
 #endif

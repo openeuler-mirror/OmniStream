@@ -22,24 +22,24 @@ extern "C" {
  * Method:    createNativeStreamTask
  * Signature: (Ljava/lang/String;JJ)J
  */
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_tasks_OmniStreamTask_createNativeStreamTask
-  (JNIEnv *, jclass, jstring, jlong, jlong);
+JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_tasks_OmniStreamTask_createNativeStreamTask(
+    JNIEnv*, jclass, jstring, jlong, jlong);
 
 /*
  * Class:     com_huawei_omniruntime_flink_runtime_tasks_OmniStreamTask
  * Method:    createNativeOmniInputProcessor
  * Signature: (JLjava/lang/String;I)J
  */
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_tasks_OmniStreamTask_createNativeOmniInputProcessor
-  (JNIEnv *, jclass, jlong, jstring, jint);
+JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_tasks_OmniStreamTask_createNativeOmniInputProcessor(
+    JNIEnv*, jclass, jlong, jstring, jint);
 
 /*
  * Class:     com_huawei_omniruntime_flink_runtime_tasks_OmniStreamTask
  * Method:    removeNativeStreamTask
  * Signature: (J)J
  */
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_tasks_OmniStreamTask_removeNativeStreamTask
-  (JNIEnv *, jclass, jlong);
+JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_tasks_OmniStreamTask_removeNativeStreamTask(
+    JNIEnv*, jclass, jlong);
 
 #ifdef __cplusplus
 }

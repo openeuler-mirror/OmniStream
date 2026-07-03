@@ -22,7 +22,7 @@ std::string topicPartitionKey(const RdKafka::TopicPartition* tp)
     }
     return tp->topic() + "-" + std::to_string(tp->partition());
 }
-}
+} // namespace
 
 KafkaPartitionSplitReader::KafkaPartitionSplitReader(
     const std::unordered_map<std::string, std::string>& props, SourceReaderContext* context)
@@ -160,8 +160,7 @@ void KafkaPartitionSplitReader::markEmptySplitsAsFinished(KafkaPartitionSplitRec
     }
 }
 
-std::string KafkaPartitionSplitReader::createConsumerClientId(
-    const std::unordered_map<std::string, std::string>& props)
+std::string KafkaPartitionSplitReader::createConsumerClientId(const std::unordered_map<std::string, std::string>& props)
 {
     auto it = props.find("client.id.prefix");
     std::string prefix = (it != props.end()) ? it->second : "";
@@ -281,7 +280,8 @@ long KafkaPartitionSplitReader::getStoppingOffset(RdKafka::TopicPartition* tp)
     return (it != stoppingOffsets.end()) ? it->second : std::numeric_limits<long>::max();
 }
 
-void KafkaPartitionSplitReader::commitOffsets(const std::map<std::shared_ptr<RdKafka::TopicPartition>, int64_t>& offsets)
+void KafkaPartitionSplitReader::commitOffsets(
+    const std::map<std::shared_ptr<RdKafka::TopicPartition>, int64_t>& offsets)
 {
     consumer->commitOffsets(offsets);
 }

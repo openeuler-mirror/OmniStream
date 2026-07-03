@@ -26,7 +26,8 @@ extern "C" {
 #undef com_huawei_omniruntime_flink_streaming_runtime_io_OmniStreamTaskNetworkInput_MASK_FULL_RECORD
 #define com_huawei_omniruntime_flink_streaming_runtime_io_OmniStreamTaskNetworkInput_MASK_FULL_RECORD 16711680L
 #undef com_huawei_omniruntime_flink_streaming_runtime_io_OmniStreamTaskNetworkInput_MASK_BREAK_BATCH_EMITTING
-#define com_huawei_omniruntime_flink_streaming_runtime_io_OmniStreamTaskNetworkInput_MASK_BREAK_BATCH_EMITTING (-16777216L)
+#define com_huawei_omniruntime_flink_streaming_runtime_io_OmniStreamTaskNetworkInput_MASK_BREAK_BATCH_EMITTING \
+    (-16777216L)
 #undef com_huawei_omniruntime_flink_streaming_runtime_io_OmniStreamTaskNetworkInput_AT_LEAST_ONE_RECORD_CONSUMED
 #define com_huawei_omniruntime_flink_streaming_runtime_io_OmniStreamTaskNetworkInput_AT_LEAST_ONE_RECORD_CONSUMED 8L
 /*
@@ -34,8 +35,9 @@ extern "C" {
  * Method:    TNELProcessBuffer
  * Signature: (JJJIIJ)Lcom/huawei/omniruntime/flink/streaming/runtime/io/TNELProcessState;
  */
-JNIEXPORT jobject JNICALL Java_com_huawei_omniruntime_flink_streaming_runtime_io_OmniStreamTaskNetworkInput_TNELProcessBuffer
-  (JNIEnv *, jobject, jlong, jlong, jlong, jint, jint, jlong);
+JNIEXPORT jobject JNICALL
+Java_com_huawei_omniruntime_flink_streaming_runtime_io_OmniStreamTaskNetworkInput_TNELProcessBuffer(
+    JNIEnv*, jobject, jlong, jlong, jlong, jint, jint, jlong);
 
 #ifdef __cplusplus
 }

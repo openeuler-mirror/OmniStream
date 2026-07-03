@@ -23,12 +23,12 @@
 template <typename K>
 class CheckpointableKeyedStateBackend : public KeyedStateBackend<K> {
 public:
-    virtual KeyGroupRange *getKeyGroupRange() = 0;
+    virtual KeyGroupRange* getKeyGroupRange() = 0;
     virtual std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<KeyedStateHandle>>()>> snapshot(
         long checkpointId,
         long timestamp,
-        CheckpointStreamFactory *streamFactory,
-        CheckpointOptions *checkpointOptions) = 0;
+        CheckpointStreamFactory* streamFactory,
+        CheckpointOptions* checkpointOptions) = 0;
 
     ~CheckpointableKeyedStateBackend() = default;
 

@@ -11,9 +11,9 @@
 #include "StringUtf8Utils.h"
 #include "../../../core/include/common.h"
 
-std::u32string* StringUtf8Utils::decodeUTF8(uint8_t *bytes, int offset, int len)
+std::u32string* StringUtf8Utils::decodeUTF8(uint8_t* bytes, int offset, int len)
 {
-    std::u32string *result = new std::u32string();
+    std::u32string* result = new std::u32string();
     int i = offset;
 
     while (i < offset + len) {
@@ -26,23 +26,20 @@ std::u32string* StringUtf8Utils::decodeUTF8(uint8_t *bytes, int offset, int len)
             ++i;
         } else if ((byte & 0xE0) == 0xC0) {
             // 2-byte sequence
-            if (i + 1 >= offset + len)
-                THROW_LOGIC_EXCEPTION("Invalid UTF-8 sequence: unexpected end of input");
+            if (i + 1 >= offset + len) THROW_LOGIC_EXCEPTION("Invalid UTF-8 sequence: unexpected end of input");
             codepoint = (byte & 0x1F) << 6;
             codepoint |= (bytes[i + 1] & 0x3F);
             i += 2;
         } else if ((byte & 0xF0) == 0xE0) {
             // 3-byte sequence
-            if (i + 2 >= offset + len)
-                THROW_LOGIC_EXCEPTION("Invalid UTF-8 sequence: unexpected end of input");
+            if (i + 2 >= offset + len) THROW_LOGIC_EXCEPTION("Invalid UTF-8 sequence: unexpected end of input");
             codepoint = (byte & 0x0F) << 12;
             codepoint |= (bytes[i + 1] & 0x3F) << 6;
             codepoint |= (bytes[i + 2] & 0x3F);
             i += 3;
         } else if ((byte & 0xF8) == 0xF0) {
             // 4-byte sequence
-            if (i + 3 >= offset + len)
-                THROW_LOGIC_EXCEPTION("Invalid UTF-8 sequence: unexpected end of input");
+            if (i + 3 >= offset + len) THROW_LOGIC_EXCEPTION("Invalid UTF-8 sequence: unexpected end of input");
             codepoint = (byte & 0x07) << 18;
             codepoint |= (bytes[i + 1] & 0x3F) << 12;
             codepoint |= (bytes[i + 2] & 0x3F) << 6;
@@ -59,10 +56,10 @@ std::u32string* StringUtf8Utils::decodeUTF8(uint8_t *bytes, int offset, int len)
 
 // Encode UTF-8 functions
 
-int StringUtf8Utils::computeUTF8Length(const std::u32string *str)
+int StringUtf8Utils::computeUTF8Length(const std::u32string* str)
 {
     int length = 0;
-    for (char32_t codepoint: *str) {
+    for (char32_t codepoint : *str) {
         if (codepoint <= 0x7F) {
             length += 1;
         } else if (codepoint <= 0x7FF) {
@@ -78,13 +75,13 @@ int StringUtf8Utils::computeUTF8Length(const std::u32string *str)
     return length;
 }
 
-uint8_t *StringUtf8Utils::encodeUTF8(const std::u32string *str)
+uint8_t* StringUtf8Utils::encodeUTF8(const std::u32string* str)
 {
     int length = computeUTF8Length(str);
-    uint8_t *bytes = new uint8_t[length];
-    uint8_t *ptr = bytes;
+    uint8_t* bytes = new uint8_t[length];
+    uint8_t* ptr = bytes;
 
-    for (char32_t codepoint: *str) {
+    for (char32_t codepoint : *str) {
         if (codepoint <= 0x7F) {
             *ptr++ = static_cast<uint8_t>(codepoint);
         } else if (codepoint <= 0x7FF) {

@@ -11,8 +11,6 @@
 
 #include "StreamConfigPOD.h"
 
-
 namespace omnistream {
-
 
 } // namespace omnistream

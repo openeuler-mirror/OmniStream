@@ -22,10 +22,11 @@
 #include <mutex>
 #include <stdexcept>
 
-
 class WatermarkOutputMultiplexer {
 public:
-    explicit WatermarkOutputMultiplexer(WatermarkOutput* underlyingOutput) : underlyingOutput(underlyingOutput) {}
+    explicit WatermarkOutputMultiplexer(WatermarkOutput* underlyingOutput) : underlyingOutput(underlyingOutput)
+    {
+    }
 
     ~WatermarkOutputMultiplexer()
     {
@@ -97,7 +98,10 @@ private:
     class ImmediateOutput : public WatermarkOutput {
     public:
         ImmediateOutput(omnistream::PartialWatermark* state, WatermarkOutputMultiplexer* parent)
-            : state_(state), parent_(parent) {}
+            : state_(state),
+              parent_(parent)
+        {
+        }
 
         void emitWatermark(Watermark* watermark) override
         {
@@ -119,6 +123,7 @@ private:
             state_->SetIdle(false);
             parent_->UpdateCombinedWatermark();
         }
+
     private:
         omnistream::PartialWatermark* state_;
         WatermarkOutputMultiplexer* parent_;
@@ -126,7 +131,9 @@ private:
 
     class DeferredOutput : public WatermarkOutput {
     public:
-        explicit DeferredOutput(omnistream::PartialWatermark* state) : state_(state) {}
+        explicit DeferredOutput(omnistream::PartialWatermark* state) : state_(state)
+        {
+        }
 
         void emitWatermark(Watermark* watermark) override
         {
@@ -147,6 +154,5 @@ private:
         omnistream::PartialWatermark* state_;
     };
 };
-
 
 #endif // OMNISTREAM_WATERMARKOUTPUTMULTIPLEXER_H

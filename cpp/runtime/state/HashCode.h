@@ -9,7 +9,6 @@
  * See the Mulan PSL v2 for more details.
  */
 
-
 #ifndef OMNISTREAM_HASHCODE_H
 #define OMNISTREAM_HASHCODE_H
 
@@ -17,7 +16,7 @@
 
 class HashCode {
 public:
-    static uint32_t Hash(const uint8_t *data, uint32_t dataLen)
+    static uint32_t Hash(const uint8_t* data, uint32_t dataLen)
     {
         uint32_t hash = 1;
         for (uint32_t i = 0; i < dataLen; i++) {

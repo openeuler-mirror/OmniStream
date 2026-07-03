@@ -32,13 +32,14 @@ public:
     using iterator = T*;
     using const_iterator = const T*;
 
-    JavaArray() : length(0), data_(nullptr), capacity_(0) {}
+    JavaArray() : length(0), data_(nullptr), capacity_(0)
+    {
+    }
 
-    explicit JavaArray(int size)
-        : length(size), capacity_(size)
+    explicit JavaArray(int size) : length(size), capacity_(size)
     {
         data_ = new T[size];
-        errno_t ret = memset_s((void *)data_, sizeof(T) * size, 0, sizeof(T) * size);
+        errno_t ret = memset_s((void*)data_, sizeof(T) * size, 0, sizeof(T) * size);
         if (ret != 0) {
             throw std::runtime_error("memset_s failed" + std::to_string(ret));
         }
@@ -71,8 +72,7 @@ public:
         }
     }
 
-    JavaArray(JavaArray&& other) noexcept
-        : length(other.length), data_(other.data_),  capacity_(other.capacity_)
+    JavaArray(JavaArray&& other) noexcept : length(other.length), data_(other.data_), capacity_(other.capacity_)
     {
         other.data_ = nullptr;
         other.length = other.capacity_ = 0;
@@ -126,25 +126,70 @@ public:
         return data_[index];
     }
 
-    reference front() { return data_[0]; }
-    const_reference front() const { return data_[0]; }
-    reference back() { return data_[length - 1]; }
-    const_reference back() const { return data_[length - 1]; }
+    reference front()
+    {
+        return data_[0];
+    }
+    const_reference front() const
+    {
+        return data_[0];
+    }
+    reference back()
+    {
+        return data_[length - 1];
+    }
+    const_reference back() const
+    {
+        return data_[length - 1];
+    }
 
-    pointer data() noexcept { return data_; }
-    const_pointer data() const noexcept { return data_; }
+    pointer data() noexcept
+    {
+        return data_;
+    }
+    const_pointer data() const noexcept
+    {
+        return data_;
+    }
 
-    iterator begin() noexcept { return data_; }
-    const_iterator begin() const noexcept { return data_; }
-    const_iterator cbegin() const noexcept { return data_; }
+    iterator begin() noexcept
+    {
+        return data_;
+    }
+    const_iterator begin() const noexcept
+    {
+        return data_;
+    }
+    const_iterator cbegin() const noexcept
+    {
+        return data_;
+    }
 
-    iterator end() noexcept { return data_ + length; }
-    const_iterator end() const noexcept { return data_ + length; }
-    const_iterator cend() const noexcept { return data_ + length; }
+    iterator end() noexcept
+    {
+        return data_ + length;
+    }
+    const_iterator end() const noexcept
+    {
+        return data_ + length;
+    }
+    const_iterator cend() const noexcept
+    {
+        return data_ + length;
+    }
 
-    bool empty() const noexcept { return length == 0; }
-    int size() const noexcept { return length; }
-    int capacity() const noexcept { return capacity_; }
+    bool empty() const noexcept
+    {
+        return length == 0;
+    }
+    int size() const noexcept
+    {
+        return length;
+    }
+    int capacity() const noexcept
+    {
+        return capacity_;
+    }
 
     void reserve(int new_capacity)
     {
@@ -155,8 +200,7 @@ public:
             new_data[i] = std::move(data_[i]);
         }
 
-        if (data_)
-            delete[] data_;
+        if (data_) delete[] data_;
         data_ = new_data;
         capacity_ = new_capacity;
     }
@@ -191,7 +235,7 @@ public:
         if (length >= capacity_) {
             reserve(capacity_ == 0 ? 1 : capacity_ * EXPAND_SIZE);
         }
-        new(data_ + length) T(std::forward<Args>(args)...);
+        new (data_ + length) T(std::forward<Args>(args)...);
         return data_[length++];
     }
 
@@ -222,7 +266,7 @@ public:
         return *this != other;
     }
 
-    bool equals(Object *obj) override;
+    bool equals(Object* obj) override;
 
     Object* clone() override;
 

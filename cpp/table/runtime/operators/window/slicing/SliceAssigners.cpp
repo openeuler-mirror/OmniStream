@@ -20,24 +20,27 @@ int64_t TimeWindow1::getWindowStartWithOffset(int64_t timestamp, int64_t offset,
     return timestamp - remainder;
 };
 
-int64_t TimeWindow1::GetCurrentTimeStamp(omnistream::VectorBatch *element, int rowId, ClockService *clock,
-                                         int rowtimeIndex)
+int64_t TimeWindow1::GetCurrentTimeStamp(
+    omnistream::VectorBatch* element, int rowId, ClockService* clock, int rowtimeIndex)
 {
     int64_t timestamp;
     if (rowtimeIndex >= 0) {
-        timestamp = reinterpret_cast<omniruntime::vec::Vector<std::int64_t> *>(element->GetVectors()[rowtimeIndex])->GetValue(rowId);
+        timestamp = reinterpret_cast<omniruntime::vec::Vector<std::int64_t>*>(element->GetVectors()[rowtimeIndex])
+                        ->GetValue(rowId);
     } else {
         timestamp = duration_cast<milliseconds>(clock->currentProcessingTime().time_since_epoch()).count();
     }
     return timestamp;
 }
 
-AbstractSlicedSliceAssigner::AbstractSlicedSliceAssigner(SliceAssigner *innerAssigner, int sliceEndIndex)
-    : innerAssigner(innerAssigner), sliceEndIndex(sliceEndIndex) {};
+AbstractSlicedSliceAssigner::AbstractSlicedSliceAssigner(SliceAssigner* innerAssigner, int sliceEndIndex)
+    : innerAssigner(innerAssigner),
+      sliceEndIndex(sliceEndIndex) {};
 
-int64_t AbstractSlicedSliceAssigner::assignSliceEnd(omnistream::VectorBatch *element, int rowId, ClockService *clock)
+int64_t AbstractSlicedSliceAssigner::assignSliceEnd(omnistream::VectorBatch* element, int rowId, ClockService* clock)
 {
-    return reinterpret_cast<omniruntime::vec::Vector<std::int64_t> *>(element->GetVectors()[sliceEndIndex])->GetValue(rowId);
+    return reinterpret_cast<omniruntime::vec::Vector<std::int64_t>*>(element->GetVectors()[sliceEndIndex])
+        ->GetValue(rowId);
 };
 
 int64_t AbstractSlicedSliceAssigner::getWindowStart(int64_t windowEnd)
@@ -45,7 +48,7 @@ int64_t AbstractSlicedSliceAssigner::getWindowStart(int64_t windowEnd)
     return innerAssigner->getWindowStart(windowEnd);
 };
 
-IteratorBase *AbstractSlicedSliceAssigner::expiredSlices(int64_t windowEnd)
+IteratorBase* AbstractSlicedSliceAssigner::expiredSlices(int64_t windowEnd)
 {
     return innerAssigner->expiredSlices(windowEnd);
 };
@@ -73,11 +76,12 @@ std::string AbstractSliceAssigner::getShiftTimeZoneId() const
     return shiftTimeZone->getId();
 }
 
-int64_t AbstractSliceAssigner::assignSliceEnd(omnistream::VectorBatch *element, int rowId, ClockService *clock)
+int64_t AbstractSliceAssigner::assignSliceEnd(omnistream::VectorBatch* element, int rowId, ClockService* clock)
 {
     long timestamp;
     if (rowtimeIndex >= 0) {
-        timestamp = reinterpret_cast<omniruntime::vec::Vector<std::int64_t> *>(element->GetVectors()[rowtimeIndex])->GetValue(rowId);
+        timestamp = reinterpret_cast<omniruntime::vec::Vector<std::int64_t>*>(element->GetVectors()[rowtimeIndex])
+                        ->GetValue(rowId);
     } else {
         timestamp = duration_cast<milliseconds>(clock->currentProcessingTime().time_since_epoch()).count();
     }
@@ -90,10 +94,11 @@ bool CumulativeSliceAssigner::isEventTime()
     return isEventTimeBool;
 };
 
-SlicedSharedSliceAssigner::SlicedSharedSliceAssigner(int sliceEndIndex, SliceSharedAssigner *innerAssigner)
-    : AbstractSlicedSliceAssigner(innerAssigner, sliceEndIndex), innerSharedAssigner(innerAssigner){};
+SlicedSharedSliceAssigner::SlicedSharedSliceAssigner(int sliceEndIndex, SliceSharedAssigner* innerAssigner)
+    : AbstractSlicedSliceAssigner(innerAssigner, sliceEndIndex),
+      innerSharedAssigner(innerAssigner) {};
 
-void SlicedSharedSliceAssigner::mergeSlices(int64_t *sliceEnd, MergeCallback *callback)
+void SlicedSharedSliceAssigner::mergeSlices(int64_t* sliceEnd, MergeCallback* callback)
 {
     innerSharedAssigner->mergeSlices(sliceEnd, callback);
 };
@@ -108,10 +113,11 @@ int64_t SlicedSharedSliceAssigner::getLastWindowEnd(int64_t sliceEnd)
     return innerAssigner->getLastWindowEnd(sliceEnd);
 };
 
-
-TumblingSliceAssigner::TumblingSliceAssigner(int rowtimeIndex, omnistream::ZoneId *shiftTimeZone, int64_t size,
-                                             int64_t offset): AbstractSliceAssigner(rowtimeIndex, shiftTimeZone),
-                                                              size(size), offset(offset)
+TumblingSliceAssigner::TumblingSliceAssigner(
+    int rowtimeIndex, omnistream::ZoneId* shiftTimeZone, int64_t size, int64_t offset)
+    : AbstractSliceAssigner(rowtimeIndex, shiftTimeZone),
+      size(size),
+      offset(offset)
 {
     if (size <= 0) {
         throw std::invalid_argument("Size must be positive");
@@ -135,7 +141,7 @@ int64_t TumblingSliceAssigner::assignSliceEnd(int64_t timestamp)
     return start + size;
 };
 
-int64_t TumblingSliceAssigner::assignSliceEnd(omnistream::VectorBatch *element, int rowId, ClockService *clock)
+int64_t TumblingSliceAssigner::assignSliceEnd(omnistream::VectorBatch* element, int rowId, ClockService* clock)
 {
     return AbstractSliceAssigner::assignSliceEnd(element, rowId, clock);
 };
@@ -171,15 +177,19 @@ bool TumblingSliceAssigner::isEventTime()
     return isEventTimeBool;
 };
 
-int64_t TumblingSliceAssigner::GetCurrentTimeStamp(omnistream::VectorBatch *element, int rowId, ClockService *clock,
-                                                   int rowTimeIdx)
+int64_t TumblingSliceAssigner::GetCurrentTimeStamp(
+    omnistream::VectorBatch* element, int rowId, ClockService* clock, int rowTimeIdx)
 {
     return TimeWindow1::GetCurrentTimeStamp(element, rowId, clock, rowTimeIdx);
 }
 
-HoppingSliceAssigner::HoppingSliceAssigner(int rowtimeIndex, omnistream::ZoneId *shiftTimeZone,
-                                           int64_t size, int64_t slide, int64_t offset)
-    : AbstractSliceAssigner(rowtimeIndex, shiftTimeZone), size(size), slide(slide), offset(offset), sliceSize(std::gcd(size, slide))
+HoppingSliceAssigner::HoppingSliceAssigner(
+    int rowtimeIndex, omnistream::ZoneId* shiftTimeZone, int64_t size, int64_t slide, int64_t offset)
+    : AbstractSliceAssigner(rowtimeIndex, shiftTimeZone),
+      size(size),
+      slide(slide),
+      offset(offset),
+      sliceSize(std::gcd(size, slide))
 {
     if (size <= 0 || slide <= 0) {
         throw std::invalid_argument("Size and slide must be positive");
@@ -201,13 +211,13 @@ HoppingSliceAssigner* HoppingSliceAssigner::withOffset(int64_t offset_)
     return new HoppingSliceAssigner(rowtimeIndex, shiftTimeZone, size, slide, offset_);
 }
 
-int64_t HoppingSliceAssigner::GetCurrentTimeStamp(omnistream::VectorBatch *element, int rowId, ClockService *clock,
-                                                  int rowTimeIdx)
+int64_t HoppingSliceAssigner::GetCurrentTimeStamp(
+    omnistream::VectorBatch* element, int rowId, ClockService* clock, int rowTimeIdx)
 {
     return TimeWindow1::GetCurrentTimeStamp(element, rowId, clock, rowTimeIdx);
 }
 
-int64_t HoppingSliceAssigner::assignSliceEnd(omnistream::VectorBatch *element, int rowId, ClockService *clock)
+int64_t HoppingSliceAssigner::assignSliceEnd(omnistream::VectorBatch* element, int rowId, ClockService* clock)
 {
     return AbstractSliceAssigner::assignSliceEnd(element, rowId, clock);
 }
@@ -232,7 +242,7 @@ int64_t HoppingSliceAssigner::getWindowStart(int64_t windowEnd)
     return windowEnd - size;
 }
 
-IteratorBase *HoppingSliceAssigner::expiredSlices(int64_t windowEnd)
+IteratorBase* HoppingSliceAssigner::expiredSlices(int64_t windowEnd)
 {
     int64_t windowStart = getWindowStart(windowEnd);
     int64_t firstSliceEnd = windowStart + sliceSize;
@@ -284,7 +294,7 @@ int64_t ReusableListIterable::next()
 std::unique_ptr<IteratorBase> ReusableListIterable::iterator()
 {
     auto copy = std::make_unique<ReusableListIterable>(*this);
-    copy->index = 0;  // 重置索引
+    copy->index = 0; // 重置索引
     return copy;
 }
 
@@ -294,7 +304,11 @@ std::vector<int64_t> ReusableListIterable::getList()
 }
 
 HoppingSlicesIterable::HoppingSlicesIterable(int64_t last_slice_end, int64_t slice_size, int num_slices_per_window)
-    : slice_size(slice_size), current_value(last_slice_end), remaining(num_slices_per_window) {}
+    : slice_size(slice_size),
+      current_value(last_slice_end),
+      remaining(num_slices_per_window)
+{
+}
 
 bool HoppingSlicesIterable::hasNext() const
 {
@@ -317,7 +331,7 @@ std::unique_ptr<IteratorBase> HoppingSlicesIterable::iterator()
     return std::make_unique<HoppingSlicesIterable>(*this);
 }
 
-void HoppingSliceAssigner::mergeSlices(int64_t *sliceEnd, MergeCallback *callback)
+void HoppingSliceAssigner::mergeSlices(int64_t* sliceEnd, MergeCallback* callback)
 {
     auto toBeMerged = new HoppingSlicesIterable(*sliceEnd, sliceSize, numSlicesPerWindow);
     callback->merge(0, toBeMerged);
@@ -337,9 +351,12 @@ int64_t HoppingSliceAssigner::getNumSlicesPerWindow()
     return numSlicesPerWindow;
 }
 
-CumulativeSliceAssigner::CumulativeSliceAssigner(int rowtimeIndex, omnistream::ZoneId *shiftTimeZone,
-                                                 int64_t maxSize, int64_t step, int64_t offset)
-    : AbstractSliceAssigner(rowtimeIndex, shiftTimeZone), maxSize(maxSize), step(step), offset(offset)
+CumulativeSliceAssigner::CumulativeSliceAssigner(
+    int rowtimeIndex, omnistream::ZoneId* shiftTimeZone, int64_t maxSize, int64_t step, int64_t offset)
+    : AbstractSliceAssigner(rowtimeIndex, shiftTimeZone),
+      maxSize(maxSize),
+      step(step),
+      offset(offset)
 {
     if (maxSize <= 0 || step <= 0) {
         throw std::invalid_argument("MaxSize and step must be positive");
@@ -362,7 +379,7 @@ CumulativeSliceAssigner* CumulativeSliceAssigner::withOffset(int64_t offset_)
     return new CumulativeSliceAssigner(rowtimeIndex, shiftTimeZone, maxSize, step, offset_);
 }
 
-int64_t CumulativeSliceAssigner::assignSliceEnd(omnistream::VectorBatch *element, int rowId, ClockService *clock)
+int64_t CumulativeSliceAssigner::assignSliceEnd(omnistream::VectorBatch* element, int rowId, ClockService* clock)
 {
     return AbstractSliceAssigner::assignSliceEnd(element, rowId, clock);
 }
@@ -384,8 +401,7 @@ int64_t CumulativeSliceAssigner::getWindowStart(int64_t windowEnd)
     return TimeWindow1::getWindowStartWithOffset(windowEnd - 1, offset, maxSize);
 }
 
-
-IteratorBase *CumulativeSliceAssigner::expiredSlices(int64_t windowEnd)
+IteratorBase* CumulativeSliceAssigner::expiredSlices(int64_t windowEnd)
 {
     int64_t windowStart = getWindowStart(windowEnd);
     int64_t firstSliceEnd = windowStart + step;
@@ -406,7 +422,7 @@ int64_t CumulativeSliceAssigner::getSliceEndInterval()
     return step;
 }
 
-void CumulativeSliceAssigner::mergeSlices(int64_t *sliceEnd, MergeCallback *callback)
+void CumulativeSliceAssigner::mergeSlices(int64_t* sliceEnd, MergeCallback* callback)
 {
     int64_t windowStart = getWindowStart(*sliceEnd);
     int64_t firstSliceEnd = windowStart + step;
@@ -429,22 +445,24 @@ int64_t CumulativeSliceAssigner::NextTriggerWindow(int64_t windowEnd, bool hasCo
     }
 }
 
-int64_t CumulativeSliceAssigner::GetCurrentTimeStamp(omnistream::VectorBatch *element, int rowId, ClockService *clock,
-                                                     int rowTimeIdx)
+int64_t CumulativeSliceAssigner::GetCurrentTimeStamp(
+    omnistream::VectorBatch* element, int rowId, ClockService* clock, int rowTimeIdx)
 {
     return TimeWindow1::GetCurrentTimeStamp(element, rowId, clock, rowTimeIdx);
 }
 
+SlicedUnsharedSliceAssigner::SlicedUnsharedSliceAssigner(int sliceEndIndex, SliceAssigner* innerAssigner)
+    : AbstractSlicedSliceAssigner(innerAssigner, sliceEndIndex) {};
 
-SlicedUnsharedSliceAssigner::SlicedUnsharedSliceAssigner(int sliceEndIndex, SliceAssigner *innerAssigner)
-    :AbstractSlicedSliceAssigner(innerAssigner, sliceEndIndex){};
-
-int64_t SlicedUnsharedSliceAssigner::getLastWindowEnd(int64_t sliceEnd) { return sliceEnd; }
+int64_t SlicedUnsharedSliceAssigner::getLastWindowEnd(int64_t sliceEnd)
+{
+    return sliceEnd;
+}
 
 SliceAssigner* AssignerAtt::createSliceAssigner(const nlohmann::json& parsedJson)
 {
     nlohmann::json windowing = parsedJson["window"];
-    auto windowMsgStr =  windowing.get<std::string>();
+    auto windowMsgStr = windowing.get<std::string>();
     auto rowtimeIndexVal = -1;
     if (parsedJson.contains("timeAttributeIndex")) {
         nlohmann::json rowtimeIndex = parsedJson["timeAttributeIndex"];
@@ -467,34 +485,33 @@ SliceAssigner* AssignerAtt::createSliceAssigner(const nlohmann::json& parsedJson
         sliceAssigner = CreateCumlativeSliceAssigner(parsedJson, rowtimeIndexVal, zonePtr);
     } else {
         // not support window type
-        THROW_LOGIC_EXCEPTION("wrong slice assigner type passed")
+        THROW_LOGIC_EXCEPTION("wrong slice assigner type passed");
     }
 
     if (parsedJson.contains("windowEndIndex")) {
-        LOG("windowEndIndex in assigner")
+        LOG("windowEndIndex in assigner");
         sliceAssigner = new WindowedSliceAssigner(parsedJson["windowEndIndex"].get<int>(), sliceAssigner);
         sliceAssigner->SetWindowEnd(true);
-    } else if (parsedJson.contains("sliceEndIndex")) {  // todo GlobalWindowAgg should be AbstractSlicedSliceAssigner
-        LOG("sliceEndIndex in assigner")
+    } else if (parsedJson.contains("sliceEndIndex")) { // todo GlobalWindowAgg should be AbstractSlicedSliceAssigner
+        LOG("sliceEndIndex in assigner");
         sliceAssigner = new WindowedSliceAssigner(parsedJson["sliceEndIndex"].get<int>(), sliceAssigner);
         sliceAssigner->SetSliceEnd(true);
     } else {
-        LOG("sliceEndIndex or windowEndIndex not in assigner")
+        LOG("sliceEndIndex or windowEndIndex not in assigner");
     }
     return sliceAssigner;
 }
 
-CumulativeSliceAssigner* AssignerAtt::CreateCumlativeSliceAssigner(const nlohmann::json& parsedJson, int rowtimeIndexVal,
-        omnistream::ZoneId* zonePtr) {
+CumulativeSliceAssigner* AssignerAtt::CreateCumlativeSliceAssigner(
+    const nlohmann::json& parsedJson, int rowtimeIndexVal, omnistream::ZoneId* zonePtr)
+{
     if (!parsedJson.contains("maxSize") || !parsedJson.contains("step")) {
-        THROW_LOGIC_EXCEPTION("maxSize or step must be specified")
+        THROW_LOGIC_EXCEPTION("maxSize or step must be specified");
     }
     auto maxSizeNum = parsedJson["maxSize"].get<int64_t>();
     auto stepNum = parsedJson["step"].get<int64_t>();
-    CumulativeSliceAssigner* sliceAssigner = SliceAssigners::SliceAssigners::cumulative(rowtimeIndexVal,
-                                                                                        zonePtr,
-                                                                                        maxSizeNum,
-                                                                                        stepNum);
+    CumulativeSliceAssigner* sliceAssigner =
+        SliceAssigners::SliceAssigners::cumulative(rowtimeIndexVal, zonePtr, maxSizeNum, stepNum);
     if (parsedJson.contains("windowOffset")) {
         auto offsetNum = parsedJson["windowOffset"].get<int64_t>();
         sliceAssigner = dynamic_cast<CumulativeSliceAssigner*>(sliceAssigner)->withOffset(offsetNum);
@@ -502,14 +519,14 @@ CumulativeSliceAssigner* AssignerAtt::CreateCumlativeSliceAssigner(const nlohman
     return sliceAssigner;
 }
 
-TumblingSliceAssigner* AssignerAtt::CreateTumbleSliceAssigner(const nlohmann::json& parsedJson, int rowtimeIndexVal,
-        omnistream::ZoneId* zonePtr) {
+TumblingSliceAssigner* AssignerAtt::CreateTumbleSliceAssigner(
+    const nlohmann::json& parsedJson, int rowtimeIndexVal, omnistream::ZoneId* zonePtr)
+{
     if (!parsedJson.contains("windowSize")) {
-        THROW_LOGIC_EXCEPTION("windowSize must be specified")
+        THROW_LOGIC_EXCEPTION("windowSize must be specified");
     }
     auto sizeNum = parsedJson["windowSize"].get<int64_t>();
-    TumblingSliceAssigner* sliceAssigner = SliceAssigners::SliceAssigners::tumbling(rowtimeIndexVal,
-                                                                                    zonePtr, sizeNum);
+    TumblingSliceAssigner* sliceAssigner = SliceAssigners::SliceAssigners::tumbling(rowtimeIndexVal, zonePtr, sizeNum);
     if (parsedJson.contains("windowOffset")) {
         auto offsetNum = parsedJson["windowOffset"].get<int64_t>();
         sliceAssigner = dynamic_cast<TumblingSliceAssigner*>(sliceAssigner)->withOffset(offsetNum);
@@ -517,19 +534,18 @@ TumblingSliceAssigner* AssignerAtt::CreateTumbleSliceAssigner(const nlohmann::js
     return sliceAssigner;
 }
 
-HoppingSliceAssigner* AssignerAtt::CreateHopSliceAssigner(const nlohmann::json& parsedJson, int rowtimeIndexVal,
-        omnistream::ZoneId* zonePtr) {
+HoppingSliceAssigner* AssignerAtt::CreateHopSliceAssigner(
+    const nlohmann::json& parsedJson, int rowtimeIndexVal, omnistream::ZoneId* zonePtr)
+{
     if (!parsedJson.contains("windowSize") || !parsedJson.contains("windowSlide")) {
-        THROW_LOGIC_EXCEPTION("windowSize or windowSlide must be specified")
+        THROW_LOGIC_EXCEPTION("windowSize or windowSlide must be specified");
     }
     auto sizeNum = parsedJson["windowSize"].get<int64_t>();
     auto slideNum = parsedJson["windowSlide"].get<int64_t>();
-    HoppingSliceAssigner* sliceAssigner = SliceAssigners::hopping(rowtimeIndexVal, zonePtr,
-                                                                  sizeNum, slideNum);
+    HoppingSliceAssigner* sliceAssigner = SliceAssigners::hopping(rowtimeIndexVal, zonePtr, sizeNum, slideNum);
     if (parsedJson.contains("windowOffset")) {
         auto offsetNum = parsedJson["windowOffset"].get<int64_t>();
         sliceAssigner = sliceAssigner->withOffset(offsetNum);
     }
     return sliceAssigner;
 }
-

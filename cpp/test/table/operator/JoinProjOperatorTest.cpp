@@ -13,13 +13,13 @@
 #include "runtime/operators/join/StreamingJoinOperator.h"
 #include "streaming/api/operators/StreamCalcBatch.h"
 
-
 namespace omnistream {
-VectorBatch *createVectorBatchFromCsv(std::string filepath, int nrow, int ncol, std::optional<std::vector<std::string>> colTypes = std::nullopt)
+VectorBatch* createVectorBatchFromCsv(
+    std::string filepath, int nrow, int ncol, std::optional<std::vector<std::string>> colTypes = std::nullopt)
 {
     VectorBatch* result = new omnistream::VectorBatch(nrow);
     result->ResizeVectorCount(ncol);
-    for(int i = 0; i < ncol; i++) {
+    for (int i = 0; i < ncol; i++) {
         if (colTypes && (*colTypes)[i] == "STRING") {
             auto vec = new omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>(nrow);
             result->SetVector(i, vec);
@@ -40,7 +40,7 @@ VectorBatch *createVectorBatchFromCsv(std::string filepath, int nrow, int ncol, 
         std::string value;
         std::vector<std::string> row;
 
-        while (std::getline(ss, value, ',')) {  // Assuming CSV is comma-separated
+        while (std::getline(ss, value, ',')) { // Assuming CSV is comma-separated
             row.push_back(value);
         }
         // Store values in respective column vectors
@@ -48,9 +48,12 @@ VectorBatch *createVectorBatchFromCsv(std::string filepath, int nrow, int ncol, 
             if (colTypes && (*colTypes)[i] == "STRING") {
                 std::string str = row[i];
                 std::string_view value(str.data(), str.size());
-                reinterpret_cast<omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>*>(result->GetVectors()[i])->SetValue(irow, value);
+                reinterpret_cast<omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>*>(
+                    result->GetVectors()[i])
+                    ->SetValue(irow, value);
             } else {
-                reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(result->GetVectors()[i])->SetValue(irow, std::stoll(row[i]));
+                reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(result->GetVectors()[i])
+                    ->SetValue(irow, std::stoll(row[i]));
             }
         }
         irow++;
@@ -59,8 +62,8 @@ VectorBatch *createVectorBatchFromCsv(std::string filepath, int nrow, int ncol, 
     return result;
 }
 
-omnistream::VectorBatch* BuildStringVectorBatch(std::string* strings, int rowCount) {
-
+omnistream::VectorBatch* BuildStringVectorBatch(std::string* strings, int rowCount)
+{
     auto vector = omniruntime::TestUtil::CreateVarcharVector(strings, rowCount);
 
     omnistream::VectorBatch* vb = new omnistream::VectorBatch(rowCount);
@@ -113,7 +116,6 @@ std::string Q4ConfigStr_join =
         "id":"org.apache.flink.table.runtime.operators.join.stream.StreamingJoinOperator"
     })delimiter";
 
-
 std::string Q20ConfigStr_calc =
     R"delimiter({
         "name" : "Calc(select=[auction, bidder, price, channel, url, B.dateTime, B.extra, itemName, description, initialBid, reserve, A.dateTime, expires, seller, category, A.extra])",
@@ -165,7 +167,7 @@ std::string Q20ConfigStr_join =
         "id":"org.apache.flink.table.runtime.operators.join.stream.StreamingJoinOperator"
     })delimiter";
 
-    std::string CountChar_desc =
+std::string CountChar_desc =
     R"delimiter({
         "name" : "Calc()",
         "description":{
@@ -180,7 +182,7 @@ std::string Q20ConfigStr_join =
         "id":"StreamExecCalc"
     })delimiter";
 
-    std::string SplitIndex_desc =
+std::string SplitIndex_desc =
     R"delimiter({
         "name" : "Calc()",
         "description":{
@@ -188,8 +190,8 @@ std::string Q20ConfigStr_join =
             "inputTypes": ["STRING"],
             "outputTypes": ["STRING"],
             "indices": [
-                {"exprType":"FUNCTION","returnType":15,"function_name":"SplitIndex", "arguments":[{"exprType":"FIELD_REFERENCE","dataType":15,"colVal":0,"width":200}, 
-                                                                                                {"exprType": "LITERAL" ,"dataType":16,"isNull":false,"value":",", "width":200}, 
+                {"exprType":"FUNCTION","returnType":15,"function_name":"SplitIndex", "arguments":[{"exprType":"FIELD_REFERENCE","dataType":15,"colVal":0,"width":200},
+                                                                                                {"exprType": "LITERAL" ,"dataType":16,"isNull":false,"value":",", "width":200},
                                                                                                 {"exprType": "LITERAL" ,"dataType":1,"isNull":false,"value":1}]
                 }
             ],
@@ -217,13 +219,13 @@ std::string Q20ConfigStr_join =
     BatchOutputTest *output = new BatchOutputTest();
     OperatorChain* chain = new OperatorChain(opChainConfig);
     StreamOperator * headOp = chain->createMainOperatorAndCollector(opChainConfig, output);
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("CountCharChainTest", 1, 1, 0)));
-    chain->initializeStateAndOpenOperators(initializer);
+    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new
+TaskInfoImpl("CountCharChainTest", 1, 1, 0))); chain->initializeStateAndOpenOperators(initializer);
 
     // 2. Feed input to operator chain (give it to head operator. The process happens recursively)
     auto calcOp = dynamic_cast<StreamCalcBatch *>(headOp);
-    VectorBatch* testVectorBatch = createVectorBatchFromCsv("input/test_countchar.csv", 4, 1, operatorDescriptions[0]["description"]["inputTypes"]);
-    calcOp->processBatch(new StreamRecord(testVectorBatch));
+    VectorBatch* testVectorBatch = createVectorBatchFromCsv("input/test_countchar.csv", 4, 1,
+operatorDescriptions[0]["description"]["inputTypes"]); calcOp->processBatch(new StreamRecord(testVectorBatch));
 
     // 3. Collect output from the output of the tail
     VectorBatch* outputVB = reinterpret_cast<VectorBatch*> (output->getVectorBatch());
@@ -255,11 +257,11 @@ TEST(OperatorChainTest, DISABLED_SplitIndexTest)
     BatchOutputTest *output = new BatchOutputTest();
     OperatorChain* chain = new OperatorChain(opChainConfig);
     StreamOperator * headOp = chain->createMainOperatorAndCollector(opChainConfig, output);
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("SplitIndexChainTest", 1, 1, 0)));
-    chain->initializeStateAndOpenOperators(initializer);
+    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new
+TaskInfoImpl("SplitIndexChainTest", 1, 1, 0))); chain->initializeStateAndOpenOperators(initializer);
 
     auto calcOp = dynamic_cast<StreamCalcBatch *>(headOp);
-    
+
     int rowCnt = 4;
     std::string inputStr[rowCnt] = {"Jack,John,Mary", "Jack,Johnny,Mary", "Jack,Mary", "Jack"};
     auto inputVB = BuildStringVectorBatch(inputStr, rowCnt);
@@ -300,8 +302,8 @@ TEST(OperatorChainTest, DISABLED_Q4JoinProj)
     BatchOutputTest *output = new BatchOutputTest();
     OperatorChain* chain = new OperatorChain(opChainConfig);
     StreamOperator * headOp = chain->createMainOperatorAndCollector(opChainConfig, output);
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("Q4OperatorChainTest", 1, 1, 0)));
-    chain->initializeStateAndOpenOperators(initializer);
+    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new
+TaskInfoImpl("Q4OperatorChainTest", 1, 1, 0))); chain->initializeStateAndOpenOperators(initializer);
 
     // 2. Feed input to operator chain (give it to head operator. The process happens recursively)
     auto joinOp = dynamic_cast<StreamingJoinOperator<int64_t>*>(headOp);
@@ -328,11 +330,9 @@ TEST(OperatorChainTest, DISABLED_Q4JoinProj)
 TEST(OperatorChainTest, DISABLED_Q20JoinProj)
 {
     // 1. Setup operatorChain
-    std::vector<nlohmann::json> operatorDescriptions{nlohmann::json::parse(Q20ConfigStr_join), nlohmann::json::parse(Q20ConfigStr_calc)};
-    std::vector<omnistream::OperatorConfig> opChainConfig;
-    for (int i = 0; i < operatorDescriptions.size(); i++) {
-        auto parsedJson = operatorDescriptions[i];
-        omnistream::OperatorConfig opConfig(
+    std::vector<nlohmann::json> operatorDescriptions{nlohmann::json::parse(Q20ConfigStr_join),
+nlohmann::json::parse(Q20ConfigStr_calc)}; std::vector<omnistream::OperatorConfig> opChainConfig; for (int i = 0; i <
+operatorDescriptions.size(); i++) { auto parsedJson = operatorDescriptions[i]; omnistream::OperatorConfig opConfig(
                 parsedJson["id"],
                 parsedJson["name"],
                 parsedJson["description"]["inputType"],
@@ -345,29 +345,30 @@ TEST(OperatorChainTest, DISABLED_Q20JoinProj)
     // OperatorChain* chain;
     OperatorChain* chain = new OperatorChain(opChainConfig);
     StreamOperator * headOp = chain->createMainOperatorAndCollector(opChainConfig, output);
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("Q20OperatorChainTest", 1, 1, 0)));
-    chain->initializeStateAndOpenOperators(initializer);
+    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new
+TaskInfoImpl("Q20OperatorChainTest", 1, 1, 0))); chain->initializeStateAndOpenOperators(initializer);
 
     // 2. Feed input to operator chain (give it to head operator. The process happens recursively)
     auto joinOp = dynamic_cast<StreamingJoinOperator<int64_t>*>(headOp);
 
     // left table
-    VectorBatch* vectorBatchLeft = createVectorBatchFromCsv("input/q20_auction.csv", 11, 7, operatorDescriptions[0]["description"]["leftInputTypes"]);
+    VectorBatch* vectorBatchLeft = createVectorBatchFromCsv("input/q20_auction.csv", 11, 7,
+operatorDescriptions[0]["description"]["leftInputTypes"]);
 
     joinOp->processBatch1(new StreamRecord(vectorBatchLeft));
 
     // right table
-    VectorBatch* vectorBatchRight = createVectorBatchFromCsv("input/q20_bid.csv", 150, 9, operatorDescriptions[0]["description"]["rightInputTypes"]);
-    joinOp->processBatch2(new StreamRecord(vectorBatchRight));
+    VectorBatch* vectorBatchRight = createVectorBatchFromCsv("input/q20_bid.csv", 150, 9,
+operatorDescriptions[0]["description"]["rightInputTypes"]); joinOp->processBatch2(new StreamRecord(vectorBatchRight));
 
     // // 3. Collect output from the output of the tail
     VectorBatch* outputVB = reinterpret_cast<VectorBatch*> (output->getVectorBatch());
-    auto expectedVB = createVectorBatchFromCsv("input/q20_result.csv", 46, 16, operatorDescriptions[1]["description"]["outputTypes"]); // calc output
-    bool matched = omniruntime::TestUtil::VecBatchMatch(outputVB, expectedVB);
-    EXPECT_TRUE(matched);
+    auto expectedVB = createVectorBatchFromCsv("input/q20_result.csv", 46, 16,
+operatorDescriptions[1]["description"]["outputTypes"]); // calc output bool matched =
+omniruntime::TestUtil::VecBatchMatch(outputVB, expectedVB); EXPECT_TRUE(matched);
 
     vectorBatchLeft->FreeAllVectors();
     vectorBatchRight->FreeAllVectors();
     outputVB->FreeAllVectors();
 }*/
-}
+} // namespace omnistream

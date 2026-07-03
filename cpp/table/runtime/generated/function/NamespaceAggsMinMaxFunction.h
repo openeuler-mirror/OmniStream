@@ -15,13 +15,17 @@
 
 enum class NamespaceAggsBasicFunctionType;
 
-template<typename N>
+template <typename N>
 class NamespaceAggsMinMaxFunction : public NamespaceAggsBasicFunction<N> {
 public:
-    NamespaceAggsMinMaxFunction(std::vector<int32_t> argIndexes, std::vector<int32_t> inputTypeIds,
-                                std::vector<int32_t> accIndexes, std::vector<int32_t> accTypeIds,
-                                int32_t aggValueIndex, int32_t aggValueTypeId,
-                                NamespaceAggsBasicFunctionType type);
+    NamespaceAggsMinMaxFunction(
+        std::vector<int32_t> argIndexes,
+        std::vector<int32_t> inputTypeIds,
+        std::vector<int32_t> accIndexes,
+        std::vector<int32_t> accTypeIds,
+        int32_t aggValueIndex,
+        int32_t aggValueTypeId,
+        NamespaceAggsBasicFunctionType type);
 
     void accumulate(RowData* input) override;
     void retract(RowData* input) override;

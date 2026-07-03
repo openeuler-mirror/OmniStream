@@ -16,8 +16,7 @@
 
 class TimestampAssignerSupplier {
 public:
-    class Context {
-    };
+    class Context {};
 
     virtual TimestampAssigner* CreateTimestampAssigner() = 0;
 };

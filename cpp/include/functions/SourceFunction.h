@@ -28,7 +28,7 @@ public:
     virtual void cancel() = 0;
 
     // Intermediate operation, which can be deleted after dataStream shuffle is nativeized.
-    void SaveCallBack(CallBack *callback)
+    void SaveCallBack(CallBack* callback)
     {
         this->callback = callback;
     }
@@ -40,11 +40,10 @@ public:
     }
 
 protected:
-    CallBack *callback = nullptr;
+    CallBack* callback = nullptr;
 };
 
-template<typename T>
+template <typename T>
 using SourceFunctionUnique = std::unique_ptr<SourceFunction<T>>;
 
-
-#endif  // SOURCEFUNCTION_H
+#endif // SOURCEFUNCTION_H

@@ -15,17 +15,17 @@
 #include "RecordWriterDelegate.h"
 
 namespace omnistream::datastream {
-    class MultipleRecordWriters : public RecordWriterDelegate {
-    public:
-        explicit MultipleRecordWriters(std::vector<RecordWriter*>& recordWriters);
+class MultipleRecordWriters : public RecordWriterDelegate {
+public:
+    explicit MultipleRecordWriters(std::vector<RecordWriter*>& recordWriters);
 
-        RecordWriter* getRecordWriter(int outputIndex) override;
+    RecordWriter* getRecordWriter(int outputIndex) override;
 
-        ~MultipleRecordWriters() override = default;
-        
-    private:
-        std::vector<RecordWriter*> recordWriters;
-    };
-}
+    ~MultipleRecordWriters() override = default;
+
+private:
+    std::vector<RecordWriter*> recordWriters;
+};
+} // namespace omnistream::datastream
 
 #endif

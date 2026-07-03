@@ -14,102 +14,103 @@
 #include <streaming/runtime/streamrecord/StreamElementSerializer.h>
 
 namespace omnistream {
-    SimpleSelectorRecordWriterV2::SimpleSelectorRecordWriterV2(std::shared_ptr<ResultPartitionWriter> writer,
-                                                               ChannelSelectorV2<StreamRecord> *channelSelector,
-                                                               datastream::StreamPartitioner<IOReadableWritable> * partitioner,
-                                                               long timeout,
-                                                               const std::string &taskName,
-                                                               int taskType): RecordWriterV2(
-        writer, timeout, taskName, taskType)
-    {
-        this->channelSelector = channelSelector; // for sql
-        this->partitioner = partitioner; // for datastream, it needs to be combined
+SimpleSelectorRecordWriterV2::SimpleSelectorRecordWriterV2(
+    std::shared_ptr<ResultPartitionWriter> writer,
+    ChannelSelectorV2<StreamRecord>* channelSelector,
+    datastream::StreamPartitioner<IOReadableWritable>* partitioner,
+    long timeout,
+    const std::string& taskName,
+    int taskType)
+    : RecordWriterV2(writer, timeout, taskName, taskType)
+{
+    this->channelSelector = channelSelector; // for sql
+    this->partitioner = partitioner;         // for datastream, it needs to be combined
 
-        if (this->channelSelector != nullptr) {
-            // check null before use
-            this->channelSelector->setup(numberOfChannels);
-        } else if (this->partitioner != nullptr) {
-            this->partitioner->setup(numberOfChannels);
+    if (this->channelSelector != nullptr) {
+        // check null before use
+        this->channelSelector->setup(numberOfChannels);
+    } else if (this->partitioner != nullptr) {
+        this->partitioner->setup(numberOfChannels);
+    } else {
+        LOG("Error: ChannelSelector is null in ChannelSelectorRecordWriter constructor." << std::endl);
+    }
+
+    if (taskType == 2) {
+        this->serializer = new DataOutputSerializer(128);
+    }
+}
+
+void SimpleSelectorRecordWriterV2::emit(StreamRecord* record)
+{
+    if (taskType == 1) {
+        auto vectorBatch = static_cast<VectorBatch*>(record->getValue());
+        size_t row_cnt = vectorBatch->GetRowCount();
+        counter_ += row_cnt;
+
+        if (channelSelector != nullptr) {
+            auto selectedChannel = channelSelector->selectChannel(record);
+
+            // LOG(">>> before emit " << std::to_string(selectedChannel) << "  record is " <<
+            // reinterpret_cast<long>(record))
+            for (auto it = selectedChannel.begin(); it != selectedChannel.end(); ++it) {
+                emit(it->second, it->first);
+            }
         } else {
-            LOG("Error: ChannelSelector is null in ChannelSelectorRecordWriter constructor." << std::endl)
+            std::cerr << "Error: ChannelSelector is null in ChannelSelectorRecordWriter::emit." << std::endl;
         }
+    } else if (taskType == 2) {
+        auto* value = static_cast<Object*>(record->getValue());
+        this->serializationDelegate->setInstance(record);
+        int channel = partitioner->selectChannel(serializationDelegate);
 
-        if (taskType == 2) {
-            this->serializer = new DataOutputSerializer(128);
-        }
-    }
+        auto byteBuffer = serializeRecord(serializer, serializationDelegate);
 
-
-    void SimpleSelectorRecordWriterV2::emit(StreamRecord *record)
-    {
-        if (taskType == 1) {
-            auto vectorBatch = static_cast<VectorBatch*>(record->getValue());
-            size_t row_cnt = vectorBatch->GetRowCount();
-            counter_ += row_cnt;
-
-            if (channelSelector != nullptr) {
-                auto selectedChannel = channelSelector->selectChannel(record);
-
-                // LOG(">>> before emit " << std::to_string(selectedChannel) << "  record is " << reinterpret_cast<long>(record))
-                for (auto it = selectedChannel.begin(); it != selectedChannel.end(); ++it) {
-                    emit(it->second, it->first);
-                }
-            } else {
-                std::cerr << "Error: ChannelSelector is null in ChannelSelectorRecordWriter::emit." << std::endl;
-            }
-        } else if (taskType == 2) {
-            auto *value = static_cast<Object *>(record->getValue());
-            this->serializationDelegate->setInstance(record);
-            int channel = partitioner->selectChannel(serializationDelegate);
-
-            auto byteBuffer = serializeRecord(serializer, serializationDelegate);
-
-            record->setValue(byteBuffer);
-            emit(record, channel);
-            /*if (byteBuffer) {
-                delete byteBuffer;
-            }*/
-            if (value) {
-                value->putRefCount();
-            }
-        }
-    }
-
-    ByteBuffer* SimpleSelectorRecordWriterV2::serializeRecord(DataOutputSerializer* serializer, IOReadableWritable *record)
-    {
-        // correspond to original flink logic for we will put it into memory segment
-        serializer->setPositionUnsafe(4);
-
-        record->write(*serializer);
-
-        int length = serializer->length() - 4;
-        serializer->writeIntUnsafe(length, 0);
-
-        return serializer->wrapAsByteBuffer();
-    }
-
-    void SimpleSelectorRecordWriterV2::emit(StreamRecord *record, int targetSubpartitionIndex)
-    {
-        LOG(">>> before emit  targetSubpartition " << std::to_string(targetSubpartitionIndex) << "  record is " <<
-            reinterpret_cast<long>(record))
-        this->targetPartitionWriter_->emitRecord(record, targetSubpartitionIndex);
-        if (flushAlways) {
-            targetPartitionWriter_->flush(targetSubpartitionIndex);
-        }
-    }
-
-    void SimpleSelectorRecordWriterV2::broadcastEmit(Watermark *watermark)
-    {
-        if (taskType == 2) {
-            this->serializationDelegate->setInstance(watermark);
-            auto byteBuffer = serializeRecord(serializer, serializationDelegate);
-            watermark->setValue(byteBuffer);
-        }
-        LOG(">>> before broadcast watermark " << std::to_string(watermark->getTimestamp()))
-        for (int i = 0; i < numberOfChannels; i++) {
-            //todo: delete new watermark ptr properly.
-            Watermark* new_wm = new Watermark(*watermark);
-            this->targetPartitionWriter_->emitRecord(reinterpret_cast<void*>(new_wm), i);
+        record->setValue(byteBuffer);
+        emit(record, channel);
+        /*if (byteBuffer) {
+            delete byteBuffer;
+        }*/
+        if (value) {
+            value->putRefCount();
         }
     }
 }
+
+ByteBuffer* SimpleSelectorRecordWriterV2::serializeRecord(DataOutputSerializer* serializer, IOReadableWritable* record)
+{
+    // correspond to original flink logic for we will put it into memory segment
+    serializer->setPositionUnsafe(4);
+
+    record->write(*serializer);
+
+    int length = serializer->length() - 4;
+    serializer->writeIntUnsafe(length, 0);
+
+    return serializer->wrapAsByteBuffer();
+}
+
+void SimpleSelectorRecordWriterV2::emit(StreamRecord* record, int targetSubpartitionIndex)
+{
+    LOG(">>> before emit  targetSubpartition " << std::to_string(targetSubpartitionIndex) << "  record is "
+                                               << reinterpret_cast<long>(record));
+    this->targetPartitionWriter_->emitRecord(record, targetSubpartitionIndex);
+    if (flushAlways) {
+        targetPartitionWriter_->flush(targetSubpartitionIndex);
+    }
+}
+
+void SimpleSelectorRecordWriterV2::broadcastEmit(Watermark* watermark)
+{
+    if (taskType == 2) {
+        this->serializationDelegate->setInstance(watermark);
+        auto byteBuffer = serializeRecord(serializer, serializationDelegate);
+        watermark->setValue(byteBuffer);
+    }
+    LOG(">>> before broadcast watermark " << std::to_string(watermark->getTimestamp()));
+    for (int i = 0; i < numberOfChannels; i++) {
+        // todo: delete new watermark ptr properly.
+        Watermark* new_wm = new Watermark(*watermark);
+        this->targetPartitionWriter_->emitRecord(reinterpret_cast<void*>(new_wm), i);
+    }
+}
+} // namespace omnistream

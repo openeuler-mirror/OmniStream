@@ -12,8 +12,13 @@
 #include "KafkaPartitionSplitState.h"
 
 KafkaPartitionSplitState::KafkaPartitionSplitState(KafkaPartitionSplit* partitionSplit)
-    : KafkaPartitionSplit(partitionSplit->getTopicPartition(), partitionSplit->getStartingOffset(),
-    partitionSplit->getStoppingOffset()), currentOffset(partitionSplit->getStartingOffset()) {}
+    : KafkaPartitionSplit(
+          partitionSplit->getTopicPartition(),
+          partitionSplit->getStartingOffset(),
+          partitionSplit->getStoppingOffset()),
+      currentOffset(partitionSplit->getStartingOffset())
+{
+}
 
 long KafkaPartitionSplitState::getCurrentOffset() const
 {
@@ -27,6 +32,5 @@ void KafkaPartitionSplitState::setCurrentOffset(long currentOffset_)
 
 KafkaPartitionSplit KafkaPartitionSplitState::toKafkaPartitionSplit() const
 {
-    return KafkaPartitionSplit(getTopicPartition(), getCurrentOffset(),
-                               getStoppingOffset());
+    return KafkaPartitionSplit(getTopicPartition(), getCurrentOffset(), getStoppingOffset());
 }

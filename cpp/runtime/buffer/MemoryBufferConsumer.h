@@ -23,25 +23,24 @@ using namespace omnistream;
 
 namespace omnistream::datastream {
 
-    class MemoryBufferConsumer : public BufferConsumer {
-    public:
-        MemoryBufferConsumer(NetworkBuffer* buffer, int size);
-        MemoryBufferConsumer(NetworkBuffer* buffer, PositionMarker *positionMarker, int readerPosition);
+class MemoryBufferConsumer : public BufferConsumer {
+public:
+    MemoryBufferConsumer(NetworkBuffer* buffer, int size);
+    MemoryBufferConsumer(NetworkBuffer* buffer, PositionMarker* positionMarker, int readerPosition);
 
-        ~MemoryBufferConsumer() override = default;
+    ~MemoryBufferConsumer() override = default;
 
-        Buffer *build() override;
-        std::shared_ptr<BufferConsumer> copy() override;
-        std::shared_ptr<BufferConsumer> copyWithReaderPosition(int readerPosition) override;
+    Buffer* build() override;
+    std::shared_ptr<BufferConsumer> copy() override;
+    std::shared_ptr<BufferConsumer> copyWithReaderPosition(int readerPosition) override;
 
-        NetworkBuffer *buildNetworkBuffer();
+    NetworkBuffer* buildNetworkBuffer();
 
-        bool isStartOfDataBuffer() const override;
-        std::string toDebugString(bool includeHash) override;
-        std::string toString() override;
-    };
+    bool isStartOfDataBuffer() const override;
+    std::string toDebugString(bool includeHash) override;
+    std::string toString() override;
+};
 
-}
-
+} // namespace omnistream::datastream
 
 #endif // MEMORYBUFFERCONSUMER_H

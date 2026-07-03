@@ -11,8 +11,8 @@
 
 #include "AverageFunction.h"
 
-AverageFunction::AverageFunction(int aggIdx, std::string inputType, int accIndexSum, int accIndexCount0, int valueIndex,
-    int filterIndex)
+AverageFunction::AverageFunction(
+    int aggIdx, std::string inputType, int accIndexSum, int accIndexCount0, int valueIndex, int filterIndex)
     : aggIdx(aggIdx),
       accIndexSum(accIndexSum),
       accIndexCount0(accIndexCount0),
@@ -24,7 +24,7 @@ AverageFunction::AverageFunction(int aggIdx, std::string inputType, int accIndex
     store = nullptr;
 }
 
-void AverageFunction::accumulate(RowData *accInput)
+void AverageFunction::accumulate(RowData* accInput)
 {
     bool isFilter = true;
     if (hasFilter) {
@@ -43,9 +43,7 @@ void AverageFunction::accumulate(RowData *accInput)
                 fieldValue = isFieldNull ? -1L : *accInput->getLong(aggIdx);
                 break;
             }
-            default:
-                LOG("Data type is not supported.");
-                throw std::runtime_error("Data type is not supported.");
+            default: LOG("Data type is not supported."); throw std::runtime_error("Data type is not supported.");
         }
 
         // Update agg0_sum
@@ -67,12 +65,12 @@ void AverageFunction::accumulate(RowData *accInput)
     }
 }
 
-void AverageFunction::accumulate(omnistream::VectorBatch *input, const std::vector<int>& indices)
+void AverageFunction::accumulate(omnistream::VectorBatch* input, const std::vector<int>& indices)
 {
     auto columnData = input->Get(aggIdx);
     const bool hasFilterCol = hasFilter;
     const auto filterData =
-            hasFilterCol ? reinterpret_cast<omniruntime::vec::Vector<bool> *>(input->Get(filterIndex)) : nullptr;
+        hasFilterCol ? reinterpret_cast<omniruntime::vec::Vector<bool>*>(input->Get(filterIndex)) : nullptr;
 
     for (int rowIndex : indices) {
         bool isFilter = true;
@@ -85,20 +83,16 @@ void AverageFunction::accumulate(omnistream::VectorBatch *input, const std::vect
         long fieldValue;
         switch (typeId) {
             case DataTypeId::OMNI_INT: {
-                fieldValue = isFieldNull
-                        ? -1L
-                        : dynamic_cast<omniruntime::vec::Vector<int> *>(columnData)->GetValue(rowIndex);
+                fieldValue =
+                    isFieldNull ? -1L : dynamic_cast<omniruntime::vec::Vector<int>*>(columnData)->GetValue(rowIndex);
                 break;
             }
             case DataTypeId::OMNI_LONG: {
-                fieldValue = isFieldNull
-                        ? -1L
-                        : dynamic_cast<omniruntime::vec::Vector<long> *>(columnData)->GetValue(rowIndex);
+                fieldValue =
+                    isFieldNull ? -1L : dynamic_cast<omniruntime::vec::Vector<long>*>(columnData)->GetValue(rowIndex);
                 break;
             }
-            default:
-                LOG("Data type is not supported.");
-                throw std::runtime_error("Data type is not supported.");
+            default: LOG("Data type is not supported."); throw std::runtime_error("Data type is not supported.");
         }
 
         // Update agg0_sum
@@ -120,7 +114,7 @@ void AverageFunction::accumulate(omnistream::VectorBatch *input, const std::vect
     }
 }
 
-void AverageFunction::setAccumulators(RowData *_acc)
+void AverageFunction::setAccumulators(RowData* _acc)
 {
     sumIsNull = _acc->isNullAt(accIndexSum);
     sum = sumIsNull ? 0L : *_acc->getLong(accIndexSum);
@@ -138,7 +132,7 @@ void AverageFunction::resetAccumulators()
     count0IsNull = false;
 }
 
-void AverageFunction::open(StateDataViewStore *store)
+void AverageFunction::open(StateDataViewStore* store)
 {
     this->store = store;
 }
@@ -149,7 +143,7 @@ void AverageFunction::createAccumulators(BinaryRowData* accumulators)
     accumulators->setLong(accIndexCount0, 0L);
 }
 
-void AverageFunction::retract(RowData *retractInput)
+void AverageFunction::retract(RowData* retractInput)
 {
     bool isFieldNull = retractInput->isNullAt(aggIdx);
     long fieldValue;
@@ -162,9 +156,7 @@ void AverageFunction::retract(RowData *retractInput)
             fieldValue = isFieldNull ? -1L : *retractInput->getLong(aggIdx);
             break;
         }
-        default:
-            LOG("Data type is not supported.");
-            throw std::runtime_error("Data type is not supported.");
+        default: LOG("Data type is not supported."); throw std::runtime_error("Data type is not supported.");
     }
 
     // Update agg0_sum
@@ -184,20 +176,16 @@ void AverageFunction::retract(omnistream::VectorBatch* input, const std::vector<
 
         switch (typeId) {
             case DataTypeId::OMNI_INT: {
-                fieldValue = isFieldNull
-                             ? -1L
-                             : dynamic_cast<omniruntime::vec::Vector<int>*>(columnData)->GetValue(rowIndex);
+                fieldValue =
+                    isFieldNull ? -1L : dynamic_cast<omniruntime::vec::Vector<int>*>(columnData)->GetValue(rowIndex);
                 break;
             }
             case DataTypeId::OMNI_LONG: {
-                fieldValue = isFieldNull
-                             ? -1L
-                             : dynamic_cast<omniruntime::vec::Vector<long>*>(columnData)->GetValue(rowIndex);
+                fieldValue =
+                    isFieldNull ? -1L : dynamic_cast<omniruntime::vec::Vector<long>*>(columnData)->GetValue(rowIndex);
                 break;
             }
-            default:
-                LOG("Data type is not supported.");
-                throw std::runtime_error("Data type is not supported.");
+            default: LOG("Data type is not supported."); throw std::runtime_error("Data type is not supported.");
         }
 
         // Update agg0_sum and count0
@@ -208,13 +196,12 @@ void AverageFunction::retract(omnistream::VectorBatch* input, const std::vector<
     }
 }
 
-
-void AverageFunction::merge(RowData *otherAcc)
+void AverageFunction::merge(RowData* otherAcc)
 {
     throw std::runtime_error("This function does not require the merge method, but the merge method is called.");
 }
 
-void AverageFunction::getAccumulators(BinaryRowData *acc)
+void AverageFunction::getAccumulators(BinaryRowData* acc)
 {
     if (sumIsNull) {
         acc->setNullAt(accIndexSum);
@@ -229,7 +216,7 @@ void AverageFunction::getAccumulators(BinaryRowData *acc)
     }
 }
 
-void AverageFunction::getValue(BinaryRowData *aggValue)
+void AverageFunction::getValue(BinaryRowData* aggValue)
 {
     if (count0IsNull || count0 == 0 || sumIsNull) {
         aggValue->setNullAt(valueIndex);
@@ -239,7 +226,7 @@ void AverageFunction::getValue(BinaryRowData *aggValue)
     }
 }
 
-bool AverageFunction::equaliser(BinaryRowData *r1, BinaryRowData *r2)
+bool AverageFunction::equaliser(BinaryRowData* r1, BinaryRowData* r2)
 {
     if (r1->isNullAt(valueIndex) || r2->isNullAt(valueIndex)) {
         return false;
@@ -254,9 +241,7 @@ bool AverageFunction::equaliser(BinaryRowData *r1, BinaryRowData *r2)
             isEqual = *r1->getLong(valueIndex) == *r2->getLong(valueIndex);
             break;
         }
-        default:
-            LOG("Data type is not supported.");
-            throw std::runtime_error("Data type is not supported.");
+        default: LOG("Data type is not supported."); throw std::runtime_error("Data type is not supported.");
     }
     return isEqual;
 }

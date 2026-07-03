@@ -26,9 +26,10 @@
 class KafkaSource {
 public:
     explicit KafkaSource(nlohmann::json& opDescriptionJSON, bool isBatch);
-    ~KafkaSource() {}
-    SourceReader<KafkaPartitionSplit>* createReader(
-            SourceReaderContext* readerContext) const;
+    ~KafkaSource()
+    {
+    }
+    SourceReader<KafkaPartitionSplit>* createReader(SourceReaderContext* readerContext) const;
     KafkaPartitionSplitSerializer* getSplitSerializer() const;
 
 private:
@@ -36,6 +37,5 @@ private:
     std::unordered_map<std::string, std::string> props;
     KafkaRecordDeserializationSchema* deserializationSchema;
 };
-
 
 #endif // FLINK_TNEL_KAFKASOURCE_H

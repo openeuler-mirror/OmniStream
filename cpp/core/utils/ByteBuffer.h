@@ -12,7 +12,6 @@
 #ifndef FLINK_TNEL_BYTEBUFFER_H
 #define FLINK_TNEL_BYTEBUFFER_H
 
-
 #include <vector>
 #include <cstddef>
 #include <cstdint>
@@ -27,7 +26,9 @@ public:
     {
         data_ = new uint8_t[capacity_];
     }
-    ByteBuffer() : data_(nullptr), position_(0), limit_(0), mark_(-1), capacity_(0) {}
+    ByteBuffer() : data_(nullptr), position_(0), limit_(0), mark_(-1), capacity_(0)
+    {
+    }
 
     ByteBuffer(uint8_t* data, int capacity) : position_(0), limit_(capacity), mark_(-1), capacity_(capacity)
     {
@@ -67,7 +68,7 @@ public:
     inline ByteBuffer* wrapOpt(uint8_t* data, int position, int length);
     static inline ByteBuffer* wrap(uint8_t* data, int length);
     static inline ByteBuffer* wrap(uint8_t* data, int position, int length);
-    static inline std::shared_ptr<ByteBuffer> wrap2(uint8_t *data_, int length);
+    static inline std::shared_ptr<ByteBuffer> wrap2(uint8_t* data_, int length);
 
     inline int getSize()
     {
@@ -84,9 +85,7 @@ public:
         }
     }
 
-
 protected:
-
     uint8_t* data_;
     int position_;
     int limit_;
@@ -124,7 +123,6 @@ inline void ByteBuffer::clear()
     mark_ = -1;
 }
 
-
 //  Primitive data type operations,  position_ updated
 inline void ByteBuffer::putBytes(const void* src, int len)
 {
@@ -149,7 +147,6 @@ inline void ByteBuffer::putInt(int value)
     }
     putBytes(bytes, 4);
 }
-
 
 inline void ByteBuffer::putLong(int64_t value)
 {
@@ -244,7 +241,6 @@ inline int ByteBuffer::getIntBigEndian()
     return static_cast<int>(value);
 }
 
-
 // Data read, position_ not updated
 inline int ByteBuffer::getIntBigEndian(int index)
 {
@@ -262,14 +258,12 @@ inline int ByteBuffer::getIntBigEndian(int index)
     return static_cast<int>(value);
 }
 
-
-inline ByteBuffer *ByteBuffer::wrap(uint8_t *data, int length)
+inline ByteBuffer* ByteBuffer::wrap(uint8_t* data, int length)
 {
     return wrap(data, 0, length);
 }
 
-
-inline std::shared_ptr<ByteBuffer> ByteBuffer::wrap2(uint8_t *data_, int length)
+inline std::shared_ptr<ByteBuffer> ByteBuffer::wrap2(uint8_t* data_, int length)
 {
     std::shared_ptr<ByteBuffer> ret = std::make_shared<ByteBuffer>();
     ret->data_ = data_;
@@ -279,7 +273,6 @@ inline std::shared_ptr<ByteBuffer> ByteBuffer::wrap2(uint8_t *data_, int length)
     ret->reusedData = true;
     return ret;
 }
-
 
 inline ByteBuffer* ByteBuffer::wrap(uint8_t* data, int position, int length)
 {
@@ -301,7 +294,6 @@ inline ByteBuffer* ByteBuffer::wrapOpt(uint8_t* data, int position, int length)
     return this;
 }
 
-
 inline void ByteBuffer::setPosition(int position)
 {
     position_ = position;
@@ -321,9 +313,9 @@ inline uint8_t* ByteBuffer::getValue()
 
 inline void ByteBuffer::showInternalInfo(ByteBuffer* buffer)
 {
-    LOG("buffer   " << &buffer    << " position_    " << buffer->position_
-                    <<  " limit_    " << buffer->limit_    <<  " capacity_    " << buffer->capacity_
-                    <<  " data_    " <<   std::string(reinterpret_cast<const char *>(buffer->data_), buffer->limit_))
+    LOG("buffer   " << &buffer << " position_    " << buffer->position_ << " limit_    " << buffer->limit_
+                    << " capacity_    " << buffer->capacity_ << " data_    "
+                    << std::string(reinterpret_cast<const char*>(buffer->data_), buffer->limit_));
 }
 
 inline int ByteBuffer::getIntFromValue()
@@ -342,4 +334,4 @@ inline int ByteBuffer::getIntFromValue()
     return result;
 }
 
-#endif  // FLINK_TNEL_BYTEBUFFER_H
+#endif // FLINK_TNEL_BYTEBUFFER_H

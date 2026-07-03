@@ -7,7 +7,8 @@
 
 using json = nlohmann::json;
 
-omnistream::VectorBatch *BuildInputVectorBatch() {
+omnistream::VectorBatch* BuildInputVectorBatch()
+{
     int rowCnt = 10;
     std::vector<long> col0(rowCnt);
     std::vector<long> col1(rowCnt);
@@ -19,7 +20,7 @@ omnistream::VectorBatch *BuildInputVectorBatch() {
         col2[i] = 2 * i;
     }
 
-    omnistream::VectorBatch *vb = new omnistream::VectorBatch(rowCnt);
+    omnistream::VectorBatch* vb = new omnistream::VectorBatch(rowCnt);
     vb->Append(omniruntime::TestUtil::CreateVector<int64_t>(rowCnt, col0.data()));
     vb->Append(omniruntime::TestUtil::CreateVector<int64_t>(rowCnt, col1.data()));
     vb->Append(omniruntime::TestUtil::CreateVector<int64_t>(rowCnt, col2.data()));
@@ -27,8 +28,8 @@ omnistream::VectorBatch *BuildInputVectorBatch() {
     return vb;
 }
 
-omnistream::VectorBatch* BuildStringVectorBatch(std::string* strings, int rowCount) {
-
+omnistream::VectorBatch* BuildStringVectorBatch(std::string* strings, int rowCount)
+{
     auto vector = omniruntime::TestUtil::CreateVarcharVector(strings, rowCount);
 
     omnistream::VectorBatch* vb = new omnistream::VectorBatch(rowCount);
@@ -37,30 +38,33 @@ omnistream::VectorBatch* BuildStringVectorBatch(std::string* strings, int rowCou
     return vb;
 }
 
-omnistream::VectorBatch *ProcessAndGetOutput(std::string desc, omnistream::VectorBatch *inputRecord) {
+omnistream::VectorBatch* ProcessAndGetOutput(std::string desc, omnistream::VectorBatch* inputRecord)
+{
     json parsedJson = json::parse(desc);
 
-    OutputTestVectorBatch *output = new OutputTestVectorBatch();
+    OutputTestVectorBatch* output = new OutputTestVectorBatch();
     StreamCalcBatch streamCalcBatchOp(parsedJson, output);
     streamCalcBatchOp.open();
 
-    StreamRecord *record = new StreamRecord(inputRecord);
+    StreamRecord* record = new StreamRecord(inputRecord);
     streamCalcBatchOp.processBatch(record);
     auto out = output->getAll()[0];
     return reinterpret_cast<omnistream::VectorBatch*>(out);
 }
 
-TEST(StreamCalcBatchTest, VectorbatchSimpleProjection) {
-// OMNI_LONG = 2, input [long, long, long], select col0, col2
-    std::string desc = R"DELIM({"originDescription":"[21]:Calc(select=[category,price, final])","inputTypes":["BIGINT","BIGINT","BIGINT"],"outputTypes":["BIGINT","BIGINT"],"indices":[{"exprType":"FIELD_REFERENCE","dataType":2,"colVal":0},{"exprType":"FIELD_REFERENCE","dataType":2,"colVal":2}],"condition" :null})DELIM";
+TEST(StreamCalcBatchTest, VectorbatchSimpleProjection)
+{
+    // OMNI_LONG = 2, input [long, long, long], select col0, col2
+    std::string desc =
+        R"DELIM({"originDescription":"[21]:Calc(select=[category,price, final])","inputTypes":["BIGINT","BIGINT","BIGINT"],"outputTypes":["BIGINT","BIGINT"],"indices":[{"exprType":"FIELD_REFERENCE","dataType":2,"colVal":0},{"exprType":"FIELD_REFERENCE","dataType":2,"colVal":2}],"condition" :null})DELIM";
     auto inputRecord = BuildInputVectorBatch();
     auto outputRecord = ProcessAndGetOutput(desc, inputRecord);
-// Check size
+    // Check size
     int rowCnt = inputRecord->GetRowCount();
     EXPECT_EQ(rowCnt, outputRecord->GetRowCount());
-// Check value
-    auto outcol0 = static_cast<omniruntime::vec::Vector<int64_t> * >(outputRecord->Get(0));
-    auto outcol1 = static_cast<omniruntime::vec::Vector<int64_t> * >(outputRecord->Get(1));
+    // Check value
+    auto outcol0 = static_cast<omniruntime::vec::Vector<int64_t>*>(outputRecord->Get(0));
+    auto outcol1 = static_cast<omniruntime::vec::Vector<int64_t>*>(outputRecord->Get(1));
 
     for (int i = 0; i < rowCnt; i++) {
         EXPECT_EQ(outcol0->GetValue(i), 0);
@@ -68,44 +72,49 @@ TEST(StreamCalcBatchTest, VectorbatchSimpleProjection) {
     }
 }
 
-TEST(StreamCalcBatchTest, VectorbatchSimpleFilter) {
-// OMNI_LONG = 2, input [long, long, long], select col0, col2, where col1 == 2
-    std::string desc = R"DELIM({"originDescription":"[21]:Calc(select=[category,price, final])","inputTypes":["BIGINT","BIGINT","BIGINT"],"outputTypes":["BIGINT","BIGINT"],)DELIM"
-                       R"DELIM("indices":[{"exprType":"FIELD_REFERENCE","dataType":2,"colVal":0},{"exprType":"FIELD_REFERENCE","dataType":2,"colVal":2}],)DELIM"
-                       R"DELIM("condition" :{"exprType":"BINARY","returnType":4,"operator":"EQUAL",)DELIM"
-                       R"DELIM("left":{"exprType":"FIELD_REFERENCE","dataType":2,"colVal":1},)DELIM"
-                       R"DELIM("right":{"exprType":"LITERAL","dataType":2,"isNull":false,"value":2}}})DELIM";
+TEST(StreamCalcBatchTest, VectorbatchSimpleFilter)
+{
+    // OMNI_LONG = 2, input [long, long, long], select col0, col2, where col1 == 2
+    std::string desc =
+        R"DELIM({"originDescription":"[21]:Calc(select=[category,price, final])","inputTypes":["BIGINT","BIGINT","BIGINT"],"outputTypes":["BIGINT","BIGINT"],)DELIM"
+        R"DELIM("indices":[{"exprType":"FIELD_REFERENCE","dataType":2,"colVal":0},{"exprType":"FIELD_REFERENCE","dataType":2,"colVal":2}],)DELIM"
+        R"DELIM("condition" :{"exprType":"BINARY","returnType":4,"operator":"EQUAL",)DELIM"
+        R"DELIM("left":{"exprType":"FIELD_REFERENCE","dataType":2,"colVal":1},)DELIM"
+        R"DELIM("right":{"exprType":"LITERAL","dataType":2,"isNull":false,"value":2}}})DELIM";
     auto inputRecord = BuildInputVectorBatch();
     auto outputRecord = ProcessAndGetOutput(desc, inputRecord);
-// there will be only one row, [0,4]
+    // there will be only one row, [0,4]
     EXPECT_EQ(1, outputRecord->GetRowCount());
-    auto outcol0 = static_cast<omniruntime::vec::Vector<int64_t> * >(outputRecord->Get(0));
-    auto outcol1 = static_cast<omniruntime::vec::Vector<int64_t> * >(outputRecord->Get(1));
+    auto outcol0 = static_cast<omniruntime::vec::Vector<int64_t>*>(outputRecord->Get(0));
+    auto outcol1 = static_cast<omniruntime::vec::Vector<int64_t>*>(outputRecord->Get(1));
     EXPECT_EQ(outcol0->GetValue(0), 0);
     EXPECT_EQ(outcol1->GetValue(0), 4);
 }
 
-TEST(StreamCalcBatchTest, VectorbatchExpressionAdd
-) {
-// OMNI_LONG = 2, input [long, long, long], select col1+col2
-    std::string desc = R"DELIM({"originDescription":"[21]:Calc(select=[category,price, final])","inputTypes":["BIGINT","BIGINT","BIGINT"],"outputTypes":["BIGINT"],)DELIM"
-                       R"DELIM("indices":[{"exprType":"BINARY","returnType":2,"operator":"ADD",)DELIM"
-                       R"DELIM("left":{"exprType":"FIELD_REFERENCE","dataType":2,"colVal":1},)DELIM"
-                       R"DELIM("right":{"exprType":"FIELD_REFERENCE","dataType":2,"colVal":2}}],)DELIM"
-                       R"DELIM("condition" :null})DELIM";
+TEST(StreamCalcBatchTest, VectorbatchExpressionAdd)
+{
+    // OMNI_LONG = 2, input [long, long, long], select col1+col2
+    std::string desc =
+        R"DELIM({"originDescription":"[21]:Calc(select=[category,price, final])","inputTypes":["BIGINT","BIGINT","BIGINT"],"outputTypes":["BIGINT"],)DELIM"
+        R"DELIM("indices":[{"exprType":"BINARY","returnType":2,"operator":"ADD",)DELIM"
+        R"DELIM("left":{"exprType":"FIELD_REFERENCE","dataType":2,"colVal":1},)DELIM"
+        R"DELIM("right":{"exprType":"FIELD_REFERENCE","dataType":2,"colVal":2}}],)DELIM"
+        R"DELIM("condition" :null})DELIM";
     auto inputRecord = BuildInputVectorBatch();
     auto outputRecord = ProcessAndGetOutput(desc, inputRecord);
-// Check size
+    // Check size
     EXPECT_EQ(10, outputRecord->GetRowCount());
-// Check value
-    auto outcol0 = static_cast<omniruntime::vec::Vector<int64_t> * >(outputRecord->Get(0));
+    // Check value
+    auto outcol0 = static_cast<omniruntime::vec::Vector<int64_t>*>(outputRecord->Get(0));
     for (int i = 0; i < 10; i++) {
-        EXPECT_EQ(outcol0->GetValue(i),3 * i);
+        EXPECT_EQ(outcol0->GetValue(i), 3 * i);
     }
 }
 
-TEST(StreamCalcBatchTest, OpenThrowsForUnsupportedProjectionExpr) {
-    std::string desc = R"DELIM({"originDescription":"[21]:Calc(select=[unsupported])","inputTypes":["BIGINT"],"outputTypes":["BIGINT"],"indices":[{"exprType":"FUNCTION","returnType":2,"function_name":"not_supported_fn","arguments":[{"exprType":"FIELD_REFERENCE","dataType":2,"colVal":0}]}],"condition":null})DELIM";
+TEST(StreamCalcBatchTest, OpenThrowsForUnsupportedProjectionExpr)
+{
+    std::string desc =
+        R"DELIM({"originDescription":"[21]:Calc(select=[unsupported])","inputTypes":["BIGINT"],"outputTypes":["BIGINT"],"indices":[{"exprType":"FUNCTION","returnType":2,"function_name":"not_supported_fn","arguments":[{"exprType":"FIELD_REFERENCE","dataType":2,"colVal":0}]}],"condition":null})DELIM";
     json parsedJson = json::parse(desc);
 
     OutputTestVectorBatch output;
@@ -114,18 +123,20 @@ TEST(StreamCalcBatchTest, OpenThrowsForUnsupportedProjectionExpr) {
     EXPECT_THROW(streamCalcBatchOp.open(), std::runtime_error);
 }
 
-TEST(StreamCalcBatchTest, DISABLED_VectorbatchExpressionCountChar) {
-// OMNI_INT = 1, input [varchar, char], CountChar(col1, 'a')
-// Counts the number of 'a' in each row of the column
-    std::string desc = R"DELIM({"originDescription":"[21]:Calc(select=[names])","inputTypes":["VARCHAR(2147483647)", "CHAR"],"outputTypes":["BIGINT"],)DELIM"
-                R"DELIM("indices":[{"exprType":"FUNCTION","returnType":2,"function_name":"CountChar", "arguments":[{"exprType":"FIELD_REFERENCE","dataType":15,"colVal":0,"width":200}, {"exprType": "LITERAL" ,"dataType":16,"isNull":false,"value":"a", "width":200}]}]})DELIM";
-       
+TEST(StreamCalcBatchTest, DISABLED_VectorbatchExpressionCountChar)
+{
+    // OMNI_INT = 1, input [varchar, char], CountChar(col1, 'a')
+    // Counts the number of 'a' in each row of the column
+    std::string desc =
+        R"DELIM({"originDescription":"[21]:Calc(select=[names])","inputTypes":["VARCHAR(2147483647)", "CHAR"],"outputTypes":["BIGINT"],)DELIM"
+        R"DELIM("indices":[{"exprType":"FUNCTION","returnType":2,"function_name":"CountChar", "arguments":[{"exprType":"FIELD_REFERENCE","dataType":15,"colVal":0,"width":200}, {"exprType": "LITERAL" ,"dataType":16,"isNull":false,"value":"a", "width":200}]}]})DELIM";
+
     int rowCnt = 4;
     std::vector<std::string> inputStr = {"Hasan", "Aaaron", "Mark", "Lisa"};
     auto inputRecord = BuildStringVectorBatch(inputStr.data(), rowCnt);
 
     using VarcharVector = omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>;
-    VarcharVector *incol0 = static_cast<VarcharVector *>(inputRecord->Get(0));
+    VarcharVector* incol0 = static_cast<VarcharVector*>(inputRecord->Get(0));
 
     std::cout << incol0->GetValue(0) << std::endl;
     std::cout << incol0->GetValue(1) << std::endl;
@@ -133,7 +144,7 @@ TEST(StreamCalcBatchTest, DISABLED_VectorbatchExpressionCountChar) {
     std::cout << incol0->GetValue(3) << std::endl;
 
     auto outputRecord = ProcessAndGetOutput(desc, inputRecord);
-    auto outcol0 = static_cast<omniruntime::vec::Vector<int64_t> * >(outputRecord->Get(0));
+    auto outcol0 = static_cast<omniruntime::vec::Vector<int64_t>*>(outputRecord->Get(0));
 
     std::cout << outcol0->GetValue(0) << std::endl;
     std::cout << outcol0->GetValue(1) << std::endl;
@@ -146,9 +157,10 @@ TEST(StreamCalcBatchTest, DISABLED_VectorbatchExpressionCountChar) {
     EXPECT_EQ(outcol0->GetValue(3), 1);
 }
 
-TEST(StreamCalcBatchTest, DISABLED_VectorbatchExpressionSplitIndex) {
-// OMNI_INT = 1, input [varchar, char, int], SplitIndex(col1, ',', 1)
-// Splits col1 based on delimiter ',' and returns the string at index 1.
+TEST(StreamCalcBatchTest, DISABLED_VectorbatchExpressionSplitIndex)
+{
+    // OMNI_INT = 1, input [varchar, char, int], SplitIndex(col1, ',', 1)
+    // Splits col1 based on delimiter ',' and returns the string at index 1.
     std::string desc = R"DELIM(
 {"originDescription":"[21]:Calc(select=[names])",
 "inputTypes":["VARCHAR(2147483647)", "CHAR", "BIGINT"],
@@ -169,7 +181,7 @@ TEST(StreamCalcBatchTest, DISABLED_VectorbatchExpressionSplitIndex) {
     auto inputRecord = BuildStringVectorBatch(inputStr.data(), rowCnt);
 
     using VarcharVector = omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>;
-    VarcharVector *incol0 = static_cast<VarcharVector *>(inputRecord->Get(0));
+    VarcharVector* incol0 = static_cast<VarcharVector*>(inputRecord->Get(0));
 
     std::cout << incol0->GetValue(0) << std::endl;
     std::cout << incol0->GetValue(1) << std::endl;
@@ -177,7 +189,7 @@ TEST(StreamCalcBatchTest, DISABLED_VectorbatchExpressionSplitIndex) {
     std::cout << incol0->GetValue(3) << std::endl;
 
     auto outputRecord = ProcessAndGetOutput(desc, inputRecord);
-    VarcharVector *outcol0 = static_cast<VarcharVector *>(outputRecord->Get(0));
+    VarcharVector* outcol0 = static_cast<VarcharVector*>(outputRecord->Get(0));
 
     std::cout << outcol0->GetValue(0) << std::endl;
     std::cout << outcol0->GetValue(1) << std::endl;
@@ -190,14 +202,14 @@ TEST(StreamCalcBatchTest, DISABLED_VectorbatchExpressionSplitIndex) {
     EXPECT_EQ(outcol0->GetValue(3), "");
 }
 
-
-TEST(StreamCalcBatchTest, VectorbatchExpressionModulus) {
+TEST(StreamCalcBatchTest, VectorbatchExpressionModulus)
+{
     std::string desc = R"DELIM({"originDescription": null,
                                 "inputTypes": ["BIGINT", "BIGINT"],
                                 "outputTypes": ["BIGINT", "BIGINT"],
                                 "indices": [
                                     {"exprType": "FIELD_REFERENCE", "dataType": 2, "colVal": 0},
-                                    {"exprType": "BINARY", "returnType": 2, "operator": "MODULUS", 
+                                    {"exprType": "BINARY", "returnType": 2, "operator": "MODULUS",
                                         "left":  {"exprType": "FIELD_REFERENCE", "dataType": 2, "colVal": 1},
                                         "right": {"exprType": "LITERAL", "dataType": 2, "isNull": false, "value": 10000}
                                     }
@@ -214,13 +226,13 @@ TEST(StreamCalcBatchTest, VectorbatchExpressionModulus) {
         col2[i] = 123456 * (i + 1);
     }
 
-    omnistream::VectorBatch *vb = new omnistream::VectorBatch(nrow);
+    omnistream::VectorBatch* vb = new omnistream::VectorBatch(nrow);
     vb->Append(omniruntime::TestUtil::CreateVector<int64_t>(nrow, col1.data()));
     vb->Append(omniruntime::TestUtil::CreateVector<int64_t>(nrow, col2.data()));
 
     auto outputRecord = ProcessAndGetOutput(desc, vb);
 
-    auto outcol1 = reinterpret_cast<omniruntime::vec::Vector<int64_t> *>(outputRecord->Get(1));
+    auto outcol1 = reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(outputRecord->Get(1));
     EXPECT_EQ(outputRecord->GetRowCount(), nrow);
     EXPECT_EQ(outputRecord->GetVectorCount(), 2);
     EXPECT_EQ(outcol1->GetValue(0), 3456);
@@ -231,8 +243,7 @@ TEST(StreamCalcBatchTest, VectorbatchExpressionModulus) {
 
 TEST(StreamCalcBatchTest, DISABLED_Q1Test)
 {
-
-  std::string Q1description = R"delimiter({
+    std::string Q1description = R"delimiter({
     "originDescription": null,
     "inputTypes": [
       "BIGINT",
@@ -282,9 +293,9 @@ TEST(StreamCalcBatchTest, DISABLED_Q1Test)
         }
       },
       {
-        "exprType": "FIELD_REFERENCE", 
-        "dataType": 2, 
-        "colVal": 5 
+        "exprType": "FIELD_REFERENCE",
+        "dataType": 2,
+        "colVal": 5
       },
       {
         "exprType": "FIELD_REFERENCE",
@@ -295,31 +306,32 @@ TEST(StreamCalcBatchTest, DISABLED_Q1Test)
     ],
     "condition": null
   })delimiter";
-  
-  auto inputRecord = new omnistream::VectorBatch(1);
 
-  inputRecord->Append(omniruntime::TestUtil::CreateVector<int64_t>(1, new int64_t(10)));
-  inputRecord->Append(omniruntime::TestUtil::CreateVector<int64_t>(1, new int64_t(100)));
-  inputRecord->Append(omniruntime::TestUtil::CreateVector<int64_t>(1, new int64_t(1000)));
-  inputRecord->Append(omniruntime::TestUtil::CreateVarcharVector(new std::string("test1"), 1));
-  inputRecord->Append(omniruntime::TestUtil::CreateVarcharVector(new std::string("test2"), 1));
-  inputRecord->Append(omniruntime::TestUtil::CreateVector<int64_t>(1, new int64_t(10000)));
-  inputRecord->Append(omniruntime::TestUtil::CreateVarcharVector(new std::string("test3"), 1));
+    auto inputRecord = new omnistream::VectorBatch(1);
 
-  auto out = ProcessAndGetOutput(Q1description, inputRecord);
+    inputRecord->Append(omniruntime::TestUtil::CreateVector<int64_t>(1, new int64_t(10)));
+    inputRecord->Append(omniruntime::TestUtil::CreateVector<int64_t>(1, new int64_t(100)));
+    inputRecord->Append(omniruntime::TestUtil::CreateVector<int64_t>(1, new int64_t(1000)));
+    inputRecord->Append(omniruntime::TestUtil::CreateVarcharVector(new std::string("test1"), 1));
+    inputRecord->Append(omniruntime::TestUtil::CreateVarcharVector(new std::string("test2"), 1));
+    inputRecord->Append(omniruntime::TestUtil::CreateVector<int64_t>(1, new int64_t(10000)));
+    inputRecord->Append(omniruntime::TestUtil::CreateVarcharVector(new std::string("test3"), 1));
 
-  auto outputBatch = new omnistream::VectorBatch(1);
+    auto out = ProcessAndGetOutput(Q1description, inputRecord);
 
-  outputBatch->Append(omniruntime::TestUtil::CreateVector<int64_t>(1, new int64_t(10)));
-  outputBatch->Append(omniruntime::TestUtil::CreateVector<int64_t>(1, new int64_t(100)));
-  outputBatch->Append(omniruntime::TestUtil::CreateVector<Decimal128>(1, new Decimal128(int128_t(908))));
-  outputBatch->Append(omniruntime::TestUtil::CreateVector<int64_t>(1, new int64_t(10000)));
-  outputBatch->Append(omniruntime::TestUtil::CreateVarcharVector(new std::string("test3"), 1));
+    auto outputBatch = new omnistream::VectorBatch(1);
 
-  EXPECT_TRUE(omniruntime::TestUtil::VecBatchMatch(out, outputBatch));
+    outputBatch->Append(omniruntime::TestUtil::CreateVector<int64_t>(1, new int64_t(10)));
+    outputBatch->Append(omniruntime::TestUtil::CreateVector<int64_t>(1, new int64_t(100)));
+    outputBatch->Append(omniruntime::TestUtil::CreateVector<Decimal128>(1, new Decimal128(int128_t(908))));
+    outputBatch->Append(omniruntime::TestUtil::CreateVector<int64_t>(1, new int64_t(10000)));
+    outputBatch->Append(omniruntime::TestUtil::CreateVarcharVector(new std::string("test3"), 1));
+
+    EXPECT_TRUE(omniruntime::TestUtil::VecBatchMatch(out, outputBatch));
 }
 
-TEST(StreamCalcBatchTest, HashCodeFunctionTest) {
+TEST(StreamCalcBatchTest, HashCodeFunctionTest)
+{
     std::string desc = R"DELIM({
             "originDescription": null,
             "inputTypes": ["BIGINT"],
@@ -348,14 +360,15 @@ TEST(StreamCalcBatchTest, HashCodeFunctionTest) {
             }
             )DELIM";
 
-    omnistream::VectorBatch *vb = new omnistream::VectorBatch(1);
+    omnistream::VectorBatch* vb = new omnistream::VectorBatch(1);
     vb->Append(omniruntime::TestUtil::CreateVector<int64_t>(1, new int64_t(1)));
 
     EXPECT_NO_THROW(ProcessAndGetOutput(desc, vb));
 }
 
-TEST(StreamCalcBatchTest, VectorbatchLower) {
-// Select col1, date_format(col4) where col0=1 and col3 in [10,100]
+TEST(StreamCalcBatchTest, VectorbatchLower)
+{
+    // Select col1, date_format(col4) where col0=1 and col3 in [10,100]
     std::string desc = R"DELIM(
 {
 "originDescription":null,
@@ -375,7 +388,7 @@ TEST(StreamCalcBatchTest, VectorbatchLower) {
     int nrow = 4;
     std::vector<std::string> col0 = {"APPLE", "BANANA", "STRABERRY", "PEAR"};
 
-    omnistream::VectorBatch *vb = new omnistream::VectorBatch(nrow);
+    omnistream::VectorBatch* vb = new omnistream::VectorBatch(nrow);
     vb->Append(omniruntime::TestUtil::CreateVarcharVector(col0.data(), nrow));
     auto outputRecord = ProcessAndGetOutput(desc, vb);
 
@@ -383,7 +396,8 @@ TEST(StreamCalcBatchTest, VectorbatchLower) {
     outputRecord->writeToFile(filename);
 }
 
-TEST(StreamCalcBatchTest, CodegenSEARCH_LongAndVarchar) {
+TEST(StreamCalcBatchTest, CodegenSEARCH_LongAndVarchar)
+{
     // Select IS TRUE col1 between [0, 200] where col2 in ["hello_world0", "hello_world1"]
     std::string desc = R"DELIM({"originDescription":null,
 "inputTypes":["BIGINT","BIGINT", "STRING"],
@@ -408,9 +422,10 @@ TEST(StreamCalcBatchTest, CodegenSEARCH_LongAndVarchar) {
     int nrow = 6;
     std::vector<int> col0 = {0, 1, 2, 3, 4, 5};
     std::vector<long> col1 = {2, 143, 144, 45, 46, 47};
-    std::vector<std::string> col2 = {"hello_world0", "hello_world1","hello_world2","hello_world3","hello_world4","hello_world5"};
+    std::vector<std::string> col2 = {
+        "hello_world0", "hello_world1", "hello_world2", "hello_world3", "hello_world4", "hello_world5"};
 
-    omnistream::VectorBatch *vb = new omnistream::VectorBatch(nrow);
+    omnistream::VectorBatch* vb = new omnistream::VectorBatch(nrow);
     vb->Append(omniruntime::TestUtil::CreateVector<int32_t>(nrow, col0.data()));
     vb->Append(omniruntime::TestUtil::CreateVector<int64_t>(nrow, col1.data()));
     vb->Append(omniruntime::TestUtil::CreateVarcharVector(col2.data(), nrow));
@@ -421,7 +436,8 @@ TEST(StreamCalcBatchTest, CodegenSEARCH_LongAndVarchar) {
     outputRecord->writeToFile(filename);
 }
 
-TEST(StreamCalcBatchTest, DISABLED_HourFunctionTest) {
+TEST(StreamCalcBatchTest, DISABLED_HourFunctionTest)
+{
     std::string desc = R"DELIM(
             {
               "originDescription": null,
@@ -440,7 +456,7 @@ TEST(StreamCalcBatchTest, DISABLED_HourFunctionTest) {
               "condition": null
             })DELIM";
 
-    omnistream::VectorBatch *vb = new omnistream::VectorBatch(1);
+    omnistream::VectorBatch* vb = new omnistream::VectorBatch(1);
     vb->Append(omniruntime::TestUtil::CreateVector<int64_t>(1, new int64_t(52200000)));
 
     auto out = ProcessAndGetOutput(desc, vb);
@@ -451,7 +467,8 @@ TEST(StreamCalcBatchTest, DISABLED_HourFunctionTest) {
     EXPECT_TRUE(omniruntime::TestUtil::VecBatchMatch(out, expected));
 }
 
-TEST(StreamCalcBatchTest, Q12ProctimeTest) {
+TEST(StreamCalcBatchTest, Q12ProctimeTest)
+{
     std::string desc = R"DELIM({
             "originDescription": null,
             "inputTypes": [
@@ -466,14 +483,15 @@ TEST(StreamCalcBatchTest, Q12ProctimeTest) {
             "condition": null
             }
             )DELIM";
- 
-    omnistream::VectorBatch *vb = new omnistream::VectorBatch(1);
+
+    omnistream::VectorBatch* vb = new omnistream::VectorBatch(1);
     vb->Append(omniruntime::TestUtil::CreateVector<int64_t>(1, new int64_t(1)));
- 
+
     EXPECT_NO_THROW(ProcessAndGetOutput(desc, vb));
 }
 
-TEST(StreamCalcBatchTest, ProctimeMaterializeDateFormatTest) {
+TEST(StreamCalcBatchTest, ProctimeMaterializeDateFormatTest)
+{
     std::string desc = R"DELIM({
             "originDescription": "[2]:Calc(select=[id, DATE_FORMAT(PROCTIME_MATERIALIZE(PROCTIME()), 'yyyy-MM-dd') AS pt_day])",
             "inputTypes": [
@@ -514,11 +532,12 @@ TEST(StreamCalcBatchTest, ProctimeMaterializeDateFormatTest) {
             }
             )DELIM";
 
-    omnistream::VectorBatch *vb = new omnistream::VectorBatch(1);
+    omnistream::VectorBatch* vb = new omnistream::VectorBatch(1);
     vb->Append(omniruntime::TestUtil::CreateVector<int32_t>(1, new int32_t(1)));
 
     auto outputRecord = ProcessAndGetOutput(desc, vb);
-    auto outcol = reinterpret_cast<omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>> *>(outputRecord->Get(1));
+    auto outcol = reinterpret_cast<omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>*>(
+        outputRecord->Get(1));
     auto value = outcol->GetValue(0);
 
     EXPECT_EQ(outputRecord->GetRowCount(), 1);
@@ -528,7 +547,8 @@ TEST(StreamCalcBatchTest, ProctimeMaterializeDateFormatTest) {
     EXPECT_EQ(value[7], '-');
 }
 
-TEST(StreamCalcBatchTest, JsonValueProjectionTest) {
+TEST(StreamCalcBatchTest, JsonValueProjectionTest)
+{
     std::string desc = R"DELIM({
             "originDescription": "[2]:Calc(select=[JSON_VALUE(c_json_data, '$.id') AS id, JSON_VALUE(c_json_data, '$.user.name') AS name, JSON_VALUE(c_json_data, '$.user.age') AS age, JSON_VALUE(c_json_data, '$.user.tags[2]') AS tags, JSON_VALUE(c_json_data, '$.scores[0]') AS scores, JSON_VALUE(c_json_data, '$.metadata.version') AS version, JSON_VALUE(c_json_data, '$.metadata.source') AS source])",
             "inputTypes": [
@@ -695,7 +715,8 @@ TEST(StreamCalcBatchTest, JsonValueProjectionTest) {
             "condition": null
             })DELIM";
 
-    std::string inputJson = R"({"id":721,"user":{"name":"Alice","age":53,"tags":["tag0","tag1","tag2"]},"scores":[79.39,86.38,71.8],"metadata":{"version":"1.0","source":"web"}})";
+    std::string inputJson =
+        R"({"id":721,"user":{"name":"Alice","age":53,"tags":["tag0","tag1","tag2"]},"scores":[79.39,86.38,71.8],"metadata":{"version":"1.0","source":"web"}})";
     auto vb = BuildStringVectorBatch(&inputJson, 1);
 
     auto outputRecord = ProcessAndGetOutput(desc, vb);
@@ -703,13 +724,13 @@ TEST(StreamCalcBatchTest, JsonValueProjectionTest) {
     EXPECT_EQ(outputRecord->GetVectorCount(), 7);
 
     using VarcharVector = omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>;
-    auto out0 = reinterpret_cast<VarcharVector *>(outputRecord->Get(0));
-    auto out1 = reinterpret_cast<VarcharVector *>(outputRecord->Get(1));
-    auto out2 = reinterpret_cast<VarcharVector *>(outputRecord->Get(2));
-    auto out3 = reinterpret_cast<VarcharVector *>(outputRecord->Get(3));
-    auto out4 = reinterpret_cast<VarcharVector *>(outputRecord->Get(4));
-    auto out5 = reinterpret_cast<VarcharVector *>(outputRecord->Get(5));
-    auto out6 = reinterpret_cast<VarcharVector *>(outputRecord->Get(6));
+    auto out0 = reinterpret_cast<VarcharVector*>(outputRecord->Get(0));
+    auto out1 = reinterpret_cast<VarcharVector*>(outputRecord->Get(1));
+    auto out2 = reinterpret_cast<VarcharVector*>(outputRecord->Get(2));
+    auto out3 = reinterpret_cast<VarcharVector*>(outputRecord->Get(3));
+    auto out4 = reinterpret_cast<VarcharVector*>(outputRecord->Get(4));
+    auto out5 = reinterpret_cast<VarcharVector*>(outputRecord->Get(5));
+    auto out6 = reinterpret_cast<VarcharVector*>(outputRecord->Get(6));
 
     EXPECT_EQ(out0->GetValue(0), "721");
     EXPECT_EQ(out1->GetValue(0), "Alice");
@@ -720,8 +741,9 @@ TEST(StreamCalcBatchTest, JsonValueProjectionTest) {
     EXPECT_EQ(out6->GetValue(0), "web");
 }
 
-TEST(StreamCalcBatchTest, Q21RegexpExtractTest) {
-std::string desc = R"DELIM(
+TEST(StreamCalcBatchTest, Q21RegexpExtractTest)
+{
+    std::string desc = R"DELIM(
 {"originDescription":null,
     "inputTypes":["STRING"],
     "outputTypes":["STRING"],
@@ -739,15 +761,16 @@ std::string desc = R"DELIM(
 }
 )DELIM";
     int nrow = 3;
-    std::vector<std::string> col2 = {"channel_id=123&user=abc", "user=abc&channel_id=456&source=xyz", "source=xyz&channel_id=789"};
+    std::vector<std::string> col2 = {
+        "channel_id=123&user=abc", "user=abc&channel_id=456&source=xyz", "source=xyz&channel_id=789"};
     std::vector<std::string> col_expected = {"123", "456", "789"};
 
-    omnistream::VectorBatch *vb = new omnistream::VectorBatch(nrow);
+    omnistream::VectorBatch* vb = new omnistream::VectorBatch(nrow);
     vb->Append(omniruntime::TestUtil::CreateVarcharVector(col2.data(), nrow));
 
     auto outputRecord = ProcessAndGetOutput(desc, vb);
 
-    omnistream::VectorBatch *vb_expected = new omnistream::VectorBatch(nrow);
+    omnistream::VectorBatch* vb_expected = new omnistream::VectorBatch(nrow);
     vb_expected->Append(omniruntime::TestUtil::CreateVarcharVector(col_expected.data(), nrow));
 
     EXPECT_TRUE(omniruntime::TestUtil::VecBatchMatch(outputRecord, vb_expected));
@@ -755,21 +778,22 @@ std::string desc = R"DELIM(
     outputRecord->writeToFile(filename);
 }
 
-TEST(StreamCalcBatchTest, DISABLED_VectorbatchExpressionDateFormat) {
+TEST(StreamCalcBatchTest, DISABLED_VectorbatchExpressionDateFormat)
+{
     std::string desc = R"DELIM({"originDescription": null,
             "inputTypes": ["BIGINT", "BIGINT"],
             "outputTypes": ["BIGINT", "VARCHAR(2147483647)", "VARCHAR(2147483647)"],
             "indices": [
                         {"exprType": "FIELD_REFERENCE", "dataType": 2, "colVal": 0},
-                        {"exprType": "FUNCTION", "returnType": 15, "width": 10, "function_name": "from_unixtime_without_tz", 
+                        {"exprType": "FUNCTION", "returnType": 15, "width": 10, "function_name": "from_unixtime_without_tz",
                             "arguments": [
-                                {"exprType": "FIELD_REFERENCE", "dataType": 2, "colVal": 1}, 
+                                {"exprType": "FIELD_REFERENCE", "dataType": 2, "colVal": 1},
                                 {"exprType": "LITERAL", "dataType": 15, "isNull": false, "value": "%Y-%m-%d", "width":10}
                             ]
                         },
-                        {"exprType": "FUNCTION", "returnType": 15, "width": 5, "function_name": "from_unixtime_without_tz", 
+                        {"exprType": "FUNCTION", "returnType": 15, "width": 5, "function_name": "from_unixtime_without_tz",
                             "arguments": [
-                                {"exprType": "FIELD_REFERENCE", "dataType": 2, "colVal": 1}, 
+                                {"exprType": "FIELD_REFERENCE", "dataType": 2, "colVal": 1},
                                 {"exprType": "LITERAL", "dataType": 15, "isNull": false, "value": "%H:%M", "width":5}
                             ]
                         }],
@@ -785,15 +809,19 @@ TEST(StreamCalcBatchTest, DISABLED_VectorbatchExpressionDateFormat) {
         col2[i] = 1740484255000 + (3543215555 * i);
     }
 
-    omnistream::VectorBatch *vb = new omnistream::VectorBatch(nrow);
+    omnistream::VectorBatch* vb = new omnistream::VectorBatch(nrow);
     vb->Append(omniruntime::TestUtil::CreateVector<int64_t>(nrow, col1.data()));
     vb->Append(omniruntime::TestUtil::CreateVector<int64_t>(nrow, col2.data()));
 
     auto outputRecord = ProcessAndGetOutput(desc, vb);
 
-    auto outcol1 = reinterpret_cast<omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>> *>(outputRecord->Get(1));
-    auto outcol2 = reinterpret_cast<omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>> *>(outputRecord->Get(2));
-    
+    auto outcol1 =
+        reinterpret_cast<omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>*>(
+            outputRecord->Get(1));
+    auto outcol2 =
+        reinterpret_cast<omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>*>(
+            outputRecord->Get(2));
+
     EXPECT_EQ(outputRecord->GetRowCount(), nrow);
     EXPECT_EQ(outputRecord->GetVectorCount(), 3);
     EXPECT_EQ(outcol1->GetValue(0), "2025-02-25");
@@ -804,7 +832,8 @@ TEST(StreamCalcBatchTest, DISABLED_VectorbatchExpressionDateFormat) {
     EXPECT_EQ(outcol2->GetValue(2), "12:18");
 }
 
-TEST(StreamCalcBatchTest, DISABLED_CASE_WHEN) {
+TEST(StreamCalcBatchTest, DISABLED_CASE_WHEN)
+{
     std::string desc = R"DELIM(
 {"condition":null,
 "indices":[
@@ -842,12 +871,14 @@ TEST(StreamCalcBatchTest, DISABLED_CASE_WHEN) {
     int nrow = 3;
     std::vector<long> col1{1, 100, 40};
 
-    omnistream::VectorBatch *vb = new omnistream::VectorBatch(nrow);
+    omnistream::VectorBatch* vb = new omnistream::VectorBatch(nrow);
     vb->Append(omniruntime::TestUtil::CreateVector<int64_t>(nrow, col1.data()));
 
     auto outputRecord = ProcessAndGetOutput(desc, vb);
 
-    auto outcol1 = reinterpret_cast<omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>> *>(outputRecord->Get(0));
+    auto outcol1 =
+        reinterpret_cast<omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>*>(
+            outputRecord->Get(0));
     std::string filename = "/tmp/flink_switch.txt";
     outputRecord->writeToFile(filename);
     EXPECT_EQ(outputRecord->GetRowCount(), nrow);
@@ -857,7 +888,8 @@ TEST(StreamCalcBatchTest, DISABLED_CASE_WHEN) {
     EXPECT_EQ(outcol1->GetValue(2), "otherTime");
 }
 
-TEST(StreamCalcBatchTest, DISABLED_COMPARE_CAST) {
+TEST(StreamCalcBatchTest, DISABLED_COMPARE_CAST)
+{
     std::string desc = R"DELIM(
 {"condition":
     {"exprType":"BINARY",
@@ -894,26 +926,25 @@ TEST(StreamCalcBatchTest, DISABLED_COMPARE_CAST) {
                     {"dataType":15,"exprType":"LITERAL","isNull":false,"value":"google","width":2147483647}],"exprType":"IN","returnType":4}}},"indices":[{"colVal":19,"dataType":2,"exprType":"FIELD_REFERENCE"},{"colVal":20,"dataType":2,"exprType":"FIELD_REFERENCE"},{"colVal":21,"dataType":2,"exprType":"FIELD_REFERENCE"},{"colVal":22,"dataType":15,"exprType":"FIELD_REFERENCE","width":2147483647},{"Case1":{"exprType":"WHEN","result":{"dataType":15,"exprType":"LITERAL","isNull":false,"value":"0","width":2147483647},"returnType":15,"when":{"exprType":"BINARY","left":{"arguments":{"arg0":{"colVal":22,"dataType":15,"exprType":"FIELD_REFERENCE","width":2147483647}},"exprType":"FUNCTION","function_name":"lower","returnType":15,"width":2147483647},"operator":"EQUAL","returnType":4,"right":{"dataType":15,"exprType":"LITERAL","isNull":false,"value":"apple","width":2147483647}},"width":2147483647},"Case2":{"exprType":"WHEN","result":{"dataType":15,"exprType":"LITERAL","isNull":false,"value":"1","width":2147483647},"returnType":15,"when":{"exprType":"BINARY","left":{"arguments":{"arg0":{"colVal":22,"dataType":15,"exprType":"FIELD_REFERENCE","width":2147483647}},"exprType":"FUNCTION","function_name":"lower","returnType":15,"width":2147483647},"operator":"EQUAL","returnType":4,"right":{"dataType":15,"exprType":"LITERAL","isNull":false,"value":"google","width":2147483647}},"width":2147483647},"Case3":{"exprType":"WHEN","result":{"dataType":15,"exprType":"LITERAL","isNull":false,"value":"2","width":2147483647},"returnType":15,"when":{"exprType":"BINARY","left":{"arguments":{"arg0":{"colVal":22,"dataType":15,"exprType":"FIELD_REFERENCE","width":2147483647}},"exprType":"FUNCTION","function_name":"lower","returnType":15,"width":2147483647},"operator":"EQUAL","returnType":4,"right":{"dataType":15,"exprType":"LITERAL","isNull":false,"value":"facebook","width":2147483647}},"width":2147483647},"Case4":{"exprType":"WHEN","result":{"dataType":15,"exprType":"LITERAL","isNull":false,"value":"3","width":2147483647},"returnType":15,"when":{"exprType":"BINARY","left":{"arguments":{"arg0":{"colVal":22,"dataType":15,"exprType":"FIELD_REFERENCE","width":2147483647}},"exprType":"FUNCTION","function_name":"lower","returnType":15,"width":2147483647},"operator":"EQUAL","returnType":4,"right":{"dataType":15,"exprType":"LITERAL","isNull":false,"value":"baidu","width":2147483647}},"width":2147483647},"else":{"arguments":[{"colVal":23,"dataType":15,"exprType":"FIELD_REFERENCE","width":2147483647},{"dataType":16,"exprType":"LITERAL","isNull":false,"value":"(&|^)channel_id=([^&]*)","width":23},{"dataType":1,"exprType":"LITERAL","isNull":false,"value":2}],"exprType":"FUNCTION","function_name":"regex_extract_null","returnType":15,"width":2147483647},"exprType":"SWITCH_GENERAL","numOfCases":4,"returnType":15,"width":2147483647}],"inputTypes":["INTEGER","BIGINT","VARCHAR(2147483647)","VARCHAR(2147483647)","VARCHAR(2147483647)","VARCHAR(2147483647)","VARCHAR(2147483647)","TIMESTAMP_WITHOUT_TIME_ZONE(3)","VARCHAR(2147483647)","BIGINT","VARCHAR(2147483647)","VARCHAR(2147483647)","BIGINT","BIGINT","TIMESTAMP_WITHOUT_TIME_ZONE(3)","TIMESTAMP_WITHOUT_TIME_ZONE(3)","BIGINT","BIGINT","VARCHAR(2147483647)","BIGINT","BIGINT","BIGINT","VARCHAR(2147483647)","VARCHAR(2147483647)","TIMESTAMP_WITHOUT_TIME_ZONE(3)","VARCHAR(2147483647)","TIMESTAMP_WITHOUT_TIME_ZONE(3)"],"originDescription":null,"outputTypes":["BIGINT","BIGINT","BIGINT","STRING","STRING"]}
 )DELIM";
 
-
     int nrow = 3;
     std::vector<long> col1{100, 200, 300};
-    omnistream::VectorBatch *vb = new omnistream::VectorBatch(nrow);
+    omnistream::VectorBatch* vb = new omnistream::VectorBatch(nrow);
     vb->Append(omniruntime::TestUtil::CreateVector<int64_t>(nrow, col1.data()));
     json parsedJson = json::parse(desc);
 
-    OutputTestVectorBatch *output = new OutputTestVectorBatch();
+    OutputTestVectorBatch* output = new OutputTestVectorBatch();
     StreamCalcBatch streamCalcBatchOp(parsedJson, output);
     streamCalcBatchOp.open();
 
-    StreamRecord *record = new StreamRecord(vb);
+    StreamRecord* record = new StreamRecord(vb);
     streamCalcBatchOp.processBatch(record);
     auto out = output->getAll()[0];
     std::string filename = "/tmp/flink_compare_cast.txt";
-    reinterpret_cast<omnistream::VectorBatch*>(out) -> writeToFile(filename);
-
+    reinterpret_cast<omnistream::VectorBatch*>(out)->writeToFile(filename);
 }
 
-TEST(StreamCalcBatchTest, DISABLED_RegexpExtractNullTest) {
+TEST(StreamCalcBatchTest, DISABLED_RegexpExtractNullTest)
+{
     std::string desc = R"DELIM({"originDescription":null,
                                     "inputTypes":["STRING"],
                                     "outputTypes":["STRING"],
@@ -931,15 +962,17 @@ TEST(StreamCalcBatchTest, DISABLED_RegexpExtractNullTest) {
                                 }
                                 )DELIM";
     int nrow = 3;
-    std::vector<std::string> col_input = {"channel_id=123&user=abc", "user=abc&source=xyz", "source=xyz&channel_id=789"};
-    std::vector<std::string> col_expected = {"Input string is set to NULL, should return NULL", "Match not found, should return NULL", "789"};
+    std::vector<std::string> col_input = {
+        "channel_id=123&user=abc", "user=abc&source=xyz", "source=xyz&channel_id=789"};
+    std::vector<std::string> col_expected = {
+        "Input string is set to NULL, should return NULL", "Match not found, should return NULL", "789"};
 
-    omnistream::VectorBatch *vb = new omnistream::VectorBatch(nrow);
+    omnistream::VectorBatch* vb = new omnistream::VectorBatch(nrow);
     vb->Append(omniruntime::TestUtil::CreateVarcharVector(col_input.data(), nrow));
     vb->Get(0)->SetNull(0);
     auto outputRecord = ProcessAndGetOutput(desc, vb);
 
-    omnistream::VectorBatch *vb_expected = new omnistream::VectorBatch(nrow);
+    omnistream::VectorBatch* vb_expected = new omnistream::VectorBatch(nrow);
     vb_expected->Append(omniruntime::TestUtil::CreateVarcharVector(col_expected.data(), nrow));
     vb_expected->Get(0)->SetNull(0);
     vb_expected->Get(0)->SetNull(1);

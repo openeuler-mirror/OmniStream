@@ -12,7 +12,6 @@
 #include "ObjectBufferDataType.h"
 #include "event/EndOfChannelStateEvent.h"
 
-
 namespace omnistream {
 
 const ObjectBufferDataType ObjectBufferDataType::NONE(false, false, false, false, false);
@@ -23,20 +22,39 @@ const ObjectBufferDataType ObjectBufferDataType::ALIGNED_CHECKPOINT_BARRIER(fals
 const ObjectBufferDataType ObjectBufferDataType::TIMEOUTABLE_ALIGNED_CHECKPOINT_BARRIER(false, true, true, false, true);
 const ObjectBufferDataType ObjectBufferDataType::RECOVERY_COMPLETION(false, true, true, false, false);
 
-ObjectBufferDataType::ObjectBufferDataType() : isBuffer_(false), isEvent_(false), isBlockingUpstream_(false), hasPriority_(false), requiresAnnouncement_(false) {}
+ObjectBufferDataType::ObjectBufferDataType()
+    : isBuffer_(false),
+      isEvent_(false),
+      isBlockingUpstream_(false),
+      hasPriority_(false),
+      requiresAnnouncement_(false)
+{
+}
 
-ObjectBufferDataType::ObjectBufferDataType(bool isBuffer, bool isEvent, bool isBlockingUpstream, bool hasPriority, bool requiresAnnouncement)
-    : isBuffer_(isBuffer), isEvent_(isEvent), isBlockingUpstream_(isBlockingUpstream), hasPriority_(hasPriority), requiresAnnouncement_(requiresAnnouncement)
+ObjectBufferDataType::ObjectBufferDataType(
+    bool isBuffer, bool isEvent, bool isBlockingUpstream, bool hasPriority, bool requiresAnnouncement)
+    : isBuffer_(isBuffer),
+      isEvent_(isEvent),
+      isBlockingUpstream_(isBlockingUpstream),
+      hasPriority_(hasPriority),
+      requiresAnnouncement_(requiresAnnouncement)
 {
     if (requiresAnnouncement_ && hasPriority_) {
-        throw std::invalid_argument("ObjectBufferDataType has both priority and requires announcement, "
-                                    "which is not supported and doesn't make sense. There should be no need for "
-                                    "announcing priority events, which are always overtaking in-flight data.");
+        throw std::invalid_argument(
+            "ObjectBufferDataType has both priority and requires announcement, "
+            "which is not supported and doesn't make sense. There should be no need for "
+            "announcing priority events, which are always overtaking in-flight data.");
     }
 }
 
 ObjectBufferDataType::ObjectBufferDataType(const ObjectBufferDataType& other)
-    : isBuffer_(other.isBuffer_), isEvent_(other.isEvent_), isBlockingUpstream_(other.isBlockingUpstream_), hasPriority_(other.hasPriority_), requiresAnnouncement_(other.requiresAnnouncement_) {}
+    : isBuffer_(other.isBuffer_),
+      isEvent_(other.isEvent_),
+      isBlockingUpstream_(other.isBlockingUpstream_),
+      hasPriority_(other.hasPriority_),
+      requiresAnnouncement_(other.requiresAnnouncement_)
+{
+}
 
 ObjectBufferDataType& ObjectBufferDataType::operator=(const ObjectBufferDataType& other)
 {
@@ -50,7 +68,9 @@ ObjectBufferDataType& ObjectBufferDataType::operator=(const ObjectBufferDataType
     return *this;
 }
 
-ObjectBufferDataType::~ObjectBufferDataType() {}
+ObjectBufferDataType::~ObjectBufferDataType()
+{
+}
 
 bool ObjectBufferDataType::isBuffer() const
 {
@@ -77,7 +97,6 @@ bool ObjectBufferDataType::requiresAnnouncement() const
     return requiresAnnouncement_;
 }
 
-
 std::string ObjectBufferDataType::toString() const
 {
     std::stringstream ss;
@@ -91,17 +110,17 @@ std::string ObjectBufferDataType::toString() const
     return ss.str();
 }
 
-ObjectBufferDataType ObjectBufferDataType::GetDataBufferType(bool hasPriority, std::shared_ptr<AbstractEvent> &event)
+ObjectBufferDataType ObjectBufferDataType::GetDataBufferType(bool hasPriority, std::shared_ptr<AbstractEvent>& event)
 {
     if (hasPriority) {
         return ObjectBufferDataType::PRIORITIZED_EVENT_BUFFER;
     }
 
-    if (dynamic_cast<EndOfChannelStateEvent *>(event.get())) {
+    if (dynamic_cast<EndOfChannelStateEvent*>(event.get())) {
         return ObjectBufferDataType::RECOVERY_COMPLETION;
     }
 
-    auto *barrier = dynamic_cast<CheckpointBarrier *>(event.get());
+    auto* barrier = dynamic_cast<CheckpointBarrier*>(event.get());
     if (!barrier) {
         return ObjectBufferDataType::EVENT_BUFFER;
     }

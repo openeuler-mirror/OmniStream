@@ -20,7 +20,7 @@ StreamRecord* BatchEventDeserializer::deserialize(std::unique_ptr<Event> event)
         createNewEventBatch();
     }
 
-    reinterpret_cast<Vector<int>*>(vb->GetVectors()[0])->SetValue(collectedCnt, (int) event->getEventType());
+    reinterpret_cast<Vector<int>*>(vb->GetVectors()[0])->SetValue(collectedCnt, (int)event->getEventType());
     if (event->getEventType() == EventType::PERSON) {
         convertPerson(std::move(event));
         setNullAuction();
@@ -55,19 +55,12 @@ void BatchEventDeserializer::createNewEventBatch()
     for (auto typeId : columnTypes) {
         BaseVector* vec = nullptr;
         switch (typeId) {
-            case DataTypeId::OMNI_INT:
-                vec = new Vector<int>(batchSize);
-                break;
+            case DataTypeId::OMNI_INT: vec = new Vector<int>(batchSize); break;
             case DataTypeId::OMNI_TIMESTAMP:
-            case DataTypeId::OMNI_LONG:
-                vec = new Vector<int64_t>(batchSize);
-                break;
+            case DataTypeId::OMNI_LONG: vec = new Vector<int64_t>(batchSize); break;
             case DataTypeId::OMNI_VARCHAR:
-            case DataTypeId::OMNI_CHAR:
-                vec = new Vector<LargeStringContainer<std::string_view>>(batchSize);
-                break;
-            default:
-                std::runtime_error("Not supported datatype");
+            case DataTypeId::OMNI_CHAR: vec = new Vector<LargeStringContainer<std::string_view>>(batchSize); break;
+            default: std::runtime_error("Not supported datatype");
         }
         vb->Append(vec);
     }
@@ -80,16 +73,16 @@ void BatchEventDeserializer::convertPerson(std::unique_ptr<Event> event)
     event.release();
     auto vectors = vb->GetVectors();
     // "BIGINT", "STRING", "STRING", "STRING", "STRING", "STRING", "TIMESTAMP", "STRING"
-    reinterpret_cast<Vector<int64_t>* >(vectors[offset + 0])->SetValue(collectedCnt, ptr->id);
+    reinterpret_cast<Vector<int64_t>*>(vectors[offset + 0])->SetValue(collectedCnt, ptr->id);
     std::string_view sv(ptr->name.data(), ptr->name.size());
-    reinterpret_cast<VarcharVec *>(vectors[offset + 1])->SetValue(collectedCnt, sv);
-    reinterpret_cast<VarcharVec *>(vectors[offset + 2])->SetValue(collectedCnt, ptr->emailAddress);
+    reinterpret_cast<VarcharVec*>(vectors[offset + 1])->SetValue(collectedCnt, sv);
+    reinterpret_cast<VarcharVec*>(vectors[offset + 2])->SetValue(collectedCnt, ptr->emailAddress);
     sv = std::string_view(ptr->creditCard.data(), ptr->creditCard.size());
-    reinterpret_cast<VarcharVec *>(vectors[offset + 3])->SetValue(collectedCnt, sv);
-    reinterpret_cast<VarcharVec *>(vectors[offset + 4])->SetValue(collectedCnt, ptr->city);
-    reinterpret_cast<VarcharVec *>(vectors[offset + 5])->SetValue(collectedCnt, ptr->state);
-    reinterpret_cast<Vector<int64_t>* >(vectors[offset + 6])->SetValue(collectedCnt, ptr->dateTime);
-    reinterpret_cast<VarcharVec *>(vectors[offset + 7])->SetValue(collectedCnt, ptr->extra);
+    reinterpret_cast<VarcharVec*>(vectors[offset + 3])->SetValue(collectedCnt, sv);
+    reinterpret_cast<VarcharVec*>(vectors[offset + 4])->SetValue(collectedCnt, ptr->city);
+    reinterpret_cast<VarcharVec*>(vectors[offset + 5])->SetValue(collectedCnt, ptr->state);
+    reinterpret_cast<Vector<int64_t>*>(vectors[offset + 6])->SetValue(collectedCnt, ptr->dateTime);
+    reinterpret_cast<VarcharVec*>(vectors[offset + 7])->SetValue(collectedCnt, ptr->extra);
 }
 void BatchEventDeserializer::setNullPerson()
 {
@@ -106,16 +99,16 @@ void BatchEventDeserializer::convertAuction(std::unique_ptr<Event> event)
     event.release();
     auto vectors = vb->GetVectors();
     // "BIGINT", "STRING", "STRING", "BIGINT", "BIGINT", "TIMESTAMP",  "TIMESTAMP", "BIGINT", "BIGINT", "STRING"
-    reinterpret_cast<Vector<int64_t>* >(vectors[offset + 0])->SetValue(collectedCnt, ptr->id);
-    reinterpret_cast<VarcharVec *>(vectors[offset + 1])->SetValue(collectedCnt, ptr->itemName);
-    reinterpret_cast<VarcharVec *>(vectors[offset + 2])->SetValue(collectedCnt, ptr->description);
-    reinterpret_cast<Vector<int64_t>* >(vectors[offset + 3])->SetValue(collectedCnt, ptr->initialBid);
-    reinterpret_cast<Vector<int64_t>* >(vectors[offset + 4])->SetValue(collectedCnt, ptr->reserve);
-    reinterpret_cast<Vector<int64_t>* >(vectors[offset + 5])->SetValue(collectedCnt, ptr->dateTime);
-    reinterpret_cast<Vector<int64_t>* >(vectors[offset + 6])->SetValue(collectedCnt, ptr->expires);
-    reinterpret_cast<Vector<int64_t>* >(vectors[offset + 7])->SetValue(collectedCnt, ptr->seller);
-    reinterpret_cast<Vector<int64_t>* >(vectors[offset + 8])->SetValue(collectedCnt, ptr->category);
-    reinterpret_cast<VarcharVec *>(vectors[offset + 9])->SetValue(collectedCnt, ptr->extra);
+    reinterpret_cast<Vector<int64_t>*>(vectors[offset + 0])->SetValue(collectedCnt, ptr->id);
+    reinterpret_cast<VarcharVec*>(vectors[offset + 1])->SetValue(collectedCnt, ptr->itemName);
+    reinterpret_cast<VarcharVec*>(vectors[offset + 2])->SetValue(collectedCnt, ptr->description);
+    reinterpret_cast<Vector<int64_t>*>(vectors[offset + 3])->SetValue(collectedCnt, ptr->initialBid);
+    reinterpret_cast<Vector<int64_t>*>(vectors[offset + 4])->SetValue(collectedCnt, ptr->reserve);
+    reinterpret_cast<Vector<int64_t>*>(vectors[offset + 5])->SetValue(collectedCnt, ptr->dateTime);
+    reinterpret_cast<Vector<int64_t>*>(vectors[offset + 6])->SetValue(collectedCnt, ptr->expires);
+    reinterpret_cast<Vector<int64_t>*>(vectors[offset + 7])->SetValue(collectedCnt, ptr->seller);
+    reinterpret_cast<Vector<int64_t>*>(vectors[offset + 8])->SetValue(collectedCnt, ptr->category);
+    reinterpret_cast<VarcharVec*>(vectors[offset + 9])->SetValue(collectedCnt, ptr->extra);
 }
 void BatchEventDeserializer::setNullAuction()
 {
@@ -132,13 +125,13 @@ void BatchEventDeserializer::convertBid(std::unique_ptr<Event> event)
     std::unique_ptr<Bid> ptr(dynamic_cast<Bid*>(event.get()));
     event.release();
     auto vectors = vb->GetVectors();
-    reinterpret_cast<Vector<int64_t>* >(vectors[offset + 0])->SetValue(collectedCnt, ptr->auction);
-    reinterpret_cast<Vector<int64_t>* >(vectors[offset + 1])->SetValue(collectedCnt, ptr->bidder);
-    reinterpret_cast<Vector<int64_t>* >(vectors[offset + 2])->SetValue(collectedCnt, ptr->price);
-    reinterpret_cast<VarcharVec *>(vectors[offset + 3])->SetValue(collectedCnt, ptr->channel);
-    reinterpret_cast<VarcharVec *>(vectors[offset + 4])->SetValue(collectedCnt, ptr->url);
-    reinterpret_cast<Vector<int64_t>* >(vectors[offset + 5])->SetValue(collectedCnt, ptr->dateTime);
-    reinterpret_cast<VarcharVec *>(vectors[offset + 6])->SetValue(collectedCnt, ptr->extra);
+    reinterpret_cast<Vector<int64_t>*>(vectors[offset + 0])->SetValue(collectedCnt, ptr->auction);
+    reinterpret_cast<Vector<int64_t>*>(vectors[offset + 1])->SetValue(collectedCnt, ptr->bidder);
+    reinterpret_cast<Vector<int64_t>*>(vectors[offset + 2])->SetValue(collectedCnt, ptr->price);
+    reinterpret_cast<VarcharVec*>(vectors[offset + 3])->SetValue(collectedCnt, ptr->channel);
+    reinterpret_cast<VarcharVec*>(vectors[offset + 4])->SetValue(collectedCnt, ptr->url);
+    reinterpret_cast<Vector<int64_t>*>(vectors[offset + 5])->SetValue(collectedCnt, ptr->dateTime);
+    reinterpret_cast<VarcharVec*>(vectors[offset + 6])->SetValue(collectedCnt, ptr->extra);
 }
 void BatchEventDeserializer::setNullBid()
 {

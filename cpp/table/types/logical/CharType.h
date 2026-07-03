@@ -18,13 +18,12 @@ class CharType : public LogicalType {
 public:
     explicit CharType(bool isNull, int length);
 
-    std::vector<LogicalType *> getChildren() override;
+    std::vector<LogicalType*> getChildren() override;
 
     nlohmann::json toJson() const override;
 
 private:
     int length;
 };
-
 
 #endif

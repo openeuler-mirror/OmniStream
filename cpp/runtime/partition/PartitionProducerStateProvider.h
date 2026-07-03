@@ -24,7 +24,6 @@
 
 namespace omnistream {
 
-
 class PartitionProducerStateProvider {
 public:
     class ResponseHandle {

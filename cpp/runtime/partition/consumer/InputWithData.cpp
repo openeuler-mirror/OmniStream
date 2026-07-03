@@ -12,8 +12,8 @@
 #include "InputWithData.h"
 namespace omnistream {
 /*
-    InputWithData::InputWithData(InputChannel *inputChannel, ReadOnlySlicedNetworkBuffer *networkBuffer, bool moreAvailable)
-        : inputChannel(inputChannel), networkBuffer(networkBuffer), moreAvailable(moreAvailable)
+    InputWithData::InputWithData(InputChannel *inputChannel, ReadOnlySlicedNetworkBuffer *networkBuffer, bool
+   moreAvailable) : inputChannel(inputChannel), networkBuffer(networkBuffer), moreAvailable(moreAvailable)
     {
     }
 

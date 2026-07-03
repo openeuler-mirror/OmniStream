@@ -12,7 +12,6 @@
 #ifndef OMNISTREAM_EVENT_H
 #define OMNISTREAM_EVENT_H
 
-
 #include <iostream>
 #include <memory>
 #include <string>
@@ -60,13 +59,15 @@ public:
         long dateTime,
         std::string_view extra)
         : Event(EventType::BID),
-        auction(auction),
-        bidder(bidder),
-        price(price),
-        channel(channel),
-        url(url),
-        dateTime(dateTime),
-        extra(extra) {}
+          auction(auction),
+          bidder(bidder),
+          price(price),
+          channel(channel),
+          url(url),
+          dateTime(dateTime),
+          extra(extra)
+    {
+    }
 
     bool operator==(const Event& other) const override;
     size_t hash() const override;
@@ -82,31 +83,34 @@ public:
     long reserve;
     long dateTime;
     long expires;
-    long seller; // foreign key: Person.id
+    long seller;   // foreign key: Person.id
     long category; // foreign key: Category.id
     std::string_view extra;
 
-    Auction(long id,
-            std::string_view itemName,
-            std::string_view description,
-            long initialBid,
-            long reserve,
-            long dateTime,
-            long expires,
-            long seller,
-            long category,
-            std::string_view extra)
+    Auction(
+        long id,
+        std::string_view itemName,
+        std::string_view description,
+        long initialBid,
+        long reserve,
+        long dateTime,
+        long expires,
+        long seller,
+        long category,
+        std::string_view extra)
         : Event(EventType::AUCTION),
-        id(id),
-        itemName(itemName),
-        description(description),
-        initialBid(initialBid),
-        reserve(reserve),
-        dateTime(dateTime),
-        expires(expires),
-        seller(seller),
-        category(category),
-        extra(extra) {}
+          id(id),
+          itemName(itemName),
+          description(description),
+          initialBid(initialBid),
+          reserve(reserve),
+          dateTime(dateTime),
+          expires(expires),
+          seller(seller),
+          category(category),
+          extra(extra)
+    {
+    }
 
     std::string toString() const override;
     bool operator==(const Event& auction) const override;
@@ -124,28 +128,30 @@ public:
     long dateTime;
     std::string_view extra;
 
-    Person(long id,
-           std::string  name,
-           std::string_view emailAddress,
-           std::string creditCard,
-           std::string_view city,
-           std::string_view state,
-           long dateTime,
-           std::string_view extra)
+    Person(
+        long id,
+        std::string name,
+        std::string_view emailAddress,
+        std::string creditCard,
+        std::string_view city,
+        std::string_view state,
+        long dateTime,
+        std::string_view extra)
         : Event(EventType::PERSON),
-        id(id),
-        name(std::move(name)),
-        emailAddress(emailAddress),
-        creditCard(std::move(creditCard)),
-        city(city),
-        state(state),
-        dateTime(dateTime),
-        extra(extra) {}
+          id(id),
+          name(std::move(name)),
+          emailAddress(emailAddress),
+          creditCard(std::move(creditCard)),
+          city(city),
+          state(state),
+          dateTime(dateTime),
+          extra(extra)
+    {
+    }
 
     std::string toString() const override;
     bool operator==(const Event& other) const override;
     size_t hash() const override;
 };
-
 
 #endif // OMNISTREAM_EVENT_H

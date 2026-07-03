@@ -21,22 +21,22 @@
 /**
  * T: such as Object, VectorBatch
  * */
-template<typename T>
+template <typename T>
 class FilterFunction : public omnistream::Function {
 public:
     virtual ~FilterFunction() = default;
 
     virtual bool filter(Object* input)
     {
-        NOT_IMPL_EXCEPTION
+        NOT_IMPL_EXCEPTION;
     };
 
     virtual std::vector<int> filterBatch(void* input)
     {
-        NOT_IMPL_EXCEPTION
+        NOT_IMPL_EXCEPTION;
     };
 };
 
-template<typename T>
+template <typename T>
 using FilterFunctionUnique = std::unique_ptr<FilterFunction<T>>;
 #endif // FLINK_TNEL_FILTERFUNCTION_H

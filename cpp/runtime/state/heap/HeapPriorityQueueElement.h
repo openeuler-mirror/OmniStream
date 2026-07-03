@@ -18,11 +18,13 @@ public:
 
     virtual ~HeapPriorityQueueElement() = default;
 
-    virtual int32_t getInternalIndex() {
+    virtual int32_t getInternalIndex()
+    {
         return internalIndex_;
     }
 
-    virtual void setInternalIndex(int32_t index) {
+    virtual void setInternalIndex(int32_t index)
+    {
         internalIndex_ = index;
     }
 

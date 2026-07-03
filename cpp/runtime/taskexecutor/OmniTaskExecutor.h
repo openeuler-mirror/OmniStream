@@ -19,29 +19,34 @@
 #include <taskexecutor/TaskManagerServices.h>
 #include <taskmanager/OmniTask.h>
 
-#include  "runtime/partition/ResultPartitionManager.h"
+#include "runtime/partition/ResultPartitionManager.h"
 #include "state/bridge/TaskOperatorEventGatewayBridge.h"
 #include "runtime/partition/consumer/RemoteDataFetcherBridge.h"
 
-
 namespace omnistream {
-    class OmniTaskExecutor {
-    public:
-            explicit  OmniTaskExecutor(std::shared_ptr<TaskManagerServices> taskManagerServices);
+class OmniTaskExecutor {
+public:
+    explicit OmniTaskExecutor(std::shared_ptr<TaskManagerServices> taskManagerServices);
 
-            OmniTask* submitTask(JobInformationPOD& jobInfo, TaskInformationPOD& taskInfo, TaskDeploymentDescriptorPOD& tdd, std::shared_ptr<TaskStateManagerBridge> stateBridge,
-                                 std::shared_ptr<OmniTaskBridge> omni_task_bridge,
-                                 std::shared_ptr<TaskOperatorEventGatewayBridge> taskOperatorEventGatewayBridge,
-                                  std::shared_ptr<RemoteDataFetcherBridge> remoteDataFetcherBridge);
-        OmniTask* submitTaskWithCK(JobInformationPOD& jobInfo, TaskInformationPOD& taskInfo,
-                                   TaskDeploymentDescriptorPOD& tdd, std::shared_ptr<OmniTaskBridge> omni_task_bridge,
-                                   std::shared_ptr<TaskOperatorEventGatewayBridge> TaskOperatorEventGatewayBridge,
-                                   std::shared_ptr<RemoteDataFetcherBridge> remoteDataFetcherBridge);
+    OmniTask* submitTask(
+        JobInformationPOD& jobInfo,
+        TaskInformationPOD& taskInfo,
+        TaskDeploymentDescriptorPOD& tdd,
+        std::shared_ptr<TaskStateManagerBridge> stateBridge,
+        std::shared_ptr<OmniTaskBridge> omni_task_bridge,
+        std::shared_ptr<TaskOperatorEventGatewayBridge> taskOperatorEventGatewayBridge,
+        std::shared_ptr<RemoteDataFetcherBridge> remoteDataFetcherBridge);
+    OmniTask* submitTaskWithCK(
+        JobInformationPOD& jobInfo,
+        TaskInformationPOD& taskInfo,
+        TaskDeploymentDescriptorPOD& tdd,
+        std::shared_ptr<OmniTaskBridge> omni_task_bridge,
+        std::shared_ptr<TaskOperatorEventGatewayBridge> TaskOperatorEventGatewayBridge,
+        std::shared_ptr<RemoteDataFetcherBridge> remoteDataFetcherBridge);
 
-    private:
-            std::shared_ptr<TaskManagerServices> taskManagerServices_;
-    };
-}
-
+private:
+    std::shared_ptr<TaskManagerServices> taskManagerServices_;
+};
+} // namespace omnistream
 
 #endif // OMNITASKEXECUTOR_H

@@ -13,34 +13,41 @@
 
 class FrameworkTestConfig : public ::testing::Test {
 public:
-    void SetUp() override {
+    void SetUp() override
+    {
         clearOutputFile();
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
         clearOutputFile();
         ::testing::Test::TearDown();
     }
 
-    static void clearOutputFile() {
+    static void clearOutputFile()
+    {
         std::ofstream ofs("/tmp/flink_output.txt", std::ofstream::out | std::ofstream::trunc);
         ofs.close();
     }
 
-    static std::string getOutputFile() {
+    static std::string getOutputFile()
+    {
         std::ifstream ifs("/tmp/flink_output.txt");
         std::string content((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
         return content;
     }
 
-    static std::string getPartitionerName(const omnistream::TaskInformationPOD& taskInfo) {
+    static std::string getPartitionerName(const omnistream::TaskInformationPOD& taskInfo)
+    {
         return taskInfo.getStreamConfigPOD().getOutEdgesInOrder()[0].getPartitioner().getPartitionerName();
     }
 
     /**
      * Helper funciton to create partitioner from partitioner name, copied from `runtime/tasks/OmniStreamTask.cpp`
      */
-    static std::shared_ptr<omnistream::StreamPartitionerV2<StreamRecord>> getPartitionerFromPartitionerName(const std::string& partitionerName) {
+    static std::shared_ptr<omnistream::StreamPartitionerV2<StreamRecord>> getPartitionerFromPartitionerName(
+        const std::string& partitionerName)
+    {
         if (partitionerName == omnistream::StreamPartitionerPOD::FORWARD) {
             return std::make_shared<omnistream::ForwardPartitionerV2<StreamRecord>>();
         } else if (partitionerName == omnistream::StreamPartitionerPOD::REBALANCE) {
@@ -52,7 +59,9 @@ public:
         }
     }
 
-    static std::shared_ptr<StreamRecord> createDummyRecord(int numRows, std::vector<omniruntime::type::DataTypeId>& types) {
+    static std::shared_ptr<StreamRecord> createDummyRecord(
+        int numRows, std::vector<omniruntime::type::DataTypeId>& types)
+    {
         auto vectorBatch = omnistream::createVectorBatch(types, numRows, true);
         // omniruntime::vec::VectorHelper::PrintVecBatch(vectorBatch);
         return std::make_shared<StreamRecord>(vectorBatch);

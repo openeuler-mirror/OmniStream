@@ -15,14 +15,13 @@
 #include "OmniStreamMultipleInputProcessor.h"
 
 namespace omnistream {
-    class OmniStreamMultipleInputProcessorFactory {
-    public:
-        static OmniStreamMultipleInputProcessor* create()
-        {
-            return nullptr;
-        }
-    };
-}
-
+class OmniStreamMultipleInputProcessorFactory {
+public:
+    static OmniStreamMultipleInputProcessor* create()
+    {
+        return nullptr;
+    }
+};
+} // namespace omnistream
 
 #endif

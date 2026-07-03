@@ -20,18 +20,20 @@
 #include "connector/kafka/source/reader/deserializer/KafkaRecordDeserializationSchema.h"
 #include "table/data/vectorbatch/VectorBatch.h"
 
-
 class KafkaRecordEmitter : public RecordEmitter<RdKafka::Message, KafkaPartitionSplitState> {
 public:
     ~KafkaRecordEmitter() override;
 
     explicit KafkaRecordEmitter(KafkaRecordDeserializationSchema* deserializationSchema);
 
-    void emitRecord(RdKafka::Message* consumerRecord, SourceOutput* output,
-                    KafkaPartitionSplitState* splitState) override;
+    void emitRecord(
+        RdKafka::Message* consumerRecord, SourceOutput* output, KafkaPartitionSplitState* splitState) override;
 
-    void emitBatchRecord(const std::vector<RdKafka::Message*>& messageVec, SourceOutput* output,
-                         KafkaPartitionSplitState* splitState) override;
+    void emitBatchRecord(
+        const std::vector<RdKafka::Message*>& messageVec,
+        SourceOutput* output,
+        KafkaPartitionSplitState* splitState) override;
+
 private:
     class SourceOutputWrapper : public Collector {
     public:
@@ -40,7 +42,9 @@ private:
             curSourceOutput->Collect(record, curTimestamp);
         }
 
-        void close() override {}
+        void close() override
+        {
+        }
 
         void setSourceOutput(SourceOutput* sourceOutput)
         {
@@ -51,6 +55,7 @@ private:
         {
             this->curTimestamp = timestamp;
         }
+
     private:
         SourceOutput* curSourceOutput;
         long curTimestamp;

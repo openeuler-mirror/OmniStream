@@ -4,7 +4,8 @@
 
 #include "runtime/checkpoint/TaskStateSnapshotSerializer.h"
 
-TEST(TaskStateSnapshotSerializerTest, SerializerToJson) {
+TEST(TaskStateSnapshotSerializerTest, SerializerToJson)
+{
     std::unordered_map<OperatorID, std::shared_ptr<OperatorSubtaskState>> subtaskStatesByOperatorID;
 
     auto managedOperatorState = StateObjectCollection<OperatorStateHandle>::Empty();
@@ -35,56 +36,46 @@ TEST(TaskStateSnapshotSerializerTest, SerializerToJson) {
     long metaStateSize = std::filesystem::file_size(metaFilePath);
 
     nlohmann::json metaDataState = {
-            {"@class", "org.apache.flink.runtime.state.filesystem.FileStateHandle"},
-            {"stateHandleName", "FileStateHandle"},
-            {"streamStateHandleID", {
-                               {"@class", "org.apache.flink.runtime.state.PhysicalStateHandleID"},
-                               {"keyString", metaPath.toString()}
-                       }},
-            {"stateSize", metaStateSize}
-    };
+        {"@class", "org.apache.flink.runtime.state.filesystem.FileStateHandle"},
+        {"stateHandleName", "FileStateHandle"},
+        {"streamStateHandleID",
+         {{"@class", "org.apache.flink.runtime.state.PhysicalStateHandleID"}, {"keyString", metaPath.toString()}}},
+        {"stateSize", metaStateSize}};
 
     nlohmann::json jsonObj;
     jsonObj["checkpointId"] = 1234;
     jsonObj["backendIdentifier"] = "01234567-89ab-cdef-0123-456789abcdef";
     jsonObj["metaDataState"] = metaDataState;
     jsonObj["directoryStateHandle"] = {
-            {"@class", "org.apache.flink.runtime.state.DirectoryStateHandle"},
-            {"directoryString", path.toString()},
-            {"stateSize", expectedDirSize},
-            {"directory", "file://" + path.toString() + "/"},
+        {"@class", "org.apache.flink.runtime.state.DirectoryStateHandle"},
+        {"directoryString", path.toString()},
+        {"stateSize", expectedDirSize},
+        {"directory", "file://" + path.toString() + "/"},
     };
-    jsonObj["keyGroupRange"] = {
-            {"startKeyGroup", 0},
-            {"endKeyGroup", 9}
-    };
+    jsonObj["keyGroupRange"] = {{"startKeyGroup", 0}, {"endKeyGroup", 9}};
 
     nlohmann::json sharedHandle1 = {
-            {"handle", {
-                           {"@class", "org.apache.flink.runtime.state.filesystem.FileStateHandle"},
-                           {"stateHandleName", "FileStateHandle"},
-                           {"filePath", metaPath.toString()},
-                           {"stateSize", metaStateSize}
-                       }},
-            {"localPath", "/local/path/1"}
-    };
-    nlohmann::json sharedHandle2 = {
-            {"handle", nullptr},
-            {"localPath", "/local/path/2"}
-    };
+        {"handle",
+         {{"@class", "org.apache.flink.runtime.state.filesystem.FileStateHandle"},
+          {"stateHandleName", "FileStateHandle"},
+          {"filePath", metaPath.toString()},
+          {"stateSize", metaStateSize}}},
+        {"localPath", "/local/path/1"}};
+    nlohmann::json sharedHandle2 = {{"handle", nullptr}, {"localPath", "/local/path/2"}};
     jsonObj["sharedState"] = nlohmann::json::array({sharedHandle1, sharedHandle2});
 
     auto handle = std::make_shared<IncrementalLocalKeyedStateHandle>(jsonObj);
     managedKeyedState->Add(handle);
 
-    auto operatorSubtaskState = std::make_shared<OperatorSubtaskState>(*managedOperatorState,
-       *rawOperatorState,
-       *managedKeyedState,
-       *rawKeyedState,
-       *inputChannelState,
-       *resultSubpartitionState,
-       inputRescalingDescriptor,
-       outputRescalingDescriptor);
+    auto operatorSubtaskState = std::make_shared<OperatorSubtaskState>(
+        *managedOperatorState,
+        *rawOperatorState,
+        *managedKeyedState,
+        *rawKeyedState,
+        *inputChannelState,
+        *resultSubpartitionState,
+        inputRescalingDescriptor,
+        outputRescalingDescriptor);
 
     subtaskStatesByOperatorID[OperatorID()] = operatorSubtaskState;
 

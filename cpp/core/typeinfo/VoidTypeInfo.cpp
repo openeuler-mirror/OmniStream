@@ -10,7 +10,8 @@
  */
 #include "VoidTypeInfo.h"
 
-VoidTypeInfo::VoidTypeInfo(const char* name) : name_(name) {
+VoidTypeInfo::VoidTypeInfo(const char* name) : name_(name)
+{
 }
 
 TypeSerializer* VoidTypeInfo::createTypeSerializer()

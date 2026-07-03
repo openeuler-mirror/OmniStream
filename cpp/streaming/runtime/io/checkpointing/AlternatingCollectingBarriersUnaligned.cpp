@@ -14,15 +14,16 @@
 
 AlternatingCollectingBarriersUnaligned::AlternatingCollectingBarriersUnaligned(
     bool alternating, ChannelState state, long checkpointId)
-    : alternating_(alternating), state_(std::move(state)), checkpointId_(checkpointId) {}
+    : alternating_(alternating),
+      state_(std::move(state)),
+      checkpointId_(checkpointId)
+{
+}
 
 BarrierHandlerState* AlternatingCollectingBarriersUnaligned::BarrierReceived(
-    Controller* controller,
-    InputChannelInfo channelInfo,
-    CheckpointBarrier* barrier,
-    bool markChannelBlocked)
+    Controller* controller, InputChannelInfo channelInfo, CheckpointBarrier* barrier, bool markChannelBlocked)
 {
-    LOG(">>>>")
+    LOG(">>>>");
     if (markChannelBlocked && !barrier->GetCheckpointOptions()->IsUnalignedCheckpoint()) {
         state_.BlockChannel(channelInfo);
     }

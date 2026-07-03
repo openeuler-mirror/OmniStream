@@ -12,7 +12,6 @@
 #ifndef OMNISTREAM_GENERATORCONFIG_H
 #define OMNISTREAM_GENERATORCONFIG_H
 
-
 #include <iostream>
 #include <sstream>
 #include <vector>
@@ -24,7 +23,6 @@
 #include <cmath>
 #include "model/Event.h"
 #include "NexmarkConfiguration.h"
-
 
 class GeneratorConfig {
 public:
@@ -65,10 +63,10 @@ public:
 
     // If only the configuration is provided. First use default value. Then update value to new value in config.
     // If the other four field is provided together with config. Use the explicitly provided value.
-    explicit GeneratorConfig(const NexmarkConfiguration &nexmarkConfig):GeneratorConfig(nexmarkConfig, getNow(), 0, 0, 0)
+    explicit GeneratorConfig(const NexmarkConfiguration& nexmarkConfig)
+        : GeneratorConfig(nexmarkConfig, getNow(), 0, 0, 0)
     {
-        if (nexmarkConfig.configuration.contains("configMap")
-        && !nexmarkConfig.configuration["configMap"].is_null()) {
+        if (nexmarkConfig.configuration.contains("configMap") && !nexmarkConfig.configuration["configMap"].is_null()) {
             auto configMap = nexmarkConfig.configuration["configMap"];
             SET_FIELD(baseTime);
             SET_FIELD(firstEventId)
@@ -78,23 +76,28 @@ public:
             }
         }
     }
-    GeneratorConfig(const NexmarkConfiguration &configuration,
-                    int64_t baseTime,
-                    int64_t firstEventId,
-                    int64_t maxEventsOrZero,
-                    int64_t firstEventNumber)
+    GeneratorConfig(
+        const NexmarkConfiguration& configuration,
+        int64_t baseTime,
+        int64_t firstEventId,
+        int64_t maxEventsOrZero,
+        int64_t firstEventNumber)
         : personProportion(configuration.personProportion),
           auctionProportion(configuration.auctionProportion),
           bidProportion(configuration.bidProportion),
-          totalProportion(configuration.auctionProportion + configuration.personProportion + configuration.bidProportion),
+          totalProportion(
+              configuration.auctionProportion + configuration.personProportion + configuration.bidProportion),
           baseTime(baseTime),
           firstEventId(firstEventId),
           // Passing 0 as ratePeriodSec as original value not provided.
-          maxEvents((maxEventsOrZero == 0)
-                        ? std::numeric_limits<int64_t>::max() / (totalProportion * std::max(
-                            std::max(configuration.avgPersonByteSize, configuration.avgAuctionByteSize),
-                            configuration.avgBidByteSize))
-                        : maxEventsOrZero),
+          maxEvents(
+              (maxEventsOrZero == 0)
+                  ? std::numeric_limits<int64_t>::max() /
+                        (totalProportion *
+                         std::max(
+                             std::max(configuration.avgPersonByteSize, configuration.avgAuctionByteSize),
+                             configuration.avgBidByteSize))
+                  : maxEventsOrZero),
           firstEventNumber(firstEventNumber),
           configuration(configuration),
           interEventDelayUs({1000000.0 / configuration.firstEventRate * configuration.numEventGenerators}),
@@ -107,8 +110,8 @@ public:
     inline long getNow() const
     {
         return std::chrono::duration_cast<std::chrono::milliseconds>(
-                std::chrono::system_clock::now().time_since_epoch()
-        ).count();
+                   std::chrono::system_clock::now().time_since_epoch())
+            .count();
     }
     /** Return a copy of this config. */
     GeneratorConfig copy() const
@@ -249,6 +252,7 @@ public:
     {
         return baseTime + (static_cast<int64_t>(eventNumber * interEventDelayUs[0]) / 1000LL);
     }
+
 private:
     NexmarkConfiguration configuration;
 

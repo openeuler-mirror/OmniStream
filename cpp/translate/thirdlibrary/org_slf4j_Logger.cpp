@@ -14,82 +14,82 @@
 
 Logger::Logger() = default;
 Logger::~Logger() = default;
-void Logger::info(String *info)
+void Logger::info(String* info)
 {
     std::cout << "this is custom logger: " << info->toString() << std::endl;
 }
 
-void Logger::info(String *info, Object* obj1)
+void Logger::info(String* info, Object* obj1)
 {
     std::cout << "this is custom logger: " << info->toString() << std::endl;
 }
 
-void Logger::info(String *info, Object* obj1, Object* obj2)
+void Logger::info(String* info, Object* obj1, Object* obj2)
 {
     std::cout << "this is custom logger: " << info->toString() << std::endl;
 }
 
-void Logger::info(String * format, String * info)
+void Logger::info(String* format, String* info)
 {
     std::cout << "this is custom logger: " << format->toString() << info->toString() << std::endl;
 }
 
-void Logger::warn(String *warn)
+void Logger::warn(String* warn)
 {
     std::cout << "this is custom logger: " << warn->toString() << std::endl;
 }
 
-void Logger::warn(String *warn, java_lang_Throwable *e)
+void Logger::warn(String* warn, java_lang_Throwable* e)
 {
     std::cout << "this is custom logger: " << warn->toString() << std::endl;
 }
 
-void Logger::error(String *error)
+void Logger::error(String* error)
 {
     std::cout << "this is custom logger: " << error->toString() << std::endl;
 }
 
-void Logger::error(String *error, java_lang_Throwable *e)
+void Logger::error(String* error, java_lang_Throwable* e)
 {
     std::cout << "this is custom logger: " << error->toString() << std::endl;
 }
 
-void Logger::info(const std::string &info)
+void Logger::info(const std::string& info)
 {
     std::cout << "this is custom logger: " << info << std::endl;
 }
 
-void Logger::info(const std::string &info, Object* obj1)
+void Logger::info(const std::string& info, Object* obj1)
 {
     std::cout << "this is custom logger: " << info << std::endl;
 }
 
-void Logger::info(const std::string &info, Object* obj1, Object* obj2)
+void Logger::info(const std::string& info, Object* obj1, Object* obj2)
 {
     std::cout << "this is custom logger: " << info << std::endl;
 }
 
-void Logger::info(const std::string &format, const std::string &info)
+void Logger::info(const std::string& format, const std::string& info)
 {
     std::cout << "this is custom logger: " << format << info << std::endl;
 }
 
-void Logger::warn(const std::string &warn)
+void Logger::warn(const std::string& warn)
 {
     std::cout << "this is custom logger: " << warn << std::endl;
 }
 
-void Logger::warn(const std::string &warn, java_lang_Throwable *e)
+void Logger::warn(const std::string& warn, java_lang_Throwable* e)
 {
     std::cout << "this is custom logger: " << warn << std::endl;
 }
 
-void Logger::error(const std::string &error)
+void Logger::error(const std::string& error)
 {
     std::cout << "this is custom logger: " << error << std::endl;
 }
 
-void Logger::error(const std::string &error, java_lang_Throwable *e)
+void Logger::error(const std::string& error, java_lang_Throwable* e)
 {
     std::cout << "this is custom logger: " << error << std::endl;
 }

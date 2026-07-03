@@ -12,6 +12,6 @@
 #include "basictypes/ReflectMacros.h"
 
 DEFINE_REFLECT_CLASS_BEGIN(User)
-    REGISTER_PTR_FIELD(User, name, String*, "java_lang_String")
-    REGISTER_PRIMITIVE_FIELD(User, age, Long, "java_lang_Long")
+REGISTER_PTR_FIELD(User, name, String*, "java_lang_String")
+REGISTER_PRIMITIVE_FIELD(User, age, Long, "java_lang_Long")
 DEFINE_REFLECT_CLASS_END(User)

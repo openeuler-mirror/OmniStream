@@ -30,7 +30,6 @@ public:
     /** A Holder of StreamStateHandle and the corresponding localPath. */
     class HandleAndLocalPath {
     public:
-
         static HandleAndLocalPath of(std::shared_ptr<StreamStateHandle> handle, const std::string& localPath)
         {
             if (!handle) {
@@ -84,7 +83,7 @@ public:
         std::size_t hashCode() const
         {
             std::size_t seed = 0x811C9DC5;
-            seed ^= std::hash<std::string>()(localPath_) + 0x9e3779b9 + (seed<<6) + (seed>>2);
+            seed ^= std::hash<std::string>()(localPath_) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
             return seed;
         }
 
@@ -117,8 +116,10 @@ public:
 
         // Constructors
         HandleAndLocalPath(std::shared_ptr<StreamStateHandle> handle, std::string localPath)
-            : handle_(std::move(handle)), localPath_(std::move(localPath))
-            {}
+            : handle_(std::move(handle)),
+              localPath_(std::move(localPath))
+        {
+        }
     };
 
     /**

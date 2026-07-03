@@ -20,8 +20,9 @@ public:
         SetSize(length);
     }
 
-    ~ReadOnlySlicedVectorBatchBuffer() override {
-        //delete parent_;
+    ~ReadOnlySlicedVectorBatchBuffer() override
+    {
+        // delete parent_;
     }
 
     std::shared_ptr<BufferRecycler> GetRecycler() override
@@ -31,7 +32,7 @@ public:
 
     void RecycleBuffer() override
     {
-        LOG_TRACE("Calling RecycleBuffer() from ReadOnlySlicedVectorBatchBuffer")
+        LOG_TRACE("Calling RecycleBuffer() from ReadOnlySlicedVectorBatchBuffer");
         parent_->RecycleBuffer();
     }
 
@@ -42,7 +43,7 @@ public:
 
     Buffer* RetainBuffer() override
     {
-        LOG_TRACE("Calling RetainBuffer() from ReadOnlySlicedVectorBatchBuffer")
+        LOG_TRACE("Calling RetainBuffer() from ReadOnlySlicedVectorBatchBuffer");
         return parent_->RetainBuffer();
     }
 
@@ -76,6 +77,6 @@ private:
     int index_;
     int length_;
 };
-}
+} // namespace omnistream
 
 #endif

@@ -10,20 +10,21 @@
  */
 #include "GeneratedAggsHandleFunctionAverage.h"
 
-GeneratedAggsHandleFunctionAverage::GeneratedAggsHandleFunctionAverage
-(int aggIdx, int accIndexSum, int accIndexCount0, int valueIndex, int accIndexCount1)
+GeneratedAggsHandleFunctionAverage::GeneratedAggsHandleFunctionAverage(
+    int aggIdx, int accIndexSum, int accIndexCount0, int valueIndex, int accIndexCount1)
     : aggIdx(aggIdx),
-    accIndexSum(accIndexSum),
-    accIndexCount0(accIndexCount0),
-    accIndexCount1(accIndexCount1),
-    valueIndex(valueIndex)
+      accIndexSum(accIndexSum),
+      accIndexCount0(accIndexCount0),
+      accIndexCount1(accIndexCount1),
+      valueIndex(valueIndex)
 {
     store = nullptr;
 }
 
 void GeneratedAggsHandleFunctionAverage::createAccumulators(BinaryRowData* accumulators)
 {
-    throw std::runtime_error("This function does not require createAccumulators method, but createAccumulators was called.");
+    throw std::runtime_error(
+        "This function does not require createAccumulators method, but createAccumulators was called.");
 }
 
 void GeneratedAggsHandleFunctionAverage::accumulate(RowData* accInput)
@@ -100,7 +101,6 @@ void GeneratedAggsHandleFunctionAverage::accumulate(omnistream::VectorBatch* inp
     }
 }
 
-
 void GeneratedAggsHandleFunctionAverage::setAccumulators(RowData* _acc)
 {
     sumIsNull = _acc->isNullAt(accIndexSum);
@@ -154,9 +154,7 @@ void GeneratedAggsHandleFunctionAverage::retract(omnistream::VectorBatch* input,
         bool isFieldNull = columnData->IsNull(rowIndex);
         long fieldValue;
 
-        fieldValue = isFieldNull
-                     ? -1L
-                     : dynamic_cast<omniruntime::vec::Vector<long> *>(columnData)->GetValue(rowIndex);
+        fieldValue = isFieldNull ? -1L : dynamic_cast<omniruntime::vec::Vector<long>*>(columnData)->GetValue(rowIndex);
 
         // Update agg0_sum
         if (!isFieldNull) {
@@ -171,13 +169,12 @@ void GeneratedAggsHandleFunctionAverage::retract(omnistream::VectorBatch* input,
     }
 }
 
-
 void GeneratedAggsHandleFunctionAverage::merge(RowData* otherAcc)
 {
     throw std::runtime_error("This function does not require the merge method, but the merge method is called.");
 }
 
-void GeneratedAggsHandleFunctionAverage::getAccumulators(BinaryRowData *acc)
+void GeneratedAggsHandleFunctionAverage::getAccumulators(BinaryRowData* acc)
 {
     if (sumIsNull) {
         acc->setNullAt(accIndexSum);
@@ -199,7 +196,7 @@ void GeneratedAggsHandleFunctionAverage::getAccumulators(BinaryRowData *acc)
     }
 }
 
-void GeneratedAggsHandleFunctionAverage::getValue(BinaryRowData *aggValue)
+void GeneratedAggsHandleFunctionAverage::getValue(BinaryRowData* aggValue)
 {
     if (count0IsNull || count0 == 0) {
         aggValue->setNullAt(valueIndex);
@@ -209,7 +206,8 @@ void GeneratedAggsHandleFunctionAverage::getValue(BinaryRowData *aggValue)
     }
 }
 
-bool GeneratedAggsHandleFunctionAverage::equaliser(BinaryRowData *r1, BinaryRowData *r2)
+bool GeneratedAggsHandleFunctionAverage::equaliser(BinaryRowData* r1, BinaryRowData* r2)
 {
-    return !r1->isNullAt(valueIndex) && !r2->isNullAt(valueIndex) && *r1->getLong(valueIndex) == *r2->getLong(valueIndex);
+    return !r1->isNullAt(valueIndex) && !r2->isNullAt(valueIndex) &&
+           *r1->getLong(valueIndex) == *r2->getLong(valueIndex);
 }

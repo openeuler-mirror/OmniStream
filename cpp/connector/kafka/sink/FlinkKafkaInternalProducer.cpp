@@ -11,22 +11,24 @@
 
 #include "FlinkKafkaInternalProducer.h"
 
-FlinkKafkaInternalProducer::FlinkKafkaInternalProducer(RdKafka::Conf* properties,
-                                                       const std::string& transactionalId)
+FlinkKafkaInternalProducer::FlinkKafkaInternalProducer(RdKafka::Conf* properties, const std::string& transactionalId)
     : transactionalId_(transactionalId),
-    inTransaction_(false),
-    closed_(false) {
+      inTransaction_(false),
+      closed_(false)
+{
     producer_ = RdKafka::Producer::create(properties, errstr);
     if (!producer_) {
         throw std::runtime_error("FAILED to create producer: " + errstr);
     }
 }
 
-FlinkKafkaInternalProducer::~FlinkKafkaInternalProducer() {
+FlinkKafkaInternalProducer::~FlinkKafkaInternalProducer()
+{
     delete producer_;
 }
 
-RdKafka::Producer* FlinkKafkaInternalProducer::getKafkaProducer() {
+RdKafka::Producer* FlinkKafkaInternalProducer::getKafkaProducer()
+{
     return this->producer_;
 }
 
@@ -40,7 +42,7 @@ void FlinkKafkaInternalProducer::Flush()
 
 void FlinkKafkaInternalProducer::BeginTransaction()
 {
-    RdKafka::Error *err = producer_->begin_transaction();
+    RdKafka::Error* err = producer_->begin_transaction();
     if (err) {
         throw std::runtime_error("FAILED to begin transaction: " + err->str());
     }
@@ -53,7 +55,7 @@ void FlinkKafkaInternalProducer::AbortTransaction()
     if (!inTransaction_) {
         throw std::runtime_error("Transaction was not started");
     }
-    RdKafka::Error *err = producer_->abort_transaction(timeout_);
+    RdKafka::Error* err = producer_->abort_transaction(timeout_);
     if (err) {
         throw std::runtime_error("FAILED to abort transaction: " + err->str());
     }
@@ -66,7 +68,7 @@ void FlinkKafkaInternalProducer::CommitTransaction()
     if (!inTransaction_) {
         throw std::runtime_error("Transaction was not started");
     }
-    RdKafka::Error *err = producer_->commit_transaction(timeout_);
+    RdKafka::Error* err = producer_->commit_transaction(timeout_);
     if (err) {
         throw std::runtime_error("FAILED to Commit transaction: " + err->str());
     }
@@ -99,28 +101,33 @@ bool FlinkKafkaInternalProducer::IsClosed() const
     return closed_;
 }
 
-const std::string& FlinkKafkaInternalProducer::getTransactionalId() const {
+const std::string& FlinkKafkaInternalProducer::getTransactionalId() const
+{
     return transactionalId_;
 }
 
-int32_t FlinkKafkaInternalProducer::getEpoch() const {
+int32_t FlinkKafkaInternalProducer::getEpoch() const
+{
     // 此处java逻辑为反射
     return 0;
 }
 
-int64_t FlinkKafkaInternalProducer::getProducerId() const {
+int64_t FlinkKafkaInternalProducer::getProducerId() const
+{
     // 此处java逻辑为反射
     return 0;
 }
 
-void FlinkKafkaInternalProducer::initTransactionId(const std::string& transactionalId) {
+void FlinkKafkaInternalProducer::initTransactionId(const std::string& transactionalId)
+{
     if (transactionalId != transactionalId_) {
         setTransactionId(transactionalId);
         producer_->init_transactions(timeout_);
     }
 }
 
-void FlinkKafkaInternalProducer::setTransactionId(const std::string& transactionalId) {
+void FlinkKafkaInternalProducer::setTransactionId(const std::string& transactionalId)
+{
     if (transactionalId != transactionalId_) {
         if (inTransaction_) {
             throw std::runtime_error("Another transaction is still open.");
@@ -140,12 +147,13 @@ void* FlinkKafkaInternalProducer::GetTransactionManager() const
     return nullptr;
 }
 
-void FlinkKafkaInternalProducer::transitionTransactionManagerStateTo(const std::string& state) {
+void FlinkKafkaInternalProducer::transitionTransactionManagerStateTo(const std::string& state)
+{
     // 此处java逻辑为反射
 }
 
-RdKafka::Conf* FlinkKafkaInternalProducer::withTransactionalId(RdKafka::Conf* properties,
-                                                               const std::string& transactionalId)
+RdKafka::Conf* FlinkKafkaInternalProducer::withTransactionalId(
+    RdKafka::Conf* properties, const std::string& transactionalId)
 {
     if (transactionalId.empty()) {
         return properties;
@@ -162,8 +170,8 @@ void FlinkKafkaInternalProducer::resumeTransaction(int64_t producerId, int32_t e
         throw std::runtime_error("Already in transaction " + transactionalId_);
     }
     if (producerId < 0 || epoch < 0) {
-        throw std::runtime_error("Incorrect values for producerId " +
-        std::to_string(producerId) + " and epoch " + std::to_string(epoch));
+        throw std::runtime_error(
+            "Incorrect values for producerId " + std::to_string(producerId) + " and epoch " + std::to_string(epoch));
     }
     // 此处java逻辑为反射
 }

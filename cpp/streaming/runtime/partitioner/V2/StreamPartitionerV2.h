@@ -21,13 +21,15 @@
 #include <arm_sve.h>
 
 namespace omnistream {
-template<typename T>
+template <typename T>
 class StreamPartitionerV2 : public ChannelSelectorV2<T> {
 public:
-    StreamPartitionerV2() : numberOfChannels(0) {
+    StreamPartitionerV2() : numberOfChannels(0)
+    {
     }
 
-    virtual ~StreamPartitionerV2() {
+    virtual ~StreamPartitionerV2()
+    {
     }
 
     void setup(int numberOfChannels_) override
@@ -91,7 +93,8 @@ public:
     [[nodiscard]] virtual std::string toString() const = 0;
     virtual std::unique_ptr<SubtaskStateMapper> getUpstreamSubtaskStateMapper() = 0;
 
-    void setRowKind_sve(int i, int size, uint8_t* src, int32_t* offsets, uint8_t* dst) {
+    void setRowKind_sve(int i, int size, uint8_t* src, int32_t* offsets, uint8_t* dst)
+    {
         auto pg = svwhilelt_b32(i, size);
         svint32_t offsetRaw = svld1_s32(pg, offsets);
         svuint32_t rawData = svld1ub_gather_offset_u32(pg, src, offsetRaw);
@@ -104,7 +107,8 @@ public:
         svst1_u8(pg2, dst, packed);
     }
 
-    void setTimestamp_sve(int i, int size, int64_t* src, int32_t* offsets, int64_t* dst) {
+    void setTimestamp_sve(int i, int size, int64_t* src, int32_t* offsets, int64_t* dst)
+    {
         auto pg = svwhilelt_b32(i, size);
         svint32_t offsetRaw = svld1_s32(pg, offsets);
         svint64_t offset1 = svunpklo(offsetRaw);
@@ -120,8 +124,8 @@ public:
         svst1_s64(pg3, dst + jump, rawData2);
     }
 
-    StreamRecord* buildNewStreamRecordBasedOnOffsets(std::vector<int>& offsets, StreamRecord* originStreamRecord,
-         long timestamp)
+    StreamRecord* buildNewStreamRecordBasedOnOffsets(
+        std::vector<int>& offsets, StreamRecord* originStreamRecord, long timestamp)
     {
         auto vectorBatch = reinterpret_cast<VectorBatch*>(originStreamRecord->getValue());
         auto copyedVectorBatch = new VectorBatch(offsets.size());
@@ -129,37 +133,45 @@ public:
         for (int i = 0; i < vectorCount; i++) {
             // The original vector is not varchar or it is varchar but flat
             if (vectorBatch->Get(i)->GetEncoding() == omniruntime::vec::OMNI_FLAT ||
-                (vectorBatch->Get(i)->GetTypeId() != omniruntime::type::OMNI_CHAR
-                && vectorBatch->Get(i)->GetTypeId() != omniruntime::type::OMNI_VARCHAR)) {
-                copyedVectorBatch->Append(omniruntime::vec::VectorHelper::CopyPositionsVector(
-                    vectorBatch->Get(i), offsets.data(), 0, offsets.size()));
+                (vectorBatch->Get(i)->GetTypeId() != omniruntime::type::OMNI_CHAR &&
+                 vectorBatch->Get(i)->GetTypeId() != omniruntime::type::OMNI_VARCHAR)) {
+                copyedVectorBatch->Append(
+                    omniruntime::vec::VectorHelper::CopyPositionsVector(
+                        vectorBatch->Get(i), offsets.data(), 0, offsets.size()));
             } else {
                 // It is a varchar dictionary, copy it out
-                copyedVectorBatch->Append(omnistream::VectorBatch::CopyPositionsAndFlatten(vectorBatch->Get(i),
-                    offsets.data(), 0, offsets.size()));
+                copyedVectorBatch->Append(
+                    omnistream::VectorBatch::CopyPositionsAndFlatten(
+                        vectorBatch->Get(i), offsets.data(), 0, offsets.size()));
             }
         }
         int processElement = svcntw();
         int size = offsets.size();
         for (size_t i = 0; i < offsets.size(); i += processElement) {
             int position = offsets[i];
-            setRowKind_sve(i, size, reinterpret_cast<uint8_t*>(vectorBatch->getRowKinds()), offsets.data() + i, reinterpret_cast<uint8_t*>(copyedVectorBatch->getRowKinds()) + i);
-            setTimestamp_sve(i, size, vectorBatch->getTimestamps(), offsets.data() + i, copyedVectorBatch->getTimestamps() + i);
+            setRowKind_sve(
+                i,
+                size,
+                reinterpret_cast<uint8_t*>(vectorBatch->getRowKinds()),
+                offsets.data() + i,
+                reinterpret_cast<uint8_t*>(copyedVectorBatch->getRowKinds()) + i);
+            setTimestamp_sve(
+                i, size, vectorBatch->getTimestamps(), offsets.data() + i, copyedVectorBatch->getTimestamps() + i);
         }
         return new StreamRecord(copyedVectorBatch, timestamp);
-}
+    }
 
-StreamRecord* buildNewStreamRecordBasedOnOffsets(StreamRecord* originStreamRecord, long timestamp)
-{
-    auto row = reinterpret_cast<Row*>(originStreamRecord->getValue());
-    auto copyRow = new Row(row->getKind(), row->getFieldByPosition(),
-        row->getFieldByName(), row->getPositionByName());
-    return new StreamRecord(copyRow, timestamp);
-}
+    StreamRecord* buildNewStreamRecordBasedOnOffsets(StreamRecord* originStreamRecord, long timestamp)
+    {
+        auto row = reinterpret_cast<Row*>(originStreamRecord->getValue());
+        auto copyRow =
+            new Row(row->getKind(), row->getFieldByPosition(), row->getFieldByName(), row->getPositionByName());
+        return new StreamRecord(copyRow, timestamp);
+    }
+
 protected:
     int numberOfChannels;
 };
-}
-
+} // namespace omnistream
 
 #endif

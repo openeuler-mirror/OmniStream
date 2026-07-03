@@ -22,7 +22,8 @@ int KafkaWriterStateSerializer::getVersion() const
     return 1;
 }
 
-std::vector<uint8_t> KafkaWriterStateSerializer::serialize(const KafkaWriterState& obj) {
+std::vector<uint8_t> KafkaWriterStateSerializer::serialize(const KafkaWriterState& obj)
+{
     DataOutputSerializer out;
     out.writeUTF(obj.getTransactionalIdPrefix());
     return std::vector<uint8_t>(out.getData(), out.getData() + out.length());

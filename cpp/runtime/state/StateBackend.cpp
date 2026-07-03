@@ -13,24 +13,26 @@
 #include "hashmap/HashMapStateBackend.h"
 
 template <typename K>
-AbstractKeyedStateBackend<K> *StateBackend::createKeyedStateBackend(
-    omnistream::EnvironmentV2 *env,
+AbstractKeyedStateBackend<K>* StateBackend::createKeyedStateBackend(
+    omnistream::EnvironmentV2* env,
     std ::set<KeyedStateHandle> stateHandles,
-    KeyGroupRange *keyGroupRange,
-    TypeSerializer *keySerializer,
+    KeyGroupRange* keyGroupRange,
+    TypeSerializer* keySerializer,
     int numberOfKeyGroups)
 {
     HashMapStateBackend* hashMapCasted = dynamic_cast<HashMapStateBackend*>(this);
     if (hashMapCasted) {
-        return hashMapCasted->template createKeyedStateBackend<K>(env, stateHandles, keyGroupRange, keySerializer, numberOfKeyGroups);
+        return hashMapCasted->template createKeyedStateBackend<K>(
+            env, stateHandles, keyGroupRange, keySerializer, numberOfKeyGroups);
     }
     return nullptr;
 }
 
 OperatorStateBackend* StateBackend::createOperatorStateBackend(
-        omnistream::EnvironmentV2* env,
-        std::string operatorIdentifier,
-        std::set<std::shared_ptr<OperatorStateHandle>> stateHandles) {
+    omnistream::EnvironmentV2* env,
+    std::string operatorIdentifier,
+    std::set<std::shared_ptr<OperatorStateHandle>> stateHandles)
+{
     HashMapStateBackend* hashMapCasted = dynamic_cast<HashMapStateBackend*>(this);
     if (hashMapCasted) {
         return hashMapCasted->createOperatorStateBackend(env, operatorIdentifier, stateHandles);

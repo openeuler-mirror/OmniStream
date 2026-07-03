@@ -11,7 +11,8 @@
 
 #include "XxH128_hashSerializer.h"
 
-void *XxH128_hashSerializer::deserialize(DataInputView &source) {
+void* XxH128_hashSerializer::deserialize(DataInputView& source)
+{
     int64_t low64 = source.readLong();
     int64_t high64 = source.readLong();
 
@@ -22,7 +23,8 @@ void *XxH128_hashSerializer::deserialize(DataInputView &source) {
     return static_cast<void*>(res);
 }
 
-void XxH128_hashSerializer::serialize(void *record, DataOutputSerializer &target) {
+void XxH128_hashSerializer::serialize(void* record, DataOutputSerializer& target)
+{
     auto* obj = static_cast<XXH128_hash_t*>(record);
     int64_t low64 = static_cast<int64_t>(obj->low64);
     int64_t high64 = static_cast<int64_t>(obj->high64);

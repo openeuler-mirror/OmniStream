@@ -14,16 +14,19 @@ struct TopNDataComparator {
     AppendOnlyTopNFunction<K>* fn = nullptr;
 
     TopNDataComparator() = default;
-    explicit TopNDataComparator(AppendOnlyTopNFunction<K>* f) : fn(f) {}
+    explicit TopNDataComparator(AppendOnlyTopNFunction<K>* f) : fn(f)
+    {
+    }
 
-    inline bool operator()(long a, long b) const {
+    inline bool operator()(long a, long b) const
+    {
         if (a == b) return false;
 
         int batchIdA = VectorBatchUtil::getBatchId(a);
-        int rowIdA   = VectorBatchUtil::getRowId(a);
+        int rowIdA = VectorBatchUtil::getRowId(a);
 
         int batchIdB = VectorBatchUtil::getBatchId(b);
-        int rowIdB   = VectorBatchUtil::getRowId(b);
+        int rowIdB = VectorBatchUtil::getRowId(b);
 
         auto* vbA = fn->GetVectorBatch(batchIdA);
         auto* vbB = fn->GetVectorBatch(batchIdB);
@@ -34,6 +37,5 @@ struct TopNDataComparator {
         }
 
         return fn->CompareRowData(vbA, rowIdA, vbB, rowIdB);
-
     }
 };

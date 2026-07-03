@@ -22,16 +22,18 @@ extern "C" {
  * Method:    notifyRemoteDataAvailable
  * Signature: (JIIJIIIZI)V
  */
-JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_io_network_partition_RemoteDataFetcher_notifyRemoteDataAvailable
-  (JNIEnv *, jobject, jlong, jint, jint, jlong, jint, jint, jint, jboolean, jint);
+JNIEXPORT void JNICALL
+Java_com_huawei_omniruntime_flink_runtime_io_network_partition_RemoteDataFetcher_notifyRemoteDataAvailable(
+    JNIEnv*, jobject, jlong, jint, jint, jlong, jint, jint, jint, jboolean, jint);
 
 /*
  * Class:     com_huawei_omniruntime_flink_runtime_io_network_partition_RemoteDataFetcher
  * Method:    getRecycleBufferAddress
  * Signature: (J)J
  */
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_io_network_partition_RemoteDataFetcher_getRecycleBufferAddress
-  (JNIEnv *, jobject, jlong);
+JNIEXPORT jlong JNICALL
+Java_com_huawei_omniruntime_flink_runtime_io_network_partition_RemoteDataFetcher_getRecycleBufferAddress(
+    JNIEnv*, jobject, jlong);
 
 #ifdef __cplusplus
 }

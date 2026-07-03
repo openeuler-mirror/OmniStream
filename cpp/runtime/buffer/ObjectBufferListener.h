@@ -17,20 +17,20 @@
 
 namespace omnistream {
 
-    class ObjectBuffer;
+class ObjectBuffer;
 
-    class ObjectBufferListener {
-    public:
-        virtual ~ObjectBufferListener() = default;
+class ObjectBufferListener {
+public:
+    virtual ~ObjectBufferListener() = default;
 
-        virtual bool notifyBufferAvailable(std::shared_ptr<ObjectBuffer> buffer) = 0;
-        virtual void notifyBufferDestroyed() = 0;
+    virtual bool notifyBufferAvailable(std::shared_ptr<ObjectBuffer> buffer) = 0;
+    virtual void notifyBufferDestroyed() = 0;
 
-        virtual std::string toString() const
-        {
-            return "ObjectBufferListener";
-        }
-    };
+    virtual std::string toString() const
+    {
+        return "ObjectBufferListener";
+    }
+};
 
 } // namespace omnistream
 

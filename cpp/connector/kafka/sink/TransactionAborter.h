@@ -18,9 +18,9 @@
 
 class TransactionAborter {
 public:
-    explicit TransactionAborter(std::function
-            <std::shared_ptr<FlinkKafkaInternalProducer>(const std::string&)> producerFactory,
-            std::function<void(std::shared_ptr<FlinkKafkaInternalProducer>)> closeAction);
+    explicit TransactionAborter(
+        std::function<std::shared_ptr<FlinkKafkaInternalProducer>(const std::string&)> producerFactory,
+        std::function<void(std::shared_ptr<FlinkKafkaInternalProducer>)> closeAction);
 
     void abortLingeringTransactions(const std::vector<std::string>& prefixesToAbort, long startCheckpointId);
 
@@ -31,6 +31,7 @@ public:
     std::function<std::shared_ptr<FlinkKafkaInternalProducer>(const std::string&)> producerFactory_;
     std::function<void(std::shared_ptr<FlinkKafkaInternalProducer>)> closeAction_;
     std::shared_ptr<FlinkKafkaInternalProducer> producer = nullptr;
+
 private:
     void abortTransactionsWithPrefix(const std::string& prefix, long startCheckpointId);
 

@@ -34,7 +34,8 @@
  */
 class ShuffleEnvironmentTest : public FrameworkTestConfig {
 public:
-    void SetUp() override {
+    void SetUp() override
+    {
         FrameworkTestConfig::SetUp();
 
         // TaskManagerServices
@@ -44,14 +45,14 @@ public:
         }
         try {
             taskMCSConfJson_ = nlohmann::json::parse(taskMCSConfFile);
-        } catch (const nlohmann::json::parse_error &e) {
+        } catch (const nlohmann::json::parse_error& e) {
             throw std::runtime_error("JSON parse error: " + std::string(e.what()));
         }
         // taskMCSConfJson_ = nlohmann::json::parse(taskMCSConfFile);
 
         // Source Task
         std::ifstream jobFile("./input/job.json");
-        nlohmann::json jobJson = nlohmann::json::parse(jobFile);  // same for both source and sink
+        nlohmann::json jobJson = nlohmann::json::parse(jobFile); // same for both source and sink
 
         std::ifstream sourceTaskFile("./input/sourceTask.json");
         nlohmann::json sourceTaskJson = nlohmann::json::parse(sourceTaskFile);
@@ -67,14 +68,15 @@ public:
         std::ifstream sinkTddFile("./input/sinkTdd.json");
         nlohmann::json sinkTddJson = nlohmann::json::parse(sinkTddFile);
 
-        jobInfo_      = jobJson;
-        srcTaskInfo_  = sourceTaskJson;
-        srcTddInfo_   = sourceTddJson;
+        jobInfo_ = jobJson;
+        srcTaskInfo_ = sourceTaskJson;
+        srcTddInfo_ = sourceTddJson;
         sinkTaskInfo_ = sinkTaskJson;
-        sinkTddInfo_  = sinkTddJson;
+        sinkTddInfo_ = sinkTddJson;
 
         // TaskManagerServices
-        taskManagerServices_ = std::shared_ptr<omnistream::TaskManagerServices>(omnistream::TaskManagerServices::fromConfiguration(taskMCSConfJson_));
+        taskManagerServices_ = std::shared_ptr<omnistream::TaskManagerServices>(
+            omnistream::TaskManagerServices::fromConfiguration(taskMCSConfJson_));
 
         // ShuffleEnvironment
         shuffleEnv_ = taskManagerServices_->getShuffleEnvironment();
@@ -84,61 +86,73 @@ public:
 
         // Dummy VectorBatch and Record
         std::vector<omniruntime::type::DataTypeId> types = {omniruntime::type::OMNI_LONG, omniruntime::type::OMNI_LONG};
-        dummyVectorBatch_                                = omnistream::createVectorBatch(types, 3, true);
-        dummyRecord_                                     = std::make_shared<StreamRecord>(dummyVectorBatch_);
+        dummyVectorBatch_ = omnistream::createVectorBatch(types, 3, true);
+        dummyRecord_ = std::make_shared<StreamRecord>(dummyVectorBatch_);
     }
 
-    void createUpstreamWriterAndDownstreamInputGate() {
-        auto shuffleIOOwnerContext = shuffleEnv_->createShuffleIOOwnerContext("testShuffleIOOwnerContext", omnistream::ExecutionAttemptIDPOD(), nullptr);
+    void createUpstreamWriterAndDownstreamInputGate()
+    {
+        auto shuffleIOOwnerContext = shuffleEnv_->createShuffleIOOwnerContext(
+            "testShuffleIOOwnerContext", omnistream::ExecutionAttemptIDPOD(), nullptr);
 
         // Upstream ResultPartitionWriters
-        auto resultPartitionWriters = shuffleEnv_->createResultPartitionWriters(shuffleIOOwnerContext, srcTddInfo_.getProducedPartitions(), 1);
-        upstreamWriter_             = resultPartitionWriters[0];  // This query only have 1 resultPartition
+        auto resultPartitionWriters =
+            shuffleEnv_->createResultPartitionWriters(shuffleIOOwnerContext, srcTddInfo_.getProducedPartitions(), 1);
+        upstreamWriter_ = resultPartitionWriters[0]; // This query only have 1 resultPartition
 
         // Downstream InputGates
-        auto inputGates      = shuffleEnv_->createInputGates(shuffleIOOwnerContext, nullptr, sinkTddInfo_.getInputGates(), 1);
-        downstreamInputGate_ = inputGates[0];  // This query only have 1 inputGate
+        auto inputGates =
+            shuffleEnv_->createInputGates(shuffleIOOwnerContext, nullptr, sinkTddInfo_.getInputGates(), 1);
+        downstreamInputGate_ = inputGates[0]; // This query only have 1 inputGate
 
         // RecordWriter
         auto partitionerName = getPartitionerName(srcTaskInfo_);
-        auto partitioner     = getPartitionerFromPartitionerName(partitionerName);
+        auto partitioner = getPartitionerFromPartitionerName(partitionerName);
 
         auto bufferTimeout = srcTaskInfo_.getStreamConfigPOD().getOutEdgesInOrder()[0].getBufferTimeout();
-        recordWriter_      = std::shared_ptr<omnistream::RecordWriterV2>(omnistream::RecordWriterBuilderV2().withTaskName("testRecordWriter").withChannelSelector(partitioner.get()).withWriter(upstreamWriter_).withTimeout(bufferTimeout).build());
+        recordWriter_ = std::shared_ptr<omnistream::RecordWriterV2>(omnistream::RecordWriterBuilderV2()
+                                                                        .withTaskName("testRecordWriter")
+                                                                        .withChannelSelector(partitioner.get())
+                                                                        .withWriter(upstreamWriter_)
+                                                                        .withTimeout(bufferTimeout)
+                                                                        .build());
 
-        recordWriter_->postConstruct();  // start the output flusher thread
+        recordWriter_->postConstruct(); // start the output flusher thread
 
         // setupPartitionsAndGates
-        upstreamWriter_->setup();  // partitionManager->registerResultPartition
-        downstreamInputGate_->setup();  // setBufferPool and setupChannels
+        upstreamWriter_->setup();      // partitionManager->registerResultPartition
+        downstreamInputGate_->setup(); // setBufferPool and setupChannels
 
         // requestSubpartition, connect upstream and downstream
-        downstreamInputGate_->RequestPartitions();  // partitionManager->createSubpartitionView
+        downstreamInputGate_->RequestPartitions(); // partitionManager->createSubpartitionView
 
         targetSubpartition_ = srcTddInfo_.getProducedPartitions()[0].getPartitionId().getPartitionNum();
     }
 
-    void checkVectorBatchMatch(omniruntime::vec::VectorBatch *vecBatch, omniruntime::vec::VectorBatch *expectedVecBatch) {
+    void checkVectorBatchMatch(omniruntime::vec::VectorBatch* vecBatch, omniruntime::vec::VectorBatch* expectedVecBatch)
+    {
         EXPECT_EQ(vecBatch->GetRowCount(), expectedVecBatch->GetRowCount());
         EXPECT_EQ(vecBatch->GetVectorCount(), expectedVecBatch->GetVectorCount());
         for (int i = 0; i < vecBatch->GetVectorCount(); i++) {
             for (int j = 0; j < vecBatch->GetRowCount(); j++) {
-                EXPECT_EQ(reinterpret_cast<omniruntime::vec::Vector<int64_t> *>(vecBatch->Get(i))->GetValue(j), j);
+                EXPECT_EQ(reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(vecBatch->Get(i))->GetValue(j), j);
             }
         }
     }
 
-    void emitRecordsThread() {
+    void emitRecordsThread()
+    {
         for (int i = 0; i < 10; i++) {
             upstreamWriter_->emitRecord(dummyRecord_.get(), targetSubpartition_);
         }
-        upstreamWriter_->finish();  // send END_OF_PARTITION_EVENT
+        upstreamWriter_->finish(); // send END_OF_PARTITION_EVENT
 
         recordWriter_->close();
         upstreamWriter_->close();
     }
 
-    int pollRecordsThread() {
+    int pollRecordsThread()
+    {
         int recordCount = 0;
         while (true) {
             auto bufferOrEvent = downstreamInputGate_->PollNext();
@@ -149,14 +163,14 @@ public:
             if (bufferOrEvent->isBuffer()) {
                 auto buff = reinterpret_cast<ObjectBuffer*>(bufferOrEvent->getBuffer());
 
-                auto size       = buff->GetSize();
+                auto size = buff->GetSize();
                 auto objSegment = buff->GetObjectSegment();
-                auto offset     = buff->GetOffset();
+                auto offset = buff->GetOffset();
 
                 for (int64_t index = offset; index < size; index++) {
-                    StreamRecord *object = static_cast<StreamRecord*>(objSegment->getObject(index));
+                    StreamRecord* object = static_cast<StreamRecord*>(objSegment->getObject(index));
                     assert(object->getTag() == StreamElementTag::TAG_REC_WITHOUT_TIMESTAMP);
-                    auto vecBatch = static_cast<omniruntime::vec::VectorBatch *>(object->getValue());
+                    auto vecBatch = static_cast<omniruntime::vec::VectorBatch*>(object->getValue());
                     // LOG("!!!! pollRecordsThread start")
                     // omniruntime::vec::VectorHelper::PrintVecBatch(reinterpret_cast<omniruntime::vec::VectorBatch*>(object->getValue()));
                     // LOG("!!!! pollRecordsThread end")
@@ -169,10 +183,9 @@ public:
                     checkVectorBatchMatch(vecBatch, dummyVectorBatch_);
                     recordCount++;
                 }
-            }
-            else {
+            } else {
                 auto event = bufferOrEvent->getEvent();
-                if (dynamic_cast<EndOfPartitionEvent *>(event.get())) {
+                if (dynamic_cast<EndOfPartitionEvent*>(event.get())) {
                     break;
                 }
             }
@@ -190,7 +203,7 @@ protected:
     std::shared_ptr<omnistream::SingleInputGate> downstreamInputGate_;
     std::shared_ptr<omnistream::ResultPartitionWriter> upstreamWriter_;
 
-    omniruntime::vec::VectorBatch *dummyVectorBatch_;
+    omniruntime::vec::VectorBatch* dummyVectorBatch_;
     std::shared_ptr<StreamRecord> dummyRecord_;
     int targetSubpartition_;
 
@@ -198,12 +211,11 @@ protected:
     std::condition_variable cv_;
 };
 
-TEST_F(ShuffleEnvironmentTest, DISABLED_UpstreamSendsRecordsAndDownstreamReceives) {
+TEST_F(ShuffleEnvironmentTest, DISABLED_UpstreamSendsRecordsAndDownstreamReceives)
+{
     // TODO: add a timer to make sure the test finish within a time limit
     // Start the emit thread
-    std::thread emitThread([this]() {
-        emitRecordsThread();
-    });
+    std::thread emitThread([this]() { emitRecordsThread(); });
 
     // Start the poll thread
     std::thread pollThread([this]() {
@@ -215,9 +227,9 @@ TEST_F(ShuffleEnvironmentTest, DISABLED_UpstreamSendsRecordsAndDownstreamReceive
     pollThread.join();
 }
 
-
 // Upstream sends too much StreamRecord and causes backpressure
-TEST_F(ShuffleEnvironmentTest, DISABLED_UpstreamSendsTooMuchStreamRecordAndCausesBackpressure) {
+TEST_F(ShuffleEnvironmentTest, DISABLED_UpstreamSendsTooMuchStreamRecordAndCausesBackpressure)
+{
     bool downstreamReady = false;
 
     // Start the emit thread
@@ -231,11 +243,11 @@ TEST_F(ShuffleEnvironmentTest, DISABLED_UpstreamSendsTooMuchStreamRecordAndCause
                 }
                 cv_.notify_one();
             }
-            
+
             upstreamWriter_->emitRecord(dummyRecord_.get(), targetSubpartition_);
         }
 
-        upstreamWriter_->finish();  // send END_OF_PARTITION_EVENT
+        upstreamWriter_->finish(); // send END_OF_PARTITION_EVENT
         upstreamWriter_->close();
     });
 
@@ -255,7 +267,8 @@ TEST_F(ShuffleEnvironmentTest, DISABLED_UpstreamSendsTooMuchStreamRecordAndCause
 }
 
 // Upstream sends end of input before downstream is ready to receive
-TEST_F(ShuffleEnvironmentTest, DISABLED_UpstreamSendsEndOfInputBeforeDownstreamIsReadyToReceive) {
+TEST_F(ShuffleEnvironmentTest, DISABLED_UpstreamSendsEndOfInputBeforeDownstreamIsReadyToReceive)
+{
     bool downstreamReady = false;
     int i = 0;
 

@@ -3,7 +3,8 @@
 #include <sstream>
 #include "runtime/checkpoint/CheckpointMetaData.h"
 
-TEST(CheckpointMetaDataTest, ConstructsCorrectlyWithDefaultReceiveTimestamp) {
+TEST(CheckpointMetaDataTest, ConstructsCorrectlyWithDefaultReceiveTimestamp)
+{
     int64_t id = 42;
     int64_t ts = 100000;
     CheckpointMetaData meta(id, ts);
@@ -11,19 +12,22 @@ TEST(CheckpointMetaDataTest, ConstructsCorrectlyWithDefaultReceiveTimestamp) {
     EXPECT_EQ(meta.GetCheckpointId(), id);
     EXPECT_EQ(meta.GetTimestamp(), ts);
 
-    int64_t now = std::chrono::duration_cast<std::chrono::milliseconds>(
-                      std::chrono::system_clock::now().time_since_epoch()).count();
+    int64_t now =
+        std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch())
+            .count();
     EXPECT_LE(meta.GetReceiveTimestamp(), now);
 }
 
-TEST(CheckpointMetaDataTest, ConstructsCorrectlyWithExplicitReceiveTimestamp) {
+TEST(CheckpointMetaDataTest, ConstructsCorrectlyWithExplicitReceiveTimestamp)
+{
     CheckpointMetaData meta(10, 20, 30);
     EXPECT_EQ(meta.GetCheckpointId(), 10);
     EXPECT_EQ(meta.GetTimestamp(), 20);
     EXPECT_EQ(meta.GetReceiveTimestamp(), 30);
 }
 
-TEST(CheckpointMetaDataTest, EqualityAndInequality) {
+TEST(CheckpointMetaDataTest, EqualityAndInequality)
+{
     CheckpointMetaData a(1, 2, 3);
     CheckpointMetaData b(1, 2, 3);
     CheckpointMetaData c(1, 2, 4);
@@ -32,7 +36,8 @@ TEST(CheckpointMetaDataTest, EqualityAndInequality) {
     EXPECT_NE(a, c);
 }
 
-TEST(CheckpointMetaDataTest, HashingWorksCorrectly) {
+TEST(CheckpointMetaDataTest, HashingWorksCorrectly)
+{
     CheckpointMetaData a(100, 200, 300);
     CheckpointMetaData b(100, 200, 300);
     CheckpointMetaData c(100, 200, 301);
@@ -42,7 +47,8 @@ TEST(CheckpointMetaDataTest, HashingWorksCorrectly) {
     EXPECT_NE(hasher(a), hasher(c));
 }
 
-TEST(CheckpointMetaDataTest, CanBeUsedInUnorderedSet) {
+TEST(CheckpointMetaDataTest, CanBeUsedInUnorderedSet)
+{
     std::unordered_set<CheckpointMetaData> set;
     CheckpointMetaData meta(100, 200, 300);
 
@@ -50,7 +56,8 @@ TEST(CheckpointMetaDataTest, CanBeUsedInUnorderedSet) {
     EXPECT_TRUE(set.find(meta) != set.end());
 }
 
-TEST(CheckpointMetaDataTest, OutputFormatting) {
+TEST(CheckpointMetaDataTest, OutputFormatting)
+{
     CheckpointMetaData meta(123, 456, 789);
     std::ostringstream oss;
     oss << meta;

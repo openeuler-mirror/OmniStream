@@ -23,96 +23,109 @@
 
 namespace omnistream {
 
-    class IdentityRescaleMappings;
-    class RescaleMappings {
-    public:
-        virtual ~RescaleMappings() = default;
+class IdentityRescaleMappings;
+class RescaleMappings {
+public:
+    virtual ~RescaleMappings() = default;
 
-        static std::shared_ptr<RescaleMappings> SYMMETRIC_IDENTITY;
+    static std::shared_ptr<RescaleMappings> SYMMETRIC_IDENTITY;
 
-        static constexpr int EMPTY_TARGETS[] = {};
+    static constexpr int EMPTY_TARGETS[] = {};
 
-        RescaleMappings(int numberOfSources, std::vector<std::vector<int> > mappings, int numberOfTargets)
-            : numberOfSources(numberOfSources), mappings(std::move(mappings)), numberOfTargets(numberOfTargets) {
+    RescaleMappings(int numberOfSources, std::vector<std::vector<int>> mappings, int numberOfTargets)
+        : numberOfSources(numberOfSources),
+          mappings(std::move(mappings)),
+          numberOfTargets(numberOfTargets)
+    {
+    }
+
+    virtual bool isIdentity() const
+    {
+        return false;
+    }
+
+    virtual std::vector<int> getMappedIndexes(size_t sourceIndex) const
+    {
+        if (sourceIndex >= mappings.size()) {
+            return {};
         }
+        return mappings[sourceIndex];
+    }
 
-        virtual bool isIdentity() const { return false; }
+    bool operator==(const RescaleMappings& other) const
+    {
+        return this == &other || (numberOfSources == other.numberOfSources &&
+                                  numberOfTargets == other.numberOfTargets && mappings == other.mappings);
+    }
 
-        virtual std::vector<int> getMappedIndexes(size_t sourceIndex) const
-        {
-            if (sourceIndex >= mappings.size()) {
-                return {};
+    size_t hashCode() const
+    {
+        size_t hash = 0;
+        for (const auto& mapping : mappings) {
+            for (int index : mapping) {
+                hash ^= std::hash<int>()(index) + 0x9e3779b9 + (hash << 6) + (hash >> 2);
             }
-            return mappings[sourceIndex];
         }
+        return hash;
+    }
 
-        bool operator==(const RescaleMappings &other) const
-        {
-            return this == &other || (numberOfSources == other.numberOfSources &&
-                                      numberOfTargets == other.numberOfTargets &&
-                                      mappings == other.mappings);
+    virtual std::set<int> getAmbiguousTargets();
+
+    static RescaleMappings of(const std::vector<std::vector<int>>& mappedTargets, int numberOfTargets);
+    virtual std::string ToString() const;
+    RescaleMappings invert();
+
+protected:
+    int numberOfSources;
+    std::vector<std::vector<int>> mappings;
+    int numberOfTargets;
+
+private:
+    static bool isIdentity(const std::vector<std::vector<int>>& mappings_, size_t numberOfTargets_);
+
+    static std::vector<int> toSortedArray(IntArrayList sourceList)
+    {
+        std::vector<int> sources = sourceList.toArray();
+        std::sort(sources.begin(), sources.end());
+        return sources;
+    }
+};
+
+class IdentityRescaleMappings : public RescaleMappings {
+public:
+    static constexpr int IMPLICIT_MAPPING[][1] = {};
+
+    IdentityRescaleMappings(int numberOfSources, int numberOfTargets)
+        : RescaleMappings(numberOfSources, {}, numberOfTargets)
+    {
+    }
+
+    bool isIdentity() const override
+    {
+        return true;
+    }
+
+    std::vector<int> getMappedIndexes(size_t sourceIndex) const override
+    {
+        if (sourceIndex >= numberOfTargets) {
+            return {};
         }
+        return {static_cast<int>(sourceIndex)};
+    }
 
-        size_t hashCode() const
-        {
-            size_t hash = 0;
-            for (const auto &mapping: mappings) {
-                for (int index: mapping) {
-                    hash ^= std::hash<int>()(index) + 0x9e3779b9 + (hash << 6) + (hash >> 2);
-                }
-            }
-            return hash;
-        }
+    std::set<int> getAmbiguousTargets() override
+    {
+        return {};
+    }
 
-        virtual std::set<int> getAmbiguousTargets();
+    std::string ToString() const override
+    {
+        std::ostringstream oss;
+        oss << "IdentityRescaleMappings{numberOfSources=" << numberOfSources << ", numberOfTargets=" << numberOfTargets;
+        return oss.str();
+    }
+};
 
-        static RescaleMappings of(const std::vector<std::vector<int> > &mappedTargets, int numberOfTargets);
-        virtual std::string ToString() const;
-        RescaleMappings invert();
-    protected:
-        int numberOfSources;
-        std::vector<std::vector<int> > mappings;
-        int numberOfTargets;
-
-    private:
-        static bool isIdentity(const std::vector<std::vector<int> > &mappings_, size_t numberOfTargets_);
-
-        static std::vector<int> toSortedArray(IntArrayList sourceList)
-        {
-            std::vector<int> sources = sourceList.toArray();
-            std::sort(sources.begin(), sources.end());
-            return sources;
-        }
-    };
-
-
-    class IdentityRescaleMappings : public RescaleMappings {
-    public:
-        static constexpr int IMPLICIT_MAPPING[][1] = {};
-
-        IdentityRescaleMappings(int numberOfSources, int numberOfTargets)
-            : RescaleMappings(numberOfSources, {}, numberOfTargets) {}
-
-        bool isIdentity() const override { return true; }
-
-        std::vector<int> getMappedIndexes(size_t sourceIndex) const override
-        {
-            if(sourceIndex >= numberOfTargets){
-                return {};
-            }
-            return {static_cast<int>(sourceIndex)};
-        }
-
-        std::set<int> getAmbiguousTargets() override { return {}; }
-
-        std::string ToString() const override
-        {
-            std::ostringstream oss;
-            oss << "IdentityRescaleMappings{numberOfSources=" << numberOfSources << ", numberOfTargets=" << numberOfTargets;
-            return oss.str();
-        }
-    };
-
-}
+} // namespace omnistream
 
 #endif

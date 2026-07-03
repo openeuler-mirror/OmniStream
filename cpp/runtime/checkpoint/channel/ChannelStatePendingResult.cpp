@@ -12,80 +12,83 @@
 
 namespace omnistream {
 
-    ChannelStatePendingResult::ChannelStatePendingResult(
-        int subtaskIndex,
-        int64_t checkpointId,
-        std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> result,
-        std::shared_ptr<ChannelStateSerializer> serializer)
-        : subtaskIndex(subtaskIndex),
-          checkpointId(checkpointId),
-          result(result),
-          serializer(serializer),
-          allInputsReceived(false),
-          allOutputsReceived(false)
-    {}
+ChannelStatePendingResult::ChannelStatePendingResult(
+    int subtaskIndex,
+    int64_t checkpointId,
+    std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> result,
+    std::shared_ptr<ChannelStateSerializer> serializer)
+    : subtaskIndex(subtaskIndex),
+      checkpointId(checkpointId),
+      result(result),
+      serializer(serializer),
+      allInputsReceived(false),
+      allOutputsReceived(false)
+{
+}
 
-    bool ChannelStatePendingResult::IsAllInputsReceived() const
-    {
-        return allInputsReceived;
-    }
-    bool ChannelStatePendingResult::IsAllOutputsReceived() const
-    {
-        return allOutputsReceived;
-    }
+bool ChannelStatePendingResult::IsAllInputsReceived() const
+{
+    return allInputsReceived;
+}
+bool ChannelStatePendingResult::IsAllOutputsReceived() const
+{
+    return allOutputsReceived;
+}
 
-    std::map<InputChannelInfo, AbstractChannelStateHandle<InputChannelInfo>::StateContentMetaInfo> &ChannelStatePendingResult::GetInputChannelOffsets()
-    {
-        return inputChannelOffsets;
-    }
+std::map<InputChannelInfo, AbstractChannelStateHandle<InputChannelInfo>::StateContentMetaInfo>&
+ChannelStatePendingResult::GetInputChannelOffsets()
+{
+    return inputChannelOffsets;
+}
 
-    std::map<ResultSubpartitionInfoPOD, AbstractChannelStateHandle<ResultSubpartitionInfoPOD>::StateContentMetaInfo> &ChannelStatePendingResult::GetResultSubpartitionOffsets()
-    {
-        return resultSubpartitionOffsets;
-    }
+std::map<ResultSubpartitionInfoPOD, AbstractChannelStateHandle<ResultSubpartitionInfoPOD>::StateContentMetaInfo>&
+ChannelStatePendingResult::GetResultSubpartitionOffsets()
+{
+    return resultSubpartitionOffsets;
+}
 
-    void ChannelStatePendingResult::CompleteInput()
-    {
-        if (allInputsReceived) {
-            throw std::logic_error("Inputs already completed");
-        }
-        allInputsReceived = true;
+void ChannelStatePendingResult::CompleteInput()
+{
+    if (allInputsReceived) {
+        throw std::logic_error("Inputs already completed");
     }
+    allInputsReceived = true;
+}
 
-    void ChannelStatePendingResult::CompleteOutput()
-    {
-        if (allOutputsReceived) {
-            throw std::logic_error("Outputs already completed");
-        }
-        allOutputsReceived = true;
+void ChannelStatePendingResult::CompleteOutput()
+{
+    if (allOutputsReceived) {
+        throw std::logic_error("Outputs already completed");
     }
+    allOutputsReceived = true;
+}
 
-    void ChannelStatePendingResult::FinishResult(std::shared_ptr<StreamStateHandle> stateHandle)
-    {
-        NOT_IMPL_EXCEPTION
-    }
+void ChannelStatePendingResult::FinishResult(std::shared_ptr<StreamStateHandle> stateHandle)
+{
+    NOT_IMPL_EXCEPTION;
+}
 
-    void ChannelStatePendingResult::Fail(const std::exception_ptr &e)
-    {
-        // result->Fail(e);
-    }
+void ChannelStatePendingResult::Fail(const std::exception_ptr& e)
+{
+    // result->Fail(e);
+}
 
-    bool ChannelStatePendingResult::IsDone() const
-    {
-        return result->IsDone();
-    }
+bool ChannelStatePendingResult::IsDone() const
+{
+    return result->IsDone();
+}
 
-    std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> ChannelStatePendingResult::GetResult()
-    {
-        return result;
-    }
+std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> ChannelStatePendingResult::GetResult()
+{
+    return result;
+}
 
-    const int ChannelStatePendingResult::GetSubtaskIndex()
-    {
-        return subtaskIndex;
-    }
-    const int64_t ChannelStatePendingResult::GetCheckpointId()
-    {
-        return checkpointId;
-    }
+const int ChannelStatePendingResult::GetSubtaskIndex()
+{
+    return subtaskIndex;
+}
+const int64_t ChannelStatePendingResult::GetCheckpointId()
+{
+    return checkpointId;
+}
 } // namespace omnistream

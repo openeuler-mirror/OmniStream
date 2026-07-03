@@ -18,8 +18,8 @@
 
 class Environment {
 public:
-    virtual TaskInfo *getTaskInfo() = 0;
-    virtual ExecutionConfig *getExecutionConfig() = 0;
+    virtual TaskInfo* getTaskInfo() = 0;
+    virtual ExecutionConfig* getExecutionConfig() = 0;
     virtual std::shared_ptr<omnistream::TaskStateManager> getTaskStateManager() = 0;
 };
 

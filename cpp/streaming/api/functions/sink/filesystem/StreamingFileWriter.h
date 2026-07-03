@@ -25,43 +25,41 @@
 #include "streaming/runtime/tasks/SystemProcessingTimeService.h"
 
 template <typename IN>
-class StreamingFileWriter : public AbstractStreamingWriter<IN, void *>
-{
+class StreamingFileWriter : public AbstractStreamingWriter<IN, void*> {
 public:
     StreamingFileWriter(
         long bucketCheckInterval,
-        BulkFormatBuilder<IN, std::string> *bucketsBuilder,
+        BulkFormatBuilder<IN, std::string>* bucketsBuilder,
         std::vector<std::string> partitionKeys = {},
-        const nlohmann::json &conf = nlohmann::json({}));
+        const nlohmann::json& conf = nlohmann::json({}));
 
-    void initializeState(StreamTaskStateInitializerImpl *initializer,
-                         TypeSerializer *keySerializer) override;
+    void initializeState(StreamTaskStateInitializerImpl* initializer, TypeSerializer* keySerializer) override;
 
     std::string getTypeName() override;
 
-    void processElement(StreamRecord *element) override;
+    void processElement(StreamRecord* element) override;
 
-    void notifyCheckpointAborted(long checkpointId) override {
-        AbstractStreamOperator<void *>::notifyCheckpointAborted(checkpointId);
+    void notifyCheckpointAborted(long checkpointId) override
+    {
+        AbstractStreamOperator<void*>::notifyCheckpointAborted(checkpointId);
     }
 
-    void ProcessWatermark(Watermark *mark) override;
+    void ProcessWatermark(Watermark* mark) override;
 
-    void processBatch(StreamRecord *element) override;
+    void processBatch(StreamRecord* element) override;
 
     void snapshotState(long checkpointId);
 
     void notifyCheckpointComplete(long checkpointId) override;
 
 protected:
-    void processWatermarkStatus(WatermarkStatus *watermarkStatus) override;
+    void processWatermarkStatus(WatermarkStatus* watermarkStatus) override;
 
-    void partitionCreated(const std::string &partition) override;
+    void partitionCreated(const std::string& partition) override;
 
-    void partitionInactive(const std::string &partition) override;
+    void partitionInactive(const std::string& partition) override;
 
-    void onPartFileOpened(const std::string &partition,
-                          const std::string &newPath) override;
+    void onPartFileOpened(const std::string& partition, const std::string& newPath) override;
 
     void commitUpToCheckpoint(long checkpointId) override;
 
@@ -83,23 +81,24 @@ private:
 template <typename IN>
 StreamingFileWriter<IN>::StreamingFileWriter(
     long bucketCheckInterval,
-    BulkFormatBuilder<IN, std::string> *bucketsBuilder,
+    BulkFormatBuilder<IN, std::string>* bucketsBuilder,
     std::vector<std::string> partitionKeys,
-    const nlohmann::json &conf)
-    : AbstractStreamingWriter<IN, void *>(bucketCheckInterval, bucketsBuilder),
+    const nlohmann::json& conf)
+    : AbstractStreamingWriter<IN, void*>(bucketCheckInterval, bucketsBuilder),
       partitionKeys_(std::move(partitionKeys)),
-      conf_(conf) {}
+      conf_(conf)
+{
+}
 
 template <typename IN>
 void StreamingFileWriter<IN>::initializeState(
-    StreamTaskStateInitializerImpl *initializer,
-    TypeSerializer *keySerializer)
+    StreamTaskStateInitializerImpl* initializer, TypeSerializer* keySerializer)
 {
     if (isPartitionCommitTriggerEnabled()) {
         std::string triggerType = "partition-time";
         int64_t commitDelayMs = 0;
         if (conf_.contains("partition-commit")) {
-            const auto &pc = conf_["partition-commit"];
+            const auto& pc = conf_["partition-commit"];
             if (pc.contains("trigger")) {
                 triggerType = pc["trigger"].get<std::string>();
             }
@@ -108,11 +107,9 @@ void StreamingFileWriter<IN>::initializeState(
             }
         }
         if (triggerType == "processing-time") {
-            partitionCommitPredicate_ =
-                std::make_unique<ProcTimeCommitPredicate>(commitDelayMs);
+            partitionCommitPredicate_ = std::make_unique<ProcTimeCommitPredicate>(commitDelayMs);
         } else {
-            partitionCommitPredicate_ =
-                std::make_unique<PartitionTimeCommitPredicate>(commitDelayMs);
+            partitionCommitPredicate_ = std::make_unique<PartitionTimeCommitPredicate>(commitDelayMs);
         }
     }
 
@@ -122,7 +119,7 @@ void StreamingFileWriter<IN>::initializeState(
     inProgressPartitions_.clear();
     procTimeService_ = std::make_unique<SystemProcessingTimeService>();
 
-    AbstractStreamingWriter<IN, void *>::initializeState(initializer, keySerializer);
+    AbstractStreamingWriter<IN, void*>::initializeState(initializer, keySerializer);
 }
 
 template <typename IN>
@@ -132,21 +129,21 @@ std::string StreamingFileWriter<IN>::getTypeName()
 }
 
 template <typename IN>
-void StreamingFileWriter<IN>::processElement(StreamRecord *element)
+void StreamingFileWriter<IN>::processElement(StreamRecord* element)
 {
-    AbstractStreamingWriter<IN, void *>::processBatch(element);
+    AbstractStreamingWriter<IN, void*>::processBatch(element);
 }
 
 template <typename IN>
-void StreamingFileWriter<IN>::ProcessWatermark(Watermark *mark)
+void StreamingFileWriter<IN>::ProcessWatermark(Watermark* mark)
 {
-    AbstractStreamingWriter<IN, void *>::processWatermark(mark);
+    AbstractStreamingWriter<IN, void*>::processWatermark(mark);
 }
 
 template <typename IN>
-void StreamingFileWriter<IN>::processBatch(StreamRecord *element)
+void StreamingFileWriter<IN>::processBatch(StreamRecord* element)
 {
-    AbstractStreamingWriter<IN, void *>::processBatch(element);
+    AbstractStreamingWriter<IN, void*>::processBatch(element);
 }
 
 template <typename IN>
@@ -156,7 +153,7 @@ void StreamingFileWriter<IN>::snapshotState(long checkpointId)
         closePartFileForPartitions();
     }
 
-    AbstractStreamingWriter<IN, void *>::snapshotState(checkpointId);
+    AbstractStreamingWriter<IN, void*>::snapshotState(checkpointId);
 
     if (!currentNewPartitions_.empty()) {
         newPartitions_[checkpointId] =
@@ -168,18 +165,18 @@ void StreamingFileWriter<IN>::snapshotState(long checkpointId)
 template <typename IN>
 void StreamingFileWriter<IN>::notifyCheckpointComplete(long checkpointId)
 {
-    AbstractStreamingWriter<IN, void *>::notifyCheckpointComplete(checkpointId);
+    AbstractStreamingWriter<IN, void*>::notifyCheckpointComplete(checkpointId);
     commitUpToCheckpoint(checkpointId);
 }
 
 template <typename IN>
-void StreamingFileWriter<IN>::processWatermarkStatus(WatermarkStatus *watermarkStatus)
+void StreamingFileWriter<IN>::processWatermarkStatus(WatermarkStatus* watermarkStatus)
 {
-    AbstractStreamOperator<void *>::processWatermarkStatus(watermarkStatus);
+    AbstractStreamOperator<void*>::processWatermarkStatus(watermarkStatus);
 }
 
 template <typename IN>
-void StreamingFileWriter<IN>::partitionCreated(const std::string &partition)
+void StreamingFileWriter<IN>::partitionCreated(const std::string& partition)
 {
     currentNewPartitions_.insert(partition);
     int64_t currentTime = procTimeService_->getCurrentProcessingTime();
@@ -189,23 +186,23 @@ void StreamingFileWriter<IN>::partitionCreated(const std::string &partition)
 }
 
 template <typename IN>
-void StreamingFileWriter<IN>::partitionInactive(const std::string &partition)
+void StreamingFileWriter<IN>::partitionInactive(const std::string& partition)
 {
     committablePartitions_.insert(partition);
     inProgressPartitions_.erase(partition);
 }
 
 template <typename IN>
-void StreamingFileWriter<IN>::onPartFileOpened(const std::string & /*partition*/,
-                                                const std::string & /*newPath*/) {}
+void StreamingFileWriter<IN>::onPartFileOpened(const std::string& /*partition*/, const std::string& /*newPath*/)
+{
+}
 
 template <typename IN>
 void StreamingFileWriter<IN>::commitUpToCheckpoint(long checkpointId)
 {
-    AbstractStreamingWriter<IN, void *>::commitUpToCheckpoint(checkpointId);
+    AbstractStreamingWriter<IN, void*>::commitUpToCheckpoint(checkpointId);
 
-    std::set<std::string> partitions(committablePartitions_.begin(),
-                                      committablePartitions_.end());
+    std::set<std::string> partitions(committablePartitions_.begin(), committablePartitions_.end());
     committablePartitions_.clear();
 
     auto end = newPartitions_.upper_bound(checkpointId);
@@ -215,18 +212,17 @@ void StreamingFileWriter<IN>::commitUpToCheckpoint(long checkpointId)
     newPartitions_.erase(newPartitions_.begin(), end);
 
     if (!partitions.empty()) {
-        auto *info = new PartitionCommitInfo(
+        auto* info = new PartitionCommitInfo(
             checkpointId,
             this->getRuntimeContext()->getIndexOfThisSubtask(),
             this->getRuntimeContext()->getNumberOfParallelSubtasks(),
             std::vector<std::string>(partitions.begin(), partitions.end()));
 
-        auto *record = new StreamRecord(reinterpret_cast<void *>(info));
+        auto* record = new StreamRecord(reinterpret_cast<void*>(info));
         this->output->collect(record);
-        LOG("StreamingFileWriter::commitUpToCheckpoint checkpointId=" << checkpointId
-            << " partitions=" << partitions.size()
-            << " taskId=" << info->taskId
-            << " numTasks=" << info->numberOfTasks)
+        LOG("StreamingFileWriter::commitUpToCheckpoint checkpointId=" << checkpointId << " partitions="
+                                                                      << partitions.size() << " taskId=" << info->taskId
+                                                                      << " numTasks=" << info->numberOfTasks);
     }
 }
 
@@ -236,8 +232,7 @@ bool StreamingFileWriter<IN>::isPartitionCommitTriggerEnabled()
     if (partitionKeys_.empty()) {
         return false;
     }
-    if (conf_.contains("partition-commit") &&
-        conf_["partition-commit"].contains("policy") &&
+    if (conf_.contains("partition-commit") && conf_["partition-commit"].contains("policy") &&
         conf_["partition-commit"]["policy"].contains("kind")) {
         return true;
     }
@@ -249,7 +244,7 @@ void StreamingFileWriter<IN>::closePartFileForPartitions()
 {
     auto it = inProgressPartitions_.begin();
     while (it != inProgressPartitions_.end()) {
-        const std::string &partition = it->first;
+        const std::string& partition = it->first;
         int64_t creationTime = it->second;
         int64_t currentProcTime = procTimeService_->getCurrentProcessingTime();
 

@@ -21,10 +21,10 @@ int lib_fun()
     return 0;
 }
 
-void java_util_Properties::load(InputStream *input)
+void java_util_Properties::load(InputStream* input)
 {
     Dl_info dl_info;
-    dladdr((void*) lib_fun, &dl_info);
+    dladdr((void*)lib_fun, &dl_info);
     static const char* filePath = nullptr;
     std::string path;
     std::string str = dl_info.dli_fname;
@@ -79,7 +79,7 @@ void java_util_Properties::parseKeyValueFromLine(std::string& strLine, std::stri
             hasSep = true;
             break;
         } else if ((c == ' ' || c == '\t' || c == '\f') && !precedingBackslash) {
-            valueStart = keyLen +1;
+            valueStart = keyLen + 1;
             break;
         }
         if (c == '\\') {

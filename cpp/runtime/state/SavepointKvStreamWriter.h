@@ -45,12 +45,11 @@ public:
     static constexpr int END_OF_KEY_GROUP_MASK = 0xffff;
     static constexpr int FIRST_BIT_IN_BYTE_MASK = 0x80;
 
-    SavepointKvStreamWriter(
-        CheckpointStateOutputStreamProxy& stream,
-        KeyGroupRangeOffsets& keyGroupRangeOffsets)
+    SavepointKvStreamWriter(CheckpointStateOutputStreamProxy& stream, KeyGroupRangeOffsets& keyGroupRangeOffsets)
         : stream_(stream),
           keyGroupRangeOffsets_(keyGroupRangeOffsets)
-    {}
+    {
+    }
 
     void writeFirst(ByteView key, ByteView value, int kvStateId, int keyGroup)
     {
@@ -156,4 +155,4 @@ private:
     }
 };
 
-#endif  // OMNISTREAM_SAVEPOINTKVSTREAMWRITER_H
+#endif // OMNISTREAM_SAVEPOINTKVSTREAMWRITER_H

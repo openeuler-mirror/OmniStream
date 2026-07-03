@@ -23,10 +23,10 @@ public:
 
     ~SessionWindowAssigner() override = default;
 
-    void mergeWindows(const TimeWindow &newWindow, std::set<TimeWindow> *sortedWindows,
-        MergeResultCollector &callback) override;
+    void mergeWindows(
+        const TimeWindow& newWindow, std::set<TimeWindow>* sortedWindows, MergeResultCollector& callback) override;
 
-    std::vector<TimeWindow> assignWindows(const RowData *element, int64_t timestamp) override;
+    std::vector<TimeWindow> assignWindows(const RowData* element, int64_t timestamp) override;
 
     bool isEventTime() const override;
 
@@ -37,11 +37,12 @@ public:
     static SessionWindowAssigner* withGap(int64_t size);
 
 private:
-    static TimeWindow mergeWindow(TimeWindow &curWindow, const TimeWindow &other,
-        std::unordered_set<TimeWindow> &mergedWindow);
+    static TimeWindow mergeWindow(
+        TimeWindow& curWindow, const TimeWindow& other, std::unordered_set<TimeWindow>& mergedWindow);
 
     const int64_t sessionGap_;
     const bool eventTime_;
 
-    std::unique_ptr<std::unordered_set<TimeWindow>> reuseMergedWindows_ = std::make_unique<std::unordered_set<TimeWindow>>();
+    std::unique_ptr<std::unordered_set<TimeWindow>> reuseMergedWindows_ =
+        std::make_unique<std::unordered_set<TimeWindow>>();
 };

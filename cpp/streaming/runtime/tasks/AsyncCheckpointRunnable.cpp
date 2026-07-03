@@ -16,7 +16,6 @@
 #include <thread>
 using namespace std::chrono;
 
-
 bool AsyncCheckpointRunnable::IsRunning() const
 {
     return asyncCheckpointState.load() == AsyncCheckpointState::RUNNING;
@@ -30,14 +29,13 @@ void AsyncCheckpointRunnable::Run()
         std::to_string(checkpointMetaData.GetCheckpointId()) +
         ". Asynchronous start delay: " + std::to_string(asyncStartDelayMillis) + " ms");
     FileSystemSafetyNet::initializeSafetyNetForThread();
-    SnapshotsFinalizeResult *snapshotFinalizeResult = nullptr;
+    SnapshotsFinalizeResult* snapshotFinalizeResult = nullptr;
     try {
-        snapshotFinalizeResult = isTaskDeployedAsFinished ?
-            FinalizedFinishedSnapshots() : FinalizeNonFinishedSnapshots();
+        snapshotFinalizeResult =
+            isTaskDeployedAsFinished ? FinalizedFinishedSnapshots() : FinalizeNonFinishedSnapshots();
         long asyncEndNanos = std::chrono::steady_clock::now().time_since_epoch().count();
         long asyncDurationMillis = (asyncEndNanos - asyncConstructionNanos) / 1000000;
-        checkpointMetric.SetBytesPersistedDuringAlignment(
-            snapshotFinalizeResult->bytesPersistedDuringAlignment);
+        checkpointMetric.SetBytesPersistedDuringAlignment(snapshotFinalizeResult->bytesPersistedDuringAlignment);
         checkpointMetric.SetAsyncDurationMillis(asyncDurationMillis);
         AsyncCheckpointState expected = AsyncCheckpointState::RUNNING;
         if (asyncCheckpointState.compare_exchange_strong(expected, AsyncCheckpointState::COMPLETED)) {
@@ -49,11 +47,10 @@ void AsyncCheckpointRunnable::Run()
             LOG("asyncCheckpointState is not COMPLETED.");
         }
         finishedFuture.Complete();
-    }
-    catch (std::exception& e) {
-        INFO_RELEASE("Error:AsyncCheckpointRunnable cp="
-            << checkpointMetaData.GetCheckpointId()
-            << " task=" << taskName << " async error: " << e.what());
+    } catch (std::exception& e) {
+        INFO_RELEASE(
+            "Error:AsyncCheckpointRunnable cp=" << checkpointMetaData.GetCheckpointId() << " task=" << taskName
+                                                << " async error: " << e.what());
         std::this_thread::sleep_for(100ms);
         HandleExecutionException(std::current_exception());
     }
@@ -62,9 +59,9 @@ void AsyncCheckpointRunnable::Run()
     delete snapshotFinalizeResult;
 }
 
-SnapshotsFinalizeResult *AsyncCheckpointRunnable::FinalizeNonFinishedSnapshots()
+SnapshotsFinalizeResult* AsyncCheckpointRunnable::FinalizeNonFinishedSnapshots()
 {
-    LOG(">>>>>>> start FinalizeNonFinishedSnapshots")
+    LOG(">>>>>>> start FinalizeNonFinishedSnapshots");
     auto jobManagerTaskOperatorSubtaskStates =
         std::make_shared<TaskStateSnapshot>(operatorSnapshotsInProgress->size(), isTaskFinished);
     auto localTaskOperatorSubtaskStates =
@@ -73,71 +70,58 @@ SnapshotsFinalizeResult *AsyncCheckpointRunnable::FinalizeNonFinishedSnapshots()
     long bytesPersistedDuringAlignment = 0;
     for (auto entry : *operatorSnapshotsInProgress) {
         auto operatorID = entry.first;
-        OperatorSnapshotFutures *snapshotInProgress = entry.second;
+        OperatorSnapshotFutures* snapshotInProgress = entry.second;
         snapshotInProgress->OperatorSemWait();
         auto finalizedSnapshot = std::make_shared<OperatorSnapshotFinalizer>(snapshotInProgress);
 
         jobManagerTaskOperatorSubtaskStates->PutSubtaskStateByOperatorID(
-            operatorID,
-            finalizedSnapshot->getJobManagerOwnedState()
-        );
-        localTaskOperatorSubtaskStates->PutSubtaskStateByOperatorID(
-            operatorID,
-            finalizedSnapshot->getTaskLocalState()
-        );
+            operatorID, finalizedSnapshot->getJobManagerOwnedState());
+        localTaskOperatorSubtaskStates->PutSubtaskStateByOperatorID(operatorID, finalizedSnapshot->getTaskLocalState());
 
-        bytesPersistedDuringAlignment += finalizedSnapshot
-            ->getJobManagerOwnedState()->getResultSubpartitionState().GetStateSize();
-        bytesPersistedDuringAlignment += finalizedSnapshot
-            ->getJobManagerOwnedState()->getInputChannelState().GetStateSize();
+        bytesPersistedDuringAlignment +=
+            finalizedSnapshot->getJobManagerOwnedState()->getResultSubpartitionState().GetStateSize();
+        bytesPersistedDuringAlignment +=
+            finalizedSnapshot->getJobManagerOwnedState()->getInputChannelState().GetStateSize();
     }
-    LOG(">>>>>>> end FinalizeNonFinishedSnapshots")
+    LOG(">>>>>>> end FinalizeNonFinishedSnapshots");
     return new SnapshotsFinalizeResult(
-        jobManagerTaskOperatorSubtaskStates,
-        localTaskOperatorSubtaskStates,
-        bytesPersistedDuringAlignment
-    );
+        jobManagerTaskOperatorSubtaskStates, localTaskOperatorSubtaskStates, bytesPersistedDuringAlignment);
 }
 
-SnapshotsFinalizeResult *AsyncCheckpointRunnable::FinalizedFinishedSnapshots()
+SnapshotsFinalizeResult* AsyncCheckpointRunnable::FinalizedFinishedSnapshots()
 {
-    LOG(">>>>>>>>>")
+    LOG(">>>>>>>>>");
     for (auto entry : *operatorSnapshotsInProgress) {
         auto snapshotInProgress = entry.second;
         snapshotInProgress->getInputChannelStateFuture().get();
         snapshotInProgress->getResultSubpartitionStateFuture().get();
     }
-    return new SnapshotsFinalizeResult(
-        TaskStateSnapshot::finishedOnRestore,
-        TaskStateSnapshot::finishedOnRestore,
-        0L
-    );
+    return new SnapshotsFinalizeResult(TaskStateSnapshot::finishedOnRestore, TaskStateSnapshot::finishedOnRestore, 0L);
 }
 
-void AsyncCheckpointRunnable::ReportCompletedSnapshotStates(std::shared_ptr<TaskStateSnapshot> acknowledgedTaskStateSnapshot,
-    std::shared_ptr<TaskStateSnapshot> localTaskStateSnapshot, long asyncDurationMillis)
+void AsyncCheckpointRunnable::ReportCompletedSnapshotStates(
+    std::shared_ptr<TaskStateSnapshot> acknowledgedTaskStateSnapshot,
+    std::shared_ptr<TaskStateSnapshot> localTaskStateSnapshot,
+    long asyncDurationMillis)
 {
-    LOG(">>>>>>> start ReportCompletedSnapshotStates")
+    LOG(">>>>>>> start ReportCompletedSnapshotStates");
     bool hasAckState = acknowledgedTaskStateSnapshot->HasState();
     bool hasLocalState = localTaskStateSnapshot->HasState();
     if (!(hasAckState || !hasLocalState)) {
-        THROW_LOGIC_EXCEPTION(
-            "Found cached state but no corresponding primary state is reported to the job manager."
-        )
+        THROW_LOGIC_EXCEPTION("Found cached state but no corresponding primary state is reported to the job manager.");
     }
 
     auto checkpointedSize = acknowledgedTaskStateSnapshot->GetCheckpointedSize();
     auto stateSize = acknowledgedTaskStateSnapshot->GetStateSize();
-    auto checkpointMetrics = checkpointMetric
-            .SetBytesPersistedOfThisCheckpoint(checkpointedSize)
-            ->SetTotalBytesPersisted(stateSize)
-            ->Build();
+    auto checkpointMetrics = checkpointMetric.SetBytesPersistedOfThisCheckpoint(checkpointedSize)
+                                 ->SetTotalBytesPersisted(stateSize)
+                                 ->Build();
     taskEnvironment->getTaskStateManager()->ReportTaskStateSnapshotsV2(
         &checkpointMetaData,
         checkpointMetrics,
         hasAckState ? acknowledgedTaskStateSnapshot : nullptr,
         hasLocalState ? localTaskStateSnapshot : nullptr);
-    LOG(">>>>>>> end ReportCompletedSnapshotStates")
+    LOG(">>>>>>> end ReportCompletedSnapshotStates");
     delete checkpointMetrics;
 }
 
@@ -151,8 +135,7 @@ void AsyncCheckpointRunnable::HandleExecutionException(std::__exception_ptr::exc
 
             try {
                 Cleanup();
-            }
-            catch (...) {
+            } catch (...) {
                 // Do nothing
             }
 
@@ -167,28 +150,24 @@ void AsyncCheckpointRunnable::HandleExecutionException(std::__exception_ptr::exc
                 } catch (...) {
                     reasonMsg = "unknown non-std exception";
                 }
-                INFO_RELEASE("Error:AsyncCheckpointRunnable cp="
-                    << checkpointMetaData.GetCheckpointId()
-                    << " task=" << taskName
-                    << " declining after async failure: " << reasonMsg);
-                auto *runtimeEnv =
-                    dynamic_cast<omnistream::RuntimeEnvironmentV2*>(taskEnvironment.get());
+                INFO_RELEASE(
+                    "Error:AsyncCheckpointRunnable cp=" << checkpointMetaData.GetCheckpointId() << " task=" << taskName
+                                                        << " declining after async failure: " << reasonMsg);
+                auto* runtimeEnv = dynamic_cast<omnistream::RuntimeEnvironmentV2*>(taskEnvironment.get());
                 if (runtimeEnv != nullptr && runtimeEnv->omniTask() != nullptr) {
-                    std::runtime_error wrapped(
-                        std::string("Error:AsyncCheckpointRunnable failed: ") + reasonMsg);
+                    std::runtime_error wrapped(std::string("Error:AsyncCheckpointRunnable failed: ") + reasonMsg);
                     runtimeEnv->omniTask()->declineCheckpoint(
-                        checkpointMetaData.GetCheckpointId(),
-                        CheckpointFailureReason::CHECKPOINT_DECLINED,
-                        &wrapped);
+                        checkpointMetaData.GetCheckpointId(), CheckpointFailureReason::CHECKPOINT_DECLINED, &wrapped);
                 } else {
-                    INFO_RELEASE("Error:AsyncCheckpointRunnable cp="
+                    INFO_RELEASE(
+                        "Error:AsyncCheckpointRunnable cp="
                         << checkpointMetaData.GetCheckpointId()
                         << " could not decline: env is not RuntimeEnvironmentV2 or omniTask null");
                 }
             } else {
-                INFO_RELEASE("Error:AsyncCheckpointRunnable cp="
-                    << checkpointMetaData.GetCheckpointId()
-                    << " ignored decline: task is not running anymore");
+                INFO_RELEASE(
+                    "Error:AsyncCheckpointRunnable cp=" << checkpointMetaData.GetCheckpointId()
+                                                        << " ignored decline: task is not running anymore");
             }
             currentState = AsyncCheckpointState::DSICARDED;
         } else {
@@ -208,15 +187,14 @@ std::pair<long, long> AsyncCheckpointRunnable::Cleanup()
     std::exception_ptr firstException = nullptr;
 
     if (operatorSnapshotsInProgress) {
-        for (auto &entry : *operatorSnapshotsInProgress) {
-            OperatorSnapshotFutures *operatorSnapshotResult = entry.second;
+        for (auto& entry : *operatorSnapshotsInProgress) {
+            OperatorSnapshotFutures* operatorSnapshotResult = entry.second;
             if (operatorSnapshotResult != nullptr) {
                 try {
                     auto tuple2 = operatorSnapshotResult->cancel();
                     stateSize += tuple2.first;
                     checkpointedSize += tuple2.second;
-                }
-                catch (...) {
+                } catch (...) {
                     if (!firstException) {
                         firstException = std::current_exception();
                     }
@@ -243,7 +221,7 @@ void AsyncCheckpointRunnable::Close()
         try {
             auto tuple = Cleanup();
             ReportAbortedSnapshotStats(tuple.first, tuple.second);
-        } catch (const std::exception &cleanupException) {
+        } catch (const std::exception& cleanupException) {
             LOG("Could not properly clean up the async checkpoint runnable.");
         }
     } else {
@@ -253,10 +231,9 @@ void AsyncCheckpointRunnable::Close()
 
 void AsyncCheckpointRunnable::ReportAbortedSnapshotStats(long stateSize, long checkpointedSize)
 {
-    CheckpointMetrics *metrics = checkpointMetric
-        .SetTotalBytesPersisted(stateSize)
-        ->SetBytesPersistedOfThisCheckpoint(checkpointedSize)
-        ->BuildIncomplete();
+    CheckpointMetrics* metrics = checkpointMetric.SetTotalBytesPersisted(stateSize)
+                                     ->SetBytesPersistedOfThisCheckpoint(checkpointedSize)
+                                     ->BuildIncomplete();
     taskEnvironment->getTaskStateManager()->ReportIncompleteTaskStateSnapshots(&checkpointMetaData, metrics);
 }
 
@@ -264,11 +241,10 @@ void AsyncCheckpointRunnable::LogFailedCleanupAttempt()
 {
     LOG(taskName + " - asynchronous checkpointing operation for checkpoint " +
         std::to_string(checkpointMetaData.GetCheckpointId()) +
-        " has already been completed. Thus, the state handles are not cleaned up."
-    );
+        " has already been completed. Thus, the state handles are not cleaned up.");
 }
 
 bool AsyncCheckpointRunnable::IsFinished() const
 {
-    return finishedFuture.IsDone();  // or `is_completed()` depending on your CompletableFutureV2 implementation
+    return finishedFuture.IsDone(); // or `is_completed()` depending on your CompletableFutureV2 implementation
 }

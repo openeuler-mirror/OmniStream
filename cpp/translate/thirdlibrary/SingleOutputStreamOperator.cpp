@@ -13,7 +13,7 @@
 
 SingleOutputStreamOperator::SingleOutputStreamOperator() = default;
 SingleOutputStreamOperator::~SingleOutputStreamOperator() = default;
-SingleOutputStreamOperator *SingleOutputStreamOperator::disableChaining()
+SingleOutputStreamOperator* SingleOutputStreamOperator::disableChaining()
 {
     return nullptr;
 }

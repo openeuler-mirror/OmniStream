@@ -33,8 +33,7 @@
 #include <buffer/ObjectBufferRecycler.h>
 
 #include <partition/PrioritizedDeque.h>
-#include  <executiongraph/descriptor/ResultPartitionIDPOD.h>
-
+#include <executiongraph/descriptor/ResultPartitionIDPOD.h>
 
 #include <buffer/ObjectSegmentProvider.h>
 #include <executiongraph/descriptor/IntermediateResultPartitionIDPOD.h>
@@ -42,7 +41,6 @@
 #include "BufferOrEvent.h"
 #include <executiongraph/descriptor/ResourceIDPOD.h>
 #include <partition/PartitionProducerStateProvider.h>
-
 
 #include <event/AbstractEvent.h>
 #include <event/TaskEvent.h>
@@ -52,195 +50,189 @@
 #include "buffer/SegmentProvider.h"
 
 namespace omnistream {
-        class SingleInputGate : public IndexedInputGate, public AutoCloseable {
-        public:
-                SingleInputGate(
-                        const std::string& owningTaskName,
-                        int gateIndex,
-                        const IntermediateDataSetIDPOD& consumedResultId,
-                        const int consumedPartitionType,
-                        int consumedSubpartitionIndex,
-                        int numberOfInputChannels,
-                        std::shared_ptr<PartitionProducerStateProvider> partitionProducerStateProvider,
-                        std::function<std::shared_ptr<BufferPool>()> bufferPoolFactory,
-                        std::shared_ptr<SegmentProvider> segmentProvider,
-                        int segmentSize);
+class SingleInputGate : public IndexedInputGate, public AutoCloseable {
+public:
+    SingleInputGate(
+        const std::string& owningTaskName,
+        int gateIndex,
+        const IntermediateDataSetIDPOD& consumedResultId,
+        const int consumedPartitionType,
+        int consumedSubpartitionIndex,
+        int numberOfInputChannels,
+        std::shared_ptr<PartitionProducerStateProvider> partitionProducerStateProvider,
+        std::function<std::shared_ptr<BufferPool>()> bufferPoolFactory,
+        std::shared_ptr<SegmentProvider> segmentProvider,
+        int segmentSize);
 
-                void setup() override;
-                std::shared_ptr<CompletableFutureV2<void>> getStateConsumedFuture() override;
-                std::vector<bool> getStateConsumedFuture1() override;
-                void RequestPartitions() override;
-                void FinishReadRecoveredState() override;
+    void setup() override;
+    std::shared_ptr<CompletableFutureV2<void>> getStateConsumedFuture() override;
+    std::vector<bool> getStateConsumedFuture1() override;
+    void RequestPartitions() override;
+    void FinishReadRecoveredState() override;
 
-                int GetNumberOfInputChannels() override;
-                int GetGateIndex() override;
-                std::vector<InputChannelInfo> getUnfinishedChannels() override;
-                int getBuffersInUseCount() override;
-                void announceBufferSize(int newBufferSize) override;
-                std::shared_ptr<InputChannel> getChannel(int channelIndex) override;
+    int GetNumberOfInputChannels() override;
+    int GetGateIndex() override;
+    std::vector<InputChannelInfo> getUnfinishedChannels() override;
+    int getBuffersInUseCount() override;
+    void announceBufferSize(int newBufferSize) override;
+    std::shared_ptr<InputChannel> getChannel(int channelIndex) override;
 
-                int getConsumedPartitionType();
-                // std::shared_ptr<ObjectBufferProvider> getBufferProvider();
-                std::shared_ptr<BufferProvider> getBufferProvider();
-                // std::shared_ptr<ObjectBufferPool> getBufferPool();
-                std::shared_ptr<BufferPool> getBufferPool();
-                std::shared_ptr<SegmentProvider> getSegmentProvider();
-                std::string getOwningTaskName();
-                int getNumberOfQueuedBuffers();
-                std::shared_ptr<CompletableFuture> getCloseFuture();
+    int getConsumedPartitionType();
+    // std::shared_ptr<ObjectBufferProvider> getBufferProvider();
+    std::shared_ptr<BufferProvider> getBufferProvider();
+    // std::shared_ptr<ObjectBufferPool> getBufferPool();
+    std::shared_ptr<BufferPool> getBufferPool();
+    std::shared_ptr<SegmentProvider> getSegmentProvider();
+    std::string getOwningTaskName();
+    int getNumberOfQueuedBuffers();
+    std::shared_ptr<CompletableFuture> getCloseFuture();
 
-                void setBufferPool(std::shared_ptr<BufferPool> bufferPool);
-                void setupChannels();
-                void setInputChannels(std::vector<std::shared_ptr<InputChannel>> channels);
-                void updateInputChannel(
-                        const ResourceIDPOD& localLocation,
-                        const ShuffleDescriptorPOD& shuffleDescriptor);
-                void retriggerPartitionRequest(const IntermediateResultPartitionIDPOD& partitionId);
+    void setBufferPool(std::shared_ptr<BufferPool> bufferPool);
+    void setupChannels();
+    void setInputChannels(std::vector<std::shared_ptr<InputChannel>> channels);
+    void updateInputChannel(const ResourceIDPOD& localLocation, const ShuffleDescriptorPOD& shuffleDescriptor);
+    void retriggerPartitionRequest(const IntermediateResultPartitionIDPOD& partitionId);
 
-                void close() override;
-                bool IsFinished() override;
-                bool HasReceivedEndOfData() override;
+    void close() override;
+    bool IsFinished() override;
+    bool HasReceivedEndOfData() override;
 
-                BufferOrEvent* GetNext() override;
-                BufferOrEvent* PollNext() override;
-                BufferOrEvent* getNextBufferOrEvent(bool blocking);
+    BufferOrEvent* GetNext() override;
+    BufferOrEvent* PollNext() override;
+    BufferOrEvent* getNextBufferOrEvent(bool blocking);
 
-                void sendTaskEvent(const std::shared_ptr<TaskEvent>& event) override;
-                void ResumeConsumption(const InputChannelInfo& channelInfo) override;
-                void acknowledgeAllRecordsProcessed(const InputChannelInfo& channelInfo) override;
+    void sendTaskEvent(const std::shared_ptr<TaskEvent>& event) override;
+    void ResumeConsumption(const InputChannelInfo& channelInfo) override;
+    void acknowledgeAllRecordsProcessed(const InputChannelInfo& channelInfo) override;
 
-                void notifyChannelNonEmpty(std::shared_ptr<InputChannel> channel);
-                void notifyPriorityEvent(std::shared_ptr<InputChannel> inputChannel, int prioritySequenceNumber);
-                void notifyPriorityEventForce(std::shared_ptr<InputChannel> inputChannel);
-                void triggerPartitionStateCheck(const ResultPartitionIDPOD& partitionId);
-                void queueChannel(std::shared_ptr<InputChannel> channel, std::optional<int> prioritySequenceNumber,
-                                  bool forcePriority);
+    void notifyChannelNonEmpty(std::shared_ptr<InputChannel> channel);
+    void notifyPriorityEvent(std::shared_ptr<InputChannel> inputChannel, int prioritySequenceNumber);
+    void notifyPriorityEventForce(std::shared_ptr<InputChannel> inputChannel);
+    void triggerPartitionStateCheck(const ResultPartitionIDPOD& partitionId);
+    void queueChannel(
+        std::shared_ptr<InputChannel> channel, std::optional<int> prioritySequenceNumber, bool forcePriority);
 
-                PrioritizedDeque<InputChannel> getInputChannelsWithData();
-                std::unordered_map<IntermediateResultPartitionIDPOD, std::shared_ptr<InputChannel>>& getInputChannels();
+    PrioritizedDeque<InputChannel> getInputChannelsWithData();
+    std::unordered_map<IntermediateResultPartitionIDPOD, std::shared_ptr<InputChannel>>& getInputChannels();
 
-                std::string toString() override;
-                void changeLocalInputChannelToOriginal(
-                        int channelIndex,
-                        std::shared_ptr<InputChannel> original);
-        
-                void SetForwardResumeToJava(bool forwardResumeToJava) 
-                {
-                        forwardResumeToJava_ = forwardResumeToJava;
-                }
-                
-                bool GetForwardResumeToJava() const {
-                        return forwardResumeToJava_;
-                }
-        
-        private:
-                void convertRecoveredInputChannels();
-                void internalRequestPartitions();
+    std::string toString() override;
+    void changeLocalInputChannelToOriginal(int channelIndex, std::shared_ptr<InputChannel> original);
 
-                template<typename T>
-                class InputWithData {
-                public:
-                        std::shared_ptr<InputChannel> input;
-                        T data;
-                        bool moreAvailable;
-                        bool morePriorityEvents;
+    void SetForwardResumeToJava(bool forwardResumeToJava)
+    {
+        forwardResumeToJava_ = forwardResumeToJava;
+    }
 
-                        InputWithData(std::shared_ptr<InputChannel> input, T data, bool moreAvailable, bool morePriorityEvents)
-                            : input(input), data(data), moreAvailable(moreAvailable), morePriorityEvents(morePriorityEvents) {}
-                };
+    bool GetForwardResumeToJava() const
+    {
+        return forwardResumeToJava_;
+    }
 
-                SingleInputGate::InputWithData<BufferAndAvailability>* waitAndGetNextData(bool blocking);
-                void checkUnavailability();
-                BufferOrEvent* transformToBufferOrEvent(
-                        Buffer* buffer,
-                        bool moreAvailable,
-                        std::shared_ptr<InputChannel> currentChannel,
-                        bool morePriorityEvents);
-                BufferOrEvent* transformBuffer(
-                        Buffer* buffer,
-                        bool moreAvailable,
-                        std::shared_ptr<InputChannel> currentChannel,
-                        bool morePriorityEvents);
-                BufferOrEvent* transformEvent(
-                        Buffer* buffer,
-                        bool moreAvailable,
-                        std::shared_ptr<InputChannel> currentChannel,
-                        bool morePriorityEvents);
-                Buffer* decompressBufferIfNeeded(Buffer* buffer);
-                void markAvailable();
-                bool isOutdated(int sequenceNumber, int lastSequenceNumber);
-                bool queueChannelUnsafe(const std::shared_ptr<InputChannel>& channel, bool priority);
-                std::optional<std::shared_ptr<InputChannel>> getChannel(bool blocking, std::unique_lock<std::recursive_mutex> &lock);
+private:
+    void convertRecoveredInputChannels();
+    void internalRequestPartitions();
 
-                // Lock object to guard partition requests and runtime channel updates
-                std::recursive_mutex requestLock;
+    template <typename T>
+    class InputWithData {
+    public:
+        std::shared_ptr<InputChannel> input;
+        T data;
+        bool moreAvailable;
+        bool morePriorityEvents;
 
-                // The name of the owning task, for logging purposes
-                std::string owningTaskName;
+        InputWithData(std::shared_ptr<InputChannel> input, T data, bool moreAvailable, bool morePriorityEvents)
+            : input(input),
+              data(data),
+              moreAvailable(moreAvailable),
+              morePriorityEvents(morePriorityEvents)
+        {
+        }
+    };
 
-                int gateIndex;
+    SingleInputGate::InputWithData<BufferAndAvailability>* waitAndGetNextData(bool blocking);
+    void checkUnavailability();
+    BufferOrEvent* transformToBufferOrEvent(
+        Buffer* buffer, bool moreAvailable, std::shared_ptr<InputChannel> currentChannel, bool morePriorityEvents);
+    BufferOrEvent* transformBuffer(
+        Buffer* buffer, bool moreAvailable, std::shared_ptr<InputChannel> currentChannel, bool morePriorityEvents);
+    BufferOrEvent* transformEvent(
+        Buffer* buffer, bool moreAvailable, std::shared_ptr<InputChannel> currentChannel, bool morePriorityEvents);
+    Buffer* decompressBufferIfNeeded(Buffer* buffer);
+    void markAvailable();
+    bool isOutdated(int sequenceNumber, int lastSequenceNumber);
+    bool queueChannelUnsafe(const std::shared_ptr<InputChannel>& channel, bool priority);
+    std::optional<std::shared_ptr<InputChannel>> getChannel(
+        bool blocking, std::unique_lock<std::recursive_mutex>& lock);
 
-                // The ID of the consumed intermediate result
-                IntermediateDataSetIDPOD consumedResultId;
+    // Lock object to guard partition requests and runtime channel updates
+    std::recursive_mutex requestLock;
 
-                // The type of the partition the input gate is consuming
-                int consumedPartitionType;
+    // The name of the owning task, for logging purposes
+    std::string owningTaskName;
 
-                // The index of the consumed subpartition of each consumed partition
-                int consumedSubpartitionIndex;
+    int gateIndex;
 
-                // The number of input channels
-                int numberOfInputChannels;
+    // The ID of the consumed intermediate result
+    IntermediateDataSetIDPOD consumedResultId;
 
-                // Input channels
-                std::unordered_map<IntermediateResultPartitionIDPOD, std::shared_ptr<InputChannel>> inputChannels;
+    // The type of the partition the input gate is consuming
+    int consumedPartitionType;
 
-                std::vector<std::shared_ptr<InputChannel>> channels;
+    // The index of the consumed subpartition of each consumed partition
+    int consumedSubpartitionIndex;
 
-                // Channels, which notified this input gate about available data
-                PrioritizedDeque<InputChannel> inputChannelsWithData;
+    // The number of input channels
+    int numberOfInputChannels;
 
-                // Synchronization for inputChannelsWithData
-                std::recursive_mutex inputChannelsWithDataMutex;
-                std::condition_variable_any cv;
+    // Input channels
+    std::unordered_map<IntermediateResultPartitionIDPOD, std::shared_ptr<InputChannel>> inputChannels;
 
-                // Field guaranteeing uniqueness for inputChannelsWithData queue
-                std::vector<bool> enqueuedInputChannelsWithData;
+    std::vector<std::shared_ptr<InputChannel>> channels;
 
-                std::vector<bool> channelsWithEndOfPartitionEvents;
-                std::vector<bool> channelsWithEndOfUserRecords;
+    // Channels, which notified this input gate about available data
+    PrioritizedDeque<InputChannel> inputChannelsWithData;
 
-                std::vector<int> lastPrioritySequenceNumber;
+    // Synchronization for inputChannelsWithData
+    std::recursive_mutex inputChannelsWithDataMutex;
+    std::condition_variable_any cv;
 
-                // The partition producer state listener
-                std::shared_ptr<PartitionProducerStateProvider> partitionProducerStateProvider;
+    // Field guaranteeing uniqueness for inputChannelsWithData queue
+    std::vector<bool> enqueuedInputChannelsWithData;
 
-                // Buffer pool for incoming buffers, e.g. LocalMemoryBufferPool
-                std::shared_ptr<BufferPool> bufferPool;
+    std::vector<bool> channelsWithEndOfPartitionEvents;
+    std::vector<bool> channelsWithEndOfUserRecords;
 
-                // Factory for creating buffer pool
-                std::function<std::shared_ptr<BufferPool>()> bufferPoolFactory;
+    std::vector<int> lastPrioritySequenceNumber;
 
-                std::shared_ptr<SegmentProvider> segmentProvider;
+    // The partition producer state listener
+    std::shared_ptr<PartitionProducerStateProvider> partitionProducerStateProvider;
 
-                bool hasReceivedAllEndOfPartitionEvents;
-                bool hasReceivedEndOfData_;
+    // Buffer pool for incoming buffers, e.g. LocalMemoryBufferPool
+    std::shared_ptr<BufferPool> bufferPool;
 
-                // Flag indicating whether partitions have been requested
-                bool requestedPartitionsFlag;
+    // Factory for creating buffer pool
+    std::function<std::shared_ptr<BufferPool>()> bufferPoolFactory;
 
-                std::vector<std::shared_ptr<TaskEvent>> pendingEvents;
+    std::shared_ptr<SegmentProvider> segmentProvider;
 
-                int numberOfUninitializedChannels;
+    bool hasReceivedAllEndOfPartitionEvents;
+    bool hasReceivedEndOfData_;
 
-                std::shared_ptr<CompletableFuture>  closeFuture;
+    // Flag indicating whether partitions have been requested
+    bool requestedPartitionsFlag;
 
-                // Buffer decompressor
-                // Segment to read data from file region
-                // ObjectSegment *unpooledSegment; // todo: need fix
-                bool shouldDrainOnEndOfData = true;
-                bool forwardResumeToJava_ = true;
-        };
-}
+    std::vector<std::shared_ptr<TaskEvent>> pendingEvents;
+
+    int numberOfUninitializedChannels;
+
+    std::shared_ptr<CompletableFuture> closeFuture;
+
+    // Buffer decompressor
+    // Segment to read data from file region
+    // ObjectSegment *unpooledSegment; // todo: need fix
+    bool shouldDrainOnEndOfData = true;
+    bool forwardResumeToJava_ = true;
+};
+} // namespace omnistream
 
 #endif

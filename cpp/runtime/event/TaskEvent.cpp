@@ -11,6 +11,6 @@
 
 #include "TaskEvent.h"
 
-namespace  omnistream {
+namespace omnistream {
 
 }

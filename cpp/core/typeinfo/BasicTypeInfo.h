@@ -22,10 +22,12 @@
 class BasicTypeInfo : public TypeInformation {
 public:
     BasicTypeInfo(TypeSerializer* serializer, std::string typeName) : serializer(serializer), typeName(typeName)
-    {}
+    {
+    }
 
     explicit BasicTypeInfo(std::string typeName) : typeName(typeName)
-    {}
+    {
+    }
 
     TypeSerializer* createTypeSerializer() override
     {
@@ -37,7 +39,7 @@ public:
             serializer = new LongSerializer();
         } else if (typeName == TYPE_NAME_DOUBLE_SERIALIZER) {
             serializer = new DoubleSerializer();
-        }else if(typeName == TYPE_NAME_VOID_SERIALIZER){
+        } else if (typeName == TYPE_NAME_VOID_SERIALIZER) {
             serializer = new VoidSerializer();
         }
         return serializer;
@@ -57,10 +59,11 @@ public:
 
     // todo: need add other type
     // Typeinfo is Object.Multithreading can easily lead to reference technology exceptions. need thread_local.
-    thread_local static BasicTypeInfo *STRING_TYPE_INFO;
-    thread_local static BasicTypeInfo *BIG_INT_TYPE_INFO;
-    thread_local static BasicTypeInfo *LONG_TYPE_INFO;
-    thread_local static BasicTypeInfo *DOUBLE_TYPE_INFO;
+    thread_local static BasicTypeInfo* STRING_TYPE_INFO;
+    thread_local static BasicTypeInfo* BIG_INT_TYPE_INFO;
+    thread_local static BasicTypeInfo* LONG_TYPE_INFO;
+    thread_local static BasicTypeInfo* DOUBLE_TYPE_INFO;
+
 private:
     TypeSerializer* serializer;
     const std::string typeName;

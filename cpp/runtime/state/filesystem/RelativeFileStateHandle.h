@@ -13,23 +13,26 @@
 
 class RelativeFileStateHandle : public FileStateHandle {
 public:
-    RelativeFileStateHandle(const Path& filePath,
-                            const std::string& relativePath,
-                            long stateSize)
+    RelativeFileStateHandle(const Path& filePath, const std::string& relativePath, long stateSize)
         : FileStateHandle(filePath, stateSize),
-          relativePath_(relativePath) {}
+          relativePath_(relativePath)
+    {
+    }
 
     RelativeFileStateHandle(const nlohmann::json& json)
         : FileStateHandle(
-            json.contains("filePath") ? Path(json["filePath"].get<std::string>())
-                : throw std::invalid_argument("RelativeFileStateHandle 'filePath' field missing"),
-            json.contains("stateSize") ? json["stateSize"].get<long>()
-                : throw std::invalid_argument("RelativeFileStateHandle 'stateSize' field missing")),
+              json.contains("filePath")
+                  ? Path(json["filePath"].get<std::string>())
+                  : throw std::invalid_argument("RelativeFileStateHandle 'filePath' field missing"),
+              json.contains("stateSize")
+                  ? json["stateSize"].get<long>()
+                  : throw std::invalid_argument("RelativeFileStateHandle 'stateSize' field missing")),
           relativePath_(
-            json.contains("relativePath") ? json["relativePath"].get<std::string>()
-                : throw std::invalid_argument("RelativeFileStateHandle 'relativePath' field missing")
-        )
-    {}
+              json.contains("relativePath")
+                  ? json["relativePath"].get<std::string>()
+                  : throw std::invalid_argument("RelativeFileStateHandle 'relativePath' field missing"))
+    {
+    }
 
     const std::string& GetRelativePath() const
     {
@@ -49,8 +52,7 @@ public:
 
     bool operator==(const RelativeFileStateHandle& o) const
     {
-        return FileStateHandle::operator==(o)
-            && relativePath_ == o.relativePath_;
+        return FileStateHandle::operator==(o) && relativePath_ == o.relativePath_;
     }
 
 private:

@@ -9,5 +9,4 @@
  * See the Mulan PSL v2 for more details.
  */
 
-
 #include "InputConversionOperator.h"

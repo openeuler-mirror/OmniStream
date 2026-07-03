@@ -1,5 +1,5 @@
 /*
-* Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
  * You can use this software according to the terms and conditions of the Mulan PSL v2.
  * You may obtain a copy of Mulan PSL v2 at:
  *          http://license.coscl.org.cn/MulanPSL2
@@ -41,14 +41,15 @@
 
 class DefaultOperatorStateBackend : public OperatorStateBackend {
 public:
-    DefaultOperatorStateBackend(bool asynchronousSnapshots,
-                                std::shared_ptr<TaskStateManagerBridge> bridge,
-                                std::shared_ptr<OmniTaskBridge> omniTaskBridge,
-                                DefaultOperatorStateBackendSnapshotStrategy* snapshotStrategy,
-                                std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> registeredOperatorStates,
-                                std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> registeredBroadcastStates,
-                                std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> accessedStatesByName,
-                                std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> accessedBroadcastStatesByName)
+    DefaultOperatorStateBackend(
+        bool asynchronousSnapshots,
+        std::shared_ptr<TaskStateManagerBridge> bridge,
+        std::shared_ptr<OmniTaskBridge> omniTaskBridge,
+        DefaultOperatorStateBackendSnapshotStrategy* snapshotStrategy,
+        std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> registeredOperatorStates,
+        std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> registeredBroadcastStates,
+        std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> accessedStatesByName,
+        std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> accessedBroadcastStatesByName)
         : asynchronousSnapshots_(asynchronousSnapshots),
           bridge_(bridge),
           omniTaskBridge_(omniTaskBridge),
@@ -56,10 +57,12 @@ public:
           registeredOperatorStates_(registeredOperatorStates),
           registeredBroadcastStates_(registeredBroadcastStates),
           accessedStatesByName_(accessedStatesByName),
-          accessedBroadcastStatesByName_(accessedBroadcastStatesByName) {
+          accessedBroadcastStatesByName_(accessedBroadcastStatesByName)
+    {
     }
 
-    std::unordered_set<std::string> getRegisteredStateNames() override {
+    std::unordered_set<std::string> getRegisteredStateNames() override
+    {
         std::unordered_set<std::string> nameSet;
         for (const auto& pair : *registeredOperatorStates_) {
             nameSet.insert(pair.first);
@@ -67,7 +70,8 @@ public:
         return nameSet;
     }
 
-    std::unordered_set<std::string> getRegisteredBroadcastStateNames() override {
+    std::unordered_set<std::string> getRegisteredBroadcastStateNames() override
+    {
         std::unordered_set<std::string> nameSet;
         for (const auto& pair : *registeredBroadcastStates_) {
             nameSet.insert(pair.first);
@@ -75,9 +79,12 @@ public:
         return nameSet;
     }
 
-    void close() {}
+    void close()
+    {
+    }
 
-    void dispose() override {
+    void dispose() override
+    {
         LOG(" DefaultOperatorStateBackend dispose");
         if (!registeredOperatorStates_->empty()) {
             registeredOperatorStates_->clear();
@@ -93,12 +100,14 @@ public:
         }
     }
 
-    template<typename K, typename V>
-    std::shared_ptr<HeapBroadcastState<K, V>> getBroadcastState(MapStateDescriptor<K, V>* stateDescriptor) {
+    template <typename K, typename V>
+    std::shared_ptr<HeapBroadcastState<K, V>> getBroadcastState(MapStateDescriptor<K, V>* stateDescriptor)
+    {
         std::string name = stateDescriptor->getName();
         auto accessedIterator = accessedBroadcastStatesByName_->find(name);
         if (accessedIterator != accessedBroadcastStatesByName_->end()) {
-            std::shared_ptr<HeapBroadcastState<K, V>> state = std::dynamic_pointer_cast<HeapBroadcastState<K, V>>(accessedIterator->second);
+            std::shared_ptr<HeapBroadcastState<K, V>> state =
+                std::dynamic_pointer_cast<HeapBroadcastState<K, V>>(accessedIterator->second);
             return std::dynamic_pointer_cast<HeapBroadcastState<K, V>>(accessedIterator->second);
         }
 
@@ -110,10 +119,7 @@ public:
 
         if (registeredIterator == registeredBroadcastStates_->end()) {
             auto stateMetaInfo = std::make_shared<RegisteredBroadcastStateBackendMetaInfo>(
-                    name,
-                    OperatorStateHandle::Mode::BROADCAST,
-                    broadcastStateKeySerializer,
-                    broadcastStateValueSerializer);
+                name, OperatorStateHandle::Mode::BROADCAST, broadcastStateKeySerializer, broadcastStateValueSerializer);
             auto internalMap = std::shared_ptr<std::map<K, V>>();
             resultState = std::make_shared<HeapBroadcastState<K, V>>(stateMetaInfo, internalMap);
             registeredBroadcastStates_->emplace(name, resultState);
@@ -130,13 +136,15 @@ public:
         return resultState;
     }
 
-    template<typename S>
-    std::shared_ptr<ListState<S>> getListState(ListStateDescriptor<S>* stateDescriptor)  {
+    template <typename S>
+    std::shared_ptr<ListState<S>> getListState(ListStateDescriptor<S>* stateDescriptor)
+    {
         return getListState(stateDescriptor, OperatorStateHandle::Mode::SPLIT_DISTRIBUTE);
     }
 
-    template<typename S>
-    std::shared_ptr<ListState<S>> getUnionListState(ListStateDescriptor<S>* stateDescriptor){
+    template <typename S>
+    std::shared_ptr<ListState<S>> getUnionListState(ListStateDescriptor<S>* stateDescriptor)
+    {
         return getListState(stateDescriptor, OperatorStateHandle::Mode::UNION);
     }
 
@@ -144,22 +152,19 @@ public:
         long checkpointId,
         long timestamp,
         CheckpointStreamFactory* streamFactory,
-        CheckpointOptions* checkpointOptions) override {
+        CheckpointOptions* checkpointOptions) override
+    {
         if (registeredOperatorStates_->empty() && registeredBroadcastStates_->empty()) {
             return nullptr;
         }
 
         auto snapshotStrategyRunner = std::make_unique<SnapshotStrategyRunner<OperatorStateHandle, SnapshotResources>>(
-                "DefaultOperatorStateBackend snapshot",
-                snapshotStrategy_,
-                asynchronousSnapshots_ ? ASYNCHRONOUS : SYNCHRONOUS);
+            "DefaultOperatorStateBackend snapshot",
+            snapshotStrategy_,
+            asynchronousSnapshots_ ? ASYNCHRONOUS : SYNCHRONOUS);
 
-        return snapshotStrategyRunner->snapshot(checkpointId,
-                                                timestamp,
-                                                streamFactory,
-                                                checkpointOptions,
-                                                omniTaskBridge_,
-                                                "");
+        return snapshotStrategyRunner->snapshot(
+            checkpointId, timestamp, streamFactory, checkpointOptions, omniTaskBridge_, "");
     }
 
 private:
@@ -172,9 +177,9 @@ private:
     std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> accessedStatesByName_;
     std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> accessedBroadcastStatesByName_;
 
-    template<typename S>
-    std::shared_ptr<ListState<S>> getListState(ListStateDescriptor<S>* stateDescriptor, OperatorStateHandle::Mode mode) {
-
+    template <typename S>
+    std::shared_ptr<ListState<S>> getListState(ListStateDescriptor<S>* stateDescriptor, OperatorStateHandle::Mode mode)
+    {
         std::string name = stateDescriptor->getName();
 
         auto accessedIterator = accessedStatesByName_->find(name);
@@ -195,7 +200,8 @@ private:
         }
 
         if (registeredIterator == registeredOperatorStates_->end()) {
-            auto stateMetaInfo = std::make_shared<RegisteredOperatorStateBackendMetaInfo>(name, mode, operatorStateSerializer);
+            auto stateMetaInfo =
+                std::make_shared<RegisteredOperatorStateBackendMetaInfo>(name, mode, operatorStateSerializer);
             auto internalList = std::make_shared<std::vector<S>>();
             resultState = std::make_shared<PartitionableListState<S>>(stateMetaInfo, internalList);
             registeredOperatorStates_->emplace(name, resultState);
@@ -211,4 +217,4 @@ private:
     }
 };
 
-#endif //OMNISTREAM_DEFAULTOPERATORSTATEBACKEND_H
+#endif // OMNISTREAM_DEFAULTOPERATORSTATEBACKEND_H

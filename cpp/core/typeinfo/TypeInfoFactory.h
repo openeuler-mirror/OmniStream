@@ -20,27 +20,27 @@ using string = std::string;
 
 class TypeInfoFactory : public Object {
 public:
-    static TypeInformation *createTypeInfo(const char* name);
+    static TypeInformation* createTypeInfo(const char* name);
 
     // internalType  is mapped from java table internal type, which is for sql type
-    static TypeInformation *createInternalTypeInfo(const nlohmann::json &rowType);
+    static TypeInformation* createInternalTypeInfo(const nlohmann::json& rowType);
 
-    static TypeInformation *createInternalTypeInfoOfRow(const nlohmann::json& fields);
+    static TypeInformation* createInternalTypeInfoOfRow(const nlohmann::json& fields);
 
     // Tuple
-    static TypeInformation *createTupleTypeInfo(const nlohmann::json &rowType);
+    static TypeInformation* createTupleTypeInfo(const nlohmann::json& rowType);
 
-    static TypeInformation *createCommittableMessageInfo();
+    static TypeInformation* createCommittableMessageInfo();
 
-    static TypeInformation *createDataStreamTypeInfo(const nlohmann::json &serializerInfo);
+    static TypeInformation* createDataStreamTypeInfo(const nlohmann::json& serializerInfo);
 
-    // may not be  useful, leave it as it for now. basic internal type is mapped from java sql type, logicaltyperoot.PREDEFINED,
-    static TypeInformation *createBasicInternalTypeInfo(const char* name);
+    // may not be  useful, leave it as it for now. basic internal type is mapped from java sql type,
+    // logicaltyperoot.PREDEFINED,
+    static TypeInformation* createBasicInternalTypeInfo(const char* name);
 
     static LogicalType* createLogicalType(const std::string type);
 
-    static omnistream::RowType* createRowType(const std::vector<omniruntime::type::DataTypeId> *inputRowType);
+    static omnistream::RowType* createRowType(const std::vector<omniruntime::type::DataTypeId>* inputRowType);
 };
-
 
 #endif

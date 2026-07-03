@@ -176,7 +176,7 @@ std::string Operator_Chain_GLOBAL_Window_SUM = R"DELIM({
         })DELIM";
 
 std::string Operator_Chain_Calc =
-        R"delimiter({
+    R"delimiter({
         "name" : "Calc(select=[price, time])",
         "description":{
             "originDescription":null,
@@ -190,7 +190,8 @@ std::string Operator_Chain_Calc =
         "id":"StreamExecCalc"
     })delimiter";
 
-omnistream::VectorBatch* newVectorBatchOneKeyOneValue1() {
+omnistream::VectorBatch* newVectorBatchOneKeyOneValue1()
+{
     auto* vbatch = new omnistream::VectorBatch(5);
     std::vector<int64_t> key = {1, 2, 1, 1, 3};
     std::vector<int64_t> value = {3, 4, 5, 6, 7};
@@ -208,10 +209,11 @@ omnistream::VectorBatch* newVectorBatchOneKeyOneValue1() {
     return vbatch;
 }
 
-omnistream::VectorBatch* nexmarkQ7Input() {
+omnistream::VectorBatch* nexmarkQ7Input()
+{
     auto* vbatch = new omnistream::VectorBatch(5);
     std::vector<int64_t> price = {1000, 2000, 3005, 599, 2597};
-    std::vector<int64_t> time = {1009, 1007, 1003, 2002, 2004};     // 待修改为时间类型
+    std::vector<int64_t> time = {1009, 1007, 1003, 2002, 2004}; // 待修改为时间类型
 
     vbatch->Append(omniruntime::TestUtil::CreateVector<int64_t>(5, price.data()));
     vbatch->Append(omniruntime::TestUtil::CreateVector<int64_t>(5, time.data()));
@@ -225,7 +227,7 @@ omnistream::VectorBatch* nexmarkQ7Input() {
 }
 
 std::string Nexmark_Q5_Local_Window_Agg_1 =
-        R"delimiter({
+    R"delimiter({
 	"partition": {
 		"partitionName": "hash",
 		"channelNumber": 1,
@@ -299,7 +301,7 @@ std::string Nexmark_Q5_Local_Window_Agg_1 =
 })delimiter";
 
 std::string Nexmark_Q5_Local_Window_Agg_2 =
-        R"delimiter({
+    R"delimiter({
 	"partition": {
 		"partitionName": "hash",
 		"channelNumber": 1,
@@ -380,10 +382,11 @@ std::string Nexmark_Q5_Local_Window_Agg_2 =
 	}]
 })delimiter";
 
-omnistream::VectorBatch* nexmarkQ5Input2() {
+omnistream::VectorBatch* nexmarkQ5Input2()
+{
     auto* vbatch = new omnistream::VectorBatch(5);
     std::vector<int64_t> timeStart = {100, 100, 200, 200, 200}; // 待修改为时间类型
-    std::vector<int64_t> timeEnd = {110, 110, 210, 210, 210}; // 待修改为时间类型
+    std::vector<int64_t> timeEnd = {110, 110, 210, 210, 210};   // 待修改为时间类型
     std::vector<int64_t> num = {1, 2, 3, 1, 5};
 
     vbatch->Append(omniruntime::TestUtil::CreateVector<int64_t>(5, timeStart.data()));
@@ -398,16 +401,17 @@ omnistream::VectorBatch* nexmarkQ5Input2() {
     return vbatch;
 }
 
-omnistream::VectorBatch* nexmarkQ5Input1() {
+omnistream::VectorBatch* nexmarkQ5Input1()
+{
     auto* vbatch = new omnistream::VectorBatch(5);
     std::vector<int64_t> auction = {1, 5, 20, 20, 20};
-    std::vector<int64_t> datetime = {10, 10, 20, 21, 20};   // 待修改为时间类型
-//    std::vector<TimestampData*> datetime;
-//    datetime.push_back(TimestampData::fromEpochMillis(10L, 5));
-//    datetime.push_back(TimestampData::fromEpochMillis(10L, 5));
-//    datetime.push_back(TimestampData::fromEpochMillis(20L, 5));
-//    datetime.push_back(TimestampData::fromEpochMillis(20L, 5));
-//    datetime.push_back(TimestampData::fromEpochMillis(21L, 5));
+    std::vector<int64_t> datetime = {10, 10, 20, 21, 20}; // 待修改为时间类型
+                                                          //    std::vector<TimestampData*> datetime;
+    //    datetime.push_back(TimestampData::fromEpochMillis(10L, 5));
+    //    datetime.push_back(TimestampData::fromEpochMillis(10L, 5));
+    //    datetime.push_back(TimestampData::fromEpochMillis(20L, 5));
+    //    datetime.push_back(TimestampData::fromEpochMillis(20L, 5));
+    //    datetime.push_back(TimestampData::fromEpochMillis(21L, 5));
 
     vbatch->Append(omniruntime::TestUtil::CreateVector<int64_t>(5, auction.data()));
     vbatch->Append(omniruntime::TestUtil::CreateVector<int64_t>(5, datetime.data()));
@@ -421,7 +425,7 @@ omnistream::VectorBatch* nexmarkQ5Input1() {
 }
 
 std::string Nexmark_Q8_Local_Window_Agg_1 =
-        R"delimiter({
+    R"delimiter({
 	"partition": {
 		"partitionName": "hash",
 		"channelNumber": 1,
@@ -499,15 +503,16 @@ std::string Nexmark_Q8_Local_Window_Agg_1 =
 	}]
 })delimiter";
 
-omnistream::VectorBatch* nexmarkQ8Input1() {
+omnistream::VectorBatch* nexmarkQ8Input1()
+{
     auto* vbatch = new omnistream::VectorBatch(5);
     std::vector<int64_t> id = {1, 1, 1, 15, 1};
     std::vector<std::string> name = {"A", "A", "B", "C", "D"}; // 待修改为string类型
-//    std::vector<int64_t> name = {10, 10, 30, 40, 10};
+                                                               //    std::vector<int64_t> name = {10, 10, 30, 40, 10};
     std::vector<int64_t> time = {1000, 1000, 1000, 1000, 10000};
 
     vbatch->Append(omniruntime::TestUtil::CreateVector<int64_t>(5, id.data()));
-//    vbatch->Append(omniruntime::TestUtil::CreateVector<int64_t>(5, name.data()));
+    //    vbatch->Append(omniruntime::TestUtil::CreateVector<int64_t>(5, name.data()));
     vbatch->Append(omniruntime::TestUtil::CreateVarcharVector(name.data(), 5));
     vbatch->Append(omniruntime::TestUtil::CreateVector<int64_t>(5, time.data()));
 
@@ -519,88 +524,17 @@ omnistream::VectorBatch* nexmarkQ8Input1() {
     return vbatch;
 }
 
-TEST(LocalWindowAggTest, SumAggTest) {
-    //Operator description
+TEST(LocalWindowAggTest, SumAggTest)
+{
+    // Operator description
     std::string uniqueName = "org.apache.flink.table.runtime.operators.aggregate.window.LocalSlicingWindowAggOperator";
     json parsedJson = json::parse(sliceDescription);
     omnistream::OperatorConfig opConfig(
-            uniqueName, //uniqueName:
-            "LocalWindowAgg_By_Simple", //Name
-            parsedJson["operators"][0]["inputTypes"],
-            parsedJson["operators"][0]["outputTypes"],
-            parsedJson["operators"][0]["description"]
-    );
-
-    auto *output = new BatchOutputTest();
-    auto env2 = new omnistream::RuntimeEnvironmentV2();
-    auto taskInfo = new TaskInformationPOD();
-    taskInfo->setStateBackend("HashMapStateBackend");
-    {
-        auto configPOD = taskInfo->getStreamConfigPOD();
-        auto operatorDesc = configPOD.getOperatorDescription();
-        operatorDesc.setOperatorId("deadbeefdeadbeefdeadbeefdeadbeef");
-        configPOD.setOperatorDescription(operatorDesc);
-        taskInfo->setStreamConfigPOD(configPOD);
-    }
-    env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
-    env2->setTaskConfiguration(*taskInfo);
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
-    std::vector<omnistream::RowField> typeInfo{omnistream::RowField("col0", BasicLogicalType::BIGINT)};
-    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, typeInfo));
-
-    auto* windowAggOperator = dynamic_cast<LocalSlicingWindowAggOperator*>(
-            omnistream::StreamOperatorFactory::createOperatorAndCollector(opConfig, output));
-    windowAggOperator->setup();
-    windowAggOperator->initializeState(initializer, ser);
-    windowAggOperator->open();
-    omnistream::VectorBatch* vBatch = newVectorBatchOneKeyOneValue1();
-    auto* streamRecord = new StreamRecord(vBatch);
-    windowAggOperator->processBatch(streamRecord);
-    windowAggOperator->ProcessWatermark(new Watermark(1000000));
-    auto* batchOutput = dynamic_cast<BatchOutputTest*>(windowAggOperator->getOutput());
-    std::cout << "=========== print result ==========" << std::endl;
-    auto* resultBatch = reinterpret_cast<omnistream::VectorBatch*> (batchOutput->getVectorBatch());
-    // print VectorBatch
-    int rowCount = resultBatch->GetRowCount();
-    int colCount = resultBatch->GetVectorCount();
-    for (int i = 0; i < rowCount; i++) {
-        for (int j = 0; j < colCount; j++) {
-            long result = resultBatch->GetValueAt<int64_t>(j, i);
-            std::cout << result;
-            std::cout << " ";
-        }
-        std::cout << to_string(resultBatch->getRowKind(i)) << std::endl;
-    }
-    std::cout << "LocalWindowAggTest  SumAggTest" << std::endl;
-}
-
-TEST(LocalWindowAggTest, SlicingTest) {
-    json parsedJson = json::parse(sliceDescription);
-    std::cout << "SlicingTest start" << std::endl;
-    SliceAssigner* sliceAssigner = AssignerAtt::createSliceAssigner(parsedJson["operators"][0]["description"]);
-    std::cout << "createSliceAssigner success" << std::endl;
-    omnistream::VectorBatch* vBatch = newVectorBatchOneKeyOneValue1();
-    int64_t sliceEndArr[vBatch->GetRowCount()];
-    for (int i = 0; i < vBatch->GetRowCount(); i++) {
-        int64_t sliceEnd = sliceAssigner->assignSliceEnd(vBatch, i, std::make_shared<ClockService>().get());
-        sliceEndArr[i] = sliceEnd;
-    }
-    for (const auto &item: sliceEndArr) {
-        std::cout << item << " " << std::endl;
-    }
-}
-
-TEST(LocalWindowAggTest, NexmarkQ5Test1) {
-    //Operator description
-    std::string uniqueName = "org.apache.flink.table.runtime.operators.aggregate.window.LocalSlicingWindowAggOperator";
-    json parsedJson = json::parse(Nexmark_Q5_Local_Window_Agg_1);
-    omnistream::OperatorConfig opConfig(
-            uniqueName, //uniqueName:
-            "LocalWindowAgg_By_Simple", //Name
-            parsedJson["operators"][0]["inputTypes"],
-            parsedJson["operators"][0]["outputTypes"],
-            parsedJson["operators"][0]["description"]
-    );
+        uniqueName,                 // uniqueName:
+        "LocalWindowAgg_By_Simple", // Name
+        parsedJson["operators"][0]["inputTypes"],
+        parsedJson["operators"][0]["outputTypes"],
+        parsedJson["operators"][0]["description"]);
 
     auto* output = new BatchOutputTest();
     auto env2 = new omnistream::RuntimeEnvironmentV2();
@@ -615,12 +549,84 @@ TEST(LocalWindowAggTest, NexmarkQ5Test1) {
     }
     env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
+    StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
     std::vector<omnistream::RowField> typeInfo{omnistream::RowField("col0", BasicLogicalType::BIGINT)};
-    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, typeInfo));
+    TypeSerializer* ser = new RowDataSerializer(new omnistream::RowType(false, typeInfo));
 
     auto* windowAggOperator = dynamic_cast<LocalSlicingWindowAggOperator*>(
-            omnistream::StreamOperatorFactory::createOperatorAndCollector(opConfig, output));
+        omnistream::StreamOperatorFactory::createOperatorAndCollector(opConfig, output));
+    windowAggOperator->setup();
+    windowAggOperator->initializeState(initializer, ser);
+    windowAggOperator->open();
+    omnistream::VectorBatch* vBatch = newVectorBatchOneKeyOneValue1();
+    auto* streamRecord = new StreamRecord(vBatch);
+    windowAggOperator->processBatch(streamRecord);
+    windowAggOperator->ProcessWatermark(new Watermark(1000000));
+    auto* batchOutput = dynamic_cast<BatchOutputTest*>(windowAggOperator->getOutput());
+    std::cout << "=========== print result ==========" << std::endl;
+    auto* resultBatch = reinterpret_cast<omnistream::VectorBatch*>(batchOutput->getVectorBatch());
+    // print VectorBatch
+    int rowCount = resultBatch->GetRowCount();
+    int colCount = resultBatch->GetVectorCount();
+    for (int i = 0; i < rowCount; i++) {
+        for (int j = 0; j < colCount; j++) {
+            long result = resultBatch->GetValueAt<int64_t>(j, i);
+            std::cout << result;
+            std::cout << " ";
+        }
+        std::cout << to_string(resultBatch->getRowKind(i)) << std::endl;
+    }
+    std::cout << "LocalWindowAggTest  SumAggTest" << std::endl;
+}
+
+TEST(LocalWindowAggTest, SlicingTest)
+{
+    json parsedJson = json::parse(sliceDescription);
+    std::cout << "SlicingTest start" << std::endl;
+    SliceAssigner* sliceAssigner = AssignerAtt::createSliceAssigner(parsedJson["operators"][0]["description"]);
+    std::cout << "createSliceAssigner success" << std::endl;
+    omnistream::VectorBatch* vBatch = newVectorBatchOneKeyOneValue1();
+    int64_t sliceEndArr[vBatch->GetRowCount()];
+    for (int i = 0; i < vBatch->GetRowCount(); i++) {
+        int64_t sliceEnd = sliceAssigner->assignSliceEnd(vBatch, i, std::make_shared<ClockService>().get());
+        sliceEndArr[i] = sliceEnd;
+    }
+    for (const auto& item : sliceEndArr) {
+        std::cout << item << " " << std::endl;
+    }
+}
+
+TEST(LocalWindowAggTest, NexmarkQ5Test1)
+{
+    // Operator description
+    std::string uniqueName = "org.apache.flink.table.runtime.operators.aggregate.window.LocalSlicingWindowAggOperator";
+    json parsedJson = json::parse(Nexmark_Q5_Local_Window_Agg_1);
+    omnistream::OperatorConfig opConfig(
+        uniqueName,                 // uniqueName:
+        "LocalWindowAgg_By_Simple", // Name
+        parsedJson["operators"][0]["inputTypes"],
+        parsedJson["operators"][0]["outputTypes"],
+        parsedJson["operators"][0]["description"]);
+
+    auto* output = new BatchOutputTest();
+    auto env2 = new omnistream::RuntimeEnvironmentV2();
+    auto taskInfo = new TaskInformationPOD();
+    taskInfo->setStateBackend("HashMapStateBackend");
+    {
+        auto configPOD = taskInfo->getStreamConfigPOD();
+        auto operatorDesc = configPOD.getOperatorDescription();
+        operatorDesc.setOperatorId("deadbeefdeadbeefdeadbeefdeadbeef");
+        configPOD.setOperatorDescription(operatorDesc);
+        taskInfo->setStreamConfigPOD(configPOD);
+    }
+    env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
+    env2->setTaskConfiguration(*taskInfo);
+    StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
+    std::vector<omnistream::RowField> typeInfo{omnistream::RowField("col0", BasicLogicalType::BIGINT)};
+    TypeSerializer* ser = new RowDataSerializer(new omnistream::RowType(false, typeInfo));
+
+    auto* windowAggOperator = dynamic_cast<LocalSlicingWindowAggOperator*>(
+        omnistream::StreamOperatorFactory::createOperatorAndCollector(opConfig, output));
     windowAggOperator->setup();
     windowAggOperator->initializeState(initializer, ser);
     windowAggOperator->open();
@@ -634,7 +640,7 @@ TEST(LocalWindowAggTest, NexmarkQ5Test1) {
 
     auto* batchOutput = dynamic_cast<BatchOutputTest*>(windowAggOperator->getOutput());
     std::cout << "=========== print result ==========" << std::endl;
-    auto* resultBatch = reinterpret_cast<omnistream::VectorBatch*> (batchOutput->getVectorBatch());
+    auto* resultBatch = reinterpret_cast<omnistream::VectorBatch*>(batchOutput->getVectorBatch());
     // print VectorBatch
     int rowCount = resultBatch->GetRowCount();
     int colCount = resultBatch->GetVectorCount();
@@ -650,30 +656,30 @@ TEST(LocalWindowAggTest, NexmarkQ5Test1) {
 }
 
 // 待确认NexmarkQ5Test2 aggValueTypes是否是2
-TEST(LocalWindowAggTest, DISABLED_NexmarkQ5Test2) {
-    //Operator description
+TEST(LocalWindowAggTest, DISABLED_NexmarkQ5Test2)
+{
+    // Operator description
     std::string uniqueName = "org.apache.flink.table.runtime.operators.aggregate.window.LocalSlicingWindowAggOperator";
     json parsedJson = json::parse(Nexmark_Q5_Local_Window_Agg_2); // inputTypes 类型有问题, 第一二列应该是时间类型
     omnistream::OperatorConfig opConfig(
-            uniqueName, //uniqueName:
-            "LocalWindowAgg_By_Simple", //Name
-            parsedJson["operators"][0]["inputTypes"],
-            parsedJson["operators"][0]["outputTypes"],
-            parsedJson["operators"][0]["description"]
-    );
+        uniqueName,                 // uniqueName:
+        "LocalWindowAgg_By_Simple", // Name
+        parsedJson["operators"][0]["inputTypes"],
+        parsedJson["operators"][0]["outputTypes"],
+        parsedJson["operators"][0]["description"]);
 
     auto* output = new BatchOutputTest();
     auto* windowAggOperator = dynamic_cast<LocalSlicingWindowAggOperator*>(
-            omnistream::StreamOperatorFactory::createOperatorAndCollector(opConfig, output));
+        omnistream::StreamOperatorFactory::createOperatorAndCollector(opConfig, output));
     windowAggOperator->open();
     omnistream::VectorBatch* vBatch = nexmarkQ5Input2();
     auto* streamRecord = new StreamRecord(vBatch);
     windowAggOperator->processBatch(streamRecord);
     windowAggOperator->ProcessWatermark(new Watermark(1000000));
 
-//    auto* batchOutput = dynamic_cast<BatchOutputTest*>(windowAggOperator->getOutput());
+    //    auto* batchOutput = dynamic_cast<BatchOutputTest*>(windowAggOperator->getOutput());
     std::cout << "=========== print result ==========" << std::endl;
-    auto* resultBatch = reinterpret_cast<omnistream::VectorBatch*> (output->getVectorBatch());
+    auto* resultBatch = reinterpret_cast<omnistream::VectorBatch*>(output->getVectorBatch());
     // print VectorBatch
     int rowCount = resultBatch->GetRowCount();
     int colCount = resultBatch->GetVectorCount();
@@ -688,17 +694,17 @@ TEST(LocalWindowAggTest, DISABLED_NexmarkQ5Test2) {
     std::cout << "LocalWindowAggTest  NexmarkQ5Test2" << std::endl;
 }
 
-TEST(LocalWindowAggTest, NexmarkQ8Test1) {
-    //Operator description
+TEST(LocalWindowAggTest, NexmarkQ8Test1)
+{
+    // Operator description
     std::string uniqueName = "org.apache.flink.table.runtime.operators.aggregate.window.LocalSlicingWindowAggOperator";
     json parsedJson = json::parse(Nexmark_Q8_Local_Window_Agg_1);
     omnistream::OperatorConfig opConfig(
-            uniqueName, //uniqueName:
-            "LocalWindowAgg_By_Simple", //Name
-            parsedJson["operators"][0]["inputTypes"],
-            parsedJson["operators"][0]["outputTypes"],
-            parsedJson["operators"][0]["description"]
-    );
+        uniqueName,                 // uniqueName:
+        "LocalWindowAgg_By_Simple", // Name
+        parsedJson["operators"][0]["inputTypes"],
+        parsedJson["operators"][0]["outputTypes"],
+        parsedJson["operators"][0]["description"]);
 
     auto* output = new BatchOutputTest();
     auto env2 = new omnistream::RuntimeEnvironmentV2();
@@ -713,12 +719,12 @@ TEST(LocalWindowAggTest, NexmarkQ8Test1) {
     }
     env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
+    StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
     std::vector<omnistream::RowField> typeInfo{omnistream::RowField("col0", BasicLogicalType::BIGINT)};
-    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, typeInfo));
+    TypeSerializer* ser = new RowDataSerializer(new omnistream::RowType(false, typeInfo));
 
     auto* windowAggOperator = dynamic_cast<LocalSlicingWindowAggOperator*>(
-            omnistream::StreamOperatorFactory::createOperatorAndCollector(opConfig, output));
+        omnistream::StreamOperatorFactory::createOperatorAndCollector(opConfig, output));
     windowAggOperator->setup();
     windowAggOperator->initializeState(initializer, ser);
     std::cout << "NexmarkQ8Test1" << std::endl;
@@ -732,15 +738,18 @@ TEST(LocalWindowAggTest, NexmarkQ8Test1) {
     std::cout << "NexmarkQ8Test4" << std::endl;
 
     std::cout << "=========== print result ==========" << std::endl;
-    auto* resultBatch = reinterpret_cast<omnistream::VectorBatch*> (output->getVectorBatch());
+    auto* resultBatch = reinterpret_cast<omnistream::VectorBatch*>(output->getVectorBatch());
     // print VectorBatch
-    std::vector types = {"BIGINT","VARCHAR","BIGINT"};
+    std::vector types = {"BIGINT", "VARCHAR", "BIGINT"};
     int rowCount = resultBatch->GetRowCount();
     int colCount = resultBatch->GetVectorCount();
     for (int i = 0; i < rowCount; i++) {
         for (int j = 0; j < colCount; j++) {
             if (types[j] == "VARCHAR") {
-                auto result = reinterpret_cast<omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>> *>(resultBatch->Get(j))->GetValue(i);
+                auto result = reinterpret_cast<
+                                  omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>*>(
+                                  resultBatch->Get(j))
+                                  ->GetValue(i);
                 std::string resStr(result);
                 std::cout << resStr;
             } else if (types[j] == "INTEGER") {
@@ -760,17 +769,17 @@ TEST(LocalWindowAggTest, NexmarkQ8Test1) {
     std::cout << "LocalWindowAggTest  NexmarkQ8Test" << std::endl;
 }
 
-TEST(LocalWindowAggTest, NexmarkQ7Test) {
-    //Operator description
+TEST(LocalWindowAggTest, NexmarkQ7Test)
+{
+    // Operator description
     std::string uniqueName = "org.apache.flink.table.runtime.operators.aggregate.window.LocalSlicingWindowAggOperator";
     json parsedJson = json::parse(nexmarkQ7Description);
     omnistream::OperatorConfig opConfig(
-            uniqueName, //uniqueName:
-            "LocalWindowAgg_By_Simple", //Name
-            parsedJson["operators"][0]["inputTypes"],
-            parsedJson["operators"][0]["outputTypes"],
-            parsedJson["operators"][0]["description"]
-    );
+        uniqueName,                 // uniqueName:
+        "LocalWindowAgg_By_Simple", // Name
+        parsedJson["operators"][0]["inputTypes"],
+        parsedJson["operators"][0]["outputTypes"],
+        parsedJson["operators"][0]["description"]);
 
     auto* output = new BatchOutputTest();
     auto env2 = new omnistream::RuntimeEnvironmentV2();
@@ -785,12 +794,12 @@ TEST(LocalWindowAggTest, NexmarkQ7Test) {
     }
     env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
+    StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
     std::vector<omnistream::RowField> typeInfo{omnistream::RowField("col0", BasicLogicalType::BIGINT)};
-    TypeSerializer *ser = new RowDataSerializer(new omnistream::RowType(false, typeInfo));
+    TypeSerializer* ser = new RowDataSerializer(new omnistream::RowType(false, typeInfo));
 
     auto* windowAggOperator = dynamic_cast<LocalSlicingWindowAggOperator*>(
-            omnistream::StreamOperatorFactory::createOperatorAndCollector(opConfig, output));
+        omnistream::StreamOperatorFactory::createOperatorAndCollector(opConfig, output));
     windowAggOperator->setup();
     windowAggOperator->initializeState(initializer, ser);
     windowAggOperator->open();
@@ -801,7 +810,7 @@ TEST(LocalWindowAggTest, NexmarkQ7Test) {
 
     auto* batchOutput = dynamic_cast<BatchOutputTest*>(windowAggOperator->getOutput());
     std::cout << "=========== print result ==========" << std::endl;
-    auto* resultBatch = reinterpret_cast<omnistream::VectorBatch*> (batchOutput->getVectorBatch());
+    auto* resultBatch = reinterpret_cast<omnistream::VectorBatch*>(batchOutput->getVectorBatch());
     // print VectorBatch
     int rowCount = resultBatch->GetRowCount();
     int colCount = resultBatch->GetVectorCount();
@@ -833,8 +842,8 @@ TEST(LocalWindowAggTest, NexmarkQ7Test) {
     BatchOutputTest *output = new BatchOutputTest();
     OperatorChain* chain = new OperatorChain(opChainConfig);
     StreamOperator * headOp = chain->createMainOperatorAndCollector(opChainConfig, output);
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new TaskInfoImpl("OperatorChainTest", 1, 1, 0)));
-    chain->initializeStateAndOpenOperators(initializer);
+    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(new RuntimeEnvironment(new
+TaskInfoImpl("OperatorChainTest", 1, 1, 0))); chain->initializeStateAndOpenOperators(initializer);
 
     auto localWindowAggOperator = dynamic_cast<LocalSlicingWindowAggOperator*>(headOp);
     omnistream::VectorBatch* vBatch = nexmarkQ7Input();

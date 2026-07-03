@@ -23,14 +23,14 @@
 
 namespace omnistream {
 
-    class ObjectBufferPool : public ObjectBufferProvider, public ObjectBufferRecycler {
-    public:
-        ObjectBufferPool() = default;
+class ObjectBufferPool : public ObjectBufferProvider, public ObjectBufferRecycler {
+public:
+    ObjectBufferPool() = default;
 
-        virtual std::shared_ptr<ObjectSegment> requestObjectSegment() = 0;
-        virtual std::shared_ptr<ObjectSegment> requestObjectSegmentBlocking() =0;
-        std::string toString() const override =0 ;
-    };
+    virtual std::shared_ptr<ObjectSegment> requestObjectSegment() = 0;
+    virtual std::shared_ptr<ObjectSegment> requestObjectSegmentBlocking() = 0;
+    std::string toString() const override = 0;
+};
 
 } // namespace omnistream
 

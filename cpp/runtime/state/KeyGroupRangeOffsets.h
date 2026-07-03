@@ -16,37 +16,41 @@
 
 class KeyGroupRangeOffsets {
 public:
-
     static std::invalid_argument newIllegalKeyGroupException(int keyGroup, KeyGroupRange keyGroupRange)
     {
-        std::string  msg = "Key Group" + std::to_string(keyGroup) + "is not in" + keyGroupRange.ToString()
-        + ". Unless you're directly using low level state access APIs, this"
-        " is most likely caused by non-deterministic shuffle key (hashCode and equals implementation).";
+        std::string msg =
+            "Key Group" + std::to_string(keyGroup) + "is not in" + keyGroupRange.ToString() +
+            ". Unless you're directly using low level state access APIs, this"
+            " is most likely caused by non-deterministic shuffle key (hashCode and equals implementation).";
         return std::invalid_argument(msg);
     }
 
     KeyGroupRangeOffsets(const KeyGroupRange& keyGroupRange, const std::vector<int64_t>& offsets)
-        : keyGroupRange_(keyGroupRange), offsets_(offsets)
+        : keyGroupRange_(keyGroupRange),
+          offsets_(offsets)
     {
         auto keyGroupSize = static_cast<size_t>(keyGroupRange_.getNumberOfKeyGroups());
         if (offsets_.size() != keyGroupSize) {
             std::string err = "Offsets length (" + std::to_string(offsets_.size()) +
-                ") does not match number of key groups (" + std::to_string(keyGroupSize) + ")";
+                              ") does not match number of key groups (" + std::to_string(keyGroupSize) + ")";
             throw std::invalid_argument(err);
         }
     }
 
     KeyGroupRangeOffsets(int rangeStart, int rangeEnd, const std::vector<int64_t>& offsets)
         : KeyGroupRangeOffsets(*std::unique_ptr<KeyGroupRange>(KeyGroupRange::of(rangeStart, rangeEnd)), offsets)
-    {}
+    {
+    }
 
     KeyGroupRangeOffsets(int rangeStart, int rangeEnd)
         : KeyGroupRangeOffsets(*std::unique_ptr<KeyGroupRange>(KeyGroupRange::of(rangeStart, rangeEnd)))
-    {}
+    {
+    }
 
     KeyGroupRangeOffsets(KeyGroupRange& keyGroupRange)
         : KeyGroupRangeOffsets(keyGroupRange, std::vector<int64_t>(keyGroupRange.getNumberOfKeyGroups(), 0))
-    {}
+    {
+    }
 
     int64_t getKeyGroupOffset(int keyGroup) const
     {
@@ -60,9 +64,15 @@ public:
         offsets_[idx] = offset;
     }
 
-    const KeyGroupRange getKeyGroupRange() const {return keyGroupRange_;}
+    const KeyGroupRange getKeyGroupRange() const
+    {
+        return keyGroupRange_;
+    }
 
-    const std::vector<int64_t>& getOffsets() const {return offsets_;}
+    const std::vector<int64_t>& getOffsets() const
+    {
+        return offsets_;
+    }
 
     KeyGroupRangeOffsets getIntersection(const KeyGroupRange& keyGroupRange) const
     {
@@ -92,14 +102,14 @@ public:
     std::string ToString() const
     {
         std::stringstream ss;
-        ss<< "{" << "\"keyGroupRange\":"<<keyGroupRange_.ToString();
-        ss<<",\"offsets\":[";
-        for(size_t i = 0; i< offsets_.size(); ++i) {
-            if(i>0) ss<<",";
-            ss<< std::to_string(offsets_[i]);
+        ss << "{" << "\"keyGroupRange\":" << keyGroupRange_.ToString();
+        ss << ",\"offsets\":[";
+        for (size_t i = 0; i < offsets_.size(); ++i) {
+            if (i > 0) ss << ",";
+            ss << std::to_string(offsets_[i]);
         }
-        ss<<"]";
-        ss<<"}";
+        ss << "]";
+        ss << "}";
         return ss.str();
     }
 

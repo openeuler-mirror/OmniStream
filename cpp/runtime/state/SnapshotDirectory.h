@@ -72,7 +72,11 @@ public:
 
 protected:
     explicit SnapshotDirectory(const fs::path& directory)
-        : directory_(directory), state_(State::ONGOING), ongoingState_(State::ONGOING) {}
+        : directory_(directory),
+          state_(State::ONGOING),
+          ongoingState_(State::ONGOING)
+    {
+    }
 
     fs::path directory_;
     std::atomic<State> state_;
@@ -81,8 +85,9 @@ protected:
 
 class TemporarySnapshotDirectory : public SnapshotDirectory {
 public:
-    explicit TemporarySnapshotDirectory(const fs::path& directory)
-        : SnapshotDirectory(directory) {}
+    explicit TemporarySnapshotDirectory(const fs::path& directory) : SnapshotDirectory(directory)
+    {
+    }
 
     std::unique_ptr<DirectoryStateHandle> completeSnapshotAndGetHandle() override
     {
@@ -92,8 +97,9 @@ public:
 
 class PermanentSnapshotDirectory : public SnapshotDirectory {
 public:
-    explicit PermanentSnapshotDirectory(const fs::path& directory)
-        : SnapshotDirectory(directory) {}
+    explicit PermanentSnapshotDirectory(const fs::path& directory) : SnapshotDirectory(directory)
+    {
+    }
 
     std::unique_ptr<DirectoryStateHandle> completeSnapshotAndGetHandle() override
     {

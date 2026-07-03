@@ -19,8 +19,8 @@
 
 class GeneratedAggsHandleFunctionAverage : public AggsHandleFunction {
 public:
-
-    GeneratedAggsHandleFunctionAverage(int aggIdx, int accIndexSum, int accIndexCount0, int valueIndex, int accIndexCount1 = -1);
+    GeneratedAggsHandleFunctionAverage(
+        int aggIdx, int accIndexSum, int accIndexCount0, int valueIndex, int accIndexCount1 = -1);
     void accumulate(RowData* accInput) override;
     void accumulate(omnistream::VectorBatch* input, const std::vector<int>& indices) override;
     void retract(RowData* retractInput) override;
@@ -30,9 +30,15 @@ public:
     void createAccumulators(BinaryRowData* accumulators) override;
     void resetAccumulators() override;
     void open(StateDataViewStore* store);
-    void setWindowSize(int windowSize) override {}
-    void cleanup() override {}
-    void close() override {}
+    void setWindowSize(int windowSize) override
+    {
+    }
+    void cleanup() override
+    {
+    }
+    void close() override
+    {
+    }
     void getAccumulators(BinaryRowData* accumulators) override;
     void getValue(BinaryRowData* aggValue) override;
     bool equaliser(BinaryRowData* r1, BinaryRowData* r2) override;

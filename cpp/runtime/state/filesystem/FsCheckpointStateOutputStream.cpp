@@ -16,14 +16,14 @@
 #include "FileStateHandle.h"
 
 FsCheckpointStateOutputStream::FsCheckpointStateOutputStream(
-    Path basePath, int fs,
-    int bufferSize, int localStateThreshold, bool allowRelativePaths)
+    Path basePath, int fs, int bufferSize, int localStateThreshold, bool allowRelativePaths)
     : basePath_(std::move(basePath)),
       fs_(fs),
       bufferSize_(bufferSize),
       localStateThreshold_(localStateThreshold),
       allowRelativePaths_(allowRelativePaths),
-      closed_(false) {
+      closed_(false)
+{
     tempPath_ = Path(basePath_, relativeStatePath_ + ".tmp").toString(); // relativeStatePath_ is UUID
     finalPath_ = Path(basePath_, relativeStatePath_).toString();
     handle = nullptr;
@@ -44,9 +44,7 @@ void FsCheckpointStateOutputStream::Flush()
     if (isSync) {
         static_cast<std::ofstream*>(this->outStream_)->flush();
     } else {
-        std::thread([this]() {
-            static_cast<std::ofstream*>(this->outStream_)->flush();
-        }).detach();
+        std::thread([this]() { static_cast<std::ofstream*>(this->outStream_)->flush(); }).detach();
     }
 }
 
@@ -65,7 +63,7 @@ long FsCheckpointStateOutputStream::GetPos()
 
 void FsCheckpointStateOutputStream::Sync()
 {
-    NOT_IMPL_EXCEPTION
+    NOT_IMPL_EXCEPTION;
 }
 
 void FsCheckpointStateOutputStream::Close()

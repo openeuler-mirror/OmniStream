@@ -32,26 +32,22 @@ namespace omnistream {
 class InputProcessorUtil {
 public:
     static std::vector<std::shared_ptr<CheckpointedInputGate>> CreateCheckpointedMultipleInputGate(
-            const std::shared_ptr<MailboxExecutor> &mailboxExecutor,
-            const std::vector<std::vector<std::shared_ptr<IndexedInputGate>>> &inputGateGroups,
-            const std::shared_ptr<CheckpointBarrierHandler> &barrierHandler,
-            bool graphContainsLoops = false)
+        const std::shared_ptr<MailboxExecutor>& mailboxExecutor,
+        const std::vector<std::vector<std::shared_ptr<IndexedInputGate>>>& inputGateGroups,
+        const std::shared_ptr<CheckpointBarrierHandler>& barrierHandler,
+        bool graphContainsLoops = false)
     {
         std::vector<std::shared_ptr<CheckpointedInputGate>> checkpointedInputGates;
 
         // 1. Flatten groups into a single vector
         std::vector<std::shared_ptr<IndexedInputGate>> unionedInputGates;
-        for (const auto &group: inputGateGroups) {
+        for (const auto& group : inputGateGroups) {
             unionedInputGates.insert(unionedInputGates.end(), group.begin(), group.end());
         }
 
         // 2. Wrap each InputGate with CheckpointedInputGate
-        for (const auto &inputGate: unionedInputGates) {
-            auto checkpointedGate = std::make_shared<CheckpointedInputGate>(
-                    inputGate,
-                    barrierHandler,
-                    mailboxExecutor
-            );
+        for (const auto& inputGate : unionedInputGates) {
+            auto checkpointedGate = std::make_shared<CheckpointedInputGate>(inputGate, barrierHandler, mailboxExecutor);
 
             checkpointedInputGates.push_back(checkpointedGate);
         }
@@ -60,23 +56,22 @@ public:
     }
 
     static std::shared_ptr<CheckpointBarrierHandler> CreateCheckpointBarrierHandler(
-        CheckpointableTask *toNotifyOnCheckpoint,
-        const std::string &taskName,
-        const std::shared_ptr<SubtaskCheckpointCoordinator> &coordinator,
-        const std::shared_ptr<MailboxExecutor> &mailboxExecutor,
-        const std::shared_ptr<omnistream::runtime::TimerService> &timerService,
-        const std::vector<std::vector<std::shared_ptr<IndexedInputGate>>> &inputGateGroups,
-        const std::vector<std::shared_ptr<OmniStreamTaskSourceInput>> &sourceInputs,
+        CheckpointableTask* toNotifyOnCheckpoint,
+        const std::string& taskName,
+        const std::shared_ptr<SubtaskCheckpointCoordinator>& coordinator,
+        const std::shared_ptr<MailboxExecutor>& mailboxExecutor,
+        const std::shared_ptr<omnistream::runtime::TimerService>& timerService,
+        const std::vector<std::vector<std::shared_ptr<IndexedInputGate>>>& inputGateGroups,
+        const std::vector<std::shared_ptr<OmniStreamTaskSourceInput>>& sourceInputs,
         bool enableUnaligned,
         std::int64_t alignedCheckpointTimeoutMillis,
         bool enableCheckpointAfterTasksFinish)
     {
-        std::vector<CheckpointableInput *> allInputs;
-        const bool isPureUnalignedConfigured =
-                    enableUnaligned && alignedCheckpointTimeoutMillis == 0;
+        std::vector<CheckpointableInput*> allInputs;
+        const bool isPureUnalignedConfigured = enableUnaligned && alignedCheckpointTimeoutMillis == 0;
         const bool forwardResumeToJava = !isPureUnalignedConfigured;
-        for (const auto &group: inputGateGroups) {
-            for (const auto &input: group) {
+        for (const auto& group : inputGateGroups) {
+            for (const auto& input : group) {
                 auto singleInputGate = std::dynamic_pointer_cast<SingleInputGate>(input);
                 if (singleInputGate == nullptr) {
                     continue;
@@ -85,35 +80,33 @@ public:
             }
         }
 
-        for (const auto &group: inputGateGroups) {
-            for (const auto &input: group) {
+        for (const auto& group : inputGateGroups) {
+            for (const auto& input : group) {
                 allInputs.push_back(input.get());
             }
         }
 
-        for (const auto &source: sourceInputs) {
+        for (const auto& source : sourceInputs) {
             allInputs.push_back(source.get());
         }
 
-        std::sort(allInputs.begin(), allInputs.end(),
-                  [](CheckpointableInput *a, CheckpointableInput *b) {
-                      return a->GetInputGateIndex() < b->GetInputGateIndex();
-                  });
+        std::sort(allInputs.begin(), allInputs.end(), [](CheckpointableInput* a, CheckpointableInput* b) {
+            return a->GetInputGateIndex() < b->GetInputGateIndex();
+        });
 
         int totalChannels = 0;
-        for (auto *input: allInputs) {
+        for (auto* input : allInputs) {
             totalChannels += static_cast<int>(input->GetChannelInfos().size());
         }
 
         // timer callback
-        auto timerCallback =
-            runtime::BarrierAlignmentUtil::createRegisterTimerCallback<std::function<void()>>(
-                mailboxExecutor.get(), timerService.get());
+        auto timerCallback = runtime::BarrierAlignmentUtil::createRegisterTimerCallback<std::function<void()>>(
+            mailboxExecutor.get(), timerService.get());
 
         // Force aligned
         enableUnaligned = false;
         if (!enableUnaligned) {
-			LOG("creates a aligned barrier handler");
+            LOG("creates a aligned barrier handler");
             return runtime::SingleCheckpointBarrierHandler::aligned(
                 taskName,
                 toNotifyOnCheckpoint,
@@ -129,7 +122,7 @@ public:
         //  - aligned-checkpoint-timeout > 0   => Aligned attempt + timeout => Unaligned
         alignedCheckpointTimeoutMillis = 60;
         if (alignedCheckpointTimeoutMillis == 0) {
-			LOG("creates a unaligned barrier handler");
+            LOG("creates a unaligned barrier handler");
             return runtime::SingleCheckpointBarrierHandler::unaligned(
                 taskName,
                 toNotifyOnCheckpoint,
@@ -141,7 +134,7 @@ public:
                 allInputs);
         }
 
-		LOG("creates a alternating barrier handler");
+        LOG("creates a alternating barrier handler");
         return runtime::SingleCheckpointBarrierHandler::alternating(
             taskName,
             toNotifyOnCheckpoint,

@@ -20,10 +20,9 @@
 #include "core/include/common.h"
 using namespace omniruntime::vec;
 namespace omnistream {
-    // for DATE_FORMAT
-    BaseVector* BatchDateFormat(BaseVector* inputVec, const std::string &format);
-    BaseVector* RegexpExtract(BaseVector* inputVec, std::string& regexToMatch, int32_t group);
-}
-
+// for DATE_FORMAT
+BaseVector* BatchDateFormat(BaseVector* inputVec, const std::string& format);
+BaseVector* RegexpExtract(BaseVector* inputVec, std::string& regexToMatch, int32_t group);
+} // namespace omnistream
 
 #endif

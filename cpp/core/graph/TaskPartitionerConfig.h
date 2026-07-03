@@ -17,18 +17,18 @@ using string = std::string;
 using json = nlohmann::json;
 
 namespace omnistream::datastream {
-    class TaskPartitionerConfig {
-    public:
-        TaskPartitionerConfig(string partitionName, int numberOfChannel, nlohmann::json options);
-        string getPartitionName() const;
-        int getNumberOfChannel() const;
-        nlohmann::json  getOptions() const;
-    private:
-        string partitionerName;
-        int numberOfChannel;
-        nlohmann::json  options;
-    };
-}
+class TaskPartitionerConfig {
+public:
+    TaskPartitionerConfig(string partitionName, int numberOfChannel, nlohmann::json options);
+    string getPartitionName() const;
+    int getNumberOfChannel() const;
+    nlohmann::json getOptions() const;
 
+private:
+    string partitionerName;
+    int numberOfChannel;
+    nlohmann::json options;
+};
+} // namespace omnistream::datastream
 
 #endif

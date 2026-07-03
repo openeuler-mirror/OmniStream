@@ -13,36 +13,39 @@
 
 namespace omnistream {
 
-    void MultipleFuturesAvailabilityHelper::notifyCompletion() {
-        // This lock is to ensure that the availableFuture won't be changed or deleted by the mailBox thread (resetToUnAvailable).
-        std::lock_guard<std::recursive_mutex> lock(availableFutureMutex);
-        availableFuture->complete();
-    }
-
-    MultipleFuturesAvailabilityHelper::MultipleFuturesAvailabilityHelper(int size) {
-        futuresToCombine.resize(size);
-    }
-
-    std::shared_ptr<CompletableFuture> MultipleFuturesAvailabilityHelper::getAvailableFuture()
-    {
-        return availableFuture;
-    }
-
-    void MultipleFuturesAvailabilityHelper::resetToUnAvailable()
-    {
-        std::lock_guard<std::recursive_mutex> lock(availableFutureMutex);
-        if (availableFuture->isDone()) {
-            availableFuture = std::make_shared<CompletableFuture>();
-        }
-    }
-
-    void MultipleFuturesAvailabilityHelper::anyOf(int idx, std::shared_ptr<CompletableFuture> availabilityFuture)
-    {
-        if (futuresToCombine[idx] == nullptr || futuresToCombine[idx]->isDone()) {
-            futuresToCombine[idx] = availabilityFuture;
-            auto inner = std::make_shared<InnerRunnable>(this);
-            availabilityFuture->thenRun(inner);
-        }
-    }
-
+void MultipleFuturesAvailabilityHelper::notifyCompletion()
+{
+    // This lock is to ensure that the availableFuture won't be changed or deleted by the mailBox thread
+    // (resetToUnAvailable).
+    std::lock_guard<std::recursive_mutex> lock(availableFutureMutex);
+    availableFuture->complete();
 }
+
+MultipleFuturesAvailabilityHelper::MultipleFuturesAvailabilityHelper(int size)
+{
+    futuresToCombine.resize(size);
+}
+
+std::shared_ptr<CompletableFuture> MultipleFuturesAvailabilityHelper::getAvailableFuture()
+{
+    return availableFuture;
+}
+
+void MultipleFuturesAvailabilityHelper::resetToUnAvailable()
+{
+    std::lock_guard<std::recursive_mutex> lock(availableFutureMutex);
+    if (availableFuture->isDone()) {
+        availableFuture = std::make_shared<CompletableFuture>();
+    }
+}
+
+void MultipleFuturesAvailabilityHelper::anyOf(int idx, std::shared_ptr<CompletableFuture> availabilityFuture)
+{
+    if (futuresToCombine[idx] == nullptr || futuresToCombine[idx]->isDone()) {
+        futuresToCombine[idx] = availabilityFuture;
+        auto inner = std::make_shared<InnerRunnable>(this);
+        availabilityFuture->thenRun(inner);
+    }
+}
+
+} // namespace omnistream

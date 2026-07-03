@@ -12,9 +12,10 @@ namespace {
 constexpr int32_t LONG_TYPE = omniruntime::type::DataTypeId::OMNI_LONG;
 }
 
-TEST(NamespaceAggsMinMaxFunctionTest, TracksMinimumMergesAndWritesValue) {
+TEST(NamespaceAggsMinMaxFunctionTest, TracksMinimumMergesAndWritesValue)
+{
     NamespaceAggsMinMaxFunction<int64_t> function(
-            {0}, {LONG_TYPE}, {0}, {LONG_TYPE}, 0, LONG_TYPE, NamespaceAggsBasicFunctionType::MIN);
+        {0}, {LONG_TYPE}, {0}, {LONG_TYPE}, 0, LONG_TYPE, NamespaceAggsBasicFunctionType::MIN);
     auto accumulator = std::unique_ptr<BinaryRowData>(BinaryRowData::createBinaryRowDataWithMem(1));
     accumulator->setNullAt(0);
     function.setAccumulators(0, accumulator.get());
@@ -34,9 +35,10 @@ TEST(NamespaceAggsMinMaxFunctionTest, TracksMinimumMergesAndWritesValue) {
     EXPECT_EQ(1, *value->getLong(0));
 }
 
-TEST(NamespaceAggsMinMaxFunctionTest, TracksMaximumAndRejectsRetract) {
+TEST(NamespaceAggsMinMaxFunctionTest, TracksMaximumAndRejectsRetract)
+{
     NamespaceAggsMinMaxFunction<int64_t> function(
-            {0}, {LONG_TYPE}, {0}, {LONG_TYPE}, 0, LONG_TYPE, NamespaceAggsBasicFunctionType::MAX);
+        {0}, {LONG_TYPE}, {0}, {LONG_TYPE}, 0, LONG_TYPE, NamespaceAggsBasicFunctionType::MAX);
     auto accumulator = std::unique_ptr<BinaryRowData>(BinaryRowData::createBinaryRowDataWithMem(1));
     accumulator->setNullAt(0);
     function.setAccumulators(0, accumulator.get());

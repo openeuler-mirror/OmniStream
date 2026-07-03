@@ -27,9 +27,11 @@ private:
 
     // 私有构造函数，禁止外部随意创建对象
     AvailabilityStatus(StatusType type, bool available, bool needNotify)
-            : type(type),
-              available(available),
-              needRequestingNotificationOfGlobalPoolAvailable(needNotify) {}
+        : type(type),
+          available(available),
+          needRequestingNotificationOfGlobalPoolAvailable(needNotify)
+    {
+    }
 
 public:
     // 删除拷贝构造和赋值，确保类似Java枚举的单例唯一性
@@ -37,38 +39,46 @@ public:
     AvailabilityStatus& operator=(const AvailabilityStatus&) = delete;
 
     // --- 静态实例访问器 (模拟 Java Enum 常量) ---
-    static const AvailabilityStatus& AVAILABLE() {
+    static const AvailabilityStatus& AVAILABLE()
+    {
         static const AvailabilityStatus instance(StatusType::AVAILABLE, true, false);
         return instance;
     }
 
-    static const AvailabilityStatus& UNAVAILABLE_NEED_REQUESTING_NOTIFICATION() {
+    static const AvailabilityStatus& UNAVAILABLE_NEED_REQUESTING_NOTIFICATION()
+    {
         static const AvailabilityStatus instance(StatusType::UNAVAILABLE_NEED_REQUESTING_NOTIFICATION, false, true);
         return instance;
     }
 
-    static const AvailabilityStatus& UNAVAILABLE_NEED_NOT_REQUESTING_NOTIFICATION() {
-        static const AvailabilityStatus instance(StatusType::UNAVAILABLE_NEED_NOT_REQUESTING_NOTIFICATION, false, false);
+    static const AvailabilityStatus& UNAVAILABLE_NEED_NOT_REQUESTING_NOTIFICATION()
+    {
+        static const AvailabilityStatus instance(
+            StatusType::UNAVAILABLE_NEED_NOT_REQUESTING_NOTIFICATION, false, false);
         return instance;
     }
 
     // --- Getter 方法 ---
 
-    bool isAvailable() const {
+    bool isAvailable() const
+    {
         return available;
     }
 
-    bool isNeedRequestingNotificationOfGlobalPoolAvailable() const {
+    bool isNeedRequestingNotificationOfGlobalPoolAvailable() const
+    {
         return needRequestingNotificationOfGlobalPoolAvailable;
     }
 
     // 获取枚举类型（方便比较）
-    StatusType getType() const {
+    StatusType getType() const
+    {
         return type;
     }
 
     // --- 静态工厂方法 (from) ---
-    static const AvailabilityStatus& from(bool isAvailable, bool isNeedRequestingNotificationOfGlobalPoolAvailable) {
+    static const AvailabilityStatus& from(bool isAvailable, bool isNeedRequestingNotificationOfGlobalPoolAvailable)
+    {
         if (isAvailable) {
             return AVAILABLE();
         } else if (isNeedRequestingNotificationOfGlobalPoolAvailable) {
@@ -79,12 +89,14 @@ public:
     }
 
     // 重载 == 运算符，允许直接比较
-    bool operator==(const AvailabilityStatus& other) const {
+    bool operator==(const AvailabilityStatus& other) const
+    {
         return this->type == other.type;
     }
 
-    bool operator!=(const AvailabilityStatus& other) const {
+    bool operator!=(const AvailabilityStatus& other) const
+    {
         return !(*this == other);
     }
 };
-#endif //OMNISTREAM_AVAILABILITYSTATUS_H
+#endif // OMNISTREAM_AVAILABILITYSTATUS_H

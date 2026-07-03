@@ -38,23 +38,20 @@ TEST(SourceTestTest, CsvRowParsesQuotedJsonField)
 TEST(SourceTestTest, JsonRowDataDeserializationSchemaHandlesNullStringField)
 {
     nlohmann::json description = {
-        {"outputNames", {"id", "json_str"}},
-        {"outputTypes", {"BIGINT", "VARCHAR(2147483647)"}}
-    };
+        {"outputNames", {"id", "json_str"}}, {"outputTypes", {"BIGINT", "VARCHAR(2147483647)"}}};
     JsonRowDataDeserializationSchema schema(description);
 
     std::string record = R"({"id":1,"json_str":null})";
-    std::vector<const uint8_t*> messages{
-        reinterpret_cast<const uint8_t*>(record.data())
-    };
+    std::vector<const uint8_t*> messages{reinterpret_cast<const uint8_t*>(record.data())};
     std::vector<size_t> lengths{record.size()};
 
     auto* batch = reinterpret_cast<omnistream::VectorBatch*>(schema.deserialize(messages, lengths));
     ASSERT_NE(batch, nullptr);
 
     auto* idVector = reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(batch->Get(0));
-    auto* jsonVector = reinterpret_cast<omniruntime::vec::Vector<
-        omniruntime::vec::LargeStringContainer<std::string_view>>*>(batch->Get(1));
+    auto* jsonVector =
+        reinterpret_cast<omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>*>(
+            batch->Get(1));
 
     EXPECT_FALSE(idVector->IsNull(0));
     EXPECT_EQ(idVector->GetValue(0), 1);
@@ -88,7 +85,7 @@ TEST(SourceTestTest, DISABLED_initoper)
                         "csvSelectFieldToCsvFieldMapping" : [ 3, 5, 2, 1, 0 ]})DELIM";
     nlohmann::json opDescriptionJSON = nlohmann::json::parse(description);
     std::vector<DataTypeId> fields;
-    for (auto &field: opDescriptionJSON["fields"]) {
+    for (auto& field : opDescriptionJSON["fields"]) {
         fields.push_back(LogicalType::flinkTypeToOmniTypeId(field["type"]));
     }
     omnistream::csv::CsvSchema schema(fields);
@@ -99,18 +96,16 @@ TEST(SourceTestTest, DISABLED_initoper)
     for (int i = 0; i < csvSelectFieldToProjectFieldMapping.size(); i++) {
         oneMap[csvSelectFieldToProjectFieldMapping[i]] = csvSelectFieldToCsvFieldMapping[i];
     }
-    auto csvInputFormat = new omnistream::csv::CsvInputFormat<omnistream::VectorBatch>(schema, 1000,
-                                                                            oneMap);
-    omnistream::InputSplit *inputSplit = new omnistream::InputSplit(opDescriptionJSON["filePath"], 0,
-                                                                    100000);
+    auto csvInputFormat = new omnistream::csv::CsvInputFormat<omnistream::VectorBatch>(schema, 1000, oneMap);
+    omnistream::InputSplit* inputSplit = new omnistream::InputSplit(opDescriptionJSON["filePath"], 0, 100000);
     auto func = new omnistream::InputFormatSourceFunction<omnistream::VectorBatch>(csvInputFormat, inputSplit);
-    BinaryRowDataSerializer *binaryRowDataSerializer = new BinaryRowDataSerializer(2);
+    BinaryRowDataSerializer* binaryRowDataSerializer = new BinaryRowDataSerializer(2);
     const int32_t BUFFER_CAPACITY = 256;
-    uint8_t *address = new uint8_t[BUFFER_CAPACITY];
-    auto *partitioner = new DummyStreamPartitioner();
-    auto *recordWriter = new omnistream::datastream::RecordWriter(address, BUFFER_CAPACITY, partitioner);
-    auto *recordWriteOutput = new omnistream::datastream::RecordWriterOutput(binaryRowDataSerializer, recordWriter);
-    auto *source = new omnistream::StreamSource(func, recordWriteOutput);
+    uint8_t* address = new uint8_t[BUFFER_CAPACITY];
+    auto* partitioner = new DummyStreamPartitioner();
+    auto* recordWriter = new omnistream::datastream::RecordWriter(address, BUFFER_CAPACITY, partitioner);
+    auto* recordWriteOutput = new omnistream::datastream::RecordWriterOutput(binaryRowDataSerializer, recordWriter);
+    auto* source = new omnistream::StreamSource(func, recordWriteOutput);
     source->setup();
     source->run();
 }

@@ -18,31 +18,38 @@
 template <typename K, typename N, typename S>
 class CopyOnWriteStateTable : public StateTable<K, N, S> {
 public:
-    CopyOnWriteStateTable(InternalKeyContext<K> *keyContext, RegisteredKeyValueStateBackendMetaInfo *metaInfo, TypeSerializer *keySerializer);
+    CopyOnWriteStateTable(
+        InternalKeyContext<K>* keyContext,
+        RegisteredKeyValueStateBackendMetaInfo* metaInfo,
+        TypeSerializer* keySerializer);
 
     virtual ~CopyOnWriteStateTable() override;
 
-    void setMetaInfo(RegisteredKeyValueStateBackendMetaInfo *metaInfo);
+    void setMetaInfo(RegisteredKeyValueStateBackendMetaInfo* metaInfo);
     int computeKeyGroupForKeyHash(K key);
+
 protected:
-    StateMap<K, N, S> *createStateMap() override;
+    StateMap<K, N, S>* createStateMap() override;
     void initialize() override;
 };
 
 template <typename K, typename N, typename S>
-inline StateMap<K, N, S> *CopyOnWriteStateTable<K, N, S>::createStateMap()
+inline StateMap<K, N, S>* CopyOnWriteStateTable<K, N, S>::createStateMap()
 {
     return new omnistream::CopyOnWriteStateMap<K, N, S>(this->keySerializer);
 }
 
 template <typename K, typename N, typename S>
-inline CopyOnWriteStateTable<K, N, S>::CopyOnWriteStateTable(InternalKeyContext<K> *keyContext, RegisteredKeyValueStateBackendMetaInfo *metaInfo, TypeSerializer *keySerializer) : StateTable<K, N, S>(keyContext, metaInfo, keySerializer)
+inline CopyOnWriteStateTable<K, N, S>::CopyOnWriteStateTable(
+    InternalKeyContext<K>* keyContext, RegisteredKeyValueStateBackendMetaInfo* metaInfo, TypeSerializer* keySerializer)
+    : StateTable<K, N, S>(keyContext, metaInfo, keySerializer)
 {
     initialize();
 }
 
 template <typename K, typename N, typename S>
-CopyOnWriteStateTable<K, N, S>::~CopyOnWriteStateTable() {
+CopyOnWriteStateTable<K, N, S>::~CopyOnWriteStateTable()
+{
 }
 
 template <typename K, typename N, typename S>
@@ -54,7 +61,7 @@ inline void CopyOnWriteStateTable<K, N, S>::initialize()
 }
 
 template <typename K, typename N, typename S>
-inline void CopyOnWriteStateTable<K, N, S>::setMetaInfo(RegisteredKeyValueStateBackendMetaInfo *metaInfo)
+inline void CopyOnWriteStateTable<K, N, S>::setMetaInfo(RegisteredKeyValueStateBackendMetaInfo* metaInfo)
 {
 }
 

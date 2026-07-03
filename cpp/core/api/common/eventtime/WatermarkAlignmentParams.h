@@ -20,8 +20,10 @@ public:
     static const WatermarkAlignmentParams* watermarkAlignmentDisabled;
 
     WatermarkAlignmentParams(long maxAllowedWatermarkDrift, long updateInterval, std::string watermarkGroup) noexcept
-        : maxAllowedWatermarkDrift(maxAllowedWatermarkDrift), updateInterval(updateInterval),
-        watermarkGroup(watermarkGroup) {
+        : maxAllowedWatermarkDrift(maxAllowedWatermarkDrift),
+          updateInterval(updateInterval),
+          watermarkGroup(watermarkGroup)
+    {
     }
 
     bool IsEnabled()
@@ -43,6 +45,7 @@ public:
     {
         return updateInterval;
     }
+
 private:
     long maxAllowedWatermarkDrift;
     long updateInterval;

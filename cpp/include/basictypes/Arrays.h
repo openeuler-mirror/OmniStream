@@ -19,6 +19,6 @@
 
 class Arrays : public Object {
 public:
-    static List *asList(Array *obj);
+    static List* asList(Array* obj);
 };
 #endif // ME_CHECK_ARRAYS_H

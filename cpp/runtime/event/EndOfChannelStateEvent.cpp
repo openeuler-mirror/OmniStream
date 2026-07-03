@@ -9,13 +9,12 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "EndOfChannelStateEvent.h"
- 
-namespace omnistream {
-   std::shared_ptr<EndOfChannelStateEvent> EndOfChannelStateEvent::getInstance()
-    {
-        static std::shared_ptr<EndOfChannelStateEvent> instance =
-                std::make_shared<EndOfChannelStateEvent>();
 
-        return instance;
-    }
+namespace omnistream {
+std::shared_ptr<EndOfChannelStateEvent> EndOfChannelStateEvent::getInstance()
+{
+    static std::shared_ptr<EndOfChannelStateEvent> instance = std::make_shared<EndOfChannelStateEvent>();
+
+    return instance;
+}
 } // namespace omnistream

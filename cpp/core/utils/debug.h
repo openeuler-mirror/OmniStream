@@ -8,7 +8,6 @@
 #include <chrono>
 #include <stdexcept>
 
-
 using Time = std::chrono::high_resolution_clock;
 using ms = std::chrono::milliseconds;
 using fsec = std::chrono::duration<float>;

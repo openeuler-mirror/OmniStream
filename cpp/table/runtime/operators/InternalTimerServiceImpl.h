@@ -22,28 +22,29 @@
 #include <cstdint>
 #include <functional>
 
-template<typename K, typename N>
+template <typename K, typename N>
 class AggregateWindowOperator;
 
 template <typename K, typename N>
 class InternalTimerServiceImpl : public InternalTimerService<N>, public ProcessingTimeCallback {
 public:
-    using ProcessingTimeTimersQueueType = KeyGroupedInternalPriorityQueue<std::shared_ptr<TimerHeapInternalTimer<K, N>>>;
+    using ProcessingTimeTimersQueueType =
+        KeyGroupedInternalPriorityQueue<std::shared_ptr<TimerHeapInternalTimer<K, N>>>;
     using EventTimeTimersQueueType = KeyGroupedInternalPriorityQueue<std::shared_ptr<TimerHeapInternalTimer<K, N>>>;
 
     InternalTimerServiceImpl(
-            KeyGroupRange *localKeyGroupRange,
-            KeyContext<K> *keyContext,
-            ProcessingTimeService *processingTimeService,
-            std::shared_ptr<ProcessingTimeTimersQueueType> processingTimeTimersQueue,
-            std::shared_ptr<EventTimeTimersQueueType> eventTimeTimersQueue);
+        KeyGroupRange* localKeyGroupRange,
+        KeyContext<K>* keyContext,
+        ProcessingTimeService* processingTimeService,
+        std::shared_ptr<ProcessingTimeTimersQueueType> processingTimeTimersQueue,
+        std::shared_ptr<EventTimeTimersQueueType> eventTimeTimersQueue);
 
     ~InternalTimerServiceImpl() override;
     int64_t currentProcessingTime() override;
     int64_t currentWatermark() override;
     void advanceWatermark(int64_t time) override;
     void startTimerService(
-        TypeSerializer *keySerializer, TypeSerializer *namespaceSerializer, Triggerable<K, N> *triggerTarget);
+        TypeSerializer* keySerializer, TypeSerializer* namespaceSerializer, Triggerable<K, N>* triggerTarget);
     void registerProcessingTimeTimer(N nameSpace, int64_t time);
     void deleteProcessingTimeTimer(N nameSpace, int64_t time);
     void registerEventTimeTimer(N nameSpace, int64_t time);
@@ -55,21 +56,22 @@ public:
 
     InternalTimersSnapshot<K, N> snapshotTimersForKeyGroup(int32_t keyGroupId);
 
-    void restoreTimersForKeyGroup(const InternalTimersSnapshot<K, N> &timersSnapshot, int32_t keyGroupId);
+    void restoreTimersForKeyGroup(const InternalTimersSnapshot<K, N>& timersSnapshot, int32_t keyGroupId);
 
-    TypeSerializer *getKeySerializer()
+    TypeSerializer* getKeySerializer()
     {
         return keySerializer;
     }
 
-    TypeSerializer *getNamespaceSerializer()
+    TypeSerializer* getNamespaceSerializer()
     {
         return namespaceSerializer;
     }
+
 private:
-    KeyContext<K> *keyContext = nullptr;
-    ProcessingTimeService *processingTimeService = nullptr;
-    KeyGroupRange *localKeyGroupRange = nullptr;
+    KeyContext<K>* keyContext = nullptr;
+    ProcessingTimeService* processingTimeService = nullptr;
+    KeyGroupRange* localKeyGroupRange = nullptr;
     std::shared_ptr<ProcessingTimeTimersQueueType> processingTimeTimersQueue;
     std::shared_ptr<EventTimeTimersQueueType> eventTimeTimersQueue;
 
@@ -78,22 +80,25 @@ private:
     int32_t localKeyGroupRangeStartIndex{};
     int64_t currentWatermarkValue = INT64_MIN;
 
-    Triggerable<K, N> *triggerTarget = nullptr;
-    TypeSerializer *keySerializer = nullptr;
-    TypeSerializer *namespaceSerializer = nullptr;
+    Triggerable<K, N>* triggerTarget = nullptr;
+    TypeSerializer* keySerializer = nullptr;
+    TypeSerializer* namespaceSerializer = nullptr;
     bool isInitialized{};
     void OnProcessingTime(int64_t time) override;
 };
 
 template <typename K, typename N>
 InternalTimerServiceImpl<K, N>::InternalTimerServiceImpl(
-        KeyGroupRange *localKeyGroupRange,
-        KeyContext<K> *keyContext,
-        ProcessingTimeService *processingTimeService,
-        std::shared_ptr<ProcessingTimeTimersQueueType> processingTimeTimersQueue,
-        std::shared_ptr<EventTimeTimersQueueType> eventTimeTimersQueue)
-    : keyContext(keyContext), processingTimeService(processingTimeService), localKeyGroupRange(localKeyGroupRange),
-      processingTimeTimersQueue(processingTimeTimersQueue), eventTimeTimersQueue(eventTimeTimersQueue),
+    KeyGroupRange* localKeyGroupRange,
+    KeyContext<K>* keyContext,
+    ProcessingTimeService* processingTimeService,
+    std::shared_ptr<ProcessingTimeTimersQueueType> processingTimeTimersQueue,
+    std::shared_ptr<EventTimeTimersQueueType> eventTimeTimersQueue)
+    : keyContext(keyContext),
+      processingTimeService(processingTimeService),
+      localKeyGroupRange(localKeyGroupRange),
+      processingTimeTimersQueue(processingTimeTimersQueue),
+      eventTimeTimersQueue(eventTimeTimersQueue),
       isInitialized(false)
 {
     this->localKeyGroupRangeStartIndex =
@@ -104,7 +109,8 @@ InternalTimerServiceImpl<K, N>::InternalTimerServiceImpl(
 }
 
 template <typename K, typename N>
-InternalTimerServiceImpl<K, N>::~InternalTimerServiceImpl() {
+InternalTimerServiceImpl<K, N>::~InternalTimerServiceImpl()
+{
     // TODO: Serializer::INSTANCE cannot be deleted here
     // if (namespaceSerializer != nullptr) {
     //     delete namespaceSerializer;
@@ -141,7 +147,7 @@ void InternalTimerServiceImpl<K, N>::advanceWatermark(int64_t time)
 
 template <typename K, typename N>
 void InternalTimerServiceImpl<K, N>::startTimerService(
-    TypeSerializer *keySerializer, TypeSerializer *namespaceSerializer, Triggerable<K, N> *triggerTarget)
+    TypeSerializer* keySerializer, TypeSerializer* namespaceSerializer, Triggerable<K, N>* triggerTarget)
 {
     if (!isInitialized) {
         if (keySerializer == nullptr || namespaceSerializer == nullptr) {
@@ -158,14 +164,19 @@ void InternalTimerServiceImpl<K, N>::startTimerService(
             if (restoredKeySerializer != nullptr &&
                 restoredKeySerializer->getBackendId() != BackendDataType::INVALID_BK &&
                 restoredKeySerializer->getBackendId() != keySerializer->getBackendId()) {
-                INFO_RELEASE("Error: startTimerService Restored timer key serializer is incompatible with requested timer service.");
-                THROW_LOGIC_EXCEPTION("Restored timer key serializer is incompatible with requested timer service.")
+                INFO_RELEASE(
+                    "Error: startTimerService Restored timer key serializer is incompatible with requested "
+                    "timer service.");
+                THROW_LOGIC_EXCEPTION("Restored timer key serializer is incompatible with requested timer service.");
             }
             if (restoredNamespaceSerializer != nullptr &&
                 restoredNamespaceSerializer->getBackendId() != BackendDataType::INVALID_BK &&
                 restoredNamespaceSerializer->getBackendId() != namespaceSerializer->getBackendId()) {
-                INFO_RELEASE("Error: startTimerService Restored timer namespace serializer is incompatible with requested timer service");
-                THROW_LOGIC_EXCEPTION("Restored timer namespace serializer is incompatible with requested timer service.")
+                INFO_RELEASE(
+                    "Error: startTimerService Restored timer namespace serializer is incompatible with "
+                    "requested timer service");
+                THROW_LOGIC_EXCEPTION(
+                    "Restored timer namespace serializer is incompatible with requested timer service.");
             }
         }
 
@@ -247,14 +258,14 @@ InternalTimersSnapshot<K, N> InternalTimerServiceImpl<K, N>::snapshotTimersForKe
 
     auto eventSubset = eventTimeTimersQueue->getSubsetForKeyGroup(keyGroupId);
     if (eventSubset != nullptr) {
-        for (const auto &timer : *eventSubset) {
+        for (const auto& timer : *eventSubset) {
             snapshot.addEventTimeTimer(timer);
         }
     }
 
     auto processingSubset = processingTimeTimersQueue->getSubsetForKeyGroup(keyGroupId);
     if (processingSubset != nullptr) {
-        for (const auto &timer : *processingSubset) {
+        for (const auto& timer : *processingSubset) {
             snapshot.addProcessingTimeTimer(timer);
         }
     }
@@ -264,25 +275,24 @@ InternalTimersSnapshot<K, N> InternalTimerServiceImpl<K, N>::snapshotTimersForKe
 
 template <typename K, typename N>
 void InternalTimerServiceImpl<K, N>::restoreTimersForKeyGroup(
-    const InternalTimersSnapshot<K, N> &timersSnapshot,
-    int32_t keyGroupId)
+    const InternalTimersSnapshot<K, N>& timersSnapshot, int32_t keyGroupId)
 {
     if (localKeyGroupRange != nullptr && !localKeyGroupRange->contains(keyGroupId)) {
         INFO_RELEASE(
             "Error: restoreTimersForKeyGroup Timer key-group " << keyGroupId << " is outside local key-group range "
-            << localKeyGroupRange->ToString());
-        THROW_LOGIC_EXCEPTION("Timer key-group " << keyGroupId << " is outside local key-group range "
-            << localKeyGroupRange->ToString())
+                                                               << localKeyGroupRange->ToString());
+        THROW_LOGIC_EXCEPTION(
+            "Timer key-group " << keyGroupId << " is outside local key-group range " << localKeyGroupRange->ToString());
     }
 
     restoredTimersSnapshot = timersSnapshot;
     hasRestoredTimersSnapshot = true;
 
-    for (const auto &timer : timersSnapshot.getEventTimeTimers()) {
+    for (const auto& timer : timersSnapshot.getEventTimeTimers()) {
         eventTimeTimersQueue->add(timer);
     }
 
-    for (const auto &timer : timersSnapshot.getProcessingTimeTimers()) {
+    for (const auto& timer : timersSnapshot.getProcessingTimeTimers()) {
         processingTimeTimersQueue->add(timer);
     }
 }

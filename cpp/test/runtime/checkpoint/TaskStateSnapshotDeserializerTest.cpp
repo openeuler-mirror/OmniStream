@@ -8,23 +8,21 @@
 #include "runtime/state/KeyGroupsSavepointStateHandle.h"
 #include "runtime/state/memory/ByteStreamStateHandle.h"
 
-TEST(SerializerTestSuite, PreservesKeyGroupsSavepointStateHandleType) {
+TEST(SerializerTestSuite, PreservesKeyGroupsSavepointStateHandleType)
+{
     KeyGroupRange keyGroupRange(0, 0);
     KeyGroupRangeOffsets offsets(keyGroupRange, std::vector<int64_t>{0});
-    auto streamHandle = std::make_shared<ByteStreamStateHandle>(
-        "savepoint-handle",
-        std::vector<uint8_t>{});
+    auto streamHandle = std::make_shared<ByteStreamStateHandle>("savepoint-handle", std::vector<uint8_t>{});
     auto savepointHandle = std::make_shared<KeyGroupsSavepointStateHandle>(offsets, streamHandle);
 
     nlohmann::json handleJson = TaskStateSnapshotSerializer::parseKeyGroupsStateHandle(savepointHandle);
 
-    EXPECT_EQ(
-        handleJson["@class"].get<std::string>(),
-        "org.apache.flink.runtime.state.KeyGroupsSavepointStateHandle");
+    EXPECT_EQ(handleJson["@class"].get<std::string>(), "org.apache.flink.runtime.state.KeyGroupsSavepointStateHandle");
     EXPECT_EQ(handleJson["stateHandleName"].get<std::string>(), "KeyGroupsSavepointStateHandle");
 }
 
-TEST(DeserializerTestSuite, DeserializesLocalStateSnapshotFromFile) {
+TEST(DeserializerTestSuite, DeserializesLocalStateSnapshotFromFile)
+{
     const std::string json_content = R"({
         "@class": "org.apache.flink.runtime.checkpoint.TaskStateSnapshot",
         "subtaskStatesByOperatorID": {
@@ -84,7 +82,8 @@ TEST(DeserializerTestSuite, DeserializesLocalStateSnapshotFromFile) {
 
     ASSERT_EQ(subtask_states.size(), 2);
 
-    OperatorID opIdWithState = TaskStateSnapshotDeserializer::HexStringToOperatorId<OperatorID>("4bf7c1955ffe56e2106d666433eaf137");
+    OperatorID opIdWithState =
+        TaskStateSnapshotDeserializer::HexStringToOperatorId<OperatorID>("4bf7c1955ffe56e2106d666433eaf137");
     bool found = false;
     std::shared_ptr<OperatorSubtaskState> state;
     for (const auto& pair : subtask_states) {
@@ -103,22 +102,25 @@ TEST(DeserializerTestSuite, DeserializesLocalStateSnapshotFromFile) {
     const auto& dirHandle = localHandle->getDirectoryStateHandle(); // Assuming getter
     ASSERT_NE(dirHandle, nullptr);
 
-    const std::string expected_dir = "/home/hudsonsheng/RocksDB/tm_localhost:35785-4d040b/localState/aid_23d801926c6066daab3c7eabda5e84e6/jid_095942d305df3523779193e8cf79060a/vtx_4bf7c1955ffe56e2106d666433eaf137_sti_0/chk_11/8d43f9058fcb491d95df87e4597464e4";
+    const std::string expected_dir =
+        "/home/hudsonsheng/RocksDB/tm_localhost:35785-4d040b/localState/aid_23d801926c6066daab3c7eabda5e84e6/"
+        "jid_095942d305df3523779193e8cf79060a/vtx_4bf7c1955ffe56e2106d666433eaf137_sti_0/chk_11/"
+        "8d43f9058fcb491d95df87e4597464e4";
     EXPECT_EQ(dirHandle->getDirectory().toString(), expected_dir);
 
     std::string to_string_output = snapshot->ToString();
     std::cout << "Global: " << to_string_output << std::endl;
     nlohmann::json parsed_json;
-    ASSERT_NO_THROW({
-        parsed_json = nlohmann::json::parse(to_string_output);
-    }) << "The output of ToString() is not valid JSON. Output was: " << to_string_output;
+    ASSERT_NO_THROW({ parsed_json = nlohmann::json::parse(to_string_output); })
+        << "The output of ToString() is not valid JSON. Output was: " << to_string_output;
 
     EXPECT_EQ(parsed_json["stateHandleName"], "TaskStateSnapshot");
     std::string opIdHex = "4bf7c1955ffe56e2106d666433eaf137";
     ASSERT_TRUE(parsed_json["subtaskStatesByOperatorID"].contains(opIdHex));
 }
 
-TEST(DeserializerTestSuite, DeserializesRemoteStateSnapshotFromFile) {
+TEST(DeserializerTestSuite, DeserializesRemoteStateSnapshotFromFile)
+{
     const std::string json_content = R"({
         "@class": "org.apache.flink.runtime.checkpoint.TaskStateSnapshot",
         "subtaskStatesByOperatorID": {
@@ -170,15 +172,16 @@ TEST(DeserializerTestSuite, DeserializesRemoteStateSnapshotFromFile) {
         "stateSize": 421936, "checkpointedSize": 421936
     })";
     auto snapshot = TaskStateSnapshotDeserializer::Deserialize(json_content);
-    std::cout << "Local: " <<  snapshot->ToString() << std::endl;
+    std::cout << "Local: " << snapshot->ToString() << std::endl;
     ASSERT_NE(snapshot, nullptr);
 
     EXPECT_FALSE(snapshot->GetIsTaskFinished());
-//    EXPECT_EQ(snapshot->GetStateSize(), 421936);
+    //    EXPECT_EQ(snapshot->GetStateSize(), 421936);
     const auto& subtask_states = snapshot->GetSubtaskStateMappings();
     ASSERT_EQ(subtask_states.size(), 2);
 
-    OperatorID opIdWithState = TaskStateSnapshotDeserializer::HexStringToOperatorId<OperatorID>("4bf7c1955ffe56e2106d666433eaf137");
+    OperatorID opIdWithState =
+        TaskStateSnapshotDeserializer::HexStringToOperatorId<OperatorID>("4bf7c1955ffe56e2106d666433eaf137");
     bool found = false;
     std::shared_ptr<OperatorSubtaskState> state;
     for (const auto& pair : subtask_states) {
@@ -198,28 +201,32 @@ TEST(DeserializerTestSuite, DeserializesRemoteStateSnapshotFromFile) {
     ASSERT_NE(remoteHandle, nullptr);
 
     EXPECT_EQ(remoteHandle->GetCheckpointId(), 1);
-//    EXPECT_EQ(remoteHandle->GetStateSize(), 421936);
+    //    EXPECT_EQ(remoteHandle->GetStateSize(), 421936);
 
     const auto& privateState = remoteHandle->GetPrivateState(); // Assuming getter
     ASSERT_EQ(privateState.size(), 2);
 
     auto byteStreamHandle = std::dynamic_pointer_cast<ByteStreamStateHandle>(privateState.at(0).getHandle());
     ASSERT_NE(byteStreamHandle, nullptr);
-    EXPECT_EQ(byteStreamHandle->GetHandleName(), "file:/home/hudsonsheng/flink/checkpoints/095942d305df3523779193e8cf79060a/chk-1/632e33a6-4441-403a-98ea-e9ceb4842279");
+    EXPECT_EQ(
+        byteStreamHandle->GetHandleName(),
+        "file:/home/hudsonsheng/flink/checkpoints/095942d305df3523779193e8cf79060a/chk-1/"
+        "632e33a6-4441-403a-98ea-e9ceb4842279");
     EXPECT_EQ(privateState.at(0).getLocalPath(), "MANIFEST-000004");
 
     const auto& decoded_data = byteStreamHandle->GetData();
-//    EXPECT_EQ(decoded_data.size(), 1950); // The actual decoded size of the Base64 string.
+    //    EXPECT_EQ(decoded_data.size(), 1950); // The actual decoded size of the Base64 string.
 
     auto relativeFileHandle = std::dynamic_pointer_cast<RelativeFileStateHandle>(privateState.at(1).getHandle());
     ASSERT_NE(relativeFileHandle, nullptr);
     EXPECT_EQ(relativeFileHandle->GetRelativePath(), "5820ceb4-5f2e-489e-8185-749713ef79ce");
     EXPECT_EQ(privateState.at(1).getLocalPath(), "000040.sst");
     EXPECT_EQ(relativeFileHandle->GetStateSize(), 22776);
-//    delete snapshot;
+    //    delete snapshot;
 }
 
-TEST(DeserializerTestSuite, DeserializesRemoteStateSnapshotWithPlainJavaHandleArrays) {
+TEST(DeserializerTestSuite, DeserializesRemoteStateSnapshotWithPlainJavaHandleArrays)
+{
     const std::string json_content = R"({
         "subtaskStatesByOperatorID": {
             "4bf7c1955ffe56e2106d666433eaf137": {
@@ -268,4 +275,3 @@ TEST(DeserializerTestSuite, DeserializesRemoteStateSnapshotWithPlainJavaHandleAr
     ASSERT_EQ(remoteHandle->GetPrivateState().size(), 1);
     EXPECT_EQ(remoteHandle->GetPrivateState().at(0).getLocalPath(), "MANIFEST-000001");
 }
-

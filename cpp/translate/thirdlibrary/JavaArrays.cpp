@@ -10,18 +10,18 @@
  */
 #include "thirdlibrary/JavaArrays.h"
 
-List *JavaArrays::asList(Array *obj)
+List* JavaArrays::asList(Array* obj)
 {
-    List *list = new List();
+    List* list = new List();
     for (int i = 0; i < obj->size(); i++) {
         list->add(obj->get(i));
     }
     return list;
 }
 
-List *JavaArrays::asList(Object *obj)
+List* JavaArrays::asList(Object* obj)
 {
-    List *list = new List();
+    List* list = new List();
     list->add(obj);
     return list;
 }

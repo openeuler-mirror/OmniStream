@@ -18,8 +18,8 @@
 enum class BackendDataType {
     BIGINT_BK,
     INT_BK,
-    XXHASH128_BK, // For Join
-    TUPLE_INT32_INT64, // For Join
+    XXHASH128_BK,            // For Join
+    TUPLE_INT32_INT64,       // For Join
     TUPLE_INT32_INT32_INT64, // For OuterJoin
     VOID_NAMESPACE_BK,
     VARCHAR_BK,
@@ -36,7 +36,8 @@ enum class BackendDataType {
     VECTOR_BATCH_BK
 };
 
-inline std::ostream& operator<<(std::ostream& os, const BackendDataType& type) {
+inline std::ostream& operator<<(std::ostream& os, const BackendDataType& type)
+{
     switch (type) {
         case BackendDataType::BIGINT_BK: return os << "BIGINT_BK";
         case BackendDataType::INT_BK: return os << "INT_BK";
@@ -62,7 +63,6 @@ inline std::ostream& operator<<(std::ostream& os, const BackendDataType& type) {
 
 class TypeSerializer {
 public:
-
     // TypeSerializer(int id) : dataId(id){}
 
     /**
@@ -74,13 +74,28 @@ public:
      *     Typically raised by the input view, which may have an underlying I/O channel from which
      *     it reads.
      */
-    virtual void* deserialize(DataInputView& source) { NOT_IMPL_EXCEPTION }
-    virtual void serialize(void* record, DataOutputSerializer& target) { NOT_IMPL_EXCEPTION }
+    virtual void* deserialize(DataInputView& source)
+    {
+        NOT_IMPL_EXCEPTION;
+    }
+    virtual void serialize(void* record, DataOutputSerializer& target)
+    {
+        NOT_IMPL_EXCEPTION;
+    }
 
     // new interface for DataStream
-    virtual void deserialize(Object *buffer, DataInputView& source) { NOT_IMPL_EXCEPTION }
-    virtual void serialize(Object *buffer, DataOutputSerializer& target) { NOT_IMPL_EXCEPTION }
-    virtual Object* GetBuffer() { NOT_IMPL_EXCEPTION }
+    virtual void deserialize(Object* buffer, DataInputView& source)
+    {
+        NOT_IMPL_EXCEPTION;
+    }
+    virtual void serialize(Object* buffer, DataOutputSerializer& target)
+    {
+        NOT_IMPL_EXCEPTION;
+    }
+    virtual Object* GetBuffer()
+    {
+        NOT_IMPL_EXCEPTION;
+    }
 
     virtual const char* getName() const;
     virtual BackendDataType getBackendId() const
@@ -102,7 +117,9 @@ public:
         setSubBufferReusable(bufferReusable_);
     }
 
-    virtual void setSubBufferReusable(bool bufferReusable_) {}
+    virtual void setSubBufferReusable(bool bufferReusable_)
+    {
+    }
 
     bool isReusable()
     {
@@ -112,12 +129,12 @@ public:
     virtual TypeSerializer* duplicate()
     {
         // Only VoidNamespaceSerializer, MapSerializer, KyroSerializer are used in MT6000C
-        NOT_IMPL_EXCEPTION
+        NOT_IMPL_EXCEPTION;
     };
     virtual std::shared_ptr<TypeSerializerSnapshot> snapshotConfiguration()
     {
         // Only VoidNamespaceSerializer, MapSerializer, KyroSerializer are used in MT6000C
-        NOT_IMPL_EXCEPTION
+        NOT_IMPL_EXCEPTION;
     };
 
     virtual std::string toJson()

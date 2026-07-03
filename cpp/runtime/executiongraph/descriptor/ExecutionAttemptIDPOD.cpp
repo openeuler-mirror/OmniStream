@@ -11,7 +11,6 @@
 
 #include "ExecutionAttemptIDPOD.h"
 
-
 namespace omnistream {
 
 }

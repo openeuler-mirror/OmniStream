@@ -16,18 +16,18 @@
 #include "table/data/RowData.h"
 #include "table/runtime/keyselector/KeySelector.h"
 
-using Comparator = bool (*) (RowData*, RowData*);
+using Comparator = bool (*)(RowData*, RowData*);
 
 struct DescendingComparator {
     bool operator()(RowData* a, RowData* b) const
     {
-        return *(a->getLong(0)) > *(b->getLong(0));  // Sort in descending order
+        return *(a->getLong(0)) > *(b->getLong(0)); // Sort in descending order
     }
 };
 struct AscendingComparator {
     bool operator()(RowData* a, RowData* b) const
     {
-        return *(a->getLong(0)) < *(b->getLong(0));  // Sort in ascending order
+        return *(a->getLong(0)) < *(b->getLong(0)); // Sort in ascending order
     }
 };
 class TopNBuffer {
@@ -65,7 +65,6 @@ public:
     {
         return treeMap.find(sortKey) != treeMap.end();
     }
-
 
     void removeAll(RowData* sortKey)
     {
@@ -130,7 +129,7 @@ public:
             currentTopNum -= static_cast<int>(it->second->size());
             it->second = values;
         } else {
-            treeMap[sortKey] = values;  // Insert new entry in the map
+            treeMap[sortKey] = values; // Insert new entry in the map
         }
         currentTopNum += static_cast<int>(values->size());
     }
@@ -187,6 +186,5 @@ private:
     int currentTopNum = 0;
     std::map<RowData*, std::vector<RowData*>*, DescendingComparator> treeMap;
 };
-
 
 #endif

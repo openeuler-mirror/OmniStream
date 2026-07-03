@@ -18,19 +18,19 @@
 #include <stdexcept>
 #include "../io/IOReadableWritable.h"
 
-template<typename K, typename V>
+template <typename K, typename V>
 class MapValue : public IOReadableWritable {
 public:
-    void write(DataOutputSerializer &out) override;
+    void write(DataOutputSerializer& out) override;
 
-    void read(DataInputView &in) override;
+    void read(DataInputView& in) override;
+
 private:
     emhash7::HashMap<K, V> map;
 };
 
-
-template<typename K, typename V>
-inline void MapValue<K, V>::read(DataInputView &in)
+template <typename K, typename V>
+inline void MapValue<K, V>::read(DataInputView& in)
 {
     int size = in.readInt();
     map.clear();
@@ -44,11 +44,10 @@ inline void MapValue<K, V>::read(DataInputView &in)
     // }
 }
 
-template<typename K, typename V>
-inline void MapValue<K, V>::write(DataOutputSerializer &out)
+template <typename K, typename V>
+inline void MapValue<K, V>::write(DataOutputSerializer& out)
 {
     out.writeInt(map.size());
 }
-
 
 #endif

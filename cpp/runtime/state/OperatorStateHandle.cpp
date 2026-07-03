@@ -10,9 +10,7 @@
  */
 #include "OperatorStateHandle.h"
 
-OperatorStateHandle::StateMetaInfo::StateMetaInfo(
-    std::vector<long> offsets,
-    OperatorStateHandle::Mode distributionMode)
+OperatorStateHandle::StateMetaInfo::StateMetaInfo(std::vector<long> offsets, OperatorStateHandle::Mode distributionMode)
     : offsets_(offsets),
       distributionMode_(distributionMode)
 {
@@ -28,8 +26,7 @@ OperatorStateHandle::Mode OperatorStateHandle::StateMetaInfo::getDistributionMod
     return distributionMode_;
 }
 
-bool OperatorStateHandle::StateMetaInfo::operator==(const StateMetaInfo &other) const
+bool OperatorStateHandle::StateMetaInfo::operator==(const StateMetaInfo& other) const
 {
-    return this->distributionMode_ == other.distributionMode_
-        && this->offsets_ == other.offsets_;
+    return this->distributionMode_ == other.distributionMode_ && this->offsets_ == other.offsets_;
 }

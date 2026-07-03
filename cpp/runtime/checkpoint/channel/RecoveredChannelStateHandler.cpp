@@ -21,28 +21,31 @@ ResultSubpartitionRecoveredStateHandler::ResultSubpartitionRecoveredStateHandler
     std::shared_ptr<InflightDataRescalingDescriptor> channelMapping)
     : writers_(std::move(writers)),
       notifyAndBlockOnCompletion_(notifyAndBlockOnCompletion),
-      channelMapping_(std::move(channelMapping)) {}
+      channelMapping_(std::move(channelMapping))
+{
+}
 
 ResultSubpartitionRecoveredStateHandler::~ResultSubpartitionRecoveredStateHandler()
 {
     this->close();
 }
 
-ResultSubpartitionRecoveredStateHandler::BufferWithContext ResultSubpartitionRecoveredStateHandler::getBuffer(const ResultSubpartitionInfoPOD& subpartitionInfo)
+ResultSubpartitionRecoveredStateHandler::BufferWithContext ResultSubpartitionRecoveredStateHandler::getBuffer(
+    const ResultSubpartitionInfoPOD& subpartitionInfo)
 {
-
     auto channels = getMappedChannels(subpartitionInfo);
 
     if (channels.empty()) {
         throw std::runtime_error("No mapped channels found");
     }
-    BufferBuilder *bufferBuilder = channels.at(0)->requestBufferBuilderBlocking();
+    BufferBuilder* bufferBuilder = channels.at(0)->requestBufferBuilderBlocking();
     return BufferWithContext(ChannelStateByteBuffer::wrap(bufferBuilder), bufferBuilder);
 }
 
-void ResultSubpartitionRecoveredStateHandler::recover(const ResultSubpartitionInfoPOD& subpartitionInfo, int oldSubtaskIndex, const BufferWithContext& bufferWithContext)
+void ResultSubpartitionRecoveredStateHandler::recover(
+    const ResultSubpartitionInfoPOD& subpartitionInfo, int oldSubtaskIndex, const BufferWithContext& bufferWithContext)
 {
-    BufferBuilder *bufferBuilder = bufferWithContext.context_;
+    BufferBuilder* bufferBuilder = bufferWithContext.context_;
     auto bufferConsumer = bufferBuilder->createBufferConsumerFromBeginning();
     bufferBuilder->finish();
 
@@ -56,19 +59,20 @@ void ResultSubpartitionRecoveredStateHandler::recover(const ResultSubpartitionIn
     }
 
     try {
-        for (const auto &item : channels){
-            auto channelSelector = std::make_shared<SubtaskConnectionDescriptor>(subpartitionInfo.getSubPartitionIdx(),oldSubtaskIndex);
+        for (const auto& item : channels) {
+            auto channelSelector =
+                std::make_shared<SubtaskConnectionDescriptor>(subpartitionInfo.getSubPartitionIdx(), oldSubtaskIndex);
             INFO_RELEASE("send recover buffer :" << item->getSubpartitionInfo().toString());
             item->addRecovered(EventSerializer::ToBufferConsumer(channelSelector, false));
             item->addRecovered(bufferConsumer);
         }
-    } catch (const std::exception& e){
+    } catch (const std::exception& e) {
         INFO_RELEASE("ResultSubpartitionRecoveredStateHandler::recover exception:" << e.what());
     }
 
-    INFO_RELEASE("Recover state for partition" << ", subpartition " << subpartitionInfo.getSubPartitionIdx()
-                                         << ", size " << bufferConsumer->getBufferSize()
-                                         << ", mappedChannels=" << channels.size());
+    INFO_RELEASE(
+        "Recover state for partition" << ", subpartition " << subpartitionInfo.getSubPartitionIdx() << ", size "
+                                      << bufferConsumer->getBufferSize() << ", mappedChannels=" << channels.size());
 }
 
 void ResultSubpartitionRecoveredStateHandler::close()
@@ -82,34 +86,34 @@ void ResultSubpartitionRecoveredStateHandler::close()
 }
 
 std::shared_ptr<CheckpointedResultSubpartition> ResultSubpartitionRecoveredStateHandler::getSubpartition(
-        int partitionIndex,
-        int subPartitionIdx)
+    int partitionIndex, int subPartitionIdx)
 {
-    LOG("ResultSubpartitionRecoveredStateHandler getSubpartition111")
+    LOG("ResultSubpartitionRecoveredStateHandler getSubpartition111");
     auto writer = writers_.at(partitionIndex);
 
     auto checkpointedWriter = std::dynamic_pointer_cast<omnistream::CheckpointedResultPartition>(writer);
     if (!checkpointedWriter) {
-        LOG("ResultSubpartitionRecoveredStateHandler getSubpartition222")
+        LOG("ResultSubpartitionRecoveredStateHandler getSubpartition222");
         throw std::runtime_error(
-                "Cannot restore state to a non-checkpointable partition type, partitionIndex=" +
-                std::to_string(partitionIndex));
+            "Cannot restore state to a non-checkpointable partition type, partitionIndex=" +
+            std::to_string(partitionIndex));
     }
-    LOG("ResultSubpartitionRecoveredStateHandler getSubpartition333")
+    LOG("ResultSubpartitionRecoveredStateHandler getSubpartition333");
     auto checkpointedSubpartition = checkpointedWriter->getCheckpointedSubpartition(subPartitionIdx);
     if (!checkpointedSubpartition) {
-        LOG("ResultSubpartitionRecoveredStateHandler getSubpartition555")
+        LOG("ResultSubpartitionRecoveredStateHandler getSubpartition555");
         throw std::runtime_error(
-                "Checkpointed subpartition is not a PipelinedSubpartition, partitionIndex=" +
-                std::to_string(partitionIndex) + ", subPartitionIdx=" + std::to_string(subPartitionIdx));
+            "Checkpointed subpartition is not a PipelinedSubpartition, partitionIndex=" +
+            std::to_string(partitionIndex) + ", subPartitionIdx=" + std::to_string(subPartitionIdx));
     }
-    LOG("ResultSubpartitionRecoveredStateHandler getSubpartition666")
+    LOG("ResultSubpartitionRecoveredStateHandler getSubpartition666");
     return checkpointedSubpartition;
 }
 
-std::vector<std::shared_ptr<CheckpointedResultSubpartition>> ResultSubpartitionRecoveredStateHandler::getMappedChannels(const ResultSubpartitionInfoPOD& subpartitionInfo)
+std::vector<std::shared_ptr<CheckpointedResultSubpartition>> ResultSubpartitionRecoveredStateHandler::getMappedChannels(
+    const ResultSubpartitionInfoPOD& subpartitionInfo)
 {
-    LOG("ResultSubpartitionRecoveredStateHandler getMappedChannels111")
+    LOG("ResultSubpartitionRecoveredStateHandler getMappedChannels111");
     auto it = rescaledChannels_.find(subpartitionInfo);
     if (it != rescaledChannels_.end()) {
         return it->second;
@@ -120,17 +124,17 @@ std::vector<std::shared_ptr<CheckpointedResultSubpartition>> ResultSubpartitionR
     return pipelinedSubpartitions;
 }
 
-std::vector<std::shared_ptr<CheckpointedResultSubpartition>>
-    ResultSubpartitionRecoveredStateHandler::calculateMapping(const ResultSubpartitionInfoPOD& info)
+std::vector<std::shared_ptr<CheckpointedResultSubpartition>> ResultSubpartitionRecoveredStateHandler::calculateMapping(
+    const ResultSubpartitionInfoPOD& info)
 {
     int pIdx = info.getPartitionIdx();
 
-    auto mapping = channelMapping_ ? channelMapping_->GetChannelMapping(pIdx)
-                                   : IdentityRescaleMappings::SYMMETRIC_IDENTITY;
+    auto mapping =
+        channelMapping_ ? channelMapping_->GetChannelMapping(pIdx) : IdentityRescaleMappings::SYMMETRIC_IDENTITY;
 
     // 纯恢复 / 未 rescale：直接按 identity 映射，不要去 invert SYMMETRIC_IDENTITY
     if (!mapping || mapping->isIdentity()) {
-        return { getSubpartition(pIdx, info.getSubPartitionIdx()) };
+        return {getSubpartition(pIdx, info.getSubPartitionIdx())};
     }
 
     if (oldToNewMappings_.find(pIdx) == oldToNewMappings_.end()) {
@@ -138,7 +142,7 @@ std::vector<std::shared_ptr<CheckpointedResultSubpartition>>
     }
 
     const auto& oldToNewMapping = oldToNewMappings_.at(pIdx);
-//        std::vector<std::shared_ptr<PipelinedSubpartition>> subpartitions;
+    //        std::vector<std::shared_ptr<PipelinedSubpartition>> subpartitions;
     std::vector<std::shared_ptr<CheckpointedResultSubpartition>> subpartitions;
 
     auto mappedIndexes = oldToNewMapping.getMappedIndexes(info.getSubPartitionIdx());
@@ -147,12 +151,12 @@ std::vector<std::shared_ptr<CheckpointedResultSubpartition>>
     }
 
     if (subpartitions.empty()) {
-        LOG("ERROR: Recovered a buffer that has no mapping, partitionIdx=" << std::to_string(info.getPartitionIdx())
+        LOG("ERROR: Recovered a buffer that has no mapping, partitionIdx="
+            << std::to_string(info.getPartitionIdx())
             << ", subPartitionIdx=" << std::to_string(info.getSubPartitionIdx()));
         throw std::runtime_error(
-                "Recovered a buffer that has no mapping, partitionIdx=" +
-                std::to_string(info.getPartitionIdx()) +
-                ", subPartitionIdx=" + std::to_string(info.getSubPartitionIdx()));
+            "Recovered a buffer that has no mapping, partitionIdx=" + std::to_string(info.getPartitionIdx()) +
+            ", subPartitionIdx=" + std::to_string(info.getSubPartitionIdx()));
     }
     return subpartitions;
 }
@@ -162,10 +166,9 @@ InputChannelRecoveredStateHandler::~InputChannelRecoveredStateHandler()
     this->close();
 }
 
-RecoveredChannelStateHandler<InputChannelInfo, Buffer *>::BufferWithContext
-    InputChannelRecoveredStateHandler::getBuffer(const InputChannelInfo &inputChannelInfo)
+RecoveredChannelStateHandler<InputChannelInfo, Buffer*>::BufferWithContext InputChannelRecoveredStateHandler::getBuffer(
+    const InputChannelInfo& inputChannelInfo)
 {
-
     auto channel = getMappedChannels(inputChannelInfo)[0];
 
     auto buffer = channel->requestBufferBlocking();
@@ -173,9 +176,8 @@ RecoveredChannelStateHandler<InputChannelInfo, Buffer *>::BufferWithContext
     return BufferWithContext(ChannelStateByteBuffer::wrap(&*buffer), &*buffer);
 }
 
-void InputChannelRecoveredStateHandler::recover(const InputChannelInfo &inputChannelInfo,
-    int oldSubtaskIndex,
-    const BufferWithContext &bufferWithContext)
+void InputChannelRecoveredStateHandler::recover(
+    const InputChannelInfo& inputChannelInfo, int oldSubtaskIndex, const BufferWithContext& bufferWithContext)
 {
     auto buffer = bufferWithContext.context_;
 
@@ -186,18 +188,22 @@ void InputChannelRecoveredStateHandler::recover(const InputChannelInfo &inputCha
                 throw std::runtime_error("No mapped channels found in InputChannelRecoveredStateHandler::recover");
             }
 
-            for (const auto &item : channels){
+            for (const auto& item : channels) {
                 INFO_RELEASE("send input recover:" << item->getChannelInfo().toString());
-                item->onRecoveredStateBuffer(EventSerializer::toBuffer(std::make_shared<SubtaskConnectionDescriptor>(oldSubtaskIndex,inputChannelInfo.getInputChannelIdx()), false));
+                item->onRecoveredStateBuffer(
+                    EventSerializer::toBuffer(
+                        std::make_shared<SubtaskConnectionDescriptor>(
+                            oldSubtaskIndex, inputChannelInfo.getInputChannelIdx()),
+                        false));
                 item->onRecoveredStateBuffer2(buffer);
             }
 
-            INFO_RELEASE("Recovered state for gate " << inputChannelInfo.getGateIdx()
-                                            << ", channel " << inputChannelInfo.getInputChannelIdx()
-                                            << ", size " << buffer->GetSize()
+            INFO_RELEASE(
+                "Recovered state for gate " << inputChannelInfo.getGateIdx() << ", channel "
+                                            << inputChannelInfo.getInputChannelIdx() << ", size " << buffer->GetSize()
                                             << ", mappedChannels=" << channels.size());
         }
-    } catch (const std::exception& e){
+    } catch (const std::exception& e) {
         buffer->RecycleBuffer();
         INFO_RELEASE("InputChannelRecoveredStateHandler::recover exception:" << e.what());
         throw std::runtime_error("failed to InputChannelRecoveredStateHandler recover:");
@@ -212,8 +218,8 @@ void InputChannelRecoveredStateHandler::close()
     LOG("Close InputChannelRecoveredStateHandler, finishReadRecoveredState inputGate size:" << inputGates.size());
 }
 
-std::shared_ptr<RecoveredInputChannel> InputChannelRecoveredStateHandler::getChannel(int gateIndex,
-    int subPartitionIndex)
+std::shared_ptr<RecoveredInputChannel> InputChannelRecoveredStateHandler::getChannel(
+    int gateIndex, int subPartitionIndex)
 {
     auto inputChannel = inputGates.at(gateIndex)->getChannel(subPartitionIndex);
     auto inputChannel2 = std::dynamic_pointer_cast<RecoveredInputChannel>(inputChannel);
@@ -224,17 +230,17 @@ std::shared_ptr<RecoveredInputChannel> InputChannelRecoveredStateHandler::getCha
     return inputChannel2;
 }
 
-std::vector<std::shared_ptr<RecoveredInputChannel>>
-InputChannelRecoveredStateHandler::calculateMapping(InputChannelInfo info)
+std::vector<std::shared_ptr<RecoveredInputChannel>> InputChannelRecoveredStateHandler::calculateMapping(
+    InputChannelInfo info)
 {
-    LOG("InputChannelRecoveredStateHandler calculateMapping111")
+    LOG("InputChannelRecoveredStateHandler calculateMapping111");
     int pIdx = info.getGateIdx();
 
-    auto mapping = channelMapping ? channelMapping->GetChannelMapping(pIdx)
-                                  : IdentityRescaleMappings::SYMMETRIC_IDENTITY;
+    auto mapping =
+        channelMapping ? channelMapping->GetChannelMapping(pIdx) : IdentityRescaleMappings::SYMMETRIC_IDENTITY;
 
     if (!mapping || mapping->isIdentity()) {
-        return { getChannel(pIdx, info.getInputChannelIdx()) };
+        return {getChannel(pIdx, info.getInputChannelIdx())};
     }
 
     if (oldToNewMappings.find(pIdx) == oldToNewMappings.end()) {
@@ -252,7 +258,7 @@ InputChannelRecoveredStateHandler::calculateMapping(InputChannelInfo info)
     if (channels.empty()) {
         throw std::runtime_error("Recovered a buffer that has no mapping");
     }
-    LOG("InputChannelRecoveredStateHandler calculateMapping end")
+    LOG("InputChannelRecoveredStateHandler calculateMapping end");
     return channels;
 }
 

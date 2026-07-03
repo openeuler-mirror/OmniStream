@@ -2,7 +2,8 @@
 #include "runtime/state/KeyGroupsStateHandle.h"
 #include "runtime/state/memory/ByteStreamStateHandle.h"
 
-TEST(KeyGroupsStateHandleTest, NonEmptyIntersection) {
+TEST(KeyGroupsStateHandleTest, NonEmptyIntersection)
+{
     KeyGroupRangeOffsets offsets(0, 7);
     std::vector<uint8_t> dummy(10, 0);
     std::shared_ptr<StreamStateHandle> streamHandle = std::make_shared<ByteStreamStateHandle>("test", dummy);
@@ -20,7 +21,8 @@ TEST(KeyGroupsStateHandleTest, NonEmptyIntersection) {
     ASSERT_EQ(handle.GetStateHandleId(), newHandle->GetStateHandleId());
 }
 
-TEST(KeyGroupsStateHandleTest, EmptyIntersection) {
+TEST(KeyGroupsStateHandleTest, EmptyIntersection)
+{
     KeyGroupRangeOffsets offsets(0, 7);
     std::vector<uint8_t> dummy(10, 0);
 
@@ -28,7 +30,7 @@ TEST(KeyGroupsStateHandleTest, EmptyIntersection) {
     KeyGroupsStateHandle handle(offsets, streamHandle);
 
     KeyGroupRange newRange(8, 11);
-    
+
     // Should return nullptr since the intersection is empty
     auto newHandle = handle.GetIntersection(newRange);
 

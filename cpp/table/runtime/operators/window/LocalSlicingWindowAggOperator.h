@@ -29,14 +29,15 @@
 
 class LocalSlicingWindowAggOperator : public AbstractStreamOperator<long>, public OneInputStreamOperator {
 public:
-    LocalSlicingWindowAggOperator(const nlohmann::json& config, Output* output) : AbstractStreamOperator(output),
-        description(config)
+    LocalSlicingWindowAggOperator(const nlohmann::json& config, Output* output)
+        : AbstractStreamOperator(output),
+          description(config)
     {
         this->collector = new TimestampedCollector(this->output);
         inputTypes = config["inputTypes"].get<std::vector<std::string>>();
         outputTypeStr = config["outputTypes"].get<std::vector<std::string>>();
         clock = new ClockService();
-         for (const auto& i : outputTypeStr) {
+        for (const auto& i : outputTypeStr) {
             outputTypes.push_back(LogicalType::flinkTypeToOmniTypeId(i));
         }
 
@@ -68,7 +69,7 @@ public:
     std::string getTypeName() override;
 
     void ProcessWatermark(Watermark* mark) override;
-    void processElement(StreamRecord *element) override {};
+    void processElement(StreamRecord* element) override {};
     Output* getOutput();
 
     static long getNextTriggerWatermark(long watermark, long interval)
@@ -77,8 +78,8 @@ public:
             return watermark;
         }
         long remainder = (interval <= 0) ? 0 : (watermark % interval);
- 	    long start = remainder < 0L ? watermark -(remainder + interval): watermark - remainder;
- 	    long triggerWatermark = start + interval - 1L;
+        long start = remainder < 0L ? watermark - (remainder + interval) : watermark - remainder;
+        long triggerWatermark = start + interval - 1L;
 
         return triggerWatermark > watermark ? triggerWatermark : triggerWatermark + interval;
     }
@@ -91,16 +92,20 @@ public:
     void initializeState(StreamTaskStateInitializerImpl* initializer, TypeSerializer* keySerializer) override
     {
         // First do the shared initialization step
-        INFO_RELEASE("LocalSlicingWindowAggOperator initializeState with initializer, operatorID: " << OneInputStreamOperator::GetOperatorID().toString());
+        INFO_RELEASE(
+            "LocalSlicingWindowAggOperator initializeState with initializer, operatorID: "
+            << OneInputStreamOperator::GetOperatorID().toString());
         AbstractStreamOperator<long>::SetOperatorID(OneInputStreamOperator::GetOperatorID().toString());
         AbstractStreamOperator<long>::initializeState(initializer, keySerializer);
     }
 
-    void notifyCheckpointComplete(long checkpointId) override {
+    void notifyCheckpointComplete(long checkpointId) override
+    {
         AbstractStreamOperator<long>::notifyCheckpointComplete(checkpointId);
     }
 
-    void notifyCheckpointAborted(long checkpointId) override {
+    void notifyCheckpointAborted(long checkpointId) override
+    {
         AbstractStreamOperator<long>::notifyCheckpointAborted(checkpointId);
     }
 
@@ -130,11 +135,11 @@ private:
     BinaryRowData* reUseAccumulator;
     std::unordered_map<WindowKey, std::vector<std::unique_ptr<RowData>>> bundle;
     std::vector<std::string> inputTypes;
-    std::vector<std::string> outputTypeStr;//todo: remove from variables
+    std::vector<std::string> outputTypeStr; // todo: remove from variables
     std::vector<omniruntime::type::DataTypeId> outputTypes;
 
     std::vector<int32_t> keyedTypes;
-    KeySelector<std::shared_ptr<RowData>> *keySelector;
+    KeySelector<std::shared_ptr<RowData>>* keySelector;
     std::vector<int32_t> keyedIndex;
     SliceAssigner* sliceAssigner;
     long currentWatermark = 0;
@@ -145,16 +150,15 @@ private:
     omnistream::VectorBatch* resultBatch = nullptr;
 
     void AccumulateOrRetract(const std::vector<std::unique_ptr<RowData>>& entireRows);
-    bool SendAccResults(Watermark *mark);
+    bool SendAccResults(Watermark* mark);
 
-    void SetLong(omniruntime::vec::VectorBatch* outputBatch, int rowIndex, int colIndex,  RowData* collectedRow);
-    void SetInt(omniruntime::vec::VectorBatch* outputBatch, int rowIndex, int colIndex,  RowData* collectedRow);
+    void SetLong(omniruntime::vec::VectorBatch* outputBatch, int rowIndex, int colIndex, RowData* collectedRow);
+    void SetInt(omniruntime::vec::VectorBatch* outputBatch, int rowIndex, int colIndex, RowData* collectedRow);
     std::vector<WindowKey> invertOrder;
     int rowtimeIndexVal;
     ClockService* clock;
     void ExtractFunction();
-    void SetStringVectorBatch(omnistream::VectorBatch* outputBatch, int rowIndex,
-        int colIndex, RowData* collectedRow);
+    void SetStringVectorBatch(omnistream::VectorBatch* outputBatch, int rowIndex, int colIndex, RowData* collectedRow);
 };
 
 #endif

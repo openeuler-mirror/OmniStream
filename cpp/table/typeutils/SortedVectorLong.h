@@ -9,24 +9,35 @@ using namespace omniruntime::type;
 
 class SortedVectorLong : public TypeSerializerSingleton {
 public:
-    SortedVectorLong() {}
+    SortedVectorLong()
+    {
+    }
 
     ~SortedVectorLong() override = default;
 
-    void *deserialize(DataInputView &source) override;
+    void* deserialize(DataInputView& source) override;
 
-    void serialize(void *record, DataOutputSerializer &target) override;
+    void serialize(void* record, DataOutputSerializer& target) override;
 
-    const char* getName() const override { return "SortedVectorLong"; }
-
-    virtual TypeSerializer* duplicate() { return SortedVectorLong::INSTANCE; }
-
-    virtual std::shared_ptr<TypeSerializerSnapshot> snapshotConfiguration(){
-        // TODO impl build serializer snapshot
-        NOT_IMPL_EXCEPTION
+    const char* getName() const override
+    {
+        return "SortedVectorLong";
     }
 
-    BackendDataType getBackendId() const override { return BackendDataType::SET_LONG; }
+    virtual TypeSerializer* duplicate()
+    {
+        return SortedVectorLong::INSTANCE;
+    }
+
+    virtual std::shared_ptr<TypeSerializerSnapshot> snapshotConfiguration()
+    { // TODO impl build serializer snapshot
+        NOT_IMPL_EXCEPTION;
+    }
+
+    BackendDataType getBackendId() const override
+    {
+        return BackendDataType::SET_LONG;
+    }
 
     std::string toJson() override
     {
@@ -34,8 +45,10 @@ public:
         return typeJson.toJson();
     }
 
-    void setSubBufferReusable(bool bufferReusable_) override {}
+    void setSubBufferReusable(bool bufferReusable_) override
+    {
+    }
 
     static SortedVectorLong* INSTANCE;
 };
-#endif //OMNISTREAM_SORTEDVECTORLONG_H
+#endif // OMNISTREAM_SORTEDVECTORLONG_H

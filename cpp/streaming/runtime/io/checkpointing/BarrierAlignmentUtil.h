@@ -20,112 +20,120 @@
 #include "streaming/runtime/tasks/TimerService.h"
 #include "core/utils/function/ThrowingRunnable.h"
 namespace omnistream::runtime {
-    class BarrierAlignmentUtil {
+class BarrierAlignmentUtil {
+public:
+    static long getTimerDelay(long clockMillis, const CheckpointBarrier& announcedBarrier);
+
+    class Cancellable {
     public:
-        static long getTimerDelay(
-                long clockMillis,
-                const CheckpointBarrier &announcedBarrier);
+        explicit Cancellable(ScheduledFutureTask* scheduledFuture) : scheduledFuture_(scheduledFuture) {};
 
-        class Cancellable {
+        ~Cancellable() = default;
+
+        void Cancel()
+        {
+            if (scheduledFuture_ != nullptr) {
+                scheduledFuture_->Cancel();
+            }
+        }
+
+    private:
+        ScheduledFutureTask* scheduledFuture_;
+    };
+
+    template <typename Func>
+    class ThrowingRunnableImpl : public omnistream::ThrowingRunnable {
+    public:
+        ThrowingRunnableImpl(Func func, const std::string& description)
+            : func_(std::move(func)),
+              description_(description) {};
+
+        void Run() override
+        {
+            if (func_) {
+                func_();
+            }
+        }
+
+        void TryCancel() override
+        {
+            // No-op for this implementation
+        }
+
+        std::string ToString() const override
+        {
+            return "ThrowingRunnableImpl: " + description_;
+        }
+
+    private:
+        Func func_;
+        std::string description_;
+    };
+
+    template <typename Func>
+    class DelayableTimer {
+    public:
+        DelayableTimer() = default;
+        virtual ~DelayableTimer() = default;
+        DelayableTimer(omnistream::MailboxExecutor* executor, TimerService* timerService)
+            : executor_(executor),
+              timerService_(timerService) {};
+
+        class ProcessingTimeCallbackImpl : public ProcessingTimeCallback {
         public:
-            explicit Cancellable(ScheduledFutureTask *scheduledFuture) : scheduledFuture_(scheduledFuture) {};
+            ProcessingTimeCallbackImpl(Func func, omnistream::MailboxExecutor* executor)
+                : func_(func),
+                  executor_(executor) {};
 
-            ~Cancellable() = default;
-
-            void Cancel() {
-                if (scheduledFuture_ != nullptr) {
-                    scheduledFuture_->Cancel();
-                }
-            }
-
-        private:
-            ScheduledFutureTask *scheduledFuture_;
-        };
-
-        template<typename Func>
-        class ThrowingRunnableImpl : public omnistream::ThrowingRunnable {
-        public:
-            ThrowingRunnableImpl(Func func, const std::string &description)
-                : func_(std::move(func)), description_(description) {};
-
-            void Run() override {
-                if (func_) {
-                    func_();
-                }
-            }
-
-            void TryCancel() override {
-                // No-op for this implementation
-            }
-
-            std::string ToString() const override {
-                return "ThrowingRunnableImpl: " + description_;
+            void OnProcessingTime(int64_t timestamp) override
+            {
+                executor_->execute(
+                    std::make_shared<ThrowingRunnableImpl<Func>>(
+                        func_, "BarrierAlignmentUtil::DelayableTimer::registerTask"),
+                    "BarrierAlignmentUtil::DelayableTimer::registerTask");
             }
 
         private:
             Func func_;
-            std::string description_;
+            omnistream::MailboxExecutor* executor_;
         };
 
-        template<typename Func>
-        class DelayableTimer {
-        public:
-            DelayableTimer() = default;
-            virtual ~DelayableTimer() = default;
-            DelayableTimer(omnistream::MailboxExecutor *executor, TimerService *timerService)
-                : executor_(executor), timerService_(timerService) {};
+        virtual typename BarrierAlignmentUtil::Cancellable* RegisterTask(Func callable, std::chrono::milliseconds delay)
+        {
+            auto future = timerService_->registerTimer(
+                timerService_->getCurrentProcessingTime() + delay.count(),
+                new ProcessingTimeCallbackImpl(callable, executor_));
+            return new Cancellable(future);
+        }
 
-            class ProcessingTimeCallbackImpl : public ProcessingTimeCallback {
-            public:
-                ProcessingTimeCallbackImpl(Func func, omnistream::MailboxExecutor *executor)
-                    : func_(func), executor_(executor) {};
-
-                void OnProcessingTime(int64_t timestamp) override {
-                    executor_->execute(std::make_shared<ThrowingRunnableImpl<Func>>
-                                               (func_, "BarrierAlignmentUtil::DelayableTimer::registerTask"),
-                                       "BarrierAlignmentUtil::DelayableTimer::registerTask");
-                }
-
-            private:
-                Func func_;
-                omnistream::MailboxExecutor *executor_;
-            };
-
-            virtual typename BarrierAlignmentUtil::Cancellable *RegisterTask(
-                    Func callable,
-                    std::chrono::milliseconds delay) {
-                auto future = timerService_->registerTimer(
-                    timerService_->getCurrentProcessingTime() + delay.count(),
-                    new ProcessingTimeCallbackImpl(callable, executor_));
-                return new Cancellable(future);
-            }
-
-        private:
-            omnistream::MailboxExecutor *executor_;
-            TimerService *timerService_;
-        };
-
-        template<typename Func>
-        class ThrowingDelayableTimer : public DelayableTimer<Func> {
-        public:
-            ThrowingDelayableTimer()
-                : BarrierAlignmentUtil::DelayableTimer<Func>(nullptr, nullptr) {}
-
-            typename BarrierAlignmentUtil::Cancellable *RegisterTask(Func, std::chrono::milliseconds) override {
-                throw std::runtime_error("Strictly unaligned checkpoints should never register any callbacks");
-            }
-        };
-
-        template<typename Func>
-        static DelayableTimer<Func> *createRegisterTimerCallback(
-                omnistream::MailboxExecutor *executor, TimerService *timerService);
+    private:
+        omnistream::MailboxExecutor* executor_;
+        TimerService* timerService_;
     };
 
-    template<typename Func>
-    inline typename BarrierAlignmentUtil::DelayableTimer<Func> *BarrierAlignmentUtil::createRegisterTimerCallback(
-        omnistream::MailboxExecutor *executor, TimerService *timerService)
-    {
-        return new DelayableTimer<Func>(executor, timerService);
-    }
+    template <typename Func>
+    class ThrowingDelayableTimer : public DelayableTimer<Func> {
+    public:
+        ThrowingDelayableTimer() : BarrierAlignmentUtil::DelayableTimer<Func>(nullptr, nullptr)
+        {
+        }
+
+        typename BarrierAlignmentUtil::Cancellable* RegisterTask(Func, std::chrono::milliseconds) override
+        {
+            throw std::runtime_error("Strictly unaligned checkpoints should never register any callbacks");
+        }
+    };
+
+    template <typename Func>
+    static DelayableTimer<Func>* createRegisterTimerCallback(
+        omnistream::MailboxExecutor* executor, TimerService* timerService);
+};
+
+template <typename Func>
+inline typename BarrierAlignmentUtil::DelayableTimer<Func>* BarrierAlignmentUtil::createRegisterTimerCallback(
+    omnistream::MailboxExecutor* executor, TimerService* timerService)
+{
+    return new DelayableTimer<Func>(executor, timerService);
 }
+} // namespace omnistream::runtime
 #endif // FLINK_TNEL_BARRIERALIGNMENTUTIL

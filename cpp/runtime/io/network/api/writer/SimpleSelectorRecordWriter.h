@@ -13,36 +13,34 @@
 #define SIMPLESELECTORRECORDWRITER_H
 #include <streaming/runtime/streamrecord/StreamRecord.h>
 
-
 #include <streaming/runtime/partitioner/V2/ChannelSelectorV2.h>
 #include "streaming/api/watermark/Watermark.h"
 #include "runtime/io/network/api/writer/V2/RecordWriterV2.h"
 
 namespace omnistream {
 
-    class SimpleSelectorRecordWriter : public RecordWriterV2 {
-    public:
-        SimpleSelectorRecordWriter(
-            std::shared_ptr<ResultPartitionWriter> writer, // Raw pointer
-             ChannelSelectorV2<StreamRecord>* channelSelector,
-            long timeout,
-            const std::string& taskName,
-            int taskType);
+class SimpleSelectorRecordWriter : public RecordWriterV2 {
+public:
+    SimpleSelectorRecordWriter(
+        std::shared_ptr<ResultPartitionWriter> writer, // Raw pointer
+        ChannelSelectorV2<StreamRecord>* channelSelector,
+        long timeout,
+        const std::string& taskName,
+        int taskType);
 
-        ~SimpleSelectorRecordWriter() = default;
+    ~SimpleSelectorRecordWriter() = default;
 
-        void emit(StreamRecord* record) override ;
+    void emit(StreamRecord* record) override;
 
-        void broadcastEmit(Watermark *watermark) override;
+    void broadcastEmit(Watermark* watermark) override;
 
-    protected:
-        void emit(StreamRecord *record, int targetSubpartition) override;
+protected:
+    void emit(StreamRecord* record, int targetSubpartition) override;
 
-    private:
-        ChannelSelectorV2<StreamRecord >* channelSelector; // Raw pointer
-    };
+private:
+    ChannelSelectorV2<StreamRecord>* channelSelector; // Raw pointer
+};
 
 } // namespace omnistream
-
 
 #endif

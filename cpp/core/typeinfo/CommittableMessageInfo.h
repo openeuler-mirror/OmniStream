@@ -27,7 +27,7 @@ public:
         delete typeSerializer;
     }
 
-    TypeSerializer *createTypeSerializer() override
+    TypeSerializer* createTypeSerializer() override
     {
         return typeSerializer;
     };
@@ -43,7 +43,7 @@ public:
     }
 
 private:
-    TypeSerializer *typeSerializer;
+    TypeSerializer* typeSerializer;
 };
 
 #endif

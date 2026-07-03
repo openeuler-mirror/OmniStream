@@ -26,9 +26,9 @@
 #undef ASSERT
 #endif
 #ifdef DEBUG
-#define ASSERT(f)  assert(f)
+#define ASSERT(f) assert(f)
 #else
-#define ASSERT(f)  ((void)0)
+#define ASSERT(f) ((void)0)
 #endif
 
 #include <memory>
@@ -73,28 +73,28 @@ enum class OperatingMode {
 };
 
 namespace {
-    static std::string sourceReaderStateName = "SourceReaderState";
-    static BytePrimitiveArraySerializer* byteArraySerializer = new BytePrimitiveArraySerializer(nullptr);
-}
+static std::string sourceReaderStateName = "SourceReaderState";
+static BytePrimitiveArraySerializer* byteArraySerializer = new BytePrimitiveArraySerializer(nullptr);
+} // namespace
 
-template<typename SplitT = KafkaPartitionSplit>
-class SourceOperator : public AbstractStreamOperator<void*>, public omnistream::OmniPushingAsyncDataInput,
-        public TimestampsAndWatermarks::WatermarkUpdateListener, public OperatorEventHandler {
+template <typename SplitT = KafkaPartitionSplit>
+class SourceOperator : public AbstractStreamOperator<void*>,
+                       public omnistream::OmniPushingAsyncDataInput,
+                       public TimestampsAndWatermarks::WatermarkUpdateListener,
+                       public OperatorEventHandler {
 public:
     static ListStateDescriptor<std::vector<uint8_t>> SPLITS_STATE_DESC;
-    
+
     SourceOperator(
-            WatermarkGaugeExposingOutput *chainOutput,
-            nlohmann::json& opDescriptionJSON,
-            std::shared_ptr<KafkaSource> source,
-            ProcessingTimeService* timeService)
-        :splitSerializer(std::shared_ptr<SimpleVersionedSerializer<SplitT>>(source->getSplitSerializer())), isDataStream(!opDescriptionJSON["batch"]),
-        operatingMode(OperatingMode::OUTPUT_NOT_INITIALIZED)
-        {
-        readerFactory =
-            [source](SourceReaderContext* context) {
-                return source->createReader(context);
-            };
+        WatermarkGaugeExposingOutput* chainOutput,
+        nlohmann::json& opDescriptionJSON,
+        std::shared_ptr<KafkaSource> source,
+        ProcessingTimeService* timeService)
+        : splitSerializer(std::shared_ptr<SimpleVersionedSerializer<SplitT>>(source->getSplitSerializer())),
+          isDataStream(!opDescriptionJSON["batch"]),
+          operatingMode(OperatingMode::OUTPUT_NOT_INITIALIZED)
+    {
+        readerFactory = [source](SourceReaderContext* context) { return source->createReader(context); };
         std::string strategy = opDescriptionJSON["watermarkStrategy"];
         if (strategy == "no") {
             watermarkStrategy = WatermarkStrategy::NoWatermarks();
@@ -105,7 +105,8 @@ public:
                     THROW_LOGIC_EXCEPTION("rowtimeFieldIndex is not specified when watermarkStrategy is bounded");
                 }
                 int32_t rowtimeFieldIndex = opDescriptionJSON["rowtimeFieldIndex"];
-                watermarkStrategy = WatermarkStrategy::ForBoundedOutOfOrderness(rowtimeFieldIndex, outOfOrdernessMillis);
+                watermarkStrategy =
+                    WatermarkStrategy::ForBoundedOutOfOrderness(rowtimeFieldIndex, outOfOrdernessMillis);
             } else {
                 // TODO: How to know which field is event time in Datastream?
                 // TODO：Currently, the watermark in Datastream is not correct.
@@ -138,7 +139,7 @@ public:
         }
     }
 
-    void snapshotState(StateSnapshotContextSynchronousImpl *context) override
+    void snapshotState(StateSnapshotContextSynchronousImpl* context) override
     {
         if (sourceReader == nullptr) {
             THROW_RUNTIME_ERROR("SourceOperator snapshotState called before sourceReader is initialized.");
@@ -148,7 +149,7 @@ public:
         readerState_->update(splits);
     }
 
-    void initializeState(StateInitializationContextImpl *context) override
+    void initializeState(StateInitializationContextImpl* context) override
     {
         AbstractStreamOperator<void*>::initializeState(context);
         auto* stateBackend = static_cast<DefaultOperatorStateBackend*>(context->getOperatorStateBackend());
@@ -186,7 +187,8 @@ public:
     {
         initReader();
         if (emitProgressiveWatermarks) {
-            eventTimeLogic = TimestampsAndWatermarks::CreateProgressiveEventTimeLogic(watermarkStrategy, getProcessingTimeService(), getRuntimeContext()->getAutoWatermarkInterval());
+            eventTimeLogic = TimestampsAndWatermarks::CreateProgressiveEventTimeLogic(
+                watermarkStrategy, getProcessingTimeService(), getRuntimeContext()->getAutoWatermarkInterval());
         } else {
             eventTimeLogic = TimestampsAndWatermarks::CreateNoOpEventTimeLogic(watermarkStrategy);
         }
@@ -220,21 +222,17 @@ public:
             sourceReader->notifyNoMoreSplits();
             pendingNoMoreSplits_ = false;
         }
-        
+
         sourceReader->start();
         eventTimeLogic->StartPeriodicWatermarkEmits();
-        
     }
 
-    void stop(StopMode mode) override {
+    void stop(StopMode mode) override
+    {
         INFO_RELEASE("SourceOperator::stop with mode: " << (mode == StopMode::DRAIN ? "DRAIN" : "NO_DRAIN"));
         switch (mode) {
-            case StopMode::DRAIN:
-                operatingMode = OperatingMode::SOURCE_DRAINED;
-                break;
-            case StopMode::NO_DRAIN:
-                operatingMode = OperatingMode::SOURCE_STOPPED;
-                break;
+            case StopMode::DRAIN: operatingMode = OperatingMode::SOURCE_DRAINED; break;
+            case StopMode::NO_DRAIN: operatingMode = OperatingMode::SOURCE_STOPPED; break;
         }
 
         if (availabilityHelper != nullptr) {
@@ -267,7 +265,9 @@ public:
         if (sourceReader == nullptr) {
             return DataInputStatus::NOT_PROCESSED;
         }
-        ASSERT(lastInvokedOutput == output || lastInvokedOutput == nullptr || operatingMode == OperatingMode::DATA_FINISHED);
+        ASSERT(
+            lastInvokedOutput == output || lastInvokedOutput == nullptr ||
+            operatingMode == OperatingMode::DATA_FINISHED);
         if (operatingMode == OperatingMode::READING) {
             return convertToInternalStatus(sourceReader->pollNext(currentMainOutput));
         }
@@ -279,27 +279,23 @@ public:
         if (availabilityHelper == nullptr) {
             initAvailabilityHelper();
         }
-        if (sourceReader == nullptr
-            && (operatingMode == OperatingMode::OUTPUT_NOT_INITIALIZED
-                || operatingMode == OperatingMode::READING)) {
+        if (sourceReader == nullptr &&
+            (operatingMode == OperatingMode::OUTPUT_NOT_INITIALIZED || operatingMode == OperatingMode::READING)) {
             return AvailabilityProvider::AVAILABLE;
         }
         switch (operatingMode) {
-            case OperatingMode::WAITING_FOR_ALIGNMENT:
-                return availabilityHelper->update(waitingForAlignmentFuture);
+            case OperatingMode::WAITING_FOR_ALIGNMENT: return availabilityHelper->update(waitingForAlignmentFuture);
             case OperatingMode::OUTPUT_NOT_INITIALIZED:
-            case OperatingMode::READING:
-                return availabilityHelper->update(sourceReader->getAvailable());
+            case OperatingMode::READING: return availabilityHelper->update(sourceReader->getAvailable());
             case OperatingMode::SOURCE_STOPPED:
             case OperatingMode::SOURCE_DRAINED:
-            case OperatingMode::DATA_FINISHED:
-                return AvailabilityProvider::AVAILABLE;
+            case OperatingMode::DATA_FINISHED: return AvailabilityProvider::AVAILABLE;
             default:
                 throw std::runtime_error("Unknown operating mode: " + std::to_string(static_cast<int>(operatingMode)));
         }
     }
 
-    void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) override
+    void initializeState(StreamTaskStateInitializerImpl* initializer, TypeSerializer* keySerializer) override
     {
         AbstractStreamOperator<void*>::initializeState(initializer, keySerializer);
     }
@@ -314,11 +310,11 @@ public:
             WatermarkAlignmentEvent event(maxWatermark);
             handleOperatorEvent(event);
         } else if (eventType == "AddSplitEvent") {
-            LOG(tdd["field"]["serializerVersion"])
+            LOG(tdd["field"]["serializerVersion"]);
             int serializerVersion = tdd["field"]["serializerVersion"];
             std::vector<std::vector<uint8_t>> splitsVec;
             if (tdd["field"]["splits"].is_array()) {
-                for (const auto &element : tdd["field"]["splits"]) {
+                for (const auto& element : tdd["field"]["splits"]) {
                     splitsVec.push_back(SourceOperator::hexStringToByteArray(element));
                 }
             }
@@ -364,7 +360,7 @@ public:
                 return;
             }
             if (sourceReader == nullptr) {
-                for (const auto &split: newSplits) {
+                for (const auto& split : newSplits) {
                     outputPendingSplits.push_back(split);
                 }
                 return;
@@ -373,7 +369,7 @@ public:
                 // For splits arrived before the main output is initialized, store them into the
                 // pending list. Outputs of these splits will be created once the main output is
                 // ready.
-                for (const auto &split: newSplits) {
+                for (const auto& split : newSplits) {
                     outputPendingSplits.push_back(split);
                 }
             } else {
@@ -410,8 +406,8 @@ public:
     std::string getTypeName() override
     {
         std::string typeName = "SourceOperator";
-        typeName.append(__PRETTY_FUNCTION__) ;
-        return typeName ;
+        typeName.append(__PRETTY_FUNCTION__);
+        return typeName;
     }
 
     SourceReader<SplitT>* getSourceReader()
@@ -451,8 +447,8 @@ private:
     std::function<SourceReader<SplitT>*(SourceReaderContext*)> readerFactory;
     std::shared_ptr<SimpleVersionedSerializer<SplitT>> splitSerializer;
     bool emitProgressiveWatermarks;
-    SourceReader<SplitT> *sourceReader = nullptr;
-    ReaderOutput *currentMainOutput = nullptr;
+    SourceReader<SplitT>* sourceReader = nullptr;
+    ReaderOutput* currentMainOutput = nullptr;
     OmniDataOutputPtr lastInvokedOutput = nullptr;
     OmniDataOutputPtr dataStreamOutput = nullptr;
     long latestWatermark;
@@ -487,10 +483,8 @@ private:
     DataInputStatus convertToInternalStatus(InputStatus inputStatus)
     {
         switch (inputStatus) {
-            case InputStatus::MORE_AVAILABLE:
-                return DataInputStatus::MORE_AVAILABLE;
-            case InputStatus::NOTHING_AVAILABLE:
-                return DataInputStatus::NOTHING_AVAILABLE;
+            case InputStatus::MORE_AVAILABLE: return DataInputStatus::MORE_AVAILABLE;
+            case InputStatus::NOTHING_AVAILABLE: return DataInputStatus::NOTHING_AVAILABLE;
             case InputStatus::END_OF_INPUT:
                 this->operatingMode = OperatingMode::DATA_FINISHED;
                 return DataInputStatus::END_OF_DATA;
@@ -550,13 +544,12 @@ private:
             case OperatingMode::SOURCE_DRAINED:
                 operatingMode = OperatingMode::DATA_FINISHED;
                 return DataInputStatus::END_OF_DATA;
-            case OperatingMode::DATA_FINISHED:
-                return DataInputStatus::END_OF_INPUT;
-            case OperatingMode::WAITING_FOR_ALIGNMENT:
-                return convertToInternalStatus(InputStatus::NOTHING_AVAILABLE);
+            case OperatingMode::DATA_FINISHED: return DataInputStatus::END_OF_INPUT;
+            case OperatingMode::WAITING_FOR_ALIGNMENT: return convertToInternalStatus(InputStatus::NOTHING_AVAILABLE);
             case OperatingMode::READING:
             default:
-                throw std::invalid_argument("Unknown operating mode: " + std::to_string(static_cast<int>(operatingMode)));
+                throw std::invalid_argument(
+                    "Unknown operating mode: " + std::to_string(static_cast<int>(operatingMode)));
         }
     }
 
@@ -600,7 +593,8 @@ private:
             availabilityHelper->anyOf(0, forcedStopFuture);
         }
 
-        std::shared_ptr<omnistream::CompletableFuture> update(std::shared_ptr<omnistream::CompletableFuture> sourceReaderFuture)
+        std::shared_ptr<omnistream::CompletableFuture> update(
+            std::shared_ptr<omnistream::CompletableFuture> sourceReaderFuture)
         {
             if (sourceReaderFuture == AvailabilityProvider::AVAILABLE || sourceReaderFuture->isDone()) {
                 return AvailabilityProvider::AVAILABLE;
@@ -617,8 +611,10 @@ private:
                 forcedStopFuture->complete();
             }
         }
+
     private:
-        std::shared_ptr<omnistream::CompletableFuture> forcedStopFuture = std::make_shared<omnistream::CompletableFuture>();
+        std::shared_ptr<omnistream::CompletableFuture> forcedStopFuture =
+            std::make_shared<omnistream::CompletableFuture>();
         std::shared_ptr<omnistream::MultipleFuturesAvailabilityHelper> availabilityHelper;
     };
 
@@ -630,10 +626,8 @@ private:
     }
 };
 
-template<typename SplitT>
+template <typename SplitT>
 ListStateDescriptor<std::vector<uint8_t>> SourceOperator<SplitT>::SPLITS_STATE_DESC(
-    sourceReaderStateName, byteArraySerializer
-);
-
+    sourceReaderStateName, byteArraySerializer);
 
 #endif // FLINK_TNEL_SOURCEOPERATOR_H

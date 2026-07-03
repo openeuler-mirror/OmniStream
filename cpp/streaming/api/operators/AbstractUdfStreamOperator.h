@@ -23,15 +23,24 @@ template <typename F, typename K>
 class AbstractUdfStreamOperator : public AbstractStreamOperator<K> {
 public:
     AbstractUdfStreamOperator() = default;
-    explicit AbstractUdfStreamOperator(F* userFunction) : userFunction(userFunction) {}
-    AbstractUdfStreamOperator(F* userFunction, Output* output) : AbstractStreamOperator<K>(output), userFunction(userFunction) {}
+    explicit AbstractUdfStreamOperator(F* userFunction) : userFunction(userFunction)
+    {
+    }
+    AbstractUdfStreamOperator(F* userFunction, Output* output)
+        : AbstractStreamOperator<K>(output),
+          userFunction(userFunction)
+    {
+    }
 
     ~AbstractUdfStreamOperator()
     {
         delete userFunction;
     };
 
-    F* getUserFunction() { return userFunction; }
+    F* getUserFunction()
+    {
+        return userFunction;
+    }
 
     void setup()
     {
@@ -51,7 +60,6 @@ public:
         }
     }
 
-    
     void open() override
     {
         AbstractStreamOperator<K>::open();
@@ -64,8 +72,8 @@ public:
     std::string getTypeName() override
     {
         std::string typeName = "AbstractUdfStreamOperator";
-        typeName.append(__PRETTY_FUNCTION__) ;
-        return typeName ;
+        typeName.append(__PRETTY_FUNCTION__);
+        return typeName;
     }
 
     void notifyCheckpointComplete(long checkpointId)
@@ -84,24 +92,29 @@ public:
         }
     }
 
-    void close() override {
+    void close() override
+    {
         AbstractStreamOperator<K>::close();
         // todo: should the udf be closed?
     }
 
-    void initializeState(StateInitializationContextImpl *context)  override {
+    void initializeState(StateInitializationContextImpl* context) override
+    {
         AbstractStreamOperator<K>::initializeState(context);
         StreamingFunctionUtils::restoreFunctionState(context, userFunction);
     }
 
-    void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) override {
+    void initializeState(StreamTaskStateInitializerImpl* initializer, TypeSerializer* keySerializer) override
+    {
         AbstractStreamOperator<K>::initializeState(initializer, keySerializer);
     }
 
-    void snapshotState(StateSnapshotContextSynchronousImpl *context) override {
+    void snapshotState(StateSnapshotContextSynchronousImpl* context) override
+    {
         AbstractStreamOperator<K>::snapshotState(context);
         StreamingFunctionUtils::snapshotFunctionState(context, getOperatorStateBackend(), userFunction);
     }
+
 protected:
     F* userFunction = nullptr;
 };

@@ -14,10 +14,10 @@
 #include "AbstractRichFunction.h"
 #include "ParallelSourceFunction.h"
 
-template<typename K>
+template <typename K>
 class RichParallelSourceFunction : public ParallelSourceFunction<K> {
 public:
-    RichParallelSourceFunction ()  = default;
+    RichParallelSourceFunction() = default;
 };
 
 #endif // FLINK_TNEL_RICHPARALLELSOURCEFUNCTION_H

@@ -14,16 +14,17 @@
 #include "OperatorChain.h"
 #include "taskmanager/OmniRuntimeEnvironment.h"
 
-
 namespace omnistream {
-    class RegularOperatorChain : public OperatorChainV2 {
-    public:
-        RegularOperatorChain(const std::weak_ptr<OmniStreamTask> &containingTask,
-            std::shared_ptr<RecordWriterDelegateV2> recordWriterDelegate)
-            : OperatorChainV2(containingTask, recordWriterDelegate) {
-        }
+class RegularOperatorChain : public OperatorChainV2 {
+public:
+    RegularOperatorChain(
+        const std::weak_ptr<OmniStreamTask>& containingTask,
+        std::shared_ptr<RecordWriterDelegateV2> recordWriterDelegate)
+        : OperatorChainV2(containingTask, recordWriterDelegate)
+    {
+    }
 
-        void CloseAllOperators() override;
-    };
-}
+    void CloseAllOperators() override;
+};
+} // namespace omnistream
 #endif // REGULAROPERATORCHAIN_H

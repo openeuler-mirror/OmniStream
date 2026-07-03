@@ -17,42 +17,40 @@
 #include "io/network/api/StopMode.h"
 #include <thread>
 
-
 namespace omnistream {
 
-    enum class FinishingReason : int {
-        END_OF_DATA = 1,
-        STOP_WITH_SAVEPOINT_DRAIN,
-        STOP_WITH_SAVEPOINT_NO_DRAIN
-    };
+enum class FinishingReason : int {
+    END_OF_DATA = 1,
+    STOP_WITH_SAVEPOINT_DRAIN,
+    STOP_WITH_SAVEPOINT_NO_DRAIN
+};
 
-    StopMode FinishingReasonToStopMode(FinishingReason reason);
+StopMode FinishingReasonToStopMode(FinishingReason reason);
 
-    // Optional: For easier debugging or logging
-    std::string FinishingReasonToString(FinishingReason reason);
+// Optional: For easier debugging or logging
+std::string FinishingReasonToString(FinishingReason reason);
 
+class OmniSourceStreamTask : public OmniStreamTask {
+public:
+    OmniSourceStreamTask(std::shared_ptr<RuntimeEnvironmentV2>& env, std::unique_ptr<Object> lockObject, int taskType);
 
-    class OmniSourceStreamTask : public OmniStreamTask {
-    public:
-        OmniSourceStreamTask(std::shared_ptr<RuntimeEnvironmentV2>& env, std::unique_ptr<Object> lockObject, int taskType);
+    ~OmniSourceStreamTask() override;
 
-        ~OmniSourceStreamTask() override;
+    void init() override;
 
-        void init() override;
+    void processInput(MailboxDefaultAction::Controller* controller) override;
 
-        void processInput(MailboxDefaultAction::Controller *controller) override;
+    const std::string getName() const override;
+    void AdvanceToEndOfEventTime() override;
+    void cancel() override;
 
-        const std::string getName() const override;
-        void AdvanceToEndOfEventTime() override;
-        void cancel() override;
+private:
+    FinishingReason finishingReason = FinishingReason::END_OF_DATA;
 
-    private:
-        FinishingReason finishingReason = FinishingReason::END_OF_DATA;
+    std::unique_ptr<Object> lockObject_;
+    std::unique_ptr<std::thread> sourceThread_;
 
-        std::unique_ptr<Object> lockObject_;
-        std::unique_ptr<std::thread> sourceThread_;
-
-        void CompleteProcessing();
-        void runSourceInThread();
-    };
-}
+    void CompleteProcessing();
+    void runSourceInThread();
+};
+} // namespace omnistream

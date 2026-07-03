@@ -12,22 +12,16 @@
 #include "common/global.h"
 #include <stdexcept>
 
-jobject convertToJavaByteStreamStateHandle(
-    JNIEnv* env,
-    const ByteStreamStateHandle& cppHandle)
+jobject convertToJavaByteStreamStateHandle(JNIEnv* env, const ByteStreamStateHandle& cppHandle)
 {
     // 1. 获取 Java 类和方法 ID
-    jclass byteStreamStateHandleClass = env->FindClass(
-        "org/apache/flink/runtime/state/memory/ByteStreamStateHandle");
+    jclass byteStreamStateHandleClass = env->FindClass("org/apache/flink/runtime/state/memory/ByteStreamStateHandle");
     if (!byteStreamStateHandleClass) {
         env->ExceptionDescribe();
         return nullptr;
     }
 
-    jmethodID constructor = env->GetMethodID(
-        byteStreamStateHandleClass,
-        "<init>",
-        "(Ljava/lang/String;[B)V");
+    jmethodID constructor = env->GetMethodID(byteStreamStateHandleClass, "<init>", "(Ljava/lang/String;[B)V");
     if (!constructor) {
         env->ExceptionDescribe();
         env->DeleteLocalRef(byteStreamStateHandleClass);
@@ -50,17 +44,10 @@ jobject convertToJavaByteStreamStateHandle(
         return nullptr;
     }
     env->SetByteArrayRegion(
-        jData,
-        0,
-        static_cast<jsize>(cppData.size()),
-        reinterpret_cast<const jbyte*>(cppData.data()));
+        jData, 0, static_cast<jsize>(cppData.size()), reinterpret_cast<const jbyte*>(cppData.data()));
 
     // 4. 创建 Java 对象
-    jobject javaHandle = env->NewObject(
-        byteStreamStateHandleClass,
-        constructor,
-        jHandleName,
-        jData);
+    jobject javaHandle = env->NewObject(byteStreamStateHandleClass, constructor, jHandleName, jData);
 
     // 5. 清理局部引用
     env->DeleteLocalRef(jHandleName);
@@ -79,10 +66,7 @@ jobject convertToJavaFileStateHandle(JNIEnv* env, const FileStateHandle& cppHand
         return nullptr;
     }
 
-    jmethodID constructor = env->GetMethodID(
-        fileStateHandleClass,
-        "<init>",
-        "(Lorg/apache/flink/core/fs/Path;J)V");
+    jmethodID constructor = env->GetMethodID(fileStateHandleClass, "<init>", "(Lorg/apache/flink/core/fs/Path;J)V");
     if (!constructor) {
         env->ExceptionDescribe();
         env->DeleteLocalRef(fileStateHandleClass);
@@ -102,12 +86,8 @@ jobject convertToJavaFileStateHandle(JNIEnv* env, const FileStateHandle& cppHand
     jobject javaPath = env->NewObject(pathClass, pathConstructor, jFilePathStr);
 
     // 3. 创建Java FileStateHandle对象
-    jobject javaHandle = env->NewObject(
-        fileStateHandleClass,
-        constructor,
-        javaPath,
-        static_cast<jlong>(cppHandle.GetStateSize())
-    );
+    jobject javaHandle =
+        env->NewObject(fileStateHandleClass, constructor, javaPath, static_cast<jlong>(cppHandle.GetStateSize()));
 
     // 4. 清理局部引用
     env->DeleteLocalRef(jFilePathStr);
@@ -118,22 +98,17 @@ jobject convertToJavaFileStateHandle(JNIEnv* env, const FileStateHandle& cppHand
     return javaHandle;
 }
 
-jobject convertToJavaRelativeFileStateHandle(
-    JNIEnv* env,
-    const RelativeFileStateHandle& cppHandle)
+jobject convertToJavaRelativeFileStateHandle(JNIEnv* env, const RelativeFileStateHandle& cppHandle)
 {
     // 1. 获取Java类和方法
-    jclass relativeHandleClass = env->FindClass(
-        "org/apache/flink/runtime/state/filesystem/RelativeFileStateHandle");
+    jclass relativeHandleClass = env->FindClass("org/apache/flink/runtime/state/filesystem/RelativeFileStateHandle");
     if (!relativeHandleClass) {
         env->ExceptionDescribe();
         return nullptr;
     }
 
-    jmethodID constructor = env->GetMethodID(
-        relativeHandleClass,
-        "<init>",
-        "(Lorg/apache/flink/core/fs/Path;Ljava/lang/String;J)V");
+    jmethodID constructor =
+        env->GetMethodID(relativeHandleClass, "<init>", "(Lorg/apache/flink/core/fs/Path;Ljava/lang/String;J)V");
     if (!constructor) {
         env->ExceptionDescribe();
         env->DeleteLocalRef(relativeHandleClass);
@@ -153,12 +128,7 @@ jobject convertToJavaRelativeFileStateHandle(
 
     // 4. 创建Java对象
     jobject javaHandle = env->NewObject(
-        relativeHandleClass,
-        constructor,
-        javaPath,
-        jRelativePath,
-        static_cast<jlong>(cppHandle.GetStateSize())
-    );
+        relativeHandleClass, constructor, javaPath, jRelativePath, static_cast<jlong>(cppHandle.GetStateSize()));
 
     // 5. 清理局部引用
     env->DeleteLocalRef(jFilePathStr);
@@ -170,10 +140,7 @@ jobject convertToJavaRelativeFileStateHandle(
     return javaHandle;
 }
 
-
-jobject convertToJavaStreamStateHandle(
-    JNIEnv* env,
-    const StreamStateHandle& cppHandle)
+jobject convertToJavaStreamStateHandle(JNIEnv* env, const StreamStateHandle& cppHandle)
 {
     // 动态类型检查（如果是 ByteStreamStateHandle）
     if (auto byteHandle = dynamic_cast<const ByteStreamStateHandle*>(&cppHandle)) {
@@ -183,28 +150,24 @@ jobject convertToJavaStreamStateHandle(
     } else if (auto relHandle = dynamic_cast<const RelativeFileStateHandle*>(&cppHandle)) {
         return convertToJavaRelativeFileStateHandle(env, *relHandle);
     } else {
-        env->ThrowNew(
-            env->FindClass("java/lang/UnsupportedOperationException"),
-            "Unsupported StreamStateHandle type");
+        env->ThrowNew(env->FindClass("java/lang/UnsupportedOperationException"), "Unsupported StreamStateHandle type");
         return nullptr;
     }
 }
 
 // 转换C++ HandleAndLocalPath为Java HandleAndLocalPath
 jobject convertToJavaIncrementalHandleAndLocalPath(
-    JNIEnv* env,
-    const IncrementalKeyedStateHandle::HandleAndLocalPath& cppHandle)
+    JNIEnv* env, const IncrementalKeyedStateHandle::HandleAndLocalPath& cppHandle)
 {
     // 1. 获取Java嵌套类和方法
-    jclass incrementalHandleClass = env->FindClass(
-        "org/apache/flink/runtime/state/IncrementalKeyedStateHandle");
+    jclass incrementalHandleClass = env->FindClass("org/apache/flink/runtime/state/IncrementalKeyedStateHandle");
     if (!incrementalHandleClass) {
         env->ExceptionDescribe();
         return nullptr;
     }
     // 获取嵌套类HandleAndLocalPath
-    jclass handleAndPathClass = env->FindClass(
-        "org/apache/flink/runtime/state/IncrementalKeyedStateHandle$HandleAndLocalPath");
+    jclass handleAndPathClass =
+        env->FindClass("org/apache/flink/runtime/state/IncrementalKeyedStateHandle$HandleAndLocalPath");
     if (!handleAndPathClass) {
         env->ExceptionDescribe();
         env->DeleteLocalRef(incrementalHandleClass);
@@ -241,8 +204,8 @@ jobject convertToJavaIncrementalHandleAndLocalPath(
         return nullptr;
     }
     // 4. 调用工厂方法创建Java对象
-    jobject javaHandleAndPath = env->CallStaticObjectMethod(
-        handleAndPathClass, factoryMethod, javaStateHandle, jLocalPath);
+    jobject javaHandleAndPath =
+        env->CallStaticObjectMethod(handleAndPathClass, factoryMethod, javaStateHandle, jLocalPath);
     // 5. 清理局部引用
     if (javaStateHandle) env->DeleteLocalRef(javaStateHandle);
     env->DeleteLocalRef(jLocalPath);
@@ -253,23 +216,21 @@ jobject convertToJavaIncrementalHandleAndLocalPath(
 }
 
 // 转换vector<HandleAndLocalPath>为Java List
-jobject convertToJavaHandleAndLocalPathList(
-    JNIEnv* env,
-    const std::vector<HandleAndLocalPath>& cppHandles)
+jobject convertToJavaHandleAndLocalPathList(JNIEnv* env, const std::vector<HandleAndLocalPath>& cppHandles)
 {
-// 1. 获取ArrayList类和方法
+    // 1. 获取ArrayList类和方法
     jclass arrayListClass = env->FindClass("java/util/ArrayList");
     jmethodID constructor = env->GetMethodID(arrayListClass, "<init>", "()V");
     jmethodID addMethod = env->GetMethodID(arrayListClass, "add", "(Ljava/lang/Object;)Z");
 
-// 2. 创建ArrayList
+    // 2. 创建ArrayList
     jobject javaList = env->NewObject(arrayListClass, constructor);
     if (!javaList) {
         env->DeleteLocalRef(arrayListClass);
         return nullptr;
     }
 
-// 3. 填充数据
+    // 3. 填充数据
     for (const auto& cppHandle : cppHandles) {
         jobject javaItem = convertToJavaIncrementalHandleAndLocalPath(env, cppHandle);
         if (!javaItem) {
@@ -282,7 +243,7 @@ jobject convertToJavaHandleAndLocalPathList(
         env->DeleteLocalRef(javaItem);
     }
 
-// 4. 清理并返回
+    // 4. 清理并返回
     env->DeleteLocalRef(arrayListClass);
     return javaList;
 }
@@ -297,10 +258,8 @@ jobject convertFsPathToJavaPath(JNIEnv* env, const fs::path& restoreInstancePath
     }
 
     // 2. 获取Paths.get(String, String...)方法
-    jmethodID getMethod = env->GetStaticMethodID(
-        pathsClass,
-        "get",
-        "(Ljava/lang/String;[Ljava/lang/String;)Ljava/nio/file/Path;");
+    jmethodID getMethod =
+        env->GetStaticMethodID(pathsClass, "get", "(Ljava/lang/String;[Ljava/lang/String;)Ljava/nio/file/Path;");
     if (getMethod == nullptr) {
         // 方法未找到处理
         env->DeleteLocalRef(pathsClass);
@@ -314,11 +273,7 @@ jobject convertFsPathToJavaPath(JNIEnv* env, const fs::path& restoreInstancePath
     jobjectArray emptyArray = env->NewObjectArray(0, env->FindClass("java/lang/String"), nullptr);
 
     // 5. 调用Paths.get方法
-    jobject javaPath = env->CallStaticObjectMethod(
-        pathsClass,
-        getMethod,
-        pathString,
-        emptyArray);
+    jobject javaPath = env->CallStaticObjectMethod(pathsClass, getMethod, pathString, emptyArray);
 
     // 6. 清理局部引用
     env->DeleteLocalRef(pathString);
@@ -329,8 +284,8 @@ jobject convertFsPathToJavaPath(JNIEnv* env, const fs::path& restoreInstancePath
 }
 
 void RocksDBStateDownloader::callDownloadDataForAllStateHandles(
-    const std::vector<HandleAndLocalPath> &handleWithPaths,
-    const fs::path &restoreInstancePath,
+    const std::vector<HandleAndLocalPath>& handleWithPaths,
+    const fs::path& restoreInstancePath,
     std::shared_ptr<omnistream::OmniTaskBridge> omniTaskBridge)
 {
     auto env = omniTaskBridge->getJNIEnv();
@@ -374,11 +329,7 @@ void RocksDBStateDownloader::callDownloadDataForAllStateHandles(
         "(Ljava/util/List;Ljava/nio/file/Path;"
         "Lorg/apache/flink/core/fs/CloseableRegistry;)V");
 
-    env->CallVoidMethod(downloaderInstance,
-                        downloadMethod,
-                        javaHandleAndLocalPathList,
-                        jPath,
-                        jCloseableRegistry);
+    env->CallVoidMethod(downloaderInstance, downloadMethod, javaHandleAndLocalPathList, jPath, jCloseableRegistry);
 
     env->DeleteLocalRef(closeableClass);
     env->DeleteLocalRef(downloaderInstance);
@@ -390,5 +341,6 @@ void RocksDBStateDownloader::callDownloadDataForAllStateHandles(
 
 RocksDBStateDownloader::RocksDBStateDownloader(int restoringThreadNum)
     : RocksDBStateDataTransfer(restoringThreadNum),
-      restoringThreadNum_(restoringThreadNum) {
+      restoringThreadNum_(restoringThreadNum)
+{
 }

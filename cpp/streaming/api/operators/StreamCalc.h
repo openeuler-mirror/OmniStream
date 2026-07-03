@@ -33,12 +33,12 @@
 #include "table/data/binary/BinaryRowData.h"
 #include "table/data/binary/BinaryStringData.h"
 
-
 using namespace omniruntime::expressions;
-using ProjectFunc = int32_t (*)(const int64_t *, const uint8_t *, int32_t *, int64_t *, uint8_t *, int32_t *, int64_t);
-class StreamCalc : public  OneInputStreamOperator, public AbstractStreamOperator<RowData*> { // StreamCalc is not stateful, this RowData* is not needed
+using ProjectFunc = int32_t (*)(const int64_t*, const uint8_t*, int32_t*, int64_t*, uint8_t*, int32_t*, int64_t);
+class StreamCalc : public OneInputStreamOperator,
+                   public AbstractStreamOperator<RowData*> { // StreamCalc is not stateful, this RowData* is not needed
 public:
-    explicit StreamCalc(const nlohmann::json&  description, Output* output);
+    explicit StreamCalc(const nlohmann::json& description, Output* output);
     ~StreamCalc() override;
     void processElement(StreamRecord* record) override;
     void open() override;
@@ -47,32 +47,32 @@ public:
     {
         return reUsableRecord_;
     }
-    const char *getName() override;
+    const char* getName() override;
 
-    void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) override
+    void initializeState(StreamTaskStateInitializerImpl* initializer, TypeSerializer* keySerializer) override
     {
-        LOG("StreamCalc initializeState()")
+        LOG("StreamCalc initializeState()");
         // Do Nothing
     }
 
     std::string getTypeName() override
     {
         std::string typeName = "StreamCalc";
-        typeName.append(__PRETTY_FUNCTION__) ;
-        return typeName ;
+        typeName.append(__PRETTY_FUNCTION__);
+        return typeName;
     }
 
-    void processWatermarkStatus(WatermarkStatus *watermarkStatus) override
+    void processWatermarkStatus(WatermarkStatus* watermarkStatus) override
     {
         output->emitWatermarkStatus(watermarkStatus);
     }
- 
+
 private:
     void parseDescription(const nlohmann::json& description);
-    using ProjFuncType = void (*) (RowData*, int, RowData*, int);
-    int extractPrecision(std::basic_string<char> &basicString);
+    using ProjFuncType = void (*)(RowData*, int, RowData*, int);
+    int extractPrecision(std::basic_string<char>& basicString);
     void GetMsgFromJson();
-    void ParseProjExprs(JSONParser *parser);
+    void ParseProjExprs(JSONParser* parser);
     std::vector<ProjFuncType> projFuncs_;
     std::vector<int32_t> outputTypeIds_;
     // std::vector<int32_t> inputTypeIds_;
@@ -91,11 +91,9 @@ private:
     const static int SEG_SIZE = 2048;
     // MemorySegment ** backData_;
     // int numSegment_;
-    std::vector<Expr *> projExprs;
+    std::vector<Expr*> projExprs;
     Expr* filterCondition = nullptr;
     ProjectFunc projector;
 };
 
-
 #endif
-

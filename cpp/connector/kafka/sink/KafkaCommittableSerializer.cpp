@@ -19,7 +19,8 @@ int KafkaCommittableSerializer::getVersion() const
     return 1;
 }
 
-std::vector<uint8_t> KafkaCommittableSerializer::serialize(const KafkaCommittable& state) {
+std::vector<uint8_t> KafkaCommittableSerializer::serialize(const KafkaCommittable& state)
+{
     DataOutputSerializer out;
     out.writeShort(state.GetEpoch());
     out.writeLong(state.GetProducerId());
@@ -27,7 +28,8 @@ std::vector<uint8_t> KafkaCommittableSerializer::serialize(const KafkaCommittabl
     return std::vector<uint8_t>(out.getData(), out.getData() + out.length());
 }
 
-KafkaCommittable* KafkaCommittableSerializer::deserialize(int version, std::vector<uint8_t>& serialized) {
+KafkaCommittable* KafkaCommittableSerializer::deserialize(int version, std::vector<uint8_t>& serialized)
+{
     DataInputDeserializer deserializer(serialized.data(), serialized.size(), 0);
     short epoch = deserializer.readUnsignedShort();
     long producerId = deserializer.readLong();

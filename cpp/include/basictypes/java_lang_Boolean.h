@@ -11,13 +11,13 @@
 #ifndef JAVA_LANG_BOOLEAN
 #define JAVA_LANG_BOOLEAN
 #include "Object.h"
-#define true  1
+#define true 1
 #define false 0
 
 class Boolean : public Object {
 public:
-    thread_local static Boolean *TRUE;
-    thread_local static Boolean *FALSE;
+    thread_local static Boolean* TRUE;
+    thread_local static Boolean* FALSE;
 
 public:
     Boolean(bool value);
@@ -28,8 +28,7 @@ public:
 
     Object* clone() override;
     bool value;
-    void setValue(const std::string &basicString) override;
+    void setValue(const std::string& basicString) override;
 };
-
 
 #endif

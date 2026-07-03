@@ -22,7 +22,9 @@ public:
 
 class WatermarkAlignmentEvent : public OperatorEvent {
 public:
-    WatermarkAlignmentEvent(long maxWatermark) : maxWatermark(maxWatermark) {}
+    WatermarkAlignmentEvent(long maxWatermark) : maxWatermark(maxWatermark)
+    {
+    }
 
     long getMaxWatermark()
     {
@@ -39,12 +41,14 @@ private:
     long maxWatermark;
 };
 
-
 template <typename E>
 class AddSplitEvent : public OperatorEvent {
 public:
     AddSplitEvent(int serializerVersion, std::vector<std::vector<uint8_t>> splitsVec)
-        : serializerVersion(serializerVersion), splitsVec(std::move(splitsVec)) {}
+        : serializerVersion(serializerVersion),
+          splitsVec(std::move(splitsVec))
+    {
+    }
 
     AddSplitEvent(std::vector<E> splits, SimpleVersionedSerializer<E>* splitSerializer)
     {
@@ -84,7 +88,6 @@ class SourceEvent {
 public:
     virtual ~SourceEvent() = default;
 };
-
 
 class NoMoreSplitsEvent : public OperatorEvent {
     std::string toString() override

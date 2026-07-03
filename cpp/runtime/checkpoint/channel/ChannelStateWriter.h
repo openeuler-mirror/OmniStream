@@ -37,21 +37,24 @@ public:
     class ChannelStateWriteResult {
     public:
         using InputChannelStateHandleVecPtr = std::shared_ptr<std::vector<std::shared_ptr<InputChannelStateHandle>>>;
-        using ResultSubpartitionStateVecPtr = std::shared_ptr<std::vector<std::shared_ptr<ResultSubpartitionStateHandle>>>;
+        using ResultSubpartitionStateVecPtr =
+            std::shared_ptr<std::vector<std::shared_ptr<ResultSubpartitionStateHandle>>>;
         using InputChannelStateFuture = std::shared_ptr<CompletableFutureV2<InputChannelStateHandleVecPtr>>;
         using ResultSubpartitionStateFuture = std::shared_ptr<CompletableFutureV2<ResultSubpartitionStateVecPtr>>;
 
         ChannelStateWriteResult() noexcept
             : inputChannelStateHandles(std::make_shared<CompletableFutureV2<InputChannelStateHandleVecPtr>>()),
               resultSubpartitionStateHandles(std::make_shared<CompletableFutureV2<ResultSubpartitionStateVecPtr>>())
-        {}
+        {
+        }
 
         ChannelStateWriteResult(
             InputChannelStateFuture inputChannelStateHandles,
             ResultSubpartitionStateFuture resultSubpartitionStateHandles) noexcept
             : inputChannelStateHandles(std::move(inputChannelStateHandles)),
               resultSubpartitionStateHandles(std::move(resultSubpartitionStateHandles))
-        {}
+        {
+        }
 
         InputChannelStateFuture GetInputChannelStateHandles()
         {
@@ -67,7 +70,7 @@ public:
         {
             auto inputFuture = std::make_shared<CompletableFutureV2<InputChannelStateHandleVecPtr>>();
             auto resultFuture = std::make_shared<CompletableFutureV2<ResultSubpartitionStateVecPtr>>();
-            
+
             return std::make_shared<ChannelStateWriteResult>(inputFuture, resultFuture);
         }
 
@@ -90,6 +93,7 @@ public:
         {
             isNeedsChannelState = flag;
         }
+
     private:
         InputChannelStateFuture inputChannelStateHandles;
         ResultSubpartitionStateFuture resultSubpartitionStateHandles;
@@ -127,7 +131,10 @@ public:
      * @see org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter#sequenceNumberRestored
      * @see org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter#sequenceNumberUnknown
      */
-    virtual void AddInputData(long checkpointId, const omnistream::InputChannelInfo& info, int startSeqNum,
+    virtual void AddInputData(
+        long checkpointId,
+        const omnistream::InputChannelInfo& info,
+        int startSeqNum,
         std::vector<omnistream::Buffer*> data) = 0;
 
     /**
@@ -144,7 +151,10 @@ public:
      * @see org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter#sequenceNumberRestored
      * @see org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter#sequenceNumberUnknown
      */
-    virtual void AddOutputData(long checkpointId, const omnistream::ResultSubpartitionInfoPOD& info, int startSeqNum,
+    virtual void AddOutputData(
+        long checkpointId,
+        const omnistream::ResultSubpartitionInfoPOD& info,
+        int startSeqNum,
         std::vector<omnistream::Buffer*>& data) = 0;
 
     /**
@@ -156,8 +166,11 @@ public:
      * <p>The method will be called when the unaligned checkpoint is enabled and received an aligned
      * barrier.
      */
-    virtual void AddOutputDataFuture(long checkpointId, const omnistream::ResultSubpartitionInfoPOD& info,
-        int startSeqNum, std::shared_ptr<CompletableFutureV2<std::vector<omnistream::Buffer*>>> data) = 0;
+    virtual void AddOutputDataFuture(
+        long checkpointId,
+        const omnistream::ResultSubpartitionInfoPOD& info,
+        int startSeqNum,
+        std::shared_ptr<CompletableFutureV2<std::vector<omnistream::Buffer*>>> data) = 0;
 
     /**
      * Finalize write of channel state data for the given checkpoint id. Must be called after {@link
@@ -194,33 +207,50 @@ public:
 /** No-op implementation of {@link ChannelStateWriter}. */
 class NoOpChannelStateWriter : public ChannelStateWriter {
 public:
-   static std::shared_ptr<NoOpChannelStateWriter> noOp;
+    static std::shared_ptr<NoOpChannelStateWriter> noOp;
     void open() override
-    {}
+    {
+    }
 
     void Start(long checkpointId, const CheckpointOptions& checkpointOptions) override
-    {}
+    {
+    }
 
-    void AddInputData(long checkpointId, const omnistream::InputChannelInfo& info, int startSeqNum,
+    void AddInputData(
+        long checkpointId,
+        const omnistream::InputChannelInfo& info,
+        int startSeqNum,
         std::vector<omnistream::Buffer*> data) override
-    {}
+    {
+    }
 
-    void AddOutputData(long checkpointId, const omnistream::ResultSubpartitionInfoPOD& info, int startSeqNum,
+    void AddOutputData(
+        long checkpointId,
+        const omnistream::ResultSubpartitionInfoPOD& info,
+        int startSeqNum,
         std::vector<omnistream::Buffer*>& data) override
-    {}
+    {
+    }
 
-    void AddOutputDataFuture(long checkpointId, const omnistream::ResultSubpartitionInfoPOD& info, int startSeqNum,
+    void AddOutputDataFuture(
+        long checkpointId,
+        const omnistream::ResultSubpartitionInfoPOD& info,
+        int startSeqNum,
         std::shared_ptr<CompletableFutureV2<std::vector<omnistream::Buffer*>>> data) override
-    {}
+    {
+    }
 
     void FinishInput(long checkpointId) override
-    {}
+    {
+    }
 
     void FinishOutput(long checkpointId) override
-    {}
+    {
+    }
 
     void Abort(long checkpointId, const std::exception_ptr& cause, bool cleanup) override
-    {}
+    {
+    }
 
     std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> GetAndRemoveWriteResult(long checkpointId) override
     {

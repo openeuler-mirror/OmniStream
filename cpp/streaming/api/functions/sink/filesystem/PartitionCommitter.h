@@ -35,7 +35,7 @@
 
 namespace fs = std::filesystem;
 
-int64_t parseDurationMs(const std::string &durationStr);
+int64_t parseDurationMs(const std::string& durationStr);
 
 /**
  * Message sent from upstream writer tasks to the PartitionCommitter.
@@ -47,13 +47,17 @@ struct PartitionCommitInfo {
     int numberOfTasks;
     std::vector<std::string> partitions;
 
-    PartitionCommitInfo()
-        : checkpointId(0), taskId(0), numberOfTasks(0) {}
+    PartitionCommitInfo() : checkpointId(0), taskId(0), numberOfTasks(0)
+    {
+    }
 
-    PartitionCommitInfo(long checkpointId, int taskId, int numberOfTasks,
-                        const std::vector<std::string> &partitions)
-        : checkpointId(checkpointId), taskId(taskId),
-          numberOfTasks(numberOfTasks), partitions(partitions) {}
+    PartitionCommitInfo(long checkpointId, int taskId, int numberOfTasks, const std::vector<std::string>& partitions)
+        : checkpointId(checkpointId),
+          taskId(taskId),
+          numberOfTasks(numberOfTasks),
+          partitions(partitions)
+    {
+    }
 };
 
 /**
@@ -73,33 +77,32 @@ struct PartitionCommitInfo {
  * 3. Extract committable partitions from PartitionCommitTrigger.
  * 4. Use PartitionCommitPolicy chain to commit partitions.
  */
-class PartitionCommitter : public OneInputStreamOperator,
-                           public AbstractStreamOperator<void *> {
+class PartitionCommitter : public OneInputStreamOperator, public AbstractStreamOperator<void*> {
 public:
     PartitionCommitter();
-    explicit PartitionCommitter(const nlohmann::json &config);
+    explicit PartitionCommitter(const nlohmann::json& config);
     ~PartitionCommitter() override;
 
     void setup();
-    void initializeState(StreamTaskStateInitializerImpl *initializer,
-                         TypeSerializer *keySerializer) override;
+    void initializeState(StreamTaskStateInitializerImpl* initializer, TypeSerializer* keySerializer) override;
     void open() override;
-    void processElement(StreamRecord *element) override;
-    void processBatch(StreamRecord *element) override;
-    void ProcessWatermark(Watermark *mark) override;
+    void processElement(StreamRecord* element) override;
+    void processBatch(StreamRecord* element) override;
+    void ProcessWatermark(Watermark* mark) override;
     void notifyCheckpointComplete(long checkpointId) override;
 
-    OperatorSnapshotFutures *SnapshotState(long checkpointId,
+    OperatorSnapshotFutures* SnapshotState(
+        long checkpointId,
         long timestamp,
-        CheckpointOptions *checkpointOptions,
-        CheckpointStreamFactory *storageLocation,
+        CheckpointOptions* checkpointOptions,
+        CheckpointStreamFactory* storageLocation,
         const std::shared_ptr<OmniTaskBridge>& bridge) override;
 
     void endInput();
     std::string getTypeName() override;
 
 protected:
-    void processWatermarkStatus(WatermarkStatus *watermarkStatus) override;
+    void processWatermarkStatus(WatermarkStatus* watermarkStatus) override;
 
 private:
     // ---- config fields ----
@@ -125,12 +128,12 @@ private:
     std::vector<std::unique_ptr<PartitionCommitPolicy>> policies_;
 
     // ---- helpers ----
-    void parseConfig(const nlohmann::json &config);
-    std::string extractPartitionPath(omnistream::VectorBatch *batch, int rowId);
-    int64_t extractPartitionTime(omnistream::VectorBatch *batch, int rowId);
+    void parseConfig(const nlohmann::json& config);
+    std::string extractPartitionPath(omnistream::VectorBatch* batch, int rowId);
+    int64_t extractPartitionTime(omnistream::VectorBatch* batch, int rowId);
 
     void scanExistingPartitions();
-    bool hasPartitionFiles(const std::string &dirPath);
+    bool hasPartitionFiles(const std::string& dirPath);
 
     // legacy watermark-based commit
     void checkAndCommitPartitionsLegacy();
@@ -138,10 +141,9 @@ private:
 
     // Flink-style commit
     void commitPartitions(long checkpointId);
-    void executeCommitPartition(const std::string &partitionPath,
-                                const std::vector<std::string> &partitionValues);
+    void executeCommitPartition(const std::string& partitionPath, const std::vector<std::string>& partitionValues);
 
-    void commitPartition(const std::string &partitionPath);
+    void commitPartition(const std::string& partitionPath);
     void commitAllPendingPartitions();
 };
 

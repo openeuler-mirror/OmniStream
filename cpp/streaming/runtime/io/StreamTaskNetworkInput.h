@@ -17,14 +17,14 @@
 #include "AbstractStreamTaskNetworkInput.h"
 
 namespace omnistream::datastream {
-    class StreamTaskNetworkInput : public AbstractStreamTaskNetworkInput {
-    public:
-        explicit StreamTaskNetworkInput(TypeSerializer* inputSerializer, std::vector<long>& channelInfos);
-    private:
-        static std::unique_ptr<std::unordered_map<long, RecordDeserializer *>>
-        getRecordDeserializers(std::vector<long>& channelInfos);
-    };
-}
+class StreamTaskNetworkInput : public AbstractStreamTaskNetworkInput {
+public:
+    explicit StreamTaskNetworkInput(TypeSerializer* inputSerializer, std::vector<long>& channelInfos);
 
+private:
+    static std::unique_ptr<std::unordered_map<long, RecordDeserializer*>> getRecordDeserializers(
+        std::vector<long>& channelInfos);
+};
+} // namespace omnistream::datastream
 
 #endif // FLINK_TNEL_STREAMTASKNETWORKINPUT_H

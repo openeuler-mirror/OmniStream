@@ -13,9 +13,13 @@
 
 class RocksDBStateDataTransfer {
 public:
-    explicit RocksDBStateDataTransfer(int threadNum) {}
+    explicit RocksDBStateDataTransfer(int threadNum)
+    {
+    }
 
-    virtual ~RocksDBStateDataTransfer() {}
+    virtual ~RocksDBStateDataTransfer()
+    {
+    }
 };
 
 #endif // OMNISTREAM_ROCKSDBSTATEDATATRANSFER_H

@@ -27,19 +27,27 @@
 class TestInput : public CheckpointableInput {
 public:
     explicit TestInput(int inputGateIndex, int numChannels = 1)
-        : inputGateIndex_(inputGateIndex), numChannels_(numChannels) {}
+        : inputGateIndex_(inputGateIndex),
+          numChannels_(numChannels)
+    {
+    }
 
-    void BlockConsumption(const InputChannelInfo &info) override {
+    void BlockConsumption(const InputChannelInfo& info) override
+    {
         blockedChannels_.insert(info.getInputChannelIdx());
     }
 
-    void ResumeConsumption(const InputChannelInfo &info) override {
+    void ResumeConsumption(const InputChannelInfo& info) override
+    {
         resumedChannels_.insert(info.getInputChannelIdx());
     }
 
-    void ConvertToPriorityEvent(int, int) override {}
+    void ConvertToPriorityEvent(int, int) override
+    {
+    }
 
-    std::vector<InputChannelInfo> GetChannelInfos() override {
+    std::vector<InputChannelInfo> GetChannelInfos() override
+    {
         std::vector<InputChannelInfo> infos;
         for (int i = 0; i < numChannels_; ++i) {
             infos.emplace_back(inputGateIndex_, i);
@@ -47,17 +55,23 @@ public:
         return infos;
     }
 
-    int GetNumberOfInputChannels() { return numChannels_; }
+    int GetNumberOfInputChannels()
+    {
+        return numChannels_;
+    }
 
-    void CheckpointStarted(const CheckpointBarrier &) override {
+    void CheckpointStarted(const CheckpointBarrier&) override
+    {
         started = true;
     }
 
-    void CheckpointStopped(long) override {
+    void CheckpointStopped(long) override
+    {
         stopped = true;
     }
 
-    int GetInputGateIndex() override {
+    int GetInputGateIndex() override
+    {
         return inputGateIndex_;
     }
 
@@ -70,36 +84,58 @@ public:
     bool stopped = false;
 };
 
-
 class MailboxExecutorTest : public omnistream::MailboxExecutor {
 public:
     MailboxExecutorTest() = default;
 
-    void execute(std::shared_ptr<omnistream::ThrowingRunnable> command, const std::string &description) override {
+    void execute(std::shared_ptr<omnistream::ThrowingRunnable> command, const std::string& description) override
+    {
         command->Run();
     }
 
-    void execute(std::shared_ptr<omnistream::ThrowingRunnable> command, const std::string &descriptionFormat,
-                 const std::vector<std::any> &descriptionArgs) override {
+    void execute(
+        std::shared_ptr<omnistream::ThrowingRunnable> command,
+        const std::string& descriptionFormat,
+        const std::vector<std::any>& descriptionArgs) override
+    {
         // Mock implementation for testing
     }
 
-    void yield() override {}
+    void yield() override
+    {
+    }
 
-    bool tryYield() override { return true; }
+    bool tryYield() override
+    {
+        return true;
+    }
 
-    std::string toString() const override { return "MockMailboxExecutor"; }
+    std::string toString() const override
+    {
+        return "MockMailboxExecutor";
+    }
 };
 
 using namespace omnistream;
 
 class DummyCounter : public Counter {
 public:
-    void Inc() override {}
-    void Inc(long) override {}
-    void Dec() override {}
-    void Dec(long) override {}
-    long GetCount() override { return 0; }
+    void Inc() override
+    {
+    }
+    void Inc(long) override
+    {
+    }
+    void Dec() override
+    {
+    }
+    void Dec(long) override
+    {
+    }
+    long GetCount() override
+    {
+        return 0;
+    }
     MetricType GetMetricType() const override
     {
         return MetricType::COUNTER;
@@ -108,23 +144,61 @@ public:
 
 class DummyInputChannel : public InputChannel {
 public:
-    explicit DummyInputChannel(std::shared_ptr<SingleInputGate> gate, InputChannelInfo info) : InputChannel(gate, 0, ResultPartitionIDPOD(), 0, 0, std::make_shared<DummyCounter>(), std::make_shared<DummyCounter>()), info_(std::move(info)) {}
+    explicit DummyInputChannel(std::shared_ptr<SingleInputGate> gate, InputChannelInfo info)
+        : InputChannel(
+              gate,
+              0,
+              ResultPartitionIDPOD(),
+              0,
+              0,
+              std::make_shared<DummyCounter>(),
+              std::make_shared<DummyCounter>()),
+          info_(std::move(info))
+    {
+    }
 
-    InputChannelInfo getChannelInfo() const {
+    InputChannelInfo getChannelInfo() const
+    {
         return info_;
     }
 
-    void resumeConsumption() override {}
-    void acknowledgeAllRecordsProcessed() override {}
-    void requestSubpartition(int) override {}
-    std::optional<BufferAndAvailability> getNextBuffer() override { return std::nullopt; }
-    void sendTaskEvent(std::shared_ptr<TaskEvent>) override {}
-    bool isReleased() override { return false; }
-    void releaseAllResources() override {}
-    void announceBufferSize(int) override {}
-    int getBuffersInUseCount() override { return 0; }
-    void SetChannelStateWriter(std::shared_ptr<ChannelStateWriter> channelStateWriter) override {}
-    std::string toString() override { return "DummyInputChannel"; }
+    void resumeConsumption() override
+    {
+    }
+    void acknowledgeAllRecordsProcessed() override
+    {
+    }
+    void requestSubpartition(int) override
+    {
+    }
+    std::optional<BufferAndAvailability> getNextBuffer() override
+    {
+        return std::nullopt;
+    }
+    void sendTaskEvent(std::shared_ptr<TaskEvent>) override
+    {
+    }
+    bool isReleased() override
+    {
+        return false;
+    }
+    void releaseAllResources() override
+    {
+    }
+    void announceBufferSize(int) override
+    {
+    }
+    int getBuffersInUseCount() override
+    {
+        return 0;
+    }
+    void SetChannelStateWriter(std::shared_ptr<ChannelStateWriter> channelStateWriter) override
+    {
+    }
+    std::string toString() override
+    {
+        return "DummyInputChannel";
+    }
 
 private:
     InputChannelInfo info_;
@@ -132,11 +206,22 @@ private:
 
 class SingleChannelDummyInputGate : public IndexedInputGate {
 public:
-    SingleChannelDummyInputGate(int idx) : singleGate_(
-        std::make_shared<SingleInputGate>(
-            "dummyTask", idx, IntermediateDataSetIDPOD(), 0, 0, 1, nullptr, std::function<std::shared_ptr<BufferPool>()>(), nullptr, 1024)) {
-                dummyChannel_ = std::make_shared<DummyInputChannel>(singleGate_, InputChannelInfo(0, 0));
-        }
+    SingleChannelDummyInputGate(int idx)
+        : singleGate_(
+              std::make_shared<SingleInputGate>(
+                  "dummyTask",
+                  idx,
+                  IntermediateDataSetIDPOD(),
+                  0,
+                  0,
+                  1,
+                  nullptr,
+                  std::function<std::shared_ptr<BufferPool>()>(),
+                  nullptr,
+                  1024))
+    {
+        dummyChannel_ = std::make_shared<DummyInputChannel>(singleGate_, InputChannelInfo(0, 0));
+    }
     BufferOrEvent* PollNext() override
     {
         return GetNext();
@@ -149,7 +234,7 @@ public:
 
     std::vector<InputChannelInfo> getUnfinishedChannels() override
     {
-        return { InputChannelInfo(0, 0) };
+        return {InputChannelInfo(0, 0)};
     }
 
     int getBuffersInUseCount() override
@@ -170,9 +255,8 @@ public:
         }
 
         // Create a dummy checkpoint barrier event
-        auto options = new CheckpointOptions(
-                CheckpointType::CHECKPOINT,
-                CheckpointStorageLocationReference::GetDefault());
+        auto options =
+            new CheckpointOptions(CheckpointType::CHECKPOINT, CheckpointStorageLocationReference::GetDefault());
 
         auto barrier = std::make_shared<CheckpointBarrier>(1L, 999L, options);
         auto boe = std::make_shared<BufferOrEvent>(barrier, InputChannelInfo(0, 0));
@@ -196,16 +280,22 @@ public:
         return finished_;
     }
 
-    void sendTaskEvent(const std::shared_ptr<TaskEvent>&) override {}
+    void sendTaskEvent(const std::shared_ptr<TaskEvent>&) override
+    {
+    }
 
     std::shared_ptr<CompletableFuture> GetAvailableFuture() override
     {
         return std::make_shared<CompletableFuture>();
     }
 
-    void ResumeConsumption(const InputChannelInfo&) override {}
+    void ResumeConsumption(const InputChannelInfo&) override
+    {
+    }
 
-    void acknowledgeAllRecordsProcessed(const InputChannelInfo&) override {}
+    void acknowledgeAllRecordsProcessed(const InputChannelInfo&) override
+    {
+    }
 
     std::shared_ptr<InputChannel> getChannel(int) override
     {
@@ -214,12 +304,16 @@ public:
 
     std::vector<InputChannelInfo> getChannelInfos()
     {
-        return { InputChannelInfo(0, 0) };
+        return {InputChannelInfo(0, 0)};
     }
 
-    void setup() override {}
+    void setup() override
+    {
+    }
 
-    void RequestPartitions() override {}
+    void RequestPartitions() override
+    {
+    }
 
     std::shared_ptr<CompletableFutureV2<void>> getStateConsumedFuture() override
     {
@@ -231,7 +325,9 @@ public:
         return {};
     }
 
-    void FinishReadRecoveredState() override {}
+    void FinishReadRecoveredState() override
+    {
+    }
 
 private:
     bool emitted_;
@@ -243,45 +339,90 @@ private:
 // multi-channel DummyInputGate
 class MultiChannelDummyInputGate : public InputGate {
 public:
-    MultiChannelDummyInputGate() : singleGate_(
-        std::make_shared<SingleInputGate>(
-            "dummyTask", 0, IntermediateDataSetIDPOD(), 0, 0, 2, nullptr, std::function<std::shared_ptr<BufferPool>()>(), nullptr, 1024)) {
-                // Create 2 channels and their infos
-                for (int idx = 0; idx < 2; ++idx) {
-                    InputChannelInfo info(0, idx);
-                    infos_.push_back(info);
-                    channels_.push_back(std::make_shared<DummyInputChannel>(singleGate_, info));
-                }
+    MultiChannelDummyInputGate()
+        : singleGate_(
+              std::make_shared<SingleInputGate>(
+                  "dummyTask",
+                  0,
+                  IntermediateDataSetIDPOD(),
+                  0,
+                  0,
+                  2,
+                  nullptr,
+                  std::function<std::shared_ptr<BufferPool>()>(),
+                  nullptr,
+                  1024))
+    {
+        // Create 2 channels and their infos
+        for (int idx = 0; idx < 2; ++idx) {
+            InputChannelInfo info(0, idx);
+            infos_.push_back(info);
+            channels_.push_back(std::make_shared<DummyInputChannel>(singleGate_, info));
         }
+    }
 
-    BufferOrEvent* PollNext() override {
+    BufferOrEvent* PollNext() override
+    {
         return GetNext();
     }
 
-    int GetNumberOfInputChannels() override {
+    int GetNumberOfInputChannels() override
+    {
         return 2;
     }
 
-    std::vector<InputChannelInfo> getChannelInfos() {
+    std::vector<InputChannelInfo> getChannelInfos()
+    {
         return infos_;
     }
 
-    std::shared_ptr<InputChannel> getChannel(int idx) override {
+    std::shared_ptr<InputChannel> getChannel(int idx) override
+    {
         return channels_.at(idx);
     }
 
-    BufferOrEvent* GetNext() override { return nullptr; }
-    std::shared_ptr<CompletableFuture> GetAvailableFuture() override { return {}; }
-    bool IsFinished() override { return false; }
-    bool HasReceivedEndOfData() override { return false; }
-    void sendTaskEvent(const std::shared_ptr<TaskEvent>&) override {}
-    void ResumeConsumption(const InputChannelInfo&) override {}
-    void acknowledgeAllRecordsProcessed(const InputChannelInfo&) override {}
-    void setup() override {}
-    void RequestPartitions() override {}
-    std::shared_ptr<CompletableFutureV2<void>> getStateConsumedFuture() override { return {}; }
-    std::vector<bool> getStateConsumedFuture1() override{return {};}
-    void FinishReadRecoveredState() override {}
+    BufferOrEvent* GetNext() override
+    {
+        return nullptr;
+    }
+    std::shared_ptr<CompletableFuture> GetAvailableFuture() override
+    {
+        return {};
+    }
+    bool IsFinished() override
+    {
+        return false;
+    }
+    bool HasReceivedEndOfData() override
+    {
+        return false;
+    }
+    void sendTaskEvent(const std::shared_ptr<TaskEvent>&) override
+    {
+    }
+    void ResumeConsumption(const InputChannelInfo&) override
+    {
+    }
+    void acknowledgeAllRecordsProcessed(const InputChannelInfo&) override
+    {
+    }
+    void setup() override
+    {
+    }
+    void RequestPartitions() override
+    {
+    }
+    std::shared_ptr<CompletableFutureV2<void>> getStateConsumedFuture() override
+    {
+        return {};
+    }
+    std::vector<bool> getStateConsumedFuture1() override
+    {
+        return {};
+    }
+    void FinishReadRecoveredState() override
+    {
+    }
 
 private:
     std::shared_ptr<SingleInputGate> singleGate_;
@@ -289,4 +430,4 @@ private:
     std::vector<std::shared_ptr<InputChannel>> channels_;
 };
 
-#endif //OMNISTREAM_MOCKCLASSES_H
+#endif // OMNISTREAM_MOCKCLASSES_H

@@ -21,19 +21,19 @@ class RichFunction : public omnistream::Function {
 public:
     virtual ~RichFunction();
 
-    virtual void open(const Configuration &parameters);
+    virtual void open(const Configuration& parameters);
 
     virtual void open(Configuration* parameters);
 
-    virtual void open(const OpenContext *openContext);
+    virtual void open(const OpenContext* openContext);
 
     virtual void close() = 0;
 
-    virtual RuntimeContext *getRuntimeContext() = 0;
+    virtual RuntimeContext* getRuntimeContext() = 0;
 
-    virtual IterationRuntimeContext *getIterationRuntimeContext() = 0;
+    virtual IterationRuntimeContext* getIterationRuntimeContext() = 0;
 
-    virtual void setRuntimeContext(RuntimeContext *context) = 0;
+    virtual void setRuntimeContext(RuntimeContext* context) = 0;
 };
 
 #endif // FLINK_TNEL_RICH_FUNCTION_H

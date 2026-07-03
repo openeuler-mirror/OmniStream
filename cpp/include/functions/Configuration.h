@@ -23,7 +23,7 @@ public:
 
     explicit Configuration(bool standardYaml);
 
-    Configuration(const Configuration &other);
+    Configuration(const Configuration& other);
 
     void setString(std::string key, String* value);
 
@@ -51,13 +51,13 @@ public:
 
     bool getBoolean(std::string key, bool defaultValue);
 
-    HashMap *getMap();
+    HashMap* getMap();
 
     static Configuration* TM_CONFIG;
 
     Object* getValue(ConfigOption* configOption);
 
-    Object* getValue(const std::unique_ptr<ConfigOption> &configOption);
+    Object* getValue(const std::unique_ptr<ConfigOption>& configOption);
 
     Object* returnDefaultValue(ConfigOption* configOption);
 

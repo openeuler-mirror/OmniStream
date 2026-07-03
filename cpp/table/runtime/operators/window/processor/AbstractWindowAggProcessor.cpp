@@ -15,20 +15,20 @@
 #include "../../../generated/NamespaceAggsBasicFunctionFactory.h"
 #include "runtime/operators/VectorBatchUtils.h"
 
-AbstractWindowAggProcessor::AbstractWindowAggProcessor(
-        const nlohmann::json description,
-        Output* output) :output(output) {
+AbstractWindowAggProcessor::AbstractWindowAggProcessor(const nlohmann::json description, Output* output)
+    : output(output)
+{
     sliceAssigner = AssignerAtt::createSliceAssigner(description);
     isEventTime = sliceAssigner->isEventTime();
     windowInterval = sliceAssigner->getSliceEndInterval();
     collector = std::make_unique<TimestampedCollector>(this->output);
 
     outputTypes = description["outputTypes"].get<std::vector<std::string>>();
-    for (const auto &typeStr : outputTypes) {
+    for (const auto& typeStr : outputTypes) {
         outputTypeIds.push_back(LogicalType::flinkTypeToOmniTypeId(typeStr));
     }
     inputTypes = description["inputTypes"].get<std::vector<std::string>>();
-    for (const auto &typeStr : inputTypes) {
+    for (const auto& typeStr : inputTypes) {
         inputTypeIds_.push_back(LogicalType::flinkTypeToOmniTypeId(typeStr));
     }
     keyedIndex = description["grouping"].get<std::vector<int32_t>>();
@@ -46,7 +46,8 @@ AbstractWindowAggProcessor::AbstractWindowAggProcessor(
     aggregator = initNamespaceAggsHandleFunction(isWindowAgg, description["aggInfoList"]);
 }
 
-bool AbstractWindowAggProcessor::processBatch(omnistream::VectorBatch* vectorbatch) {
+bool AbstractWindowAggProcessor::processBatch(omnistream::VectorBatch* vectorbatch)
+{
     const std::string shiftTimeZone = ResolveShiftTimeZoneId(sliceAssigner);
     std::vector<int64_t> sliceEndArr(vectorbatch->GetRowCount());
     std::vector<bool> dropArr(vectorbatch->GetRowCount(), false);
@@ -55,14 +56,14 @@ bool AbstractWindowAggProcessor::processBatch(omnistream::VectorBatch* vectorbat
         sliceEndArr[i] = sliceEnd;
         auto currentKey = keySelector->getKey(vectorbatch, i);
         if (!isEventTime) {
-            auto temp =std::make_unique<WindowKey>(sliceEnd, currentKey);
+            auto temp = std::make_unique<WindowKey>(sliceEnd, currentKey);
             auto result = uniqueData.insert(temp->hash());
             if (result.second) {
                 stateBackend->setCurrentKey(currentKey);
                 internalTimerService->registerProcessingTimeTimer(sliceEnd, sliceEnd - 1);
             }
         }
-        if (isEventTime && TimeWindowUtil::isWindowFired(sliceEnd, currentProgress, shiftTimeZone)){
+        if (isEventTime && TimeWindowUtil::isWindowFired(sliceEnd, currentProgress, shiftTimeZone)) {
             WindowedSliceAssigner* windowedSliceAssigner = dynamic_cast<WindowedSliceAssigner*>(sliceAssigner);
             SliceAssigner* assigner = windowedSliceAssigner->GetInnerAssigner();
             if (assigner == nullptr) {
@@ -74,7 +75,7 @@ bool AbstractWindowAggProcessor::processBatch(omnistream::VectorBatch* vectorbat
                 dropArr[i] = true;
                 continue;
             }
-            //register elements;
+            // register elements;
             int64_t unfiredFirstWindow = sliceEnd;
             while (TimeWindowUtil::isWindowFired(unfiredFirstWindow, currentProgress, shiftTimeZone)) {
                 unfiredFirstWindow += windowInterval;
@@ -89,14 +90,16 @@ bool AbstractWindowAggProcessor::processBatch(omnistream::VectorBatch* vectorbat
 }
 
 void AbstractWindowAggProcessor::open(
-        AbstractKeyedStateBackend<AbstractWindowAggProcessor::KeyType> *keyedStateBackend,
-        const nlohmann::json &config, StreamingRuntimeContext<AbstractWindowAggProcessor::KeyType> *runtimeCtx,
-        InternalTimerServiceImpl<AbstractWindowAggProcessor::KeyType, int64_t>* internalTimerService)
+    AbstractKeyedStateBackend<AbstractWindowAggProcessor::KeyType>* keyedStateBackend,
+    const nlohmann::json& config,
+    StreamingRuntimeContext<AbstractWindowAggProcessor::KeyType>* runtimeCtx,
+    InternalTimerServiceImpl<AbstractWindowAggProcessor::KeyType, int64_t>* internalTimerService)
 {
     this->stateBackend = keyedStateBackend;
     if (dynamic_cast<RocksdbKeyedStateBackend<AbstractWindowAggProcessor::KeyType>*>(keyedStateBackend) != nullptr) {
         backendType_ = omnistream::StateType::ROCKSDB;
-    } else if (dynamic_cast<HeapKeyedStateBackend<AbstractWindowAggProcessor::KeyType>*>(keyedStateBackend) != nullptr) {
+    } else if (
+        dynamic_cast<HeapKeyedStateBackend<AbstractWindowAggProcessor::KeyType>*>(keyedStateBackend) != nullptr) {
         backendType_ = omnistream::StateType::HEAP;
     } else {
         THROW_LOGIC_EXCEPTION("The keyedStateBackend is not supported");
@@ -109,34 +112,39 @@ void AbstractWindowAggProcessor::open(
     using S = InternalValueState<KeyType, int64_t, RowData*>;
     S* state = keyedStateBackend->template getOrCreateKeyedState<int64_t, S, RowData*>(new LongSerializer(), accDesc);
     windowState = std::make_unique<WindowValueState<KeyType, int64_t, RowData*>>(state);
-    windowBuffer = std::make_unique<RecordsWindowBuffer>(config, windowState.get(), output, this->stateBackend, sliceAssigner, internalTimerService);
+    windowBuffer = std::make_unique<RecordsWindowBuffer>(
+        config, windowState.get(), output, this->stateBackend, sliceAssigner, internalTimerService);
 }
 
-void AbstractWindowAggProcessor::initializeWatermark(int64_t watermark) {
+void AbstractWindowAggProcessor::initializeWatermark(int64_t watermark)
+{
     if (isEventTime) {
         currentProgress = watermark;
     }
 }
 
-void AbstractWindowAggProcessor::advanceProgress(long progress) {
+void AbstractWindowAggProcessor::advanceProgress(long progress)
+{
     if (progress > currentProgress) {
         currentProgress = progress;
         if (currentProgress >= nextTriggerProgress) {
             windowBuffer->advanceProgress(currentProgress);
-            nextTriggerProgress = LocalSlicingWindowAggOperator::getNextTriggerWatermark(currentProgress,
-                                                                                         windowInterval);
+            nextTriggerProgress =
+                LocalSlicingWindowAggOperator::getNextTriggerWatermark(currentProgress, windowInterval);
         }
     }
-    LOG("end AbstractWindowAggProcessor::advanceProgress")
+    LOG("end AbstractWindowAggProcessor::advanceProgress");
 }
 
-void AbstractWindowAggProcessor::prepareCheckpoint() {
+void AbstractWindowAggProcessor::prepareCheckpoint()
+{
     windowBuffer->flush();
 }
 
-void AbstractWindowAggProcessor::fireWindow(int64_t windowEnd) {
+void AbstractWindowAggProcessor::fireWindow(int64_t windowEnd)
+{
     if (!sliceAssigner->hasSliceEndIndex && !sliceAssigner->hasWindowEndIndex) {
-        LOG("get value in the firewindow")
+        LOG("get value in the firewindow");
         std::unique_ptr<RowData> result(GetNonHopResult(windowEnd));
         if (stateBackend->getCurrentKey() == nullptr || result == nullptr) {
             return;
@@ -144,14 +152,14 @@ void AbstractWindowAggProcessor::fireWindow(int64_t windowEnd) {
         ProcessNonHopResult(result.get());
         return;
     }
-    WindowedSliceAssigner *windowedSliceAssigner = dynamic_cast<WindowedSliceAssigner *>(sliceAssigner);
-    SliceAssigner *assigner = windowedSliceAssigner->GetInnerAssigner();
-    if (dynamic_cast<HoppingSliceAssigner *>(assigner) != nullptr && sliceAssigner->hasSliceEndIndex) {
+    WindowedSliceAssigner* windowedSliceAssigner = dynamic_cast<WindowedSliceAssigner*>(sliceAssigner);
+    SliceAssigner* assigner = windowedSliceAssigner->GetInnerAssigner();
+    if (dynamic_cast<HoppingSliceAssigner*>(assigner) != nullptr && sliceAssigner->hasSliceEndIndex) {
         // HOP时间窗口处理
-        LOG("merge in the firewindow")
-        HoppingSliceAssigner *hoppingSliceAssigner = dynamic_cast<HoppingSliceAssigner *>(assigner);
-        std::unique_ptr<RowData> result(GetHopResult(windowEnd, hoppingSliceAssigner->getNumSlicesPerWindow(),
-                                                    assigner->getSliceEndInterval()));
+        LOG("merge in the firewindow");
+        HoppingSliceAssigner* hoppingSliceAssigner = dynamic_cast<HoppingSliceAssigner*>(assigner);
+        std::unique_ptr<RowData> result(
+            GetHopResult(windowEnd, hoppingSliceAssigner->getNumSlicesPerWindow(), assigner->getSliceEndInterval()));
         if (stateBackend->getCurrentKey() == nullptr || result == nullptr) {
             return;
         }
@@ -161,7 +169,7 @@ void AbstractWindowAggProcessor::fireWindow(int64_t windowEnd) {
         delete aggregator->getAccumulators();
     } else {
         // 非HOP时间窗口处理
-        LOG("get value in the firewindow")
+        LOG("get value in the firewindow");
         std::unique_ptr<RowData> result(GetNonHopResult(windowEnd));
         if (stateBackend->getCurrentKey() == nullptr || result == nullptr) {
             return;
@@ -175,16 +183,16 @@ void AbstractWindowAggProcessor::ProcessHopResult(RowData* result)
     resultRow->replace(stateBackend->getCurrentKey().get(), result);
     if (static_cast<size_t>(resultRow->getArity()) == outputTypes.size()) {
         if (!isWindowEmpty()) {
-            LOG("window not empty")
+            LOG("window not empty");
             std::vector<std::unique_ptr<RowData>> resultRows;
             resultRows.emplace_back(BinaryRowDataSerializer::joinedRowToBinaryRow(resultRow.get(), outputTypeIds));
             resultBatch = createOutputBatch(resultRows);
             collectOutputBatch(collector.get(), resultBatch);
         } else {
-            LOG("window is empty")
+            LOG("window is empty");
         }
     } else {
-        THROW_LOGIC_EXCEPTION("Unexpected fireWindow result! ResultRow and outputTypes columns not equal!!")
+        THROW_LOGIC_EXCEPTION("Unexpected fireWindow result! ResultRow and outputTypes columns not equal!!");
     }
 }
 
@@ -197,7 +205,7 @@ void AbstractWindowAggProcessor::ProcessNonHopResult(RowData* result)
         resultBatch = createOutputBatch(resultRows);
         collectOutputBatch(collector.get(), resultBatch);
     } else {
-        THROW_LOGIC_EXCEPTION("Unexpected fireWindow result! ResultRow and outputTypes columns not equal!!")
+        THROW_LOGIC_EXCEPTION("Unexpected fireWindow result! ResultRow and outputTypes columns not equal!!");
     }
 }
 
@@ -208,14 +216,14 @@ RowData* AbstractWindowAggProcessor::GetNonHopResult(int64_t windowEnd)
         return nullptr;
     }
     aggregator->setAccumulators(windowEnd, acc);
-    RowData *result = aggregator->getValue(windowEnd);
+    RowData* result = aggregator->getValue(windowEnd);
     if (shouldDeleteWindowStateValue()) {
         delete acc;
     }
     return result;
 }
 
-void AbstractWindowAggProcessor::NextWindowEndProcess(int64_t nextWindowEnd, SliceAssigner *assigner)
+void AbstractWindowAggProcessor::NextWindowEndProcess(int64_t nextWindowEnd, SliceAssigner* assigner)
 {
     if (nextWindowEnd != 0) {
         const std::string shiftTimeZone = ResolveShiftTimeZoneId(sliceAssigner);
@@ -228,7 +236,8 @@ void AbstractWindowAggProcessor::NextWindowEndProcess(int64_t nextWindowEnd, Sli
     }
 }
 
-RowData* AbstractWindowAggProcessor::GetHopResult(int64_t windowEnd, int64_t numSlices, int64_t interval) {
+RowData* AbstractWindowAggProcessor::GetHopResult(int64_t windowEnd, int64_t numSlices, int64_t interval)
+{
     int64_t tempWindow = windowEnd;
     auto acc = aggregator->createAccumulators();
     aggregator->setAccumulators(windowEnd, acc);
@@ -248,7 +257,8 @@ RowData* AbstractWindowAggProcessor::GetHopResult(int64_t windowEnd, int64_t num
     return result;
 }
 
-bool AbstractWindowAggProcessor::isWindowEmpty() {
+bool AbstractWindowAggProcessor::isWindowEmpty()
+{
     if (indexOfCountStar_ < 0) {
         return false;
     }
@@ -256,16 +266,18 @@ bool AbstractWindowAggProcessor::isWindowEmpty() {
     return acc == nullptr || acc->isNullAt(indexOfCountStar_) || *acc->getLong(indexOfCountStar_) == 0;
 }
 
-bool AbstractWindowAggProcessor::shouldDeleteWindowStateValue() const {
+bool AbstractWindowAggProcessor::shouldDeleteWindowStateValue() const
+{
     return backendType_ == omnistream::StateType::ROCKSDB && !windowState->isFalconEnabled();
 }
 
-omnistream::VectorBatch* AbstractWindowAggProcessor::createOutputBatch(std::vector<std::unique_ptr<RowData>>& collectedRows)
+omnistream::VectorBatch* AbstractWindowAggProcessor::createOutputBatch(
+    std::vector<std::unique_ptr<RowData>>& collectedRows)
 {
     int numColumns = outputTypes.size();
     std::vector<omniruntime::type::DataTypeId> outputRowType = std::vector<omniruntime::type::DataTypeId>();
     outputRowType.reserve(numColumns);
-    for (const auto &typeStr : outputTypes) {
+    for (const auto& typeStr : outputTypes) {
         outputRowType.push_back(LogicalType::flinkTypeToOmniTypeId(typeStr));
     }
     int numRows = collectedRows.size(); // Number of rows collected
@@ -311,19 +323,21 @@ omnistream::VectorBatch* AbstractWindowAggProcessor::createOutputBatch(std::vect
     return outputBatch;
 }
 
-void AbstractWindowAggProcessor::collectOutputBatch(TimestampedCollector *out, omnistream::VectorBatch *outputBatch)
+void AbstractWindowAggProcessor::collectOutputBatch(TimestampedCollector* out, omnistream::VectorBatch* outputBatch)
 {
     out->collect(outputBatch);
 }
 
-void AbstractWindowAggProcessor::setClockService(ClockService * newClock) {
+void AbstractWindowAggProcessor::setClockService(ClockService* newClock)
+{
     if (clockService.get() == newClock) return;
     clockService.reset(newClock);
 }
 
-void AbstractWindowAggProcessor::clearWindow(int64_t windowEnd) {
-    auto *windowedSliceAssigner = dynamic_cast<WindowedSliceAssigner *>(sliceAssigner);
-    SliceAssigner *assigner = windowedSliceAssigner->GetInnerAssigner();
+void AbstractWindowAggProcessor::clearWindow(int64_t windowEnd)
+{
+    auto* windowedSliceAssigner = dynamic_cast<WindowedSliceAssigner*>(sliceAssigner);
+    SliceAssigner* assigner = windowedSliceAssigner->GetInnerAssigner();
     IteratorBase* expiredSlices = assigner->expiredSlices(windowEnd);
     while (expiredSlices->hasNext()) {
         int64_t expiredSliceEnd = expiredSlices->next();
@@ -334,13 +348,13 @@ void AbstractWindowAggProcessor::clearWindow(int64_t windowEnd) {
 
 void AbstractWindowAggProcessor::close()
 {
-    if (windowBuffer != nullptr){
+    if (windowBuffer != nullptr) {
         windowBuffer->close();
     }
     aggregator->close();
 }
 
-TypeSerializer *AbstractWindowAggProcessor::createWindowSerializer()
+TypeSerializer* AbstractWindowAggProcessor::createWindowSerializer()
 {
     return LongSerializer::INSTANCE;
 }
@@ -351,7 +365,8 @@ Output* AbstractWindowAggProcessor::getOutput()
 }
 
 std::unique_ptr<NamespaceAggsHandleFunction<int64_t>> AbstractWindowAggProcessor::initNamespaceAggsHandleFunction(
-        bool isWindowAgg, const nlohmann::json &aggInfoList) {
+    bool isWindowAgg, const nlohmann::json& aggInfoList)
+{
     std::string const aggCallsName = isWindowAgg ? "aggregateCalls" : "globalAggregateCalls";
     std::string const accTypesName = isWindowAgg ? "AccTypes" : "globalAccTypes";
 
@@ -359,22 +374,28 @@ std::unique_ptr<NamespaceAggsHandleFunction<int64_t>> AbstractWindowAggProcessor
     const bool countStarInserted = aggInfoList.value("countStarInserted", false);
 
     auto accTypes = aggInfoList[accTypesName].get<std::vector<std::string>>();
-    accTypes.erase(std::remove_if(accTypes.begin(), accTypes.end(),
-                                  [](const std::string& type) { return type.find("RAW") != std::string::npos; }),
-                   accTypes.end());
+    accTypes.erase(
+        std::remove_if(
+            accTypes.begin(),
+            accTypes.end(),
+            [](const std::string& type) { return type.find("RAW") != std::string::npos; }),
+        accTypes.end());
     accumulatorArity_ = accTypes.size();
     std::vector<int32_t> accTypeIds;
-    for (const auto &typeStr : accTypes) {
+    for (const auto& typeStr : accTypes) {
         accTypeIds.push_back(LogicalType::flinkTypeToOmniTypeId(typeStr));
     }
 
     const std::string aggValueTypeName = isWindowAgg ? "aggValueTypes" : "globalAggValueTypes";
     auto aggValueTypes = aggInfoList[aggValueTypeName].get<std::vector<std::string>>();
-    aggValueTypes.erase(std::remove_if(aggValueTypes.begin(), aggValueTypes.end(),
-                                  [](const std::string& type) { return type.find("RAW") != std::string::npos; }),
-                   aggValueTypes.end());
+    aggValueTypes.erase(
+        std::remove_if(
+            aggValueTypes.begin(),
+            aggValueTypes.end(),
+            [](const std::string& type) { return type.find("RAW") != std::string::npos; }),
+        aggValueTypes.end());
     std::vector<int32_t> aggValueTypeIds;
-    for (const auto &typeStr : aggValueTypes) {
+    for (const auto& typeStr : aggValueTypes) {
         aggValueTypeIds.push_back(LogicalType::flinkTypeToOmniTypeId(typeStr));
     }
 
@@ -391,17 +412,19 @@ std::unique_ptr<NamespaceAggsHandleFunction<int64_t>> AbstractWindowAggProcessor
         const int32_t aggValueTypeId = isInsertedCountStar ? -1 : aggValueTypeIds[aggValueIndex];
         auto accIndexes = NamespaceAggsBasicFunctionFactory::getAccIndexes(aggTypeStr, accStartIndex);
 
-        functions.push_back(NamespaceAggsBasicFunctionFactory::create<int64_t>(
-                aggTypeStr, argIndexes, this->inputTypeIds_, accIndexes, accTypeIds,
-                aggValueIndex, aggValueTypeId));
+        functions.push_back(
+            NamespaceAggsBasicFunctionFactory::create<int64_t>(
+                aggTypeStr, argIndexes, this->inputTypeIds_, accIndexes, accTypeIds, aggValueIndex, aggValueTypeId));
         accStartIndex += accIndexes.size();
-        if (!isInsertedCountStar) { aggValueStartIndex++; }
+        if (!isInsertedCountStar) {
+            aggValueStartIndex++;
+        }
     }
 
     return std::make_unique<WindowAggsHandleFunction>(
-            std::move(functions),
-            std::move(aggValueTypeIds),
-            std::vector<int32_t>(outputTypeIds.begin() + keyedIndex.size(), outputTypeIds.end()),
-            sliceAssigner,
-            accumulatorArity_);
+        std::move(functions),
+        std::move(aggValueTypeIds),
+        std::vector<int32_t>(outputTypeIds.begin() + keyedIndex.size(), outputTypeIds.end()),
+        sliceAssigner,
+        accumulatorArity_);
 }

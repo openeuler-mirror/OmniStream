@@ -20,4 +20,4 @@ public:
     ~DataStreamSource();
     DataStreamSource* setParallelism(int parallelism);
 };
-#endif  // FLINK_TNEL_DATASTREAMSOURCE_H
+#endif // FLINK_TNEL_DATASTREAMSOURCE_H

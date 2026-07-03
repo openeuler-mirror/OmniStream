@@ -31,7 +31,9 @@ public:
           checkpointId(checkpointId),
           numberOfCommittables(numberOfCommittables),
           numberOfPendingCommittables(numberOfPendingCommittables),
-          numberOfFailedCommittables(numberOfFailedCommittables) {}
+          numberOfFailedCommittables(numberOfFailedCommittables)
+    {
+    }
 
     int GetSubtaskId() const
     {
@@ -62,6 +64,7 @@ public:
     {
         return numberOfFailedCommittables;
     }
+
 private:
     const int subtaskId;
     const int numberOfSubtasks;

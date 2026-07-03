@@ -26,17 +26,17 @@ public:
         TERMINATE
     };
 
-    static SavepointType *savepoint(SavepointFormatType formatType)
+    static SavepointType* savepoint(SavepointFormatType formatType)
     {
         return new SavepointType("Savepoint", PostCheckpointAction::NONE, formatType);
     }
 
-    static SavepointType *terminate(SavepointFormatType formatType)
+    static SavepointType* terminate(SavepointFormatType formatType)
     {
         return new SavepointType("Terminate Savepoint", PostCheckpointAction::TERMINATE, formatType);
     }
 
-    static SavepointType *suspend(SavepointFormatType formatType)
+    static SavepointType* suspend(SavepointFormatType formatType)
     {
         return new SavepointType("Suspend Savepoint", PostCheckpointAction::SUSPEND, formatType);
     }
@@ -86,15 +86,14 @@ public:
         return SharingFilesStrategy::NO_SHARING;
     }
 
-    bool operator==(const SnapshotType &other) const override
+    bool operator==(const SnapshotType& other) const override
     {
         if (!other.IsSavepoint()) {
             return false;
         }
         auto otherCasted = dynamic_cast<const SavepointType&>(other);
-        return this->name_ == otherCasted.name_
-            && this->postCheckpointAction_ == otherCasted.postCheckpointAction_
-            && this->formatType_ == otherCasted.formatType_;
+        return this->name_ == otherCasted.name_ && this->postCheckpointAction_ == otherCasted.postCheckpointAction_ &&
+               this->formatType_ == otherCasted.formatType_;
     }
 
     std::string ToString() override
@@ -114,11 +113,9 @@ public:
         json["formatType"] = formatType_;
         return json;
     }
+
 private:
-    SavepointType(
-        std::string name,
-        PostCheckpointAction postCheckpointAction,
-        SavepointFormatType formatType)
+    SavepointType(std::string name, PostCheckpointAction postCheckpointAction, SavepointFormatType formatType)
         : name_(name),
           postCheckpointAction_(postCheckpointAction),
           formatType_(formatType) {};

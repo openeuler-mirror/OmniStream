@@ -24,7 +24,7 @@
  * Notice, MemorySegment always wrap the existing mem
  *
  */
- // check
+// check
 class MemorySegment : public Segment {
 public:
     // wrap the existing mem
@@ -80,5 +80,4 @@ private:
     void* owner_;
 };
 
-
-#endif  // FLINK_TNEL_MEMORYSEGMENT_H
+#endif // FLINK_TNEL_MEMORYSEGMENT_H

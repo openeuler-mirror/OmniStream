@@ -17,31 +17,33 @@
 
 namespace omnistream {
 
-    MailboxController::MailboxController(MailboxProcessor* mailboxProcessor)
-        : mailboxProcessor_(mailboxProcessor) {}
+MailboxController::MailboxController(MailboxProcessor* mailboxProcessor) : mailboxProcessor_(mailboxProcessor)
+{
+}
 
-    MailboxController::~MailboxController() = default;
+MailboxController::~MailboxController() = default;
 
-    void MailboxController::allActionsCompleted()
-    {
-        mailboxProcessor_->allActionsCompleted();
-    }
+void MailboxController::allActionsCompleted()
+{
+    mailboxProcessor_->allActionsCompleted();
+}
 
-    std::shared_ptr<MailboxDefaultAction::Suspension> MailboxController::suspendDefaultAction(std::shared_ptr<PeriodTimer> suspensionPeriodTimer)
-    {
-        return mailboxProcessor_->suspendDefaultAction(suspensionPeriodTimer);
-    }
+std::shared_ptr<MailboxDefaultAction::Suspension> MailboxController::suspendDefaultAction(
+    std::shared_ptr<PeriodTimer> suspensionPeriodTimer)
+{
+    return mailboxProcessor_->suspendDefaultAction(suspensionPeriodTimer);
+}
 
-    std::shared_ptr<MailboxDefaultAction::Suspension> MailboxController::suspendDefaultAction()
-    {
-        return mailboxProcessor_->suspendDefaultAction(nullptr);
-    }
+std::shared_ptr<MailboxDefaultAction::Suspension> MailboxController::suspendDefaultAction()
+{
+    return mailboxProcessor_->suspendDefaultAction(nullptr);
+}
 
-    std::string MailboxController::toString() const
-    {
-        std::stringstream ss;
-        ss << "MailboxController[mailboxProcessor=" << (mailboxProcessor_ ? "present" : "nullptr") << "]";
-        return ss.str();
-    }
+std::string MailboxController::toString() const
+{
+    std::stringstream ss;
+    ss << "MailboxController[mailboxProcessor=" << (mailboxProcessor_ ? "present" : "nullptr") << "]";
+    return ss.str();
+}
 
 } // namespace omnistream

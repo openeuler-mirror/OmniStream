@@ -17,7 +17,8 @@ namespace omnistream {
 struct virtual_enable_shared_from_this_base : std::enable_shared_from_this<virtual_enable_shared_from_this_base> {
 public:
     virtual ~virtual_enable_shared_from_this_base()
-    {}
+    {
+    }
 };
 template <typename T>
 struct virtual_enable_shared_from_this : virtual virtual_enable_shared_from_this_base {
@@ -27,6 +28,6 @@ public:
         return std::dynamic_pointer_cast<T>(virtual_enable_shared_from_this_base::shared_from_this());
     }
 };
-}  // namespace omnistream
+} // namespace omnistream
 
-#endif  // OMNISTREAM_virtual_enable_shared_from_this_base_H
+#endif // OMNISTREAM_virtual_enable_shared_from_this_base_H

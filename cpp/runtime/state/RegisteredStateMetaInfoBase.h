@@ -17,7 +17,9 @@
 /** Base class for all registered state in state backends. */
 class RegisteredStateMetaInfoBase {
 public:
-    explicit RegisteredStateMetaInfoBase(const std::string& name) : name(name) {}
+    explicit RegisteredStateMetaInfoBase(const std::string& name) : name(name)
+    {
+    }
 
     virtual ~RegisteredStateMetaInfoBase() = default;
 
@@ -29,8 +31,9 @@ public:
 
     virtual std::shared_ptr<StateMetaInfoSnapshot> snapshot()
     {
-        NOT_IMPL_EXCEPTION
+        NOT_IMPL_EXCEPTION;
     };
+
 protected:
     /** The name of the state */
     const std::string name;

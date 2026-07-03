@@ -15,12 +15,9 @@
 #include "basictypes/JavaArray.h"
 #include <vector>
 
-
 class BytePrimitiveArraySerializer : public TypeSerializerSingleton {
-
 public:
-    explicit BytePrimitiveArraySerializer(TypeSerializer* elementSerializer)
-        : elementSerializer(elementSerializer)
+    explicit BytePrimitiveArraySerializer(TypeSerializer* elementSerializer) : elementSerializer(elementSerializer)
     {
         setSubBufferReusable(false);
         reuseBuffer = new JavaArray<uint8_t>();
@@ -32,8 +29,8 @@ public:
             delete elementSerializer;
         }
     }
-    
-    void* deserialize(DataInputView &source) override
+
+    void* deserialize(DataInputView& source) override
     {
         int size = source.readInt();
         std::vector<uint8_t>* array = new std::vector<uint8_t>(size);
@@ -41,20 +38,19 @@ public:
         return static_cast<void*>(array);
     }
 
-    void serialize(void* record, DataOutputSerializer &target) override
+    void serialize(void* record, DataOutputSerializer& target) override
     {
         std::vector<uint8_t>* array = static_cast<std::vector<uint8_t>*>(record);
         if (array) {
             target.writeInt(array->size());
             target.write(array->data(), array->size(), 0, array->size());
-        }else{
+        } else {
             INFO_RELEASE("savepoint: BytePrimitiveArraySerializer serialize null array");
         }
-        
     }
 
-    void deserialize(Object* buffer, DataInputView &source) override;
-    void serialize(Object* buffer, DataOutputSerializer &target) override;
+    void deserialize(Object* buffer, DataInputView& source) override;
+    void serialize(Object* buffer, DataOutputSerializer& target) override;
 
     BackendDataType getBackendId() const override
     {
@@ -71,7 +67,7 @@ public:
         return typeJson.toJson();
     }
 
-    private:
+private:
     TypeSerializer* elementSerializer = nullptr;
 };
 

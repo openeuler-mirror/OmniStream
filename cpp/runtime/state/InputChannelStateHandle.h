@@ -15,20 +15,23 @@
 #include "AbstractChannelStateHandle.h"
 #include "core/include/common.h"
 #include "runtime/partition/consumer/InputChannelInfo.h"
-class InputChannelStateHandle : public omnistream::AbstractChannelStateHandle<omnistream::InputChannelInfo>  {
+class InputChannelStateHandle : public omnistream::AbstractChannelStateHandle<omnistream::InputChannelInfo> {
 public:
-    InputChannelStateHandle(int subTaskIndex,
-                                  omnistream::InputChannelInfo info,
-                                  std::shared_ptr<StreamStateHandle> delegate,
-                                  StateContentMetaInfo contentMetaInfo)
-            : omnistream::AbstractChannelStateHandle<omnistream::InputChannelInfo>(subTaskIndex, info,
-                                                                                            delegate,
-                                                                                            contentMetaInfo.GetOffsets(),
-                                                                                            contentMetaInfo.GetSize()) {}
+    InputChannelStateHandle(
+        int subTaskIndex,
+        omnistream::InputChannelInfo info,
+        std::shared_ptr<StreamStateHandle> delegate,
+        StateContentMetaInfo contentMetaInfo)
+        : omnistream::AbstractChannelStateHandle<omnistream::InputChannelInfo>(
+              subTaskIndex, info, delegate, contentMetaInfo.GetOffsets(), contentMetaInfo.GetSize())
+    {
+    }
     // This class should be a template with InputChannelInfo, and info should be of class InputChannelInfo
     // This is a temporary place holder for checkpointing's PioritizedOperatorSubtaskState
 
-    void DiscardState() override {}
+    void DiscardState() override
+    {
+    }
 
     std::string ToString() const override
     {
@@ -49,6 +52,5 @@ public:
         j["stateSize"] = size;
         return j.dump();
     };
-
 };
 #endif // OMNISTREAM_INPUTCHANNELSTATEHANDLE_H

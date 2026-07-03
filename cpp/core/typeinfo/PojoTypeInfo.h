@@ -17,8 +17,7 @@
 
 class PojoTypeInfo : public TypeInformation {
 public:
-    PojoTypeInfo(std::string typeClass, std::vector<PojoField*> fields) : fields(fields), typeClass(typeClass)
-    {};
+    PojoTypeInfo(std::string typeClass, std::vector<PojoField*> fields) : fields(fields), typeClass(typeClass) {};
 
     ~PojoTypeInfo() override
     {
@@ -40,14 +39,14 @@ public:
     TypeInformation* getTypeAt(int pos)
     {
         if (pos < 0 || pos >= static_cast<int>(fields.size())) {
-            THROW_LOGIC_EXCEPTION("index out of bounds occurs in PojoTypeInfo.")
+            THROW_LOGIC_EXCEPTION("index out of bounds occurs in PojoTypeInfo.");
         }
         return fields[pos]->getTypeInformation();
     }
+
 private:
     std::vector<PojoField*> fields;
     std::string typeClass;
 };
-
 
 #endif // OMNISTREAM_POJOTYPEINFO_H

@@ -12,10 +12,9 @@
 #include "EndOfPartitionEvent.h"
 
 namespace omnistream {
-    std::shared_ptr<EndOfPartitionEvent> getInstance()
-    {
-        static std::shared_ptr<EndOfPartitionEvent> instance =
-          std::make_shared<EndOfPartitionEvent>();
-        return instance;
-    }
+std::shared_ptr<EndOfPartitionEvent> getInstance()
+{
+    static std::shared_ptr<EndOfPartitionEvent> instance = std::make_shared<EndOfPartitionEvent>();
+    return instance;
 }
+} // namespace omnistream

@@ -30,11 +30,15 @@
 #include "../../../core/include/common.h"
 
 // Type traits to detect emhash7::HashMap and std::vector pointer types
-template<typename T> struct IsEmhashMapPtr : std::false_type {};
-template<typename UK, typename UV> struct IsEmhashMapPtr<emhash7::HashMap<UK, UV>*> : std::true_type {};
+template <typename T>
+struct IsEmhashMapPtr : std::false_type {};
+template <typename UK, typename UV>
+struct IsEmhashMapPtr<emhash7::HashMap<UK, UV>*> : std::true_type {};
 
-template<typename T> struct IsVectorPtr : std::false_type {};
-template<typename V> struct IsVectorPtr<std::vector<V>*> : std::true_type {};
+template <typename T>
+struct IsVectorPtr : std::false_type {};
+template <typename V>
+struct IsVectorPtr<std::vector<V>*> : std::true_type {};
 
 /**
  * A SingleStateIterator that iterates over a Heap CopyOnWriteStateTable,
@@ -51,10 +55,7 @@ class HeapSingleStateIterator : public SingleStateIterator {
 public:
     struct VbDataTag {};
 
-    HeapSingleStateIterator(
-        StateTable<K, N, S> *stateTable,
-        int kvStateId,
-        int keyGroupPrefixBytes)
+    HeapSingleStateIterator(StateTable<K, N, S>* stateTable, int kvStateId, int keyGroupPrefixBytes)
         : stateTable_(stateTable),
           kvStateId_(kvStateId),
           keyGroupPrefixBytes_(keyGroupPrefixBytes)
@@ -66,11 +67,11 @@ public:
     }
 
     HeapSingleStateIterator(
-        StateTable<int, VoidNamespace, omnistream::VectorBatch *> *vbTable,
+        StateTable<int, VoidNamespace, omnistream::VectorBatch*>* vbTable,
         int kvStateId,
         int keyGroupPrefixBytes,
         VbDataTag)
-        : stateTable_(reinterpret_cast<StateTable<K, N, S> *>(vbTable)),
+        : stateTable_(reinterpret_cast<StateTable<K, N, S>*>(vbTable)),
           kvStateId_(kvStateId),
           keyGroupPrefixBytes_(keyGroupPrefixBytes)
     {
@@ -96,13 +97,13 @@ public:
 
     ByteView key() const override
     {
-        const auto &key = entries_[currentIndex_].serializedKey;
+        const auto& key = entries_[currentIndex_].serializedKey;
         return ByteView::fromBuffer(key.data(), key.size());
     }
 
     ByteView value() const override
     {
-        const auto &value = entries_[currentIndex_].serializedValue;
+        const auto& value = entries_[currentIndex_].serializedValue;
         return ByteView::fromBuffer(value.data(), value.size());
     }
 
@@ -133,7 +134,7 @@ private:
         std::vector<int8_t> serializedValue;
     };
 
-    StateTable<K, N, S> *stateTable_;
+    StateTable<K, N, S>* stateTable_;
     int kvStateId_;
     int keyGroupPrefixBytes_;
     std::vector<SerializedEntry> entries_;
@@ -148,7 +149,7 @@ private:
         if (!valid_ || currentIndex_ >= entries_.size()) {
             return;
         }
-        const auto &key = entries_[currentIndex_].serializedKey;
+        const auto& key = entries_[currentIndex_].serializedKey;
         if (key.size() < static_cast<size_t>(keyGroupPrefixBytes_)) {
             return;
         }
@@ -162,15 +163,15 @@ private:
 
     void collectAndSerializeEntries()
     {
-        auto *stateMaps = stateTable_->getState();
+        auto* stateMaps = stateTable_->getState();
         int keyGroupOffset = stateTable_->getKeyGroupOffset();
-        TypeSerializer *keySerializer = stateTable_->getKeySerializer();
-        TypeSerializer *namespaceSerializer = stateTable_->getNamespaceSerializer();
-        TypeSerializer *stateSerializer = stateTable_->getStateSerializer();
+        TypeSerializer* keySerializer = stateTable_->getKeySerializer();
+        TypeSerializer* namespaceSerializer = stateTable_->getNamespaceSerializer();
+        TypeSerializer* stateSerializer = stateTable_->getStateSerializer();
 
         for (size_t i = 0; i < stateMaps->size(); i++) {
             int keyGroup = keyGroupOffset + static_cast<int>(i);
-            auto *stateMap = (*stateMaps)[i];
+            auto* stateMap = (*stateMaps)[i];
             if (stateMap == nullptr || stateMap->size() == 0) {
                 continue;
             }
@@ -179,32 +180,31 @@ private:
         }
 
         // Sort by keyGroupPrefix bytes (ascending) to match MergeIterator expectation
-        std::sort(entries_.begin(), entries_.end(),
-            [this](const SerializedEntry &a, const SerializedEntry &b) -> bool {
-                for (int i = 0; i < keyGroupPrefixBytes_ && i < static_cast<int>(a.serializedKey.size())
-                     && i < static_cast<int>(b.serializedKey.size()); i++) {
-                    if (static_cast<uint8_t>(a.serializedKey[i]) != static_cast<uint8_t>(b.serializedKey[i])) {
-                        return static_cast<uint8_t>(a.serializedKey[i]) < static_cast<uint8_t>(b.serializedKey[i]);
-                    }
+        std::sort(entries_.begin(), entries_.end(), [this](const SerializedEntry& a, const SerializedEntry& b) -> bool {
+            for (int i = 0; i < keyGroupPrefixBytes_ && i < static_cast<int>(a.serializedKey.size()) &&
+                            i < static_cast<int>(b.serializedKey.size());
+                 i++) {
+                if (static_cast<uint8_t>(a.serializedKey[i]) != static_cast<uint8_t>(b.serializedKey[i])) {
+                    return static_cast<uint8_t>(a.serializedKey[i]) < static_cast<uint8_t>(b.serializedKey[i]);
                 }
-                return false;
-            });
-
+            }
+            return false;
+        });
     }
 
     void collectVbEntries()
     {
-        auto *stateMaps = stateTable_->getState();
+        auto* stateMaps = stateTable_->getState();
         int keyGroupOffset = stateTable_->getKeyGroupOffset();
 
         for (size_t i = 0; i < stateMaps->size(); i++) {
             int keyGroup = keyGroupOffset + static_cast<int>(i);
-            auto *stateMap = (*stateMaps)[i];
+            auto* stateMap = (*stateMaps)[i];
             if (stateMap == nullptr || stateMap->size() == 0) {
                 continue;
             }
 
-            auto *cowMap = dynamic_cast<omnistream::CopyOnWriteStateMap<K, N, S> *>(stateMap);
+            auto* cowMap = dynamic_cast<omnistream::CopyOnWriteStateMap<K, N, S>*>(stateMap);
             if (cowMap == nullptr) {
                 continue;
             }
@@ -214,8 +214,9 @@ private:
                 try {
                     entry.serializedKey = serializeVbKey(keyGroup, it->first, it->third);
                     entry.serializedValue = serializeVbValue(it->second);
-                } catch (const std::exception &e) {
-                    INFO_RELEASE("Error:HeapSingleStateIterator: collectVbEntries EXCEPTION at keyGroup="
+                } catch (const std::exception& e) {
+                    INFO_RELEASE(
+                        "Error:HeapSingleStateIterator: collectVbEntries EXCEPTION at keyGroup="
                         << keyGroup << ", error=" << e.what());
                     throw;
                 }
@@ -223,22 +224,19 @@ private:
             }
         }
 
-        std::sort(entries_.begin(), entries_.end(),
-            [this](const SerializedEntry &a, const SerializedEntry &b) -> bool {
-                for (int i = 0; i < keyGroupPrefixBytes_ && i < static_cast<int>(a.serializedKey.size())
-                     && i < static_cast<int>(b.serializedKey.size()); i++) {
-                    if (static_cast<uint8_t>(a.serializedKey[i]) != static_cast<uint8_t>(b.serializedKey[i])) {
-                        return static_cast<uint8_t>(a.serializedKey[i]) < static_cast<uint8_t>(b.serializedKey[i]);
-                    }
+        std::sort(entries_.begin(), entries_.end(), [this](const SerializedEntry& a, const SerializedEntry& b) -> bool {
+            for (int i = 0; i < keyGroupPrefixBytes_ && i < static_cast<int>(a.serializedKey.size()) &&
+                            i < static_cast<int>(b.serializedKey.size());
+                 i++) {
+                if (static_cast<uint8_t>(a.serializedKey[i]) != static_cast<uint8_t>(b.serializedKey[i])) {
+                    return static_cast<uint8_t>(a.serializedKey[i]) < static_cast<uint8_t>(b.serializedKey[i]);
                 }
-                return false;
-            });
+            }
+            return false;
+        });
     }
 
-    std::vector<int8_t> serializeVbKey(
-        int keyGroup,
-        const int64_t &batchId,
-        const VoidNamespace &)
+    std::vector<int8_t> serializeVbKey(int keyGroup, const int64_t& batchId, const VoidNamespace&)
     {
         DataOutputSerializer outputSerializer;
         OutputBufferStatus outputBufferStatus;
@@ -247,14 +245,14 @@ private:
         outputSerializer.writeByte(static_cast<uint32_t>(keyGroup));
 
         LongSerializer longSerializer;
-        longSerializer.serialize(const_cast<int64_t *>(&batchId), outputSerializer);
+        longSerializer.serialize(const_cast<int64_t*>(&batchId), outputSerializer);
 
         std::vector<int8_t> result(outputSerializer.getPosition());
         memcpy(result.data(), outputSerializer.getData(), outputSerializer.getPosition());
         return result;
     }
 
-    static std::vector<int8_t> serializeVbValue(omnistream::VectorBatch *vectorBatch)
+    static std::vector<int8_t> serializeVbValue(omnistream::VectorBatch* vectorBatch)
     {
         if (vectorBatch == nullptr) {
             return {};
@@ -265,8 +263,8 @@ private:
             return {};
         }
 
-        uint8_t *buffer = new uint8_t[batchSize];
-        uint8_t *cursor = buffer;
+        uint8_t* buffer = new uint8_t[batchSize];
+        uint8_t* cursor = buffer;
         VectorBatchSerializationUtils::serializeVectorBatch(vectorBatch, batchSize, cursor);
 
         std::vector<int8_t> result(batchSize);
@@ -281,8 +279,11 @@ private:
     // Taking a snapshot of all entries BEFORE serializing avoids iterator invalidation
     // if the underlying CopyOnWriteStateMap is rehashed (e.g. by a concurrent put()).
     struct RawSnapshotEntry {
-        RawSnapshotEntry(const K &snapshotKey, const N &snapshotNamespace, const S &snapshotValue)
-            : key(snapshotKey), nmspace(snapshotNamespace), value(snapshotValue), ownsRefs_(true)
+        RawSnapshotEntry(const K& snapshotKey, const N& snapshotNamespace, const S& snapshotValue)
+            : key(snapshotKey),
+              nmspace(snapshotNamespace),
+              value(snapshotValue),
+              ownsRefs_(true)
         {
             retainObjectRef(key);
             retainObjectRef(nmspace);
@@ -293,7 +294,10 @@ private:
         RawSnapshotEntry& operator=(const RawSnapshotEntry&) = delete;
 
         RawSnapshotEntry(RawSnapshotEntry&& other) noexcept
-            : key(other.key), nmspace(other.nmspace), value(other.value), ownsRefs_(other.ownsRefs_)
+            : key(other.key),
+              nmspace(other.nmspace),
+              value(other.value),
+              ownsRefs_(other.ownsRefs_)
         {
             other.ownsRefs_ = false;
         }
@@ -321,8 +325,8 @@ private:
         S value;
 
     private:
-        template<typename T>
-        static void retainObjectRef(const T &ptr)
+        template <typename T>
+        static void retainObjectRef(const T& ptr)
         {
             if constexpr (std::is_same_v<std::decay_t<T>, Object*>) {
                 if (ptr != nullptr) {
@@ -331,8 +335,8 @@ private:
             }
         }
 
-        template<typename T>
-        static void releaseObjectRef(const T &ptr)
+        template <typename T>
+        static void releaseObjectRef(const T& ptr)
         {
             if constexpr (std::is_same_v<std::decay_t<T>, Object*>) {
                 if (ptr != nullptr) {
@@ -356,14 +360,14 @@ private:
     };
 
     void serializeStateMap(
-        StateMap<K, N, S> *stateMap,
+        StateMap<K, N, S>* stateMap,
         int keyGroup,
-        TypeSerializer *keySerializer,
-        TypeSerializer *namespaceSerializer,
-        TypeSerializer *stateSerializer)
+        TypeSerializer* keySerializer,
+        TypeSerializer* namespaceSerializer,
+        TypeSerializer* stateSerializer)
     {
         // Use StateMap's CopyOnWriteStateMap iterator to traverse entries
-        auto *cowMap = dynamic_cast<omnistream::CopyOnWriteStateMap<K, N, S> *>(stateMap);
+        auto* cowMap = dynamic_cast<omnistream::CopyOnWriteStateMap<K, N, S>*>(stateMap);
         if (cowMap == nullptr) {
             return;
         }
@@ -379,14 +383,14 @@ private:
 
         // Phase 2: serialize from the stable local snapshot
         int mapEntryCount = 0;
-        for (auto &raw : snapshot) {
+        for (auto& raw : snapshot) {
             SerializedEntry entry;
             try {
-                entry.serializedKey = serializeKey(keyGroup, raw.key, raw.nmspace,
-                                                   keySerializer, namespaceSerializer);
+                entry.serializedKey = serializeKey(keyGroup, raw.key, raw.nmspace, keySerializer, namespaceSerializer);
                 entry.serializedValue = serializeValue(raw.value, stateSerializer);
-            } catch (const std::exception &e) {
-                INFO_RELEASE("Error:HeapSingleStateIterator: serializeStateMap EXCEPTION at keyGroup="
+            } catch (const std::exception& e) {
+                INFO_RELEASE(
+                    "Error:HeapSingleStateIterator: serializeStateMap EXCEPTION at keyGroup="
                     << keyGroup << ", entryIndex=" << mapEntryCount << ", error=" << e.what());
                 throw;
             }
@@ -397,10 +401,10 @@ private:
 
     std::vector<int8_t> serializeKey(
         int keyGroup,
-        const K &key,
-        const N &nmspace,
-        TypeSerializer *keySerializer,
-        TypeSerializer *namespaceSerializer)
+        const K& key,
+        const N& nmspace,
+        TypeSerializer* keySerializer,
+        TypeSerializer* namespaceSerializer)
     {
         DataOutputSerializer outputSerializer;
         OutputBufferStatus outputBufferStatus;
@@ -417,11 +421,11 @@ private:
         // Serialize key
         if constexpr (std::is_pointer_v<K>) {
             keySerializer->serialize(const_cast<K>(key), outputSerializer);
-        }else if constexpr (is_shared_ptr_v<K>) {
+        } else if constexpr (is_shared_ptr_v<K>) {
             if (!key) {
-                THROW_LOGIC_EXCEPTION("Heap snapshot cannot serialize a null shared_ptr key")
+                THROW_LOGIC_EXCEPTION("Heap snapshot cannot serialize a null shared_ptr key");
             }
-            keySerializer->serialize(key.get(),outputSerializer);
+            keySerializer->serialize(key.get(), outputSerializer);
         } else {
             K mutableKey = key;
             keySerializer->serialize(&mutableKey, outputSerializer);
@@ -430,17 +434,17 @@ private:
         // Serialize namespace
         if constexpr (std::is_pointer_v<N>) {
             namespaceSerializer->serialize(const_cast<N>(nmspace), outputSerializer);
-        }else if constexpr (is_shared_ptr_v<N>) {
+        } else if constexpr (is_shared_ptr_v<N>) {
             if (!nmspace) {
-                THROW_LOGIC_EXCEPTION("Heap snapshot cannot serialize a null shared_ptr key")
+                THROW_LOGIC_EXCEPTION("Heap snapshot cannot serialize a null shared_ptr key");
             }
-            namespaceSerializer->serialize(nmspace.get(),outputSerializer);
+            namespaceSerializer->serialize(nmspace.get(), outputSerializer);
         } else {
             N mutableNs = nmspace;
             namespaceSerializer->serialize(&mutableNs, outputSerializer);
         }
 
-        auto *data = outputSerializer.getData();
+        auto* data = outputSerializer.getData();
         size_t len = outputSerializer.length();
         std::vector<int8_t> result(len);
         for (size_t i = 0; i < len; i++) {
@@ -457,22 +461,19 @@ private:
      * For other pointer types (RowData*, etc.), uses serialize(void*,...).
      * For value types (int, int64_t, etc.), uses serialize(void*,...) with address.
      */
-    template<typename UK, typename UV>
+    template <typename UK, typename UV>
     static void serializeEmhashMap(
-        const emhash7::HashMap<UK, UV> &map,
-        TypeSerializer *keySer,
-        TypeSerializer *valSer,
-        DataOutputSerializer &out)
+        const emhash7::HashMap<UK, UV>& map, TypeSerializer* keySer, TypeSerializer* valSer, DataOutputSerializer& out)
     {
         out.writeInt(static_cast<int>(map.size()));
         int idx = 0;
-        for (const auto &pair : map) {
+        for (const auto& pair : map) {
             // Serialize key
-            if constexpr (std::is_same_v<UK, Object *>) {
+            if constexpr (std::is_same_v<UK, Object*>) {
                 if (pair.first == nullptr) {
                     INFO_RELEASE("Error:serializeEmhashMap: WARNING null Object* key at index=" << idx);
                 }
-                keySer->serialize(const_cast<Object *>(pair.first), out);
+                keySer->serialize(const_cast<Object*>(pair.first), out);
             } else if constexpr (std::is_pointer_v<UK>) {
                 keySer->serialize(const_cast<UK>(pair.first), out);
             } else {
@@ -485,8 +486,8 @@ private:
                     out.writeBoolean(true);
                 } else {
                     out.writeBoolean(false);
-                    if constexpr (std::is_same_v<UV, Object *>) {
-                        valSer->serialize(const_cast<Object *>(pair.second), out);
+                    if constexpr (std::is_same_v<UV, Object*>) {
+                        valSer->serialize(const_cast<Object*>(pair.second), out);
                     } else {
                         valSer->serialize(const_cast<UV>(pair.second), out);
                     }
@@ -504,14 +505,11 @@ private:
      * Serializes a std::vector entry-by-entry using the ListSerializer's element serializer.
      * Format matches ListSerializer::serialize(Object*,...): [int size] [elem_1] [elem_2] ...
      */
-    template<typename V>
-    static void serializeVector(
-        const std::vector<V> &vec,
-        TypeSerializer *elemSer,
-        DataOutputSerializer &out)
+    template <typename V>
+    static void serializeVector(const std::vector<V>& vec, TypeSerializer* elemSer, DataOutputSerializer& out)
     {
         out.writeInt(static_cast<int>(vec.size()));
-        for (const auto &elem : vec) {
+        for (const auto& elem : vec) {
             if constexpr (std::is_pointer_v<V>) {
                 elemSer->serialize(const_cast<V>(elem), out);
             } else {
@@ -521,9 +519,7 @@ private:
         }
     }
 
-    std::vector<int8_t> serializeValue(
-        const S &state,
-        TypeSerializer *stateSerializer)
+    std::vector<int8_t> serializeValue(const S& state, TypeSerializer* stateSerializer)
     {
         DataOutputSerializer outputSerializer;
         OutputBufferStatus outputBufferStatus;
@@ -532,15 +528,14 @@ private:
         if constexpr (IsEmhashMapPtr<S>::value) {
             // MAP state: bypass MapSerializer (whose void* path is NOT_IMPL)
             // and serialize the emhash7::HashMap directly using sub-serializers
-            auto *mapSer = dynamic_cast<MapSerializer *>(stateSerializer);
+            auto* mapSer = dynamic_cast<MapSerializer*>(stateSerializer);
             if (mapSer && state != nullptr) {
-                serializeEmhashMap(*state, mapSer->getKeySerializer(),
-                                   mapSer->getValueSerializer(), outputSerializer);
+                serializeEmhashMap(*state, mapSer->getKeySerializer(), mapSer->getValueSerializer(), outputSerializer);
             }
         } else if constexpr (IsVectorPtr<S>::value) {
             // LIST state: bypass ListSerializer (whose void* path is NOT_IMPL)
             // and serialize the std::vector directly using the element serializer
-            auto *listSer = dynamic_cast<ListSerializer *>(stateSerializer);
+            auto* listSer = dynamic_cast<ListSerializer*>(stateSerializer);
             if (listSer && state != nullptr) {
                 serializeVector(*state, listSer->getElementSerializer(), outputSerializer);
             } else {
@@ -555,7 +550,7 @@ private:
             stateSerializer->serialize(&mutableState, outputSerializer);
         }
 
-        auto *data = outputSerializer.getData();
+        auto* data = outputSerializer.getData();
         size_t len = outputSerializer.length();
         std::vector<int8_t> result(len);
         for (size_t i = 0; i < len; i++) {

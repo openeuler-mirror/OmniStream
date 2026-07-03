@@ -11,7 +11,6 @@
 
 #include "PartitionDescriptorPOD.h"
 
-
 namespace omnistream {
 
 } // namespace omnistream

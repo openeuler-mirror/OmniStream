@@ -12,15 +12,14 @@
 #include "AlternatingWaitingForFirstBarrier.h"
 
 AbstractAlternatingAlignedBarrierHandlerState::AbstractAlternatingAlignedBarrierHandlerState(ChannelState state)
-    : state(std::move(state)) {}
+    : state(std::move(state))
+{
+}
 
 BarrierHandlerState* AbstractAlternatingAlignedBarrierHandlerState::BarrierReceived(
-    Controller* controller,
-    InputChannelInfo channelInfo,
-    CheckpointBarrier* barrier,
-    bool markChannelBlocked)
+    Controller* controller, InputChannelInfo channelInfo, CheckpointBarrier* barrier, bool markChannelBlocked)
 {
-    LOG_DEBUG("AbstractAlternatingAlignedBarrierHandlerState::BarrierReceived")
+    LOG_DEBUG("AbstractAlternatingAlignedBarrierHandlerState::BarrierReceived");
     if (barrier->GetCheckpointOptions()->IsUnalignedCheckpoint()) {
         return AlignedCheckpointTimeout(controller, barrier)
             ->BarrierReceived(controller, channelInfo, barrier, markChannelBlocked);
@@ -41,13 +40,12 @@ BarrierHandlerState* AbstractAlternatingAlignedBarrierHandlerState::BarrierRecei
     return TransitionAfterBarrierReceived(state);
 }
 
-BarrierHandlerState* AbstractAlternatingAlignedBarrierHandlerState::AnnouncementReceived(Controller* /*controller*/,
-                                                                                         InputChannelInfo channelInfo,
-                                                                                         int sequenceNumber)
+BarrierHandlerState* AbstractAlternatingAlignedBarrierHandlerState::AnnouncementReceived(
+    Controller* /*controller*/, InputChannelInfo channelInfo, int sequenceNumber)
 {
     // Only record the announcement; do NOT prioritize it here.
     // Prioritization happens when the aligned checkpoint times out.
-    LOG("start AnnouncementReceived, ")
+    LOG("start AnnouncementReceived, ");
     state.addSeenAnnouncement(channelInfo, sequenceNumber);
     return this;
 }

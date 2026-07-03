@@ -20,14 +20,14 @@
 namespace omnistream {
 class CheckpointStorageWorkerView {
 public:
-    virtual CheckpointStreamFactory *resolveCheckpointStorageLocation(
+    virtual CheckpointStreamFactory* resolveCheckpointStorageLocation(
         int64_t checkpointId, std::shared_ptr<CheckpointStorageLocationReference> reference) = 0;
 
-    virtual CheckpointStateOutputStream *createTaskOwnedStateStream() = 0;
+    virtual CheckpointStateOutputStream* createTaskOwnedStateStream() = 0;
 
-    virtual CheckpointStateToolset *createTaskOwnedCheckpointStateToolset() = 0;
+    virtual CheckpointStateToolset* createTaskOwnedCheckpointStateToolset() = 0;
 
     virtual ~CheckpointStorageWorkerView() = default;
 };
-}
+} // namespace omnistream
 #endif // FLINK_TNEL_CHECKPOINTSTORAGEWORKERVIEW_H

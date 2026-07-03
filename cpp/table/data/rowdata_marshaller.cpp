@@ -5,8 +5,7 @@
 
 #include "rowdata_marshaller.h"
 
-
-void SerializeLongIntoRowData(vec::BaseVector *baseVector, int32_t rowIdx, BinaryRowData *result, int32_t pos)
+void SerializeLongIntoRowData(vec::BaseVector* baseVector, int32_t rowIdx, BinaryRowData* result, int32_t pos)
 {
     if (baseVector->IsNull(rowIdx)) {
         result->setNullAt(pos);
@@ -14,7 +13,7 @@ void SerializeLongIntoRowData(vec::BaseVector *baseVector, int32_t rowIdx, Binar
         result->setLong(pos, reinterpret_cast<vec::Vector<int64_t>*>(baseVector)->GetValue(rowIdx));
     }
 }
-void SerializeIntIntoRowData(vec::BaseVector *baseVector, int32_t rowIdx, BinaryRowData *result, int32_t pos)
+void SerializeIntIntoRowData(vec::BaseVector* baseVector, int32_t rowIdx, BinaryRowData* result, int32_t pos)
 {
     if (baseVector->IsNull(rowIdx)) {
         result->setNullAt(pos);
@@ -23,7 +22,7 @@ void SerializeIntIntoRowData(vec::BaseVector *baseVector, int32_t rowIdx, Binary
     }
 }
 
-void SerializeBooleanIntoRowData(vec::BaseVector *baseVector, int32_t rowIdx, BinaryRowData *result, int32_t pos)
+void SerializeBooleanIntoRowData(vec::BaseVector* baseVector, int32_t rowIdx, BinaryRowData* result, int32_t pos)
 {
     if (baseVector->IsNull(rowIdx)) {
         result->setNullAt(pos);
@@ -32,7 +31,8 @@ void SerializeBooleanIntoRowData(vec::BaseVector *baseVector, int32_t rowIdx, Bi
     }
 }
 
-void SerializeDecimal128IntoRowData(vec::BaseVector *baseVector, int32_t rowIdx, BinaryRowData *result, int32_t pos) {
+void SerializeDecimal128IntoRowData(vec::BaseVector* baseVector, int32_t rowIdx, BinaryRowData* result, int32_t pos)
+{
     if (baseVector->IsNull(rowIdx)) {
         result->setNullAt(pos);
     } else {
@@ -41,18 +41,20 @@ void SerializeDecimal128IntoRowData(vec::BaseVector *baseVector, int32_t rowIdx,
     }
 }
 
-void SerializeVarcharIntoRowData(vec::BaseVector *baseVector, int32_t rowIdx, BinaryRowData *result, int32_t pos)
+void SerializeVarcharIntoRowData(vec::BaseVector* baseVector, int32_t rowIdx, BinaryRowData* result, int32_t pos)
 {
     if (baseVector->IsNull(rowIdx)) {
         result->setNullAt(pos);
     } else if (baseVector->GetEncoding() == omniruntime::vec::OMNI_FLAT) {
-        auto casted = reinterpret_cast<omniruntime::vec::Vector
-            <omniruntime::vec::LargeStringContainer<std::string_view>> *>(baseVector);
+        auto casted =
+            reinterpret_cast<omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>*>(
+                baseVector);
         auto val = casted->GetValue(rowIdx);
         result->setStringView(pos, val);
     } else if (baseVector->GetEncoding() == omniruntime::vec::OMNI_DICTIONARY) {
-        auto casted = reinterpret_cast<omniruntime::vec::Vector<omniruntime::vec::DictionaryContainer<
-            std::string_view, omniruntime::vec::LargeStringContainer>> *>(baseVector);
+        auto casted = reinterpret_cast<omniruntime::vec::Vector<
+            omniruntime::vec::DictionaryContainer<std::string_view, omniruntime::vec::LargeStringContainer>>*>(
+            baseVector);
         auto val = casted->GetValue(rowIdx);
         result->setStringView(pos, val);
     } else {
@@ -60,17 +62,16 @@ void SerializeVarcharIntoRowData(vec::BaseVector *baseVector, int32_t rowIdx, Bi
     }
 }
 
-void DeserializeIntFromRowData(vec::BaseVector *baseVector, int32_t rowIdx, BinaryRowData *input, int32_t pos)
+void DeserializeIntFromRowData(vec::BaseVector* baseVector, int32_t rowIdx, BinaryRowData* input, int32_t pos)
 {
     if (input->isNullAt(pos)) {
         baseVector->SetNull(rowIdx);
     } else {
-        reinterpret_cast<vec::Vector<int32_t> *>(baseVector)->SetValue(rowIdx, *input->getInt(pos));
-
+        reinterpret_cast<vec::Vector<int32_t>*>(baseVector)->SetValue(rowIdx, *input->getInt(pos));
     }
 }
 
-void DeserializeLongFromRowData(vec::BaseVector *baseVector, int32_t rowIdx, BinaryRowData *input, int32_t pos)
+void DeserializeLongFromRowData(vec::BaseVector* baseVector, int32_t rowIdx, BinaryRowData* input, int32_t pos)
 {
     if (input->isNullAt(pos)) {
         baseVector->SetNull(rowIdx);
@@ -79,18 +80,20 @@ void DeserializeLongFromRowData(vec::BaseVector *baseVector, int32_t rowIdx, Bin
     }
 }
 
-void DeserializeVarcharFromRowData(vec::BaseVector *baseVector, int32_t rowIdx, BinaryRowData *input, int32_t pos)
+void DeserializeVarcharFromRowData(vec::BaseVector* baseVector, int32_t rowIdx, BinaryRowData* input, int32_t pos)
 {
     if (input->isNullAt(pos)) {
         baseVector->SetNull(rowIdx);
     } else if (baseVector->GetEncoding() == omniruntime::vec::OMNI_FLAT) {
-        auto casted = reinterpret_cast<omniruntime::vec::Vector
-            <omniruntime::vec::LargeStringContainer<std::string_view>> *>(baseVector);
+        auto casted =
+            reinterpret_cast<omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>*>(
+                baseVector);
         std::string_view sv = input->getStringView(pos);
         casted->SetValue(rowIdx, sv);
     } else if (baseVector->GetEncoding() == omniruntime::vec::OMNI_DICTIONARY) {
-        auto casted = reinterpret_cast<omniruntime::vec::Vector<omniruntime::vec::DictionaryContainer<
-            std::string_view, omniruntime::vec::LargeStringContainer>> *>(baseVector);
+        auto casted = reinterpret_cast<omniruntime::vec::Vector<
+            omniruntime::vec::DictionaryContainer<std::string_view, omniruntime::vec::LargeStringContainer>>*>(
+            baseVector);
         std::string_view sv = input->getStringView(pos);
         casted->SetValue(rowIdx, sv);
     } else {
@@ -118,24 +121,23 @@ std::vector<VBToRowSerializer> rowSerializerCenter = {
     nullptr                         // OMNI_CONTAINER,
 };
 
-
 std::vector<RowToVBDeSerializer> rowDeserializerCenter = {
-    nullptr,                                       // OMNI_NONE,
-    DeserializeIntFromRowData,        // OMNI_INT
-    DeserializeLongFromRowData,       // OMNI_LONG
-    nullptr,     // OMNI_DOUBLE
-    nullptr,    // OMNI_BOOLEAN
-    nullptr,      // OMNI_SHORT
-    DeserializeLongFromRowData,       // OMNI_DECIMAL64,
-    nullptr, // OMNI_DECIMAL128
-    DeserializeIntFromRowData,        // OMNI_DATE32
-    DeserializeLongFromRowData,       // OMNI_DATE64
-    DeserializeIntFromRowData,        // /OMNI_TIME32
-    DeserializeLongFromRowData,       // OMNI_TIME64
-    DeserializeLongFromRowData,       // OMNI_TIMESTAMP
-    nullptr,                                       // OMNI_INTERVAL_MONTHS
-    nullptr,                                       // OMNI_INTERVAL_DAY_TIME
-    DeserializeVarcharFromRowData,    // OMNI_VARCHAR
-    DeserializeVarcharFromRowData,    // OMNI_CHAR,
-    nullptr                                        // OMNI_CONTAINER,
+    nullptr,                       // OMNI_NONE,
+    DeserializeIntFromRowData,     // OMNI_INT
+    DeserializeLongFromRowData,    // OMNI_LONG
+    nullptr,                       // OMNI_DOUBLE
+    nullptr,                       // OMNI_BOOLEAN
+    nullptr,                       // OMNI_SHORT
+    DeserializeLongFromRowData,    // OMNI_DECIMAL64,
+    nullptr,                       // OMNI_DECIMAL128
+    DeserializeIntFromRowData,     // OMNI_DATE32
+    DeserializeLongFromRowData,    // OMNI_DATE64
+    DeserializeIntFromRowData,     // /OMNI_TIME32
+    DeserializeLongFromRowData,    // OMNI_TIME64
+    DeserializeLongFromRowData,    // OMNI_TIMESTAMP
+    nullptr,                       // OMNI_INTERVAL_MONTHS
+    nullptr,                       // OMNI_INTERVAL_DAY_TIME
+    DeserializeVarcharFromRowData, // OMNI_VARCHAR
+    DeserializeVarcharFromRowData, // OMNI_CHAR,
+    nullptr                        // OMNI_CONTAINER,
 };

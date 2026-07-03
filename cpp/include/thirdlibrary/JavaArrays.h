@@ -18,8 +18,8 @@
 
 class JavaArrays : public Object {
 public:
-    static List *asList(Array *obj);
+    static List* asList(Array* obj);
 
-    static List *asList(Object *obj);
+    static List* asList(Object* obj);
 };
 #endif // ME_CHECK_JAVAARRAY_H

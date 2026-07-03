@@ -20,10 +20,10 @@ namespace {
  * aligned checkpoint mode.
  */
 class CollectingBarriers : public BarrierHandlerState {
-
 public:
-    explicit CollectingBarriers(ChannelState state)
-        : state_(std::move(state)) {}
+    explicit CollectingBarriers(ChannelState state) : state_(std::move(state))
+    {
+    }
 
     BarrierHandlerState* BarrierReceived(
         Controller* controller,
@@ -33,8 +33,7 @@ public:
     {
         // In the aligned-only handler we should never receive an explictly unaligned barrier.
         if (barrier->GetCheckpointOptions()->IsUnalignedCheckpoint()) {
-            throw std::runtime_error(
-                "Aligned-only barrier handler received an unaligned checkpoint barrier.");
+            throw std::runtime_error("Aligned-only barrier handler received an unaligned checkpoint barrier.");
         }
 
         state_.removeSeenAnnouncement(channelInfo);
@@ -52,9 +51,7 @@ public:
         return this;
     }
 
-    BarrierHandlerState* AlignedCheckpointTimeout(
-        Controller* controller,
-        CheckpointBarrier* barrier) override
+    BarrierHandlerState* AlignedCheckpointTimeout(Controller* controller, CheckpointBarrier* barrier) override
     {
         // Aligned-only mode:do not switch to unaligned.
         return this;
@@ -74,21 +71,18 @@ private:
     ChannelState state_;
 };
 
-}// namespace
+} // namespace
 
-WaitingForFirstBarrier::WaitingForFirstBarrier(ChannelState state)
-    : state_(std::move(state)) {}
+WaitingForFirstBarrier::WaitingForFirstBarrier(ChannelState state) : state_(std::move(state))
+{
+}
 
 BarrierHandlerState* WaitingForFirstBarrier::BarrierReceived(
-        Controller* controller,
-        InputChannelInfo channelInfo,
-        CheckpointBarrier* barrier,
-        bool markChannelBlocked)
+    Controller* controller, InputChannelInfo channelInfo, CheckpointBarrier* barrier, bool markChannelBlocked)
 {
     // In the aligned-only handler we should never receive an explicitly unaligned barrier.
     if (barrier->GetCheckpointOptions()->IsUnalignedCheckpoint()) {
-        throw std::runtime_error(
-            "Aligned-only barrier handler received an unaligned checkpoint barrier.");
+        throw std::runtime_error("Aligned-only barrier handler received an unaligned checkpoint barrier.");
     }
 
     state_.removeSeenAnnouncement(channelInfo);
@@ -107,8 +101,7 @@ BarrierHandlerState* WaitingForFirstBarrier::BarrierReceived(
 }
 
 BarrierHandlerState* WaitingForFirstBarrier::AlignedCheckpointTimeout(
-    Controller* /*controller*/,
-    CheckpointBarrier* /*barrier*/)
+    Controller* /*controller*/, CheckpointBarrier* /*barrier*/)
 {
     // Aligned-only mode: do not switch to unaligned.
     return this;

@@ -20,7 +20,7 @@ class java_util_Properties : public HashMap {
 public:
     java_util_Properties();
     ~java_util_Properties();
-    void load(InputStream *input);
+    void load(InputStream* input);
     void processLine(std::string& strLine);
     void parseKeyValueFromLine(std::string& strLine, std::string& outKey, std::string& outValue);
 };

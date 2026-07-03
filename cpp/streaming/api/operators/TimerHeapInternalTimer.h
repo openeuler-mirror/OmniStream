@@ -24,14 +24,17 @@ template <typename K, typename N>
 class TimerHeapInternalTimer : public InternalTimer<K, N>, public Object, public HeapPriorityQueueElement {
 public:
     struct MinHeapComparator {
-        bool operator()(const std::shared_ptr<TimerHeapInternalTimer>& a, const std::shared_ptr<TimerHeapInternalTimer>& b) const {
+        bool operator()(
+            const std::shared_ptr<TimerHeapInternalTimer>& a, const std::shared_ptr<TimerHeapInternalTimer>& b) const
+        {
             // less timestamp has higher priority
             return a->getTimestamp() < b->getTimestamp();
         }
     };
 
     struct SharedPtrHash {
-        size_t operator()(const std::shared_ptr<TimerHeapInternalTimer>& timer) const {
+        size_t operator()(const std::shared_ptr<TimerHeapInternalTimer>& timer) const
+        {
             auto timestamp = timer->getTimestamp();
             auto const& key = timer->getKey();
             auto const& nameSpace = timer->getNamespace();
@@ -53,11 +56,13 @@ public:
     };
 
     struct SharedPtrEqual {
-        bool operator()(const std::shared_ptr<TimerHeapInternalTimer>& lhs, const std::shared_ptr<TimerHeapInternalTimer>& rhs) const {
+        bool operator()(
+            const std::shared_ptr<TimerHeapInternalTimer>& lhs,
+            const std::shared_ptr<TimerHeapInternalTimer>& rhs) const
+        {
             if constexpr (KeyTypeTraits<K>::isRowKey || KeyTypeTraits<K>::isSharedRowKey) {
-                auto res = lhs->getTimestamp() == rhs->getTimestamp() &&
-                        lhs->getNamespace() == rhs->getNamespace() &&
-                        *lhs->getKey() == *rhs->getKey();
+                auto res = lhs->getTimestamp() == rhs->getTimestamp() && lhs->getNamespace() == rhs->getNamespace() &&
+                           *lhs->getKey() == *rhs->getKey();
                 return res;
             } else if constexpr (std::is_same_v<K, Object*>) {
                 auto lkey = reinterpret_cast<Object*>(lhs->getKey());
@@ -67,14 +72,12 @@ public:
                 } else if (lkey == nullptr || rkey == nullptr) {
                     return false;
                 }
-                auto res = lhs->getTimestamp() == rhs->getTimestamp() &&
-                        lhs->getNamespace() == rhs->getNamespace() &&
-                        lkey->equals(rkey);
+                auto res = lhs->getTimestamp() == rhs->getTimestamp() && lhs->getNamespace() == rhs->getNamespace() &&
+                           lkey->equals(rkey);
                 return res;
             } else {
-                auto res = lhs->getTimestamp() == rhs->getTimestamp() &&
-                        lhs->getNamespace() == rhs->getNamespace() &&
-                        lhs->getKey() == rhs->getKey();
+                auto res = lhs->getTimestamp() == rhs->getTimestamp() && lhs->getNamespace() == rhs->getNamespace() &&
+                           lhs->getKey() == rhs->getKey();
                 return res;
             }
         }
@@ -105,17 +108,26 @@ public:
         }
     }
 
-    K getKey() const override { return key; }
+    K getKey() const override
+    {
+        return key;
+    }
 
-    N getNamespace() const override { return nameSpace; }
+    N getNamespace() const override
+    {
+        return nameSpace;
+    }
 
-    int64_t getTimestamp() const override { return timestamp; }
+    int64_t getTimestamp() const override
+    {
+        return timestamp;
+    }
 
-    bool operator==(TimerHeapInternalTimer &other) const
+    bool operator==(TimerHeapInternalTimer& other) const
     {
         if constexpr (KeyTypeTraits<K>::isRowKey || KeyTypeTraits<K>::isSharedRowKey) {
             return this->timestamp == other.timestamp && *this->key == *other.key && this->nameSpace == other.nameSpace;
-        } else if constexpr (std::is_same_v<K, Object *>) {
+        } else if constexpr (std::is_same_v<K, Object*>) {
             auto lkey = reinterpret_cast<Object*>(this->key);
             auto rkey = reinterpret_cast<Object*>(other.key);
             if (lkey == nullptr && rkey == nullptr) {
@@ -129,12 +141,13 @@ public:
         }
     }
 
-    bool operator!=(TimerHeapInternalTimer<K, N> &other) const
+    bool operator!=(TimerHeapInternalTimer<K, N>& other) const
     {
         return !(*this == other);
     }
 
-	inline void setKey(K key_) {
+    inline void setKey(K key_)
+    {
         if constexpr (std::is_same_v<K, Object*>) {
             if (key != nullptr) {
                 reinterpret_cast<Object*>(key)->putRefCount();
@@ -144,9 +157,10 @@ public:
         if constexpr (std::is_same_v<K, Object*>) {
             reinterpret_cast<Object*>(key)->getRefCount();
         }
-	}
+    }
 
-    inline void setNamespace(N nameSpace_) {
+    inline void setNamespace(N nameSpace_)
+    {
         if constexpr (std::is_same_v<N, Object*>) {
             if (nameSpace != nullptr) {
                 reinterpret_cast<Object*>(nameSpace)->putRefCount();
@@ -156,14 +170,15 @@ public:
         if constexpr (std::is_same_v<N, Object*>) {
             reinterpret_cast<Object*>(nameSpace)->getRefCount();
         }
-	}
-
-	inline void setTimestamp(int64_t timestamp_) {
-		timestamp = timestamp_;
     }
 
+    inline void setTimestamp(int64_t timestamp_)
+    {
+        timestamp = timestamp_;
+    }
 
-    void clear() {
+    void clear()
+    {
         if constexpr (std::is_same_v<K, Object*>) {
             reinterpret_cast<Object*>(key)->putRefCount();
         }

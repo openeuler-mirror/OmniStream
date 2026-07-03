@@ -17,25 +17,25 @@
 
 namespace omnistream {
 
-    class BufferPool : public BufferProvider, public BufferRecycler   {
-    public:
-        virtual void reserveSegments(int numberOfSegmentsToReserve)  = 0;
-        virtual void lazyDestroy() = 0;
-        virtual void cancel() = 0;
-        bool isDestroyed() override = 0;
-        virtual int getNumberOfRequiredSegments() const =0 ;
-        virtual int getMaxNumberOfSegments() const =0 ;
-        virtual int getNumBuffers() = 0;
-        virtual void setNumBuffers(int numBuffers) =0 ;
-        virtual int getNumberOfAvailableSegments()  = 0;
-        virtual int bestEffortGetNumOfUsedBuffers() const = 0;
+class BufferPool : public BufferProvider, public BufferRecycler {
+public:
+    virtual void reserveSegments(int numberOfSegmentsToReserve) = 0;
+    virtual void lazyDestroy() = 0;
+    virtual void cancel() = 0;
+    bool isDestroyed() override = 0;
+    virtual int getNumberOfRequiredSegments() const = 0;
+    virtual int getMaxNumberOfSegments() const = 0;
+    virtual int getNumBuffers() = 0;
+    virtual void setNumBuffers(int numBuffers) = 0;
+    virtual int getNumberOfAvailableSegments() = 0;
+    virtual int bestEffortGetNumOfUsedBuffers() const = 0;
 
-        virtual Segment *requestSegment() = 0;
-        virtual Segment *requestSegment(int targetChannel) = 0;
+    virtual Segment* requestSegment() = 0;
+    virtual Segment* requestSegment(int targetChannel) = 0;
 
-        virtual Segment *requestSegmentBlocking() = 0;
-        virtual Segment *requestSegmentBlocking(int targetChannel) = 0;
-    };
-}
+    virtual Segment* requestSegmentBlocking() = 0;
+    virtual Segment* requestSegmentBlocking(int targetChannel) = 0;
+};
+} // namespace omnistream
 
 #endif // BUFFERPOOL_H

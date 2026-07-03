@@ -53,8 +53,10 @@ public:
         BackendStateType backendStateType,
         const std::unordered_map<std::string, std::string>& options,
         const std::unordered_map<std::string, std::shared_ptr<TypeSerializerSnapshot>>& serializerSnapshots)
-        : StateMetaInfoSnapshot(name, backendStateType, options, serializerSnapshots,
-            std::unordered_map<std::string, TypeSerializer*>()) {}
+        : StateMetaInfoSnapshot(
+              name, backendStateType, options, serializerSnapshots, std::unordered_map<std::string, TypeSerializer*>())
+    {
+    }
 
     StateMetaInfoSnapshot(
         const std::string& name,
@@ -63,10 +65,12 @@ public:
         const std::unordered_map<std::string, std::shared_ptr<TypeSerializerSnapshot>>& serializerSnapshots,
         const std::unordered_map<std::string, TypeSerializer*>& serializers)
         : name(name),
-        backendStateType(backendStateType),
-        options(options),
-        serializerSnapshots(serializerSnapshots),
-        serializers(serializers) {}
+          backendStateType(backendStateType),
+          options(options),
+          serializerSnapshots(serializerSnapshots),
+          serializers(serializers)
+    {
+    }
 
     BackendStateType getBackendStateType() const
     {
@@ -93,7 +97,7 @@ public:
         if (it != options.end()) {
             return it->second;
         }
-        return "";  // Return empty string for null equivalent
+        return ""; // Return empty string for null equivalent
     }
 
     std::string getOption(CommonOptionsKeys key) const
@@ -140,8 +144,7 @@ public:
             case 1: return BackendStateType::OPERATOR;
             case 2: return BackendStateType::BROADCAST;
             case 3: return BackendStateType::PRIORITY_QUEUE;
-            default:
-                throw std::invalid_argument("Unknown BackendStateType: " + std::to_string(code));
+            default: throw std::invalid_argument("Unknown BackendStateType: " + std::to_string(code));
         }
     }
 
@@ -149,37 +152,31 @@ public:
     static std::string commonOptionsKeyToString(CommonOptionsKeys key)
     {
         switch (key) {
-            case CommonOptionsKeys::KEYED_STATE_TYPE:
-                return "KEYED_STATE_TYPE";
-            case CommonOptionsKeys::OPERATOR_STATE_DISTRIBUTION_MODE:
-                return "OPERATOR_STATE_DISTRIBUTION_MODE";
-            default:
-                return "";
+            case CommonOptionsKeys::KEYED_STATE_TYPE: return "KEYED_STATE_TYPE";
+            case CommonOptionsKeys::OPERATOR_STATE_DISTRIBUTION_MODE: return "OPERATOR_STATE_DISTRIBUTION_MODE";
+            default: return "";
         }
     }
 
     static std::string commonSerializerKeyToString(CommonSerializerKeys key)
     {
         switch (key) {
-            case CommonSerializerKeys::KEY_SERIALIZER:
-                return "KEY_SERIALIZER";
-            case CommonSerializerKeys::NAMESPACE_SERIALIZER:
-                return "NAMESPACE_SERIALIZER";
-            case CommonSerializerKeys::VALUE_SERIALIZER:
-                return "VALUE_SERIALIZER";
-            default:
-                return "";
+            case CommonSerializerKeys::KEY_SERIALIZER: return "KEY_SERIALIZER";
+            case CommonSerializerKeys::NAMESPACE_SERIALIZER: return "NAMESPACE_SERIALIZER";
+            case CommonSerializerKeys::VALUE_SERIALIZER: return "VALUE_SERIALIZER";
+            default: return "";
         }
     }
 
-    std::string getSerializerJson() const {
+    std::string getSerializerJson() const
+    {
         nlohmann::json mapJson;
         for (auto it = serializers.begin(); it != serializers.end(); it++) {
             auto serializer = it->second;
             if (serializer == nullptr) {
                 continue;
             }
-           mapJson[it->first] = serializer->toJson();
+            mapJson[it->first] = serializer->toJson();
         }
         return mapJson.dump();
     }

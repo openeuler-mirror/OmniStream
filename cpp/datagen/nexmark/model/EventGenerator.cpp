@@ -20,7 +20,7 @@ std::string StringsGenerator::REUSABLE_EXTRA_STRING = []() -> std::string {
     return str;
 }();
 
-std::string_view StringsGenerator::nextExactString(SplittableRandom &random, size_t length, char *buffer)
+std::string_view StringsGenerator::nextExactString(SplittableRandom& random, size_t length, char* buffer)
 {
     if (!REUSABLE_EXTRA_STRING.empty() && length < REUSABLE_EXTRA_STRING.size() / 2) {
         int offset = random.nextInt(REUSABLE_EXTRA_STRING.size() - length);
@@ -30,7 +30,7 @@ std::string_view StringsGenerator::nextExactString(SplittableRandom &random, siz
     return std::string_view(buffer, length);
 }
 
-std::string StringsGenerator::nextString(SplittableRandom &random, int maxLength, char special)
+std::string StringsGenerator::nextString(SplittableRandom& random, int maxLength, char special)
 {
     int len = MIN_STRING_LENGTH + random.nextInt(maxLength - MIN_STRING_LENGTH);
     std::string sb;
@@ -45,7 +45,7 @@ std::string StringsGenerator::nextString(SplittableRandom &random, int maxLength
 }
 
 std::string_view StringsGenerator::nextExtra(
-    SplittableRandom &random, int currentSize, int desiredAverageSize, char *buffer)
+    SplittableRandom& random, int currentSize, int desiredAverageSize, char* buffer)
 {
     if (currentSize > desiredAverageSize) {
         return "";
@@ -57,7 +57,7 @@ std::string_view StringsGenerator::nextExtra(
     return nextExactString(random, desiredSize, buffer);
 }
 
-std::string trim(const std::string &s)
+std::string trim(const std::string& s)
 {
     auto start = std::find_if_not(s.begin(), s.end(), ::isspace);
     auto end = std::find_if_not(s.rbegin(), s.rend(), ::isspace).base();

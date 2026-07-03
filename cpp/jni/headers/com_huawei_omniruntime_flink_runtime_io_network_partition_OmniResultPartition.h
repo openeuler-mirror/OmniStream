@@ -22,16 +22,17 @@ extern "C" {
  * Method:    getBufferPoolAddress
  * Signature: (J)J
  */
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_io_network_partition_OmniResultPartition_getBufferPoolAddress
-  (JNIEnv *, jclass, jlong);
+JNIEXPORT jlong JNICALL
+Java_com_huawei_omniruntime_flink_runtime_io_network_partition_OmniResultPartition_getBufferPoolAddress(
+    JNIEnv*, jclass, jlong);
 
 /*
  * Class:     com_huawei_omniruntime_flink_runtime_io_network_partition_OmniResultPartition
  * Method:    setupNative
  * Signature: (J)V
  */
-JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_io_network_partition_OmniResultPartition_setupNative
-  (JNIEnv *, jobject, jlong);
+JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_io_network_partition_OmniResultPartition_setupNative(
+    JNIEnv*, jobject, jlong);
 
 #ifdef __cplusplus
 }

@@ -24,11 +24,18 @@ public:
         KafkaPartitionSplitReader* splitReader,
         const std::map<std::shared_ptr<RdKafka::TopicPartition>, int64_t>& offsetsToCommit,
         OffsetCommitCallback callback)
-        : splitReader(splitReader), offsetsToCommit(offsetsToCommit), callback(callback) {}
+        : splitReader(splitReader),
+          offsetsToCommit(offsetsToCommit),
+          callback(callback)
+    {
+    }
 
-    ~CommitOffsetsTask() override {}
+    ~CommitOffsetsTask() override
+    {
+    }
 
-    bool Run() override {
+    bool Run() override
+    {
         try {
             // 直接调用 commitOffsets 提交偏移量
             splitReader->commitOffsets(offsetsToCommit);
@@ -45,9 +52,12 @@ public:
         }
     }
 
-    void WakeUp() override {}
+    void WakeUp() override
+    {
+    }
 
-    std::string ToString() override {
+    std::string ToString() override
+    {
         std::string result = "CommitOffsetsTask: {";
         bool first = true;
         for (const auto& entry : offsetsToCommit) {

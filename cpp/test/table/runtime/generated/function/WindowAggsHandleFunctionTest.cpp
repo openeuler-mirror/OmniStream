@@ -16,24 +16,34 @@ namespace {
 constexpr int32_t LONG_TYPE = omniruntime::type::DataTypeId::OMNI_LONG;
 constexpr int32_t TIMESTAMP_TYPE = omniruntime::type::DataTypeId::OMNI_TIMESTAMP;
 
-std::vector<std::unique_ptr<NamespaceAggsBasicFunction<int64_t>>> MakeFunctions() {
+std::vector<std::unique_ptr<NamespaceAggsBasicFunction<int64_t>>> MakeFunctions()
+{
     std::vector<std::unique_ptr<NamespaceAggsBasicFunction<int64_t>>> functions;
-    functions.push_back(std::make_unique<NamespaceAggsCountFunction<int64_t>>(
-            std::vector<int32_t>{}, std::vector<int32_t>{}, std::vector<int32_t>{0},
-            std::vector<int32_t>{LONG_TYPE}, 0));
-    functions.push_back(std::make_unique<NamespaceAggsSumFunction<int64_t>>(
-            std::vector<int32_t>{0}, std::vector<int32_t>{LONG_TYPE}, std::vector<int32_t>{1},
-            std::vector<int32_t>{LONG_TYPE}, 1, LONG_TYPE));
+    functions.push_back(
+        std::make_unique<NamespaceAggsCountFunction<int64_t>>(
+            std::vector<int32_t>{},
+            std::vector<int32_t>{},
+            std::vector<int32_t>{0},
+            std::vector<int32_t>{LONG_TYPE},
+            0));
+    functions.push_back(
+        std::make_unique<NamespaceAggsSumFunction<int64_t>>(
+            std::vector<int32_t>{0},
+            std::vector<int32_t>{LONG_TYPE},
+            std::vector<int32_t>{1},
+            std::vector<int32_t>{LONG_TYPE},
+            1,
+            LONG_TYPE));
     return functions;
 }
 
-}
+} // namespace
 
-TEST(WindowAggsHandleFunctionTest, CoordinatesFunctionsAndAppendsWindowBounds) {
+TEST(WindowAggsHandleFunctionTest, CoordinatesFunctionsAndAppendsWindowBounds)
+{
     TumblingSliceAssigner assigner(-1, nullptr, 1000, 0);
     WindowAggsHandleFunction function(
-            MakeFunctions(), {LONG_TYPE, LONG_TYPE},
-            {LONG_TYPE, LONG_TYPE, TIMESTAMP_TYPE, TIMESTAMP_TYPE}, &assigner, 2);
+        MakeFunctions(), {LONG_TYPE, LONG_TYPE}, {LONG_TYPE, LONG_TYPE, TIMESTAMP_TYPE, TIMESTAMP_TYPE}, &assigner, 2);
     auto accumulator = std::unique_ptr<RowData>(function.createAccumulators());
     function.setAccumulators(5000, accumulator.get());
 
@@ -52,10 +62,10 @@ TEST(WindowAggsHandleFunctionTest, CoordinatesFunctionsAndAppendsWindowBounds) {
     EXPECT_EQ(5000, *value->getLong(3));
 }
 
-TEST(WindowAggsHandleFunctionTest, RejectsOutputLayoutWithoutTwoWindowFields) {
+TEST(WindowAggsHandleFunctionTest, RejectsOutputLayoutWithoutTwoWindowFields)
+{
     TumblingSliceAssigner assigner(-1, nullptr, 1000, 0);
     EXPECT_THROW(
-            WindowAggsHandleFunction(MakeFunctions(), {LONG_TYPE, LONG_TYPE}, {LONG_TYPE, LONG_TYPE},
-                                     &assigner, 2),
-            std::logic_error);
+        WindowAggsHandleFunction(MakeFunctions(), {LONG_TYPE, LONG_TYPE}, {LONG_TYPE, LONG_TYPE}, &assigner, 2),
+        std::logic_error);
 }

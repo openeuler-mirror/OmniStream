@@ -32,8 +32,8 @@ public:
     // with an O(1) integer compare on the merge-heap hot path.
     // keyGroup() is decoded once per iterator position by refreshKeyGroup().
     struct IteratorComparator {
-        bool operator()(const std::unique_ptr<SingleStateIterator>& a,
-                        const std::unique_ptr<SingleStateIterator>& b) const
+        bool operator()(
+            const std::unique_ptr<SingleStateIterator>& a, const std::unique_ptr<SingleStateIterator>& b) const
         {
             int aKeyGroup = a->keyGroup();
             int bKeyGroup = b->keyGroup();
@@ -53,7 +53,7 @@ public:
         std::vector<std::unique_ptr<SingleStateIterator>>& heapPriorityQueueIterators,
         int keyGroupPrefixByteCount)
         : closeableRegistry_(std::move(closeableRegistry)),
-        keyGroupPrefixByteCount_(keyGroupPrefixByteCount)
+          keyGroupPrefixByteCount_(keyGroupPrefixByteCount)
     {
         if (keyGroupPrefixByteCount < 1) {
             throw std::invalid_argument("keyGroupPrefixByteCount must be at least 1");
@@ -96,8 +96,7 @@ public:
                 SingleStateIterator* oldIteratorPtr = currentSubIterator_.get();
                 auto temp = std::move(currentSubIterator_);
                 heap_.push(std::move(temp));
-                currentSubIterator_ =
-                        std::move(const_cast<std::unique_ptr<SingleStateIterator>&>(heap_.top()));
+                currentSubIterator_ = std::move(const_cast<std::unique_ptr<SingleStateIterator>&>(heap_.top()));
                 heap_.pop();
                 newKVState_ = (currentSubIterator_.get() != oldIteratorPtr);
                 detectNewKeyGroup(oldKeyGroup);
@@ -189,9 +188,11 @@ public:
 
 private:
     std::unique_ptr<CloseableRegistry> closeableRegistry_;
-    std::priority_queue<std::unique_ptr<SingleStateIterator>,
+    std::priority_queue<
+        std::unique_ptr<SingleStateIterator>,
         std::vector<std::unique_ptr<SingleStateIterator>>,
-        IteratorComparator> heap_;
+        IteratorComparator>
+        heap_;
     std::unique_ptr<SingleStateIterator> currentSubIterator_;
     int keyGroupPrefixByteCount_;
     bool newKeyGroup_ = false;
@@ -211,7 +212,7 @@ private:
             rocksIter->seekToFirst();
             if (rocksIter->isValid()) {
                 auto wrappingIter = std::make_unique<RocksSingleStateIterator>(
-                        std::move(rocksIter), kvStateId, keyGroupPrefixByteCount_);
+                    std::move(rocksIter), kvStateId, keyGroupPrefixByteCount_);
 
                 heap_.push(std::move(wrappingIter));
             } else {

@@ -35,9 +35,10 @@
 template <typename E, typename SplitT>
 class SplitFetcherManager {
 public:
-    SplitFetcherManager(FutureCompletingBlockingQueue<E>* elementsQueue,
-        std::function<SplitReader<E, SplitT>*()>& splitReaderFactory)
-        : elementsQueue(elementsQueue), splitReaderFactory(splitReaderFactory)
+    SplitFetcherManager(
+        FutureCompletingBlockingQueue<E>* elementsQueue, std::function<SplitReader<E, SplitT>*()>& splitReaderFactory)
+        : elementsQueue(elementsQueue),
+          splitReaderFactory(splitReaderFactory)
     {
         errorHandler = [this, elementsQueue](const std::exception_ptr& e) {
             try {
@@ -61,7 +62,7 @@ public:
     virtual ~SplitFetcherManager()
     {
         close(0);
-        for (auto &t : executorThreads) {
+        for (auto& t : executorThreads) {
             if (t.joinable()) {
                 t.join();
             }
@@ -77,9 +78,7 @@ public:
     // 启动一个 fetcher
     void startFetcher(SplitFetcher<E, SplitT>* fetcher)
     {
-        executorThreads.emplace_back([fetcher]() {
-            fetcher->run();
-        });
+        executorThreads.emplace_back([fetcher]() { fetcher->run(); });
     }
 
     // 创建一个新的 split fetcher
@@ -91,9 +90,8 @@ public:
         }
         SplitReader<E, SplitT>* splitReader = splitReaderFactory();
         int fetcherId = fetcherIdGenerator.fetch_add(1);
-        auto fetcher = new SplitFetcher<E, SplitT>(
-            fetcherId, elementsQueue, splitReader, errorHandler,
-            [this, fetcherId]() {
+        auto fetcher =
+            new SplitFetcher<E, SplitT>(fetcherId, elementsQueue, splitReader, errorHandler, [this, fetcherId]() {
                 std::lock_guard<std::mutex> lock(fetchersMutex);
                 auto fetcher = fetchers[fetcherId];
                 delete fetcher;
@@ -125,11 +123,11 @@ public:
     // 关闭 split fetcher manager
     void close(long timeoutMs)
     {
-            std::lock_guard<std::mutex> lock(fetchersMutex);
-            closed = true;
-            for (const auto& fetcher : fetchers) {
-                fetcher.second->shutdown();
-            }
+        std::lock_guard<std::mutex> lock(fetchersMutex);
+        closed = true;
+        for (const auto& fetcher : fetchers) {
+            fetcher.second->shutdown();
+        }
     }
 
     void checkErrors()
@@ -150,8 +148,10 @@ public:
         std::lock_guard<std::mutex> lock(fetchersMutex);
         return static_cast<int>(fetchers.size());
     }
+
 protected:
     std::map<int, SplitFetcher<E, SplitT>*> fetchers;
+
 private:
     std::function<void(const std::exception_ptr&)> errorHandler;
     std::atomic<int> fetcherIdGenerator{0};

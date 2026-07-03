@@ -31,54 +31,66 @@ public:
           subtaskId(subtaskId),
           numDrained(0),
           numFailed(0),
-          requests() {}
+          requests()
+    {
+    }
 
     explicit SubtaskCommittableManager(
-            const std::vector<std::shared_ptr<CommitRequestImpl<CommT>>>& requests,
-            int numExpectedCommittables,
-            int numDrained,
-            int numFailed,
-            int subtaskId,
-            std::optional<long> checkpointId)
+        const std::vector<std::shared_ptr<CommitRequestImpl<CommT>>>& requests,
+        int numExpectedCommittables,
+        int numDrained,
+        int numFailed,
+        int subtaskId,
+        std::optional<long> checkpointId)
         : numExpectedCommittables(numExpectedCommittables),
           checkpointId(checkpointId),
           subtaskId(subtaskId),
           numDrained(numDrained),
           numFailed(numFailed),
-          requests(requests.begin(), requests.end()) {}
+          requests(requests.begin(), requests.end())
+    {
+    }
 
-    void Add(const CommittableWithLineage<CommT>& committable) {
+    void Add(const CommittableWithLineage<CommT>& committable)
+    {
         Add(committable.GetCommittable());
     }
 
-    void Add(const CommT& committable) {
+    void Add(const CommT& committable)
+    {
         if (requests.size() >= numExpectedCommittables) {
             throw std::runtime_error("Already received all committables.");
         }
         requests.push_back(std::make_shared<CommitRequestImpl<CommT>>(committable));
     }
 
-    bool HasReceivedAll() const {
+    bool HasReceivedAll() const
+    {
         return GetNumCommittables() == numExpectedCommittables;
     }
 
-    int GetNumCommittables() const {
+    int GetNumCommittables() const
+    {
         return requests.size() + numDrained + numFailed;
     }
 
-    int GetNumPending() const {
+    int GetNumPending() const
+    {
         return numExpectedCommittables - (numDrained + numFailed);
     }
 
-    int GetNumFailed() const {
+    int GetNumFailed() const
+    {
         return numFailed;
     }
 
-    bool IsFinished() const {
+    bool IsFinished() const
+    {
         return GetNumPending() == 0;
     }
 
-    std::vector<std::shared_ptr<CommitRequestImpl<CommT>>> GetPendingRequests() const {
+    std::vector<std::shared_ptr<CommitRequestImpl<CommT>>> GetPendingRequests() const
+    {
         std::vector<std::shared_ptr<CommitRequestImpl<CommT>>> pendingRequests;
         for (const auto& request : requests) {
             if (!request->IsFinished()) {
@@ -88,7 +100,8 @@ public:
         return pendingRequests;
     }
 
-    std::vector<CommittableWithLineage<CommT>> DrainCommitted() {
+    std::vector<CommittableWithLineage<CommT>> DrainCommitted()
+    {
         std::vector<CommittableWithLineage<CommT>> committed;
         auto it = requests.begin();
         while (it != requests.end()) {
@@ -107,23 +120,28 @@ public:
         return committed;
     }
 
-    int GetNumDrained() const {
+    int GetNumDrained() const
+    {
         return numDrained;
     }
 
-    int GetSubtaskId() const {
+    int GetSubtaskId() const
+    {
         return subtaskId;
     }
 
-    std::optional<long> GetCheckpointId() const {
+    std::optional<long> GetCheckpointId() const
+    {
         return checkpointId;
     }
 
-    std::deque<std::shared_ptr<CommitRequestImpl<CommT>>> GetRequests() const {
+    std::deque<std::shared_ptr<CommitRequestImpl<CommT>>> GetRequests() const
+    {
         return requests;
     }
 
-    SubtaskCommittableManager<CommT> Merge(const SubtaskCommittableManager<CommT>& other) {
+    SubtaskCommittableManager<CommT> Merge(const SubtaskCommittableManager<CommT>& other)
+    {
         if (other.GetSubtaskId() != this->GetSubtaskId()) {
             throw std::invalid_argument("Subtask IDs do not match");
         }
@@ -134,18 +152,14 @@ public:
         return *this;
     }
 
-    SubtaskCommittableManager<CommT> Copy() const {
+    SubtaskCommittableManager<CommT> Copy() const
+    {
         std::vector<std::shared_ptr<CommitRequestImpl<CommT>>> copiedRequests;
         for (const auto& request : requests) {
             copiedRequests.push_back(request->Copy());
         }
         return SubtaskCommittableManager<CommT>(
-                copiedRequests,
-                numExpectedCommittables,
-                numDrained,
-                numFailed,
-                subtaskId,
-                checkpointId);
+            copiedRequests, numExpectedCommittables, numDrained, numFailed, subtaskId, checkpointId);
     }
 
 private:

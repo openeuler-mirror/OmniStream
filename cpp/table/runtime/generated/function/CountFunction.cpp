@@ -10,7 +10,7 @@
  */
 #include "CountFunction.h"
 
-bool CountFunction::equaliser(BinaryRowData *r1, BinaryRowData *r2)
+bool CountFunction::equaliser(BinaryRowData* r1, BinaryRowData* r2)
 {
     if (r1->isNullAt(valueIndex) || r2->isNullAt(valueIndex)) {
         return false;
@@ -26,20 +26,17 @@ bool CountFunction::equaliser(BinaryRowData *r1, BinaryRowData *r2)
             isEqual = *r1->getLong(valueIndex) == *r2->getLong(valueIndex);
             break;
         }
-        default:
-            LOG("Data type is not supported.")
-            throw std::runtime_error("Data type is not supported.");
+        default: LOG("Data type is not supported."); throw std::runtime_error("Data type is not supported.");
     }
     return isEqual;
 }
 
-void CountFunction::open(StateDataViewStore *store)
+void CountFunction::open(StateDataViewStore* store)
 {
     this->store = store;
 }
 
-
-void CountFunction::accumulate(RowData *accInput)
+void CountFunction::accumulate(RowData* accInput)
 {
     if (isCountStar) {
         if (!valueIsNull) {
@@ -72,14 +69,13 @@ void CountFunction::accumulate(RowData *accInput)
     }
 }
 
-void CountFunction::accumulate(omnistream::VectorBatch *input, const std::vector<int> &indices)
+void CountFunction::accumulate(omnistream::VectorBatch* input, const std::vector<int>& indices)
 {
     const bool hasFilterCol = hasFilter;
-    const auto filterData = hasFilterCol
-        ? reinterpret_cast<omniruntime::vec::Vector<bool> *>(input->Get(filterIndex))
-        : nullptr;
+    const auto filterData =
+        hasFilterCol ? reinterpret_cast<omniruntime::vec::Vector<bool>*>(input->Get(filterIndex)) : nullptr;
 
-    omniruntime::vec::BaseVector *columnData = nullptr;
+    omniruntime::vec::BaseVector* columnData = nullptr;
     if (!isCountStar) {
         columnData = input->Get(aggIdx);
     }
@@ -94,7 +90,7 @@ void CountFunction::accumulate(omnistream::VectorBatch *input, const std::vector
         }
 
         if (!shouldDoAccumulate) continue;
-        if (isCountStar || aggIdx==-1) {
+        if (isCountStar || aggIdx == -1) {
             if (aggCount == -1) {
                 aggCount = 0;
             }
@@ -116,7 +112,7 @@ void CountFunction::accumulate(omnistream::VectorBatch *input, const std::vector
     LOG("Accumulate. Count: " << aggCount << " valueIsNull: " << valueIsNull);
 }
 
-void CountFunction::retract(RowData *retractInput)
+void CountFunction::retract(RowData* retractInput)
 {
     if (isCountStar) {
         aggCount = !valueIsNull ? aggCount - 1 : aggCount;
@@ -130,12 +126,12 @@ void CountFunction::retract(RowData *retractInput)
 
 void CountFunction::retract(omnistream::VectorBatch* input, const std::vector<int>& indices)
 {
-    omniruntime::vec::BaseVector *columnData;
+    omniruntime::vec::BaseVector* columnData;
     if (!isCountStar) {
         columnData = input->Get(aggIdx);
     }
-    for (int rowIndex: indices) {
-        if (isCountStar || aggIdx==-1) {
+    for (int rowIndex : indices) {
+        if (isCountStar || aggIdx == -1) {
             aggCount = aggCount != -1 ? aggCount - 1 : aggCount;
             valueIsNull = false;
         } else {
@@ -148,19 +144,17 @@ void CountFunction::retract(omnistream::VectorBatch* input, const std::vector<in
     }
 }
 
-void CountFunction::merge(RowData *otherAcc)
+void CountFunction::merge(RowData* otherAcc)
 {
     throw std::runtime_error("This function does not require merge method, but the merge method is called.");
 }
 
-
-void CountFunction::setAccumulators(RowData *acc)
+void CountFunction::setAccumulators(RowData* acc)
 {
     valueIsNull = acc->isNullAt(accIndex); // true
     aggCount = valueIsNull ? -1L : *acc->getLong(accIndex);
     LOG("Set Acc. Count:  " << aggCount << " countIsNull: " << valueIndex);
 }
-
 
 void CountFunction::resetAccumulators()
 {
@@ -169,8 +163,7 @@ void CountFunction::resetAccumulators()
     LOG("Reset Acc. Count:  " << aggCount << " countIsNull: " << valueIsNull);
 }
 
-
-void CountFunction::getAccumulators(BinaryRowData *accumulators)
+void CountFunction::getAccumulators(BinaryRowData* accumulators)
 {
     if (valueIsNull) {
         accumulators->setNullAt(accIndex);
@@ -180,8 +173,7 @@ void CountFunction::getAccumulators(BinaryRowData *accumulators)
     LOG("Get acc: " << aggCount);
 }
 
-
-void CountFunction::createAccumulators(BinaryRowData *accumulators)
+void CountFunction::createAccumulators(BinaryRowData* accumulators)
 {
     if (false) { // This condition is always false, but it's in the original code.
         accumulators->setNullAt(accIndex);
@@ -191,17 +183,16 @@ void CountFunction::createAccumulators(BinaryRowData *accumulators)
     LOG("Create Count acc");
 }
 
-
-void CountFunction::getValue(BinaryRowData *newAggValue)
+void CountFunction::getValue(BinaryRowData* newAggValue)
 {
     LOG("newAggValue->getArity : " << newAggValue->getArity());
-    LOG("valueIndex : " <<valueIndex);
+    LOG("valueIndex : " << valueIndex);
     if (valueIndex != -1) {
         if (valueIsNull) {
             LOG("setNullAt ");
             newAggValue->setNullAt(valueIndex);
         } else {
-            LOG("setLong aggCount :"  << aggCount);
+            LOG("setLong aggCount :" << aggCount);
             newAggValue->setLong(valueIndex, aggCount);
         }
         LOG("Get value: " << aggCount);

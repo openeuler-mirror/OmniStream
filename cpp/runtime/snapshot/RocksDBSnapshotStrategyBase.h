@@ -52,46 +52,42 @@ class RocksDBSnapshotStrategyBase : public CheckpointListener,
                                     public SnapshotStrategy<KeyedStateHandle, SnapshotResources> {
 public:
     RocksDBSnapshotStrategyBase(
-            std::string description,
-            rocksdb::DB* db,
-            std::shared_ptr<ResourceGuard> rocksDBResourceGuard,
-            std::shared_ptr<TypeSerializer> keySerializer,
-            std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>> *kvStateInformation,
-            KeyGroupRange keyGroupRange,
-            int keyGroupPrefixBytes,
-            std::shared_ptr<LocalRecoveryConfig> localRecoveryConfig,
-            std::string instanceBasePath,
-            UUID backendUID
-    );
+        std::string description,
+        rocksdb::DB* db,
+        std::shared_ptr<ResourceGuard> rocksDBResourceGuard,
+        std::shared_ptr<TypeSerializer> keySerializer,
+        std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation,
+        KeyGroupRange keyGroupRange,
+        int keyGroupPrefixBytes,
+        std::shared_ptr<LocalRecoveryConfig> localRecoveryConfig,
+        std::string instanceBasePath,
+        UUID backendUID);
 
     std::string getDescription() const;
     std::shared_ptr<SnapshotResources> syncPrepareResources(long checkpointId);
-    void cleanupIncompleteSnapshot(
-            std::shared_ptr<SnapshotDirectory> localBackupDirectory
-    );
+    void cleanupIncompleteSnapshot(std::shared_ptr<SnapshotDirectory> localBackupDirectory);
 
     virtual std::shared_ptr<SnapshotResultSupplier<KeyedStateHandle>> asyncSnapshot(
-            const std::shared_ptr<SnapshotResources>& snapshotResources,
-            long checkpointId,
-            long timestamp,
-            CheckpointStreamFactory* checkpointStreamFactory,
-            CheckpointOptions* checkpointOptions,
-            std::string keySerializer = "") = 0;
+        const std::shared_ptr<SnapshotResources>& snapshotResources,
+        long checkpointId,
+        long timestamp,
+        CheckpointStreamFactory* checkpointStreamFactory,
+        CheckpointOptions* checkpointOptions,
+        std::string keySerializer = "") = 0;
+
 protected:
     virtual std::shared_ptr<PreviousSnapshot> snapshotMetaData(
-            long checkpointId,
-            std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& stateMetaInfoSnapshots
-    ) = 0;
+        long checkpointId, std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& stateMetaInfoSnapshots) = 0;
 
     std::shared_ptr<SnapshotResult<StreamStateHandle>> materializeMetaData(
-            std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& stateMetaInfoSnapshots,
-            long checkpointId,
-            CheckpointOptions *checkpointOptions,
-            std::shared_ptr<omnistream::OmniTaskBridge> bridge,
-            std::string keySerializer = "")
+        std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& stateMetaInfoSnapshots,
+        long checkpointId,
+        CheckpointOptions* checkpointOptions,
+        std::shared_ptr<omnistream::OmniTaskBridge> bridge,
+        std::string keySerializer = "")
     {
-        return bridge->CallMaterializeMetaData(checkpointId, stateMetaInfoSnapshots, localRecoveryConfig_,
-                                               checkpointOptions, keySerializer);
+        return bridge->CallMaterializeMetaData(
+            checkpointId, stateMetaInfoSnapshots, localRecoveryConfig_, checkpointOptions, keySerializer);
     };
 
     std::shared_ptr<SnapshotDirectory> prepareLocalSnapshotDirectory(long checkpointId);
@@ -101,7 +97,7 @@ protected:
     std::string description_;
     rocksdb::DB* db_;
     std::shared_ptr<ResourceGuard> rocksDBResourceGuard_;
-    std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>> *kvStateInformation_;
+    std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation_;
     KeyGroupRange keyGroupRange_;
     int keyGroupPrefixBytes_;
     std::shared_ptr<LocalRecoveryConfig> localRecoveryConfig_;
@@ -114,20 +110,21 @@ protected:
     class RocksDBSnapshotOperation : public SnapshotResultSupplier<KeyedStateHandle> {
     public:
         RocksDBSnapshotOperation(
-                long checkpointId,
-                CheckpointStreamFactory* checkpointStreamFactory,
-                std::shared_ptr<SnapshotDirectory> localBackupDirectory,
-                std::vector<std::shared_ptr<StateMetaInfoSnapshot>> stateMetaInfoSnapshots,
-                std::shared_ptr<TypeSerializer> keySerializer);
+            long checkpointId,
+            CheckpointStreamFactory* checkpointStreamFactory,
+            std::shared_ptr<SnapshotDirectory> localBackupDirectory,
+            std::vector<std::shared_ptr<StateMetaInfoSnapshot>> stateMetaInfoSnapshots,
+            std::shared_ptr<TypeSerializer> keySerializer);
 
         virtual ~RocksDBSnapshotOperation() = default;
-        std::shared_ptr<SnapshotResult<KeyedStateHandle>> get(std::shared_ptr<omnistream::OmniTaskBridge> bridge) override;
+        std::shared_ptr<SnapshotResult<KeyedStateHandle>> get(
+            std::shared_ptr<omnistream::OmniTaskBridge> bridge) override;
 
     protected:
         std::shared_ptr<KeyedStateHandle> getLocalSnapshot(
-                RocksDBSnapshotStrategyBase* parent,
-                std::shared_ptr<StreamStateHandle> localStreamStateHandle,
-                std::vector<HandleAndLocalPath> sharedState);
+            RocksDBSnapshotStrategyBase* parent,
+            std::shared_ptr<StreamStateHandle> localStreamStateHandle,
+            std::vector<HandleAndLocalPath> sharedState);
 
         long checkpointId;
         CheckpointStreamFactory* checkpointStreamFactory;
@@ -143,6 +140,7 @@ public:
     explicit PreviousSnapshot(std::vector<HandleAndLocalPath> confirmedSstFiles);
     std::shared_ptr<StreamStateHandle> getUploaded(const std::string& filename);
     static const std::shared_ptr<PreviousSnapshot> EMPTY_PREVIOUS_SNAPSHOT;
+
 private:
     std::map<std::string, std::shared_ptr<StreamStateHandle>> confirmedSstFiles_;
 };
@@ -151,9 +149,9 @@ private:
 class NativeRocksDBSnapshotResources : public SnapshotResources {
 public:
     NativeRocksDBSnapshotResources(
-            std::shared_ptr<SnapshotDirectory> snapshotDirectory,
-            std::shared_ptr<PreviousSnapshot> previousSnapshot,
-            std::vector<std::shared_ptr<StateMetaInfoSnapshot>> stateMetaInfoSnapshots);
+        std::shared_ptr<SnapshotDirectory> snapshotDirectory,
+        std::shared_ptr<PreviousSnapshot> previousSnapshot,
+        std::vector<std::shared_ptr<StateMetaInfoSnapshot>> stateMetaInfoSnapshots);
 
     void release();
 
@@ -165,7 +163,7 @@ public:
     std::shared_ptr<TypeSerializer> keySerializer;
 };
 
-class SnapshotResultSupplierEmpty :  public SnapshotResultSupplier<KeyedStateHandle> {
+class SnapshotResultSupplierEmpty : public SnapshotResultSupplier<KeyedStateHandle> {
 public:
     std::shared_ptr<SnapshotResult<KeyedStateHandle>> get(std::shared_ptr<omnistream::OmniTaskBridge> bridge) override
     {
@@ -178,7 +176,7 @@ public:
     // 用IncrementalLocalKeyedStateHandle初始化
     explicit BridgeKeyedStateHandle(std::shared_ptr<IncrementalLocalKeyedStateHandle> handle)
         : DirectoryKeyedStateHandle(handle->getDirectoryStateHandle(), handle->GetKeyGroupRange()),
-          handle(handle){};
+          handle(handle) {};
     std::shared_ptr<IncrementalLocalKeyedStateHandle> handle;
 };
 

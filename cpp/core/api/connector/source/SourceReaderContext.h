@@ -15,17 +15,20 @@
 class SourceReaderContext {
 public:
     // 构造函数
-    SourceReaderContext(const int subtaskIndex)
-        : subtaskIndex(subtaskIndex) {
+    SourceReaderContext(const int subtaskIndex) : subtaskIndex(subtaskIndex)
+    {
     }
 
     // 析构函数
-    ~SourceReaderContext() {}
+    ~SourceReaderContext()
+    {
+    }
 
     int getSubTaskIndex()
     {
         return subtaskIndex;
     }
+
 private:
     int subtaskIndex;
 };

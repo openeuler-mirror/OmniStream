@@ -14,16 +14,17 @@
 
 using namespace omniruntime::type;
 
-CharType::CharType(bool isNull, int length)
-    : LogicalType(isNull, DataTypeId::OMNI_LONG, "CHAR"), length(length) {}
-
-
-std::vector<LogicalType *> CharType::getChildren()
+CharType::CharType(bool isNull, int length) : LogicalType(isNull, DataTypeId::OMNI_LONG, "CHAR"), length(length)
 {
-    NOT_IMPL_EXCEPTION
 }
 
-nlohmann::json CharType::toJson() const {
+std::vector<LogicalType*> CharType::getChildren()
+{
+    NOT_IMPL_EXCEPTION;
+}
+
+nlohmann::json CharType::toJson() const
+{
     nlohmann::json result = LogicalType::toJson();
     result["length"] = length;
 

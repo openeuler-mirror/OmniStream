@@ -6,18 +6,20 @@
 using namespace std;
 
 // 测试 StreamMap 的构造函数
-TEST(StreamMapTest, Constructor_ValidPath) {
+TEST(StreamMapTest, Constructor_ValidPath)
+{
     MockOutput output;
     nlohmann::json config;
     config["udf_so"] = "/tmp/libMockMapFunction.so";
     config["udf_obj"] = "{}";
     omnistream::datastream::StreamMap<Object, Object*> streamMap(&output, config);
 
-// 检查 output 是否正确设置
+    // 检查 output 是否正确设置
     EXPECT_EQ(&output, streamMap.GetOutput());
 }
 
-TEST(StreamMapTest, Constructor_InvalidPath) {
+TEST(StreamMapTest, Constructor_InvalidPath)
+{
     MockOutput output;
     nlohmann::json config;
     config["udf_so"] = "invalid_path.so";
@@ -48,7 +50,8 @@ TEST(StreamMapTest, Constructor_InvalidPath) {
 }*/
 
 // 测试 getName 方法
-TEST(StreamMapTest, GetName) {
+TEST(StreamMapTest, GetName)
+{
     MockOutput output;
     nlohmann::json config;
     config["udf_so"] = "/tmp/libMockMapFunction.so";
@@ -59,7 +62,8 @@ TEST(StreamMapTest, GetName) {
 }
 
 // 测试 open 方法
-TEST(StreamMapTest, Open_NotImplemented) {
+TEST(StreamMapTest, Open_NotImplemented)
+{
     MockOutput output;
     nlohmann::json config;
     config["udf_so"] = "/tmp/libMockMapFunction.so";
@@ -68,11 +72,12 @@ TEST(StreamMapTest, Open_NotImplemented) {
 
     streamMap.open();
 
-// 不需要额外的检查，因为该方法未实现
+    // 不需要额外的检查，因为该方法未实现
 }
 
 // 测试 close 方法
-TEST(StreamMapTest, Close_NotImplemented) {
+TEST(StreamMapTest, Close_NotImplemented)
+{
     MockOutput output;
     nlohmann::json config;
     config["udf_so"] = "/tmp/libMockMapFunction.so";

@@ -13,8 +13,6 @@
 
 #include <string>
 
-
 namespace omnistream {
-
 
 } // namespace omnistream

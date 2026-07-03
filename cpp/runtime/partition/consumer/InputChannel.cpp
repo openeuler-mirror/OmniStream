@@ -21,14 +21,23 @@
 
 namespace omnistream {
 
-InputChannel::InputChannel(std::shared_ptr<SingleInputGate> inputGate, int channelIndex,
-                           ResultPartitionIDPOD partitionId, int initialBackoff,
-                           int maxBackoff, std::shared_ptr<Counter> numBytesIn,
-                           std::shared_ptr<Counter> numBuffersIn)
+InputChannel::InputChannel(
+    std::shared_ptr<SingleInputGate> inputGate,
+    int channelIndex,
+    ResultPartitionIDPOD partitionId,
+    int initialBackoff,
+    int maxBackoff,
+    std::shared_ptr<Counter> numBytesIn,
+    std::shared_ptr<Counter> numBuffersIn)
     : channelInfo(InputChannelInfo(inputGate->GetGateIndex(), channelIndex)),
-      partitionId(partitionId), inputGate(inputGate), initialBackoff(initialBackoff),
-      maxBackoff(maxBackoff), numBytesIn(numBytesIn), numBuffersIn(numBuffersIn),
-      currentBackoff(initialBackoff == 0 ? -1 : 0) {
+      partitionId(partitionId),
+      inputGate(inputGate),
+      initialBackoff(initialBackoff),
+      maxBackoff(maxBackoff),
+      numBytesIn(numBytesIn),
+      numBuffersIn(numBuffersIn),
+      currentBackoff(initialBackoff == 0 ? -1 : 0)
+{
     if (channelIndex < 0) {
         throw std::invalid_argument("channelIndex must be non-negative");
     }
@@ -73,11 +82,10 @@ void InputChannel::checkError()
         auto t = cause;
         try {
             std::rethrow_exception(t);
-       //     throw e;
-        } catch (const PartitionNotFoundException &e) {
+            //     throw e;
+        } catch (const PartitionNotFoundException& e) {
             throw e;
-        }
-        catch (const std::ios_base::failure& e) {
+        } catch (const std::ios_base::failure& e) {
             throw e;
         } catch (const std::exception& e) {
             throw std::ios_base::failure(e.what());

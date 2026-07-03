@@ -16,18 +16,26 @@
 
 class BinaryRowDataListSerializer : public TypeSerializerSingleton {
 public:
-    BinaryRowDataListSerializer() {}
+    BinaryRowDataListSerializer()
+    {
+    }
 
-    ~BinaryRowDataListSerializer() {}
+    ~BinaryRowDataListSerializer()
+    {
+    }
 
     // void * BinaryRowData
-    void *deserialize(DataInputView &source) override;
+    void* deserialize(DataInputView& source) override;
 
-    void serialize(void *row, DataOutputSerializer &target) override;
+    void serialize(void* row, DataOutputSerializer& target) override;
 
-    [[nodiscard]] const char *getName() const override;
+    [[nodiscard]] const char* getName() const override;
 
-    BackendDataType getBackendId() const override { return BackendDataType::ROW_LIST_BK; };
+    BackendDataType getBackendId() const override
+    {
+        return BackendDataType::ROW_LIST_BK;
+    };
+
 private:
     BinaryRowDataSerializer* binaryRowDataSerializer = new BinaryRowDataSerializer(1);
 };

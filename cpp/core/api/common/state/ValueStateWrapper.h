@@ -17,29 +17,30 @@
 class ValueStateWrapper : public State, public Object {
 public:
     ValueStateWrapper(ValueState<Object*>* valueState) : valueState(valueState)
-    {}
+    {
+    }
 
     // can not delete valueState, because it will be deleted when RocksdbKeyedStateBackend delete.
     ~ValueStateWrapper() = default;
 
     int hashCode() override
     {
-        NOT_IMPL_EXCEPTION
+        NOT_IMPL_EXCEPTION;
     }
 
     bool equals(Object* obj) override
     {
-        NOT_IMPL_EXCEPTION
+        NOT_IMPL_EXCEPTION;
     }
 
     std::string toString() override
     {
-        NOT_IMPL_EXCEPTION
+        NOT_IMPL_EXCEPTION;
     }
 
     Object* clone() override
     {
-        NOT_IMPL_EXCEPTION
+        NOT_IMPL_EXCEPTION;
     }
 
     void clear() override

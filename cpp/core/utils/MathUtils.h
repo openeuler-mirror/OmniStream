@@ -28,9 +28,9 @@
 #include <cassert>
 
 #ifdef DEBUG
-#define MYASSERT(f)  assert(f)
+#define MYASSERT(f) assert(f)
 #else
-#define MYASSERT(f)  ((void)0)
+#define MYASSERT(f) ((void)0)
 #endif
 
 class MathUtils {

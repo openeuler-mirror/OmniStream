@@ -17,9 +17,18 @@
 template <typename K, typename V>
 class MapView : public DataView {
 public:
-    MapView() {map = new emhash7::HashMap<K, V>();};
-    virtual emhash7::HashMap<K, V> *getMap() { return map; }
-    void setMap(emhash7::HashMap<K, V> *map) { this->map = map; };
+    MapView()
+    {
+        map = new emhash7::HashMap<K, V>();
+    };
+    virtual emhash7::HashMap<K, V>* getMap()
+    {
+        return map;
+    }
+    void setMap(emhash7::HashMap<K, V>* map)
+    {
+        this->map = map;
+    };
 
     virtual std::optional<V> get(const std::optional<K>& key)
     {
@@ -40,7 +49,7 @@ public:
     }
 
 private:
-    emhash7::HashMap<K, V> *map;
+    emhash7::HashMap<K, V>* map;
 };
 
 #endif // FLINK_TNEL_MAPVIEW_H

@@ -12,7 +12,6 @@
 #ifndef FLINK_TNEL_KAFKAPARTITIONSPLIT_H
 #define FLINK_TNEL_KAFKAPARTITIONSPLIT_H
 
-
 #include <string>
 #include <optional>
 #include <set>
@@ -22,7 +21,6 @@
 #include <sstream>
 #include <librdkafka/rdkafkacpp.h>
 #include "core/api/connector/source/SourceSplit.h"
-
 
 // 实现 SourceSplit 接口
 class KafkaPartitionSplit : public SourceSplit {
@@ -44,18 +42,17 @@ public:
     int64_t getStartingOffset() const;
     int64_t getStoppingOffset() const;
 
-    std::string splitId() const  override;
+    std::string splitId() const override;
 
     static std::string toSplitId(RdKafka::TopicPartition* tp);
 
 private:
-    static void verifyInitialOffset(const std::shared_ptr<RdKafka::TopicPartition>& tp,
-        long startingOffset, long stoppingOffset);
+    static void verifyInitialOffset(
+        const std::shared_ptr<RdKafka::TopicPartition>& tp, long startingOffset, long stoppingOffset);
 
     const std::shared_ptr<RdKafka::TopicPartition> tp_;
     long startingOffset_;
     long stoppingOffset_;
 };
-
 
 #endif // FLINK_TNEL_KAFKAPARTITIONSPLIT_H

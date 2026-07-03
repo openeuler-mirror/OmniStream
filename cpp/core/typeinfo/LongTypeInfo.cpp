@@ -1,5 +1,5 @@
 /*
-* Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
  * You can use this software according to the terms and conditions of the Mulan PSL v2.
  * You may obtain a copy of Mulan PSL v2 at:
  *          http://license.coscl.org.cn/MulanPSL2
@@ -11,7 +11,7 @@
 #include "LongTypeInfo.h"
 #include "typeutils/LongSerializer.h"
 
-TypeSerializer *LongTypeInfo::createTypeSerializer()
+TypeSerializer* LongTypeInfo::createTypeSerializer()
 {
     return new LongSerializer();
 }
@@ -21,4 +21,6 @@ std::string LongTypeInfo::name()
     return name_;
 }
 
-LongTypeInfo::LongTypeInfo(const char *name) : name_(name) {}
+LongTypeInfo::LongTypeInfo(const char* name) : name_(name)
+{
+}

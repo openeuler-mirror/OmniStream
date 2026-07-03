@@ -29,15 +29,15 @@ public:
     static constexpr unsigned char REFERENCE_MAGIC_NUMBER[4] = {0x05, 0x5F, 0x3F, 0x18};
 
 protected:
-    static Path *createCheckpointDirectory(const Path &baseDirectory, int64_t checkpointId)
+    static Path* createCheckpointDirectory(const Path& baseDirectory, int64_t checkpointId)
     {
         return new Path(baseDirectory, std::string(CHECKPOINT_DIR_PREFIX) + std::to_string(checkpointId));
     };
 
-    static Path *decodePathFromReference(std::shared_ptr<CheckpointStorageLocationReference> reference)
+    static Path* decodePathFromReference(std::shared_ptr<CheckpointStorageLocationReference> reference)
     {
         if (reference->IsDefaultReference()) {
-            THROW_LOGIC_EXCEPTION("Cannot decode default reference")
+            THROW_LOGIC_EXCEPTION("Cannot decode default reference");
         }
         auto bytes = reference->GetReferenceBytes();
         size_t headerLen = 4;
@@ -45,28 +45,27 @@ protected:
         if (bytes->size() > headerLen) {
             for (size_t i = 0; i < headerLen; i++) {
                 if (static_cast<unsigned char>(bytes->at(i)) != REFERENCE_MAGIC_NUMBER[i]) {
-                    THROW_LOGIC_EXCEPTION("Reference starts with the wrong magic number")
+                    THROW_LOGIC_EXCEPTION("Reference starts with the wrong magic number");
                 }
             }
 
             try {
                 std::string pathStr(bytes->begin() + headerLen, bytes->end());
                 return new Path(pathStr);
-            }
-            catch (...) {
-                THROW_LOGIC_EXCEPTION("Reference cannot be decoded to a path")
+            } catch (...) {
+                THROW_LOGIC_EXCEPTION("Reference cannot be decoded to a path");
             }
         } else {
-            THROW_LOGIC_EXCEPTION("Reference too short.")
+            THROW_LOGIC_EXCEPTION("Reference too short.");
         }
     };
 
-    Path *getCheckpointDirectoryForJob(const Path &baseDirectory, const omnistream::JobIDPOD &jobId)
+    Path* getCheckpointDirectoryForJob(const Path& baseDirectory, const omnistream::JobIDPOD& jobId)
     {
         return new Path(baseDirectory, jobId.AbstractIDPOD::toString());
     }
 };
 
-}
+} // namespace omnistream
 
 #endif // FLINK_TNEL_ABSTRACTFSCHECKPOINTSTORAGEACCESS_H

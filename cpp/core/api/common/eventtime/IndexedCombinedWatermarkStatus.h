@@ -32,15 +32,16 @@ public:
 
     bool UpdateStatus(int index, bool idle)
     {
-        NOT_IMPL_EXCEPTION
+        NOT_IMPL_EXCEPTION;
     }
 
     bool IsIdle()
     {
         return combinedWatermarkStatus.IsIdle();
     }
+
 private:
     CombinedWatermarkStatus combinedWatermarkStatus;
 };
-}
+} // namespace omnistream
 #endif // OMNISTREAM_INDEXEDCOMBINEDWATERMARKSTATUS_H

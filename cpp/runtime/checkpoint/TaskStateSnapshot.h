@@ -35,23 +35,27 @@ public:
     explicit TaskStateSnapshot(
         const std::unordered_map<OperatorID, std::shared_ptr<OperatorSubtaskState>>& subtaskStatesByOperatorID,
         bool isTaskDeployedAsFinished,
-        bool isTaskFinished) : subtaskStatesByOperatorID(subtaskStatesByOperatorID),
-                               isTaskDeployedAsFinished(isTaskDeployedAsFinished),
-                               isTaskFinished(isTaskFinished) {
+        bool isTaskFinished)
+        : subtaskStatesByOperatorID(subtaskStatesByOperatorID),
+          isTaskDeployedAsFinished(isTaskDeployedAsFinished),
+          isTaskFinished(isTaskFinished)
+    {
         // Note: Preconditions.checkNotNull equivalent handled in constructor initialization
     }
-    explicit TaskStateSnapshot(const TaskStateSnapshot *other)
+    explicit TaskStateSnapshot(const TaskStateSnapshot* other)
     {
     }
 
-    TaskStateSnapshot(int size, bool isTaskFinished) : TaskStateSnapshot(
-        std::unordered_map<OperatorID, std::shared_ptr<OperatorSubtaskState>>(), false, isTaskFinished)
+    TaskStateSnapshot(int size, bool isTaskFinished)
+        : TaskStateSnapshot(
+              std::unordered_map<OperatorID, std::shared_ptr<OperatorSubtaskState>>(), false, isTaskFinished)
     {
         subtaskStatesByOperatorID.reserve(size);
     }
 
-    explicit TaskStateSnapshot(const std::unordered_map<OperatorID, std::shared_ptr<OperatorSubtaskState>>&
-        subtaskStatesByOperatorID) : TaskStateSnapshot(subtaskStatesByOperatorID, false, false)
+    explicit TaskStateSnapshot(
+        const std::unordered_map<OperatorID, std::shared_ptr<OperatorSubtaskState>>& subtaskStatesByOperatorID)
+        : TaskStateSnapshot(subtaskStatesByOperatorID, false, false)
     {
     }
 
@@ -121,9 +125,8 @@ public:
             return true;
         }
 
-        return subtaskStatesByOperatorID == other.subtaskStatesByOperatorID
-            && isTaskDeployedAsFinished == other.isTaskDeployedAsFinished
-            && isTaskFinished == other.isTaskFinished;
+        return subtaskStatesByOperatorID == other.subtaskStatesByOperatorID &&
+               isTaskDeployedAsFinished == other.isTaskDeployedAsFinished && isTaskFinished == other.isTaskFinished;
     }
 
     bool operator!=(const TaskStateSnapshot& other) const
@@ -148,6 +151,5 @@ private:
         std::function<std::shared_ptr<InflightDataRescalingDescriptor>(const std::shared_ptr<OperatorSubtaskState>&)>
             mappingExtractor) const;
 };
-
 
 #endif // OMNISTREAM_TASKSTATESNAPSHOT_H

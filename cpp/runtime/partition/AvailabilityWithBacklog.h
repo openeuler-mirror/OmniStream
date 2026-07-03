@@ -16,27 +16,28 @@
 
 namespace omnistream {
 
-    class AvailabilityWithBacklog {
-    public:
-        AvailabilityWithBacklog();
-        AvailabilityWithBacklog(bool isAvailable, int backlog);
-        AvailabilityWithBacklog(const AvailabilityWithBacklog& other);
-        AvailabilityWithBacklog& operator=(const AvailabilityWithBacklog& other);
-        bool operator==(const AvailabilityWithBacklog& other) const;
-        bool operator!=(const AvailabilityWithBacklog& other) const;
-        ~AvailabilityWithBacklog();
+class AvailabilityWithBacklog {
+public:
+    AvailabilityWithBacklog();
+    AvailabilityWithBacklog(bool isAvailable, int backlog);
+    AvailabilityWithBacklog(const AvailabilityWithBacklog& other);
+    AvailabilityWithBacklog& operator=(const AvailabilityWithBacklog& other);
+    bool operator==(const AvailabilityWithBacklog& other) const;
+    bool operator!=(const AvailabilityWithBacklog& other) const;
+    ~AvailabilityWithBacklog();
 
-        bool getIsAvailable() const;
-        int getBacklog() const;
+    bool getIsAvailable() const;
+    int getBacklog() const;
 
-        void setIsAvailable(bool isAvailable);
-        void setBacklog(int backlog);
+    void setIsAvailable(bool isAvailable);
+    void setBacklog(int backlog);
 
-        std::string toString() const;
-    private:
-        bool isAvailable;
-        int backlog;
-    };
+    std::string toString() const;
+
+private:
+    bool isAvailable;
+    int backlog;
+};
 
 } // namespace omnistream
 

@@ -57,5 +57,4 @@ public:
     static std::unique_ptr<ConfigOption> PREFIX_EXTRACTOR_LENGTH;
 };
 
-
 #endif // OMNISTREAM_ROCKSDBCONFIGURABLEOPTIONS_H

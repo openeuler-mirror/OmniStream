@@ -43,11 +43,9 @@
  * framing and would otherwise throw "Unexpected key-group in restore").
  */
 template <typename K>
-class HeapSnapshotStrategy
-    : public SnapshotStrategy<KeyedStateHandle, FullSnapshotResources> {
+class HeapSnapshotStrategy : public SnapshotStrategy<KeyedStateHandle, FullSnapshotResources> {
 public:
-    explicit HeapSnapshotStrategy(
-        const std::shared_ptr<HeapSnapshotResourceFactory<K>> &snapshotResourceFactory)
+    explicit HeapSnapshotStrategy(const std::shared_ptr<HeapSnapshotResourceFactory<K>>& snapshotResourceFactory)
         : snapshotResourceFactory_(snapshotResourceFactory)
     {
     }
@@ -58,21 +56,19 @@ public:
         return snapshotResources;
     }
 
-    std::shared_ptr<SnapshotResultSupplier<KeyedStateHandle>>
-    asyncSnapshot(
-        const std::shared_ptr<FullSnapshotResources> &snapshotResources,
+    std::shared_ptr<SnapshotResultSupplier<KeyedStateHandle>> asyncSnapshot(
+        const std::shared_ptr<FullSnapshotResources>& snapshotResources,
         long checkpointId,
         long timestamp,
-        CheckpointStreamFactory *streamFactory,
-        CheckpointOptions *checkpointOptions,
+        CheckpointStreamFactory* streamFactory,
+        CheckpointOptions* checkpointOptions,
         std::string keySerializer = "") override
     {
         if (snapshotResources->getMetaInfoSnapshots().empty()) {
             INFO_RELEASE("Error:HeapSnapshotStrategy: no states to snapshot, returning empty");
-            struct EmptySnapshotResultSupplier
-                : public SnapshotResultSupplier<KeyedStateHandle> {
-                std::shared_ptr<SnapshotResult<KeyedStateHandle>>
-                get(std::shared_ptr<omnistream::OmniTaskBridge> bridge) override
+            struct EmptySnapshotResultSupplier : public SnapshotResultSupplier<KeyedStateHandle> {
+                std::shared_ptr<SnapshotResult<KeyedStateHandle>> get(
+                    std::shared_ptr<omnistream::OmniTaskBridge> bridge) override
                 {
                     return SnapshotResult<KeyedStateHandle>::Empty();
                 }

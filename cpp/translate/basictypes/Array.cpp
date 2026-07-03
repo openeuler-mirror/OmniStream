@@ -12,23 +12,20 @@
 #include "basictypes/Array.h"
 #include "basictypes/ObjectPool.h"
 
-void Array::append(Object *value)
+void Array::append(Object* value)
 {
-    if (value)
-        value->getRefCount();
+    if (value) value->getRefCount();
     push_back(value);
 }
 
-void Array::set(int index, Object *obj)
+void Array::set(int index, Object* obj)
 {
     if (index >= length || index < 0) {
         throw std::out_of_range("Index out of range[set]");
     }
-    if (data_[index])
-        data_[index]->putRefCount();
+    if (data_[index]) data_[index]->putRefCount();
     data_[index] = obj;
-    if (obj)
-        ((Object *)obj)->getRefCount();
+    if (obj) ((Object*)obj)->getRefCount();
 }
 
 Object* Array::get(int index)
@@ -39,27 +36,26 @@ Object* Array::get(int index)
     return data_[index];
 }
 
-bool Array::equals(Object *obj)
+bool Array::equals(Object* obj)
 {
-    if (obj == nullptr || dynamic_cast<Array *>(obj) == nullptr) {
+    if (obj == nullptr || dynamic_cast<Array*>(obj) == nullptr) {
         return false;
     }
-    auto a = reinterpret_cast<Array *>(obj);
+    auto a = reinterpret_cast<Array*>(obj);
     for (int i = 0; i < this->length; i++) {
-        Object *src = (Object *)(this->data_[i]);
-        Object *dst = (Object *)(a->data_[i]);
-        if (!src->equals(dst))
-            return false;
+        Object* src = (Object*)(this->data_[i]);
+        Object* dst = (Object*)(a->data_[i]);
+        if (!src->equals(dst)) return false;
     }
     return true;
 }
 
 Object* Array::clone()
 {
-    Array *a = new Array(this->length);
+    Array* a = new Array(this->length);
     for (int i = 0; i < this->length; i++) {
-        Object *arr = (Object *)this->data_[i];
-        a->data_[i] = (Object *)arr->clone();
+        Object* arr = (Object*)this->data_[i];
+        a->data_[i] = (Object*)arr->clone();
     }
     return a;
 }
@@ -81,7 +77,7 @@ void Array::putRefCount()
         if (this->isPool) {
             this->clear();
             this->refCount = 1;
-            ObjectPool<Array> *arrayObjectPool = ObjectPool<Array>::getInstance();
+            ObjectPool<Array>* arrayObjectPool = ObjectPool<Array>::getInstance();
             this->next = arrayObjectPool->head;
             arrayObjectPool->head = this;
         } else {

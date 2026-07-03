@@ -33,19 +33,21 @@
 #include "SetTopNBuffer.h"
 using namespace omnistream;
 template <typename KeyType>
-class AbstractTopNFunction : public KeyedProcessFunction<KeyType, RowData *, RowData *> {
+class AbstractTopNFunction : public KeyedProcessFunction<KeyType, RowData*, RowData*> {
 public:
-    explicit AbstractTopNFunction(const nlohmann::json &rankConfig)
+    explicit AbstractTopNFunction(const nlohmann::json& rankConfig)
         : inputRowType(new std::vector<omniruntime::type::DataTypeId>())
     {
         parseDescription(rankConfig);
     }
 
-    virtual void open(const Configuration &context) = 0;
-    void parseDescription(const nlohmann::json &jsonString);
+    virtual void open(const Configuration& context) = 0;
+    void parseDescription(const nlohmann::json& jsonString);
 
-    void processElement(RowData* input, typename KeyedProcessFunction<KeyType, RowData *, RowData *>::Context *ctx,
-        TimestampedCollector *out) override {};
+    void processElement(
+        RowData* input,
+        typename KeyedProcessFunction<KeyType, RowData*, RowData*>::Context* ctx,
+        TimestampedCollector* out) override {};
     ~AbstractTopNFunction()
     {
         delete rankRange;
@@ -57,22 +59,23 @@ public:
         delete inputRowType;
     };
 
-    void processBatch(omnistream::VectorBatch *inputBatch,
-        typename KeyedProcessFunction<KeyType, RowData *, RowData *>::Context &ctx,
-        TimestampedCollector &out) override {};
-    JoinedRowData *getResultRow() override
+    void processBatch(
+        omnistream::VectorBatch* inputBatch,
+        typename KeyedProcessFunction<KeyType, RowData*, RowData*>::Context& ctx,
+        TimestampedCollector& out) override {};
+    JoinedRowData* getResultRow() override
     {
         return nullptr;
     };
 
-    omnistream::VectorBatch *createOutputBatch();
+    omnistream::VectorBatch* createOutputBatch();
 
 protected:
     std::string processFunction;
-    RankRange *rankRange;
+    RankRange* rankRange;
     bool outputRankNumber;
     bool generateUpdateBefore;
-    std::vector<omniruntime::type::DataTypeId> *inputRowType;
+    std::vector<omniruntime::type::DataTypeId>* inputRowType;
     std::vector<bool> sortNullsIsLast;
     std::vector<int> partitionKeyTypeIds;
     std::vector<int> partitionKeyIndices;
@@ -86,13 +89,13 @@ protected:
 
     long hitCount = 0L;
     long requestCount = 0L;
-    void collectInsert(RowData *inputRow, int rank, int64_t timestamp);
-    void collectInsert(RowData *inputRow);
-    void collectDelete(RowData *inputRow, int rank, int64_t timestamp);
-    void collectDelete(RowData *inputRow);
-    void collectUpdateBefore(RowData *inputRow, int rank, int64_t timestamp);
-    void collectUpdateAfter(RowData *inputRow, int rank, int64_t timestamp);
-    void collectOutputBatch(TimestampedCollector out, omnistream::VectorBatch *outputBatch);
+    void collectInsert(RowData* inputRow, int rank, int64_t timestamp);
+    void collectInsert(RowData* inputRow);
+    void collectDelete(RowData* inputRow, int rank, int64_t timestamp);
+    void collectDelete(RowData* inputRow);
+    void collectUpdateBefore(RowData* inputRow, int rank, int64_t timestamp);
+    void collectUpdateAfter(RowData* inputRow, int rank, int64_t timestamp);
+    void collectOutputBatch(TimestampedCollector out, omnistream::VectorBatch* outputBatch);
     bool isInRankRange(int rank) const;
     inline bool isInRankEnd(int rank) const
     {
@@ -107,7 +110,7 @@ protected:
         if (isConstantRankEnd) {
             return rankEnd;
         } else {
-            NOT_IMPL_EXCEPTION
+            NOT_IMPL_EXCEPTION;
         }
     }
     bool hasOffset() const
@@ -124,7 +127,6 @@ protected:
         return buffer.checkSortKeyInBufferRange(sortKey, getDefaultTopNSize());
     }
 
-
 protected:
     bool isConstantRankEnd = true;
     int rankEndIndex;
@@ -134,10 +136,11 @@ protected:
 };
 
 template <typename KeyType>
-void AbstractTopNFunction<KeyType>::parseDescription(const nlohmann::json &jsonString)
+void AbstractTopNFunction<KeyType>::parseDescription(const nlohmann::json& jsonString)
 {
     // Parse partitionKey as an integer (assumes single value in array)
-    if (jsonString.contains("partitionKey") && jsonString["partitionKey"].is_array() && !jsonString["partitionKey"].empty()) {
+    if (jsonString.contains("partitionKey") && jsonString["partitionKey"].is_array() &&
+        !jsonString["partitionKey"].empty()) {
         partitionKeyIndices = jsonString["partitionKey"].get<std::vector<int>>();
     } else {
         throw std::runtime_error("Missing or invalid partitionKey");
@@ -154,18 +157,18 @@ void AbstractTopNFunction<KeyType>::parseDescription(const nlohmann::json &jsonS
 
     // Parse rankRange (uses ConstantRankRange for fixed ranges)
     std::string rankRangeStr = jsonString.at("rankRange").get<std::string>();
-    std::regex pattern(R"(rankStart=(\d+),\s*rankEnd=(\d+))");  // Regex pattern
+    std::regex pattern(R"(rankStart=(\d+),\s*rankEnd=(\d+))"); // Regex pattern
     std::smatch match;
     if (std::regex_search(rankRangeStr, match, pattern)) {
-        rankStart = std::stoi(match[1].str());  // Extract first number
-        rankEnd = std::stoi(match[2].str());    // Extract second number
+        rankStart = std::stoi(match[1].str()); // Extract first number
+        rankEnd = std::stoi(match[2].str());   // Extract second number
         rankRange = new ConstantRankRange(rankStart, rankEnd);
     } else {
         throw std::runtime_error("Pattern not found!");
     }
 
     // Parse inputTypes as a vector of DataTypeId
-    for (const auto &typeStr : jsonString.at("inputTypes").get<std::vector<std::string>>()) {
+    for (const auto& typeStr : jsonString.at("inputTypes").get<std::vector<std::string>>()) {
         inputRowType->push_back(LogicalType::flinkTypeToOmniTypeId(typeStr));
     }
 
@@ -175,7 +178,7 @@ void AbstractTopNFunction<KeyType>::parseDescription(const nlohmann::json &jsonS
 
     // Parse sortFieldIndices as a vector of integers
     sortKeyIndices = jsonString.at("sortFieldIndices").get<std::vector<int>>();
-    for (const auto &keyCol: sortKeyIndices) {
+    for (const auto& keyCol : sortKeyIndices) {
         sortKeyTypeIds.push_back(inputRowType->at(keyCol));
     }
 
@@ -187,7 +190,7 @@ void AbstractTopNFunction<KeyType>::parseDescription(const nlohmann::json &jsonS
 }
 
 template <typename KeyType>
-void AbstractTopNFunction<KeyType>::collectInsert(RowData *inputRow, int rank, int64_t timestamp)
+void AbstractTopNFunction<KeyType>::collectInsert(RowData* inputRow, int rank, int64_t timestamp)
 {
     collectedRows.push_back(inputRow);
     collectedRanks.push_back(rank);
@@ -196,7 +199,7 @@ void AbstractTopNFunction<KeyType>::collectInsert(RowData *inputRow, int rank, i
 }
 
 template <typename KeyType>
-void AbstractTopNFunction<KeyType>::collectInsert(RowData *inputRow)
+void AbstractTopNFunction<KeyType>::collectInsert(RowData* inputRow)
 {
     inputRow->setRowKind(RowKind::INSERT);
     collectedRows.push_back(inputRow);
@@ -204,7 +207,7 @@ void AbstractTopNFunction<KeyType>::collectInsert(RowData *inputRow)
 }
 
 template <typename KeyType>
-void AbstractTopNFunction<KeyType>::collectDelete(RowData *inputRow, int rank, int64_t timestamp)
+void AbstractTopNFunction<KeyType>::collectDelete(RowData* inputRow, int rank, int64_t timestamp)
 {
     // Placeholder for delete logic
     LOG("rank " + std::to_string(rank));
@@ -217,10 +220,10 @@ void AbstractTopNFunction<KeyType>::collectDelete(RowData *inputRow, int rank, i
 }
 
 template <typename KeyType>
-void AbstractTopNFunction<KeyType>::collectDelete(RowData *inputRow)
+void AbstractTopNFunction<KeyType>::collectDelete(RowData* inputRow)
 {
     if (!inputRow) {
-        LOG("input row in null")
+        LOG("input row in null");
         return;
     }
     inputRow->setRowKind(RowKind::DELETE);
@@ -229,7 +232,7 @@ void AbstractTopNFunction<KeyType>::collectDelete(RowData *inputRow)
 }
 
 template <typename KeyType>
-void AbstractTopNFunction<KeyType>::collectUpdateBefore(RowData *inputRow, int rank, int64_t timestamp)
+void AbstractTopNFunction<KeyType>::collectUpdateBefore(RowData* inputRow, int rank, int64_t timestamp)
 {
     LOG("rank " + std::to_string(rank));
     if (generateUpdateBefore && isInRankRange(rank)) {
@@ -241,7 +244,7 @@ void AbstractTopNFunction<KeyType>::collectUpdateBefore(RowData *inputRow, int r
 }
 
 template <typename KeyType>
-void AbstractTopNFunction<KeyType>::collectUpdateAfter(RowData *inputRow, int rank, int64_t timestamp)
+void AbstractTopNFunction<KeyType>::collectUpdateAfter(RowData* inputRow, int rank, int64_t timestamp)
 {
     LOG("rank " + std::to_string(rank));
     if (isInRankRange(rank)) {
@@ -259,13 +262,13 @@ bool AbstractTopNFunction<KeyType>::isInRankRange(int rank) const
 }
 
 template <typename KeyType>
-omnistream::VectorBatch *AbstractTopNFunction<KeyType>::createOutputBatch()
+omnistream::VectorBatch* AbstractTopNFunction<KeyType>::createOutputBatch()
 {
     int numColumns = inputRowType->size();
-    int numRows = collectedRows.size();  // Number of rows collected
+    int numRows = collectedRows.size(); // Number of rows collected
 
     // Create a new VectorBatch (empty if no rows exist)
-    auto *outputBatch = new omnistream::VectorBatch(numRows);
+    auto* outputBatch = new omnistream::VectorBatch(numRows);
     //  Loop through each column and create vectors
     for (int colIndex = 0; colIndex < numColumns; ++colIndex) {
         switch (inputRowType->at(colIndex)) {
@@ -273,7 +276,7 @@ omnistream::VectorBatch *AbstractTopNFunction<KeyType>::createOutputBatch()
             case DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:
             case DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE:
             case DataTypeId::OMNI_TIMESTAMP: {
-                auto *vector = new omniruntime::vec::Vector<int64_t>(numRows);
+                auto* vector = new omniruntime::vec::Vector<int64_t>(numRows);
                 for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
                     vector->SetValue(rowIndex, *collectedRows[rowIndex]->getLong(colIndex));
                 }
@@ -281,7 +284,7 @@ omnistream::VectorBatch *AbstractTopNFunction<KeyType>::createOutputBatch()
                 break;
             }
             case DataTypeId::OMNI_INT: {
-                auto *vector = new omniruntime::vec::Vector<int32_t>(numRows);
+                auto* vector = new omniruntime::vec::Vector<int32_t>(numRows);
                 for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
                     vector->SetValue(rowIndex, *collectedRows[rowIndex]->getInt(colIndex));
                 }
@@ -289,7 +292,7 @@ omnistream::VectorBatch *AbstractTopNFunction<KeyType>::createOutputBatch()
                 break;
             }
             case DataTypeId::OMNI_DOUBLE: {
-                auto *vector = new omniruntime::vec::Vector<double>(numRows);
+                auto* vector = new omniruntime::vec::Vector<double>(numRows);
                 for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
                     vector->SetValue(rowIndex, *collectedRows[rowIndex]->getLong(colIndex));
                 }
@@ -297,7 +300,7 @@ omnistream::VectorBatch *AbstractTopNFunction<KeyType>::createOutputBatch()
                 break;
             }
             case DataTypeId::OMNI_BOOLEAN: {
-                auto *vector = new omniruntime::vec::Vector<bool>(numRows);
+                auto* vector = new omniruntime::vec::Vector<bool>(numRows);
                 for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
                     vector->SetValue(rowIndex, *collectedRows[rowIndex]->getInt(colIndex));
                 }
@@ -305,11 +308,13 @@ omnistream::VectorBatch *AbstractTopNFunction<KeyType>::createOutputBatch()
                 break;
             }
             case DataTypeId::OMNI_VARCHAR: {
-                using VarcharVector = omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>;
-                VarcharVector *vector = new VarcharVector(numRows);
+                using VarcharVector =
+                    omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>;
+                VarcharVector* vector = new VarcharVector(numRows);
                 for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
                     auto value = std::string(collectedRows[rowIndex]->getStringView(colIndex));
-                    omniruntime::vec::VectorHelper::VectorSetValue<DataTypeId::OMNI_VARCHAR>(vector, rowIndex, (void*)&value);
+                    omniruntime::vec::VectorHelper::VectorSetValue<DataTypeId::OMNI_VARCHAR>(
+                        vector, rowIndex, (void*)&value);
                 }
                 outputBatch->Append(vector);
                 break;
@@ -335,7 +340,7 @@ omnistream::VectorBatch *AbstractTopNFunction<KeyType>::createOutputBatch()
 }
 
 template <typename KeyType>
-void AbstractTopNFunction<KeyType>::collectOutputBatch(TimestampedCollector out, omnistream::VectorBatch *outputBatch)
+void AbstractTopNFunction<KeyType>::collectOutputBatch(TimestampedCollector out, omnistream::VectorBatch* outputBatch)
 {
     out.collect(outputBatch);
 }
@@ -344,4 +349,4 @@ template class AbstractTopNFunction<long>;
 template class AbstractTopNFunction<int>;
 template class AbstractTopNFunction<double>;
 
-#endif  // FLINK_TNEL_ABSTRACTTOPNFUNCTION_H
+#endif // FLINK_TNEL_ABSTRACTTOPNFUNCTION_H

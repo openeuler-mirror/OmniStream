@@ -27,7 +27,7 @@ public:
 
     virtual void open() = 0;
 
-//    virtual void deserialize(std::vector<RdKafka::Message*> recordVec, Collector* out) = 0;
+    //    virtual void deserialize(std::vector<RdKafka::Message*> recordVec, Collector* out) = 0;
     virtual void deserialize(RdKafka::Message* recordVec, Collector* out) = 0;
 
     virtual void deserialize(std::vector<RdKafka::Message*> recordVec, Collector* out) = 0;

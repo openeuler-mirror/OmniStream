@@ -20,7 +20,9 @@ template <typename K, typename V>
 class SortedKVCache {
 public:
     explicit SortedKVCache() = default;
-    explicit SortedKVCache(size_t cap) : capacity(cap) {}
+    explicit SortedKVCache(size_t cap) : capacity(cap)
+    {
+    }
     ~SortedKVCache()
     {
         for (auto& item : cacheList) {
@@ -33,7 +35,10 @@ public:
     // Tell the cache whether it is the sole owner of stored V pointers.
     // Only safe to set true when the caller guarantees no one else references
     // the pointers (e.g. rocksdb backend which stores a byte-copy, not the ptr).
-    void setOwnsValues(bool owns) { ownsValues = owns; }
+    void setOwnsValues(bool owns)
+    {
+        ownsValues = owns;
+    }
 
     V get(const K& key)
     {
@@ -93,9 +98,10 @@ public:
         }
         oldValues.clear();
     }
+
 private:
     size_t capacity = 1024;
-    bool ownsValues = false; // if true, cache is sole owner of V pointers and frees them on eviction
+    bool ownsValues = false;              // if true, cache is sole owner of V pointers and frees them on eviction
     std::list<std::pair<K, V>> cacheList; // Stores key-value pairs
     std::unordered_map<K, typename std::list<std::pair<K, V>>::iterator> cacheMap;
     std::vector<V> oldValues;

@@ -17,11 +17,10 @@
 #include "runtime/state/RegisteredBroadcastStateBackendMetaInfo.h"
 #include "runtime/state/RegisteredPriorityQueueStateBackendMetaInfo.h"
 
-std::unique_ptr<RegisteredStateMetaInfoBase> RegisteredStateMetaInfoBase::fromMetaInfoSnapshot(const
-    StateMetaInfoSnapshot &snapshot)
+std::unique_ptr<RegisteredStateMetaInfoBase> RegisteredStateMetaInfoBase::fromMetaInfoSnapshot(
+    const StateMetaInfoSnapshot& snapshot)
 {
-    const StateMetaInfoSnapshot::BackendStateType backendStateType =
-            snapshot.getBackendStateType();
+    const StateMetaInfoSnapshot::BackendStateType backendStateType = snapshot.getBackendStateType();
     switch (backendStateType) {
         case StateMetaInfoSnapshot::BackendStateType::KEY_VALUE:
             return std::make_unique<RegisteredKeyValueStateBackendMetaInfo>(snapshot);
@@ -32,7 +31,7 @@ std::unique_ptr<RegisteredStateMetaInfoBase> RegisteredStateMetaInfoBase::fromMe
         case StateMetaInfoSnapshot::BackendStateType::PRIORITY_QUEUE:
             return std::make_unique<RegisteredPriorityQueueStateBackendMetaInfo>(snapshot);
         default:
-            LOG("Unsupport backend state type: + std::to_string(static_cast<int>(backendStateType))")
+            LOG("Unsupport backend state type: + std::to_string(static_cast<int>(backendStateType))");
             return nullptr;
             // tO-DO the OPERATOR, BROADCAST, PRIORITY_QUEUE is not used currently!
     }

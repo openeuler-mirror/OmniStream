@@ -22,15 +22,14 @@
 #include <metrics/SimpleCounter.h>
 #include <utils/function/Supplier.h>
 
-
 #include "ResultPartitionWriter.h"
 #include "buffer/BufferPool.h"
 
 namespace omnistream {
-    class ResultPartitionManager;
+class ResultPartitionManager;
 
-    class ResultPartition : public ResultPartitionWriter, public std::enable_shared_from_this<ResultPartition> {
-    public:
+class ResultPartition : public ResultPartitionWriter, public std::enable_shared_from_this<ResultPartition> {
+public:
     ResultPartition(
         const std::string& owningTaskName,
         int partitionIndex,
@@ -44,10 +43,10 @@ namespace omnistream {
 
     ~ResultPartition() override = default;
 
-        void setup() override;
+    void setup() override;
 
     std::string getOwningTaskName() const;
-    ResultPartitionIDPOD getPartitionId()  override;
+    ResultPartitionIDPOD getPartitionId() override;
     int getPartitionIndex() const;
     int getNumberOfSubpartitions() override;
     std::shared_ptr<BufferPool> getBufferPool();
@@ -59,37 +58,37 @@ namespace omnistream {
 
     void NotifyEndOfData(StopMode mode) override
     {
-        NOT_IMPL_EXCEPTION
+        NOT_IMPL_EXCEPTION;
     }
 
     std::shared_ptr<CompletableFuture> getAllDataProcessedFuture() override;
     virtual void onSubpartitionAllDataProcessed(int subpartition);
 
     void finish() override;
-    bool isFinished()  override;
+    bool isFinished() override;
 
     void release();
     void release(std::optional<std::exception_ptr> cause) override;
 
     void close() override;
     void closeBufferPool();
-    void fail(std::optional<std::exception_ptr>  throwable) override;
-    std::optional<std::exception_ptr>  getFailureCause() ;
+    void fail(std::optional<std::exception_ptr> throwable) override;
+    std::optional<std::exception_ptr> getFailureCause();
 
-    int getNumTargetKeyGroups()  override;
+    int getNumTargetKeyGroups() override;
 
-    bool isReleased()  override;
+    bool isReleased() override;
     std::shared_ptr<CompletableFuture> GetAvailableFuture() override;
 
     std::string toString() const override;
     std::shared_ptr<ResultPartitionManager> getPartitionManager();
     virtual void OnConsumedSubpartition(int subpartitionIndex);
 
-    protected:
+protected:
     virtual void releaseInternal() = 0;
     void checkInProduceState() const;
 
-    protected:
+protected:
     static const std::string LOG_NAME;
 
     const std::string owningTaskName;

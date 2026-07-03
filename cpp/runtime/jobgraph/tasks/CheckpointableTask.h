@@ -22,31 +22,31 @@
 
 namespace omnistream {
 
-    class CheckpointableTask {
-    public:
-        virtual ~CheckpointableTask() = default;
+class CheckpointableTask {
+public:
+    virtual ~CheckpointableTask() = default;
 
-        /**
-         * Triggered when checkpoint is initiated by receiving barriers
-         *
-         * @param checkpointMetaData Meta data about this checkpoint
-         * @param checkpointOptions Options for performing this checkpoint
-         * @param checkpointMetrics Metrics about this checkpoint
-         * @throws IOException if checkpoint fails
-         */
-        virtual void TriggerCheckpointOnBarrier(std::shared_ptr<CheckpointMetaData> checkpointMetaData,
-            std::shared_ptr<CheckpointOptions> checkpointOptions, std::shared_ptr<CheckpointMetricsBuilder> checkpointMetrics) = 0;
+    /**
+     * Triggered when checkpoint is initiated by receiving barriers
+     *
+     * @param checkpointMetaData Meta data about this checkpoint
+     * @param checkpointOptions Options for performing this checkpoint
+     * @param checkpointMetrics Metrics about this checkpoint
+     * @throws IOException if checkpoint fails
+     */
+    virtual void TriggerCheckpointOnBarrier(
+        std::shared_ptr<CheckpointMetaData> checkpointMetaData,
+        std::shared_ptr<CheckpointOptions> checkpointOptions,
+        std::shared_ptr<CheckpointMetricsBuilder> checkpointMetrics) = 0;
 
-        /**
-         * Aborts checkpoint due to cancellation barrier
-         *
-         * @param checkpointId ID of checkpoint to abort
-         * @param cause Reason for aborting
-         * @throws IOException if abort fails
-         */
-        virtual void abortCheckpointOnBarrier(
-                long checkpointId,
-                CheckpointException cause) = 0;
-    };
-}
+    /**
+     * Aborts checkpoint due to cancellation barrier
+     *
+     * @param checkpointId ID of checkpoint to abort
+     * @param cause Reason for aborting
+     * @throws IOException if abort fails
+     */
+    virtual void abortCheckpointOnBarrier(long checkpointId, CheckpointException cause) = 0;
+};
+} // namespace omnistream
 #endif // OMNISTREAM_CHECKPOINTABLETASK_H

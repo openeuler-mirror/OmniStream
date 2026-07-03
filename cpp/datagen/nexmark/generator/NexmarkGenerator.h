@@ -37,28 +37,36 @@ public:
         const int64_t watermark;
 
         NextEvent(int64_t wallclockTimestamp, int64_t eventTimestamp, std::unique_ptr<Event> event, int64_t watermark)
-            : wallclockTimestamp(wallclockTimestamp), eventTimestamp(eventTimestamp), event(std::move(event)), watermark(watermark) {}
+            : wallclockTimestamp(wallclockTimestamp),
+              eventTimestamp(eventTimestamp),
+              event(std::move(event)),
+              watermark(watermark)
+        {
+        }
 
-        bool operator==(const NextEvent &other) const;
+        bool operator==(const NextEvent& other) const;
 
         // A hashCode equivalent; implemented as a function.
         int hashCode() const;
 
         // CompareTo equivalent operator.
-        bool operator<(const NextEvent &other) const;
+        bool operator<(const NextEvent& other) const;
     };
 
 public:
     // Constructor.
-    NexmarkGenerator(const GeneratorConfig &config, int64_t eventsCountSoFar, int64_t wallclockBaseTime)
+    NexmarkGenerator(const GeneratorConfig& config, int64_t eventsCountSoFar, int64_t wallclockBaseTime)
         : random(SplittableRandom(0)),
           config(config),
           eventsCountSoFar(eventsCountSoFar),
-          wallclockBaseTime(wallclockBaseTime) {}
+          wallclockBaseTime(wallclockBaseTime)
+    {
+    }
 
     // Create a fresh generator according to config.
-    explicit NexmarkGenerator(const GeneratorConfig &config)
-        : NexmarkGenerator(config, 0, -1) {}
+    explicit NexmarkGenerator(const GeneratorConfig& config) : NexmarkGenerator(config, 0, -1)
+    {
+    }
 
     // Return a deep copy of this generator.
     NexmarkGenerator copy() const
@@ -111,7 +119,7 @@ public:
             GErrorLog("max event num is 0");
             throw std::runtime_error("max event num is 0");
         }
-        
+
         return static_cast<double>(eventsCountSoFar) / config.maxEvents;
     }
 
@@ -122,7 +130,11 @@ public:
     }
 
     // toString() equivalent.
-    std::string toString() const { return "";}
+    std::string toString() const
+    {
+        return "";
+    }
+
 private:
     // SplittableRandom equivalent.
     SplittableRandom random;

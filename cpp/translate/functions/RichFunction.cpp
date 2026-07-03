@@ -12,12 +12,15 @@
 
 RichFunction::~RichFunction() = default;
 
-void RichFunction::open(const Configuration &parameters) {
+void RichFunction::open(const Configuration& parameters)
+{
 }
 
-void RichFunction::open(const OpenContext *openContext)
+void RichFunction::open(const OpenContext* openContext)
 {
     open(Configuration());
 }
 
-void RichFunction::open(Configuration *parameters) {}
+void RichFunction::open(Configuration* parameters)
+{
+}

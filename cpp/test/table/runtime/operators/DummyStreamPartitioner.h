@@ -18,9 +18,11 @@ public:
         return false;
     }
 
-    void setup(int numberOfChannels) override {}
+    void setup(int numberOfChannels) override
+    {
+    }
 
-    int selectChannel(IOReadableWritable *record) override
+    int selectChannel(IOReadableWritable* record) override
     {
         return 0;
     }
@@ -30,14 +32,15 @@ public:
         return false;
     }
 
-    virtual std::unique_ptr<StreamPartitioner<IOReadableWritable>> copy() {
+    virtual std::unique_ptr<StreamPartitioner<IOReadableWritable>> copy()
+    {
         return nullptr;
     };
 
-    [[nodiscard]] virtual std::string toString() const{
+    [[nodiscard]] virtual std::string toString() const
+    {
         return {};
     }
 };
-
 
 #endif // OMNISTREAM_DUMMYSTREAMPARTITIONER_H

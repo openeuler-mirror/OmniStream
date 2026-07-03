@@ -3,13 +3,13 @@
 #include <memory>
 #include <nlohmann/json.hpp>
 #include <taskmanager/OmniRuntimeEnvironment.h>
- 
+
 #include "table/data/vectorbatch/VectorBatch.h"
 #include "OmniOperatorJIT/core/test/util/test_util.h"
 #include "test/core/operators/OutputTest.h"
 #include "table/runtime/operators/window/processor/AbstractWindowAggProcessor.h"
 #include "streaming/api/operators/StreamOperatorFactory.h"
- 
+
 using json = nlohmann::json;
 using namespace omnistream;
 
@@ -46,16 +46,17 @@ std::string hopdescription = R"DELIM({"input_channels":[0],
                                         "output":{"kind":"Row","type":[{"isNull":true,"kind":"logical","type":"BIGINT"},{"isNull":true,"kind":"logical","type":"BIGINT"}]}}],
                             "partition":{"channelNumber":1,"partitionName":"forward"}})DELIM";
 
-omnistream::VectorBatch* newVectorBatchOneKeyOneValue2() {
+omnistream::VectorBatch* newVectorBatchOneKeyOneValue2()
+{
     auto* vbatch = new omnistream::VectorBatch(5);
     std::vector<int64_t> maxColumn = {1, 2, 1, 1, 3};
     std::vector<int64_t> column2 = {3, 4, 5, 6, 7};
     std::vector<int64_t> time = {1731944410000, 1731944410000, 1731944410000, 1731944420000, 1731944420000};
- 
+
     vbatch->Append(omniruntime::TestUtil::CreateVector<int64_t>(5, maxColumn.data()));
     vbatch->Append(omniruntime::TestUtil::CreateVector<int64_t>(5, column2.data()));
     vbatch->Append(omniruntime::TestUtil::CreateVector<int64_t>(5, time.data()));
- 
+
     vbatch->setRowKind(0, RowKind::INSERT);
     vbatch->setRowKind(1, RowKind::INSERT);
     vbatch->setRowKind(2, RowKind::INSERT);
@@ -64,17 +65,18 @@ omnistream::VectorBatch* newVectorBatchOneKeyOneValue2() {
     return vbatch;
 }
 
-TEST(GlobalWindowAggTest, DISABLED_OnTimerTest) {
+TEST(GlobalWindowAggTest, DISABLED_OnTimerTest)
+{
     omnistream::VectorBatch* vbatch = newVectorBatchOneKeyOneValue2();
     json parsedJson = json::parse(description3);
     std::cout << "================step 0===================" << std::endl;
     nlohmann::json windowing = parsedJson["operators"][0]["description"];
     std::cout << "================step 01===================" << std::endl;
-    auto *output = new BatchOutputTest();
+    auto* output = new BatchOutputTest();
     std::cout << "================step 02===================" << std::endl;
     auto processor = std::make_unique<AbstractWindowAggProcessor>(windowing, output);
     std::cout << "================step 03===================" << std::endl;
-    SlicingWindowOperator<std::shared_ptr<RowData>, int64_t> *operators =
+    SlicingWindowOperator<std::shared_ptr<RowData>, int64_t>* operators =
         new SlicingWindowOperator<std::shared_ptr<RowData>, int64_t>(std::move(processor), windowing);
     std::cout << "================step 04===================" << std::endl;
     auto env2 = new omnistream::RuntimeEnvironmentV2();
@@ -89,7 +91,7 @@ TEST(GlobalWindowAggTest, DISABLED_OnTimerTest) {
     }
     env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
+    StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
     operators->setup();
     operators->initializeState(initializer, new LongSerializer());
 
@@ -99,11 +101,11 @@ TEST(GlobalWindowAggTest, DISABLED_OnTimerTest) {
     operators->processBatch(vbatch);
     operators->ProcessWatermark(new Watermark(-1));
     BinaryRowData* binaryRowData = new BinaryRowData(0); // group为空时, 需要设置为new BinaryRowData(0)
-    auto *timer = new TimerHeapInternalTimer<std::shared_ptr<RowData>, int64_t>(
+    auto* timer = new TimerHeapInternalTimer<std::shared_ptr<RowData>, int64_t>(
         -1, std::shared_ptr<RowData>(binaryRowData), 1731944420000);
     operators->onTimer(timer);
     auto* batchOutput = dynamic_cast<BatchOutputTest*>(operators->getOutput());
-    auto* resultBatch = reinterpret_cast<omnistream::VectorBatch*> (batchOutput->getVectorBatch());
+    auto* resultBatch = reinterpret_cast<omnistream::VectorBatch*>(batchOutput->getVectorBatch());
     // print VectorBatch
     int rowCount = resultBatch->GetRowCount();
     int colCount = resultBatch->GetVectorCount();
@@ -123,18 +125,19 @@ TEST(GlobalWindowAggTest, DISABLED_OnTimerTest) {
 
     std::cout << "Global WindowAggTest OnTimerTest" << std::endl;
 }
- 
-TEST(GlobalWindowAggTest, DISABLED_TUMBLETest) {
+
+TEST(GlobalWindowAggTest, DISABLED_TUMBLETest)
+{
     omnistream::VectorBatch* vbatch = newVectorBatchOneKeyOneValue2();
     json parsedJson = json::parse(description3);
     std::cout << "================step 0===================" << std::endl;
     nlohmann::json windowing = parsedJson["operators"][0]["description"];
     std::cout << "================step 01===================" << std::endl;
-    auto *output = new BatchOutputTest();
+    auto* output = new BatchOutputTest();
     std::cout << "================step 02===================" << std::endl;
     auto processor = std::make_unique<AbstractWindowAggProcessor>(windowing, output);
     std::cout << "================step 03===================" << std::endl;
-    SlicingWindowOperator<std::shared_ptr<RowData>, int64_t> *operators =
+    SlicingWindowOperator<std::shared_ptr<RowData>, int64_t>* operators =
         new SlicingWindowOperator<std::shared_ptr<RowData>, int64_t>(std::move(processor), windowing);
     std::cout << "================step 04===================" << std::endl;
     auto env2 = new omnistream::RuntimeEnvironmentV2();
@@ -149,17 +152,17 @@ TEST(GlobalWindowAggTest, DISABLED_TUMBLETest) {
     }
     env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
+    StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
     operators->setup();
     operators->initializeState(initializer, new LongSerializer());
- 
+
     std::cout << "================step 1===================" << std::endl;
     operators->open();
     std::cout << "================step 100===================" << std::endl;
     operators->processBatch(vbatch);
     operators->ProcessWatermark(new Watermark(-1));
     auto* batchOutput = dynamic_cast<BatchOutputTest*>(operators->getOutput());
-    auto* resultBatch = reinterpret_cast<omnistream::VectorBatch*> (batchOutput->getVectorBatch());
+    auto* resultBatch = reinterpret_cast<omnistream::VectorBatch*>(batchOutput->getVectorBatch());
     // print VectorBatch
     int rowCount = resultBatch->GetRowCount();
     int colCount = resultBatch->GetVectorCount();
@@ -175,22 +178,22 @@ TEST(GlobalWindowAggTest, DISABLED_TUMBLETest) {
     std::cout << "Global WindowAggTest MaxAggTest" << std::endl;
 }
 
-TEST(GlobalWindowAggTest, DISABLED_HOPTest1) {
+TEST(GlobalWindowAggTest, DISABLED_HOPTest1)
+{
     omnistream::VectorBatch* vbatch = newVectorBatchOneKeyOneValue2();
 
-    //Operator description
+    // Operator description
     std::string uniqueName = "org.apache.flink.table.runtime.operators.window.slicing.SlicingWindowOperator";
     json parsedJson = json::parse(hopdescription);
     omnistream::OperatorConfig opConfig(
-            uniqueName, //uniqueName:
-            "GlobalWindowAgg_By_Simple", //Name
-            parsedJson["operators"][0]["inputTypes"],
-            parsedJson["operators"][0]["outputTypes"],
-            parsedJson["operators"][0]["description"]
-    );
-    auto *output = new BatchOutputTest();
+        uniqueName,                  // uniqueName:
+        "GlobalWindowAgg_By_Simple", // Name
+        parsedJson["operators"][0]["inputTypes"],
+        parsedJson["operators"][0]["outputTypes"],
+        parsedJson["operators"][0]["description"]);
+    auto* output = new BatchOutputTest();
     auto* slicingWindowOperator = dynamic_cast<SlicingWindowOperator<std::shared_ptr<RowData>, int64_t>*>(
-            StreamOperatorFactory::createOperatorAndCollector(opConfig, output));
+        StreamOperatorFactory::createOperatorAndCollector(opConfig, output));
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
     taskInfo->setStateBackend("HashMapStateBackend");
@@ -203,7 +206,7 @@ TEST(GlobalWindowAggTest, DISABLED_HOPTest1) {
     }
     env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
+    StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
     slicingWindowOperator->setup();
     slicingWindowOperator->initializeState(initializer, new LongSerializer());
 
@@ -212,10 +215,10 @@ TEST(GlobalWindowAggTest, DISABLED_HOPTest1) {
     std::cout << "================step 4 in global window agg===================" << std::endl;
     slicingWindowOperator->processBatch(vbatch);
     slicingWindowOperator->ProcessWatermark(new Watermark(-1));
-//    BatchOutputTest* batchOutput = dynamic_cast<BatchOutputTest*>(slicingWindowOperator->getOutput());
+    //    BatchOutputTest* batchOutput = dynamic_cast<BatchOutputTest*>(slicingWindowOperator->getOutput());
 
     BatchOutputTest* batchOutput = output;
-    auto* resultBatch = reinterpret_cast<omnistream::VectorBatch*> (batchOutput->getVectorBatch());
+    auto* resultBatch = reinterpret_cast<omnistream::VectorBatch*>(batchOutput->getVectorBatch());
     // print VectorBatch
     int rowCount = resultBatch->GetRowCount();
     int colCount = resultBatch->GetVectorCount();
@@ -232,8 +235,8 @@ TEST(GlobalWindowAggTest, DISABLED_HOPTest1) {
     std::cout << "================step 5===================" << std::endl;
     slicingWindowOperator->ProcessWatermark(new Watermark(-1));
     std::cout << "================step 6===================" << std::endl;
-//    batchOutput = dynamic_cast<BatchOutputTest*>(slicingWindowOperator->getOutput());
-    resultBatch = reinterpret_cast<omnistream::VectorBatch*> (batchOutput->getVectorBatch());
+    //    batchOutput = dynamic_cast<BatchOutputTest*>(slicingWindowOperator->getOutput());
+    resultBatch = reinterpret_cast<omnistream::VectorBatch*>(batchOutput->getVectorBatch());
     // print VectorBatch
     rowCount = resultBatch->GetRowCount();
     colCount = resultBatch->GetVectorCount();

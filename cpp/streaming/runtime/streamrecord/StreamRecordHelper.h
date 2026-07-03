@@ -16,7 +16,7 @@
 #include "StreamRecord.h"
 class StreamRecordHelper {
 public:
-    static  StreamRecord* deepCopyVectorBatch(StreamRecord* origin)
+    static StreamRecord* deepCopyVectorBatch(StreamRecord* origin)
     {
         auto record = origin;
         long timestamp = record->getTimestamp();
@@ -26,7 +26,7 @@ public:
         return new StreamRecord(copiedVectorBatch, timestamp);
     }
 
-    static  StreamRecord* deepCopyObject(StreamRecord* origin)
+    static StreamRecord* deepCopyObject(StreamRecord* origin)
     {
         auto record = origin;
         long timestamp = record->getTimestamp();
@@ -36,6 +36,5 @@ public:
         return new StreamRecord(copiedObject, timestamp);
     }
 };
-
 
 #endif

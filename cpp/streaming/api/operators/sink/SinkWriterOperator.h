@@ -30,11 +30,11 @@
 #include "streaming/api/operators/sink/KafkaSinkWriterStateHandler.h"
 #include "streaming/api/operators/sink/InitContextImpl.h"
 
-class SinkWriterOperator : public OneInputStreamOperator, public AbstractStreamOperator<void *> {
+class SinkWriterOperator : public OneInputStreamOperator, public AbstractStreamOperator<void*> {
 public:
     static ListStateDescriptor<std::vector<uint8_t>> STREAMING_COMMITTER_RAW_STATES_DESC;
 
-    SinkWriterOperator(KafkaSink *kafkaSink, const nlohmann::json& config);
+    SinkWriterOperator(KafkaSink* kafkaSink, const nlohmann::json& config);
 
     ~SinkWriterOperator()
     {
@@ -49,23 +49,23 @@ public:
 
     void close() override;
 
-    RowData* getOutputEntireRow(omnistream::VectorBatch *batch, int rowId);
+    RowData* getOutputEntireRow(omnistream::VectorBatch* batch, int rowId);
 
-    void processBatch(StreamRecord *record) override;
+    void processBatch(StreamRecord* record) override;
 
-    void processElement(StreamRecord *record) override;
+    void processElement(StreamRecord* record) override;
 
     void EndInput();
 
-    void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) override;
+    void initializeState(StreamTaskStateInitializerImpl* initializer, TypeSerializer* keySerializer) override;
 
     void notifyCheckpointComplete(long checkpointId) override;
 
     void notifyCheckpointAborted(long checkpointId) override;
 
-    void ProcessWatermark(Watermark *watermark) override;
+    void ProcessWatermark(Watermark* watermark) override;
 
-    void processWatermarkStatus(WatermarkStatus *watermarkStatus) override;
+    void processWatermarkStatus(WatermarkStatus* watermarkStatus) override;
 
     bool canBeStreamOperator() override
     {
@@ -74,21 +74,27 @@ public:
 
     std::string getTypeName() override;
 
-    KafkaSink* getKafkaSink() { return kafkaSink; }
+    KafkaSink* getKafkaSink()
+    {
+        return kafkaSink;
+    }
 
 private:
-    template<typename K>
+    template <typename K>
     InitContextImpl<K>* createInitContext(std::optional<uint64_t> restoredCheckpointId);
-    template<typename CommT>
+    template <typename CommT>
     void emitCommittables(std::int64_t checkpointId);
-    template<typename CommT>
-    void emit(int indexOfThisSubtask, int numberOfParallelSubtasks, std::int64_t checkpointId,
-              const std::vector<CommT> &committables);
-    KafkaCommittableSerializer *committableSerializer{};
+    template <typename CommT>
+    void emit(
+        int indexOfThisSubtask,
+        int numberOfParallelSubtasks,
+        std::int64_t checkpointId,
+        const std::vector<CommT>& committables);
+    KafkaCommittableSerializer* committableSerializer{};
     bool emitDownstream{};
     std::int64_t currentWatermark{};
-    KafkaSink *kafkaSink = nullptr;
-    KafkaWriter *sinkWriter = nullptr;
+    KafkaSink* kafkaSink = nullptr;
+    KafkaWriter* sinkWriter = nullptr;
     bool endOfInput = false;
     nlohmann::json description;
     std::vector<std::string> inputTypes;

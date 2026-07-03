@@ -25,31 +25,34 @@
 #include "LocalObjectBufferPool.h"
 
 namespace omnistream {
-    class LocalObjectBufferPool;
+class LocalObjectBufferPool;
 }
 
 namespace omnistream {
-class NetworkObjectBufferPool : public NetworkBufferPool,
-        public std::enable_shared_from_this<NetworkObjectBufferPool> {
+class NetworkObjectBufferPool : public NetworkBufferPool, public std::enable_shared_from_this<NetworkObjectBufferPool> {
 public:
     NetworkObjectBufferPool(int numberOfSegmentsToAllocate, int segmentSize)
-        :NetworkObjectBufferPool(numberOfSegmentsToAllocate, segmentSize,
-                                 std::chrono::milliseconds(INT_MAX)) {}
-    NetworkObjectBufferPool(int numberOfSegmentsToAllocate, int segmentSize, std::chrono::milliseconds requestSegmentsTimeout);
+        : NetworkObjectBufferPool(numberOfSegmentsToAllocate, segmentSize, std::chrono::milliseconds(INT_MAX))
+    {
+    }
+    NetworkObjectBufferPool(
+        int numberOfSegmentsToAllocate, int segmentSize, std::chrono::milliseconds requestSegmentsTimeout);
     ~NetworkObjectBufferPool() override;
 
-    ObjectSegment *requestPooledObjectSegment();
-    std::vector<ObjectSegment *> requestPooledObjectSegmentsBlocking(int numberOfSegmentsToRequest);
-    void recyclePooledObjectSegment(ObjectSegment *segment);
+    ObjectSegment* requestPooledObjectSegment();
+    std::vector<ObjectSegment*> requestPooledObjectSegmentsBlocking(int numberOfSegmentsToRequest);
+    void recyclePooledObjectSegment(ObjectSegment* segment);
 
-    std::vector<MemorySegment*> requestUnpooledMemorySegments(int numberOfSegmentsToRequest) override {
-        THROW_LOGIC_EXCEPTION("error")
+    std::vector<MemorySegment*> requestUnpooledMemorySegments(int numberOfSegmentsToRequest) override
+    {
+        THROW_LOGIC_EXCEPTION("error");
     }
-    void recycleUnpooledMemorySegments(const std::vector<MemorySegment*>& segments) override {
-        THROW_LOGIC_EXCEPTION("error")
+    void recycleUnpooledMemorySegments(const std::vector<MemorySegment*>& segments) override
+    {
+        THROW_LOGIC_EXCEPTION("error");
     }
-    std::vector<ObjectSegment *> requestUnpooledObjectSegments(int numberOfSegmentsToRequest) override;
-    void recycleUnpooledObjectSegments(const std::vector<ObjectSegment *>& segments) override;
+    std::vector<ObjectSegment*> requestUnpooledObjectSegments(int numberOfSegmentsToRequest) override;
+    void recycleUnpooledObjectSegments(const std::vector<ObjectSegment*>& segments) override;
     void destroy();
     bool isDestroyed() const;
     int getTotalNumberOfObjectSegments() const;
@@ -62,20 +65,20 @@ public:
     int countBuffers();
     std::shared_ptr<CompletableFuture> GetAvailableFuture() override;
     std::shared_ptr<BufferPool> createBufferPool(int numRequiredBuffers, int maxUsedBuffers) override;
-    std::shared_ptr<BufferPool> createBufferPool(int numRequiredBuffers, int maxUsedBuffers,
-                                                 int numSubpartitions, int maxBuffersPerChannel) override;
+    std::shared_ptr<BufferPool> createBufferPool(
+        int numRequiredBuffers, int maxUsedBuffers, int numSubpartitions, int maxBuffersPerChannel) override;
     void destroyBufferPool(std::shared_ptr<BufferPool> objectBufferPool) override;
     void destroyAllBufferPools();
 
     std::string toString() const override;
 
 private:
-    std::vector<ObjectSegment *> internalRequestObjectSegments(int numberOfSegmentsToRequest);
-    ObjectSegment *internalRequestObjectSegment();
+    std::vector<ObjectSegment*> internalRequestObjectSegments(int numberOfSegmentsToRequest);
+    ObjectSegment* internalRequestObjectSegment();
     void revertRequiredBuffers(int size);
-    void internalRecycleObjectSegments(const std::vector<ObjectSegment *>& segments);
-    std::shared_ptr<BufferPool> internalCreateObjectBufferPool(int numRequiredBuffers, int maxUsedBuffers,
-                                                                int numSubpartitions, int maxBuffersPerChannel);
+    void internalRecycleObjectSegments(const std::vector<ObjectSegment*>& segments);
+    std::shared_ptr<BufferPool> internalCreateObjectBufferPool(
+        int numRequiredBuffers, int maxUsedBuffers, int numSubpartitions, int maxBuffersPerChannel);
     void tryRedistributeBuffers(int numberOfSegmentsToRequest);
     void redistributeBuffers();
     std::string getConfigDescription();
@@ -84,18 +87,17 @@ private:
     int objectSegmentSize;
     // std::deque<std::shared_ptr<ObjectSegment>> availableObjectSegments;
     // std::deque<std::shared_ptr<Segment>> availableObjectSegments;
-    std::deque<ObjectSegment *> availableObjectSegments;
-   // std::mutex availableObjectSegmentsMutex;
+    std::deque<ObjectSegment*> availableObjectSegments;
+    // std::mutex availableObjectSegmentsMutex;
     std::recursive_mutex availableObjSegMutex;
     bool isDestroyed_ = false;
     std::recursive_mutex factoryLock;
     std::set<std::shared_ptr<LocalObjectBufferPool>> allBufferPools;
-    int numTotalRequiredBuffers {};
-    std::chrono::milliseconds requestSegmentsTimeout {};
-    std::shared_ptr<AvailabilityHelper>  availabilityHelper = std::make_shared<AvailabilityHelper>();
+    int numTotalRequiredBuffers{};
+    std::chrono::milliseconds requestSegmentsTimeout{};
+    std::shared_ptr<AvailabilityHelper> availabilityHelper = std::make_shared<AvailabilityHelper>();
     std::condition_variable cv;
 };
-}
-
+} // namespace omnistream
 
 #endif

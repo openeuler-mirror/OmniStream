@@ -19,37 +19,37 @@
 
 namespace omnistream {
 
-    class BufferRecycler {
-    public:
-        virtual ~BufferRecycler() = default;
+class BufferRecycler {
+public:
+    virtual ~BufferRecycler() = default;
 
-        virtual void recycle(Segment *segment) = 0;
+    virtual void recycle(Segment* segment) = 0;
 
-        [[nodiscard]] virtual std::string toString() const = 0;
+    [[nodiscard]] virtual std::string toString() const = 0;
+};
+
+class DummyBufferRecycler : public BufferRecycler {
+public:
+    static std::shared_ptr<DummyBufferRecycler> getInstance()
+    {
+        if (!instance) {
+            instance = std::make_shared<DummyBufferRecycler>();
+        }
+        return instance;
+    };
+    DummyBufferRecycler() = default;
+    ~DummyBufferRecycler() override = default;
+    void recycle(Segment* segment) override {};
+
+    [[nodiscard]] std::string toString() const override
+    {
+        return "DummyBufferRecycler";
     };
 
-    class DummyBufferRecycler : public BufferRecycler {
-    public:
-        static std::shared_ptr<DummyBufferRecycler> getInstance()
-        {
-            if (!instance) {
-                instance = std::make_shared<DummyBufferRecycler>();
-            }
-            return instance;
-        };
-        DummyBufferRecycler() = default;
-        ~DummyBufferRecycler() override = default;
-        void recycle(Segment *segment) override {
-        };
+private:
+    static std::shared_ptr<DummyBufferRecycler> instance;
+};
 
-        [[nodiscard]] std::string toString() const override
-        {
-            return "DummyBufferRecycler";
-        };
-    private:
-        static std::shared_ptr<DummyBufferRecycler> instance;
-    };
-
-}
+} // namespace omnistream
 
 #endif // BUFFERRECYCLER_H

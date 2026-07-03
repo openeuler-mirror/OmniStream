@@ -22,12 +22,20 @@ class CompositeKeyRef;
 // ---------------------------------------------------------------------
 class CompositeKeyRef {
 public:
-    CompositeKeyRef(const std::vector<int>& columnIds, const std::vector<bool>& ascending, int rowId, omnistream::VectorBatch* vectorBatch)
-        : columnIds_(columnIds), ascending_(ascending), rowId_(rowId), vectorBatch_(vectorBatch) {}
+    CompositeKeyRef(
+        const std::vector<int>& columnIds,
+        const std::vector<bool>& ascending,
+        int rowId,
+        omnistream::VectorBatch* vectorBatch)
+        : columnIds_(columnIds),
+          ascending_(ascending),
+          rowId_(rowId),
+          vectorBatch_(vectorBatch)
+    {
+    }
 
     // Comparison operator for heap sorting.
-    __attribute__((noinline))
-    bool operator<(const CompositeKeyRef& other) const
+    __attribute__((noinline)) bool operator<(const CompositeKeyRef& other) const
     {
         ASSERT(columnIds_.size() == ascending_.size());
         ASSERT(columnIds_.size() == other.columnIds_.size());
@@ -64,14 +72,13 @@ public:
                 }
                 case DataTypeId::OMNI_DOUBLE: {
                     auto* doubleVectorA = static_cast<omniruntime::vec::Vector<double>*>(vectorBatch_->Get(colId));
-                    auto* doubleVectorB = static_cast<omniruntime::vec::Vector<double>*>
-                                                                                    (other.vectorBatch_->Get(colId));
+                    auto* doubleVectorB =
+                        static_cast<omniruntime::vec::Vector<double>*>(other.vectorBatch_->Get(colId));
                     a = static_cast<int64_t>(doubleVectorA->GetValue(rowId_));
                     b = static_cast<int64_t>(doubleVectorB->GetValue(other.rowId_));
                     break;
                 }
-                default:
-                    throw std::runtime_error("Unsupported DataTypeId for column comparison.");
+                default: throw std::runtime_error("Unsupported DataTypeId for column comparison.");
             }
 
             if (a != b) {
@@ -96,13 +103,21 @@ private:
 // ---------------------------------------------------------------------
 // Top1Comparator: Encapsulates logic to find the top-1 row ID for each partition.
 // ---------------------------------------------------------------------
-template<typename K>
+template <typename K>
 class Top1Comparator {
 public:
-    Top1Comparator(const std::vector<int>& partitionKeyColTypes, const std::vector<int>& partitionKeyColId,
-        const std::vector<int>& sortColumnIds, const std::vector<bool>& ascending)
-        : partitionKeyColType_(partitionKeyColTypes), partitionKeyColId_(partitionKeyColId),
-        sortColumnIds_(sortColumnIds), ascending_(ascending), keySelector_(partitionKeyColType_, partitionKeyColId_) {}
+    Top1Comparator(
+        const std::vector<int>& partitionKeyColTypes,
+        const std::vector<int>& partitionKeyColId,
+        const std::vector<int>& sortColumnIds,
+        const std::vector<bool>& ascending)
+        : partitionKeyColType_(partitionKeyColTypes),
+          partitionKeyColId_(partitionKeyColId),
+          sortColumnIds_(sortColumnIds),
+          ascending_(ascending),
+          keySelector_(partitionKeyColType_, partitionKeyColId_)
+    {
+    }
 
     struct CompositeKeyComparator {
         bool operator()(const CompositeKeyRef& a, const CompositeKeyRef& b) const
@@ -124,8 +139,9 @@ public:
         }
 
         // Map to store heaps for each partition key.
-        std::unordered_map<K, std::priority_queue<CompositeKeyRef, std::vector<CompositeKeyRef>,
-                                                                                CompositeKeyComparator>> partitionHeaps;
+        std::
+            unordered_map<K, std::priority_queue<CompositeKeyRef, std::vector<CompositeKeyRef>, CompositeKeyComparator>>
+                partitionHeaps;
 
         size_t rowCount = vectorBatch->GetRowCount();
 
@@ -137,7 +153,7 @@ public:
             auto it = partitionHeaps.find(key);
             if (it != partitionHeaps.end()) {
                 it->second.push(keyRef);
-                if constexpr (std::is_same<K, RowData *>::value) {
+                if constexpr (std::is_same<K, RowData*>::value) {
                     delete key;
                 }
             } else {
@@ -175,11 +191,10 @@ public:
             CompositeKeyRef keyRef(sortColumnIds_, ascending_, static_cast<int>(rowId), vectorBatch);
             auto it = partitionHeaps.find(key);
             if (it != partitionHeaps.end()) {
-                if (keyRef < it->second)
-                {
+                if (keyRef < it->second) {
                     it->second = keyRef;
                 }
-                if constexpr (std::is_same<K, RowData *>::value) {
+                if constexpr (std::is_same<K, RowData*>::value) {
                     delete key;
                 }
             } else {
@@ -196,9 +211,9 @@ public:
 
 private:
     std::vector<int> partitionKeyColType_;
-    std::vector<int> partitionKeyColId_;           // Column index for the partition key.
-    std::vector<int> sortColumnIds_;  // Columns to use for sorting.
-    std::vector<bool> ascending_;     // Sorting order for each column.
+    std::vector<int> partitionKeyColId_; // Column index for the partition key.
+    std::vector<int> sortColumnIds_;     // Columns to use for sorting.
+    std::vector<bool> ascending_;        // Sorting order for each column.
     KeySelector<K> keySelector_;
 };
 

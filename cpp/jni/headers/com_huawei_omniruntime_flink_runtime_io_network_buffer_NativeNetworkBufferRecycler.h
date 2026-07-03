@@ -22,8 +22,9 @@ extern "C" {
  * Method:    freeNativeByteBuffer
  * Signature: (JJ)V
  */
-JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_io_network_buffer_NativeNetworkBufferRecycler_freeNativeByteBuffer
-  (JNIEnv *, jobject, jlong, jlong);
+JNIEXPORT void JNICALL
+Java_com_huawei_omniruntime_flink_runtime_io_network_buffer_NativeNetworkBufferRecycler_freeNativeByteBuffer(
+    JNIEnv*, jobject, jlong, jlong);
 
 #ifdef __cplusplus
 }

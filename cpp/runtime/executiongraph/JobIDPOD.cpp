@@ -11,4 +11,5 @@
 
 #include "JobIDPOD.h"
 
-namespace omnistream {}
+namespace omnistream {
+}

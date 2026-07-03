@@ -16,7 +16,7 @@
 
 class MapStateDescriptorWrapper : public StateDescriptor, public Object {
 public:
-    MapStateDescriptorWrapper(String* name, TypeInformation *keyTypeInfo, TypeInformation *valueTypeInfo)
+    MapStateDescriptorWrapper(String* name, TypeInformation* keyTypeInfo, TypeInformation* valueTypeInfo)
     {
         mapStateDescriptor = new MapStateDescriptor<Object*, Object*>(name->toString(), keyTypeInfo, valueTypeInfo);
         // reuse buffer is not allowed here
@@ -28,22 +28,22 @@ public:
 
     int hashCode() override
     {
-        NOT_IMPL_EXCEPTION
+        NOT_IMPL_EXCEPTION;
     }
 
     bool equals(Object* obj) override
     {
-        NOT_IMPL_EXCEPTION
+        NOT_IMPL_EXCEPTION;
     }
 
     std::string toString() override
     {
-        NOT_IMPL_EXCEPTION
+        NOT_IMPL_EXCEPTION;
     }
 
     Object* clone() override
     {
-        NOT_IMPL_EXCEPTION
+        NOT_IMPL_EXCEPTION;
     }
 
     BackendDataType getBackendId() override
@@ -70,6 +70,7 @@ public:
     {
         return mapStateDescriptor;
     }
+
 private:
     MapStateDescriptor<Object*, Object*>* mapStateDescriptor;
 };

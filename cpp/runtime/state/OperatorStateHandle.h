@@ -25,11 +25,10 @@ public:
         BROADCAST
     };
 
-    static Mode StrToMode(const std::string& mode) {
+    static Mode StrToMode(const std::string& mode)
+    {
         static std::unordered_map<std::string, Mode> strToMode = {
-            {"SPLIT_DISTRIBUTE", Mode::SPLIT_DISTRIBUTE},
-            {"UNION", Mode::UNION},
-            {"BROADCAST", Mode::BROADCAST}};
+            {"SPLIT_DISTRIBUTE", Mode::SPLIT_DISTRIBUTE}, {"UNION", Mode::UNION}, {"BROADCAST", Mode::BROADCAST}};
         if (strToMode.find(mode) != strToMode.end()) {
             return strToMode[mode];
         }
@@ -44,7 +43,8 @@ public:
         std::vector<long> getOffsets() const;
         OperatorStateHandle::Mode getDistributionMode() const;
 
-        bool operator==(const StateMetaInfo &other) const;
+        bool operator==(const StateMetaInfo& other) const;
+
     private:
         std::vector<long> offsets_;
         OperatorStateHandle::Mode distributionMode_;

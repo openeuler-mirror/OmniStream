@@ -19,17 +19,22 @@ private:
     bool discarded = false;
 
 public:
-    explicit TestStateObject(size_t sz) : size(sz) {}
+    explicit TestStateObject(size_t sz) : size(sz)
+    {
+    }
 
-    void DiscardState() override {
+    void DiscardState() override
+    {
         discarded = true;
     }
 
-    long GetStateSize() const override {
+    long GetStateSize() const override
+    {
         return size;
     }
 
-    bool IsDiscarded() const {
+    bool IsDiscarded() const
+    {
         return discarded;
     }
 
@@ -40,15 +45,16 @@ public:
 };
 
 // Unit tests
-TEST(StateObjectTest, GetStateSizeReturnsCorrectValue) {
+TEST(StateObjectTest, GetStateSizeReturnsCorrectValue)
+{
     TestStateObject obj(100);
     EXPECT_EQ(obj.GetStateSize(), 100);
 }
 
-TEST(StateObjectTest, DiscardStateMarksObjectAsDiscarded) {
+TEST(StateObjectTest, DiscardStateMarksObjectAsDiscarded)
+{
     TestStateObject obj(0);
     EXPECT_FALSE(obj.IsDiscarded());
     obj.DiscardState();
     EXPECT_TRUE(obj.IsDiscarded());
 }
-

@@ -23,7 +23,8 @@ TEST(StreamOperatorStateHandlerTest, Init)
     env->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env->setTaskConfiguration(*taskInfo);
     StreamTaskStateInitializerImpl initializer(env);
-    StreamOperatorStateContextImpl<int> *context = initializer.streamOperatorStateContext<int>(new IntSerializer(), nullptr, nullptr);
+    StreamOperatorStateContextImpl<int>* context =
+        initializer.streamOperatorStateContext<int>(new IntSerializer(), nullptr, nullptr);
     ASSERT_NO_THROW(context->keyedStateBackend());
     delete context;
     delete taskInfo;

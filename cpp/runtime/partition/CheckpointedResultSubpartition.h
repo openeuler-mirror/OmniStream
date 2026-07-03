@@ -14,15 +14,15 @@
 #include "ResultSubpartitionInfoPOD.h"
 #include "runtime/buffer/BufferBuilder.h"
 namespace omnistream {
-    class CheckpointedResultSubpartition {
-    public:
-        virtual const ResultSubpartitionInfoPOD &getSubpartitionInfo() = 0;
+class CheckpointedResultSubpartition {
+public:
+    virtual const ResultSubpartitionInfoPOD& getSubpartitionInfo() = 0;
 
-        virtual BufferBuilder *requestBufferBuilderBlocking() = 0;
+    virtual BufferBuilder* requestBufferBuilderBlocking() = 0;
 
-        virtual void addRecovered(std::shared_ptr<BufferConsumer> bufferConsumer) = 0;
+    virtual void addRecovered(std::shared_ptr<BufferConsumer> bufferConsumer) = 0;
 
-        virtual void finishReadRecoveredState(bool notifyAndBlockOnCompletion) = 0;
-    };
-}
-#endif //OMNISTREAM_CHECKPOINTEDRESULTSUBPARTITION_H
+    virtual void finishReadRecoveredState(bool notifyAndBlockOnCompletion) = 0;
+};
+} // namespace omnistream
+#endif // OMNISTREAM_CHECKPOINTEDRESULTSUBPARTITION_H

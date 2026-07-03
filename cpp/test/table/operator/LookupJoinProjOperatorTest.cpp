@@ -65,7 +65,7 @@ std::string Q13ConfigStr_sink =
  * 102,112,122,1000,3
  * 103,113,123,1000,4
  */
-omnistream::VectorBatch *BuildInputVectorBatchJoin()
+omnistream::VectorBatch* BuildInputVectorBatchJoin()
 {
     int rowCnt = 4;
     std::vector<long> col0(rowCnt);
@@ -76,16 +76,15 @@ omnistream::VectorBatch *BuildInputVectorBatchJoin()
 
     std::vector<std::string> col1_str(rowCnt);
 
-    for (int i = 0; i < rowCnt; i++)
-    {
-        col0[i] = 100 + i+1;
-        col1[i] = 110 + i+1;
-        col2[i] = 120 + i+1;
+    for (int i = 0; i < rowCnt; i++) {
+        col0[i] = 100 + i + 1;
+        col1[i] = 110 + i + 1;
+        col2[i] = 120 + i + 1;
         col3[i] = 1000;
-        col4[i] = i+1;
+        col4[i] = i + 1;
     }
 
-    omnistream::VectorBatch *vb = new omnistream::VectorBatch(rowCnt);
+    omnistream::VectorBatch* vb = new omnistream::VectorBatch(rowCnt);
     vb->Append(omniruntime::TestUtil::CreateVector<int64_t>(rowCnt, col0.data()));
     vb->Append(omniruntime::TestUtil::CreateVector<int64_t>(rowCnt, col1.data()));
     vb->Append(omniruntime::TestUtil::CreateVector<int64_t>(rowCnt, col2.data()));
@@ -101,16 +100,16 @@ omnistream::VectorBatch *BuildInputVectorBatchJoin()
  * 102,112,122,1000,test_3
  * 103,113,123,1000,test_4
  */
-inline omnistream::VectorBatch *BuildExpectedVectorBatch()
+inline omnistream::VectorBatch* BuildExpectedVectorBatch()
 {
     int rowCnt = 4;
     std::vector<long> col0{101, 102, 103, 104};
     std::vector<long> col1{111, 112, 113, 114};
     std::vector<long> col2{121, 122, 123, 124};
-    std::vector<long> col3{1000,1000,1000,1000};
+    std::vector<long> col3{1000, 1000, 1000, 1000};
     std::vector<std::string> col4_str{"test_1", "test_2", "test_3", "test_4"};
 
-    omnistream::VectorBatch *vb = new omnistream::VectorBatch(rowCnt);
+    omnistream::VectorBatch* vb = new omnistream::VectorBatch(rowCnt);
     vb->Append(omniruntime::TestUtil::CreateVector<int64_t>(rowCnt, col0.data()));
     vb->Append(omniruntime::TestUtil::CreateVector<int64_t>(rowCnt, col1.data()));
     vb->Append(omniruntime::TestUtil::CreateVector<int64_t>(rowCnt, col2.data()));

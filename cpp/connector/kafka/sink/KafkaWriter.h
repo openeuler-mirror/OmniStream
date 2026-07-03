@@ -43,25 +43,27 @@
 
 class KafkaWriter {
 public:
-    KafkaWriter(DeliveryGuarantee deliveryGuarantee,
-                RdKafka::Conf* kafkaProducerConfig,
-                std::string& transactionalIdPrefix,
-                std::string& topic,
-                const nlohmann::json& description,
-                int64_t maxPushRecords,
-                InitContextImpl<void*>* initContext,
-                const std::vector<KafkaWriterState>& states);
+    KafkaWriter(
+        DeliveryGuarantee deliveryGuarantee,
+        RdKafka::Conf* kafkaProducerConfig,
+        std::string& transactionalIdPrefix,
+        std::string& topic,
+        const nlohmann::json& description,
+        int64_t maxPushRecords,
+        InitContextImpl<void*>* initContext,
+        const std::vector<KafkaWriterState>& states);
     ~KafkaWriter();
 
-    void write(String *element);
-    void write(Row *element);
-    void write(RowData *element);
-    void write(omnistream::VectorBatch *input, int rowIndex);
+    void write(String* element);
+    void write(Row* element);
+    void write(RowData* element);
+    void write(omnistream::VectorBatch* input, int rowIndex);
 
-    void produce(RdKafka::Producer* kafkaProducer,
-                 RdKafka::Topic *rd_topic,
-                 const std::vector<char*>& value,
-                 const std::vector<size_t>& valuesLen);
+    void produce(
+        RdKafka::Producer* kafkaProducer,
+        RdKafka::Topic* rd_topic,
+        const std::vector<char*>& value,
+        const std::vector<size_t>& valuesLen);
 
     void Flush(bool endOfInput);
     std::vector<KafkaCommittable> prepareCommit();
@@ -83,7 +85,7 @@ private:
 
     DeliveryGuarantee deliveryGuarantee;
     std::string transactionalIdPrefix = "kafka-sink";
-    DynamicKafkaRecordSerializationSchema *recordSerializer = nullptr;
+    DynamicKafkaRecordSerializationSchema* recordSerializer = nullptr;
     std::exception_ptr asyncProducerException;
     nlohmann::json description;
     std::vector<std::string> inputFields;
@@ -103,9 +105,9 @@ private:
     int limit = 10000; // 10000
     int cur = 0;
 
-    std::thread worker_thread;      // 后台工作线程
-    std::mutex queueMutex;         // 任务队列互斥锁
-    std::condition_variable cv;     // 条件变量（用于唤醒线程）
+    std::thread worker_thread;               // 后台工作线程
+    std::mutex queueMutex;                   // 任务队列互斥锁
+    std::condition_variable cv;              // 条件变量（用于唤醒线程）
     std::queue<std::function<void()>> tasks; // 任务队列
     std::atomic<bool> stop_flag{false};      // 停止标志
 
@@ -120,10 +122,10 @@ private:
     void abortLingeringTransactions(const std::vector<KafkaWriterState>& recoveredStates, long startCheckpointId);
     std::shared_ptr<FlinkKafkaInternalProducer> getTransactionalProducer(long checkpointId);
     std::shared_ptr<FlinkKafkaInternalProducer> getOrCreateTransactionalProducer(const std::string& transactionalId);
-    void ProduceRecord(KeyValueByteContainer &record);
+    void ProduceRecord(KeyValueByteContainer& record);
     void handleRecord();
-    RdKafka::Topic *rd_topic1 = nullptr;
-    RdKafka::Topic *rd_topic2 = nullptr;
+    RdKafka::Topic* rd_topic1 = nullptr;
+    RdKafka::Topic* rd_topic2 = nullptr;
     int32_t partitionNum = 0;
     int32_t instanceId = 0;
     int producerIndexOne = 1;
@@ -132,7 +134,7 @@ private:
     bool binded = false;
     omnistream::TimerThreadPool::TaskId taskId;
 
-    void  Init()
+    void Init()
     {
         instanceId = getInstanceId();
         values.reserve(limit);
@@ -161,9 +163,7 @@ private:
             {
                 std::unique_lock<std::mutex> lock(queueMutex);
                 // 等待任务或停止信号
-                cv.wait(lock, [this]() {
-                    return !tasks.empty() || stop_flag.load();
-                });
+                cv.wait(lock, [this]() { return !tasks.empty() || stop_flag.load(); });
 
                 // 如果收到停止信号且队列为空，退出线程
                 if (stop_flag.load() && tasks.empty()) {
@@ -182,7 +182,7 @@ private:
 
     static int32_t getInstanceId()
     {
-        static std::atomic<int32_t > instanceIdAtomic = 0;
+        static std::atomic<int32_t> instanceIdAtomic = 0;
         auto retId = instanceIdAtomic.fetch_add(1, std::memory_order_seq_cst);
         return retId;
     }

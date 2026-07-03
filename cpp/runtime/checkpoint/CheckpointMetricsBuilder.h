@@ -23,26 +23,26 @@ public:
         alignmentDurationNanos_ = std::make_shared<CompletableFutureV2<long>>();
     };
 
-    CheckpointMetricsBuilder *SetBytesProcessedDuringAlignment(long bytesProcessedDuringAlignment)
+    CheckpointMetricsBuilder* SetBytesProcessedDuringAlignment(long bytesProcessedDuringAlignment)
     {
         bytesProcessedDuringAlignment_->Complete(bytesProcessedDuringAlignment);
         return this;
     }
 
-    CheckpointMetricsBuilder *SetBytesProcessedDuringAlignment(
+    CheckpointMetricsBuilder* SetBytesProcessedDuringAlignment(
         std::shared_ptr<CompletableFutureV2<long>> bytesProcessedDuringAlignment)
     {
         bytesProcessedDuringAlignment_ = bytesProcessedDuringAlignment;
         return this;
     }
 
-    CheckpointMetricsBuilder *SetAlignmentDurationNanos(long alignmentDurationNanos)
+    CheckpointMetricsBuilder* SetAlignmentDurationNanos(long alignmentDurationNanos)
     {
         alignmentDurationNanos_->Complete(alignmentDurationNanos);
         return this;
     }
 
-    CheckpointMetricsBuilder *SetAlignmentDurationNanos(
+    CheckpointMetricsBuilder* SetAlignmentDurationNanos(
         std::shared_ptr<CompletableFutureV2<long>> alignmentDurationNanos)
     {
         if (!alignmentDurationNanos_->IsDone()) {
@@ -53,43 +53,43 @@ public:
         return this;
     }
 
-    CheckpointMetricsBuilder *SetBytesPersistedDuringAlignment(long bytesPersistedDuringAlignment)
+    CheckpointMetricsBuilder* SetBytesPersistedDuringAlignment(long bytesPersistedDuringAlignment)
     {
         bytesPersistedDuringAlignment_ = bytesPersistedDuringAlignment;
         return this;
     }
-    
-    CheckpointMetricsBuilder *SetAsyncDurationMillis(long asyncDurationMillis)
+
+    CheckpointMetricsBuilder* SetAsyncDurationMillis(long asyncDurationMillis)
     {
         asyncDurationMillis_ = asyncDurationMillis;
         return this;
     }
 
-    CheckpointMetricsBuilder *SetSyncDurationMillis(long syncDurationMillis)
+    CheckpointMetricsBuilder* SetSyncDurationMillis(long syncDurationMillis)
     {
         syncDurationMillis_ = syncDurationMillis;
         return this;
     }
 
-    CheckpointMetricsBuilder *SetTotalBytesPersisted(long totalBytesPersisted)
+    CheckpointMetricsBuilder* SetTotalBytesPersisted(long totalBytesPersisted)
     {
         totalBytesPersisted_ = totalBytesPersisted;
         return this;
     }
 
-    CheckpointMetricsBuilder *SetBytesPersistedOfThisCheckpoint(long bytesPersistedOfThisCheckpoint)
+    CheckpointMetricsBuilder* SetBytesPersistedOfThisCheckpoint(long bytesPersistedOfThisCheckpoint)
     {
         bytesPersistedOfThisCheckpoint_ = bytesPersistedOfThisCheckpoint;
         return this;
     }
 
-    CheckpointMetricsBuilder *SetCheckpointStartDelayNanos(long checkpointStartDelayNanos)
+    CheckpointMetricsBuilder* SetCheckpointStartDelayNanos(long checkpointStartDelayNanos)
     {
         checkpointStartDelayNanos_ = checkpointStartDelayNanos;
         return this;
     }
 
-    CheckpointMetrics *BuildIncomplete()
+    CheckpointMetrics* BuildIncomplete()
     {
         return new CheckpointMetrics(
             bytesProcessedDuringAlignment_->GetNow(-1),
@@ -103,7 +103,7 @@ public:
             totalBytesPersisted_);
     }
 
-    CheckpointMetrics *Build()
+    CheckpointMetrics* Build()
     {
         auto bpda = bytesProcessedDuringAlignment_->Get();
         auto adn = alignmentDurationNanos_->Get();

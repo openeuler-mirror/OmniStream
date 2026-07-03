@@ -63,10 +63,12 @@ BinaryRowData* CsvConverter::convert(const CsvRow& csvRow)
             try {
                 rowData->setInt(i, std::stoi(value));
             } catch (const std::invalid_argument& e) {
-                LOG("CsvConverter: Invalid integer value '" << value << "' for column " << i << ", setting it as null.");
+                LOG("CsvConverter: Invalid integer value '" << value << "' for column " << i
+                                                            << ", setting it as null.");
                 rowData->setNullAt(i);
             } catch (const std::out_of_range& e) {
-                LOG("CsvConverter: Integer value '" << value << "' out of range for column " << i << ", setting it as null.");
+                LOG("CsvConverter: Integer value '" << value << "' out of range for column " << i
+                                                    << ", setting it as null.");
                 rowData->setNullAt(i);
             }
         } else if (type == omniruntime::type::DataTypeId::OMNI_LONG) {
@@ -77,14 +79,16 @@ BinaryRowData* CsvConverter::convert(const CsvRow& csvRow)
                 LOG("CsvConverter: Invalid long value '" << value << "' for column " << i << ", setting it as null.");
                 rowData->setNullAt(i);
             } catch (const std::out_of_range& e) {
-                LOG("CsvConverter: Long value '" << value << "' out of range for column " << i << ", setting it as null.");
+                LOG("CsvConverter: Long value '" << value << "' out of range for column " << i
+                                                 << ", setting it as null.");
                 rowData->setNullAt(i);
             }
         } else if (type == omniruntime::type::DataTypeId::OMNI_VARCHAR) {
             LOG("CsvConverter: Converting value '" << value << "' to string for column " << i);
             std::string_view sv = value;
             rowData->setStringView(i, sv);
-        } else if (type == omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE ||
+        } else if (
+            type == omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE ||
             type == omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE) {
             LOG("CsvConverter: Converting value '" << value << "' to timestamp for column " << i);
             try {
@@ -105,7 +109,7 @@ BinaryRowData* CsvConverter::convert(const CsvRow& csvRow)
  * @param csvRows
  * @return VectorBatch
  */
-omnistream::VectorBatch* CsvConverter::convert(std::vector<CsvRow> &csvRows)
+omnistream::VectorBatch* CsvConverter::convert(std::vector<CsvRow>& csvRows)
 {
     // Create a dummy oneMap that directly uses the csv field index as the project field index
     std::vector<int> oneMap;
@@ -122,7 +126,7 @@ omnistream::VectorBatch* CsvConverter::convert(std::vector<CsvRow> &csvRows)
  * @param oneMap mapping from project field index to csv field index
  * @return VectorBatch
  */
-omnistream::VectorBatch* CsvConverter::convert(std::vector<CsvRow> &csvRows, std::vector<int>& oneMap)
+omnistream::VectorBatch* CsvConverter::convert(std::vector<CsvRow>& csvRows, std::vector<int>& oneMap)
 {
     // create new vectorbatch
     std::vector<DataTypeId> targetTypes = csvRows[0].getSchema().getTypes();
@@ -137,10 +141,11 @@ omnistream::VectorBatch* CsvConverter::convert(std::vector<CsvRow> &csvRows, std
         const CsvSchema schema = csvRow.getSchema();
         for (size_t colIndex = 0; colIndex < oneMap.size(); colIndex++) {
             int csvFieldIndex = oneMap[colIndex];
-            CsvNode *node = getProjectedNodeOrNull(csvRow, csvFieldIndex);
+            CsvNode* node = getProjectedNodeOrNull(csvRow, csvFieldIndex);
             if (node == nullptr) {
                 LOG("CsvConverter: Missing projected CSV field " << csvFieldIndex << " for column " << colIndex
-                    << " in row " << rowIndex << ", setting it as null in VectorBatch.");
+                                                                 << " in row " << rowIndex
+                                                                 << ", setting it as null in VectorBatch.");
                 vectorBatch->Get(colIndex)->SetNull(rowIndex);
                 continue;
             }
@@ -153,7 +158,7 @@ omnistream::VectorBatch* CsvConverter::convert(std::vector<CsvRow> &csvRows, std
 
             if (isCsvNullValue(nodeValue, schema)) {
                 LOG("CsvConverter: Detected null value for column " << colIndex << " in row " << rowIndex
-                    << ", setting it as null in VectorBatch.");
+                                                                    << ", setting it as null in VectorBatch.");
                 vectorBatch->Get(colIndex)->SetNull(rowIndex);
                 continue;
             }
@@ -161,18 +166,22 @@ omnistream::VectorBatch* CsvConverter::convert(std::vector<CsvRow> &csvRows, std
             switch (nodeType) {
                 case (omniruntime::type::DataTypeId::OMNI_INT): {
                     try {
-                        LOG("CsvConverter: Converting value '" << nodeValue << "' to integer for column " << colIndex << " in row " << rowIndex);
+                        LOG("CsvConverter: Converting value '" << nodeValue << "' to integer for column " << colIndex
+                                                               << " in row " << rowIndex);
                         vectorBatch->SetValueAt(colIndex, rowIndex, std::stoi(nodeValue));
                     } catch (const std::invalid_argument& e) {
-                        LOG("CsvConverter: Invalid integer value '" << nodeValue << "' for column " << colIndex << " in row " << rowIndex << ", setting it as null.");
+                        LOG("CsvConverter: Invalid integer value '" << nodeValue << "' for column " << colIndex
+                                                                    << " in row " << rowIndex
+                                                                    << ", setting it as null.");
                         vectorBatch->Get(colIndex)->SetNull(rowIndex);
                     } catch (const std::out_of_range& e) {
-                        LOG("CsvConverter: Integer value '" << nodeValue << "' out of range for column " << colIndex << " in row " << rowIndex << ", setting it as null."); 
+                        LOG("CsvConverter: Integer value '" << nodeValue << "' out of range for column " << colIndex
+                                                            << " in row " << rowIndex << ", setting it as null.");
                         vectorBatch->Get(colIndex)->SetNull(rowIndex);
                     }
                     break;
                 }
-                case omniruntime::type::DataTypeId::OMNI_LONG:{
+                case omniruntime::type::DataTypeId::OMNI_LONG: {
                     try {
                         vectorBatch->SetValueAt(colIndex, rowIndex, std::stol(nodeValue));
                     } catch (const std::invalid_argument& e) {
@@ -185,18 +194,19 @@ omnistream::VectorBatch* CsvConverter::convert(std::vector<CsvRow> &csvRows, std
                     break;
                 }
                 case omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:
-                case omniruntime::type::DataTypeId::OMNI_TIMESTAMP:{
+                case omniruntime::type::DataTypeId::OMNI_TIMESTAMP: {
                     try {
-                        vectorBatch->SetValueAt(colIndex, rowIndex, TimestampData::fromString(nodeValue).getMillisecond());
+                        vectorBatch->SetValueAt(
+                            colIndex, rowIndex, TimestampData::fromString(nodeValue).getMillisecond());
                     } catch (...) {
                         vectorBatch->Get(colIndex)->SetNull(rowIndex);
                     }
                     break;
                 }
-                case omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE:{
+                case omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE: {
                     try {
-                        vectorBatch->SetValueAt(colIndex, rowIndex,
-                                                TimestampData::fromLocalTimeString(nodeValue).getMillisecond());
+                        vectorBatch->SetValueAt(
+                            colIndex, rowIndex, TimestampData::fromLocalTimeString(nodeValue).getMillisecond());
                     } catch (...) {
                         vectorBatch->Get(colIndex)->SetNull(rowIndex);
                     }
@@ -204,14 +214,14 @@ omnistream::VectorBatch* CsvConverter::convert(std::vector<CsvRow> &csvRows, std
                 }
                 case omniruntime::type::DataTypeId::OMNI_CHAR:
                 case omniruntime::type::DataTypeId::OMNI_VARCHAR: {
-                    auto stringVec = reinterpret_cast<omniruntime::vec::Vector
-                        <omniruntime::vec::LargeStringContainer<std::string_view>> *>(vectorBatch->Get(colIndex));
+                    auto stringVec = reinterpret_cast<
+                        omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>*>(
+                        vectorBatch->Get(colIndex));
                     std::string_view strView(nodeValue.data(), nodeValue.size());
                     stringVec->SetValue(rowIndex, strView);
                     break;
                 }
-                default:
-                    std::runtime_error("DataType not supported yet!");
+                default: std::runtime_error("DataType not supported yet!");
             }
         }
     }
@@ -220,4 +230,3 @@ omnistream::VectorBatch* CsvConverter::convert(std::vector<CsvRow> &csvRows, std
 
 } // namespace csv
 } // namespace omnistream
-

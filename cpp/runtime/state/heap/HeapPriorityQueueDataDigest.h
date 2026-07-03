@@ -62,10 +62,7 @@ public:
     };
 
     static Summary createSummary(
-        const std::string &phase,
-        long checkpointId,
-        const std::string &stateName,
-        int keyGroupCount)
+        const std::string& phase, long checkpointId, const std::string& stateName, int keyGroupCount)
     {
         Summary summary;
         summary.phase = phase;
@@ -76,10 +73,7 @@ public:
     }
 
     static void addSerializedEntry(
-        Summary &summary,
-        const std::vector<int8_t> &key,
-        const std::vector<int8_t> &value,
-        int keyGroupPrefixBytes)
+        Summary& summary, const std::vector<int8_t>& key, const std::vector<int8_t>& value, int keyGroupPrefixBytes)
     {
         addSerializedEntry(
             summary,
@@ -88,11 +82,7 @@ public:
             keyGroupPrefixBytes);
     }
 
-    static void addSerializedEntry(
-        Summary &summary,
-        ByteView key,
-        ByteView value,
-        int keyGroupPrefixBytes)
+    static void addSerializedEntry(Summary& summary, ByteView key, ByteView value, int keyGroupPrefixBytes)
     {
         const int keyGroupId = readKeyGroup(key, keyGroupPrefixBytes);
         const uint64_t keyHash = hashBytes(key);
@@ -133,52 +123,36 @@ public:
         }
     }
 
-    static void logSummary(const Summary &summary)
+    static void logSummary(const Summary& summary)
     {
-        const size_t keyMinBytes =
-            summary.entryCount == 0 ? 0 : summary.keyMinBytes;
-        const size_t valueMinBytes =
-            summary.entryCount == 0 ? 0 : summary.valueMinBytes;
+        const size_t keyMinBytes = summary.entryCount == 0 ? 0 : summary.keyMinBytes;
+        const size_t valueMinBytes = summary.entryCount == 0 ? 0 : summary.valueMinBytes;
 
-        INFO_RELEASE("TIMER_SP_HEAP_PQ_DATA_DIGEST"
-            << " phase=" << summary.phase
-            << ", checkpointId=" << summary.checkpointId
-            << ", backend=ROCKSDB_KEYED"
+        INFO_RELEASE(
+            "TIMER_SP_HEAP_PQ_DATA_DIGEST"
+            << " phase=" << summary.phase << ", checkpointId=" << summary.checkpointId << ", backend=ROCKSDB_KEYED"
             << ", pqStorage=HEAP"
-            << ", stateName=" << summary.stateName
-            << ", keyGroupCount=" << summary.keyGroupCount
-            << ", nonEmptyKeyGroupCount=" << summary.nonEmptyKeyGroups.size()
-            << ", entryCount=" << summary.entryCount
-            << ", entryXorHash=" << summary.entryXorHash
-            << ", entrySumHash=" << summary.entrySumHash
-            << ", keyXorHash=" << summary.keyXorHash
-            << ", keySumHash=" << summary.keySumHash
-            << ", valueXorHash=" << summary.valueXorHash
-            << ", valueSumHash=" << summary.valueSumHash
-            << ", keyGroupXorHash=" << summary.keyGroupXorHash
-            << ", keyGroupSumHash=" << summary.keyGroupSumHash
-            << ", keyMinBytes=" << keyMinBytes
-            << ", keyMaxBytes=" << summary.keyMaxBytes
-            << ", valueMinBytes=" << valueMinBytes
-            << ", valueMaxBytes=" << summary.valueMaxBytes);
+            << ", stateName=" << summary.stateName << ", keyGroupCount=" << summary.keyGroupCount
+            << ", nonEmptyKeyGroupCount=" << summary.nonEmptyKeyGroups.size() << ", entryCount=" << summary.entryCount
+            << ", entryXorHash=" << summary.entryXorHash << ", entrySumHash=" << summary.entrySumHash
+            << ", keyXorHash=" << summary.keyXorHash << ", keySumHash=" << summary.keySumHash
+            << ", valueXorHash=" << summary.valueXorHash << ", valueSumHash=" << summary.valueSumHash
+            << ", keyGroupXorHash=" << summary.keyGroupXorHash << ", keyGroupSumHash=" << summary.keyGroupSumHash
+            << ", keyMinBytes=" << keyMinBytes << ", keyMaxBytes=" << summary.keyMaxBytes
+            << ", valueMinBytes=" << valueMinBytes << ", valueMaxBytes=" << summary.valueMaxBytes);
 
         if (!summary.sample.hasSample) {
             return;
         }
 
-        INFO_RELEASE("TIMER_SP_HEAP_PQ_DATA_SAMPLE"
-            << " phase=" << summary.phase
-            << ", checkpointId=" << summary.checkpointId
-            << ", backend=ROCKSDB_KEYED"
+        INFO_RELEASE(
+            "TIMER_SP_HEAP_PQ_DATA_SAMPLE"
+            << " phase=" << summary.phase << ", checkpointId=" << summary.checkpointId << ", backend=ROCKSDB_KEYED"
             << ", pqStorage=HEAP"
-            << ", stateName=" << summary.stateName
-            << ", keyGroupId=" << summary.sample.keyGroupId
-            << ", entryHash=" << summary.sample.entryHash
-            << ", sampleRankHash=" << summary.sample.sampleRankHash
-            << ", keyHash=" << summary.sample.keyHash
-            << ", valueHash=" << summary.sample.valueHash
-            << ", keyBytesLen=" << summary.sample.keyBytesLen
-            << ", valueBytesLen=" << summary.sample.valueBytesLen
+            << ", stateName=" << summary.stateName << ", keyGroupId=" << summary.sample.keyGroupId
+            << ", entryHash=" << summary.sample.entryHash << ", sampleRankHash=" << summary.sample.sampleRankHash
+            << ", keyHash=" << summary.sample.keyHash << ", valueHash=" << summary.sample.valueHash
+            << ", keyBytesLen=" << summary.sample.keyBytesLen << ", valueBytesLen=" << summary.sample.valueBytesLen
             << ", keyPreviewHex=" << summary.sample.keyPreviewHex
             << ", valuePreviewHex=" << summary.sample.valuePreviewHex);
     }
@@ -186,8 +160,7 @@ public:
 private:
     static int readKeyGroup(ByteView key, int keyGroupPrefixBytes)
     {
-        if (keyGroupPrefixBytes <= 0 ||
-            static_cast<size_t>(keyGroupPrefixBytes) > key.size()) {
+        if (keyGroupPrefixBytes <= 0 || static_cast<size_t>(keyGroupPrefixBytes) > key.size()) {
             return -1;
         }
 

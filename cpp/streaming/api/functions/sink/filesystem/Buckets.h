@@ -23,6 +23,7 @@ class BucketerContext : public BucketAssignerContext {
     long elementTimestamp;
     long currentWatermark;
     long currentProcessingTime;
+
 public:
     void update(long timestamp, long watermark1, long processingTime1)
     {
@@ -50,15 +51,16 @@ public:
 template <typename IN, typename BucketID>
 class Buckets {
 public:
-    Buckets(std::string basePath,
-            BucketAssigner<IN, BucketID> *bucketAssigner,
-            BucketFactory<IN, BucketID> *bucketFactory,
-            BucketWriter<IN, BucketID> *bucketWriter,
-            RollingPolicy<IN, BucketID> *rollingPolicy,
-            int subtaskIndex,
-            OutputFileConfig *outputFileConfig,
-            std::vector<int> nonPartitionIndexes,
-            std::vector<std::string> inputTypes)
+    Buckets(
+        std::string basePath,
+        BucketAssigner<IN, BucketID>* bucketAssigner,
+        BucketFactory<IN, BucketID>* bucketFactory,
+        BucketWriter<IN, BucketID>* bucketWriter,
+        RollingPolicy<IN, BucketID>* rollingPolicy,
+        int subtaskIndex,
+        OutputFileConfig* outputFileConfig,
+        std::vector<int> nonPartitionIndexes,
+        std::vector<std::string> inputTypes)
         : basePath(basePath),
           bucketFactory(bucketFactory),
           bucketAssigner(bucketAssigner),
@@ -68,16 +70,20 @@ public:
           maxPartCounter(0),
           outputFileConfig(outputFileConfig),
           nonPartitionIndexes(nonPartitionIndexes),
-          inputTypes(inputTypes) {}
+          inputTypes(inputTypes)
+    {
+    }
 
     ~Buckets()
     {
-        for (auto &entry : activeBuckets) {
+        for (auto& entry : activeBuckets) {
             delete entry.second;
         }
     }
 
-    Bucket<IN, BucketID> *onElement(IN batch, int rowId, long currentProcessingTime, long elementTimestamp, long currentWatermark) {
+    Bucket<IN, BucketID>* onElement(
+        IN batch, int rowId, long currentProcessingTime, long elementTimestamp, long currentWatermark)
+    {
         bucketerContext.update(elementTimestamp, currentWatermark, currentProcessingTime);
         BucketID bucketId = bucketAssigner->getBucketId(batch, rowId, &bucketerContext);
         auto bucket = getOrCreateBucketForBucketId(bucketId);
@@ -88,14 +94,14 @@ public:
 
     void onProcessingTime(long timestamp)
     {
-        for (auto &entry : activeBuckets) {
+        for (auto& entry : activeBuckets) {
             entry.second->onProcessingTime(timestamp);
         }
     }
 
     void close()
     {
-        for (auto &entry : activeBuckets) {
+        for (auto& entry : activeBuckets) {
             delete entry.second;
         }
     }
@@ -112,7 +118,7 @@ public:
 
     void commitUpToCheckpoint(long checkpointId)
     {
-        for (auto &entry : activeBuckets) {
+        for (auto& entry : activeBuckets) {
             entry.second->onProcessingTime(LONG_MAX);
         }
     }
@@ -120,7 +126,7 @@ public:
     std::map<BucketID, long> snapshotState()
     {
         std::map<BucketID, long> state;
-        for (auto &entry : activeBuckets) {
+        for (auto& entry : activeBuckets) {
             state[entry.first] = entry.second->getPartCounter();
         }
         return state;
@@ -128,7 +134,7 @@ public:
 
     void notifyCheckpointComplete(long checkpointId)
     {
-        LOG("Buckets::notifyCheckpointComplete checkpointId=" << checkpointId)
+        LOG("Buckets::notifyCheckpointComplete checkpointId=" << checkpointId);
     }
 
     std::string getBasePath() const
@@ -141,34 +147,40 @@ public:
         auto it = activeBuckets.find(bucketId);
         if (it != activeBuckets.end()) {
             it->second->onProcessingTime(LONG_MAX);
-            LOG("Buckets::closePartFileForBucket bucket=" << bucketId)
+            LOG("Buckets::closePartFileForBucket bucket=" << bucketId);
         }
     }
 
 private:
     std::string basePath;
-    BucketFactory<IN, BucketID> *bucketFactory;
-    BucketAssigner<IN, BucketID> *bucketAssigner;
-    BucketWriter<IN, BucketID> *bucketWriter;
-    RollingPolicy<IN, BucketID> *rollingPolicy;
+    BucketFactory<IN, BucketID>* bucketFactory;
+    BucketAssigner<IN, BucketID>* bucketAssigner;
+    BucketWriter<IN, BucketID>* bucketWriter;
+    RollingPolicy<IN, BucketID>* rollingPolicy;
     int subtaskIndex;
     long maxPartCounter;
-    OutputFileConfig *outputFileConfig;
+    OutputFileConfig* outputFileConfig;
     std::vector<int> nonPartitionIndexes;
     std::vector<std::string> inputTypes;
-    std::map<BucketID, Bucket<IN, BucketID> *> activeBuckets;
+    std::map<BucketID, Bucket<IN, BucketID>*> activeBuckets;
     BucketerContext bucketerContext;
-    Bucket<IN, BucketID> *getOrCreateBucketForBucketId(BucketID bucketId)
+    Bucket<IN, BucketID>* getOrCreateBucketForBucketId(BucketID bucketId)
     {
         auto it = activeBuckets.find(bucketId);
-        if (it != activeBuckets.end())
-        {
+        if (it != activeBuckets.end()) {
             return it->second;
         }
         std::string bucketPath = assembleBucketPath(bucketId);
-        Bucket<IN, BucketID> *bucket = bucketFactory->getNewBucket(
-            subtaskIndex, bucketId, bucketPath, maxPartCounter,
-            bucketWriter, rollingPolicy, outputFileConfig, nonPartitionIndexes, inputTypes);
+        Bucket<IN, BucketID>* bucket = bucketFactory->getNewBucket(
+            subtaskIndex,
+            bucketId,
+            bucketPath,
+            maxPartCounter,
+            bucketWriter,
+            rollingPolicy,
+            outputFileConfig,
+            nonPartitionIndexes,
+            inputTypes);
 
         activeBuckets[bucketId] = bucket;
         return bucket;

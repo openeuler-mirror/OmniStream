@@ -20,27 +20,24 @@
 
 namespace omnistream {
 
-    class ObjectBufferPoolFactory {
-    public:
-        virtual ~ObjectBufferPoolFactory() = default;
+class ObjectBufferPoolFactory {
+public:
+    virtual ~ObjectBufferPoolFactory() = default;
 
-        virtual std::shared_ptr<ObjectBufferPool> createBufferPool(int numRequiredBuffers, int maxUsedBuffers) = 0;
+    virtual std::shared_ptr<ObjectBufferPool> createBufferPool(int numRequiredBuffers, int maxUsedBuffers) = 0;
 
-        virtual std::shared_ptr<ObjectBufferPool> createBufferPool(
-            int numRequiredBuffers,
-            int maxUsedBuffers,
-            int numSubpartitions,
-            int maxBuffersPerChannel) = 0;
+    virtual std::shared_ptr<ObjectBufferPool> createBufferPool(
+        int numRequiredBuffers, int maxUsedBuffers, int numSubpartitions, int maxBuffersPerChannel) = 0;
 
-        virtual void destroyBufferPool(std::shared_ptr<ObjectBufferPool> bufferPool) = 0;
+    virtual void destroyBufferPool(std::shared_ptr<ObjectBufferPool> bufferPool) = 0;
 
-        virtual std::string toString() const
-        {
-            std::stringstream ss;
-            ss << "ObjectBufferPoolFactory";
-            return ss.str();
-        }
-    };
+    virtual std::string toString() const
+    {
+        std::stringstream ss;
+        ss << "ObjectBufferPoolFactory";
+        return ss.str();
+    }
+};
 
 } // namespace omnistream
 

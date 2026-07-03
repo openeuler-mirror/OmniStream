@@ -13,6 +13,4 @@
 
 namespace omnistream {
 
-
 } // namespace omnistream
-

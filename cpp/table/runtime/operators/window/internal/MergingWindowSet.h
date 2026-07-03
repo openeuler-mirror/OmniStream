@@ -20,22 +20,26 @@
 #include "core/api/common/state/MapState.h"
 #include "LRUMap.h"
 
-template<typename K, typename W>
+template <typename K, typename W>
 class MergingWindowSet {
 public:
     using MergeFunction = std::function<void(W&, std::unordered_set<W>&, W&, std::vector<W>&)>;
 
-    MergingWindowSet(MergingWindowAssigner<W>* windowAssigner, MapState<W, W> *mapping) : mapping(mapping), windowAssigner(windowAssigner) {}
+    MergingWindowSet(MergingWindowAssigner<W>* windowAssigner, MapState<W, W>* mapping)
+        : mapping(mapping),
+          windowAssigner(windowAssigner)
+    {
+    }
 
     ~MergingWindowSet() = default;
 
     void initializeCache(const K& key);
 
-    W getStateWindow(const W &window);
+    W getStateWindow(const W& window);
 
-    void retireWindow(const W &window);
+    void retireWindow(const W& window);
 
-    W addWindow(const W &newWindow, const MergeFunction &mergeFunction);
+    W addWindow(const W& newWindow, const MergeFunction& mergeFunction);
 
 private:
     static constexpr int32_t MAPPING_CACHE_SIZE = 10000;

@@ -28,14 +28,15 @@ public:
           value(""),
           timestamp(0) {};
 
-    OriginalRecord(const std::string &key,
-                   bool left,
-                   long leftTotalCount,
-                   long rightTotalCount,
-                   long currentLeftId,
-                   long currentRightId,
-                   const std::string &value,
-                   long timestamp)
+    OriginalRecord(
+        const std::string& key,
+        bool left,
+        long leftTotalCount,
+        long rightTotalCount,
+        long currentLeftId,
+        long currentRightId,
+        const std::string& value,
+        long timestamp)
         : key(key),
           left(left),
           leftTotalCount(leftTotalCount),
@@ -43,27 +44,77 @@ public:
           currentLeftId(currentLeftId),
           currentRightId(currentRightId),
           value(value),
-          timestamp(timestamp) {}
+          timestamp(timestamp)
+    {
+    }
 
-    const std::string &getKey() const { return key; }
-    bool isLeft() const { return left; }
-    long getLeftTotalCount() const { return leftTotalCount; }
-    long getRightTotalCount() const { return rightTotalCount; }
-    long getCurrentLeftId() const { return currentLeftId; }
-    long getCurrentRightId() const { return currentRightId; }
-    const std::string &getValue() const { return value; }
-    long getTimestamp() const { return timestamp; }
+    const std::string& getKey() const
+    {
+        return key;
+    }
+    bool isLeft() const
+    {
+        return left;
+    }
+    long getLeftTotalCount() const
+    {
+        return leftTotalCount;
+    }
+    long getRightTotalCount() const
+    {
+        return rightTotalCount;
+    }
+    long getCurrentLeftId() const
+    {
+        return currentLeftId;
+    }
+    long getCurrentRightId() const
+    {
+        return currentRightId;
+    }
+    const std::string& getValue() const
+    {
+        return value;
+    }
+    long getTimestamp() const
+    {
+        return timestamp;
+    }
 
-    void setKey(const std::string &k) { key = k; }
-    void setLeft(bool _left) { this->left = _left; }
-    void setLeftTotalCount(long count) { leftTotalCount = count; }
-    void setRightTotalCount(long count) { rightTotalCount = count; }
-    void setCurrentLeftId(long id) { currentLeftId = id; }
-    void setCurrentRightId(long id) { currentRightId = id; }
-    void setValue(const std::string &v) { value = v; }
-    void setTimestamp(long ts) { timestamp = ts; }
+    void setKey(const std::string& k)
+    {
+        key = k;
+    }
+    void setLeft(bool _left)
+    {
+        this->left = _left;
+    }
+    void setLeftTotalCount(long count)
+    {
+        leftTotalCount = count;
+    }
+    void setRightTotalCount(long count)
+    {
+        rightTotalCount = count;
+    }
+    void setCurrentLeftId(long id)
+    {
+        currentLeftId = id;
+    }
+    void setCurrentRightId(long id)
+    {
+        currentRightId = id;
+    }
+    void setValue(const std::string& v)
+    {
+        value = v;
+    }
+    void setTimestamp(long ts)
+    {
+        timestamp = ts;
+    }
 
-    bool operator<(const OriginalRecord &other) const
+    bool operator<(const OriginalRecord& other) const
     {
         return timestamp < other.timestamp;
     }
@@ -79,8 +130,7 @@ public:
             << "currentLeftId=" << currentLeftId << ", "
             << "currentRightId=" << currentRightId << ", "
             << "value='" << value << "', "
-            << "timestamp=" << timestamp
-            << "}";
+            << "timestamp=" << timestamp << "}";
         return oss.str();
     }
 

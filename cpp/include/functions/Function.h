@@ -12,10 +12,10 @@
 #define OMNISTREAM_FUNCTION_H
 
 namespace omnistream {
-    class Function {
-    public:
-        virtual ~Function() = default;
-    };
-}
+class Function {
+public:
+    virtual ~Function() = default;
+};
+} // namespace omnistream
 
 #endif // OMNISTREAM_FUNCTION_H

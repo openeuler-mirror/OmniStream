@@ -12,7 +12,6 @@
 #ifndef FLINK_TNEL_STREAMRECORD_H
 #define FLINK_TNEL_STREAMRECORD_H
 
-
 #include <cstdint>
 #include <functional>
 #include "StreamElement.h"
@@ -21,7 +20,7 @@ class StreamRecord : public StreamElement {
 public:
     StreamRecord();
     explicit StreamRecord(void* value);
-    StreamRecord(void *value, long timestamp);
+    StreamRecord(void* value, long timestamp);
 
     long getTimestamp() const;
     void setTimestamp(long timestamp);
@@ -54,14 +53,14 @@ private:
 };
 
 namespace std {
-    template <>
-    struct hash<StreamRecord> {
-        size_t operator()(const StreamRecord& record) const
-        {
-            // Implement a hash function for StreamRecord
-            return std::hash<void*>()(record.getValue());
-        }
-    };
-}
+template <>
+struct hash<StreamRecord> {
+    size_t operator()(const StreamRecord& record) const
+    {
+        // Implement a hash function for StreamRecord
+        return std::hash<void*>()(record.getValue());
+    }
+};
+} // namespace std
 
 #endif

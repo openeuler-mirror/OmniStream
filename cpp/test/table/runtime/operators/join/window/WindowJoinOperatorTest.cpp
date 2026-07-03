@@ -42,58 +42,50 @@ using namespace omnistream;
 nlohmann::json parsedJsonEqui = nlohmann::json::parse(testDescriptionEqui);
 
 template <typename T>
-bool compareCol(omniruntime::vec::BaseVector *col1, omniruntime::vec::BaseVector *col2)
+bool compareCol(omniruntime::vec::BaseVector* col1, omniruntime::vec::BaseVector* col2)
 {
-    if (col1->GetSize() != col2->GetSize())
-    {
+    if (col1->GetSize() != col2->GetSize()) {
         return false;
     }
 
-    if (col1->GetTypeId() != col2->GetTypeId())
-    {
+    if (col1->GetTypeId() != col2->GetTypeId()) {
         return false;
     }
 
-    omniruntime::vec::Vector<T> *col1cast = static_cast<omniruntime::vec::Vector<T> *>(col1);
-    omniruntime::vec::Vector<T> *col2cast = static_cast<omniruntime::vec::Vector<T> *>(col2);
+    omniruntime::vec::Vector<T>* col1cast = static_cast<omniruntime::vec::Vector<T>*>(col1);
+    omniruntime::vec::Vector<T>* col2cast = static_cast<omniruntime::vec::Vector<T>*>(col2);
 
-    if (col1cast->GetNullCount() != col2cast->GetNullCount())
-    {
+    if (col1cast->GetNullCount() != col2cast->GetNullCount()) {
         return false;
     }
 
-    for (int i = 0; i < col1cast->GetSize(); i++)
-    {
+    for (int i = 0; i < col1cast->GetSize(); i++) {
         auto c1v = col1cast->GetValue(i);
         auto c2v = col2cast->GetValue(i);
         auto c1null = col1cast->IsNull(i);
         auto c2null = col2cast->IsNull(i);
-        if (c1null == c2null && c1null == true)
-        {
+        if (c1null == c2null && c1null == true) {
             return true;
         }
 
-        if (c1v != c2v)
-        {
+        if (c1v != c2v) {
             return false;
         }
     }
     return true;
 };
 
-bool inOutput(omnistream::VectorBatch *batch, OutputTestVectorBatch *out)
+bool inOutput(omnistream::VectorBatch* batch, OutputTestVectorBatch* out)
 {
-    for (auto outBatch : out->getAll())
-    {
-        if (omniruntime::TestUtil::VecBatchMatch(outBatch, batch))
-        {
+    for (auto outBatch : out->getAll()) {
+        if (omniruntime::TestUtil::VecBatchMatch(outBatch, batch)) {
             return true;
         }
     }
     return false;
 };
 
-omnistream::VectorBatch *getLeftBatch()
+omnistream::VectorBatch* getLeftBatch()
 {
     // Batch left
     /*
@@ -108,31 +100,28 @@ omnistream::VectorBatch *getLeftBatch()
 
     // Key Column
     auto vKeyLeft = new omniruntime::vec::Vector<int32_t>(3);
-    for (int j = 0; j < 3; j++)
-    {
+    for (int j = 0; j < 3; j++) {
         vKeyLeft->SetValue(j, j);
     }
     vbatchLeft->Append(vKeyLeft);
 
     // WindowEndTimeColumn
     auto vWindowEndTimeLeft = new omniruntime::vec::Vector<int64_t>(3);
-    for (int j = 0; j < 3; j++)
-    {
+    for (int j = 0; j < 3; j++) {
         vWindowEndTimeLeft->SetValue(j, 1000);
     }
     vbatchLeft->Append(vWindowEndTimeLeft);
 
     // Value Column
     auto vValLeft = new omniruntime::vec::Vector<int32_t>(3);
-    for (int j = 1; j < 4; j++)
-    {
+    for (int j = 1; j < 4; j++) {
         vValLeft->SetValue(j - 1, j * 12);
     }
     vbatchLeft->Append(vValLeft);
     return vbatchLeft;
 }
 
-omnistream::VectorBatch *getRightBatch()
+omnistream::VectorBatch* getRightBatch()
 {
     // Batch right
     /*
@@ -153,8 +142,7 @@ omnistream::VectorBatch *getRightBatch()
     vbatchRight->Append(vKeyRight);
 
     auto vWindowEndTimeRight = new omniruntime::vec::Vector<int64_t>(4);
-    for (int i = 0; i < 4; i++)
-    {
+    for (int i = 0; i < 4; i++) {
         vWindowEndTimeRight->SetValue(i, 1000);
     }
     vbatchRight->Append(vWindowEndTimeRight);
@@ -171,11 +159,10 @@ omnistream::VectorBatch *getRightBatch()
 
 TEST(WindowJoinOperatorTest, DISABLED_InnerJoinTest)
 {
-
     auto vbatchLeft = getLeftBatch();
     auto vbatchRight = getRightBatch();
 
-    auto *out = new OutputTestVectorBatch();
+    auto* out = new OutputTestVectorBatch();
     auto op = new InnerJoinOperator<int32_t>(parsedJsonEqui, out, new LongSerializer(), new LongSerializer());
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
@@ -262,7 +249,7 @@ TEST(WindowJoinOperatorTest, DISABLED_InnerJoinTest)
     EXPECT_TRUE(inOutput(b2, out));
 
     op->close();
-//    delete op;
+    //    delete op;
     delete initializer;
     delete out;
     delete b1;
@@ -271,11 +258,10 @@ TEST(WindowJoinOperatorTest, DISABLED_InnerJoinTest)
 
 TEST(WindowJoinOperatorTest, DISABLED_InnerJoinTest_BinaryRowDataKey)
 {
- 
     auto vbatchLeft = getLeftBatch();
     auto vbatchRight = getRightBatch();
- 
-    auto *out = new OutputTestVectorBatch();
+
+    auto* out = new OutputTestVectorBatch();
     auto op = new InnerJoinOperator<std::shared_ptr<RowData>>(
         parsedJsonEqui, out, new LongSerializer(), new LongSerializer());
     auto env2 = new omnistream::RuntimeEnvironmentV2();
@@ -296,22 +282,22 @@ TEST(WindowJoinOperatorTest, DISABLED_InnerJoinTest_BinaryRowDataKey)
     op->open();
     op->processBatch1(new StreamRecord(vbatchLeft));
     op->processBatch2(new StreamRecord(vbatchRight));
- 
+
     op->getInternalTimerService()->advanceWatermark(100000);
- 
+
     /*
     Output Batch 1
     (int) , (long)       , (int), (int) , (long)       , (int)
     KeyCol, WindowEndTime, value, KeyCol, WindowEndTime, value
     0     , 1000         , 12   , 0     , 1000         , 100
- 
+
     Output Batch 2
     (int) , (long)       , (int), (int) , (long)       , (int)
     KeyCol, WindowEndTime, value, KeyCol, WindowEndTime, value
     1     , 1000         , 24   , 1     , 1000         , 200
     1     , 1000         , 24   , 1     , 1000         , 300
     */
- 
+
     auto v11 = new omniruntime::vec::Vector<int32_t>(1);
     v11->SetValue(0, 0);
     auto v12 = new omniruntime::vec::Vector<int64_t>(1);
@@ -331,9 +317,9 @@ TEST(WindowJoinOperatorTest, DISABLED_InnerJoinTest_BinaryRowDataKey)
     b1->Append(v14);
     b1->Append(v15);
     b1->Append(v16);
- 
+
     EXPECT_TRUE(inOutput(b1, out));
- 
+
     auto v21 = new omniruntime::vec::Vector<int32_t>(2);
     v21->SetValue(0, 1);
     v21->SetValue(1, 1);
@@ -359,11 +345,11 @@ TEST(WindowJoinOperatorTest, DISABLED_InnerJoinTest_BinaryRowDataKey)
     b2->Append(v24);
     b2->Append(v25);
     b2->Append(v26);
- 
+
     EXPECT_TRUE(inOutput(b2, out));
- 
+
     op->close();
-//    delete op;
+    //    delete op;
     delete initializer;
     delete out;
     delete b1;
@@ -372,11 +358,10 @@ TEST(WindowJoinOperatorTest, DISABLED_InnerJoinTest_BinaryRowDataKey)
 
 TEST(WindowJoinOperatorTest, DISABLED_LeftOuterJoinTest)
 {
-
     auto vbatchLeft = getLeftBatch();
     auto vbatchRight = getRightBatch();
 
-    auto *out = new OutputTestVectorBatch();
+    auto* out = new OutputTestVectorBatch();
     auto op = new LeftOuterJoinOperator<int32_t>(parsedJsonEqui, out, new LongSerializer(), new LongSerializer());
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
@@ -500,11 +485,10 @@ TEST(WindowJoinOperatorTest, DISABLED_LeftOuterJoinTest)
 
 TEST(WindowJoinOperatorTest, DISABLED_RightOuterJoinTest)
 {
-
     auto vbatchLeft = getLeftBatch();
     auto vbatchRight = getRightBatch();
 
-    auto *out = new OutputTestVectorBatch();
+    auto* out = new OutputTestVectorBatch();
     auto op = new RightOuterJoinOperator<int32_t>(parsedJsonEqui, out, new LongSerializer(), new LongSerializer());
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
@@ -628,11 +612,10 @@ TEST(WindowJoinOperatorTest, DISABLED_RightOuterJoinTest)
 
 TEST(WindowJoinOperatorTest, DISABLED_FullOuterJoinTest)
 {
-
     auto vbatchLeft = getLeftBatch();
     auto vbatchRight = getRightBatch();
 
-    auto *out = new OutputTestVectorBatch();
+    auto* out = new OutputTestVectorBatch();
     auto op = new FullOuterJoinOperator<int32_t>(parsedJsonEqui, out, new LongSerializer(), new LongSerializer());
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
@@ -834,7 +817,7 @@ TEST(WindowJoinOperatorTest, WindowSeparationTest)
     vValRight->SetValue(1, 200);
     vbatchRight->Append(vValRight);
 
-    auto *out = new OutputTestVectorBatch();
+    auto* out = new OutputTestVectorBatch();
     auto op = new InnerJoinOperator<int32_t>(parsedJsonEqui, out, new LongSerializer(), new LongSerializer());
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
@@ -977,7 +960,7 @@ TEST(WindowJoinOperatorTest, DISABLED_WindowSeparationWithRocksdbTest)
     vValRight->SetValue(1, 200);
     vbatchRight->Append(vValRight);
 
-    auto *out = new OutputTestVectorBatch();
+    auto* out = new OutputTestVectorBatch();
     auto op = new InnerJoinOperator<int64_t>(parsedJsonEqui, out, new LongSerializer(), new LongSerializer());
     std::vector<std::string> backendHomes = {"/tmp/rocksdb_ut/WindowJoinOperatorTest/"};
     auto env2 = new omnistream::RuntimeEnvironmentV2();
@@ -1071,11 +1054,10 @@ TEST(WindowJoinOperatorTest, DISABLED_WindowSeparationWithRocksdbTest)
 
 TEST(WindowJoinOperatorTest, DISABLED_SemiJoinTest)
 {
-
     auto vbatchLeft = getLeftBatch();
     auto vbatchRight = getRightBatch();
 
-    auto *out = new OutputTestVectorBatch();
+    auto* out = new OutputTestVectorBatch();
     auto op = new SemiAntiJoinOperator<int32_t>(parsedJsonEqui, out, new LongSerializer(), new LongSerializer(), false);
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
@@ -1199,11 +1181,10 @@ nlohmann::json parsedJsonNonEqui = nlohmann::json::parse(testDescriptionNonEqui)
 
 TEST(WindowJoinOperatorTest, DISABLED_InnerJoinNonEquiTest)
 {
-
     auto vbatchLeft = getLeftBatch();
     auto vbatchRight = getRightBatch();
 
-    auto *out = new OutputTestVectorBatch();
+    auto* out = new OutputTestVectorBatch();
     auto op = new InnerJoinOperator<int32_t>(parsedJsonNonEqui, out, new LongSerializer(), new LongSerializer());
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
@@ -1315,12 +1296,11 @@ std::string noKeyDescription = R"delimiter({
     "rightWindowing": "TUMBLE(size=[10 s])",
     "rightTimeAttributeType": 2
   })delimiter";
-  
-  nlohmann::json parsedNoKeyDescription = nlohmann::json::parse(noKeyDescription);
+
+nlohmann::json parsedNoKeyDescription = nlohmann::json::parse(noKeyDescription);
 
 TEST(WindowJoinOperatorTest, DISABLED_NoKeyJoinTest)
 {
-
     auto vbatchLeft = new omnistream::VectorBatch(1);
     auto v1 = new omniruntime::vec::Vector<int64_t>(1);
     auto v2 = new omniruntime::vec::Vector<int64_t>(1);
@@ -1328,7 +1308,7 @@ TEST(WindowJoinOperatorTest, DISABLED_NoKeyJoinTest)
     v2->SetValue(0, 1000);
     vbatchLeft->Append(v1);
     vbatchLeft->Append(v2);
-    
+
     auto vbatchRight = new omnistream::VectorBatch(2);
     auto v3 = new omniruntime::vec::Vector<int64_t>(2);
     auto v4 = new omniruntime::vec::Vector<int64_t>(2);
@@ -1339,7 +1319,7 @@ TEST(WindowJoinOperatorTest, DISABLED_NoKeyJoinTest)
     vbatchRight->Append(v3);
     vbatchRight->Append(v4);
 
-    auto *out = new OutputTestVectorBatch();
+    auto* out = new OutputTestVectorBatch();
     auto op = new InnerJoinOperator<int32_t>(parsedNoKeyDescription, out, new LongSerializer(), new LongSerializer());
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
@@ -1387,4 +1367,3 @@ TEST(WindowJoinOperatorTest, DISABLED_NoKeyJoinTest)
     delete initializer;
     delete out;
 }
-

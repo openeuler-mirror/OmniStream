@@ -7,7 +7,7 @@
 #include "runtime/state/OperatorStateBackend.h"
 #include "runtime/state/DefaultKeyedStateStore.h"
 
-/** 
+/**
  * StateInitializationContextImpl 类整合了所有状态初始化相关的功能
  * 它合并了原来的 ManagedInitializationContext、FunctionInitializationContext 和 StateInitializationContext 接口的功能
  */
@@ -15,11 +15,11 @@ class StateInitializationContextImpl {
 private:
     /** Signal whether any state to restore was found */
     std::optional<uint64_t> restoredCheckpointId;
-    
-    OperatorStateBackend *operatorStateBackend;
-    
-    void *keyedStateStore;
-    
+
+    OperatorStateBackend* operatorStateBackend;
+
+    void* keyedStateStore;
+
 public:
     /**
      * 构造函数
@@ -30,51 +30,55 @@ public:
     template <typename K>
     StateInitializationContextImpl(
         std::optional<uint64_t> restoredCheckpointId,
-        OperatorStateBackend *operatorStateBackend,
-        DefaultKeyedStateStore<K> *keyedStateStore)
+        OperatorStateBackend* operatorStateBackend,
+        DefaultKeyedStateStore<K>* keyedStateStore)
         : restoredCheckpointId(restoredCheckpointId),
           operatorStateBackend(operatorStateBackend),
-          keyedStateStore(keyedStateStore) {
+          keyedStateStore(keyedStateStore)
+    {
         // No additional initialization needed
     }
-    
-    /** 
+
+    /**
      * Returns true, if state was restored from the snapshot of a previous execution.
      * 如果状态是从先前执行的快照中恢复的，则返回true。
      */
-    bool isRestored() const {
+    bool isRestored() const
+    {
         return restoredCheckpointId.has_value();
     }
-    
+
     /**
      * Returns id of the restored checkpoint, if state was restored from the snapshot of a previous
      * execution.
      * 如果状态是从先前执行的快照中恢复的，则返回恢复的检查点的ID。
      */
-    std::optional<uint64_t> getRestoredCheckpointId() const {
+    std::optional<uint64_t> getRestoredCheckpointId() const
+    {
         return restoredCheckpointId;
     }
-    
+
     /**
      * Returns an interface that allows for registering operator state with the backend.
      * 返回一个允许向后端注册操作符状态的接口。
      */
-    OperatorStateBackend *getOperatorStateBackend() const {
+    OperatorStateBackend* getOperatorStateBackend() const
+    {
         return operatorStateBackend;
     }
-    
+
     /**
      * Returns an interface that allows for registering keyed state with the backend.
      * 返回一个允许向后端注册键控状态的接口。
      */
     template <typename K>
-    DefaultKeyedStateStore<K> *getKeyedStateStore() const {
+    DefaultKeyedStateStore<K>* getKeyedStateStore() const
+    {
         if (keyedStateStore != nullptr) {
-            return static_cast<DefaultKeyedStateStore<K> *>(keyedStateStore);
+            return static_cast<DefaultKeyedStateStore<K>*>(keyedStateStore);
         }
         return nullptr;
     }
 };
-
 
 #endif // FLINK_TNEL_STATEINITIALIZATIONCONTEXTIMPL_H

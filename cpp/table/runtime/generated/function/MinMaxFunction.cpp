@@ -15,7 +15,7 @@
 #include <common.h>
 #include "table/data/binary/BinaryRowData.h"
 
-void MinMaxFunction::accumulate(RowData *accInput)
+void MinMaxFunction::accumulate(RowData* accInput)
 {
     bool isFilter = true;
     if (hasFilter) {
@@ -33,14 +33,12 @@ void MinMaxFunction::accumulate(RowData *accInput)
                 accumulateString(accInput);
                 break;
             }
-            default:
-                LOG("Data type is not supported.");
-                throw std::runtime_error("Data type is not supported.");
+            default: LOG("Data type is not supported."); throw std::runtime_error("Data type is not supported.");
         }
     }
 }
 
-void MinMaxFunction::accumulateLong(RowData *accInput)
+void MinMaxFunction::accumulateLong(RowData* accInput)
 {
     bool isFieldNull = accInput->isNullAt(aggIdx);
     long fieldValue = isFieldNull ? limit : *accInput->getLong(aggIdx);
@@ -58,7 +56,7 @@ void MinMaxFunction::accumulateLong(RowData *accInput)
     }
 }
 
-void MinMaxFunction::accumulateString(RowData *accInput)
+void MinMaxFunction::accumulateString(RowData* accInput)
 {
     bool isFieldNull = accInput->isNullAt(aggIdx);
     std::string fieldValue = isFieldNull ? stringAggValueLimit : std::string(accInput->getStringView(aggIdx));
@@ -66,9 +64,9 @@ void MinMaxFunction::accumulateString(RowData *accInput)
     if (isFieldNull) {
         stringAggValue = valueIsNull ? stringAggValueLimit : stringAggValue;
     } else {
-        bool toUpdate = !valueIsNull && (aggOperator == MAX_FUNC ?
-            compareStrRowDataSimple(fieldValue, stringAggValue) > 0
-            : compareStrRowDataSimple(fieldValue, stringAggValue) < 0);
+        bool toUpdate =
+            !valueIsNull && (aggOperator == MAX_FUNC ? compareStrRowDataSimple(fieldValue, stringAggValue) > 0
+                                                     : compareStrRowDataSimple(fieldValue, stringAggValue) < 0);
         if (valueIsNull || toUpdate) {
             stringAggValue = fieldValue;
             valueIsNull = false;
@@ -82,9 +80,8 @@ void MinMaxFunction::accumulate(omnistream::VectorBatch* input, const std::vecto
 {
     auto columnData = input->Get(aggIdx);
     const bool hasFilterCol = hasFilter;
-    const auto filterData = hasFilterCol
-                            ? reinterpret_cast<omniruntime::vec::Vector<bool> *>(input->Get(filterIndex))
-                            : nullptr;
+    const auto filterData =
+        hasFilterCol ? reinterpret_cast<omniruntime::vec::Vector<bool>*>(input->Get(filterIndex)) : nullptr;
     for (int rowIndex : indices) {
         bool shouldDoAccumulate = true;
         if (hasFilterCol) {
@@ -102,26 +99,22 @@ void MinMaxFunction::accumulate(omnistream::VectorBatch* input, const std::vecto
                 accumulateString(columnData, rowIndex);
                 break;
             }
-            default:
-                LOG("Data type is not supported.");
-                throw std::runtime_error("Data type is not supported.");
+            default: LOG("Data type is not supported."); throw std::runtime_error("Data type is not supported.");
         }
     }
 }
 
-void MinMaxFunction::accumulateLong(omniruntime::vec::BaseVector *columnData, int rowIndex)
+void MinMaxFunction::accumulateLong(omniruntime::vec::BaseVector* columnData, int rowIndex)
 {
     bool toUpdate = false;
     bool isFieldNull = columnData->IsNull(rowIndex);
-    long fieldValue = isFieldNull
-            ? limit
-            : dynamic_cast<omniruntime::vec::Vector<long>*>(columnData)->GetValue(rowIndex);
+    long fieldValue =
+        isFieldNull ? limit : dynamic_cast<omniruntime::vec::Vector<long>*>(columnData)->GetValue(rowIndex);
     if (isFieldNull) {
         //?? why:  we need to set aggValue when fieldValue is null, and why we set it to limit?
         aggValue = valueIsNull ? limit : aggValue;
     } else {
-        toUpdate = !valueIsNull
-                && (aggOperator == MAX_FUNC ? fieldValue > aggValue : fieldValue < aggValue);
+        toUpdate = !valueIsNull && (aggOperator == MAX_FUNC ? fieldValue > aggValue : fieldValue < aggValue);
         if (valueIsNull || toUpdate) {
             aggValue = fieldValue;
             valueIsNull = false;
@@ -129,21 +122,22 @@ void MinMaxFunction::accumulateLong(omniruntime::vec::BaseVector *columnData, in
     }
 }
 
-void MinMaxFunction::accumulateString(omniruntime::vec::BaseVector *columnData, int rowIndex)
+void MinMaxFunction::accumulateString(omniruntime::vec::BaseVector* columnData, int rowIndex)
 {
     bool toUpdate = false;
     bool isFieldNull = columnData->IsNull(rowIndex);
     std::string_view result;
     if (!isFieldNull) {
         if (columnData->GetEncoding() == omniruntime::vec::OMNI_FLAT) {
-            auto casted = reinterpret_cast<omniruntime::vec::Vector<
-                    omniruntime::vec::LargeStringContainer<std::string_view>> *>(columnData);
+            auto casted =
+                reinterpret_cast<omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>*>(
+                    columnData);
 
             result = casted->GetValue(rowIndex);
         } else { // DICTIONARY
             auto casted = reinterpret_cast<omniruntime::vec::Vector<
-                    omniruntime::vec::DictionaryContainer<
-                    std::string_view, omniruntime::vec::LargeStringContainer>> *>(columnData);
+                omniruntime::vec::DictionaryContainer<std::string_view, omniruntime::vec::LargeStringContainer>>*>(
+                columnData);
 
             result = casted->GetValue(rowIndex);
         }
@@ -153,9 +147,9 @@ void MinMaxFunction::accumulateString(omniruntime::vec::BaseVector *columnData, 
         stringAggValue = valueIsNull ? stringAggValueLimit : stringAggValue;
     } else {
         resultStringData = std::string(result);
-        toUpdate = !valueIsNull
-                   && (aggOperator == MAX_FUNC ? compareStrRowDataSimple(resultStringData, stringAggValue) >= 0
-                                               : compareStrRowDataSimple(resultStringData, stringAggValue) <= 0);
+        toUpdate =
+            !valueIsNull && (aggOperator == MAX_FUNC ? compareStrRowDataSimple(resultStringData, stringAggValue) >= 0
+                                                     : compareStrRowDataSimple(resultStringData, stringAggValue) <= 0);
         if ((valueIsNull || toUpdate)) {
             stringAggValue = resultStringData;
             valueIsNull = false;
@@ -172,7 +166,7 @@ int MinMaxFunction::compareStrRowDataSimple(const std::string& leftStr, const st
     return leftStr.compare(rightStr);
 }
 
-void MinMaxFunction::retract(RowData *retractInput)
+void MinMaxFunction::retract(RowData* retractInput)
 {
 }
 
@@ -180,12 +174,12 @@ void MinMaxFunction::retract(omnistream::VectorBatch* input, const std::vector<i
 {
 }
 
-void MinMaxFunction::merge(RowData *otherAcc)
+void MinMaxFunction::merge(RowData* otherAcc)
 {
     throw std::runtime_error("This function does not require merge method, but merge was called.");
 }
 
-void MinMaxFunction::setAccumulators(RowData *_acc)
+void MinMaxFunction::setAccumulators(RowData* _acc)
 {
     valueIsNull = _acc->isNullAt(accIndex);
     switch (typeId) {
@@ -198,9 +192,7 @@ void MinMaxFunction::setAccumulators(RowData *_acc)
             stringAggValue = valueIsNull ? stringAggValueLimit : std::string(_acc->getStringView(accIndex));
             break;
         }
-        default:
-            LOG("Data type is not supported.");
-            throw std::runtime_error("Data type is not supported.");
+        default: LOG("Data type is not supported."); throw std::runtime_error("Data type is not supported.");
     }
 }
 
@@ -223,12 +215,10 @@ void MinMaxFunction::createAccumulators(BinaryRowData* accumulators)
             accumulators->setNullAt(accIndex);
             break;
         }
-        default:
-            LOG("Data type is not supported.");
-            throw std::runtime_error("Data type is not supported.");
+        default: LOG("Data type is not supported."); throw std::runtime_error("Data type is not supported.");
     }
 }
-void MinMaxFunction::getAccumulators(BinaryRowData *accumulators)
+void MinMaxFunction::getAccumulators(BinaryRowData* accumulators)
 {
     if (valueIsNull) {
         accumulators->setNullAt(accIndex);
@@ -244,14 +234,12 @@ void MinMaxFunction::getAccumulators(BinaryRowData *accumulators)
                 accumulators->setStringView(accIndex, sv);
                 break;
             }
-            default:
-                LOG("Data type is not supported.");
-                throw std::runtime_error("Data type is not supported.");
+            default: LOG("Data type is not supported."); throw std::runtime_error("Data type is not supported.");
         }
     }
 }
 
-void MinMaxFunction::getValue(BinaryRowData *newAggValue)
+void MinMaxFunction::getValue(BinaryRowData* newAggValue)
 {
     if (valueIsNull) {
         newAggValue->setNullAt(valueIndex);
@@ -267,19 +255,17 @@ void MinMaxFunction::getValue(BinaryRowData *newAggValue)
                 newAggValue->setStringView(valueIndex, sv);
                 break;
             }
-            default:
-                LOG("Data type is not supported.");
-                throw std::runtime_error("Data type is not supported.");
+            default: LOG("Data type is not supported."); throw std::runtime_error("Data type is not supported.");
         }
     }
 }
 
-void MinMaxFunction::open(StateDataViewStore *store)
+void MinMaxFunction::open(StateDataViewStore* store)
 {
     this->store = store;
 }
 
-bool MinMaxFunction::equaliser(BinaryRowData *r1, BinaryRowData *r2)
+bool MinMaxFunction::equaliser(BinaryRowData* r1, BinaryRowData* r2)
 {
     if (r1->isNullAt(valueIndex) || r2->isNullAt(valueIndex)) {
         return false;
@@ -296,9 +282,7 @@ bool MinMaxFunction::equaliser(BinaryRowData *r1, BinaryRowData *r2)
             isEqual = r1->getStringView(valueIndex) == r2->getStringView(valueIndex);
             break;
         }
-        default:
-            LOG("Data type is not supported.");
-            throw std::runtime_error("Data type is not supported.");
+        default: LOG("Data type is not supported."); throw std::runtime_error("Data type is not supported.");
     }
     return isEqual;
 }

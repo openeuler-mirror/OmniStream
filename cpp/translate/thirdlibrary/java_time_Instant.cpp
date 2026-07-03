@@ -19,7 +19,7 @@ Instant::Instant(int64_t second, int32_t nano)
 
 Instant::~Instant() = default;
 
-Instant *Instant::ofEpochMilli(int64_t epochMilli)
+Instant* Instant::ofEpochMilli(int64_t epochMilli)
 {
     // todo 修改时间写法
     int64_t secs = epochMilli / 1000;

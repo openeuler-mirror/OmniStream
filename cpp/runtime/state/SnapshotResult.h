@@ -32,7 +32,6 @@ class SnapshotResult : public StateObject {
     static_assert(std::is_base_of<StateObject, T>::value, "T must inherit from StateObject");
 
 public:
-
     const std::shared_ptr<T>& GetJobManagerOwnedSnapshot() const
     {
         return jobManagerOwnedSnapshot;
@@ -85,12 +84,11 @@ public:
 
     static std::shared_ptr<SnapshotResult<T>> Of(std::shared_ptr<T> jobManagerState)
     {
-        return (jobManagerState != nullptr) ? std::make_shared<SnapshotResult<T>>(jobManagerState, nullptr)
-            : Empty();
+        return (jobManagerState != nullptr) ? std::make_shared<SnapshotResult<T>>(jobManagerState, nullptr) : Empty();
     }
 
-    static std::shared_ptr<SnapshotResult<T>>
-    WithLocalState(std::shared_ptr<T> jobManagerState, std::shared_ptr<T> localState)
+    static std::shared_ptr<SnapshotResult<T>> WithLocalState(
+        std::shared_ptr<T> jobManagerState, std::shared_ptr<T> localState)
     {
         return std::make_shared<SnapshotResult<T>>(jobManagerState, localState);
     }
@@ -103,7 +101,8 @@ public:
      *        If provided, jobManagerOwnedSnapshot must not be nullptr.
      */
     SnapshotResult(std::shared_ptr<T> jobManagerOwnedSnapshot, std::shared_ptr<T> taskLocalSnapshot)
-        : jobManagerOwnedSnapshot(jobManagerOwnedSnapshot), taskLocalSnapshot(taskLocalSnapshot)
+        : jobManagerOwnedSnapshot(jobManagerOwnedSnapshot),
+          taskLocalSnapshot(taskLocalSnapshot)
     {
         if (jobManagerOwnedSnapshot == nullptr && taskLocalSnapshot != nullptr) {
             throw std::logic_error("Cannot report local state snapshot without corresponding remote state!");
@@ -128,5 +127,5 @@ private:
 
 template <typename T>
 const std::shared_ptr<SnapshotResult<T>> SnapshotResult<T>::EMPTY =
-std::make_shared<SnapshotResult<T>>(nullptr, nullptr);
+    std::make_shared<SnapshotResult<T>>(nullptr, nullptr);
 #endif // FLINK_TNEL_SNAPSHOTRESULT_H

@@ -21,10 +21,11 @@
  * Method:    createOmniTaskManagerServices
  * Signature: (Ljava/lang/String;)J
  */
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskexecutor_OmniTaskManagerServices_createOmniTaskManagerServices
-  (JNIEnv * jniEnv, jclass thiz, jstring taskManageServicesConfiguration)
+JNIEXPORT jlong JNICALL
+Java_com_huawei_omniruntime_flink_runtime_taskexecutor_OmniTaskManagerServices_createOmniTaskManagerServices(
+    JNIEnv* jniEnv, jclass thiz, jstring taskManageServicesConfiguration)
 {
-    const char* taskMSCString  = jniEnv->GetStringUTFChars(taskManageServicesConfiguration, nullptr);
+    const char* taskMSCString = jniEnv->GetStringUTFChars(taskManageServicesConfiguration, nullptr);
     std::string taskMSConfString(taskMSCString);
     jniEnv->ReleaseStringUTFChars(taskManageServicesConfiguration, taskMSCString);
 

@@ -14,10 +14,10 @@
 #include <regex>
 #include "SinkFunction.h"
 
-class DiscardingSink : public SinkFunction<StreamRecord *> {
+class DiscardingSink : public SinkFunction<StreamRecord*> {
 public:
     explicit DiscardingSink(const nlohmann::json& sinkDescription)
-        :outfile(sinkDescription.contains("outputfile") ? sinkDescription["outputfile"] : "")
+        : outfile(sinkDescription.contains("outputfile") ? sinkDescription["outputfile"] : "")
     {
         if (sinkDescription.contains("inputTypes")) {
             std::regex pattern(R"(DECIMAL\d+\((\d+),\s*(\d+)\))");
@@ -41,12 +41,12 @@ public:
 
     ~DiscardingSink() override = default;
 
-    void invoke(StreamRecord *data, SinkInputValueType valueType) override
+    void invoke(StreamRecord* data, SinkInputValueType valueType) override
     {
         if (valueType == SinkInputValueType::ROW_DATA) {
         } else if (valueType == SinkInputValueType::VEC_BATCH) {
             if (outfile == "") {
-                delete reinterpret_cast<omnistream::VectorBatch *>(data->getValue());
+                delete reinterpret_cast<omnistream::VectorBatch*>(data->getValue());
                 delete data;
                 return;
             }
@@ -57,11 +57,12 @@ public:
             delete data;
         }
     };
-    void writeWatermark(Watermark *watermark) override
+    void writeWatermark(Watermark* watermark) override
     {
         delete watermark;
     };
-    void finish() override{};
+    void finish() override {};
+
 private:
     std::vector<std::string> inputTypes;
     std::string outfile;
@@ -69,4 +70,4 @@ private:
     std::string timeZone = "Asia/Shanghai";
 };
 
-#endif  // FLINK_TNEL_DISCARDINGSINK_H
+#endif // FLINK_TNEL_DISCARDINGSINK_H

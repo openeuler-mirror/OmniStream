@@ -21,12 +21,12 @@
 namespace {
 constexpr int64_t MILLIS_PER_HOUR = 60LL * 60LL * 1000LL;
 
-bool IsUtcTimeZone(const std::string &shiftTimeZone)
+bool IsUtcTimeZone(const std::string& shiftTimeZone)
 {
     return shiftTimeZone.empty() || shiftTimeZone == "UTC" || shiftTimeZone == "Z";
 }
 
-bool HasFixedOffsetFastPath(const std::string &shiftTimeZone, int64_t &offsetMillis)
+bool HasFixedOffsetFastPath(const std::string& shiftTimeZone, int64_t& offsetMillis)
 {
     if (shiftTimeZone == "Asia/Shanghai" || shiftTimeZone == "GMT+08:00") {
         offsetMillis = 8 * MILLIS_PER_HOUR;
@@ -43,7 +43,7 @@ bool HasFixedOffsetFastPath(const std::string &shiftTimeZone, int64_t &offsetMil
     return false;
 }
 
-void SetTimeZone(const std::string &shiftTimeZone)
+void SetTimeZone(const std::string& shiftTimeZone)
 {
     setenv("TZ", omniruntime::codegen::function::TimeZoneUtil::GetTZ(shiftTimeZone.c_str()), 1);
     tzset();
@@ -72,7 +72,7 @@ int64_t CombineMillis(time_t seconds, int millis)
 }
 } // namespace
 
-int64_t TimeWindowUtil::toUtcTimestampMills(int64_t epochMills, const std::string &shiftTimeZone)
+int64_t TimeWindowUtil::toUtcTimestampMills(int64_t epochMills, const std::string& shiftTimeZone)
 {
     if (IsUtcTimeZone(shiftTimeZone) || epochMills == INT64_MAX) {
         return epochMills;
@@ -85,7 +85,7 @@ int64_t TimeWindowUtil::toUtcTimestampMills(int64_t epochMills, const std::strin
 
     const TimestampParts parts = SplitMillis(epochMills);
     SetTimeZone(shiftTimeZone);
-    struct tm localTime {};
+    struct tm localTime{};
     localtime_r(&parts.seconds, &localTime);
 
     SetTimeZone("UTC");
@@ -93,7 +93,7 @@ int64_t TimeWindowUtil::toUtcTimestampMills(int64_t epochMills, const std::strin
     return CombineMillis(timegm(&localTime), parts.millis);
 }
 
-int64_t TimeWindowUtil::toEpochMills(int64_t utcTimestampMills, const std::string &shiftTimeZone)
+int64_t TimeWindowUtil::toEpochMills(int64_t utcTimestampMills, const std::string& shiftTimeZone)
 {
     if (IsUtcTimeZone(shiftTimeZone) || utcTimestampMills == INT64_MAX) {
         return utcTimestampMills;
@@ -106,14 +106,14 @@ int64_t TimeWindowUtil::toEpochMills(int64_t utcTimestampMills, const std::strin
 
     const TimestampParts parts = SplitMillis(utcTimestampMills);
     SetTimeZone("UTC");
-    struct tm utcTime {};
+    struct tm utcTime{};
     gmtime_r(&parts.seconds, &utcTime);
 
     SetTimeZone(shiftTimeZone);
     return CombineMillis(mktime(&utcTime), parts.millis);
 }
 
-int64_t TimeWindowUtil::toEpochMillsForTimer(int64_t utcTimestampMills, const std::string &shiftTimeZone)
+int64_t TimeWindowUtil::toEpochMillsForTimer(int64_t utcTimestampMills, const std::string& shiftTimeZone)
 {
     if (IsUtcTimeZone(shiftTimeZone) || utcTimestampMills == INT64_MAX) {
         return utcTimestampMills;
@@ -122,8 +122,8 @@ int64_t TimeWindowUtil::toEpochMillsForTimer(int64_t utcTimestampMills, const st
     return toEpochMills(utcTimestampMills, shiftTimeZone);
 }
 
-int64_t TimeWindowUtil::toCleanupTimerMills(int64_t windowMaxTimestamp, int64_t allowedLateness,
-                                            const std::string &shiftTimeZone)
+int64_t TimeWindowUtil::toCleanupTimerMills(
+    int64_t windowMaxTimestamp, int64_t allowedLateness, const std::string& shiftTimeZone)
 {
     if (windowMaxTimestamp == INT64_MAX) {
         return INT64_MAX;
@@ -135,7 +135,7 @@ int64_t TimeWindowUtil::toCleanupTimerMills(int64_t windowMaxTimestamp, int64_t 
     return toEpochMillsForTimer(cleanupUtcTimestamp, shiftTimeZone);
 }
 
-bool TimeWindowUtil::isWindowFired(int64_t windowEnd, int64_t currentProgress, const std::string &shiftTimeZone)
+bool TimeWindowUtil::isWindowFired(int64_t windowEnd, int64_t currentProgress, const std::string& shiftTimeZone)
 {
     if (windowEnd == LONG_MAX) {
         return false;

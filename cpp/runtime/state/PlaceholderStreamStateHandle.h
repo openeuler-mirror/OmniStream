@@ -20,7 +20,10 @@
 class PlaceholderStreamStateHandle : public StreamStateHandle {
 public:
     PlaceholderStreamStateHandle(std::unique_ptr<PhysicalStateHandleID> physicalID, int64_t stateSize)
-        : physicalID(std::move(physicalID)), stateSize(stateSize) {}
+        : physicalID(std::move(physicalID)),
+          stateSize(stateSize)
+    {
+    }
 
     std::shared_ptr<FSDataInputStream> OpenInputStream() const override
     {

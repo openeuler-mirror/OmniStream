@@ -12,8 +12,7 @@
 #define FLINK_TNEL_PARALLELSOURCEFUNCTION_H
 #include "SourceFunction.h"
 
-template<typename K>
-class ParallelSourceFunction : public SourceFunction<K> {
-};
+template <typename K>
+class ParallelSourceFunction : public SourceFunction<K> {};
 
 #endif // FLINK_TNEL_PARALLELSOURCEFUNCTION_H

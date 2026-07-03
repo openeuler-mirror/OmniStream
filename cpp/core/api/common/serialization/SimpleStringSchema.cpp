@@ -39,10 +39,10 @@ std::string_view SimpleStringSchema::getCharset() const
 }
 
 // 反序列化方法
-Object *SimpleStringSchema::deserialize(const uint8_t* message, size_t length)
+Object* SimpleStringSchema::deserialize(const uint8_t* message, size_t length)
 {
     buffer->getRefCount();
-    buffer->setValue((char *)(message), length);
+    buffer->setValue((char*)(message), length);
     return buffer;
 }
 
@@ -54,6 +54,6 @@ bool SimpleStringSchema::isEndOfStream(const void* nextElement)
 
 std::vector<uint8_t> SimpleStringSchema::serialize(Object* element)
 {
-    auto record = reinterpret_cast<String *>(element)->getValue();
+    auto record = reinterpret_cast<String*>(element)->getValue();
     return {record.begin(), record.end()};
 }

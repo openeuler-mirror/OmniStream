@@ -8,11 +8,11 @@
 
 class MockKeyedBy : public KeySelect<Object> {
 public:
-    Object* getKey(Object* value) override {
-        auto *tuple = reinterpret_cast<Tuple2 *>(value);
+    Object* getKey(Object* value) override
+    {
+        auto* tuple = reinterpret_cast<Tuple2*>(value);
         return tuple->f0;
     }
 };
 
-
-#endif //OMNISTREAM_KEYSELECTOR_H
+#endif // OMNISTREAM_KEYSELECTOR_H

@@ -18,19 +18,19 @@
 #include "streaming/runtime/metrics/MetricGroup.h"
 
 namespace omnistream {
-    class OmniAsyncDataOutputToOutput : public omnistream::OmniPushingAsyncDataInput::OmniDataOutput {
-    public:
-        explicit OmniAsyncDataOutputToOutput(Output *output, bool isDataStream = false);
-        void emitRecord(StreamRecord *streamRecord) override;
-        void emitWatermark(Watermark *watermark) override;
-        void emitWatermarkStatus(WatermarkStatus *watermarkStatus) override;
+class OmniAsyncDataOutputToOutput : public omnistream::OmniPushingAsyncDataInput::OmniDataOutput {
+public:
+    explicit OmniAsyncDataOutputToOutput(Output* output, bool isDataStream = false);
+    void emitRecord(StreamRecord* streamRecord) override;
+    void emitWatermark(Watermark* watermark) override;
+    void emitWatermarkStatus(WatermarkStatus* watermarkStatus) override;
 
-        ~OmniAsyncDataOutputToOutput() override = default;
+    ~OmniAsyncDataOutputToOutput() override = default;
 
-    private:
-        Output *output = nullptr;
-        bool isDataStream;
-    };
+private:
+    Output* output = nullptr;
+    bool isDataStream;
 };
+}; // namespace omnistream
 
 #endif // OMNISTREAM_ASYNCDATAOUTPUTTOOUTPUT_H

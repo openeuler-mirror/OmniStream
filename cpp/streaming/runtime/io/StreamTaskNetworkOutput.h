@@ -21,35 +21,33 @@
 #include "streaming/api/watermark/Watermark.h"
 
 namespace omnistream::datastream {
-    class StreamTaskNetworkOutput : public DataOutput {
+class StreamTaskNetworkOutput : public DataOutput {
+public:
+    explicit StreamTaskNetworkOutput();
+    void emitRecord(StreamRecord* record) override;
 
-    public:
-        explicit StreamTaskNetworkOutput();
-        void emitRecord(StreamRecord *record) override;
+    StreamTaskNetworkOutput(class StreamOperator* streamOperator, int operatorMethodIndicator);
 
-        StreamTaskNetworkOutput(class StreamOperator* streamOperator, int operatorMethodIndicator);
+    virtual ~StreamTaskNetworkOutput() = default;
 
-        virtual ~StreamTaskNetworkOutput() = default;
+    std::function<void(StreamRecord*)> recordProcessfuncPtr;
 
-        std::function<void(StreamRecord *)> recordProcessfuncPtr;
+    void emitWatermark(Watermark* watermark) override;
 
-        void emitWatermark(Watermark *watermark) override;
+private:
+    // Input *operator_;
+    StreamOperator* streamOperator = nullptr;
 
-    private:
-        // Input *operator_;
-        StreamOperator *streamOperator = nullptr;
+    Counter* counter_;
 
-        Counter *counter_;
+    int operatorMethodIndicator;
 
-        int operatorMethodIndicator;
+    static const int oneinputstreamop = 0;
 
-        static const int oneinputstreamop = 0;
+    static const int leftTwoinputstreamop = 1;
 
-        static const int leftTwoinputstreamop = 1;
-
-        static const int rightTwoinputstreamop = 2;
-    };
-}
-
+    static const int rightTwoinputstreamop = 2;
+};
+} // namespace omnistream::datastream
 
 #endif // FLINK_TNEL_STREAMTASKNETWORKOUTPUT_H

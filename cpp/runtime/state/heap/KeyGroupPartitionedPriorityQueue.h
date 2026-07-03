@@ -24,9 +24,14 @@ class KeyGroupPartitionedPriorityQueue : public KeyGroupedInternalPriorityQueue<
 
     class KeyGroupConcatenationIterator : public omnistream::utils::Iterator<T> {
     public:
-        KeyGroupConcatenationIterator(KeyGroupPartitionedPriorityQueue* self) : self_(self), current(self_->keyGroupedHeaps_[0]->iterator()) {}
+        KeyGroupConcatenationIterator(KeyGroupPartitionedPriorityQueue* self)
+            : self_(self),
+              current(self_->keyGroupedHeaps_[0]->iterator())
+        {
+        }
 
-        bool hasNext() override {
+        bool hasNext() override
+        {
             bool currentHasNext = current->hasNext();
             while (!currentHasNext && index_ < self_->keyGroupedHeaps_.size() - 1) {
                 current = self_->keyGroupedHeaps_[++index_]->iterator();
@@ -35,7 +40,8 @@ class KeyGroupPartitionedPriorityQueue : public KeyGroupedInternalPriorityQueue<
             return currentHasNext;
         }
 
-        T next() override {
+        T next() override
+        {
             return current->next();
         }
 
@@ -44,20 +50,20 @@ class KeyGroupPartitionedPriorityQueue : public KeyGroupedInternalPriorityQueue<
         int32_t index_ = 0;
         std::unique_ptr<omnistream::utils::Iterator<T>> current = nullptr;
     };
+
 public:
     using RocksDBCachingPQ = RocksDBCachingPriorityQueueSet<K, T, Comparator>;
-    using PartitionQueueSetFactory = std::function<std::shared_ptr<RocksDBCachingPQ>(int32_t keyGroupId, int32_t totalKeyGroups)>;
+    using PartitionQueueSetFactory =
+        std::function<std::shared_ptr<RocksDBCachingPQ>(int32_t keyGroupId, int32_t totalKeyGroups)>;
 
     KeyGroupPartitionedPriorityQueue(
-            PartitionQueueSetFactory priorityQueueSetFactory,
-            KeyGroupRange* keyGroupRange,
-            int32_t totalKeyGroups)
-            :
-            heapOfKeyGroupedHeaps_(keyGroupRange->getNumberOfKeyGroups()),
-            keyGroupRange_(keyGroupRange),
-            totalKeyGroups_(totalKeyGroups) {
+        PartitionQueueSetFactory priorityQueueSetFactory, KeyGroupRange* keyGroupRange, int32_t totalKeyGroups)
+        : heapOfKeyGroupedHeaps_(keyGroupRange->getNumberOfKeyGroups()),
+          keyGroupRange_(keyGroupRange),
+          totalKeyGroups_(totalKeyGroups)
+    {
         if (keyGroupRange_->getNumberOfKeyGroups() <= 0) {
-            THROW_LOGIC_EXCEPTION("KeyGroupRange must have at least one key group.")
+            THROW_LOGIC_EXCEPTION("KeyGroupRange must have at least one key group.");
         }
         firstKeyGroup_ = keyGroupRange_->getStartKeyGroup();
         keyGroupedHeaps_.reserve(keyGroupRange_->getNumberOfKeyGroups());
@@ -69,19 +75,22 @@ public:
         }
     }
 
-    T poll() override {
+    T poll() override
+    {
         auto headPQ = heapOfKeyGroupedHeaps_.peek();
         auto head = headPQ->poll();
         heapOfKeyGroupedHeaps_.adjustModifiedElement(headPQ);
         return head;
     }
 
-    T peek() override {
+    T peek() override
+    {
         const auto& headPQ = heapOfKeyGroupedHeaps_.peek();
         return headPQ->peek();
     }
 
-    bool add(const T& element) override {
+    bool add(const T& element) override
+    {
         auto pq = getKeyGroupSubHeapForElement(element);
         if (pq->add(element)) {
             heapOfKeyGroupedHeaps_.adjustModifiedElement(pq);
@@ -91,7 +100,8 @@ public:
         return false;
     }
 
-    void addAll(const std::vector<T>& elements) override {
+    void addAll(const std::vector<T>& elements) override
+    {
         if (elements.empty()) {
             return;
         }
@@ -100,7 +110,8 @@ public:
         }
     }
 
-    bool remove(const T& element) override {
+    bool remove(const T& element) override
+    {
         auto pq = getKeyGroupSubHeapForElement(element);
         auto oldHead = peek();
         if (pq->remove(element)) {
@@ -110,11 +121,13 @@ public:
         return false;
     }
 
-    bool isEmpty() override {
+    bool isEmpty() override
+    {
         return peek() == nullptr;
     }
 
-    int32_t size() override {
+    int32_t size() override
+    {
         auto sizeSum = 0;
         for (const auto& pq : keyGroupedHeaps_) {
             sizeSum += pq->size();
@@ -122,11 +135,13 @@ public:
         return sizeSum;
     }
 
-    std::unique_ptr<omnistream::utils::Iterator<T>> iterator() override {
+    std::unique_ptr<omnistream::utils::Iterator<T>> iterator() override
+    {
         return std::make_unique<KeyGroupConcatenationIterator>(this);
     }
 
-    std::shared_ptr<DedupSet> getSubsetForKeyGroup(int32_t keyGroupId) override {
+    std::shared_ptr<DedupSet> getSubsetForKeyGroup(int32_t keyGroupId) override
+    {
         std::shared_ptr<DedupSet> result = std::make_shared<DedupSet>();
         auto& partitionQueue = keyGroupedHeaps_[globalKeyGroupToLocalIndex(keyGroupId)];
         auto iter = partitionQueue->iterator();
@@ -140,9 +155,11 @@ public:
 
         return result;
     }
+
 private:
     struct PQComparator {
-        bool operator()(std::shared_ptr<RocksDBCachingPQ> a, const std::shared_ptr<RocksDBCachingPQ>& b) const {
+        bool operator()(std::shared_ptr<RocksDBCachingPQ> a, const std::shared_ptr<RocksDBCachingPQ>& b) const
+        {
             auto left = a->peek();
             auto right = b->peek();
             if (left == nullptr) {
@@ -164,20 +181,25 @@ private:
     int32_t totalKeyGroups_;
     Comparator comparator_;
 
-    std::shared_ptr<RocksDBCachingPQ> getKeyGroupSubHeapForElement(T element) {
+    std::shared_ptr<RocksDBCachingPQ> getKeyGroupSubHeapForElement(T element)
+    {
         return keyGroupedHeaps_[computeKeyGroupIndex(element)];
     }
 
-    int32_t computeKeyGroupIndex(const T& element) {
+    int32_t computeKeyGroupIndex(const T& element)
+    {
         auto key = element->getKey();
         int32_t keyGroupId = KeyGroupRangeAssignment<K>::assignToKeyGroup(key, totalKeyGroups_);
         return globalKeyGroupToLocalIndex(keyGroupId);
     }
 
-    int32_t globalKeyGroupToLocalIndex(int32_t keyGroup) const {
+    int32_t globalKeyGroupToLocalIndex(int32_t keyGroup) const
+    {
         if (!keyGroupRange_->contains(keyGroup)) {
-            THROW_LOGIC_EXCEPTION("Key group " + std::to_string(keyGroup) + " is not included in" +
-                                  "[" + std::to_string(keyGroupRange_->getStartKeyGroup()) + ", " + std::to_string(keyGroupRange_->getEndKeyGroup()) + "]")
+            THROW_LOGIC_EXCEPTION(
+                "Key group " + std::to_string(keyGroup) + " is not included in" + "[" +
+                std::to_string(keyGroupRange_->getStartKeyGroup()) + ", " +
+                std::to_string(keyGroupRange_->getEndKeyGroup()) + "]");
         }
 
         return keyGroup - keyGroupRange_->getStartKeyGroup();

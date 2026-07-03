@@ -1,5 +1,5 @@
 /*
-* Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
  * You can use this software according to the terms and conditions of the Mulan PSL v2.
  * You may obtain a copy of Mulan PSL v2 at:
  *          http://license.coscl.org.cn/MulanPSL2
@@ -25,16 +25,18 @@
 
 class CustomTypeInfo : public TypeInformation {
 public:
-    CustomTypeInfo(std::string className) {
+    CustomTypeInfo(std::string className)
+    {
         if (className == TYPE_NAME_JOIN_TUPLE_CLASS || className == TYPE_NAME_JOIN_TUPLE_CLASS_LINE) {
             typeSerializer_ = new JoinTupleSerializer();
         } else if (className == TYPE_NAME_JOIN_TUPLE2_CLASS || className == TYPE_NAME_JOIN_TUPLE2_CLASS_LINE) {
             typeSerializer_ = new JoinTupleSerializer2();
-        }  else if (className == TYPE_NAME_XXH128_HASH_CLASS || className == TYPE_NAME_XXH128_HASH_CLASS_LINE) {
+        } else if (className == TYPE_NAME_XXH128_HASH_CLASS || className == TYPE_NAME_XXH128_HASH_CLASS_LINE) {
             typeSerializer_ = new XxH128_hashSerializer();
         } else if (className == TYPE_NAME_VECTOR_BATCH_CLASS || className == TYPE_NAME_VECTOR_BATCH_CLASS_LINE) {
             typeSerializer_ = new VectorBatchSerializer();
-        } else if (className == TYPE_NAME_SORTED_VECTOR_LONG_CLASS || className == TYPE_NAME_SORTED_VECTOR_LONG_CLASS_LINE) {
+        } else if (
+            className == TYPE_NAME_SORTED_VECTOR_LONG_CLASS || className == TYPE_NAME_SORTED_VECTOR_LONG_CLASS_LINE) {
             typeSerializer_ = new SortedVectorLong();
         } else if (className == TYPE_NAME_TIME_WINDOW_CLASS || className == TYPE_NAME_TIME_WINDOW_CLASS_LINE) {
             typeSerializer_ = new TimeWindow::Serializer();
@@ -43,35 +45,40 @@ public:
         }
     }
 
-    std::string name() override { return typeSerializer_->getName(); }
+    std::string name() override
+    {
+        return typeSerializer_->getName();
+    }
 
-    BackendDataType getBackendId() const override { return typeSerializer_->getBackendId(); }
+    BackendDataType getBackendId() const override
+    {
+        return typeSerializer_->getBackendId();
+    }
 
-    TypeSerializer* createTypeSerializer() override { return typeSerializer_; }
+    TypeSerializer* createTypeSerializer() override
+    {
+        return typeSerializer_;
+    }
 
-    static bool isCustomType(std::string className) {
-        if (className == TYPE_NAME_JOIN_TUPLE_CLASS
-            || className == TYPE_NAME_JOIN_TUPLE_CLASS_LINE
-            || className == TYPE_NAME_JOIN_TUPLE2_CLASS
-            || className == TYPE_NAME_JOIN_TUPLE2_CLASS_LINE
-            || className == TYPE_NAME_XXH128_HASH_CLASS
-            || className == TYPE_NAME_XXH128_HASH_CLASS_LINE
-            || className == TYPE_NAME_VECTOR_BATCH_CLASS
-            || className == TYPE_NAME_VECTOR_BATCH_CLASS_LINE
-            || className == TYPE_NAME_SORTED_VECTOR_LONG_CLASS
-            || className == TYPE_NAME_SORTED_VECTOR_LONG_CLASS_LINE
-            || className == TYPE_NAME_TIME_WINDOW_CLASS
-            || className == TYPE_NAME_TIME_WINDOW_CLASS_LINE) {
+    static bool isCustomType(std::string className)
+    {
+        if (className == TYPE_NAME_JOIN_TUPLE_CLASS || className == TYPE_NAME_JOIN_TUPLE_CLASS_LINE ||
+            className == TYPE_NAME_JOIN_TUPLE2_CLASS || className == TYPE_NAME_JOIN_TUPLE2_CLASS_LINE ||
+            className == TYPE_NAME_XXH128_HASH_CLASS || className == TYPE_NAME_XXH128_HASH_CLASS_LINE ||
+            className == TYPE_NAME_VECTOR_BATCH_CLASS || className == TYPE_NAME_VECTOR_BATCH_CLASS_LINE ||
+            className == TYPE_NAME_SORTED_VECTOR_LONG_CLASS || className == TYPE_NAME_SORTED_VECTOR_LONG_CLASS_LINE ||
+            className == TYPE_NAME_TIME_WINDOW_CLASS || className == TYPE_NAME_TIME_WINDOW_CLASS_LINE) {
             return true;
         }
         return false;
     }
 
-    static CustomTypeInfo* build(std::string className) {
+    static CustomTypeInfo* build(std::string className)
+    {
         return new CustomTypeInfo(className);
     }
 
 private:
     TypeSerializer* typeSerializer_;
 };
-#endif //OMNISTREAM_JOINTUPLE_H
+#endif // OMNISTREAM_JOINTUPLE_H

@@ -12,26 +12,42 @@
 
 class DummyStreamStateHandle : public StreamStateHandle {
 public:
-    DummyStreamStateHandle(long size = 123, std::string v = "dummy")
-        : size_(size), value_(v) {}
-    void DiscardState() override {}
-    long GetStateSize() const override { return size_; }
-    std::string ToString() const override { return value_; }
-    bool operator==(const StreamStateHandle& o) const {
+    DummyStreamStateHandle(long size = 123, std::string v = "dummy") : size_(size), value_(v)
+    {
+    }
+    void DiscardState() override
+    {
+    }
+    long GetStateSize() const override
+    {
+        return size_;
+    }
+    std::string ToString() const override
+    {
+        return value_;
+    }
+    bool operator==(const StreamStateHandle& o) const
+    {
         auto* other = dynamic_cast<const DummyStreamStateHandle*>(&o);
         return other && value_ == other->value_ && size_ == other->size_;
     }
-    std::size_t hashCode() const { return std::hash<std::string>()(value_); }
+    std::size_t hashCode() const
+    {
+        return std::hash<std::string>()(value_);
+    }
 
-    std::shared_ptr<FSDataInputStream> OpenInputStream() const override {
+    std::shared_ptr<FSDataInputStream> OpenInputStream() const override
+    {
         return nullptr;
     }
 
-    std::optional<std::vector<uint8_t>> AsBytesIfInMemory() const override {
+    std::optional<std::vector<uint8_t>> AsBytesIfInMemory() const override
+    {
         return std::nullopt;
     }
 
-    PhysicalStateHandleID GetStreamStateHandleID() const override {
+    PhysicalStateHandleID GetStreamStateHandleID() const override
+    {
         return PhysicalStateHandleID("");
     }
 
@@ -42,13 +58,20 @@ private:
 
 class DummyDirectoryStateHandle : public DirectoryStateHandle {
 public:
-    DummyDirectoryStateHandle(std::string s = "dir", long sz = 888)
-        : DirectoryStateHandle(s, sz) {}
-    void DiscardState() override {}
-    std::string ToString() const override { return "DirDummy"; }
+    DummyDirectoryStateHandle(std::string s = "dir", long sz = 888) : DirectoryStateHandle(s, sz)
+    {
+    }
+    void DiscardState() override
+    {
+    }
+    std::string ToString() const override
+    {
+        return "DirDummy";
+    }
 };
 
-TEST(IncrementalLocalKeyedStateHandleTest, BasicConstructAndGetter) {
+TEST(IncrementalLocalKeyedStateHandleTest, BasicConstructAndGetter)
+{
     UUID uuid(1, 2);
     int64_t checkpointId = 77;
     DummyDirectoryStateHandle dirHandle("d", 555);
@@ -56,8 +79,7 @@ TEST(IncrementalLocalKeyedStateHandleTest, BasicConstructAndGetter) {
     auto metaState = std::make_shared<DummyStreamStateHandle>(111, "meta");
     std::vector<IncrementalKeyedStateHandle::HandleAndLocalPath> sharedState;
 
-    IncrementalLocalKeyedStateHandle handle(
-        uuid, checkpointId, &dirHandle, keyGroupRange, metaState, sharedState);
+    IncrementalLocalKeyedStateHandle handle(uuid, checkpointId, &dirHandle, keyGroupRange, metaState, sharedState);
 
     EXPECT_EQ(handle.GetCheckpointId(), checkpointId);
     EXPECT_EQ(handle.GetBackendIdentifier(), uuid);
@@ -66,7 +88,8 @@ TEST(IncrementalLocalKeyedStateHandleTest, BasicConstructAndGetter) {
     EXPECT_EQ(handle.GetSharedStateHandles().size(), sharedState.size());
 }
 
-TEST(IncrementalLocalKeyedStateHandleTest, ReboundCreatesNewHandle) {
+TEST(IncrementalLocalKeyedStateHandleTest, ReboundCreatesNewHandle)
+{
     UUID uuid(123, 456);
     int64_t checkpointId = 100;
     auto dirHandle = std::make_shared<DummyDirectoryStateHandle>("data", 888);
@@ -74,8 +97,7 @@ TEST(IncrementalLocalKeyedStateHandleTest, ReboundCreatesNewHandle) {
     auto metaState = std::make_shared<DummyStreamStateHandle>(33, "meta33");
     std::vector<IncrementalKeyedStateHandle::HandleAndLocalPath> sharedState;
 
-    IncrementalLocalKeyedStateHandle handle(
-        uuid, checkpointId, dirHandle.get(), keyGroupRange, metaState, sharedState);
+    IncrementalLocalKeyedStateHandle handle(uuid, checkpointId, dirHandle.get(), keyGroupRange, metaState, sharedState);
 
     int64_t newCheckpointId = 555;
     auto rebound = handle.rebound(newCheckpointId);
@@ -90,7 +112,8 @@ TEST(IncrementalLocalKeyedStateHandleTest, ReboundCreatesNewHandle) {
     EXPECT_EQ(newHandle->GetSharedStateHandles().size(), sharedState.size());
 }
 
-TEST(IncrementalLocalKeyedStateHandleTest, EqualsAndHashCode) {
+TEST(IncrementalLocalKeyedStateHandleTest, EqualsAndHashCode)
+{
     UUID uuid(42, 99);
     int64_t checkpointId = 1;
     auto dirHandle = std::make_shared<DummyDirectoryStateHandle>("d1", 10);
@@ -110,7 +133,8 @@ TEST(IncrementalLocalKeyedStateHandleTest, EqualsAndHashCode) {
     EXPECT_FALSE(h1 == h3);
 }
 
-TEST(IncrementalLocalKeyedStateHandleTest, GetStateSizeAccumulates) {
+TEST(IncrementalLocalKeyedStateHandleTest, GetStateSizeAccumulates)
+{
     UUID uuid(2, 3);
     int64_t checkpointId = 101;
     auto dirHandle = std::make_shared<DummyDirectoryStateHandle>("xx", 777);
@@ -118,13 +142,13 @@ TEST(IncrementalLocalKeyedStateHandleTest, GetStateSizeAccumulates) {
     auto metaState = std::make_shared<DummyStreamStateHandle>(33, "a");
     std::vector<IncrementalKeyedStateHandle::HandleAndLocalPath> sharedState;
 
-    IncrementalLocalKeyedStateHandle handle(
-        uuid, checkpointId, dirHandle.get(), keyGroupRange, metaState, sharedState);
+    IncrementalLocalKeyedStateHandle handle(uuid, checkpointId, dirHandle.get(), keyGroupRange, metaState, sharedState);
 
     EXPECT_EQ(handle.GetStateSize(), 777 + 33); // directory + meta
 }
 
-TEST(IncrementalLocalKeyedStateHandleTest, DiscardStateDoesNotThrow) {
+TEST(IncrementalLocalKeyedStateHandleTest, DiscardStateDoesNotThrow)
+{
     UUID uuid(6, 7);
     int64_t checkpointId = 200;
     auto dirHandle = std::make_shared<DummyDirectoryStateHandle>("x", 1);
@@ -132,13 +156,13 @@ TEST(IncrementalLocalKeyedStateHandleTest, DiscardStateDoesNotThrow) {
     auto metaState = std::make_shared<DummyStreamStateHandle>(0, "meta");
     std::vector<IncrementalKeyedStateHandle::HandleAndLocalPath> sharedState;
 
-    IncrementalLocalKeyedStateHandle handle(
-        uuid, checkpointId, dirHandle.get(), keyGroupRange, metaState, sharedState);
+    IncrementalLocalKeyedStateHandle handle(uuid, checkpointId, dirHandle.get(), keyGroupRange, metaState, sharedState);
 
     EXPECT_NO_THROW(handle.DiscardState());
 }
 
-TEST(IncrementalLocalKeyedStateHandleTest, SharedStateHandlesWorks) {
+TEST(IncrementalLocalKeyedStateHandleTest, SharedStateHandlesWorks)
+{
     UUID uuid(13, 14);
     int64_t checkpointId = 666;
     auto dirHandle = std::make_shared<DummyDirectoryStateHandle>("xx", 77);
@@ -146,11 +170,12 @@ TEST(IncrementalLocalKeyedStateHandleTest, SharedStateHandlesWorks) {
     auto metaState = std::make_shared<DummyStreamStateHandle>(99, "m");
 
     std::vector<IncrementalKeyedStateHandle::HandleAndLocalPath> sharedState;
-    sharedState.push_back(IncrementalKeyedStateHandle::HandleAndLocalPath::of(std::make_shared<DummyStreamStateHandle>(1, "a"), "id1"));
-    sharedState.push_back(IncrementalKeyedStateHandle::HandleAndLocalPath::of(std::make_shared<DummyStreamStateHandle>(2, "b"), "id2"));
+    sharedState.push_back(
+        IncrementalKeyedStateHandle::HandleAndLocalPath::of(std::make_shared<DummyStreamStateHandle>(1, "a"), "id1"));
+    sharedState.push_back(
+        IncrementalKeyedStateHandle::HandleAndLocalPath::of(std::make_shared<DummyStreamStateHandle>(2, "b"), "id2"));
 
-    IncrementalLocalKeyedStateHandle handle(
-        uuid, checkpointId, dirHandle.get(), keyGroupRange, metaState, sharedState);
+    IncrementalLocalKeyedStateHandle handle(uuid, checkpointId, dirHandle.get(), keyGroupRange, metaState, sharedState);
 
     EXPECT_EQ(handle.GetSharedStateHandles().size(), 2);
 
@@ -163,7 +188,8 @@ TEST(IncrementalLocalKeyedStateHandleTest, SharedStateHandlesWorks) {
     EXPECT_TRUE(hasId2);
 }
 
-TEST(IncrementalLocalKeyedStateHandleTest, JSONConstructorAndToString) {
+TEST(IncrementalLocalKeyedStateHandleTest, JSONConstructorAndToString)
+{
     std::string dirName = (std::filesystem::temp_directory_path() / "IncLocalKeyedHandleTest").string();
     std::string fileName = "metaState.bin";
     std::string content = "TestFileForIncLocalKeyedHandle";
@@ -184,12 +210,9 @@ TEST(IncrementalLocalKeyedStateHandleTest, JSONConstructorAndToString) {
     nlohmann::json metaDataState = {
         {"@class", "org.apache.flink.runtime.state.filesystem.FileStateHandle"},
         {"stateHandleName", "FileStateHandle"},
-        {"streamStateHandleID", {
-                {"@class", "org.apache.flink.runtime.state.PhysicalStateHandleID"},
-                {"keyString", metaPath.toString()}
-        }},
-        {"stateSize", metaStateSize}
-    };
+        {"streamStateHandleID",
+         {{"@class", "org.apache.flink.runtime.state.PhysicalStateHandleID"}, {"keyString", metaPath.toString()}}},
+        {"stateSize", metaStateSize}};
 
     nlohmann::json jsonObj;
 
@@ -197,7 +220,7 @@ TEST(IncrementalLocalKeyedStateHandleTest, JSONConstructorAndToString) {
     jsonObj["backendIdentifier"] = "01234567-89ab-cdef-0123-456789abcdef";
     jsonObj["metaDataState"] = metaDataState;
     jsonObj["sharedState"] = nlohmann::json::array();
-    EXPECT_THROW({DirectoryKeyedStateHandle handle(jsonObj);}, std::invalid_argument);
+    EXPECT_THROW({ DirectoryKeyedStateHandle handle(jsonObj); }, std::invalid_argument);
 
     jsonObj["directoryStateHandle"] = {
         {"@class", "org.apache.flink.runtime.state.DirectoryStateHandle"},
@@ -205,27 +228,19 @@ TEST(IncrementalLocalKeyedStateHandleTest, JSONConstructorAndToString) {
         {"stateSize", expectedDirSize},
         {"directory", "file://" + path.toString() + "/"},
     };
-    EXPECT_THROW({DirectoryKeyedStateHandle handle(jsonObj);}, std::invalid_argument);
+    EXPECT_THROW({ DirectoryKeyedStateHandle handle(jsonObj); }, std::invalid_argument);
 
-    jsonObj["keyGroupRange"] = {
-        {"startKeyGroup", 0},
-        {"endKeyGroup", 9}
-    };
+    jsonObj["keyGroupRange"] = {{"startKeyGroup", 0}, {"endKeyGroup", 9}};
 
     nlohmann::json sharedHandle1 = {
-        {"handle", {
-           {"@class", "org.apache.flink.runtime.state.filesystem.FileStateHandle"},
-            {"stateHandleName", "FileStateHandle"},
-            {"filePath", metaPath.toString()},
-            {"stateSize", metaStateSize}
-        }},
-        {"localPath", "/local/path/1"}
-    };
+        {"handle",
+         {{"@class", "org.apache.flink.runtime.state.filesystem.FileStateHandle"},
+          {"stateHandleName", "FileStateHandle"},
+          {"filePath", metaPath.toString()},
+          {"stateSize", metaStateSize}}},
+        {"localPath", "/local/path/1"}};
 
-    nlohmann::json sharedHandle2 = {
-        {"handle", nullptr},
-        {"localPath", "/local/path/2"}
-    };
+    nlohmann::json sharedHandle2 = {{"handle", nullptr}, {"localPath", "/local/path/2"}};
 
     jsonObj["sharedState"] = nlohmann::json::array({sharedHandle1, sharedHandle2});
 
@@ -260,7 +275,8 @@ TEST(IncrementalLocalKeyedStateHandleTest, JSONConstructorAndToString) {
     EXPECT_EQ(parsed["keyGroupRange"]["endKeyGroup"], 9);
 
     ASSERT_EQ(parsed["sharedState"].size(), 2);
-    EXPECT_EQ(parsed["sharedState"][0]["handle"]["@class"], "org.apache.flink.runtime.state.filesystem.FileStateHandle");
+    EXPECT_EQ(
+        parsed["sharedState"][0]["handle"]["@class"], "org.apache.flink.runtime.state.filesystem.FileStateHandle");
     EXPECT_EQ(parsed["sharedState"][0]["localPath"], "/local/path/1");
     EXPECT_TRUE(parsed["sharedState"][1]["handle"].is_null());
     EXPECT_EQ(parsed["sharedState"][1]["localPath"], "/local/path/2");

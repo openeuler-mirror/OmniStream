@@ -11,16 +11,12 @@
 #include "SlidingWindowAssigner.h"
 #include "common.h"
 
-SlidingWindowAssigner::SlidingWindowAssigner(
-        int64_t size,
-        int64_t slide,
-        int64_t offset,
-        bool eventTime)
-        :
-        size_(size),
-        slide_(slide),
-        offset_(offset),
-        eventTime_(eventTime) {
+SlidingWindowAssigner::SlidingWindowAssigner(int64_t size, int64_t slide, int64_t offset, bool eventTime)
+    : size_(size),
+      slide_(slide),
+      offset_(offset),
+      eventTime_(eventTime)
+{
     if (size <= 0 || slide <= 0) {
         THROW_LOGIC_EXCEPTION("SlidingWindowAssigner parameters must satisfy slide > 0 and size > 0");
     }
@@ -31,7 +27,8 @@ SlidingWindowAssigner::SlidingWindowAssigner(
     numPanesPerWindow_ = static_cast<int32_t>(size / paneSize_);
 }
 
-std::vector<TimeWindow> SlidingWindowAssigner::assignWindows(const RowData* element, int64_t timestamp) {
+std::vector<TimeWindow> SlidingWindowAssigner::assignWindows(const RowData* element, int64_t timestamp)
+{
     std::vector<TimeWindow> windows;
     int64_t lastStart = TimeWindow::getWindowStartWithOffset(timestamp, offset_, slide_);
     for (int64_t start = lastStart; start > timestamp - size_; start -= slide_) {
@@ -40,12 +37,14 @@ std::vector<TimeWindow> SlidingWindowAssigner::assignWindows(const RowData* elem
     return windows;
 }
 
-TimeWindow SlidingWindowAssigner::assignPane(const RowData *element, int64_t timestamp) {
+TimeWindow SlidingWindowAssigner::assignPane(const RowData* element, int64_t timestamp)
+{
     int64_t start = TimeWindow::getWindowStartWithOffset(timestamp, offset_, paneSize_);
     return {start, start + paneSize_};
 }
 
-std::vector<TimeWindow> SlidingWindowAssigner::splitIntoPanes(const TimeWindow& window) {
+std::vector<TimeWindow> SlidingWindowAssigner::splitIntoPanes(const TimeWindow& window)
+{
     std::vector<TimeWindow> panes;
     panes.reserve(numPanesPerWindow_);
     int64_t paneStart = window.getStart();
@@ -56,19 +55,23 @@ std::vector<TimeWindow> SlidingWindowAssigner::splitIntoPanes(const TimeWindow& 
     return panes;
 }
 
-TimeWindow SlidingWindowAssigner::getLastWindow(const TimeWindow& pane) {
+TimeWindow SlidingWindowAssigner::getLastWindow(const TimeWindow& pane)
+{
     int64_t lastStart = TimeWindow::getWindowStartWithOffset(pane.getStart(), offset_, slide_);
     return {lastStart, lastStart + size_};
 }
 
-bool SlidingWindowAssigner::isEventTime() const {
+bool SlidingWindowAssigner::isEventTime() const
+{
     return eventTime_;
 }
 
-SlidingWindowAssigner *SlidingWindowAssigner::withEventTime() {
+SlidingWindowAssigner* SlidingWindowAssigner::withEventTime()
+{
     return new SlidingWindowAssigner(size_, slide_, offset_, true);
 }
 
-SlidingWindowAssigner *SlidingWindowAssigner::withProcessingTime() {
+SlidingWindowAssigner* SlidingWindowAssigner::withProcessingTime()
+{
     return new SlidingWindowAssigner(size_, slide_, offset_, false);
 }

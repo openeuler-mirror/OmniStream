@@ -16,7 +16,7 @@
 
 class CallBack {
 public:
-    void SetArgs(jmethodID methodID, JNIEnv *env, jobject task)
+    void SetArgs(jmethodID methodID, JNIEnv* env, jobject task)
     {
         this->methodID = methodID;
         this->env = env;
@@ -27,10 +27,11 @@ public:
     {
         env->CallVoidMethod(task, methodID);
     }
+
 private:
-//    StreamTask *ptask;
+    //    StreamTask *ptask;
     jmethodID methodID;
-    JNIEnv *env;
+    JNIEnv* env;
     jobject task;
 };
 #endif // FLINK_TNEL_CALLBACK_H

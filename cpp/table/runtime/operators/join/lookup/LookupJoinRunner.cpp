@@ -11,7 +11,7 @@
 
 #include "LookupJoinRunner.h"
 
-void LookupJoinRunner::processBatch(omnistream::VectorBatch *in, Context *cxt, Collector *out)
+void LookupJoinRunner::processBatch(omnistream::VectorBatch* in, Context* cxt, Collector* out)
 {
     // This collector is the TableFunctionCollector in LookupJoinRunner
     // out is the downstream operator
@@ -22,11 +22,11 @@ void LookupJoinRunner::processBatch(omnistream::VectorBatch *in, Context *cxt, C
 
     if (isLeftOuterJoin && !collector->isCollected()) {
         // todo: currently I only implemented InnerJoin
-        NOT_IMPL_EXCEPTION
+        NOT_IMPL_EXCEPTION;
     }
 }
 
-void LookupJoinRunner::open(const Configuration &parameters)
+void LookupJoinRunner::open(const Configuration& parameters)
 {
     using namespace omniruntime::type;
     std::string temporalTableSourceSpec = description["temporalTableSourceSpec"];
@@ -36,9 +36,9 @@ void LookupJoinRunner::open(const Configuration &parameters)
     if (connectorType == "filesystem") {
         filepath = description["connectorPath"];
     } else {
-        NOT_IMPL_EXCEPTION
+        NOT_IMPL_EXCEPTION;
     }
-    auto *src = new CsvTableSource(filepath, description["lookupInputTypes"].get<std::vector<std::string>>());
+    auto* src = new CsvTableSource(filepath, description["lookupInputTypes"].get<std::vector<std::string>>());
     // setup collector
     collector = new TableFunctionCollector();
     collector->setCollector(innerCollector);
@@ -48,8 +48,9 @@ void LookupJoinRunner::open(const Configuration &parameters)
     fetcher->open();
 }
 
-LookupJoinRunner::LookupJoinRunner(nlohmann::json description, Collector *innerCollector)
-    : innerCollector(innerCollector), description(description)
+LookupJoinRunner::LookupJoinRunner(nlohmann::json description, Collector* innerCollector)
+    : innerCollector(innerCollector),
+      description(description)
 {
     isLeftOuterJoin = (description["joinType"].get<std::string>() == "LeftOuterJoin");
 }

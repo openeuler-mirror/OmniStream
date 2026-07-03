@@ -21,31 +21,36 @@ template <typename K, typename N>
 class TimerSerializer : public TypeSerializer {
 public:
     TimerSerializer(
-            TypeSerializer* keySerializer,
-            TypeSerializer* namespaceSerializer,
-            Class* keyClazz,
-            Class* namespaceClazz)
-            : keySerializer_(keySerializer),
-            namespaceSerializer_(namespaceSerializer),
-            keyClazz_(keyClazz),
-            namespaceClazz_(namespaceClazz) {}
+        TypeSerializer* keySerializer, TypeSerializer* namespaceSerializer, Class* keyClazz, Class* namespaceClazz)
+        : keySerializer_(keySerializer),
+          namespaceSerializer_(namespaceSerializer),
+          keyClazz_(keyClazz),
+          namespaceClazz_(namespaceClazz)
+    {
+    }
 
     TimerSerializer(TypeSerializer* keySerializer, TypeSerializer* namespaceSerializer)
-            : keySerializer_(keySerializer), namespaceSerializer_(namespaceSerializer) {
+        : keySerializer_(keySerializer),
+          namespaceSerializer_(namespaceSerializer)
+    {
         if constexpr (std::is_same_v<Object*, K> && std::is_same_v<N, Object*>) {
             reuseBuffer = static_cast<Object*>(createInstance());
         }
         setSubBufferReusable(false);
     }
 
-    ~TimerSerializer() override {
+    ~TimerSerializer() override
+    {
         delete keySerializer_;
         delete namespaceSerializer_;
         delete keyClazz_;
         delete namespaceClazz_;
     }
 
-    void serialize(void* record, DataOutputSerializer& target) override { NOT_IMPL_EXCEPTION }
+    void serialize(void* record, DataOutputSerializer& target) override
+    {
+        NOT_IMPL_EXCEPTION;
+    }
 
     void serialize(Object* buffer, DataOutputSerializer& target) override;
 
@@ -53,27 +58,36 @@ public:
 
     void* deserialize(DataInputView& source) override;
 
-    std::shared_ptr<TypeSerializerSnapshot> snapshotConfiguration() {
-		// TODO impl build serializer snapshot
-        NOT_IMPL_EXCEPTION
+    std::shared_ptr<TypeSerializerSnapshot> snapshotConfiguration()
+    { // TODO impl build serializer snapshot
+        NOT_IMPL_EXCEPTION;
     }
 
-    BackendDataType getBackendId() const override { return BackendDataType::OBJECT_BK; }
+    BackendDataType getBackendId() const override
+    {
+        return BackendDataType::OBJECT_BK;
+    }
 
-    const char* getName() const override { return "TimerSerializer"; }
+    const char* getName() const override
+    {
+        return "TimerSerializer";
+    }
 
-	void setSubBufferReusable(bool bufferReusable_) override;
+    void setSubBufferReusable(bool bufferReusable_) override;
 
     Object* GetBuffer() override;
 
-    std::string toJson() override {
+    std::string toJson() override
+    {
         SerializerJsonInfo typeJson = {SerializerType::TIMER, "", keySerializer_, nullptr, namespaceSerializer_};
         return typeJson.toJson();
     };
 
 private:
-    TimerHeapInternalTimer<Object*, Object*>* createInstance() {
-        return new TimerHeapInternalTimer<Object*, Object*>(0L, keyClazz_->newInstance(), namespaceClazz_->newInstance());
+    TimerHeapInternalTimer<Object*, Object*>* createInstance()
+    {
+        return new TimerHeapInternalTimer<Object*, Object*>(
+            0L, keyClazz_->newInstance(), namespaceClazz_->newInstance());
     }
 
     TypeSerializer* keySerializer_ = nullptr;
@@ -83,7 +97,8 @@ private:
 };
 
 template <typename K, typename N>
-void TimerSerializer<K, N>::serialize(Object* buffer, DataOutputSerializer& target) {
+void TimerSerializer<K, N>::serialize(Object* buffer, DataOutputSerializer& target)
+{
     auto timer = static_cast<TimerHeapInternalTimer<K, N>*>(buffer);
     target.writeLong(MathUtils::flipSignBit(timer->getTimestamp()));
     if constexpr (std::is_same_v<K, int64_t> || std::is_same_v<K, int32_t>) {
@@ -93,7 +108,7 @@ void TimerSerializer<K, N>::serialize(Object* buffer, DataOutputSerializer& targ
             } else if constexpr (std::is_same_v<K, int32_t>) {
                 return new Integer(timer->getKey());
             } else {
-                NOT_IMPL_EXCEPTION
+                NOT_IMPL_EXCEPTION;
             }
         }();
         keySerializer_->serialize(tempObj, target);
@@ -114,12 +129,13 @@ void TimerSerializer<K, N>::serialize(Object* buffer, DataOutputSerializer& targ
         auto tempN = timer->getNamespace();
         namespaceSerializer_->serialize(static_cast<N*>(&tempN), target);
     } else {
-        NOT_IMPL_EXCEPTION
+        NOT_IMPL_EXCEPTION;
     }
 }
 
 template <typename K, typename N>
-void TimerSerializer<K, N>::deserialize(Object* buffer, DataInputView& source) {
+void TimerSerializer<K, N>::deserialize(Object* buffer, DataInputView& source)
+{
     auto timer = static_cast<TimerHeapInternalTimer<K, N>*>(buffer);
     long timestamp = MathUtils::flipSignBit(source.readLong());
     timer->setTimestamp(timestamp);
@@ -145,13 +161,13 @@ void TimerSerializer<K, N>::deserialize(Object* buffer, DataInputView& source) {
             } else if constexpr (std::is_same_v<K, int32_t>) {
                 return static_cast<Integer*>(keySerializer_->deserialize(source));
             } else {
-                NOT_IMPL_EXCEPTION
+                NOT_IMPL_EXCEPTION;
             }
         }();
         timer->setKey(keyBuffer->getValue());
         keyBuffer->putRefCount();
     } else {
-        NOT_IMPL_EXCEPTION
+        NOT_IMPL_EXCEPTION;
     }
 
     // deserialize namespace
@@ -168,16 +184,18 @@ void TimerSerializer<K, N>::deserialize(Object* buffer, DataInputView& source) {
     } else if constexpr (std::is_same_v<N, VoidNamespace>) {
         timer->setNamespace(VoidNamespace());
     } else if constexpr (std::is_same_v<N, TimeWindow>) {
-        auto namespaceBuffer = static_cast<TimeWindow*>(static_cast<TimeWindow::Serializer*>(namespaceSerializer_)->deserialize(source));
+        auto namespaceBuffer =
+            static_cast<TimeWindow*>(static_cast<TimeWindow::Serializer*>(namespaceSerializer_)->deserialize(source));
         timer->setNamespace(*namespaceBuffer);
         delete namespaceBuffer;
     } else {
-        NOT_IMPL_EXCEPTION
+        NOT_IMPL_EXCEPTION;
     }
 }
 
 template <typename K, typename N>
-void* TimerSerializer<K, N>::deserialize(DataInputView& source) {
+void* TimerSerializer<K, N>::deserialize(DataInputView& source)
+{
     TimerHeapInternalTimer<K, N>* timer;
     if constexpr (std::is_same_v<K, Object*> && std::is_same_v<N, Object*>) {
         timer = createInstance();
@@ -189,13 +207,15 @@ void* TimerSerializer<K, N>::deserialize(DataInputView& source) {
 }
 
 template <typename K, typename N>
-void TimerSerializer<K, N>::setSubBufferReusable(bool bufferReusable_) {
+void TimerSerializer<K, N>::setSubBufferReusable(bool bufferReusable_)
+{
     keySerializer_->setSelfBufferReusable(bufferReusable_);
     namespaceSerializer_->setSelfBufferReusable(bufferReusable_);
 }
 
 template <typename K, typename N>
-Object* TimerSerializer<K, N>::GetBuffer() {
+Object* TimerSerializer<K, N>::GetBuffer()
+{
     if (bufferReusable) {
         reuseBuffer->getRefCount();
         return reuseBuffer;

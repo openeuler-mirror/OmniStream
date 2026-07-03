@@ -24,9 +24,7 @@ void ExecutorService::WorkerLoop()
         std::function<void()> task;
         {
             std::unique_lock<std::mutex> lock(queueMutex);
-            condition.wait(lock, [this] {
-                return stop || !tasks.empty();
-            });
+            condition.wait(lock, [this] { return stop || !tasks.empty(); });
             if (stop && tasks.empty()) {
                 return;
             }
@@ -54,7 +52,7 @@ ExecutorService::~ExecutorService()
 {
     stop = true;
     condition.notify_all();
-    for (std::thread &worker : workers) {
+    for (std::thread& worker : workers) {
         worker.join();
     }
 }

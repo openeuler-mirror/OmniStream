@@ -14,8 +14,9 @@
 
 #include "table/runtime/operators/window/TimeWindow.h"
 
-template<typename K, typename W>
-std::vector<W> PanedWindowProcessFunction<K, W>::assignActualWindows(RowData *inputRow, int64_t timestamp) {
+template <typename K, typename W>
+std::vector<W> PanedWindowProcessFunction<K, W>::assignActualWindows(RowData* inputRow, int64_t timestamp)
+{
     std::vector<W> elementWindows = windowAssigner->assignWindows(inputRow, timestamp);
     std::vector<W> actualWindows;
     actualWindows.reserve(elementWindows.size());
@@ -27,8 +28,9 @@ std::vector<W> PanedWindowProcessFunction<K, W>::assignActualWindows(RowData *in
     return actualWindows;
 }
 
-template<typename K, typename W>
-std::vector<W> PanedWindowProcessFunction<K, W>::assignStateNamespace(RowData *inputRow, int64_t timestamp) {
+template <typename K, typename W>
+std::vector<W> PanedWindowProcessFunction<K, W>::assignStateNamespace(RowData* inputRow, int64_t timestamp)
+{
     W pane = windowAssigner->assignPane(inputRow, timestamp);
     if (isPaneLate(pane)) {
         return {};
@@ -36,21 +38,23 @@ std::vector<W> PanedWindowProcessFunction<K, W>::assignStateNamespace(RowData *i
     return {pane};
 }
 
-template<typename K, typename W>
-void PanedWindowProcessFunction<K, W>::prepareAggregateAccumulatorForEmit(const W& window) {
+template <typename K, typename W>
+void PanedWindowProcessFunction<K, W>::prepareAggregateAccumulatorForEmit(const W& window)
+{
     std::vector<W> panes = windowAssigner->splitIntoPanes(window);
-    RowData *acc = this->windowAggregator->createAccumulators();
+    RowData* acc = this->windowAggregator->createAccumulators();
     this->windowAggregator->setAccumulators(window, acc);
     for (const auto& pane : panes) {
-        RowData *paneAcc = this->ctx->getWindowAccumulators(pane);
+        RowData* paneAcc = this->ctx->getWindowAccumulators(pane);
         if (paneAcc != nullptr) {
             this->windowAggregator->merge(pane, paneAcc);
         }
     }
 }
 
-template<typename K, typename W>
-void PanedWindowProcessFunction<K, W>::cleanWindowIfNeeded(const W& window, int64_t currentTime) {
+template <typename K, typename W>
+void PanedWindowProcessFunction<K, W>::cleanWindowIfNeeded(const W& window, int64_t currentTime)
+{
     if (this->isCleanupTime(window, currentTime)) {
         std::vector<W> panes = windowAssigner->splitIntoPanes(window);
         for (const auto& pane : panes) {
@@ -64,8 +68,9 @@ void PanedWindowProcessFunction<K, W>::cleanWindowIfNeeded(const W& window, int6
     }
 }
 
-template<typename K, typename W>
-bool PanedWindowProcessFunction<K, W>::isPaneLate(const W& pane) {
+template <typename K, typename W>
+bool PanedWindowProcessFunction<K, W>::isPaneLate(const W& pane)
+{
     return windowAssigner->isEventTime() && this->isWindowLate(windowAssigner->getLastWindow(pane));
 }
 

@@ -12,21 +12,19 @@
 #include "core/include/common.h"
 
 StateSnapshotContextSynchronousImpl::StateSnapshotContextSynchronousImpl(
-    long checkpointId,
-    long checkpointTimestamp,
-    CheckpointStreamFactory *streamFactory,
-    KeyGroupRange *keyGroupRange)
-    : StateSnapshotContextSynchronousImpl(checkpointId, checkpointTimestamp, streamFactory, keyGroupRange, nullptr, nullptr)
+    long checkpointId, long checkpointTimestamp, CheckpointStreamFactory* streamFactory, KeyGroupRange* keyGroupRange)
+    : StateSnapshotContextSynchronousImpl(
+          checkpointId, checkpointTimestamp, streamFactory, keyGroupRange, nullptr, nullptr)
 {
 }
 
 StateSnapshotContextSynchronousImpl::StateSnapshotContextSynchronousImpl(
     long checkpointId,
     long checkpointTimestamp,
-    CheckpointStreamFactory *streamFactory,
-    KeyGroupRange *keyGroupRange,
+    CheckpointStreamFactory* streamFactory,
+    KeyGroupRange* keyGroupRange,
     std::shared_ptr<omnistream::OmniTaskBridge> bridge,
-    CheckpointOptions *checkpointOptions)
+    CheckpointOptions* checkpointOptions)
     : checkpointId_(checkpointId),
       checkpointTimestamp_(checkpointTimestamp),
       streamFactory_(streamFactory),
@@ -36,14 +34,14 @@ StateSnapshotContextSynchronousImpl::StateSnapshotContextSynchronousImpl(
 {
 }
 
-KeyedStateCheckpointOutputStream *StateSnapshotContextSynchronousImpl::getRawKeyedOperatorStateOutput()
+KeyedStateCheckpointOutputStream* StateSnapshotContextSynchronousImpl::getRawKeyedOperatorStateOutput()
 {
     if (keyedStateCheckpointOutputStream_ == nullptr) {
         if (keyGroupRange_ == nullptr || keyGroupRange_->getNumberOfKeyGroups() <= 0) {
-            THROW_LOGIC_EXCEPTION("Cannot create raw keyed state stream without a valid key-group range.")
+            THROW_LOGIC_EXCEPTION("Cannot create raw keyed state stream without a valid key-group range.");
         }
         if (bridge_ == nullptr || checkpointOptions_ == nullptr) {
-            THROW_LOGIC_EXCEPTION("Cannot create raw keyed state stream without OmniTaskBridge and CheckpointOptions.")
+            THROW_LOGIC_EXCEPTION("Cannot create raw keyed state stream without OmniTaskBridge and CheckpointOptions.");
         }
         keyedStateCheckpointOutputStream_ = std::make_shared<KeyedStateCheckpointOutputStream>(
             bridge_, checkpointId_, checkpointOptions_, keyGroupRange_);
@@ -61,7 +59,8 @@ long StateSnapshotContextSynchronousImpl::getCheckpointTimestamp()
     return checkpointTimestamp_;
 }
 
-std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<KeyedStateHandle>>()>> StateSnapshotContextSynchronousImpl::getKeyedStateStreamFuture()
+std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<KeyedStateHandle>>()>>
+StateSnapshotContextSynchronousImpl::getKeyedStateStreamFuture()
 {
     if (keyedStateCheckpointClosingFuture == nullptr) {
         auto stream = keyedStateCheckpointOutputStream_;
@@ -77,14 +76,15 @@ std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<KeyedStateHand
     return keyedStateCheckpointClosingFuture;
 }
 
-std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<OperatorStateHandle>>()>> StateSnapshotContextSynchronousImpl::getOperatorStateStreamFuture()
+std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<OperatorStateHandle>>()>>
+StateSnapshotContextSynchronousImpl::getOperatorStateStreamFuture()
 {
     if (operatorStateCheckpointClosingFuture == nullptr) {
-//        operatorStateCheckpointClosingFuture =
-//            std::make_shared<std::packaged_task<SnapshotResult<OperatorStateHandle>>>(
-//                []() -> SnapshotResult<OperatorStateHandle> {
-//                    return SnapshotResult<OperatorStateHandle>(nullptr, nullptr);
-//                });
+        //        operatorStateCheckpointClosingFuture =
+        //            std::make_shared<std::packaged_task<SnapshotResult<OperatorStateHandle>>>(
+        //                []() -> SnapshotResult<OperatorStateHandle> {
+        //                    return SnapshotResult<OperatorStateHandle>(nullptr, nullptr);
+        //                });
     }
     return operatorStateCheckpointClosingFuture;
 }

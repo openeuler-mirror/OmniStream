@@ -16,48 +16,46 @@
 
 namespace omnistream {
 
-    const int DATASTREAM_TASK_TYPE = 2;
+const int DATASTREAM_TASK_TYPE = 2;
 
-    void omnistream::OmniSourceOperatorStreamTask::init()
-    {
-        OmniStreamTask::init();
+void omnistream::OmniSourceOperatorStreamTask::init()
+{
+    OmniStreamTask::init();
 
-        auto output = createDataOutput();
-        auto input = createTaskInput();
+    auto output = createDataOutput();
+    auto input = createTaskInput();
 
-        inputProcessor_ = new OmniStreamOneInputProcessor(input, output, operatorChain.get());
-    }
-
-    void omnistream::OmniSourceOperatorStreamTask::processInput(MailboxDefaultAction::Controller *controller)
-    {
-        OmniStreamTask::processInput(controller);
-    }
-
-    const std::string omnistream::OmniSourceOperatorStreamTask::getName() const
-    {
-        return OmniStreamTask::getName();
-    }
-
-    OmniPushingAsyncDataInput::OmniDataOutput *OmniSourceOperatorStreamTask::createDataOutput()
-    {
-        bool isDataStream = false;
-        if (taskType == DATASTREAM_TASK_TYPE) {
-            isDataStream = true;
-        }
-        return new OmniAsyncDataOutputToOutput(operatorChain->GetMainOperatorOutput(), isDataStream);
-    }
-
-
-    OmniStreamTaskInput *OmniSourceOperatorStreamTask::createTaskInput()
-    {
-        return new OmniStreamTaskSourceInput(mainOperator_, 0, 0);
-    }
-
-    void OmniSourceOperatorStreamTask::cancel()
-    {
-        OmniStreamTask::cancel();
-        // avoid back pressure
-        recordWriter_->cancel();
-    }
+    inputProcessor_ = new OmniStreamOneInputProcessor(input, output, operatorChain.get());
 }
 
+void omnistream::OmniSourceOperatorStreamTask::processInput(MailboxDefaultAction::Controller* controller)
+{
+    OmniStreamTask::processInput(controller);
+}
+
+const std::string omnistream::OmniSourceOperatorStreamTask::getName() const
+{
+    return OmniStreamTask::getName();
+}
+
+OmniPushingAsyncDataInput::OmniDataOutput* OmniSourceOperatorStreamTask::createDataOutput()
+{
+    bool isDataStream = false;
+    if (taskType == DATASTREAM_TASK_TYPE) {
+        isDataStream = true;
+    }
+    return new OmniAsyncDataOutputToOutput(operatorChain->GetMainOperatorOutput(), isDataStream);
+}
+
+OmniStreamTaskInput* OmniSourceOperatorStreamTask::createTaskInput()
+{
+    return new OmniStreamTaskSourceInput(mainOperator_, 0, 0);
+}
+
+void OmniSourceOperatorStreamTask::cancel()
+{
+    OmniStreamTask::cancel();
+    // avoid back pressure
+    recordWriter_->cancel();
+}
+} // namespace omnistream

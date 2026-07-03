@@ -29,7 +29,9 @@ public:
     inline static int DEFAULT_CAPACITY = 5;
     inline static std::shared_ptr<omnistream::CompletableFuture> AVAILABLE =
         omnistream::AvailabilityProvider::AVAILABLE;
-    explicit FutureCompletingBlockingQueue(int32_t subIndex) : FutureCompletingBlockingQueue(subIndex, DEFAULT_CAPACITY) {}
+    explicit FutureCompletingBlockingQueue(int32_t subIndex) : FutureCompletingBlockingQueue(subIndex, DEFAULT_CAPACITY)
+    {
+    }
 
     explicit FutureCompletingBlockingQueue(int32_t subIndex, int capacity) : capacity(capacity)
     {
@@ -126,7 +128,6 @@ private:
     int32_t coreId = -1;
 
 private:
-
     struct ConditionAndFlag {
         std::condition_variable cond;
         bool wakeUp;

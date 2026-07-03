@@ -40,17 +40,18 @@ std::string JoinSource::getRandomAlphanumeric(int length)
     return result;
 }
 
-JoinSource::JoinSource(int keysPerCheck,
-                       int checkInterval,
-                       int minLeftRecordsPerKey,
-                       int maxLeftRecordsPerKey,
-                       int minRightRecordsPerKey,
-                       int maxRightRecordsPerKey,
-                       int recordValueSize,
-                       int recordKeySize,
-                       int leftMaxDelay,
-                       int rightMaxDelay,
-                       long sleepTime)
+JoinSource::JoinSource(
+    int keysPerCheck,
+    int checkInterval,
+    int minLeftRecordsPerKey,
+    int maxLeftRecordsPerKey,
+    int minRightRecordsPerKey,
+    int maxRightRecordsPerKey,
+    int recordValueSize,
+    int recordKeySize,
+    int leftMaxDelay,
+    int rightMaxDelay,
+    long sleepTime)
     : running(true),
       keysPerCheck(keysPerCheck),
       checkInterval(checkInterval),
@@ -64,7 +65,9 @@ JoinSource::JoinSource(int keysPerCheck,
       rightMaxDelay(rightMaxDelay),
       sleepTime(sleepTime),
       currentSubtaskIndex(0),
-      currentKeyId(0) {}
+      currentKeyId(0)
+{
+}
 
 JoinSource::JoinSource(const nlohmann::json& configuration)
 {
@@ -105,14 +108,14 @@ JoinSource::JoinSource(const nlohmann::json& configuration)
         }
     }
 }
-void JoinSource::open(const Configuration &parameters)
+void JoinSource::open(const Configuration& parameters)
 {
     AbstractRichFunction::open(parameters);
     currentSubtaskIndex = this->getRuntimeContext()->getIndexOfThisSubtask();
-    recordsToCollect = new std::unordered_map<long, std::vector<OriginalRecord *>>();
+    recordsToCollect = new std::unordered_map<long, std::vector<OriginalRecord*>>();
 }
 
-void JoinSource::run(SourceContext *ctx)
+void JoinSource::run(SourceContext* ctx)
 {
     auto startTime = std::chrono::steady_clock::now();
 
@@ -124,39 +127,45 @@ void JoinSource::run(SourceContext *ctx)
                 generateRecordsForKey();
             }
 
-            std::unordered_map<std::string, std::pair<omnistream::VectorBatch *, omnistream::VectorBatch *>> batchesToCollect;
+            std::unordered_map<std::string, std::pair<omnistream::VectorBatch*, omnistream::VectorBatch*>>
+                batchesToCollect;
 
             auto currentTimestamp = std::chrono::duration_cast<std::chrono::milliseconds>(
                                         std::chrono::steady_clock::now().time_since_epoch())
                                         .count();
 
-            for (auto &entry : *recordsToCollect) {
-                for (auto &record : entry.second) {
+            for (auto& entry : *recordsToCollect) {
+                for (auto& record : entry.second) {
                     if (record->getTimestamp() <= currentTimestamp) {
                         // Create a new pair for key if not exist
                         auto key = record->getKey();
                         if (batchesToCollect.find(key) == batchesToCollect.end()) {
-                            batchesToCollect[key] = std::make_pair(createBatch(record->getLeftTotalCount()), createBatch(record->getRightTotalCount()));
+                            batchesToCollect[key] = std::make_pair(
+                                createBatch(record->getLeftTotalCount()), createBatch(record->getRightTotalCount()));
                         }
 
                         // Add record into batch
                         if (record->isLeft()) {
                             originalRecordToBatch(record, batchesToCollect[key].first, record->getCurrentLeftId() - 1);
                         } else {
-                            originalRecordToBatch(record, batchesToCollect[key].second, record->getCurrentRightId() - 1);
+                            originalRecordToBatch(
+                                record, batchesToCollect[key].second, record->getCurrentRightId() - 1);
                         }
                     }
                 }
 
-                entry.second.erase(std::remove_if(
-                    entry.second.begin(), entry.second.end(),
-                    [currentTimestamp](const OriginalRecord *record) {
-                        return record->getTimestamp() <= currentTimestamp;
-                    }), entry.second.end());
+                entry.second.erase(
+                    std::remove_if(
+                        entry.second.begin(),
+                        entry.second.end(),
+                        [currentTimestamp](const OriginalRecord* record) {
+                            return record->getTimestamp() <= currentTimestamp;
+                        }),
+                    entry.second.end());
             }
 
             // Collect Batches
-            for (auto &entry : batchesToCollect) {
+            for (auto& entry : batchesToCollect) {
                 ctx->collect(entry.second.first);
                 ctx->collect(entry.second.second);
             }
@@ -194,15 +203,17 @@ void JoinSource::generateRecordsForKey()
         key += ("_" + getRandomAlphanumeric(recordKeySize - key.size()));
     }
 
-    long leftRecords = minLeftRecordsPerKey + std::abs(getRandomLong()) % (maxLeftRecordsPerKey - minLeftRecordsPerKey + 1);
-    long rightRecords = minRightRecordsPerKey + std::abs(getRandomLong()) % (maxRightRecordsPerKey - minRightRecordsPerKey + 1);
-    std::vector<OriginalRecord *> records;
-    long baseTimestamp = std::chrono::duration_cast<std::chrono::milliseconds>(
-                             std::chrono::steady_clock::now().time_since_epoch())
-                             .count();
+    long leftRecords =
+        minLeftRecordsPerKey + std::abs(getRandomLong()) % (maxLeftRecordsPerKey - minLeftRecordsPerKey + 1);
+    long rightRecords =
+        minRightRecordsPerKey + std::abs(getRandomLong()) % (maxRightRecordsPerKey - minRightRecordsPerKey + 1);
+    std::vector<OriginalRecord*> records;
+    long baseTimestamp =
+        std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch())
+            .count();
 
     for (long i = 0; i < leftRecords; ++i) {
-        OriginalRecord *record = new OriginalRecord();
+        OriginalRecord* record = new OriginalRecord();
         record->setKey(key);
         record->setLeft(true);
         record->setLeftTotalCount(leftRecords);
@@ -213,7 +224,7 @@ void JoinSource::generateRecordsForKey()
     }
 
     for (long i = 0; i < rightRecords; ++i) {
-        OriginalRecord *record = new OriginalRecord();
+        OriginalRecord* record = new OriginalRecord();
         record->setKey(key);
         record->setLeft(false);
         record->setLeftTotalCount(leftRecords);
@@ -223,11 +234,11 @@ void JoinSource::generateRecordsForKey()
         records.push_back(record);
     }
 
-    std::sort(records.begin(), records.end(), [](OriginalRecord *a, OriginalRecord *b) { return *a < *b; });
+    std::sort(records.begin(), records.end(), [](OriginalRecord* a, OriginalRecord* b) { return *a < *b; });
     long currentLeftId = 1;
     long currentRightId = 1;
 
-    for (auto &record : records) {
+    for (auto& record : records) {
         if (record->isLeft()) {
             record->setCurrentLeftId(currentLeftId);
             currentLeftId++;
@@ -244,24 +255,26 @@ void JoinSource::generateRecordsForKey()
     }
 }
 
-std::unordered_map<long, std::vector<OriginalRecord *>> &JoinSource::getRecordsToCollect()
+std::unordered_map<long, std::vector<OriginalRecord*>>& JoinSource::getRecordsToCollect()
 {
     return *recordsToCollect;
 }
 
-void JoinSource::originalRecordToBatch(OriginalRecord *record, omnistream::VectorBatch *batch, int index)
+void JoinSource::originalRecordToBatch(OriginalRecord* record, omnistream::VectorBatch* batch, int index)
 {
     std::string_view key = record->getKey();
     std::string_view value = record->getValue();
-    static_cast<omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>> *>(batch->Get(0))->SetValue(index, key);
-    static_cast<omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>> *>(batch->Get(1))->SetValue(index, value);
+    static_cast<omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>*>(batch->Get(0))
+        ->SetValue(index, key);
+    static_cast<omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>*>(batch->Get(1))
+        ->SetValue(index, value);
     batch->setTimestamp(index, record->getTimestamp());
     batch->setRowKind(index, RowKind::INSERT);
 }
 
-omnistream::VectorBatch *JoinSource::createBatch(int size)
+omnistream::VectorBatch* JoinSource::createBatch(int size)
 {
-    omnistream::VectorBatch *batch = new omnistream::VectorBatch(size);
+    omnistream::VectorBatch* batch = new omnistream::VectorBatch(size);
     batch->Append(new omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>(size));
     batch->Append(new omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>(size));
     return batch;

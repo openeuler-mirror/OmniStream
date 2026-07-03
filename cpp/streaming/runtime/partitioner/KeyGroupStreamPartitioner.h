@@ -30,78 +30,83 @@ using json = nlohmann::json;
  * K: Object
  * */
 namespace omnistream::datastream {
-    template<typename T, typename K>
-    class KeyGroupStreamPartitioner : public StreamPartitioner<T> {
-    public:
-        KeyGroupStreamPartitioner(nlohmann::json config, int targetId, int maxParallelism)
-            : config(config), targetId(targetId), maxParallelism(maxParallelism)
-        {
-            std::string udfObj = config["udf_obj"];
-            std::string keySelectorPath = config["hash_path"];
-            std::string keySelectorName = config["hash_so"][std::to_string(targetId)];
-            std::string path = keySelectorPath + keySelectorName;
+template <typename T, typename K>
+class KeyGroupStreamPartitioner : public StreamPartitioner<T> {
+public:
+    KeyGroupStreamPartitioner(nlohmann::json config, int targetId, int maxParallelism)
+        : config(config),
+          targetId(targetId),
+          maxParallelism(maxParallelism)
+    {
+        std::string udfObj = config["udf_obj"];
+        std::string keySelectorPath = config["hash_path"];
+        std::string keySelectorName = config["hash_so"][std::to_string(targetId)];
+        std::string path = keySelectorPath + keySelectorName;
 
-            nlohmann::json udfObjJson = nlohmann::json::parse(udfObj);
-            auto symbol = udfLoader.LoadKeySelectFunction(path);
-            keySelector = symbol(udfObjJson).release();
-            if (maxParallelism <= 0) {
-                throw std::invalid_argument("Number of key-groups must be > 0!");
-            }
-            if (!keySelector) {
-                throw std::invalid_argument("Key selector cannot be null");
-            }
+        nlohmann::json udfObjJson = nlohmann::json::parse(udfObj);
+        auto symbol = udfLoader.LoadKeySelectFunction(path);
+        keySelector = symbol(udfObjJson).release();
+        if (maxParallelism <= 0) {
+            throw std::invalid_argument("Number of key-groups must be > 0!");
         }
+        if (!keySelector) {
+            throw std::invalid_argument("Key selector cannot be null");
+        }
+    }
 
-        ~KeyGroupStreamPartitioner() override {
-            delete keySelector;
-        }
+    ~KeyGroupStreamPartitioner() override
+    {
+        delete keySelector;
+    }
 
-        int getMaxParallelism() const
-        {
-            return maxParallelism;
-        }
+    int getMaxParallelism() const
+    {
+        return maxParallelism;
+    }
 
-        int selectChannel(T* record) override
-        {
-            K* key;
-            try {
-                SerializationDelegate *serializationDelegate = reinterpret_cast<SerializationDelegate *>(record);
-                StreamRecord *streamRecord = reinterpret_cast<StreamRecord *>(serializationDelegate->getInstance());
-                // getkey() function maybe call getPutCount().
-                key = keySelector->getKey(static_cast<K*>(streamRecord->getValue()));
-            } catch (const std::exception& e) {
-                throw std::runtime_error("Could not extract key from ");
-            }
-            int channel = KeyGroupRangeAssignment<K*>::assignKeyToParallelOperator(key, maxParallelism, this->numberOfChannels);
-            static_cast<Object*>(key)->putRefCount();
-            return channel;
+    int selectChannel(T* record) override
+    {
+        K* key;
+        try {
+            SerializationDelegate* serializationDelegate = reinterpret_cast<SerializationDelegate*>(record);
+            StreamRecord* streamRecord = reinterpret_cast<StreamRecord*>(serializationDelegate->getInstance());
+            // getkey() function maybe call getPutCount().
+            key = keySelector->getKey(static_cast<K*>(streamRecord->getValue()));
+        } catch (const std::exception& e) {
+            throw std::runtime_error("Could not extract key from ");
         }
+        int channel =
+            KeyGroupRangeAssignment<K*>::assignKeyToParallelOperator(key, maxParallelism, this->numberOfChannels);
+        static_cast<Object*>(key)->putRefCount();
+        return channel;
+    }
 
-        std::unique_ptr<StreamPartitioner<T>> copy() override
-        {
-            return std::make_unique<KeyGroupStreamPartitioner<T, K>>(config, targetId, maxParallelism);
-        }
+    std::unique_ptr<StreamPartitioner<T>> copy() override
+    {
+        return std::make_unique<KeyGroupStreamPartitioner<T, K>>(config, targetId, maxParallelism);
+    }
 
-        bool isPointWise() const override
-        {
-            return false;
-        }
+    bool isPointWise() const override
+    {
+        return false;
+    }
 
-        [[nodiscard]] std::string toString() const override
-        {
-            return "HASH";
-        }
+    [[nodiscard]] std::string toString() const override
+    {
+        return "HASH";
+    }
 
-        void configure(int newMaxParallelism)
-        {
-            this->maxParallelism = newMaxParallelism;
-        }
-    private:
-        UDFLoader udfLoader;
-        nlohmann::json config;
-        int targetId;
-        KeySelect<K>* keySelector = nullptr;
-        int maxParallelism;
-    };
-}
+    void configure(int newMaxParallelism)
+    {
+        this->maxParallelism = newMaxParallelism;
+    }
+
+private:
+    UDFLoader udfLoader;
+    nlohmann::json config;
+    int targetId;
+    KeySelect<K>* keySelector = nullptr;
+    int maxParallelism;
+};
+} // namespace omnistream::datastream
 #endif // KEYGROUPSTREAMPARTITIONER_H

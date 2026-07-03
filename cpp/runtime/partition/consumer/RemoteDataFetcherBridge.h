@@ -1,5 +1,5 @@
 /*
-* Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
  */
 
 #ifndef OMNISTREAM_REMOTEDATAFETCHERBRIDGE_H
@@ -10,11 +10,11 @@
 #include <memory>
 
 namespace omnistream {
-    class RemoteDataFetcherBridge : public std::enable_shared_from_this<RemoteDataFetcherBridge> {
-    public:
-        virtual void InvokeJavaRemoteDataFetcherResumeConsumption(int inputGateIndex, int channelIndex) =0;
+class RemoteDataFetcherBridge : public std::enable_shared_from_this<RemoteDataFetcherBridge> {
+public:
+    virtual void InvokeJavaRemoteDataFetcherResumeConsumption(int inputGateIndex, int channelIndex) = 0;
 
-        virtual void InitCppRemoteInputChannel(std::vector<std::shared_ptr<SingleInputGate> > inputGates);
-    };
-}
+    virtual void InitCppRemoteInputChannel(std::vector<std::shared_ptr<SingleInputGate>> inputGates);
+};
+} // namespace omnistream
 #endif // OMNISTREAM_REMOTEDATAFETCHERBRIDGE

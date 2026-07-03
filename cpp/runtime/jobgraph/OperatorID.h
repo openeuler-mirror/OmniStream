@@ -16,27 +16,31 @@
 using namespace omnistream;
 class OperatorID : public AbstractIDPOD {
 public:
-    OperatorID() : AbstractIDPOD() {}
+    OperatorID() : AbstractIDPOD()
+    {
+    }
 
-    OperatorID(const std::vector<uint8_t> &bytes)
-        : AbstractIDPOD(bytes) {}
+    OperatorID(const std::vector<uint8_t>& bytes) : AbstractIDPOD(bytes)
+    {
+    }
 
-    OperatorID(uint64_t upperPart, uint64_t lowerPart)
-        : AbstractIDPOD(upperPart, lowerPart) {}
+    OperatorID(uint64_t upperPart, uint64_t lowerPart) : AbstractIDPOD(upperPart, lowerPart)
+    {
+    }
 
-    static OperatorID fromJobVertexID(const JobVertexID&id)
+    static OperatorID fromJobVertexID(const JobVertexID& id)
     {
         return OperatorID(id.getUpperPart(), id.getLowerPart());
     }
 };
 
 namespace std {
-    template <>
-    struct hash<OperatorID> {
-        std::size_t operator()(const OperatorID& id) const noexcept
-        {
-            return hash_value(static_cast<const omnistream::AbstractIDPOD&>(id));
-        }
-    };
-}
+template <>
+struct hash<OperatorID> {
+    std::size_t operator()(const OperatorID& id) const noexcept
+    {
+        return hash_value(static_cast<const omnistream::AbstractIDPOD&>(id));
+    }
+};
+} // namespace std
 #endif // CPP_RUNTIME_JOBGRAPH_OPERATORID_H

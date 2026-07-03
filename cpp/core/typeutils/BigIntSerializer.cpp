@@ -11,35 +11,27 @@
 
 #include "BigIntSerializer.h"
 
-void BigIntSerializer::serialize(Object *buffer, DataOutputSerializer &target)
+void BigIntSerializer::serialize(Object* buffer, DataOutputSerializer& target)
 {
     writeBigInteger(buffer, target);
 }
 
-void BigIntSerializer::deserialize(Object *buffer, DataInputView &source)
+void BigIntSerializer::deserialize(Object* buffer, DataInputView& source)
 {
     readBigInteger(buffer, source);
 }
 
-void BigIntSerializer::readBigInteger(Object *buffer, DataInputView &source)
+void BigIntSerializer::readBigInteger(Object* buffer, DataInputView& source)
 {
     auto bigInteger = static_cast<BigInteger*>(buffer);
     int len = source.readInt();
     if (len < 4) {
         switch (len) {
-            case 0:
-                return;
-            case 1:
-                *bigInteger = ZERO;
-                return;
-            case 2:
-                *bigInteger = ONE;
-                return;
-            case 3:
-                *bigInteger = TEN;
-                return;
-            default:
-                THROW_RUNTIME_ERROR("BigIntSerializer::readBigInteger len is error")
+            case 0: return;
+            case 1: *bigInteger = ZERO; return;
+            case 2: *bigInteger = ONE; return;
+            case 3: *bigInteger = TEN; return;
+            default: THROW_RUNTIME_ERROR("BigIntSerializer::readBigInteger len is error");
         }
     }
 
@@ -50,7 +42,7 @@ void BigIntSerializer::readBigInteger(Object *buffer, DataInputView &source)
     bigInteger->setByteArray(bytes.data(), size, 0, size);
 }
 
-void BigIntSerializer::writeBigInteger(Object *buffer, DataOutputSerializer &target)
+void BigIntSerializer::writeBigInteger(Object* buffer, DataOutputSerializer& target)
 {
     auto bigInteger = static_cast<BigInteger*>(buffer);
     // fast paths for 0, 1, 10
@@ -77,7 +69,6 @@ void BigIntSerializer::writeBigInteger(Object *buffer, DataOutputSerializer &tar
 }
 
 BigIntSerializer* BigIntSerializer::INSTANCE = new BigIntSerializer();
-
 
 Object* BigIntSerializer::GetBuffer()
 {

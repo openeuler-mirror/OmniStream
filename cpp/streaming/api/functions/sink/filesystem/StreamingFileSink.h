@@ -22,26 +22,24 @@ template <typename IN, typename BucketID>
 class BucketsBuilder {
 public:
     virtual ~BucketsBuilder() = default;
-    virtual Buckets<IN, BucketID> *createBuckets(int subtaskIndex) = 0;
-    virtual BucketWriter<IN, BucketID> *createBucketWriter() = 0;
+    virtual Buckets<IN, BucketID>* createBuckets(int subtaskIndex) = 0;
+    virtual BucketWriter<IN, BucketID>* createBucketWriter() = 0;
 };
 
 template <typename IN, typename BucketID>
-class BulkFormatBuilder : public BucketsBuilder<IN, BucketID>
-{
+class BulkFormatBuilder : public BucketsBuilder<IN, BucketID> {
 private:
     Path basePath;
-    BucketAssigner<IN, BucketID> *bucketAssigner;
-    RollingPolicy<IN, BucketID> *rollingPolicy;
-    BucketFactory<IN, BucketID> *bucketFactory;
+    BucketAssigner<IN, BucketID>* bucketAssigner;
+    RollingPolicy<IN, BucketID>* rollingPolicy;
+    BucketFactory<IN, BucketID>* bucketFactory;
     OutputFileConfig outputFileConfig;
     std::vector<int> nonPartitionIndexes;
     std::vector<std::string> inputTypes;
 
-    int64_t parseDuration(const std::string &durationStr)
+    int64_t parseDuration(const std::string& durationStr)
     {
-        if (durationStr.empty())
-            return 0;
+        if (durationStr.empty()) return 0;
         size_t pos = 0;
         int value = std::stoi(durationStr, &pos);
         std::string unit;
@@ -65,11 +63,10 @@ private:
         }
     }
 
-    int64_t parseFileSize(const std::string &fileSizeStr)
+    int64_t parseFileSize(const std::string& fileSizeStr)
     {
         const int64_t DEFAULT_FILE_SIZE = 128LL * 1024LL * 1024LL; // 128MB
-        if (fileSizeStr.empty())
-            return DEFAULT_FILE_SIZE;
+        if (fileSizeStr.empty()) return DEFAULT_FILE_SIZE;
         size_t pos = 0;
         int value = std::stoi(fileSizeStr, &pos);
         std::string unit;
@@ -95,20 +92,22 @@ private:
 
 public:
     BulkFormatBuilder(
-        const Path &basePath,
-        BucketAssigner<IN, BucketID> *assigner,
-        RollingPolicy<IN, BucketID> *policy,
-        BucketFactory<IN, BucketID> *factory,
-        const OutputFileConfig &outputFile,
+        const Path& basePath,
+        BucketAssigner<IN, BucketID>* assigner,
+        RollingPolicy<IN, BucketID>* policy,
+        BucketFactory<IN, BucketID>* factory,
+        const OutputFileConfig& outputFile,
         std::vector<int> nonPartitionIndexes)
         : basePath(basePath),
           bucketAssigner(assigner),
           rollingPolicy(policy),
           bucketFactory(factory),
           outputFileConfig(outputFile),
-          nonPartitionIndexes(nonPartitionIndexes) {}
+          nonPartitionIndexes(nonPartitionIndexes)
+    {
+    }
 
-    BulkFormatBuilder(const nlohmann::json &config)
+    BulkFormatBuilder(const nlohmann::json& config)
         : basePath(config["path"].get<std::string>()),
           outputFileConfig("output", ".txt")
     {
@@ -126,12 +125,12 @@ public:
         bucketFactory = new BucketFactory<IN, BucketID>();
     }
 
-    BucketWriter<IN, BucketID> *createBucketWriter()
+    BucketWriter<IN, BucketID>* createBucketWriter()
     {
         return new BucketWriter<IN, BucketID>();
     }
 
-    Buckets<IN, BucketID> *createBuckets(int subtaskIndex) override
+    Buckets<IN, BucketID>* createBuckets(int subtaskIndex) override
     {
         return new Buckets<IN, BucketID>(
             basePath.toString(),

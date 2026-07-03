@@ -11,7 +11,6 @@
 #ifndef OMNISTREAM_WAITINGFORFIRSTBARRIER_H
 #define OMNISTREAM_WAITINGFORFIRSTBARRIER_H
 
-
 #include "runtime/io/checkpointing/BarrierHandlerState.h"
 #include "runtime/io/checkpointing/ChannelState.h"
 
@@ -24,9 +23,7 @@
  */
 
 class WaitingForFirstBarrier : public BarrierHandlerState {
-
 public:
-
     explicit WaitingForFirstBarrier(ChannelState state);
 
     BarrierHandlerState* BarrierReceived(
@@ -35,16 +32,12 @@ public:
         CheckpointBarrier* barrier,
         bool markChannelBlocked) override;
 
-    BarrierHandlerState* AlignedCheckpointTimeout(
-        Controller* controller,
-        CheckpointBarrier* barrier) override;
+    BarrierHandlerState* AlignedCheckpointTimeout(Controller* controller, CheckpointBarrier* barrier) override;
 
     BarrierHandlerState* FinishCheckpoint() override;
 
 private:
     ChannelState state_;
-
 };
-
 
 #endif // OMNISTREAM_WAITINGFORFIRSTBARRIER_H

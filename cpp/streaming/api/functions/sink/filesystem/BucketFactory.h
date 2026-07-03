@@ -17,14 +17,14 @@
 template <typename IN, typename BucketID>
 class BucketFactory {
 public:
-    Bucket<IN, BucketID> *getNewBucket(
+    Bucket<IN, BucketID>* getNewBucket(
         int subtaskIndex,
-        const BucketID &bucketId,
+        const BucketID& bucketId,
         std::string bucketPath,
         long initialPartCounter,
-        BucketWriter<IN, BucketID> *bucketWriter,
-        RollingPolicy<IN, BucketID> *rollingPolicy,
-        OutputFileConfig *outputFileConfig,
+        BucketWriter<IN, BucketID>* bucketWriter,
+        RollingPolicy<IN, BucketID>* rollingPolicy,
+        OutputFileConfig* outputFileConfig,
         std::vector<int> nonPartitionIndexes,
         std::vector<std::string> inputTypes)
     {

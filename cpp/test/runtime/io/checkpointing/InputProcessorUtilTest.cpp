@@ -20,21 +20,25 @@ using namespace omnistream;
 
 class MockCheckpointableTask : public CheckpointableTask {
 public:
-    MOCK_METHOD(void, TriggerCheckpointOnBarrier,
-                (std::shared_ptr<CheckpointMetaData> checkpointMetaData,
-                        std::shared_ptr<CheckpointOptions> checkpointOptions, std::shared_ptr<CheckpointMetricsBuilder> checkpointMetrics), (override));
+    MOCK_METHOD(
+        void,
+        TriggerCheckpointOnBarrier,
+        (std::shared_ptr<CheckpointMetaData> checkpointMetaData,
+         std::shared_ptr<CheckpointOptions> checkpointOptions,
+         std::shared_ptr<CheckpointMetricsBuilder> checkpointMetrics),
+        (override));
 
-    MOCK_METHOD(void, abortCheckpointOnBarrier,
-                (long checkpointId, CheckpointException cause), (override));
+    MOCK_METHOD(void, abortCheckpointOnBarrier, (long checkpointId, CheckpointException cause), (override));
 };
 
 class MockSubtaskCheckpointCoordinator : public SubtaskCheckpointCoordinator {
 public:
-    MOCK_METHOD(void, InitInputsCheckpoint, (long id, CheckpointOptions * checkpointOptions), (override));
+    MOCK_METHOD(void, InitInputsCheckpoint, (long id, CheckpointOptions* checkpointOptions), (override));
     MOCK_METHOD(std::shared_ptr<ChannelStateWriter>, getChannelStateWriter, (), (override));
 };
 
-TEST(InputProcessorUtilTest, CreatesCheckpointedMultipleInputGates) {
+TEST(InputProcessorUtilTest, CreatesCheckpointedMultipleInputGates)
+{
     auto mailboxExecutor = std::make_shared<MailboxExecutorTest>();
     auto timerService = std::make_shared<SystemProcessingTimeService>();
     auto coordinator = std::make_shared<MockSubtaskCheckpointCoordinator>();
@@ -42,33 +46,29 @@ TEST(InputProcessorUtilTest, CreatesCheckpointedMultipleInputGates) {
     // Create two input gate groups with one MockInputGate each
     auto gate1 = std::make_shared<MockInputGate>(0);
     auto gate2 = std::make_shared<MockInputGate>(1);
-    std::vector<std::vector<std::shared_ptr<IndexedInputGate>>> inputGateGroups = {
-            {gate1},
-            {gate2}
-    };
+    std::vector<std::vector<std::shared_ptr<IndexedInputGate>>> inputGateGroups = {{gate1}, {gate2}};
 
     std::vector<std::shared_ptr<OmniStreamTaskSourceInput>> sourceInputs; // No source inputs
 
     auto handler = InputProcessorUtil::CreateCheckpointBarrierHandler(
-            task.get(),
-            "TestTask",
-            coordinator,
-            mailboxExecutor,
-            timerService,
-            inputGateGroups,
-            sourceInputs,
-            false, // enableUnaligned
-            0,     // alignedCheckpointTimeoutMillis
-            true   // enableCheckpointAfterTasksFinish
+        task.get(),
+        "TestTask",
+        coordinator,
+        mailboxExecutor,
+        timerService,
+        inputGateGroups,
+        sourceInputs,
+        false, // enableUnaligned
+        0,     // alignedCheckpointTimeoutMillis
+        true   // enableCheckpointAfterTasksFinish
     );
     ASSERT_NE(handler, nullptr);
     ASSERT_EQ(handler->GetLatestCheckpointId(), -1);
 
-    auto result = InputProcessorUtil::CreateCheckpointedMultipleInputGate(
-            mailboxExecutor, inputGateGroups, handler);
+    auto result = InputProcessorUtil::CreateCheckpointedMultipleInputGate(mailboxExecutor, inputGateGroups, handler);
 
     ASSERT_EQ(result.size(), 2);
-    for (const auto &gate: result) {
+    for (const auto& gate : result) {
         ASSERT_NE(gate, nullptr);
     }
 }

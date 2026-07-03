@@ -34,54 +34,51 @@ Set::Set(std::unordered_set<std::string> set)
     }
 }
 
-bool Set::addAll(List *li)
+bool Set::addAll(List* li)
 {
-    std::list<Object *>::iterator it = li->list.begin();
+    std::list<Object*>::iterator it = li->list.begin();
     bool res = true;
     for (; it != li->list.end(); it++) {
-        if (set_.insert(*it).second)
-            (*it)->getRefCount();
+        if (set_.insert(*it).second) (*it)->getRefCount();
     }
     return res;
 }
 
-bool Set::addAll(Collection * collection)
+bool Set::addAll(Collection* collection)
 {
     // todo implement Set::addAll and add libInterfaceRefs
     return false;
 }
 
-bool Set::add(Object *obj)
+bool Set::add(Object* obj)
 {
     bool b = set_.insert(obj).second;
-    if (b)
-        obj->getRefCount();
+    if (b) obj->getRefCount();
     return b;
 }
 
 bool Set::add(std::string str)
 {
-    String *string = new String(str);
+    String* string = new String(str);
     bool b = set_.insert(string).second;
-    if (!b)
-        string->putRefCount();
+    if (!b) string->putRefCount();
     return b;
 }
 
-bool Set::remove(Object *obj)
+bool Set::remove(Object* obj)
 {
     obj->putRefCount();
     return set_.erase(obj) > 0;
 }
 
-bool Set::contains(Object *obj) const
+bool Set::contains(Object* obj) const
 {
     return set_.find(obj) != set_.end();
 }
 
-bool Set::contains(const std::string &str) const
+bool Set::contains(const std::string& str) const
 {
-    String *string = new String(str);
+    String* string = new String(str);
     bool b = set_.find(string) != set_.end();
     string->putRefCount();
     return b;
@@ -97,7 +94,7 @@ void Set::clear()
     set_.clear();
 }
 
-Set::SETIterator::SETIterator(Set *set) : set(set)
+Set::SETIterator::SETIterator(Set* set) : set(set)
 {
     current_ = set->set_.begin();
     end_ = set->set_.end();
@@ -113,7 +110,7 @@ bool Set::SETIterator::hasNext()
     return current_ != end_;
 }
 
-Object *Set::SETIterator::next()
+Object* Set::SETIterator::next()
 {
     (*current_)->getRefCount();
     return *(current_++);
@@ -121,21 +118,21 @@ Object *Set::SETIterator::next()
 
 Set::~Set()
 {
-    std::unordered_set<Object *, ObjectSetHash, ObjectSetEqual>::iterator it = set_.begin();
+    std::unordered_set<Object*, ObjectSetHash, ObjectSetEqual>::iterator it = set_.begin();
     while (it != set_.end()) {
         (*it)->putRefCount();
         it++;
     }
 }
 
-java_util_Iterator *Set::iterator()
+java_util_Iterator* Set::iterator()
 {
-    java_util_Iterator *it = new SETIterator(this);
+    java_util_Iterator* it = new SETIterator(this);
     this->getRefCount();
     return it;
 }
 
-std::vector<Object *> Set::toArray()
+std::vector<Object*> Set::toArray()
 {
-    return std::vector<Object *>(set_.begin(), set_.end());
+    return std::vector<Object*>(set_.begin(), set_.end());
 }

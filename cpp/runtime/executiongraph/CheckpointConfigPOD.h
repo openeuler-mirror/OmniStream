@@ -24,17 +24,30 @@ public:
     CheckpointConfigPOD() = default;
 
     CheckpointConfigPOD(
-        std::string checkpointsDirectory, std::string stateBackend, std::string checkpointStorage,
-        int maxRetainedCheckpoint, bool asyncSnapshots, bool incrementalCheckpoints, bool localRecovery,
-        std::string localRecoveryTaskManagerStateRootDirs, std::string savepointDirectory,
-        std::int64_t fsSmallFileThreshold, int fsWriteBufferSize)
-        : checkpointsDirectory(std::move(checkpointsDirectory)), stateBackend(std::move(stateBackend)),
-        checkpointStorage(std::move(checkpointStorage)), maxRetainedCheckpoint(maxRetainedCheckpoint),
-        asyncSnapshots(asyncSnapshots), incrementalCheckpoints(incrementalCheckpoints), localRecovery(localRecovery),
-        localRecoveryTaskManagerStateRootDirs(std::move(localRecoveryTaskManagerStateRootDirs)),
-        savepointDirectory(std::move(savepointDirectory)), fsSmallFileThreshold(fsSmallFileThreshold),
-        fsWriteBufferSize(fsWriteBufferSize)
-    {}
+        std::string checkpointsDirectory,
+        std::string stateBackend,
+        std::string checkpointStorage,
+        int maxRetainedCheckpoint,
+        bool asyncSnapshots,
+        bool incrementalCheckpoints,
+        bool localRecovery,
+        std::string localRecoveryTaskManagerStateRootDirs,
+        std::string savepointDirectory,
+        std::int64_t fsSmallFileThreshold,
+        int fsWriteBufferSize)
+        : checkpointsDirectory(std::move(checkpointsDirectory)),
+          stateBackend(std::move(stateBackend)),
+          checkpointStorage(std::move(checkpointStorage)),
+          maxRetainedCheckpoint(maxRetainedCheckpoint),
+          asyncSnapshots(asyncSnapshots),
+          incrementalCheckpoints(incrementalCheckpoints),
+          localRecovery(localRecovery),
+          localRecoveryTaskManagerStateRootDirs(std::move(localRecoveryTaskManagerStateRootDirs)),
+          savepointDirectory(std::move(savepointDirectory)),
+          fsSmallFileThreshold(fsSmallFileThreshold),
+          fsWriteBufferSize(fsWriteBufferSize)
+    {
+    }
 
     std::string getCheckpointsDirectory() const
     {
@@ -155,39 +168,40 @@ public:
     {
         std::ostringstream oss;
         oss << "CheckpointConfigPOD{"
-            << "checkpointsDirectory=" << checkpointsDirectory
-            << ", stateBackend=" << stateBackend
-            << ", checkpointStorage=" << checkpointStorage
-            << ", maxRetainedCheckpoint=" << maxRetainedCheckpoint
-            << ", asyncSnapshots=" << asyncSnapshots
-            << ", incrementalCheckpoints=" << incrementalCheckpoints
+            << "checkpointsDirectory=" << checkpointsDirectory << ", stateBackend=" << stateBackend
+            << ", checkpointStorage=" << checkpointStorage << ", maxRetainedCheckpoint=" << maxRetainedCheckpoint
+            << ", asyncSnapshots=" << asyncSnapshots << ", incrementalCheckpoints=" << incrementalCheckpoints
             << ", localRecovery=" << localRecovery
             << ", localRecoveryTaskManagerStateRootDirs=" << localRecoveryTaskManagerStateRootDirs
-            << ", savepointDirectory=" << savepointDirectory
-            << ", fsSmallFileThreshold=" << fsSmallFileThreshold
-            << ", fsWriteBufferSize=" << fsWriteBufferSize
-            << '}';
+            << ", savepointDirectory=" << savepointDirectory << ", fsSmallFileThreshold=" << fsSmallFileThreshold
+            << ", fsWriteBufferSize=" << fsWriteBufferSize << '}';
         return oss.str();
     }
 
     bool operator==(const CheckpointConfigPOD& other) const
     {
-        return checkpointsDirectory == other.checkpointsDirectory &&
-            stateBackend == other.stateBackend &&
-            checkpointStorage == other.checkpointStorage &&
-            maxRetainedCheckpoint == other.maxRetainedCheckpoint &&
-            asyncSnapshots == other.asyncSnapshots &&
-            incrementalCheckpoints == other.incrementalCheckpoints &&
-            localRecovery == other.localRecovery &&
-            localRecoveryTaskManagerStateRootDirs == other.localRecoveryTaskManagerStateRootDirs &&
-            savepointDirectory == other.savepointDirectory &&
-            fsSmallFileThreshold == other.fsSmallFileThreshold &&
-            fsWriteBufferSize == other.fsWriteBufferSize;
+        return checkpointsDirectory == other.checkpointsDirectory && stateBackend == other.stateBackend &&
+               checkpointStorage == other.checkpointStorage && maxRetainedCheckpoint == other.maxRetainedCheckpoint &&
+               asyncSnapshots == other.asyncSnapshots && incrementalCheckpoints == other.incrementalCheckpoints &&
+               localRecovery == other.localRecovery &&
+               localRecoveryTaskManagerStateRootDirs == other.localRecoveryTaskManagerStateRootDirs &&
+               savepointDirectory == other.savepointDirectory && fsSmallFileThreshold == other.fsSmallFileThreshold &&
+               fsWriteBufferSize == other.fsWriteBufferSize;
     }
 
-    NLOHMANN_DEFINE_TYPE_INTRUSIVE(CheckpointConfigPOD, checkpointsDirectory, stateBackend, checkpointStorage,
-        maxRetainedCheckpoint, asyncSnapshots, incrementalCheckpoints, localRecovery,
-        localRecoveryTaskManagerStateRootDirs, savepointDirectory, fsSmallFileThreshold, fsWriteBufferSize)
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(
+        CheckpointConfigPOD,
+        checkpointsDirectory,
+        stateBackend,
+        checkpointStorage,
+        maxRetainedCheckpoint,
+        asyncSnapshots,
+        incrementalCheckpoints,
+        localRecovery,
+        localRecoveryTaskManagerStateRootDirs,
+        savepointDirectory,
+        fsSmallFileThreshold,
+        fsWriteBufferSize)
 
 private:
     std::string checkpointsDirectory;
@@ -206,40 +220,40 @@ private:
 } // namespace omnistream
 
 namespace std {
-    template<>
-    struct hash<omnistream::CheckpointConfigPOD> {
-        size_t operator()(const omnistream::CheckpointConfigPOD& obj) const
-        {
-            size_t h1  = std::hash<std::string>()(obj.getCheckpointsDirectory());
-            size_t h2  = std::hash<std::string>()(obj.getStateBackend());
-            size_t h3  = std::hash<std::string>()(obj.getCheckpointStorage());
-            size_t h4  = std::hash<int>()        (obj.getMaxRetainedCheckpoint());
-            size_t h5  = std::hash<bool>()       (obj.getAsyncSnapshots());
-            size_t h6  = std::hash<bool>()       (obj.getIncrementalCheckpoints());
-            size_t h7  = std::hash<bool>()       (obj.getLocalRecovery());
-            size_t h8  = std::hash<std::string>()(obj.getLocalRecoveryTaskManagerStateRootDirs());
-            size_t h9  = std::hash<std::string>()(obj.getSavepointDirectory());
-            size_t h10 = std::hash<std::int64_t>()(obj.getFsSmallFileThreshold());
-            size_t h11 = std::hash<int>()        (obj.getFsWriteBufferSize());
+template <>
+struct hash<omnistream::CheckpointConfigPOD> {
+    size_t operator()(const omnistream::CheckpointConfigPOD& obj) const
+    {
+        size_t h1 = std::hash<std::string>()(obj.getCheckpointsDirectory());
+        size_t h2 = std::hash<std::string>()(obj.getStateBackend());
+        size_t h3 = std::hash<std::string>()(obj.getCheckpointStorage());
+        size_t h4 = std::hash<int>()(obj.getMaxRetainedCheckpoint());
+        size_t h5 = std::hash<bool>()(obj.getAsyncSnapshots());
+        size_t h6 = std::hash<bool>()(obj.getIncrementalCheckpoints());
+        size_t h7 = std::hash<bool>()(obj.getLocalRecovery());
+        size_t h8 = std::hash<std::string>()(obj.getLocalRecoveryTaskManagerStateRootDirs());
+        size_t h9 = std::hash<std::string>()(obj.getSavepointDirectory());
+        size_t h10 = std::hash<std::int64_t>()(obj.getFsSmallFileThreshold());
+        size_t h11 = std::hash<int>()(obj.getFsWriteBufferSize());
 
-            size_t seed = 0;
-            const size_t C = 0x85ebca6b;
+        size_t seed = 0;
+        const size_t C = 0x85ebca6b;
 
-            seed ^= (h1  + C + (seed << 6) + (seed >> 2));
-            seed ^= (h2  + C + (seed << 6) + (seed >> 2));
-            seed ^= (h3  + C + (seed << 6) + (seed >> 2));
-            seed ^= (h4  + C + (seed << 6) + (seed >> 2));
-            seed ^= (h5  + C + (seed << 6) + (seed >> 2));
-            seed ^= (h6  + C + (seed << 6) + (seed >> 2));
-            seed ^= (h7  + C + (seed << 6) + (seed >> 2));
-            seed ^= (h8  + C + (seed << 6) + (seed >> 2));
-            seed ^= (h9  + C + (seed << 6) + (seed >> 2));
-            seed ^= (h10 + C + (seed << 6) + (seed >> 2));
-            seed ^= (h11 + C + (seed << 6) + (seed >> 2));
+        seed ^= (h1 + C + (seed << 6) + (seed >> 2));
+        seed ^= (h2 + C + (seed << 6) + (seed >> 2));
+        seed ^= (h3 + C + (seed << 6) + (seed >> 2));
+        seed ^= (h4 + C + (seed << 6) + (seed >> 2));
+        seed ^= (h5 + C + (seed << 6) + (seed >> 2));
+        seed ^= (h6 + C + (seed << 6) + (seed >> 2));
+        seed ^= (h7 + C + (seed << 6) + (seed >> 2));
+        seed ^= (h8 + C + (seed << 6) + (seed >> 2));
+        seed ^= (h9 + C + (seed << 6) + (seed >> 2));
+        seed ^= (h10 + C + (seed << 6) + (seed >> 2));
+        seed ^= (h11 + C + (seed << 6) + (seed >> 2));
 
-            return seed;
-        }
-    };
-}
+        return seed;
+    }
+};
+} // namespace std
 
 #endif // OMNISTREAM_CHECKPOINTCONFIGPOD_H

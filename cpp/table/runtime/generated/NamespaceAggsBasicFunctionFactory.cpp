@@ -25,15 +25,16 @@
 #include "table/runtime/generated/function/NamespaceAggsSumFunction.h"
 #include "table/runtime/operators/window/TimeWindow.h"
 
-template<typename N>
+template <typename N>
 std::unique_ptr<NamespaceAggsBasicFunction<N>> NamespaceAggsBasicFunctionFactory::create(
-        const std::string &accTypeStr,
-        std::vector<int32_t> argIndexes,
-        std::vector<int32_t> inputTypeIds,
-        std::vector<int32_t> accIndexes,
-        std::vector<int32_t> accTypeIds,
-        int32_t aggValueIndex,
-        int32_t aggValueTypeId) {
+    const std::string& accTypeStr,
+    std::vector<int32_t> argIndexes,
+    std::vector<int32_t> inputTypeIds,
+    std::vector<int32_t> accIndexes,
+    std::vector<int32_t> accTypeIds,
+    int32_t aggValueIndex,
+    int32_t aggValueTypeId)
+{
     auto functionType = extractAggFunction(accTypeStr);
     const int32_t accSlot = getAccSlot(functionType);
     if (accSlot != accIndexes.size()) {
@@ -42,37 +43,62 @@ std::unique_ptr<NamespaceAggsBasicFunction<N>> NamespaceAggsBasicFunctionFactory
 
     std::unique_ptr<NamespaceAggsBasicFunction<N>> function;
     switch (functionType) {
-    case NamespaceAggsBasicFunctionType::COUNT:
-        function = std::make_unique<NamespaceAggsCountFunction<N>>(
-                std::move(argIndexes), std::move(inputTypeIds), std::move(accIndexes), std::move(accTypeIds),
+        case NamespaceAggsBasicFunctionType::COUNT:
+            function = std::make_unique<NamespaceAggsCountFunction<N>>(
+                std::move(argIndexes),
+                std::move(inputTypeIds),
+                std::move(accIndexes),
+                std::move(accTypeIds),
                 aggValueIndex);
-        break;
-    case NamespaceAggsBasicFunctionType::SUM:
-        function = std::make_unique<NamespaceAggsSumFunction<N>>(
-                std::move(argIndexes), std::move(inputTypeIds), std::move(accIndexes), std::move(accTypeIds),
-                aggValueIndex, aggValueTypeId);
-        break;
-    case NamespaceAggsBasicFunctionType::MIN:
-    case NamespaceAggsBasicFunctionType::MAX:
-        function = std::make_unique<NamespaceAggsMinMaxFunction<N>>(
-                std::move(argIndexes), std::move(inputTypeIds), std::move(accIndexes), std::move(accTypeIds),
-                aggValueIndex, aggValueTypeId, functionType);
-        break;
-    case NamespaceAggsBasicFunctionType::AVG:
-        function = std::make_unique<NamespaceAggsAvgFunction<N>>(
-                std::move(argIndexes), std::move(inputTypeIds), std::move(accIndexes), std::move(accTypeIds),
-                aggValueIndex, aggValueTypeId);
-        break;
-    default:
-        THROW_LOGIC_EXCEPTION("Unsupported aggregate function type: " << static_cast<int32_t>(functionType));
+            break;
+        case NamespaceAggsBasicFunctionType::SUM:
+            function = std::make_unique<NamespaceAggsSumFunction<N>>(
+                std::move(argIndexes),
+                std::move(inputTypeIds),
+                std::move(accIndexes),
+                std::move(accTypeIds),
+                aggValueIndex,
+                aggValueTypeId);
+            break;
+        case NamespaceAggsBasicFunctionType::MIN:
+        case NamespaceAggsBasicFunctionType::MAX:
+            function = std::make_unique<NamespaceAggsMinMaxFunction<N>>(
+                std::move(argIndexes),
+                std::move(inputTypeIds),
+                std::move(accIndexes),
+                std::move(accTypeIds),
+                aggValueIndex,
+                aggValueTypeId,
+                functionType);
+            break;
+        case NamespaceAggsBasicFunctionType::AVG:
+            function = std::make_unique<NamespaceAggsAvgFunction<N>>(
+                std::move(argIndexes),
+                std::move(inputTypeIds),
+                std::move(accIndexes),
+                std::move(accTypeIds),
+                aggValueIndex,
+                aggValueTypeId);
+            break;
+        default: THROW_LOGIC_EXCEPTION("Unsupported aggregate function type: " << static_cast<int32_t>(functionType));
     }
 
     return function;
 }
 
 template std::unique_ptr<NamespaceAggsBasicFunction<int64_t>> NamespaceAggsBasicFunctionFactory::create<int64_t>(
-        const std::string&, std::vector<int32_t>, std::vector<int32_t>, std::vector<int32_t>,
-        std::vector<int32_t>, int32_t, int32_t);
+    const std::string&,
+    std::vector<int32_t>,
+    std::vector<int32_t>,
+    std::vector<int32_t>,
+    std::vector<int32_t>,
+    int32_t,
+    int32_t);
 template std::unique_ptr<NamespaceAggsBasicFunction<TimeWindow>> NamespaceAggsBasicFunctionFactory::create<TimeWindow>(
-        const std::string&, std::vector<int32_t>, std::vector<int32_t>, std::vector<int32_t>,
-        std::vector<int32_t>, int32_t, int32_t);
+    const std::string&,
+    std::vector<int32_t>,
+    std::vector<int32_t>,
+    std::vector<int32_t>,
+    std::vector<int32_t>,
+    int32_t,
+    int32_t);

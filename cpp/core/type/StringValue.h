@@ -13,13 +13,13 @@
 class StringValue : public IOReadableWritable {
 public:
     StringValue();
-    void write(DataOutputSerializer &out) override;
+    void write(DataOutputSerializer& out) override;
 
-    void read(DataInputView &in) override;
+    void read(DataInputView& in) override;
 
-    const std::u32string &getValue() const;
+    const std::u32string& getValue() const;
 
-    void setValue(const std::u32string &value);
+    void setValue(const std::u32string& value);
 
     // the following two static functions are for  ser/der of **string**, not the StringValue.
 
@@ -28,15 +28,15 @@ public:
     //  Notice the static writeString/readString has different handling in len with
     // instance function read/write.   The difference is from the flink java implementation.
     // The root reason requires more investigation.
-    static  void writeString(const std::u32string *value, DataOutputSerializer &out);
+    static void writeString(const std::u32string* value, DataOutputSerializer& out);
 
     // the ownership of return string is transferred to caller
-    static  std::u32string* readString(SysDataInput& in);
+    static std::u32string* readString(SysDataInput& in);
 
-    static void writeString(String *buffer, DataOutputSerializer &out);
+    static void writeString(String* buffer, DataOutputSerializer& out);
 
     // the ownership of return string is transferred to caller
-    static void readString(String *buffer, SysDataInput& in);
+    static void readString(String* buffer, SysDataInput& in);
 
 private:
     static const int HIGH_BIT = 0x1 << 7;
@@ -56,6 +56,5 @@ private:
     std::u32string value_;
     unsigned int len_{};
 };
-
 
 #endif

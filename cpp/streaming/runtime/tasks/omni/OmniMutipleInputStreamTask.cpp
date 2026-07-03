@@ -13,17 +13,18 @@
 #include "streaming/runtime/io/OmniStreamMultipleInputProcessorFactory.h"
 
 namespace omnistream {
-    OmniMutipleInputStreamTask::OmniMutipleInputStreamTask(std::shared_ptr<RuntimeEnvironmentV2> &env) : OmniStreamTask (env)
-    {}
-
-    void OmniMutipleInputStreamTask::init()
-    {
-//    env_->;
-        createInputProcessor();
-    }
-
-    void OmniMutipleInputStreamTask::createInputProcessor()
-    {
-        inputProcessor_ = OmniStreamMultipleInputProcessorFactory::create();
-    }
+OmniMutipleInputStreamTask::OmniMutipleInputStreamTask(std::shared_ptr<RuntimeEnvironmentV2>& env) : OmniStreamTask(env)
+{
 }
+
+void OmniMutipleInputStreamTask::init()
+{
+    //    env_->;
+    createInputProcessor();
+}
+
+void OmniMutipleInputStreamTask::createInputProcessor()
+{
+    inputProcessor_ = OmniStreamMultipleInputProcessorFactory::create();
+}
+} // namespace omnistream

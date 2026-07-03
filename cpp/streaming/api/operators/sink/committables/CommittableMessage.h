@@ -20,7 +20,7 @@
  * The message sent from SinkWriter to Committer.
  * This is an experimental interface.
  */
-template<typename CommT>
+template <typename CommT>
 class CommittableMessage {
 public:
     virtual ~CommittableMessage() = default;

@@ -17,13 +17,13 @@
 #include "basictypes/Object.h"
 #include "Function.h"
 
-template<typename T>
+template <typename T>
 class FlatMapFunction : public omnistream::Function {
 public:
-    virtual ~FlatMapFunction()  = default;
+    virtual ~FlatMapFunction() = default;
     virtual void flatMap(T* value, Collector* out) = 0;
 };
 
-template<typename T>
+template <typename T>
 using FlatMapFunctionUnique = std::unique_ptr<FlatMapFunction<T>>;
-#endif  // FLINK_TNEL_FLATMAPFUNCTION_H
+#endif // FLINK_TNEL_FLATMAPFUNCTION_H

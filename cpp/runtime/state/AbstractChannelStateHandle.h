@@ -28,8 +28,9 @@ public:
 
         StateContentMetaInfo() = default;
 
-        StateContentMetaInfo(const std::vector<int64_t>& offsets, int64_t size)
-            : offsets(offsets), size(size) {}
+        StateContentMetaInfo(const std::vector<int64_t>& offsets, int64_t size) : offsets(offsets), size(size)
+        {
+        }
 
         void WithDataAdded(int64_t offset, int64_t dataSize)
         {
@@ -55,16 +56,19 @@ public:
         }
     };
 
-    AbstractChannelStateHandle(int subtaskIndex,
-                               const Info& info,
-                               std::shared_ptr<StreamStateHandle> delegate,
-                               const std::vector<int64_t>& offsets,
-                               int64_t size)
+    AbstractChannelStateHandle(
+        int subtaskIndex,
+        const Info& info,
+        std::shared_ptr<StreamStateHandle> delegate,
+        const std::vector<int64_t>& offsets,
+        int64_t size)
         : subtaskIndex(subtaskIndex),
           info(info),
           delegate(std::move(delegate)),
           offsets(offsets),
-          size(size) {}
+          size(size)
+    {
+    }
 
     ~AbstractChannelStateHandle() = default;
 
@@ -103,11 +107,11 @@ public:
     std::string ToString() const override
     {
         std::stringstream ss;
-        ss << "AbstractChannelStateHandle{subtaskIndex=" << subtaskIndex
-                << ", info=" << info.toString() << ", delegate" << delegate->ToString()
-                << ",size:" << size << "}";
+        ss << "AbstractChannelStateHandle{subtaskIndex=" << subtaskIndex << ", info=" << info.toString() << ", delegate"
+           << delegate->ToString() << ",size:" << size << "}";
         return ss.str();
     }
+
 protected:
     const int subtaskIndex;
     const Info info;

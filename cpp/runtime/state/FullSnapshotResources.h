@@ -17,13 +17,18 @@
 #include "state/SnapshotResources.h"
 class FullSnapshotResources : public SnapshotResources {
 public:
-    virtual const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>&
-        getMetaInfoSnapshots() = 0;
-    virtual KeyGroupRange *getKeyGroupRange() = 0;
-    virtual TypeSerializer *getKeySerializer() = 0;
+    virtual const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& getMetaInfoSnapshots() = 0;
+    virtual KeyGroupRange* getKeyGroupRange() = 0;
+    virtual TypeSerializer* getKeySerializer() = 0;
     virtual std::shared_ptr<KeyValueStateIterator> createKVStateIterator() = 0;
-    virtual bool isHeapPriorityQueueStateId(int /*kvStateId*/) const { return false; }
-    virtual int getKeyGroupPrefixBytes() const { return 1; }
+    virtual bool isHeapPriorityQueueStateId(int /*kvStateId*/) const
+    {
+        return false;
+    }
+    virtual int getKeyGroupPrefixBytes() const
+    {
+        return 1;
+    }
     virtual void cleanup() = 0;
 };
 #endif

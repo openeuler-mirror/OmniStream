@@ -24,36 +24,35 @@ namespace omnistream {
 ObjectBufferConsumer::ObjectBufferConsumer(VectorBatchBuffer* buffer, int size)
     : ObjectBufferConsumer(buffer, new FixedSizePositionMarker(-size), 0)
 {
-    LOG_TRACE("inside constructor two parameter")
+    LOG_TRACE("inside constructor two parameter");
     if (!isFinished()) {
-        THROW_LOGIC_EXCEPTION("BufferConsumer with static size must be finished after construction!")
+        THROW_LOGIC_EXCEPTION("BufferConsumer with static size must be finished after construction!");
     }
 }
 
-ObjectBufferConsumer::ObjectBufferConsumer(VectorBatchBuffer* buffer_,
-                                           PositionMarker *currentWriterPosition, int currentReaderPosition)
+ObjectBufferConsumer::ObjectBufferConsumer(
+    VectorBatchBuffer* buffer_, PositionMarker* currentWriterPosition, int currentReaderPosition)
     : BufferConsumer(buffer_, currentWriterPosition, currentReaderPosition)
 {
-    LOG("ObjectBufferConsumer init will running")
+    LOG("ObjectBufferConsumer init will running");
     if (currentReaderPosition > this->writerPosition->getCached()) {
         THROW_LOGIC_EXCEPTION("Reader position larger than writer position");
     }
 }
 
-
 ObjectBufferConsumer::~ObjectBufferConsumer()
 {
-    LOG_TRACE("destruction ObjectBufferConsumer")
+    LOG_TRACE("destruction ObjectBufferConsumer");
 }
 
 std::shared_ptr<BufferConsumer> ObjectBufferConsumer::copy()
 {
-    NOT_IMPL_EXCEPTION
+    NOT_IMPL_EXCEPTION;
 }
 
 std::shared_ptr<BufferConsumer> ObjectBufferConsumer::copyWithReaderPosition(int readerPosition)
 {
-    NOT_IMPL_EXCEPTION
+    NOT_IMPL_EXCEPTION;
 }
 
 Buffer* ObjectBufferConsumer::build()
@@ -63,57 +62,57 @@ Buffer* ObjectBufferConsumer::build()
 
 VectorBatchBuffer* ObjectBufferConsumer::buildVectorBatchBuffer()
 {
-    LOG_TRACE("Starting Build...")
+    LOG_TRACE("Starting Build...");
     Buffer* rawBuffer = requireBuffer("ObjectBufferConsumer::buildVectorBatchBuffer");
-    LOG_TRACE("buffer internal " << rawBuffer->ToDebugString(false))
+    LOG_TRACE("buffer internal " << rawBuffer->ToDebugString(false));
     if (rawBuffer->isBuffer()) {
         // vector batch
         VectorBatchBuffer* vbbuffer = dynamic_cast<VectorBatchBuffer*>(rawBuffer);
         writerPosition->update();
         int cachedWriterPosition = writerPosition->getCached();
-        LOG("ObjectBufferConsumer::build() before get slice")
-        LOG("buffer " << (vbbuffer->isBuffer()? "buffer" : "event"))
+        LOG("ObjectBufferConsumer::build() before get slice");
+        LOG("buffer " << (vbbuffer->isBuffer() ? "buffer" : "event"));
 
         auto slice = vbbuffer->ReadOnlySlice(currentReaderPosition, cachedWriterPosition - currentReaderPosition);
-        LOG("ObjectBufferConsumer::build() after get slice")
+        LOG("ObjectBufferConsumer::build() after get slice");
         slice->RetainBuffer();
         currentReaderPosition = cachedWriterPosition;
 
-        VectorBatchBuffer* vbslice= dynamic_cast<VectorBatchBuffer*>(slice);
+        VectorBatchBuffer* vbslice = dynamic_cast<VectorBatchBuffer*>(slice);
         return vbslice;
     } else {
-         // event buffer
-         LOG_TRACE("build event  buffer")
-         auto vbbuffer = dynamic_cast<VectorBatchBuffer*>(rawBuffer);
-         writerPosition->update();
-         int cachedWriterPosition = writerPosition->getCached();
-         LOG("ObjectBufferConsumer::build() before get slice")
-         LOG("buffer " << (vbbuffer->isBuffer()? "buffer" : "event"))
-         ObjectBuffer* slice =
-                 dynamic_cast<ObjectBuffer*>(vbbuffer->ReadOnlySlice(currentReaderPosition, cachedWriterPosition - currentReaderPosition));
-         LOG("ObjectBufferConsumer::build() after get slice")
-         // todo: why not call slice->RetainBuffer();
-         // slice->RetainBuffer();
-         currentReaderPosition = cachedWriterPosition;
-         //  NOT_IMPL_EXCEPTION
-         VectorBatchBuffer* vbslice= dynamic_cast<VectorBatchBuffer*>(slice);
-         return vbslice;
-     }
+        // event buffer
+        LOG_TRACE("build event  buffer");
+        auto vbbuffer = dynamic_cast<VectorBatchBuffer*>(rawBuffer);
+        writerPosition->update();
+        int cachedWriterPosition = writerPosition->getCached();
+        LOG("ObjectBufferConsumer::build() before get slice");
+        LOG("buffer " << (vbbuffer->isBuffer() ? "buffer" : "event"));
+        ObjectBuffer* slice = dynamic_cast<ObjectBuffer*>(
+            vbbuffer->ReadOnlySlice(currentReaderPosition, cachedWriterPosition - currentReaderPosition));
+        LOG("ObjectBufferConsumer::build() after get slice");
+        // todo: why not call slice->RetainBuffer();
+        // slice->RetainBuffer();
+        currentReaderPosition = cachedWriterPosition;
+        //  NOT_IMPL_EXCEPTION
+        VectorBatchBuffer* vbslice = dynamic_cast<VectorBatchBuffer*>(slice);
+        return vbslice;
+    }
 }
-
 
 bool ObjectBufferConsumer::isStartOfDataBuffer() const
 {
     return requireBuffer("ObjectBufferConsumer::isStartOfDataBuffer")->GetDataType() ==
-        ObjectBufferDataType::DATA_BUFFER && currentReaderPosition == 0;
+               ObjectBufferDataType::DATA_BUFFER &&
+           currentReaderPosition == 0;
 }
-
 
 std::string ObjectBufferConsumer::toDebugString(bool includeHash)
 {
     ObjectBuffer* tempBuffer;
     try {
-        std::shared_ptr<ObjectBufferConsumer> copiedBufferConsumer = std::dynamic_pointer_cast<ObjectBufferConsumer>(copy());
+        std::shared_ptr<ObjectBufferConsumer> copiedBufferConsumer =
+            std::dynamic_pointer_cast<ObjectBufferConsumer>(copy());
         tempBuffer = dynamic_cast<ObjectBuffer*>(copiedBufferConsumer->build());
         if (!copiedBufferConsumer->isFinished()) {
             throw std::runtime_error("copiedBufferConsumer is not finished");
@@ -130,11 +129,10 @@ std::string ObjectBufferConsumer::toDebugString(bool includeHash)
 std::string ObjectBufferConsumer::toString()
 {
     std::stringstream ss;
-    ss << "BufferConsumer{buffer=" << (buffer ? "present" : "nullptr")
-       << "buffer address"  << buffer
+    ss << "BufferConsumer{buffer=" << (buffer ? "present" : "nullptr") << "buffer address" << buffer
        << ", writerPosition=" << writerPosition->getCached() << ", currentReaderPosition=" << currentReaderPosition
        << "}";
     return ss.str();
 }
 
-}  // namespace omnistream
+} // namespace omnistream

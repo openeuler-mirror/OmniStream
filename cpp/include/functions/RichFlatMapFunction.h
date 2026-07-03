@@ -15,13 +15,13 @@
 #include "FlatMapFunction.h"
 #include "AbstractRichFunction.h"
 
-template<typename T>
+template <typename T>
 class RichFlatMapFunction : public FlatMapFunction<T>, public AbstractRichFunction {
 public:
-    virtual void flatMap(T* obj, Collector *collector) = 0;
+    virtual void flatMap(T* obj, Collector* collector) = 0;
 };
 
-template<typename T>
+template <typename T>
 using RichFlatMapFunctionUnique = std::unique_ptr<RichFlatMapFunction<T>>;
 
 #endif // FLINK_TNEL_RICHFLATMAPFUNCTION_H

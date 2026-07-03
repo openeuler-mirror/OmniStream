@@ -13,13 +13,12 @@
 
 #include <memory>
 
-MemorySegment *MemorySegmentFactory::wrap(int size)
+MemorySegment* MemorySegmentFactory::wrap(int size)
 {
     return new MemorySegment(size);
 }
 
-MemorySegment *MemorySegmentFactory::wrap(uint8_t *buffer, int size)
+MemorySegment* MemorySegmentFactory::wrap(uint8_t* buffer, int size)
 {
     return new MemorySegment(buffer, size);
 }
-

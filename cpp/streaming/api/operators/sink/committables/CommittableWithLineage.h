@@ -21,7 +21,11 @@ template <typename CommT>
 class CommittableWithLineage : public CommittableMessage<CommT> {
 public:
     CommittableWithLineage(CommT committable, std::optional<long> checkpointId, int subtaskId)
-        : committable(std::move(committable)), checkpointId(checkpointId), subtaskId(subtaskId) {}
+        : committable(std::move(committable)),
+          checkpointId(checkpointId),
+          subtaskId(subtaskId)
+    {
+    }
 
     CommT GetCommittable() const
     {
@@ -37,6 +41,7 @@ public:
     {
         return checkpointId;
     }
+
 private:
     CommT committable;
     std::optional<long> checkpointId;

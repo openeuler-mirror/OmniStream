@@ -17,7 +17,6 @@
 #include "../../core/utils/MathUtils.h"
 #include "data/binary/BinaryRowData.h"
 
-
 template <typename K>
 class KeyGroupRangeAssignment {
 public:
@@ -32,12 +31,12 @@ public:
             return MathUtils::murmurHash(hashCode) % maxParallelism;
         }
         if constexpr (std::is_same_v<K, Object*>) {
-            int hashCode = key ? ((Object*)key)->hashCode():0;
+            int hashCode = key ? ((Object*)key)->hashCode() : 0;
             int res = MathUtils::murmurHash(hashCode) % maxParallelism;
             return res;
         }
         int hashCode = std::hash<K>{}(key);
-        LOG("hashkey hashCode -> "<< hashCode);
+        LOG("hashkey hashCode -> " << hashCode);
         return MathUtils::murmurHash(hashCode) % maxParallelism;
     }
 
@@ -49,7 +48,7 @@ public:
     static inline int assignKeyToParallelOperator(K key, int maxParallelism, int parallelism)
     {
         int keyGroup = assignToKeyGroup(key, maxParallelism);
-        auto result =  computeOperatorIndexForKeyGroup(maxParallelism, parallelism, keyGroup);
+        auto result = computeOperatorIndexForKeyGroup(maxParallelism, parallelism, keyGroup);
         return result;
     }
 };

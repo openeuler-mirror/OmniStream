@@ -21,29 +21,33 @@ public:
     static void interrupt();
     static bool isInterrupted();
     static void clear();
+
 private:
     static thread_local std::atomic<bool> interrupted_;
 };
 
 class ResourceGuard {
 public:
-    ResourceGuard() : leaseCount(0),
-                      closed(false) {};
-    ~ResourceGuard() { close();}
+    ResourceGuard() : leaseCount(0), closed(false) {};
+    ~ResourceGuard()
+    {
+        close();
+    }
 
     // 租约内部类
     class Lease {
     public:
-        Lease(Lease&& other) noexcept
-            : parent(other.parent),
-              closed(other.closed.load())
+        Lease(Lease&& other) noexcept : parent(other.parent), closed(other.closed.load())
         {
-            other.closed = true;  // 标记原租约已关闭
+            other.closed = true; // 标记原租约已关闭
         };
 
         Lease& operator=(Lease&& other) = delete;
 
-        ~Lease() { close();};
+        ~Lease()
+        {
+            close();
+        };
         void close()
         {
             // 原子操作确保只释放一次
@@ -54,13 +58,13 @@ public:
 
         // 允许ResourceGuard访问Lease的私有构造函数
         friend class ResourceGuard;
+
     private:
-        ResourceGuard& parent;              // 指向所属的ResourceGuard
-        std::atomic<bool> closed;           // 租约是否已关闭
+        ResourceGuard& parent;    // 指向所属的ResourceGuard
+        std::atomic<bool> closed; // 租约是否已关闭
 
         // 私有构造函数，只能通过ResourceGuard::acquireResource创建
-        explicit Lease(ResourceGuard& guard) : parent(guard),
-                                               closed(false) {};
+        explicit Lease(ResourceGuard& guard) : parent(guard), closed(false) {};
     };
 
     // 获取资源租约（可能抛出异常）
@@ -68,9 +72,9 @@ public:
     {
         std::unique_lock<std::mutex> lk(mtx);
         if (closed) {
-            throw std::exception();  // 已关闭则抛出异常
+            throw std::exception(); // 已关闭则抛出异常
         }
-        leaseCount++;  // 增加租约计数
+        leaseCount++; // 增加租约计数
         return new Lease(*this);
     };
     // 释放资源（内部使用）
@@ -78,7 +82,7 @@ public:
     {
         std::unique_lock<std::mutex> lk(mtx);
         if (--leaseCount == 0 && closed) {
-            cv.notify_all();  // 所有租约释放且已关闭，通知等待线程
+            cv.notify_all(); // 所有租约释放且已关闭，通知等待线程
         }
     };
     // 可中断的关闭

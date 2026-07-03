@@ -19,6 +19,6 @@ class DataStream : public Object {
 public:
     DataStream();
     ~DataStream();
-    SingleOutputStreamOperator *flatMap(FlatMapFunction<Object> *flatMapFunction);
+    SingleOutputStreamOperator* flatMap(FlatMapFunction<Object>* flatMapFunction);
 };
-#endif  // FLINK_TNEL_DATASTREAM_H
+#endif // FLINK_TNEL_DATASTREAM_H

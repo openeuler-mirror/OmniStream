@@ -21,21 +21,22 @@
 
 namespace omnistream {
 
-    class MailboxController : public MailboxDefaultAction::Controller {
-    public:
-        explicit MailboxController(MailboxProcessor* mailboxProcessor);
+class MailboxController : public MailboxDefaultAction::Controller {
+public:
+    explicit MailboxController(MailboxProcessor* mailboxProcessor);
 
-        ~MailboxController() override;
+    ~MailboxController() override;
 
-        void allActionsCompleted() override;
-        std::shared_ptr<MailboxDefaultAction::Suspension> suspendDefaultAction(std::shared_ptr<PeriodTimer> suspensionPeriodTimer) override;
-        std::shared_ptr<MailboxDefaultAction::Suspension> suspendDefaultAction() override;
+    void allActionsCompleted() override;
+    std::shared_ptr<MailboxDefaultAction::Suspension> suspendDefaultAction(
+        std::shared_ptr<PeriodTimer> suspensionPeriodTimer) override;
+    std::shared_ptr<MailboxDefaultAction::Suspension> suspendDefaultAction() override;
 
-        std::string toString() const;
+    std::string toString() const;
 
-    private:
-        MailboxProcessor* mailboxProcessor_;
-    };
+private:
+    MailboxProcessor* mailboxProcessor_;
+};
 
 } // namespace omnistream
 

@@ -13,7 +13,6 @@
 #include "ProgressiveTimestampsAndWatermarks.h"
 #include "TimestampsAndWatermarksContext.h"
 
-
 std::shared_ptr<TimestampsAndWatermarks> TimestampsAndWatermarks::CreateNoOpEventTimeLogic(
     const std::shared_ptr<WatermarkStrategy>& watermarkStrategy)
 {
@@ -22,17 +21,14 @@ std::shared_ptr<TimestampsAndWatermarks> TimestampsAndWatermarks::CreateNoOpEven
 }
 
 std::shared_ptr<TimestampsAndWatermarks> TimestampsAndWatermarks::CreateProgressiveEventTimeLogic(
-    const std::shared_ptr<WatermarkStrategy>& watermarkStrategy, ProcessingTimeService* timeService,
+    const std::shared_ptr<WatermarkStrategy>& watermarkStrategy,
+    ProcessingTimeService* timeService,
     long periodicWatermarkIntervalMillis)
 {
     auto timestampAssigner = watermarkStrategy->CreateTimestampAssigner();
     auto eventTimeLogic = std::make_shared<ProgressiveTimestampsAndWatermarks>(
-            timestampAssigner,
-            watermarkStrategy,
-            timeService,
-            periodicWatermarkIntervalMillis);
+        timestampAssigner, watermarkStrategy, timeService, periodicWatermarkIntervalMillis);
     auto callback = new ProgressiveTimestampsAndWatermarks::TriggerProcessingTimeCallback(eventTimeLogic);
     eventTimeLogic->callback = callback;
     return eventTimeLogic;
 }
-

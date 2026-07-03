@@ -13,19 +13,21 @@
 
 namespace omnistream {
 
-    GaugePeriodTimer::GaugePeriodTimer(){};
+GaugePeriodTimer::GaugePeriodTimer() {};
 
-    void GaugePeriodTimer::markStart() {
-    }
+void GaugePeriodTimer::markStart()
+{
+}
 
-    void GaugePeriodTimer::markEnd() {
-    }
+void GaugePeriodTimer::markEnd()
+{
+}
 
-    std::string GaugePeriodTimer::toString() const
-    {
-        std::stringstream ss;
-        ss << "GaugePeriodTimer [timerGauge=" <<  "null" << "]";
-        return ss.str();
-    }
+std::string GaugePeriodTimer::toString() const
+{
+    std::stringstream ss;
+    ss << "GaugePeriodTimer [timerGauge=" << "null" << "]";
+    return ss.str();
+}
 
 } // namespace omnistream

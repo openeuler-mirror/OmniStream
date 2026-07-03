@@ -26,8 +26,7 @@ public:
      * 构造函数：接收一个 rocksdb::Iterator 指针，转移所有权
      * @param iter 必须非空
      */
-    explicit RocksIteratorWrapper(std::unique_ptr<rocksdb::Iterator> iter)
-        : iterator(std::move(iter))
+    explicit RocksIteratorWrapper(std::unique_ptr<rocksdb::Iterator> iter) : iterator(std::move(iter))
     {
         if (!iterator) {
             throw std::invalid_argument("Iterator cannot be null");
@@ -157,19 +156,21 @@ public:
     }
 
     /**
-    * 获取当前键
-    * @return 字节视图，仅在下一次移动或关闭 iterator 前有效
-    */
-    ByteView keyView() {
+     * 获取当前键
+     * @return 字节视图，仅在下一次移动或关闭 iterator 前有效
+     */
+    ByteView keyView()
+    {
         auto slice = iterator->key();
         return ByteView::fromBuffer(slice.data(), slice.size());
     }
 
     /**
-    * 获取当前键
-    * @return Slice
-    */
-    rocksdb::Slice keySlice() {
+     * 获取当前键
+     * @return Slice
+     */
+    rocksdb::Slice keySlice()
+    {
         return iterator->key();
     }
 
@@ -177,7 +178,8 @@ public:
      * 获取当前值
      * @return 字符串（拷贝）
      */
-    std::string value() {
+    std::string value()
+    {
         return iterator->value().ToString();
     }
 
@@ -185,7 +187,8 @@ public:
      * 获取当前值
      * @return 字节视图，仅在下一次移动或关闭 iterator 前有效
      */
-    ByteView valueView() {
+    ByteView valueView()
+    {
         auto slice = iterator->value();
         return ByteView::fromBuffer(slice.data(), slice.size());
     }
@@ -194,7 +197,8 @@ public:
      * 获取当前值
      * @return Slice
      */
-    rocksdb::Slice valueSlice() {
+    rocksdb::Slice valueSlice()
+    {
         return iterator->value();
     }
 

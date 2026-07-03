@@ -15,62 +15,71 @@
 
 namespace omnistream {
 
-    ResultSubpartitionInfoPOD::ResultSubpartitionInfoPOD() : partitionIdx(0), subPartitionIdx(0) {}
+ResultSubpartitionInfoPOD::ResultSubpartitionInfoPOD() : partitionIdx(0), subPartitionIdx(0)
+{
+}
 
-    ResultSubpartitionInfoPOD::ResultSubpartitionInfoPOD(int partitionIdx, int subPartitionIdx)
-        : partitionIdx(partitionIdx), subPartitionIdx(subPartitionIdx) {}
+ResultSubpartitionInfoPOD::ResultSubpartitionInfoPOD(int partitionIdx, int subPartitionIdx)
+    : partitionIdx(partitionIdx),
+      subPartitionIdx(subPartitionIdx)
+{
+}
 
-    ResultSubpartitionInfoPOD::ResultSubpartitionInfoPOD(const ResultSubpartitionInfoPOD& other)
-        : partitionIdx(other.partitionIdx), subPartitionIdx(other.subPartitionIdx) {}
+ResultSubpartitionInfoPOD::ResultSubpartitionInfoPOD(const ResultSubpartitionInfoPOD& other)
+    : partitionIdx(other.partitionIdx),
+      subPartitionIdx(other.subPartitionIdx)
+{
+}
 
-    ResultSubpartitionInfoPOD::~ResultSubpartitionInfoPOD() {}
+ResultSubpartitionInfoPOD::~ResultSubpartitionInfoPOD()
+{
+}
 
-    int ResultSubpartitionInfoPOD::getPartitionIdx() const
-    {
-        return partitionIdx;
+int ResultSubpartitionInfoPOD::getPartitionIdx() const
+{
+    return partitionIdx;
+}
+
+void ResultSubpartitionInfoPOD::setPartitionIdx(int partitionIdx_)
+{
+    this->partitionIdx = partitionIdx_;
+}
+
+int ResultSubpartitionInfoPOD::getSubPartitionIdx() const
+{
+    return subPartitionIdx;
+}
+
+void ResultSubpartitionInfoPOD::setSubPartitionIdx(int subPartitionIdx_)
+{
+    this->subPartitionIdx = subPartitionIdx_;
+}
+
+bool ResultSubpartitionInfoPOD::operator==(const ResultSubpartitionInfoPOD& other) const
+{
+    return partitionIdx == other.partitionIdx && subPartitionIdx == other.subPartitionIdx;
+}
+
+bool ResultSubpartitionInfoPOD::operator!=(const ResultSubpartitionInfoPOD& other) const
+{
+    return !(*this == other);
+}
+
+bool ResultSubpartitionInfoPOD::operator<(const ResultSubpartitionInfoPOD& other) const
+{
+    if (partitionIdx != other.partitionIdx) {
+        return partitionIdx < other.partitionIdx;
     }
+    return subPartitionIdx < other.subPartitionIdx;
+}
 
-    void ResultSubpartitionInfoPOD::setPartitionIdx(int partitionIdx_)
-    {
-        this->partitionIdx = partitionIdx_;
-    }
-
-    int ResultSubpartitionInfoPOD::getSubPartitionIdx() const
-    {
-        return subPartitionIdx;
-    }
-
-    void ResultSubpartitionInfoPOD::setSubPartitionIdx(int subPartitionIdx_)
-    {
-        this->subPartitionIdx = subPartitionIdx_;
-    }
-
-    bool ResultSubpartitionInfoPOD::operator==(const ResultSubpartitionInfoPOD& other) const
-    {
-        return partitionIdx == other.partitionIdx && subPartitionIdx == other.subPartitionIdx;
-    }
-
-    bool ResultSubpartitionInfoPOD::operator!=(const ResultSubpartitionInfoPOD& other) const
-    {
-        return !(*this == other);
-    }
-
-    bool ResultSubpartitionInfoPOD::operator<(const ResultSubpartitionInfoPOD& other) const
-    {
-        if (partitionIdx != other.partitionIdx) {
-            return partitionIdx < other.partitionIdx;
-        }
-        return subPartitionIdx < other.subPartitionIdx;
-    }
-
-    std::string ResultSubpartitionInfoPOD::toString() const
-    {
-        nlohmann::json info;
-        info["@class"] = "org.apache.flink.runtime.checkpoint.channel.ResultSubpartitionInfo";
-        info["partitionIdx"] = partitionIdx;
-        info["subPartitionIdx"] = subPartitionIdx;
-        return info.dump();
-    }
+std::string ResultSubpartitionInfoPOD::toString() const
+{
+    nlohmann::json info;
+    info["@class"] = "org.apache.flink.runtime.checkpoint.channel.ResultSubpartitionInfo";
+    info["partitionIdx"] = partitionIdx;
+    info["subPartitionIdx"] = subPartitionIdx;
+    return info.dump();
+}
 
 } // namespace omnistream
-

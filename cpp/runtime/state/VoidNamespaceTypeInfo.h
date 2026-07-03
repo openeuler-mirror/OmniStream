@@ -12,10 +12,13 @@ public:
 
     std::string name() override;
 
-    BackendDataType getBackendId() const override {return BackendDataType::VOID_NAMESPACE_BK;}
+    BackendDataType getBackendId() const override
+    {
+        return BackendDataType::VOID_NAMESPACE_BK;
+    }
 
 private:
     const char* name_ = TYPE_NAME_VOID_NAMESPACE;
 };
 
-#endif  // OMNISTREAM_VOIDNAMESPACETYPEINFO_H
+#endif // OMNISTREAM_VOIDNAMESPACETYPEINFO_H

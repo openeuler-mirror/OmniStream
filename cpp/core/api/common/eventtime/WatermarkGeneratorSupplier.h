@@ -16,8 +16,7 @@
 
 class WatermarkGeneratorSupplier {
 public:
-    class Context {
-    };
+    class Context {};
 
     virtual WatermarkGenerator* CreateWatermarkGenerator() = 0;
 };

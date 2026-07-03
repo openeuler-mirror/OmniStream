@@ -19,29 +19,28 @@
 #include "core/graph/TaskPartitionerConfig.h"
 #include "core/include/outputbuffer.h"
 namespace omnistream::datastream {
-    class RecordWriter {
-    public:
-        explicit RecordWriter(uint8_t* address, int32_t capacity, StreamPartitioner<IOReadableWritable>* streamPartitioner);
+class RecordWriter {
+public:
+    explicit RecordWriter(uint8_t* address, int32_t capacity, StreamPartitioner<IOReadableWritable>* streamPartitioner);
 
-        RecordWriter(OutputBufferStatus* outputBufferStatus, StreamPartitioner<IOReadableWritable>* streamPartitioner);
+    RecordWriter(OutputBufferStatus* outputBufferStatus, StreamPartitioner<IOReadableWritable>* streamPartitioner);
 
-        ~RecordWriter();
+    ~RecordWriter();
 
-        virtual void emit(IOReadableWritable* record);
-        static void  serializeRecord(DataOutputSerializer& serializer, IOReadableWritable* record, int channel);
-        void clear();
+    virtual void emit(IOReadableWritable* record);
+    static void serializeRecord(DataOutputSerializer& serializer, IOReadableWritable* record, int channel);
+    void clear();
 
-        int32_t getCounter() const;
-        int32_t getLength() const;
+    int32_t getCounter() const;
+    int32_t getLength() const;
 
-        void setCounter(int counter);
-        void close() {};
+    void setCounter(int counter);
+    void close() {};
 
-    protected:
-        DataOutputSerializer serializer_{};
-        int32_t counter_ {};
-        StreamPartitioner<IOReadableWritable>* streamPartitioner;
-    };
-}
+protected:
+    DataOutputSerializer serializer_{};
+    int32_t counter_{};
+    StreamPartitioner<IOReadableWritable>* streamPartitioner;
+};
+} // namespace omnistream::datastream
 #endif
-

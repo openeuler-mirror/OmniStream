@@ -16,17 +16,18 @@
 #include "Trigger.h"
 #include "table/utils/TimeWindowUtil.h"
 
-template<typename W>
+template <typename W>
 class WindowTrigger : public Trigger<W> {
 public:
     WindowTrigger() = default;
 
     ~WindowTrigger() override = default;
 
-    int64_t triggerTime(const W& window) {
+    int64_t triggerTime(const W& window)
+    {
         return TimeWindowUtil::toEpochMillsForTimer(window.maxTimestamp(), ctx->getShiftTimeZone());
     }
 
 protected:
-    typename Trigger<W>::TriggerContext *ctx;
+    typename Trigger<W>::TriggerContext* ctx;
 };

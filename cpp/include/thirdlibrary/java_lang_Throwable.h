@@ -12,7 +12,6 @@
 #ifndef ME_CHECK_THROWABLE_H
 #define ME_CHECK_THROWABLE_H
 
-class java_lang_Throwable {
-};
+class java_lang_Throwable {};
 
 #endif // ME_CHECK_THROWABLE_H

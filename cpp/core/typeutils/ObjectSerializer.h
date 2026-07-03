@@ -23,22 +23,22 @@ public:
         NOT_IMPL_EXCEPTION;
     };
 
-    void serialize(void * record, DataOutputSerializer& target) override
+    void serialize(void* record, DataOutputSerializer& target) override
     {
         NOT_IMPL_EXCEPTION;
     };
 
-    void deserialize(Object *buffer, DataInputView &source) override
+    void deserialize(Object* buffer, DataInputView& source) override
     {
         NOT_IMPL_EXCEPTION;
     };
 
-    void serialize(Object *buffer, DataOutputSerializer &target) override
+    void serialize(Object* buffer, DataOutputSerializer& target) override
     {
         NOT_IMPL_EXCEPTION;
     };
 
-    const char *getName() const override
+    const char* getName() const override
     {
         return "ObjectSerializer";
     }

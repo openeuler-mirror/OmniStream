@@ -11,7 +11,6 @@
 
 #pragma once
 
-
 #include <functional>
 #include <iostream>
 #include <nlohmann/json.hpp>
@@ -23,11 +22,11 @@
 #include "AbstractUdfStreamOperator.h"
 #include "OneInputStreamOperator.h"
 
-using ProjectFunc = int32_t (*)(const int64_t *, const uint8_t *, int32_t *, int64_t *, uint8_t *, int32_t *, int64_t);
+using ProjectFunc = int32_t (*)(const int64_t*, const uint8_t*, int32_t*, int64_t*, uint8_t*, int32_t*, int64_t);
 
 class StreamExpand : public OneInputStreamOperator, public AbstractStreamOperator<int> {
 public:
-    explicit StreamExpand(const nlohmann::json &description, Output *output);
+    explicit StreamExpand(const nlohmann::json& description, Output* output);
 
     ~StreamExpand() override;
 
@@ -35,28 +34,28 @@ public:
 
     void processElement(StreamRecord* record) override
     {
-        NOT_IMPL_EXCEPTION
+        NOT_IMPL_EXCEPTION;
     };
 
     void open() override;
 
     void close() override;
 
-    const char *getName() override;
+    const char* getName() override;
 
-    void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) override
+    void initializeState(StreamTaskStateInitializerImpl* initializer, TypeSerializer* keySerializer) override
     {
-        LOG("StreamExpand initializeState()")
+        LOG("StreamExpand initializeState()");
         // Do Nothing
     }
-    void ProcessWatermark(Watermark *watermark) override
+    void ProcessWatermark(Watermark* watermark) override
     {
         if (timeServiceManager != nullptr) {
             timeServiceManager->advanceWatermark(watermark);
         }
         output->emitWatermark(watermark);
     }
-    void processWatermarkStatus(WatermarkStatus *watermarkStatus) override
+    void processWatermarkStatus(WatermarkStatus* watermarkStatus) override
     {
         output->emitWatermarkStatus(watermarkStatus);
     }
@@ -70,12 +69,14 @@ public:
 
     void parseDescription(nlohmann::json& descriptionJson, int index);
 
-    omnistream::VectorBatch *copyTimestampAndKind(omnistream::VectorBatch *srcVb, omniruntime::vec::VectorBatch *projectedVecs);
+    omnistream::VectorBatch* copyTimestampAndKind(
+        omnistream::VectorBatch* srcVb, omniruntime::vec::VectorBatch* projectedVecs);
+
 private:
     nlohmann::json description_;
     std::vector<omniruntime::type::DataTypes> inputTypes;
     std::vector<omniruntime::codegen::ExpressionEvaluator*> exprEvaluators;
-    std::vector<std::vector<omniruntime::expressions::Expr *>> projExprs;
+    std::vector<std::vector<omniruntime::expressions::Expr*>> projExprs;
     std::unique_ptr<omniruntime::op::ExecutionContext> executionContext;
     omniruntime::mem::AlignedBuffer<int32_t> selectedRowsBuffer;
     TimestampedCollector* timestampedCollector_;

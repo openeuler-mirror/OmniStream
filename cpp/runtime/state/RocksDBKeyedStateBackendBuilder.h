@@ -38,7 +38,6 @@
 #include "runtime/snapshot/RocksIncrementalSnapshotStrategy.h"
 #include "runtime/state/rocksdb/RocksDBStateUploader.h"
 
-
 namespace fs = std::filesystem;
 template <typename K>
 class RocksDBKeyedStateBackendBuilder {
@@ -52,9 +51,9 @@ public:
         std::string operatorIdentifier_,
         fs::path instanceBasePath_,
         std::shared_ptr<RocksDBResourceContainer> optionsContainer_,
-        TypeSerializer *keySerializer_,
+        TypeSerializer* keySerializer_,
         int numberOfKeyGroups_,
-        KeyGroupRange *keyGroupRange_,
+        KeyGroupRange* keyGroupRange_,
         std::shared_ptr<LocalRecoveryConfig> localRecoveryConfig_,
         PriorityQueueStateType priorityQueueStateType,
         std::vector<std::shared_ptr<KeyedStateHandle>> stateHandles_,
@@ -63,23 +62,23 @@ public:
         std::shared_ptr<OperatorID> operatorId,
         int alternativeIdx)
         : keySerializer(keySerializer_),
-        operatorIdentifier(operatorIdentifier_),
-        instanceBasePath(instanceBasePath_),
-        optionsContainer(optionsContainer_),
-        numberOfKeyGroups(numberOfKeyGroups_),
-        keyGroupRange(keyGroupRange_),
-        localRecoveryConfig(localRecoveryConfig_),
-        priorityQueueStateType_(priorityQueueStateType),
-        restoreStateHandles(stateHandles_),
-        bridge(bridge_),
-        omniTaskBridge(omniTaskBridge_),
-        operatorId_(operatorId),
-        alternativeIdx_(alternativeIdx)
+          operatorIdentifier(operatorIdentifier_),
+          instanceBasePath(instanceBasePath_),
+          optionsContainer(optionsContainer_),
+          numberOfKeyGroups(numberOfKeyGroups_),
+          keyGroupRange(keyGroupRange_),
+          localRecoveryConfig(localRecoveryConfig_),
+          priorityQueueStateType_(priorityQueueStateType),
+          restoreStateHandles(stateHandles_),
+          bridge(bridge_),
+          omniTaskBridge(omniTaskBridge_),
+          operatorId_(operatorId),
+          alternativeIdx_(alternativeIdx)
     {
         instanceRocksDBPath = getInstanceRocksDBPath(instanceBasePath);
     }
 
-    RocksdbKeyedStateBackend<K> *build();
+    RocksdbKeyedStateBackend<K>* build();
 
     static std::filesystem::path getInstanceRocksDBPath(const std::filesystem::path& instanceBasePath)
     {
@@ -136,8 +135,7 @@ private:
             }
         } else {
             if (!fs::create_directories(directory)) {
-                throw std::runtime_error(
-                    "Could not create RocksDB data directory at " + directory.string());
+                throw std::runtime_error("Could not create RocksDB data directory at " + directory.string());
             }
         }
     }
@@ -156,73 +154,71 @@ private:
     }
 
     std::shared_ptr<RocksDBRestoreOperation> getRocksDBRestoreOperation(
-            int keyGroupPrefixBytes,
-            std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>> *kvStateInformation,
-            std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapperBase>>> registeredPQStates)
+        int keyGroupPrefixBytes,
+        std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation,
+        std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapperBase>>>
+            registeredPQStates)
     {
         auto dbOptions = optionsContainer->getDbOptions();
         if (restoreStateHandles.empty()) {
             return std::make_shared<RocksDBNoneRestoreOperation>(
-                    kvStateInformation,
-                    instanceRocksDBPath,
-                    dbOptions,
-                    columnFamilyOptionsFactory);
+                kvStateInformation, instanceRocksDBPath, dbOptions, columnFamilyOptionsFactory);
         }
         std::shared_ptr<KeyedStateHandle> firstStateHandle = restoreStateHandles[0];
         if (auto incrementalHandle = std::dynamic_pointer_cast<IncrementalKeyedStateHandle>(firstStateHandle)) {
             return std::make_shared<RocksDBIncrementalRestoreOperation<K>>(
-                    operatorIdentifier,
-                    keyGroupRange,
-                    keyGroupPrefixBytes,
-                    numberOfTransferingThreads,
-                    kvStateInformation,
-                    keySerializer,
-                    instanceBasePath,
-                    instanceRocksDBPath,
-                    dbOptions,
-                    columnFamilyOptionsFactory,
-                    restoreStateHandles,
-                    writeBatchSize,
-                    omniTaskBridge,
-                    operatorId_,
-                    alternativeIdx_);
+                operatorIdentifier,
+                keyGroupRange,
+                keyGroupPrefixBytes,
+                numberOfTransferingThreads,
+                kvStateInformation,
+                keySerializer,
+                instanceBasePath,
+                instanceRocksDBPath,
+                dbOptions,
+                columnFamilyOptionsFactory,
+                restoreStateHandles,
+                writeBatchSize,
+                omniTaskBridge,
+                operatorId_,
+                alternativeIdx_);
         } else {
             if (priorityQueueStateType_ == PriorityQueueStateType::HEAP) {
                 return std::make_shared<RocksDBHeapTimersFullRestoreOperation<K>>(
-                        keyGroupRange,
-                        numberOfKeyGroups,
-                        keySerializer,
-                        kvStateInformation,
-                        registeredPQStates,
-                        instanceRocksDBPath,
-                        dbOptions,
-                        columnFamilyOptionsFactory,
-                        restoreStateHandles,
-                        writeBatchSize,
-                        omniTaskBridge);
-            }
-
-            return std::make_shared<RocksDBFullRestoreOperation<K>>(
                     keyGroupRange,
+                    numberOfKeyGroups,
                     keySerializer,
                     kvStateInformation,
+                    registeredPQStates,
                     instanceRocksDBPath,
                     dbOptions,
                     columnFamilyOptionsFactory,
                     restoreStateHandles,
                     writeBatchSize,
                     omniTaskBridge);
+            }
+
+            return std::make_shared<RocksDBFullRestoreOperation<K>>(
+                keyGroupRange,
+                keySerializer,
+                kvStateInformation,
+                instanceRocksDBPath,
+                dbOptions,
+                columnFamilyOptionsFactory,
+                restoreStateHandles,
+                writeBatchSize,
+                omniTaskBridge);
         }
     }
 
     RocksDBSnapshotStrategyBase* initializeSavepointAndCheckpointStrategies(
-            std::shared_ptr<ResourceGuard> rocksDBResourceGuard,
-            std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>> *kvStateInformation,
-            int keyGroupPrefixBytes,
-            rocksdb::DB* db,
-            UUID backendUID,
-            std::map<long, std::vector<HandleAndLocalPath>> materializedSstFiles,
-            long lastCompletedCheckpointId)
+        std::shared_ptr<ResourceGuard> rocksDBResourceGuard,
+        std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation,
+        int keyGroupPrefixBytes,
+        rocksdb::DB* db,
+        UUID backendUID,
+        std::map<long, std::vector<HandleAndLocalPath>> materializedSstFiles,
+        long lastCompletedCheckpointId)
     {
         RocksDBSnapshotStrategyBase* checkpointSnapshotStrategy;
 
@@ -230,53 +226,53 @@ private:
 
         if (enableIncrementalCheckpointing) {
             checkpointSnapshotStrategy = new RocksIncrementalSnapshotStrategy(
-                                                                        db,
-                                                                        rocksDBResourceGuard,
-                                                                        keySerializer,
-                                                                        kvStateInformation,
-                                                                        *keyGroupRange,
-                                                                        keyGroupPrefixBytes,
-                                                                        localRecoveryConfig,
-                                                                        instanceBasePath.string(),
-                                                                        backendUID,
-                                                                        materializedSstFiles,
-                                                                        stateUploader,
-                                                                        lastCompletedCheckpointId);
+                db,
+                rocksDBResourceGuard,
+                keySerializer,
+                kvStateInformation,
+                *keyGroupRange,
+                keyGroupPrefixBytes,
+                localRecoveryConfig,
+                instanceBasePath.string(),
+                backendUID,
+                materializedSstFiles,
+                stateUploader,
+                lastCompletedCheckpointId);
         } else {
             checkpointSnapshotStrategy = new RocksNativeFullSnapshotStrategy(
-                                                                        db,
-                                                                        rocksDBResourceGuard,
-                                                                        keySerializer,
-                                                                        kvStateInformation,
-                                                                        *keyGroupRange,
-                                                                        keyGroupPrefixBytes,
-                                                                        localRecoveryConfig,
-                                                                        instanceBasePath.string(),
-                                                                        backendUID,
-                                                                        stateUploader);
+                db,
+                rocksDBResourceGuard,
+                keySerializer,
+                kvStateInformation,
+                *keyGroupRange,
+                keyGroupPrefixBytes,
+                localRecoveryConfig,
+                instanceBasePath.string(),
+                backendUID,
+                stateUploader);
         }
 
         return checkpointSnapshotStrategy;
     }
 
     std::shared_ptr<PriorityQueueSetFactory> initPriorityQueueFactory(
-            int32_t keyGroupPrefixBytes,
-            std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>> *kvStateInformation,
-            rocksdb::DB* db,
-            std::shared_ptr<RocksDBWriteBatchWrapper> writeBatchWrapper
-    );
+        int32_t keyGroupPrefixBytes,
+        std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation,
+        rocksdb::DB* db,
+        std::shared_ptr<RocksDBWriteBatchWrapper> writeBatchWrapper);
 };
 
 template <typename K>
-RocksdbKeyedStateBackend<K> *RocksDBKeyedStateBackendBuilder<K>::build() {
+RocksdbKeyedStateBackend<K>* RocksDBKeyedStateBackendBuilder<K>::build()
+{
     // todo: Memory Management?
     auto kvStateInformation = new std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>();
-    auto registeredPQStates = std::make_shared<std::unordered_map<std::string, std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapperBase>>>();
+    auto registeredPQStates = std::make_shared<
+        std::unordered_map<std::string, std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapperBase>>>();
     rocksdb::DB* db;
     std::shared_ptr<RocksDBRestoreOperation> restoreOperation;
 
-    int keyGroupPrefixBytes =
-        CompositeKeySerializationUtils::computeRequiredBytesInKeyGroupPrefix(numberOfKeyGroups);
+    int keyGroupPrefixBytes = CompositeKeySerializationUtils::computeRequiredBytesInKeyGroupPrefix(numberOfKeyGroups);
 
     auto capturedOptionsContainer = this->optionsContainer;
     columnFamilyOptionsFactory = [capturedOptionsContainer](const std::string& name) -> rocksdb::ColumnFamilyOptions {
@@ -310,16 +306,11 @@ RocksdbKeyedStateBackend<K> *RocksDBKeyedStateBackendBuilder<K>::build() {
             materializedSstFiles,
             lastCompletedCheckpointId);
 
-        auto writeBatchWrapper = std::make_shared<RocksDBWriteBatchWrapper>(
-            db,
-            optionsContainer->getWriteOptions(),
-            writeBatchSize);
+        auto writeBatchWrapper =
+            std::make_shared<RocksDBWriteBatchWrapper>(db, optionsContainer->getWriteOptions(), writeBatchSize);
 
-        auto priorityQueueSetFactory = initPriorityQueueFactory(
-                keyGroupPrefixBytes,
-                kvStateInformation,
-                db,
-                writeBatchWrapper);
+        auto priorityQueueSetFactory =
+            initPriorityQueueFactory(keyGroupPrefixBytes, kvStateInformation, db, writeBatchWrapper);
 
         auto keyContext = new InternalKeyContextImpl<K>(keyGroupRange, numberOfKeyGroups);
 
@@ -344,10 +335,11 @@ RocksdbKeyedStateBackend<K> *RocksDBKeyedStateBackendBuilder<K>::build() {
 
 template <typename K>
 std::shared_ptr<PriorityQueueSetFactory> RocksDBKeyedStateBackendBuilder<K>::initPriorityQueueFactory(
-        int32_t keyGroupPrefixBytes,
-        std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation,
-        rocksdb::DB* db,
-        std::shared_ptr<RocksDBWriteBatchWrapper> writeBatchWrapper) {
+    int32_t keyGroupPrefixBytes,
+    std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation,
+    rocksdb::DB* db,
+    std::shared_ptr<RocksDBWriteBatchWrapper> writeBatchWrapper)
+{
     if (priorityQueueStateType_ == PriorityQueueStateType::HEAP) {
         INFO_RELEASE("The priority queue type of rocksDB backend is HEAP.");
         return std::make_shared<HeapPriorityQueueSetFactory>(keyGroupRange, numberOfKeyGroups, 128);

@@ -2,35 +2,33 @@
 #include "core/typeinfo/TypeExtractor.h"
 #include "core/typeinfo/typeconstants.h"
 
-TEST(TypeExtractorTest, BaseClassTest) {
-    auto basicTypeInformation = TypeExtractor::CreateTypeInfo(
-            ClassRegistry::instance().getClass("java_lang_String"));
+TEST(TypeExtractorTest, BaseClassTest)
+{
+    auto basicTypeInformation = TypeExtractor::CreateTypeInfo(ClassRegistry::instance().getClass("java_lang_String"));
     ASSERT_EQ(basicTypeInformation->name(), TYPE_NAME_STRING_SERIALIZER);
-    basicTypeInformation = TypeExtractor::CreateTypeInfo(
-            ClassRegistry::instance().getClass("java_lang_Double"));
+    basicTypeInformation = TypeExtractor::CreateTypeInfo(ClassRegistry::instance().getClass("java_lang_Double"));
     ASSERT_EQ(basicTypeInformation->name(), TYPE_NAME_DOUBLE_SERIALIZER);
-    basicTypeInformation = TypeExtractor::CreateTypeInfo(
-            ClassRegistry::instance().getClass("java_lang_Long"));
+    basicTypeInformation = TypeExtractor::CreateTypeInfo(ClassRegistry::instance().getClass("java_lang_Long"));
     ASSERT_EQ(basicTypeInformation->name(), TYPE_NAME_LONG_SERIALIZER);
-    basicTypeInformation = TypeExtractor::CreateTypeInfo(
-            ClassRegistry::instance().getClass("java_math_BigInteger"));
+    basicTypeInformation = TypeExtractor::CreateTypeInfo(ClassRegistry::instance().getClass("java_math_BigInteger"));
     ASSERT_EQ(basicTypeInformation->name(), TYPE_NAME_BIGINT_SERIALIZER);
 }
 
-
-TEST(TypeExtractorTest, MapTest) {
+TEST(TypeExtractorTest, MapTest)
+{
     auto typeInformation = TypeExtractor::CreateTypeInfo(
-            ClassRegistry::instance().getClass("java_util_Map<java_lang_String,java_lang_String>"));
+        ClassRegistry::instance().getClass("java_util_Map<java_lang_String,java_lang_String>"));
 
     MapTypeInfo* derivedObj = dynamic_cast<MapTypeInfo*>(typeInformation);
     ASSERT_NE(derivedObj, nullptr);
 
-    ASSERT_EQ(derivedObj->name(), std::string(TYPE_NAME_STRING_SERIALIZER) + " " + std::string(TYPE_NAME_STRING_SERIALIZER));
+    ASSERT_EQ(
+        derivedObj->name(), std::string(TYPE_NAME_STRING_SERIALIZER) + " " + std::string(TYPE_NAME_STRING_SERIALIZER));
 }
 
-TEST(TypeExtractorTest, PojoTest) {
-    auto typeInformation = TypeExtractor::CreateTypeInfo(
-            ClassRegistry::instance().getClass("User"));
+TEST(TypeExtractorTest, PojoTest)
+{
+    auto typeInformation = TypeExtractor::CreateTypeInfo(ClassRegistry::instance().getClass("User"));
 
     PojoTypeInfo* derivedObj = dynamic_cast<PojoTypeInfo*>(typeInformation);
     ASSERT_NE(derivedObj, nullptr);

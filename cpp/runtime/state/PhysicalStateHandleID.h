@@ -20,20 +20,21 @@
 
 class PhysicalStateHandleID {
 public:
-    explicit PhysicalStateHandleID(const std::string &keyString)
-        : keyString_(keyString) {}
+    explicit PhysicalStateHandleID(const std::string& keyString) : keyString_(keyString)
+    {
+    }
 
-    const std::string &getKeyString() const
+    const std::string& getKeyString() const
     {
         return keyString_;
     }
 
-    bool operator==(const PhysicalStateHandleID &other) const
+    bool operator==(const PhysicalStateHandleID& other) const
     {
         return keyString_ == other.keyString_;
     }
 
-    bool operator!=(const PhysicalStateHandleID &other) const
+    bool operator!=(const PhysicalStateHandleID& other) const
     {
         return !(*this == other);
     }
@@ -50,6 +51,7 @@ public:
         j["keyString"] = keyString_;
         return j.dump();
     }
+
 private:
     std::string keyString_;
 };

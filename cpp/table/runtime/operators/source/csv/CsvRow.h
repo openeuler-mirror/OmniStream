@@ -24,23 +24,26 @@ namespace csv {
 
 class CsvRow {
 public:
-    explicit CsvRow(const std::string &line, const CsvSchema &schema) : innerSchema(schema)
+    explicit CsvRow(const std::string& line, const CsvSchema& schema) : innerSchema(schema)
     {
         parseLine(line, schema);
     }
 
-    const std::vector<std::shared_ptr<CsvNode>> &getNodes() const
+    const std::vector<std::shared_ptr<CsvNode>>& getNodes() const
     {
         return nodes_;
     }
 
-    CsvSchema getSchema() const { return innerSchema; }
+    CsvSchema getSchema() const
+    {
+        return innerSchema;
+    }
 
 private:
     std::vector<std::shared_ptr<CsvNode>> nodes_;
     CsvSchema innerSchema;
 
-    void parseLine(const std::string &line, const CsvSchema &schema)
+    void parseLine(const std::string& line, const CsvSchema& schema)
     {
         char delimiter = schema.getColumnSeparator();
         char quoteChar = schema.getQuoteChar();
@@ -76,6 +79,6 @@ private:
     }
 };
 
-}  // namespace csv
-}  // namespace omnistream
+} // namespace csv
+} // namespace omnistream
 #endif

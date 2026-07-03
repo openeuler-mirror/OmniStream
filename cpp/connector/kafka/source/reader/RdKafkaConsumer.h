@@ -28,8 +28,7 @@ struct TopicPartitionComparator {
     bool operator()(const RdKafka::TopicPartition* lhs, const RdKafka::TopicPartition* rhs) const
     {
         // 这里需要实现具体的比较逻辑，例如比较 topic_name 和 partition
-        return std::string(lhs->topic()) == std::string(rhs->topic()) &&
-               lhs->partition() == rhs->partition();
+        return std::string(lhs->topic()) == std::string(rhs->topic()) && lhs->partition() == rhs->partition();
     }
 };
 
@@ -55,7 +54,9 @@ public:
     {
     }
 
-    ConsumerRecords() noexcept {}
+    ConsumerRecords() noexcept
+    {
+    }
 
     ~ConsumerRecords()
     {
@@ -77,26 +78,24 @@ public:
         } catch (const std::exception& ex) {
             std::cerr << "Exception caught in destructor when insert data" << ex.what() << std::endl;
         }
-        for (auto& it: topParRefMap) {
-            if (likely(it.first))
-                RdKafka::RdKafkaCInterface::DeleteTopParRefCnt(it.first, it.second);
+        for (auto& it : topParRefMap) {
+            if (likely(it.first)) RdKafka::RdKafkaCInterface::DeleteTopParRefCnt(it.first, it.second);
         }
-        for (auto& it: topicRefMap) {
-            if (likely(it.first))
-                RdKafka::RdKafkaCInterface::DeleteTopicRecCnt(it.first, it.second);
+        for (auto& it : topicRefMap) {
+            if (likely(it.first)) RdKafka::RdKafkaCInterface::DeleteTopicRecCnt(it.first, it.second);
         }
 
-        for (auto& it: bufRefMap) {
-            if (likely(it.first))
-                RdKafka::RdKafkaCInterface::DeleteBufRefCnt(it.first, it.second);
+        for (auto& it : bufRefMap) {
+            if (likely(it.first)) RdKafka::RdKafkaCInterface::DeleteBufRefCnt(it.first, it.second);
         }
     }
 
-    void FreeMsg(ankerl::unordered_dense::map<uint64_t, int>::iterator& topParRefMap_last,
-                 ankerl::unordered_dense::map<uint64_t, int>& topParRefMap,
-                 ankerl::unordered_dense::map<uint64_t, int>::iterator& topicRefMap_last,
-                 ankerl::unordered_dense::map<uint64_t, int>& topicRefMap,
-                 ankerl::unordered_dense::map<uint64_t, int>& bufRefMap)
+    void FreeMsg(
+        ankerl::unordered_dense::map<uint64_t, int>::iterator& topParRefMap_last,
+        ankerl::unordered_dense::map<uint64_t, int>& topParRefMap,
+        ankerl::unordered_dense::map<uint64_t, int>::iterator& topicRefMap_last,
+        ankerl::unordered_dense::map<uint64_t, int>& topicRefMap,
+        ankerl::unordered_dense::map<uint64_t, int>& bufRefMap)
     {
         for (auto& pair : records_) {
             // 释放 vector 中每个 Message* 指向的对象,主动调用DeleteMessage批量减少引用计数后再delete
@@ -111,12 +110,13 @@ public:
         }
     }
 
-    void FreeOneMsg(RdKafka::Message* message,
-                    ankerl::unordered_dense::map<uint64_t, int>::iterator& topParRefMap_last,
-                    ankerl::unordered_dense::map<uint64_t, int>& topParRefMap,
-                    ankerl::unordered_dense::map<uint64_t, int>::iterator& topicRefMap_last,
-                    ankerl::unordered_dense::map<uint64_t, int>& topicRefMap,
-                    ankerl::unordered_dense::map<uint64_t, int>& bufRefMap)
+    void FreeOneMsg(
+        RdKafka::Message* message,
+        ankerl::unordered_dense::map<uint64_t, int>::iterator& topParRefMap_last,
+        ankerl::unordered_dense::map<uint64_t, int>& topParRefMap,
+        ankerl::unordered_dense::map<uint64_t, int>::iterator& topicRefMap_last,
+        ankerl::unordered_dense::map<uint64_t, int>& topicRefMap,
+        ankerl::unordered_dense::map<uint64_t, int>& bufRefMap)
     {
         uint64_t topParRefAddr = 0;
         uint64_t topicRefAddr = 0;
@@ -193,6 +193,7 @@ public:
             records_[key] = {message};
         }
     }
+
 private:
     std::unordered_map<RdKafka::TopicPartition*, std::vector<RdKafka::Message*>> records_;
 };
@@ -208,24 +209,24 @@ public:
     // 核心poll方法（带超时和批量控制）
     ConsumerRecords* poll(int timeoutMs);
 
-    void assign(std::vector<RdKafka::TopicPartition*> &partitions);
+    void assign(std::vector<RdKafka::TopicPartition*>& partitions);
 
-    void assignment(std::vector<RdKafka::TopicPartition*> &partitions);
+    void assignment(std::vector<RdKafka::TopicPartition*>& partitions);
 
-    void position(std::vector<RdKafka::TopicPartition *> &partitions);
+    void position(std::vector<RdKafka::TopicPartition*>& partitions);
 
-    void committed(std::vector<std::shared_ptr<RdKafka::TopicPartition>> &partitions);
+    void committed(std::vector<std::shared_ptr<RdKafka::TopicPartition>>& partitions);
 
-    void seek(RdKafka::TopicPartition &partition);
+    void seek(RdKafka::TopicPartition& partition);
 
-    void seek(std::unordered_map<std::shared_ptr<RdKafka::TopicPartition>, int64_t>&
-        partitionsStartingFromSpecifiedOffsets);
+    void seek(
+        std::unordered_map<std::shared_ptr<RdKafka::TopicPartition>, int64_t>& partitionsStartingFromSpecifiedOffsets);
 
-    void seekToEnd(std::vector<std::shared_ptr<RdKafka::TopicPartition>> &partitions);
+    void seekToEnd(std::vector<std::shared_ptr<RdKafka::TopicPartition>>& partitions);
 
-    void seekToBeginning(std::vector<std::shared_ptr<RdKafka::TopicPartition>> &partitions);
+    void seekToBeginning(std::vector<std::shared_ptr<RdKafka::TopicPartition>>& partitions);
 
-    void endOffsets(std::vector<std::shared_ptr<RdKafka::TopicPartition>> &partitions);
+    void endOffsets(std::vector<std::shared_ptr<RdKafka::TopicPartition>>& partitions);
 
     void close();
 
@@ -239,6 +240,5 @@ private:
     int batch_size_ = 100000; // 默认批量大小
     bool closed_ = false;
 };
-
 
 #endif // FLINK_TNEL_RDKAFKACONSUMER_H

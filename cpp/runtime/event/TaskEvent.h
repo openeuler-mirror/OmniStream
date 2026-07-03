@@ -13,11 +13,8 @@
 #define TASKEVENT_H
 #include "AbstractEvent.h"
 
-
 namespace omnistream {
-    class TaskEvent : public AbstractEvent {
-    };
-}
-
+class TaskEvent : public AbstractEvent {};
+} // namespace omnistream
 
 #endif

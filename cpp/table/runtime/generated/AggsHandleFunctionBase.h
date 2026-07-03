@@ -15,7 +15,6 @@
 
 class AggsHandleFunctionBase {
 public:
-
     // virtual void open(StateDataViewStore &store) = 0; // StateDataViewStore needed
 };
 

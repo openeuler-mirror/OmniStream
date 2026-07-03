@@ -21,18 +21,14 @@
 
 class RocksDBNoneRestoreOperation : public RocksDBRestoreOperation {
 public:
-
     RocksDBNoneRestoreOperation(
-            std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>> *kvStateInformation,
-            std::filesystem::path& instanceRocksDBPath,
-            std::shared_ptr<rocksdb::DBOptions> dbOptions,
-            std::function<rocksdb::ColumnFamilyOptions(const std::string&)> columnFamilyOptionsFactory)
+        std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation,
+        std::filesystem::path& instanceRocksDBPath,
+        std::shared_ptr<rocksdb::DBOptions> dbOptions,
+        std::function<rocksdb::ColumnFamilyOptions(const std::string&)> columnFamilyOptionsFactory)
     {
         this->rocksHandle = std::make_unique<RocksDbHandle>(
-            kvStateInformation,
-            instanceRocksDBPath,
-            dbOptions,
-            columnFamilyOptionsFactory);
+            kvStateInformation, instanceRocksDBPath, dbOptions, columnFamilyOptionsFactory);
     }
 
     ~RocksDBNoneRestoreOperation() = default;
@@ -41,12 +37,11 @@ public:
     {
         rocksHandle->openDB();
         return std::make_unique<RocksDBRestoreResult>(
-                rocksHandle->getDb(),
-                rocksHandle->getDefaultColumnFamilyHandle(),
-                -1,
-                UUID(),
-                std::map<long, std::vector<IncrementalKeyedStateHandle::HandleAndLocalPath>>()
-        );
+            rocksHandle->getDb(),
+            rocksHandle->getDefaultColumnFamilyHandle(),
+            -1,
+            UUID(),
+            std::map<long, std::vector<IncrementalKeyedStateHandle::HandleAndLocalPath>>());
     }
 
 private:

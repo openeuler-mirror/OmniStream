@@ -16,11 +16,11 @@
 
 class AscendingTimestampsWatermarks : public BoundedOutOfOrdernessWatermarks {
 public:
-    AscendingTimestampsWatermarks() : BoundedOutOfOrdernessWatermarks(0) {
+    AscendingTimestampsWatermarks() : BoundedOutOfOrdernessWatermarks(0)
+    {
     }
 
     ~AscendingTimestampsWatermarks() override = default;
 };
-
 
 #endif // OMNISTREAM_ASCENDINGTIMESTAMPSWATERMARKS_H

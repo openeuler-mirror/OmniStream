@@ -23,24 +23,23 @@
 
 namespace omnistream {
 
-    class ObjectBufferConsumer : public BufferConsumer {
-    public:
+class ObjectBufferConsumer : public BufferConsumer {
+public:
+    ObjectBufferConsumer(VectorBatchBuffer* buffer, int size);
+    ObjectBufferConsumer(VectorBatchBuffer* buffer, PositionMarker* currentWriterPosition, int currentReaderPosition);
+    ~ObjectBufferConsumer() override;
 
-        ObjectBufferConsumer(VectorBatchBuffer* buffer, int size);
-        ObjectBufferConsumer(VectorBatchBuffer* buffer, PositionMarker *currentWriterPosition, int currentReaderPosition);
-        ~ObjectBufferConsumer() override;
+    Buffer* build() override;
 
-        Buffer* build() override;
+    std::shared_ptr<BufferConsumer> copy() override;
+    std::shared_ptr<BufferConsumer> copyWithReaderPosition(int readerPosition) override;
 
-        std::shared_ptr<BufferConsumer> copy() override;
-        std::shared_ptr<BufferConsumer> copyWithReaderPosition(int readerPosition) override;
+    VectorBatchBuffer* buildVectorBatchBuffer();
 
-        VectorBatchBuffer* buildVectorBatchBuffer();
-
-        bool isStartOfDataBuffer() const override;
-        std::string toDebugString(bool includeHash) override;
-        std::string toString() override;
-    };
+    bool isStartOfDataBuffer() const override;
+    std::string toDebugString(bool includeHash) override;
+    std::string toString() override;
+};
 
 } // namespace omnistream
 

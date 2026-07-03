@@ -23,19 +23,26 @@
 template <typename KeyType, typename W, typename ValType>
 class WindowListState : public WindowState<W> {
 public:
-    WindowListState(InternalListState<KeyType, W, ValType> *windowState) : windowState(windowState) {};
+    WindowListState(InternalListState<KeyType, W, ValType>* windowState) : windowState(windowState) {};
     ~WindowListState() override;
     void clear(W window);
-    std::vector<ValType> *get(W window);
+    std::vector<ValType>* get(W window);
     void add(W window, ValType value);
-    void addVectorBatch(omnistream::VectorBatch *batch);
-    const std::vector<omnistream::VectorBatch *> &getVectorBatches();
+    void addVectorBatch(omnistream::VectorBatch* batch);
+    const std::vector<omnistream::VectorBatch*>& getVectorBatches();
     int getCurrentBatchId();
-    void clearVectors(int64_t currentTimestamp) { windowState->clearVectors(currentTimestamp); };
-    void clearVectors(std::vector<size_t>& indicesToDelete){ windowState->clearVectors(indicesToDelete);};
-    omnistream::VectorBatch *getVectorBatch(int batchId);
+    void clearVectors(int64_t currentTimestamp)
+    {
+        windowState->clearVectors(currentTimestamp);
+    };
+    void clearVectors(std::vector<size_t>& indicesToDelete)
+    {
+        windowState->clearVectors(indicesToDelete);
+    };
+    omnistream::VectorBatch* getVectorBatch(int batchId);
+
 private:
-    InternalListState<KeyType, W, ValType> *windowState;
+    InternalListState<KeyType, W, ValType>* windowState;
 };
 
 template <typename KeyType, typename W, typename ValType>
@@ -66,19 +73,19 @@ void WindowListState<KeyType, W, ValType>::add(W window, ValType value)
 }
 
 template <typename KeyType, typename W, typename ValType>
-void WindowListState<KeyType, W, ValType>::addVectorBatch(omnistream::VectorBatch *batch)
+void WindowListState<KeyType, W, ValType>::addVectorBatch(omnistream::VectorBatch* batch)
 {
     windowState->addVectorBatch(batch);
 }
 
 template <typename KeyType, typename W, typename ValType>
-const std::vector<omnistream::VectorBatch *> &WindowListState<KeyType, W, ValType>::getVectorBatches()
+const std::vector<omnistream::VectorBatch*>& WindowListState<KeyType, W, ValType>::getVectorBatches()
 {
     return windowState->getVectorBatches();
 }
 
 template <typename KeyType, typename W, typename ValType>
-omnistream::VectorBatch *WindowListState<KeyType, W, ValType>::getVectorBatch(int batchId)
+omnistream::VectorBatch* WindowListState<KeyType, W, ValType>::getVectorBatch(int batchId)
 {
     return windowState->getVectorBatch(batchId);
 }
@@ -88,6 +95,5 @@ int WindowListState<KeyType, W, ValType>::getCurrentBatchId()
 {
     return windowState->getVectorBatchesSize();
 }
-
 
 #endif // FLINK_TNEL_WINDOWLISTSTATE_H

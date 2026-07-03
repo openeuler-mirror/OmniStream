@@ -31,8 +31,7 @@ namespace csv {
 template <typename OUT>
 class CsvInputFormat {
 public:
-    CsvInputFormat(const CsvSchema& csvSchema, size_t batchSize)
-        : csvSchema_(csvSchema), batchSize_(batchSize)
+    CsvInputFormat(const CsvSchema& csvSchema, size_t batchSize) : csvSchema_(csvSchema), batchSize_(batchSize)
     {
         // If mapping is not provided, create a dummy mapping that maps all fields to themselves
         mapping_.resize(csvSchema.getArity());
@@ -42,7 +41,10 @@ public:
     }
 
     CsvInputFormat(const CsvSchema& csvSchema, size_t batchSize, std::vector<int> mapping)
-        : csvSchema_(csvSchema), batchSize_(batchSize), mapping_(mapping) {
+        : csvSchema_(csvSchema),
+          batchSize_(batchSize),
+          mapping_(mapping)
+    {
     }
 
     ~CsvInputFormat() {};
@@ -69,12 +71,13 @@ public:
         }
         inputStream_.open(filePath, std::ios::in | std::ios::binary);
         if (!inputStream_.is_open()) {
-            std::cerr << "Failed to open file: " << filePath << " (original: " << split->getFilePath() << ")" << std::endl;
+            std::cerr << "Failed to open file: " << filePath << " (original: " << split->getFilePath() << ")"
+                      << std::endl;
             return;
         }
         inputStream_.seekg(split->getStartOffset());
         endPosition_ = split->getStartOffset() + split->getLength();
-        INFO_RELEASE("End position set to: " << endPosition_ )
+        INFO_RELEASE("End position set to: " << endPosition_);
     }
 
     void close()
@@ -87,7 +90,8 @@ public:
         return inputStream_.eof();
     }
 
-    OUT* nextRecord() {
+    OUT* nextRecord()
+    {
         if (!inputStream_.is_open()) {
             std::cerr << "File is not open" << std::endl;
             return nullptr;
@@ -97,13 +101,13 @@ public:
         std::string line;
         size_t lineCount = 0;
 
-        while (lineCount < batchSize_ &&  !inputStream_.eof()) {
+        while (lineCount < batchSize_ && !inputStream_.eof()) {
             std::getline(inputStream_, line);
             if (line.empty()) { // skip empty lines
                 continue;
             }
             if (inputStream_.fail()) {
-//                std::cerr << "Failed to read line" << std::endl;
+                //                std::cerr << "Failed to read line" << std::endl;
                 break;
             }
             CsvRow csvRow(line, csvSchema_);
@@ -165,5 +169,5 @@ private:
 private:
 };
 
-}  // namespace csv
-}  // namespace omnistreams
+} // namespace csv
+} // namespace omnistream

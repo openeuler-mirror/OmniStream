@@ -13,11 +13,12 @@
 #include "AlternatingCollectingBarriers.h"
 
 AlternatingWaitingForFirstBarrier::AlternatingWaitingForFirstBarrier(ChannelState state)
-    : AbstractAlternatingAlignedBarrierHandlerState(std::move(state)) {}
+    : AbstractAlternatingAlignedBarrierHandlerState(std::move(state))
+{
+}
 
 BarrierHandlerState* AlternatingWaitingForFirstBarrier::AlignedCheckpointTimeout(
-    Controller* controller,
-    CheckpointBarrier* barrier)
+    Controller* controller, CheckpointBarrier* barrier)
 {
     state.PrioritizeAllAnnouncements();
     return new AlternatingWaitingForFirstBarrierUnaligned(true, state);

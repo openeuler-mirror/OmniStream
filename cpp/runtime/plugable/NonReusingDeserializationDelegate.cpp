@@ -12,33 +12,37 @@
 #include <stdexcept>
 #include "NonReusingDeserializationDelegate.h"
 
+NonReusingDeserializationDelegate::NonReusingDeserializationDelegate(
+    omnistream::datastream::StreamElementSerializer* serializer)
+    : serializer_(serializer),
+      instance_(nullptr)
+{
+}
 
-NonReusingDeserializationDelegate::NonReusingDeserializationDelegate(omnistream::datastream::StreamElementSerializer *serializer)
-    : serializer_(serializer), instance_(nullptr) {}
-
-NonReusingDeserializationDelegate::~NonReusingDeserializationDelegate() {
+NonReusingDeserializationDelegate::~NonReusingDeserializationDelegate()
+{
     if (serializer_ != nullptr) {
         delete serializer_;
         serializer_ = nullptr;
     }
 }
 
-void *NonReusingDeserializationDelegate::getInstance()
+void* NonReusingDeserializationDelegate::getInstance()
 {
     return instance_;
 }
 
-void NonReusingDeserializationDelegate::setInstance(void *instance)
+void NonReusingDeserializationDelegate::setInstance(void* instance)
 {
     instance_ = instance;
 }
 
-void NonReusingDeserializationDelegate::write(DataOutputSerializer &out)
+void NonReusingDeserializationDelegate::write(DataOutputSerializer& out)
 {
     THROW_LOGIC_EXCEPTION("Serialization method called on DeserializationDelegate.");
 }
 
-void NonReusingDeserializationDelegate::read(DataInputView &in)
+void NonReusingDeserializationDelegate::read(DataInputView& in)
 {
     LOG(">>>>>>>>>>");
     LOG("serializer_ is " << serializer_->getName());

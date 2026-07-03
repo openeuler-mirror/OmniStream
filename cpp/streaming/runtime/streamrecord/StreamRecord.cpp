@@ -12,22 +12,26 @@
 #include <limits>
 #include "StreamRecord.h"
 
-
 StreamRecord::StreamRecord()
-    :StreamElement(StreamElementTag::TAG_REC_WITHOUT_TIMESTAMP), timestamp_(0),
-    hasTimestamp_(false) {
+    : StreamElement(StreamElementTag::TAG_REC_WITHOUT_TIMESTAMP),
+      timestamp_(0),
+      hasTimestamp_(false)
+{
 }
 
-
-StreamRecord::StreamRecord(void *value)
-    :StreamElement(StreamElementTag::TAG_REC_WITHOUT_TIMESTAMP), timestamp_(0),
-    hasTimestamp_(false) {
+StreamRecord::StreamRecord(void* value)
+    : StreamElement(StreamElementTag::TAG_REC_WITHOUT_TIMESTAMP),
+      timestamp_(0),
+      hasTimestamp_(false)
+{
     setValue(value);
 }
 
-StreamRecord::StreamRecord(void *value, long timestamp)
-    : StreamElement(StreamElementTag::TAG_REC_WITH_TIMESTAMP), timestamp_(timestamp),
-    hasTimestamp_(true) {
+StreamRecord::StreamRecord(void* value, long timestamp)
+    : StreamElement(StreamElementTag::TAG_REC_WITH_TIMESTAMP),
+      timestamp_(timestamp),
+      hasTimestamp_(true)
+{
     setValue(value);
 }
 

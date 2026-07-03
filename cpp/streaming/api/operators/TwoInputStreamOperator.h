@@ -16,8 +16,7 @@
 #include "streaming/runtime/streamrecord/StreamRecord.h"
 #include "core/include/common.h"
 
-
-class TwoInputStreamOperator : public  StreamOperator {
+class TwoInputStreamOperator : public StreamOperator {
 public:
     ~TwoInputStreamOperator() override = default;
 
@@ -48,7 +47,7 @@ public:
     {
         THROW_LOGIC_EXCEPTION("To be implemented");
     }
-    void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) override
+    void initializeState(StreamTaskStateInitializerImpl* initializer, TypeSerializer* keySerializer) override
     {
         THROW_LOGIC_EXCEPTION("To be implemented");
     }

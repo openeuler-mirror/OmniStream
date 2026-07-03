@@ -20,36 +20,40 @@ template <typename K, typename T, typename Comparator>
 class HeapPriorityQueueSnapshotRestoreWrapper : public HeapPriorityQueueSnapshotRestoreWrapperBase {
 public:
     HeapPriorityQueueSnapshotRestoreWrapper(
-            std::shared_ptr<HeapPriorityQueueSet<K, T, Comparator>> heapPriorityQueueSet,
-            std::shared_ptr<RegisteredPriorityQueueStateBackendMetaInfo> metaInfo,
-            KeyGroupRange* keyGroupRange,
-            int32_t totalKeyGroupSize)
-            : heapPriorityQueueSet_(heapPriorityQueueSet),
-            metaInfo_(metaInfo),
-            keyGroupRange_(keyGroupRange),
-            totalKeyGroupSize_(totalKeyGroupSize) {}
+        std::shared_ptr<HeapPriorityQueueSet<K, T, Comparator>> heapPriorityQueueSet,
+        std::shared_ptr<RegisteredPriorityQueueStateBackendMetaInfo> metaInfo,
+        KeyGroupRange* keyGroupRange,
+        int32_t totalKeyGroupSize)
+        : heapPriorityQueueSet_(heapPriorityQueueSet),
+          metaInfo_(metaInfo),
+          keyGroupRange_(keyGroupRange),
+          totalKeyGroupSize_(totalKeyGroupSize)
+    {
+    }
 
-    std::shared_ptr<HeapPriorityQueueSet<K, T, Comparator>> getHeapPriorityQueueSet() {
+    std::shared_ptr<HeapPriorityQueueSet<K, T, Comparator>> getHeapPriorityQueueSet()
+    {
         return heapPriorityQueueSet_;
     }
 
-    std::shared_ptr<RegisteredPriorityQueueStateBackendMetaInfo> getMetaInfo() {
+    std::shared_ptr<RegisteredPriorityQueueStateBackendMetaInfo> getMetaInfo()
+    {
         return metaInfo_;
     }
 
-    std::shared_ptr<StateMetaInfoSnapshot> snapshotMetaInfo() override {
+    std::shared_ptr<StateMetaInfoSnapshot> snapshotMetaInfo() override
+    {
         return metaInfo_->snapshot();
     }
 
-    const std::string &getStateName() const override
+    const std::string& getStateName() const override
     {
         static const std::string emptyName;
         return metaInfo_ == nullptr ? emptyName : metaInfo_->getName();
     }
 
-    std::unique_ptr<SingleStateIterator> createSnapshotIterator(
-            int kvStateId,
-            int keyGroupPrefixBytes) override {
+    std::unique_ptr<SingleStateIterator> createSnapshotIterator(int kvStateId, int keyGroupPrefixBytes) override
+    {
         return std::make_unique<HeapPriorityQueueSingleStateIterator<K, T, Comparator>>(
             heapPriorityQueueSet_.get(),
             metaInfo_->getElementSerializer(),
@@ -58,38 +62,36 @@ public:
             totalKeyGroupSize_);
     }
 
-    void restoreSerializedElement(
-            const std::vector<int8_t> &serializedKey,
-            int keyGroupPrefixBytes) override {
+    void restoreSerializedElement(const std::vector<int8_t>& serializedKey, int keyGroupPrefixBytes) override
+    {
         if (serializedKey.empty()) {
             return;
         }
-        if (keyGroupPrefixBytes < 0 ||
-            static_cast<size_t>(keyGroupPrefixBytes) > serializedKey.size()) {
+        if (keyGroupPrefixBytes < 0 || static_cast<size_t>(keyGroupPrefixBytes) > serializedKey.size()) {
             INFO_RELEASE("Error: restoreSerializedElement Invalid PRIORITY_QUEUE serialized key prefix length");
-            THROW_LOGIC_EXCEPTION("Invalid PRIORITY_QUEUE serialized key prefix length")
+            THROW_LOGIC_EXCEPTION("Invalid PRIORITY_QUEUE serialized key prefix length");
         }
         if (metaInfo_ == nullptr || metaInfo_->getElementSerializer() == nullptr) {
             INFO_RELEASE("Error: restoreSerializedElement Priority queue element serializer is null during restore");
-            THROW_LOGIC_EXCEPTION("Priority queue element serializer is null during restore")
+            THROW_LOGIC_EXCEPTION("Priority queue element serializer is null during restore");
         }
         if (heapPriorityQueueSet_ == nullptr) {
             INFO_RELEASE("Error: restoreSerializedElement Priority queue set is null during restore");
-            THROW_LOGIC_EXCEPTION("Priority queue set is null during restore")
+            THROW_LOGIC_EXCEPTION("Priority queue set is null during restore");
         }
 
         DataInputDeserializer input(
-            reinterpret_cast<const uint8_t *>(serializedKey.data()),
+            reinterpret_cast<const uint8_t*>(serializedKey.data()),
             static_cast<int>(serializedKey.size()),
             keyGroupPrefixBytes);
 
         using ElementType = typename T::element_type;
-        void *rawElement = metaInfo_->getElementSerializer()->deserialize(input);
+        void* rawElement = metaInfo_->getElementSerializer()->deserialize(input);
         if (rawElement == nullptr) {
             return;
         }
 
-        T restoredElement(static_cast<ElementType *>(rawElement));
+        T restoredElement(static_cast<ElementType*>(rawElement));
         heapPriorityQueueSet_->add(restoredElement);
     }
 
@@ -99,6 +101,3 @@ private:
     KeyGroupRange* keyGroupRange_;
     int32_t totalKeyGroupSize_;
 };
-
-
-

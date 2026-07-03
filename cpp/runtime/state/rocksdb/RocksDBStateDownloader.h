@@ -37,9 +37,9 @@ public:
     explicit RocksDBStateDownloader(int restoringThreadNum);
 
     void transferAllStateDataToDirectory(
-            const IncrementalRemoteKeyedStateHandle& restoreStateHandle,
-            const fs::path& dest,
-            std::shared_ptr<omnistream::OmniTaskBridge> omniTaskBridge)
+        const IncrementalRemoteKeyedStateHandle& restoreStateHandle,
+        const fs::path& dest,
+        std::shared_ptr<omnistream::OmniTaskBridge> omniTaskBridge)
     {
         std::vector<HandleAndLocalPath> sstFiles = restoreStateHandle.GetSharedState();
         std::vector<HandleAndLocalPath> miscFiles = restoreStateHandle.GetPrivateState();
@@ -48,9 +48,10 @@ public:
     }
 
     void callDownloadDataForAllStateHandles(
-            const std::vector<HandleAndLocalPath>& handleWithPaths,
-            const fs::path& restoreInstancePath,
-            std::shared_ptr<omnistream::OmniTaskBridge> omniTaskBridge);
+        const std::vector<HandleAndLocalPath>& handleWithPaths,
+        const fs::path& restoreInstancePath,
+        std::shared_ptr<omnistream::OmniTaskBridge> omniTaskBridge);
+
 private:
     int restoringThreadNum_;
 };

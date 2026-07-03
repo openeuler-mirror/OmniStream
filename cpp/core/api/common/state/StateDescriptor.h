@@ -26,10 +26,13 @@ public:
     StateDescriptor() = default;
 
     StateDescriptor(std::string name, TypeSerializer* serializer /* , T defaultValue */)
-        : name(name), stateSerializer(serializer) {}
+        : name(name),
+          stateSerializer(serializer)
+    {
+    }
 
-    StateDescriptor(std::string name, TypeInformation* typeInfo)
-        : name(name), typeInfo(typeInfo) {
+    StateDescriptor(std::string name, TypeInformation* typeInfo) : name(name), typeInfo(typeInfo)
+    {
     }
 
     StateDescriptor(std::string name, Class* cl) : name(name)
@@ -38,7 +41,8 @@ public:
     }
 
     virtual ~StateDescriptor()
-    {}
+    {
+    }
 
     enum class Type {
         /** @deprecated Enum for migrating from old checkpoints/savepoint versions. */
@@ -75,10 +79,22 @@ public:
             return Type::UNKNOWN;
         }
     }
-    std::string getName() const { return name; };
-    TypeSerializer *getStateSerializer() { return stateSerializer; }
-    TypeInformation *getTypeInfo() { return typeInfo; }
-    void SetStateSerializer(TypeSerializer *newStateSerializer) { this->stateSerializer = newStateSerializer; }
+    std::string getName() const
+    {
+        return name;
+    };
+    TypeSerializer* getStateSerializer()
+    {
+        return stateSerializer;
+    }
+    TypeInformation* getTypeInfo()
+    {
+        return typeInfo;
+    }
+    void SetStateSerializer(TypeSerializer* newStateSerializer)
+    {
+        this->stateSerializer = newStateSerializer;
+    }
     virtual Type getType() = 0;
 
     virtual BackendDataType getKeyDataId() = 0;
@@ -87,9 +103,11 @@ public:
 
 protected:
     std::string name;
-    TypeSerializer *stateSerializer = nullptr;
+    TypeSerializer* stateSerializer = nullptr;
     // T defaultValue;
-    StateDescriptor(std::string name, Class type) : name(name) {}
+    StateDescriptor(std::string name, Class type) : name(name)
+    {
+    }
 
 private:
     // todo: here should be atomic_ref (since c++20). My system is too old and does not have it.

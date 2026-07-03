@@ -13,12 +13,12 @@
 #define OMNISTREAM_CHECKPOINTEDRESULTPARTITION_H
 #include "CheckpointedResultSubpartition.h"
 namespace omnistream {
-    class CheckpointedResultPartition {
-    public:
-        virtual std::shared_ptr<CheckpointedResultSubpartition> getCheckpointedSubpartition(int subpartitionIndex) = 0;
+class CheckpointedResultPartition {
+public:
+    virtual std::shared_ptr<CheckpointedResultSubpartition> getCheckpointedSubpartition(int subpartitionIndex) = 0;
 
-        virtual void finishReadRecoveredState(bool notifyAndBlockOnCompletion) = 0;
-    };
-}
+    virtual void finishReadRecoveredState(bool notifyAndBlockOnCompletion) = 0;
+};
+} // namespace omnistream
 
-#endif //OMNISTREAM_CHECKPOINTEDRESULTPARTITION_H
+#endif // OMNISTREAM_CHECKPOINTEDRESULTPARTITION_H

@@ -31,9 +31,9 @@ class SplittableRandom {
 public:
     explicit SplittableRandom(int seed) : engine(seed)
     {
-        dist_int =  std::uniform_int_distribution<uint32_t>(0, INT_MAX);
+        dist_int = std::uniform_int_distribution<uint32_t>(0, INT_MAX);
         dist_long = std::uniform_int_distribution<uint64_t>(0, INT64_MAX);
-        dist_double = std::uniform_real_distribution<double> (0.0, 1.0);
+        dist_double = std::uniform_real_distribution<double>(0.0, 1.0);
         dist_char = std::uniform_int_distribution<uint32_t>(0, 26);
     }
     int nextInt()
@@ -90,7 +90,7 @@ private:
 };
 
 // Helper function to trim whitespace from both ends of a string
-std::string trim(const std::string &s);
+std::string trim(const std::string& s);
 
 /** Generates strings which are used for different field in other model objects. */
 class StringsGenerator {
@@ -100,26 +100,26 @@ public:
     // REUSABLE_EXTRA_STRING is a static reusable string computed from nextExactString.
     static std::string REUSABLE_EXTRA_STRING;
     // Return a random string of up to {@code maxLength}.
-    static std::string nextString(SplittableRandom &random, int maxLength)
+    static std::string nextString(SplittableRandom& random, int maxLength)
     {
         return nextString(random, maxLength, ' ');
     }
-    static std::string nextString(SplittableRandom &random, int maxLength, char special);
-    template<bool useSpecial>
-    static void fillWithRandomLower(SplittableRandom &random, char* buffer, int length, char special = ' ');
+    static std::string nextString(SplittableRandom& random, int maxLength, char special);
+    template <bool useSpecial>
+    static void fillWithRandomLower(SplittableRandom& random, char* buffer, int length, char special = ' ');
 
     /** Return a random string of exactly {@code length}. */
-    static std::string_view nextExactString(SplittableRandom &random, size_t length, char* buffer);
+    static std::string_view nextExactString(SplittableRandom& random, size_t length, char* buffer);
 
     /**
      * Return a random {@code string} such that {@code currentSize + string.length()} is on average
      * {@code averageSize}.
      */
-    static std::string_view nextExtra(SplittableRandom &random, int currentSize, int desiredAverageSize, char* buffer);
+    static std::string_view nextExtra(SplittableRandom& random, int currentSize, int desiredAverageSize, char* buffer);
 };
 
-template<bool useSpecial>
-void StringsGenerator::fillWithRandomLower(SplittableRandom &random, char *buffer, int length, char special)
+template <bool useSpecial>
+void StringsGenerator::fillWithRandomLower(SplittableRandom& random, char* buffer, int length, char special)
 {
     int rnd = 0;
     int n = 0; // number of random characters left in rnd

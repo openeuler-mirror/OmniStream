@@ -15,8 +15,12 @@
 
 class RocksDBResourceContainer {
 public:
-    RocksDBResourceContainer(std::shared_ptr<RocksDBSharedResources> sharedResources, const fs::path& instanceBasePath, bool enableStatistics)
-        : sharedResources_(sharedResources), enableStatistics_(enableStatistics)
+    RocksDBResourceContainer(
+        std::shared_ptr<RocksDBSharedResources> sharedResources,
+        const fs::path& instanceBasePath,
+        bool enableStatistics)
+        : sharedResources_(sharedResources),
+          enableStatistics_(enableStatistics)
     {
         if (!instanceBasePath.empty()) {
             instanceRocksDBPath_ = instanceBasePath / "db";
@@ -41,7 +45,8 @@ public:
         return options;
     }
 
-    std::shared_ptr<rocksdb::ColumnFamilyOptions> getColumnOptions() {
+    std::shared_ptr<rocksdb::ColumnFamilyOptions> getColumnOptions()
+    {
         auto columnFamilyOptions = createBaseCommonColumnOptions();
         ROCKSDB_NAMESPACE::BlockBasedTableOptions blockBasedTableOptions;
         blockBasedTableOptions.block_cache = sharedResources_->getCache();
@@ -49,18 +54,21 @@ public:
         return columnFamilyOptions;
     }
 
-    std::shared_ptr<rocksdb::ReadOptions> getReadOptions() {
+    std::shared_ptr<rocksdb::ReadOptions> getReadOptions()
+    {
         auto readOptions = std::make_shared<rocksdb::ReadOptions>();
         return readOptions;
     }
 
-    std::shared_ptr<rocksdb::WriteOptions> getWriteOptions() {
+    std::shared_ptr<rocksdb::WriteOptions> getWriteOptions()
+    {
         auto writeOptions = std::make_shared<rocksdb::WriteOptions>();
         writeOptions->disableWAL = true;
         return writeOptions;
     }
 
-    int64_t getWriteBufferManagerCapacity() {
+    int64_t getWriteBufferManagerCapacity()
+    {
         if (sharedResources_ == nullptr) {
             return -1;
         }
@@ -81,7 +89,8 @@ private:
         return options;
     }
 
-    std::shared_ptr<rocksdb::ColumnFamilyOptions> createBaseCommonColumnOptions() {
+    std::shared_ptr<rocksdb::ColumnFamilyOptions> createBaseCommonColumnOptions()
+    {
         auto opt = std::make_shared<rocksdb::ColumnFamilyOptions>();
         return opt;
     }

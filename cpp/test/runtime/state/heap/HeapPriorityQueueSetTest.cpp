@@ -4,46 +4,53 @@
 #include "state/heap/HeapPriorityQueueElement.h"
 
 namespace {
-    class TestIntType : public HeapPriorityQueueElement {
-    private:
-        int val;
+class TestIntType : public HeapPriorityQueueElement {
+private:
+    int val;
 
-    public:
-        TestIntType(int val) : val(val) {};
-        int getKey() { return val; }
-        size_t hashCode() { return std::hash<int>()(val); };
-
-        struct SharedPtrHash {
-            size_t operator()(const std::shared_ptr<TestIntType>& obj) const {
-                if (obj) {
-                    return obj->hashCode();
-                } else {
-                    return 0;
-                }
-            }
-        };
-
-        struct SharedPtrEqual {
-            bool operator()(const std::shared_ptr<TestIntType>& lhs, const std::shared_ptr<TestIntType>& rhs) const {
-                return lhs->getKey() == rhs->getKey();
-            }
-        };
-
-        struct SharedPtrComparator {
-            bool operator()(const std::shared_ptr<TestIntType>& lhs, const std::shared_ptr<TestIntType>& rhs) const {
-                return lhs->getKey() < rhs->getKey();
-            }
-        };
+public:
+    TestIntType(int val) : val(val) {};
+    int getKey()
+    {
+        return val;
+    }
+    size_t hashCode()
+    {
+        return std::hash<int>()(val);
     };
-}
 
+    struct SharedPtrHash {
+        size_t operator()(const std::shared_ptr<TestIntType>& obj) const
+        {
+            if (obj) {
+                return obj->hashCode();
+            } else {
+                return 0;
+            }
+        }
+    };
 
-TEST(HeapPriorityQueueSetTest, Initialization) {
+    struct SharedPtrEqual {
+        bool operator()(const std::shared_ptr<TestIntType>& lhs, const std::shared_ptr<TestIntType>& rhs) const
+        {
+            return lhs->getKey() == rhs->getKey();
+        }
+    };
+
+    struct SharedPtrComparator {
+        bool operator()(const std::shared_ptr<TestIntType>& lhs, const std::shared_ptr<TestIntType>& rhs) const
+        {
+            return lhs->getKey() < rhs->getKey();
+        }
+    };
+};
+} // namespace
+
+TEST(HeapPriorityQueueSetTest, Initialization)
+{
     auto keyGroupRange = std::make_unique<KeyGroupRange>(0, 5);
     auto pq = HeapPriorityQueueSet<int, std::shared_ptr<TestIntType>, TestIntType::SharedPtrComparator>(
-            keyGroupRange.get(),
-            keyGroupRange->getNumberOfKeyGroups(),
-            6);
+        keyGroupRange.get(), keyGroupRange->getNumberOfKeyGroups(), 6);
     pq.add(std::make_shared<TestIntType>(1));
     EXPECT_EQ(pq.poll()->getKey(), 1);
     EXPECT_EQ(pq.isEmpty(), true);
@@ -53,9 +60,7 @@ TEST(HeapPriorityQueueSetTest, Inserts)
 {
     auto keyGroupRange = std::make_unique<KeyGroupRange>(0, 5);
     auto pq = HeapPriorityQueueSet<int, std::shared_ptr<TestIntType>, TestIntType::SharedPtrComparator>(
-            keyGroupRange.get(),
-            keyGroupRange->getNumberOfKeyGroups(),
-            6);
+        keyGroupRange.get(), keyGroupRange->getNumberOfKeyGroups(), 6);
     pq.add(std::make_shared<TestIntType>(1));
     pq.add(std::make_shared<TestIntType>(3));
     pq.add(std::make_shared<TestIntType>(2));
@@ -72,9 +77,7 @@ TEST(HeapPriorityQueueSetTest, HeadChange)
 {
     auto keyGroupRange = std::make_unique<KeyGroupRange>(0, 5);
     auto pq = HeapPriorityQueueSet<int, std::shared_ptr<TestIntType>, TestIntType::SharedPtrComparator>(
-            keyGroupRange.get(),
-            keyGroupRange->getNumberOfKeyGroups(),
-            6);
+        keyGroupRange.get(), keyGroupRange->getNumberOfKeyGroups(), 6);
     EXPECT_EQ(pq.add(std::make_shared<TestIntType>(5)), true);
     EXPECT_EQ(pq.add(std::make_shared<TestIntType>(3)), true);
     EXPECT_EQ(pq.add(std::make_shared<TestIntType>(3)), false);
@@ -86,9 +89,7 @@ TEST(HeapPriorityQueueSetTest, ClearTest)
 {
     auto keyGroupRange = std::make_unique<KeyGroupRange>(0, 5);
     auto pq = HeapPriorityQueueSet<int, std::shared_ptr<TestIntType>, TestIntType::SharedPtrComparator>(
-            keyGroupRange.get(),
-            keyGroupRange->getNumberOfKeyGroups(),
-            6);
+        keyGroupRange.get(), keyGroupRange->getNumberOfKeyGroups(), 6);
     EXPECT_EQ(pq.add(std::make_shared<TestIntType>(5)), true);
     EXPECT_EQ(pq.isEmpty(), false);
     EXPECT_EQ(pq.poll()->getKey(), 5);
@@ -100,9 +101,7 @@ TEST(HeapPriorityQueueSetTest, DuplicateTest)
 {
     auto keyGroupRange = std::make_unique<KeyGroupRange>(0, 5);
     auto pq = HeapPriorityQueueSet<int, std::shared_ptr<TestIntType>, TestIntType::SharedPtrComparator>(
-            keyGroupRange.get(),
-            keyGroupRange->getNumberOfKeyGroups(),
-            6);
+        keyGroupRange.get(), keyGroupRange->getNumberOfKeyGroups(), 6);
     pq.add(std::make_shared<TestIntType>(1));
     pq.add(std::make_shared<TestIntType>(1));
 
@@ -115,9 +114,7 @@ TEST(HeapPriorityQueueSetTest, RemoveTest)
 {
     auto keyGroupRange = std::make_unique<KeyGroupRange>(0, 5);
     auto pq = HeapPriorityQueueSet<int, std::shared_ptr<TestIntType>, TestIntType::SharedPtrComparator>(
-            keyGroupRange.get(),
-            keyGroupRange->getNumberOfKeyGroups(),
-            6);
+        keyGroupRange.get(), keyGroupRange->getNumberOfKeyGroups(), 6);
     pq.add(std::make_shared<TestIntType>(1));
     pq.add(std::make_shared<TestIntType>(2));
     pq.add(std::make_shared<TestIntType>(3));
@@ -131,9 +128,7 @@ TEST(HeapPriorityQueueSetTest, PeekTest)
 {
     auto keyGroupRange = std::make_unique<KeyGroupRange>(0, 5);
     auto pq = HeapPriorityQueueSet<int, std::shared_ptr<TestIntType>, TestIntType::SharedPtrComparator>(
-            keyGroupRange.get(),
-            keyGroupRange->getNumberOfKeyGroups(),
-            6);
+        keyGroupRange.get(), keyGroupRange->getNumberOfKeyGroups(), 6);
     EXPECT_EQ(pq.peek(), nullptr);
 
     pq.add(std::make_shared<TestIntType>(5));
@@ -149,9 +144,7 @@ TEST(HeapPriorityQueueSetTest, SizeTest)
 {
     auto keyGroupRange = std::make_unique<KeyGroupRange>(0, 5);
     auto pq = HeapPriorityQueueSet<int, std::shared_ptr<TestIntType>, TestIntType::SharedPtrComparator>(
-            keyGroupRange.get(),
-            keyGroupRange->getNumberOfKeyGroups(),
-            6);
+        keyGroupRange.get(), keyGroupRange->getNumberOfKeyGroups(), 6);
     EXPECT_EQ(pq.size(), 0);
 
     pq.add(std::make_shared<TestIntType>(1));
@@ -174,9 +167,7 @@ TEST(HeapPriorityQueueSetTest, IteratorTest)
 {
     auto keyGroupRange = std::make_unique<KeyGroupRange>(0, 5);
     auto pq = HeapPriorityQueueSet<int, std::shared_ptr<TestIntType>, TestIntType::SharedPtrComparator>(
-            keyGroupRange.get(),
-            keyGroupRange->getNumberOfKeyGroups(),
-            6);
+        keyGroupRange.get(), keyGroupRange->getNumberOfKeyGroups(), 6);
     pq.add(std::make_shared<TestIntType>(1));
     pq.add(std::make_shared<TestIntType>(2));
     pq.add(std::make_shared<TestIntType>(3));
@@ -194,15 +185,12 @@ TEST(HeapPriorityQueueSetTest, AddAllTest)
 {
     auto keyGroupRange = std::make_unique<KeyGroupRange>(0, 5);
     auto pq = HeapPriorityQueueSet<int, std::shared_ptr<TestIntType>, TestIntType::SharedPtrComparator>(
-            keyGroupRange.get(),
-            keyGroupRange->getNumberOfKeyGroups(),
-            6);
+        keyGroupRange.get(), keyGroupRange->getNumberOfKeyGroups(), 6);
     std::vector<std::shared_ptr<TestIntType>> elements = {
         std::make_shared<TestIntType>(5),
         std::make_shared<TestIntType>(2),
         std::make_shared<TestIntType>(8),
-        std::make_shared<TestIntType>(1)
-    };
+        std::make_shared<TestIntType>(1)};
 
     pq.addAll(elements);
     EXPECT_EQ(pq.size(), 4);
@@ -216,9 +204,7 @@ TEST(HeapPriorityQueueSetTest, ToArrayTest)
 {
     auto keyGroupRange = std::make_unique<KeyGroupRange>(0, 5);
     auto pq = HeapPriorityQueueSet<int, std::shared_ptr<TestIntType>, TestIntType::SharedPtrComparator>(
-            keyGroupRange.get(),
-            keyGroupRange->getNumberOfKeyGroups(),
-            6);
+        keyGroupRange.get(), keyGroupRange->getNumberOfKeyGroups(), 6);
     pq.add(std::make_shared<TestIntType>(3));
     pq.add(std::make_shared<TestIntType>(1));
     pq.add(std::make_shared<TestIntType>(2));
@@ -231,9 +217,7 @@ TEST(HeapPriorityQueueSetTest, RemoveNonExistentTest)
 {
     auto keyGroupRange = std::make_unique<KeyGroupRange>(0, 5);
     auto pq = HeapPriorityQueueSet<int, std::shared_ptr<TestIntType>, TestIntType::SharedPtrComparator>(
-            keyGroupRange.get(),
-            keyGroupRange->getNumberOfKeyGroups(),
-            6);
+        keyGroupRange.get(), keyGroupRange->getNumberOfKeyGroups(), 6);
     pq.add(std::make_shared<TestIntType>(1));
     pq.add(std::make_shared<TestIntType>(2));
 
@@ -245,9 +229,7 @@ TEST(HeapPriorityQueueSetTest, RemoveHeadTest)
 {
     auto keyGroupRange = std::make_unique<KeyGroupRange>(0, 5);
     auto pq = HeapPriorityQueueSet<int, std::shared_ptr<TestIntType>, TestIntType::SharedPtrComparator>(
-            keyGroupRange.get(),
-            keyGroupRange->getNumberOfKeyGroups(),
-            6);
+        keyGroupRange.get(), keyGroupRange->getNumberOfKeyGroups(), 6);
     auto elem1 = std::make_shared<TestIntType>(1);
     auto elem2 = std::make_shared<TestIntType>(2);
     auto elem3 = std::make_shared<TestIntType>(3);
@@ -267,9 +249,7 @@ TEST(HeapPriorityQueueSetTest, EmptyQueueOperationsTest)
 {
     auto keyGroupRange = std::make_unique<KeyGroupRange>(0, 5);
     auto pq = HeapPriorityQueueSet<int, std::shared_ptr<TestIntType>, TestIntType::SharedPtrComparator>(
-            keyGroupRange.get(),
-            keyGroupRange->getNumberOfKeyGroups(),
-            6);
+        keyGroupRange.get(), keyGroupRange->getNumberOfKeyGroups(), 6);
     EXPECT_EQ(pq.isEmpty(), true);
     EXPECT_EQ(pq.size(), 0);
     EXPECT_EQ(pq.peek(), nullptr);
@@ -281,9 +261,7 @@ TEST(HeapPriorityQueueSetTest, LargeScaleTest)
 {
     auto keyGroupRange = std::make_unique<KeyGroupRange>(0, 5);
     auto pq = HeapPriorityQueueSet<int, std::shared_ptr<TestIntType>, TestIntType::SharedPtrComparator>(
-            keyGroupRange.get(),
-            keyGroupRange->getNumberOfKeyGroups(),
-            6);
+        keyGroupRange.get(), keyGroupRange->getNumberOfKeyGroups(), 6);
 
     for (int i = 500; i >= 1; --i) {
         pq.add(std::make_shared<TestIntType>(i));
@@ -300,9 +278,7 @@ TEST(HeapPriorityQueueSetTest, GetSubsetForKeyGroupBasic)
 {
     auto keyGroupRange = std::make_unique<KeyGroupRange>(0, 5);
     auto pq = HeapPriorityQueueSet<int, std::shared_ptr<TestIntType>, TestIntType::SharedPtrComparator>(
-            keyGroupRange.get(),
-            keyGroupRange->getNumberOfKeyGroups(),
-            6);
+        keyGroupRange.get(), keyGroupRange->getNumberOfKeyGroups(), 6);
 
     pq.add(std::make_shared<TestIntType>(1));
     pq.add(std::make_shared<TestIntType>(2));
@@ -324,9 +300,7 @@ TEST(HeapPriorityQueueSetTest, GetSubsetForKeyGroupEmpty)
 {
     auto keyGroupRange = std::make_unique<KeyGroupRange>(0, 5);
     auto pq = HeapPriorityQueueSet<int, std::shared_ptr<TestIntType>, TestIntType::SharedPtrComparator>(
-            keyGroupRange.get(),
-            keyGroupRange->getNumberOfKeyGroups(),
-            6);
+        keyGroupRange.get(), keyGroupRange->getNumberOfKeyGroups(), 6);
 
     for (int i = 0; i < keyGroupRange->getNumberOfKeyGroups(); ++i) {
         auto subset = pq.getSubsetForKeyGroup(i);
@@ -339,9 +313,7 @@ TEST(HeapPriorityQueueSetTest, GetSubsetForKeyGroupAfterRemove)
 {
     auto keyGroupRange = std::make_unique<KeyGroupRange>(0, 5);
     auto pq = HeapPriorityQueueSet<int, std::shared_ptr<TestIntType>, TestIntType::SharedPtrComparator>(
-            keyGroupRange.get(),
-            keyGroupRange->getNumberOfKeyGroups(),
-            6);
+        keyGroupRange.get(), keyGroupRange->getNumberOfKeyGroups(), 6);
 
     pq.add(std::make_shared<TestIntType>(1));
     pq.add(std::make_shared<TestIntType>(2));
@@ -362,9 +334,7 @@ TEST(HeapPriorityQueueSetTest, GetSubsetForKeyGroupAfterPoll)
 {
     auto keyGroupRange = std::make_unique<KeyGroupRange>(0, 5);
     auto pq = HeapPriorityQueueSet<int, std::shared_ptr<TestIntType>, TestIntType::SharedPtrComparator>(
-            keyGroupRange.get(),
-            keyGroupRange->getNumberOfKeyGroups(),
-            6);
+        keyGroupRange.get(), keyGroupRange->getNumberOfKeyGroups(), 6);
 
     pq.add(std::make_shared<TestIntType>(1));
     pq.add(std::make_shared<TestIntType>(2));
@@ -385,9 +355,7 @@ TEST(HeapPriorityQueueSetTest, GetSubsetForKeyGroupConsistency)
 {
     auto keyGroupRange = std::make_unique<KeyGroupRange>(0, 5);
     auto pq = HeapPriorityQueueSet<int, std::shared_ptr<TestIntType>, TestIntType::SharedPtrComparator>(
-            keyGroupRange.get(),
-            keyGroupRange->getNumberOfKeyGroups(),
-            6);
+        keyGroupRange.get(), keyGroupRange->getNumberOfKeyGroups(), 6);
 
     for (int i = 1; i <= 10; ++i) {
         pq.add(std::make_shared<TestIntType>(i));
@@ -413,9 +381,7 @@ TEST(HeapPriorityQueueSetTest, MixedOperationsTest)
 {
     auto keyGroupRange = std::make_unique<KeyGroupRange>(0, 5);
     auto pq = HeapPriorityQueueSet<int, std::shared_ptr<TestIntType>, TestIntType::SharedPtrComparator>(
-            keyGroupRange.get(),
-            keyGroupRange->getNumberOfKeyGroups(),
-            6);
+        keyGroupRange.get(), keyGroupRange->getNumberOfKeyGroups(), 6);
 
     pq.add(std::make_shared<TestIntType>(5));
     pq.add(std::make_shared<TestIntType>(3));

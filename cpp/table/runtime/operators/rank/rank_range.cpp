@@ -13,8 +13,9 @@
 
 // --- ConstantRankRange Implementation ---
 
-ConstantRankRange::ConstantRankRange(long rankStart, long rankEnd)
-    : rankStart_(rankStart), rankEnd_(rankEnd) {}
+ConstantRankRange::ConstantRankRange(long rankStart, long rankEnd) : rankStart_(rankStart), rankEnd_(rankEnd)
+{
+}
 
 long ConstantRankRange::getRankStart() const
 {
@@ -28,8 +29,9 @@ long ConstantRankRange::getRankEnd() const
 
 // --- VariableRankRange Implementation ---
 
-VariableRankRange::VariableRankRange(int rankEndIndex)
-    : rankEndIndex_(rankEndIndex) {}
+VariableRankRange::VariableRankRange(int rankEndIndex) : rankEndIndex_(rankEndIndex)
+{
+}
 
 int VariableRankRange::getRankEndIndex() const
 {

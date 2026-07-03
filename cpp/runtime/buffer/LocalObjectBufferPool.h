@@ -18,7 +18,6 @@
 #include <vector>
 #include <io/AvailabilityHelper.h>
 
-
 #include "ObjectBuffer.h"
 #include "ObjectBufferBuilder.h"
 #include "ObjectBufferRecycler.h"
@@ -27,21 +26,31 @@
 #include "LocalBufferPool.h"
 
 namespace omnistream {
-    class NetworkObjectBufferPool;
-    class LocalBufferPool;
-}
+class NetworkObjectBufferPool;
+class LocalBufferPool;
+} // namespace omnistream
 
 namespace omnistream {
 
-    class LocalObjectBufferPool : public LocalBufferPool {
-    public:
-    LocalObjectBufferPool(std::shared_ptr<NetworkObjectBufferPool> networkBufferPool, int numberOfRequiredMemorySegments)
-        : LocalObjectBufferPool(networkBufferPool, numberOfRequiredMemorySegments, INT_MAX, 0, INT_MAX) {}
+class LocalObjectBufferPool : public LocalBufferPool {
+public:
+    LocalObjectBufferPool(
+        std::shared_ptr<NetworkObjectBufferPool> networkBufferPool, int numberOfRequiredMemorySegments)
+        : LocalObjectBufferPool(networkBufferPool, numberOfRequiredMemorySegments, INT_MAX, 0, INT_MAX)
+    {
+    }
 
-    LocalObjectBufferPool(std::shared_ptr<NetworkObjectBufferPool> networkBufferPool, int numberOfRequiredMemorySegments, int maxNumberOfMemorySegments)
-        : LocalObjectBufferPool(networkBufferPool, numberOfRequiredMemorySegments, maxNumberOfMemorySegments, 0, INT_MAX) {}
+    LocalObjectBufferPool(
+        std::shared_ptr<NetworkObjectBufferPool> networkBufferPool,
+        int numberOfRequiredMemorySegments,
+        int maxNumberOfMemorySegments)
+        : LocalObjectBufferPool(
+              networkBufferPool, numberOfRequiredMemorySegments, maxNumberOfMemorySegments, 0, INT_MAX)
+    {
+    }
 
-    LocalObjectBufferPool(std::shared_ptr<NetworkObjectBufferPool> networkBufferPool,
+    LocalObjectBufferPool(
+        std::shared_ptr<NetworkObjectBufferPool> networkBufferPool,
         int numberOfRequiredMemorySegments,
         int maxNumberOfMemorySegments,
         int numberOfSubpartitions,
@@ -55,55 +64,55 @@ namespace omnistream {
     void reserveSegments(int numberOfSegmentsToReserve) override;
     bool isDestroyed() override;
     int getMaxNumberOfSegments() const override;
-    int getNumberOfAvailableSegments()  override;
-    int getNumBuffers()  override;
+    int getNumberOfAvailableSegments() override;
+    int getNumBuffers() override;
     int bestEffortGetNumOfUsedBuffers() const override;
-    std::shared_ptr<CompletableFuture> GetAvailableFuture()  override;
+    std::shared_ptr<CompletableFuture> GetAvailableFuture() override;
 
     std::shared_ptr<Buffer> requestBuffer() override;
-    BufferBuilder *requestBufferBuilder() override;
-    BufferBuilder *requestBufferBuilder(int targetChannel) override;
-    BufferBuilder *requestBufferBuilderBlocking() override;
-    BufferBuilder *requestBufferBuilderBlocking(int targetChannel) override;
+    BufferBuilder* requestBufferBuilder() override;
+    BufferBuilder* requestBufferBuilder(int targetChannel) override;
+    BufferBuilder* requestBufferBuilderBlocking() override;
+    BufferBuilder* requestBufferBuilderBlocking(int targetChannel) override;
 
     std::shared_ptr<ObjectBuffer> requestObjectBuffer();
-    ObjectBufferBuilder *requestObjectBufferBuilder();
-    ObjectBufferBuilder *requestObjectBufferBuilder(int targetChannel);
-    ObjectBufferBuilder *requestObjectBufferBuilderBlocking();
-    ObjectBufferBuilder *requestObjectBufferBuilderBlocking(int targetChannel);
+    ObjectBufferBuilder* requestObjectBufferBuilder();
+    ObjectBufferBuilder* requestObjectBufferBuilder(int targetChannel);
+    ObjectBufferBuilder* requestObjectBufferBuilderBlocking();
+    ObjectBufferBuilder* requestObjectBufferBuilderBlocking(int targetChannel);
 
-    Segment *requestSegment() override;
-    Segment *requestSegment(int targetChannel) override;
-    Segment *requestSegmentBlocking() override;
-    Segment *requestSegmentBlocking(int targetChannel) override;
+    Segment* requestSegment() override;
+    Segment* requestSegment(int targetChannel) override;
+    Segment* requestSegmentBlocking() override;
+    Segment* requestSegmentBlocking(int targetChannel) override;
 
-    ObjectSegment *requestObjectSegment();
-    ObjectSegment *requestObjectSegment(int targetChannel);
-    ObjectSegment *requestObjectSegmentBlocking();
-    ObjectSegment *requestObjectSegmentBlocking(int targetChannel);
+    ObjectSegment* requestObjectSegment();
+    ObjectSegment* requestObjectSegment(int targetChannel);
+    ObjectSegment* requestObjectSegmentBlocking();
+    ObjectSegment* requestObjectSegmentBlocking(int targetChannel);
 
-    std::shared_ptr<ObjectBuffer> toObjectBuffer(ObjectSegment *segment);
-    ObjectBufferBuilder *toObjectBufferBuilder(ObjectSegment *segment, int targetChannel);
+    std::shared_ptr<ObjectBuffer> toObjectBuffer(ObjectSegment* segment);
+    ObjectBufferBuilder* toObjectBufferBuilder(ObjectSegment* segment, int targetChannel);
 
     std::string toString() const override;
 
-    void returnSegment(Segment *segment) override;
-    void returnObjectSegment(ObjectSegment *segment);
+    void returnSegment(Segment* segment) override;
+    void returnObjectSegment(ObjectSegment* segment);
 
     void returnExcessSegments() override;
     void returnExcessObjectSegments();
 
     bool requestSegmentFromGlobal() override;
 
-    private:
-
+private:
     bool hasExcessBuffers() override;
     bool isRequestedSizeReached() override;
 
     class SubpartitionBufferRecycler : public ObjectBufferRecycler {
     public:
-        SubpartitionBufferRecycler(int channel,  std::shared_ptr<LocalBufferPool> bufferPool);
-        void recycle(Segment *segment) override;
+        SubpartitionBufferRecycler(int channel, std::shared_ptr<LocalBufferPool> bufferPool);
+        void recycle(Segment* segment) override;
+
     protected:
         int channel_;
         std::shared_ptr<LocalBufferPool> bufferPool_;
@@ -113,7 +122,7 @@ namespace omnistream {
 
     /** The minimum number of required segments for this pool. */
     // std::recursive_mutex availableSegmentsLock;
-    std::deque<ObjectSegment *> availableObjectSegments_; // not use
+    std::deque<ObjectSegment*> availableObjectSegments_; // not use
     std::mutex availableObjectSegmentsMutex;
 
     // std::deque<std::shared_ptr<ObjectBufferListener>> registeredListeners_;

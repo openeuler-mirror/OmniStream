@@ -16,7 +16,6 @@
 
 namespace omnistream {
 
-
 std::string StreamPartitionerPOD::getPartitionerName() const
 {
     return partitionerName;
@@ -41,8 +40,7 @@ std::string StreamPartitionerPOD::toString() const
 {
     std::stringstream ss;
     ss << "StreamPartitionerPOJO{"
-       << "partitionerName='" << partitionerName << '\''
-       << ", hashFields=";
+       << "partitionerName='" << partitionerName << '\'' << ", hashFields=";
 
     ss << "[";
     for (const auto& field : hashFields) {

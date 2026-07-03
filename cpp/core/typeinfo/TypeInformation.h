@@ -9,7 +9,6 @@
  * See the Mulan PSL v2 for more details.
  */
 
-
 #ifndef FLINK_TNEL_TYPEINFORMATION_H
 #define FLINK_TNEL_TYPEINFORMATION_H
 
@@ -19,19 +18,17 @@
 
 class TypeInformation : public Object {
 public:
-
     // TypeInformation(int id) : dataId(id) {}
 
     virtual TypeSerializer* createTypeSerializer() = 0;
     virtual TypeSerializer* getTypeSerializer();
-    virtual std::string  name() = 0;
+    virtual std::string name() = 0;
 
     virtual ~TypeInformation();
 
     virtual BackendDataType getBackendId() const = 0;
 
-    static TypeInformation *of(Class *cl);
+    static TypeInformation* of(Class* cl);
 };
-
 
 #endif

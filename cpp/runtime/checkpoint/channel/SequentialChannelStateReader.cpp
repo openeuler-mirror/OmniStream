@@ -12,5 +12,5 @@
 #include "SequentialChannelStateReader.h"
 #include "SequentialChannelStateReaderImpl.h"
 
-std::shared_ptr<SequentialChannelStateReader> SequentialChannelStateReader::NO_OP = 
+std::shared_ptr<SequentialChannelStateReader> SequentialChannelStateReader::NO_OP =
     std::make_shared<SequentialChannelStateReaderOPImpl>();

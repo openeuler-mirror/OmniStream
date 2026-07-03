@@ -3,8 +3,8 @@
 
 TEST(InternalKeyContextImplTest, SetCurrentKey)
 {
-    KeyGroupRange *range = new KeyGroupRange(0, 10);
-    InternalKeyContextImpl<int> *context = new InternalKeyContextImpl<int>(range, 10);
+    KeyGroupRange* range = new KeyGroupRange(0, 10);
+    InternalKeyContextImpl<int>* context = new InternalKeyContextImpl<int>(range, 10);
     context->setCurrentKey(1);
     EXPECT_EQ(context->getCurrentKey(), 1);
     delete range;
@@ -13,8 +13,8 @@ TEST(InternalKeyContextImplTest, SetCurrentKey)
 
 TEST(InternalKeyContextImplTest, SetCurrentGroupIndex)
 {
-    KeyGroupRange *range = new KeyGroupRange(0, 10);
-    InternalKeyContextImpl<int> *context = new InternalKeyContextImpl<int>(range, 10);
+    KeyGroupRange* range = new KeyGroupRange(0, 10);
+    InternalKeyContextImpl<int>* context = new InternalKeyContextImpl<int>(range, 10);
     context->setCurrentKeyGroupIndex(1);
     EXPECT_EQ(context->getCurrentKeyGroupIndex(), 1);
     delete range;
@@ -23,8 +23,8 @@ TEST(InternalKeyContextImplTest, SetCurrentGroupIndex)
 
 TEST(InternalKeyContextImplTest, GetKeyGroupRange)
 {
-    KeyGroupRange *range = new KeyGroupRange(0, 10);
-    InternalKeyContextImpl<int> *context = new InternalKeyContextImpl<int>(range, 10);
+    KeyGroupRange* range = new KeyGroupRange(0, 10);
+    InternalKeyContextImpl<int>* context = new InternalKeyContextImpl<int>(range, 10);
     EXPECT_EQ(*context->getKeyGroupRange(), *range);
     delete range;
     delete context;
@@ -32,8 +32,8 @@ TEST(InternalKeyContextImplTest, GetKeyGroupRange)
 
 TEST(InternalKeyContextImplTest, GetNumberOfKeyGroups)
 {
-    KeyGroupRange *range = new KeyGroupRange(0, 10);
-    InternalKeyContextImpl<int> *context = new InternalKeyContextImpl<int>(range, 10);
+    KeyGroupRange* range = new KeyGroupRange(0, 10);
+    InternalKeyContextImpl<int>* context = new InternalKeyContextImpl<int>(range, 10);
     EXPECT_EQ(context->getNumberOfKeyGroups(), 10);
     delete range;
     delete context;

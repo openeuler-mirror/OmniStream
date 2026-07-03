@@ -24,9 +24,7 @@ public:
         CheckpointBarrier* barrier,
         bool markChannelBlocked) override;
 
-    BarrierHandlerState* AlignedCheckpointTimeout(
-        Controller*,
-        CheckpointBarrier*) override;
+    BarrierHandlerState* AlignedCheckpointTimeout(Controller*, CheckpointBarrier*) override;
 
     BarrierHandlerState* FinishCheckpoint() override;
 

@@ -13,21 +13,23 @@
 #include "RuntimeEvent.h"
 
 namespace omnistream {
-    class EndOfSegmentEvent : public RuntimeEvent {
-    public:
-        static EndOfSegmentEvent &getInstance();
+class EndOfSegmentEvent : public RuntimeEvent {
+public:
+    static EndOfSegmentEvent& getInstance();
 
-        static int hashCode()
-        {
-            return 1965146670;
-        }
+    static int hashCode()
+    {
+        return 1965146670;
+    }
 
-        static bool equals(const RuntimeEvent &other)
-        {
-            return typeid(other) == typeid(EndOfSegmentEvent);
-        }
+    static bool equals(const RuntimeEvent& other)
+    {
+        return typeid(other) == typeid(EndOfSegmentEvent);
+    }
 
-    private:
-        EndOfSegmentEvent() {}
-    };
+private:
+    EndOfSegmentEvent()
+    {
+    }
+};
 } // namespace omnistream

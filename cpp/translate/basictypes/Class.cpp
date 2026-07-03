@@ -13,7 +13,9 @@
 
 Class::Class() = default;
 
-Class::Class(Creator creator) : creator_(std::move(creator)) {}
+Class::Class(Creator creator) : creator_(std::move(creator))
+{
+}
 
 Object* Class::newInstance() const
 {
@@ -43,9 +45,13 @@ Object* Class::get(Object* obj, const std::string& field) const
     return it->second(obj);
 }
 
-Class::Class(const std::string& str) : name(str){ }
+Class::Class(const std::string& str) : name(str)
+{
+}
 
-Class::Class(std::string&& str) noexcept : name(std::move(str)){ }
+Class::Class(std::string&& str) noexcept : name(std::move(str))
+{
+}
 
 std::string_view Class::getName()
 {

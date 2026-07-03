@@ -7,11 +7,11 @@
 
 std::shared_ptr<omnistream::InputChannel> RecoveredInputChannel::toInputChannel()
 {
-    if(!stateConsumedFuture->IsDone()){
+    if (!stateConsumedFuture->IsDone()) {
         LOG("recovery not completed, do not convert to normal channel!");
         throw std::runtime_error("recovery not completed, do not convert to normal channel!");
     }
-    if(!stateConsumedFuture1.load()){
+    if (!stateConsumedFuture1.load()) {
         LOG("recovery not completed, do not convert to normal channel!");
         throw std::runtime_error("recovery not completed, do not convert to normal channel!");
     }
@@ -26,7 +26,7 @@ std::shared_ptr<omnistream::InputChannel> RecoveredInputChannel::toInputChannel(
     return inputChannel;
 }
 
-void RecoveredInputChannel::onRecoveredStateBuffer(Buffer *buffer)
+void RecoveredInputChannel::onRecoveredStateBuffer(Buffer* buffer)
 {
     bool recycleBuffer = true;
     bool wasEmpty = false;
@@ -48,14 +48,13 @@ void RecoveredInputChannel::onRecoveredStateBuffer(Buffer *buffer)
     }
 }
 
-void RecoveredInputChannel::onRecoveredStateBuffer2(Buffer *buffer)
+void RecoveredInputChannel::onRecoveredStateBuffer2(Buffer* buffer)
 {
     bool recycleBuffer = true;
     bool wasEmpty = false;
     ReadOnlySlicedNetworkBuffer* readOnlyBuffer;
     {
-        readOnlyBuffer = new ReadOnlySlicedNetworkBuffer(
-            dynamic_cast<NetworkBuffer *>(buffer), 0, buffer->GetSize());
+        readOnlyBuffer = new ReadOnlySlicedNetworkBuffer(dynamic_cast<NetworkBuffer*>(buffer), 0, buffer->GetSize());
         std::lock_guard<std::mutex> lock(bufferLock);
         if (!released) {
             wasEmpty = receivedBuffers.empty();
@@ -76,19 +75,18 @@ void RecoveredInputChannel::onRecoveredStateBuffer2(Buffer *buffer)
 void RecoveredInputChannel::finishReadRecoveredState()
 {
     LOG("Recovered input channel finishReadRecoveredState!");
-    NetworkBuffer* networkBuffer = omnistream::EventSerializer::toBuffer(
-            EndOfChannelStateEvent::getInstance(), false);
+    NetworkBuffer* networkBuffer = omnistream::EventSerializer::toBuffer(EndOfChannelStateEvent::getInstance(), false);
     if (networkBuffer != nullptr) {
         onRecoveredStateBuffer(networkBuffer);
         bufferManager->releaseFloatingBuffers();
-        LOG(inputGate->getOwningTaskName()<<"/"<< channelInfo.toString()<< " finished recovering input!");
+        LOG(inputGate->getOwningTaskName() << "/" << channelInfo.toString() << " finished recovering input!");
     }
 }
 
 std::optional<omnistream::BufferAndAvailability> RecoveredInputChannel::getNextRecoveredStateBuffer()
 {
     LOG("Recovered input channel get Next record buffer!");
-    Buffer *next = nullptr;
+    Buffer* next = nullptr;
     omnistream::ObjectBufferDataType nextDataType;
 
     {
@@ -137,9 +135,9 @@ omnistream::ObjectBufferDataType RecoveredInputChannel::peekDataTypeUnsafe()
     return ObjectBufferDataType(receivedBuffers.front().buffer->GetDataType());
 }
 
-bool RecoveredInputChannel::isEndOfChannelStateEvent(Buffer *buffer)
+bool RecoveredInputChannel::isEndOfChannelStateEvent(Buffer* buffer)
 {
-    if(buffer->isBuffer()){
+    if (buffer->isBuffer()) {
         return false;
     }
 
@@ -159,7 +157,7 @@ std::optional<BufferAndAvailability> RecoveredInputChannel::getNextBuffer()
 
 void RecoveredInputChannel::releaseAllResources()
 {
-    std::deque<Buffer *> releasedBuffers;
+    std::deque<Buffer*> releasedBuffers;
     bool shouldRelease = false;
     {
         std::lock_guard<std::mutex> lock(bufferLock);
@@ -184,13 +182,13 @@ void RecoveredInputChannel::releaseAllResources()
 
 std::shared_ptr<omnistream::Buffer> RecoveredInputChannel::requestBufferBlocking()
 {
-    LOG("RecoveredInputChannel requestBufferBlocking111")
+    LOG("RecoveredInputChannel requestBufferBlocking111");
     if (!exclusiveBuffersAssigned) {
-        LOG("RecoveredInputChannel requestBufferBlocking222")
-//        bufferManager->requestExclusiveBuffers(networkBuffersPerChannel);
+        LOG("RecoveredInputChannel requestBufferBlocking222");
+        //        bufferManager->requestExclusiveBuffers(networkBuffersPerChannel);
         bufferManager->requestExclusiveBuffers(1);
         exclusiveBuffersAssigned = true;
     }
-    LOG("RecoveredInputChannel requestBufferBlocking333")
+    LOG("RecoveredInputChannel requestBufferBlocking333");
     return bufferManager->requestBufferBlocking();
 }

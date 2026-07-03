@@ -22,7 +22,9 @@ public:
     KeyGroupEntry(int kvStateId, ByteArray key, ByteArray value)
         : kvStateId_(kvStateId),
           key_(std::move(key)),
-          value_(std::move(value)) {}
+          value_(std::move(value))
+    {
+    }
 
     int getKvStateId() const noexcept
     {

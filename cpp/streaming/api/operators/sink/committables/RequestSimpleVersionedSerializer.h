@@ -1,5 +1,5 @@
 /*
-* Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
  * You can use this software according to the terms and conditions of the Mulan PSL v2.
  * You may obtain a copy of Mulan PSL v2 at:
  *          http://license.coscl.org.cn/MulanPSL2
@@ -27,15 +27,21 @@
 
 #include "CommitRequestImpl.h"
 
-template<typename CommT>
+template <typename CommT>
 class RequestSimpleVersionedSerializer : public SimpleVersionedSerializer<CommitRequestImpl<CommT>> {
 public:
     RequestSimpleVersionedSerializer(std::shared_ptr<SimpleVersionedSerializer<CommT>> committableSerializer)
-        : committableSerializer_(std::move(committableSerializer)) {}
+        : committableSerializer_(std::move(committableSerializer))
+    {
+    }
 
-    int getVersion() const override { return 0; }
+    int getVersion() const override
+    {
+        return 0;
+    }
 
-    std::vector<uint8_t> serialize(const CommitRequestImpl<CommT>& request) override {
+    std::vector<uint8_t> serialize(const CommitRequestImpl<CommT>& request) override
+    {
         DataOutputSerializer out(256);
 
         SimpleVersionedSerialization::writeVersionAndSerialize(*committableSerializer_, request.GetCommittable(), out);
@@ -46,7 +52,8 @@ public:
         return std::vector<uint8_t>(out.getData(), out.getData() + out.length());
     }
 
-    CommitRequestImpl<CommT> *deserialize(int version, std::vector<uint8_t>& serialized) override {
+    CommitRequestImpl<CommT>* deserialize(int version, std::vector<uint8_t>& serialized) override
+    {
         DataInputDeserializer input(serialized.data(), serialized.size(), 0);
 
         std::unique_ptr<CommT> committable(
@@ -62,4 +69,4 @@ private:
     std::shared_ptr<SimpleVersionedSerializer<CommT>> committableSerializer_;
 };
 
-#endif //OMNISTREAM_REQUESTSIMPLEVERSIONEDSERIALIZER_H
+#endif // OMNISTREAM_REQUESTSIMPLEVERSIONEDSERIALIZER_H

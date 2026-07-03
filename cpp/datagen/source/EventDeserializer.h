@@ -54,5 +54,4 @@ private:
     StreamRecord* reUseRecord{};
 };
 
-
 #endif // OMNISTREAM_EVENTDESERIALIZER_H

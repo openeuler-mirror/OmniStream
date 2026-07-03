@@ -11,10 +11,9 @@
 
 #include "PartitionCommitTrigger.h"
 
-PartitionCommitTrigger *createPartitionCommitTrigger(const std::string &triggerType,
-                                                      int64_t commitDelayMs)
+PartitionCommitTrigger* createPartitionCommitTrigger(const std::string& triggerType, int64_t commitDelayMs)
 {
-    PartitionCommitPredicate *predicate = nullptr;
+    PartitionCommitPredicate* predicate = nullptr;
     if (triggerType == "partition-time") {
         predicate = new PartitionTimeCommitPredicate(commitDelayMs);
         return new PartitionTimeCommitTrigger(predicate);

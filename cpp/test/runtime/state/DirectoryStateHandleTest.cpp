@@ -6,7 +6,8 @@
 #include "runtime/state/DirectoryStateHandle.h"
 #include "core/fs/Path.h"
 
-TEST(DirectoryStateHandleTest, DirectoryStateInitialization) {
+TEST(DirectoryStateHandleTest, DirectoryStateInitialization)
+{
     std::string dirName = (std::filesystem::temp_directory_path() / "DirectoryStateHandleTest").string();
     std::string fileName = "TestFile.tmp";
     std::string content = "Test File For DirectoryStateHandleTest.DirectoryStateInitialization";
@@ -17,7 +18,7 @@ TEST(DirectoryStateHandleTest, DirectoryStateInitialization) {
     std::ofstream ofs(dirName + "/" + fileName, std::ios::binary);
     ofs << content;
     ofs.close();
-    
+
     ASSERT_TRUE(std::filesystem::exists(dirName));
     ASSERT_TRUE(std::filesystem::exists(dirName + "/" + fileName));
 

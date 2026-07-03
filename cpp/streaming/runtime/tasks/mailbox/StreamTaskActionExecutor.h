@@ -19,70 +19,74 @@
 #include "core/utils/function/ThrowingRunnable.h"
 
 namespace omnistream {
-    class StreamTaskActionExecutor {
-    public:
-        virtual ~StreamTaskActionExecutor() = default;
+class StreamTaskActionExecutor {
+public:
+    virtual ~StreamTaskActionExecutor() = default;
 
-        virtual void run(ThrowingRunnable* const runnable) = 0;
+    virtual void run(ThrowingRunnable* const runnable) = 0;
 
-        virtual std::string toString() const
-        {
-            return "StreamTaskActionExecutor";
-        }
+    virtual std::string toString() const
+    {
+        return "StreamTaskActionExecutor";
+    }
 
-        static std::shared_ptr<StreamTaskActionExecutor> IMMEDIATE;
-    };
+    static std::shared_ptr<StreamTaskActionExecutor> IMMEDIATE;
+};
 
+class ImmediateStreamTaskActionExecutor : public StreamTaskActionExecutor {
+public:
+    ImmediateStreamTaskActionExecutor() = default;
+    ~ImmediateStreamTaskActionExecutor() override = default;
 
-    class ImmediateStreamTaskActionExecutor : public StreamTaskActionExecutor {
-    public:
-        ImmediateStreamTaskActionExecutor() = default;
-        ~ImmediateStreamTaskActionExecutor() override = default;
+    void run(ThrowingRunnable* const runnable) override
+    {
+        runnable->Run();
+    }
 
-        void run(ThrowingRunnable* const runnable) override
-        {
-            runnable->Run();
-        }
+    std::string toString() const override
+    {
+        return "ImmediateStreamTaskActionExecutor";
+    }
+};
 
-        std::string toString() const override
-        {
-            return "ImmediateStreamTaskActionExecutor";
-        }
-    };
+class SynchronizedStreamTaskActionExecutor : public StreamTaskActionExecutor {
+public:
+    SynchronizedStreamTaskActionExecutor() = default;
 
+    explicit SynchronizedStreamTaskActionExecutor(std::recursive_mutex* mutex) : mutex_(mutex)
+    {
+    }
+    ~SynchronizedStreamTaskActionExecutor() override = default;
 
-    class SynchronizedStreamTaskActionExecutor : public StreamTaskActionExecutor {
-    public:
-        SynchronizedStreamTaskActionExecutor() = default;
+    static std::shared_ptr<SynchronizedStreamTaskActionExecutor> synchronizedExecutor()
+    {
+        return std::make_shared<SynchronizedStreamTaskActionExecutor>();
+    }
 
-        explicit SynchronizedStreamTaskActionExecutor(std::recursive_mutex* mutex) : mutex_(mutex) {}
-        ~SynchronizedStreamTaskActionExecutor() override = default;
+    static std::shared_ptr<SynchronizedStreamTaskActionExecutor> synchronizedExecutor(std::recursive_mutex* mutex)
+    {
+        return std::make_shared<SynchronizedStreamTaskActionExecutor>(mutex);
+    }
 
-        static std::shared_ptr<SynchronizedStreamTaskActionExecutor> synchronizedExecutor() {
-            return std::make_shared<SynchronizedStreamTaskActionExecutor>();
-        }
+    void run(ThrowingRunnable* runnable) override
+    {
+        std::lock_guard<std::recursive_mutex> lock(*mutex_);
+        runnable->Run();
+    }
 
-        static std::shared_ptr<SynchronizedStreamTaskActionExecutor> synchronizedExecutor(std::recursive_mutex* mutex) {
-            return std::make_shared<SynchronizedStreamTaskActionExecutor>(mutex);
-        }
+    std::recursive_mutex* getMutex()
+    {
+        return mutex_;
+    }
 
-        void run(ThrowingRunnable* runnable) override {
-            std::lock_guard<std::recursive_mutex> lock(*mutex_);
-            runnable->Run();
-        }
+    std::string toString() const override
+    {
+        std::stringstream ss;
+        ss << "SynchronizedStreamTaskActionExecutor";
+        return ss.str();
+    }
 
-        std::recursive_mutex* getMutex() {
-            return mutex_;
-        }
-
-        std::string toString() const override
-        {
-            std::stringstream ss;
-            ss << "SynchronizedStreamTaskActionExecutor";
-            return ss.str();
-        }
-
-    private:
-        std::recursive_mutex* mutex_;
-    };
+private:
+    std::recursive_mutex* mutex_;
+};
 } // namespace omnistream

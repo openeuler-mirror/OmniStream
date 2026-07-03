@@ -14,16 +14,19 @@
 #include <cstdint>
 #include <vector>
 
-
 class RowData;
 class StateDataViewStore;
 
-template<typename N>
+template <typename N>
 class NamespaceAggsBasicFunction {
 public:
-    NamespaceAggsBasicFunction(std::vector<int32_t> argIndexes, std::vector<int32_t> inputTypeIds,
-            std::vector<int32_t> accIndexes, std::vector<int32_t> accTypeIds,
-            int32_t aggValueIndex, int32_t aggValueTypeId);
+    NamespaceAggsBasicFunction(
+        std::vector<int32_t> argIndexes,
+        std::vector<int32_t> inputTypeIds,
+        std::vector<int32_t> accIndexes,
+        std::vector<int32_t> accTypeIds,
+        int32_t aggValueIndex,
+        int32_t aggValueTypeId);
     virtual ~NamespaceAggsBasicFunction() = default;
 
     virtual void accumulate(RowData* input) = 0;

@@ -20,53 +20,54 @@
 #include "runtime/metrics/SimpleCounter.h"
 
 namespace omnistream {
-    class OmniStreamTaskNetworkOutput : public OmniPushingAsyncDataInput::OmniDataOutput {
-    public:
-        explicit OmniStreamTaskNetworkOutput(OneInputStreamOperator* operator_,
-                                             std::shared_ptr<omnistream::SimpleCounter> &numRecordsIn);
+class OmniStreamTaskNetworkOutput : public OmniPushingAsyncDataInput::OmniDataOutput {
+public:
+    explicit OmniStreamTaskNetworkOutput(
+        OneInputStreamOperator* operator_, std::shared_ptr<omnistream::SimpleCounter>& numRecordsIn);
 
-        void emitRecord(StreamRecord* streamRecord) override
-        {
-            LOG(">>>> OmniStreamTaskNetworkOutput.emitRecord")
-            if (numRecordsIn != nullptr) {
-                // here the value of streamRecord is not vectorBatch always
-                // numRecordsIn->Inc(reinterpret_cast<omnistream::VectorBatch*>(streamRecord->getValue())->GetRowCount());
+    void emitRecord(StreamRecord* streamRecord) override
+    {
+        LOG(">>>> OmniStreamTaskNetworkOutput.emitRecord");
+        if (numRecordsIn != nullptr) {
+            // here the value of streamRecord is not vectorBatch always
+            // numRecordsIn->Inc(reinterpret_cast<omnistream::VectorBatch*>(streamRecord->getValue())->GetRowCount());
+        }
+        // later add condition
+
+        if (taskType == 1) {
+            operator_->processBatch(streamRecord);
+        } else if (taskType == 2) {
+            // auto currentOperator = dynamic_cast<OneInputStreamOperator *>(operator_);
+            if (operator_->isSetKeyContextElement()) {
+                operator_->setKeyContextElement(streamRecord);
             }
-            // later add condition
-
-            if (taskType == 1) {
-                operator_->processBatch(streamRecord);
-            } else if (taskType == 2) {
-                // auto currentOperator = dynamic_cast<OneInputStreamOperator *>(operator_);
-                if (operator_->isSetKeyContextElement()) {
-                    operator_->setKeyContextElement(streamRecord);
-                }
-                operator_->processElement(streamRecord);
-            }
-        };
-
-        void emitWatermark(Watermark* watermark) override
-        {
-            LOG(">>>> OmniStreamTaskNetworkOutput.emitWatermark")
-            operator_->ProcessWatermark(watermark);
+            operator_->processElement(streamRecord);
         }
-
-        void emitWatermarkStatus(WatermarkStatus* watermarkStatus) override
-        {
-            LOG(">>>> OmniStreamTaskNetworkOutput.emitWatermarkStatus")
-            operator_->processWatermarkStatus(watermarkStatus);
-        }
-
-        void setTaskType(int taskType_) override
-        {
-            this->taskType = taskType_;
-        }
-
-        ~OmniStreamTaskNetworkOutput() override = default;
-    private:
-        OneInputStreamOperator* operator_;
-        std::shared_ptr<omnistream::SimpleCounter> numRecordsIn;
-        int taskType;
     };
-}
+
+    void emitWatermark(Watermark* watermark) override
+    {
+        LOG(">>>> OmniStreamTaskNetworkOutput.emitWatermark");
+        operator_->ProcessWatermark(watermark);
+    }
+
+    void emitWatermarkStatus(WatermarkStatus* watermarkStatus) override
+    {
+        LOG(">>>> OmniStreamTaskNetworkOutput.emitWatermarkStatus");
+        operator_->processWatermarkStatus(watermarkStatus);
+    }
+
+    void setTaskType(int taskType_) override
+    {
+        this->taskType = taskType_;
+    }
+
+    ~OmniStreamTaskNetworkOutput() override = default;
+
+private:
+    OneInputStreamOperator* operator_;
+    std::shared_ptr<omnistream::SimpleCounter> numRecordsIn;
+    int taskType;
+};
+} // namespace omnistream
 #endif

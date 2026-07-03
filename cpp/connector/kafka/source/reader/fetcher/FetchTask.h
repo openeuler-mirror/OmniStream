@@ -27,19 +27,21 @@
 #include "SplitFetcherTask.h"
 #include "connector/kafka/bind_core_manager.h"
 
-
 template <typename E, typename SplitT>
 class FetchTask : public SplitFetcherTask {
 public:
     FetchTask(
-            SplitReader<E, SplitT>* splitReader,
-            FutureCompletingBlockingQueue<E>* elementsQueue,
-            std::function<void(const std::set<std::string>&)> splitFinishedCallback,
-            int fetcherIndex): splitReader(splitReader),
-                               elementsQueue(elementsQueue),
-                               splitFinishedCallback(splitFinishedCallback),
-                               fetcherIndex(fetcherIndex),
-                               lastRecords(nullptr) {}
+        SplitReader<E, SplitT>* splitReader,
+        FutureCompletingBlockingQueue<E>* elementsQueue,
+        std::function<void(const std::set<std::string>&)> splitFinishedCallback,
+        int fetcherIndex)
+        : splitReader(splitReader),
+          elementsQueue(elementsQueue),
+          splitFinishedCallback(splitFinishedCallback),
+          fetcherIndex(fetcherIndex),
+          lastRecords(nullptr)
+    {
+    }
 
     bool Run() override
     {
@@ -97,6 +99,7 @@ public:
     {
         return "FetchTask";
     }
+
 private:
     SplitReader<E, SplitT>* splitReader;
     FutureCompletingBlockingQueue<E>* elementsQueue;

@@ -18,16 +18,18 @@
 class GeneratedAggsHandleFunctionCount : public AggsHandleFunction {
 public:
     GeneratedAggsHandleFunctionCount(int aggIdx, int accIndex, int valueIndex)
-        :valueIsNull(true),
-        aggIdx(aggIdx),
-        accIndex(accIndex),
-        valueIndex(valueIndex){ }
+        : valueIsNull(true),
+          aggIdx(aggIdx),
+          accIndex(accIndex),
+          valueIndex(valueIndex)
+    {
+    }
 
     void setWindowSize(int windowSize) override {};
     bool equaliser(BinaryRowData* r1, BinaryRowData* r2) override;
     void open(StateDataViewStore* store);
     void accumulate(RowData* accInput) override;
-    void accumulate(omnistream::VectorBatch *input, const std::vector<int> &indices) override;
+    void accumulate(omnistream::VectorBatch* input, const std::vector<int>& indices) override;
     void retract(RowData* retractInput) override;
     void retract(omnistream::VectorBatch* input, const std::vector<int>& indices) override;
     void merge(RowData* otherAcc) override;

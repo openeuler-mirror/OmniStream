@@ -17,18 +17,19 @@
 #include "streaming/api/operators/sink/InitContextImpl.h"
 #include "runtime/state/StateInitializationContextImpl.h"
 
-
 class SinkWriterStateHandler {
 public:
     virtual ~SinkWriterStateHandler() = default;
 
     template <typename K1>
-    KafkaWriter* createWriter(InitContextImpl<K1>* initContext, StateInitializationContextImpl* context) {
+    KafkaWriter* createWriter(InitContextImpl<K1>* initContext, StateInitializationContextImpl* context)
+    {
         return nullptr;
     }
-    void snapshotState(long checkpointId) {}
+    void snapshotState(long checkpointId)
+    {
+    }
 };
-
 
 class KafkaSinkWriterStateHandler : public SinkWriterStateHandler {
 private:
@@ -44,15 +45,16 @@ private:
     KafkaWriter* kafkaWriter;
 
 public:
-    explicit KafkaSinkWriterStateHandler(KafkaSink* sink)
-        : sink(sink), kafkaWriter(nullptr) {
+    explicit KafkaSinkWriterStateHandler(KafkaSink* sink) : sink(sink), kafkaWriter(nullptr)
+    {
         if (!sink) {
             throw std::invalid_argument("sink cannot be null");
         }
         writerStateSerializer = std::make_shared<KafkaWriterStateSerializer>();
     }
 
-    virtual ~KafkaSinkWriterStateHandler() override {
+    virtual ~KafkaSinkWriterStateHandler() override
+    {
         for (auto state : previousSinkStates) {
             delete state;
         }
@@ -60,14 +62,13 @@ public:
     }
 
     template <typename K1>
-    KafkaWriter* createWriter(InitContextImpl<K1>* initContext, StateInitializationContextImpl* context) {
-        INFO_RELEASE("savepoint: KafkaSinkWriterStateHandler createWriter")
+    KafkaWriter* createWriter(InitContextImpl<K1>* initContext, StateInitializationContextImpl* context)
+    {
+        INFO_RELEASE("savepoint: KafkaSinkWriterStateHandler createWriter");
         auto* operatorStateBackend = static_cast<DefaultOperatorStateBackend*>(context->getOperatorStateBackend());
         auto rawState = operatorStateBackend->getListState(&WRITER_RAW_STATES_DESC);
 
-        writerState = std::make_shared<SimpleVersionedListState<KafkaWriterState>>(
-            rawState,
-            writerStateSerializer);
+        writerState = std::make_shared<SimpleVersionedListState<KafkaWriterState>>(rawState, writerStateSerializer);
 
         if (context->isRestored()) {
             auto states = writerState->get();
@@ -75,16 +76,17 @@ public:
             if (states) {
                 statesList = *states;
             }
-            INFO_RELEASE("savepoint: KafkaSinkWriterStateHandler createWriter, statesList size: " << statesList.size())
+            INFO_RELEASE("savepoint: KafkaSinkWriterStateHandler createWriter, statesList size: " << statesList.size());
             kafkaWriter = sink->RestoreWriter(initContext, statesList);
         } else {
-            INFO_RELEASE("savepoint: KafkaSinkWriterStateHandler createWriter, create new KafkaWriter")
+            INFO_RELEASE("savepoint: KafkaSinkWriterStateHandler createWriter, create new KafkaWriter");
             kafkaWriter = sink->CreateWriter(initContext);
         }
         return kafkaWriter;
     }
 
-    void snapshotState(long checkpointId) {
+    void snapshotState(long checkpointId)
+    {
         if (!kafkaWriter) {
             throw std::runtime_error("kafkaWriter has not been created yet");
         }
@@ -101,6 +103,6 @@ public:
 inline std::string KafkaSinkWriterStateHandler::writerRawStatesName = "writer_raw_states";
 
 inline ListStateDescriptor<std::vector<uint8_t>> KafkaSinkWriterStateHandler::WRITER_RAW_STATES_DESC(
-        KafkaSinkWriterStateHandler::writerRawStatesName, new BytePrimitiveArraySerializer(nullptr));
+    KafkaSinkWriterStateHandler::writerRawStatesName, new BytePrimitiveArraySerializer(nullptr));
 
 #endif // OMNIFLINK_KAFKA_SINK_WRITER_STATE_H

@@ -89,31 +89,41 @@ public:
     template <typename Type>
     Type GetValueAt(int32_t column, int32_t row)
     {
-        return reinterpret_cast<omniruntime::vec::Vector<Type> *>(this->Get(column))->GetValue(row);
+        return reinterpret_cast<omniruntime::vec::Vector<Type>*>(this->Get(column))->GetValue(row);
     }
 
     template <typename Type>
     void SetValueAt(int32_t column, int32_t row, Type value)
     {
-        reinterpret_cast<omniruntime::vec::Vector<Type> *>(this->Get(column))->SetValue(row, value);
+        reinterpret_cast<omniruntime::vec::Vector<Type>*>(this->Get(column))->SetValue(row, value);
     }
-   // write to file. The default mode is to open a new one
-    void writeToFile(std::string &filename, std::ios_base::openmode mode = std::ios::out,
-                     std::vector<std::pair<int32_t, int32_t>> decimalInfo = {},
-                     std::vector<std::string> inputTypes = {}, const std::string &tzStr = "Asia/Shanghai") const;
-    void convertToJson(nlohmann::ordered_json &j, int rowIndex, std::vector<std::pair<int32_t, int32_t>> decimalInfo,
-                                    std::vector<std::string> inputTypes, std::vector<std::string> inputFields) const;
+    // write to file. The default mode is to open a new one
+    void writeToFile(
+        std::string& filename,
+        std::ios_base::openmode mode = std::ios::out,
+        std::vector<std::pair<int32_t, int32_t>> decimalInfo = {},
+        std::vector<std::string> inputTypes = {},
+        const std::string& tzStr = "Asia/Shanghai") const;
+    void convertToJson(
+        nlohmann::ordered_json& j,
+        int rowIndex,
+        std::vector<std::pair<int32_t, int32_t>> decimalInfo,
+        std::vector<std::string> inputTypes,
+        std::vector<std::string> inputFields) const;
 
     std::string TransformTime(int vectorID, int rowID, int precision = 3) const;
-    std::string TransformTimeWithTimeZone(int vectorID, int rowID, const std::string &tzStr, int precision = 3) const;
+    std::string TransformTimeWithTimeZone(int vectorID, int rowID, const std::string& tzStr, int precision = 3) const;
     std::string transformDecimal128(
-                    int vectorID, int rowID, std::vector<std::pair<int32_t, int32_t>>& decimalInfo) const;
+        int vectorID, int rowID, std::vector<std::pair<int32_t, int32_t>>& decimalInfo) const;
     std::string transformDecimal64(
-                int vectorID, int rowID, std::vector<std::pair<int32_t, int32_t>>& decimalInfo) const;
-    void WriteToFileInternal(int vectorID, int rowID,
-                             std::ofstream &file,
-                             std::vector<std::pair<int32_t, int32_t>> decimalInfo,
-                             std::vector<std::string> inputTypes, const std::string &tzStr) const;
+        int vectorID, int rowID, std::vector<std::pair<int32_t, int32_t>>& decimalInfo) const;
+    void WriteToFileInternal(
+        int vectorID,
+        int rowID,
+        std::ofstream& file,
+        std::vector<std::pair<int32_t, int32_t>> decimalInfo,
+        std::vector<std::string> inputTypes,
+        const std::string& tzStr) const;
     void WriteString(std::ofstream& file, int vectorID, int rowID) const;
     VectorBatch* copy()
     {
@@ -126,20 +136,21 @@ public:
         std::iota(offsets.begin(), offsets.end(), 0);
 
         for (int i = 0; i < vectorCount; i++) {
-            copiedVectorBatch->Append(omniruntime::vec::VectorHelper::CopyPositionsVector(
-                value->Get(i), offsets.data(), 0, offsets.size()));
+            copiedVectorBatch->Append(
+                omniruntime::vec::VectorHelper::CopyPositionsVector(value->Get(i), offsets.data(), 0, offsets.size()));
         }
         return copiedVectorBatch;
     }
-    static omniruntime::vec::BaseVector* CopyPositionsAndFlatten(omniruntime::vec::BaseVector* input,
-         const int *positions, int offset, int length);
+    static omniruntime::vec::BaseVector* CopyPositionsAndFlatten(
+        omniruntime::vec::BaseVector* input, const int* positions, int offset, int length);
 
     static omnistream::VectorBatch* CreateVectorBatch(int rowCnt, const std::vector<DataTypeId>& dataTypes);
+
 private:
-        int64_t* timestamps;
-        RowKind* rowKinds;
-        int64_t maxTimestamp;
-    bool normalizeAndValidatePath(std::string &filePath) const
+    int64_t* timestamps;
+    RowKind* rowKinds;
+    int64_t maxTimestamp;
+    bool normalizeAndValidatePath(std::string& filePath) const
     {
         // 1. 检查路径是否为空
         if (filePath.empty()) {
@@ -163,7 +174,7 @@ private:
             return false;
         }
     }
-    };
-}
+};
+} // namespace omnistream
 
 #endif

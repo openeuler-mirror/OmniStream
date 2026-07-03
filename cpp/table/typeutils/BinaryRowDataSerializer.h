@@ -24,21 +24,25 @@ public:
     ~BinaryRowDataSerializer() override;
 
     // void * BinaryRowData
-    void *deserialize(DataInputView &source) override;
+    void* deserialize(DataInputView& source) override;
 
-    void serialize(void *row, DataOutputSerializer &target) override;
+    void serialize(void* row, DataOutputSerializer& target) override;
 
-    void serialize(Object *row, DataOutputSerializer &target) override;
+    void serialize(Object* row, DataOutputSerializer& target) override;
 
-    [[nodiscard]] const char *getName() const override;
+    [[nodiscard]] const char* getName() const override;
 
-    static BinaryRowData* joinedRowToBinaryRow(JoinedRowData *row, const std::vector<int32_t>& typeId = {});
+    static BinaryRowData* joinedRowToBinaryRow(JoinedRowData* row, const std::vector<int32_t>& typeId = {});
 
-    static BinaryRowData* joinedRowFromBothBinaryRow(JoinedRowData *row);
+    static BinaryRowData* joinedRowFromBothBinaryRow(JoinedRowData* row);
 
-    BackendDataType getBackendId() const override { return BackendDataType::ROW_BK;};
+    BackendDataType getBackendId() const override
+    {
+        return BackendDataType::ROW_BK;
+    };
 
-    std::string toJson() override {
+    std::string toJson() override
+    {
         if (numFields_ < 0) {
             INFO_RELEASE("Error BinaryRowDataSerializer::toJson numFields_ : " << numFields_ << " < 0");
             THROW_LOGIC_EXCEPTION("BinaryRowDataSerializer::toJson numFields_ : " << numFields_ << " < 0");
@@ -54,9 +58,13 @@ public:
         return typeJson.toJson();
     }
 
-    int getNumFields() const { return numFields_; }
+    int getNumFields() const
+    {
+        return numFields_;
+    }
 
     const std::vector<std::string>& getInputTypes() const;
+
 private:
     // Add JoinedRowDataSerializer, then pass the unconverted JoinedRowData to
     // output collector instead of the converted BinaryRowData

@@ -14,8 +14,8 @@
 
 #include "table/runtime/operators/window/TimeWindow.h"
 
-template<typename K, typename W>
-std::vector<W> GeneralWindowProcessFunction<K, W>::assignStateNamespace(RowData *inputRow, int64_t timestamp)
+template <typename K, typename W>
+std::vector<W> GeneralWindowProcessFunction<K, W>::assignStateNamespace(RowData* inputRow, int64_t timestamp)
 {
     std::vector<W> elementWindows = windowAssigner->assignWindows(inputRow, timestamp);
     reuseAffectedWindows.clear();
@@ -27,23 +27,23 @@ std::vector<W> GeneralWindowProcessFunction<K, W>::assignStateNamespace(RowData 
     return reuseAffectedWindows;
 }
 
-template<typename K, typename W>
-std::vector<W> GeneralWindowProcessFunction<K, W>::assignActualWindows(RowData *inputRow, int64_t timestamp)
+template <typename K, typename W>
+std::vector<W> GeneralWindowProcessFunction<K, W>::assignActualWindows(RowData* inputRow, int64_t timestamp)
 {
     return reuseAffectedWindows;
 }
 
-template<typename K, typename W>
+template <typename K, typename W>
 void GeneralWindowProcessFunction<K, W>::prepareAggregateAccumulatorForEmit(const W& window)
 {
-    RowData *acc = this->ctx->getWindowAccumulators(window);
+    RowData* acc = this->ctx->getWindowAccumulators(window);
     if (acc == nullptr) {
         acc = this->windowAggregator->createAccumulators();
     }
     this->windowAggregator->setAccumulators(window, acc);
 }
 
-template<typename K, typename W>
+template <typename K, typename W>
 void GeneralWindowProcessFunction<K, W>::cleanWindowIfNeeded(const W& window, int64_t currentTime)
 {
     if (this->isCleanupTime(window, currentTime)) {

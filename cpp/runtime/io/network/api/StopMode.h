@@ -14,13 +14,13 @@
 #include <string>
 
 namespace omnistream {
-    enum class StopMode : int {
-        DRAIN,
-        NO_DRAIN
-    };
+enum class StopMode : int {
+    DRAIN,
+    NO_DRAIN
+};
 
-    std::string StopModeToString(StopMode mode);
+std::string StopModeToString(StopMode mode);
 
-}
+} // namespace omnistream
 
 #endif // STOPMODE_H

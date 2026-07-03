@@ -19,13 +19,9 @@ public:
     explicit AlternatingCollectingBarriers(ChannelState state);
     ~AlternatingCollectingBarriers() override = default;
 
-    BarrierHandlerState* AlignedCheckpointTimeout(
-        Controller* controller,
-        CheckpointBarrier* barrier) override;
+    BarrierHandlerState* AlignedCheckpointTimeout(Controller* controller, CheckpointBarrier* barrier) override;
 
-    BarrierHandlerState* endOfPartitionReceived(
-        Controller* controller,
-        const InputChannelInfo& channelInfo);
+    BarrierHandlerState* endOfPartitionReceived(Controller* controller, const InputChannelInfo& channelInfo);
 
 protected:
     BarrierHandlerState* TransitionAfterBarrierReceived(ChannelState state) override;

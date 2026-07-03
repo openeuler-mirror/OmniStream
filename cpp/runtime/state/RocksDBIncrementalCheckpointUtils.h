@@ -26,10 +26,18 @@ public:
     public:
         Score(int intersectGroupRange, double overlapFraction)
             : intersectGroupRange_(intersectGroupRange),
-              overlapFraction_(overlapFraction) {}
+              overlapFraction_(overlapFraction)
+        {
+        }
 
-        int getIntersectGroupRange() const { return intersectGroupRange_; }
-        double getOverlapFraction() const { return overlapFraction_; }
+        int getIntersectGroupRange() const
+        {
+            return intersectGroupRange_;
+        }
+        double getOverlapFraction() const
+        {
+            return overlapFraction_;
+        }
 
         bool operator>(const Score& other) const
         {
@@ -48,15 +56,12 @@ public:
      * Evaluates state handle's "score" regarding to the target range
      */
     static Score stateHandleEvaluator(
-            const KeyedStateHandle& stateHandle,
-            const KeyGroupRange& targetKeyGroupRange,
-            double overlapFractionThreshold)
+        const KeyedStateHandle& stateHandle, const KeyGroupRange& targetKeyGroupRange, double overlapFractionThreshold)
     {
         const auto handleKeyGroupRange = stateHandle.GetKeyGroupRange();
         const auto intersectGroup = handleKeyGroupRange.getIntersection(targetKeyGroupRange);
         const double overlapFraction =
-                static_cast<double>(intersectGroup->getNumberOfKeyGroups()) /
-                handleKeyGroupRange.getNumberOfKeyGroups();
+            static_cast<double>(intersectGroup->getNumberOfKeyGroups()) / handleKeyGroupRange.getNumberOfKeyGroups();
         if (overlapFraction < overlapFractionThreshold) {
             return Score(INT_MIN, -1.0);
         }
@@ -67,11 +72,11 @@ public:
      * Clips the DB instance according to the target key group range
      */
     static void clipDBWithKeyGroupRange(
-            rocksdb::DB* db,
-            const std::vector<rocksdb::ColumnFamilyHandle*>& columnFamilyHandles,
-            const KeyGroupRange& targetKeyGroupRange,
-            const KeyGroupRange& currentKeyGroupRange,
-            int keyGroupPrefixBytes)
+        rocksdb::DB* db,
+        const std::vector<rocksdb::ColumnFamilyHandle*>& columnFamilyHandles,
+        const KeyGroupRange& targetKeyGroupRange,
+        const KeyGroupRange& currentKeyGroupRange,
+        int keyGroupPrefixBytes)
     {
         std::vector<uint8_t> beginKeyGroupBytes(keyGroupPrefixBytes);
         std::vector<uint8_t> endKeyGroupBytes(keyGroupPrefixBytes);
@@ -79,8 +84,7 @@ public:
         if (currentKeyGroupRange.getStartKeyGroup() < targetKeyGroupRange.getStartKeyGroup()) {
             CompositeKeySerializationUtils::serializeKeyGroup(
                 currentKeyGroupRange.getStartKeyGroup(), beginKeyGroupBytes);
-            CompositeKeySerializationUtils::serializeKeyGroup(
-                targetKeyGroupRange.getStartKeyGroup(), endKeyGroupBytes);
+            CompositeKeySerializationUtils::serializeKeyGroup(targetKeyGroupRange.getStartKeyGroup(), endKeyGroupBytes);
             deleteRange(db, columnFamilyHandles, beginKeyGroupBytes, endKeyGroupBytes);
         }
 
@@ -95,9 +99,7 @@ public:
     /**
      * Checks if bytes are before prefixBytes in lex order
      */
-    static bool beforeThePrefixBytes(
-            const rocksdb::Slice& bytes,
-            const rocksdb::Slice& prefixBytes)
+    static bool beforeThePrefixBytes(const rocksdb::Slice& bytes, const rocksdb::Slice& prefixBytes)
     {
         const size_t prefixLength = prefixBytes.size();
         for (size_t i = 0; i < prefixLength; ++i) {
@@ -113,16 +115,15 @@ public:
      * Chooses the best state handle for initial DB initialization
      */
     static std::shared_ptr<KeyedStateHandle> chooseTheBestStateHandleForInitial(
-            const std::vector<std::shared_ptr<KeyedStateHandle>>& restoreStateHandles,
-            const KeyGroupRange& targetKeyGroupRange,
-            double overlapFractionThreshold)
+        const std::vector<std::shared_ptr<KeyedStateHandle>>& restoreStateHandles,
+        const KeyGroupRange& targetKeyGroupRange,
+        double overlapFractionThreshold)
     {
         std::shared_ptr<KeyedStateHandle> bestStateHandle = nullptr;
         Score bestScore = Score(INT_MIN, -1.0);
 
         for (const auto& rawStateHandle : restoreStateHandles) {
-            Score handleScore = stateHandleEvaluator(
-                *rawStateHandle, targetKeyGroupRange, overlapFractionThreshold);
+            Score handleScore = stateHandleEvaluator(*rawStateHandle, targetKeyGroupRange, overlapFractionThreshold);
             if (handleScore > bestScore) {
                 bestStateHandle = rawStateHandle;
                 bestScore = handleScore;
@@ -137,20 +138,16 @@ private:
      * Deletes range [beginKeyBytes, endKeyBytes) from the DB
      */
     static void deleteRange(
-            rocksdb::DB* db,
-            const std::vector<rocksdb::ColumnFamilyHandle*>& columnFamilyHandles,
-            const std::vector<uint8_t>& beginKeyBytes,
-            const std::vector<uint8_t>& endKeyBytes)
+        rocksdb::DB* db,
+        const std::vector<rocksdb::ColumnFamilyHandle*>& columnFamilyHandles,
+        const std::vector<uint8_t>& beginKeyBytes,
+        const std::vector<uint8_t>& endKeyBytes)
     {
         rocksdb::Slice beginSlice(reinterpret_cast<const char*>(beginKeyBytes.data()), beginKeyBytes.size());
         rocksdb::Slice endSlice(reinterpret_cast<const char*>(endKeyBytes.data()), endKeyBytes.size());
 
         for (auto handle : columnFamilyHandles) {
-            rocksdb::Status status = db->DeleteRange(
-                rocksdb::WriteOptions(),
-                handle,
-                beginSlice,
-                endSlice);
+            rocksdb::Status status = db->DeleteRange(rocksdb::WriteOptions(), handle, beginSlice, endSlice);
             if (!status.ok()) {
                 throw std::runtime_error("RocksDB delete range failed: " + status.ToString());
             }

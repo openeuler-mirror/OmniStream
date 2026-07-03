@@ -14,16 +14,18 @@
 #include "BinaryRowDataSerializer.h"
 #include "streaming/runtime/streamrecord/StreamRecord.h"
 
-
-RowDataSerializer::RowDataSerializer(omnistream::RowType *rowType) :binarySerializer_(static_cast<int>(rowType->getChildren().size())), reuseRow_(nullptr), reuseWriter_(nullptr)
+RowDataSerializer::RowDataSerializer(omnistream::RowType* rowType)
+    : binarySerializer_(static_cast<int>(rowType->getChildren().size())),
+      reuseRow_(nullptr),
+      reuseWriter_(nullptr)
 {
     rowType_ = new omnistream::RowType(*rowType);
     auto types = rowType_->getChildren();
     types_ = types;
 
-    for (size_t i = 0; i<types.size(); i++) {
+    for (size_t i = 0; i < types.size(); i++) {
         LogicalType* fieldType = types_[i];
-        TypeSerializer* serializer =  InternalSerializers::create(fieldType);
+        TypeSerializer* serializer = InternalSerializers::create(fieldType);
         fieldSerializers_.push_back(serializer);
         fieldGetters_.push_back(RowData::createFieldGetter(fieldType, i));
     }
@@ -36,26 +38,25 @@ RowDataSerializer::~RowDataSerializer()
     delete rowType_;
 }
 
-void *RowDataSerializer::deserialize(DataInputView &source)
+void* RowDataSerializer::deserialize(DataInputView& source)
 {
-    LOG(">>>>")
-    return  binarySerializer_.deserialize(source);
+    LOG(">>>>");
+    return binarySerializer_.deserialize(source);
 }
 
-
-void RowDataSerializer::serialize(void *rowData, DataOutputSerializer &target)
+void RowDataSerializer::serialize(void* rowData, DataOutputSerializer& target)
 {
-    LOG(">>>>")
-    binarySerializer_.serialize(toBinaryRow(static_cast<RowData *>(rowData)), target);
+    LOG(">>>>");
+    binarySerializer_.serialize(toBinaryRow(static_cast<RowData*>(rowData)), target);
 }
 
-BinaryRowData *RowDataSerializer::toBinaryRow(RowData *row)
+BinaryRowData* RowDataSerializer::toBinaryRow(RowData* row)
 {
-    LOG(">>>>")
+    LOG(">>>>");
 
     if (row->getRowDataTypeId() == RowData::BinaryRowDataID) {
-        LOG(">>>>")
-        return static_cast<BinaryRowData *>(row);
+        LOG(">>>>");
+        return static_cast<BinaryRowData*>(row);
     }
 
     if (reuseRow_ == nullptr) {
@@ -70,15 +71,14 @@ BinaryRowData *RowDataSerializer::toBinaryRow(RowData *row)
             reuseWriter_->setNullAt(i);
         } else {
             BinaryWriter::write(
-                reuseWriter_, i, (fieldGetters_)[i]->getFieldOrNull(row), types_[i],
-                (fieldSerializers_)[i]);
+                reuseWriter_, i, (fieldGetters_)[i]->getFieldOrNull(row), types_[i], (fieldSerializers_)[i]);
         }
     }
     reuseWriter_->complete();
     return reuseRow_;
 }
 
-const char *RowDataSerializer::getName() const
+const char* RowDataSerializer::getName() const
 {
     return "RowDataSerializer";
 }

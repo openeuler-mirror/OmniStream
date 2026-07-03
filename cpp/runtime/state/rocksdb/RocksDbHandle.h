@@ -30,16 +30,18 @@
 
 namespace fs = std::filesystem;
 
-class  RocksDbHandle {
+class RocksDbHandle {
 public:
-    RocksDbHandle(std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>> *kvStateInformation,
-                  const fs::path& instanceRocksDBPath,
-                  std::shared_ptr<rocksdb::DBOptions> dbOptions,
-                  std::function<rocksdb::ColumnFamilyOptions(const std::string&)> columnFamilyOptionsFactory)
+    RocksDbHandle(
+        std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation,
+        const fs::path& instanceRocksDBPath,
+        std::shared_ptr<rocksdb::DBOptions> dbOptions,
+        std::function<rocksdb::ColumnFamilyOptions(const std::string&)> columnFamilyOptionsFactory)
         : kvStateInformation(kvStateInformation),
           dbPath(instanceRocksDBPath.string()),
           dbOptions(std::move(dbOptions)),
-          columnFamilyOptionsFactory(std::move(columnFamilyOptionsFactory)) {
+          columnFamilyOptionsFactory(std::move(columnFamilyOptionsFactory))
+    {
         columnFamilyHandles.reserve(1);
     }
 
@@ -49,9 +51,9 @@ public:
     }
 
     void openDB(
-            const std::vector<rocksdb::ColumnFamilyDescriptor>& columnFamilyDescriptors,
-            const std::vector<StateMetaInfoSnapshot>& stateMetaInfoSnapshots,
-            const fs::path& restoreSourcePath)
+        const std::vector<rocksdb::ColumnFamilyDescriptor>& columnFamilyDescriptors,
+        const std::vector<StateMetaInfoSnapshot>& stateMetaInfoSnapshots,
+        const fs::path& restoreSourcePath)
     {
         this->columnFamilyDescriptors = columnFamilyDescriptors;
         this->columnFamilyHandles.resize(columnFamilyDescriptors.size() + 1);
@@ -59,8 +61,7 @@ public:
         loadDb();
 
         for (size_t i = 0; i < stateMetaInfoSnapshots.size(); i++) {
-            getOrRegisterStateColumnFamilyHandle(
-                columnFamilyHandles[i], stateMetaInfoSnapshots[i]);
+            getOrRegisterStateColumnFamilyHandle(columnFamilyHandles[i], stateMetaInfoSnapshots[i]);
         }
     }
 
@@ -89,8 +90,7 @@ public:
     }
 
     std::shared_ptr<RocksDbKvStateInfo> getOrRegisterStateColumnFamilyHandle(
-            rocksdb::ColumnFamilyHandle* columnFamilyHandle,
-            const StateMetaInfoSnapshot& stateMetaInfoSnapshot)
+        rocksdb::ColumnFamilyHandle* columnFamilyHandle, const StateMetaInfoSnapshot& stateMetaInfoSnapshot)
     {
         std::shared_ptr<RocksDbKvStateInfo> registeredStateMetaInfoEntry = nullptr;
         // Check if the state already exists in the map
@@ -101,21 +101,16 @@ public:
 
         if (nullptr == registeredStateMetaInfoEntry) {
             std::shared_ptr<RegisteredStateMetaInfoBase> stateMetaInfo =
-                    RegisteredStateMetaInfoBase::fromMetaInfoSnapshot(stateMetaInfoSnapshot);
+                RegisteredStateMetaInfoBase::fromMetaInfoSnapshot(stateMetaInfoSnapshot);
             if (columnFamilyHandle == nullptr) {
                 registeredStateMetaInfoEntry =
-                        RocksDbOperationUtils::createStateInfo(
-                            stateMetaInfo,
-                            db,
-                            columnFamilyOptionsFactory);
+                    RocksDbOperationUtils::createStateInfo(stateMetaInfo, db, columnFamilyOptionsFactory);
             } else {
                 registeredStateMetaInfoEntry =
-                        std::make_shared<RocksDbKvStateInfo>(columnFamilyHandle, std::move(stateMetaInfo));
+                    std::make_shared<RocksDbKvStateInfo>(columnFamilyHandle, std::move(stateMetaInfo));
             }
             RocksDbOperationUtils::registerKvStateInformation(
-                kvStateInformation,
-                stateMetaInfoSnapshot.getName(),
-                registeredStateMetaInfoEntry);
+                kvStateInformation, stateMetaInfoSnapshot.getName(), registeredStateMetaInfoEntry);
         }
         return registeredStateMetaInfoEntry;
     }
@@ -174,7 +169,7 @@ public:
     }
 
 private:
-    std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>> *kvStateInformation;
+    std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation;
     const std::string dbPath;
     std::shared_ptr<rocksdb::DBOptions> dbOptions;
     const std::function<rocksdb::ColumnFamilyOptions(const std::string&)> columnFamilyOptionsFactory;
@@ -183,11 +178,11 @@ private:
     rocksdb::DB* db;
     rocksdb::ColumnFamilyHandle* defaultColumnFamilyHandle;
     const std::string SST_FILE_SUFFIX = ".sst";
-    std::string::size_type SST_SUFFIX_LENGTH = 4 ;
+    std::string::size_type SST_SUFFIX_LENGTH = 4;
     void loadDb()
     {
         rocksdb::ColumnFamilyOptions columnFamilyOptions =
-                RocksDbOperationUtils::createColumnFamilyOptions(columnFamilyOptionsFactory, "default");
+            RocksDbOperationUtils::createColumnFamilyOptions(columnFamilyOptionsFactory, "default");
         db = RocksDbOperationUtils::openDB(
             dbPath, columnFamilyDescriptors, columnFamilyHandles, columnFamilyOptions, *dbOptions);
         defaultColumnFamilyHandle = columnFamilyHandles[0];

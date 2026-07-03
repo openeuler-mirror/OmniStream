@@ -12,14 +12,14 @@
 
 ZoneId::ZoneId() = default;
 
-ZoneId::ZoneId(std::string &tz)
+ZoneId::ZoneId(std::string& tz)
 {
     timezone = tz;
 }
 
 ZoneId::~ZoneId() = default;
 
-ZoneId *ZoneId::systemDefault()
+ZoneId* ZoneId::systemDefault()
 {
     return nullptr;
 }

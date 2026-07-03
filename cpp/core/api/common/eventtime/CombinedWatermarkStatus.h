@@ -26,6 +26,7 @@ public:
     {
         this->idle = idle0;
     }
+
 private:
     long watermark = INT64_MIN;
     bool idle = false;
@@ -65,10 +66,11 @@ public:
         }
         partialWatermarks[index]->SetWatermark(timestamp);
     }
+
 private:
     std::vector<PartialWatermark*> partialWatermarks;
     long combinedWatermark = std::numeric_limits<long>::min();
     bool idle = false;
 };
-}
+} // namespace omnistream
 #endif // OMNISTREAM_COMBINEDWATERMARKSTATUS_H

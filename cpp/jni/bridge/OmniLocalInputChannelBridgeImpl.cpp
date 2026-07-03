@@ -1,5 +1,5 @@
 /*
-* Copyright (c) Huawei Technologies Co., Ltd. 2012-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2012-2025. All rights reserved.
  * Create Date : 2025
  */
 #include "OmniLocalInputChannelBridgeImpl.h"
@@ -9,7 +9,7 @@ OmniLocalInputChannelBridgeImpl::~OmniLocalInputChannelBridgeImpl()
     ClearJavaChannelRef();
 }
 
-void OmniLocalInputChannelBridgeImpl::RegisterJavaOmniLocalInputChannel(JNIEnv *env, jobject javaObject)
+void OmniLocalInputChannelBridgeImpl::RegisterJavaOmniLocalInputChannel(JNIEnv* env, jobject javaObject)
 {
     if (javaOmniLocalInputChannel) {
         env->DeleteGlobalRef(javaOmniLocalInputChannel);
@@ -30,10 +30,10 @@ void OmniLocalInputChannelBridgeImpl::ClearJavaChannelRef()
         return;
     }
 
-    JNIEnv *env = nullptr;
+    JNIEnv* env = nullptr;
     bool attached = false;
-    if (g_OmniStreamJVM->GetEnv(reinterpret_cast<void **>(&env), JNI_VERSION_1_8) != JNI_OK) {
-        if (g_OmniStreamJVM->AttachCurrentThread(reinterpret_cast<void **>(&env), nullptr) != 0) {
+    if (g_OmniStreamJVM->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_8) != JNI_OK) {
+        if (g_OmniStreamJVM->AttachCurrentThread(reinterpret_cast<void**>(&env), nullptr) != 0) {
             return;
         }
         attached = true;
@@ -53,10 +53,10 @@ void OmniLocalInputChannelBridgeImpl::InvokeDoResumeConsumption()
         return;
     }
 
-    JNIEnv *env = nullptr;
+    JNIEnv* env = nullptr;
     bool attached = false;
-    if (g_OmniStreamJVM->GetEnv(reinterpret_cast<void **>(&env), JNI_VERSION_1_8) != JNI_OK) {
-        if (g_OmniStreamJVM->AttachCurrentThread(reinterpret_cast<void **>(&env), nullptr) != 0) {
+    if (g_OmniStreamJVM->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_8) != JNI_OK) {
+        if (g_OmniStreamJVM->AttachCurrentThread(reinterpret_cast<void**>(&env), nullptr) != 0) {
             return;
         }
         attached = true;

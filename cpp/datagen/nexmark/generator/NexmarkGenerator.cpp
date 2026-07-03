@@ -11,24 +11,21 @@
 
 #include "NexmarkGenerator.h"
 
-bool NexmarkGenerator::NextEvent::operator==(const NexmarkGenerator::NextEvent &other) const
+bool NexmarkGenerator::NextEvent::operator==(const NexmarkGenerator::NextEvent& other) const
 {
-    return (wallclockTimestamp == other.wallclockTimestamp &&
-            eventTimestamp == other.eventTimestamp &&
-            watermark == other.watermark &&
-            event == other.event);
+    return (
+        wallclockTimestamp == other.wallclockTimestamp && eventTimestamp == other.eventTimestamp &&
+        watermark == other.watermark && event == other.event);
 }
 
 int NexmarkGenerator::NextEvent::hashCode() const
 {
     std::hash<int64_t> intHasher;
-    return static_cast<int>(intHasher(wallclockTimestamp)
-                            ^ intHasher(eventTimestamp)
-                            ^ intHasher(watermark)
-                            ^ event->hash());
+    return static_cast<int>(
+        intHasher(wallclockTimestamp) ^ intHasher(eventTimestamp) ^ intHasher(watermark) ^ event->hash());
 }
 
-bool NexmarkGenerator::NextEvent::operator<(const NexmarkGenerator::NextEvent &other) const
+bool NexmarkGenerator::NextEvent::operator<(const NexmarkGenerator::NextEvent& other) const
 {
     if (wallclockTimestamp < other.wallclockTimestamp) {
         return true;
@@ -43,8 +40,7 @@ GeneratorConfig NexmarkGenerator::splitAtEventId(int64_t eventId)
 {
     int64_t newMaxEvents = eventId - (config.firstEventId + config.firstEventNumber);
     GeneratorConfig remainConfig = config.copyWithConfig(
-        config.firstEventId, config.maxEvents - newMaxEvents,
-        config.firstEventNumber + newMaxEvents);
+        config.firstEventId, config.maxEvents - newMaxEvents, config.firstEventNumber + newMaxEvents);
     config = config.copyWithConfig(config.firstEventId, newMaxEvents, config.firstEventNumber);
     return remainConfig;
 }
@@ -53,13 +49,14 @@ NexmarkGenerator::NextEvent NexmarkGenerator::nextEvent()
 {
     if (wallclockBaseTime < 0) {
         // Get current time in milliseconds.
-        wallclockBaseTime = std::chrono::duration_cast<std::chrono::milliseconds>(
-                std::chrono::system_clock::now().time_since_epoch())
+        wallclockBaseTime =
+            std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch())
                 .count();
     }
     // When, in event time, we should generate the event. Monotonic.
     int64_t eventTimestamp = config.timestampForEvent(config.nextEventNumber(eventsCountSoFar));
-    // When, in event time, the event should say it was generated. Depending on outOfOrderGroupSize may have local jitter.
+    // When, in event time, the event should say it was generated. Depending on outOfOrderGroupSize may have local
+    // jitter.
     int64_t adjustedEventTimestamp = config.timestampForEvent(config.nextAdjustedEventNumber(eventsCountSoFar));
     // The minimum of this and all future adjusted event timestamps. Accounts for jitter in the event timestamp.
     int64_t watermark = config.timestampForEvent(config.nextEventNumberForWatermark(eventsCountSoFar));

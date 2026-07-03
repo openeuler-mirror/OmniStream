@@ -10,4 +10,3 @@
  */
 
 #include "table/runtime/keyselector/KeySelector.h"
-

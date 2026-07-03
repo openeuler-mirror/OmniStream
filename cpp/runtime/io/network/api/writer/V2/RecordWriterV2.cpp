@@ -15,71 +15,74 @@
 
 namespace omnistream {
 
-    const std::string RecordWriterV2::DEFAULT_OUTPUT_FLUSH_THREAD_NAME = "OutputFlusher";
+const std::string RecordWriterV2::DEFAULT_OUTPUT_FLUSH_THREAD_NAME = "OutputFlusher";
 
-    RecordWriterV2::RecordWriterV2(const std::shared_ptr<ResultPartitionWriter> &targetPartitionWriter,
-                                   long timeout_, std::string taskName_, int taskType)
-        : targetPartitionWriter_(targetPartitionWriter),
-          taskName(taskName_),
-          outputFlusher(nullptr),
-          taskType(taskType) {
-        this->numberOfChannels = targetPartitionWriter_->getNumberOfSubpartitions();
-        this->timeout = timeout_;
-        this->flushAlways = (this->timeout == ExecutionOptions::FLUSH_AFTER_EVERY_RECORD);
+RecordWriterV2::RecordWriterV2(
+    const std::shared_ptr<ResultPartitionWriter>& targetPartitionWriter,
+    long timeout_,
+    std::string taskName_,
+    int taskType)
+    : targetPartitionWriter_(targetPartitionWriter),
+      taskName(taskName_),
+      outputFlusher(nullptr),
+      taskType(taskType)
+{
+    this->numberOfChannels = targetPartitionWriter_->getNumberOfSubpartitions();
+    this->timeout = timeout_;
+    this->flushAlways = (this->timeout == ExecutionOptions::FLUSH_AFTER_EVERY_RECORD);
+}
+
+void RecordWriterV2::postConstruct()
+{
+    // share point of recored write , fix it later
+    this->outputFlusher = std::make_shared<OutputFlusher>(taskName, timeout, this);
+    this->outputFlusher->start();
+}
+
+std::shared_ptr<ResultPartitionWriter> RecordWriterV2::getTargetPartition() const
+{
+    return targetPartitionWriter_;
+}
+
+int RecordWriterV2::getNumberOfChannels() const
+{
+    return numberOfChannels;
+}
+
+bool RecordWriterV2::isFlushAlways() const
+{
+    return flushAlways;
+}
+
+void RecordWriterV2::setSerializationDelegate(SerializationDelegate* serializationDelegate_)
+{
+    this->serializationDelegate = serializationDelegate_;
+}
+
+void RecordWriterV2::broadcastEvent(std::shared_ptr<AbstractEvent> event, bool isPriorityEvent)
+{
+    targetPartitionWriter_->broadcastEvent(event, isPriorityEvent);
+    if (flushAlways) {
+        flushAll();
     }
+}
 
-    void RecordWriterV2::postConstruct()
-    {
-        // share point of recored write , fix it later
-        this->outputFlusher = std::make_shared<OutputFlusher>(taskName, timeout, this);
-        this->outputFlusher->start();
-    }
+void RecordWriterV2::cancel()
+{
+    LOG_INFO_IMP("RecordWriterV2::cancel" << taskName);
+    targetPartitionWriter_->cancel();
+    INFO_RELEASE("Task:" << taskName << " Total number of row emitted:" << counter_);
+}
 
+void RecordWriterV2::close()
+{
+    LOG_INFO_IMP("RecordWriterV2::close" << taskName);
+    outputFlusher->terminate();
+    INFO_RELEASE("Task:" << taskName << " Total number of row emitted:" << counter_);
+}
 
-    std::shared_ptr<ResultPartitionWriter> RecordWriterV2::getTargetPartition() const
-    {
-        return targetPartitionWriter_;
-    }
-
-    int RecordWriterV2::getNumberOfChannels() const
-    {
-        return numberOfChannels;
-    }
-
-    bool RecordWriterV2::isFlushAlways() const
-    {
-        return flushAlways;
-    }
-
-    void RecordWriterV2::setSerializationDelegate(SerializationDelegate* serializationDelegate_)
-    {
-        this->serializationDelegate = serializationDelegate_;
-    }
-
-    void RecordWriterV2::broadcastEvent(std::shared_ptr<AbstractEvent> event, bool isPriorityEvent)
-    {
-        targetPartitionWriter_->broadcastEvent(event, isPriorityEvent);
-        if (flushAlways) {
-            flushAll();
-        }
-    }
-
-    void RecordWriterV2::cancel()
-    {
-        LOG_INFO_IMP("RecordWriterV2::cancel" << taskName);
-        targetPartitionWriter_->cancel();
-        INFO_RELEASE("Task:" << taskName << " Total number of row emitted:" << counter_);
-    }
-
-    void RecordWriterV2::close()
-    {
-        LOG_INFO_IMP("RecordWriterV2::close" << taskName);
-        outputFlusher->terminate();
-        INFO_RELEASE("Task:" << taskName << " Total number of row emitted:" << counter_);
-    }
-
-    std::shared_ptr<CompletableFuture> RecordWriterV2::GetAvailableFuture()
-    {
-        return targetPartitionWriter_->GetAvailableFuture();
-    }
+std::shared_ptr<CompletableFuture> RecordWriterV2::GetAvailableFuture()
+{
+    return targetPartitionWriter_->GetAvailableFuture();
+}
 } // namespace omnistream

@@ -26,13 +26,13 @@ namespace omnistream::datastream {
 // check
 class MemoryBufferBuilder : public BufferBuilder {
 public:
-    MemoryBufferBuilder(MemorySegment *memorySegment, std::shared_ptr<BufferRecycler> recycler);
+    MemoryBufferBuilder(MemorySegment* memorySegment, std::shared_ptr<BufferRecycler> recycler);
     // delete in BufferWritingResultPartition
     ~MemoryBufferBuilder() override;
 
     int appendAndCommit(void* source) override;
 
-    int append(void *source);
+    int append(void* source);
 
     int appendRawBytes(const uint8_t* source, int length);
 
@@ -44,13 +44,12 @@ public:
     Segment* GetSegment() override;
 
 private:
-    MemorySegment *memorySegment;
+    MemorySegment* memorySegment;
     int commitCount = 0;
     TimerThreadPool::TaskId taskId;
     const int MAX_COMMIT_COUNT = 1000;
 };
 
-}
-
+} // namespace omnistream::datastream
 
 #endif // MEMORYBUFFERBUIDLER_H

@@ -11,9 +11,6 @@
 
 #include "ShuffleDescriptorPOD.h"
 
-
 namespace omnistream {
 
-
 } // namespace omnistream
-

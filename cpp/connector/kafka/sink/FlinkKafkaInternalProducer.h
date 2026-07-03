@@ -46,7 +46,7 @@ private:
     void transitionTransactionManagerStateTo(const std::string& state);
     void* createProducerIdAndEpoch(int64_t producerId, int32_t epoch);
 
-    RdKafka::Producer *producer_;
+    RdKafka::Producer* producer_;
     std::string transactionalId_;
     std::atomic<bool> inTransaction_;
     std::atomic<bool> closed_;

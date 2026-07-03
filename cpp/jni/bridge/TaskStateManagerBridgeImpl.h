@@ -2,7 +2,6 @@
  * Copyright (c) Huawei Technologies Co., Ltd. 2012-2025. All rights reserved.
  */
 
-
 #ifndef TASKSTATEMANAGERBRIDGEIMPL_H
 #define TASKSTATEMANAGERBRIDGEIMPL_H
 
@@ -21,13 +20,14 @@ class TaskStateManagerBridgeImpl : public TaskStateManagerBridge {
 public:
     explicit TaskStateManagerBridgeImpl(jobject mGlobalTaskStateMgrRef)
     {
-        this->m_globalTaskStateMgrRef=mGlobalTaskStateMgrRef;
+        this->m_globalTaskStateMgrRef = mGlobalTaskStateMgrRef;
     }
     // ~TaskStateManagerBridgeImpl() override;
-    void ReportTaskStateSnapshots(std::string &checkpointMetaDataJson,
-         std::string &checkpointMetricsJson,
-         std::string &acknowledgedStateJson,
-         std::string &localStateJson) override
+    void ReportTaskStateSnapshots(
+        std::string& checkpointMetaDataJson,
+        std::string& checkpointMetricsJson,
+        std::string& acknowledgedStateJson,
+        std::string& localStateJson) override
     {
         JNIEnv* env;
         // Attach the current thread to the Java VM
@@ -48,7 +48,9 @@ public:
             // 2. Get the method ID for reportTaskStateSnapshots
             // The signature is (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
             // V for void return type, and Ljava/lang/String; for each String argument
-            jmethodID reportMethodId = env->GetMethodID(taskStateManagerWrapperClass, "reportTaskStateSnapshots",
+            jmethodID reportMethodId = env->GetMethodID(
+                taskStateManagerWrapperClass,
+                "reportTaskStateSnapshots",
                 "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V");
             if (reportMethodId == nullptr) {
                 GErrorLog("Error: Could not find method reportTaskStateSnapshots.");
@@ -63,8 +65,13 @@ public:
             jstring localState = env->NewStringUTF(localStateJson.c_str());
 
             // 3. Invoke the Java method
-            env->CallVoidMethod(m_globalTaskStateMgrRef, reportMethodId, checkpointMetaData,
-                checkpointMetrics, acknowledgedState, localState);
+            env->CallVoidMethod(
+                m_globalTaskStateMgrRef,
+                reportMethodId,
+                checkpointMetaData,
+                checkpointMetrics,
+                acknowledgedState,
+                localState);
 
             // 4. Check for any pending exceptions after the call (optional but good practice)
             if (env->ExceptionCheck()) {
@@ -106,8 +113,8 @@ public:
             // 2. Get the method ID for reportTaskStateSnapshots
             // The signature is (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
             // V for void return type, and Ljava/lang/String; for each String argument
-            jmethodID notifyCheckpointAbortedMethodId = env->GetMethodID(taskStateManagerWrapperClass, "notifyCheckpointAborted",
-                "(Ljava/lang/String;)V");
+            jmethodID notifyCheckpointAbortedMethodId =
+                env->GetMethodID(taskStateManagerWrapperClass, "notifyCheckpointAborted", "(Ljava/lang/String;)V");
             if (notifyCheckpointAbortedMethodId == nullptr) {
                 GErrorLog("Error: Could not find method notifyCheckpointAborted.");
                 env->DeleteLocalRef(taskStateManagerWrapperClass); // Clean up local ref
@@ -158,8 +165,8 @@ public:
             // 2. Get the method ID for reportTaskStateSnapshots
             // The signature is (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
             // V for void return type, and Ljava/lang/String; for each String argument
-            jmethodID notifyCheckpointCompleteMethodId = env->GetMethodID(taskStateManagerWrapperClass, "notifyCheckpointComplete",
-                "(Ljava/lang/String;)V");
+            jmethodID notifyCheckpointCompleteMethodId =
+                env->GetMethodID(taskStateManagerWrapperClass, "notifyCheckpointComplete", "(Ljava/lang/String;)V");
             if (notifyCheckpointCompleteMethodId == nullptr) {
                 GErrorLog("Error: Could not find method notifyCheckpointAborted.");
                 env->DeleteLocalRef(taskStateManagerWrapperClass); // Clean up local ref
@@ -210,8 +217,8 @@ public:
                     return nullptr;
                 }
 
-                jmethodID retrieveMethodId = env->GetMethodID(taskStateManagerWrapperClass, "retrieveLocalState",
-                                                              "(J)Ljava/lang/String;");
+                jmethodID retrieveMethodId =
+                    env->GetMethodID(taskStateManagerWrapperClass, "retrieveLocalState", "(J)Ljava/lang/String;");
                 if (retrieveMethodId == nullptr) {
                     GErrorLog("Error: Could not find method retrieveLocalState.");
                     env->DeleteLocalRef(taskStateManagerWrapperClass);
@@ -220,7 +227,8 @@ public:
                 }
 
                 // 调用Java方法
-                jstring ret = (jstring)env->CallObjectMethod(m_globalTaskStateMgrRef, retrieveMethodId, (jlong)restoreCheckpointId);
+                jstring ret = (jstring)env->CallObjectMethod(
+                    m_globalTaskStateMgrRef, retrieveMethodId, (jlong)restoreCheckpointId);
 
                 // 检查异常
                 if (env->ExceptionCheck()) {
@@ -235,7 +243,7 @@ public:
                 // 处理返回结果
                 if (ret != nullptr) {
                     const char* resultStr = env->GetStringUTFChars(ret, nullptr);
-                    if (resultStr == nullptr){
+                    if (resultStr == nullptr) {
                         GErrorLog("Error: resultStr is null");
                         env->ExceptionDescribe();
                         env->ExceptionClear();
@@ -264,10 +272,9 @@ public:
                             // 在这里添加从JSON到TaskStateSnapshot的转换逻辑
                             // 例如：taskStateSnapshot = ConvertJsonToTaskStateSnapshot(snapshotJson);
                             // 暂时返回一个空的shared_ptr，你需要实现具体的转换逻辑
-                            taskStateSnapshot =
-                                    TaskStateSnapshotDeserializer::Deserialize(snapshotJson.dump());
+                            taskStateSnapshot = TaskStateSnapshotDeserializer::Deserialize(snapshotJson.dump());
                             std::stringstream taskStateSnapshotstr;
-                            taskStateSnapshotstr << "make taskStateSnapshot:" << taskStateSnapshot->ToString() ;
+                            taskStateSnapshotstr << "make taskStateSnapshot:" << taskStateSnapshot->ToString();
                             GErrorLog(taskStateSnapshotstr.str());
 
                         } catch (const std::exception& e) {
@@ -304,6 +311,6 @@ private:
     jobject m_globalTaskStateMgrRef;
 };
 
-} // omnistream
+} // namespace omnistream
 
 #endif // TASKSTATEMANAGERBRIDGEIMPL_H

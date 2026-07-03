@@ -27,18 +27,19 @@ public:
 template <typename IN, typename BucketID>
 class BucketAssigner {
 public:
-    BucketAssigner(std::vector<std::string> keys, std::vector<int> indexes) : partitionKeys(std::move(keys)),
-                                                                              partitionIndexes(std::move(indexes))
+    BucketAssigner(std::vector<std::string> keys, std::vector<int> indexes)
+        : partitionKeys(std::move(keys)),
+          partitionIndexes(std::move(indexes))
     {
         if (partitionKeys.size() != partitionIndexes.size()) {
             throw std::runtime_error("mismatched keys/indexes size");
         }
     }
 
-    BucketID getBucketId(IN batch, int rowId, BucketAssignerContext *context)
+    BucketID getBucketId(IN batch, int rowId, BucketAssignerContext* context)
     {
         std::vector<std::pair<std::string, std::string>> partitionSpec;
-        auto vb = reinterpret_cast<omnistream::VectorBatch *>(batch);
+        auto vb = reinterpret_cast<omnistream::VectorBatch*>(batch);
 
         for (size_t i = 0; i < partitionKeys.size(); ++i) {
             auto val = VectorBatchUtil::getValueAtAsStr(vb, partitionIndexes[i], rowId);

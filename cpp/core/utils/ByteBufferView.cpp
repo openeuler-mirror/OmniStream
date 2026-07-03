@@ -11,13 +11,15 @@
 
 #include "ByteBufferView.h"
 
-ByteBufferView::~ByteBufferView() {
+ByteBufferView::~ByteBufferView()
+{
     // do not delete data_
 }
 
 ByteBufferView::ByteBufferView() = default;
 
-ByteBufferView *ByteBufferView::wrap(std::vector<uint8_t>* data) {
+ByteBufferView* ByteBufferView::wrap(std::vector<uint8_t>* data)
+{
     auto ret = new ByteBufferView();
     ret->capacity_ = static_cast<int>(data->capacity());
     ret->clear();

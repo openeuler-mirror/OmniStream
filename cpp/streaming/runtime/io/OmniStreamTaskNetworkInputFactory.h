@@ -16,30 +16,42 @@
 #include "runtime/io/recover/OmniRescalingStreamTaskNetworkInput.h"
 
 namespace omnistream {
-    class OmniStreamTaskNetworkInputFactory {
-    public:
-        static OmniStreamTaskInput *create(int64_t inputIndex, const std::shared_ptr<CheckpointedInputGate> &inputGate,
-                                           int taskType, TypeSerializer *inputSerializer,
-                                           std::vector<long> &channelInfos,
-                                           std::shared_ptr<InflightDataRescalingDescriptor> inflightDataRescalingDescriptor,
-                                           std::function<StreamPartitioner<IOReadableWritable> *(
-                                                   int)> getPartitionerFunction,
-                                           TaskInformationPOD *taskInfo) {
-            INFO_RELEASE("inflight is null:" << (inflightDataRescalingDescriptor == nullptr));
-            if (!inflightDataRescalingDescriptor ||
-                inflightDataRescalingDescriptor == InflightDataRescalingDescriptor::noRescale) {
-                INFO_RELEASE("create OmniStreamTaskNetworkInput");
-                return new OmniStreamTaskNetworkInput(inputIndex, inputGate, taskType,
-                                                      inputSerializer, channelInfos,
-                                                      taskInfo->getExecutionCheckpointConfig().getCheckpointInterval());
-            }
-            INFO_RELEASE("create OmniRescalingStreamTaskNetworkInput");
-            return new OmniRescalingStreamTaskNetworkInput(inputIndex, inputGate, taskType, inputSerializer,
-                                                           channelInfos,
-                                                           inflightDataRescalingDescriptor, getPartitionerFunction,
-                                                           taskInfo);
+class OmniStreamTaskNetworkInputFactory {
+public:
+    static OmniStreamTaskInput* create(
+        int64_t inputIndex,
+        const std::shared_ptr<CheckpointedInputGate>& inputGate,
+        int taskType,
+        TypeSerializer* inputSerializer,
+        std::vector<long>& channelInfos,
+        std::shared_ptr<InflightDataRescalingDescriptor> inflightDataRescalingDescriptor,
+        std::function<StreamPartitioner<IOReadableWritable>*(int)> getPartitionerFunction,
+        TaskInformationPOD* taskInfo)
+    {
+        INFO_RELEASE("inflight is null:" << (inflightDataRescalingDescriptor == nullptr));
+        if (!inflightDataRescalingDescriptor ||
+            inflightDataRescalingDescriptor == InflightDataRescalingDescriptor::noRescale) {
+            INFO_RELEASE("create OmniStreamTaskNetworkInput");
+            return new OmniStreamTaskNetworkInput(
+                inputIndex,
+                inputGate,
+                taskType,
+                inputSerializer,
+                channelInfos,
+                taskInfo->getExecutionCheckpointConfig().getCheckpointInterval());
         }
-    };
-}  // namespace omnistream
+        INFO_RELEASE("create OmniRescalingStreamTaskNetworkInput");
+        return new OmniRescalingStreamTaskNetworkInput(
+            inputIndex,
+            inputGate,
+            taskType,
+            inputSerializer,
+            channelInfos,
+            inflightDataRescalingDescriptor,
+            getPartitionerFunction,
+            taskInfo);
+    }
+};
+} // namespace omnistream
 
 #endif

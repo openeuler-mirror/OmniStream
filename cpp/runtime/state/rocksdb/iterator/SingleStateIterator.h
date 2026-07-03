@@ -35,7 +35,10 @@ public:
     /** Returns the keyGroup prefix decoded from the current key. */
     virtual int keyGroup() const = 0;
     virtual int getKvStateId() const = 0;
-    virtual size_t getEntryCount() const { return 0; }
+    virtual size_t getEntryCount() const
+    {
+        return 0;
+    }
     virtual void close() = 0;
 };
 

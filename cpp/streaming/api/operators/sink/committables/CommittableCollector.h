@@ -33,12 +33,18 @@ public:
     using CheckpointCommittableMap = std::map<long, std::shared_ptr<CheckpointCommittableManagerImpl<CommT>>>;
 
     CommittableCollector(int subtaskId, int numberOfSubtasks)
-        : subtaskId(subtaskId), numberOfSubtasks(numberOfSubtasks), checkpointCommittables() {}
+        : subtaskId(subtaskId),
+          numberOfSubtasks(numberOfSubtasks),
+          checkpointCommittables()
+    {
+    }
 
-    CommittableCollector(const CheckpointCommittableMap& checkpointCommittables,
-                          int subtaskId,
-                          int numberOfSubtasks)
-        : checkpointCommittables(checkpointCommittables), subtaskId(subtaskId), numberOfSubtasks(numberOfSubtasks) {}
+    CommittableCollector(const CheckpointCommittableMap& checkpointCommittables, int subtaskId, int numberOfSubtasks)
+        : checkpointCommittables(checkpointCommittables),
+          subtaskId(subtaskId),
+          numberOfSubtasks(numberOfSubtasks)
+    {
+    }
 
     static CommittableCollector<CommT> Of(int subtaskId, int numberOfSubtasks)
     {
@@ -103,7 +109,7 @@ public:
         for (const auto& entry : cc.checkpointCommittables) {
             long checkpointId = entry.first;
             const auto& otherManager = entry.second;
-            
+
             auto it = checkpointCommittables.find(checkpointId);
             if (it != checkpointCommittables.end()) {
                 it->second->Merge(*otherManager);
@@ -153,9 +159,8 @@ private:
     {
         auto it = checkpointCommittables.find(summary.GetCheckpointId().value_or(eoi));
         if (it == checkpointCommittables.end()) {
-            auto cv = std::make_shared<CheckpointCommittableManagerImpl<CommT>>(subtaskId,
-                                                                                numberOfSubtasks,
-                                                                                summary.GetCheckpointId().value_or(eoi));
+            auto cv = std::make_shared<CheckpointCommittableManagerImpl<CommT>>(
+                subtaskId, numberOfSubtasks, summary.GetCheckpointId().value_or(eoi));
             checkpointCommittables[summary.GetCheckpointId().value_or(eoi)] = cv;
             cv->UpsertSummary(summary);
         } else {

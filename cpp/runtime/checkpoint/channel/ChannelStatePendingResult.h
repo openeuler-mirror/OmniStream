@@ -22,39 +22,43 @@
 
 namespace omnistream {
 
-    class ChannelStatePendingResult {
-    public:
-        ChannelStatePendingResult(
-            int subtaskIndex,
-            int64_t checkpointId,
-            std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> result,
-            std::shared_ptr<ChannelStateSerializer> serializer);
+class ChannelStatePendingResult {
+public:
+    ChannelStatePendingResult(
+        int subtaskIndex,
+        int64_t checkpointId,
+        std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> result,
+        std::shared_ptr<ChannelStateSerializer> serializer);
 
-        bool IsAllInputsReceived() const;
-        bool IsAllOutputsReceived() const;
+    bool IsAllInputsReceived() const;
+    bool IsAllOutputsReceived() const;
 
-        std::map<InputChannelInfo, AbstractChannelStateHandle<InputChannelInfo>::StateContentMetaInfo> &GetInputChannelOffsets();
-        std::map<ResultSubpartitionInfoPOD, AbstractChannelStateHandle<ResultSubpartitionInfoPOD>::StateContentMetaInfo> &GetResultSubpartitionOffsets();
+    std::map<InputChannelInfo, AbstractChannelStateHandle<InputChannelInfo>::StateContentMetaInfo>&
+    GetInputChannelOffsets();
+    std::map<ResultSubpartitionInfoPOD, AbstractChannelStateHandle<ResultSubpartitionInfoPOD>::StateContentMetaInfo>&
+    GetResultSubpartitionOffsets();
 
-        void CompleteInput();
-        void CompleteOutput();
-        void FinishResult(std::shared_ptr<StreamStateHandle> stateHandle);
-        void Fail(const std::exception_ptr &e);
-        bool IsDone() const;
-        std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> GetResult();
-        const int GetSubtaskIndex();
-        const int64_t GetCheckpointId();
-    private:
-        const int subtaskIndex;
-        const int64_t checkpointId;
-        std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> result;
-        std::shared_ptr<ChannelStateSerializer> serializer;
-        bool allInputsReceived;
-        bool allOutputsReceived;
+    void CompleteInput();
+    void CompleteOutput();
+    void FinishResult(std::shared_ptr<StreamStateHandle> stateHandle);
+    void Fail(const std::exception_ptr& e);
+    bool IsDone() const;
+    std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> GetResult();
+    const int GetSubtaskIndex();
+    const int64_t GetCheckpointId();
 
-        std::map<InputChannelInfo, AbstractChannelStateHandle<InputChannelInfo>::StateContentMetaInfo> inputChannelOffsets;
-        std::map<ResultSubpartitionInfoPOD, AbstractChannelStateHandle<ResultSubpartitionInfoPOD>::StateContentMetaInfo> resultSubpartitionOffsets;
-    };
+private:
+    const int subtaskIndex;
+    const int64_t checkpointId;
+    std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> result;
+    std::shared_ptr<ChannelStateSerializer> serializer;
+    bool allInputsReceived;
+    bool allOutputsReceived;
+
+    std::map<InputChannelInfo, AbstractChannelStateHandle<InputChannelInfo>::StateContentMetaInfo> inputChannelOffsets;
+    std::map<ResultSubpartitionInfoPOD, AbstractChannelStateHandle<ResultSubpartitionInfoPOD>::StateContentMetaInfo>
+        resultSubpartitionOffsets;
+};
 
 } // namespace omnistream
 

@@ -1,5 +1,5 @@
 /*
-* Copyright (c) Huawei Technologies Co., Ltd. 2012-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2012-2025. All rights reserved.
  * Create Date : 2025
  */
 
@@ -15,7 +15,7 @@ public:
 
     ~RemoteDataFetcherBridgeImpl();
 
-    void SetJavaRemoteDataFetcher(JNIEnv *env, jobject fetcher);
+    void SetJavaRemoteDataFetcher(JNIEnv* env, jobject fetcher);
 
     void InvokeJavaRemoteDataFetcherResumeConsumption(int inputGateIndex, int channelIndex) override;
 

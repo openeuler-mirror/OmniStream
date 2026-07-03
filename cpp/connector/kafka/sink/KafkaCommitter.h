@@ -26,6 +26,7 @@ public:
     explicit KafkaCommitter(const RdKafka::Conf* kafkaProducerConfig);
     void Commit(std::vector<std::shared_ptr<CommitRequest<KafkaCommittable>>>& requests);
     void Close();
+
 private:
     RdKafka::Conf* kafkaProducerConfig;
     std::shared_ptr<FlinkKafkaInternalProducer> recoveryProducer;

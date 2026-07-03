@@ -22,32 +22,36 @@ extern "C" {
  * Method:    createLocalChannelReader
  * Signature: (JLjava/lang/String;IJ)J
  */
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_io_network_partition_OmniPipelinedSubpartitionView_createLocalChannelReader
-  (JNIEnv *, jobject, jlong, jstring, jint, jlong);
+JNIEXPORT jlong JNICALL
+Java_com_huawei_omniruntime_flink_runtime_io_network_partition_OmniPipelinedSubpartitionView_createLocalChannelReader(
+    JNIEnv*, jobject, jlong, jstring, jint, jlong);
 
 /*
  * Class:     com_huawei_omniruntime_flink_runtime_io_network_partition_OmniPipelinedSubpartitionView
  * Method:    getNativeNextBuffer
  * Signature: (J)I
  */
-JNIEXPORT jint JNICALL Java_com_huawei_omniruntime_flink_runtime_io_network_partition_OmniPipelinedSubpartitionView_getNativeNextBuffer
-  (JNIEnv *, jobject, jlong);
+JNIEXPORT jint JNICALL
+Java_com_huawei_omniruntime_flink_runtime_io_network_partition_OmniPipelinedSubpartitionView_getNativeNextBuffer(
+    JNIEnv*, jobject, jlong);
 
 /*
  * Class:     com_huawei_omniruntime_flink_runtime_io_network_partition_OmniPipelinedSubpartitionView
  * Method:    doCheckIfDataAvailable
  * Signature: (J)Z
  */
-JNIEXPORT jboolean JNICALL Java_com_huawei_omniruntime_flink_runtime_io_network_partition_OmniPipelinedSubpartitionView_doCheckIfDataAvailable
-  (JNIEnv *, jobject, jlong);
+JNIEXPORT jboolean JNICALL
+Java_com_huawei_omniruntime_flink_runtime_io_network_partition_OmniPipelinedSubpartitionView_doCheckIfDataAvailable(
+    JNIEnv*, jobject, jlong);
 
 /*
  * Class:     com_huawei_omniruntime_flink_runtime_io_network_partition_OmniPipelinedSubpartitionView
  * Method:    releaseNativeResource
  * Signature: (J)V
  */
-JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_io_network_partition_OmniPipelinedSubpartitionView_releaseNativeResource
-  (JNIEnv *, jobject, jlong);
+JNIEXPORT void JNICALL
+Java_com_huawei_omniruntime_flink_runtime_io_network_partition_OmniPipelinedSubpartitionView_releaseNativeResource(
+    JNIEnv*, jobject, jlong);
 
 /*
  * Class:     com_huawei_omniruntime_flink_runtime_io_network_partition_OmniPipelinedSubpartitionView
@@ -55,8 +59,8 @@ JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_io_network_part
  * Signature: (J)V
  */
 JNIEXPORT void JNICALL
-Java_com_huawei_omniruntime_flink_runtime_io_network_partition_OmniPipelinedSubpartitionView_resumeConsumption
-  (JNIEnv*, jobject, jlong);
+Java_com_huawei_omniruntime_flink_runtime_io_network_partition_OmniPipelinedSubpartitionView_resumeConsumption(
+    JNIEnv*, jobject, jlong);
 
 #ifdef __cplusplus
 }

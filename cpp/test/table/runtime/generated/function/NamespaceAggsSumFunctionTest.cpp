@@ -9,9 +9,10 @@
 namespace {
 constexpr int32_t INT_TYPE = omniruntime::type::DataTypeId::OMNI_INT;
 constexpr int32_t LONG_TYPE = omniruntime::type::DataTypeId::OMNI_LONG;
-}
+} // namespace
 
-TEST(NamespaceAggsSumFunctionTest, AccumulatesIntRetractsMergesAndWritesValue) {
+TEST(NamespaceAggsSumFunctionTest, AccumulatesIntRetractsMergesAndWritesValue)
+{
     NamespaceAggsSumFunction<int64_t> function({0}, {INT_TYPE}, {0}, {LONG_TYPE}, 0, LONG_TYPE);
     auto accumulator = std::unique_ptr<BinaryRowData>(BinaryRowData::createBinaryRowDataWithMem(1));
     accumulator->setNullAt(0);
@@ -33,7 +34,8 @@ TEST(NamespaceAggsSumFunctionTest, AccumulatesIntRetractsMergesAndWritesValue) {
     EXPECT_EQ(9, *value->getLong(0));
 }
 
-TEST(NamespaceAggsSumFunctionTest, KeepsAccumulatorAndValueNullForOnlyNullInputs) {
+TEST(NamespaceAggsSumFunctionTest, KeepsAccumulatorAndValueNullForOnlyNullInputs)
+{
     NamespaceAggsSumFunction<int64_t> function({0}, {LONG_TYPE}, {0}, {LONG_TYPE}, 0, LONG_TYPE);
     auto accumulator = std::unique_ptr<BinaryRowData>(BinaryRowData::createBinaryRowDataWithMem(1));
     accumulator->setNullAt(0);

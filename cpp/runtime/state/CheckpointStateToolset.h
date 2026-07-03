@@ -14,8 +14,8 @@
 
 class CheckpointStateToolset {
 public:
-    virtual bool canFastDuplicate(StreamStateHandle *stateHandle) = 0;
-    virtual std::vector<std::shared_ptr<StreamStateHandle *>> *duplicate(
-        const std::vector<StreamStateHandle *> &stateHandles) = 0;
+    virtual bool canFastDuplicate(StreamStateHandle* stateHandle) = 0;
+    virtual std::vector<std::shared_ptr<StreamStateHandle*>>* duplicate(
+        const std::vector<StreamStateHandle*>& stateHandles) = 0;
 };
 #endif // FLINK_TNEL_CHECKPOINTSTATETOOLSET_H

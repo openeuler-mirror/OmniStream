@@ -79,21 +79,19 @@ std::string nexmarkQ12Description = R"DELIM({
 	}]
 })DELIM";
 
-omnistream::VectorBatch *Q12VectorBatchInput()
+omnistream::VectorBatch* Q12VectorBatchInput()
 {
-//    // 时间窗口相同、bidder id相同: OK
-//    auto *vbatch = new omnistream::VectorBatch(3);
-//    std::vector<int64_t> bidder = {1, 1, 1};
-//    std::vector<int64_t> timeStamps = {
-//        1742625623598, 1742625623598, 1742625623598
-//    };
+    //    // 时间窗口相同、bidder id相同: OK
+    //    auto *vbatch = new omnistream::VectorBatch(3);
+    //    std::vector<int64_t> bidder = {1, 1, 1};
+    //    std::vector<int64_t> timeStamps = {
+    //        1742625623598, 1742625623598, 1742625623598
+    //    };
 
     // 时间窗口重叠、bidder id相同
-    auto *vbatch = new omnistream::VectorBatch(5);
+    auto* vbatch = new omnistream::VectorBatch(5);
     std::vector<int64_t> bidder = {1, 1, 2, 1, 2};
-    std::vector<int64_t> timeStamps = {
-            1742625600000, 1742625605000, 1742625600000, 1742625612000, 1742625800000
-    };
+    std::vector<int64_t> timeStamps = {1742625600000, 1742625605000, 1742625600000, 1742625612000, 1742625800000};
 
     vbatch->Append(omniruntime::TestUtil::CreateVector<int64_t>(5, bidder.data()));
     vbatch->Append(omniruntime::TestUtil::CreateVector<int64_t>(5, timeStamps.data()));
@@ -108,19 +106,18 @@ omnistream::VectorBatch *Q12VectorBatchInput()
 
 TEST(AggregateWindowOperatorTest, WindowStateTest)
 {
-    //Operator description
+    // Operator description
     std::string uniqueName = "org.apache.flink.table.runtime.operators.window.AggregateWindowOperator";
     json parsedJson = json::parse(nexmarkQ12Description);
     omnistream::OperatorConfig opConfig(
-        uniqueName, //uniqueName:
-        "LocalWindowAgg_By_Simple", //Name
+        uniqueName,                 // uniqueName:
+        "LocalWindowAgg_By_Simple", // Name
         parsedJson["operators"][0]["inputTypes"],
         parsedJson["operators"][0]["outputTypes"],
-        parsedJson["operators"][0]["description"]
-    );
+        parsedJson["operators"][0]["description"]);
 
-    auto *output = new BatchOutputTest();
-    auto *windowAggOperator = dynamic_cast<AggregateWindowOperator<std::shared_ptr<RowData>, TimeWindow> *>(
+    auto* output = new BatchOutputTest();
+    auto* windowAggOperator = dynamic_cast<AggregateWindowOperator<std::shared_ptr<RowData>, TimeWindow>*>(
         omnistream::StreamOperatorFactory::createOperatorAndCollector(opConfig, output));
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
@@ -134,7 +131,7 @@ TEST(AggregateWindowOperatorTest, WindowStateTest)
     }
     env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
+    StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
     windowAggOperator->initializeState(initializer, new LongSerializer());
     windowAggOperator->open();
     // KeyRowData 10, TimeWindow(1742625620000, 1742625630000), Value 1
@@ -143,14 +140,14 @@ TEST(AggregateWindowOperatorTest, WindowStateTest)
     TimeWindow timeWindow(1742625620000, 1742625630000);
     windowAggOperator->setCurrentKey(bidIdRow);
     windowAggOperator->windowState->setCurrentNamespace(timeWindow);
-    BinaryRowData *countRow = BinaryRowData::createBinaryRowDataWithMem(1);
+    BinaryRowData* countRow = BinaryRowData::createBinaryRowDataWithMem(1);
     countRow->setLong(0, 1);
     windowAggOperator->windowState->update(countRow);
-    RowData *windowResult = windowAggOperator->windowState->value();
+    RowData* windowResult = windowAggOperator->windowState->value();
     ASSERT_EQ(windowResult->getArity(), 1);
     ASSERT_EQ(*windowResult->getLong(0), 1);
     // update value 2. KeyRowData 10, TimeWindow(1742625620000, 1742625630000), Value 2
-    BinaryRowData *countRow1 = BinaryRowData::createBinaryRowDataWithMem(1);
+    BinaryRowData* countRow1 = BinaryRowData::createBinaryRowDataWithMem(1);
     countRow1->setLong(0, 2);
     windowAggOperator->windowState->update(countRow1);
     windowResult = windowAggOperator->windowState->value();
@@ -183,19 +180,18 @@ TEST(AggregateWindowOperatorTest, WindowStateTest)
 
 TEST(AggregateWindowOperatorTest, TimeWindowTest)
 {
-    //Operator description
+    // Operator description
     std::string uniqueName = "org.apache.flink.table.runtime.operators.window.AggregateWindowOperator";
     json parsedJson = json::parse(nexmarkQ12Description);
     omnistream::OperatorConfig opConfig(
-        uniqueName, //uniqueName:
-        "LocalWindowAgg_By_Simple", //Name
+        uniqueName,                 // uniqueName:
+        "LocalWindowAgg_By_Simple", // Name
         parsedJson["operators"][0]["inputTypes"],
         parsedJson["operators"][0]["outputTypes"],
-        parsedJson["operators"][0]["description"]
-    );
+        parsedJson["operators"][0]["description"]);
 
-    auto *output = new BatchOutputTest();
-    auto *windowAggOperator = dynamic_cast<AggregateWindowOperator<std::shared_ptr<RowData>, TimeWindow> *>(
+    auto* output = new BatchOutputTest();
+    auto* windowAggOperator = dynamic_cast<AggregateWindowOperator<std::shared_ptr<RowData>, TimeWindow>*>(
         omnistream::StreamOperatorFactory::createOperatorAndCollector(opConfig, output));
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
@@ -209,26 +205,26 @@ TEST(AggregateWindowOperatorTest, TimeWindowTest)
     }
     env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
+    StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
     windowAggOperator->initializeState(initializer, new LongSerializer());
     windowAggOperator->open();
 
     auto key = std::shared_ptr<BinaryRowData>(BinaryRowData::createBinaryRowDataWithMem(1));
     key->setLong(0, 2);
     windowAggOperator->setCurrentKey(key);
-    BinaryRowData *inputRow = BinaryRowData::createBinaryRowDataWithMem(2);
+    BinaryRowData* inputRow = BinaryRowData::createBinaryRowDataWithMem(2);
     inputRow->setLong(0, 10);
-    const std::vector<TimeWindow> assignStateNamespace = windowAggOperator->windowFunction->assignStateNamespace(
-        inputRow, 1742625633598);
+    const std::vector<TimeWindow> assignStateNamespace =
+        windowAggOperator->windowFunction->assignStateNamespace(inputRow, 1742625633598);
     ASSERT_EQ(assignStateNamespace.size(), 1);
     ASSERT_EQ(assignStateNamespace[0].getStart(), 1742625633598);
     ASSERT_EQ(assignStateNamespace.size(), 1);
     ASSERT_EQ(assignStateNamespace[0].getEnd(), 1742625643598);
 
-    BinaryRowData *inputRow1 = BinaryRowData::createBinaryRowDataWithMem(2);
+    BinaryRowData* inputRow1 = BinaryRowData::createBinaryRowDataWithMem(2);
     inputRow->setLong(0, 10);
-    const std::vector<TimeWindow> assignStateNamespace1 = windowAggOperator->windowFunction->assignStateNamespace(
-        inputRow1, 1742625634598);
+    const std::vector<TimeWindow> assignStateNamespace1 =
+        windowAggOperator->windowFunction->assignStateNamespace(inputRow1, 1742625634598);
     ASSERT_EQ(assignStateNamespace1.size(), 1);
     ASSERT_EQ(assignStateNamespace1[0].getStart(), 1742625633598);
     ASSERT_EQ(assignStateNamespace1.size(), 1);
@@ -237,19 +233,18 @@ TEST(AggregateWindowOperatorTest, TimeWindowTest)
 
 TEST(AggregateWindowOperatorTest, JsonTest)
 {
-    //Operator description
+    // Operator description
     std::string uniqueName = "org.apache.flink.table.runtime.operators.window.AggregateWindowOperator";
     json parsedJson = json::parse(nexmarkQ12Description);
     omnistream::OperatorConfig opConfig(
-        uniqueName, //uniqueName:
-        "LocalWindowAgg_By_Simple", //Name
+        uniqueName,                 // uniqueName:
+        "LocalWindowAgg_By_Simple", // Name
         parsedJson["operators"][0]["inputTypes"],
         parsedJson["operators"][0]["outputTypes"],
-        parsedJson["operators"][0]["description"]
-    );
+        parsedJson["operators"][0]["description"]);
 
-    auto *output = new BatchOutputTest();
-    auto *windowAggOperator = dynamic_cast<AggregateWindowOperator<std::shared_ptr<RowData>, TimeWindow> *>(
+    auto* output = new BatchOutputTest();
+    auto* windowAggOperator = dynamic_cast<AggregateWindowOperator<std::shared_ptr<RowData>, TimeWindow>*>(
         omnistream::StreamOperatorFactory::createOperatorAndCollector(opConfig, output));
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
@@ -263,28 +258,28 @@ TEST(AggregateWindowOperatorTest, JsonTest)
     }
     env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
+    StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
     windowAggOperator->initializeState(initializer, new LongSerializer());
     windowAggOperator->open();
-    omnistream::VectorBatch *vBatch = Q12VectorBatchInput();
-    auto *streamRecord = new StreamRecord(vBatch);
+    omnistream::VectorBatch* vBatch = Q12VectorBatchInput();
+    auto* streamRecord = new StreamRecord(vBatch);
     windowAggOperator->processBatch(streamRecord);
     windowAggOperator->internalTimerService->advanceWatermark(2842625623598);
 
-//    std::cout << "=========== print result ==========" << std::endl;
-//    auto *resultBatch = (output->getVectorBatch());
-//    // print VectorBatch
-//    int rowCount = resultBatch->GetRowCount();
-//    int colCount = resultBatch->GetVectorCount();
-//    for (int i = 0; i < rowCount; i++) {
-//        for (int j = 0; j < colCount; j++) {
-//            long result = resultBatch->GetValueAt<int64_t>(j, i);
-//            std::cout << result;
-//            std::cout << " ";
-//        }
-//        std::cout << to_string(resultBatch->getRowKind(i)) << std::endl;
-//    }
-//    std::cout << "LocalWindowAggTest  NexmarkQ12Test1" << std::endl;
+    //    std::cout << "=========== print result ==========" << std::endl;
+    //    auto *resultBatch = (output->getVectorBatch());
+    //    // print VectorBatch
+    //    int rowCount = resultBatch->GetRowCount();
+    //    int colCount = resultBatch->GetVectorCount();
+    //    for (int i = 0; i < rowCount; i++) {
+    //        for (int j = 0; j < colCount; j++) {
+    //            long result = resultBatch->GetValueAt<int64_t>(j, i);
+    //            std::cout << result;
+    //            std::cout << " ";
+    //        }
+    //        std::cout << to_string(resultBatch->getRowKind(i)) << std::endl;
+    //    }
+    //    std::cout << "LocalWindowAggTest  NexmarkQ12Test1" << std::endl;
 }
 
 TEST(AggregateWindowOperatorTest, TimestampLtzWindowBoundaryUsesShiftTimezone)
@@ -357,11 +352,10 @@ TEST(AggregateWindowOperatorTest, TimestampLtzWindowBoundaryUsesShiftTimezone)
         "LocalWindowAgg_Ltz",
         parsedJson["operators"][0]["inputTypes"],
         parsedJson["operators"][0]["outputTypes"],
-        parsedJson["operators"][0]["description"]
-    );
+        parsedJson["operators"][0]["description"]);
 
-    auto *output = new BatchOutputTest();
-    auto *windowAggOperator = dynamic_cast<AggregateWindowOperator<std::shared_ptr<RowData>, TimeWindow> *>(
+    auto* output = new BatchOutputTest();
+    auto* windowAggOperator = dynamic_cast<AggregateWindowOperator<std::shared_ptr<RowData>, TimeWindow>*>(
         omnistream::StreamOperatorFactory::createOperatorAndCollector(opConfig, output));
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
@@ -375,7 +369,7 @@ TEST(AggregateWindowOperatorTest, TimestampLtzWindowBoundaryUsesShiftTimezone)
     }
     env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
+    StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
     windowAggOperator->initializeState(initializer, new LongSerializer());
     windowAggOperator->open();
 
@@ -383,7 +377,7 @@ TEST(AggregateWindowOperatorTest, TimestampLtzWindowBoundaryUsesShiftTimezone)
     key->setLong(0, 1);
     windowAggOperator->setCurrentKey(key);
 
-    BinaryRowData *inputRow = BinaryRowData::createBinaryRowDataWithMem(2);
+    BinaryRowData* inputRow = BinaryRowData::createBinaryRowDataWithMem(2);
     inputRow->setLong(0, 1);
     inputRow->setLong(1, 1704067205388L);
     const auto windows = windowAggOperator->windowFunction->assignStateNamespace(inputRow, 1704096005388L);
@@ -461,11 +455,10 @@ TEST(AggregateWindowOperatorTest, WindowBoundaryWithoutShiftTimezone)
         "LocalWindowAgg_NoShift",
         parsedJson["operators"][0]["inputTypes"],
         parsedJson["operators"][0]["outputTypes"],
-        parsedJson["operators"][0]["description"]
-    );
+        parsedJson["operators"][0]["description"]);
 
-    auto *output = new BatchOutputTest();
-    auto *windowAggOperator = dynamic_cast<AggregateWindowOperator<std::shared_ptr<RowData>, TimeWindow> *>(
+    auto* output = new BatchOutputTest();
+    auto* windowAggOperator = dynamic_cast<AggregateWindowOperator<std::shared_ptr<RowData>, TimeWindow>*>(
         omnistream::StreamOperatorFactory::createOperatorAndCollector(opConfig, output));
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
@@ -479,7 +472,7 @@ TEST(AggregateWindowOperatorTest, WindowBoundaryWithoutShiftTimezone)
     }
     env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
+    StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
     windowAggOperator->initializeState(initializer, new LongSerializer());
     windowAggOperator->open();
 
@@ -488,7 +481,7 @@ TEST(AggregateWindowOperatorTest, WindowBoundaryWithoutShiftTimezone)
     windowAggOperator->setCurrentKey(key);
 
     constexpr int64_t epochMillis = 1704067205388L;
-    BinaryRowData *inputRow = BinaryRowData::createBinaryRowDataWithMem(2);
+    BinaryRowData* inputRow = BinaryRowData::createBinaryRowDataWithMem(2);
     inputRow->setLong(0, 1);
     inputRow->setLong(1, epochMillis);
     const auto windows = windowAggOperator->windowFunction->assignStateNamespace(inputRow, epochMillis);

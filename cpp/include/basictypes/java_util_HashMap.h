@@ -26,16 +26,13 @@ class Set;
 //  unordered_map as HashMap
 class HashMap : public Object {
 public:
-    using MapType = emhash7::HashMap<
-        Object *,
-        Object *
-    >;
+    using MapType = emhash7::HashMap<Object*, Object*>;
 
     MapType* map_ = nullptr;
 
     HashMap();
 
-    HashMap(MapType *map);
+    HashMap(MapType* map);
 
     HashMap(nlohmann::json jsonObj);
 
@@ -45,30 +42,30 @@ public:
 
     HashMap(emhash7::HashMap<Object*, Object*>*, bool assign);
 
-    explicit HashMap(HashMap *map);
+    explicit HashMap(HashMap* map);
 
     virtual ~HashMap();
 
-    Object *get(Object *key) const;
+    Object* get(Object* key) const;
 
-    Object *get(const std::string &key) const;
+    Object* get(const std::string& key) const;
 
-    Object *put(Object *key, Object *value);
+    Object* put(Object* key, Object* value);
 
-    void putAll(HashMap *map);
+    void putAll(HashMap* map);
 
-    Object *put(const std::string &key, Object *value);
+    Object* put(const std::string& key, Object* value);
 
-    Object *put(const std::string &key, const std::string &value);
+    Object* put(const std::string& key, const std::string& value);
 
-    bool containsKey(Object *key) const;
+    bool containsKey(Object* key) const;
 
-    bool containsKey(const std::string &key) const;
+    bool containsKey(const std::string& key) const;
 
     size_t size() const;
 
     // todo returnType is different from java
-    bool remove(Object *key);
+    bool remove(Object* key);
 
     bool remove(std::string str);
 
@@ -77,15 +74,15 @@ public:
     // Set<MapEntry> HashMap.entrySet(void)
     // Set<K> HashMap.keySet(void)
 
-    Set *entrySet();
+    Set* entrySet();
 
-    Set *keySet();
+    Set* keySet();
 
     typename MapType::Iterator begin();
 
     typename MapType::Iterator end();
 
-    Object *clone() override;
+    Object* clone() override;
 
     class MapIterator : public java_util_Iterator {
     public:
@@ -104,7 +101,7 @@ public:
 
         void remove();
 
-        Object *next();
+        Object* next();
     };
 
     class EmptyIterator : public java_util_Iterator {
@@ -117,15 +114,15 @@ public:
             return false;
         }
 
-        Object *next()
+        Object* next()
         {
             return nullptr;
         }
     };
 
     // need free
-    java_util_Iterator *iterator();
-    thread_local static java_util_Iterator *EMPTY_ITERATOR;
+    java_util_Iterator* iterator();
+    thread_local static java_util_Iterator* EMPTY_ITERATOR;
 };
 
 using Map = HashMap;

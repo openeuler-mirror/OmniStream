@@ -20,6 +20,6 @@ class NetworkBufferPool : public BufferPoolFactory, public SegmentProvider, publ
 public:
     virtual std::shared_ptr<CompletableFuture> GetAvailableFuture() = 0;
 };
-}
+} // namespace omnistream
 
-#endif //OMNISTREAM_NETWORKBUFFERPOOL_H
+#endif // OMNISTREAM_NETWORKBUFFERPOOL_H

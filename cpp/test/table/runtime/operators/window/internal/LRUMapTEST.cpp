@@ -2,12 +2,14 @@
 #include <string>
 #include "table/runtime/operators/window/internal/LRUMap.h"
 
-TEST(LRUMapTest, DefaultConstructor) {
+TEST(LRUMapTest, DefaultConstructor)
+{
     LRUMap<int, std::string> lru;
     EXPECT_FALSE(lru.get(1).has_value());
 }
 
-TEST(LRUMapTest, ConstructorWithCapacity) {
+TEST(LRUMapTest, ConstructorWithCapacity)
+{
     LRUMap<int, int> lru(5);
     for (int i = 0; i < 10; ++i) {
         lru.put(i, i * 10);
@@ -23,7 +25,8 @@ TEST(LRUMapTest, ConstructorWithCapacity) {
     EXPECT_EQ(lru.get(9).value(), 90);
 }
 
-TEST(LRUMapTest, PutAndGet) {
+TEST(LRUMapTest, PutAndGet)
+{
     LRUMap<int, std::string> lru;
     lru.put(1, "one");
     lru.put(2, "two");
@@ -42,7 +45,8 @@ TEST(LRUMapTest, PutAndGet) {
     EXPECT_EQ(val3.value(), "three");
 }
 
-TEST(LRUMapTest, GetNonExistentKey) {
+TEST(LRUMapTest, GetNonExistentKey)
+{
     LRUMap<int, int> lru;
     lru.put(1, 100);
 
@@ -50,7 +54,8 @@ TEST(LRUMapTest, GetNonExistentKey) {
     EXPECT_FALSE(val.has_value());
 }
 
-TEST(LRUMapTest, UpdateExistingKey) {
+TEST(LRUMapTest, UpdateExistingKey)
+{
     LRUMap<int, std::string> lru;
     lru.put(1, "one");
     lru.put(1, "ONE");
@@ -60,7 +65,8 @@ TEST(LRUMapTest, UpdateExistingKey) {
     EXPECT_EQ(val.value(), "ONE");
 }
 
-TEST(LRUMapTest, LRUEviction) {
+TEST(LRUMapTest, LRUEviction)
+{
     LRUMap<int, int> lru(3);
 
     lru.put(1, 10);
@@ -74,7 +80,8 @@ TEST(LRUMapTest, LRUEviction) {
     EXPECT_TRUE(lru.get(4).has_value());
 }
 
-TEST(LRUMapTest, LRUOrderOnGet) {
+TEST(LRUMapTest, LRUOrderOnGet)
+{
     LRUMap<int, int> lru(3);
 
     lru.put(1, 10);
@@ -91,7 +98,8 @@ TEST(LRUMapTest, LRUOrderOnGet) {
     EXPECT_TRUE(lru.get(4).has_value());
 }
 
-TEST(LRUMapTest, LRUOrderOnPut) {
+TEST(LRUMapTest, LRUOrderOnPut)
+{
     LRUMap<int, int> lru(3);
 
     lru.put(1, 10);
@@ -109,7 +117,8 @@ TEST(LRUMapTest, LRUOrderOnPut) {
     EXPECT_TRUE(lru.get(4).has_value());
 }
 
-TEST(LRUMapTest, StringKey) {
+TEST(LRUMapTest, StringKey)
+{
     LRUMap<std::string, int> lru(2);
 
     lru.put("one", 1);
@@ -123,7 +132,8 @@ TEST(LRUMapTest, StringKey) {
     EXPECT_EQ(lru.get("three").value(), 3);
 }
 
-TEST(LRUMapTest, MultipleGetUpdatesLRU) {
+TEST(LRUMapTest, MultipleGetUpdatesLRU)
+{
     LRUMap<int, int> lru(3);
 
     lru.put(1, 10);
@@ -141,7 +151,8 @@ TEST(LRUMapTest, MultipleGetUpdatesLRU) {
     EXPECT_TRUE(lru.get(4).has_value());
 }
 
-TEST(LRUMapTest, OverwriteDoesNotChangeSize) {
+TEST(LRUMapTest, OverwriteDoesNotChangeSize)
+{
     LRUMap<int, int> lru(2);
 
     lru.put(1, 10);
@@ -155,7 +166,8 @@ TEST(LRUMapTest, OverwriteDoesNotChangeSize) {
     EXPECT_EQ(lru.get(2).value(), 20);
 }
 
-TEST(LRUMapTest, CapacityOne) {
+TEST(LRUMapTest, CapacityOne)
+{
     LRUMap<int, int> lru(1);
 
     lru.put(1, 10);

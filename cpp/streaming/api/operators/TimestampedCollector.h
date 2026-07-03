@@ -19,29 +19,29 @@
 
 class TimestampedCollector : public Output {
 public:
-    explicit TimestampedCollector(Output *output, bool isDataStream = false);
+    explicit TimestampedCollector(Output* output, bool isDataStream = false);
 
     ~TimestampedCollector() override;
 
-    void collect(void *value) override;
+    void collect(void* value) override;
 
-    void collectExternalRow(void *value);
+    void collectExternalRow(void* value);
 
-    void setTimestamp(StreamRecord *timestampBase);
+    void setTimestamp(StreamRecord* timestampBase);
 
     void close() override;
 
-    void emitWatermark(Watermark *watermark) override;
+    void emitWatermark(Watermark* watermark) override;
 
-    void emitWatermarkStatus(WatermarkStatus *watermarkStatus) override;
+    void emitWatermarkStatus(WatermarkStatus* watermarkStatus) override;
 
     void setAbsoluteTimestamp(int64_t timestamp);
 
     void eraseTimestamp();
 
 private:
-    Output *output_;
-    StreamRecord *reuse;
+    Output* output_;
+    StreamRecord* reuse;
     // These three information used to be hold by the reUsableElement
     StreamElementTag tag_ = StreamElementTag::TAG_REC_WITH_TIMESTAMP;
     long timestamp_;

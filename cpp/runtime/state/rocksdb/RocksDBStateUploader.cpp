@@ -75,7 +75,8 @@ std::string flinkPathToString(JNIEnv* env, jobject flinkPathObj)
     return result;
 }
 
-jobject RocksDBStateUploader::addToJavaPathList(JNIEnv* env,
+jobject RocksDBStateUploader::addToJavaPathList(
+    JNIEnv* env,
     const std::vector<fs::path>& files,
     jobject javaList,
     jmethodID arrayListAdd,
@@ -140,7 +141,8 @@ jobject RocksDBStateUploader::createJavaPathList(JNIEnv* env, const std::vector<
     }
 
     jclass pathsClass = env->FindClass("java/nio/file/Paths");
-    jmethodID pathsGet = env->GetStaticMethodID(pathsClass, "get", "(Ljava/lang/String;[Ljava/lang/String;)Ljava/nio/file/Path;");
+    jmethodID pathsGet =
+        env->GetStaticMethodID(pathsClass, "get", "(Ljava/lang/String;[Ljava/lang/String;)Ljava/nio/file/Path;");
     if (!pathsClass || !pathsGet) {
         std::cerr << "Failed to find Paths.get method" << std::endl;
         env->DeleteLocalRef(arrayListClass);
@@ -158,12 +160,7 @@ jobject RocksDBStateUploader::createJavaPathList(JNIEnv* env, const std::vector<
     }
 
     // 3. 遍历转换并添加路径
-    javaList = addToJavaPathList(env,
-        files,
-        javaList,
-        arrayListAdd,
-        pathsClass,
-        pathsGet);
+    javaList = addToJavaPathList(env, files, javaList, arrayListAdd, pathsClass, pathsGet);
 
     // 4. 释放临时引用
     env->DeleteLocalRef(arrayListClass);
@@ -289,11 +286,7 @@ std::shared_ptr<StreamStateHandle> createRelativeFileStateHandle(JNIEnv* env, jo
         throw std::runtime_error("Failed to get RelativeFileStateHandle class");
     }
 
-    jmethodID getFilePathMethod = env->GetMethodID(
-        handleClass,
-        "getFilePath",
-        "()Lorg/apache/flink/core/fs/Path;"
-    );
+    jmethodID getFilePathMethod = env->GetMethodID(handleClass, "getFilePath", "()Lorg/apache/flink/core/fs/Path;");
     jmethodID getRelativePathMethod = env->GetMethodID(handleClass, "getRelativePath", "()Ljava/lang/String;");
     jmethodID getStateSizeMethod = env->GetMethodID(handleClass, "getStateSize", "()J");
     if (!getFilePathMethod || !getRelativePathMethod || !getStateSizeMethod) {
@@ -376,8 +369,7 @@ std::shared_ptr<StreamStateHandle> createByteStreamStateHandle(JNIEnv* env, jobj
         jbyte* dataBytes = env->GetByteArrayElements(jData, nullptr);
 
         if (dataBytes) {
-            data.assign(reinterpret_cast<uint8_t*>(dataBytes),
-                        reinterpret_cast<uint8_t*>(dataBytes + dataLen));
+            data.assign(reinterpret_cast<uint8_t*>(dataBytes), reinterpret_cast<uint8_t*>(dataBytes + dataLen));
             env->ReleaseByteArrayElements(jData, dataBytes, 0);
         }
         env->DeleteLocalRef(jData);
@@ -398,17 +390,14 @@ std::shared_ptr<StreamStateHandle> getStreamStateHandle(JNIEnv* env, jobject jHa
     if (jHandle) {
         auto type = getHandleType(env, jHandle);
         switch (type) {
-            case StreamStateHandleType::FileStateHandle:
-                handle = createFileStateHandle(env, jHandle);
-                break;
+            case StreamStateHandleType::FileStateHandle: handle = createFileStateHandle(env, jHandle); break;
             case StreamStateHandleType::RelativeFileStateHandle:
                 handle = createRelativeFileStateHandle(env, jHandle);
                 break;
             case StreamStateHandleType::ByteStreamStateHandle:
                 handle = createByteStreamStateHandle(env, jHandle);
                 break;
-            default:
-                throw std::runtime_error("Unknown StreamStateHandle type");
+            default: throw std::runtime_error("Unknown StreamStateHandle type");
         }
         env->DeleteLocalRef(jHandle);
     }
@@ -423,15 +412,12 @@ HandleAndLocalPath convertJavaHandleAndLocalPath(JNIEnv* env, jobject jHandleObj
     jclass handleClass = env->GetObjectClass(jHandleObj);
     if (!handleClass) {
         env->ExceptionDescribe();
-        throw std::runtime_error ("Failed to get HandleAndLocalPath class reference");
+        throw std::runtime_error("Failed to get HandleAndLocalPath class reference");
     }
     // 获取字段 ID (根据实际 Java 类的字段名调整)
-    jmethodID getHandleMethod = env->GetMethodID(handleClass,
-                                                 "getHandle",
-                                                 "()Lorg/apache/flink/runtime/state/StreamStateHandle;");
-    jmethodID getLocalPathMethod = env->GetMethodID(handleClass,
-                                                    "getLocalPath",
-                                                    "()Ljava/lang/String;");
+    jmethodID getHandleMethod =
+        env->GetMethodID(handleClass, "getHandle", "()Lorg/apache/flink/runtime/state/StreamStateHandle;");
+    jmethodID getLocalPathMethod = env->GetMethodID(handleClass, "getLocalPath", "()Ljava/lang/String;");
     if (!getHandleMethod || !getLocalPathMethod) {
         env->ExceptionDescribe();
         env->DeleteLocalRef(handleClass);
@@ -463,7 +449,7 @@ std::vector<HandleAndLocalPath> convertJavaListToCppVector(JNIEnv* env, jobject 
     // 获取 List 类和相关方法 ID
     jclass listClass = env->FindClass("java/util/List");
     if (!listClass) {
-        env->ExceptionDescribe ();
+        env->ExceptionDescribe();
         throw std::runtime_error("Failed to find java.util.List class");
     }
     // 获取 List.size () 方法
@@ -481,7 +467,7 @@ std::vector<HandleAndLocalPath> convertJavaListToCppVector(JNIEnv* env, jobject 
         env->ExceptionDescribe();
         env->ExceptionClear();
         env->DeleteLocalRef(listClass);
-        throw std::runtime_error ("Failed to call List.size () method");
+        throw std::runtime_error("Failed to call List.size () method");
     }
     // 遍历列表元素并转换
     for (jint i = 0; i < listSize; ++i) {
@@ -505,16 +491,18 @@ std::vector<HandleAndLocalPath> convertJavaListToCppVector(JNIEnv* env, jobject 
     return result;
 }
 
-std::vector<HandleAndLocalPath> handleCheckpointResult(JNIEnv* env,
-                                                       CheckpointedStateScope& stateScope,
-                                                       jclass uploaderClass,
-                                                       jobject uploaderInstance,
-                                                       jobject javaFiles,
-                                                       jobject jCheckpointStreamFactory)
+std::vector<HandleAndLocalPath> handleCheckpointResult(
+    JNIEnv* env,
+    CheckpointedStateScope& stateScope,
+    jclass uploaderClass,
+    jobject uploaderInstance,
+    jobject javaFiles,
+    jobject jCheckpointStreamFactory)
 {
     // 转换CheckpointedStateScope枚举
     jclass scopeClass = env->FindClass("org/apache/flink/runtime/state/CheckpointedStateScope");
-    jfieldID scopeField = env->GetStaticFieldID(scopeClass,
+    jfieldID scopeField = env->GetStaticFieldID(
+        scopeClass,
         stateScope == CheckpointedStateScope::EXCLUSIVE ? "EXCLUSIVE" : "SHARED",
         "Lorg/apache/flink/runtime/state/CheckpointedStateScope;");
     jobject jStateScope = env->GetStaticObjectField(scopeClass, scopeField);
@@ -531,7 +519,8 @@ std::vector<HandleAndLocalPath> handleCheckpointResult(JNIEnv* env,
     jobject jTmpResourcesRegistry = env->NewObject(closeableClass, closeableCtor);
 
     // 4. 查找目标方法
-    jmethodID uploadMethod = env->GetMethodID(uploaderClass,
+    jmethodID uploadMethod = env->GetMethodID(
+        uploaderClass,
         "uploadFilesToCheckpointFs",
         "(Ljava/util/List;"
         "Lorg/apache/flink/runtime/state/CheckpointStreamFactory;"
@@ -541,7 +530,8 @@ std::vector<HandleAndLocalPath> handleCheckpointResult(JNIEnv* env,
         "Ljava/util/List;");
 
     // 5. 调用Java方法
-    jobject resultList = env->CallObjectMethod(uploaderInstance,
+    jobject resultList = env->CallObjectMethod(
+        uploaderInstance,
         uploadMethod,
         javaFiles,
         jCheckpointStreamFactory,
@@ -584,12 +574,8 @@ std::vector<HandleAndLocalPath> RocksDBStateUploader::callUploadFilesToCheckpoin
     // 3. 准备方法参数
     jobject javaFiles = createJavaPathList(env, files);
 
-    auto chkResult = handleCheckpointResult(env,
-        stateScope,
-        uploaderClass,
-        uploaderInstance,
-        javaFiles,
-        jCheckpointStreamFactory);
+    auto chkResult =
+        handleCheckpointResult(env, stateScope, uploaderClass, uploaderInstance, javaFiles, jCheckpointStreamFactory);
 
     // 7. 释放局部引用
     env->DeleteLocalRef(uploaderClass);
@@ -607,8 +593,7 @@ std::vector<HandleAndLocalPath> RocksDBStateUploader::callUploadFilesToCheckpoin
 }
 
 std::vector<HandleAndLocalPath> RocksDBStateUploader::callUploadFilesToCheckpointFs(
-    std::shared_ptr<omnistream::OmniTaskBridge> bridge,
-    const std::vector<fs::path>& files)
+    std::shared_ptr<omnistream::OmniTaskBridge> bridge, const std::vector<fs::path>& files)
 {
     std::vector<Path> filePaths;
     filePaths.reserve(files.size());
@@ -622,4 +607,6 @@ std::vector<HandleAndLocalPath> RocksDBStateUploader::callUploadFilesToCheckpoin
 }
 
 RocksDBStateUploader::RocksDBStateUploader(int numberOfSnapshottingThreads)
-    : numberOfSnapshottingThreads_(numberOfSnapshottingThreads) {}
+    : numberOfSnapshottingThreads_(numberOfSnapshottingThreads)
+{
+}

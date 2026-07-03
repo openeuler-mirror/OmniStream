@@ -16,19 +16,19 @@
 #include <optional>
 #include "ConfigOption.h"
 
-template<typename T>
+template <typename T>
 class TypedConfigOptionBuilder {
 public:
     explicit TypedConfigOptionBuilder(std::string key) : key(key) {};
-    ConfigOptionV2<T> *defaultValue(T value)
+    ConfigOptionV2<T>* defaultValue(T value)
     {
         return new ConfigOptionV2<T>(key, "", value, false);
     }
-    ConfigOptionV2<T> *noDefaultValue()
+    ConfigOptionV2<T>* noDefaultValue()
     {
         return new ConfigOptionV2<T>(key, "", std::nullopt, false);
     }
-    
+
 private:
     std::string key;
 };
@@ -37,23 +37,24 @@ class OptionBuilder {
 public:
     explicit OptionBuilder(std::string key);
     // Main one being used
-    TypedConfigOptionBuilder<bool> *booleanType();
+    TypedConfigOptionBuilder<bool>* booleanType();
 
-    TypedConfigOptionBuilder<int> *intType();
-    TypedConfigOptionBuilder<long> *longType();
-    TypedConfigOptionBuilder<float> *floatType();
-    TypedConfigOptionBuilder<double> *doubleTYpe();
-    TypedConfigOptionBuilder<std::string> *stringType();
-    TypedConfigOptionBuilder<long> *memoryType();
-    TypedConfigOptionBuilder<std::chrono::milliseconds> *durationType();
+    TypedConfigOptionBuilder<int>* intType();
+    TypedConfigOptionBuilder<long>* longType();
+    TypedConfigOptionBuilder<float>* floatType();
+    TypedConfigOptionBuilder<double>* doubleTYpe();
+    TypedConfigOptionBuilder<std::string>* stringType();
+    TypedConfigOptionBuilder<long>* memoryType();
+    TypedConfigOptionBuilder<std::chrono::milliseconds>* durationType();
     template <typename T>
-    TypedConfigOptionBuilder<T> *enumType();
+    TypedConfigOptionBuilder<T>* enumType();
 
     template <typename T>
-    ConfigOptionV2<T> *defaultValue(T value)
+    ConfigOptionV2<T>* defaultValue(T value)
     {
         return new ConfigOptionV2<T>(key, "", value, false);
     }
+
 private:
     std::string key;
 };
@@ -64,10 +65,9 @@ public:
 };
 
 template <typename T>
-inline TypedConfigOptionBuilder<T> *OptionBuilder::enumType()
+inline TypedConfigOptionBuilder<T>* OptionBuilder::enumType()
 {
     return new TypedConfigOptionBuilder<T>(key);
 }
 
 #endif // OMNISTREAM_CONFIGOPTIONS
-

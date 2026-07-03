@@ -22,17 +22,17 @@ class SlicingWindowProcessor {
 public:
     SlicingWindowProcessor() {};
     virtual void open(
-            AbstractKeyedStateBackend<K> *state,
-            const nlohmann::json& config,
-            StreamingRuntimeContext<K> *runtimeCtx,
-            InternalTimerServiceImpl<K, int64_t>* internalTimerService)  = 0;
-    virtual void initializeWatermark(int64_t watermark)  = 0;
-    virtual bool processBatch(omnistream::VectorBatch* vectorbatch)  = 0;
-    virtual void advanceProgress(long progress) = 0 ;
-    virtual void prepareCheckpoint()  = 0;
-    virtual void fireWindow(W window)  = 0;
-    virtual void clearWindow(W window)  = 0;
-    virtual void close()  = 0;
-    virtual TypeSerializer *createWindowSerializer() = 0;
+        AbstractKeyedStateBackend<K>* state,
+        const nlohmann::json& config,
+        StreamingRuntimeContext<K>* runtimeCtx,
+        InternalTimerServiceImpl<K, int64_t>* internalTimerService) = 0;
+    virtual void initializeWatermark(int64_t watermark) = 0;
+    virtual bool processBatch(omnistream::VectorBatch* vectorbatch) = 0;
+    virtual void advanceProgress(long progress) = 0;
+    virtual void prepareCheckpoint() = 0;
+    virtual void fireWindow(W window) = 0;
+    virtual void clearWindow(W window) = 0;
+    virtual void close() = 0;
+    virtual TypeSerializer* createWindowSerializer() = 0;
     virtual Output* getOutput() = 0;
 };

@@ -1,14 +1,16 @@
 #include <gtest/gtest.h>
 #include "streaming/runtime/tasks/SystemProcessingTimeService.h"
 
-TEST(SystemProcessingTimeServiceTest, DISABLED_SelectFromRow) {
+TEST(SystemProcessingTimeServiceTest, DISABLED_SelectFromRow)
+{
     SystemProcessingTimeService systemProcessingTimeService;
 
     class MockProcessingTimeCallback : public ProcessingTimeCallback {
     public:
         std::vector<long> timeVec;
 
-        void OnProcessingTime(int64_t timestamp) override {
+        void OnProcessingTime(int64_t timestamp) override
+        {
             std::cout << std::to_string(timestamp) << std::endl;
             timeVec.push_back(timestamp);
         }
@@ -21,4 +23,3 @@ TEST(SystemProcessingTimeServiceTest, DISABLED_SelectFromRow) {
     EXPECT_EQ(callback->timeVec.size(), 2);
     EXPECT_EQ(callback->timeVec[0], callback->timeVec[1] - 3000);
 }
-

@@ -21,7 +21,7 @@
 #include <sstream>
 #include <functional>
 
-void SequentialChannelStateReaderImpl::readInputData(const std::vector<std::shared_ptr<InputGate>> &inputGates)
+void SequentialChannelStateReaderImpl::readInputData(const std::vector<std::shared_ptr<InputGate>>& inputGates)
 {
     LOG("Read input data start.");
     auto stateHandler = std::make_shared<InputChannelRecoveredStateHandler>(
@@ -31,12 +31,13 @@ void SequentialChannelStateReaderImpl::readInputData(const std::vector<std::shar
     LOG("Read input data end.");
 }
 
-void SequentialChannelStateReaderImpl::readOutputData(const std::vector<std::shared_ptr<ResultPartitionWriter>> &writers, bool notifyAndBlockOnCompletion)
+void SequentialChannelStateReaderImpl::readOutputData(
+    const std::vector<std::shared_ptr<ResultPartitionWriter>>& writers, bool notifyAndBlockOnCompletion)
 {
     LOG("Read output data start.");
     auto stateHandler = std::make_shared<ResultSubpartitionRecoveredStateHandler>(
         writers, notifyAndBlockOnCompletion, taskStateSnapshot->GetOutputRescalingDescriptor());
-    
+
     readByResultSubpartition(stateHandler, groupByDelegateByResultSubpartition(streamSubtaskStates()));
     LOG("Read output data end.");
 }
@@ -47,7 +48,7 @@ void SequentialChannelStateReaderImpl::close()
 
 void SequentialChannelStateReaderImpl::readByInputChannel(
     std::shared_ptr<InputChannelRecoveredStateHandler> stateHandler,
-    const InputChannelHandleGroup &streamStateHandleListMap)
+    const InputChannelHandleGroup& streamStateHandleListMap)
 {
     LOG("readByInputChannel size: " << streamStateHandleListMap.size());
     for (auto& entry : streamStateHandleListMap) {
@@ -57,7 +58,7 @@ void SequentialChannelStateReaderImpl::readByInputChannel(
 
 void SequentialChannelStateReaderImpl::readByResultSubpartition(
     std::shared_ptr<ResultSubpartitionRecoveredStateHandler> stateHandler,
-    const ResultSubpartitionHandleGroup &streamStateHandleListMap)
+    const ResultSubpartitionHandleGroup& streamStateHandleListMap)
 {
     LOG("readByResultSubpartition size: " << streamStateHandleListMap.size());
     for (auto& entry : streamStateHandleListMap) {
@@ -65,7 +66,8 @@ void SequentialChannelStateReaderImpl::readByResultSubpartition(
     }
 }
 
-std::string ExtractChkPath(const std::string& fullPath) {
+std::string ExtractChkPath(const std::string& fullPath)
+{
     size_t pos = fullPath.find("chk-");
     if (pos == std::string::npos) {
         LOG("ERROR: ExtractChkPath path failed.");
@@ -75,12 +77,12 @@ std::string ExtractChkPath(const std::string& fullPath) {
 }
 
 void SequentialChannelStateReaderImpl::readSequentiallyByInputChannel(
-   std::shared_ptr<StreamStateHandle> streamStateHandle,
-   std::vector<InputChannelStateHandle> channelStateHandles,
-   std::shared_ptr<InputChannelRecoveredStateHandler> stateHandle)
+    std::shared_ptr<StreamStateHandle> streamStateHandle,
+    std::vector<InputChannelStateHandle> channelStateHandles,
+    std::shared_ptr<InputChannelRecoveredStateHandler> stateHandle)
 {
     LOG("readSequentiallyByInputChannel start.");
-    if(auto byteStreamStateHandle = std::dynamic_pointer_cast<ByteStreamStateHandle>(streamStateHandle)) {
+    if (auto byteStreamStateHandle = std::dynamic_pointer_cast<ByteStreamStateHandle>(streamStateHandle)) {
         auto inputStream = byteStreamStateHandle->OpenInputStream();
         std::shared_ptr<ByteStateHandleInputStream> byteInputStream;
         if (byteInputStream = std::dynamic_pointer_cast<ByteStateHandleInputStream>(inputStream)) {
@@ -90,7 +92,7 @@ void SequentialChannelStateReaderImpl::readSequentiallyByInputChannel(
             throw std::runtime_error("Failed to cast input stream to ByteStateHandleInputStream");
         }
 
-        for (const auto& offsetAndChannelInfo:extractOffsetsSortedByInputChannel(channelStateHandles)){
+        for (const auto& offsetAndChannelInfo : extractOffsetsSortedByInputChannel(channelStateHandles)) {
             chunkReader->readChunkByByteStreamForInputChannel(
                 byteInputStream,
                 offsetAndChannelInfo.offset,
@@ -99,7 +101,7 @@ void SequentialChannelStateReaderImpl::readSequentiallyByInputChannel(
                 offsetAndChannelInfo.oldSubtaskIndex);
         }
         LOG("readSequentiallyByInputChannel end");
-    } else if(std::dynamic_pointer_cast<RelativeFileStateHandle>(streamStateHandle)) {
+    } else if (std::dynamic_pointer_cast<RelativeFileStateHandle>(streamStateHandle)) {
         auto filePath = streamStateHandle->GetStreamStateHandleID().getKeyString();
         LOG("readSequentiallyByInputChannel file path: " << filePath);
         auto tmpPath = "/tmp/" + ExtractChkPath(filePath);
@@ -107,13 +109,15 @@ void SequentialChannelStateReaderImpl::readSequentiallyByInputChannel(
             LOG("downLoad file success: " << tmpPath);
         }
         std::ifstream is(tmpPath, std::ios::binary);
-        if(!is.is_open()) {
+        if (!is.is_open()) {
             LOG("ERROR: Failed to open stream state handle input stream. file path: " << filePath);
             throw std::ios_base::failure("Failed to open stream state handle input stream.");
         }
         class FileCleanupGuard {
         public:
-            FileCleanupGuard(std::ifstream& stream, const std::string& path) : stream_(stream), path_(path) {}
+            FileCleanupGuard(std::ifstream& stream, const std::string& path) : stream_(stream), path_(path)
+            {
+            }
             ~FileCleanupGuard()
             {
                 try {
@@ -121,7 +125,7 @@ void SequentialChannelStateReaderImpl::readSequentiallyByInputChannel(
                         stream_.close();
                     }
                     std::filesystem::remove(path_);
-                } catch(...) {
+                } catch (...) {
                     LOG("ERROR: close file failed.");
                 }
             }
@@ -134,7 +138,7 @@ void SequentialChannelStateReaderImpl::readSequentiallyByInputChannel(
         serializer->ReadHeader(is);
 
         LOG("before extractOffsetsSortedByInputChannel");
-        for (const auto& offsetAndChannelInfo:extractOffsetsSortedByInputChannel(channelStateHandles)){
+        for (const auto& offsetAndChannelInfo : extractOffsetsSortedByInputChannel(channelStateHandles)) {
             LOG("before readChunkByFsForInputChannel");
             chunkReader->readChunkByFsForInputChannel(
                 is,
@@ -152,12 +156,12 @@ void SequentialChannelStateReaderImpl::readSequentiallyByInputChannel(
 }
 
 void SequentialChannelStateReaderImpl::readSequentiallyByResultSubpartition(
-   std::shared_ptr<StreamStateHandle> streamStateHandle,
-   std::vector<ResultSubpartitionStateHandle> channelStateHandles,
-   std::shared_ptr<ResultSubpartitionRecoveredStateHandler> stateHandle)
+    std::shared_ptr<StreamStateHandle> streamStateHandle,
+    std::vector<ResultSubpartitionStateHandle> channelStateHandles,
+    std::shared_ptr<ResultSubpartitionRecoveredStateHandler> stateHandle)
 {
     LOG("readSequentiallyByResultSubpartition start.");
-    if(auto byteStreamStateHandle = std::dynamic_pointer_cast<ByteStreamStateHandle>(streamStateHandle)) {
+    if (auto byteStreamStateHandle = std::dynamic_pointer_cast<ByteStreamStateHandle>(streamStateHandle)) {
         auto inputStream = byteStreamStateHandle->OpenInputStream();
         std::shared_ptr<ByteStateHandleInputStream> byteInputStream;
         if (byteInputStream = std::dynamic_pointer_cast<ByteStateHandleInputStream>(inputStream)) {
@@ -167,7 +171,7 @@ void SequentialChannelStateReaderImpl::readSequentiallyByResultSubpartition(
             throw std::runtime_error("Failed to cast input stream to ByteStateHandleInputStream");
         }
 
-        for (const auto& offsetAndChannelInfo:extractOffsetsSortedByResultSubpartition(channelStateHandles)){
+        for (const auto& offsetAndChannelInfo : extractOffsetsSortedByResultSubpartition(channelStateHandles)) {
             chunkReader->readChunkByByteStreamForResultSubpartition(
                 byteInputStream,
                 offsetAndChannelInfo.offset,
@@ -176,7 +180,7 @@ void SequentialChannelStateReaderImpl::readSequentiallyByResultSubpartition(
                 offsetAndChannelInfo.oldSubtaskIndex);
         }
         LOG("readSequentiallyByResultSubpartition end");
-    } else if(std::dynamic_pointer_cast<RelativeFileStateHandle>(streamStateHandle)) {
+    } else if (std::dynamic_pointer_cast<RelativeFileStateHandle>(streamStateHandle)) {
         auto filePath = streamStateHandle->GetStreamStateHandleID().getKeyString();
         LOG("readSequentiallyByResultSubpartition file path: " << filePath);
         auto tmpPath = "/tmp/" + ExtractChkPath(filePath);
@@ -184,14 +188,14 @@ void SequentialChannelStateReaderImpl::readSequentiallyByResultSubpartition(
             LOG("downLoad file success: " << tmpPath);
         }
         std::ifstream is(tmpPath, std::ios::binary);
-        if(!is.is_open()) {
+        if (!is.is_open()) {
             LOG("ERROR: Failed to open stream state handle input stream. file path: " << filePath);
             throw std::ios_base::failure("Failed to open stream state handle input stream.");
         }
 
         serializer->ReadHeader(is);
 
-        for (const auto& offsetAndChannelInfo:extractOffsetsSortedByResultSubpartition(channelStateHandles)){
+        for (const auto& offsetAndChannelInfo : extractOffsetsSortedByResultSubpartition(channelStateHandles)) {
             chunkReader->readChunkByFsForResultSubpartition(
                 is,
                 offsetAndChannelInfo.offset,
@@ -204,7 +208,7 @@ void SequentialChannelStateReaderImpl::readSequentiallyByResultSubpartition(
                 is.close();
                 std::filesystem::remove(tmpPath);
             }
-        } catch(...) {
+        } catch (...) {
             LOG("ERROR: close file failed.");
         }
         LOG("readSequentiallyByResultSubpartition end");
@@ -219,8 +223,8 @@ std::vector<std::shared_ptr<OperatorSubtaskState>> SequentialChannelStateReaderI
 
     auto subtaskStateMappings = taskStateSnapshot->GetSubtaskStateMappings();
 
-    for (const auto& entry : subtaskStateMappings){
-        subtaskStates.push_back(entry.second);      //entry.second 应该是一个std::shared_ptr<OperatorSubtaskState>
+    for (const auto& entry : subtaskStateMappings) {
+        subtaskStates.push_back(entry.second); // entry.second 应该是一个std::shared_ptr<OperatorSubtaskState>
     }
 
     return subtaskStates;
@@ -273,65 +277,75 @@ std::vector<RescaledOffset<InputChannelInfo>> SequentialChannelStateReaderImpl::
 
     for (const auto& handle : channelStateHandles) {
         auto extractedOffsets = extractOffsetsByInputChannel(handle);
-        offsets.insert(offsets.end(),extractedOffsets.begin(), extractedOffsets.end());
+        offsets.insert(offsets.end(), extractedOffsets.begin(), extractedOffsets.end());
     }
     if (offsets.empty()) {
         LOG("channelStateHandles vec: " << channelStateHandles.size() << ", offsets vec: " << offsets.size());
         return offsets;
     }
     LOG("channelStateHandles vec: " << channelStateHandles.size() << ", offsets vec: " << offsets.size()
-        << ", start off: " << offsets[0].offset << ", end off: " << offsets[offsets.size() - 1].offset
-        << ", info: " << offsets[0].channelInfo.toString());
+                                    << ", start off: " << offsets[0].offset
+                                    << ", end off: " << offsets[offsets.size() - 1].offset
+                                    << ", info: " << offsets[0].channelInfo.toString());
 
-    std::sort(offsets.begin(), offsets.end(), [](const RescaledOffset<InputChannelInfo>& a, const RescaledOffset<InputChannelInfo>& b) {
-        return a.offset < b.offset;
-    });
+    std::sort(
+        offsets.begin(),
+        offsets.end(),
+        [](const RescaledOffset<InputChannelInfo>& a, const RescaledOffset<InputChannelInfo>& b) {
+            return a.offset < b.offset;
+        });
     return offsets;
 }
 
-std::vector<RescaledOffset<ResultSubpartitionInfoPOD>> SequentialChannelStateReaderImpl::extractOffsetsSortedByResultSubpartition(
+std::vector<RescaledOffset<ResultSubpartitionInfoPOD>>
+SequentialChannelStateReaderImpl::extractOffsetsSortedByResultSubpartition(
     const std::vector<ResultSubpartitionStateHandle>& channelStateHandles)
 {
     std::vector<RescaledOffset<ResultSubpartitionInfoPOD>> offsets;
 
     for (const auto& handle : channelStateHandles) {
         auto extractedOffsets = extractOffsetsByResultSubpartition(handle);
-        offsets.insert(offsets.end(),extractedOffsets.begin(), extractedOffsets.end());
+        offsets.insert(offsets.end(), extractedOffsets.begin(), extractedOffsets.end());
     }
     if (offsets.empty()) {
         LOG("channelStateHandles vec: " << channelStateHandles.size() << ", offsets vec: " << offsets.size());
         return offsets;
     }
     LOG("channelStateHandles vec: " << channelStateHandles.size() << ", offsets vec: " << offsets.size()
-        << ", start off: " << offsets[0].offset << ", end off: " << offsets[offsets.size() - 1].offset
-        << ", info: " << offsets[0].channelInfo.toString());
-    std::sort(offsets.begin(), offsets.end(), [](const RescaledOffset<ResultSubpartitionInfoPOD>& a, const RescaledOffset<ResultSubpartitionInfoPOD>& b) {
-        return a.offset < b.offset;
-    });
+                                    << ", start off: " << offsets[0].offset
+                                    << ", end off: " << offsets[offsets.size() - 1].offset
+                                    << ", info: " << offsets[0].channelInfo.toString());
+    std::sort(
+        offsets.begin(),
+        offsets.end(),
+        [](const RescaledOffset<ResultSubpartitionInfoPOD>& a, const RescaledOffset<ResultSubpartitionInfoPOD>& b) {
+            return a.offset < b.offset;
+        });
     return offsets;
 }
 
-std::vector<RescaledOffset<InputChannelInfo>> SequentialChannelStateReaderImpl::extractOffsetsByInputChannel(const InputChannelStateHandle& handle)
+std::vector<RescaledOffset<InputChannelInfo>> SequentialChannelStateReaderImpl::extractOffsetsByInputChannel(
+    const InputChannelStateHandle& handle)
 {
-    std::vector<RescaledOffset<InputChannelInfo>>  offsets;
+    std::vector<RescaledOffset<InputChannelInfo>> offsets;
 
     auto handleOffsets = handle.GetOffsets();
 
-    for (const auto& offset : handleOffsets){
+    for (const auto& offset : handleOffsets) {
         offsets.emplace_back(offset, handle.GetInfo(), handle.GetSubtaskIndex());
     }
     return offsets;
 }
 
-std::vector<RescaledOffset<ResultSubpartitionInfoPOD>> SequentialChannelStateReaderImpl::extractOffsetsByResultSubpartition(const ResultSubpartitionStateHandle& handle)
+std::vector<RescaledOffset<ResultSubpartitionInfoPOD>>
+SequentialChannelStateReaderImpl::extractOffsetsByResultSubpartition(const ResultSubpartitionStateHandle& handle)
 {
-    std::vector<RescaledOffset<ResultSubpartitionInfoPOD>>  offsets;
+    std::vector<RescaledOffset<ResultSubpartitionInfoPOD>> offsets;
 
     auto handleOffsets = handle.GetOffsets();
 
-    for (const auto& offset : handleOffsets){
+    for (const auto& offset : handleOffsets) {
         offsets.emplace_back(offset, handle.GetInfo(), handle.GetSubtaskIndex());
     }
     return offsets;
 }
-

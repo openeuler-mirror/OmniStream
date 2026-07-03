@@ -32,7 +32,8 @@ std::string x = R"DELIM({"projects": [{)DELIM"
                 R"DELIM(            "outputTypes": ["BIGINT", "BIGINT", "BIGINT"]})DELIM"
                 R"DELIM(    ],"originDescription": "null"})DELIM";
 
-omnistream::VectorBatch *BuildExpandInputVectorBatch() {
+omnistream::VectorBatch* BuildExpandInputVectorBatch()
+{
     int rowCnt = 10;
     std::vector<long> col0(rowCnt);
     std::vector<long> col1(rowCnt);
@@ -44,7 +45,7 @@ omnistream::VectorBatch *BuildExpandInputVectorBatch() {
         col2[i] = 2 * i;
     }
 
-    omnistream::VectorBatch *vb = new omnistream::VectorBatch(rowCnt);
+    omnistream::VectorBatch* vb = new omnistream::VectorBatch(rowCnt);
     vb->Append(omniruntime::TestUtil::CreateVector<int64_t>(rowCnt, col0.data()));
     vb->Append(omniruntime::TestUtil::CreateVector<int64_t>(rowCnt, col1.data()));
     vb->Append(omniruntime::TestUtil::CreateVector<int64_t>(rowCnt, col2.data()));
@@ -52,9 +53,10 @@ omnistream::VectorBatch *BuildExpandInputVectorBatch() {
     return vb;
 }
 
-std::vector<omnistream::VectorBatch *> ProcessAndGetOutputTest(std::string desc, omnistream::VectorBatch *inputRecord) {
+std::vector<omnistream::VectorBatch*> ProcessAndGetOutputTest(std::string desc, omnistream::VectorBatch* inputRecord)
+{
     json parsedJson = json::parse(desc);
-    OutputTestVectorBatch *output = new OutputTestVectorBatch();
+    OutputTestVectorBatch* output = new OutputTestVectorBatch();
     StreamExpand streamExpandOp(parsedJson, output);
     streamExpandOp.open();
     StreamRecord* record = new StreamRecord(inputRecord);
@@ -63,7 +65,8 @@ std::vector<omnistream::VectorBatch *> ProcessAndGetOutputTest(std::string desc,
     return out;
 }
 
-TEST(StreamExpandTest, VectorbatchSimpleProjection) {
+TEST(StreamExpandTest, VectorbatchSimpleProjection)
+{
     auto inputRecord = BuildExpandInputVectorBatch();
     auto outputRecord = ProcessAndGetOutputTest(x, inputRecord);
     // Check size
@@ -71,9 +74,9 @@ TEST(StreamExpandTest, VectorbatchSimpleProjection) {
     int batchSize = 3;
     EXPECT_EQ(batchSize, outputRecord.size());
     // Check value
-    auto outcol0 = static_cast<omniruntime::vec::Vector<int64_t> * >(outputRecord[0]->Get(0));
-    auto outcol1 = static_cast<omniruntime::vec::Vector<int64_t> * >(outputRecord[0]->Get(1));
-    auto outcol2 = static_cast<omniruntime::vec::Vector<int64_t> * >(outputRecord[0]->Get(2));
+    auto outcol0 = static_cast<omniruntime::vec::Vector<int64_t>*>(outputRecord[0]->Get(0));
+    auto outcol1 = static_cast<omniruntime::vec::Vector<int64_t>*>(outputRecord[0]->Get(1));
+    auto outcol2 = static_cast<omniruntime::vec::Vector<int64_t>*>(outputRecord[0]->Get(2));
 
     for (int i = 0; i < rowCnt; i++) {
         EXPECT_EQ(outcol0->GetValue(i), 0);
@@ -81,9 +84,9 @@ TEST(StreamExpandTest, VectorbatchSimpleProjection) {
         EXPECT_EQ(outcol2->GetValue(i), 1);
     }
 
-    outcol0 = static_cast<omniruntime::vec::Vector<int64_t> * >(outputRecord[1]->Get(0));
-    outcol1 = static_cast<omniruntime::vec::Vector<int64_t> * >(outputRecord[1]->Get(1));
-    outcol2 = static_cast<omniruntime::vec::Vector<int64_t> * >(outputRecord[1]->Get(2));
+    outcol0 = static_cast<omniruntime::vec::Vector<int64_t>*>(outputRecord[1]->Get(0));
+    outcol1 = static_cast<omniruntime::vec::Vector<int64_t>*>(outputRecord[1]->Get(1));
+    outcol2 = static_cast<omniruntime::vec::Vector<int64_t>*>(outputRecord[1]->Get(2));
 
     for (int i = 0; i < rowCnt; i++) {
         EXPECT_EQ(outcol1->GetValue(i), i);
@@ -91,9 +94,9 @@ TEST(StreamExpandTest, VectorbatchSimpleProjection) {
         EXPECT_EQ(outcol2->GetValue(i), 2);
     }
 
-    outcol0 = static_cast<omniruntime::vec::Vector<int64_t> * >(outputRecord[2]->Get(0));
-    outcol1 = static_cast<omniruntime::vec::Vector<int64_t> * >(outputRecord[2]->Get(1));
-    outcol2 = static_cast<omniruntime::vec::Vector<int64_t> * >(outputRecord[2]->Get(2));
+    outcol0 = static_cast<omniruntime::vec::Vector<int64_t>*>(outputRecord[2]->Get(0));
+    outcol1 = static_cast<omniruntime::vec::Vector<int64_t>*>(outputRecord[2]->Get(1));
+    outcol2 = static_cast<omniruntime::vec::Vector<int64_t>*>(outputRecord[2]->Get(2));
 
     for (int i = 0; i < rowCnt; i++) {
         EXPECT_EQ(outcol0->IsNull(i), true);

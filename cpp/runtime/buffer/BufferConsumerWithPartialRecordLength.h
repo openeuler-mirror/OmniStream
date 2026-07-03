@@ -16,24 +16,23 @@
 
 #include "BufferConsumer.h"
 
-
 namespace omnistream {
-    class BufferConsumerWithPartialRecordLength {
-    public:
-        BufferConsumerWithPartialRecordLength(std::shared_ptr<BufferConsumer> bufferConsumer, int partialRecordLength);
-        // delete in PipelinedSubpartition
-        ~BufferConsumerWithPartialRecordLength();
+class BufferConsumerWithPartialRecordLength {
+public:
+    BufferConsumerWithPartialRecordLength(std::shared_ptr<BufferConsumer> bufferConsumer, int partialRecordLength);
+    // delete in PipelinedSubpartition
+    ~BufferConsumerWithPartialRecordLength();
 
-        std::shared_ptr<BufferConsumer> getBufferConsumer();
-        int getPartialRecordLength();
-        Buffer *build();
-        bool cleanupPartialRecord();
-        std::string toString() const;
+    std::shared_ptr<BufferConsumer> getBufferConsumer();
+    int getPartialRecordLength();
+    Buffer* build();
+    bool cleanupPartialRecord();
+    std::string toString() const;
 
-    private:
-        std::shared_ptr<BufferConsumer> bufferConsumer;
-        int partialRecordLength;
-    };
-}
+private:
+    std::shared_ptr<BufferConsumer> bufferConsumer;
+    int partialRecordLength;
+};
+} // namespace omnistream
 
 #endif // BUFFERCONSUMERWITHPARTIALRECORDLENGTH_H

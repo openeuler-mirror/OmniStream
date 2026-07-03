@@ -12,10 +12,5 @@ TEST(FsCheckpointStorageAccessTest, InitTest)
     int writeBufferSize = 4096;
 
     auto storage = new FsCheckpointStorageAccess(
-        &checkpointBaseDirectory,
-        &defaultSavepointDirectory,
-        jobId,
-        fileSizeThreshold,
-        writeBufferSize
-    );
+        &checkpointBaseDirectory, &defaultSavepointDirectory, jobId, fileSizeThreshold, writeBufferSize);
 }

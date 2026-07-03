@@ -19,7 +19,7 @@
 
 class MapSerializer : public TypeSerializerSingleton {
 public:
-    MapSerializer(TypeSerializer *keySerializer, TypeSerializer *valueSerializer);
+    MapSerializer(TypeSerializer* keySerializer, TypeSerializer* valueSerializer);
 
     ~MapSerializer() override
     {
@@ -30,24 +30,36 @@ public:
             delete valueSerializer;
         }
     }
-    void *deserialize(DataInputView &source) override
-    {
-        NOT_IMPL_EXCEPTION
-    };
-
-    void serialize(void *record, DataOutputSerializer &target) override
+    void* deserialize(DataInputView& source) override
     {
         NOT_IMPL_EXCEPTION;
     };
 
-    void serialize(Object *buffer, DataOutputSerializer &target) override;
-    void deserialize(Object *buffer, DataInputView &source) override;
+    void serialize(void* record, DataOutputSerializer& target) override
+    {
+        NOT_IMPL_EXCEPTION;
+    };
 
-    BackendDataType getBackendId() const override { return BackendDataType::OBJECT_BK;};
-    const char* getName() const override {return "MapSerializer"; };
+    void serialize(Object* buffer, DataOutputSerializer& target) override;
+    void deserialize(Object* buffer, DataInputView& source) override;
 
-    TypeSerializer* getKeySerializer() const { return keySerializer; }
-    TypeSerializer* getValueSerializer() const { return valueSerializer; }
+    BackendDataType getBackendId() const override
+    {
+        return BackendDataType::OBJECT_BK;
+    };
+    const char* getName() const override
+    {
+        return "MapSerializer";
+    };
+
+    TypeSerializer* getKeySerializer() const
+    {
+        return keySerializer;
+    }
+    TypeSerializer* getValueSerializer() const
+    {
+        return valueSerializer;
+    }
 
     void setSubBufferReusable(bool bufferReusable_) override;
 
@@ -69,8 +81,8 @@ public:
     }
 
 private:
-    TypeSerializer *keySerializer;
-    TypeSerializer *valueSerializer;
+    TypeSerializer* keySerializer;
+    TypeSerializer* valueSerializer;
 };
 
 #endif // FLINK_TNEL_MAPSERIALIZER_H

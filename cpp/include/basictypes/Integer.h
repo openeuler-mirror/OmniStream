@@ -29,21 +29,22 @@ public:
 
     int hashCode() override;
 
-    bool equals(Object *obj) override;
+    bool equals(Object* obj) override;
 
     std::string toString() override;
 
-    Object *clone() override;
+    Object* clone() override;
 
     int32_t intValue();
 
-    static Integer *valueOf(String *str);
+    static Integer* valueOf(String* str);
 
-    static Integer *valueOf(int32_t val);
+    static Integer* valueOf(int32_t val);
 
     int32_t value;
 
-    void setValue(const std::string &basicString) override;
+    void setValue(const std::string& basicString) override;
+
 protected:
     static std::uint32_t parseInt(std::string_view s) noexcept;
 };

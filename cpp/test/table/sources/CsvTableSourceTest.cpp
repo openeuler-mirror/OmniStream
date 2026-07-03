@@ -7,7 +7,8 @@
 #include "OmniOperatorJIT/core/test/util/test_util.h"
 #include "test/core/operators/OutputTest.h"
 using json = nlohmann::json;
-omnistream::VectorBatch* BuildInputVectorBatch2() {
+omnistream::VectorBatch* BuildInputVectorBatch2()
+{
     int rowCnt = 5;
     std::vector<long> col0(rowCnt);
     std::vector<long> col1(rowCnt);
@@ -23,7 +24,7 @@ omnistream::VectorBatch* BuildInputVectorBatch2() {
     vb->Append(omniruntime::TestUtil::CreateVector<int64_t>(rowCnt, col0.data()));
     vb->Append(omniruntime::TestUtil::CreateVector<int64_t>(rowCnt, col1.data()));
     vb->Append(omniruntime::TestUtil::CreateVector<int64_t>(rowCnt, col2.data()));
-    std::cout<<"input vectorbatch created"<<std::endl;
+    std::cout << "input vectorbatch created" << std::endl;
     return vb;
 }
 /*

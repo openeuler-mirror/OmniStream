@@ -27,24 +27,21 @@
 template <typename IN, typename OUT>
 class AbstractStreamingWriter : public AbstractStreamOperator<OUT>, public OneInputStreamOperator {
 public:
-    AbstractStreamingWriter(
-        long bucketCheckInterval,
-        BulkFormatBuilder<IN, std::string> *bucketsBuilder)
+    AbstractStreamingWriter(long bucketCheckInterval, BulkFormatBuilder<IN, std::string>* bucketsBuilder)
         : bucketCheckInterval(bucketCheckInterval),
           bucketsBuilder(bucketsBuilder),
-          currentWatermark(LONG_MIN) {}
+          currentWatermark(LONG_MIN)
+    {
+    }
 
-    void initializeState(StreamTaskStateInitializerImpl *initializer, TypeSerializer *keySerializer) override
+    void initializeState(StreamTaskStateInitializerImpl* initializer, TypeSerializer* keySerializer) override
     {
         AbstractStreamOperator<OUT>::initializeState(initializer, keySerializer);
         buckets = bucketsBuilder->createBuckets(this->getRuntimeContext()->getIndexOfThisSubtask());
-        helper = new StreamingFileSinkHelper<IN>(
-            buckets,
-            new SystemProcessingTimeService(),
-            bucketCheckInterval);
+        helper = new StreamingFileSinkHelper<IN>(buckets, new SystemProcessingTimeService(), bucketCheckInterval);
     }
 
-    void processWatermark(Watermark *mark)
+    void processWatermark(Watermark* mark)
     {
         if (this->timeServiceManager != nullptr) {
             this->timeServiceManager->advanceWatermark(mark);
@@ -56,16 +53,12 @@ public:
         }
     }
 
-    void processBatch(StreamRecord *element) override
+    void processBatch(StreamRecord* element) override
     {
-        auto batch = reinterpret_cast<omnistream::VectorBatch *>(element->getValue());
+        auto batch = reinterpret_cast<omnistream::VectorBatch*>(element->getValue());
 
         for (int rowId = 0; rowId < batch->GetRowCount(); rowId++) {
-            helper->onElement(
-                batch,
-                rowId,
-                element->hasTimestamp() ? element->getTimestamp() : 0,
-                currentWatermark);
+            helper->onElement(batch, rowId, element->hasTimestamp() ? element->getTimestamp() : 0, currentWatermark);
         }
     }
 
@@ -78,7 +71,7 @@ public:
     void snapshotState(long checkpointId)
     {
         buckets->snapshotState();
-        LOG("AbstractStreamingWriter::snapshotState checkpointId=" << checkpointId)
+        LOG("AbstractStreamingWriter::snapshotState checkpointId=" << checkpointId);
     }
 
     void notifyCheckpointComplete(long checkpointId) override
@@ -89,9 +82,10 @@ public:
         }
     }
 
-    OperatorSnapshotFutures *SnapshotState(long checkpointId,
+    OperatorSnapshotFutures* SnapshotState(
+        long checkpointId,
         long timestamp,
-        CheckpointOptions *checkpointOptions,
+        CheckpointOptions* checkpointOptions,
         CheckpointStreamFactory* storageLocation,
         const std::shared_ptr<OmniTaskBridge>& bridge) override
     {
@@ -137,15 +131,21 @@ public:
     }
 
 protected:
-    Buckets<IN, std::string> *buckets;
-    StreamingFileSinkHelper<IN> *helper;
+    Buckets<IN, std::string>* buckets;
+    StreamingFileSinkHelper<IN>* helper;
     long currentWatermark;
 
-    virtual void partitionCreated(const std::string &partition) {}
+    virtual void partitionCreated(const std::string& partition)
+    {
+    }
 
-    virtual void partitionInactive(const std::string &partition) {}
+    virtual void partitionInactive(const std::string& partition)
+    {
+    }
 
-    virtual void onPartFileOpened(const std::string &partition, const std::string &newPath) {}
+    virtual void onPartFileOpened(const std::string& partition, const std::string& newPath)
+    {
+    }
 
     virtual void commitUpToCheckpoint(long checkpointId)
     {
@@ -156,7 +156,7 @@ protected:
 
 private:
     long bucketCheckInterval;
-    BulkFormatBuilder<IN, std::string> *bucketsBuilder;
+    BulkFormatBuilder<IN, std::string>* bucketsBuilder;
 };
 
 #endif // OMNISTREAM_ABSTRACT_STREAMING_WRITER_H

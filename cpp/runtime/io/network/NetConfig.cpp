@@ -13,44 +13,49 @@
 
 namespace omnistream {
 
-    const std::string NetConfig::SERVER_THREAD_GROUP_NAME = "Flink Net Server";
-    const std::string NetConfig::CLIENT_THREAD_GROUP_NAME = "Flink Net Client";
+const std::string NetConfig::SERVER_THREAD_GROUP_NAME = "Flink Net Server";
+const std::string NetConfig::CLIENT_THREAD_GROUP_NAME = "Flink Net Client";
 
-    NetConfig::NetConfig() : serverAddress(""), serverPort(0) {}
+NetConfig::NetConfig() : serverAddress(""), serverPort(0)
+{
+}
 
-    NetConfig::NetConfig(const std::string& serverAddress, int serverPort)
-        : serverAddress(serverAddress), serverPort(serverPort) {}
+NetConfig::NetConfig(const std::string& serverAddress, int serverPort)
+    : serverAddress(serverAddress),
+      serverPort(serverPort)
+{
+}
 
-    NetConfig::~NetConfig() {}
+NetConfig::~NetConfig()
+{
+}
 
-    std::string NetConfig::getServerAddress() const
-    {
-        return serverAddress;
-    }
+std::string NetConfig::getServerAddress() const
+{
+    return serverAddress;
+}
 
-    void NetConfig::setServerAddress(const std::string& serverAddress_)
-    {
-        this->serverAddress = serverAddress_;
-    }
+void NetConfig::setServerAddress(const std::string& serverAddress_)
+{
+    this->serverAddress = serverAddress_;
+}
 
-    int NetConfig::getServerPort() const
-    {
-        return serverPort;
-    }
+int NetConfig::getServerPort() const
+{
+    return serverPort;
+}
 
-    void NetConfig::setServerPort(int serverPort_)
-    {
-        this->serverPort = serverPort_;
-    }
+void NetConfig::setServerPort(int serverPort_)
+{
+    this->serverPort = serverPort_;
+}
 
-    std::string NetConfig::toString() const
-    {
-        std::stringstream ss;
-        ss << "NetConfig{"
-           << "serverAddress='" << serverAddress << '\''
-           << ", serverPort=" << serverPort
-           << '}';
-        return ss.str();
-    }
+std::string NetConfig::toString() const
+{
+    std::stringstream ss;
+    ss << "NetConfig{"
+       << "serverAddress='" << serverAddress << '\'' << ", serverPort=" << serverPort << '}';
+    return ss.str();
+}
 
 } // namespace omnistream

@@ -12,8 +12,7 @@ extern "C" {
  * Method:    getNativeCounterNew
  * Signature: (J)J
  */
-JNIEXPORT jlong JNICALL Java_org_apache_flink_metrics_SimpleCounter_getNativeCounterNew
-  (JNIEnv *, jobject, jlong);
+JNIEXPORT jlong JNICALL Java_org_apache_flink_metrics_SimpleCounter_getNativeCounterNew(JNIEnv*, jobject, jlong);
 
 #ifdef __cplusplus
 }

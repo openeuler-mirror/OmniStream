@@ -9,7 +9,6 @@
  * See the Mulan PSL v2 for more details.
  */
 
-
 #pragma once
 #include "rocksdb/cache.h"
 #include "rocksdb/filter_policy.h"
@@ -21,6 +20,8 @@
 
 class DefaultConfigurableOptionsFactory {
 public:
-    static void createColumnOptions(ROCKSDB_NAMESPACE::ColumnFamilyOptions& currentOptions, ROCKSDB_NAMESPACE::BlockBasedTableOptions& blockBasedTableOptions);
+    static void createColumnOptions(
+        ROCKSDB_NAMESPACE::ColumnFamilyOptions& currentOptions,
+        ROCKSDB_NAMESPACE::BlockBasedTableOptions& blockBasedTableOptions);
     static void createDBOptions(ROCKSDB_NAMESPACE::DBOptions& currentOptions);
 };

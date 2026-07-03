@@ -22,14 +22,13 @@ public:
     static Class* getClass();
     static Class* clazz_;
 
-
     String* name;
     long age;
     int hashCode() override
     {
         return 0;
     }
-    bool equals(Object *obj) override
+    bool equals(Object* obj) override
     {
         auto user = static_cast<User*>(obj);
         if (user->name->equals(name) && age == user->age) {

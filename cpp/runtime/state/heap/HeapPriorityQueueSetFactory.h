@@ -16,20 +16,19 @@
 
 class HeapPriorityQueueSetFactory : public PriorityQueueSetFactory {
 public:
-    HeapPriorityQueueSetFactory(
-            KeyGroupRange* keyGroupRange,
-            int32_t totalKeyGroups,
-            int32_t minimumCapacity)
-            :
-            keyGroupRange_(keyGroupRange),
-            totalKeyGroups_(totalKeyGroups),
-            minimumCapacity_(minimumCapacity) {}
+    HeapPriorityQueueSetFactory(KeyGroupRange* keyGroupRange, int32_t totalKeyGroups, int32_t minimumCapacity)
+        : keyGroupRange_(keyGroupRange),
+          totalKeyGroups_(totalKeyGroups),
+          minimumCapacity_(minimumCapacity)
+    {
+    }
 
     template <typename K, typename T, typename Comparator>
     std::shared_ptr<KeyGroupedInternalPriorityQueue<T>> create(
-            std::string stateName,
-            TypeSerializer* byteOrderedElementSerializer) {
-        return std::make_shared<HeapPriorityQueueSet<K, T, Comparator>>(keyGroupRange_, minimumCapacity_, totalKeyGroups_);
+        std::string stateName, TypeSerializer* byteOrderedElementSerializer)
+    {
+        return std::make_shared<HeapPriorityQueueSet<K, T, Comparator>>(
+            keyGroupRange_, minimumCapacity_, totalKeyGroups_);
     }
 
 private:

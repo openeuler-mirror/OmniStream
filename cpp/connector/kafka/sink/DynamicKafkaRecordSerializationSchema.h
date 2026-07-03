@@ -31,12 +31,11 @@ public:
 
     DynamicKafkaRecordSerializationSchema() {};
 
-    DynamicKafkaRecordSerializationSchema(std::vector<std::string>& inputFields,
-                                          std::vector<std::string>& inputTypes);
+    DynamicKafkaRecordSerializationSchema(std::vector<std::string>& inputFields, std::vector<std::string>& inputTypes);
     void RowToJson(RowData* row);
-    void RowToJson(omnistream::VectorBatch *input, int rowIndex);
+    void RowToJson(omnistream::VectorBatch* input, int rowIndex);
     KeyValueByteContainer Serialize(RowData* consumedRow);
-    KeyValueByteContainer Serialize(omnistream::VectorBatch *input, int rowIndex);
+    KeyValueByteContainer Serialize(omnistream::VectorBatch* input, int rowIndex);
     KeyValueByteContainer Serialize(String* element);
     KeyValueByteContainer Serialize(Row* row);
 
@@ -52,11 +51,7 @@ private:
     nlohmann::ordered_json j;
     std::ostringstream oss;
     char timeBuffer[80];
-    static GenericRowData createProjectedRow(
-            RowData &sourceRow,
-            RowKind kind,
-            std::vector<FieldGetter>& getters
-    );
+    static GenericRowData createProjectedRow(RowData& sourceRow, RowKind kind, std::vector<FieldGetter>& getters);
 };
 
 #endif // FLINK_BENCHMARK_DYNAMICKAFKARECORDSERIALIZATIONSCHEMA_H

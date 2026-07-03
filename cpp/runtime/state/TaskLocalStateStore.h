@@ -37,7 +37,7 @@ public:
         std::shared_ptr<LocalRecoveryConfig> localRecoveryConfig
         // Executor discardExecutor
     );
-    CompletableFutureV2<void> *dispose();
+    CompletableFutureV2<void>* dispose();
 
     void storeLocalState(long checkpointId, std::shared_ptr<TaskStateSnapshot> localState);
     std::shared_ptr<TaskStateSnapshot> retrieveLocalState(long checkpointID);
@@ -56,7 +56,7 @@ public:
     }
 
     const std::string taskStateSnapshotFilename = "_task_state_snapshot";
-    
+
     std::shared_ptr<LocalRecoveryConfig> getLocalRecoveryConfig()
     {
         return localRecoveryConfig_;
@@ -64,7 +64,7 @@ public:
 
     void setLocalRecoveryConfig(std::shared_ptr<LocalRecoveryConfig> localRecoveryConfig)
     {
-        localRecoveryConfig_= std::move(localRecoveryConfig);
+        localRecoveryConfig_ = std::move(localRecoveryConfig);
     }
 
 protected:
@@ -94,8 +94,7 @@ private:
         if (!std::filesystem::exists(checkpointDirectory) &&
             !std::filesystem::create_directories(checkpointDirectory)) {
             throw std::runtime_error(
-                std::string("Could not create the checkpoint directory '") +
-                checkpointDirectory.string() + "'");
+                std::string("Could not create the checkpoint directory '") + checkpointDirectory.string() + "'");
         }
     }
 

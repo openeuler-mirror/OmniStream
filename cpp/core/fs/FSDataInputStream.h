@@ -22,7 +22,6 @@
  */
 class FSDataInputStream {
 public:
-
     virtual ~FSDataInputStream() = default;
 
     /**

@@ -14,7 +14,7 @@
 
 class FutureUtils {
 public:
-    template<typename T>
+    template <typename T>
     static T runIfNotDoneAndGet(std::shared_ptr<std::packaged_task<T()>> task)
     {
         if (!task) {

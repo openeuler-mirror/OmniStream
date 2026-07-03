@@ -9,7 +9,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
-# pragma once
+#pragma once
 #ifdef WITH_OMNISTATESTORE
 
 #include "api/common/state/MapState.h"
@@ -17,28 +17,51 @@
 #include "api/common/state/StateDescriptor.h"
 #include "state/internal/InternalKvState.h"
 
-template<typename K, typename N, typename UK, typename UV>
-class BssMapState : public MapState<UK, UV>, public InternalKvState<K, N, emhash7::HashMap<UK, UV> *> {
+template <typename K, typename N, typename UK, typename UV>
+class BssMapState : public MapState<UK, UV>, public InternalKvState<K, N, emhash7::HashMap<UK, UV>*> {
 public:
-    BssMapState(BssMapStateTable<K, N, UK, UV> *stateTable, TypeSerializer *keySerializer,
-        TypeSerializer *valueSerializer, TypeSerializer *namespaceSerializer) : stateTable(stateTable),
-        keySerializer(keySerializer), valueSerializer(valueSerializer), namespaceSerializer(namespaceSerializer) {}
+    BssMapState(
+        BssMapStateTable<K, N, UK, UV>* stateTable,
+        TypeSerializer* keySerializer,
+        TypeSerializer* valueSerializer,
+        TypeSerializer* namespaceSerializer)
+        : stateTable(stateTable),
+          keySerializer(keySerializer),
+          valueSerializer(valueSerializer),
+          namespaceSerializer(namespaceSerializer)
+    {
+    }
 
     ~BssMapState() override = default;
 
-    [[nodiscard]] TypeSerializer *getKeySerializer() const { return keySerializer; };
-
-    [[nodiscard]] TypeSerializer *getNamespaceSerializer() const { return namespaceSerializer; };
-
-    [[nodiscard]] TypeSerializer *getValueSerializer() const { return valueSerializer; };
-
-    void setNamespaceSerializer(TypeSerializer *serializer) { namespaceSerializer = serializer; };
-
-    void setValueSerializer(TypeSerializer *serializer) { valueSerializer = serializer; };
-
-    std::optional<UV> get(const UK &userKey) override
+    [[nodiscard]] TypeSerializer* getKeySerializer() const
     {
-        LOG("BSS MapState get")
+        return keySerializer;
+    };
+
+    [[nodiscard]] TypeSerializer* getNamespaceSerializer() const
+    {
+        return namespaceSerializer;
+    };
+
+    [[nodiscard]] TypeSerializer* getValueSerializer() const
+    {
+        return valueSerializer;
+    };
+
+    void setNamespaceSerializer(TypeSerializer* serializer)
+    {
+        namespaceSerializer = serializer;
+    };
+
+    void setValueSerializer(TypeSerializer* serializer)
+    {
+        valueSerializer = serializer;
+    };
+
+    std::optional<UV> get(const UK& userKey) override
+    {
+        LOG("BSS MapState get");
         UV userValue = stateTable->get(currentNamespace, userKey);
         if constexpr (std::is_pointer_v<UV>) {
             if (userValue == nullptr) {
@@ -62,24 +85,24 @@ public:
         return nullptr;
     };
 
-    void put(const UK &userKey, const UV &userValue) override
+    void put(const UK& userKey, const UV& userValue) override
     {
-        LOG("BSS MapState put")
+        LOG("BSS MapState put");
         stateTable->put(currentNamespace, userKey, userValue);
     };
 
-    void remove(const UK &userKey) override
+    void remove(const UK& userKey) override
     {
-        LOG("BSS MapState remove")
+        LOG("BSS MapState remove");
         stateTable->remove(currentNamespace, userKey);
     };
 
-    bool contains(const UK &userKey) override
+    bool contains(const UK& userKey) override
     {
         return false;
     };
 
-    void update(const UK &key, const UV &value) override
+    void update(const UK& key, const UV& value) override
     {
         stateTable->put(currentNamespace, key, value);
     };
@@ -91,16 +114,17 @@ public:
 
     void clear() override {};
 
-    static BssMapState<K, N, UK, UV> *create(StateDescriptor *stateDesc, BssMapStateTable<K, N, UK, UV> *stateTable,
-        TypeSerializer *keySerializer)
+    static BssMapState<K, N, UK, UV>* create(
+        StateDescriptor* stateDesc, BssMapStateTable<K, N, UK, UV>* stateTable, TypeSerializer* keySerializer)
     {
-        return new BssMapState<K, N, UK, UV>(stateTable, keySerializer, stateTable->getStateSerializer(),
-            stateTable->getNamespaceSerializer());
+        return new BssMapState<K, N, UK, UV>(
+            stateTable, keySerializer, stateTable->getStateSerializer(), stateTable->getNamespaceSerializer());
     };
 
-    static BssMapState<K, N, UK, UV> *
-    update(StateDescriptor *stateDesc, BssMapStateTable<K, N, UK, UV> *stateTable,
-           BssMapState<K, N, UK, UV> *existingState)
+    static BssMapState<K, N, UK, UV>* update(
+        StateDescriptor* stateDesc,
+        BssMapStateTable<K, N, UK, UV>* stateTable,
+        BssMapState<K, N, UK, UV>* existingState)
     {
         existingState->setNamespaceSerializer(stateTable->getNamespaceSerializer());
         existingState->setValueSerializer(stateTable->getStateSerializer());
@@ -109,7 +133,7 @@ public:
 
     // This gets the pointer to the actual map (a value for state),
     // like Join's emhash<RowData*, int> with currentNamespace and currentKey
-    emhash7::HashMap<UK, UV> *entries() override
+    emhash7::HashMap<UK, UV>* entries() override
     {
         return stateTable->entries(currentNamespace);
     };
@@ -119,12 +143,12 @@ public:
         stateTable->addVectorBatch(vectorBatch);
     };
 
-    omnistream::VectorBatch *getVectorBatch(int batchId) override
+    omnistream::VectorBatch* getVectorBatch(int batchId) override
     {
         return stateTable->getVectorBatch(batchId);
     };
 
-    const std::vector<omnistream::VectorBatch*> &getVectorBatches()
+    const std::vector<omnistream::VectorBatch*>& getVectorBatches()
     {
         return this->vectorBatches;
     };
@@ -134,15 +158,16 @@ public:
         return stateTable->GetVectorBatchesSize();
     };
 
-    void CreateTable(ock::bss::BoostStateDBPtr &_dbPtr)
+    void CreateTable(ock::bss::BoostStateDBPtr& _dbPtr)
     {
         stateTable->createTable(_dbPtr);
     };
+
 private:
-    BssMapStateTable<K, N, UK, UV> *stateTable;
-    TypeSerializer *keySerializer;
-    TypeSerializer *valueSerializer;
-    TypeSerializer *namespaceSerializer;
+    BssMapStateTable<K, N, UK, UV>* stateTable;
+    TypeSerializer* keySerializer;
+    TypeSerializer* valueSerializer;
+    TypeSerializer* namespaceSerializer;
     N currentNamespace;
 };
 

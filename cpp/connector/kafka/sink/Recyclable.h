@@ -25,6 +25,7 @@ public:
     T* GetObject();
     bool IsRecycled();
     void Close();
+
 private:
     T* object;
     std::function<void(T*)> recycler;

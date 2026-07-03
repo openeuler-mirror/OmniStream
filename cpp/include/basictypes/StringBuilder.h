@@ -25,18 +25,18 @@ public:
     ~StringBuilder();
 
     // todo returnType is different from java
-    StringBuilder* append(String *input);
+    StringBuilder* append(String* input);
 
     StringBuilder* append(int32_t input);
 
     StringBuilder* append(int64_t input);
 
-    StringBuilder* append(Object *input);
+    StringBuilder* append(Object* input);
 
     // this contains copy op of std::string
-    StringBuilder* append(const std::string &input);
+    StringBuilder* append(const std::string& input);
 
-//    std::unique_ptr<String> toStringUniquePtr();
+    //    std::unique_ptr<String> toStringUniquePtr();
 
     std::string toString();
 

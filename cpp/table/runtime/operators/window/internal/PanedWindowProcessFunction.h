@@ -17,22 +17,23 @@
 #include "InternalWindowProcessFunction.h"
 #include "table/runtime/operators/window/assigners/PanedWindowAssigner.h"
 
-template<typename K, typename W>
+template <typename K, typename W>
 class PanedWindowProcessFunction : public InternalWindowProcessFunction<K, W> {
     static_assert(std::is_base_of_v<Window, W>, "W must inherit from Window");
 
 public:
     PanedWindowProcessFunction(
-            PanedWindowAssigner<W> *windowAssigner,
-            NamespaceAggsHandleFunctionBase<W> *windowAggregator,
-            int64_t allowedLateness)
-            :
-            InternalWindowProcessFunction<K, W>(windowAssigner, windowAggregator, allowedLateness),
-            windowAssigner(windowAssigner) {}
+        PanedWindowAssigner<W>* windowAssigner,
+        NamespaceAggsHandleFunctionBase<W>* windowAggregator,
+        int64_t allowedLateness)
+        : InternalWindowProcessFunction<K, W>(windowAssigner, windowAggregator, allowedLateness),
+          windowAssigner(windowAssigner)
+    {
+    }
 
-    std::vector<W> assignStateNamespace(RowData *inputRow, int64_t timestamp) override;
+    std::vector<W> assignStateNamespace(RowData* inputRow, int64_t timestamp) override;
 
-    std::vector<W> assignActualWindows(RowData *inputRow, int64_t timestamp) override;
+    std::vector<W> assignActualWindows(RowData* inputRow, int64_t timestamp) override;
 
     void prepareAggregateAccumulatorForEmit(const W& window) override;
 

@@ -19,9 +19,10 @@
 
 class SimpleTimerService : public omnistream::streaming::TimerService {
 public:
-    explicit SimpleTimerService(InternalTimerService<VoidNamespace> *internalTimerService)
+    explicit SimpleTimerService(InternalTimerService<VoidNamespace>* internalTimerService)
         : internalTimerService(internalTimerService)
-    {}
+    {
+    }
 
     ~SimpleTimerService() = default;
 
@@ -59,7 +60,7 @@ public:
     }
 
 private:
-    InternalTimerService<VoidNamespace> *internalTimerService;
+    InternalTimerService<VoidNamespace>* internalTimerService;
     uint32_t timerSize = 0;
 };
 #endif // OMNISTREAM_SIMPLETIMERSERVICE_H

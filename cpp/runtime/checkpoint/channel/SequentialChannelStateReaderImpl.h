@@ -36,12 +36,16 @@ public:
     int oldSubtaskIndex;
 
     RescaledOffset(long long offset, Info channelInfo, int oldSubtaskIndex)
-        :offset(offset), channelInfo(channelInfo), oldSubtaskIndex(oldSubtaskIndex) {}
+        : offset(offset),
+          channelInfo(channelInfo),
+          oldSubtaskIndex(oldSubtaskIndex)
+    {
+    }
 
-    std::string toString() const {
+    std::string toString() const
+    {
         std::ostringstream oss;
-        oss << "RescaledOffset{offset=" << offset
-            << ", channelInfo=" << (channelInfo ? "Valid" : "Null")
+        oss << "RescaledOffset{offset=" << offset << ", channelInfo=" << (channelInfo ? "Valid" : "Null")
             << ", oldSubtaskIndex=" << oldSubtaskIndex << "}";
         return oss.str();
     }
@@ -51,13 +55,15 @@ class ChannelStateChunkReader {
 public:
     std::shared_ptr<ChannelStateSerializer> serializer;
 
-    ChannelStateChunkReader(std::shared_ptr<ChannelStateSerializer> &serializer) : serializer(serializer) {}
+    ChannelStateChunkReader(std::shared_ptr<ChannelStateSerializer>& serializer) : serializer(serializer)
+    {
+    }
 
     void readChunkByByteStreamForInputChannel(
         std::shared_ptr<ByteStateHandleInputStream>& source,
         long long sourceOffset,
         std::shared_ptr<InputChannelRecoveredStateHandler> stateHandler,
-        const InputChannelInfo &channelInfo,
+        const InputChannelInfo& channelInfo,
         int oldSubtaskIndex)
     {
         if (source->GetPos() != sourceOffset) {
@@ -73,7 +79,7 @@ public:
                 while (length > 0 && bufferWithContext.buffer_->isWritable()) {
                     length -= serializer->ReadData2(source, bufferWithContext.buffer_, length);
                 }
-            } catch (const std::exception& e){
+            } catch (const std::exception& e) {
                 bufferWithContext.close();
                 throw;
             }
@@ -81,22 +87,22 @@ public:
         }
     }
 
-    static RecoveredChannelStateHandler<InputChannelInfo, Buffer *>::BufferWithContext newTempInputBufferWithContext() {
+    static RecoveredChannelStateHandler<InputChannelInfo, Buffer*>::BufferWithContext newTempInputBufferWithContext()
+    {
         constexpr int kTempRestoreBufferSize = 32 * 1024;
 
         auto* memorySegment = MemorySegmentFactory::wrap(kTempRestoreBufferSize);
 
-        auto buffer =new NetworkBuffer(memorySegment, std::make_shared<OriginalNetworkBufferRecycler>(),
-            true);
+        auto buffer = new NetworkBuffer(memorySegment, std::make_shared<OriginalNetworkBufferRecycler>(), true);
 
         return {ChannelStateByteBuffer::wrap(buffer), buffer};
     }
-    
+
     void readChunkByByteStreamForResultSubpartition(
         std::shared_ptr<ByteStateHandleInputStream>& source,
         long long sourceOffset,
         std::shared_ptr<ResultSubpartitionRecoveredStateHandler> stateHandler,
-        const ResultSubpartitionInfoPOD &channelInfo,
+        const ResultSubpartitionInfoPOD& channelInfo,
         int oldSubtaskIndex)
     {
         if (source->GetPos() != sourceOffset) {
@@ -107,12 +113,12 @@ public:
 
         while (length > 0) {
             auto bufferWithContext = stateHandler->getBuffer(channelInfo);
-            
+
             try {
                 while (length > 0 && bufferWithContext.buffer_->isWritable()) {
                     length -= serializer->ReadData2(source, bufferWithContext.buffer_, length);
                 }
-            } catch (const std::exception& e){
+            } catch (const std::exception& e) {
                 bufferWithContext.close();
                 throw;
             }
@@ -124,7 +130,7 @@ public:
         std::ifstream& source,
         long long sourceOffset,
         std::shared_ptr<InputChannelRecoveredStateHandler> stateHandler,
-        const InputChannelInfo &channelInfo,
+        const InputChannelInfo& channelInfo,
         int oldSubtaskIndex)
     {
         if (source.tellg() != sourceOffset) {
@@ -139,7 +145,7 @@ public:
                 while (length > 0 && bufferWithContext.buffer_->isWritable()) {
                     length -= serializer->ReadData(source, bufferWithContext.buffer_, length);
                 }
-            } catch (const std::exception& e){
+            } catch (const std::exception& e) {
                 bufferWithContext.close();
                 throw;
             }
@@ -151,7 +157,7 @@ public:
         std::ifstream& source,
         long long sourceOffset,
         std::shared_ptr<ResultSubpartitionRecoveredStateHandler> stateHandler,
-        const ResultSubpartitionInfoPOD &channelInfo,
+        const ResultSubpartitionInfoPOD& channelInfo,
         int oldSubtaskIndex)
     {
         if (source.tellg() != sourceOffset) {
@@ -167,7 +173,7 @@ public:
                 while (length > 0 && bufferWithContext.buffer_->isWritable()) {
                     length -= serializer->ReadData(source, bufferWithContext.buffer_, length);
                 }
-            } catch (const std::exception& e){
+            } catch (const std::exception& e) {
                 bufferWithContext.close();
                 throw;
             }
@@ -177,42 +183,48 @@ public:
 };
 class SequentialChannelStateReaderOPImpl : public SequentialChannelStateReader {
 public:
-    void readInputData(const std::vector<std::shared_ptr<InputGate>> &inputGates) override
-    {}
-    void readOutputData(const std::vector<std::shared_ptr<ResultPartitionWriter>> &writers, bool notifyAndBlockOnCompletion) override
-    {}
+    void readInputData(const std::vector<std::shared_ptr<InputGate>>& inputGates) override
+    {
+    }
+    void readOutputData(
+        const std::vector<std::shared_ptr<ResultPartitionWriter>>& writers, bool notifyAndBlockOnCompletion) override
+    {
+    }
     void close() override
-    {}
+    {
+    }
 };
 
 using InputChannelHandleGroup =
-            std::map<std::string, std::pair<std::shared_ptr<StreamStateHandle>, std::vector<InputChannelStateHandle>>>;
+    std::map<std::string, std::pair<std::shared_ptr<StreamStateHandle>, std::vector<InputChannelStateHandle>>>;
 
 using ResultSubpartitionHandleGroup =
-        std::map<std::string, std::pair<std::shared_ptr<StreamStateHandle>, std::vector<ResultSubpartitionStateHandle>>>;
+    std::map<std::string, std::pair<std::shared_ptr<StreamStateHandle>, std::vector<ResultSubpartitionStateHandle>>>;
 class SequentialChannelStateReaderImpl : public SequentialChannelStateReader {
 public:
-    explicit SequentialChannelStateReaderImpl(std::shared_ptr<TaskStateSnapshot> taskStateSnapshot, std::shared_ptr<OmniTaskBridge> omniTaskBridge)
-            :taskStateSnapshot(taskStateSnapshot), serializer(std::make_shared<ChannelStateSerializerImpl>()),
-            omniTaskBridge_(omniTaskBridge)
+    explicit SequentialChannelStateReaderImpl(
+        std::shared_ptr<TaskStateSnapshot> taskStateSnapshot, std::shared_ptr<OmniTaskBridge> omniTaskBridge)
+        : taskStateSnapshot(taskStateSnapshot),
+          serializer(std::make_shared<ChannelStateSerializerImpl>()),
+          omniTaskBridge_(omniTaskBridge)
     {
         chunkReader = std::make_shared<ChannelStateChunkReader>(serializer);
     }
 
-    void readInputData(const std::vector<std::shared_ptr<InputGate>> &inputGates) override;
+    void readInputData(const std::vector<std::shared_ptr<InputGate>>& inputGates) override;
 
-    void readOutputData(const std::vector<std::shared_ptr<ResultPartitionWriter>> &writers,
-        bool notifyAndBlockOnCompletion) override;
+    void readOutputData(
+        const std::vector<std::shared_ptr<ResultPartitionWriter>>& writers, bool notifyAndBlockOnCompletion) override;
 
     void close() override;
 
     void readByInputChannel(
         std::shared_ptr<InputChannelRecoveredStateHandler> stateHandler,
-        const InputChannelHandleGroup &streamStateHandleListMap);
+        const InputChannelHandleGroup& streamStateHandleListMap);
 
     void readByResultSubpartition(
         std::shared_ptr<ResultSubpartitionRecoveredStateHandler> stateHandler,
-        const ResultSubpartitionHandleGroup &streamStateHandleListMap);
+        const ResultSubpartitionHandleGroup& streamStateHandleListMap);
     void readSequentiallyByInputChannel(
         std::shared_ptr<StreamStateHandle> streamStateHandle,
         std::vector<InputChannelStateHandle> channelStateHandles,
@@ -221,22 +233,23 @@ public:
         std::shared_ptr<StreamStateHandle> streamStateHandle,
         std::vector<ResultSubpartitionStateHandle> channelStateHandles,
         std::shared_ptr<ResultSubpartitionRecoveredStateHandler> stateHandle);
-    InputChannelHandleGroup groupByDelegateByInputChannel(
-        std::vector<std::shared_ptr<OperatorSubtaskState>> states);
+    InputChannelHandleGroup groupByDelegateByInputChannel(std::vector<std::shared_ptr<OperatorSubtaskState>> states);
     ResultSubpartitionHandleGroup groupByDelegateByResultSubpartition(
         std::vector<std::shared_ptr<OperatorSubtaskState>> states);
     std::vector<std::shared_ptr<OperatorSubtaskState>> streamSubtaskStates();
+
 private:
     std::vector<RescaledOffset<InputChannelInfo>> extractOffsetsSortedByInputChannel(
-    const std::vector<InputChannelStateHandle>& channelStateHandles);
+        const std::vector<InputChannelStateHandle>& channelStateHandles);
     std::vector<RescaledOffset<ResultSubpartitionInfoPOD>> extractOffsetsSortedByResultSubpartition(
-    const std::vector<ResultSubpartitionStateHandle>& channelStateHandles);
+        const std::vector<ResultSubpartitionStateHandle>& channelStateHandles);
     std::vector<RescaledOffset<InputChannelInfo>> extractOffsetsByInputChannel(const InputChannelStateHandle& handle);
-    std::vector<RescaledOffset<ResultSubpartitionInfoPOD>> extractOffsetsByResultSubpartition(const ResultSubpartitionStateHandle& handle);
+    std::vector<RescaledOffset<ResultSubpartitionInfoPOD>> extractOffsetsByResultSubpartition(
+        const ResultSubpartitionStateHandle& handle);
     std::shared_ptr<TaskStateSnapshot> taskStateSnapshot;
     std::shared_ptr<ChannelStateSerializer> serializer;
     std::shared_ptr<ChannelStateChunkReader> chunkReader;
     std::shared_ptr<OmniTaskBridge> omniTaskBridge_;
 };
-}
+} // namespace omnistream
 #endif // SEQUENTIAL_CHANNEL_STATE_READER_IMPL_H

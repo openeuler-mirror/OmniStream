@@ -13,8 +13,6 @@
 #define FLINK_TNEL_NONCHAINEDOUTPUT_H
 
 // for future use
-class NonChainedOutput {
-};
-
+class NonChainedOutput {};
 
 #endif

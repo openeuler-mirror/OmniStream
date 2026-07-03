@@ -18,7 +18,7 @@ namespace omnistream {
 
 class UpstreamRecoveryTracker {
 public:
-    virtual void handleEndOfRecovery (const InputChannelInfo& channelInfo) = 0;
+    virtual void handleEndOfRecovery(const InputChannelInfo& channelInfo) = 0;
     virtual bool allChannelsRecovered() const = 0;
     static std::shared_ptr<UpstreamRecoveryTracker> forInputGate(std::shared_ptr<InputGate> inputGate);
     static std::shared_ptr<UpstreamRecoveryTracker> NO_OP();
@@ -26,17 +26,21 @@ public:
 
 class NoOpRecoveryTracker : public UpstreamRecoveryTracker {
 public:
-    void handleEndOfRecovery(const InputChannelInfo&) override {}
-    bool allChannelsRecovered() const override {return true;}
+    void handleEndOfRecovery(const InputChannelInfo&) override
+    {
+    }
+    bool allChannelsRecovered() const override
+    {
+        return true;
+    }
 };
 
 class UpstreamRecoveryTrackerImpl : public UpstreamRecoveryTracker {
 public:
-    UpstreamRecoveryTrackerImpl(std::shared_ptr<InputGate> inputGate)
-        : inputGate_(std::move(inputGate))
-        {
-            numUnrestoredChannels_ = inputGate_->GetNumberOfInputChannels();
-        }
+    UpstreamRecoveryTrackerImpl(std::shared_ptr<InputGate> inputGate) : inputGate_(std::move(inputGate))
+    {
+        numUnrestoredChannels_ = inputGate_->GetNumberOfInputChannels();
+    }
 
     void handleEndOfRecovery(const InputChannelInfo& channelInfo) override
     {
@@ -48,9 +52,9 @@ public:
             }
             --numUnrestoredChannels_;
             if (numUnrestoredChannels_ == 0) {
-//                for (const auto& info : inputGate_->getChannelInfos()) {
-//                    inputGate_->ResumeConsumption(info);
-//                }
+                //                for (const auto& info : inputGate_->getChannelInfos()) {
+                //                    inputGate_->ResumeConsumption(info);
+                //                }
                 restoredChannels_.clear();
             }
         }
@@ -67,7 +71,8 @@ private:
     std::shared_ptr<InputGate> inputGate_;
 };
 
-inline std::shared_ptr<UpstreamRecoveryTracker> UpstreamRecoveryTracker::forInputGate(std::shared_ptr<InputGate> inputGate)
+inline std::shared_ptr<UpstreamRecoveryTracker> UpstreamRecoveryTracker::forInputGate(
+    std::shared_ptr<InputGate> inputGate)
 {
     return std::make_shared<UpstreamRecoveryTrackerImpl>(inputGate);
 }
@@ -78,6 +83,6 @@ inline std::shared_ptr<UpstreamRecoveryTracker> UpstreamRecoveryTracker::NO_OP()
     return instance;
 }
 
-}
+} // namespace omnistream
 
 #endif // OMNISTREAM_CHECKPOINTEDINPUTGATE_H

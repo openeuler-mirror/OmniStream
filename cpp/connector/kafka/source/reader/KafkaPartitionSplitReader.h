@@ -12,7 +12,6 @@
 #ifndef FLINK_TNEL_KAFKAPARTITIONSPLITREADER_H
 #define FLINK_TNEL_KAFKAPARTITIONSPLITREADER_H
 
-
 #include <chrono>
 #include <iostream>
 #include <memory>
@@ -62,8 +61,8 @@ public:
             records = consumerRecords->records(currentTopicPartition);
             auto it = stoppingOffsets.find(currentTopicPartition);
             currentSplitStoppingOffset = (it != stoppingOffsets.end()) ? it->second : std::numeric_limits<long>::max();
-            const std::string &result = currentTopicPartition->topic()
-                                        + "-" + std::to_string(currentTopicPartition->partition());
+            const std::string& result =
+                currentTopicPartition->topic() + "-" + std::to_string(currentTopicPartition->partition());
             ++splitIterator;
             return result;
         } else {
@@ -107,6 +106,7 @@ public:
     {
         return finishedSplits_;
     }
+
 private:
     std::set<std::string> finishedSplits_;
     std::unordered_map<RdKafka::TopicPartition*, long, TopicPartitionHash, TopicPartitionComparator> stoppingOffsets;
@@ -121,8 +121,7 @@ private:
 
 class KafkaPartitionSplitReader : public SplitReader<RdKafka::Message, KafkaPartitionSplit> {
 public:
-    KafkaPartitionSplitReader(const std::unordered_map<std::string, std::string>& props,
-                              SourceReaderContext* context);
+    KafkaPartitionSplitReader(const std::unordered_map<std::string, std::string>& props, SourceReaderContext* context);
     ~KafkaPartitionSplitReader();
 
     RecordsWithSplitIds<RdKafka::Message>* fetch() override;
@@ -141,13 +140,12 @@ private:
     std::string createConsumerClientId(const std::unordered_map<std::string, std::string>& props);
     void setStartingOffsetForAssignment(KafkaPartitionSplit* split);
     void parseStoppingOffsets(
-            KafkaPartitionSplit* split,
-            std::vector<std::shared_ptr<RdKafka::TopicPartition>>& partitionsStoppingAtLatest,
-            std::vector<std::shared_ptr<RdKafka::TopicPartition>>& partitionsStoppingAtCommitted
-    );
+        KafkaPartitionSplit* split,
+        std::vector<std::shared_ptr<RdKafka::TopicPartition>>& partitionsStoppingAtLatest,
+        std::vector<std::shared_ptr<RdKafka::TopicPartition>>& partitionsStoppingAtCommitted);
     void acquireAndSetStoppingOffsets(
-            std::vector<std::shared_ptr<RdKafka::TopicPartition>>& partitionsStoppingAtLatest,
-            std::vector<std::shared_ptr<RdKafka::TopicPartition>>& partitionsStoppingAtCommitted);
+        std::vector<std::shared_ptr<RdKafka::TopicPartition>>& partitionsStoppingAtLatest,
+        std::vector<std::shared_ptr<RdKafka::TopicPartition>>& partitionsStoppingAtCommitted);
     void removeEmptySplits();
     void maybeLogSplitChangesHandlingResult(const std::vector<KafkaPartitionSplit*>& splitsChange);
     void unassignPartitions(const std::vector<RdKafka::TopicPartition*>& partitionsToUnassign);

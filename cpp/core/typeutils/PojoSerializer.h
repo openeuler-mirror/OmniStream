@@ -20,9 +20,10 @@
 
 class PojoSerializer : public TypeSerializerSingleton {
 public:
-    PojoSerializer(std::string clazz,
-                   std::vector<TypeSerializer*> fieldSerializers,
-                   std::vector<std::string> fields) : fieldSerializers(fieldSerializers), clazz(clazz), fields(fields)
+    PojoSerializer(std::string clazz, std::vector<TypeSerializer*> fieldSerializers, std::vector<std::string> fields)
+        : fieldSerializers(fieldSerializers),
+          clazz(clazz),
+          fields(fields)
     {
         numFields = fieldSerializers.size();
         if (ClassRegistry::instance().hasRegistry(clazz)) {
@@ -33,21 +34,21 @@ public:
 
     ~PojoSerializer() override
     {
-        for (auto &serializer : fieldSerializers) {
+        for (auto& serializer : fieldSerializers) {
             delete serializer;
         }
     }
 
-    void* deserialize(DataInputView &source) override
+    void* deserialize(DataInputView& source) override
     {
-        NOT_IMPL_EXCEPTION
+        NOT_IMPL_EXCEPTION;
     }
-    void serialize(void* record, DataOutputSerializer &target) override
+    void serialize(void* record, DataOutputSerializer& target) override
     {
-        NOT_IMPL_EXCEPTION
+        NOT_IMPL_EXCEPTION;
     }
-    void serialize(Object* buffer, DataOutputSerializer &target) override;
-    void deserialize(Object* buffer, DataInputView &source) override;
+    void serialize(Object* buffer, DataOutputSerializer& target) override;
+    void deserialize(Object* buffer, DataInputView& source) override;
     const char* getName() const override
     {
         return "PojoSerializer";
@@ -64,14 +65,15 @@ public:
 
     std::string toJson() override
     {
-        SerializerJsonInfo typeJson = {SerializerType::POJO, clazz, nullptr, nullptr, nullptr, registeredSerializers, fields};
+        SerializerJsonInfo typeJson = {
+            SerializerType::POJO, clazz, nullptr, nullptr, nullptr, registeredSerializers, fields};
         return typeJson.toJson();
     }
 
 private:
     TypeSerializer* getSubclassSerializer(const std::string& subclass);
-    TypeSerializer* getSubclassSerializer(uint8_t flags, DataInputView &source);
-    void deserializeFields(Object* buffer, DataInputView &source);
+    TypeSerializer* getSubclassSerializer(uint8_t flags, DataInputView& source);
+    void deserializeFields(Object* buffer, DataInputView& source);
     TypeSerializer* createSubclassSerializer(const std::string& subclass);
     static const int8_t IS_NULL = 1;
     static const int8_t NO_SUBCLASS = 2;

@@ -114,12 +114,11 @@ std::string Q12description = R"DELIM(
 }
 )DELIM";
 
-
-omnistream::VectorBatch* newVectorBatchOneKeyOneValueQ12Test1() {
+omnistream::VectorBatch* newVectorBatchOneKeyOneValueQ12Test1()
+{
     auto* vbatch = new omnistream::VectorBatch(9);
-    std::vector<int64_t> bids = {2001,2003,2001,2003,2002,2004,2002,2005,2001};
+    std::vector<int64_t> bids = {2001, 2003, 2001, 2003, 2002, 2004, 2002, 2005, 2001};
     std::vector<int64_t> timeStamps = {1789000, 1789000, 1789000, 1789000, 1789000, 1788000, 1788000, 1789000, 1789000};
-
 
     vbatch->Append(omniruntime::TestUtil::CreateVector<int64_t>(9, bids.data()));
     vbatch->Append(omniruntime::TestUtil::CreateVector<int64_t>(9, timeStamps.data()));
@@ -129,29 +128,29 @@ omnistream::VectorBatch* newVectorBatchOneKeyOneValueQ12Test1() {
     vbatch->setRowKind(2, RowKind::INSERT);
     vbatch->setRowKind(3, RowKind::INSERT);
     vbatch->setRowKind(4, RowKind::INSERT);
-	vbatch->setRowKind(5, RowKind::INSERT);
-	vbatch->setRowKind(6, RowKind::INSERT);
-	vbatch->setRowKind(7, RowKind::INSERT);
-	vbatch->setRowKind(8, RowKind::INSERT);
+    vbatch->setRowKind(5, RowKind::INSERT);
+    vbatch->setRowKind(6, RowKind::INSERT);
+    vbatch->setRowKind(7, RowKind::INSERT);
+    vbatch->setRowKind(8, RowKind::INSERT);
     return vbatch;
 }
 
-TEST(NEXTMARKTESTQ12, DISABLED_COUNTTEST) {
+TEST(NEXTMARKTESTQ12, DISABLED_COUNTTEST)
+{
     omnistream::VectorBatch* vbatch = newVectorBatchOneKeyOneValueQ12Test1();
 
-    //Operator description
+    // Operator description
     std::string uniqueName = "org.apache.flink.table.runtime.operators.window.slicing.SlicingWindowOperator";
     json parsedJson = json::parse(Q12description);
     omnistream::OperatorConfig opConfig(
-            uniqueName, //uniqueName:
-            "GlobalWindowAgg_By_Simple", //Name
-            parsedJson["operators"][0]["inputTypes"],
-            parsedJson["operators"][0]["outputTypes"],
-            parsedJson["operators"][0]["description"]
-    );
-    auto *output = new BatchOutputTest();
+        uniqueName,                  // uniqueName:
+        "GlobalWindowAgg_By_Simple", // Name
+        parsedJson["operators"][0]["inputTypes"],
+        parsedJson["operators"][0]["outputTypes"],
+        parsedJson["operators"][0]["description"]);
+    auto* output = new BatchOutputTest();
     auto* slicingWindowOperator = dynamic_cast<SlicingWindowOperator<std::shared_ptr<RowData>, int64_t>*>(
-            StreamOperatorFactory::createOperatorAndCollector(opConfig, output));
+        StreamOperatorFactory::createOperatorAndCollector(opConfig, output));
     auto env2 = new omnistream::RuntimeEnvironmentV2();
     auto taskInfo = new TaskInformationPOD();
     taskInfo->setStateBackend("HashMapStateBackend");
@@ -164,15 +163,15 @@ TEST(NEXTMARKTESTQ12, DISABLED_COUNTTEST) {
     }
     env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
-    StreamTaskStateInitializerImpl *initializer = new StreamTaskStateInitializerImpl(env2);
+    StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
     slicingWindowOperator->setup();
     slicingWindowOperator->initializeState(initializer, new LongSerializer());
     slicingWindowOperator->open();
     slicingWindowOperator->processBatch(vbatch);
 
-	std::this_thread::sleep_for(std::chrono::seconds(15));
+    std::this_thread::sleep_for(std::chrono::seconds(15));
     std::cout << "==========================================================" << std::endl;
-    auto* resultBatch = reinterpret_cast<omnistream::VectorBatch*> (output->getVectorBatch());
+    auto* resultBatch = reinterpret_cast<omnistream::VectorBatch*>(output->getVectorBatch());
     // print VectorBatch
     int rowCount = resultBatch->GetRowCount();
     int colCount = resultBatch->GetVectorCount();

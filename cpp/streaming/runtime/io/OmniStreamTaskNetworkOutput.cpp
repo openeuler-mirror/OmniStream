@@ -13,9 +13,10 @@
 #include "runtime/metrics/Counter.h"
 
 namespace omnistream {
-    OmniStreamTaskNetworkOutput::OmniStreamTaskNetworkOutput(
-            OneInputStreamOperator* operator_,
-        std::shared_ptr<omnistream::SimpleCounter> & numRecordsIn)
-        : operator_(operator_), numRecordsIn(numRecordsIn) {
-    }
+OmniStreamTaskNetworkOutput::OmniStreamTaskNetworkOutput(
+    OneInputStreamOperator* operator_, std::shared_ptr<omnistream::SimpleCounter>& numRecordsIn)
+    : operator_(operator_),
+      numRecordsIn(numRecordsIn)
+{
 }
+} // namespace omnistream

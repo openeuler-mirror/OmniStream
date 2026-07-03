@@ -52,15 +52,16 @@ template <typename K>
 class RocksDBHeapTimersFullRestoreOperation : public RocksDBRestoreOperation {
 public:
     RocksDBHeapTimersFullRestoreOperation(
-        KeyGroupRange *keyGroupRange,
+        KeyGroupRange* keyGroupRange,
         int numberOfKeyGroups,
         std::shared_ptr<TypeSerializer> keySerializer,
-        std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>> *kvStateInformation,
-        std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapperBase>>> registeredPQStates,
-        fs::path &instanceRocksDBPath,
+        std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation,
+        std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapperBase>>>
+            registeredPQStates,
+        fs::path& instanceRocksDBPath,
         std::shared_ptr<rocksdb::DBOptions> dbOptions,
-        std::function<rocksdb::ColumnFamilyOptions(const std::string &)> columnFamilyOptionsFactory,
-        const std::vector<std::shared_ptr<KeyedStateHandle>> &restoreStateHandles,
+        std::function<rocksdb::ColumnFamilyOptions(const std::string&)> columnFamilyOptionsFactory,
+        const std::vector<std::shared_ptr<KeyedStateHandle>>& restoreStateHandles,
         long writeBatchSize,
         std::shared_ptr<OmniTaskBridge> omniTaskBridge);
 
@@ -69,12 +70,13 @@ public:
     std::shared_ptr<RocksDBRestoreResult> restore() override;
 
 private:
-    KeyGroupRange *keyGroupRange_;
+    KeyGroupRange* keyGroupRange_;
     int numberOfKeyGroups_;
     int keyGroupPrefixBytes_;
     long writeBatchSize_;
 
-    std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapperBase>>> registeredPQStates_;
+    std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapperBase>>>
+        registeredPQStates_;
     std::unique_ptr<FullSnapshotRestoreOperation<K>> savepointRestoreOperation_;
     std::unique_ptr<RocksDbHandle> rocksDbHandle_;
 
@@ -82,24 +84,25 @@ private:
 
     void restoreKVStateData(
         std::shared_ptr<KeyGroupIterator> keyGroups,
-        std::unordered_map<int, rocksdb::ColumnFamilyHandle *> columnFamilyHandles,
+        std::unordered_map<int, rocksdb::ColumnFamilyHandle*> columnFamilyHandles,
         std::unordered_map<int, std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapperBase>> restoredPQStates);
 
     std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapperBase> getOrCreatePendingPriorityQueueState(
-        const StateMetaInfoSnapshot &restoredMetaInfo);
+        const StateMetaInfoSnapshot& restoredMetaInfo);
 };
 
 template <typename K>
 RocksDBHeapTimersFullRestoreOperation<K>::RocksDBHeapTimersFullRestoreOperation(
-    KeyGroupRange *keyGroupRange,
+    KeyGroupRange* keyGroupRange,
     int numberOfKeyGroups,
     std::shared_ptr<TypeSerializer> keySerializer,
-    std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>> *kvStateInformation,
-    std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapperBase>>> registeredPQStates,
-    fs::path &instanceRocksDBPath,
+    std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation,
+    std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapperBase>>>
+        registeredPQStates,
+    fs::path& instanceRocksDBPath,
     std::shared_ptr<rocksdb::DBOptions> dbOptions,
-    std::function<rocksdb::ColumnFamilyOptions(const std::string &)> columnFamilyOptionsFactory,
-    const std::vector<std::shared_ptr<KeyedStateHandle>> &restoreStateHandles,
+    std::function<rocksdb::ColumnFamilyOptions(const std::string&)> columnFamilyOptionsFactory,
+    const std::vector<std::shared_ptr<KeyedStateHandle>>& restoreStateHandles,
     long writeBatchSize,
     std::shared_ptr<OmniTaskBridge> omniTaskBridge)
     : keyGroupRange_(keyGroupRange),
@@ -108,20 +111,15 @@ RocksDBHeapTimersFullRestoreOperation<K>::RocksDBHeapTimersFullRestoreOperation(
       writeBatchSize_(writeBatchSize),
       registeredPQStates_(std::move(registeredPQStates))
 {
-    rocksDbHandle_ = std::make_unique<RocksDbHandle>(
-        kvStateInformation,
-        instanceRocksDBPath,
-        dbOptions,
-        columnFamilyOptionsFactory);
+    rocksDbHandle_ =
+        std::make_unique<RocksDbHandle>(kvStateInformation, instanceRocksDBPath, dbOptions, columnFamilyOptionsFactory);
 
     savepointRestoreOperation_ = std::make_unique<FullSnapshotRestoreOperation<K>>(
-        keyGroupRange,
-        restoreStateHandles,
-        keySerializer,
-        omniTaskBridge);
+        keyGroupRange, restoreStateHandles, keySerializer, omniTaskBridge);
 
     if (registeredPQStates_ == nullptr) {
-        registeredPQStates_ = std::make_shared<std::unordered_map<std::string, std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapperBase>>>();
+        registeredPQStates_ = std::make_shared<
+            std::unordered_map<std::string, std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapperBase>>>();
     }
 }
 
@@ -139,55 +137,48 @@ std::shared_ptr<RocksDBRestoreResult> RocksDBHeapTimersFullRestoreOperation<K>::
     UUID emptyUid{};
     std::map<long, std::vector<IncrementalKeyedStateHandle::HandleAndLocalPath>> emptyMap{};
     auto end = std::chrono::high_resolution_clock::now();
-    INFO_RELEASE("RocksDBHeapTimersFullRestoreOperation: restore took "
+    INFO_RELEASE(
+        "RocksDBHeapTimersFullRestoreOperation: restore took "
         << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count()
         << " ms, pendingPQStates=" << registeredPQStates_->size());
 
     return std::make_shared<RocksDBRestoreResult>(
-        rocksDbHandle_->getDb(),
-        rocksDbHandle_->getDefaultColumnFamilyHandle(),
-        -1L,
-        emptyUid,
-        emptyMap);
+        rocksDbHandle_->getDb(), rocksDbHandle_->getDefaultColumnFamilyHandle(), -1L, emptyUid, emptyMap);
 }
 
 template <typename K>
 void RocksDBHeapTimersFullRestoreOperation<K>::applyRestoreResult(
     std::unique_ptr<SavepointRestoreResult> savepointRestoreResult)
 {
-    const std::vector<StateMetaInfoSnapshot> &restoredMetaInfos =
-        savepointRestoreResult->getStateMetaInfoSnapshots();
+    const std::vector<StateMetaInfoSnapshot>& restoredMetaInfos = savepointRestoreResult->getStateMetaInfoSnapshots();
 
-    std::unordered_map<int, rocksdb::ColumnFamilyHandle *> columnFamilyHandles;
+    std::unordered_map<int, rocksdb::ColumnFamilyHandle*> columnFamilyHandles;
     std::unordered_map<int, std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapperBase>> restoredPQStates;
 
     for (size_t i = 0; i < restoredMetaInfos.size(); i++) {
-        const StateMetaInfoSnapshot &restoredMetaInfo = restoredMetaInfos[i];
+        const StateMetaInfoSnapshot& restoredMetaInfo = restoredMetaInfos[i];
         if (restoredMetaInfo.getBackendStateType() == StateMetaInfoSnapshot::BackendStateType::PRIORITY_QUEUE) {
             auto restoredPQ = getOrCreatePendingPriorityQueueState(restoredMetaInfo);
             restoredPQStates.emplace(static_cast<int>(i), restoredPQ);
-            INFO_RELEASE("RocksDBHeapTimersFullRestoreOperation: discovered PRIORITY_QUEUE state '"
-                << restoredMetaInfo.getName() << "' at kvStateId=" << i);
+            INFO_RELEASE(
+                "RocksDBHeapTimersFullRestoreOperation: discovered PRIORITY_QUEUE state '" << restoredMetaInfo.getName()
+                                                                                           << "' at kvStateId=" << i);
             continue;
         }
 
-        auto registeredStateCFHandle =
-            rocksDbHandle_->getOrRegisterStateColumnFamilyHandle(nullptr, restoredMetaInfo);
+        auto registeredStateCFHandle = rocksDbHandle_->getOrRegisterStateColumnFamilyHandle(nullptr, restoredMetaInfo);
         columnFamilyHandles.emplace(static_cast<int>(i), registeredStateCFHandle->columnFamilyHandle_);
     }
 
-    restoreKVStateData(
-        savepointRestoreResult->getKeyGroupIterator(),
-        columnFamilyHandles,
-        restoredPQStates);
+    restoreKVStateData(savepointRestoreResult->getKeyGroupIterator(), columnFamilyHandles, restoredPQStates);
 }
 
 template <typename K>
 std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapperBase>
 RocksDBHeapTimersFullRestoreOperation<K>::getOrCreatePendingPriorityQueueState(
-    const StateMetaInfoSnapshot &restoredMetaInfo)
+    const StateMetaInfoSnapshot& restoredMetaInfo)
 {
-    const std::string &stateName = restoredMetaInfo.getName();
+    const std::string& stateName = restoredMetaInfo.getName();
     auto existing = registeredPQStates_->find(stateName);
     if (existing != registeredPQStates_->end()) {
         return existing->second;
@@ -202,13 +193,13 @@ RocksDBHeapTimersFullRestoreOperation<K>::getOrCreatePendingPriorityQueueState(
 template <typename K>
 void RocksDBHeapTimersFullRestoreOperation<K>::restoreKVStateData(
     std::shared_ptr<KeyGroupIterator> keyGroups,
-    std::unordered_map<int, rocksdb::ColumnFamilyHandle *> columnFamilyHandles,
+    std::unordered_map<int, rocksdb::ColumnFamilyHandle*> columnFamilyHandles,
     std::unordered_map<int, std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapperBase>> restoredPQStates)
 {
     std::unique_ptr<RocksDBWriteBatchWrapper> rocksDbWriteBatchWrapper =
         std::make_unique<RocksDBWriteBatchWrapper>(rocksDbHandle_->getDb(), writeBatchSize_);
 
-    rocksdb::ColumnFamilyHandle *handle = nullptr;
+    rocksdb::ColumnFamilyHandle* handle = nullptr;
     std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapperBase> restoredPQ;
     int oldKvStateId = -1;
     int restoredKvEntries = 0;
@@ -237,23 +228,26 @@ void RocksDBHeapTimersFullRestoreOperation<K>::restoreKVStateData(
             }
 
             if (handle != nullptr) {
-                rocksdb::Slice key(reinterpret_cast<const char *>(groupEntry.getKey().data()),
-                    groupEntry.getKey().size());
-                rocksdb::Slice value(reinterpret_cast<const char *>(groupEntry.getValue().data()),
-                    groupEntry.getValue().size());
+                rocksdb::Slice key(
+                    reinterpret_cast<const char*>(groupEntry.getKey().data()), groupEntry.getKey().size());
+                rocksdb::Slice value(
+                    reinterpret_cast<const char*>(groupEntry.getValue().data()), groupEntry.getValue().size());
                 rocksDbWriteBatchWrapper->Put(handle, key, value);
                 restoredKvEntries++;
                 continue;
             }
 
-            INFO_RELEASE("Error: restoreKVStateData Unknown savepoint state id during RocksDB heap timers restore: " << kvStateId);
-            THROW_LOGIC_EXCEPTION("Unknown savepoint state id during RocksDB heap timers restore: " << kvStateId)
+            INFO_RELEASE(
+                "Error: restoreKVStateData Unknown savepoint state id during RocksDB heap timers restore: "
+                << kvStateId);
+            THROW_LOGIC_EXCEPTION("Unknown savepoint state id during RocksDB heap timers restore: " << kvStateId);
         }
     }
 
     rocksDbWriteBatchWrapper->Flush();
-    INFO_RELEASE("RocksDBHeapTimersFullRestoreOperation: restored KV entries=" << restoredKvEntries
-        << ", pending PQ entries=" << restoredPQEntries);
+    INFO_RELEASE(
+        "RocksDBHeapTimersFullRestoreOperation: restored KV entries=" << restoredKvEntries
+                                                                      << ", pending PQ entries=" << restoredPQEntries);
 }
 
 #endif // OMNISTREAM_ROCKSDBHEAPTIMERSFULLRESTOREOPERATION_H

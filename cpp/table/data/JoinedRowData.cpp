@@ -13,13 +13,28 @@
 #include <stdexcept>
 
 JoinedRowData::JoinedRowData()
-    : RowData(RowData::JoinedRowDataID), rowKind(RowKind::INSERT), row1(nullptr), row2(nullptr) {}
+    : RowData(RowData::JoinedRowDataID),
+      rowKind(RowKind::INSERT),
+      row1(nullptr),
+      row2(nullptr)
+{
+}
 
 JoinedRowData::JoinedRowData(RowData* row1_, RowData* row2_)
-    : RowData(RowData::JoinedRowDataID), rowKind(RowKind::INSERT), row1(row1_), row2(row2_) {}
+    : RowData(RowData::JoinedRowDataID),
+      rowKind(RowKind::INSERT),
+      row1(row1_),
+      row2(row2_)
+{
+}
 
 JoinedRowData::JoinedRowData(RowKind rowKind_, RowData* row1_, RowData* row2_)
-    : RowData(RowData::JoinedRowDataID), rowKind(rowKind_), row1(row1_), row2(row2_) {}
+    : RowData(RowData::JoinedRowDataID),
+      rowKind(rowKind_),
+      row1(row1_),
+      row2(row2_)
+{
+}
 
 JoinedRowData* JoinedRowData::replace(RowData* row1_, RowData* row2_)
 {
@@ -31,13 +46,13 @@ JoinedRowData* JoinedRowData::replace(RowData* row1_, RowData* row2_)
 int JoinedRowData::getArity()
 {
     if (!row1 && !row2) {
-        INFO_RELEASE("both rows are null")
+        INFO_RELEASE("both rows are null");
         throw std::runtime_error("rows are null");
     } else if (!row1 && row2) {
-        INFO_RELEASE("row1 is null")
+        INFO_RELEASE("row1 is null");
         return row2->getArity();
     } else if (!row2 && row1) {
-        INFO_RELEASE("row2 is null")
+        INFO_RELEASE("row2 is null");
         return row1->getArity();
     }
     return row1->getArity() + row2->getArity();
@@ -56,14 +71,14 @@ void JoinedRowData::setRowKind(RowKind kind)
 bool JoinedRowData::isNullAt(int pos)
 {
     if (!row1) {
-        INFO_RELEASE("row1 is null")
+        INFO_RELEASE("row1 is null");
         return true;
     }
     if (pos < row1->getArity()) {
         return row1->isNullAt(pos);
     } else {
         if (!row2) {
-            INFO_RELEASE("row2 is null")
+            INFO_RELEASE("row2 is null");
             return true;
         }
         return row2->isNullAt(pos - row1->getArity());
@@ -87,7 +102,7 @@ long* JoinedRowData::getLong(int pos)
     }
 }
 
-bool *JoinedRowData::getBool(int pos)
+bool* JoinedRowData::getBool(int pos)
 {
     if (pos < row1->getArity()) {
         return row1->getBool(pos);
@@ -96,12 +111,12 @@ bool *JoinedRowData::getBool(int pos)
     }
 }
 
-RowData *JoinedRowData::getRow1()
+RowData* JoinedRowData::getRow1()
 {
     return row1;
 }
- 
-RowData *JoinedRowData::getRow2()
+
+RowData* JoinedRowData::getRow2()
 {
     return row2;
 }
@@ -124,7 +139,7 @@ TimestampData JoinedRowData::getTimestampPrecise(int pos)
     }
 }
 
-int *JoinedRowData::getInt(int pos)
+int* JoinedRowData::getInt(int pos)
 {
     if (pos < row1->getArity()) {
         return row1->getInt(pos);
@@ -138,19 +153,19 @@ int JoinedRowData::hashCode() const
     return hash_combine(row1->hashCode(), row2->hashCode());
 }
 
-bool JoinedRowData::operator==(const RowData &other) const
+bool JoinedRowData::operator==(const RowData& other) const
 {
     // Check for self-reference
     if (this == &other) {
         return true;
     }
-    
+
     auto castedOther = dynamic_cast<const JoinedRowData*>(&other);
     if (castedOther == nullptr) {
         // If it is not compared to a BinaryRowData return false directly
         return false;
     }
-    
+
     return this->row1 == castedOther->row1 && this->row2 == castedOther->row2;
 }
 
@@ -172,16 +187,16 @@ void JoinedRowData::setInt(int pos, int value)
     }
 }
 
-void JoinedRowData::setTimestamp(int pos, const TimestampData &value, int precision)
+void JoinedRowData::setTimestamp(int pos, const TimestampData& value, int precision)
 {
     if (pos < row1->getArity()) {
         row1->setTimestamp(pos, value, precision);
     } else {
-        row2->setTimestamp(pos- row1->getArity(), value, precision);
+        row2->setTimestamp(pos - row1->getArity(), value, precision);
     }
 }
 
-void JoinedRowData::setString(int pos, BinaryStringData *value)
+void JoinedRowData::setString(int pos, BinaryStringData* value)
 {
     if (pos < row1->getArity()) {
         row1->setString(pos, value);

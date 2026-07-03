@@ -26,7 +26,10 @@
 class CsvTableSource {
 public:
     CsvTableSource(std::string filepath, std::vector<std::string> fieldTypeStrs)
-        :fieldTypeStrs(fieldTypeStrs), filepath(filepath) {}
+        : fieldTypeStrs(fieldTypeStrs),
+          filepath(filepath)
+    {
+    }
     size_t countCsvRows();
     std::string getFilePath() const
     {
@@ -36,28 +39,28 @@ public:
     {
         return fieldTypeStrs;
     }
+
 private:
     std::vector<std::string> fieldTypeStrs;
     std::string filepath;
 };
 
-template<typename T>
-inline void CsvStrConverterFunc(const std::string &inStr, omniruntime::vec::BaseVector *vec, int rowIndex)
+template <typename T>
+inline void CsvStrConverterFunc(const std::string& inStr, omniruntime::vec::BaseVector* vec, int rowIndex)
 {
     // todo: implement it for all dataTypes
     if constexpr (std::is_same_v<int64_t, T>) {
-        static_cast<omniruntime::vec::Vector<int64_t>* >(vec)->SetValue(rowIndex, std::stol(inStr));
+        static_cast<omniruntime::vec::Vector<int64_t>*>(vec)->SetValue(rowIndex, std::stol(inStr));
     } else if constexpr (std::is_same_v<int32_t, T>) {
-        static_cast<omniruntime::vec::Vector<int32_t>* >(vec)->SetValue(rowIndex, std::stoi(inStr));
+        static_cast<omniruntime::vec::Vector<int32_t>*>(vec)->SetValue(rowIndex, std::stoi(inStr));
     } else if constexpr (std::is_same_v<std::string_view, T>) {
         std::string_view inStrView(inStr.data(), inStr.size());
         using VarcharVecType = omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>;
-        static_cast<VarcharVecType* >(vec)->SetValue(rowIndex, inStrView);
+        static_cast<VarcharVecType*>(vec)->SetValue(rowIndex, inStrView);
     }
 }
 
-
-template<typename K>
+template <typename K>
 class CsvLookupFunction {
 public:
     ~CsvLookupFunction()
@@ -66,7 +69,7 @@ public:
     }
 
     // The lookup op description
-    CsvLookupFunction(const nlohmann::json& description, CsvTableSource *src) : description(description), src (src)
+    CsvLookupFunction(const nlohmann::json& description, CsvTableSource* src) : description(description), src(src)
     {
         // prepare the csv side vectorbatch
         int hashRowCnt = src->countCsvRows();
@@ -84,7 +87,8 @@ public:
                 case omniruntime::type::OMNI_CHAR:
                 case omniruntime::type::OMNI_VARCHAR: {
                     csvStrConverters.push_back(CsvStrConverterFunc<std::string_view>);
-                    using VarcharVecType = omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>;
+                    using VarcharVecType =
+                        omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>;
                     auto vec = new VarcharVecType(hashRowCnt);
                     csvDataVecBatch->Append(vec);
                     break;
@@ -97,8 +101,7 @@ public:
                     csvDataVecBatch->Append(vec);
                     break;
                 }
-                default:
-                    std::runtime_error("not supported type");
+                default: std::runtime_error("not supported type");
             }
         }
         // At this point, the CsvDataVecBatch is still empty
@@ -109,14 +112,14 @@ public:
     {
         auto lookupKeys = description["lookupKeys"];
         auto selectedFields = description["selectedFields"].get<std::vector<int>>();
-        for (const auto &[key, value]: lookupKeys.items()) {
+        for (const auto& [key, value] : lookupKeys.items()) {
             // Key from the input side
             sourceKeys.push_back(value["index"]);
             int targetIdx = std::stoi(key);
             if (targetIdx == -1) {
                 throw std::runtime_error("CsvLookupFunction open: targetIdx is -1");
             }
-            
+
             // Key from filesystem side
             targetKeys.push_back(targetIdx);
         }
@@ -125,12 +128,12 @@ public:
         }
 
         int32_t hashKeyIndex = targetKeys[0];
-        if (src->getTableFieldTypes()[hashKeyIndex] != "BIGINT"
-        && src->getTableFieldTypes()[hashKeyIndex] != "BIGINT NOT NULL") {
-            NOT_IMPL_EXCEPTION
+        if (src->getTableFieldTypes()[hashKeyIndex] != "BIGINT" &&
+            src->getTableFieldTypes()[hashKeyIndex] != "BIGINT NOT NULL") {
+            NOT_IMPL_EXCEPTION;
         }
 
-            // Read line by line and construct the dataMap
+        // Read line by line and construct the dataMap
         std::ifstream file(src->getFilePath());
         int32_t irow = 0;
         std::string line;
@@ -162,18 +165,18 @@ public:
     }
 
     // Used for testing
-    std::vector<int32_t> &getTestFunc(K key)
+    std::vector<int32_t>& getTestFunc(K key)
     {
         return dataMap[key];
     }
 
     // Search for matched rows and convert these rows to a vector batch
     // Here collector is the TableFunctionCollector from FlatMapFunction
-    void eval(omnistream::VectorBatch *vb, Collector *collector)
+    void eval(omnistream::VectorBatch* vb, Collector* collector)
     {
         int32_t totRowCnt = 0;
         // vb'w rowId and hashside's rowIds
-        auto probekeyCol = reinterpret_cast<omniruntime::vec::Vector<K>* > (vb->GetVectors()[sourceKeys[0]]);
+        auto probekeyCol = reinterpret_cast<omniruntime::vec::Vector<K>*>(vb->GetVectors()[sourceKeys[0]]);
         // Get matched rows and build output as a vector batch
         int32_t rowCount = vb->GetRowCount();
         // i-th row from probe is matched with a vector of csv rows
@@ -192,14 +195,13 @@ public:
     }
 
 private:
-    omnistream::VectorBatch *buildOutput(omnistream::VectorBatch *vb,
-                                         std::vector<std::tuple<int32_t*, int32_t>> &matchedRows,
-                                         int32_t totRowCnt)
+    omnistream::VectorBatch* buildOutput(
+        omnistream::VectorBatch* vb, std::vector<std::tuple<int32_t*, int32_t>>& matchedRows, int32_t totRowCnt)
     {
         // In matchedRows, it stores {probe_row_index : {vector of matched csv row indices}}
         auto output = new omnistream::VectorBatch(totRowCnt);
         // build the probe side, it is written as the left side in output
-        omniruntime::vec::BaseVector *outCol = nullptr;
+        omniruntime::vec::BaseVector* outCol = nullptr;
         BuildProbeOutput(vb, matchedRows, totRowCnt, output, outCol);
         // build the hash side
         BuildHashOutput(vb, matchedRows, totRowCnt, output, outCol);
@@ -222,8 +224,12 @@ private:
         return output;
     };
 
-    void BuildProbeOutput(omnistream::VectorBatch *vb, std::vector<std::tuple<int32_t*, int32_t>> &matchedRows,
-                          int32_t totRowCnt, omnistream::VectorBatch* output, omniruntime::vec::BaseVector * outCol)
+    void BuildProbeOutput(
+        omnistream::VectorBatch* vb,
+        std::vector<std::tuple<int32_t*, int32_t>>& matchedRows,
+        int32_t totRowCnt,
+        omnistream::VectorBatch* output,
+        omniruntime::vec::BaseVector* outCol)
     {
         for (int icol = 0; icol < vb->GetVectorCount(); icol++) {
             auto typeId = vb->Get(icol)->GetTypeId();
@@ -238,18 +244,21 @@ private:
                     break;
                 case omniruntime::type::OMNI_VARCHAR:
                 case omniruntime::type::OMNI_CHAR:
-                    outCol = buildProbeOutputColumn
-                            <omniruntime::vec::LargeStringContainer<std::string_view>>(vb, matchedRows, totRowCnt, icol);
+                    outCol = buildProbeOutputColumn<omniruntime::vec::LargeStringContainer<std::string_view>>(
+                        vb, matchedRows, totRowCnt, icol);
                     break;
-                default:
-                    std::runtime_error("Type not supported!");
+                default: std::runtime_error("Type not supported!");
             }
             output->Append(outCol);
         }
     }
 
-    void BuildHashOutput(omnistream::VectorBatch *vb, std::vector<std::tuple<int32_t*, int32_t>> &matchedRows,
-                         int32_t totRowCnt, omnistream::VectorBatch* output, omniruntime::vec::BaseVector * outCol)
+    void BuildHashOutput(
+        omnistream::VectorBatch* vb,
+        std::vector<std::tuple<int32_t*, int32_t>>& matchedRows,
+        int32_t totRowCnt,
+        omnistream::VectorBatch* output,
+        omniruntime::vec::BaseVector* outCol)
     {
         for (size_t icol = 0; icol < src->getTableFieldTypes().size(); icol++) {
             auto typeId = LogicalType::flinkTypeToOmniTypeId(src->getTableFieldTypes()[icol]);
@@ -267,19 +276,18 @@ private:
                     outCol = buildHashOutputColumn<omniruntime::vec::LargeStringContainer<std::string_view>>(
                         matchedRows, totRowCnt, icol);
                     break;
-                default:
-                    std::runtime_error("Type not supported!");
+                default: std::runtime_error("Type not supported!");
             }
             output->Append(outCol);
         }
     }
 
-    template<typename T>
-    omniruntime::vec::Vector<T> *buildHashOutputColumn(std::vector<std::tuple<int32_t *, int32_t> > &matchedRows,
-                                                       int32_t totRowCnt, int colIndex)
+    template <typename T>
+    omniruntime::vec::Vector<T>* buildHashOutputColumn(
+        std::vector<std::tuple<int32_t*, int32_t>>& matchedRows, int32_t totRowCnt, int colIndex)
     {
         auto outVec = new omniruntime::vec::Vector<T>(totRowCnt);
-        auto inputCol = static_cast<omniruntime::vec::Vector<T> *> (csvDataVecBatch->Get(colIndex));
+        auto inputCol = static_cast<omniruntime::vec::Vector<T>*>(csvDataVecBatch->Get(colIndex));
 
         int32_t outRowIndex = 0;
         for (size_t probeRow = 0; probeRow < matchedRows.size(); probeRow++) {
@@ -287,7 +295,7 @@ private:
             if (targetRowsCnt == 0) {
                 continue; // no match found for this one
             }
-            int32_t *targetRowsIndices = std::get<0>(matchedRows[probeRow]);
+            int32_t* targetRowsIndices = std::get<0>(matchedRows[probeRow]);
             for (int32_t i = 0; i < targetRowsCnt; i++) {
                 auto value = inputCol->GetValue(targetRowsIndices[i]);
                 outVec->SetValue(outRowIndex++, value);
@@ -296,13 +304,15 @@ private:
         return outVec;
     }
 
-    template<typename T>
-    omniruntime::vec::Vector<T> *buildProbeOutputColumn(omnistream::VectorBatch *vb,
-                                                        std::vector<std::tuple<int32_t*, int32_t>> &matchedRows,
-                                                        int32_t totRowCnt, int colIndex)
+    template <typename T>
+    omniruntime::vec::Vector<T>* buildProbeOutputColumn(
+        omnistream::VectorBatch* vb,
+        std::vector<std::tuple<int32_t*, int32_t>>& matchedRows,
+        int32_t totRowCnt,
+        int colIndex)
     {
         auto outVec = new omniruntime::vec::Vector<T>(totRowCnt);
-        auto inputCol = static_cast<omniruntime::vec::Vector<T> *> (vb->Get(colIndex));
+        auto inputCol = static_cast<omniruntime::vec::Vector<T>*>(vb->Get(colIndex));
         int32_t rowIndex = 0;
         for (size_t probeRow = 0; probeRow < matchedRows.size(); probeRow++) {
             int32_t targetRowsCnt = std::get<1>(matchedRows[probeRow]);
@@ -323,8 +333,8 @@ private:
     std::vector<int32_t> sourceKeys; // probe side
     std::vector<int32_t> targetKeys; // hash side
     emhash7::HashMap<K, std::vector<int32_t>> dataMap;
-    omniruntime::vec::VectorBatch *csvDataVecBatch;
-    using GetFromStrAndSetToVB = void (*)(const std::string &, omniruntime::vec::BaseVector *, int);
+    omniruntime::vec::VectorBatch* csvDataVecBatch;
+    using GetFromStrAndSetToVB = void (*)(const std::string&, omniruntime::vec::BaseVector*, int);
     std::vector<GetFromStrAndSetToVB> csvStrConverters;
 };
 

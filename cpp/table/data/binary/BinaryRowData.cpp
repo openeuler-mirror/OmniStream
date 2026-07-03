@@ -52,17 +52,18 @@ bool BinaryRowData::isNullAt(int pos)
     return BinarySegmentUtils::bitGet(memoryBuffer, bufferCapacity, offset_, pos + HEADER_SIZE_IN_BITS);
 }
 
-long *BinaryRowData::getLong(int pos)
+long* BinaryRowData::getLong(int pos)
 {
     return MemorySegmentUtils::getLong(memoryBuffer, bufferCapacity, getFieldOffset(pos));
 }
 
-bool *BinaryRowData::getBool(int pos)
+bool* BinaryRowData::getBool(int pos)
 {
     return MemorySegmentUtils::getBool(memoryBuffer, bufferCapacity, getFieldOffset(pos));
 }
 
-omniruntime::type::Decimal128* BinaryRowData::getDecimal128(int pos, int precision) {
+omniruntime::type::Decimal128* BinaryRowData::getDecimal128(int pos, int precision)
+{
     if (precision <= 6) {
         auto value = MemorySegmentUtils::getBool(memoryBuffer, bufferCapacity, getFieldOffset(pos));
         return new omniruntime::type::Decimal128(*value);
@@ -71,20 +72,19 @@ omniruntime::type::Decimal128* BinaryRowData::getDecimal128(int pos, int precisi
     }
 }
 
-
 int BinaryRowData::calculateBitSetWidthInBytes(int arity)
 {
-    return ((arity + 63 + HEADER_SIZE_IN_BITS) >>6) <<3;
+    return ((arity + 63 + HEADER_SIZE_IN_BITS) >> 6) << 3;
 }
 
 int BinaryRowData::calculateFixPartSizeInBytes(int arity)
 {
-    return calculateBitSetWidthInBytes(arity) +  (arity<<3);
+    return calculateBitSetWidthInBytes(arity) + (arity << 3);
 }
 
 int BinaryRowData::getFixedLengthPartSize() const
 {
-    return nullBitsSizeInBytes_ + (arity_ <<3);
+    return nullBitsSizeInBytes_ + (arity_ << 3);
 }
 
 RowKind BinaryRowData::getRowKind()
@@ -107,22 +107,22 @@ void BinaryRowData::setNotNullAt(int i)
     MemorySegmentUtils::bitUnSet(memoryBuffer, bufferCapacity, offset_, i + HEADER_SIZE_IN_BITS);
 }
 
-BinaryRowData *BinaryRowData::createBinaryRowDataWithMem(int arity)
+BinaryRowData* BinaryRowData::createBinaryRowDataWithMem(int arity)
 {
     int length = calculateFixPartSizeInBytes(arity); // 1 is for the header byte
     auto binRow = new BinaryRowData(arity);
-    auto *bytes = new uint8_t[length]();
+    auto* bytes = new uint8_t[length]();
     binRow->own(bytes, 0, length, length);
     return binRow;
 }
 
-BinaryRowData *BinaryRowData::createRowFromSubJoinedRows(BinaryRowData * row1, BinaryRowData * row2)
+BinaryRowData* BinaryRowData::createRowFromSubJoinedRows(BinaryRowData* row1, BinaryRowData* row2)
 {
     int arity = row1->getArity() + row2->getArity();
     int length = calculateFixPartSizeInBytes(arity);
     auto binRow = new BinaryRowData(arity, length);
     for (int pos = 0; pos < arity; pos++) {
-        BinaryRowData *subRow = pos < row1->getArity() ? row1 : row2;
+        BinaryRowData* subRow = pos < row1->getArity() ? row1 : row2;
         int posInSubRow = pos < row1->getArity() ? pos : pos - row1->getArity();
         bool isNull = subRow->isNullAt(posInSubRow);
         if (isNull) {
@@ -146,7 +146,7 @@ void BinaryRowData::setLong(int pos, long value)
     types[pos] = 1;
 }
 
-void BinaryRowData::setLong(int pos, long *value)
+void BinaryRowData::setLong(int pos, long* value)
 {
     if (value == nullptr) {
         setNullAt(pos);
@@ -164,7 +164,7 @@ void BinaryRowData::setBool(int pos, bool value)
     types[pos] = 1;
 }
 
-void BinaryRowData::setBool(int pos, bool *value)
+void BinaryRowData::setBool(int pos, bool* value)
 {
     if (value == nullptr) {
         setNullAt(pos);
@@ -182,7 +182,8 @@ void BinaryRowData::setNullAt(int pos)
 
 TimestampData BinaryRowData::getTimestamp(int pos)
 {
-    return TimestampData::fromEpochMillis(*(MemorySegmentUtils::getLong(memoryBuffer, bufferCapacity, getFieldOffset(pos))));
+    return TimestampData::fromEpochMillis(
+        *(MemorySegmentUtils::getLong(memoryBuffer, bufferCapacity, getFieldOffset(pos))));
 }
 
 TimestampData BinaryRowData::getTimestampPrecise(int pos)
@@ -192,7 +193,7 @@ TimestampData BinaryRowData::getTimestampPrecise(int pos)
         *(MemorySegmentUtils::getInt(memoryBuffer, bufferCapacity, getFieldOffset(pos + 1))));
 }
 
-void BinaryRowData::setTimestamp(int pos, const TimestampData &value, int precision)
+void BinaryRowData::setTimestamp(int pos, const TimestampData& value, int precision)
 {
     if (TimestampData::isCompact(precision)) {
         setLong(pos, value.getMillisecond());
@@ -201,11 +202,11 @@ void BinaryRowData::setTimestamp(int pos, const TimestampData &value, int precis
         setLong(pos, value.getMillisecond());
         types[pos] = 1;
         setInt(pos + 1, value.getNanoOfMillisecond());
-        types[pos+1] = 1;
+        types[pos + 1] = 1;
     }
 }
 
-int *BinaryRowData::getInt(int pos)
+int* BinaryRowData::getInt(int pos)
 {
     return MemorySegmentUtils::getInt(memoryBuffer, bufferCapacity, getFieldOffset(pos));
 }
@@ -217,7 +218,7 @@ void BinaryRowData::setInt(int pos, int value)
     types[pos] = 1;
 }
 
-BinaryStringData *BinaryRowData::getString(int pos)
+BinaryStringData* BinaryRowData::getString(int pos)
 {
     int fieldOffset = getFieldOffset(pos);
     long offsetAndLen = *(MemorySegmentUtils::getLong(memoryBuffer, bufferCapacity, fieldOffset));
@@ -229,11 +230,14 @@ BinaryStringData *BinaryRowData::getString(int pos)
  *
  * Memory layout of VARCHAR column varies depending on the length of the content.
  *
- * Implementation of this function is based on implementation of `writeString` in "/flink/flink-table/flink-table-runtime/src/main/java/org/apache/flink/table/data/writer/AbstractBinaryWriter.java". Implementation of the following utility functions are also based on java implementation in `AbstractBinaryWriter` class
+ * Implementation of this function is based on implementation of `writeString` in
+ * "/flink/flink-table/flink-table-runtime/src/main/java/org/apache/flink/table/data/writer/AbstractBinaryWriter.java".
+ * Implementation of the following utility functions are also based on java implementation in `AbstractBinaryWriter`
+ * class
  *
  * Getter sees `readStringData` in "OmniFlink/cpp/table/data/binary/BinarySegmentUtils.cpp"
  */
-void BinaryRowData::setString(int pos, BinaryStringData *value)
+void BinaryRowData::setString(int pos, BinaryStringData* value)
 {
     setNotNullAt(pos);
     int len = value->getSizeInBytes();
@@ -257,10 +261,10 @@ void BinaryRowData::setStringView(int pos, std::string_view value)
     setNotNullAt(pos);
     auto len = value.size();
     if (len <= sizeof(int64_t) - 1) {
-        writeFixLenVarchar(getFieldOffset(pos), reinterpret_cast<const uint8_t *>(value.data()), len);
+        writeFixLenVarchar(getFieldOffset(pos), reinterpret_cast<const uint8_t*>(value.data()), len);
         types[pos] = 1;
     } else {
-        writeVarLenVarchar(getFieldOffset(pos), reinterpret_cast<const uint8_t *>(value.data()), len);
+        writeVarLenVarchar(getFieldOffset(pos), reinterpret_cast<const uint8_t*>(value.data()), len);
         types[pos] = varcharTypeFlag;
     }
 }
@@ -268,7 +272,7 @@ void BinaryRowData::setStringView(int pos, std::string_view value)
 /**
  * Write VARCHAR column that is less than or equal to 7 bytes
  */
-void BinaryRowData::writeFixLenVarchar(int fieldOffset, const uint8_t *bytes, int len)
+void BinaryRowData::writeFixLenVarchar(int fieldOffset, const uint8_t* bytes, int len)
 {
     uint64_t firstByte = len | 0x80; // first bit is 1, other bits is `len`, `len`'s first bit is never set
     uint64_t sevenBytes = 0L;        // real data
@@ -290,7 +294,7 @@ void BinaryRowData::writeFixLenVarchar(int fieldOffset, const uint8_t *bytes, in
 /**
  * Write VARCHAR column that is longer than 7 bytes
  */
-void BinaryRowData::writeVarLenVarchar(int fieldOffset, const uint8_t *bytes, int len)
+void BinaryRowData::writeVarLenVarchar(int fieldOffset, const uint8_t* bytes, int len)
 {
     int roundedSize = getNumberOfBytesToNearestWord(len);
     int segmentSize = this->getSizeInBytes();
@@ -302,7 +306,7 @@ void BinaryRowData::writeVarLenVarchar(int fieldOffset, const uint8_t *bytes, in
     int newBufferCapacity = bufferCapacity + roundedSize;
 
     // Allocate a new buffer with the increased size
-    auto *newBuffer = new uint8_t[newBufferCapacity]();
+    auto* newBuffer = new uint8_t[newBufferCapacity]();
 
     // Copy existing data to the new buffer
     auto ret = memcpy_s(newBuffer, newBufferCapacity, memoryBuffer, bufferCapacity);
@@ -311,7 +315,7 @@ void BinaryRowData::writeVarLenVarchar(int fieldOffset, const uint8_t *bytes, in
     }
 
     // Update the memoryBuffer pointer and bufferCapacity
-    delete[] memoryBuffer;    // Free the old buffer
+    delete[] memoryBuffer; // Free the old buffer
 
     memoryBuffer = newBuffer;
     bufferCapacity = newBufferCapacity;
@@ -347,7 +351,7 @@ void BinaryRowData::zeroOutPaddingBytes(int fieldOffset, int numBytes)
     if (remainder > 0) {
         int paddingBytes = 8 - remainder;
         for (int i = 0; i < paddingBytes; i++) {
-            MemorySegmentUtils::put(memoryBuffer, bufferCapacity, fieldOffset + numBytes + i,  static_cast<uint8_t>(0));
+            MemorySegmentUtils::put(memoryBuffer, bufferCapacity, fieldOffset + numBytes + i, static_cast<uint8_t>(0));
         }
     }
 }
@@ -367,14 +371,14 @@ void BinaryRowData::setOffsetAndSize(int headerOffset, int varcharOffset, int le
  * @param other instance to compare to
  */
 
-bool BinaryRowData::operator==(const RowData &other) const
+bool BinaryRowData::operator==(const RowData& other) const
 {
     // Check for self-reference
     if (this == &other) {
         return true;
     }
 
-    auto castedOther = static_cast<const BinaryRowData *>(&other);
+    auto castedOther = static_cast<const BinaryRowData*>(&other);
     if (castedOther == nullptr) {
         // If it is not compared to a BinaryRowData return false directly
         return false;
@@ -383,9 +387,8 @@ bool BinaryRowData::operator==(const RowData &other) const
         return false;
     }
     return sizeInBytes_ == castedOther->sizeInBytes_ &&
-           BinarySegmentUtils::equals(memoryBuffer, offset_,
-                                      castedOther->memoryBuffer, castedOther->offset_,
-                                      sizeInBytes_);
+           BinarySegmentUtils::equals(
+               memoryBuffer, offset_, castedOther->memoryBuffer, castedOther->offset_, sizeInBytes_);
 }
 
 /**
@@ -407,13 +410,13 @@ void BinaryRowData::printSegInBinary() const
     }
 }
 
-RowData *BinaryRowData::copy()
+RowData* BinaryRowData::copy()
 {
     LOG("copy()  BinaryRowData");
-    auto *newRow = new BinaryRowData(arity_);
-    auto *bytes = new uint8_t[sizeInBytes_];
+    auto* newRow = new BinaryRowData(arity_);
+    auto* bytes = new uint8_t[sizeInBytes_];
     MemorySegmentUtils::copy(memoryBuffer, offset_, bytes, 0, sizeInBytes_);
-    
+
     newRow->own(bytes, 0, sizeInBytes_, sizeInBytes_);
     newRow->types = types;
     return newRow;
@@ -429,7 +432,8 @@ int BinaryRowData::hashCodeFast() const
     return hash;
 }
 
-void BinaryRowData::setDecimal128(int pos, uint64_t low, int64_t high) {
+void BinaryRowData::setDecimal128(int pos, uint64_t low, int64_t high)
+{
     setNotNullAt(pos);
     types[pos] = 2;
     int roundedSize = getNumberOfBytesToNearestWord(16);
@@ -442,18 +446,18 @@ void BinaryRowData::setDecimal128(int pos, uint64_t low, int64_t high) {
     int newBufferCapacity = bufferCapacity + roundedSize;
 
     // Allocate a new buffer with the increased size
-    auto *newBuffer = new uint8_t[newBufferCapacity]();
+    auto* newBuffer = new uint8_t[newBufferCapacity]();
 
     // Copy existing data to the new buffer
     auto ret = memcpy_s(newBuffer, newBufferCapacity, memoryBuffer, bufferCapacity);
     if (ret != EOK) {
-        INFO_RELEASE("BinaryRowData.cpp setDecimal128, memcpy_s failed")
+        INFO_RELEASE("BinaryRowData.cpp setDecimal128, memcpy_s failed");
         delete[] memoryBuffer;
         throw std::runtime_error("memcpy_s failed");
     }
 
     // Update the memoryBuffer pointer and bufferCapacity
-    delete[] memoryBuffer;    // Free the old buffer
+    delete[] memoryBuffer; // Free the old buffer
 
     memoryBuffer = newBuffer;
     bufferCapacity = newBufferCapacity;
@@ -463,4 +467,3 @@ void BinaryRowData::setDecimal128(int pos, uint64_t low, int64_t high) {
     MemorySegmentUtils::putLong(memoryBuffer, bufferCapacity, segmentSize + 8, __builtin_bswap64(low));
     zeroOutPaddingBytes(segmentSize, 16);
 }
-

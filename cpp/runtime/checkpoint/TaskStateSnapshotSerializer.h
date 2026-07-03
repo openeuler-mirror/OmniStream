@@ -27,8 +27,8 @@ class TaskStateSnapshotSerializer {
 public:
     static nlohmann::json Serialize(const std::shared_ptr<TaskStateSnapshot>& localState);
 
-    static nlohmann::json parseOperatorStateAndKeyedState(nlohmann::json subtaskStateJson,
-        std::shared_ptr<OperatorSubtaskState> operatorSubtaskState);
+    static nlohmann::json parseOperatorStateAndKeyedState(
+        nlohmann::json subtaskStateJson, std::shared_ptr<OperatorSubtaskState> operatorSubtaskState);
 
     static nlohmann::json parseOperatorState(StateObjectCollection<OperatorStateHandle> operatorState)
     {
