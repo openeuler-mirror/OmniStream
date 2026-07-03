@@ -142,9 +142,9 @@ private:
     /** Mapping from an operator id to the state of one subtask of this operator. */
     std::unordered_map<OperatorID, std::shared_ptr<OperatorSubtaskState>> subtaskStatesByOperatorID;
 
-    bool isTaskDeployedAsFinished;
+    bool isTaskDeployedAsFinished = false;
 
-    bool isTaskFinished;
+    bool isTaskFinished = false;
 
     /** Returns the only valid mapping as ensured by {@link StateAssignmentOperation}. */
     std::shared_ptr<InflightDataRescalingDescriptor> GetMapping(

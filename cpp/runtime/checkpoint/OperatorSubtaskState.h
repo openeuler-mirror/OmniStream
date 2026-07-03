@@ -217,9 +217,9 @@ private:
      * The state size. This is also part of the deserialized state handle. We store it here in order
      * to not deserialize the state handle when gathering stats.
      */
-    long stateSize;
+    long stateSize = 0;
 
-    long checkpointedSize;
+    long checkpointedSize = 0;
 
     template <typename T>
     void DiscardStateHandles(
