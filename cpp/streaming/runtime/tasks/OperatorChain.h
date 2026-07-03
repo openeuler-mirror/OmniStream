@@ -193,6 +193,15 @@ public:
     }
 
 protected:
+    OperatorChainV2()
+        : isClosed_(false),
+          mainOperatorOutput(nullptr),
+          mainOperatorWrapper(nullptr),
+          tailOperatorWrapper(nullptr),
+          operatorEventDispatcher(nullptr)
+    {
+    }
+
     bool isClosed_ = false;
     // WatermarkGaugeExposingOutput<StreamRecord<OUT>> mainOperatorOutput;
     WatermarkGaugeExposingOutput* mainOperatorOutput;
