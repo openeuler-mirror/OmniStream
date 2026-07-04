@@ -659,7 +659,7 @@ StreamOperator* StreamOperatorFactory::CreateReduceOp(
                     valueSerializer = typeInfo->getTypeSerializer();
                     delete typeInfo;
                     INFO_RELEASE(
-                        "Error:CreateReduceOp: built valueSerializer="
+                        "CreateReduceOp: built valueSerializer="
                         << (valueSerializer ? valueSerializer->getName() : "null"));
                 }
             }

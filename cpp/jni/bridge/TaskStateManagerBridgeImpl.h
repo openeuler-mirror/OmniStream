@@ -197,7 +197,6 @@ public:
 
     std::shared_ptr<TaskStateSnapshot> RetrieveLocalState(long restoreCheckpointId)
     {
-        GErrorLog("method RetrieveLocalState begin!");
         JNIEnv* env;
         // Attach the current thread to the Java VM
         jint res = g_OmniStreamJVM->AttachCurrentThread(reinterpret_cast<void**>(&env), nullptr);
@@ -254,14 +253,9 @@ public:
                     std::string snapshotInfoString(resultStr);
                     env->ReleaseStringUTFChars(ret, resultStr);
 
-                    // 打印返回结果
-                    std::stringstream ss;
-                    ss << "retrieve result for checkpoint " << restoreCheckpointId << ": " << snapshotInfoString;
-                    GErrorLog(ss.str());
-
                     // 判断结果是否为空
                     if (snapshotInfoString == "NULL") {
-                        GErrorLog("Java side returned NULL - no snapshot available");
+                        // No local state snapshot is expected for a fresh start or unavailable local recovery.
                     } else if (snapshotInfoString == "ERROR") {
                         GErrorLog("Java side returned ERROR - exception occurred");
                     } else if (!snapshotInfoString.empty()) {
@@ -273,10 +267,6 @@ public:
                             // 例如：taskStateSnapshot = ConvertJsonToTaskStateSnapshot(snapshotJson);
                             // 暂时返回一个空的shared_ptr，你需要实现具体的转换逻辑
                             taskStateSnapshot = TaskStateSnapshotDeserializer::Deserialize(snapshotJson.dump());
-                            std::stringstream taskStateSnapshotstr;
-                            taskStateSnapshotstr << "make taskStateSnapshot:" << taskStateSnapshot->ToString();
-                            GErrorLog(taskStateSnapshotstr.str());
-
                         } catch (const std::exception& e) {
                             std::stringstream errorMsg;
                             errorMsg << "Failed to parse JSON: " << e.what();
