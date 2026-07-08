@@ -16,13 +16,22 @@ KafkaSourceReader::KafkaSourceReader(
     FutureCompletingBlockingQueue<RdKafka::Message>* elementsQueue,
     SingleThreadFetcherManager<RdKafka::Message, KafkaPartitionSplit>* splitFetcherManager,
     RecordEmitter<RdKafka::Message, KafkaPartitionSplitState>* recordEmitter,
+    const std::unordered_map<std::string, std::string>& props,
     SourceReaderContext* context,
     bool isBatch)
     : SingleThreadMultiplexSourceReaderBase<RdKafka::Message, KafkaPartitionSplit, KafkaPartitionSplitState>(
           elementsQueue, splitFetcherManager, recordEmitter, context, isBatch)
 {
-    // todo 修改为读取配置的形式
-    commitOffsetsOnCheckpoint_ = false;
+    // 修改为读取配置的形式
+    auto it = props.find("commit.offsets.on.checkpoint");
+    if (it != props.end() && it->second == "false") {
+        commitOffsetsOnCheckpoint_ = false;
+        INFO_RELEASE(
+            "Offset commit on checkpoint is disabled. "
+            "Consuming offset will not be reported back to Kafka cluster.");
+    } else {
+        commitOffsetsOnCheckpoint_ = true;
+    }
 }
 
 KafkaPartitionSplitState* KafkaSourceReader::initializedState(KafkaPartitionSplit* split)

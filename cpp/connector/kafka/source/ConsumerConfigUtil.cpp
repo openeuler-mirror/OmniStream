@@ -44,7 +44,8 @@ std::map<std::string, std::string> ConsumerConfig{
     {"connections.max.idle.ms", "connections.max.idle.ms"},
     {"allow.auto.create.topics", "allow.auto.create.topics"},
     {"security.protocol", "security.protocol"},
-    {"sasl.mechanism", "sasl.mechanism"}};
+    {"sasl.mechanism", "sasl.mechanism"},
+    {"commit.offsets.on.checkpoint", "commit.offsets.on.checkpoint"}};
 }
 
 const std::map<std::string, std::string>& ConsumerConfigUtil::GetConfig()

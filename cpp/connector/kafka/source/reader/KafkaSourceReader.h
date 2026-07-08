@@ -32,6 +32,7 @@ public:
         FutureCompletingBlockingQueue<RdKafka::Message>* elementsQueue,
         SingleThreadFetcherManager<RdKafka::Message, KafkaPartitionSplit>* splitFetcherManager,
         RecordEmitter<RdKafka::Message, KafkaPartitionSplitState>* recordEmitter,
+        const std::unordered_map<std::string, std::string>& props,
         SourceReaderContext* context,
         bool isBatch);
 
