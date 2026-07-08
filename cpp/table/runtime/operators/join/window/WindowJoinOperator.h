@@ -540,6 +540,7 @@ void WindowJoinOperator<KeyType>::buildRightNull(
                 insertLeft<omniruntime::type::Decimal128>(colIdx, leftElements, nullptr, outputBatch, false);
                 break;
             case omniruntime::type::DataTypeId::OMNI_CHAR:
+            case omniruntime::type::DataTypeId::OMNI_VARCHAR:
                 insertLeftVarchar(colIdx, leftElements, nullptr, outputBatch, false);
                 break;
             default: THROW_LOGIC_EXCEPTION("Type not recognized"); break;
@@ -580,6 +581,7 @@ void WindowJoinOperator<KeyType>::buildLeftNull(
                 insertRight<omniruntime::type::Decimal128>(colIdx, nullptr, rightElements, outputBatch, false);
                 break;
             case omniruntime::type::DataTypeId::OMNI_CHAR:
+            case omniruntime::type::DataTypeId::OMNI_VARCHAR:
                 insertRightVarchar(colIdx, nullptr, rightElements, outputBatch, false);
                 break;
             default: THROW_LOGIC_EXCEPTION("Type not recognized"); break;
